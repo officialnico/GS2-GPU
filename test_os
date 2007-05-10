@@ -39,6 +39,22 @@ if test $WORKSTATION_TYPE = 'unknown'; then
     fi
 fi
 
+# distinguish between Linux on Intel or Alpha machines:
+if test "$WORKSTATION_TYPE" = 'LINUX'; then
+    S=`uname -m`
+    if test "$S" = 'alpha'; then
+	WORKSTATION_TYPE='LINUX_alpha'
+    fi
+fi
+
+# Check if using Linux with Fujitsu F90 compiler
+if test "$WORKSTATION_TYPE" = 'LINUX'; then
+    S=`f90 -V 2>&1`
+    S=`echo $S | grep Fujitsu`
+    if test ${#S} != 0 ; then
+	WORKSTATION_TYPE='LINUX_fuj'
+    fi
+fi
+
 echo $WORKSTATION_TYPE
 # export WORKSTATION_TYPE
-
