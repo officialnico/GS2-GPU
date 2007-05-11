@@ -215,7 +215,7 @@ contains
     character (500) :: hack
     hack=trim(run_name)//ext
     close(unit=unit)
-    open (unit=unit, file=trim(hack), status="old", action="write", access="append")
+    open (unit=unit, file=trim(hack), status="old", action="write", position="append")
   end subroutine flush_output_file
 
   subroutine init_error_unit (open_it)
