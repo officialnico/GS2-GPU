@@ -191,7 +191,7 @@ ifeq ($(CPU),RS6000)
 #    F90FLAGS += -O4
     F90FLAGS += -O3 -qarch=auto -qtune=auto
   else
-    F90FLAGS += -g -qflttrap=nanq
+    F90FLAGS += -g 
     FLIBS    += # $$TRACE_MPIF
   endif
 
@@ -201,7 +201,7 @@ endif
 ifeq ($(CPU),Dawson)
   FC = xlf95
   PLATFORM_LINKS = ibm
-  F90FLAGS = -qmoddir=/tmp/mabarnes -I/tmp/mabarnes \
+  F90FLAGS = -qmoddir=/tmp/bdorland -I/tmp/bdorland \
 	-qautodbl=dbl4 -qsuffix=f=f90 -I $(UTILS) -I $(GEO) \
 	-I /u/local/apps/netcdf/include -I/u/local/mpi/mpilam/include 
   FLIBS = -L/u/local/apps/netcdf/lib -lnetcdf \
@@ -256,7 +256,7 @@ endif
 ifeq ($(CPU),LINUX_fuj)
   FC = mpif90
   FLIBS = -L/usr/local/lib -lnetcdf \
-	-L/u/mabarnes/fftw/lib -lfftw -lrfftw \
+	-L/u/bdorland/fftw/lib -lfftw -lrfftw \
 	$(UTILS)/mdslib.a
   PLATFORM_LINKS = linux_fuj
   F90FLAGS = -A m -C cdRR8 -I/usr/local/include -X9 \
@@ -344,6 +344,18 @@ ifeq ($(CPU),LINUX)
     F90FLAGS += -O4 
   endif
 
+endif
+
+# added 3/2007 for discovery at Dartmouth 
+# options for Linux with Portland Group or intel compilers
+ifeq ($(CPU),LINUX_andes)
+  FC = mpif90
+  FLIBS = $(UTILS)/mdslib.a -L/usr/local/lib  -lnetcdf \
+   libfftw.a librfftw.a -L/usr/local/toolworks/totalview.8.1.0-0/linux-x86-64/lib -ltvheap_64 \
+   -WI,-rpath,/usr/local/toolworks/totalview.8.1.0-0/lib
+  PLATFORM_LINKS = linux_andes
+  F90FLAGS = -i-static -static-libcxa -w -r8 -g -I$(UTILS) -I$(GEO) -I ./mod \
+  -I /usr/local/include/netcdf -L/usr/local/toolworks/totalview.8.1.0-0/linux-x86-64/lib -ltvheap_64 \ -WI,-rpath,/usr/local/toolworks/totalview.8.1.0-0/lib
 endif
 
 # 
@@ -557,7 +569,7 @@ gs2_diagnostics.o: file_utils.o kt_grids.o run_parameters.o species.o mp.o
 gs2_diagnostics.o: fields.o dist_fn.o constants.o prof.o gs2_save.o gs2_time.o
 gs2_diagnostics.o: gs2_io.o le_grids.o fields_arrays.o dist_fn_arrays.o 
 gs2_diagnostics.o: gs2_transforms.o nonlinear_terms.o collisions.o $(UTILS)/utils.a
-gs2_diagnostics.o: gs2_flux.o gs2_heating.o gs2_dist_io.o
+gs2_diagnostics.o: gs2_flux.o gs2_heating.o gs2_dist_io.o 
 gs2_heating.o: mp.o species.o
 dist_fn.o: mp.o species.o theta_grid.o kt_grids.o le_grids.o antenna.o
 dist_fn.o: run_parameters.o init_g.o text_options.o fft_work.o gs2_heating.o
