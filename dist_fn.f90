@@ -2,7 +2,6 @@ module dist_fn
   use init_g, only: ginit
   use redistribute, only: redist_type
   implicit none
-
   public :: init_dist_fn
   public :: timeadv, get_stress
   public :: getfieldeq, getan, getfieldexp, getmoms
@@ -16,6 +15,7 @@ module dist_fn
   public :: M_class, N_class, i_class, par_spectrum
   public :: l_links, r_links, itright, itleft, boundary
   public :: init_kperp2
+  public :: get_dens_vel, get_jext !GGH
 
   private
 
@@ -29,20 +29,19 @@ module dist_fn
   real :: aky_star, akx_star
   real :: D_kill, noise, cfac, wfb
 
-  integer :: adiabatic_option_switch, heating_option_switch
+  integer :: adiabatic_option_switch!, heating_option_switch
   integer, parameter :: adiabatic_option_default = 1, &
        adiabatic_option_zero = 2, &
        adiabatic_option_fieldlineavg = 3, &
        adiabatic_option_yavg = 4, &
        adiabatic_option_noJ = 5
-  integer, parameter ::  heating_option_cowley = 1, &
-       heating_option_qdh = 2
+!  integer, parameter ::  heating_option_cowley = 1
   integer :: source_option_switch
   integer, parameter :: source_option_full = 1, &
        source_option_zero = 2, source_option_sine = 3, &
        source_option_test1 = 4, source_option_phiext_full = 5, &
        source_option_test2_full = 6, source_option_cosine = 7, &
-       source_option_convect_full = 8
+       source_option_convect_full = 8, source_option_hm_force = 9
   integer :: boundary_option_switch
   integer, parameter :: boundary_option_zero = 1, &
        boundary_option_self_periodic = 2, &
@@ -133,7 +132,6 @@ contains
     use collisions, only: init_collisions
     use gs2_layouts, only: init_dist_fn_layouts, init_gs2_layouts
     use nonlinear_terms, only: init_nonlinear_terms
-    use additional_linear_terms, only: init_additional_linear_terms
     use init_g, only: init_init_g
     use hyper, only: init_hyper
     implicit none
@@ -162,11 +160,10 @@ contains
 
     call init_run_parameters
     call init_kperp2
-    call init_collisions 
+    call init_collisions ! needs to be after init_run_parameters
     call init_dist_fn_layouts (ntgrid, naky, ntheta0, nlambda, negrid, nspec)
     call init_init_g 
     call init_nonlinear_terms 
-    call init_additional_linear_terms
     call allocate_arrays
     call init_vpar
     call init_wdrift
@@ -187,13 +184,14 @@ contains
     use species, only: nspec
     use mp, only: proc0, broadcast
     implicit none
-    type (text_option), dimension (9), parameter :: sourceopts = &
+    type (text_option), dimension (10), parameter :: sourceopts = &
          (/ text_option('default', source_option_full), &
             text_option('full', source_option_full), &
             text_option('zero', source_option_zero), &
             text_option('sine', source_option_sine), &
             text_option('cosine', source_option_cosine), &
             text_option('test1', source_option_test1), &
+            text_option('hm', source_option_hm_force), &
             text_option('phiext_full', source_option_phiext_full), &
             text_option('test2_full', source_option_test2_full), &
             text_option('convect_full', source_option_convect_full) /)
@@ -210,11 +208,11 @@ contains
             text_option('alternate-zero', boundary_option_alternate_zero) /)
     character(20) :: boundary_option
 
-    type (text_option), dimension (3), parameter :: heatingopts = &
-         (/ text_option('default', heating_option_qdh), &
-            text_option('qdh', heating_option_qdh), &
-            text_option('Cowley',  heating_option_cowley) /)
-    character(20) :: heating_option
+!    type (text_option), dimension (3), parameter :: heatingopts = &
+!         (/ text_option('default', heating_option_qdh), &
+!            text_option('qdh', heating_option_qdh), &
+!            text_option('Cowley',  heating_option_cowley) /)
+!    character(20) :: heating_option
 
     type (text_option), dimension (8), parameter :: adiabaticopts = &
          (/ text_option('default', adiabatic_option_default), &
@@ -229,7 +227,7 @@ contains
     character(30) :: adiabatic_option
             
     namelist /dist_fn_knobs/ boundary_option, gridfac, apfac, driftknob, &
-         nperiod_guard, poisfac, adiabatic_option, heating_option, &
+         nperiod_guard, poisfac, adiabatic_option, &
          kfilter, afilter, mult_imp, test, def_parity, even, wfb, &
          save_n, save_u, save_Tpar, save_Tperp, D_kill, noise, flr, cfac, &
          kill_grid, h_kill
@@ -253,7 +251,6 @@ contains
        save_Tperp = .true.
        boundary_option = 'default'
        adiabatic_option = 'default'
-       heating_option = 'default'
        poisfac = 0.0
        gridfac = 1.0  ! used to be 5.e4
        apfac = 1.0
@@ -298,9 +295,9 @@ contains
        call get_option_value &
             (adiabatic_option, adiabaticopts, adiabatic_option_switch, &
             ierr, "adiabatic_option in dist_fn_knobs")
-       call get_option_value &
-            (heating_option, heatingopts, heating_option_switch, &
-            ierr, "heating_option in dist_fn_knobs")
+!       call get_option_value &
+!            (heating_option, heatingopts, heating_option_switch, &
+!            ierr, "heating_option in dist_fn_knobs")
 
        nperiod_guard = 0
     end if
@@ -316,7 +313,7 @@ contains
     call broadcast (save_Tperp)
     call broadcast (boundary_option_switch)
     call broadcast (adiabatic_option_switch)
-    call broadcast (heating_option_switch)
+!    call broadcast (heating_option_switch)
     call broadcast (gridfac)
     call broadcast (poisfac)
     call broadcast (apfac)
@@ -487,7 +484,8 @@ contains
     use theta_grid, only: shat
     use kt_grids, only: aky, theta0, akx
     use le_grids, only: e, al
-    use run_parameters, only: delt, wunits
+    use run_parameters, only: wunits
+    use gs2_time, only: code_dt
     implicit none
     real :: wdrift_func
     integer, intent (in) :: ig, ik, it, il, ie, is
@@ -496,13 +494,13 @@ contains
        wdrift_func = akx(it)/shat &
                     *(cvdrift0(ig)*e(ie,is)*(1.0 - al(il)*bmag(ig)) &
                       + gbdrift0(ig)*0.5*e(ie,is)*al(il)*bmag(ig)) &
-                     *delt/2.0
+                     *code_dt/2.0
     else
        wdrift_func = ((cvdrift(ig) + theta0(it,ik)*cvdrift0(ig)) &
                         *e(ie,is)*(1.0 - al(il)*bmag(ig)) &
                       + (gbdrift(ig) + theta0(it,ik)*gbdrift0(ig)) &
                         *0.5*e(ie,is)*al(il)*bmag(ig)) &
-                     *delt*wunits(ik)
+                     *code_dt*wunits(ik)
     end if
   end function wdrift_func
 
@@ -511,7 +509,8 @@ contains
     use species, only: spec
     use theta_grid, only: ntgrid, delthet, bmag, gradpar
     use le_grids, only: e, al
-    use run_parameters, only: delt, tunits
+    use run_parameters, only: tunits
+    use gs2_time, only: code_dt
     use gs2_layouts, only: g_lo, ik_idx, il_idx, ie_idx, is_idx
     implicit none
     integer :: iglo, ik, is, ie, il
@@ -555,12 +554,12 @@ contains
        ik = ik_idx(g_lo,iglo)
        is = is_idx(g_lo,iglo)
        vpar(-ntgrid:ntgrid-1,1,iglo) = &
-            spec(is)%zstm*tunits(ik)*delt &
+            spec(is)%zstm*tunits(ik)*code_dt &
             *0.5/delthet(-ntgrid:ntgrid-1) &
             *(abs(gradpar(-ntgrid:ntgrid-1)) + abs(gradpar(-ntgrid+1:ntgrid)))&
             *vpac(-ntgrid:ntgrid-1,1,iglo)
        vpar(-ntgrid:ntgrid-1,2,iglo) = &
-            spec(is)%zstm*tunits(ik)*delt &
+            spec(is)%zstm*tunits(ik)*code_dt &
             *0.5/delthet(-ntgrid:ntgrid-1) &
             *(abs(gradpar(-ntgrid:ntgrid-1)) + abs(gradpar(-ntgrid+1:ntgrid)))&
             *vpac(-ntgrid:ntgrid-1,2,iglo)
@@ -573,7 +572,8 @@ contains
     use species, only: nspec, spec
     use kt_grids, only: naky
     use le_grids, only: negrid, e
-    use run_parameters, only: delt, wunits
+    use run_parameters, only: wunits
+    use gs2_time, only: code_dt
     implicit none
     integer :: ik, ie, is
 
@@ -582,7 +582,7 @@ contains
     do is = 1, nspec
        do ie = 1, negrid
           do ik = 1, naky
-             wstar(ik,ie,is) = delt*wunits(ik) &
+             wstar(ik,ie,is) = code_dt*wunits(ik) &
                   *(spec(is)%fprim+spec(is)%tprim*(e(ie,is)-1.5))
           end do
        end do
@@ -596,7 +596,7 @@ contains
     use kt_grids, only: naky, ntheta0, aky, theta0, akx
     use le_grids, only: e, al
     use gs2_layouts, only: g_lo, ik_idx, it_idx, il_idx, ie_idx, is_idx
-    implicit none
+     implicit none
     integer :: ig, ik, it, il, ie, is
     integer :: iglo
     real :: arg
@@ -1712,34 +1712,30 @@ contains
     alloc = .false.
   end subroutine allocate_arrays
 
-  subroutine timeadv (phi, apar, aperp, phinew, aparnew, aperpnew, istep, dt_cfl, mode)
+  subroutine timeadv (phi, apar, bpar, phinew, aparnew, bparnew, istep, mode)
 
     use theta_grid, only: ntgrid
     use collisions, only: solfp1
     use dist_fn_arrays, only: gnew, g, gold
-    use additional_linear_terms, only: add_additional_linear_terms
     use nonlinear_terms, only: add_nonlinear_terms
     use hyper, only: hyper_diff
     implicit none
-    complex, dimension (-ntgrid:,:,:), intent (in out) :: phi, apar, aperp
-    complex, dimension (-ntgrid:,:,:), intent (in out) :: phinew, aparnew, aperpnew
+    complex, dimension (-ntgrid:,:,:), intent (in out) :: phi, apar, bpar
+    complex, dimension (-ntgrid:,:,:), intent (in out) :: phinew, aparnew, bparnew
     integer, intent (in) :: istep
     integer, optional, intent (in) :: mode
     integer :: modep
-    real :: dt_cfl
 
     modep = 0
     if (present(mode)) modep = mode
 
     if (modep <= 0) then
        call add_nonlinear_terms (g, gnl_1, gnl_2, &
-            phi, apar, aperp, istep, dt_cfl, bkdiff(1), fexp(1))
-       call invert_rhs (phi, apar, aperp, phinew, aparnew, aperpnew, istep)
-       call hyper_diff (gnew, phinew, aperpnew)
-       call kill (gnew, g0, phinew, aperpnew)
-       call solfp1 (gnew, g0, phinew, aparnew, aperpnew)
-       call add_additional_linear_terms &
-            (gnew, g0, phi, apar, aperp, phinew, aparnew, aperpnew)
+            phi, apar, bpar, istep, bkdiff(1), fexp(1))
+       call invert_rhs (phi, apar, bpar, phinew, aparnew, bparnew, istep)
+       call hyper_diff (gnew, g0, phinew, bparnew)
+       call kill (gnew, g0, phinew, bparnew)
+       call solfp1 (gnew, g0, phinew, aparnew, bparnew)
        
        if (def_parity) then
           if (even) then
@@ -1755,18 +1751,19 @@ contains
 
   end subroutine timeadv
 
-  subroutine kill (g0, g1, phi, aperp)
+  subroutine kill (g0, g1, phi, bpar)
     
     use gs2_layouts, only: ik_idx, it_idx
     use kt_grids, only: akx, aky
     use theta_grid, only: ntgrid, bmag
-    use run_parameters, only: delt, fphi, faperp, tnorm
+    use run_parameters, only: fphi, fbpar, tnorm
+    use gs2_time, only: code_dt
     use dist_fn_arrays, only: kperp2
     use le_grids, only: integrate, geint2g, lintegrate, nlambda, al, gint2g
-    use gs2_layouts, only: g_lo, geint_lo, gint_lo, il_idx
+    use gs2_layouts, only: g_lo, geint_lo, gint_lo
     use constants
     complex, dimension (-ntgrid:,:,g_lo%llim_proc:), intent (in out) :: g0, g1
-    complex, dimension (-ntgrid:,:,:), intent (in) :: phi, aperp
+    complex, dimension (-ntgrid:,:,:), intent (in) :: phi, bpar
     complex, dimension (:,:), allocatable :: g0eint, g1eint
     
     real, dimension (:,:), allocatable, save :: aintnorm
@@ -1799,7 +1796,7 @@ contains
        call integrate (g0, g0eint)
     end if
 
-    if (h_kill) call g_adjust (g0, phi, aperp, fphi, faperp)
+    if (h_kill) call g_adjust (g0, phi, bpar, fphi, fbpar)
 
 ! kill higher moments of f
     if (kill_grid) then
@@ -1807,22 +1804,22 @@ contains
           ik = ik_idx(g_lo, iglo)
           it = it_idx(g_lo, iglo)
           g1(:,1,iglo) = g0(:,1,iglo) &
-               * exp(-0.5*(akx(it)**2 + aky(ik)**2) * D_kill * delt / tnorm)
+               * exp(-0.5*(akx(it)**2 + aky(ik)**2) * D_kill * code_dt / tnorm)
           g1(:,2,iglo) = g0(:,2,iglo) &
-               * exp(-0.5*(akx(it)**2 + aky(ik)**2) * D_kill * delt / tnorm)
+               * exp(-0.5*(akx(it)**2 + aky(ik)**2) * D_kill * code_dt / tnorm)
        end do
     else       
        do iglo = g_lo%llim_proc, g_lo%ulim_proc
           ik = ik_idx(g_lo, iglo)
           it = it_idx(g_lo, iglo)
           g1(:,1,iglo) = g0(:,1,iglo) &
-               * exp(-0.5*kperp2(:,it,ik) * D_kill * delt / tnorm)
+               * exp(-0.5*kperp2(:,it,ik) * D_kill * code_dt / tnorm)
           g1(:,2,iglo) = g0(:,2,iglo) &
-               * exp(-0.5*kperp2(:,it,ik) * D_kill * delt / tnorm)
+               * exp(-0.5*kperp2(:,it,ik) * D_kill * code_dt / tnorm)
        end do
     end if
 
-    if (h_kill) call g_adjust (g1, phi, aperp, -fphi, -faperp)
+    if (h_kill) call g_adjust (g1, phi, bpar, -fphi, -fbpar)
 
 ! restore particle number
     if (save_n) then
@@ -1841,7 +1838,7 @@ contains
 
   end subroutine kill
 
-  subroutine g_adjust (g, phi, aperp, facphi, facaperp)
+  subroutine g_adjust (g, phi, bpar, facphi, facbpar)
     use species, only: spec
     use theta_grid, only: ntgrid
     use le_grids, only: anon
@@ -1849,8 +1846,8 @@ contains
     use gs2_layouts, only: g_lo, ik_idx, it_idx, ie_idx, is_idx
     implicit none
     complex, dimension (-ntgrid:,:,g_lo%llim_proc:), intent (in out) :: g
-    complex, dimension (-ntgrid:,:,:), intent (in) :: phi, aperp
-    real, intent (in) :: facphi, facaperp
+    complex, dimension (-ntgrid:,:,:), intent (in) :: phi, bpar
+    real, intent (in) :: facphi, facbpar
 
     integer :: iglo, ig, ik, it, ie, is
     complex :: adj
@@ -1862,7 +1859,7 @@ contains
        is = is_idx(g_lo,iglo)
        do ig = -ntgrid, ntgrid
           adj = anon(ie,is)*2.0*vperp2(ig,iglo)*aj1(ig,iglo) &
-                  *aperp(ig,it,ik)*facaperp &
+                  *bpar(ig,it,ik)*facbpar &
                + spec(is)%z*anon(ie,is)*phi(ig,it,ik)*aj0(ig,iglo) &
                   /spec(is)%temp*facphi
           g(ig,1,iglo) = g(ig,1,iglo) + adj
@@ -1872,22 +1869,23 @@ contains
   end subroutine g_adjust
 
   subroutine get_source_term &
-       (phi, apar, aperp, phinew, aparnew, aperpnew, istep, &
+       (phi, apar, bpar, phinew, aparnew, bparnew, istep, &
         isgn, iglo, sourcefac, source)
     use dist_fn_arrays, only: aj0, aj1, vperp2, vpar, vpac, g, ittp
     use theta_grid, only: ntgrid, theta
-    use kt_grids, only: aky, theta0
+    use kt_grids, only: aky, theta0, akx
     use le_grids, only: nlambda, ng2, lmax, anon, e, negrid
     use species, only: spec, nspec
-    use run_parameters, only: fphi, fapar, faperp, wunits, delt, tunits
+    use run_parameters, only: fphi, fapar, fbpar, wunits, tunits
+    use gs2_time, only: code_dt
     use gs2_layouts, only: g_lo, ik_idx, it_idx, il_idx, ie_idx, is_idx
     use run_parameters, only: tnorm
     use nonlinear_terms, only: nonlin
     use hyper, only: D_res
     use constants
     implicit none
-    complex, dimension (-ntgrid:,:,:), intent (in) :: phi,    apar,    aperp
-    complex, dimension (-ntgrid:,:,:), intent (in) :: phinew, aparnew, aperpnew
+    complex, dimension (-ntgrid:,:,:), intent (in) :: phi,    apar,    bpar
+    complex, dimension (-ntgrid:,:,:), intent (in) :: phinew, aparnew, bparnew
     integer, intent (in) :: istep
     integer, intent (in) :: isgn, iglo
     complex, intent (in) :: sourcefac
@@ -1895,7 +1893,7 @@ contains
     real :: tfac, timep
 
     integer :: ig, ik, it, il, ie, is
-    complex, dimension (-ntgrid:ntgrid) :: phigavg, apargavg
+    complex, dimension (-ntgrid:ntgrid) :: phigavg, apargavg!, bpargavg !GGH added bpargavg
 
 !    call timer (0, 'get_source_term')
 
@@ -1907,8 +1905,8 @@ contains
 
     phigavg  = (fexp(is)*phi(:,it,ik)   + (1.0-fexp(is))*phinew(:,it,ik)) &
                 *aj0(:,iglo)*fphi &
-             + (fexp(is)*aperp(:,it,ik) + (1.0-fexp(is))*aperpnew(:,it,ik))&
-                *aj1(:,iglo)*faperp*2.0*vperp2(:,iglo)*spec(is)%tz
+             + (fexp(is)*bpar(:,it,ik) + (1.0-fexp(is))*bparnew(:,it,ik))&
+                *aj1(:,iglo)*fbpar*2.0*vperp2(:,iglo)*spec(is)%tz
     apargavg = (fexp(is)*apar(:,it,ik)  + (1.0-fexp(is))*aparnew(:,it,ik)) &
                 *aj0(:,iglo)*fapar
 
@@ -1926,16 +1924,29 @@ contains
        end if       
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-! Solve self-consistent terms + include external Phi * F_0
+! Solve self-consistent terms + include external i omega_d * F_0
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     case(source_option_phiext_full)
        if (il <= lmax) then
           call set_source
           if (istep > 0 .and. aky(ik) < epsilon(0.0)) then
              source(:ntgrid-1) = source(:ntgrid-1) &
-                  - zi*anon(ie,is)*wdrift(:ntgrid-1,iglo)*2.0*phi_ext*sourcefac
+                  - zi*anon(ie,is)*wdrift(:ntgrid-1,iglo)*2.0*phi_ext*sourcefac &
+                  *(spec(is)%fprim+spec(is)%tprim*(e(ie,is)-1.5))
           end if
        else
+          source = 0.0
+       end if
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+! Solve self-consistent terms + include external i omega_d Phi * F_0
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    case(source_option_hm_force)
+       if (il <= lmax) then
+          call set_source
+          if (istep > 0 .and. aky(int(aky_star)) == aky(ik) .and. akx(int(akx_star)) == akx(it)) &
+               source(:ntgrid-1) = source(:ntgrid-1) - zi*phi_ext*sourcefac
+       else 
           source = 0.0
        end if
 
@@ -1950,7 +1961,7 @@ contains
        end if
        if (aky(ik) == 0.0 .and. istep > 0) then
           source(:ntgrid-1) = source(:ntgrid-1) &
-               + tunits(ik)*delt &
+               + tunits(ik)*code_dt &
                *(aj0(:ntgrid-1,iglo)**2 + aj0(-ntgrid+1:,iglo)**2) &
                *(e(ie,is)-1.5)*sourcefac &
                *exp(-(theta(:ntgrid-1)/thetas)**2)
@@ -1981,7 +1992,7 @@ contains
 ! S = sin(theta)*f(omega)
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     case (source_option_sine)
-       source(:ntgrid-1) = tunits(ik)*delt &
+       source(:ntgrid-1) = tunits(ik)*code_dt &
             *(sin(theta(:ntgrid-1)) + sin(theta(-ntgrid+1:))) &
             *sourcefac
 
@@ -1999,7 +2010,7 @@ contains
 ! S = cos(theta)*f(omega)
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     case (source_option_cosine)
-       source(:ntgrid-1) = tunits(ik)*delt &
+       source(:ntgrid-1) = tunits(ik)*code_dt &
             *(cos(theta(:ntgrid-1)) + cos(theta(-ntgrid+1:))) &
             *sourcefac
     end select
@@ -2028,6 +2039,7 @@ contains
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     if (source_option_switch == source_option_full .or. &
         source_option_switch == source_option_phiext_full .or. &
+        source_option_switch == source_option_hm_force .or. &
         source_option_switch == source_option_test2_full .or. &
         source_option_switch == source_option_test1) then
        if (nlambda > ng2 .and. isgn == 2) then
@@ -2044,7 +2056,8 @@ contains
              do ig = -ntgrid, ntgrid
                 if (il /= ittp(ig)) cycle             
                 source(ig) = source(ig) - zi*anon(ie,is)* &
-                     wdriftttp(ig,it,ik,ie,is)*phi_ext*sourcefac          
+                     wdriftttp(ig,it,ik,ie,is)*phi_ext*sourcefac &
+                     *(spec(is)%fprim+spec(is)%tprim*(e(ie,is)-1.5))          
              end do
           endif
 
@@ -2057,12 +2070,12 @@ contains
              case (1)
                 do ig = -ntgrid, ntgrid
                    if (il /= ittp(ig)) cycle
-                   source(ig) = source(ig) + 0.5*delt*tfac*gnl_1(ig,isgn,iglo)
+                   source(ig) = source(ig) + 0.5*code_dt*tfac*gnl_1(ig,isgn,iglo)
                 end do
              case default
                 do ig = -ntgrid, ntgrid
                    if (il /= ittp(ig)) cycle
-                   source(ig) = source(ig) + 0.5*delt*tfac*( &
+                   source(ig) = source(ig) + 0.5*code_dt*tfac*( &
                         1.5*gnl_1(ig,isgn,iglo) - 0.5*gnl_2(ig,isgn,iglo))
                 end do
              end select
@@ -2076,7 +2089,7 @@ contains
 
     subroutine set_source
 
-      complex :: apar_p, apar_m, phi_p, phi_m
+      complex :: apar_p, apar_m, phi_p, phi_m!, bpar_p !GGH added bpar_p
       real, dimension(:,:), allocatable, save :: ufac
       real :: bd, bdfac_p, bdfac_m
       integer :: i_e, i_s
@@ -2105,14 +2118,14 @@ contains
          apar_p = apargavg(ig+1)+apargavg(ig)
          apar_m = aparnew(ig+1,it,ik)+aparnew(ig,it,ik) & 
               -apar(ig+1,it,ik)-apar(ig,it,ik)
-         
+ 
          source(ig) = anon(ie,is)*(-2.0*vpar(ig,isgn,iglo)*phi_m &
               -spec(is)%zstm*vpac(ig,isgn,iglo) &
               *((aj0(ig+1,iglo) + aj0(ig,iglo))*0.5*apar_m  &
               + D_res(it,ik)*apar_p) &
               -zi*wdrift(ig,iglo)*phi_p) &
               + zi*(wstar(ik,ie,is) &
-              + vpac(ig,isgn,iglo)*delt*wunits(ik)*ufac(ie,is)) &
+              + vpac(ig,isgn,iglo)*code_dt*wunits(ik)*ufac(ie,is)) &
               *(phi_p - apar_p*spec(is)%stm*vpac(ig,isgn,iglo)) 
       end do
         
@@ -2124,11 +2137,11 @@ contains
             ! nothing
          case (1)
             do ig = -ntgrid, ntgrid-1
-               source(ig) = source(ig) + 0.5*delt*tfac*gnl_1(ig,isgn,iglo)
+               source(ig) = source(ig) + 0.5*code_dt*tfac*gnl_1(ig,isgn,iglo)
             end do
          case default
             do ig = -ntgrid, ntgrid-1
-               source(ig) = source(ig) + 0.5*delt*tfac*( &
+               source(ig) = source(ig) + 0.5*code_dt*tfac*( &
                     1.5*gnl_1(ig,isgn,iglo) - 0.5*gnl_2(ig,isgn,iglo))
             end do
          end select
@@ -2139,7 +2152,7 @@ contains
   end subroutine get_source_term
 
   subroutine invert_rhs_1 &
-       (phi, apar, aperp, phinew, aparnew, aperpnew, istep, &
+       (phi, apar, bpar, phinew, aparnew, bparnew, istep, &
         iglo, sourcefac)
     use dist_fn_arrays, only: gnew, ittp
     use run_parameters, only: eqzip, secondary, tertiary
@@ -2149,8 +2162,8 @@ contains
     use gs2_layouts, only: g_lo, ik_idx, it_idx, il_idx, ie_idx, is_idx
     use prof, only: prof_entering, prof_leaving
     implicit none
-    complex, dimension (-ntgrid:,:,:), intent (in) :: phi,    apar,    aperp
-    complex, dimension (-ntgrid:,:,:), intent (in) :: phinew, aparnew, aperpnew
+    complex, dimension (-ntgrid:,:,:), intent (in) :: phi,    apar,    bpar
+    complex, dimension (-ntgrid:,:,:), intent (in) :: phinew, aparnew, bparnew
     integer, intent (in) :: istep
     integer, intent (in) :: iglo
     complex, intent (in) :: sourcefac
@@ -2178,7 +2191,7 @@ contains
     end if
 
     do isgn = 1, 2
-       call get_source_term (phi, apar, aperp, phinew, aparnew, aperpnew, &
+       call get_source_term (phi, apar, bpar, phinew, aparnew, bparnew, &
             istep, isgn, iglo, sourcefac, source(:,isgn))
     end do
 
@@ -2373,15 +2386,15 @@ contains
   end subroutine invert_rhs_1
 
   subroutine invert_rhs_linked &
-       (phi, apar, aperp, phinew, aparnew, aperpnew, istep, sourcefac)
+       (phi, apar, bpar, phinew, aparnew, bparnew, istep, sourcefac)
     use dist_fn_arrays, only: gnew
     use theta_grid, only: ntgrid
     use le_grids, only: nlambda, ng2
     use gs2_layouts, only: g_lo, ik_idx, it_idx, il_idx
     use redistribute, only: fill
     implicit none
-    complex, dimension (-ntgrid:,:,:), intent (in) :: phi,    apar,    aperp
-    complex, dimension (-ntgrid:,:,:), intent (in) :: phinew, aparnew, aperpnew
+    complex, dimension (-ntgrid:,:,:), intent (in) :: phi,    apar,    bpar
+    complex, dimension (-ntgrid:,:,:), intent (in) :: phinew, aparnew, bparnew
     integer, intent (in) :: istep
     complex, intent (in) :: sourcefac
 
@@ -2390,7 +2403,7 @@ contains
     integer :: iglo, ncell
 
     do iglo = g_lo%llim_proc, g_lo%ulim_proc
-       call invert_rhs_1 (phi, apar, aperp, phinew, aparnew, aperpnew, &
+       call invert_rhs_1 (phi, apar, bpar, phinew, aparnew, bparnew, &
             istep, iglo, sourcefac)
     end do
 
@@ -2502,15 +2515,15 @@ contains
 
   end subroutine invert_rhs_linked
 
-  subroutine invert_rhs (phi, apar, aperp, phinew, aparnew, aperpnew, istep)
+  subroutine invert_rhs (phi, apar, bpar, phinew, aparnew, bparnew, istep)
     use theta_grid, only: ntgrid
     use gs2_layouts, only: g_lo
-    use gs2_time, only: stime
+    use gs2_time, only: code_time
     use constants
     use prof, only: prof_entering, prof_leaving
     implicit none
-    complex, dimension (-ntgrid:,:,:), intent (in) :: phi,    apar,    aperp
-    complex, dimension (-ntgrid:,:,:), intent (in) :: phinew, aparnew, aperpnew
+    complex, dimension (-ntgrid:,:,:), intent (in) :: phi,    apar,    bpar
+    complex, dimension (-ntgrid:,:,:), intent (in) :: phinew, aparnew, bparnew
     integer, intent (in) :: istep
 
     integer :: iglo
@@ -2520,7 +2533,7 @@ contains
 
     call prof_entering ("invert_rhs", "dist_fn")
 
-    time = stime()
+    time = code_time
     if (time > t0) then
        sourcefac = source0*exp(-zi*omega0*time+gamma0*time)
     else
@@ -2530,10 +2543,10 @@ contains
     select case (boundary_option_switch)
     case (boundary_option_linked)
        call invert_rhs_linked &
-            (phi, apar, aperp, phinew, aparnew, aperpnew, istep, sourcefac) 
+            (phi, apar, bpar, phinew, aparnew, bparnew, istep, sourcefac) 
     case default
        do iglo = g_lo%llim_proc, g_lo%ulim_proc
-          call invert_rhs_1 (phi, apar, aperp, phinew, aparnew, aperpnew, &
+          call invert_rhs_1 (phi, apar, bpar, phinew, aparnew, bparnew, &
                istep, iglo, sourcefac)
        end do
     end select
@@ -2547,7 +2560,7 @@ contains
     use species, only: nspec, spec
     use theta_grid, only: ntgrid
     use le_grids, only: integrate_species
-    use run_parameters, only: beta, fphi, fapar, faperp
+    use run_parameters, only: beta, fphi, fapar, fbpar
     use prof, only: prof_entering, prof_leaving
     use gs2_layouts, only: g_lo
     implicit none
@@ -2590,7 +2603,7 @@ contains
 
     end if
 
-    if (faperp > epsilon(0.0)) then
+    if (fbpar > epsilon(0.0)) then
        do iglo = g_lo%llim_proc, g_lo%ulim_proc
           do isgn = 1, 2
              do ig=-ntgrid, ntgrid
@@ -2790,16 +2803,16 @@ contains
     endif
   end subroutine init_fieldeq
 
-  subroutine getfieldeq1 (phi, apar, aperp, antot, antota, antotp, &
+  subroutine getfieldeq1 (phi, apar, bpar, antot, antota, antotp, &
        fieldeq, fieldeqa, fieldeqp)
     use dist_fn_arrays, only: kperp2
     use theta_grid, only: ntgrid, bmag, delthet, jacob
     use kt_grids, only: naky, ntheta0, aky
-    use run_parameters, only: fphi, fapar, faperp
+    use run_parameters, only: fphi, fapar, fbpar
     use run_parameters, only: beta, tite
     use species, only: spec, has_electron_species
     implicit none
-    complex, dimension (-ntgrid:,:,:), intent (in) :: phi, apar, aperp
+    complex, dimension (-ntgrid:,:,:), intent (in) :: phi, apar, bpar
     complex, dimension (-ntgrid:,:,:), intent (in) :: antot, antota, antotp
     complex, dimension (-ntgrid:,:,:), intent (out) ::fieldeq,fieldeqa,fieldeqp
     real, allocatable, dimension(:,:), save :: fl_avg, awgt
@@ -2858,7 +2871,7 @@ contains
     end if
 
     if (fphi > epsilon(0.0)) then
-       fieldeq = antot + aperp*gamtot1 - gamtot*gridfac1*phi 
+       fieldeq = antot + bpar*gamtot1 - gamtot*gridfac1*phi 
 
        if (.not. has_electron_species(spec)) then
           do ik = 1, naky
@@ -2873,25 +2886,25 @@ contains
        fieldeqa = antota - kperp2*gridfac1*apar
     end if
 
-    if (faperp > epsilon(0.0)) then
-       fieldeqp = (antotp+aperp*gamtot2+0.5*phi*gamtot1)*beta*apfac
+    if (fbpar > epsilon(0.0)) then
+       fieldeqp = (antotp+bpar*gamtot2+0.5*phi*gamtot1)*beta*apfac
        do ik = 1, naky
           do it = 1, ntheta0
              fieldeqp(:,it,ik) = fieldeqp(:,it,ik)/bmag(:)**2
           end do
        end do
-       fieldeqp = fieldeqp + aperp*gridfac1
+       fieldeqp = fieldeqp + bpar*gridfac1
     end if
 
     first = .false.
 
   end subroutine getfieldeq1
 
-  subroutine getfieldeq (phi, apar, aperp, fieldeq, fieldeqa, fieldeqp)
+  subroutine getfieldeq (phi, apar, bpar, fieldeq, fieldeqa, fieldeqp)
     use theta_grid, only: ntgrid
     use kt_grids, only: naky, ntheta0
     implicit none
-    complex, dimension (-ntgrid:,:,:), intent (in) :: phi, apar, aperp
+    complex, dimension (-ntgrid:,:,:), intent (in) :: phi, apar, bpar
     complex, dimension (-ntgrid:,:,:), intent (out) ::fieldeq,fieldeqa,fieldeqp
     complex, dimension (:,:,:), allocatable :: antot, antota, antotp
 
@@ -2900,17 +2913,17 @@ contains
     allocate (antotp(-ntgrid:ntgrid,ntheta0,naky))
 
     call getan (antot, antota, antotp)
-    call getfieldeq1 (phi, apar, aperp, antot, antota, antotp, &
+    call getfieldeq1 (phi, apar, bpar, antot, antota, antotp, &
          fieldeq, fieldeqa, fieldeqp)
 
     deallocate (antot, antota, antotp)
   end subroutine getfieldeq
   
-  subroutine getfieldexp (phi, apar, aperp)
+  subroutine getfieldexp (phi, apar, bpar)
     use theta_grid, only: ntgrid
     use kt_grids, only: naky, ntheta0
     implicit none
-    complex, dimension (-ntgrid:,:,:), intent (out) :: phi, apar, aperp
+    complex, dimension (-ntgrid:,:,:), intent (out) :: phi, apar, bpar
     complex, dimension (:,:,:), allocatable :: antot, antota, antotp
 
     allocate (antot (-ntgrid:ntgrid,ntheta0,naky))
@@ -2918,20 +2931,20 @@ contains
     allocate (antotp(-ntgrid:ntgrid,ntheta0,naky))
 
     call getan (antot, antota, antotp)
-    call getfieldeq2 (phi, apar, aperp, antot, antota, antotp)
+    call getfieldeq2 (phi, apar, bpar, antot, antota, antotp)
 
     deallocate (antot, antota, antotp)
   end subroutine getfieldexp
   
-  subroutine getfieldeq2 (phi, apar, aperp, antot, antota, antotp)
+  subroutine getfieldeq2 (phi, apar, bpar, antot, antota, antotp)
     use dist_fn_arrays, only: kperp2
     use theta_grid, only: ntgrid, bmag, delthet, jacob
     use kt_grids, only: naky, ntheta0, aky
-    use run_parameters, only: fphi, fapar, faperp
+    use run_parameters, only: fphi, fapar, fbpar
     use run_parameters, only: beta, tite
     use species, only: spec, has_electron_species
     implicit none
-    complex, dimension (-ntgrid:,:,:), intent (out) :: phi, apar, aperp
+    complex, dimension (-ntgrid:,:,:), intent (out) :: phi, apar, bpar
     complex, dimension (-ntgrid:,:,:), intent (in) :: antot, antota, antotp
     real, allocatable, dimension(:,:,:), save :: f1, f2, f3, f4, kp2
     real, allocatable, dimension(:,:), save :: fl_avg, awgt
@@ -3023,7 +3036,7 @@ contains
        do it = 1, ntheta0
           phi(:,it,ik) = fphi*(antot(:,it,ik)*f1(:,it,ik) + fl_avg(it,ik)*f1(:,it,ik) &
                + antotp(:,it,ik)*f2(:,it,ik))
-          aperp(:,it,ik) = faperp*antotp(:,it,ik)*f3(:,it,ik) + phi(:,it,ik)*f4(:,it,ik)
+          bpar(:,it,ik) = fbpar*antotp(:,it,ik)*f3(:,it,ik) + phi(:,it,ik)*f4(:,it,ik)
           apar(:,it,ik) = fapar*antota(:,it,ik)/kp2(:,it,ik)
        end do
     end do
@@ -3171,11 +3184,11 @@ contains
 
   end subroutine e_flux
       
-!  subroutine flux (phi, apar, aperp, &
+!  subroutine flux (phi, apar, bpar, &
 !       pflux, qflux, qflux_par, qflux_perp, vflux, &
 !       pmflux, qmflux, qmflux_par, qmflux_perp, vmflux, &
 !       pbflux, qbflux, qbflux_par, qbflux_perp, vbflux, anorm)
-  subroutine flux (phi, apar, aperp, &
+  subroutine flux (phi, apar, bpar, &
         pflux,  qflux,  vflux, &
        pmflux, qmflux, vmflux, &
        pbflux, qbflux, vbflux, &
@@ -3190,10 +3203,10 @@ contains
     use dist_fn_arrays, only: g, aj0, vpac, vpa, aj1, vperp2
     use gs2_layouts, only: g_lo, ie_idx, is_idx
     use mp, only: proc0
-    use run_parameters, only: woutunits, fphi, fapar, faperp
+    use run_parameters, only: woutunits, fphi, fapar, fbpar
     use constants, only: zi
     implicit none
-    complex, dimension (-ntgrid:,:,:), intent (in) :: phi, apar, aperp
+    complex, dimension (-ntgrid:,:,:), intent (in) :: phi, apar, bpar
     real, dimension (:,:,:), intent (out) :: pflux, pmflux, pbflux
     real, dimension (:,:,:), intent (out) :: vflux, vmflux, vbflux
     real, dimension (:,:,:,:), intent (out) :: qflux, qmflux, qbflux
@@ -3327,7 +3340,7 @@ contains
        vmflux = 0.
     end if
 
-    if (faperp > epsilon(0.0)) then
+    if (fbpar > epsilon(0.0)) then
        do iglo = g_lo%llim_proc, g_lo%ulim_proc
           is = is_idx(g_lo,iglo)
           do isgn = 1, 2
@@ -3335,12 +3348,12 @@ contains
                   = g(:,isgn,iglo)*aj1(:,iglo)*2.0*vperp2(:,iglo)*spec(is)%tz
           end do
        end do
-       call get_flux (aperp, pbflux, theta_pbflux, anorm, dnorm)
+       call get_flux (bpar, pbflux, theta_pbflux, anorm, dnorm)
 
        do iglo = g_lo%llim_proc, g_lo%ulim_proc
           g0(:,:,iglo) = g0(:,:,iglo)*e(ie_idx(g_lo,iglo), is_idx(g_lo,iglo))
        end do
-       call get_flux (aperp, qbflux(:,:,:,1), theta_qbflux(:,:,1), anorm, dnorm)
+       call get_flux (bpar, qbflux(:,:,:,1), theta_qbflux(:,:,1), anorm, dnorm)
 
        do iglo = g_lo%llim_proc, g_lo%ulim_proc
           is = is_idx(g_lo,iglo)
@@ -3350,7 +3363,7 @@ contains
                     *2.*vpa(:,isgn,iglo)**2
           end do
        end do
-       call get_flux (aperp, qbflux(:,:,:,2), theta_qbflux(:,:,2), anorm, dnorm)
+       call get_flux (bpar, qbflux(:,:,:,2), theta_qbflux(:,:,2), anorm, dnorm)
 
        do iglo = g_lo%llim_proc, g_lo%ulim_proc
           is = is_idx(g_lo,iglo)
@@ -3360,7 +3373,7 @@ contains
                     *vperp2(:,iglo)
           end do
        end do
-       call get_flux (aperp, qbflux(:,:,:,3), theta_qbflux(:,:,3), anorm, dnorm)
+       call get_flux (bpar, qbflux(:,:,:,3), theta_qbflux(:,:,3), anorm, dnorm)
 
        do iglo = g_lo%llim_proc, g_lo%ulim_proc
           is = is_idx(g_lo,iglo)
@@ -3370,7 +3383,7 @@ contains
                   *spec(is)%tz*vpac(:,isgn,iglo)
           end do
        end do
-       call get_flux (aperp, vbflux, theta_vbflux, anorm, dnorm)
+       call get_flux (bpar, vbflux, theta_vbflux, anorm, dnorm)
     else
        pbflux = 0.
        qbflux = 0.
@@ -3441,9 +3454,328 @@ contains
 
     deallocate (total)
   end subroutine get_flux
+!>GGH
+!=============================================================================
+! Density: Calculate Density perturbations
+!=============================================================================
+  subroutine get_dens_vel (dv, dvk, phi, apar, bpar, phinew, aparnew, bparnew)
+    use constants, only: pi
+    use dist_fn_arrays, only: aj0, aj1, vpar, vperp2, g, gnew
+    use gs2_heating, only: dens_vel_diagnostics
+    use gs2_layouts, only: g_lo, ik_idx, it_idx, is_idx
+    use kt_grids, only: ntheta0, naky,aky
+    use le_grids, only: integrate_moment
+    use mp, only: proc0
+    use nonlinear_terms, only: nonlin
+    use run_parameters, only: fphi, fbpar
+    use species, only: spec,nspec
+    use theta_grid, only: jacob, delthet, ntgrid
+    implicit none
+    !Passed
+    type (dens_vel_diagnostics) :: dv
+    type (dens_vel_diagnostics), dimension(:,:) :: dvk
+    complex, dimension (-ntgrid:,:,:) :: phi, apar, bpar, phinew, aparnew, bparnew
+    !Local 
+    integer :: isgn, iglo, ig, is, ik, it            !Indices
+    complex :: j0phi                                 !J_0 q phi/T 
+    complex :: j1bpar                               !2 J_1 v_perp^2 A_perp
+    complex :: hvpar                                 !Dist Func h v_par
+    complex :: hvperp                                !Dist Func h v_perp
+    complex :: hh                                    !Dist Func h 
+    complex, dimension(:,:,:,:), allocatable :: tot  !Integrated DF
+    real :: fac2                                     !Factor
+    real, dimension (:), allocatable :: wgt
 
-  subroutine get_heat (h, hk, phi, apar, aperp, phinew, aparnew, aperpnew)
+    !Allocate tot variable for each calculation
+    allocate (tot(-ntgrid:ntgrid, ntheta0, naky, nspec))
 
+    !Set up weighting factors for z-sums on proc0
+    if (proc0) then
+       allocate (wgt(-ntgrid:ntgrid))
+       wgt = 0.
+       do ig=-ntgrid,ntgrid-1
+          wgt(ig) = delthet(ig)*jacob(ig)
+       end do
+       wgt = wgt/sum(wgt)         
+    endif
+
+    !Parallel velocity perturbation--------------------------------------------
+    !Loop through and constuct time and z-centered integrands
+    do iglo=g_lo%llim_proc, g_lo%ulim_proc
+       is = is_idx(g_lo, iglo)
+       it = it_idx(g_lo, iglo)
+       ik = ik_idx(g_lo, iglo)
+       do isgn=1,2
+          do ig=-ntgrid, ntgrid-1
+             !Construct time and space centered v_par h
+             !NOTE: h=g + J_0 q phi/T + 2 J_1 v_perp^2  A_perp
+             j0phi   = aj0(ig,iglo)*phi(ig,it,ik)*spec(is)%zt
+             j1bpar = aj1(ig,iglo)*2.0*vperp2(ig,iglo)*bpar(ig,it,ik)
+             
+             hvpar = vpar(ig,isgn,iglo)*( &
+                  g(ig,isgn,iglo) + j0phi*fphi + j1bpar*fbpar)
+             
+             j0phi   = aj0(ig+1,iglo)*phi(ig+1,it,ik)*spec(is)%zt
+             j1bpar = aj1(ig+1,iglo)*2.0*vperp2(ig+1,iglo)*bpar(ig+1,it,ik)
+             
+             hvpar = hvpar +  vpar(ig+1,isgn,iglo)*( &
+                  g(ig+1,isgn,iglo) + j0phi*fphi + j1bpar*fbpar)
+             
+             j0phi   = aj0(ig,iglo)*phinew(ig,it,ik)*spec(is)%zt
+             j1bpar = aj1(ig,iglo)*2.0*vperp2(ig,iglo)*bparnew(ig,it,ik)
+             
+             hvpar = hvpar + vpar(ig,isgn,iglo)*( &
+                  gnew(ig,isgn,iglo) + j0phi*fphi + j1bpar*fbpar)
+             
+             j0phi   = aj0(ig+1,iglo)*phinew(ig+1,it,ik)*spec(is)%zt
+             j1bpar = aj1(ig+1,iglo)*2.0*vperp2(ig+1,iglo)*bparnew(ig+1,it,ik)
+             
+             hvpar = hvpar + vpar(ig+1,isgn,iglo)*( &
+                  gnew(ig+1,isgn,iglo) + j0phi*fphi + j1bpar*fbpar)
+             
+             hvpar = 0.25 * hvpar 
+
+             g0(ig,isgn,iglo) = spec(is)%dens*hvpar
+
+          end do
+       end do
+    end do
+
+    !Integrate over velocity
+    call integrate_moment (g0, tot)
+    
+    !Sum over theta (z-direction) to get perpendicular Fourier components only
+    if (proc0) then
+       do ik = 1, naky
+          !GGH QUES: What is fac2 all about?
+          fac2 = 0.5
+          if (aky(ik) < epsilon(0.0)) fac2 = 1.0
+          do it = 1, ntheta0
+             !Skip mean value (k=0) components
+             if (nonlin .and. it == 1 .and. ik == 1) cycle
+             do is = 1, nspec
+                do ig = -ntgrid, ntgrid-1
+                   dvk(it,ik)%dvpar(is) = dvk(it,ik)%dvpar(is) &
+                        + real(tot(ig,it,ik,is))*wgt(ig)*fac2
+                end do
+                dv % dvpar(is) = dv%dvpar(is) + dvk(it,ik)%dvpar(is)
+             end do
+          end do
+       end do
+    end if
+
+    !Perpendicular velocity perturbation---------------------------------------
+    !Loop through and constuct time and z-centered integrands
+    !Non-adiabatic part
+    do iglo=g_lo%llim_proc, g_lo%ulim_proc
+       is = is_idx(g_lo, iglo)
+       it = it_idx(g_lo, iglo)
+       ik = ik_idx(g_lo, iglo)
+       do isgn=1,2
+          do ig=-ntgrid, ntgrid-1
+             !Construct time and space centered v_par h
+             !NOTE: h=g + J_0 q phi/T + 2 J_1 v_perp^2  A_perp
+             j0phi   = aj0(ig,iglo)*phi(ig,it,ik)*spec(is)%zt
+             j1bpar = aj1(ig,iglo)*2.0*vperp2(ig,iglo)*bpar(ig,it,ik)
+             
+             hvperp = sqrt(vperp2(ig,iglo))*( &
+                  g(ig,isgn,iglo) + j0phi*fphi + j1bpar*fbpar)
+             
+             j0phi   = aj0(ig+1,iglo)*phi(ig+1,it,ik)*spec(is)%zt
+             j1bpar = aj1(ig+1,iglo)*2.0*vperp2(ig+1,iglo)*bpar(ig+1,it,ik)
+             
+             hvperp = hvperp +  sqrt(vperp2(ig+1,iglo))*( &
+                  g(ig+1,isgn,iglo) + j0phi*fphi + j1bpar*fbpar)
+             
+             j0phi   = aj0(ig,iglo)*phinew(ig,it,ik)*spec(is)%zt
+             j1bpar = aj1(ig,iglo)*2.0*vperp2(ig,iglo)*bparnew(ig,it,ik)
+             
+             hvperp = hvperp + sqrt(vperp2(ig,iglo))*( &
+                  gnew(ig,isgn,iglo) + j0phi*fphi + j1bpar*fbpar)
+             
+             j0phi   = aj0(ig+1,iglo)*phinew(ig+1,it,ik)*spec(is)%zt
+             j1bpar = aj1(ig+1,iglo)*2.0*vperp2(ig+1,iglo)*bparnew(ig+1,it,ik)
+             
+             hvperp = hvperp + sqrt(vperp2(ig+1,iglo))*( &
+                  gnew(ig+1,isgn,iglo) + j0phi*fphi + j1bpar*fbpar)
+             
+             hvperp = 0.25 * hvperp 
+
+             g0(ig,isgn,iglo) = spec(is)%dens*hvperp
+
+          end do
+       end do
+    end do
+
+    !Integrate over velocity
+    call integrate_moment (g0, tot)
+    
+    !Add in adiabatic part 
+    do iglo=g_lo%llim_proc, g_lo%ulim_proc
+       is = is_idx(g_lo, iglo)
+       it = it_idx(g_lo, iglo)
+       ik = ik_idx(g_lo, iglo)
+       do ig= -ntgrid, ntgrid-1
+          !Time and z-center J_0 Phi
+          j0phi= 0.25*spec(is)%zt* &
+               ( aj0(ig,iglo)  *(phi(ig,it,ik)  + phinew(ig,it,ik)  ) + &
+                 aj0(ig+1,iglo)*(phi(ig+1,it,ik)+ phinew(ig+1,it,ik)) )
+
+          tot(ig,it,ik,is)=tot(ig,it,ik,is)+ sqrt(pi/2.)*spec(is)%stm* &
+               spec(is)%dens*(1.-j0phi)               
+       enddo
+    enddo
+
+    !Sum over theta (z-direction) to get perpendicular Fourier components only
+    if (proc0) then
+       do ik = 1, naky
+          fac2 = 0.5
+          if (aky(ik) < epsilon(0.0)) fac2 = 1.0
+           do it = 1, ntheta0
+             !Skip mean value (k=0) components
+             if (nonlin .and. it == 1 .and. ik == 1) cycle
+             do is = 1, nspec
+                do ig = -ntgrid, ntgrid-1
+                   dvk(it,ik)%dvperp(is) = dvk(it,ik)%dvperp(is) &
+                        + real(tot(ig,it,ik,is))*wgt(ig)*fac2
+                end do
+                dv % dvperp(is) = dv%dvperp(is) + dvk(it,ik)%dvperp(is)
+             end do
+          end do
+       end do
+    end if
+    !Density perturbation------------------------------------------------------
+    !Loop through and constuct time and z-centered integrands
+    !Non-adiabatic part
+    do iglo=g_lo%llim_proc, g_lo%ulim_proc
+       is = is_idx(g_lo, iglo)
+       it = it_idx(g_lo, iglo)
+       ik = ik_idx(g_lo, iglo)
+       do isgn=1,2
+          do ig=-ntgrid, ntgrid-1
+             !Construct time and space centered v_par h
+             !NOTE: h=g + J_0 q phi/T + 2 J_1 v_perp^2  A_perp
+             j0phi   = aj0(ig,iglo)*phi(ig,it,ik)*spec(is)%zt
+             j1bpar = aj1(ig,iglo)*2.0*vperp2(ig,iglo)*bpar(ig,it,ik)
+             
+             hh = g(ig,isgn,iglo) + j0phi*fphi + j1bpar*fbpar
+             
+             j0phi   = aj0(ig+1,iglo)*phi(ig+1,it,ik)*spec(is)%zt
+             j1bpar = aj1(ig+1,iglo)*2.0*vperp2(ig+1,iglo)*bpar(ig+1,it,ik)
+             
+             hh = hh +  &
+                  g(ig+1,isgn,iglo) + j0phi*fphi + j1bpar*fbpar
+             
+             j0phi   = aj0(ig,iglo)*phinew(ig,it,ik)*spec(is)%zt
+             j1bpar = aj1(ig,iglo)*2.0*vperp2(ig,iglo)*bparnew(ig,it,ik)
+             
+             hh = hh + &
+                  gnew(ig,isgn,iglo) + j0phi*fphi + j1bpar*fbpar
+             
+             j0phi   = aj0(ig+1,iglo)*phinew(ig+1,it,ik)*spec(is)%zt
+             j1bpar = aj1(ig+1,iglo)*2.0*vperp2(ig+1,iglo)*bparnew(ig+1,it,ik)
+             
+             hh = hh +  &
+                  gnew(ig+1,isgn,iglo) + j0phi*fphi + j1bpar*fbpar
+             
+             hh = 0.25 * hh 
+
+             g0(ig,isgn,iglo) = spec(is)%dens*hh
+
+          end do
+       end do
+    end do
+
+    !Integrate over velocity
+    call integrate_moment (g0, tot)
+    
+    !Add in adiabatic part 
+    do iglo=g_lo%llim_proc, g_lo%ulim_proc
+       is = is_idx(g_lo, iglo)
+       it = it_idx(g_lo, iglo)
+       ik = ik_idx(g_lo, iglo)
+       do ig= -ntgrid, ntgrid-1
+          !Time and z-center J_0 Phi
+          j0phi= 0.25*spec(is)%zt* &
+               ( aj0(ig,iglo)  *(phi(ig,it,ik)  + phinew(ig,it,ik)  ) + &
+                 aj0(ig+1,iglo)*(phi(ig+1,it,ik)+ phinew(ig+1,it,ik)) )
+
+          tot(ig,it,ik,is)=tot(ig,it,ik,is) - spec(is)%dens*j0phi              
+       enddo
+    enddo
+
+    !Sum over theta (z-direction) to get perpendicular Fourier components only
+    if (proc0) then
+       do ik = 1, naky
+          fac2 = 0.5
+          if (aky(ik) < epsilon(0.0)) fac2 = 1.0
+          do it = 1, ntheta0
+             !Skip mean value (k=0) components
+             if (nonlin .and. it == 1 .and. ik == 1) cycle
+             do is = 1, nspec
+                do ig = -ntgrid, ntgrid-1
+                   dvk(it,ik)%dn(is) = dvk(it,ik)%dn(is) &
+                        + real(tot(ig,it,ik,is))*wgt(ig)*fac2
+                end do
+                dv % dn(is) = dv%dn(is) + dvk(it,ik)%dn(is)
+             end do
+          end do
+       end do
+    end if
+
+    deallocate (tot)
+  end subroutine get_dens_vel
+!=============================================================================
+! Density: Calculate Density perturbations
+!=============================================================================
+  subroutine get_jext(j_ext)
+    use dist_fn_arrays, only: kperp2
+    use kt_grids, only: ntheta0, naky,aky
+    use mp, only: proc0
+    use theta_grid, only: jacob, delthet, ntgrid
+    use antenna, only: antenna_apar
+    implicit none
+    !Passed
+    real, dimension(:,:) ::  j_ext
+    !Local 
+    complex, dimension(:,:,:), allocatable :: j_extz
+    integer :: ig,ik, it                             !Indices
+    real :: fac2                                     !Factor
+    real, dimension (:), allocatable :: wgt
+    
+
+    !Get z-centered j_ext at current time
+    allocate (j_extz(-ntgrid:ntgrid, ntheta0, naky)) ; j_extz = 0.
+    call antenna_apar (kperp2, j_extz)       
+
+    !Set weighting factor for z-averages
+!    if (proc0) then
+       allocate (wgt(-ntgrid:ntgrid))
+       !GGH NOTE: Here wgt is 1/(2*ntgrid)
+       wgt = 0.
+       do ig=-ntgrid,ntgrid-1
+          wgt(ig) = delthet(ig)*jacob(ig)
+       end do
+       wgt = wgt/sum(wgt)         
+!    endif
+
+    !Take average over z
+    do ig=-ntgrid, ntgrid-1
+       do ik = 1, naky
+          fac2 = 0.5
+          if (aky(ik) < epsilon(0.0)) fac2 = 1.0
+          do it = 1, ntheta0
+             j_ext(it,ik)=j_ext(it,ik)+real(j_extz(ig,it,ik))*wgt(ig)*fac2
+          end do
+       end do
+    enddo
+
+    deallocate (wgt,j_extz)
+
+  end subroutine get_jext
+!<GGH
+!=============================================================================
+  subroutine get_heat (h, hk, phi, apar, bpar, phinew, aparnew, bparnew)
     use mp, only: proc0, iproc
     use constants, only: pi, zi
     use kt_grids, only: ntheta0, naky, aky, akx
@@ -3451,152 +3783,89 @@ contains
     use gs2_heating, only: heating_diagnostics
     use gs2_layouts, only: g_lo, ik_idx, it_idx, is_idx, ie_idx
     use le_grids, only: integrate_moment
-    use species, only: spec, nspec
+    use species, only: spec, nspec,has_electron_species
     use theta_grid, only: jacob, delthet, ntgrid
-    use run_parameters, only: fphi, fapar, faperp, delt, tunits, beta, tnorm
+    use run_parameters, only: fphi, fapar, fbpar, tunits, beta, tnorm, tite
+    use gs2_time, only: code_dt
     use nonlinear_terms, only: nonlin
-    use antenna, only: antenna_apar
-    use hyper, only: D_v, D_eta
+    use antenna, only: antenna_apar, a_ext_data
+    use hyper, only: D_v, D_eta, nexp
     implicit none
     type (heating_diagnostics) :: h
     type (heating_diagnostics), dimension(:,:) :: hk
-    complex, dimension (-ntgrid:,:,:) :: phi, apar, aperp, phinew, aparnew, aperpnew
+!    complex, dimension (-ntgrid:,:,:), pointer :: hh, hnew
+    complex, dimension (-ntgrid:,:,:) :: phi, apar, bpar, phinew, aparnew, bparnew
     complex, dimension(:,:,:,:), allocatable :: tot
-    complex, dimension(:,:,:), allocatable :: epar, aperpdot, apardot, phidot, j_ext
-    complex :: fac, hfac, pfac, jpold, afac, chi
-    complex :: j0phi, j1aperp, chidot, eparavg, j0phidot
-    complex :: phi_m, apar_m, aperp_m, pstar, pstardot, gdot, hdot, hold
-    complex :: phi_avg, apar_avg, aperp_avg
+    complex, dimension(:,:,:), allocatable :: epar, bpardot, apardot, phidot, j_ext, a_ext_old, a_ext_new
+    complex :: fac, hfac, pfac, jpold, afac, chi, havg, gavg
+    complex :: bfac                                   !B_|| intermediate calculation
+    complex :: chidot, eparavg, j0phidot, j0phiavg, j1bparavg, j0aparavg
+    complex :: phi_m, apar_m, bpar_m, pstar, pstardot, gdot, hdot, hold, adot
+    complex :: phi_avg, apar_avg, bpar_avg, bperp_m, bperp_avg
+    complex :: de, denew, chinew,chi1,chi2, havg2,havg2new,h2dot
     real, dimension (:), allocatable :: wgt
-    real :: fac2, dtinv, akperp4
+    real :: fac2, dtinv, akperp4 , akperp6, akperp2
     integer :: isgn, iglo, ig, is, ik, it, ie
 
     g0(ntgrid,:,:) = 0.
 
-! preferred case first:
+! ==========================================================================
+! Ion/Electron heating------------------------------------------------------
+! ==========================================================================
 
-    select case (heating_option_switch)
+    allocate ( phidot(-ntgrid:ntgrid, ntheta0, naky))
+    allocate (apardot(-ntgrid:ntgrid, ntheta0, naky))
+    allocate (bpardot(-ntgrid:ntgrid, ntheta0, naky))
 
-! Two options give identical results.  First option is a little faster, 
-! uses a little less memory, and is therefore the default.
+    call dot ( phi,  phinew,  phidot, fphi)
+    call dot (apar, aparnew, apardot, fapar)
+    call dot (bpar, bparnew, bpardot, fbpar)
 
-    case (heating_option_qdh)
-       
-       allocate ( apardot(-ntgrid:ntgrid, ntheta0, naky))
+ !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!!! Next two calls make the variables g, gnew = h, hnew 
+!!! until the end of this procedure!
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
-       do ik=1,naky
-          dtinv = 1./(delt*tunits(ik))
-          do it=1,ntheta0
-             do ig=-ntgrid,ntgrid-1
-                apardot(ig,it,ik) = 0.5*fapar*(aparnew(ig+1,it,ik)+aparnew(ig,it,ik) - &
-                     (apar(ig+1,it,ik)+apar(ig,it,ik)))*dtinv
-             end do
-          end do
-       end do
+    call g_adjust (g,    phi,    bpar,    fphi, fbpar)
+    call g_adjust (gnew, phinew, bparnew, fphi, fbpar)
 
-       do iglo=g_lo%llim_proc, g_lo%ulim_proc
-          is = is_idx(g_lo, iglo)
-          it = it_idx(g_lo, iglo)
-          ik = ik_idx(g_lo, iglo)
-          if (nonlin .and. it == 1 .and. ik == 1) cycle
-
-          dtinv = 1./(delt*tunits(ik))
-          do isgn=1,2
-             do ig=-ntgrid, ntgrid-1
-
-                pstar = 0.25*(fphi*aj0(ig,iglo)*(phi(ig,it,ik)+phi(ig+1,it,ik) &
-                     + phinew(ig,it,ik)+phinew(ig+1,it,ik)) &
-                     + faperp*aj1(ig,iglo)*2.0*vperp2(ig,iglo) &
-                     * (aperp(ig,it,ik)+aperp(ig+1,it,ik) &
-                     + aperpnew(ig,it,ik)+aperpnew(ig+1,it,ik))*spec(is)%tz)
-
-                gdot = 0.5*(gnew(ig+1,isgn,iglo)+gnew(ig,isgn,iglo) - &
-                           (g   (ig+1,isgn,iglo)+g   (ig,isgn,iglo)))*dtinv
+    do iglo=g_lo%llim_proc, g_lo%ulim_proc
+       is = is_idx(g_lo, iglo)
+       it = it_idx(g_lo, iglo)
+       ik = ik_idx(g_lo, iglo)
+       if (nonlin .and. it == 1 .and. ik == 1) cycle
+       dtinv = 1./(code_dt*tunits(ik))
+       do isgn=1,2
+          
+          do ig=-ntgrid, ntgrid-1
              
-                fac = 0.25*(g   (ig,isgn,iglo) + g   (ig+1,isgn,iglo) &
-                          + gnew(ig,isgn,iglo) + gnew(ig+1,isgn,iglo))
+             chidot = aj0(ig,iglo)*(phidot(ig,it,ik) &
+                  - vpac(ig,isgn,iglo) * spec(is)%stm * apardot(ig,it,ik)) &
+                  + aj1(ig,iglo)*2.0*vperp2(ig,iglo)*bpardot(ig,it,ik)*spec(is)%tz
+             
+             hdot = fdot (g   (ig  ,isgn,iglo), &
+                          g   (ig+1,isgn,iglo), &
+                          gnew(ig  ,isgn,iglo), &
+                          gnew(ig+1,isgn,iglo), dtinv)
+             
+             havg = favg (g   (ig  ,isgn,iglo), &
+                          g   (ig+1,isgn,iglo), &
+                          gnew(ig  ,isgn,iglo), &
+                          gnew(ig+1,isgn,iglo))
+             
+! First term on RHS and LHS of Eq B-10 of H1:
 
-                g0(ig,isgn,iglo) = - spec(is)%z*(conjg(fac)* &
-                     aj0(ig,iglo)*vpac(ig,isgn,iglo)*spec(is)%stm*apardot(ig,it,ik)*fapar &
-                     + conjg(pstar)*gdot) - conjg(fac)*gdot*spec(is)%temp
-!
-! The above is equivalent to what we actually derived except for the g*gdot term:
-!                g0(ig,isgn,iglo) = spec(is)%z*(conjg(fac)*chidot &
-!                     - conjg(pstar)*gdot - conjg(fac)*pstardot)
-!
-             end do
+             g0(ig,isgn,iglo) = spec(is)%dens*conjg(havg)* &
+                  (chidot*spec(is)%z-hdot*spec(is)%temp)
+
           end do
        end do
+    end do
 
-       deallocate (apardot)
-
-    case (heating_option_cowley)
-
-       allocate (  phidot(-ntgrid:ntgrid, ntheta0, naky))
-       allocate ( apardot(-ntgrid:ntgrid, ntheta0, naky))
-       allocate (aperpdot(-ntgrid:ntgrid, ntheta0, naky))
-
-       do ik=1,naky
-          dtinv = 1./(delt*tunits(ik))
-          do it=1,ntheta0
-             do ig=-ntgrid,ntgrid-1
-                phidot(ig,it,ik) = 0.5*fphi*(phinew(ig+1,it,ik)+phinew(ig,it,ik) - &
-                     (phi(ig+1,it,ik)+phi(ig,it,ik)))*dtinv
-                apardot(ig,it,ik) = 0.5*fapar*(aparnew(ig+1,it,ik)+aparnew(ig,it,ik) - &
-                     (apar(ig+1,it,ik)+apar(ig,it,ik)))*dtinv
-                aperpdot(ig,it,ik) = 0.5*faperp*(aperpnew(ig+1,it,ik)+aperpnew(ig,it,ik) - &
-                     (aperp(ig+1,it,ik)+aperp(ig,it,ik)))*dtinv
-             end do
-          end do
-       end do
-
-       do iglo=g_lo%llim_proc, g_lo%ulim_proc
-          is = is_idx(g_lo, iglo)
-          it = it_idx(g_lo, iglo)
-          ik = ik_idx(g_lo, iglo)
-          if (nonlin .and. it == 1 .and. ik == 1) cycle
-          dtinv = 1./(delt*tunits(ik))
-          do isgn=1,2
-
-             do ig=-ntgrid, ntgrid-1
-                chidot = aj0(ig,iglo)*(phidot(ig,it,ik) &
-                     - vpac(ig,isgn,iglo) * spec(is)%stm * apardot(ig,it,ik)) &
-                     + aj1(ig,iglo)*2.0*vperp2(ig,iglo)*aperpdot(ig,it,ik)*spec(is)%tz
-                
-                j0phi   = aj0(ig,iglo)*phi(ig,it,ik)*spec(is)%zt
-                j1aperp = aj1(ig,iglo)*2.0*vperp2(ig,iglo)*aperp(ig,it,ik)
-                
-                fac = g(ig,isgn,iglo)+(j0phi*fphi+j1aperp*faperp)
-                
-                j0phi   = aj0(ig+1,iglo)*phi(ig+1,it,ik)*spec(is)%zt
-                j1aperp = aj1(ig+1,iglo)*2.0*vperp2(ig+1,iglo)*aperp(ig+1,it,ik)
-                
-                fac = fac + g(ig+1,isgn,iglo)+(j0phi*fphi+j1aperp*faperp)
-                hold = fac
-                
-                j0phi   = aj0(ig,iglo)*phinew(ig,it,ik)*spec(is)%zt
-                j1aperp = aj1(ig,iglo)*2.0*vperp2(ig,iglo)*aperpnew(ig,it,ik)
-                
-                fac = fac + gnew(ig,isgn,iglo)+(j0phi*fphi + j1aperp*faperp)
-                
-                j0phi   = aj0(ig+1,iglo)*phinew(ig+1,it,ik)*spec(is)%zt
-                j1aperp = aj1(ig+1,iglo)*2.0*vperp2(ig+1,iglo)*aperpnew(ig+1,it,ik)
-                
-                fac = fac + gnew(ig+1,isgn,iglo)+(j0phi*fphi + j1aperp*faperp)
-                hdot = 0.5*(fac-2*hold)*dtinv
-
-                fac = 0.25 * fac ! added in fields at two values of theta and at two time steps
-                
-                g0(ig,isgn,iglo) = conjg(fac)*(chidot*spec(is)%z-hdot*spec(is)%temp)
-             end do
-          end do
-       end do
-
-       deallocate (phidot, apardot, aperpdot)
-
-    end select
+    deallocate (phidot, apardot, bpardot)
 
     allocate (tot(-ntgrid:ntgrid, ntheta0, naky, nspec))
+
     call integrate_moment (g0, tot)
 
     if (proc0) then
@@ -3614,133 +3883,255 @@ contains
              do it = 1, ntheta0
                 if (nonlin .and. it == 1 .and. ik == 1) cycle
                 do ig = -ntgrid, ntgrid-1
-                   hk(it,ik) % heating(is) = hk(it,ik) % heating(is) &
-                        + real(tot(ig,it,ik,is))*wgt(ig)*fac2*spec(is)%dens
+                    hk(it,ik) % heating(is) = hk(it,ik) % heating(is) &
+                        + real(tot(ig,it,ik,is))*wgt(ig)*fac2 
                 end do
                 h % heating(is) = h % heating(is) + hk(it,ik) % heating(is)
              end do
           end do
        end do
-
-! now calculate antenna power, and d/dt (energy), energy, hyper-damping 
-
-!       allocate (epar (-ntgrid:ntgrid, ntheta0, naky)) ; epar = 0.
-       allocate (j_ext(-ntgrid:ntgrid, ntheta0, naky)) ; j_ext = 0.
-       call antenna_apar (kperp2, j_ext)       
-!       call get_epar (phi, apar, phinew, aparnew, epar)
-       
-       do ik=1,naky
-          fac2 = 0.5
-          if (aky(ik) < epsilon(0.0)) fac2 = 1.0
-          dtinv = 1./(delt*tunits(ik))
-          do it = 1,ntheta0
-
-          if (nonlin .and. it == 1 .and. ik == 1) cycle
-
-             do ig=-ntgrid, ntgrid-1
-                
-                apar_m = 0.5*(aparnew(ig+1,it,ik)+aparnew(ig,it,ik) & 
-                     -apar(ig+1,it,ik)-apar(ig,it,ik))*fapar*dtinv
-                
-                aperp_m = 0.5*(aperpnew(ig+1,it,ik)+aperpnew(ig,it,ik) & 
-                     -aperp(ig+1,it,ik)-aperp(ig,it,ik))*faperp*dtinv
-                
-                apar_avg = 0.25*(apar(ig,it,ik)+apar(ig+1,it,ik) &
-                     + aparnew(ig,it,ik)+aparnew(ig+1,it,ik))*fapar
-
-                aperp_avg = 0.25*(aperp(ig,it,ik)+aperp(ig+1,it,ik) &
-                     + aperpnew(ig,it,ik)+aperpnew(ig+1,it,ik))*faperp
-! J_ext.E
-                fac = real(conjg(j_ext(ig,it,ik))*apar_m)*wgt(ig)*fac2
-
-                hk(it,ik) % antenna = hk(it, ik) % antenna + real(fac)
-! d/dt delta B**2
-                if (beta > epsilon(0.)) then
-                   fac = (conjg(apar_m)*apar_avg*kperp2(ig,it,ik) &
-                        + conjg(aperp_m)*aperp_avg)*wgt(ig)*fac2/beta*0.5
-                   
-                   hk(it,ik) % energy_dot = hk(it,ik) % energy_dot  + real(fac)
-! B**2/2
-                   fac = 0.5*(conjg(apar_avg)*apar_avg*kperp2(ig,it,ik) &
-                        + conjg(aperp_avg)*aperp_avg)*wgt(ig)*fac2/beta*0.5
-
-                   hk(it,ik) % energy = hk(it,ik) % energy + real(fac)
-                end if
-             end do
-             h % antenna = h % antenna + hk(it, ik) % antenna
-          end do
-       end do
-       deallocate (j_ext)
-!       deallocate (j_ext, epar)
     end if
 
-    allocate (phidot(-ntgrid:ntgrid, ntheta0, naky))
-    
-    do ik=1,naky
-       dtinv = 1./(delt*tunits(ik))
-       do it=1,ntheta0
-          do ig=-ntgrid,ntgrid-1
-             phidot(ig,it,ik) = 0.5*fphi*(phinew(ig+1,it,ik)+phinew(ig,it,ik) - &
-                  (phi(ig+1,it,ik)+phi(ig,it,ik)))*dtinv
-          end do
-       end do
-    end do
+! ==========================================================================
+! Antenna contribution to entropy equations for each species
+! ==========================================================================
+
+    allocate (a_ext_old(-ntgrid:ntgrid, ntheta0, naky))
+    allocate (a_ext_new(-ntgrid:ntgrid, ntheta0, naky))
+
+    call a_ext_data (a_ext_old, a_ext_new)
 
     do iglo=g_lo%llim_proc, g_lo%ulim_proc
        is = is_idx(g_lo, iglo)
        it = it_idx(g_lo, iglo)
        ik = ik_idx(g_lo, iglo)
        if (nonlin .and. it == 1 .and. ik == 1) cycle
-       dtinv = 1./(delt*tunits(ik))
+       dtinv = 1./(code_dt*tunits(ik))
        do isgn=1,2
           do ig=-ntgrid, ntgrid-1
              
-             j0phi   = aj0(ig,iglo)*phi(ig,it,ik)*spec(is)%zt
-             j1aperp = aj1(ig,iglo)*2.0*vperp2(ig,iglo)*aperp(ig,it,ik)
+             adot = fdot (a_ext_old(ig  ,it,ik), &
+                          a_ext_old(ig+1,it,ik), &
+                          a_ext_new(ig  ,it,ik), &
+                          a_ext_new(ig+1,it,ik), dtinv)
              
-             hfac = g(ig,isgn,iglo)+(j0phi*fphi+j1aperp*faperp)
-             pfac = j0phi*fphi
+             havg = favg (g   (ig  ,isgn,iglo)*aj0(ig  ,iglo)*vpa(ig  ,isgn,iglo), &
+                          g   (ig+1,isgn,iglo)*aj0(ig+1,iglo)*vpa(ig+1,isgn,iglo), &
+                          gnew(ig  ,isgn,iglo)*aj0(ig  ,iglo)*vpa(ig  ,isgn,iglo), &
+                          gnew(ig+1,isgn,iglo)*aj0(ig+1,iglo)*vpa(ig+1,isgn,iglo))
              
-             j0phi   = aj0(ig+1,iglo)*phi(ig+1,it,ik)*spec(is)%zt
-             j1aperp = aj1(ig+1,iglo)*2.0*vperp2(ig+1,iglo)*aperp(ig+1,it,ik)
-             
-             hfac = hfac + g(ig+1,isgn,iglo)+(j0phi*fphi+j1aperp*faperp)
-             pfac = pfac + j0phi*fphi
-             
-             hold = hfac  ! save for time derivative
-             jpold = pfac ! save for time derivative
-             
-             j0phi   = aj0(ig,iglo)*phinew(ig,it,ik)*spec(is)%zt
-             j1aperp = aj1(ig,iglo)*2.0*vperp2(ig,iglo)*aperpnew(ig,it,ik)
-             
-             hfac = hfac + gnew(ig,isgn,iglo)+(j0phi*fphi + j1aperp*faperp)
-             pfac = pfac + j0phi*fphi
-             
-             j0phi   = aj0(ig+1,iglo)*phinew(ig+1,it,ik)*spec(is)%zt
-             j1aperp = aj1(ig+1,iglo)*2.0*vperp2(ig+1,iglo)*aperpnew(ig+1,it,ik)
-             
-             hfac = hfac + gnew(ig+1,isgn,iglo)+(j0phi*fphi + j1aperp*faperp)
-             pfac = pfac + j0phi*fphi
-             
-             hdot = 0.5*(hfac-2*hold)*dtinv
-             j0phidot = 0.5*(pfac-2.*jpold)*dtinv
-             
-             hfac = 0.25 * hfac ! added in fields at two values of theta and at two time steps
-             pfac = 0.25 * pfac ! same
-             
-             phi_avg = 0.25*fphi*(phinew(ig+1,it,ik)+phinew(ig,it,ik) &
-                  + phi(ig+1,it,ik)+phi(ig,it,ik))*spec(is)%zt
-            
-             g0(ig,isgn,iglo) = spec(is)%dens*spec(is)%temp*( &
-                    conjg(hfac)*hdot &
-                  + conjg(phi_avg)*phidot(ig,it,ik)*spec(is)%zt &
-                  - conjg(j0phidot)*hfac &
-                  - conjg(pfac)*hdot)
+             g0(ig,isgn,iglo) = conjg(havg) * spec(is)%z * spec(is)%stm * spec(is)%dens * adot
+
           end do
        end do
     end do
-    deallocate (phidot)
+
+    deallocate (a_ext_old, a_ext_new)
+
     call integrate_moment (g0, tot)
+
+    if (proc0) then
+       do is = 1, nspec
+          do ik = 1, naky
+             fac2 = 0.5
+             if (aky(ik) < epsilon(0.0)) fac2 = 1.0
+             do it = 1, ntheta0
+                if (nonlin .and. it == 1 .and. ik == 1) cycle
+                do ig = -ntgrid, ntgrid-1
+                    hk(it,ik) % S_ext(is) = hk(it,ik) % S_ext(is) &
+                        + real(tot(ig,it,ik,is))*wgt(ig)*fac2
+                end do
+                h % S_ext(is) = h % S_ext(is) + hk(it,ik) % S_ext(is)
+             end do
+          end do
+       end do
+    end if
+
+! ==========================================================================
+! Antenna Power and B-field contribution to E and E_dot---------------------
+! ==========================================================================
+    if (proc0) then
+!       allocate (epar (-ntgrid:ntgrid, ntheta0, naky)) ; epar = 0.
+       allocate (j_ext(-ntgrid:ntgrid, ntheta0, naky)) ; j_ext = 0.
+       call antenna_apar (kperp2, j_ext)       
+!       call get_epar (phi, apar, phinew, aparnew, epar)
+       
+       if (beta > epsilon(0.)) then
+          do ik=1,naky
+             fac2 = 0.5
+             if (aky(ik) < epsilon(0.0)) fac2 = 1.0
+             dtinv = 1./(code_dt*tunits(ik))
+             do it = 1,ntheta0
+                
+                if (nonlin .and. it == 1 .and. ik == 1) cycle
+                
+                do ig=-ntgrid, ntgrid-1
+                   
+                   !GGH Time and space averaged estimate of d/dt(apar)
+                   apar_m = fdot (apar   (ig  ,it,ik), &
+                                  apar   (ig+1,it,ik), &
+                                  aparnew(ig  ,it,ik), &
+                                  aparnew(ig+1,it,ik), dtinv)*fapar
+
+! J_ext.E when driving antenna only includes A_parallel:
+
+                   hk(it,ik) % antenna = hk(it, ik) % antenna + real(conjg(j_ext(ig,it,ik))*apar_m)*wgt(ig)*fac2
+
+                   !GGH Time and space averaged estimate of d/dt(bperp)
+                   bperp_m = fdot (apar   (ig  ,it,ik)*sqrt(kperp2(ig  ,it,ik)), &
+                                   apar   (ig+1,it,ik)*sqrt(kperp2(ig+1,it,ik)), &
+                                   aparnew(ig  ,it,ik)*sqrt(kperp2(ig  ,it,ik)), &
+                                   aparnew(ig+1,it,ik)*sqrt(kperp2(ig+1,it,ik)), dtinv) * fapar
+
+                   !GGH Time and space averaged estimate of d/dt(bpar)
+                   bpar_m = fdot (bpar   (ig  ,it,ik), &
+                                  bpar   (ig+1,it,ik), &
+                                  bparnew(ig  ,it,ik), &
+                                  bparnew(ig+1,it,ik), dtinv)*fbpar
+
+                   !GGH Time and space averaged estimate of bperp
+                   bperp_avg = favg (apar   (ig  ,it,ik)*sqrt(kperp2(ig  ,it,ik)), &
+                                     apar   (ig+1,it,ik)*sqrt(kperp2(ig+1,it,ik)), &
+                                     aparnew(ig  ,it,ik)*sqrt(kperp2(ig  ,it,ik)), &
+                                     aparnew(ig+1,it,ik)*sqrt(kperp2(ig+1,it,ik))) * fapar
+
+                   !GGH Time and space averaged estimate of bpar
+                   bpar_avg = favg (bpar   (ig  ,it,ik), &
+                                    bpar   (ig+1,it,ik), &
+                                    bparnew(ig  ,it,ik), &
+                                    bparnew(ig+1,it,ik)) * fbpar
+
+! 1/2 * d/dt B**2
+!! GGH: Bug fixed on 2/06; error was in relative weight of B_par**2 and B_perp**2   
+                   hk(it,ik) % energy_dot = hk(it,ik) % energy_dot + &
+                        real(0.25 * conjg(bperp_m)*bperp_avg + conjg(bpar_m)*bpar_avg) &
+                        * wgt(ig)*fac2*(2.0/beta)
+
+! B**2/2
+!! GGH: Bug fixed on 2/06; error was in relative weight of B_par**2 and B_perp**2   
+                   hk(it,ik) % energy = hk(it,ik) % energy &
+                        + 0.5*real((0.25*conjg(bperp_avg)*bperp_avg + conjg(bpar_avg)*bpar_avg)) &
+                        * wgt(ig)*fac2*(2.0/beta)
+
+                   !Eapar = int k_perp^2 A_par^2/(8 pi)                   
+                   hk(it,ik) % eapar = hk(it,ik) % eapar &
+                        + 0.5*real(0.25*conjg(bperp_avg)*bperp_avg) * wgt(ig)*fac2*(2.0/beta)
+
+                   !Ebpar = int B_par^2/(8 pi)
+                   hk(it,ik) % ebpar = hk(it,ik) % ebpar &
+                        + 0.5*real(conjg(bpar_avg)*bpar_avg) * wgt(ig)*fac2*(2.0/beta)
+                   
+                end do
+                h % antenna = h % antenna + hk(it, ik) % antenna
+                h % eapar = h % eapar + hk(it, ik) % eapar
+                h % ebpar = h % ebpar + hk(it, ik) % ebpar
+             end do
+          end do
+       else
+          hk % antenna = 0.
+          h  % antenna = 0.
+          hk % energy_dot = 0.
+          hk % energy = 0.
+          hk % eapar = 0.
+          h  % eapar = 0.
+          hk % ebpar = 0.
+          h  % ebpar = 0.
+       end if
+       deallocate (j_ext)
+    end if
+
+! ==========================================================================
+! Finish E_dot--------------------------------------------------------------
+! ==========================================================================
+
+!GGH Include response of Boltzmann species for single-species runs
+
+    if (.not. has_electron_species(spec)) then
+       if (proc0) then
+          !NOTE: It is assumed here that n0i=n0e and zi=-ze
+          do ik=1,naky
+             fac2 = 0.5
+             if (aky(ik) < epsilon(0.0)) fac2 = 1.0
+             dtinv = 1./(code_dt*tunits(ik))
+             do it = 1,ntheta0
+
+                if (nonlin .and. it == 1 .and. ik == 1) cycle
+
+                do ig=-ntgrid, ntgrid-1
+
+                   phi_avg = favg (phi   (ig  ,it,ik), &
+                        phi   (ig+1,it,ik), &
+                        phinew(ig  ,it,ik), &
+                        phinew(ig+1,it,ik))
+
+                   phi_m   = fdot (phi   (ig  ,it,ik), &
+                        phi   (ig+1,it,ik), &
+                        phinew(ig  ,it,ik), &
+                        phinew(ig+1,it,ik), dtinv)
+
+                   !NOTE: Adiabatic (Boltzmann) species has temperature
+                   !       T = spec(1)%temp/tite
+                   hk(it,ik) % energy_dot = hk(it,ik) % energy_dot + &
+                        fphi * real(conjg(phi_avg)*phi_m) &
+                        * spec(1)%dens * spec(1)%z * spec(1)%z * (tite/spec(1)%temp) &
+                        * wgt(ig)*fac2
+
+                end do
+             end do
+          end do
+       endif
+    endif !END Correction to E_dot for single species runs---------------------
+ 
+!GGH New E_dot calc
+    do iglo=g_lo%llim_proc, g_lo%ulim_proc
+       is = is_idx(g_lo, iglo)
+       it = it_idx(g_lo, iglo)
+       ik = ik_idx(g_lo, iglo)
+       if (nonlin .and. it == 1 .and. ik == 1) cycle
+       dtinv = 1./(code_dt*tunits(ik))
+       do isgn=1,2
+
+          do ig=-ntgrid, ntgrid-1
+             
+             !Calculate old fluctuating energy de
+             havg = favg_x (g(ig  ,isgn,iglo), &
+                            g(ig+1,isgn,iglo))
+
+             j0phiavg = favg_x (aj0(ig  ,iglo) * phi(ig  ,it,ik), &
+                                aj0(ig+1,iglo) * phi(ig+1,it,ik)) * fphi * spec(is)%zt
+
+             phi_avg = favg_x (phi(ig  ,it,ik), &
+                               phi(ig+1,it,ik)) * fphi * spec(is)%zt
+
+             de=0.5*spec(is)%temp*spec(is)%dens*(conjg(havg)*havg &
+                  + conjg(phi_avg)*phi_avg &
+                  - conjg(j0phiavg)*havg &
+                  - conjg(havg)*j0phiavg)
+
+            !Calculate new fluctuating energy denew
+             havg = favg_x (gnew(ig  ,isgn,iglo), &
+                            gnew(ig+1,isgn,iglo))
+
+             j0phiavg = favg_x (aj0(ig  ,iglo) * phinew(ig  ,it,ik), &
+                                aj0(ig+1,iglo) * phinew(ig+1,it,ik)) * fphi * spec(is)%zt
+
+             phi_avg = favg_x (phinew(ig  ,it,ik), &
+                               phinew(ig+1,it,ik)) * fphi * spec(is)%zt
+
+             denew=0.5*spec(is)%temp*spec(is)%dens*(conjg(havg)*havg &
+                  + conjg(phi_avg)*phi_avg &
+                  - conjg(j0phiavg)*havg &
+                  - conjg(havg)*j0phiavg) 
+
+             !Set g0 as the change of energy (denew-de)/dt
+             g0(ig,isgn,iglo) = fdot_t(de,denew,dtinv)
+
+          end do
+       end do
+    end do
+    !GGH -END new e_dot calc
+
+   call integrate_moment (g0, tot)
 
     if (proc0) then
        do ik = 1, naky
@@ -3750,7 +4141,8 @@ contains
              if (nonlin .and. it == 1 .and. ik == 1) cycle
              do is = 1, nspec
                 do ig = -ntgrid, ntgrid-1
-                   hk(it,ik) % energy_dot = hk(it,ik) % energy_dot + real(tot(ig,it,ik,is))*wgt(ig)*fac2
+                   hk(it,ik) % energy_dot = hk(it,ik) % energy_dot  &
+                        + real(tot(ig,it,ik,is))*wgt(ig)*fac2
                 end do
              end do
              h % energy_dot = h % energy_dot + hk(it,ik) % energy_dot
@@ -3758,10 +4150,13 @@ contains
        end do
     end if
 
+
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
-! Calculate gradient contributions:
+! ==========================================================================
+! Gradient Contributions to Heating-----------------------------------------
+! ==========================================================================
 
     do iglo=g_lo%llim_proc, g_lo%ulim_proc
        is = is_idx(g_lo, iglo)
@@ -3772,57 +4167,34 @@ contains
 
        do isgn=1,2
           do ig=-ntgrid, ntgrid-1
-             
-!
-! construct time and space-centered chi
-! (should use actual bakdif and fexpr values)
-!
-             chi = aj0(ig,iglo)*(phi(ig,it,ik)*fphi &
-                  - vpac(ig,isgn,iglo) * spec(is)%stm * apar(ig,it,ik)*fapar) &
-                  + aj1(ig,iglo)*2.0*vperp2(ig,iglo)*aperp(ig,it,ik)*spec(is)%tz*faperp
+
+             chi = favg (aj0(ig  ,iglo)*phi   (ig  ,it,ik),  &
+                         aj0(ig+1,iglo)*phi   (ig+1,it,ik),  &
+                         aj0(ig  ,iglo)*phinew(ig  ,it,ik),  &
+                         aj0(ig+1,iglo)*phinew(ig+1,it,ik)) &
+                         *fphi
+
+!!GGH Bug fix: The apar part should be subtracted (because chi= phi - v|| A|| + B||)
+             chi = chi - &
+                  favg (aj0(ig  ,iglo)*apar   (ig  ,it,ik)*vpac(ig  ,isgn,iglo),  &
+                        aj0(ig+1,iglo)*apar   (ig+1,it,ik)*vpac(ig+1,isgn,iglo),  &
+                        aj0(ig  ,iglo)*aparnew(ig  ,it,ik)*vpac(ig  ,isgn,iglo),  &
+                        aj0(ig+1,iglo)*aparnew(ig+1,it,ik)*vpac(ig+1,isgn,iglo)) &
+                        *spec(is)%stm*fapar
                 
              chi = chi + &
-                  aj0(ig+1,iglo)*(phi(ig+1,it,ik)*fphi &
-                  - vpac(ig+1,isgn,iglo) * spec(is)%stm * apar(ig+1,it,ik)*fapar) &
-                  + aj1(ig+1,iglo)*2.0*vperp2(ig+1,iglo)*aperp(ig+1,it,ik)*spec(is)%tz*faperp
+                  favg (aj1(ig  ,iglo)*2.0*bpar   (ig  ,it,ik)*vperp2(ig  ,iglo),  &
+                        aj1(ig+1,iglo)*2.0*bpar   (ig+1,it,ik)*vperp2(ig+1,iglo),  &
+                        aj1(ig  ,iglo)*2.0*bparnew(ig  ,it,ik)*vperp2(ig  ,iglo),  &
+                        aj1(ig+1,iglo)*2.0*bparnew(ig+1,it,ik)*vperp2(ig+1,iglo)) &
+                        *spec(is)%tz*fbpar
 
-             chi = aj0(ig,iglo)*(phinew(ig,it,ik)*fphi &
-                  - vpac(ig,isgn,iglo) * spec(is)%stm * aparnew(ig,it,ik)*fapar) &
-                  + aj1(ig,iglo)*2.0*vperp2(ig,iglo)*aperpnew(ig,it,ik)*spec(is)%tz*faperp
-                
-             chi = chi + &
-                  aj0(ig+1,iglo)*(phinew(ig+1,it,ik)*fphi &
-                  - vpac(ig+1,isgn,iglo) * spec(is)%stm * aparnew(ig+1,it,ik)*fapar) &
-                  + aj1(ig+1,iglo)*2.0*vperp2(ig+1,iglo)*aperpnew(ig+1,it,ik)*spec(is)%tz*faperp
+             havg = favg (g   (ig  ,isgn,iglo), &
+                          g   (ig+1,isgn,iglo), &
+                          gnew(ig  ,isgn,iglo), &
+                          gnew(ig+1,isgn,iglo))
 
-!
-! construct time and space-centered h
-!
-
-             j0phi   = aj0(ig,iglo)*phi(ig,it,ik)*spec(is)%zt
-             j1aperp = aj1(ig,iglo)*2.0*vperp2(ig,iglo)*aperp(ig,it,ik)
-             
-             hfac = g(ig,isgn,iglo)+(j0phi*fphi+j1aperp*faperp)
-             
-             j0phi   = aj0(ig+1,iglo)*phi(ig+1,it,ik)*spec(is)%zt
-             j1aperp = aj1(ig+1,iglo)*2.0*vperp2(ig+1,iglo)*aperp(ig+1,it,ik)
-             
-             hfac = hfac + g(ig+1,isgn,iglo)+(j0phi*fphi+j1aperp*faperp)
-             
-             j0phi   = aj0(ig,iglo)*phinew(ig,it,ik)*spec(is)%zt
-             j1aperp = aj1(ig,iglo)*2.0*vperp2(ig,iglo)*aperpnew(ig,it,ik)
-             
-             hfac = hfac + gnew(ig,isgn,iglo)+(j0phi*fphi + j1aperp*faperp)
-             
-             j0phi   = aj0(ig+1,iglo)*phinew(ig+1,it,ik)*spec(is)%zt
-             j1aperp = aj1(ig+1,iglo)*2.0*vperp2(ig+1,iglo)*aperpnew(ig+1,it,ik)
-             
-             hfac = hfac + gnew(ig+1,isgn,iglo)+(j0phi*fphi + j1aperp*faperp)
-             
-             hfac = 0.25 * hfac ! added in fields at two values of theta and at two time steps
-             chi  = 0.25 * chi
-
-             g0(ig,isgn,iglo) = zi * wstar(ik,ie,is)/delt * conjg(hfac)*chi &
+             g0(ig,isgn,iglo) = zi * wstar(ik,ie,is)/code_dt * conjg(havg)*chi &
                   * spec(is)%dens
             
           end do
@@ -3839,16 +4211,17 @@ contains
              do it = 1, ntheta0
                 if (nonlin .and. it == 1 .and. ik == 1) cycle
                 do ig = -ntgrid, ntgrid-1
-                   hk(it,ik) % gradients(is) = hk(it,ik) % gradients(is) + real(tot(ig,it,ik,is))*wgt(ig)*fac2
+                   hk(it,ik) % gradients(is) = hk(it,ik) % gradients(is) &
+                        + real(tot(ig,it,ik,is))*wgt(ig)*fac2
                 end do
                 h % gradients(is) = h % gradients(is) + hk(it,ik) % gradients(is)
              end do
           end do
        end do
     end if
-    
-
-! Now get hyper damping contributions to energy
+! ==========================================================================
+! Hyperviscosity------------------------------------------------------------
+! ==========================================================================
 
     if (D_v > epsilon(0.)) then
 
@@ -3857,39 +4230,35 @@ contains
           it = it_idx(g_lo, iglo)
           ik = ik_idx(g_lo, iglo)
           if (nonlin .and. it == 1 .and. ik == 1) cycle
-          akperp4 = (aky(ik)**2 + akx(it)**2)**2
-          do isgn=1,2
+          akperp4 = (aky(ik)**2 + akx(it)**2)**nexp
+           do isgn=1,2
              do ig=-ntgrid, ntgrid-1
                 
-                j0phi   = aj0(ig,iglo)*phi(ig,it,ik)*spec(is)%zt
-                j1aperp = aj1(ig,iglo)*2.0*vperp2(ig,iglo)*aperp(ig,it,ik)
-                
-                hfac = g(ig,isgn,iglo) + j0phi*fphi + j1aperp*faperp
-                
-                j0phi   = aj0(ig+1,iglo)*phi(ig+1,it,ik)*spec(is)%zt
-                j1aperp = aj1(ig+1,iglo)*2.0*vperp2(ig+1,iglo)*aperp(ig+1,it,ik)
-                
-                hfac = hfac + g(ig+1,isgn,iglo) + j0phi*fphi + j1aperp*faperp
-                
-                j0phi   = aj0(ig,iglo)*phinew(ig,it,ik)*spec(is)%zt
-                j1aperp = aj1(ig,iglo)*2.0*vperp2(ig,iglo)*aperpnew(ig,it,ik)
-                
-                hfac = hfac + gnew(ig,isgn,iglo) + j0phi*fphi + j1aperp*faperp
-                
-                j0phi   = aj0(ig+1,iglo)*phinew(ig+1,it,ik)*spec(is)%zt
-                j1aperp = aj1(ig+1,iglo)*2.0*vperp2(ig+1,iglo)*aperpnew(ig+1,it,ik)
-                
-                hfac = hfac + gnew(ig+1,isgn,iglo) + j0phi*fphi + j1aperp*faperp 
-                
-                hfac = 0.25 * hfac 
-                
-                g0(ig,isgn,iglo) = spec(is)%dens*spec(is)%temp* &
-                     conjg(hfac)*hfac*D_v*akperp4/tnorm
+                havg = favg (g   (ig  ,isgn,iglo), &
+                             g   (ig+1,isgn,iglo), &
+                             gnew(ig  ,isgn,iglo), &
+                             gnew(ig+1,isgn,iglo)) 
+
+                j0phiavg = favg (aj0(ig  ,iglo) * phi(ig  ,it,ik), &
+                                 aj0(ig+1,iglo) * phi(ig+1,it,ik), &
+                                 aj0(ig  ,iglo) * phinew(ig  ,it,ik), &
+                                 aj0(ig+1,iglo) * phinew(ig+1,it,ik)) * fphi * spec(is)%zt
+
+                j1bparavg= favg (aj1(ig  ,iglo)*2.0*bpar   (ig  ,it,ik)*vperp2(ig  ,iglo),  &
+                                 aj1(ig+1,iglo)*2.0*bpar   (ig+1,it,ik)*vperp2(ig+1,iglo),  &
+                                 aj1(ig  ,iglo)*2.0*bparnew(ig  ,it,ik)*vperp2(ig  ,iglo),  &
+                                 aj1(ig+1,iglo)*2.0*bparnew(ig+1,it,ik)*vperp2(ig+1,iglo)) &
+                                 *fbpar
+!Set g0 for hyperviscous heating
+                g0(ig,isgn,iglo) = spec(is)%dens*spec(is)%temp*D_v*akperp4* &
+                     ( conjg(havg)*havg - conjg(havg)*j0phiavg - &
+                     conjg(havg)*j1bparavg)
+
              end do
           end do
        end do
+
        call integrate_moment (g0, tot)
-       
        if (proc0) then
           do ik = 1, naky
              fac2 = 0.5
@@ -3907,8 +4276,13 @@ contains
           end do
        end if
 
-    end if
-       
+    end if !End Hyperviscous Heating Calculation
+
+
+! ==========================================================================
+! Hyperresistivity------------------------------------------------------------
+! ==========================================================================
+ 
     if (D_eta > epsilon(0.)) then
 
        do iglo=g_lo%llim_proc, g_lo%ulim_proc
@@ -3916,30 +4290,30 @@ contains
           it = it_idx(g_lo, iglo)
           ik = ik_idx(g_lo, iglo)
           if (nonlin .and. it == 1 .and. ik == 1) cycle
-          akperp4 = (aky(ik)**2 + akx(it)**2)**2
-          do isgn=1,2
+          akperp4 = (aky(ik)**2 + akx(it)**2)**nexp
+           do isgn=1,2
              do ig=-ntgrid, ntgrid-1
                 
-                hfac = 0.25*(g(ig,isgn,iglo)+g(ig+1,isgn,iglo) &
-                     +gnew(ig,isgn,iglo)+gnew(ig+1,isgn,iglo))
-                
-                afac = aj0(ig,iglo)*vpac(ig,isgn,iglo)*apar(ig,it,ik)
-                
-                afac = afac + aj0(ig+1,iglo)*vpac(ig+1,isgn,iglo)*apar(ig+1,it,ik)
-                
-                afac = afac + aj0(ig,iglo)*vpac(ig,isgn,iglo)*aparnew(ig,it,ik)
-                
-                afac = afac + aj0(ig+1,iglo)*vpac(ig+1,isgn,iglo)*aparnew(ig+1,it,ik)
-                
-                afac = 0.25*fapar*spec(is)%stm*afac
-                
-                g0(ig,isgn,iglo) = spec(is)%dens*spec(is)%z* &
-                     conjg(hfac)*afac*D_eta*akperp4/tnorm
+                havg = favg (g   (ig  ,isgn,iglo), &
+                             g   (ig+1,isgn,iglo), &
+                             gnew(ig  ,isgn,iglo), &
+                             gnew(ig+1,isgn,iglo)) 
+
+                j0aparavg = favg (aj0(ig  ,iglo) * apar(ig  ,it,ik), &
+                                 aj0(ig+1,iglo)  * apar(ig+1,it,ik), &
+                                 aj0(ig  ,iglo)  * aparnew(ig  ,it,ik), &
+                                 aj0(ig+1,iglo)  * aparnew(ig+1,it,ik)) & 
+                                 * fapar * spec(is)%zstm * vpac(ig,isgn,iglo)
+
+!Set g0 for hyperresistive heating
+                g0(ig,isgn,iglo) = spec(is)%dens*spec(is)%temp*D_eta*akperp4* &
+                     conjg(havg)*j0aparavg
+
              end do
           end do
        end do
+
        call integrate_moment (g0, tot)
-       
        if (proc0) then
           do ik = 1, naky
              fac2 = 0.5
@@ -3951,57 +4325,34 @@ contains
                       hk(it,ik) % hyperres(is) = hk(it,ik) % hyperres(is) &
                            + real(tot(ig,it,ik,is))*wgt(ig)*fac2
                    end do
-                   h % hyperres(is) = h % hyperres(is)+hk(it,ik) % hyperres(is)
+                   h % hyperres(is) = h % hyperres(is) + hk(it,ik) % hyperres(is)
                 end do
              end do
           end do
        end if
-    end if
 
+    end if !End Hyperresistivity Heating Calculation
+
+!==========================================================================
+!Finish Energy-------------------------------------------------------------
+!==========================================================================
+
+!GGH Calculate hs2-------------------------------------------------------------
     do iglo=g_lo%llim_proc, g_lo%ulim_proc
        is = is_idx(g_lo, iglo)
        it = it_idx(g_lo, iglo)
        ik = ik_idx(g_lo, iglo)
        if (nonlin .and. it == 1 .and. ik == 1) cycle
-       dtinv = 1./(delt*tunits(ik))
        do isgn=1,2
 
           do ig=-ntgrid, ntgrid-1
              
-             j0phi   = aj0(ig,iglo)*phi(ig,it,ik)*spec(is)%zt
-             j1aperp = aj1(ig,iglo)*2.0*vperp2(ig,iglo)*aperp(ig,it,ik)
-             
-             hfac = g(ig,isgn,iglo)+(j0phi*fphi+j1aperp*faperp)
-             pfac = j0phi*fphi
-             
-             j0phi   = aj0(ig+1,iglo)*phi(ig+1,it,ik)*spec(is)%zt
-             j1aperp = aj1(ig+1,iglo)*2.0*vperp2(ig+1,iglo)*aperp(ig+1,it,ik)
-             
-             hfac = hfac + g(ig+1,isgn,iglo)+(j0phi*fphi+j1aperp*faperp)
-             pfac = pfac + j0phi*fphi
-             
-             j0phi   = aj0(ig,iglo)*phinew(ig,it,ik)*spec(is)%zt
-             j1aperp = aj1(ig,iglo)*2.0*vperp2(ig,iglo)*aperpnew(ig,it,ik)
-             
-             hfac = hfac + gnew(ig,isgn,iglo)+(j0phi*fphi + j1aperp*faperp)
-             pfac = pfac + j0phi*fphi
-             
-             j0phi   = aj0(ig+1,iglo)*phinew(ig+1,it,ik)*spec(is)%zt
-             j1aperp = aj1(ig+1,iglo)*2.0*vperp2(ig+1,iglo)*aperpnew(ig+1,it,ik)
-             
-             hfac = hfac + gnew(ig+1,isgn,iglo)+(j0phi*fphi + j1aperp*faperp)
-             pfac = pfac + j0phi*fphi
-             
-             hfac = 0.25 * hfac ! added in fields at two values of theta and at two time steps
-             pfac = 0.25 * pfac ! same
-             
-             phi_avg = 0.25*fphi*(phinew(ig+1,it,ik)+phinew(ig,it,ik) &
-                  + phi(ig+1,it,ik)+phi(ig,it,ik))*spec(is)%zt
-             
-             g0(ig,isgn,iglo) = 0.5*(conjg(hfac)*hfac &
-                  + conjg(phi_avg)*phi_avg &
-                  - conjg(pfac)*hfac &
-                  - conjg(hfac)*pfac) *spec(is)%temp*spec(is)%dens
+             havg = favg (g   (ig  ,isgn,iglo), &
+                          g   (ig+1,isgn,iglo), &
+                          gnew(ig  ,isgn,iglo), &
+                          gnew(ig+1,isgn,iglo))
+
+             g0(ig,isgn,iglo) = 0.5*spec(is)%temp*spec(is)%dens*(conjg(havg)*havg)
           end do
        end do
     end do
@@ -4016,10 +4367,129 @@ contains
              if (nonlin .and. it == 1 .and. ik == 1) cycle
              do is = 1, nspec             
                 do ig = -ntgrid, ntgrid-1
-                   hk(it,ik) % energy = hk(it,ik) % energy + real(tot(ig,it,ik,is))*wgt(ig)*fac2
+
+                   !hs2 = int_r int_v T/F0 hs^2/2
+                   hk(it,ik) % hs2(is) = hk(it,ik) % hs2(is)  &
+                        + real(tot(ig,it,ik,is))*wgt(ig)*fac2
+
+                end do
+             end do
+             h % hs2(:) = h % hs2(:) + hk(it,ik) % hs2(:)
+          end do
+       end do
+    end if
+
+!Calculate phis2-------------------------------------------------------------
+    if (proc0) then
+       do ik=1,naky
+          fac2 = 0.5
+          if (aky(ik) < epsilon(0.0)) fac2 = 1.0
+          do it = 1,ntheta0
+             if (nonlin .and. it == 1 .and. ik == 1) cycle
+             do ig=-ntgrid, ntgrid-1
+                do is = 1, nspec
+                   phi_avg = favg (phi   (ig  ,it,ik), &
+                        phi   (ig+1,it,ik), &
+                        phinew(ig  ,it,ik), &
+                        phinew(ig+1,it,ik)) * fphi * spec(is)%zt
+
+                   !hs2 = int_r int_v T/F0 hs^2/2
+                   hk(it,ik) % phis2(is) = hk(it,ik) % phis2(is)  &
+                        +0.5*spec(is)%temp*spec(is)%dens*real(conjg(phi_avg)*phi_avg) &
+                        * wgt(ig) * fac2
+                enddo
+             end do
+             h % phis2(:) = h % phis2(:) + hk(it,ik) % phis2(:)
+          end do
+       end do
+    endif
+
+! Calculate delfs2 (rest of energy)-----------------------------------------------
+
+!GGH  Include response of Boltzmann species for single species runs
+    if (.not. has_electron_species(spec)) then
+       if (proc0) then
+          !NOTE: It is assumed here that n0i=n0e and zi=-ze
+          do ik=1,naky
+             fac2 = 0.5
+             if (aky(ik) < epsilon(0.0)) fac2 = 1.0
+             dtinv = 1./(code_dt*tunits(ik))
+             do it = 1,ntheta0
+
+                if (nonlin .and. it == 1 .and. ik == 1) cycle
+
+                do ig=-ntgrid, ntgrid-1
+
+                   phi_avg = favg (phi   (ig  ,it,ik), &
+                        phi   (ig+1,it,ik), &
+                        phinew(ig  ,it,ik), &
+                        phinew(ig+1,it,ik))
+
+                   !NOTE: Adiabatic (Boltzmann) species has temperature
+                   !       T = spec(1)%temp/tite
+                   hk(it,ik) % energy = hk(it,ik) % energy + &
+                        fphi * real(conjg(phi_avg)*phi_avg) &
+                        * 0.5 * spec(1)%dens * spec(1)%z * spec(1)%z * (tite/spec(1)%temp) &
+                        * wgt(ig)*fac2
+
+                end do
+             end do
+          end do
+       endif
+    endif !END Correction to energy for single species runs---------------------
+
+    do iglo=g_lo%llim_proc, g_lo%ulim_proc
+       is = is_idx(g_lo, iglo)
+       it = it_idx(g_lo, iglo)
+       ik = ik_idx(g_lo, iglo)
+       if (nonlin .and. it == 1 .and. ik == 1) cycle
+       do isgn=1,2
+
+          do ig=-ntgrid, ntgrid-1
+             
+             havg = favg (g   (ig  ,isgn,iglo), &
+                          g   (ig+1,isgn,iglo), &
+                          gnew(ig  ,isgn,iglo), &
+                          gnew(ig+1,isgn,iglo))
+
+             j0phiavg = favg (aj0(ig  ,iglo)*phi   (ig  ,it,ik), &
+                              aj0(ig+1,iglo)*phi   (ig+1,it,ik), &  
+                              aj0(ig  ,iglo)*phinew(ig  ,it,ik), &  
+                              aj0(ig+1,iglo)*phinew(ig+1,it,ik)) * fphi * spec(is)%zt
+
+             phi_avg = favg (phi   (ig  ,it,ik), &
+                             phi   (ig+1,it,ik), &
+                             phinew(ig  ,it,ik), &
+                             phinew(ig+1,it,ik)) * fphi * spec(is)%zt
+
+             g0(ig,isgn,iglo) = 0.5*spec(is)%temp*spec(is)%dens*(conjg(havg)*havg &
+                  + conjg(phi_avg)*phi_avg &
+                  - conjg(j0phiavg)*havg &
+                  - conjg(havg)*j0phiavg)
+          end do
+       end do
+    end do
+
+    call integrate_moment (g0, tot)
+
+    if (proc0) then
+       do ik = 1, naky
+          fac2 = 0.5
+          if (aky(ik) < epsilon(0.0)) fac2 = 1.0
+          do it = 1, ntheta0
+             if (nonlin .and. it == 1 .and. ik == 1) cycle
+             do is = 1, nspec             
+                do ig = -ntgrid, ntgrid-1
+                   hk(it,ik) % energy = hk(it,ik) % energy  &
+                        + real(tot(ig,it,ik,is))*wgt(ig)*fac2
+
+                   !Delfs2 = int_r int_v T/F0 dfs^2/2
+                   hk(it,ik) % delfs2(is) = hk(it,ik) % delfs2(is)  &
+                        + real(tot(ig,it,ik,is))*wgt(ig)*fac2
                 end do
              end do
              h % energy = h % energy + hk(it,ik) % energy
+             h % delfs2(:) = h % delfs2(:) + hk(it,ik) % delfs2(:)
           end do
        end do
        deallocate (wgt)
@@ -4027,7 +4497,14 @@ contains
 
     deallocate (tot)
 
+!!
+!! Put g, gnew back to their usual meanings
+!!
+    call g_adjust (g,    phi,    bpar,    -fphi, -fbpar)
+    call g_adjust (gnew, phinew, bparnew, -fphi, -fbpar)
+
   end subroutine get_heat
+!==============================================================================
 
   subroutine get_stress (rstress, ustress)
 
@@ -4093,7 +4570,8 @@ contains
     use gs2_layouts, only: g_lo, geint_lo, ik_idx, it_idx, ie_idx, is_idx
     use gs2_layouts, only: idx, proc_id, idx_local
     use mp, only: proc0, send, receive, broadcast
-    use run_parameters, only: woutunits, delt
+    use run_parameters, only: woutunits
+    use gs2_time, only: code_dt
     use constants
     implicit none
     complex, dimension (:,:,:), intent (out) :: pflux, qflux
@@ -4147,8 +4625,8 @@ contains
     do iglo = g_lo%llim_proc, g_lo%ulim_proc
        ik = ik_idx(g_lo,iglo)
        it = it_idx(g_lo,iglo)
-       g0(:,1,iglo) = dnorm(:,it,ik)*zi*wdrift(:,iglo)/delt*g(:,1,iglo)
-       g0(:,2,iglo) = dnorm(:,it,ik)*zi*wdrift(:,iglo)/delt*g(:,2,iglo)
+       g0(:,1,iglo) = dnorm(:,it,ik)*zi*wdrift(:,iglo)/code_dt*g(:,1,iglo)
+       g0(:,2,iglo) = dnorm(:,it,ik)*zi*wdrift(:,iglo)/code_dt*g(:,2,iglo)
     end do
     call integrate (g0, geint)
     do is = 1, nspec
@@ -4209,21 +4687,21 @@ contains
   subroutine finish_fieldcheck
   end subroutine finish_fieldcheck
 
-  subroutine fieldcheck (phi, apar, aperp)
+  subroutine fieldcheck (phi, apar, bpar)
     use file_utils, only: open_output_file, close_output_file
     use theta_grid, only: ntgrid, theta
     use kt_grids, only: naky, aky, ntheta0, theta0
     use dist_fn_arrays, only: kperp2
     use mp, only: proc0
     implicit none
-    complex, dimension (-ntgrid:,:,:), intent (in) :: phi, apar, aperp
+    complex, dimension (-ntgrid:,:,:), intent (in) :: phi, apar, bpar
     complex, dimension (:,:,:), allocatable :: fieldeq, fieldeqa, fieldeqp
     integer :: ig, ik, it, unit
 
     allocate (fieldeq (-ntgrid:ntgrid,ntheta0,naky))
     allocate (fieldeqa(-ntgrid:ntgrid,ntheta0,naky))
     allocate (fieldeqp(-ntgrid:ntgrid,ntheta0,naky))
-    call getfieldeq (phi, apar, aperp, fieldeq, fieldeqa, fieldeqp)
+    call getfieldeq (phi, apar, bpar, fieldeq, fieldeqa, fieldeqp)
 
     if (proc0) then
        call open_output_file (unit, ".fieldcheck")
@@ -4238,7 +4716,7 @@ contains
 !                     kperp2(ig,it,ik)*gridfac1(ig,it,ik)*apar(ig,it,ik), &
 !                     fieldeqa(ig,it,ik), gamtot1(ig,it,ik), kperp2(ig,it,ik)
 !                write (unit,"(8(1pe12.5,1x))") &
-!                     gridfac1(ig,it,ik)*aperp(ig,it,ik), fieldeqp(ig,it,ik), &
+!                     gridfac1(ig,it,ik)*bpar(ig,it,ik), fieldeqp(ig,it,ik), &
 !                     gamtot2(ig,it,ik), kperp2(ig,it,ik)
                 write (unit,"(8(1pe12.5,1x))") &
                      gamtot(ig,it,ik), gamtot1(ig,it,ik), gamtot2(ig,it,ik), &
@@ -4257,7 +4735,7 @@ contains
   subroutine finish_vortcheck
   end subroutine finish_vortcheck
 
-  subroutine vortcheck (phi, aperp)
+  subroutine vortcheck (phi, bpar)
     use file_utils, only: open_output_file, close_output_file
     use species, only: nspec, spec
     use theta_grid, only: ntgrid, bmag, gbdrift, gbdrift0, cvdrift, cvdrift0
@@ -4265,9 +4743,10 @@ contains
     use kt_grids, only: naky, aky, ntheta0, theta0
     use dist_fn_arrays, only: aj0, aj1, vperp2, gnew
     use gs2_layouts, only: g_lo, ik_idx, it_idx, il_idx, ie_idx, is_idx
-    use run_parameters, only: delt, fphi, faperp
+    use run_parameters, only: fphi, fbpar
+    use gs2_time, only: code_dt
     implicit none
-    complex, dimension (-ntgrid:,:,:), intent (in) :: phi, aperp
+    complex, dimension (-ntgrid:,:,:), intent (in) :: phi, bpar
     real, dimension (nspec) :: wgt
     complex, dimension (:,:,:,:), allocatable :: apchk
     integer :: iglo, ig, ik, it, il, ie, is
@@ -4290,11 +4769,11 @@ contains
        vplus = e(ie,is)*al(il)*bmag
        cvtot = cvdrift + theta0(it,ik)*cvdrift0
        gbtot = gbdrift + theta0(it,ik)*gbdrift0
-       delwd = temp/z*delt*(gbtot-cvtot)*vplus/2.0
+       delwd = temp/z*code_dt*(gbtot-cvtot)*vplus/2.0
 
        g0(:,1,iglo) &
          = (gnew(:,1,iglo) &
-            +anon(ie,is)*2.0*vperp2(:,iglo)*aj1(:,iglo)*faperp*aperp(:,it,ik) &
+            +anon(ie,is)*2.0*vperp2(:,iglo)*aj1(:,iglo)*fbpar*bpar(:,it,ik) &
             +fphi*z*anon(ie,is)*phi(:,it,ik)*aj0(:,iglo)/temp) &
           *delwd
     end do
@@ -4311,7 +4790,7 @@ contains
        temp = spec(is)%temp
        z = spec(is)%z
 
-       g0(:,1,iglo) = aperp(:,it,ik)*faperp*vperp2(:,iglo)*temp/z
+       g0(:,1,iglo) = bpar(:,it,ik)*fbpar*vperp2(:,iglo)*temp/z
     end do
     wgt = spec%dens*spec%z
     call integrate_species (g0, wgt, apchk(:,:,:,2))
@@ -4365,7 +4844,7 @@ contains
 
   end subroutine reset_physics
 
-  subroutine write_f
+  subroutine write_f (last)
 
     use mp, only: proc0, send, receive
     use file_utils, only: open_output_file, close_output_file, get_unused_unit
@@ -4373,21 +4852,28 @@ contains
     use gs2_layouts, only: idx_local, proc_id
     use le_grids, only: al, e, forbid
     use theta_grid, only: bmag
+    use gs2_time, only: user_time
 
     integer :: iglo, ik, it, is
-    integer :: ie, il, unit, ig, ie_last
+    integer :: ie, il, ig, ie_last
+    integer, save :: unit
     real :: vpa, vpe
     complex, dimension(2) :: gtmp
+    logical :: first = .true.
+    logical, intent(in)  :: last 
 
     if (proc0) then
-       call get_unused_unit (unit)
-       call open_output_file (unit, ".dist")
+       if (first) then 
+          call get_unused_unit (unit)
+          call open_output_file (unit, ".dist")
+          first = .false.
+       end if
     endif
     ie_last = 0
     do iglo = g_lo%llim_world, g_lo%ulim_world
        ik = ik_idx(g_lo, iglo) ; if (ik /= 1) cycle
        it = it_idx(g_lo, iglo) ; if (it /= 1) cycle
-       is = is_idx(g_lo, iglo) ; if (is /= 1) cycle
+       is = is_idx(g_lo, iglo) !; if (is /= 1) cycle
        ie = ie_idx(g_lo, iglo) 
        ig = 0
        il = il_idx(g_lo, iglo)
@@ -4409,13 +4895,15 @@ contains
              vpa = sqrt(e(ie,is)*max(0.0, 1.0-al(il)*bmag(ig)))
              vpe = sqrt(e(ie,is)*al(il)*bmag(ig))
 !             write (unit, "(8(1x,e12.6))") vpe,vpa,gtmp(1),-vpa,gtmp(2)             
-             gtmp = gtmp * exp(-e(ie,is))
-             write (unit, "(8(1x,e12.6))") vpe,vpa,gtmp(1),-vpa,gtmp(2)
+             gtmp = gtmp !* exp(-e(ie,is))
+             write (unit, "(8(1x,e12.6),1x,i2)") vpe,vpa,gtmp(1),-vpa,gtmp(2),user_time,is
           end if
        end if
        ie_last = ie
     end do
-    call close_output_file (unit)
+!    if (proc0) write (unit, *)
+    if (proc0) write (unit, *)
+    if (last .and. proc0) call close_output_file (unit)
     
   end subroutine write_f
 
@@ -4428,10 +4916,12 @@ contains
 
   end subroutine boundary
 
+! This subroutine only returns epar correctly for linear runs.
   subroutine get_epar (phi, apar, phinew, aparnew, epar)
 
     use theta_grid, only: ntgrid, delthet, gradpar
-    use run_parameters, only: delt, tunits, fphi, fapar
+    use run_parameters, only: tunits, fphi, fapar
+    use gs2_time, only: code_dt
     use kt_grids, only: naky, ntheta0
     complex, dimension(-ntgrid:,:,:) :: phi, apar, phinew, aparnew, epar
     complex :: phi_m, apar_m
@@ -4449,7 +4939,7 @@ contains
              
              epar(ig,it,ik) = -phi_m/delthet(ig)* &
                   0.5*(abs(gradpar(ig)) + abs(gradpar(ig+1))) &
-                  -apar_m/tunits(ik)/delt
+                  -apar_m/tunits(ik)/code_dt
           end do
        end do
     end do    
@@ -4509,16 +4999,146 @@ contains
     told = tnew
   end subroutine timer
 
+  subroutine dot (a, anew, adot, fac)
+
+! Get a theta-centered and time-centered estimate of the time derivative 
+! of a field.
+! 
+! tunits(ky) == 1. unless the "omega_*" units are chosen.
+! omega_* units normalize time by an additional factor of ky.
+!    
+
+    use run_parameters, only: tunits
+    use gs2_time, only: code_dt
+    use kt_grids, only: naky, ntheta0
+    use theta_grid, only: ntgrid
+
+    implicit none
+    complex, intent (in), dimension (-ntgrid:,:,:) :: a, anew
+    complex, intent (out), dimension (-ntgrid:,:,:) :: adot
+    real, intent (in) :: fac
+    real :: dtinv
+    integer :: ig, it, ik
+
+    do ik=1,naky
+       dtinv = 1./(code_dt*tunits(ik))
+       do it=1,ntheta0
+          do ig=-ntgrid,ntgrid-1
+             adot(ig,it,ik) = 0.5*fac*(anew(ig+1,it,ik)+anew(ig,it,ik) - &
+                  (a(ig+1,it,ik)+a(ig,it,ik)))*dtinv
+          end do
+       end do
+    end do
+    
+  end subroutine dot
+
+  complex function fdot (fl, fr, fnewl, fnewr, dtinv)
+
+    complex, intent (in) :: fl, fr, fnewl, fnewr
+    real, intent (in) :: dtinv
+    
+    fdot = 0.5*(fnewl+fnewr-fl-fr)*dtinv
+
+  end function fdot
+
+! construct time and space-centered quantities
+! (should use actual bakdif and fexpr values?)
+!
+  complex function favg (fl, fr, fnewl, fnewr)
+
+    complex, intent (in) :: fl, fr, fnewl, fnewr
+    
+    favg = 0.25*(fnewl+fnewr+fl+fr)
+
+  end function favg
+ 
+   complex function fdot_t (f,fnew, dtinv)
+
+    complex, intent (in) :: f, fnew
+    real, intent (in) :: dtinv
+    
+    fdot_t = (fnew-f)*dtinv
+
+  end function fdot_t
+
+ complex function favg_x (fl, fr)
+
+    complex, intent (in) :: fl, fr
+    
+    favg_x = 0.5*(fl+fr)
+
+  end function favg_x
+
 end module dist_fn
 
 
 !             chidot = 0.5*(aj0(ig,iglo)+aj0(ig+1,iglo))* &
 !                  (phidot(ig,it,ik)-spec(is)%stm*vpa(ig,isgn,iglo)*apardot(ig,it,ik)) &
-!                  +2.0*vperp2(ig,iglo)*spec(is)%tz*aperpdot(ig,it,ik)*aj1(ig,iglo)
+!                  +2.0*vperp2(ig,iglo)*spec(is)%tz*bpardot(ig,it,ik)*aj1(ig,iglo)
 
 !             chidot = aj0(ig,iglo)* &
 !                  (phidot(ig,it,ik)-spec(is)%stm*vpa(ig,isgn,iglo)*apardot(ig,it,ik)) &
-!                  +2.0*vperp2(ig,iglo)*spec(is)%tz*aperpdot(ig,it,ik)*aj1(ig,iglo)
+!                  +2.0*vperp2(ig,iglo)*spec(is)%tz*bpardot(ig,it,ik)*aj1(ig,iglo)
 
 !             chidot = aj0(ig,iglo)*spec(is)%stm*vpa(ig,isgn,iglo)*apardot(ig,it,ik) &
-!                   +aj1(ig,iglo)*2.0*vperp2(ig,iglo)*spec(is)%tz*aperpdot(ig,it,ik)
+!                   +aj1(ig,iglo)*2.0*vperp2(ig,iglo)*spec(is)%tz*bpardot(ig,it,ik)
+
+
+!    case (heating_option_qdh)
+!       
+!       allocate ( apardot(-ntgrid:ntgrid, ntheta0, naky))
+!
+!       do ik=1,naky
+!          !GGH: Get correct time interval for the chosen ky value
+!          dtinv = 1./(code_dt*tunits(ik))
+!          do it=1,ntheta0
+!             do ig=-ntgrid,ntgrid-1
+!                apardot(ig,it,ik) = 0.5*fapar*(aparnew(ig+1,it,ik)+aparnew(ig,it,ik) - &
+!                     (apar(ig+1,it,ik)+apar(ig,it,ik)))*dtinv
+!             end do
+!          end do
+!       end do
+!
+!! GGH Loop through s,x,y,sgn,z and determine heating calculation
+!       do iglo=g_lo%llim_proc, g_lo%ulim_proc
+!          is = is_idx(g_lo, iglo)
+!          it = it_idx(g_lo, iglo)
+!          ik = ik_idx(g_lo, iglo)
+!! GGH If nonlinear run, do not do this for mean values (kx=ky=0)
+!          if (nonlin .and. it == 1 .and. ik == 1) cycle
+!
+!          dtinv = 1./(code_dt*tunits(ik))
+!          do isgn=1,2
+!             do ig=-ntgrid, ntgrid-1
+!
+!                !GGH NOTE: Why is the following not averaging vperp2 for ig, ig+1
+!                !      and current and new times?
+!                !BD: vperp2 is a coordinate, constant in time.  spatial variation, 
+!                !      we could look into
+!                pstar = 0.25*(fphi*aj0(ig,iglo)*(phi(ig,it,ik)+phi(ig+1,it,ik) &
+!                     + phinew(ig,it,ik)+phinew(ig+1,it,ik)) &
+!                     + fbpar*aj1(ig,iglo)*2.0*vperp2(ig,iglo) &
+!                     * (bpar(ig,it,ik)+bpar(ig+1,it,ik) &
+!                     + bparnew(ig,it,ik)+bparnew(ig+1,it,ik))*spec(is)%tz)
+!
+!                gdot = 0.5*(gnew(ig+1,isgn,iglo)+gnew(ig,isgn,iglo) - &
+!                           (g   (ig+1,isgn,iglo)+g   (ig,isgn,iglo)))*dtinv
+!             
+!                fac = 0.25*(g   (ig,isgn,iglo) + g   (ig+1,isgn,iglo) &
+!                          + gnew(ig,isgn,iglo) + gnew(ig+1,isgn,iglo))
+!
+!                g0(ig,isgn,iglo) = - spec(is)%z*(conjg(fac)* &
+!                     aj0(ig,iglo)*vpac(ig,isgn,iglo)*spec(is)%stm*apardot(ig,it,ik)*fapar &
+!                     + conjg(pstar)*gdot) - conjg(fac)*gdot*spec(is)%temp
+!!
+!! The above is equivalent to what we actually derived except for the g*gdot term:
+!!                g0(ig,isgn,iglo) = spec(is)%z*(conjg(fac)*chidot &
+!!                     - conjg(pstar)*gdot - conjg(fac)*pstardot)
+!!
+!             end do
+!          end do
+!       end do
+!
+!       deallocate (apardot)
+!
+!

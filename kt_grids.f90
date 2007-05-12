@@ -215,6 +215,7 @@ module kt_grids_box
   private
 
   integer :: naky_private, ntheta0_private, nx_private, ny_private
+  integer :: nkpolar_private
   integer :: jtwist
   real :: ly, y0, x0, rtwist
 
@@ -225,14 +226,15 @@ contains
     use file_utils, only: input_unit, input_unit_exist
     use constants
     implicit none
-    integer :: naky, ntheta0, nx, ny
+    integer :: naky, ntheta0, nx, ny, nkpolar
     integer :: in_file
     logical :: exist
     namelist /kt_grids_box_parameters/ naky, ntheta0, ly, nx, ny, jtwist, &
-	y0, rtwist, x0
+	y0, rtwist, x0, nkpolar
 
     call init_theta_grid
 
+    nkpolar = 0
     naky = 0
     ntheta0 = 0
     ly = 0.0
@@ -251,28 +253,37 @@ contains
     if (naky == 0) naky = (ny-1)/3 + 1
     if (ntheta0 == 0) ntheta0 = 2*((nx-1)/3) + 1
     if (rtwist == 0.) rtwist = real(jtwist)
+!    if (nkpolar == 0) nkpolar = naky  ! should be generalized later.  
+                                       ! For now, assuming square domain with nx=ny
+    if (nkpolar == 0) nkpolar = int(real(naky-1.)*sqrt(2.))
+    
+    nkpolar_private = nkpolar
     naky_private = naky
     ntheta0_private = ntheta0
     nx_private = nx
     ny_private = ny
   end subroutine init_kt_grids_box
 
-  subroutine box_get_sizes (naky, ntheta0, nx, ny)
+  subroutine box_get_sizes (naky, ntheta0, nx, ny, nkpolar)
     implicit none
-    integer, intent (out) :: naky, ntheta0, nx, ny
+    integer, intent (out) :: naky, ntheta0, nx, ny, nkpolar
     naky = naky_private
     ntheta0 = ntheta0_private
     nx = nx_private
     ny = ny_private
+    nkpolar = nkpolar_private
   end subroutine box_get_sizes
 
-  subroutine box_get_grids (aky, theta0, akx)
+!  subroutine box_get_grids (aky, theta0, akx, akpolar)
+  subroutine box_get_grids (aky, theta0, akx, ikx, iky)
     use theta_grid, only: shat
     use constants
     implicit none
     real, dimension (:), intent (out) :: aky
     real, dimension (:,:), intent (out) :: theta0
     real, dimension (:), intent (out) :: akx
+    integer, dimension (:), intent (out) :: ikx, iky
+!    real, dimension (:), intent (out) :: akpolar
     integer :: i, naky, ntheta0
     real :: dkx
 
@@ -298,14 +309,17 @@ contains
     endif
 
     do i = 1, naky
+       iky(i) = i-1
        aky(i) = real(i-1)*2.*pi/ly
     end do
 
     do i = 1, (ntheta0+1)/2
+       ikx(i) = i-1
        akx(i) = real(i-1)*dkx
     end do
 
     do i = (ntheta0+1)/2+1, ntheta0
+       ikx(i) = i-ntheta0-1
        akx(i) = real(i-ntheta0-1)*dkx
     end do
 
@@ -316,6 +330,9 @@ contains
        theta0(i,2:) = akx(i)/(aky(2:)*shat)
        theta0(i,1) = 0.0
     end do
+    
+! currently assuming square domain with nx=ny for MHD energy diagnostics:
+!    akpolar = aky
     
   end subroutine box_get_grids
 
@@ -390,14 +407,17 @@ module kt_grids
   public :: aky, theta0, akx, akr
   public :: aky_out, akx_out, akr_out
   public :: naky, ntheta0, nx, ny, reality
-
+  public :: nkpolar 
+  public :: ikx, iky
   private
 
-  integer :: naky, ntheta0, nx, ny
+  integer :: naky, ntheta0, nx, ny, nkpolar
+  integer, dimension(:), allocatable :: ikx, iky
   real, dimension (:), allocatable :: aky, aky_out
   real, dimension (:,:), allocatable :: theta0
   real, dimension (:), allocatable :: akx, akx_out
   real, dimension (:,:), allocatable :: akr, akr_out
+!  real, dimension (:), allocatable :: akpolar, akpolar_out
 
   ! internal variables
   integer :: gridopt_switch, normopt_switch
@@ -427,6 +447,7 @@ contains
     call init_theta_grid
 
     if (proc0) then
+       nkpolar = 0   ! will be set to non-zero value only in box case; only used for an MHD diagnostic
        call read_parameters
        call get_sizes
 
@@ -444,6 +465,7 @@ contains
     call broadcast (reality)
     call broadcast (box)
     call broadcast (naky)
+    call broadcast (nkpolar)
     call broadcast (ntheta0)
     call broadcast (ny)
     call broadcast (nx)
@@ -454,6 +476,7 @@ contains
     do ik = 1, naky
        call broadcast (theta0(:,ik))
     end do
+!    if (nkpolar > 0) call broadcast (akpolar)
 
     if (abs(shat) > epsilon(0.)) then
        do it = 1, ntheta0
@@ -468,10 +491,12 @@ contains
        akr_out = akr
        akx_out = akx
        aky_out = aky
+!       if (nkpolar > 0) akpolar_out = akpolar
     case (normopt_bd)
        akr_out = akr / sqrt(2.)
        akx_out = akx / sqrt(2.)
        aky_out = aky / sqrt(2.)
+!       if (nkpolar > 0) akpolar_out = akpolar / sqrt(2.)
     end select
 
   end subroutine init_kt_grids
@@ -531,6 +556,12 @@ contains
     allocate (akx_out(ntheta0))
     allocate (akr(-ntgrid:ntgrid,ntheta0))
     allocate (akr_out(-ntgrid:ntgrid,ntheta0))
+
+    allocate (ikx(ntheta0))
+    allocate (iky(naky))
+
+!    if (nkpolar > 0) &
+!         allocate (akpolar(nkpolar), akpolar_out(nkpolar))
   end subroutine allocate_arrays
 
   subroutine get_sizes
@@ -552,7 +583,7 @@ contains
        call specified_get_sizes (naky, ntheta0, nx, ny)
     case (gridopt_box)
        call init_kt_grids_box
-       call box_get_sizes (naky, ntheta0, nx, ny)
+       call box_get_sizes (naky, ntheta0, nx, ny, nkpolar)
        reality = .true.
        box = .true.
     case (gridopt_xbox)
@@ -576,7 +607,8 @@ contains
     case (gridopt_specified)
        call specified_get_grids (aky, theta0, akx)
     case (gridopt_box)
-       call box_get_grids (aky, theta0, akx)
+!       call box_get_grids (aky, theta0, akx, akpolar)
+       call box_get_grids (aky, theta0, akx, ikx, iky)
     case (gridopt_xbox)
        call xbox_get_grids (aky, theta0, akx)
     end select
@@ -587,6 +619,7 @@ contains
     case (normopt_bd)
        aky = aky * sqrt(2.)
        akx = akx * sqrt(2.)
+!       if (nkpolar > 0) akpolar = akpolar * sqrt(2.)
     end select
 
   end subroutine get_grids

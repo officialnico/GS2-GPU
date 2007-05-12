@@ -15,9 +15,9 @@ module collisions
   integer :: ivnew
   logical :: conserve_number, conserve_momentum, const_v
   integer :: collision_model_switch
-  logical :: hypercoll
   logical :: use_shmem, adjust
   logical :: heating
+  logical :: hyper_colls
 
   integer, parameter :: collision_model_lorentz = 1
   integer, parameter :: collision_model_krook = 2
@@ -25,8 +25,12 @@ module collisions
   integer, parameter :: collision_model_krook_test = 4
   integer, parameter :: collision_model_lorentz_test = 5
 
-  real, dimension (:,:,:), allocatable :: vnew, vnew4
+  real, dimension (:,:,:), allocatable :: vnew
   ! (naky,negrid,nspec) replicated
+
+  ! only for hyper-diffusive collisions
+  real, dimension (:,:,:,:), allocatable :: vnewh
+  ! (-ntgrid:ntgrid,ntheta0,naky,nspec) replicated
 
   ! only for krook
   real, dimension (:), allocatable :: vnewfe
@@ -42,8 +46,7 @@ module collisions
 
   ! only for lorentz
   real :: cfac
-  real, dimension (:,:), allocatable :: c1, betaa, ql, d1
-  real, dimension (:,:), allocatable :: c14, betaa4, ql4
+  real, dimension (:,:), allocatable :: c1, betaa, ql, d1, h1
   complex, dimension (:,:), allocatable :: glz, glzc
   ! (max(2*nlambda,2*ng2+1), -*- lz_layout -*-)
   ! (-ntgrid:ntgrid,naky,max(2*nlambda,2*ng2+1),negrid,nspec)
@@ -54,6 +57,7 @@ module collisions
 
   type (redist_type), save :: lorentz_map
 
+  logical :: hypermult
   logical :: initialized = .false.
   logical :: accelerated_x = .false.
   logical :: accelerated_v = .false.
@@ -61,7 +65,7 @@ module collisions
 contains
 
   subroutine init_collisions
-    use species, only: init_species, nspec
+    use species, only: init_species, nspec, spec
     use theta_grid, only: init_theta_grid, ntgrid
     use kt_grids, only: init_kt_grids, naky, ntheta0
     use le_grids, only: init_le_grids, nlambda, negrid 
@@ -74,6 +78,10 @@ contains
 
     call init_gs2_layouts
     call init_species
+
+    hyper_colls = .false.
+    if (any(spec%nu_h > epsilon(0.0))) hyper_colls = .true.
+
     call init_theta_grid
     call init_kt_grids
     call init_le_grids (accelerated_x, accelerated_v)
@@ -99,13 +107,14 @@ contains
             text_option('collisionless', collision_model_none) /)
     character(20) :: collision_model
     namelist /collisions_knobs/ collision_model, vncoef, absom, ivnew, &
-         conserve_number, conserve_momentum, use_shmem, hypercoll, heating, &
-         adjust, const_v, cfac
+         conserve_number, conserve_momentum, use_shmem, heating, &
+         adjust, const_v, cfac, hypermult
     integer :: ierr, in_file
     logical :: exist
 
     if (proc0) then
-       cfac = 0.
+       hypermult = .false.
+       cfac = 1.   ! DEFAULT CHANGED TO INCLUDE CLASSICAL DIFFUSION: APRIL 18, 2006
        adjust = .true.
        collision_model = 'default'
        vncoef = 0.6
@@ -114,7 +123,6 @@ contains
        conserve_number = .true.
        conserve_momentum = .false.
        const_v = .false.
-       hypercoll = .false.
        heating = .false.
        in_file = input_unit_exist ("collisions_knobs", exist)
        if (exist) read (unit=input_unit("collisions_knobs"), nml=collisions_knobs)
@@ -125,6 +133,7 @@ contains
             ierr, "collision_model in collisions_knobs")
     end if
 
+    call broadcast (hypermult)
     call broadcast (cfac)
     call broadcast (vncoef)
     call broadcast (absom)
@@ -133,7 +142,6 @@ contains
     call broadcast (conserve_momentum)
     call broadcast (const_v)
     call broadcast (collision_model_switch)
-    call broadcast (hypercoll)
     call broadcast (heating)
     call broadcast (adjust)
   end subroutine read_parameters
@@ -150,7 +158,7 @@ contains
     logical :: first_time = .true.
 
     if (first_time) then
-       allocate (c_rate(-ntgrid:ntgrid, ntheta0, naky, nspec))
+       allocate (c_rate(-ntgrid:ntgrid, ntheta0, naky, nspec, 2))
        c_rate = 0.
        first_time = .false.
     end if
@@ -158,7 +166,7 @@ contains
     if (collision_model_switch == collision_model_none) return
 
     call init_vnew (hee)
-    if (all(abs(vnew(:,1,:))+abs(vnew4(:,1,:)) <= 2.0*epsilon(0.0))) then
+    if (all(abs(vnew(:,1,:)) <= 2.0*epsilon(0.0))) then
        collision_model_switch = collision_model_none
        return
     end if
@@ -167,7 +175,6 @@ contains
     select case (collision_model_switch)
     case (collision_model_lorentz,collision_model_lorentz_test)
        call init_lorentz
-!       if (hypercoll) call init_hyper_coll
     case (collision_model_krook,collision_model_krook_test)
        call init_krook (hee)
     end select
@@ -177,13 +184,15 @@ contains
   subroutine init_vnew (hee)
     use species, only: nspec, spec, electron_species
     use le_grids, only: negrid, e
-    use kt_grids, only: naky 
+    use kt_grids, only: naky, ntheta0
+    use theta_grid, only: ntgrid
     use run_parameters, only: zeff, tunits
+    use dist_fn_arrays, only: kperp2
     use constants
     real, dimension (:,:), intent (out) :: hee
     real,dimension (negrid,nspec)::heevth
-    integer :: ik, ie, is
-    real :: v
+    integer :: ik, ie, is, it, ig
+    real :: v, k4max
 
     do is = 1, nspec
        do ie = 1, negrid
@@ -202,7 +211,7 @@ contains
 
 !heevth is hee but using only thermal velocity (energy independent)
 
- do is = 1, nspec
+    do is = 1, nspec
        do ie = 1, negrid
           v = 1           
           heevth(ie,is) = 1.0/sqrt(pi)/v*exp(-v**2) &
@@ -217,8 +226,14 @@ contains
        end do
     end do                                                                  
 
+!    do is = 1, nspec
+!       if (spec(is) % nustar < 0.)
+!
+!    end do
 
     if(.not.allocated(vnew)) allocate (vnew(naky,negrid,nspec))
+    if (hyper_colls .and. .not.allocated(vnewh)) allocate (vnewh(-ntgrid:ntgrid,ntheta0,naky,nspec))
+
     do is = 1, nspec
        if (spec(is)%type == electron_species) then
           do ie = 1, negrid
@@ -245,27 +260,27 @@ contains
              end do
           end do
        end if
-    end do
 
-    if(.not.allocated(vnew4)) allocate (vnew4(naky,negrid,nspec))
-    do is = 1, nspec
-       if (spec(is)%type == electron_species) then
-          do ie = 1, negrid
-             do ik = 1, naky
-                vnew4(ik,ie,is) = spec(is)%vnewk4/e(ie,is)**1.5 &
-                     *(zeff + hee(ie,is))*0.5*tunits(ik)
+       ! add hyper-terms inside collision operator
+!BD: Warning!
+!BD: For finite magnetic shear, this is different in form from what appears in hyper.f90 
+!BD: because kperp2 /= akx**2 + aky**2;  there are cross terms that are dropped in hyper.f90
+!BD: Warning!
+!BD: Also: there is no "grid_norm" option here and the exponent is fixed to 4 for now
+       if (hyper_colls) then
+          k4max = (maxval(kperp2))**2 
+          do ik = 1, naky
+             do it = 1, ntheta0
+                do ig=-ntgrid,ntgrid
+                   vnewh(ig,it,ik,is) = spec(is)%nu_h * kperp2(ig,it,ik)**2/k4max
+                end do
              end do
           end do
        else
-          do ie = 1, negrid
-             do ik = 1, naky
-                vnew4(ik,ie,is) = spec(is)%vnewk4/e(ie,is)**1.5 &
-                     *hee(ie,is)*0.5*tunits(ik)
-             end do
-          end do
+          vnewh = 0.
        end if
     end do
-
+    
   end subroutine init_vnew
 
   subroutine init_g3int
@@ -303,7 +318,8 @@ contains
     use theta_grid, only: ntgrid, eps
     use le_grids, only: integrate, ng2, al, e
     use gs2_layouts, only: g_lo, geint_lo, ik_idx, il_idx, ie_idx, is_idx
-    use run_parameters, only: delt, zeff, tunits
+    use run_parameters, only: zeff, tunits
+    use gs2_time, only: code_dt
     implicit none
     real, dimension (:,:), intent (in) :: hee
     complex, dimension (-ntgrid:ntgrid,2,g_lo%llim_proc:g_lo%ulim_alloc) :: g
@@ -328,7 +344,7 @@ contains
        do iglo = g_lo%llim_proc, g_lo%ulim_proc
           ik = ik_idx(g_lo,iglo)
           is = is_idx(g_lo,iglo)
-          vnewfe(iglo) = abs(spec(is)%vnewk)*tunits(ik)*delt
+          vnewfe(iglo) = abs(spec(is)%vnewk)*tunits(ik)*code_dt
        end do
     else
        do iglo = g_lo%llim_proc, g_lo%ulim_proc
@@ -350,13 +366,13 @@ contains
           if (ivnew > 0) then
              delta00 = absom/((vep + 2.0*epsilon(0.0))*zeff)
              if (ivnew >= 2) delta00 = (delta00*eps/37.2)**.333333333
-             vnewfe(iglo) = delt*vep*eps*(zeff1 + hee(ie,is)) &
+             vnewfe(iglo) = code_dt*vep*eps*(zeff1 + hee(ie,is)) &
                   /(vhat**3*((1.0-eps-al(il))**2 + 1e-8)) &
                   *(.111*delta00+1.31)/(11.79*delta00+1.0)
           else
              vnewfe(iglo) = 0.00941/((1.0 - eps - al(il))**2 + 1e-8)
              if (il > ng2) vnewfe(iglo) = vnewfe(iglo) + vncoef/eps**2
-             vnewfe(iglo) = vnewfe(iglo)*delt*vep*eps &
+             vnewfe(iglo) = vnewfe(iglo)*code_dt*vep*eps &
                   *(zeff1 + hee(ie,is))/vhat**3
           end if
        end do
@@ -368,16 +384,17 @@ contains
     use theta_grid, only: ntgrid, bmag
     use kt_grids, only: naky, ntheta0
     use le_grids, only: nlambda, negrid, al, jend, ng2,e
-    use run_parameters, only: delt, tunits
+    use run_parameters, only: tunits
+    use gs2_time, only: code_dt
     use dist_fn_arrays, only: kperp2
     use gs2_layouts, only: init_lorentz_layouts
     use gs2_layouts, only: lz_lo
     use gs2_layouts, only: ig_idx, ik_idx, ie_idx, is_idx, it_idx
     implicit none
     integer :: ig, il, ilz, it, ik, ie, is, je
-    real, dimension (nlambda+1) :: aa, bb, cc, dd
+    real, dimension (nlambda+1) :: aa, bb, cc, dd, hh
     real, dimension (max(2*nlambda,2*ng2+1)) :: a1, b1
-    real :: slb0, slb1, slb2, slbl, slbr, vn, ee
+    real :: slb0, slb1, slb2, slbl, slbr, vn, ee, vnh, vnc
 
     call init_lorentz_layouts &
          (ntgrid, naky, ntheta0, nlambda, negrid, nspec, ng2)
@@ -397,9 +414,10 @@ contains
        allocate (betaa(max(2*nlambda,2*ng2+1),lz_lo%llim_proc:lz_lo%ulim_alloc))
        allocate (ql   (max(2*nlambda,2*ng2+1),lz_lo%llim_proc:lz_lo%ulim_alloc))
        allocate (d1   (max(2*nlambda,2*ng2+1),lz_lo%llim_proc:lz_lo%ulim_alloc))
+       allocate (h1   (max(2*nlambda,2*ng2+1),lz_lo%llim_proc:lz_lo%ulim_alloc))
     endif
 
-    c1 = 0.0 ; betaa = 0.0 ; ql = 0.0 ; d1 = 0.0
+    c1 = 0.0 ; betaa = 0.0 ; ql = 0.0 ; d1 = 0.0 ; h1 = 0.0
 
     do ilz = lz_lo%llim_proc, lz_lo%ulim_proc
        is = is_idx(lz_lo,ilz)
@@ -410,8 +428,18 @@ contains
        je = jend(ig)
        if (collision_model_switch == collision_model_lorentz_test) then
           vn = abs(spec(is)%vnewk)*tunits(ik)
+          vnc = 0.
+          vnh = 0.
        else
-          vn = vnew(ik,ie,is)
+          if (hypermult) then
+             vn = vnew(ik,ie,is)*(1.+vnewh(ig,it,ik,is))
+             vnc = vnew(ik,ie,is)
+             vnh = vnewh(ig,it,ik,is)*vnc
+          else
+             vn = vnew(ik,ie,is)+vnewh(ig,it,ik,is)
+             vnc = vnew(ik,ie,is)
+             vnh = vnewh(ig,it,ik,is)
+          end if
        end if
 ! no trapped particles if je == 0 
        if (je == 0) then  
@@ -430,18 +458,18 @@ contains
 ! this is the usual sqrt(2) issue in the definition of vt
 ! which, here in the guts of gs2, is defined vt = sqrt(2T/m)
 ! BD 6/1/05
-             ee = vn*delt*0.5*e(ie,is)*(1+slb1**2) &
+             ee = 0.5*e(ie,is)*(1+slb1**2) &
                   / (bmag(ig)*spec(is)%zstm)**2 &
                   * kperp2(ig,it,ik)*cfac
 
-
              ! coefficients for tridiagonal matrix:
-             cc(il) = -vn*delt*(1.0 - slbr*slbr)/(slbr - slbl)/(slb2 - slb1)
-             aa(il) = -vn*delt*(1.0 - slbl*slbl)/(slbr - slbl)/(slb1 - slb0)
-             bb(il) = 1.0 - (aa(il) + cc(il)) +ee
+             cc(il) = -vn*code_dt*(1.0 - slbr*slbr)/(slbr - slbl)/(slb2 - slb1)
+             aa(il) = -vn*code_dt*(1.0 - slbl*slbl)/(slbr - slbl)/(slb1 - slb0)
+             bb(il) = 1.0 - (aa(il) + cc(il)) + ee*vn*code_dt
 
              ! coefficients for entropy heating calculation
-             dd(il) = vn*(1.0-slbr*slbr)/(slbr-slbl)/(slb2-slb1)
+             dd(il) =vnc*((1.0-slbr*slbr)/(slbr-slbl)/(slb2-slb1) + ee)
+             hh(il) =vnh*((1.0-slbr*slbr)/(slbr-slbl)/(slb2-slb1) + ee)
           end do
 
 ! boundary at xi = 1
@@ -452,15 +480,16 @@ contains
           slbl = (slb1 + slb0)/2.0
           slbr = (slb1 + slb2)/2.0
 
-          ee = vn*delt*0.5*e(ie,is)*(1+slb1**2) &
+          ee = 0.5*e(ie,is)*(1+slb1**2) &
                / (bmag(ig)*spec(is)%zstm)**2 &
                * kperp2(ig,it,ik)*cfac
           
-          cc(1) = -vn*delt*(-1.0 - slbr)/(slb2-slb1)
+          cc(1) = -vn*code_dt*(-1.0 - slbr)/(slb2-slb1)
           aa(1) = 0.0
-          bb(1) = 1.0 - (aa(1) + cc(1)) + ee
+          bb(1) = 1.0 - (aa(1) + cc(1)) + ee*vn*code_dt
 
-          dd(1) = vn*(1.0-slbr*slbr)/(slbr-slbl)/(slb2-slb1)
+          dd(1) =vnc*((1.0-slbr*slbr)/(slbr-slbl)/(slb2-slb1) + ee)
+          hh(1) =vnh*((1.0-slbr*slbr)/(slbr-slbl)/(slb2-slb1) + ee)
 
 ! boundary at xi = 0
           il = ng2
@@ -471,15 +500,16 @@ contains
           slbl = (slb1 + slb0)/2.0
           slbr = (slb1 + slb2)/2.0
 
-          ee = vn*delt*0.5*e(ie,is)*(1+slb1**2) &
+          ee = 0.5*e(ie,is)*(1+slb1**2) &
                / (bmag(ig)*spec(is)%zstm)**2 &
                * kperp2(ig,it,ik)*cfac
 
-          cc(il) = -vn*delt*(1.0 - slbr*slbr)/(slbr - slbl)/(slb2 - slb1)
-          aa(il) = -vn*delt*(1.0 - slbl*slbl)/(slbr - slbl)/(slb1 - slb0)
-          bb(il) = 1.0 - (aa(il) + cc(il)) + ee
+          cc(il) = -vn*code_dt*(1.0 - slbr*slbr)/(slbr - slbl)/(slb2 - slb1)
+          aa(il) = -vn*code_dt*(1.0 - slbl*slbl)/(slbr - slbl)/(slb1 - slb0)
+          bb(il) = 1.0 - (aa(il) + cc(il)) + ee*vn*code_dt
 
-          dd(il) = vn*(1.0-slbr*slbr)/(slbr-slbl)/(slb2-slb1)
+          dd(il) =vnc*((1.0-slbr*slbr)/(slbr-slbl)/(slb2-slb1) + ee)
+          hh(il) =vnh*((1.0-slbr*slbr)/(slbr-slbl)/(slb2-slb1) + ee)
 
 ! start to fill in the arrays for the tridiagonal
           a1(:ng2) = aa(:ng2)
@@ -487,6 +517,7 @@ contains
           c1(:ng2,ilz) = cc(:ng2)
 
           d1(:ng2,ilz) = dd(:ng2)
+          h1(:ng2,ilz) = hh(:ng2)
 
 ! assuming symmetry in xi, fill in the rest of the arrays.
           a1(ng2+1:2*ng2) = cc(ng2:1:-1)
@@ -494,6 +525,7 @@ contains
           c1(ng2+1:2*ng2,ilz) =aa(ng2:1:-1)
 
           d1(ng2+1:2*ng2,ilz) = dd(ng2:1:-1)
+          h1(ng2+1:2*ng2,ilz) = hh(ng2:1:-1)
 
           betaa(1,ilz) = 1.0/b1(1)
           do il = 1, 2*ng2-1
@@ -507,6 +539,7 @@ contains
           betaa(2*ng2+1:,ilz) = 0.0
 
           d1(2*ng2+1:,ilz) = 0.0
+          h1(2*ng2+1:,ilz) = 0.0
        else
           do il = 2, je-1
              slb0 = sqrt(abs(1.0 - bmag(ig)*al(il-1)))
@@ -516,15 +549,16 @@ contains
              slbl = (slb1 + slb0)/2.0
              slbr = (slb1 + slb2)/2.0
 
-             ee = vn*delt*0.5*e(ie,is)*(1+slb1**2) &
+             ee = 0.5*e(ie,is)*(1+slb1**2) &
                   / (bmag(ig)*spec(is)%zstm)**2 &
                   * kperp2(ig,it,ik)*cfac
 
-             cc(il) = -vn*delt*(1.0 - slbr*slbr)/(slbr - slbl)/(slb2 - slb1)
-             aa(il) = -vn*delt*(1.0 - slbl*slbl)/(slbr - slbl)/(slb1 - slb0)
-             bb(il) = 1.0 - (aa(il) + cc(il)) + ee
+             cc(il) = -vn*code_dt*(1.0 - slbr*slbr)/(slbr - slbl)/(slb2 - slb1)
+             aa(il) = -vn*code_dt*(1.0 - slbl*slbl)/(slbr - slbl)/(slb1 - slb0)
+             bb(il) = 1.0 - (aa(il) + cc(il)) + ee*vn*code_dt
 
-             dd(il) = vn*(1.0-slbr*slbr)/(slbr-slbl)/(slb2-slb1)
+             dd(il) =vnc*((1.0-slbr*slbr)/(slbr-slbl)/(slb2-slb1) + ee)
+             hh(il) =vnh*((1.0-slbr*slbr)/(slbr-slbl)/(slb2-slb1) + ee)
           end do
 
           slb0 = 1.0
@@ -533,45 +567,49 @@ contains
 
           slbr = (slb1 + slb2)/2.0
 
-          ee = vn*delt*0.5*e(ie,is)*(1+slb1**2) &
+          ee = 0.5*e(ie,is)*(1+slb1**2) &
                / (bmag(ig)*spec(is)%zstm)**2 &
                * kperp2(ig,it,ik)*cfac
 
-          cc(1) = -vn*delt*(-1.0 - slbr)/(slb2-slb1)
+          cc(1) = -vn*code_dt*(-1.0 - slbr)/(slb2-slb1)
           aa(1) = 0.0
-          bb(1) = 1.0 - (aa(1) + cc(1)) + ee
+          bb(1) = 1.0 - (aa(1) + cc(1)) + ee*vn*code_dt
 
-          dd(1) = vn*(1.0-slbr*slbr)/(slbr-slbl)/(slb2-slb1)
+          dd(1) =vnc*((1.0-slbr*slbr)/(slbr-slbl)/(slb2-slb1) + ee)
+          hh(1) =vnh*((1.0-slbr*slbr)/(slbr-slbl)/(slb2-slb1) + ee)
 
           il = je
           slb0 = sqrt(abs(1.0-bmag(ig)*al(il-1)))
           slb1 = 0.
           slb2 = -slb0                                                        
 
-          ee = vn*delt*0.5*e(ie,is)*(1+slb1**2) &
+          ee = 0.5*e(ie,is)*(1+slb1**2) &
                / (bmag(ig)*spec(is)%zstm)**2 &
                * kperp2(ig,it,ik)*cfac
 
           slbl = (slb1 + slb0)/2.0
           slbr = (slb1 + slb2)/2.0
 
-          cc(il) = -0.5*vn*delt*(1.0-slbl*slbl)/slbl/slb0
+          cc(il) = -0.5*vn*code_dt*(1.0-slbl*slbl)/slbl/slb0
           aa(il) = cc(il)
-          bb(il) = 1.0 - (aa(il) + cc(il)) + ee
+          bb(il) = 1.0 - (aa(il) + cc(il)) + ee*vn*code_dt
 
-          dd(il) = vn*(1.0-slbr*slbr)/(slbr-slbl)/(slb2-slb1)
+          dd(il) =vnc*((1.0-slbr*slbr)/(slbr-slbl)/(slb2-slb1) + ee)
+          hh(il) =vnh*((1.0-slbr*slbr)/(slbr-slbl)/(slb2-slb1) + ee)
 
           a1(:je) = aa(:je)
           b1(:je) = bb(:je)
           c1(:je,ilz) = cc(:je)
 
           d1(:je,ilz) = dd(:je)
+          h1(:je,ilz) = hh(:je)
 
           a1(je+1:2*je-1) = cc(je-1:1:-1)
           b1(je+1:2*je-1) = bb(je-1:1:-1)
           c1(je+1:2*je-1,ilz) = aa(je-1:1:-1)
 
           d1(je+1:2*je-1,ilz) = dd(je-1:1:-1)
+          h1(je+1:2*je-1,ilz) = hh(je-1:1:-1)
 
           betaa(1,ilz) = 1.0/b1(1)
           do il = 1, 2*je-2
@@ -583,6 +621,7 @@ contains
           c1(2*je:,ilz) = 0.0
           betaa(2*je:,ilz) = 0.0
           d1(2*je:,ilz) = 0.0
+          h1(2*je:,ilz) = 0.0
        end if
     end do
   end subroutine init_lorentz
@@ -690,11 +729,12 @@ contains
 
   end subroutine init_lorentz_redistribute
 
-  subroutine solfp1 (g, g1, phi, apar, aperp)
+  subroutine solfp1 (g, g1, phi, apar, bpar)
     use gs2_layouts, only: g_lo, ik_idx, ie_idx, is_idx
     use theta_grid, only: ntgrid
-    use run_parameters, only: delt, tunits
-    use run_parameters, only: fphi, faperp
+    use run_parameters, only: tunits
+    use run_parameters, only: fphi, fbpar
+    use gs2_time, only: code_dt
     use kt_grids, only: naky, ntheta0
     use le_grids, only: e, integrate_moment
     use species, only: nspec
@@ -702,8 +742,8 @@ contains
     use constants
     implicit none
     complex, dimension (-ntgrid:,:,:), intent (in out) :: g, g1
-    complex, dimension (-ntgrid:,:,:), intent (in) :: phi, apar, aperp
-    complex, dimension (:,:,:), allocatable :: gc
+    complex, dimension (-ntgrid:,:,:), intent (in) :: phi, apar, bpar
+    complex, dimension (:,:,:), allocatable :: gc1, gc2
 
     real, dimension (naky) :: dtinv
     integer :: ik, ie, is, iglo
@@ -712,30 +752,36 @@ contains
 
 
     if (heating) then
-       allocate (gc(-ntgrid:ntgrid,2,g_lo%llim_proc:g_lo%ulim_alloc))
+       allocate (gc1(-ntgrid:ntgrid,2,g_lo%llim_proc:g_lo%ulim_alloc))
+       allocate (gc2(-ntgrid:ntgrid,2,g_lo%llim_proc:g_lo%ulim_alloc))
     else
-       allocate (gc(1,1,1))
+       allocate (gc1(1,1,1))
+       allocate (gc2(1,1,1))
     end if
 
-    gc = 0.0
+    gc1 = 0.0
+    gc2 = 0.0
 
-    if (adjust) call g_adjust (g, phi, aperp, fphi, faperp)
+    if (adjust) call g_adjust (g, phi, bpar, fphi, fbpar)
 
     select case (collision_model_switch)
     case (collision_model_lorentz,collision_model_lorentz_test)
-       call solfp_lorentz (g, g1, gc)
+       call solfp_lorentz (g, g1, gc1, gc2)
     case (collision_model_krook,collision_model_krook_test)
        call solfp_krook (g, g1)
     end select
     
-    if (heating) call integrate_moment (gc, c_rate)
-    deallocate (gc)
+    if (heating) call integrate_moment (gc1, c_rate(:,:,:,:,1))
+    deallocate (gc1)
 
-    if (adjust) call g_adjust (g, phi, aperp, -fphi, -faperp)
+    if (heating .and. hyper_colls) call integrate_moment (gc2, c_rate(:,:,:,:,2))
+    deallocate (gc2)
+
+    if (adjust) call g_adjust (g, phi, bpar, -fphi, -fbpar)
     
   end subroutine solfp1
 
-  subroutine g_adjust (g, phi, aperp, facphi, facaperp)
+  subroutine g_adjust (g, phi, bpar, facphi, facbpar)
     use species, only: spec
     use theta_grid, only: ntgrid
     use le_grids, only: anon
@@ -743,8 +789,8 @@ contains
     use gs2_layouts, only: g_lo, ik_idx, it_idx, ie_idx, is_idx
     implicit none
     complex, dimension (-ntgrid:,:,g_lo%llim_proc:), intent (in out) :: g
-    complex, dimension (-ntgrid:,:,:), intent (in) :: phi, aperp
-    real, intent (in) :: facphi, facaperp
+    complex, dimension (-ntgrid:,:,:), intent (in) :: phi, bpar
+    real, intent (in) :: facphi, facbpar
 
     integer :: iglo, ig, ik, it, ie, is
     complex :: adj
@@ -756,7 +802,7 @@ contains
        is = is_idx(g_lo,iglo)
        do ig = -ntgrid, ntgrid
           adj = anon(ie,is)*2.0*vperp2(ig,iglo)*aj1(ig,iglo) &
-                  *aperp(ig,it,ik)*facaperp &
+                  *bpar(ig,it,ik)*facbpar &
                + spec(is)%z*anon(ie,is)*phi(ig,it,ik)*aj0(ig,iglo) &
                   /spec(is)%temp*facphi
           g(ig,1,iglo) = g(ig,1,iglo) + adj
@@ -853,21 +899,21 @@ contains
     call prof_leaving ("solfp_krook", "collisions")
   end subroutine solfp_krook
 
-  subroutine solfp_lorentz (g, g1, gc)
+  subroutine solfp_lorentz (g, g1, gc, gh)
     use species, only: spec, electron_species
     use theta_grid, only: ntgrid
     use le_grids, only: nlambda, jend, lintegrate, gint2g, ng2
     use gs2_layouts, only: g_lo, gint_lo, lz_lo
-    use gs2_layouts, only: ig_idx, ik_idx, il_idx, is_idx
+    use gs2_layouts, only: ig_idx, ik_idx, il_idx, is_idx, it_idx
     use prof, only: prof_entering, prof_leaving
     use redistribute, only: gather, scatter
     implicit none
-    complex, dimension (-ntgrid:,:,g_lo%llim_proc:), intent (in out) :: g, g1, gc
+    complex, dimension (-ntgrid:,:,g_lo%llim_proc:), intent (in out) :: g, g1, gc, gh
 
     complex, dimension (max(2*nlambda,2*ng2+1)) :: delta
     complex, dimension (:,:), allocatable :: g1int, g2int
     complex :: fac
-    integer :: iglo, igint, ilz, ig, ik, il, is, je
+    integer :: iglo, igint, ilz, ig, ik, il, is, je, it
 
     call prof_entering ("solfp_lorentz", "collisions")
 
@@ -901,9 +947,27 @@ contains
 
           do il = 1, je-1
              fac = glz(il+1,ilz)-glz(il,ilz)
-             glzc(il,ilz) = conjg(fac)*fac*d1(il,ilz)
+             glzc(il,ilz) = conjg(fac)*fac*d1(il,ilz)  ! d1 accounts for hC(h) entropy
           end do
        end do
+       call scatter (lorentz_map, glzc, gc)
+
+       if (hyper_colls) then
+          do ilz = lz_lo%llim_proc, lz_lo%ulim_proc
+             ig = ig_idx(lz_lo,ilz)
+             
+             je = 2*jend(ig)          
+             if (je == 0) then
+                je = 2*ng2 
+             end if
+             
+             do il = 1, je-1
+                fac = glz(il+1,ilz)-glz(il,ilz)
+                glzc(il,ilz) = conjg(fac)*fac*h1(il,ilz)  ! h1 accounts for hH(h) entropy
+             end do
+          end do
+          call scatter (lorentz_map, glzc, gh)
+       end if
     end if
 
 !    call check_glz ('beg', glz)
@@ -942,36 +1006,8 @@ contains
 
     end do
 
-!    if (hypercoll) then
-!       do ilz = lz_lo%llim_proc, lz_lo%ulim_proc
-!          ig = ig_idx(lz_lo,ilz)
-!          ik = ik_idx(lz_lo,ilz)
-!          is = is_idx(lz_lo,ilz)
-!          if (abs(vnew4(ik,1,is)) < 2.0*epsilon(0.0)) cycle
-!          je = 2*jend(ig)
-!          
-!          if (je == 0) then
-!             je = 2*ng2+1
-!          end if
-!          
-!          glz(je:,ilz) = 0.0
-!          
-!          delta(1) = glz(1,ilz)
-!          do il = 1, je-1
-!             delta(il+1) = glz(il+1,ilz) - ql4(il+1,ilz)*delta(il)
-!          end do
-!          
-!          glz(je,ilz) = delta(je)*betaa4(je,ilz)
-!          do il = je-1, 1, -1
-!             glz(il,ilz) = (delta(il) - c14(il,ilz)*glz(il+1,ilz))*betaa4(il,ilz)
-!          end do
-!          glz(je,ilz) = glz(jend(ig),ilz)
-!       end do
-!    end if
-
 !    call check_glz ('end', glz)
     call scatter (lorentz_map, glz, g)
-    if (heating) call scatter (lorentz_map, glzc, gc)
 
     if (conserve_momentum) then
        do iglo = g_lo%llim_proc, g_lo%ulim_proc
@@ -1069,157 +1105,3 @@ contains
 
 end module collisions
 
-
-
-
-!  subroutine init_hyper_coll
-!
-!!
-!! Not correct yet.  I'm doing the derivative holding E fixed in this version.
-!!
-!
-!
-!    use species, only: nspec, spec
-!    use theta_grid, only: ntgrid, bmag
-!    use kt_grids, only: naky, ntheta0
-!    use le_grids, only: nlambda, negrid, al, jend, ng2, e
-!    use run_parameters, only: delt, tunits
-!    use gs2_layouts, only: init_lorentz_layouts
-!    use gs2_layouts, only: lz_lo
-!    use gs2_layouts, only: ig_idx, ik_idx, ie_idx, is_idx
-!    implicit none
-!    integer :: ig, il, ilz, ik, ie, is, je
-!    real, dimension (nlambda+1) :: aa, bb, cc
-!    real, dimension (max(2*nlambda,2*ng2+1)) :: a1, b1
-!    real :: slb0, slb1, slb2, slbl, slbr, vn4
-!
-!    call init_lorentz_layouts &
-!         (ntgrid, naky, ntheta0, nlambda, negrid, nspec, ng2)
-!    call init_lorentz_redistribute
-!
-!    if (.not.allocated(c14)) then
-!       allocate (   c14(max(2*nlambda,2*ng2+1),lz_lo%llim_proc:lz_lo%ulim_alloc))
-!       allocate (betaa4(max(2*nlambda,2*ng2+1),lz_lo%llim_proc:lz_lo%ulim_alloc))
-!       allocate (   ql4(max(2*nlambda,2*ng2+1),lz_lo%llim_proc:lz_lo%ulim_alloc))
-!    endif
-!
-!    c14 = 0.0 ; betaa4 = 0.0 ; ql4 = 0.0
-!
-!    do ilz = lz_lo%llim_proc, lz_lo%ulim_proc
-!       is = is_idx(lz_lo,ilz)
-!       ik = ik_idx(lz_lo,ilz)
-!       ie = ie_idx(lz_lo,ilz)
-!       ig = ig_idx(lz_lo,ilz)
-!       je = jend(ig)
-!       if (collision_model_switch == collision_model_lorentz_test) then
-!          vn4 = abs(spec(is)%vnewk4)*tunits(ik)
-!       else
-!          vn4 = vnew4(ik,ie,is)
-!       end if
-!       if (je == 0) then
-!          do il = 2, ng2-1
-!             slb0 = sqrt(abs(e(ie,is) - bmag(ig)*al(il-1)*e(ie,is)))
-!             slb1 = sqrt(abs(e(ie,is) - bmag(ig)*al(il  )*e(ie,is)))
-!             slb2 = sqrt(abs(e(ie,is) - bmag(ig)*al(il+1)*e(ie,is)))
-!
-!             slbl = (slb1 + slb0)/2.0
-!             slbr = (slb1 + slb2)/2.0
-!
-!             cc(il) = -vn4*delt/(slbr - slbl)/(slb2 - slb1)
-!             aa(il) = -vn4*delt/(slbr - slbl)/(slb1 - slb0)
-!             bb(il) = 1.0 - (aa(il) + cc(il))
-!          end do
-!
-!          slb1 = sqrt(abs(e(ie,is)-bmag(ig)*al(1)*e(ie,is)))
-!          slb2 = sqrt(abs(e(ie,is)-bmag(ig)*al(2)*e(ie,is)))
-!
-!          slbr = (slb1 + slb2)/2.0
-!
-!          cc(1) = -vn4*delt/(slb2-slb1)
-!          aa(1) = 0.0
-!          bb(1) = 1.0 - (aa(1) + cc(1))
-!
-!          il = ng2
-!          slb0 = sqrt(abs(e(ie,is) - bmag(ig)*al(il-1)*e(ie,is)))
-!          slb1 = sqrt(abs(e(ie,is) - bmag(ig)*al(il  )*e(ie,is)))
-!          slb2 = -slb1
-!
-!          slbl = (slb1 + slb0)/2.0
-!          slbr = (slb1 + slb2)/2.0
-!
-!          cc(il) = -vn4*delt/(slbr - slbl)/(slb2 - slb1)
-!          aa(il) = -vn4*delt/(slbr - slbl)/(slb1 - slb0)
-!          bb(il) = 1.0 - (aa(il) + cc(il))
-!
-!          a1(:ng2) = aa(:ng2)
-!          b1(:ng2) = bb(:ng2)
-!          c14(:ng2,ilz) = cc(:ng2)
-!
-!          a1(ng2+1:2*ng2) = cc(ng2:1:-1)
-!          b1(ng2+1:2*ng2) = bb(ng2:1:-1)
-!          c14(ng2+1:2*ng2,ilz) =aa(ng2:1:-1)
-!
-!          betaa4(1,ilz) = 1.0/b1(1)
-!          do il = 1, 2*ng2-1
-!             ql4(il+1,ilz) = a1(il+1)*betaa4(il,ilz)
-!             betaa4(il+1,ilz) = 1.0/(b1(il+1)-ql4(il+1,ilz)*c14(il,ilz))
-!          end do
-!
-!          ql4(1,ilz) = 0.0
-!          ql4(2*ng2+1:,ilz) = 0.0
-!          c14(2*ng2+1:,ilz) = 0.0
-!          betaa4(2*ng2+1:,ilz) = 0.0
-!
-!       else
-!          do il = 2, je-1
-!             slb0 = sqrt(abs(e(ie,is) - bmag(ig)*al(il-1)*e(ie,is)))
-!             slb1 = sqrt(abs(e(ie,is) - bmag(ig)*al(il  )*e(ie,is)))
-!             slb2 = sqrt(abs(e(ie,is) - bmag(ig)*al(il+1)*e(ie,is)))
-!
-!             slbl = (slb1 + slb0)/2.0
-!             slbr = (slb1 + slb2)/2.0
-!
-!             cc(il) = -vn4*delt/(slbr - slbl)/(slb2 - slb1)
-!             aa(il) = -vn4*delt/(slbr - slbl)/(slb1 - slb0)
-!             bb(il) = 1.0 - (aa(il) + cc(il))
-!          end do
-!
-!          slb1 = sqrt(abs(e(ie,is)-bmag(ig)*al(1)*e(ie,is)))
-!          slb2 = sqrt(abs(e(ie,is)-bmag(ig)*al(2)*e(ie,is)))
-!
-!          slbr = (slb1 + slb2)/2.0
-!
-!          cc(1) = -vn4*delt/(slb2-slb1)
-!          aa(1) = 0.0
-!          bb(1) = 1.0 - (aa(1) + cc(1))
-!
-!          il = je
-!          slb0 = sqrt(abs(e(ie,is)-bmag(ig)*al(il-1)*e(ie,is)))
-!          slbl = slb0/2.0
-!
-!          cc(il) = -0.5*vn4*delt/slbl/slb0
-!          aa(il) = cc(il)
-!          bb(il) = 1.0 - (aa(il) + cc(il))
-!
-!          a1(:je) = aa(:je)
-!          b1(:je) = bb(:je)
-!          c14(:je,ilz) = cc(:je)
-!
-!          a1(je+1:2*je-1) = cc(je-1:1:-1)
-!          b1(je+1:2*je-1) = bb(je-1:1:-1)
-!          c14(je+1:2*je-1,ilz) =aa (je-1:1:-1)
-!
-!          betaa4(1,ilz) = 1.0/b1(1)
-!          do il = 1, 2*je-2
-!             ql4(il+1,ilz) = a1(il+1)*betaa4(il,ilz)
-!             betaa4(il+1,ilz) = 1.0/(b1(il+1)-ql4(il+1,ilz)*c14(il,ilz))
-!          end do
-!
-!          ql4(1,ilz) = 0.0
-!          c14(2*je:,ilz) = 0.0
-!          betaa4(2*je:,ilz) = 0.0
-!       end if
-!    end do
-!  end subroutine init_hyper_coll
-!
-!
