@@ -1,5 +1,7 @@
 # System: NERSC IBM p575 POWER 5 System
 
-F90FLAGS += -q64
+ifeq ($(PROJECT),gs2)
+	PLATFORM_LINKS = ibm
+endif
 
-PLATFORM_LINKS	= ibm
+CHIP=power5
