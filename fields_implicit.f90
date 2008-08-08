@@ -47,7 +47,6 @@ contains
     call getfield (phinew, aparnew, bparnew)
     phi = phinew; apar = aparnew; bpar = bparnew
 
-
   end subroutine init_phi_implicit
 
   subroutine get_field_vector (fl, phi, apar, bpar)

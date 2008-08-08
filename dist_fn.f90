@@ -661,7 +661,10 @@ contains
     use kt_grids, only: naky, ntheta0, aky, theta0, akx
     use le_grids, only: e, al
     use gs2_layouts, only: g_lo, ik_idx, it_idx, il_idx, ie_idx, is_idx
-     implicit none
+    use spfunc, only: j0, j1
+
+    implicit none
+
     integer :: ig, ik, it, il, ie, is
     integer :: iglo
     real :: arg
@@ -872,6 +875,7 @@ contains
 
     ng = ntheta/2 + (nperiod-1)*ntheta
 
+    ! jshift0 corresponds to J (not delta j) from Beer thesis (unsure about +0.1) -- MAB
     if (naky > 1 .and. ntheta0 > 1) then
        jshift0 = int((theta(ng)-theta(-ng))/(theta0(2,2)-theta0(1,2)) + 0.1)
     else if (naky == 1 .and. ntheta0 > 1 .and. aky(1) /= 0.0) then
@@ -886,13 +890,16 @@ contains
     do ik = 1, naky
        do it = 1, ntheta0
           if (it > (ntheta0+1)/2) then
+             ! akx is negative (-1 shift because akx(1) = 0) -- MAB
              it0 = it - ntheta0 - 1
           else
+             ! akx is positive (-1 shift because akx(1) = 0) -- MAB
              it0 = it - 1
           end if
 
           if (ik == 1) then
              if (aky(ik) /= 0.0 .and. naky == 1) then
+                ! for this case, jshift0 is delta j from Beer thesis -- MAB
                 itl = it0 + jshift0
                 itr = it0 - jshift0
              else
@@ -902,19 +909,24 @@ contains
                 itr = it0
              end if
           else
+             ! ik = 1 corresponds to aky=0, so shift index by 1
+             ! (ik-1)*jshift0 is delta j from Beer thesis -- MAB
              itl = it0 + (ik-1)*jshift0
              itr = it0 - (ik-1)*jshift0
           end if
 
+          ! remap to usual GS2 indices -- MAB
           if (itl >= 0 .and. itl < (ntheta0+1)/2) then
              itleft(ik,it) = itl + 1
           else if (itl + ntheta0 + 1 > (ntheta0+1)/2 &
              .and. itl + ntheta0 + 1 <= ntheta0) then
              itleft(ik,it) = itl + ntheta0 + 1
           else
+             ! j' = j + delta j not included in simulation, so can't connect -- MAB
              itleft(ik,it) = -1
           end if
 
+          ! same stuff for j' = j - delta j -- MAB
           if (itr >= 0 .and. itr < (ntheta0+1)/2) then
              itright(ik,it) = itr + 1
           else if (itr + ntheta0 + 1 > (ntheta0+1)/2 &
@@ -934,6 +946,9 @@ contains
        il = il_idx(g_lo,iglo)
        ie = ie_idx(g_lo,iglo)
        is = is_idx(g_lo,iglo)
+
+       ! get processors and indices for j' (kx') modes connecting
+       ! to mode j (kx) so we can set up communication -- MAB
 
 ! if non-wfb trapped particle, no connections
        if (nlambda > ng2 .and. il >= ng2+2) then
@@ -1801,8 +1816,8 @@ contains
     call invert_rhs (phi, apar, bpar, phinew, aparnew, bparnew, istep)
     call hyper_diff (gnew, g0, phinew, bparnew)
     call kill (gnew, g0, phinew, bparnew)
-    call solfp1 (gnew, g, g0, phi, bpar, phinew, bparnew, modep)   !! BUGS IN SOLFP1 B/C phi, phinew misused?
-    
+    call solfp1 (gnew, g, g0, phi, apar, bpar, phinew, aparnew, bparnew, modep)   !! BUGS IN SOLFP1 B/C phi, phinew misused?
+                                                                                  !! bug comment above addressed (probably) -- MAB
     if (def_parity) then
        if (even) then
           gnew(-ntgrid:-1, 1,:) = gnew( ntgrid: 1:-1,2,:)
@@ -3533,59 +3548,60 @@ contains
 
   end subroutine getfieldeq2
 
-  elemental function j0 (x)
-! A&S, p. 369, 9.4
-    implicit none
-    real, intent (in) :: x
-    real :: j0
-    real, parameter, dimension (7) :: a = &
-         (/ 1.0000000, -2.2499997, 1.2656208, -0.3163866, &
-            0.0444479, -0.0039444, 0.0002100 /)
-    real, parameter, dimension (7) :: b = &
-         (/  0.79788456, -0.00000770, -0.00552740, -0.00009512, &
-             0.00137237, -0.00072805,  0.00014476 /)
-    real, parameter, dimension (7) :: c = &
-         (/ -0.78539816, -0.04166397, -0.00003954,  0.00262573, &
-            -0.00054125, -0.00029333,  0.00013558 /)
-    real :: y
-
-    if (x <= 3.0) then
-       y = (x/3.0)**2
-       j0 = a(1)+y*(a(2)+y*(a(3)+y*(a(4)+y*(a(5)+y*(a(6)+y*a(7))))))
-    else
-       y = 3.0/x
-       j0 = (b(1)+y*(b(2)+y*(b(3)+y*(b(4)+y*(b(5)+y*(b(6)+y*b(7))))))) &
-            *cos(x+c(1)+y*(c(2)+y*(c(3)+y*(c(4)+y*(c(5)+y*(c(6)+y*c(7))))))) &
-            /sqrt(x)
-    end if
-  end function j0
-
-  elemental function j1 (x)
-! A&S, p. 370, 9.4 j1 = 1/x J_1(x)
-    implicit none
-    real, intent (in) :: x
-    real :: j1
-    real, parameter, dimension (7) :: a = &
-         (/  0.50000000, -0.56249985,  0.21093573, -0.03954289, &
-             0.00443319, -0.00031761,  0.00001109 /)
-    real, parameter, dimension (7) :: b = &
-         (/  0.79788456,  0.00000156,  0.01659667,  0.00017105, &
-            -0.00249511,  0.00113653,  0.00020033 /)
-    real, parameter, dimension (7) :: c = &
-         (/ -2.35619449,  0.12499612,  0.00005650,  -0.00637879, &
-             0.00074348,  0.00079824, -0.00029166 /)
-    real :: y
-
-    if (x <= 3.0) then
-       y = (x/3.0)**2
-       j1 = a(1)+y*(a(2)+y*(a(3)+y*(a(4)+y*(a(5)+y*(a(6)+y*a(7))))))
-    else
-       y = 3.0/x
-       j1 = (b(1)+y*(b(2)+y*(b(3)+y*(b(4)+y*(b(5)+y*(b(6)+y*b(7))))))) &
-            *cos(x+c(1)+y*(c(2)+y*(c(3)+y*(c(4)+y*(c(5)+y*(c(6)+y*c(7))))))) &
-            /x**1.5
-    end if
-  end function j1
+! replaced by bessel function implementation of RN and TT (in utils/spfunc.fpp)
+!  elemental function j0 (x)
+!! A&S, p. 369, 9.4
+!    implicit none
+!    real, intent (in) :: x
+!    real :: j0
+!    real, parameter, dimension (7) :: a = &
+!         (/ 1.0000000, -2.2499997, 1.2656208, -0.3163866, &
+!            0.0444479, -0.0039444, 0.0002100 /)
+!    real, parameter, dimension (7) :: b = &
+!         (/  0.79788456, -0.00000770, -0.00552740, -0.00009512, &
+!             0.00137237, -0.00072805,  0.00014476 /)
+!    real, parameter, dimension (7) :: c = &
+!         (/ -0.78539816, -0.04166397, -0.00003954,  0.00262573, &
+!            -0.00054125, -0.00029333,  0.00013558 /)
+!    real :: y
+!
+!    if (x <= 3.0) then
+!       y = (x/3.0)**2
+!       j0 = a(1)+y*(a(2)+y*(a(3)+y*(a(4)+y*(a(5)+y*(a(6)+y*a(7))))))
+!    else
+!       y = 3.0/x
+!       j0 = (b(1)+y*(b(2)+y*(b(3)+y*(b(4)+y*(b(5)+y*(b(6)+y*b(7))))))) &
+!            *cos(x+c(1)+y*(c(2)+y*(c(3)+y*(c(4)+y*(c(5)+y*(c(6)+y*c(7))))))) &
+!            /sqrt(x)
+!    end if
+!  end function j0
+!
+!  elemental function j1 (x)
+!! A&S, p. 370, 9.4 j1 = 1/x J_1(x)
+!    implicit none
+!    real, intent (in) :: x
+!    real :: j1
+!    real, parameter, dimension (7) :: a = &
+!         (/  0.50000000, -0.56249985,  0.21093573, -0.03954289, &
+!             0.00443319, -0.00031761,  0.00001109 /)
+!    real, parameter, dimension (7) :: b = &
+!         (/  0.79788456,  0.00000156,  0.01659667,  0.00017105, &
+!            -0.00249511,  0.00113653,  0.00020033 /)
+!    real, parameter, dimension (7) :: c = &
+!         (/ -2.35619449,  0.12499612,  0.00005650,  -0.00637879, &
+!             0.00074348,  0.00079824, -0.00029166 /)
+!    real :: y
+!
+!    if (x <= 3.0) then
+!       y = (x/3.0)**2
+!       j1 = a(1)+y*(a(2)+y*(a(3)+y*(a(4)+y*(a(5)+y*(a(6)+y*a(7))))))
+!    else
+!       y = 3.0/x
+!       j1 = (b(1)+y*(b(2)+y*(b(3)+y*(b(4)+y*(b(5)+y*(b(6)+y*b(7))))))) &
+!            *cos(x+c(1)+y*(c(2)+y*(c(3)+y*(c(4)+y*(c(5)+y*(c(6)+y*c(7))))))) &
+!            /x**1.5
+!    end if
+!  end function j1
 
   subroutine lambda_flux (phi, lamflux)
 
@@ -5646,92 +5662,6 @@ contains
 
   end subroutine estimate_error
 
-!> mbmark
-!  subroutine write_ftran (last, phi, bpar, istep)
-
-!    use mp, only: proc0
-!    use file_utils, only: open_output_file, close_output_file
-!    use le_grids, only: legendre_transform, negrid, nlambda, ng2
-!    use theta_grid, only: ntgrid
-!    use kt_grids, only: ntheta0, naky
-!    use species, only: nspec
-!    use dist_fn_arrays, only: gnew, aj0
-!    use run_parameters, only: fphi, fbpar
-!    use gs2_layouts, only: g_lo
-
-!    integer :: im, ig, iglo, isgn
-!    integer, save :: ne_unit, nl_unit
-!    logical, save :: first = .true.
-!    logical, intent(in)  :: last
-!    complex, dimension (-ntgrid:,:,:), intent (in) :: phi, bpar
-!    integer, intent (in) :: istep
-!    real :: genorm, glnorm
-
-!    real, dimension (0:negrid-2) :: gne2
-!    real, dimension (0:ng2-1) :: gnl2
-
-!    complex, dimension(0:negrid-2,-ntgrid:ntgrid,ntheta0,naky,nspec) :: getran
-!    complex, dimension(0:ng2-1,-ntgrid:ntgrid,ntheta0,naky,nspec) :: gltran
-!    complex, dimension(0:negrid-2) :: ngetmp
-!    complex, dimension (0:ng2-1) :: ngltmp
-    
-!    ngetmp = 0.0 ; ngltmp = 0.0 
-!    genorm = 0.0 ; glnorm = 0.0
-!    gne2  = 0.0 ; gnl2 = 0.0
-
-!    if (proc0) then
-!       if (first) then
-!          call open_output_file (ne_unit, ".nedist")
-!          call open_output_file (nl_unit, ".nldist")
-!          first = .false.
-!       end if
-!    endif
-
-!    call g_adjust (gnew, phi, bpar, fphi, fbpar)
-
-!    do iglo = g_lo%llim_proc, g_lo%ulim_proc
-!       do isgn = 1, 2
-!          do ig=-ntgrid, ntgrid
-!             g0(ig,isgn,iglo) = aj0(ig,iglo)*gnew(ig,isgn,iglo)
-!          end do
-!       end do
-!    end do
-    
-!    call legendre_transform (g0, getran, gltran, istep)
-!    call g_adjust (gnew, phi, bpar, -fphi, -fbpar)
-
-!    ngetmp = getran(0:,0,1,1,1)
-!    ngltmp = gltran(0:,0,1,1,1)
-
-!    do im=0,negrid-2
-!       gne2(im) = real(ngetmp(im)*Conjg(ngetmp(im)))
-!    end do
-
-!    do im=0,ng2-1
-!       gnl2(im) = real(ngltmp(im)*Conjg(ngltmp(im)))
-!    end do
-
-!    genorm = sum(gne2)
-!    glnorm = sum(gnl2)
-
-!    if (proc0) then
-!       do im=0,negrid-2
-!          write(ne_unit,"(1x,e12.6)") gne2(im)!/genorm
-!       end do
-!       do im=0,ng2-1
-!          write(nl_unit,"(1x,e12.6)") gnl2(im)!/glnorm
-!       end do
-!       write (ne_unit, *)
-!       write (nl_unit, *)
-!       if (last) then
-!          call close_output_file (ne_unit)
-!          call close_output_file (nl_unit)
-!       end if
-!    end if
-
-!  end subroutine write_ftran
-!< mbmark
-
   subroutine get_gtran (geavg, glavg, gtavg, phi, bpar, istep)
 
     use le_grids, only: legendre_transform, negrid, nlambda, ng2, vgrid, nesub, jend
@@ -5800,13 +5730,6 @@ contains
     else
        call legendre_transform (g0, getran, gltran, istep)
     end if
-
-! TEMP FOR TESTING -- MAB
-!    do ig = -ntgrid, ntgrid
-!       do il = 0, 2*(nlambda-ng2-1)
-!          if (proc0) write (*,*) 'gttran', ig, il, gttran(il,ig,1,1,1)
-!       end do
-!    end do
 
 ! transform from h back to g
     call g_adjust (gnew, phi, bpar, -fphi, -fbpar)
@@ -5965,9 +5888,10 @@ contains
        xpts(1:negrid-1) = zeroes
        xpts(negrid) = x0
 !       xpts = 0.0
-!       ypts = 0.0
+       ypts = 0.0
+       ! change argument of bmag depending on which theta you want to write out
        do il=1,nlambda
-          if (1.0-al(il)*bmax .gt. 0.0) ypts(il) = sqrt(1.0-al(il)*bmax)
+          if (1.0-al(il)*bmag(0) .gt. 0.0) ypts(il) = sqrt(1.0-al(il)*bmag(0))
        end do
     end if
 
@@ -5980,6 +5904,7 @@ contains
     endif
 
     do iglo = g_lo%llim_world, g_lo%ulim_world
+       ! writing out g(vpar,vperp) at ik=it=is=1, ig=0
        ik = ik_idx(g_lo, iglo) ; if (ik /= 1) cycle
        it = it_idx(g_lo, iglo) ; if (it /= 1) cycle
        is = is_idx(g_lo, iglo) ; if (is /= 1) cycle
