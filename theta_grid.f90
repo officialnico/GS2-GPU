@@ -168,7 +168,8 @@ module theta_grid_salpha
 contains
 
   subroutine init_theta_grid_salpha
-    use theta_grid_params, only: init_theta_grid_params
+    use theta_grid_params, only: init_theta_grid_params, rhoc, eps, epsl
+    use geometry, only: rhoc_geo=>rhoc
     implicit none
     logical, save :: initialized = .false.
 
@@ -176,6 +177,14 @@ contains
     initialized = .false.
 
     call init_theta_grid_params
+! make rhoc consistent with eps, epsl, and insert this value into geometry 
+    if (epsl > epsilon(0.0)) then
+       rhoc = 2.*eps/epsl
+    else
+       rhoc = 1.
+    end if
+    rhoc_geo=rhoc
+
     call read_parameters
   end subroutine init_theta_grid_salpha
 
@@ -237,8 +246,7 @@ contains
        Rplot, Zplot, Rprime, Zprime, aplot, aprime, shat, drhodpsi, kxfac, &
        qval, shape, gb_to_cv)
     use constants
-    use geometry, only: rhoc
-    use theta_grid_params, only: eps, epsl, shat_param => shat, pk, qinp!, rhoc_in => rhoc
+    use theta_grid_params, only: eps, epsl, shat_param => shat, pk, qinp, rhoc
     use theta_grid_gridgen, only: theta_grid_gridgen_init, gridgen_get_grids
     implicit none
     integer, intent (in) :: nperiod
@@ -279,10 +287,8 @@ contains
     kxfac = 1.0
     if (epsl > epsilon(0.0)) then
        qval = epsl/pk
-       rhoc = 2.*eps/epsl
     else
        qval = 1.
-       rhoc = 1.
     end if
     select case (model_switch)
     case (model_salpha,model_alpha1,model_b2)
@@ -335,6 +341,9 @@ contains
 !    Simply need to look into the shift dependence of gds2
 !
        if (model_switch == model_nocurve) then
+!dja fix for no curvature
+          gbdrift = 0.0
+!dja end
           gds2 = 1.0 + (shat*theta)**2
           gds21 = -shat*shat*theta
           shape = 'slab    '
@@ -390,29 +399,37 @@ contains
     implicit none
     real :: rhoc_save
     logical, save :: initialized = .false.
+!CMR nov04: adding following debug switch
+    logical :: debug=.false.
+!CMR
 
 
     if (initialized) return
     initialized = .true.
-
+if (debug) write(6,*) "init_theta_grid_eik: call init_theta_grid_params, ntheta=",ntheta
 ! After this call, would think you have ntheta from input file
 ! stored in theta_grid_params data structure.
 ! but when running from numerical equilibrium, this is not right
 ! Instead, get it stored via the eikcoefs call below.  
     call init_theta_grid_params
 
+if (debug) write(6,*) "init_theta_grid_eik: call read_parameters, ntheta=",ntheta
     call read_parameters
-
+!CMR replace call init_theta(ntheta) with following condition 
+!    to avoid inappropriate calls to init_theta (as in geo/et.f90)
     if(.not. vmom_eq .and. .not. gen_eq .and. .not. ppl_eq .and. &
-         .not. transp_eq) call init_theta(ntheta)
-
-!    call init_theta (ntheta)
-
+       .not. transp_eq ) then 
+       if (debug) write(6,*) "init_theta_grid_eik: call init_theta, ntheta=",ntheta
+       call init_theta (ntheta)
+    endif
+!CMRend
     nperiod_geo = nperiod 
     rhoc_save = rhoc
     if (itor == 0) rhoc = 1.5*delrho
 !    print *, 'itor= ',itor, ' rhoc= ',rhoc, 'rhoc_save = ',rhoc_save
+if (debug) write(6,*) "init_theta_grid_eik: call eikcoefs"
     call eikcoefs (ntheta)
+if (debug) write(6,*) "init_theta_grid_eik: done"
 
 !    write (*,*) 'init_theta_grid_eik: ntheta = ',ntheta
 
@@ -524,7 +541,7 @@ contains
     use geometry, only: rhoc
     use geometry, only: itor, iflux, irho
     use geometry, only: ppl_eq, gen_eq, vmom_eq, efit_eq, eqfile, local_eq, dfit_eq, gs2d_eq
-    use geometry, only: equal_arc, transp_eq
+    use geometry, only: equal_arc, transp_eq, idfit_eq
     use geometry, only: bishop
     use geometry, only: s_hat_input
     use geometry, only: alpha_input, invLp_input, beta_prime_input, dp_mult
@@ -541,13 +558,14 @@ contains
     use theta_grid_params, only: shift_in => shift
     use theta_grid_params, only: akappa_in => akappa, akappri_in => akappri
     use theta_grid_params, only: tri_in => tri, tripri_in => tripri
+    use theta_grid_params, only: betaprim_in => betaprim
     implicit none
     integer :: in_file
     logical :: exist
 
     namelist /theta_grid_eik_knobs/ itor, iflux, irho, &
          ppl_eq, gen_eq, vmom_eq, efit_eq, eqfile, dfit_eq, &
-         equal_arc, bishop, local_eq, gs2d_eq, transp_eq, &
+         equal_arc, bishop, local_eq, idfit_eq, gs2d_eq, transp_eq, &
          s_hat_input, alpha_input, invLp_input, beta_prime_input, dp_mult, &
          delrho, rmin, rmax, ismooth, ak0, k1, k2, isym, writelots
 
@@ -563,6 +581,7 @@ contains
     akappri = akappri_in
     tri = tri_in
     tripri = tripri_in
+    beta_prime_input = betaprim_in
 
     itor = 1
     iflux = 0
@@ -789,15 +808,20 @@ contains
     implicit none
     logical, save :: initialized = .false.
     integer :: i
-
+    logical :: debug=.false.
     if (initialized) return
     initialized = .true.
 
     if (proc0) then
+if (debug) write(6,*) "init_theta_grid: call read_parameters"
        call read_parameters
+if (debug) write(6,*) "init_theta_grid: call get_sizes"
        call get_sizes
+if (debug) write(6,*) "init_theta_grid: call allocate_arrays"
        call allocate_arrays
+if (debug) write(6,*) "init_theta_grid: call get_grids"
        call get_grids
+if (debug) write(6,*) "init_theta_grid: call finish_init"
        call finish_init
     end if
     call broadcast_results
@@ -991,18 +1015,27 @@ contains
     use theta_grid_salpha, only: salpha_get_sizes, init_theta_grid_salpha
     use theta_grid_file, only: file_get_sizes, init_theta_grid_file
     implicit none
+    logical:: debug=.false.
+if (debug) write(6,*) 'get_sizes: eqopt_switch=',eqopt_switch
     select case (eqopt_switch)
     case (eqopt_eik)
+if (debug) write(6,*) 'get_sizes: call init_theta_grid_eik'
        call init_theta_grid_eik
+if (debug) write(6,*) 'get_sizes: call eik_get_sizes'
        call eik_get_sizes (ntheta, nperiod, nbset)
     case (eqopt_salpha)
+if (debug) write(6,*) 'get_sizes: call init_theta_grid_salpha'
        call init_theta_grid_salpha
+if (debug) write(6,*) 'get_sizes: call salpha_get_sizes'
        call salpha_get_sizes (ntheta, nperiod, nbset)
     case (eqopt_file)
+if (debug) write(6,*) 'get_sizes: call init_theta_grid_file'
        call init_theta_grid_file
+if (debug) write(6,*) 'get_sizes: call file_get_sizes'
        call file_get_sizes (ntheta, nperiod, nbset)
     end select
-    ntgrid = ntheta/2 + (nperiod-1)*ntheta
+    ntgrid = ntheta/2 + (nperiod-1)*ntheta 
+if (debug) write(6,*) 'get_sizes: done'
   end subroutine get_sizes
 
   subroutine get_grids

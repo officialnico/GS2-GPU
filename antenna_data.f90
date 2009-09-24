@@ -40,7 +40,8 @@ contains
     implicit none
 
     ant_on = .false.
-    if (allocated(a_ant)) deallocate (a_ant, b_ant)
+!CMR,17/7/2009: add allocated test to avoid severe runtime library error
+    if (allocated(a_ant) .and. allocated(b_ant)) deallocate (a_ant, b_ant)
     initialized = .false.
 
   end subroutine finish_antenna_data

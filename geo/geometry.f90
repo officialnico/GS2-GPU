@@ -42,7 +42,8 @@ module geometry
   logical :: gen_eq, vmom_eq, efit_eq, ppl_eq, local_eq
   logical :: in_nt, writelots, equal_arc, dfit_eq, mds, idfit_eq, gs2d_eq
   logical :: transp_eq, Xanthopoulos
-  
+
+  real, dimension (:), allocatable :: bpol_geo, rmajor_geo
   
   integer :: bishop
 
@@ -165,13 +166,16 @@ contains
     use  veq, only: vmomin, veq_init
     use  geq, only: eqin, geq_init
     use  peq, only: peqin => eqin, teqin, peq_init
-    use  eeq, only: efitin, mfitin, eeq_init => efit_init, gs2din
+    use  eeq, only: efitin, mfitin, efit_init, gs2din
+!cmr    use  eeq, only: efitin, mfitin, eeq_init => efit_init, gs2din
     use  deq, only: dfitin, deq_init => dfit_init
     use ideq, only: idfitin, ideq_init => dfit_init
     use  leq, only: leqin, dpdrhofun
     use radstub, only: radial
     implicit none
-
+!cmr nov04: adding following debug switch
+    logical :: debug=.false.
+!cmr
     integer, optional, intent (out) :: ntheta_returned
 
 ! Local variables:
@@ -202,6 +206,7 @@ contains
 !     compute the initial constants
     pi=2.*acos(0.)
     
+if (debug) write(6,*) "eikcoefs: local_eq=",local_eq
     if (local_eq .and. iflux == 1) then
        write (*,*) 'Forcing iflux = 0'
        iflux = 0
@@ -218,6 +223,7 @@ contains
        endif
     endif
 
+if (debug) write(6,*) "eikcoefs: call check"
     call check(vmom_eq, gen_eq, efit_eq, ppl_eq, local_eq, dfit_eq, idfit_eq) 
 
     if(.not. vmom_eq .and. .not. gen_eq .and. .not. ppl_eq .and. .not. transp_eq &
@@ -239,6 +245,7 @@ contains
        call alloc_local_arrays(ntgrid)
     endif
 
+if (debug) write(6,*) "eikcoefs: iflux=",iflux
     select case (iflux)
        case (0)
           avgrmid=1.
@@ -250,20 +257,27 @@ contains
           else if(gen_eq) then
              call eqin(eqfile, psi_0, psi_a, rmaj, B_T0, avgrmid, eqinit, in_nt, nthg)
              call tdef(nthg, ntheta_returned)
+!CMR+SSAAR: moved following if clause ahead of ppl_eq to avoid ball problems 
+          else if(transp_eq) then
+if (debug) write(6,fmt='("eikcoefs: transp_eq, eqfile=",a)') eqfile
+             ppl_eq = .true.
+             call teqin(eqfile, psi_0, psi_a, rmaj, B_T0, avgrmid, eqinit, in_nt, nthg)
+if (debug) write(6,*) 'eikcoefs: transp_eq, called teqin'
+if (debug) write(6,fmt='("eikcoefs: teqin returns",1p5e10.2,i6,l,i6)') psi_0, psi_a, rmaj, B_T0, avgrmid, eqinit, in_nt, nthg
+             call tdef(nthg, ntheta_returned)
+if (debug) write(6,*) 'eikcoefs: transp_eq, called tdef'
+!CMRend
           else if(ppl_eq) then
              call peqin(eqfile, psi_0, psi_a, rmaj, B_T0, avgrmid, eqinit, in_nt, nthg)
-             call tdef(nthg, ntheta_returned)
-          else if(transp_eq) then
-             ppl_eq = .true.
-             write (*,*) 'eqfile = ',eqfile
-             call teqin(eqfile, psi_0, psi_a, rmaj, B_T0, avgrmid, eqinit, in_nt, nthg)
-             call tdef(nthg, ntheta_returned)
+             call tdef(nthg,ntheta_returned)
           else if(efit_eq) then
              if(big <= 0) big = 8
              if (mds) then
                 call mfitin(shotnum, tstar, psi_0, psi_a, rmaj, B_T0, avgrmid, eqinit, big) 
              else if(gs2d_eq) then
+if (debug) write(6,*) "eikcoefs: call gs2din eqfile=",eqfile
                 call gs2din(eqfile, psi_0, psi_a, rmaj, B_T0, avgrmid, eqinit, big) 
+if (debug) write(6,*) "eikcoefs: done gs2din  psi_0,psi_a, rmaj, B_T0, avgrmid=",psi_0,psi_a, rmaj, B_T0, avgrmid
              else
                 call efitin(eqfile, psi_0, psi_a, rmaj, B_T0, avgrmid, eqinit, big) 
              endif
@@ -274,13 +288,17 @@ contains
              call idfitin(eqfile, theta, psi_0, psi_a, rmaj, B_T0, avgrmid, eqinit) 
              call tdef(nthg, ntheta_returned)
           endif
+if (debug) write(6,*) 'eikcoefs: iflux=',iflux
           if(iflux == 10) return
+if (debug) write(6,*) 'eikcoefs: alloc_module_arrays, ntgrid=',ntgrid
           if(.not.allocated(gds22)) call alloc_module_arrays(ntgrid)
-          call alloc_local_arrays(ntgrid)  
+if (debug) write(6,*) 'eikcoefs: alloc_local_arrays'
+          call alloc_local_arrays(ntgrid)
        case (2) 
           continue
     end select
-
+if (debug) writelots=.true.
+if (debug) write(6,*) "eikcoefs: if (writelots)"
     if(writelots) then
        write(11,*) 'All lengths normalized to the avg midplane minor radius'
        if(irho /= 2) then
@@ -294,10 +312,13 @@ contains
 
     rho=rhoc
 
+if (debug) write(6,*) "eikcoefs: find rp"
     if(iflux == 1) then
        rpmin = psi_0
        rpmax = psi_a
+if (debug) write(6,*) "eikcoefs: rpmin,rpmax=",rpmin,rpmax
        rp = rpofrho(rho)
+if (debug) write(6,*) "eikcoefs: rp=",rp
     else
        rpmin = 0.
        rpmax = 1.0
@@ -312,7 +333,8 @@ contains
 !    endif
 
     if(iflux == 1) R_geo=rcenter(rpmax)
-    
+
+if (debug) write(6,*) "eikcoefs: find rgrid"    
     if(efit_eq .or. dfit_eq) then
        call rtg(rgrid, rp)
     else
@@ -363,13 +385,20 @@ contains
 !
 ! should test whether this is a new equilibrium
 !
+
+ if (debug) write(11,*) 'eikcoefs: various logs', gen_eq, ppl_eq, vmom_eq,efit_eq,dfit_eq,idfit_eq
+
     if(gen_eq)   call geq_init
     if(ppl_eq)   call peq_init
     if(vmom_eq)  call veq_init
-    if(efit_eq)  call eeq_init
+if (debug) write(6,*) "eikcoefs: call eeq_init"
+!    if(efit_eq)  call eeq_init
+    if(efit_eq)  call efit_init
+if (debug) write(6,*) "eikcoefs: done eeq_init"
     if(dfit_eq)  call deq_init
     if(idfit_eq) call ideq_init
 
+if (debug) write(6,*) "eikcoefs: call rmajortgrid"
     call rmajortgrid(rgrid, theta, rmajor)
 
 !     compute gradient of rp
@@ -398,7 +427,10 @@ contains
           call periodic_copy(ltheta, Ltot)
        endif
     endif 
+
 !     compute  coordinate gradients
+
+if (debug) write(6,*) "eikcoefs: call thetagrad"
 
     call thetagrad(rgrid,thgrad)
      
@@ -469,6 +501,16 @@ contains
 
        if(iflux == 0 .or. iflux == 2) trip = trip * dpsidrp
 
+!CMR, June06
+if (debug) write(6,*) rpgrad(-nth:nth,1)
+if (debug) write(6,*) rpgrad(-nth:nth,2)
+if (debug) write(6,*) thgrad(-nth:nth,1)
+if (debug) write(6,*) thgrad(-nth:nth,2)
+if (debug) write(6,*) 1.0d0/trip(-nth:nth)
+if (debug) write(6,*) -Rpol(-nth:nth)/bpolmag(-nth:nth)
+!CMRend
+
+
        da_bish = da_bish/trip
        db_bish = db_bish/trip
        dc_bish = dc_bish/trip
@@ -498,6 +540,10 @@ contains
        if (abs(qval) > epsilon(0.)) then
           tmp = rho/qval/(2.*pi)/drhodpsi
           s_hat = tmp*(a_b*di+ b_b*dp + c_b*2)
+!CMR, June06
+          if (debug) write(6,*) "a_b (f'), b_b (p'), c_b terms =", a_b*di, b_b*dp, c_b*2
+          if (debug) write(6,*) 'qval, rho, drhodpsi, s_hat =', qval, rho, drhodpsi, s_hat 
+!CMRend
        else
           tmp = 1.
           s_hat = 0.
@@ -619,7 +665,7 @@ contains
              write (11,*) i,rgrid(i),rgrid1(i),rgrid2(i)
           enddo
        endif
-    
+ 
        s_hat_new = shat
 
        rpval(1)=rp
@@ -787,12 +833,14 @@ contains
     qsf = qval
     dum=qfun(0.5)
     if(eqinit >= 1) eqinit=0
-      
-!MAB> not sure why plotdata was only called for nperiod=1
-! to calculate omprim term for flow shear, we need Rplot when nperiod/=1
+! MAB, CMR, 6/5/2009:
+! remove unnecessary restriction to calling plotdata for nperiod=1
+! so that Rplot, Zplot etc can be made available elsewhere in GS2
 !    if (nperiod ==1) call plotdata (rgrid, seik, grads, dpsidrho)
     call plotdata (rgrid, seik, grads, dpsidrho)
-!<MAB
+
+    rmajor_geo = rmajor
+    bpol_geo = bpolmag
 
     call dealloc_local_arrays
 
@@ -818,7 +866,8 @@ contains
 !       g22_X = 
 !
 !    end if
-    
+
+
 contains
 
   subroutine alloc_local_arrays(n)
@@ -851,6 +900,11 @@ contains
          ans        (-n:n), &
          ds         (-n:n), &
          arcl       (-n:n))
+
+    if (.not. allocated(rmajor_geo)) then
+       allocate (rmajor_geo(-n:n))
+       allocate (bpol_geo(-n:n))
+    end if
 
     allocate(thgrad (-n:n,2), &
          rpgrad     (-n:n,2), &
@@ -2514,6 +2568,9 @@ end subroutine geofax
     
     real :: pi
     integer :: nthg, nthsave, i, ntheta_returned
+!cmr Jun06: adding following debug switch
+    logical :: debug=.false.
+!cmr
 !    logical :: first = .true.
     
 !    if(.not.first) return
@@ -2523,6 +2580,7 @@ end subroutine geofax
     
 !    nthsave=nth
     nth=nthg/2   ! correct, at least for geq
+    if (debug) write(6,*) "tdef: nthg,nth=",nthg,nth
 !    write(*,*) 'old nth: ',nthsave,' new nth: ',nth
     ntheta_returned=2*nth  ! guarantees even
     ntheta = ntheta_returned
@@ -2532,7 +2590,10 @@ end subroutine geofax
     !     note that the gen_eq theta grid has theta(1)=0.
     !     problems avoided by mtheta grid in eqitem.  
     
+    if (debug) write(6,*) "tdef: allocated(theta)=",allocated(theta)
+    if (debug .and. allocated(theta)) write(6,*) "tdef: size(theta)=",size(theta)
     if(.not.allocated(theta)) allocate(theta(-ntgrid:ntgrid))
+    if (debug) write(6,*) "tdef: ntgrid=",ntgrid
     theta(0)=0.
     do i=1,nth
        theta(i)=i*pi/float(nth)
@@ -2561,7 +2622,11 @@ end subroutine geofax
   subroutine alloc_module_arrays(n)
 
     integer n
-
+!cmr Jun06: adding following debug switch
+    logical :: debug=.false.
+!cmr
+    if (debug) write(6,*) "alloc_module_arrays: n=",n
+!CMR
     allocate(grho   (-n:n), &
          bmag       (-n:n), &
          gradpar    (-n:n), &
@@ -2581,7 +2646,7 @@ end subroutine geofax
          aprime     (-n:n), &
          Uk1        (-n:n), &
          Uk2        (-n:n))
-
+    if (debug) write(6,*) "alloc_module_arrays: done"
   end subroutine alloc_module_arrays
 
   subroutine init_theta(nt)
@@ -2589,12 +2654,16 @@ end subroutine geofax
     integer, intent(in) :: nt
     integer i
     real :: pi
+!cmr Jun06: adding following debug switch
+    logical :: debug=.false.
+!cmr
     logical :: first_local = .true.
 
     pi = 2*acos(0.)
     ntheta=nt
     nth = nt / 2
     ntgrid = (2*nperiod - 1)*nth       
+    if (debug) write(6,*) "init_theta: allocated(theta),ntgrid=",allocated(theta),ntgrid
     if (.not. first_local) deallocate (theta)
     allocate(theta(-ntgrid:ntgrid))
     first_local = .false.

@@ -38,7 +38,8 @@ program ingen
 
   integer :: nlambda
   integer :: in_file, i, ierr, unit, is, report_unit, iunit, ncut
-  logical :: exist, shat_is_known = .true., scan, stdin
+!  logical :: exist, shat_is_known = .true., scan, stdin
+  logical :: exist, scan, stdin
   logical :: has_electrons = .false.
 
   integer, dimension (18), parameter :: nesub_ok = (/ &
@@ -71,7 +72,7 @@ program ingen
   real :: vncoef, absom, cfac_nu
   integer :: ivnew
   character (20) :: collision_model
-  logical :: conserve_number, conserve_momentum, hypercoll
+  logical :: conserve_number, conserve_momentum, hypercoll, const_v
   logical :: heating
   integer, parameter :: collision_model_lorentz = 1
   integer, parameter :: collision_model_krook = 2
@@ -140,8 +141,8 @@ program ingen
   complex, dimension (:), allocatable :: fexp ! (nspec)
   real, dimension (:), allocatable :: bkdiff  ! (nspec)
   integer, dimension (:), allocatable :: bd_exp ! nspec
-  real :: gridfac, apfac, driftknob, poisfac
-  real :: kfilter, afilter, D_kill, noise
+  real :: gridfac, apfac, driftknob, tpdriftknob, poisfac
+  real :: kfilter, afilter, D_kill, noise, g_exb, omprimfac
   real :: t0, omega0, gamma0, source0, thetas, phi_ext, a_ext
   real :: akx_star, aky_star, cfac_df
   integer :: nperiod_guard 
@@ -211,10 +212,11 @@ program ingen
 ! fields: 
   character (20) :: field_option
   integer :: fieldopt_switch
-  integer, parameter :: fieldopt_implicit = 1, fieldopt_test = 2
-  type (text_option), dimension (3), parameter :: fieldopts = &
+  integer, parameter :: fieldopt_implicit = 1, fieldopt_test = 2, fieldopt_explicit = 3
+  type (text_option), dimension (4), parameter :: fieldopts = &
        (/ text_option('default', fieldopt_implicit), &
        text_option('implicit', fieldopt_implicit), &
+       text_option('explicit', fieldopt_explicit), &
        text_option('test', fieldopt_test) /)
 
 ! gs2_diagnostics: 
@@ -272,14 +274,15 @@ program ingen
   real :: aky_min, aky_max, theta0_min, theta0_max, lx, ly, x0, y0, rtwist
   real :: y0_internal
   integer, parameter :: gridopt_single = 1, gridopt_range = 2, &
-       gridopt_specified = 3, gridopt_box = 4
-  type (text_option), dimension (6), parameter :: gridopts = &
+       gridopt_specified = 3, gridopt_box = 4, gridopt_xbox = 5
+  type (text_option), dimension (7), parameter :: gridopts = &
        (/ text_option('default', gridopt_single), &
        text_option('single', gridopt_single), &
        text_option('range', gridopt_range), &
        text_option('specified', gridopt_specified), &
        text_option('box', gridopt_box), &
-       text_option('nonlinear', gridopt_box) /)
+       text_option('nonlinear', gridopt_box), &
+       text_option('xbox', gridopt_xbox) /)
   character (20) :: grid_option
 
   integer, parameter :: normopt_mtk = 1, normopt_bd = 2
@@ -406,7 +409,7 @@ program ingen
 
   logical :: layouts_write = .false.
   logical :: driver_write = .false.
-  logical :: stir_write = .false.
+!  logical :: stir_write = .false.
   logical :: collisions_write = .false.
   logical :: init_g_write = .false.
   logical :: dist_fn_write = .false.
@@ -419,12 +422,13 @@ program ingen
   logical :: kt_single_write = .false.
   logical :: kt_specified_write = .false.
   logical :: kt_box_write = .false.
+  logical :: kt_xbox_write = .false.
   logical :: kt_write = .false.
   logical :: le_write = .false.
   logical :: nonlinear_write = .false.
   logical :: parameters_write = .false.
   logical :: species_write = .false.
-  logical :: species_parameters_write = .false.
+!  logical :: species_parameters_write = .false.
   logical :: theta_parameters_write = .false.
   logical :: theta_gridgen_write = .false.
   logical :: theta_salpha_write = .false.
@@ -471,7 +475,8 @@ program ingen
        den2, upar2, tpar2, tperp2, dphiinit, apar0
 
 ! dist_fn:
-  namelist /dist_fn_knobs/ boundary_option, gridfac, apfac, driftknob, &
+  namelist /dist_fn_knobs/ boundary_option, gridfac, apfac, &
+       driftknob, tpdriftknob, g_exb, omprimfac, &
        nperiod_guard, poisfac, adiabatic_option, cfac, &
        kfilter, afilter, mult_imp, test, def_parity, even, &
        save_n, save_u, save_Tpar, save_Tperp, D_kill, noise, heating_option
@@ -525,6 +530,8 @@ program ingen
   namelist /kt_grids_box_parameters/ naky, ntheta0, ly, nx, ny, jtwist, &
        y0, x0, rtwist
 
+  namelist /kt_grids_xbox_parameters/ ntheta0, lx, aky, nx
+
   namelist /kt_grids_knobs/ grid_option, norm_option
 
 ! le_grids:
@@ -570,6 +577,9 @@ program ingen
 
   namelist /ingen_knobs/ ncut, scan, stdin
 
+!CMR
+  logical:: debug=.false.
+
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -586,12 +596,17 @@ program ingen
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
-  call init_mp  
+  call init_mp
+ 
+  if (debug) write(6,*) 'ingen: call get_namelists'
   
   call get_namelists
+  if (debug) write(6,*) 'ingen: call report'
   call report
+  if (debug) write(6,*) 'ingen: call write_namelists'
   call write_namelists
 
+  if (debug) write(6,*) 'ingen: call interactive, scan=',scan
   if (scan) call interactive
 
   call finish_mp
@@ -603,9 +618,11 @@ contains
     integer :: sel, nbeta, j, ise
     real :: beta_low, beta_high, dbeta, beta_save
     real :: fapar_save, faperp_save, pri, pe, alpi, tpe_save, ptot, alp, dbdr
-    real :: alt, aln, fac, beta_prime_save, bishop_save, beta_prime
+!    real :: alt, aln, fac, beta_prime_save, bishop_save, beta_prime
+    real :: alt, aln, fac, beta_prime_save, bishop_save
     real, dimension (:), allocatable :: tp_save, fp_save
-    character (500) :: tag, tag1, tag2
+!    character (500) :: tag, tag1, tag2
+    character (500) :: tag1, tag2
     logical :: first = .true.
 
     if (first) then
@@ -1147,7 +1164,7 @@ contains
        
     end select
 
-10  format (a) 
+!10  format (a) 
 
   end subroutine interactive
 
@@ -1156,8 +1173,10 @@ contains
     use theta_grid, only: init_theta_grid, nbset, shat_real => shat
     use constants, only: pi
     logical :: list
+!CMR
+    logical:: debug=.false.
     call init_file_utils (list, name="template")
-
+if (debug) write(6,*) 'get_namelists: called init_file_utils'
     ncut= 100000
     scan = .false.
     stdin = .true.
@@ -1165,6 +1184,7 @@ contains
     in_file=input_unit_exist("ingen_knobs", exist)
     if (exist) read(unit=input_unit("ingen_knobs"), nml=ingen_knobs)
 
+if (debug) write(6,*) 'get_namelists: if (scan), scan=',scan
     if (scan) then
        if (.not. stdin) then
           if (pythonin == "") then
@@ -1173,6 +1193,7 @@ contains
        end if 
     end if 
 
+if (debug) write(6,*) 'get_namelists: layouts'
     local_field_solve = .false.
 !    layout = 'lexys'
     layout = 'lxyes'
@@ -1231,6 +1252,7 @@ contains
 
     t0_driver = t0
 
+if (debug) write(6,*) 'get_namelists: collisions'
     ! collisions: 
     collision_model = 'default'
     tmpfac = cfac
@@ -1256,6 +1278,7 @@ contains
     cfac_nu = cfac
     cfac = tmpfac
 
+if (debug) write(6,*) 'get_namelists: init_g'
     ! init_g:
     tstart = 0.
     scale = 1.0
@@ -1313,6 +1336,7 @@ contains
          (field_option, fieldopts, fieldopt_switch, &
          ierr, "field_option in fields_knobs")
     
+if (debug) write(6,*) 'get_namelists: gs2_reinit'
     ! gs2_reinit:
     delt_adj = 2.0
     delt_minimum = 1.e-5
@@ -1322,6 +1346,7 @@ contains
        reinit_write = .true.
     end if
 
+if (debug) write(6,*) 'get_namelists: hyper'
     ! hyper:
     const_amp = .false.
     include_kpar = .false.
@@ -1364,6 +1389,7 @@ contains
 
     end select
 
+if (debug) write(6,*) 'get_namelists: kt_grids'
     ! kt_grids:
     norm_option = 'default'
     grid_option = 'default'
@@ -1467,8 +1493,21 @@ contains
        if (ntheta0 == 0) ntheta0 = 2*((nx-1)/3) + 1
        if (rtwist == 0.) rtwist = real(jtwist)
 
+    case (gridopt_xbox)
+       ntheta0 = 1
+       lx = 1.0
+       aky = 0.2
+       nx = 0
+       in_file=input_unit_exist("kt_grids_xbox_parameters",exist)
+       if (exist) then
+          read (unit=input_unit("kt_grids_xbox_parameters"), &
+               nml=kt_grids_xbox_parameters)
+          kt_xbox_write = .true.
+       end if
+
     end select
 
+if (debug) write(6,*) 'get_namelists: le_grids'
     ! le_grids:
     nesub = 8
     nesuper = 2
@@ -1499,6 +1538,7 @@ contains
        endif
     endif
 
+if (debug) write(6,*) 'get_namelists: nonlinear terms'
     ! nonlinear_terms:
     nonlinear_mode = 'default'
     flow_mode = 'default'
@@ -1566,14 +1606,17 @@ contains
          (delt_option, deltopts, delt_option_switch, ierr, &
          "delt_option in knobs")
 
+if (debug) write(6,*) 'get_namelists: species'
     ! species: 
     nspec = 2
     in_file = input_unit_exist("species_knobs", exist)
     if (exist) then
        read (unit=input_unit("species_knobs"), nml=species_knobs)
        species_write = .true.
+if (debug) write(6,*) 'get_namelists: species_knobs exist, nspec=',nspec
     end if
 
+if (debug) write(6,*) 'get_namelists: nspec=',nspec
     allocate (spec(nspec))
     do is = 1, nspec
        call get_indexed_namelist_unit (unit, "species_parameters", is)
@@ -1604,6 +1647,7 @@ contains
     end do
 
     gb_to_cv = .false.
+if (debug) write(6,*) 'get_namelists: theta_grid_knobs'
     equilibrium_option = 'default'
     in_file= input_unit_exist("theta_grid_knobs", exist)
     if (exist) then
@@ -1634,6 +1678,7 @@ contains
     ntheta = 24
     nperiod = 2
 
+if (debug) write(6,*) 'get_namelists: case (eqopt_switch), eqopt_switch=',eqopt_switch
     select case (eqopt_switch)
     case (eqopt_eik)
        itor = 1
@@ -1650,6 +1695,9 @@ contains
        writelots = .false.
        local_eq = .true.
        transp_eq = .false.
+       idfit_eq=.false.
+       dfit_eq=.false.
+       gs2d_eq=.false.
        beta_prime_input = 0.
        s_hat_input = 0.
        
@@ -1661,7 +1709,9 @@ contains
 
        in_file= input_unit_exist("theta_grid_eik_knobs", exist)
        if (exist) then
+if (debug) write(6,*) "get_namelists: reading theta_grid_eik_knobs"
           read (unit=input_unit("theta_grid_eik_knobs"), nml=theta_grid_eik_knobs)
+if (debug) write(6,*) "get_namelists: done theta_grid_eik_knobs"
           theta_eik_write = .true.
        end if
 
@@ -1727,6 +1777,7 @@ contains
     gridfac = 5e4
     apfac = 1.0
     driftknob = 1.0
+    tpdriftknob = -9.9e9
     t0 = 100.0
     source0 = 1.0
     omega0 = 0.0
@@ -1738,6 +1789,7 @@ contains
     a_ext = 0.0
     afilter = 0.0
     kfilter = 0.0
+    g_exb = 0.0
     D_kill = -10.0
     noise = -1.
     mult_imp = .false.
@@ -1749,9 +1801,11 @@ contains
     tmpfac = cfac
     cfac = 1.0
 
+if (debug) write(6,*) 'get_namelists: dist_fn_knobs'
     in_file= input_unit_exist("dist_fn_knobs", exist)
     if (exist) then
        read (unit=input_unit("dist_fn_knobs"), nml=dist_fn_knobs)
+       if (tpdriftknob == -9.9e9) tpdriftknob=driftknob
        dist_fn_write = .true.
     end if
 
@@ -1776,7 +1830,9 @@ contains
        close (unit=unit)
     end do
 
+if (debug) write(6,*) 'get_namelists: call init_theta_grid'
     call init_theta_grid 
+if (debug) write(6,*) 'get_namelists: called init_theta_grid'
     shat = shat_real
 
     if(abs(shat) <=  1.e-5) boundary_option = 'periodic'
@@ -1860,6 +1916,7 @@ contains
 
     if (.not. save_for_restart) nsave = -1
     nperiod_output = max(nperiod, 1)
+if (debug) write(6,*) 'get_namelists: returning'
 
   end subroutine get_namelists
 
@@ -1869,8 +1926,8 @@ contains
     character (*), intent (in), optional :: tag1, tag2
 
     character (100) :: line
-    integer :: th, h, t, u
-    integer :: i, j
+    integer :: h, t, u
+    integer :: i
     character (4) :: suffix
     character(20) :: datestamp, timestamp, zone
     
@@ -1937,6 +1994,7 @@ contains
        end select
        write (unit, fmt="(' cfac = ',f5.3)") cfac_nu
        write (unit, fmt="(' heating = ',L1)") heating
+       write (unit, fmt="(' cfac = ',f5.3)") cfac
        write (unit, fmt="(' /')")
     end if
 
@@ -2155,6 +2213,7 @@ contains
 
        if (apfac /= 1.) write (unit, fmt="(' apfac = ',e16.10)") apfac
        if (driftknob /= 1.) write (unit, fmt="(' driftknob = ',e16.10)") driftknob
+       if (tpdriftknob /= 1.) write (unit, fmt="(' tpdriftknob = ',e16.10)") tpdriftknob
        if (poisfac /= 0.) write (unit, fmt="(' poisfac = ',e16.10)") poisfac
        if (kfilter /= 0.) write (unit, fmt="(' kfilter = ',e16.10)") kfilter
        if (afilter /= 0.) write (unit, fmt="(' afilter = ',e16.10)") afilter
@@ -2244,6 +2303,8 @@ contains
        select case (fieldopt_switch)
        case (fieldopt_implicit)
           write (unit, fmt="(' field_option = ',a)") '"implicit"'
+       case (fieldopt_explicit)
+          write (unit, fmt="(' field_option = ',a)") '"explicit"'
        case (fieldopt_test)
           write (unit, fmt="(' field_option = ',a)") '"test"'
        end select
@@ -2381,6 +2442,9 @@ contains
        case (gridopt_box)
           write (unit, fmt="(' grid_option = ',a)") '"box"'
 
+       case (gridopt_xbox)
+          write (unit, fmt="(' grid_option = ',a)") '"xbox"'
+
        end select
 
        select case (normopt_switch)
@@ -2458,6 +2522,15 @@ contains
        write (unit, fmt="(' /')")
     end if
 
+
+    if (kt_xbox_write) then
+       write (unit, *)
+       write (unit, fmt="(' &',a)") "kt_grids_xbox_parameters"
+       write (unit, fmt="(' nx = ',i4)") nx
+       write (unit, fmt="(' ny = ',i4)") ny
+       write (unit, fmt="(' Lx = ',e16.10)") lx
+       write (unit, fmt="(' /')")
+    end if
 
     if (nonlinear_write .and. nonlinear_mode_switch == nonlinear_mode_on) then
        write (unit, *)
@@ -2725,8 +2798,10 @@ contains
      bakdif_out = bakdif
    end subroutine fill_species_knobs
 
-   subroutine check(veq, geq, eeq, peq, leq, deq, ideq, report_unit)
-     logical, intent(in) :: veq, geq, eeq, peq, leq, deq, ideq
+!   subroutine check(veq, geq, eeq, peq, leq, deq, ideq, report_unit)
+!     logical, intent(in) :: veq, geq, eeq, peq, leq, deq, ideq
+   subroutine check(veq, geq, eeq, peq, leq, deq, report_unit)
+     logical, intent(in) :: veq, geq, eeq, peq, leq, deq
      integer, intent (in) :: report_unit
 
      if(veq .and. geq) then
@@ -2909,7 +2984,8 @@ contains
      character (20) :: datestamp, timestamp, zone
      character (200) :: line
      logical :: coll_on = .false., le_ok = .true.
-     integer :: ntgrid, j, nmesh, npe
+!     integer :: ntgrid, j, nmesh, npe
+     integer :: ntgrid, j, nmesh
      integer, dimension(4) :: pfacs
 
      call get_unused_unit (report_unit)
@@ -3006,6 +3082,7 @@ contains
               write (report_unit, *) 
            end if
 
+           write (report_unit, fmt="('nmesh=(2*ntgrid+1)*2*nlambda*negrid*nx*ny*nspec')")
            nmesh = (2*ntgrid+1)*2*nlambda*negrid*nx*ny*nspec
 
  !
@@ -3061,9 +3138,18 @@ contains
               write (report_unit, *) 
            end if
         else
+           write (report_unit, fmt="('nmesh=(2*ntgrid+1)*2*nlambda*negrid*ntheta0*naky*nspec')")
            nmesh = (2*ntgrid+1)*2*nlambda*negrid*ntheta0*naky*nspec
         end if
 
+        write (report_unit, fmt="('ntgrid :    ',i12)") ntgrid
+        write (report_unit, fmt="('nlambda:    ',i12)") nlambda
+        write (report_unit, fmt="('negrid :    ',i12)") negrid
+        write (report_unit, fmt="('ntheta0:    ',i12)") ntheta0
+        write (report_unit, fmt="('naky   :    ',i12)") naky
+        write (report_unit, fmt="('ny     :    ',i12)") ny
+        write (report_unit, fmt="('nx     :    ',i12)") nx
+        write (report_unit, fmt="('nspec  :    ',i12)") nspec
         write (report_unit, fmt="('Number of meshpoints:    ',i12)") nmesh
 
         call nprocs (nmesh)
@@ -3217,8 +3303,10 @@ contains
 
            if (shift > -epsilon(0.0)) then
               write (report_unit, fmt="('The s-alpha alpha parameter is ',f7.4)") shift
-              write (report_unit, fmt="('corresponding to d beta / d rho = ',f10.4)") shift/arat/qsf**2
-              if (abs(dbdr - shift/arat/qsf**2) > 1.e-2) then
+!CMR 10/11/06: correct sign of dbeta/drho in s-alpha
+              write (report_unit, fmt="('corresponding to d beta / d rho = ',f10.4)") -shift/arat/qsf**2
+!CMR 10/11/06: correct sign of dbeta/drho in s-alpha in this check
+              if (abs(dbdr + shift/arat/qsf**2) > 1.e-2) then
                  write (report_unit, *) 
                  write (report_unit, fmt="('################# WARNING #######################')")
                  write (report_unit, fmt="('This is inconsistent with beta and the pressure gradient.')") 
@@ -3321,7 +3409,8 @@ contains
 
      case (eqopt_eik)
 
-        call check (vmom_eq, gen_eq, efit_eq, ppl_eq, local_eq, dfit_eq, idfit_eq, report_unit)
+!        call check (vmom_eq, gen_eq, efit_eq, ppl_eq, local_eq, dfit_eq, idfit_eq, report_unit)
+        call check (vmom_eq, gen_eq, efit_eq, ppl_eq, local_eq, dfit_eq, report_unit)
         write (report_unit, *)
         if (local_eq .and. iflux == 0) then
            write (report_unit, fmt="('A local equilibrium model has been selected.')")
@@ -3534,7 +3623,7 @@ contains
               write (report_unit, fmt="('You have set bishop=7.')")
               write (report_unit, fmt="('The value of s_hat will be found from the equilibrium file.')") 
               write (report_unit, fmt="('The value of dp/drho found from the equilibrium file will be multiplied by',f10.4)") &
-	           dp_mult
+                   dp_mult
            case default
 
               write (report_unit, *) 
@@ -3616,6 +3705,9 @@ contains
         select case (collision_model_switch)
         case (collision_model_lorentz,collision_model_lorentz_test)
            write (report_unit, fmt="('A Lorentz collision operator has been selected.')")
+           if (cfac > 0) write (report_unit, fmt="('This has both terms of Lorentz collision operator (cfac=1.0)')")
+           if (cfac == 0) write (report_unit, fmt="('This is only a partial Lorentz collision operator (cfac=0.0)')")
+           if (const_v) write (report_unit, fmt="('This is an energy independent Lorentz collision operator (const_v=true)')")  
  !          if (hypercoll) call init_hyper_lorentz
        case (collision_model_krook,collision_model_krook_test)
           write (report_unit, fmt="('A Krook collision operator has been selected.')")
@@ -3632,6 +3724,13 @@ contains
     select case (fieldopt_switch)
     case (fieldopt_implicit)
        write (report_unit, fmt="('The field equations will be advanced in time implicitly.')")
+    case (fieldopt_explicit)
+       write (report_unit, *) 
+       write (report_unit, fmt="('################# WARNING #######################')")
+       write (report_unit, fmt="('The field equations will be advanced in time explicitly.')")
+       write (report_unit, fmt="('THIS IS PROBABLY AN ERROR.')") 
+       write (report_unit, fmt="('################# WARNING #######################')")
+       write (report_unit, *) 
     case (fieldopt_test)
        write (report_unit, *) 
        write (report_unit, fmt="('################# WARNING #######################')")
@@ -4176,6 +4275,15 @@ contains
        write (report_unit, fmt="('After de-aliasing, there will be ',i4,'  ky >= 0 modes and ',i4,' kx modes.')") naky, ntheta0
        write (report_unit, fmt="('The modes with ky < 0 are determined by the reality condition.')")
 
+    case (gridopt_xbox)
+          write (report_unit, *) 
+          write (report_unit, fmt="('################# WARNING #######################')")
+          write (report_unit, fmt="('You selected grid_option=xbox in kt_grids_knobs')")
+          write (report_unit, fmt="('The xbox option is not working.')")
+          write (report_unit, fmt="('THIS IS AN ERROR.')") 
+          write (report_unit, fmt="('################# WARNING #######################')")
+          write (report_unit, *) 
+
     end select
 
     write (report_unit, *) 
@@ -4205,9 +4313,19 @@ contains
     if (driftknob /= 1.) then
        write (report_unit, *) 
        write (report_unit, fmt="('################# WARNING #######################')")
-       write (report_unit, fmt="('You selected driftknob = ',e10.4,' in dist_fn_knobs.')")
-       write (report_unit, fmt="('THIS IS PROBABLY AN ERROR.')") 
+       write (report_unit, fmt="('You selected driftknob = ',e10.4,' in dist_fn_knobs.')") driftknob
+       write (report_unit, fmt="('THIS IS EITHER AN ERROR, or you are DELIBERATELY SCALING THE DRIFTS.')") 
        write (report_unit, fmt="('The normal choice is driftknob = 1.')")
+       write (report_unit, fmt="('################# WARNING #######################')")
+       write (report_unit, *) 
+    end if
+
+    if (tpdriftknob /= 1.) then
+       write (report_unit, *) 
+       write (report_unit, fmt="('################# WARNING #######################')")
+       write (report_unit, fmt="('You selected tpdriftknob = ',e10.4,' in dist_fn_knobs.')") tpdriftknob
+       write (report_unit, fmt="('THIS IS EITHER AN ERROR, or you are DELIBERATELY SCALING THE TRAPPED PARTICLE DRIFTS (either via driftknob or via tpdriftknob).')") 
+       write (report_unit, fmt="('The normal choice is tpdriftknob = 1.')")
        write (report_unit, fmt="('################# WARNING #######################')")
        write (report_unit, *) 
     end if
@@ -4341,6 +4459,11 @@ contains
           write (report_unit, fmt="('################# WARNING #######################')")
           write (report_unit, *) 
        end if
+
+    write (report_unit, *) 
+    write (report_unit, fmt="('------------------------------------------------------------')")
+    write (report_unit, *) 
+    write (report_unit, fmt="('The ExB parameter is ',f7.4)") g_exb
 
     write (report_unit, *) 
     write (report_unit, fmt="('------------------------------------------------------------')")
@@ -4847,7 +4970,8 @@ contains
     if (write_eigenfunc) then
        if (write_ascii) then
           write (report_unit, fmt="('write_eigenfunc = T:       Normalized Phi(theta) written to ',a)") &
-	& 	trim(run_name)//'.eigenfunc'
+!               & 	trim(run_name)//'.eigenfunc'
+               trim(run_name)//'.eigenfunc'
        end if
        write (report_unit, fmt="('write_eigenfunc = T:       Normalized Phi(theta) written to ',a)") trim(run_name)//'.out.nc'
     end if

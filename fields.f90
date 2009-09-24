@@ -1,5 +1,7 @@
 module fields
   use fields_arrays, only: phi, apar, bpar, phinew, aparnew, bparnew
+  use fields_arrays, only: phitmp, apartmp, bpartmp
+  use fields_arrays, only: phitmp1, apartmp1, bpartmp1
   use fields_arrays, only: phi_ext, apar_ext
 
   implicit none
@@ -19,7 +21,7 @@ module fields
 
   ! knobs
   integer :: fieldopt_switch
-  integer, parameter :: fieldopt_implicit = 1, fieldopt_test = 2
+  integer, parameter :: fieldopt_implicit = 1, fieldopt_test = 2, fieldopt_explicit = 3
 
   logical :: initialized = .false.
 
@@ -32,6 +34,7 @@ contains
     use dist_fn, only: init_dist_fn
     use init_g, only: ginit, init_init_g
     use fields_implicit, only: init_fields_implicit, init_phi_implicit
+    use fields_explicit, only: init_fields_explicit, init_phi_explicit
     use fields_test, only: init_fields_test, init_phi_test
     use nonlinear_terms, only: nl_finish_init => finish_init
     use antenna, only: init_antenna
@@ -40,11 +43,14 @@ contains
 
     if (initialized) return
     initialized = .true.
-
+    
     call init_theta_grid
     
-    call init_run_parameters
+!CMR,30/3/2009:
+! call init_init_g before init_run_parameters to read delt from restart file
+
     call init_init_g
+    call init_run_parameters
     call init_dist_fn
     call read_parameters
     call allocate_arrays
@@ -52,6 +58,8 @@ contains
     select case (fieldopt_switch)
     case (fieldopt_implicit)
        call init_fields_implicit
+    case (fieldopt_explicit)
+       call init_fields_explicit
     case (fieldopt_test)
        call init_fields_test
     end select
@@ -66,6 +74,8 @@ contains
     select case (fieldopt_switch)
     case (fieldopt_implicit)
        call init_phi_implicit
+    case (fieldopt_explicit)
+       call init_phi_explicit
     case (fieldopt_test)
        call init_phi_test
     end select
@@ -77,9 +87,10 @@ contains
     use text_options, only: text_option, get_option_value
     use mp, only: proc0, broadcast
     implicit none
-    type (text_option), dimension (3), parameter :: fieldopts = &
+    type (text_option), dimension (4), parameter :: fieldopts = &
          (/ text_option('default', fieldopt_implicit), &
             text_option('implicit', fieldopt_implicit), &
+            text_option('explicit', fieldopt_explicit), &
             text_option('test', fieldopt_test) /)
     character(20) :: field_option
     namelist /fields_knobs/ field_option
@@ -117,12 +128,19 @@ contains
        allocate (  phinew (-ntgrid:ntgrid,ntheta0,naky))
        allocate ( aparnew (-ntgrid:ntgrid,ntheta0,naky))
        allocate (bparnew (-ntgrid:ntgrid,ntheta0,naky))
+       allocate (  phitmp (-ntgrid:ntgrid,ntheta0,naky))
+       allocate ( apartmp (-ntgrid:ntgrid,ntheta0,naky))
+       allocate (bpartmp (-ntgrid:ntgrid,ntheta0,naky))
+!       allocate (  phitmp1(-ntgrid:ntgrid,ntheta0,naky))
+!       allocate ( apartmp1(-ntgrid:ntgrid,ntheta0,naky))
+!       allocate (bpartmp1(-ntgrid:ntgrid,ntheta0,naky))
 !       allocate ( phi_ext (-ntgrid:ntgrid,ntheta0,naky))
        allocate (apar_ext (-ntgrid:ntgrid,ntheta0,naky))
     endif
-    phi = 0. ; phinew = 0.  
-    apar = 0.; aparnew = 0. 
-    bpar = 0.; bparnew = 0. 
+    phi = 0.; phinew = 0.; phitmp = 0. 
+    apar = 0.; aparnew = 0.; apartmp = 0. 
+    bpar = 0.; bparnew = 0.; bpartmp = 0.
+!    phitmp1 = 0. ; apartmp1 = 0. ; bpartmp1 = 0.
 !    phi_ext = 0.
     apar_ext = 0.
 
@@ -131,6 +149,7 @@ contains
 
   subroutine advance (istep)
     use fields_implicit, only: advance_implicit
+    use fields_explicit, only: advance_explicit
     use fields_test, only: advance_test
     implicit none
     integer, intent (in) :: istep
@@ -138,6 +157,8 @@ contains
     select case (fieldopt_switch)
     case (fieldopt_implicit)
        call advance_implicit (istep)
+    case (fieldopt_explicit)
+       call advance_explicit (istep)
     case (fieldopt_test)
        call advance_test (istep)
     end select
@@ -249,7 +270,7 @@ contains
     use fields_implicit, only: implicit_reset => reset_init
     use fields_test, only: test_reset => reset_init
     use fields_arrays, only: phi, apar, bpar, phinew, aparnew, bparnew
-    use fields_arrays, only: apar_ext
+    use fields_arrays, only: phitmp, apartmp, bpartmp, apar_ext
 
     implicit none
 
@@ -257,7 +278,8 @@ contains
     call implicit_reset
     call test_reset
 
-    if (allocated(phi)) deallocate (phi, apar, bpar, phinew, aparnew, bparnew, apar_ext)
+    if (allocated(phi)) deallocate (phi, apar, bpar, phinew, aparnew, bparnew, &
+         phitmp, apartmp, bpartmp, apar_ext)
 
   end subroutine finish_fields
 

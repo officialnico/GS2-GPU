@@ -27,7 +27,7 @@ module gs2_diagnostics
   logical :: write_qmheat, write_pmflux, write_vmflux, write_gs, write_lpoly
   logical :: write_qbheat, write_pbflux, write_vbflux, write_g, write_gg, write_gyx
   logical :: write_dmix, write_kperpnorm, write_phitot, write_epartot
-  logical :: write_eigenfunc, write_final_fields, write_final_antot
+  logical :: write_eigenfunc, write_fields, write_final_fields, write_final_antot
   logical :: write_final_moments, write_avg_moments, write_stress
   logical :: write_full_moments_notgc
   logical :: write_fcheck, write_final_epar, write_kpar
@@ -42,7 +42,6 @@ module gs2_diagnostics
   logical :: use_shmem_for_xfields
   logical :: save_for_restart
   logical :: test_conserve
-  logical :: write_phi_over_time, write_apar_over_time, write_bpar_over_time !EGH
 !>GGH
   logical, parameter :: write_density_velocity=.false.
   logical :: write_jext=.false.
@@ -93,11 +92,12 @@ module gs2_diagnostics
   real, dimension (:,:,:,:), allocatable :: qbheat !, qbheat_par, qbheat_perp
   ! (ntheta0,naky,nspec,3)
 
-  real, dimension (:,:,:), allocatable ::  pflux,  vflux
+  real, dimension (:,:,:), allocatable ::  pflux,  vflux, vflux_par, vflux_perp
   real, dimension (:,:,:), allocatable :: pmflux, vmflux
   real, dimension (:,:,:), allocatable :: pbflux, vbflux
   real, dimension (:,:),   allocatable :: theta_pflux, theta_pmflux, theta_pbflux
   real, dimension (:,:),   allocatable :: theta_vflux, theta_vmflux, theta_vbflux
+  real, dimension (:,:),   allocatable :: theta_vflux_par, theta_vflux_perp
   real, dimension (:,:,:), allocatable :: theta_qflux, theta_qmflux, theta_qbflux
 
   ! (ntheta0,naky,nspec)
@@ -113,9 +113,6 @@ module gs2_diagnostics
 contains
 
   subroutine init_gs2_diagnostics (list, nstep)
-    !<wkdoc> Define NetCDF vars, call real_init, which calls read_parameters; broadcast all the different write flags. </wkdoc>
-
-
     use theta_grid, only: init_theta_grid
     use kt_grids, only: init_kt_grids, ntheta0, naky
     use run_parameters, only: init_run_parameters
@@ -128,7 +125,6 @@ contains
     use collisions, only: collision_model_switch, init_lorentz_error
     use mp, only: broadcast, proc0
     use le_grids, only: init_weights
-    use hdf_wrapper, only: hdf_init
 
     implicit none
     logical, intent (in) :: list
@@ -162,6 +158,7 @@ contains
     call broadcast (dump_neoclassical_flux)
     call broadcast (dump_check1)
     call broadcast (dump_check2)
+    call broadcast (write_fields)
     call broadcast (dump_fields_periodically)
     call broadcast (make_movie)
     call broadcast (dump_final_xfields)
@@ -190,9 +187,6 @@ contains
     call broadcast (write_eigenfunc)
 
     call broadcast (write_full_moments_notgc)
-    call broadcast (write_phi_over_time)
-    call broadcast (write_apar_over_time)
-    call broadcast (write_bpar_over_time)
 
     nmovie_tot = nstep/nmovie
 
@@ -239,7 +233,7 @@ contains
     call init_gs2_io (write_nl_flux, write_omega, write_stress, &
          write_fieldline_avg_phi, write_hrate, write_final_antot, &
          write_eigenfunc, make_movie, nmovie_tot, write_verr, &
-         write_full_moments_notgc, write_phi_over_time, write_apar_over_time, write_bpar_over_time)
+         write_fields, write_full_moments_notgc)
     
     if (write_cerr) then
        if (collision_model_switch == 1 .or. collision_model_switch == 5) then
@@ -251,12 +245,6 @@ contains
 
     allocate (pflux_avg(nspec), qflux_avg(nspec), heat_avg(nspec))
     pflux_avg = 0.0 ; qflux_avg = 0.0 ; heat_avg = 0.0
-
-    call hdf_init (stop=.false.,dbl=.false.)
-    ! TT: when dbl is false, the code uses single precision for the hdf file.
-    ! make dbl=.true. if you want double precision output.
-    ! hdf library takes care of single-to-double (or vice versa) conversion,
-    ! and it's faster than writing. :TT
 
   end subroutine init_gs2_diagnostics
  
@@ -274,10 +262,7 @@ contains
     logical, intent (in) :: list
     character(20) :: datestamp, timestamp, zone
 
-    !<wkdoc> Call read parameters </wkdoc>
     call read_parameters (list)
-
-    !<wkdoc> Open the various ascii output files (depending on the write flags) </wkdoc>
     if (proc0) then
        if (write_ascii) then
           call open_output_file (out_unit, ".out")
@@ -344,13 +329,13 @@ contains
        omegahist = 0.0
     end if
 
-
-    !<wkdoc> Allocate arrays for storing the various fluxes which the diagnostics will output </wkdoc>
     allocate (pflux (ntheta0,naky,nspec)) ; pflux = 0.
     allocate (qheat (ntheta0,naky,nspec,3)) ; qheat = 0.
 !       allocate (qheat_par  (ntheta0,naky,nspec))
 !       allocate (qheat_perp (ntheta0,naky,nspec))
     allocate (vflux (ntheta0,naky,nspec)) ; vflux = 0.
+    allocate (vflux_par (ntheta0,naky,nspec)) ; vflux_par = 0.
+    allocate (vflux_perp (ntheta0,naky,nspec)) ; vflux_perp = 0.
     allocate (pmflux(ntheta0,naky,nspec)) ; pmflux = 0.
     allocate (qmheat(ntheta0,naky,nspec,3)) ; qmheat = 0.
 !       allocate (qmheat_par (ntheta0,naky,nspec))
@@ -364,6 +349,8 @@ contains
        
     allocate (theta_pflux (-ntgrid:ntgrid, nspec)) ; theta_pflux = 0.
     allocate (theta_vflux (-ntgrid:ntgrid, nspec)) ; theta_vflux = 0.
+    allocate (theta_vflux_par (-ntgrid:ntgrid, nspec)) ; theta_vflux_par = 0.
+    allocate (theta_vflux_perp (-ntgrid:ntgrid, nspec)) ; theta_vflux_perp = 0.
     allocate (theta_qflux (-ntgrid:ntgrid, nspec, 3)) ; theta_qflux = 0.
     
     allocate (theta_pmflux (-ntgrid:ntgrid, nspec)) ; theta_pmflux = 0.
@@ -395,7 +382,7 @@ contains
          write_qmheat, write_pmflux, write_vmflux, write_tavg, write_g, write_gg, &
          write_qbheat, write_pbflux, write_vbflux, write_hrate, write_lpoly, &
          write_dmix, write_kperpnorm, write_phitot, write_epartot, &
-         write_eigenfunc, write_final_fields, write_final_antot, &
+         write_eigenfunc, write_fields, write_final_fields, write_final_antot, &
          write_fcheck, write_final_epar, write_final_moments, write_cerr, &
          write_vortcheck, write_fieldcheck, write_Epolar, write_verr, write_max_verr, &
          write_fieldline_avg_phi, write_neoclassical_flux, write_nl_flux, &
@@ -406,11 +393,9 @@ contains
          dump_fields_periodically, make_movie, &
          dump_final_xfields, use_shmem_for_xfields, &
          nperiod_output, test_conserve, &
-         save_for_restart, &
-         write_phi_over_time, write_apar_over_time, write_bpar_over_time
+         save_for_restart
 
     if (proc0) then
-	!<wkdoc> Set defaults for the gs2_diagnostics_knobs</wkdoc>		
        print_line = .true.
        print_old_units = .false.
        print_flux_line = .false.
@@ -446,6 +431,7 @@ contains
        write_final_moments = .false.
        write_stress = .false.
        write_avg_moments = .false.
+       write_fields = .false.
        write_full_moments_notgc = .false.
        write_final_fields = .false.
        write_final_antot = .false.
@@ -474,13 +460,7 @@ contains
        use_shmem_for_xfields = .true.
        nperiod_output = nperiod - nperiod_guard
        save_for_restart = .false.
-       write_phi_over_time = .false.
-       write_bpar_over_time = .false.
-       write_apar_over_time = .false.
        in_file = input_unit_exist ("gs2_diagnostics_knobs", exist)
-
-	!<wkdoc> Read in parameters from the namelist gs2_diagnostics_knobs, if the namelist exists </wkdoc>
-
 !       if (exist) read (unit=input_unit("gs2_diagnostics_knobs"), nml=gs2_diagnostics_knobs)
        if (exist) read (unit=in_file, nml=gs2_diagnostics_knobs)
 
@@ -554,8 +534,6 @@ contains
     use splines, only: fitp_surf1, fitp_surf2
     use gs2_heating, only: del_htype, del_dvtype
 !    use gs2_dist_io, only: write_dist
-    use gs2_dist_io, only: hdf_finish_dist
-    use hdf_wrapper, only: hdf_finish
     implicit none
     integer, intent (in) :: istep
     integer :: ig, ik, it, il, ie, is, unit, ierr
@@ -758,8 +736,8 @@ contains
              do il=1,nlambda
                 write (unit=unit, fmt=*) al(il), lamflux(il,is,2), is, &
                      sum(lamflux(1:il,is,2)*delal(1:il)), &
-	             lamflux(il,is,3), sum(lamflux(1:il,is,3)*delal(1:il)), &
-	             lamflux(il,is,4), sum(lamflux(1:il,is,4)*delal(1:il))
+                     lamflux(il,is,3), sum(lamflux(1:il,is,3)*delal(1:il)), &
+                     lamflux(il,is,4), sum(lamflux(1:il,is,4)*delal(1:il))
              end do
              write (unit=unit, fmt=*) 
           end do
@@ -767,7 +745,7 @@ contains
        end if
        deallocate (lamflux)
     end if
-
+    
     if (write_eavg) then
        allocate (enflux(negrid, nspec, 4))
        call e_flux (phinew, enflux)
@@ -792,8 +770,8 @@ contains
                 write (unit=unit, &
                      fmt="(2(1x,e10.4),i3,5(1x,e10.4))") e(ie,is), enflux(ie,is,2), is, &
                      sum(enflux(1:ie,is,2)*dele(1:ie,is)), &
-	             enflux(ie,is,3), sum(enflux(1:ie,is,3)*dele(1:ie,is)), &
-	             enflux(ie,is,4), sum(enflux(1:ie,is,4)*dele(1:ie,is))
+                     enflux(ie,is,3), sum(enflux(1:ie,is,3)*dele(1:ie,is)), &
+                     enflux(ie,is,4), sum(enflux(1:ie,is,4)*dele(1:ie,is))
              end do
              write (unit=unit, fmt=*) 
           end do
@@ -818,14 +796,14 @@ contains
              do ig = -ntgrid,ntgrid
                 write (unit=unit, &
                      fmt="(2(1x,e10.4),i3,5(1x,e10.4))") theta(ig), theta_qflux(ig,is,1), is, &
-	             theta_qflux(ig,is,2), theta_qflux(ig,is,3)
+                     theta_qflux(ig,is,2), theta_qflux(ig,is,3)
              end do
              write (unit=unit, fmt=*) 
           end do
           call close_output_file (unit)
        end if
     end if
-
+    
     call broadcast (write_final_moments)
     if (write_final_moments) then
 
@@ -1313,8 +1291,9 @@ contains
     if (allocated(dv_hist)) deallocate (dv_hist, dvk_hist)
     if (allocated(j_ext_hist)) deallocate (j_ext_hist)
     if (allocated(omegahist)) deallocate (omegahist)
-    if (allocated(pflux)) deallocate (pflux, qheat, vflux, pmflux, qmheat, vmflux, &
-         pbflux, qbheat, vbflux, theta_pflux, theta_vflux, theta_qflux, theta_pmflux, &
+    if (allocated(pflux)) deallocate (pflux, qheat, vflux, vflux_par, vflux_perp, pmflux, qmheat, vmflux, &
+         pbflux, qbheat, vbflux, theta_pflux, theta_vflux, theta_vflux_par, theta_vflux_perp, &
+         theta_qflux, theta_pmflux, &
          theta_vmflux, theta_qmflux, theta_pbflux, theta_vbflux, theta_qbflux)
     if (allocated(bxf)) deallocate (bxf, byf, xx4, xx, yy4, yy, dz, total)
     if (allocated(pflux_avg)) deallocate (pflux_avg, qflux_avg, heat_avg)
@@ -1322,13 +1301,10 @@ contains
     wtmp_old = 0. ; nout = 1 ; nout_movie = 1
     initialized = .false.
 
-    if (write_gg) call hdf_finish_dist
-    call hdf_finish
-
 1000  format(20(1x,1pg18.11))
   end subroutine finish_gs2_diagnostics
 
-  subroutine loop_diagnostics (istep, exit)
+  subroutine loop_diagnostics (istep, exit, debopt)
     use species, only: nspec, spec
     use theta_grid, only: theta, ntgrid, delthet, jacob
     use theta_grid, only: gradpar, nperiod
@@ -1350,7 +1326,7 @@ contains
     use gs2_io, only: nc_qflux, nc_vflux, nc_pflux, nc_loop, nc_loop_moments
     use gs2_io, only: nc_loop_fullmom
     use gs2_io, only: nc_loop_stress, nc_loop_vres
-    use gs2_io, only: nc_loop_movie
+    use gs2_io, only: nc_loop_movie, nc_write_fields
     use gs2_layouts, only: yxf_lo
     use gs2_transforms, only: init_transforms, transform2
     use le_grids, only: nlambda, ng2
@@ -1360,7 +1336,6 @@ contains
     use gs2_heating, only: heating_diagnostics, del_htype, &
          dens_vel_diagnostics,init_dvtype, del_dvtype
     use constants
-    use gs2_dist_io, only: hdf_write_dist
 
     implicit none
 !    integer :: nout = 1
@@ -1398,7 +1373,8 @@ contains
 !    complex :: wtmp_old = 0.
     real, dimension (:), allocatable :: dl_over_b
     real, dimension (ntheta0, nspec) :: x_qmflux
-    real, dimension (nspec) ::  heat_fluxes,  part_fluxes, mom_fluxes,  ntot2, ntot20
+    real, dimension (nspec) :: ntot2, ntot20
+    real, dimension (nspec) ::  heat_fluxes,  part_fluxes, mom_fluxes, parmom_fluxes, perpmom_fluxes
     real, dimension (nspec) :: mheat_fluxes, mpart_fluxes, mmom_fluxes
     real, dimension (nspec) :: bheat_fluxes, bpart_fluxes, bmom_fluxes
     real, dimension (nspec) ::  heat_par,  heat_perp
@@ -1411,6 +1387,10 @@ contains
     real, save :: t_old = 0.
     character(200) :: filename
     logical :: last = .false.
+    logical,optional:: debopt
+    logical:: debug=.false.
+
+    if (present(debopt)) debug=debopt
 
     part_fluxes = 0.0 ; mpart_fluxes = 0.0 ; bpart_fluxes = 0.0
     heat_fluxes = 0.0 ; mheat_fluxes = 0.0 ; bheat_fluxes = 0.0
@@ -1419,10 +1399,15 @@ contains
 
     exit = .false.
 
-    if (.not. nonlin) then
-       if (proc0) call get_omegaavg (istep, exit, omegaavg)
+    if (.not. nonlin ) then
+! MR, 10/3/2009: avoid calling get_omegaavg in nonlinear calculations
+       if (proc0) then
+          if (debug) write(6,*) "loop_diagnostics: proc0 call get_omegaavg"
+          call get_omegaavg (istep, exit, omegaavg, debug)
+          if (debug) write(6,*) "loop_diagnostics: proc0 done called get_omegaavg"
+       endif
        call broadcast (exit)
-    end if
+    endif
 
     if (write_hrate) call heating (istep, h, hk)
 
@@ -1443,6 +1428,7 @@ contains
 !<GGH
 
     call prof_leaving ("loop_diagnostics")
+if (debug) write(6,*) "loop_diagnostics: call update_time"
 
     if (make_movie .and. mod(istep,nmovie)==0) then
        t = user_time
@@ -1533,6 +1519,7 @@ contains
     if (write_lpoly) call write_poly (phinew, bparnew, last, istep)
 
     call prof_entering ("loop_diagnostics-1")
+if (debug) write(6,*) "loop_diagnostics: -1"
 
     if (proc0) then
        omega = omegahist(mod(istep,navg),:,:)
@@ -1552,15 +1539,15 @@ contains
     end if
 
     if (write_any_fluxes) then
-       call g_adjust (g, phinew, bparnew, fphi, fbpar)
+       call g_adjust (gnew, phinew, bparnew, fphi, fbpar)
        call flux (phinew, aparnew, bparnew, &
-             pflux,  qheat,  vflux, &
-            pmflux, qmheat, vmflux, &
+            pflux,  qheat,  vflux, vflux_par, vflux_perp, &
+            pmflux, qmheat, vmflux,  &
             pbflux, qbheat, vbflux, &
-       theta_pflux, theta_vflux, theta_qflux, &
-       theta_pmflux, theta_vmflux, theta_qmflux, & 
-       theta_pbflux, theta_vbflux, theta_qbflux)
-       call g_adjust (g, phinew, bparnew, -fphi, -fbpar)
+            theta_pflux, theta_vflux, theta_vflux_par, theta_vflux_perp, theta_qflux, &
+            theta_pmflux, theta_vmflux, theta_qmflux, & 
+            theta_pbflux, theta_vbflux, theta_qbflux)
+       call g_adjust (gnew, phinew, bparnew, -fphi, -fbpar)
 !       call flux (phinew, aparnew, bparnew, &
 !            pflux, qheat, qheat_par, qheat_perp, vflux, &
 !            pmflux, qmheat, qmheat_par, qmheat_perp, vmflux, &
@@ -1598,8 +1585,18 @@ contains
                 vflux(:,:,is) = vflux(:,:,is)*funits &
                      *spec(is)%dens*spec(is)%mass*spec(is)%stm
                 call get_volume_average (vflux(:,:,is), mom_fluxes(is))
+                vflux_par(:,:,is) = vflux_par(:,:,is)*funits &
+                     *spec(is)%dens*spec(is)%mass*spec(is)%stm
+                call get_volume_average (vflux_par(:,:,is), parmom_fluxes(is))
+                vflux_perp(:,:,is) = vflux_perp(:,:,is)*funits &
+                     *spec(is)%dens*spec(is)%mass*spec(is)%stm
+                call get_volume_average (vflux_perp(:,:,is), perpmom_fluxes(is))
 
                 theta_vflux(:,is) = theta_vflux(:,is)*funits &
+                     *spec(is)%dens*spec(is)%mass*spec(is)%stm
+                theta_vflux_par(:,is) = theta_vflux_par(:,is)*funits &
+                     *spec(is)%dens*spec(is)%mass*spec(is)%stm
+                theta_vflux_perp(:,is) = theta_vflux_perp(:,is)*funits &
                      *spec(is)%dens*spec(is)%mass*spec(is)%stm
 
              end do
@@ -1830,17 +1827,20 @@ contains
 
     if (write_vortcheck) call vortcheck (phinew, bparnew)
     if (write_fieldcheck) call fieldcheck (phinew, aparnew, bparnew)
+    if (write_fields) call nc_write_fields (nout, phinew, aparnew, bparnew)  !MR
 
     call prof_leaving ("loop_diagnostics-1")
 
     if (.not. (write_any .or. dump_any)) return
 
+if (debug) write(6,*) "loop_diagnostics: -2"
     call prof_entering ("loop_diagnostics-2")
 
     call kperp (ntg_out, akperp)
 
     if (write_neoclassical_flux .or. dump_neoclassical_flux .and. neoflux) then
-       call neoclassical_flux (pfluxneo, qfluxneo, phinew, bparnew)
+!       call neoclassical_flux (pfluxneo, qfluxneo, phinew, bparnew)
+       call neoclassical_flux (pfluxneo, qfluxneo)
     end if
 
     if (proc0 .and. write_any) then
@@ -1979,6 +1979,15 @@ contains
                 write (unit=out_unit, fmt="('t= ',e16.10,' <phi**2>= ',e10.4, &
                      & ' part fluxes: ', 5(1x,e10.4))") &
                      t, phi2, part_fluxes(1:min(nspec,5))
+                write (unit=out_unit, fmt="('t= ',e16.10,' <phi**2>= ',e10.4, &
+                     & ' mom fluxes: ', 5(1x,e10.4))") &
+                     t, phi2, mom_fluxes(1:min(nspec,5))
+                write (unit=out_unit, fmt="('t= ',e16.10,' <phi**2>= ',e10.4, &
+                     & ' parmom fluxes: ', 5(1x,e10.4))") &
+                     t, phi2, parmom_fluxes(1:min(nspec,5))
+                write (unit=out_unit, fmt="('t= ',e16.10,' <phi**2>= ',e10.4, &
+                     & ' perpmom fluxes: ', 5(1x,e10.4))") &
+                     t, phi2, perpmom_fluxes(1:min(nspec,5))
              end if
              hflux_tot = sum(heat_fluxes)
              vflux_tot = sum(mom_fluxes)
@@ -2046,7 +2055,7 @@ contains
 
                 if (write_line) then
                    write (out_unit, "('t= ',e16.10,' aky= ',f5.2, ' akx= ',f5.2, &
-                        &' om= ',2f8.3,' omav= ', 2f8.3,' phtot= ',e8.2)") &
+                        &' om= ',1p2e12.4,' omav= ', 1p2e12.4,' phtot= ',1pe12.4)") &
                         t, aky_out(ik), akx_out(it), &
                         real( omega(it,ik)*woutunits(ik)), &
                         aimag(omega(it,ik)*woutunits(ik)), &
@@ -2055,14 +2064,20 @@ contains
                         phitot(it,ik)
                 end if
                 
-                if (write_omega) write (out_unit, *) &
-                     'omega=', omega(it,ik), &
-                     ' omega/(vt/a)=', real(omega(it,ik)*woutunits(ik)), &
-                     aimag(omega(it,ik)*woutunits(ik))
-                if (write_omavg) write (out_unit, *) &
-                     'omavg=', omegaavg(it,ik), &
-                     ' omavg/(vt/a)=', real(omegaavg(it,ik)*woutunits(ik)), &
-                     aimag(omegaavg(it,ik)*woutunits(ik))
+!                if (write_omega) write (out_unit, *) &
+!                     'omega=', omega(it,ik), &
+!                     ' omega/(vt/a)=', real(omega(it,ik)*woutunits(ik)), &
+!                     aimag(omega(it,ik)*woutunits(ik))
+                if (write_omega) write (out_unit,&
+                         fmt='(" omega= (",1pe12.4,",",1pe12.4,")",t45,"omega/(vt/a)= (",1pe12.4,",",1pe12.4,")")') &
+                     omega(it,ik), omega(it,ik)*woutunits(ik)
+                if (write_omavg) write (out_unit,&
+                         fmt='(" omavg= (",1pe12.4,",",1pe12.4,")",t45,"omavg/(vt/a)= (",1pe12.4,",",1pe12.4,")")') &
+                         omegaavg(it,ik), omegaavg(it,ik)*woutunits(ik)
+!                if (write_omavg) write (out_unit, *) &
+!                     'omavg=', omegaavg(it,ik), &
+!                     ' omavg/(vt/a)=', real(omegaavg(it,ik)*woutunits(ik)), &
+!                     aimag(omegaavg(it,ik)*woutunits(ik))
                 
                 if (write_dmix) then
                    if (abs(akperp(it,ik)) < 2.0*epsilon(0.0)) then
@@ -2071,7 +2086,8 @@ contains
                       dmix = 2.0*woutunits(ik)*aimag(omega(it,ik))/akperp(it,ik)**2
                       dmix4 = dmix*dmix/(woutunits(ik)*aimag(omega(it,ik)))
                       dmixx = 2.0*woutunits(ik)*aimag(omega(it,ik))/(akperp(it,ik)**2-aky(ik)**2)
-                      write (out_unit, *) 'dmix=', dmix,' dmix4= ',dmix4,' dmixx= ',dmixx
+!                      write (out_unit, *) 'dmix=', dmix,' dmix4= ',dmix4,' dmixx= ',dmixx
+                      write (out_unit,fmt='(" dmix=",1pe12.4," dmix4=",1pe12.4," dmixx=",1pe12.4)') dmix, dmix4, dmixx
                    end if
                 end if
              end do
@@ -2288,10 +2304,9 @@ contains
     if (write_jext) deallocate(j_ext)
 !<GGH
 
-    if (write_gg .and. mod(istep,nmovie)==0) call hdf_write_dist (gnew)
-
     call prof_leaving ("loop_diagnostics-2")
 
+if (debug) write(6,*) "loop_diagnostics: done"
   end subroutine loop_diagnostics
 
   subroutine heating (istep, h, hk)
@@ -2376,7 +2391,8 @@ contains
     type (dens_vel_diagnostics), dimension(:,:) :: dvk
 
     !Call routine to calculate density and velocity perturbations
-    call get_dens_vel(dv, dvk, phi, apar, bpar, phinew, aparnew, bparnew)    
+!    call get_dens_vel(dv, dvk, phi, apar, bpar, phinew, aparnew, bparnew)    
+    call get_dens_vel(dv, dvk, phi, bpar, phinew, bparnew)
     
     !Do averages with a history variable
     call avg_dv(dv, dv_hist, istep, navg)
@@ -2420,7 +2436,7 @@ contains
 !=============================================================================
 !<GGH
 
-  subroutine get_omegaavg (istep, exit, omegaavg)
+  subroutine get_omegaavg (istep, exit, omegaavg, debopt)
     use kt_grids, only: naky, ntheta0
     use fields_arrays, only: phi, apar, bpar, phinew, aparnew, bparnew
     use gs2_time, only: code_dt
@@ -2429,9 +2445,14 @@ contains
     integer, intent (in) :: istep
     logical, intent (in out) :: exit
     complex, dimension (:,:), intent (out) :: omegaavg
-    complex, dimension (navg,ntheta0,naky) :: domega
+!CMR, 7/11/2008: save here crucial to avoid crippling memory leak with mpixl!
+    complex, allocatable, save, dimension (:,:,:) :: domega
     integer :: j
-
+    logical, optional :: debopt
+    logical :: debug=.false.
+if (.not. allocated(domega)) allocate(domega(navg,ntheta0,naky))
+    if (present(debopt)) debug=debopt
+if (debug) write(6,*) "get_omeaavg: start"
     j = igomega
     where (abs(phinew(j,:,:)+aparnew(j,:,:)+bparnew(j,:,:)) < epsilon(0.0) &
            .or. abs(phi(j,:,:)+apar(j,:,:)+bpar(j,:,:)) < epsilon(0.0))
@@ -2442,6 +2463,7 @@ contains
                   /(phi(j,:,:)   + apar(j,:,:)    + bpar(j,:,:)))*zi/code_dt
     end where
     omegaavg = sum(omegahist/real(navg),dim=1)
+if (debug) write(6,*) "get_omegaavg: omegaavg=",omegaavg
 
     if (istep > navg) then
        domega = spread(omegaavg,1,navg) - omegahist
@@ -2457,6 +2479,7 @@ contains
           exit = .true.
        end if
     end if
+if (debug) write(6,*) "get_omegaavg: done"
   end subroutine get_omegaavg
 !================================================================================
 ! Set up corrections for polar energy spectrum
@@ -2472,7 +2495,7 @@ contains
 !    real, dimension(:,:), allocatable :: kp_by_mode
     integer, dimension(:), allocatable :: num, nbin
     real, dimension(:), allocatable :: kp
-1    real, dimension(:), allocatable :: kpavg_lim
+    real, dimension(:), allocatable :: kpavg_lim
     real :: kpmax,dkp
     integer :: nkperp                           !Total possible number of kperps
     integer :: ik, it, i,j,inbx !,nkx,nky
@@ -2795,5 +2818,37 @@ contains
     pflux_avg = 0.0 ; qflux_avg = 0.0 ; heat_avg = 0.0
 
   end subroutine reset_init
+
+  subroutine ensemble_average (nensembles, time_int)
+    use mp, only: scope, allprocs, group_to_all, broadcast
+    use gs2_time, only: user_time
+    use species, only: nspec
+    implicit none
+    integer, intent (in) :: nensembles
+    real, intent (out) :: time_int
+    integer :: is
+    real, dimension (nensembles) :: dt_global
+    real, dimension (nensembles,nspec) :: pflx_global, qflx_global, heat_global
+    time_int=user_time-start_time
+    call scope (allprocs)
+    call group_to_all (time_int, dt_global, nensembles)
+    call broadcast (dt_global)
+    time_int = sum(dt_global)
+    call group_to_all (pflux_avg, pflx_global, nensembles)
+    call group_to_all (qflux_avg, qflx_global, nensembles)
+    do is = 1, nspec
+       call broadcast (pflx_global(:,is))
+       call broadcast (qflx_global(:,is))
+       pflux_avg = sum(pflx_global(:,is))
+       qflux_avg = sum(qflx_global(:,is))
+    end do
+    if (write_hrate) then
+       call group_to_all (heat_avg, heat_global, nensembles)
+       do is = 1, nspec
+          call broadcast (heat_global(:,is))
+          heat_avg = sum(heat_global(:,is))
+       end do
+    end if
+  end subroutine ensemble_average
 
 end module gs2_diagnostics
