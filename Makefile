@@ -109,7 +109,12 @@ LOWFLOW ?=
 # Compile with PETSC/SLEPC support for determining eigensystem (bin).
 WITH_EIG ?= 
 
+# Compile with the new simplified diagnostics module
 USE_NEW_DIAG ?= on
+
+# Use autotools to configure the code (currently only affects the new diagnostics module)
+# Possible values... on, off
+USE_AUTOTOOLS ?= off
 
 HAS_ISO_C_BINDING ?= on
 
@@ -423,7 +428,7 @@ ifneq ($(TOPDIR),$(CURDIR))
 	SUBDIR=true
 endif
 
-VPATH = $(UTILS):$(GEO):Aux:diagnostics:../$(UTILS):../$(GEO):../diagnostics
+VPATH = $(UTILS):$(GEO):Aux:diagnostics:../$(UTILS):../$(GEO):../diagnostics$(SIMPLEDATAIO_VPATH)
 # this just removes non-existing directory from VPATH
 VPATH_tmp := $(foreach tmpvp,$(subst :, ,$(VPATH)),$(shell [ -d $(tmpvp) ] && echo $(tmpvp)))
 VPATH = .:$(shell echo $(VPATH_tmp) | sed "s/ /:/g")
@@ -458,14 +463,20 @@ endif
 ####################################################################### RULES
 
 .SUFFIXES:
-.SUFFIXES: .fpp .f90 .c .o
+.SUFFIXES: .fpp .f90 .c .o .F90
 
 .f90.o: 
 	$(FC) $(F90FLAGS) $(F90FLAGS_SFXJUNK) -c $<
 .fpp.f90:
 	$(CPP) $(CPPFLAGS) $< $@
+.F90.f90:
+	$(CPP) $(CPPFLAGS) $< $@
 .c.o:
 	$(CC) $(CFLAGS) $(subst -traditional,,$(subst -C,,$(subst -P,,$(CPPFLAGS)))) -c $<
+
+# This prevents error messages like m2c: Command not found
+%.o : %.mod
+
 
 ##################################################################### TARGETS
 

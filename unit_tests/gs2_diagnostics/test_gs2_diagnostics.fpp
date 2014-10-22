@@ -30,6 +30,7 @@ program test_gs2_diagnostics
     real :: eps
 
     eps = 1.0e-7
+    if (precision(eps).lt. 11) eps = eps * 1000.0
 
 
     call init_mp
