@@ -20,6 +20,7 @@ endif
 
 CFLAGS+= -Idiagnostics/simpledataio
 
+SIMPLEDATAIO_LIB_DIR_ABS=$(PWD)
 SIMPLEDATAIO_LIB_ABS=$(PWD)/libsimpledataio.a
 SIMPLEDATAIO_LIB=libsimpledataio.a
 
