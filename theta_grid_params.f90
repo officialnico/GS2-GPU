@@ -25,15 +25,23 @@ module theta_grid_params
 contains
 
   subroutine init_theta_grid_params
+    use unit_tests, only: debug_message
     implicit none
+    integer, parameter :: verb=3
 !    logical, save :: initialized = .false.
 
+    call debug_message(verb, "theta_grid_params::init_theta_grid_params start")
     if (initialized) return
     initialized = .true.
+
+    call debug_message(verb, &
+      "theta_grid_params::init_theta_grid_params call read_parameters")
     call read_parameters
     if (trin_flag) call reinit_theta_grid_params (rhoc_trin, qval_trin, &
          shat_trin, rgeo_trin, rmaj_trin, kappa_trin, kappri_trin, tri_trin, tripri_trin, &
          shift_trin, betaprim_trin)
+
+    call debug_message(verb, "theta_grid_params::init_theta_grid_params end")
   end subroutine init_theta_grid_params
 
   subroutine finish_theta_grid_params

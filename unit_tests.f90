@@ -31,6 +31,13 @@ module unit_tests
 
   !> Returns true when the verbosity is greater than or equal to the argument
   public :: should_print
+  
+  !> Print a debug message if verbosity is higher than given verbosity_level.
+  !! Also print list mode/trinity job id if appropriate
+  public :: debug_message
+
+  !> Set job id, for running in list mode or within trinity
+  public :: set_job_id
 
   public :: announce_module_test
   public :: close_module_test
@@ -39,12 +46,16 @@ module unit_tests
 
   public :: verbosity
 
+  !> Trinity or list mode job id
+  public :: job_id
+
 ! HJL Moved here from gs2_main
   public :: functional_test_flag
   public :: ilast_step
 
   logical :: functional_test_flag = .false.
   integer :: ilast_step
+  integer :: job_id
  
   interface agrees_with
     module procedure agrees_with_real
@@ -206,5 +217,16 @@ contains
     write (*,*) stars
     
   end subroutine print_with_stars
+
+  subroutine debug_message(verbosity_level, message)
+    integer, intent(in) :: verbosity_level
+    character(*), intent(in) :: message
+    if (should_print(verbosity_level)) write (*,*) message, " jid=", job_id
+  end subroutine debug_message
+
+  subroutine set_job_id(jid)
+    integer, intent(in) :: jid
+    job_id = jid
+  end subroutine set_job_id
 
 end module unit_tests

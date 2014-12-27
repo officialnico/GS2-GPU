@@ -86,29 +86,31 @@ contains
     use dist_fn, only: init_dist_fn
     use init_g, only: ginit, init_init_g
     use antenna, only: init_antenna
+    use unit_tests, only: debug_message
     implicit none
-    logical, parameter :: debug=.false.
+    integer, parameter :: verb=3
 
     
-    if (debug) write(6,*) "init_fields: init_theta_grid"
+
+    call debug_message(verb, "init_fields: init_theta_grid")
     call init_theta_grid
     
 !CMR,30/3/2009:
 ! call init_init_g before init_run_parameters to read delt from restart file
 
-    if (debug) write(6,*) "init_fields: init_init_g"
+    call debug_message(verb, "init_fields: init_init_g")
     call init_init_g
-    if (debug) write(6,*) "init_fields: init_run_parameters"
+    call debug_message(verb, "init_fields: init_run_parameters")
     call init_run_parameters
-    if (debug) write(6,*) "init_fields: init_dist_fn"
+    call debug_message(verb, "init_fields: init_dist_fn")
     call init_dist_fn
-    !if (debug) write(6,*) "init_fields: init_parameter_scan"
+    call debug_message(verb, "init_fields: init_parameter_scan")
     !call init_parameter_scan
-    if (debug) write(6,*) "init_fields: init_antenna"
+    call debug_message(verb, "init_fields: init_antenna")
     call init_antenna !Must come before allocate_arrays so we know if we need apar_ext
-    if (debug) write(6,*) "init_fields: read_parameters"
+    call debug_message(verb, "init_fields: read_parameters")
     call read_parameters
-    if (debug) write(6,*) "init_fields: allocate_arrays"
+    call debug_message(verb, "init_fields: allocate_arrays")
     call allocate_arrays
   end subroutine fields_pre_init
 

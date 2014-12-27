@@ -1035,36 +1035,44 @@ contains
     use geometry, only: init_theta, nperiod_geo => nperiod
     use geometry, only: eikcoefs, itor, delrho, rhoc
     use geometry, only: gen_eq, ppl_eq, transp_eq, chs_eq
-    use geometry, only: debug_geo => debug, verb
+    use geometry, only: debug_geo => debug, verb_geo => verb, job_id_geo => job_id
+    use unit_tests, only: job_id
     use theta_grid_params, only: init_theta_grid_params, ntheta, nperiod
     use runtime_tests, only: verbosity
+    use unit_tests, only: debug_message
     implicit none
     real :: rhoc_save
 !    logical, save :: initialized = .false.
 !CMR nov04: adding following debug switch
     logical :: debug=.true.
+    integer, parameter :: verb = 3
+    character(4) :: ntheta_char
+    
 
     debug = (verbosity() > 2)
     debug_geo = debug
-    verb = verbosity()
+    verb_geo = verbosity()
+    job_id_geo = job_id
+
+    write(ntheta_char, "(I4)") ntheta
 !CMR
 
     if (initialized) return
     initialized = .true.
-if (debug) write(6,*) "init_theta_grid_eik: call init_theta_grid_params, ntheta=",ntheta
+     call debug_message(verb, "init_theta_grid_eik: call init_theta_grid_params, ntheta="//ntheta_char)
 ! After this call, would think you have ntheta from input file
 ! stored in theta_grid_params data structure.
 ! but when running from numerical equilibrium, this is not right
 ! Instead, get it stored via the eikcoefs call below.  
     call init_theta_grid_params
 
-if (debug) write(6,*) "init_theta_grid_eik: call read_parameters, ntheta=",ntheta
+     call debug_message(verb, "init_theta_grid_eik: call read_parameters, ntheta="//ntheta_char)
     call read_parameters
 !CMR replace call init_theta(ntheta) with following condition 
 !    to avoid inappropriate calls to init_theta (as in geo/et.f90)
     if(.not. gen_eq .and. .not. ppl_eq .and. &
        .not. transp_eq .and. .not. chs_eq) then 
-       if (debug) write(6,*) "init_theta_grid_eik: call init_theta, ntheta=",ntheta
+     call debug_message(verb, "init_theta_grid_eik: call init_theta, ntheta="//ntheta_char)
        call init_theta (ntheta)
     endif
 !CMRend
@@ -1072,9 +1080,9 @@ if (debug) write(6,*) "init_theta_grid_eik: call read_parameters, ntheta=",nthet
     rhoc_save = rhoc
     if (itor == 0) rhoc = 1.5*delrho
 
-if (debug) write(6,*) "init_theta_grid_eik: call eikcoefs, ntheta=",ntheta
+     call debug_message(verb, "init_theta_grid_eik: call eikcoefs, ntheta="//ntheta_char)
     call eikcoefs (ntheta)
-if (debug) write(6,*) "init_theta_grid_eik: done, ntheta=",ntheta
+     call debug_message(verb, "init_theta_grid_eik: done, ntheta="//ntheta_char)
 
     rhoc = rhoc_save
   end subroutine init_theta_grid_eik
@@ -1132,6 +1140,7 @@ if (debug) write(6,*) "init_theta_grid_eik: done, ntheta=",ntheta
     use geometry, only: Bpol_out => Bpol
     use geometry, only: qsf
     use geometry, only: s_hat_new, drhodpsin
+    use unit_tests, only: debug_message
     implicit none
     integer, intent (in) :: nperiod
     integer, intent (in out) :: ntheta, ntgrid, nbset
@@ -1144,8 +1153,10 @@ if (debug) write(6,*) "init_theta_grid_eik: done, ntheta=",ntheta
     real, intent (out) :: shat, drhodpsi, kxfac, qval
     logical, intent (in) :: gb_to_cv
     integer :: ig
-    logical, parameter :: debug=.false.
-if (debug) write(6,*) 'eik_get_grids: ntgrid=',ntgrid
+    integer, parameter :: verb=3 
+    character(4) :: ntgrid_char
+    write(ntgrid_char, "(I4)") ntgrid
+    call debug_message(verb, 'eik_get_grids: ntgrid= '//ntgrid_char)
     do ig=-ntgrid,ntgrid
        theta(ig)     = theta_out(ig)
        gradpar(ig)   = gradpar_out(ig)
@@ -1187,9 +1198,9 @@ if (debug) write(6,*) 'eik_get_grids: ntgrid=',ntgrid
 !            gbdrift(ig), gbdrift(ig), gds2(ig)
 !    end do
 
-if (debug) write(6,*) 'eik_get_grids: call theta_grid_gridgen_init'
+    call debug_message(verb, 'eik_get_grids: call theta_grid_gridgen_init')
     call theta_grid_gridgen_init
-if (debug) write(6,*) 'eik_get_grids: call gridgen_get_grids'
+    call debug_message(verb, 'eik_get_grids: call gridgen_get_grids')
     call gridgen_get_grids (nperiod, ntheta, ntgrid, nbset, &
          theta, bset, bmag, &
          gradpar, gbdrift, gbdrift0, cvdrift, cvdrift0, cdrift, cdrift0, &
@@ -1206,7 +1217,7 @@ if (debug) write(6,*) 'eik_get_grids: call gridgen_get_grids'
 !            gbdrift(ig), gbdrift(ig), gds2(ig)
 !    end do
 
-if (debug) write(6,*) 'eik_get_grids: end'
+     call debug_message(verb, 'eik_get_grids: end')
   end subroutine eik_get_grids
 
   subroutine read_parameters
@@ -1643,22 +1654,23 @@ contains
 
   subroutine init_theta_grid
     use mp, only: proc0
+    use unit_tests, only: debug_message
     implicit none
 !    logical, save :: initialized = .false.
-    logical, parameter :: debug=.false.
+    integer, parameter :: verb=3
     if (initialized) return
     initialized = .true.
 
     if (proc0) then
-if (debug) write(6,*) "init_theta_grid: call read_parameters"
+       call debug_message(verb, "init_theta_grid: call read_parameters")
        call read_parameters
-if (debug) write(6,*) "init_theta_grid: call get_sizes"
+       call debug_message(verb, "init_theta_grid: call get_sizes")
        call get_sizes
-if (debug) write(6,*) "init_theta_grid: call allocate_arrays"
+       call debug_message(verb, "init_theta_grid: call allocate_arrays")
        call allocate_arrays
-if (debug) write(6,*) "init_theta_grid: call get_grids"
+       call debug_message(verb, "init_theta_grid: call get_grids")
        call get_grids
-if (debug) write(6,*) "init_theta_grid: call finish_init"
+       call debug_message(verb, "init_theta_grid: call finish_init")
        call finish_init
     end if
     call broadcast_results
@@ -1715,9 +1727,12 @@ if (debug) write(6,*) "init_theta_grid: call finish_init"
   subroutine broadcast_results
     use mp, only: proc0, broadcast
     use geometry, only: rhoc
+    use unit_tests, only: debug_message
     implicit none
+    integer, parameter :: verb = 3
 
     !Scalars
+    call debug_message(verb, "theta_grid::broadcast_results scalars")
     call broadcast (bmin)
     call broadcast (bmax)
     call broadcast (eps)
@@ -1733,6 +1748,7 @@ if (debug) write(6,*) "init_theta_grid: call finish_init"
     call broadcast (gb_to_cv)
 
     !Arrays
+    call debug_message(verb, "theta_grid::broadcast_results allocate")
     if (.not. proc0) then
        call allocate_arrays
        allocate (theta2(-ntgrid:ntgrid))
@@ -1740,6 +1756,7 @@ if (debug) write(6,*) "init_theta_grid: call finish_init"
        allocate (delthet2(-ntgrid:ntgrid))
     end if
 
+    call debug_message(verb, "theta_grid::broadcast_results arrays")
     call broadcast (theta)
     call broadcast (theta2)
     call broadcast (delthet)
@@ -1772,6 +1789,7 @@ if (debug) write(6,*) "init_theta_grid: call finish_init"
     call broadcast (Zprime)
     call broadcast (aprime)
     call broadcast (Bpol)
+    call debug_message(verb, "theta_grid::broadcast_results finished")
   end subroutine broadcast_results
 
   subroutine read_parameters

@@ -71,6 +71,10 @@ subroutine run_gs2 (mpi_comm, job_id, filename, nensembles, &
     use fields_arrays, only: time_field
     use parameter_scan, only: update_scan_parameter_value
     use unit_tests, only: functional_test_flag, ilast_step
+    use unit_tests,only: should_print
+    use unit_tests, only: set_job_id
+    use runtime_tests, only: verbosity
+    use mp, only: broadcast, iproc
 #ifdef WITH_EIG
     use eigval, only: init_eigval, finish_eigval, time_eigval
     use eigval, only: BasicSolve
@@ -98,6 +102,7 @@ subroutine run_gs2 (mpi_comm, job_id, filename, nensembles, &
     logical :: exit, list
     logical :: first_time = .true.
     logical :: nofin= .false.
+    logical :: debug
 !    logical, optional, intent(in) :: nofinish
     character (500), target :: cbuff
 
@@ -109,6 +114,9 @@ subroutine run_gs2 (mpi_comm, job_id, filename, nensembles, &
     time_main_loop(2) = 0.
     exit=.false.
 
+    debug = (verbosity() .gt. 2)
+
+
 !
 !CMR, 12/2/2010: 
 !     add nofinish optional variable to avoid deallocations at end of simulation
@@ -118,18 +126,26 @@ subroutine run_gs2 (mpi_comm, job_id, filename, nensembles, &
      
 
 ! HJL tests on Trinity optionals for load balancing
+    trin_job = -1
+    if(present(job_id)) trin_job = job_id + 1
     if(present(trinity_reset)) then
        converged = .false.
        trin_reset = trinity_reset
        first_time = .true.
+       if (debug) write (*,*) 'gs2_main::run_gs2 set first_time = .true., jid=', trin_job
     endif
-    if(present(job_id)) trin_job = job_id + 1
 
 #ifdef NEW_DIAG
     diagnostics_init_options%initialized = (.not. first_time)
 #endif
 
+    if (.not. first_time) then
+      call broadcast(trin_job)
+      call set_job_id(trin_job)
+      debug = should_print(3)
+    end if
     if (first_time) then
+       write (*,*) 'gs2_main::run_gs2 starting initialization', iproc, trin_job
 
        ! <doc> Initialize message passing </doc>
        if (present(mpi_comm)) then
@@ -137,7 +153,12 @@ subroutine run_gs2 (mpi_comm, job_id, filename, nensembles, &
        else
           call init_mp
        end if
+       call broadcast(trin_job)
+       call set_job_id(trin_job)
+       debug = should_print(3)
+       write (*,*) 'gs2_main::run_gs2 initialized mp, nproc= ', nproc, iproc, trin_job
        call checktime(avail_cpu_time,exit) ! <doc> Initialize timer </doc>
+       write (*,*) 'gs2_main::run_gs2 called checktime, avail_cpu_time = ', avail_cpu_time, iproc, trin_job
        
        ! <doc> Report # of processors being used </doc>
        if (proc0) then
@@ -165,13 +186,16 @@ subroutine run_gs2 (mpi_comm, job_id, filename, nensembles, &
           else
              call init_file_utils (list, name="gs")
           end if
+          write (*,*) 'gs2_main::run_gs2 initialized file_utils', iproc, trin_job
        end if
        
        call broadcast (list)
+       write (*,*) 'gs2_main::run_gs2 broadcasted list', iproc, trin_job
        
        ! <doc> If given a list of jobs, fork </doc>
        if (list) then
           call job_fork
+          if (debug) write (*,*) 'gs2_main::run_gs2 called job fork', trin_job
        else if (present(nensembles)) then
           if (nensembles > 1) call job_fork (n_ensembles=nensembles)
        end if
@@ -182,12 +206,16 @@ subroutine run_gs2 (mpi_comm, job_id, filename, nensembles, &
           cbuff = trim(run_name)
        end if
        
+       !write (*,*) 'gs2_main::run_gs2 before broadcast, run_name = ', cbuff, iproc, trin_job
        call broadcast (cbuff)
        if (.not. proc0) run_name => cbuff
+       write (*,*) 'gs2_main::run_gs2 run_name = ', run_name, iproc, trin_job
        call init_parameter_scan
        !Set using_measure_scatter to indicate we want to use in "gather/scatter" timings
        using_measure_scatter=.false.
+       if (debug) write (*,*) 'gs2_main::run_gs2 calling init_fields', trin_job
        call init_fields
+       if (debug) write (*,*) 'gs2_main::run_gs2 calling init_gs2_diagnostics', trin_job
        call init_gs2_diagnostics (list, nstep)
 
 #ifdef NEW_DIAG
@@ -224,6 +252,15 @@ subroutine run_gs2 (mpi_comm, job_id, filename, nensembles, &
        
        if (proc0) call time_message(.false.,time_init,' Initialization')
        
+#ifdef NEW_DIAG
+       ! Create variables
+       if (.not. diagnostics_init_options%initialized) then
+         call run_diagnostics(-1,exit)
+         !diagnostics_init_options%initialized = .true.
+       end if
+       ! Write initial values
+       call run_diagnostics(0,exit)
+#endif
        first_time = .false.
 
        ! When trinity starts a new step it needs to reset after initialisation
@@ -242,15 +279,6 @@ subroutine run_gs2 (mpi_comm, job_id, filename, nensembles, &
 
     if(present(trinity_reset)) trin_restart = .true. ! All trinity runs are restarted except the first
 
-#ifdef NEW_DIAG
-    ! Create variables
-    if (.not. diagnostics_init_options%initialized) then
-      call run_diagnostics(-1,exit)
-      !diagnostics_init_options%initialized = .true.
-    end if
-    ! Write initial values
-    call run_diagnostics(0,exit)
-#endif
 
     if (present(pflux)) call write_trinity_parameters
 
@@ -371,6 +399,8 @@ endif
            pflux_avg(is) =  diff * spec(is)%dens**2.0 * spec(is)%fprim 
            heat_avg = 0.0
          end do
+         if (present(converged)) then
+         end if
        end if
        if (size(pflux) > 1) then
           pflux(1) = pflux_avg(ions)/time_interval
@@ -446,8 +476,14 @@ endif
     use gs2_save, only: gs2_save_for_restart, finish_save
     use theta_grid, only: finish_theta_grid
     use unit_tests, only: ilast_step
+#ifdef NEW_DIAG
+    use gs2_diagnostics_new, only: finish_gs2_diagnostics_new
+#endif
     
     call finish_gs2_diagnostics (ilast_step)
+#ifdef NEW_DIAG
+    call finish_gs2_diagnostics_new
+#endif
     call finish_gs2
 ! HJL Species won't change during a run so shouldn't need this    
 !    call finish_trin_species
@@ -610,17 +646,40 @@ endif
 
     use species, only: init_trin_species
     use theta_grid_params, only: init_trin_geo
+    !use mp, only: broadcast
 
     implicit none
 
-    integer, intent (in) :: ntspec
-    real, intent (in) :: rhoc, qval, shat, rgeo_lcfs, rgeo_local, kap, kappri, tri, tripri, shift
-    real, intent (in) :: betaprim, gexb, mach
-    real, dimension (:), intent (in) :: dens, fprim, temp, tprim, nu
-    logical, intent (in) :: use_gs2_geo
+    integer, intent (inout) :: ntspec
+    real, intent (inout) :: rhoc, qval, shat, rgeo_lcfs, rgeo_local, kap, kappri, tri, tripri, shift
+    real, intent (inout) :: betaprim, gexb, mach
+    real, dimension (:), intent (inout) :: dens, fprim, temp, tprim, nu
+    logical, intent (inout) :: use_gs2_geo
 
     ! for now do nothing with gexb or mach, but need to include later if want to use GS2
     ! with TRINITY to evolve rotation profiles
+
+   !call broadcast(rhoc)
+   !call broadcast(qval)
+   !call broadcast(shat)
+   !call broadcast(rgeo_lcfs)
+   !call broadcast(rgeo_local)
+   !call broadcast(kap)
+   !call broadcast(kappri)
+   !call broadcast(tri)
+   !call broadcast(tripri)
+   !call broadcast(shift)
+ 
+   !call broadcast(betaprim)
+   !call broadcast(ntspec)
+   !call broadcast(dens)
+   !call broadcast(temp)
+   !call broadcast(fprim)
+   !call broadcast(tprim)
+   !call broadcast(gexb)
+   !call broadcast(mach)
+   !call broadcast(nu)
+   !call broadcast(use_gs2_geo)
     call init_trin_species (ntspec, dens, temp, fprim, tprim, nu)
     if (.not. use_gs2_geo) call init_trin_geo (rhoc, qval, shat, &
          rgeo_lcfs, rgeo_local, kap, kappri, tri, tripri, shift, betaprim)
