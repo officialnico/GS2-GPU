@@ -22,7 +22,7 @@ module gs2_reinit
   !! otherwise the current field and dist_fn values will be lost. The
   !! logical flag in_memory must be given the same value that was 
   !! set in save_fields_and_dist_fn. 
-  public :: reinit_gk_and_field_equations
+  !public :: reinit_gk_and_field_equations
 
   !> This function overrides the in_memory flag
   !! and should only be used if you know what
@@ -73,43 +73,16 @@ contains
   end subroutine increase_time_step
 
 
-  subroutine reinit_gk_and_field_equations(reset_antenna)
-    use run_parameters, only: fphi, fapar, fbpar
-    use dist_fn_arrays, only: g_restart_tmp
-    use fields_arrays, only: phinew, aparnew, bparnew
-    use collisions, only: c_reset => reset_init
-    use dist_fn, only: d_reset => reset_init
-    use fields, only: f_reset => reset_init, init_fields
-    use init_g, only: g_reset => reset_init
-    use nonlinear_terms, only: nl_reset => reset_init
-    use antenna, only: a_reset => reset_init
-    use gs2_init, only: load_saved_field_values
-    logical, intent(in) :: reset_antenna
-! prepare to reinitialize inversion matrix, etc.
-    call d_reset
-    call c_reset
-    call f_reset
-    call g_reset(.not.in_memory)
-    call nl_reset
-
-    if (reset_antenna) call a_reset
-
-! reinitialize
-    call init_fields
-
-!Update fields if done in memory
-!Don't need/want to update if force_maxwell_reinit
-    call load_saved_field_values
-  end subroutine reinit_gk_and_field_equations
 
 
 
-  subroutine reset_time_step (istep, my_exit, job_id)
+  subroutine reset_time_step (current_init, istep, my_exit, job_id)
     use run_parameters, only: reset
     use gs2_time, only: code_dt, user_dt, code_dt_cfl, save_dt
     use dist_fn_arrays, only: gnew
     use gs2_time, only: code_dt_min
-    use gs2_init, only: save_fields_and_dist_fn
+    use gs2_init, only: save_fields_and_dist_fn, init_level_type, init
+    use gs2_init, only: init_level_list
     use mp, only: proc0
     use file_utils, only: error_unit
     use job_manage, only: time_message
@@ -120,6 +93,8 @@ contains
     integer, save :: istep_last = -1 ! allow adjustment on first time step
     integer, save :: nconsec=0
     integer, intent (in), optional :: job_id
+    type(init_level_type), intent(inout) :: current_init
+
 
     if (first) call init_reinit
     first = .false.
@@ -157,6 +132,8 @@ contains
 
     gnew = 0.
 
+    ! Move to the correct init level
+    call init(current_init, init_level_list%override_timestep)
 ! change timestep 
 
 ! If timestep is too big, make it smaller
@@ -174,7 +151,8 @@ contains
     ! Don't reset antenna here because species parameters
     ! have not changed so resetting antenna would cause
     ! an unnecessary discontinuity
-    call reinit_gk_and_field_equations(reset_antenna=.false.)
+    !call reinit_gk_and_field_equations(reset_antenna=.false.)
+    call init(current_init, init_level_list%full)
     
     if (proc0 .and. .not. present(job_id)) call time_message(.true.,time_reinit,' Re-initialize')
 
