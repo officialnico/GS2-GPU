@@ -268,7 +268,6 @@ module fields_local
      procedure :: decomp_own_serial_local => pc_decomp_own_serial_local
      procedure :: decomp_owncells_serial_local => pc_decomp_owncells_serial_local
      procedure :: decomp_owncells_simplempi => pc_decomp_owncells_simplempi
-     procedure :: decomp_owncells_balancedmpi => pc_decomp_owncells_balancedmpi
   end type pc_type
 
   !//////////////////////////////
@@ -1518,7 +1517,7 @@ contains
 
   !>A routine to reset the object
   subroutine ky_reset(self)
-    use mp, only: free_comm
+    use mp, only: free_comm, mp_comm_null
     implicit none
     class(ky_type), intent(inout) :: self
     integer :: is
@@ -1530,10 +1529,8 @@ contains
 
 
     !AJ Free communicators associated with this ky block
-    if(self%ky_sub_all%id .ne. self%parent_sub%id) then
-!       write(*,*) 'free comm ky',self%ky_sub_all%id
-!AJ FIX
-!       call free_comm(self%ky_sub_all)
+    if(self%ky_sub_all%id .ne. self%parent_sub%id .and. self%ky_sub_all%nproc .gt. 0 .and. self%ky_sub_all%id .ne. mp_comm_null) then
+       call free_comm(self%ky_sub_all)
     end if
 
     !deallocate
@@ -1655,7 +1652,7 @@ contains
     current_best_size = rowsize
     do i = 1,10
        MinNRow=rowsize
-       call init_fields_matrixlocal()
+       call init_fields_matrixlocal(tuning_in=.true.)
        start_time = timer_local()
        !AJ Replace with getfield_local and the setup of parameters as in advance_local
 !       call fieldmat%populate
@@ -2534,7 +2531,7 @@ contains
     use theta_grid, only: ntgrid
     use kt_grids, only: naky, ntheta0
     use mp, only: broadcast, sum_reduce_sub, sum_allreduce, sum_allreduce_sub
-    use mp, only: rank_comm, comm_type, proc0
+    use mp, only: rank_comm, comm_type, proc0, iproc
     use run_parameters, only: fphi, fapar, fbpar
     use gs2_layouts, only: g_lo, intspec_sub
     implicit none
@@ -2548,6 +2545,12 @@ contains
     type(comm_type), save :: les_comm
     logical, save :: first=.true.
     logical, save :: sub_has_proc0=.false.
+
+    logical :: exists
+    character(len=8) :: fmt
+    character(len=5) :: x1
+
+    fmt = '(I5.5)'
 
     !Set the to_all flag
     to_all=.false.
@@ -2734,6 +2737,55 @@ contains
 !                self%kyb(ik)%supercells(is)%sc_sub_not_full%id)
 !        enddo
 !     enddo
+
+!!$    if(iproc .eq. 511) then
+!!$       write (x1,fmt) iproc
+!!$       inquire(file=trim(x1)//".new.txt", exist=exists)
+!!$       if (exists) then
+!!$          open(12, file=trim(x1)//".new.txt", status="old", position="append", action="write")
+!!$       else
+!!$          open(12, file=trim(x1)//".new.txt", status="new", action="write")
+!!$       end if
+!!$       write(12,*) 'final received',iproc,':',ph(:,56,32)
+!!$       close(12)
+!!$    end if
+!!$
+!!$    if(iproc .eq. 510) then
+!!$       write (x1,fmt) iproc
+!!$       inquire(file=trim(x1)//".new.txt", exist=exists)
+!!$       if (exists) then
+!!$          open(12, file=trim(x1)//".new.txt", status="old", position="append", action="write")
+!!$       else
+!!$          open(12, file=trim(x1)//".new.txt", status="new", action="write")
+!!$       end if
+!!$       write(12,*) 'final received',iproc,':',ph(:,56,32)
+!!$       close(12)
+!!$    end if
+!!$
+!!$    if(iproc .eq. 254) then
+!!$       write (x1,fmt) iproc
+!!$       inquire(file=trim(x1)//".new.txt", exist=exists)
+!!$       if (exists) then
+!!$          open(12, file=trim(x1)//".new.txt", status="old", position="append", action="write")
+!!$       else
+!!$          open(12, file=trim(x1)//".new.txt", status="new", action="write")
+!!$       end if
+!!$       write(12,*) 'final received',iproc,':',ph(:,56,32)
+!!$       close(12)
+!!$    end if
+!!$
+!!$    if(iproc .eq. 255) then
+!!$       write (x1,fmt) iproc
+!!$       inquire(file=trim(x1)//".new.txt", exist=exists)
+!!$       if (exists) then
+!!$          open(12, file=trim(x1)//".new.txt", status="old", position="append", action="write")
+!!$       else
+!!$          open(12, file=trim(x1)//".new.txt", status="new", action="write")
+!!$       end if
+!!$       write(12,*) 'final received',iproc,':',ph(:,56,32)
+!!$       close(12)
+!!$    end if
+
 
   end subroutine fm_gather_fields
 
@@ -3163,8 +3215,6 @@ contains
                    tag = ik*self%ntheta0 + it
                 
                    if(fphi>epsilon(0.0)) then
-!                      write(*,*) 'tempdata',iproc,sender,it,ik,tempit,is
-!                      call nbrecv(antot(:,it,ik),sender,tag,recv_handles(recvreqnum))
                       call nbrecv(tempdata(:,tempit,1,ik,is),sender,tag,recv_handles(recvreqnum))
                       recvreqnum = recvreqnum + 1
                    end if
@@ -3172,7 +3222,6 @@ contains
                    tag = tag + taglim
                    
                    if(fapar>epsilon(0.0)) then
-!                      call nbrecv(antota(:,it,ik),sender,tag,recv_handles(recvreqnum))
                       call nbrecv(tempdata(:,tempit,2,ik,is),sender,tag,recv_handles(recvreqnum))
                       recvreqnum = recvreqnum + 1
                    end if
@@ -3180,7 +3229,6 @@ contains
                    tag = tag + taglim
                    
                    if(fbpar>epsilon(0.0)) then
-!                      call nbrecv(antotp(:,it,ik),sender,tag,recv_handles(recvreqnum))
                       call nbrecv(tempdata(:,tempit,3,ik,is),sender,tag,recv_handles(recvreqnum))
                       recvreqnum = recvreqnum + 1
                    end if
@@ -3519,11 +3567,16 @@ contains
     self%is_local=0
 
     !Fill in values, this may be fairly slow
-    do iglo=g_lo%llim_proc,g_lo%ulim_proc
-       ik=ik_idx(g_lo,iglo)
-       it=it_idx(g_lo,iglo)
+    do iglo=1,g_lo%ikitrange
+       ik=g_lo%local_ikit_points(iglo)%ik
+       it=g_lo%local_ikit_points(iglo)%it
        self%is_local(it,ik)=1
-    enddo
+    end do
+!    do iglo=g_lo%llim_proc,g_lo%ulim_proc
+!       ik=ik_idx(g_lo,iglo)
+!       it=it_idx(g_lo,iglo)
+!       self%is_local(it,ik)=1
+!    enddo
 
     !Now count how many procs have each cell
     self%nproc_per_cell=self%is_local
@@ -3612,7 +3665,7 @@ contains
     case(4)
        !Simple mpi with no attempt at load balance
        !but we attempt to avoid splitting small blocks
-       call self%decomp_owncells_balancedmpi
+       call mp_abort(trim(errmesg))
     case default
        !Invalid decomp_type
        write(errmesg,'("Invalid decomp_type : ",I0)') self%decomp_type
@@ -3894,120 +3947,6 @@ contains
   end subroutine pc_decomp_owncells_simplempi
 
 
-  !>Cells are decomposed based on proc but blocks are aggregated if processes have small blocks || Decomp_type=4
-  subroutine pc_decomp_owncells_balancedmpi(self)
-    use mp, only: split, comm_type, free_comm
-    implicit none
-    class(pc_type), intent(inout) :: self
-    integer :: ik, is, ic, ifq, it, ip, llim, ulim
-    integer :: nrow_tmp, nrow_loc, remainder,np
-    integer :: colour, key
-    type(comm_type) :: tmp
-
-    !/Don't need to change pc%is_local as this is already correct
-
-    !Make sure we do the invert locally as mpi based version not implemented!
-    pc%force_local_invert=.true.
-
-    !Now we say that we can use no gather based getfieldeq
-    self%has_to_gather=.false.
-
-    !Now we (re)calculate how much data is available
-    call self%count_avail
-
-    !Initialise the number of rows responsible
-    self%nresp_per_cell=0
-
-    !Now loop over all cells, setting the row_llim of
-    !their row blocks
-    do ik=1,fieldmat%naky
-       do is=1,fieldmat%kyb(ik)%nsupercell
-          nrow_tmp=fieldmat%kyb(ik)%supercells(is)%nrow
-          do ic=1,fieldmat%kyb(ik)%supercells(is)%ncell
-             !Make subcommunicator if we have this supercell
-             !<DD>TAGGED: By passing a key to split we can arrange for the procs to
-             !be arranged in any particular order. This allows some form of load balancing.
-             if(fieldmat%kyb(ik)%supercells(is)%is_local)then
-                colour=0
-                key=self%current_nresp()
-                if(fieldmat%kyb(ik)%supercells(is)%cells(ic)%is_local) colour=1
-                call split(colour,key,tmp,fieldmat%kyb(ik)%supercells(is)%cells(ic)%parent_sub%id)
-             endif
-             !NOTE: By sorting the procs as done above we end up with lots of different procs
-             !which are proc0 for at least one supercell. This means that later when we assign
-             !the supercell heads we have lots of members, whilst if we try to minimise the number
-             !of unique procs which are proc0 for 1 or more supercells then there will be fewer
-             !members and the subsequent allreduce will be cheaper.
-
-             !Store it index
-             it=fieldmat%kyb(ik)%supercells(is)%cells(ic)%it_ind
-
-             !If local work out limits, if not just set to 0
-             if(fieldmat%kyb(ik)%supercells(is)%cells(ic)%is_local)then
-                
-                !Store info about subcom
-                np=tmp%nproc 
-                ip=tmp%iproc
-               
-                !Calculate row limits based on cell size, nprocs and
-                !proc rank
-                !/Simple block size
-                nrow_loc=max(ceiling(nrow_tmp*1.0/np),MinNrow)
-                !By enforcing a minimum value of nrow_loc we can ensure
-                !that blocks don't get too small. Note it's easy to work
-                !out the limits for any of the other procs *without* comms.
-                !Hence should be quite cheap to check how many empty procs
-                !we have, how small the smallest block is etc. So shouldn't
-                !be too expensive to work out if we should do an extra row
-                !or two if it will remove procs with little work.
-                !AJ WORK TO DO HERE
-                remainder=nrow_tmp-nrow_loc*np !Note this should be -ve due to use of ceiling
-                
-
-                !Now work out limits
-                llim=1+ip*(nrow_loc)
-                ulim=llim+nrow_loc-1
-
-                !Now make sure that we don't overstep the cell limits
-                if(llim.gt.nrow_tmp) then
-                   !If the lower limit is too big then this proc should
-                   !be made empty
-                   llim=0
-                   ulim=0
-                else if(ulim.gt.nrow_tmp) then
-                   !If just the upper limit is too big then
-                   !lower it
-                   ulim=nrow_tmp
-                endif
-
-                !Now loop over row blocks to set index
-                do ifq=1,fieldmat%kyb(ik)%supercells(is)%cells(ic)%nrb
-                   fieldmat%kyb(ik)%supercells(is)%cells(ic)%rb(ifq)%row_llim=llim
-                   fieldmat%kyb(ik)%supercells(is)%cells(ic)%rb(ifq)%row_ulim=ulim
-                   call fieldmat%kyb(ik)%supercells(is)%cells(ic)%rb(ifq)%set_nrow
-                enddo
-             else
-                do ifq=1,fieldmat%kyb(ik)%supercells(is)%cells(ic)%nrb
-                   fieldmat%kyb(ik)%supercells(is)%cells(ic)%rb(ifq)%row_llim=0
-                   fieldmat%kyb(ik)%supercells(is)%cells(ic)%rb(ifq)%row_ulim=0
-                   call fieldmat%kyb(ik)%supercells(is)%cells(ic)%rb(ifq)%set_nrow
-                enddo
-             endif
-
-             !Now free subcommunicator if we have this supercell
-             if(fieldmat%kyb(ik)%supercells(is)%is_local) call free_comm(tmp)
-
-             !Record the number of responsible rows, note we assume all rb have same size
-             if(size(fieldmat%kyb(ik)%supercells(is)%cells(ic)%rb).gt.0)then
-                self%nresp_per_cell(it,ik)=fieldmat%kyb(ik)%supercells(is)%cells(ic)%rb(1)%nrow
-             else
-                self%nresp_per_cell(it,ik)=0
-             endif
-          enddo
-       enddo
-    enddo
-  end subroutine pc_decomp_owncells_balancedmpi
-
 !------------------------------------------------------------------------ 
 
 !//////////////////////////////
@@ -4071,10 +4010,18 @@ contains
   end function fields_local_unit_test_init_fields_matrixlocal
 
   !>Routine use to initialise field matrix data
-  subroutine init_fields_matrixlocal
+  subroutine init_fields_matrixlocal(tuning_in)
     use mp, only: proc0 !, barrier
     implicit none
+    logical, optional :: tuning_in
+    logical :: tuning
     real :: ts,te
+
+    tuning = .false.
+    if(present(tuning_in)) then
+       tuning = tuning_in
+    end if
+
     !Exit if we've already initialised
     if(initialised) return
     if(.not.reinit)then
@@ -4185,60 +4132,62 @@ contains
 !!when the time step changes.
 !!!!!!!!!!
 
-    !Now fill the fieldmat with data
-    if(read_response)then
-       if(proc0.and.debug)then
-          write(dlun,'("Populating from dump.")')
-          call cpu_time(ts)
+    if(.not. tuning) then
+       !Now fill the fieldmat with data
+       if(read_response)then
+          if(proc0.and.debug)then
+             write(dlun,'("Populating from dump.")')
+             call cpu_time(ts)
+          endif
+          call read_response_from_file_local
+          if(proc0.and.debug) then 
+             call cpu_time(te)
+             write(dlun,'("--Done in ",F12.4," units")') te-ts
+          endif
+       else       
+          !if(debug)call barrier
+          if(proc0.and.debug)then
+             write(dlun,'("Populating.")')
+             call cpu_time(ts)
+          endif
+          call fieldmat%populate
+          !if(debug)call barrier
+          if(proc0.and.debug) then 
+             call cpu_time(te)
+             write(dlun,'("--Done in ",F12.4," units")') te-ts
+          endif
+          
+          !Now prepare the response matrices
+          !Note: Currently prepare just means invert
+          !but at some point we may wish to LU decompose
+          !or other approaches etc.
+          !if(debug)call barrier
+          if(proc0.and.debug) then
+             write(dlun,'("Preparing.")')
+             call cpu_time(ts)
+          endif
+          call fieldmat%prepare
+          !if(debug)call barrier
+          if(proc0.and.debug) then 
+             call cpu_time(te)
+             write(dlun,'("--Done in ",F12.4," units")') te-ts
+          endif
        endif
-       call read_response_from_file_local
-       if(proc0.and.debug) then 
-          call cpu_time(te)
-          write(dlun,'("--Done in ",F12.4," units")') te-ts
-       endif
-    else       
-       !if(debug)call barrier
-       if(proc0.and.debug)then
-          write(dlun,'("Populating.")')
-          call cpu_time(ts)
-       endif
-       call fieldmat%populate
-       !if(debug)call barrier
-       if(proc0.and.debug) then 
-          call cpu_time(te)
-          write(dlun,'("--Done in ",F12.4," units")') te-ts
+       
+       !Dump response to file
+       if(dump_response)then
+          if(proc0.and.debug)then
+             write(dlun,'("Dumping to file.")')
+             call cpu_time(ts)
+          endif
+          call dump_response_to_file_local
+          if(proc0.and.debug) then 
+             call cpu_time(te)
+             write(dlun,'("--Done in ",F12.4," units")') te-ts
+          endif
        endif
 
-       !Now prepare the response matrices
-       !Note: Currently prepare just means invert
-       !but at some point we may wish to LU decompose
-       !or other approaches etc.
-       !if(debug)call barrier
-       if(proc0.and.debug) then
-          write(dlun,'("Preparing.")')
-          call cpu_time(ts)
-       endif
-       call fieldmat%prepare
-       !if(debug)call barrier
-       if(proc0.and.debug) then 
-          call cpu_time(te)
-          write(dlun,'("--Done in ",F12.4," units")') te-ts
-       endif
     endif
-
-    !Dump response to file
-    if(dump_response)then
-       if(proc0.and.debug)then
-          write(dlun,'("Dumping to file.")')
-          call cpu_time(ts)
-       endif
-       call dump_response_to_file_local
-       if(proc0.and.debug) then 
-          call cpu_time(te)
-          write(dlun,'("--Done in ",F12.4," units")') te-ts
-       endif
-    endif
-
     !Now write debug data
 !    call fieldmat%write_debug_data
   end subroutine init_fields_matrixlocal
