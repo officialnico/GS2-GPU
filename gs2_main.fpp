@@ -705,6 +705,7 @@ contains
     use run_parameters, only: use_old_diagnostics
     use unit_tests, only: ilast_step, debug_message
     use gs2_init, only: init
+    use nonlinear_terms, only: gryfx_zonal
     type(gs2_program_state_type), intent(inout) :: state
     integer :: istep, istatus
     integer, intent(in) :: nstep_run
@@ -881,6 +882,11 @@ contains
 
     end do
 
+  ! NRM: When running inside GryfX, evolve_equations is called every timestep to
+  ! advance a single timestep.
+  ! So anything that is supposed to happen after GS2 completes the main nstep
+  ! loop should not be done while running inside GryfX.
+  if(.not. gryfx_zonal%on) then
     call time_message(.false.,state%timers%main_loop,' Main Loop')
 
     if (proc0 .and. .not. state%is_external_job) call write_dt
@@ -910,6 +916,7 @@ contains
     end if
 
     call debug_message(state%verb,'gs2_main::evolve_equations finished')
+  end if
 
 
   end subroutine evolve_equations
