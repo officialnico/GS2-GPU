@@ -100,7 +100,6 @@ dump_response_mod = \
 	 leq.o \
 	 matrix_inverse.o \
 	 mp.o \
-	 mt19937.o \
 	 netcdf_utils.o \
 	 nonlinear_terms.o \
 	 normalisations.o \
@@ -209,7 +208,6 @@ ffttester_mod = \
 	 leq.o \
 	 matrix_inverse.o \
 	 mp.o \
-	 mt19937.o \
 	 netcdf_utils.o \
 	 nonlinear_terms.o \
 	 normalisations.o \
@@ -352,7 +350,6 @@ gs2_mod = \
 	 leq.o \
 	 matrix_inverse.o \
 	 mp.o \
-	 mt19937.o \
 	 netcdf_utils.o \
 	 nonlinear_terms.o \
 	 normalisations.o \
@@ -457,7 +454,6 @@ ingen_mod = \
 	 leq.o \
 	 matrix_inverse.o \
 	 mp.o \
-	 mt19937.o \
 	 netcdf_utils.o \
 	 nonlinear_terms.o \
 	 normalisations.o \
@@ -1257,7 +1253,6 @@ mds.o: \
 mp.o: \
 	 constants.o \
 	 file_utils.o 
-mt19937.o: 
 netcdf_utils.o: \
 	 constants.o \
 	 file_utils.o \
@@ -1311,7 +1306,7 @@ pgplot_utils.o: \
 	 constants.o 
 prof.o: 
 ran.o: \
-	 mt19937.o 
+	 constants.o 
 read_chease.o: 
 redistribute.o: \
 	 job_manage.o \
@@ -1332,6 +1327,15 @@ rungridgen.o: \
 	 gridgen4mod.o \
 	 spl.o 
 runtime_tests.o: 
+shm_mpi3.o: \
+	 shm_mpi3_alloc_tmpl.inc \
+	 shm_mpi3_fence_tmpl.inc \
+	 shm_mpi3_free_tmpl.inc \
+	 shm_mpi3_get_node_pointer_tmpl.inc 
+shm_mpi3_alloc_tmpl.inc: 
+shm_mpi3_fence_tmpl.inc: 
+shm_mpi3_free_tmpl.inc: 
+shm_mpi3_get_node_pointer_tmpl.inc: 
 simpledataio_read.o: \
 	 simpledataio_write.o \
 	 simpledataiof.o 
