@@ -4068,7 +4068,7 @@ endif
                             g0(:ileft-1,:,to_iglo) = 0.0
                          else if (idx_local(g_lo, from_iglo)) then
                             do isgn = 1,2
-                               call send(temp(:, isgn, it-iit), proc_id (g_lo, to_iglo))
+                               call send(temp(:, isgn, it-iit+1), proc_id (g_lo, to_iglo))
                             enddo
                          else if (idx_local(g_lo, to_iglo)) then
                             do isgn=1, 2
