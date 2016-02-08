@@ -427,7 +427,7 @@ contains
          if (gryfx()) then
             !WARNING THIS NORMALISATION IS A GUESS!!!
             !FEEL FREE TO QUESTION IT AND WORRY ABOUT IT
-           spec(is)%vnewk = spec(is)%vnewk / sqrt(2.0)
+           spec(is)%vnewk = 0.01 ! spec(is)%vnewk / sqrt(2.0)
          end if
       end do
     end if
