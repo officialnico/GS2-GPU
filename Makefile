@@ -78,8 +78,8 @@ OPT ?= on
 STATIC ?=
 # promotes precisions of real and complex (bin)
 DBLE ?= on
-# turns on distributed memory parallelization using MPI (bin)
-USE_MPI ?= on 
+# turns on distributed memory parallelization using MPI (mpi2, mpi3)
+USE_MPI ?= mpi2
 # turns on SHMEM parallel communications on SGI (bin)
 USE_SHMEM ?=
 # which FFT library to use (fftw,fftw3,mkl_fftw,undefined) 
@@ -241,7 +241,7 @@ endif
 
 ifeq ($(MAKECMDGOALS),depend)
 # must invoke full functionality when make depend
-	MAKE += USE_HDF5=on USE_FFT=fftw USE_NETCDF=on USE_MPI=on \
+	MAKE += USE_HDF5=on USE_FFT=fftw USE_NETCDF=on USE_MPI=mpi3 \
 		USE_LOCAL_BESSEL=on USE_LOCAL_RAN=mt
 endif
 
@@ -277,6 +277,10 @@ ifdef USE_MPI
 	FC = $(MPIFC)
 	CC = $(MPICC)
 	CPPFLAGS += -DMPI
+endif
+ 
+ifeq ($(USE_MPI),mpi3)
+	CPPFLAGS += -DMPI3
 endif
 
 ifdef HAS_ISO_C_BINDING
