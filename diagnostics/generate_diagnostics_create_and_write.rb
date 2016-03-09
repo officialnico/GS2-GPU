@@ -200,6 +200,7 @@ EOF
 end
 
 $max_dims = 6
+$max_dims = 4
 
 begin
   4.times.map{|i|}

@@ -56,7 +56,7 @@ module gs2_save
 
   logical :: read_many, save_many ! Read and write single or multiple restart files
   
-  character (300) :: restart_file
+  character (10000) :: restart_file
 
 # ifdef NETCDF
   real, allocatable, dimension(:,:,:) :: tmpr, tmpi, ftmpr, ftmpi
@@ -1397,7 +1397,7 @@ contains
     character(16) :: SuffixTmp='.ThisIsATestFile'
     character(9) :: FileMode
     character(len=*),intent(in),optional::my_file
-    character(300) :: local_file
+    character(2000) :: local_file
     logical, intent(in), optional :: read_only
     logical :: restart_writable, writable
     integer :: unit,ierr
@@ -1453,7 +1453,7 @@ contains
   end subroutine init_gs2_save
 
   subroutine set_restart_file (file)
-    character(300), intent (in) :: file
+    character(2000), intent (in) :: file
     
     restart_file = file
 

@@ -39,6 +39,8 @@ extern "C" void sdatio_create_variable(struct sdatio_file * sfile,
 
 /* Write to the given variable. address should be the address of the start of the array */
 extern "C" void sdatio_write_variable(struct sdatio_file * sfile, char * variable_name, void * address);
+/* REad the given variable. address should be the address of the start of the array */
+extern "C" void sdatio_read_variable(struct sdatio_file * sfile, char * variable_name, void * address);
 
 /* Write to the given variable. address should be the address of the start of the array. Indexes should be an array the same size as the number of dimensions of the variable. Using the second form is quicker as the first form requires a search for the variable at every write*/
 extern "C" void sdatio_write_variable_at_index(struct sdatio_file * sfile, char * variable_name, int * indexes, void * address);
@@ -56,5 +58,12 @@ extern "C" struct sdatio_dimension * sdatio_find_dimension(struct sdatio_file * 
 /* Increment the start of the specified infinite dimension */
 extern "C" void sdatio_increment_start(struct sdatio_file * sfile, char * dimension_name);
 
+extern "C" void sdatio_set_dimension_start(struct sdatio_file * sfile, char * dimension_name, int start);
+
+extern "C" void sdatio_set_count(struct sdatio_file * sfile, char * variable_name, char * dimension_name, int * count);
+
 /* Returns 1 if the given variable exists, 0 otherwise */
 extern "C" int sdatio_variable_exists(struct sdatio_file * sfile, char * variable_name);
+
+/* Open an existing file, reading all dimension and variable metadata */
+extern "C" void sdatio_open_file(struct sdatio_file * sfile );

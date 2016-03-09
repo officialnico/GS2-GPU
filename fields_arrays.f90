@@ -17,5 +17,5 @@ module fields_arrays
   real :: time_field(2)=0.
   
   !For response data
-  character(len=300) :: response_file
+  character (2000) :: response_file
 end module fields_arrays

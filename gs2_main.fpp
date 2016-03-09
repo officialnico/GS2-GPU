@@ -897,23 +897,10 @@ contains
 
     ilast_step = state%istep_end
 
-    ! At the end evolve_equations, we guarantee
-    ! that if the initial value overrides have
-    ! been initialized then they are 
-    ! set to the current value (otherwise
-    ! this might vary depending on whether the 
-    ! timestep has been reset).
-    !
     ! We also restore the value of the override
     ! switch to what it was when this function was
     ! called.
-    ! 
-    call debug_message(state%verb, &
-      'gs2_main::evolve_equations restoring initial value override')
     state%init%initval_ov%override = temp_initval_override_store
-    if (state%init%initval_ov%init) then
-      call set_initval_overrides_to_current_vals(state%init%initval_ov)
-    end if
 
     call debug_message(state%verb,'gs2_main::evolve_equations finished')
   end if

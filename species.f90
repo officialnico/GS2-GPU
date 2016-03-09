@@ -400,16 +400,26 @@ contains
 
   subroutine set_overrides(prof_ov)
     use overrides, only: profiles_overrides_type
+    use unit_tests, only: debug_message
     type(profiles_overrides_type), intent(in) :: prof_ov
     integer :: is
+    integer, parameter :: verbosity=3
+    character(len=800) :: message
+    call debug_message(verbosity, 'species::set_overrides starting')
     do is = 1,nspec
+      message = ''
+      write(message,*) 'species::set_overrides setting species ', is
+      call debug_message(verbosity, trim(message))
       if (prof_ov%override_tprim(is)) spec(is)%tprim = prof_ov%tprim(is)
       if (prof_ov%override_fprim(is)) spec(is)%fprim = prof_ov%fprim(is)
       if (prof_ov%override_temp(is)) spec(is)%temp = prof_ov%temp(is)
       if (prof_ov%override_dens(is)) spec(is)%dens = prof_ov%dens(is)
       if (prof_ov%override_vnewk(is)) spec(is)%vnewk = prof_ov%vnewk(is)
     end do
+    call debug_message(verbosity,&
+    'species::set_overrides calling calculate_and_broadcast_species_properties')
     call calculate_and_broadcast_species_properties
+    call debug_message(verbosity, 'species::set_overrides finishing')
   end subroutine set_overrides
 
 

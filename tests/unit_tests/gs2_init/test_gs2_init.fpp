@@ -37,7 +37,7 @@ program test_gs2_reinit
     use gs2_main, only: prepare_miller_geometry_overrides
     use gs2_main, only: initialize_gs2, initialize_equations, finalize_equations
     use gs2_main, only: initialize_diagnostics
-    use fields, only: finish_fields, init_fields
+    use fields, only: finish_fields_level_2, init_fields_level_2
     !use fields_local, only: init_fields_local, finish_fields_local
     use unit_tests
     use unit_tests, only: should_print
@@ -130,8 +130,8 @@ program test_gs2_reinit
     call finalize_diagnostics(old_iface_state)
     !call finish_fields_local
     !call init_fields_local
-    call finish_fields
-    call init_fields
+    call finish_fields_level_2
+    call init_fields_level_2
     call init(old_iface_state%init, init_level_list%collisions)
     call init(old_iface_state%init, init_level_list%full)
     call init(old_iface_state%init, init_level_list%basic)

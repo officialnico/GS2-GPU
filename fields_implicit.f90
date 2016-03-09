@@ -431,11 +431,18 @@ contains
   end subroutine fieldline_average_phi
 
   subroutine reset_init
-    use gs2_layouts, only: finish_fields_layouts, finish_jfields_layouts
+    use gs2_layouts, only: finish_jfields_layouts
+    ! finish_fields_layouts name conflicts with routine in 
+    ! this module
+    use gs2_layouts, only: gs2lo_ffl => finish_fields_layouts
+    use unit_tests, only: debug_message
     implicit none
     integer :: i, j
+    integer, parameter :: verbosity=3
     initialized = .false.
 
+    call debug_message(verbosity, &
+      'fields_implicit::reset_init starting')
     if (.not. allocated (aminv)) return
     do i = 1, size(aminv)
        if (.not. associated (aminv(i)%dcell)) cycle
@@ -447,7 +454,7 @@ contains
     end do
     deallocate (aminv)
 
-    call finish_fields_layouts
+    call gs2lo_ffl
     call finish_jfields_layouts
   end subroutine reset_init
 

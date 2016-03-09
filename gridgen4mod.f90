@@ -19,7 +19,7 @@ contains
     integer :: i
     integer :: unit
     logical :: od
-    character(200) :: line
+    character (2000) :: line
 
 !CMR, August 2010:
 !  (i) modify inquire to use opened instead of read, write and readwrite

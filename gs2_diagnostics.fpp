@@ -3190,7 +3190,7 @@ contains
     use fields_arrays, only: phinew, aparnew, bparnew
     implicit none
     real, intent(in) :: t
-    character(200) :: filename
+    character (2000) :: filename
     integer :: ik, it, ig, unit
 
     call get_unused_unit (unit)

@@ -41,7 +41,7 @@ module init_g
   real :: den2, upar2, tpar2, tperp2
   real :: tstart, scale, apar0
   logical :: chop_side, clean_init, left, even, new_field_init
-  character(300) :: restart_file !WARNING: This is also defined in gs2_save. This should be addressed
+  character (2000) :: restart_file !WARNING: This is also defined in gs2_save. This should be addressed
   character (len=150) :: restart_dir
   integer, dimension(2) :: ikk, itt
   integer, dimension(3) :: ikkk,ittt

@@ -900,7 +900,9 @@ contains
 
   subroutine set_overrides(prof_ov)
     use overrides, only: profiles_overrides_type
+    use unit_tests, only: debug_message
     type(profiles_overrides_type), intent(in) :: prof_ov
+    call debug_message(3, 'dist_fn::set_overrides starting')
     if (prof_ov%override_g_exb) g_exb = prof_ov%g_exb
     if (prof_ov%override_mach) mach = prof_ov%mach
   end subroutine set_overrides

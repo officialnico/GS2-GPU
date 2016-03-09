@@ -833,6 +833,31 @@ void sdatio_write_variable_private(struct sdatio_file * sfile, struct sdatio_var
   sfile->data_written = 1;
 }
 
+void sdatio_read_variable_private(struct sdatio_file * sfile, struct sdatio_variable * svar, size_t * counts, size_t * starts, void * address){
+  int retval;
+  /*if (sfile->is_parallel){}*/
+  /*else {*/
+  switch (svar->type){
+  case (SDATIO_INT):
+    DEBUG_MESS("Writing an integer\n");
+    if ((retval = nc_get_vara_int(sfile->nc_file_id, svar->nc_id, starts, counts, address))) ERR(retval);
+    break;
+  case (SDATIO_FLOAT):
+    DEBUG_MESS("Writing a float\n");
+    /*if ((retval = nc_put_var_double(sfile->nc_file_id, svar->nc_id, address))) ERR(retval);*/
+    if ((retval = nc_get_vara_float(sfile->nc_file_id, svar->nc_id, starts, counts, address))) ERR(retval);
+    break;
+  case (SDATIO_DOUBLE):
+    DEBUG_MESS("Writing a double\n");
+    /*if ((retval = nc_put_var_double(sfile->nc_file_id, svar->nc_id, address))) ERR(retval);*/
+    if ((retval = nc_get_vara_double(sfile->nc_file_id, svar->nc_id, starts, counts, address))) ERR(retval);
+    break;
+  }
+  
+  /*}*/
+}
+
+
 
 struct sdatio_dimension * sdatio_find_dimension(struct sdatio_file * sfile, char * dimension_name){
   int i, dimension_number;
@@ -927,6 +952,32 @@ void sdatio_write_variable(struct sdatio_file * sfile, char * variable_name, voi
   sdatio_write_variable_private(sfile, svar, counts, starts, address);
 
   sdatio_sync(sfile);
+
+  free(counts);
+  free(starts);
+
+}
+
+void sdatio_read_variable(struct sdatio_file * sfile, char * variable_name, void * address){
+  int  ndims;
+  struct sdatio_variable * svar;
+  /*double * double_array;*/
+  size_t * counts, * starts;
+
+  /*printf("address is %d\n", address);*/
+  /*printf("value is %f\n", *((float*)address));*/
+
+  
+  svar = sdatio_find_variable(sfile, variable_name);
+
+  ndims = svar->ndims;
+  counts = (size_t*)malloc(sizeof(size_t)*ndims); 
+  starts = (size_t*)malloc(sizeof(size_t)*ndims); 
+
+  sdatio_get_counts_and_starts(sfile, svar, counts, starts);
+
+  sdatio_read_variable_private(sfile, svar, counts, starts, address);
+
 
   free(counts);
   free(starts);

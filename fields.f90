@@ -110,10 +110,10 @@ contains
     !call init_parameter_scan
     call debug_message(verb, "init_fields: init_antenna")
     call init_antenna !Must come before allocate_arrays so we know if we need apar_ext
-    call debug_message(verb, "init_fields: read_parameters")
-    call read_parameters
-    call debug_message(verb, "init_fields: allocate_arrays")
-    call allocate_arrays
+    !call debug_message(verb, "init_fields: read_parameters")
+    !call read_parameters
+    !call debug_message(verb, "init_fields: allocate_arrays")
+    !call allocate_arrays
   end subroutine fields_pre_init
   
   subroutine init_fields_level_1
@@ -339,9 +339,12 @@ contains
     use kt_grids, only: naky, ntheta0
     use antenna, only: no_driver
     use fields_arrays, only: phi, apar, bpar, phinew, aparnew, bparnew, apar_ext
+    use unit_tests, only: debug_message
     implicit none
+    integer, parameter :: verb=3
 
     if (.not. allocated(phi)) then
+       call debug_message(verb, 'fields::allocate_arrays allocating')
        allocate (     phi (-ntgrid:ntgrid,ntheta0,naky))
        allocate (    apar (-ntgrid:ntgrid,ntheta0,naky))
        allocate (   bpar (-ntgrid:ntgrid,ntheta0,naky))
@@ -494,28 +497,46 @@ contains
     use fields_local, only: finish_fields_local
     use fields_arrays, only: phi, apar, bpar, phinew, aparnew, bparnew
     use fields_arrays, only: apar_ext
+    use unit_tests, only: debug_message
 
     implicit none
+    integer, parameter :: verbosity = 3
+
 
     initialized  = .false.
+    call debug_message(verbosity, &
+      'fields::finish_fields starting')
     phi = 0.
     phinew = 0.
     apar = 0.
     aparnew = 0.
     bpar = .0
     bparnew = 0.
+    call debug_message(verbosity, &
+      'fields::finish_fields zeroed fields')
     
     select case (fieldopt_switch)
     case (fieldopt_implicit)
-       call implicit_reset
+       ! This line is no longer necessary
+       ! because fields_implicit::reset_init is
+       ! called by finish_fields_level_2
+       !call implicit_reset
     case (fieldopt_test)
-       call test_reset
+       ! This line is no longer necessary
+       ! because fields_test::reset_init is
+       ! called by finish_fields_level_2
+       !call test_reset
     case (fieldopt_local)
        call finish_fields_local
     end select
 
+    call debug_message(verbosity, &
+      'fields::finish_fields called subroutines')
+
     if (allocated(phi)) deallocate (phi, apar, bpar, phinew, aparnew, bparnew)
     if (allocated(apar_ext)) deallocate (apar_ext)
+    call debug_message(verbosity, &
+      'fields::finish_fields deallocated fields')
 
   end subroutine finish_fields
 

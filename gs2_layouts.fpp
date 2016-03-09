@@ -107,7 +107,7 @@ module gs2_layouts
   logical :: local_field_solve, accel_lxyes, lambda_local, unbalanced_xxf, unbalanced_yxf
   real :: max_unbalanced_xxf, max_unbalanced_yxf
   character (len=5) :: layout
-  character (len=1000) :: fft_wisdom_file
+  character (2000) :: fft_wisdom_file
   logical :: fft_use_wisdom, fft_measure_plan
   logical :: exist
 
@@ -511,7 +511,7 @@ contains
   subroutine get_wisdom_file(wisdom_file)
     use file_utils, only: run_name
     character(len=*), intent(inout) :: wisdom_file
-    character(len=1000) :: env_wisdom_file
+    character (2000) :: env_wisdom_file
     call get_environment_variable("GK_FFTW3_WISDOM", env_wisdom_file)
     !read (env_wisdom_file,'(I10)') verbosity
 

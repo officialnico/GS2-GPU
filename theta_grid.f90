@@ -1299,7 +1299,7 @@ module theta_grid_file
   public :: file_get_sizes, file_get_grids
   public :: ntheta, nperiod, ntgrid, nbset
 
-  character(200) :: gridout_file
+  character (2000) :: gridout_file
   real :: shat_input, drhodpsi_input, kxfac_input, qval_input
   logical :: no_geo_info = .false.
   integer :: ntheta, nperiod, ntgrid, nbset

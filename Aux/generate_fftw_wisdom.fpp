@@ -22,7 +22,7 @@ program generate_fftw_wisdom
   !use runtime_tests, only: get_svn_rev, get_compiler_name
   use benchmarks, only: benchmark_identifier
   implicit none
-    character (500), target :: cbuff
+  character (2000), target :: cbuff
   real :: tstart
   logical :: dummy=.false.
   real :: time_taken(2) = 0.0

@@ -36,43 +36,31 @@ module diagnostics_create_and_write
      module procedure create_and_write_variable_real_2
      module procedure create_and_write_variable_real_3
      module procedure create_and_write_variable_real_4
-     module procedure create_and_write_variable_real_5
-     module procedure create_and_write_variable_real_6
      module procedure create_and_write_variable_integer_0
      module procedure create_and_write_variable_integer_1
      module procedure create_and_write_variable_integer_2
      module procedure create_and_write_variable_integer_3
      module procedure create_and_write_variable_integer_4
-     module procedure create_and_write_variable_integer_5
-     module procedure create_and_write_variable_integer_6
      module procedure create_and_write_variable_character_0
      module procedure create_and_write_variable_character_1
      module procedure create_and_write_variable_character_2
      module procedure create_and_write_variable_character_3
      module procedure create_and_write_variable_character_4
-     module procedure create_and_write_variable_character_5
-     module procedure create_and_write_variable_character_6
      module procedure create_and_write_variable_double_precision_0
      module procedure create_and_write_variable_double_precision_1
      module procedure create_and_write_variable_double_precision_2
      module procedure create_and_write_variable_double_precision_3
      module procedure create_and_write_variable_double_precision_4
-     module procedure create_and_write_variable_double_precision_5
-     module procedure create_and_write_variable_double_precision_6
      module procedure create_and_write_variable_complex_0
      module procedure create_and_write_variable_complex_1
      module procedure create_and_write_variable_complex_2
      module procedure create_and_write_variable_complex_3
      module procedure create_and_write_variable_complex_4
-     module procedure create_and_write_variable_complex_5
-     module procedure create_and_write_variable_complex_6
      module procedure create_and_write_variable_complex_16_0
      module procedure create_and_write_variable_complex_16_1
      module procedure create_and_write_variable_complex_16_2
      module procedure create_and_write_variable_complex_16_3
      module procedure create_and_write_variable_complex_16_4
-     module procedure create_and_write_variable_complex_16_5
-     module procedure create_and_write_variable_complex_16_6
   end interface create_and_write_variable
 
   interface create_and_write_variable_noread
@@ -81,76 +69,52 @@ module diagnostics_create_and_write
      module procedure create_and_write_variable_real_2_nr
      module procedure create_and_write_variable_real_3_nr
      module procedure create_and_write_variable_real_4_nr
-     module procedure create_and_write_variable_real_5_nr
-     module procedure create_and_write_variable_real_6_nr
      module procedure create_and_write_variable_integer_0_nr
      module procedure create_and_write_variable_integer_1_nr
      module procedure create_and_write_variable_integer_2_nr
      module procedure create_and_write_variable_integer_3_nr
      module procedure create_and_write_variable_integer_4_nr
-     module procedure create_and_write_variable_integer_5_nr
-     module procedure create_and_write_variable_integer_6_nr
      module procedure create_and_write_variable_character_0_nr
      module procedure create_and_write_variable_character_1_nr
      module procedure create_and_write_variable_character_2_nr
      module procedure create_and_write_variable_character_3_nr
      module procedure create_and_write_variable_character_4_nr
-     module procedure create_and_write_variable_character_5_nr
-     module procedure create_and_write_variable_character_6_nr
      module procedure create_and_write_variable_double_precision_0_nr
      module procedure create_and_write_variable_double_precision_1_nr
      module procedure create_and_write_variable_double_precision_2_nr
      module procedure create_and_write_variable_double_precision_3_nr
      module procedure create_and_write_variable_double_precision_4_nr
-     module procedure create_and_write_variable_double_precision_5_nr
-     module procedure create_and_write_variable_double_precision_6_nr
      module procedure create_and_write_variable_complex_0_nr
      module procedure create_and_write_variable_complex_1_nr
      module procedure create_and_write_variable_complex_2_nr
      module procedure create_and_write_variable_complex_3_nr
      module procedure create_and_write_variable_complex_4_nr
-     module procedure create_and_write_variable_complex_5_nr
-     module procedure create_and_write_variable_complex_6_nr
      module procedure create_and_write_variable_complex_16_0_nr
      module procedure create_and_write_variable_complex_16_1_nr
      module procedure create_and_write_variable_complex_16_2_nr
      module procedure create_and_write_variable_complex_16_3_nr
      module procedure create_and_write_variable_complex_16_4_nr
-     module procedure create_and_write_variable_complex_16_5_nr
-     module procedure create_and_write_variable_complex_16_6_nr
   end interface create_and_write_variable_noread
 
   interface create_and_write_distributed_fieldlike_variable
      module procedure create_and_write_dstrb_fieldlike_variable_real_2
      module procedure create_and_write_dstrb_fieldlike_variable_real_3
      module procedure create_and_write_dstrb_fieldlike_variable_real_4
-     module procedure create_and_write_dstrb_fieldlike_variable_real_5
-     module procedure create_and_write_dstrb_fieldlike_variable_real_6
      module procedure create_and_write_dstrb_fieldlike_variable_integer_2
      module procedure create_and_write_dstrb_fieldlike_variable_integer_3
      module procedure create_and_write_dstrb_fieldlike_variable_integer_4
-     module procedure create_and_write_dstrb_fieldlike_variable_integer_5
-     module procedure create_and_write_dstrb_fieldlike_variable_integer_6
      module procedure create_and_write_dstrb_fieldlike_variable_character_2
      module procedure create_and_write_dstrb_fieldlike_variable_character_3
      module procedure create_and_write_dstrb_fieldlike_variable_character_4
-     module procedure create_and_write_dstrb_fieldlike_variable_character_5
-     module procedure create_and_write_dstrb_fieldlike_variable_character_6
      module procedure create_and_write_dstrb_fieldlike_variable_double_precision_2
      module procedure create_and_write_dstrb_fieldlike_variable_double_precision_3
      module procedure create_and_write_dstrb_fieldlike_variable_double_precision_4
-     module procedure create_and_write_dstrb_fieldlike_variable_double_precision_5
-     module procedure create_and_write_dstrb_fieldlike_variable_double_precision_6
      module procedure create_and_write_dstrb_fieldlike_variable_complex_2
      module procedure create_and_write_dstrb_fieldlike_variable_complex_3
      module procedure create_and_write_dstrb_fieldlike_variable_complex_4
-     module procedure create_and_write_dstrb_fieldlike_variable_complex_5
-     module procedure create_and_write_dstrb_fieldlike_variable_complex_6
      module procedure create_and_write_dstrb_fieldlike_variable_complex_16_2
      module procedure create_and_write_dstrb_fieldlike_variable_complex_16_3
      module procedure create_and_write_dstrb_fieldlike_variable_complex_16_4
-     module procedure create_and_write_dstrb_fieldlike_variable_complex_16_5
-     module procedure create_and_write_dstrb_fieldlike_variable_complex_16_6
   end interface create_and_write_distributed_fieldlike_variable
 
 contains
@@ -275,54 +239,6 @@ contains
 
   end subroutine create_and_write_variable_real_4
 
-  subroutine create_and_write_variable_real_5(gnostics, variable_type, variable_name, dimension_list, variable_description, variable_units, val)
-    use simpledataio, only: create_variable
-    use simpledataio_write, only: write_variable
-    use simpledataio_read, only: read_variable
-    use diagnostics_config, only: diagnostics_type
-    type(diagnostics_type), intent(in) :: gnostics
-    integer, intent(in) :: variable_type
-    character(*), intent(in) :: variable_name
-    character(*), intent(in) :: dimension_list
-    character(*), intent(in) :: variable_description
-    character(*), intent(in) :: variable_units
-    real, intent(inout), dimension(:,:,:,:,:)  :: val
- 
-    if (gnostics%create) then 
-       call create_variable(gnostics%sfile, variable_type, variable_name, trim(dimension_list), variable_description, variable_units)
-    end if
-
-
-    if (gnostics%reed) call read_variable(gnostics%sfile, variable_name, val)
-
-    if (gnostics%wryte) call write_variable(gnostics%sfile, variable_name, val)
-
-  end subroutine create_and_write_variable_real_5
-
-  subroutine create_and_write_variable_real_6(gnostics, variable_type, variable_name, dimension_list, variable_description, variable_units, val)
-    use simpledataio, only: create_variable
-    use simpledataio_write, only: write_variable
-    use simpledataio_read, only: read_variable
-    use diagnostics_config, only: diagnostics_type
-    type(diagnostics_type), intent(in) :: gnostics
-    integer, intent(in) :: variable_type
-    character(*), intent(in) :: variable_name
-    character(*), intent(in) :: dimension_list
-    character(*), intent(in) :: variable_description
-    character(*), intent(in) :: variable_units
-    real, intent(inout), dimension(:,:,:,:,:,:)  :: val
- 
-    if (gnostics%create) then 
-       call create_variable(gnostics%sfile, variable_type, variable_name, trim(dimension_list), variable_description, variable_units)
-    end if
-
-
-    if (gnostics%reed) call read_variable(gnostics%sfile, variable_name, val)
-
-    if (gnostics%wryte) call write_variable(gnostics%sfile, variable_name, val)
-
-  end subroutine create_and_write_variable_real_6
-
   subroutine create_and_write_variable_integer_0(gnostics, variable_type, variable_name, dimension_list, variable_description, variable_units, val)
     use simpledataio, only: create_variable
     use simpledataio_write, only: write_variable
@@ -442,54 +358,6 @@ contains
     if (gnostics%wryte) call write_variable(gnostics%sfile, variable_name, val)
 
   end subroutine create_and_write_variable_integer_4
-
-  subroutine create_and_write_variable_integer_5(gnostics, variable_type, variable_name, dimension_list, variable_description, variable_units, val)
-    use simpledataio, only: create_variable
-    use simpledataio_write, only: write_variable
-    use simpledataio_read, only: read_variable
-    use diagnostics_config, only: diagnostics_type
-    type(diagnostics_type), intent(in) :: gnostics
-    integer, intent(in) :: variable_type
-    character(*), intent(in) :: variable_name
-    character(*), intent(in) :: dimension_list
-    character(*), intent(in) :: variable_description
-    character(*), intent(in) :: variable_units
-    integer, intent(inout), dimension(:,:,:,:,:)  :: val
- 
-    if (gnostics%create) then 
-       call create_variable(gnostics%sfile, variable_type, variable_name, trim(dimension_list), variable_description, variable_units)
-    end if
-
-
-    if (gnostics%reed) call read_variable(gnostics%sfile, variable_name, val)
-
-    if (gnostics%wryte) call write_variable(gnostics%sfile, variable_name, val)
-
-  end subroutine create_and_write_variable_integer_5
-
-  subroutine create_and_write_variable_integer_6(gnostics, variable_type, variable_name, dimension_list, variable_description, variable_units, val)
-    use simpledataio, only: create_variable
-    use simpledataio_write, only: write_variable
-    use simpledataio_read, only: read_variable
-    use diagnostics_config, only: diagnostics_type
-    type(diagnostics_type), intent(in) :: gnostics
-    integer, intent(in) :: variable_type
-    character(*), intent(in) :: variable_name
-    character(*), intent(in) :: dimension_list
-    character(*), intent(in) :: variable_description
-    character(*), intent(in) :: variable_units
-    integer, intent(inout), dimension(:,:,:,:,:,:)  :: val
- 
-    if (gnostics%create) then 
-       call create_variable(gnostics%sfile, variable_type, variable_name, trim(dimension_list), variable_description, variable_units)
-    end if
-
-
-    if (gnostics%reed) call read_variable(gnostics%sfile, variable_name, val)
-
-    if (gnostics%wryte) call write_variable(gnostics%sfile, variable_name, val)
-
-  end subroutine create_and_write_variable_integer_6
 
   subroutine create_and_write_variable_character_0(gnostics, variable_type, variable_name, dimension_list, variable_description, variable_units, val)
     use simpledataio, only: create_variable
@@ -611,54 +479,6 @@ contains
 
   end subroutine create_and_write_variable_character_4
 
-  subroutine create_and_write_variable_character_5(gnostics, variable_type, variable_name, dimension_list, variable_description, variable_units, val)
-    use simpledataio, only: create_variable
-    use simpledataio_write, only: write_variable
-    use simpledataio_read, only: read_variable
-    use diagnostics_config, only: diagnostics_type
-    type(diagnostics_type), intent(in) :: gnostics
-    integer, intent(in) :: variable_type
-    character(*), intent(in) :: variable_name
-    character(*), intent(in) :: dimension_list
-    character(*), intent(in) :: variable_description
-    character(*), intent(in) :: variable_units
-    character, intent(inout), dimension(:,:,:,:,:)  :: val
- 
-    if (gnostics%create) then 
-       call create_variable(gnostics%sfile, variable_type, variable_name, trim(dimension_list), variable_description, variable_units)
-    end if
-
-
-    if (gnostics%reed) call read_variable(gnostics%sfile, variable_name, val)
-
-    if (gnostics%wryte) call write_variable(gnostics%sfile, variable_name, val)
-
-  end subroutine create_and_write_variable_character_5
-
-  subroutine create_and_write_variable_character_6(gnostics, variable_type, variable_name, dimension_list, variable_description, variable_units, val)
-    use simpledataio, only: create_variable
-    use simpledataio_write, only: write_variable
-    use simpledataio_read, only: read_variable
-    use diagnostics_config, only: diagnostics_type
-    type(diagnostics_type), intent(in) :: gnostics
-    integer, intent(in) :: variable_type
-    character(*), intent(in) :: variable_name
-    character(*), intent(in) :: dimension_list
-    character(*), intent(in) :: variable_description
-    character(*), intent(in) :: variable_units
-    character, intent(inout), dimension(:,:,:,:,:,:)  :: val
- 
-    if (gnostics%create) then 
-       call create_variable(gnostics%sfile, variable_type, variable_name, trim(dimension_list), variable_description, variable_units)
-    end if
-
-
-    if (gnostics%reed) call read_variable(gnostics%sfile, variable_name, val)
-
-    if (gnostics%wryte) call write_variable(gnostics%sfile, variable_name, val)
-
-  end subroutine create_and_write_variable_character_6
-
   subroutine create_and_write_variable_double_precision_0(gnostics, variable_type, variable_name, dimension_list, variable_description, variable_units, val)
     use simpledataio, only: create_variable
     use simpledataio_write, only: write_variable
@@ -778,54 +598,6 @@ contains
     if (gnostics%wryte) call write_variable(gnostics%sfile, variable_name, val)
 
   end subroutine create_and_write_variable_double_precision_4
-
-  subroutine create_and_write_variable_double_precision_5(gnostics, variable_type, variable_name, dimension_list, variable_description, variable_units, val)
-    use simpledataio, only: create_variable
-    use simpledataio_write, only: write_variable
-    use simpledataio_read, only: read_variable
-    use diagnostics_config, only: diagnostics_type
-    type(diagnostics_type), intent(in) :: gnostics
-    integer, intent(in) :: variable_type
-    character(*), intent(in) :: variable_name
-    character(*), intent(in) :: dimension_list
-    character(*), intent(in) :: variable_description
-    character(*), intent(in) :: variable_units
-    double precision, intent(inout), dimension(:,:,:,:,:)  :: val
- 
-    if (gnostics%create) then 
-       call create_variable(gnostics%sfile, variable_type, variable_name, trim(dimension_list), variable_description, variable_units)
-    end if
-
-
-    if (gnostics%reed) call read_variable(gnostics%sfile, variable_name, val)
-
-    if (gnostics%wryte) call write_variable(gnostics%sfile, variable_name, val)
-
-  end subroutine create_and_write_variable_double_precision_5
-
-  subroutine create_and_write_variable_double_precision_6(gnostics, variable_type, variable_name, dimension_list, variable_description, variable_units, val)
-    use simpledataio, only: create_variable
-    use simpledataio_write, only: write_variable
-    use simpledataio_read, only: read_variable
-    use diagnostics_config, only: diagnostics_type
-    type(diagnostics_type), intent(in) :: gnostics
-    integer, intent(in) :: variable_type
-    character(*), intent(in) :: variable_name
-    character(*), intent(in) :: dimension_list
-    character(*), intent(in) :: variable_description
-    character(*), intent(in) :: variable_units
-    double precision, intent(inout), dimension(:,:,:,:,:,:)  :: val
- 
-    if (gnostics%create) then 
-       call create_variable(gnostics%sfile, variable_type, variable_name, trim(dimension_list), variable_description, variable_units)
-    end if
-
-
-    if (gnostics%reed) call read_variable(gnostics%sfile, variable_name, val)
-
-    if (gnostics%wryte) call write_variable(gnostics%sfile, variable_name, val)
-
-  end subroutine create_and_write_variable_double_precision_6
 
   subroutine create_and_write_variable_complex_0(gnostics, variable_type, variable_name, dimension_list, variable_description, variable_units, val)
     use simpledataio, only: create_variable
@@ -947,54 +719,6 @@ contains
 
   end subroutine create_and_write_variable_complex_4
 
-  subroutine create_and_write_variable_complex_5(gnostics, variable_type, variable_name, dimension_list, variable_description, variable_units, val)
-    use simpledataio, only: create_variable
-    use simpledataio_write, only: write_variable
-    use simpledataio_read, only: read_variable
-    use diagnostics_config, only: diagnostics_type
-    type(diagnostics_type), intent(in) :: gnostics
-    integer, intent(in) :: variable_type
-    character(*), intent(in) :: variable_name
-    character(*), intent(in) :: dimension_list
-    character(*), intent(in) :: variable_description
-    character(*), intent(in) :: variable_units
-    complex, intent(inout), dimension(:,:,:,:,:)  :: val
- 
-    if (gnostics%create) then 
-       call create_variable(gnostics%sfile, variable_type, variable_name, trim(dimension_list), variable_description, variable_units)
-    end if
-
-
-    if (gnostics%reed) call read_variable(gnostics%sfile, variable_name, val)
-
-    if (gnostics%wryte) call write_variable(gnostics%sfile, variable_name, val)
-
-  end subroutine create_and_write_variable_complex_5
-
-  subroutine create_and_write_variable_complex_6(gnostics, variable_type, variable_name, dimension_list, variable_description, variable_units, val)
-    use simpledataio, only: create_variable
-    use simpledataio_write, only: write_variable
-    use simpledataio_read, only: read_variable
-    use diagnostics_config, only: diagnostics_type
-    type(diagnostics_type), intent(in) :: gnostics
-    integer, intent(in) :: variable_type
-    character(*), intent(in) :: variable_name
-    character(*), intent(in) :: dimension_list
-    character(*), intent(in) :: variable_description
-    character(*), intent(in) :: variable_units
-    complex, intent(inout), dimension(:,:,:,:,:,:)  :: val
- 
-    if (gnostics%create) then 
-       call create_variable(gnostics%sfile, variable_type, variable_name, trim(dimension_list), variable_description, variable_units)
-    end if
-
-
-    if (gnostics%reed) call read_variable(gnostics%sfile, variable_name, val)
-
-    if (gnostics%wryte) call write_variable(gnostics%sfile, variable_name, val)
-
-  end subroutine create_and_write_variable_complex_6
-
   subroutine create_and_write_variable_complex_16_0(gnostics, variable_type, variable_name, dimension_list, variable_description, variable_units, val)
     use simpledataio, only: create_variable
     use simpledataio_write, only: write_variable
@@ -1114,54 +838,6 @@ contains
     if (gnostics%wryte) call write_variable(gnostics%sfile, variable_name, val)
 
   end subroutine create_and_write_variable_complex_16_4
-
-  subroutine create_and_write_variable_complex_16_5(gnostics, variable_type, variable_name, dimension_list, variable_description, variable_units, val)
-    use simpledataio, only: create_variable
-    use simpledataio_write, only: write_variable
-    use simpledataio_read, only: read_variable
-    use diagnostics_config, only: diagnostics_type
-    type(diagnostics_type), intent(in) :: gnostics
-    integer, intent(in) :: variable_type
-    character(*), intent(in) :: variable_name
-    character(*), intent(in) :: dimension_list
-    character(*), intent(in) :: variable_description
-    character(*), intent(in) :: variable_units
-    complex*16, intent(inout), dimension(:,:,:,:,:)  :: val
- 
-    if (gnostics%create) then 
-       call create_variable(gnostics%sfile, variable_type, variable_name, trim(dimension_list), variable_description, variable_units)
-    end if
-
-
-    if (gnostics%reed) call read_variable(gnostics%sfile, variable_name, val)
-
-    if (gnostics%wryte) call write_variable(gnostics%sfile, variable_name, val)
-
-  end subroutine create_and_write_variable_complex_16_5
-
-  subroutine create_and_write_variable_complex_16_6(gnostics, variable_type, variable_name, dimension_list, variable_description, variable_units, val)
-    use simpledataio, only: create_variable
-    use simpledataio_write, only: write_variable
-    use simpledataio_read, only: read_variable
-    use diagnostics_config, only: diagnostics_type
-    type(diagnostics_type), intent(in) :: gnostics
-    integer, intent(in) :: variable_type
-    character(*), intent(in) :: variable_name
-    character(*), intent(in) :: dimension_list
-    character(*), intent(in) :: variable_description
-    character(*), intent(in) :: variable_units
-    complex*16, intent(inout), dimension(:,:,:,:,:,:)  :: val
- 
-    if (gnostics%create) then 
-       call create_variable(gnostics%sfile, variable_type, variable_name, trim(dimension_list), variable_description, variable_units)
-    end if
-
-
-    if (gnostics%reed) call read_variable(gnostics%sfile, variable_name, val)
-
-    if (gnostics%wryte) call write_variable(gnostics%sfile, variable_name, val)
-
-  end subroutine create_and_write_variable_complex_16_6
 
 
   subroutine create_and_write_variable_real_0_nr(gnostics, variable_type, variable_name, dimension_list, variable_description, variable_units, val)
@@ -1284,54 +960,6 @@ contains
 
   end subroutine create_and_write_variable_real_4_nr
 
-  subroutine create_and_write_variable_real_5_nr(gnostics, variable_type, variable_name, dimension_list, variable_description, variable_units, val)
-    use simpledataio, only: create_variable
-    use simpledataio_write, only: write_variable
-    use simpledataio_read, only: read_variable
-    use diagnostics_config, only: diagnostics_type
-    type(diagnostics_type), intent(in) :: gnostics
-    integer, intent(in) :: variable_type
-    character(*), intent(in) :: variable_name
-    character(*), intent(in) :: dimension_list
-    character(*), intent(in) :: variable_description
-    character(*), intent(in) :: variable_units
-    real, intent(in), dimension(:,:,:,:,:)  :: val
- 
-    if (gnostics%create) then 
-       call create_variable(gnostics%sfile, variable_type, variable_name, trim(dimension_list), variable_description, variable_units)
-    end if
-
-
-    
-
-    if (gnostics%wryte) call write_variable(gnostics%sfile, variable_name, val)
-
-  end subroutine create_and_write_variable_real_5_nr
-
-  subroutine create_and_write_variable_real_6_nr(gnostics, variable_type, variable_name, dimension_list, variable_description, variable_units, val)
-    use simpledataio, only: create_variable
-    use simpledataio_write, only: write_variable
-    use simpledataio_read, only: read_variable
-    use diagnostics_config, only: diagnostics_type
-    type(diagnostics_type), intent(in) :: gnostics
-    integer, intent(in) :: variable_type
-    character(*), intent(in) :: variable_name
-    character(*), intent(in) :: dimension_list
-    character(*), intent(in) :: variable_description
-    character(*), intent(in) :: variable_units
-    real, intent(in), dimension(:,:,:,:,:,:)  :: val
- 
-    if (gnostics%create) then 
-       call create_variable(gnostics%sfile, variable_type, variable_name, trim(dimension_list), variable_description, variable_units)
-    end if
-
-
-    
-
-    if (gnostics%wryte) call write_variable(gnostics%sfile, variable_name, val)
-
-  end subroutine create_and_write_variable_real_6_nr
-
   subroutine create_and_write_variable_integer_0_nr(gnostics, variable_type, variable_name, dimension_list, variable_description, variable_units, val)
     use simpledataio, only: create_variable
     use simpledataio_write, only: write_variable
@@ -1451,54 +1079,6 @@ contains
     if (gnostics%wryte) call write_variable(gnostics%sfile, variable_name, val)
 
   end subroutine create_and_write_variable_integer_4_nr
-
-  subroutine create_and_write_variable_integer_5_nr(gnostics, variable_type, variable_name, dimension_list, variable_description, variable_units, val)
-    use simpledataio, only: create_variable
-    use simpledataio_write, only: write_variable
-    use simpledataio_read, only: read_variable
-    use diagnostics_config, only: diagnostics_type
-    type(diagnostics_type), intent(in) :: gnostics
-    integer, intent(in) :: variable_type
-    character(*), intent(in) :: variable_name
-    character(*), intent(in) :: dimension_list
-    character(*), intent(in) :: variable_description
-    character(*), intent(in) :: variable_units
-    integer, intent(in), dimension(:,:,:,:,:)  :: val
- 
-    if (gnostics%create) then 
-       call create_variable(gnostics%sfile, variable_type, variable_name, trim(dimension_list), variable_description, variable_units)
-    end if
-
-
-    
-
-    if (gnostics%wryte) call write_variable(gnostics%sfile, variable_name, val)
-
-  end subroutine create_and_write_variable_integer_5_nr
-
-  subroutine create_and_write_variable_integer_6_nr(gnostics, variable_type, variable_name, dimension_list, variable_description, variable_units, val)
-    use simpledataio, only: create_variable
-    use simpledataio_write, only: write_variable
-    use simpledataio_read, only: read_variable
-    use diagnostics_config, only: diagnostics_type
-    type(diagnostics_type), intent(in) :: gnostics
-    integer, intent(in) :: variable_type
-    character(*), intent(in) :: variable_name
-    character(*), intent(in) :: dimension_list
-    character(*), intent(in) :: variable_description
-    character(*), intent(in) :: variable_units
-    integer, intent(in), dimension(:,:,:,:,:,:)  :: val
- 
-    if (gnostics%create) then 
-       call create_variable(gnostics%sfile, variable_type, variable_name, trim(dimension_list), variable_description, variable_units)
-    end if
-
-
-    
-
-    if (gnostics%wryte) call write_variable(gnostics%sfile, variable_name, val)
-
-  end subroutine create_and_write_variable_integer_6_nr
 
   subroutine create_and_write_variable_character_0_nr(gnostics, variable_type, variable_name, dimension_list, variable_description, variable_units, val)
     use simpledataio, only: create_variable
@@ -1620,54 +1200,6 @@ contains
 
   end subroutine create_and_write_variable_character_4_nr
 
-  subroutine create_and_write_variable_character_5_nr(gnostics, variable_type, variable_name, dimension_list, variable_description, variable_units, val)
-    use simpledataio, only: create_variable
-    use simpledataio_write, only: write_variable
-    use simpledataio_read, only: read_variable
-    use diagnostics_config, only: diagnostics_type
-    type(diagnostics_type), intent(in) :: gnostics
-    integer, intent(in) :: variable_type
-    character(*), intent(in) :: variable_name
-    character(*), intent(in) :: dimension_list
-    character(*), intent(in) :: variable_description
-    character(*), intent(in) :: variable_units
-    character, intent(in), dimension(:,:,:,:,:)  :: val
- 
-    if (gnostics%create) then 
-       call create_variable(gnostics%sfile, variable_type, variable_name, trim(dimension_list), variable_description, variable_units)
-    end if
-
-
-    
-
-    if (gnostics%wryte) call write_variable(gnostics%sfile, variable_name, val)
-
-  end subroutine create_and_write_variable_character_5_nr
-
-  subroutine create_and_write_variable_character_6_nr(gnostics, variable_type, variable_name, dimension_list, variable_description, variable_units, val)
-    use simpledataio, only: create_variable
-    use simpledataio_write, only: write_variable
-    use simpledataio_read, only: read_variable
-    use diagnostics_config, only: diagnostics_type
-    type(diagnostics_type), intent(in) :: gnostics
-    integer, intent(in) :: variable_type
-    character(*), intent(in) :: variable_name
-    character(*), intent(in) :: dimension_list
-    character(*), intent(in) :: variable_description
-    character(*), intent(in) :: variable_units
-    character, intent(in), dimension(:,:,:,:,:,:)  :: val
- 
-    if (gnostics%create) then 
-       call create_variable(gnostics%sfile, variable_type, variable_name, trim(dimension_list), variable_description, variable_units)
-    end if
-
-
-    
-
-    if (gnostics%wryte) call write_variable(gnostics%sfile, variable_name, val)
-
-  end subroutine create_and_write_variable_character_6_nr
-
   subroutine create_and_write_variable_double_precision_0_nr(gnostics, variable_type, variable_name, dimension_list, variable_description, variable_units, val)
     use simpledataio, only: create_variable
     use simpledataio_write, only: write_variable
@@ -1787,54 +1319,6 @@ contains
     if (gnostics%wryte) call write_variable(gnostics%sfile, variable_name, val)
 
   end subroutine create_and_write_variable_double_precision_4_nr
-
-  subroutine create_and_write_variable_double_precision_5_nr(gnostics, variable_type, variable_name, dimension_list, variable_description, variable_units, val)
-    use simpledataio, only: create_variable
-    use simpledataio_write, only: write_variable
-    use simpledataio_read, only: read_variable
-    use diagnostics_config, only: diagnostics_type
-    type(diagnostics_type), intent(in) :: gnostics
-    integer, intent(in) :: variable_type
-    character(*), intent(in) :: variable_name
-    character(*), intent(in) :: dimension_list
-    character(*), intent(in) :: variable_description
-    character(*), intent(in) :: variable_units
-    double precision, intent(in), dimension(:,:,:,:,:)  :: val
- 
-    if (gnostics%create) then 
-       call create_variable(gnostics%sfile, variable_type, variable_name, trim(dimension_list), variable_description, variable_units)
-    end if
-
-
-    
-
-    if (gnostics%wryte) call write_variable(gnostics%sfile, variable_name, val)
-
-  end subroutine create_and_write_variable_double_precision_5_nr
-
-  subroutine create_and_write_variable_double_precision_6_nr(gnostics, variable_type, variable_name, dimension_list, variable_description, variable_units, val)
-    use simpledataio, only: create_variable
-    use simpledataio_write, only: write_variable
-    use simpledataio_read, only: read_variable
-    use diagnostics_config, only: diagnostics_type
-    type(diagnostics_type), intent(in) :: gnostics
-    integer, intent(in) :: variable_type
-    character(*), intent(in) :: variable_name
-    character(*), intent(in) :: dimension_list
-    character(*), intent(in) :: variable_description
-    character(*), intent(in) :: variable_units
-    double precision, intent(in), dimension(:,:,:,:,:,:)  :: val
- 
-    if (gnostics%create) then 
-       call create_variable(gnostics%sfile, variable_type, variable_name, trim(dimension_list), variable_description, variable_units)
-    end if
-
-
-    
-
-    if (gnostics%wryte) call write_variable(gnostics%sfile, variable_name, val)
-
-  end subroutine create_and_write_variable_double_precision_6_nr
 
   subroutine create_and_write_variable_complex_0_nr(gnostics, variable_type, variable_name, dimension_list, variable_description, variable_units, val)
     use simpledataio, only: create_variable
@@ -1956,54 +1440,6 @@ contains
 
   end subroutine create_and_write_variable_complex_4_nr
 
-  subroutine create_and_write_variable_complex_5_nr(gnostics, variable_type, variable_name, dimension_list, variable_description, variable_units, val)
-    use simpledataio, only: create_variable
-    use simpledataio_write, only: write_variable
-    use simpledataio_read, only: read_variable
-    use diagnostics_config, only: diagnostics_type
-    type(diagnostics_type), intent(in) :: gnostics
-    integer, intent(in) :: variable_type
-    character(*), intent(in) :: variable_name
-    character(*), intent(in) :: dimension_list
-    character(*), intent(in) :: variable_description
-    character(*), intent(in) :: variable_units
-    complex, intent(in), dimension(:,:,:,:,:)  :: val
- 
-    if (gnostics%create) then 
-       call create_variable(gnostics%sfile, variable_type, variable_name, trim(dimension_list), variable_description, variable_units)
-    end if
-
-
-    
-
-    if (gnostics%wryte) call write_variable(gnostics%sfile, variable_name, val)
-
-  end subroutine create_and_write_variable_complex_5_nr
-
-  subroutine create_and_write_variable_complex_6_nr(gnostics, variable_type, variable_name, dimension_list, variable_description, variable_units, val)
-    use simpledataio, only: create_variable
-    use simpledataio_write, only: write_variable
-    use simpledataio_read, only: read_variable
-    use diagnostics_config, only: diagnostics_type
-    type(diagnostics_type), intent(in) :: gnostics
-    integer, intent(in) :: variable_type
-    character(*), intent(in) :: variable_name
-    character(*), intent(in) :: dimension_list
-    character(*), intent(in) :: variable_description
-    character(*), intent(in) :: variable_units
-    complex, intent(in), dimension(:,:,:,:,:,:)  :: val
- 
-    if (gnostics%create) then 
-       call create_variable(gnostics%sfile, variable_type, variable_name, trim(dimension_list), variable_description, variable_units)
-    end if
-
-
-    
-
-    if (gnostics%wryte) call write_variable(gnostics%sfile, variable_name, val)
-
-  end subroutine create_and_write_variable_complex_6_nr
-
   subroutine create_and_write_variable_complex_16_0_nr(gnostics, variable_type, variable_name, dimension_list, variable_description, variable_units, val)
     use simpledataio, only: create_variable
     use simpledataio_write, only: write_variable
@@ -2124,54 +1560,6 @@ contains
 
   end subroutine create_and_write_variable_complex_16_4_nr
 
-  subroutine create_and_write_variable_complex_16_5_nr(gnostics, variable_type, variable_name, dimension_list, variable_description, variable_units, val)
-    use simpledataio, only: create_variable
-    use simpledataio_write, only: write_variable
-    use simpledataio_read, only: read_variable
-    use diagnostics_config, only: diagnostics_type
-    type(diagnostics_type), intent(in) :: gnostics
-    integer, intent(in) :: variable_type
-    character(*), intent(in) :: variable_name
-    character(*), intent(in) :: dimension_list
-    character(*), intent(in) :: variable_description
-    character(*), intent(in) :: variable_units
-    complex*16, intent(in), dimension(:,:,:,:,:)  :: val
- 
-    if (gnostics%create) then 
-       call create_variable(gnostics%sfile, variable_type, variable_name, trim(dimension_list), variable_description, variable_units)
-    end if
-
-
-    
-
-    if (gnostics%wryte) call write_variable(gnostics%sfile, variable_name, val)
-
-  end subroutine create_and_write_variable_complex_16_5_nr
-
-  subroutine create_and_write_variable_complex_16_6_nr(gnostics, variable_type, variable_name, dimension_list, variable_description, variable_units, val)
-    use simpledataio, only: create_variable
-    use simpledataio_write, only: write_variable
-    use simpledataio_read, only: read_variable
-    use diagnostics_config, only: diagnostics_type
-    type(diagnostics_type), intent(in) :: gnostics
-    integer, intent(in) :: variable_type
-    character(*), intent(in) :: variable_name
-    character(*), intent(in) :: dimension_list
-    character(*), intent(in) :: variable_description
-    character(*), intent(in) :: variable_units
-    complex*16, intent(in), dimension(:,:,:,:,:,:)  :: val
- 
-    if (gnostics%create) then 
-       call create_variable(gnostics%sfile, variable_type, variable_name, trim(dimension_list), variable_description, variable_units)
-    end if
-
-
-    
-
-    if (gnostics%wryte) call write_variable(gnostics%sfile, variable_name, val)
-
-  end subroutine create_and_write_variable_complex_16_6_nr
-
 
   subroutine create_and_write_dstrb_fieldlike_variable_real_2(gnostics, variable_type, variable_name, dimension_list, &
     variable_description, variable_units, val)
@@ -2191,7 +1579,7 @@ contains
     character(*), intent(in) :: dimension_list
     character(*), intent(in) :: variable_description
     character(*), intent(in) :: variable_units
-    character(len=len(dimension_list)), dimension(7) :: dimension_names
+    character(len=len(dimension_list)), dimension(5) :: dimension_names
     character(len=len(dimension_list)) :: buffer
     integer :: xdim, idim, i, count, dimlistlength
     integer :: id, it, ik
@@ -2323,7 +1711,7 @@ contains
     character(*), intent(in) :: dimension_list
     character(*), intent(in) :: variable_description
     character(*), intent(in) :: variable_units
-    character(len=len(dimension_list)), dimension(7) :: dimension_names
+    character(len=len(dimension_list)), dimension(5) :: dimension_names
     character(len=len(dimension_list)) :: buffer
     integer :: xdim, idim, i, count, dimlistlength
     integer :: id, it, ik
@@ -2455,7 +1843,7 @@ contains
     character(*), intent(in) :: dimension_list
     character(*), intent(in) :: variable_description
     character(*), intent(in) :: variable_units
-    character(len=len(dimension_list)), dimension(7) :: dimension_names
+    character(len=len(dimension_list)), dimension(5) :: dimension_names
     character(len=len(dimension_list)) :: buffer
     integer :: xdim, idim, i, count, dimlistlength
     integer :: id, it, ik
@@ -2569,270 +1957,6 @@ contains
 
   end subroutine create_and_write_dstrb_fieldlike_variable_real_4
 
-  subroutine create_and_write_dstrb_fieldlike_variable_real_5(gnostics, variable_type, variable_name, dimension_list, &
-    variable_description, variable_units, val)
-    use simpledataio, only: create_variable, set_start, set_count
-    use simpledataio, only: set_independent, set_collective
-    use simpledataio_write, only: write_variable, write_variable_with_offset
-    use simpledataio_read, only: read_variable, read_variable_with_offset
-    use diagnostics_config, only: diagnostics_type
-    use diagnostics_dimensions, only: dim_string
-    use mp, only: mp_abort,barrier
-    use file_utils, only: error_unit
-    use fields_parallelization, only: field_k_local
-    use kt_grids, only: naky, ntheta0
-    type(diagnostics_type), intent(in) :: gnostics
-    integer, intent(in) :: variable_type
-    character(*), intent(in) :: variable_name
-    character(*), intent(in) :: dimension_list
-    character(*), intent(in) :: variable_description
-    character(*), intent(in) :: variable_units
-    character(len=len(dimension_list)), dimension(7) :: dimension_names
-    character(len=len(dimension_list)) :: buffer
-    integer :: xdim, idim, i, count, dimlistlength
-    integer :: id, it, ik
-    integer :: i1 !, i2, i3
-    real, intent(inout), dimension(:,:,:,:,:)  :: val
-    real :: dummy
-   
-    !return 
-    ! Check the dimension list contains kx,ky
-!<DD>This may need changing if we change the string used to identify kx and ky.
-    xdim = index(dimension_list, trim(dim_string([gnostics%dims%kx,gnostics%dims%ky])))
-
-    if (xdim .eq. 0) then
-       write(error_unit(), *) "The function create_and_write_dstrb_field_like_variable should &
-            & only be called for arrays whose dimension list contains kx,ky in that order"
-       call mp_abort("")
-    end if
-
-    ! Split the dimension list into an array of dimension names
-    idim = 0
-    count = 1
-    buffer = ''
-    dimlistlength = len(trim(dimension_list))
-    do i = 1,dimlistlength
-      !write (*,*) 'dimension_list', dimension_list, buffer, i, 'dimension_names', dimension_names
-      if (dimension_list(i:i) .eq. "," .or. (i .eq. dimlistlength)) then
-        if (i .eq. dimlistlength) then
-          buffer(count:count) = dimension_list(i:i)
-          count = count + 1
-        end if
-        idim = idim + 1
-        dimension_names(idim) = trim(buffer)
-        if (trim(dimension_names(idim)) .eq. trim(dim_string(gnostics%dims%kx))) xdim = idim
-        buffer = ''
-        count = 1
-      else
-        buffer(count:count) = dimension_list(i:i)
-        count = count + 1
-      end if
-    end do
-    !write (*,*) 'dimension_names', dimension_names(1:idim)
- 
-    !write (*,*) 'starting create_variable', variable_name, trim(dimension_list)
-    if (gnostics%create) then 
-       call create_variable(gnostics%sfile, variable_type, variable_name, trim(dimension_list), variable_description, variable_units)
-       if (gnostics%distributed) then
-       end if
-    end if
-    !write (*,*) 'Finished create variable', variable_name
-
-
-    if (gnostics%wryte .or. gnostics%reed) then
-       if (.not.  gnostics%distributed) then
-          if (gnostics%wryte) call write_variable(gnostics%sfile, variable_name, val)
-          if (gnostics%reed) call read_variable(gnostics%sfile, variable_name, val)
-
-       else
-          ! For some reason every process has to make at least
-          ! one write to a variable with an infinite dimension.
-          ! Here we make some dummy writes to satisfy that
-!<DD>This will need changing if we allow multi-character dimension names
-          !write (*,*) 'Starting dummy writes'
-          do id = 1,idim
-             if (trim(dimension_names(id)) .eq. trim(dim_string(gnostics%dims%time))) cycle
-             call set_count(gnostics%sfile, variable_name, trim(dimension_names(id)), 1)
-             !call set_start(gnostics%sfile, variable_name, trim(dimension_names(id)), 1)
-          end do
-          if (gnostics%wryte) call write_variable(gnostics%sfile, variable_name, dummy)
-          do id = 1,idim
-             !! Reset the starts and counts
-             if (trim(dimension_names(id)) .eq. trim(dim_string(gnostics%dims%time))) cycle
-             call set_count(gnostics%sfile, variable_name, trim(dimension_names(id)), -1)
-             !call set_start(gnostics%sfile, variable_name, trim(dimension_names(id)), -1)
-          end do
-          call barrier
-          call set_count(gnostics%sfile, variable_name, trim(dim_string(gnostics%dims%kx)), 1)
-          call set_count(gnostics%sfile, variable_name, trim(dim_string(gnostics%dims%ky)), 1)
-          call set_independent(gnostics%sfile, variable_name)
-          !write (*,*) 'Starting loop'
-          do ik = 1,naky
-             do it = 1,ntheta0
-                if (field_k_local(it,ik)) then
-                   call set_start(gnostics%sfile, variable_name, trim(dim_string(gnostics%dims%kx)), it)
-                   call set_start(gnostics%sfile, variable_name, trim(dim_string(gnostics%dims%ky)), ik)
-                   ! Now we treat cases where kx and ky are not the two most
-                   ! slowly varying indices
-                   if (xdim < 5 - 1) then
-                      call set_count(gnostics%sfile, variable_name, trim(dimension_names(xdim+2)), 1)
-                      ! This loop will normally be over species
-                      do i1 = 1,size(val, xdim+2)
-                         call set_start(gnostics%sfile, variable_name, trim(dimension_names(xdim+2)), i1)
-                         if (xdim < 5 - 2) then
-                            call mp_abort("Case with two dimensions to the right of kx and ky not implemented", .true.)
-                            !<DD>Should this be an mp_abort?
-                            
-                         else
-                            if (gnostics%wryte) call write_variable_with_offset(gnostics%sfile, variable_name, val)
-                            if (gnostics%reed) call read_variable_with_offset(gnostics%sfile, variable_name, val)
-                         end if
-                      end do 
-                   else
-                      if (gnostics%wryte) call write_variable_with_offset(gnostics%sfile, variable_name, val)
-                      if (gnostics%reed) call read_variable_with_offset(gnostics%sfile, variable_name, val)
-                   end if
-                end if
-             end do
-          end do
-          call set_collective(gnostics%sfile, variable_name)
-       end if
-    end if
-
-  end subroutine create_and_write_dstrb_fieldlike_variable_real_5
-
-  subroutine create_and_write_dstrb_fieldlike_variable_real_6(gnostics, variable_type, variable_name, dimension_list, &
-    variable_description, variable_units, val)
-    use simpledataio, only: create_variable, set_start, set_count
-    use simpledataio, only: set_independent, set_collective
-    use simpledataio_write, only: write_variable, write_variable_with_offset
-    use simpledataio_read, only: read_variable, read_variable_with_offset
-    use diagnostics_config, only: diagnostics_type
-    use diagnostics_dimensions, only: dim_string
-    use mp, only: mp_abort,barrier
-    use file_utils, only: error_unit
-    use fields_parallelization, only: field_k_local
-    use kt_grids, only: naky, ntheta0
-    type(diagnostics_type), intent(in) :: gnostics
-    integer, intent(in) :: variable_type
-    character(*), intent(in) :: variable_name
-    character(*), intent(in) :: dimension_list
-    character(*), intent(in) :: variable_description
-    character(*), intent(in) :: variable_units
-    character(len=len(dimension_list)), dimension(7) :: dimension_names
-    character(len=len(dimension_list)) :: buffer
-    integer :: xdim, idim, i, count, dimlistlength
-    integer :: id, it, ik
-    integer :: i1 !, i2, i3
-    real, intent(inout), dimension(:,:,:,:,:,:)  :: val
-    real :: dummy
-   
-    !return 
-    ! Check the dimension list contains kx,ky
-!<DD>This may need changing if we change the string used to identify kx and ky.
-    xdim = index(dimension_list, trim(dim_string([gnostics%dims%kx,gnostics%dims%ky])))
-
-    if (xdim .eq. 0) then
-       write(error_unit(), *) "The function create_and_write_dstrb_field_like_variable should &
-            & only be called for arrays whose dimension list contains kx,ky in that order"
-       call mp_abort("")
-    end if
-
-    ! Split the dimension list into an array of dimension names
-    idim = 0
-    count = 1
-    buffer = ''
-    dimlistlength = len(trim(dimension_list))
-    do i = 1,dimlistlength
-      !write (*,*) 'dimension_list', dimension_list, buffer, i, 'dimension_names', dimension_names
-      if (dimension_list(i:i) .eq. "," .or. (i .eq. dimlistlength)) then
-        if (i .eq. dimlistlength) then
-          buffer(count:count) = dimension_list(i:i)
-          count = count + 1
-        end if
-        idim = idim + 1
-        dimension_names(idim) = trim(buffer)
-        if (trim(dimension_names(idim)) .eq. trim(dim_string(gnostics%dims%kx))) xdim = idim
-        buffer = ''
-        count = 1
-      else
-        buffer(count:count) = dimension_list(i:i)
-        count = count + 1
-      end if
-    end do
-    !write (*,*) 'dimension_names', dimension_names(1:idim)
- 
-    !write (*,*) 'starting create_variable', variable_name, trim(dimension_list)
-    if (gnostics%create) then 
-       call create_variable(gnostics%sfile, variable_type, variable_name, trim(dimension_list), variable_description, variable_units)
-       if (gnostics%distributed) then
-       end if
-    end if
-    !write (*,*) 'Finished create variable', variable_name
-
-
-    if (gnostics%wryte .or. gnostics%reed) then
-       if (.not.  gnostics%distributed) then
-          if (gnostics%wryte) call write_variable(gnostics%sfile, variable_name, val)
-          if (gnostics%reed) call read_variable(gnostics%sfile, variable_name, val)
-
-       else
-          ! For some reason every process has to make at least
-          ! one write to a variable with an infinite dimension.
-          ! Here we make some dummy writes to satisfy that
-!<DD>This will need changing if we allow multi-character dimension names
-          !write (*,*) 'Starting dummy writes'
-          do id = 1,idim
-             if (trim(dimension_names(id)) .eq. trim(dim_string(gnostics%dims%time))) cycle
-             call set_count(gnostics%sfile, variable_name, trim(dimension_names(id)), 1)
-             !call set_start(gnostics%sfile, variable_name, trim(dimension_names(id)), 1)
-          end do
-          if (gnostics%wryte) call write_variable(gnostics%sfile, variable_name, dummy)
-          do id = 1,idim
-             !! Reset the starts and counts
-             if (trim(dimension_names(id)) .eq. trim(dim_string(gnostics%dims%time))) cycle
-             call set_count(gnostics%sfile, variable_name, trim(dimension_names(id)), -1)
-             !call set_start(gnostics%sfile, variable_name, trim(dimension_names(id)), -1)
-          end do
-          call barrier
-          call set_count(gnostics%sfile, variable_name, trim(dim_string(gnostics%dims%kx)), 1)
-          call set_count(gnostics%sfile, variable_name, trim(dim_string(gnostics%dims%ky)), 1)
-          call set_independent(gnostics%sfile, variable_name)
-          !write (*,*) 'Starting loop'
-          do ik = 1,naky
-             do it = 1,ntheta0
-                if (field_k_local(it,ik)) then
-                   call set_start(gnostics%sfile, variable_name, trim(dim_string(gnostics%dims%kx)), it)
-                   call set_start(gnostics%sfile, variable_name, trim(dim_string(gnostics%dims%ky)), ik)
-                   ! Now we treat cases where kx and ky are not the two most
-                   ! slowly varying indices
-                   if (xdim < 6 - 1) then
-                      call set_count(gnostics%sfile, variable_name, trim(dimension_names(xdim+2)), 1)
-                      ! This loop will normally be over species
-                      do i1 = 1,size(val, xdim+2)
-                         call set_start(gnostics%sfile, variable_name, trim(dimension_names(xdim+2)), i1)
-                         if (xdim < 6 - 2) then
-                            call mp_abort("Case with two dimensions to the right of kx and ky not implemented", .true.)
-                            !<DD>Should this be an mp_abort?
-                            
-                         else
-                            if (gnostics%wryte) call write_variable_with_offset(gnostics%sfile, variable_name, val)
-                            if (gnostics%reed) call read_variable_with_offset(gnostics%sfile, variable_name, val)
-                         end if
-                      end do 
-                   else
-                      if (gnostics%wryte) call write_variable_with_offset(gnostics%sfile, variable_name, val)
-                      if (gnostics%reed) call read_variable_with_offset(gnostics%sfile, variable_name, val)
-                   end if
-                end if
-             end do
-          end do
-          call set_collective(gnostics%sfile, variable_name)
-       end if
-    end if
-
-  end subroutine create_and_write_dstrb_fieldlike_variable_real_6
-
   subroutine create_and_write_dstrb_fieldlike_variable_integer_2(gnostics, variable_type, variable_name, dimension_list, &
     variable_description, variable_units, val)
     use simpledataio, only: create_variable, set_start, set_count
@@ -2851,7 +1975,7 @@ contains
     character(*), intent(in) :: dimension_list
     character(*), intent(in) :: variable_description
     character(*), intent(in) :: variable_units
-    character(len=len(dimension_list)), dimension(7) :: dimension_names
+    character(len=len(dimension_list)), dimension(5) :: dimension_names
     character(len=len(dimension_list)) :: buffer
     integer :: xdim, idim, i, count, dimlistlength
     integer :: id, it, ik
@@ -2983,7 +2107,7 @@ contains
     character(*), intent(in) :: dimension_list
     character(*), intent(in) :: variable_description
     character(*), intent(in) :: variable_units
-    character(len=len(dimension_list)), dimension(7) :: dimension_names
+    character(len=len(dimension_list)), dimension(5) :: dimension_names
     character(len=len(dimension_list)) :: buffer
     integer :: xdim, idim, i, count, dimlistlength
     integer :: id, it, ik
@@ -3115,7 +2239,7 @@ contains
     character(*), intent(in) :: dimension_list
     character(*), intent(in) :: variable_description
     character(*), intent(in) :: variable_units
-    character(len=len(dimension_list)), dimension(7) :: dimension_names
+    character(len=len(dimension_list)), dimension(5) :: dimension_names
     character(len=len(dimension_list)) :: buffer
     integer :: xdim, idim, i, count, dimlistlength
     integer :: id, it, ik
@@ -3229,270 +2353,6 @@ contains
 
   end subroutine create_and_write_dstrb_fieldlike_variable_integer_4
 
-  subroutine create_and_write_dstrb_fieldlike_variable_integer_5(gnostics, variable_type, variable_name, dimension_list, &
-    variable_description, variable_units, val)
-    use simpledataio, only: create_variable, set_start, set_count
-    use simpledataio, only: set_independent, set_collective
-    use simpledataio_write, only: write_variable, write_variable_with_offset
-    use simpledataio_read, only: read_variable, read_variable_with_offset
-    use diagnostics_config, only: diagnostics_type
-    use diagnostics_dimensions, only: dim_string
-    use mp, only: mp_abort,barrier
-    use file_utils, only: error_unit
-    use fields_parallelization, only: field_k_local
-    use kt_grids, only: naky, ntheta0
-    type(diagnostics_type), intent(in) :: gnostics
-    integer, intent(in) :: variable_type
-    character(*), intent(in) :: variable_name
-    character(*), intent(in) :: dimension_list
-    character(*), intent(in) :: variable_description
-    character(*), intent(in) :: variable_units
-    character(len=len(dimension_list)), dimension(7) :: dimension_names
-    character(len=len(dimension_list)) :: buffer
-    integer :: xdim, idim, i, count, dimlistlength
-    integer :: id, it, ik
-    integer :: i1 !, i2, i3
-    integer, intent(inout), dimension(:,:,:,:,:)  :: val
-    integer :: dummy
-   
-    !return 
-    ! Check the dimension list contains kx,ky
-!<DD>This may need changing if we change the string used to identify kx and ky.
-    xdim = index(dimension_list, trim(dim_string([gnostics%dims%kx,gnostics%dims%ky])))
-
-    if (xdim .eq. 0) then
-       write(error_unit(), *) "The function create_and_write_dstrb_field_like_variable should &
-            & only be called for arrays whose dimension list contains kx,ky in that order"
-       call mp_abort("")
-    end if
-
-    ! Split the dimension list into an array of dimension names
-    idim = 0
-    count = 1
-    buffer = ''
-    dimlistlength = len(trim(dimension_list))
-    do i = 1,dimlistlength
-      !write (*,*) 'dimension_list', dimension_list, buffer, i, 'dimension_names', dimension_names
-      if (dimension_list(i:i) .eq. "," .or. (i .eq. dimlistlength)) then
-        if (i .eq. dimlistlength) then
-          buffer(count:count) = dimension_list(i:i)
-          count = count + 1
-        end if
-        idim = idim + 1
-        dimension_names(idim) = trim(buffer)
-        if (trim(dimension_names(idim)) .eq. trim(dim_string(gnostics%dims%kx))) xdim = idim
-        buffer = ''
-        count = 1
-      else
-        buffer(count:count) = dimension_list(i:i)
-        count = count + 1
-      end if
-    end do
-    !write (*,*) 'dimension_names', dimension_names(1:idim)
- 
-    !write (*,*) 'starting create_variable', variable_name, trim(dimension_list)
-    if (gnostics%create) then 
-       call create_variable(gnostics%sfile, variable_type, variable_name, trim(dimension_list), variable_description, variable_units)
-       if (gnostics%distributed) then
-       end if
-    end if
-    !write (*,*) 'Finished create variable', variable_name
-
-
-    if (gnostics%wryte .or. gnostics%reed) then
-       if (.not.  gnostics%distributed) then
-          if (gnostics%wryte) call write_variable(gnostics%sfile, variable_name, val)
-          if (gnostics%reed) call read_variable(gnostics%sfile, variable_name, val)
-
-       else
-          ! For some reason every process has to make at least
-          ! one write to a variable with an infinite dimension.
-          ! Here we make some dummy writes to satisfy that
-!<DD>This will need changing if we allow multi-character dimension names
-          !write (*,*) 'Starting dummy writes'
-          do id = 1,idim
-             if (trim(dimension_names(id)) .eq. trim(dim_string(gnostics%dims%time))) cycle
-             call set_count(gnostics%sfile, variable_name, trim(dimension_names(id)), 1)
-             !call set_start(gnostics%sfile, variable_name, trim(dimension_names(id)), 1)
-          end do
-          if (gnostics%wryte) call write_variable(gnostics%sfile, variable_name, dummy)
-          do id = 1,idim
-             !! Reset the starts and counts
-             if (trim(dimension_names(id)) .eq. trim(dim_string(gnostics%dims%time))) cycle
-             call set_count(gnostics%sfile, variable_name, trim(dimension_names(id)), -1)
-             !call set_start(gnostics%sfile, variable_name, trim(dimension_names(id)), -1)
-          end do
-          call barrier
-          call set_count(gnostics%sfile, variable_name, trim(dim_string(gnostics%dims%kx)), 1)
-          call set_count(gnostics%sfile, variable_name, trim(dim_string(gnostics%dims%ky)), 1)
-          call set_independent(gnostics%sfile, variable_name)
-          !write (*,*) 'Starting loop'
-          do ik = 1,naky
-             do it = 1,ntheta0
-                if (field_k_local(it,ik)) then
-                   call set_start(gnostics%sfile, variable_name, trim(dim_string(gnostics%dims%kx)), it)
-                   call set_start(gnostics%sfile, variable_name, trim(dim_string(gnostics%dims%ky)), ik)
-                   ! Now we treat cases where kx and ky are not the two most
-                   ! slowly varying indices
-                   if (xdim < 5 - 1) then
-                      call set_count(gnostics%sfile, variable_name, trim(dimension_names(xdim+2)), 1)
-                      ! This loop will normally be over species
-                      do i1 = 1,size(val, xdim+2)
-                         call set_start(gnostics%sfile, variable_name, trim(dimension_names(xdim+2)), i1)
-                         if (xdim < 5 - 2) then
-                            call mp_abort("Case with two dimensions to the right of kx and ky not implemented", .true.)
-                            !<DD>Should this be an mp_abort?
-                            
-                         else
-                            if (gnostics%wryte) call write_variable_with_offset(gnostics%sfile, variable_name, val)
-                            if (gnostics%reed) call read_variable_with_offset(gnostics%sfile, variable_name, val)
-                         end if
-                      end do 
-                   else
-                      if (gnostics%wryte) call write_variable_with_offset(gnostics%sfile, variable_name, val)
-                      if (gnostics%reed) call read_variable_with_offset(gnostics%sfile, variable_name, val)
-                   end if
-                end if
-             end do
-          end do
-          call set_collective(gnostics%sfile, variable_name)
-       end if
-    end if
-
-  end subroutine create_and_write_dstrb_fieldlike_variable_integer_5
-
-  subroutine create_and_write_dstrb_fieldlike_variable_integer_6(gnostics, variable_type, variable_name, dimension_list, &
-    variable_description, variable_units, val)
-    use simpledataio, only: create_variable, set_start, set_count
-    use simpledataio, only: set_independent, set_collective
-    use simpledataio_write, only: write_variable, write_variable_with_offset
-    use simpledataio_read, only: read_variable, read_variable_with_offset
-    use diagnostics_config, only: diagnostics_type
-    use diagnostics_dimensions, only: dim_string
-    use mp, only: mp_abort,barrier
-    use file_utils, only: error_unit
-    use fields_parallelization, only: field_k_local
-    use kt_grids, only: naky, ntheta0
-    type(diagnostics_type), intent(in) :: gnostics
-    integer, intent(in) :: variable_type
-    character(*), intent(in) :: variable_name
-    character(*), intent(in) :: dimension_list
-    character(*), intent(in) :: variable_description
-    character(*), intent(in) :: variable_units
-    character(len=len(dimension_list)), dimension(7) :: dimension_names
-    character(len=len(dimension_list)) :: buffer
-    integer :: xdim, idim, i, count, dimlistlength
-    integer :: id, it, ik
-    integer :: i1 !, i2, i3
-    integer, intent(inout), dimension(:,:,:,:,:,:)  :: val
-    integer :: dummy
-   
-    !return 
-    ! Check the dimension list contains kx,ky
-!<DD>This may need changing if we change the string used to identify kx and ky.
-    xdim = index(dimension_list, trim(dim_string([gnostics%dims%kx,gnostics%dims%ky])))
-
-    if (xdim .eq. 0) then
-       write(error_unit(), *) "The function create_and_write_dstrb_field_like_variable should &
-            & only be called for arrays whose dimension list contains kx,ky in that order"
-       call mp_abort("")
-    end if
-
-    ! Split the dimension list into an array of dimension names
-    idim = 0
-    count = 1
-    buffer = ''
-    dimlistlength = len(trim(dimension_list))
-    do i = 1,dimlistlength
-      !write (*,*) 'dimension_list', dimension_list, buffer, i, 'dimension_names', dimension_names
-      if (dimension_list(i:i) .eq. "," .or. (i .eq. dimlistlength)) then
-        if (i .eq. dimlistlength) then
-          buffer(count:count) = dimension_list(i:i)
-          count = count + 1
-        end if
-        idim = idim + 1
-        dimension_names(idim) = trim(buffer)
-        if (trim(dimension_names(idim)) .eq. trim(dim_string(gnostics%dims%kx))) xdim = idim
-        buffer = ''
-        count = 1
-      else
-        buffer(count:count) = dimension_list(i:i)
-        count = count + 1
-      end if
-    end do
-    !write (*,*) 'dimension_names', dimension_names(1:idim)
- 
-    !write (*,*) 'starting create_variable', variable_name, trim(dimension_list)
-    if (gnostics%create) then 
-       call create_variable(gnostics%sfile, variable_type, variable_name, trim(dimension_list), variable_description, variable_units)
-       if (gnostics%distributed) then
-       end if
-    end if
-    !write (*,*) 'Finished create variable', variable_name
-
-
-    if (gnostics%wryte .or. gnostics%reed) then
-       if (.not.  gnostics%distributed) then
-          if (gnostics%wryte) call write_variable(gnostics%sfile, variable_name, val)
-          if (gnostics%reed) call read_variable(gnostics%sfile, variable_name, val)
-
-       else
-          ! For some reason every process has to make at least
-          ! one write to a variable with an infinite dimension.
-          ! Here we make some dummy writes to satisfy that
-!<DD>This will need changing if we allow multi-character dimension names
-          !write (*,*) 'Starting dummy writes'
-          do id = 1,idim
-             if (trim(dimension_names(id)) .eq. trim(dim_string(gnostics%dims%time))) cycle
-             call set_count(gnostics%sfile, variable_name, trim(dimension_names(id)), 1)
-             !call set_start(gnostics%sfile, variable_name, trim(dimension_names(id)), 1)
-          end do
-          if (gnostics%wryte) call write_variable(gnostics%sfile, variable_name, dummy)
-          do id = 1,idim
-             !! Reset the starts and counts
-             if (trim(dimension_names(id)) .eq. trim(dim_string(gnostics%dims%time))) cycle
-             call set_count(gnostics%sfile, variable_name, trim(dimension_names(id)), -1)
-             !call set_start(gnostics%sfile, variable_name, trim(dimension_names(id)), -1)
-          end do
-          call barrier
-          call set_count(gnostics%sfile, variable_name, trim(dim_string(gnostics%dims%kx)), 1)
-          call set_count(gnostics%sfile, variable_name, trim(dim_string(gnostics%dims%ky)), 1)
-          call set_independent(gnostics%sfile, variable_name)
-          !write (*,*) 'Starting loop'
-          do ik = 1,naky
-             do it = 1,ntheta0
-                if (field_k_local(it,ik)) then
-                   call set_start(gnostics%sfile, variable_name, trim(dim_string(gnostics%dims%kx)), it)
-                   call set_start(gnostics%sfile, variable_name, trim(dim_string(gnostics%dims%ky)), ik)
-                   ! Now we treat cases where kx and ky are not the two most
-                   ! slowly varying indices
-                   if (xdim < 6 - 1) then
-                      call set_count(gnostics%sfile, variable_name, trim(dimension_names(xdim+2)), 1)
-                      ! This loop will normally be over species
-                      do i1 = 1,size(val, xdim+2)
-                         call set_start(gnostics%sfile, variable_name, trim(dimension_names(xdim+2)), i1)
-                         if (xdim < 6 - 2) then
-                            call mp_abort("Case with two dimensions to the right of kx and ky not implemented", .true.)
-                            !<DD>Should this be an mp_abort?
-                            
-                         else
-                            if (gnostics%wryte) call write_variable_with_offset(gnostics%sfile, variable_name, val)
-                            if (gnostics%reed) call read_variable_with_offset(gnostics%sfile, variable_name, val)
-                         end if
-                      end do 
-                   else
-                      if (gnostics%wryte) call write_variable_with_offset(gnostics%sfile, variable_name, val)
-                      if (gnostics%reed) call read_variable_with_offset(gnostics%sfile, variable_name, val)
-                   end if
-                end if
-             end do
-          end do
-          call set_collective(gnostics%sfile, variable_name)
-       end if
-    end if
-
-  end subroutine create_and_write_dstrb_fieldlike_variable_integer_6
-
   subroutine create_and_write_dstrb_fieldlike_variable_character_2(gnostics, variable_type, variable_name, dimension_list, &
     variable_description, variable_units, val)
     use simpledataio, only: create_variable, set_start, set_count
@@ -3511,7 +2371,7 @@ contains
     character(*), intent(in) :: dimension_list
     character(*), intent(in) :: variable_description
     character(*), intent(in) :: variable_units
-    character(len=len(dimension_list)), dimension(7) :: dimension_names
+    character(len=len(dimension_list)), dimension(5) :: dimension_names
     character(len=len(dimension_list)) :: buffer
     integer :: xdim, idim, i, count, dimlistlength
     integer :: id, it, ik
@@ -3643,7 +2503,7 @@ contains
     character(*), intent(in) :: dimension_list
     character(*), intent(in) :: variable_description
     character(*), intent(in) :: variable_units
-    character(len=len(dimension_list)), dimension(7) :: dimension_names
+    character(len=len(dimension_list)), dimension(5) :: dimension_names
     character(len=len(dimension_list)) :: buffer
     integer :: xdim, idim, i, count, dimlistlength
     integer :: id, it, ik
@@ -3775,7 +2635,7 @@ contains
     character(*), intent(in) :: dimension_list
     character(*), intent(in) :: variable_description
     character(*), intent(in) :: variable_units
-    character(len=len(dimension_list)), dimension(7) :: dimension_names
+    character(len=len(dimension_list)), dimension(5) :: dimension_names
     character(len=len(dimension_list)) :: buffer
     integer :: xdim, idim, i, count, dimlistlength
     integer :: id, it, ik
@@ -3889,270 +2749,6 @@ contains
 
   end subroutine create_and_write_dstrb_fieldlike_variable_character_4
 
-  subroutine create_and_write_dstrb_fieldlike_variable_character_5(gnostics, variable_type, variable_name, dimension_list, &
-    variable_description, variable_units, val)
-    use simpledataio, only: create_variable, set_start, set_count
-    use simpledataio, only: set_independent, set_collective
-    use simpledataio_write, only: write_variable, write_variable_with_offset
-    use simpledataio_read, only: read_variable, read_variable_with_offset
-    use diagnostics_config, only: diagnostics_type
-    use diagnostics_dimensions, only: dim_string
-    use mp, only: mp_abort,barrier
-    use file_utils, only: error_unit
-    use fields_parallelization, only: field_k_local
-    use kt_grids, only: naky, ntheta0
-    type(diagnostics_type), intent(in) :: gnostics
-    integer, intent(in) :: variable_type
-    character(*), intent(in) :: variable_name
-    character(*), intent(in) :: dimension_list
-    character(*), intent(in) :: variable_description
-    character(*), intent(in) :: variable_units
-    character(len=len(dimension_list)), dimension(7) :: dimension_names
-    character(len=len(dimension_list)) :: buffer
-    integer :: xdim, idim, i, count, dimlistlength
-    integer :: id, it, ik
-    integer :: i1 !, i2, i3
-    character, intent(inout), dimension(:,:,:,:,:)  :: val
-    character :: dummy
-   
-    !return 
-    ! Check the dimension list contains kx,ky
-!<DD>This may need changing if we change the string used to identify kx and ky.
-    xdim = index(dimension_list, trim(dim_string([gnostics%dims%kx,gnostics%dims%ky])))
-
-    if (xdim .eq. 0) then
-       write(error_unit(), *) "The function create_and_write_dstrb_field_like_variable should &
-            & only be called for arrays whose dimension list contains kx,ky in that order"
-       call mp_abort("")
-    end if
-
-    ! Split the dimension list into an array of dimension names
-    idim = 0
-    count = 1
-    buffer = ''
-    dimlistlength = len(trim(dimension_list))
-    do i = 1,dimlistlength
-      !write (*,*) 'dimension_list', dimension_list, buffer, i, 'dimension_names', dimension_names
-      if (dimension_list(i:i) .eq. "," .or. (i .eq. dimlistlength)) then
-        if (i .eq. dimlistlength) then
-          buffer(count:count) = dimension_list(i:i)
-          count = count + 1
-        end if
-        idim = idim + 1
-        dimension_names(idim) = trim(buffer)
-        if (trim(dimension_names(idim)) .eq. trim(dim_string(gnostics%dims%kx))) xdim = idim
-        buffer = ''
-        count = 1
-      else
-        buffer(count:count) = dimension_list(i:i)
-        count = count + 1
-      end if
-    end do
-    !write (*,*) 'dimension_names', dimension_names(1:idim)
- 
-    !write (*,*) 'starting create_variable', variable_name, trim(dimension_list)
-    if (gnostics%create) then 
-       call create_variable(gnostics%sfile, variable_type, variable_name, trim(dimension_list), variable_description, variable_units)
-       if (gnostics%distributed) then
-       end if
-    end if
-    !write (*,*) 'Finished create variable', variable_name
-
-
-    if (gnostics%wryte .or. gnostics%reed) then
-       if (.not.  gnostics%distributed) then
-          if (gnostics%wryte) call write_variable(gnostics%sfile, variable_name, val)
-          if (gnostics%reed) call read_variable(gnostics%sfile, variable_name, val)
-
-       else
-          ! For some reason every process has to make at least
-          ! one write to a variable with an infinite dimension.
-          ! Here we make some dummy writes to satisfy that
-!<DD>This will need changing if we allow multi-character dimension names
-          !write (*,*) 'Starting dummy writes'
-          do id = 1,idim
-             if (trim(dimension_names(id)) .eq. trim(dim_string(gnostics%dims%time))) cycle
-             call set_count(gnostics%sfile, variable_name, trim(dimension_names(id)), 1)
-             !call set_start(gnostics%sfile, variable_name, trim(dimension_names(id)), 1)
-          end do
-          if (gnostics%wryte) call write_variable(gnostics%sfile, variable_name, dummy)
-          do id = 1,idim
-             !! Reset the starts and counts
-             if (trim(dimension_names(id)) .eq. trim(dim_string(gnostics%dims%time))) cycle
-             call set_count(gnostics%sfile, variable_name, trim(dimension_names(id)), -1)
-             !call set_start(gnostics%sfile, variable_name, trim(dimension_names(id)), -1)
-          end do
-          call barrier
-          call set_count(gnostics%sfile, variable_name, trim(dim_string(gnostics%dims%kx)), 1)
-          call set_count(gnostics%sfile, variable_name, trim(dim_string(gnostics%dims%ky)), 1)
-          call set_independent(gnostics%sfile, variable_name)
-          !write (*,*) 'Starting loop'
-          do ik = 1,naky
-             do it = 1,ntheta0
-                if (field_k_local(it,ik)) then
-                   call set_start(gnostics%sfile, variable_name, trim(dim_string(gnostics%dims%kx)), it)
-                   call set_start(gnostics%sfile, variable_name, trim(dim_string(gnostics%dims%ky)), ik)
-                   ! Now we treat cases where kx and ky are not the two most
-                   ! slowly varying indices
-                   if (xdim < 5 - 1) then
-                      call set_count(gnostics%sfile, variable_name, trim(dimension_names(xdim+2)), 1)
-                      ! This loop will normally be over species
-                      do i1 = 1,size(val, xdim+2)
-                         call set_start(gnostics%sfile, variable_name, trim(dimension_names(xdim+2)), i1)
-                         if (xdim < 5 - 2) then
-                            call mp_abort("Case with two dimensions to the right of kx and ky not implemented", .true.)
-                            !<DD>Should this be an mp_abort?
-                            
-                         else
-                            if (gnostics%wryte) call write_variable_with_offset(gnostics%sfile, variable_name, val)
-                            if (gnostics%reed) call read_variable_with_offset(gnostics%sfile, variable_name, val)
-                         end if
-                      end do 
-                   else
-                      if (gnostics%wryte) call write_variable_with_offset(gnostics%sfile, variable_name, val)
-                      if (gnostics%reed) call read_variable_with_offset(gnostics%sfile, variable_name, val)
-                   end if
-                end if
-             end do
-          end do
-          call set_collective(gnostics%sfile, variable_name)
-       end if
-    end if
-
-  end subroutine create_and_write_dstrb_fieldlike_variable_character_5
-
-  subroutine create_and_write_dstrb_fieldlike_variable_character_6(gnostics, variable_type, variable_name, dimension_list, &
-    variable_description, variable_units, val)
-    use simpledataio, only: create_variable, set_start, set_count
-    use simpledataio, only: set_independent, set_collective
-    use simpledataio_write, only: write_variable, write_variable_with_offset
-    use simpledataio_read, only: read_variable, read_variable_with_offset
-    use diagnostics_config, only: diagnostics_type
-    use diagnostics_dimensions, only: dim_string
-    use mp, only: mp_abort,barrier
-    use file_utils, only: error_unit
-    use fields_parallelization, only: field_k_local
-    use kt_grids, only: naky, ntheta0
-    type(diagnostics_type), intent(in) :: gnostics
-    integer, intent(in) :: variable_type
-    character(*), intent(in) :: variable_name
-    character(*), intent(in) :: dimension_list
-    character(*), intent(in) :: variable_description
-    character(*), intent(in) :: variable_units
-    character(len=len(dimension_list)), dimension(7) :: dimension_names
-    character(len=len(dimension_list)) :: buffer
-    integer :: xdim, idim, i, count, dimlistlength
-    integer :: id, it, ik
-    integer :: i1 !, i2, i3
-    character, intent(inout), dimension(:,:,:,:,:,:)  :: val
-    character :: dummy
-   
-    !return 
-    ! Check the dimension list contains kx,ky
-!<DD>This may need changing if we change the string used to identify kx and ky.
-    xdim = index(dimension_list, trim(dim_string([gnostics%dims%kx,gnostics%dims%ky])))
-
-    if (xdim .eq. 0) then
-       write(error_unit(), *) "The function create_and_write_dstrb_field_like_variable should &
-            & only be called for arrays whose dimension list contains kx,ky in that order"
-       call mp_abort("")
-    end if
-
-    ! Split the dimension list into an array of dimension names
-    idim = 0
-    count = 1
-    buffer = ''
-    dimlistlength = len(trim(dimension_list))
-    do i = 1,dimlistlength
-      !write (*,*) 'dimension_list', dimension_list, buffer, i, 'dimension_names', dimension_names
-      if (dimension_list(i:i) .eq. "," .or. (i .eq. dimlistlength)) then
-        if (i .eq. dimlistlength) then
-          buffer(count:count) = dimension_list(i:i)
-          count = count + 1
-        end if
-        idim = idim + 1
-        dimension_names(idim) = trim(buffer)
-        if (trim(dimension_names(idim)) .eq. trim(dim_string(gnostics%dims%kx))) xdim = idim
-        buffer = ''
-        count = 1
-      else
-        buffer(count:count) = dimension_list(i:i)
-        count = count + 1
-      end if
-    end do
-    !write (*,*) 'dimension_names', dimension_names(1:idim)
- 
-    !write (*,*) 'starting create_variable', variable_name, trim(dimension_list)
-    if (gnostics%create) then 
-       call create_variable(gnostics%sfile, variable_type, variable_name, trim(dimension_list), variable_description, variable_units)
-       if (gnostics%distributed) then
-       end if
-    end if
-    !write (*,*) 'Finished create variable', variable_name
-
-
-    if (gnostics%wryte .or. gnostics%reed) then
-       if (.not.  gnostics%distributed) then
-          if (gnostics%wryte) call write_variable(gnostics%sfile, variable_name, val)
-          if (gnostics%reed) call read_variable(gnostics%sfile, variable_name, val)
-
-       else
-          ! For some reason every process has to make at least
-          ! one write to a variable with an infinite dimension.
-          ! Here we make some dummy writes to satisfy that
-!<DD>This will need changing if we allow multi-character dimension names
-          !write (*,*) 'Starting dummy writes'
-          do id = 1,idim
-             if (trim(dimension_names(id)) .eq. trim(dim_string(gnostics%dims%time))) cycle
-             call set_count(gnostics%sfile, variable_name, trim(dimension_names(id)), 1)
-             !call set_start(gnostics%sfile, variable_name, trim(dimension_names(id)), 1)
-          end do
-          if (gnostics%wryte) call write_variable(gnostics%sfile, variable_name, dummy)
-          do id = 1,idim
-             !! Reset the starts and counts
-             if (trim(dimension_names(id)) .eq. trim(dim_string(gnostics%dims%time))) cycle
-             call set_count(gnostics%sfile, variable_name, trim(dimension_names(id)), -1)
-             !call set_start(gnostics%sfile, variable_name, trim(dimension_names(id)), -1)
-          end do
-          call barrier
-          call set_count(gnostics%sfile, variable_name, trim(dim_string(gnostics%dims%kx)), 1)
-          call set_count(gnostics%sfile, variable_name, trim(dim_string(gnostics%dims%ky)), 1)
-          call set_independent(gnostics%sfile, variable_name)
-          !write (*,*) 'Starting loop'
-          do ik = 1,naky
-             do it = 1,ntheta0
-                if (field_k_local(it,ik)) then
-                   call set_start(gnostics%sfile, variable_name, trim(dim_string(gnostics%dims%kx)), it)
-                   call set_start(gnostics%sfile, variable_name, trim(dim_string(gnostics%dims%ky)), ik)
-                   ! Now we treat cases where kx and ky are not the two most
-                   ! slowly varying indices
-                   if (xdim < 6 - 1) then
-                      call set_count(gnostics%sfile, variable_name, trim(dimension_names(xdim+2)), 1)
-                      ! This loop will normally be over species
-                      do i1 = 1,size(val, xdim+2)
-                         call set_start(gnostics%sfile, variable_name, trim(dimension_names(xdim+2)), i1)
-                         if (xdim < 6 - 2) then
-                            call mp_abort("Case with two dimensions to the right of kx and ky not implemented", .true.)
-                            !<DD>Should this be an mp_abort?
-                            
-                         else
-                            if (gnostics%wryte) call write_variable_with_offset(gnostics%sfile, variable_name, val)
-                            if (gnostics%reed) call read_variable_with_offset(gnostics%sfile, variable_name, val)
-                         end if
-                      end do 
-                   else
-                      if (gnostics%wryte) call write_variable_with_offset(gnostics%sfile, variable_name, val)
-                      if (gnostics%reed) call read_variable_with_offset(gnostics%sfile, variable_name, val)
-                   end if
-                end if
-             end do
-          end do
-          call set_collective(gnostics%sfile, variable_name)
-       end if
-    end if
-
-  end subroutine create_and_write_dstrb_fieldlike_variable_character_6
-
   subroutine create_and_write_dstrb_fieldlike_variable_double_precision_2(gnostics, variable_type, variable_name, dimension_list, &
     variable_description, variable_units, val)
     use simpledataio, only: create_variable, set_start, set_count
@@ -4171,7 +2767,7 @@ contains
     character(*), intent(in) :: dimension_list
     character(*), intent(in) :: variable_description
     character(*), intent(in) :: variable_units
-    character(len=len(dimension_list)), dimension(7) :: dimension_names
+    character(len=len(dimension_list)), dimension(5) :: dimension_names
     character(len=len(dimension_list)) :: buffer
     integer :: xdim, idim, i, count, dimlistlength
     integer :: id, it, ik
@@ -4303,7 +2899,7 @@ contains
     character(*), intent(in) :: dimension_list
     character(*), intent(in) :: variable_description
     character(*), intent(in) :: variable_units
-    character(len=len(dimension_list)), dimension(7) :: dimension_names
+    character(len=len(dimension_list)), dimension(5) :: dimension_names
     character(len=len(dimension_list)) :: buffer
     integer :: xdim, idim, i, count, dimlistlength
     integer :: id, it, ik
@@ -4435,7 +3031,7 @@ contains
     character(*), intent(in) :: dimension_list
     character(*), intent(in) :: variable_description
     character(*), intent(in) :: variable_units
-    character(len=len(dimension_list)), dimension(7) :: dimension_names
+    character(len=len(dimension_list)), dimension(5) :: dimension_names
     character(len=len(dimension_list)) :: buffer
     integer :: xdim, idim, i, count, dimlistlength
     integer :: id, it, ik
@@ -4549,270 +3145,6 @@ contains
 
   end subroutine create_and_write_dstrb_fieldlike_variable_double_precision_4
 
-  subroutine create_and_write_dstrb_fieldlike_variable_double_precision_5(gnostics, variable_type, variable_name, dimension_list, &
-    variable_description, variable_units, val)
-    use simpledataio, only: create_variable, set_start, set_count
-    use simpledataio, only: set_independent, set_collective
-    use simpledataio_write, only: write_variable, write_variable_with_offset
-    use simpledataio_read, only: read_variable, read_variable_with_offset
-    use diagnostics_config, only: diagnostics_type
-    use diagnostics_dimensions, only: dim_string
-    use mp, only: mp_abort,barrier
-    use file_utils, only: error_unit
-    use fields_parallelization, only: field_k_local
-    use kt_grids, only: naky, ntheta0
-    type(diagnostics_type), intent(in) :: gnostics
-    integer, intent(in) :: variable_type
-    character(*), intent(in) :: variable_name
-    character(*), intent(in) :: dimension_list
-    character(*), intent(in) :: variable_description
-    character(*), intent(in) :: variable_units
-    character(len=len(dimension_list)), dimension(7) :: dimension_names
-    character(len=len(dimension_list)) :: buffer
-    integer :: xdim, idim, i, count, dimlistlength
-    integer :: id, it, ik
-    integer :: i1 !, i2, i3
-    double precision, intent(inout), dimension(:,:,:,:,:)  :: val
-    double precision :: dummy
-   
-    !return 
-    ! Check the dimension list contains kx,ky
-!<DD>This may need changing if we change the string used to identify kx and ky.
-    xdim = index(dimension_list, trim(dim_string([gnostics%dims%kx,gnostics%dims%ky])))
-
-    if (xdim .eq. 0) then
-       write(error_unit(), *) "The function create_and_write_dstrb_field_like_variable should &
-            & only be called for arrays whose dimension list contains kx,ky in that order"
-       call mp_abort("")
-    end if
-
-    ! Split the dimension list into an array of dimension names
-    idim = 0
-    count = 1
-    buffer = ''
-    dimlistlength = len(trim(dimension_list))
-    do i = 1,dimlistlength
-      !write (*,*) 'dimension_list', dimension_list, buffer, i, 'dimension_names', dimension_names
-      if (dimension_list(i:i) .eq. "," .or. (i .eq. dimlistlength)) then
-        if (i .eq. dimlistlength) then
-          buffer(count:count) = dimension_list(i:i)
-          count = count + 1
-        end if
-        idim = idim + 1
-        dimension_names(idim) = trim(buffer)
-        if (trim(dimension_names(idim)) .eq. trim(dim_string(gnostics%dims%kx))) xdim = idim
-        buffer = ''
-        count = 1
-      else
-        buffer(count:count) = dimension_list(i:i)
-        count = count + 1
-      end if
-    end do
-    !write (*,*) 'dimension_names', dimension_names(1:idim)
- 
-    !write (*,*) 'starting create_variable', variable_name, trim(dimension_list)
-    if (gnostics%create) then 
-       call create_variable(gnostics%sfile, variable_type, variable_name, trim(dimension_list), variable_description, variable_units)
-       if (gnostics%distributed) then
-       end if
-    end if
-    !write (*,*) 'Finished create variable', variable_name
-
-
-    if (gnostics%wryte .or. gnostics%reed) then
-       if (.not.  gnostics%distributed) then
-          if (gnostics%wryte) call write_variable(gnostics%sfile, variable_name, val)
-          if (gnostics%reed) call read_variable(gnostics%sfile, variable_name, val)
-
-       else
-          ! For some reason every process has to make at least
-          ! one write to a variable with an infinite dimension.
-          ! Here we make some dummy writes to satisfy that
-!<DD>This will need changing if we allow multi-character dimension names
-          !write (*,*) 'Starting dummy writes'
-          do id = 1,idim
-             if (trim(dimension_names(id)) .eq. trim(dim_string(gnostics%dims%time))) cycle
-             call set_count(gnostics%sfile, variable_name, trim(dimension_names(id)), 1)
-             !call set_start(gnostics%sfile, variable_name, trim(dimension_names(id)), 1)
-          end do
-          if (gnostics%wryte) call write_variable(gnostics%sfile, variable_name, dummy)
-          do id = 1,idim
-             !! Reset the starts and counts
-             if (trim(dimension_names(id)) .eq. trim(dim_string(gnostics%dims%time))) cycle
-             call set_count(gnostics%sfile, variable_name, trim(dimension_names(id)), -1)
-             !call set_start(gnostics%sfile, variable_name, trim(dimension_names(id)), -1)
-          end do
-          call barrier
-          call set_count(gnostics%sfile, variable_name, trim(dim_string(gnostics%dims%kx)), 1)
-          call set_count(gnostics%sfile, variable_name, trim(dim_string(gnostics%dims%ky)), 1)
-          call set_independent(gnostics%sfile, variable_name)
-          !write (*,*) 'Starting loop'
-          do ik = 1,naky
-             do it = 1,ntheta0
-                if (field_k_local(it,ik)) then
-                   call set_start(gnostics%sfile, variable_name, trim(dim_string(gnostics%dims%kx)), it)
-                   call set_start(gnostics%sfile, variable_name, trim(dim_string(gnostics%dims%ky)), ik)
-                   ! Now we treat cases where kx and ky are not the two most
-                   ! slowly varying indices
-                   if (xdim < 5 - 1) then
-                      call set_count(gnostics%sfile, variable_name, trim(dimension_names(xdim+2)), 1)
-                      ! This loop will normally be over species
-                      do i1 = 1,size(val, xdim+2)
-                         call set_start(gnostics%sfile, variable_name, trim(dimension_names(xdim+2)), i1)
-                         if (xdim < 5 - 2) then
-                            call mp_abort("Case with two dimensions to the right of kx and ky not implemented", .true.)
-                            !<DD>Should this be an mp_abort?
-                            
-                         else
-                            if (gnostics%wryte) call write_variable_with_offset(gnostics%sfile, variable_name, val)
-                            if (gnostics%reed) call read_variable_with_offset(gnostics%sfile, variable_name, val)
-                         end if
-                      end do 
-                   else
-                      if (gnostics%wryte) call write_variable_with_offset(gnostics%sfile, variable_name, val)
-                      if (gnostics%reed) call read_variable_with_offset(gnostics%sfile, variable_name, val)
-                   end if
-                end if
-             end do
-          end do
-          call set_collective(gnostics%sfile, variable_name)
-       end if
-    end if
-
-  end subroutine create_and_write_dstrb_fieldlike_variable_double_precision_5
-
-  subroutine create_and_write_dstrb_fieldlike_variable_double_precision_6(gnostics, variable_type, variable_name, dimension_list, &
-    variable_description, variable_units, val)
-    use simpledataio, only: create_variable, set_start, set_count
-    use simpledataio, only: set_independent, set_collective
-    use simpledataio_write, only: write_variable, write_variable_with_offset
-    use simpledataio_read, only: read_variable, read_variable_with_offset
-    use diagnostics_config, only: diagnostics_type
-    use diagnostics_dimensions, only: dim_string
-    use mp, only: mp_abort,barrier
-    use file_utils, only: error_unit
-    use fields_parallelization, only: field_k_local
-    use kt_grids, only: naky, ntheta0
-    type(diagnostics_type), intent(in) :: gnostics
-    integer, intent(in) :: variable_type
-    character(*), intent(in) :: variable_name
-    character(*), intent(in) :: dimension_list
-    character(*), intent(in) :: variable_description
-    character(*), intent(in) :: variable_units
-    character(len=len(dimension_list)), dimension(7) :: dimension_names
-    character(len=len(dimension_list)) :: buffer
-    integer :: xdim, idim, i, count, dimlistlength
-    integer :: id, it, ik
-    integer :: i1 !, i2, i3
-    double precision, intent(inout), dimension(:,:,:,:,:,:)  :: val
-    double precision :: dummy
-   
-    !return 
-    ! Check the dimension list contains kx,ky
-!<DD>This may need changing if we change the string used to identify kx and ky.
-    xdim = index(dimension_list, trim(dim_string([gnostics%dims%kx,gnostics%dims%ky])))
-
-    if (xdim .eq. 0) then
-       write(error_unit(), *) "The function create_and_write_dstrb_field_like_variable should &
-            & only be called for arrays whose dimension list contains kx,ky in that order"
-       call mp_abort("")
-    end if
-
-    ! Split the dimension list into an array of dimension names
-    idim = 0
-    count = 1
-    buffer = ''
-    dimlistlength = len(trim(dimension_list))
-    do i = 1,dimlistlength
-      !write (*,*) 'dimension_list', dimension_list, buffer, i, 'dimension_names', dimension_names
-      if (dimension_list(i:i) .eq. "," .or. (i .eq. dimlistlength)) then
-        if (i .eq. dimlistlength) then
-          buffer(count:count) = dimension_list(i:i)
-          count = count + 1
-        end if
-        idim = idim + 1
-        dimension_names(idim) = trim(buffer)
-        if (trim(dimension_names(idim)) .eq. trim(dim_string(gnostics%dims%kx))) xdim = idim
-        buffer = ''
-        count = 1
-      else
-        buffer(count:count) = dimension_list(i:i)
-        count = count + 1
-      end if
-    end do
-    !write (*,*) 'dimension_names', dimension_names(1:idim)
- 
-    !write (*,*) 'starting create_variable', variable_name, trim(dimension_list)
-    if (gnostics%create) then 
-       call create_variable(gnostics%sfile, variable_type, variable_name, trim(dimension_list), variable_description, variable_units)
-       if (gnostics%distributed) then
-       end if
-    end if
-    !write (*,*) 'Finished create variable', variable_name
-
-
-    if (gnostics%wryte .or. gnostics%reed) then
-       if (.not.  gnostics%distributed) then
-          if (gnostics%wryte) call write_variable(gnostics%sfile, variable_name, val)
-          if (gnostics%reed) call read_variable(gnostics%sfile, variable_name, val)
-
-       else
-          ! For some reason every process has to make at least
-          ! one write to a variable with an infinite dimension.
-          ! Here we make some dummy writes to satisfy that
-!<DD>This will need changing if we allow multi-character dimension names
-          !write (*,*) 'Starting dummy writes'
-          do id = 1,idim
-             if (trim(dimension_names(id)) .eq. trim(dim_string(gnostics%dims%time))) cycle
-             call set_count(gnostics%sfile, variable_name, trim(dimension_names(id)), 1)
-             !call set_start(gnostics%sfile, variable_name, trim(dimension_names(id)), 1)
-          end do
-          if (gnostics%wryte) call write_variable(gnostics%sfile, variable_name, dummy)
-          do id = 1,idim
-             !! Reset the starts and counts
-             if (trim(dimension_names(id)) .eq. trim(dim_string(gnostics%dims%time))) cycle
-             call set_count(gnostics%sfile, variable_name, trim(dimension_names(id)), -1)
-             !call set_start(gnostics%sfile, variable_name, trim(dimension_names(id)), -1)
-          end do
-          call barrier
-          call set_count(gnostics%sfile, variable_name, trim(dim_string(gnostics%dims%kx)), 1)
-          call set_count(gnostics%sfile, variable_name, trim(dim_string(gnostics%dims%ky)), 1)
-          call set_independent(gnostics%sfile, variable_name)
-          !write (*,*) 'Starting loop'
-          do ik = 1,naky
-             do it = 1,ntheta0
-                if (field_k_local(it,ik)) then
-                   call set_start(gnostics%sfile, variable_name, trim(dim_string(gnostics%dims%kx)), it)
-                   call set_start(gnostics%sfile, variable_name, trim(dim_string(gnostics%dims%ky)), ik)
-                   ! Now we treat cases where kx and ky are not the two most
-                   ! slowly varying indices
-                   if (xdim < 6 - 1) then
-                      call set_count(gnostics%sfile, variable_name, trim(dimension_names(xdim+2)), 1)
-                      ! This loop will normally be over species
-                      do i1 = 1,size(val, xdim+2)
-                         call set_start(gnostics%sfile, variable_name, trim(dimension_names(xdim+2)), i1)
-                         if (xdim < 6 - 2) then
-                            call mp_abort("Case with two dimensions to the right of kx and ky not implemented", .true.)
-                            !<DD>Should this be an mp_abort?
-                            
-                         else
-                            if (gnostics%wryte) call write_variable_with_offset(gnostics%sfile, variable_name, val)
-                            if (gnostics%reed) call read_variable_with_offset(gnostics%sfile, variable_name, val)
-                         end if
-                      end do 
-                   else
-                      if (gnostics%wryte) call write_variable_with_offset(gnostics%sfile, variable_name, val)
-                      if (gnostics%reed) call read_variable_with_offset(gnostics%sfile, variable_name, val)
-                   end if
-                end if
-             end do
-          end do
-          call set_collective(gnostics%sfile, variable_name)
-       end if
-    end if
-
-  end subroutine create_and_write_dstrb_fieldlike_variable_double_precision_6
-
   subroutine create_and_write_dstrb_fieldlike_variable_complex_2(gnostics, variable_type, variable_name, dimension_list, &
     variable_description, variable_units, val)
     use simpledataio, only: create_variable, set_start, set_count
@@ -4831,7 +3163,7 @@ contains
     character(*), intent(in) :: dimension_list
     character(*), intent(in) :: variable_description
     character(*), intent(in) :: variable_units
-    character(len=len(dimension_list)), dimension(7) :: dimension_names
+    character(len=len(dimension_list)), dimension(5) :: dimension_names
     character(len=len(dimension_list)) :: buffer
     integer :: xdim, idim, i, count, dimlistlength
     integer :: id, it, ik
@@ -4963,7 +3295,7 @@ contains
     character(*), intent(in) :: dimension_list
     character(*), intent(in) :: variable_description
     character(*), intent(in) :: variable_units
-    character(len=len(dimension_list)), dimension(7) :: dimension_names
+    character(len=len(dimension_list)), dimension(5) :: dimension_names
     character(len=len(dimension_list)) :: buffer
     integer :: xdim, idim, i, count, dimlistlength
     integer :: id, it, ik
@@ -5095,7 +3427,7 @@ contains
     character(*), intent(in) :: dimension_list
     character(*), intent(in) :: variable_description
     character(*), intent(in) :: variable_units
-    character(len=len(dimension_list)), dimension(7) :: dimension_names
+    character(len=len(dimension_list)), dimension(5) :: dimension_names
     character(len=len(dimension_list)) :: buffer
     integer :: xdim, idim, i, count, dimlistlength
     integer :: id, it, ik
@@ -5209,270 +3541,6 @@ contains
 
   end subroutine create_and_write_dstrb_fieldlike_variable_complex_4
 
-  subroutine create_and_write_dstrb_fieldlike_variable_complex_5(gnostics, variable_type, variable_name, dimension_list, &
-    variable_description, variable_units, val)
-    use simpledataio, only: create_variable, set_start, set_count
-    use simpledataio, only: set_independent, set_collective
-    use simpledataio_write, only: write_variable, write_variable_with_offset
-    use simpledataio_read, only: read_variable, read_variable_with_offset
-    use diagnostics_config, only: diagnostics_type
-    use diagnostics_dimensions, only: dim_string
-    use mp, only: mp_abort,barrier
-    use file_utils, only: error_unit
-    use fields_parallelization, only: field_k_local
-    use kt_grids, only: naky, ntheta0
-    type(diagnostics_type), intent(in) :: gnostics
-    integer, intent(in) :: variable_type
-    character(*), intent(in) :: variable_name
-    character(*), intent(in) :: dimension_list
-    character(*), intent(in) :: variable_description
-    character(*), intent(in) :: variable_units
-    character(len=len(dimension_list)), dimension(7) :: dimension_names
-    character(len=len(dimension_list)) :: buffer
-    integer :: xdim, idim, i, count, dimlistlength
-    integer :: id, it, ik
-    integer :: i1 !, i2, i3
-    complex, intent(inout), dimension(:,:,:,:,:)  :: val
-    complex :: dummy
-   
-    !return 
-    ! Check the dimension list contains kx,ky
-!<DD>This may need changing if we change the string used to identify kx and ky.
-    xdim = index(dimension_list, trim(dim_string([gnostics%dims%kx,gnostics%dims%ky])))
-
-    if (xdim .eq. 0) then
-       write(error_unit(), *) "The function create_and_write_dstrb_field_like_variable should &
-            & only be called for arrays whose dimension list contains kx,ky in that order"
-       call mp_abort("")
-    end if
-
-    ! Split the dimension list into an array of dimension names
-    idim = 0
-    count = 1
-    buffer = ''
-    dimlistlength = len(trim(dimension_list))
-    do i = 1,dimlistlength
-      !write (*,*) 'dimension_list', dimension_list, buffer, i, 'dimension_names', dimension_names
-      if (dimension_list(i:i) .eq. "," .or. (i .eq. dimlistlength)) then
-        if (i .eq. dimlistlength) then
-          buffer(count:count) = dimension_list(i:i)
-          count = count + 1
-        end if
-        idim = idim + 1
-        dimension_names(idim) = trim(buffer)
-        if (trim(dimension_names(idim)) .eq. trim(dim_string(gnostics%dims%kx))) xdim = idim
-        buffer = ''
-        count = 1
-      else
-        buffer(count:count) = dimension_list(i:i)
-        count = count + 1
-      end if
-    end do
-    !write (*,*) 'dimension_names', dimension_names(1:idim)
- 
-    !write (*,*) 'starting create_variable', variable_name, trim(dimension_list)
-    if (gnostics%create) then 
-       call create_variable(gnostics%sfile, variable_type, variable_name, trim(dimension_list), variable_description, variable_units)
-       if (gnostics%distributed) then
-       end if
-    end if
-    !write (*,*) 'Finished create variable', variable_name
-
-
-    if (gnostics%wryte .or. gnostics%reed) then
-       if (.not.  gnostics%distributed) then
-          if (gnostics%wryte) call write_variable(gnostics%sfile, variable_name, val)
-          if (gnostics%reed) call read_variable(gnostics%sfile, variable_name, val)
-
-       else
-          ! For some reason every process has to make at least
-          ! one write to a variable with an infinite dimension.
-          ! Here we make some dummy writes to satisfy that
-!<DD>This will need changing if we allow multi-character dimension names
-          !write (*,*) 'Starting dummy writes'
-          do id = 1,idim
-             if (trim(dimension_names(id)) .eq. trim(dim_string(gnostics%dims%time))) cycle
-             call set_count(gnostics%sfile, variable_name, trim(dimension_names(id)), 1)
-             !call set_start(gnostics%sfile, variable_name, trim(dimension_names(id)), 1)
-          end do
-          if (gnostics%wryte) call write_variable(gnostics%sfile, variable_name, dummy)
-          do id = 1,idim
-             !! Reset the starts and counts
-             if (trim(dimension_names(id)) .eq. trim(dim_string(gnostics%dims%time))) cycle
-             call set_count(gnostics%sfile, variable_name, trim(dimension_names(id)), -1)
-             !call set_start(gnostics%sfile, variable_name, trim(dimension_names(id)), -1)
-          end do
-          call barrier
-          call set_count(gnostics%sfile, variable_name, trim(dim_string(gnostics%dims%kx)), 1)
-          call set_count(gnostics%sfile, variable_name, trim(dim_string(gnostics%dims%ky)), 1)
-          call set_independent(gnostics%sfile, variable_name)
-          !write (*,*) 'Starting loop'
-          do ik = 1,naky
-             do it = 1,ntheta0
-                if (field_k_local(it,ik)) then
-                   call set_start(gnostics%sfile, variable_name, trim(dim_string(gnostics%dims%kx)), it)
-                   call set_start(gnostics%sfile, variable_name, trim(dim_string(gnostics%dims%ky)), ik)
-                   ! Now we treat cases where kx and ky are not the two most
-                   ! slowly varying indices
-                   if (xdim < 5 - 1) then
-                      call set_count(gnostics%sfile, variable_name, trim(dimension_names(xdim+2)), 1)
-                      ! This loop will normally be over species
-                      do i1 = 1,size(val, xdim+2)
-                         call set_start(gnostics%sfile, variable_name, trim(dimension_names(xdim+2)), i1)
-                         if (xdim < 5 - 2) then
-                            call mp_abort("Case with two dimensions to the right of kx and ky not implemented", .true.)
-                            !<DD>Should this be an mp_abort?
-                            
-                         else
-                            if (gnostics%wryte) call write_variable_with_offset(gnostics%sfile, variable_name, val)
-                            if (gnostics%reed) call read_variable_with_offset(gnostics%sfile, variable_name, val)
-                         end if
-                      end do 
-                   else
-                      if (gnostics%wryte) call write_variable_with_offset(gnostics%sfile, variable_name, val)
-                      if (gnostics%reed) call read_variable_with_offset(gnostics%sfile, variable_name, val)
-                   end if
-                end if
-             end do
-          end do
-          call set_collective(gnostics%sfile, variable_name)
-       end if
-    end if
-
-  end subroutine create_and_write_dstrb_fieldlike_variable_complex_5
-
-  subroutine create_and_write_dstrb_fieldlike_variable_complex_6(gnostics, variable_type, variable_name, dimension_list, &
-    variable_description, variable_units, val)
-    use simpledataio, only: create_variable, set_start, set_count
-    use simpledataio, only: set_independent, set_collective
-    use simpledataio_write, only: write_variable, write_variable_with_offset
-    use simpledataio_read, only: read_variable, read_variable_with_offset
-    use diagnostics_config, only: diagnostics_type
-    use diagnostics_dimensions, only: dim_string
-    use mp, only: mp_abort,barrier
-    use file_utils, only: error_unit
-    use fields_parallelization, only: field_k_local
-    use kt_grids, only: naky, ntheta0
-    type(diagnostics_type), intent(in) :: gnostics
-    integer, intent(in) :: variable_type
-    character(*), intent(in) :: variable_name
-    character(*), intent(in) :: dimension_list
-    character(*), intent(in) :: variable_description
-    character(*), intent(in) :: variable_units
-    character(len=len(dimension_list)), dimension(7) :: dimension_names
-    character(len=len(dimension_list)) :: buffer
-    integer :: xdim, idim, i, count, dimlistlength
-    integer :: id, it, ik
-    integer :: i1 !, i2, i3
-    complex, intent(inout), dimension(:,:,:,:,:,:)  :: val
-    complex :: dummy
-   
-    !return 
-    ! Check the dimension list contains kx,ky
-!<DD>This may need changing if we change the string used to identify kx and ky.
-    xdim = index(dimension_list, trim(dim_string([gnostics%dims%kx,gnostics%dims%ky])))
-
-    if (xdim .eq. 0) then
-       write(error_unit(), *) "The function create_and_write_dstrb_field_like_variable should &
-            & only be called for arrays whose dimension list contains kx,ky in that order"
-       call mp_abort("")
-    end if
-
-    ! Split the dimension list into an array of dimension names
-    idim = 0
-    count = 1
-    buffer = ''
-    dimlistlength = len(trim(dimension_list))
-    do i = 1,dimlistlength
-      !write (*,*) 'dimension_list', dimension_list, buffer, i, 'dimension_names', dimension_names
-      if (dimension_list(i:i) .eq. "," .or. (i .eq. dimlistlength)) then
-        if (i .eq. dimlistlength) then
-          buffer(count:count) = dimension_list(i:i)
-          count = count + 1
-        end if
-        idim = idim + 1
-        dimension_names(idim) = trim(buffer)
-        if (trim(dimension_names(idim)) .eq. trim(dim_string(gnostics%dims%kx))) xdim = idim
-        buffer = ''
-        count = 1
-      else
-        buffer(count:count) = dimension_list(i:i)
-        count = count + 1
-      end if
-    end do
-    !write (*,*) 'dimension_names', dimension_names(1:idim)
- 
-    !write (*,*) 'starting create_variable', variable_name, trim(dimension_list)
-    if (gnostics%create) then 
-       call create_variable(gnostics%sfile, variable_type, variable_name, trim(dimension_list), variable_description, variable_units)
-       if (gnostics%distributed) then
-       end if
-    end if
-    !write (*,*) 'Finished create variable', variable_name
-
-
-    if (gnostics%wryte .or. gnostics%reed) then
-       if (.not.  gnostics%distributed) then
-          if (gnostics%wryte) call write_variable(gnostics%sfile, variable_name, val)
-          if (gnostics%reed) call read_variable(gnostics%sfile, variable_name, val)
-
-       else
-          ! For some reason every process has to make at least
-          ! one write to a variable with an infinite dimension.
-          ! Here we make some dummy writes to satisfy that
-!<DD>This will need changing if we allow multi-character dimension names
-          !write (*,*) 'Starting dummy writes'
-          do id = 1,idim
-             if (trim(dimension_names(id)) .eq. trim(dim_string(gnostics%dims%time))) cycle
-             call set_count(gnostics%sfile, variable_name, trim(dimension_names(id)), 1)
-             !call set_start(gnostics%sfile, variable_name, trim(dimension_names(id)), 1)
-          end do
-          if (gnostics%wryte) call write_variable(gnostics%sfile, variable_name, dummy)
-          do id = 1,idim
-             !! Reset the starts and counts
-             if (trim(dimension_names(id)) .eq. trim(dim_string(gnostics%dims%time))) cycle
-             call set_count(gnostics%sfile, variable_name, trim(dimension_names(id)), -1)
-             !call set_start(gnostics%sfile, variable_name, trim(dimension_names(id)), -1)
-          end do
-          call barrier
-          call set_count(gnostics%sfile, variable_name, trim(dim_string(gnostics%dims%kx)), 1)
-          call set_count(gnostics%sfile, variable_name, trim(dim_string(gnostics%dims%ky)), 1)
-          call set_independent(gnostics%sfile, variable_name)
-          !write (*,*) 'Starting loop'
-          do ik = 1,naky
-             do it = 1,ntheta0
-                if (field_k_local(it,ik)) then
-                   call set_start(gnostics%sfile, variable_name, trim(dim_string(gnostics%dims%kx)), it)
-                   call set_start(gnostics%sfile, variable_name, trim(dim_string(gnostics%dims%ky)), ik)
-                   ! Now we treat cases where kx and ky are not the two most
-                   ! slowly varying indices
-                   if (xdim < 6 - 1) then
-                      call set_count(gnostics%sfile, variable_name, trim(dimension_names(xdim+2)), 1)
-                      ! This loop will normally be over species
-                      do i1 = 1,size(val, xdim+2)
-                         call set_start(gnostics%sfile, variable_name, trim(dimension_names(xdim+2)), i1)
-                         if (xdim < 6 - 2) then
-                            call mp_abort("Case with two dimensions to the right of kx and ky not implemented", .true.)
-                            !<DD>Should this be an mp_abort?
-                            
-                         else
-                            if (gnostics%wryte) call write_variable_with_offset(gnostics%sfile, variable_name, val)
-                            if (gnostics%reed) call read_variable_with_offset(gnostics%sfile, variable_name, val)
-                         end if
-                      end do 
-                   else
-                      if (gnostics%wryte) call write_variable_with_offset(gnostics%sfile, variable_name, val)
-                      if (gnostics%reed) call read_variable_with_offset(gnostics%sfile, variable_name, val)
-                   end if
-                end if
-             end do
-          end do
-          call set_collective(gnostics%sfile, variable_name)
-       end if
-    end if
-
-  end subroutine create_and_write_dstrb_fieldlike_variable_complex_6
-
   subroutine create_and_write_dstrb_fieldlike_variable_complex_16_2(gnostics, variable_type, variable_name, dimension_list, &
     variable_description, variable_units, val)
     use simpledataio, only: create_variable, set_start, set_count
@@ -5491,7 +3559,7 @@ contains
     character(*), intent(in) :: dimension_list
     character(*), intent(in) :: variable_description
     character(*), intent(in) :: variable_units
-    character(len=len(dimension_list)), dimension(7) :: dimension_names
+    character(len=len(dimension_list)), dimension(5) :: dimension_names
     character(len=len(dimension_list)) :: buffer
     integer :: xdim, idim, i, count, dimlistlength
     integer :: id, it, ik
@@ -5623,7 +3691,7 @@ contains
     character(*), intent(in) :: dimension_list
     character(*), intent(in) :: variable_description
     character(*), intent(in) :: variable_units
-    character(len=len(dimension_list)), dimension(7) :: dimension_names
+    character(len=len(dimension_list)), dimension(5) :: dimension_names
     character(len=len(dimension_list)) :: buffer
     integer :: xdim, idim, i, count, dimlistlength
     integer :: id, it, ik
@@ -5755,7 +3823,7 @@ contains
     character(*), intent(in) :: dimension_list
     character(*), intent(in) :: variable_description
     character(*), intent(in) :: variable_units
-    character(len=len(dimension_list)), dimension(7) :: dimension_names
+    character(len=len(dimension_list)), dimension(5) :: dimension_names
     character(len=len(dimension_list)) :: buffer
     integer :: xdim, idim, i, count, dimlistlength
     integer :: id, it, ik
@@ -5868,270 +3936,6 @@ contains
     end if
 
   end subroutine create_and_write_dstrb_fieldlike_variable_complex_16_4
-
-  subroutine create_and_write_dstrb_fieldlike_variable_complex_16_5(gnostics, variable_type, variable_name, dimension_list, &
-    variable_description, variable_units, val)
-    use simpledataio, only: create_variable, set_start, set_count
-    use simpledataio, only: set_independent, set_collective
-    use simpledataio_write, only: write_variable, write_variable_with_offset
-    use simpledataio_read, only: read_variable, read_variable_with_offset
-    use diagnostics_config, only: diagnostics_type
-    use diagnostics_dimensions, only: dim_string
-    use mp, only: mp_abort,barrier
-    use file_utils, only: error_unit
-    use fields_parallelization, only: field_k_local
-    use kt_grids, only: naky, ntheta0
-    type(diagnostics_type), intent(in) :: gnostics
-    integer, intent(in) :: variable_type
-    character(*), intent(in) :: variable_name
-    character(*), intent(in) :: dimension_list
-    character(*), intent(in) :: variable_description
-    character(*), intent(in) :: variable_units
-    character(len=len(dimension_list)), dimension(7) :: dimension_names
-    character(len=len(dimension_list)) :: buffer
-    integer :: xdim, idim, i, count, dimlistlength
-    integer :: id, it, ik
-    integer :: i1 !, i2, i3
-    complex*16, intent(inout), dimension(:,:,:,:,:)  :: val
-    complex*16 :: dummy
-   
-    !return 
-    ! Check the dimension list contains kx,ky
-!<DD>This may need changing if we change the string used to identify kx and ky.
-    xdim = index(dimension_list, trim(dim_string([gnostics%dims%kx,gnostics%dims%ky])))
-
-    if (xdim .eq. 0) then
-       write(error_unit(), *) "The function create_and_write_dstrb_field_like_variable should &
-            & only be called for arrays whose dimension list contains kx,ky in that order"
-       call mp_abort("")
-    end if
-
-    ! Split the dimension list into an array of dimension names
-    idim = 0
-    count = 1
-    buffer = ''
-    dimlistlength = len(trim(dimension_list))
-    do i = 1,dimlistlength
-      !write (*,*) 'dimension_list', dimension_list, buffer, i, 'dimension_names', dimension_names
-      if (dimension_list(i:i) .eq. "," .or. (i .eq. dimlistlength)) then
-        if (i .eq. dimlistlength) then
-          buffer(count:count) = dimension_list(i:i)
-          count = count + 1
-        end if
-        idim = idim + 1
-        dimension_names(idim) = trim(buffer)
-        if (trim(dimension_names(idim)) .eq. trim(dim_string(gnostics%dims%kx))) xdim = idim
-        buffer = ''
-        count = 1
-      else
-        buffer(count:count) = dimension_list(i:i)
-        count = count + 1
-      end if
-    end do
-    !write (*,*) 'dimension_names', dimension_names(1:idim)
- 
-    !write (*,*) 'starting create_variable', variable_name, trim(dimension_list)
-    if (gnostics%create) then 
-       call create_variable(gnostics%sfile, variable_type, variable_name, trim(dimension_list), variable_description, variable_units)
-       if (gnostics%distributed) then
-       end if
-    end if
-    !write (*,*) 'Finished create variable', variable_name
-
-
-    if (gnostics%wryte .or. gnostics%reed) then
-       if (.not.  gnostics%distributed) then
-          if (gnostics%wryte) call write_variable(gnostics%sfile, variable_name, val)
-          if (gnostics%reed) call read_variable(gnostics%sfile, variable_name, val)
-
-       else
-          ! For some reason every process has to make at least
-          ! one write to a variable with an infinite dimension.
-          ! Here we make some dummy writes to satisfy that
-!<DD>This will need changing if we allow multi-character dimension names
-          !write (*,*) 'Starting dummy writes'
-          do id = 1,idim
-             if (trim(dimension_names(id)) .eq. trim(dim_string(gnostics%dims%time))) cycle
-             call set_count(gnostics%sfile, variable_name, trim(dimension_names(id)), 1)
-             !call set_start(gnostics%sfile, variable_name, trim(dimension_names(id)), 1)
-          end do
-          if (gnostics%wryte) call write_variable(gnostics%sfile, variable_name, dummy)
-          do id = 1,idim
-             !! Reset the starts and counts
-             if (trim(dimension_names(id)) .eq. trim(dim_string(gnostics%dims%time))) cycle
-             call set_count(gnostics%sfile, variable_name, trim(dimension_names(id)), -1)
-             !call set_start(gnostics%sfile, variable_name, trim(dimension_names(id)), -1)
-          end do
-          call barrier
-          call set_count(gnostics%sfile, variable_name, trim(dim_string(gnostics%dims%kx)), 1)
-          call set_count(gnostics%sfile, variable_name, trim(dim_string(gnostics%dims%ky)), 1)
-          call set_independent(gnostics%sfile, variable_name)
-          !write (*,*) 'Starting loop'
-          do ik = 1,naky
-             do it = 1,ntheta0
-                if (field_k_local(it,ik)) then
-                   call set_start(gnostics%sfile, variable_name, trim(dim_string(gnostics%dims%kx)), it)
-                   call set_start(gnostics%sfile, variable_name, trim(dim_string(gnostics%dims%ky)), ik)
-                   ! Now we treat cases where kx and ky are not the two most
-                   ! slowly varying indices
-                   if (xdim < 5 - 1) then
-                      call set_count(gnostics%sfile, variable_name, trim(dimension_names(xdim+2)), 1)
-                      ! This loop will normally be over species
-                      do i1 = 1,size(val, xdim+2)
-                         call set_start(gnostics%sfile, variable_name, trim(dimension_names(xdim+2)), i1)
-                         if (xdim < 5 - 2) then
-                            call mp_abort("Case with two dimensions to the right of kx and ky not implemented", .true.)
-                            !<DD>Should this be an mp_abort?
-                            
-                         else
-                            if (gnostics%wryte) call write_variable_with_offset(gnostics%sfile, variable_name, val)
-                            if (gnostics%reed) call read_variable_with_offset(gnostics%sfile, variable_name, val)
-                         end if
-                      end do 
-                   else
-                      if (gnostics%wryte) call write_variable_with_offset(gnostics%sfile, variable_name, val)
-                      if (gnostics%reed) call read_variable_with_offset(gnostics%sfile, variable_name, val)
-                   end if
-                end if
-             end do
-          end do
-          call set_collective(gnostics%sfile, variable_name)
-       end if
-    end if
-
-  end subroutine create_and_write_dstrb_fieldlike_variable_complex_16_5
-
-  subroutine create_and_write_dstrb_fieldlike_variable_complex_16_6(gnostics, variable_type, variable_name, dimension_list, &
-    variable_description, variable_units, val)
-    use simpledataio, only: create_variable, set_start, set_count
-    use simpledataio, only: set_independent, set_collective
-    use simpledataio_write, only: write_variable, write_variable_with_offset
-    use simpledataio_read, only: read_variable, read_variable_with_offset
-    use diagnostics_config, only: diagnostics_type
-    use diagnostics_dimensions, only: dim_string
-    use mp, only: mp_abort,barrier
-    use file_utils, only: error_unit
-    use fields_parallelization, only: field_k_local
-    use kt_grids, only: naky, ntheta0
-    type(diagnostics_type), intent(in) :: gnostics
-    integer, intent(in) :: variable_type
-    character(*), intent(in) :: variable_name
-    character(*), intent(in) :: dimension_list
-    character(*), intent(in) :: variable_description
-    character(*), intent(in) :: variable_units
-    character(len=len(dimension_list)), dimension(7) :: dimension_names
-    character(len=len(dimension_list)) :: buffer
-    integer :: xdim, idim, i, count, dimlistlength
-    integer :: id, it, ik
-    integer :: i1 !, i2, i3
-    complex*16, intent(inout), dimension(:,:,:,:,:,:)  :: val
-    complex*16 :: dummy
-   
-    !return 
-    ! Check the dimension list contains kx,ky
-!<DD>This may need changing if we change the string used to identify kx and ky.
-    xdim = index(dimension_list, trim(dim_string([gnostics%dims%kx,gnostics%dims%ky])))
-
-    if (xdim .eq. 0) then
-       write(error_unit(), *) "The function create_and_write_dstrb_field_like_variable should &
-            & only be called for arrays whose dimension list contains kx,ky in that order"
-       call mp_abort("")
-    end if
-
-    ! Split the dimension list into an array of dimension names
-    idim = 0
-    count = 1
-    buffer = ''
-    dimlistlength = len(trim(dimension_list))
-    do i = 1,dimlistlength
-      !write (*,*) 'dimension_list', dimension_list, buffer, i, 'dimension_names', dimension_names
-      if (dimension_list(i:i) .eq. "," .or. (i .eq. dimlistlength)) then
-        if (i .eq. dimlistlength) then
-          buffer(count:count) = dimension_list(i:i)
-          count = count + 1
-        end if
-        idim = idim + 1
-        dimension_names(idim) = trim(buffer)
-        if (trim(dimension_names(idim)) .eq. trim(dim_string(gnostics%dims%kx))) xdim = idim
-        buffer = ''
-        count = 1
-      else
-        buffer(count:count) = dimension_list(i:i)
-        count = count + 1
-      end if
-    end do
-    !write (*,*) 'dimension_names', dimension_names(1:idim)
- 
-    !write (*,*) 'starting create_variable', variable_name, trim(dimension_list)
-    if (gnostics%create) then 
-       call create_variable(gnostics%sfile, variable_type, variable_name, trim(dimension_list), variable_description, variable_units)
-       if (gnostics%distributed) then
-       end if
-    end if
-    !write (*,*) 'Finished create variable', variable_name
-
-
-    if (gnostics%wryte .or. gnostics%reed) then
-       if (.not.  gnostics%distributed) then
-          if (gnostics%wryte) call write_variable(gnostics%sfile, variable_name, val)
-          if (gnostics%reed) call read_variable(gnostics%sfile, variable_name, val)
-
-       else
-          ! For some reason every process has to make at least
-          ! one write to a variable with an infinite dimension.
-          ! Here we make some dummy writes to satisfy that
-!<DD>This will need changing if we allow multi-character dimension names
-          !write (*,*) 'Starting dummy writes'
-          do id = 1,idim
-             if (trim(dimension_names(id)) .eq. trim(dim_string(gnostics%dims%time))) cycle
-             call set_count(gnostics%sfile, variable_name, trim(dimension_names(id)), 1)
-             !call set_start(gnostics%sfile, variable_name, trim(dimension_names(id)), 1)
-          end do
-          if (gnostics%wryte) call write_variable(gnostics%sfile, variable_name, dummy)
-          do id = 1,idim
-             !! Reset the starts and counts
-             if (trim(dimension_names(id)) .eq. trim(dim_string(gnostics%dims%time))) cycle
-             call set_count(gnostics%sfile, variable_name, trim(dimension_names(id)), -1)
-             !call set_start(gnostics%sfile, variable_name, trim(dimension_names(id)), -1)
-          end do
-          call barrier
-          call set_count(gnostics%sfile, variable_name, trim(dim_string(gnostics%dims%kx)), 1)
-          call set_count(gnostics%sfile, variable_name, trim(dim_string(gnostics%dims%ky)), 1)
-          call set_independent(gnostics%sfile, variable_name)
-          !write (*,*) 'Starting loop'
-          do ik = 1,naky
-             do it = 1,ntheta0
-                if (field_k_local(it,ik)) then
-                   call set_start(gnostics%sfile, variable_name, trim(dim_string(gnostics%dims%kx)), it)
-                   call set_start(gnostics%sfile, variable_name, trim(dim_string(gnostics%dims%ky)), ik)
-                   ! Now we treat cases where kx and ky are not the two most
-                   ! slowly varying indices
-                   if (xdim < 6 - 1) then
-                      call set_count(gnostics%sfile, variable_name, trim(dimension_names(xdim+2)), 1)
-                      ! This loop will normally be over species
-                      do i1 = 1,size(val, xdim+2)
-                         call set_start(gnostics%sfile, variable_name, trim(dimension_names(xdim+2)), i1)
-                         if (xdim < 6 - 2) then
-                            call mp_abort("Case with two dimensions to the right of kx and ky not implemented", .true.)
-                            !<DD>Should this be an mp_abort?
-                            
-                         else
-                            if (gnostics%wryte) call write_variable_with_offset(gnostics%sfile, variable_name, val)
-                            if (gnostics%reed) call read_variable_with_offset(gnostics%sfile, variable_name, val)
-                         end if
-                      end do 
-                   else
-                      if (gnostics%wryte) call write_variable_with_offset(gnostics%sfile, variable_name, val)
-                      if (gnostics%reed) call read_variable_with_offset(gnostics%sfile, variable_name, val)
-                   end if
-                end if
-             end do
-          end do
-          call set_collective(gnostics%sfile, variable_name)
-       end if
-    end if
-
-  end subroutine create_and_write_dstrb_fieldlike_variable_complex_16_6
 
 
 end module diagnostics_create_and_write

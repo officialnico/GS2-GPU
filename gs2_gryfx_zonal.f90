@@ -23,6 +23,8 @@ module gs2_gryfx_zonal
 
   type, bind(c) :: gryfx_parameters_type
       integer(c_int) :: mpirank
+      integer(c_int) :: restart
+      integer(c_int) :: nstep
 
        ! Name of gryfx/gryfx input file
        !character(len=1000) :: input_file
@@ -89,7 +91,7 @@ contains
     ! NB Gryfx grid has one less theta point
     gryfx_theta_real = gryfx_theta
 
-    write (*,*) 'theta', theta, 'gryfx_theta_real', gryfx_theta_real
+    !write (*,*) 'theta', theta, 'gryfx_theta_real', gryfx_theta_real
 
     do iz = 1,2*ntgrid
       delta_array = 0.
@@ -224,7 +226,7 @@ contains
     gryfx_theta_real = gryfx_theta
     !call broadcast(gryfx_theta_real)
 
-    write (*,*) 'gryfx_theta_real is ', gryfx_theta_real
+    !write (*,*) 'gryfx_theta_real is ', gryfx_theta_real
     call init_gs2_gryfx(strlen, run_name, mp_comm, gryfx_theta_real ,gryfx_parameters)
 
   end subroutine init_gs2_gryfx_c
@@ -236,6 +238,7 @@ contains
     use gs2_main, only: initialize_diagnostics
     use gs2_main, only: prepare_miller_geometry_overrides
     use gs2_main, only: prepare_profiles_overrides
+    use gs2_main, only: prepare_initial_values_overrides
     use gs2_main, only: prepare_kt_grids_overrides
     use theta_grid, only: ntgrid
     use nonlinear_terms, only: gryfx_zonal
@@ -243,6 +246,8 @@ contains
     use mp, only: proc0, mp_abort, broadcast
     use unit_tests, only: debug_message
     use geometry, only: equal_arc
+    use gs2_save, only: init_dt
+    use gs2_time, only: init_delt
 
     implicit none
     integer, intent(in) :: strlen
@@ -250,6 +255,8 @@ contains
     integer, intent(in) :: mp_comm
     real*8, intent(inout), dimension(2*ntgrid) :: gryfx_theta
     type(gryfx_parameters_type), intent(in) :: gryfx_parameters
+    integer :: istatus
+    real :: delt
 
     !gryfx_zonal%on = .true.
     state%mp_comm_external = .true.
@@ -279,6 +286,19 @@ contains
       call prepare_profiles_overrides(state)
       call set_profiles_overrides
     endif
+    if (gryfx_parameters%restart==1) then
+      ! Load the saved value of dt
+      call init_dt(delt, istatus)
+      call init_delt(delt)
+      ! Set up gs2 state so that it reads the
+      ! initial values from the restart file.
+      call prepare_initial_values_overrides(state)
+      if (state%init%initval_ov%in_memory) then
+        call mp_abort('ERROR: Gryfx/GS2 restart does not currently work with &
+          & in_memory set to true', .true.)
+      end if
+      state%init%initval_ov%override = .true.
+    end if
     call initialize_equations(state)
     call debug_message(verb, 'initialize_equations complete.')
     call initialize_diagnostics(state)

@@ -160,7 +160,7 @@ contains
     logical, intent(in), optional :: ob_midplane
 # ifdef NETCDF
     logical :: accelerated
-    character (300) :: filename, filename_movie
+    character (2000) :: filename, filename_movie
     integer :: status
 
     !################
