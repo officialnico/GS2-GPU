@@ -27,7 +27,7 @@ program test_nonlinear_terms
 #endif
   implicit none
   real :: eps
-    character (500), target :: cbuff
+    character (2000), target :: cbuff
   real :: tstart
   logical :: dummy=.false.
   integer, dimension(:), allocatable :: sizes
