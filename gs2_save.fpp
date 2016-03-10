@@ -1393,11 +1393,12 @@ contains
   function restart_writable(read_only,my_file)
     use mp, only: proc0, broadcast
     use file_utils, only: get_unused_unit
+    use constants, only: run_name_size
     implicit none
     character(16) :: SuffixTmp='.ThisIsATestFile'
     character(9) :: FileMode
     character(len=*),intent(in),optional::my_file
-    character(2000) :: local_file
+    character(run_name_size) :: local_file
     logical, intent(in), optional :: read_only
     logical :: restart_writable, writable
     integer :: unit,ierr
@@ -1453,7 +1454,8 @@ contains
   end subroutine init_gs2_save
 
   subroutine set_restart_file (file)
-    character(2000), intent (in) :: file
+    use constants, only: run_name_size
+    character(run_name_size), intent (in) :: file
     
     restart_file = file
 

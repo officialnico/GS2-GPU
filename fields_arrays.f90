@@ -1,4 +1,5 @@
 module fields_arrays
+  use constants, only: run_name_size
   implicit none
 
   private
@@ -17,5 +18,5 @@ module fields_arrays
   real :: time_field(2)=0.
   
   !For response data
-  character (2000) :: response_file
+  character(run_name_size) :: response_file
 end module fields_arrays

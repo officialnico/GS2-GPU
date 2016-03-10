@@ -21,8 +21,9 @@ program generate_fftw_wisdom
   use job_manage, only: time_message
   !use runtime_tests, only: get_svn_rev, get_compiler_name
   use benchmarks, only: benchmark_identifier
+  use constants, only: run_name_size
   implicit none
-  character (2000), target :: cbuff
+  character(run_name_size), target :: cbuff
   real :: tstart
   logical :: dummy=.false.
   real :: time_taken(2) = 0.0

@@ -123,6 +123,15 @@ HAS_ISO_C_BINDING ?= on
 # This *may* have performance implications, but it hasn't been tested yet.
 USE_FPIC ?= 
 
+# Defines the size of the constant character arrays that are used to store the run
+# name. 2000 has been selected as the default as being longer than most people will 
+# need. However, this can be overriden by setting this parameter either in the environment
+# or when executing make. Make sure you rebuild constants.fpp if you want to change this.
+# e.g. 
+#       $ touch utils/constants.fpp
+#       $ ./build_gs2 -c 'RUN_NAME_SIZE=<newsize>'
+RUN_NAME_SIZE?=2000
+
 #
 # * Targets:
 #
@@ -248,6 +257,9 @@ endif
 #Here we define SVN_REV based on the output of svnversion
 SVN_REV='"$(shell svnversion -n .)"'
 CPPFLAGS+=-DSVN_REV=$(SVN_REV)
+
+# Define RUN_NAME_SIZE
+CPPFLAGS+=-DRUN_NAME_SIZE=$(RUN_NAME_SIZE) 
 
 # Define RELEASE based on the contents of the RELEASE
 # file, which is empty unless we are in a release.

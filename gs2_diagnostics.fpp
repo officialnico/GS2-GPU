@@ -3188,9 +3188,10 @@ contains
     use kt_grids, only: naky, ntheta0, aky, theta0, akx
     use theta_grid, only: theta
     use fields_arrays, only: phinew, aparnew, bparnew
+    use constants, only: run_name_size
     implicit none
     real, intent(in) :: t
-    character (2000) :: filename
+    character(run_name_size) :: filename
     integer :: ik, it, ig, unit
 
     call get_unused_unit (unit)

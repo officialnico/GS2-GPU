@@ -5,6 +5,7 @@ contains
   subroutine gridgen4read (filename,ntheta,nperiod,ntgrid,nlambda,theta,alambda, &
        gbdrift,gradpar,cvdrift,gds2,bmag,gds21,gds22,cvdrift0,gbdrift0)
     use mp, only: mp_abort
+    use constants, only: run_name_size
     implicit none
     character(*), intent (in) :: filename
     integer, intent (in out) :: ntheta, nperiod, ntgrid, nlambda
@@ -19,7 +20,7 @@ contains
     integer :: i
     integer :: unit
     logical :: od
-    character (2000) :: line
+    character(run_name_size) :: line
 
 !CMR, August 2010:
 !  (i) modify inquire to use opened instead of read, write and readwrite

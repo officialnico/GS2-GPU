@@ -79,6 +79,7 @@ end module old_interface_store
 module gs2_main
   use gs2_init, only: init_type, init_level_list
   use optimisation_config, only: optimisation_type
+  use constants, only: run_name_size
   implicit none
   public :: run_gs2, finish_gs2, reset_gs2, trin_finish_gs2
 
@@ -266,7 +267,7 @@ module gs2_main
     integer :: nproc_actual
 
     logical :: run_name_external = .false.
-    character(2000) :: run_name
+    character(run_name_size) :: run_name
 
     logical :: skip_diagnostics = .false.
     logical :: dont_change_timestep = .false.

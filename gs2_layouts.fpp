@@ -10,6 +10,7 @@ module gs2_layouts
 ! TT>
   use layouts_type, only: g_layout_type, lz_layout_type, e_layout_type
   use layouts_type, only: le_layout_type, p_layout_type
+  use constants, only: run_name_size
 ! <TT
 
   implicit none
@@ -107,7 +108,7 @@ module gs2_layouts
   logical :: local_field_solve, accel_lxyes, lambda_local, unbalanced_xxf, unbalanced_yxf
   real :: max_unbalanced_xxf, max_unbalanced_yxf
   character (len=5) :: layout
-  character (2000) :: fft_wisdom_file
+  character(run_name_size) :: fft_wisdom_file
   logical :: fft_use_wisdom, fft_measure_plan
   logical :: exist
 
@@ -510,8 +511,9 @@ contains
   !! and the value in the GK_FFTW3_WISDOM environment variable
   subroutine get_wisdom_file(wisdom_file)
     use file_utils, only: run_name
+    use constants, only: run_name_size
     character(len=*), intent(inout) :: wisdom_file
-    character (2000) :: env_wisdom_file
+    character(run_name_size) :: env_wisdom_file
     call get_environment_variable("GK_FFTW3_WISDOM", env_wisdom_file)
     !read (env_wisdom_file,'(I10)') verbosity
 

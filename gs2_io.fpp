@@ -145,6 +145,7 @@ contains
     use species, only: nspec
     use netcdf, only: NF90_CLOBBER, nf90_create
     use netcdf_utils, only: get_netcdf_code_precision, netcdf_real
+    use constants, only: run_name_size
 # endif
     implicit none
     logical, intent(in) :: write_nl_flux, write_omega
@@ -160,7 +161,7 @@ contains
     logical, intent(in), optional :: ob_midplane
 # ifdef NETCDF
     logical :: accelerated
-    character (2000) :: filename, filename_movie
+    character(run_name_size) :: filename, filename_movie
     integer :: status
 
     !################

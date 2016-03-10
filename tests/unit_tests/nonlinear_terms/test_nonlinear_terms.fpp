@@ -22,12 +22,14 @@ program test_nonlinear_terms
   use dist_fn_arrays, only: g
   use nonlinear_terms, only: nonlinear_terms_unit_test_time_add_nl
   use kt_grids, only: ntheta0, naky
+  use constants, only: run_name_size
+  
 #ifdef MPI
   use mpi
 #endif
   implicit none
   real :: eps
-    character (2000), target :: cbuff
+  character(run_name_size), target :: cbuff
   real :: tstart
   logical :: dummy=.false.
   integer, dimension(:), allocatable :: sizes
