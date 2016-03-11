@@ -1,3 +1,47 @@
+####################################
+## Compilation instructions for gs2
+####################################
+
+## Instructions updated 03.2016
+
+The level of difficulty of compiling depends on how much your system is
+supported.
+
+To use the automated build system try:
+
+./build_gs2 -o ls
+
+This will print a list of systems that are supported by the automated build
+system. This configures your environment and then executes `make` automatically.
+If your system is supported you can simply execute:
+
+./build_gs2 -s <system>
+
+Where your <system> is replaced by your system name. If your system is not 
+supported try
+
+./build_gs2 -u
+
+which will try and update the build system. Then try the previous instructions 
+again. 
+
+If your system is still not supported, you can try the older process described 
+below and in more detail on the wiki:
+
+http://gyrokinetics.sourceforge.net/wiki/index.php/GS2:_A_Guide_for_Beginners#Building_GS2
+
+However, if your system is similar to one of the already supported systems, you could
+try copying that system Makefile in the folder Makefiles and editing it to make it work.
+
+Failing that, please raise a support request here:
+
+https://sourceforge.net/p/gyrokinetics/support-requests/
+
+
+
+#### Old build instructions, using make directly (they still work, 
+        and also include details of some configuration options)
+
 This text explains how to make agk/gs2. (2008/05/05 RN)
 
 * Changelog
