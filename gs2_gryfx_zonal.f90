@@ -298,6 +298,8 @@ contains
           & in_memory set to true', .true.)
       end if
       state%init%initval_ov%override = .true.
+    else 
+      state%init%initval_ov%override = .false.
     end if
     call initialize_equations(state)
     call debug_message(verb, 'initialize_equations complete.')

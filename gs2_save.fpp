@@ -80,6 +80,13 @@ module gs2_save
   logical :: initialized = .false.
   logical :: test = .false.
   logical :: include_parameter_scan = .true.
+  !> This parameter controls whether or not gs2
+  !! aborts if it cannot read the restart file (and
+  !! it has been told to load g from  a restart).
+  !! It is set to .true..
+  !! I can think of no conceivable reason why this
+  !! would ever need to be .false., but comments welcome. EGH
+  logical, parameter :: abort_on_restart_fail = .true.
 # endif
 
 contains
@@ -910,30 +917,38 @@ contains
        call check_netcdf_file_precision (ncid)
 
        istatus = nf90_inq_dimid (ncid, "theta", thetaid)
-       if (istatus /= NF90_NOERR) call netcdf_error (istatus, dim='theta')
+       if (istatus /= NF90_NOERR) call netcdf_error (istatus, dim='theta',&
+         abort=abort_on_restart_fail)
        
        istatus = nf90_inq_dimid (ncid, "sign", signid)
-       if (istatus /= NF90_NOERR) call netcdf_error (istatus, dim='sign')
+       if (istatus /= NF90_NOERR) call netcdf_error (istatus, dim='sign',&
+         abort=abort_on_restart_fail)
        
        istatus = nf90_inq_dimid (ncid, "glo", gloid)
-       if (istatus /= NF90_NOERR) call netcdf_error (istatus, dim='glo')
+       if (istatus /= NF90_NOERR) call netcdf_error (istatus, dim='glo',&
+         abort=abort_on_restart_fail)
        
        istatus = nf90_inq_dimid (ncid, "aky", kyid)
-       if (istatus /= NF90_NOERR) call netcdf_error (istatus, dim='aky')
+       if (istatus /= NF90_NOERR) call netcdf_error (istatus, dim='aky',&
+         abort=abort_on_restart_fail)
        
        istatus = nf90_inq_dimid (ncid, "akx", kxid)
-       if (istatus /= NF90_NOERR) call netcdf_error (istatus, dim='akx')
+       if (istatus /= NF90_NOERR) call netcdf_error (istatus, dim='akx',&
+         abort=abort_on_restart_fail)
        
        istatus = nf90_inquire_dimension (ncid, thetaid, len=i)
-       if (istatus /= NF90_NOERR) call netcdf_error (istatus, ncid, dimid=thetaid)
+       if (istatus /= NF90_NOERR) call netcdf_error (istatus, ncid, dimid=thetaid,&
+         abort=abort_on_restart_fail)
        if (i /= 2*ntgrid + 1) write(*,*) 'Restart error: ntgrid=? ',i,' : ',ntgrid,' : ',iproc
        
        istatus = nf90_inquire_dimension (ncid, signid, len=i)
-       if (istatus /= NF90_NOERR) call netcdf_error (istatus, ncid, dimid=signid)
+       if (istatus /= NF90_NOERR) call netcdf_error (istatus, ncid, dimid=signid,&
+         abort=abort_on_restart_fail)
        if (i /= 2) write(*,*) 'Restart error: sign=? ',i,' : ',iproc
        
        istatus = nf90_inquire_dimension (ncid, gloid, len=i)
-       if (istatus /= NF90_NOERR) call netcdf_error (istatus, ncid, dimid=gloid)
+       if (istatus /= NF90_NOERR) call netcdf_error (istatus, ncid, dimid=gloid,&
+         abort=abort_on_restart_fail)
 #ifdef NETCDF_PARALLEL       
        if(read_many) then
 #endif
@@ -944,11 +959,13 @@ contains
        endif
 #endif
        istatus = nf90_inquire_dimension (ncid, kyid, len=i)
-       if (istatus /= NF90_NOERR) call netcdf_error (istatus, ncid, dimid=kyid)
+       if (istatus /= NF90_NOERR) call netcdf_error (istatus, ncid, dimid=kyid,&
+         abort=abort_on_restart_fail)
        if (i /= naky) write(*,*) 'Restart error: naky=? ',i,' : ',naky,' : ',iproc
        
        istatus = nf90_inquire_dimension (ncid, kxid, len=i)
-       if (istatus /= NF90_NOERR) call netcdf_error (istatus, ncid, dimid=kxid)
+       if (istatus /= NF90_NOERR) call netcdf_error (istatus, ncid, dimid=kxid,&
+         abort=abort_on_restart_fail)
        if (i /= ntheta0) write(*,*) 'Restart error: ntheta0=? ',i,' : ',ntheta0,' : ',iproc
        
        if (fphi > epsilon(0.)) then
@@ -981,10 +998,12 @@ contains
        endif   ! MR end
 
        istatus = nf90_inq_varid (ncid, "gr", gr_id)
-       if (istatus /= NF90_NOERR) call netcdf_error (istatus, var='gr')
+       if (istatus /= NF90_NOERR) call netcdf_error (istatus, var='gr',&
+         abort=abort_on_restart_fail)
        
        istatus = nf90_inq_varid (ncid, "gi", gi_id)
-       if (istatus /= NF90_NOERR) call netcdf_error (istatus, var='gi')
+       if (istatus /= NF90_NOERR) call netcdf_error (istatus, var='gi',&
+         abort=abort_on_restart_fail)
     end if
     
     if (.not. allocated(tmpr)) &
@@ -1005,7 +1024,8 @@ contains
     end if
 # endif
 
-   if (istatus /= NF90_NOERR) call netcdf_error (istatus, ncid, gr_id)
+   if (istatus /= NF90_NOERR) call netcdf_error (istatus, ncid, gr_id,&
+         abort=abort_on_restart_fail)
 
 # ifdef NETCDF_PARALLEL
     if(read_many) then
@@ -1017,7 +1037,8 @@ contains
     end if
 # endif
 
-    if (istatus /= NF90_NOERR) call netcdf_error (istatus, ncid, gi_id)
+    if (istatus /= NF90_NOERR) call netcdf_error (istatus, ncid, gi_id,&
+         abort=abort_on_restart_fail)
 
     g = cmplx(tmpr, tmpi)
 

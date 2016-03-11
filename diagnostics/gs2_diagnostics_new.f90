@@ -70,7 +70,7 @@ contains
     call debug_message(gnostics%verbosity, &
       'gs2_diagnostics_new::init_gs2_diagnostics_new initialized config')
     call check_parameters
-    !call check_restart_file_writeable
+    call check_restart_file_writeable
     call debug_message(gnostics%verbosity, &
       'gs2_diagnostics_new::init_gs2_diagnostics_new  checked restart file')
     
@@ -240,7 +240,7 @@ contains
 
   subroutine check_restart_file_writeable
     use gs2_save, only: restart_writable
-    use mp, only: proc0, mp_abort
+    use mp, only: proc0, mp_abort, broadcast
     logical :: writable
     !Verify restart file can be written
     if((gnostics%save_for_restart.or.gnostics%save_distfn).and.(gnostics%file_safety_check))then
