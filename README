@@ -20,7 +20,7 @@ If your system is supported you can simply execute:
 Where your <system> is replaced by your system name. If your system is not 
 supported try
 
-./build_gs2 -u
+./build_gs2 -o update
 
 which will try and update the build system. Then try the previous instructions 
 again. 

@@ -29,7 +29,7 @@ OPTIONS:
                      unit_tests      : Run unit_tests
                      linear_tests    : Run linear_tests
                      nonlinear_tests : Run nonlinear_tests
-                     update          : Updates this script <NOT IMPLEMENTED>
+                     update          : Updates this script
                      depend          : Builds the dependency file
                      clean           : Runs make clean
                      distclean       : Runs make distclean
@@ -179,8 +179,9 @@ case $COMMAND in
     make $COMMAND "$TESTSET" $MAKEFLAGSALL
     ;;
   update)
-    echo "update function not implemented yet!"
-    exit 1
+    svn up Makefiles
+    svn up scripts/build_gs2
+    exit 0
     ;;
   clean)
     setup_build
