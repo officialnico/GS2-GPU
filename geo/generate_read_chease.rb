@@ -19,7 +19,7 @@ module_text = <<EOF
 !! Written by Edmund Highcock
 !! edmundhighcock@sourceforge.net
 !!
-!! This is free software released under the GPLv3
+!! This is free software released under the MIT Licence
 !!
 !! Available quantities are:
 !! 
