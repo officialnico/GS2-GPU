@@ -318,8 +318,11 @@ contains
     use splines, only: inter_cspl
     use constants, only: pi
     use file_utils, only: open_output_file, close_output_file, get_unused_unit
+    use file_utils, only: futils_initialized => initialized, init_file_utils
+    use file_utils, only: finish_file_utils
     implicit none
     integer, optional, intent (out) :: ntheta_returned
+    logical :: start_file_utils, dummy
 
 ! Local variables:
 
@@ -355,6 +358,12 @@ contains
     !Set output verbosity levels
     eeq_verbosity = verb
 
+    if (.not.futils_initialized) then
+      start_file_utils = .true.
+      call init_file_utils(dummy)
+    else
+      start_file_utils = .false.
+    end if
     !Create module level output file and get unit
     call get_unused_unit(fort11_unit)
     call open_output_file(fort11_unit,".fort.11")
@@ -1187,6 +1196,8 @@ if (debug) write(6,*) "eikcoefs: end gradients"
 
     !Close output files
     call close_output_file(fort11_unit)
+
+    if (start_file_utils) call finish_file_utils
 ! Generate metric tensor elements to compare with Xanthopoulos and Jenko    
 ! Need to change normalization to match XJ
 
