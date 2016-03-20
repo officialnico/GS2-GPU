@@ -521,6 +521,7 @@ benchmarks.o: \
 	 runtime_tests.o 
 ceq.o: \
 	 constants.o \
+	 file_utils.o \
 	 mp.o \
 	 read_chease.o \
 	 spl.o 
@@ -762,7 +763,8 @@ dist_fn.o: \
 	 species.o \
 	 spfunc.o \
 	 text_options.o \
-	 theta_grid.o 
+	 theta_grid.o \
+	 unit_tests.o 
 dist_fn_arrays.o: \
 	 gs2_layouts.o \
 	 le_grids.o \
@@ -834,7 +836,8 @@ fields.o: \
 	 text_options.o \
 	 theta_grid.o \
 	 unit_tests.o 
-fields_arrays.o: 
+fields_arrays.o: \
+	 constants.o 
 fields_implicit.o: \
 	 antenna.o \
 	 dist_fn.o \
@@ -875,7 +878,8 @@ fields_test.o: \
 	 dist_fn_arrays.o \
 	 fields_arrays.o 
 file_utils.o: \
-	 command_line.o 
+	 command_line.o \
+	 constants.o 
 functional_tests.o: \
 	 gs2_diagnostics.o \
 	 gs2_diagnostics_new.o \
@@ -892,6 +896,7 @@ gauss_quad.o: \
 	 mp.o 
 generate_fftw_wisdom.o: \
 	 benchmarks.o \
+	 constants.o \
 	 file_utils.o \
 	 job_manage.o \
 	 mp.o \
@@ -901,6 +906,7 @@ geometry.o: \
 	 constants.o \
 	 deq.o \
 	 eeq.o \
+	 file_utils.o \
 	 geq.o \
 	 ideq.o \
 	 leq.o \
@@ -909,11 +915,13 @@ geometry.o: \
 	 spl.o 
 geq.o: \
 	 constants.o \
+	 file_utils.o \
 	 mp.o \
 	 netcdf_utils.o \
 	 spl.o 
 gridgen4mod.o: \
 	 constants.o \
+	 file_utils.o \
 	 mp.o \
 	 spl.o 
 gs2.o: \
@@ -991,6 +999,8 @@ gs2_gryfx_zonal.o: \
 	 file_utils.o \
 	 geometry.o \
 	 gs2_main.o \
+	 gs2_save.o \
+	 gs2_time.o \
 	 kt_grids.o \
 	 mp.o \
 	 nonlinear_terms.o \
@@ -1043,6 +1053,7 @@ gs2_io.o: \
 	 species.o \
 	 theta_grid.o 
 gs2_layouts.o: \
+	 constants.o \
 	 file_utils.o \
 	 layouts_type.o \
 	 mp.o \
@@ -1051,6 +1062,7 @@ gs2_layouts.o: \
 gs2_main.o: \
 	 antenna.o \
 	 collisions.o \
+	 constants.o \
 	 dist_fn.o \
 	 dist_fn_arrays.o \
 	 fields.o \
@@ -1131,7 +1143,9 @@ gs2_transforms.o: \
 	 theta_grid.o \
 	 unit_tests.o 
 hdf_wrapper.o: \
-	 constants.o 
+	 constants.o \
+	 convert.o \
+	 file_utils.o 
 hrate.o: \
 	 command_line.o 
 hyper.o: \
@@ -1200,6 +1214,7 @@ init_g.o: \
 	 theta_grid_params.o \
 	 unit_tests.o 
 job_manage.o: \
+	 constants.o \
 	 file_utils.o \
 	 mp.o 
 kpar.o: \
@@ -1348,7 +1363,8 @@ species.o: \
 	 kt_grids.o \
 	 mp.o \
 	 overrides.o \
-	 text_options.o 
+	 text_options.o \
+	 unit_tests.o 
 spfunc.o: \
 	 constants.o 
 spl.o: \
