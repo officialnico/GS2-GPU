@@ -3,6 +3,7 @@
 module gs2_save
 
   use mp, only: mp_comm, mp_info
+  use constants, only: run_name_size
 
 # ifdef NETCDF
 !  use netcdf, only: NF90_FLOAT, NF90_DOUBLE
@@ -56,7 +57,7 @@ module gs2_save
 
   logical :: read_many, save_many ! Read and write single or multiple restart files
   
-  character (10000) :: restart_file
+  character (run_name_size) :: restart_file
 
 # ifdef NETCDF
   real, allocatable, dimension(:,:,:) :: tmpr, tmpi, ftmpr, ftmpi
@@ -138,7 +139,7 @@ contains
     LOGICAL, INTENT (in), optional :: distfn !<DD> Added for saving distribution function
     character (20), INTENT (in), optional :: fileopt
 # ifdef NETCDF
-    character (306) :: file_proc
+    character (run_name_size) :: file_proc
     character (10) :: suffix
     integer :: i, n_elements, ierr
     integer :: total_elements
@@ -887,7 +888,7 @@ contains
 # ifdef NETCDF_PARALLEL
     integer, dimension(3) :: counts, start_pos
 # endif
-    character (306) :: file_proc
+    character (run_name_size) :: file_proc
     character (10) :: suffix
     integer :: i, n_elements, ierr
     real :: fac
@@ -1515,7 +1516,7 @@ contains
     integer :: ncid_local
     real, intent (out) :: current_scan_parameter_value
 # ifdef NETCDF
-    character (306) :: file_proc
+    character (run_name_size) :: file_proc
     if (.not. include_parameter_scan) return
 
     if (proc0) then
@@ -1569,7 +1570,7 @@ contains
     real, intent (in out) :: delt0
     integer, intent (out) :: istatus
 # ifdef NETCDF
-    character (306) :: file_proc        
+    character (run_name_size) :: file_proc        
 
     if (proc0) then
 
@@ -1619,7 +1620,7 @@ contains
     real, dimension(2), intent (in out) :: vnm
     integer, intent (out) :: istatus
 # ifdef NETCDF
-    character (306) :: file_proc
+    character (run_name_size) :: file_proc
 
     if (proc0) then
        if (.not.initialized) then
@@ -1681,7 +1682,7 @@ contains
     integer, intent (in) :: nk_stir
     integer, intent (out) :: istatus
 # ifdef NETCDF
-    character (306) :: file_proc
+    character (run_name_size) :: file_proc
     integer :: ierr, i
 
     if (proc0) then
@@ -1770,7 +1771,7 @@ contains
     real, intent (in out) :: tstart
     integer, intent (out) :: istatus
 # ifdef NETCDF
-    character (306) :: file_proc
+    character (run_name_size) :: file_proc
 
     if (proc0) then
 
