@@ -17,9 +17,9 @@
  iflux = 1
  itor = 1
  
- local_eq = .false.
+ local_eq = .true.
  transp_eq = F
- efit_eq = .t.
+ efit_eq = .false.
  gs2d_eq = .false.
  delrho=1.e-2
  eqfile='test8_efit.dat'

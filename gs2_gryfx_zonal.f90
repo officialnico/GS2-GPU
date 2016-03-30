@@ -25,6 +25,7 @@ module gs2_gryfx_zonal
       integer(c_int) :: mpirank
       integer(c_int) :: restart
       integer(c_int) :: nstep
+      integer(c_int) :: job_id
 
        ! Name of gryfx/gryfx input file
        !character(len=1000) :: input_file
@@ -266,6 +267,8 @@ contains
     state%run_name_external = .true.
     state%run_name = file_name
 
+    state%external_job_id = gryfx_parameters%job_id
+
     gryfx_zonal%on = .true.
  
 
@@ -430,6 +433,7 @@ contains
     use gs2_main, only: evolve_equations
     use dist_fn, only: getmoms_gryfx_dist 
     use mp, only: proc0, broadcast
+    use unit_tests, only: debug_message
 
     implicit none
     complex*8, dimension (:), intent (inout) :: &
@@ -441,6 +445,8 @@ contains
     !state%istep_end = istep
     state%print_times = .false.
 
+    call debug_message(verb+1, 'gs2_gryfx_zonal::advance_gs2_gryfx starting')
+
     ! only proc0 knows values of arrays, so broadcast
     call broadcast(dens_ky0)
     call broadcast(upar_ky0)
@@ -450,12 +456,18 @@ contains
     call broadcast(qprp_ky0)
     ! all procs know value of first_half_step already
 
+    call debug_message(verb+1, &
+      'gs2_gryfx_zonal::advance_gs2_gryfx broadcasted hybrid arrays')
+
     call interpolate_theta(gryfx_2_gs2_grid, dens_ky0, .false.)
     call interpolate_theta(gryfx_2_gs2_grid, upar_ky0, .false.)
     call interpolate_theta(gryfx_2_gs2_grid, tpar_ky0, .false.)
     call interpolate_theta(gryfx_2_gs2_grid, tprp_ky0, .false.)
     call interpolate_theta(gryfx_2_gs2_grid, qpar_ky0, .false.)
     call interpolate_theta(gryfx_2_gs2_grid, qprp_ky0, .false.)
+
+    call debug_message(verb+1, &
+      'gs2_gryfx_zonal::advance_gs2_gryfx interpolated hybrid arrays')
 
     ! now that all procs know values, copy into gryfx_zonal structure
     gryfx_zonal%first_half_step = first_half_step 
@@ -466,6 +478,9 @@ contains
     gryfx_zonal%NLqpar_ky0 = qpar_ky0
     gryfx_zonal%NLqprp_ky0 = qprp_ky0
 
+    call debug_message(verb+1, &
+      'gs2_gryfx_zonal::advance_gs2_gryfx set hybrid arrays')
+
     if(first_half_step) then
       state%dont_change_timestep = .true.
       state%skip_diagnostics = .true.
@@ -473,6 +488,9 @@ contains
       state%dont_change_timestep = .false.
       state%skip_diagnostics = .false.
     endif
+
+    call debug_message(verb+1, &
+      'gs2_gryfx_zonal::advance_gs2_gryfx evolving equations')
     ! only advance one timestep
     call evolve_equations(state, 1)
     ! getmoms_gryfx takes moments of g and puts results into arguments.
@@ -480,8 +498,15 @@ contains
     ! advance_gs2_gryfx, we don't need to copy them like on the way in
 
     !write (*,*) 'Calling getmoms_gryfx'
+
+    call debug_message(verb+1, &
+      'gs2_gryfx_zonal::advance_gs2_gryfx getting gryfx moments')
+
     call getmoms_gryfx_dist(dens_ky0, upar_ky0, tpar_ky0, &
                  tprp_ky0, qpar_ky0, qprp_ky0, phi_ky0)
+
+    call debug_message(verb+1, &
+      'gs2_gryfx_zonal::advance_gs2_gryfx interpolating back')
 
     call interpolate_theta(gs2_2_gryfx_grid, dens_ky0, .false.)
     call interpolate_theta(gs2_2_gryfx_grid, upar_ky0, .false.)
@@ -490,6 +515,10 @@ contains
     call interpolate_theta(gs2_2_gryfx_grid, qpar_ky0, .false.)
     call interpolate_theta(gs2_2_gryfx_grid, qprp_ky0, .false.)
     call interpolate_theta(gs2_2_gryfx_grid, phi_ky0, .true.)
+
+    call debug_message(verb+1, &
+      'gs2_gryfx_zonal::advance_gs2_gryfx finished')
+
   end subroutine advance_gs2_gryfx
 
   subroutine finish_gs2_gryfx_c() bind(c, name='finish_gs2')
@@ -566,6 +595,38 @@ contains
 
     call broadcast(a) 
   end subroutine broadcast_integer_c
+
+  subroutine init_gs2_file_utils_c(strlen, run_name) &
+                            bind(c, name='init_gs2_file_utils')
+    use iso_c_binding
+    use file_utils, only: init_file_utils
+    implicit none
+    integer(c_int), intent(in) :: strlen
+    character(kind=c_char), intent(in) :: run_name
+
+    call init_gs2_file_utils_c_actual(strlen, run_name)
+
+  end subroutine init_gs2_file_utils_c
+
+  subroutine init_gs2_file_utils_c_actual(strlen, run_name) 
+    use file_utils, only: init_file_utils
+    implicit none
+    integer, intent(in) :: strlen
+    character(len=strlen), intent(in) :: run_name
+    logical :: dummy
+
+    write (*,*) 'Initialising file utils with run name', run_name
+    call init_file_utils(dummy, name=run_name, trin_run=.true.)
+
+
+  end subroutine init_gs2_file_utils_c_actual
+
+
+  subroutine finish_gs2_file_utils_c() bind(c, name='finish_gs2_file_utils')
+    use file_utils, only: finish_file_utils
+    call finish_file_utils
+  end subroutine finish_gs2_file_utils_c
+
   
 end module gs2_gryfx_zonal
 

@@ -623,20 +623,28 @@ contains
        call debug_message(verb, 'gs2_diagnostics_new::run_old_final_routines &
          & calling do_write_kpar')
        if (gnostics%write_kpar) call do_write_kpar(gnostics)
+       call debug_message(verb, 'gs2_diagnostics_new::run_old_final_routines &
+         & calling do_write_final_epar')
        if (gnostics%write_final_epar) call do_write_final_epar(gnostics)
        
        ! definition here assumes we are not using wstar_units
+       call debug_message(verb, 'gs2_diagnostics_new::run_old_final_routines &
+         & calling do_write_final_db')
        if (gnostics%write_final_db) call do_write_final_db(gnostics)
     end if
     !Note pass in phase factor phi0 which may not be initialised
     !this is ok as phi0 will be set in routine if not already set
     if (gnostics%write_final_moments) call do_write_final_moments(gnostics,phi0)
+    call debug_message(verb, 'gs2_diagnostics_new::run_old_final_routines &
+      & calling do_write_final_antot')
     
     if (gnostics%write_final_antot) call do_write_final_antot(gnostics)
     
     if (proc0) call dump_ant_amp
     
     if (nonlin.and.gnostics%write_gs) call do_write_gs(gnostics)
+    call debug_message(verb, 'gs2_diagnostics_new::run_old_final_routines &
+         & finished')
     
   end subroutine run_old_final_routines
   

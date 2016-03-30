@@ -730,7 +730,8 @@ contains
        endif
 # endif     
        
-       if (istatus /= NF90_NOERR) call netcdf_error (istatus, ncid, gr_id)
+       if (istatus /= NF90_NOERR) call netcdf_error (istatus, ncid, gr_id, &
+       var='gr put')
        
        tmpr = aimag(g)
 # ifdef NETCDF_PARALLEL
@@ -743,7 +744,8 @@ contains
        endif
 # endif     
 
-       if (istatus /= NF90_NOERR) call netcdf_error (istatus, ncid, gi_id)
+       if (istatus /= NF90_NOERR) call netcdf_error (istatus, ncid, gi_id, &
+         var = 'gi put')
        
        !<DD> Added for saving distribution function
        IF (PRESENT(distfn)) THEN
@@ -789,11 +791,13 @@ contains
           if (fphi > epsilon(0.)) then
              ftmpr = real(phinew)
              istatus = nf90_put_var (ncid, phir_id, ftmpr)
-             if (istatus /= NF90_NOERR) call netcdf_error (istatus, ncid, phir_id)
+             if (istatus /= NF90_NOERR) call netcdf_error (istatus, ncid, phir_id, &
+               var = 'phir put')
              
              ftmpi = aimag(phinew)
              istatus = nf90_put_var (ncid, phii_id, ftmpi)
-             if (istatus /= NF90_NOERR) call netcdf_error (istatus, ncid, phii_id)
+             if (istatus /= NF90_NOERR) call netcdf_error (istatus, ncid, phii_id, &
+               var = 'phir put')
           end if
 
           if (fapar > epsilon(0.)) then
@@ -821,12 +825,14 @@ contains
           if (.not. allocated(stmp)) allocate (stmp(naky))   
           stmp = kx_shift
           istatus = nf90_put_var (ncid, kx_shift_id, stmp)
-          if (istatus /= NF90_NOERR) call netcdf_error (istatus, ncid, kx_shift_id)
+          if (istatus /= NF90_NOERR) call netcdf_error &
+            (istatus, ncid, kx_shift_id, var = 'kx_shift put')
        else
           if (.not. allocated(stmp)) allocate (stmp(naky))
           stmp = 0.
           istatus = nf90_put_var (ncid, kx_shift_id, stmp)
-          if (istatus /= NF90_NOERR) call netcdf_error (istatus, ncid, kx_shift_id)
+          if (istatus /= NF90_NOERR) call netcdf_error &
+            (istatus, ncid, kx_shift_id, var = 'kx_shift dummy')
        endif ! MR end
 # ifdef NETCDF_PARALLEL
     end if
@@ -938,7 +944,7 @@ contains
        
        istatus = nf90_inquire_dimension (ncid, thetaid, len=i)
        if (istatus /= NF90_NOERR) call netcdf_error (istatus, ncid, dimid=thetaid,&
-         abort=abort_on_restart_fail)
+         abort=abort_on_restart_fail, dim='theta')
        if (i /= 2*ntgrid + 1) write(*,*) 'Restart error: ntgrid=? ',i,' : ',ntgrid,' : ',iproc
        
        istatus = nf90_inquire_dimension (ncid, signid, len=i)
@@ -1025,7 +1031,7 @@ contains
 # endif
 
    if (istatus /= NF90_NOERR) call netcdf_error (istatus, ncid, gr_id,&
-         abort=abort_on_restart_fail)
+         abort=abort_on_restart_fail, var='gr')
 
 # ifdef NETCDF_PARALLEL
     if(read_many) then
@@ -1038,7 +1044,7 @@ contains
 # endif
 
     if (istatus /= NF90_NOERR) call netcdf_error (istatus, ncid, gi_id,&
-         abort=abort_on_restart_fail)
+         abort=abort_on_restart_fail, var='gi')
 
     g = cmplx(tmpr, tmpi)
 
@@ -1048,16 +1054,19 @@ contains
     if (allocated(kx_shift)) then   ! MR begin
        if (.not. allocated(stmp)) allocate (stmp(naky))   ! MR 
        istatus = nf90_get_var (ncid, kx_shift_id, stmp)
-       if (istatus /= NF90_NOERR) call netcdf_error (istatus, ncid, kx_shift_id)
+       if (istatus /= NF90_NOERR) &
+         call netcdf_error (istatus, ncid, kx_shift_id, var='kx_shift')
        kx_shift = stmp
     endif   ! MR end
 
     if (fphi > epsilon(0.)) then
        istatus = nf90_get_var (ncid, phir_id, ftmpr)
-       if (istatus /= NF90_NOERR) call netcdf_error (istatus, ncid, phir_id)
+       if (istatus /= NF90_NOERR) &
+         call netcdf_error (istatus, ncid, phir_id, var= 'phir')
        
        istatus = nf90_get_var (ncid, phii_id, ftmpi)
-       if (istatus /= NF90_NOERR) call netcdf_error (istatus, ncid, phii_id)
+       if (istatus /= NF90_NOERR) &
+         call netcdf_error (istatus, ncid, phii_id, var='phii')
        
        phi = 0.
        phinew = cmplx(ftmpr, ftmpi)
