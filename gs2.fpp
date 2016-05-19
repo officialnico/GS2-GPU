@@ -87,8 +87,8 @@ program gs2
   implicit none
   type(gs2_program_state_type) :: state
   !type(optimisation_type) :: optim
-  call initialize_wall_clock_timer
   call initialize_gs2_optimisation(state)
+  call initialize_wall_clock_timer
 
   if (state%optim%on) then
     call optimise_gs2(state)
