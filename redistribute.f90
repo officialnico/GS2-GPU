@@ -5456,10 +5456,6 @@ contains
 
     !If overlapping then start comms now 
 !    if(opt_redist_persist_overlap) call c_redist_36_mpi_copy_persist_start(r, from_here)
-!AJ4
-!    call barrier()
-
-
 
     ! redistribute from local processor to local processor
     do i = 1, r%from(iproc)%nn
@@ -5508,6 +5504,25 @@ contains
     !AJ send and receive buffer.
     complex, dimension(:,:,:), allocatable :: temp_buff
 
+    logical :: exist
+    character(100) :: filename
+
+!    write (filename, "(A4,I4)") "send", iproc
+!    inquire(file=filename, exist=exist)
+!    if (exist) then
+!       open(12, file=filename, status="old", position="append", action="write")
+!    else
+!       open(12, file=filename, status="replace", action="write")
+!    end if
+
+!    write (filename, "(A4,I4)") "recv", iproc
+!    inquire(file=filename, exist=exist)
+!    if (exist) then
+!       open(13, file=filename, status="old", position="append", action="write")
+!    else
+!       open(13, file=filename, status="replace", action="write")
+!    end if
+
     allocate(temp_buff(-ntgrid:ntgrid, 1:2, size(r%complex_buff)))
 
     ! redistribute to idpth next processor from idpth preceding processor
@@ -5521,16 +5536,48 @@ contains
        if (mod(iproc/iadp,2) == 0) then
           ! send to idpth next processor
           if (r%from(ipto)%nn > 0) then
-             do i = 1, r%from(ipto)%nn 
-                temp_buff(:,:,i) = from_here(:,:,r%from(ipto)%m(i))
-             end do
-             call send (temp_buff(:,:,1:r%from(ipto)%nn), ipto, idp)
+!             write(12,*) ipto
           end if
 
           !AJ FIX TO DO CONTIGIOUS BLOCKS
           ! receive from idpth preceding processor
           if (r%to(ipfrom)%nn > 0) then
-             call receive (temp_buff(:,:,1:r%to(ipfrom)%nn), ipfrom, idp)
+!             write(13,*) ipfrom
+          end if
+       else
+          ! receive from idpth preceding processor
+          if (r%to(ipfrom)%nn > 0) then
+             write(13,*) ipfrom
+          end if
+          ! send to idpth next processor
+          if (r%from(ipto)%nn > 0) then
+             write(12,*) ipto
+          end if
+       end if
+    end do
+
+!    close(12)
+!    close(13)
+
+
+    do idp = 1, nproc-1
+       ipto = mod(iproc + idp, nproc)
+       ipfrom = mod(iproc + nproc - idp, nproc)
+       iadp = min(idp, nproc - idp)
+       ! avoid deadlock AND ensure mostly parallel resolution
+       if (mod(iproc/iadp,2) == 0) then
+          ! send to idpth next processor
+          if (r%from(ipto)%nn > 0) then
+             do i = 1, r%from(ipto)%nn 
+                temp_buff(:,:,i) = from_here(:,:,r%from(ipto)%m(i))
+             end do
+             call send (temp_buff(:,:,1:r%from(ipto)%nn), ipto, 0)
+          end if
+
+          !AJ FIX TO DO CONTIGIOUS BLOCKS
+          ! receive from idpth preceding processor
+          if (r%to(ipfrom)%nn > 0) then
+             call receive (temp_buff(:,:,1:r%to(ipfrom)%nn), ipfrom, 0)
              do i = 1, r%to(ipfrom)%nn
                 to_here(:,:,r%to(ipfrom)%m(i), &
                             r%to(ipfrom)%n(i), &
@@ -5542,7 +5589,7 @@ contains
        else
           ! receive from idpth preceding processor
           if (r%to(ipfrom)%nn > 0) then
-             call receive (temp_buff(:,:,1:r%to(ipfrom)%nn), ipfrom, idp)
+             call receive (temp_buff(:,:,1:r%to(ipfrom)%nn), ipfrom, 0)
              do i = 1, r%to(ipfrom)%nn
                 to_here(:,:,r%to(ipfrom)%m(i), &
                             r%to(ipfrom)%n(i), &
@@ -5556,18 +5603,21 @@ contains
              do i = 1, r%from(ipto)%nn
                 temp_buff(:,:,i) = from_here(:,:,r%from(ipto)%m(i))
              end do
-             call send (temp_buff(:,:,1:r%from(ipto)%nn), ipto, idp)
+             call send (temp_buff(:,:,1:r%from(ipto)%nn), ipto, 0)
           end if
        end if
     end do
 
+
     deallocate(temp_buff)
+
+
 
   end subroutine c_redist_36_mpi_copy
 
   subroutine c_redist_36_mpi_copy_nonblock(r, from_here, to_here)
 
-    use mp, only: iproc, nproc, nbsend, nbrecv, waitany, waitall, status_size, initialise_requests
+    use mp, only: iproc, nproc, nbsend, nbrecv, waitany, waitall, status_size, initialise_requests, mp_abort
     use theta_grid, only : ntgrid
     type (redist_type), intent (in out) :: r
 
@@ -5582,8 +5632,7 @@ contains
                         r%to_low(5):, &
                         r%to_low(6):), intent (in out) :: to_here
 
-    integer :: i, ip, nsend, nrecv, count, ipfrom
-    integer, dimension(status_size) :: status
+    integer :: i, ip, nsend, nrecv, count, ipfrom, msgsize
     !AJ Added as the r%complex_buf is not designed for sending contigous blocks, rather to pack individual elements
     !AJ into the buffer.  As each element in my redist object is actually (2*ntgrid+1)*2 (sigma) then I need a bigger
     !AJ send and receive buffer.
@@ -5593,81 +5642,69 @@ contains
     nrecv = 0
     nsend = 0
     do ip = 0, nproc-1
-       if(r%to(ip)%nn>0.and.ip.ne.iproc) nrecv=nrecv+1
-       if(r%from(ip)%nn>0.and.ip.ne.iproc) nsend=nsend+1
+       if(r%to(ip)%nn.gt.0.and.ip.ne.iproc) nrecv=nrecv+1
+       if(r%from(ip)%nn.gt.0.and.ip.ne.iproc) nsend=nsend+1
     end do
 
-    if(nrecv>0) then
+    if(nrecv.gt.0) then
        allocate(recv_buff(-ntgrid:ntgrid,1:2,size(r%complex_buff),nrecv))
        allocate(recv_hand(nrecv))
        allocate(recv_lookup(nrecv))
        call initialise_requests(recv_hand)
        count = 0
        do ip=0,nproc-1
-          if(r%to(ip)%nn>0.and.ip.ne.iproc) then
+          if(r%to(ip)%nn.gt.0.and.ip.ne.iproc) then
              count = count + 1
-             if(count .gt. nrecv) then
-                write(*,*) 'error with count',iproc,count,nrecv
-             end if
              recv_lookup(count) = ip
-             call nbrecv(recv_buff(-ntgrid:ntgrid,:,1:r%to(ip)%nn,count),ip,ip,recv_hand(count))
+             msgsize = (((ntgrid*2)+1)*2)*r%to(ip)%nn
+             call nbrecv(recv_buff(-ntgrid:ntgrid,:,1:r%to(ip)%nn,count),msgsize,ip,ip,recv_hand(count))
           end if
        end do
 
-       if(count .ne. nrecv) then
-         write(*,*) 'problem with count and nrecv'
-       end if
-
     end if
 
-    if(nsend>0) then
+    if(nsend.gt.0) then
        allocate(send_buff(-ntgrid:ntgrid,1:2,size(r%complex_buff),nsend))
        allocate(send_hand(nsend))       
        call initialise_requests(send_hand)
        count = 0
        do ip=0,nproc-1
-          if(r%from(ip)%nn>0.and.ip.ne.iproc) then
+          if(r%from(ip)%nn.gt.0.and.ip.ne.iproc) then
              count = count + 1
              do i = 1, r%from(ip)%nn 
                 send_buff(:,:,i,count) = from_here(:,:,r%from(ip)%m(i))
              end do
-             call nbsend (send_buff(:,:,1:r%from(ip)%nn,count),ip,iproc,send_hand(count))
+             msgsize = (((ntgrid*2)+1)*2)*r%from(ip)%nn
+             call nbsend (send_buff(:,:,1:r%from(ip)%nn,count),msgsize,ip,iproc,send_hand(count))
           end if
        end do
     end if
 
-    if(nrecv>0) then
+    if(nsend.gt.0) then
+       call waitall(nsend, send_hand)
+       deallocate(send_buff)
+       deallocate(send_hand)
+    end if
+
+    if(nrecv.gt.0) then
        call waitall(nrecv, recv_hand)
        do ip = 1,nrecv
-!          call waitany(nrecv, recv_hand, count, status)          
-!          ipfrom = recv_lookup(count) 
-          ipfrom = recv_lookup(ip) 
+!          call waitany(nrecv, recv_hand, count)    
+          count = ip
+          ipfrom = recv_lookup(count) 
           do i = 1, r%to(ipfrom)%nn
              to_here(:,:,r%to(ipfrom)%m(i), &
                   r%to(ipfrom)%n(i), &
                   r%to(ipfrom)%o(i), &
                   r%to(ipfrom)%p(i)) &
-!                  = recv_buff(:,:,i,count)
-                  = recv_buff(:,:,i,ip)
+                  = recv_buff(:,:,i,count)
           end do
        end do
-    end if
-    
-    if(nsend>0) then
-       call waitall(nsend, send_hand)
-    end if
-
-
-    if(nsend>0) then
-       deallocate(send_buff)
-       deallocate(send_hand)
-    end if
-
-    if(nrecv>0) then
        deallocate(recv_buff)
        deallocate(recv_hand)
        deallocate(recv_lookup)
     end if
+
 
 
   end subroutine c_redist_36_mpi_copy_nonblock

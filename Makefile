@@ -65,9 +65,9 @@ GK_PROJECT ?= gs2
 # Be careful that DEBUG=off means DEBUG=on.
 #
 # turns on debug mode (bin)
-DEBUG ?=
+DEBUG ?= on
 # turns on scalasca instrumentation mode (bin)
-SCAL ?= 
+SCAL ?=
 # turns on test mode (bin)
 TEST ?=
 # turns on profile mode (gprof,ipm)
@@ -85,7 +85,7 @@ USE_SHMEM ?=
 # which FFT library to use (fftw,fftw3,mkl_fftw,undefined) 
 USE_FFT ?= fftw3
 # uses netcdf library (bin)
-USE_NETCDF ?= on
+USE_NETCDF ?=
 # uses parallel netcdf library
 USE_PARALLEL_NETCDF ?= 
 # uses hdf5 library (bin)

@@ -2,6 +2,8 @@ module layouts_type
   ! This can be made by just replacing nakx by ntheta0
   !   from AstroGK's layouts_type.f90
 
+  use mp, only: comm_type
+  
   implicit none
 
   private
@@ -18,7 +20,9 @@ module layouts_type
      sequence
      logical :: mine
      integer :: num_procs
-     integer,dimension(:),allocatable  :: proc_list
+     type(comm_type) :: comm
+     integer,dimension(:),allocatable :: proc_list
+     integer,dimension(:),allocatable :: sub_proc_list
   end type ikitprocs
 
   type :: g_layout_type

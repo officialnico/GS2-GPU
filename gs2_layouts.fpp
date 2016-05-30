@@ -62,7 +62,7 @@ module gs2_layouts
   public :: init_le_layouts
   public :: le_lo
 ! <MAB
-
+  !AJ new layouts for fields_gf_local and gf_lo integration
   public :: init_gf_layouts
   public :: gf_lo
 
@@ -87,7 +87,7 @@ module gs2_layouts
 
   public :: fft_use_wisdom, fft_wisdom_file, fft_measure_plan
 
-  public :: simple_gf_decomposition
+  public :: simple_gf_decomposition, gf_local_fields
 
   logical :: initialized_x_transform = .false.
   logical :: initialized_y_transform = .false.
@@ -113,6 +113,7 @@ module gs2_layouts
   logical :: fft_use_wisdom, fft_measure_plan
   logical :: exist
   logical :: simple_gf_decomposition
+  logical :: gf_local_fields
 
 ! TT>
 !!$  type :: g_layout_type
@@ -428,14 +429,14 @@ contains
   subroutine read_parameters
     use file_utils, only: input_unit, error_unit, input_unit_exist, error_unit
     use redistribute, only: opt_redist_nbk, opt_redist_persist, opt_redist_persist_overlap
-    use mp, only: mp_abort
+    use mp, only: mp_abort, proc0
     implicit none
     integer :: in_file
     namelist /layouts_knobs/ layout, local_field_solve, unbalanced_xxf, &
          max_unbalanced_xxf, unbalanced_yxf, max_unbalanced_yxf, &
          opt_local_copy, opt_redist_nbk, opt_redist_init, intmom_sub, &
          intspec_sub, opt_redist_persist, opt_redist_persist_overlap, fft_measure_plan, &
-         fft_use_wisdom, fft_wisdom_file, simple_gf_decomposition
+         fft_use_wisdom, fft_wisdom_file, simple_gf_decomposition, gf_local_fields
 
     local_field_solve = .false.
     unbalanced_xxf = .false.
@@ -456,6 +457,7 @@ contains
     intmom_sub=.false.
     intspec_sub=.false.
     simple_gf_decomposition=.true.
+    gf_local_fields = .false.
     in_file=input_unit_exist("layouts_knobs", exist)
     if (exist) read (unit=input_unit("layouts_knobs"), nml=layouts_knobs)
     if (layout.ne.'yxels' .and. layout.ne.'yxles' .and. layout.ne.'lexys'&
@@ -464,6 +466,8 @@ contains
        write(6,*) "gs2_layouts: read_parameters finds illegal layout=",layout," =>stop"
        call mp_abort("gs2_layouts: read_parameters finds illegal layout=")
     endif
+
+    if(proc0) write(*,*) 'layout:',layout
 
 ! max_unbalanced_xxf and max_unbalanced_yxf have a maximum range of 0.0 - 1.0
 ! so check here whether the user has specified the range correctly and adjust if 
@@ -531,6 +535,7 @@ contains
     call broadcast (fft_use_wisdom)
     call broadcast (fft_wisdom_file)
     call broadcast (simple_gf_decomposition)
+    call broadcast (gf_local_fields)
   end subroutine broadcast_results
 
   subroutine check_accel (ntheta0, naky, nlambda, negrid, nspec, nblock)
@@ -703,8 +708,8 @@ contains
 
   subroutine init_dist_fn_layouts &
        (naky, ntheta0, nlambda, negrid, nspec)
-    use mp, only: iproc, nproc, proc0
-    use mp, only: split, mp_comm, nproc_comm, rank_comm
+    use mp, only: iproc, nproc, proc0, comm_type
+    use mp, only: split, free_comm, mp_comm, nproc_comm, rank_comm
     use mp, only: sum_allreduce_sub, sum_allreduce, sum_reduce, max_reduce
 ! TT>
     use file_utils, only: error_unit
@@ -722,6 +727,8 @@ contains
     logical,dimension(5) :: dim_divides,dim_local
     logical,dimension(:),allocatable :: it_local, ik_local, il_local, ie_local, is_local
     integer,dimension(nproc) :: tmp_proc_list
+    integer :: colour
+    type(comm_type) :: tmpcomm
 ! TT>
 # ifdef USE_C_INDEX
     integer :: ierr
@@ -881,6 +888,8 @@ contains
     ie_local=.false.
     is_local=.false.
     g_lo%ikitrange = 0
+    !AJ g_lo%ikit_procs_assignment is used to record which ik,it points I have from the range of 
+    !AJ ik,it points.
     allocate(g_lo%ikit_procs_assignment(ntheta0,naky))
     g_lo%ikit_procs_assignment(:,:)%mine = .false.
     g_lo%ikit_procs_assignment(:,:)%num_procs = 0
@@ -905,7 +914,7 @@ contains
        il_local(il)=.true.
        ie_local(ie)=.true.
        is_local(is)=.true.
-       if(g_lo%ikit_procs_assignment(it,ik)%mine .eq. .false.) then
+       if(.not. g_lo%ikit_procs_assignment(it,ik)%mine) then
           g_lo%ikit_procs_assignment(it,ik)%mine = .true.
           g_lo%ikitrange = g_lo%ikitrange + 1
        end if
@@ -916,61 +925,77 @@ contains
     tmp = 1
     do ik=1,naky
        do it=1,ntheta0
-          if(g_lo%ikit_procs_assignment(it,ik)%mine .eq. .true.) then
+          colour = 0
+          if(g_lo%ikit_procs_assignment(it,ik)%mine) then
              g_lo%local_ikit_points(tmp)%ik = ik 
              g_lo%local_ikit_points(tmp)%it = it 
              tmp = tmp + 1
+             colour = 1
+          end if
+          if(gf_local_fields) then
+             call split(colour,tmpcomm)
+             if(g_lo%ikit_procs_assignment(it,ik)%mine) then
+                g_lo%ikit_procs_assignment(it,ik)%comm = tmpcomm
+             else
+                call free_comm(tmpcomm)
+             end if
           end if
        end do
     end do
 
-    !AJ It's probably possible to only run this code below if you are using gf_local fields
-    !AJ Check that this is the case and if so make this conditional.
-    !AJ This will depend if the fields module has been initialised before this module (so we can 
-    !AJ work out which type of field operations we are using).
-    g_lo%max_ikit_nprocs = 0
-    do ik=1,naky
-       do it=1,ntheta0
-          tmp = 0
-          tmp_proc_list = 0
-          if(g_lo%ikit_procs_assignment(it,ik)%mine .eq. .true.) then
-             tmp = 1
-             tmp_proc_list(iproc+1) = 1
-          end if
-          call sum_allreduce(tmp)
-          call sum_allreduce(tmp_proc_list)
-          allocate(g_lo%ikit_procs_assignment(it,ik)%proc_list(tmp))
-          g_lo%ikit_procs_assignment(it,ik)%num_procs = tmp
-          g_lo%max_ikit_nprocs = max(tmp, g_lo%max_ikit_nprocs)
-          tmp = 1
-          do i=1,nproc
-             if(tmp_proc_list(i) .eq. 1) then
-                g_lo%ikit_procs_assignment(it,ik)%proc_list(tmp) = i-1
-                tmp = tmp + 1
+
+    if(gf_local_fields) then
+       g_lo%max_ikit_nprocs = 0
+       do ik=1,naky
+          do it=1,ntheta0
+             tmp = 0
+             tmp_proc_list = 0
+             if(g_lo%ikit_procs_assignment(it,ik)%mine) then
+                tmp = 1
+                !AJ +1 is required here to ensure that proc0 of the sub comm is also counted
+                tmp_proc_list(iproc+1) = g_lo%ikit_procs_assignment(it,ik)%comm%iproc+1
              end if
+             call sum_allreduce(tmp)
+             call sum_allreduce(tmp_proc_list)
+             !AJ proc_list is the array process ranks (of the processes that own this ik,it point) in the communicator used for g_lo
+             allocate(g_lo%ikit_procs_assignment(it,ik)%proc_list(tmp))
+             !AJ sub_proc_list is the array of process ranks (of the processes that own this ik,it point) in the sub-communicator used for the fields calculations
+             allocate(g_lo%ikit_procs_assignment(it,ik)%sub_proc_list(tmp))
+             g_lo%ikit_procs_assignment(it,ik)%num_procs = tmp
+             g_lo%max_ikit_nprocs = max(tmp, g_lo%max_ikit_nprocs)
+             tmp = 1
+             !AJ Iterate through all the processes and record if they are part of this ik,it point in g_lo
+             do i=1,nproc
+                if(tmp_proc_list(i) .gt. 0) then
+                   g_lo%ikit_procs_assignment(it,ik)%proc_list(tmp) = i-1
+                   g_lo%ikit_procs_assignment(it,ik)%sub_proc_list(tmp) = tmp_proc_list(i)-1
+                   tmp = tmp + 1
+                end if
+             end do
           end do
        end do
-    end do
-
-    tmp = g_lo%ikitrange
-    call max_reduce(tmp,0)
-    if(proc0) then
-       write(*,*) 'maximum number of ik,it points an given process owns in g_lo',tmp
+       
+       tmp = g_lo%ikitrange
+       call max_reduce(tmp,0)
+#ifdef DEBUG
+       if(proc0) then
+          write(*,*) 'maximum number of ik,it points a given process owns in g_lo',tmp
+       end if
+#endif
+       tmp = g_lo%ikitrange
+       call sum_reduce(tmp, 0)
+#ifdef DEBUG
+       if(proc0) then
+          write(*,*) 'average number of ik,ik points',tmp/nproc
+       end if
+#endif
     end if
-    tmp = g_lo%ikitrange
-    call sum_reduce(tmp, 0)
-    if(proc0) then
-       write(*,*) 'average number of ik,ik points',tmp/nproc
-    end if
-
     !Store dimension locality
     g_lo%y_local=all(ik_local)
     g_lo%x_local=all(it_local)
     g_lo%l_local=all(il_local)
     g_lo%e_local=all(ie_local)
     g_lo%s_local=all(is_local)
-
-!    write(*,*) 'g_lo',iproc,g_lo%ikitrange,g_lo%local_ikit_points
     
     !//Deallocate locality data. Note this may actually be useful in some
     !places, so we may want to think about attaching it to the g_lo object
@@ -1246,7 +1271,6 @@ contains
 
        !<DD>Now split the global communicator
        call split(mycol,g_lo%xyblock_comm)
-
        !This is for unique les blocks
        col=1
        mycol=0
@@ -1265,7 +1289,6 @@ contains
 
        !Now split
        call split(mycol,g_lo%lesblock_comm)
-
     else
        g_lo%xyblock_comm=mp_comm
        g_lo%lesblock_comm=mp_comm
@@ -1343,6 +1366,7 @@ contains
           enddo
           les_kxky_range(rank_subcomm*2+1)=tmp
        endif
+
        !Now gather values and store in g_lo, sum_allreduce would also work
        !    call mpi_allgather(les_kxky_range(rank_subcomm*2:rank_subcomm*2+1),2,MPI_INTEGER,&
        !         les_kxky_range,2,MPI_INTEGER,g_lo%lesblock_comm)
@@ -1351,6 +1375,7 @@ contains
        do ip=0,nproc_subcomm-1
           g_lo%les_kxky_range(:,ip)=les_kxky_range(ip*2:ip*2+1)
        enddo
+
        !Free memory
        deallocate(les_kxky_range)
     endif
@@ -2097,14 +2122,10 @@ contains
   subroutine finish_dist_fn_layouts
 !    integer :: ik,it
     initialized_dist_fn_layouts = .false.
-!AJ This should not be necessary as deallocating the containing object in FORTRAN should also deallocate these arrays.
-!    do ik = 1,naky
-!       do it = 1,ntheta0
-!          if(allocated(g_lo%ikit_procs_assignment(it,ik)%proc_list)) deallocate(g_lo%ikit_procs_assignment(it,ik)%proc_list)
-!       end do
-!    end do
+!AJ Note, we do not deallocate ikit_procs_assignment()%proc_list or ikit_procs_assignment()%sub_proc_list as in Fortran these 
+!AJ should automatically be deallocated when ikit_procs_assignment is deallocated.
     if(allocated(g_lo%ikit_procs_assignment)) deallocate(g_lo%ikit_procs_assignment)
-    if(allocated(g_lo%ikit_procs_assignment)) deallocate(g_lo%local_ikit_points)
+    if(allocated(g_lo%local_ikit_points)) deallocate(g_lo%local_ikit_points)
   end subroutine finish_dist_fn_layouts
 
 !<DD>Added
@@ -2635,17 +2656,19 @@ contains
 ! <TT
 
 
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-! Fields Local layout
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+! Fields Local layout:  This is used to calculate velocity space integration
+! and other fields related calculations on a restricted process count for 
+! large core count simulations.  It takes naky and ntheta and distributed 
+! that amongst theta so that a single naky,ntheta point is only owned by 
+! a single process.
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   subroutine init_gf_layouts (ntgrid, naky, ntheta0, negrid, nlambda, nspec)
-    use mp, only: iproc, nproc, mp_abort, proc0
+    use mp, only: iproc, nproc, mp_abort
     use file_utils, only: error_unit
     use layouts_type, only: ikit
     implicit none
     integer, intent (in) :: ntgrid, naky, ntheta0, negrid, nlambda, nspec
-!    type(ikit),dimension(:),allocatable :: tmp
-!    integer :: igf, tmp_ind
 # ifdef USE_C_INDEX
     integer :: ierr
     interface
@@ -2672,10 +2695,6 @@ contains
     gf_lo%llim_world = 1
     gf_lo%blocksize = 1
     gf_lo%ulim_world = gf_lo%divisionblock * gf_lo%blocksize
-    if(proc0) then
-       write(*,*) 'Gf_lo domain size is:', gf_lo%ulim_world
-    end if
-
 !AJ This logic has been setup to deal with all the possible cases when constructing the decomposition of
 !AJ gf_lo over processes, namely; having more gf_lo points than processes (i.e. each process has multiple gf_lo points),
 !AJ having the same number of gf_lo points and processes, and having less gf_lo points than processes (i.e. some processes 
@@ -2691,6 +2710,11 @@ contains
 !AJ largeblocklimit == process number which is the last to have large blocks.  It is not very clean to have to 
 !AJ confusion, so TODO: Consider refactoring this to make the meaning of the variables described above consistent, or
 !AJ have different variables for the different scenarios. 
+!AJ TODO: Currently the decompositions do not respect naky boundaries.  Because if the linked nature of supercells 
+!AJ in field calculations (i.e. a supercell is a single naky point for one or more ntheta points) if a process has more than 
+!AJ one gf_lo point it should make sure those points are still all within a single supercell (i.e. different ntheta for 
+!AJ the same naky).  This would make the supercell calculations more efficient in this case (processes would not be 
+!AJ involved in multiple sets of collective communications in the fields calcs).
     if((gf_lo%divisionblock / gf_lo%nproc) .eq. 0) then
 !AJ x == ntheta0 y == naky
 !AJ Here we have less xy points than processes so we will have one process assigned the xy point (the cell) and 
@@ -2765,6 +2789,8 @@ contains
 !AJ Here we have more xy points than processes so some or all will have multiple xy points.  In this scenario
 !AJ the large region limit is the top of the igf domain where the large blocks finish and we go into small blocks,
 !AJ and the large block limit is the highest process number where the large block region finishes
+!AJ TODO: Make this respect supercell boundaries so each process only has a single y point but multiple x points 
+!AJ rather than multiple y points.  This would benefit fields calculations (see discussions in previous comment).
        gf_lo%largeblocklimit = mod(gf_lo%divisionblock,gf_lo%nproc)
        gf_lo%smallblocksize = (gf_lo%divisionblock/gf_lo%nproc) * gf_lo%blocksize
        gf_lo%largeblocksize = ((gf_lo%divisionblock/gf_lo%nproc)+1) * gf_lo%blocksize
@@ -2783,18 +2809,6 @@ contains
     end if
         
     gf_lo%ulim_alloc = gf_lo%ulim_proc
-
-!    allocate(tmp((gf_lo%ulim_proc - gf_lo%llim_proc) + 1))
-!    tmp_ind = 1
-!    do igf = gf_lo%llim_proc, gf_lo%ulim_proc
-!       tmp(tmp_ind)%ik = ik_idx(gf_lo,igf)
-!       tmp(tmp_ind)%it = it_idx(gf_lo,igf)
-!       tmp_ind = tmp_ind + 1
-!    end do
-
-!    write(*,*) 'gf_lo',iproc,((gf_lo%ulim_proc-gf_lo%llim_proc) + 1),tmp
-
-!    deallocate(tmp)
 
 # ifdef USE_C_INDEX
     ierr = init_indices_gflo_c (layout)
@@ -2880,8 +2894,6 @@ contains
     integer :: proc_id_gf
     type (gf_layout_type), intent (in) :: lo
     integer, intent (in) :: i
-!AJ This does not yet cope with all the different combinations of ways we can create blocks.
-!AJ Need to fix this
 
 !AJ For this scenario we have more blocks than processes so each process has multiple blocks, but the number of blocks
 !AJ does not exactly divide by the number of processes, so some have larger blocks than others.

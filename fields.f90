@@ -32,7 +32,7 @@ module fields
 contains
 
   subroutine check_fields(report_unit)
-    use fields_local, only: minNrow, do_smart_update
+    use fields_local, only: do_smart_update, minNRow
     implicit none
     integer, intent(in) :: report_unit
     select case (fieldopt_switch)
@@ -59,7 +59,7 @@ contains
   end subroutine check_fields
 
   subroutine wnml_fields(unit)
-    use fields_local, only: minNrow, do_smart_update
+    use fields_local, only: do_smart_update, minNRow
     implicit none
     integer, intent(in) :: unit
     if (.not. exist) return 
@@ -215,6 +215,7 @@ contains
     use fields_local, only: init_allfields_local
     use fields_gf_local, only: init_allfields_gf_local
     use dist_fn, only: gf_lo_integrate
+    use gs2_layouts, only: gf_local_fields
     implicit none
     logical, parameter :: debug=.false.
     if(proc0.and.debug) write(6,*) "Syncing fields with g."
@@ -230,10 +231,14 @@ contains
        call init_allfields_local
     case (fieldopt_gf_local)
        if (debug) write(6,*) "init_fields: init_allfields_gf_local"
-       if(.not. gf_lo_integrate) then
-          write(*,*) 'gf local fields cannot be used by gf_lo_integrate'
-          write(*,*) 'defaulting to local fields'
-          write(*,*) 'if you want to use gf local fields then set gf_lo_integrate to true in dist_fn_knobs'
+       if(.not. gf_lo_integrate .or. .not. gf_local_fields) then
+          if(proc0) then
+             write(*,*) 'gf local fields cannot be used by gf_lo_integrate'
+             write(*,*) 'defaulting to local fields'
+             fieldopt_switch = fieldopt_local
+             write(*,*) 'if you want to use gf local fields then set gf_lo_integrate to true in dist_fn_knobs'
+             write(*,*) 'and gf_local_fields to true in layout_knobs'
+          end if
           call init_allfields_local
        else
           call init_allfields_gf_local
@@ -244,10 +249,11 @@ contains
   subroutine read_parameters
     use file_utils, only: input_unit, error_unit, input_unit_exist
     use text_options, only: text_option, get_option_value
-    use mp, only: proc0, broadcast
+    use mp, only: proc0, broadcast, mp_abort
     use fields_implicit, only: field_subgath
-    use fields_local, only: minNrow
-    use fields_local, only: do_smart_update, field_local_allreduce, field_local_allreduce_sub, field_local_tuneminnrow
+    use fields_local, only: minNRow
+    use fields_local, only: do_smart_update, field_local_allreduce, field_local_allreduce_sub
+    use fields_local, only: field_local_tuneminnrow,  field_local_nonblocking_collectives
     use fields_arrays, only: response_file
     use file_utils, only: run_name
     implicit none
@@ -261,8 +267,8 @@ contains
     character(20) :: field_option
     character(len=256) :: response_dir
     namelist /fields_knobs/ field_option, remove_zonal_flows_switch, field_subgath, force_maxwell_reinit,&
-         dump_response, read_response, minNrow, do_smart_update, field_local_allreduce, field_local_allreduce_sub,&
-         response_dir, field_local_tuneminnrow
+         dump_response, read_response, minNRow, do_smart_update, field_local_allreduce, field_local_allreduce_sub,&
+         response_dir, field_local_tuneminnrow,  field_local_nonblocking_collectives
     integer :: ierr, in_file
 
     if (proc0) then
@@ -272,11 +278,12 @@ contains
        force_maxwell_reinit=.true.
        dump_response=.false.
        read_response=.false.
-       minnrow=16 !Tuning this can influence both init and advance times
        do_smart_update=.false.
        field_local_allreduce=.false.
        field_local_allreduce_sub=.false.
        field_local_tuneminnrow=.false.
+       field_local_nonblocking_collectives=.false.
+
        response_dir=''
        in_file = input_unit_exist ("fields_knobs", exist)
        if (exist) read (unit=in_file, nml=fields_knobs)
@@ -315,8 +322,10 @@ contains
        call broadcast (do_smart_update)
        call broadcast (field_local_allreduce)
        call broadcast (field_local_tuneminnrow)
+       call broadcast (field_local_nonblocking_collectives)
        call broadcast (field_local_allreduce_sub)
     end select
+
   end subroutine read_parameters
 
   subroutine set_dump_and_read_response(dump_flag, read_flag)
@@ -360,6 +369,8 @@ contains
           !AJ the extend of it and ik in gf_lo.  However, it would need to be done carefully 
           !AJ to ensure the proc0 has the full space if we are still reducing data to proc0 
           !AJ for diagnostics.
+          !AJ With some careful thought it should also be possible to remove this all together and 
+          !AJ simply use the arrays above, but that would need checking
           allocate (    gf_phi (-ntgrid:ntgrid,ntheta0,naky))
           allocate (   gf_apar (-ntgrid:ntgrid,ntheta0,naky))
           allocate (   gf_bpar (-ntgrid:ntgrid,ntheta0,naky))          
@@ -368,6 +379,7 @@ contains
           allocate (gf_bparnew (-ntgrid:ntgrid,ntheta0,naky))          
        end if
     endif
+    !AJ This shouldn't be necessary as it is done in the fields code....
     phi = 0.; phinew = 0.
     apar = 0.; aparnew = 0.
     bpar = 0.; bparnew = 0.

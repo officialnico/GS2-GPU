@@ -110,7 +110,7 @@ contains
     fields_implicit_unit_test_init_fields_implicit = .true.
   end function fields_implicit_unit_test_init_fields_implicit
 
-  subroutine init_allfields_implicit
+  subroutine init_allfields_implicit(gf_lo)
     use fields_arrays, only: phi, apar, bpar, phinew, aparnew, bparnew
     use dist_fn_arrays, only: g, gnew
     use dist_fn, only: get_init_field
@@ -118,8 +118,20 @@ contains
 
     implicit none
 
+    logical, optional :: gf_lo
+    logical :: local_gf_lo
+
+    if(present(gf_lo)) then
+      local_gf_lo = gf_lo
+    else
+      local_gf_lo = .false.
+    end if
+
     ! MAB> new field init option ported from agk
-    if (new_field_init) then
+    if(local_gf_lo) then
+       call get_init_field (phinew, aparnew, bparnew, .true.)
+       phi = phinew; apar = aparnew; bpar = bparnew; g = gnew
+    else if (new_field_init) then
        call get_init_field (phinew, aparnew, bparnew)
        phi = phinew; apar = aparnew; bpar = bparnew; g = gnew
     else

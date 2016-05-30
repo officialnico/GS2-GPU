@@ -1,7 +1,12 @@
-!> This module implements the same implicit algorithm as fields_implicit.
-!! However, it is an almost complete rewrite of the implementation 
-!! which can give large gains in the speed of calculating the response 
-!! matrix, as well as significant gains to the advance steps
+!AJ This module is based on the fields_local module (which is in term a re-implementation of the 
+!AJ fields implicit functionality).  fields_gf_local implements the implicit field calculation 
+!AJ using a gf_lo based data decomposition to improve performance on large process counts.  It
+!AJ utilises a smaller set of processes to reduce communication costs (at the expense of significant 
+!AJ load imbalance in the fields calculations).  It assumes gf_lo velocity space integration and 
+!AJ stores field data in gf_lo format (i.e. ik,it are decomposed over processes, everthing else is 
+!AJ local).
+!AJ Implemented by Adrian Jackson, EPCC, The University of Edinburgh; 2014-2016.  Funded by an 
+!AJ EPSRC ARCHER eCSE project.
 module fields_gf_local
   use mp, only: comm_type
   implicit none
@@ -10,8 +15,8 @@ module fields_gf_local
   !> Module level routines
   public :: init_fields_gf_local, init_allfields_gf_local, finish_fields_gf_local
   public :: advance_gf_local, reset_fields_gf_local, dump_response_to_file_gf_local
-  public :: fields_gf_local_functional, read_response_from_file_gf_local, gf_minNrow
-  public :: do_smart_update, field_local_allreduce, field_local_allreduce_sub
+  public :: fields_gf_local_functional, read_response_from_file_gf_local
+  public :: field_local_allreduce_sub
 
   !> Unit tests
   public :: fields_gf_local_unit_test_init_fields_matrixlocal
@@ -21,9 +26,6 @@ module fields_gf_local
 
   !> Made public for testing
   public :: fieldmat
-
-  public :: time_gf_reduce_an, time_gf_reduce_an_broadcast, time_gf_reduce_an_sendrecv
-  public :: time_gf_local_gather_proc0, time_gf_local_gather_all, time_gf_local_scatter
 
   !//////////////////////////////
   !// CUSTOM TYPES
@@ -94,6 +96,7 @@ module fields_gf_local
      integer :: nextend !Length of the extended domain
      integer :: nrow, ncol !The number of rows and columns. Equal to nextend*nfield
      integer :: it_left !It index of leftmost cell
+     integer :: head_iproc_world !The proc id (in comm world) of the head proc
      integer :: head_iproc !The proc id (in sc_sub_all) of the head proc
      integer :: head_iproc_pd !The proc id (in sc_sub_pd) of the head proc
      logical :: is_local !Does this supercell have any data on this proc?
@@ -137,14 +140,6 @@ module fields_gf_local
      procedure :: dump => sc_dump
      procedure :: make_subcom_1 => sc_make_subcom_1
      procedure :: make_subcom_2 => sc_make_subcom_2
-     procedure :: gfu_post_recv => sc_gfu_post_recv
-     procedure :: gfu_post_send => sc_gfu_post_send
-     procedure :: gfu_test_comms => sc_gfu_test_comms
-     procedure :: gfu_test_send => sc_gfu_test_send
-     procedure :: gfu_test_recv => sc_gfu_test_recv
-     procedure :: gfu_finish_comms => sc_gfu_finish_comms
-     procedure :: gfu_finish_send => sc_gfu_finish_send
-     procedure :: gfu_finish_recv => sc_gfu_finish_recv
   end type supercell_type
 
   !>This is the next level up of data and represents the ky type.
@@ -236,7 +231,6 @@ module fields_gf_local
      !of the fields are evolved on this processor.
      !NOTE: If we're doing force local invert really when we populate the supercell we should store all of the 
      !data locally so we don't need to fetch it later.
-     logical :: has_to_gather=.true. !If true we have to gather when calling getfieldeq, determined by decomp routine
    contains
      private
      procedure :: deallocate => pc_deallocate
@@ -259,29 +253,18 @@ module fields_gf_local
   !//////////////////////////////
   integer :: lun=6 !File unit for printing
   integer :: dlun=6 !File unit for debug printing
-  integer :: gf_minNrow !Smallest row block size used when working out which rows to have. 
   !Tuning this can improve advance/init time (usually one at the expense of other)
-  logical :: do_smart_update=.false. !If true and x/y distributed then use a "smart" update which only updates
   logical,parameter :: debug=.false. !Do we do debug stuff?
   logical :: initialised=.false. !Have we initialised yet?
   logical :: reinit=.false. !Are we reinitialising?
   logical :: dump_response=.false. !Do we dump the response matrix?
   logical :: read_response=.false. !Do we read the response matrix from dump?
-  logical :: field_local_allreduce = .false. !If true use an allreduce to gather field else use reduce+broadcast
   logical :: field_local_allreduce_sub = .false. !If true and field_local_allreduce true then do two sub comm all reduces rather than 1
   integer :: nfield !How many fields
   integer :: nfq !How many field equations (always equal to nfield)
   type(pc_type),save :: pc !This is the parallel control object
   type(fieldmat_type),save :: fieldmat !This is the top level field matrix object
 
-  real, dimension(:), allocatable :: start_times, end_times, best_times
-
-  real :: time_gf_reduce_an(2) = 0.
-  real :: time_gf_reduce_an_broadcast(2) = 0.
-  real :: time_gf_reduce_an_sendrecv(2) = 0.
-  real :: time_gf_local_gather_proc0(2) = 0.
-  real :: time_gf_local_gather_all(2) = 0.
-  real :: time_gf_local_scatter(2) = 0.
 contains
 
 !//////////////////////////////
@@ -328,9 +311,6 @@ contains
     !first index represents columns) matmul is a bit annoying
     !when trying to do a matrix-vector product
     rb_mv_mult_fun=-matmul(transpose(self%data),vect)
-!    do ir=1,self%nrow
-!       rb_mv_mult_fun(ir)=-sum(self%data(:,ir)*vect)
-!    enddo
   end function rb_mv_mult_fun
 
   !>Matrix vector multiplication stored in tmp_sum
@@ -420,7 +400,6 @@ contains
   !supercell.
   subroutine c_get_field_update(self,fq,fqa,fqp)
     use run_parameters, only: fphi, fapar, fbpar
-    use mp, only: iproc
     implicit none
     class(cell_type), intent(inout) :: self
     complex, dimension(self%ncol), intent(in) :: fq,fqa,fqp
@@ -451,7 +430,6 @@ contains
             self%tmp_sum(self%rb(ifq)%row_llim:self%rb(ifq)%row_ulim)&
             +self%rb(ifq)%tmp_sum
     enddo
-!    write(*,*) iproc,self%ik_ind,self%it_ind,self%rb(1)%row_llim,self%rb(1)%row_ulim,self%rb(1)%tmp_sum,':',self%tmp_sum
 
   end subroutine c_get_field_update
 
@@ -561,20 +539,14 @@ contains
        enddo
     endif
 
-    !<DD>TAGGED
-    !/If we're going to reduce why not reduce once on the top level object --> If we do
-    !local reduction and store in the top level ky_field_update then we can reduce the fields
-    !in order to do everything. This may require a new class of subcommunicators
-
     !Now we need to reduce across cells
-    !AJ Nonblocking could be done here
     call self%reduce_tmpsum
 
   end subroutine sc_get_field_update
 
   !>Reduce the field update across cells to give the final answer
   subroutine sc_reduce_tmpsum(self)
-    use mp, only: sum_allreduce_sub, sum_reduce_sub, iproc
+    use mp, only: sum_allreduce_sub, sum_reduce_sub
     implicit none
     class(supercell_type), intent(inout) :: self
     integer :: ic
@@ -586,176 +558,12 @@ contains
        if(self%cells(ic)%is_empty) cycle
        self%tmp_sum=self%tmp_sum+self%cells(ic)%tmp_sum
     enddo
-!    write(*,*) iproc,self%ik_ind,self%tmp_sum
 
-    !<DD>TAGGED: As we currently have to do fm_gather_fields on every time step we only need
-    !to reduce to the head of the supercell, which may be an all_local proc in which case we don't 
-    !want to do any  reduction. If it's a pd proc then really we should just do reduce_sub rather 
-    !than allreduce_sub as we're going to broadcast the result later anyway.
-    !if(self%sc_sub_pd%nproc.gt.0) call sum_allreduce_sub(self%tmp_sum,self%sc_sub_pd%id)
     if(.not.(self%is_empty.or.self%is_all_local)) then 
        call sum_reduce_sub(self%tmp_sum,0,self%sc_sub_pd)
     end if
-!AJ Can we do nonblocking stuff here?    
-    !<DD> At this point the head of the supercell has the field update stored in self%tmp_sum
-    !all other procs have partial/no data
 
-    !This can be used to populate the empty procs, but is not needed at the moment as we broadcast
-    !the result at the end of getfield_local currently, which turns out to be a lot faster (>~factor 2).
-!    if(self%sc_sub_not_full%nproc.gt.1)call broadcast_sub(self%tmp_sum,0,self%sc_sub_not_full%id)
   end subroutine sc_reduce_tmpsum
-
-  !>Post any non-blocking receives associated with filling the
-  !empty procs supercells
-  subroutine sc_gfu_post_recv(self)
-    use mp, only: nbrecv
-    implicit none
-    class(supercell_type), intent(inout) :: self
-
-    !Exit if we're not a member of the empty plus head comm
-    if(.not.self%is_local)return
-    if(self%sc_sub_not_full%nproc.le.0) return
-
-    !If we're not proc0 then we should expect to receive
-    !some data, so proc0 should leave
-    if(self%sc_sub_not_full%proc0) return
-
-    !Now we know that we're going to receive one message
-    !from proc0 and store it in self%tmp_sum
-    !Note, we don't tag the message but probably should
-    !(say with is_ind)
-    call nbrecv(self%tmp_sum,0,self%is_ind,self%sc_sub_not_full,self%nb_req_hand(1))
-  end subroutine sc_gfu_post_recv
-
-  !>Post any non-blocking receives associated with filling the
-  !empty procs supercells
-  subroutine sc_gfu_post_send(self)
-    use mp, only: nbsend
-    implicit none
-    class(supercell_type), intent(inout) :: self
-    integer :: ip
-
-    !Exit if we're not a member of the empty plus head comm
-    if(.not.self%is_local)return
-    if(self%sc_sub_not_full%nproc.le.0) return
-
-    !If we're not proc0 then we don't have anything to send
-    if(.not.self%sc_sub_not_full%proc0) return
-
-    !Now send to all the empty procs
-    do ip=1,self%sc_sub_not_full%nproc-1
-       call nbsend(self%tmp_sum,ip,self%is_ind,self%sc_sub_not_full,self%nb_req_hand(ip))
-    enddo
-  end subroutine sc_gfu_post_send
-
-  !>Check if the non-blocking communications have
-  !finished and wait until they have
-  subroutine sc_gfu_finish_comms(self)
-    use mp, only: waitall
-    implicit none
-    class(supercell_type), intent(inout) :: self
-
-    !Exit if we're not a member of the empty plus head comm
-    if(.not.self%is_local)return
-    if(self%sc_sub_not_full%nproc.le.0) return
-
-    !Wait
-    if(self%sc_sub_not_full%proc0) then
-       call waitall(self%sc_sub_not_full%nproc-1,self%nb_req_hand)
-    else
-       call waitall(1,self%nb_req_hand)
-    endif
-  end subroutine sc_gfu_finish_comms
-
-  !>Check if the non-blocking recv have
-  !finished and wait until they have
-  subroutine sc_gfu_finish_recv(self)
-    use mp, only: waitall
-    implicit none
-    class(supercell_type), intent(inout) :: self
-
-    !Exit if we're not a member of the empty plus head comm
-    if(.not.self%is_local)return
-    if(self%sc_sub_not_full%nproc.le.0) return
-
-    !Wait
-    if(.not.self%sc_sub_not_full%proc0) then
-       call waitall(1,self%nb_req_hand)
-    endif
-  end subroutine sc_gfu_finish_recv
-
-  !>Check if the non-blocking send have
-  !finished and wait until they have
-  subroutine sc_gfu_finish_send(self)
-    use mp, only: waitall
-    implicit none
-    class(supercell_type), intent(inout) :: self
-
-    !Exit if we're not a member of the empty plus head comm
-    if(.not.self%is_local)return
-    if(self%sc_sub_not_full%nproc.le.0) return
-
-    !Wait
-    if(self%sc_sub_not_full%proc0) then
-       call waitall(self%sc_sub_not_full%nproc-1,self%nb_req_hand)
-    endif
-  end subroutine sc_gfu_finish_send
-
-  !>Check if the non-blocking communications have
-  !finished, if not then exit
-  subroutine sc_gfu_test_comms(self)
-    use mp, only: testall
-    implicit none
-    class(supercell_type), intent(inout) :: self
-    logical :: flag
-
-    !Exit if we're not a member of the empty plus head comm
-    if(.not.self%is_local)return
-    if(self%sc_sub_not_full%nproc.le.0) return
-
-    !Wait
-    if(self%sc_sub_not_full%proc0) then
-       call testall(self%sc_sub_not_full%nproc-1,self%nb_req_hand,flag)
-    else
-       call testall(1,self%nb_req_hand,flag)
-    endif
-  end subroutine sc_gfu_test_comms
-
-  !>Check if the non-blocking recv have
-  !finished, if not then exit
-  subroutine sc_gfu_test_recv(self)
-    use mp, only: testall
-    implicit none
-    class(supercell_type), intent(inout) :: self
-    logical :: flag
-
-    !Exit if we're not a member of the empty plus head comm
-    if(.not.self%is_local)return
-    if(self%sc_sub_not_full%nproc.le.0) return
-
-    !Test
-    if(.not.self%sc_sub_not_full%proc0) then
-       call testall(1,self%nb_req_hand,flag)
-    endif
-  end subroutine sc_gfu_test_recv
-
-  !>Check if the non-blocking send have
-  !finished, if not then exit
-  subroutine sc_gfu_test_send(self)
-    use mp, only: testall
-    implicit none
-    class(supercell_type), intent(inout) :: self
-    logical :: flag
-
-    !Exit if we're not a member of the empty plus head comm
-    if(.not.self%is_local)return
-    if(self%sc_sub_not_full%nproc.le.0) return
-
-    !Test
-    if(self%sc_sub_not_full%proc0) then
-       call testall(self%sc_sub_not_full%nproc-1,self%nb_req_hand,flag)
-    endif
-  end subroutine sc_gfu_test_send
     
 !<DD>The iex_to routines all need testing!
   !>Convert the extended domain index to ig, it and ifl
@@ -858,7 +666,7 @@ contains
        call self%cells(ic)%reset
     enddo
 
-!AJ Free up communicators created for this supercell
+    !AJ Free up communicators created for this supercell
     if(self%sc_sub_not_full%nproc.gt.0) then
        call free_comm(self%sc_sub_not_full)
     end if
@@ -1071,9 +879,7 @@ contains
     !matrix inversion
     !Note could have a variable which forces local inversion
     if(self%is_all_local.or.pc%force_local_invert) then
-!       call self%dump(prefix="orig_")
        call self%invert_local
-!       call self%dump(prefix="inv_")
     else
        call self%invert_mpi
     endif
@@ -1122,6 +928,7 @@ contains
 
   !>Gather the row blocks up for this cell to fill an array
   subroutine sc_pull_rows_to_arr(self,arr)
+    !AJ Nonblocking?
     use mp, only: sum_allreduce_sub
     implicit none
     class(supercell_type), intent(in) :: self
@@ -1169,7 +976,6 @@ contains
 
   !>A routine to distribute an array to appropriate row blocks
   subroutine sc_push_arr_to_rows(self,arr)
-    use mp, only: broadcast_sub, mp_abort
     implicit none
     class(supercell_type), intent(inout) :: self
     complex, dimension(self%nrow,self%ncol), intent(in) :: arr
@@ -1238,7 +1044,7 @@ contains
 
   !>Create the secondary (intraobject) subcommunicators
   subroutine sc_make_subcom_2(self)
-    use mp, only: comm_type, split, free_comm, sum_allreduce_sub, proc0
+    use mp, only: comm_type, split, free_comm, sum_allreduce_sub, proc0, iproc
     implicit none
     class(supercell_type), intent(inout) :: self
     integer :: colour, key, cc
@@ -1340,6 +1146,10 @@ contains
     endif
 
     !Store the head_iproc
+    self%head_iproc_world=0
+    if(self%is_head) self%head_iproc_world=iproc
+    call sum_allreduce_sub(self%head_iproc_world,self%sc_sub_all%id)
+
     self%head_iproc=0
     if(self%is_head) self%head_iproc=self%sc_sub_all%iproc
     call sum_allreduce_sub(self%head_iproc,self%sc_sub_all%id)
@@ -1361,34 +1171,6 @@ contains
        !prevent stalls waiting for proc0 to catch up
        if(self%is_empty.and.(.not.proc0)) colour=1
 
-!        !/Now add in a head proc which actually has data
-!        !We prefer all_local procs over pd procs
-!        if(some_all)then
-!           !NOTE: In the case where there are no partial procs we need
-!           !a way to add in a all_local proc as head instead. This involves
-!           !two steps: 1)Work out if there are no partial procs, 2)Work out
-!           !which is the head all_local proc.
-!           !The easiest way is to make a subcom for all_local procs and just
-!           !force the head to join this not_full_subcom
-!           if(self%is_all_local.and.tmp%proc0)then
-!              colour=1
-!              !/Note we prefer all_local procs to be head
-!              !as these are more likely to be able to send
-!              !early (maybe?)
-!              key=0
-!           endif
-!           !Free the all_local communicator
-!           call free_comm(tmp)
-!        else 
-!           !If there are partial data procs then
-!           !also include the head of that in the subcomm
-!           if(self%sc_sub_pd%proc0)then 
-!              colour=1
-!              key=1
-!           endif
-!        endif
-
-!       if(self%is_head) then
        if(head_notfull) then
           colour=1
           key=0
@@ -1415,9 +1197,7 @@ contains
              call free_comm(tmp)
           endif
        endif
-    else
-!       !Free the all_local communicator
-!       if(some_all) call free_comm(tmp)
+
     endif
 
   end subroutine sc_make_subcom_2
@@ -1463,11 +1243,7 @@ contains
     !Note: Empty supercells don't do anything
     do is=1,self%nsupercell
        !/Calculate the field update
-!AJ ADD TIMING HERE
        call self%supercells(is)%get_field_update(fq,fqa,fqp)
-       !/Now post the non-blocking sends
-!       call self%supercells(is)%gfu_post_send
-!       call self%supercells(is)%gfu_test_recv
     enddo
   end subroutine ky_get_field_update
 
@@ -1861,12 +1637,13 @@ contains
     use fields_arrays, only: phi, apar, bpar, phinew, aparnew, bparnew
     use dist_fn_arrays, only: g
     use kt_grids, only: kwork_filter
-    use mp, only: barrier, iproc
     implicit none
     class(fieldmat_type), intent(inout) :: self
     integer :: ifl, pts_remain, ik, is
 
     !First initialise everything to 0
+    !AJ This is also done in fields.f90 when arrays are created so we should be 
+    !AJ able to remove from here.
     g=0
     phi=0.0
     phinew=0.0
@@ -1904,8 +1681,6 @@ contains
        enddo
     endif
 
-!AJ    call barrier()
-
     !Do apar
     if(fapar.gt.epsilon(0.0)) then
        !Set the number of points left
@@ -1931,8 +1706,6 @@ contains
           call self%init_next_field_points(aparnew,pts_remain,kwork_filter,ifl)
        enddo
     endif
-
-!AJ    call barrier()
 
     !Do bpar
     if(fbpar.gt.epsilon(0.0)) then
@@ -1971,8 +1744,7 @@ contains
     use theta_grid, only: ntgrid
     use dist_fn, only: getfieldeq, getfieldeq_nogath, timeadv
     use fields_arrays, only: phi, apar, bpar, phinew, aparnew, bparnew
-    use fields_arrays, only: gf_phinew, gf_aparnew, gf_bparnew
-    use mp, only: barrier, iproc
+    use mp, only: barrier
     implicit none
     class(fieldmat_type), intent(inout) :: self
     complex, dimension(-ntgrid:ntgrid,ntheta0,naky), intent(inout) :: field
@@ -2064,24 +1836,9 @@ contains
     !In some(/most) situations the nogath version should
     !be ok, and will be better for scaling.
 
-!AJ2    call barrier()
-!    write(*,*) 'before getfieldeq',iproc
-    if(pc%has_to_gather)then
-       !AJ This needs to be fixed.
-       write(*,*) 'Not implemented for gf_local fields'
-       !AJ dist_fn getfieldeq
-!       call getfieldeq(phinew,aparnew,bparnew,fq,fqa,fqp)
-    else
-!       call getfieldeq_nogath(phinew,aparnew,bparnew,fq,fqa,fqp)
-!<DD>Could improve performance by using a "smart" routine which only operates on local/not empty data
-       call self%getfieldeq_nogath(phinew,aparnew,bparnew,fq,fqa,fqp)
-    endif
-
-!AJ    call barrier()
-
-!    write(*,*) 'middle getfieldeq',iproc
-!    write(*,*) 'completely after getfieldeq',iproc
-
+!AJ2
+    call barrier()
+    call self%getfieldeq_nogath(phinew,aparnew,bparnew,fq,fqa,fqp)
 
     !Now we need to store the field equations in the appropriate places
     do ik=1,self%naky
@@ -2176,13 +1933,6 @@ contains
        do is=1,self%kyb(ik)%nsupercell
           if(.not.self%kyb(ik)%supercells(is)%is_local) cycle
           self%kyb(ik)%supercells(is)%tmp_sum=0.0
-!If we wanted to do non-blocking comms then we could pre post receives here
-!for empty procs (i.e. ones not involved in field computation)
-!          if(self%kyb(ik)%supercells(is)%is_empty)then
-!             call self%kyb(ik)%supercells(is)%gfu_post_recv
-!          else
-!             !Do nothing
-!          endif
        enddo
     enddo
 
@@ -2193,27 +1943,15 @@ contains
     allocate(fqp(-ntgrid:ntgrid,ntheta0,naky))
 
     !First get the field eq
-    if(pc%has_to_gather)then
-!AJ Need to implement
-       write(*,*) 'Not yet implemented in fields_gf_local'
-!AJ       call getfieldeq(phi,apar,bpar,fq,fqa,fqp)
-    else
-!       call getfieldeq_nogath(phi,apar,bpar,fq,fqa,fqp)
-!<DD>Could improve performance by using a "smart" routine which only operates on local/not empty data
-       call self%getfieldeq_nogath(phi,apar,bpar,fq,fqa,fqp)
-    endif
-!    write(*,*) phi
+    call self%getfieldeq_nogath(phi,apar,bpar,fq,fqa,fqp)
     !Now get the field update for each ik
     do ik=1,self%naky
        !Skip non-local ky
        if(.not.self%kyb(ik)%is_local) cycle
-
        !Trigger the supercell field updates
        !AJ Non-blocking can be done here
        call self%kyb(ik)%get_field_update(fq(:,:,ik),fqa(:,:,ik),fqp(:,:,ik))
     enddo
-
-!AJ Wait for collective comms here
 
     !Free memory
     deallocate(fq,fqa,fqp)
@@ -2312,15 +2050,6 @@ contains
        enddo
     endif
 
-!     !Deallocates for the nb send
-!     do ik=1,self%naky
-!        if(.not.self%kyb(ik)%is_local) cycle
-!        do is=1,self%kyb(ik)%nsupercell
-!           if(.not.self%kyb(ik)%supercells(is)%is_local) cycle
-!           call self%kyb(ik)%supercells(is)%gfu_finish_send
-!        enddo
-!     enddo
-
   end subroutine fm_unpack_to_field
 
   !>A routine to reset the object
@@ -2337,7 +2066,7 @@ contains
 
     !deallocate
     call self%deallocate
-!AJ Free the communicators associated with this field matrix object.
+    !AJ Free the communicators associated with this field matrix object.
     if(self%fm_sub_headsc_p0%nproc.gt.0) then
        call free_comm(self%fm_sub_headsc_p0)
     end if
@@ -2389,16 +2118,6 @@ contains
     self%fm_sub_all%nproc=nproc
     self%fm_sub_all%proc0=proc0
 
-    !NOTE: We may actually want to allow a communicator to be given as input
-    !as this would allow us to split off a group of procs to do the field
-    !calculations for separate fieldmat objects. This may be one way to look
-    !at preparing response matrices for different time steps etc.
-    !NOTE: We'd need to take this into account in the decomposition routines
-    !as well where we split up the work. and also in any fieldmat routine which uses
-    !iproc,nproc,proc0 etc.
-    !NOTE: Best way to achieve this is to always reference self%fm_sub_all when wanting
-    !iproc,nproc,proc0 etc.
-
     !Set the parents and make their subcommunicators
     do ik=1,self%naky
        !Set parent subcom
@@ -2433,12 +2152,6 @@ contains
     enddo
     !/Now split to make a subcom
     colour=0
-    !NOTE: Here we assume that the supercell head will always
-    !have the data we want *but* currently in ky_get_field we don't
-    !store anything on the procs for which the supercell is local but 
-    !empty. This should really be changed as whilst empty procs don't
-    !have any field data to calculate they will still need it when
-    !advancing g etc.
     if(has_head_sc.or.self%fm_sub_all%proc0) colour=1
     call split(colour,tmp,self%fm_sub_all%id)
     if(has_head_sc.or.self%fm_sub_all%proc0) then
@@ -2449,7 +2162,7 @@ contains
        !/Destroy subcom
        call free_comm(tmp)
     endif
-
+       
   end subroutine fm_make_subcom_2
 
   !AJ Record the process that is the supercell head associated with a given ik,it point
@@ -2493,15 +2206,13 @@ contains
     use mp, only: nbsend, nbrecv, waitall, broadcast_sub
     use mp, only: rank_comm, comm_type, proc0, iproc, initialise_requests
     use run_parameters, only: fphi, fapar, fbpar
-    use gs2_layouts, only: gf_lo, g_lo, intspec_sub, proc_id, idx, ik_idx, it_idx
-    use job_manage, only: time_message
+    use gs2_layouts, only: gf_lo, g_lo, proc_id, idx, ik_idx, it_idx
     implicit none
     class(fieldmat_type), intent(inout) :: self
     complex, dimension(-ntgrid:,:,:), intent(inout) :: ph,ap,bp,gf_ph,gf_ap,gf_bp
-    integer :: is, ic, iex, ig, bnd
-    integer :: igf, ik, it, ikit, sendreqnum, recvreqnum, sender, receiver, tag
+    integer :: igf, ik, it, sendreqnum, recvreqnum, sender, receiver, tag
     integer, dimension (:), allocatable :: recv_handles, send_handles
-    integer :: numsend, tempfield
+    integer :: tempfield
     complex, dimension(:,:,:,:), allocatable :: tempdata
 
     allocate(tempdata(-ntgrid:ntgrid,nfield,gf_lo%ntheta0,gf_lo%naky))
@@ -2509,7 +2220,6 @@ contains
     !AJ This section is for sending data from one of the g_lo owner to the 
     !AJ process that owns this it,ik point in gf_lo.
 
-    call time_message(.false.,time_gf_local_scatter,' Gf_local scatter fields')
 
     recvreqnum = 1
 
@@ -2588,7 +2298,6 @@ contains
     end do
     
     
-    call waitall(sendreqnum-1,send_handles)
     call waitall(recvreqnum-1,recv_handles)
     
     !AJ Now copy the received data out of the temporary array to the data arrays on proc0
@@ -2600,7 +2309,8 @@ contains
              if(kwork_filter(it,ik)) cycle
              !AJ Calculate which of the processes that own this it,ik point in g_lo space will send it to proc0
              !AJ This can be optimised by ensuring we choose proc0 to send this if proc0 is one of the owners of this
-             !AJ in g_lo (rather than just choosing the last process as we do here and elsewhere for load balance).
+             !AJ in g_lo (rather than just choosing the last process as we do here and elsewhere as a very 
+             !AJ basic attempt at load balancing).
              sender = g_lo%ikit_procs_assignment(it,ik)%proc_list(g_lo%ikit_procs_assignment(it,ik)%num_procs)       
                 
              if(sender .ne. iproc) then
@@ -2639,6 +2349,8 @@ contains
        end do
     end if      
 
+    call waitall(sendreqnum-1,send_handles)
+
     !AJ Send the data from one of the owners in g_lo to the owner in gf_lo. 
     recvreqnum = 1
 
@@ -2667,15 +2379,15 @@ contains
     do ik = 1,g_lo%naky
        do it = 1,g_lo%ntheta0
 
+          !AJ Choose the sender as the LAST process listed in the process list for a given ik,it point in g_lo
+          !AJ We chose the last process here to try and ensure that proc0 isn't overloaded.  Any of the processes 
+          !AJ in the proc_list could have been chosen
           if(g_lo%ikit_procs_assignment(it,ik)%proc_list(g_lo%ikit_procs_assignment(it,ik)%num_procs) .eq. iproc) then
              
              if(kwork_filter(it,ik)) cycle
 
              tag = ik*self%ntheta0 + it
 
-             !AJ Choose the sender as the LAST process listed in the process list for a given ik,it point in g_lo
-             !AJ We chose the last process here to try and ensure that proc0 isn't overloaded.  Any of the processes 
-             !AJ in the proc_list could have been chosen
              receiver = proc_id(gf_lo,idx(gf_lo,ik,it))
 
              if(iproc .ne. receiver) then
@@ -2706,7 +2418,7 @@ contains
        end do
     end do
 
-    call waitall(sendreqnum-1,send_handles)
+
     call waitall(recvreqnum-1,recv_handles)
 
     do igf = gf_lo%llim_proc, gf_lo%ulim_proc
@@ -2755,13 +2467,7 @@ contains
 
     end do
 
-!!$    if(iproc .eq. 132) then
-!!$       write(*,*) 'scatter phi',ph(:,8,2)
-!!$    else if(iproc .eq. 8) then
-!!$       write(*,*) 'scatter gf_phi',gf_ph(:,8,2)
-!!$    end if
-
-    call time_message(.false.,time_gf_local_scatter,' Gf_local scatter fields')
+    call waitall(sendreqnum-1,send_handles)
 
     deallocate(tempdata)
     deallocate(send_handles, recv_handles)
@@ -2769,36 +2475,36 @@ contains
   end subroutine fm_scatter_fields
 
   
-!AJ Need to see if need to implement to_all_in and do_allreduce_in
-  !>Gather all the fields to proc0/all for diagnostics etc.
   !AJ Redistribute fields from gf_lo to g_lo
-  subroutine fm_gather_fields(self,gf_ph,gf_ap,gf_bp,ph,ap,bp,to_proc0,supercell_unpack)
+  subroutine fm_gather_fields(self,gf_ph,gf_ap,gf_bp,ph,ap,bp)
     use theta_grid, only: ntgrid
     use kt_grids, only: naky, ntheta0, kwork_filter
-    use mp, only: nbsend, nbrecv, waitall, broadcast_sub
+    use mp, only: nbsend, nbrecv, waitall, broadcast_sub, sum_reduce_sub
     use mp, only: rank_comm, comm_type, proc0, iproc, initialise_requests
     use run_parameters, only: fphi, fapar, fbpar
-    use gs2_layouts, only: gf_lo, g_lo, intspec_sub, proc_id, idx, ik_idx, it_idx
-    use job_manage, only: time_message
+    use gs2_layouts, only: gf_lo, g_lo, proc_id, idx, ik_idx, it_idx
     implicit none
     class(fieldmat_type), intent(inout) :: self
+    !AJ We have two sets of field arrays; ph,ap,bp store the data we hold in g_lo (i.e. 
+    !AJ the field points we have in the g_lo decomposition), and gf_ph,gf_ap,gf_bp hold 
+    !AJ the field points we have in the gf_lo decomposition.  This was done for safety (to 
+    !AJ ensure that updating fields in gf_lo or g_lo did not interfere with each other), however
+    !AJ I THINK it should be possible to do this in a single array.
     complex, dimension(-ntgrid:,:,:), intent(inout) :: ph,ap,bp,gf_ph,gf_ap,gf_bp
-    logical, intent(in) :: to_proc0, supercell_unpack
     integer :: is, ic, iex, ig, bnd
-    integer :: igf, ik, it, ikit, sendreqnum, recvreqnum, sender, receiver, tag
+    integer :: ik, it, ikit, sendreqnum, recvreqnum, sender, receiver, tag
     integer, dimension (:), allocatable :: recv_handles, send_handles
-    integer :: numsend, tempfield, head, sub
-    complex, dimension(:,:,:,:), allocatable :: tempdata
+    integer :: tempfield, head, sub, local_iproc
+    complex, dimension(:,:,:,:), allocatable :: tempdata,tempdata3
     complex, dimension(:,:,:), allocatable :: tempdata2
+    logical :: use_broadcast = .false.
 
-    logical :: exists
-    character(len=8) :: fmt
-    character(len=5) :: x1
+    allocate(tempdata(-ntgrid:ntgrid,nfield,ntheta0,naky))
+    allocate(tempdata3(-ntgrid:ntgrid,nfield,ntheta0,naky))
+    
+    tempdata = 0.0
 
-    fmt = '(I5.5)'
-
-    if(supercell_unpack) then
-    !AJ Unpack tmp_sum on the supercell head
+    !AJ Unpack tmp_sum on the supercell head, tdmp_sum has the calculated field udate on the supercell hea
     do ik=1,self%naky
        if(.not.self%kyb(ik)%is_local) cycle
        do is=1,self%kyb(ik)%nsupercell
@@ -2806,6 +2512,7 @@ contains
           if(.not.self%kyb(ik)%supercells(is)%is_head) cycle
           
           iex=0
+          tempfield = 1
           if(fphi>epsilon(0.0)) then
              do ic=1,self%kyb(ik)%supercells(is)%ncell
                 it=self%kyb(ik)%supercells(is)%cells(ic)%it_ind
@@ -2813,9 +2520,10 @@ contains
                 if(ic.ne.self%kyb(ik)%supercells(is)%ncell) bnd=1
                 do ig=-ntgrid,ntgrid-bnd
                    iex=iex+1
-                   gf_ph(ig,it,ik)=self%kyb(ik)%supercells(is)%tmp_sum(iex)
+                   tempdata(ig,tempfield,it,ik)=self%kyb(ik)%supercells(is)%tmp_sum(iex)
                 enddo
              enddo
+             tempfield = tempfield + 1
           end if
           
           if(fapar>epsilon(0.0)) then
@@ -2825,9 +2533,10 @@ contains
                 if(ic.ne.self%kyb(ik)%supercells(is)%ncell) bnd=1
                 do ig=-ntgrid,ntgrid-bnd
                    iex=iex+1
-                   gf_ap(ig,it,ik)=self%kyb(ik)%supercells(is)%tmp_sum(iex)
+                   tempdata(ig,tempfield,it,ik)=self%kyb(ik)%supercells(is)%tmp_sum(iex)
                 enddo
              enddo
+             tempfield = tempfield + 1
           end if
           
           if(fbpar>epsilon(0.0)) then
@@ -2837,31 +2546,35 @@ contains
                 if(ic.ne.self%kyb(ik)%supercells(is)%ncell) bnd=1
                 do ig=-ntgrid,ntgrid-bnd
                    iex=iex+1
-                   gf_bp(ig,it,ik)=self%kyb(ik)%supercells(is)%tmp_sum(iex)
+                   tempdata(ig,tempfield,it,ik)=self%kyb(ik)%supercells(is)%tmp_sum(iex)
                 enddo
              enddo
           end if
           
           
+          tempfield  = 1
+
           !<DD>TAGGED:Worth looking at improving this bad memory pattern
           !/Now fix boundary points
           if(self%kyb(ik)%supercells(is)%ncell.gt.1) then
              if(fphi>epsilon(0.0)) then
                 do ic=1,self%kyb(ik)%supercells(is)%ncell-1
-                   gf_ph(ntgrid,self%kyb(ik)%supercells(is)%cells(ic)%it_ind,ik)=&
-                        gf_ph(-ntgrid,self%kyb(ik)%supercells(is)%cells(ic+1)%it_ind,ik)
+                   tempdata(ntgrid,tempfield,self%kyb(ik)%supercells(is)%cells(ic)%it_ind,ik)=&
+                        tempdata(-ntgrid,tempfield,self%kyb(ik)%supercells(is)%cells(ic+1)%it_ind,ik)
                 enddo
+                tempfield = tempfield + 1
              end if
              if(fapar>epsilon(0.0)) then
                 do ic=1,self%kyb(ik)%supercells(is)%ncell-1
-                   gf_ap(ntgrid,self%kyb(ik)%supercells(is)%cells(ic)%it_ind,ik)=&
-                        gf_ap(-ntgrid,self%kyb(ik)%supercells(is)%cells(ic+1)%it_ind,ik)
+                   tempdata(ntgrid,tempfield,self%kyb(ik)%supercells(is)%cells(ic)%it_ind,ik)=&
+                        tempdata(-ntgrid,tempfield,self%kyb(ik)%supercells(is)%cells(ic+1)%it_ind,ik)
                 enddo
+                tempfield = tempfield + 1
              end if
              if(fbpar>epsilon(0.0)) then
                 do ic=1,self%kyb(ik)%supercells(is)%ncell-1
-                   gf_bp(ntgrid,self%kyb(ik)%supercells(is)%cells(ic)%it_ind,ik)=&
-                        gf_bp(-ntgrid,self%kyb(ik)%supercells(is)%cells(ic+1)%it_ind,ik)
+                   tempdata(ntgrid,tempfield,self%kyb(ik)%supercells(is)%cells(ic)%it_ind,ik)=&
+                        tempdata(-ntgrid,tempfield,self%kyb(ik)%supercells(is)%cells(ic+1)%it_ind,ik)
                 enddo
              end if
              
@@ -2869,64 +2582,8 @@ contains
        end do
     enddo
 
-    !AJ Now send the data back to all processes in the supercell
-    !AJ This is less efficient than it needs to be.
-    !AJ We could combine broadcasts into a single broadcast for a cell
-    !AJ We could also make use of the fact that in gf_lo a cell is only
-    !AJ ever owned by a single owner so we could just send specific 
-    !AJ it,ik points to the processes that own them with point-to-point 
-    !AJ communications.
-    !AJ Also todo combine into single operation using tempdata rather than 3 operations
-    do ik=1,self%naky
-       if(self%kyb(ik)%is_empty) cycle
-       do is=1,self%kyb(ik)%nsupercell
-          if(self%kyb(ik)%supercells(is)%is_empty) cycle
-          head = self%kyb(ik)%supercells(is)%head_iproc
-          sub = self%kyb(ik)%supercells(is)%sc_sub_all%id
-          allocate(tempdata2(-ntgrid:ntgrid,nfield,self%kyb(ik)%supercells(is)%ncell))
-          if(self%kyb(ik)%supercells(is)%is_head) then
-             do ic=1,self%kyb(ik)%supercells(is)%ncell                
-                it=self%kyb(ik)%supercells(is)%cells(ic)%it_ind
-                tempfield = 1
-                if(fphi>epsilon(0.0)) then
-                   tempdata2(:,tempfield,ic) = gf_ph(:,it,ik)
-                   tempfield = tempfield + 1
-                end if
-                if(fapar>epsilon(0.0)) then
-                   tempdata2(:,tempfield,ic) = gf_ap(:,it,ik)
-                   tempfield = tempfield + 1
-                end if
-                if(fbpar>epsilon(0.0)) then
-                   tempdata2(:,tempfield,ic) = gf_bp(:,it,ik)
-                end if
-             end do             
-          end if
-          call broadcast_sub(tempdata2,head,sub)
-          if(.not.self%kyb(ik)%supercells(is)%is_head) then
-             do ic=1,self%kyb(ik)%supercells(is)%ncell
-                it=self%kyb(ik)%supercells(is)%cells(ic)%it_ind
-                tempfield = 1
-                if(fphi>epsilon(0.0)) then
-                   gf_ph(:,it,ik) = tempdata2(:,tempfield,ic)
-                   tempfield = tempfield + 1
-                end if
-                if(fapar>epsilon(0.0)) then
-                   gf_ap(:,it,ik) = tempdata2(:,tempfield,ic)
-                   tempfield = tempfield + 1
-                end if
-                if(fbpar>epsilon(0.0)) then
-                   gf_bp(:,it,ik) = tempdata2(:,tempfield,ic)
-                end if
-             end do
-          end if
-          deallocate(tempdata2)
-       end do
-    end do
-    end if
 
-    allocate(tempdata(-ntgrid:ntgrid,nfield,gf_lo%ntheta0,gf_lo%naky))
-
-    call time_message(.false.,time_gf_local_gather_proc0,' Gf_local gather fields proc0')
+    !AJ At this point tempdata has the calculated field update for a supercell on the supercell head.
 
     allocate(recv_handles(naky*ntheta0))
     allocate(send_handles(naky*ntheta0))
@@ -2934,341 +2591,319 @@ contains
     call initialise_requests(send_handles)
     call initialise_requests(recv_handles)
 
-    if(to_proc0) then
     recvreqnum = 1
-    
-    !AJ This send/recv's all the field data to proc0
-    !AJ This is currently required for diagnostics.
-    
-    !AJ This is to get all the fields to proc0
-    !AJ Iterate through the ik,it points and post a receive for each point that will be sent to me
-    if(proc0) then
-       
-       do ik = 1,self%naky
-          do it = 1,self%ntheta0
-             
-             if(kwork_filter(it,ik)) cycle
-             !AJ Calculate which process owns this it,ik point in gf_lo space
-             !AJ i.e. which process will be sending the data to this supercell head
-             sender = proc_id(gf_lo,idx(gf_lo,ik,it))
-             
-             if(sender .ne. iproc) then
-                
-                tag = ik*self%ntheta0 + it
-                
-                call nbrecv(tempdata(:,:,it,ik),sender,tag,recv_handles(recvreqnum))
-                recvreqnum = recvreqnum + 1
-                
-             end if
-          end do
-       end do
 
-    end if
+    !AJ Now we collect all the data from the supercell heads to proc0 for diagnostics.  If
+    !AJ we implemented distributed diagnostics then this would not be necessary.
     
-    sendreqnum = 1
-    
-    !AJ Iterate through all the points I own in gf_lo and send that part of the field 
-    !AJ arrays to proc0
-    receiver = 0
-    do igf = gf_lo%llim_proc, gf_lo%ulim_proc
+    if(self%fm_sub_headsc_p0%nproc.gt.0)then
+       call sum_reduce_sub(tempdata,0,self%fm_sub_headsc_p0)
        
-       ik = ik_idx(gf_lo,igf)
-       it = it_idx(gf_lo,igf)
-       if(kwork_filter(it,ik)) cycle          
-       
-       if(iproc .ne. receiver) then
-          
-          tag = ik*self%ntheta0 + it
+       !AJ proc0 unpacks the received field update data and updates it's fields from it.
+       !AJ Because proc0 now has all the field update data it can update both the gf_lo
+       !AJ fields and the g_lo fields.
+       if(proc0) then
           
           tempfield = 1
           if(fphi>epsilon(0.0)) then
-             tempdata(:,tempfield,it,ik) = gf_ph(:,it,ik)
+             ph = tempdata(:,tempfield,:,:)
+             gf_ph = ph
              tempfield = tempfield + 1
           end if
-          
+             
           if(fapar>epsilon(0.0)) then
-             tempdata(:,tempfield,it,ik) = gf_ap(:,it,ik)
+             ap = tempdata(:,tempfield,:,:)
+             gf_ap = ap
              tempfield = tempfield + 1
           end if
-                    
-          if(fbpar>epsilon(0.0)) then
-             tempdata(:,tempfield,it,ik) = gf_bp(:,it,ik)
-          end if
           
-          call nbsend(tempdata(:,:,it,ik),receiver,tag,send_handles(sendreqnum))
-          sendreqnum = sendreqnum + 1
+          if(fbpar>epsilon(0.0)) then
+             bp = tempdata(:,tempfield,:,:)
+             gf_bp = bp
+          end if
           
        end if
        
-    end do
-    
-    call waitall(sendreqnum-1,send_handles)
-    call waitall(recvreqnum-1,recv_handles)
-    
-    !AJ Now copy the received data out of the temporary array to the data arrays on proc0
-    if(proc0) then
+    end if
        
-       do ik = 1,self%naky
-          do it = 1,self%ntheta0
-             
-             if(kwork_filter(it,ik)) cycle
-             !AJ Calculate which process owns this it,ik point in gf_lo space
-             !AJ i.e. which process will be sending the data to this supercell head
-             sender = proc_id(gf_lo,idx(gf_lo,ik,it))
-             
-             if(sender .ne. iproc) then
-                
-                tempfield = 1
-                if(fphi>epsilon(0.0)) then
-                   ph(:,it,ik) = tempdata(:,tempfield,it,ik)
-                   gf_ph(:,it,ik) = tempdata(:,tempfield,it,ik)
-                   tempfield = tempfield + 1
-                end if
-                
-                if(fapar>epsilon(0.0)) then
-                   ap(:,it,ik) = tempdata(:,tempfield,it,ik)
-                   gf_ap(:,it,ik) = tempdata(:,tempfield,it,ik)
-                   tempfield = tempfield + 1
-                end if
-                
-                
-                if(fbpar>epsilon(0.0)) then
-                   bp(:,it,ik) = tempdata(:,tempfield,it,ik)
-                   gf_bp(:,it,ik) = tempdata(:,tempfield,it,ik)
-                end if
-                
-             else
-                
-                if(fphi>epsilon(0.0)) then
-                   ph(:,it,ik) = gf_ph(:,it,ik)
-                end if
-                
-                if(fapar>epsilon(0.0)) then
-                   ap(:,it,ik) = gf_ap(:,it,ik)
-                end if
-                
-                
-                if(fbpar>epsilon(0.0)) then
-                   bp(:,it,ik) = gf_bp(:,it,ik)
-                end if
-                
-                
+    !AJ Now send the data back to all processes in the supercell
+    !AJ This is less efficient than it needs to be.
+    !AJ We could also make use of the fact that in gf_lo a cell is only
+    !AJ ever owned by a single owner so we could just send specific 
+    !AJ it,ik points to the processes that own them with point-to-point 
+    !AJ communications (see the else part of this)
+    if(use_broadcast) then
+       do ik=1,self%naky
+          if(self%kyb(ik)%is_empty) cycle
+          do is=1,self%kyb(ik)%nsupercell
+             if(self%kyb(ik)%supercells(is)%is_empty) cycle
+             head = self%kyb(ik)%supercells(is)%head_iproc
+             sub = self%kyb(ik)%supercells(is)%sc_sub_all%id
+             allocate(tempdata2(-ntgrid:ntgrid,nfield,self%kyb(ik)%supercells(is)%ncell))
+             if(self%kyb(ik)%supercells(is)%is_head) then
+                do ic=1,self%kyb(ik)%supercells(is)%ncell                
+                   it=self%kyb(ik)%supercells(is)%cells(ic)%it_ind
+                   tempfield = 1
+                   if(fphi>epsilon(0.0)) then
+                      tempdata2(:,tempfield,ic) = tempdata(:,tempfield,it,ik)
+                      tempfield = tempfield + 1
+                   end if
+                   if(fapar>epsilon(0.0)) then
+                      tempdata2(:,tempfield,ic) = tempdata(:,tempfield,it,ik)
+                      tempfield = tempfield + 1
+                   end if
+                   if(fbpar>epsilon(0.0)) then
+                      tempdata2(:,tempfield,ic) = tempdata(:,tempfield,it,ik)
+                   end if
+                end do
              end if
+             call broadcast_sub(tempdata2,head,sub)
+             if(.not.self%kyb(ik)%supercells(is)%is_head) then
+                do ic=1,self%kyb(ik)%supercells(is)%ncell
+                   it=self%kyb(ik)%supercells(is)%cells(ic)%it_ind
+                   tempfield = 1
+                   if(fphi>epsilon(0.0)) then
+                      gf_ph(:,it,ik) = tempdata2(:,tempfield,ic)
+                      tempfield = tempfield + 1
+                   end if
+                   if(fapar>epsilon(0.0)) then
+                      gf_ap(:,it,ik) = tempdata2(:,tempfield,ic)
+                      tempfield = tempfield + 1
+                   end if
+                   if(fbpar>epsilon(0.0)) then
+                      gf_bp(:,it,ik) = tempdata2(:,tempfield,ic)
+                   end if
+                end do
+             end if
+             deallocate(tempdata2)
           end do
        end do
-    end if
-    end if
-    call time_message(.false.,time_gf_local_gather_proc0,' Gf_local gather fields proc0')
 
-    !AJ This section is for sending data from the gf_lo owner to one of the processes 
-    !AJ that own this it,ik point in g_lo.
-    !AJ NOTE: There may be multiple owners of a given it,ik point in g_lo.
-    !AJ We are excluding proc0 from the communications below as it already has the full data so should not 
-    !AJ need the data sent now.
-    !AJ We are using the same temporary array for send and receive storage, but it should not 
-    !AJ matter as we do not send data to ourself or receive data from our self (this is excluded 
-    !AJ in if statements below) so the same point in the array should never be both sent and received 
-    !AJ with MPI messages (as if this is the case we simply don't do the message) which should mean 
-    !AJ using the same temporary storage for send and receive is safe. 
-    call time_message(.false.,time_gf_local_gather_all,' Gf_local gather fields all')
-
-    recvreqnum = 1
+       !AJ Don't use the broadcast to do the sending back of data in the supercell,
+       !AJ use point to point communications instead.
+    else
+       
+       call initialise_requests(send_handles)
+       call initialise_requests(recv_handles)
+       
+       recvreqnum = 1
+       sendreqnum = 1
+       
+       do ik=1,self%naky
+          if(self%kyb(ik)%is_empty) cycle
+          do is=1,self%kyb(ik)%nsupercell
+             if(self%kyb(ik)%supercells(is)%is_empty) cycle
+             sender = self%kyb(ik)%supercells(is)%head_iproc_world
+             do ic=1,self%kyb(ik)%supercells(is)%ncell                
+                it=self%kyb(ik)%supercells(is)%cells(ic)%it_ind
+                receiver = proc_id(gf_lo,idx(gf_lo,ik,it))
+                !AJ For each supercell that I am head of send the data to the process that owns it in gf_lo
+                if(self%kyb(ik)%supercells(is)%is_head) then                
+                   !AJ If I am the supercell head and I'm not sending this to proc0 (as that already has all the data)
+                   !AJ or to myself then send the data.
+                   if(receiver .ne. iproc .and. receiver .ne. 0) then
+                      tag = ik*self%ntheta0 + it
+                      call nbsend(tempdata(:,:,it,ik),receiver,tag,send_handles(sendreqnum))
+                      sendreqnum = sendreqnum + 1
+                   !AJ Otherwise, if I'm sending to myself and I'm not proc0 then unpack the 
+                   !AJ the data directly from my buffer into the gf fields array.
+                   else if(receiver .eq. iproc .and. receiver .ne. 0) then
+                      tempfield = 1
+                      if(fphi>epsilon(0.0)) then
+                         gf_ph(:,it,ik) = tempdata(:,tempfield,it,ik)
+                         tempfield = tempfield + 1
+                      end if
+                      if(fapar>epsilon(0.0)) then
+                         gf_ap(:,it,ik) = tempdata(:,tempfield,it,ik)
+                         tempfield = tempfield + 1
+                      end if
+                      if(fbpar>epsilon(0.0)) then
+                         gf_bp(:,it,ik) = tempdata(:,tempfield,it,ik)
+                      end if
+                   end if
+                else if(iproc .eq. receiver .and. iproc .ne. 0) then
+                   tag = ik*self%ntheta0 + it
+                   call nbrecv(tempdata3(:,:,it,ik),sender,tag,recv_handles(recvreqnum))
+                   recvreqnum = recvreqnum + 1                   
+                end if
+             end do
+          end do
+       end do
+       
+       call waitall(recvreqnum-1,recv_handles)
+       
+       do ik=1,self%naky
+          if(self%kyb(ik)%is_empty) cycle
+          do is=1,self%kyb(ik)%nsupercell
+             if(self%kyb(ik)%supercells(is)%is_empty) cycle
+             if(self%kyb(ik)%supercells(is)%is_head) cycle
+             do ic=1,self%kyb(ik)%supercells(is)%ncell                
+                it=self%kyb(ik)%supercells(is)%cells(ic)%it_ind
+                receiver = proc_id(gf_lo,idx(gf_lo,ik,it))
+                if(receiver .eq. iproc .and. receiver .ne. 0) then                
+                   tempfield = 1
+                   if(fphi>epsilon(0.0)) then
+                      gf_ph(:,it,ik) = tempdata3(:,tempfield,it,ik)
+                      tempfield = tempfield + 1
+                   end if
+                   if(fapar>epsilon(0.0)) then
+                      gf_ap(:,it,ik) = tempdata3(:,tempfield,it,ik)
+                      tempfield = tempfield + 1
+                   end if
+                   if(fbpar>epsilon(0.0)) then
+                      gf_bp(:,it,ik) = tempdata3(:,tempfield,it,ik)
+                   end if
+                end if
+             end do
+          end do
+       end do
+       
+       call waitall(sendreqnum-1,send_handles)
+       
+    end if
+       
+    call initialise_requests(send_handles)
+    call initialise_requests(recv_handles)
     
-
-    if(.not. proc0) then
-       do ik = 1,g_lo%naky
-          do it = 1,g_lo%ntheta0
-             if(g_lo%ikit_procs_assignment(it,ik)%proc_list(g_lo%ikit_procs_assignment(it,ik)%num_procs) .eq. iproc) then
-                
-                if(kwork_filter(it,ik)) cycle
-                
-                tag = ik*self%ntheta0 + it
-                
-                !AJ Calculate which process owns this it,ik point in gf_lo space
-                !AJ i.e. which process will be sending the data to this supercell head
-                sender = proc_id(gf_lo,idx(gf_lo,ik,it))
-                
-                if(sender .ne. iproc) then
-                   
-                   call nbrecv(tempdata(:,:,it,ik),sender,tag,recv_handles(recvreqnum))
-                   recvreqnum = recvreqnum + 1
-                   
-                end if
-
-             end if
-          end do
-       end do
-    end if
-
-    sendreqnum = 1
-
-    !AJ Loop through the data in gf_lo and copy the fields data into a temporary array and send 
-    !AJ it to the receiver.
-    do igf = gf_lo%llim_proc, gf_lo%ulim_proc
-       ik = ik_idx(gf_lo,igf)
-       it = it_idx(gf_lo,igf)
-
+    recvreqnum = 1
+    do ikit=1, g_lo%ikitrange
+       ik=g_lo%local_ikit_points(ikit)%ik
+       it=g_lo%local_ikit_points(ikit)%it
        if(kwork_filter(it,ik)) cycle
-
-       tag = ik*self%ntheta0 + it
-
-       !AJ Choose the receiver as the LAST process listed in the process list for a given ik,it point in g_lo
-       !AJ We chose the last process here to try and ensure that proc0 isn't overloaded.  Any of the processes 
-       !AJ in the proc_list could have been chosen
-       receiver = g_lo%ikit_procs_assignment(it,ik)%proc_list(g_lo%ikit_procs_assignment(it,ik)%num_procs)
-
-       if(iproc .ne. receiver .and. receiver .ne. 0) then
-
-          tempfield = 1
-
-          if(fphi>epsilon(0.0)) then
-             tempdata(:,tempfield,it,ik) = gf_ph(:,it,ik)
-             tempfield = tempfield + 1
-          end if         
-          
-          if(fapar>epsilon(0.0)) then
-             tempdata(:,tempfield,it,ik) = gf_ap(:,it,ik)
-             tempfield = tempfield + 1
-          end if         
-          
-          if(fbpar>epsilon(0.0)) then
-             tempdata(:,tempfield,it,ik) = gf_bp(:,it,ik)
+       sender = self%heads(it,ik)
+       if(sender .ne. iproc .and. iproc .ne. 0) then
+          if(g_lo%ikit_procs_assignment(it,ik)%proc_list(1) .eq. iproc) then
+             tag = ik*self%ntheta0 + it          
+             call nbrecv(tempdata3(:,:,it,ik),sender,tag,recv_handles(recvreqnum))             
+             recvreqnum = recvreqnum + 1
           end if
-
-          call nbsend(tempdata(:,:,it,ik),receiver,tag,send_handles(sendreqnum))          
-          sendreqnum = sendreqnum + 1
-
        end if
-
     end do
-
-    call waitall(sendreqnum-1,send_handles)
-    call waitall(recvreqnum-1,recv_handles)
-
-    if(.not. proc0) then
-
-       !AJ Copy the received data out of the temporary receive buffer and into the field arrays.
-       do ik = 1,g_lo%naky
-          do it = 1,g_lo%ntheta0
-             if(g_lo%ikit_procs_assignment(it,ik)%proc_list(g_lo%ikit_procs_assignment(it,ik)%num_procs) .eq. iproc) then
-                
+    
+    sendreqnum = 1
+    
+    do ik=1,self%naky
+       if(self%kyb(ik)%is_empty) cycle
+       do is=1,self%kyb(ik)%nsupercell
+          if(self%kyb(ik)%supercells(is)%is_empty) cycle
+          if(self%kyb(ik)%supercells(is)%is_head) then
+             do ic=1,self%kyb(ik)%supercells(is)%ncell                
+                it=self%kyb(ik)%supercells(is)%cells(ic)%it_ind
                 if(kwork_filter(it,ik)) cycle
-                
-                !AJ Calculate which process owns this it,ik point in gf_lo space
-                !AJ i.e. which process will be sending the data to this supercell head
-                sender = proc_id(gf_lo,idx(gf_lo,ik,it))
-                
-                if(sender .ne. iproc) then
-                   
+                receiver = g_lo%ikit_procs_assignment(it,ik)%proc_list(1) 
+                if(receiver .ne. iproc .and. receiver .ne. 0) then            
+                   tag = ik*self%ntheta0 + it    
+                   call nbsend(tempdata(:,:,it,ik),receiver,tag,send_handles(sendreqnum))
+                   sendreqnum = sendreqnum + 1
+                else if(receiver .eq. iproc .and. receiver .ne. 0) then
                    tempfield = 1
                    if(fphi>epsilon(0.0)) then
                       ph(:,it,ik) = tempdata(:,tempfield,it,ik)
                       tempfield = tempfield + 1
                    end if
-                   
                    if(fapar>epsilon(0.0)) then
                       ap(:,it,ik) = tempdata(:,tempfield,it,ik)
                       tempfield = tempfield + 1
                    end if
-                   
                    if(fbpar>epsilon(0.0)) then
                       bp(:,it,ik) = tempdata(:,tempfield,it,ik)
                    end if
-                   
-                else if(sender .eq. iproc) then
-                   
-                   if(fphi>epsilon(0.0)) then
-                      ph(:,it,ik) = gf_ph(:,it,ik)
-                   end if
-                   
-                   if(fapar>epsilon(0.0)) then
-                      ap(:,it,ik) = gf_ap(:,it,ik)
-                   end if
-                   
-                   if(fbpar>epsilon(0.0)) then
-                      bp(:,it,ik) = gf_bp(:,it,ik)
-                   end if
-                   
                 end if
-                
-             end if
-             
-          end do
+             end do
+          end if
        end do
-       
-    end if
+    end do
+    
+    call waitall(recvreqnum-1,recv_handles)
+    
+    do ikit=1, g_lo%ikitrange
+       ik=g_lo%local_ikit_points(ikit)%ik
+       it=g_lo%local_ikit_points(ikit)%it
+       if(kwork_filter(it,ik)) cycle
+       sender = self%heads(it,ik)
+       receiver = g_lo%ikit_procs_assignment(it,ik)%proc_list(1) 
+       if(sender .ne. iproc .and. receiver .eq. iproc .and. .not. proc0) then
+          tempfield = 1
+          if(fphi>epsilon(0.0)) then
+             ph(:,it,ik) = tempdata3(:,tempfield,it,ik)
+             tempfield = tempfield + 1
+          end if
+          if(fapar>epsilon(0.0)) then
+             ap(:,it,ik) = tempdata3(:,tempfield,it,ik)
+             tempfield = tempfield + 1
+          end if
+          if(fbpar>epsilon(0.0)) then
+             bp(:,it,ik) = tempdata3(:,tempfield,it,ik)
+          end if
+       end if
+    end do
+    
+    call waitall(sendreqnum-1,send_handles)
 
     deallocate(send_handles, recv_handles)
-       
+    deallocate(tempdata3)
+    
+
     allocate(recv_handles(max(naky*ntheta0,g_lo%max_ikit_nprocs)))
     allocate(send_handles(max(naky*ntheta0,g_lo%max_ikit_nprocs)))
 
     call initialise_requests(send_handles)
     call initialise_requests(recv_handles)
-
        
     !AJ Now get the data from the process in g_lo that has received a given ik,it point to the rest of the 
     !AJ processes that own it.
     !AJ This could be optimised if the xyblock_comm is available, but as a first start the code below works
     !AJ and doesn't involve global collectives.
-    do ikit = 1, g_lo%ikitrange
-       ik=g_lo%local_ikit_points(ikit)%ik
-       it=g_lo%local_ikit_points(ikit)%it
-       if(kwork_filter(it,ik)) cycle
-       sender = g_lo%ikit_procs_assignment(it,ik)%proc_list(g_lo%ikit_procs_assignment(it,ik)%num_procs)
-       if(sender .eq. iproc) then
+    do ik = 1,self%naky
+       do it = 1,self%ntheta0       
+          
+          if(kwork_filter(it,ik)) cycle
 
-          tempfield = 1
-          if(fphi>epsilon(0.0)) then
-             tempdata(:,tempfield,it,ik) = ph(:,it,ik)
-             tempfield = tempfield + 1
-          end if
-          
-          if(fapar>epsilon(0.0)) then
-             tempdata(:,tempfield,it,ik) = ap(:,it,ik)
-             tempfield = tempfield + 1
-          end if
-          
-          if(fbpar>epsilon(0.0)) then
-             tempdata(:,tempfield,it,ik) = bp(:,it,ik)
-          end if
-          
-          sendreqnum = 1
-          do numsend = 1, g_lo%ikit_procs_assignment(it,ik)%num_procs-1
-             receiver = g_lo%ikit_procs_assignment(it,ik)%proc_list(numsend)
-             if(receiver .ne. iproc .and. receiver .ne. 0) then
-                call nbsend(tempdata(:,:,it,ik),receiver,1,send_handles(sendreqnum))
-                sendreqnum = sendreqnum + 1
+          if(g_lo%ikit_procs_assignment(it,ik)%mine) then
+             
+             sender = g_lo%ikit_procs_assignment(it,ik)%sub_proc_list(1)
+             local_iproc = g_lo%ikit_procs_assignment(it,ik)%comm%iproc
+             if(sender .eq. local_iproc) then
+               
+                tempfield = 1
+                if(fphi>epsilon(0.0)) then
+                   tempdata(:,tempfield,it,ik) = ph(:,it,ik)
+                   tempfield = tempfield + 1
+                end if
+                
+                if(fapar>epsilon(0.0)) then
+                   tempdata(:,tempfield,it,ik) = ap(:,it,ik)
+                   tempfield = tempfield + 1
+                end if
+                
+                if(fbpar>epsilon(0.0)) then
+                   tempdata(:,tempfield,it,ik) = bp(:,it,ik)
+                end if
+                
              end if
-          end do
-          call waitall(sendreqnum-1,send_handles)
-       else
-          if(.not. proc0) then
-             recvreqnum = 1
-             call nbrecv(tempdata(:,:,it,ik),sender,1,recv_handles(recvreqnum))
-             call waitall(recvreqnum,recv_handles)
+             
+             call broadcast_sub(tempdata(:,:,it,ik),sender,g_lo%ikit_procs_assignment(it,ik)%comm%id)
+             
+             if(sender .ne. local_iproc .and. .not. proc0) then
+                tempfield = 1
+                if(fphi>epsilon(0.0)) then
+                   ph(:,it,ik) = tempdata(:,tempfield,it,ik)
+                   tempfield = tempfield + 1
+                end if
+                
+                if(fapar>epsilon(0.0)) then
+                   ap(:,it,ik) = tempdata(:,tempfield,it,ik)
+                   tempfield = tempfield + 1
+                end if
+                
+                if(fbpar>epsilon(0.0)) then
+                   bp(:,it,ik) = tempdata(:,tempfield,it,ik)
+                end if
+             end if
           end if
-       end if
-
-       if(sender .ne. iproc .and. .not. proc0) then
-          tempfield = 1
-          if(fphi>epsilon(0.0)) then
-             ph(:,it,ik) = tempdata(:,tempfield,it,ik)
-             tempfield = tempfield + 1
-          end if         
-
-          if(fapar>epsilon(0.0)) then
-             ap(:,it,ik) = tempdata(:,tempfield,it,ik)
-             tempfield = tempfield + 1
-          end if         
-
-          if(fbpar>epsilon(0.0)) then
-             bp(:,it,ik) = tempdata(:,tempfield,it,ik)
-          end if         
-       end if
+       end do
     end do
-
-    call time_message(.false.,time_gf_local_gather_all,' Gf_local gather fields all')
+    
 
     deallocate(send_handles, recv_handles)
     deallocate(tempdata)
@@ -3276,6 +2911,12 @@ contains
   end subroutine fm_gather_fields
 
   !>Update the fields using calculated update
+  !AJ We update both the g_lo (phi,apar,bpar) and gf_lo (gf_phi,gf_apar,gf_bpar) fields 
+  !AJ as these are needed to make sure we can progress the fields in g_lo and gf_lo both
+  !AJ times and thereby not have to transfer the full fields for all processes every iteration, 
+  !AJ only the required updates.
+  !AJ With some refactoring it should be possible to do all the work on a single set of field 
+  !AJ arrays as they are the same size regardless of the layout being used.
   subroutine fm_update_fields(self,phi,apar,bpar,gf_phi,gf_apar,gf_bpar)
     use fields_arrays, only: orig_phi=>phi, orig_apar=>apar, orig_bpar=>bpar
     use fields_arrays, only: orig_gf_phi=>gf_phi, orig_gf_apar=>gf_apar, orig_gf_bpar=>gf_bpar
@@ -3291,8 +2932,6 @@ contains
     integer :: ik,it,ikit,igf
 
     !If we're proc0 then we need to do full array (for diagnostics)
-!    write(*,*) 'update fields orig_phi',orig_phi
-!    write(*,*) 'update fields new_phi',phi
     if(proc0) then
        if(fphi>epsilon(0.0)) then
           phi=phi+orig_phi
@@ -3308,8 +2947,8 @@ contains
        end if
        return
     else
-!    write(*,*) 'update fields phi after',phi
 
+    !AJ Iterate through each distinct ik,it point I have in g_lo and update the associated fields
     do ikit=1,g_lo%ikitrange
        ik = g_lo%local_ikit_points(ikit)%ik 
        it = g_lo%local_ikit_points(ikit)%it
@@ -3319,6 +2958,7 @@ contains
        if(fbpar>epsilon(0.0)) bpar(:,it,ik)=bpar(:,it,ik)+orig_bpar(:,it,ik)       
     end do
 
+    !AJ Iterate through each gf_lo point I have and update the associated fields
     do igf=gf_lo%llim_proc,gf_lo%ulim_proc
        ik = ik_idx(gf_lo,igf)
        it = it_idx(gf_lo,igf)
@@ -3361,6 +3001,7 @@ contains
        return
     else
 
+    !AJ Iterate through each distinct ik,it point I have in g_lo and update the associated fields
     do ikit=1,g_lo%ikitrange
        ik = g_lo%local_ikit_points(ikit)%ik 
        it = g_lo%local_ikit_points(ikit)%it
@@ -3370,6 +3011,7 @@ contains
        if(fbpar>epsilon(0.0)) bpar(:,it,ik)=bparnew(:,it,ik)
     end do
 
+    !AJ Iterate through each gf_lo point I have and update the associated fields
     do igf=gf_lo%llim_proc,gf_lo%ulim_proc
        ik = ik_idx(gf_lo,igf)
        it = it_idx(gf_lo,igf)
@@ -3519,26 +3161,17 @@ contains
 
   subroutine fm_getfieldeq_nogath (self,phi, apar, bpar, fieldeq, fieldeqa, fieldeqp)
     use theta_grid, only: ntgrid
-    use dist_fn, only: getan_nogath, gf_lo_integrate
+    use dist_fn, only: getan_nogath
     use kt_grids, only: naky, ntheta0
-    use mp, only: iproc
-    use job_manage, only: time_message
     implicit none
     class(fieldmat_type), intent(in) :: self
     complex, dimension (-ntgrid:,:,:), intent (in) :: phi, apar, bpar
     complex, dimension (-ntgrid:,:,:), intent (out) ::fieldeq,fieldeqa,fieldeqp
-    complex, dimension (:,:,:), allocatable :: antot, antota, antotp
+    complex, dimension (-ntgrid:ntgrid,ntheta0,naky) :: antot, antota, antotp
 
-    allocate (antot (-ntgrid:ntgrid,ntheta0,naky))
-    allocate (antota(-ntgrid:ntgrid,ntheta0,naky))
-    allocate (antotp(-ntgrid:ntgrid,ntheta0,naky))
-
-    if(.not. gf_lo_integrate) write(*,*) 'ERROR'
     call getan_nogath(antot, antota, antotp)
     call self%getfieldeq1_nogath (phi, apar, bpar, antot, antota, antotp, &
          fieldeq, fieldeqa, fieldeqp)
-
-    deallocate (antot, antota, antotp)
 
   end subroutine fm_getfieldeq_nogath  
 
@@ -3586,6 +3219,7 @@ contains
        end if
     end if
 
+    !AJ TODO: I thinkt his can be replaced by a loop over gf_lo points.
     !Now loop over cells and calculate field equation as required
     do ik=1,self%naky
        !Skip empty cells, note this is slightly different to skipping
@@ -3746,7 +3380,6 @@ contains
     use mp, only: mp_abort
     implicit none
     class(pc_type), intent(inout) :: self
-    character (len=40) :: errmesg
 
     call self%decomp
   end subroutine pc_make_decomp
@@ -3781,21 +3414,22 @@ contains
   !Decomposition routines
   !---------------------------
 
+  !AJ The process decomposition works on the gf_lo layout, so if you have a 
+  !AJ point in gf_lo that is in a supercell you are in that supercell and you 
+  !AJ own the whole cell associated with that point, otherwise you don't have anything 
+  !AJ in that supercell, i.e. each cell has a single owner.
   subroutine pc_decomp(self)
     use mp, only: split, comm_type, free_comm
     implicit none
     class(pc_type), intent(inout) :: self
-    integer :: ik, is, ic, ifq, it, ip, llim, ulim
-    integer :: nrow_tmp, nrow_loc
+    integer :: ik, is, ic, ifq, it, llim, ulim
+    integer :: nrow_tmp
 
 
     !/Don't need to change pc%is_local as this is already correct
 
     !Make sure we do the invert locally as mpi based version not implemented!
     pc%force_local_invert=.true.
-
-    !Now we say that we can use no gather based getfieldeq
-    self%has_to_gather=.false.
 
     !Now we (re)calculate how much data is available
     call self%count_avail
@@ -3812,13 +3446,13 @@ contains
              !Store it index
              it=fieldmat%kyb(ik)%supercells(is)%cells(ic)%it_ind
 
-             !If local work out limits, if not just set to 0
+             !AJ cell locality is restricted to a single process in gf_lo, meaning for each cell there is only 
+             !AJ one process that will match this if statement.
              if(fieldmat%kyb(ik)%supercells(is)%cells(ic)%is_local)then
                 
-                nrow_loc=nrow_tmp
                 !Now work out limits
                 llim=1
-                ulim=llim+nrow_loc-1
+                ulim=llim+nrow_tmp-1
 
 
                 !Now loop over row blocks to set index
@@ -3857,8 +3491,8 @@ contains
     use antenna, only: init_antenna
     use theta_grid, only: init_theta_grid
     use kt_grids, only: init_kt_grids
-    use gs2_layouts, only: init_gs2_layouts, gf_lo
-    use mp, only: proc0, mp_abort, barrier, iproc
+    use gs2_layouts, only: init_gs2_layouts
+    use mp, only: proc0, mp_abort, barrier
     use file_utils, only: error_unit
     implicit none
 
@@ -4097,7 +3731,7 @@ contains
   subroutine getfield_local(phi,apar,bpar,gf_phi,gf_apar,gf_bpar,do_update_in)
     use fields_arrays, only: time_field
     use theta_grid, only: ntgrid
-    use mp, only: proc0 !, barrier
+    use mp, only: proc0
     use job_manage, only: time_message
     implicit none
     complex, dimension(-ntgrid:,:,:), intent(out) :: phi,apar,bpar,gf_phi,gf_apar,gf_bpar !Note, these are actually phinew,... in typical usage
@@ -4107,46 +3741,24 @@ contains
     do_update=.false.
     if(present(do_update_in)) do_update=do_update_in
 
-    !For timing
-    !if(debug)call barrier !!/These barriers influence the reported time
     if (proc0) call time_message(.false.,time_field,' Field Solver')
 
-    if(proc0) then
-!    write(*,*) 'before phi',phi
-!    write(*,*) 'before gf_phi',gf_phi
-    end if
     !Use fieldmat routine to calculate the field update
     !AJ phi(new),apar(new),bpar(new) are in gf_lo here
     call fieldmat%get_field_update(gf_phi,gf_apar,gf_bpar)
    
-    if(proc0) then
-!    write(*,*) 'after gf_phi',gf_phi
-!    write(*,*) 'fphi',phi
-    end if
     !NOTE: We currently calculate omega at every time step so we
     !actually need to gather everytime, which is a pain!
     !We also fill in the empties here.
     !AJ before this  phi(new),apar(new),bpar(new) are in gf_lo
     !AJ before this  phi(new),apar(new),bpar(new) are in g_lo
-    call fieldmat%gather_fields(gf_phi,gf_apar,gf_bpar,phi,apar,bpar,to_proc0=.true.,supercell_unpack=.true.)
+    call fieldmat%gather_fields(gf_phi,gf_apar,gf_bpar,phi,apar,bpar)
 
 
-    if(proc0) then
-!    write(*,*) 'fphi after gather',phi
-!    write(*,*) 'gf_fphi after gather',gf_phi
-    end if
     !AJ phi(new),apar(new),bpar(new) are in g_lo
     !Thi s routine updates *new fields using gathered update
     if(do_update) call fieldmat%update_fields(phi,apar,bpar,gf_phi,gf_apar,gf_bpar)
-    if(proc0) then
-!    write(*,*) 'fphi after update',phi
-!    write(*,*) 'after update gf_phi',gf_phi
-    end if
 
-    !For timing
-    !Barrier usage ensures that proc0 measures the longest time taken on
-    !any proc.
-    !if(debug)call barrier !!/These barriers influence the reported time
     if (proc0) call time_message(.false.,time_field,' Field Solver')
   end subroutine getfield_local
 
@@ -4155,12 +3767,11 @@ contains
   subroutine init_allfields_gf_local
     use fields_implicit, only: init_allfields_implicit
     use fields_arrays, only: phinew, aparnew, bparnew, gf_phinew, gf_aparnew, gf_bparnew
-    use mp, only: iproc, barrier
     implicit none
     !EGH Note that this will fail if someone has set
     ! the parameter new_field_init in init_g to .false.
     ! Add a warning/check?
-    call init_allfields_implicit
+    call init_allfields_implicit(.true.)
     call fieldmat%scatter_fields(gf_phinew,gf_aparnew,gf_bparnew,phinew,aparnew,bparnew)
   end subroutine init_allfields_gf_local
 
@@ -4175,13 +3786,11 @@ contains
     use dist_fn, only: timeadv, exb_shear, g_exb, g_exbfac
     use dist_fn_arrays, only: g, gnew
     use antenna, only: antenna_amplitudes, no_driver
-    use gs2_layouts, only: gf_lo
     implicit none
     integer, intent(in) :: istep
     logical, intent(in) :: remove_zonal_flows_switch
     integer :: diagnostics = 1
     logical :: do_update
-    integer, save :: first = 0
 
     do_update=.true.
 
@@ -4217,9 +3826,6 @@ contains
        end if
     endif
 
-!    write(*,*) 'phi before timeadv',phi
-!    write(*,*) 'newphi before timeadv',phinew
-!    write(*,*) 'gf_phi before timeadv',gf_phi
     !Find gnew given fields at time step midpoint
     call timeadv (phi, apar, bpar, phinew, &
          aparnew, bparnew, istep)
@@ -4232,8 +3838,6 @@ contains
        aparnew=aparnew+apar_ext
     end if
 
-!    write(*,*) 'newphi before getfield_local',phinew
-!    write(*,*) 'gf_phi before getfield_local',gf_phi
     !Calculate the fields at the next time point
     call getfield_local(phinew,aparnew,bparnew,gf_phinew,gf_aparnew,gf_bparnew,do_update)
 
@@ -4251,22 +3855,7 @@ contains
           bparnew=bparnew+bpar
           gf_bparnew=gf_bparnew+gf_bpar
        end if
-    endif
-
-
-
-!!$    if(first .lt. 2) then
-!!$
-!!$       if(iproc .eq. 132) then
-!!$          write(*,*) 'phi',phi(:,8,2)
-!!$          write(*,*) 'phinew',phinew(:,8,2)
-!!$       else if(iproc .eq. 8) then
-!!$          write(*,*) 'gf_phi',gf_phi(:,8,2)   
-!!$       end if
-!!$       first = first + 1
-!!$
-!!$    end if
-    
+    endif    
 
     !Remove zonal component if requested
     if(remove_zonal_flows_switch) then
@@ -4278,9 +3867,6 @@ contains
     call timeadv (phi, apar, bpar, phinew, &
          aparnew, bparnew, istep, diagnostics) 
 
-!    write(*,*) 'phi at end',phi
-!    write(*,*) 'newphi at end',phinew
-!    write(*,*) 'gf_phi at end',gf_phi
   end subroutine advance_gf_local
 
   !> Routine to dump the current response matrix data

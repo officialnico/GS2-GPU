@@ -10,9 +10,10 @@ module fields_local
   !> Module level routines
   public :: init_fields_local, init_allfields_local, finish_fields_local
   public :: advance_local, reset_fields_local, dump_response_to_file_local
-  public :: fields_local_functional, read_response_from_file_local, minNrow
+  public :: fields_local_functional, read_response_from_file_local
   public :: do_smart_update, field_local_allreduce, field_local_allreduce_sub
-  public :: field_local_tuneminnrow
+  public :: field_local_tuneminnrow,  field_local_nonblocking_collectives
+  public :: minNRow
 
   !> Unit tests
   public :: fields_local_unit_test_init_fields_matrixlocal
@@ -22,8 +23,6 @@ module fields_local
 
   !> Made public for testing
   public :: fieldmat
-
-  public :: time_gf_reduce_an, time_gf_reduce_an_broadcast, time_gf_reduce_an_sendrecv
 
   !//////////////////////////////
   !// CUSTOM TYPES
@@ -111,6 +110,7 @@ module fields_local
      !Cell and parent properties. Mostly for debug printing.
      integer :: is_ind
      integer :: ik_ind !Parent properties
+     integer :: collective_request
    contains
      private
      procedure :: deallocate => sc_deallocate
@@ -166,6 +166,7 @@ module fields_local
      procedure :: allocate => ky_allocate
      procedure :: debug_print => ky_debug_print
      procedure :: get_field_update => ky_get_field_update
+     procedure :: wait_for_nonblocking_collectives => ky_wait_for_nonblocking_collectives
      procedure :: reset => ky_reset
      procedure :: set_locality => ky_set_locality
      procedure :: is_from_it => ky_is_from_it
@@ -214,7 +215,6 @@ module fields_local
      procedure :: set_is_local => fm_set_is_local
      procedure :: count_subcom => fm_count_subcom
      procedure :: getfieldeq_nogath => fm_getfieldeq_nogath
-!AJ     procedure :: reduce_an => fm_reduce_an
      procedure :: reduce_an => fm_reduce_an_head_send_broadcast
      procedure :: check_an => fm_check_an
      procedure :: getfieldeq1_nogath => fm_getfieldeq1_nogath
@@ -275,7 +275,6 @@ module fields_local
   !//////////////////////////////
   integer :: lun=6 !File unit for printing
   integer :: dlun=6 !File unit for debug printing
-  integer :: MinNrow !Smallest row block size used when working out which rows to have. 
   !Tuning this can improve advance/init time (usually one at the expense of other)
   logical :: do_smart_update=.false. !If true and x/y distributed then use a "smart" update which only updates
   logical,parameter :: debug=.false. !Do we do debug stuff?
@@ -286,16 +285,15 @@ module fields_local
   logical :: field_local_allreduce = .false. !If true use an allreduce to gather field else use reduce+broadcast
   logical :: field_local_allreduce_sub = .false. !If true and field_local_allreduce true then do two sub comm all reduces rather than 1
   logical :: field_local_tuneminnrow = .false. !Are auto-tuning minnrow
+  logical :: field_local_nonblocking_collectives = .false.
   integer :: nfield !How many fields
   integer :: nfq !How many field equations (always equal to nfield)
+  integer :: minNRow = 16 !Tuning this can influence both init and advance times
   type(pc_type),save :: pc !This is the parallel control object
   type(fieldmat_type),save :: fieldmat !This is the top level field matrix object
 
   real, dimension(:), allocatable :: start_times, end_times, best_times
 
-  real :: time_gf_reduce_an(2) = 0.
-  real :: time_gf_reduce_an_broadcast(2) = 0.
-  real :: time_gf_reduce_an_sendrecv(2) = 0.
 contains
 
 !//////////////////////////////
@@ -434,7 +432,6 @@ contains
   !supercell.
   subroutine c_get_field_update(self,fq,fqa,fqp)
     use run_parameters, only: fphi, fapar, fbpar
-    use mp, only: iproc
     implicit none
     class(cell_type), intent(inout) :: self
     complex, dimension(self%ncol), intent(in) :: fq,fqa,fqp
@@ -465,7 +462,7 @@ contains
             self%tmp_sum(self%rb(ifq)%row_llim:self%rb(ifq)%row_ulim)&
             +self%rb(ifq)%tmp_sum
     enddo
-!    write(*,*) iproc,self%ik_ind,self%it_ind,self%rb(1)%row_llim,self%rb(1)%row_ulim,self%rb(1)%tmp_sum,':',self%tmp_sum
+
   end subroutine c_get_field_update
 
   !>A routine to reset the object
@@ -580,14 +577,14 @@ contains
     !in order to do everything. This may require a new class of subcommunicators
 
     !Now we need to reduce across cells
-    !AJ Nonblocking could be done here
+    !AJ If non-blocking collective communications are active then they are called here
     call self%reduce_tmpsum
 
   end subroutine sc_get_field_update
 
   !>Reduce the field update across cells to give the final answer
   subroutine sc_reduce_tmpsum(self)
-    use mp, only: sum_allreduce_sub, sum_reduce_sub, iproc
+    use mp, only: sum_allreduce_sub, sum_reduce_sub, nb_sum_reduce_sub
     implicit none
     class(supercell_type), intent(inout) :: self
     integer :: ic
@@ -599,7 +596,6 @@ contains
        if(self%cells(ic)%is_empty) cycle
        self%tmp_sum=self%tmp_sum+self%cells(ic)%tmp_sum
     enddo
-!    write(*,*) iproc,self%ik_ind,self%tmp_sum
 
     !<DD>TAGGED: As we currently have to do fm_gather_fields on every time step we only need
     !to reduce to the head of the supercell, which may be an all_local proc in which case we don't 
@@ -607,9 +603,13 @@ contains
     !than allreduce_sub as we're going to broadcast the result later anyway.
     !if(self%sc_sub_pd%nproc.gt.0) call sum_allreduce_sub(self%tmp_sum,self%sc_sub_pd%id)
     if(.not.(self%is_empty.or.self%is_all_local)) then
-       call sum_reduce_sub(self%tmp_sum,0,self%sc_sub_pd)
+       !AJ If non-blocking collectives are enabled and available on the system then call them here
+       if(field_local_nonblocking_collectives) then
+          call nb_sum_reduce_sub(self%tmp_sum,0,self%sc_sub_pd,self%collective_request)
+       else
+          call sum_reduce_sub(self%tmp_sum,0,self%sc_sub_pd)
+       end if
     end if
-!AJ Can we do nonblocking stuff here?    
     !<DD> At this point the head of the supercell has the field update stored in self%tmp_sum
     !all other procs have partial/no data
 
@@ -1476,13 +1476,27 @@ contains
     !Note: Empty supercells don't do anything
     do is=1,self%nsupercell
        !/Calculate the field update
-!AJ ADD TIMING HERE
        call self%supercells(is)%get_field_update(fq,fqa,fqp)
        !/Now post the non-blocking sends
 !       call self%supercells(is)%gfu_post_send
 !       call self%supercells(is)%gfu_test_recv
     enddo
   end subroutine ky_get_field_update
+
+  !>Wait on the nonblocking collective communications if they have been used.
+  subroutine ky_wait_for_nonblocking_collectives(self)
+    use mp, only : wait
+    implicit none
+    class(ky_type), intent(inout) :: self
+    integer :: is
+
+    !AJ This could be done more efficiently if the requests 
+    !AJ are put into a single array and waitany is called on that
+    !AJ array.
+    do is=1,self%nsupercell
+       call wait(self%supercells(is)%collective_request)
+    enddo
+  end subroutine ky_wait_for_nonblocking_collectives
 
   !>Store the field equation at row level
   subroutine ky_store_fq(self,fq,fqa,fqp,ifl_in,it_in,ig_in)
@@ -1639,26 +1653,24 @@ contains
   !AJ Autotune MinNRow size to obtain optimal row size
   subroutine tuneMinNRow()
     use job_manage, only: timer_local
-    use mp, only: nproc, max_reduce, min_reduce, sum_reduce, broadcast, proc0, iproc
+    use mp, only: nproc, max_reduce, min_reduce, sum_reduce, broadcast, proc0
     use fields_arrays, only: phinew, aparnew, bparnew
     use gs2_layouts, only: g_lo
+    use kt_grids, only: naky
     implicit none
-    integer :: i, rowsize, current_best_size
+    integer :: i
+    integer :: current_best_size
     real :: start_time, end_time, current_best, temp_best
-    real :: min_best, max_best, av_best
+    real :: min_best, max_best, av_best, current_av_best
     logical :: do_update, do_gather
     do_gather = .true.
     do_update=do_smart_update
     if(g_lo%x_local.and.g_lo%y_local) do_update=.false.
+    minNRow = 2
     current_best = -1
-    rowsize = 2
-    current_best_size = rowsize
-    do i = 1,10
-       MinNRow=rowsize
+    do i = 1,10         
        call init_fields_matrixlocal(tuning_in=.true.)
        start_time = timer_local()
-       !AJ Replace with getfield_local and the setup of parameters as in advance_local
-!       call fieldmat%populate
        call getfield_local(phinew,aparnew,bparnew,do_gather,do_update)
        end_time = timer_local()
        call finish_fields_local()
@@ -1669,25 +1681,32 @@ contains
        call min_reduce(min_best, 0)
        av_best = temp_best
        call sum_reduce(av_best, 0)
-       if(iproc .eq. 0) then
+       if(proc0) then
           av_best = av_best/nproc
-          write(*,'(A7,X,I8,X,F8.3,X,F8.3,X,F8.3)') 'MinNRow',MinNRow,min_best,max_best,av_best
           if(current_best .lt. 0) then
              current_best = max_best
-             current_best_size = rowsize
+             current_av_best = av_best
+             current_best_size = minNRow
           else
              if(max_best .lt. current_best) then
                 current_best = max_best
-                current_best_size = rowsize
+                current_av_best = av_best
+                current_best_size = minNRow
+             else if(max_best .eq. current_best) then
+                if(av_best .lt. current_av_best) then
+                   current_best = max_best
+                   current_av_best = av_best
+                   current_best_size = minNRow
+                end if
              end if
           end if
        end if
-       rowsize = rowsize*2
+       minNRow = minNRow*2
     end do
     call broadcast(current_best_size)
-    MinNRow = current_best_size
+    minNRow = current_best_size
     if(proc0) then
-       write(*,*) 'Best',MinNRow,current_best
+       write(*,*) 'Chosen rowsize for matrix-vector operations in fields update',minNRow,current_best
     end if
   end subroutine tuneMinNRow
 
@@ -1746,6 +1765,7 @@ contains
     use dist_fn, only: itright, get_leftmost_it
     use run_parameters, only: fphi, fapar, fbpar
     use theta_grid, only: ntgrid
+    use mp, only: mp_request_null
     implicit none
     class(fieldmat_type), intent(inout) :: self
     integer :: it, cur_id, ifq
@@ -1854,6 +1874,10 @@ contains
           self%kyb(ik)%supercells(is)%nextend=1+2*ntgrid*self%kyb(ik)%supercells(is)%ncell
           self%kyb(ik)%supercells(is)%nrow=self%kyb(ik)%supercells(is)%nextend*nfield
           self%kyb(ik)%supercells(is)%ncol=self%kyb(ik)%supercells(is)%nrow
+
+          if(field_local_nonblocking_collectives) then
+            self%kyb(ik)%supercells(is)%collective_request = mp_request_null
+          end if
 
           !Now allocate the cell list
           allocate(self%kyb(ik)%supercells(is)%cells(self%kyb(ik)%supercells(is)%ncell))
@@ -2246,11 +2270,10 @@ contains
     if(pc%has_to_gather)then
        call getfieldeq(phi,apar,bpar,fq,fqa,fqp)
     else
-!       call getfieldeq_nogath(phi,apar,bpar,fq,fqa,fqp)
 !<DD>Could improve performance by using a "smart" routine which only operates on local/not empty data
        call self%getfieldeq_nogath(phi,apar,bpar,fq,fqa,fqp)
     endif
-!    write(*,*) phi
+
     !Now get the field update for each ik
     do ik=1,self%naky
        !Skip non-local ky
@@ -2261,7 +2284,15 @@ contains
        call self%kyb(ik)%get_field_update(fq(:,:,ik),fqa(:,:,ik),fqp(:,:,ik))
     enddo
 
-!AJ Wait for collective comms here
+    !AJ Wait for collective comms here (these are setup in get_field_update
+    if(field_local_nonblocking_collectives) then
+       do ik=1,self%naky
+          !Skip non-local ky
+          if(.not.self%kyb(ik)%is_local) cycle          
+          call self%kyb(ik)%wait_for_nonblocking_collectives()
+    enddo
+ 
+    end if
 
     !Free memory
     deallocate(fq,fqa,fqp)
@@ -2387,7 +2418,6 @@ contains
     call self%deallocate
 !AJ Free the communicators associated with this field matrix object.
     if(self%fm_sub_headsc_p0%nproc.gt.0) then
-!       write(*,*) 'free comm fm',self%fm_sub_headsc_p0%id
        call free_comm(self%fm_sub_headsc_p0)
     end if
     !Could zero out variables but no real need
@@ -2534,7 +2564,7 @@ contains
     use theta_grid, only: ntgrid
     use kt_grids, only: naky, ntheta0
     use mp, only: broadcast, sum_reduce_sub, sum_allreduce, sum_allreduce_sub
-    use mp, only: rank_comm, comm_type, proc0, iproc
+    use mp, only: rank_comm, comm_type, proc0
     use run_parameters, only: fphi, fapar, fbpar
     use gs2_layouts, only: g_lo, intspec_sub
     implicit none
@@ -2548,12 +2578,6 @@ contains
     type(comm_type), save :: les_comm
     logical, save :: first=.true.
     logical, save :: sub_has_proc0=.false.
-
-    logical :: exists
-    character(len=8) :: fmt
-    character(len=5) :: x1
-
-    fmt = '(I5.5)'
 
     !Set the to_all flag
     to_all=.false.
@@ -2744,54 +2768,6 @@ contains
 !        enddo
 !     enddo
 
-!!$    if(iproc .eq. 511) then
-!!$       write (x1,fmt) iproc
-!!$       inquire(file=trim(x1)//".txt.new", exist=exists)
-!!$       if (exists) then
-!!$          open(12, file=trim(x1)//".txt.new", status="old", position="append", action="write")
-!!$       else
-!!$          open(12, file=trim(x1)//".txt.new", status="new", action="write")
-!!$       end if
-!!$       write(12,*) 'final received',iproc,':',ph(:,56,32)
-!!$       close(12)
-!!$    end if
-!!$
-!!$    if(iproc .eq. 510) then
-!!$       write (x1,fmt) iproc
-!!$       inquire(file=trim(x1)//".txt.new", exist=exists)
-!!$       if (exists) then
-!!$          open(12, file=trim(x1)//".txt.new", status="old", position="append", action="write")
-!!$       else
-!!$          open(12, file=trim(x1)//".txt.new", status="new", action="write")
-!!$       end if
-!!$       write(12,*) 'final received',iproc,':',ph(:,56,32)
-!!$       close(12)
-!!$    end if
-!!$
-!!$    if(iproc .eq. 254) then
-!!$       write (x1,fmt) iproc
-!!$       inquire(file=trim(x1)//".txt.new", exist=exists)
-!!$       if (exists) then
-!!$          open(12, file=trim(x1)//".txt.new", status="old", position="append", action="write")
-!!$       else
-!!$          open(12, file=trim(x1)//".txt.new", status="new", action="write")
-!!$       end if
-!!$       write(12,*) 'final received',iproc,':',ph(:,56,32)
-!!$       close(12)
-!!$    end if
-!!$
-!!$    if(iproc .eq. 255) then
-!!$       write (x1,fmt) iproc
-!!$       inquire(file=trim(x1)//".txt.new", exist=exists)
-!!$       if (exists) then
-!!$          open(12, file=trim(x1)//".txt.new", status="old", position="append", action="write")
-!!$       else
-!!$          open(12, file=trim(x1)//".txt.new", status="new", action="write")
-!!$       end if
-!!$       write(12,*) 'final received',iproc,':',ph(:,56,32)
-!!$       close(12)
-!!$    end if
-
   end subroutine fm_gather_fields
 
   !>Update the fields using calculated update
@@ -2805,8 +2781,6 @@ contains
     complex,dimension(:,:,:),intent(inout) :: phi,apar,bpar
     integer :: ik,it,is,ic
 
-!    write(*,*) 'update fields orig_phi',orig_phi
-!    write(*,*) 'update fields new_phi',phi
     !If we're proc0 then we need to do full array (for diagnostics)
     if(proc0) then
        if(fphi>epsilon(0.0)) phi=phi+orig_phi
@@ -2814,13 +2788,11 @@ contains
        if(fbpar>epsilon(0.0)) bpar=bpar+orig_bpar
        return
     endif
-!    write(*,*) 'update fields phi after',phi
 
     !Now loop over cells and calculate field equation as required
     do ik=1,self%naky
        !Skip not local cells
        if(.not.self%kyb(ik)%is_local) cycle
-!AJ ADD TIMING HERE
        do is=1,self%kyb(ik)%nsupercell
           if(.not.self%kyb(ik)%supercells(is)%is_local) cycle
           do ic=1,self%kyb(ik)%supercells(is)%ncell
@@ -3020,141 +2992,34 @@ contains
     use theta_grid, only: ntgrid
     use dist_fn, only: getan_nogath, gf_lo_integrate
     use kt_grids, only: naky, ntheta0
-    use mp, only: iproc
     use job_manage, only: time_message
     implicit none
     class(fieldmat_type), intent(in) :: self
     complex, dimension (-ntgrid:,:,:), intent (in) :: phi, apar, bpar
     complex, dimension (-ntgrid:,:,:), intent (out) ::fieldeq,fieldeqa,fieldeqp
     complex, dimension (:,:,:), allocatable :: antot, antota, antotp
-!    complex, dimension (:,:,:), allocatable :: tempantot, tempantota, tempantotp
 
     allocate (antot (-ntgrid:ntgrid,ntheta0,naky))
     allocate (antota(-ntgrid:ntgrid,ntheta0,naky))
     allocate (antotp(-ntgrid:ntgrid,ntheta0,naky))
-!    allocate (tempantot (-ntgrid:ntgrid,ntheta0,naky))
-!    allocate (tempantota(-ntgrid:ntgrid,ntheta0,naky))
-!    allocate (tempantotp(-ntgrid:ntgrid,ntheta0,naky))
 
-!    gf_lo_integrate = .false.
     call getan_nogath(antot, antota, antotp)
-!    gf_lo_integrate = .true.
+    !AJ If we are integrating in the gf_lo data distribution then the results of antot etc... from
+    !AJ getan_nogath above will be in gf_lo distribution, perform a communication step to redistribute the 
+    !AJ result so the owners of the data in g_lo end up with the data.
     if(gf_lo_integrate) then
-!       call getan_nogath(tempantot, tempantota, tempantotp)
-       call time_message(.false.,time_gf_reduce_an,' Gf_lo reduce an')
        call self%reduce_an(antot, antota, antotp)
-       call time_message(.false.,time_gf_reduce_an,' Gf_lo reduce an')
     end if
-!    call self%check_an(antot, tempantot, antota, tempantota, antotp, tempantotp)
     call self%getfieldeq1_nogath (phi, apar, bpar, antot, antota, antotp, &
          fieldeq, fieldeqa, fieldeqp)
 
     deallocate (antot, antota, antotp)
-!    deallocate (tempantot, tempantota, tempantotp)
   end subroutine fm_getfieldeq_nogath
 
-!AJ This is designed to reduce data within a supercell communicator.
-!AJ However, the gf_lo decomposition does not currently ensure that the 
-!AJ process that owns the cell in gf_lo is actually part of the supercell that
-!AJ contains the cell in fields_local so this does not currently produce the 
-!AJ correct results.
- subroutine fm_reduce_supercell_an (self,antot, antota, antotp)
-    use mp, only: broadcast_sub, iproc, sum_allreduce_sub
-    use theta_grid, only: ntgrid
-    use run_parameters, only: fphi, fapar, fbpar
-    use gs2_layouts, only: gf_lo, proc_id, idx
-    implicit none
-    class(fieldmat_type), intent(in) :: self
-    complex, dimension (-ntgrid:,:,:), intent (in out) :: antot, antota, antotp
-
-    integer :: ik, it, is, ic, root
-
-    do ik=1,self%naky
-       !Skip empty cells, note this is slightly different to skipping
-       !.not.is_local. Skipping empty is probably faster but may be more dangerous
-       if(self%kyb(ik)%is_empty) cycle
-       do is=1,self%kyb(ik)%nsupercell
-          if(self%kyb(ik)%supercells(is)%is_empty .or. self%kyb(ik)%supercells(is)%is_all_local) cycle
-          do ic=1,self%kyb(ik)%supercells(is)%ncell
-
-             it=self%kyb(ik)%supercells(is)%cells(ic)%it_ind
-
-             root = proc_id(gf_lo,idx(gf_lo,ik,it))
-             if(root .eq. iproc) then
-                root = self%kyb(ik)%supercells(is)%sc_sub_pd%iproc
-             else
-                root = 0
-             end if
-
-             call sum_allreduce_sub(root,self%kyb(ik)%supercells(is)%sc_sub_pd%id)
-
-             if(fphi>epsilon(0.0)) then
-                call broadcast_sub(antot(:,it,ik),root,self%kyb(ik)%supercells(is)%sc_sub_pd%id)
-!AJ                call sum_allreduce_sub(antot,self%kyb(ik)%supercells(is)%sc_sub_pd%id)
-             endif
-             
-             if(fapar>epsilon(0.0)) then
-                call broadcast_sub(antota(:,it,ik),root,self%kyb(ik)%supercells(is)%sc_sub_pd%id)
-!AJ                call sum_allreduce_sub(antota,self%kyb(ik)%supercells(is)%sc_sub_pd%id)
-             endif
-             
-             if(fbpar>epsilon(0.0))then
-                call broadcast_sub(antotp(:,it,ik),root,self%kyb(ik)%supercells(is)%sc_sub_pd%id)
-!AJ                call sum_allreduce_sub(antotp,self%kyb(ik)%supercells(is)%sc_sub_pd%id)
-             end if
-          end do
-       enddo
-    enddo
-
-
-  end subroutine fm_reduce_supercell_an
-
-  subroutine fm_reduce_an (self,antot, antota, antotp)
-    use mp, only: broadcast, iproc, sum_allreduce
-    use theta_grid, only: ntgrid
-    use run_parameters, only: fphi, fapar, fbpar
-    use gs2_layouts, only: gf_lo, proc_id, idx
-    use kt_grids, only: naky, ntheta0
-    implicit none
-    class(fieldmat_type), intent(in) :: self
-    complex, dimension (-ntgrid:,:,:), intent (in out) :: antot, antota, antotp
-
-    integer :: ik, it, is, ic, root
-
-!!$    do ik=1,naky
-!!$       do it=1,ntheta0
-!!$
-!!$          root = proc_id(gf_lo,idx(gf_lo,ik,it))
-!!$
-!!$          if(fphi>epsilon(0.0)) then
-!!$             call broadcast(antot(:,it,ik),root)
-!!$          endif
-!!$             
-!!$          if(fapar>epsilon(0.0)) then
-!!$             call broadcast(antota(:,it,ik),root)
-!!$          endif
-!!$             
-!!$          if(fbpar>epsilon(0.0))then
-!!$             call broadcast(antotp(:,it,ik),root)
-!!$          end if
-!!$       enddo
-!!$    enddo
-
-    if(fphi>epsilon(0.0)) then
-       call sum_allreduce(antot)
-    end if
-
-    if(fapar>epsilon(0.0)) then
-       call sum_allreduce(antota)
-    end if
-
-    if(fbpar>epsilon(0.0)) then
-       call sum_allreduce(antotp)
-    end if
-
-  end subroutine fm_reduce_an
-
-
+  !AJ This routine takes in data that has been calculated in gf_lo layout (i.e. the antot etc... arrays 
+  !AJ have been partitioned in gf_lo format so that each naky,ntheta point is on a single process) and 
+  !AJ redistributes it to a g_lo layout (i.e. so the processes that own the naky,ntheta points in g_lo 
+  !AJ have the data at the end).
   subroutine fm_reduce_an_head_send_broadcast (self,antot, antota, antotp)
     use mp, only: broadcast, iproc, nbsend, nbrecv, initialise_requests, waitall, broadcast_sub
     use theta_grid, only: ntgrid
@@ -3173,10 +3038,6 @@ contains
     integer, dimension (gf_lo%naky*gf_lo%ntheta0*3) :: recv_handles
     integer :: tempit, tempis, tempismax
     complex, dimension(:,:,:,:,:), allocatable :: tempdata
-    logical :: exist
-
-    call time_message(.false.,time_gf_reduce_an_sendrecv,' Gf_lo reduce an sendrecv')
-
 
     tempis = 0
     tempismax = 0
@@ -3302,11 +3163,6 @@ contains
     call waitall(sendreqnum-1,send_handles)
     call waitall(recvreqnum-1,recv_handles)
 
-    call time_message(.false.,time_gf_reduce_an_sendrecv,' Gf_lo reduce an sendrecv')
-
-
-    call time_message(.false.,time_gf_reduce_an_broadcast,' Gf_lo reduce an broadcast')
-
     do ik = 1,self%naky
        if(.not.self%kyb(ik)%is_local) cycle
        do is=1,self%kyb(ik)%nsupercell
@@ -3366,8 +3222,6 @@ contains
        end do
     end do
 
-    call time_message(.false.,time_gf_reduce_an_broadcast,' Gf_lo reduce an broadcast')
-
 
     deallocate(tempdata)
 
@@ -3377,7 +3231,7 @@ contains
     use mp, only: broadcast_sub, iproc, sum_allreduce_sub, mp_abort
     use theta_grid, only: ntgrid
     use run_parameters, only: fphi, fapar, fbpar
-    use gs2_layouts, only: gf_lo, proc_id, idx
+    use gs2_layouts, only: proc_id, idx
     use kt_grids, only: kwork_filter
     implicit none
     class(fieldmat_type), intent(in) :: self
@@ -3895,7 +3749,7 @@ contains
                 !Calculate row limits based on cell size, nprocs and
                 !proc rank
                 !/Simple block size
-                nrow_loc=max(ceiling(nrow_tmp*1.0/np),MinNrow)
+                nrow_loc=max(ceiling(nrow_tmp*1.0/np),minNRow)
                 !By enforcing a minimum value of nrow_loc we can ensure
                 !that blocks don't get too small. Note it's easy to work
                 !out the limits for any of the other procs *without* comms.
@@ -3960,7 +3814,7 @@ contains
   subroutine init_fields_local
     use antenna, only: init_antenna
     use theta_grid, only: init_theta_grid
-    use kt_grids, only: init_kt_grids
+    use kt_grids, only: init_kt_grids,naky
     use gs2_layouts, only: init_gs2_layouts, g_lo
     use mp, only: proc0, mp_abort
     use file_utils, only: error_unit
@@ -3982,9 +3836,9 @@ contains
     call init_kt_grids
     if (debug.and.proc0) write(6,*) "init_fields_local: init_fields_matrixlocal"
     if(field_local_tuneminnrow) then
-       call tuneMinNRow()
+       call tuneMinNRow()       
     end if
-    call init_fields_matrixlocal
+    call init_fields_matrixlocal()
     if (debug.and.proc0) write(6,*) "init_fields_local: antenna"
     call init_antenna
 
@@ -4014,19 +3868,20 @@ contains
 
   !>Routine use to initialise field matrix data
   subroutine init_fields_matrixlocal(tuning_in)
-    use mp, only: proc0 !, barrier
+    use mp, only: proc0, mp_abort !, barrier
     implicit none
     logical, optional :: tuning_in
     logical :: tuning
     real :: ts,te
+
+    !Exit if we've already initialised
+    if(initialised) return
 
     tuning = .false.
     if(present(tuning_in)) then
        tuning = tuning_in
     end if
 
-    !Exit if we've already initialised
-    if(initialised) return
     if(.not.reinit)then
        !Use the fieldmat init routine to create fieldmat
        !structure and fill some of the basic variables
@@ -4203,13 +4058,12 @@ contains
   end subroutine reset_fields_local
 
   !>Finish the fields_local module
-  subroutine finish_fields_local
+  subroutine finish_fields_local()
     implicit none
-!!NOTE: Don't currently free the sub-communicators which is bad
     call pc%reset
     call fieldmat%reset
     !reinit = .true.
-    initialised=.false.
+    initialised=.false.    
   end subroutine finish_fields_local
 
   !>Calculate the update to the fields
@@ -4233,12 +4087,9 @@ contains
     !if(debug)call barrier !!/These barriers influence the reported time
     if (proc0) call time_message(.false.,time_field,' Field Solver')
 
-!    write(*,*) 'before phi',phi
     !Use fieldmat routine to calculate the field update
     call fieldmat%get_field_update(phi,apar,bpar)
-!    write(*,*) 'after phi',phi
 
-!    write(*,*) 'fphi',phi
     !Gather to proc0 if requested
     !NOTE: We currently calculate omega at every time step so we
     !actually need to gather everytime, which is a pain!
@@ -4247,12 +4098,8 @@ contains
     if(do_gather) call fieldmat%gather_fields(phi,apar,bpar,&
          to_all_in=.false.,do_allreduce_in=field_local_allreduce)
 
-!    write(*,*) 'fphi after gather',phi
-
     !This routine updates *new fields using gathered update
     if(do_update) call fieldmat%update_fields(phi,apar,bpar)
-
-!    write(*,*) 'fphi after update',phi
 
     !For timing
     !Barrier usage ensures that proc0 measures the longest time taken on
@@ -4283,7 +4130,6 @@ contains
     use dist_fn_arrays, only: g, gnew
     use antenna, only: antenna_amplitudes, no_driver
     use gs2_layouts, only: g_lo
-    use mp, only: iproc
     implicit none
     integer, intent(in) :: istep
     logical, intent(in) :: remove_zonal_flows_switch
@@ -4299,16 +4145,6 @@ contains
     do_update=do_smart_update
 
     if(g_lo%x_local.and.g_lo%y_local) do_update=.false.
-!!$    if(first .le. 2) then
-!!$
-!!$       if(iproc .eq. 132) then
-!!$          write(*,*) 'phi',phi(:,8,2)
-!!$          write(*,*) 'phinew',phinew(:,8,2)
-!!$       end if
-!!$       first = first + 1
-!!$
-!!$    end if
-
 
     !GGH NOTE: apar_ext is initialized in this call
     if(.not.no_driver) call antenna_amplitudes (apar_ext)
@@ -4326,8 +4162,6 @@ contains
        if(fbpar.gt.0) bpar=bparnew
     endif
 
-!    write(*,*) 'phi before timeadv',phi
-!    write(*,*) 'newphi before timeadv',phinew
     !Find gnew given fields at time step midpoint
     call timeadv (phi, apar, bpar, phinew, &
          aparnew, bparnew, istep)
@@ -4337,7 +4171,6 @@ contains
     !<DD>TAGGED: Should we only this is fapar>0 as well?
     if(.not.no_driver) aparnew=aparnew+apar_ext
 
-!    write(*,*) 'newphi before getfield_local',phinew
     !Calculate the fields at the next time point
     call getfield_local(phinew,aparnew,bparnew,do_gather,do_update)
 
@@ -4349,8 +4182,6 @@ contains
        if(fbpar.gt.0) bparnew=bparnew+bpar
     endif
 
-!    write(*,*) 'phi',phi
-!    write(*,*) 'phnew',phinew
 
     !Remove zonal component if requested
     if(remove_zonal_flows_switch) call remove_zonal_flows
@@ -4358,8 +4189,6 @@ contains
     !Evolve gnew to next half time point
     call timeadv (phi, apar, bpar, phinew, &
          aparnew, bparnew, istep, diagnostics) 
-!    write(*,*) 'phi at end',phi
-!    write(*,*) 'newphi at end',phinew
   end subroutine advance_local
 
   !> Routine to dump the current response matrix data

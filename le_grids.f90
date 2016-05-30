@@ -628,7 +628,7 @@ contains
     use gs2_layouts, only: g_lo
     use gs2_layouts, only: is_idx, ik_idx, it_idx, ie_idx, il_idx
     use kt_grids, only: kwork_filter
-    use mp, only: sum_allreduce, iproc
+    use mp, only: sum_allreduce
 
     implicit none
 
@@ -665,7 +665,6 @@ contains
 
           !Sum up weighted g
           total(:, it, ik) = total(:, it, ik) + weights(is)*w(ie)*wl(:,il)*(g(:,1,iglo)+g(:,2,iglo))
-!          write(*,*) iproc,'tot',total(-ntgrid,it,ik),it,ik,iglo
        end do
     endif
     !Reduce sum across all procs to make integral over all velocity space and species
@@ -678,7 +677,7 @@ contains
     use theta_grid, only: ntgrid
     use gs2_layouts, only: g_lo, intspec_sub
     use gs2_layouts, only: is_idx, ik_idx, it_idx, ie_idx, il_idx
-    use mp, only: sum_allreduce_sub, sum_allreduce, iproc
+    use mp, only: sum_allreduce_sub, sum_allreduce
     use kt_grids, only: kwork_filter
     implicit none
 
@@ -756,7 +755,7 @@ contains
     use theta_grid, only: ntgrid
     use gs2_layouts, only: gf_lo, g_lo
     use gs2_layouts, only: is_idx, ik_idx, it_idx, ie_idx, il_idx
-    use mp, only: sum_allreduce_sub, sum_allreduce, iproc
+    use mp, only: sum_allreduce_sub, sum_allreduce
     use kt_grids, only: kwork_filter
     use redistribute, only: gather
     implicit none
@@ -801,14 +800,16 @@ contains
     
   end subroutine integrate_species_gf
 
-  !<AJ>Integrate species using gf_lo data format assuming that gf has already been gathered prior to being 
-  !<AJ> passed to this routine.
+  !AJ Integrate species using gf_lo data format assuming that gf has already been gathered prior to being 
+  !AJ passed to this routine.
+  !AJ Currently this routine isn't being used as the functionality has been directly added to 
+  !AJ getan_nogath in dist_fn.
   subroutine integrate_species_gf_nogather (gf, weights, total)
     use species, only : nspec
     use theta_grid, only: ntgrid
-    use gs2_layouts, only: gf_lo, g_lo
+    use gs2_layouts, only: gf_lo
     use gs2_layouts, only: is_idx, ik_idx, it_idx, ie_idx, il_idx
-    use mp, only: sum_allreduce_sub, sum_allreduce, iproc
+    use mp, only: sum_allreduce_sub, sum_allreduce
     use kt_grids, only: kwork_filter
     implicit none
 
@@ -859,7 +860,7 @@ contains
     use gs2_layouts, only: g_lo, intspec_sub
     use gs2_layouts, only: is_idx, ik_idx, it_idx, ie_idx, il_idx
     use mp, only: sum_allreduce_sub, allgatherv
-    use mp, only: nproc_comm,rank_comm
+    use mp, only: nproc_comm,rank_comm,mp_abort
     implicit none
 
     complex, dimension (-ntgrid:,:,g_lo%llim_proc:), intent (in) :: g
@@ -959,8 +960,6 @@ contains
 
     !Now gather missing xy data from other procs (only talk to procs
     !with the same piece of les)
-!   print*,"lesblock_comm = ",g_lo%lesblock_comm
-!    print*,"xyblock_comm = ",g_lo%xyblock_comm
 
     if(g_lo%x_before_y)then
        call allgatherv(total_flat,recvcnts(local_rank+1),total,recvcnts,displs,g_lo%lesblock_comm)
@@ -2662,6 +2661,7 @@ contains
     call init_g2gf_redistribute
     
     if (test) call check_g2gf
+    call check_g2gf
 
   end subroutine init_g2gf
 
@@ -3193,7 +3193,7 @@ contains
 
   subroutine init_g2gf_redistribute
 
-    use mp, only: nproc, iproc
+    use mp, only: nproc
     use species, only: nspec
     use theta_grid, only: ntgrid
     use kt_grids, only: naky, ntheta0
@@ -3240,7 +3240,6 @@ contains
     !Protect against procs with no data
     if(gf_lo%ulim_proc.ge.gf_lo%llim_proc)then
        do igf=gf_lo%llim_proc,gf_lo%ulim_alloc
-          !Loop over local dimensions, adding 2 to account for each sign
           do is=1,g_lo%nspec
              do ie=1,g_lo%negrid
                 do il=1,g_lo%nlambda
@@ -3290,9 +3289,6 @@ contains
           nn_from(ip)=n
           
           !Store indices (we are sending ntgridtotal*isign sized messages each time at a time)
-!          if(n .gt. size(from_list(ip)%third)) then
-!             write(*,*) iproc,ip,n,size(from_list(ip)%third),igf
-!          end if
           from_list(ip)%first(n)=-gf_lo%ntgrid
           from_list(ip)%second(n)=1
           from_list(ip)%third(n)=iglo

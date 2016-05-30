@@ -101,6 +101,7 @@ dump_response_mod = \
 	 leq.o \
 	 matrix_inverse.o \
 	 mp.o \
+	 mt19937.o \
 	 netcdf_utils.o \
 	 nonlinear_terms.o \
 	 normalisations.o \
@@ -210,6 +211,7 @@ ffttester_mod = \
 	 leq.o \
 	 matrix_inverse.o \
 	 mp.o \
+	 mt19937.o \
 	 netcdf_utils.o \
 	 nonlinear_terms.o \
 	 normalisations.o \
@@ -349,6 +351,7 @@ gs2_mod = \
 	 leq.o \
 	 matrix_inverse.o \
 	 mp.o \
+	 mt19937.o \
 	 netcdf_utils.o \
 	 nonlinear_terms.o \
 	 normalisations.o \
@@ -451,6 +454,7 @@ ingen_mod = \
 	 leq.o \
 	 matrix_inverse.o \
 	 mp.o \
+	 mt19937.o \
 	 netcdf_utils.o \
 	 nonlinear_terms.o \
 	 normalisations.o \
@@ -822,6 +826,7 @@ fields.o: \
 	 fields_local.o \
 	 fields_test.o \
 	 file_utils.o \
+	 gs2_layouts.o \
 	 init_g.o \
 	 kt_grids.o \
 	 mp.o \
@@ -1197,7 +1202,8 @@ kt_grids.o: \
 	 mp.o \
 	 text_options.o \
 	 theta_grid.o 
-layouts_type.o: 
+layouts_type.o: \
+	 mp.o 
 le_derivatives.o: \
 	 collisions.o \
 	 dist_fn_arrays.o \
@@ -1239,6 +1245,7 @@ mds.o: \
 mp.o: \
 	 constants.o \
 	 file_utils.o 
+mt19937.o: 
 netcdf_utils.o: \
 	 constants.o \
 	 file_utils.o \
@@ -1285,7 +1292,8 @@ peq.o: \
 pgplot_utils.o: \
 	 constants.o 
 prof.o: 
-ran.o: 
+ran.o: \
+	 mt19937.o 
 read_chease.o: 
 redistribute.o: \
 	 job_manage.o \
