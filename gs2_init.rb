@@ -39,12 +39,13 @@ class GenerateInit
   # in the level list.
   DEPENDENCIES = [ 
     # full is a special level to signify complete
-    # initialiation
+    # initialiation (excluding diagnostics, which are not handled
+    # by this module)
     ['full', ['set_initial_values', 'normalisations']],
-    ['fields_level_2' , ['collisions', 'antenna_level_2', 'dist_fn_level_3']],
+    ['fields_level_2' , ['collisions', 'antenna_level_2', 'dist_fn_level_3', 'fields_level_1']],
     ['dist_fn_level_3' , ['dist_fn_level_2', 'hyper', 'override_timestep']],
     ['dist_fn_level_1' , ['dist_fn_arrays']], 
-    ['fields_level_1' , ['kt_grids', 'antenna_level_1', 'gs2_layouts']],
+    ['fields_level_1' , ['kt_grids', 'antenna_level_1', 'gs2_layouts', 'fields_parameters']],
     ['collisions' ,
       ['species', 'kt_grids', 'gs2_layouts', 'theta_grid', 'le_grids',
         'dist_fn_layouts', 'run_parameters', 'dist_fn_level_3']],
@@ -59,6 +60,7 @@ class GenerateInit
     ['theta_grid' , ['theta_grid_params', 'override_miller_geometry']],
     ['normalisations', []],
     ['theta_grid_params' , []],
+    ['fields_parameters' , []],
     ['kt_grids_parameters' , ['theta_grid']],
     ['kt_grids' , ['theta_grid', 'kt_grids_parameters', 'override_kt_grids']],
     ['gs2_save' , []],
@@ -78,7 +80,7 @@ class GenerateInit
     ['antenna_level_1', ['species']],
     
     ['override_kt_grids' , ['kt_grids_parameters']],
-    ['override_optimisations' , ['gs2_layouts']],
+    ['override_optimisations' , ['gs2_layouts', 'fields_parameters']],
     ['override_miller_geometry' , ['theta_grid_params']],
     # Override tprim, fprim, vnewk, temp and dens in species
     ['override_profiles' , ['species']],
@@ -140,6 +142,8 @@ class GenerateInit
                      'antenna'
                    when /^kt_grids*/
                      'kt_grids'
+                   when /^fields_parameters/
+                     'fields'
                    else
                      @level_name
                    end
@@ -167,7 +171,7 @@ class GenerateInit
         use unit_tests, only: debug_message
 #{
         case @level_name
-        when 'full', 'override_timestep', 'override_initial_values'
+        when 'full', 'override_initial_values'
           str = "\n"
         when /override_kt_grids/
           str = <<EOF2
@@ -178,13 +182,23 @@ EOF2
         when /override_optimisations/
           str = <<EOF2
           use gs2_layouts, only: lso=>set_overrides
+          use fields, only: fso=>set_overrides
+          use dist_fn, only: dso=>set_overrides
           if (up() .and. current%opt_ov%init) call lso(current%opt_ov)
+          if (up() .and. current%opt_ov%init) call fso(current%opt_ov)
+          if (up() .and. current%opt_ov%init) call dso(current%opt_ov)
 
 EOF2
         when /override_miller_geometry/
           str = <<EOF2
           use theta_grid_params, only: tgpso=>set_overrides
           if (up() .and. current%mgeo_ov%init) call tgpso(current%mgeo_ov)
+
+EOF2
+			  when /override_timestep/
+          str = <<EOF2
+          use run_parameters, only: rso=>set_overrides
+          if (up() .and. current%tstep_ov%init) call rso(current%tstep_ov)
 
 EOF2
         when /override_profiles/

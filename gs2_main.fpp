@@ -864,12 +864,14 @@ contains
           end if ! if (.not. state%replay)
 
           if ((mod(istep,5) == 0).and.(.not.state%exit)) call checkstop(state%exit)
-          if (state%exit) call debug_message(state%verb-1, &
+          if (state%exit) call debug_message(state%verb+1, &
             'gs2_main::evolve_equations exit true after checkstop')
           if (.not.state%exit) call checktime(avail_cpu_time,state%exit,margin_cpu_time)
-          if (state%exit) call debug_message(state%verb-1, &
+          if (state%exit) call debug_message(state%verb+1, &
             'gs2_main::evolve_equations exit true after checktime')
        endif
+       call debug_message(state%verb+1, &
+        'gs2_main::evolve_equations after reset and checks')
 
        state%istep_end = istep
        !if (proc0) write (*,*) 'advance 2', state%timers%advance, state%exit

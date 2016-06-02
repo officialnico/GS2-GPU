@@ -1287,7 +1287,7 @@ if (debug) write(6,*) 'get_namelists: returning'
 
     if (.not.nonlin) return
     write (report_unit, fmt="('yxf sweetspot #proc up to:',i8)") npmax 
-    maxfacs=max(nspec,negrid,nlambda,2,2*ntgrid+1,naky)/2+1
+    maxfacs=max(nspec,negrid,nlambda,2,2*ntgrid+1,naky,nx)/2+1
     allocate (spfacs(maxfacs),efacs(maxfacs),lfacs(maxfacs),sgfacs(maxfacs),tgfacs(maxfacs),kxfacs(maxfacs),facs(maxfacs,6))
     call factors (nspec, nspfacs, spfacs)
     call factors (negrid, nefacs, efacs)
@@ -1542,7 +1542,7 @@ if (debug) write(6,*) 'get_namelists: returning'
        case ('lxyes')
 
 !          write (report_unit, fmt="('Recommended numbers of processors, time on SP2')") 
-          allocate (facs(max(nspec,negrid,naky,ntheta0)/2+1,5))
+          allocate (facs(max(nspec,negrid,naky,ntheta0,nlambda)/2+1,5))
           call factors (nspec, nspfacs, facs(:,1))
           call factors (negrid, nefacs, facs(:,2))
           call factors (naky, nkyfacs, facs(:,3))

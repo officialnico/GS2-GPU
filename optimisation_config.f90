@@ -38,11 +38,14 @@ module optimisation_config
     type(optimisations_overrides_type), &
       dimension(:), pointer :: sorted_optimisations
     type(optimisation_results_type), dimension(:), pointer :: sorted_results
+    real :: timing_rel_error
+    real :: timing_max_rel_error
     integer :: outunit
      logical :: on
      logical :: auto
      logical :: measure_all
      logical :: warm_up
+     logical :: estimate_timing_error
      integer :: nstep_measure
      real :: max_imbalance
      integer :: max_unused_procs
@@ -76,6 +79,7 @@ contains
     logical :: auto
     logical :: measure_all
     logical :: warm_up
+    logical :: estimate_timing_error
     integer :: nstep_measure
     real :: max_imbalance
     integer :: max_unused_procs
@@ -85,6 +89,7 @@ contains
          auto, &
          measure_all, &
          warm_up, &
+         estimate_timing_error, &
          nstep_measure, &
          max_imbalance, &
          max_unused_procs, &
@@ -98,6 +103,7 @@ contains
        auto = .true.
        measure_all = .false.
        warm_up = .false.
+       estimate_timing_error = .true.
        nstep_measure = 5
        max_imbalance = -1
        max_unused_procs = 0
@@ -110,6 +116,7 @@ contains
        optim%auto = auto
        optim%measure_all = measure_all
        optim%warm_up = warm_up
+       optim%estimate_timing_error = estimate_timing_error
        optim%nstep_measure = nstep_measure
        optim%max_imbalance = max_imbalance
        optim%max_unused_procs = max_unused_procs
@@ -121,6 +128,7 @@ contains
     call broadcast (optim%auto)
     call broadcast (optim%measure_all)
     call broadcast (optim%warm_up)
+    call broadcast (optim%estimate_timing_error)
     call broadcast (optim%nstep_measure)
     call broadcast (optim%max_imbalance)
     call broadcast (optim%max_unused_procs)

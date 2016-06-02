@@ -120,7 +120,22 @@ parameter_list_optimisations = [
 ['integer', 'nproc'],
 ['logical', 'opt_redist_nbk'],
 ['logical', 'opt_redist_persist'],
+['logical', 'opt_redist_persist_overlap'],
+['logical', 'intmom_sub'],
+['logical', 'intspec_sub'],
+['logical', 'local_field_solve'],
 ['character(len=5)', 'layout'],
+['character(len=8)', 'field_option'],
+['logical', 'field_subgath'],
+['logical', 'do_smart_update'],
+['logical', 'field_local_allreduce'],
+['logical', 'field_local_allreduce_sub'],
+['logical', 'opt_source'],
+['integer', 'minnrow'],
+].compact.map{|p| Generator.new(p)}
+
+parameter_list_timestep = [
+['logical', 'immediate_reset'],
 ].compact.map{|p| Generator.new(p)}
 
 parameter_list_kt_grids = [
@@ -164,6 +179,9 @@ module overrides
 
 !> A type for containing overrides to the perpendicular grids (x and y). 
 #{Generator.generate_type('kt_grids', parameter_list_kt_grids)}
+
+!> A type for containing overrides to the timestep and the cfl parameters
+#{Generator.generate_type('timestep', parameter_list_timestep)}
 
 !> A type for storing overrides of the intial
 !! values of the fields and distribution function.
@@ -221,6 +239,8 @@ contains
 #{Generator.generate_finish('optimisations', parameter_list_optimisations)}
 #{Generator.generate_initialize('kt_grids', parameter_list_kt_grids)}
 #{Generator.generate_finish('kt_grids', parameter_list_kt_grids)}
+#{Generator.generate_initialize('timestep', parameter_list_timestep)}
+#{Generator.generate_finish('timestep', parameter_list_timestep)}
 
 !> Warning: You can't change the value of overrides%force_maxwell_reinit 
 !! or overrides%in_memory after calling this function
