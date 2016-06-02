@@ -13,7 +13,7 @@ program test_fields_local
   use fields, only: fields_pre_init
   use egrid
   !use general_f0, only: init_general_f0
-  use mp, only: init_mp, finish_mp, proc0, broadcast
+  use mp, only: init_mp, finish_mp, proc0, broadcast, mp_comm
   use file_utils, only: init_file_utils
   use species, only: init_species, nspec, spec
   use constants, only: pi
@@ -24,9 +24,12 @@ program test_fields_local
   use kt_grids, only: naky, ntheta0, init_kt_grids
   use theta_grid, only: ntgrid, init_theta_grid
   use gs2_layouts, only: init_gs2_layouts, g_lo, ie_idx
+  use gs2_main, only: initialize_gs2, gs2_program_state_type
+  use gs2_init, only: init, init_level_list
   implicit none
   real :: eps
   logical :: dummy
+  type(gs2_program_state_type) :: gs2_state
 
 
   ! General config
@@ -36,18 +39,23 @@ program test_fields_local
 
   ! Set up depenencies
   call init_mp
-  if (proc0) call init_file_utils(dummy)
-  call init_species
+  !if (proc0) call init_file_utils(dummy)
+  !call init_species
   !call init_general_f0
+  gs2_state%mp_comm_external = .true.
+  gs2_state%mp_comm = mp_comm
+  call initialize_gs2(gs2_state)
 
 
 
   call announce_module_test('fields_local')
 
+  call init(gs2_state%init, init_level_list%fields_level_2 - 1)
+
   !call init_kt_grids
   !call init_theta_grid
   !call init_dist_fn
-  call fields_pre_init
+  !call fields_pre_init
   call broadcast(MinNrow)
   call broadcast(do_smart_update)
   !call init_fields_implicit

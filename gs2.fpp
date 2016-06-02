@@ -3,6 +3,16 @@
 !! 
 !! GS2 is an initial value nonlinear code which solves the gyrokinetic equation. This is the source code documentation for GS2, and is aimed at developers. 
 !!
+#ifdef RELEASE
+!! This is the documentation for release RELEASE.
+!! For documentation for the development trunk please go to
+!! http://gyrokinetics.sourceforge.net/gs2_documentation
+#else
+!! This is the documentation for the development trunk.
+!! For documentation for specific releases please go to
+!! http://gyrokinetics.sourceforge.net/gs2_documentation/releases
+#endif
+!!
 !! \subsection udoc User Documentation
 !! For a general introduction and user documentation please go to the Gyrokinetics Wiki: http://gyrokinetics.sourceforge.net/wiki/index.php/Main_Page
 !! 
@@ -54,12 +64,17 @@
 
 program gs2
 
-! make_lib is a compiler flag used if running with 
-! an old version of trinity (coupled flux tube code)
-! MAKE_LIB is now deprecated.
+  ! make_lib is a compiler flag used if running with 
+  ! an old version of trinity (coupled flux tube code)
+  ! MAKE_LIB is now deprecated.
 
 # ifndef MAKE_LIB 
+  !use optimisation_config, only: optimisation_type
+  use gs2_optimisation, only: initialize_gs2_optimisation
+  use gs2_optimisation, only: finalize_gs2_optimisation
+  use gs2_optimisation, only: optimise_gs2
   use gs2_main, only: gs2_program_state_type
+  use gs2_main, only: initialize_wall_clock_timer
   use gs2_main, only: initialize_gs2
   use gs2_main, only: initialize_equations
   use gs2_main, only: initialize_diagnostics
@@ -71,17 +86,31 @@ program gs2
 
   implicit none
   type(gs2_program_state_type) :: state
-  call initialize_gs2(state)
-  call initialize_equations(state)
-  call initialize_diagnostics(state)
-  if (state%do_eigsolve) then 
-    call run_eigensolver(state)
-  else
-    call evolve_equations(state, state%nstep)
+  !type(optimisation_type) :: optim
+  call initialize_gs2_optimisation(state)
+  call initialize_wall_clock_timer
+
+  if (state%optim%on) then
+    call optimise_gs2(state)
   end if
-  call finalize_diagnostics(state)
-  call finalize_equations(state)
-  call finalize_gs2(state)
+  if (state%optim%auto .or. .not. state%optim%on) then
+    call initialize_gs2(state)
+    call initialize_equations(state)
+    call initialize_diagnostics(state)
+    state%print_times = .false.
+    if (state%do_eigsolve) then 
+      call run_eigensolver(state)
+    else
+      call evolve_equations(state, state%nstep)
+    end if
+    call finalize_diagnostics(state)
+    call finalize_equations(state)
+    state%print_times = .true.
+    state%print_full_timers = .true.
+    call finalize_gs2(state)
+  end if
+
+  call finalize_gs2_optimisation(state)
 
 # else
 

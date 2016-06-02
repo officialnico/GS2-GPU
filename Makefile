@@ -65,7 +65,7 @@ GK_PROJECT ?= gs2
 # Be careful that DEBUG=off means DEBUG=on.
 #
 # turns on debug mode (bin)
-DEBUG ?= on
+DEBUG ?= 
 # turns on scalasca instrumentation mode (bin)
 SCAL ?=
 # turns on test mode (bin)
@@ -78,12 +78,12 @@ OPT ?= on
 STATIC ?=
 # promotes precisions of real and complex (bin)
 DBLE ?= on
-# turns on distributed memory parallelization using MPI (bin)
-USE_MPI ?= on 
+# turns on distributed memory parallelization using MPI (mpi2, mpi3)
+USE_MPI ?= mpi2
 # turns on SHMEM parallel communications on SGI (bin)
 USE_SHMEM ?=
 # which FFT library to use (fftw,fftw3,mkl_fftw,undefined) 
-USE_FFT ?= fftw3
+USE_FFT ?= 
 # uses netcdf library (bin)
 USE_NETCDF ?=
 # uses parallel netcdf library
@@ -118,7 +118,19 @@ USE_AUTOTOOLS ?= off
 
 HAS_ISO_C_BINDING ?= on
 
+# If on, build with position independent code, needed if GS2 is going to be included
+# in a shared library or linked dynamically (e.g. it's needed by GRYFX).
+# This *may* have performance implications, but it hasn't been tested yet.
+USE_FPIC ?= 
 
+# Defines the size of the constant character arrays that are used to store the run
+# name. 2000 has been selected as the default as being longer than most people will 
+# need. However, this can be overriden by setting this parameter either in the environment
+# or when executing make. Make sure you rebuild constants.fpp if you want to change this.
+# e.g. 
+#       $ touch utils/constants.fpp
+#       $ ./build_gs2 -c 'RUN_NAME_SIZE=<newsize>'
+RUN_NAME_SIZE?=2000
 
 #
 # * Targets:
@@ -142,12 +154,12 @@ MPIFC		?= mpif90
 H5FC		?= h5fc
 H5FC_par	?= h5pfc
 F90FLAGS	=
-F90OPTFLAGS	=
+F90OPTFLAGS	= 
 CC		= cc
 MPICC		?= mpicc
 H5CC		?= h5cc
 H5CC_par	?= h5pcc
-CFLAGS		=
+CFLAGS		= 
 COPTFLAGS 	=
 LD 		= $(FC)
 LDFLAGS 	= $(F90FLAGS)
@@ -238,7 +250,7 @@ endif
 
 ifeq ($(MAKECMDGOALS),depend)
 # must invoke full functionality when make depend
-	MAKE += USE_HDF5=on USE_FFT=fftw USE_NETCDF=on USE_MPI=on \
+	MAKE += USE_HDF5=on USE_FFT=fftw USE_NETCDF=on USE_MPI=mpi3 \
 		USE_LOCAL_BESSEL=on USE_LOCAL_RAN=mt
 endif
 
@@ -246,14 +258,21 @@ endif
 SVN_REV='"$(shell svnversion -n .)"'
 CPPFLAGS+=-DSVN_REV=$(SVN_REV)
 
+# Define RUN_NAME_SIZE
+CPPFLAGS+=-DRUN_NAME_SIZE=$(RUN_NAME_SIZE) 
+
+# Define RELEASE based on the contents of the RELEASE
+# file, which is empty unless we are in a release.
+RELEASE_FILE = $(shell cat RELEASE)
+ifneq ($(RELEASE_FILE),) # If the file is not empty
+	RELEASE=$(RELEASE_FILE)
+	CPPFLAGS+=-DRELEASE=$(RELEASE_FILE)
+	DOC_FOLDER=releases/$(RELEASE_FILE)/
+endif
+
 # Define GK_SYSTEM for runtime_tests so that we can get the system name
 # at runtime
 CPPFLAGS+=-DGK_SYSTEM='"$(GK_SYSTEM)"'
-
-ifdef USE_SHMEM
-$(warning USE_SHMEM is not working yet)
-	override USE_SHMEM =	
-endif
 
 ifdef USE_HDF5
 	ifndef USE_MPI
@@ -271,6 +290,10 @@ ifdef USE_MPI
 	CC = $(MPICC)
 	CPPFLAGS += -DMPI
 endif
+ 
+ifeq ($(USE_MPI),mpi3)
+	CPPFLAGS += -DMPI3
+endif
 
 ifdef HAS_ISO_C_BINDING
 	CPPFLAGS += -DISO_C_BINDING
@@ -278,6 +301,11 @@ endif
 
 ifeq ($(USE_NEW_DIAG),on)
 	CPPFLAGS+=-DNEW_DIAG
+endif
+
+ifeq ($(USE_FPIC),on)
+	CFLAGS+=-fPIC
+	F90FLAGS += -fPIC
 endif
 
 ifdef USE_SHMEM
@@ -404,14 +432,15 @@ diagnostics:
 simpledataio:
 endif
 
-LIBS	+= $(DEFAULT_LIB) $(MPI_LIB) $(FFT_LIB) $(NETCDF_LIB) $(HDF5_LIB) \
+LIBS	+= $(DEFAULT_LIB) $(MPI_LIB) $(NETCDF_LIB) $(HDF5_LIB) $(FFT_LIB) \
 		$(IPM_LIB) $(NAG_LIB) $(EIG_LIB)
 PLIBS 	+= $(LIBS) $(PGPLOT_LIB)
 F90FLAGS+= $(F90OPTFLAGS) \
-	   $(DEFAULT_INC) $(MPI_INC) $(FFT_INC) $(NETCDF_INC) $(HDF5_INC) \
+	   $(DEFAULT_INC) $(MPI_INC) $(NETCDF_INC) $(HDF5_INC)  $(FFT_INC)\
 		 $(SIMPLEDATAIO_INC) $(EIG_INC)
 CFLAGS += $(COPTFLAGS) \
-	   $(DEFAULT_INC) $(MPI_INC) $(FFT_INC) $(NETCDF_INC) $(HDF5_INC) 
+	   $(DEFAULT_INC) $(MPI_INC) $(NETCDF_INC) $(HDF5_INC) $(FFT_INC) 
+
 
 DATE=$(shell date +%y%m%d)
 TARDIR=$(GK_PROJECT)_$(DATE)
@@ -465,7 +494,9 @@ FORTFROMRUBY+= gs2_init.f90 overrides.f90
 F90FROMFPP = $(patsubst %.fpp,%.f90,$(notdir $(wildcard *.fpp */*.fpp)))
 F90FROMFPP += tests/unit_tests/nonlinear_terms/test_nonlinear_terms.f90
 F90FROMFPP += tests/unit_tests/gs2_diagnostics_new/test_gs2_diagnostics_new.f90
+ifdef USE_NEW_DIAG
 F90FROMFPP += simpledataiof.f90 simpledataio_write.f90
+endif
 ifdef SCAL
    FC:= scalasca -instrument $(FC)
 endif
@@ -557,18 +588,21 @@ help: helplocal
 
 .PHONY: depend clean distclean tar test_make diagnostics simpledataio
 
-depend: $(FORTFROMRUBY)
+depend: $(FORTFROMRUBY) $(F90FROMFPP)
 	@$(DEPEND_CMD) -m "$(MAKE)" -1 -o -v=1 $(VPATH)
 
 # Make sure template dependencies are specified
 gs2_init.f90: templates/gs2_init_template.f90
 
 doc: $(F90FROMFPP) $(FORTFROMRUBY)
-	doxygen ../doxygen/gs2 
+	doxygen doxygen_config 
 	rm -f $(F90FROMFPP)
 
 sync_doc: 
-	rsync -av --delete ../doxygen/doc/html/	${USER},gyrokinetics@web.sourceforge.net:htdocs/gs2_documentation/
+	rsync -av --delete --exclude=releases doc/html/	${USER},gyrokinetics@web.sourceforge.net:htdocs/gs2_documentation/$(DOC_FOLDER)
+	mkdir -p doc/html/releases
+	echo "Options +Indexes" > doc/html/releases/.htaccess
+	rsync -av doc/html/releases/ ${USER},gyrokinetics@web.sourceforge.net:htdocs/gs2_documentation/releases/
 
 sync_input_doc:
 	coderunner cc synchronise_variables . -C gs2
@@ -580,7 +614,7 @@ clean: clean_simpledataio
 	-rm -f *.o *.mod *.g90 *.h core */core
 
 CLEANCOMMAND=echo $$$$PWD
-CLEANCOMMAND=rm -f *.o *.error *.out *.out.nc gridgen.200 *.lpc *.vres *.fields *.g fort.?? *.mod .*.scratch *.timing.* *.moments *.cdf *.jext *.parity *.heat *.heat2 *.vres2 *.amoments *.eigenfunc *.nc* *.mom2 *.epar .*.in results_of_test.txt *.stop *.fftw_wisdom *.phase *.kpar *.interp *.dist 
+CLEANCOMMAND=rm -f *.o *.error *.out *.out.nc *.gridgen.200 *.lpc *.vres *.fields *.g *.fort.?? *.mod .*.scratch *.timing.* *.moments *.cdf *.jext *.parity *.heat *.heat2 *.vres2 *.amoments *.eigenfunc *.nc* *.mom2 *.epar .*.in results_of_test.txt *.stop *.fftw_wisdom *.phase *.kpar *.interp *.dist 
 
 ifdef CLEAN_TEXTFILES
 	CLEANCOMMAND+= *~ *.orig
@@ -594,7 +628,10 @@ cleanlib:
 cleanconfig:
 	rm -f system_config .tmp_output
 
-distclean: unlink clean cleanlib clean_tests clean_benchmarks distclean_simpledataio cleanconfig
+cleandoc:
+	rm -rf doc/
+
+distclean: unlink clean cleanlib clean_tests clean_benchmarks distclean_simpledataio cleanconfig cleandoc
 
 tar:
 	@[ ! -d $(TARDIR) ] || echo "ERROR: directory $(TARDIR) exists. Stop."
@@ -690,6 +727,8 @@ unlink:
 revision:
 	@LANG=C svn info | awk '{if($$1=="Revision:") printf("%20d",$$2) }' > Revision
 
+
+geometry_c_interface.o: geometry_c_interface.h
 
 gryfx_libs: utils.a geo.a geo/geometry_c_interface.o
 

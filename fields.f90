@@ -10,10 +10,15 @@ module fields
   public :: reset_init, set_init_fields
   public :: fields_init_response, set_dump_and_read_response
   public :: dump_response_to_file
+  public :: init_fields_level_1, init_fields_level_2
+  public :: finish_fields_level_1, finish_fields_level_2
+  public :: fieldopt_switch, fieldopt_implicit, fieldopt_test, fieldopt_local, fieldopt_gf_local
 
   !> Made public for unit tests
   public :: fields_pre_init
   public :: remove_zonal_flows_switch
+  !> Made public for replay
+  public :: allocate_arrays
 
   interface fieldlineavgphi
      module procedure fieldlineavgphi_loc
@@ -110,11 +115,33 @@ contains
     !call init_parameter_scan
     call debug_message(verb, "init_fields: init_antenna")
     call init_antenna !Must come before allocate_arrays so we know if we need apar_ext
+    !call debug_message(verb, "init_fields: read_parameters")
+    !call read_parameters
+    !call debug_message(verb, "init_fields: allocate_arrays")
+    !call allocate_arrays
+  end subroutine fields_pre_init
+  
+  subroutine init_fields_level_1
+    use unit_tests, only: debug_message
+    implicit none
+    integer, parameter :: verb=3
     call debug_message(verb, "init_fields: read_parameters")
     call read_parameters
     call debug_message(verb, "init_fields: allocate_arrays")
     call allocate_arrays
-  end subroutine fields_pre_init
+  end subroutine init_fields_level_1
+
+  subroutine finish_fields_level_1
+    call finish_fields
+  end subroutine finish_fields_level_1
+
+  subroutine init_fields_level_2
+    call init_fields
+  end subroutine init_fields_level_2
+
+  subroutine finish_fields_level_2
+    call reset_init
+  end subroutine finish_fields_level_2
 
   subroutine fields_init_response
     use fields_implicit, only: init_fields_implicit
@@ -355,9 +382,12 @@ contains
     use antenna, only: no_driver
     use fields_arrays, only: phi, apar, bpar, phinew, aparnew, bparnew, apar_ext
     use fields_arrays, only: gf_phi, gf_apar, gf_bpar, gf_phinew, gf_aparnew, gf_bparnew
+    use unit_tests, only: debug_message
     implicit none
+    integer, parameter :: verb=3
 
     if (.not. allocated(phi)) then
+       call debug_message(verb, 'fields::allocate_arrays allocating')
        allocate (     phi (-ntgrid:ntgrid,ntheta0,naky))
        allocate (    apar (-ntgrid:ntgrid,ntheta0,naky))
        allocate (   bpar (-ntgrid:ntgrid,ntheta0,naky))
@@ -548,8 +578,11 @@ contains
     use fields_arrays, only: phi, apar, bpar, phinew, aparnew, bparnew
     use fields_arrays, only: apar_ext, gf_phi, gf_apar, gf_bpar
     use fields_arrays, only: apar_ext, gf_phinew, gf_aparnew, gf_bparnew
+    use unit_tests, only: debug_message
 
     implicit none
+    integer, parameter :: verbosity = 3
+
 
     initialized  = .false.
 !AJ Does these need zero'd if they are to be deallocated below?
@@ -559,21 +592,34 @@ contains
     aparnew = 0.
     bpar = .0
     bparnew = 0.
+    call debug_message(verbosity, &
+      'fields::finish_fields zeroed fields')
     
     select case (fieldopt_switch)
     case (fieldopt_implicit)
-       call implicit_reset
+       ! This line is no longer necessary
+       ! because fields_implicit::reset_init is
+       ! called by finish_fields_level_2
+       !call implicit_reset
     case (fieldopt_test)
-       call test_reset
+       ! This line is no longer necessary
+       ! because fields_test::reset_init is
+       ! called by finish_fields_level_2
+       !call test_reset
     case (fieldopt_local)
        call finish_fields_local
     case (fieldopt_gf_local)
        call finish_fields_gf_local
     end select
 
+    call debug_message(verbosity, &
+      'fields::finish_fields called subroutines')
+
     if (allocated(phi)) deallocate (phi, apar, bpar, phinew, aparnew, bparnew)
     if (allocated(gf_phi)) deallocate(gf_phi, gf_apar, gf_bpar, gf_phinew, gf_aparnew, gf_bparnew)
     if (allocated(apar_ext)) deallocate (apar_ext)
+    call debug_message(verbosity, &
+      'fields::finish_fields deallocated fields')
 
   end subroutine finish_fields
 

@@ -628,7 +628,7 @@ contains
     use gs2_layouts, only: g_lo
     use gs2_layouts, only: is_idx, ik_idx, it_idx, ie_idx, il_idx
     use kt_grids, only: kwork_filter
-    use mp, only: sum_allreduce
+    use mp, only: sum_allreduce, iproc
 
     implicit none
 

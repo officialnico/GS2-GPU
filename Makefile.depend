@@ -215,6 +215,7 @@ ffttester_mod = \
 	 netcdf_utils.o \
 	 nonlinear_terms.o \
 	 normalisations.o \
+	 optimisation_config.o \
 	 overrides.o \
 	 parameter_scan.o \
 	 parameter_scan_arrays.o \
@@ -225,6 +226,7 @@ ffttester_mod = \
 	 redistribute.o \
 	 run_parameters.o \
 	 runtime_tests.o \
+	 simpledataio_read.o \
 	 simpledataio_write.o \
 	 simpledataiof.o \
 	 sorting.o \
@@ -336,12 +338,14 @@ gs2_mod = \
 	 gs2_io.o \
 	 gs2_layouts.o \
 	 gs2_main.o \
+	 gs2_optimisation.o \
 	 gs2_reinit.o \
 	 gs2_save.o \
 	 gs2_time.o \
 	 gs2_transforms.o \
 	 hyper.o \
 	 ideq.o \
+	 ingen_mod.o \
 	 init_g.o \
 	 job_manage.o \
 	 kt_grids.o \
@@ -355,6 +359,7 @@ gs2_mod = \
 	 netcdf_utils.o \
 	 nonlinear_terms.o \
 	 normalisations.o \
+	 optimisation_config.o \
 	 overrides.o \
 	 parameter_scan.o \
 	 parameter_scan_arrays.o \
@@ -365,6 +370,7 @@ gs2_mod = \
 	 redistribute.o \
 	 run_parameters.o \
 	 runtime_tests.o \
+	 simpledataio_read.o \
 	 simpledataio_write.o \
 	 simpledataiof.o \
 	 sorting.o \
@@ -445,6 +451,7 @@ ingen_mod = \
 	 hyper.o \
 	 ideq.o \
 	 ingen.o \
+	 ingen_mod.o \
 	 init_g.o \
 	 job_manage.o \
 	 kt_grids.o \
@@ -525,6 +532,7 @@ benchmarks.o: \
 	 runtime_tests.o 
 ceq.o: \
 	 constants.o \
+	 file_utils.o \
 	 mp.o \
 	 read_chease.o \
 	 spl.o 
@@ -573,7 +581,8 @@ diagnostics_config.o: \
 	 mp.o \
 	 simpledataiof.o \
 	 species.o \
-	 text_options.o 
+	 text_options.o \
+	 unit_tests.o 
 diagnostics_create_and_write.o: \
 	 diagnostics_config.o \
 	 diagnostics_dimensions.o \
@@ -581,10 +590,12 @@ diagnostics_create_and_write.o: \
 	 file_utils.o \
 	 kt_grids.o \
 	 mp.o \
+	 simpledataio_read.o \
 	 simpledataio_write.o \
 	 simpledataiof.o 
 diagnostics_dimensions.o: \
-	 simpledataiof.o 
+	 simpledataiof.o \
+	 unit_tests.o 
 diagnostics_fields.o: \
 	 diagnostics_config.o \
 	 diagnostics_create_and_write.o \
@@ -636,6 +647,7 @@ diagnostics_fluxes.o: \
 	 run_parameters.o \
 	 species.o \
 	 theta_grid.o \
+	 unit_tests.o \
 	 volume_averages.o 
 diagnostics_geometry.o: \
 	 diagnostics_config.o \
@@ -697,6 +709,7 @@ diagnostics_omega.o: \
 	 fields_parallelization.o \
 	 gs2_time.o \
 	 kt_grids.o \
+	 mp.o \
 	 run_parameters.o 
 diagnostics_screen_printout.o: \
 	 diagnostics_config.o \
@@ -741,6 +754,7 @@ dist_fn.o: \
 	 collisions.o \
 	 constants.o \
 	 dist_fn_arrays.o \
+	 fields_arrays.o \
 	 file_utils.o \
 	 geometry.o \
 	 gs2_heating.o \
@@ -761,7 +775,8 @@ dist_fn.o: \
 	 species.o \
 	 spfunc.o \
 	 text_options.o \
-	 theta_grid.o 
+	 theta_grid.o \
+	 unit_tests.o 
 dist_fn_arrays.o: \
 	 gs2_layouts.o \
 	 le_grids.o \
@@ -835,7 +850,8 @@ fields.o: \
 	 text_options.o \
 	 theta_grid.o \
 	 unit_tests.o 
-fields_arrays.o: 
+fields_arrays.o: \
+	 constants.o 
 fields_gf_local.o: \
 	 antenna.o \
 	 dist_fn.o \
@@ -893,7 +909,8 @@ fields_test.o: \
 	 dist_fn_arrays.o \
 	 fields_arrays.o 
 file_utils.o: \
-	 command_line.o 
+	 command_line.o \
+	 constants.o 
 functional_tests.o: \
 	 gs2_diagnostics.o \
 	 gs2_diagnostics_new.o \
@@ -910,6 +927,7 @@ gauss_quad.o: \
 	 mp.o 
 generate_fftw_wisdom.o: \
 	 benchmarks.o \
+	 constants.o \
 	 file_utils.o \
 	 job_manage.o \
 	 mp.o \
@@ -919,22 +937,27 @@ geometry.o: \
 	 constants.o \
 	 deq.o \
 	 eeq.o \
+	 file_utils.o \
 	 geq.o \
 	 ideq.o \
 	 leq.o \
 	 mp.o \
-	 peq.o 
+	 peq.o \
+	 spl.o 
 geq.o: \
 	 constants.o \
+	 file_utils.o \
 	 mp.o \
 	 netcdf_utils.o \
 	 spl.o 
 gridgen4mod.o: \
 	 constants.o \
+	 file_utils.o \
 	 mp.o \
 	 spl.o 
 gs2.o: \
-	 gs2_main.o 
+	 gs2_main.o \
+	 gs2_optimisation.o 
 gs2_diagnostics.o: \
 	 antenna.o \
 	 collisions.o \
@@ -1002,6 +1025,20 @@ gs2_diagnostics_new.o: \
 	 theta_grid.o \
 	 unit_tests.o \
 	 volume_averages.o 
+gs2_gryfx_zonal.o: \
+	 dist_fn.o \
+	 file_utils.o \
+	 geometry.o \
+	 gs2_main.o \
+	 gs2_save.o \
+	 gs2_time.o \
+	 kt_grids.o \
+	 mp.o \
+	 nonlinear_terms.o \
+	 species.o \
+	 spl.o \
+	 theta_grid.o \
+	 unit_tests.o 
 gs2_heating.o: \
 	 mp.o \
 	 species.o 
@@ -1047,17 +1084,21 @@ gs2_io.o: \
 	 species.o \
 	 theta_grid.o 
 gs2_layouts.o: \
+	 constants.o \
 	 file_utils.o \
 	 layouts_type.o \
 	 mp.o \
+	 overrides.o \
 	 redistribute.o 
 gs2_main.o: \
 	 antenna.o \
 	 collisions.o \
+	 constants.o \
 	 dist_fn.o \
 	 dist_fn_arrays.o \
 	 fields.o \
 	 fields_arrays.o \
+	 fields_implicit.o \
 	 fields_local.o \
 	 file_utils.o \
 	 geometry.o \
@@ -1077,6 +1118,7 @@ gs2_main.o: \
 	 mp.o \
 	 nonlinear_terms.o \
 	 normalisations.o \
+	 optimisation_config.o \
 	 overrides.o \
 	 parameter_scan.o \
 	 redistribute.o \
@@ -1086,6 +1128,13 @@ gs2_main.o: \
 	 theta_grid.o \
 	 theta_grid_params.o \
 	 unit_tests.o 
+gs2_optimisation.o: \
+	 fields_implicit.o \
+	 gs2_main.o \
+	 ingen_mod.o \
+	 mp.o \
+	 optimisation_config.o \
+	 overrides.o 
 gs2_reinit.o: \
 	 dist_fn_arrays.o \
 	 file_utils.o \
@@ -1093,6 +1142,7 @@ gs2_reinit.o: \
 	 gs2_time.o \
 	 job_manage.o \
 	 mp.o \
+	 nonlinear_terms.o \
 	 run_parameters.o 
 gs2_save.o: \
 	 antenna_data.o \
@@ -1121,7 +1171,8 @@ gs2_transforms.o: \
 	 prof.o \
 	 redistribute.o \
 	 sorting.o \
-	 theta_grid.o 
+	 theta_grid.o \
+	 unit_tests.o 
 hdf_wrapper.o: \
 	 constants.o \
 	 convert.o \
@@ -1147,6 +1198,8 @@ ideq.o: \
 	 mp.o \
 	 spl.o 
 ingen.o: \
+	 ingen_mod.o 
+ingen_mod.o: \
 	 antenna.o \
 	 collisions.o \
 	 constants.o \
@@ -1192,6 +1245,7 @@ init_g.o: \
 	 theta_grid_params.o \
 	 unit_tests.o 
 job_manage.o: \
+	 constants.o \
 	 file_utils.o \
 	 mp.o 
 kpar.o: \
@@ -1200,6 +1254,7 @@ kt_grids.o: \
 	 constants.o \
 	 file_utils.o \
 	 mp.o \
+	 overrides.o \
 	 text_options.o \
 	 theta_grid.o 
 layouts_type.o: \
@@ -1263,13 +1318,19 @@ nonlinear_terms.o: \
 	 run_parameters.o \
 	 species.o \
 	 text_options.o \
-	 theta_grid.o 
+	 theta_grid.o \
+	 unit_tests.o 
 normalisations.o: \
 	 file_utils.o \
 	 mp.o \
 	 runtime_tests.o 
 om.o: \
 	 command_line.o 
+optimisation_config.o: \
+	 file_utils.o \
+	 mp.o \
+	 overrides.o \
+	 text_options.o 
 overrides.o: \
 	 file_utils.o 
 parameter_scan.o: \
@@ -1293,7 +1354,7 @@ pgplot_utils.o: \
 	 constants.o 
 prof.o: 
 ran.o: \
-	 mt19937.o 
+	 constants.o 
 read_chease.o: 
 redistribute.o: \
 	 job_manage.o \
@@ -1315,15 +1376,29 @@ rungridgen.o: \
 	 gridgen4mod.o \
 	 spl.o 
 runtime_tests.o: 
+shm_mpi3.o: \
+	 shm_mpi3_alloc_tmpl.inc \
+	 shm_mpi3_fence_tmpl.inc \
+	 shm_mpi3_free_tmpl.inc \
+	 shm_mpi3_get_node_pointer_tmpl.inc 
+shm_mpi3_alloc_tmpl.inc: 
+shm_mpi3_fence_tmpl.inc: 
+shm_mpi3_free_tmpl.inc: 
+shm_mpi3_get_node_pointer_tmpl.inc: 
+simpledataio_read.o: \
+	 simpledataio_write.o \
+	 simpledataiof.o 
 simpledataio_write.o: \
 	 simpledataiof.o 
 simpledataiof.o: 
 sorting.o: 
 species.o: \
 	 file_utils.o \
+	 kt_grids.o \
 	 mp.o \
 	 overrides.o \
-	 text_options.o 
+	 text_options.o \
+	 unit_tests.o 
 spfunc.o: \
 	 constants.o 
 spl.o: \

@@ -2,7 +2,7 @@
 
 
 # Specify any required modules that are not in libgs2.a
-TEST_MODS= $(GK_HEAD_DIR)/functional_tests.o 
+TEST_MODS= $(GK_HEAD_DIR)/functional_tests.o  $(GK_HEAD_DIR)/libgs2.a $(GK_HEAD_DIR)/benchmarks.o
 
 # Run the tests in all subfolders unless otherwise specified
 # by setting the variable TESTS
@@ -36,4 +36,4 @@ clean upload:
 
 
 $(TESTS_ACTUAL): 
-	$(MAKE) all -C $@ TEST_FOLD=$@
+	@$(MAKE) all -C $@ TEST_FOLD=$@

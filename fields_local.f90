@@ -195,6 +195,8 @@ module fields_local
      !0   : Invert the field matrix
      !In the future may wish to do things like LU decomposition etc.
      !Could also do things like eigenvalue analysis etc.
+     logical :: no_populate=.false. !Advanced usage only, if true then don't populate response
+     logical :: no_prepare=.false. !Advanced usage only, if true then don't prepare (invert) response
    contains
      private
      procedure :: deallocate => fm_deallocate
@@ -1544,12 +1546,10 @@ contains
        call self%supercells(is)%reset
     enddo
 
-
     !AJ Free communicators associated with this ky block
     if(self%ky_sub_all%id .ne. self%parent_sub%id .and. self%ky_sub_all%nproc .gt. 0 .and. self%ky_sub_all%id .ne. mp_comm_null) then
        call free_comm(self%ky_sub_all)
     end if
-
     !deallocate
     call self%deallocate
 
@@ -1954,9 +1954,12 @@ contains
     use fields_arrays, only: phi, apar, bpar, phinew, aparnew, bparnew
     use dist_fn_arrays, only: g
     use kt_grids, only: kwork_filter
+    use mp, only: iproc
     implicit none
     class(fieldmat_type), intent(inout) :: self
     integer :: ifl, pts_remain, ik, is
+
+    if(self%no_populate) return
 
     !First initialise everything to 0
     g=0
@@ -2059,6 +2062,7 @@ contains
     use theta_grid, only: ntgrid
     use dist_fn, only: getfieldeq, getfieldeq_nogath, timeadv
     use fields_arrays, only: phi, apar, bpar, phinew, aparnew, bparnew
+    use mp, only: iproc
     implicit none
     class(fieldmat_type), intent(inout) :: self
     complex, dimension(-ntgrid:ntgrid,ntheta0,naky), intent(inout) :: field
@@ -2227,6 +2231,7 @@ contains
     !Exit early if we're empty
     if(self%is_empty) return
     if(.not.self%is_local) return
+    if(self%no_prepare) return
 
     !Tell each ky to prepare
     do ik=1,self%naky
@@ -2239,6 +2244,7 @@ contains
     use kt_grids, only: ntheta0, naky
     use theta_grid, only: ntgrid
     use dist_fn, only: getfieldeq, getfieldeq_nogath
+    use mp, only: iproc
     implicit none
     class(fieldmat_type), intent(inout) :: self
     complex, dimension(:,:,:), intent(inout) :: phi,apar,bpar
@@ -3868,7 +3874,7 @@ contains
 
   !>Routine use to initialise field matrix data
   subroutine init_fields_matrixlocal(tuning_in)
-    use mp, only: proc0, mp_abort !, barrier
+    use mp, only: proc0, mp_abort, iproc !, barrier
     implicit none
     logical, optional :: tuning_in
     logical :: tuning
@@ -3989,7 +3995,6 @@ contains
 !!relevant physics and numerical parameters change. In practice this just means
 !!when the time step changes.
 !!!!!!!!!!
-
     if(.not. tuning) then
        !Now fill the fieldmat with data
        if(read_response)then
@@ -4062,8 +4067,8 @@ contains
     implicit none
     call pc%reset
     call fieldmat%reset
-    !reinit = .true.
-    initialised=.false.    
+    reinit = .false.
+    initialised=.false.
   end subroutine finish_fields_local
 
   !>Calculate the update to the fields

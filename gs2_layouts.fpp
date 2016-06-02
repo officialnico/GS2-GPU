@@ -11,6 +11,7 @@ module gs2_layouts
   use layouts_type, only: ikit, ikitprocs
   use layouts_type, only: g_layout_type, lz_layout_type, e_layout_type
   use layouts_type, only: le_layout_type, p_layout_type, gf_layout_type
+  use constants, only: run_name_size
 ! <TT
 
   implicit none
@@ -36,6 +37,10 @@ module gs2_layouts
 ! HJL>
   public :: finish_layouts
 ! <HJL
+
+! EGH
+  public :: set_overrides
+
   public :: finish_fields_layouts, finish_jfields_layouts
 
   public :: init_fields_layouts
@@ -109,7 +114,7 @@ module gs2_layouts
   logical :: local_field_solve, accel_lxyes, lambda_local, unbalanced_xxf, unbalanced_yxf
   real :: max_unbalanced_xxf, max_unbalanced_yxf
   character (len=5) :: layout
-  character (len=1000) :: fft_wisdom_file
+  character(run_name_size) :: fft_wisdom_file
   logical :: fft_use_wisdom, fft_measure_plan
   logical :: exist
   logical :: simple_gf_decomposition
@@ -222,6 +227,9 @@ module gs2_layouts
      integer :: ntgrid, nsign, naky, ndky, ny, ntheta0
      integer :: nx, nxny, nxnky, negrid, nlambda, nspec, nia
      integer :: llim_world, ulim_world, llim_proc, ulim_proc, ulim_alloc, blocksize
+#ifdef SHMEM
+     integer :: ppn, nnd, bpn, llim_node, ulim_node !shm data
+#endif
   end type accel_layout_type
 
   type (accel_layout_type) :: accel_lo
@@ -230,6 +238,10 @@ module gs2_layouts
      integer :: iproc
      integer :: ntgrid, nsign, naky, ny, ntheta0, nx, nxny, negrid, nlambda, nspec
      integer :: llim_world, ulim_world, llim_proc, ulim_proc, ulim_alloc, blocksize
+#ifdef SHMEM
+     integer :: ppn, nnd, bpn, llim_node, ulim_node ! shm data
+     integer, allocatable :: proc_map(:)
+#endif
   end type accelx_layout_type
 
   type (accelx_layout_type) :: accelx_lo
@@ -416,13 +428,17 @@ contains
 
     if (initialized_layouts) return
     initialized_layouts = .true.
+
+    !write(*,*) 'INITGS2', initialized_x_transform
     
     if (proc0) call read_parameters
     call broadcast_results
 
   end subroutine init_gs2_layouts
 
+
   subroutine finish_gs2_layouts
+    call finish_layouts
     initialized_layouts = .false.
   end subroutine finish_gs2_layouts
 
@@ -492,14 +508,30 @@ contains
     opt_redist_persist_overlap=opt_redist_persist_overlap.and.opt_redist_persist
     call get_wisdom_file(fft_wisdom_file)
   end subroutine read_parameters
+
+  subroutine set_overrides(opt_ov)
+    use overrides, only: optimisations_overrides_type
+    use redistribute, only: opt_redist_nbk, opt_redist_persist, opt_redist_persist_overlap
+    type(optimisations_overrides_type), intent(in) :: opt_ov
+    if (opt_ov%override_layout) layout = opt_ov%layout
+    if (opt_ov%override_opt_redist_nbk) &
+      opt_redist_nbk = opt_ov%opt_redist_nbk
+    if (opt_ov%override_opt_redist_persist) &
+      opt_redist_persist = opt_ov%opt_redist_persist
+    !Disable settings if dependent settings not set
+    opt_redist_persist=opt_redist_persist.and.opt_redist_nbk
+    opt_redist_persist_overlap=opt_redist_persist_overlap.and.opt_redist_persist
+  end subroutine set_overrides
+
     
 
   !> Set the fft_wisdom_file based on the value set in the namelist (if any)
   !! and the value in the GK_FFTW3_WISDOM environment variable
   subroutine get_wisdom_file(wisdom_file)
     use file_utils, only: run_name
+    use constants, only: run_name_size
     character(len=*), intent(inout) :: wisdom_file
-    character(len=1000) :: env_wisdom_file
+    character(run_name_size) :: env_wisdom_file
     call get_environment_variable("GK_FFTW3_WISDOM", env_wisdom_file)
     !read (env_wisdom_file,'(I10)') verbosity
 
@@ -714,6 +746,10 @@ contains
 ! TT>
     use file_utils, only: error_unit
 ! <TT
+#ifdef SHMEM
+    use shm_mpi3, only: shm_info
+    use mp, only: allgather
+#endif
     implicit none
     integer, intent (in) :: naky, ntheta0, nlambda, negrid, nspec
 !<DD>
@@ -722,6 +758,9 @@ contains
     integer :: nproc_subcomm, rank_subcomm
     integer :: nproc_tmp, idim, tmp, i
     real :: tmp_r
+#ifdef SHMEM
+    integer nxy, les, xyb, nd_les, llim_nd, left_lim_nd, ind, sfft
+#endif
     integer,dimension(5) :: nproc_dim
     integer,dimension(:),allocatable :: les_kxky_range
     logical,dimension(5) :: dim_divides,dim_local
@@ -753,10 +792,55 @@ contains
     g_lo%llim_world = 0
     g_lo%ulim_world = naky*ntheta0*negrid*nlambda*nspec - 1
       
+#ifndef SHMEM
     g_lo%blocksize = g_lo%ulim_world/nproc + 1
     g_lo%llim_proc = g_lo%blocksize*iproc
     g_lo%ulim_proc = min(g_lo%ulim_world, g_lo%llim_proc + g_lo%blocksize - 1)
     g_lo%ulim_alloc = max(g_lo%llim_proc, g_lo%ulim_proc)
+
+#else
+
+    nxy=naky*ntheta0
+    les = nlambda*negrid*nspec
+
+    !shm 
+    g_lo%ppn = shm_info%size
+    g_lo%nnd = nproc / g_lo%ppn
+    ! needs a test and to see if every node has the same number of processors
+    !if ( mod(nproc, g_lo%ppn) /= 0) g_lo%nnd =g_lo%nnd + 1
+    ind = iproc / g_lo%ppn
+    g_lo%bpn = les / g_lo%nnd
+    if (ind < mod(les,  g_lo%nnd )) g_lo%bpn = g_lo%bpn + 1
+
+    llim_nd = ind * (les / g_lo%nnd) + min(ind, mod(les, g_lo%nnd))
+    g_lo%llim_node = max(llim_nd-1, 0) * nxy
+    g_lo%ulim_node =  g_lo%llim_node + g_lo%bpn * nxy -1
+
+    nd_les = g_lo%bpn
+    xyb = (nxy * nd_les) / g_lo%ppn
+    g_lo%blocksize =  xyb
+    if (shm_info%id < mod(nxy * nd_les, g_lo%ppn)) g_lo%blocksize = g_lo%blocksize + 1
+    !g_lo%llim_proc = g_lo%blocksize*iproc
+    
+    g_lo%llim_proc = g_lo%llim_node &
+         + shm_info%id * xyb + min(shm_info%id, mod(nxy * nd_les, g_lo%ppn))
+    g_lo%ulim_proc = min(g_lo%ulim_world, g_lo%llim_proc + g_lo%blocksize - 1)
+    g_lo%ulim_alloc = max(g_lo%llim_proc, g_lo%ulim_proc)
+
+    allocate(g_lo%proc_map(0:nproc-1))
+    call allgather((/ g_lo%llim_proc /), 1, g_lo%proc_map, 1)  
+
+    !write(0,*) 'g_lo', left_lim_nd, llim_nd, iproc, ind, g_lo%llim_proc, g_lo%ulim_proc, g_lo%llim_node, g_lo%ulim_node
+
+    ! report on shm details
+    if (proc0) then 
+       write(*,'(/,a)') "g_lo shared memory parameters (rank 0)" 
+       write(*,*) "ranks per node :", g_lo%ppn
+       write(*,*) "total number of blocks", les, "; and per node :", g_lo%bpn
+       write(*,*) "block size inside node :", g_lo%blocksize
+    endif
+    
+#endif
 
 !<DD>Calculate constants used in the index lookup routines
 !(rather than calculating them at each call as done previously)
@@ -1692,12 +1776,27 @@ contains
   end function ik_idx_g
 
   elemental function proc_id_g (lo, i)
+#ifdef SHMEM
+    use mp, only : nproc
+#endif
     implicit none
     integer :: proc_id_g
     type (g_layout_type), intent (in) :: lo
     integer, intent (in) :: i
 
+#ifdef SHMEM
+    integer k
+
+    proc_id_g = nproc - 1
+    do k =1, nproc-1
+       if ( i < lo%proc_map(k)) then 
+          proc_id_g = k - 1
+          exit
+       endif
+    enddo
+#else
     proc_id_g = i/lo%blocksize
+#endif
 
   end function proc_id_g
 
@@ -1764,7 +1863,13 @@ contains
     type (g_layout_type), intent (in) :: lo
     integer, intent (in) :: ig
 
+#ifndef SHMEM
     ig_local_g = lo%iproc == proc_id(lo, ig)
+#else
+    ig_local_g = .false.
+    if ( ig >= lo%llim_proc .and. ig <= lo%ulim_proc ) &
+         ig_local_g = .true.
+#endif
   end function ig_local_g
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -3868,6 +3973,7 @@ contains
     integer :: nprocset, ngroup, nblock, ntgridtotal, nsign
     real :: unbalanced_amount
 
+    !write (*,*) 'INIT_X_TR', initialized_x_transform
     if (initialized_x_transform) return
     initialized_x_transform = .true.
 
@@ -3890,6 +3996,8 @@ contains
     xxf_lo%nspec = nspec
     xxf_lo%llim_world = 0
     xxf_lo%ulim_world = naky*(2*ntgrid+1)*2*nlambda*negrid*nspec - 1
+
+    !write (*,*) 'XXF_LO%ulim_world', xxf_lo%ulim_world
 
 !<DD>See g_lo init
     select case (layout)
@@ -4029,6 +4137,7 @@ contains
        ! decomposition.
        if (.not. unbalanced_xxf) then
 
+          !write (*,*) 'XXF_LO%ulim_world', xxf_lo%ulim_world, nproc
           xxf_lo%blocksize = xxf_lo%ulim_world/nproc + 1
           xxf_lo%llim_proc = xxf_lo%blocksize*iproc
           xxf_lo%ulim_proc &
@@ -5318,12 +5427,27 @@ contains
   end function idx_yxf
 
   elemental function proc_id_accelx (lo, i)
+#ifdef SHMEM
+    use mp, only : nproc
+#endif
     implicit none
     integer :: proc_id_accelx
     type (accelx_layout_type), intent (in) :: lo
     integer, intent (in) :: i
 
+#ifdef SHMEM
+    integer k 
+
+    proc_id_accelx = nproc - 1
+    do k =1, nproc-1
+       if ( i < lo%proc_map(k)) then 
+          proc_id_accelx = k - 1
+          exit
+       endif
+    enddo
+#else
     proc_id_accelx = i/lo%blocksize
+#endif
 
   end function proc_id_accelx
 
@@ -5410,7 +5534,13 @@ contains
     logical ig_local_accelx
     type (accelx_layout_type), intent (in) :: lo
     integer, intent (in) :: i
+#ifndef SHMEM
     ig_local_accelx = lo%iproc == proc_id(lo, i)
+#else
+    ig_local_accelx = .false.
+    if ( i >= lo%llim_proc .and. i <= lo%ulim_proc) &
+         ig_local_accelx = .true.
+#endif
   end function ig_local_accelx
 
   elemental function idx_local_yxf (lo, ig, isign, it, il, ie, is)
@@ -5436,10 +5566,17 @@ contains
   subroutine init_accel_transform_layouts &
        (ntgrid, naky, ntheta0, nlambda, negrid, nspec, nx, ny)
     use mp, only: iproc, nproc
+#ifdef SHMEM
+    use mp, only: proc0, allgather
+    use shm_mpi3, only : shm_info
+#endif
     implicit none
     integer, intent (in) :: ntgrid, naky, ntheta0, nlambda, negrid, nspec
     integer, intent (in) :: nx, ny
     integer :: nnx, nny
+#ifdef SHMEM
+    integer :: nxy, les, xyb, llim_nd, nd_les, ind, left_lim_nd, sfft
+#endif
 
     if (initialized_accel_transform_layouts) return
     initialized_accel_transform_layouts = .true.
@@ -5468,6 +5605,7 @@ contains
     accelx_lo%nspec = nspec
     accelx_lo%llim_world = 0
     accelx_lo%ulim_world = nnx*nny*nlambda*negrid*nspec - 1
+#ifndef SHMEM
     accelx_lo%blocksize = accelx_lo%ulim_world/nproc + 1
     accelx_lo%llim_proc = accelx_lo%blocksize*iproc
     accelx_lo%ulim_proc &
@@ -5495,6 +5633,100 @@ contains
     accel_lo%ulim_proc &
          = min(accel_lo%ulim_world, accel_lo%llim_proc + accel_lo%blocksize - 1)
     accel_lo%ulim_alloc = max(accel_lo%llim_proc, accel_lo%ulim_proc)
+
+#else
+
+    nxy=nnx*nny
+    les = nlambda*negrid*nspec
+
+    accelx_lo%ppn = shm_info%size
+    accelx_lo%nnd = nproc / accelx_lo%ppn
+    ! needs a test and to see if every node has the same number of processors
+    !if ( mod(nproc,accelx_lo%ppn) /= 0) accelx_lo%nnd = accelx_lo%nnd + 1
+    ind = iproc / accelx_lo%ppn
+
+    accelx_lo%bpn = les / accelx_lo%nnd
+    if (ind < mod(les,  accelx_lo%nnd )) accelx_lo%bpn = accelx_lo%bpn + 1
+    llim_nd = ind * (les / accelx_lo%nnd) + min(ind, mod(les, accelx_lo%nnd))
+    accelx_lo%llim_node = max(llim_nd-1,0) * nxy
+    accelx_lo%ulim_node = accelx_lo%llim_node + accelx_lo%bpn * nxy -1
+    nd_les = accelx_lo%bpn
+
+    xyb = (nxy *nd_les) / accelx_lo%ppn
+    accelx_lo%blocksize = xyb
+    if ( shm_info%id < mod(nxy * nd_les, accelx_lo%ppn) ) accelx_lo%blocksize = accelx_lo%blocksize + 1
+    
+    !accelx_lo%llim_proc = accelx_lo%blocksize*iproc
+    accelx_lo%llim_proc = accelx_lo%llim_node &
+         + shm_info%id * xyb +  min(shm_info%id, mod(nxy * nd_les, accelx_lo%ppn))
+    accelx_lo%ulim_proc &
+         = min(accelx_lo%ulim_world, accelx_lo%llim_proc + accelx_lo%blocksize - 1)
+    accelx_lo%ulim_alloc = max(accelx_lo%llim_proc, accelx_lo%ulim_proc)
+    
+    allocate(accelx_lo%proc_map(0:nproc-1))
+    call allgather((/accelx_lo%llim_proc/), 1, accelx_lo%proc_map, 1)
+
+    if (proc0) then 
+       write(*,'(/,a)') "accelx_lo shared memory parammeters (rank 0)" 
+       write(*,*) "ranks per node :", accelx_lo%ppn
+       write(*,*) "total number of blocks: ", les, "; and per node :", accelx_lo%bpn
+       write(*,*) "block size per rank :", accelx_lo%blocksize
+    endif
+
+    accel_lo%iproc = iproc
+    accel_lo%ntgrid = ntgrid
+    accel_lo%nsign = 2
+    accel_lo%naky = naky
+    accel_lo%ndky = nny/2+1  ! Note: this is for dealiased k space quantities
+    accel_lo%ny = nny
+    accel_lo%ntheta0 = ntheta0
+    accel_lo%nx = nnx
+    accel_lo%nxny = nnx*nny
+    accel_lo%nxnky = nnx*(nny/2+1)
+    accel_lo%nlambda = nlambda
+    accel_lo%negrid = negrid
+    accel_lo%nspec = nspec
+    !accel_lo%nia = negrid*nlambda*nspec/nproc
+    accel_lo%llim_world = 0
+    accel_lo%ulim_world = nnx*(nny/2+1)*nlambda*negrid*nspec - 1
+    !accel_lo%blocksize = accel_lo%ulim_world/nproc + 1
+    nxy = nnx*(nny/2+1)
+
+    accel_lo%ppn = shm_info%size
+    accel_lo%nnd = nproc / accel_lo%ppn
+    ! needs a test and to see if every node has the same number of processors
+    !if ( mod(nproc, accel_lo%ppn) /= 0) accel_lo%nnd = accel_lo%nnd + 1
+    ind = iproc/accel_lo%ppn
+
+    accel_lo%bpn = les / accel_lo%nnd
+    if (ind < mod(les,  accel_lo%nnd )) accel_lo%bpn = accel_lo%bpn + 1
+    llim_nd = ind * (les / accel_lo%nnd) + min(ind, mod(les, accel_lo%nnd))
+    accel_lo%llim_node = max(llim_nd-1, 0) * nxy
+    accel_lo%ulim_node = accel_lo%llim_node + accel_lo%bpn * nxy -1 
+    nd_les = accel_lo%bpn
+
+    xyb = (nxy * nd_les) / accel_lo%ppn
+    accel_lo%blocksize = xyb
+    if ( shm_info%id < mod(nxy * nd_les, accel_lo%ppn) ) accel_lo%blocksize = accel_lo%blocksize + 1
+
+    accel_lo%nia = accel_lo%bpn
+    !accel_lo%llim_proc = accel_lo%blocksize*iproc
+    accel_lo%llim_proc =  accel_lo%llim_node &
+         + shm_info%id * xyb +  min(shm_info%id, mod(nxy * nd_les, accel_lo%ppn))
+    accel_lo%ulim_proc &
+         = min(accel_lo%ulim_world, accel_lo%llim_proc + accel_lo%blocksize - 1)
+    accel_lo%ulim_alloc = max(accel_lo%llim_proc, accel_lo%ulim_proc)
+
+   if (proc0) then 
+       write(*,'(/,a)') "accel_lo shared memory parammeters (rank 0) " 
+       write(*,*) "ranks per node :", accel_lo%ppn
+       write(*,*) "total number of blocks:", les, "; per node :", accel_lo%bpn
+       write(*,*) "block size per rank :", accel_lo%blocksize
+    endif
+
+#endif
+
+
 
   end subroutine init_accel_transform_layouts
 

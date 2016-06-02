@@ -115,6 +115,7 @@ contains
     use dist_fn_arrays, only: g, gnew
     use dist_fn, only: get_init_field
     use init_g, only: new_field_init
+    use mp, only: iproc
 
     implicit none
 
@@ -130,13 +131,16 @@ contains
     ! MAB> new field init option ported from agk
     if(local_gf_lo) then
        call get_init_field (phinew, aparnew, bparnew, .true.)
-       phi = phinew; apar = aparnew; bpar = bparnew; g = gnew
+       !AJ Note, we do not initialise phi, apar, and bpar here 
+       !AJ as this is now done in fields_gf_local along with a 
+       !AJ fields redistribute.
+       g = gnew
     else if (new_field_init) then
        call get_init_field (phinew, aparnew, bparnew)
        phi = phinew; apar = aparnew; bpar = bparnew; g = gnew
     else
        call getfield (phinew, aparnew, bparnew)
-       phi = phinew; apar = aparnew; bpar = bparnew
+       phi = phinew; apar = aparnew; bpar = bparnew 
     end if
     ! <MAB
 
@@ -350,10 +354,13 @@ contains
     use antenna, only: antenna_amplitudes, no_driver
     use dist_fn, only: timeadv, exb_shear
     use dist_fn_arrays, only: g, gnew, kx_shift, theta0_shift
+    use unit_tests, only: debug_message
+    use mp, only: iproc
     implicit none
     integer :: diagnostics = 1
     integer, intent (in) :: istep
     logical, intent (in) :: remove_zonal_flows_switch
+    integer, parameter :: verb=4
 
     !GGH NOTE: apar_ext is initialized in this call
     if(.not.no_driver) call antenna_amplitudes (apar_ext)
@@ -365,11 +372,14 @@ contains
     apar = aparnew 
     bpar = bparnew       
     
+    call debug_message(4, 'fields_implicit::advance_implicit calling timeadv 1')
     call timeadv (phi, apar, bpar, phinew, aparnew, bparnew, istep)
+    call debug_message(4, 'fields_implicit::advance_implicit called timeadv 1')
     if(reset) return !Return is resetting
 
     if(.not.no_driver) aparnew = aparnew + apar_ext 
     
+    call debug_message(4, 'fields_implicit::advance_implicit calling getfield')
     call getfield (phinew, aparnew, bparnew)
     
     phinew   = phinew  + phi
@@ -378,8 +388,10 @@ contains
 
     if (remove_zonal_flows_switch) call remove_zonal_flows
     
+    call debug_message(4, 'fields_implicit::advance_implicit calling timeadv')
     call timeadv (phi, apar, bpar, phinew, aparnew, bparnew, istep, diagnostics)
-    
+    call debug_message(4, 'fields_implicit::advance_implicit called timeadv')
+
   end subroutine advance_implicit
 
   subroutine remove_zonal_flows
@@ -436,11 +448,18 @@ contains
   end subroutine fieldline_average_phi
 
   subroutine reset_init
-    use gs2_layouts, only: finish_fields_layouts, finish_jfields_layouts
+    use gs2_layouts, only: finish_jfields_layouts
+    ! finish_fields_layouts name conflicts with routine in 
+    ! this module
+    use gs2_layouts, only: gs2lo_ffl => finish_fields_layouts
+    use unit_tests, only: debug_message
     implicit none
     integer :: i, j
+    integer, parameter :: verbosity=3
     initialized = .false.
 
+    call debug_message(verbosity, &
+      'fields_implicit::reset_init starting')
     if (.not. allocated (aminv)) return
     do i = 1, size(aminv)
        if (.not. associated (aminv(i)%dcell)) cycle
@@ -452,7 +471,7 @@ contains
     end do
     deallocate (aminv)
 
-    call finish_fields_layouts
+    call gs2lo_ffl
     call finish_jfields_layouts
   end subroutine reset_init
 

@@ -18,6 +18,7 @@ module ceq
   public :: dpfun,    initialize_dpressure
   public :: betafun,  initialize_beta
   public :: psi,      initialize_psi
+  public :: eqdbish
 
   private
 
@@ -471,6 +472,15 @@ contains
 
   end subroutine ceq_init
 
+  !> Calculate the derivative of f w.r.t to the radial
+  !! and poloidal indexes (i.e. calculate the finite 
+  !! differences without dividing by 
+  !! delta psi and delta theta).
+  !! - dfm(:,:,1) is the psi derivative
+  !! - dfm(:,:,2) is the theta derivative
+  !! - char specifies the periodicity in theta
+  !!   - 'E', 'O' mean continuous at theta = +/- pi
+  !!   - 'T' means a jump of 2 pi at theta = +/- pi
   subroutine derm(f, dfm, char)
 
     use constants, only: pi
@@ -481,9 +491,11 @@ contains
     real, intent(out) :: dfm(:,:,:)
     
     i=1
+    ! Radial derivative
     dfm(i,:,1) = -0.5*(3*f(i,:)-4*f(i+1,:)+f(i+2,:))         
     
     i=nr
+    ! Radial derivative
     dfm(i,:,1) = 0.5*(3*f(i,:)-4*f(i-1,:)+f(i-2,:))
    
     !if (.not. transp) then
@@ -515,6 +527,7 @@ contains
        select case (char)
        case ('E') 
           j=1
+          ! theta derivative, periodic
           dfm(:,j,2) = 0.5*(f(:,j+1)-f(:,nt-1))
           
           j=nt      
@@ -671,6 +684,10 @@ contains
     endif
 
   end subroutine bgradient
+
+  !> Calculates fstar which is f interpolated at the location (r,theta).
+  !! Here r is the normalised poloidal flux coordinate rp (= psi_pN + psi_0N)
+  !! and theta_in is theta. f is a grid of values of f as a function of psi_p,theta
 
   subroutine eqitem(r, theta_in, f, fstar)
     use mp, only: mp_abort
@@ -831,6 +848,13 @@ contains
 
   end subroutine eqitem
 
+  !> Converts derivatives w.r.t. (psi_index,theta_index) to derivatives
+  !! w.r.t. (R,Z).
+  !! - dfm(:,:,1) is deriv w.r.t. psi_index (i.e. (df/dpsi)_theta * delta psi)
+  !! - dfm(:,:,2) is deriv w.r.t. theta_index
+  !! - dfcart(:,:,1) is deriv w.r.t. R
+  !! - dfcart(:,:,2) is deriv w.r.t. Z
+
   subroutine eqdcart(dfm, dfcart)
       
     implicit none
@@ -856,6 +880,14 @@ contains
 
   end subroutine eqdcart
 
+  !> Convert gradients of a function f w.r.t. R,Z into bishop form
+  !! - dcart(:,:,1) is gradient of f w.r.t. R
+  !! - dcart(:,:,2) is gradient of f w.r.t. Z
+  !! - dbish(:,:,1) is set to (df/dR dpsi/dR + df/dZ dpsi/dZ)/|grad psi|
+  !! - dbish(:,:,2) is set to (-df/dR dpsi/dZ + df/dZ dpsi/dR)/|grad psi|
+  !! - Note that in the special case where f=psi
+  !!  - dbish(:,:,1) is |grad psi|
+  !!  - dbish(:,:,2) is 0
   subroutine eqdbish(dcart, dbish)
     implicit none
     real, dimension(:, :, :), intent (in) :: dcart
@@ -863,6 +895,7 @@ contains
     real, dimension(size(dcart,1),size(dcart,2)) :: denom
     integer :: i, j
 
+    ! denom is |grad psi|
     denom(:,:) = sqrt(dpcart(:,:,1)**2 + dpcart(:,:,2)**2)
 
     dbish(:,:,1) = dcart(:,:,1)*dpcart(:,:,1) + dcart(:,:,2)*dpcart(:,:,2)
@@ -1175,12 +1208,14 @@ contains
   end function betafun
 
   subroutine Hahm_Burrell(irho, a) 
-
+    use file_utils, only: open_output_file, close_output_file, get_unused_unit
+    implicit none
     real, intent(in) :: a
     integer, intent(in) :: irho
     integer :: i
     real :: gradpsi, mag_B, rho_eq, rp1, rp2, rho1, rho2, drhodpsiq
     real, dimension(nr) :: gamma, pbar, dp, d2p, pres
+    integer :: fort24_unit
 
     gamma = 0.
 
@@ -1213,6 +1248,8 @@ contains
             *(-pres(i)/(dp(i)/drhodpsiq))            
     enddo
     
+    call get_unused_unit(fort24_unit)
+    call open_output_file(fort24_unit,".fort.24")
     do i=3,nr-2
        if(irho == 1) then
           rho_eq = eqpsi(i)
@@ -1221,12 +1258,14 @@ contains
        else if(irho == 3) then
           rho_eq = pbar(i)
        endif
-       write(24,1000) i, pbar(i), rho_eq, pres(i), gamma(i)
+       write(fort24_unit,1000) i, pbar(i), rho_eq, pres(i), gamma(i)
     enddo
 
 !    write(*,*) 1/(psi_a-psi_0)
 !    if(irho == 1) write(* ,*) '# irho = 1 produces psi instead of rho_eq'
-    if(irho == 1) write(24,*) '# irho = 1 produces psi instead of rho_eq'
+    if(irho == 1) write(fort24_unit,*) '# irho = 1 produces psi instead of rho_eq'
+
+    call close_output_file(fort24_unit)
 
 1000 format(i5,11(1x,e16.9))
 

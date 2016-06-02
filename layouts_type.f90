@@ -56,6 +56,9 @@ module layouts_type
      type(ikit),dimension(:),allocatable :: local_ikit_points
      logical :: x_before_y !Information about layout order
      logical :: x_local, y_local, l_local, e_local, s_local !Used to record if various dimensions are entirely local
+! shm data
+     integer :: ppn, nnd, bpn, ndbklsize, llim_node, ulim_node
+     integer, allocatable :: proc_map(:) ! llimit on all ranks
   end type g_layout_type
 
   type :: lz_layout_type

@@ -5,22 +5,16 @@ else
 endif
 
 ifdef TESTNORUN
-	TESTCOMMAND=: 
-else
-	ifdef TESTEXEC
-		TESTCOMMAND=$(TESTEXEC) ./
-	else
-		ifdef USE_MPI
-				TESTCOMMAND=mpirun -np $(NTESTPROCS) ./
-		else
-		    TESTCOMMAND=./
-		endif
-
-	endif
+	#TESTCOMMAND=: 
+override TESTEXEC=:
+#else
 endif
 
-export TESTCOMMAND
 export NTESTPROCS
+export TESTEXEC
+export USE_MPI
+
+#export TESTCOMMAND
 
 #Set the level of testing, currently loosely defined as
 # 0 : Only most basic tests included
@@ -33,27 +27,29 @@ ifndef TEST_LEVEL
 endif
 export TEST_LEVEL
 
+ifdef SIMPLEDATAIO_LIB_DIR_ABS
+      SDATIO_LINK=-L$(SIMPLEDATAIO_LIB_DIR_ABS)
+      SDATIO_LIB=-lsimpledataio
+endif
+
 # To save time you can set test deps yourself on the command line:
 # otherwise it builds everything just to be sure, because recursive
 # make can't resolve dependencies
-#TEST_DEPS?=$(gs2_mod) functional_tests.o benchmarks.o
-TEST_DEPS?=libgs2.a functional_tests.o benchmarks.o
-#export
-TESTS_ENVIRONMENT=FC="$(FC)" F90FLAGS="${F90FLAGS}" CPP="$(CPP)"  LD="$(LD)" LDFLAGS="$(LDFLAGS) -L$(PWD)  -L$(SIMPLEDATAIO_LIB_DIR_ABS)" LIBS=" -lgs2 -lsimpledataio $(LIBS)" CPPFLAGS="$(CPPFLAGS)"
+# UPDATE: Tests link against libgs2 now, so you can't choose 
+# which dependencies to build any more. EGH 04/03/2015
+# UPDATE: we now build and test the gs2 exec as well. EGH 14/03/15
+TEST_DEPS?=libgs2.a functional_tests.o benchmarks.o gs2
+TESTS_ENVIRONMENT=FC="$(FC)" F90FLAGS="${F90FLAGS}" CPP="$(CPP)"  LD="$(LD)" LDFLAGS="$(LDFLAGS) -L$(PWD) $(SDATIO_LINK)" LIBS=" -lgs2 $(SDATIO_LIB) $(LIBS)" CPPFLAGS="$(CPPFLAGS)"
 MAKETESTS = $(MAKE) $(TESTS_ENVIRONMENT)
-#MAKETESTS = $(MAKE)
 
-#export TEST_DEPS
-export TESTCOMMAND
-#export gs2_mod
-#export TESTNORUN
-#export TESTFC=$(FC)
-#export TESTF90FLAGS=$(F90FLAGS)
-#export TESTCPP=$(CPP)
-#export TESTLD=$(LD)
-#export TESTLDFLAGS=$(LDFLAGS)
-#export TESTLIBS=$(LIBS)
-#export
+#export TESTCOMMAND
+export TESTEXEC
+
+ifndef NO_TEST_COLOURS
+COLOUR_COMMAND=| sed -e 's/passed/\x1b[32mpassed\x1b[39m/' \
+										 -e 's/FAILED/\x1b[31mFAILED\x1b[39m/' \
+										 -e 's/skipped/\x1b[34mskipped\x1b[39m/'
+endif
 
 define TEST_PRINTOUT
 	@echo ""
@@ -70,12 +66,12 @@ define TEST_RESULTS
 	@echo
 	@echo "=======   $(1)"
 	@echo
-	@find $(TEST_DIR)/$(1) -name results_of_test.txt | xargs -n 1 cat
+	@find $(TEST_DIR)/$(1) -name results_of_test.txt | xargs -n 1 cat $(COLOUR_COMMAND)
 endef
 
 define RUN_TESTS
 	@find $(TEST_DIR)/$(1) -name results_of_test.txt | xargs rm -f
-	cd $(TEST_DIR)/$(1) && time ${MAKETESTS} 
+	@cd $(TEST_DIR)/$(1) && time ${MAKETESTS} 
 endef
 
 clean_tests:
@@ -115,8 +111,11 @@ test_script: unit_tests_no_message linear_tests_no_message
 	find $(PWD)/$(TEST_DIR)/nonlinear_tests -executable | grep -v svn | grep '$(TEST_DIR)/nonlinear_tests/.*/' | sed -e 's/^\(.\+\)$$/\1 \1.in \&\&/' | sed -e 's/^/$(TESTEXEC) /'  >> test_script.sh
 	echo "echo \"Tests Successful\"" >> test_script.sh
 
-benchmarks: unit_tests.o $(TEST_DEPS)
-	cd $(TEST_DIR)/benchmarks && time ${MAKETESTS} && echo && echo "Completed Benchmarks"
+benchmarks_no_message: unit_tests.o $(TEST_DEPS)
+	$(call RUN_TESTS,benchmarks)
+
+benchmarks: benchmarks_no_message
+	$(call TEST_PRINTOUT,$(call TEST_RESULTS,$@))
 
 upload_benchmarks: 
 	cd $(TEST_DIR)/benchmarks && time ${MAKETESTS} upload && echo && echo "Completed Benchmarks"

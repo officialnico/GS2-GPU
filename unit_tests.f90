@@ -127,10 +127,10 @@ contains
     logical :: agrees_with_real
     call should_be(val, correct)
     if (correct .eq. 0.0 .or. abs(correct) .lt. 10.0**(-maxexponent(err)/4)) then 
-       !write (*,*) 'testing abs'
+!       write (*,*) 'testing abs',abs(val),err
        agrees_with_real = abs(val) .lt. err 
     else
-       !write (*,*) 'testing rel'
+!       write (*,*) 'testing rel',abs((val-correct)/correct),err
        agrees_with_real = (abs((val-correct)/correct) .lt. err)
     end if
   end function agrees_with_real
@@ -228,10 +228,10 @@ contains
     integer, intent(in) :: verbosity_level
     character(*), intent(in) :: message
     if (mp_initialized) then 
-      if (should_print(verbosity_level)) write (*,*) message, " jid=", job_id, &
+      if (should_print(verbosity_level)) write (*,"(A,A5,I6,A7,I6)") message, " jid=", job_id, &
         " iproc=", iproc
     else
-      if (should_print(verbosity_level)) write (*,*) message, " jid=", job_id
+      if (should_print(verbosity_level)) write (*,"(A,A5,I6,A7,I6)") message, " jid=", job_id
     end if
   end subroutine debug_message
 
