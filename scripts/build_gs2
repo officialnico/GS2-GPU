@@ -17,7 +17,8 @@ OPTIONS:
    -t <VAL>    Run a particular test (automatically implies -o tests)
    -v <VAL>    Set the verbosity for tests (0-5)
    -d          Build with DEBUG=on
-	 -n          When used with tests, build but don't run the tests.
+   -n          When used with tests, build but don't run the tests.
+   -l <level>  Set test level: higher values include slower tests; default is 1
    -o <VAL>    Specify operation to perform, can be one of:
                      ls              : List the supported systems 
                      help            : Prints the long help
@@ -110,7 +111,7 @@ MAKE_OPTIONAL_COMMAND=""
 COMMAND="build"
 
 #Parse arguments
-while getopts "hdns:c:o:t:v:" OPTIONS
+while getopts "hdns:c:o:t:v:l:" OPTIONS
 do
   case ${OPTIONS} in
     h)
@@ -136,6 +137,9 @@ do
       COMMAND=tests
       TESTSET=TESTS=$OPTARG
       ;;
+    l)
+      LEVELSET=TEST_LEVEL=$OPTARG
+      ;;
     v)
       COMMAND=tests
       VERBSET=GK_VERBOSITY=$OPTARG
@@ -149,7 +153,7 @@ do
 done
 
 # Define combined make flags
-MAKEFLAGSALL="$MAKEFLAGS $DBGFLAG $TESTNORUNFLAG $VERBSET GK_SYSTEM=$GK_SYSTEM $MAKE_OPTIONAL_COMMAND" 
+MAKEFLAGSALL="$MAKEFLAGS $DBGFLAG $TESTNORUNFLAG $VERBSET GK_SYSTEM=$GK_SYSTEM $MAKE_OPTIONAL_COMMAND $LEVELSET" 
 
 #Now perform operation
 case $COMMAND in 
@@ -180,7 +184,13 @@ case $COMMAND in
     ;;
   tests|unit_tests|linear_tests|nonlinear_tests|depend|gs2)
     setup_build
-    make $COMMAND "$TESTSET" $MAKEFLAGSALL
+    if [ "$TESTSET" == "" ] 
+    then
+      make $COMMAND $MAKEFLAGSALL
+    else
+      make $COMMAND "$TESTSET" $MAKEFLAGSALL
+    #echo make $COMMAND $TESTSET $MAKEFLAGSALL
+    fi
     ;;
   update)
     svn up Makefiles
