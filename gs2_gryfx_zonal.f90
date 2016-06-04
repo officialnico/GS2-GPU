@@ -25,7 +25,11 @@ module gs2_gryfx_zonal
       integer(c_int) :: mpirank
       integer(c_int) :: restart
       integer(c_int) :: nstep
+      real(c_double) :: end_time
       integer(c_int) :: job_id
+      integer(c_int) :: trinity_timestep
+      integer(c_int) :: trinity_iteration
+      integer(c_int) :: trinity_conv_count
 
        ! Name of gryfx/gryfx input file
        !character(len=1000) :: input_file
@@ -268,6 +272,8 @@ contains
     state%run_name = file_name
 
     state%external_job_id = gryfx_parameters%job_id
+    state%trinity_timestep = gryfx_parameters%trinity_timestep
+    state%trinity_iteration = gryfx_parameters%trinity_iteration
 
     gryfx_zonal%on = .true.
  

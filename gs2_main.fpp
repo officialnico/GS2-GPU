@@ -235,6 +235,10 @@ module gs2_main
     !! to true
     logical :: is_trinity_job = .false.
 
+    integer :: trinity_timestep = -1
+    integer :: trinity_iteration = -1
+
+
     !> If true, don't initialize or evolve the equations, 
     !! just read their values from an existing output file.
     !! This allows additional calculations to be done, and 
@@ -725,7 +729,7 @@ contains
     if (state%nensembles > 1) &
           call scope (subprocs)
 
-    if (state%is_trinity_job) call write_trinity_parameters
+    if (state%is_trinity_job) call write_trinity_parameters(state)
 
     call time_message(.false.,state%timers%main_loop,' Main Loop')
 
@@ -828,7 +832,7 @@ contains
        !end if
 
        if(state%exit) state%converged = .true.
-       if (state%exit) call debug_message(state%verb-1, &
+       if (state%exit) call debug_message(state%verb+1, &
          'gs2_main::evolve_equations exit true after diagnostics')
 
 
@@ -845,7 +849,7 @@ contains
             !as timesteps too large are already handled
             call check_time_step(reset,state%exit)
             !call update_scan_parameter_value(istep, reset, state%exit)
-            call debug_message(state%verb-1, &
+            call debug_message(state%verb+1, &
               'gs2_main::evolve_equations checked time step')
 
             !If something has triggered a reset then reset here
@@ -1920,16 +1924,25 @@ subroutine run_gs2 (mpi_comm, job_id, filename, nensembles, &
      call set_init_fields
   end subroutine reset_linear_magnitude
 
-  subroutine write_trinity_parameters
+  subroutine write_trinity_parameters(state)
       use file_utils, only: open_output_file, close_output_file
       use theta_grid_params, only: write_theta_grid => write_trinity_parameters
       use species, only: write_species => write_trinity_parameters
       use run_parameters, only: write_run_parameters => write_trinity_parameters
       use mp, only: proc0
+      type(gs2_program_state_type), intent(in) :: state
       integer :: trinpars_unit
+      character(len=1000) :: ext
+
+      if (state%trinity_timestep .gt. 0) then
+        write(ext,'(".",I0,".",I0,".trinpars")') state%trinity_timestep, &
+          state%trinity_iteration
+      else
+        ext = '.trinpars'
+      end if
       
       if (proc0) then
-        call open_output_file(trinpars_unit, '.trinpars')
+        call open_output_file(trinpars_unit, trim(ext))
         call write_theta_grid(trinpars_unit)
         call write_species(trinpars_unit)
         call write_run_parameters(trinpars_unit)
