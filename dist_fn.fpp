@@ -6971,7 +6971,7 @@ endif
     !AJ then do the initial redistribution of the data from g_lo (where gnew is current) to gf_lo
     !AJ where it will end up in gfarray)
     if(gf_lo_integrate) then
-       call gather(g2gf, gnew, gfarray)
+       call gather(g2gf, gnew, gfarray, ntgrid)
     end if
 
     if (fphi > epsilon(0.0)) then

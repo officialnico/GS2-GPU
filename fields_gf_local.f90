@@ -1761,6 +1761,12 @@ contains
     allocate(fqa(-ntgrid:ntgrid, ntheta0, naky))
     allocate(fqp(-ntgrid:ntgrid, ntheta0, naky))
 
+    !AJ This is a nasty barrier, but it is in here as on ARCHER we have a problem
+    !AJ that we get deadlock on large core counts without it.  This has been investigated 
+    !AJ and looks like a problem with the Cray MPI library, but it's hard to get to the bottom of.
+    !AJ The problem does not occur on small core counts (we see it between 2000 and 3000 cores)
+    call barrier()
+    
     !Loop over all ik
     do ik=1,self%naky
        !Technically should be able to skip ik values which are not local (though could be empty)
@@ -1834,11 +1840,6 @@ contains
     !Now do the time advance
     call timeadv(phi,apar,bpar,phinew,aparnew,bparnew,0)
     !Now get the field equations
-    !In some(/most) situations the nogath version should
-    !be ok, and will be better for scaling.
-
-!AJ2
-    call barrier()
     call self%getfieldeq_nogath(phinew,aparnew,bparnew,fq,fqa,fqp)
 
     !Now we need to store the field equations in the appropriate places
@@ -2480,7 +2481,7 @@ contains
   subroutine fm_gather_init_fields(self,gf_phnew,gf_apnew,gf_bpnew,gf_ph,gf_ap,gf_bp,phnew,apnew,bpnew,ph,ap,bp)
     use theta_grid, only: ntgrid
     use kt_grids, only: naky, ntheta0, kwork_filter
-    use mp, only: nbsend, nbrecv, waitall, broadcast_sub
+    use mp, only: nbsend, nbrecv, waitall, broadcast_sub, sum_reduce_sub, proc0
     use mp, only: rank_comm, comm_type, initialise_requests, iproc
     use run_parameters, only: fphi, fapar, fbpar
     use gs2_layouts, only: gf_lo, g_lo, proc_id, idx, ik_idx, it_idx
@@ -2514,6 +2515,8 @@ contains
     !AJ will enable us to distribute it to the whole supercell in gf_lo, and then after that to the processes 
     !AJ that need it in g_lo
 
+    tempdata = 0.0
+
     recvreqnum = 1
     sendreqnum = 1
     do ik=1,self%naky
@@ -2529,18 +2532,27 @@ contains
                 tempfield = 1
                 if(fphi>epsilon(0.0)) then
                    tempdata(:,tempfield,it,ik) = phnew(:,it,ik)
+                   !AJ This copy ensures that the field data is also up to date in the gf_lo data structures 
+                   !AJ (the implicit field initialise calculates it in the g_lo data structures.  This could be
+                   !AJ fixed in fields_implicit init_allfields_implicit making this copy redundant)
                    gf_ph(:,it,ik) = phnew(:,it,ik)
                    gf_phnew(:,it,ik) = phnew(:,it,ik)
                    tempfield = tempfield + 1
                 end if
                 if(fapar>epsilon(0.0)) then
                    tempdata(:,tempfield,it,ik) = apnew(:,it,ik)
+                   !AJ This copy ensures that the field data is also up to date in the gf_lo data structures 
+                   !AJ (the implicit field initialise calculates it in the g_lo data structures.  This could be
+                   !AJ fixed in fields_implicit init_allfields_implicit making this copy redundant)
                    gf_ap(:,it,ik) = apnew(:,it,ik)
                    gf_apnew(:,it,ik) = apnew(:,it,ik)
                    tempfield = tempfield + 1
                 end if
                 if(fbpar>epsilon(0.0)) then
                    tempdata(:,tempfield,it,ik) = bpnew(:,it,ik)
+                   !AJ This copy ensures that the field data is also up to date in the gf_lo data structures 
+                   !AJ (the implicit field initialise calculates it in the g_lo data structures.  This could be
+                   !AJ fixed in fields_implicit init_allfields_implicit making this copy redundant)
                    gf_bp(:,it,ik) = bpnew(:,it,ik)
                    gf_bpnew(:,it,ik) = bpnew(:,it,ik)
                 end if
@@ -2619,6 +2631,46 @@ contains
     end do
     
     call waitall(sendreqnum-1,send_handles)
+
+
+    !AJ Now we collect all the data from the supercell heads to proc0 for diagnostics.  If
+    !AJ we implemented distributed diagnostics then this would not be necessary.    
+    if(self%fm_sub_headsc_p0%nproc.gt.0)then
+       call sum_reduce_sub(tempdata,0,self%fm_sub_headsc_p0)
+       
+       !AJ proc0 unpacks the received field data and updates it's fields from it.
+       !AJ Because proc0 now has all the field data it can update both the gf_lo
+       !AJ fields and the g_lo fields.
+       if(proc0) then
+          
+          tempfield = 1
+          if(fphi>epsilon(0.0)) then
+             ph = tempdata(:,tempfield,:,:)
+             phnew = ph
+             gf_ph = ph
+             gf_phnew = ph
+             tempfield = tempfield + 1
+          end if
+             
+          if(fapar>epsilon(0.0)) then
+             ap = tempdata(:,tempfield,:,:)
+             apnew = ap 
+             gf_ap = ap
+             gf_apnew = ap
+             tempfield = tempfield + 1
+          end if
+          
+          if(fbpar>epsilon(0.0)) then
+             bp = tempdata(:,tempfield,:,:)
+             bpnew = bp
+             gf_bp = bp
+             gf_bpnew = bp
+          end if
+          
+       end if
+       
+    end if
+
        
     call initialise_requests(send_handles)
     call initialise_requests(recv_handles)
@@ -2631,7 +2683,7 @@ contains
        it=g_lo%local_ikit_points(ikit)%it
        if(kwork_filter(it,ik)) cycle
        sender = self%heads(it,ik)
-       if(sender .ne. iproc) then
+       if(sender .ne. iproc .and. .not. proc0) then
           if(g_lo%ikit_procs_assignment(it,ik)%proc_list(1) .eq. iproc) then
              tag = ik*self%ntheta0 + it          
              call nbrecv(tempdata(:,:,it,ik),sender,tag,recv_handles(recvreqnum))             
@@ -2651,13 +2703,13 @@ contains
                 it=self%kyb(ik)%supercells(is)%cells(ic)%it_ind
                 if(kwork_filter(it,ik)) cycle
                 receiver = g_lo%ikit_procs_assignment(it,ik)%proc_list(1) 
-                if(receiver .ne. iproc) then
+                if(receiver .ne. iproc .and. receiver .ne. 0) then
                    tag = ik*self%ntheta0 + it    
                    call nbsend(tempdata(:,:,it,ik),receiver,tag,send_handles(sendreqnum))
                    sendreqnum = sendreqnum + 1
                 !AJ If I'm to be sending to myself then just copy the data from gf_lo arrays (where 
                 !AJ is was put in the communication to get it to supercell heads) to the correct g_lo arrays.
-                else if(receiver .eq. iproc) then
+                else if(receiver .eq. iproc .and. .not. proc0) then
                    if(fphi>epsilon(0.0)) then
                       phnew(:,it,ik) = gf_ph(:,it,ik)
                       ph(:,it,ik) = phnew(:,it,ik)
@@ -2667,7 +2719,7 @@ contains
                       ap(:,it,ik) = apnew(:,it,ik)
                    end if
                    if(fbpar>epsilon(0.0)) then
-                      bp(:,it,ik) = gf_bp(:,it,ik)
+                      bpnew(:,it,ik) = gf_bp(:,it,ik)
                       bp(:,it,ik) = bpnew(:,it,ik)
                    end if
                 end if
@@ -2684,7 +2736,7 @@ contains
        if(kwork_filter(it,ik)) cycle
        sender = self%heads(it,ik)
        receiver = g_lo%ikit_procs_assignment(it,ik)%proc_list(1) 
-       if(sender .ne. iproc .and. receiver .eq. iproc) then
+       if(sender .ne. iproc .and. receiver .eq. iproc .and. .not. proc0) then
           tempfield = 1
           if(fphi>epsilon(0.0)) then
              phnew(:,it,ik) = tempdata(:,tempfield,it,ik)
@@ -2724,7 +2776,7 @@ contains
                 
                 !AJ This could be avoided on some proceses as tempdata will already have the correct data 
                 !AJ (providing sender .ne. receiver in the above calls)
-                if(sender .eq. local_iproc) then
+                if(sender .eq. local_iproc .and. .not. proc0) then
                    tempfield = 1
                    if(fphi>epsilon(0.0)) then
                       tempdata(:,tempfield,it,ik) = phnew(:,it,ik)
@@ -2743,7 +2795,7 @@ contains
                 end if
                 call broadcast_sub(tempdata(:,:,it,ik),sender,g_lo%ikit_procs_assignment(it,ik)%comm%id)
                 
-                if(sender .ne. local_iproc) then
+                if(sender .ne. local_iproc .and. .not. proc0) then
                    tempfield = 1
                    if(fphi>epsilon(0.0)) then
                       phnew(:,it,ik) = tempdata(:,tempfield,it,ik)
@@ -4155,7 +4207,6 @@ contains
     !Remove zonal component if requested
     if(remove_zonal_flows_switch) then
        !AJ THIS MAY NOT WORK IN GF_LO
-       !AJ THIS MAY NOT WORK FOR GF_LO
        write(*,*) 'zonal flows have not been configured for gf_lo, may produce incorrect results'
        call remove_zonal_flows
     end if

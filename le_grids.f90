@@ -768,7 +768,7 @@ contains
 
     total =0.
 
-    call gather(g2gf, g, gf)
+    call gather(g2gf, g, gf, ntgrid)
 
     !Performed integral (weighted sum) over local velocity space and species
     if(any(kwork_filter)) then
@@ -2661,7 +2661,6 @@ contains
     call init_g2gf_redistribute
     
     if (test) call check_g2gf
-    call check_g2gf
 
   end subroutine init_g2gf
 
@@ -3419,7 +3418,7 @@ contains
           end do
        end do
     end do
-    call gather (g2gf, gtmp, gftmp)
+    call gather (g2gf, gtmp, gftmp, ntgrid)
     do igf = gf_lo%llim_proc, gf_lo%ulim_proc
        ik = ik_idx(gf_lo,igf)
        it = it_idx(gf_lo,igf)
@@ -3440,7 +3439,7 @@ contains
 
     ! scatter check
     gtmp = 0.0
-    call scatter (g2gf, gftmp, gtmp)
+    call scatter (g2gf, gftmp, gtmp, ntgrid)
     do iglo = g_lo%llim_proc, g_lo%ulim_proc
        ik = ik_idx(g_lo,iglo)
        it = it_idx(g_lo,iglo)
