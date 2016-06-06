@@ -4060,10 +4060,9 @@ contains
   !>Finish the fields_gf_local module
   subroutine finish_fields_gf_local
     implicit none
-!!NOTE: Don't currently free the sub-communicators which is bad
     call pc%reset
     call fieldmat%reset
-    !reinit = .true.
+    reinit = .false.
     initialised=.false.
   end subroutine finish_fields_gf_local
 

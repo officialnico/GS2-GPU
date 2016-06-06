@@ -11,6 +11,7 @@ input_variables_for_optimisation_config = [
   ['logical', 'auto', '.true.'],
   ['logical', 'measure_all', '.false.'],
   ['logical', 'warm_up', '.false.'],
+  ['logical', 'estimate_timing_error', '.true.'],
   ['integer', 'nstep_measure', '5'],
   ['real', 'max_imbalance', '-1'],
   ['integer', 'max_unused_procs', '0'],
@@ -108,6 +109,8 @@ module optimisation_config
     type(optimisations_overrides_type), &
       dimension(:), pointer :: sorted_optimisations
     type(optimisation_results_type), dimension(:), pointer :: sorted_results
+    real :: timing_rel_error
+    real :: timing_max_rel_error
     integer :: outunit
      #{generators.map{|g| g.declaration}.join("\n     ") }
   end type optimisation_type

@@ -518,6 +518,10 @@ contains
       opt_redist_nbk = opt_ov%opt_redist_nbk
     if (opt_ov%override_opt_redist_persist) &
       opt_redist_persist = opt_ov%opt_redist_persist
+    if (opt_ov%override_intmom_sub) &
+      intmom_sub = opt_ov%intmom_sub
+    if (opt_ov%override_intspec_sub) &
+      intspec_sub = opt_ov%intspec_sub
     !Disable settings if dependent settings not set
     opt_redist_persist=opt_redist_persist.and.opt_redist_nbk
     opt_redist_persist_overlap=opt_redist_persist_overlap.and.opt_redist_persist
@@ -740,7 +744,7 @@ contains
 
   subroutine init_dist_fn_layouts &
        (naky, ntheta0, nlambda, negrid, nspec)
-    use mp, only: iproc, nproc, proc0, comm_type
+    use mp, only: iproc, nproc, proc0, comm_type, mp_abort
     use mp, only: split, free_comm, mp_comm, nproc_comm, rank_comm
     use mp, only: sum_allreduce_sub, sum_allreduce, sum_reduce, max_reduce
 ! TT>
@@ -1299,6 +1303,11 @@ contains
 !        enddo
 !     endif
 
+    !if (.not. (layout .eq. 'xyles' .or. layout .eq. 'yxles')) then
+      !intmom_sub = .false.
+      !intspec_sub = .false.
+    !end if
+
     !Now use the dimension splitting to work out if the various subcommunicators are
     !allowed.
     if(.not.(dim_divides(g_lo%is_ord).and.dim_divides(g_lo%it_ord).and.dim_divides(g_lo%ik_ord))) then
@@ -1414,7 +1423,14 @@ contains
     endif
 
     !Now allocate and fill various arrays
-    if(intspec_sub.and.(.not.allocated(g_lo%les_kxky_range))) then
+    ! EGH changed the line below. We assume that if this function
+    ! has been called then g_lo%les_kxky_range has not been allocated.
+    !if(intspec_sub.and.(.not.allocated(g_lo%les_kxky_range))) then
+    if (allocated(g_lo%les_kxky_range)) then
+       call mp_abort("g_lo%les_kxky_range should never be allocated&
+       &at this point", .true.)
+     end if
+    if(intspec_sub) then
        !->Kx-Ky range for procs in lesblock_comm sub comm
        !Get number of procs in sub-comm
        call nproc_comm(g_lo%lesblock_comm,nproc_subcomm)
@@ -2225,7 +2241,7 @@ contains
 ! > HJL
 
   subroutine finish_dist_fn_layouts
-!    integer :: ik,it
+    if (allocated(g_lo%les_kxky_range)) deallocate(g_lo%les_kxky_range)
     initialized_dist_fn_layouts = .false.
 !AJ Note, we do not deallocate ikit_procs_assignment()%proc_list or ikit_procs_assignment()%sub_proc_list as in Fortran these 
 !AJ should automatically be deallocated when ikit_procs_assignment is deallocated.

@@ -54,6 +54,10 @@ module dist_fn
 
   public :: set_overrides
 
+  interface set_overrides
+    module procedure set_profiles_overrides
+    module procedure set_optimisations_overrides
+  end interface set_overrides
 
   !!> init_vpar is called by init_dist_fn should only be called separately 
   !!! for testing purposes
@@ -909,15 +913,20 @@ contains
     if (allocated(vpa_gf)) deallocate(vpa_gf, vperp2_gf)
   end subroutine finish_dist_fn_level_3
 
-  subroutine set_overrides(prof_ov)
+  subroutine set_profiles_overrides(prof_ov)
     use overrides, only: profiles_overrides_type
     use unit_tests, only: debug_message
     type(profiles_overrides_type), intent(in) :: prof_ov
     call debug_message(3, 'dist_fn::set_overrides starting')
     if (prof_ov%override_g_exb) g_exb = prof_ov%g_exb
     if (prof_ov%override_mach) mach = prof_ov%mach
-  end subroutine set_overrides
+  end subroutine set_profiles_overrides
 
+  subroutine set_optimisations_overrides(opt_ov)
+    use overrides, only: optimisations_overrides_type
+    type(optimisations_overrides_type), intent(in) :: opt_ov
+    if (opt_ov%override_opt_source) opt_source = opt_ov%opt_source
+  end subroutine set_optimisations_overrides
 
   subroutine read_parameters
     use file_utils, only: input_unit, error_unit, input_unit_exist
@@ -3823,7 +3832,8 @@ endif
     use dist_fn_arrays, only: gnew, g
     use nonlinear_terms, only: add_explicit_terms
     use hyper, only: hyper_diff
-    use run_parameters, only: reset
+    use run_parameters, only: reset, immediate_reset
+    use unit_tests, only: debug_message
     implicit none
     complex, dimension (-ntgrid:,:,:), intent (in) :: phi, apar, bpar
     complex, dimension (-ntgrid:,:,:), intent (in) :: phinew, aparnew, bparnew
@@ -3831,6 +3841,7 @@ endif
     integer, optional, intent (in) :: mode
     integer :: modep
     integer,save :: istep_last=-1
+    integer, parameter :: verb = 3
 
     modep = 0
     if (present(mode)) modep = mode
@@ -3840,14 +3851,22 @@ endif
        !Calculate the explicit nonlinear terms
        call add_explicit_terms (gexp_1, gexp_2, gexp_3, &
          phi, apar, bpar, istep, bkdiff(1))
-       if(reset) return !Return if resetting
+       call debug_message(verb, &
+        'dist_fn::timeadv calculated nonlinear term')
+       if(reset .and. immediate_reset) return !Return if resetting
        !Solve for gnew
        call invert_rhs (phi, apar, bpar, phinew, aparnew, bparnew, istep)
+       call debug_message(verb, &
+        'dist_fn::timeadv calculated rhs')
 
        !Add hyper terms (damping)
        call hyper_diff (gnew, phinew)
+       call debug_message(verb, &
+        'dist_fn::timeadv calculated hypviscosity')
        !Add collisions
        call vspace_derivatives (gnew, g, g0, phi, bpar, phinew, bparnew, modep)
+       call debug_message(verb, &
+        'dist_fn::timeadv calculated collisions etc')
     else if (istep.eq.1 .and. istep.ne.istep_last) then
 !CMR on first half step at istep=1 do CL with all redists
        call vspace_derivatives (gnew, g, g0, phi, bpar, phinew, bparnew, modep)

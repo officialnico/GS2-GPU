@@ -18,8 +18,9 @@
 !==============================================================================
 
 &optimisation_config
- nstep_measure = 2
- max_unused_procs = 8
+ nstep_measure = 5
+ max_unused_procs = -1
+
 /
 !==============================
 !GENERAL PARAMETERS  
@@ -38,9 +39,9 @@
 !==============================
 &kt_grids_box_parameters
  y0 = 2
- naky = 2
+ ny = 8
  jtwist = 6
- nx = 4
+ nx = 8
 /
 
 !==============================
@@ -94,6 +95,10 @@
 !ALGORITHMIC CHOICES  
 !==============================
 &fields_knobs
+ field_subgath = .true. ! Set to TRUE to use allgatherv to fetch part of the field update calculated on other procs. FALSE uses a sum_allreduce instead.
+ do_smart_update = .true. ! 
+ field_local_allreduce = .true. ! 
+ field_local_allreduce_sub = .true. ! 
  field_option = "implicit" ! Controls which time-advance algorithm is used for the linear terms.
 /
 
@@ -107,7 +112,6 @@
  faperp = 0.0 ! Multiplies A_perp. Use 1 for high beta, 0 otherwise. Deprecated: use fbpar instead
  delt = 0.05 ! Time step
  nstep = 10000000 ! Maximum number of timesteps
- avail_cpu_time = 302
 /
 
 !==============================
@@ -123,6 +127,8 @@
 !==============================
 &layouts_knobs
  layout = "lexys" ! 'yxles', 'lxyes', 'lyxes', 'lexys' Determines the way the grids are laid out in memory.
+ intmom_sub=.true.
+ intspec_sub=.true.
 /
 
 !==============================
@@ -202,7 +208,7 @@
  write_final_fields = .true. ! If (write_ascii = T) Phi(theta) written to '.fields'
  write_final_moments = .true. ! write final n, T
   ! write_parity not specified --- Writes parities in dist fn and particle fluxes
- nsave = 100 ! Write restart files every nsave timesteps
+ nsave = 1000 ! Write restart files every nsave timesteps
  nwrite = 10 ! Output diagnostic data every nwrite
  navg = 10 ! Any time averages performed over navg
  omegatol = -0.001 ! The convergence has to be better than one part in 1/omegatol
@@ -220,7 +226,7 @@
   ! write_max_verr not specified --- 
   ! nmovie not specified --- 
   ! igomega not specified --- 
-  ! exit_when_converged not specified --- 
+ exit_when_converged = .true. !not specified --- 
   ! write_full_moments_notgc not specified --- 
   ! write_cross_phase not specified --- 
   ! dump_check1 not specified --- 
@@ -237,6 +243,7 @@
   ! write_correlation not specified --- Write parallel correlation.
   ! write_moments not specified --- 
   ! write_final_db not specified --- Write final delta B.
+  write_any = .false.
 /
 
 !==============================

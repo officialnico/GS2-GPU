@@ -3,6 +3,14 @@ sinclude ../Makefile.tests_common
 
 CLEANCOMMAND+= cyclone_itg_low_res
 
+COPY=cp  cyclone_itg_low_res_fields_local.out.nc cyclone_itg_replay.out.nc
+
+ifdef TESTNORUN
+	ifeq "$(TESTNORUN)" "true"
+  		COPY=
+	endif
+endif
+
 #Define this tests level
 MY_TEST_LEVEL=1
 VAL:= $(shell expr ${MY_TEST_LEVEL} \<= ${TEST_LEVEL})
@@ -13,7 +21,7 @@ else
 all: cyclone_itg_low_res cyclone_itg_replay
 	#$(call RUNCOMMAND,cyclone_itg_low_res,cyclone_itg_low_res.in,implicit)
 	$(call RUNCOMMAND,cyclone_itg_low_res,cyclone_itg_low_res_fields_local.in,local)
-	cp cyclone_itg_low_res_fields_local.out.nc cyclone_itg_replay.out.nc
+	$(call COPY)
 	$(call RUNCOMMAND,cyclone_itg_replay,cyclone_itg_replay.in,)
 endif
 

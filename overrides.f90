@@ -78,11 +78,39 @@ module overrides
     logical :: override_nproc
     logical :: override_opt_redist_nbk
     logical :: override_opt_redist_persist
+    logical :: override_opt_redist_persist_overlap
+    logical :: override_intmom_sub
+    logical :: override_intspec_sub
+    logical :: override_local_field_solve
     logical :: override_layout
+    logical :: override_field_option
+    logical :: override_field_subgath
+    logical :: override_do_smart_update
+    logical :: override_field_local_allreduce
+    logical :: override_field_local_allreduce_sub
+    logical :: override_opt_source
+    logical :: override_minnrow
+    logical :: override_gf_lo_integrate
+    logical :: override_gf_local_fields
+    logical :: override_simple_gf_decomposition
     integer :: nproc
     logical :: opt_redist_nbk
     logical :: opt_redist_persist
+    logical :: opt_redist_persist_overlap
+    logical :: intmom_sub
+    logical :: intspec_sub
+    logical :: local_field_solve
+    logical :: gf_lo_integrate
+    logical :: gf_local_fields
+    logical :: simple_gf_decomposition
     character(len=5) :: layout
+    character(len=8) :: field_option
+    logical :: field_subgath
+    logical :: do_smart_update
+    logical :: field_local_allreduce
+    logical :: field_local_allreduce_sub
+    logical :: opt_source
+    integer :: minnrow
     integer :: old_comm
   end type optimisations_overrides_type
 
@@ -111,6 +139,18 @@ module overrides
     logical :: gryfx
     
   end type kt_grids_overrides_type
+
+
+
+!> A type for containing overrides to the timestep and the cfl parameters
+  type timestep_overrides_type
+    !> DO NOT manually set the value of init.
+    !! Nasty things may happen.
+    logical :: init = .false.
+    logical :: override_immediate_reset
+    logical :: immediate_reset
+    
+  end type timestep_overrides_type
 
 
 
@@ -250,7 +290,18 @@ contains
     overrides_obj%override_nproc = .false.
     overrides_obj%override_opt_redist_nbk = .false.
     overrides_obj%override_opt_redist_persist = .false.
+    overrides_obj%override_opt_redist_persist_overlap = .false.
+    overrides_obj%override_intmom_sub = .false.
+    overrides_obj%override_intspec_sub = .false.
+    overrides_obj%override_local_field_solve = .false.
     overrides_obj%override_layout = .false.
+    overrides_obj%override_field_option = .false.
+    overrides_obj%override_field_subgath = .false.
+    overrides_obj%override_do_smart_update = .false.
+    overrides_obj%override_field_local_allreduce = .false.
+    overrides_obj%override_field_local_allreduce_sub = .false.
+    overrides_obj%override_opt_source = .false.
+    overrides_obj%override_minnrow = .false.
   end subroutine init_optimisations_overrides
 
 
@@ -264,7 +315,18 @@ contains
     overrides_obj%override_nproc = .false.
     overrides_obj%override_opt_redist_nbk = .false.
     overrides_obj%override_opt_redist_persist = .false.
+    overrides_obj%override_opt_redist_persist_overlap = .false.
+    overrides_obj%override_intmom_sub = .false.
+    overrides_obj%override_intspec_sub = .false.
+    overrides_obj%override_local_field_solve = .false.
     overrides_obj%override_layout = .false.
+    overrides_obj%override_field_option = .false.
+    overrides_obj%override_field_subgath = .false.
+    overrides_obj%override_do_smart_update = .false.
+    overrides_obj%override_field_local_allreduce = .false.
+    overrides_obj%override_field_local_allreduce_sub = .false.
+    overrides_obj%override_opt_source = .false.
+    overrides_obj%override_minnrow = .false.
   end subroutine finish_optimisations_overrides
 
 
@@ -299,6 +361,25 @@ contains
     overrides_obj%override_jtwist = .false.
     overrides_obj%override_gryfx = .false.
   end subroutine finish_kt_grids_overrides
+
+
+  subroutine init_timestep_overrides(overrides_obj)
+    type(timestep_overrides_type), intent(inout) :: overrides_obj
+    if (overrides_obj%init) return 
+    overrides_obj%init = .true.
+    overrides_obj%override_immediate_reset = .false.
+  end subroutine init_timestep_overrides
+
+
+  subroutine finish_timestep_overrides(overrides_obj)
+    type(timestep_overrides_type), intent(inout) :: overrides_obj
+    if (.not. overrides_obj%init) then
+      write (*,*) "ERROR: Called finish_timestep_overrides on an uninitialized object"
+      return
+    end if
+    overrides_obj%init = .false.
+    overrides_obj%override_immediate_reset = .false.
+  end subroutine finish_timestep_overrides
 
 
 

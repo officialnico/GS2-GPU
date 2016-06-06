@@ -1,4 +1,5 @@
 module fields
+  use text_options, only: text_option
 
   implicit none
 
@@ -10,6 +11,9 @@ module fields
   public :: reset_init, set_init_fields
   public :: fields_init_response, set_dump_and_read_response
   public :: dump_response_to_file
+  public :: init_fields_parameters
+  public :: finish_fields_parameters
+  public :: set_overrides
   public :: init_fields_level_1, init_fields_level_2
   public :: finish_fields_level_1, finish_fields_level_2
   public :: fieldopt_switch, fieldopt_implicit, fieldopt_test, fieldopt_local, fieldopt_gf_local
@@ -32,8 +36,17 @@ module fields
   integer, parameter :: fieldopt_implicit = 1, fieldopt_test = 2, fieldopt_local = 3, fieldopt_gf_local = 4
   logical :: dump_response, read_response
   logical :: initialized = .false.
+  logical :: parameters_read = .false.
   logical :: exist
 
+  !EGH made fieldopts module level for overrides
+  type (text_option), dimension (6), parameter :: fieldopts = &
+       (/ text_option('default', fieldopt_implicit), &
+          text_option('implicit', fieldopt_implicit), &
+          text_option('test', fieldopt_test),&
+          text_option('local', fieldopt_local),&
+          text_option('gf_local', fieldopt_gf_local),&
+          text_option('implicit_local', fieldopt_local)/)
 contains
 
   subroutine check_fields(report_unit)
@@ -87,6 +100,33 @@ contains
     write (unit, fmt="(' /')")
   end subroutine wnml_fields
 
+  subroutine set_overrides(opt_ov)
+    use overrides, only: optimisations_overrides_type
+    use file_utils, only: error_unit
+    use text_options, only: get_option_value
+    use fields_local, only: minnrow
+    use fields_implicit, only: field_subgath
+    use fields_local, only: do_smart_update
+    use fields_local, only: field_local_allreduce
+    use fields_local, only: field_local_allreduce_sub
+    type(optimisations_overrides_type), intent(in) :: opt_ov
+    integer :: ierr
+    if (opt_ov%override_field_option) then
+       ierr = error_unit()
+       call get_option_value &
+            (opt_ov%field_option, fieldopts, fieldopt_switch, &
+            ierr, "field_option in set_overrides",.true.)
+    end if
+    if (opt_ov%override_minnrow) minnrow = opt_ov%minnrow
+    if (opt_ov%override_field_subgath) field_subgath = opt_ov%field_subgath
+    if (opt_ov%override_do_smart_update) do_smart_update = & 
+      opt_ov%do_smart_update
+    if (opt_ov%override_field_local_allreduce) field_local_allreduce = & 
+      opt_ov%field_local_allreduce
+    if (opt_ov%override_field_local_allreduce_sub) field_local_allreduce_sub =& 
+      opt_ov%field_local_allreduce_sub
+  end subroutine set_overrides
+
   !> Calls all initialisations required for init_fields_implicit/local, 
   !! reads parameters and allocates field arrays
   subroutine fields_pre_init
@@ -99,6 +139,8 @@ contains
     implicit none
     integer, parameter :: verb=3
     
+    call init_fields_parameters
+
     call debug_message(verb, "init_fields: init_theta_grid")
     call init_theta_grid
     
@@ -117,16 +159,28 @@ contains
     call init_antenna !Must come before allocate_arrays so we know if we need apar_ext
     !call debug_message(verb, "init_fields: read_parameters")
     !call read_parameters
-    !call debug_message(verb, "init_fields: allocate_arrays")
-    !call allocate_arrays
+    call debug_message(verb, "init_fields: allocate_arrays")
+    call allocate_arrays
   end subroutine fields_pre_init
   
+  subroutine init_fields_parameters
+    use unit_tests, only: debug_message
+    implicit none
+    integer, parameter :: verb=3
+    if (parameters_read) return
+    call debug_message(verb, "init_fields: read_parameters")
+    call read_parameters
+    parameters_read = .true.
+  end subroutine init_fields_parameters
+
+  subroutine finish_fields_parameters
+    parameters_read = .false.
+  end subroutine finish_fields_parameters
+
   subroutine init_fields_level_1
     use unit_tests, only: debug_message
     implicit none
     integer, parameter :: verb=3
-    call debug_message(verb, "init_fields: read_parameters")
-    call read_parameters
     call debug_message(verb, "init_fields: allocate_arrays")
     call allocate_arrays
   end subroutine init_fields_level_1
@@ -284,13 +338,6 @@ contains
     use fields_arrays, only: response_file
     use file_utils, only: run_name
     implicit none
-    type (text_option), dimension (6), parameter :: fieldopts = &
-         (/ text_option('default', fieldopt_implicit), &
-            text_option('implicit', fieldopt_implicit), &
-            text_option('test', fieldopt_test),&
-            text_option('local', fieldopt_local),&
-            text_option('gf_local', fieldopt_gf_local),&
-            text_option('implicit_local', fieldopt_local)/)
     character(20) :: field_option
     character(len=256) :: response_dir
     namelist /fields_knobs/ field_option, remove_zonal_flows_switch, field_subgath, force_maxwell_reinit,&
@@ -341,17 +388,20 @@ contains
 
     !Set the solve type specific flags
     call set_dump_and_read_response(dump_response, read_response)
-    select case (fieldopt_switch)
-    case (fieldopt_implicit)
-    case (fieldopt_test)
-    case (fieldopt_local)
+    !select case (fieldopt_switch)
+    !case (fieldopt_implicit)
+    !case (fieldopt_test)
+    !case (fieldopt_local)
+    ! EGH commented it out as we want to be able to 
+    ! change field option dynamically and so we want
+    ! these parameters to be broadcast in all circumstances.
        call broadcast (minNrow)
        call broadcast (do_smart_update)
        call broadcast (field_local_allreduce)
        call broadcast (field_local_tuneminnrow)
        call broadcast (field_local_nonblocking_collectives)
        call broadcast (field_local_allreduce_sub)
-    end select
+    !end select
 
   end subroutine read_parameters
 
