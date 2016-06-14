@@ -67,7 +67,7 @@ GK_PROJECT ?= gs2
 # turns on debug mode (bin)
 DEBUG ?=
 # turns on scalasca instrumentation mode (bin)
-SCAL ?= 
+SCAL ?=
 # turns on test mode (bin)
 TEST ?=
 # turns on profile mode (gprof,ipm)
@@ -85,7 +85,7 @@ USE_SHMEM ?=
 # which FFT library to use (fftw,fftw3,mkl_fftw,undefined) 
 USE_FFT ?= 
 # uses netcdf library (bin)
-USE_NETCDF ?= on
+USE_NETCDF ?=
 # uses parallel netcdf library
 USE_PARALLEL_NETCDF ?= 
 # uses hdf5 library (bin)
@@ -107,10 +107,10 @@ MAKE_LIB ?=
 # Include higher-order terms in GK equation arising from low-flow physics
 LOWFLOW ?=
 # Compile with PETSC/SLEPC support for determining eigensystem (bin).
-WITH_EIG ?= 
+WITH_EIG ?=
 
 # Compile with the new simplified diagnostics module
-USE_NEW_DIAG ?= on
+USE_NEW_DIAG ?=on
 
 # Use autotools to configure the code (currently only affects the new diagnostics module)
 # Possible values... on, off

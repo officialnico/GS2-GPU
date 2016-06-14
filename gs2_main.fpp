@@ -1376,10 +1376,11 @@ contains
   end subroutine reset_timers
 
   subroutine print_times(state, timers)
-    use mp, only: proc0
+    use mp, only: proc0, nproc, min_reduce, max_reduce, sum_reduce
     use redistribute, only: time_redist
     use fields_arrays, only: time_field
     use gs2_reinit, only: time_reinit
+
     implicit none
     type(gs2_program_state_type), intent(in) :: state
     type(gs2_timers_type), intent(in) :: timers
@@ -1414,6 +1415,7 @@ contains
                timers%finish(1)/60.,timers%finish(1)/timers%total(1),timers%total(1)/60.
        endif
     end if
+
   end subroutine print_times
 
   subroutine allocate_outputs(state)

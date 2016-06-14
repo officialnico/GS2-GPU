@@ -127,10 +127,10 @@ contains
     logical :: agrees_with_real
     call should_be(val, correct)
     if (correct .eq. 0.0 .or. abs(correct) .lt. 10.0**(-maxexponent(err)/4)) then 
-       !write (*,*) 'testing abs'
+!       write (*,*) 'testing abs',abs(val),err
        agrees_with_real = abs(val) .lt. err 
     else
-       !write (*,*) 'testing rel'
+!       write (*,*) 'testing rel',abs((val-correct)/correct),err
        agrees_with_real = (abs((val-correct)/correct) .lt. err)
     end if
   end function agrees_with_real

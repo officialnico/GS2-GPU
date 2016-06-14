@@ -90,6 +90,9 @@ module overrides
     logical :: override_field_local_allreduce_sub
     logical :: override_opt_source
     logical :: override_minnrow
+    logical :: override_gf_lo_integrate
+    logical :: override_gf_local_fields
+    logical :: override_simple_gf_decomposition
     integer :: nproc
     logical :: opt_redist_nbk
     logical :: opt_redist_persist
@@ -97,6 +100,9 @@ module overrides
     logical :: intmom_sub
     logical :: intspec_sub
     logical :: local_field_solve
+    logical :: gf_lo_integrate
+    logical :: gf_local_fields
+    logical :: simple_gf_decomposition
     character(len=5) :: layout
     character(len=8) :: field_option
     logical :: field_subgath

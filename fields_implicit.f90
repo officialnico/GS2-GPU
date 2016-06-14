@@ -111,21 +111,37 @@ contains
     fields_implicit_unit_test_init_fields_implicit = .true.
   end function fields_implicit_unit_test_init_fields_implicit
 
-  subroutine init_allfields_implicit
+  subroutine init_allfields_implicit(gf_lo)
     use fields_arrays, only: phi, apar, bpar, phinew, aparnew, bparnew
     use dist_fn_arrays, only: g, gnew
     use dist_fn, only: get_init_field
     use init_g, only: new_field_init
+    use mp, only: iproc
 
     implicit none
 
+    logical, optional :: gf_lo
+    logical :: local_gf_lo
+
+    if(present(gf_lo)) then
+      local_gf_lo = gf_lo
+    else
+      local_gf_lo = .false.
+    end if
+
     ! MAB> new field init option ported from agk
-    if (new_field_init) then
+    if(local_gf_lo) then
+       call get_init_field (phinew, aparnew, bparnew, .true.)
+       !AJ Note, we do not initialise phi, apar, and bpar here 
+       !AJ as this is now done in fields_gf_local along with a 
+       !AJ fields redistribute.
+       g = gnew
+    else if (new_field_init) then
        call get_init_field (phinew, aparnew, bparnew)
        phi = phinew; apar = aparnew; bpar = bparnew; g = gnew
     else
        call getfield (phinew, aparnew, bparnew)
-       phi = phinew; apar = aparnew; bpar = bparnew
+       phi = phinew; apar = aparnew; bpar = bparnew 
     end if
     ! <MAB
 
@@ -339,6 +355,7 @@ contains
     use dist_fn, only: timeadv, exb_shear
     use dist_fn_arrays, only: g, gnew, kx_shift, theta0_shift
     use unit_tests, only: debug_message
+    use mp, only: iproc
     implicit none
     integer :: diagnostics = 1
     integer, intent (in) :: istep
@@ -374,7 +391,7 @@ contains
     call debug_message(4, 'fields_implicit::advance_implicit calling timeadv')
     call timeadv (phi, apar, bpar, phinew, aparnew, bparnew, istep, diagnostics)
     call debug_message(4, 'fields_implicit::advance_implicit called timeadv')
-    
+
   end subroutine advance_implicit
 
   subroutine remove_zonal_flows
