@@ -85,7 +85,7 @@ USE_SHMEM ?=
 # which FFT library to use (fftw,fftw3,mkl_fftw,undefined) 
 USE_FFT ?= 
 # uses netcdf library (bin)
-USE_NETCDF ?=
+USE_NETCDF ?= on
 # uses parallel netcdf library
 USE_PARALLEL_NETCDF ?= 
 # uses hdf5 library (bin)
