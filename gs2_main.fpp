@@ -138,11 +138,11 @@ module gs2_main
     !! label <|grad rho|>
     real :: grho
     !> Particle flux by species
-    real, dimension (:), pointer :: pflux
+    real, dimension (:), allocatable :: pflux 
     !> Heat flux by species
-    real, dimension (:), pointer :: qflux
+    real, dimension (:), allocatable :: qflux 
     !> Turbulent heating by species
-    real, dimension (:), pointer :: heat
+    real, dimension (:), allocatable :: heat 
     !> Momentum flux
     real :: vflux
   end type gs2_outputs_type
@@ -544,7 +544,7 @@ contains
     ! Since the number of species may have changed
     ! since the last call to initialize_equations 
     ! we reallocate outputs every time.
-    if (associated(state%outputs%pflux)) then
+    if (allocated(state%outputs%pflux)) then
       call deallocate_outputs(state)
     end if
     call allocate_outputs(state)
@@ -1421,7 +1421,7 @@ contains
   subroutine allocate_outputs(state)
     use species, only: nspec
     type(gs2_program_state_type), intent(inout) :: state
-    if (.not. associated(state%outputs%pflux)) then
+    if (.not. allocated(state%outputs%pflux)) then
       allocate(state%outputs%pflux(nspec))
       allocate(state%outputs%qflux(nspec))
       allocate(state%outputs%heat(nspec))
@@ -1430,7 +1430,7 @@ contains
 
   subroutine deallocate_outputs(state)
     type(gs2_program_state_type), intent(inout) :: state
-    if (associated(state%outputs%pflux)) then
+    if (allocated(state%outputs%pflux)) then
       deallocate(state%outputs%pflux)
       deallocate(state%outputs%qflux)
       deallocate(state%outputs%heat)
