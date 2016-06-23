@@ -359,7 +359,7 @@ contains
     end if
 
     oldrank = iproc
-    if (state%init%opt_ov%override_nproc) then
+    if (state%init%opt_ov%init .and. state%init%opt_ov%override_nproc) then
       state%init%opt_ov%old_comm = mp_comm
       call use_nproc(state%init%opt_ov%nproc)
     end if
@@ -1130,7 +1130,7 @@ contains
     end if
 
     !write (*,*) 'I AM iproc ', iproc, 'and nproc = ', nproc
-    if (state%init%opt_ov%override_nproc) &
+    if (state%init%opt_ov%init .and. state%init%opt_ov%override_nproc) &
       call unsplit_all(state%init%opt_ov%old_comm)
     call barrier
     state%included = included

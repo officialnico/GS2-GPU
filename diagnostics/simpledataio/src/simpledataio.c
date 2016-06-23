@@ -281,7 +281,8 @@ void sdatio_increment_start(struct sdatio_file * sfile, char * dimension_name){
   }
 }
 
-/* Set the start of an unlimited dimension*/
+/* Set the start of a dimension: 
+ * functions as a default for all variables*/
 void sdatio_set_dimension_start(struct sdatio_file * sfile, char * dimension_name, int start){
 
   int found, j;
@@ -297,7 +298,7 @@ void sdatio_set_dimension_start(struct sdatio_file * sfile, char * dimension_nam
       /*}   */
       found = 1;
       sdim->start = start;
-      if (sdatio_debug) printf("Start for dimension %s is %d\n", sdim->name, sdim->start);
+      DEBUG_MESS("Start for dimension %s is %d\n", sdim->name, sdim->start);
     }
   }
   if (!found) {
@@ -917,6 +918,20 @@ int sdatio_variable_exists(struct sdatio_file * sfile, char * variable_name){
 
   for (i=0;i<sfile->n_variables;i++)
     if (!strcmp(sfile->variables[i]->name, variable_name))
+      return 1;
+
+  return 0;
+
+}
+
+/* Returns 1 if the given variable exists, 0 otherwise */
+int sdatio_dimension_exists(struct sdatio_file * sfile, char * dimension_name){
+  int i;
+
+  DEBUG_MESS("Finding dimension in sdatio_dimension_exists...\n");
+
+  for (i=0;i<sfile->n_dimensions;i++)
+    if (!strcmp(sfile->dimensions[i]->name, dimension_name))
       return 1;
 
   return 0;
