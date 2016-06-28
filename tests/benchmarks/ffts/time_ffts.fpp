@@ -6,6 +6,9 @@
 !!   Written by: Edmund Highcock (edmundhighcock@users.sourceforge.net)
 program time_ffts
   use unit_tests
+#ifdef SHMEM
+  use shm_mpi3
+#endif
   use mp, only: init_mp, finish_mp, proc0, broadcast, nproc, mp_comm
   !use file_utils, only: init_file_utils, run_name
   use file_utils, only: append_output_file, close_output_file
@@ -34,7 +37,11 @@ program time_ffts
   integer :: timing_unit
 
   !complex, dimension (:,:,:), allocatable :: integrate_species_results
+#ifdef SHMEM
+  complex, dimension (:,:,:), pointer, contiguous :: g1
+#else
   complex, dimension (:,:,:), allocatable :: g1
+#endif
   complex, dimension (:,:,:), allocatable :: phi, apar, bpar
 
 
@@ -64,8 +71,11 @@ program time_ffts
 
 
   !call init_nonlinear_terms
-
+#ifdef SHMEM
+  call shm_alloc(g1,(/-ntgrid, ntgrid, 1, 2, g_lo%llim_proc, g_lo%ulim_proc/))
+#else
   allocate(g1(-ntgrid:ntgrid,2,g_lo%llim_proc:g_lo%ulim_proc))
+#endif
   !allocate(g(-ntgrid:ntgrid,2,g_lo%llim_proc:g_lo%ulim_proc))
   allocate(phi(-ntgrid:ntgrid,ntheta0,naky))
   allocate(apar(-ntgrid:ntgrid,ntheta0,naky))

@@ -817,7 +817,7 @@ contains
     if (ind < mod(les,  g_lo%nnd )) g_lo%bpn = g_lo%bpn + 1
 
     llim_nd = ind * (les / g_lo%nnd) + min(ind, mod(les, g_lo%nnd))
-    g_lo%llim_node = max(llim_nd-1, 0) * nxy
+    g_lo%llim_node = llim_nd * nxy
     g_lo%ulim_node =  g_lo%llim_node + g_lo%bpn * nxy -1
 
     nd_les = g_lo%bpn
@@ -831,7 +831,7 @@ contains
     g_lo%ulim_proc = min(g_lo%ulim_world, g_lo%llim_proc + g_lo%blocksize - 1)
     g_lo%ulim_alloc = max(g_lo%llim_proc, g_lo%ulim_proc)
 
-    allocate(g_lo%proc_map(0:nproc-1))
+    if(.not.allocated(g_lo%proc_map)) allocate(g_lo%proc_map(0:nproc-1))
     call allgather((/ g_lo%llim_proc /), 1, g_lo%proc_map, 1)  
 
     !write(0,*) 'g_lo', left_lim_nd, llim_nd, iproc, ind, g_lo%llim_proc, g_lo%ulim_proc, g_lo%llim_node, g_lo%ulim_node
@@ -5664,7 +5664,7 @@ contains
     accelx_lo%bpn = les / accelx_lo%nnd
     if (ind < mod(les,  accelx_lo%nnd )) accelx_lo%bpn = accelx_lo%bpn + 1
     llim_nd = ind * (les / accelx_lo%nnd) + min(ind, mod(les, accelx_lo%nnd))
-    accelx_lo%llim_node = max(llim_nd-1,0) * nxy
+    accelx_lo%llim_node = llim_nd * nxy
     accelx_lo%ulim_node = accelx_lo%llim_node + accelx_lo%bpn * nxy -1
     nd_les = accelx_lo%bpn
 
@@ -5717,7 +5717,7 @@ contains
     accel_lo%bpn = les / accel_lo%nnd
     if (ind < mod(les,  accel_lo%nnd )) accel_lo%bpn = accel_lo%bpn + 1
     llim_nd = ind * (les / accel_lo%nnd) + min(ind, mod(les, accel_lo%nnd))
-    accel_lo%llim_node = max(llim_nd-1, 0) * nxy
+    accel_lo%llim_node = llim_nd * nxy
     accel_lo%ulim_node = accel_lo%llim_node + accel_lo%bpn * nxy -1 
     nd_les = accel_lo%bpn
 

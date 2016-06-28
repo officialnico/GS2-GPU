@@ -26,6 +26,9 @@ program test_nonlinear_terms
   
 #ifdef MPI
   use mpi
+#ifdef SHMEM
+  use shm_mpi3
+#endif
 #endif
   implicit none
   real :: eps
@@ -39,7 +42,11 @@ program test_nonlinear_terms
   integer :: i
 
   complex, dimension (:,:,:), allocatable :: integrate_species_results
-  complex, dimension (:,:,:), allocatable :: g1
+#ifdef SHMEM
+  complex, dimension (:,:,:), pointer,contiguous :: g1 => null()
+#else
+  complex, dimension (:,:,:), allocatable :: g1  ! 2*ntgrid+1, 2, accelx_lo%llim_proc:accelx_lo%ulim_alloc
+#endif
   complex, dimension (:,:,:), allocatable :: phi, apar, bpar
 
 
@@ -64,7 +71,11 @@ program test_nonlinear_terms
 
   call init_dist_fn
 
+#ifdef SHMEM
+  call shm_alloc(g1,(/-ntgrid, ntgrid, 1, 2, g_lo%llim_proc, g_lo%ulim_proc/))
+#else
   allocate(g1(-ntgrid:ntgrid,2,g_lo%llim_proc:g_lo%ulim_proc))
+#endif
   !allocate(g(-ntgrid:ntgrid,2,g_lo%llim_proc:g_lo%ulim_proc))
   allocate(phi(-ntgrid:ntgrid,ntheta0,naky))
   allocate(apar(-ntgrid:ntgrid,ntheta0,naky))
@@ -154,7 +165,13 @@ function ffttest (jx,jy,debug)
   logical,save:: first=.true. 
 
   real, save, dimension (:,:), allocatable :: gr  ! yxf_lo%ny, yxf_lo%llim_proc:yxf_lo%ulim_alloc
+#ifdef SHMEM
+  real, save, dimension (:,:,:), pointer, contiguous :: gra => null()
+  complex, save, dimension(:,:,:), pointer, contiguous :: g_shm => null()
+#else
   real, save, dimension (:,:,:), allocatable :: gra  ! 2*ntgrid+1, 2, accelx_lo%llim_proc:accelx_lo%ulim_alloc
+#endif
+  complex, save, dimension(:,:,:), pointer, contiguous :: g_ptr => null()
   real:: exact, err
   complex:: fexact
 
@@ -241,7 +258,15 @@ if (printlots) call barrier
             write(6,fmt='(2i20,A20)') accelx_lo%ulim_proc,accel_lo%ulim_proc,"ulim_proc"
             write(6,fmt='(2i20,A20)') accelx_lo%ulim_alloc,accel_lo%ulim_alloc,"ulim_alloc"
          endif
+#ifdef SHMEM
+         call shm_alloc(gra, [-ntgrid, ntgrid,1, 2, accelx_lo%llim_proc,accelx_lo%ulim_alloc])
+         call shm_alloc(g_shm,(/-ntgrid, ntgrid, 1, 2, g_lo%llim_proc, g_lo%ulim_proc/))
+         g_ptr => g_shm
+         g_ptr = g
+#else
          allocate (gra(-ntgrid:ntgrid, 2, accelx_lo%llim_proc:accelx_lo%ulim_alloc))
+         g_ptr = g
+#endif
          gra=0.
       else
      !write (*,*) accelerated, 'accelerated', iproc
@@ -389,7 +414,7 @@ if (printlots) call barrier
    fail=.false.
    if (accelerated) then
      !write (*,*) accelerated, 'accelerated', iproc
-      call transform2 (g, gra, ia)
+      call transform2 (g_ptr, gra, ia)
       gra=2.0*gra
    else
       call transform2 (g, gr)
@@ -450,7 +475,7 @@ if (printlots) call barrier
 
    if (accelerated) then
       gra=0.5*gra
-      call inverse2 (gra, g, ia)
+      call inverse2 (gra, g_ptr, ia)
    else
       gr=0.5*gr
       call inverse2 (gr, g)
