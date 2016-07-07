@@ -476,8 +476,8 @@ contains
        dump_check2 = .false.
        nmovie = -1
 
-			 write_zonal_transfer = .true.  !!!!new diagnostics
-			 write_collisional = .true.
+       write_zonal_transfer = .false.  !!!!new diagnostics
+       write_collisional = .false.
 
        in_file = input_unit_exist ("gs2_diagnostics_knobs", exist)
        if (exist) read (unit=in_file, nml=gs2_diagnostics_knobs)
@@ -557,8 +557,8 @@ contains
        gnostics%dump_check2 = dump_check2
        gnostics%nmovie = nmovie
 
-			 gnostics%write_zonal_transfer = write_zonal_transfer  !!!!new diagnostics
-				gnostics%write_collisional = write_collisional
+       gnostics%write_zonal_transfer = write_zonal_transfer  !!!!new diagnostics
+       gnostics%write_collisional = write_collisional
 
     end if
 
@@ -640,8 +640,8 @@ contains
     call broadcast (gnostics%dump_check2)
     call broadcast (gnostics%nmovie)
 
-		call broadcast (gnostics%write_zonal_transfer) !!!! new diagnostics
-		call broadcast (gnostics%write_collisional)
+    call broadcast (gnostics%write_zonal_transfer) !!!! new diagnostics
+    call broadcast (gnostics%write_collisional)
     
     if (override_screen_printout_options) then 
        gnostics%print_line = .true.

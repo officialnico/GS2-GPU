@@ -231,22 +231,22 @@ contains
     use mp, only: proc0
     implicit none
     if ((gnostics%print_line .or. gnostics%write_line) .and. .not.(gnostics%write_fields.and.gnostics%write_omega)) then 
-      if (proc0) write (error_unit(), *) 'print_line and write_line require both write_fields and write_omega... enabling'
+       if (proc0) write (error_unit(), *) 'print_line and write_line require both write_fields and write_omega... enabling'
        gnostics%write_fields = .true.
        gnostics%write_omega = .true.
-			 gnostics%write_zonal_transfer=.true.  !!!!! added as new diagnostics
-			 gnostics%write_collisional=.true.
+!       gnostics%write_zonal_transfer=.true.  !!!!! added as new diagnostics
+!       gnostics%write_collisional=.true.
     end if
     if ((gnostics%print_flux_line .or. gnostics%write_flux_line) .and. .not.gnostics%write_fields) then 
-      if (proc0) write (error_unit(), *) 'print_flux_line and write_flux_line require both write_fields ... enabling'
+       if (proc0) write (error_unit(), *) 'print_flux_line and write_flux_line require both write_fields ... enabling'
        gnostics%write_fields = .true.
     end if
     if (gnostics%write_jext .and. .not. fapar .gt. epsilon(0.0)) then
-      if (proc0) write (*,*) "ERROR: it doesn't make sense to switch on write_jext without apar"
+       if (proc0) write (*,*) "ERROR: it doesn't make sense to switch on write_jext without apar"
        !SHOULD THIS BE MP_ABORT? COULD WE NOT JUST DISABLE THE DIAGNOSTIC?
        stop 1
     end if
-
+    
   end subroutine check_parameters
 
 
@@ -413,8 +413,8 @@ contains
     use mp, only: proc0
     use simpledataio, only: print_dimensions
 
-		use diagnostics_zonal_transfer, only: write_zonal_transfer, calculate_zonal_transfer   !!!! new diag 
-		use collisional_heating, only: write_collisional, calculate_collisional   
+    use diagnostics_zonal_transfer, only: write_zonal_transfer, calculate_zonal_transfer   !!!! new diag 
+    use collisional_heating, only: write_collisional, calculate_collisional   
 
     use diagnostics_printout, only: print_flux_line, print_line
     use diagnostics_printout, only: write_flux_line, write_line
@@ -565,7 +565,7 @@ contains
           call write_zonal_transfer(gnostics)
        end if 
 
-			 if (gnostics%write_collisional) then  !!! new diagnostic, calulate and write in new variable
+       if (gnostics%write_collisional) then  !!! new diagnostic, calulate and write in new variable
           call calculate_collisional(gnostics)
           call write_collisional(gnostics)
        end if 
