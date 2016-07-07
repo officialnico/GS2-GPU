@@ -43,6 +43,10 @@ contains
     use diagnostics_ascii, only: init_diagnostics_ascii
     use diagnostics_antenna, only: init_diagnostics_antenna
     use diagnostics_nonlinear_convergence, only: init_nonlinear_convergence
+
+		use diagnostics_zonal_transfer, only: init_diagnostics_transfer
+		use collisional_heating, only: init_collisional
+
     use nonlinear_terms, only: nonlin
     use gs2_save, only: save_many
     use file_utils, only: run_name, error_unit
@@ -151,6 +155,10 @@ contains
     !if (gnostics%write_max_verr) gnostics%write_verr = .true.
     call init_diagnostics_velocity_space(gnostics)
     call init_diagnostics_antenna(gnostics)
+
+		call init_diagnostics_transfer !!! new diagnostics
+		call init_collisional(gnostics)
+
     if (gnostics%write_heating) call init_diagnostics_heating(gnostics)
     if (nonlin.and.gnostics%use_nonlin_convergence) call init_nonlinear_convergence(gnostics)
     call read_input_file_and_get_size(gnostics)
@@ -226,6 +234,8 @@ contains
       if (proc0) write (error_unit(), *) 'print_line and write_line require both write_fields and write_omega... enabling'
        gnostics%write_fields = .true.
        gnostics%write_omega = .true.
+			 gnostics%write_zonal_transfer=.true.  !!!!! added as new diagnostics
+			 gnostics%write_collisional=.true.
     end if
     if ((gnostics%print_flux_line .or. gnostics%write_flux_line) .and. .not.gnostics%write_fields) then 
       if (proc0) write (error_unit(), *) 'print_flux_line and write_flux_line require both write_fields ... enabling'
@@ -294,6 +304,10 @@ contains
     use diagnostics_antenna, only: finish_diagnostics_antenna
     use diagnostics_nonlinear_convergence, only: finish_nonlinear_convergence
     use diagnostics_velocity_space, only: finish_diagnostics_velocity_space
+
+		use diagnostics_zonal_transfer, only: finish_diagnostics_transfer  !!! new diagnostic
+		use collisional_heating, only: finish_collisional
+
     use nonlinear_terms, only: nonlin
     use dist_fn, only: write_fyx, write_f, write_poly, collision_error
     use mp, only: proc0
@@ -320,8 +334,13 @@ contains
       & finishing submodules')
     call finish_diagnostics_fluxes
     call finish_diagnostics_omega
+
+		call finish_diagnostics_transfer  !!!! new diagnostics
+		call finish_collisional
+
     call finish_diagnostics_antenna(gnostics)
     call finish_diagnostics_velocity_space(gnostics)
+
     if (nonlin.and.gnostics%use_nonlin_convergence) call finish_nonlinear_convergence(gnostics)
     if (gnostics%write_heating) call finish_diagnostics_heating(gnostics)
     if (gnostics%parallel .or. proc0) then
@@ -393,6 +412,10 @@ contains
     use gs2_time, only: user_time
     use mp, only: proc0
     use simpledataio, only: print_dimensions
+
+		use diagnostics_zonal_transfer, only: write_zonal_transfer, calculate_zonal_transfer   !!!! new diag 
+		use collisional_heating, only: write_collisional, calculate_collisional   
+
     use diagnostics_printout, only: print_flux_line, print_line
     use diagnostics_printout, only: write_flux_line, write_line
     use diagnostics_fluxes, only: calculate_fluxes, write_symmetry, write_parity
@@ -536,6 +559,17 @@ contains
           if (gnostics%print_flux_line) call print_flux_line(gnostics)
           if (gnostics%write_flux_line) call write_flux_line(gnostics)
        end if
+
+       if (gnostics%write_zonal_transfer) then  !!! new diagnostic, calulate and write in new variable
+          call calculate_zonal_transfer(gnostics)
+          call write_zonal_transfer(gnostics)
+       end if 
+
+			 if (gnostics%write_collisional) then  !!! new diagnostic, calulate and write in new variable
+          call calculate_collisional(gnostics)
+          call write_collisional(gnostics)
+       end if 
+
        call run_diagnostics_to_be_updated
 
        call debug_message(verb, 'gs2_diagnostics_new::run_diagnostics updating time')

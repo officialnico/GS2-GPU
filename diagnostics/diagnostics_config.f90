@@ -51,6 +51,7 @@ module diagnostics_config
 
      ! Growth rates
      complex, dimension(:,:), pointer :: omega_average
+		 complex, dimension(:,:), pointer :: zonal_transfer
 
   end type results_summary_type
 
@@ -157,6 +158,10 @@ module diagnostics_config
      logical :: dump_check1
      logical :: dump_check2
      integer :: nmovie
+
+		logical :: write_zonal_transfer  !!!!new diagnostic
+		logical :: write_collisional
+
   end type diagnostics_type
 
   !> Used for testing... causes screen printout to be 
@@ -203,6 +208,7 @@ contains
     allocate(gnostics%current_results%species_heating(nspec))
     allocate(gnostics%current_results%species_heating_avg(nspec))
     allocate(gnostics%current_results%omega_average(ntheta0, naky))
+		allocate(gnostics%current_results%zonal_transfer(ntheta0, naky))
   end subroutine allocate_current_results
 
   subroutine deallocate_current_results(gnostics)
@@ -222,6 +228,7 @@ contains
     deallocate(gnostics%current_results%species_heating)
     deallocate(gnostics%current_results%species_heating_avg)
     deallocate(gnostics%current_results%omega_average)
+		deallocate(gnostics%current_results%zonal_transfer)
   end subroutine deallocate_current_results
 
 
@@ -306,6 +313,10 @@ contains
     logical :: dump_check1
     logical :: dump_check2
     integer :: nmovie
+
+		logical :: write_zonal_transfer  !!!!new diagnostic
+		logical :: write_collisional
+
     namelist /gs2_diagnostics_knobs/ &
          nwrite, &
          nwrite_mult, &
@@ -380,7 +391,11 @@ contains
          write_avg_moments, &
          dump_check1, &
          dump_check2, &
-         nmovie
+         nmovie, &
+
+				 write_collisional, &
+
+				 write_zonal_transfer  !!!!new diagnostic
 
     integer :: in_file
     logical :: exist
@@ -461,6 +476,9 @@ contains
        dump_check2 = .false.
        nmovie = -1
 
+			 write_zonal_transfer = .true.  !!!!new diagnostics
+			 write_collisional = .true.
+
        in_file = input_unit_exist ("gs2_diagnostics_knobs", exist)
        if (exist) read (unit=in_file, nml=gs2_diagnostics_knobs)
 
@@ -538,6 +556,9 @@ contains
        gnostics%dump_check1 = dump_check1
        gnostics%dump_check2 = dump_check2
        gnostics%nmovie = nmovie
+
+			 gnostics%write_zonal_transfer = write_zonal_transfer  !!!!new diagnostics
+				gnostics%write_collisional = write_collisional
 
     end if
 
@@ -618,6 +639,9 @@ contains
     call broadcast (gnostics%dump_check1)
     call broadcast (gnostics%dump_check2)
     call broadcast (gnostics%nmovie)
+
+		call broadcast (gnostics%write_zonal_transfer) !!!! new diagnostics
+		call broadcast (gnostics%write_collisional)
     
     if (override_screen_printout_options) then 
        gnostics%print_line = .true.
