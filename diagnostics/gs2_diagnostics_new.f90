@@ -43,9 +43,8 @@ contains
     use diagnostics_ascii, only: init_diagnostics_ascii
     use diagnostics_antenna, only: init_diagnostics_antenna
     use diagnostics_nonlinear_convergence, only: init_nonlinear_convergence
-
-		use diagnostics_zonal_transfer, only: init_diagnostics_transfer
-		use collisional_heating, only: init_collisional
+    use diagnostics_zonal_transfer, only: init_diagnostics_transfer
+    use collisional_heating, only: init_collisional
 
     use nonlinear_terms, only: nonlin
     use gs2_save, only: save_many
@@ -155,9 +154,8 @@ contains
     !if (gnostics%write_max_verr) gnostics%write_verr = .true.
     call init_diagnostics_velocity_space(gnostics)
     call init_diagnostics_antenna(gnostics)
-
-		call init_diagnostics_transfer !!! new diagnostics
-		call init_collisional(gnostics)
+    call init_diagnostics_transfer !!! new diagnostics
+    call init_collisional(gnostics)
 
     if (gnostics%write_heating) call init_diagnostics_heating(gnostics)
     if (nonlin.and.gnostics%use_nonlin_convergence) call init_nonlinear_convergence(gnostics)
@@ -304,10 +302,9 @@ contains
     use diagnostics_antenna, only: finish_diagnostics_antenna
     use diagnostics_nonlinear_convergence, only: finish_nonlinear_convergence
     use diagnostics_velocity_space, only: finish_diagnostics_velocity_space
-
-		use diagnostics_zonal_transfer, only: finish_diagnostics_transfer  !!! new diagnostic
-		use collisional_heating, only: finish_collisional
-
+    use diagnostics_zonal_transfer, only: finish_diagnostics_transfer  !!! new diagnostic
+    use collisional_heating, only: finish_collisional
+    
     use nonlinear_terms, only: nonlin
     use dist_fn, only: write_fyx, write_f, write_poly, collision_error
     use mp, only: proc0
@@ -320,27 +317,27 @@ contains
     if (.not. gnostics%write_any) return
     
     if (.not. gnostics%replay) then
-      call debug_message(verb, 'gs2_diagnostics_new::finish_gs2_diagnostics_new &
-        & calling save_restart_dist_fn')
-      call save_restart_dist_fn
-      
-      call debug_message(verb, 'gs2_diagnostics_new::finish_gs2_diagnostics_new &
-        & calling run_old_final_routines')
-      call run_old_final_routines
+       call debug_message(verb, 'gs2_diagnostics_new::finish_gs2_diagnostics_new &
+            & calling save_restart_dist_fn')
+       call save_restart_dist_fn
+       
+       call debug_message(verb, 'gs2_diagnostics_new::finish_gs2_diagnostics_new &
+            & calling run_old_final_routines')
+       call run_old_final_routines
     end if
     
     deallocate(gnostics%fluxfac)
     call debug_message(verb, 'gs2_diagnostics_new::finish_gs2_diagnostics_new &
-      & finishing submodules')
+         & finishing submodules')
     call finish_diagnostics_fluxes
     call finish_diagnostics_omega
-
-		call finish_diagnostics_transfer  !!!! new diagnostics
-		call finish_collisional
-
+    
+    call finish_diagnostics_transfer  !!!! new diagnostics
+    call finish_collisional
+    
     call finish_diagnostics_antenna(gnostics)
     call finish_diagnostics_velocity_space(gnostics)
-
+    
     if (nonlin.and.gnostics%use_nonlin_convergence) call finish_nonlinear_convergence(gnostics)
     if (gnostics%write_heating) call finish_diagnostics_heating(gnostics)
     if (gnostics%parallel .or. proc0) then
@@ -412,10 +409,8 @@ contains
     use gs2_time, only: user_time
     use mp, only: proc0
     use simpledataio, only: print_dimensions
-
     use diagnostics_zonal_transfer, only: write_zonal_transfer, calculate_zonal_transfer   !!!! new diag 
     use collisional_heating, only: write_collisional, calculate_collisional   
-
     use diagnostics_printout, only: print_flux_line, print_line
     use diagnostics_printout, only: write_flux_line, write_line
     use diagnostics_fluxes, only: calculate_fluxes, write_symmetry, write_parity
@@ -568,7 +563,7 @@ contains
        if (gnostics%write_collisional) then  !!! new diagnostic, calulate and write in new variable
           call calculate_collisional(gnostics)
           call write_collisional(gnostics)
-       end if 
+       end if
 
        call run_diagnostics_to_be_updated
 

@@ -101,7 +101,6 @@ dump_response_mod = \
 	 leq.o \
 	 matrix_inverse.o \
 	 mp.o \
-	 mt19937.o \
 	 netcdf_utils.o \
 	 nonlinear_terms.o \
 	 normalisations.o \
@@ -122,9 +121,6 @@ dump_response_mod = \
 	 theta_grid.o \
 	 theta_grid_params.o \
 	 unit_tests.o 
-
-ediff_mod = \
-	 ediff.o 
 
 eiktest_mod = \
 	 ceq.o \
@@ -148,6 +144,7 @@ ffttester_mod = \
 	 antenna.o \
 	 antenna_data.o \
 	 ceq.o \
+	 collisional_heating.o \
 	 collisions.o \
 	 command_line.o \
 	 constant_random.o \
@@ -172,6 +169,7 @@ ffttester_mod = \
 	 diagnostics_screen_printout.o \
 	 diagnostics_turbulence.o \
 	 diagnostics_velocity_space.o \
+	 diagnostics_zonal_transfer.o \
 	 dist_fn.o \
 	 dist_fn_arrays.o \
 	 eeq.o \
@@ -211,7 +209,6 @@ ffttester_mod = \
 	 leq.o \
 	 matrix_inverse.o \
 	 mp.o \
-	 mt19937.o \
 	 netcdf_utils.o \
 	 nonlinear_terms.o \
 	 normalisations.o \
@@ -290,6 +287,7 @@ gs2_mod = \
 	 antenna.o \
 	 antenna_data.o \
 	 ceq.o \
+	 collisional_heating.o \
 	 collisions.o \
 	 command_line.o \
 	 constant_random.o \
@@ -314,6 +312,7 @@ gs2_mod = \
 	 diagnostics_screen_printout.o \
 	 diagnostics_turbulence.o \
 	 diagnostics_velocity_space.o \
+	 diagnostics_zonal_transfer.o \
 	 dist_fn.o \
 	 dist_fn_arrays.o \
 	 eeq.o \
@@ -355,7 +354,6 @@ gs2_mod = \
 	 leq.o \
 	 matrix_inverse.o \
 	 mp.o \
-	 mt19937.o \
 	 netcdf_utils.o \
 	 nonlinear_terms.o \
 	 normalisations.o \
@@ -461,7 +459,6 @@ ingen_mod = \
 	 leq.o \
 	 matrix_inverse.o \
 	 mp.o \
-	 mt19937.o \
 	 netcdf_utils.o \
 	 nonlinear_terms.o \
 	 normalisations.o \
@@ -505,9 +502,6 @@ rungridgen_mod = \
 	 rungridgen.o \
 	 spl.o 
 
-test_mod = \
-	 test.o 
-
 antenna.o: \
 	 antenna_data.o \
 	 constants.o \
@@ -536,6 +530,22 @@ ceq.o: \
 	 mp.o \
 	 read_chease.o \
 	 spl.o 
+collisional_heating.o: \
+	 diagnostics_config.o \
+	 diagnostics_create_and_write.o \
+	 diagnostics_dimensions.o \
+	 dist_fn_arrays.o \
+	 fields_arrays.o \
+	 fields_parallelization.o \
+	 gs2_layouts.o \
+	 gs2_time.o \
+	 gs2_transforms.o \
+	 hyper.o \
+	 kt_grids.o \
+	 le_derivatives.o \
+	 le_grids.o \
+	 species.o \
+	 theta_grid.o 
 collisions.o: \
 	 constants.o \
 	 dist_fn_arrays.o \
@@ -749,6 +759,23 @@ diagnostics_velocity_space.o: \
 	 run_parameters.o \
 	 species.o \
 	 theta_grid.o 
+diagnostics_zonal_transfer.o: \
+	 constants.o \
+	 diagnostics_config.o \
+	 diagnostics_create_and_write.o \
+	 diagnostics_dimensions.o \
+	 dist_fn_arrays.o \
+	 fields_arrays.o \
+	 fields_parallelization.o \
+	 gs2_layouts.o \
+	 gs2_time.o \
+	 gs2_transforms.o \
+	 kt_grids.o \
+	 le_grids.o \
+	 mp.o \
+	 run_parameters.o \
+	 species.o \
+	 theta_grid.o 
 dist_fn.o: \
 	 antenna.o \
 	 collisions.o \
@@ -762,7 +789,6 @@ dist_fn.o: \
 	 gs2_time.o \
 	 gs2_transforms.o \
 	 hyper.o \
-	 job_manage.o \
 	 kt_grids.o \
 	 le_derivatives.o \
 	 le_grids.o \
@@ -809,7 +835,6 @@ dump_response.o: \
 	 mp.o \
 	 run_parameters.o \
 	 species.o 
-ediff.o: 
 eeq.o: \
 	 constants.o \
 	 mp.o \
@@ -846,6 +871,7 @@ fields.o: \
 	 kt_grids.o \
 	 mp.o \
 	 nonlinear_terms.o \
+	 overrides.o \
 	 run_parameters.o \
 	 text_options.o \
 	 theta_grid.o \
@@ -901,7 +927,8 @@ fields_local.o: \
 	 run_parameters.o \
 	 runtime_tests.o \
 	 species.o \
-	 theta_grid.o 
+	 theta_grid.o \
+	 unit_tests.o 
 fields_parallelization.o: \
 	 mp.o 
 fields_test.o: \
@@ -989,6 +1016,7 @@ gs2_diagnostics.o: \
 	 unit_tests.o 
 gs2_diagnostics_new.o: \
 	 antenna.o \
+	 collisional_heating.o \
 	 collisions.o \
 	 diagnostics_antenna.o \
 	 diagnostics_ascii.o \
@@ -1008,6 +1036,7 @@ gs2_diagnostics_new.o: \
 	 diagnostics_screen_printout.o \
 	 diagnostics_turbulence.o \
 	 diagnostics_velocity_space.o \
+	 diagnostics_zonal_transfer.o \
 	 dist_fn.o \
 	 dist_fn_arrays.o \
 	 fields_arrays.o \
@@ -1130,6 +1159,7 @@ gs2_main.o: \
 	 unit_tests.o 
 gs2_optimisation.o: \
 	 fields_implicit.o \
+	 fields_local.o \
 	 gs2_main.o \
 	 ingen_mod.o \
 	 mp.o \
@@ -1174,9 +1204,7 @@ gs2_transforms.o: \
 	 theta_grid.o \
 	 unit_tests.o 
 hdf_wrapper.o: \
-	 constants.o \
-	 convert.o \
-	 file_utils.o 
+	 constants.o 
 hrate.o: \
 	 command_line.o 
 hyper.o: \
@@ -1300,7 +1328,6 @@ mds.o: \
 mp.o: \
 	 constants.o \
 	 file_utils.o 
-mt19937.o: 
 netcdf_utils.o: \
 	 constants.o \
 	 file_utils.o \
@@ -1358,8 +1385,7 @@ ran.o: \
 read_chease.o: 
 redistribute.o: \
 	 job_manage.o \
-	 mp.o \
-	 theta_grid.o 
+	 mp.o 
 regress.o: \
 	 regression.o 
 regression.o: 
@@ -1369,6 +1395,7 @@ run_parameters.o: \
 	 gs2_time.o \
 	 kt_grids.o \
 	 mp.o \
+	 overrides.o \
 	 text_options.o 
 rungridgen.o: \
 	 constants.o \
@@ -1403,7 +1430,6 @@ spfunc.o: \
 	 constants.o 
 spl.o: \
 	 mp.o 
-test.o: 
 text_options.o: \
 	 mp.o 
 theta_grid.o: \
