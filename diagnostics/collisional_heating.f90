@@ -64,7 +64,7 @@ contains
     use fields_arrays, only: phinew
     use dist_fn_arrays, only: g, gnew
     use diagnostics_config, only: diagnostics_type
-    use dist_fn_arrays, only: c_rate
+    use dist_fn_arrays, only: c_rate, g_adjust
     use theta_grid, only: ntgrid, delthet, jacob
     use kt_grids, only: naky, ntheta0, akx, aky
     use species, only: spec, nspec
@@ -74,6 +74,7 @@ contains
     use hyper, only: hyper_diff, hypervisc_filter
     use le_derivatives, only: vspace_derivatives
     use fields_arrays, only: phi, bpar, phinew, bparnew
+    use run_parameters, only: fphi, fbpar
 
     implicit none
 
@@ -84,13 +85,19 @@ contains
     integer :: is, ik, it, ig, isgn, iglo
     complex :: dgdt_hypervisc, havg
     real :: fac, fac2
-		real, dimension(1:nspec) :: weights 
+    real, dimension(1:nspec) :: weights 
+
+    hyper_part = 0.
+    hyper_part_2 = 0.
+    colls_part = 0.
 
     wgt = delthet*jacob
     wgt = wgt/sum(wgt)
     g0=g
     weights=1.
   
+    call g_adjust(g0,phi,bpar,fphi,fbpar)   !!! transforms g into h (minus boltzmann response), anyway fbpar=0
+
     !call vspace_derivatives(gnew,g,g0,phi, bpar, phinew, bparnew)  !!!!! assigns values to c_rate
     call hyper_diff(g0,phi) !!!! assigns values to hypervisc_filter
        
@@ -106,7 +113,6 @@ contains
           end do
        end do
     end do
-    
 
     do iglo=g_lo%llim_proc, g_lo%ulim_proc
       is = is_idx(g_lo, iglo)
@@ -127,21 +133,21 @@ contains
     end do
 
     !call integrate_species_original(g0, weights, tot)    !!!!! integrate species_original is dubious...
-		call integrate_moment(g0, tot)
-		!write(*,*) tot
-  do ik = 1, naky
-     fac2 = 0.5
-     if (aky(ik) < epsilon(0.0)) fac2 = 1.0
-     do it = 1, ntheta0
-        do is = 1, nspec
-           do ig = -ntgrid, ntgrid-1
-              hyper_part(it,ik) = hyper_part(it,ik) + real(tot(ig,it,ik,is))*wgt(ig)*fac2
-           end do
-        end do
-     end do
-  end do
-  
-  coll_heating= colls_part + hyper_part
+    call integrate_moment(g0, tot)
+    !write(*,*) tot
+    do ik = 1, naky
+       fac2 = 0.5
+       if (aky(ik) < epsilon(0.0)) fac2 = 1.0
+       do it = 1, ntheta0
+          do is = 1, nspec
+             do ig = -ntgrid, ntgrid-1
+                hyper_part(it,ik) = hyper_part(it,ik) + real(tot(ig,it,ik,is))*wgt(ig)*fac2
+             end do
+          end do
+       end do
+    end do
+    
+    coll_heating= colls_part + hyper_part
   coll_heating_2 = colls_part + hyper_part_2
   
 end subroutine calculate_collisional

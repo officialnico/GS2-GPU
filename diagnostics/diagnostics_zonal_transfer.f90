@@ -1,9 +1,8 @@
 module diagnostics_zonal_transfer
 
 !!!!! calculate tau(kx,ky), transfer of free energy by non-linearity in fourier space
-
-
   implicit none
+
   private
 
 !!!!!!! Allocate arrays
@@ -15,11 +14,11 @@ module diagnostics_zonal_transfer
 
   complex, dimension (:,:), allocatable ::  zonal_transfer !2 dimensions, kx, ky
 	
-	real, dimension(:,:), allocatable :: banew,gbnew,bracketnew  !!!!! dummy arrays
-
-	complex, dimension (:,:,:,:), allocatable :: inter_s
-	complex, dimension (:,:,:), allocatable :: g0
-  !!! dummy arrays as well
+  real, dimension(:,:), allocatable :: banew,gbnew,bracketnew  !!!!! dummy arrays
+  
+  complex, dimension (:,:,:,:), allocatable :: inter_s
+  complex, dimension (:,:,:), allocatable :: g0
+!!! dummy arrays as well
 contains
 
   subroutine init_diagnostics_transfer
@@ -81,7 +80,6 @@ contains
     use kt_grids, only: aky, akx
     use gs2_time, only: save_dt_cfl, check_time_step_too_large
     use le_grids, only: negrid, nlambda
-    use dist_fn_arrays, only: g
     use fields_arrays, only: phi, apar, bpar
     use constants, only: zi   !i complex
     use species, only: nspec,spec !! need to get temperature for each species
@@ -255,7 +253,7 @@ contains
     complex, dimension (-ntgrid:,:,g_lo%llim_proc:), intent (in) :: g
     complex, dimension (-ntgrid:,:,:,:), intent (out) :: total
     
-    call integrate_moment(g, total)  !!!! can only be called once w and wl are assigned, after init_le_grids
+    call integrate_moment(g, total, all=.true.)  !!!! can only be called once w and wl are assigned, after init_le_grids
     
   end subroutine integrate
   
