@@ -140,6 +140,11 @@ input_variables_for_diagnostics_config = [
   # Save the distribution function
   ['logical', 'save_distfn', '.false.'],
 
+  # Write free energy transfer as function of kx,ky
+  ['logical', 'write_zonal_transfer', '.false.']
+  # Write collisional free energy dissipation as function of kx,ky
+  ['logical', 'write_collisional', '.false.']
+
   # These parameters have no effect and are
   # provided only for backwards compatibility
   # with old namelists
