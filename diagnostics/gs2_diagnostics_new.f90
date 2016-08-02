@@ -154,7 +154,7 @@ contains
     !if (gnostics%write_max_verr) gnostics%write_verr = .true.
     call init_diagnostics_velocity_space(gnostics)
     call init_diagnostics_antenna(gnostics)
-    call init_diagnostics_transfer !!! new diagnostics
+    call init_diagnostics_transfer(gnostics)
     call init_collisional(gnostics)
 
     if (gnostics%write_heating) call init_diagnostics_heating(gnostics)
@@ -232,8 +232,6 @@ contains
        if (proc0) write (error_unit(), *) 'print_line and write_line require both write_fields and write_omega... enabling'
        gnostics%write_fields = .true.
        gnostics%write_omega = .true.
-!       gnostics%write_zonal_transfer=.true.  !!!!! added as new diagnostics
-!       gnostics%write_collisional=.true.
     end if
     if ((gnostics%print_flux_line .or. gnostics%write_flux_line) .and. .not.gnostics%write_fields) then 
        if (proc0) write (error_unit(), *) 'print_flux_line and write_flux_line require both write_fields ... enabling'
@@ -302,7 +300,7 @@ contains
     use diagnostics_antenna, only: finish_diagnostics_antenna
     use diagnostics_nonlinear_convergence, only: finish_nonlinear_convergence
     use diagnostics_velocity_space, only: finish_diagnostics_velocity_space
-    use diagnostics_zonal_transfer, only: finish_diagnostics_transfer  !!! new diagnostic
+!    use diagnostics_zonal_transfer, only: finish_diagnostics_transfer  !!! new diagnostic
     use collisional_heating, only: finish_collisional
     
     use nonlinear_terms, only: nonlin
@@ -332,7 +330,7 @@ contains
     call finish_diagnostics_fluxes
     call finish_diagnostics_omega
     
-    call finish_diagnostics_transfer  !!!! new diagnostics
+!    call finish_diagnostics_transfer  !!!! new diagnostics
     call finish_collisional
     
     call finish_diagnostics_antenna(gnostics)
@@ -409,7 +407,7 @@ contains
     use gs2_time, only: user_time
     use mp, only: proc0
     use simpledataio, only: print_dimensions
-    use diagnostics_zonal_transfer, only: write_zonal_transfer, calculate_zonal_transfer   !!!! new diag 
+    use diagnostics_zonal_transfer, only: write_zonal_transfer, calculate_zonal_transfer
     use collisional_heating, only: write_collisional, calculate_collisional   
     use diagnostics_printout, only: print_flux_line, print_line
     use diagnostics_printout, only: write_flux_line, write_line
@@ -555,7 +553,7 @@ contains
           if (gnostics%write_flux_line) call write_flux_line(gnostics)
        end if
 
-       if (gnostics%write_zonal_transfer) then  !!! new diagnostic, calulate and write in new variable
+       if (gnostics%write_zonal_transfer) then
           call calculate_zonal_transfer(gnostics)
           call write_zonal_transfer(gnostics)
        end if 

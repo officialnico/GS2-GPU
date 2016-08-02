@@ -148,53 +148,32 @@ contains
     end do
     
     coll_heating= colls_part + hyper_part
-  coll_heating_2 = colls_part + hyper_part_2
+    coll_heating_2 = colls_part + hyper_part_2
+    
+  end subroutine calculate_collisional
   
-end subroutine calculate_collisional
-
   subroutine write_collisional(gnostics)
-
-		use diagnostics_create_and_write, only: create_and_write_distributed_fieldlike_variable
-		use diagnostics_dimensions, only: dim_string
+    
+    use diagnostics_create_and_write, only: create_and_write_distributed_fieldlike_variable
+    use diagnostics_dimensions, only: dim_string
     use fields_parallelization, only: field_k_local
-		use kt_grids, only: ntheta0, naky
+    use kt_grids, only: ntheta0, naky
     use diagnostics_config, only: diagnostics_type
-
+    
     implicit none
-
+    
     type(diagnostics_type), intent(in) :: gnostics
-
-		call create_and_write_distributed_fieldlike_variable(gnostics, gnostics%rtype, "collisional_heating", &
-				dim_string([gnostics%dims%ri,gnostics%dims%kx,gnostics%dims%ky,gnostics%dims%time]), &
-				"Collisional and hyper viscous rate of loss of free energy for each mode and each t", &
-				"unit", coll_heating)
-
+    
+    call create_and_write_distributed_fieldlike_variable(gnostics, gnostics%rtype, "collisional_heating", &
+         dim_string([gnostics%dims%ri,gnostics%dims%kx,gnostics%dims%ky,gnostics%dims%time]), &
+         "Collisional and hyper viscous rate of loss of free energy for each mode and each t", &
+         "unit", coll_heating)
+    
     call create_and_write_distributed_fieldlike_variable(gnostics, gnostics%rtype, "collisional_heating_2", &
-				dim_string([gnostics%dims%ri,gnostics%dims%kx,gnostics%dims%ky,gnostics%dims%time]), &
-				"Collisional and hyper viscous rate of loss of free energy for each mode and each t, other method", &
-				"unit", coll_heating_2)
-
-	end subroutine write_collisional
+         dim_string([gnostics%dims%ri,gnostics%dims%kx,gnostics%dims%ky,gnostics%dims%time]), &
+         "Collisional and hyper viscous rate of loss of free energy for each mode and each t, other method", &
+         "unit", coll_heating_2)
     
-
-
-
-
-
-    
-
-
-
-
-
-
-
-	
-
-
-
-
-
-
+  end subroutine write_collisional
 
 end module collisional_heating

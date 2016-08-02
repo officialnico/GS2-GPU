@@ -141,9 +141,9 @@ input_variables_for_diagnostics_config = [
   ['logical', 'save_distfn', '.false.'],
 
   # Write free energy transfer as function of kx,ky
-  ['logical', 'write_zonal_transfer', '.false.']
+  ['logical', 'write_zonal_transfer', '.false.'],
   # Write collisional free energy dissipation as function of kx,ky
-  ['logical', 'write_collisional', '.false.']
+  ['logical', 'write_collisional', '.false.'],
 
   # These parameters have no effect and are
   # provided only for backwards compatibility
@@ -264,6 +264,9 @@ module diagnostics_config
      ! Growth rates
      complex, dimension(:,:), pointer :: omega_average
 
+     ! free energy transfer due to nonlinearity
+     complex, dimension(:,:), pointer :: zonal_transfer
+
   end type results_summary_type
 
   !> A type for storing the diagnostics configuration,
@@ -331,7 +334,6 @@ contains
     allocate(gnostics%current_results%species_es_heat_flux(nspec))
     allocate(gnostics%current_results%species_apar_heat_flux(nspec))
     allocate(gnostics%current_results%species_bpar_heat_flux(nspec))
-
     allocate(gnostics%current_results%species_heat_flux(nspec))
     allocate(gnostics%current_results%species_momentum_flux(nspec))
     allocate(gnostics%current_results%species_particle_flux(nspec))
@@ -342,6 +344,8 @@ contains
     allocate(gnostics%current_results%species_heating(nspec))
     allocate(gnostics%current_results%species_heating_avg(nspec))
     allocate(gnostics%current_results%omega_average(ntheta0, naky))
+    allocate(gnostics%current_results%zonal_transfer(ntheta0,naky))
+
   end subroutine allocate_current_results
 
   subroutine deallocate_current_results(gnostics)
@@ -351,7 +355,6 @@ contains
     deallocate(gnostics%current_results%species_es_heat_flux)
     deallocate(gnostics%current_results%species_apar_heat_flux)
     deallocate(gnostics%current_results%species_bpar_heat_flux)
-    
     deallocate(gnostics%current_results%species_heat_flux)
     deallocate(gnostics%current_results%species_momentum_flux)
     deallocate(gnostics%current_results%species_particle_flux)
@@ -361,6 +364,7 @@ contains
     deallocate(gnostics%current_results%species_heating)
     deallocate(gnostics%current_results%species_heating_avg)
     deallocate(gnostics%current_results%omega_average)
+    deallocate(gnostics%current_results%zonal_transfer)
   end subroutine deallocate_current_results
 
 

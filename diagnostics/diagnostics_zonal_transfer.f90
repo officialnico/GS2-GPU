@@ -1,178 +1,156 @@
 module diagnostics_zonal_transfer
 
-!!!!! calculate tau(kx,ky), transfer of free energy by non-linearity in fourier space
+!> calculate tau(kx,ky), the transfer of free energy by the non-linearity in fourier space
   implicit none
 
   private
 
-!!!!!!! Allocate arrays
+!> allocate free energy transfer arrays
   public :: init_diagnostics_transfer
-!!!!!!!! Deallocate arrays
-  public :: finish_diagnostics_transfer
+  public :: calculate_zonal_transfer, write_zonal_transfer
 
-  public :: calculate_zonal_transfer, write_zonal_transfer, total_term
-
-  complex, dimension (:,:), allocatable ::  zonal_transfer !2 dimensions, kx, ky
-	
-  real, dimension(:,:), allocatable :: banew,gbnew,bracketnew  !!!!! dummy arrays
-  
-  complex, dimension (:,:,:,:), allocatable :: inter_s
-  complex, dimension (:,:,:), allocatable :: g0
-!!! dummy arrays as well
 contains
 
-  subroutine init_diagnostics_transfer
+  subroutine init_diagnostics_transfer(gnostics)
+
     use kt_grids, only: naky, ntheta0, nx, ny, akx, aky
     use theta_grid, only: ntgrid
     use species, only: nspec
-    use diagnostics_config, only: diagnostics_type
     use le_grids, only: init_le_grids, nlambda, negrid
     use gs2_transforms, only: init_transforms
     use gs2_layouts, only: init_dist_fn_layouts
-    use gs2_layouts, only: yxf_lo, g_lo
-    
+    use diagnostics_config, only: diagnostics_type
+
     implicit none
+
+    type(diagnostics_type), intent(inout) :: gnostics
+
     logical :: accel
     
     accel=.false.
+
+    !> initialize zonal_transfer to zero
+    gnostics%current_results%zonal_transfer = 0.0
     
-!!!calls every initiation routine we need: le_grids for integration, init_gs2 transforms to initiate fourier transforms routines...
+    !> call every initiation routine we need:
+    !! le_grids for integration, init_gs2 transforms to initiate fourier transforms routines, etc.
     
-    call init_le_grids(accel,accel)  !!!! benefit: calls init_theta_grid, init_kt_grids, init_gs2_layouts and init_species for later use
-    call init_transforms(ntgrid, naky, ntheta0, nlambda, negrid, nspec, nx, ny, accel)  !!! in order to use fft transform routines
+    !> calls init_theta_grid, init_kt_grids, init_gs2_layouts, and init_species for later use
+    call init_le_grids(accel,accel)
+    !> will need to use fft routines
+    call init_transforms(ntgrid, naky, ntheta0, nlambda, negrid, nspec, nx, ny, accel)
     call init_dist_fn_layouts(naky, ntheta0, nlambda, negrid, nspec)
 !!!! accel_x =false : useless
     
-!!!!! allocate and initialize arrays
-    allocate (zonal_transfer(ntheta0,naky))
-    zonal_transfer=0.0
-    
-    allocate(inter_s(-ntgrid:ntgrid,ntheta0,naky,nspec))
-    allocate(g0(-ntgrid:ntgrid,2,g_lo%llim_proc:g_lo%ulim_alloc))
-    allocate(banew(yxf_lo%ny,yxf_lo%llim_proc:yxf_lo%ulim_alloc))
-    allocate(gbnew(yxf_lo%ny,yxf_lo%llim_proc:yxf_lo%ulim_alloc))
-    allocate(bracketnew(yxf_lo%ny,yxf_lo%llim_proc:yxf_lo%ulim_alloc))
-    banew = 0.
-    gbnew = 0.
-    bracketnew = 0.
-    
   end subroutine init_diagnostics_transfer
   
-  subroutine finish_diagnostics_transfer 
-    deallocate(zonal_transfer)
-    deallocate(banew)
-    deallocate(gbnew)
-    deallocate(bracketnew)
-    deallocate(inter_s)
-    deallocate(g0)
-  end subroutine finish_diagnostics_transfer
-  
-!  subroutine non_linear_term (g1, phi, apar, bpar)   !no perturbed magnetic field: apar and bpar set to zero
-  subroutine non_linear_term (g1)   !no perturbed magnetic field: apar and bpar set to zero
-    use mp, only: max_allreduce, iproc
-    use theta_grid, only: ntgrid, kxfac, bmag !!! get magnetic field as well
-    use gs2_layouts, only: g_lo, ik_idx, it_idx, is_idx, ie_idx, il_idx
+  !> calculate nonlinear term appearing in GKE
+  !! for now assume electrostatic
+  subroutine non_linear_term (g1)
+
+    use theta_grid, only: ntgrid, kxfac
+    use gs2_layouts, only: g_lo, ik_idx, it_idx, is_idx
     use gs2_layouts, only: yxf_lo
     use dist_fn_arrays, only: g, g_adjust
     use species, only: spec
     use gs2_transforms, only: transform2, inverse2
-    use run_parameters, only: fapar, fbpar, reset, immediate_reset  !!! for us, fphi=1 (electrostatic case), fbar=fapar=0
+    use run_parameters, only: fphi, fapar, fbpar
     use kt_grids, only: aky, akx
-    use gs2_time, only: save_dt_cfl, check_time_step_too_large
-    use le_grids, only: negrid, nlambda
-    use fields_arrays, only: phi, apar, bpar
-    use constants, only: zi   !i complex
-    use species, only: nspec,spec !! need to get temperature for each species
+    use fields_arrays, only: phi, bpar
+    use constants, only: zi
+    use species, only: nspec, spec
     
     implicit none
     
-    complex, dimension (-ntgrid:,:,g_lo%llim_proc:), intent(out) :: g1  !contains the distribution function g (not h), indices in velocity space as well
-    complex, dimension(-ntgrid:ntgrid,2,g_lo%llim_proc:g_lo%ulim_alloc) :: g2,g3    !!!! for dummy arrays, specify exact shape
-!    complex, dimension (-ntgrid:,:,:) :: phi, apar, bpar  !contains the potential phi, indices for theta, kx and ky
+    complex, dimension (-ntgrid:,:,g_lo%llim_proc:), intent(out) :: g1
     integer :: i, j, k, isgn
-    complex, dimension(-ntgrid:ntgrid,nspec,negrid,nlambda,2) :: test_sum
-    integer, parameter :: verb = 4
-    real :: fphi0
-    integer :: iglo, ik, it, ig, ie, il, is   !indices for velocity, mode, time, species...
+!    complex, dimension(-ntgrid:ntgrid,nspec,negrid,nlambda,2) :: test_sum
+    integer :: iglo, ik, it, ig, is
     
-    fphi0=1.
-    
-    !Form g1=i*kx*chi     
+    real, dimension(:,:), allocatable :: banew, gbnew, bracketnew
+
+    allocate (banew(yxf_lo%ny,yxf_lo%llim_proc:yxf_lo%ulim_alloc)) ; banew = 0.
+    allocate (gbnew(yxf_lo%ny,yxf_lo%llim_proc:yxf_lo%ulim_alloc)) ; gbnew = 0.
+    allocate (bracketnew(yxf_lo%ny,yxf_lo%llim_proc:yxf_lo%ulim_alloc)) ; bracketnew = 0.
+
+    !> Form g1=i*kx*phi
     call load_kx_phi
     
-    !Transform to real space
-    call transform2 (g1, banew) !!!!the fft2d of g1 goes to array ba, which needs to be specified somewhere in the beginning! (init function)
+    !> Transform to real space
+    !! 2D fft of g1 is returned as banew
+    call transform2 (g1, banew)
     
-    !Form g1=i*ky*h
-    g1=g   !!!! g is an originally empty array from dist_fn_array, assigned with g somewhere
-    call g_adjust(g1,phi,bpar,fphi0,fbpar)   !!! transforms g into h (minus boltzmann response), anyway fbpar=0
+!    g1=g   !!!! g is an originally empty array from dist_fn_array, assigned with g somewhere
+!    call g_adjust(g1,phi,bpar,fphi,fbpar)   !!! transforms g into h (minus boltzmann response), anyway fbpar=0
     
-    !g2=g1 !! assigns values of hk in g2 for further use (see end of routine)
-    
+    !> Form g1=i*ky*g
     do iglo = g_lo%llim_proc, g_lo%ulim_proc
        ik = ik_idx(g_lo,iglo)
-       g1(:,:,iglo)=g1(:,:,iglo)*zi*aky(ik) !!!!for all indices in velocity space, multiply by i*ky 
+!       g1(:,:,iglo)=g1(:,:,iglo)*zi*aky(ik) !!!!for all indices in velocity space, multiply by i*ky 
+       g1(:,:,iglo)=g(:,:,iglo)*zi*aky(ik)
     end do
     
-    !Transform to real space    
-    
+    !> Transform to real space    
     call transform2 (g1, gbnew) 
-    !Calculate (d Chi /dx).(d h/dy)
-
+    
+    !> Calculate (d phi /dx).(dg/dy)
     do j = yxf_lo%llim_proc, yxf_lo%ulim_proc
-      do i = 1, yxf_lo%ny
-        bracketnew(i,j) = banew(i,j)*gbnew(i,j)*kxfac   !!!! don't know why, but kxfac is important
-      end do
+       do i = 1, yxf_lo%ny
+          bracketnew(i,j) = banew(i,j)*gbnew(i,j)*kxfac
+       end do
     end do
-
-    !Form g1=i*ky*chi
+    
+    !> Form g1=i*ky*chi
     call load_ky_phi
-
-    !Transform to real space    
-
+    
+    !>Transform to real space    
     call transform2 (g1, banew)
 
     !Form g1=i*kx*h
-    g1=g
+!     g1=g
 
-    call g_adjust(g1,phi,bpar,fphi0,fbpar)
+!     call g_adjust(g1,phi,bpar,fphi,fbpar)
     do iglo = g_lo%llim_proc, g_lo%ulim_proc
        it = it_idx(g_lo,iglo)
-       g1(:,:,iglo)=g1(:,:,iglo)*zi*akx(it)
+!       g1(:,:,iglo)=g1(:,:,iglo)*zi*akx(it)
+       g1(:,:,iglo)=g(:,:,iglo)*zi*akx(it)
     enddo
        
-    !Transform to real space
-
+    !> Transform to real space
     call transform2 (g1, gbnew)
 
-    !Calculate (d Chi /dy).(d h/dx) and subtract from (d Chi /dx).(d h/dy)
-
+    !> Calculate (d phi /dy).(dg/dx) and subtract from (d phi /dx).(dg/dy)
     do j = yxf_lo%llim_proc, yxf_lo%ulim_proc
-      do i = 1, yxf_lo%ny
-        bracketnew(i,j) = bracketnew(i,j) - banew(i,j)*gbnew(i,j)*kxfac
-      end do
-    end do
-
-    !Transform NL source back to spectral space
-
-    call inverse2 (bracketnew, g1)  ! fourier non linear coeff Nk in g1
-
-    !! TEST: is the poisson bracket correct? check from non_linear 
-    !write(*,*) g1(:,1,g_lo%ulim_proc-10),'diag'
-    
-    g2=g
-    call g_adjust(g2,phi,bpar,fphi0,fbpar)
-    
-    !! we have to multiply by hk                      
-    do ig=-ntgrid,ntgrid
-       do isgn=1,2
-          do iglo = g_lo%llim_proc, g_lo%ulim_proc
-             g3(ig,isgn,iglo)=g1(ig,isgn,iglo)*conjg(g2(ig,isgn,iglo))
-          end do
+       do i = 1, yxf_lo%ny
+          bracketnew(i,j) = bracketnew(i,j) - banew(i,j)*gbnew(i,j)*kxfac
        end do
     end do
+    
+    !> Transform nonlinearity back to spectral space
+    !! g1 contains Fourier coefficients associated with nonlinearity
+    call inverse2 (bracketnew, g1)
 
-!!!!!!!!!!!!!!!!!!!!!!! NEED TO MULTIPLY BY CONJUGATE ????????
+!    g2=g
+!    call g_adjust(g2,phi,bpar,fphi,fbpar)
+    !> change variables from g to h
+    call g_adjust(g,phi,bpar,fphi,fbpar)
+    
+    !> we have to multiply nonlinearity by hk
+!    do iglo = g_lo%llim_proc, g_lo%ulim_proc
+!       do isgn=1,2
+!          do ig=-ntgrid,ntgrid
+!             g1(ig,isgn,iglo)=g1(ig,isgn,iglo)*conjg(g2(ig,isgn,iglo))
+!          end do
+!       end do
+!    end do
+
+    do iglo = g_lo%llim_proc, g_lo%ulim_proc
+       is = is_idx(g_lo,iglo)
+       g1(:,:,iglo)=g1(:,:,iglo)*conjg(g(:,:,iglo))*spec(is)%temp
+    end do
+    
+    call g_adjust(g,phi,bpar,-fphi,-fbpar)
+
 !!!!! the sum over kx,ky of g1 should be 0! we calculate it
   
   !write(*,*) g3(10,1,g_lo%ulim_proc-10)
@@ -186,20 +164,22 @@ contains
 !      il = il_idx(g_lo,iglo)
 !      do ig = -ntgrid,ntgrid
 !         do isgn=1,2
-!            test_sum(ig,is,ie,il,isgn) = test_sum(ig,is,ie,il,isgn) + g3(ig,isgn,iglo)
+!            test_sum(ig,is,ie,il,isgn) = test_sum(ig,is,ie,il,isgn) + g1(ig,isgn,iglo)
 !         end do
 !      end do
 !   end do
 !		write(*,*) abs(test_sum(1,1,2,20,1))/maxval(abs(g3))   !!!! should be zero
 
-    do iglo = g_lo%llim_proc, g_lo%ulim_proc
-       is = is_idx(g_lo,iglo)
-       do isgn=1,2
-          do ig=-ntgrid,ntgrid
-             g1(ig,isgn,iglo)=spec(is)%temp*g3(ig,isgn,iglo)
-          end do
-       end do
-    end do
+!     do iglo = g_lo%llim_proc, g_lo%ulim_proc
+!        is = is_idx(g_lo,iglo)
+!        do isgn=1,2
+!           do ig=-ntgrid,ntgrid
+!              g1(ig,isgn,iglo)=spec(is)%temp*g3(ig,isgn,iglo)
+!           end do
+!        end do
+!     end do
+
+    deallocate (banew, gbnew, bracketnew)
     
   contains
     
@@ -208,9 +188,9 @@ contains
       use dist_fn_arrays, only: aj0  !!!bessel function from the fourier coeff of average
       complex :: fac
 
-      do iglo = g_lo%llim_proc, g_lo%ulim_proc  !!!lower limit to upper limit?
+      do iglo = g_lo%llim_proc, g_lo%ulim_proc
          it = it_idx(g_lo,iglo)
-         ik = ik_idx(g_lo,iglo)  !!!ig for theta, it and ik for kx and ky
+         ik = ik_idx(g_lo,iglo)
          do ig = -ntgrid, ntgrid
             fac = zi*akx(it)*aj0(ig,iglo)*phi(ig,it,ik)
             g1(ig,1,iglo) = fac
@@ -241,90 +221,100 @@ contains
 
 !!!!!!!!!!!!!! integration over velocity space
   
-  subroutine integrate (g, total)  !!!!! integrates g with maxwellian weights, output in total array
+!   subroutine integrate (g, total)  !!!!! integrates g with maxwellian weights, output in total array
     
-    use le_grids, only: integrate_moment  !!!! Not public, until told so in le_grids!
-    use theta_grid, only: ntgrid
-    use gs2_layouts, only: g_lo
-    use species, only:nspec
+!     use le_grids, only: integrate_moment  !!!! Not public, until told so in le_grids!
+!     use theta_grid, only: ntgrid
+!     use gs2_layouts, only: g_lo
+!     use species, only:nspec
     
-    implicit none
+!     implicit none
     
-    complex, dimension (-ntgrid:,:,g_lo%llim_proc:), intent (in) :: g
-    complex, dimension (-ntgrid:,:,:,:), intent (out) :: total
+!     complex, dimension (-ntgrid:,:,g_lo%llim_proc:), intent (in) :: g
+!     complex, dimension (-ntgrid:,:,:,:), intent (out) :: total
     
-    call integrate_moment(g, total, all=.true.)  !!!! can only be called once w and wl are assigned, after init_le_grids
+!     call integrate_moment(g, total, all=.true.)  !!!! can only be called once w and wl are assigned, after init_le_grids
     
-  end subroutine integrate
-  
+!   end subroutine integrate
 
-!!!!!!! average over theta
-
+  !> average over theta
   subroutine average_theta(a, axb)
+    
     use theta_grid, only: ntgrid, delthet, jacob
+    
     implicit none
+    
     complex, dimension (-ntgrid:), intent (in) :: a
     complex, intent (out) :: axb
-    integer :: ng
-    real, dimension (-ntgrid:ntgrid) :: wgt     !!!! in volume_averages, ntg_out=ntgrid... suppose likewise
+    
+    real, dimension (-ntgrid:ntgrid) :: wgt
     real :: anorm
-
-    ng = ntgrid
-    wgt = delthet(-ng:ng)*jacob(-ng:ng)
+    
+    wgt = delthet(-ntgrid:ntgrid)*jacob(-ntgrid:ntgrid)
     anorm = sum(wgt)
-
-    axb = sum(a(-ng:ng)*wgt)/anorm
+    
+    axb = sum(a(-ntgrid:ntgrid)*wgt)/anorm
+    
   end subroutine average_theta
 
-!  subroutine total_term(g,phi,tau)   !!!!transfer of energy in terms of kx, ky, stored in tau, sums up previous routines
-  subroutine total_term(tau)   !!!!transfer of energy in terms of kx, ky, stored in tau, sums up previous routines
+  !> returns tau, the transfer of free energy as a function of (kx,ky)
+  subroutine total_term(tau)
     
+    use mp, only: proc0, broadcast
     use theta_grid, only: ntgrid
     use gs2_layouts, only: g_lo, ik_idx, it_idx
-    use species, only: nspec,spec
+    use species, only: nspec, spec
     use kt_grids, only: ntheta0, naky
-    
+    use le_grids, only: integrate_moment
+
     implicit none
     
-!    complex, dimension (-ntgrid:,:,g_lo%llim_proc:) :: g
-!    complex, dimension(-ntgrid:ntgrid,ntheta0,naky) :: phi, apar, bpar   !!!! for dummy arrays, specify exact shape
-    complex, dimension(:,:), intent(out) :: tau   !!!!! intent statement should not be taken lightly...may raise exceptions
-    complex, dimension(-ntgrid:ntgrid,ntheta0,naky) :: inter
+    complex, dimension(:,:), intent(out) :: tau
+
+    complex, dimension (:,:,:), allocatable :: g0
+    complex, dimension (:,:,:), allocatable :: inter
+    complex, dimension (:,:,:,:), allocatable :: inter_s
+
     integer :: ik, it, is, iglo
     
-    !!calculation of non linear term
- !   apar=0.
- !   bpar=0.
-    
-!    call non_linear_term(g,phi,apar,bpar)
+    allocate (g0(-ntgrid:ntgrid,2,g_lo%llim_proc:g_lo%ulim_alloc))
+    allocate (inter(-ntgrid:ntgrid,ntheta0,naky)) ; inter = 0.
+    allocate (inter_s(-ntgrid:ntgrid,ntheta0,naky,nspec)) ; inter_s = 0.
+
+    ! obtain the nonlinear term
     call non_linear_term(g0)
     
-!!!integrate over velocities
-    inter=0.
-    inter_s=0.
-!    g0=g
-    call integrate(g0,inter_s)
-    !write(*,*) inter_s
+    !> integrate over velocities
+    !! can only be called after w and wl are assigned in init_le_grids
+!    call integrate(g0,inter_s)
+    call integrate_moment(g0, inter_s)
+
+    if (proc0) then
+       !> sum over species
+       do is=1,nspec
+          inter = inter + inter_s(:,:,:,is)
+       end do
     
-!!! sum over species
-    do is=1,nspec
-       inter(:,:,:)=inter(:,:,:) + inter_s(:,:,:,is)
-    end do
+       !> integrate over theta, must be done after velocity space integration
+       do ik = 1, naky
+          do it = 1, ntheta0
+             call average_theta(inter(:,it,ik),tau(it,ik))
+          end do
+       end do
+    end if
     
-    !! integrate over theta, must be done after the rest (dimension of arrays)
-    do iglo = g_lo%llim_proc, g_lo%ulim_proc
-       ik = ik_idx(g_lo,iglo)
-       it = it_idx(g_lo,iglo)
-       !write(*,*) inter(-ntgrid:,it,ik)
-       call average_theta(inter(-ntgrid:,it,ik),tau(it,ik))
+    do ik = 1, naky
+       call broadcast (tau(:,ik))
     end do
+
+    deallocate (g0, inter, inter_s)
     
   end subroutine total_term
   
-  
   subroutine write_zonal_transfer(gnostics)
     
-    use diagnostics_create_and_write, only: create_and_write_distributed_fieldlike_variable
+!    use diagnostics_create_and_write, only: create_and_write_distributed_fieldlike_variable
+    use diagnostics_create_and_write, only: create_and_write_variable
     use diagnostics_dimensions, only: dim_string
     use fields_parallelization, only: field_k_local
     use kt_grids, only: ntheta0, naky
@@ -334,30 +324,38 @@ contains
     
     type(diagnostics_type), intent(in) :: gnostics
     
-    call create_and_write_distributed_fieldlike_variable(gnostics, gnostics%rtype, "zonal_transfer", &
+!    call create_and_write_distributed_fieldlike_variable(gnostics, gnostics%rtype, "zonal_transfer", &
+!         dim_string([gnostics%dims%ri,gnostics%dims%kx,gnostics%dims%ky,gnostics%dims%time]), &
+!         "Time rate of change of free energy due to nonlinear transfer, as a function of kx, ky and time", &
+!         "Tr2*rhor*c*ns*vth6 / Ba2*e*a3", gnostics%current_results%zonal_transfer)
+! check gnostics%rtype
+    call create_and_write_variable(gnostics, gnostics%rtype, "zonal_transfer", &
          dim_string([gnostics%dims%ri,gnostics%dims%kx,gnostics%dims%ky,gnostics%dims%time]), &
-         "Non linear transfer of free energy from for each mode, as a function of kx, ky and time", &
-         "Tr2*rhor*c*ns*vth6 / Ba2*e*a3", zonal_transfer)
+         "Time rate of change of free energy due to nonlinear transfer, as a function of kx, ky and time", &
+         "Tr2*rhor*c*ns*vth6 / Ba2*e*a3", gnostics%current_results%zonal_transfer)
     
   end subroutine write_zonal_transfer
   
   subroutine calculate_zonal_transfer(gnostics)
 
-!   use fields_arrays, only: phi
-!   use dist_fn_arrays, only: gnew                   !!!!!!!!!!!!! HAVE TO CHOOSE PHI AND GNEW, NOT ANYTHING ELSE
-   use diagnostics_config, only: diagnostics_type
-   
-   implicit none
-   
-   type(diagnostics_type), intent(inout) :: gnostics
-   
-!   call total_term(gnew,phi,zonal_transfer)
-   call total_term(zonal_transfer)
-   
-   gnostics%current_results%zonal_transfer = zonal_transfer !!!copy results to gnostics
+    use diagnostics_config, only: diagnostics_type
+    use kt_grids, only: ntheta0, naky
+
+    implicit none
     
- end subroutine calculate_zonal_transfer
- 
+    type(diagnostics_type), intent(inout) :: gnostics
+    
+    complex, dimension (:,:), allocatable ::  zonal_transfer
+
+    allocate (zonal_transfer(ntheta0,naky)) ; zonal_transfer = 0.
+
+    call total_term(zonal_transfer)
+    gnostics%current_results%zonal_transfer = zonal_transfer
+
+    deallocate (zonal_transfer)
+    
+  end subroutine calculate_zonal_transfer
+  
 end module diagnostics_zonal_transfer
 
 

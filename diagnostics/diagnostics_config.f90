@@ -51,7 +51,9 @@ module diagnostics_config
 
      ! Growth rates
      complex, dimension(:,:), pointer :: omega_average
-		 complex, dimension(:,:), pointer :: zonal_transfer
+
+     ! free energy transfer due to nonlinearity
+     complex, dimension(:,:), pointer :: zonal_transfer
 
   end type results_summary_type
 
@@ -149,6 +151,8 @@ module diagnostics_config
      logical :: save_many
      logical :: file_safety_check
      logical :: save_distfn
+     logical :: write_zonal_transfer
+     logical :: write_collisional
      logical :: write_omavg
      logical :: write_gg
      logical :: ob_midplane
@@ -158,10 +162,6 @@ module diagnostics_config
      logical :: dump_check1
      logical :: dump_check2
      integer :: nmovie
-
-		logical :: write_zonal_transfer  !!!!new diagnostic
-		logical :: write_collisional
-
   end type diagnostics_type
 
   !> Used for testing... causes screen printout to be 
@@ -197,7 +197,6 @@ contains
     allocate(gnostics%current_results%species_es_heat_flux(nspec))
     allocate(gnostics%current_results%species_apar_heat_flux(nspec))
     allocate(gnostics%current_results%species_bpar_heat_flux(nspec))
-
     allocate(gnostics%current_results%species_heat_flux(nspec))
     allocate(gnostics%current_results%species_momentum_flux(nspec))
     allocate(gnostics%current_results%species_particle_flux(nspec))
@@ -208,7 +207,8 @@ contains
     allocate(gnostics%current_results%species_heating(nspec))
     allocate(gnostics%current_results%species_heating_avg(nspec))
     allocate(gnostics%current_results%omega_average(ntheta0, naky))
-		allocate(gnostics%current_results%zonal_transfer(ntheta0, naky))
+    allocate(gnostics%current_results%zonal_transfer(ntheta0,naky))
+
   end subroutine allocate_current_results
 
   subroutine deallocate_current_results(gnostics)
@@ -218,7 +218,6 @@ contains
     deallocate(gnostics%current_results%species_es_heat_flux)
     deallocate(gnostics%current_results%species_apar_heat_flux)
     deallocate(gnostics%current_results%species_bpar_heat_flux)
-    
     deallocate(gnostics%current_results%species_heat_flux)
     deallocate(gnostics%current_results%species_momentum_flux)
     deallocate(gnostics%current_results%species_particle_flux)
@@ -228,7 +227,7 @@ contains
     deallocate(gnostics%current_results%species_heating)
     deallocate(gnostics%current_results%species_heating_avg)
     deallocate(gnostics%current_results%omega_average)
-		deallocate(gnostics%current_results%zonal_transfer)
+    deallocate(gnostics%current_results%zonal_transfer)
   end subroutine deallocate_current_results
 
 
@@ -304,6 +303,8 @@ contains
     logical :: save_many
     logical :: file_safety_check
     logical :: save_distfn
+    logical :: write_zonal_transfer
+    logical :: write_collisional
     logical :: write_omavg
     logical :: write_gg
     logical :: ob_midplane
@@ -313,10 +314,6 @@ contains
     logical :: dump_check1
     logical :: dump_check2
     integer :: nmovie
-
-		logical :: write_zonal_transfer  !!!!new diagnostic
-		logical :: write_collisional
-
     namelist /gs2_diagnostics_knobs/ &
          nwrite, &
          nwrite_mult, &
@@ -383,6 +380,8 @@ contains
          save_many, &
          file_safety_check, &
          save_distfn, &
+         write_zonal_transfer, &
+         write_collisional, &
          write_omavg, &
          write_gg, &
          ob_midplane, &
@@ -391,11 +390,7 @@ contains
          write_avg_moments, &
          dump_check1, &
          dump_check2, &
-         nmovie, &
-
-				 write_collisional, &
-
-				 write_zonal_transfer  !!!!new diagnostic
+         nmovie
 
     integer :: in_file
     logical :: exist
@@ -466,6 +461,8 @@ contains
        save_many = .false.
        file_safety_check = .true.
        save_distfn = .false.
+       write_zonal_transfer = .false.
+       write_collisional = .false.
        write_omavg = .true.
        write_gg = .false.
        ob_midplane = .false.
@@ -475,9 +472,6 @@ contains
        dump_check1 = .false.
        dump_check2 = .false.
        nmovie = -1
-
-       write_zonal_transfer = .false.  !!!!new diagnostics
-       write_collisional = .false.
 
        in_file = input_unit_exist ("gs2_diagnostics_knobs", exist)
        if (exist) read (unit=in_file, nml=gs2_diagnostics_knobs)
@@ -547,6 +541,8 @@ contains
        gnostics%save_many = save_many
        gnostics%file_safety_check = file_safety_check
        gnostics%save_distfn = save_distfn
+       gnostics%write_zonal_transfer = write_zonal_transfer
+       gnostics%write_collisional = write_collisional
        gnostics%write_omavg = write_omavg
        gnostics%write_gg = write_gg
        gnostics%ob_midplane = ob_midplane
@@ -556,9 +552,6 @@ contains
        gnostics%dump_check1 = dump_check1
        gnostics%dump_check2 = dump_check2
        gnostics%nmovie = nmovie
-
-       gnostics%write_zonal_transfer = write_zonal_transfer  !!!!new diagnostics
-       gnostics%write_collisional = write_collisional
 
     end if
 
@@ -630,6 +623,8 @@ contains
     call broadcast (gnostics%save_many)
     call broadcast (gnostics%file_safety_check)
     call broadcast (gnostics%save_distfn)
+    call broadcast (gnostics%write_zonal_transfer)
+    call broadcast (gnostics%write_collisional)
     call broadcast (gnostics%write_omavg)
     call broadcast (gnostics%write_gg)
     call broadcast (gnostics%ob_midplane)
@@ -639,9 +634,6 @@ contains
     call broadcast (gnostics%dump_check1)
     call broadcast (gnostics%dump_check2)
     call broadcast (gnostics%nmovie)
-
-    call broadcast (gnostics%write_zonal_transfer) !!!! new diagnostics
-    call broadcast (gnostics%write_collisional)
     
     if (override_screen_printout_options) then 
        gnostics%print_line = .true.
