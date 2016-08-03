@@ -7,7 +7,7 @@ program ideal_ball
   use theta_grid, only: finish_theta_grid
   implicit none
   logical :: list
-  character(len=500), target :: cbuff
+  character(len=2000), target :: cbuff
 
   !Setup mpi
   call init_mp
