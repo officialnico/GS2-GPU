@@ -556,7 +556,7 @@ if (debug) write(6,*) "eikcoefs: find rgrid"
        write(fort11_unit,*) 'R_geo = ',R_geo,' !or ',btori(rgrid(0), 0.)
     endif
 
-    if(R_geo > Rmaj + 1.e-5) then
+    if(iflux == 1 .and. R_geo > Rmaj + 1.e-5) then
        write(6,*) 
        write(6,*) 'Warning: the center of the LCFS is outboard of the '
        write(6,*) 'center of the reference surface.  This is probably wrong.'
