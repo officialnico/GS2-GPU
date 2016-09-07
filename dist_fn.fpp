@@ -6111,16 +6111,18 @@ endif
 
     !real :: densfac_lin, uparfac_lin, tparfac_lin, tprpfac_lin, qparfac_lin, qprpfac_lin, phifac_lin
 
-    logical :: higher_order_moments
-
     allocate(total(-ntgrid:ntgrid,ntheta0,naky,nspec))
    
-
-    higher_order_moments = .false.
+    ! gryfx uses vt=sqrt(T/m) normalization, 
+    ! so vt_gs2 = sqrt(2T/m) = sqrt(2) vt_gryfx.
+    ! since vpa and vperp2 are normalized to vt_gs2, below we multiply by
+    ! factors of sqrt(2) to get vpa and vperp2 in gryfx units before taking
+    ! integrals, i.e.
+    ! vpa_gryfx = sqrt(2) vpa
+    ! vperp2_gryfx = 2 vperp2
 
     ! dens = < f >
     g0 = gnew 
-    if(higher_order_moments) g0 = vpa**4.*gnew !rparpar = < vpar^4 f >
     call integrate_moment (g0, total)
     if(proc0) then
     do ig = -ntgrid, ntgrid-1
@@ -6138,15 +6140,8 @@ endif
     end do
     end if
 
-    ! upar = < (vpar/vti) f > = a/rho_i upar1/vti
-    g0 = vpa*g0  ! vpa is normalized to vti, i.e. vpa = vpar/vti
-    if(higher_order_moments) then ! rparprp = < vpar^2 vprp^2/2 f >
-      do iglo = g_lo%llim_proc, g_lo%ulim_proc
-         do isgn = 1, 2
-            g0(:,isgn,iglo) = .5*vperp2(:,iglo)*vpa(:,isgn,iglo)*vpa(:,isgn,iglo)*gnew(:,isgn,iglo) 
-         end do
-      end do
-    endif
+    ! upar = < (vpar/vt_gryfx) f > = < ( sqrt(2) vpar/vt_gs2 ) f > = upar1/vt_gryfx
+    g0 = sqrt(2.)*vpa*gnew  
     call integrate_moment (g0, total)
     if(proc0) then
     do ig = -ntgrid, ntgrid-1
@@ -6164,17 +6159,9 @@ endif
     end do
     end if
 
-    ! ppar = < (vpar/vti)^2 f > = a/rho_i ppar1/( n0 m vti^2 )
-    g0 = vpa*g0
-    if(higher_order_moments) then ! rprpprp = < vprp^4/4 f >
-      do iglo = g_lo%llim_proc, g_lo%ulim_proc
-         do isgn = 1, 2
-            g0(:,isgn,iglo) = .25*vperp2(:,iglo)*vperp2(:,iglo)*gnew(:,isgn,iglo) 
-         end do
-      end do
-    endif
+    ! tpar = < (vpar^2/vt_gryfx^2 - 1) f > = tpar1/T_0
+    g0 = (2.*vpa*vpa - 1.)*gnew
     call integrate_moment (g0, total)
-    ! this gives ppar = tpar + dens
     if(proc0) then
     do ig = -ntgrid, ntgrid-1
       iz = ig + ntgrid + 1
@@ -6191,17 +6178,9 @@ endif
     end do
     end if
 
-    ! Qpar = < (vpar/vti)^3 f > = a/rho_i Qpar1/( n0 m vti^3 )
-    g0 = vpa*g0
-    if(higher_order_moments) then ! sparprp = < vpar^3 vprp^2/2 f >
-      do iglo = g_lo%llim_proc, g_lo%ulim_proc
-         do isgn = 1, 2
-            g0(:,isgn,iglo) = .5*vperp2(:,iglo)*vpa(:,isgn,iglo)*vpa(:,isgn,iglo)*vpa(:,isgn,iglo)*gnew(:,isgn,iglo) 
-         end do
-      end do
-    endif
+    ! qpar = < (vpar^3/vt_gryfx^3 - 3*vpar/vt_gryfx) f > = qpar1/( n0 m vt_gryfx^3 )
+    g0 = (2.*sqrt(2.)*vpa*vpa*vpa - 3.*sqrt(2.)*vpa)*gnew
     call integrate_moment (g0, total)
-    ! this gives Qpar = qpar + 3*upar
     if(proc0) then
     do ig = -ntgrid, ntgrid-1
       iz = ig + ntgrid + 1
@@ -6218,16 +6197,13 @@ endif
     end do
     end if
 
-    ! pprp = < 1/2 (vprp/vti)^2 f > = a/rho_i pprp1/( n0 m vti^2 )
+    ! tprp = < ( 1/2 vprp/vt_gryfx^2 - 1 ) f > = tprp1/T_0
     do iglo = g_lo%llim_proc, g_lo%ulim_proc
        do isgn = 1, 2
-          g0(:,isgn,iglo) = .5*vperp2(:,iglo)*gnew(:,isgn,iglo) 
-          ! vperp2 is normalized to vti, i.e. vperp2 = (vprp/vti)^2
+          g0(:,isgn,iglo) = (vperp2(:,iglo)-1.)*gnew(:,isgn,iglo) 
        end do
     end do
-    if(higher_order_moments) g0 = vpa**5.*gnew !sparpar = < vpar^5 f >
     call integrate_moment (g0, total)
-    ! this gives pprp = tprp + dens
     if(proc0) then
     do ig = -ntgrid, ntgrid-1
       iz = ig + ntgrid + 1
@@ -6244,17 +6220,9 @@ endif
     end do
     end if
 
-    ! Qprp = < 1/2 (vpar/vti) (vprp/vti)^2 f > = a/rho_i Qprp1/( n0 m vti^3 )
-    g0 = vpa*g0
-    if(higher_order_moments) then ! sprpprp = < vpar vprp^4/4 f >
-      do iglo = g_lo%llim_proc, g_lo%ulim_proc
-         do isgn = 1, 2
-            g0(:,isgn,iglo) = .25*vperp2(:,iglo)*vperp2(:,iglo)*vpa(:,isgn,iglo)*gnew(:,isgn,iglo) 
-         end do
-      end do
-    endif
+    ! qprp = < vpar/vt_gryfx*( 1/2 vprp/vt_gryfx^2 - 1 ) f > = qprp1/( n0 m vt_gryfx^3 )
+    g0 = sqrt(2.)*vpa*g0
     call integrate_moment (g0, total)
-    ! this gives Qprp = qprp + upar
     if(proc0) then
     do ig = -ntgrid, ntgrid-1
       iz = ig + ntgrid + 1
@@ -6270,40 +6238,17 @@ endif
       end do
     end do
     end if
- 
-!       densfac_lin = sqrt(2.)           ! ~ rho_i
-!       uparfac_lin = 2.                 ! ~ rho_i vti
-!       tparfac_lin = 2.*sqrt(2.)        ! ~ rho_i vti^2
-!       tprpfac_lin = 2.*sqrt(2.)        ! ~ rho_i vti^2
-!       qparfac_lin = 4.                 ! ~ rho_i vti^3
-!       qprpfac_lin = 4.                 ! ~ rho_i vti^3
-!       phifac_lin = densfac_lin         ! ~ rho_i
 
-    if(higher_order_moments) then 
-       densfac_lin = -4.*sqrt(2.)        ! rparpar
-       uparfac_lin = -4.*sqrt(2.)        ! rparprp
-       tparfac_lin = -4.*sqrt(2.)        ! rprpprp
-       tprpfac_lin = 8.                 ! sparpar
-       qparfac_lin = 8.                 ! sparprp
-       qprpfac_lin = 8.                 ! sprpprp
-    endif
-
+    ! we also must account for the overall a/rho_i factor on all quantities. 
+    ! so we multiply all moments and phi by an additional factor of sqrt(2)
     if(proc0 ) then 
       ! normalize to gryfx units
-      density_gryfx = densfac_lin*density_gryfx
-      upar_gryfx = uparfac_lin*upar_gryfx
-      tpar_gryfx = tparfac_lin*tpar_gryfx
-      tperp_gryfx = tprpfac_lin*tperp_gryfx
-      qpar_gryfx = qparfac_lin*qpar_gryfx
-      qperp_gryfx = qprpfac_lin*qperp_gryfx
-      if(.not. higher_order_moments) then 
-        ! make tpar, tprp, qpar, qprp from ppar, pprp, Qpar, Qprp
-        ! this is only true in GryfX units? would be extra factors in GS2 units?
-        tpar_gryfx = tpar_gryfx - density_gryfx
-        tperp_gryfx = tperp_gryfx - density_gryfx
-        qpar_gryfx = qpar_gryfx - 3.*upar_gryfx
-        qperp_gryfx = qperp_gryfx - upar_gryfx
-      endif
+      density_gryfx = sqrt(2.)*density_gryfx
+      upar_gryfx = sqrt(2.)*upar_gryfx
+      tpar_gryfx = sqrt(2.)*tpar_gryfx
+      tperp_gryfx = sqrt(2.)*tperp_gryfx
+      qpar_gryfx = sqrt(2.)*qpar_gryfx
+      qperp_gryfx = sqrt(2.)*qperp_gryfx
     endif
       
 
@@ -6313,7 +6258,7 @@ endif
       do it = 1, g_lo%ntheta0
         do ik = 1, g_lo%naky
           index_gryfx = 1 + (ik-1) + g_lo%naky*((it-1)) + g_lo%naky*g_lo%ntheta0*(iz-1)
-          phi_gryfx(index_gryfx) = phinew(ig, it, ik)*phifac_lin
+          phi_gryfx(index_gryfx) = phinew(ig, it, ik)*sqrt(2.)
         end do
       end do
     end do

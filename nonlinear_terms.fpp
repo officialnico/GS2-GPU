@@ -836,14 +836,21 @@ contains
 
     integer :: iglo, ik, it, ig, iz, is, isgn, index_gryfx
 
-    !real :: densfac, uparfac, tparfac, tprpfac, qparfac, qprpfac
-    densfac = 1.
-    uparfac = 1./sqrt(2.)
-    tparfac = 1.
-    tprpfac = 1.
-    qparfac = 1./sqrt(2.)
-    qprpfac = 1./sqrt(2.)
+    ! this subroutine constructs the GK nonlinear term from the 6 GryfX
+    ! gyrofluid nonlinear terms.  we first construct in gryfx units.
+    ! gryfx uses vt=sqrt(T/m) normalization, 
+    ! so vt_gs2 = sqrt(2T/m) = sqrt(2) vt_gryfx.
+    ! since vpa and vperp2 are normalized to vt_gs2, below we multiply by
+    ! factors of sqrt(2) to get vpa and vperp2 in gryfx units, i.e.
+    ! vpa_gryfx = sqrt(2) vpa
+    ! vperp2_gryfx = 2 vperp2
 
+    ! the Hermite-Laguerre construction of the distribution from the gyrofluid
+    ! moments is of the form
+    ! df/F_M = n + vpar/vt upar + 1/2(vpar^2/vt^2-1) tpar 
+    ! + (vprp^2/2vt^2-1) tprp + 1/6(vpar^3/3vt^3 - 3 vpar/vt) qpar
+    ! + vpar/vt (vprp^2/2vt^2-1) qprp
+    ! where vt=vt_gryfx, and moments are normalized in gryfx units
 
     do iglo = g_lo%llim_proc, g_lo%ulim_proc
     ik = ik_idx(g_lo,iglo)
@@ -852,40 +859,38 @@ contains
     do isgn = 1, 2
       do ig = -ntgrid, ntgrid
       iz = ig + ntgrid + 1
-      !write (*,*) 'ik', ik, 'it', it, 'is', is, 'isgn', isgn, 'ig',ig
       if(ig==ntgrid) iz = 1 ! periodic point not included in gryfx arrays
-        ! max is 1 + naky-1 + naky*(ntheta0-1) + naky*ntheta0*(ntheta-1),
-        ! * 
         index_gryfx = 1 + (ik-1) + g_lo%naky*((it-1)) + &
                       g_lo%naky*g_lo%ntheta0*(iz-1) + &
                       (2*ntgrid)*g_lo%naky*g_lo%ntheta0*(is-1)
-        g1(ig,isgn,iglo) =  densfac*gryfx_zonal%NLdens_ky0(index_gryfx) + &
-                 (vpa(ig,isgn,iglo)*vpa(ig,isgn,iglo) - 0.5)* &
-                     tparfac*gryfx_zonal%NLtpar_ky0(index_gryfx) + &
-                 (vperp2(ig,iglo) - 1.0)* &
-                     tprpfac*gryfx_zonal%NLtprp_ky0(index_gryfx) + &
-                 2.*vpa(ig,isgn,iglo)* &
-                     uparfac*gryfx_zonal%NLupar_ky0(index_gryfx) + &
-                 (2./3.*vpa(ig,isgn,iglo)**3. - vpa(ig,isgn,iglo))* &
-                     (qparfac*gryfx_zonal%NLqpar_ky0(index_gryfx)) + &
-                 2*vpa(ig,isgn,iglo)*(vperp2(ig,iglo) - 1.)* &
-                     (qprpfac*gryfx_zonal%NLqprp_ky0(index_gryfx)) 
 
-        ! leave vpa, vperp2 in GS2 units. use momfacs to get moments in GS2 units
-        ! this expression is consistent with moment definitions, such that
-        ! dn = < dg >, n0 du = < vpar dg >, etc.
-        ! this has been checked with a mathematica script
-!        g1(ig,isgn,iglo) =  densfac*gryfx_zonal%NLdens_ky0(index_gryfx) + &
-!                 0.5*(vpa(ig,isgn,iglo)*vpa(ig,isgn,iglo) - 1.)* &
-!                     tparfac*gryfx_zonal%NLtpar_ky0(index_gryfx) + &
-!                 0.5*(vperp2(ig,iglo) - 2.0)* &
-!                     tprpfac*gryfx_zonal%NLtprp_ky0(index_gryfx) + &
-!                 vpa(ig,isgn,iglo)* &
-!                     uparfac*gryfx_zonal%NLupar_ky0(index_gryfx) + &
-!                 0.5*(vpa(ig,isgn,iglo)**3./3. - vpa(ig,isgn,iglo))* &
-!                     qparfac*gryfx_zonal%NLqpar_ky0(index_gryfx) + &
-!                 vpa(ig,isgn,iglo)*(vperp2(ig,iglo)/2. - 1.)* &
-!                     qprpfac*gryfx_zonal%NLqprp_ky0(index_gryfx) 
+        g1(ig,isgn,iglo) =  gryfx_zonal%NLdens_ky0(index_gryfx) + &
+
+                0.5*(2.*vpa(ig,isgn,iglo)*vpa(ig,isgn,iglo) - 1.)* &
+                     gryfx_zonal%NLtpar_ky0(index_gryfx) + &
+
+                 (vperp2(ig,iglo) - 1.0)* &
+                     gryfx_zonal%NLtprp_ky0(index_gryfx) + &
+
+                 sqrt(2.)*vpa(ig,isgn,iglo)* &
+                     gryfx_zonal%NLupar_ky0(index_gryfx) + &
+
+                 1./6.*( (sqrt(2.)*vpa(ig,isgn,iglo))**3. &
+                            - 3*sqrt(2.)*vpa(ig,isgn,iglo) )* &
+                     gryfx_zonal%NLqpar_ky0(index_gryfx) + &
+
+                 sqrt(2.)*vpa(ig,isgn,iglo)*(vperp2(ig,iglo) - 1.)* &
+                     gryfx_zonal%NLqprp_ky0(index_gryfx) 
+ 
+ ! now we must account for the fact that phi and g are normalized to a/rho_i,
+ ! and grad ~ k is normalized to rho_i, and rho_gs2 = sqrt2 rho_gryfx.
+ ! we have just calculated the GK nonlinear term in gryfx units:
+ ! g1 = z_hat X grad_gryfx phi_gryfx . grad_gryfx g_gryfx =
+ ! z_hat X (1/sqrt2 grad_gs2)(sqrt2 phi_gs2) . (1/sqrt2 grad_gs2)(sqrt2 g_gs2)
+ ! = z_hat X grad_gs2 phi_gs2 . grad_gs2 g_gs2
+ ! so it turns out that the GK nonlinear term is the same in gryfx units
+ ! and gs2 units, so we don't need any additional factors.
+
          end do
        end do
     end do
