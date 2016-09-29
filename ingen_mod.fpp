@@ -1079,7 +1079,7 @@ if (debug) write(6,*) 'get_namelists: returning'
      write (report_unit, fmt="('------------------------------------------------------------')")
      write (report_unit, *) 
 
-     !call check_species(report_unit,beta,tite,alne,dbetadrho_spec)
+     call check_species(report_unit,beta,tite,alne,dbetadrho_spec)
 
      write (report_unit, *) 
      write (report_unit, fmt="('------------------------------------------------------------')")

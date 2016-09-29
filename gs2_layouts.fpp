@@ -483,7 +483,7 @@ contains
        call mp_abort("gs2_layouts: read_parameters finds illegal layout=")
     endif
 
-    if(proc0) write(*,*) 'layout:',layout
+!    if(proc0) write(*,*) 'layout:',layout
 
 ! max_unbalanced_xxf and max_unbalanced_yxf have a maximum range of 0.0 - 1.0
 ! so check here whether the user has specified the range correctly and adjust if 
