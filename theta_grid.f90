@@ -765,10 +765,11 @@ contains
              write (report_unit, fmt="('################# WARNING #######################')")
              write (report_unit, *) 
           end if
-          if (abs(beta_prime_input - dbetadrho) > 1.e-2) then
+          if (abs(beta_prime_input - dbetadrho) > 1.e-2*max(abs(beta_prime_input),abs(dbetadrho))) then
              write (report_unit, *) 
              write (report_unit, fmt="('################# WARNING #######################')")
              write (report_unit, fmt="('beta_prime_input is not consistent with beta and Lp.')")
+             write (report_unit, fmt="('beta_prime_input=',f6.4,' dbeta_drho (from species)=',f6.4)") beta_prime_input, dbetadrho
              write (report_unit, fmt="('THIS IS PROBABLY AN ERROR.')") 
              write (report_unit, fmt="('################# WARNING #######################')")
              write (report_unit, *) 
