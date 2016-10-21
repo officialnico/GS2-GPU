@@ -148,7 +148,7 @@ RUN_NAME_SIZE?=2000
 
 MAKE		= make
 CPP		= cpp
-CPPFLAGS	= -C -P -traditional
+CPPFLAGS	= -P -traditional
 FC		= f90
 MPIFC		?= mpif90
 H5FC		?= h5fc
@@ -346,7 +346,6 @@ endif
 
 
 
-
 #ifndef USE_HDF5
 #   ifdef USE_PARALLEL_NETCDF
 #      $(error 'USE_PARALLEL_NETCDF will not work unless USE_HDF5 is set to on.')
@@ -495,7 +494,7 @@ F90FROMFPP = $(patsubst %.fpp,%.f90,$(notdir $(wildcard *.fpp */*.fpp)))
 F90FROMFPP += tests/unit_tests/nonlinear_terms/test_nonlinear_terms.f90
 F90FROMFPP += tests/unit_tests/gs2_diagnostics_new/test_gs2_diagnostics_new.f90
 ifdef USE_NEW_DIAG
-F90FROMFPP += simpledataiof.f90 simpledataio_write.f90
+F90FROMFPP += simpledataiof.f90 simpledataio_write.f90 simpledataio_read.f90
 endif
 ifdef SCAL
    FC:= scalasca -instrument $(FC)
@@ -510,8 +509,10 @@ endif
 .f90.o: 
 	$(FC) $(F90FLAGS) $(F90FLAGS_SFXJUNK) -c $<
 .fpp.f90:
+#	$(CPP) $(CPPFLAGS) -nostdinc $< $@
 	$(CPP) $(CPPFLAGS) $< $@
 .F90.f90:
+#	$(CPP) $(CPPFLAGS) -nostdinc $< $@
 	$(CPP) $(CPPFLAGS) $< $@
 .c.o:
 	$(CC) $(CFLAGS) $(subst -traditional,,$(subst -C,,$(subst -P,,$(CPPFLAGS)))) -c $<
