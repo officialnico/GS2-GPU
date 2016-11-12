@@ -3,9 +3,10 @@ module normalisations
   
   private
 
-  public :: norms
   public :: init_normalisations, finish_normalisations
   public :: check_normalisations, wnml_normalisations
+#ifndef ALLOW_TYPE_BOUND_PROC
+  public :: norms
 
   !>Define a type to hold the set of normalisations, we
   !!could imagine extending this in the future to provide
@@ -47,9 +48,12 @@ module normalisations
   end type norms_type
 
   type(norms_type) :: norms !The normalisation object, there should only be one of these
+#endif
   logical :: exist !Has this namelist been specified?
 
 contains
+
+#ifndef ALLOW_TYPE_BOUND_PROC
   !/////////////////////////////
   !// TYPE BOUND PROCEDURES
   !/////////////////////////////
@@ -249,7 +253,7 @@ contains
     self%some_norms_set=some_set
     self%all_norms_set=all_set
   end subroutine norms_set_logicals
-
+#endif
   !/////////////////////////////
   !// MODULE LEVEL PROCDURES
   !/////////////////////////////
@@ -257,6 +261,7 @@ contains
     implicit none
     integer, intent(in) :: report_unit
     character(len=7) :: msg
+#ifndef ALLOW_TYPE_BOUND_PROC
     if(norms%all_norms_set)then
        msg = "All of"
     else
@@ -268,6 +273,7 @@ contains
     endif
 
     write(report_unit,fmt='(A," the normalisation parameters have been provided.")') trim(msg)
+#endif
   end subroutine check_normalisations
 
   subroutine wnml_normalisations(unit)
@@ -275,29 +281,37 @@ contains
     integer, intent(in) :: unit
     integer :: i
     if(.not.exist) return
-
+#ifndef ALLOW_TYPE_BOUND_PROC
     write(unit,*)
     do i=1,len(norms%names)
        write(unit,fmt='(A," = ", F12.5)') trim(norms%names(i)),norms%get_value(norms%names(i))
     enddo
     write(unit,'("/")')
+#endif
+
   end subroutine wnml_normalisations
 
   !>Read input file and populate the norms object
   subroutine init_normalisations
     implicit none
+#ifndef ALLOW_TYPE_BOUND_PROC
     call norms%init
+#endif
   end subroutine init_normalisations
 
   !>Free memory etc. associated with normalisations
   subroutine finish_normalisations
     implicit none
+#ifndef ALLOW_TYPE_BOUND_PROC
     call norms%finish
+#endif
   end subroutine finish_normalisations
 
   !>Reset normalisations object
   subroutine reset_normalisations
     implicit none
+#ifndef ALLOW_TYPE_BOUND_PROC
     call norms%reset
+#endif
   end subroutine reset_normalisations
 end module normalisations
