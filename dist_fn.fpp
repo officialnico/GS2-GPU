@@ -6269,6 +6269,32 @@ endif
 
   end subroutine getmoms_gryfx_dist
 
+  subroutine get_mom_glm (glm, l, m)
+    ! calculates hermite-laguerre moments of g
+    ! uses gryfx normalization convention (see getmoms_gryfx above)
+    use dist_fn_arrays, only: vpa, vperp2, gnew
+    use gs2_layouts, only: g_lo
+    use theta_grid, only: ntgrid
+    use le_grids, only: integrate_moment, hermite_prob
+    use gauss_quad, only: laguerre_norm
+
+    implicit none
+    logical, parameter :: full_arr=moment_to_allprocs
+    complex, dimension (-ntgrid:,:,:,:), intent (out) :: glm
+    integer, intent(in) :: l, m
+    integer :: ik, it, isgn, ie, is, iglo, ig
+
+    do iglo = g_lo%llim_proc, g_lo%ulim_proc
+      do isgn = 1, 2
+        do ig = -ntgrid, ntgrid
+          g0(ig,isgn,iglo) = hermite_prob(l, sqrt(2.0)*vpa(ig,isgn,iglo)) * &
+                        laguerre_norm(m, vperp2(ig,iglo)) * gnew(ig,isgn,iglo) 
+        end do
+      end do
+    end do
+    call integrate_moment (g0, glm,  moment_to_allprocs, full_arr)
+  end subroutine get_mom_glm
+
 
   subroutine getemoms (phinew, bparnew, ntot, tperp)
     use dist_fn_arrays, only: vperp2, aj0, gnew, g_adjust

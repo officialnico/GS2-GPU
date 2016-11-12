@@ -144,12 +144,32 @@ ffttester_mod = \
 	 antenna.o \
 	 antenna_data.o \
 	 ceq.o \
+	 collisional_heating.o \
 	 collisions.o \
 	 command_line.o \
 	 constant_random.o \
 	 constants.o \
 	 convert.o \
 	 deq.o \
+	 diagnostics_antenna.o \
+	 diagnostics_ascii.o \
+	 diagnostics_config.o \
+	 diagnostics_create_and_write.o \
+	 diagnostics_dimensions.o \
+	 diagnostics_fields.o \
+	 diagnostics_final_routines.o \
+	 diagnostics_fluxes.o \
+	 diagnostics_geometry.o \
+	 diagnostics_heating.o \
+	 diagnostics_metadata.o \
+	 diagnostics_moments.o \
+	 diagnostics_nonlinear_convergence.o \
+	 diagnostics_normalisations.o \
+	 diagnostics_omega.o \
+	 diagnostics_screen_printout.o \
+	 diagnostics_turbulence.o \
+	 diagnostics_velocity_space.o \
+	 diagnostics_zonal_transfer.o \
 	 dist_fn.o \
 	 dist_fn_arrays.o \
 	 eeq.o \
@@ -160,6 +180,7 @@ ffttester_mod = \
 	 fields_gf_local.o \
 	 fields_implicit.o \
 	 fields_local.o \
+	 fields_parallelization.o \
 	 fields_test.o \
 	 file_utils.o \
 	 gauss_quad.o \
@@ -167,6 +188,7 @@ ffttester_mod = \
 	 geq.o \
 	 gridgen4mod.o \
 	 gs2_diagnostics.o \
+	 gs2_diagnostics_new.o \
 	 gs2_heating.o \
 	 gs2_init.o \
 	 gs2_io.o \
@@ -201,6 +223,9 @@ ffttester_mod = \
 	 redistribute.o \
 	 run_parameters.o \
 	 runtime_tests.o \
+	 simpledataio_read.o \
+	 simpledataio_write.o \
+	 simpledataiof.o \
 	 sorting.o \
 	 species.o \
 	 spfunc.o \
@@ -208,7 +233,8 @@ ffttester_mod = \
 	 text_options.o \
 	 theta_grid.o \
 	 theta_grid_params.o \
-	 unit_tests.o 
+	 unit_tests.o \
+	 volume_averages.o 
 
 generate_fftw_wisdom_mod = \
 	 antenna_data.o \
@@ -261,12 +287,32 @@ gs2_mod = \
 	 antenna.o \
 	 antenna_data.o \
 	 ceq.o \
+	 collisional_heating.o \
 	 collisions.o \
 	 command_line.o \
 	 constant_random.o \
 	 constants.o \
 	 convert.o \
 	 deq.o \
+	 diagnostics_antenna.o \
+	 diagnostics_ascii.o \
+	 diagnostics_config.o \
+	 diagnostics_create_and_write.o \
+	 diagnostics_dimensions.o \
+	 diagnostics_fields.o \
+	 diagnostics_final_routines.o \
+	 diagnostics_fluxes.o \
+	 diagnostics_geometry.o \
+	 diagnostics_heating.o \
+	 diagnostics_metadata.o \
+	 diagnostics_moments.o \
+	 diagnostics_nonlinear_convergence.o \
+	 diagnostics_normalisations.o \
+	 diagnostics_omega.o \
+	 diagnostics_screen_printout.o \
+	 diagnostics_turbulence.o \
+	 diagnostics_velocity_space.o \
+	 diagnostics_zonal_transfer.o \
 	 dist_fn.o \
 	 dist_fn_arrays.o \
 	 eeq.o \
@@ -276,6 +322,7 @@ gs2_mod = \
 	 fields_gf_local.o \
 	 fields_implicit.o \
 	 fields_local.o \
+	 fields_parallelization.o \
 	 fields_test.o \
 	 file_utils.o \
 	 gauss_quad.o \
@@ -284,6 +331,7 @@ gs2_mod = \
 	 gridgen4mod.o \
 	 gs2.o \
 	 gs2_diagnostics.o \
+	 gs2_diagnostics_new.o \
 	 gs2_heating.o \
 	 gs2_init.o \
 	 gs2_io.o \
@@ -320,6 +368,9 @@ gs2_mod = \
 	 redistribute.o \
 	 run_parameters.o \
 	 runtime_tests.o \
+	 simpledataio_read.o \
+	 simpledataio_write.o \
+	 simpledataiof.o \
 	 sorting.o \
 	 species.o \
 	 spfunc.o \
@@ -327,7 +378,8 @@ gs2_mod = \
 	 text_options.o \
 	 theta_grid.o \
 	 theta_grid_params.o \
-	 unit_tests.o 
+	 unit_tests.o \
+	 volume_averages.o 
 
 hrate_mod = \
 	 command_line.o \
@@ -492,7 +544,6 @@ collisional_heating.o: \
 	 kt_grids.o \
 	 le_derivatives.o \
 	 le_grids.o \
-	 run_parameters.o \
 	 species.o \
 	 theta_grid.o 
 collisions.o: \
@@ -538,6 +589,7 @@ diagnostics_config.o: \
 	 file_utils.o \
 	 kt_grids.o \
 	 mp.o \
+	 simpledataiof.o \
 	 species.o \
 	 text_options.o \
 	 unit_tests.o 
@@ -547,8 +599,12 @@ diagnostics_create_and_write.o: \
 	 fields_parallelization.o \
 	 file_utils.o \
 	 kt_grids.o \
-	 mp.o 
+	 mp.o \
+	 simpledataio_read.o \
+	 simpledataio_write.o \
+	 simpledataiof.o 
 diagnostics_dimensions.o: \
+	 simpledataiof.o \
 	 unit_tests.o 
 diagnostics_fields.o: \
 	 diagnostics_config.o \
@@ -630,7 +686,8 @@ diagnostics_metadata.o: \
 	 file_utils.o \
 	 mp.o \
 	 run_parameters.o \
-	 runtime_tests.o 
+	 runtime_tests.o \
+	 simpledataiof.o 
 diagnostics_moments.o: \
 	 diagnostics_config.o \
 	 diagnostics_create_and_write.o \
@@ -711,6 +768,7 @@ diagnostics_zonal_transfer.o: \
 	 fields_arrays.o \
 	 fields_parallelization.o \
 	 gs2_layouts.o \
+	 gs2_time.o \
 	 gs2_transforms.o \
 	 kt_grids.o \
 	 le_grids.o \
@@ -882,6 +940,7 @@ file_utils.o: \
 	 constants.o 
 functional_tests.o: \
 	 gs2_diagnostics.o \
+	 gs2_diagnostics_new.o \
 	 gs2_main.o \
 	 job_manage.o \
 	 kt_grids.o \
@@ -989,6 +1048,8 @@ gs2_diagnostics_new.o: \
 	 mp.o \
 	 nonlinear_terms.o \
 	 run_parameters.o \
+	 simpledataio_write.o \
+	 simpledataiof.o \
 	 species.o \
 	 theta_grid.o \
 	 unit_tests.o \
@@ -1071,6 +1132,7 @@ gs2_main.o: \
 	 file_utils.o \
 	 geometry.o \
 	 gs2_diagnostics.o \
+	 gs2_diagnostics_new.o \
 	 gs2_init.o \
 	 gs2_layouts.o \
 	 gs2_reinit.o \
@@ -1350,6 +1412,12 @@ shm_mpi3_alloc_tmpl.inc:
 shm_mpi3_fence_tmpl.inc: 
 shm_mpi3_free_tmpl.inc: 
 shm_mpi3_get_node_pointer_tmpl.inc: 
+simpledataio_read.o: \
+	 simpledataio_write.o \
+	 simpledataiof.o 
+simpledataio_write.o: \
+	 simpledataiof.o 
+simpledataiof.o: 
 sorting.o: 
 species.o: \
 	 file_utils.o \

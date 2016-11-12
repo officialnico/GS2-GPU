@@ -86,6 +86,7 @@ module le_grids
   public :: get_flux_vs_theta_vs_vpa
   public :: lambda_map, energy_map, g2le, g2gf, init_map, init_g2gf
   public :: integrate_species_sub !<DD>
+  public :: hermite_prob
 
   !> Unit tests
   public :: le_grids_unit_test_init_le_grids
@@ -2596,6 +2597,40 @@ contains
     deallocate (hp1,hp2,hp3)
 
   end subroutine get_hermite_polynomials_1d
+
+  elemental function hermite_prob (n, x)
+
+    ! returns probabilist's Hermite polynomials, He_n(x)
+
+    use constants, only: pi
+
+    implicit none
+    integer, intent (in) :: n
+    real, intent (in) :: x
+    integer :: k
+    double precision :: hermite_prob, p, p1, p2
+
+    p1 = x
+    p2 = dble(1.0)
+
+    if (n==0) then
+       hermite_prob = p2
+       return
+    else if (n==1) then
+       hermite_prob = p1
+       return
+    end if
+
+    do k=2, n
+       p = 2.0*x*p1 - (k-1)*p2
+       p2 = p1
+       p1 = p
+    end do
+
+    hermite_prob = p
+
+  end function hermite_prob
+
 
   subroutine init_map (use_lz_layout, use_e_layout, use_le_layout, test)
 

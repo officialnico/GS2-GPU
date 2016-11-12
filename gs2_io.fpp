@@ -392,9 +392,7 @@ contains
 # endif
   end subroutine nc_grids
 
-
   subroutine nc_norms
-#ifndef ALLOW_TYPE_BOUND_PROC
 # ifdef NETCDF
     use netcdf, only: nf90_put_var
     use normalisations, only: norms
@@ -422,9 +420,7 @@ contains
     if (status /= NF90_NOERR) call netcdf_error (status, ncid, rhoref_id)
 
 # endif
-#endif 
   end subroutine nc_norms
-
 
   !Put the grid data into the movie file
   subroutine nc_grids_mymovie

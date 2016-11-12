@@ -118,12 +118,6 @@ USE_AUTOTOOLS ?= off
 
 HAS_ISO_C_BINDING ?= on
 
-#If set then we allow use of type bound procedures from the f2003 spec
-ALLOW_TYPE_BOUND_PROC ?= yes
-#Diasable new diagnostics if we can't use type bound procs
-ifndef ALLOW_TYPE_BOUND_PROC
-   USE_NEW_DIAG = 
-endif
 # If on, build with position independent code, needed if GS2 is going to be included
 # in a shared library or linked dynamically (e.g. it's needed by GRYFX).
 # This *may* have performance implications, but it hasn't been tested yet.
@@ -307,10 +301,6 @@ endif
 
 ifeq ($(USE_NEW_DIAG),on)
 	CPPFLAGS+=-DNEW_DIAG
-endif
-
-ifdef ALLOW_TYPE_BOUND_PROC
-	CPPFLAGS+=-DALLOW_TYPE_BOUND_PROC
 endif
 
 ifeq ($(USE_FPIC),on)
@@ -705,8 +695,6 @@ test_make:
 	@echo  USE_NEW_DIAG is $(USE_NEW_DIAG)
 	@echo  DEFAULT_LIB is $(DEFAULT_LIB)
 	@echo  MPI_LIB is $(MPI_LIB)
-	@echo  USE_NEW_DIAG is $(USE_NEW_DIAG)
-	@echo  ALLOW_TYPE_BOUND_PROC is $(ALLOW_TYPE_BOUND_PROC)
 	@echo
 	@echo FC is $(FC)
 	@echo F90FLAGS is $(F90FLAGS)
