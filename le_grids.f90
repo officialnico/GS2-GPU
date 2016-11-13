@@ -2622,7 +2622,7 @@ contains
     end if
 
     do k=2, n
-       p = 2.0*x*p1 - (k-1)*p2
+       p = x*p1 - (k-1)*p2
        p2 = p1
        p1 = p
     end do
