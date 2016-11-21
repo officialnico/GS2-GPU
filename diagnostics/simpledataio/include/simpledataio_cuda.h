@@ -65,5 +65,8 @@ extern "C" void sdatio_set_count(struct sdatio_file * sfile, char * variable_nam
 /* Returns 1 if the given variable exists, 0 otherwise */
 extern "C" int sdatio_variable_exists(struct sdatio_file * sfile, char * variable_name);
 
+/* Returns 1 if the given dimension exists, 0 otherwise */
+extern "C" int sdatio_dimension_exists(struct sdatio_file * sfile, char * dimension_name);
+
 /* Open an existing file, reading all dimension and variable metadata */
 extern "C" void sdatio_open_file(struct sdatio_file * sfile );
