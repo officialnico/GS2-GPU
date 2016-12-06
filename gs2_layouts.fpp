@@ -8,11 +8,14 @@ module gs2_layouts
 ! TT: What are gint_layout_type and geint_layout_type?
 
 ! TT>
+  use layouts_type, only: ikit, ikitprocs
   use layouts_type, only: g_layout_type, lz_layout_type, e_layout_type
-  use layouts_type, only: le_layout_type, p_layout_type
+  use layouts_type, only: le_layout_type, p_layout_type, gf_layout_type
+  use constants, only: run_name_size
 ! <TT
 
   implicit none
+
   private
 
   public :: factors
@@ -20,6 +23,8 @@ module gs2_layouts
   public :: is_kx_local
   
   public :: init_dist_fn_layouts, init_gs2_layouts
+  public :: finish_dist_fn_layouts !EGH
+  public :: finish_gs2_layouts
   public :: wnml_gs2_layouts
   public :: init_parity_layouts ! MAB
 ! TT>
@@ -32,6 +37,10 @@ module gs2_layouts
 ! HJL>
   public :: finish_layouts
 ! <HJL
+
+! EGH
+  public :: set_overrides
+
   public :: finish_fields_layouts, finish_jfields_layouts
 
   public :: init_fields_layouts
@@ -58,6 +67,9 @@ module gs2_layouts
   public :: init_le_layouts
   public :: le_lo
 ! <MAB
+  !AJ new layouts for fields_gf_local and gf_lo integration
+  public :: init_gf_layouts
+  public :: gf_lo
 
   public :: init_x_transform_layouts, init_y_transform_layouts
   public :: calculate_unbalanced_x, calculate_unbalanced_y, calculate_idle_processes
@@ -80,6 +92,7 @@ module gs2_layouts
 
   public :: fft_use_wisdom, fft_wisdom_file, fft_measure_plan
 
+  public :: simple_gf_decomposition, gf_local_fields
 
   logical :: initialized_x_transform = .false.
   logical :: initialized_y_transform = .false.
@@ -88,6 +101,7 @@ module gs2_layouts
   logical :: initialized_fields_layouts = .false.
   logical :: initialized_jfields_layouts = .false.
   logical :: initialized_le_layouts = .false.
+  logical :: initialized_gf_layouts = .false.
   logical :: initialized_energy_layouts = .false.
   logical :: initialized_lambda_layouts = .false.
   logical :: initialized_parity_layouts = .false.
@@ -100,9 +114,11 @@ module gs2_layouts
   logical :: local_field_solve, accel_lxyes, lambda_local, unbalanced_xxf, unbalanced_yxf
   real :: max_unbalanced_xxf, max_unbalanced_yxf
   character (len=5) :: layout
-  character (len=1000) :: fft_wisdom_file
+  character(run_name_size) :: fft_wisdom_file
   logical :: fft_use_wisdom, fft_measure_plan
   logical :: exist
+  logical :: simple_gf_decomposition
+  logical :: gf_local_fields
 
 ! TT>
 !!$  type :: g_layout_type
@@ -129,6 +145,7 @@ module gs2_layouts
   type (geint_layout_type) :: geint_lo
 ! TT>
   type (le_layout_type) :: le_lo  ! new type
+  type (gf_layout_type) :: gf_lo
 ! <TT
   type (p_layout_type) :: p_lo
 
@@ -210,6 +227,9 @@ module gs2_layouts
      integer :: ntgrid, nsign, naky, ndky, ny, ntheta0
      integer :: nx, nxny, nxnky, negrid, nlambda, nspec, nia
      integer :: llim_world, ulim_world, llim_proc, ulim_proc, ulim_alloc, blocksize
+#ifdef SHMEM
+     integer :: ppn, nnd, bpn, llim_node, ulim_node !shm data
+#endif
   end type accel_layout_type
 
   type (accel_layout_type) :: accel_lo
@@ -218,6 +238,10 @@ module gs2_layouts
      integer :: iproc
      integer :: ntgrid, nsign, naky, ny, ntheta0, nx, nxny, negrid, nlambda, nspec
      integer :: llim_world, ulim_world, llim_proc, ulim_proc, ulim_alloc, blocksize
+#ifdef SHMEM
+     integer :: ppn, nnd, bpn, llim_node, ulim_node ! shm data
+     integer, allocatable :: proc_map(:)
+#endif
   end type accelx_layout_type
 
   type (accelx_layout_type) :: accelx_lo
@@ -266,6 +290,7 @@ module gs2_layouts
      module procedure ik_idx_e
 ! TT>
      module procedure ik_idx_le
+     module procedure ik_idx_gf
 ! <TT
      module procedure ik_idx_xxf
      module procedure ik_idx_accel
@@ -283,6 +308,7 @@ module gs2_layouts
      module procedure it_idx_e
 ! TT>
      module procedure it_idx_le
+     module procedure it_idx_gf
 ! <TT
      module procedure it_idx_yxf
      module procedure it_idx_accel
@@ -340,6 +366,7 @@ module gs2_layouts
      module procedure proc_id_e
 ! TT>
      module procedure proc_id_le
+     module procedure proc_id_gf
 ! <TT
      module procedure proc_id_xxf
      module procedure proc_id_yxf
@@ -357,6 +384,7 @@ module gs2_layouts
      module procedure idx_e
 ! TT>
      module procedure idx_le
+     module procedure idx_gf
 ! <TT
      module procedure idx_xxf
      module procedure idx_yxf
@@ -374,6 +402,7 @@ module gs2_layouts
      module procedure idx_local_e,      ig_local_e
 ! TT>
      module procedure idx_local_le,      ig_local_le
+     module procedure idx_local_gf,      ig_local_gf
 ! <TT
      module procedure idx_local_xxf,    ig_local_xxf
      module procedure idx_local_yxf,    ig_local_yxf
@@ -384,38 +413,46 @@ module gs2_layouts
 contains
   subroutine wnml_gs2_layouts(unit)
     implicit none
-    integer :: unit
+    integer, intent(in) :: unit
     if (.not. exist) return
-       write (unit, *)
-       write (unit, fmt="(' &',a)") "layouts_knobs"
-       write (unit, fmt="(' layout = ',a)") '"'//trim(layout)//'"'
-       write (unit, fmt="(' local_field_solve = ',L1)") local_field_solve
-       write (unit, fmt="(' /')")
+    write (unit, *)
+    write (unit, fmt="(' &',a)") "layouts_knobs"
+    write (unit, fmt="(' layout = ',a)") '"'//trim(layout)//'"'
+    write (unit, fmt="(' local_field_solve = ',L1)") local_field_solve
+    write (unit, fmt="(' /')")
   end subroutine wnml_gs2_layouts
 
   subroutine init_gs2_layouts
-    
     use mp, only: proc0
     implicit none
 
     if (initialized_layouts) return
     initialized_layouts = .true.
+
+    !write(*,*) 'INITGS2', initialized_x_transform
     
     if (proc0) call read_parameters
     call broadcast_results
 
   end subroutine init_gs2_layouts
 
+
+  subroutine finish_gs2_layouts
+    call finish_layouts
+    initialized_layouts = .false.
+  end subroutine finish_gs2_layouts
+
   subroutine read_parameters
     use file_utils, only: input_unit, error_unit, input_unit_exist, error_unit
     use redistribute, only: opt_redist_nbk, opt_redist_persist, opt_redist_persist_overlap
+    use mp, only: mp_abort, proc0
     implicit none
     integer :: in_file
     namelist /layouts_knobs/ layout, local_field_solve, unbalanced_xxf, &
          max_unbalanced_xxf, unbalanced_yxf, max_unbalanced_yxf, &
          opt_local_copy, opt_redist_nbk, opt_redist_init, intmom_sub, &
          intspec_sub, opt_redist_persist, opt_redist_persist_overlap, fft_measure_plan, &
-         fft_use_wisdom, fft_wisdom_file
+         fft_use_wisdom, fft_wisdom_file, simple_gf_decomposition, gf_local_fields
 
     local_field_solve = .false.
     unbalanced_xxf = .false.
@@ -435,14 +472,18 @@ contains
     fft_use_wisdom = .true. ! Try to load and save wisdom about fftw plans to fft_wisdom_file
     intmom_sub=.false.
     intspec_sub=.false.
+    simple_gf_decomposition=.true.
+    gf_local_fields = .false.
     in_file=input_unit_exist("layouts_knobs", exist)
     if (exist) read (unit=input_unit("layouts_knobs"), nml=layouts_knobs)
     if (layout.ne.'yxels' .and. layout.ne.'yxles' .and. layout.ne.'lexys'&
     .and. layout.ne.'lxyes' .and. layout.ne.'lyxes' .and. layout.ne.'xyles') &
     then
        write(6,*) "gs2_layouts: read_parameters finds illegal layout=",layout," =>stop"
-       stop
+       call mp_abort("gs2_layouts: read_parameters finds illegal layout=")
     endif
+
+!    if(proc0) write(*,*) 'layout:',layout
 
 ! max_unbalanced_xxf and max_unbalanced_yxf have a maximum range of 0.0 - 1.0
 ! so check here whether the user has specified the range correctly and adjust if 
@@ -467,14 +508,34 @@ contains
     opt_redist_persist_overlap=opt_redist_persist_overlap.and.opt_redist_persist
     call get_wisdom_file(fft_wisdom_file)
   end subroutine read_parameters
+
+  subroutine set_overrides(opt_ov)
+    use overrides, only: optimisations_overrides_type
+    use redistribute, only: opt_redist_nbk, opt_redist_persist, opt_redist_persist_overlap
+    type(optimisations_overrides_type), intent(in) :: opt_ov
+    if (opt_ov%override_layout) layout = opt_ov%layout
+    if (opt_ov%override_opt_redist_nbk) &
+      opt_redist_nbk = opt_ov%opt_redist_nbk
+    if (opt_ov%override_opt_redist_persist) &
+      opt_redist_persist = opt_ov%opt_redist_persist
+    if (opt_ov%override_intmom_sub) &
+      intmom_sub = opt_ov%intmom_sub
+    if (opt_ov%override_intspec_sub) &
+      intspec_sub = opt_ov%intspec_sub
+    !Disable settings if dependent settings not set
+    opt_redist_persist=opt_redist_persist.and.opt_redist_nbk
+    opt_redist_persist_overlap=opt_redist_persist_overlap.and.opt_redist_persist
+  end subroutine set_overrides
+
     
 
   !> Set the fft_wisdom_file based on the value set in the namelist (if any)
   !! and the value in the GK_FFTW3_WISDOM environment variable
   subroutine get_wisdom_file(wisdom_file)
     use file_utils, only: run_name
+    use constants, only: run_name_size
     character(len=*), intent(inout) :: wisdom_file
-    character(len=1000) :: env_wisdom_file
+    character(run_name_size) :: env_wisdom_file
     call get_environment_variable("GK_FFTW3_WISDOM", env_wisdom_file)
     !read (env_wisdom_file,'(I10)') verbosity
 
@@ -509,15 +570,17 @@ contains
     call broadcast (fft_measure_plan)
     call broadcast (fft_use_wisdom)
     call broadcast (fft_wisdom_file)
+    call broadcast (simple_gf_decomposition)
+    call broadcast (gf_local_fields)
   end subroutine broadcast_results
 
   subroutine check_accel (ntheta0, naky, nlambda, negrid, nspec, nblock)
-
     use mp, only: nproc
     implicit none
     integer, intent (in) :: negrid, nspec, nlambda, naky, ntheta0
+    integer, intent (out) :: nblock
     integer, dimension(:,:), allocatable :: facs
-    integer :: nsfacs, nefacs, nyfacs, nxfacs, nlfacs, nblock
+    integer :: nsfacs, nefacs, nyfacs, nxfacs, nlfacs
     integer :: i
 
     if (.not. layout == 'lxyes') then
@@ -681,24 +744,34 @@ contains
 
   subroutine init_dist_fn_layouts &
        (naky, ntheta0, nlambda, negrid, nspec)
-    use mp, only: iproc, nproc, proc0
-    use mp, only: split, mp_comm, nproc_comm, rank_comm
-    use mp, only: sum_allreduce_sub
+    use mp, only: iproc, nproc, proc0, comm_type, mp_abort
+    use mp, only: split, free_comm, mp_comm, nproc_comm, rank_comm
+    use mp, only: sum_allreduce_sub, sum_allreduce, sum_reduce, max_reduce
 ! TT>
     use file_utils, only: error_unit
 ! <TT
+#ifdef SHMEM
+    use shm_mpi3, only: shm_info
+    use mp, only: allgather
+#endif
     implicit none
     integer, intent (in) :: naky, ntheta0, nlambda, negrid, nspec
 !<DD>
     integer :: iglo,ik,it,il,ie,is,col,mycol
     integer :: ik_min,ik_max,it_min,it_max,il_min,il_max,ie_min,ie_max,is_min,is_max,ip
     integer :: nproc_subcomm, rank_subcomm
-    integer :: nproc_tmp, idim, tmp
+    integer :: nproc_tmp, idim, tmp, i
     real :: tmp_r
+#ifdef SHMEM
+    integer nxy, les, xyb, nd_les, llim_nd, left_lim_nd, ind, sfft
+#endif
     integer,dimension(5) :: nproc_dim
     integer,dimension(:),allocatable :: les_kxky_range
     logical,dimension(5) :: dim_divides,dim_local
     logical,dimension(:),allocatable :: it_local, ik_local, il_local, ie_local, is_local
+    integer,dimension(nproc) :: tmp_proc_list
+    integer :: colour
+    type(comm_type) :: tmpcomm
 ! TT>
 # ifdef USE_C_INDEX
     integer :: ierr
@@ -723,10 +796,55 @@ contains
     g_lo%llim_world = 0
     g_lo%ulim_world = naky*ntheta0*negrid*nlambda*nspec - 1
       
+#ifndef SHMEM
     g_lo%blocksize = g_lo%ulim_world/nproc + 1
     g_lo%llim_proc = g_lo%blocksize*iproc
     g_lo%ulim_proc = min(g_lo%ulim_world, g_lo%llim_proc + g_lo%blocksize - 1)
     g_lo%ulim_alloc = max(g_lo%llim_proc, g_lo%ulim_proc)
+
+#else
+
+    nxy=naky*ntheta0
+    les = nlambda*negrid*nspec
+
+    !shm 
+    g_lo%ppn = shm_info%size
+    g_lo%nnd = nproc / g_lo%ppn
+    ! needs a test and to see if every node has the same number of processors
+    !if ( mod(nproc, g_lo%ppn) /= 0) g_lo%nnd =g_lo%nnd + 1
+    ind = iproc / g_lo%ppn
+    g_lo%bpn = les / g_lo%nnd
+    if (ind < mod(les,  g_lo%nnd )) g_lo%bpn = g_lo%bpn + 1
+
+    llim_nd = ind * (les / g_lo%nnd) + min(ind, mod(les, g_lo%nnd))
+    g_lo%llim_node = llim_nd * nxy
+    g_lo%ulim_node =  g_lo%llim_node + g_lo%bpn * nxy -1
+
+    nd_les = g_lo%bpn
+    xyb = (nxy * nd_les) / g_lo%ppn
+    g_lo%blocksize =  xyb
+    if (shm_info%id < mod(nxy * nd_les, g_lo%ppn)) g_lo%blocksize = g_lo%blocksize + 1
+    !g_lo%llim_proc = g_lo%blocksize*iproc
+    
+    g_lo%llim_proc = g_lo%llim_node &
+         + shm_info%id * xyb + min(shm_info%id, mod(nxy * nd_les, g_lo%ppn))
+    g_lo%ulim_proc = min(g_lo%ulim_world, g_lo%llim_proc + g_lo%blocksize - 1)
+    g_lo%ulim_alloc = max(g_lo%llim_proc, g_lo%ulim_proc)
+
+    if(.not.allocated(g_lo%proc_map)) allocate(g_lo%proc_map(0:nproc-1))
+    call allgather((/ g_lo%llim_proc /), 1, g_lo%proc_map, 1)  
+
+    !write(0,*) 'g_lo', left_lim_nd, llim_nd, iproc, ind, g_lo%llim_proc, g_lo%ulim_proc, g_lo%llim_node, g_lo%ulim_node
+
+    ! report on shm details
+    if (proc0) then 
+       write(*,'(/,a)') "g_lo shared memory parameters (rank 0)" 
+       write(*,*) "ranks per node :", g_lo%ppn
+       write(*,*) "total number of blocks", les, "; and per node :", g_lo%bpn
+       write(*,*) "block size inside node :", g_lo%blocksize
+    endif
+    
+#endif
 
 !<DD>Calculate constants used in the index lookup routines
 !(rather than calculating them at each call as done previously)
@@ -857,6 +975,12 @@ contains
     il_local=.false.
     ie_local=.false.
     is_local=.false.
+    g_lo%ikitrange = 0
+    !AJ g_lo%ikit_procs_assignment is used to record which ik,it points I have from the range of 
+    !AJ ik,it points.
+    allocate(g_lo%ikit_procs_assignment(ntheta0,naky))
+    g_lo%ikit_procs_assignment(:,:)%mine = .false.
+    g_lo%ikit_procs_assignment(:,:)%num_procs = 0
     do iglo=g_lo%llim_proc,g_lo%ulim_proc
        ik=ik_idx(g_lo,iglo)
        it=it_idx(g_lo,iglo)
@@ -878,8 +1002,82 @@ contains
        il_local(il)=.true.
        ie_local(ie)=.true.
        is_local(is)=.true.
+       if(.not. g_lo%ikit_procs_assignment(it,ik)%mine) then
+          g_lo%ikit_procs_assignment(it,ik)%mine = .true.
+          g_lo%ikitrange = g_lo%ikitrange + 1
+       end if
     enddo
 
+    !AJ Record the ik,it points this process have in a contigious array.
+    allocate(g_lo%local_ikit_points(g_lo%ikitrange))
+    tmp = 1
+    do ik=1,naky
+       do it=1,ntheta0
+          colour = 0
+          if(g_lo%ikit_procs_assignment(it,ik)%mine) then
+             g_lo%local_ikit_points(tmp)%ik = ik 
+             g_lo%local_ikit_points(tmp)%it = it 
+             tmp = tmp + 1
+             colour = 1
+          end if
+          if(gf_local_fields) then
+             call split(colour,tmpcomm)
+             if(g_lo%ikit_procs_assignment(it,ik)%mine) then
+                g_lo%ikit_procs_assignment(it,ik)%comm = tmpcomm
+             else
+                call free_comm(tmpcomm)
+             end if
+          end if
+       end do
+    end do
+
+
+    if(gf_local_fields) then
+       g_lo%max_ikit_nprocs = 0
+       do ik=1,naky
+          do it=1,ntheta0
+             tmp = 0
+             tmp_proc_list = 0
+             if(g_lo%ikit_procs_assignment(it,ik)%mine) then
+                tmp = 1
+                !AJ +1 is required here to ensure that proc0 of the sub comm is also counted
+                tmp_proc_list(iproc+1) = g_lo%ikit_procs_assignment(it,ik)%comm%iproc+1
+             end if
+             call sum_allreduce(tmp)
+             call sum_allreduce(tmp_proc_list)
+             !AJ proc_list is the array process ranks (of the processes that own this ik,it point) in the communicator used for g_lo
+             allocate(g_lo%ikit_procs_assignment(it,ik)%proc_list(tmp))
+             !AJ sub_proc_list is the array of process ranks (of the processes that own this ik,it point) in the sub-communicator used for the fields calculations
+             allocate(g_lo%ikit_procs_assignment(it,ik)%sub_proc_list(tmp))
+             g_lo%ikit_procs_assignment(it,ik)%num_procs = tmp
+             g_lo%max_ikit_nprocs = max(tmp, g_lo%max_ikit_nprocs)
+             tmp = 1
+             !AJ Iterate through all the processes and record if they are part of this ik,it point in g_lo
+             do i=1,nproc
+                if(tmp_proc_list(i) .gt. 0) then
+                   g_lo%ikit_procs_assignment(it,ik)%proc_list(tmp) = i-1
+                   g_lo%ikit_procs_assignment(it,ik)%sub_proc_list(tmp) = tmp_proc_list(i)-1
+                   tmp = tmp + 1
+                end if
+             end do
+          end do
+       end do
+       
+       tmp = g_lo%ikitrange
+       call max_reduce(tmp,0)
+#ifdef DEBUG
+       if(proc0) then
+          write(*,*) 'maximum number of ik,it points a given process owns in g_lo',tmp
+       end if
+#endif
+       tmp = g_lo%ikitrange
+       call sum_reduce(tmp, 0)
+#ifdef DEBUG
+       if(proc0) then
+          write(*,*) 'average number of ik,ik points',tmp/nproc
+       end if
+#endif
+    end if
     !Store dimension locality
     g_lo%y_local=all(ik_local)
     g_lo%x_local=all(it_local)
@@ -1105,6 +1303,11 @@ contains
 !        enddo
 !     endif
 
+    !if (.not. (layout .eq. 'xyles' .or. layout .eq. 'yxles')) then
+      !intmom_sub = .false.
+      !intspec_sub = .false.
+    !end if
+
     !Now use the dimension splitting to work out if the various subcommunicators are
     !allowed.
     if(.not.(dim_divides(g_lo%is_ord).and.dim_divides(g_lo%it_ord).and.dim_divides(g_lo%ik_ord))) then
@@ -1161,7 +1364,6 @@ contains
 
        !<DD>Now split the global communicator
        call split(mycol,g_lo%xyblock_comm)
-
        !This is for unique les blocks
        col=1
        mycol=0
@@ -1180,7 +1382,6 @@ contains
 
        !Now split
        call split(mycol,g_lo%lesblock_comm)
-
     else
        g_lo%xyblock_comm=mp_comm
        g_lo%lesblock_comm=mp_comm
@@ -1222,7 +1423,14 @@ contains
     endif
 
     !Now allocate and fill various arrays
-    if(intspec_sub.and.(.not.allocated(g_lo%les_kxky_range))) then
+    ! EGH changed the line below. We assume that if this function
+    ! has been called then g_lo%les_kxky_range has not been allocated.
+    !if(intspec_sub.and.(.not.allocated(g_lo%les_kxky_range))) then
+    if (allocated(g_lo%les_kxky_range)) then
+       call mp_abort("g_lo%les_kxky_range should never be allocated&
+       &at this point", .true.)
+     end if
+    if(intspec_sub) then
        !->Kx-Ky range for procs in lesblock_comm sub comm
        !Get number of procs in sub-comm
        call nproc_comm(g_lo%lesblock_comm,nproc_subcomm)
@@ -1258,6 +1466,7 @@ contains
           enddo
           les_kxky_range(rank_subcomm*2+1)=tmp
        endif
+
        !Now gather values and store in g_lo, sum_allreduce would also work
        !    call mpi_allgather(les_kxky_range(rank_subcomm*2:rank_subcomm*2+1),2,MPI_INTEGER,&
        !         les_kxky_range,2,MPI_INTEGER,g_lo%lesblock_comm)
@@ -1266,6 +1475,7 @@ contains
        do ip=0,nproc_subcomm-1
           g_lo%les_kxky_range(:,ip)=les_kxky_range(ip*2:ip*2+1)
        enddo
+
        !Free memory
        deallocate(les_kxky_range)
     endif
@@ -1582,12 +1792,27 @@ contains
   end function ik_idx_g
 
   elemental function proc_id_g (lo, i)
+#ifdef SHMEM
+    use mp, only : nproc
+#endif
     implicit none
     integer :: proc_id_g
     type (g_layout_type), intent (in) :: lo
     integer, intent (in) :: i
 
+#ifdef SHMEM
+    integer k
+
+    proc_id_g = nproc - 1
+    do k =1, nproc-1
+       if ( i < lo%proc_map(k)) then 
+          proc_id_g = k - 1
+          exit
+       endif
+    enddo
+#else
     proc_id_g = i/lo%blocksize
+#endif
 
   end function proc_id_g
 
@@ -1654,7 +1879,13 @@ contains
     type (g_layout_type), intent (in) :: lo
     integer, intent (in) :: ig
 
+#ifndef SHMEM
     ig_local_g = lo%iproc == proc_id(lo, ig)
+#else
+    ig_local_g = .false.
+    if ( ig >= lo%llim_proc .and. ig <= lo%ulim_proc ) &
+         ig_local_g = .true.
+#endif
   end function ig_local_g
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -1997,8 +2228,8 @@ contains
     call finish_jfields_layouts
 
     initialized_layouts = .false.
-    initialized_dist_fn_layouts = .false.
     initialized_le_layouts = .false.
+    initialized_gf_layouts = .false.
     initialized_energy_layouts = .false.
     initialized_lambda_layouts = .false.
     initialized_parity_layouts = .false.
@@ -2008,6 +2239,15 @@ contains
 
   end subroutine finish_layouts
 ! > HJL
+
+  subroutine finish_dist_fn_layouts
+    if (allocated(g_lo%les_kxky_range)) deallocate(g_lo%les_kxky_range)
+    initialized_dist_fn_layouts = .false.
+!AJ Note, we do not deallocate ikit_procs_assignment()%proc_list or ikit_procs_assignment()%sub_proc_list as in Fortran these 
+!AJ should automatically be deallocated when ikit_procs_assignment is deallocated.
+    if(allocated(g_lo%ikit_procs_assignment)) deallocate(g_lo%ikit_procs_assignment)
+    if(allocated(g_lo%local_ikit_points)) deallocate(g_lo%local_ikit_points)
+  end subroutine finish_dist_fn_layouts
 
 !<DD>Added
   function ik_idx_f (lo, i)
@@ -2535,6 +2775,297 @@ contains
     ig_local_le = lo%iproc == proc_id(lo, ig)
   end function ig_local_le
 ! <TT
+
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+! Fields Local layout:  This is used to calculate velocity space integration
+! and other fields related calculations on a restricted process count for 
+! large core count simulations.  It takes naky and ntheta and distributed 
+! that amongst theta so that a single naky,ntheta point is only owned by 
+! a single process.
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  subroutine init_gf_layouts (ntgrid, naky, ntheta0, negrid, nlambda, nspec)
+    use mp, only: iproc, nproc, mp_abort
+    use file_utils, only: error_unit
+    use layouts_type, only: ikit
+    implicit none
+    integer, intent (in) :: ntgrid, naky, ntheta0, negrid, nlambda, nspec
+# ifdef USE_C_INDEX
+    integer :: ierr
+    interface
+       function init_indices_gflo_c (layout)
+         integer :: init_indices_gflo_c
+         character(*) :: layout
+       end function init_indices_gflo_c
+    end interface
+# endif
+
+    if (initialized_gf_layouts) return
+    initialized_gf_layouts = .true.
+    
+    gf_lo%iproc = iproc
+    gf_lo%nproc = nproc
+    gf_lo%ntgrid = ntgrid
+    gf_lo%ntgridtotal=(2*ntgrid+1)
+    gf_lo%negrid = negrid
+    gf_lo%nlambda = nlambda
+    gf_lo%nspec = nspec
+    gf_lo%ntheta0 = ntheta0
+    gf_lo%naky = naky
+    gf_lo%divisionblock = gf_lo%naky * gf_lo%ntheta0
+    gf_lo%llim_world = 1
+    gf_lo%blocksize = 1
+    gf_lo%ulim_world = gf_lo%divisionblock * gf_lo%blocksize
+!AJ This logic has been setup to deal with all the possible cases when constructing the decomposition of
+!AJ gf_lo over processes, namely; having more gf_lo points than processes (i.e. each process has multiple gf_lo points),
+!AJ having the same number of gf_lo points and processes, and having less gf_lo points than processes (i.e. some processes 
+!AJ have 1 gf_lo point and some have none).  We have two ways of dealing with the final scenario (less points than processes), 
+!AJ the first (simple_gf_decomposition) just assigns the points to the first n processes (where n is the number of points) and leaves the 
+!AJ rest of the points empty.  The second way is to try and evenly distribute the points throughout the process space.
+!AJ As a consequence of dealing with both main scenarios (i.e. less or more points than processes) we use some of the
+!AJ gf_lo variables in different ways depending on the scenario presented.  More specifically, the two variables that 
+!AJ are used different in the different scenarios are largeregionlimit and largeblocklimit.  In the scenario where 
+!AJ we have more processes than points then largeregionlimit == process rank that is the last that has a large gap between
+!AJ it and the next point, and largeblocklimit == gf_lo point where that large gaps size stop; whereas in the scenario 
+!AJ where we have more blocks than processes, largeregionlimit == gf_lo point where large blocks stop and 
+!AJ largeblocklimit == process number which is the last to have large blocks.  It is not very clean to have to 
+!AJ confusion, so TODO: Consider refactoring this to make the meaning of the variables described above consistent, or
+!AJ have different variables for the different scenarios. 
+!AJ TODO: Currently the decompositions do not respect naky boundaries.  Because if the linked nature of supercells 
+!AJ in field calculations (i.e. a supercell is a single naky point for one or more ntheta points) if a process has more than 
+!AJ one gf_lo point it should make sure those points are still all within a single supercell (i.e. different ntheta for 
+!AJ the same naky).  This would make the supercell calculations more efficient in this case (processes would not be 
+!AJ involved in multiple sets of collective communications in the fields calcs).
+    if((gf_lo%divisionblock / gf_lo%nproc) .eq. 0) then
+!AJ x == ntheta0 y == naky
+!AJ Here we have less xy points than processes so we will have one process assigned the xy point (the cell) and 
+!AJ that will be the cell head.  The other processes involved with that y point won't be assigned anything.  We aim 
+!AJ to choose cell head from the group of processes that are already have that x y data
+!AJ We are currently using a very simple (and stupid) way of mapping x y points to processes, just taking the 
+!AJ first N processes (where N is naky*ntheta0).
+       if(simple_gf_decomposition) then
+          gf_lo%largeblocklimit = 0
+          gf_lo%largeblocksize = 0
+          gf_lo%largeregionlimit = 0
+          gf_lo%smallblocksize = gf_lo%blocksize
+          gf_lo%smallgapsize = 0
+          gf_lo%largegapsize = 0
+          if(gf_lo%divisionblock/(gf_lo%iproc + 1) .ne. 0) then
+             gf_lo%llim_proc = gf_lo%smallblocksize * iproc + 1
+             gf_lo%ulim_proc = gf_lo%llim_proc + gf_lo%smallblocksize - 1
+             gf_lo%xypoints = 1
+          else
+             gf_lo%llim_proc = gf_lo%llim_world
+             gf_lo%ulim_proc = 0
+             gf_lo%xypoints = 0
+          end if
+!AJ This variant if the situation where we have less blocks than processes attempts to spread the blocks out through 
+!AJ the range of processes we have.  As such there will be gaps in between each assigned block where processes have 
+!AJ no blocks assigned to them.  It is designed to spread out the blocks as evenly as possible, and can cope with the 
+!AJ situation where the number of processes does not exactly divide by the number of blocks.  In that scenario there 
+!AJ are bigger gaps between processes below a certain limit, and then smaller gaps above that limit (the largeblocklimit).
+!AJ In this context largeregionlimit is the process id of the top process in the region that has larger blocks.
+       else
+          gf_lo%smallblocksize = 1
+          gf_lo%largeblocksize = 1
+          gf_lo%smallgapsize = gf_lo%nproc/gf_lo%divisionblock
+          gf_lo%largegapsize = gf_lo%smallgapsize + 1
+          gf_lo%largeblocklimit = mod(gf_lo%nproc,gf_lo%divisionblock)
+          gf_lo%largeregionlimit = gf_lo%largeblocklimit * gf_lo%largegapsize
+	  if(gf_lo%iproc .le. gf_lo%largeregionlimit) then
+            if(mod(gf_lo%iproc,gf_lo%largegapsize) .eq. 0) then 
+               gf_lo%xypoints = gf_lo%largeblocksize
+               gf_lo%llim_proc = (gf_lo%iproc / gf_lo%largegapsize) + 1
+               gf_lo%ulim_proc = gf_lo%llim_proc
+            else
+               gf_lo%llim_proc = gf_lo%llim_world
+               gf_lo%ulim_proc = 0
+               gf_lo%xypoints = 0
+            end if
+         else
+            if(mod((gf_lo%iproc - (gf_lo%largeregionlimit)),gf_lo%smallgapsize) .eq. 0) then 
+               gf_lo%xypoints = gf_lo%smallblocksize
+               gf_lo%llim_proc = gf_lo%largeblocklimit + ((gf_lo%iproc - (gf_lo%largeregionlimit))/gf_lo%smallgapsize) + 1
+               gf_lo%ulim_proc = gf_lo%llim_proc
+            else
+               gf_lo%llim_proc = gf_lo%llim_world
+               gf_lo%ulim_proc = 0
+               gf_lo%xypoints = 0
+            end if
+         end if
+      end if
+    else if((gf_lo%divisionblock / gf_lo%nproc) .ge. 1 .and. mod(gf_lo%divisionblock, gf_lo%nproc) .eq. 0) then
+!AJ Here we have exactly the same number of xy points as processes so each get one, or the number of points divides 
+!AJ exactly between processes so each gets exactly the same amount. 
+       gf_lo%largeblocklimit = 0
+       gf_lo%smallblocksize = ((gf_lo%divisionblock / gf_lo%nproc)) * gf_lo%blocksize
+       gf_lo%largeblocksize = 0
+       gf_lo%largeregionlimit = 0
+       gf_lo%llim_proc = gf_lo%smallblocksize * iproc + 1
+       gf_lo%ulim_proc = gf_lo%llim_proc + gf_lo%smallblocksize - 1
+       gf_lo%xypoints = gf_lo%smallblocksize
+       gf_lo%smallgapsize = 0
+       gf_lo%largegapsize = 0
+    else
+!AJ Here we have more xy points than processes so some or all will have multiple xy points.  In this scenario
+!AJ the large region limit is the top of the igf domain where the large blocks finish and we go into small blocks,
+!AJ and the large block limit is the highest process number where the large block region finishes
+!AJ TODO: Make this respect supercell boundaries so each process only has a single y point but multiple x points 
+!AJ rather than multiple y points.  This would benefit fields calculations (see discussions in previous comment).
+       gf_lo%largeblocklimit = mod(gf_lo%divisionblock,gf_lo%nproc)
+       gf_lo%smallblocksize = (gf_lo%divisionblock/gf_lo%nproc) * gf_lo%blocksize
+       gf_lo%largeblocksize = ((gf_lo%divisionblock/gf_lo%nproc)+1) * gf_lo%blocksize
+       gf_lo%largeregionlimit = gf_lo%largeblocksize * gf_lo%largeblocklimit
+       gf_lo%smallgapsize = 0
+       gf_lo%largegapsize = 0
+       if(gf_lo%iproc .lt. gf_lo%largeblocklimit) then
+          gf_lo%xypoints = gf_lo%largeblocksize
+          gf_lo%llim_proc = gf_lo%largeblocksize * iproc + 1
+          gf_lo%ulim_proc = gf_lo%llim_proc + gf_lo%largeblocksize - 1
+       else
+          gf_lo%llim_proc = (gf_lo%largeblocklimit * gf_lo%largeblocksize) + (gf_lo%iproc - gf_lo%largeblocklimit) * gf_lo%smallblocksize + 1
+          gf_lo%ulim_proc = gf_lo%llim_proc + gf_lo%smallblocksize - 1
+          gf_lo%xypoints = gf_lo%smallblocksize
+       end if
+    end if
+        
+    gf_lo%ulim_alloc = gf_lo%ulim_proc
+
+# ifdef USE_C_INDEX
+    ierr = init_indices_gflo_c (layout)
+    if (ierr /= 0) &
+         & write (error_unit(),*) 'ERROR: layout not found: ', trim(layout)
+# endif
+  end subroutine init_gf_layouts
+
+# ifdef USE_C_INDEX
+  function it_idx_gf (lo, i)
+# else
+  elemental function it_idx_gf (lo, i)
+# endif
+    implicit none
+    integer :: it_idx_gf
+    type (gf_layout_type), intent (in) :: lo
+    integer, intent (in) :: i
+# ifdef USE_C_INDEX
+    interface
+       function it_idx_gf_c (lo,num)
+         use layouts_type, only: gf_layout_type
+         integer :: it_idx_gf_c
+         type (gf_layout_type) :: lo
+         integer :: num
+       end function it_idx_gf_c
+    end interface
+    it_idx_gf = it_idx_gf_c (lo,i)
+# else
+    it_idx_gf = 1 + mod((i - lo%llim_world), lo%ntheta0)
+# endif
+  end function it_idx_gf
+
+# ifdef USE_C_INDEX
+  function ik_idx_gf (lo, i)
+# else
+  elemental function ik_idx_gf (lo, i)
+# endif
+    implicit none
+    integer :: ik_idx_gf
+    type (gf_layout_type), intent (in) :: lo
+    integer, intent (in) :: i
+# ifdef USE_C_INDEX
+    interface
+       function ik_idx_gf_c (lo,num)
+         use layouts_type, only: gf_layout_type
+         integer :: ik_idx_gf_c
+         type (gf_layout_type) :: lo
+         integer :: num
+       end function ik_idx_gf_c
+    end interface
+    ik_idx_gf = ik_idx_gf_c (lo,i)
+# else
+    ik_idx_gf = 1 + ((i - lo%llim_world)/lo%ntheta0)
+# endif
+  end function ik_idx_gf
+
+# ifdef USE_C_INDEX
+  function idx_gf (lo, ik, it)
+# else
+  elemental function idx_gf (lo, ik, it)
+# endif
+    implicit none
+    integer :: idx_gf
+    type (gf_layout_type), intent (in) :: lo
+    integer, intent (in) :: ik, it
+# ifdef USE_C_INDEX
+    interface
+       function idx_gf_c (lo, ik, it)
+         use layouts_type, only: gf_layout_type
+         integer :: idx_gf_c
+         type (gf_layout_type) :: lo
+         integer :: ik, it
+       end function idx_gf_c
+    end interface
+    idx_gf = idx_gf_c (lo, ik, it)
+# else
+    idx_gf = (ik-1)*lo%ntheta0 + it
+# endif
+  end function idx_gf
+
+  elemental function proc_id_gf (lo, i)
+    implicit none
+    integer :: proc_id_gf
+    type (gf_layout_type), intent (in) :: lo
+    integer, intent (in) :: i
+
+!AJ For this scenario we have more blocks than processes so each process has multiple blocks, but the number of blocks
+!AJ does not exactly divide by the number of processes, so some have larger blocks than others.
+    if(lo%largeblocksize .gt. 1) then
+       if(i .gt. lo%largeregionlimit) then
+    	   proc_id_gf = (((i - (lo%largeblocksize * lo%largeblocklimit) - lo%llim_world)/lo%smallblocksize) + lo%largeblocklimit)
+       else
+       	   proc_id_gf = (i - lo%llim_world) / lo%largeblocksize
+       end if
+!AJ For this scenario we have less blocks than processes so we try to spread the blocks between processes.
+    else if(lo%largeblocksize .eq. 1) then
+       if(i .gt. lo%largeblocklimit) then
+          proc_id_gf = lo%largeregionlimit + ((i - lo%largeblocklimit - lo%llim_world)*lo%smallgapsize)
+       else
+          proc_id_gf = (i - lo%llim_world) * lo%largegapsize
+       end if
+!AJ For this scenario we either have exactly the same number of blocks as processes, or the number of blocks divides exactly
+!AJ by the number of processes so each process has the same size blocks of the domain.
+!AJ It is also used by the "simple_gf_decomposition" functionality for the scenario where we have less blocks than processes and we 
+!AJ are not trying to distributed those blocks through the whole process space, just assigning them to the first n processes 
+!AJ (where n is the number of xypoints we have in the gf_lo domain).
+    else
+       proc_id_gf = (i - lo%llim_world) / lo%smallblocksize
+    end if
+
+  end function proc_id_gf
+
+# ifdef USE_C_INDEX
+  function idx_local_gf (lo, ik, it)
+# else
+  elemental function idx_local_gf (lo, ik, it)
+# endif
+    implicit none
+    logical :: idx_local_gf
+    type (gf_layout_type), intent (in) :: lo
+    integer, intent (in) :: ik, it
+
+    idx_local_gf = idx_local(lo, idx(lo, ik, it))
+  end function idx_local_gf
+
+  elemental function ig_local_gf (lo, ig)
+    implicit none
+    logical :: ig_local_gf
+    type (gf_layout_type), intent (in) :: lo
+    integer, intent (in) :: ig
+
+    ig_local_gf = lo%iproc == proc_id(lo, ig)
+  end function ig_local_gf
+
+
+
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 ! Energy layouts
@@ -3458,6 +3989,7 @@ contains
     integer :: nprocset, ngroup, nblock, ntgridtotal, nsign
     real :: unbalanced_amount
 
+    !write (*,*) 'INIT_X_TR', initialized_x_transform
     if (initialized_x_transform) return
     initialized_x_transform = .true.
 
@@ -3480,6 +4012,8 @@ contains
     xxf_lo%nspec = nspec
     xxf_lo%llim_world = 0
     xxf_lo%ulim_world = naky*(2*ntgrid+1)*2*nlambda*negrid*nspec - 1
+
+    !write (*,*) 'XXF_LO%ulim_world', xxf_lo%ulim_world
 
 !<DD>See g_lo init
     select case (layout)
@@ -3619,6 +4153,7 @@ contains
        ! decomposition.
        if (.not. unbalanced_xxf) then
 
+          !write (*,*) 'XXF_LO%ulim_world', xxf_lo%ulim_world, nproc
           xxf_lo%blocksize = xxf_lo%ulim_world/nproc + 1
           xxf_lo%llim_proc = xxf_lo%blocksize*iproc
           xxf_lo%ulim_proc &
@@ -4908,12 +5443,27 @@ contains
   end function idx_yxf
 
   elemental function proc_id_accelx (lo, i)
+#ifdef SHMEM
+    use mp, only : nproc
+#endif
     implicit none
     integer :: proc_id_accelx
     type (accelx_layout_type), intent (in) :: lo
     integer, intent (in) :: i
 
+#ifdef SHMEM
+    integer k 
+
+    proc_id_accelx = nproc - 1
+    do k =1, nproc-1
+       if ( i < lo%proc_map(k)) then 
+          proc_id_accelx = k - 1
+          exit
+       endif
+    enddo
+#else
     proc_id_accelx = i/lo%blocksize
+#endif
 
   end function proc_id_accelx
 
@@ -5000,7 +5550,13 @@ contains
     logical ig_local_accelx
     type (accelx_layout_type), intent (in) :: lo
     integer, intent (in) :: i
+#ifndef SHMEM
     ig_local_accelx = lo%iproc == proc_id(lo, i)
+#else
+    ig_local_accelx = .false.
+    if ( i >= lo%llim_proc .and. i <= lo%ulim_proc) &
+         ig_local_accelx = .true.
+#endif
   end function ig_local_accelx
 
   elemental function idx_local_yxf (lo, ig, isign, it, il, ie, is)
@@ -5026,10 +5582,17 @@ contains
   subroutine init_accel_transform_layouts &
        (ntgrid, naky, ntheta0, nlambda, negrid, nspec, nx, ny)
     use mp, only: iproc, nproc
+#ifdef SHMEM
+    use mp, only: proc0, allgather
+    use shm_mpi3, only : shm_info
+#endif
     implicit none
     integer, intent (in) :: ntgrid, naky, ntheta0, nlambda, negrid, nspec
     integer, intent (in) :: nx, ny
     integer :: nnx, nny
+#ifdef SHMEM
+    integer :: nxy, les, xyb, llim_nd, nd_les, ind, left_lim_nd, sfft
+#endif
 
     if (initialized_accel_transform_layouts) return
     initialized_accel_transform_layouts = .true.
@@ -5058,6 +5621,7 @@ contains
     accelx_lo%nspec = nspec
     accelx_lo%llim_world = 0
     accelx_lo%ulim_world = nnx*nny*nlambda*negrid*nspec - 1
+#ifndef SHMEM
     accelx_lo%blocksize = accelx_lo%ulim_world/nproc + 1
     accelx_lo%llim_proc = accelx_lo%blocksize*iproc
     accelx_lo%ulim_proc &
@@ -5085,6 +5649,100 @@ contains
     accel_lo%ulim_proc &
          = min(accel_lo%ulim_world, accel_lo%llim_proc + accel_lo%blocksize - 1)
     accel_lo%ulim_alloc = max(accel_lo%llim_proc, accel_lo%ulim_proc)
+
+#else
+
+    nxy=nnx*nny
+    les = nlambda*negrid*nspec
+
+    accelx_lo%ppn = shm_info%size
+    accelx_lo%nnd = nproc / accelx_lo%ppn
+    ! needs a test and to see if every node has the same number of processors
+    !if ( mod(nproc,accelx_lo%ppn) /= 0) accelx_lo%nnd = accelx_lo%nnd + 1
+    ind = iproc / accelx_lo%ppn
+
+    accelx_lo%bpn = les / accelx_lo%nnd
+    if (ind < mod(les,  accelx_lo%nnd )) accelx_lo%bpn = accelx_lo%bpn + 1
+    llim_nd = ind * (les / accelx_lo%nnd) + min(ind, mod(les, accelx_lo%nnd))
+    accelx_lo%llim_node = llim_nd * nxy
+    accelx_lo%ulim_node = accelx_lo%llim_node + accelx_lo%bpn * nxy -1
+    nd_les = accelx_lo%bpn
+
+    xyb = (nxy *nd_les) / accelx_lo%ppn
+    accelx_lo%blocksize = xyb
+    if ( shm_info%id < mod(nxy * nd_les, accelx_lo%ppn) ) accelx_lo%blocksize = accelx_lo%blocksize + 1
+    
+    !accelx_lo%llim_proc = accelx_lo%blocksize*iproc
+    accelx_lo%llim_proc = accelx_lo%llim_node &
+         + shm_info%id * xyb +  min(shm_info%id, mod(nxy * nd_les, accelx_lo%ppn))
+    accelx_lo%ulim_proc &
+         = min(accelx_lo%ulim_world, accelx_lo%llim_proc + accelx_lo%blocksize - 1)
+    accelx_lo%ulim_alloc = max(accelx_lo%llim_proc, accelx_lo%ulim_proc)
+    
+    allocate(accelx_lo%proc_map(0:nproc-1))
+    call allgather((/accelx_lo%llim_proc/), 1, accelx_lo%proc_map, 1)
+
+    if (proc0) then 
+       write(*,'(/,a)') "accelx_lo shared memory parammeters (rank 0)" 
+       write(*,*) "ranks per node :", accelx_lo%ppn
+       write(*,*) "total number of blocks: ", les, "; and per node :", accelx_lo%bpn
+       write(*,*) "block size per rank :", accelx_lo%blocksize
+    endif
+
+    accel_lo%iproc = iproc
+    accel_lo%ntgrid = ntgrid
+    accel_lo%nsign = 2
+    accel_lo%naky = naky
+    accel_lo%ndky = nny/2+1  ! Note: this is for dealiased k space quantities
+    accel_lo%ny = nny
+    accel_lo%ntheta0 = ntheta0
+    accel_lo%nx = nnx
+    accel_lo%nxny = nnx*nny
+    accel_lo%nxnky = nnx*(nny/2+1)
+    accel_lo%nlambda = nlambda
+    accel_lo%negrid = negrid
+    accel_lo%nspec = nspec
+    !accel_lo%nia = negrid*nlambda*nspec/nproc
+    accel_lo%llim_world = 0
+    accel_lo%ulim_world = nnx*(nny/2+1)*nlambda*negrid*nspec - 1
+    !accel_lo%blocksize = accel_lo%ulim_world/nproc + 1
+    nxy = nnx*(nny/2+1)
+
+    accel_lo%ppn = shm_info%size
+    accel_lo%nnd = nproc / accel_lo%ppn
+    ! needs a test and to see if every node has the same number of processors
+    !if ( mod(nproc, accel_lo%ppn) /= 0) accel_lo%nnd = accel_lo%nnd + 1
+    ind = iproc/accel_lo%ppn
+
+    accel_lo%bpn = les / accel_lo%nnd
+    if (ind < mod(les,  accel_lo%nnd )) accel_lo%bpn = accel_lo%bpn + 1
+    llim_nd = ind * (les / accel_lo%nnd) + min(ind, mod(les, accel_lo%nnd))
+    accel_lo%llim_node = llim_nd * nxy
+    accel_lo%ulim_node = accel_lo%llim_node + accel_lo%bpn * nxy -1 
+    nd_les = accel_lo%bpn
+
+    xyb = (nxy * nd_les) / accel_lo%ppn
+    accel_lo%blocksize = xyb
+    if ( shm_info%id < mod(nxy * nd_les, accel_lo%ppn) ) accel_lo%blocksize = accel_lo%blocksize + 1
+
+    accel_lo%nia = accel_lo%bpn
+    !accel_lo%llim_proc = accel_lo%blocksize*iproc
+    accel_lo%llim_proc =  accel_lo%llim_node &
+         + shm_info%id * xyb +  min(shm_info%id, mod(nxy * nd_les, accel_lo%ppn))
+    accel_lo%ulim_proc &
+         = min(accel_lo%ulim_world, accel_lo%llim_proc + accel_lo%blocksize - 1)
+    accel_lo%ulim_alloc = max(accel_lo%llim_proc, accel_lo%ulim_proc)
+
+   if (proc0) then 
+       write(*,'(/,a)') "accel_lo shared memory parammeters (rank 0) " 
+       write(*,*) "ranks per node :", accel_lo%ppn
+       write(*,*) "total number of blocks:", les, "; per node :", accel_lo%bpn
+       write(*,*) "block size per rank :", accel_lo%blocksize
+    endif
+
+#endif
+
+
 
   end subroutine init_accel_transform_layouts
 

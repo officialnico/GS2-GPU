@@ -2,9 +2,29 @@ module geometry
 
   implicit none
 
-  public
+  private
 
-  private :: bgrad, root, fluxavg
+  public :: beta_a_fun, eikcoefs, geofax, iofrho, pbarofrho, bi_out
+  public :: qfun, rpofrho, rcenter, init_theta, nth_get, f_trap  !procedures
+  public :: psi, cvdrift, theta, dvdrhon, surfarea
+  public :: rhoc, nperiod, eqfile, irho, iflux, local_eq, gen_eq
+  public :: ppl_eq, transp_eq, chs_eq, efit_eq, equal_arc, bishop
+  public :: advanced_parameters_type, advanced_parameters
+  public :: delrho, rmin, rmax, isym, in_nt, writelots, itor
+  public :: r_geo, akappa, akappri, tri, tripri
+  public :: shift, qinp, asym, asympri, constant_coefficients
+  public :: miller_parameters_type, miller_parameters
+  public :: s_hat_input, constant_coefficients_type, verb
+  public :: grho, bmag, gradpar, cvdrift0, coefficients_type
+  public :: gbdrift, gbdrift0, cdrift, cdrift0, gbdrift_th
+  public :: jacob, Rplot, Zplot, aplot, Rprime, Zprime, aprime, Uk1, Uk2, Bpol
+  public :: cvdrift_th, gds2, gds21, gds22, gds23, gds24, gds24_noq
+  public :: qsf, rmaj, shat, kxfac, aminor, finish_geometry, drhodpsin
+  public :: p_prime_input, invLp_input, beta_prime_input, alpha_input, dp_mult
+  public :: gs2d_eq, idfit_eq, dfit_eq, s_hat_new, beta_prime_new, debug
+  public :: theta_eqarc, gradpar_prime, theta_prime, theta_prime_eqarc
+  public :: job_id, big, dbetadrho, eqinit, shotnum, xanthopoulos, rfun, tstar
+  public :: diameter, Hahm_Burrell 
 
   real, allocatable, dimension(:) :: grho, theta, bmag, gradpar, &
        cvdrift, cvdrift0, gbdrift, gbdrift0, gds2, gds21, gds22, jacob, &
@@ -12,16 +32,17 @@ module geometry
        cdrift, cdrift0, gds23, gds24, gds24_noq, gbdrift_th, cvdrift_th, Bpol ! MAB
   
   real, allocatable, dimension(:) :: J_X, B_X, g11_X, g12_X, g22_X, &
-       K1_X, K2_X, gradpar_X
+       K1_X, K2_X, gradpar_X, theta_eqarc, gradpar_prime, theta_prime_eqarc, &
+       theta_prime
 
   real :: Rref_X, Bref_X
 
   real :: rhoc, rmaj, r_geo, shift, dbetadrho, kxfac
   real :: qinp, shat, akappa, akappri, tri, tripri, dpressdrho, asym, asympri
-  real :: delrho, rmin, rmax, qsf, aminor
+  real :: delrho, rmin, rmax, qsf, aminor, bi_out
   
-  real :: s_hat_input, p_prime_input, invLp_input, beta_prime_input, &
-       alpha_input, dp_mult
+  real :: s_hat_input, p_prime_input, invLp_input, beta_prime_input
+  real :: alpha_input, dp_mult
 
   integer :: nperiod
   integer :: itor, iflux, irho
@@ -29,7 +50,7 @@ module geometry
   real :: tstar
    
   real :: dp_new, di_new
-  real, private :: psi_0, psi_a
+  real :: psi_0, psi_a
   real :: B_T0, avgrmid, dvdrhon, surfarea, grho1n, grho2n, drhodpsin
   real :: grhoavg  ! needed for Trinity -- MAB
 
@@ -51,27 +72,21 @@ module geometry
 
   integer :: bishop
 
-  public :: beta_a_fun, eikcoefs, geofax, iofrho, pbarofrho, &
-       qfun, rpofrho, rcenter, init_theta, nth_get, f_trap  !procedures
+  integer :: ntgrid, nth, ntheta
 
-  integer, private :: ntgrid, nth, ntheta
+  integer :: verb = 2 ! Verbosity of print statements | Should we use runtime_tests:verbosity?
+  ! EGH debug now set by verb, which (in GS2) is set in theta_grid
+  !> If debug then print out lots of debug info.
+  !! debug is true if (verb > 3)
+  logical :: debug = .false.
+  !> job_id is the job id in a  Trinity or list mode run. Used
+  !! for debug statements
+  integer :: job_id
 
-  integer :: verb = 2 ! Verbosity of print statements
-  logical :: debug = .true.
-  !logical, parameter :: debug = .false.
+  integer :: fort11_unit !For outputting geom values
 
-  character(800) :: eqfile
+  character(len=800) :: eqfile
 
-  !common /advanced_parameters/ equal_arc,&
-                              !bishop,&
-                              !dp_mult,&
-                              !delrho,&
-                              !rmin,&
-                              !rmax,&
-                              !isym,&
-                              !in_nt,&
-                              !writelots,&
-                              !itor
   type advanced_parameters_type  
     logical :: equal_arc
     real :: dp_mult
@@ -104,63 +119,66 @@ module geometry
   !> These are functions of theta that are output by the 
   !! geometry module
   type coefficients_type
-
-         !grho   
-         !bmag       
-         !gradpar    
-         !cvdrift    
-         !cvdrift0   
-         !gbdrift    
-         !gbdrift0   
-         !cdrift    
-         !cdrift0    
-         !gbdrift_th 
-         !cvdrift_th 
-         !gds2       
-         !gds21      
-         !gds22      
-         !gds23      
-         !gds24      
-         !gds24_noq  
-         !jacob      
-         !Rplot      
-         !Zplot      
-         !aplot      
-         !Rprime     
-         !Zprime     
-         !aprime     
-         !Uk1        
-         !Uk2        
-         !Bpol       
-
-    real :: grho   
-    real :: bmag       
-    real :: gradpar    
-    real :: cvdrift    
-    real :: cvdrift0   
-    real :: gbdrift    
-    real :: gbdrift0   
-    real :: cdrift    
-    real :: cdrift0    
-    real :: gbdrift_th 
-    real :: cvdrift_th 
-    real :: gds2       
-    real :: gds21      
-    real :: gds22      
-    real :: gds23      
-    real :: gds24      
-    real :: gds24_noq  
-    real :: jacob      
-    real :: Rplot      
-    real :: Zplot      
-    real :: aplot      
-    real :: Rprime     
-    real :: Zprime     
-    real :: aprime     
-    real :: Uk1        
-    real :: Uk2        
-    real :: Bpol       
-
+    real :: theta
+    real :: theta_eqarc   
+    real :: theta_prime
+    real :: theta_prime_eqarc   
+    real :: grho
+    real :: grho_eqarc   
+    real :: bmag
+    real :: bmag_eqarc       
+    real :: gradpar
+    real :: gradpar_eqarc    
+    real :: gradpar_prime
+    real :: gradpar_prime_eqarc    
+    real :: cvdrift
+    real :: cvdrift_eqarc    
+    real :: cvdrift0
+    real :: cvdrift0_eqarc   
+    real :: gbdrift
+    real :: gbdrift_eqarc    
+    real :: gbdrift0
+    real :: gbdrift0_eqarc   
+    real :: cdrift
+    real :: cdrift_eqarc    
+    real :: cdrift0
+    real :: cdrift0_eqarc    
+    real :: gbdrift_th
+    real :: gbdrift_th_eqarc 
+    real :: cvdrift_th
+    real :: cvdrift_th_eqarc 
+    real :: gds2
+    real :: gds2_eqarc       
+    real :: gds21
+    real :: gds21_eqarc      
+    real :: gds22
+    real :: gds22_eqarc      
+    real :: gds23
+    real :: gds23_eqarc      
+    real :: gds24
+    real :: gds24_eqarc      
+    real :: gds24_noq
+    real :: gds24_noq_eqarc  
+    real :: jacob
+    real :: jacob_eqarc      
+    real :: Rplot
+    real :: Rplot_eqarc      
+    real :: Zplot
+    real :: Zplot_eqarc      
+    real :: aplot
+    real :: aplot_eqarc      
+    real :: Rprime
+    real :: Rprime_eqarc     
+    real :: Zprime
+    real :: Zprime_eqarc     
+    real :: aprime
+    real :: aprime_eqarc     
+    real :: Uk1
+    real :: Uk1_eqarc        
+    real :: Uk2
+    real :: Uk2_eqarc        
+    real :: Bpol
+    real :: Bpol_eqarc       
   end type coefficients_type
 
   !> These are coefficients that are constant
@@ -171,10 +189,11 @@ module geometry
     real :: shat
     real :: kxfac
     real :: aminor
+    real :: drhodpsin
+    real :: bi
   end type constant_coefficients_type
 
   type(coefficients_type) :: output_coefficients
-
   type(constant_coefficients_type) :: constant_coefficients
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -287,29 +306,23 @@ module geometry
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
    
 contains
-
   subroutine eikcoefs (ntheta_returned)
-    
     use  geq, only: eqin, geq_init
-    
     ! CHEASE EQUILIBRIUM  EGH
     use  ceq, only: ceqin, ceq_init 
-    
     use  peq, only: peqin => eqin, teqin, peq_init
     use  eeq, only: efitin, efit_init, gs2din, eeq_verbosity => verbosity
-!cmr    use  eeq, only: efitin, eeq_init => efit_init, gs2din
     use  deq, only: dfitin, deq_init => dfit_init
     use ideq, only: idfitin, ideq_init => dfit_init
     use  leq, only: leqin, dpdrhofun
-
+    use splines, only: inter_cspl
     use constants, only: pi
+    use file_utils, only: open_output_file, close_output_file, get_unused_unit
+    use file_utils, only: futils_initialized => initialized, init_file_utils
+    use file_utils, only: finish_file_utils
     implicit none
-!cmr nov04: adding following debug switch
-    !logical, parameter :: debug=.false.
-! EGH gave debug switch module scope Apr12
-    !logical, parameter :: debug=.true.
-!cmr
     integer, optional, intent (out) :: ntheta_returned
+    logical :: start_file_utils, dummy
 
 ! Local variables:
 
@@ -338,13 +351,37 @@ contains
 
     character(1) :: char
     integer :: i, j, k, itot, nthg, n
+    integer :: fort25_unit !For outputting geom values
+    integer :: fort78_unit !For outputting geom values
+    integer :: fort99_unit !For outputting geom values
 
-    ! Set output verbosity levels
+    !Set output verbosity levels
     eeq_verbosity = verb
 
-!     compute the initial constants
+    if (.not.futils_initialized) then
+      !:write (*,*) 'FILE UTILS NOT INITIALISED'
+      !stop 1
+
+      start_file_utils = .true.
+      ! Initialize file utils with a run name we provide
+      ! and by setting trin_run prevent it from searching
+      ! the command line arguments. 
+      write(*,*) 'WARNING: Automatically initializing file_utils&
+      & in eikcoefs. This is a hack to &
+      & support older programs like eiktest. You should&
+      & initialize file utils before calling eikcoefs'
+      call init_file_utils(dummy, name='geometry_module', trin_run=.true.)
+    else
+      start_file_utils = .false.
+    end if
+    !Create module level output file and get unit
+    call get_unused_unit(fort11_unit)
+    call open_output_file(fort11_unit,".fort.11")
+
+    !Compute the initial constants
+    debug = (verb > 2)
     
-if (debug) write(6,*) "eikcoefs: local_eq=",local_eq
+if (debug) write(6,*) "eikcoefs: local_eq=",local_eq, 'jid=',job_id
     if (local_eq .and. iflux == 1) then
        write (*,*) 'Forcing iflux = 0'
        iflux = 0
@@ -361,11 +398,13 @@ if (debug) write(6,*) "eikcoefs: local_eq=",local_eq
        endif
     endif
 
-if (debug) write(6,*) "eikcoefs: call check"
+if (debug) write(6,*) "eikcoefs: call check", 'jid=',job_id
+
     call check(gen_eq, efit_eq, ppl_eq, &
          local_eq, dfit_eq, idfit_eq, chs_eq) 
 
-if (debug) write(6,*) "eikcoefs: allocated(theta)", allocated(theta)
+if (debug) write(6,*) "eikcoefs: allocated(theta)", allocated(theta), 'jid=',job_id
+
     if(.not. gen_eq .and. .not. ppl_eq &
     .and. .not. transp_eq .and. .not. chs_eq &
          .and. .not. allocated(theta)) then
@@ -380,13 +419,17 @@ if (debug) write(6,*) "eikcoefs: allocated(theta)", allocated(theta)
 
     if(iflux /= 1 .and. iflux /= 10) then
 
+       if (verb>3) write (*,*) 'Starting leqin, ntheta = ', ntheta, ntgrid
+
        call leqin(rmaj, R_geo, akappa, akappri, tri, tripri, rhoc, delrho, shift, &
             qinp, s_hat_input, asym, asympri, ntgrid)
        if(.not.allocated(gds22)) call alloc_module_arrays(ntgrid)
+       if(present(ntheta_returned)) ntheta_returned = ntheta
        call alloc_local_arrays(ntgrid)
     endif
 
-if (debug) write(6,*) "eikcoefs: iflux=",iflux, 'chs_eq=', chs_eq
+if (debug) write(6,*) "eikcoefs: iflux=",iflux, 'chs_eq=', chs_eq, 'jid=',job_id
+
     select case (iflux)
        case (0)
           avgrmid=1.
@@ -401,11 +444,12 @@ if (debug) write(6,*) "eikcoefs: iflux=",iflux, 'chs_eq=', chs_eq
              endif
 !CMR+SSAAR: moved following if clause ahead of ppl_eq to avoid ball problems 
           else if(transp_eq) then
-if (debug) write(6,fmt='("eikcoefs: transp_eq, eqfile=",a)') eqfile
+if (debug) write(6,fmt='("eikcoefs: transp_eq, eqfile=",a)') eqfile, 'jid=',job_id
+
              ppl_eq = .true.
              call teqin(eqfile, psi_0, psi_a, rmaj, B_T0, avgrmid, eqinit, in_nt, nthg)
 if (debug) write(6,*) 'eikcoefs: transp_eq, called teqin'
-if (debug) write(6,fmt='("eikcoefs: teqin returns",1p5e10.2,i6,l2,i6)') psi_0, psi_a, rmaj, B_T0, avgrmid, eqinit, in_nt, nthg
+if (debug) write(6,fmt='("eikcoefs: teqin returns",1p,5e10.2,i6,l2,i6)') psi_0, psi_a, rmaj, B_T0, avgrmid, eqinit, in_nt, nthg
              if(present(ntheta_returned)) then
                 call tdef(nthg, ntheta_returned)
              else
@@ -441,8 +485,10 @@ if (debug) write(6,*) "eikcoefs: call efitin eqfile=",eqfile, "eqinit =", eqinit
              endif
           else if(dfit_eq) then
              if(big <= 0) big = 1
-             call dfitin(eqfile, psi_0, psi_a, rmaj, B_T0, avgrmid, eqinit, big) 
+             call dfitin(eqfile, psi_0, psi_a, rmaj, B_T0, avgrmid, eqinit) 
           else if(idfit_eq) then
+             !<DD>WARNING : ON EXIT AVGRMID WILL BE UNDEFINED AS IDFITIN DOESN'T GIVE IT A VALUE
+             !THIS SHOULD BE FIXED BUT SHOULD BE OK AS AVGRMID NOT USED ANYWHERE (AT THE MOMENT)?
              call idfitin(eqfile, theta, psi_0, psi_a, rmaj, B_T0, avgrmid, eqinit) 
              if(present(ntheta_returned)) then
                 call tdef(nthg, ntheta_returned)
@@ -462,25 +508,26 @@ if (debug) write(6,*) 'eikcoefs: alloc_local_arrays'
 if (debug) writelots=.true.
 if (debug) write(6,*) "eikcoefs: if (writelots)"
     if(writelots) then
-       write(11,*) 'All lengths normalized to the avg midplane minor radius'
+       write(fort11_unit,*) 'All lengths normalized to the avg midplane minor radius'
        if(irho /= 2) then
-          write(11,*) 'except rho, which always goes from 0 to 1.'
-          write(11,*) 'The rho normalization is determined by irho.'
+          write(fort11_unit,*) 'except rho, which always goes from 0 to 1.'
+          write(fort11_unit,*) 'The rho normalization is determined by irho.'
        endif
-       write(11,*) 'avgrmid = ',avgrmid,' meters'
-       if(iflux == 1) write(11,*) 'R_mag = ',rmaj
-       if(iflux == 1) write(11,*) 'B_T0 = ',B_T0
+       write(fort11_unit,*) 'avgrmid = ',avgrmid,' meters'
+       if(iflux == 1) write(fort11_unit,*) 'R_mag = ',rmaj
+       if(iflux == 1) write(fort11_unit,*) 'B_T0 = ',B_T0
     endif
 
     rho=rhoc
 
-if (debug) write(6,*) "eikcoefs: find rp"
+if (debug) write(6,*) "eikcoefs: find rp", 'jid=',job_id
+
     if(iflux == 1) then
        rpmin = psi_0
        rpmax = psi_a
 if (debug) write(6,*) "eikcoefs: rpmin,rpmax=",rpmin,rpmax
        rp = rpofrho(rho)
-if (debug) write(6,*) "eikcoefs: rp=",rp
+if (debug) write(6,*) "eikcoefs: rp=",rp, 'jid=',job_id
     else
        rpmin = 0.
        rpmax = 1.0
@@ -504,12 +551,12 @@ if (debug) write(6,*) "eikcoefs: find rgrid"
     endif
 
     if(writelots) then
-       write(11,*) 'rp of rho = ',rp
-       write(11,*) 'Rcenter(rho) = ',rcenter(rp)
-       write(11,*) 'R_geo = ',R_geo,' !or ',btori(rgrid(0), 0.)
+       write(fort11_unit,*) 'rp of rho = ',rp
+       write(fort11_unit,*) 'Rcenter(rho) = ',rcenter(rp)
+       write(fort11_unit,*) 'R_geo = ',R_geo,' !or ',btori(rgrid(0), 0.)
     endif
 
-    if(R_geo > Rmaj + 1.e-5) then
+    if(iflux == 1 .and. R_geo > Rmaj + 1.e-5) then
        write(6,*) 
        write(6,*) 'Warning: the center of the LCFS is outboard of the '
        write(6,*) 'center of the reference surface.  This is probably wrong.'
@@ -517,12 +564,20 @@ if (debug) write(6,*) "eikcoefs: find rgrid"
     endif
 
     if(writelots) then
+       call get_unused_unit(fort78_unit)
+       call open_output_file(fort78_unit,".fort.78")
+       call get_unused_unit(fort99_unit)
+       call open_output_file(fort99_unit,".fort.99")
+    
        rbar = 0.
-       write(78,*) '# theta_pol,  R,   Z'
+       write(fort78_unit,*) '# theta_pol,  R,   Z'
        do i= -nth,nth         
-          write(99,*) 'i=',i,' thet= ',theta(i),' rgrid= ',rgrid(i)
-          write(78,*) theta(i),Rpos(rgrid(i),theta(i)),Zpos(rgrid(i),theta(i))
+          write(fort99_unit,*) 'i=',i,' thet= ',theta(i),' rgrid= ',rgrid(i)
+          write(fort78_unit,*) theta(i),Rpos(rgrid(i),theta(i)),Zpos(rgrid(i),theta(i))
        enddo
+
+       call close_output_file(fort78_unit)
+       call close_output_file(fort99_unit)
 
        do i=-nth,nth-1
           rbar = rbar + rgrid(i) * (theta(i+1)-theta(i))
@@ -537,10 +592,10 @@ if (debug) write(6,*) "eikcoefs: find rgrid"
     if(nperiod > 1) call periodic_copy(theta, 2.*pi)
 
     if(writelots) then
-       write(11,*) 'drhodrp=',drhodrp
+       write(fort11_unit,*) 'drhodrp=',drhodrp
        if (irho == 1) then
           call drho_drhod(rp, drhodrp, drhodrhod)
-          write(11,*) 'drho_drhod=',drhodrhod
+          write(fort11_unit,*) 'drho_drhod=',drhodrhod
        end if
     end if
 
@@ -548,7 +603,7 @@ if (debug) write(6,*) "eikcoefs: find rgrid"
 ! should test whether this is a new equilibrium
 !
 
- if (debug) write(11,*) 'eikcoefs: various logs', gen_eq, ppl_eq, chs_eq, efit_eq, dfit_eq, idfit_eq
+ if (debug) write(fort11_unit,*) 'eikcoefs: various logs', gen_eq, ppl_eq, chs_eq, efit_eq, dfit_eq, idfit_eq
 
     if(gen_eq)    call geq_init
     if(ppl_eq)    call peq_init
@@ -569,6 +624,15 @@ if (debug) write(6,*) "eikcoefs: call rmajortgrid"
     ! note that rpgrad is given in (R,Z,phi) coordinates if bishop=0
     ! and (rho,l,phi) coordinates if bishop>0
     ! also, rpgrad is grad psi if iflux=1 and grad rho if iflux=0 -- MAB
+
+    ! When bishop > 0
+    ! rpgrad(:,1) is |grad rp|
+    ! rpgrad(:,2) is 0
+    ! crpgrad(:,1) is drp/dR
+    ! crpgrad(:,2) is drp/dZ
+    !
+    ! bishop = 0 is high aspect ratio coefficients for debugging -- EGH
+
     if(bishop == 0) then
        call  grad(rgrid, theta, rpgrad, char, dum, nth, ntgrid)
        crpgrad = rpgrad
@@ -618,7 +682,7 @@ if (debug) write(6,*) "eikcoefs: call rmajortgrid"
     if (debug) write(6,*) "eikcoefs: call eikonal"
     call eikonal(rgrid, rpgrad, thgrad, qval, seik, dsdthet, dpsidrp)
     if (debug) write(6,*) "eikcoefs: done eikonal"
-    if(writelots) write(11,*) 'q= ',qval
+    if(writelots) write(fort11_unit,*) 'q= ',qval
 
     if(iflux == 0 .or. iflux == 2) then
        bi = btori(rgrid(0), theta(0))
@@ -634,6 +698,8 @@ if (debug) write(6,*) "eikcoefs: call rmajortgrid"
        endif
     endif
 
+!<DD> If anyone uncomments the below loop please use get_unused_unit and open_output_file
+!     to open the output file (and close_output_file to close it) rather than using unit=43 directly.
 !    do i=-nth,nth
 !       write(43,*) theta(i), Bpolmag(i), rpos(rgrid(i), theta(i)), zpos(rgrid(i), theta(i)), seik(i)
 !    enddo
@@ -657,7 +723,7 @@ if (debug) write(6,*) "eikcoefs: call rmajortgrid"
 !      enddo
 ! ******************
 
-    if(writelots) write(11,*) 'dpsidrp= ',dpsidrp
+    if(writelots) write(fort11_unit,*) 'dpsidrp= ',dpsidrp
 !     
 !     compute derivatives of eikonal
 
@@ -717,7 +783,7 @@ if (debug) write(6,*) "eikcoefs: end gradients"
 ! find shat, pressure' and report them
 
        if(iflux == 0 .or. iflux == 2) then
-          dp = dpdrhofun(rhoc)*drhodpsi
+          dp = dpdrhofun()*drhodpsi
        else          
           dp = dpfun(rgrid(0),theta(0))
        endif
@@ -738,33 +804,33 @@ if (debug) write(6,*) "eikcoefs: end gradients"
 
        pressure = pfun(rgrid(0),theta(0))
 
-       write(11,*) 
-       write(11,*) 'Quantity, equilibrium value, value used'
+       write(fort11_unit,*) 
+       write(fort11_unit,*) 'Quantity, equilibrium value, value used'
 
        select case (bishop)
        case (2)
           s_hat_new = s_hat_input
           dp_new = p_prime_input
           di_new = (s_hat_new/tmp -2*c_b -dp_new*b_b) / a_b
-          write(11,*) 'p_prime = ',dp,', ',dp_new
+          write(fort11_unit,*) 'p_prime = ',dp,', ',dp_new
           if(writelots) write(*,*) 'p_prime = ',dp,', ',dp_new
        case (3)
           s_hat_new = s_hat_input
           dp_new = -invLp_input*pressure*drhodpsi
           di_new = (s_hat_new/tmp -2*c_b -dp_new*b_b) / a_b
-          write(11,*) '1/L_p = ',-dp/drhodpsi/pressure,', ',-dp_new/drhodpsi/pressure
+          write(fort11_unit,*) '1/L_p = ',-dp/drhodpsi/pressure,', ',-dp_new/drhodpsi/pressure
           if(writelots) write(*,*) '1/L_p = ',-dp/drhodpsi/pressure,', ',-dp_new/drhodpsi/pressure
        case (4)
           s_hat_new = s_hat_input
           dp_new = 0.5*beta_prime_input*drhodpsi
           di_new = (s_hat_new/tmp -2*c_b -dp_new*b_b) / a_b
-          write(11,*) 'd beta/d rho = ',2.*dp/drhodpsi,', ',2.*dp_new/drhodpsi
+          write(fort11_unit,*) 'd beta/d rho = ',2.*dp/drhodpsi,', ',2.*dp_new/drhodpsi
           if(writelots) write(*,*) 'd beta/d rho = ',2.*dp/drhodpsi,', ',2.*dp_new/drhodpsi
        case (5) 
           s_hat_new = s_hat_input
           dp_new = -alpha_input/qval**2/rmaj*drhodpsi
           di_new = (s_hat_new/tmp -2*c_b -dp_new*b_b) / a_b
-          write(11,*) 'alpha = ', -qval**2*rmaj*dp/drhodpsi,', ', &
+          write(fort11_unit,*) 'alpha = ', -qval**2*rmaj*dp/drhodpsi,', ', &
                -qval**2*rmaj*dp_new/drhodpsi
           if(writelots) write(*,*) 'alpha = ', -qval**2*rmaj*dp/drhodpsi,', ', &
                -qval**2*rmaj*dp_new/drhodpsi
@@ -772,26 +838,26 @@ if (debug) write(6,*) "eikcoefs: end gradients"
           s_hat_new = s_hat
           dp_new = 0.5*beta_prime_input*drhodpsi
           di_new = (s_hat_new/tmp -2*c_b -dp_new*b_b) / a_b
-          write(11,*) 'd beta/d rho = ',2.*dp/drhodpsi,', ',2.*dp_new/drhodpsi
+          write(fort11_unit,*) 'd beta/d rho = ',2.*dp/drhodpsi,', ',2.*dp_new/drhodpsi
           if(writelots) write(*,*) 'd beta/d rho = ',2.*dp/drhodpsi,', ',2.*dp_new/drhodpsi
        case (7)
           s_hat_new = s_hat
           dp_new = dp * dp_mult
           di_new = (s_hat_new/tmp -2*c_b -dp_new*b_b) / a_b
           beta_prime_new=2.*dp_new/drhodpsi
-          write(11,*) 'd beta/d rho = ',2.*dp/drhodpsi,', ',2.*dp_new/drhodpsi
+          write(fort11_unit,*) 'd beta/d rho = ',2.*dp/drhodpsi,', ',2.*dp_new/drhodpsi
           if(writelots) write(*,*) 'd beta/d rho = ',2.*dp/drhodpsi,', ',2.*dp_new/drhodpsi
        case (8)
           s_hat_new = s_hat_input
           dp_new = 0.5*beta_prime_input*drhodpsi * dp_mult
           di_new = (s_hat_new/tmp -2*c_b -dp_new*b_b) / a_b
-          write(11,*) 'd beta/d rho = ',2.*dp/drhodpsi,', ',2.*dp_new/drhodpsi
+          write(fort11_unit,*) 'd beta/d rho = ',2.*dp/drhodpsi,', ',2.*dp_new/drhodpsi
           if(writelots) write(*,*) 'd beta/d rho = ',2.*dp/drhodpsi,', ',2.*dp_new/drhodpsi
        case (9)
           s_hat_new = s_hat_input
           dp_new = 0.5*beta_prime_input*drhodpsi
           di_new = (s_hat_new/tmp -2*c_b -dp_new*b_b) / a_b
-          write(11,*) 'd beta/d rho = ',2.*dp/drhodpsi,', ',2.*dp_new/drhodpsi
+          write(fort11_unit,*) 'd beta/d rho = ',2.*dp/drhodpsi,', ',2.*dp_new/drhodpsi
           if(writelots) write(*,*) 'd beta/d rho = ',2.*dp/drhodpsi,', ',2.*dp_new/drhodpsi
        case default
           if(iflux /= 1) then
@@ -803,13 +869,13 @@ if (debug) write(6,*) "eikcoefs: end gradients"
              dp_new = dp
              di_new = di
           endif
-          write(11,*) 'd beta/d rho = ',2.*dp/drhodpsi,', ',2.*dp_new/drhodpsi
+          write(fort11_unit,*) 'd beta/d rho = ',2.*dp/drhodpsi,', ',2.*dp_new/drhodpsi
           if(writelots) write(*,*) 'd beta/d rho = ',2.*dp/drhodpsi,', ',2.*dp_new/drhodpsi
       end select
 
-       write(11,*) 's_hat ',s_hat,', ',s_hat_new
+       write(fort11_unit,*) 's_hat ',s_hat,', ',s_hat_new
        if(writelots) write(*,*) 's_hat ',s_hat,', ',s_hat_new
-       write(11,*) 
+       write(fort11_unit,*) 
 
        shat = s_hat_new
        dqdrp = s_hat_new*qval/rho*drhodrp
@@ -848,8 +914,8 @@ if (debug) write(6,*) "eikcoefs: end gradients"
           qval2=qval+dqdrho*delrho
        endif
     
-       call seikon(rp1, qval1, seik1, dsdthet1, rgrid1, ltheta, bpolmag, dum)
-       call seikon(rp2, qval2, seik2, dsdthet2, rgrid2, ltheta, bpolmag, dum)
+       call seikon(rp1, qval1, seik1, dsdthet1, rgrid1, dum)
+       call seikon(rp2, qval2, seik2, dsdthet2, rgrid2, dum)
        
        do i=-nth,nth
           dsdrp(i)=(seik2(i)-seik1(i))/(2.*delrp)
@@ -861,11 +927,11 @@ if (debug) write(6,*) "eikcoefs: end gradients"
        endif
     
        if(writelots) then
-          write(11,*) 'dqdrho=',dqdrho,' qval1,2= ',qval1,qval2
-          write(11,*) 's_hat= ',shat
-          write (11,*) 'i,rgrid,rgrid1,rgrid2:'
+          write(fort11_unit,*) 'dqdrho=',dqdrho,' qval1,2= ',qval1,qval2
+          write(fort11_unit,*) 's_hat= ',shat
+          write (fort11_unit,*) 'i,rgrid,rgrid1,rgrid2:'
           do i=-nth,nth
-             write (11,*) i,rgrid(i),rgrid1(i),rgrid2(i)
+             write (fort11_unit,*) i,rgrid(i),rgrid1(i),rgrid2(i)
           enddo
        endif
  
@@ -876,7 +942,7 @@ if (debug) write(6,*) "eikcoefs: end gradients"
        rpval(3)=rp2
 
        if(iflux == 0 .or. iflux == 2) then
-          dbetadrho = 2.*dpdrhofun(rhoc)
+          dbetadrho = 2.*dpdrhofun()
        else          
           dbetadrho = 2.*dpfun(rgrid(0),theta(0))/drhodrp
        endif
@@ -905,9 +971,9 @@ if (debug) write(6,*) "eikcoefs: end gradients"
     endif
 
     if(writelots) then
-       write(11,*) 'i,theta,grads1,2=  '
+       write(fort11_unit,*) 'i,theta,grads1,2=  '
        do i=-ntgrid,ntgrid
-          write(11,*) i,theta(i),grads(i,1),grads(i,2)
+          write(fort11_unit,*) i,theta(i),grads(i,1),grads(i,2)
        enddo
     endif
 !     compute total grad S including toroidal part
@@ -1000,8 +1066,69 @@ if (debug) write(6,*) "eikcoefs: end gradients"
     end if
 
     if(isym == 1) call sym(gradpar, 0, ntgrid)
+     
+    
+    ! EGH added this for GRYFX
+    bi_out = btori(rgrid(0),theta(0))
+
+    ! In the GK equation we have dg/dl.
+    ! Our parallel coordinate is theta, so the term is 
+    ! dtheta/dl dg/dtheta and gradpar = dtheta/dl.
+    ! We now define a new coordinate theta' such that
+    ! gradpar' = dtheta'/dl is constant, and the term is now
+    ! dtheta'/dl dg/dtheta'. This is the coordinate that 
+    ! is used if equal_arc = .true. and as a consequence
+    ! the values of theta that are used, e.g. in calculating
+    ! the matrices for invert_rhs is emphatically not the 
+    ! poloidal angle but this new coordinate theta'.
+    ! It is important to note that when you use equal_arc
+    ! it means that gradpar is constant, NOT that there are 
+    ! equal lengths of arc between gridpoints. In fact the 
+    ! grid points do not move, it's just that we have changed
+    ! the definition of our parallel coordinate, and consequently
+    ! gradpar. In other words Delta l/ Delta theta' is constant,
+    ! but Delta l is not... it is the same as it was before.
+    ! In the section of code below, which is used primarly by GRYFX,
+    ! we are doing something more. We calculate a set of theta values
+    ! such that Delta theta' is constant (rather than, as is the case
+    ! for most geometries,  Delta theta). As a consequence, on this
+    ! new grid, which we call theta_eqarc, Delta l is itself a constant
+    ! as a function of grid index.
+    theta_eqarc = gradpar ! Temp storage
+    call arclength (ntheta, nperiod, gradpar, arcl)
+    theta_prime = arcl
+    gradpar_prime = gradpar
+    gradpar = theta_eqarc ! Retrieve temp storage
+    ! arcl(i) is theta'(i) = theta'(theta(i)) such that
+    ! dl / dtheta' is constant. At the moment Delta theta is
+    ! constant and Delta theta' is not. We now calculate a new
+    ! set of theta values, theta_eqarc, such that Delta theta'
+    ! is constant but Delta theta is not. Since we have convenient
+    ! equally spaced set of grid points in theta, we use that for
+    ! the x values of the interpolation routine. 
+    ! The four important arguments of the call below
+    ! are:
+    !     2. An unequally spaced set of theta' values: theta_prime
+    !     3. The values of theta that correspond to them: theta
+    !     5. A set of equally spaced theta' values: theta_prime_eqarc
+    !     6. The new set of unequally spaced theta values, theta_eqarc, which correspond
+    !          to equally spaced theta' values and consequently constant 
+    !          values of Delta l, i.e. constant arc lengths between gridpoints.
+    !     
+    !
+    theta_prime_eqarc = theta
+    call inter_cspl(size(theta), theta_prime,       theta, &
+                    size(theta), theta_prime_eqarc, theta_eqarc)
       
+    ! In the lines below we redefine theta to be theta', and
+    ! gradpar to be gradpar'. This means that the values of
+    ! theta in the gs2 output file are not values of the poloidal
+    ! angle but values of theta_prime EGH
     if(equal_arc) then
+      ! The lines below can now be replaced by 
+      ! theta = theta_prime
+      ! gradpar = gradpar_prime
+      ! but we'll want to test extensively before doing it. EGH
        call arclength (ntheta, nperiod, gradpar, arcl)
        theta = arcl
     endif
@@ -1023,7 +1150,7 @@ if (debug) write(6,*) "eikcoefs: end gradients"
     call integrate(ds, theta, ans, nth)
     surfarea=2.*pi*(ans(nth)-ans(-nth))
 !    write(*,*) 'surface area= ',surfarea,' avgrmid**2'
-    if (writelots) write (11,*) 'surfarea=', surfarea
+    if (writelots) write (fort11_unit,*) 'surfarea=', surfarea
     
 
 !     compute dV/drhon = 2 pi Int(J dtheta)
@@ -1055,7 +1182,11 @@ if (debug) write(6,*) "eikcoefs: end gradients"
 !       call sym(gds24, 1, ntgrid)
     endif
 
-    write(25,*) rhoc, f_trap(bmag(-nth:nth))
+    
+    call get_unused_unit(fort25_unit)
+    call open_output_file(fort25_unit,".fort.25")
+    write(fort25_unit,*) rhoc, f_trap(bmag(-nth:nth))
+    call close_output_file(fort25_unit)
 
     kxfac = abs(qval/rhoc/drhodpsin)
     qsf = qval
@@ -1067,10 +1198,16 @@ if (debug) write(6,*) "eikcoefs: end gradients"
 !    if (nperiod ==1) call plotdata (rgrid, seik, grads, dpsidrho)
     call plotdata (rgrid, seik, grads, dpsidrho)
 
+    !write (*,*) 'gbdrift is ', gbdrift
+
     Bpol = bpolmag
 
     call dealloc_local_arrays
 
+    !Close output files
+    call close_output_file(fort11_unit)
+
+    if (start_file_utils) call finish_file_utils
 ! Generate metric tensor elements to compare with Xanthopoulos and Jenko    
 ! Need to change normalization to match XJ
 
@@ -1095,111 +1232,111 @@ if (debug) write(6,*) "eikcoefs: end gradients"
 !    end if
 
 
-contains
+  contains
 
-  subroutine alloc_local_arrays(n)
+    subroutine alloc_local_arrays(n)
+      
+      integer, intent(in) :: n
 
-    integer n
+      allocate(smodel (-n:n), &
+           dsdrp      (-n:n), &
+           grho2      (-n:n), &
+           grho1      (-n:n), &
+           seik       (-n:n), &
+           seik1      (-n:n), &
+           seik2      (-n:n), &
+           dsdthet    (-n:n), &
+           dsdthet1   (-n:n), &
+           dsdthet2   (-n:n), &
+           gdsdum1    (-n:n), &
+           gdsdum2    (-n:n), &
+           gdsdum3    (-n:n), &
+           gdsdum4    (-n:n), &  ! MAB
+           gdsdum5    (-n:n), &  ! MAB
+           th_bish    (-n:n), &
+           Rpol       (-n:n), &
+           ltheta     (-n:n), &
+           rgrid      (-n:n), &
+           rgrid1     (-n:n), &
+           rgrid2     (-n:n), &
+           Bpolmag    (-n:n), &
+           Bmod       (-n:n), &
+           dSdl       (-n:n), &
+           rmajor     (-n:n), &
+           ans        (-n:n), &
+           ds         (-n:n), &
+           arcl       (-n:n), &
+           Zoftheta   (-n:n), &
+           dZdl       (-n:n))
 
-    allocate(smodel (-n:n), &
-         dsdrp      (-n:n), &
-         grho2      (-n:n), &
-         grho1      (-n:n), &
-         seik       (-n:n), &
-         seik1      (-n:n), &
-         seik2      (-n:n), &
-         dsdthet    (-n:n), &
-         dsdthet1   (-n:n), &
-         dsdthet2   (-n:n), &
-         gdsdum1    (-n:n), &
-         gdsdum2    (-n:n), &
-         gdsdum3    (-n:n), &
-         gdsdum4    (-n:n), &  ! MAB
-         gdsdum5    (-n:n), &  ! MAB
-         th_bish    (-n:n), &
-         Rpol       (-n:n), &
-         ltheta     (-n:n), &
-         rgrid      (-n:n), &
-         rgrid1     (-n:n), &
-         rgrid2     (-n:n), &
-         Bpolmag    (-n:n), &
-         Bmod       (-n:n), &
-         dSdl       (-n:n), &
-         rmajor     (-n:n), &
-         ans        (-n:n), &
-         ds         (-n:n), &
-         arcl       (-n:n), &
-         Zoftheta   (-n:n), &
-         dZdl       (-n:n))
+      allocate(thgrad (-n:n,2), &
+           rpgrad     (-n:n,2), &
+           crpgrad    (-n:n,2), &
+           grads      (-n:n,2))
 
-    allocate(thgrad (-n:n,2), &
-         rpgrad     (-n:n,2), &
-         crpgrad    (-n:n,2), &
-         grads      (-n:n,2))
+      allocate(bvector(-n:n,3), &
+           gradrptot  (-n:n,3), &
+           gradstot   (-n:n,3), &
+           gradztot   (-n:n,3), &
+           gradthtot  (-n:n,3))  ! MAB
 
-    allocate(bvector(-n:n,3), &
-         gradrptot  (-n:n,3), &
-         gradstot   (-n:n,3), &
-         gradztot   (-n:n,3), &
-         gradthtot  (-n:n,3))  ! MAB
+    end subroutine alloc_local_arrays
 
-  end subroutine alloc_local_arrays
+    subroutine dealloc_local_arrays
 
-  subroutine dealloc_local_arrays
+      deallocate(smodel, &
+           dsdrp     , &
+           grho2     , &
+           grho1     , &
+           seik      , &
+           seik1     , &
+           seik2     , &
+           dsdthet   , &
+           dsdthet1  , &
+           dsdthet2  , &
+           gdsdum1   , &
+           gdsdum2   , &
+           gdsdum3   , &
+           gdsdum4   , &  ! MAB
+           gdsdum5   , &  ! MAB
+           th_bish   , &
+           Rpol      , &
+           ltheta    , &
+           rgrid     , &
+           rgrid1    , &
+           rgrid2    , &
+           Bpolmag   , &
+           Bmod      , &
+           dSdl      , &
+           rmajor    , &
+           ans       , &
+           ds        , &
+           arcl      , &
+           Zoftheta  , &
+           dZdl)
 
-    deallocate(smodel, &
-         dsdrp     , &
-         grho2     , &
-         grho1     , &
-         seik      , &
-         seik1     , &
-         seik2     , &
-         dsdthet   , &
-         dsdthet1  , &
-         dsdthet2  , &
-         gdsdum1   , &
-         gdsdum2   , &
-         gdsdum3   , &
-         gdsdum4   , &  ! MAB
-         gdsdum5   , &  ! MAB
-         th_bish   , &
-         Rpol      , &
-         ltheta    , &
-         rgrid     , &
-         rgrid1    , &
-         rgrid2    , &
-         Bpolmag   , &
-         Bmod      , &
-         dSdl      , &
-         rmajor    , &
-         ans       , &
-         ds        , &
-         arcl      , &
-         Zoftheta  , &
-         dZdl)
+      deallocate(thgrad, &
+           rpgrad    , &
+           crpgrad   , &
+           grads     )
 
-    deallocate(thgrad, &
-         rpgrad    , &
-         crpgrad   , &
-         grads     )
+      deallocate(bvector, &
+           gradrptot , &
+           gradstot  , &
+           gradztot  , &
+           gradthtot )  ! MAB
 
-    deallocate(bvector, &
-         gradrptot , &
-         gradstot  , &
-         gradztot  , &
-         gradthtot )  ! MAB
+    end subroutine dealloc_local_arrays
 
-  end subroutine dealloc_local_arrays
-
-end subroutine eikcoefs
+  end subroutine eikcoefs
 
   function surfareafun(rgrid)
     use constants, only: pi
     implicit none
-    real surfareafun
-    real, dimension(:) :: rgrid  
+    real, dimension(:), intent(in) :: rgrid  
+    real :: surfareafun
     real, dimension(-ntgrid:ntgrid) :: ds, drdth, ans
-    integer i
+    integer :: i
     
     write(*,*) 'surfareafun not generalized yet? needs to be checked.'
 
@@ -1217,12 +1354,9 @@ end subroutine eikcoefs
 
     call integrate(ds, theta, ans, nth)
     surfareafun=ans(nth)-ans(-nth)
-    
-
   end function surfareafun
 
   subroutine bvectortgrid(rgrid, theta, nth, rpgrad, dpsidrp, bvector)
-
     integer, intent (in) :: nth
     real, dimension(-ntgrid:  ), intent (in) :: rgrid, theta
     real, dimension(-ntgrid:,:), intent (in) :: rpgrad
@@ -1251,15 +1385,13 @@ end subroutine eikcoefs
        bvector(i,3) = bvector(i,3) * Rinv(i)
     enddo
 
-    return
+    return!?
   end subroutine bvectortgrid
 
   subroutine gradstottgrid (rmajor, grads, gradstot)
-
     real, dimension(-ntgrid:), intent (in) :: rmajor
     real, dimension(-ntgrid:, :), intent (in) :: grads
     real, dimension(-ntgrid:, :), intent (out) :: gradstot
-
     integer :: i, k, itot
 
     do k=-nperiod+1,nperiod-1
@@ -1274,11 +1406,9 @@ end subroutine eikcoefs
           endif
        enddo
     enddo
-
   end subroutine gradstottgrid
 
   subroutine crosstgrid(a, b, c)
-
     real, dimension(-ntgrid:, :), intent (in) ::  a, b
     real, dimension(-ntgrid:, :), intent (out) ::  c
     integer :: i
@@ -1288,11 +1418,9 @@ end subroutine eikcoefs
        c(i,2)=a(i,3)*b(i,1)-b(i,3)*a(i,1)
        c(i,3)=a(i,1)*b(i,2)-b(i,1)*a(i,2)
     enddo
-
   end subroutine crosstgrid
 
   subroutine dottgrid(a, b, c) 
-
     real, dimension (-ntgrid:, :) :: a, b
     real, dimension (-ntgrid:) :: c
     integer :: i, k, itot
@@ -1303,32 +1431,27 @@ end subroutine eikcoefs
           c(itot) = a(i,1)*b(itot,1) + a(i,2)*b(itot,2) + a(i,3)*b(itot,3)
        enddo
     enddo
-
   end subroutine dottgrid
 
   subroutine dottgridf(a, b, c)
-
-    real a(-ntgrid:,:),b(-ntgrid:,:),c(-ntgrid:)
-
+    real, dimension(-ntgrid:,:), intent(in) :: a, b
+    real, dimension(-ntgrid:), intent(out) :: c
     c = a(:,1)*b(:,1) + a(:,2)*b(:,2) + a(:,3)*b(:,3)
-
   end subroutine dottgridf
 
   subroutine bmagtgrid(rgrid, bmagtg)
-
     real, dimension (-ntgrid:), intent (in) :: rgrid
     real, dimension (-ntgrid:), intent (out) :: bmagtg
-
-    integer i      
+    integer :: i      
 
     do i=-nth,nth
        bmagtg(i)=bmagfun(rgrid(i),theta(i))
     enddo
-
   end subroutine bmagtgrid
       
   real function bmagfun(r, thet)
-
+    use mp, only: mp_abort
+    implicit none
     real, intent (in) :: r, thet
     real :: bt
     
@@ -1339,15 +1462,12 @@ end subroutine eikcoefs
 ! needs to be upgraded!!!
     else 
        bt = btori(r, thet)*invRfun(r, thet)
-       write(*,*) 'error: bmagfun not defined.'
-       stop
+       call mp_abort('bmagfun not defined.',.true.)
 !       bmagfun = sqrt(bt**2+bpmagfun(r, thet)**2)
     endif
-    
   end function bmagfun
 
   function Rpos(r, thet)
-
     use  geq, only: geq_R => Rpos
     use  peq, only: peq_R => Rpos
     use  ceq, only: ceq_R => Rpos
@@ -1366,11 +1486,9 @@ end subroutine eikcoefs
     if(dfit_eq) Rpos = deq_R (r, thet)
     if(idfit_eq)Rpos = ideq_R (r, thet)
     if(local_eq)Rpos = leq_R (r, thet)       
-
   end function Rpos
 
   function Zpos(r, thet)
-
     use  geq, only: geq_Z => Zpos
     use  peq, only: peq_Z => Zpos
     use  ceq, only: ceq_Z => Zpos
@@ -1389,11 +1507,9 @@ end subroutine eikcoefs
     if(dfit_eq) Zpos =  deq_Z (r, thet)
     if(idfit_eq)Zpos = ideq_Z (r, thet)
     if(local_eq)Zpos =  leq_Z (r, thet)       
-
   end function Zpos
   
   function invRfun(r, thet)
-
     use  geq, only: geq_invR => invR
     use  peq, only: peq_invR => invR
     use  ceq, only: ceq_invR => invR
@@ -1416,7 +1532,6 @@ end subroutine eikcoefs
        if(idfit_eq)invRfun = ideq_invR (r, thet)
        if(local_eq)invRfun =  leq_invR (r, thet)
     endif
-    
   end function invRfun
 
   subroutine drift(rgrid, rp, bvector, gradstot,  &
@@ -1427,14 +1542,13 @@ end subroutine eikcoefs
     real, dimension (-ntgrid:, :), intent (in) :: bvector, gradstot, gradrptot, gradztot, gradthtot
     real, intent (in) :: rp, dqdrp, dpsidrho, drhodrp
 
-    real, dimension (-ntgrid:ntgrid, 3) :: bgradtot, pgradtot, &
-         dummy, dummy1, curve
+    real, dimension (-ntgrid:ntgrid, 3) :: bgradtot, pgradtot, dummy, dummy1, curve
     real, dimension (-ntgrid:ntgrid, 2) :: pgrad, bgrad1
     real, dimension (-ntgrid:ntgrid) :: gbdrift1, gbdrift2, cvdrift1, cvdrift2, cdrift1, cdrift2
     real, dimension (-ntgrid:ntgrid) :: gbdrift3, cvdrift3
 
     real :: dum
-    character(1) char
+    character(1) :: char
     integer :: i, k, itot, ndum
 
     ndum = 2*nth + 1
@@ -1542,14 +1656,13 @@ end subroutine eikcoefs
        call sym(cvdrift0, 1, ntgrid)
 ! should maybe add in cdrift, cdrift0, gbdrift_th, and cvdrift_th here -- MAB
     endif
-
   end subroutine drift
 
   subroutine sym(a, isign, ntgrid)
-
-    integer i, isign, ntgrid
+    integer, intent(in) :: isign, ntgrid
     real, dimension(-ntgrid:), intent (in out) :: a
-      
+    integer :: i
+
     if(isign == 0) then
        do i=1,ntgrid
           a(i)=0.5*(a(i)+a(-i))
@@ -1562,18 +1675,16 @@ end subroutine eikcoefs
        enddo
        a(0)=0.
     endif
-
   end subroutine sym
       
-
-  subroutine seikon(rp, qval, seik, dsdthet, rgrid, ltheta, bpolmag, dpsidrp)
-    
-    real :: rp, qval
-    real, dimension(-ntgrid:) :: seik, dsdthet, rgrid, ltheta, bpolmag
+  subroutine seikon(rp, qval, seik, dsdthet, rgrid, dpsidrp)
+    real, intent(in) :: rp
+    real, intent(out) :: qval
+    real, dimension(-ntgrid:), intent(out) :: seik, dsdthet, rgrid
+    real, intent(out) :: dpsidrp
     real, dimension(-ntgrid:ntgrid, 2) :: thgrad, rpgrad
-    real :: dpsidrp, dum
-    
-    character(1) char    
+    real :: dum
+    character(1) :: char    
     
     rgrid = rp
     char='P'
@@ -1585,15 +1696,20 @@ end subroutine eikcoefs
 
     call thetagrad(rgrid, thgrad)
     call eikonal(rgrid, rpgrad, thgrad, qval, seik, dsdthet, dpsidrp)
-    
   end subroutine seikon
 
   subroutine eikonal(rgrid, rpgrad, thgrad, qval, seik, dsdthet, dpsidrp)
     use constants, only: pi
-    real, dimension(-ntgrid:ntgrid) :: trip, seik, dsdthet, rgrid
-    real, dimension(-ntgrid:, :) :: rpgrad, thgrad 
-    real :: qval, dpsidrp, bi
+    implicit none
+    real, dimension(-ntgrid:), intent(in) :: rgrid
+    real, dimension(-ntgrid:), intent(out) :: seik, dsdthet
+    real, dimension(-ntgrid:,:), intent(in) ::  rpgrad, thgrad
+    real, intent(out) :: qval
+    real, intent(out) :: dpsidrp
+    real, dimension(-ntgrid:ntgrid) :: trip
+    real :: bi
     integer :: i
+
     call tripprod2dtgrid(rpgrad, thgrad, rgrid, trip)
     
     bi = btori(rgrid(0),theta(0))
@@ -1614,21 +1730,20 @@ end subroutine eikcoefs
        dpsidrp=1.
        qval=-(seik(nth)-seik(-nth))/(2.*pi)
     endif
-
   end subroutine eikonal
 
   subroutine thetagrad(rgrid, thgrad)
-
+    use mp, only: mp_abort
+    implicit none
     real, dimension(-ntgrid:), intent (in) :: rgrid
     real, dimension(-ntgrid:, :), intent (out) :: thgrad
     real :: dum
-    character(1) char
+    character(1) :: char
     
     char='T'
     if(bishop == 0) then
        if(efit_eq .or. dfit_eq) then
-          write(*,*) 'error in thetagrad'
-          stop
+          call mp_abort('error in thetagrad',.true.)
        endif
        call grad(rgrid, theta, thgrad, char, dum, nth, ntgrid)
     else
@@ -1639,11 +1754,9 @@ end subroutine eikcoefs
        call periodic_copy(thgrad(-ntgrid:ntgrid,1),0.)
        call periodic_copy(thgrad(-ntgrid:ntgrid,2),0.)
     endif
-
   end subroutine thetagrad
 
   function diameter(rp)
-
     use geq, only: geq_diameter => diameter, geq_init_diameter => initialize_diameter
     use peq, only: peq_diameter => diameter, peq_init_diameter => initialize_diameter
     use ceq, only: ceq_diameter => diameter, ceq_init_diameter => initialize_diameter
@@ -1651,10 +1764,10 @@ end subroutine eikcoefs
     use eeq, only: bound
     use constants, only: pi
     implicit none
+    real, intent(in) :: rp
     integer :: i, initd = 1
-
-    real :: rp, diameter
-
+    real :: diameter
+    real :: broot0, brootpi
     if(rp <= rpmin .and. .not. efit_eq) then 
        diameter = 0.
        return
@@ -1675,24 +1788,24 @@ end subroutine eikcoefs
        if(idfit_eq)diameter = ideq_diameter(rp)
        if(ppl_eq)  diameter = peq_diameter(rp)
        if(chs_eq)  diameter = ceq_diameter(rp)
-       if(efit_eq) diameter = rfun(rp, 0., bound(0.)) + rfun(rp, pi, bound(pi))
+       if(efit_eq) then
+          broot0 = bound(0.)
+          brootpi = bound(pi)
+          diameter = rfun(rp, 0., broot0) + rfun(rp, pi, brootpi)
+       endif
     endif
-      
   end function diameter
 
   function psifun (rp)
-
     real, intent (in) :: rp
     real :: psifun
 
     psifun=min(1.,max(0.,(rp-psi_0)/(psi_a-psi_0)))
-    
   end function psifun
       
   function rhofun (rp)
-
     use deq, only: deq_rhofun => rhofun, init_rho => initialize_rho
-
+    implicit none
     real, intent (in) :: rp
     real :: rhofun, pbar
     integer :: i, initrho = 1
@@ -1703,22 +1816,19 @@ end subroutine eikcoefs
 
     i = init_rho(initrho)
     rhofun=deq_rhofun(pbar)
-    
   end function rhofun
       
   function rpfun(r, thet)
-
     real, intent (in) :: r, thet
     real :: rpfun
 
     rpfun=psi(r, thet)
-
   end function rpfun
       
   function rpofrho(rho)
-
+    real, intent(in) :: rho
     real :: rpofrho
-    real :: a, b, xerrbi, xerrsec, fval, soln, rho
+    real :: a, b, xerrbi, xerrsec, fval, soln
     integer :: nsolv,ier
     
     a=rpmin
@@ -1740,22 +1850,20 @@ end subroutine eikcoefs
        call root(rhofun, fval, a, b, xerrbi, xerrsec, nsolv, ier, soln)
     endif
     !<EGH
-     if (debug) then 
+    if (debug) then 
        write (*,*) "Values in root: "
        write (*,*) 'rho:  ', rho
        write (*,*) 'fval: ', fval
        write (*,*) 'soln: ', soln
        write (*,*) 'rpmin: ', rpmin
        write (*,*) 'rpmax: ', rpmax
-     end if
+    end if
     !EGH>
     rpofrho=soln
-    if(ier > 0) write(11,*) 'error in rpofrho,rho=',rho
-
+    if(ier > 0) write(fort11_unit,*) 'error in rpofrho,rho=',rho
   end function rpofrho
   
   subroutine tripprod2dtgrid(x, y, rgrid, val)
-
     real, dimension(-ntgrid:), intent (in) :: rgrid
     real, dimension(-ntgrid:), intent (out) :: val
     real, dimension(-ntgrid:, :), intent(in) :: x, y
@@ -1766,30 +1874,31 @@ end subroutine eikcoefs
     do i=-nth,nth
        val(i)=(x(i,1)*y(i,2)-x(i,2)*y(i,1))*invRfun(rgrid(i),theta(i))
     enddo
-    
   end subroutine tripprod2dtgrid
 
   function btori(r, thet)
-
     use geq, only: geq_btori => btori , geq_init_btori => initialize_btori
     use peq, only: peq_btori => btori , ppl_init_btori => initialize_btori
     use ceq, only: ceq_btori => btori , chs_init_btori => initialize_btori
     use eeq, only: eeq_btori => btori, efit_init_btori => initialize_btori
     use leq, only: leq_btori => btori
 
-    real :: btori
     real, intent (in) :: r, thet
+    real :: btori
     real :: pbar, f
     real, save :: r_last, theta_last, I_last
+    logical, save :: first_run = .true.
     integer :: i, initb = 1
 !
 ! In the present code, most calls to this routine have the same r, thet, so: 
 !
-    if(r == r_last .and. thet == theta_last .and. eqinit /= 1) then
-       btori = I_last
-       return
+    if(.not.first_run)then
+       if(r == r_last .and. thet == theta_last .and. eqinit /= 1) then
+          btori = I_last
+          return
+       endif
     endif
-    
+
     if(eqinit == 1) initb = 1
 
     if(iflux == 1) then
@@ -1815,27 +1924,26 @@ end subroutine eikcoefs
 
        btori=f
     else         
-       btori=leq_btori(pbar)
+       btori=leq_btori()
     endif
 
     r_last = r
     theta_last = thet
     I_last = btori
-
+    first_run = .false.
   end function btori
 
   function dbtori(r, thet)
 
  ! returns dI/dpsi
-
     use geq, only: geq_dbtori => dbtori , geq_init_dbtori => initialize_dbtori
     use peq, only: peq_dbtori => dbtori , ppl_init_dbtori => initialize_dbtori
     use ceq, only: ceq_dbtori => dbtori , chs_init_dbtori => initialize_dbtori
     use leq, only: leq_dbtori => dbtori
     use eeq, only: eeq_dbtori => dbtori, efit_init_dbtori => initialize_dbtori
 
-    real :: dbtori
     real, intent (in) :: r, thet
+    real :: dbtori
     real :: pbar, f
     integer :: i, initdb = 1
 
@@ -1868,9 +1976,8 @@ end subroutine eikcoefs
 
        dbtori=f
     else         
-       dbtori=leq_dbtori(pbar)
+       dbtori=leq_dbtori()
     endif
-
   end function dbtori
 
   function iofrho(rho)
@@ -1879,21 +1986,19 @@ end subroutine eikcoefs
     use ceq, only: ceq_iofpbar => btori
     use eeq, only: eeq_iofpbar => btori
     use leq, only: leq_i => btori
-    
+    implicit none
+    real, intent (in) :: rho    
     real :: iofrho
-    real, intent (in) :: rho
             
     if (gen_eq) iofrho = geq_iofpbar(pbarofrho(rho))
     if (ppl_eq) iofrho = peq_iofpbar(pbarofrho(rho))
     if (chs_eq) iofrho = ceq_iofpbar(pbarofrho(rho))
     if(efit_eq) iofrho = eeq_iofpbar(pbarofrho(rho))
     if(dfit_eq) iofrho = 0.
-    if(local_eq) iofrho = leq_i(rho)
-
+    if(local_eq) iofrho = leq_i()
   end function iofrho
 
   subroutine integrate(arg, grid, ans, n)
-
     real, dimension(-ntgrid:), intent (in) :: arg, grid
     real, dimension(-ntgrid:), intent (out) :: ans
     integer :: i, n
@@ -1906,11 +2011,12 @@ end subroutine eikcoefs
     do i=-1,-n,-1
        ans(i)=ans(i+1)+0.5*(grid(i)-grid(i+1))*(arg(i)+arg(i+1))
     enddo
-       
   end subroutine integrate
 
+  !> Calculates rmajor = R(theta), where R is the distance
+  !! to the central axis (rmajor not to be confused with rmaj, r_geo etc)
+  !! rgrid is the submodule radial grid (r_circ for EFIT & deq, rp otherwise)
   subroutine rmajortgrid(rgrid, theta, rmajor)
-
     real, dimension(-ntgrid:), intent(in) :: rgrid, theta
     real, dimension(-ntgrid:), intent(out) :: rmajor
     integer :: i
@@ -1919,11 +2025,10 @@ end subroutine eikcoefs
        rmajor(i)=Rpos(rgrid(i),theta(i))
     enddo
     
-    return
+    return!?
   end subroutine rmajortgrid
 
   subroutine Ztgrid(rgrid, theta, Zoftheta)
-
     real, dimension(-ntgrid:), intent(in) :: rgrid, theta
     real, dimension(-ntgrid:), intent(out) :: Zoftheta
     integer :: i
@@ -1932,7 +2037,7 @@ end subroutine eikcoefs
        Zoftheta(i)=Zpos(rgrid(i),theta(i))
     enddo
     
-    return
+    return!?
   end subroutine Ztgrid
 
   function qfun(pbar)
@@ -1941,9 +2046,10 @@ end subroutine eikcoefs
     use ceq, only: ceq_qfun => qfun, chs_init_q => initialize_q
     use eeq, only: eeq_qfun => qfun, efit_init_q => initialize_q
     use leq, only: leq_qfun => qfun
-
+    implicit none
+    real, intent(in) :: pbar
+    real :: qfun
     integer :: i, initq = 1
-    real :: pbar, qfun
     
 !    if(in_nt .and. iflux == 1) then
 !       write(*,*) 'qfun not update in nt.'
@@ -1951,7 +2057,7 @@ end subroutine eikcoefs
 !endif
     
     if(iflux == 0 .or. iflux == 2) then
-       qfun=leq_qfun(pbar)
+       qfun=leq_qfun()
        return
     endif
 
@@ -1974,11 +2080,9 @@ end subroutine eikcoefs
     endif
 
     if(initq == 1) initq = 0
-
   end function qfun
 
   function pfun(r,thet)
-
     use  geq, only: geq_pfun => pfun, geq_init_pressure => initialize_pressure
     use  peq, only: peq_pfun => pfun, ppl_init_pressure => initialize_pressure
     use  ceq, only: ceq_pfun => pfun, chs_init_pressure => initialize_pressure
@@ -1986,14 +2090,14 @@ end subroutine eikcoefs
     use  deq, only: deq_pfun => pfun, dfit_init_pressure => initialize_pressure
     use ideq, only: ideq_pfun => pfun, idfit_init_pressure => initialize_pressure
     use  leq, only: leq_pfun => pfun
-
+    implicit none
     real, intent (in) :: r, thet
-    real :: pfun, f
-    real pbar
+    real :: pfun
+    real :: pbar, f
     integer :: i, initp = 1
 
     if(iflux /= 1) then
-       pfun=leq_pfun(0.) 
+       pfun=leq_pfun() 
        return
     endif
 
@@ -2023,11 +2127,9 @@ end subroutine eikcoefs
     endif
 
     if(initp == 1) initp = 0
-    
   end function pfun
       
   function dpfun(r, thet)
-
     use  geq, only: geq_dpfun => dpfun, geq_init_dpressure => initialize_dpressure
     use  peq, only: peq_dpfun => dpfun, ppl_init_dpressure => initialize_dpressure
     use  ceq, only: ceq_dpfun => dpfun, chs_init_dpressure => initialize_dpressure
@@ -2035,15 +2137,14 @@ end subroutine eikcoefs
     use  deq, only: deq_dpfun => dpfun, dfit_init_dpressure => initialize_dpressure
     use ideq, only: ideq_dpfun => dpfun, idfit_init_dpressure => initialize_dpressure
     use  leq, only: leq_dpfun => dpfun
-
-
+    implicit none
     real, intent (in) :: r, thet
-    real :: dpfun, f
-    real pbar
+    real :: dpfun
+    real :: pbar, f
     integer :: i, initdp = 1
 
     if(iflux /= 1) then
-       dpfun=leq_dpfun(0.) 
+       dpfun=leq_dpfun() 
        return
     endif
 
@@ -2066,18 +2167,16 @@ end subroutine eikcoefs
     if(efit_eq)  dpfun = eeq_dpfun(pbar)
     if(dfit_eq)  dpfun = deq_dpfun(pbar)
     if(idfit_eq) dpfun = ideq_dpfun(pbar)
-    
   end function dpfun
 
   function beta_a_fun(r,thet)
-    
     use  geq, only: geq_beta => betafun,  geq_init_beta => initialize_beta
     use  peq, only: peq_beta => betafun,  ppl_init_beta => initialize_beta
     use  ceq, only: ceq_beta => betafun,  chs_init_beta => initialize_beta
     use  eeq, only: eeq_beta => betafun, efit_init_beta => initialize_beta
     use  deq, only: deq_beta => betafun, dfit_init_beta => initialize_beta
     use ideq, only: ideq_beta => betafun, idfit_init_beta => initialize_beta
-
+    implicit none
     real, intent (in) :: r, thet
     real :: beta_a_fun
     real :: pbar, f
@@ -2117,14 +2216,11 @@ end subroutine eikcoefs
 
     initbeta = 0
     beta_a_fun=f
-
   end function beta_a_fun
       
   function pbarofrho(rho)
-
     real, intent (in) :: rho
     real :: pbarofrho
-    
 !     punt for now; not used
 
     if(iflux /= 1) then
@@ -2134,23 +2230,24 @@ end subroutine eikcoefs
     endif
 
     pbarofrho=min(1.,max(0.,(rpofrho(rho)-psi_0)/(psi_a-psi_0)))
-    
   end function pbarofrho
 
   function dqdrhofun(rho)
-    
     real, intent (in) :: rho
     real dqdrhofun
     
     dqdrhofun=shat*qfun(pbarofrho(rho))/(rhoc)
-
   end function dqdrhofun
 
   subroutine root(f,fval,a,b,xerrbi,xerrsec,nsolv,ier,soln)
-
+    implicit none
     real, external :: f
-    real :: fval,a,b,a1,b1,f1,f2,f3,trial,xerrbi,xerrsec,soln,aold
-    integer :: i,ier,nsolv,niter,isolv
+    real, intent(in) :: fval, a, b, xerrbi, xerrsec
+    real, intent(out) :: soln
+    integer, intent(in) :: nsolv
+    integer, intent(out) :: ier
+    real :: a1, b1, f1, f2, f3, trial, aold
+    integer :: i,niter,isolv
     
     ier=0
     a1=a
@@ -2159,9 +2256,9 @@ end subroutine eikcoefs
     f2=f(b1)-fval
     if(xerrbi < 0.) goto 1000
     if(f1*f2 > 0.) then
-       write(11,*) 'f1 and f2 have same sign in bisection routine'
-       write(11,*) 'a1,f1,b1,f2=',a1,f1,b1,f2
-       write(11,*) 'fval=',fval
+       write(fort11_unit,*) 'f1 and f2 have same sign in bisection routine'
+       write(fort11_unit,*) 'a1,f1,b1,f2=',a1,f1,b1,f2
+       write(fort11_unit,*) 'fval=',fval
        ier=1
        goto 1000
     endif
@@ -2176,7 +2273,7 @@ end subroutine eikcoefs
           b1=trial
           f2=f3
        endif
-!      write(11,*) 'i,a1,f1,b1,f2 ',i,a1,f1,b1,f2
+!      write(fort11_unit,*) 'i,a1,f1,b1,f2 ',i,a1,f1,b1,f2
     enddo
  1000 continue
     if( abs(f1) > abs(f2) ) then
@@ -2188,7 +2285,7 @@ end subroutine eikcoefs
        b1=aold
     endif
 !     start secant method
-!     write(11,*) 'a1,f1,b1,f2',a1,f1,b1,f2
+!     write(fort11_unit,*) 'a1,f1,b1,f2',a1,f1,b1,f2
     isolv=0
     do i=1,10
        aold=a1
@@ -2197,7 +2294,7 @@ end subroutine eikcoefs
        a1=a1-f1*(b1-a1)/f3
        f2=f1
        b1=aold
-!       write(11,*) 'a1,f1,b1,f2',a1,f1,b1,f2
+!       write(fort11_unit,*) 'a1,f1,b1,f2',a1,f1,b1,f2
        if(abs(a1-b1) < xerrsec) isolv=isolv+1
        if (isolv >= nsolv) goto 9000
        f1=f(a1)-fval
@@ -2207,18 +2304,18 @@ end subroutine eikcoefs
   end subroutine root
 
   function phi(rp)
-      
-    integer, parameter :: nimax = 200
-
-    real :: phi
+    use mp, only: mp_abort
+    implicit none
     real, intent (in) :: rp
+    real :: phi
+    integer, parameter :: nimax = 200
     real :: pbar, pb(nimax), dpb
     integer :: i, ni
       
+    !This variable+logic doesn't seem to have any point?
     ni=200
     if(ni > nimax) then
-       write(*,*) 'Increase nimax in phi function'
-       stop
+       call mp_abort('Increase nimax in phi function',.true.)
     endif
     
     pbar=(rp-psi_0)/(psi_a-psi_0)
@@ -2236,11 +2333,9 @@ end subroutine eikcoefs
        phi=phi+0.5*dpb*(qfun(pb(i+1))+qfun(pb(i)))
     enddo
     phi=phi*(psi_a-psi_0)   ! fixed by MB
-
   end function phi
       
   function psi(r, thet)
-
     use  geq, only: geq_psi => psi,  geq_init_psi => initialize_psi
     use  peq, only: peq_psi => psi,  ppl_init_psi => initialize_psi
     use  ceq, only: ceq_psi => psi,  chs_init_psi => initialize_psi
@@ -2248,10 +2343,9 @@ end subroutine eikcoefs
     use  deq, only: deq_psi => psi, dfit_init_psi => initialize_psi
     use ideq, only: ideq_psi => psi, idfit_init_psi => initialize_psi
     use  leq, only: leq_psi => psi
-
-    real :: psi
+    implicit none
     real, intent (in) :: r, thet
-    
+    real :: psi    
     integer :: init = 1, i
      
     if(r == 0.) then
@@ -2269,13 +2363,13 @@ end subroutine eikcoefs
 
     if (gen_eq) then
        i = geq_init_psi(init)
-       psi = geq_psi(r, thet)       
+       psi = geq_psi(r)       
     elseif (ppl_eq) then
        i = ppl_init_psi(init)
-       psi = peq_psi(r, thet)       
+       psi = peq_psi(r)       
     elseif (chs_eq) then
        i = chs_init_psi(init)
-       psi = ceq_psi(r, thet)       
+       psi = ceq_psi(r)       
     else if(efit_eq) then
        i = efit_init_psi(init)
        psi = eeq_psi(r, thet)
@@ -2284,38 +2378,39 @@ end subroutine eikcoefs
        psi = deq_psi(r, thet)
     else if(idfit_eq) then
        i = idfit_init_psi(init)
-       psi = ideq_psi(r, thet)
+       psi = ideq_psi(r)
     else if(local_eq) then
-       psi = leq_psi(r, thet)
+       psi = leq_psi(r)
     endif
 
     init = 0
-
   end function psi
 
   function between(x,x1,x2)
-
+    real, intent(in) :: x, x1, x2
     logical :: between
-    real :: x, x1, x2
     if( ((x1 <= x).and.(x <= x2)) .or. ((x1 >= x).and.(x >= x2)) ) then
        between = .true.
     else
        between = .false.
     end if
-
   end function between
 
+  !This routine is just used by eik, not GS2
   subroutine geofax(rho, t, e, d)
-
+    implicit none
     real, intent (in) :: rho
     real, intent (out) :: t, e, d
     real :: a, b, aa, bb
     real, dimension(-ntgrid:ntgrid) :: rgrid
     real :: rp, hmaxu, hmaxl, rmaxu, rmaxl
     real :: rmid, Rlo, Rhi, Rinnr, Routr
-
     integer :: i
-
+    logical, save :: first=.true.
+    if(first)then
+       write(6,'("WARNING: GEOFAX USES UNINITIALISED VALUES -- RESULT MAY NOT BE SENSIBLE")')
+       first=.false.
+    endif
     rp=rpofrho(rho)
 
     if(efit_eq .or. dfit_eq) then
@@ -2349,9 +2444,11 @@ end subroutine eikcoefs
 
        Rlo = min(a,aa)
        Rhi = max(a,aa)
+!<DD>WARNING : Rinnr has not been defined on first loop through
        if (Rinnr > Rlo) then
           Rinnr = Rlo
        end if
+!<DD>WARNING : Routr has not been defined on first loop through
        if (Routr < Rhi) then
           Routr = Rhi
        endif
@@ -2368,14 +2465,21 @@ end subroutine eikcoefs
     d = rcenter(rp) - rcenter(psi_a)
 end subroutine geofax
       
-  function rmagaxis(rp)
+  function rmagaxis()
 
     real :: rmagaxis
-    real, intent (in) :: rp
     
     if(iflux == 1) then
        rmagaxis=rmaj
     else
+      write (*,*) 'ERROR: This formula for rmagaxis is wrong: &
+        & the position of the magnetic axis is undefined &
+        & in local (Miller) geometry'
+      stop 1
+      ! EGH This is wrong! When iflux=0, r_geo
+      ! is I_N=I/a^2 Ba where I = RB_t
+      ! As far as I can tell this formula is not used
+      ! anywhere so no harm done.
        rmagaxis=R_geo
     endif
     
@@ -2394,7 +2498,7 @@ end subroutine geofax
     real, intent (in) :: rp
     real :: rcenter
     integer :: i, init_rc = 1
-
+    real :: broot0, brootpi
     if(eqinit == 1) init_rc = 1
 
     if (gen_eq)  i = geq_init_rc(init_rc) 
@@ -2410,19 +2514,21 @@ end subroutine geofax
     if(ppl_eq)   rcenter = peq_rcenter(rp) 
     if(chs_eq)   rcenter = ceq_rcenter(rp) 
 
-    if(efit_eq)  rcenter = rmaj + 0.5*(rfun(rp, 0., bound(0.))-rfun(rp,pi,bound(pi)))
-    if(local_eq) rcenter = leq_rcenter(rp)
-
+    if(efit_eq) then
+       broot0 = bound(0.)
+       brootpi= bound(pi)
+       rcenter = rmaj + 0.5*(rfun(rp, 0., broot0 )-rfun(rp,pi,brootpi))
+    endif
+    if(local_eq) rcenter = leq_rcenter()
   end function rcenter
 
   function bmodfun(r,thet)
-
     use geq, only: geqitem => eqitem, eqB_psi => B_psi
     use ideq, only: ideqitem => eqitem, ideqB_psi => B_psi
-
-    real :: bmodfun
+    use mp, only: mp_abort
+    implicit none
     real, intent (in) :: r, thet
-
+    real :: bmodfun
     integer :: init = 1
     real :: f
 
@@ -2439,23 +2545,17 @@ end subroutine geofax
        bmodfun=f
        return
     else
-       
        write(*,*) 'Stopping in bmodfun.'  
-       write(*,*) 'You must use gen_eq to call bmodfun.'
-       stop
-       
+       call mp_abort('You must use gen_eq or idfit_eq to call bmodfun.',.true.)
     endif
-    
   end function bmodfun
 
   subroutine arclength (ntheta, nperiod, gpar, arcl)
     use constants, only: pi
     implicit none
     integer, intent (in) :: ntheta, nperiod
-!    real, dimension(-ntgrid:), intent (in) :: theta
     real, dimension(-ntgrid:), intent (out) :: arcl
     real, dimension(-ntgrid:), intent (in out) :: gpar
-
     integer :: nth, j, k
     real :: arcfac
     
@@ -2478,14 +2578,12 @@ end subroutine geofax
           gpar(j+k*ntheta)=2.*pi*arcfac
        enddo
     enddo
-    
   end subroutine arclength
 
   subroutine loftheta(rgrid, theta, ltheta)
-
-    real, dimension (-ntgrid:) :: rgrid, theta, ltheta
+    real, dimension (-ntgrid:), intent(in) :: rgrid, theta
+    real, dimension (-ntgrid:), intent(out) :: ltheta
     integer :: i
-    
     real :: rold, told, rpos_old, zpos_old, rpos_new, zpos_new
     real :: r, thet  !, L_tot
         
@@ -2528,14 +2626,13 @@ end subroutine geofax
        rold=r
        told=thet
     enddo
-
   end subroutine loftheta
 
   subroutine gradl (ltheta, f, dfdl, ext, n)
     real, dimension (-ntgrid:), intent(in) :: ltheta, f
     real, dimension (-ntgrid:), intent(out) :: dfdl
     real, intent(in) :: ext
-    integer :: n
+    integer, intent(in) :: n
     integer :: i
 
     dfdl(-n) = (f(n-1) + ext - f(-n+1)) &
@@ -2546,17 +2643,14 @@ end subroutine geofax
     enddo
     
     dfdl(n) = dfdl(-n)
-
   end subroutine gradl
 
   subroutine th_bishop(rpgrad, th_bish, nth)
     use constants, only: pi
     implicit none
     integer, intent (in) :: nth
-    
     real, dimension (-ntgrid:, :), intent (in) :: rpgrad
     real, dimension (-ntgrid:), intent (out) :: th_bish
-
     real, dimension (-ntgrid:ntgrid) :: magrp
     real, dimension (-ntgrid:ntgrid, 2) :: tvec
     integer :: i
@@ -2585,16 +2679,13 @@ end subroutine geofax
           th_bish(i)=acos(max(min(tvec(i,1),1.0),-1.0))
        endif
     enddo
-
   end subroutine th_bishop
 
   subroutine B_pol(rgrid, theta, rpgrad, Bpolmag, nth)
-
     integer, intent (in) :: nth
     real, dimension (-ntgrid:), intent (in) :: rgrid, theta
     real, dimension (-ntgrid:, :), intent (in) :: rpgrad
     real, dimension (-ntgrid:)   , intent (out) :: Bpolmag
-    
     real, dimension(-ntgrid:ntgrid) :: Rinv
     integer :: i
      
@@ -2605,11 +2696,9 @@ end subroutine geofax
     do i=-nth,nth
        Bpolmag(i)=sqrt(rpgrad(i,1)**2 + rpgrad(i,2)**2)*Rinv(i)
     enddo
-    
   end subroutine B_pol
 
   subroutine B_mod(rgrid, theta, Bpolmag, Bmod, nth)
-
     integer, intent (in) :: nth
     real, dimension (-ntgrid:), intent (in) :: rgrid, theta, Bpolmag
     real, dimension(-ntgrid:), intent (out) :: Bmod
@@ -2621,17 +2710,16 @@ end subroutine geofax
        Bmod(i)=sqrt((bi*invRfun(rgrid(i),theta(i)))**2 &
             +Bpolmag(i)**2)
     enddo
-    
   end subroutine B_mod
 
   subroutine R_pol(theta, th_bish, ltheta, Rpol, nth)
     use constants, only: pi
+    implicit none
     integer, intent (in) :: nth
     real, dimension(-ntgrid:), intent (in) :: th_bish, theta, ltheta
     real, dimension(-ntgrid:), intent (out) :: Rpol
     real, dimension(-ntgrid:ntgrid) :: dthdl
     integer :: i, is
-
 ! 
 ! R = 1/(d theta/dl * d th_bish/d theta)
 ! 
@@ -2639,6 +2727,7 @@ end subroutine geofax
 !
 ! find this point:
 
+    !write (*,*) 'th_bish', th_bish
     is = nth-1
     do i=1,nth-1
        if(abs(th_bish(i+1)-th_bish(i)) > pi) then
@@ -2682,18 +2771,14 @@ end subroutine geofax
     do i=-nth,nth
        Rpol(i) = 1/(Rpol(i)*dthdl(i))
     enddo
-
   end subroutine R_pol
 
   subroutine test(rgrid, theta, Bpolmag, Bmod, Rpol, th_bish, bgrad, nth)
-    use constants, only: pi
     implicit none
     integer, intent (in) :: nth
-
     real, dimension(-ntgrid:), intent (in) :: rgrid, theta, Bmod, Bpolmag, &
          Rpol, th_bish
     real, dimension(-ntgrid:, :), intent(in) :: bgrad
-
     real, dimension(-ntgrid:ntgrid) :: rmajor, bbgrad
     real :: dp, bi, di, bp
     integer :: i
@@ -2730,24 +2815,17 @@ end subroutine geofax
 !            Bmod(i), bgrad(i,2)
     enddo
 
-  100 format(20(1x,g12.6))
+100 format(20(1x,g13.6))
   end subroutine test
 
   subroutine tdef(nthg, ntheta_returned)
     use constants, only: pi
     implicit none
 !RN>
-!    integer :: nthg, nthsave, i, ntheta_returned
-    integer :: nthg, i
+    integer, intent(in) :: nthg
     integer, intent(out), optional :: ntheta_returned
+    integer :: i
 !<RN
-!cmr Jun06: adding following debug switch
-    !logical, parameter :: debug=.false.
-!cmr
-!    logical, parameter :: first = .true.
-    
-!    if(.not.first) return
-!    first = .false.
 
 !    nthsave=nth
     nth=nthg/2   ! correct, at least for geq
@@ -2774,15 +2852,12 @@ end subroutine geofax
        theta(i)=i*pi/float(nth)
        theta(-i)=-theta(i)
     enddo
-
   end subroutine tdef
 
   subroutine alloc_Xanth (n)
-
-    integer n
+    integer, intent(in) :: n
 
     if (allocated(g11_X)) return
-
     allocate (g11_X     (-n:n), &
               g12_X     (-n:n), &
               g22_X     (-n:n), &
@@ -2791,12 +2866,10 @@ end subroutine geofax
               K1_X      (-n:n), &
               K2_X      (-n:n), &
               gradpar_X (-n:n))
-
   end subroutine alloc_Xanth
 
   subroutine alloc_module_arrays(n)
-
-    integer n
+    integer, intent(in) :: n
 !cmr Jun06: adding following debug switch
     logical, parameter :: debug=.false.
 !cmr
@@ -2828,6 +2901,10 @@ end subroutine geofax
          aprime     (-n:n), &
          Uk1        (-n:n), &
          Uk2        (-n:n), &
+         theta_eqarc(-n:n), & !EGH
+         theta_prime(-n:n), & !EGH
+         theta_prime_eqarc(-n:n), & !EGH
+         gradpar_prime(-n:n),     & !EGH
          Bpol       (-n:n))
     if (debug) write(6,*) "alloc_module_arrays: done"
   end subroutine alloc_module_arrays
@@ -2860,11 +2937,14 @@ end subroutine geofax
          aprime     , &
          Uk1        , &
          Uk2        , &
+         theta_eqarc, & ! EGH
+         theta_prime, & ! EGH
+         theta_prime_eqarc, & ! EGH
+         gradpar_prime,     & ! EGH
          Bpol       )
   end subroutine dealloc_module_arrays
 
   subroutine finish_geometry
-    
     use  geq, only:  geq_finish
     use  peq, only:  peq_finish
     use  ceq, only:  ceq_finish
@@ -2872,8 +2952,8 @@ end subroutine geofax
     use  deq, only:  deq_finish => dfit_finish
     use ideq, only: ideq_finish => dfit_finish
     use  leq, only:  leq_finish
-
     implicit none
+
     call dealloc_module_arrays
     eqinit = 1
 
@@ -2884,13 +2964,12 @@ end subroutine geofax
     if(dfit_eq)  call  deq_finish
     if(idfit_eq) call ideq_finish
     if(local_eq) call  leq_finish
-
   end subroutine finish_geometry
 
   subroutine init_theta(nt)
     use constants, only: pi
     integer, intent(in) :: nt
-    integer i
+    integer :: i
 
 !cmr Jun06: adding following debug switch
     logical, parameter :: debug=.false.
@@ -2900,7 +2979,8 @@ end subroutine geofax
     ntheta=nt
     nth = nt / 2
     ntgrid = (2*nperiod - 1)*nth       
-    if (debug) write(6,*) "init_theta: allocated(theta),ntgrid=",allocated(theta),ntgrid
+    if (verb>3) write(6,*) "init_theta: allocated(theta),ntgrid,nt,nperiod=",&
+      allocated(theta),ntgrid,nt,nperiod
     if (.not. first_local .and. allocated(theta)) deallocate (theta)
     allocate(theta(-ntgrid:ntgrid))
     first_local = .false.
@@ -2910,10 +2990,8 @@ end subroutine geofax
   end subroutine init_theta
 
   subroutine periodic_copy(a, ext)
-
-    real, dimension(-ntgrid:ntgrid) :: a
-    
-    real ext
+    real, dimension(-ntgrid:ntgrid), intent(in out) :: a
+    real, intent(in) :: ext
     integer :: i, k, itot
 
     if(nperiod == 1) return
@@ -2931,14 +3009,10 @@ end subroutine geofax
           a(itot) = a(i) + k*ext
        enddo
     enddo
-
   end subroutine periodic_copy
 
-  subroutine bishop_gradB(rgrid, Bmod, Bpolmag, Rpol, th_bish, ltheta, &
-       gradB)
-    
-    real, dimension(-ntgrid:), intent (in) :: rgrid, Bmod, Bpolmag, &
-         Rpol, th_bish, ltheta
+  subroutine bishop_gradB(rgrid, Bmod, Bpolmag, Rpol, th_bish, ltheta, gradB)
+    real, dimension(-ntgrid:), intent (in) :: rgrid, Bmod, Bpolmag, Rpol, th_bish, ltheta
     real, dimension(-ntgrid:,:), intent(out) :: gradB
     real, dimension(-ntgrid:ntgrid) :: rmajor, dBdl
     real :: bi, bp
@@ -2954,83 +3028,92 @@ end subroutine geofax
             - bi**2*sin(th_bish(i))/rmajor(i)**3/bp)
        gradB(i,2)=dBdl(i)
     enddo
-
   end subroutine bishop_gradB
 
   subroutine check(geq, eeq, peq, leq, deq, ideq, ceq)
+    use mp, only: mp_abort
+    implicit none
     logical, intent(in) :: geq, eeq, peq, leq, deq, ideq, ceq
     
     if (ceq .and. (geq .or. eeq .or. peq .or.  leq .or. deq .or. ideq)) then
       write (*,*) 'Choosing chs_eq = .true. and any of gen_eq, dfit_eq, &
       & efit_eq, ppl_eq, iflux = 0 is not permitted'
        write(*,*) 'Stopping.'
-       stop
+       call mp_abort('Clash of equilibrium flags.')
     endif
 
     if(geq .and. deq) then
        write(*,*) 'Choosing gen_eq = .true. AND dfit_eq = .true. is not permitted.'
        write(*,*) 'Stopping.'
-       stop
+       call mp_abort('Clash of equilibrium flags.')
     endif
 
     if(geq .and. eeq) then
        write(*,*) 'Choosing gen_eq = .true. AND efit_eq = .true. is not permitted.'
        write(*,*) 'Stopping.'
-       stop
+       call mp_abort('Clash of equilibrium flags.')
     endif
 
     if(geq .and. peq) then
        write(*,*) 'Choosing gen_eq = .true. AND ppl_eq = .true. is not permitted.'
        write(*,*) 'Stopping.'
-       stop
+       call mp_abort('Clash of equilibrium flags.')
     endif
 
     if(geq .and. leq) then
        write(*,*) 'Choosing gen_eq = .true. AND iflux = 0 is not permitted.'
        write(*,*) 'Stopping.'
-       stop
+       call mp_abort('Clash of equilibrium flags.')
     endif
 
     if(eeq .and. deq) then
        write(*,*) 'Choosing efit_eq = .true. AND dfit_eq = .true. is not permitted.'
        write(*,*) 'Stopping.'
-       stop
+       call mp_abort('Clash of equilibrium flags.')
     endif
 
     if(eeq .and. leq) then
        write(*,*) 'Choosing efit_eq = .true. AND iflux = 0 is not permitted.'
        write(*,*) 'Stopping.'
-       stop
+       call mp_abort('Clash of equilibrium flags.')
     endif
 
     if(eeq .and. peq) then
        write(*,*) 'Choosing efit_eq = .true. AND ppl_eq = .true. is not permitted.'
        write(*,*) 'Stopping.'
-       stop
+       call mp_abort('Clash of equilibrium flags.')
     endif
 
     if(deq .and. leq) then
        write(*,*) 'Choosing dfit_eq = .true. AND iflux = 0 is not permitted.'
        write(*,*) 'Stopping.'
-       stop
+       call mp_abort('Clash of equilibrium flags.')
     endif
 
     if(deq .and. peq) then
        write(*,*) 'Choosing dfit_eq = .true. AND ppl_eq = .true. is not permitted.'
        write(*,*) 'Stopping.'
-       stop
+       call mp_abort('Clash of equilibrium flags.')
     endif
 
     if(peq .and. leq) then
        write(*,*) 'Choosing ppl_eq = .true. AND iflux = 0 is not permitted.'
        write(*,*) 'Stopping.'
-       stop
+       call mp_abort('Clash of equilibrium flags.')
     endif
-
   end subroutine check
 
+  !> Calculate the derivative of rp w.r.t. R and Z. Parameters
+  !! are: 
+  !!   - rgrid: Submodule radial grid (r_circ for EFIT, rp otherwise)
+  !!   - theta: grid of theta
+  !!   - gradf(:,1): deriv w.r.t. R as fn of theta
+  !!   - gradf(:,2): deriv w.r.t  Z as fn of theta
+  !!   - char: if char = 'R', return the gradient of pressure instead
+  !!   - rp: value of rp on the flux surface where we want the grad
+  !!   - nth: number of theta points
+  !!   - ntgrid: lower index of theta array is -ntgrid
   subroutine grad(rgrid, theta, gradf, char, rp, nth, ntgrid)
-     
      use  geq, only:  geq_gradient => gradient
      use  peq, only:  peq_gradient => gradient
      use  ceq, only:  ceq_gradient => gradient
@@ -3038,12 +3121,12 @@ end subroutine geofax
      use  deq, only:  deq_gradient => gradient
      use ideq, only: ideq_gradient => gradient
      use  leq, only:  leq_gradient => gradient
-
-     integer :: nth, ntgrid
-     real, dimension(-ntgrid:) :: rgrid, theta
-     real, dimension(-ntgrid:,:) :: gradf
-     character(1) :: char
-     real rp
+     implicit none
+     integer, intent(in) :: nth, ntgrid
+     real, dimension(-ntgrid:), intent(in) :: rgrid, theta
+     real, dimension(-ntgrid:,:), intent(out) :: gradf
+     character(1), intent(in) :: char
+     real, intent(in) :: rp
 
      if(gen_eq)   call  geq_gradient(rgrid, theta, gradf, char, rp, nth, ntgrid)
      if(ppl_eq)   call  peq_gradient(rgrid, theta, gradf, char, rp, nth, ntgrid)
@@ -3051,12 +3134,24 @@ end subroutine geofax
      if(efit_eq)  call  eeq_gradient(rgrid, theta, gradf, char, rp, nth, ntgrid)
      if(dfit_eq)  call  deq_gradient(rgrid, theta, gradf, char, rp, nth, ntgrid)
      if(idfit_eq) call ideq_gradient(rgrid, theta, gradf, char, rp, nth, ntgrid)
-     if(local_eq) call  leq_gradient(rgrid, theta, gradf, char, rp, nth, ntgrid)
-
+     if(local_eq) call  leq_gradient(theta, gradf, char, rp, nth, ntgrid)
    end subroutine grad
 
+  !> Calculate the derivative of rp w.r.t. R and Z and return
+  !! the modulus sqrt(drp/dR ^ 2 + drp/dZ^2). I.e. return |grad rp|.
+  !! Parameters are: 
+  !!   - rgrid: Submodule radial grid (r_circ for EFIT, rp otherwise)
+  !!   - theta: grid of theta
+  !!   - gradf(:,1): |grad psi|
+  !!   - gradf(:,2): 0.0
+  !!   - char: if char = 'R', return |grad pressure| instead
+  !!   - char: if char = 'T', then return theta gradient in bishop form
+  !!    - gradf(:,1): (dtheta/dZ d rp/dR - dtheta/dR drp/dZ)/ |grad rp|
+  !!    - gradf(:,2): (dtheta/dR d rp/dR + dtheta/dZ drp/dZ)/ |grad rp|
+  !!   - rp: value of rp on the flux surface where we want the grad
+  !!   - nth: number of theta points
+  !!   - ntgrid: lower index of theta array is -ntgrid
    subroutine bgrad(rgrid, theta, gradf, char, rp, nth, ntgrid)
-     
      use  geq, only:  geq_bgradient => bgradient
      use  peq, only:  peq_bgradient => bgradient
      use  ceq, only:  ceq_bgradient => bgradient
@@ -3064,12 +3159,12 @@ end subroutine geofax
      use  deq, only:  deq_bgradient => bgradient
      use ideq, only: ideq_bgradient => bgradient
      use  leq, only:  leq_bgradient => bgradient
-
-     integer :: nth, ntgrid
-     real, dimension(-ntgrid:) :: rgrid, theta
-     real, dimension(-ntgrid:,:) :: gradf
-     character(1) :: char
-     real rp
+     implicit none
+     integer, intent(in) :: nth, ntgrid
+     real, dimension(-ntgrid:), intent(in) :: rgrid, theta
+     real, dimension(-ntgrid:,:), intent(out) :: gradf
+     character(1), intent(in) :: char
+     real, intent(in) :: rp
 
      if(gen_eq)   call  geq_bgradient(rgrid, theta, gradf, char, rp, nth, ntgrid)
      if(ppl_eq)   call  peq_bgradient(rgrid, theta, gradf, char, rp, nth, ntgrid)
@@ -3077,42 +3172,59 @@ end subroutine geofax
      if(efit_eq)  call  eeq_bgradient(rgrid, theta, gradf, char, rp, nth, ntgrid)
      if(dfit_eq)  call  deq_bgradient(rgrid, theta, gradf, char, rp, nth, ntgrid)
      if(idfit_eq) call ideq_bgradient(rgrid, theta, gradf, char, rp, nth, ntgrid)
-     if(local_eq) call  leq_bgradient(rgrid, theta, gradf, char, rp, nth, ntgrid)
-
+     if(local_eq) call  leq_bgradient(theta, gradf, char, rp, nth, ntgrid)
    end subroutine bgrad
 
+  !> Calculate rgrid for the case of eeq and deq: 
+  !! in this case, rgrid is the distance to the magnetic 
+  !! axis as a function of theta.
   subroutine rtg(rgrid, rp)
-
+    use mp, only: mp_abort
     use eeq, only: ebound => bound
     use deq, only: dbound => bound
+    implicit none
     real, dimension(-ntgrid:), intent (out) :: rgrid
     real, intent (in) :: rp
+    real :: broot
     integer :: i
     
     if(.not. (efit_eq .or. dfit_eq)) then
-       write(*,*) 'error in rtg.  efit_eq = .false.'
-       stop          
+       call mp_abort('error in rtg.  efit_eq = .false.',.true.)
     endif
 
     if (efit_eq) then
        do i=-nth,nth
-          rgrid(i)=rfun(rp, theta(i), ebound(theta(i)))
+          ! The line below calcualates the distance
+          ! of the boundary away from the magnetic axis
+          ! at this value of theta: i.e. the maximum value 
+          ! of rfun.
+          broot=ebound(theta(i))
+          rgrid(i)=rfun(rp, theta(i), broot)
        enddo
     else if (dfit_eq) then
        do i=-nth,nth
-          rgrid(i)=rfun(rp, theta(i), dbound(theta(i)))
+          broot = dbound(theta(i))
+          rgrid(i)=rfun(rp, theta(i), broot)
        enddo
     endif
     if(nperiod>1) call periodic_copy(rgrid,0.0)
   end subroutine rtg
 
+  !> Returns the distance to the magnetic axis
+  !! as a function of rp (the normalised poloidal flux variable)
+  !! and theta. If broot is set > 0, assumes distance is less 
+  !! than or equal to broot: i.e. specifies the outer limit 
+  !! of the root finding.
+  !! Only for eeq and deq
   function rfun(rp, thet, broot)
-
     use eeq, only: ebound => bound
     use deq, only: dbound => bound
+    implicit none
+    real, intent(in) :: rp, thet
+    real, intent(in out) :: broot
     integer :: i, j, k, imax, jmax, kmax
     real :: rfun, fa, fb, fbroot, bmult, rootval, thetroot
-    real :: a, b, xerrsec, rp, thet, broot
+    real :: a, b, xerrsec
 
     if(.not. (efit_eq .or. dfit_eq)) then
        rfun = rp
@@ -3123,7 +3235,6 @@ end subroutine geofax
     rootval=rp
     a=0.
     b=broot
-
 
     if(broot < 0.) then
        if (efit_eq) broot = ebound(thet)
@@ -3165,19 +3276,18 @@ end subroutine geofax
     rfun=zbrent(rpfun, a, b, rootval, thetroot, xerrsec)
 !         write(*,1000) a, b, fa, fb, rfun, thet
 ! 1000 format(1x,11e16.9)
-
   end function rfun
 
   function zbrent(func, x1, x2, rootval, thetroot, tol)
-
-    real :: zbrent, func
-!    real, parameter :: eps = 3.e-8, eps1 = 2.e-5
+    use mp, only: mp_abort
+    implicit none
+    real, intent (in) :: x1, x2, rootval, thetroot, tol
+    real, external :: func
+    real :: zbrent
     real, parameter :: eps = 3.e-8, eps1 = 2.e-8
     integer, parameter :: itmax = 100
-    real, intent (in) :: x1, x2, rootval, thetroot, tol
     real :: a, b, c, fa, fb, fc, d, e, tol1, xm, q, p, r, s
     integer :: iter
-    external func
 
     a=x1
     b=x2
@@ -3194,8 +3304,7 @@ end subroutine geofax
           return
        endif
        write(*,*) a,b,fa,fb
-       write(*,*) 'root must be bracketed for zbrent.'
-       stop
+       call mp_abort('root must be bracketed for zbrent.',.true.)
     endif
     fc=fb
     do 11 iter=1,itmax
@@ -3252,40 +3361,38 @@ end subroutine geofax
        endif
        fb=func(b,thetroot)-rootval
 11     continue
-       write(*,*) 'zbrent exceeding maximum iterations.'
-       stop
+       call mp_abort('zbrent exceeding maximum iterations.',.true.)
        zbrent=b
-       
   end function zbrent
 
+  !Not used by GS2 (just eik/et)
   subroutine Hahm_Burrell(i, a)   
-
     use geq, only: geq_Hahm_Burrell => Hahm_Burrell
     use peq, only: peq_Hahm_Burrell => Hahm_Burrell
     use ceq, only: ceq_Hahm_Burrell => Hahm_Burrell
-
-    integer i
-    real a
-
+    implicit none
+    integer, intent(in) :: i
+    real, intent(in) :: a
+    
+    !Should be a select case?
     if(gen_eq) call geq_Hahm_Burrell(i, a)
     if(ppl_eq) call peq_Hahm_Burrell(i, a)
     if(chs_eq) call ceq_Hahm_Burrell(i, a)
-
-
   end subroutine Hahm_Burrell
 
   function nth_get()
-    
-    integer nth_get
+    integer :: nth_get
 
     nth_get = nth
-
   end function nth_get
 
+  !> Calculate the derivative of the flux label rho
+  !! with respect to the internal flux label rp (the 
+  !! normalised poloidal flux)
   subroutine drho_drp(rp, drhodrp)
-
-    real :: rp1, rp2, rp, rho1, rho2
+    real, intent(in) :: rp
     real, intent (out) :: drhodrp
+    real :: rp1, rp2, rho1, rho2
 
 !     compute d rho / d rp
     rp1=rp*(1.-delrho)
@@ -3304,15 +3411,12 @@ end subroutine geofax
        rho2=rhofun(rp2)
     endif
     drhodrp=(rho2-rho1)/(rp2-rp1)
-
   end subroutine drho_drp
 
   subroutine drho_drhod(rp, drhodrp, drhodrhod)
-
-    real :: rp1, rp2, rp, rho1, rho2
-    real, intent (in) :: drhodrp
+    real, intent (in) :: drhodrp, rp
     real, intent (out) :: drhodrhod
-
+    real :: rp1, rp2,  rho1, rho2
 !     compute d rho / d rb
     rp1=rp*(1.-delrho)
     rp2=rp*(1.+delrho)
@@ -3320,24 +3424,21 @@ end subroutine geofax
     rho2=0.5*diameter(rp2)
 
     drhodrhod=drhodrp/((rho2-rho1)/(rp2-rp1))
-
   end subroutine drho_drhod
 
   function fluxavg(f)
     real, dimension(-nth:nth), intent(in) :: f
-    real, dimension(-nth:nth) :: delth
     real :: fluxavg
+    real, dimension(-nth:nth) :: delth
 
     delth(-nth+1:nth-1) = 0.5*(theta(-nth+2:nth)-theta(-nth:nth-2))
     delth(-nth) = 0.5*(theta(-nth+1)-theta(-nth))
     delth(nth) = 0.5*(theta(nth)-theta(nth-1))
 
     fluxavg = sum(f*jacob(-nth:nth)*delth)/sum(jacob(-nth:nth)*delth)
-
   end function fluxavg
 
   function f_trap(b_mag)
-    
     real, dimension(-nth:nth), intent (in) :: b_mag
     real :: f_trap, ftu, ftl, havg, h2avg, h(-nth:nth)
 
@@ -3349,15 +3450,12 @@ end subroutine geofax
     ftu = 1.0 - h2avg/havg**2*(1.0-sqrt(1.0-havg)*(1.0+0.5*havg))
     ftl = 1.0 - h2avg*fluxavg((1.0-sqrt(1.0-h)*(1.0+0.5*h))/h**2)
     f_trap = 0.75*ftu + 0.25*ftl 
-    
   end function f_trap
 
   subroutine plotdata (rgrid, seik, grads, dpsidrho)
-
     real, dimension (-ntgrid:), intent (in) :: rgrid, seik
     real, dimension (-ntgrid:,:), intent (in) :: grads
     real, intent (in) :: dpsidrho
-
     real :: rplus, rminus, dr
     integer :: i
 !
@@ -3392,10 +3490,7 @@ end subroutine geofax
        Zprime(i) = (Zpos(rplus, theta(i))-Zpos(rminus, theta(i)))/dr
        aprime(i) = grads(i,1)*dpsidrho
     end do
-
   end subroutine plotdata
-
-
 end module geometry
 
 
@@ -3422,25 +3517,29 @@ end module geometry
 
 !contains
 subroutine geometry_set_inputs(equilibrium_type,&
-                               eqfile_in, &
+                               !eqfile_in, &
                                irho_in, &
                                rhoc_in, &
                                bishop_in, &
                                nperiod_in, &
                                ntheta)
-  use geometry
-
+  use geometry, only: rhoc, nperiod, eqfile, irho, iflux, local_eq, gen_eq, init_theta
+  use geometry, only: ppl_eq, transp_eq, chs_eq, efit_eq, equal_arc, bishop
+  use geometry, only: dp_mult, delrho, rmin, rmax, isym, in_nt, writelots, itor
+  use geometry, only: verb
+  use mp, only: mp_abort
+  implicit none
   integer, intent(in) :: equilibrium_type, nperiod_in, irho_in, bishop_in
   real, intent(in) :: rhoc_in
   integer, intent(inout) :: ntheta
-  character(len=800), intent(in) :: eqfile_in
+  !character(len=800), intent(in) :: eqfile_in
 
   write (*,*) 'Setting inputs'
   write (*,*)
 
   rhoc = rhoc_in
   nperiod = nperiod_in
-  eqfile = eqfile_in
+  !eqfile = eqfile_in
   irho = irho_in
 
   iflux = 1 ! Numerical unless changed for miller
@@ -3460,9 +3559,11 @@ subroutine geometry_set_inputs(equilibrium_type,&
   rmax = 1.0
   isym = 0
   in_nt = .false.
-  writelots = .false.
+  writelots = .true.
   !! Advanced use only
   itor = 1
+
+  verb = 4
 
   
   !ntheta_out = -1
@@ -3471,6 +3572,7 @@ subroutine geometry_set_inputs(equilibrium_type,&
   case (1)  ! Miller
     local_eq = .true.
     iflux = 0
+    bishop = 4
     call init_theta(ntheta)
   case (2)  ! EFIT
     efit_eq = .true.
@@ -3479,10 +3581,8 @@ subroutine geometry_set_inputs(equilibrium_type,&
   case default
     write(*,*) "Whatever geometry you are using hasn't "
     write(*,*) "been tested in a long time!"
-    stop 
+    call mp_abort("Whatever geometry you are using hasn't been tested in a long time!",.true.)
   end select
-
-
 
 end subroutine geometry_set_inputs  
 
@@ -3492,7 +3592,8 @@ end subroutine geometry_set_inputs
 !! all the parameters. It does not modify the geometry variables. 
 
 subroutine geometry_get_default_advanced_parameters(advanced_parameters_out)
-  use geometry
+  use geometry, only: advanced_parameters_type
+  implicit none
   type(advanced_parameters_type), intent(out) :: advanced_parameters_out
  
   advanced_parameters_out%equal_arc = .true.
@@ -3509,7 +3610,9 @@ end subroutine geometry_get_default_advanced_parameters
 !> Returns a derived type containing values of the advanced geometry
 !! parameters. 
 subroutine geometry_get_advanced_parameters(advanced_parameters_out)
-  use geometry
+  use geometry, only: equal_arc, dp_mult, delrho, rmin, rmax, isym, in_nt, writelots, itor
+  use geometry, only: advanced_parameters_type, advanced_parameters
+  implicit none
   type(advanced_parameters_type), intent(out) :: advanced_parameters_out
 
   advanced_parameters%equal_arc = equal_arc
@@ -3529,7 +3632,9 @@ end subroutine geometry_get_advanced_parameters
 !> Accepts a derived type containing values of the advanced geometry
 !! parameters and sets the variables in the geometry module accordingly. 
 subroutine geometry_set_advanced_parameters(advanced_parameters_in)
-  use geometry
+  use geometry, only: equal_arc, dp_mult, delrho, rmin, rmax, isym, in_nt, writelots, itor
+  use geometry, only: advanced_parameters_type, advanced_parameters
+  implicit none
   type(advanced_parameters_type), intent(in) :: advanced_parameters_in
 
   write(*,*) 'Setting advanced parameters'
@@ -3550,47 +3655,56 @@ subroutine geometry_set_advanced_parameters(advanced_parameters_in)
 end subroutine geometry_set_advanced_parameters
 
 subroutine geometry_get_miller_parameters(miller_parameters_out)
-  use geometry
+  use geometry, only: rmaj, r_geo, akappa, akappri, tri, tripri
+  use geometry, only: shift, qinp, shat, asym, asympri
+  use geometry, only: miller_parameters_type, miller_parameters
+  implicit none
   type(miller_parameters_type), intent(out) :: miller_parameters_out
-
-
-   miller_parameters%rmaj = rmaj
-   miller_parameters%r_geo = r_geo
-   miller_parameters%akappa = akappa
-   miller_parameters%akappri = akappri
-   miller_parameters%tri = tri
-   miller_parameters%tripri = tripri
-   miller_parameters%shift = shift
-   miller_parameters%qinp = qinp
-   miller_parameters%shat = shat
-   miller_parameters%asym = asym
-   miller_parameters%asympri = asympri
-
-   miller_parameters_out = miller_parameters
+  
+  miller_parameters%rmaj = rmaj
+  miller_parameters%r_geo = r_geo
+  miller_parameters%akappa = akappa
+  miller_parameters%akappri = akappri
+  miller_parameters%tri = tri
+  miller_parameters%tripri = tripri
+  miller_parameters%shift = shift
+  miller_parameters%qinp = qinp
+  miller_parameters%shat = shat
+  miller_parameters%asym = asym
+  miller_parameters%asympri = asympri
+  
+  miller_parameters_out = miller_parameters
 
 end subroutine geometry_get_miller_parameters
 
 subroutine geometry_set_miller_parameters(miller_parameters_in)
-  use geometry
+  use geometry, only: rmaj, r_geo, akappa, akappri, tri, tripri
+  use geometry, only: shift, qinp, shat, asym, asympri
+  use geometry, only: miller_parameters_type, miller_parameters
+  implicit none
   type(miller_parameters_type), intent(in) :: miller_parameters_in
 
-
-
-   miller_parameters = miller_parameters_in
-
-   rmaj = miller_parameters_in%rmaj
-   R_geo = miller_parameters_in%R_geo
-   akappa = miller_parameters_in%akappa
-   akappri = miller_parameters_in%akappri
-   tri = miller_parameters_in%tri
-   tripri = miller_parameters_in%tripri
-   shift = miller_parameters_in%shift
-   qinp = miller_parameters_in%qinp
-   shat = miller_parameters_in%shat
-   asym = miller_parameters_in%asym
-   asympri = miller_parameters_in%asympri
-
-   write(*,*) 's_hat was set to', shat
+  miller_parameters = miller_parameters_in
+  
+  rmaj = miller_parameters_in%rmaj
+  R_geo = miller_parameters_in%R_geo
+  akappa = miller_parameters_in%akappa
+  akappri = miller_parameters_in%akappri
+  tri = miller_parameters_in%tri
+  tripri = miller_parameters_in%tripri
+  shift = miller_parameters_in%shift
+  qinp = miller_parameters_in%qinp
+  shat = miller_parameters_in%shat
+  asym = miller_parameters_in%asym
+  asympri = miller_parameters_in%asympri
+   
+  write(*,*) 's_hat was set to', shat
+  write(*,*) 'akappa was set to', akappa
+  write(*,*) 'asym was set to', asym
+  write(*,*) 'R_geo was set to', R_geo
+  write(*,*) 'rmaj was set to', rmaj
+  write(*,*) 'qinp was set to', qinp
+  !write(*,*) 'ntheta was set to', ntheta
 
 end subroutine geometry_set_miller_parameters
 
@@ -3599,16 +3713,21 @@ end subroutine geometry_set_miller_parameters
 !! as described variously by Greene & Chance, Bishop and Miller.
 !! 
 subroutine geometry_vary_s_alpha(s_hat_input_in, beta_prime_input_in)
-  use geometry
+  use geometry, only: s_hat_input, beta_prime_input
+  implicit none
   real, intent(in) :: s_hat_input_in, beta_prime_input_in
   s_hat_input = s_hat_input_in
   beta_prime_input = beta_prime_input_in
 end subroutine geometry_vary_s_alpha
 
 subroutine geometry_calculate_coefficients(grid_size)
-  use geometry
+  use geometry, only: eikcoefs, nperiod, equal_arc
+  implicit none
   integer, intent(out) :: grid_size
   integer :: ntheta_out
+  ! We calculate the equal_arc grids manually,
+  ! and override equal_arc = .false.
+  equal_arc = .false.
   call eikcoefs(ntheta_out)
   write (*,*) 'ntheta out is ', ntheta_out
   grid_size = (2*nperiod - 1)*ntheta_out + 1 ! = 2*ntgrid + 1
@@ -3617,90 +3736,135 @@ end subroutine geometry_calculate_coefficients
 
 !> Get the geometric coefficients calculated by the geometry module.
 subroutine geometry_get_coefficients(grid_size, coefficients_out)
-  use geometry
+  use geometry, only: grho, bmag, gradpar, cvdrift, cvdrift0, coefficients_type
+  use geometry, only: gbdrift, gbdrift0, cdrift, cdrift0, gbdrift_th
+  use geometry, only: cvdrift_th, gds2, gds21, gds22, gds23, gds24, gds24_noq
+  use geometry, only: jacob, Rplot, Zplot, aplot, Rprime, Zprime, aprime, Uk1, Uk2, Bpol
+  use geometry, only: theta, theta_eqarc, theta_prime, theta_prime_eqarc
+  use geometry, only: gradpar_prime
+  implicit none
   integer, intent(in) :: grid_size
   type(coefficients_type), dimension(grid_size) :: coefficients_out
   integer ::ntgrid, i
+  real, dimension(:,:),allocatable :: interp_matrix
+   
+  allocate(interp_matrix(grid_size,grid_size))
 
   !ntgrid = (2*nperiod - 1) * ntheta/2
   ntgrid = (grid_size - 1)/2
 
-   !allocate(coefficients_out(2*ntgrid+1))   
-  !write (*,*) 'HERE2'
-   !!allocate(coefficients_out%bmag(ntgrid:ntgrid))       
-   !allocate(coefficients_out%gradpar(ntgrid:ntgrid))    
-   !allocate(coefficients_out%cvdrift(ntgrid:ntgrid))    
-   !allocate(coefficients_out%cvdrift0(ntgrid:ntgrid))   
-   !allocate(coefficients_out%gbdrift(ntgrid:ntgrid))    
-   !allocate(coefficients_out%gbdrift0(ntgrid:ntgrid))   
-   !allocate(coefficients_out%cdrift(ntgrid:ntgrid))    
-   !allocate(coefficients_out%cdrift0(ntgrid:ntgrid))    
-   !allocate(coefficients_out%gbdrift_th(ntgrid:ntgrid)) 
-   !allocate(coefficients_out%cvdrift_th(ntgrid:ntgrid)) 
-   !allocate(coefficients_out%gds2(ntgrid:ntgrid))       
-   !allocate(coefficients_out%gds21(ntgrid:ntgrid))      
-   !allocate(coefficients_out%gds22(ntgrid:ntgrid))      
-   !allocate(coefficients_out%gds23(ntgrid:ntgrid))      
-   !allocate(coefficients_out%gds24(ntgrid:ntgrid))      
-   !allocate(coefficients_out%gds24_noq(ntgrid:ntgrid))  
-   !allocate(coefficients_out%jacob(ntgrid:ntgrid))      
-   !allocate(coefficients_out%Rplot(ntgrid:ntgrid))      
-   !allocate(coefficients_out%Zplot(ntgrid:ntgrid))      
-   !allocate(coefficients_out%aplot(ntgrid:ntgrid))      
-   !allocate(coefficients_out%Rprime(ntgrid:ntgrid))     
-   !allocate(coefficients_out%Zprime(ntgrid:ntgrid))     
-   !allocate(coefficients_out%aprime(ntgrid:ntgrid))     
-   !allocate(coefficients_out%Uk1(ntgrid:ntgrid))        
-   !allocate(coefficients_out%Uk2(ntgrid:ntgrid))        
-   !allocate(coefficients_out%Bpol(ntgrid:ntgrid))       
+  call create_interp_matrix
 
   write (*,*) 'HERE'
   write (*,*) 'Grid size should be ', 2*ntgrid + 1
-   do i = -ntgrid,ntgrid
-   write (*,*) 'i', i
-   coefficients_out(i+ntgrid+1)%grho        = grho(i)   
-   coefficients_out(i+ntgrid+1)%bmag        = bmag(i)       
-   coefficients_out(i+ntgrid+1)%gradpar     = gradpar(i)    
-   coefficients_out(i+ntgrid+1)%cvdrift     = cvdrift(i)    
-   coefficients_out(i+ntgrid+1)%cvdrift0    = cvdrift0(i)   
-   coefficients_out(i+ntgrid+1)%gbdrift     = gbdrift(i)    
-   coefficients_out(i+ntgrid+1)%gbdrift0    = gbdrift0(i)   
-   coefficients_out(i+ntgrid+1)%cdrift     = cdrift(i)    
-   coefficients_out(i+ntgrid+1)%cdrift0     = cdrift0(i)    
-   coefficients_out(i+ntgrid+1)%gbdrift_th  = gbdrift_th(i) 
-   coefficients_out(i+ntgrid+1)%cvdrift_th  = cvdrift_th(i) 
-   coefficients_out(i+ntgrid+1)%gds2        = gds2(i)       
-   coefficients_out(i+ntgrid+1)%gds21       = gds21(i)      
-   coefficients_out(i+ntgrid+1)%gds22       = gds22(i)      
-   coefficients_out(i+ntgrid+1)%gds23       = gds23(i)      
-   coefficients_out(i+ntgrid+1)%gds24       = gds24(i)      
-   coefficients_out(i+ntgrid+1)%gds24_noq   = gds24_noq(i)  
-   coefficients_out(i+ntgrid+1)%jacob       = jacob(i)      
-   coefficients_out(i+ntgrid+1)%Rplot       = Rplot(i)      
-   coefficients_out(i+ntgrid+1)%Zplot       = Zplot(i)      
-   coefficients_out(i+ntgrid+1)%aplot       = aplot(i)      
-   coefficients_out(i+ntgrid+1)%Rprime      = Rprime(i)     
-   coefficients_out(i+ntgrid+1)%Zprime      = Zprime(i)     
-   coefficients_out(i+ntgrid+1)%aprime      = aprime(i)     
-   coefficients_out(i+ntgrid+1)%Uk1         = Uk1(i)        
-   coefficients_out(i+ntgrid+1)%Uk2         = Uk2(i)        
-   coefficients_out(i+ntgrid+1)%Bpol        = Bpol(i)       
-   end do
+  do i = -ntgrid,ntgrid
+     write (*,*) 'i', i
+     coefficients_out(i+ntgrid+1)%theta        = theta(i)   
+     coefficients_out(i+ntgrid+1)%theta_eqarc = theta_eqarc(i)
+     coefficients_out(i+ntgrid+1)%theta_prime        = theta_prime(i)   
+     coefficients_out(i+ntgrid+1)%theta_prime_eqarc = theta_prime_eqarc(i)
+     coefficients_out(i+ntgrid+1)%grho        = grho(i)   
+     coefficients_out(i+ntgrid+1)%grho_eqarc = interp(grho,i)
+     coefficients_out(i+ntgrid+1)%bmag        = bmag(i)       
+     coefficients_out(i+ntgrid+1)%bmag_eqarc = interp(bmag,i)
+     coefficients_out(i+ntgrid+1)%gradpar     = gradpar(i)    
+     coefficients_out(i+ntgrid+1)%gradpar_eqarc = interp(gradpar,i)
+     coefficients_out(i+ntgrid+1)%gradpar_prime     = gradpar_prime(i)    
+     coefficients_out(i+ntgrid+1)%gradpar_prime_eqarc = interp(gradpar_prime,i)
+     coefficients_out(i+ntgrid+1)%cvdrift     = cvdrift(i)    
+     coefficients_out(i+ntgrid+1)%cvdrift_eqarc = interp(cvdrift,i)
+     coefficients_out(i+ntgrid+1)%cvdrift0    = cvdrift0(i)   
+     coefficients_out(i+ntgrid+1)%cvdrift0_eqarc = interp(cvdrift0,i)
+     coefficients_out(i+ntgrid+1)%gbdrift     = gbdrift(i)    
+     coefficients_out(i+ntgrid+1)%gbdrift_eqarc = interp(gbdrift,i)
+     coefficients_out(i+ntgrid+1)%gbdrift0    = gbdrift0(i)   
+     coefficients_out(i+ntgrid+1)%gbdrift0_eqarc = interp(gbdrift0,i)
+     coefficients_out(i+ntgrid+1)%cdrift     = cdrift(i)    
+     coefficients_out(i+ntgrid+1)%cdrift_eqarc = interp(cdrift,i)
+     coefficients_out(i+ntgrid+1)%cdrift0     = cdrift0(i)    
+     coefficients_out(i+ntgrid+1)%cdrift0_eqarc = interp(cdrift0,i)
+     coefficients_out(i+ntgrid+1)%gbdrift_th  = gbdrift_th(i) 
+     coefficients_out(i+ntgrid+1)%gbdrift_th_eqarc = interp(gbdrift_th,i)
+     coefficients_out(i+ntgrid+1)%cvdrift_th  = cvdrift_th(i) 
+     coefficients_out(i+ntgrid+1)%cvdrift_th_eqarc = interp(cvdrift_th,i)
+     coefficients_out(i+ntgrid+1)%gds2        = gds2(i)       
+     coefficients_out(i+ntgrid+1)%gds2_eqarc = interp(gds2,i)
+     coefficients_out(i+ntgrid+1)%gds21       = gds21(i)      
+     coefficients_out(i+ntgrid+1)%gds21_eqarc = interp(gds21,i)
+     coefficients_out(i+ntgrid+1)%gds22       = gds22(i)      
+     coefficients_out(i+ntgrid+1)%gds22_eqarc = interp(gds22,i)
+     coefficients_out(i+ntgrid+1)%gds23       = gds23(i)      
+     coefficients_out(i+ntgrid+1)%gds23_eqarc = interp(gds23,i)
+     coefficients_out(i+ntgrid+1)%gds24       = gds24(i)      
+     coefficients_out(i+ntgrid+1)%gds24_eqarc = interp(gds24,i)
+     coefficients_out(i+ntgrid+1)%gds24_noq   = gds24_noq(i)  
+     coefficients_out(i+ntgrid+1)%gds24_noq_eqarc = interp(gds24_noq,i)
+     coefficients_out(i+ntgrid+1)%jacob       = jacob(i)      
+     coefficients_out(i+ntgrid+1)%jacob_eqarc = interp(jacob,i)
+     coefficients_out(i+ntgrid+1)%Rplot       = Rplot(i)      
+     coefficients_out(i+ntgrid+1)%Rplot_eqarc = interp(Rplot,i)
+     coefficients_out(i+ntgrid+1)%Zplot       = Zplot(i)      
+     coefficients_out(i+ntgrid+1)%Zplot_eqarc = interp(Zplot,i)
+     coefficients_out(i+ntgrid+1)%aplot       = aplot(i)      
+     coefficients_out(i+ntgrid+1)%aplot_eqarc = interp(aplot,i)
+     coefficients_out(i+ntgrid+1)%Rprime      = Rprime(i)     
+     coefficients_out(i+ntgrid+1)%Rprime_eqarc = interp(Rprime,i)
+     coefficients_out(i+ntgrid+1)%Zprime      = Zprime(i)     
+     coefficients_out(i+ntgrid+1)%Zprime_eqarc = interp(Zprime,i)
+     coefficients_out(i+ntgrid+1)%aprime      = aprime(i)     
+     coefficients_out(i+ntgrid+1)%aprime_eqarc = interp(aprime,i)
+     coefficients_out(i+ntgrid+1)%Uk1         = Uk1(i)        
+     coefficients_out(i+ntgrid+1)%Uk1_eqarc = interp(Uk1,i)
+     coefficients_out(i+ntgrid+1)%Uk2         = Uk2(i)        
+     coefficients_out(i+ntgrid+1)%Uk2_eqarc = interp(Uk2,i)
+     coefficients_out(i+ntgrid+1)%Bpol        = Bpol(i)       
+     coefficients_out(i+ntgrid+1)%Bpol_eqarc = interp(Bpol,i)
+  end do
 
-   write (*,*) 'Returning....'
+  deallocate(interp_matrix)
+
+  write (*,*) 'Returning....'
+  contains
+    subroutine create_interp_matrix
+      use geometry, only: theta, theta_eqarc
+      use splines, only: inter_cspl
+      integer :: j,k
+      real, dimension(grid_size) :: delta_array
+      do j = 1,grid_size
+        delta_array = 0.
+        delta_array(j) = 1.
+        call inter_cspl(grid_size, theta, delta_array, &
+                        grid_size, theta_eqarc, interp_matrix(:,j))
+      end do
+
+    end subroutine create_interp_matrix
+
+    function interp(array, ig)
+      real, dimension(:), intent(in) :: array
+      integer, intent(in) :: ig
+      real :: interp
+      integer :: j
+      j = ig + ntgrid + 1
+      interp = dot_product(array(:),interp_matrix(j,:))
+      !interp = array(j)
+    end function interp
 
 end subroutine geometry_get_coefficients
 
 subroutine geometry_get_constant_coefficients(constant_coefficients_out)
-  use geometry
+  use geometry, only: qsf, rmaj, shat, kxfac, aminor, drhodpsin, gradpar
+  use geometry, only: bi_out
+  use geometry, only: constant_coefficients_type, constant_coefficients
+  implicit none
   type(constant_coefficients_type), intent(out) :: constant_coefficients_out
-
 
   constant_coefficients%qsf = qsf
   constant_coefficients%rmaj = rmaj
   constant_coefficients%shat = shat
   constant_coefficients%kxfac = kxfac
   constant_coefficients%aminor = aminor
+  constant_coefficients%drhodpsin = drhodpsin
+  constant_coefficients%bi = bi_out
   constant_coefficients_out = constant_coefficients
   
 end subroutine geometry_get_constant_coefficients

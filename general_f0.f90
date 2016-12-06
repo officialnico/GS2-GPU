@@ -774,7 +774,7 @@ contains
     use species, only: ion_species, electron_species, nonmaxw_species, spec, nspec
     use constants, only: pi
     use mp, only: mp_abort, proc0
-    use spfunc, only: lgamma
+    use spfunc, only: lgamma => lgamma_ext
     implicit none
     integer,intent(in):: is
     real,intent(in):: v

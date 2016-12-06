@@ -3,6 +3,7 @@
 module gs2_save
 
   use mp, only: mp_comm, mp_info
+  use constants, only: run_name_size
 
 # ifdef NETCDF
 !  use netcdf, only: NF90_FLOAT, NF90_DOUBLE
@@ -11,6 +12,7 @@ module gs2_save
   use netcdf, only: NF90_HDF5,NF90_MPIIO
   use netcdf, only: nf90_var_par_access, NF90_COLLECTIVE
   use netcdf, only: nf90_put_att, NF90_GLOBAL, nf90_get_att
+  use netcdf, only: nf90_create_par
 # endif
   use netcdf, only: NF90_NOWRITE, NF90_CLOBBER, NF90_NOERR, NF90_UNLIMITED
   use netcdf, only: nf90_create, nf90_open, nf90_sync, nf90_close
@@ -27,10 +29,14 @@ module gs2_save
 
   implicit none
 
-  public :: gs2_restore, gs2_save_for_restart, finish_save
+  private
+
+  public :: gs2_restore, gs2_save_for_restart, finish_gs2_save
+
   public :: read_many, save_many, gs2_save_response, gs2_restore_response
   public :: restore_current_scan_parameter_value
-  public :: init_save, init_dt, init_tstart, init_ant_amp
+  public :: init_gs2_save, init_dt, init_tstart, init_ant_amp
+  public :: set_restart_file
   public :: init_vnm, restart_writable, EigNetcdfID
   public :: init_eigenfunc_file, finish_eigenfunc_file, add_eigenpair_to_file
 !# ifdef NETCDF
@@ -51,8 +57,7 @@ module gs2_save
 
   logical :: read_many, save_many ! Read and write single or multiple restart files
   
-  private
-  character (300), save :: restart_file
+  character (run_name_size) :: restart_file
 
 # ifdef NETCDF
   real, allocatable, dimension(:,:,:) :: tmpr, tmpi, ftmpr, ftmpi
@@ -76,6 +81,13 @@ module gs2_save
   logical :: initialized = .false.
   logical :: test = .false.
   logical :: include_parameter_scan = .true.
+  !> This parameter controls whether or not gs2
+  !! aborts if it cannot read the restart file (and
+  !! it has been told to load g from  a restart).
+  !! It is set to .true..
+  !! I can think of no conceivable reason why this
+  !! would ever need to be .false., but comments welcome. EGH
+  logical, parameter :: abort_on_restart_fail = .true.
 # endif
 
 contains
@@ -116,6 +128,7 @@ contains
     use dist_fn_arrays, only: vpa, vperp2
     !</DD> Added for saving distribution function
     use parameter_scan_arrays, only: current_scan_parameter_value
+    use unit_tests, only: debug_message
     implicit none
     complex, dimension (-ntgrid:,:,g_lo%llim_proc:), intent (in) :: g
     real, intent (in) :: t0, delt0
@@ -126,7 +139,7 @@ contains
     LOGICAL, INTENT (in), optional :: distfn !<DD> Added for saving distribution function
     character (20), INTENT (in), optional :: fileopt
 # ifdef NETCDF
-    character (306) :: file_proc
+    character (run_name_size) :: file_proc
     character (10) :: suffix
     integer :: i, n_elements, ierr
     integer :: total_elements
@@ -136,11 +149,15 @@ contains
 # endif
     logical :: exit
     logical :: local_init !<DD> Added for saving distribution function
+    integer, parameter :: verb = 3
 
 
 !*********-----------------------_**********************
 
     istatus = 0
+    !ncid = -1 
+    !call broadcast(ncid)
+    !call broadcast(file_proc)
     
     if (present(exit_in)) then
        exit = exit_in
@@ -158,6 +175,8 @@ contains
     total_elements = g_lo%ulim_world+1
 
     if (n_elements <= 0) return
+    
+    call debug_message(verb, 'gs2_save::gs2_save_for_restart checking init')
 
     !<DD> Added for saving distribution function
     IF (PRESENT(distfn)) THEN
@@ -214,13 +233,21 @@ contains
 
        file_proc = trim(trim(file_proc)//adjustl(suffix))          
 
+       call debug_message(verb, 'gs2_save::gs2_save_for_restart opening file')
+       call debug_message(verb, 'file proc is')
+       call debug_message(verb, file_proc)
+
 # ifdef NETCDF_PARALLEL       
        if(save_many) then
 # endif
           istatus = nf90_create (file_proc, NF90_CLOBBER, ncid)
 # ifdef NETCDF_PARALLEL
        else
+          call debug_message(verb, &
+            'gs2_save::gs2_save_for_restart calling barrier before delete file')
           call barrier
+          call debug_message(verb, &
+            'gs2_save::gs2_save_for_restart called barrier before delete file')
           
           if(iproc .eq. 0) then
              open(unit=tmpunit, file=file_proc)
@@ -228,8 +255,10 @@ contains
           end if
 
           call barrier
+          call debug_message(verb, &
+            'gs2_save::gs2_save_for_restart called barrier before opening')
 ! If using netcdf version 4.1.2 or older replace NF90_MPIIO with NF90_CLOBBER
-          istatus = nf90_create (file_proc, IOR(NF90_HDF5,NF90_MPIIO), ncid, comm=mp_comm, info=mp_info)
+          istatus = nf90_create_par (file_proc, IOR(NF90_HDF5,NF90_MPIIO), ncid=ncid, comm=mp_comm, info=mp_info)
        end if
 # endif
 
@@ -249,6 +278,7 @@ contains
           end if
        endif
 # endif
+       call debug_message(verb, 'gs2_save::gs2_save_for_restart defining dimensions')
        
        if (n_elements > 0) then
           istatus = nf90_def_dim (ncid, "theta", 2*ntgrid+1, thetaid)
@@ -336,6 +366,8 @@ contains
        !</DD> Added for saving distribution function
        
        if (netcdf_real == 0) netcdf_real = get_netcdf_code_precision()
+
+       call debug_message(verb, 'gs2_save::gs2_save_for_restart defining variables')
 
        istatus = nf90_def_var (ncid, "t0", netcdf_real, t0id)
        if (istatus /= NF90_NOERR) then
@@ -579,6 +611,7 @@ contains
        end if
     end if
 
+    call debug_message(verb, 'gs2_save::gs2_save_for_restart writing scalars')
 # ifdef NETCDF_PARALLEL                    
     if(save_many .or. iproc == 0) then
 # endif
@@ -680,6 +713,7 @@ contains
             allocate (tmpr(2*ntgrid+1,2,g_lo%llim_proc:g_lo%ulim_alloc))
 
        tmpr = real(g)
+      call debug_message(verb, 'gs2_save::gs2_save_for_restart writing dist fn')
 
 # ifdef NETCDF_PARALLEL
        if(save_many) then
@@ -697,7 +731,8 @@ contains
        endif
 # endif     
        
-       if (istatus /= NF90_NOERR) call netcdf_error (istatus, ncid, gr_id)
+       if (istatus /= NF90_NOERR) call netcdf_error (istatus, ncid, gr_id, &
+       var='gr put')
        
        tmpr = aimag(g)
 # ifdef NETCDF_PARALLEL
@@ -710,7 +745,8 @@ contains
        endif
 # endif     
 
-       if (istatus /= NF90_NOERR) call netcdf_error (istatus, ncid, gi_id)
+       if (istatus /= NF90_NOERR) call netcdf_error (istatus, ncid, gi_id, &
+         var = 'gi put')
        
        !<DD> Added for saving distribution function
        IF (PRESENT(distfn)) THEN
@@ -756,11 +792,13 @@ contains
           if (fphi > epsilon(0.)) then
              ftmpr = real(phinew)
              istatus = nf90_put_var (ncid, phir_id, ftmpr)
-             if (istatus /= NF90_NOERR) call netcdf_error (istatus, ncid, phir_id)
+             if (istatus /= NF90_NOERR) call netcdf_error (istatus, ncid, phir_id, &
+               var = 'phir put')
              
              ftmpi = aimag(phinew)
              istatus = nf90_put_var (ncid, phii_id, ftmpi)
-             if (istatus /= NF90_NOERR) call netcdf_error (istatus, ncid, phii_id)
+             if (istatus /= NF90_NOERR) call netcdf_error (istatus, ncid, phii_id, &
+               var = 'phir put')
           end if
 
           if (fapar > epsilon(0.)) then
@@ -788,18 +826,27 @@ contains
           if (.not. allocated(stmp)) allocate (stmp(naky))   
           stmp = kx_shift
           istatus = nf90_put_var (ncid, kx_shift_id, stmp)
-          if (istatus /= NF90_NOERR) call netcdf_error (istatus, ncid, kx_shift_id)
+          if (istatus /= NF90_NOERR) call netcdf_error &
+            (istatus, ncid, kx_shift_id, var = 'kx_shift put')
        else
           if (.not. allocated(stmp)) allocate (stmp(naky))
           stmp = 0.
           istatus = nf90_put_var (ncid, kx_shift_id, stmp)
-          if (istatus /= NF90_NOERR) call netcdf_error (istatus, ncid, kx_shift_id)
+          if (istatus /= NF90_NOERR) call netcdf_error &
+            (istatus, ncid, kx_shift_id, var = 'kx_shift dummy')
        endif ! MR end
 # ifdef NETCDF_PARALLEL
     end if
 # endif
        
-    if (exit) then
+    ! EGH Why don't we just close the file every time? As things stand
+    ! if you reinitalise the timestep in a nonlinear run, but don't have
+    ! save_for_restart true in gs2_diagnostics, then the last call to
+    ! this function will leave the file open. This is highly non-intuitive
+    ! behaviour and causes nasty error messages when you run with parallel 
+    ! netcdf.
+    !if (exit) then
+    if (.true.) then
        i = nf90_close (ncid)
        if (i /= NF90_NOERR) &
             call netcdf_error (istatus, message='nf90_close error')
@@ -819,7 +866,7 @@ contains
 
   end subroutine gs2_save_for_restart
 
-  subroutine gs2_restore_many (g, scale, istatus, fphi, fapar, fbpar)
+  subroutine gs2_restore_many (g, scale, istatus, fphi, fapar, fbpar, fileopt)
 !MR, 2007: restore kx_shift array if already allocated
 # ifdef NETCDF
     use mp, only: iproc
@@ -836,11 +883,12 @@ contains
     real, intent (in) :: scale
     integer, intent (out) :: istatus
     real, intent (in) :: fphi, fapar, fbpar
+    character (20), INTENT (in), optional :: fileopt
 # ifdef NETCDF
 # ifdef NETCDF_PARALLEL
     integer, dimension(3) :: counts, start_pos
 # endif
-    character (306) :: file_proc
+    character (run_name_size) :: file_proc
     character (10) :: suffix
     integer :: i, n_elements, ierr
     real :: fac
@@ -851,6 +899,10 @@ contains
     if (.not.initialized) then
        initialized = .true.
        file_proc = trim(restart_file)
+
+       IF (PRESENT(fileopt)) THEN
+          file_proc=trim(file_proc)//trim(fileopt)
+       END IF
 
 # ifdef NETCDF_PARALLEL
        if(read_many) then
@@ -872,30 +924,38 @@ contains
        call check_netcdf_file_precision (ncid)
 
        istatus = nf90_inq_dimid (ncid, "theta", thetaid)
-       if (istatus /= NF90_NOERR) call netcdf_error (istatus, dim='theta')
+       if (istatus /= NF90_NOERR) call netcdf_error (istatus, dim='theta',&
+         abort=abort_on_restart_fail)
        
        istatus = nf90_inq_dimid (ncid, "sign", signid)
-       if (istatus /= NF90_NOERR) call netcdf_error (istatus, dim='sign')
+       if (istatus /= NF90_NOERR) call netcdf_error (istatus, dim='sign',&
+         abort=abort_on_restart_fail)
        
        istatus = nf90_inq_dimid (ncid, "glo", gloid)
-       if (istatus /= NF90_NOERR) call netcdf_error (istatus, dim='glo')
+       if (istatus /= NF90_NOERR) call netcdf_error (istatus, dim='glo',&
+         abort=abort_on_restart_fail)
        
        istatus = nf90_inq_dimid (ncid, "aky", kyid)
-       if (istatus /= NF90_NOERR) call netcdf_error (istatus, dim='aky')
+       if (istatus /= NF90_NOERR) call netcdf_error (istatus, dim='aky',&
+         abort=abort_on_restart_fail)
        
        istatus = nf90_inq_dimid (ncid, "akx", kxid)
-       if (istatus /= NF90_NOERR) call netcdf_error (istatus, dim='akx')
+       if (istatus /= NF90_NOERR) call netcdf_error (istatus, dim='akx',&
+         abort=abort_on_restart_fail)
        
        istatus = nf90_inquire_dimension (ncid, thetaid, len=i)
-       if (istatus /= NF90_NOERR) call netcdf_error (istatus, ncid, dimid=thetaid)
+       if (istatus /= NF90_NOERR) call netcdf_error (istatus, ncid, dimid=thetaid,&
+         abort=abort_on_restart_fail, dim='theta')
        if (i /= 2*ntgrid + 1) write(*,*) 'Restart error: ntgrid=? ',i,' : ',ntgrid,' : ',iproc
        
        istatus = nf90_inquire_dimension (ncid, signid, len=i)
-       if (istatus /= NF90_NOERR) call netcdf_error (istatus, ncid, dimid=signid)
+       if (istatus /= NF90_NOERR) call netcdf_error (istatus, ncid, dimid=signid,&
+         abort=abort_on_restart_fail)
        if (i /= 2) write(*,*) 'Restart error: sign=? ',i,' : ',iproc
        
        istatus = nf90_inquire_dimension (ncid, gloid, len=i)
-       if (istatus /= NF90_NOERR) call netcdf_error (istatus, ncid, dimid=gloid)
+       if (istatus /= NF90_NOERR) call netcdf_error (istatus, ncid, dimid=gloid,&
+         abort=abort_on_restart_fail)
 #ifdef NETCDF_PARALLEL       
        if(read_many) then
 #endif
@@ -906,11 +966,13 @@ contains
        endif
 #endif
        istatus = nf90_inquire_dimension (ncid, kyid, len=i)
-       if (istatus /= NF90_NOERR) call netcdf_error (istatus, ncid, dimid=kyid)
+       if (istatus /= NF90_NOERR) call netcdf_error (istatus, ncid, dimid=kyid,&
+         abort=abort_on_restart_fail)
        if (i /= naky) write(*,*) 'Restart error: naky=? ',i,' : ',naky,' : ',iproc
        
        istatus = nf90_inquire_dimension (ncid, kxid, len=i)
-       if (istatus /= NF90_NOERR) call netcdf_error (istatus, ncid, dimid=kxid)
+       if (istatus /= NF90_NOERR) call netcdf_error (istatus, ncid, dimid=kxid,&
+         abort=abort_on_restart_fail)
        if (i /= ntheta0) write(*,*) 'Restart error: ntheta0=? ',i,' : ',ntheta0,' : ',iproc
        
        if (fphi > epsilon(0.)) then
@@ -943,10 +1005,12 @@ contains
        endif   ! MR end
 
        istatus = nf90_inq_varid (ncid, "gr", gr_id)
-       if (istatus /= NF90_NOERR) call netcdf_error (istatus, var='gr')
+       if (istatus /= NF90_NOERR) call netcdf_error (istatus, var='gr',&
+         abort=abort_on_restart_fail)
        
        istatus = nf90_inq_varid (ncid, "gi", gi_id)
-       if (istatus /= NF90_NOERR) call netcdf_error (istatus, var='gi')
+       if (istatus /= NF90_NOERR) call netcdf_error (istatus, var='gi',&
+         abort=abort_on_restart_fail)
     end if
     
     if (.not. allocated(tmpr)) &
@@ -967,7 +1031,8 @@ contains
     end if
 # endif
 
-   if (istatus /= NF90_NOERR) call netcdf_error (istatus, ncid, gr_id)
+   if (istatus /= NF90_NOERR) call netcdf_error (istatus, ncid, gr_id,&
+         abort=abort_on_restart_fail, var='gr')
 
 # ifdef NETCDF_PARALLEL
     if(read_many) then
@@ -979,7 +1044,8 @@ contains
     end if
 # endif
 
-    if (istatus /= NF90_NOERR) call netcdf_error (istatus, ncid, gi_id)
+    if (istatus /= NF90_NOERR) call netcdf_error (istatus, ncid, gi_id,&
+         abort=abort_on_restart_fail, var='gi')
 
     g = cmplx(tmpr, tmpi)
 
@@ -989,16 +1055,19 @@ contains
     if (allocated(kx_shift)) then   ! MR begin
        if (.not. allocated(stmp)) allocate (stmp(naky))   ! MR 
        istatus = nf90_get_var (ncid, kx_shift_id, stmp)
-       if (istatus /= NF90_NOERR) call netcdf_error (istatus, ncid, kx_shift_id)
+       if (istatus /= NF90_NOERR) &
+         call netcdf_error (istatus, ncid, kx_shift_id, var='kx_shift')
        kx_shift = stmp
     endif   ! MR end
 
     if (fphi > epsilon(0.)) then
        istatus = nf90_get_var (ncid, phir_id, ftmpr)
-       if (istatus /= NF90_NOERR) call netcdf_error (istatus, ncid, phir_id)
+       if (istatus /= NF90_NOERR) &
+         call netcdf_error (istatus, ncid, phir_id, var= 'phir')
        
        istatus = nf90_get_var (ncid, phii_id, ftmpi)
-       if (istatus /= NF90_NOERR) call netcdf_error (istatus, ncid, phii_id)
+       if (istatus /= NF90_NOERR) &
+         call netcdf_error (istatus, ncid, phii_id, var='phii')
        
        phi = 0.
        phinew = cmplx(ftmpr, ftmpi)
@@ -1355,11 +1424,12 @@ contains
   function restart_writable(read_only,my_file)
     use mp, only: proc0, broadcast
     use file_utils, only: get_unused_unit
+    use constants, only: run_name_size
     implicit none
     character(16) :: SuffixTmp='.ThisIsATestFile'
     character(9) :: FileMode
     character(len=*),intent(in),optional::my_file
-    character(300) :: local_file
+    character(run_name_size) :: local_file
     logical, intent(in), optional :: read_only
     logical :: restart_writable, writable
     integer :: unit,ierr
@@ -1411,14 +1481,18 @@ contains
     restart_writable=writable
   end function restart_writable
 
-  subroutine init_save (file)
-    character(300), intent (in) :: file
+  subroutine init_gs2_save
+  end subroutine init_gs2_save
+
+  subroutine set_restart_file (file)
+    use constants, only: run_name_size
+    character(run_name_size), intent (in) :: file
     
     restart_file = file
 
-  end subroutine init_save
+  end subroutine set_restart_file
 
-  subroutine finish_save
+  subroutine finish_gs2_save
 #ifdef NETCDF    
     if (allocated(tmpr)) deallocate(tmpr)
     if (allocated(tmpi)) deallocate(tmpi)
@@ -1430,7 +1504,7 @@ contains
     initialized = .false.
     initialized_dfn = .false.
 #endif
-  end subroutine finish_save
+  end subroutine finish_gs2_save
 
   subroutine restore_current_scan_parameter_value(current_scan_parameter_value)
 # ifdef NETCDF
@@ -1442,7 +1516,7 @@ contains
     integer :: ncid_local
     real, intent (out) :: current_scan_parameter_value
 # ifdef NETCDF
-    character (306) :: file_proc
+    character (run_name_size) :: file_proc
     if (.not. include_parameter_scan) return
 
     if (proc0) then
@@ -1496,7 +1570,7 @@ contains
     real, intent (in out) :: delt0
     integer, intent (out) :: istatus
 # ifdef NETCDF
-    character (306) :: file_proc        
+    character (run_name_size) :: file_proc        
 
     if (proc0) then
 
@@ -1546,7 +1620,7 @@ contains
     real, dimension(2), intent (in out) :: vnm
     integer, intent (out) :: istatus
 # ifdef NETCDF
-    character (306) :: file_proc
+    character (run_name_size) :: file_proc
 
     if (proc0) then
        if (.not.initialized) then
@@ -1608,7 +1682,7 @@ contains
     integer, intent (in) :: nk_stir
     integer, intent (out) :: istatus
 # ifdef NETCDF
-    character (306) :: file_proc
+    character (run_name_size) :: file_proc
     integer :: ierr, i
 
     if (proc0) then
@@ -1697,7 +1771,7 @@ contains
     real, intent (in out) :: tstart
     integer, intent (out) :: istatus
 # ifdef NETCDF
-    character (306) :: file_proc
+    character (run_name_size) :: file_proc
 
     if (proc0) then
 

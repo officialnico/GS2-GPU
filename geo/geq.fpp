@@ -1,7 +1,6 @@
 # include "define.inc"
 
 module geq
-
 # ifdef NETCDF
   use netcdf, only: NF90_FLOAT, NF90_DOUBLE
   use netcdf, only: NF90_NOWRITE, NF90_CLOBBER, NF90_NOERR
@@ -10,12 +9,30 @@ module geq
   use netcdf, only: nf90_put_var, nf90_get_var, nf90_strerror
   use netcdf, only: nf90_inq_dimid, nf90_inquire_dimension
   use netcdf, only: nf90_inq_varid, nf90_inquire_variable
-  
   use netcdf_utils, only: netcdf_error
 # endif
+  use mp, only: mp_abort
 
   implicit none
+
   private
+
+  public :: B_psi 
+  public :: geq_init, eqin, gradient, eqitem, bgradient, Hahm_Burrell, geq_finish
+
+  public :: invR,     initialize_invR
+  public :: Rpos
+  public :: Zpos
+  public :: rcenter,  initialize_rcenter 
+  public :: diameter, initialize_diameter
+  public :: btori,    initialize_btori
+  public :: dbtori,   initialize_dbtori
+  public :: qfun,     initialize_q
+  public :: pfun,     initialize_pressure
+  public :: dpfun,    initialize_dpressure
+  public :: betafun,  initialize_beta
+  public :: psi,      initialize_psi
+
   integer :: nr, nt
 
   real, allocatable, dimension (:)     :: rho_d, eqpsi, psi_bar, fp, qsf
@@ -39,28 +56,10 @@ module geq
   logical :: init_psi = .true.
   logical :: init_invR = .true.
 
-  public :: B_psi 
-  public :: geq_init, eqin, gradient, eqitem, bgradient, Hahm_Burrell, geq_finish
-
-  public :: invR,     initialize_invR
-  public :: Rpos
-  public :: Zpos
-  public :: rcenter,  initialize_rcenter 
-  public :: diameter, initialize_diameter
-  public :: btori,    initialize_btori
-  public :: dbtori,   initialize_dbtori
-  public :: qfun,     initialize_q
-  public :: pfun,     initialize_pressure
-  public :: dpfun,    initialize_dpressure
-  public :: betafun,  initialize_beta
-  public :: psi,      initialize_psi
-
 contains
-
   subroutine eqin(eqfile, psi_0_out, psi_a_out, rmaj, B_T0, &
        avgrmid, initeq, in_nt, nthg) 
 
-!    use netcdf 
     implicit none
 
     !     This subroutine reads a generic NetCDF equilibrium file
@@ -71,20 +70,11 @@ contains
     real, intent(out) :: psi_0_out, psi_a_out, rmaj, B_T0, avgrmid
     integer, intent(in) :: initeq
     integer, intent(out) :: nthg
-!    integer :: initeq, nthg
-!    real :: psi_0_out, psi_a_out, rmaj, B_T0, avgrmid
-!    logical :: in_nt
     logical, intent(in) :: in_nt
-
     integer :: istatus
     integer :: ncid, id
     integer :: nchar
-!    integer :: ncid, id, i, j, ifail, nchar
-!    character(31) :: fortrancrap
-!    character(80) :: filename, eqfile
     character (len=80) :: filename
-!    integer, dimension(2) :: start, cnt
-
     !
     ! what is the best way to handle the netcdf single/double problem?
     !
@@ -103,7 +93,6 @@ contains
        nchar=index(eqfile,' ')-1
        filename=eqfile(1:nchar)
 !       filename=trim(eqfile) ?
-
     else
        filename='dskeq.cdf'
     endif
@@ -382,7 +371,7 @@ contains
 
     nthg=nt
 # else
-    write(*,*) 'error: geq eqin is called without netcdf'; stop
+    call mp_abort('error: geq eqin is called without netcdf',.true.)
 #endif
 
   end subroutine eqin
@@ -452,7 +441,7 @@ contains
     ! 101  format('(gr Z)1 ',g10.4,' (gr Z)2 ',g10.4,' Z ',g10.4)
     ! 102  format('(gr t)1 ',g10.4,' (gr t)2 ',g10.4,' t ',g10.4)
     !      write(*,*) nr, nt
-    !      stop
+    !      call mp_abort('')
 
     ! grad(psi) in cartesian form 
     call eqdcart(dpm, dpcart)    
@@ -479,15 +468,15 @@ contains
     !      write(*,*) f
     !      call inter_cspl(nr, eqpsi,dpcart(1,1,2),1,rp,f)
     !      write(*,*) f
-
   end subroutine geq_init
 
   subroutine derm(f, dfm, char)
     use constants, only: pi
     implicit none
-    integer :: i, j
-    character(1) :: char
-    real :: f(:,:), dfm(:,:,:)
+    real, dimension(:,:), intent(in) :: f
+    real, dimension(:,:,:), intent(out) :: dfm
+    character(1), intent(in) :: char
+    integer :: i, j    
 
     i=1
     dfm(i,:,1) = -0.5*(3*f(i,:)-4*f(i+1,:)+f(i+2,:))         
@@ -525,11 +514,9 @@ contains
     do j=2,nt-1
        dfm(:,j,2)=0.5*(f(:,j+1)-f(:,j-1))
     enddo
-
   end subroutine derm
 
   subroutine gradient(rgrid, theta, grad, char, rp, nth_used, ntm)
-
     use splines, only: inter_d_cspl
     implicit none
 
@@ -537,11 +524,11 @@ contains
     character(1), intent (in) :: char
     real, dimension (-ntm:), intent (in)  :: rgrid, theta
     real, dimension (-ntm:,:), intent (out) :: grad
+    real, intent(in) :: rp
     real, dimension(nr,nt,2) :: dcart
     real, dimension (2) :: tmp
     real, dimension (1) :: aa, daa, rpt
-    real :: rp
-    integer i
+    integer :: i
 
     select case(char)
     case('B') 
@@ -585,21 +572,18 @@ contains
           grad(i,2)=grad(i,2)*daa(1) * 0.5*beta_0
        enddo
     endif
-
   end subroutine gradient
 
   subroutine bgradient(rgrid, theta, grad, char, rp, nth_used, ntm)
-
     use splines, only: inter_d_cspl
     implicit none
-
     integer, intent (in) :: nth_used, ntm
     character(1), intent (in) :: char
     real, dimension (-ntm:), intent (in)  ::  rgrid, theta
     real, dimension (-ntm:,:), intent (out) :: grad
+    real, intent(in) :: rp
     real, dimension (1) :: aa, daa, rpt
     real, dimension(nr, nt, 2) ::  dbish
-    real :: rp
     integer :: i
 
     select case(char)
@@ -637,25 +621,30 @@ contains
           grad(i,2)=grad(i,2)*daa(1) * 0.5*beta_0
        enddo
     endif
-
   end subroutine bgradient
 
-  subroutine eqitem(r, theta_in, f, fstar, char)
+  subroutine eqitem(r_in, theta_in, f, fstar, char)
     use constants, only: pi
+    use mp, only: mp_abort
     implicit none
+    real, intent(in) :: r_in
+    real, intent(in) :: theta_in
+    real, dimension(:,:), intent(in) :: f
+    real, intent(out) :: fstar
+    character(1), intent(in) :: char
     integer :: i, j, istar, jstar
-    character(1) :: char
-    real :: r, thet, fstar, sign, tp, tps, theta_in
+    real :: thet, sign, tp, tps, r
     real :: st, dt, sr, dr, rt
-    real, dimension(:,:) :: f
     real, dimension(size(f,2)) :: mtheta
 
-    ! check for axis evaluation
+    !Copy input r to avoid any modification
+    r=r_in
 
+    ! check for axis evaluation
     if(r == eqpsi(1)) then
        write(*,*) 'no evaluation at axis allowed in eqitem'
        write(*,*) r, theta_in, eqpsi(1)
-       stop
+       call mp_abort('no evaluation at axis allowed in eqitem')
     endif
 
     ! allow psi(r) to be a decreasing function
@@ -666,7 +655,7 @@ contains
     if(r < sign*eqpsi(1)) then
        write(*,*) 'r < Psi_0 in eqitem'
        write(*,*) r,sign,eqpsi(1)
-       stop
+       call mp_abort('r < Psi_0 in eqitem')
     endif
 
     ! find r on psi mesh
@@ -683,7 +672,7 @@ contains
     if(r >= eqpsi(nr)) then
        write(*,*) 'No evaluation of eqitem allowed outside surface'
        write(*,*) r, theta_in, eqpsi(nr), sign
-       stop      
+       call mp_abort('No evaluation of eqitem allowed outside surface')
     endif
 
     istar=0
@@ -701,7 +690,7 @@ contains
     if(istar == 1) then
        !       write(*,*) 'Too close to axis in eqitem'
        !       write(*,*) r, theta_in, eqpsi(1), eqpsi(2)
-       !       stop
+       !       call mp_abort('Too close to axis in eqitem')
     endif
 
     ! Now do theta direction
@@ -757,14 +746,10 @@ contains
     !     write(*,*) f(istar,jstar),f(istar+1,jstar)
     !     write(*,*) eqpsi(istar),eqpsi(istar+1)
     !     write(*,*) mtheta(jstar),mtheta(jstar+1)
-
-
   end subroutine eqitem
 
   subroutine eqdcart(dfm, dfcart)
-
     implicit none
-
     real, dimension (:,:,:), intent(in)  :: dfm
     real, dimension (:,:,:), intent(out) :: dfcart
     real, dimension (size(dfm,1),size(dfm,2)) :: denom
@@ -783,11 +768,9 @@ contains
           dfcart(i,j,:)=dfcart(i,j,:)/denom(i,j)
        enddo
     enddo
-
   end subroutine eqdcart
 
   subroutine eqdbish(dcart, dbish)
-
     implicit none
     real, dimension(:, :, :), intent (in) :: dcart
     real, dimension(:, :, :), intent(out) :: dbish
@@ -804,21 +787,18 @@ contains
           dbish(i,j,:) = dbish(i,j,:)/denom(i,j)
        enddo
     enddo
-
   end subroutine eqdbish
 
   function initialize_invR (init) 
-
-    integer :: init, initialize_invR
+    integer, intent(in) :: init
+    integer :: initialize_invR
 
     init_invR = .false.
     if(init == 1) init_invR = .true.
     initialize_invR = 1
-
   end function initialize_invR
 
   function invR (r, theta)
-
     real, intent (in) :: r, theta
     real :: f, invR
     real :: th
@@ -827,11 +807,9 @@ contains
 
     call eqitem(r, th, R_psi, f, 'R')
     invR=1./f
-
   end function invR
 
   function Rpos (r, theta)
-
     real, intent (in) :: r, theta
     real :: f, Rpos
     real :: th
@@ -840,11 +818,9 @@ contains
 
     call eqitem(r, th, R_psi, f, 'R')
     Rpos=f
-
   end function Rpos
 
   function Zpos (r, theta)
-
     real, intent (in) :: r, theta
     real :: f, Zpos
     real :: th
@@ -853,26 +829,22 @@ contains
 
     call eqitem(r, th, Z_psi, f, 'Z')
     Zpos=f
-
   end function Zpos
 
   function initialize_psi (init) 
-
-    integer :: init, initialize_psi
+    integer, intent(in) :: init
+    integer :: initialize_psi
 
     init_psi = .false.
     if(init == 1) init_psi = .true.
     initialize_psi = 1
-
   end function initialize_psi
 
-  function psi (r, theta)
-
-    real, intent (in) :: r, theta
+  function psi (r)
+    real, intent (in) :: r
     real :: psi
 
     psi = r
-
   end function psi
 
   function mod2pi (theta)
@@ -895,23 +867,22 @@ contains
        if(th <= pi .and. th >= -pi) out=.false.
     enddo
     mod2pi=th
-
   end function mod2pi
 
   function initialize_diameter (init) 
-
-    integer :: init, initialize_diameter
+    integer, intent(in) :: init
+    integer :: initialize_diameter
 
     init_diameter = .false.
     if(init == 1) init_diameter = .true.
     initialize_diameter = 1
-
   end function initialize_diameter
 
   function diameter (rp)
-
-    use splines
-    real :: rp, diameter
+    use splines, only: new_spline, splint, spline
+    implicit none
+    real, intent(in) :: rp
+    real :: diameter
     type (spline), save :: spl
 
     if(init_diameter) then
@@ -921,23 +892,22 @@ contains
     endif
 
     diameter = splint(rp, spl)
-
   end function diameter
 
   function initialize_rcenter (init) 
-
-    integer :: init, initialize_rcenter
+    integer, intent(in) :: init
+    integer :: initialize_rcenter
 
     init_rcenter = .false.
     if(init == 1) init_rcenter = .true.
     initialize_rcenter = 1
-
   end function initialize_rcenter
 
   function rcenter (rp)
-
-    use splines
-    real :: rp, rcenter
+    use splines, only: new_spline, splint, spline
+    implicit none
+    real, intent(in) :: rp
+    real :: rcenter
     type (spline), save :: spl
 
     if(init_rcenter) then
@@ -947,92 +917,88 @@ contains
     endif
 
     rcenter = splint(rp, spl)
-
   end function rcenter
 
   function initialize_dbtori (init) 
-
-    integer :: init, initialize_dbtori
+    integer, intent(in) :: init
+    integer :: initialize_dbtori
 
     init_dbtori = .false.
     if(init == 1) init_dbtori = .true.
     initialize_dbtori = 1
-
   end function initialize_dbtori
 
   function dbtori (pbar)
-
-    use splines
-    real :: pbar, dbtori
+    use splines, only: new_spline, dsplint, spline
+    implicit none
+    real, intent(in) :: pbar
+    real :: dbtori
     type (spline), save :: spl
 
     if(init_dbtori) call new_spline(nr, psi_bar, fp, spl)
     init_dbtori=.false.
 
     dbtori = dsplint(pbar, spl)/(psi_a-psi_0)
-
   end function dbtori
 
   function initialize_btori (init) 
-
-    integer :: init, initialize_btori
+    integer, intent(in) :: init
+    integer :: initialize_btori
 
     init_btori = .false.
     if(init == 1) init_btori = .true.
     initialize_btori = 1
-
   end function initialize_btori
 
   function btori (pbar)
-
-    use splines
-    real :: pbar, btori
+    use splines, only: new_spline, splint, spline
+    implicit none
+    real, intent(in) :: pbar
+    real :: btori
     type (spline), save :: spl
 
     if(init_btori) call new_spline(nr, psi_bar, fp, spl)
     init_btori=.false.
 
     btori = splint(pbar, spl)
-
   end function btori
 
   function initialize_q (init) 
-
-    integer :: init, initialize_q
+    integer, intent(in) :: init
+    integer :: initialize_q
 
     init_q = .false.
     if(init == 1) init_q = .true.
     initialize_q = 1
-
   end function initialize_q
 
   function qfun (pbar)
-
-    use splines
-    real :: pbar, qfun
+    use splines, only: new_spline, splint, spline
+    implicit none
+    real, intent(in) :: pbar
+    real :: qfun
     type (spline), save :: spl
 
     if(init_q) call new_spline(nr, psi_bar, qsf, spl)
     init_q = .false.
 
     qfun = splint(pbar, spl)
-
   end function qfun
 
   function initialize_pressure (init) 
-
-    integer :: init, initialize_pressure
+    integer, intent(in) :: init
+    integer :: initialize_pressure
 
     init_pressure = .false.
     if(init == 1) init_pressure = .true.
     initialize_pressure = 1
-
   end function initialize_pressure
 
   function pfun (pbar)
-
-    use splines
-    real :: pbar, pfun
+    use splines, only: new_spline, splint, spline
+    implicit none
+    real, intent(in) :: pbar
+    real :: pfun
     type (spline), save :: spl
 
     if(init_pressure) call new_spline(nr, psi_bar, pressure, spl)
@@ -1041,23 +1007,22 @@ contains
     ! p_N would be B**2/mu_0 => p = beta/2 in our units
     !
     pfun = 0.5*beta_0*splint(pbar, spl)
-
   end function pfun
 
   function initialize_dpressure (init) 
-
-    integer :: init, initialize_dpressure
+    integer, intent(in) :: init
+    integer :: initialize_dpressure
 
     init_dpressure = .false.
     if(init == 1) init_dpressure = .true.
     initialize_dpressure = 1
-
   end function initialize_dpressure
 
   function dpfun (pbar)
-
-    use splines
-    real :: pbar, dpfun
+    use splines, only: new_spline, dsplint, spline
+    implicit none
+    real, intent(in) :: pbar
+    real :: dpfun
     type (spline), save :: spl
     !
     ! p_N would be B**2/mu_0 => p = beta/2 in our units
@@ -1068,23 +1033,22 @@ contains
     endif
 
     dpfun = dsplint(pbar, spl)/(psi_a-psi_0) * beta_0/2.
-
   end function dpfun
 
   function initialize_beta (init) 
-
-    integer :: init, initialize_beta
+    integer, intent(in) :: init
+    integer :: initialize_beta
 
     init_beta = .false.
     if(init == 1) init_beta = .true.
     initialize_beta = 1
-
   end function initialize_beta
 
   function betafun (pbar)
-
-    use splines
-    real :: pbar, betafun
+    use splines, only: new_spline, splint, spline
+    implicit none
+    real, intent(in) :: pbar
+    real :: betafun
     type (spline), save :: spl
 
     if(pbar == 0.) then
@@ -1096,16 +1060,17 @@ contains
     init_beta = .false.
 
     betafun = splint(pbar, spl)
-
   end function betafun
 
   subroutine Hahm_Burrell(irho, a) 
-
+    use file_utils, only: open_output_file, close_output_file, get_unused_unit
+    implicit none
     real, intent(in) :: a
-    integer :: i, irho
+    integer, intent(in) :: irho
+    integer :: i
     real :: gradpsi, mag_B, rho_eq, rp1, rp2, rho1, rho2, drhodpsiq
-    real, dimension(nr) :: gamma, pbar, dp, d2p, pres, bs_coll, s__hat, &
-         bs_sh
+    real, dimension(nr) :: gamma, pbar, dp, d2p, pres, bs_coll, s__hat, bs_sh
+    integer :: fort24_unit
 
     if(irho /= 2) then
        write(*,*) 'use irho=2 to get correct shearing rate.'
@@ -1155,6 +1120,8 @@ contains
             / qfun(pbar(i)) /sqrt(pres(i))
     enddo
 
+    call get_unused_unit(fort24_unit)
+    call open_output_file(fort24_unit,".fort.24")
     do i=3,nr-2
        if(irho == 1) then
           rho_eq = eqpsi(i)
@@ -1163,15 +1130,15 @@ contains
        else if(irho == 3) then
           rho_eq = pbar(i)
        endif
-       write(24,1000) i, pbar(i), rho_eq, pres(i), gamma(i), bs_coll(i), bs_sh(i)
+       write(fort24_unit,1000) i, pbar(i), rho_eq, pres(i), gamma(i), bs_coll(i), bs_sh(i)
     enddo
 
     if(irho == 1) write(* ,*) '# irho = 1 produces psi instead of rho_eq'
-    if(irho == 1) write(24,*) '# irho = 1 produces psi instead of rho_eq'
+    if(irho == 1) write(fort24_unit,*) '# irho = 1 produces psi instead of rho_eq'
+
+    call close_output_file(fort24_unit)
 
 1000 format(i5,11(1x,e16.9))
-
   end subroutine Hahm_Burrell
-
 end module geq
 

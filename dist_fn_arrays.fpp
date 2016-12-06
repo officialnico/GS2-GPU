@@ -4,8 +4,14 @@
 
 module dist_fn_arrays
 
-  public :: g, gnew, g_restart_tmp, kx_shift, theta0_shift, vpa, vpac, vpacgen
-  public :: vperp2, vpar, vpargen, ittp, aj0, aj1
+  implicit none
+
+  private
+
+  public :: g, gnew, g_restart_tmp, kx_shift, theta0_shift, vpa, vpac
+  public :: vperp2, vpar, ittp, aj0, aj1
+!AJ
+  public :: vpa_gf, vperp2_gf, aj0_gf, aj1_gf
   public :: c_rate
   public :: g_adjust, check_g_bouncepoints
 #ifdef LOWFLOW
@@ -20,12 +26,18 @@ module dist_fn_arrays
   ! (naky)
 
   real, dimension (:,:,:), allocatable :: vpa, vpac, vpar, fpacgen
+!AJ
+  real, dimension (:,:,:,:), allocatable :: vpa_gf
+  real, dimension (:,:,:), allocatable :: vperp2_gf
   ! (-ntgrid:ntgrid,2, -g-layout-)
 
   real, dimension (:,:), allocatable :: vperp2, aj0, aj1
   ! (-ntgrid:ntgrid, -g-layout-)
 
   real, dimension (:,:,:), allocatable :: vpar, vpargen
+!AJ
+  real, dimension (:,:,:,:,:), allocatable :: aj0_gf, aj1_gf
+
   integer, dimension (:), allocatable :: ittp
   ! (-ntgrid:ntgrid)
 
@@ -41,7 +53,6 @@ module dist_fn_arrays
   ! (-ntgrid:ntgrid,ntheta0,naky,negrid,nspecies,2)
 #endif
 
-  private
 contains
 
   subroutine g_adjust (g, phi, bpar, facphi, facbpar)
@@ -60,7 +71,7 @@ contains
     !
     use species, only: spec
     use theta_grid, only: ntgrid
-    use le_grids, only: forbid
+    use le_grids, only: anon, jend, ng2
     use gs2_layouts, only: g_lo, ik_idx, it_idx, ie_idx, is_idx, il_idx
     use general_f0, only: df0dE
     implicit none
@@ -70,6 +81,9 @@ contains
 
     integer :: iglo, ig, ik, it, ie, is, il
     complex :: adj
+    logical :: trapped=.false.
+
+    if (minval(jend) .gt. ng2) trapped=.true.
 
     do iglo = g_lo%llim_proc, g_lo%ulim_proc
        ik = ik_idx(g_lo,iglo)
@@ -82,7 +96,11 @@ contains
        ! 1/bmag is needed here.
        do ig = -ntgrid, ntgrid
           !<DD>Don't adjust in the forbidden region as we don't set g/h here
-          if(forbid(ig,il)) cycle
+!CMR, 13/10/2014: attempting minor reduction in memory bandwidth by replacing 
+!         if( forbid(ig,il) ) cycle with 
+!         if ( trapped .and. il > jend(ig))
+          if ( trapped .and. il > jend(ig)) cycle 
+
           adj = 2.0*vperp2(ig,iglo)*aj1(ig,iglo) &
                *bpar(ig,it,ik)*facbpar &
                + spec(is)%z*phi(ig,it,ik)*aj0(ig,iglo) &
@@ -108,7 +126,7 @@ contains
     integer, intent(in) :: ik, it, il, ie, is
     complex, dimension(-ntgrid:,:,g_lo%llim_proc:), intent(in) :: g
     real, intent(out):: err
-    real, optional:: tol
+    real, optional, intent(in):: tol
     real :: tolerance, dg
     integer :: iglo, ig
     logical :: started

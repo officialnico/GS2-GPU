@@ -1,34 +1,25 @@
 module fields_arrays
+  use constants, only: run_name_size
   implicit none
+
+  private
+
+  public :: phi, apar, bpar, phinew, aparnew, bparnew
+  public :: gf_phi, gf_apar, gf_bpar, gf_phinew, gf_aparnew, gf_bparnew
+  public :: apar_ext, time_field, response_file
 
   !Main fields
   complex, dimension (:,:,:), allocatable :: phi,    apar,    bpar
   complex, dimension (:,:,:), allocatable :: phinew, aparnew, bparnew
+  complex, dimension (:,:,:), allocatable :: gf_phi, gf_apar, gf_bpar
+  complex, dimension (:,:,:), allocatable :: gf_phinew, gf_aparnew, gf_bparnew
   !For antenna
   complex, dimension (:,:,:), allocatable :: apar_ext
   ! (-ntgrid:ntgrid,ntheta0,naky) replicated
 
-  integer, save :: nidx
-
-  real, save :: time_field(2)=0.
-
-! Within each supercell, there are are N_class primary cells.  Each 
-! has (2*ntgrid+1)*nfield points.
-  type dcell_type
-     complex, dimension(:), pointer :: supercell => null()
-  end type dcell_type
-
-! Within each class, there may be multiple supercells.
-
-! The number of supercells in each class is M_class.
-
-! When aminv is laid out over PEs, the supercells of each class 
-! are distributed -- thus, "dcells"
-
-  type :: field_matrix_type
-     type(dcell_type), dimension (:), pointer :: dcell => null()
-  end type field_matrix_type
-
-! There may be supercells of different sizes or "classes".  
-  type (field_matrix_type), dimension (:), allocatable :: aminv
+  !Timing data
+  real :: time_field(2)=0.
+  
+  !For response data
+  character(run_name_size) :: response_file
 end module fields_arrays

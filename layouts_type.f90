@@ -2,7 +2,28 @@ module layouts_type
   ! This can be made by just replacing nakx by ntheta0
   !   from AstroGK's layouts_type.f90
 
+  use mp, only: comm_type
+  
   implicit none
+
+  private
+  public :: ikit, ikitprocs
+  public :: g_layout_type, lz_layout_type, e_layout_type
+  public :: le_layout_type, p_layout_type, gf_layout_type
+
+  type :: ikit
+     sequence
+     integer :: ik, it
+  end type ikit
+
+  type :: ikitprocs
+     sequence
+     logical :: mine
+     integer :: num_procs
+     type(comm_type) :: comm
+     integer,dimension(:),allocatable :: proc_list
+     integer,dimension(:),allocatable :: sub_proc_list
+  end type ikitprocs
 
   type :: g_layout_type
      sequence
@@ -29,8 +50,15 @@ module layouts_type
      integer :: xysblock_comm !Sub comms for xys blocks (i.e. l-e integrals)
      integer :: lesblock_comm !Sub comms for les blocks (i.e. x-y integrals)
      integer,dimension(:,:),allocatable :: les_kxky_range !Used in integrate species, holds start and stop indices for flattened kxky dimension
+     type(ikitprocs),dimension(:,:),allocatable :: ikit_procs_assignment !Used to record processes that have been assigned specific it ik points in g
+     integer :: ikitrange
+     integer :: max_ikit_nprocs ! Used to record the largest proc_list size for all the ikitprocs points.  This is useful for setting the size of non-blocking request arrays for communications
+     type(ikit),dimension(:),allocatable :: local_ikit_points
      logical :: x_before_y !Information about layout order
      logical :: x_local, y_local, l_local, e_local, s_local !Used to record if various dimensions are entirely local
+! shm data
+     integer :: ppn, nnd, bpn, ndbklsize, llim_node, ulim_node
+     integer, allocatable :: proc_map(:) ! llimit on all ranks
   end type g_layout_type
 
   type :: lz_layout_type
@@ -73,6 +101,17 @@ module layouts_type
      integer :: ik_max, it_max, ig_max, is_max 
      logical :: x_local, y_local, t_local, s_local !Used to record if various dimensions are entirely local
   end type le_layout_type
+
+  type :: gf_layout_type
+     sequence
+     integer :: iproc, nproc
+     integer :: ntgrid, naky, ntheta0, nspec, ntgridtotal, npsec, nlambda, negrid
+     integer :: xypoints
+     integer :: llim_world, ulim_world, llim_proc, ulim_proc, ulim_alloc, blocksize
+     integer :: smallblocksize, largeblocksize, largeblocklimit, divisionblock
+     integer :: largeregionlimit, smallgapsize, largegapsize
+  end type gf_layout_type
+
 
   type :: p_layout_type
      sequence

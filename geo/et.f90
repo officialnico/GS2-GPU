@@ -244,6 +244,9 @@ program eiktest
      write(11,*) 'tri= ',rt
      write(11,*) 'tripri= ',rtpri
      write(11,*) 'surface area= ',surfarea,' avgrmid**2'
+     write(11, *) 'diameter/a = ', diameter(rpofrho(rhoc))
+     write(11, *) 'diameter(rhoc=1.0)/a/2.0 = ', diameter(rpofrho(1.0))/2.0, ' ...  should be 1'
+     write(11, *) 'r/a = ', diameter(rpofrho(rhoc))/diameter(rpofrho(1.0))
   end if
 
 !      write(*,*) 'mag(Bp) at rho= ',rhoc
@@ -287,10 +290,10 @@ program eiktest
   write (21,fmt="('# shape: torus')")
   write (21,fmt="('# q = ',e10.4,' drhodpsi = ',e10.4)") qsf, drhodpsin
   write (21,fmt="('# theta1             R2                  Z3               alpha4      ', &
-            &   '       Rprime5              Zprime6           alpha_prime7 ')")
+            &   '       Rprime5              Zprime6           alpha_prime7         bpol8')")
   do i=-ntgrid,ntgrid
      write (21,1000) theta(i),Rplot(i),Zplot(i),aplot(i), &
-          Rprime(i),Zprime(i),aprime(i)
+          Rprime(i),Zprime(i),aprime(i),Bpol(i)
   enddo
   close (unit=21)
 
