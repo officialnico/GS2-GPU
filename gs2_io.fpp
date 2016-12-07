@@ -133,7 +133,7 @@ contains
       write_moments,&
       write_full_moments_notgc, write_sym, write_pflux_sym, write_pflux_tormom, write_correlation, nwrite_big_tot, &
       write_correlation_extend, & 
-      write_phi_over_time, write_apar_over_time, write_bpar_over_time, &
+      write_phi_over_time, write_apar_over_time, write_bpar_over_time, write_flux_e, &
       write_avg_moments, write_final_moments, write_final_epar, &
       ob_midplane) 
     !write_fields_over_time added by EGH 08/2009
@@ -238,7 +238,7 @@ contains
        call define_vars (write_nl_flux, write_omega, &
             write_hrate, write_final_antot, write_eigenfunc, write_verr, &
             write_moments, write_full_moments_notgc, write_sym, write_pflux_sym, write_pflux_tormom, write_correlation, &
-            write_correlation_extend, write_avg_moments, write_final_moments, write_final_epar, &
+            write_correlation_extend, write_avg_moments, write_final_moments, write_final_epar, write_flux_e, &
             ob_midplane=ob_midplane)
 
        !Write constant data
@@ -359,6 +359,7 @@ contains
 # ifdef NETCDF
     integer :: status
     real :: nmesh
+    integer,dimension(2):: start2, count2
 
     !<doc> Store the size of the grid dimensions (as defined in def_dims), in the NetCDF file </doc>
     start2(1) = 1
@@ -545,7 +546,7 @@ contains
   subroutine define_vars (write_nl_flux, write_omega, &
        write_hrate, write_final_antot, write_eigenfunc, write_verr, &
        write_moments, write_full_moments_notgc, write_sym, write_pflux_sym, write_pflux_tormom, write_correlation, &
-       write_correlation_extend, write_avg_moments, write_final_moments, write_final_epar, &
+       write_correlation_extend, write_avg_moments, write_final_moments, write_final_epar, write_flux_e, &
        ob_midplane)
 # ifdef NETCDF 
     use file_utils, only: error_unit

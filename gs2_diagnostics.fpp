@@ -97,7 +97,6 @@ module gs2_diagnostics
   !EGH>
 
   integer :: out_unit, kp_unit, heat_unit, polar_raw_unit, polar_avg_unit, heat_unit2, lpc_unit
-  integer :: out_unit, kp_unit, heat_unit, polar_raw_unit, polar_avg_unit, heat_unit2, lpc_unit
   integer :: jext_unit   !GGH Additions
   integer :: phase_unit
   integer :: dump_check1_unit, dump_check2_unit
@@ -980,7 +979,7 @@ contains
     use mp, only: proc0, broadcast
     use prof, only: prof_entering, prof_leaving
     use gs2_time, only: user_time
-    use gs2_io, only: nc_qflux, nc_vflux, nc_pflux, nc_pflux_tormom,nc_exchange, nc_final_fields, nc_flux_e
+    use gs2_io, only: nc_qflux, nc_vflux, nc_pflux, nc_pflux_tormom,nc_exchange, nc_final_fields, nc_flux_e, nc_sync
     use le_grids, only: negrid
     use nonlinear_terms, only: nonlin
     use antenna, only: antenna_w

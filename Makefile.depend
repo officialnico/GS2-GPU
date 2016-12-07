@@ -552,6 +552,7 @@ collisional_heating.o: \
 	 kt_grids.o \
 	 le_derivatives.o \
 	 le_grids.o \
+	 run_parameters.o \
 	 species.o \
 	 theta_grid.o 
 collisions.o: \
@@ -776,7 +777,6 @@ diagnostics_zonal_transfer.o: \
 	 fields_arrays.o \
 	 fields_parallelization.o \
 	 gs2_layouts.o \
-	 gs2_time.o \
 	 gs2_transforms.o \
 	 kt_grids.o \
 	 le_grids.o \
@@ -791,6 +791,7 @@ dist_fn.o: \
 	 dist_fn_arrays.o \
 	 fields_arrays.o \
 	 file_utils.o \
+	 gauss_quad.o \
 	 general_f0.o \
 	 geometry.o \
 	 gs2_heating.o \

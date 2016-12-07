@@ -1217,7 +1217,6 @@ contains
           deallocate(bz0tmp)
        endif
     end if
- end subroutine init_diffuse_conserve
 
   end subroutine init_diffuse_conserve
 

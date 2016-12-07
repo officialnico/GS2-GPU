@@ -1422,14 +1422,15 @@ contains
     use le_grids, only: energy, al
     implicit none
     real :: al1, e1
-    integer :: iglo
+    integer :: iglo, is
     if (.not.allocated(vperp2)) then
        allocate (vperp2 (-ntgrid:ntgrid,  g_lo%llim_proc:g_lo%ulim_alloc))
     endif
     vperp2 = 0.
     do iglo = g_lo%llim_proc, g_lo%ulim_proc
        al1 = al(il_idx(g_lo,iglo))
-       e1 = energy(ie_idx(g_lo,iglo))
+       is = is_idx(g_lo,iglo)
+       e1 = energy(ie_idx(g_lo,iglo),is)
 
        vperp2(:,iglo) = bmag*al1*e1
     end do
@@ -1440,14 +1441,14 @@ contains
   subroutine init_vpar
     use dist_fn_arrays, only: vpa, vpar, vpac, vpargen, vpacgen, vperp2, vpa_gf, vperp2_gf
     use general_f0, only: zogtemp, df0dE
-    use species, only: spec
+    use species, only: spec, nspec
     use theta_grid, only: ntgrid, delthet, bmag, gradpar
     use le_grids, only: energy, al, negrid, nlambda
     use run_parameters, only: tunits
     use gs2_time, only: code_dt
     use gs2_layouts, only: g_lo, ik_idx, il_idx, ie_idx, is_idx
     implicit none
-    integer :: iglo, ik, is, ie
+    integer :: iglo, ik, is
 !AJ
     integer :: il, ie, ig
     real :: al1, e1
@@ -1466,20 +1467,22 @@ contains
     !AJ if we are doing gf_lo integrate then pre-calcuate some of the data used in the integrate.
 
     if(gf_lo_integrate) then
-       allocate(vpa_gf    (-ntgrid:ntgrid, 2, negrid, nlambda))
-       allocate(vperp2_gf (-ntgrid:ntgrid, negrid, nlambda))
+       allocate(vpa_gf    (-ntgrid:ntgrid, 2, negrid, nlambda,nspec))
+       allocate(vperp2_gf (-ntgrid:ntgrid, negrid, nlambda,nspec))
        
        do il = 1,nlambda
           do ie = 1,negrid
-             e1 = energy(ie)
-             al1 = al(il)
-             vpa_gf(:, 1, ie, il) = sqrt(e1*max(0.0, 1.0 - al1*bmag))
-             vpa_gf(:, 2, ie, il) = -vpa_gf(:, 1, ie, il)
-             do ig = -ntgrid,ntgrid
-                if(1.0 - al1*bmag(ig) < 100.0*epsilon(0.0)) then
-                   vpa_gf(ig, :, ie, il) = 0.0
-                end if
-                vperp2_gf(ig, ie, il) = e1*al1*bmag(ig)
+             do is = 1,nspec
+                e1 = energy(ie,is)
+                al1 = al(il)
+                vpa_gf(:, 1, ie, il,is) = sqrt(e1*max(0.0, 1.0 - al1*bmag))
+                vpa_gf(:, 2, ie, il,is) = -vpa_gf(:, 1, ie, il,is)
+                do ig = -ntgrid,ntgrid
+                  if(1.0 - al1*bmag(ig) < 100.0*epsilon(0.0)) then
+                   vpa_gf(ig, :, ie, il,is) = 0.0
+                  end if
+                  vperp2_gf(ig, ie, il,is) = e1*al1*bmag(ig)
+                end do
              end do
           end do
        end do
@@ -1638,7 +1641,7 @@ contains
              do ie = 1,gf_lo%negrid
                 do is = 1,gf_lo%nspec
                    do ig = -ntgrid, ntgrid
-                      arg = spec(is)%bess_fac*spec(is)%smz*sqrt(energy(ie)*al(il)/bmag(ig)*kperp2(ig,it,ik))
+                      arg = spec(is)%bess_fac*spec(is)%smz*sqrt(energy(ie,is)*al(il)/bmag(ig)*kperp2(ig,it,ik))
                       aj0_gf(ig,is,ie,il,igf) = j0(arg)
                       aj1_gf(ig,is,ie,il,igf) = j1(arg)
                    end do
@@ -5617,7 +5620,7 @@ endif
        (phi, apar, bpar, phinew, aparnew, bparnew, istep, sourcefac)
     use dist_fn_arrays, only: gnew
     use theta_grid, only: bmag, ntgrid
-    use le_grids, only: energy, al, nlambda, ng2, anon
+    use le_grids, only: energy, al, nlambda, ng2
     use gs2_layouts, only: g_lo, ik_idx, it_idx, il_idx, ie_idx, is_idx, idx
     use redistribute, only: fill
     use run_parameters, only: fbpar, fphi
@@ -5685,24 +5688,24 @@ endif
 !(2) dadj=adjl-adjr then used to apply the self-periodic bc to g_wesson
 !    (was previously applied to g)
 !      
-             vperp2left = bmag(-ntgrid)*al(il)*energy(ie)
-             vperp2right = bmag(ntgrid)*al(il)*energy(ie)
+             vperp2left = bmag(-ntgrid)*al(il)*energy(ie,is)
+             vperp2right = bmag(ntgrid)*al(il)*energy(ie,is)
              itl=get_leftmost_it(it,ik)
              itr=get_rightmost_it(it,ik)
-             argl = spec(is)%bess_fac*spec(is)%smz*sqrt(energy(ie)*al(il)/bmag(-ntgrid)*kperp2(-ntgrid,itl,ik))
-             argr = spec(is)%bess_fac*spec(is)%smz*sqrt(energy(ie)*al(il)/bmag(ntgrid)*kperp2(ntgrid,itr,ik))
+             argl = spec(is)%bess_fac*spec(is)%smz*sqrt(energy(ie,is)*al(il)/bmag(-ntgrid)*kperp2(-ntgrid,itl,ik))
+             argr = spec(is)%bess_fac*spec(is)%smz*sqrt(energy(ie,is)*al(il)/bmag(ntgrid)*kperp2(ntgrid,itr,ik))
              aj0l = j0(argl)
              aj0r = j0(argr)
              aj1l = j1(argl)
              aj1r = j1(argr)
 
-             adjl = anon(ie)*2.0*vperp2left*aj1l &
+             adjl = 2.0*vperp2left*aj1l &
               *bparnew(-ntgrid,itl,ik)*fbpar &
-              + spec(is)%z*anon(ie)*phinew(-ntgrid,itl,ik)*aj0l &
+              + spec(is)%z*phinew(-ntgrid,itl,ik)*aj0l &
               /spec(is)%temp*fphi
-             adjr = anon(ie)*2.0*vperp2right*aj1r &
+             adjr = 2.0*vperp2right*aj1r &
               *bparnew(ntgrid,itr,ik)*fbpar &
-              + spec(is)%z*anon(ie)*phinew(ntgrid,itr,ik)*aj0r &
+              + spec(is)%z*phinew(ntgrid,itr,ik)*aj0r &
               /spec(is)%temp*fphi
              dadj = adjl-adjr
 
@@ -6140,7 +6143,7 @@ endif
     use gs2_layouts, only: is_idx, ie_idx, g_lo, ik_idx, it_idx
     use species, only: nspec, spec
     use theta_grid, only: ntgrid
-    use le_grids, only: integrate_moment, anon, energy
+    use le_grids, only: integrate_moment, energy
     use prof, only: prof_entering, prof_leaving
     use run_parameters, only: fphi, fbpar
     use fields_arrays, only: phinew, bparnew, phi
@@ -7057,7 +7060,7 @@ endif
                do il = 1,gf_lo%nlambda
                   do ie = 1,gf_lo%negrid
                      do is = 1,gf_lo%nspec
-                        antot(:,it,ik) = antot(:,it,ik) + wgt(is)*w(ie)*wl(:,il)*((aj0_gf(:,is,ie,il,igf)*gfarray(:,1,is,ie,il,igf))+(aj0_gf(:,is,ie,il,igf)*gfarray(:,2,is,ie,il,igf)))
+                        antot(:,it,ik) = antot(:,it,ik) + wgt(is)*w(ie,is)*wl(:,il)*((aj0_gf(:,is,ie,il,igf)*gfarray(:,1,is,ie,il,igf))+(aj0_gf(:,is,ie,il,igf)*gfarray(:,2,is,ie,il,igf)))
                       end do
                    end do
                 end do
@@ -7071,7 +7074,7 @@ endif
                 do il = 1,gf_lo%nlambda
                    do ie = 1,gf_lo%negrid
                       do is = 1,gf_lo%nspec
-                         antot(:,it,ik) = antot(:,it,ik) + wgt(is)*w(ie)*wl(:,il)*((aj0_gf(:,is,ie,il,igf)*gfarray(:,1,is,ie,il,igf))+(aj0_gf(:,is,ie,il,igf)*gfarray(:,2,is,ie,il,igf)))
+                         antot(:,it,ik) = antot(:,it,ik) + wgt(is)*w(ie,is)*wl(:,il)*((aj0_gf(:,is,ie,il,igf)*gfarray(:,1,is,ie,il,igf))+(aj0_gf(:,is,ie,il,igf)*gfarray(:,2,is,ie,il,igf)))
                       end do
                    end do
                 end do
@@ -7124,7 +7127,8 @@ endif
                 do il = 1,gf_lo%nlambda
                    do ie = 1,gf_lo%negrid
                       do is = 1,gf_lo%nspec
-                         antota(:,it,ik) = antota(:,it,ik) + wgt(is)*w(ie)*wl(:,il)*((aj0_gf(:,is,ie,il,igf)*vpa_gf(:,1,ie,il)*gfarray(:,1,is,ie,il,igf))+(aj0_gf(:,is,ie,il,igf)*vpa_gf(:,2,ie,il)*gfarray(:,2,is,ie,il,igf)))
+                         antota(:,it,ik) = antota(:,it,ik) + &
+                         wgt(is)*w(ie,is)*wl(:,il)*((aj0_gf(:,is,ie,il,igf)*vpa_gf(:,1,ie,il,is)*gfarray(:,1,is,ie,il,igf))+(aj0_gf(:,is,ie,il,igf)*vpa_gf(:,2,ie,il,is)*gfarray(:,2,is,ie,il,igf)))
                       end do
                    end do
                 end do
@@ -7138,7 +7142,8 @@ endif
                 do il = 1,gf_lo%nlambda
                    do ie = 1,gf_lo%negrid
                       do is = 1,gf_lo%nspec
-                         antota(:,it,ik) = antota(:,it,ik) + wgt(is)*w(ie)*wl(:,il)*((aj0_gf(:,is,ie,il,igf)*vpa_gf(:,1,ie,il)*gfarray(:,1,is,ie,il,igf))+(aj0_gf(:,is,ie,il,igf)*vpa_gf(:,2,ie,il)*gfarray(:,2,is,ie,il,igf)))
+                         antota(:,it,ik) = antota(:,it,ik) + &
+                         wgt(is)*w(ie,is)*wl(:,il)*((aj0_gf(:,is,ie,il,igf)*vpa_gf(:,1,ie,il,is)*gfarray(:,1,is,ie,il,igf))+(aj0_gf(:,is,ie,il,igf)*vpa_gf(:,2,ie,il,is)*gfarray(:,2,is,ie,il,igf)))
                       end do
                    end do
                 end do
@@ -7194,8 +7199,8 @@ endif
                    do ie = 1,gf_lo%negrid
                       do is = 1,gf_lo%nspec
                          !AJ temparg3 is simply an attempt at optimising out a common factor for the calculation below it
-                         temparg3 = aj1_gf(:,is,ie,il,igf)*vperp2_gf(:,ie,il)
-                         antotp(:,it,ik) = antotp(:,it,ik) + wgt(is)*w(ie)*wl(:,il)*((temparg3*gfarray(:,1,is,ie,il,igf))+(temparg3*gfarray(:,2,is,ie,il,igf)))
+                         temparg3 = aj1_gf(:,is,ie,il,igf)*vperp2_gf(:,ie,il,is)
+                         antotp(:,it,ik) = antotp(:,it,ik) + wgt(is)*w(ie,is)*wl(:,il)*((temparg3*gfarray(:,1,is,ie,il,igf))+(temparg3*gfarray(:,2,is,ie,il,igf)))
                       end do
                    end do
                 end do
@@ -7209,8 +7214,8 @@ endif
                 do il = 1,gf_lo%nlambda
                    do ie = 1,gf_lo%negrid
                       do is = 1,gf_lo%nspec
-                         temparg3 = aj1_gf(:,is,ie,il,igf)*vperp2_gf(:,ie,il)
-                         antotp(:,it,ik) = antotp(:,it,ik) + wgt(is)*w(ie)*wl(:,il)*((temparg3*gfarray(:,1,is,ie,il,igf))+(temparg3*gfarray(:,2,is,ie,il,igf)))
+                         temparg3 = aj1_gf(:,is,ie,il,igf)*vperp2_gf(:,ie,il,is)
+                         antotp(:,it,ik) = antotp(:,it,ik) + wgt(is)*w(ie,is)*wl(:,il)*((temparg3*gfarray(:,1,is,ie,il,igf))+(temparg3*gfarray(:,2,is,ie,il,igf)))
                       end do
                    end do
                 end do

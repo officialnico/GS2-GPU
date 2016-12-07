@@ -25,16 +25,16 @@ module dist_fn_arrays
   real, dimension(:), allocatable :: kx_shift, theta0_shift
   ! (naky)
 
-  real, dimension (:,:,:), allocatable :: vpa, vpac, vpar, fpacgen
+  real, dimension (:,:,:), allocatable :: vpa, vpac, vpar, fpacgen, vpargen, vpacgen
+  public :: vpargen, vpacgen
 !AJ
-  real, dimension (:,:,:,:), allocatable :: vpa_gf
-  real, dimension (:,:,:), allocatable :: vperp2_gf
+  real, dimension (:,:,:,:,:), allocatable :: vpa_gf
+  real, dimension (:,:,:,:), allocatable :: vperp2_gf
   ! (-ntgrid:ntgrid,2, -g-layout-)
 
   real, dimension (:,:), allocatable :: vperp2, aj0, aj1
   ! (-ntgrid:ntgrid, -g-layout-)
 
-  real, dimension (:,:,:), allocatable :: vpar, vpargen
 !AJ
   real, dimension (:,:,:,:,:), allocatable :: aj0_gf, aj1_gf
 
@@ -71,7 +71,7 @@ contains
     !
     use species, only: spec
     use theta_grid, only: ntgrid
-    use le_grids, only: anon, jend, ng2
+    use le_grids, only: jend, ng2
     use gs2_layouts, only: g_lo, ik_idx, it_idx, ie_idx, is_idx, il_idx
     use general_f0, only: df0dE
     implicit none

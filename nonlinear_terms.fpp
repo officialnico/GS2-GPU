@@ -679,8 +679,6 @@ contains
       'nonlinear_terms::add_nl calculated nonlinear term')
     
   contains
-    !NOTE: These routines don't contain anon(ie) factor which may be desired to
-    !      allow more general cases in the future.
     subroutine load_kx_phi
 
       use dist_fn_arrays, only: aj0
