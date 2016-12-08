@@ -1256,7 +1256,9 @@ contains
        ! allocate wdrift with sign(vpa) dependence because will contain 
        ! Coriolis as well as magnetic drifts
        allocate (wdrift(-ntgrid:ntgrid,2,g_lo%llim_proc:g_lo%ulim_alloc))
+       allocate (wdriftgen(-ntgrid:ntgrid,2,g_lo%llim_proc:g_lo%ulim_alloc))
        allocate (wdriftttp(-ntgrid:ntgrid,ntheta0,naky,negrid,nspec,2))
+       allocate (wdriftttpgen(-ntgrid:ntgrid,ntheta0,naky,negrid,nspec,2))
     end if
     wdrift = 0.  ; wdriftttp = 0. ; wdriftgen = 0.; wdriftttpgen = 0.
 #ifdef LOWFLOW

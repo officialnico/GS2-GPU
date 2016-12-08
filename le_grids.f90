@@ -89,8 +89,6 @@ contains
           ! Do not absorb exponential in weights, since we'll be multiplying by f0 later
           wgts(nesub+1:, is) = wgts(nesub+1:, is)*exp(epts(nesub+1:,is)-vcut**2)*pi*0.5*sqrt(epts(nesub+1:,is))
 
-          ! get grid points in v up to vcut (epts is not E yet)
-          call get_legendre_grids_from_cheb (0.0, vcut, epts(:nesub,is), wgts(:nesub, is))
 
        end if
     end do
@@ -99,6 +97,7 @@ contains
 
     zeroes(:,:) = sqrt(epts(:negrid-1,:))
     x0(:) = sqrt(epts(negrid,:))
+
 
   end subroutine setvgrid
 end module egrid
@@ -261,7 +260,8 @@ contains
        call read_parameters
     end if
     call broadcast_input
-    call setvgrid (vcut, negrid, energy, w, nesub)
+    call set_vgrid
+    !call setvgrid (vcut, negrid, energy, w, nesub)
     if (proc0) then
        call set_grids
     end if
@@ -286,6 +286,22 @@ contains
     endif
     
   end subroutine init_le_grids
+
+  subroutine set_vgrid
+    use species, only: nspec, init_species
+    use egrid, only: setvgrid !, setvgrid_genquad
+    call init_species
+
+    !write (*,*) 'negrid is', negrid, 'nspec is ', nspec
+
+    allocate (energy(negrid,nspec), w(negrid,nspec))
+!    if (genquad) then
+!       call setvgrid_genquad (vcut, negrid, energy, w, nesub)
+!    else
+       call setvgrid (vcut, negrid, energy, w, nesub)
+!    end if
+  end subroutine set_vgrid
+
 
   function le_grids_unit_test_init_le_grids(sizes, energy_results, err)
     use unit_tests, only: announce_check, process_check, agrees_with
@@ -1999,7 +2015,7 @@ contains
     call init_theta_grid
     call init_species
 
-    allocate (energy(negrid,nspec), w(negrid,nspec), dele(negrid,nspec), speed(negrid,nspec),speed_maxw(negrid))
+    allocate (dele(negrid,nspec),speed(negrid,nspec),speed_maxw(negrid),w_maxw(negrid),energy_maxw(negrid))
 
     w_maxw = 0.0
     energy_maxw = 0.0
