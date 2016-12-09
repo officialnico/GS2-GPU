@@ -48,7 +48,7 @@ module species
 
   !> Various quantities needed in the calculation of the slowing-down distribution
   !! These belong here because the equivalent-Maxwellian properties are calculated here
-  real:: me, ZI_fac, ni_prim, ne_prim, ne, vte
+  real:: me, ZI_fac, ni_prim, ne_prim, ne, vte 
 
   integer :: nspec
   type (specie), dimension (:), allocatable :: spec
