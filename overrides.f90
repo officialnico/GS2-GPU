@@ -88,6 +88,9 @@ module overrides
     logical :: override_do_smart_update
     logical :: override_field_local_allreduce
     logical :: override_field_local_allreduce_sub
+    logical :: override_gf_local_fields
+    logical :: override_simple_gf_decomposition
+    logical :: override_gf_lo_integrate
     logical :: override_opt_source
     logical :: override_minnrow
     integer :: nproc
@@ -103,6 +106,9 @@ module overrides
     logical :: do_smart_update
     logical :: field_local_allreduce
     logical :: field_local_allreduce_sub
+    logical :: gf_lo_integrate
+    logical :: gf_local_fields
+    logical :: simple_gf_decomposition
     logical :: opt_source
     integer :: minnrow
     integer :: old_comm
