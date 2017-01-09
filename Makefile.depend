@@ -101,7 +101,6 @@ dump_response_mod = \
 	 leq.o \
 	 matrix_inverse.o \
 	 mp.o \
-	 mt19937.o \
 	 netcdf_utils.o \
 	 nonlinear_terms.o \
 	 normalisations.o \
@@ -210,7 +209,6 @@ ffttester_mod = \
 	 leq.o \
 	 matrix_inverse.o \
 	 mp.o \
-	 mt19937.o \
 	 netcdf_utils.o \
 	 nonlinear_terms.o \
 	 normalisations.o \
@@ -356,7 +354,6 @@ gs2_mod = \
 	 leq.o \
 	 matrix_inverse.o \
 	 mp.o \
-	 mt19937.o \
 	 netcdf_utils.o \
 	 nonlinear_terms.o \
 	 normalisations.o \
@@ -462,7 +459,6 @@ ingen_mod = \
 	 leq.o \
 	 matrix_inverse.o \
 	 mp.o \
-	 mt19937.o \
 	 netcdf_utils.o \
 	 nonlinear_terms.o \
 	 normalisations.o \
@@ -548,6 +544,7 @@ collisional_heating.o: \
 	 kt_grids.o \
 	 le_derivatives.o \
 	 le_grids.o \
+	 run_parameters.o \
 	 species.o \
 	 theta_grid.o 
 collisions.o: \
@@ -772,7 +769,6 @@ diagnostics_zonal_transfer.o: \
 	 fields_arrays.o \
 	 fields_parallelization.o \
 	 gs2_layouts.o \
-	 gs2_time.o \
 	 gs2_transforms.o \
 	 kt_grids.o \
 	 le_grids.o \
@@ -787,6 +783,7 @@ dist_fn.o: \
 	 dist_fn_arrays.o \
 	 fields_arrays.o \
 	 file_utils.o \
+	 gauss_quad.o \
 	 geometry.o \
 	 gs2_heating.o \
 	 gs2_layouts.o \
@@ -1332,7 +1329,6 @@ mds.o: \
 mp.o: \
 	 constants.o \
 	 file_utils.o 
-mt19937.o: 
 netcdf_utils.o: \
 	 constants.o \
 	 file_utils.o \
