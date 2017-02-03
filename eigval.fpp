@@ -11,10 +11,22 @@ module eigval
 !Allows us to user SLEPC_VERSION_MAJOR etc. to automatically
 !disable unsupportted features
 #include <slepcversion.h>
+#include <petscversion.h>
+
+#if PETSC_VERSION_LT(3,6,0)
 #include <finclude/petscvecdef.h>
 #include <finclude/petscmatdef.h>
-#include <finclude/slepcepsdef.h>
+#else
+#include <petsc/finclude/petscvecdef.h>
+#include <petsc/finclude/petscmatdef.h>
+#endif
 
+#if SLEPC_VERSION_LT(3,6,0)
+#include <finclude/slepcepsdef.h>
+#else
+#include <slepc/finclude/slepcepsdef.h>
+#endif
+  
   private
 
   public :: eigval_functional
@@ -546,7 +558,11 @@ contains
        call ginit(restarted)
 
        !Setup vector
+#if PETSC_VERSION_LT(3,6,0)
        call MatGetVecs(mat_operator,PETSC_NULL_OBJECT,init_vec,ierr)
+#else
+       call MatCreateVecs(mat_operator,PETSC_NULL_OBJECT,init_vec,ierr)
+#endif
        call GnewToVec(init_vec)
 
        !Set the initial vector
@@ -906,9 +922,13 @@ contains
 
     if(n_converged.gt.0)then
        !Initialise the eigenvector arrays
+#if PETSC_VERSION_LT(3,6,0)
        call MatGetVecs(my_operator,PETSC_NULL_OBJECT,eig_vec_r,ierr)
        call MatGetVecs(my_operator,PETSC_NULL_OBJECT,eig_vec_i,ierr)
-
+#else
+       call MatCreateVecs(my_operator,PETSC_NULL_OBJECT,eig_vec_r,ierr)
+       call MatCreateVecs(my_operator,PETSC_NULL_OBJECT,eig_vec_i,ierr)
+#endif
        if(proc0)call init_eigenfunc_file(trim(run_name)//"_eig.out.nc",fphi,fapar,fbpar,io_ids)
 
        !Now loop over converged values
