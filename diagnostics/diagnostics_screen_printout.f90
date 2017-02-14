@@ -39,6 +39,7 @@ contains
     use volume_averages, only: average_theta
     use diagnostics_omega, only: omegahist, omega_average
     use diagnostics_config, only: diagnostics_type
+
     implicit none
     type(diagnostics_type), intent(in) :: gnostics
     integer, intent(in) :: outunit
@@ -46,7 +47,7 @@ contains
     integer :: ik, it
     phitot=0.
     !call average_theta(phinew, phinew, phitot, gnostics%distributed)
-    
+    call phinorm (phitot)
 !WARNING: Phitot here has not been set
     if (gnostics%distributed) call sum_reduce(phitot, 0)
     
@@ -65,6 +66,25 @@ contains
        end do
     end do
     write (outunit,*) 
+	
+	contains
+	  subroutine phinorm (phitot)
+		use fields_arrays, only: phinew, aparnew, bparnew
+		use theta_grid, only: delthet
+		use kt_grids, only: naky, ntheta0
+		use constants, only: pi
+		implicit none
+		real, dimension (:,:), intent (out) :: phitot
+		integer :: ik, it
+		do ik = 1, naky
+		   do it = 1, ntheta0
+			  phitot(it,ik) =0.5/pi &
+			   *(sum((abs(phinew(:,it,ik))**2 + abs(aparnew(:,it,ik))**2 &
+					  + abs(bparnew(:,it,ik))**2) &
+					 *delthet(:)))
+		   end do
+		end do
+      end subroutine phinorm
   end subroutine output_line
   
   !> Print instaneous heat fluxes to run_name.new.out
