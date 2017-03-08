@@ -1011,7 +1011,7 @@ contains
 
     !AJ If the number of naky*ntheta0 points is less than the number of MPI
     !AJ processes then disable gf_local_fields
-    if(nproc .lt. naky*ntheta0) then
+    if(nproc .lt. naky*ntheta0 .and. gf_local_fields) then
        if(proc0) then
           write(*,*) 'Disabling gf_local_fields in layouts because not enough MPI processes are being used'
           write(*,*) 'To use gf_local_fields with this simulation ensure you use more than ',naky*ntheta0
