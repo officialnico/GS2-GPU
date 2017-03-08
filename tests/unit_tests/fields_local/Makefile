@@ -1,7 +1,7 @@
 
 sinclude ../Makefile.tests_common
 
-CLEANCOMMAND+= test_fields_local,test_fields_local_tuning
+CLEANCOMMAND+= test_fields_local test_fields_local_tuning
 
 #Define this tests level
 MY_TEST_LEVEL=1
