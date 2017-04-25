@@ -21,6 +21,10 @@ module run_parameters
   !> If true and nonlinear_mode is "off", return
   !! simple diffusive estimates of fluxes to trinity
   public :: trinity_linear_fluxes
+  !> If true and nonlinear_mode is "off", 
+  !! and trinity_linear_fluxes is true, return
+  !! quasilinear estimates of fluxes to trinity
+  public :: trinity_ql_fluxes
   public :: user_comments
 
   !> If true use old diagnostics. Included for testing
@@ -50,6 +54,7 @@ module run_parameters
   real :: rhostar
   logical :: neo_test
   logical :: trinity_linear_fluxes, do_eigsolve
+  logical :: trinity_ql_fluxes
   logical :: use_old_diagnostics
 
   character(len=100000) :: user_comments
@@ -236,7 +241,7 @@ contains
 !         avail_cpu_time, eqzip_option, include_lowflow, neo_test
          avail_cpu_time, margin_cpu_time, eqzip_option, neo_test, &
          trinity_linear_fluxes, do_eigsolve, immediate_reset, &
-         use_old_diagnostics
+         use_old_diagnostics,  trinity_ql_fluxes
 
     if (proc0) then
        beta = 0.0
@@ -263,6 +268,7 @@ contains
        avail_cpu_time = 1.e10
        margin_cpu_time = 300.
        trinity_linear_fluxes = .false.
+       trinity_ql_fluxes = .false.
        do_eigsolve = .false.
        immediate_reset = .true.
        use_old_diagnostics = .false.
@@ -364,6 +370,7 @@ contains
     call broadcast (rhostar)
     call broadcast (neo_test)
     call broadcast (trinity_linear_fluxes)
+    call broadcast (trinity_ql_fluxes)
     call broadcast (do_eigsolve)
     call broadcast (immediate_reset)
     call broadcast (use_old_diagnostics)

@@ -1285,10 +1285,11 @@ contains
 #endif 
     use gs2_time, only: user_time
     use nonlinear_terms, only: nonlinear_mode_switch, nonlinear_mode_none
-    use run_parameters, only: trinity_linear_fluxes
+    use run_parameters, only: trinity_linear_fluxes, trinity_ql_fluxes
     use species, only: nspec, spec
     use species, only: ions, electrons, impurity
     use run_parameters, only: use_old_diagnostics
+    use mp, only: mp_abort
     implicit none
     type(gs2_program_state_type), intent(inout) :: state
     real :: time_interval
@@ -1306,7 +1307,7 @@ contains
       
    ! Use simple gamma / k^2 estimates for transport in the 
    ! linear case. This is for testing Trinity
-   if (trinity_linear_fluxes .and. &
+   if (trinity_linear_fluxes .and. .not. trinity_ql_fluxes .and. &
          nonlinear_mode_switch .eq. nonlinear_mode_none) then
      if (use_old_diagnostics) then
        diff = diffusivity()
@@ -1354,6 +1355,21 @@ contains
    state%outputs%qflux = qf/time_interval
    state%outputs%heat = ht/time_interval
    state%outputs%vflux = vf(1)/time_interval
+   
+   if (trinity_ql_fluxes) then
+#ifdef NEW_DIAG
+     qf = gnostics%current_results%species_heat_flux
+     pf = gnostics%current_results%species_particle_flux
+     ht = gnostics%current_results%species_heating
+     vf = gnostics%current_results%species_momentum_flux
+     state%outputs%pflux = pf/gnostics%current_results%phi2
+     state%outputs%qflux = qf/gnostics%current_results%phi2
+     state%outputs%heat = ht/gnostics%current_results%phi2
+     state%outputs%vflux = vf(1)/gnostics%current_results%phi2
+#else
+     call mp_abort('ERROR: trinity_ql_fluxes only works with new diagnostics', .true.)
+#endif 
+   end if
   end subroutine calculate_outputs
 
 
