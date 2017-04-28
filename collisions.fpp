@@ -21,6 +21,7 @@ module collisions
   public :: dtot, fdf, fdb, vnmult, vnfac
   public :: ncheck, vnslow, vary_vnew
   public :: etol, ewindow, etola, ewindowa
+  public :: timesteps_between_collisions
   public :: init_lorentz, init_ediffuse
   public :: init_lorentz_conserve, init_diffuse_conserve
   public :: init_lorentz_error, collision_model_switch
@@ -28,6 +29,7 @@ module collisions
   public :: use_le_layout, collision_model_ediffuse
   public :: collision_model_lorentz, collision_model_none
   public :: collision_model_lorentz_test, collision_model_full
+  public :: split_collisions
   
   interface solfp1
      module procedure solfp1_le_layout
@@ -78,6 +80,7 @@ module collisions
   logical :: vary_vnew
   real :: vnfac, vnslow
   real :: etol, ewindow, etola, ewindowa
+  integer :: timesteps_between_collisions
 
   real, dimension (:,:,:), allocatable :: dtot
   ! (-ntgrid:ntgrid,nlambda,max(ng2,nlambda-ng2)) lagrange coefficients for derivative error estimate
@@ -135,6 +138,7 @@ module collisions
   logical :: drag = .false.
   logical :: heating_flag = .false.
   logical :: colls = .true.
+  logical :: split_collisions
 
   logical :: hypermult
   logical :: initialized = .false.
@@ -234,9 +238,11 @@ contains
     namelist /collisions_knobs/ collision_model, conserve_moments, &
          heating, adjust, const_v, cfac, hypermult, ei_coll_only, &
          lorentz_scheme, ediff_scheme, resistivity, conservative, test, &
+         timesteps_between_collisions, &
 ! following only needed for adaptive collisionality
          vnfac, etol, ewindow, ncheck, vnslow, vary_vnew, etola, ewindowa, &
-         use_le_layout, special_wfb_lorentz
+         use_le_layout, special_wfb_lorentz, &
+         split_collisions
     integer :: ierr, in_file
 
     if (proc0) then
@@ -244,6 +250,7 @@ contains
        conserve_moments = .true.  ! DEFAULT CHANGED TO REFLECT IMPROVED MOMENTUM AND ENERGY CONSERVATION 7/08
        hypermult = .false.
        cfac = 1.   ! DEFAULT CHANGED TO INCLUDE CLASSICAL DIFFUSION: APRIL 18, 2006
+       timesteps_between_collisions = 1
 !> following only used with adaptive collisionality
        vary_vnew = .false.
        vnfac = 1.1
@@ -264,6 +271,7 @@ contains
        test = .false.
        ei_coll_only = .false.
        special_wfb_lorentz=.true.
+       split_collisions=.false.
        !USE_LE_LAYOUT default set at module level
        !Note: If we want to move default here then we need to note
        !      that if LOWFLOW then we want default to be .true.
@@ -298,6 +306,7 @@ contains
     call broadcast (ewindowa)
     call broadcast (ncheck)
 !<
+    call broadcast (timesteps_between_collisions)
     call broadcast (conservative)
     call broadcast (conserve_moments)
     call broadcast (resistivity)
@@ -311,6 +320,7 @@ contains
     call broadcast (ei_coll_only)
     call broadcast (use_le_layout)
     call broadcast (special_wfb_lorentz)
+    call broadcast (split_collisions)
 
     drag = resistivity .and. (beta > epsilon(0.0)) .and. (nspec > 1) .and. (fapar.gt.0)
   end subroutine read_parameters
@@ -1268,6 +1278,9 @@ contains
     if(.not.allocated(vnewh)) allocate (vnewh(-ntgrid:ntgrid,ntheta0,naky,nspec))
 
     do is = 1, nspec
+       ! Don't include following lines, as haven't yet accounted for possibility of timestep changing.
+       ! Correct collision frequency if applying collisions only every nth timestep:
+       !spec(is)%vnewk = spec(is)%vnewk * float(timesteps_between_collisions)
        if (spec(is)%type == electron_species) then
           do ie = 1, negrid
              do ik = 1, naky

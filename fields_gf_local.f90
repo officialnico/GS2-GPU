@@ -4126,6 +4126,7 @@ contains
     use fields_arrays, only: gf_phi, gf_apar, gf_bpar
     use fields_arrays, only: gf_phinew, gf_aparnew, gf_bparnew
     use dist_fn, only: timeadv, exb_shear, g_exb, g_exbfac
+    use dist_fn, only: collisions_advance
     use dist_fn_arrays, only: g, gnew
     use antenna, only: antenna_amplitudes, no_driver
     use mp, only: iproc
@@ -4213,6 +4214,9 @@ contains
     !Evolve gnew to next half time point
     call timeadv (phi, apar, bpar, phinew, &
          aparnew, bparnew, istep, diagnostics) 
+
+    ! Advance collisions, if separate from timeadv
+    call collisions_advance (phi, bpar, phinew, aparnew, bparnew, istep, diagnostics)
 
   end subroutine advance_gf_local
 

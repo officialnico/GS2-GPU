@@ -64,6 +64,7 @@ module dist_fn
   !public :: init_vpar
   public :: read_parameters, wnml_dist_fn, wnml_dist_fn_species, check_dist_fn
   public :: timeadv, exb_shear, g_exb, g_exbfac
+  public :: collisions_advance
   public :: g_exb_error_limit
   public :: g_exb_start_timestep, g_exb_start_time
   public :: init_bessel, init_fieldeq
@@ -3834,6 +3835,7 @@ endif
     use hyper, only: hyper_diff
     use run_parameters, only: reset, immediate_reset
     use unit_tests, only: debug_message
+    use collisions, only: split_collisions
     implicit none
     complex, dimension (-ntgrid:,:,:), intent (in) :: phi, apar, bpar
     complex, dimension (-ntgrid:,:,:), intent (in) :: phinew, aparnew, bparnew
@@ -3864,12 +3866,16 @@ endif
        call debug_message(verb, &
         'dist_fn::timeadv calculated hypviscosity')
        !Add collisions
-       call vspace_derivatives (gnew, g, g0, phi, bpar, phinew, bparnew, modep)
-       call debug_message(verb, &
-        'dist_fn::timeadv calculated collisions etc')
+       if( .not. split_collisions) then
+         call vspace_derivatives (gnew, g, g0, phi, bpar, phinew, bparnew, modep)
+         call debug_message(verb, &
+          'dist_fn::timeadv calculated collisions etc')
+       end if
     else if (istep.eq.1 .and. istep.ne.istep_last) then
 !CMR on first half step at istep=1 do CL with all redists
-       call vspace_derivatives (gnew, g, g0, phi, bpar, phinew, bparnew, modep)
+       if( .not. split_collisions) then
+         call vspace_derivatives (gnew, g, g0, phi, bpar, phinew, bparnew, modep)
+       end if
        !Calculate the explicit nonlinear terms
        call add_explicit_terms (gexp_1, gexp_2, gexp_3, &
          phi, apar, bpar, istep, bkdiff(1))
@@ -3880,7 +3886,9 @@ endif
        call hyper_diff (gnew, phinew)
     else if (istep.ne.istep_last) then
 !CMR on first half step do CL with all redists without gtoc redist
-       call vspace_derivatives (gnew, g, g0, phi, bpar, phinew, bparnew, modep,gtoc=.false.)
+       if( .not. split_collisions) then
+         call vspace_derivatives (gnew, g, g0, phi, bpar, phinew, bparnew, modep,gtoc=.false.)
+       end if
        !Calculate the explicit nonlinear terms
        call add_explicit_terms (gexp_1, gexp_2, gexp_3, &
          phi, apar, bpar, istep, bkdiff(1))
@@ -3902,7 +3910,9 @@ endif
        call invert_rhs (phi, apar, bpar, phinew, aparnew, bparnew, istep)
        !Add hyper terms (damping)
        call hyper_diff (gnew, phinew)
-       call vspace_derivatives (gnew, g, g0, phi, bpar, phinew, bparnew, modep, ctog=.false.)
+       if( .not. split_collisions) then
+         call vspace_derivatives (gnew, g, g0, phi, bpar, phinew, bparnew, modep, ctog=.false.)
+       end if
     endif
 
     !Enforce parity if desired (also performed in invert_rhs, but this is required
@@ -3912,6 +3922,55 @@ endif
     istep_last=istep
 
   end subroutine timeadv
+
+!---------------------------------------------------------------------------  
+!> @author 
+!> Joseph Parker, STFC
+!
+! DESCRIPTION: 
+!> Advance collision term one timestep by implicit Euler.
+!> @brief
+!> Advance g under collisions one timestep by implicit Euler, then 
+!> solve Maxwell's equations to find consistent fields.
+!> This is only performed if collisions are not evolved as part of the 
+!> usual time advance in timeadv (i.e. if split_collisions=.true.).
+!> Splitting collisions also allows tricks like:
+!>   + not performing redistributes between collisions and the field solve 
+!>     if both are done in gf. 
+!>   + only applying collisions every nth timestep
+!
+!--------------------------------------------------------------------------- 
+
+  subroutine collisions_advance (phi, bpar, phinew, aparnew, bparnew, istep, mode)
+
+    use collisions, only: split_collisions
+    use dist_fn_arrays, only: gnew, g
+    use gs2_layouts, only: gf_lo
+    use le_derivatives, only: vspace_derivatives
+    use theta_grid, only: ntgrid
+    use unit_tests, only: debug_message
+    implicit none
+    complex, dimension (-ntgrid:,:,:), intent (in) :: phi, bpar
+    complex, dimension (-ntgrid:,:,:), intent (inout) :: phinew, aparnew, bparnew
+    integer, intent (in) :: istep
+    integer, optional, intent (in) :: mode
+    integer :: modep
+    integer, parameter :: verb = 3
+
+    if(.not. split_collisions) return
+
+    modep = 0
+    if (present(mode)) modep = mode
+
+    !Add collisions
+    call vspace_derivatives (gnew, g, g0, phi, bpar, phinew, bparnew, modep)
+    call debug_message(verb, &
+      'dist_fn::collisions_advance calculated collisions etc')
+
+    !Find fields for new distribution function
+    call get_init_field (phinew, aparnew, bparnew)
+
+  end subroutine collisions_advance
 
 ! communication initializations for exb_shear should be done once and 
 ! redistribute routines should be used  BD

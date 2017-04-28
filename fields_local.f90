@@ -4143,6 +4143,7 @@ contains
     use fields_arrays, only: phi, apar, bpar, phinew
     use fields_arrays, only: aparnew, bparnew, apar_ext
     use dist_fn, only: timeadv, exb_shear, g_exb, g_exbfac
+    use dist_fn, only: collisions_advance
     use dist_fn_arrays, only: g, gnew
     use antenna, only: antenna_amplitudes, no_driver
     use gs2_layouts, only: g_lo
@@ -4214,6 +4215,10 @@ contains
     !Evolve gnew to next half time point
     call timeadv (phi, apar, bpar, phinew, &
          aparnew, bparnew, istep, diagnostics) 
+
+    ! Advance collisions, if separate from timeadv
+    call collisions_advance (phi, bpar, phinew, aparnew, bparnew, istep, diagnostics)
+
   end subroutine advance_local
 
   !> Routine to dump the current response matrix data
