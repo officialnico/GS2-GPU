@@ -4169,7 +4169,8 @@ contains
     use gs2_layouts, only: g_lo, ik_idx, it_idx, is_idx
     use gs2_layouts, only: ie_idx, il_idx, idx_local, proc_id
     use theta_grid, only: ntgrid, bmag, theta
-
+	use kt_grids, only: aky, akx ! MRH added to index with ky, kx
+	
     implicit none
 
     complex, dimension (-ntgrid:,:,g_lo%llim_proc:), intent (in) :: dist
@@ -4206,8 +4207,10 @@ contains
               if (proc0) then
                  if (.not. forbid(ig,il)) then
                     vpa1 = sqrt(energy(ie)*max(0.0,1.0-al(il)*bmag(ig)))
-                    write (unit,'(7e14.5)') theta(ig), vpa1, energy(ie), &
+                    write (unit,'(9e14.5)') aky(ik),akx(it),theta(ig), vpa1, energy(ie), &
                          real(gtmp(1)), aimag(gtmp(1)), real(gtmp(2)), aimag(gtmp(2))
+                    ! write (unit,'(7e14.5)') theta(ig), vpa1, energy(ie), &
+                         ! real(gtmp(1)), aimag(gtmp(1)), real(gtmp(2)), aimag(gtmp(2))
 !                    write (unit,'(5e14.5)') theta(ig), vpa1, energy(ie), gtmp(1), gtmp(2)
                  end if
               end if
