@@ -112,6 +112,7 @@ module diagnostics_config
      logical :: write_fluxes
      logical :: write_fluxes_by_mode
      logical :: write_symmetry
+     logical :: write_nl_flux_dist
      logical :: write_parity
      logical :: write_omega
      integer :: navg
@@ -264,6 +265,7 @@ contains
     logical :: write_fluxes
     logical :: write_fluxes_by_mode
     logical :: write_symmetry
+    logical :: write_nl_flux_dist
     logical :: write_parity
     logical :: write_omega
     integer :: navg
@@ -341,6 +343,7 @@ contains
          write_fluxes, &
          write_fluxes_by_mode, &
          write_symmetry, &
+         write_nl_flux_dist, &
          write_parity, &
          write_omega, &
          navg, &
@@ -422,6 +425,7 @@ contains
        write_fluxes = .true.
        write_fluxes_by_mode = .true.
        write_symmetry = .false.
+       write_nl_flux_dist = .false.
        write_parity = .false.
        write_omega = .true.
        navg = 10
@@ -502,6 +506,7 @@ contains
        gnostics%write_fluxes = write_fluxes
        gnostics%write_fluxes_by_mode = write_fluxes_by_mode
        gnostics%write_symmetry = write_symmetry
+       gnostics%write_nl_flux_dist = write_nl_flux_dist
        gnostics%write_parity = write_parity
        gnostics%write_omega = write_omega
        gnostics%navg = navg
@@ -584,6 +589,7 @@ contains
     call broadcast (gnostics%write_fluxes)
     call broadcast (gnostics%write_fluxes_by_mode)
     call broadcast (gnostics%write_symmetry)
+    call broadcast (gnostics%write_nl_flux_dist)
     call broadcast (gnostics%write_parity)
     call broadcast (gnostics%write_omega)
     call broadcast (gnostics%navg)

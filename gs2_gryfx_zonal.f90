@@ -43,14 +43,21 @@ module gs2_gryfx_zonal
        integer(c_int) :: nperiod
        integer(c_int) :: ntheta
 
-      ! Miller parameters
+      ! Geometry parameters
        real(c_double) :: rgeo_lcfs
        real(c_double) :: rgeo_local
-       real(c_double) :: akappa
-       real(c_double) :: akappri
-       real(c_double) :: tri
-       real(c_double) :: tripri
+       real(c_int) :: geoType
+       real(c_double) :: aSurf
        real(c_double) :: shift
+       real(c_double) :: shiftVert
+       real(c_int) :: mMode
+       real(c_int) :: nMode
+       real(c_double) :: deltam
+       real(c_double) :: deltan
+       real(c_double) :: deltampri
+       real(c_double) :: deltanpri
+       real(c_double) :: thetam
+       real(c_double) :: thetan
        real(c_double) :: qinp
        real(c_double) :: shat
        real(c_double) :: asym
@@ -346,20 +353,41 @@ contains
         state%init%mgeo_ov%rgeo_local = gryfx_parameters%rgeo_local
 
         ! OK
-        state%init%mgeo_ov%override_akappa = .true.
-        state%init%mgeo_ov%akappa = gryfx_parameters%akappa
+        state%init%mgeo_ov%override_geoType = .true.
+        state%init%mgeo_ov%geoType = gryfx_parameters%geoType
 
-        state%init%mgeo_ov%override_akappri = .true.
-        state%init%mgeo_ov%akappri = gryfx_parameters%akappri
-
-        state%init%mgeo_ov%override_tri = .true.
-        state%init%mgeo_ov%tri = gryfx_parameters%tri
-
-        state%init%mgeo_ov%override_tripri = .true.
-        state%init%mgeo_ov%tripri = gryfx_parameters%tripri
+        state%init%mgeo_ov%override_aSurf = .true.
+        state%init%mgeo_ov%aSurf = gryfx_parameters%aSurf
 
         state%init%mgeo_ov%override_shift = .true.
         state%init%mgeo_ov%shift = gryfx_parameters%shift
+
+        state%init%mgeo_ov%override_shiftVert = .true.
+        state%init%mgeo_ov%shiftVert = gryfx_parameters%shiftVert
+
+        state%init%mgeo_ov%override_mMode = .true.
+        state%init%mgeo_ov%mMode = gryfx_parameters%mMode
+
+        state%init%mgeo_ov%override_nMode = .true.
+        state%init%mgeo_ov%nMode = gryfx_parameters%nMode
+
+        state%init%mgeo_ov%override_deltam = .true.
+        state%init%mgeo_ov%deltam = gryfx_parameters%deltam
+
+        state%init%mgeo_ov%override_deltan = .true.
+        state%init%mgeo_ov%deltan = gryfx_parameters%deltan
+
+        state%init%mgeo_ov%override_deltampri = .true.
+        state%init%mgeo_ov%deltampri = gryfx_parameters%deltampri
+
+        state%init%mgeo_ov%override_deltanpri = .true.
+        state%init%mgeo_ov%deltanpri = gryfx_parameters%deltanpri
+
+        state%init%mgeo_ov%override_thetam = .true.
+        state%init%mgeo_ov%thetam = gryfx_parameters%thetam
+
+        state%init%mgeo_ov%override_thetan = .true.
+        state%init%mgeo_ov%thetan = gryfx_parameters%thetan
 
         state%init%mgeo_ov%override_betaprim = .true.
         state%init%mgeo_ov%betaprim = gryfx_parameters%beta_prime_input

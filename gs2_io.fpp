@@ -23,7 +23,7 @@ module gs2_io
 !  public :: nc_loop_vres
   public :: nc_loop_movie, nc_write_moments, nc_exchange
 !<DD>  public :: nc_write_fields
-  public :: nc_loop_fullmom, nc_loop_sym, nc_loop_corr, nc_loop_corr_extend
+  public :: nc_loop_fullmom, nc_loop_dist, nc_loop_sym, nc_loop_corr, nc_loop_corr_extend
   public :: nc_loop_partsym_tormom, nc_sync
 
   logical, parameter :: serial_io = .true.
@@ -41,7 +41,7 @@ module gs2_io
   integer, dimension (4) :: omega_dim, fluxk_dim, final_field_dim, loop_mom_dim, sym_dim
   integer, dimension (4) :: phi2_extend_dim, phi_corr_2pi_dim
   integer, dimension (3) :: fluxx_dim
-  integer, dimension (3) :: mode_dim, phase_dim, loop_phi_dim, heat_dim
+  integer, dimension (3) :: mode_dim, phase_dim, loop_phi_dim, heat_dim, flux_dist_dim, phi_dist_dim
   integer, dimension (2) :: kx_dim, ky_dim, om_dim, flux_dim, nin_dim, fmode_dim
 
   ! added by EAB 03/05/04 for movies
@@ -65,6 +65,7 @@ module gs2_io
   integer :: omega_id, omegaavg_id, phase_id
   integer :: es_heat_flux_id, es_mom_flux_id, es_part_flux_id, es_exchange_id
   integer :: es_part_tormom_flux_id
+  integer :: es_part_flux_dist_id, es_mom_flux_par_dist_id, es_mom_flux_perp_dist_id, es_heat_flux_dist_id, es_phi_dist_id
   integer :: es_heat_par_id, es_heat_perp_id
   integer :: apar_heat_flux_id, apar_mom_flux_id, apar_part_flux_id
   integer :: apar_heat_par_id, apar_heat_perp_id
@@ -126,8 +127,8 @@ contains
       write_hrate, write_final_antot, write_eigenfunc, &
       make_movie, nmovie_tot, write_verr, &
       write_moments,&
-      write_full_moments_notgc, write_sym, write_pflux_sym, write_pflux_tormom, write_correlation, nwrite_big_tot, &
-      write_correlation_extend, & 
+      write_full_moments_notgc, write_sym, write_pflux_sym, write_nl_flux_dist, &
+      write_pflux_tormom, write_correlation, nwrite_big_tot, write_correlation_extend, & 
       write_phi_over_time, write_apar_over_time, write_bpar_over_time, &
       write_avg_moments, write_final_moments, write_final_epar, &
       ob_midplane) 
@@ -148,7 +149,7 @@ contains
     use constants, only: run_name_size
 # endif
     implicit none
-    logical, intent(in) :: write_nl_flux, write_omega
+    logical, intent(in) :: write_nl_flux, write_nl_flux_dist, write_omega
     logical, intent(in) :: write_hrate, make_movie, write_moments
     logical, intent(in) :: write_final_antot, write_eigenfunc, write_verr
     logical, intent(in) :: write_full_moments_notgc, write_sym, write_correlation
@@ -232,7 +233,8 @@ contains
        call define_dims (nwrite_big_tot)
        call define_vars (write_nl_flux, write_omega, &
             write_hrate, write_final_antot, write_eigenfunc, write_verr, &
-            write_moments, write_full_moments_notgc, write_sym, write_pflux_sym, write_pflux_tormom, write_correlation, &
+            write_moments, write_full_moments_notgc, write_sym, write_pflux_sym, &
+            write_nl_flux_dist, write_pflux_tormom, write_correlation, &
             write_correlation_extend, write_avg_moments, write_final_moments, write_final_epar, &
             ob_midplane=ob_midplane)
 
@@ -525,7 +527,8 @@ contains
 
   subroutine define_vars (write_nl_flux, write_omega, &
        write_hrate, write_final_antot, write_eigenfunc, write_verr, &
-       write_moments, write_full_moments_notgc, write_sym, write_pflux_sym, write_pflux_tormom, write_correlation, &
+       write_moments, write_full_moments_notgc, write_sym, write_pflux_sym, &
+       write_nl_flux_dist, write_pflux_tormom, write_correlation, &
        write_correlation_extend, write_avg_moments, write_final_moments, write_final_epar, &
        ob_midplane)
 # ifdef NETCDF 
@@ -540,7 +543,7 @@ contains
     use netcdf_utils, only: netcdf_real
 # endif
     implicit none
-    logical, intent(in) :: write_nl_flux, write_omega
+    logical, intent(in) :: write_nl_flux, write_nl_flux_dist, write_omega
     logical, intent(in) :: write_hrate, write_final_antot
     logical, intent(in) :: write_eigenfunc, write_verr, write_moments
     logical, intent(in) :: write_full_moments_notgc, write_sym, write_correlation
@@ -662,6 +665,14 @@ contains
     mom_dim(3) = naky_dim
     mom_dim(4) = nspec_dim
     mom_dim(5) = time_dim
+
+    flux_dist_dim(1) = nttot_dim
+    flux_dist_dim(2) = nspec_dim
+    flux_dist_dim(3) = time_dim
+
+    phi_dist_dim(1) = ri_dim
+    phi_dist_dim(2) = nttot_dim
+    phi_dist_dim(3) = time_dim
 
     sym_dim(1) = nttot_dim
     sym_dim(2) = vpa_dim
@@ -1061,6 +1072,19 @@ contains
           if (status /= NF90_NOERR) call netcdf_error (status, var='es_mom0_by_k')
           status = nf90_def_var (ncid, 'es_mom1_by_k', netcdf_real, fluxk_dim, es_mom1_by_k_id)
           if (status /= NF90_NOERR) call netcdf_error (status, var='es_mom1_by_k')
+       end if
+
+       if (write_nl_flux_dist) then
+          status = nf90_def_var (ncid, 'es_part_flux_dist',  netcdf_real, flux_dist_dim, es_part_flux_dist_id)
+          if (status /= NF90_NOERR) call netcdf_error (status, var='es_part_flux_dist')
+          status = nf90_def_var (ncid, 'es_mom_flux_par_dist',  netcdf_real, flux_dist_dim, es_mom_flux_par_dist_id)
+          if (status /= NF90_NOERR) call netcdf_error (status, var='es_mom_flux_par_dist')
+          status = nf90_def_var (ncid, 'es_mom_flux_perp_dist',  netcdf_real, flux_dist_dim, es_mom_flux_perp_dist_id)
+          if (status /= NF90_NOERR) call netcdf_error (status, var='es_mom_flux_perp_dist')
+          status = nf90_def_var (ncid, 'es_heat_flux_dist',  netcdf_real, flux_dist_dim, es_heat_flux_dist_id)
+          if (status /= NF90_NOERR) call netcdf_error (status, var='es_heat_flux_dist')
+          status = nf90_def_var (ncid, 'es_phi_dist',  netcdf_real, phi_dist_dim, es_phi_dist_id)
+          if (status /= NF90_NOERR) call netcdf_error (status, var='es_phi_dist')
        end if
 
        !????
@@ -2483,6 +2507,57 @@ contains
     if (status /= NF90_NOERR) call netcdf_error (status, ncid, vflux_tot_id)
 # endif
   end subroutine nc_vflux
+
+! Output the poloidal distributions of the fluxes of particles, perpendicular
+! momentum, parallel momentum, and energy ! JRB
+  subroutine nc_loop_dist (nout, part_fluxes_dist, mom_fluxes_par_dist, mom_fluxes_perp_dist, heat_fluxes_dist, phi_dist)
+
+    use species, only: nspec
+    use run_parameters, only: fphi
+    use le_grids, only: negrid, nlambda
+    use theta_grid, only: ntgrid
+# ifdef NETCDF
+    use netcdf, only: nf90_put_var
+# endif
+    integer, intent (in) :: nout
+    real, dimension (-ntgrid:,:), intent (in) :: part_fluxes_dist, mom_fluxes_par_dist, mom_fluxes_perp_dist, heat_fluxes_dist
+    real, dimension (2,-ntgrid:ntgrid), intent (in) :: phi_dist
+# ifdef NETCDF
+    integer, dimension (3) :: start1, count1
+    integer, dimension (3) :: start2, count2
+    integer :: status
+
+    start1(1) = 1
+    start1(2) = 1
+    start1(3) = nout
+
+    count1(1) = 2*ntgrid+1
+    count1(2) = nspec
+    count1(3) = 1
+
+    start2(1) = 1
+    start2(2) = 1
+    start2(3) = nout
+
+    count2(1) = 2
+    count2(2) = 2*ntgrid+1
+    count2(3) = 1
+
+    if (fphi > zero) then
+       status = nf90_put_var (ncid, es_part_flux_dist_id, part_fluxes_dist, start=start1, count=count1)
+       if (status /= NF90_NOERR) call netcdf_error (status, ncid, es_part_flux_dist_id)
+       status = nf90_put_var (ncid, es_mom_flux_par_dist_id, mom_fluxes_par_dist, start=start1, count=count1)
+       if (status /= NF90_NOERR) call netcdf_error (status, ncid, es_mom_flux_par_dist_id)
+       status = nf90_put_var (ncid, es_mom_flux_perp_dist_id, mom_fluxes_perp_dist, start=start1, count=count1)
+       if (status /= NF90_NOERR) call netcdf_error (status, ncid, es_mom_flux_perp_dist_id)
+       status = nf90_put_var (ncid, es_heat_flux_dist_id, heat_fluxes_dist, start=start1, count=count1)
+       if (status /= NF90_NOERR) call netcdf_error (status, ncid, es_heat_flux_dist_id)
+       status = nf90_put_var (ncid, es_phi_dist_id, phi_dist, start=start2, count=count2)
+       if (status /= NF90_NOERR) call netcdf_error (status, ncid, es_phi_dist_id)
+    end if
+
+# endif
+  end subroutine nc_loop_dist
 
   subroutine nc_loop_sym (nout, vflx_sym)
     use theta_grid, only: ntgrid

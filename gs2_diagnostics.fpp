@@ -68,7 +68,7 @@ module gs2_diagnostics
   logical, public :: save_for_restart
   logical, public :: save_distfn !<DD> Added for saving distribution function
   logical, public :: write_symmetry, write_correlation_extend, write_correlation
-  logical, public :: write_pflux_sym, write_pflux_tormom  
+  logical, public :: write_pflux_sym, write_nl_flux_dist, write_pflux_tormom
   logical :: file_safety_check
   integer, public :: nwrite, igomega, nmovie
   integer, public :: navg, nsave, nwrite_mult
@@ -153,7 +153,7 @@ module gs2_diagnostics
          write_parity, write_symmetry, save_distfn, & !<DD> Added for saving distribution function
          write_correlation_extend, nwrite_mult, write_correlation, &
          write_phi_over_time, write_apar_over_time, write_bpar_over_time, &
-         write_pflux_sym,  write_pflux_tormom, file_safety_check, &
+         write_pflux_sym, write_nl_flux_dist, write_pflux_tormom, file_safety_check, &
          conv_nstep_av, conv_test_multiplier, conv_min_step, conv_max_step, conv_nsteps_converged
 
 
@@ -506,6 +506,7 @@ contains
     !<DD> Moved the following from loop/finish_diagnostics to init
     call broadcast (write_symmetry)
     call broadcast (write_pflux_sym) !JPL
+    call broadcast (write_nl_flux_dist)
     call broadcast (write_correlation)
     call broadcast (write_correlation_extend)
     call broadcast (write_parity)
@@ -552,7 +553,7 @@ contains
          write_hrate, write_final_antot, &
          write_eigenfunc, make_movie, nmovie_tot, write_verr, &
          write_moments, write_full_moments_notgc, &
-         write_symmetry, write_pflux_sym, write_pflux_tormom, &
+         write_symmetry, write_pflux_sym, write_nl_flux_dist, write_pflux_tormom, &
          write_correlation, nwrite_big_tot, write_correlation_extend, &
          write_phi_over_time, write_apar_over_time, write_bpar_over_time, &
          write_avg_moments, write_final_moments, write_final_epar, &
@@ -726,6 +727,7 @@ contains
        write_ascii = .true.
        write_omavg = .false.
        write_nl_flux = .false.
+       write_nl_flux_dist = .false.
        write_eigenfunc = .false.
        write_moments = .false.
        ob_midplane = .true.
@@ -796,6 +798,7 @@ contains
        !calculating it.
        if(fphi.eq.0) write_symmetry = .false.
        if(fphi.eq.0) write_pflux_sym = .false.
+       if(fphi.eq.0) write_nl_flux_dist = .false.
        if(fphi.eq.0) write_correlation = .false.
        if(fphi.eq.0) write_correlation_extend = .false.
 
@@ -967,7 +970,7 @@ contains
     use mp, only: proc0, broadcast
     use prof, only: prof_entering, prof_leaving
     use gs2_time, only: user_time
-    use gs2_io, only: nc_qflux, nc_vflux, nc_pflux, nc_pflux_tormom,nc_exchange, nc_final_fields, nc_sync
+    use gs2_io, only: nc_qflux, nc_vflux, nc_pflux, nc_pflux_tormom, nc_exchange, nc_final_fields, nc_sync
     use le_grids, only: negrid
     use nonlinear_terms, only: nonlin
     use antenna, only: antenna_w
@@ -1354,6 +1357,9 @@ contains
 
     ! DONE
     if (write_symmetry) call do_write_symmetry
+
+    ! DONE
+    if (write_nl_flux_dist) call do_write_nl_flux_dist
 
     ! DONE
     if (write_pflux_sym) call do_write_pflux_sym
@@ -2561,6 +2567,74 @@ contains
     deallocate (vflx_sym)
   end subroutine do_write_symmetry
 
+! Calculate the poloidal distributions of the fluxes of particles, parallel
+! momentum, perpendicular momentum, and energy
+! (see section 3.1 and appendix A of Ball et al. PPCF 58 (2016) 045023 as well
+! as section 5 of "GS2 analytic geometry specification")
+  subroutine do_write_nl_flux_dist
+    use dist_fn, only: flux_dist
+    use theta_grid, only: ntgrid
+    use le_grids, only: nlambda, negrid
+    use species, only: nspec, spec
+    use mp, only: proc0
+    use gs2_io, only: nc_loop_dist
+    use convert, only: c2r
+    use kt_grids, only: naky, ntheta0
+    use fields_arrays, only: phinew, bparnew
+    use dist_fn_arrays, only: gnew, g_adjust
+    use run_parameters, only: fphi, fbpar
+
+    implicit none
+    real, dimension (:,:), allocatable :: part_fluxes_dist, mom_fluxes_par_dist, mom_fluxes_perp_dist, heat_fluxes_dist
+    real, dimension (:,:), allocatable :: phi_dist
+    real, dimension (:,:,:,:), allocatable :: pflux_dist, vflux_par_dist, vflux_perp_dist, qflux_dist
+    real, dimension (:,:,:,:), allocatable :: phi_byMode_dist
+    integer :: ig, is
+
+    allocate (part_fluxes_dist(-ntgrid:ntgrid,nspec))
+    allocate (mom_fluxes_par_dist(-ntgrid:ntgrid,nspec))
+    allocate (mom_fluxes_perp_dist(-ntgrid:ntgrid,nspec))
+    allocate (heat_fluxes_dist(-ntgrid:ntgrid,nspec))
+    allocate (phi_dist(2,-ntgrid:ntgrid))
+    allocate (pflux_dist(-ntgrid:ntgrid,ntheta0,naky,nspec))
+    allocate (vflux_par_dist(-ntgrid:ntgrid,ntheta0,naky,nspec))
+    allocate (vflux_perp_dist(-ntgrid:ntgrid,ntheta0,naky,nspec))
+    allocate (qflux_dist(-ntgrid:ntgrid,ntheta0,naky,nspec))
+    allocate (phi_byMode_dist(2,-ntgrid:ntgrid,ntheta0,naky))
+    call c2r(phinew,phi_byMode_dist)
+    call g_adjust (gnew, phinew, bparnew, fphi, fbpar) ! convert from g to h
+    call flux_dist (phinew, pflux_dist, vflux_par_dist, vflux_perp_dist, qflux_dist)
+    call g_adjust (gnew, phinew, bparnew, -fphi, -fbpar) ! convert back from h to g
+    if (proc0) then
+       if (fphi > epsilon(0.0)) then
+          do ig = -ntgrid, ntgrid
+             do is = 1, nspec
+                pflux_dist(ig,:,:,is) = pflux_dist(ig,:,:,is) * spec(is)%dens
+                call get_volume_average (pflux_dist(ig,:,:,is), part_fluxes_dist(ig,is))
+                vflux_par_dist(ig,:,:,is) = vflux_par_dist(ig,:,:,is) * spec(is)%dens*sqrt(spec(is)%mass*spec(is)%temp)
+                call get_volume_average (vflux_par_dist(ig,:,:,is), mom_fluxes_par_dist(ig,is))
+                vflux_perp_dist(ig,:,:,is) = vflux_perp_dist(ig,:,:,is) * spec(is)%dens*sqrt(spec(is)%mass*spec(is)%temp)
+                call get_volume_average (vflux_perp_dist(ig,:,:,is), mom_fluxes_perp_dist(ig,is))
+                qflux_dist(ig,:,:,is) = qflux_dist(ig,:,:,is) * spec(is)%dens*spec(is)%temp
+                call get_volume_average (qflux_dist(ig,:,:,is), heat_fluxes_dist(ig,is))
+             end do
+             call get_volume_average (phi_byMode_dist(1,ig,:,:), phi_dist(1,ig))
+             call get_volume_average (phi_byMode_dist(2,ig,:,:), phi_dist(2,ig))
+          end do
+       end if
+    end if
+    if (proc0) call nc_loop_dist (nout, part_fluxes_dist, mom_fluxes_par_dist, mom_fluxes_perp_dist, heat_fluxes_dist, phi_dist)
+    deallocate (part_fluxes_dist)
+    deallocate (mom_fluxes_par_dist)
+    deallocate (mom_fluxes_perp_dist)
+    deallocate (heat_fluxes_dist)
+    deallocate (phi_dist)
+    deallocate (pflux_dist)
+    deallocate (vflux_par_dist)
+    deallocate (vflux_perp_dist)
+    deallocate (qflux_dist)
+    deallocate (phi_byMode_dist)
+  end subroutine do_write_nl_flux_dist
 
   subroutine do_write_pflux_sym
     use dist_fn, only: pflux_vs_theta_vs_vpa

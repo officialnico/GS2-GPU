@@ -24,17 +24,22 @@ struct advanced_parameters_struct {
 /* These MUST be in the same order as the type declaration in
  * geometry.f90*/
 struct miller_parameters_struct { 
-     double rmaj;
-     double R_geo;
-     double akappa;
-     double akappri;
-     double tri;
-     double tripri;
-     double shift;
-     double qinp;
-     double shat;
-     double asym;
-     double asympri;
+     int :: geoType
+     double :: rmaj
+     double :: R_geo
+     double :: aSurf
+     double :: shift
+     double :: shiftVert
+     int :: mMode
+     int :: nMode
+     double :: deltam
+     double :: deltan
+     double :: deltampri
+     double :: deltanpri
+     double :: thetam
+     double :: thetan
+     double :: qinp
+     double :: shat
 };
 
 struct coefficients_struct {

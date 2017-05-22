@@ -7,24 +7,27 @@ module geometry
   public :: beta_a_fun, eikcoefs, geofax, iofrho, pbarofrho, bi_out
   public :: qfun, rpofrho, rcenter, init_theta, nth_get, f_trap  !procedures
   public :: psi, cvdrift, theta, dvdrhon, surfarea
-  public :: rhoc, nperiod, eqfile, irho, iflux, local_eq, gen_eq
+  public :: nperiod, eqfile, irho, iflux, local_eq, gen_eq
   public :: ppl_eq, transp_eq, chs_eq, efit_eq, equal_arc, bishop
   public :: advanced_parameters_type, advanced_parameters
-  public :: delrho, rmin, rmax, isym, in_nt, writelots, itor
-  public :: r_geo, akappa, akappri, tri, tripri
-  public :: shift, qinp, asym, asympri, constant_coefficients
+  public :: rmin, rmax, isym, in_nt, writelots, itor
+  public :: constant_coefficients
   public :: miller_parameters_type, miller_parameters
-  public :: s_hat_input, constant_coefficients_type, verb
+  public :: constant_coefficients_type, verb
   public :: grho, bmag, gradpar, cvdrift0, coefficients_type
   public :: gbdrift, gbdrift0, cdrift, cdrift0, gbdrift_th
   public :: jacob, Rplot, Zplot, aplot, Rprime, Zprime, aprime, Uk1, Uk2, Bpol
   public :: cvdrift_th, gds2, gds21, gds22, gds23, gds24, gds24_noq
-  public :: qsf, rmaj, shat, kxfac, aminor, finish_geometry, drhodpsin
+  public :: qsf, shat, kxfac, aminor, finish_geometry, drhodpsin
   public :: p_prime_input, invLp_input, beta_prime_input, alpha_input, dp_mult
   public :: gs2d_eq, idfit_eq, dfit_eq, s_hat_new, beta_prime_new, debug
   public :: theta_eqarc, gradpar_prime, theta_prime, theta_prime_eqarc
   public :: job_id, big, dbetadrho, eqinit, shotnum, xanthopoulos, rfun, tstar
-  public :: diameter, Hahm_Burrell 
+  public :: diameter, Hahm_Burrell
+  public :: geotype, rmaj, r_geo, rhoc, delrho, aSurf, shift, shiftVert, mMode, nMode
+  public :: deltam, deltan, deltampri, deltanpri, thetam, thetan
+  public :: qinp, s_hat_input
+  public :: Rpos
 
   real, allocatable, dimension(:) :: grho, theta, bmag, gradpar, &
        cvdrift, cvdrift0, gbdrift, gbdrift0, gds2, gds21, gds22, jacob, &
@@ -37,11 +40,17 @@ module geometry
 
   real :: Rref_X, Bref_X
 
-  real :: rhoc, rmaj, r_geo, shift, dbetadrho, kxfac
-  real :: qinp, shat, akappa, akappri, tri, tripri, dpressdrho, asym, asympri
-  real :: delrho, rmin, rmax, qsf, aminor, bi_out
+  real :: dbetadrho, kxfac
+
+  integer :: geotype, mMode, nMode
+  real :: rmaj, r_geo, rhoc, delrho, aSurf, shift, shiftVert
+  real :: deltam, deltan, deltampri, deltanpri, thetam, thetan
+  real :: qinp, s_hat_input
+
+  real :: shat, dpressdrho
+  real :: rmin, rmax, qsf, aminor, bi_out
   
-  real :: s_hat_input, p_prime_input, invLp_input, beta_prime_input
+  real :: p_prime_input, invLp_input, beta_prime_input
   real :: alpha_input, dp_mult
 
   integer :: nperiod
@@ -100,17 +109,22 @@ module geometry
   end type advanced_parameters_type
 
   type miller_parameters_type
+     integer :: geoType
      real :: rmaj
      real :: R_geo
-     real :: akappa
-     real :: akappri
-     real :: tri
-     real :: tripri
+     real :: aSurf
      real :: shift
+     real :: shiftVert
+     integer :: mMode
+     integer :: nMode
+     real :: deltam
+     real :: deltan
+     real :: deltampri
+     real :: deltanpri
+     real :: thetam
+     real :: thetan
      real :: qinp
      real :: shat
-     real :: asym
-     real :: asympri
    end type miller_parameters_type
 
   type(advanced_parameters_type) :: advanced_parameters
@@ -204,7 +218,7 @@ module geometry
 !!!     rhoc :: minor radius of surface of interest (see irho below)
 !!!     itor :: default one.  Choose zero to get "s-alpha" equilibria (see iflux=0)
 !!!     iflux :: chooses mode of operation.  
-!!!              case (0)  :: no equilibrium.  Miller parameterization of local equilibrium
+!!!              case (0)  :: no equilibrium.  Analytic parameterization of local equilibrium
 !!!                           iflux = 0 forces local_eq = .true. and irho = 2
 !!!              case (1)  :: use numerical equilibrium.  5 choices:
 !!!                 ppl_eq = .true. :: use PPL style NetCDF equilibrium (Menard)
@@ -249,17 +263,56 @@ module geometry
 !!!
 !!!     nperiod :: number of cells of width 2 pi in theta. 
 !!!  
+!!!     geoType :: determines the analytic geometry specification
+!!!             case (0) :: the tilted Miller geometry: generalization of Miller et al. PoP 1998
+!!!               (see Chapter 3.2.1 of J. Ball MIT Masters thesis)
+!!!             case (1) :: the global MHD solution geometry: calculated by inverting the large
+!!!               aspect ratio, constant-current MHD solution
+!!!               (see J. Ball "Optimized up-down asymmetry to drive fast intrinsic rotation in tokamak reactors")
+!!!             case (2) :: the generalized ellipticity geometry: the polar formula for an ellipse generalized
+!!!               to arbitrary shaping effect mode number (see Chapter 5.1.2 of J. Ball Oxford PhD thesis)
+!!!             case (3) :: the Fourier series geometry: Fourier decomposition of the minor radius as a function
+!!!               of poloidal angle (see Chapter 5.1.1 of J. Ball Oxford PhD thesis)
 !!!     rmaj :: major radius of magnetic axis (in units of aminor) if iflux = 1
 !!!          or major radius of center of flux surface of interest (units of aminor) otherwise
-!!!     r_geo :: major radius of last closed flux surface
-!!!     shift :: d rmaj/drho.  (Typically < 0.)
-!!!     dIdrho :: d I/drho where I = R B_T
+!!!     r_geo :: major radius of last closed flux surface or
+!!!           if iflux=0: sets the reference magnetic field to be the value of the toroidal
+!!!           field at R=r_geo on the flux surface of interest
+!!!     aSurf :: the real-space flux surface label of the surface with deltam and deltan shaping as well as
+!!!       a major radius of Rmaj (only used when geoType={1})
+!!!     shift :: d rmaj/drho.  (Typically < 0.) (only used when geoType={0,2,3})
+!!!     -> Alternative definitions:
+!!!       Raxis :: major radial location of the magnetic axis. (only used when geoType={1})
+!!!     shiftVert :: d zmaj/drho. (< 0 for a vertical shift) (only used when geoType={0,2,3})
+!!!     -> Alternative definitions:
+!!!       Zaxis :: axial location of the magnetic axis. (only used when geoType={1})
+!!!     mMode :: the first poloidal mode number (only used when geoType={2,3})
+!!!     nMode :: the second poloidal mode number (only used when geoType={2,3})
+!!!     deltam :: magnitude of the first poloidal shaping effect (only used when geoType={2,3})
+!!!     -> Alternative definitions:
+!!!       delta2 :: identical to akappa (only used when geoType={1})
+!!!       akappa :: flux surface elongation (only used when geoType={0})
+!!!     deltan :: magnitude of the second poloidal shaping effect (only used when geoType={2,3})
+!!!     -> Alternative definitions:
+!!!       delta3 :: magnitude of the triangulaity-like shaping effect (only used when geoType={1})
+!!!       tri :: flux surface triangulaity (only used when geoType={0})
+!!!     deltampri :: d(deltam)/d(rhoc) (only used when geoType={2,3})
+!!!     -> Alternative definitions:
+!!!       akappapri :: d(akappa)/d(rhoc) (only used when geoType={0})
+!!!     deltanpri :: d(deltan)/d(rhoc) (only used when geoType={2,3})
+!!!     -> Alternative definitions:
+!!!       tripri :: d(tri)/d(rhoc) (only used when geoType={0})
+!!!     thetam :: tilt angle of the first poloidal shaping effect (only used when geoType={2,3})
+!!!     -> Alternative definitions:
+!!!       theta2 :: tilt angle of the flux surface elongation (only used when geoType={1})
+!!!       thetak :: tilt angle of the flux surface elongation (only used when geoType={0})
+!!!     thetan :: tilt angle of the first poloidal shaping effect (only used when geoType={2,3})
+!!!     -> Alternative definitions:
+!!!       theta3 :: tilt angle of the triangularity-like shaping effect (only used when geoType={1})
+!!!       thetad :: tilt angle of the flux surface triangularity (only used when geoType={0})
 !!!     qinp :: safety factor q at surface of interest
 !!!     shat :: d q/drho at surface of interest
-!!!     akappa :: elongation (k) of surface of interest
-!!!     akappri :: dk/drho
-!!!     tri :: triangularity of surface of interest
-!!!     tripri :: d tri/drho
+!!!     dIdrho :: d I/drho where I = R B_T
 !!!     dpressdrho :: dpressure /drho = 0.5 dbeta /drho at surface of interest.
 !!!  
 !!!     delrho :: numerical parameter.  Should be "small enough".  Typically 0.001 ok.
@@ -346,6 +399,13 @@ contains
     real :: qval, qval1, qval2, delrp, dum
     real :: bi, Ltot, rinv
 
+    ! Used to translate definition of the poloidal angle such that the location
+    ! of the maximium magnetic field is at pi (see section 3.2.3 of Ball MIT
+    ! Masters thesis or section 2.4 of "GS2 analytic geometry specification")
+    real :: thetaShift
+    integer :: iBmax
+    logical :: bMaxShift
+
     real :: a_b, b_b, c_b
     real :: s_hat, dp, di, pressure, tmp, rbar
 
@@ -417,15 +477,19 @@ if (debug) write(6,*) "eikcoefs: allocated(theta)", allocated(theta), 'jid=',job
        call init_theta(ntheta)
     endif
 
+thetaShift = 0.0
+bMaxShift = .true. ! limits the initialization routine to run no more than twice
+do while (bMaxShift==.true.)
+
     if(iflux /= 1 .and. iflux /= 10) then
 
        if (verb>3) write (*,*) 'Starting leqin, ntheta = ', ntheta, ntgrid
 
-       call leqin(rmaj, R_geo, akappa, akappri, tri, tripri, rhoc, delrho, shift, &
-            qinp, s_hat_input, asym, asympri, ntgrid)
+       call leqin(geoType, rmaj, R_geo, rhoc, delrho, aSurf, shift, shiftVert, mMode, nMode, deltam, deltan, deltampri, deltanpri, &
+            thetam, thetan, qinp, s_hat_input, ntgrid, thetaShift)
        if(.not.allocated(gds22)) call alloc_module_arrays(ntgrid)
        if(present(ntheta_returned)) ntheta_returned = ntheta
-       call alloc_local_arrays(ntgrid)
+       if(.not.allocated(smodel)) call alloc_local_arrays(ntgrid)
     endif
 
 if (debug) write(6,*) "eikcoefs: iflux=",iflux, 'chs_eq=', chs_eq, 'jid=',job_id
@@ -697,6 +761,35 @@ if (debug) write(6,*) "eikcoefs: call rmajortgrid"
           call periodic_copy(Bmod, 0.)
        endif
     endif
+
+    ! Start theta shift calc
+    ! This is used to modify the definition of theta such that the maxiumum magnetic field is at pi
+    ! This is necessary to correctly calculate bounce points ! JRB
+    bMaxShift = .false.
+    ! if using Miller local equilibrium
+    if (iflux /= 1 .and. iflux /= 10) then
+
+       ! Locate the index of the maximum magnetic field in the range [-pi,pi)
+       iBmax = -nth
+       do i =-nth+1,nth-1
+          if (Bmod(iBmax)<Bmod(i)) then
+             iBmax = i
+          end if
+       enddo
+
+       ! If it is not at plus or minus pi and theta has never been shifted, then shift theta
+
+       ! thetaShift==0.0 limits the loop to at most execute twice and is necessary to prevent an 
+       !  infinite loop if the field is double peaked
+       if (iBmax/=-nth .and. thetaShift==0.0) then
+          bMaxShift = .true.
+          thetaShift = theta(iBmax)-theta(-nth)
+
+          write(*,*) "Bmax is not located at +pi or -pi, translating theta by",thetaShift," so that it is..."
+       end if
+    end if
+end do
+! End theta shift calc
 
 !<DD> If anyone uncomments the below loop please use get_unused_unit and open_output_file
 !     to open the output file (and close_output_file to close it) rather than using unit=43 directly.
@@ -2719,55 +2812,40 @@ end subroutine geofax
     real, dimension(-ntgrid:), intent (in) :: th_bish, theta, ltheta
     real, dimension(-ntgrid:), intent (out) :: Rpol
     real, dimension(-ntgrid:ntgrid) :: dthdl
-    integer :: i, is
-! 
-! R = 1/(d theta/dl * d th_bish/d theta)
-! 
-! the only tricky part is near th_bish = 0.
-!
-! find this point:
+    integer :: i
 
-    !write (*,*) 'th_bish', th_bish
-    is = nth-1
-    do i=1,nth-1
-       if(abs(th_bish(i+1)-th_bish(i)) > pi) then
-          is=i
-          goto 10
+! General calculation of the poloidal magnetic field radius of curvature
+! (see section 2.3 of "GS2 analytic geometry specification") ! JRB
+
+    ! Calculate du/dtheta (where u is defined according to Miller PoP 5 973 (1998)) 
+    ! Note that we must properly account for discontinuities in u
+    do i=-nth+1,nth-1
+       if(th_bish(i+1)-th_bish(i-1) > pi) then
+          Rpol(i)=(th_bish(i+1)-th_bish(i-1)-2*pi)/(theta(i+1)-theta(i-1))
+       else if(th_bish(i+1)-th_bish(i-1) < -pi) then
+          Rpol(i)=(th_bish(i+1)-th_bish(i-1)+2*pi)/(theta(i+1)-theta(i-1))
+       else
+          Rpol(i)=(th_bish(i+1)-th_bish(i-1))/(theta(i+1)-theta(i-1))
        endif
-    enddo
-    
-10  continue
-
-    do i=1,is-1
-       Rpol(i)=(th_bish(i+1)-th_bish(i-1))/(theta(i+1)-theta(i-1))
-    enddo
-
-    Rpol(is)=(th_bish(is+1)-2*pi-th_bish(is-1))/(theta(is+1)-theta(is-1))
-
-    Rpol(is+1)=(th_bish(is+2)-th_bish(is)-2*pi)/(theta(is+2)-theta(is))
-
-    do i=is+2,nth-1
-       Rpol(i)=(th_bish(i+1)-th_bish(i-1))/(theta(i+1)-theta(i-1))
     enddo
 
     Rpol(nth)=(th_bish(-nth+1)-th_bish(nth-1))  &
          /(theta(-nth+1)-theta(nth-1)+2*pi)
 
     Rpol(-nth)=Rpol(nth)
-    
-    do i=-nth+1,0
-       Rpol(i)=(th_bish(i+1)-th_bish(i-1))/(theta(i+1)-theta(i-1))
-    enddo
-      
+
+    ! Calculate dtheta/dl (where l is the poloidal arc length)
     dthdl(-nth) = (theta(nth-1) - theta(-nth+1) -2*pi) &
-         /(ltheta(nth-1) - ltheta(-nth+1) - 2*ltheta(nth))
+         /(ltheta(nth-1) - ltheta(-nth+1) - ltheta(nth) + ltheta(-nth))
 
     do i = -nth+1, nth-1
        dthdl(i) = (theta(i+1)-theta(i-1))/(ltheta(i+1)-ltheta(i-1))
     enddo
-    
+
     dthdl(nth) = dthdl(-nth)
 
+    ! invert to find Rpol
+    ! (the radius of curvature of the poloidal magnetic field)
     do i=-nth,nth
        Rpol(i) = 1/(Rpol(i)*dthdl(i))
     enddo
@@ -3551,7 +3629,7 @@ subroutine geometry_set_inputs(equilibrium_type,&
   chs_eq = .false.
   efit_eq = .false.
 
-  equal_arc = .true.
+  equal_arc = .true. ! JRB - are we sure equal_arc works properly?
   bishop = bishop_in
   dp_mult = 1.0
   delrho = 1e-3
@@ -3596,7 +3674,7 @@ subroutine geometry_get_default_advanced_parameters(advanced_parameters_out)
   implicit none
   type(advanced_parameters_type), intent(out) :: advanced_parameters_out
  
-  advanced_parameters_out%equal_arc = .true.
+  advanced_parameters_out%equal_arc = .true.  ! JRB - are we sure equal_arc works properly?
   advanced_parameters_out%dp_mult = 1.0
   advanced_parameters_out%delrho = 1e-3
   advanced_parameters_out%rmin = 1e-3
@@ -3655,52 +3733,62 @@ subroutine geometry_set_advanced_parameters(advanced_parameters_in)
 end subroutine geometry_set_advanced_parameters
 
 subroutine geometry_get_miller_parameters(miller_parameters_out)
-  use geometry, only: rmaj, r_geo, akappa, akappri, tri, tripri
-  use geometry, only: shift, qinp, shat, asym, asympri
+  use geometry, only: geoType, rmaj, r_geo, aSurf, shift, shiftVert, mMode, nMode
+  use geometry, only: deltam, deltan, deltampri, deltanpri, thetam, thetan, qinp, shat
   use geometry, only: miller_parameters_type, miller_parameters
   implicit none
   type(miller_parameters_type), intent(out) :: miller_parameters_out
-  
+ 
+  miller_parameters%geoType = geoType
   miller_parameters%rmaj = rmaj
   miller_parameters%r_geo = r_geo
-  miller_parameters%akappa = akappa
-  miller_parameters%akappri = akappri
-  miller_parameters%tri = tri
-  miller_parameters%tripri = tripri
+  miller_parameters%aSurf = aSurf
   miller_parameters%shift = shift
+  miller_parameters%shiftVert = shiftVert
+  miller_parameters%mMode = mMode
+  miller_parameters%nMode = nMode
+  miller_parameters%deltam = deltam
+  miller_parameters%deltan = deltan
+  miller_parameters%deltampri = deltampri
+  miller_parameters%deltanpri = deltanpri
+  miller_parameters%thetam = thetam
+  miller_parameters%thetan = thetan
   miller_parameters%qinp = qinp
   miller_parameters%shat = shat
-  miller_parameters%asym = asym
-  miller_parameters%asympri = asympri
   
   miller_parameters_out = miller_parameters
 
 end subroutine geometry_get_miller_parameters
 
 subroutine geometry_set_miller_parameters(miller_parameters_in)
-  use geometry, only: rmaj, r_geo, akappa, akappri, tri, tripri
-  use geometry, only: shift, qinp, shat, asym, asympri
+  use geometry, only: geoType, rmaj, r_geo, aSurf, shift, shiftVert, mMode, nMode
+  use geometry, only: deltam, deltan, deltampri, deltanpri, thetam, thetan, qinp, shat
   use geometry, only: miller_parameters_type, miller_parameters
   implicit none
   type(miller_parameters_type), intent(in) :: miller_parameters_in
 
   miller_parameters = miller_parameters_in
-  
+
+  geoType = miller_parameters_in%geoType
   rmaj = miller_parameters_in%rmaj
   R_geo = miller_parameters_in%R_geo
-  akappa = miller_parameters_in%akappa
-  akappri = miller_parameters_in%akappri
-  tri = miller_parameters_in%tri
-  tripri = miller_parameters_in%tripri
+  aSurf = miller_parameters_in%aSurf
   shift = miller_parameters_in%shift
+  shiftVert = miller_parameters_in%shiftVert
+  mMode = miller_parameters_in%mMode
+  nMode = miller_parameters_in%nMode
+  deltam = miller_parameters_in%deltam
+  deltan = miller_parameters_in%deltan
+  deltampri = miller_parameters_in%deltampri
+  deltanpri = miller_parameters_in%deltanpri
+  thetam = miller_parameters_in%thetam
+  thetan = miller_parameters_in%thetan
   qinp = miller_parameters_in%qinp
   shat = miller_parameters_in%shat
-  asym = miller_parameters_in%asym
-  asympri = miller_parameters_in%asympri
-   
+
   write(*,*) 's_hat was set to', shat
-  write(*,*) 'akappa was set to', akappa
-  write(*,*) 'asym was set to', asym
+  write(*,*) 'deltam was set to', deltam
+  write(*,*) 'deltan was set to', deltan
   write(*,*) 'R_geo was set to', R_geo
   write(*,*) 'rmaj was set to', rmaj
   write(*,*) 'qinp was set to', qinp

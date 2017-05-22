@@ -411,7 +411,8 @@ contains
     use collisional_heating, only: write_collisional, calculate_collisional   
     use diagnostics_printout, only: print_flux_line, print_line
     use diagnostics_printout, only: write_flux_line, write_line
-    use diagnostics_fluxes, only: calculate_fluxes, write_symmetry, write_parity
+    use diagnostics_fluxes, only: calculate_fluxes, write_symmetry
+    use diagnostics_fluxes, only: write_parity, write_nl_flux_dist
     use diagnostics_fields, only: write_fields, write_movie
     use diagnostics_fields, only: dump_fields_periodically
     use diagnostics_moments, only: write_moments, write_full_moments_notgc
@@ -530,6 +531,7 @@ contains
        call debug_message(verb, &
          'gs2_diagnostics_new::run_diagnostics calculated fluxes')
        if (gnostics%write_symmetry) call write_symmetry(gnostics)
+       if (gnostics%write_nl_flux_dist) call write_nl_flux_dist(gnostics)
        if (gnostics%write_parity) call write_parity(gnostics)
        if (gnostics%write_verr) call write_velocity_space_checks(gnostics)
        if (gnostics%write_cerr) call write_collision_error(gnostics) ! NB only ascii atm

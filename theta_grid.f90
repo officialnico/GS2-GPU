@@ -657,7 +657,7 @@ contains
     use geometry, only: eqfile
     !  use geometry, only: idfit_eq
     use geometry, only: gen_eq, efit_eq, ppl_eq, local_eq, dfit_eq
-    use geometry, only: gs2d_eq, transp_eq, writelots, equal_arc
+    use geometry, only: gs2d_eq, chs_eq, transp_eq, writelots, equal_arc
     implicit none
     integer, intent(in) :: unit
     if (.not. exist) return
@@ -674,6 +674,7 @@ contains
     write (unit, fmt="(' local_eq =  ',L1)") local_eq
     write (unit, fmt="(' transp_eq =  ',L1)") transp_eq
     write (unit, fmt="(' gs2d_eq =  ',L1)") gs2d_eq
+    write (unit, fmt="(' chs_eq =  ',L1)") chs_eq
     write (unit, fmt="(' equal_arc =  ',L1)") equal_arc
     write (unit, fmt="(' bishop =  ',i2)") bishop
     write (unit, fmt="(' s_hat_input =  ',e13.6)") s_hat_input
@@ -691,13 +692,14 @@ contains
   end subroutine wnml_theta_grid_eik
 
   subroutine check_theta_grid_eik(report_unit,dbetadrho)
-    use theta_grid_params, only: akappa, akappri, tri, tripri, eps
+    use theta_grid_params, only: deltam, deltan, deltampri, deltanpri, eps
+    use theta_grid_params, only: geoType, aSurf, shift, shiftVert, mMode, nMode, thetam, thetan
     use geometry, only: alpha_input, beta_prime_input, beta_prime_new, invLp_input
     use geometry, only: s_hat_input, s_hat_new, shat
     use geometry, only: dp_mult
     use geometry, only: rhoc, rmaj, r_geo, qinp
     use geometry, only: bishop, iflux, irho
-    use geometry, only: eqfile
+    use geometry, only: eqfile, chs_eq
     use geometry, only: idfit_eq, gen_eq, efit_eq, ppl_eq, local_eq, dfit_eq
     implicit none
     integer, intent(in) :: report_unit
@@ -705,7 +707,19 @@ contains
     call checklogic_theta_grid_eik(report_unit)
     write (report_unit, *)
     if (local_eq .and. iflux == 0) then
-       write (report_unit, fmt="('A local equilibrium model has been selected.')")
+       write (report_unit, fmt="('The following local equilibrium model has been selected:')")
+       select case (geoType)
+          case (0)
+             write (report_unit, fmt="('Miller')")
+          case (1)
+             write (report_unit, fmt="('Global')")
+          case (2)
+             write (report_unit, fmt="('GeneralizedEllipticity')")
+          case (3)
+             write (report_unit, fmt="('FourierSeries')")
+          case default
+             write (report_unit, fmt="('ERROR: invalid analytic geometry specification')")
+       end select
        if (Rmaj == 1.0) then
           write (report_unit, &
                & fmt="('Scale lengths are normalized to the major radius, R')")
@@ -739,12 +753,28 @@ contains
        end if
        write (report_unit, *) 
        write (report_unit, fmt="('B_poloidal is determined by:')")
+       if (geoType==1) then
+          write (report_unit, *)
+          write (report_unit, fmt="('    minor radius of shaped surface: aSurf = ',f7.4)") aSurf
+       elseif (geoType==2 .or. geoType==3) then
+          write (report_unit, *)
+          write (report_unit, fmt="('    first shaping mode number: mMode =  ',i2)") mMode
+          write (report_unit, fmt="('    second shaping mode number: nMode = ',i2)") nMode
+       end if
        write (report_unit, *) 
-       write (report_unit, fmt="('    triangularity, tri =       ',f7.4)") tri
-       write (report_unit, fmt="('  & gradient: d tri /d rho =   ',f7.4)") tripri
+       write (report_unit, fmt="('    deltam =       ',f7.4)") deltam
+       write (report_unit, fmt="('    deltan =        ',f7.4)") deltan
+       if (geoType/=1) then
+          write (report_unit, *) 
+          write (report_unit, fmt="('  & gradient: d deltam /d rho =   ',f7.4)") deltampri
+          write (report_unit, fmt="('  & gradient: d deltan /d rho = ',f7.4)") deltanpri
+       end if
        write (report_unit, *) 
-       write (report_unit, fmt="('    elongation, kappa =        ',f7.4)") akappa
-       write (report_unit, fmt="('  & gradient: d kappa /d rho = ',f7.4)") akappri
+       write (report_unit, fmt="('    thetam =       ',f7.4)") thetam
+       write (report_unit, fmt="('    thetan =        ',f7.4)") thetan
+       write (report_unit, *) 
+       write (report_unit, fmt="('    shift =        ',f7.4)") shift
+       write (report_unit, fmt="('    shiftVert =    ',f7.4)") shiftVert
 
        write (report_unit, *) 
        write (report_unit, fmt="('The magnetic shear s_hat = ',f7.4)") shat
@@ -832,6 +862,11 @@ contains
        if (efit_eq) then
           write (report_unit, *) 
           write (report_unit, fmt="('Equilibrium information obtained from eqdsk:')")
+          write (report_unit, fmt="(a)") trim(eqfile)
+       end if
+       if (chs_eq) then
+          write (report_unit, *) 
+          write (report_unit, fmt="('Equilibrium information obtained from chease:')")
           write (report_unit, fmt="(a)") trim(eqfile)
        end if
        select case (bishop)
@@ -936,7 +971,7 @@ contains
 
   subroutine checklogic_theta_grid_eik(report_unit)
     use geometry, only: geq=>gen_eq, eeq=>efit_eq, peq=>ppl_eq
-    use geometry, only: leq=>local_eq, deq=>dfit_eq
+    use geometry, only: leq=>local_eq, deq=>dfit_eq, ceq=>chs_eq
     integer, intent (in) :: report_unit
     
     if(geq .and. deq) then     
@@ -954,6 +989,14 @@ contains
        write (report_unit, fmt="('################# WARNING #######################')")
        write (report_unit, *) 
     endif
+
+     if(geq .and. ceq) then
+        write (report_unit, *)
+        write (report_unit, fmt="('################# WARNING #######################')")
+        write(report_unit,fmt="('Choosing gen_eq = .true. AND chs_eq = .true. is not permitted.')")
+        write (report_unit, fmt="('################# WARNING #######################')")
+        write (report_unit, *)
+     endif
 
     if(geq .and. peq) then     
        write (report_unit, *) 
@@ -987,6 +1030,14 @@ contains
        write (report_unit, *) 
     endif
 
+     if(eeq .and. ceq) then
+        write (report_unit, *)
+        write (report_unit, fmt="('################# WARNING #######################')")
+        write(report_unit,fmt="('Choosing efit_eq = .true. AND chs_eq = .true. is not permitted.')")
+        write (report_unit, fmt="('################# WARNING #######################')")
+        write (report_unit, *)
+     endif
+
     if(eeq .and. peq) then     
        write (report_unit, *) 
        write (report_unit, fmt="('################# WARNING #######################')")
@@ -1003,6 +1054,14 @@ contains
        write (report_unit, *) 
     endif
 
+     if(deq .and. ceq) then
+        write (report_unit, *)
+        write (report_unit, fmt="('################# WARNING #######################')")
+        write(report_unit,fmt="('Choosing dfit_eq = .true. AND chs_eq = .true. is not permitted.')")
+        write (report_unit, fmt="('################# WARNING #######################')")
+        write (report_unit, *)
+     endif
+
     if(deq .and. peq) then     
        write (report_unit, *) 
        write (report_unit, fmt="('################# WARNING #######################')")
@@ -1010,6 +1069,22 @@ contains
        write (report_unit, fmt="('################# WARNING #######################')")
        write (report_unit, *) 
     endif
+
+     if(ceq .and. peq) then
+        write (report_unit, *)
+        write (report_unit, fmt="('################# WARNING #######################')")
+        write(report_unit,fmt="('Choosing chs_eq = .true. AND ppl_eq = .true. is not permitted.')")
+        write (report_unit, fmt="('################# WARNING #######################')")
+        write (report_unit, *)
+     endif
+
+     if(ceq .and. leq) then
+        write (report_unit, *)
+        write (report_unit, fmt="('################# WARNING #######################')")
+        write(report_unit,fmt="('Choosing chs_eq = .true. AND local_eq = .true. is not permitted.')")
+        write (report_unit, fmt="('################# WARNING #######################')")
+        write (report_unit, *)
+     endif
 
     if(peq .and. leq) then     
        write (report_unit, *) 
@@ -1224,7 +1299,8 @@ contains
     use geometry, only: s_hat_input
     use geometry, only: alpha_input, invLp_input, beta_prime_input, dp_mult
     use geometry, only: rmaj, r_geo
-    use geometry, only: shift, qinp, akappa, akappri, tri, tripri, asym, asympri
+    use geometry, only: geoType, aSurf, shift, shiftVert, mMode, nMode, deltam, deltan
+    use geometry, only: deltampri, deltanpri, thetam, thetan, qinp
     use geometry, only: delrho, rmin, rmax
     use geometry, only: isym, in_nt, writelots
     use geometry, only: chs_eq
@@ -1233,10 +1309,12 @@ contains
     use theta_grid_params, only: rmaj_in => rmaj, r_geo_in => r_geo
     use theta_grid_params, only: qinp_in => qinp, shat_in => shat
     use theta_grid_params, only: alpmhd_in => alpmhd
-    use theta_grid_params, only: shift_in => shift
-    use theta_grid_params, only: akappa_in => akappa, akappri_in => akappri
-    use theta_grid_params, only: tri_in => tri, tripri_in => tripri
-    use theta_grid_params, only: asym_in => asym, asympri_in => asympri
+    use theta_grid_params, only: geoType_in => geoType, aSurf_in => aSurf
+    use theta_grid_params, only: shift_in => shift, shiftVert_in => shiftVert
+    use theta_grid_params, only: mMode_in => mMode, nMode_in => nMode
+    use theta_grid_params, only: deltam_in => deltam, deltan_in => deltan
+    use theta_grid_params, only: deltampri_in => deltampri, deltanpri_in => deltanpri
+    use theta_grid_params, only: thetam_in => thetam, thetan_in => thetan
     use theta_grid_params, only: betaprim_in => betaprim
     implicit none
     integer :: in_file
@@ -1248,19 +1326,24 @@ contains
          delrho, rmin, rmax, isym, writelots,chs_eq
 
     nperiod = nperiod_in  
-    rhoc = rhoc_in
-    s_hat_input = shat_in
     alpha_input = alpmhd_in
+    rhoc = rhoc_in
     rmaj = rmaj_in
     r_geo = r_geo_in
+    geoType = geoType_in
+    aSurf = aSurf_in
     shift = shift_in
+    shiftVert = shiftVert_in
+    mMode = mMode_in
+    nMode = nMode_in
+    deltam = deltam_in
+    deltan = deltan_in
+    deltampri = deltampri_in
+    deltanpri = deltanpri_in
+    thetam = thetam_in
+    thetan = thetan_in
     qinp = qinp_in
-    akappa = akappa_in
-    akappri = akappri_in
-    tri = tri_in
-    tripri = tripri_in
-    asym = asym_in
-    asympri = asympri_in
+    s_hat_input = shat_in
     beta_prime_input = betaprim_in
 
     itor = 1

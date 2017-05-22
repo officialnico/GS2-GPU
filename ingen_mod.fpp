@@ -930,7 +930,6 @@ if (debug) write(6,*) 'get_namelists: returning'
      use theta_grid, only: gb_to_cv, ntgrid
      use theta_grid_params, only: nperiod, ntheta, eps, epsl, rmaj, r_geo
      use theta_grid_params, only: pk, qinp, rhoc, shift, shat
-     use theta_grid_params, only: akappa, akappri, tri, tripri
      use collisions, only: collision_model_switch, collision_model_none
      use collisions, only: collision_model_full, collision_model_ediffuse
      use collisions, only: collision_model_lorentz, collision_model_lorentz_test

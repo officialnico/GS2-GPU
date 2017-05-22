@@ -4,7 +4,7 @@ module leq
   private
   
   public :: leq_init, leqin, gradient, eqitem, bgradient, leq_finish
-  public :: invR, Rpos, Zpos, diameter, btori, dbtori,  qfun, pfun
+  public :: invR, Rpos, Zpos, diameter, btori, dbtori, qfun, pfun
   public :: dpfun, betafun, psi, rcenter, dpdrhofun
 
   integer :: nr, nt
@@ -16,19 +16,21 @@ module leq
   real, allocatable, dimension (:,:,:) :: dpbish, dtbish, dbtbish
 
   real :: beta_0
-  
+  real :: thetaShift
+ 
   type :: flux_surface
-     real :: R_center, R_geo, k, kp, d, dp, r, dr, delp, q, shat, pp, a, ap
-     integer :: nt
+     real :: Rmaj, Rgeo, r, dr, aSurf, sHorz, sVert, delm, deln, delmp, delnp, thm, thn, q, shat
+     integer :: nt, geoType, mMode, nMode
   end type flux_surface
 
   type (flux_surface) :: surf
 
 contains
-  subroutine leqin(R0, Ra, k, kp, d, dp, r, dr, s, qq, qs, a, ap, nt_used)
+  subroutine leqin(geoType, Rmaj, Rgeo, r, dr, aSurf, sHorz, sVert, mMode, nMode, delm, deln, delmp, delnp, thm, thn, q, shat, nt_used, thShift)
     implicit none
-    real, intent(in) :: R0, Ra, k, kp, d, dp, r, dr, s, qq, qs, a, ap
-    integer, intent(in) :: nt_used
+    real, intent(in) :: Rmaj, Rgeo, r, dr, aSurf, sHorz, sVert, delm, deln, delmp, delnp, thm, thn, q, shat
+    real, intent(in) :: thShift
+    integer, intent(in) :: nt_used, geoType, mMode, nMode
 
 !R0   3.1601153788426086        3.0818707511680938        1.3431053933541011
 !      0.10381317967192064        3.3317843820181277E-002   8.0267210436786265E-002
@@ -45,22 +47,28 @@ contains
 
 ! kp, dp, r, s, qs
     !write (*,*) 'leq inputs', R0,Ra, k, kp, d, dp, r, dr, s, qq, qs, a, ap, nt_used
-    surf%R_center = R0
-    surf%R_geo = Ra
-    surf%delp = s
-    surf%k = k
-    surf%kp = kp
-    surf%q = qq
-    surf%shat = qs
-    surf%d = d
-    surf%dp = dp
-    surf%a = a
-    surf%ap = ap
+    surf%geoType = geoType
+    surf%Rmaj = Rmaj
+    surf%Rgeo = Rgeo
     surf%r = r
-    surf%dr = dr
-    surf%pp = 0.
-    
+    surf%dr = dr 
+    surf%aSurf = aSurf
+    surf%sHorz = sHorz
+    surf%sVert = sVert
+    surf%mMode = mMode
+    surf%nMode = nMode
+    surf%delm = delm
+    surf%deln = deln
+    surf%delmp = delmp
+    surf%delnp = delnp
+    surf%thm = thm
+    surf%thn = thn
+    surf%q = q
+    surf%shat = shat
+ 
     beta_0 = 1.
+
+    thetaShift = thShift;
 
     nr = 3
     nt = nt_used
@@ -73,11 +81,12 @@ contains
     integer, intent(in) :: nr, nt
 
     allocate(eqpsi(nr), fp(nr), beta(nr), pressure(nr))
-    allocate(R_psi(nr, nt), Z_psi(nr, nt))
-    allocate(drm(nr, nt, 2), dzm(nr, nt, 2), dbtm(nr, nt, 2), &
-         dpm(nr, nt, 2), dtm(nr, nt, 2))
-    allocate(dpcart(nr, nt, 2), dtcart(nr, nt, 2), dbtcart(nr, nt, 2))
-    allocate(dpbish(nr, nt, 2), dtbish(nr, nt, 2), dbtbish(nr, nt, 2))
+    allocate(R_psi(nr, -nt:nt), Z_psi(nr, -nt:nt))
+    allocate(drm(nr, -nt:nt, 2), dzm(nr, -nt:nt, 2), dbtm(nr, -nt:nt, 2), &
+         dpm(nr, -nt:nt, 2), dtm(nr, -nt:nt, 2))
+    allocate(dpcart(nr, -nt:nt, 2), dtcart(nr, -nt:nt, 2), dbtcart(nr, -nt:nt,2))
+    allocate(dpbish(nr, -nt:nt, 2), dtbish(nr, -nt:nt, 2), dbtbish(nr, -nt:nt,2))
+
   end subroutine alloc_arrays
 
   subroutine dealloc_arrays
@@ -97,7 +106,7 @@ contains
   subroutine leq_init
     use constants, only: pi=>pi
     implicit none
-    real, dimension(nr, nt) :: eqpsi1, eqth, eqbtor
+    real, dimension(nr, -nt:nt) :: eqpsi1, eqth, eqbtor
     real :: dr(3)
     real :: t, r
     integer :: i, j
@@ -105,16 +114,19 @@ contains
     dr(1) = -surf%dr
     dr(2) = 0.
     dr(3) = surf%dr
-    
-    do j=1,nt
+   
+    ! All calculation must be extended over the full [-pi,pi] range in order to
+    ! support up-down asymmetric geometries (see section 3.2.2 of Ball MIT
+    ! Masters thesis or section 2.2 of "GS2 analytic geometry specification") 
+    do j=-nt,nt
        do i=1,nr
           r = surf%r + dr(i)
-          t = (j-1)*pi/real(nt-1)
+          t = (j)*pi/real(nt-1)
           R_psi(i,j) = Rpos(r, t) 
           Z_psi(i,j) = Zpos(r, t)
           eqth(i,j) = t
           eqpsi1(i,j) = 1 + dr(i)
-          eqbtor(i,j) = surf%r_geo/R_psi(i,j)
+          eqbtor(i,j) = surf%Rgeo/R_psi(i,j)
        enddo
     enddo
 
@@ -167,8 +179,8 @@ contains
   subroutine derm(f, dfm, char)
     use constants, only: pi=>pi
     implicit none
-    real, dimension(:,:), intent(in) :: f
-    real, dimension(:,:,:), intent(out) :: dfm
+    real, dimension(:,:), intent(in) :: f(:,-nt:)
+    real, dimension(:,:,:), intent(out) :: dfm(:,-nt:,:)
     character(1), intent(in) :: char
     integer :: i, j
     
@@ -177,37 +189,36 @@ contains
     
     i=nr
     dfm(i,:,1) = 0.5*(3*f(i,:)-4*f(i-1,:)+f(i-2,:))
-   
-! assume up-down symmetry for now:
- 
+
     select case (char)
-    case ('E') 
-       j=1
+    case ('E')
+       j=-nt
        dfm(:,j,2) = 0.5*(f(:,j+1)-f(:,j+1))
-       
-       j=nt      
+
+       j=nt
        dfm(:,j,2) = -0.5*(f(:,j-1)-f(:,j-1))
     case ('O')
-       j=1
+       j=-nt
        dfm(:,j,2) = 0.5*(f(:,j+1)+f(:,j+1))
-       
-       j=nt      
+
+       j=nt
        dfm(:,j,2) = -0.5*(f(:,j-1)+f(:,j-1))
     case ('T')
-       j=1
-       dfm(:,j,2) = f(:,j+1)
-       
-       j=nt      
+       j=-nt
+       dfm(:,j,2) = f(:,j+1) + pi
+
+       j=nt
        dfm(:,j,2) = pi - f(:,j-1)
     end select
 
     do i=2,nr-1
        dfm(i,:,1)=0.5*(f(i+1,:)-f(i-1,:))
     enddo
-    
-    do j=2,nt-1
+
+    do j=-nt+1,nt-1
        dfm(:,j,2)=0.5*(f(:,j+1)-f(:,j-1))
     enddo
+
   end subroutine derm
 
   subroutine gradient(theta, grad, char, rp, nth_used, ntm)
@@ -219,7 +230,7 @@ contains
     real, dimension(-ntm:,:), intent(out) :: grad
     real, intent(in) :: rp
     real :: tmp(2), aa(1), daa(1), rpt(1)
-    real, dimension(nr,nt,2) :: dcart
+    real, dimension(nr,-nt:nt,2) :: dcart
     integer :: i
     
     select case(char)
@@ -273,7 +284,7 @@ contains
     real, dimension(-ntm:,:), intent(out) :: grad
     real, intent(in) :: rp
     real :: aa(1), daa(1), rpt(1)
-    real, dimension(nr,nt,2) ::  dbish
+    real, dimension(nr,-nt:nt,2) ::  dbish
     integer :: i
 
     select case(char)
@@ -292,13 +303,6 @@ contains
        call eqitem(theta(i), dbish(:,:,2), grad(i,2), 'Z')
     enddo
 
-    if (char == 'T') then
-       where (theta(-nth_used:nth_used) < 0.0)
-          grad(-nth_used:nth_used,1) = -grad(-nth_used:nth_used,1)
-          grad(-nth_used:nth_used,2) = -grad(-nth_used:nth_used,2)
-       end where
-    end if
-
 !     to get grad(pressure), multiply grad(psi) by dpressure/dpsi
 
     if(char == 'R') then
@@ -315,47 +319,41 @@ contains
     use constants, only: pi=>pi
     implicit none
     real, intent(in) :: theta_in
-    real, dimension(:,:), intent(in) :: f
+    real, dimension(:,-nt:), intent(in) :: f
     real, intent(out) :: fstar
     character(1), intent(in) :: char
     integer :: j, istar, jstar
-    real :: thet, tp, tps
+    real :: tp
     real :: st, dt
-    real, dimension(size(f,2)) :: mtheta
+    real, dimension(-nt:nt) :: mtheta
 ! find r on psi mesh
     
     istar = 2
 
 ! Now do theta direction
 
-    thet = mod2pi(theta_in)
+    tp = mod2pi(theta_in)
 
-! assume up-down symmetry
-
-    tp=abs(thet)
-    tps=1.
-    if(char == 'Z' .and. thet /= 0.) tps=thet/abs(thet)
-        
 ! get thet on theta mesh
 
-    mtheta = (/ ( real(j-1)*pi/real(nt-1), j=1,nt) /)
+    mtheta = (/ ( real(j)*pi/real(nt-1), j=-nt,nt) /)
   
 ! note that theta(1)=0 for local_eq theta 
 
-    jstar=-1    
-    do j=1,nt
+    jstar=-nt-1
+    do j=-nt,nt
        if(tp < mtheta(j)) then
           dt = tp - mtheta(j-1)
           st = mtheta(j) - tp
           jstar=j-1
           exit
        endif
-       if(jstar /= -1) write(*,*) 'exit error j'
+       if(jstar /= -nt-1) write(*,*) 'exit error j'
     enddo
       
 ! treat theta = pi separately
   
-    if(jstar == -1) then
+    if(jstar == -nt-1) then
        jstar=nt-1
        dt=mtheta(jstar+1)-mtheta(jstar)
        st=0.
@@ -364,8 +362,8 @@ contains
 ! use opposite area stencil to interpolate
 
     fstar=f(istar    , jstar    )  * st &
-         +f(istar    , jstar + 1)  * dt 
-    fstar=fstar*tps &
+         +f(istar    , jstar + 1)  * dt
+    fstar=fstar &
          /(mtheta(jstar+1)-mtheta(jstar))
 !     write(*,*) i, dr, dt, sr, st
 !     write(*,*) f(istar,jstar+1),f(istar+1,jstar+1)
@@ -376,9 +374,10 @@ contains
 
   subroutine eqdcart(dfm, dfcart)
     implicit none
-    real, dimension (:,:,:), intent(in)  :: dfm
-    real, dimension (:,:,:), intent(out) :: dfcart
-    real, dimension (size(dfm,1),size(dfm,2)) :: denom
+    real, dimension (:,-nt:,:), intent(in)  :: dfm
+    real, dimension (:,-nt:,:), intent(out) :: dfcart
+    real, dimension (nr,-nt:nt) :: denom
+
     integer :: i, j
       
     denom(:,:) = drm(:,:,1)*dzm(:,:,2) - drm(:,:,2)*dzm(:,:,1)
@@ -388,7 +387,7 @@ contains
     dfcart(:,:,1) =   dfm(:,:,1)*dzm(:,:,2) - dzm(:,:,1)*dfm(:,:,2)
     dfcart(:,:,2) = - dfm(:,:,1)*drm(:,:,2) + drm(:,:,1)*dfm(:,:,2)
     
-    do j=1,nt
+    do j=-nt,nt
        do i=2,nr
           dfcart(i,j,:)=dfcart(i,j,:)/denom(i,j)
        enddo
@@ -397,9 +396,10 @@ contains
 
   subroutine eqdbish(dcart, dbish)
     implicit none
-    real, dimension(:, :, :), intent (in) :: dcart
-    real, dimension(:, :, :), intent(out) :: dbish
-    real, dimension(size(dcart,1),size(dcart,2)) :: denom
+    real, dimension(:,-nt:,:), intent (in) :: dcart
+    real, dimension(:,-nt:,:), intent(out) :: dbish
+    real, dimension(nr,-nt:nt) :: denom
+
     integer :: i, j
 
     denom(:,:) = sqrt(dpcart(:,:,1)**2 + dpcart(:,:,2)**2)
@@ -407,10 +407,10 @@ contains
     dbish(:,:,1) = dcart(:,:,1)*dpcart(:,:,1) + dcart(:,:,2)*dpcart(:,:,2)
     dbish(:,:,2) =-dcart(:,:,1)*dpcart(:,:,2) + dcart(:,:,2)*dpcart(:,:,1)
     
-    do j=1,nt
+    do j=-nt,nt
        do i=2,nr
           dbish(i,j,:) = dbish(i,j,:)/denom(i,j)
-      enddo
+       enddo
     enddo
   end subroutine eqdbish
 
@@ -423,36 +423,197 @@ contains
 
   function rcenter()
     real :: rcenter
-
-    rcenter = surf%R_center
+    
+    ! If using the global geometry, Rmaj is the center of the shaped flux surface
+    ! (i.e. the surface at rhoc=aSurf), so here we calculate the major radial
+    ! location of the center of the flux surface of interest ! JRB
+    if (surf%geoType==1) then
+       rcenter = surf%Rmaj+(1-(surf%r/surf%aSurf)**2)*surf%sHorz
+    else
+       rcenter = surf%Rmaj
+    end if
   end function rcenter
 
   function Rpos (r, theta)
-    use constants, only: pi
     implicit none
     real, intent (in) :: r, theta
-    real :: Rpos
-    real :: g, gp, dr
-    
-    dr = r - surf%r
+    real :: Rpos, Zpos
 
-! For Y Xiao: 
-!    g = surf%delp/surf%r + surf%d * sin(theta)**2
-!    Rpos = surf%R_center*(1.+r*(cos(theta)-g)-g*dr)
-
-    g = cos(theta + surf%d * sin(theta-0.5*pi*surf%a))
-    gp = -sin(theta + surf%d * sin(theta-0.5*pi*surf%a))*(surf%dp*sin(theta-0.5*surf%a)-surf%d*0.5*pi*surf%ap*cos(theta-0.5*pi*surf%a))
-    
-    Rpos = surf%R_center + surf%delp*dr + g*surf%r + (g+surf%r*gp)*dr
+    ! Choose one of four different analytic geometry specifications
+    ! (see section 2.1 of "GS2 analytic geometry specification") ! JRB
+    select case (surf%geoType)
+       case (0)
+          call geo_Miller(r, theta, Rpos, Zpos)
+       case (1)
+          call geo_global(r, theta, Rpos, Zpos)
+       case (2)
+          call geo_generalizedEllipticity(r, theta, Rpos, Zpos)
+       case (3)
+          call geo_FourierSeries(r, theta, Rpos, Zpos)
+       case default
+          write (*,*) "ERROR: invalid analytic geometry specification"
+    end select
   end function Rpos
 
   function Zpos (r, theta)
+    implicit none
     real, intent (in) :: r, theta
-    real :: Zpos, dr
-    
-    dr = r - surf%r
-    Zpos = surf%k*sin(theta)*surf%r + (surf%r*surf%kp + surf%k)*sin(theta)*dr
+    real :: Rpos, Zpos
+
+    ! Choose one of four different analytic geometry specifications
+    ! (see section 2.1 of "GS2 analytic geometry specification") ! JRB
+    select case (surf%geoType)
+       case (0)
+          call geo_Miller(r, theta, Rpos, Zpos)
+       case (1)
+          call geo_global(r, theta, Rpos, Zpos)
+       case (2)
+          call geo_generalizedEllipticity(r, theta, Rpos, Zpos)
+       case (3)
+          call geo_FourierSeries(r, theta, Rpos, Zpos)
+       case default
+          write (*,*) "ERROR: invalid analytic geometry specification"
+    end select
   end function Zpos
+
+  subroutine geo_Miller(r, theta, Rpos, Zpos)
+    ! see section 3.2.1 of Ball MIT Masters thesis or section 2.1.1 of
+    ! "GS2 analytic geometry specification"
+    real, intent (in) :: r, theta
+    real, intent (out) :: Rpos, Zpos
+    real :: dr, thAdj 
+    real :: Rcirc, Rcircp, Relong, Relongp, RelongTilt, RelongTiltp, Rtri, Rtrip, RtriTilt, RtriTiltp, Rfinal, Rfinalp
+    real :: Zcirc, Zcircp, Zelong, Zelongp, ZelongTilt, ZelongTiltp, Ztri, Ztrip, ZtriTilt, ZtriTiltp, Zfinal, Zfinalp
+
+    dr = r - surf%r
+
+    thAdj = theta + thetaShift
+
+    Rcirc=surf%r*cos(surf%thn-surf%thm-thAdj)
+    Zcirc=-surf%r*sin(surf%thn-surf%thm-thAdj)
+    Rcircp=cos(surf%thn-surf%thm-thAdj)
+    Zcircp=-sin(surf%thn-surf%thm-thAdj)
+
+    Relong=Rcirc
+    Zelong=-surf%r*(surf%delm-1)*sin(surf%thn-surf%thm-thAdj)+Zcirc
+    Relongp=Rcircp
+    Zelongp=-((surf%delm-1)+surf%r*surf%delmp)*sin(surf%thn-surf%thm-thAdj)+Zcircp
+
+    RelongTilt=cos(surf%thn-surf%thm)*Relong-sin(surf%thn-surf%thm)*Zelong
+    ZelongTilt=sin(surf%thn-surf%thm)*Relong+cos(surf%thn-surf%thm)*Zelong
+    RelongTiltp=cos(surf%thn-surf%thm)*Relongp-sin(surf%thn-surf%thm)*Zelongp
+    ZelongTiltp=sin(surf%thn-surf%thm)*Relongp+cos(surf%thn-surf%thm)*Zelongp
+
+    Rtri=-surf%r*cos(thAdj)+surf%r*cos(sin(thAdj)*surf%deln+thAdj)+RelongTilt
+    Ztri=ZelongTilt
+    Rtrip=-cos(thAdj)+cos(sin(thAdj)*surf%deln+thAdj)-surf%r*sin(sin(thAdj)*surf%deln+thAdj)*sin(thAdj)*surf%delnp+RelongTiltp
+    Ztrip=ZelongTiltp
+
+    RtriTilt=cos(surf%thn)*Rtri+sin(surf%thn)*Ztri
+    ZtriTilt=-sin(surf%thn)*Rtri+cos(surf%thn)*Ztri
+    RtriTiltp=cos(surf%thn)*Rtrip+sin(surf%thn)*Ztrip
+    ZtriTiltp=-sin(surf%thn)*Rtrip+cos(surf%thn)*Ztrip
+
+    Rfinal=RtriTilt+surf%Rmaj
+    Zfinal=ZtriTilt
+    Rfinalp=RtriTiltp+surf%sHorz
+    Zfinalp=ZtriTiltp+surf%sVert
+
+    Rpos=Rfinal+dr*Rfinalp
+    Zpos=Zfinal+dr*Zfinalp
+
+  end subroutine geo_Miller
+
+  subroutine geo_global(r, theta, Rpos, Zpos)
+    ! see section 2.1.2 of
+    ! "GS2 analytic geometry specification"
+    real, intent (in) :: r, theta
+    real, intent (out) :: Rpos, Zpos
+    real :: rho0, thAdj, rCyl, Rc, Zc
+    real :: Cm, Cn, psiN, xAng, yAng, rAng   
+
+    rho0 = r/surf%aSurf
+
+    thAdj = theta + thetaShift
+
+    Cm=(surf%delm**2-1)/(surf%delm**2+1)
+    Cn=(surf%deln**2-1)/(surf%deln**3+1)
+
+    psiN=rho0**2+Cm*rho0**2+Cn*rho0**3
+
+    if (abs(Cn*cos(3*(thAdj+surf%thn)))<10e-6) then
+      rCyl=surf%aSurf*sqrt(psiN/(1+Cm*cos(2*(thAdj+surf%thm))))
+    else
+      xAng=2*(1+Cm*cos(2*(thAdj+surf%thm)))**3-27*Cn**2*psiN*cos(3*(thAdj+surf%thn))**2
+      yAng=3*Cn*sqrt(3*psiN)*cos(3*(thAdj+surf%thn))*sqrt(xAng+2*(1+Cm*cos(2*(thAdj+surf%thm)))**3)
+
+      rAng=(1/3.0)*atan2(yAng,xAng)
+
+      rCyl=surf%aSurf*(1+Cm*cos(2*(thAdj+surf%thm)))/(3*Cn*cos(3*(thAdj+surf%thn))) &
+           *(cos(rAng)+sqrt(3.0)*sin(rAng)-1)
+    end if
+
+    Rc=surf%sHorz-(surf%sHorz-surf%Rmaj)*rho0**2
+    Zc=surf%sVert-(surf%sVert)*rho0**2
+
+    Rpos=Rc+rCyl*cos(thAdj)
+    Zpos=Zc+rCyl*sin(thAdj)
+
+  end subroutine geo_global
+
+  subroutine geo_generalizedEllipticity(r, theta, Rpos, Zpos)
+    ! see section 5.1.2 of Ball Oxford PhD thesis or section 2.1.3 of
+    ! "GS2 analytic geometry specification"
+    real, intent (in) :: r, theta
+    real, intent (out) :: Rpos, Zpos
+    real :: dr, thAdj, rCyl, rCylp, Rfinal, Zfinal, Rfinalp, Zfinalp
+
+    dr = r - surf%r
+
+    thAdj = theta + thetaShift
+
+    rCyl=surf%r * (1 &
+        + (-1+surf%delm/sqrt(1+(surf%delm**2-1)*cos(surf%mMode*(thAdj+surf%thm)/2.0)**2)) &
+        + (-1+surf%deln/sqrt(1+(surf%deln**2-1)*cos(surf%nMode*(thAdj+surf%thn)/2.0)**2)))
+    rCylp=1 &
+     +(-1+(1+(surf%delm**2-1)*cos(surf%mMode*(thAdj+surf%thm)/2.0)**2)**(-0.5)*(surf%delm+surf%r*surf%delmp &
+      *(1-(surf%delm*cos(surf%mMode*(thAdj+surf%thm)/2.0))**2/(1+(surf%delm**2-1)*cos(surf%mMode*(thAdj+surf%thm)/2.0)**2)))) &
+     +(-1+(1+(surf%deln**2-1)*cos(surf%nMode*(thAdj+surf%thn)/2)**2)**(-0.5)*(surf%deln+surf%r*surf%delnp &
+      *(1-(surf%deln*cos(surf%nMode*(thAdj+surf%thn)/2.0))**2/(1+(surf%deln**2-1)*cos(surf%nMode*(thAdj+surf%thn)/2.0)**2))))
+
+    Rfinal=rCyl*cos(thAdj)+surf%Rmaj
+    Zfinal=rCyl*sin(thAdj)
+    Rfinalp=rCylp*cos(thAdj)+surf%sHorz
+    Zfinalp=rCylp*sin(thAdj)+surf%sVert
+
+    Rpos=Rfinal+dr*Rfinalp
+    Zpos=Zfinal+dr*Zfinalp
+
+  end subroutine geo_generalizedEllipticity
+
+  subroutine geo_FourierSeries(r, theta, Rpos, Zpos)
+    ! see section 5.1.1 of Ball Oxford PhD thesis or section 2.1.4 of
+    ! "GS2 analytic geometry specification"
+    real, intent (in) :: r, theta
+    real, intent (out) :: Rpos, Zpos
+    real :: dr, thAdj, rCyl, rCylp, Rfinal, Zfinal, Rfinalp, Zfinalp
+
+    dr = r - surf%r
+
+    thAdj = theta + thetaShift
+
+    rCyl=surf%r * (1+((surf%delm-1)/2) * (1-cos(surf%mMode*(thAdj+surf%thm))) + ((surf%deln-1)/2) * (1-cos(surf%nMode*(thAdj+surf%thn))))
+    rCylp=1 + (((surf%delm-1)/2) + (surf%r*surf%delmp/2)) * (1-cos(surf%mMode*(thAdj+surf%thm))) + (((surf%deln-1)/2) + (surf%r*surf%delnp/2)) * (1-cos(surf%nMode*(thAdj+surf%thn)))
+
+    Rfinal=rCyl*cos(thAdj)+surf%Rmaj
+    Zfinal=rCyl*sin(thAdj)
+    Rfinalp=rCylp*cos(thAdj)+surf%sHorz
+    Zfinalp=rCylp*sin(thAdj)+surf%sVert
+
+    Rpos=Rfinal+dr*Rfinalp
+    Zpos=Zfinal+dr*Zfinalp
+
+  end subroutine geo_FourierSeries
 
   function psi (r)
     real, intent (in) :: r
@@ -506,7 +667,7 @@ contains
 
   function btori ()
     real :: btori
-    btori = surf%r_geo
+    btori = surf%Rgeo
   end function btori
 
   function qfun ()
@@ -526,7 +687,7 @@ contains
 
   function dpdrhofun()
     real :: dpdrhofun
-    dpdrhofun = surf%pp
+    dpdrhofun = 0 ! surf%pp
   end function dpdrhofun
   
   function betafun ()  

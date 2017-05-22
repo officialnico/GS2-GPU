@@ -223,9 +223,6 @@ ffttester_mod = \
 	 redistribute.o \
 	 run_parameters.o \
 	 runtime_tests.o \
-	 simpledataio_read.o \
-	 simpledataio_write.o \
-	 simpledataiof.o \
 	 sorting.o \
 	 species.o \
 	 spfunc.o \
@@ -368,9 +365,6 @@ gs2_mod = \
 	 redistribute.o \
 	 run_parameters.o \
 	 runtime_tests.o \
-	 simpledataio_read.o \
-	 simpledataio_write.o \
-	 simpledataiof.o \
 	 sorting.o \
 	 species.o \
 	 spfunc.o \
@@ -590,7 +584,6 @@ diagnostics_config.o: \
 	 file_utils.o \
 	 kt_grids.o \
 	 mp.o \
-	 simpledataiof.o \
 	 species.o \
 	 text_options.o \
 	 unit_tests.o 
@@ -600,12 +593,8 @@ diagnostics_create_and_write.o: \
 	 fields_parallelization.o \
 	 file_utils.o \
 	 kt_grids.o \
-	 mp.o \
-	 simpledataio_read.o \
-	 simpledataio_write.o \
-	 simpledataiof.o 
+	 mp.o 
 diagnostics_dimensions.o: \
-	 simpledataiof.o \
 	 unit_tests.o 
 diagnostics_fields.o: \
 	 diagnostics_config.o \
@@ -687,8 +676,7 @@ diagnostics_metadata.o: \
 	 file_utils.o \
 	 mp.o \
 	 run_parameters.o \
-	 runtime_tests.o \
-	 simpledataiof.o 
+	 runtime_tests.o 
 diagnostics_moments.o: \
 	 diagnostics_config.o \
 	 diagnostics_create_and_write.o \
@@ -941,7 +929,6 @@ file_utils.o: \
 	 constants.o 
 functional_tests.o: \
 	 gs2_diagnostics.o \
-	 gs2_diagnostics_new.o \
 	 gs2_main.o \
 	 job_manage.o \
 	 kt_grids.o \
@@ -990,6 +977,7 @@ gs2_diagnostics.o: \
 	 antenna.o \
 	 collisions.o \
 	 constants.o \
+	 convert.o \
 	 dist_fn.o \
 	 dist_fn_arrays.o \
 	 fields_arrays.o \
@@ -1049,8 +1037,6 @@ gs2_diagnostics_new.o: \
 	 mp.o \
 	 nonlinear_terms.o \
 	 run_parameters.o \
-	 simpledataio_write.o \
-	 simpledataiof.o \
 	 species.o \
 	 theta_grid.o \
 	 unit_tests.o \
@@ -1258,6 +1244,7 @@ init_g.o: \
 	 dist_fn_arrays.o \
 	 fields_arrays.o \
 	 file_utils.o \
+	 geometry.o \
 	 gs2_layouts.o \
 	 gs2_save.o \
 	 gs2_transforms.o \
@@ -1269,6 +1256,7 @@ init_g.o: \
 	 redistribute.o \
 	 run_parameters.o \
 	 species.o \
+	 spfunc.o \
 	 text_options.o \
 	 theta_grid.o \
 	 theta_grid_params.o \
@@ -1413,12 +1401,6 @@ shm_mpi3_alloc_tmpl.inc:
 shm_mpi3_fence_tmpl.inc: 
 shm_mpi3_free_tmpl.inc: 
 shm_mpi3_get_node_pointer_tmpl.inc: 
-simpledataio_read.o: \
-	 simpledataio_write.o \
-	 simpledataiof.o 
-simpledataio_write.o: \
-	 simpledataiof.o 
-simpledataiof.o: 
 sorting.o: 
 species.o: \
 	 file_utils.o \
@@ -1445,6 +1427,7 @@ theta_grid.o: \
 	 theta_grid_params.o \
 	 unit_tests.o 
 theta_grid_params.o: \
+	 constants.o \
 	 file_utils.o \
 	 overrides.o \
 	 unit_tests.o 

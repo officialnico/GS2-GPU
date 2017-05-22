@@ -70,7 +70,7 @@ module dist_fn
   public :: init_bessel, init_fieldeq
   public :: getfieldeq, getan, getmoms, getemoms, getmoms_gryfx_dist
   public :: getfieldeq_nogath
-  public :: flux, lf_flux, eexchange
+  public :: flux, flux_dist, lf_flux, eexchange
   public :: get_epar, get_heat
   public :: t0, omega0, gamma0, source0
   public :: reset_init, write_f, reset_physics, write_poly
@@ -7561,6 +7561,47 @@ endif
 
   end subroutine get_flux
 
+! Identical to get_flux except don't integrate over poloidal angle ! JRB
+  subroutine get_flux_dist (fld, flx_dist, dnorm)
+    use theta_grid, only: ntgrid, grho
+    use kt_grids, only: ntheta0, aky, naky
+    use le_grids, only: integrate_moment
+    use species, only: nspec
+    implicit none
+    logical, parameter :: full_arr=moment_to_allprocs
+    complex, dimension (-ntgrid:,:,:), intent (in) :: fld
+    real, dimension (-ntgrid:,:,:,:), intent (in out) :: flx_dist
+    real, dimension (-ntgrid:,:,:) :: dnorm
+    complex, dimension (:,:,:,:), allocatable :: total
+    real :: wgt, fac
+    integer :: ik, it, is
+
+    allocate (total(-ntgrid:ntgrid,ntheta0,naky,nspec))
+    ! EGH added final parameter 'all'
+    ! to the call below for new parallel output
+    ! This is temporary until distributed fields
+    ! are implemented 1/2014
+    call integrate_moment (g0, total, moment_to_allprocs, full_arr)
+
+    ! EGH for new parallel I/O everyone
+    ! calculates fluxes
+    !if (proc0) then
+       do is = 1, nspec
+          do ik = 1, naky
+             do it = 1, ntheta0
+                wgt = sum(dnorm(:,it,ik)*grho)
+                flx_dist(:,it,ik,is) = aimag(total(:,it,ik,is)*conjg(fld(:,it,ik))) &
+                     *aky(ik)/wgt
+             end do
+          end do
+       end do
+       flx_dist = flx_dist*0.5
+    ! end if
+
+    deallocate (total)
+
+  end subroutine get_flux_dist
+
   subroutine get_flux_tormom (fld, flx, dnorm) !JPL
     use theta_grid, only: ntgrid
 #ifdef LOWFLOW
@@ -7948,6 +7989,91 @@ endif
     vflx=0.
 #endif
   end subroutine pflux_vs_theta_vs_vpa
+
+
+!=============================================================================
+! Diagnose the poloidal distribution of the particle, angular momentum, 
+!    and energy fluxes ! JRB
+!=============================================================================
+  subroutine flux_dist (phi, pflux_dist, vflux_par_dist, vflux_perp_dist, qflux_dist)
+
+!CMR, 15/1/08: 
+!  Implemented Clemente Angioni's fix for fluxes by replacing g with gnew 
+!  so fields and distribution function are evaluated self-consistently in time.
+!  This fixed unphysical oscillations in non-ambipolar particle fluxes 
+!
+    use species, only: spec
+    use theta_grid, only: ntgrid, bmag, gradpar, delthet
+    use theta_grid, only: qval, shat, gds21, gds22
+    use kt_grids, only: naky, ntheta0, theta0, aky
+!   use theta_grid, only: drhodpsi, grho
+!    use kt_grids, only: akx
+    use le_grids, only: energy
+    use dist_fn_arrays, only: gnew, aj0, vpac, vpa, aj1, vperp2
+    use gs2_layouts, only: g_lo, ie_idx, is_idx, it_idx, ik_idx
+    use run_parameters, only: woutunits, fphi, fapar, fbpar
+    use constants, only: zi
+    use geometry, only: rhoc
+    use theta_grid, only: Rplot, Bpol
+    use species, only: nspec
+    implicit none
+    complex, dimension (-ntgrid:,:,:), intent (in) :: phi
+    real, dimension (-ntgrid:,:,:,:), intent (out) :: pflux_dist, vflux_par_dist, vflux_perp_dist, qflux_dist
+    real, dimension (:,:,:), allocatable :: dnorm
+    integer :: it, ik, is, isgn, ig
+    integer :: iglo
+
+    allocate (dnorm (-ntgrid:ntgrid,ntheta0,naky))
+
+    ! EGH for new parallel I/O everyone
+    ! calculates fluxes
+    !if (proc0) then
+       pflux_dist = 0.0; vflux_par_dist = 0.0; vflux_perp_dist = 0.0; qflux_dist= 0.0; 
+    !end if
+
+    do ik = 1, naky
+       do it = 1, ntheta0
+          dnorm(:,it,ik) = delthet/bmag/gradpar*woutunits(ik)
+       end do
+    end do
+
+    if (fphi > epsilon(0.0)) then
+       do isgn = 1, 2
+          g0(:,isgn,:) = gnew(:,isgn,:)*aj0
+       end do
+       call get_flux_dist (phi, pflux_dist, dnorm)
+
+       do iglo = g_lo%llim_proc, g_lo%ulim_proc
+          g0(:,:,iglo) = g0(:,:,iglo)*energy(ie_idx(g_lo,iglo))
+       end do
+       call get_flux_dist (phi, qflux_dist, dnorm)
+
+       do isgn = 1, 2
+          do ig = -ntgrid, ntgrid
+             g0(ig,isgn,:) = gnew(ig,isgn,:)*aj0(ig,:)*vpac(ig,isgn,:)*Rplot(ig)*sqrt(1.0-Bpol(ig)**2/bmag(ig)**2)
+          end do
+       end do
+       call get_flux_dist (phi, vflux_par_dist, dnorm)
+       do iglo = g_lo%llim_proc, g_lo%ulim_proc
+          it = it_idx(g_lo,iglo)
+          ik = ik_idx(g_lo,iglo)
+          is = is_idx(g_lo,iglo)
+          do isgn = 1, 2
+             g0(:,isgn,iglo) = -zi*aky(ik)*gnew(:,isgn,iglo)*aj1(:,iglo) &
+                  *rhoc*(gds21+theta0(it,ik)*gds22)*vperp2(:,iglo)*spec(is)%smz/(qval*shat*bmag**2)
+          end do
+       end do
+       call get_flux_dist (phi, vflux_perp_dist, dnorm)
+    else
+       pflux_dist = 0.
+       vflux_par_dist = 0.
+       vflux_perp_dist = 0.
+       qflux_dist = 0.
+    end if
+
+    deallocate (dnorm)
+
+ end subroutine flux_dist
 
 
 !=============================================================================

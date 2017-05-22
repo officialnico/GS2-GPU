@@ -20,7 +20,7 @@ module diagnostics_fluxes
   !!  x, y and species. This function writes the whole array,
   !!  and also various averages of them.
   public :: calculate_fluxes
-  public :: write_symmetry, write_parity
+  public :: write_symmetry, write_parity, write_nl_flux_dist
 
   real, dimension (:,:,:,:), allocatable ::  qheat, qmheat, qbheat
   real, dimension (:,:,:), allocatable ::  pflux,  vflux, vflux_par, vflux_perp
@@ -964,4 +964,85 @@ contains
     deallocate (gnorm_all_tot, gnorm_nokx_tot, gnorm_nosig_tot)
     deallocate (phim)
   end subroutine write_parity
+
+! Calculate the poloidal distributions of the fluxes of particles, parallel
+! momentum, perpendicular momentum, and energy
+! (see section 3.1 and appendix A of Ball et al. PPCF 58 (2016) 045023 as well
+! as section 5 of "GS2 analytic geometry specification") ! JRB
+  subroutine write_nl_flux_dist(gnostics)
+    use dist_fn, only: flux_dist
+    use theta_grid, only: ntgrid
+    use le_grids, only: nlambda, negrid
+    use species, only: nspec, spec
+    use mp, only: proc0
+    use gs2_io, only: nc_loop_dist
+    use kt_grids, only: naky, ntheta0
+    use fields_arrays, only: phinew, bparnew
+    use dist_fn_arrays, only: gnew, g_adjust
+    use run_parameters, only: fphi, fbpar
+    use volume_averages, only: average_all
+    use diagnostics_create_and_write, only: create_and_write_variable
+    use diagnostics_dimensions, only: dim_string
+    use diagnostics_config, only: diagnostics_type
+
+    implicit none
+    type (diagnostics_type), intent(in) :: gnostics
+    real, dimension (:,:), allocatable :: part_fluxes_dist, mom_fluxes_par_dist, mom_fluxes_perp_dist, heat_fluxes_dist
+    real, dimension (:,:,:,:), allocatable :: pflux_dist, vflux_par_dist, vflux_perp_dist, qflux_dist
+    integer :: ig, is
+
+    allocate (part_fluxes_dist(-ntgrid:ntgrid,nspec))
+    allocate (mom_fluxes_par_dist(-ntgrid:ntgrid,nspec))
+    allocate (mom_fluxes_perp_dist(-ntgrid:ntgrid,nspec))
+    allocate (heat_fluxes_dist(-ntgrid:ntgrid,nspec))
+    allocate (pflux_dist(-ntgrid:ntgrid,ntheta0,naky,nspec))
+    allocate (vflux_par_dist(-ntgrid:ntgrid,ntheta0,naky,nspec))
+    allocate (vflux_perp_dist(-ntgrid:ntgrid,ntheta0,naky,nspec))
+    allocate (qflux_dist(-ntgrid:ntgrid,ntheta0,naky,nspec))
+    call g_adjust (gnew, phinew, bparnew, fphi, fbpar) ! convert from g to h
+    call flux_dist (phinew, pflux_dist, vflux_par_dist, vflux_perp_dist, qflux_dist)
+    call g_adjust (gnew, phinew, bparnew, -fphi, -fbpar) ! convert back from h to g
+    if (proc0) then
+       if (fphi > epsilon(0.0)) then
+          do ig = -ntgrid, ntgrid
+             do is = 1, nspec
+                pflux_dist(ig,:,:,is) = pflux_dist(ig,:,:,is) * spec(is)%dens
+                call average_all (pflux_dist(ig,:,:,is), part_fluxes_dist(ig,is), gnostics%distributed)
+                vflux_par_dist(ig,:,:,is) = vflux_par_dist(ig,:,:,is) * spec(is)%dens*sqrt(spec(is)%mass*spec(is)%temp)
+                call average_all (vflux_par_dist(ig,:,:,is), mom_fluxes_par_dist(ig,is), gnostics%distributed)
+                vflux_perp_dist(ig,:,:,is) = vflux_perp_dist(ig,:,:,is) * spec(is)%dens*sqrt(spec(is)%mass*spec(is)%temp)
+                call average_all (vflux_perp_dist(ig,:,:,is), mom_fluxes_perp_dist(ig,is), gnostics%distributed)
+                qflux_dist(ig,:,:,is) = qflux_dist(ig,:,:,is) * spec(is)%dens*spec(is)%temp
+                call average_all (qflux_dist(ig,:,:,is), heat_fluxes_dist(ig,is), gnostics%distributed)
+             end do
+          end do
+       end if
+    end if
+
+    call create_and_write_variable(gnostics, gnostics%rtype, "es_part_flux_dist", &
+       dim_string([gnostics%dims%theta,gnostics%dims%species,gnostics%dims%time]), &
+       "Particle flux density as a function theta, used for looking at the effect of up-down asymmetry, see Ball et al PPCF 58 045023 2016", &
+       "See ref", part_fluxes_dist)
+    call create_and_write_variable(gnostics, gnostics%rtype, "es_mom_flux_par_dist", &
+       dim_string([gnostics%dims%theta,gnostics%dims%species,gnostics%dims%time]), &
+       "Parallel momentum flux density as a function theta, used for looking at the effect of up-down asymmetry, see Ball et al PPCF 58 045023 2016", &
+       "See ref", mom_fluxes_par_dist)
+    call create_and_write_variable(gnostics, gnostics%rtype, "es_mom_flux_perp_dist", &
+       dim_string([gnostics%dims%theta,gnostics%dims%species,gnostics%dims%time]), &
+       "Perpendicular momentum flux density as a function theta, used for looking at the effect of up-down asymmetry, see Ball et al PPCF 58 045023 2016", &
+       "See ref", mom_fluxes_perp_dist)
+    call create_and_write_variable(gnostics, gnostics%rtype, "es_heat_flux_dist", &
+       dim_string([gnostics%dims%theta,gnostics%dims%species,gnostics%dims%time]), &
+       "Heat flux density as a function theta, used for looking at the effect of up-down asymmetry, see Ball et al PPCF 58 045023 2016", &
+       "See ref", heat_fluxes_dist)
+
+    deallocate (part_fluxes_dist)
+    deallocate (mom_fluxes_par_dist)
+    deallocate (mom_fluxes_perp_dist)
+    deallocate (heat_fluxes_dist)
+    deallocate (pflux_dist)
+    deallocate (vflux_par_dist)
+    deallocate (vflux_perp_dist)
+    deallocate (qflux_dist)
+  end subroutine write_nl_flux_dist
 end module diagnostics_fluxes
