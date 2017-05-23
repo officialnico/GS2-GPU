@@ -479,7 +479,7 @@ if (debug) write(6,*) "eikcoefs: allocated(theta)", allocated(theta), 'jid=',job
 
 thetaShift = 0.0
 bMaxShift = .true. ! limits the initialization routine to run no more than twice
-do while (bMaxShift==.true.)
+do while (bMaxShift)
 
     if(iflux /= 1 .and. iflux /= 10) then
 
