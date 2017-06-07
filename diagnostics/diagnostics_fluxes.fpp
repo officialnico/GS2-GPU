@@ -1,7 +1,7 @@
 !> Module which contains functions for calculating
 !! and writing out the fluxes of heat and momentum etc.
 module diagnostics_fluxes
- 
+
   implicit none
 
   private
@@ -38,34 +38,34 @@ contains
     use diagnostics_config, only: diagnostics_type
     implicit none
     type(diagnostics_type), intent(inout) :: gnostics
-    
+
     gnostics%current_results%species_heat_flux_avg = 0.0
     gnostics%current_results%species_momentum_flux_avg = 0.0
     gnostics%current_results%species_particle_flux_avg = 0.0
-  
+
     allocate (pflux (ntheta0,naky,nspec)) ; pflux = 0.
-    allocate (pflux_tormom (ntheta0,naky,nspec)) ; pflux_tormom = 0. 
+    allocate (pflux_tormom (ntheta0,naky,nspec)) ; pflux_tormom = 0.
     allocate (qheat (ntheta0,naky,nspec,3)) ; qheat = 0.
     allocate (vflux (ntheta0,naky,nspec)) ; vflux = 0.
-    
+
     allocate (exchange1 (ntheta0,naky,nspec)) ; exchange1 = 0.
     allocate (exchange (ntheta0,naky,nspec)) ; exchange = 0.
 
     allocate (vflux_par (ntheta0,naky,nspec)) ; vflux_par = 0.
     allocate (vflux_perp (ntheta0,naky,nspec)) ; vflux_perp = 0.
-    
+
     allocate (vflux0 (ntheta0,naky,nspec)) ; vflux0 = 0.
     allocate (vflux1 (ntheta0,naky,nspec)) ; vflux1 = 0.
-    
+
     allocate (pmflux(ntheta0,naky,nspec)) ; pmflux = 0.
     allocate (qmheat(ntheta0,naky,nspec,3)) ; qmheat = 0.
     allocate (vmflux(ntheta0,naky,nspec)) ; vmflux = 0.
-    
+
     allocate (pbflux(ntheta0,naky,nspec)) ; pbflux = 0.
     allocate (qbheat(ntheta0,naky,nspec,3)) ; qbheat = 0.
-    allocate (vbflux(ntheta0,naky,nspec)) ; vbflux = 0.   
+    allocate (vbflux(ntheta0,naky,nspec)) ; vbflux = 0.
   end subroutine init_diagnostics_fluxes
-  
+
   subroutine finish_diagnostics_fluxes
     deallocate (pflux, pflux_tormom, qheat, vflux, vflux_par, vflux_perp, pmflux, qmheat, vmflux, &
          pbflux, qbheat, vbflux, vflux0, vflux1, exchange, exchange1)
@@ -93,6 +93,7 @@ contains
     use diagnostics_config, only: diagnostics_type
     use diagnostics_dimensions, only: dim_string
     use unit_tests, only: debug_message
+    use lowflow, only: use_lowflow
     implicit none
     type(diagnostics_type), intent(inout) :: gnostics
     integer :: is
@@ -104,7 +105,7 @@ contains
     gnostics%current_results%species_heat_flux = 0.0
     gnostics%current_results%species_momentum_flux = 0.0
     gnostics%current_results%species_particle_flux = 0.0
-       
+
     !write(*,*) 'starting fluxxxx'
 
     if (nonlinear_mode_switch .eq. nonlinear_mode_none) &
@@ -116,34 +117,37 @@ contains
            pflux,  qheat,  vflux, vflux_par, vflux_perp, &
            pmflux, qmheat, vmflux, pbflux, qbheat, vbflux, pflux_tormom)
 
-#ifdef LOWFLOW
+!#ifdef LOWFLOW
+
       !lowflow terms only implemented in electrostatic limit at present
-      call lf_flux (phinew, vflux0, vflux1)
-#endif
+      if (use_lowflow) call lf_flux (phinew, vflux0, vflux1)
+!#endif
 
       call g_adjust (gnew, phinew, bparnew, -fphi, -fbpar)
       call eexchange (phinew, phi, exchange1, exchange)
     end if ! if (.not. gnostics%replay)
-      
+
       !write (*,*) 'fphi is', fphi
       if (fphi > epsilon(0.0)) then
          do is = 1, nspec
             qheat(:,:,is,1) = qheat(:,:,is,1) * spec(is)%dens*spec(is)%temp
             qheat(:,:,is,2) = qheat(:,:,is,2) * spec(is)%dens*spec(is)%temp
             qheat(:,:,is,3) = qheat(:,:,is,3) * spec(is)%dens*spec(is)%temp
-            
+
             pflux(:,:,is) = pflux(:,:,is) * spec(is)%dens
-            pflux_tormom(:,:,is) = pflux_tormom(:,:,is) * spec(is)%dens  
-            
+            pflux_tormom(:,:,is) = pflux_tormom(:,:,is) * spec(is)%dens
+
             vflux(:,:,is) = vflux(:,:,is) * spec(is)%dens*sqrt(spec(is)%mass*spec(is)%temp)
             vflux_par(:,:,is) = vflux_par(:,:,is) * spec(is)%dens*sqrt(spec(is)%mass*spec(is)%temp)
             vflux_perp(:,:,is) = vflux_perp(:,:,is) * spec(is)%dens*spec(is)%mass*spec(is)%stm
             exchange(:,:,is) = exchange(:,:,is) * spec(is)%dens*spec(is)%z
-            
-#ifdef LOWFLOW
+
+!#ifdef LOWFLOW
+        if(use_lowflow) then
             vflux0(:,:,is) = vflux0(:,:,is) * spec(is)%dens*sqrt(spec(is)%mass*spec(is)%temp)
             vflux1(:,:,is) = vflux1(:,:,is) * spec(is)%dens*spec(is)%mass*spec(is)%temp/spec(is)%z
-#endif
+        end if
+!#endif
          end do
        !write(*,*) 'continuing fluxxxx'
        call calculate_standard_flux_properties(gnostics, &
@@ -167,14 +171,16 @@ contains
        call calculate_standard_flux_properties(gnostics, &
             'es_mom_flux_perp', 'Flux of the perpendicular component of the toroidal angular momentum', 'Pi_gB =  ', &
             vflux_perp, gnostics%distributed)
-#ifdef LOWFLOW
+!#ifdef LOWFLOW
+       if(use_lowflow) then
        call calculate_standard_flux_properties(gnostics, &
             'es_mom0', 'Low-flow momentum flux 0 (Ask Michael Barnes)', 'Pi_gB =  ', &
             vflux0, gnostics%distributed)
        call calculate_standard_flux_properties(gnostics, &
             'es_mom1', 'Low-flow momentum flux 1 (Ask Michael Barnes)', 'Pi_gB =  ', &
             vflux0, gnostics%distributed)
-#endif
+        end if
+!#endif
     end if
 
 
@@ -226,20 +232,20 @@ contains
             'bpar_mom_flux',  'Turbulent flux of momentum resulting from &
             & parallel magnetic fluctuations', 'Pi_gB = ', vbflux(:,:,:), gnostics%distributed)
     end if
-    
+
     ! Update averages
     !if (.not. gnostics%replay .or. gnostics%reed) then
       !write (*,*) 'Setting averages in fluxxxx', gnostics%current_results%species_heat_flux_avg, gnostics%current_results%species_heat_flux, (gnostics%user_time-gnostics%user_time_old)
-      gnostics%current_results%species_heat_flux_avg = gnostics%current_results%species_heat_flux_avg + & 
+      gnostics%current_results%species_heat_flux_avg = gnostics%current_results%species_heat_flux_avg + &
            gnostics%current_results%species_heat_flux * (gnostics%user_time-gnostics%user_time_old)
-      gnostics%current_results%species_particle_flux_avg = gnostics%current_results%species_particle_flux_avg + & 
+      gnostics%current_results%species_particle_flux_avg = gnostics%current_results%species_particle_flux_avg + &
            gnostics%current_results%species_particle_flux * (gnostics%user_time-gnostics%user_time_old)
-      gnostics%current_results%species_momentum_flux_avg = gnostics%current_results%species_momentum_flux_avg + & 
+      gnostics%current_results%species_momentum_flux_avg = gnostics%current_results%species_momentum_flux_avg + &
            gnostics%current_results%species_momentum_flux * (gnostics%user_time-gnostics%user_time_old)
        !end if
     ! Don't need to broadcast them any more as fluxes are now calculated on all
     ! processors
-    
+
     ! Write totals
     if (gnostics%write_fluxes) then
        call create_and_write_variable(gnostics, gnostics%rtype, "heat_flux_tot", &
@@ -269,7 +275,7 @@ contains
             "Total particle flux, as a function of  time, same as part_flux_tot, &
             & included for backwards compatiblity.", &
             "TBC", gnostics%current_results%total_particle_flux)
-    end if    
+    end if
   end subroutine calculate_fluxes
 
   !> Calculate estimates of the heat and particles fluxes using
@@ -317,9 +323,9 @@ contains
                 ! = dens  n_r (gamma_N v_thr / k_N**2 rho_r a) dT / drho drho/dr
                 ! = dens  n_r (gamma_N v_thr rho_r **2 / k_N**2 a) T a / L_T drho/dr
                 ! = dens  n_r (gamma_N v_thr rho_r **2 / k_N**2 a) temp T_r tprim drho/dr_N/a
-                ! Q / (n_r  v_r T_r rho_r**2/a**2) 
+                ! Q / (n_r  v_r T_r rho_r**2/a**2)
                 ! = dens (gamma_N / k_N**2) temp tprim grho
-                !   
+                !
                 heat_flux(it,ik,is) = diffusivity_by_k(it,ik) * &
                      spec(is)%dens * spec(is)%temp * spec(is)%tprim *  grho(gnostics%igomega)
                 particle_flux(it,ik,is) = diffusivity_by_k(it,ik) * &
@@ -328,10 +334,10 @@ contains
           end if
        end do
     end do
-     
-    
+
+
     !if (gnostics%reed) write (*,*) 'diffusivity_by_k', maxval(diffusivity_by_k), gnostics%istep
-    
+
     if (gnostics%distributed) call sum_allreduce(diffusivity_by_k)
 
     gnostics%current_results%diffusivity = &
@@ -340,20 +346,20 @@ contains
     call calculate_standard_flux_properties(gnostics, &
          'heat_flux_diff',  'Diffusive estimate of turbulent flux of heat', &
          'Q_gB = ', heat_flux, gnostics%distributed)
-    
+
     call calculate_standard_flux_properties(gnostics, &
          'part_flux_diff',  'Diffusive estimate of turbulent flux of particles', &
          'n_r? ', particle_flux, gnostics%distributed)
-    
+
     heat_flux_by_ky = maxval(heat_flux, 1)
     particle_flux_by_ky = maxval(particle_flux, 1)
-    
+
     heat_flux_max_by_spec = maxval(heat_flux_by_ky, 1)
     particle_flux_max_by_spec = maxval(particle_flux_by_ky, 1)
-    
+
     heat_flux_max = sum(heat_flux_max_by_spec)
     particle_flux_max = sum(particle_flux_max_by_spec)
-    
+
     if (gnostics%write_fluxes) then
        call create_and_write_variable(gnostics, gnostics%rtype, "es_heat_flux_diff_max", &
             dim_string([gnostics%dims%species,gnostics%dims%time]), &
@@ -379,7 +385,7 @@ contains
   end subroutine write_diffusive_estimates
 
   !> Writes a range of different summed and averaged properties of the given
-  !! flux... e.g. the flux summed over kx as a function of ky, species and time 
+  !! flux... e.g. the flux summed over kx as a function of ky, species and time
   subroutine calculate_standard_flux_properties(gnostics, flux_name, flux_description, &
        flux_units, flux_value, distributed)
     use kt_grids, only: ntheta0, naky
@@ -406,7 +412,7 @@ contains
 
     !call broadcast(flux_value)
 
-    call average_all(flux_value, flux_by_species, distributed) 
+    call average_all(flux_value, flux_by_species, distributed)
 
     !flux_value_temp = flux_value
 
@@ -425,14 +431,14 @@ contains
     end do
 
 !Is this dead?
-    !if (gnostics%write_fluxes_by_mode) then 
+    !if (gnostics%write_fluxes_by_mode) then
       !if (gnostics%write_fluxes) call create_and_write_flux_by_mode(gnostics, flux_name, flux_description, flux_units, &
         !flux_value, total_flux_by_mode, distributed)
     !end if
 
     call average_kx(total_flux_by_mode, total_flux_by_ky, distributed)
     call average_ky(total_flux_by_mode, total_flux_by_kx, distributed)
-    if (gnostics%write_fluxes) then 
+    if (gnostics%write_fluxes) then
        call create_and_write_variable(gnostics, gnostics%rtype, flux_name, &
             dim_string([gnostics%dims%species,gnostics%dims%time]), &
             flux_description//" averaged over kx and ky, as a function of species and time", &
@@ -441,18 +447,18 @@ contains
             dim_string([gnostics%dims%ky,gnostics%dims%time]), &
             flux_description//" summed over species and averaged over kx, as a function of ky and time", &
             flux_units, total_flux_by_ky)
-       
+
        call create_and_write_variable(gnostics, gnostics%rtype, "total_"//flux_name//"_by_kx", &
             dim_string([gnostics%dims%kx,gnostics%dims%time]), &
             flux_description//" summed over species and averaged over ky, as a function of kx and time", &
             flux_units, total_flux_by_kx)
-       
+
        call create_and_write_variable_noread(gnostics, gnostics%rtype, "total_"//flux_name, &
             dim_string([gnostics%dims%time]), &
             flux_description//" summed over species and averaged over kx and ky, as a function of time", &
             flux_units, sum(total_flux_by_kx))
-       
-       if (gnostics%write_fluxes_by_mode) then 
+
+       if (gnostics%write_fluxes_by_mode) then
           call create_and_write_distributed_fieldlike_variable( &
                gnostics, gnostics%rtype, flux_name//"_by_mode", &
                dim_string([gnostics%dims%kx,gnostics%dims%ky,gnostics%dims%species,gnostics%dims%time]), &
@@ -463,20 +469,20 @@ contains
                dim_string([gnostics%dims%kx,gnostics%dims%ky,gnostics%dims%time]), &
                flux_description//" summed over species, as a function of kx and ky", &
                flux_units, total_flux_by_mode)
-          
+
        end if
     end if
     !write(*,*) 'flux_by_species', flux_by_species
-    
+
     if (flux_name .eq. 'es_heat_flux') gnostics%current_results%species_es_heat_flux = flux_by_species
     !write (*,*) 'setting heat flux'
     if (flux_name .eq. 'es_energy_exchange') gnostics%current_results%species_energy_exchange = flux_by_species
     if (flux_name .eq. 'apar_heat_flux') gnostics%current_results%species_apar_heat_flux = flux_by_species
     if (flux_name .eq. 'bpar_heat_flux') gnostics%current_results%species_bpar_heat_flux = flux_by_species
-    
+
     if (flux_name .eq. 'es_heat_flux' &
          .or. flux_name .eq. 'apar_heat_flux' &
-         .or. flux_name .eq. 'bpar_heat_flux') then 
+         .or. flux_name .eq. 'bpar_heat_flux') then
        gnostics%current_results%total_heat_flux = gnostics%current_results%total_heat_flux + sum(flux_by_species)
        gnostics%current_results%species_heat_flux = gnostics%current_results%species_heat_flux + flux_by_species
     else if (flux_name .eq. 'es_mom_flux' &
@@ -494,7 +500,7 @@ contains
   end subroutine calculate_standard_flux_properties
 
 
-  !> 
+  !>
   subroutine write_symmetry(gnostics)
     use dist_fn, only: flux_vs_theta_vs_vpa
     use dist_fn, only: pflux_vs_theta_vs_vpa
@@ -546,7 +552,7 @@ contains
     use diagnostics_config, only: diagnostics_type
     implicit none
     type(diagnostics_type), intent(in) :: gnostics
-    real :: t 
+    real :: t
     integer :: iplo, iglo, sgn2, isgn, il, ie, ig, ik, it, is
     complex, dimension (:,:,:,:), allocatable :: gparity, gmx, gpx
     complex, dimension (:,:,:), allocatable :: g0, gm, gp
@@ -567,7 +573,7 @@ contains
        call init_parity_layouts (naky, nlambda, negrid, nspec)
        first = .false.
     end if
-    
+
     allocate (gparity(-ntgrid:ntgrid,ntheta0,2,p_lo%llim_proc:p_lo%ulim_alloc))
     allocate (g0(-ntgrid:ntgrid,2,p_lo%llim_proc:p_lo%ulim_alloc))
     allocate (gm(-ntgrid:ntgrid,2,p_lo%llim_proc:p_lo%ulim_alloc))
@@ -587,10 +593,10 @@ contains
     allocate (g_avg(ntheta0,nspec), gnorm_avg(ntheta0,nspec))
     allocate (g_all_tot(nspec), g_nokx_tot(nspec), g_nosig_tot(nspec), gtmp(nspec))
     allocate (gnorm_all_tot(nspec), gnorm_nokx_tot(nspec), gnorm_nosig_tot(nspec))
-    
+
     ! convert from g to h
     call g_adjust (gnew, phinew, bparnew, fphi, fbpar)
-    
+
     ! below we define gparity = J0 * h, where delta f = h - (q phi / T) F0
     ! because we're ultimately interested in int J0 h * phi (i.e. particle flux)
     do isgn = 1, 2
@@ -619,11 +625,11 @@ contains
           end do
        end do
     end do
-    
+
     ! convert from h back to g
     call g_adjust (gnew, phinew, bparnew, -fphi, -fbpar)
-    
-    ! first diagnostic is phase space average of 
+
+    ! first diagnostic is phase space average of
     ! |J0*(h(z,vpa,kx) +/- h(-z,-vpa,-kx))|**2 / ( |J0*h(z,vpa,kx)|**2 + |J0*h(-z,-vpa,-kx)|**2 )
     do it = 1, ntheta0
        ! have to treat kx=0 specially
@@ -669,7 +675,7 @@ contains
              phim(ig,:) = phinew(-ig,ntheta0-it+2,:)
           end do
        end if
-       
+
        ! want int dtheta sum_{kx} int d3v | sum_{ky} [ J0*(h+ * conjg(phi-) + h- * conjg(phi+)) ky ] |**2
        ! J0*(h+ * conjg(phi-) + h- * conjg(phi+)) = h*conjg(phi) - h(-theta,-vpa,-kx)*conjg(phi(-theta,-kx))
        do iplo = p_lo%llim_proc, p_lo%ulim_proc
@@ -686,7 +692,7 @@ contains
        do is = 1, nspec
           call average_theta (g_kint(:,1,is)+g_kint(:,2,is),g_avg(it,is))
        end do
-       
+
        ! get normalizing term for above diagnostic
        do iplo = p_lo%llim_proc, p_lo%ulim_proc
           ik = ik_idx(p_lo,iplo)
@@ -706,19 +712,19 @@ contains
                + gp_kint(:,1,is)+gp_kint(:,2,is),gnorm_avg(it,is))
        end do
     end do
-    
+
     ! average over perp plane
     do is = 1, nspec
        call average_all (gmavg(:,:,is), gmtot(is), gnostics%distributed)
        call average_all (gpavg(:,:,is), gptot(is), gnostics%distributed)
-       call average_all (gmnormavg(:,:,is), gmnormtot(is), gnostics%distributed)    
+       call average_all (gmnormavg(:,:,is), gmnormtot(is), gnostics%distributed)
        g_all_tot(is) = sum(g_avg(:,is))
        gnorm_all_tot(is) = sum(gnorm_avg(:,is))
     end do
-    
+
     allocate (gmx(-ntgrid:ntgrid,ntheta0,2,p_lo%llim_proc:p_lo%ulim_alloc))
     allocate (gpx(-ntgrid:ntgrid,ntheta0,2,p_lo%llim_proc:p_lo%ulim_alloc))
-    
+
     ! now we want diagnostic of phase space average of
     ! |J0*(h(z,vpa) +/- h(-z,-vpa))|**2 / ( |J0*h(z,vpa)|**2 + |J0*h(-z,-vpa)|**2 )
     do it = 1, ntheta0
@@ -743,24 +749,24 @@ contains
              call average_theta (gmnormint(:,ik,is),gmnormavg(it,ik,is))
           end do
        end do
-       
+
        ! phim(theta) = phi(-theta)
        ! have to treat kx=0 specially
        do ig = -ntgrid, ntgrid
           phim(ig,:) = phinew(-ig,it,:)
        end do
-       
+
        ! want int dtheta int d3v | sum_{kx} sum_{ky} [ J0*(h+ * conjg(phi-) + h- * conjg(phi+)) ky ] |**2
        ! J0*(h+ * conjg(phi-) + h- * conjg(phi+)) = h*conjg(phi) - h(-theta,-vpa)*conjg(phi(-theta))
        do iplo = p_lo%llim_proc, p_lo%ulim_proc
           ik = ik_idx(p_lo,iplo)
           do isgn = 1, 2
              gmx(:,it,isgn,iplo) = g0(:,isgn,iplo)*conjg(phim(:,ik))
-             gpx(:,it,isgn,iplo) = gparity(:,it,isgn,iplo)*conjg(phinew(:,it,ik)) - gmx(:,it,isgn,iplo) 
+             gpx(:,it,isgn,iplo) = gparity(:,it,isgn,iplo)*conjg(phinew(:,it,ik)) - gmx(:,it,isgn,iplo)
           end do
        end do
     end do
-    
+
     ! sum over kx
     gp = sum(gpx,2)
     deallocate (gpx)
@@ -772,7 +778,7 @@ contains
     do is = 1, nspec
        call average_theta (g_kint(:,1,is)+g_kint(:,2,is), g_nokx_tot(is))
     end do
-    
+
     ! get normalizing terms for above diagnostic
     gm = sum(gmx,2)
     deallocate (gmx)
@@ -786,15 +792,15 @@ contains
        call average_theta (gm_kint(:,1,is)+gm_kint(:,2,is) &
             + gp_kint(:,1,is)+gp_kint(:,2,is), gnorm_nokx_tot(is))
     end do
-    
+
     ! average over perp plane
     do is = 1, nspec
        call average_all (gmavg(:,:,is), gm_nokx_tot(is), gnostics%distributed)
        call average_all (gpavg(:,:,is), gp_nokx_tot(is), gnostics%distributed)
-       call average_all (gmnormavg(:,:,is), gmnorm_nokx_tot(is), gnostics%distributed)   
+       call average_all (gmnormavg(:,:,is), gmnorm_nokx_tot(is), gnostics%distributed)
     end do
-    
-    ! final diagnostic is phase space average of 
+
+    ! final diagnostic is phase space average of
     ! |J0*(h(z,kx) +/- h(-z,-kx))|**2 / ( |J0*h(z,kx)|**2 + |J0*h(-z,-kx)|**2 )
     do it = 1, ntheta0
        ! have to treat kx=0 specially
@@ -822,7 +828,7 @@ contains
              call average_theta (gmnormint(:,ik,is),gmnormavg(it,ik,is))
           end do
        end do
-       
+
        ! phim(theta,kx) = phi(-theta,-kx)
        ! have to treat kx=0 specially
        if (it == 1) then
@@ -834,7 +840,7 @@ contains
              phim(ig,:) = phinew(-ig,ntheta0-it+2,:)
           end do
        end if
-       
+
        ! want int dtheta sum_{kx} int dE dmu | sum_{sigma} sum_{ky} [ J0*(h+ * conjg(phi-) + h- * conjg(phi+)) ky ] |**2
        ! J0*(h+ * conjg(phi-) + h- * conjg(phi+)) = h*conjg(phi) - h(-theta,-kx)*conjg(phi(-theta,-kx))
        do iplo = p_lo%llim_proc, p_lo%ulim_proc
@@ -849,7 +855,7 @@ contains
        do is = 1, nspec
           call average_theta (g_kint(:,1,is),g_avg(it,is))
        end do
-       
+
        ! get normalizing term for above diagnostic
        do iplo = p_lo%llim_proc, p_lo%ulim_proc
           ik = ik_idx(p_lo,iplo)
@@ -871,11 +877,11 @@ contains
     do is = 1, nspec
        call average_all (gmavg(:,:,is), gm_nosig_tot(is), gnostics%distributed)
        call average_all (gpavg(:,:,is), gp_nosig_tot(is), gnostics%distributed)
-       call average_all (gmnormavg(:,:,is), gmnorm_nosig_tot(is), gnostics%distributed)    
+       call average_all (gmnormavg(:,:,is), gmnorm_nosig_tot(is), gnostics%distributed)
        g_nosig_tot(is) = sum(g_avg(:,is))
        gnorm_nosig_tot(is) = sum(gnorm_avg(:,is))
     end do
-    
+
     deallocate (gparity) ; allocate (gparity(-ntgrid:ntgrid,ntheta0,naky,nspec))
     ! obtain normalization factor = int over phase space of |g|**2
     call g_adjust (gnew, phinew, bparnew, fphi, fbpar)
@@ -891,14 +897,14 @@ contains
        end do
        call average_all (gmavg(:,:,is), gtot(is), gnostics%distributed)
     end do
-    
+
     ! normalize g(theta,vpa,kx) - g(-theta,-vpa,-kx) terms
     where (gtot+gmnormtot > epsilon(0.0))
        gmtot = sqrt(gmtot/(gtot+gmnormtot)) ; gptot = sqrt(gptot/(gtot+gmnormtot))
     elsewhere
        gmtot = sqrt(gmtot) ; gptot = sqrt(gptot)
     end where
-    
+
     where (real(gnorm_all_tot) > epsilon(0.0))
        gtmp = sqrt(real(g_all_tot)/real(gnorm_all_tot))
     elsewhere
@@ -909,14 +915,14 @@ contains
     elsewhere
        g_all_tot = gtmp + zi*sqrt(aimag(g_all_tot))
     end where
-    
+
     ! normalize g(theta,vpa) +/- g(-theta,-vpa) terms
     where (gtot+gmnorm_nokx_tot > epsilon(0.0))
        gm_nokx_tot = sqrt(gm_nokx_tot/(gtot+gmnorm_nokx_tot)) ; gp_nokx_tot = sqrt(gp_nokx_tot/(gtot+gmnorm_nokx_tot))
     elsewhere
        gm_nokx_tot = sqrt(gm_nokx_tot) ; gp_nokx_tot = sqrt(gp_nokx_tot)
     end where
-    
+
     where (real(gnorm_nokx_tot) > epsilon(0.0))
        gtmp = sqrt(real(g_nokx_tot)/real(gnorm_nokx_tot))
     elsewhere
@@ -927,14 +933,14 @@ contains
     elsewhere
        g_nokx_tot = gtmp + zi*sqrt(aimag(g_nokx_tot))
     end where
-    
+
     ! normalize g(theta,kx) +/ g(-theta,-kx) terms
     where (gtot+gmnorm_nosig_tot > epsilon(0.0))
        gm_nosig_tot = sqrt(gm_nosig_tot/(gtot+gmnorm_nosig_tot)) ; gp_nosig_tot = sqrt(gp_nosig_tot/(gtot+gmnorm_nosig_tot))
     elsewhere
        gm_nosig_tot = sqrt(gm_nosig_tot) ; gp_nosig_tot = sqrt(gp_nosig_tot)
     end where
-    
+
     where (real(gnorm_nosig_tot) > epsilon(0.0))
        gtmp = sqrt(real(g_nosig_tot)/real(gnorm_nosig_tot))
     elsewhere
@@ -945,13 +951,13 @@ contains
     elsewhere
        g_nosig_tot = gtmp + zi*sqrt(aimag(g_nosig_tot))
     end where
-    
+
     if (proc0 .and. gnostics%write_ascii) write (gnostics%ascii_files%parity,"(19(1x,e12.5))") &
          t, gmtot, gptot, real(g_all_tot), aimag(g_all_tot), &
          real(gnorm_all_tot), aimag(gnorm_all_tot), gm_nokx_tot, gp_nokx_tot, real(g_nokx_tot), aimag(g_nokx_tot), &
          real(gnorm_nokx_tot), aimag(gnorm_nokx_tot), gm_nosig_tot, gp_nosig_tot, &
          real(g_nosig_tot), aimag(g_nosig_tot), real(gnorm_nosig_tot), aimag(gnorm_nosig_tot)
-    
+
     deallocate (gparity, g0)
     deallocate (gm, gp, gmnorm, gmint, gpint, gmnormint)
     deallocate (gmavg, gpavg, gmnormavg)

@@ -1,15 +1,15 @@
 !> The old module for calculating and writing gs2 outputs. THIS MODULE IS NOW DEPRECATED.
 !! It is scheduled to be disabled by default on 1st March 2015 and removed
 !! from the repository on 1st June 2015. Do not edit or extend this module
-!! in any way apart from vital fixes. Any changes you make may not be 
-!! transferred to the new diagnostics module... please use the new diagnostics 
+!! in any way apart from vital fixes. Any changes you make may not be
+!! transferred to the new diagnostics module... please use the new diagnostics
 !! module contained in the diagnostics folder instead.
 
 module gs2_diagnostics
   use gs2_heating, only: heating_diagnostics
   use gs2_save, only: save_many
 
-! what about boundary condition contributions?  In the presence 
+! what about boundary condition contributions?  In the presence
 ! of magnetic shear, there are not always zero amplitudes at the ends
 ! of the supercells.
 
@@ -68,7 +68,13 @@ module gs2_diagnostics
   logical, public :: save_for_restart
   logical, public :: save_distfn !<DD> Added for saving distribution function
   logical, public :: write_symmetry, write_correlation_extend, write_correlation
+!<<<<<<< .mine
+!  logical, public :: write_pflux_sym, write_pflux_tormom
+!||||||| .r4023
+!  logical, public :: write_pflux_sym, write_pflux_tormom  
+!=======
   logical, public :: write_pflux_sym, write_nl_flux_dist, write_pflux_tormom
+!>>>>>>> .r4181
   logical :: file_safety_check
   integer, public :: nwrite, igomega, nmovie
   integer, public :: navg, nsave, nwrite_mult
@@ -158,7 +164,7 @@ module gs2_diagnostics
 
 
 contains
-  !> Define NetCDF vars, call real_init, which calls read_parameters; broadcast all the different write flags. 
+  !> Define NetCDF vars, call real_init, which calls read_parameters; broadcast all the different write flags.
    subroutine wnml_gs2_diagnostics(unit)
      implicit none
      integer, intent(in) :: unit
@@ -169,7 +175,7 @@ contains
      write (unit, fmt="(' save_distfn = ',L1)") save_distfn
      write (unit, fmt="(' save_many = ',L1)") save_many
      write (unit, fmt="(' file_safety_check = ',L1)") file_safety_check
-     write (unit, fmt="(' print_line = ',L1)") print_line 
+     write (unit, fmt="(' print_line = ',L1)") print_line
      write (unit, fmt="(' write_line = ',L1)") write_line
      write (unit, fmt="(' print_flux_line = ',L1)") print_flux_line
      write (unit, fmt="(' write_flux_line = ',L1)") write_flux_line
@@ -181,7 +187,7 @@ contains
      write (unit, fmt="(' omegatol = ',e17.10)") omegatol
      write (unit, fmt="(' omegatinst = ',e17.10)") omegatinst
      ! should be legal -- not checked yet
-     if (igomega /= 0) write (unit, fmt="(' igomega = ',i6)") igomega  
+     if (igomega /= 0) write (unit, fmt="(' igomega = ',i6)") igomega
 
      if (write_ascii) then
         write (unit, fmt="(' write_ascii = ',L1)") write_ascii
@@ -207,22 +213,22 @@ contains
      if (make_movie) &
           write (unit, fmt="(' make_movie = ',L1)") make_movie
 
-     write (unit, fmt="(' /')")       
+     write (unit, fmt="(' /')")
    end subroutine wnml_gs2_diagnostics
 
    subroutine check_gs2_diagnostics(report_unit)
      use file_utils, only: run_name
      use nonlinear_terms, only: nonlinear_mode_switch, nonlinear_mode_on
-     use dist_fn, only : def_parity, even 
+     use dist_fn, only : def_parity, even
      use kt_grids, only : gridopt_switch, gridopt_box
      use init_g, only : restart_file
      use gs2_save, only: restart_writable
      implicit none
      integer, intent(in) :: report_unit
      logical :: writable
-     write (report_unit, *) 
+     write (report_unit, *)
      write (report_unit, fmt="('------------------------------------------------------------')")
-     write (report_unit, *) 
+     write (report_unit, *)
      write (report_unit, fmt="('Diagnostic control section.')")
 
      if (print_line) then
@@ -270,9 +276,9 @@ contains
         write (report_unit, fmt="('                           Frequencies calculated at igomega = ',i4)") igomega
         if (def_parity .and. .not. even) then
            write (report_unit, fmt="('################# WARNING #######################')")
-           write (report_unit, fmt="('   You probably want igomega /= 0 for odd parity modes.')") 
+           write (report_unit, fmt="('   You probably want igomega /= 0 for odd parity modes.')")
            write (report_unit, fmt="('################# WARNING #######################')")
-           write (report_unit, *) 
+           write (report_unit, *)
         end if
      end if
 
@@ -327,11 +333,11 @@ contains
 
      if (write_avg_moments) then
         if (gridopt_switch /= gridopt_box) then
-           write (report_unit, *) 
+           write (report_unit, *)
            write (report_unit, fmt="('################# WARNING #######################')")
            write (report_unit, fmt="('write_avg_moments = T:          Ignored unless grid_option=box')")
            write (report_unit, fmt="('################# WARNING #######################')")
-           write (report_unit, *) 
+           write (report_unit, *)
         else
            if (write_ascii) then
               write (report_unit, fmt="('write_avg_moments = T:     Flux surface averaged low-order moments of g written to ',a)") &
@@ -359,30 +365,30 @@ contains
 
      if (dump_check1) then
         write (report_unit, fmt="('dump_check1 = T:          Field-line avg of Phi written to ',a)") 'dump.check1'
-        write (report_unit, fmt="('This option is usually used for Rosenbluth-Hinton calculations.')") 
-        write (report_unit, fmt="('THIS IS PROBABLY AN ERROR.')") 
+        write (report_unit, fmt="('This option is usually used for Rosenbluth-Hinton calculations.')")
+        write (report_unit, fmt="('THIS IS PROBABLY AN ERROR.')")
      end if
 
      if (dump_check2) then
         write (report_unit, fmt="('dump_check2 = T:           Apar(kx, ky, igomega) written to ',a)") trim(run_name)//'.dc2'
-        write (report_unit, fmt="('THIS IS PROBABLY AN ERROR.')") 
+        write (report_unit, fmt="('THIS IS PROBABLY AN ERROR.')")
      end if
 
      if (dump_fields_periodically) then
         write (report_unit, fmt="('dump_fields_periodically = T:          Phi, Apar, Bpar written to ',a)") 'dump.fields.t=(time)'
-        write (report_unit, fmt="('THIS IS PROBABLY AN ERROR.  IT IS EXPENSIVE.')") 
+        write (report_unit, fmt="('THIS IS PROBABLY AN ERROR.  IT IS EXPENSIVE.')")
      end if
 
      if (save_for_restart) then
         write (report_unit, fmt="('save_for_restart = T:      Restart files written to ',a)") trim(restart_file)//'.(PE)'
      else
         if (nonlinear_mode_switch == nonlinear_mode_on) then
-           write (report_unit, *) 
+           write (report_unit, *)
            write (report_unit, fmt="('################# WARNING #######################')")
            write (report_unit, fmt="('save_for_restart = F:              This run cannot be continued.')")
-           write (report_unit, fmt="('THIS IS PROBABLY AN ERROR.')") 
+           write (report_unit, fmt="('THIS IS PROBABLY AN ERROR.')")
            write (report_unit, fmt="('################# WARNING #######################')")
-           write (report_unit, *) 
+           write (report_unit, *)
         end if
      end if
 
@@ -393,21 +399,21 @@ contains
 
         !If we can't write the restart file then we should probably quit
         if((.not.writable))then
-           if(save_for_restart)then 
-              write (report_unit, *) 
+           if(save_for_restart)then
+              write (report_unit, *)
               write (report_unit, fmt="('################# WARNING #######################')")
               write (report_unit, fmt="('save_for_restart = T:   But we cannot write to a test file like ',A,'.')") trim(restart_file)
-              write (report_unit, fmt="('THIS IS PROBABLY AN ERROR --> Check restart_dir.')") 
+              write (report_unit, fmt="('THIS IS PROBABLY AN ERROR --> Check restart_dir.')")
               write (report_unit, fmt="('################# WARNING #######################')")
-              write (report_unit, *) 
+              write (report_unit, *)
            endif
-           if(save_distfn)then 
-              write (report_unit, *) 
+           if(save_distfn)then
+              write (report_unit, *)
               write (report_unit, fmt="('################# WARNING #######################')")
               write (report_unit, fmt="('save_distfn = T:   But we cannot write to a test file like ',A,'.')") trim(restart_file)
-              write (report_unit, fmt="('THIS IS PROBABLY AN ERROR --> Check restart_dir.')") 
+              write (report_unit, fmt="('THIS IS PROBABLY AN ERROR --> Check restart_dir.')")
               write (report_unit, fmt="('################# WARNING #######################')")
-              write (report_unit, *) 
+              write (report_unit, *)
            endif
         endif
      endif
@@ -545,9 +551,9 @@ contains
        allocate (hk(1,1))
        allocate (hk_hist(1,1,0))
     end if
-       
+
 !GGH Allocate density and velocity perturbation diagnostic structures
-    if (write_jext) allocate (j_ext_hist(ntheta0, naky,0:navg-1)) 
+    if (write_jext) allocate (j_ext_hist(ntheta0, naky,0:navg-1))
 
     call init_gs2_io (write_nl_flux, write_omega, &
          write_hrate, write_final_antot, &
@@ -558,7 +564,7 @@ contains
          write_phi_over_time, write_apar_over_time, write_bpar_over_time, &
          write_avg_moments, write_final_moments, write_final_epar, &
          ob_midplane=ob_midplane)
-    
+
     if (write_cerr) then
        if (collision_model_switch == 1 .or. collision_model_switch == 5) then
           call init_lorentz_error
@@ -590,7 +596,7 @@ contains
     !Setup the parallel fft if we're writing/using the parallel spectrum
     if(write_kpar.or.write_gs) call init_par_filter
   end subroutine init_gs2_diagnostics
- 
+
 
   subroutine real_init (list)
     use run_parameters, only: fapar
@@ -607,9 +613,9 @@ contains
     !<doc> Open the various ascii output files (depending on the write flags) </doc>
     if (proc0) then
        if (write_ascii) then
-          call open_output_file (out_unit, ".out")          
+          call open_output_file (out_unit, ".out")
 !          if (write_kpar) call open_output_file (kp_unit, ".kp")
-       end if             
+       end if
 
        if (write_cross_phase .and. write_ascii) then
           call open_output_file (phase_unit, ".phase")
@@ -643,12 +649,12 @@ contains
           call get_unused_unit (dump_check1_unit)
           open (unit=dump_check1_unit, file="dump.check1", status="unknown")
        end if
-       
+
        if (dump_check2) then
           call get_unused_unit (dump_check2_unit)
           call open_output_file (dump_check2_unit, ".dc2")
        end if
-       
+
        if (write_ascii) then
           write (unit=out_unit, fmt="('gs2')")
           datestamp(:) = ' '
@@ -667,7 +673,7 @@ contains
 
     !<doc> Allocate arrays for storing the various fluxes which the diagnostics will output </doc>
     allocate (pflux (ntheta0,naky,nspec)) ; pflux = 0.
-    allocate (pflux_tormom (ntheta0,naky,nspec)) ; pflux_tormom = 0. 
+    allocate (pflux_tormom (ntheta0,naky,nspec)) ; pflux_tormom = 0.
     allocate (qheat (ntheta0,naky,nspec,3)) ; qheat = 0.
     allocate (vflux (ntheta0,naky,nspec)) ; vflux = 0.
     allocate (exchange1 (ntheta0,naky,nspec)) ; exchange1 = 0.
@@ -693,7 +699,7 @@ contains
       omega=0
       omegaavg=0
     end if
-      
+
   end subroutine real_init
 
   subroutine read_parameters (list)
@@ -735,8 +741,8 @@ contains
        write_avg_moments = .false.
        write_parity = .false.
        write_symmetry = .false.
-       write_pflux_tormom = .false. 
-       write_pflux_sym = .false. 
+       write_pflux_tormom = .false.
+       write_pflux_sym = .false.
        write_correlation_extend = .false.
        write_correlation = .false.
        write_fields = .false.
@@ -779,15 +785,15 @@ contains
        !<doc> Read in parameters from the namelist gs2_diagnostics_knobs, if the namelist exists </doc>
        if (exist) read (unit=in_file, nml=gs2_diagnostics_knobs)
 !
-!CMR, 12/8/2014: 
+!CMR, 12/8/2014:
 ! Ensure write_full_moments_notgc=.false. if (write_moments .and. ob_midplane)
-! to avoid a conflict.  
+! to avoid a conflict.
        if (write_moments .and. ob_midplane) write_full_moments_notgc=.false.
 
        !Override flags
        if (write_max_verr) write_verr = .true.
 
-       print_summary = (list .and. (print_line .or. print_flux_line)) 
+       print_summary = (list .and. (print_line .or. print_flux_line))
 
        if (list) then
           print_line = .false.
@@ -810,13 +816,13 @@ contains
        write_any = write_line .or. write_omega     .or. write_omavg &
             .or. write_flux_line                   .or. write_nl_flux  &
             .or. write_kpar   .or. write_hrate     .or. write_lorentzian  .or. write_gs
-       write_any_fluxes =  write_flux_line .or. print_flux_line .or. write_nl_flux 
+       write_any_fluxes =  write_flux_line .or. print_flux_line .or. write_nl_flux
        dump_any = dump_check1  .or. dump_fields_periodically &
             .or.  dump_check2 .or. make_movie .or. print_summary &
             .or. write_full_moments_notgc
 
        ntg_out = ntheta/2 + (nperiod-1)*ntheta
-    end if 
+    end if
  end subroutine read_parameters
 
   subroutine finish_gs2_diagnostics (istep)
@@ -857,7 +863,7 @@ contains
        if (write_final_fields) call do_write_final_fields
        if (write_kpar) call do_write_kpar
        if (write_final_epar) call do_write_final_epar
-   
+
        ! definition here assumes we are not using wstar_units
        if (write_final_db) call do_write_final_db
     end if
@@ -877,11 +883,11 @@ contains
     if (save_distfn) then
        !Convert h to distribution function
        call g_adjust(gnew,phinew,bparnew,fphi,fbpar)
-       
+
        !Save dfn, fields and velocity grids to file
        call gs2_save_for_restart (gnew, user_time, user_dt, vnmult, istatus, &
             fphi, fapar, fbpar, exit_in=.true.,distfn=.true.)
-       
+
        !Convert distribution function back to h
        call g_adjust(gnew,phinew,bparnew,-fphi,-fbpar)
     end if
@@ -893,7 +899,7 @@ contains
     if (proc0) call dump_ant_amp
 
     if (write_gs) call do_write_gs
-    
+
     if (proc0) call do_write_geom
 
     !Now tidy up
@@ -902,7 +908,7 @@ contains
     wtmp_old = 0. ; nout = 1 ; nout_movie = 1 ; nout_big = 1
     initialized = .false.
   end subroutine finish_gs2_diagnostics
-  
+
   subroutine deallocate_arrays
     use mp, only: proc0
     use job_manage, only: trin_reset, trin_restart
@@ -922,7 +928,7 @@ contains
     if (proc0 .and. allocated(omegahist)) deallocate (omegahist)
     if (allocated(pflux)) deallocate (pflux, qheat, vflux, vflux_par, vflux_perp, pmflux, qmheat, vmflux, &
          pbflux, qbheat, vbflux, vflux0, vflux1, exchange1, exchange)
-    if (allocated(pflux_tormom)) deallocate (pflux_tormom) 
+    if (allocated(pflux_tormom)) deallocate (pflux_tormom)
 
 
     if (.not. trin_restart .and. allocated(pflux_avg)) deallocate (pflux_avg, qflux_avg, heat_avg, vflux_avg) ! check, restart always true?
@@ -930,7 +936,7 @@ contains
 
     if (proc0 .and. trin_reset .and. allocated(conv_heat)) deallocate (conv_heat)
 
-! HJL <    
+! HJL <
 ! EGH only proc0 has domega
     if (proc0 .and. allocated(domega)) deallocate(domega)
 ! > HJL
@@ -974,9 +980,10 @@ contains
     use le_grids, only: negrid
     use nonlinear_terms, only: nonlin
     use antenna, only: antenna_w
-    use parameter_scan_arrays, only: scan_hflux => hflux_tot, scan_momflux => momflux_tot 
+    use parameter_scan_arrays, only: scan_hflux => hflux_tot, scan_momflux => momflux_tot
     use parameter_scan_arrays, only: scan_phi2_tot => phi2_tot, scan_nout => nout
     use parameter_scan, only: scan_type_switch, scan_type_none
+    use lowflow, only: use_lowflow
 
     implicit none
     integer, intent (in) :: istep
@@ -991,9 +998,13 @@ contains
 
     real, dimension (ntheta0, nspec) :: x_qmflux
     real, dimension (nspec) ::  heat_fluxes,  part_fluxes, mom_fluxes, parmom_fluxes, perpmom_fluxes, part_tormom_fluxes
-#ifdef LOWFLOW
+!***
+!#ifdef LOWFLOW
+!***
     real, dimension (nspec) :: lfmom_fluxes, vflux1_avg  ! low-flow correction to turbulent momentum fluxes
-#endif
+!***
+!#endif
+!****
     real, dimension (nspec) :: mheat_fluxes, mpart_fluxes, mmom_fluxes
     real, dimension (nspec) :: bheat_fluxes, bpart_fluxes, bmom_fluxes
     real, dimension (nspec) :: energy_exchange
@@ -1021,7 +1032,7 @@ contains
     if (write_hrate) call heating (istep, h, hk)
 
     ! DONE
-    if (make_movie .and. mod(istep,nmovie)==0) call do_write_movie(t) 
+    if (make_movie .and. mod(istep,nmovie)==0) call do_write_movie(t)
 
     ! DONE
     if (write_gyx .and. mod(istep,nmovie) == 0) call write_fyx (phinew,bparnew,last)
@@ -1079,7 +1090,7 @@ contains
     !Zero various arrays which may or may not get filled
     part_fluxes = 0.0 ; mpart_fluxes = 0.0 ; bpart_fluxes = 0.0
     heat_fluxes = 0.0 ; mheat_fluxes = 0.0 ; bheat_fluxes = 0.0
-    mom_fluxes = 0.0 ; mmom_fluxes = 0.0 ; bmom_fluxes = 0.0  
+    mom_fluxes = 0.0 ; mmom_fluxes = 0.0 ; bmom_fluxes = 0.0
     part_tormom_fluxes = 0.0
     energy_exchange = 0.0
 
@@ -1091,10 +1102,14 @@ contains
        call flux (phinew, aparnew, bparnew, &
             pflux,  qheat,  vflux, vflux_par, vflux_perp, &
             pmflux, qmheat, vmflux, pbflux, qbheat, vbflux, pflux_tormom)
-#ifdef LOWFLOW
+!******
+!#ifdef LOWFLOW
+!*******
        ! lowflow terms only implemented in electrostatic limit at present
-       call lf_flux (phinew, vflux0, vflux1)
-#endif
+       if(use_lowflow) call lf_flux (phinew, vflux0, vflux1)
+!******
+!#endif
+!*******
        call g_adjust (gnew, phinew, bparnew, -fphi, -fbpar)
        if((fphi.gt.epsilon(0.0)).and.(write_nl_flux.or.print_flux_line.or.&
             (write_flux_line.and.write_ascii))) call eexchange (phinew, phi, exchange1, exchange)
@@ -1110,11 +1125,11 @@ contains
 
                 qheat(:,:,is,3) = qheat(:,:,is,3) * spec(is)%dens*spec(is)%temp
                 call get_volume_average (qheat(:,:,is,3), heat_perp(is))
-                
+
                 pflux(:,:,is) = pflux(:,:,is) * spec(is)%dens
                 call get_volume_average (pflux(:,:,is), part_fluxes(is))
 
-                pflux_tormom(:,:,is) = pflux_tormom(:,:,is) * spec(is)%dens  
+                pflux_tormom(:,:,is) = pflux_tormom(:,:,is) * spec(is)%dens
                 call get_volume_average (pflux_tormom(:,:,is), part_tormom_fluxes(is))
 
                 vflux(:,:,is) = vflux(:,:,is) * spec(is)%dens*sqrt(spec(is)%mass*spec(is)%temp)
@@ -1129,16 +1144,19 @@ contains
                 exchange(:,:,is) = exchange(:,:,is) * spec(is)%dens*spec(is)%z
                 call get_volume_average (exchange(:,:,is), energy_exchange(is))
 
-#ifdef LOWFLOW
+!#ifdef LOWFLOW
+             if(use_lowflow) then
                 vflux0(:,:,is) = vflux0(:,:,is) * spec(is)%dens*sqrt(spec(is)%mass*spec(is)%temp)
                 call get_volume_average (vflux0(:,:,is), lfmom_fluxes(is))
 
                 vflux1(:,:,is) = vflux1(:,:,is) * spec(is)%dens*spec(is)%mass*spec(is)%temp/spec(is)%z
                 call get_volume_average (vflux1(:,:,is), vflux1_avg(is))
+              end if
 
 ! TMP UNTIL VFLUX0 IS TESTED
 !                   mom_fluxes = mom_fluxes + lfmom_fluxes
-#endif
+!
+!#endif
              end do
           end if
           if (fapar > epsilon(0.0)) then
@@ -1153,7 +1171,7 @@ contains
 
                 qmheat(:,:,is,3)=qmheat(:,:,is,3) * spec(is)%dens*spec(is)%temp
                 call get_volume_average (qmheat(:,:,is,3), mheat_perp(is))
-                
+
                 pmflux(:,:,is)=pmflux(:,:,is) * spec(is)%dens
                 call get_volume_average (pmflux(:,:,is), mpart_fluxes(is))
 
@@ -1171,7 +1189,7 @@ contains
 
                 qbheat(:,:,is,3)=qbheat(:,:,is,3) * spec(is)%dens*spec(is)%temp
                 call get_volume_average (qbheat(:,:,is,3), bheat_perp(is))
-                
+
                 pbflux(:,:,is)=pbflux(:,:,is) * spec(is)%dens
                 call get_volume_average (pbflux(:,:,is), bpart_fluxes(is))
 
@@ -1263,11 +1281,13 @@ contains
                      & ' energy exchange: ', 5(1x,e11.4))") &
                      t, phi2, energy_exchange(1:min(nspec,5))
 
-#ifdef LOWFLOW
+!#ifdef LOWFLOW
+          if(use_lowflow) then
                    write (unit=out_unit, fmt="('t= ',e17.10,' <phi**2>= ',e11.4, &
                         & ' lfmom fluxes: ', 5(1x,e11.4),' lfvflx1: ', 5(1x,e11.4))") &
                         t, phi2, lfmom_fluxes(1:min(nspec,5)), vflux1_avg(1:min(nspec,5))
-#endif
+          end if 
+!#endif
              end if
              hflux_tot = sum(heat_fluxes)
              vflux_tot = sum(mom_fluxes)
@@ -1279,7 +1299,7 @@ contains
                 if (real(wtmp_old) /= 0. .and. wtmp_new /= wtmp_old) &
                      write (unit=out_unit, fmt="('w= ',e17.10, &
                      &  ' amp= ',e17.10)") real(wtmp_new), sqrt(2.*apar2)
-                wtmp_old = wtmp_new                
+                wtmp_old = wtmp_new
              end if
              if (write_ascii) then
                 write (unit=out_unit, fmt="('t= ',e17.10,' <apar**2>= ',e11.4, &
@@ -1363,7 +1383,7 @@ contains
 
     ! DONE
     if (write_pflux_sym) call do_write_pflux_sym
-    
+
     ! DONE
     if (write_correlation) call do_write_correlation
 
@@ -1382,13 +1402,13 @@ contains
 
 !
 ! I have not checked the units in this section. BD
-!       
+!
     if (dump_check1) call do_write_dump_1(t)
     if (dump_check2) call do_write_dump_2(t)
 
     ! DONE
     if (dump_fields_periodically .and. mod(istep,10*nwrite) == 0) call do_dump_fields_periodically(t)
-    
+
     ! Update the counter in parameter_scan_arrays
     scan_nout = nout
 
@@ -1401,7 +1421,7 @@ contains
     !Flush files
     ! DONE
     if (write_ascii .and. mod(nout, 10) == 0 .and. proc0) call flush_files
-    
+
     !Update time
     t_old = t
 
@@ -1467,14 +1487,14 @@ contains
     !    I think this should be if(aky(1)==0.0) fluxfac(1)=1.0 but I may be wrong
     fluxfac(1) = 1.0
 
-    !This was previously guarded by a "if (write_flux_line) then" 
+    !This was previously guarded by a "if (write_flux_line) then"
     !statement for some reason
     if(proc0) call nc_loop (nout, t, fluxfac, &
          phinew(igomega,:,:), phi2, phi2_by_mode, &
          aparnew(igomega,:,:), apar2, apar2_by_mode, &
          bparnew(igomega,:,:), bpar2, bpar2_by_mode, &
          h, hk, omega, omegaavg, woutunits, phitot, write_omega, write_hrate)
-    
+
   end subroutine do_write_ncloop
 
   subroutine bcast_scan_parameter(scan_hflux,scan_momflux,scan_phi2)
@@ -1521,13 +1541,13 @@ contains
     if (def_parity .and. fapar > 0 .and. (.not. even)) phi0 = apar(0, :, :)
 
     !Address locations where phi0=0 by using next point
-    where (abs(phi0) < 10.0*epsilon(0.0)) 
+    where (abs(phi0) < 10.0*epsilon(0.0))
        phi0 = phi(1,:,:)/(theta(1)-theta(0))
     end where
 
     !Check again if any locations are 0, this could be true if fphi (or fapar)
     !is zero.
-    where (abs(phi0) < 10.0*epsilon(0.0)) 
+    where (abs(phi0) < 10.0*epsilon(0.0))
        phi0 = 1.0
     end where
 
@@ -1603,7 +1623,7 @@ contains
 
     if(.not.proc0) return
 
-    allocate (phi2(-ntgrid:ntgrid,ntheta0,naky)) 
+    allocate (phi2(-ntgrid:ntgrid,ntheta0,naky))
     allocate (apar2(-ntgrid:ntgrid,ntheta0,naky))
     allocate (bpar2(-ntgrid:ntgrid,ntheta0,naky))
 
@@ -1637,7 +1657,7 @@ contains
                      kpar(ig), aky(ik), akx(it), &
                      phi2(ig-ntgrid-1,it,ik), &
                      apar2(ig-ntgrid-1,it,ik), &
-                     bpar2(ig-ntgrid-1,it,ik)                        
+                     bpar2(ig-ntgrid-1,it,ik)
              end do
              do ig = 1, ntgrid
                 write (unit, "(9(1x,e12.5))") &
@@ -1670,9 +1690,9 @@ contains
     integer :: ik, it, ig, unit
 
     if(.not.proc0) return
-    
+
     allocate (epar(-ntgrid:ntgrid,ntheta0,naky))
-    
+
     !Calculate
     call get_epar (phi, apar, phinew, aparnew, epar)
 
@@ -1788,7 +1808,7 @@ contains
           phi02=real(phi0*conjg(phi0))
 
           !Write out the moments normalised by phase factor
-          call open_output_file (unit, ".moments")          
+          call open_output_file (unit, ".moments")
           do is  = 1, nspec
              do ik = 1, naky
                 do it = 1, ntheta0
@@ -1807,7 +1827,7 @@ contains
                 end do
              end do
           end do
-          call close_output_file (unit)          
+          call close_output_file (unit)
 
           !Write out magnitude of moments
           call open_output_file (unit, ".mom2")
@@ -1829,7 +1849,7 @@ contains
                 end do
              end do
           end do
-          call close_output_file (unit)          
+          call close_output_file (unit)
 
           !Write out the field line averaged moments
           call open_output_file (unit, ".amoments")
@@ -1850,8 +1870,8 @@ contains
                      phi_tmp, ntot_tmp, density_tmp, upar_tmp, tpar_tmp, tperp_tmp
              end do
           end do
-          call close_output_file (unit)          
-          
+          call close_output_file (unit)
+
           deallocate(phi0,phi02)
        end if
 
@@ -1897,14 +1917,14 @@ contains
           end do
           call close_output_file (unit)
        end if
-       
+
        !Do netcdf output
        call nc_final_an (antot, antota, antotp)
     end if
 
     deallocate (antot, antota, antotp)
   end subroutine do_write_final_antot
-  
+
   subroutine do_write_gs
     use file_utils, only: open_output_file, close_output_file
     use mp, only: proc0, sum_reduce, iproc, nproc
@@ -2094,7 +2114,7 @@ contains
 
     !Should these not come from layouts object?
     iblock = (nnx*nny-1)/nproc + 1
-    llim = 1 + iblock * iproc  
+    llim = 1 + iblock * iproc
     ulim = min(nnx*nny, llim+iblock-1)
 
     do i=llim, ulim
@@ -2114,8 +2134,8 @@ contains
           bxt = fitp_surf2(rxt, ryt, nnx4, nny4, xx4, yy4, bxfs(:,:,ig), nnx4, bxs(:,ig), 1.)
           byt = fitp_surf2(rxt, ryt, nnx4, nny4, xx4, yy4, byfs(:,:,ig), nnx4, bys(:,ig), 1.)
 
-          rxt = rx(it,ik,ig) + 0.5*dz(ig)*bxt  
-          ryt = ry(it,ik,ig) + 0.5*dz(ig)*byt  
+          rxt = rx(it,ik,ig) + 0.5*dz(ig)*bxt
+          ryt = ry(it,ik,ig) + 0.5*dz(ig)*byt
 
           if (rxt > L_x) rxt = rxt - L_x
           if (ryt > L_y) ryt = ryt - L_y
@@ -2126,8 +2146,8 @@ contains
           bxt = fitp_surf2(rxt, ryt, nnx4, nny4, xx4, yy4, bxfsavg(:,:,ig), nnx4, bxsavg(:,ig), 1.)
           byt = fitp_surf2(rxt, ryt, nnx4, nny4, xx4, yy4, byfsavg(:,:,ig), nnx4, bysavg(:,ig), 1.)
 
-          rxt = rx(it,ik,ig) + dz(ig)*bxt  
-          ryt = ry(it,ik,ig) + dz(ig)*byt  
+          rxt = rx(it,ik,ig) + dz(ig)*bxt
+          ryt = ry(it,ik,ig) + dz(ig)*byt
 
           if (rxt > L_x) rxt = rxt - L_x
           if (ryt > L_y) ryt = ryt - L_y
@@ -2266,7 +2286,7 @@ contains
        call transform2 (aparnew, yxapar, nny, nnx)
     end if
 
-    if (fbpar > epsilon(0.0)) then 
+    if (fbpar > epsilon(0.0)) then
        allocate (yxbpar(nnx,nny,-ntgrid:ntgrid))
        call transform2 (bparnew, yxbpar, nny, nnx)
     end if
@@ -2303,7 +2323,7 @@ contains
                phitot(it,ik), theta0(it,ik)
        end do
     end do
-    write (*,*) 
+    write (*,*)
   end subroutine do_print_line
 
   subroutine do_write_jext(t,istep)
@@ -2343,7 +2363,7 @@ contains
          upar, tpar, tperp, qparflux, pperpj1, qpperpj1
 
     call getmoms (phinew, bparnew, ntot, density, upar, tpar, tperp, qparflux, pperpj1, qpperpj1)
-    if(proc0) call nc_write_moments(nout, ntot, density, upar, tpar, tperp,qparflux, pperpj1, qpperpj1,ob_midplane=ob_midplane) 
+    if(proc0) call nc_write_moments(nout, ntot, density, upar, tpar, tperp,qparflux, pperpj1, qpperpj1,ob_midplane=ob_midplane)
   end subroutine do_write_moments
 
   subroutine do_write_crossphase(t)
@@ -2390,7 +2410,7 @@ contains
 
     write (out_unit,&
          fmt='(" omavg= (",1p,e12.4,",",1p,e12.4,")",t45,"omavg/(vt/a)= (",1p,e12.4,",",1p,e12.4,")")') &
-         omegaavg(it,ik)/tunits(ik), omegaavg(it,ik)*woutunits(ik)               
+         omegaavg(it,ik)/tunits(ik), omegaavg(it,ik)*woutunits(ik)
   end subroutine do_write_omavg
 
   subroutine do_write_verr
@@ -2416,7 +2436,7 @@ contains
     call get_gtran (geavg, glavg, gtavg, phinew, bparnew)
 
     if (proc0) then
-       ! write error estimates to .nc file          
+       ! write error estimates to .nc file
        !          call nc_loop_vres (nout, errest_by_mode, lpcoef_by_mode)
 
        ! write error estimates for ion dist. fn. at outboard midplane with ik=it=1 to ascii files
@@ -2452,25 +2472,25 @@ contains
        !
        ! For case with two species:
        !
-       ! Column     Item               
-       !   1        time              
-       !   2        Energy              
-       !   3        dEnergy/dt            
-       !   4        J_ant.E             
+       ! Column     Item
+       !   1        time
+       !   2        Energy
+       !   3        dEnergy/dt
+       !   4        J_ant.E
        !   5        [h_(i+1)*h_*]/2 * C[h_(i+1)] * T_0 for species 1
        !   6        [h_(i+1)*h_*]/2 * C[h_(i+1)] * T_0 for species 2
        !   7       -[h H(h) * T_0]_1
        !   8       -[h H(h) * T_0]_2
-       !   9       -[h C(h) * T_0]_1 
+       !   9       -[h C(h) * T_0]_1
        !  10       -[h C(h) * T_0]_2
        !  11        [h w_* h]_1
        !  12        [h w_* h]_2
        !  13        [h * (q dchi/dt - dh/dt * T0)]_1
        !  14        [h * (q dchi/dt - dh/dt * T0)]_2
-       !  15      sum (h C(h) * T_0)  in total, as in 5, 6      
-       !  16     -sum (h H(h) * T_0)      
-       !  17     -sum (h C(h) * T_0)   
-       !  18      sum (h w_* h)  
+       !  15      sum (h C(h) * T_0)  in total, as in 5, 6
+       !  16     -sum (h H(h) * T_0)
+       !  17     -sum (h C(h) * T_0)
+       !  18      sum (h w_* h)
        !  19      sum [h (q dchi/dt - dh/dt * T0)]
        !  20      3 + 4 + 18 + 19
        !  21      (k_perp A)**2
@@ -2485,20 +2505,20 @@ contains
        !
        ! For case with one species:
        !
-       ! Column     Item               
-       !   1        time              
-       !   2        Energy              
-       !   3        dEnergy/dt            
-       !   4        J_ant.E             
-       !   5        [h_(i+1)*h_*]/2 * C[h_(i+1)] * T_0 
+       ! Column     Item
+       !   1        time
+       !   2        Energy
+       !   3        dEnergy/dt
+       !   4        J_ant.E
+       !   5        [h_(i+1)*h_*]/2 * C[h_(i+1)] * T_0
        !   6       -[h H(h) * T_0]
        !   7       -[h C(h) * T_0]
        !   8        [h w_* h]
        !   9        [h * (q dchi/dt - dh/dt * T0)]_1
-       !  10      sum (h C(h) * T_0)  in total, as in 5, 6      
-       !  11     -sum (h H(h) * T_0)      
-       !  12     -sum (h C(h) * T_0)   
-       !  13      sum (h w_* h)  
+       !  10      sum (h C(h) * T_0)  in total, as in 5, 6
+       !  11     -sum (h H(h) * T_0)
+       !  12     -sum (h C(h) * T_0)
+       !  13      sum (h w_* h)
        !  14      sum [h (q dchi/dt - dh/dt * T0)]
        !  15      3 + 4 + 9 + 10
        !  16      (k_perp A)**2
@@ -2506,7 +2526,7 @@ contains
        !  18      df ** 2
        !  19      h ** 2
        !  20      Phi_bar ** 2
-       
+
        write (unit=heat_unit, fmt="(28es12.4)") t,h % energy,  &
             h % energy_dot, h % antenna, h % imp_colls, h % hypercoll, h % collisions, &
             h % gradients, h % heating, sum(h % imp_colls), sum(h % hypercoll), sum(h % collisions), &
@@ -2712,7 +2732,7 @@ contains
     use run_parameters, only: fphi, fbpar
     use constants, only: zi
     implicit none
-    real, intent(in) :: t 
+    real, intent(in) :: t
     integer :: iplo, iglo, sgn2, isgn, il, ie, ig, ik, it, is
     complex, dimension (:,:,:,:), allocatable :: gparity, gmx, gpx
     complex, dimension (:,:,:), allocatable :: g0, gm, gp
@@ -2787,7 +2807,7 @@ contains
     ! convert from h back to g
     call g_adjust (gnew, phinew, bparnew, -fphi, -fbpar)
 
-    ! first diagnostic is phase space average of 
+    ! first diagnostic is phase space average of
     ! |J0*(h(z,vpa,kx) +/- h(-z,-vpa,-kx))|**2 / ( |J0*h(z,vpa,kx)|**2 + |J0*h(-z,-vpa,-kx)|**2 )
     do it = 1, ntheta0
        ! have to treat kx=0 specially
@@ -2875,7 +2895,7 @@ contains
     do is = 1, nspec
        call get_volume_average (gmavg(:,:,is), gmtot(is))
        call get_volume_average (gpavg(:,:,is), gptot(is))
-       call get_volume_average (gmnormavg(:,:,is), gmnormtot(is))    
+       call get_volume_average (gmnormavg(:,:,is), gmnormtot(is))
        g_all_tot(is) = sum(g_avg(:,is))
        gnorm_all_tot(is) = sum(gnorm_avg(:,is))
     end do
@@ -2920,7 +2940,7 @@ contains
           ik = ik_idx(p_lo,iplo)
           do isgn = 1, 2
              gmx(:,it,isgn,iplo) = g0(:,isgn,iplo)*conjg(phim(:,ik))
-             gpx(:,it,isgn,iplo) = gparity(:,it,isgn,iplo)*conjg(phinew(:,it,ik)) - gmx(:,it,isgn,iplo) 
+             gpx(:,it,isgn,iplo) = gparity(:,it,isgn,iplo)*conjg(phinew(:,it,ik)) - gmx(:,it,isgn,iplo)
           end do
        end do
     end do
@@ -2955,10 +2975,10 @@ contains
     do is = 1, nspec
        call get_volume_average (gmavg(:,:,is), gm_nokx_tot(is))
        call get_volume_average (gpavg(:,:,is), gp_nokx_tot(is))
-       call get_volume_average (gmnormavg(:,:,is), gmnorm_nokx_tot(is))    
+       call get_volume_average (gmnormavg(:,:,is), gmnorm_nokx_tot(is))
     end do
 
-    ! final diagnostic is phase space average of 
+    ! final diagnostic is phase space average of
     ! |J0*(h(z,kx) +/- h(-z,-kx))|**2 / ( |J0*h(z,kx)|**2 + |J0*h(-z,-kx)|**2 )
     do it = 1, ntheta0
        ! have to treat kx=0 specially
@@ -3035,7 +3055,7 @@ contains
     do is = 1, nspec
        call get_volume_average (gmavg(:,:,is), gm_nosig_tot(is))
        call get_volume_average (gpavg(:,:,is), gp_nosig_tot(is))
-       call get_volume_average (gmnormavg(:,:,is), gmnorm_nosig_tot(is))    
+       call get_volume_average (gmnormavg(:,:,is), gmnorm_nosig_tot(is))
        g_nosig_tot(is) = sum(g_avg(:,is))
        gnorm_nosig_tot(is) = sum(gnorm_avg(:,is))
     end do
@@ -3315,13 +3335,13 @@ contains
     if(proc0 .and. .not. (trin_istep .ne. 0 .and. istep .eq. 0)) then
        if(istep .gt. 0) trin_istep = trin_istep + nwrite ! Total number of steps including restarted trinity runs
        iwrite = trin_istep/nwrite ! Number of diagnostic write steps written
-       nwrite_av = conv_nstep_av/nwrite ! Number of diagnostic write steps to average over        
+       nwrite_av = conv_nstep_av/nwrite ! Number of diagnostic write steps to average over
 
        heat_sum_av = (heat_sum_av * iwrite + heat_flux) / (iwrite+1) ! Cumulative average of heat flux
 
        place = mod(trin_istep,conv_nstep_av)/nwrite
        conv_heat(place) = heat_flux
-     
+
        if (debug) write(6,'(A,I5,A,e11.4,A,I6,I6)') 'Job ',trin_job, &
             ' time = ',user_time, ' step = ',trin_istep
        if (debug) write(6,'(A,I5,A,e11.4,A,e11.4)') 'Job ',trin_job, &
@@ -3340,10 +3360,10 @@ contains
              conv_isteps_converged = 0
              heat_av_test = heat_sum_av * conv_test_multiplier
           endif
-          
+
           if ((conv_isteps_converged .ge. conv_nsteps_converged/nwrite) .and. &
                (trin_istep .ge. conv_min_step)) then
-             if (debug) write(6,'(A,I5,A,I6,I3)')'Job ',trin_job, &  
+             if (debug) write(6,'(A,I5,A,I6,I3)')'Job ',trin_job, &
                   ' Reached convergence condition after step ',trin_istep
              exit = .true. .and. exit_when_converged
           endif
@@ -3377,17 +3397,17 @@ contains
     real, dimension(-ntgrid:ntgrid) :: wgt
     real :: fac
     integer :: is, ik, it, ig
-    
+
     !Zero out variables for heating diagnostics
     call zero_htype(h)
     call zero_htype(hk)
 
     if (proc0) then
-       
+
        !GGH NOTE: Here wgt is 1/(2*ntgrid+1)
        wgt = delthet*jacob
        wgt = wgt/sum(wgt)
-          
+
        do is = 1, nspec
           do ik = 1, naky
              fac = 0.5
@@ -3395,7 +3415,7 @@ contains
              do it = 1, ntheta0
                 if (aky(ik) < epsilon(0.0) .and. abs(akx(it)) < epsilon(0.0)) cycle
                 do ig = -ntgrid, ntgrid
-                   
+
                    !Sum heating by k over all z points (ig)
                    hk(it, ik) % collisions(is) = hk(it, ik) % collisions(is) &
                         + real(c_rate(ig,it,ik,is,1))*fac*wgt(ig)*spec(is)%temp*spec(is)%dens
@@ -3415,7 +3435,7 @@ contains
        end do
     end if
 
-    call get_heat (h, hk, phi, apar, bpar, phinew, aparnew, bparnew)    
+    call get_heat (h, hk, phi, apar, bpar, phinew, aparnew, bparnew)
 
     call avg_h(h, h_hist, istep, navg)
     call avg_hk(hk, hk_hist, istep, navg)
@@ -3432,12 +3452,12 @@ contains
     integer, intent (in) :: istep
     !Shouldn't really need intent in here but it's beacuse we zero it before calling calc_jext
     real, dimension(:,:), intent(in out) ::  j_ext
-    !Local 
+    !Local
     integer :: i
 
     !Call routine to calculate density and velocity perturbations
-    call get_jext(j_ext)    
-    
+    call get_jext(j_ext)
+
     !Do averages with a history variable
     if (proc0) then
        !Save variable to history
@@ -3521,7 +3541,7 @@ if (debug) write(6,*) "get_omeaavg: start"
 !    where (abs(phinew(j,:,:)+aparnew(j,:,:)+bparnew(j,:,:)) < epsilon(0.0) &
 !           .or. abs(phi(j,:,:)+apar(j,:,:)+bpar(j,:,:)) < epsilon(0.0))
 !This results in not calculating the frequency whenever the fields drop below epsilon(0.0) [~1d-16 for DP]
-!What we really want to do is prevent dividing by too small a number. 
+!What we really want to do is prevent dividing by too small a number.
     if(omegatol.eq.0)then
        fac=1.0
     else
@@ -3556,7 +3576,7 @@ if (debug) write(6,*) "get_omegaavg: omegaavg=",omegaavg
        end if
 
        if (any(abs(omegaavg)*code_dt > omegatinst)) then
-          if (write_ascii) write (out_unit, "('*** numerical instability detected')") 
+          if (write_ascii) write (out_unit, "('*** numerical instability detected')")
           exit = .true.
        end if
     end if
@@ -3634,7 +3654,7 @@ if (debug) write(6,*) "get_omegaavg: done"
 ! note contrast with scaling factors in FFT routines.
 
 !CMR+GC: 2/9/2013
-!  fac values here arise because gs2's Fourier coefficients, F_k^gs2, not standard form: 
+!  fac values here arise because gs2's Fourier coefficients, F_k^gs2, not standard form:
 !          i.e. f(x) = f_k e^(i k.x)
 !  With standard Fourier coeffs in gs2, we would instead need:  fac=2.0 for ky > 0
 !      (fac=2.0 would account ky<0 contributions, not stored due to reality condition)
@@ -3661,7 +3681,7 @@ if (debug) write(6,*) "get_omegaavg: done"
 ! note contrast with scaling factors in FFT routines.
 
 !CMR+GC: 2/9/2013
-!  fac values here arise because gs2's Fourier coefficients, F_k^gs2, not standard form: 
+!  fac values here arise because gs2's Fourier coefficients, F_k^gs2, not standard form:
 !          i.e. f(x) = f_k e^(i k.x)
 !  With standard Fourier coeffs in gs2, we would instead need:  fac=2.0 for ky > 0
 !      (fac=2.0 would account ky<0 contributions, not stored due to reality condition)
@@ -3769,12 +3789,12 @@ if (debug) write(6,*) "get_omegaavg: done"
   end subroutine get_fldline_avg_c
 
   subroutine get_cross_phase (phase_tot, phase_theta)
-! <doc> This is a highly simplified synthetic diagnostic which 
-! calculates the cross phase between the electron density and the 
-! perpendicular electron temperature for comparisons with DIII-D.  
-! Returns the value of the cross-phase at the outboard midplane and 
-! integrated over all v and x. We can generalize this routine to 
-! other fields at some point, but for now this is just a skeleton for 
+! <doc> This is a highly simplified synthetic diagnostic which
+! calculates the cross phase between the electron density and the
+! perpendicular electron temperature for comparisons with DIII-D.
+! Returns the value of the cross-phase at the outboard midplane and
+! integrated over all v and x. We can generalize this routine to
+! other fields at some point, but for now this is just a skeleton for
 ! a more realistic synthetic diagnostic. </doc>
     use species, only: nspec, spec, electron_species
     use kt_grids, only: ntheta0, naky
@@ -3803,7 +3823,7 @@ if (debug) write(6,*) "get_omegaavg: done"
 !          call get_vol_average (ntot(0,:,:,is), ntot(0,:,:,is), n2, n2_by_mode)
 !          call get_vol_average (tperp(0,:,:,is), tperp(0,:,:,is), T2, T2_by_mode)
           phase_theta = atan2(aimag(nTp),real(nTp))!/sqrt(n2*T2)
-          ! get integrated cross_phase 
+          ! get integrated cross_phase
           call get_vol_int (ntot(:,:,:,is), tperp(:,:,:,is), nTp, nTp_by_mode)
 !          call get_vol_average (ntot(:,:,:,is), ntot(:,:,:,is), n2, n2_by_mode)
 !          call get_vol_average (tperp(:,:,:,is), tperp(:,:,:,is), T2, T2_by_mode)
@@ -3864,7 +3884,7 @@ if (debug) write(6,*) "get_omegaavg: done"
 ! note contrast with scaling factors in FFT routines.
 
 !CMR+GC: 2/9/2013
-!  fac values here arise because gs2's Fourier coefficients, F_k^gs2, not standard form: 
+!  fac values here arise because gs2's Fourier coefficients, F_k^gs2, not standard form:
 !          i.e. f(x) = f_k e^(i k.x)
 !  With standard Fourier coeffs in gs2, we would instead need:  fac=2.0 for ky > 0
 !      (fac=2.0 would account ky<0 contributions, not stored due to reality condition)
@@ -3978,7 +3998,7 @@ if (debug) write(6,*) "get_omegaavg: done"
           cfnc(:,it,ik) = cfnc(:,it,ik) / cfnc(1,it,ik)
        end do
     end do
-    
+
     phi2extend = phiextend*conjg(phiextend)
 
 !    deallocate (dl_over_b, phir, phiextend, phisum)
