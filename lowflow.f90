@@ -758,8 +758,7 @@ contains
     use splines, only: lf_spline
     use file_utils, only: get_unused_unit
     use constants, only: pi,twopi
-    use geometry, only: rhoc, irho
-    use species, only: spec
+    use geometry, only:rhoc
 
     implicit none
 
@@ -769,13 +768,12 @@ contains
     integer :: is, ik, ij, ig, ir, idx, ntheta, ntheta_neo
     integer :: ptheta_neo, ip
     integer :: ngrid_per_rad
-    integer, save :: neo_unit, neof_unit, neophi_unit,neoeq_unit, neo_norm_unit
+    integer, save :: neo_unit, neof_unit, neophi_unit,neoeq_unit
  !   real,dimension(:,:),allocatable,intent(out):: temp1_neo,dens1_neo
 
     real, dimension (:), allocatable :: tmp, neo_coefs, dum, neo_phi, dneo_phi
     real, dimension (:), allocatable :: theta_neo_ext,neo_coefs_ext, neo_phi_ext, dneo_phi_ext !JPL
-    real,dimension(:,:),allocatable :: equil, neo_norm
-!    real, dimension(:), allocatable :: rmin_neo
+    real,dimension(:,:),allocatable :: equil
     ntheta = size(theta)
 
     ! for now, set ir_neo by hand, but best to derive it from neo output in future
@@ -802,27 +800,31 @@ contains
           read (neo_unit,*) rad_neo(ir)!, dens_neo(ir,:), temp_neo(ir,:)
        end do
        close (neo_unit)
+
 !       dens_neo = dens_neo / spread(dens_neo(ir_neo,:),1,nrad_neo)
 !       temp_neo = temp_neo / spread(temp_neo(ir_neo,:),1,nrad_neo)
     end if
+
 
     call broadcast (nspec_neo)
     call broadcast (nenergy_neo)
     call broadcast (nxi_neo)
     call broadcast (ntheta_neo)
     call broadcast (nrad_neo)
+       do ir = 1,nrad_neo
+          if(abs(rhoc-rad_neo(ir))<=1.0e-2) then
+            ir_neo = ir
+          end if
+
+       end do
+
+
     if (.not. allocated(theta_neo)) allocate (theta_neo(ntheta_neo))
     if (.not. allocated(rad_neo)) allocate (rad_neo(nrad_neo))
 !    if (.not. allocated(dens_neo)) allocate (dens_neo(nrad_neo,nspec_neo))
 !    if (.not. allocated(temp_neo)) allocate (temp_neo(nrad_neo,nspec_neo))
     call broadcast (theta_neo)
     call broadcast (rad_neo)
-!    ir_neo = minloc(abs(rhoc-rad_neo))
-    do ir = 1,nrad_neo
-        if(abs(rhoc-rad_neo(ir))<=1.0e-2) then
-          ir_neo = ir
-        end if
-     end do
 !    do ir = 1, nrad_neo
 !       call broadcast (dens_neo)
 !       call broadcast (temp_neo)
@@ -897,30 +899,27 @@ contains
        if (.not. allocated(equil)) allocate (equil(nrad_neo,7+nspec_neo*5))
        if (.not. allocated(dens_neo)) allocate (dens_neo(nrad_neo,nspec_neo))
        if (.not. allocated(temp_neo)) allocate (temp_neo(nrad_neo,nspec_neo))
-!       if (.not. allocated(rmin_neo)) allocate (rmin_neo(nrad_neo))
       do ir = 1,nrad_neo
         read(neoeq_unit,*) equil(ir,:)
-!        rmin_neo(ir) = equil(ir,1)
         do is =1,nspec_neo
           dens_neo(ir,is) = equil(ir,7+(is-1)*5+1)
           temp_neo(ir,is) = equil(ir,7+(is-1)*5+2)
         end do
       end do
-
       close(neoeq_unit)
        dens_neo = dens_neo / spread(dens_neo(ir_neo,:),1,nrad_neo)
        temp_neo = temp_neo / spread(temp_neo(ir_neo,:),1,nrad_neo)
    end if
  !   if(.not.allocated(temp1_neo)) allocate(temp1_neo(nrad_neo,nspec_neo))
- !   if(.not.allocated(dens1_neo)) allocate(dens1_neo(nrad_neo,nspec_neo))
+ !   if(.not.allocated(dens1_neo)) allocate(dens1_neo(nrad_neo,nspec_neo))   
 
     if (.not. allocated(dens_neo)) allocate (dens_neo(nrad_neo,nspec_neo))
     if (.not. allocated(temp_neo)) allocate (temp_neo(nrad_neo,nspec_neo))
 
-
+ 
 !    temp1_neo = temp_neo
 !    dens1_neo = dens_neo
-
+   
    do ir = 1, nrad_neo
        call broadcast (dens_neo)
        call broadcast (temp_neo)

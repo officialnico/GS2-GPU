@@ -83,7 +83,7 @@ USE_MPI ?= mpi2
 # turns on SHMEM parallel communications on SGI (bin)
 USE_SHMEM ?=
 # which FFT library to use (fftw,fftw3,mkl_fftw,undefined) 
-USE_FFT ?= 
+USE_FFT ?=on 
 # uses netcdf library (bin)
 USE_NETCDF ?= on
 # uses parallel netcdf library
@@ -105,7 +105,7 @@ USE_NAGLIB ?=
 # Make GS2 into a library which can be called by external programs
 MAKE_LIB ?=
 # Include higher-order terms in GK equation arising from low-flow physics
-LOWFLOW ?=
+LOWFLOW ?=on
 # Compile with PETSC/SLEPC support for determining eigensystem (bin).
 WITH_EIG ?=
 
@@ -169,6 +169,11 @@ RANLIB		= ranlib
 AWK 		= awk
 PERL		= perl
 
+ifeq ($(GK_SYSYEM), marconi)
+	MPIFC ?= mpiifort
+	MPICC ?= mpiicc
+endif 
+
 # These macros are used for the suffix problem of absoft
 F90FLAGS_SFX0 =
 F90FLAGS_SFX1 =
@@ -177,8 +182,11 @@ F90FLAGS_SFX2 =
 #files line up the same as preprocessed (make output a little clearer)
 F90FLAGS_SFXJNK =
 
-MPI_INC	?=
+MPI_INC	?=-I ${I_MPI_ROOT}/intel64/include
+#/cineca/prod/opt/compilers/intel/pe-xe-2017/binary/impi/2017.3.196/intel64/include
+#${I_MPI_ROOT}/include64
 MPI_LIB ?=
+#${I_MPI_ROOT}/lib64
 FFT_INC ?=
 FFT_LIB ?=
 EIG_INC ?=
