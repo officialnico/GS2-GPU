@@ -1,14 +1,14 @@
 ! Notes from BD, 7/2011:
 !
 ! Need to extend the verr tools to include delta B_parallel integrals
-! There are new factors of 1/B here and there which I do not understand.
+! There are new factors of 1/B here and there which I do not understand.  
 
-!>The principal function of this module is to evolve the distribution function,
-!!that is, to advance the discrete gyrokinetic equation.
-!!This involves calculating the source and dealing with the complexities
-!!of the parallel boundary conditions.
+!>The principal function of this module is to evolve the distribution function, 
+!!that is, to advance the discrete gyrokinetic equation. 
+!!This involves calculating the source and dealing with the complexities 
+!!of the parallel boundary conditions. 
 !!In addition it contains a routine for implementing perpendicular
-!!velocity shear and calculating the right-hand side of the field
+!!velocity shear and calculating the right-hand side of the field 
 !!equation, as well as a host of other functions.
 
 module dist_fn
@@ -18,18 +18,18 @@ module dist_fn
   private
 
   public :: init_dist_fn, finish_dist_fn
-
+  
   !> Initializes a limited selection of arrays,
-  !! for example g, gnew, vperp2, typically those which
-  !! are needed by other modules that don't need
+  !! for example g, gnew, vperp2, typically those which 
+  !! are needed by other modules that don't need 
   !! dist_fn to be fully initialized (e.g. nonlinear_terms)
   !! This initialization level depends on grid sizes.
   public :: init_dist_fn_arrays
-
+ 
   !> Deallocates arrays allocated in init_dist_fn_arrays
   public :: finish_dist_fn_arrays
 
-  !> Reads the dist_fn_knobs, source knobs, and
+  !> Reads the dist_fn_knobs, source knobs, and 
   !! dist_fn_species_knobs namelists. This has be done independently
   !! of initializing the distribution function because
   !! it needs to be possible to override parameters such
@@ -42,7 +42,7 @@ module dist_fn
   public :: init_dist_fn_level_1
   public :: finish_dist_fn_level_1
 
-  !> Initializes bessel functions and field_eq. Note
+  !> Initializes bessel functions and field_eq. Note 
   !! that this level depends on species paramters.
   public :: init_dist_fn_level_2
   public :: finish_dist_fn_level_2
@@ -59,7 +59,7 @@ module dist_fn
     module procedure set_optimisations_overrides
   end interface set_overrides
 
-  !!> init_vpar is called by init_dist_fn should only be called separately
+  !!> init_vpar is called by init_dist_fn should only be called separately 
   !!! for testing purposes
   !public :: init_vpar
   public :: read_parameters, wnml_dist_fn, wnml_dist_fn_species, check_dist_fn
@@ -81,14 +81,14 @@ module dist_fn
   public :: get_init_field, getan_nogath
   public :: flux_vs_theta_vs_vpa
   public :: pflux_vs_theta_vs_vpa
-
+  
   public :: gamtot,gamtot1,gamtot2
   public :: getmoms_notgc
   public :: mom_coeff, ncnt_mom_coeff
   public :: mom_coeff_npara, mom_coeff_nperp
   public :: mom_coeff_tpara, mom_coeff_tperp
   public :: mom_shift_para, mom_shift_perp
-!CMR, 25/1/13:
+!CMR, 25/1/13: 
 !  add public variables below for init_g
   public :: boundary_option_switch, boundary_option_linked
   public :: boundary_option_self_periodic, boundary_option_zero
@@ -128,7 +128,7 @@ module dist_fn
   integer :: source_option_switch
   integer, parameter :: source_option_full = 1, &
        source_option_phiext_full = 5
-
+  
   integer :: boundary_option_switch
   integer, parameter :: boundary_option_zero = 1, &
        boundary_option_self_periodic = 2, &
@@ -141,8 +141,8 @@ module dist_fn
   logical :: accelerated_x = .false.
   logical :: accelerated_v = .false.
 !Not sure why these are module level as only used in one routine
-  logical :: increase = .true., decrease = .false.
-
+  logical :: increase = .true., decrease = .false. 
+  
 !! k_parallel filter items
 !  real, dimension(:), allocatable :: work, tablekp
 !  real :: scale
@@ -152,23 +152,18 @@ module dist_fn
 
 !  real, dimension (:,:), allocatable :: wdrift, wcurv
 !  ! (-ntgrid:ntgrid, -g-layout-)
-!**
-!#ifdef LOWFLOW
-!**
+
+#ifdef LOWFLOW
   real, dimension (:,:), allocatable :: wcurv
   real, dimension (:,:,:), allocatable :: wstar_neo
   ! (-ntgrid:ntgrid,ntheta0,naky)
 
   complex, dimension (:,:,:), allocatable :: wdrift
   ! (-ntgrid:ntgrid, 2, -g-layout-)
-!***
-!#else
-!****
-!  real, dimension (:,:,:), allocatable :: wdrift
+#else
+  real, dimension (:,:,:), allocatable :: wdrift
   ! (-ntgrid:ntgrid, 2, -g-layout-)
-!****
-!#endif
-!*****
+#endif
 
 !  real, dimension (:,:,:,:,:), allocatable :: wdriftttp
   real, dimension (:,:,:,:,:,:), allocatable :: wdriftttp
@@ -297,162 +292,162 @@ contains
     use species, only: spec, nspec, has_electron_species
     implicit none
     integer, intent(in) :: report_unit
-    integer :: is
+    integer :: is 
     if (gridfac /= 1.) then
-       write (report_unit, *)
+       write (report_unit, *) 
        write (report_unit, fmt="('################# WARNING #######################')")
        write (report_unit, fmt="('You selected gridfac = ',e11.4,' in dist_fn_knobs.')") gridfac
-       write (report_unit, fmt="('THIS IS PROBABLY AN ERROR.')")
+       write (report_unit, fmt="('THIS IS PROBABLY AN ERROR.')") 
        write (report_unit, fmt="('The normal choice is gridfac = 1.')")
        write (report_unit, fmt="('################# WARNING #######################')")
-       write (report_unit, *)
+       write (report_unit, *) 
     end if
 
     if (apfac /= 1.) then
-       write (report_unit, *)
+       write (report_unit, *) 
        write (report_unit, fmt="('################# WARNING #######################')")
        write (report_unit, fmt="('You selected apfac = ',e11.4,' in dist_fn_knobs.')") apfac
-       write (report_unit, fmt="('THIS IS PROBABLY AN ERROR.')")
+       write (report_unit, fmt="('THIS IS PROBABLY AN ERROR.')") 
        write (report_unit, fmt="('The normal choice is apfac = 1.')")
        write (report_unit, fmt="('################# WARNING #######################')")
-       write (report_unit, *)
+       write (report_unit, *) 
     end if
 
     if (driftknob /= 1.) then
-       write (report_unit, *)
+       write (report_unit, *) 
        write (report_unit, fmt="('################# WARNING #######################')")
        write (report_unit, fmt="('You selected driftknob = ',e11.4,' in dist_fn_knobs.')") driftknob
-       write (report_unit, fmt="('THIS IS EITHER AN ERROR, or you are DELIBERATELY SCALING THE DRIFTS.')")
+       write (report_unit, fmt="('THIS IS EITHER AN ERROR, or you are DELIBERATELY SCALING THE DRIFTS.')") 
        write (report_unit, fmt="('The normal choice is driftknob = 1.')")
        write (report_unit, fmt="('################# WARNING #######################')")
-       write (report_unit, *)
+       write (report_unit, *) 
     end if
 
     if (tpdriftknob /= 1.) then
-       write (report_unit, *)
+       write (report_unit, *) 
        write (report_unit, fmt="('################# WARNING #######################')")
        write (report_unit, fmt="('You selected tpdriftknob = ',e11.4,' in dist_fn_knobs.')") tpdriftknob
-       write (report_unit, fmt="('THIS IS EITHER AN ERROR, or you are DELIBERATELY SCALING THE TRAPPED PARTICLE DRIFTS (either via driftknob or via tpdriftknob).')")
+       write (report_unit, fmt="('THIS IS EITHER AN ERROR, or you are DELIBERATELY SCALING THE TRAPPED PARTICLE DRIFTS (either via driftknob or via tpdriftknob).')") 
        write (report_unit, fmt="('The normal choice is tpdriftknob = 1.')")
        write (report_unit, fmt="('################# WARNING #######################')")
-       write (report_unit, *)
+       write (report_unit, *) 
     end if
 
     select case (boundary_option_switch)
     case (boundary_option_linked)
-       write (report_unit, *)
+       write (report_unit, *) 
        if (gridopt_switch /= gridopt_box) then
-          write (report_unit, *)
+          write (report_unit, *) 
           write (report_unit, fmt="('################# WARNING #######################')")
           write (report_unit, fmt="('Linked boundary conditions require a box for a simulation domain.')")
           write (report_unit, fmt="('You have grid_option = ',a)") trim(grid_option)
-          write (report_unit, fmt="('THIS IS PROBABLY AN ERROR.')")
+          write (report_unit, fmt="('THIS IS PROBABLY AN ERROR.')") 
           write (report_unit, fmt="('################# WARNING #######################')")
-          write (report_unit, *)
+          write (report_unit, *) 
        else
-          write (report_unit, *)
+          write (report_unit, *) 
           write (report_unit, fmt="('Linked (twist and shift) boundary conditions will be used.')")
-          write (report_unit, *)
-          if (esv) then
+          write (report_unit, *) 
+          if (esv) then 
              write (report_unit, fmt="('################# WARNING #######################')")
              write (report_unit, fmt="('Single valued antot arrays will be enforced.')")
              write (report_unit, fmt="('This can significantly increase the cost of the run.')")
              write (report_unit, fmt="('################# WARNING #######################')")
-             write (report_unit, *)
+             write (report_unit, *) 
           endif
        end if
     case (boundary_option_self_periodic)
-       write (report_unit, *)
+       write (report_unit, *) 
        write (report_unit, fmt="('Periodic boundary conditions will be used.')")
        write (report_unit, fmt="('(No twist and shift.)')")
-       write (report_unit, *)
+       write (report_unit, *) 
     case default
-       write (report_unit, *)
+       write (report_unit, *) 
        write (report_unit, fmt="('Outgoing boundary conditions will be used.')")
     end select
 
     write (report_unit, fmt="('Parallel bc for passing particles at ends of the domain is:')")
     if (nonad_zero) then
        write (report_unit, fmt="(T20,'g_wesson = g_krt = 0')")
-       write (report_unit, fmt="('ie NO incoming particles in the nonadiabatic piece of delta(f)')")
+       write (report_unit, fmt="('ie NO incoming particles in the nonadiabatic piece of delta(f)')") 
     else
        write (report_unit, fmt="(T20,'g_gs2 = 0')")
        write (report_unit, fmt="('NB this ONLY gives NO incoming particles in the nonadiabatic piece of delta(f)')")
-       write (report_unit, fmt="(T20,'if phi and bpar are zero at the ends of the domain')")
+       write (report_unit, fmt="(T20,'if phi and bpar are zero at the ends of the domain')") 
     endif
-    write (report_unit, *)
+    write (report_unit, *) 
 
     if (.not. has_electron_species(spec)) then
        select case (adiabatic_option_switch)
        case (adiabatic_option_default)
-          write (report_unit, *)
+          write (report_unit, *) 
           write (report_unit, fmt="('The adiabatic electron response is of the form:')")
-          write (report_unit, *)
+          write (report_unit, *) 
           write (report_unit, fmt="('             ne = Phi')")
-          write (report_unit, *)
-          write (report_unit, fmt="('This is appropriate for an ETG simulation,')")
+          write (report_unit, *) 
+          write (report_unit, fmt="('This is appropriate for an ETG simulation,')") 
           write (report_unit, fmt="('where the role of ions and electrons in GS2 is switched.')")
-          write (report_unit, *)
+          write (report_unit, *) 
 
        case (adiabatic_option_fieldlineavg)
-          write (report_unit, *)
+          write (report_unit, *) 
           write (report_unit, fmt="('The adiabatic electron response is of the form:')")
-          write (report_unit, *)
+          write (report_unit, *) 
           write (report_unit, fmt="('             ne = Phi - <Phi>')")
-          write (report_unit, *)
-          write (report_unit, fmt="('The angle brackets denote a proper field line average.')")
-          write (report_unit, fmt="('This is appropriate for an ITG simulation.')")
-          write (report_unit, *)
+          write (report_unit, *) 
+          write (report_unit, fmt="('The angle brackets denote a proper field line average.')") 
+          write (report_unit, fmt="('This is appropriate for an ITG simulation.')") 
+          write (report_unit, *) 
 
        case (adiabatic_option_yavg)
-          write (report_unit, *)
+          write (report_unit, *) 
           write (report_unit, fmt="('################# WARNING #######################')")
           write (report_unit, fmt="('The adiabatic electron response is of the form:')")
-          write (report_unit, *)
+          write (report_unit, *) 
           write (report_unit, fmt="('             ne = Phi - <Phi>_y')")
-          write (report_unit, *)
-          write (report_unit, fmt="('The angle brackets denote an average over y only.')")
-          write (report_unit, fmt="('THIS IS PROBABLY AN ERROR.')")
-          write (report_unit, fmt="('Perhaps you want field-line-average-term for adiabatic_option.')")
+          write (report_unit, *) 
+          write (report_unit, fmt="('The angle brackets denote an average over y only.')") 
+          write (report_unit, fmt="('THIS IS PROBABLY AN ERROR.')") 
+          write (report_unit, fmt="('Perhaps you want field-line-average-term for adiabatic_option.')") 
           write (report_unit, fmt="('################# WARNING #######################')")
-          write (report_unit, *)
+          write (report_unit, *) 
        end select
     end if
 
     if (poisfac /= 0.) then
-       write (report_unit, *)
+       write (report_unit, *) 
        write (report_unit, fmt="('Quasineutrality is not enforced.  The ratio (lambda_Debye/rho)**2 = ',e11.4)") poisfac
-       write (report_unit, *)
+       write (report_unit, *) 
     end if
 
     if (mult_imp .and. nonlinear_mode_switch == nonlinear_mode_on) then
-       write (report_unit, *)
+       write (report_unit, *) 
        write (report_unit, fmt="('################# WARNING #######################')")
        write (report_unit, fmt="('For nonlinear runs, all species must use the same values of fexpr and bakdif')")
        write (report_unit, fmt="('in the dist_fn_species_knobs_x namelists.')")
-       write (report_unit, fmt="('THIS IS AN ERROR.')")
+       write (report_unit, fmt="('THIS IS AN ERROR.')") 
        write (report_unit, fmt="('################# WARNING #######################')")
-       write (report_unit, *)
+       write (report_unit, *) 
     end if
 
     if (test) then
-       write (report_unit, *)
+       write (report_unit, *) 
        write (report_unit, fmt="('################# WARNING #######################')")
        write (report_unit, fmt="('Test = T in the dist_fn_knobs namelist will stop the run before ')")
        write (report_unit, fmt="('any significant calculation is done, and will result in several ')")
        write (report_unit, fmt="('variables that determine array sizes to be written to the screen.')")
-       write (report_unit, fmt="('THIS MAY BE AN ERROR.')")
+       write (report_unit, fmt="('THIS MAY BE AN ERROR.')") 
        write (report_unit, fmt="('################# WARNING #######################')")
-       write (report_unit, *)
+       write (report_unit, *) 
     end if
 
     if (def_parity .and. nonlinear_mode_switch == nonlinear_mode_on) then
-       write (report_unit, *)
+       write (report_unit, *) 
        write (report_unit, fmt="('################# WARNING #######################')")
        write (report_unit, fmt="('Choosing a definite parity for a nonlinear run has never been tested.')")
-       write (report_unit, fmt="('THIS IS PROBABLY AN ERROR.')")
+       write (report_unit, fmt="('THIS IS PROBABLY AN ERROR.')") 
        write (report_unit, fmt="('################# WARNING #######################')")
-       write (report_unit, *)
+       write (report_unit, *) 
     end if
 
     if (def_parity) then
@@ -463,53 +458,53 @@ contains
        end if
     end if
 
-    write (report_unit, *)
+    write (report_unit, *) 
     write (report_unit, fmt="('------------------------------------------------------------')")
-    write (report_unit, *)
+    write (report_unit, *) 
     write (report_unit, fmt="('The ExB parameter is ',f7.4)") g_exb
     if (abs(g_exb) .gt. epsilon(0.0)) then
        write (report_unit, fmt="('Perp shear terms will be multiplied by factor',f7.4)") g_exbfac
        write (report_unit, fmt="('Parallel shear term will be multiplied by factor',f7.4)") omprimfac
     endif
 
-    write (report_unit, *)
+    write (report_unit, *) 
     write (report_unit, fmt="('------------------------------------------------------------')")
-    write (report_unit, *)
+    write (report_unit, *) 
 
     select case (source_option_switch)
 
     case (source_option_full)
-       write (report_unit, *)
+       write (report_unit, *) 
        write (report_unit, fmt="('The standard GK equation will be solved.')")
-       write (report_unit, *)
+       write (report_unit, *) 
 
     case(source_option_phiext_full)
-       write (report_unit, *)
+       write (report_unit, *) 
        write (report_unit, fmt="('The standard GK equation will be solved,')")
        write (report_unit, fmt="('with an additional source proportional to Phi*F_0')")
        write (report_unit, fmt="('Together with phi_ext = -1., this is the usual way to &
             & calculate the Rosenbluth-Hinton response.')")
-       write (report_unit, *)
+       write (report_unit, *) 
 
     end select
 
-    !
+    ! 
     ! implicitness parameters
     !
     do is = 1, nspec
        if (aimag(fexp(is)) /= 0.) then
-          write (report_unit, *)
+          write (report_unit, *) 
           write (report_unit, fmt="('################# WARNING #######################')")
           write (report_unit, fmt="('Species ',i2,' has fexpi = ',e11.4)") is, aimag(fexp(is))
           write (report_unit, fmt="('THIS IS AN ERROR')")
           write (report_unit, fmt="('fexpi should be zero for all species.')")
           write (report_unit, fmt="('################# WARNING #######################')")
-          write (report_unit, *)
+          write (report_unit, *) 
        end if
 
        write (report_unit, fmt="('Species ',i2,' has fexpr = ', e11.4)") is, real(fexp(is))
     end do
-
+    
   end subroutine check_dist_fn
 
   subroutine wnml_dist_fn(unit)
@@ -680,12 +675,12 @@ contains
 
     ! TODO: I don't think we need to call init_nonlinear_terms
     ! before calling allocate_arrays here because allocate_arrays
-    ! does not require any of the transform layouts. I think
-    ! we can take this line out and remove the dependency
-    ! dist_fn_arrays<=nonlinear_terms in gs2_init.rb. Anyone
+    ! does not require any of the transform layouts. I think 
+    ! we can take this line out and remove the dependency 
+    ! dist_fn_arrays<=nonlinear_terms in gs2_init.rb. Anyone 
     ! see any problems with this?  EGH
     if (debug) write(6,*) "init_dist_fn: nonlinear_terms"
-    call init_nonlinear_terms
+    call init_nonlinear_terms 
 
     if (debug) write(6,*) "init_dist_fn: allocate_arrays"
     call allocate_arrays
@@ -704,7 +699,7 @@ contains
 
     call init_dist_fn_arrays
     call init_bc
-
+  
   end subroutine init_dist_fn_level_1
 
   subroutine init_dist_fn_level_2
@@ -732,7 +727,6 @@ contains
     use collisions, only: init_collisions!, vnmult
     use hyper, only: init_hyper
     use le_grids, only: init_g2gf
-    use lowflow, only: use_lowflow
     implicit none
     logical,parameter:: debug=.false.
 
@@ -757,14 +751,12 @@ contains
     if (debug) write(6,*) "init_dist_fn: init_collisions"
     call init_collisions ! needs to be after init_run_parameters
 
-!#ifdef LOWFLOW
-    if(use_lowflow) then
+#ifdef LOWFLOW
     if (debug) write(6,*) "init_dist_fn: init_lowflow"
     call init_lowflow ! needs to be before init_invert_rhs but after
-                      ! init_collisions as use_le_layouts is set in
+                      ! init_collisions as use_le_layouts is set in 
                       ! collisions
-    end if
-!#endif
+#endif
 
     if (debug) write(6,*) "init_dist_fn: init_invert_rhs"
     call init_invert_rhs
@@ -821,14 +813,10 @@ contains
 
   subroutine finish_dist_fn_level_1
     use redistribute, only: delete_redist
-!****
-!#ifdef LOWFLOW
-!****
-    use lowflow, only: finish_lowflow_terms, use_lowflow
+#ifdef LOWFLOW
+    use lowflow, only: finish_lowflow_terms
     use dist_fn_arrays, only: hneoc, vparterm, wdfac, wstarfac, wdttpfac
-!****
-!#endif
-!****
+#endif
     implicit none
     if (.not. initialized_dist_fn_level_1) return
     initialized_dist_fn_level_1 = .false.
@@ -868,18 +856,16 @@ contains
     call delete_redist(parity_redist)
 
     ! gc_from_left, gc_from_right, links_p, links_h, wfb_p, wfb_h
-!#ifdef LOWFLOW
-    if(use_lowflow) then
-       call finish_lowflow_terms
-       if(allocated(vparterm)) deallocate(vparterm)
-       if(allocated(hneoc)) deallocate(hneoc)
-       if(allocated(wdfac)) deallocate(wdfac)
-       if(allocated(wstarfac)) deallocate(wstarfac)
-       if(allocated(wdttpfac)) deallocate(wdttpfac)
-       if(allocated(wstar_neo)) deallocate(wstar_neo)
-       if(allocated(wcurv)) deallocate(wcurv)
-    end if
-!#endif
+#ifdef LOWFLOW
+    call finish_lowflow_terms
+    if(allocated(vparterm)) deallocate(vparterm)
+    if(allocated(hneoc)) deallocate(hneoc)
+    if(allocated(wdfac)) deallocate(wdfac)
+    if(allocated(wstarfac)) deallocate(wstarfac)
+    if(allocated(wdttpfac)) deallocate(wdttpfac)
+    if(allocated(wstar_neo)) deallocate(wstar_neo)
+    if(allocated(wcurv)) deallocate(wcurv)
+#endif
 
   end subroutine finish_dist_fn_level_1
 
@@ -890,8 +876,8 @@ contains
     initialized_dist_fn_level_2 = .false.
 
     call finish_dist_fn_level_3
-    bessinit = .false.
-    feqinit = .false.
+    bessinit = .false. 
+    feqinit = .false.  
 !AJ
     if (allocated(aj0)) deallocate (aj0, aj1)
     if (allocated(aj0_gf)) deallocate (aj0_gf, aj1_gf)
@@ -899,7 +885,7 @@ contains
     if (allocated(gamtot3)) deallocate (gamtot3)
     if (allocated(a)) deallocate (a, b, r, ainv)
   end subroutine finish_dist_fn_level_2
-
+  
   subroutine finish_dist_fn_level_3
     use dist_fn_arrays, only: gnew, g
     use dist_fn_arrays, only: vpa, vpac, vpar
@@ -910,7 +896,7 @@ contains
     initialized_dist_fn_level_3 = .false.
 
     initialized = .false.
-
+    
     wdrift = 0.
     wdriftttp = 0.
     a = 0.
@@ -950,7 +936,6 @@ contains
     use species, only: nspec
     use mp, only: proc0, broadcast
     use theta_grid, only: itor_over_B
-    use lowflow, only: use_lowflow
     implicit none
     type (text_option), dimension (3), parameter :: sourceopts = &
          (/ text_option('default', source_option_full), &
@@ -979,7 +964,7 @@ contains
             text_option('iphi00=2', adiabatic_option_fieldlineavg), &
             text_option('iphi00=3', adiabatic_option_yavg)/)
     character(30) :: adiabatic_option
-
+            
     namelist /dist_fn_knobs/ boundary_option, nonad_zero, gridfac, apfac, &
          driftknob, tpdriftknob, poisfac, adiabatic_option, &
          kfilter, afilter, mult_imp, test, def_parity, even, wfb, &
@@ -989,8 +974,8 @@ contains
          lf_decompose, esv, wfb_cmr, opt_init_bc, opt_source, zero_forbid, &
          densfac_lin, uparfac_lin, tparfac_lin, tprpfac_lin, &
          qparfac_lin, qprpfac_lin, phifac_lin, &
-         gf_lo_integrate, use_lowflow
-
+         gf_lo_integrate
+    
     namelist /source_knobs/ t0, omega0, gamma0, source0, phi_ext, source_option
     integer :: ierr, is, in_file
     real :: bd
@@ -1036,7 +1021,6 @@ contains
        even = .true.
        lf_default = .true.
        lf_decompose = .false.
-       use_lowflow = .false.
        source_option = 'default'
 
        densfac_lin = sqrt(2.)           ! ~ rho_i
@@ -1125,7 +1109,6 @@ contains
     call broadcast (qparfac_lin)
     call broadcast (qprpfac_lin)
     call broadcast (phifac_lin)
-    call broadcast(use_lowflow)
 
     !<DD>Turn off esv if not using linked boundaries
     esv=esv.and.(boundary_option_switch.eq.boundary_option_linked)
@@ -1164,18 +1147,18 @@ contains
 !    end if
 
 
-!CMR, 15/2/11:  Move following lines to here from init_dist_fn, so read_parameters
+!CMR, 15/2/11:  Move following lines to here from init_dist_fn, so read_parameters 
 !               sets up itor_over_B
 !!CMR, 19/10/10:
 !! Override itor_over_B, if "dist_fn_knobs" parameter btor_slab ne 0
-!! Not ideal to set geometry quantity here, but its historical!
+!! Not ideal to set geometry quantity here, but its historical! 
        if (abs(btor_slab) > epsilon(0.0)) itor_over_B = btor_slab
-!! Done for slab, where itor_over_B is determined by angle between B-field
+!! Done for slab, where itor_over_B is determined by angle between B-field 
 !! and toroidal flow: itor_over_B = (d(u_z)/dx) / (d(u_y)/dx) = Btor / Bpol
 !! u = u0 (phihat) = x d(u0)/dx (phihat) = x d(uy)/dx (yhat + Btor/Bpol zhat)
 !! g_exb = d(uy)/dx => d(uz)/dx = g_exb * Btor/Bpol = g_exb * itor_over_B
 
-  end subroutine read_parameters
+  end subroutine read_parameters 
 
   subroutine read_species_knobs
     use species, only: nspec
@@ -1186,7 +1169,7 @@ contains
        fexp(is) = (0.4,0.0)
        bkdiff(is) = 0.0
        bd_exp(is) = 0
-
+       
        call get_indexed_namelist_unit (unit, "dist_fn_species_knobs", is)
        call fill_species_knobs (unit, fexp(is), bkdiff(is), bd_exp(is))
        close (unit=unit)
@@ -1223,7 +1206,6 @@ contains
 !    use theta_grids, only: bmag
     use gs2_layouts, only: g_lo, ik_idx, it_idx, il_idx, ie_idx, is_idx
     use dist_fn_arrays, only: ittp
-    use lowflow, only:use_lowflow
     implicit none
     integer :: ig, ik, it, il, ie, is
     integer :: iglo
@@ -1232,7 +1214,7 @@ contains
     logical,parameter :: debug = .false.
 !CMR
 
-! find totally trapped particles
+! find totally trapped particles 
 !    if (alloc) allocate (ittp(-ntgrid:ntgrid))
     if (.not. allocated(ittp)) allocate (ittp(-ntgrid:ntgrid))
 !    ittp = 0
@@ -1259,18 +1241,16 @@ contains
     end do
 
     if (.not. allocated(wdrift)) then
-       ! allocate wdrift with sign(vpa) dependence because will contain
+       ! allocate wdrift with sign(vpa) dependence because will contain 
        ! Coriolis as well as magnetic drifts
        allocate (wdrift(-ntgrid:ntgrid,2,g_lo%llim_proc:g_lo%ulim_alloc))
        allocate (wdriftttp(-ntgrid:ntgrid,ntheta0,naky,negrid,nspec,2))
     end if
     wdrift = 0.  ; wdriftttp = 0.
-!#ifdef LOWFLOW
-    if(use_lowflow) then
-        if (.not. allocated(wcurv)) allocate (wcurv(-ntgrid:ntgrid,g_lo%llim_proc:g_lo%ulim_alloc))
-        wcurv = 0.
-    end if
-!#endif
+#ifdef LOWFLOW
+    if (.not. allocated(wcurv)) allocate (wcurv(-ntgrid:ntgrid,g_lo%llim_proc:g_lo%ulim_alloc))
+    wcurv = 0.
+#endif
 
     do iglo = g_lo%llim_proc, g_lo%ulim_proc
        do ig = -ntgrid, ntgrid
@@ -1282,16 +1262,16 @@ contains
           is=is_idx(g_lo,iglo)
           if ( jend(ig) > 0 .and. jend(ig) <= nlambda .and. il >= ng2+1 .and. il <= jend(ig)) then
              wdrift(ig,1,iglo) = wdrift_func(ig, il, ie, it, ik)*tpdriftknob
-!#ifdef LOWFLOW
-            if(use_lowflow) wcurv(ig,iglo) = wcurv_func(ig, it, ik)*tpdriftknob
-!#endif
-!CMR:  multiply trapped particle drift by tpdriftknob
+#ifdef LOWFLOW
+             wcurv(ig,iglo) = wcurv_func(ig, it, ik)*tpdriftknob
+#endif
+!CMR:  multiply trapped particle drift by tpdriftknob 
 !CMR:               (tpdriftknob defaults to driftknob if not supplied)
           else
              wdrift(ig,1,iglo) = wdrift_func(ig, il, ie, it, ik)*driftknob
-!#ifdef LOWFLOW
-            if(use_lowflow) wcurv(ig,iglo) = wcurv_func(ig, it, ik)*driftknob
-!#endif
+#ifdef LOWFLOW
+             wcurv(ig,iglo) = wcurv_func(ig, it, ik)*driftknob
+#endif
 !CMR:  multiply passing particle drift by driftknob
           endif
 !CMRend
@@ -1313,7 +1293,7 @@ contains
 !GWH+JAB: should this be calculated only at ittp? or for each totally trapped pitch angle? (Orig logic: there was only one totally trapped pitch angle; now multiple ttp are allowed.
                       wdriftttp(ig,it,ik,ie,is,1) &
                            = wdrift_func(ig,ittp(ig),ie,it,ik)*tpdriftknob
-!CMR:  totally trapped particle drifts also scaled by tpdriftknob
+!CMR:  totally trapped particle drifts also scaled by tpdriftknob 
                       ! add Coriolis drift to magnetic drifts
                       wdriftttp(ig,it,ik,ie,is,2) = wdriftttp(ig,it,ik,ie,is,1) &
                            - wcoriolis_func(ig,il,ie,it,ik,is)
@@ -1330,9 +1310,9 @@ contains
     do iglo = g_lo%llim_proc, g_lo%ulim_proc
        do ig = -ntgrid, ntgrid-1
           wdrift(ig,:,iglo) = 0.5*(wdrift(ig,:,iglo) + wdrift(ig+1,:,iglo))
-!#ifdef LOWFLOW
-        if(use_lowflow)  wcurv(ig,iglo) =  0.5*(wcurv(ig,iglo) + wcurv(ig+1,iglo))
-!#endif
+#ifdef LOWFLOW
+          wcurv(ig,iglo) =  0.5*(wcurv(ig,iglo) + wcurv(ig+1,iglo))
+#endif
        end do
     end do
 
@@ -1367,9 +1347,8 @@ contains
                      *code_dt*wunits(ik)
     end if
   end function wdrift_func
-!*****
-!#ifdef LOWFLOW
-!****
+
+#ifdef LOWFLOW
   function wcurv_func (ig, it, ik)
     use theta_grid, only: cvdrift, cvdrift0, shat
     use kt_grids, only: aky, theta0, akx
@@ -1387,9 +1366,8 @@ contains
             *code_dt*wunits(ik)
     end if
   end function wcurv_func
-!****
-!#endif
-!*****
+#endif
+
   function wcoriolis_func (ig, il, ie, it, ik, is)
 
     use theta_grid, only: bmag, cdrift, cdrift0, shat
@@ -1451,7 +1429,7 @@ contains
 !AJ
     integer :: il, ie, ig
     real :: al1, e1
-
+    
     if (.not.allocated(vpa)) then
        allocate (vpa    (-ntgrid:ntgrid,2,g_lo%llim_proc:g_lo%ulim_alloc))
        allocate (vpac   (-ntgrid:ntgrid,2,g_lo%llim_proc:g_lo%ulim_alloc))
@@ -1466,7 +1444,7 @@ contains
     if(gf_lo_integrate) then
        allocate(vpa_gf    (-ntgrid:ntgrid, 2, negrid, nlambda))
        allocate(vperp2_gf (-ntgrid:ntgrid, negrid, nlambda))
-
+       
        do il = 1,nlambda
           do ie = 1,negrid
              e1 = energy(ie)
@@ -1501,15 +1479,15 @@ contains
 !CMR, 4/8/2011:
 !CMR : vpa is parallel velocity at grid points (normalised to v_ts)
 !CMR : vpac is grid centered parallel velocity
-!CMR : vpar = q_s/sqrt{T_s m_s}*DELT/DTHETA * vpac |\gradpar(theta)|
+!CMR : vpar = q_s/sqrt{T_s m_s}*DELT/DTHETA * vpac |\gradpar(theta)| 
 !                                     where gradpar(theta) is centered
 !  ie  vpar = q_s/sqrt{T_s m_s} (v_||^GS2). \gradpar(theta)/DTHETA . DELT
-!
+! 
 !   comments on vpac, vpar
 !     (i) surely vpac=0 at or beyond bounce points, so WHY was it set to +-1?
 !                                seems unphysical!
 !    (ii) should some be weighted by bakdif?
-!CMR
+!CMR 
 
        where (1.0 - al1*0.5*(bmag(-ntgrid:ntgrid-1)+bmag(-ntgrid+1:ntgrid)) &
               < 0.0)
@@ -1602,16 +1580,16 @@ contains
        do ig = -ntgrid, ntgrid
           arg = spec(is)%bess_fac*spec(is)%smz*sqrt(energy(ie)*al(il)/bmag(ig)*kperp2(ig,it,ik))
           aj0(ig,iglo) = j0(arg)
-! CMR 17/1/06: BEWARE, j1 returns and aj1 stores J_1(x)/x (NOT J_1(x)),
+! CMR 17/1/06: BEWARE, j1 returns and aj1 stores J_1(x)/x (NOT J_1(x)), 
           aj1(ig,iglo) = j1(arg)
        end do
     end do
-    !AJ For the gf_lo integrate we pre-calculate some of the factors used in the velocity space
+    !AJ For the gf_lo integrate we pre-calculate some of the factors used in the velocity space 
     !AJ integration, rather than calculating them on the fly.
     if(gf_lo_integrate) then
        allocate (aj0_gf(-ntgrid:ntgrid,nspec,negrid,nlambda,gf_lo%llim_proc:gf_lo%ulim_alloc))
        allocate (aj1_gf(-ntgrid:ntgrid,nspec,negrid,nlambda,gf_lo%llim_proc:gf_lo%ulim_alloc))
-
+       
        do igf = gf_lo%llim_proc, gf_lo%ulim_proc
           ik = ik_idx(gf_lo,igf)
           it = it_idx(gf_lo,igf)
@@ -1638,18 +1616,15 @@ contains
     use le_grids, only: nlambda, ng2, forbid, negrid
     use constants, only: zi
     use gs2_layouts, only: g_lo, ik_idx, it_idx, il_idx, ie_idx, is_idx
-    use lowflow, only: use_lowflow
     implicit none
     integer :: iglo
     integer :: ig, ik, it, il, ie, is, isgn
     real :: wdttp, vp, bd
-!****
-!#ifdef LOWFLOW
-!***
+#ifdef LOWFLOW
     complex :: wd
-!#else
-!    real :: wd
-!#endif
+#else
+    real :: wd
+#endif
     if (.not.allocated(a)) then
        allocate (a(-ntgrid:ntgrid,2,g_lo%llim_proc:g_lo%ulim_alloc))
        allocate (b(-ntgrid:ntgrid,2,g_lo%llim_proc:g_lo%ulim_alloc))
@@ -1657,7 +1632,7 @@ contains
        allocate (ainv(-ntgrid:ntgrid,2,g_lo%llim_proc:g_lo%ulim_alloc))
     endif
     a = 0. ; b = 0. ; r = 0. ; ainv = 0.
-
+    
     do iglo = g_lo%llim_proc, g_lo%ulim_proc
        ik = ik_idx(g_lo,iglo)
        it = it_idx(g_lo,iglo)
@@ -1666,16 +1641,13 @@ contains
        is = is_idx(g_lo,iglo)
        do isgn = 1, 2
           do ig = -ntgrid, ntgrid-1
-!# ifdef LOWFLOW
-        if(use_lowflow) then
+# ifdef LOWFLOW
              wd = wdrift(ig,isgn,iglo) + wstar_neo(ig,it,ik)*spec(is)%zt
              wdttp = wdriftttp(ig,it,ik,ie,is,isgn) + wstar_neo(ig,it,ik)*spec(is)%zt
-!# else
-        else
+# else
              wd = wdrift(ig,isgn,iglo)
              wdttp = wdriftttp(ig,it,ik,ie,is,isgn)
-        end if
-!# endif
+# endif
 
              ! use positive vpar because we will be flipping sign of d/dz
              ! when doing parallel field solve for -vpar
@@ -1697,16 +1669,16 @@ contains
              b(ig,isgn,iglo) &
                   = 1.0 - bd &
                   + fexp(is)*spec(is)%tz*(-zi*wd*(1.0-bd) + 2.0*vp)
-
+          
              if (nlambda > ng2) then
                 ! zero out forbidden regions
                 if (forbid(ig,il) .or. forbid(ig+1,il)) then
                    r(ig,isgn,iglo) = 0.0
                    ainv(ig,isgn,iglo) = 0.0
                 end if
-
-! CMR, DD, 25/7/2014:
-!  set ainv=1 just left of lower bounce points ONLY for RIGHTWARDS travelling
+             
+! CMR, DD, 25/7/2014: 
+!  set ainv=1 just left of lower bounce points ONLY for RIGHTWARDS travelling 
 !  trapped particles. Part of multiple trapped particle algorithm
 !  NB not applicable to ttp or wfb!
 if( isgn.eq.1 )then
@@ -1747,14 +1719,14 @@ endif
           allocate (n_links(2, naky, ntheta0))
        end if
        l_links = 0;   r_links = 0;  n_links = 0
-
+       
        i_class = 1
        if (.not. allocated(M_class)) then
           allocate (M_class(i_class))
           allocate (N_class(i_class))
        end if
        M_class = naky*ntheta0 ; N_class = 1
-
+       
     end select
   end subroutine init_bc
 
@@ -1768,14 +1740,9 @@ endif
     use le_grids, only: anon, negrid, energy
     use constants, only: zi,pi
     use gs2_layouts, only: g_lo, ik_idx, it_idx, il_idx, ie_idx, is_idx
-    use lowflow, only: use_lowflow
-!***
-!#ifdef LOWFLOW
-!****
+#ifdef LOWFLOW
     use dist_fn_arrays, only: vparterm, wdfac, wstarfac
-!***
-!#endif
-!***
+#endif
     implicit none
     integer :: iglo
     integer :: ig, ik, it, il, ie, is, isgn
@@ -1804,8 +1771,7 @@ endif
        is=is_idx(g_lo,iglo)
        do isgn=1,2
           do ig=-ntgrid,ntgrid-1
-!#ifdef LOWFLOW
-        if(use_lowflow) then
+#ifdef LOWFLOW
              !Phi m
              source_coeffs(1,ig,isgn,iglo)=-2*anon(ie)*vparterm(ig,isgn,iglo)
              !Phi p
@@ -1822,10 +1788,9 @@ endif
                      vpac(ig,isgn,iglo)-spec(is)%stm*vpac(ig,isgn,iglo)*&
                      zi*(wstarfac(ig,isgn,iglo) &
                      + vpac(ig,isgn,iglo)*code_dt*wunits(ik)*ufac(ie,is) &
-                     -2.0*omprimfac*vpac(ig,isgn,iglo)*code_dt*wunits(ik)*g_exb*itor_over_B(ig)/spec(is)%stm)
+                     -2.0*omprimfac*vpac(ig,isgn,iglo)*code_dt*wunits(ik)*g_exb*itor_over_B(ig)/spec(is)%stm) 
              endif
-!#else
-        else
+#else
 
              !Phi m
              source_coeffs(1,ig,isgn,iglo)=-2*anon(ie)*vpar(ig,isgn,iglo)
@@ -1843,10 +1808,9 @@ endif
                      vpac(ig,isgn,iglo)-spec(is)%stm*vpac(ig,isgn,iglo)*&
                      zi*(wstar(ik,ie,is) &
                      + vpac(ig,isgn,iglo)*code_dt*wunits(ik)*ufac(ie,is) &
-                     -2.0*omprimfac*vpac(ig,isgn,iglo)*code_dt*wunits(ik)*g_exb*itor_over_B(ig)/spec(is)%stm)
+                     -2.0*omprimfac*vpac(ig,isgn,iglo)*code_dt*wunits(ik)*g_exb*itor_over_B(ig)/spec(is)%stm) 
              endif
-     end if
-!#endif
+#endif
           enddo
        enddo
     enddo
@@ -1878,7 +1842,7 @@ endif
     ng = ntheta/2 + (nperiod-1)*ntheta
 
     ! jshift0 corresponds to J (not delta j) from Beer thesis (unsure about +0.01) -- MAB
-    ! delta j is the number of akxs (i.e. theta0s) 'skipped' when connecting one
+    ! delta j is the number of akxs (i.e. theta0s) 'skipped' when connecting one 
     ! parallel segment to the next to satisfy the twist and shift
     ! boundary conditions. delta j = (ik - 1) * jshift0 . EGH
 
@@ -1890,7 +1854,7 @@ endif
     else
        jshift0 = 1
     end if
-
+    
 !    if (proc0) write (*,*) 'init_connected_bc: jshift0 = ',jshift0
 
     allocate (itleft(naky,ntheta0), itright(naky,ntheta0))
@@ -1996,7 +1960,7 @@ endif
     end do
 
     if (boundary_option_switch == boundary_option_linked) then
-       do iglo = g_lo%llim_proc, g_lo%ulim_proc
+       do iglo = g_lo%llim_proc, g_lo%ulim_proc          
           ik = ik_idx(g_lo,iglo)
           il = il_idx(g_lo,iglo)
           if (connections(iglo)%iglo_left >= 0 .and. aky(ik) /= 0.0) &
@@ -2027,7 +1991,7 @@ endif
 ! l_links = number of links to the left
              l_links(ik, it) = 0
              it_star = it
-             do
+             do 
                 if (it_star == itleft(ik, it_star)) exit
                 if (itleft(ik, it_star) >= 0) then
                    l_links(ik, it) = l_links(ik, it) + 1
@@ -2042,7 +2006,7 @@ endif
 ! r_links = number of links to the right
              r_links(ik, it) = 0
              it_star = it
-             do
+             do 
                 if (it_star == itright(ik, it_star)) exit
                 if (itright(ik, it_star) >= 0) then
                    r_links(ik, it) = r_links(ik, it) + 1
@@ -2059,13 +2023,13 @@ endif
 ! n_links(1,:,:) is for v_par > 0, etc.
              if (l_links(ik, it) == 0) then
                 n_links(1, ik, it) = 0
-             else
+             else 
                 n_links(1, ik, it) = 2*l_links(ik, it) - 1
              end if
 
              if (r_links(ik, it) == 0) then
                 n_links(2, ik, it) = 0
-             else
+             else 
                 n_links(2, ik, it) = 2*r_links(ik, it) - 1
              end if
              n_links_max = max(n_links_max, n_links(1,ik,it), n_links(2,ik,it))
@@ -2073,12 +2037,12 @@ endif
        end do
 ! wfb
        if (n_links_max > 0) n_links_max = n_links_max + 3
-
+       
 ! now set up communication pattern:
 ! excluding wfb
 
        nn_to = 0
-       nn_from = 0
+       nn_from = 0 
 
        do iglo = g_lo%llim_world, g_lo%ulim_world
 !CMR, 20/10/2013:
@@ -2095,7 +2059,7 @@ endif
           ip = proc_id(g_lo,iglo)
           ik = ik_idx(g_lo,iglo)
           it = it_idx(g_lo,iglo)
-
+          
           ncell = r_links(ik, it) + l_links(ik, it) + 1
           if (ncell == 1) cycle
 
@@ -2109,7 +2073,7 @@ endif
 
              iglo_star = iglo_right
           end do
-
+             
           iglo_star = iglo
           do j = 1, l_links(ik, it)
              call get_left_connection (iglo_star, iglo_left, ipleft)
@@ -2121,7 +2085,7 @@ endif
           end do
 
        end do
-
+       
        nn_max = maxval(nn_to)
        call max_allreduce (nn_max)
        if (nn_max == 0) then
@@ -2141,9 +2105,9 @@ endif
              allocate (to(ip)%third(nn_to(ip)))
           endif
        end do
-
+       
        nn_from = 0
-       nn_to = 0
+       nn_to = 0          
 
        do iglo = g_lo%llim_world, g_lo%ulim_world
 
@@ -2153,10 +2117,10 @@ endif
           ip = proc_id(g_lo,iglo)
           ik = ik_idx(g_lo,iglo)
           it = it_idx(g_lo,iglo)
-
+          
           ncell = r_links(ik, it) + l_links(ik, it) + 1
           if (ncell == 1) cycle
-
+          
           iglo_star = iglo
           do j = 1, r_links(ik, it)
              call get_right_connection (iglo_star, iglo_right, ipright)
@@ -2172,13 +2136,13 @@ endif
              if (ipright == iproc) then
                 n = nn_to(ip) + 1
                 nn_to(ip) = n
-                to(ip)%first(n) = j
+                to(ip)%first(n) = j 
                 to(ip)%second(n) = 1
                 to(ip)%third(n) = iglo_right
              end if
              iglo_star = iglo_right
           end do
-
+             
           iglo_star = iglo
           do j = 1, l_links(ik, it)
              call get_left_connection (iglo_star, iglo_left, ipleft)
@@ -2194,7 +2158,7 @@ endif
              if (ipleft == iproc) then
                 n = nn_to(ip) + 1
                 nn_to(ip) = n
-                to(ip)%first(n) = j
+                to(ip)%first(n) = j 
                 to(ip)%second(n) = 2
                 to(ip)%third(n) = iglo_left
              end if
@@ -2205,32 +2169,32 @@ endif
        from_low (1) = -ntgrid
        from_low (2) = 1
        from_low (3) = g_lo%llim_proc
-
+       
        from_high(1) = ntgrid
        from_high(2) = 2
        from_high(3) = g_lo%ulim_alloc
 
        to_low (1) = 1
-       to_low (2) = 1
+       to_low (2) = 1 
        to_low (3) = g_lo%llim_proc
-
+       
        to_high(1) = n_links_max
        to_high(2) = 2
        to_high(3) = g_lo%ulim_alloc
 
        call init_fill (links_p, 'c', to_low, to_high, to, &
             from_low, from_high, from)
-
+       
        call delete_list (from)
        call delete_list (to)
-
+       
 ! take care of wfb
     if ( wfb_cmr ) then
        call init_pass_wfb
     else
 
        nn_to = 0
-       nn_from = 0
+       nn_from = 0 
 
        do iglo = g_lo%llim_world, g_lo%ulim_world
 !CMR, 20/10/2013:
@@ -2247,10 +2211,10 @@ endif
           ip = proc_id(g_lo,iglo)
           ik = ik_idx(g_lo,iglo)
           it = it_idx(g_lo,iglo)
-
+          
           ncell = r_links(ik, it) + l_links(ik, it) + 1
           if (ncell == 1) cycle
-
+             
           iglo_right = iglo ; iglo_left = iglo ; ipright = ip ; ipleft = ip
 
 ! v_par > 0:
@@ -2265,7 +2229,7 @@ endif
              call get_right_connection (iglo_star, iglo_right, ipright)
              iglo_star=iglo_right
           end do
-
+             
 ! v_par < 0:
           call find_rightmost_link (iglo, iglo_star, ipleft)
           do j = 1, ncell
@@ -2277,7 +2241,7 @@ endif
              iglo_star=iglo_left
           end do
        end do
-
+       
        do ip = 0, nproc-1
           if (nn_from(ip) > 0) then
              allocate (from(ip)%first(nn_from(ip)))
@@ -2290,9 +2254,9 @@ endif
              allocate (to(ip)%third(nn_to(ip)))
           endif
        end do
-
+       
        nn_from = 0
-       nn_to = 0
+       nn_to = 0          
 
        do iglo = g_lo%llim_world, g_lo%ulim_world
 
@@ -2302,13 +2266,13 @@ endif
           ip = proc_id(g_lo,iglo)
           ik = ik_idx(g_lo,iglo)
           it = it_idx(g_lo,iglo)
-
+          
           ncell = r_links(ik, it) + l_links(ik, it) + 1
           if (ncell == 1) cycle
 
           iglo_right = iglo ; iglo_left = iglo ; ipright = ip ; ipleft = ip
 
-! v_par > 0:
+! v_par > 0: 
           call find_leftmost_link (iglo, iglo_star, ipright)
           do j = 1, ncell
 ! sender
@@ -2330,8 +2294,8 @@ endif
              call get_right_connection (iglo_star, iglo_right, ipright)
              iglo_star=iglo_right
           end do
-
-! v_par < 0:
+             
+! v_par < 0: 
           call find_rightmost_link (iglo, iglo_star, ipleft)
           do j = 1, ncell
 ! sender
@@ -2358,25 +2322,25 @@ endif
        from_low (1) = -ntgrid
        from_low (2) = 1
        from_low (3) = g_lo%llim_proc
-
+       
        from_high(1) = ntgrid
        from_high(2) = 2
        from_high(3) = g_lo%ulim_alloc
 
        to_low (1) = 1
-       to_low (2) = 1
+       to_low (2) = 1 
        to_low (3) = g_lo%llim_proc
-
+       
        to_high(1) = n_links_max
        to_high(2) = 2
        to_high(3) = g_lo%ulim_alloc
 
        call init_fill (wfb_p, 'c', to_low, to_high, to, from_low, from_high, from)
-
+       
        call delete_list (from)
        call delete_list (to)
     endif
-
+       
 ! n_links_max is typically 2 * number of cells in largest supercell
        allocate (g_adj (n_links_max, 2, g_lo%llim_proc:g_lo%ulim_alloc))
 
@@ -2384,7 +2348,7 @@ endif
 ! excluding wfb
 
        nn_to = 0
-       nn_from = 0
+       nn_from = 0 
 
        do iglo = g_lo%llim_world, g_lo%ulim_world
 !CMR, 20/10/2013:
@@ -2394,8 +2358,8 @@ endif
 !      (-ntgrid,2,iglo) (cell < ncell-1) => LH connected cells (j,2,iglo_conn)
 !         where j index in receive buffer = 2.r_links(iglo)+#LH hops
 ! NB: homogenous(H) follow inhomogeneous (IH), but orders in j differs!
-!     IH#hop=1, IH#hop=2, ... H#hop=2, H#hop=1
-!
+!     IH#hop=1, IH#hop=2, ... H#hop=2, H#hop=1  
+!          
 
           il = il_idx(g_lo,iglo)
           if (nlambda > ng2 .and. il >= ng2+1) cycle
@@ -2403,15 +2367,15 @@ endif
           ip = proc_id(g_lo,iglo)
           ik = ik_idx(g_lo,iglo)
           it = it_idx(g_lo,iglo)
-
+          
           ncell = r_links(ik, it) + l_links(ik, it) + 1
           if (ncell == 1) cycle
 
 ! If this is not the first link in the chain, continue
           if (l_links(ik, it) > 0) then
-!CMR, 20/10/2013:
-! this sends homogeneous solutions for rightwards passing particles
-! rightwards from all cells APART from the INCOMING cell
+!CMR, 20/10/2013:  
+! this sends homogeneous solutions for rightwards passing particles 
+! rightwards from all cells APART from the INCOMING cell 
 !
 ! For each link to the right, do:
              iglo_star = iglo
@@ -2426,9 +2390,9 @@ endif
           end if
 
           if (r_links(ik, it) > 0) then
-!CMR, 20/10/2013:
-! this sends homogeneous solutions for leftwards passing particles
-! leftwards from all cells APART from the INCOMING cell
+!CMR, 20/10/2013:  
+! this sends homogeneous solutions for leftwards passing particles 
+! leftwards from all cells APART from the INCOMING cell 
 !
 ! For each link to the left, do:
              iglo_star = iglo
@@ -2442,7 +2406,7 @@ endif
              end do
           end if
        end do
-
+       
        do ip = 0, nproc-1
           if (nn_from(ip) > 0) then
              allocate (from(ip)%first(nn_from(ip)))
@@ -2455,9 +2419,9 @@ endif
              allocate (to(ip)%third(nn_to(ip)))
           endif
        end do
-
+       
        nn_from = 0
-       nn_to = 0
+       nn_to = 0          
 
        do iglo = g_lo%llim_world, g_lo%ulim_world
 
@@ -2467,7 +2431,7 @@ endif
           ip = proc_id(g_lo,iglo)
           ik = ik_idx(g_lo,iglo)
           it = it_idx(g_lo,iglo)
-
+          
           ncell = r_links(ik, it) + l_links(ik, it) + 1
           if (ncell == 1) cycle
 
@@ -2508,7 +2472,7 @@ endif
                    n = nn_from(ipleft) + 1
                    nn_from(ipleft) = n
                    from(ipleft)%first(n) = -ntgrid
-                   from(ipleft)%second(n) = 2
+                   from(ipleft)%second(n) = 2   
                    from(ipleft)%third(n) = iglo
                 end if
 ! receiver
@@ -2527,29 +2491,29 @@ endif
        from_low (1) = -ntgrid
        from_low (2) = 1
        from_low (3) = g_lo%llim_proc
-
+       
        from_high(1) = ntgrid
        from_high(2) = 2
        from_high(3) = g_lo%ulim_alloc
 
        to_low (1) = 1
-       to_low (2) = 1
+       to_low (2) = 1 
        to_low (3) = g_lo%llim_proc
-
+       
        to_high(1) = n_links_max
        to_high(2) = 2
        to_high(3) = g_lo%ulim_alloc
 
        call init_fill (links_h, 'c', to_low, to_high, to, &
             from_low, from_high, from)
-
+       
        call delete_list (from)
        call delete_list (to)
 
 ! now take care of wfb (homogeneous part)
     if ( .not. wfb_cmr ) then
        nn_to = 0
-       nn_from = 0
+       nn_from = 0 
 
        do iglo = g_lo%llim_world, g_lo%ulim_world
 !CMR, 20/10/2013:
@@ -2557,11 +2521,11 @@ endif
 !      (ntgrid,1,iglo)  => ALL connected cells (j,1,iglo_conn)
 !            where j index in receive buffer = 2.ncell - r_links(iglo)
 !            1 <= j <= 2.ncell  accommodates inhomog, homog bcs from cells
-!               ncell, ncell-1, ncell-2, ..., 1, 1, 2,... ncell-1, ncell
+!               ncell, ncell-1, ncell-2, ..., 1, 1, 2,... ncell-1, ncell  
 !      (-ntgrid,2,iglo) => ALL connected cells (j,2,iglo_conn)
 !         where j index in receive buffer = 2.ncell - l_links(iglo)
 !         1 <= j <= 2.ncell  accommodates inhomog, homog bcs from cells
-!                1, 2, .., ncell, ncell, ncell-1, .., 2, 1
+!                1, 2, .., ncell, ncell, ncell-1, .., 2, 1  
 ! NB: homogenous follow inhomogeneous bcs, but order of source cell differs!
 
           il = il_idx(g_lo,iglo)
@@ -2570,7 +2534,7 @@ endif
           ip = proc_id(g_lo,iglo)
           ik = ik_idx(g_lo,iglo)
           it = it_idx(g_lo,iglo)
-
+          
           ncell = r_links(ik, it) + l_links(ik, it) + 1
           if (ncell == 1) cycle
 
@@ -2598,7 +2562,7 @@ endif
              iglo_star=iglo_left
           end do
        end do
-
+       
        do ip = 0, nproc-1
           if (nn_from(ip) > 0) then
              allocate (from(ip)%first(nn_from(ip)))
@@ -2611,9 +2575,9 @@ endif
              allocate (to(ip)%third(nn_to(ip)))
           endif
        end do
-
+       
        nn_from = 0
-       nn_to = 0
+       nn_to = 0          
 
        do iglo = g_lo%llim_world, g_lo%ulim_world
 
@@ -2623,7 +2587,7 @@ endif
           ip = proc_id(g_lo,iglo)
           ik = ik_idx(g_lo,iglo)
           it = it_idx(g_lo,iglo)
-
+          
           ncell = r_links(ik, it) + l_links(ik, it) + 1
           if (ncell == 1) cycle
 
@@ -2651,7 +2615,7 @@ endif
              call get_right_connection (iglo_star, iglo_right, ipright)
              iglo_star=iglo_right
           end do
-
+ 
 ! v_par < 0:
           call find_rightmost_link (iglo, iglo_star, ipleft)
           do j = 1, ncell
@@ -2660,10 +2624,10 @@ endif
                 n = nn_from(ipleft) + 1
                 nn_from(ipleft) = n
                 from(ipleft)%first(n) = -ntgrid
-                from(ipleft)%second(n) = 2
+                from(ipleft)%second(n) = 2   
                 from(ipleft)%third(n) = iglo
              end if
-
+                
 ! receiver
              if (ipleft == iproc) then
                 n = nn_to(ip) + 1
@@ -2680,33 +2644,33 @@ endif
        from_low (1) = -ntgrid
        from_low (2) = 1
        from_low (3) = g_lo%llim_proc
-
+       
        from_high(1) = ntgrid
        from_high(2) = 2
        from_high(3) = g_lo%ulim_alloc
 
        to_low (1) = 1
-       to_low (2) = 1
+       to_low (2) = 1 
        to_low (3) = g_lo%llim_proc
-
+       
        to_high(1) = n_links_max
        to_high(2) = 2
        to_high(3) = g_lo%ulim_alloc
 
        call init_fill (wfb_h, 'c', to_low, to_high, to, from_low, from_high, from)
-
+       
        call delete_list (from)
        call delete_list (to)
     endif
 
 200    continue
 
-! Now set up class arrays for the implicit fields
+! Now set up class arrays for the implicit fields 
 ! i_class classes
-! N_class(i) = number of linked cells for i_th class
+! N_class(i) = number of linked cells for i_th class 
 ! M_class(i) = number of members in i_th class
 
-! First count number of linked cells for each (kx, ky)
+! First count number of linked cells for each (kx, ky) 
        k = 1
        do it = 1, ntheta0
           do ik = 1, naky
@@ -2716,12 +2680,12 @@ endif
           end do
        end do
 
-! Count how many unique values of n_k there are.  This is the number
+! Count how many unique values of n_k there are.  This is the number 
 ! of classes.
 
-! Sort:
+! Sort: 
        do j = 1, naky*ntheta0-1
-          do k = 1, naky*ntheta0-1
+          do k = 1, naky*ntheta0-1                       
              if (n_k(k+1) < n_k(k)) then
                 i = n_k(k)
                 n_k(k) = n_k(k+1)
@@ -2744,23 +2708,23 @@ endif
 ! Initial values
        M_class = 1 ; N_class = 0
 
-! Fill M, N arrays:
+! Fill M, N arrays: 
        j = 1
        do k = 2, naky*ntheta0
           if (n_k(k) == n_k(k-1)) then
              M_class(j) = M_class(j) + 1
-          else
+          else 
              N_class(j) = n_k(k-1)
              M_class(j) = M_class(j)/N_class(j)
              j = j + 1
           end if
-       end do
+       end do       
        j = i_class
        N_class(j) = n_k(naky*ntheta0)
        M_class(j) = M_class(j)/N_class(j)
 
 ! Check for consistency:
-
+       
 ! j is number of linked cells in class structure
        j = 0
        do i = 1, i_class
@@ -2802,7 +2766,7 @@ endif
     ng = ntheta/2 + (nperiod-1)*ntheta
 
     ! jshift0 corresponds to J (not delta j) from Beer thesis (unsure about +0.01) -- MAB
-    ! delta j is the number of akxs (i.e. theta0s) 'skipped' when connecting one
+    ! delta j is the number of akxs (i.e. theta0s) 'skipped' when connecting one 
     ! parallel segment to the next to satisfy the twist and shift
     ! boundary conditions. delta j = (ik - 1) * jshift0 . EGH
 
@@ -2813,7 +2777,7 @@ endif
     else
        jshift0 = 1
     end if
-
+    
     allocate (itleft(naky,ntheta0), itright(naky,ntheta0))
     itleft(1,:) = -1 ! No connected segments when ky = 0. EGH
     itright(1,:) = -1
@@ -2916,7 +2880,7 @@ endif
     end do
 
     if (boundary_option_switch == boundary_option_linked) then
-       do iglo = g_lo%llim_proc, g_lo%ulim_proc
+       do iglo = g_lo%llim_proc, g_lo%ulim_proc          
           ik = ik_idx(g_lo,iglo)
           il = il_idx(g_lo,iglo)
           if (connections(iglo)%iglo_left >= 0 .and. aky(ik) /= 0.0) &
@@ -2942,7 +2906,7 @@ endif
 ! l_links = number of links to the left
              l_links(ik, it) = 0
              it_star = it
-             do
+             do 
                 if (it_star == itleft(ik, it_star)) exit
                 if (itleft(ik, it_star) >= 0) then
                    l_links(ik, it) = l_links(ik, it) + 1
@@ -2957,7 +2921,7 @@ endif
 ! r_links = number of links to the right
              r_links(ik, it) = 0
              it_star = it
-             do
+             do 
                 if (it_star == itright(ik, it_star)) exit
                 if (itright(ik, it_star) >= 0) then
                    r_links(ik, it) = r_links(ik, it) + 1
@@ -2974,13 +2938,13 @@ endif
 ! n_links(1,:,:) is for v_par > 0, etc.
              if (l_links(ik, it) == 0) then
                 n_links(1, ik, it) = 0
-             else
+             else 
                 n_links(1, ik, it) = 2*l_links(ik, it) - 1
              end if
 
              if (r_links(ik, it) == 0) then
                 n_links(2, ik, it) = 0
-             else
+             else 
                 n_links(2, ik, it) = 2*r_links(ik, it) - 1
              end if
              n_links_max = max(n_links_max, n_links(1,ik,it), n_links(2,ik,it))
@@ -2988,7 +2952,7 @@ endif
        end do
 ! wfb
        if (n_links_max > 0) n_links_max = n_links_max + 3
-
+       
 ! now set up communication pattern:
 ! excluding wfb
 
@@ -3004,9 +2968,9 @@ endif
        !dominate initialisation at large core count.
 
        nn_to = 0
-       nn_from = 0
+       nn_from = 0 
        nn_to_h = 0
-       nn_from_h = 0
+       nn_from_h = 0 
 
        do iglo = g_lo%llim_world, g_lo%ulim_world
 
@@ -3016,7 +2980,7 @@ endif
 
           ik = ik_idx(g_lo,iglo)
           it = it_idx(g_lo,iglo)
-
+          
           ncell = r_links(ik, it) + l_links(ik, it) + 1
           if (ncell == 1) cycle
 
@@ -3038,7 +3002,7 @@ endif
 
              iglo_star = iglo_right
           end do
-
+             
           iglo_star = iglo
           do j = 1, l_links(ik, it)
              call get_left_connection (iglo_star, iglo_left, ipleft)
@@ -3057,7 +3021,7 @@ endif
           end do
 
        end do
-
+       
        nn_max = maxval(nn_to)
        call max_allreduce (nn_max)
        if (nn_max == 0) then
@@ -3087,10 +3051,10 @@ endif
              allocate (to_h(ip)%third(nn_to_h(ip)))
           endif
        end do
-
+       
        nn_from = 0
        nn_from_h=0
-       nn_to = 0
+       nn_to = 0          
        nn_to_h=0
 
        do iglo = g_lo%llim_world, g_lo%ulim_world
@@ -3100,11 +3064,11 @@ endif
 
           ik = ik_idx(g_lo,iglo)
           it = it_idx(g_lo,iglo)
-
+          
           ncell = r_links(ik, it) + l_links(ik, it) + 1
           if (ncell == 1) cycle
 
-          ip = proc_id(g_lo,iglo)
+          ip = proc_id(g_lo,iglo)          
 
           iglo_star = iglo
           do j = 1, r_links(ik, it)
@@ -3129,7 +3093,7 @@ endif
              if (ipright == iproc) then
                 n = nn_to(ip) + 1
                 nn_to(ip) = n
-                to_p(ip)%first(n) = j
+                to_p(ip)%first(n) = j 
                 to_p(ip)%second(n) = 1
                 to_p(ip)%third(n) = iglo_right
                 !Special restriction for links_h
@@ -3143,7 +3107,7 @@ endif
              end if
              iglo_star = iglo_right
           end do
-
+             
           iglo_star = iglo
           do j = 1, l_links(ik, it)
              call get_left_connection (iglo_star, iglo_left, ipleft)
@@ -3167,14 +3131,14 @@ endif
              if (ipleft == iproc) then
                 n = nn_to(ip) + 1
                 nn_to(ip) = n
-                to_p(ip)%first(n) = j
+                to_p(ip)%first(n) = j 
                 to_p(ip)%second(n) = 2
                 to_p(ip)%third(n) = iglo_left
                 !Special restriction for links_h
                 if(r_links(ik,it)>0)then
                    n_h = nn_to_h(ip) + 1
                    nn_to_h(ip) = n_h
-                   to_h(ip)%first(n_h) = 2*r_links(ik,it)+j
+                   to_h(ip)%first(n_h) = 2*r_links(ik,it)+j 
                    to_h(ip)%second(n_h) = 2
                    to_h(ip)%third(n_h) = iglo_left
                 endif
@@ -3186,15 +3150,15 @@ endif
        from_low (1) = -ntgrid
        from_low (2) = 1
        from_low (3) = g_lo%llim_proc
-
+       
        from_high(1) = ntgrid
        from_high(2) = 2
        from_high(3) = g_lo%ulim_alloc
 
        to_low (1) = 1
-       to_low (2) = 1
+       to_low (2) = 1 
        to_low (3) = g_lo%llim_proc
-
+       
        to_high(1) = n_links_max
        to_high(2) = 2
        to_high(3) = g_lo%ulim_alloc
@@ -3203,7 +3167,7 @@ endif
             from_low, from_high, from_p)
        call init_fill (links_h, 'c', to_low, to_high, to_h, &
             from_low, from_high, from_h)
-
+       
        call delete_list (from_p)
        call delete_list (from_h)
        call delete_list (to_p)
@@ -3212,7 +3176,7 @@ endif
 ! take care of wfb
 
        nn_to = 0
-       nn_from = 0
+       nn_from = 0 
 
        !NOTE: No special restriction/counting for wfb_h unlike links_h
        do iglo = g_lo%llim_world, g_lo%ulim_world
@@ -3222,12 +3186,12 @@ endif
 
           ik = ik_idx(g_lo,iglo)
           it = it_idx(g_lo,iglo)
-
+          
           ncell = r_links(ik, it) + l_links(ik, it) + 1
           if (ncell == 1) cycle
 
           ip = proc_id(g_lo,iglo)
-
+             
           iglo_right = iglo ; iglo_left = iglo ; ipright = ip ; ipleft = ip
 
 ! v_par > 0:
@@ -3240,7 +3204,7 @@ endif
              call get_right_connection (iglo_star, iglo_right, ipright)
              iglo_star=iglo_right
           end do
-
+             
 ! v_par < 0:
           call find_rightmost_link (iglo, iglo_star, ipleft)
           do j = 1, ncell
@@ -3252,7 +3216,7 @@ endif
              iglo_star=iglo_left
           end do
        end do
-
+       
        do ip = 0, nproc-1
           if (nn_from(ip) > 0) then
              allocate (from(ip)%first(nn_from(ip)))
@@ -3268,9 +3232,9 @@ endif
              allocate (to_h(ip)%third(nn_to(ip)))
           endif
        end do
-
+       
        nn_from = 0
-       nn_to = 0
+       nn_to = 0          
 
        do iglo = g_lo%llim_world, g_lo%ulim_world
 
@@ -3279,7 +3243,7 @@ endif
 
           ik = ik_idx(g_lo,iglo)
           it = it_idx(g_lo,iglo)
-
+          
           ncell = r_links(ik, it) + l_links(ik, it) + 1
           if (ncell == 1) cycle
 
@@ -3287,7 +3251,7 @@ endif
 
           iglo_right = iglo ; iglo_left = iglo ; ipright = ip ; ipleft = ip
 
-! v_par > 0:
+! v_par > 0: 
           call find_leftmost_link (iglo, iglo_star, ipright)
           do j = 1, ncell
 ! sender
@@ -3312,8 +3276,8 @@ endif
              call get_right_connection (iglo_star, iglo_right, ipright)
              iglo_star=iglo_right
           end do
-
-! v_par < 0:
+             
+! v_par < 0: 
           call find_rightmost_link (iglo, iglo_star, ipleft)
           do j = 1, ncell
 ! sender
@@ -3343,26 +3307,26 @@ endif
        from_low (1) = -ntgrid
        from_low (2) = 1
        from_low (3) = g_lo%llim_proc
-
+       
        from_high(1) = ntgrid
        from_high(2) = 2
        from_high(3) = g_lo%ulim_alloc
 
        to_low (1) = 1
-       to_low (2) = 1
+       to_low (2) = 1 
        to_low (3) = g_lo%llim_proc
-
+       
        to_high(1) = n_links_max
        to_high(2) = 2
        to_high(3) = g_lo%ulim_alloc
 
        call init_fill (wfb_p, 'c', to_low, to_high, to_p, from_low, from_high, from)
        call init_fill (wfb_h, 'c', to_low, to_high, to_h, from_low, from_high, from)
-
+       
        call delete_list (from)
        call delete_list (to_p)
        call delete_list (to_h)
-
+      
 ! n_links_max is typically 2 * number of cells in largest supercell
        allocate (g_adj (n_links_max, 2, g_lo%llim_proc:g_lo%ulim_alloc))
 !################################
@@ -3371,12 +3335,12 @@ endif
 
 200    continue
 
-! Now set up class arrays for the implicit fields
+! Now set up class arrays for the implicit fields 
 ! i_class classes
-! N_class(i) = number of linked cells for i_th class
+! N_class(i) = number of linked cells for i_th class 
 ! M_class(i) = number of members in i_th class
 
-! First count number of linked cells for each (kx, ky)
+! First count number of linked cells for each (kx, ky) 
        k = 1
        do it = 1, ntheta0
           do ik = 1, naky
@@ -3385,12 +3349,12 @@ endif
           end do
        end do
 
-! Count how many unique values of n_k there are.  This is the number
+! Count how many unique values of n_k there are.  This is the number 
 ! of classes.
 
-! Sort:
+! Sort: 
        do j = 1, naky*ntheta0-1
-          do k = 1, naky*ntheta0-1
+          do k = 1, naky*ntheta0-1                       
              if (n_k(k+1) < n_k(k)) then
                 i = n_k(k)
                 n_k(k) = n_k(k+1)
@@ -3413,23 +3377,23 @@ endif
 ! Initial values
        M_class = 1 ; N_class = 0
 
-! Fill M, N arrays:
+! Fill M, N arrays: 
        j = 1
        do k = 2, naky*ntheta0
           if (n_k(k) == n_k(k-1)) then
              M_class(j) = M_class(j) + 1
-          else
+          else 
              N_class(j) = n_k(k-1)
              M_class(j) = M_class(j)/N_class(j)
              j = j + 1
           end if
-       end do
+       end do       
        j = i_class
        N_class(j) = n_k(naky*ntheta0)
        M_class(j) = M_class(j)/N_class(j)
 
 ! Check for consistency:
-
+       
 ! j is number of linked cells in class structure
        j = 0
        do i = 1, i_class
@@ -3458,16 +3422,16 @@ endif
   end subroutine init_pass_left
 
   subroutine init_pass_ends(pass_obj,dir,sigma,typestr,ngsend)
-    !<DD> 01/02/2013: Copy of CMR's init_pass_right (revision 2085)
+    !<DD> 01/02/2013: Copy of CMR's init_pass_right (revision 2085) 
     !but in customisable direction to aid code reuse and with optional
     !range in theta (i.e. so can pass more than just boundary points)
-
+    
     !An example use is:
     ! call init_pass_ends(pass_right,'r',1,'c',3)
     ! call fill(pass_right,gnew,gnew)
-    !This will pass gnew(ntgrid-2:ntgrid,1,iglo) to
+    !This will pass gnew(ntgrid-2:ntgrid,1,iglo) to 
     !gnew(-ntgrid-2:-ntgrid,1,iglo_linked)
-
+    
     !TODO:
     !      1) May be helpful to be able to pass both sigmas at once (e.g. for explicit scheme)
     use gs2_layouts, only: g_lo, il_idx, idx, proc_id
@@ -3498,7 +3462,7 @@ endif
 
     !Handle the direction sign, basically we're either doing
     !     ntgrid --> -ntgrid (passing to right)
-    !or
+    !or 
     !    -ntgrid --> ntgrid  (passing to left)
     if (dir=='r') then
        bound_sign=1
@@ -3517,28 +3481,28 @@ endif
     endif
 
     if (proc0.and.debug) write (6,*) "Initialising redist_type with settings Direction : ",dir," sigma",sigma,"local_ngsend",local_ngsend
-
+    
     ! Need communications to satisfy || boundary conditions
-    ! First find required blocksizes
-
+    ! First find required blocksizes 
+    
     !Initialise variables used to count how many entries to send and receive
     !for each processor
     nn_to = 0   ! # nn_to(ip) = communicates from ip TO HERE (iproc)
     nn_from = 0 ! # nn_from(ip) = communicates to ip FROM HERE (iproc)
-
+    
     !Now loop over >all< iglo indices and work out how much data needs to be sent and received by each processor
     !Hence this routine does not scale with number of procs, see updated redist object creation in ccfe_opt_test (~r2173)
     !for examples which do scale
     do iglo = g_lo%llim_world, g_lo%ulim_world
        !Get the lambda index so we can skip trapped particles
        il = il_idx(g_lo,iglo)
-
+       
        !Exclude disconnected trapped particles
-       if (il > ng2+1) cycle
-
+       if (il > ng2+1) cycle     
+       
        !Get the processor id for the proc holding the current iglo index
        ip = proc_id(g_lo,iglo)
-
+       
        !What iglo connects to the current one in the direction of interest (and what proc is it on)
        !Note ipcon is <0 if no connection in direction of interest
        if (bound_sign==1) then
@@ -3546,30 +3510,30 @@ endif
        else
           call get_left_connection (iglo, iglo_con, ipcon)
        endif
-
+       
        !Is the connected tube's proc the current processor?
        if (ipcon .eq. iproc ) then
           !If so add an entry recording an extra piece of information is to be sent
           !to proc ip (the proc holding iglo) from this proc (ipcon)
-          !Note: Here we assume theta grid points are all on same proc
+          !Note: Here we assume theta grid points are all on same proc 
           nn_to(ip)=nn_to(ip)+local_ngsend
        endif
-
+       
        !Is the proc holding iglo this proc and is there a connection in the direction of interest?
        if (ip .eq. iproc .and. ipcon .ge. 0 ) then
           !If so add an entry recording an extra piece of information is to be sent
           !from this proc (ipcon) to ip
-          !Note: Here we assume theta grid points are all on same proc
+          !Note: Here we assume theta grid points are all on same proc 
           nn_from(ipcon)=nn_from(ipcon)+local_ngsend
        endif
     end do
-
+    
     !Find the maximum amount of data to be received by a given processor
     !(first do it locally)
     nn_max = maxval(nn_to)
     !(now do it globally)
     call max_allreduce (nn_max)
-
+    
     !Bit of debug printing
     if (proc0.and.debug) then
        write(6,*) 'init_pass_ends (1) processor, nn_to, nn_from:',iproc,nn_to,nn_from
@@ -3578,17 +3542,17 @@ endif
     !Now that we've worked out how much data needs to be sent and received, define what specific
     !data needs to be sent to where
     if (nn_max.gt.0) then
-       !
-       ! CMR, 25/1/2013:
+       ! 
+       ! CMR, 25/1/2013: 
        !      communication required to satisfy linked BC
-       !      allocate indirect addresses for sends/receives
-       !
+       !      allocate indirect addresses for sends/receives 
+       !     
        !      NB communications use "c_fill_3" as g has 3 indices
-       !      but 1 index sufficient as only communicating g(ntgrid,1,*)!
-       !      if "c_fill_1" in redistribute we'd only need allocate: from|to(ip)%first
+       !      but 1 index sufficient as only communicating g(ntgrid,1,*)! 
+       !      if "c_fill_1" in redistribute we'd only need allocate: from|to(ip)%first 
        !                             could be more efficient
-       !
-       !<DD>, 06/01/2013: This redist object consists of a buffer of length n to hold the
+       !  
+       !<DD>, 06/01/2013: This redist object consists of a buffer of length n to hold the 
        !data during transfer and (currently) 3*2 integer arrays each of length n to hold
        !the indices of sent and received data.
        !By using c_fill_1 2*2 of these integer arrays would be removed. Assuming a double complex
@@ -3596,7 +3560,7 @@ endif
        !size and as such should represent a good memory saving but would not effect the amount
        !of data communicated (obviously).
 
-       !Create to and from list objects for each processor and
+       !Create to and from list objects for each processor and 
        !create storage to hold information about each specific from/to
        !communication
        do ip = 0, nproc-1
@@ -3615,21 +3579,21 @@ endif
        end do
 
        !Now fill the indirect addresses...
-
+       
        !Initialise counters used to record how many pieces of data to expect
        nn_from = 0 ; nn_to = 0
-
+       
        !Loop over >all< iglo indices
        do iglo = g_lo%llim_world, g_lo%ulim_world
           !Get the lambda index so we can skip trapped particles
           il = il_idx(g_lo,iglo)
-
+          
           !Exclude disconnected trapped particles
-          if (il > ng2+1) cycle
-
+          if (il > ng2+1) cycle     
+          
           !What's the processor for the current iglo
           ip = proc_id(g_lo,iglo)
-
+          
           !What iglo connects to the current one in the direction of interest (and what proc is it on)?
           !Note ipcon is <0 if no connection in direction of interest
           if (bound_sign==1) then
@@ -3637,12 +3601,12 @@ endif
           else
              call get_left_connection (iglo, iglo_con, ipcon)
           endif
-
+          
           !For current proc for current iglo if there's connections in direction
           !then add an entry to the connected procs list of data to expect
           if (ip .eq. iproc .and. ipcon .ge. 0 ) then
              !Loop over theta grid indices
-             !Note: Here we assume theta grid points are all on same proc
+             !Note: Here we assume theta grid points are all on same proc 
              !Note: By looping over theta inside iglo loop we should optimise
              !      memory access compared to looping over theta outside.
              do j=0,local_ngsend-1
@@ -3652,12 +3616,12 @@ endif
                 from(ipcon)%third(n)=iglo   !iglo index to send
              enddo
           endif
-
+          
           !If target iglo (iglo_con) is on this processor then add an entry recording where
           !we need to put the data when we receive it.
-          if (ipcon .eq. iproc ) then
+          if (ipcon .eq. iproc ) then 
              !Loop over theta grid indices
-             !Note: Here we assume theta grid points are all on same proc
+             !Note: Here we assume theta grid points are all on same proc 
              do j=0,local_ngsend-1
                 n=nn_to(ip)+1 ; nn_to(ip)=n
                 to(ip)%first(n)=-bound_sign*(ntgrid-j) !Which theta to store received data
@@ -3666,7 +3630,7 @@ endif
              enddo
           endif
        end do
-
+       
        !Bit of debug printing,
        if (debug.and.proc0) then
           write(6,*) 'init_pass_ends (2) processor, nn_to, nn_from:',iproc,nn_to,nn_from
@@ -3674,15 +3638,15 @@ endif
 
        !Set data ranges for arrays to be passed, not this just effects how
        !arrays are indexed, not how big the buffer is.
-       from_low(1)=-ntgrid ; from_low(2)=1  ; from_low(3)=g_lo%llim_proc
+       from_low(1)=-ntgrid ; from_low(2)=1  ; from_low(3)=g_lo%llim_proc       
        from_high(1)=ntgrid ; from_high(2)=2 ; from_high(3)=g_lo%ulim_alloc
-       to_low(1)=-ntgrid   ; to_low(2)=1    ; to_low(3)=g_lo%llim_proc
+       to_low(1)=-ntgrid   ; to_low(2)=1    ; to_low(3)=g_lo%llim_proc       
        to_high(1)=ntgrid   ; to_high(2)=2   ; to_high(3)=g_lo%ulim_alloc
-
+       
        !Initialise fill object
        call init_fill (pass_obj, typestr, to_low, to_high, to, &
             from_low, from_high, from)
-
+       
        !Clean up lists
        call delete_list (from)
        call delete_list (to)
@@ -3699,7 +3663,7 @@ endif
 
     ik = ik_idx(g_lo,iglo)
     it = it_idx(g_lo,iglo)
-
+    
     if (itleft(ik,it) < 0) then
        iglo_left = -1
        iproc_left = -1
@@ -3724,7 +3688,7 @@ endif
 
     ik = ik_idx(g_lo,iglo)
     it = it_idx(g_lo,iglo)
-
+    
     if (itright(ik,it) < 0) then
        iglo_right = -1
        iproc_right = -1
@@ -3787,7 +3751,6 @@ endif
     use gs2_layouts, only: g_lo
     use nonlinear_terms, only: nonlin
     use run_parameters, only: fapar
-    use lowflow, only: use_lowflow
 #ifdef SHMEM
     use shm_mpi3, only : shm_alloc
 #endif
@@ -3806,8 +3769,7 @@ endif
              allocate (source_coeffs(2,-ntgrid:ntgrid-1,2,g_lo%llim_proc:g_lo%ulim_alloc))
           endif
        endif
-!#ifdef LOWFLOW
-   if(use_lowflow) then
+#ifdef LOWFLOW
 #ifndef SHMEM
           allocate (gexp_1(-ntgrid:ntgrid,2,g_lo%llim_proc:g_lo%ulim_alloc))
 #else
@@ -3817,8 +3779,7 @@ endif
        allocate (gexp_2(-ntgrid:ntgrid,2,g_lo%llim_proc:g_lo%ulim_alloc))
        allocate (gexp_3(-ntgrid:ntgrid,2,g_lo%llim_proc:g_lo%ulim_alloc))
        gexp_1 = 0. ; gexp_2 = 0. ; gexp_3 = 0.
-!#else
-    else
+#else
        if (nonlin) then
 #ifndef SHMEM
           allocate (gexp_1(-ntgrid:ntgrid,2,g_lo%llim_proc:g_lo%ulim_alloc))
@@ -3832,15 +3793,14 @@ endif
        else
           allocate (gexp_1(1,2,1), gexp_2(1,2,1), gexp_3(1,2,1))
        end if
-   end if
-!#endif
+#endif
        if (boundary_option_switch == boundary_option_linked) then
           allocate (g_h(-ntgrid:ntgrid,2,g_lo%llim_proc:g_lo%ulim_alloc))
           g_h = 0.
           allocate (save_h(2,g_lo%llim_proc:g_lo%ulim_alloc))
           save_h = .false.
        endif
-       if (abs(g_exb*g_exbfac) > epsilon(0.)) then           ! MR
+       if (abs(g_exb*g_exbfac) > epsilon(0.)) then           ! MR 
           if (box .or. shat .eq. 0.0) then
              allocate (kx_shift(naky))
              kx_shift = 0.
@@ -3856,11 +3816,11 @@ endif
 !    alloc = .false.
   end subroutine allocate_arrays
 
-  !> This function calculates the distribution function at the next timestep.
+  !> This function calculates the distribution function at the next timestep. 
   !! It calculates both the inhomogenous part, gnew, due to the sources
   !! (principly the drive terms and the nonlinear term)
   !! and the homogenous part, g1. The actual evolution of the dist func
-  !! is done in the subroutine invert_rhs.
+  !! is done in the subroutine invert_rhs. 
   !!
   !! After solving for the new dist funcs, this routine calls hyper_diff, which
   !! adds hyper diffusion if present, and solfp1, from the collisions module,
@@ -3939,7 +3899,7 @@ endif
        call hyper_diff (gnew, phinew)
     else if (istep.eq.istep_last) then
 !CMR on second half of all timesteps do LC without ctog redist
-       !Calculate the explicit nonlinear terms
+       !Calculate the explicit nonlinear terms 
        !NB following call should be unnecessary as NL terms not added on second
        !    half of istep: keeping for now as may be needed by some code
        call add_explicit_terms (gexp_1, gexp_2, gexp_3, &
@@ -3958,7 +3918,7 @@ endif
     !Enforce parity if desired (also performed in invert_rhs, but this is required
     !as collisions etc. may break parity?)
     if (def_parity) call enforce_parity(parity_redist)
-
+      
     istep_last=istep
 
   end subroutine timeadv
@@ -4032,9 +3992,9 @@ endif
 ! CMR, May 2009: 2pishat correction factor on extended theta grid (ballooning)
 !                so GEXB is same physical quantity in box and ballooning
 ! CMR, Oct 2010: multiply timestep by tunits(iky) for runs with wstar_units=.t.
-! CMR, Oct 2010: add save statements to prevent potentially large and memory
+! CMR, Oct 2010: add save statements to prevent potentially large and memory 
 !                killing array allocations!
-
+   
     use mp, only: send, receive, mp_abort, broadcast
     use gs2_layouts, only: ik_idx, it_idx, g_lo, idx_local, idx, proc_id
     use run_parameters, only: tunits
@@ -4046,15 +4006,15 @@ endif
     use run_parameters, only: fphi, fapar, fbpar
     use dist_fn_arrays, only: kx_shift, theta0_shift
     use gs2_time, only: code_dt, code_dt_old, code_time
-    use constants, only: twopi
+    use constants, only: twopi    
 
     complex, dimension (-ntgrid:,:,:), intent (in out) :: phi,    apar,    bpar
     complex, dimension (-ntgrid:,:,g_lo%llim_proc:), intent (in out) :: g0
     integer, intent(in) :: istep
-    complex, dimension(:,:,:), allocatable :: temp
+    complex, dimension(:,:,:), allocatable :: temp 
     complex, dimension(:,:), allocatable :: temp2
     integer, dimension(1), save :: itmin
-    integer :: ierr, j
+    integer :: ierr, j 
     integer :: ik, it, ie, is, il, isgn, to_iglo, from_iglo
     integer:: iib, iit, ileft, iright, i
     integer, save :: istep_last=0
@@ -4076,21 +4036,21 @@ endif
     ! Initialize kx_shift, jump, idx_indexed
     if (exb_first) then
        exb_first = .false.
-       allocate (jump(naky))
+       allocate (jump(naky)) 
        jump = 0
        if (box .or. shat .eq. 0.0) then
           allocate (ikx_indexed(ntheta0))
           itmin = minloc (ikx)
-
+          
           do it=itmin(1), ntheta0
              ikx_indexed (it+1-itmin(1)) = it
           end do
-
+          
           do it=1,itmin(1)-1
              ikx_indexed (ntheta0 - itmin(1) + 1 + it)= it
           end do
 
-          if (ntheta0 .gt. 1) then
+          if (ntheta0 .gt. 1) then 
              dkx = akx(2)-akx(1)
           else
              write(ierr,*) "exb_shear: ERROR, need ntheta0>1 for sheared flow"
@@ -4100,22 +4060,22 @@ endif
        else
 ! MR, March 2009: on extended theta grid theta0_shift tracks ExB shear
 ! CMR, 25 May 2009: fix 2pi error so that: dtheta0/dt = -GEXB/shat
-          if (ntheta0 .gt. 1) then
-             dtheta0 = theta0(2,1)-theta0(1,1)
-          else
+          if (ntheta0 .gt. 1) then 
+             dtheta0 = theta0(2,1)-theta0(1,1) 
+          else 
              dtheta0=twopi
           endif
        end if
     end if
 
     !Check if we want to exit without applying flow shear
-    if (istep.eq.istep_last) return !Don't allow flow shear to happen more than once per step
+    if (istep.eq.istep_last) return !Don't allow flow shear to happen more than once per step    
     if (g_exb_start_timestep > istep) return !Flow shear not active yet, set in timesteps
     if (g_exb_start_time >= 0 .and. code_time < g_exb_start_time) return !Flow shear not active yet, set in time
-
+    
     ! BD: To do: Put the right timestep in here.
     ! For now, approximate Greg's dt == 1/2 (t_(n+1) - t_(n-1))
-    ! with code_dt.
+    ! with code_dt.  
     !
     ! Note: at first time step, there is a difference of a factor of 2.
     !
@@ -4127,9 +4087,9 @@ endif
     !Update istep_last
     istep_last = istep
 
-! kx_shift is a function of time.   Update it here:
+! kx_shift is a function of time.   Update it here:  
 ! MR, 2007: kx_shift array gets saved in restart file
-! CMR, 5/10/2010: multiply timestep by tunits(ik) for wstar_units=.true.
+! CMR, 5/10/2010: multiply timestep by tunits(ik) for wstar_units=.true. 
     if ( box .or. shat .eq. 0.0 ) then
        do ik=1, naky
           kx_shift(ik) = kx_shift(ik) - aky(ik)*g_exb*g_exbfac*gdt*tunits(ik)
@@ -4141,7 +4101,7 @@ endif
           theta0_shift(ik) = theta0_shift(ik) - g_exb*g_exbfac*gdt/shat*tunits(ik)
           jump(ik) = nint(theta0_shift(ik)/dtheta0)
           theta0_shift(ik) = theta0_shift(ik) - dtheta0*jump(ik)
-       enddo
+       enddo 
     end if
 
     !If using field_option='local' and x/it is not entirely local
@@ -4160,12 +4120,12 @@ endif
 !                 for finite shat
        do ik =1,naky
           j=jump(ik)
-          if (j .eq. 0) cycle
+          if (j .eq. 0) cycle     
           if (abs(j) .ge. ntheta0) then
               write(str,fmt='("in exb_shear: jump(ik)=",i4," > ntheta0 =",i4," for ik=",i4,". => reduce timestep or increase ntheta0")') j,ik,ntheta0
               write(ierr,*) str
               call mp_abort(str)
-          endif
+          endif 
           allocate(temp2(-ntgrid:ntgrid,abs(j)),temp(-ntgrid:ntgrid,2,abs(j)))
           iit=ntheta0+1-abs(j) ; iib=abs(j)
           ileft = -ntgrid+ntheta ; iright=ntgrid-ntheta
@@ -4178,9 +4138,9 @@ endif
                 enddo
                 phi(ileft:,iit:,ik) = temp2(:iright,:)
                 phi(:ileft-1,iit:,ik) = 0.0
-             else
+             else 
                 temp2 = phi(:,iit:,ik)
-                do i=ntheta0,iib+1,-1
+                do i=ntheta0,iib+1,-1 
                    phi(:,i,ik) = phi(:,i-j,ik)
                 enddo
                 phi(:iright,:iib ,ik) = temp2(ileft:,:)
@@ -4195,9 +4155,9 @@ endif
                 enddo
                 apar(ileft:,iit:,ik) = temp2(:iright,:)
                 apar(:ileft-1,iit:,ik) = 0.0
-             else
+             else 
                 temp2 = apar(:,iit:,ik)
-                do i=ntheta0,iib+1,-1
+                do i=ntheta0,iib+1,-1 
                    apar(:,i,ik) = apar(:,i-j,ik)
                 enddo
                 apar(:iright,:iib ,ik) = temp2(ileft:,:)
@@ -4212,9 +4172,9 @@ endif
                 enddo
                 bpar(ileft:,iit:,ik) = temp2(:iright,:)
                 bpar(:ileft-1,iit:,ik) = 0.0
-             else
+             else 
                 temp2 = bpar(:,iit:,ik)
-                do i=ntheta0,iib+1,-1
+                do i=ntheta0,iib+1,-1 
                    bpar(:,i,ik) = bpar(:,i-j,ik)
                 enddo
                 bpar(:iright,:iib ,ik) = temp2(ileft:,:)
@@ -4234,7 +4194,7 @@ endif
                          if (idx_local (g_lo, from_iglo)) temp(:,:,it) = g0(:,:,from_iglo)
                       end do
 
-                      do it = 1, iit-1
+                      do it = 1, iit-1                        
                            to_iglo = idx(g_lo, ik, it,   il, ie, is)
                          from_iglo = idx(g_lo, ik, it-j, il, ie, is)
 
@@ -4251,7 +4211,7 @@ endif
                          endif
                       enddo
 
-                      do it = iit, ntheta0
+                      do it = iit, ntheta0                     
                          to_iglo = idx(g_lo, ik, it, il, ie, is)
                          from_iglo = idx(g_lo, ik, it-j-ntheta0, il, ie, is)
 
@@ -4321,7 +4281,7 @@ endif
           deallocate (temp,temp2)
        enddo
     end if
-
+    
     if (box .or. shat .eq. 0.0) then
        do ik = naky, 2, -1
           if (jump(ik) < 0) then
@@ -4341,7 +4301,7 @@ endif
                    apar (:,ikx_indexed(it),ik) = 0.
                 end do
              end if
-             if (fbpar > epsilon(0.0)) then
+             if (fbpar > epsilon(0.0)) then 
                 do it = 1, ntheta0 + jump(ik)
                    bpar(:,ikx_indexed(it),ik) = bpar(:,ikx_indexed(it-jump(ik)),ik)
                 end do
@@ -4353,7 +4313,7 @@ endif
                 do ie=1,negrid
                    do il=1,nlambda
 
-                      do it = 1, ntheta0 + jump(ik)
+                      do it = 1, ntheta0 + jump(ik)                        
 
                            to_iglo = idx(g_lo, ik, ikx_indexed(it),          il, ie, is)
                          from_iglo = idx(g_lo, ik, ikx_indexed(it-jump(ik)), il, ie, is)
@@ -4371,7 +4331,7 @@ endif
                          endif
                       enddo
 
-                      do it = ntheta0 + jump(ik) + 1, ntheta0
+                      do it = ntheta0 + jump(ik) + 1, ntheta0                     
                          to_iglo = idx(g_lo, ik, ikx_indexed(it), il, ie, is)
                          if (idx_local (g_lo, to_iglo)) g0(:,:,to_iglo) = 0.
                       enddo
@@ -4381,7 +4341,7 @@ endif
              enddo
           endif
 
-          if (jump(ik) > 0) then
+          if (jump(ik) > 0) then 
              if (fphi > epsilon(0.0)) then
                 do it = ntheta0, 1+jump(ik), -1
                    phi(:,ikx_indexed(it),ik) = phi(:,ikx_indexed(it-jump(ik)),ik)
@@ -4458,10 +4418,10 @@ endif
 
     !If enforced parity not requested then exit
     if(.not.(def_parity))return
-
+    
     !If not linked then don't need any setup so exit
     if(boundary_option_switch.ne.boundary_option_linked)return
-
+    
     !Deal with optional input
     if(present(ik_ind)) then
        ik_ind_local=ik_ind
@@ -4471,7 +4431,7 @@ endif
 
     !NOTE: If we know x is entirely local (g_lo%x_local=.true.) then we
     !know that we don't need to do any comms so our iglo range can be
-    !limited to what is on this proc. At the moment we don't take
+    !limited to what is on this proc. At the moment we don't take 
     !advantage of this.
 
     !Use a shorthand for how much data to send per iglo
@@ -4481,7 +4441,7 @@ endif
     !/First initialise counters
     nn_to =0
     nn_from=0
-
+    
     !/Now loop over iglo to workout what data is to be sent/received
     do iglo=g_lo%llim_world,g_lo%ulim_world
        !Check if we want to skip this
@@ -4533,7 +4493,7 @@ endif
           if(ik_ind_local.gt.0)then
              if(ik_idx(g_lo,iglo).ne.ik_ind_local) cycle
           endif
-
+          
           !Get proc for this iglo
           ip=proc_id(g_lo,iglo)
 
@@ -4595,7 +4555,7 @@ endif
 
     !Initialise to this cell
     tmp=iglo
-
+    
     !Now check number of links
     if(l_links(ik,it).eq.r_links(ik,it))then
        !If in the middle of the domain then iglo doesn't change
@@ -4651,14 +4611,14 @@ endif
 
     !If enforced parity not requested then exit
     if(.not.(def_parity))return
-
+    
     !Set multiplier
     if(even) then
        mult=1
     else
        mult=-1
     endif
-
+    
     !Behaviour depends upon if we're in flux tube or ballooning space
     if(boundary_option_switch.eq.boundary_option_linked) then !Flux-tube
        !Ensure a redist object is present, if not default to parity_redist
@@ -4693,18 +4653,16 @@ endif
           gnew(1:ntgrid,1,iglo)=mult*gnew(-1:-ntgrid:-1,2,iglo)
        enddo
     endif
-
+    
   end subroutine enforce_parity
   !</DD>
 
   subroutine get_source_term &
        (phi, apar, bpar, phinew, aparnew, bparnew, istep, &
         isgn, iglo,ik,it,il,ie,is, sourcefac, source)
-!***
-!#ifdef LOWFLOW
-!***
+#ifdef LOWFLOW
     use dist_fn_arrays, only: hneoc, vparterm, wdfac, wstarfac, wdttpfac
-!#endif
+#endif
     use dist_fn_arrays, only: aj0, aj1, vperp2, vpar, vpac, g, ittp
     use theta_grid, only: ntgrid
     use kt_grids, only: aky
@@ -4716,7 +4674,6 @@ endif
     use nonlinear_terms, only: nonlin
     use hyper, only: D_res
     use constants, only: zi
-    use lowflow, only: use_lowflow
     implicit none
     complex, dimension (-ntgrid:,:,:), intent (in) :: phi,    apar,    bpar
     complex, dimension (-ntgrid:,:,:), intent (in) :: phinew, aparnew, bparnew
@@ -4730,7 +4687,7 @@ endif
     real :: c0, c1, c2
 
 
-    ! NRM, 3/18/2015
+    ! NRM, 3/18/2015 
     ! calculate AB3 coefficients generalized to changing timestep
     ! see Tatsuno & Dorland, Physics of Plasmas 13, 092107 (2006)
     ! http://www.cscamm.umd.edu/publications/TatsunoDorland-PoP06_CS-06-11.pdf
@@ -4742,10 +4699,10 @@ endif
     c2 = dt0**2. * ( dt0/3. + dt1/2. ) / ( dt2*(dt1+dt2) )
 
 !CMR, 4/8/2011
-! apargavg and phigavg combine to give the GK EM potential chi.
+! apargavg and phigavg combine to give the GK EM potential chi. 
 !          chi = phigavg - apargavg*vpa(:,isgn,iglo)*spec(is)%stm
 ! phigavg  = phi J0 + 2 T_s/q_s . vperp^2 bpar/bmag J1/Z
-! apargavg = apar J0
+! apargavg = apar J0 
 ! Both quantities are decentred in time and evaluated on || grid points
 !
     phigavg  = (fexp(is)*phi(:,it,ik)   + (1.0-fexp(is))*phinew(:,it,ik)) &
@@ -4766,7 +4723,7 @@ endif
           call set_source
        else
           source = 0.0
-       end if
+       end if       
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 ! Solve self-consistent terms + include external i omega_d * F_0
@@ -4802,14 +4759,14 @@ endif
        end if
     end if
 
-!CMR, 21/7/2014: removed redundant line here:    source(ntgrid)=source(-ntgrid)
+!CMR, 21/7/2014: removed redundant line here:    source(ntgrid)=source(-ntgrid) 
 !                as source(ntgrid) should never be used.
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 ! special source term for totally trapped particles
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
-!CMR, 13/10/2014:
+!CMR, 13/10/2014: 
 ! Upper limit of following loops setting source changed from ntgrid to ntgrid-1
 ! Source is allocated as: source(-ntgrid:ntgrid-1), so ntgrid is out of bounds.
 
@@ -4818,42 +4775,31 @@ endif
        if (nlambda > ng2 .and. isgn == 2) then
           do ig = -ntgrid, ntgrid-1
              if (il < ittp(ig)) cycle
-             if(use_lowflow) then
              source(ig) &
                   = g(ig,2,iglo)*a(ig,2,iglo) &
-!#ifdef LOWFLOW
+#ifdef LOWFLOW
                   - anon(ie)*zi*(wdttpfac(ig,it,ik,ie,is,2)*hneoc(ig,2,iglo))*phigavg(ig) &
                   + zi*wstar(ik,ie,is)*hneoc(ig,2,iglo)*phigavg(ig)
-
-!#else
-         else
-           source(ig) &
-                = g(ig,2,iglo)*a(ig,2,iglo) &
+#else
                   - anon(ie)*zi*(wdriftttp(ig,it,ik,ie,is,2))*phigavg(ig) &
                   + zi*wstar(ik,ie,is)*phigavg(ig)
-         end if
-!#endif
+#endif             
           end do
 
           if (source_option_switch == source_option_phiext_full .and. &
                aky(ik) < epsilon(0.0)) then
              do ig = -ntgrid, ntgrid-1
-                if (il < ittp(ig)) cycle
-                if(use_lowflow) then
+                if (il < ittp(ig)) cycle             
                 source(ig) = source(ig) - zi*anon(ie)* &
-!#ifdef LOWFLOW
+#ifdef LOWFLOW
                      wdttpfac(ig,it,ik,ie,is,isgn)*2.0*phi_ext*sourcefac*aj0(ig,iglo)
-!#else
-           else
-             source(ig) = source(ig) - zi*anon(ie)* &
+#else
                      wdriftttp(ig,it,ik,ie,is,isgn)*2.0*phi_ext*sourcefac*aj0(ig,iglo)
-           end if
-!#endif
+#endif
              end do
           endif
 
-!#ifdef LOWFLOW
-      if(use_lowflow) then
+#ifdef LOWFLOW
           select case (istep)
           case (0)
              ! nothing
@@ -4862,7 +4808,7 @@ endif
                 if (il < ittp(ig)) cycle
                 source(ig) = source(ig) + 0.5*code_dt*gexp_1(ig,isgn,iglo)
              end do
-          case (2)
+          case (2) 
              do ig = -ntgrid, ntgrid-1
                 if (il < ittp(ig)) cycle
                 source(ig) = source(ig) + 0.5*code_dt*( &
@@ -4875,7 +4821,7 @@ endif
              !        (23./12.)*gexp_1(ig,isgn,iglo) &
              !        - (4./3.)  *gexp_2(ig,isgn,iglo) &
              !        + (5./12.) *gexp_3(ig,isgn,iglo))
-    ! NRM, 3/18/2015
+    ! NRM, 3/18/2015 
     ! use AB3 generalized to changing timestep
                  source(ig) = source(ig) + 0.5*( &
                           c0*gexp_1(ig,isgn,iglo) &
@@ -4883,10 +4829,9 @@ endif
                         + c2*gexp_3(ig,isgn,iglo))
              end do
           end select
-      else
-!#else
-! add in nonlinear terms
-          if (nonlin) then
+#else
+! add in nonlinear terms 
+          if (nonlin) then         
              select case (istep)
              case (0)
                 ! nothing
@@ -4895,12 +4840,12 @@ endif
                    if (il < ittp(ig)) cycle
                    source(ig) = source(ig) + 0.5*code_dt*gexp_1(ig,isgn,iglo)
                 end do
-             case (2)
+             case (2) 
                 do ig = -ntgrid, ntgrid-1
                    if (il < ittp(ig)) cycle
                    source(ig) = source(ig) + 0.5*code_dt*( &
                         1.5*gexp_1(ig,isgn,iglo) - 0.5*gexp_2(ig,isgn,iglo))
-                end do
+                end do                   
              case default
                 do ig = -ntgrid, ntgrid-1
                    if (il < ittp(ig)) cycle
@@ -4908,7 +4853,7 @@ endif
               !           (23./12.)*gexp_1(ig,isgn,iglo) &
               !         - (4./3.)  *gexp_2(ig,isgn,iglo) &
               !         + (5./12.) *gexp_3(ig,isgn,iglo))
-    ! NRM, 3/18/2015
+    ! NRM, 3/18/2015 
     ! use AB3 generalized to changing timestep
                  source(ig) = source(ig) + 0.5*( &
                           c0*gexp_1(ig,isgn,iglo) &
@@ -4917,8 +4862,7 @@ endif
                 end do
              end select
           end if
-    end if
-!#endif
+#endif
 
        end if
     end if
@@ -4929,7 +4873,6 @@ endif
 
       use species, only: spec
       use theta_grid, only: itor_over_B
-      use lowflow, only:use_lowflow
       implicit none
       complex :: apar_p, apar_m, phi_p, phi_m!, bpar_p !GGH added bpar_p
       real :: bd, bdfac_p, bdfac_m
@@ -4944,33 +4887,33 @@ endif
 
 !CMR, 4/8/2011:
 ! Some concerns, may be red herrings !
-! (1) no bakdif factors in phi_m, apar_p, apar_m, vpar !!!
+! (1) no bakdif factors in phi_m, apar_p, apar_m, vpar !!! 
 !                        (RN also spotted this for apar_p)
-! (2) can interpolations of products be improved?
+! (2) can interpolations of products be improved? 
 !
 !  Attempt at variable documentation:
 ! phigavg  = phi J0 + 2 T_s/q_s . vperp^2 bpar/bmag J1/Z
-! apargavg = apar J0                        (decentered in t)
+! apargavg = apar J0                        (decentered in t) 
 ! NB apargavg and phigavg combine to give the GK EM potential chi
 ! chi = phigavg - apargavg*vpa(:,isgn,iglo)*spec(is)%stm
 ! phi_p = 2 phigavg                      .... (roughly!)
-! phi_m = d/dtheta (phigavg)*DTHETA
-! apar_p = 2 apargavg
+! phi_m = d/dtheta (phigavg)*DTHETA 
+! apar_p = 2 apargavg  
 ! apar_m = 2 d/dt (apar)*DELT  (gets multiplied later by J0 and vpa when included in source)
-! => phi_p - apar_p*vpa(:,isgn,iglo)*spec(is)%stm = 2 chi  .... (roughly!)
+! => phi_p - apar_p*vpa(:,isgn,iglo)*spec(is)%stm = 2 chi  .... (roughly!)  
 ! vparterm = -2.0*vpar (IN ABSENCE OF LOWFLOW TERMS)
 ! wdfac = wdrift + wcoriolis/spec(is)%stm (IN ABSENCE OF LOWFLOW TERMS)
 ! wstarfac = wstar  (IN ABSENCE OF LOWFLOW TERMS)
 ! vpar = q_s/sqrt{T_s m_s} (v_||^GS2). \gradpar(theta)/DTHETA . DELT (centred)
-! wdrift =    q_s/T_s  v_d.\grad_perp . DELT
-! wcoriolis = q_s/T_s  v_C.\grad_perp . DELT
+! wdrift =    q_s/T_s  v_d.\grad_perp . DELT 
+! wcoriolis = q_s/T_s  v_C.\grad_perp . DELT 
 !
 ! Definition of source:= 2*code_dt*RHS of GKE
 ! source     appears to contain following physical terms
-!   -2q_s/T_s v||.grad(J0 phi + 2 vperp^2 bpar/bmag J1/Z T_s/q_s).delt
+!   -2q_s/T_s v||.grad(J0 phi + 2 vperp^2 bpar/bmag J1/Z T_s/q_s).delt 
 !   -2d/dt(q v|| J0 apar / T).delt
 !   +hyperviscosity
-!   -2 v_d.\grad_perp (q J0 phi/T + 2 vperp^2 bpar/bmag J1/Z).delt
+!   -2 v_d.\grad_perp (q J0 phi/T + 2 vperp^2 bpar/bmag J1/Z).delt 
 !   -coriolis terms
 !   2{\chi,f_{0s}}.delt  (allowing for sheared flow)
 !CMRend
@@ -4980,21 +4923,20 @@ endif
          phi_m = phigavg(ig+1)-phigavg(ig)
          ! RN> bdfac factors seem missing for apar_p
          apar_p = apargavg(ig+1)+apargavg(ig)
-         apar_m = aparnew(ig+1,it,ik)+aparnew(ig,it,ik) &
+         apar_m = aparnew(ig+1,it,ik)+aparnew(ig,it,ik) & 
               -apar(ig+1,it,ik)-apar(ig,it,ik)
 
 !MAB, 6/5/2009:
-! added the omprimfac source term arising with equilibrium flow shear
+! added the omprimfac source term arising with equilibrium flow shear  
 !CMR, 26/11/2010:
-! Useful to understand that all source terms propto aky are specified here
-! using Tref=mref vtref^2. See
+! Useful to understand that all source terms propto aky are specified here 
+! using Tref=mref vtref^2. See 
 ! [note by BD and MK on "Microinstabilities in Axisymmetric Configurations"].
-! This is converted to  the standard internal gs2 normalisation,
+! This is converted to  the standard internal gs2 normalisation, 
 ! Tref=(1/2) mref vtref^2, by wunits, which contains a crucial factor 1/2.
 ! (Would be less confusing if always used same Tref!)
 !
-!#ifdef LOWFLOW
-        if(use_lowflow) then
+#ifdef LOWFLOW
          source(ig) = anon(ie)*(vparterm(ig,isgn,iglo)*phi_m &
               -spec(is)%zstm*vpac(ig,isgn,iglo) &
               *((aj0(ig+1,iglo) + aj0(ig,iglo))*0.5*apar_m  &
@@ -5004,9 +4946,7 @@ endif
               + vpac(ig,isgn,iglo)*code_dt*wunits(ik)*ufac(ie,is) &
               -2.0*omprimfac*vpac(ig,isgn,iglo)*code_dt*wunits(ik)*g_exb*itor_over_B(ig)/spec(is)%stm) &
               *(phi_p - apar_p*spec(is)%stm*vpac(ig,isgn,iglo))
-
-        else
-!#else
+#else
          source(ig) = anon(ie)*(-2.0*vpar(ig,isgn,iglo)*phi_m &
               -spec(is)%zstm*vpac(ig,isgn,iglo) &
               *((aj0(ig+1,iglo) + aj0(ig,iglo))*0.5*apar_m  &
@@ -5016,12 +4956,10 @@ endif
               + vpac(ig,isgn,iglo)*code_dt*wunits(ik)*ufac(ie,is) &
               -2.0*omprimfac*vpac(ig,isgn,iglo)*code_dt*wunits(ik)*g_exb*itor_over_B(ig)/spec(is)%stm) &
               *(phi_p - apar_p*spec(is)%stm*vpac(ig,isgn,iglo))
-         end if
-!#endif
+#endif
       end do
 
-     if(use_lowflow) then
-!#ifdef LOWFLOW
+#ifdef LOWFLOW
       select case (istep)
       case (0)
          ! nothing
@@ -5029,7 +4967,7 @@ endif
          do ig = -ntgrid, ntgrid-1
             source(ig) = source(ig) + 0.5*code_dt*gexp_1(ig,isgn,iglo)
          end do
-      case (2)
+      case (2) 
          do ig = -ntgrid, ntgrid-1
             source(ig) = source(ig) + 0.5*code_dt*( &
                  1.5*gexp_1(ig,isgn,iglo) - 0.5*gexp_2(ig,isgn,iglo))
@@ -5040,7 +4978,7 @@ endif
           !       (23./12.)*gexp_1(ig,isgn,iglo) &
           !       - (4./3.)  *gexp_2(ig,isgn,iglo) &
           !       + (5./12.) *gexp_3(ig,isgn,iglo))
-    ! NRM, 3/18/2015
+    ! NRM, 3/18/2015 
     ! use AB3 generalized to changing timestep
                  source(ig) = source(ig) + 0.5*( &
                           c0*gexp_1(ig,isgn,iglo) &
@@ -5048,10 +4986,9 @@ endif
                         + c2*gexp_3(ig,isgn,iglo))
          end do
       end select
-   else
-!#else
-! add in nonlinear terms
-      if (nonlin) then
+#else
+! add in nonlinear terms 
+      if (nonlin) then         
          select case (istep)
          case (0)
             ! nothing
@@ -5059,7 +4996,7 @@ endif
             do ig = -ntgrid, ntgrid-1
                source(ig) = source(ig) + 0.5*code_dt*gexp_1(ig,isgn,iglo)
             end do
-         case (2)
+         case (2) 
             do ig = -ntgrid, ntgrid-1
                source(ig) = source(ig) + 0.5*code_dt*( &
                     1.5*gexp_1(ig,isgn,iglo) - 0.5*gexp_2(ig,isgn,iglo))
@@ -5070,7 +5007,7 @@ endif
              !         (23./12.)*gexp_1(ig,isgn,iglo) &
              !       - (4./3.)  *gexp_2(ig,isgn,iglo) &
              !       + (5./12.) *gexp_3(ig,isgn,iglo))
-    ! NRM, 3/18/2015
+    ! NRM, 3/18/2015 
     ! use AB3 generalized to changing timestep
                  source(ig) = source(ig) + 0.5*( &
                           c0*gexp_1(ig,isgn,iglo) &
@@ -5079,22 +5016,21 @@ endif
             end do
          end select
       end if
-    end if
-!#endif
+#endif
 
     end subroutine set_source
 
   end subroutine get_source_term
 
   !This is a version of get_source_term which does both sign (sigma) together
-  !and uses precalculated constant terms. Leads to more memory usage than
+  !and uses precalculated constant terms. Leads to more memory usage than 
   !original version but can be significantly faster (~50%)
   subroutine get_source_term_opt &
        (phi, apar, bpar, phinew, aparnew, bparnew, istep, &
         iglo,ik,it,il,ie,is, sourcefac, source)
-!#ifdef LOWFLOW
+#ifdef LOWFLOW
     use dist_fn_arrays, only: hneoc, vparterm, wdfac, wstarfac, wdttpfac
-!#endif
+#endif
     use dist_fn_arrays, only: aj0, aj1, vperp2, g, ittp
     use theta_grid, only: ntgrid
     use kt_grids, only: aky
@@ -5105,7 +5041,6 @@ endif
     use gs2_time, only: dt0 => code_dt, dt1 => code_dt_prev1, dt2 => code_dt_prev2
     use nonlinear_terms, only: nonlin
     use constants, only: zi
-    use lowflow, only: use_lowflow
     implicit none
     complex, dimension (-ntgrid:,:,:), intent (in) :: phi,    apar,    bpar
     complex, dimension (-ntgrid:,:,:), intent (in) :: phinew, aparnew, bparnew
@@ -5118,7 +5053,7 @@ endif
 
     real :: c0, c1, c2
 
-    ! NRM, 3/18/2015
+    ! NRM, 3/18/2015 
     ! calculate AB3 coefficients generalized to changing timestep
     ! see Tatsuno & Dorland, Physics of Plasmas 13, 092107 (2006)
     ! http://www.cscamm.umd.edu/publications/TatsunoDorland-PoP06_CS-06-11.pdf
@@ -5170,26 +5105,26 @@ endif
           end if
        end select
     enddo
-
+       
     ! Do matrix multiplications
     if (il <= lmax) then
        do ig = -ntgrid, ntgrid-1
           source(ig,1) = source(ig,1) &
                + b(ig,1,iglo)*g(ig,1,iglo) + a(ig,1,iglo)*g(ig+1,1,iglo)
        end do
-!CMR, 21/7/2014: removed redundant line here:    source(ntgrid,1)=source(-ntgrid,1)
+!CMR, 21/7/2014: removed redundant line here:    source(ntgrid,1)=source(-ntgrid,1) 
 !                as source(ntgrid,1) should never be used.
        do ig = -ntgrid, ntgrid-1
           source(ig,2) = source(ig,2) &
                + a(ig,2,iglo)*g(ig,2,iglo) + b(ig,2,iglo)*g(ig+1,2,iglo)
        end do
-!CMR, 21/7/2014: removed redundant line here:    source(ntgrid,2)=source(-ntgrid,2)
+!CMR, 21/7/2014: removed redundant line here:    source(ntgrid,2)=source(-ntgrid,2) 
 !                as source(ntgrid,2) should never be used.
     end if
 
     ! special source term for totally trapped particles (isgn=2 only)
 
-!CMR, 13/10/2014:
+!CMR, 13/10/2014: 
 ! Upper limit of following loops setting source changed from ntgrid to ntgrid-1
 ! Source allocated as: source(-ntgrid:ntgrid-1,2), so ntgrid is out of bounds.
 
@@ -5199,41 +5134,32 @@ endif
        if (nlambda > ng2) then
           do ig = -ntgrid, ntgrid-1
              if (il < ittp(ig)) cycle
-             if(use_lowflow) then
              source(ig,isgn) &
                   = g(ig,2,iglo)*a(ig,2,iglo) &
-!#ifdef LOWFLOW
+#ifdef LOWFLOW
                   - anon(ie)*zi*(wdttpfac(ig,it,ik,ie,is,2)*hneoc(ig,2,iglo))*phigavg(ig) &
                   + zi*wstar(ik,ie,is)*hneoc(ig,2,iglo)*phigavg(ig)
-!#else
-          else
-            source(ig,isgn) &
-                 = g(ig,2,iglo)*a(ig,2,iglo) &
+#else
                   - anon(ie)*zi*(wdriftttp(ig,it,ik,ie,is,2))*phigavg(ig) &
                   + zi*wstar(ik,ie,is)*phigavg(ig)
-          end if
-!#endif
+#endif             
           end do
-
+             
           if (source_option_switch == source_option_phiext_full .and. &
                aky(ik) < epsilon(0.0)) then
              do ig = -ntgrid, ntgrid-1
-                if (il < ittp(ig)) cycle
-                if(use_lowflow) then
+                if (il < ittp(ig)) cycle             
                 source(ig,isgn) = source(ig,isgn) - zi*anon(ie)* &
-!#ifdef LOWFLOW
+#ifdef LOWFLOW
                      wdttpfac(ig,it,ik,ie,is,isgn)*2.0*phi_ext*sourcefac*aj0(ig,iglo)
-!#else
-              else
-                source(ig,isgn) = source(ig,isgn) - zi*anon(ie)* &
+#else
                      wdriftttp(ig,it,ik,ie,is,isgn)*2.0*phi_ext*sourcefac*aj0(ig,iglo)
-              end if
-!#endif
+#endif
              end do
           endif
 
-          ! add in nonlinear terms
-          if (nonlin) then
+          ! add in nonlinear terms 
+          if (nonlin) then         
              select case (istep)
              case (0)
                 ! nothing
@@ -5242,7 +5168,7 @@ endif
                    if (il < ittp(ig)) cycle
                    source(ig,isgn) = source(ig,isgn) + 0.5*code_dt*gexp_1(ig,isgn,iglo)
                 end do
-             case (2)
+             case (2) 
                 do ig = -ntgrid, ntgrid-1
                    if (il < ittp(ig)) cycle
                    source(ig,isgn) = source(ig,isgn) + 0.5*code_dt*( &
@@ -5255,7 +5181,7 @@ endif
                 !        (23./12.)*gexp_1(ig,isgn,iglo) &
                 !        - (4./3.)  *gexp_2(ig,isgn,iglo) &
                 !        + (5./12.) *gexp_3(ig,isgn,iglo))
-    ! NRM, 3/18/2015
+    ! NRM, 3/18/2015 
     ! use AB3 generalized to changing timestep
                  source(ig,isgn) = source(ig,isgn) + 0.5*( &
                           c0*gexp_1(ig,isgn,iglo) &
@@ -5286,9 +5212,9 @@ endif
             phi_m = phigavg(ig+1)-phigavg(ig)
             ! RN> bdfac factors seem missing for apar_p
             apar_p = apargavg(ig+1)+apargavg(ig)
-            apar_m = aparnew(ig+1,it,ik)+aparnew(ig,it,ik) &
+            apar_m = aparnew(ig+1,it,ik)+aparnew(ig,it,ik) & 
                  -apar(ig+1,it,ik)-apar(ig,it,ik)
-
+            
             source(ig,isgn)=phi_m*source_coeffs(1,ig,isgn,iglo)+&
                  phi_p*source_coeffs(2,ig,isgn,iglo)+&
                  apar_m*source_coeffs(3,ig,isgn,iglo)+&
@@ -5298,14 +5224,14 @@ endif
          do ig = -ntgrid, ntgrid-1
             phi_p = bdfac_p*phigavg(ig+1)+bdfac_m*phigavg(ig)
             phi_m = phigavg(ig+1)-phigavg(ig)
-
+            
             source(ig,isgn)=phi_m*source_coeffs(1,ig,isgn,iglo)+&
                  phi_p*source_coeffs(2,ig,isgn,iglo)
          end do
       endif
 
-! add in nonlinear terms
-      if (nonlin) then
+! add in nonlinear terms 
+      if (nonlin) then         
          select case (istep)
          case (0)
             ! nothing
@@ -5313,7 +5239,7 @@ endif
             do ig = -ntgrid, ntgrid-1
                source(ig,isgn) = source(ig,isgn) + 0.5*code_dt*gexp_1(ig,isgn,iglo)
             end do
-         case (2)
+         case (2) 
             do ig = -ntgrid, ntgrid-1
                source(ig,isgn) = source(ig,isgn) + 0.5*code_dt*( &
                     1.5*gexp_1(ig,isgn,iglo) - 0.5*gexp_2(ig,isgn,iglo))
@@ -5324,7 +5250,7 @@ endif
             !          (23./12.)*gexp_1(ig,isgn,iglo) &
             !        - (4./3.)  *gexp_2(ig,isgn,iglo) &
             !        + (5./12.) *gexp_3(ig,isgn,iglo))
-    ! NRM, 3/18/2015
+    ! NRM, 3/18/2015 
     ! use AB3 generalized to changing timestep
                  source(ig,isgn) = source(ig,isgn) + 0.5*( &
                           c0*gexp_1(ig,isgn,iglo) &
@@ -5381,7 +5307,7 @@ endif
        if (tertiary .and. ik == 1) then
           if (it == 2 .or. it == ntheta0) return ! do not evolve periodic equilibrium
        end if
-       if (harris .and. ik == 1) return ! do not evolve primary mode
+       if (harris .and. ik == 1) return ! do not evolve primary mode       
     end if
 
     il = il_idx(g_lo,iglo)
@@ -5399,7 +5325,7 @@ endif
     endif
 
 !CMR, 17/4/2012:
-!  use_pass_homog = T  iff one of following applies:
+!  use_pass_homog = T  iff one of following applies:   
 !                 boundary_option_self_periodic
 !     OR          boundary_option_linked
 !     OR          aky=0
@@ -5431,7 +5357,7 @@ endif
 !   ONLY implies zero incoming particles in nonadiabatic delta f if phi=bpar=0
 ! Here ensure ZERO incoming particles in nonadiabatic delta f at domain ends
 !  (exploits code used in subroutine g_adjust to transform g_wesson to g_gs2)
-    if ( nonad_zero ) then
+    if ( nonad_zero ) then 
        if (il <= ng2) then
           !Only apply the new boundary condition to the leftmost
           !cell for sign going from left to right
@@ -5482,7 +5408,7 @@ endif
 !      -- g2 = 0 for all passing particles
 !      -- g2 = 0 for wfb as forbid always false
 !      -- g2 = 0 for ttp too
-! g2 NOT used for totally trapped particles at il=nlambda
+! g2 NOT used for totally trapped particles at il=nlambda 
 
 ! NB with trapped particles lmax=nlambda-1, and ttp is at il=nlambda
 
@@ -5530,7 +5456,7 @@ endif
     ! First set BCs for trapped particles at lower bounce point
     ! (excluding wfb and ttp)
 
-!CMR, 17/4/2012: ng2+1< il <=lmax excludes wfb,ttp
+!CMR, 17/4/2012: ng2+1< il <=lmax excludes wfb,ttp 
     if (nlambda > ng2 .and. il > ng2+1 .and. il <= lmax) then
        ! match boundary conditions at lower bounce point
        do ig = -ntgrid, ntgrid-1
@@ -5538,12 +5464,12 @@ endif
 !CMR, 17/4/2012: set g2=(ig+1,1) = g1(ig+1,2) where ig+1 is LOWER bounce point
 !     (previously g2 was set to 1 at ig just LEFT of lower bounce point
 !      but this was handled consistently in integration of g1)
-!
+!  
              g2(ig+1,1) = g1(ig+1,2)
-!CMR: init_invert_rhs  sets ainv=1 at lower bounce point for trapped
+!CMR: init_invert_rhs  sets ainv=1 at lower bounce point for trapped 
 !     source below ensures gnew(lb,1,iglo)=gnew(lb,2,iglo)
 !     where lb is the lower bounce point.
-             source(ig,1) = gnew(ig+1,2,iglo)
+             source(ig,1) = gnew(ig+1,2,iglo)  
           end if
        end do
     end if
@@ -5555,7 +5481,7 @@ endif
        end do
     end if
 
-    ! BD: Are there ever totally trapped particles at ig = ntgrid?
+    ! BD: Are there ever totally trapped particles at ig = ntgrid? 
     ! balancing totally trapped particles
     do ig = -ntgrid, ntgrid
        if (il >= ittp(ig)) then
@@ -5575,31 +5501,31 @@ endif
        end do
     end if
 
-!CMR, 17/4/2012:
+!CMR, 17/4/2012:  
 ! self_periodic bc is applied as follows:
 ! if boundary_option_linked = .T.
-!      isolated wfb (ie no linked domains)
+!      isolated wfb (ie no linked domains) 
 !      passing + wfb if aky=0
 ! else (ie boundary_option_linked = .F.)
-!      wfb
+!      wfb 
 !      passing and wfb particles if boundary_option_self_periodic = T
 !
 !CMR, 6/8/2014:
 ! Parallel BC for wfb is as follows:
-!    ballooning space
+!    ballooning space 
 !           wfb ALWAYS self-periodic (-ntgrid:ntgrid)
-!    linked fluxtube
-!           wfb self-periodic (-ntgrid:ntgrid) ONLY if ISOLATED,
+!    linked fluxtube  
+!           wfb self-periodic (-ntgrid:ntgrid) ONLY if ISOLATED, 
 !                                               OR if iky=0
 !           OTHERWISE wfb treated as passing for now in (-ntgrid:ntgrid)
-!                     store homogeneous and inhomog solutions
-!                     AND set amplitude of homog later in invert_rhs_linked
+!                     store homogeneous and inhomog solutions 
+!                     AND set amplitude of homog later in invert_rhs_linked 
 !                     to satisfy self-periodic bc in fully linked SUPER-CELL
 
     if (boundary_option_switch == boundary_option_linked) then
        if (speriod_flag .and. il <= ng2+1) then
           call self_periodic
-       else
+       else 
        ! save homogeneous solution as necessary
           if (save_h (1, iglo)) g_h(:,1,iglo) = g1(:,1)
           if (save_h (2, iglo)) g_h(:,2,iglo) = g1(:,2)
@@ -5609,7 +5535,7 @@ endif
        if (il == ng2+1 .and. .not. connections(iglo)%neighbor) &
             call self_periodic
 
-    else
+    else       
        ! add correct amount of homogeneous solution now
        if (use_pass_homog .and. il <= ng2+1) then
           call self_periodic
@@ -5620,8 +5546,8 @@ endif
     end if
 
     ! add correct amount of homogeneous solution for trapped particles to satisfy boundary conditions
-!CMR, 24/7/2014:
-!Revert to looping from il>= ng2+2, i.e. exclude wfb as:
+!CMR, 24/7/2014:  
+!Revert to looping from il>= ng2+2, i.e. exclude wfb as: 
 !          (1) wfb bc is already handled above
 !          (2) forbid never true for wfb, so including ng2+1 in loop is pointless.
     if (il >= ng2+2 .and. il <= lmax) then
@@ -5641,10 +5567,10 @@ endif
 
     if (def_parity) call enforce_parity(parity_redist)
 
-!CMR,DD, 25/7/2014:
+!CMR,DD, 25/7/2014: 
 ! Not keen on following kludge zeroing forbidden region
 ! Introduced new flag: zero_forbid defaults to .false.
-!  Tested and default is fine linearly, expect should work nonlinearly,
+!  Tested and default is fine linearly, expect should work nonlinearly, 
 !  (Can easily restore old behaviour by setting: zero_forbid=.true.)
     ! zero out spurious gnew outside trapped boundary
 if(zero_forbid)then
@@ -5660,7 +5586,7 @@ endif
     subroutine self_periodic
 !CMR: sets sum of homogeneous and inhomogeneous solutions to give a result
 !     gnew(ntgr,2) = gnew(ntgl,2)
-!     gnew(ntgr,1) = gnew(ntgl,1)
+!     gnew(ntgr,1) = gnew(ntgl,1) 
 ! ie periodic bcs at the ends of the flux tube.
 
 !CMR, 25/7/2014:
@@ -5669,12 +5595,12 @@ endif
 ! adding adjr, adjl to cope with application of self-periodic to WFB
 !   dadj=adjl-adjr will be ZERO for ky=0 modes, but NOT for WFB.
 ! This change sets g_wesson (or h) to be self-periodic for wfb, not g !!!
-! NB this code change will implement this only in ballooning space,
+! NB this code change will implement this only in ballooning space, 
 ! and not in a linked fluxtube.
       implicit none
       complex :: adjl, adjr, dadj
 
-      if (il .eq. ng2+1) then
+      if (il .eq. ng2+1) then 
          adjl = anon(ie)*2.0*vperp2(ntgl,iglo)*aj1(ntgl,iglo) &
               *bparnew(ntgl,it,ik)*fbpar &
               + spec(is)%z*anon(ie)*phinew(ntgl,it,ik)*aj0(ntgl,iglo) &
@@ -5684,7 +5610,7 @@ endif
               + spec(is)%z*anon(ie)*phinew(ntgr,it,ik)*aj0(ntgr,iglo) &
               /spec(is)%temp*fphi
          dadj = adjl-adjr
-      else
+      else 
          dadj = cmplx(0.0,0.0)
       endif
 
@@ -5697,7 +5623,7 @@ endif
          beta1 = (gnew(ntgl,2,iglo) - gnew(ntgr,2,iglo) + dadj)/(1.0 - g1(ntgl,2))
          gnew(:,2,iglo) = gnew(:,2,iglo) + beta1*g1(:,2)
       end if
-
+      
     end subroutine self_periodic
 
   end subroutine invert_rhs_1
@@ -5741,7 +5667,7 @@ endif
 
     if (no_comm) then
        ! nothing
-    else
+    else       
        g_adj = 0. !This shouldn't be needed
        !<DD>Note these fill routines are often equivalent to an all-to-all type
        !communication, i.e. when nproc --> 2 nproc, t_fill --> 4 t_fill
@@ -5773,7 +5699,7 @@ endif
 !                     at the extreme left and right of the supercell
 !(2) dadj=adjl-adjr then used to apply the self-periodic bc to g_wesson
 !    (was previously applied to g)
-!
+!      
              vperp2left = bmag(-ntgrid)*al(il)*energy(ie)
              vperp2right = bmag(ntgrid)*al(il)*energy(ie)
              itl=get_leftmost_it(it,ik)
@@ -5806,15 +5732,15 @@ endif
 !  j=1:ncell : inhom sol'n at -ntgrid in cell j from LEFT for LP
 !  j=ncell+1:2ncell : hom sol'n at -ntgrid in cell (2ncell+1-j) from LEFT for LP
 !
-!  facd= 1/(1-\Prod_{j=1,ncell} h^r_j)  (see CMR Parallel BC note)
+!  facd= 1/(1-\Prod_{j=1,ncell} h^r_j)  (see CMR Parallel BC note)    
 !    where h^r_j is the homogeneous exit solution from cell j for RP
-!
+!                      
                 facd = 1.0
                 do j = 1, ncell
                    facd = facd * g_adj(ncell+j,1,iglo)
                 end do
                 facd = 1./(1.-facd)
-
+                
                 b0 = 0.
 
 ! i labels cell counting from LEFTmost cell.
@@ -5833,12 +5759,12 @@ endif
                 b0 = (b0 + g_adj(1,1,iglo)-dadj)*facd
 
 ! BUT we NEED homog amplitude in THIS cell.
-! Solve matrix BC equation by cascading homog amplitude, b0, rightwards
+! Solve matrix BC equation by cascading homog amplitude, b0, rightwards 
 !        from leftmost cell to THIS cell.
 
                 do i = 1, l_links(ik, it)
-!  Loop implements cascade to right, using CMR note equ'n:
-!           a^r_{j+1} = a^r_j h^r_j + i^r_j
+!  Loop implements cascade to right, using CMR note equ'n:  
+!           a^r_{j+1} = a^r_j h^r_j + i^r_j 
 
                    b0 = b0 * g_adj(ncell+i,1,iglo) + g_adj(ncell+1-i,1,iglo)
                 end do
@@ -5856,7 +5782,7 @@ endif
                    facd = facd * g_adj(ncell+j,2,iglo)
                 end do
                 facd = 1./(1.-facd)
-
+                
                 b0 = 0.
                 do i = 1, ncell-1
                    fac = 1.0
@@ -5870,12 +5796,12 @@ endif
                 do i = 1, r_links(ik, it)
                    b0 = b0 * g_adj(ncell+i,2,iglo) + g_adj(ncell+1-i,2,iglo)
                 end do
-
+                
                 gnew(:,2,iglo) = gnew(:,2,iglo) + b0*g_h(:,2,iglo)
              end if
           else
 !
-! n_links is the number of complex numbers required to fix the boundary
+! n_links is the number of complex numbers required to fix the boundary 
 ! conditions in each cell that is a member of a supercell with at least two
 ! cells, and for which the bounce point is not at theta=pi.
 !
@@ -5889,7 +5815,7 @@ endif
                    end do
                    b0 = b0 + g_adj(i,1,iglo) * fac
                 end do
-
+                
                 gnew(:,1,iglo) = gnew(:,1,iglo) + b0*g_h(:,1,iglo)
              end if
 
@@ -5903,13 +5829,13 @@ endif
                    end do
                    b0 = b0 + g_adj(i,2,iglo) * fac
                 end do
-
+                
                 gnew(:,2,iglo) = gnew(:,2,iglo) + b0*g_h(:,2,iglo)
              end if
           end if
 
        end do
-
+       
     end if
 
   end subroutine invert_rhs_linked
@@ -5947,7 +5873,7 @@ endif
     select case (boundary_option_switch)
     case (boundary_option_linked)
        call invert_rhs_linked &
-            (phi, apar, bpar, phinew, aparnew, bparnew, istep, sourcefac)
+            (phi, apar, bpar, phinew, aparnew, bparnew, istep, sourcefac) 
     case default
        do iglo = g_lo%llim_proc, g_lo%ulim_proc
           call invert_rhs_1 (phi, apar, bpar, phinew, aparnew, bparnew, &
@@ -6055,7 +5981,7 @@ endif
              end do
           end do
        end do
-
+       
        wgt = 2.0*beta*spec%z*spec%dens*sqrt(spec%temp/spec%mass)
        call integrate_species (g0, wgt, antota)
 !    if (kfilter > epsilon(0.0)) call par_filter(antota)
@@ -6111,14 +6037,14 @@ endif
 ! use g0 as dist_fn dimensioned working space for all moments
 ! (avoid making more copies of gnew to save memory!)
 !
-! set gnew = g_wesson, but return gnew to entry state prior to exit
+! set gnew = g_wesson, but return gnew to entry state prior to exit 
     call g_adjust(gnew,phinew,bparnew,fphi,fbpar)
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 ! integrate moments over the nonadiabatic part of <delta_f>
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
-! set g0= J0 g_wesson = nonadiabatic piece of <delta_f>/F_m
+! set g0= J0 g_wesson = nonadiabatic piece of <delta_f>/F_m 
     do iglo = g_lo%llim_proc, g_lo%ulim_proc
        ie = ie_idx(g_lo,iglo) ; is = is_idx(g_lo,iglo)
        ik = ik_idx(g_lo,iglo) ; it = it_idx(g_lo,iglo)
@@ -6128,11 +6054,11 @@ endif
     end do
 
 ! CMR: density is the nonadiabatic piece of perturbed density
-! NB normalised wrt equ'm density for species s: n_s n_ref
+! NB normalised wrt equ'm density for species s: n_s n_ref  
 !    ie multiply by (n_s n_ref) to get abs density pert'n
     call integrate_moment (g0, density,  moment_to_allprocs, full_arr)
 
-! DJA/CMR: upar and tpar moments
+! DJA/CMR: upar and tpar moments 
 ! (nb adiabatic part of <delta f> does not contribute to upar, tpar or tperp)
 ! NB UPAR is normalised to vt_s = sqrt(T_s/m_s) vt_ref
 !    ie multiply by spec(is)%stm * vt_ref to get abs upar
@@ -6141,10 +6067,10 @@ endif
 
     g0 = 2.*vpa*g0
     call integrate_moment (g0, tpar,  moment_to_allprocs, full_arr)
-! tpar transiently stores ppar, nonadiabatic perturbed par pressure
+! tpar transiently stores ppar, nonadiabatic perturbed par pressure 
 !      vpa normalised to: sqrt(2 T_s T_ref/m_s m_ref)
-!  including factor 2 in g0 product ensures
-!     ppar normalised to: n_s T_s n_ref T_ref
+!  including factor 2 in g0 product ensures 
+!     ppar normalised to: n_s T_s n_ref T_ref 
 !                         ppar = tpar + density, and so:
     tpar = tpar - density
     do iglo = g_lo%llim_proc, g_lo%ulim_proc
@@ -6166,11 +6092,11 @@ endif
        do isgn = 1, 2
           g0(:,isgn,iglo) = vpa(:,isgn,iglo)*gnew(:,isgn,iglo)*aj0(:,iglo)*energy(ie_idx(g_lo,iglo))
        end do
-    end do
+    end do 
     call integrate_moment (g0, qparflux,  moment_to_allprocs, full_arr)
-
+   
 ! Now compute PPERPJ1, a modified p_perp which gives particle flux from Bpar
-! NB PPERPJ1 is normalised to (n_s T_s/q_s)  n_ref T_ref/q_ref
+! NB PPERPJ1 is normalised to (n_s T_s/q_s)  n_ref T_ref/q_ref 
 !    ie multiply by (n_s spec(is)%tz) n_ref T_ref/q_ref to get abs PPERPJ1
     do iglo = g_lo%llim_proc, g_lo%ulim_proc
        is = is_idx(g_lo,iglo)
@@ -6239,14 +6165,14 @@ endif
     integer :: ik, it, isgn, ie, is, iglo, ig, iz, index_gryfx
     complex*8, dimension(:), intent(out) :: density_gryfx, upar_gryfx, &
          tpar_gryfx, tperp_gryfx, qpar_gryfx, qperp_gryfx
-    complex*8, dimension(:), intent(out) :: phi_gryfx
+    complex*8, dimension(:), intent(out) :: phi_gryfx       
     complex, dimension(:,:,:,:), allocatable :: total
 
     !real :: densfac_lin, uparfac_lin, tparfac_lin, tprpfac_lin, qparfac_lin, qprpfac_lin, phifac_lin
 
     allocate(total(-ntgrid:ntgrid,ntheta0,naky,nspec))
-
-    ! gryfx uses vt=sqrt(T/m) normalization,
+   
+    ! gryfx uses vt=sqrt(T/m) normalization, 
     ! so vt_gs2 = sqrt(2T/m) = sqrt(2) vt_gryfx.
     ! since vpa and vperp2 are normalized to vt_gs2, below we multiply by
     ! factors of sqrt(2) to get vpa and vperp2 in gryfx units before taking
@@ -6255,7 +6181,7 @@ endif
     ! vperp2_gryfx = 2 vperp2
 
     ! dens = < f >
-    g0 = gnew
+    g0 = gnew 
     call integrate_moment (g0, total)
     if(proc0) then
     do ig = -ntgrid, ntgrid-1
@@ -6274,7 +6200,7 @@ endif
     end if
 
     ! upar = < (vpar/vt_gryfx) f > = < ( sqrt(2) vpar/vt_gs2 ) f > = upar1/vt_gryfx
-    g0 = sqrt(2.)*vpa*gnew
+    g0 = sqrt(2.)*vpa*gnew  
     call integrate_moment (g0, total)
     if(proc0) then
     do ig = -ntgrid, ntgrid-1
@@ -6333,7 +6259,7 @@ endif
     ! tprp = < ( 1/2 vprp/vt_gryfx^2 - 1 ) f > = tprp1/T_0
     do iglo = g_lo%llim_proc, g_lo%ulim_proc
        do isgn = 1, 2
-          g0(:,isgn,iglo) = (vperp2(:,iglo)-1.)*gnew(:,isgn,iglo)
+          g0(:,isgn,iglo) = (vperp2(:,iglo)-1.)*gnew(:,isgn,iglo) 
        end do
     end do
     call integrate_moment (g0, total)
@@ -6372,9 +6298,9 @@ endif
     end do
     end if
 
-    ! we also must account for the overall a/rho_i factor on all quantities.
+    ! we also must account for the overall a/rho_i factor on all quantities. 
     ! so we multiply all moments and phi by an additional factor of sqrt(2)
-    if(proc0 ) then
+    if(proc0 ) then 
       ! normalize to gryfx units
       density_gryfx = sqrt(2.)*density_gryfx
       upar_gryfx = sqrt(2.)*upar_gryfx
@@ -6383,7 +6309,7 @@ endif
       qpar_gryfx = sqrt(2.)*qpar_gryfx
       qperp_gryfx = sqrt(2.)*qperp_gryfx
     endif
-
+      
 
     if(proc0) then
     do ig = -ntgrid, ntgrid-1
@@ -6421,7 +6347,7 @@ endif
       do isgn = 1, 2
         do ig = -ntgrid, ntgrid
           g0(ig,isgn,iglo) = hermite_prob(l, sqrt(2.0)*vpa(ig,isgn,iglo)) * &
-                        laguerre_norm(m, vperp2(ig,iglo)) * gnew(ig,isgn,iglo)
+                        laguerre_norm(m, vperp2(ig,iglo)) * gnew(ig,isgn,iglo) 
         end do
       end do
     end do
@@ -6454,14 +6380,14 @@ endif
 ! Electrostatically (for simplicity), g_adjust produces:
 !
 ! h = g_gs2 + q <phi> / T
-!
+! 
 ! then in the subsequent code they calculate for ntot:
 !
 ! ntot = integral[   J0 h - q phi / T  ]
 !
-! so g_wesson == h.  What is odd in our notation is the LHS.
-! We typically indicate the perturbed distribution at fixed spatial position
-! by delta_f.  In the note below, they must mean delta_f = delta_f (R), so that
+! so g_wesson == h.  What is odd in our notation is the LHS.  
+! We typically indicate the perturbed distribution at fixed spatial position 
+! by delta_f.  In the note below, they must mean delta_f = delta_f (R), so that 
 ! they are gyro-averaging to get the distribution at fixed spatial position.
 !
 ! In summary, DJA and CMR are calculating the moments at fixed spatial position
@@ -6476,10 +6402,10 @@ endif
 ! use g0 as dist_fn dimensioned working space for all moments
 ! (avoid making more copies of gnew to save memory!)
 !
-! set gnew = g_wesson, but return gnew to entry state prior to exit
+! set gnew = g_wesson, but return gnew to entry state prior to exit 
     call g_adjust(gnew, phinew, bparnew, fphi, fbpar)
 
-    do iglo = g_lo%llim_proc, g_lo%ulim_proc
+    do iglo = g_lo%llim_proc, g_lo%ulim_proc       
        ie = ie_idx(g_lo,iglo) ; is = is_idx(g_lo,iglo)
        ik = ik_idx(g_lo,iglo) ; it = it_idx(g_lo,iglo)
        do isgn = 1, 2
@@ -6491,7 +6417,7 @@ endif
     call integrate_moment (g0, ntot,  moment_to_allprocs, full_arr)
 
 ! vperp**2 moment:
-    do iglo = g_lo%llim_proc, g_lo%ulim_proc
+    do iglo = g_lo%llim_proc, g_lo%ulim_proc       
        ie = ie_idx(g_lo,iglo) ; is = is_idx(g_lo,iglo)
        ik = ik_idx(g_lo,iglo) ; it = it_idx(g_lo,iglo)
        do isgn = 1, 2
@@ -6502,7 +6428,7 @@ endif
 ! total perturbed perp pressure
     call integrate_moment (g0, tperp,  moment_to_allprocs, full_arr)
 
-! tperp transiently stores pperp,
+! tperp transiently stores pperp, 
 !       pperp = tperp + density, and so:
     tperp = tperp - ntot
 
@@ -6516,7 +6442,7 @@ endif
 
     call prof_leaving ("getemoms", "dist_fn")
   end subroutine getemoms
-
+  
   ! moment at not guiding center coordinate
   subroutine getmoms_notgc (phinew, bparnew, dens, upar, tpar, tper, ntot, jpar)
     use dist_fn_arrays, only: vpa, vperp2, aj0, aj1, gnew
@@ -6591,7 +6517,7 @@ endif
     end do
 
     call integrate_moment (g0, tpar,  moment_to_allprocs,full_arr)
-
+    
 ! not guiding center tperp
     do iglo = g_lo%llim_proc, g_lo%ulim_proc
        do isgn = 1, 2
@@ -6679,7 +6605,7 @@ endif
     if (adiabatic_option_switch == adiabatic_option_fieldlineavg) then
        allocate (gamtot3(-ntgrid:ntgrid,ntheta0,naky))
     endif
-
+    
     do iglo = g_lo%llim_proc, g_lo%ulim_proc
        ie = ie_idx(g_lo,iglo)
        is = is_idx(g_lo,iglo)
@@ -6690,7 +6616,7 @@ endif
     wgt = spec%z*spec%z*spec%dens/spec%temp
     call integrate_species (g0, wgt, tot)
     gamtot = real(tot) + kperp2*poisfac
-
+    
     do iglo = g_lo%llim_proc, g_lo%ulim_proc
        ie = ie_idx(g_lo,iglo)
        is = is_idx(g_lo,iglo)
@@ -6702,7 +6628,7 @@ endif
     wgt = spec%z*spec%dens
     call integrate_species (g0, wgt, tot)
     gamtot1 = real(tot)
-
+    
     do iglo = g_lo%llim_proc, g_lo%ulim_proc
        ie = ie_idx(g_lo,iglo)
        is = is_idx(g_lo,iglo)
@@ -6721,7 +6647,7 @@ endif
        call ensure_single_val_fields_pass_r(gamtot2)
     endif
 
-! adiabatic electrons
+! adiabatic electrons 
     if (.not. has_electron_species(spec)) then
        if (adiabatic_option_switch == adiabatic_option_yavg) then
           do ik = 1, naky
@@ -6732,7 +6658,7 @@ endif
           gamtot3 = (gamtot-tite) / gamtot
           where (gamtot3 < 2.*epsilon(0.0)) gamtot3 = 1.0
        else
-          gamtot = gamtot + tite
+          gamtot = gamtot + tite 
        endif
     endif
   end subroutine init_fieldeq
@@ -6751,15 +6677,15 @@ endif
 
     integer :: ik, it
 !    logical :: first = .true.
-
+    
 !    if (first) allocate (fl_avg(ntheta0, naky))
     if (.not. allocated(fl_avg)) allocate (fl_avg(ntheta0, naky))
     fl_avg = 0.
 
     if (.not. has_electron_species(spec)) then
        if (adiabatic_option_switch == adiabatic_option_fieldlineavg) then
-
-!          if (first) then
+          
+!          if (first) then 
           if (.not. allocated(awgt)) then
              allocate (awgt(ntheta0, naky))
              awgt = 0.
@@ -6770,7 +6696,7 @@ endif
                 end do
              end do
           endif
-
+           
           do ik = 1, naky
              do it = 1, ntheta0
                 fl_avg(it,ik) = tite*sum(delthet*jacob*antot(:,it,ik)/gamtot(:,it,ik))*awgt(it,ik)
@@ -6785,7 +6711,7 @@ endif
     end if
 
     if (fphi > epsilon(0.0)) then
-       fieldeq = antot + bpar*gamtot1 - gamtot*gridfac1*phi
+       fieldeq = antot + bpar*gamtot1 - gamtot*gridfac1*phi 
 
        if (.not. has_electron_species(spec)) then
           do ik = 1, naky
@@ -6889,7 +6815,7 @@ endif
                 end do
              end do
           endif
-
+           
           do ik = 1, naky
              do it = 1, ntheta0
                 if(kwork_filter(it,ik)) cycle
@@ -6900,8 +6826,8 @@ endif
     end if
 
     if (fphi > epsilon(0.0)) then
-!       fieldeq = antot + bpar*gamtot1 - gamtot*gridfac1*phi
-       fieldeq = antot - gamtot*gridfac1*phi
+!       fieldeq = antot + bpar*gamtot1 - gamtot*gridfac1*phi 
+       fieldeq = antot - gamtot*gridfac1*phi 
        if(fbpar.gt.epsilon(0.0)) fieldeq=fieldeq + bpar*gamtot1
 
        if (.not. has_electron_species(spec)) then
@@ -7056,9 +6982,9 @@ endif
 
   end subroutine check_getan
 
-  !AJ getan_nogath has been substantially changed to enable gf_lo field calculations, it can now operate in
+  !AJ getan_nogath has been substantially changed to enable gf_lo field calculations, it can now operate in 
   !AJ 2 modes; using the standard integrate_species (integrate_species_sub in le_grids) when called from
-  !AJ fields_local and gf_lo_integrate is false (which is teh default, or doing the integrate in place when
+  !AJ fields_local and gf_lo_integrate is false (which is teh default, or doing the integrate in place when 
   !AJ called from fields_gf_local or from fields_local when gf_lo_integrate is true.  Note, if this is called from
   !AJ fields_local and gf_lo_integrate is true then the calculation will be done locally but there is a function
   !AJ called after this has finished in fields_local that sends the data back (from gf_lo to g_lo layouts).
@@ -7100,7 +7026,7 @@ endif
     if (fphi > epsilon(0.0)) then
        !<DD>NOTE: It's possible to rewrite this loop as simply
        !g0=gnew*spread(aj0,2,2)
-       !but this seems to be slower than an explicit loop and
+       !but this seems to be slower than an explicit loop and 
        !the ability to skip certain it/ik values is lost.
 
        wgt = spec%z*spec%dens
@@ -7124,13 +7050,13 @@ endif
          endif
          call integrate_species (g0, wgt, antot, nogath=.true.)
       end if
-
+      
 
       if(gf_lo_integrate) then
          !AJ The code below undertakes the functionality of integrate_species (or specifically integrate_species_gf_nogather from le_grids).
-         !AJ It is possible to call that routine instead of the code below, but the code was brought into here to enable the combinations of the
-         !AJ pre-calculation loop (see the call above where aj0 is multipled by gnew) with the integrate species itself.  This should be more
-         !AJ efficient as we then are only traversing the gf_array once for the integration of this field.  However, the opposite could also have been
+         !AJ It is possible to call that routine instead of the code below, but the code was brought into here to enable the combinations of the 
+         !AJ pre-calculation loop (see the call above where aj0 is multipled by gnew) with the integrate species itself.  This should be more 
+         !AJ efficient as we then are only traversing the gf_array once for the integration of this field.  However, the opposite could also have been 
          !AJ done (i.e. aj0_gf taken into integrate_species) and if that would be cleaner then that refactoring can be done.
          if(any(kwork_filter))then
             do igf = gf_lo%llim_proc,gf_lo%ulim_proc
@@ -7146,7 +7072,7 @@ endif
                    end do
                 end do
              end do
-
+       
           else
              do igf = gf_lo%llim_proc,gf_lo%ulim_proc
                 it = it_idx(gf_lo,igf)
@@ -7195,9 +7121,9 @@ endif
 
        if(gf_lo_integrate) then
           !AJ The code below undertakes the functionality of integrate_species (or specifically integrate_species_gf_nogather from le_grids).
-          !AJ It is possible to call that routine instead of the code below, but the code was brought into here to enable the combinations of the
-          !AJ pre-calculation loop (see the call above where aj0 and vpa are multipled by gnew) with the integrate species itself.  This should be more
-          !AJ efficient as we then are only traversing the gf_array once for the integration of this field.  However, the opposite could also have been
+          !AJ It is possible to call that routine instead of the code below, but the code was brought into here to enable the combinations of the 
+          !AJ pre-calculation loop (see the call above where aj0 and vpa are multipled by gnew) with the integrate species itself.  This should be more 
+          !AJ efficient as we then are only traversing the gf_array once for the integration of this field.  However, the opposite could also have been 
           !AJ done (i.e. aj0_gf and vpa_gf taken into integrate_species) and if that would be cleaner then that refactoring can be done.
           if(any(kwork_filter))then
              do igf = gf_lo%llim_proc,gf_lo%ulim_proc
@@ -7264,9 +7190,9 @@ endif
 
        if(gf_lo_integrate) then
           !AJ The code below undertakes the functionality of integrate_species (or specifically integrate_species_gf_nogather from le_grids).
-          !AJ It is possible to call that routine instead of the code below, but the code was brought into here to enable the combinations of the
-          !AJ pre-calculation loop (see the call above where aj1 and vperp2 are multipled by gnew) with the integrate species itself.  This should be more
-          !AJ efficient as we then are only traversing the gf_array once for the integration of this field.  However, the opposite could also have been
+          !AJ It is possible to call that routine instead of the code below, but the code was brought into here to enable the combinations of the 
+          !AJ pre-calculation loop (see the call above where aj1 and vperp2 are multipled by gnew) with the integrate species itself.  This should be more 
+          !AJ efficient as we then are only traversing the gf_array once for the integration of this field.  However, the opposite could also have been 
           !AJ done (i.e. aj1_gf and vperp2_gf taken into integrate_species) and if that would be cleaner then that refactoring can be done.
           if(any(kwork_filter))then
              do igf = gf_lo%llim_proc,gf_lo%ulim_proc
@@ -7311,7 +7237,7 @@ endif
 !///////////////////////////////////////
 !///////////////////////////////////////
 
-
+  
 ! MAB> ported from agk
 ! TT> Given initial distribution function this obtains consistent fields
 !CMR, 1/8/2011> corrections below for inhomogeneous bmag
@@ -7324,7 +7250,7 @@ endif
     use run_parameters, only: beta, fphi, fapar, fbpar
     use theta_grid, only: ntgrid, bmag
     use kt_grids, only: ntheta0, naky, kperp2
-
+    
     complex, dimension (-ntgrid:,:,:), intent (out) :: phi, apar, bpar
     logical, optional :: gf_lo
     real, dimension (-ntgrid:ntgrid,ntheta0,naky) :: denominator
@@ -7353,7 +7279,7 @@ endif
     ! get phi
     if (fphi > epsilon(0.0)) then
 
-!CMR, 1/8/2011:  bmag corrections here:
+!CMR, 1/8/2011:  bmag corrections here: 
        numerator = (beta * gamtot2 + bmagsp**2) * antot - (beta * gamtot1) * antotp
        denominator = (beta * gamtot2 + bmagsp**2) * gamtot + (beta/2.0) * gamtot1 * gamtot1
 
@@ -7392,16 +7318,16 @@ endif
     end if
 
   end subroutine get_init_field
-
+ 
   subroutine flux (phi, apar, bpar, &
        pflux,  qflux,  vflux, vflux_par, vflux_perp, &
        pmflux, qmflux, vmflux, &
        pbflux, qbflux, vbflux, pflux_tormom)
 
-!CMR, 15/1/08:
-!  Implemented Clemente Angioni's fix for fluxes by replacing g with gnew
+!CMR, 15/1/08: 
+!  Implemented Clemente Angioni's fix for fluxes by replacing g with gnew 
 !  so fields and distribution function are evaluated self-consistently in time.
-!  This fixed unphysical oscillations in non-ambipolar particle fluxes
+!  This fixed unphysical oscillations in non-ambipolar particle fluxes 
 !
     use species, only: spec
     use theta_grid, only: ntgrid, bmag, gradpar, delthet
@@ -7433,7 +7359,7 @@ endif
        pflux = 0.0;   qflux = 0.0;   vflux = 0.0 ; vflux_par = 0.0 ; vflux_perp = 0.0
        pmflux = 0.0;  qmflux = 0.0;  vmflux = 0.0
        pbflux = 0.0;  qbflux = 0.0;  vbflux = 0.0
-       pflux_tormom = 0.0
+       pflux_tormom = 0.0 
     !end if
 
     do ik = 1, naky
@@ -7504,7 +7430,7 @@ endif
           g0(:,:,iglo) = g0(:,:,iglo)*energy(ie_idx(g_lo,iglo))
        end do
        call get_flux (apar, qmflux(:,:,:,1), dnorm)
-
+       
        do iglo = g_lo%llim_proc, g_lo%ulim_proc
           is = is_idx(g_lo,iglo)
           do isgn = 1, 2
@@ -7524,7 +7450,7 @@ endif
           end do
        end do
        call get_flux (apar, qmflux(:,:,:,3), dnorm)
-
+       
        do iglo = g_lo%llim_proc, g_lo%ulim_proc
           is = is_idx(g_lo,iglo)
           do isgn = 1, 2
@@ -7612,7 +7538,7 @@ endif
     ! to the call below for new parallel output
     ! This is temporary until distributed fields
     ! are implemented 1/2014
-    ! DD added full_arr=.true. to ensure all procs get the
+    ! DD added full_arr=.true. to ensure all procs get the 
     ! full array
     call integrate_moment (g0, total, moment_to_allprocs, full_arr)
 
@@ -7678,15 +7604,15 @@ endif
 
   subroutine get_flux_tormom (fld, flx, dnorm) !JPL
     use theta_grid, only: ntgrid
-!#ifdef LOWFLOW
+#ifdef LOWFLOW
     use kt_grids, only: ntheta0, naky
     use le_grids, only: integrate_moment
     use species, only: nspec
     use mp, only: proc0
     use theta_grid, only: rplot, grho
     use kt_grids, only: aky
-    use lowflow, only: mach_lab, use_lowflow
-!#endif
+    use lowflow, only: mach_lab
+#endif
     implicit none
     complex, dimension (-ntgrid:,:,:), intent (in) :: fld
     real, dimension (:,:,:), intent (out) :: flx
@@ -7694,12 +7620,11 @@ endif
 !<DD> Moved directive to here (was previously just around flx= line below)
 !     as if we haven't compiled with LOWFLOW then this routine shouldn't
 !     do anything (integrate_moment is not that cheap).
-!#ifdef LOWFLOW
+#ifdef LOWFLOW 
     complex, dimension (:,:,:,:), allocatable :: total
     real :: wgt
     integer :: ik, it, is
     allocate (total(-ntgrid:ntgrid,ntheta0,naky,nspec))
-    if(use_lowflow) then
     call integrate_moment (g0, total)
 
     if (proc0) then
@@ -7714,10 +7639,9 @@ endif
        end do
        flx = flx*0.5
     end if
-  end if
 
     deallocate (total)
-!#endif
+#endif
   end subroutine get_flux_tormom !JPL
 
   subroutine eexchange (phinew, phi, exchange1, exchange2)
@@ -7764,7 +7688,7 @@ endif
        g0 = 0.
        do iglo = g_lo%llim_proc, g_lo%ulim_proc
           it = it_idx(g_lo,iglo)
-          ik = ik_idx(g_lo,iglo)
+          ik = ik_idx(g_lo,iglo)          
           if (nonlin .and. it==1 .and. ik==1) cycle
           is = is_idx(g_lo,iglo)
           il = il_idx(g_lo,iglo)
@@ -7977,7 +7901,7 @@ endif
     implicit none
     complex, dimension(-ntgrid:,:,:), intent(in) :: phinew
     real, dimension (-ntgrid:,:,:), intent (out) :: vflx
-
+    
     integer :: all = 1
     integer :: iglo, isgn, ig, it, ik, is
 
@@ -8001,7 +7925,7 @@ endif
           end do
        end do
     end do
-
+    
     call integrate_volume (g0r, gavg, all)
     call get_flux_vs_theta_vs_vpa (gavg, vflx)
 
@@ -8011,12 +7935,12 @@ endif
   end subroutine flux_vs_theta_vs_vpa
 
 !=============================================================================
-! JPL: Diagnose particle flux contribution to toroidal momentum flux
-!      in the lab frame in terms of vpar and theta.
+! JPL: Diagnose particle flux contribution to toroidal momentum flux 
+!      in the lab frame in terms of vpar and theta. 
 !=============================================================================
 
   subroutine pflux_vs_theta_vs_vpa (vflx)
-!#ifdef LOWFLOW
+#ifdef LOWFLOW   
     use dist_fn_arrays, only: gnew, aj0
     use gs2_layouts, only: g_lo
     use gs2_layouts, only: it_idx, ik_idx, is_idx
@@ -8026,14 +7950,14 @@ endif
     use le_grids, only: integrate_volume, nlambda, negrid
     use le_grids, only: get_flux_vs_theta_vs_vpa
     use species, only:  nspec
-    use lowflow, only: mach_lab, use_lowflow
-!#endif
+    use lowflow, only: mach_lab    
+#endif
     use theta_grid, only: ntgrid
     implicit none
 
     real, dimension (-ntgrid:,:,:), intent (out) :: vflx
     !This whole routine will return zero when not using lowflow so move directive to here <DD>
-!#ifdef LOWFLOW
+#ifdef LOWFLOW  
     integer :: all = 1
     integer :: iglo, isgn, ig, it, ik, is
 
@@ -8042,32 +7966,28 @@ endif
     allocate (g0r(-ntgrid:ntgrid,2,g_lo%llim_proc:g_lo%ulim_alloc))
     allocate (gavg(-ntgrid:ntgrid,nlambda,negrid,2,nspec))
 
-    if(use_lowflow) then
-
     do iglo = g_lo%llim_proc, g_lo%ulim_proc
        it = it_idx(g_lo,iglo)
        ik = ik_idx(g_lo,iglo)
        is = is_idx(g_lo,iglo)
        do isgn = 1, 2
           do ig = -ntgrid, ntgrid
-             g0(ig,isgn,iglo) = gnew(ig,isgn,iglo)*aj0(ig,iglo)
+             g0(ig,isgn,iglo) = gnew(ig,isgn,iglo)*aj0(ig,iglo) 
 
              g0r(ig,isgn,iglo) = aimag(g0(ig,isgn,iglo)*conjg(phinew(ig,it,ik)))*aky(ik)*Rplot(ig)**2*mach_lab(is)
 
           end do
        end do
     end do
-
+    
     call integrate_volume (g0r, gavg, all)
     call get_flux_vs_theta_vs_vpa (gavg, vflx)
 
     deallocate (gavg)
     deallocate (g0r)
-!#else
-   else
+#else
     vflx=0.
-  end if
-!#endif
+#endif
   end subroutine pflux_vs_theta_vs_vpa
 
 
@@ -8159,9 +8079,9 @@ endif
 !=============================================================================
 ! Density: Calculate Density perturbations
 !=============================================================================
-  !NOTE... this routine is deprecated... its contents have been moved to the
+  !NOTE... this routine is deprecated... its contents have been moved to the 
   ! new diagnostics module and this routine is only needed by the old
-  ! diagnostics module. It is thus scheduled for deletion at some point,
+  ! diagnostics module. It is thus scheduled for deletion at some point, 
   ! unless someone pleads for its life :-) . EGH.
   subroutine get_jext(j_ext)
     use kt_grids, only: ntheta0, naky,aky, kperp2
@@ -8171,17 +8091,17 @@ endif
     implicit none
     !Passed
     !Intent(in) only needed as initialised to zero at top level
-    real, dimension(:,:), intent(in out) ::  j_ext
-    !Local
+    real, dimension(:,:), intent(in out) ::  j_ext 
+    !Local 
     complex, dimension(:,:,:), allocatable :: j_extz
     integer :: ig,ik, it                             !Indices
     real :: fac2                                     !Factor
     real, dimension (:), allocatable :: wgt
-
+    
 
     !Get z-centered j_ext at current time
     allocate (j_extz(-ntgrid:ntgrid, ntheta0, naky)) ; j_extz = 0.
-    call antenna_apar (kperp2, j_extz)
+    call antenna_apar (kperp2, j_extz)       
 
     !Set weighting factor for z-averages
 !    if (proc0) then
@@ -8191,7 +8111,7 @@ endif
        do ig=-ntgrid,ntgrid-1
           wgt(ig) = delthet(ig)*jacob(ig)
        end do
-       wgt = wgt/sum(wgt)
+       wgt = wgt/sum(wgt)         
 !    endif
 
     !Take average over z
@@ -8217,9 +8137,9 @@ endif
     use mp, only: proc0
     use constants, only: zi
     use kt_grids, only: ntheta0, naky, aky, akx, kperp2
-!#ifdef LOWFLOW
+#ifdef LOWFLOW
     use dist_fn_arrays, only: hneoc
-!#endif
+#endif
     use dist_fn_arrays, only: vpac, aj0, aj1, vperp2, g, gnew, g_adjust
     use gs2_heating, only: heating_diagnostics
     use gs2_layouts, only: g_lo, ik_idx, it_idx, is_idx, ie_idx
@@ -8231,7 +8151,6 @@ endif
     use nonlinear_terms, only: nonlin
     use antenna, only: antenna_apar, a_ext_data
     use hyper, only: D_v, D_eta, nexp, hypervisc_filter
-    use lowflow, only: use_lowflow
 
     implicit none
     type (heating_diagnostics), intent(in out) :: h
@@ -8267,7 +8186,7 @@ endif
     call dot (bpar, bparnew, bpardot, fbpar)
 
  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-!!! Next two calls make the variables g, gnew = h, hnew
+!!! Next two calls make the variables g, gnew = h, hnew 
 !!! until the end of this procedure!
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
@@ -8281,23 +8200,23 @@ endif
        if (nonlin .and. it == 1 .and. ik == 1) cycle
        dtinv = 1./(code_dt*tunits(ik))
        do isgn=1,2
-
+          
           do ig=-ntgrid, ntgrid-1
-
+             
              chidot = aj0(ig,iglo)*(phidot(ig,it,ik) &
                   - vpac(ig,isgn,iglo) * spec(is)%stm * apardot(ig,it,ik)) &
                   + aj1(ig,iglo)*2.0*vperp2(ig,iglo)*bpardot(ig,it,ik)*spec(is)%tz
-
+             
              hdot = fdot (g   (ig  ,isgn,iglo), &
                           g   (ig+1,isgn,iglo), &
                           gnew(ig  ,isgn,iglo), &
                           gnew(ig+1,isgn,iglo), dtinv)
-
+             
              havg = favg (g   (ig  ,isgn,iglo), &
                           g   (ig+1,isgn,iglo), &
                           gnew(ig  ,isgn,iglo), &
                           gnew(ig+1,isgn,iglo))
-
+             
 ! First term on RHS and LHS of Eq B-10 of H1:
 
              g0(ig,isgn,iglo) = spec(is)%dens*conjg(havg)* &
@@ -8321,7 +8240,7 @@ endif
 ! delthet is cell-centered, but jacob is given on grid
           wgt(ig) = delthet(ig)*(jacob(ig)+jacob(ig+1))*0.5
        end do
-       wgt = wgt/sum(wgt)
+       wgt = wgt/sum(wgt)         
 
        do is = 1, nspec
           do ik = 1, naky
@@ -8331,7 +8250,7 @@ endif
                 if (nonlin .and. it == 1 .and. ik == 1) cycle
                 do ig = -ntgrid, ntgrid-1
                     hk(it,ik) % heating(is) = hk(it,ik) % heating(is) &
-                        + real(tot(ig,it,ik,is))*wgt(ig)*fac2
+                        + real(tot(ig,it,ik,is))*wgt(ig)*fac2 
                 end do
                 h % heating(is) = h % heating(is) + hk(it,ik) % heating(is)
              end do
@@ -8345,19 +8264,19 @@ endif
     if (proc0) then
 !       allocate (epar (-ntgrid:ntgrid, ntheta0, naky)) ; epar = 0.
        allocate (j_ext(-ntgrid:ntgrid, ntheta0, naky)) ; j_ext = 0.
-       call antenna_apar (kperp2, j_ext)
-
+       call antenna_apar (kperp2, j_ext)       
+       
        if (beta > epsilon(0.)) then
           do ik=1,naky
              fac2 = 0.5
              if (aky(ik) < epsilon(0.0)) fac2 = 1.0
              dtinv = 1./(code_dt*tunits(ik))
              do it = 1,ntheta0
-
+                
                 if (nonlin .and. it == 1 .and. ik == 1) cycle
-
+                
                 do ig=-ntgrid, ntgrid-1
-
+                   
                    !GGH Time and space averaged estimate of d/dt(apar)
                    apar_m = fdot (apar   (ig  ,it,ik), &
                                   apar   (ig+1,it,ik), &
@@ -8393,25 +8312,25 @@ endif
                                     bparnew(ig+1,it,ik)) * fbpar
 
 ! 1/2 * d/dt B**2
-!! GGH: Bug fixed on 2/06; error was in relative weight of B_par**2 and B_perp**2
+!! GGH: Bug fixed on 2/06; error was in relative weight of B_par**2 and B_perp**2   
                    hk(it,ik) % energy_dot = hk(it,ik) % energy_dot + &
                         real(0.25 * conjg(bperp_m)*bperp_avg + conjg(bpar_m)*bpar_avg) &
                         * wgt(ig)*fac2*(2.0/beta)
 
 ! B**2/2
-!! GGH: Bug fixed on 2/06; error was in relative weight of B_par**2 and B_perp**2
+!! GGH: Bug fixed on 2/06; error was in relative weight of B_par**2 and B_perp**2   
                    hk(it,ik) % energy = hk(it,ik) % energy &
                         + 0.5*real((0.25*conjg(bperp_avg)*bperp_avg + conjg(bpar_avg)*bpar_avg)) &
                         * wgt(ig)*fac2*(2.0/beta)
 
-                   !Eapar = int k_perp^2 A_par^2/(8 pi)
+                   !Eapar = int k_perp^2 A_par^2/(8 pi)                   
                    hk(it,ik) % eapar = hk(it,ik) % eapar &
                         + 0.5*real(0.25*conjg(bperp_avg)*bperp_avg) * wgt(ig)*fac2*(2.0/beta)
 
                    !Ebpar = int B_par^2/(8 pi)
                    hk(it,ik) % ebpar = hk(it,ik) % ebpar &
                         + 0.5*real(conjg(bpar_avg)*bpar_avg) * wgt(ig)*fac2*(2.0/beta)
-
+                   
                 end do
                 h % antenna = h % antenna + hk(it, ik) % antenna
                 h % eapar = h % eapar + hk(it, ik) % eapar
@@ -8472,7 +8391,7 @@ endif
           end do
        endif
     endif !END Correction to E_dot for single species runs---------------------
-
+ 
 !GGH New E_dot calc
     do iglo=g_lo%llim_proc, g_lo%ulim_proc
        is = is_idx(g_lo, iglo)
@@ -8483,7 +8402,7 @@ endif
        do isgn=1,2
 
           do ig=-ntgrid, ntgrid-1
-
+             
              !Calculate old fluctuating energy de
              havg = favg_x (g(ig  ,isgn,iglo), &
                             g(ig+1,isgn,iglo))
@@ -8512,7 +8431,7 @@ endif
              denew=0.5*spec(is)%temp*spec(is)%dens*(conjg(havg)*havg &
                   + conjg(phi_avg)*phi_avg &
                   - conjg(j0phiavg)*havg &
-                  - conjg(havg)*j0phiavg)
+                  - conjg(havg)*j0phiavg) 
 
              !Set g0 as the change of energy (denew-de)/dt
              g0(ig,isgn,iglo) = fdot_t(de,denew,dtinv)
@@ -8572,7 +8491,7 @@ endif
                         aj0(ig  ,iglo)*aparnew(ig  ,it,ik)*vpac(ig  ,isgn,iglo),  &
                         aj0(ig+1,iglo)*aparnew(ig+1,it,ik)*vpac(ig+1,isgn,iglo)) &
                         *spec(is)%stm*fapar
-
+                
              chi = chi + &
                   favg (aj1(ig  ,iglo)*2.0*bpar   (ig  ,it,ik)*vperp2(ig  ,iglo),  &
                         aj1(ig+1,iglo)*2.0*bpar   (ig+1,it,ik)*vperp2(ig+1,iglo),  &
@@ -8585,17 +8504,13 @@ endif
                           gnew(ig  ,isgn,iglo), &
                           gnew(ig+1,isgn,iglo))
 
-!#ifdef LOWFLOW
-            if(use_lowflow) then
+#ifdef LOWFLOW
              g0(ig,isgn,iglo) = zi * wstar(ik,ie,is)*hneoc(ig,isgn,iglo)/code_dt * conjg(havg)*chi &
-                  * spec(is)%dens
-!#else
-            else
+#else
              g0(ig,isgn,iglo) = zi * wstar(ik,ie,is)/code_dt * conjg(havg)*chi &
-!#endif
+#endif
                   * spec(is)%dens
-            end if
-
+            
           end do
        end do
     end do
@@ -8632,11 +8547,11 @@ endif
 !          akperp4 = (aky(ik)**2 + akx(it)**2)**nexp
            do isgn=1,2
              do ig=-ntgrid, ntgrid-1
-
+                
                 havg = favg (g   (ig  ,isgn,iglo), &
                              g   (ig+1,isgn,iglo), &
                              gnew(ig  ,isgn,iglo), &
-                             gnew(ig+1,isgn,iglo))
+                             gnew(ig+1,isgn,iglo)) 
 
                 j0phiavg = favg (aj0(ig  ,iglo) * phi(ig  ,it,ik), &
                                  aj0(ig+1,iglo) * phi(ig+1,it,ik), &
@@ -8686,7 +8601,7 @@ endif
 ! ==========================================================================
 ! Hyperresistivity------------------------------------------------------------
 ! ==========================================================================
-
+ 
     if (D_eta > epsilon(0.)) then
 
        do iglo=g_lo%llim_proc, g_lo%ulim_proc
@@ -8697,16 +8612,16 @@ endif
           akperp4 = (aky(ik)**2 + akx(it)**2)**nexp
            do isgn=1,2
              do ig=-ntgrid, ntgrid-1
-
+                
                 havg = favg (g   (ig  ,isgn,iglo), &
                              g   (ig+1,isgn,iglo), &
                              gnew(ig  ,isgn,iglo), &
-                             gnew(ig+1,isgn,iglo))
+                             gnew(ig+1,isgn,iglo)) 
 
                 j0aparavg = favg (aj0(ig  ,iglo) * apar(ig  ,it,ik), &
                                  aj0(ig+1,iglo)  * apar(ig+1,it,ik), &
                                  aj0(ig  ,iglo)  * aparnew(ig  ,it,ik), &
-                                 aj0(ig+1,iglo)  * aparnew(ig+1,it,ik)) &
+                                 aj0(ig+1,iglo)  * aparnew(ig+1,it,ik)) & 
                                  * fapar * spec(is)%zstm * vpac(ig,isgn,iglo)
 
 !Set g0 for hyperresistive heating
@@ -8750,7 +8665,7 @@ endif
        do isgn=1,2
 
           do ig=-ntgrid, ntgrid-1
-
+             
              havg = favg (g   (ig  ,isgn,iglo), &
                           g   (ig+1,isgn,iglo), &
                           gnew(ig  ,isgn,iglo), &
@@ -8769,7 +8684,7 @@ endif
           if (aky(ik) < epsilon(0.0)) fac2 = 1.0
           do it = 1, ntheta0
              if (nonlin .and. it == 1 .and. ik == 1) cycle
-             do is = 1, nspec
+             do is = 1, nspec             
                 do ig = -ntgrid, ntgrid-1
 
                    !hs2 = int_r int_v T/F0 hs^2/2
@@ -8850,15 +8765,15 @@ endif
        do isgn=1,2
 
           do ig=-ntgrid, ntgrid-1
-
+             
              havg = favg (g   (ig  ,isgn,iglo), &
                           g   (ig+1,isgn,iglo), &
                           gnew(ig  ,isgn,iglo), &
                           gnew(ig+1,isgn,iglo))
 
              j0phiavg = favg (aj0(ig  ,iglo)*phi   (ig  ,it,ik), &
-                              aj0(ig+1,iglo)*phi   (ig+1,it,ik), &
-                              aj0(ig  ,iglo)*phinew(ig  ,it,ik), &
+                              aj0(ig+1,iglo)*phi   (ig+1,it,ik), &  
+                              aj0(ig  ,iglo)*phinew(ig  ,it,ik), &  
                               aj0(ig+1,iglo)*phinew(ig+1,it,ik)) * fphi * spec(is)%zt
 
              phi_avg = favg (phi   (ig  ,it,ik), &
@@ -8882,7 +8797,7 @@ endif
           if (aky(ik) < epsilon(0.0)) fac2 = 1.0
           do it = 1, ntheta0
              if (nonlin .and. it == 1 .and. ik == 1) cycle
-             do is = 1, nspec
+             do is = 1, nspec             
                 do ig = -ntgrid, ntgrid-1
                    hk(it,ik) % energy = hk(it,ik) % energy  &
                         + real(tot(ig,it,ik,is))*wgt(ig)*fac2
@@ -8915,7 +8830,7 @@ endif
     !use dist_fn_arrays, only: gnew, g
     !initializing  = .true.
     !initialized = .false.
-   !
+   ! 
     !wdrift = 0.
     !wdriftttp = 0.
     !a = 0.
@@ -8933,7 +8848,7 @@ endif
   end subroutine reset_physics
 
   subroutine get_verr (errest, erridx, phi, bpar)
-
+     
     use mp, only: broadcast
     use le_grids, only: integrate_species
     use le_grids, only: eint_error, trap_error, lint_error, wdim
@@ -9034,7 +8949,7 @@ endif
 
        if (nlambda > ng2 .and. new_trap_int) then
           ntrap = nlambda - ng2
-          allocate(phi_t(-ntgrid:ntgrid,ntheta0,naky,ntrap))
+          allocate(phi_t(-ntgrid:ntgrid,ntheta0,naky,ntrap))       
           phi_t = 0.0
           call trap_error (g0, wgt, phi_t)
        end if
@@ -9049,7 +8964,7 @@ endif
              end do
           end do
        end do
-
+       
 
        wgt = 2.0*beta*spec%z*spec%dens*sqrt(spec%temp/spec%mass)
        call integrate_species (g0, wgt, apar_app)
@@ -9058,11 +8973,11 @@ endif
        call lint_error (g0, wgt, apar_l)
        if (nlambda > ng2 .and. new_trap_int) then
           ntrap = nlambda - ng2
-          allocate(apar_t(-ntgrid:ntgrid,ntheta0,naky,ntrap))
+          allocate(apar_t(-ntgrid:ntgrid,ntheta0,naky,ntrap))       
           apar_t = 0.0
           call trap_error (g0, wgt, apar_t)
        end if
-
+       
     end if
 
 ! second call to g_adjust converts from h back to g
@@ -9077,21 +8992,21 @@ endif
           end do
        end do
     end if
-
+    
     errest = 0.0
     erridx = 0
-
+    
     if (fphi > epsilon(0.0)) then
 
        call estimate_error (phi_app, phi_e, kmax, errtmp, idxtmp)
        errest(1,:) = errtmp
        erridx(1,:) = idxtmp
-
+       
        call estimate_error (phi_app, phi_l, kmax, errtmp, idxtmp)
        errest(2,:) = errtmp
        erridx(2,:) = idxtmp
 
-       if (nlambda > ng2 .and. new_trap_int) then
+       if (nlambda > ng2 .and. new_trap_int) then       
           call estimate_error (phi_app, phi_t, kmax, errtmp, idxtmp, trap_flag)
           errest(3,:) = errtmp
           erridx(3,:) = idxtmp
@@ -9099,7 +9014,7 @@ endif
        end if
 
     end if
-
+    
     if (fapar > epsilon(0.0)) then
 
        call estimate_error (apar_app, apar_e, kmax, errtmp, idxtmp)
@@ -9113,7 +9028,7 @@ endif
 
     if (vary_vnew) then
        vnmult_target = vnmult(2)
-
+       
        if (errest(1,2) > etol + ewindow .or. errest(4,2) > etola + ewindowa) then
           call get_vnewk (vnmult(2), vnmult_target, increase)
        else if (errest(1,2) < etol - ewindow .and. errest(4,2) < etola - ewindowa) then
@@ -9123,10 +9038,10 @@ endif
        call init_ediffuse (vnmult_target)
        call init_diffuse_conserve
     end if
-
+       
     if (vary_vnew) then
        vnmult_target = vnmult(1)
-
+       
        if (errest(2,2) > etol + ewindow .or. errest(3,2) > etol + ewindow &
             .or. errest(5,2) > etola + ewindowa) then
           call get_vnewk (vnmult(1), vnmult_target, increase)
@@ -9134,11 +9049,11 @@ endif
             (errest(3,2) < etol - ewindow .or. .not.trap_flag)) then
           call get_vnewk (vnmult(1), vnmult_target, decrease)
        end if
-
+       
        call init_lorentz (vnmult_target)
        call init_lorentz_conserve
     end if
-
+    
     deallocate (wgt, errtmp, idxtmp)
     if (fphi > epsilon(0.0)) deallocate(phi_app, phi_e, phi_l)
     if (fapar > epsilon(0.0)) deallocate(apar_app, apar_e, apar_l)
@@ -9157,7 +9072,7 @@ endif
 
     if (incr) then
        vnm_target = vnm * vnfac
-    else
+    else 
 !       vnmult_target =  vnmult * ((1.0-1.0/vnslow)/vnfac + 1.0/vnslow)
        vnm_target =  vnm * vnslow
     end if
@@ -9198,15 +9113,15 @@ endif
                    end if
 
                    do ipt=1,end_idx
-
+                      
                       gptmp = kmax_local(it,ik)*cabs(app1(ig,it,ik) - app2(ig,it,ik,ipt))
                       gpsum = gpsum + gptmp
                       gpcnt = gpcnt + 1
-
+                      
                    end do
-
+                   
                    gpavg = gpsum/gpcnt
-
+                   
                    if (gpavg > gdmax) then
                       igmax = ig
                       ikmax = ik
@@ -9214,7 +9129,7 @@ endif
                       gdmax = gpavg
                       gsmax = kmax_local(it,ik)*cabs(app1(ig,it,ik))
                    end if
-
+                   
                    gnsum = gnsum + gpavg
                    gdsum = gdsum + kmax_local(it,ik)*cabs(app1(ig,it,ik))
 
@@ -9223,9 +9138,9 @@ endif
           end do
        end do
     end do
-
+       
     gdmax = gdmax/gsmax
-
+       
     erridx(1) = igmax
     erridx(2) = ikmax
     erridx(3) = itmax
@@ -9270,12 +9185,12 @@ endif
 
     allocate(getran(0:nesub-1,-ntgrid:ntgrid,ntheta0,naky,nspec))
     allocate(gltran(0:ng2-1,-ntgrid:ntgrid,ntheta0,naky,nspec))
-
+ 
     getran = 0.0; gltran = 0.0
 
     if (nlambda-ng2 > 0) then
        allocate(gnt2(0:2*(nlambda-ng2-1)))
-       allocate(gttran(0:2*(nlambda-ng2-1),-ntgrid:ntgrid,ntheta0,naky,nspec))
+       allocate(gttran(0:2*(nlambda-ng2-1),-ntgrid:ntgrid,ntheta0,naky,nspec))      
        gtnorm = 0.0 ; gnt2 = 0.0 ; gtmax = 0.0 ; gttran = 0.0
     end if
 
@@ -9291,7 +9206,7 @@ endif
     end do
 
 ! perform legendre transform on dist. fn. to obtain coefficients
-! used when expanding dist. fn. in legendre polynomials
+! used when expanding dist. fn. in legendre polynomials 
     if (allocated(gttran)) then
        call legendre_transform (g0, getran, gltran, gttran)
     else
@@ -9336,7 +9251,7 @@ endif
                       else
                          gtmax = gnt2(0)
                       end if
-
+                      
                       gtnum = gtnum + gtmax
                       gtdenom = gtdenom + gtnorm
                    end if
@@ -9357,7 +9272,7 @@ endif
        deallocate (gnt2, gttran)
     end if
 
-    deallocate(gne2, gnl2)
+    deallocate(gne2, gnl2)    
     deallocate(getran, gltran)
 
   end subroutine get_gtran
@@ -9387,7 +9302,7 @@ endif
     allocate(lpoly(-ntgrid:ntgrid,ntheta0,naky,negrid,2*nterp-1))
 
     if (proc0) then
-!       if (first) then
+!       if (first) then 
        if (.not. lpolinit) then
           call open_output_file (interp_unit, ".interp")
           lpolinit = .true.
@@ -9445,7 +9360,7 @@ endif
     real :: vpa, vpe
     complex, dimension(2) :: gtmp
 !    logical :: first = .true.
-    logical, intent(in)  :: last
+    logical, intent(in)  :: last 
 
     real, dimension (:), allocatable, save :: xpts, ypts
 
@@ -9466,7 +9381,7 @@ endif
 !    end if
 
        if (proc0) then
-!       if (first) then
+!       if (first) then 
           call open_output_file (unit, ".dist")
           write(unit, *) negrid*nlambda
 !          first = .false.
@@ -9478,11 +9393,11 @@ endif
        ik = ik_idx(g_lo, iglo) ; if (ik /= 1) cycle
        it = it_idx(g_lo, iglo) ; if (it /= 1) cycle
        is = is_idx(g_lo, iglo) ; if (is /= 1) cycle
-       ie = ie_idx(g_lo, iglo)
+       ie = ie_idx(g_lo, iglo) 
        ig = 0
        il = il_idx(g_lo, iglo)
        if (idx_local (g_lo, ik, it, il, ie, is)) then
-          if (proc0) then
+          if (proc0) then 
              gtmp = gnew(ig,:,iglo)
           else
              call send (gnew(ig,:,iglo), 0)
@@ -9501,7 +9416,7 @@ endif
     end do
     if (proc0) write (unit, *)
     if (last .and. proc0) call close_output_file (unit)
-
+    
   end subroutine write_f
 
   subroutine write_fyx (phi,bpar,last)
@@ -9538,8 +9453,8 @@ endif
 
     if (accelerated) then
 #ifndef SHMEM
-       allocate (agrs(2*ntgrid+1, 2, accelx_lo%llim_proc:accelx_lo%ulim_alloc))
-       allocate (agzf(2*ntgrid+1, 2, accelx_lo%llim_proc:accelx_lo%ulim_alloc))
+       allocate (agrs(2*ntgrid+1, 2, accelx_lo%llim_proc:accelx_lo%ulim_alloc))          
+       allocate (agzf(2*ntgrid+1, 2, accelx_lo%llim_proc:accelx_lo%ulim_alloc))          
 #else
        call shm_alloc(agrs, (/ 1, 2*ntgrid+1, 1, 2, &
             accelx_lo%llim_proc, accelx_lo%ulim_alloc /))
@@ -9648,7 +9563,7 @@ endif
                    call send (agrs(ig+ntgrid+1, :, iaclo), 0)
                    call send (agzf(ig+ntgrid+1, :, iaclo), 0)
                 end if
-
+                
                 if (proc0) then
                    write (unit, "(6(1x,e13.6))") energy(ie), al(il), &
                         agp0(1), agp0(2), agp0zf(1), agp0zf(2)
@@ -9667,7 +9582,7 @@ endif
 #endif
     else
        do iyxlo=yxf_lo%llim_world, yxf_lo%ulim_world
-
+          
           ig = ig_idx(yxf_lo, iyxlo)
           it = it_idx(yxf_lo, iyxlo)
           if (ig == 0 .and. it == 1) then
@@ -9677,7 +9592,7 @@ endif
                 ie = ie_idx(yxf_lo, iyxlo)
                 is = is_idx(yxf_lo, iyxlo)
                 isign = isign_idx(yxf_lo, iyxlo)
-
+                
                 if (proc0) then
                    if (.not. idx_local(yxf_lo, ig, isign, it, il, ie, is)) then
                       call receive (gp0, proc_id(yxf_lo, iyxlo))
@@ -9688,9 +9603,9 @@ endif
                    end if
                 else if (idx_local(yxf_lo, ig, isign, it, il, ie, is)) then
                    call send (grs(ik, iyxlo), 0)
-                   call send (gzf(ik, iyxlo), 0)
+                   call send (gzf(ik, iyxlo), 0)                   
                 end if
-
+                
                 if (proc0) then
                    write (unit, "(4(1x,e13.6),i8)") energy(ie), al(il), &
                         gp0, gp0zf, isign
@@ -9715,7 +9630,7 @@ endif
   !! module and is scheduled for deletion. Its functionality
   !! is now in diagnostics/diagnostics_velocity_space.f90
   subroutine collision_error (phi, bpar, last)
-
+    
     use mp, only: proc0, send, receive, barrier
     use le_grids, only: ng2, jend, nlambda, lambda_map
     use theta_grid, only: ntgrid
@@ -9770,13 +9685,13 @@ endif
 ! loop over ig, isign, ik, it, ie, is
     do ilz = lz_lo%llim_proc, lz_lo%ulim_proc
        ig = ig_idx(lz_lo,ilz)
-
+       
        if (jend(ig) == 0) then      ! no trapped particles
 ! je = number of + vpa grid pts
 ! te = number of + and - vpa grid pts
           je = ng2
           te = 2*ng2
-
+          
 ! find d/d(xi) ((1+xi**2)( d g(xi)/ d(xi) )) at each xi
 ! using lagrange (lcoll) and finite difference (fdcoll)
           il = 1
@@ -9823,7 +9738,7 @@ endif
           fdcoll(1,ilz) = fdf(ig,1)*(glze(2,ilz) - glze(1,ilz))
           fdcoll(2*ng2,ilz) = -fdf(ig,1)*(glze(2*ng2,ilz) - glze(2*ng2-1,ilz))
 
-       else       ! trapped particle runs
+       else       ! trapped particle runs          
           je = jend(ig)
           te = 2*je - 1
 
@@ -9866,10 +9781,10 @@ endif
           do il=je+1,te-1
              fdcoll(il,ilz) = fdb(ig,te-il+1)*(glze(il+1,ilz) - glze(il,ilz)) - fdf(ig,te-il+1)*(glze(il,ilz) - glze(il-1,ilz))
           end do
-
+          
           fdcoll(1,ilz) = fdf(ig,1)*(glze(2,ilz) - glze(1,ilz))
           fdcoll(te,ilz) = -fdf(ig,1)*(glze(te,ilz) - glze(te-1,ilz))
-
+          
        end if
     end do
 
@@ -9890,7 +9805,7 @@ endif
        end if
 
        if (idx_local (lz_lo, ilz)) then
-          if (proc0) then
+          if (proc0) then 
              ltmp = lcoll(:,ilz)
              ftmp = fdcoll(:,ilz)
           else
@@ -9905,7 +9820,7 @@ endif
 
        do il=1,te
           etmp = cabs(ltmp(il) - ftmp(il))
-
+          
           if (etmp > emax) then
              emax = etmp
              ltmax = cabs(ltmp(il))
@@ -9916,7 +9831,7 @@ endif
              ilmax = il
              igmax = ig
           end if
-
+          
           etot = etot + etmp
           edenom = edenom + cabs(ltmp(il))
        end do
@@ -9934,7 +9849,7 @@ endif
     end if
 
     deallocate (lcoll, fdcoll, glze, ltmp, ftmp)
-
+    
   end subroutine collision_error
 
   subroutine boundary(linked)
@@ -9964,15 +9879,15 @@ endif
              ! ignoring decentering in time and space for now
              phi_m = 0.5*(phi(ig+1,it,ik)-phi(ig,it,ik) + &
                   phinew(ig+1,it,ik)-phinew(ig,it,ik))*fphi
-             apar_m = 0.5*(aparnew(ig+1,it,ik)+aparnew(ig,it,ik) &
+             apar_m = 0.5*(aparnew(ig+1,it,ik)+aparnew(ig,it,ik) & 
                   -apar(ig+1,it,ik)-apar(ig,it,ik))*fapar
-
+             
              epar(ig,it,ik) = -phi_m/delthet(ig)* &
                   0.5*(abs(gradpar(ig)) + abs(gradpar(ig+1))) &
                   -apar_m/tunits(ik)/code_dt
           end do
        end do
-    end do
+    end do    
 
   end subroutine get_epar
 
@@ -10040,12 +9955,12 @@ endif
 
   subroutine dot (a, anew, adot, fac)
 
-! Get a theta-centered and time-centered estimate of the time derivative
+! Get a theta-centered and time-centered estimate of the time derivative 
 ! of a field.
-!
+! 
 ! tunits(ky) == 1. unless the "omega_*" units are chosen.
 ! omega_* units normalize time by an additional factor of ky.
-!
+!    
 
     use run_parameters, only: tunits
     use gs2_time, only: code_dt
@@ -10068,7 +9983,7 @@ endif
           end do
        end do
     end do
-
+    
   end subroutine dot
 
   complex function fdot (fl, fr, fnewl, fnewr, dtinv)
@@ -10084,7 +9999,7 @@ endif
     complex, intent (in) :: fl, fr, fnewl, fnewr
     favg = 0.25*(fnewl+fnewr+fl+fr)
   end function favg
-
+ 
   complex function fdot_t (f,fnew, dtinv)
     complex, intent (in) :: f, fnew
     real, intent (in) :: dtinv
@@ -10114,7 +10029,7 @@ endif
     logical, parameter :: analytical = .true.
 !    logical, save :: initialized=.false.
     real :: bsq
-
+    
 !    if (initialized) return
     if (mominit) return
     mominit = .true.
@@ -10202,13 +10117,13 @@ endif
          & (mom_coeff(:,:,:,4)-mom_shift_para(:,:,:)*mom_coeff(:,:,:,2))
 
     deallocate(gtmp,coeff0,wgt)
-
+    
 !    initialized=.true.
   end subroutine init_mom_coeff
 
-!#ifdef LOWFLOW
-  ! This rouinte must be called after init_collisions as it relies on the
-  ! variable use_le_layout which is set in init_collisions based on input
+#ifdef LOWFLOW
+  ! This rouinte must be called after init_collisions as it relies on the 
+  ! variable use_le_layout which is set in init_collisions based on input 
   ! from the user provided input file.
   subroutine init_lowflow
 
@@ -10271,7 +10186,7 @@ endif
     ! tmp7 is phi^{neo}/dr, tmp8 is dphi^{neo}/dtheta, and tmp9 phi^{neo}
     call get_lowflow_terms (theta, al, energy, bmag, tmp1, tmp2, tmp3, tmp4, &
          tmp5, tmp6, tmp7, tmp8, tmp9, lf_default, lf_decompose)
-
+    
     if (proc0) then
        call open_output_file (neo_unit,".neodist")
        write (neo_unit,*) "# all quantities given at theta=0 for species 1"
@@ -10292,7 +10207,7 @@ endif
           end do
        end do
        call close_output_file (neo_unit)
-
+       
        call open_output_file (neovpth_unit,".neothvp")
 
        ! Get Fneo(theta,vpa)
@@ -10316,11 +10231,11 @@ endif
        end do
        call close_output_file (neophi_unit)
     end if
-
+    
     ! if set neo_test flag to .true. in input file, GS2 exits after writing out
     ! neoclassical quantities of interest
     if (neo_test) call mp_abort('stopping as neo_test=.true.')
-
+    
     ! intialize mappings from g_lo to e_lo and lz_lo or to le_lo to facilitate
     ! energy and lambda derivatives in parallel nonlinearity, etc.
     if(use_le_layout) then
@@ -10341,9 +10256,9 @@ endif
           vpadhdec(:,isgn,iglo) = tmp3(:,il,ie,isgn,is)
           hneoc(:,isgn,iglo) = 1.0+tmp6(:,il,ie,isgn,is)
        end do
-
+       
        ! get cell-centered (in theta) values
-
+       
        ! this is the contribution from dH^{neo}/dtheta (part of v_E dot grad F^{neo})
        ! takes care of part of Eq. 60 in MAB's GS2 notes
        if (aky(ik) == 0.0) then
@@ -10365,7 +10280,7 @@ endif
        ! this is the contribution from dH^{neo}/dr (part of v_E dot grad F^{neo})
        ! takes care of part of Eq. 60 in MAB's GS2 notes
        wstarfac(:,:,iglo) = wstarfac(:,:,iglo) + tmp4(:,il,ie,:,is)*code_dt*wunits(ik)
-
+       
        ! this is the contribution from v_E^par . grad F0
        ! TMP FOR TESTING -- MAB
 !        wstarfac(-ntgrid:ntgrid-1,1,iglo) = wstarfac(-ntgrid:ntgrid-1,1,iglo) &
@@ -10374,9 +10289,9 @@ endif
 !        wstarfac(-ntgrid:ntgrid-1,2,iglo) = wstarfac(-ntgrid:ntgrid-1,2,iglo) &
 !             - 0.5*zi*rhostar*(gds24_noq(-ntgrid:ntgrid-1)+gds24_noq(-ntgrid+1:ntgrid)) &
 !             *drhodpsi*rhoc/qval*code_dt*(spec(is)%fprim+spec(is)%tprim*(energy(ie)-1.5))
-
+       
        if (.not. lf_default) then
-          ! this is the contribution from the last term of the 2nd line of Eq. 43 in
+          ! this is the contribution from the last term of the 2nd line of Eq. 43 in 
           ! MAB's GS2 notes (arises because the NEO dist. fn. is given at v/vt, and
           ! the vt varies radially, so v_E . grad F1 must take this into account)
           ! If lf_default is true this is taken care of by multiplying the vt normalization
@@ -10386,11 +10301,11 @@ endif
           wstarfac(:,:,iglo) = wstarfac(:,:,iglo) + code_dt*wunits(ik) &
                *spec(is)%tprim*energy(ie)*dhdec(:,:,iglo)
        end if
-
+       
        wstarfac(ntgrid,:,iglo) = 0.0
-
+       
        ! wdfac takes care of the gbdrift part of Eq. 60 of MAB's GS2 notes, as well
-       ! as part of the curvature drift term of Eq. 54.  the other part of
+       ! as part of the curvature drift term of Eq. 54.  the other part of 
        ! the curvature drift term of Eq. 54 is dealt with by cdfac below.
        ! no code_dt in wdfac because it multiplies wdrift, which has code_dt in it
        wdfac(-ntgrid:ntgrid-1,1,iglo) = 0.5*dhdxic(-ntgrid:ntgrid-1,1,iglo)*vpac(-ntgrid:ntgrid-1,1,iglo)/energy(ie)**1.5 &
@@ -10404,7 +10319,7 @@ endif
        cdfac(-ntgrid:ntgrid-1,1,iglo) = -0.5*dhdxic(-ntgrid:ntgrid-1,1,iglo)*vpac(-ntgrid:ntgrid-1,1,iglo)/sqrt(energy(ie))
        cdfac(-ntgrid:ntgrid-1,2,iglo) = -0.5*dhdxic(-ntgrid:ntgrid-1,2,iglo)*vpac(-ntgrid:ntgrid-1,2,iglo)/sqrt(energy(ie))
        cdfac(ntgrid,:,iglo) = 0.0
-
+       
        ! this is the first term multiplying dF_1/dE in Eq. 42 of MAB's GS2 notes
        ! i.e. Z_s * e * vpa . grad phi^{tb} d(F1/F0)/dE
        ! note there will be a correction to this added below
@@ -10419,7 +10334,7 @@ endif
             * (abs(gradpar(-ntgrid:ntgrid-1)) + abs(gradpar(-ntgrid+1:ntgrid))) &
             * vpadhdec(-ntgrid:ntgrid-1,2,iglo)
        vparterm(ntgrid,:,iglo) = 0.0
-
+       
        ! redefine vpar from vpa bhat dot grad theta to
        ! vpa bhat dot grad theta + v_Magnetic dot grad theta
        ! this accounts for the terms in Sec. 5.1 of MAB's GS2 notes
@@ -10443,22 +10358,22 @@ endif
        end if
        wstar_neo(ntgrid,it,ik) = 0.0
     end do
-
+    
     ! TMP FOR TESTING -- MAB
 !    wdfac = 0. ; cdfac = 0. ; hneoc = 1. ; wstarfac = 0. ; wdttpfac = 0. ; vparterm = 0.
-
+ 
     ! vparterm is -2*vpar*(1+H^{neo}) - Ze*(vpa . grad phi^{tb})*(dH^{neo}/dE)
     ! note that vpar has contribution from v_{magnetic} . grad theta in it
     ! hneoc = 1 + H^{neo} below accounts for usual parallel streaming source term,
     ! as well as first of three terms multiplying F_1 in Eq. 42 of MAB's GS2 notes
     vparterm = -2.0*vpar*hneoc + vparterm
-
-    ! hneoc below accounts for usual v_magnetic source term,
+    
+    ! hneoc below accounts for usual v_magnetic source term, 
     ! as well as second of three terms multiplying F_1 in Eq. 42 of MAB's GS2 notes
-    ! wdfac on RHS deals with grad-B drift part of Eq. 60, as well as part of
+    ! wdfac on RHS deals with grad-B drift part of Eq. 60, as well as part of 
     ! curvature drift term in Eq. 54
     wdfac = wdfac + hneoc
-
+    
     do iglo = g_lo%llim_proc, g_lo%ulim_proc
        it = it_idx(g_lo,iglo)
        ik = ik_idx(g_lo,iglo)
@@ -10484,7 +10399,7 @@ endif
              - zi*code_dt*tunits(ik)*vpac(-ntgrid:ntgrid-1,2,iglo) &
              * spec(is)%zt*spec(is)%zstm*tmp8(-ntgrid:ntgrid-1) &
              * 0.5*(abs(gradpar(-ntgrid:ntgrid-1)) + abs(gradpar(-ntgrid+1:ntgrid)))
-
+       
        ! hneoc below accounts for usual wstar term, as well as last of three terms
        ! multiplying F_1 in Eq. 42 of MAB'S GS2 notes
        ! note that hneo is necessary here because NEO's dist fn is
@@ -10496,11 +10411,11 @@ endif
     deallocate (vpadhdec,dhdec,dhdxic,cdfac,hneovpth)
 
   end subroutine init_lowflow
-!#endif
+#endif
 
   subroutine init_pass_wfb
-! CMR, 21/5/2014:
-!       simple experimental new routine sets up "pass_wfb" redist_type to pass
+! CMR, 21/5/2014: 
+!       simple experimental new routine sets up "pass_wfb" redist_type to pass 
 !       g(ntgrid,1,iglo)  => g(-ntgrid,1,iglo_right) in right connected cell.
 !       g(-ntgrid,2,iglo) => g(ntgrid,1,iglo_right) in left connected cell.
     use gs2_layouts, only: g_lo, il_idx, idx, proc_id
@@ -10508,7 +10423,7 @@ endif
     use mp, only: iproc, nproc, max_allreduce
     use redistribute, only: redist_type
     use redistribute, only: index_list_type, init_fill, delete_list
-    use theta_grid, only:ntgrid
+    use theta_grid, only:ntgrid 
     implicit none
     type (index_list_type), dimension(0:nproc-1) :: to, from
     integer, dimension (0:nproc-1) :: nn_from, nn_to
@@ -10519,14 +10434,14 @@ endif
 
       if (boundary_option_switch .eq. boundary_option_linked) then
 ! Need communications to satisfy || boundary conditions
-! First find required blocksizes
+! First find required blocksizes 
          nn_to = 0   ! # communicates from ip TO HERE (iproc)
          nn_from = 0 ! # communicates to ip FROM HERE (iproc)
          do iglo = g_lo%llim_world, g_lo%ulim_world
-            il = il_idx(g_lo,iglo)
-            if (il /= ng2+1) cycle     ! ONLY consider wfb
+            il = il_idx(g_lo,iglo)          
+            if (il /= ng2+1) cycle     ! ONLY consider wfb 
             ip = proc_id(g_lo,iglo)
-! First consider rightward connections
+! First consider rightward connections 
             call get_right_connection (iglo, iglo_right, ipright)
             if (ipright .eq. iproc ) then
                nn_to(ip)=nn_to(ip)+1
@@ -10534,7 +10449,7 @@ endif
             if (ip .eq. iproc .and. ipright .ge. 0 ) then
                nn_from(ipright)=nn_from(ipright)+1
             endif
-! Then leftward connections
+! Then leftward connections 
             call get_left_connection (iglo, iglo_left, ipleft)
             if (ipleft .eq. iproc ) then
                nn_to(ip)=nn_to(ip)+1
@@ -10546,7 +10461,7 @@ endif
          nn_max = maxval(nn_to+nn_from)
          call max_allreduce (nn_max)
 ! skip addressing if no links are needed
-         if (nn_max == 0) then
+         if (nn_max == 0) then 
             haslinks=.false.
          endif
       endif
@@ -10556,16 +10471,16 @@ endif
       endif
 
       if (boundary_option_switch.eq.boundary_option_linked .and. haslinks) then
-!
-! CMR, 12/11/2013:
+! 
+! CMR, 12/11/2013: 
 !      communication required to satisfy linked BC for wfb
-!      allocate indirect addresses for sends/receives
-!
+!      allocate indirect addresses for sends/receives 
+!     
 !      NB communications use "c_fill_3" as g has 3 indices
-!      but 1 index sufficient as only communicating g(ntgrid,1,*)!
-!      if "c_fill_1" in redistribute we'd only need allocate: from|to(ip)%first
+!      but 1 index sufficient as only communicating g(ntgrid,1,*)! 
+!      if "c_fill_1" in redistribute we'd only need allocate: from|to(ip)%first 
 !                             could be more efficient
-!
+!  
          do ip = 0, nproc-1
             if (nn_from(ip) > 0) then
                allocate (from(ip)%first(nn_from(ip)))
@@ -10579,26 +10494,26 @@ endif
             endif
          end do
 ! Now fill the indirect addresses...
-         nn_from = 0 ; nn_to = 0
+         nn_from = 0 ; nn_to = 0          
          do iglo = g_lo%llim_world, g_lo%ulim_world
-            il = il_idx(g_lo,iglo)
-            if (il /= ng2+1) cycle     ! ONLY consider wfb
+            il = il_idx(g_lo,iglo)          
+            if (il /= ng2+1) cycle     ! ONLY consider wfb 
             ip = proc_id(g_lo,iglo)
-! First consider rightward connections
+! First consider rightward connections 
             call get_right_connection (iglo, iglo_right, ipright)
-            if (ip .eq. iproc .and. ipright .ge. 0 ) then
+            if (ip .eq. iproc .and. ipright .ge. 0 ) then 
                n=nn_from(ipright)+1 ; nn_from(ipright)=n
                from(ipright)%first(n)=ntgrid
                from(ipright)%second(n)=1
                from(ipright)%third(n)=iglo
             endif
-            if (ipright .eq. iproc ) then
+            if (ipright .eq. iproc ) then 
                n=nn_to(ip)+1 ; nn_to(ip)=n
                to(ip)%first(n)=-ntgrid
                to(ip)%second(n)=1
                to(ip)%third(n)=iglo_right
             endif
-! Then leftward connections
+! Then leftward connections 
             call get_left_connection (iglo, iglo_left, ipleft)
             if (ip .eq. iproc .and. ipleft .ge. 0 ) then
                n=nn_from(ipleft)+1 ; nn_from(ipleft)=n
@@ -10618,9 +10533,9 @@ endif
             write(6,*) 'init_pass_wfb processor, nn_from:',iproc,nn_from
          endif
 
-         from_low(1)=-ntgrid ; from_low(2)=1 ; from_low(3)=g_lo%llim_proc
+         from_low(1)=-ntgrid ; from_low(2)=1 ; from_low(3)=g_lo%llim_proc       
          from_high(1)=ntgrid; from_high(2)=2; from_high(3)=g_lo%ulim_alloc
-         to_low(1)=-ntgrid  ; to_low(2)=1   ; to_low(3)=g_lo%llim_proc
+         to_low(1)=-ntgrid  ; to_low(2)=1   ; to_low(3)=g_lo%llim_proc       
          to_high(1)=ntgrid ; to_high(2)=2  ; to_high(3)=g_lo%ulim_alloc
          call init_fill (pass_wfb, 'c', to_low, to_high, to, &
                from_low, from_high, from)

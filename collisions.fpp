@@ -1,18 +1,18 @@
 # include "define.inc"
 
 !>  Routines for implementing the model collision operator
-!!defined by Barnes, Abel et al. 2009. The collision operator causes
-!! physically motivated smoothing of structure in velocity space which
-!!is necessary to prevent buildup of structure at fine scales in
+!!defined by Barnes, Abel et al. 2009. The collision operator causes 
+!! physically motivated smoothing of structure in velocity space which 
+!!is necessary to prevent buildup of structure at fine scales in 
 !!velocity space, while conserving energy and momentum.
 
 module collisions
-
+  
   use redistribute, only: redist_type
 
   implicit none
 
-  private
+  private 
 
   public :: init_collisions, finish_collisions
   public :: read_parameters, wnml_collisions, check_collisions
@@ -30,7 +30,7 @@ module collisions
   public :: collision_model_lorentz, collision_model_none
   public :: collision_model_lorentz_test, collision_model_full
   public :: split_collisions
-
+  
   interface solfp1
      module procedure solfp1_le_layout
      module procedure solfp1_standard_layout
@@ -49,7 +49,7 @@ module collisions
   interface conserve_diffuse
      module procedure conserve_diffuse_le_layout
      module procedure conserve_diffuse_standard_layout
-  end interface
+  end interface 
 
   ! knobs
   logical :: use_le_layout = .false.
@@ -158,7 +158,7 @@ contains
        write (report_unit, fmt="('A Lorentz collision operator has been selected.')")
        if (cfac > 0) write (report_unit, fmt="('This has both terms of the Lorentz collision operator: cfac=',e12.4)") cfac
        if (cfac == 0) write (report_unit, fmt="('This is only a partial Lorentz collision operator (cfac=0.0)')")
-       if (const_v) write (report_unit, fmt="('This is an energy independent Lorentz collision operator (const_v=true)')")
+       if (const_v) write (report_unit, fmt="('This is an energy independent Lorentz collision operator (const_v=true)')")  
 !          if (hypercoll) call init_hyper_lorentz
     case (collision_model_full)
        write (report_unit, fmt="('Full GS2 collision operator has been selected.')")
@@ -331,7 +331,6 @@ contains
     use kt_grids, only: naky, ntheta0
     use theta_grid, only: ntgrid
     use dist_fn_arrays, only: c_rate
-    use lowflow, only: use_lowflow
 
     implicit none
 
@@ -344,13 +343,11 @@ contains
 ! i.e., bring all energies and lambdas onto each processor
 !<DD>Note the user can still disable use_le_layout in the input file
 !    this just changes the default.
-!# ifdef LOWFLOW
-    if(use_lowflow) then
-       use_le_layout = .true.
-    end if
-!# endif
+# ifdef LOWFLOW
+    use_le_layout = .true.
+# endif
 
-    !<DD>This (potentially large) array should only be needed if
+    !<DD>This (potentially large) array should only be needed if 
     !write_hrate (gs2_diagnostics) is true.
     if (.not. allocated(c_rate)) then
        allocate (c_rate(-ntgrid:ntgrid, ntheta0, naky, nspec, 3))
@@ -406,7 +403,7 @@ contains
 
 ! Precompute three quantities needed for momentum and energy conservation:
 ! z0, w0, s0 (z0le, w0le, s0le if use_le_layout chosen in the input file defined)
-
+    
     use gs2_layouts, only: g_lo, ie_idx, is_idx, ik_idx, il_idx, it_idx
     use species, only: nspec, spec, electron_species
     use kt_grids, only: kperp2, naky, ntheta0
@@ -420,7 +417,7 @@ contains
     use redistribute, only: gather, scatter
 
     implicit none
-
+    
     complex, dimension (1,1,1) :: dum1 = 0., dum2 = 0.
     complex, dimension (:,:,:), allocatable :: gtmp
     complex, dimension (:,:,:,:), allocatable :: duinv, dtmp
@@ -433,8 +430,8 @@ contains
     if(use_le_layout) then
        allocate (ctmp(nxi+1, negrid+1, le_lo%llim_proc:le_lo%ulim_alloc))
     end if
-
-! TO DO:
+    
+! TO DO: 
 ! tunits not included anywhere yet
 
     allocate(s0tmp(-ntgrid:ntgrid,2,g_lo%llim_proc:g_lo%ulim_alloc))
@@ -445,7 +442,7 @@ contains
     allocate (duinv(-ntgrid:ntgrid, ntheta0, naky, nspec))
     allocate (dtmp(-ntgrid:ntgrid, ntheta0, naky, nspec))
     allocate (vns(naky,negrid,nspec,3))
-
+    
     duinv=0.0 ; dtmp=0.0; !This initialisation is needed in case kwork_filter is true anywhere
 
     vns(:,:,:,1) = vnmult(1)*vnew_D
@@ -460,7 +457,7 @@ contains
           end do
        end do
     end if
-
+    
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 ! Now get z0 (first form)
 
@@ -480,7 +477,7 @@ contains
        end do
     end do
 
-    if(use_le_layout) then
+    if(use_le_layout) then    
        call gather (g2le, z0tmp, ctmp)
        call solfp_lorentz (ctmp)
        call scatter (g2le, ctmp, z0tmp)   ! z0 is redefined below
@@ -497,7 +494,7 @@ contains
           gtmp(:,isgn,iglo) = vpa(:,isgn,iglo)*aj0(:,iglo)*z0tmp(:,isgn,iglo)
        end do
     end do
-
+    
     call integrate_moment (gtmp, dtmp, all) ! v0z0
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -576,7 +573,7 @@ contains
        end do
     end do
 
-    if(use_le_layout) then
+    if(use_le_layout) then    
        call gather (g2le, s0tmp, ctmp)
        call solfp_lorentz (ctmp)
        call scatter (g2le, ctmp, s0tmp)   ! s0
@@ -666,7 +663,7 @@ contains
        end do
     end do
 
-    if(use_le_layout) then
+    if(use_le_layout) then    
        call gather (g2le, w0tmp, ctmp)
        call solfp_lorentz (ctmp)
        call scatter (g2le, ctmp, w0tmp)
@@ -741,12 +738,12 @@ contains
        il = il_idx(g_lo,iglo)
        is = is_idx(g_lo,iglo)
        do isgn = 1, 2
-          ! v2 = nud vperp J1 f0
+          ! v2 = nud vperp J1 f0 
           gtmp(:,isgn,iglo) = vns(ik,ie,is,1)*energy(ie)*al(il)*aj1(:,iglo) &
                * w0tmp(:,isgn,iglo)
        end do
     end do
-
+    
     call integrate_moment (gtmp, dtmp, all)   ! v2w2
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -764,9 +761,9 @@ contains
     deallocate (gtmp, duinv, dtmp, vns)
 
 
-    if(use_le_layout) then
+    if(use_le_layout) then    
        allocate (z_big(-ntgrid:ntgrid, 2, g_lo%llim_proc:g_lo%ulim_alloc))
-
+       
        ! first set s0le, w0le & z0le
        z_big = 0.0
        z_big = cmplx(real(s0tmp), real(w0tmp))
@@ -781,22 +778,22 @@ contains
           allocate (s0le(nxi+1, negrid+1, le_lo%llim_proc:le_lo%ulim_alloc))
           allocate (w0le(nxi+1, negrid+1, le_lo%llim_proc:le_lo%ulim_alloc))
        end if
-
+       
        s0le = real(ctmp)
        w0le = aimag(ctmp)
-
+       
        ! set z0le
        call gather (g2le, z0tmp, ctmp)
        if (allocated(z0tmp)) deallocate(z0tmp)
        if (.not. allocated(z0le)) allocate (z0le(nxi+1, negrid+1, le_lo%llim_proc:le_lo%ulim_alloc))
        z0le = real(ctmp)
-
+       
        ! next set aj0le & aj1l
        z_big(:,1,:) = cmplx(aj0,aj1)
        z_big(:,2,:) = z_big(:,1,:)
 
        call gather (g2le, z_big, ctmp)
-
+       
        if (.not. allocated(aj0le)) then
           allocate (aj0le(nxi+1, negrid+1, le_lo%llim_proc:le_lo%ulim_alloc))
           allocate (aj1le(nxi+1, negrid+1, le_lo%llim_proc:le_lo%ulim_alloc))
@@ -804,11 +801,11 @@ contains
 
        aj0le = real(ctmp)
        aj1le = aimag(ctmp)
-
-       deallocate (ctmp, z_big)
+       
+       deallocate (ctmp, z_big)      
     else
        !Only need the real components (imaginary part should be zero, just
-       !use complex arrays to allow reuse of existing integrate routines etc.)
+       !use complex arrays to allow reuse of existing integrate routines etc.) 
        if (.not. allocated(s0)) then
           allocate (s0(-ntgrid:ntgrid,2,g_lo%llim_proc:g_lo%ulim_alloc))
           s0=real(s0tmp)
@@ -827,14 +824,14 @@ contains
           deallocate(z0tmp)
        endif
     end if
-
+    
   end subroutine init_lorentz_conserve
 
   subroutine init_diffuse_conserve
 
 ! Precompute three quantities needed for momentum and energy conservation:
 ! bz0, bw0, bs0
-
+    
     use gs2_layouts, only: g_lo, ie_idx, is_idx, ik_idx, il_idx, it_idx
     use species, only: nspec, spec
     use kt_grids, only: naky, ntheta0, kperp2
@@ -853,14 +850,14 @@ contains
     real, dimension (:,:,:,:), allocatable :: vns
     integer :: ie, il, ik, is, isgn, iglo, it
     complex, dimension (:,:,:), allocatable :: ctmp, z_big
-    complex, dimension (:,:,:), allocatable :: bs0tmp, bw0tmp, bz0tmp
+    complex, dimension (:,:,:), allocatable :: bs0tmp, bw0tmp, bz0tmp    
     logical :: all
 
     if(use_le_layout) then
       allocate (ctmp(nxi+1, negrid+1, le_lo%llim_proc:le_lo%ulim_alloc))
     end  if
 
-! TO DO:
+! TO DO: 
 ! tunits not included anywhere yet
 
 
@@ -872,7 +869,7 @@ contains
     allocate (duinv(-ntgrid:ntgrid, ntheta0, naky, nspec))
     allocate (dtmp(-ntgrid:ntgrid, ntheta0, naky, nspec))
     allocate (vns(naky,negrid,nspec,2))
-    duinv=0.0 ; dtmp=0.0
+    duinv=0.0 ; dtmp=0.0    
     vns(:,:,:,1) = vnmult(2)*delvnew
     vns(:,:,:,2) = vnmult(2)*vnew_s
 
@@ -886,7 +883,7 @@ contains
           gtmp(:,isgn,iglo) = energy(ie)*vnmult(2)*vnew_E(ik,ie,is)
        end do
     end do
-
+       
     all = .true.
     call integrate_moment (gtmp, duinv, all)  ! not 1/du yet
 !    else
@@ -915,7 +912,7 @@ contains
        end do
     end do
 
-    if(use_le_layout) then
+    if(use_le_layout) then    
        call gather (g2le, bz0tmp, ctmp)
        call solfp_ediffuse_le_layout (ctmp)
        call scatter (g2le, ctmp, bz0tmp)   ! bz0 is redefined below
@@ -967,7 +964,7 @@ contains
 
        end do
     end do
-
+       
     all = .true.
     call integrate_moment (gtmp, duinv, all)  ! not 1/du yet
 !    else
@@ -1083,7 +1080,7 @@ contains
        end do
     end do
 
-    if(use_le_layout) then
+    if(use_le_layout) then    
        call gather (g2le, bw0tmp, ctmp)
        call solfp_ediffuse_le_layout (ctmp)
        call scatter (g2le, ctmp, bw0tmp)
@@ -1156,7 +1153,7 @@ contains
        il = il_idx(g_lo,iglo)
        is = is_idx(g_lo,iglo)
        do isgn = 1, 2
-          ! v2 = (nus-nud) vperp J1 f0
+          ! v2 = (nus-nud) vperp J1 f0 
           gtmp(:,isgn,iglo) = vns(ik,ie,is,1)*energy(ie)*al(il)*aj1(:,iglo) &
                * bw0tmp(:,isgn,iglo)
        end do
@@ -1179,7 +1176,7 @@ contains
     deallocate (gtmp, duinv, dtmp, vns)
 
     if(use_le_layout) then
-       allocate (z_big(-ntgrid:ntgrid, 2, g_lo%llim_proc:g_lo%ulim_alloc))
+       allocate (z_big(-ntgrid:ntgrid, 2, g_lo%llim_proc:g_lo%ulim_alloc))    
        z_big=cmplx(real(bs0tmp),real(bw0tmp))
        deallocate (bs0tmp)
        deallocate (bw0tmp)
@@ -1196,7 +1193,7 @@ contains
        bz0le = real(ctmp)
 
        if (.not. allocated(aj0le)) then
-          allocate (z_big(-ntgrid:ntgrid, 2, g_lo%llim_proc:g_lo%ulim_alloc))
+          allocate (z_big(-ntgrid:ntgrid, 2, g_lo%llim_proc:g_lo%ulim_alloc))    
           ! next set aj0le & aj1l
           z_big(:,1,:) = cmplx(aj0,aj1)
           z_big(:,2,:) = z_big(:,1,:)
@@ -1207,7 +1204,7 @@ contains
           aj0le = real(ctmp)
           aj1le = aimag(ctmp)
        end if
-
+       
        deallocate (ctmp)
     else
        !Only need the real components (imaginary part should be zero, just
@@ -1269,7 +1266,7 @@ contains
 ! added to allow for momentum conservation with energy diffusion
        hsgvth(ie) = hsg_func(1.0)
 !<MAB
-    end do
+    end do                                                                  
 
     if(.not.allocated(vnew)) then
        allocate (vnew(naky,negrid,nspec))
@@ -1289,11 +1286,11 @@ contains
              do ik = 1, naky
                 if (const_v) then
                    vnew(ik,ie,is) = spec(is)%vnewk &
-                        *(zeff+heevth(ie))*0.5*tunits(ik)
+                        *(zeff+heevth(ie))*0.5*tunits(ik)                   
                    vnew_s(ik,ie,is) = spec(is)%vnewk &
                         *hsgvth(ie)*4.0*tunits(ik)
                    vnew_D(ik,ie,is) = spec(is)%vnewk &
-                        *heevth(ie)*tunits(ik)
+                        *heevth(ie)*tunits(ik)                   
                    if (.not. conservative) then
                       vnew_E(ik,ie,is) = vnew_s(ik,ie,is)*1.5 &
                            - 2.0*vnew_D(ik,ie,is)
@@ -1366,7 +1363,7 @@ contains
              vl = 0.5*(sqrt(energy(ie  )) + sqrt(energy(ie-1)))
              dv2r = (energy(ie+1) - energy(ie)) / (sqrt(energy(ie+1)) - sqrt(energy(ie)))
              dv2l = (energy(ie) - energy(ie-1)) / (sqrt(energy(ie)) - sqrt(energy(ie-1)))
-
+          
              vnew_E(:,ie,is) = spec(is)%vnewk*tunits*(vl*exp(-vl**2)*dv2l*hsg_func(vl) &
                   - vr*exp(-vr**2)*dv2r*hsg_func(vr)) / (sqrt(pi)*w(ie))
              delvnew(:,ie,is) = spec(is)%vnewk*tunits*(vl*exp(-vl**2)*hsg_func(vl) &
@@ -1395,12 +1392,12 @@ contains
 
        ! add hyper-terms inside collision operator
 !BD: Warning!
-!BD: For finite magnetic shear, this is different in form from what appears in hyper.f90
+!BD: For finite magnetic shear, this is different in form from what appears in hyper.f90 
 !BD: because kperp2 /= akx**2 + aky**2;  there are cross terms that are dropped in hyper.f90
 !BD: Warning!
 !BD: Also: there is no "grid_norm" option here and the exponent is fixed to 4 for now
        if (hyper_colls) then
-          k4max = (maxval(kperp2))**2
+          k4max = (maxval(kperp2))**2 
           do ik = 1, naky
              do it = 1, ntheta0
                 do ig=-ntgrid,ntgrid
@@ -1412,7 +1409,7 @@ contains
           vnewh = 0.
        end if
     end do
-
+    
   end subroutine init_vnew
 
   function hsg_func (vel)
@@ -1437,7 +1434,7 @@ contains
     use gs2_layouts, only: ig_idx, it_idx, ik_idx, is_idx
 
     implicit none
-
+    
     real, intent (in), optional :: vnmult_target
 
     integer :: ie, is, ik, il, ig, it
@@ -1458,7 +1455,7 @@ contains
     end if
 
 
-    if(use_le_layout) then
+    if(use_le_layout) then    
 
       if (.not.allocated(ec1le)) then
          allocate (ec1le   (nxi+1, negrid, le_lo%llim_proc:le_lo%ulim_alloc))
@@ -1550,27 +1547,27 @@ contains
     select case (ediff_switch)
 
     case (ediff_scheme_default)
-
+       
        do ie = 2, negrid-1
           xe0 = xe(ie-1)
           xe1 = xe(ie)
           xe2 = xe(ie+1)
-
+          
           xel = (xe0 + xe1)*0.5
           xer = (xe1 + xe2)*0.5
-
+         
           capgr = 2.0*exp(-xer**2)*(erf(xer)-2.*xer*exp(-xer**2)/sqrt(pi))/(xer*sqrt(pi))
           capgl = 2.0*exp(-xel**2)*(erf(xel)-2.*xel*exp(-xel**2)/sqrt(pi))/(xel*sqrt(pi))
-
+          
           ee = 0.125*(1.-slb1**2)*vnew_s(ik,ie,is) &
                / (bmag(ig)*spec(is)%zstm)**2 &
                * kperp2(ig,it,ik)*cfac
-
+          
           ! coefficients for tridiagonal matrix:
           cc(ie) = -0.25*vn*code_dt*capgr/(w(ie)*(xe2 - xe1))
           aa(ie) = -0.25*vn*code_dt*capgl/(w(ie)*(xe1 - xe0))
           bb(ie) = 1.0 - (aa(ie) + cc(ie)) + ee*code_dt
-
+          
              ! coefficients for entropy heating calculation
 !             if (heating) then
 !                dd(ie) =vnc*(0.25*capgr/(w(ie)*(xe2-xe1)) + ee)
@@ -1581,19 +1578,19 @@ contains
        ! boundary at v = 0
        xe1 = xe(1)
        xe2 = xe(2)
-
+       
        xer = (xe1 + xe2)*0.5
-
+       
        capgr = 2.0*exp(-xer**2)*(erf(xer)-2.*xer*exp(-xer**2)/sqrt(pi))/xer/sqrt(pi)
-
+       
        ee = 0.125*(1.-slb1**2)*vnew_s(ik,1,is) &
             / (bmag(ig)*spec(is)%zstm)**2 &
             * kperp2(ig,it,ik)*cfac
-
+       
        cc(1) = -0.25*vn*code_dt*capgr/(w(1)*(xe2 - xe1))
        aa(1) = 0.0
        bb(1) = 1.0 - cc(1) + ee*code_dt
-
+       
 !          if (heating) then
 !             dd(1) =vnc*(0.25*capgr/(w(1)*(xe2-xe1)) + ee)
 !             hh(1) =vnh*(0.25*capgr/(w(1)*(xe2-xe1)) + ee)
@@ -1602,48 +1599,48 @@ contains
        ! boundary at v = infinity
        xe0 = xe(negrid-1)
        xe1 = xe(negrid)
-
+       
        xel = (xe1 + xe0)*0.5
-
+       
        capgl = 2.0*exp(-xel**2)*(erf(xel)-2.*xel*exp(-xel**2)/sqrt(pi))/xel/sqrt(pi)
 
        ee = 0.125*(1.-slb1**2)*vnew_s(ik,negrid,is) &
             / (bmag(ig)*spec(is)%zstm)**2 &
             * kperp2(ig,it,ik)*cfac
-
+       
        cc(negrid) = 0.0
        aa(negrid) = -0.25*vn*code_dt*capgl/(w(negrid)*(xe1 - xe0))
        bb(negrid) = 1.0 - aa(negrid) + ee*code_dt
-
+       
 !          if (heating) then
 !             dd(negrid) =vnc*ee
 !             hh(negrid) =vnh*ee
 !          end if
 
     case (ediff_scheme_old)
-
+       
        ! non-conservative scheme
-
+       
        do ie = 2, negrid-1
           xe0 = xe(ie-1)
           xe1 = xe(ie)
           xe2 = xe(ie+1)
-
+          
           xel = (xe0 + xe1)*0.5
           xer = (xe1 + xe2)*0.5
-
+          
           capgr = 0.5*exp(xe1**2-xer**2)/xe1**2*(erf(xer)-2.*xer*exp(-xer**2)/sqrt(pi))/xer
           capgl = 0.5*exp(xe1**2-xel**2)/xe1**2*(erf(xel)-2.*xel*exp(-xel**2)/sqrt(pi))/xel
-
+          
           ee = 0.125*(1.-slb1**2)*vnew_s(ik,ie,is) &
                / (bmag(ig)*spec(is)%zstm)**2 &
                * kperp2(ig,it,ik)*cfac
-
+          
           ! coefficients for tridiagonal matrix:
           cc(ie) = -vn*code_dt*capgr/((xer-xel)*(xe2 - xe1))
           aa(ie) = -vn*code_dt*capgl/((xer-xel)*(xe1 - xe0))
           bb(ie) = 1.0 - (aa(ie) + cc(ie)) + ee*code_dt
-
+          
           ! coefficients for entropy heating calculation
 !             if (heating) then
 !                dd(ie) =vnc*(0.25*capgr/(w(ie)*(xe2-xe1)) + ee)
@@ -1654,19 +1651,19 @@ contains
        ! boundary at xe = 0
        xe1 = xe(1)
        xe2 = xe(2)
-
+       
        xer = (xe1 + xe2)*0.5
-
+       
        capgr = 0.5*exp(xe1**2-xer**2)/xe1**2*(erf(xer)-2.*xer*exp(-xer**2)/sqrt(pi))/xer
-
+       
        ee = 0.125*(1.-slb1**2)*vnew_s(ik,1,is) &
             / (bmag(ig)*spec(is)%zstm)**2 &
             * kperp2(ig,it,ik)*cfac
-
+       
        cc(1) = -vn*code_dt*capgr/(xer*(xe2 - xe1))
        aa(1) = 0.0
        bb(1) = 1.0 - cc(1) + ee*code_dt
-
+       
 !          if (heating) then
 !             dd(1) =vnc*(0.25*capgr/(w(1)*(xe2-xe1)) + ee)
 !             hh(1) =vnh*(0.25*capgr/(w(1)*(xe2-xe1)) + ee)
@@ -1675,15 +1672,15 @@ contains
        ! boundary at xe = 1
        xe0 = xe(negrid-1)
        xe1 = xe(negrid)
-
+       
        xel = (xe1 + xe0)*0.5
-
+       
        capgl = 0.5*exp(xe1**2-xel**2)/xe1**2*(erf(xel)-2.*xel*exp(-xel**2)/sqrt(pi))/xel
-
+       
        ee = 0.125*(1.-slb1**2)*vnew_s(ik,negrid,is) &
             / (bmag(ig)*spec(is)%zstm)**2 &
             * kperp2(ig,it,ik)*cfac
-
+       
        cc(negrid) = 0.0
        aa(negrid) = -vn*code_dt*capgl/((1.0-xel)*(xe1 - xe0))
        bb(negrid) = 1.0 - aa(negrid) + ee*code_dt
@@ -1815,7 +1812,7 @@ contains
          end if
          vnmult(1) = max(1.0, vnmult(1))
       end if
-
+       
       c1 = 0.0 ; betaa = 0.0 ; ql = 0.0
 
       if (present(vnmult_target)) then
@@ -1885,14 +1882,14 @@ contains
 !CMR, 17/2/2014:
 !         te, te2, teh: indices in xi, which runs from +1 -> -1.
 !         te   :  index of minimum xi value >= 0.
-!         te2  :  total #xi values = index of minimum xi value (= -1)
-!         teh  :  index of minimum xi value > 0.
+!         te2  :  total #xi values = index of minimum xi value (= -1) 
+!         teh  :  index of minimum xi value > 0.  
 !                 teh = te if no bouncing particle at this location
 !              OR teh = te-1 if there is a bouncing particle
 !
     if (special_wfb_lorentz) then
 !CMRDDGC, 17/2/2014:
-!   This clause is appropriate for Lorentz collisons with
+!   This clause is appropriate for Lorentz collisons with 
 !         SPECIAL (unphysical) treatment of wfb at its bounce point
        if (je <= ng2+1) then
           te = ng2
@@ -1905,7 +1902,7 @@ contains
        end if
     else
 !CMRDDGC, 17/2/2014:
-!   This clause is appropriate for Lorentz collisons with
+!   This clause is appropriate for Lorentz collisons with 
 !         STANDARD treatment of wfb at its bounce point
        if (je <= ng2) then
           te = ng2
@@ -1916,7 +1913,7 @@ contains
           te2 = 2*je-1
           teh = je-1
        end if
-    endif
+    endif 
     if (collision_model_switch == collision_model_lorentz_test) then
        vn = vnmult(1)*abs(spec(is)%vnewk)*tunits(ik)
        vnc = 0.
@@ -1936,93 +1933,93 @@ contains
     aa = 0.0 ; bb = 0.0 ; cc = 0.0 ; dd = 0.0 ; hh = 0.0
 
     select case (lorentz_switch)
-
-    case (lorentz_scheme_default)
-
+       
+    case (lorentz_scheme_default)          
+       
        do il = 2, te-1
-          slb0 = sqrt(abs(1.0 - bmag(ig)*al(il-1)))
-          slb1 = sqrt(abs(1.0 - bmag(ig)*al(il)))
-          slb2 = sqrt(abs(1.0 - bmag(ig)*al(il+1)))
-
+          slb0 = sqrt(abs(1.0 - bmag(ig)*al(il-1))) 
+          slb1 = sqrt(abs(1.0 - bmag(ig)*al(il))) 
+          slb2 = sqrt(abs(1.0 - bmag(ig)*al(il+1))) 
+          
           slbl = (slb1 + slb0)*0.5  ! xi(j-1/2)
           slbr = (slb1 + slb2)*0.5  ! xi(j+1/2)
-
+          
           ee = 0.5*energy(ie)*(1+slb1**2) &
                / (bmag(ig)*spec(is)%zstm)**2 &
                * kperp2(ig,it,ik)*cfac
-
+          
           ! coefficients for tridiagonal matrix:
           cc(il) = 2.0*vn*code_dt*(1.0 - slbr**2)/(wl(ig,il)*(slb2 - slb1))
           aa(il) = 2.0*vn*code_dt*(1.0 - slbl**2)/(wl(ig,il)*(slb1 - slb0))
           bb(il) = 1.0 - (aa(il) + cc(il)) + ee*vn*code_dt
-
+          
           ! coefficients for entropy heating calculation
           if (heating) then
              dd(il) =vnc*(-2.0*(1.0-slbr*slbr)/(wl(ig,il)*(slb2-slb1)) + ee)
              hh(il) =vnh*(-2.0*(1.0-slbr*slbr)/(wl(ig,il)*(slb2-slb1)) + ee)
           end if
        end do
-
+       
        ! boundary at xi = 1
        slb1 = sqrt(abs(1.0-bmag(ig)*al(1)))
        slb2 = sqrt(abs(1.0-bmag(ig)*al(2)))
-
+       
        slbr = (slb1 + slb2)*0.5
-
+       
        ee = 0.5*energy(ie)*(1+slb1**2) &
             / (bmag(ig)*spec(is)%zstm)**2 &
             * kperp2(ig,it,ik)*cfac
-
+       
        cc(1) = 2.0*vn*code_dt*(1.0 - slbr**2)/(wl(ig,1)*(slb2 - slb1))
        aa(1) = 0.0
        bb(1) = 1.0 - cc(1) + ee*vn*code_dt
-
+       
        if (heating) then
           dd(1) =vnc*(-2.0*(1.0-slbr**2)/(wl(ig,1)*(slb2-slb1)) + ee)
           hh(1) =vnh*(-2.0*(1.0-slbr**2)/(wl(ig,1)*(slb2-slb1)) + ee)
        end if
-
+       
        ! boundary at xi = 0
        il = te
-       slb0 = sqrt(abs(1.0 - bmag(ig)*al(il-1)))
+       slb0 = sqrt(abs(1.0 - bmag(ig)*al(il-1))) 
        if (te == ng2) then
-          slb1 = sqrt(abs(1.0 - bmag(ig)*al(il)))
+          slb1 = sqrt(abs(1.0 - bmag(ig)*al(il))) 
           slb2 = -slb1
        else
           slb1 = 0.0
           slb2 = -slb0
        end if
-
+       
        slbl = (slb1 + slb0)*0.5
        slbr = (slb1 + slb2)*0.5
-
+       
        ee = 0.5*energy(ie)*(1+slb1**2) &
             / (bmag(ig)*spec(is)%zstm)**2 &
             * kperp2(ig,it,ik)*cfac
 !
-!CMR, 6/3/2014:
+!CMR, 6/3/2014:  
 ! STANDARD treatment of pitch angle scattering must resolve T-P boundary.
-! NEED special_wfb= .false. to resolve T-P boundary at wfb bounce point
+! NEED special_wfb= .false. to resolve T-P boundary at wfb bounce point 
 !     (special_wfb= .true. AVOIDS TP boundary at wfb bounce point)
 !
-! Original code (pre-r2766) used eq.(42) Barnes et al, Phys Plasmas 16, 072107
+! Original code (pre-r2766) used eq.(42) Barnes et al, Phys Plasmas 16, 072107 
 ! (2009), with pitch angle weights to enhance accuracy in derivatives.
-! NB THIS FAILS at wfb bounce point, giving aa=cc=infinite,
+! NB THIS FAILS at wfb bounce point, giving aa=cc=infinite, 
 !    because weight wl(ig,il)=0 at wfb bounce point.
 !    UNPHYSICAL as d/dxi ((1-xi^2)g) IS NOT resolved numerically for wl=0.
-! MUST accept limitations of the grid resolution and USE FINITE coefficients!
-! FIX here by setting a FINITE width of the trapped region at wfb B-P
+! MUST accept limitations of the grid resolution and USE FINITE coefficients! 
+! FIX here by setting a FINITE width of the trapped region at wfb B-P 
 !              deltaxi=xi(ig,ng2)-xi(ig,ng2+2)
 ! ASIDE: NB    deltaxi=wl is actually 2*spacing in xi !!!
 !              which explains upfront factor 2 in definition of aa, cc
        deltaxi=wl(ig,il)
-       if (.not. special_wfb_lorentz .and. deltaxi .eq. 0. .and. il .eq. ng2+1) then
+       if (.not. special_wfb_lorentz .and. deltaxi .eq. 0. .and. il .eq. ng2+1) then 
           deltaxi=xi(ig,ng2)-xi(ig,ng2+2)
        endif
        cc(il) = 2.0*vn*code_dt*(1.0 - slbr**2)/(deltaxi*(slb2 - slb1))
        aa(il) = 2.0*vn*code_dt*(1.0 - slbl**2)/(deltaxi*(slb1 - slb0))
        bb(il) = 1.0 - (aa(il) + cc(il)) + ee*vn*code_dt
-
+       
        if (heating) then
           dd(il) =vnc*(-2.0*(1.0-slbr**2)/(deltaxi*(slb2-slb1)) + ee)
           hh(il) =vnh*(-2.0*(1.0-slbr**2)/(deltaxi*(slb2-slb1)) + ee)
@@ -2030,86 +2027,86 @@ contains
 !CMRend
 
     case (lorentz_scheme_old)
-
+       
        do il = 2, te-1
-          slb0 = sqrt(abs(1.0 - bmag(ig)*al(il-1)))
-          slb1 = sqrt(abs(1.0 - bmag(ig)*al(il)))
-          slb2 = sqrt(abs(1.0 - bmag(ig)*al(il+1)))
-
+          slb0 = sqrt(abs(1.0 - bmag(ig)*al(il-1))) 
+          slb1 = sqrt(abs(1.0 - bmag(ig)*al(il))) 
+          slb2 = sqrt(abs(1.0 - bmag(ig)*al(il+1))) 
+          
           slbl = (slb1 + slb0)*0.5  ! xi(j-1/2)
           slbr = (slb1 + slb2)*0.5  ! xi(j+1/2)
-
+          
           ee = 0.5*energy(ie)*(1+slb1**2) &
                / (bmag(ig)*spec(is)%zstm)**2 &
                * kperp2(ig,it,ik)*cfac
-
+          
           ! coefficients for tridiagonal matrix:
           cc(il) = -vn*code_dt*(1.0 - slbr*slbr)/(slbr - slbl)/(slb2 - slb1)
           aa(il) = -vn*code_dt*(1.0 - slbl*slbl)/(slbr - slbl)/(slb1 - slb0)
           bb(il) = 1.0 - (aa(il) + cc(il)) + ee*vn*code_dt
-
+          
           ! coefficients for entropy heating calculation
           if (heating) then
              dd(il) =vnc*((1.0-slbr*slbr)/(slbr-slbl)/(slb2-slb1) + ee)
              hh(il) =vnh*((1.0-slbr*slbr)/(slbr-slbl)/(slb2-slb1) + ee)
           end if
        end do
-
+       
        ! boundary at xi = 1
        slb0 = 1.0
        slb1 = sqrt(abs(1.0-bmag(ig)*al(1)))
        slb2 = sqrt(abs(1.0-bmag(ig)*al(2)))
-
+       
        slbl = (slb1 + slb0)*0.5
        slbr = (slb1 + slb2)*0.5
-
+       
        ee = 0.5*energy(ie)*(1+slb1**2) &
             / (bmag(ig)*spec(is)%zstm)**2 &
             * kperp2(ig,it,ik)*cfac
-
+       
        cc(1) = -vn*code_dt*(-1.0 - slbr)/(slb2-slb1)
        aa(1) = 0.0
        bb(1) = 1.0 - (aa(1) + cc(1)) + ee*vn*code_dt
-
+       
        if (heating) then
           dd(1) =vnc*((1.0-slbr*slbr)/(slbr-slbl)/(slb2-slb1) + ee)
           hh(1) =vnh*((1.0-slbr*slbr)/(slbr-slbl)/(slb2-slb1) + ee)
        end if
-
+       
        ! boundary at xi = 0
        il = te
-       slb0 = sqrt(abs(1.0 - bmag(ig)*al(il-1)))
+       slb0 = sqrt(abs(1.0 - bmag(ig)*al(il-1))) 
        if (te == ng2) then
-          slb1 = sqrt(abs(1.0 - bmag(ig)*al(il)))
+          slb1 = sqrt(abs(1.0 - bmag(ig)*al(il))) 
           slb2 = -slb1
        else
           slb1 = 0.0
           slb2 = -slb0
        end if
-
+       
        slbl = (slb1 + slb0)*0.5
        slbr = (slb1 + slb2)*0.5
-
+       
        ee = 0.5*energy(ie)*(1+slb1**2) &
             / (bmag(ig)*spec(is)%zstm)**2 &
             * kperp2(ig,it,ik)*cfac
-
+       
        cc(il) = -vn*code_dt*(1.0 - slbr*slbr)/(slbr - slbl)/(slb2 - slb1)
        aa(il) = -vn*code_dt*(1.0 - slbl*slbl)/(slbr - slbl)/(slb1 - slb0)
        bb(il) = 1.0 - (aa(il) + cc(il)) + ee*vn*code_dt
-
+       
        if (heating) then
           dd(il) =vnc*((1.0-slbr*slbr)/(slbr-slbl)/(slb2-slb1) + ee)
           hh(il) =vnh*((1.0-slbr*slbr)/(slbr-slbl)/(slb2-slb1) + ee)
        end if
-
+       
     end select
 
     ! assuming symmetry in xi, fill in the rest of the arrays.
     aa(te+1:te2) = cc(teh:1:-1)
     bb(te+1:te2) = bb(teh:1:-1)
     cc(te+1:te2) = aa(teh:1:-1)
-
+       
     if (heating) then
        dd(te+1:te2) = dd(teh:1:-1)
        hh(te+1:te2) = hh(teh:1:-1)
@@ -2122,7 +2119,7 @@ contains
     use le_grids, only: jend, al, ng2, nlambda
     use theta_grid, only: ntgrid, bmag
     implicit none
-
+    
     integer :: je, ig, il, ip, ij, im
     real :: slb0, slb1, slb2, slbr, slbl
     real, dimension (:), allocatable :: slb
@@ -2142,17 +2139,17 @@ contains
 
     do ig=-ntgrid,ntgrid
        je = jend(ig)
-
+       
        if (je <= ng2+1) then            ! no trapped particles
 
 ! calculation of xi and finite difference coefficients for non-boundary points
           do il=2,ng2-1
              slb(il) = sqrt(abs(1.0-al(il)*bmag(ig)))   ! xi_{j}
-
+             
              slb2 = sqrt(abs(1.0-al(il+1)*bmag(ig)))    ! xi_{j+1}
              slb1 = slb(il)
              slb0 = sqrt(abs(1.0-al(il-1)*bmag(ig)))    ! xi_{j-1}
-
+             
              slbr = (slb2+slb1)*0.5                     ! xi_{j+1/2}
              slbl = (slb1+slb0)*0.5                     ! xi_{j-1/2}
 
@@ -2192,11 +2189,11 @@ contains
        else          ! run with trapped particles
           do il=2,je-1
              slb(il) = sqrt(abs(1.0-al(il)*bmag(ig)))
-
+             
              slb2 = sqrt(abs(1.0-al(il+1)*bmag(ig)))
              slb1 = slb(il)
              slb0 = sqrt(abs(1.0-al(il-1)*bmag(ig)))
-
+             
              slbr = (slb2+slb1)*0.5
              slbl = (slb1+slb0)*0.5
 
@@ -2220,7 +2217,7 @@ contains
           slb(il) = sqrt(abs(1.0-bmag(ig)*al(il)))
           slb0 = slb(je-1)
           slb1 = 0.
-          slb2 = -slb0
+          slb2 = -slb0                                                        
 
           slbl = (slb1 + slb0)/2.0
 
@@ -2373,7 +2370,7 @@ contains
           end if
           d2lcoef(ig,il,ip-il+2) = (1.0-slb(il)**2)*d2lcoef(ig,il,ip-il+2)
        end do
-
+       
        if (je > ng2+1) then      ! have to handle trapped particles
 
           do il=ng2+1,je
@@ -2412,7 +2409,7 @@ contains
                          dprod(il,ip-il+3) = dprod(il,ip-il+3)*(slb(il)-slb(ij))/(slb(ip)-slb(ij))
                       end if
                    end do
-
+                   
                    do ij=il-2,il+2
                       if (ij /= ip .and. ij /= il) then
                          d2lcoef(ig,il,ip-il+3) = d2lcoef(ig,il,ip-il+3) + 1./(slb(il)-slb(ij))
@@ -2424,7 +2421,7 @@ contains
                 d2lcoef(ig,il,ip-il+3) = (1.0-slb(il)**2)*d2lcoef(ig,il,ip-il+3)
              end do
           end do
-
+          
        end if
     end do
 
@@ -2454,24 +2451,24 @@ contains
     integer, optional, intent (in) :: diagnostics
     logical, optional, intent (in) :: gtoc, ctog
     integer :: ig, it, ik, ie, is, iglo
-!CMR, 12/9/2013:
+!CMR, 12/9/2013: 
 !CMR   New logical optional input parameters gtoc, ctog used to set
 !CMR   flags (g_to_c and c_to_g) to control whether redistributes required
 !CMR   to map g_lo to collision_lo, and collision_lo to g_lo.
 !CMR   All redistributes are performed by default.
-!CMR
+!CMR  
 
     logical :: g_to_c, c_to_g
 
-    if (present(gtoc)) then
-       g_to_c=gtoc
-    else
+    if (present(gtoc)) then 
+       g_to_c=gtoc 
+    else 
        g_to_c=.true.
     endif
 
-    if (present(ctog)) then
-       c_to_g=ctog
-    else
+    if (present(ctog)) then 
+       c_to_g=ctog 
+    else 
        c_to_g=.true.
     endif
 
@@ -2567,7 +2564,7 @@ contains
              end do
           end do
        end if
-
+       
        if (heating_flag) then
           call solfp_lorentz (g, gc1, gc2, diagnostics)
        else
@@ -2582,7 +2579,7 @@ contains
        if (conserve_moments) call conserve_diffuse (g, g1)
 
     end select
-
+   
   end subroutine solfp1_standard_layout
 
   subroutine solfp1_le_layout (gle, diagnostics)
@@ -2723,7 +2720,7 @@ contains
        if (conserve_moments) call conserve_diffuse (gle)
 
     end select
-
+   
   end subroutine solfp1_le_layout
 
 
@@ -2737,7 +2734,7 @@ contains
     use dist_fn_arrays, only: aj0, aj1, vpa
     use run_parameters, only: ieqzip
     use kt_grids, only: kwork_filter
-
+    
     implicit none
 
     complex, dimension (-ntgrid:,:,g_lo%llim_proc:), intent (in out) :: g, g1
@@ -2747,7 +2744,7 @@ contains
     complex, dimension (:,:,:,:), allocatable :: v0y0, v1y1, v2y2
 
     integer :: isgn, iglo, ik, ie, il, is, it
-    logical :: all = .true.
+    logical :: all = .true. 
 
     allocate (v0y0(-ntgrid:ntgrid, ntheta0, naky, nspec))
     allocate (v1y1(-ntgrid:ntgrid, ntheta0, naky, nspec))
@@ -2771,7 +2768,7 @@ contains
              gtmp(:,isgn,iglo) = vpa(:,isgn,iglo)*aj0(:,iglo)*g(:,isgn,iglo)
           end do
        end do
-
+       
        call integrate_moment (gtmp, v0y0, all)    ! v0y0
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -2921,7 +2918,7 @@ contains
              end do
           end do
        end do
-
+       
        ! v0 = vpa J0 f0, y0 = gle
        do ile = le_lo%llim_proc, le_lo%ulim_proc
           is = is_idx(le_lo,ile)
@@ -3051,8 +3048,8 @@ contains
 
     real, dimension (:,:,:), allocatable :: vns
 
-    integer :: isgn, iglo, ik, ie, il, is, it
-    complex, dimension (:,:,:,:), allocatable :: v0y0, v1y1, v2y2
+    integer :: isgn, iglo, ik, ie, il, is, it 
+    complex, dimension (:,:,:,:), allocatable :: v0y0, v1y1, v2y2    
     logical :: all = .true.
 
     allocate (v0y0(-ntgrid:ntgrid, ntheta0, naky, nspec))
@@ -3226,12 +3223,12 @@ contains
           end do
        end do
     end if
-
+    
     vns = vnmult(2)*vnew_E
-
+    
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 ! First get v0y0
-
+    
     ! TMP FOR TESTING -- MAB
 !    if (proc0) call system_clock (count=t0, count_rate=tr)
 
@@ -3246,7 +3243,7 @@ contains
           end do
        end do
     end do
-
+    
     call integrate_moment (le_lo, gtmp, v0y0)    ! v0y0
 !    call integrate_moment (le_lo, gle*aj0le, v0y0, vns)    ! v0y0
 
@@ -3330,7 +3327,7 @@ contains
 
     do is = 1, nspec
        do ik = 1, naky
-          vns(ik,:,is) = delvnew(ik,:,is)*energy
+          vns(ik,:,is) = delvnew(ik,:,is)*energy 
        end do
     end do
 
@@ -3423,9 +3420,9 @@ contains
        do ilz = lz_lo%llim_proc, lz_lo%ulim_proc
           ig = ig_idx(lz_lo,ilz)
 
-          je = 2*jend(ig)
+          je = 2*jend(ig)          
           if (je == 0) then
-             je = 2*ng2
+             je = 2*ng2 
           end if
 
 ! when il=je-1 below, and we have trapped particles, glz is evaluated at glz(2*jend(ig),ilz).
@@ -3443,12 +3440,12 @@ contains
        if (hyper_colls) then
           do ilz = lz_lo%llim_proc, lz_lo%ulim_proc
              ig = ig_idx(lz_lo,ilz)
-
-             je = 2*jend(ig)
+             
+             je = 2*jend(ig)          
              if (je == 0) then
-                je = 2*ng2
+                je = 2*ng2 
              end if
-
+             
              do il = 1, je-1
                 fac = glz(il+1,ilz)-glz(il,ilz)
                 glzc(il,ilz) = conjg(fac)*fac*h1(il,ilz)  ! h1 accounts for hH(h) entropy
@@ -3470,9 +3467,9 @@ contains
        ie = ie_idx(lz_lo,ilz)
        ig = ig_idx(lz_lo,ilz)
 
-!CMRDDGC, 10/2/2014:
+!CMRDDGC, 10/2/2014: 
 ! Fixes for wfb treatment below, use same je definition in ALL cases
-!   je  = #physical xi values + 1
+!   je  = #physical xi values + 1 
 !       NB +1 above WITH TRAPPED is duplicate xi=vpar=0 point with isign=2
 !          +1 above WITHOUT TRAPPED is entirely unphysical extra grid point
 !  je-1 = #physical xi values removing unphysical/duplicate extra point
@@ -3480,12 +3477,12 @@ contains
        nxi_scatt=je-1
        glz(je,ilz)=0.0  ! zero unphysical/duplicate extra point
        if (jend(ig) == ng2+1 .and.special_wfb_lorentz) then
-!CMRDDGC:  special_wfb_lorentz = t  => unphysical handling of wfb at bounce pt:
+!CMRDDGC:  special_wfb_lorentz = t  => unphysical handling of wfb at bounce pt: 
 !          remove wfb from collisions, reinsert later
 !
 ! first save gwfb for reinsertion later
-          gwfb = glz(ng2+1,ilz)
-! then remove vpa = 0 point, weight 0: (CMR confused by this comment!)
+          gwfb = glz(ng2+1,ilz) 
+! then remove vpa = 0 point, weight 0: (CMR confused by this comment!)  
           glz(ng2+1:je-2,ilz) = glz(ng2+2:je-1,ilz)
           nxi_scatt=nxi_scatt-1
        endif
@@ -3497,11 +3494,11 @@ contains
        do il = 1, nxi_scatt
           delta(il+1) = glz(il+1,ilz) - ql(il+1,ilz)*delta(il)
        end do
-
+       
 !CMR, 5/9/14:
 ! Correction to next line fixes a bug introduced at r2699 which
 ! affected Lorentz scattering operator at wfb bounce point (theta=pi)
-! with default setting of special_wfb_lorentz=t
+! with default setting of special_wfb_lorentz=t        
        glz(nxi_scatt+1,ilz) = delta(nxi_scatt+1)*betaa(nxi_scatt+1,ilz)
        do il = nxi_scatt, 1, -1
           glz(il,ilz) = (delta(il) - c1(il,ilz)*glz(il+1,ilz))*betaa(il,ilz)
@@ -3519,7 +3516,7 @@ contains
 !
 ! bug fixed 4.14.03
 ! was only a problem with collisions but with no trapped particles
-! because of an array index out of bounds
+! because of an array index out of bounds 
 ! Overall, this was a rare bug.
 !
 
@@ -3559,7 +3556,6 @@ contains
     integer :: ig, ik, il, is, je, it, ie
     integer :: nxi_scatt
 
-
     call prof_entering ("solfp_lorentz", "collisions")
 
     allocate (tmp(le_lo%llim_proc:le_lo%ulim_alloc)) ; tmp = 0.0
@@ -3570,7 +3566,7 @@ contains
 
           je = 2*jend(ig)
           if (je == 0) then
-             je = 2*ng2
+             je = 2*ng2 
           end if
 
 ! when il=je-1 below, and we have trapped particles, gle is evaluated at gle(2*jend(ig),ie,ile).
@@ -3600,7 +3596,7 @@ contains
 
              je = 2*jend(ig)
              if (je == 0) then
-                je = 2*ng2
+                je = 2*ng2 
              end if
 
              do ie = 1, negrid
@@ -3631,7 +3627,7 @@ contains
        if (abs(vnew(ik,1,is)) < 2.0*epsilon(0.0)) cycle
        ig = ig_idx(le_lo,ile)
 
-!CMRDDGC, 10/2/1014:
+!CMRDDGC, 10/2/1014: 
 ! Fixes for wfb treatment below, use same je definition in ALL cases
 !   je  = #physical xi values at location, includes duplicate point at vpar=0
 !  je-1 = #physical xi values removing duplicate vpar=0 point
@@ -3640,7 +3636,7 @@ contains
        if (jend(ig) == ng2+1 .and.special_wfb_lorentz) then
           nxi_scatt=nxi_scatt-1
        endif
-! These fixes address previous comment by CMR:
+! These fixes address previous comment by CMR: 
 ! "surely wfb's bounce point should be handled like any other trapped bp?"
 !CMR, 1/11/2013:
 ! Numerical instability referred to below more likely arises from wfb failing
@@ -3649,18 +3645,18 @@ contains
        do ie = 1, negrid
           gle(je,ie,ile)=0.0d0  ! zero redundant duplicate xi, isign=2 for vpar=0!
           if (jend(ig) == ng2+1 .and.special_wfb_lorentz) then
-!CMRDDGC:  special_wfb_lorentz = t  => unphysical handling of wfb at bounce pt:
+!CMRDDGC:  special_wfb_lorentz = t  => unphysical handling of wfb at bounce pt: 
 !          remove wfb from collisions, reinsert later
 !
 ! first save gwfb for reinsertion later
              gwfb = gle(ng2+1,ie,ile)
-! then remove vpa = 0 point, weight 0: (CMR confused by this comment!)
+! then remove vpa = 0 point, weight 0: (CMR confused by this comment!)  
              gle(ng2+1:je-2,ie,ile) = gle(ng2+2:je-1,ie,ile)
           endif
 !CMRDDGCend
 
           ! right and left sweeps for tridiagonal solve:
-
+          
           delta(1) = gle(1,ie,ile)
           do il = 1, nxi_scatt
              delta(il+1) = gle(il+1,ie,ile) - qle(il+1,ie,ile)*delta(il)
@@ -3668,7 +3664,7 @@ contains
 !CMR, 5/9/14:
 ! Correction to next line fixes a bug introduced at r2699 which
 ! affected Lorentz scattering operator at wfb bounce point (theta=pi)
-! with default setting of special_wfb_lorentz=t
+! with default setting of special_wfb_lorentz=t        
           gle(nxi_scatt+1,ie,ile) = delta(nxi_scatt+1)*betaale(nxi_scatt+1,ie,ile)
           do il = nxi_scatt, 1, -1
              gle(il,ie,ile) = (delta(il) - c1le(il,ie,ile)*gle(il+1,ie,ile))*betaale(il,ie,ile)
@@ -3693,7 +3689,7 @@ contains
     end do
 
     deallocate (tmp)
-
+    
     call prof_leaving ("solfp_lorentz", "collisions")
 
   end subroutine solfp_lorentz_le_layout
@@ -3729,7 +3725,7 @@ contains
     ! solve for ged row by row
     do ielo = e_lo%llim_proc, e_lo%ulim_proc
 
-       it = it_idx(e_lo,ielo)
+       it = it_idx(e_lo,ielo)       
        ik = ik_idx(e_lo,ielo)
        if(kwork_filter(it,ik))cycle
        if (ieqzip(it,ik)==0) cycle
@@ -3743,7 +3739,7 @@ contains
        do ie = 1, negrid-1
           delta(ie+1) = ged(ie+1,ielo) - eql(ie+1,ielo)*delta(ie)
        end do
-
+       
        ged(negrid+1,ielo) = 0.0
        do ie = negrid, 1, -1
           ged(ie,ielo) = (delta(ie) - ec1(ie,ielo)*ged(ie+1,ielo))*ebetaa(ie,ielo)
@@ -3808,8 +3804,8 @@ contains
 
     use gs2_layouts, only: g_lo
     use theta_grid, only: ntgrid
-    implicit none
-    character (3), intent(in) :: str
+    implicit none    
+    character (3), intent(in) :: str 
     complex, dimension (-ntgrid:,:,g_lo%llim_proc:), intent (in) :: g
     integer :: ig, iglo
 
@@ -3831,7 +3827,7 @@ contains
     use le_grids, only: jend
     use theta_grid, only: ntgrid
     implicit none
-    character (3), intent(in) :: str
+    character (3), intent(in) :: str 
     complex, dimension (:,lz_lo%llim_proc:), intent (in) :: glz
     integer :: il, ilz, ig, ie, je, ilzp, ilp
 
@@ -3865,9 +3861,9 @@ contains
     if (.not. allocated(vpdiff) .and. conservative) then
 
        allocate (vpdiff(-ntgrid:ntgrid,2,nlambda))
-
+       
        vpdiff = 0.0
-
+       
        do ig = -ntgrid, ntgrid
           je = jend(ig)
           if (je <= ng2+1) then
@@ -3876,43 +3872,43 @@ contains
              te = je
           end if
           do il = 2, te-1
-             slb0 = sqrt(abs(1.0 - bmag(ig)*al(il-1)))
-             slb1 = sqrt(abs(1.0 - bmag(ig)*al(il)))
-             slb2 = sqrt(abs(1.0 - bmag(ig)*al(il+1)))
-
+             slb0 = sqrt(abs(1.0 - bmag(ig)*al(il-1))) 
+             slb1 = sqrt(abs(1.0 - bmag(ig)*al(il))) 
+             slb2 = sqrt(abs(1.0 - bmag(ig)*al(il+1))) 
+             
              slbl = (slb1 + slb0)*0.5  ! xi(j-1/2)
              slbr = (slb1 + slb2)*0.5  ! xi(j+1/2)
-
+             
              vpdiff(ig,1,il) = (slbl**2 - slbr**2)/wl(ig,il)
           end do
 
           ! boundary at xi = 1
-          slb1 = sqrt(abs(1.0 - bmag(ig)*al(1)))
-          slb2 = sqrt(abs(1.0 - bmag(ig)*al(2)))
+          slb1 = sqrt(abs(1.0 - bmag(ig)*al(1))) 
+          slb2 = sqrt(abs(1.0 - bmag(ig)*al(2))) 
           slbr = 0.5*(slb1 + slb2)
           vpdiff(ig,1,1) = (1.0 - slbr**2)/wl(ig,1)
-
+          
           ! boundary at xi = 0
           il = te
-          slb0 = sqrt(abs(1.0 - bmag(ig)*al(il-1)))
+          slb0 = sqrt(abs(1.0 - bmag(ig)*al(il-1))) 
           if (te == ng2) then
-             slb1 = sqrt(abs(1.0 - bmag(ig)*al(il)))
+             slb1 = sqrt(abs(1.0 - bmag(ig)*al(il))) 
              slb2 = -slb1
           else
              slb1 = 0.0
              slb2 = -slb0
           end if
-
+          
           slbl = (slb1 + slb0)*0.5
           slbr = (slb1 + slb2)*0.5
           vpdiff(ig,1,il) = (slbl**2 - slbr**2)/wl(ig,il)
-
+          
           vpdiff(ig,2,:) = -vpdiff(ig,1,:)
-
+          
        end do
-
+       
     end if
-
+    
   end subroutine init_vpdiff
 
   subroutine reset_init
@@ -3920,7 +3916,7 @@ contains
 ! forces recalculation of coefficients in collision operator
 ! when timestep changes.
     call finish_collisions
-!
+!    
 
   end subroutine reset_init
 
@@ -3933,7 +3929,7 @@ contains
     vnmult = 0.0
     accelerated_x = .false. ; accelerated_v = .false.
     ediffinit = .false. ; lzinit = .false. ; leinit = .false.
-    initialized = .false.
+    initialized = .false.  
 
     if (allocated(c_rate)) deallocate (c_rate)
     if (allocated(z0)) deallocate (z0, w0, s0)
@@ -3970,3 +3966,4 @@ contains
   end subroutine finish_collisions
 
 end module collisions
+

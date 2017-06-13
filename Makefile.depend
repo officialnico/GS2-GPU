@@ -99,7 +99,6 @@ dump_response_mod = \
 	 le_derivatives.o \
 	 le_grids.o \
 	 leq.o \
-	 lowflow.o \
 	 matrix_inverse.o \
 	 mp.o \
 	 netcdf_utils.o \
@@ -208,7 +207,6 @@ ffttester_mod = \
 	 le_derivatives.o \
 	 le_grids.o \
 	 leq.o \
-	 lowflow.o \
 	 matrix_inverse.o \
 	 mp.o \
 	 netcdf_utils.o \
@@ -225,9 +223,6 @@ ffttester_mod = \
 	 redistribute.o \
 	 run_parameters.o \
 	 runtime_tests.o \
-	 simpledataio_read.o \
-	 simpledataio_write.o \
-	 simpledataiof.o \
 	 sorting.o \
 	 species.o \
 	 spfunc.o \
@@ -266,7 +261,6 @@ generate_fftw_wisdom_mod = \
 	 layouts_type.o \
 	 le_grids.o \
 	 leq.o \
-	 lowflow.o \
 	 mp.o \
 	 netcdf_utils.o \
 	 nonlinear_terms.o \
@@ -355,7 +349,6 @@ gs2_mod = \
 	 le_derivatives.o \
 	 le_grids.o \
 	 leq.o \
-	 lowflow.o \
 	 matrix_inverse.o \
 	 mp.o \
 	 netcdf_utils.o \
@@ -372,9 +365,6 @@ gs2_mod = \
 	 redistribute.o \
 	 run_parameters.o \
 	 runtime_tests.o \
-	 simpledataio_read.o \
-	 simpledataio_write.o \
-	 simpledataiof.o \
 	 sorting.o \
 	 species.o \
 	 spfunc.o \
@@ -461,7 +451,6 @@ ingen_mod = \
 	 le_derivatives.o \
 	 le_grids.o \
 	 leq.o \
-	 lowflow.o \
 	 matrix_inverse.o \
 	 mp.o \
 	 netcdf_utils.o \
@@ -561,7 +550,6 @@ collisions.o: \
 	 gs2_time.o \
 	 kt_grids.o \
 	 le_grids.o \
-	 lowflow.o \
 	 mp.o \
 	 prof.o \
 	 redistribute.o \
@@ -596,7 +584,6 @@ diagnostics_config.o: \
 	 file_utils.o \
 	 kt_grids.o \
 	 mp.o \
-	 simpledataiof.o \
 	 species.o \
 	 text_options.o \
 	 unit_tests.o 
@@ -606,12 +593,8 @@ diagnostics_create_and_write.o: \
 	 fields_parallelization.o \
 	 file_utils.o \
 	 kt_grids.o \
-	 mp.o \
-	 simpledataio_read.o \
-	 simpledataio_write.o \
-	 simpledataiof.o 
+	 mp.o 
 diagnostics_dimensions.o: \
-	 simpledataiof.o \
 	 unit_tests.o 
 diagnostics_fields.o: \
 	 diagnostics_config.o \
@@ -659,7 +642,6 @@ diagnostics_fluxes.o: \
 	 gs2_layouts.o \
 	 kt_grids.o \
 	 le_grids.o \
-	 lowflow.o \
 	 mp.o \
 	 nonlinear_terms.o \
 	 run_parameters.o \
@@ -694,8 +676,7 @@ diagnostics_metadata.o: \
 	 file_utils.o \
 	 mp.o \
 	 run_parameters.o \
-	 runtime_tests.o \
-	 simpledataiof.o 
+	 runtime_tests.o 
 diagnostics_moments.o: \
 	 diagnostics_config.o \
 	 diagnostics_create_and_write.o \
@@ -730,16 +711,13 @@ diagnostics_omega.o: \
 	 mp.o \
 	 run_parameters.o 
 diagnostics_screen_printout.o: \
-	 constants.o \
 	 diagnostics_config.o \
 	 diagnostics_omega.o \
-	 fields_arrays.o \
 	 file_utils.o \
 	 kt_grids.o \
 	 mp.o \
 	 run_parameters.o \
 	 species.o \
-	 theta_grid.o \
 	 volume_averages.o 
 diagnostics_turbulence.o: \
 	 diagnostics_config.o \
@@ -803,7 +781,6 @@ dist_fn.o: \
 	 kt_grids.o \
 	 le_derivatives.o \
 	 le_grids.o \
-	 lowflow.o \
 	 mp.o \
 	 nonlinear_terms.o \
 	 overrides.o \
@@ -952,7 +929,6 @@ file_utils.o: \
 	 constants.o 
 functional_tests.o: \
 	 gs2_diagnostics.o \
-	 gs2_diagnostics_new.o \
 	 gs2_main.o \
 	 job_manage.o \
 	 kt_grids.o \
@@ -1016,7 +992,6 @@ gs2_diagnostics.o: \
 	 job_manage.o \
 	 kt_grids.o \
 	 le_grids.o \
-	 lowflow.o \
 	 mp.o \
 	 nonlinear_terms.o \
 	 normalisations.o \
@@ -1062,8 +1037,6 @@ gs2_diagnostics_new.o: \
 	 mp.o \
 	 nonlinear_terms.o \
 	 run_parameters.o \
-	 simpledataio_write.o \
-	 simpledataiof.o \
 	 species.o \
 	 theta_grid.o \
 	 unit_tests.o \
@@ -1309,11 +1282,9 @@ le_derivatives.o: \
 	 gs2_layouts.o \
 	 gs2_time.o \
 	 le_grids.o \
-	 lowflow.o \
 	 mp.o \
 	 redistribute.o \
 	 run_parameters.o \
-	 species.o \
 	 theta_grid.o 
 le_grids.o: \
 	 constants.o \
@@ -1359,7 +1330,6 @@ nonlinear_terms.o: \
 	 gs2_transforms.o \
 	 kt_grids.o \
 	 le_grids.o \
-	 lowflow.o \
 	 mp.o \
 	 run_parameters.o \
 	 species.o \
@@ -1431,12 +1401,6 @@ shm_mpi3_alloc_tmpl.inc:
 shm_mpi3_fence_tmpl.inc: 
 shm_mpi3_free_tmpl.inc: 
 shm_mpi3_get_node_pointer_tmpl.inc: 
-simpledataio_read.o: \
-	 simpledataio_write.o \
-	 simpledataiof.o 
-simpledataio_write.o: \
-	 simpledataiof.o 
-simpledataiof.o: 
 sorting.o: 
 species.o: \
 	 file_utils.o \

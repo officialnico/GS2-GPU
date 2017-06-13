@@ -72,9 +72,9 @@ module nonlinear_terms
   logical :: accelerated = .false.
 
   logical :: exist
-
+  
 contains
-
+  
   subroutine check_nonlinear_terms(report_unit,delt_adj)
     use gs2_time, only: code_dt_min
     use kt_grids, only: box
@@ -84,43 +84,43 @@ contains
     integer, intent(in) :: report_unit
     real, intent(in) :: delt_adj
     if (nonlin) then
-       write (report_unit, *)
+       write (report_unit, *) 
        write (report_unit, fmt="('This is a nonlinear simulation.')")
-       write (report_unit, *)
+       write (report_unit, *) 
        if (wstar_units) then
-          write (report_unit, *)
+          write (report_unit, *) 
           write (report_unit, fmt="('################# WARNING #######################')")
-          write (report_unit, fmt="('Nonlinear runs require wstar_units = .false. in the knobs namelist.')")
-          write (report_unit, fmt="('THIS IS AN ERROR.')")
+          write (report_unit, fmt="('Nonlinear runs require wstar_units = .false. in the knobs namelist.')") 
+          write (report_unit, fmt="('THIS IS AN ERROR.')") 
           write (report_unit, fmt="('################# WARNING #######################')")
-          write (report_unit, *)
+          write (report_unit, *) 
        end if
        if ( .not. box) then
-          write (report_unit, *)
+          write (report_unit, *) 
           write (report_unit, fmt="('################# WARNING #######################')")
-          write (report_unit, fmt="('Nonlinear runs must be carried out in a box.')")
-          write (report_unit, fmt="('Set grid_option to box in the kt_grids_knobs namelist.')")
-          write (report_unit, fmt="('THIS IS AN ERROR.')")
+          write (report_unit, fmt="('Nonlinear runs must be carried out in a box.')") 
+          write (report_unit, fmt="('Set grid_option to box in the kt_grids_knobs namelist.')") 
+          write (report_unit, fmt="('THIS IS AN ERROR.')") 
           write (report_unit, fmt="('################# WARNING #######################')")
-          write (report_unit, *)
+          write (report_unit, *) 
        end if
 
        if (nperiod > 1) then
-          write (report_unit, *)
+          write (report_unit, *) 
           write (report_unit, fmt="('################# WARNING #######################')")
-          write (report_unit, fmt="('Nonlinear runs usually have nperiod = 1.')")
-          write (report_unit, fmt="('THIS MAY BE AN ERROR.')")
+          write (report_unit, fmt="('Nonlinear runs usually have nperiod = 1.')") 
+          write (report_unit, fmt="('THIS MAY BE AN ERROR.')") 
           write (report_unit, fmt="('################# WARNING #######################')")
-          write (report_unit, *)
+          write (report_unit, *) 
        end if
 
        if (flow_mode_switch == flow_mode_on) then
-          write (report_unit, *)
+          write (report_unit, *) 
           write (report_unit, fmt="('################# WARNING #######################')")
-          write (report_unit, fmt="('flow_mode=on is not allowed.  Flow mode is buggy.')")
-          write (report_unit, fmt="('THIS IS AN ERROR.')")
+          write (report_unit, fmt="('flow_mode=on is not allowed.  Flow mode is buggy.')") 
+          write (report_unit, fmt="('THIS IS AN ERROR.')") 
           write (report_unit, fmt="('################# WARNING #######################')")
-          write (report_unit, *)
+          write (report_unit, *) 
        end if
        write (report_unit, fmt="('The minimum delt ( code_dt_min ) = ',e11.4)") code_dt_min
        write (report_unit, fmt="('The maximum delt (code_delt_max) = ',e11.4)") code_delt_max
@@ -147,7 +147,7 @@ contains
     endif
   end subroutine wnml_nonlinear_terms
 
-  subroutine init_nonlinear_terms
+  subroutine init_nonlinear_terms 
     use theta_grid, only: init_theta_grid, ntgrid
     use kt_grids, only: init_kt_grids, naky, ntheta0, nx, ny, akx, aky
     use le_grids, only: init_le_grids, nlambda, negrid
@@ -165,7 +165,7 @@ contains
 
     if (initialized) return
     initialized = .true.
-
+    
     if (debug) write(6,*) "init_nonlinear_terms: init_gs2_layouts"
     call init_gs2_layouts
     if (debug) write(6,*) "init_nonlinear_terms: init_theta_grid"
@@ -178,7 +178,7 @@ contains
     call init_species
     if (debug) write(6,*) "init_nonlinear_terms: init_dist_fn_layouts"
     call init_dist_fn_layouts (naky, ntheta0, nlambda, negrid, nspec)
-
+    
     call read_parameters
 
     if (debug) write(6,*) "init_nonlinear_terms: init_transforms"
@@ -253,7 +253,7 @@ contains
        densfac = 1.
        uparfac = 1./sqrt(2.)
        tparfac = 1./2.
-       tprpfac = 1./2.
+       tprpfac = 1./2. 
        qparfac = 1./sqrt(8.)
        qprpfac = 1./sqrt(8.)
 
@@ -272,8 +272,8 @@ contains
     call broadcast (nonlinear_mode_switch)
     call broadcast (flow_mode_switch)
     call broadcast (cfl)
-    call broadcast (C_par)
-    call broadcast (C_perp)
+    call broadcast (C_par) 
+    call broadcast (C_perp) 
     call broadcast (p_x)
     call broadcast (p_y)
     call broadcast (p_z)
@@ -294,7 +294,7 @@ contains
     endif
 
     if (nonlinear_mode_switch == nonlinear_mode_on)  then
-       algorithm = 1
+       algorithm = 1 
        nonlin = .true.
     end if
 
@@ -304,7 +304,6 @@ contains
     use theta_grid, only: ntgrid
     use gs2_layouts, only: g_lo
     use gs2_time, only: save_dt_cfl
-    use lowflow, only: use_lowflow
     implicit none
     complex, dimension (-ntgrid:,:,g_lo%llim_proc:), intent (in out) :: g1, g2, g3
     complex, dimension (-ntgrid:,:,:), intent (in) :: phi,    apar,    bpar
@@ -318,12 +317,10 @@ contains
 !!! NEED TO DO SOMETHING HERE...  BD GGH
        dt_cfl = 1.e8
        call save_dt_cfl (dt_cfl)
-!#ifdef LOWFLOW
-     if(use_lowflow) then
+#ifdef LOWFLOW
        if (istep /=0) &
             call add_explicit (g1, g2, g3, phi, apar, bpar, istep, bd)
-      end if
-!#endif
+#endif
     case (nonlinear_mode_on)
 !       if (istep /= 0) call add_nl (g1, g2, g3, phi, apar, bpar, istep, bd, fexp)
        if (istep /= 0) then
@@ -339,7 +336,6 @@ contains
     use gs2_time, only: save_dt_cfl
     use run_parameters, only: reset
     use unit_tests, only: debug_message
-    use lowflow, only: use_lowflow
     implicit none
 
     complex, dimension (-ntgrid:,:,g_lo%llim_proc:), intent (in out) :: g1, g2, g3
@@ -383,8 +379,8 @@ contains
        if (present(nl)) then
           call debug_message(verb, 'nonlinear_terms::add_explicit calling add_nl')
           if(gryfx_zonal%on) then
-            call add_nl_gryfx (g1)
-          else
+            call add_nl_gryfx (g1) 
+          else 
             call add_nl (g1, phi, apar, bpar)
           endif
           if(reset) return !Return if resetting
@@ -394,12 +390,9 @@ contains
           g1 = 0.
        end if
 
-    if(use_lowflow) then
-
-    end if
-!#ifdef LOWFLOW
+#ifdef LOWFLOW
        ! do something
-!#endif
+#endif
 
     end if
 
@@ -418,7 +411,7 @@ contains
           end if
        end do
     end if
-
+     
     istep_last = istep
 
   contains
@@ -456,12 +449,12 @@ contains
          il = il_idx(g_lo, iglo)
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-!CMR, 7/10/2014:
-! Incoming gtmp SHOULD vanish in forbidden region,
+!CMR, 7/10/2014: 
+! Incoming gtmp SHOULD vanish in forbidden region, 
 ! New logical in nonlinear_terms_knobs namelist: nl_forbid_force_zero
 !     nl_forbid_force_zero =.t. : force zeroing    (default)
 !     nl_forbid_force_zero =.f. : NO forced zeroing
-!                                 ie assume forbidden gtmp is zero on entry
+!                                 ie assume forbidden gtmp is zero on entry 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
          if ( nl_forbid_force_zero ) then
@@ -474,21 +467,21 @@ contains
 
          do ig = -ntgrid, ntgrid-1
 !
-!CMR, 7/10/2014:
+!CMR, 7/10/2014: 
 ! loop sets gtmp to value at upwinded cell center RIGHT of theta(ig)
 !           except for ttp where upwinding makes no sense!
 !
             if (il >= ittp(ig)) cycle
             if ( trapped .and. ( il > jend(ig) .or. il > jend(ig+1)) ) then
                !
-!CMR, 7/10/2014:
-!   if either ig or ig+1 is forbidden, no source possible in a cell RIGHT of theta(ig)
+!CMR, 7/10/2014: 
+!   if either ig or ig+1 is forbidden, no source possible in a cell RIGHT of theta(ig) 
 !   => gtmp(ig,1:2,iglo)=0
 !
                gtmp(ig,1:2,iglo) = 0.0
-            else
+            else 
 !
-!CMR, 7/10/2014:
+!CMR, 7/10/2014: 
 !    otherwise ig and ig+1 BOTH allowed, and upwinding in cell RIGHT of theta(ig) is fine
 !
                gtmp(ig,1,iglo) = (1.+bd)*gtmp(ig+1,1,iglo) + (1.-bd)*gtmp(ig,1,iglo)
@@ -530,7 +523,7 @@ contains
     integer, parameter :: verb = 4
 
     integer :: iglo, ik, it, is, ig, ia
-
+    
     call debug_message(verb, 'nonlinear_terms::add_nl starting')
 
     !Initialise zero so we can be sure tests are sensible
@@ -555,7 +548,7 @@ contains
     end if
 
     call debug_message(verb, 'nonlinear_terms::add_nl calculated dphi/dx')
-
+    
     !Form g1=i*ky*g_wesson
     g1=g
     call g_adjust(g1,phi,bpar,fphi,fbpar)
@@ -564,7 +557,7 @@ contains
        g1(:,:,iglo)=g1(:,:,iglo)*zi*aky(ik)
     enddo
 
-    !Transform to real space
+    !Transform to real space    
     if (accelerated) then
        call transform2 (g1, agb, ia)
     else
@@ -572,7 +565,7 @@ contains
     end if
 
     call debug_message(verb, 'nonlinear_terms::add_nl calculated dg/dy')
-
+    
     !It should be possible to write the following with vector notation
     !To find max_vel we'd then use MAXVAL rather than MAX
     !Calculate (d Chi /dx).(d g_wesson/dy)
@@ -608,13 +601,13 @@ contains
     else
        g1 = 0.
     end if
-
+    
     if (fbpar > zero) call load_ky_bpar
     if (fapar  > zero) call load_ky_apar
 
     call debug_message(verb, 'nonlinear_terms::add_nl calculated dphi/dy')
 
-    !Transform to real space
+    !Transform to real space    
     if (accelerated) then
        call transform2 (g1, aba, ia)
     else
@@ -628,7 +621,7 @@ contains
        it = it_idx(g_lo,iglo)
        g1(:,:,iglo)=g1(:,:,iglo)*zi*akx(it)
     enddo
-
+    
     !Transform to real space
     if (accelerated) then
        call transform2 (g1, agb, ia)
@@ -639,7 +632,7 @@ contains
     call debug_message(verb, 'nonlinear_terms::add_nl calculated dg/dx')
 
     !It should be possible to write the following with vector notation
-    !To find max_vel we'd then use MAXVAL rather than MAX
+    !To find max_vel we'd then use MAXVAL rather than MAX   
     !Calculate (d Chi /dy).(d g_wesson/dx) and subtract from (d Chi /dx).(d g_wesson/dy)
     if (accelerated) then
        do k = accelx_lo%llim_proc, accelx_lo%ulim_proc
@@ -663,11 +656,11 @@ contains
 
     !Estimate the global cfl limit based on max_vel
     !write (*,*) 'Calling max_allreduce', iproc, immediate_reset
-    call max_allreduce(max_vel)
+    call max_allreduce(max_vel)    
     dt_cfl = 1./max_vel
     call save_dt_cfl (dt_cfl)
 
-    !Now check to see if we've violated the
+    !Now check to see if we've violated the 
     !cfl condition if requested
     if(immediate_reset)then
        call check_time_step_too_large(reset)
@@ -686,7 +679,7 @@ contains
 
     call debug_message(verb, &
       'nonlinear_terms::add_nl calculated nonlinear term')
-
+    
   contains
     !NOTE: These routines don't contain anon(ie) factor which may be desired to
     !      allow more general cases in the future.
@@ -743,7 +736,7 @@ contains
 !         end do
 !         do ig = -ntgrid, ntgrid
 !            g1(ig,2,iglo) = g1(ig,2,iglo) - zi*akx(it)*aj0(ig,iglo)*spec(is)%stm &
-!                 *vpa(ig,2,iglo)*apar(ig,it,ik)*fapar
+!                 *vpa(ig,2,iglo)*apar(ig,it,ik)*fapar 
  	    g1(ig,2,iglo) = g1(ig,2,iglo) - fac*vpa(ig,2,iglo)
          end do
       end do
@@ -765,11 +758,11 @@ contains
 	    fac = zi*aky(ik)*aj0(ig,iglo)*spec(is)%stm*apar(ig,it,ik)*fapar
 	    g1(ig,1,iglo) = g1(ig,1,iglo) - fac*vpa(ig,1,iglo)
 !            g1(ig,1,iglo) = g1(ig,1,iglo) - zi*aky(ik)*aj0(ig,iglo)*spec(is)%stm &
-!                 *vpa(ig,1,iglo)*apar(ig,it,ik)*fapar
+!                 *vpa(ig,1,iglo)*apar(ig,it,ik)*fapar 
 !         end do
 !         do ig = -ntgrid, ntgrid
 !            g1(ig,2,iglo) = g1(ig,2,iglo) - zi*aky(ik)*aj0(ig,iglo)*spec(is)%stm &
-!                 *vpa(ig,2,iglo)*apar(ig,it,ik)*fapar
+!                 *vpa(ig,2,iglo)*apar(ig,it,ik)*fapar 
 	     g1(ig,2,iglo) = g1(ig,2,iglo) - fac*vpa(ig,2,iglo)
          end do
       end do
@@ -813,7 +806,7 @@ contains
          do ig = -ntgrid, ntgrid
             fac = g1(ig,1,iglo) + zi*aky(ik)*aj1(ig,iglo) &
                  *2.0*vperp2(ig,iglo)*spec(is)%tz*bpar(ig,it,ik)*fbpar
-            g1(ig,1,iglo) = fac
+            g1(ig,1,iglo) = fac 
             g1(ig,2,iglo) = fac
          end do
       end do
@@ -845,7 +838,7 @@ contains
 
     ! this subroutine constructs the GK nonlinear term from the 6 GryfX
     ! gyrofluid nonlinear terms.  we first construct in gryfx units.
-    ! gryfx uses vt=sqrt(T/m) normalization,
+    ! gryfx uses vt=sqrt(T/m) normalization, 
     ! so vt_gs2 = sqrt(2T/m) = sqrt(2) vt_gryfx.
     ! since vpa and vperp2 are normalized to vt_gs2, below we multiply by
     ! factors of sqrt(2) to get vpa and vperp2 in gryfx units, i.e.
@@ -854,7 +847,7 @@ contains
 
     ! the Hermite-Laguerre construction of the distribution from the gyrofluid
     ! moments is of the form
-    ! df/F_M = n + vpar/vt upar + 1/2(vpar^2/vt^2-1) tpar
+    ! df/F_M = n + vpar/vt upar + 1/2(vpar^2/vt^2-1) tpar 
     ! + (vprp^2/2vt^2-1) tprp + 1/6(vpar^3/3vt^3 - 3 vpar/vt) qpar
     ! + vpar/vt (vprp^2/2vt^2-1) qprp
     ! where vt=vt_gryfx, and moments are normalized in gryfx units
@@ -887,8 +880,8 @@ contains
                      gryfx_zonal%NLqpar_ky0(index_gryfx) + &
 
                  sqrt(2.)*vpa(ig,isgn,iglo)*(vperp2(ig,iglo) - 1.)* &
-                     gryfx_zonal%NLqprp_ky0(index_gryfx)
-
+                     gryfx_zonal%NLqprp_ky0(index_gryfx) 
+ 
  ! now we must account for the fact that phi and g are normalized to a/rho_i,
  ! and grad ~ k is normalized to rho_i, and rho_gs2 = sqrt2 rho_gryfx.
  ! we have just calculated the GK nonlinear term in gryfx units:
@@ -904,13 +897,13 @@ contains
     g1 = -g1 !left-handed / right-handed conversion
 
 
-
+    
   end subroutine add_nl_gryfx
 
-
+  
 
   subroutine reset_init
-
+    
     initialized = .false.
     initializing = .true.
 
@@ -954,3 +947,5 @@ contains
 #endif
   end subroutine finish_nonlinear_terms
 end module nonlinear_terms
+
+

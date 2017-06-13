@@ -17,60 +17,54 @@ contains
     use theta_grid, only: ntgrid
     use le_grids, only: integrate_moment, nxi, negrid, g2le
     use collisions, only: solfp1, colls, adjust, heating, hyper_colls, use_le_layout
-!***
-!# ifdef LOWFLOW
-!****
+# ifdef LOWFLOW
     use gs2_layouts, only: ig_idx, is_idx
     use theta_grid, only: gradpar, theta
     use le_grids, only: ixi_to_il, ixi_to_isgn, forbid, write_mpdist_le, write_mpdist, jend
     use le_grids, only: xi, speed, energy
     use species, only: spec
-    use lowflow, only: dphidth, use_lowflow
-!*****
-!# endif
-!******
-    implicit none
+    use lowflow, only: dphidth
+# endif
 
+    implicit none
+    
     complex, dimension (-ntgrid:,:,g_lo%llim_proc:), intent (in out) :: g, gold, g1
     complex, dimension (-ntgrid:,:,:), intent (in) :: phi, bpar, phinew, bparnew
     integer, optional, intent (in) :: diagnostics
 
-!CMR, 12/9/2013:
+!CMR, 12/9/2013: 
 !CMR   New logical optional input parameters gtoc, ctog used to set
 !CMR   flags (g_to_c and c_to_g) to control whether redistributes required
 !CMR   to map g_lo to collision_lo, and collision_lo to g_lo.
 !CMR   All redistributes are performed by default.
-!CMR
-
+!CMR 
+ 
 !CMR, 3/10/2013:
 !CMR   Just realised we need to be careful with g_adjust if we avoid
 !CMR   mapping g_lo <=> le_lo    Mmmm, a little more to think about here ;-(
 !CMR
     logical, intent(in), optional :: gtoc, ctog
     logical :: g_to_c, c_to_g
-!*****
-!# ifdef LOWFLOW
-!****
+
+# ifdef LOWFLOW
     integer :: ile, ig, ie, ixi, isgn, il, is
     integer, dimension (2) :: i
     real :: dvp, vp0
     complex, dimension (:,:), allocatable :: gtmp
-!****
-!# endif
-!******
+# endif
     complex, dimension (:,:,:), allocatable :: gle
     complex, dimension (:,:,:), allocatable :: gc1, gc2, gc3
     logical :: heating_flag
 
-    if (present(gtoc)) then
-       g_to_c=gtoc
-    else
+    if (present(gtoc)) then 
+       g_to_c=gtoc 
+    else 
        g_to_c=.true.
     endif
 
-    if (present(ctog)) then
-       c_to_g=ctog
-    else
+    if (present(ctog)) then 
+       c_to_g=ctog 
+    else 
        c_to_g=.true.
     endif
 
@@ -78,14 +72,10 @@ contains
 
     if(use_le_layout) then
 
-      if(.not.use_lowflow) then
-!***
-!# ifndef LOWFLOW
-!****
+# ifndef LOWFLOW
        if (colls) then
-!***
-!# endif
-!****
+# endif
+
           if (adjust) then
              call g_adjust (g, phinew, bparnew, fphi, fbpar)
              if (heating_flag) call g_adjust (gold, phi, bpar, fphi, fbpar)
@@ -94,23 +84,50 @@ contains
              allocate (gc3(-ntgrid:ntgrid,2,g_lo%llim_proc:g_lo%ulim_alloc))
              gc3 = g
           end if
-
+       
           allocate (gle(nxi+1,negrid+1,le_lo%llim_proc:le_lo%ulim_alloc)) ; gle = 0.
 
       ! map data from g_layout to le_layout
           if (g_to_c) call gather (g2le, g, gle)
+       
+# ifdef LOWFLOW
 
+       allocate (gtmp(nxi+1,negrid+1)) ; gtmp = 0.
+ 
+         ! use semi-lagrange scheme to evaluate dg/dvpa term
+       do ile = le_lo%llim_proc, le_lo%ulim_proc
+          gtmp = gle(:,:,ile)
+          ig = ig_idx(le_lo,ile)
+          is = is_idx(le_lo,ile)
+          dvp = spec(is)%zstm*dphidth(ig+ntgrid+1)*gradpar(ig)*0.5*code_dt
+          do ie = 1, negrid
+             do ixi = 1, nxi
+                il = ixi_to_il(ig,ixi)
+                isgn = ixi_to_isgn(ig,ixi)
+                if (.not. forbid(ig,il)) &
+                   !call get_gvpa (gtmp, dvp, ig, il, ixi, ie, isgn, gle(ixi,ie,ile))
+                   ! EGH removed isgn from arguments
+                   call get_gvpa (gtmp, dvp, ig, il, ixi, ie, gle(ixi,ie,ile))
+             end do
+          end do
+       end do
 
+       deallocate (gtmp)
+       
+       if (colls) then
+# endif
           ! update distribution function to take into account collisions
           call solfp1 (gle, diagnostics)
 
-
+# ifdef LOWFLOW
+          end if
+# endif
           ! remap from le_layout to g_layout
           if (c_to_g) call scatter (g2le, gle, g)
           deallocate (gle)
           if (heating_flag) then
-            ! form (h_i+1 + h_i)/2 * C(h_i+1) and integrate.
-             gc3 = 0.5*conjg(g+gold)*(g-gc3)/code_dt
+            ! form (h_i+1 + h_i)/2 * C(h_i+1) and integrate.  
+             gc3 = 0.5*conjg(g+gold)*(g-gc3)/code_dt          
              call integrate_moment (gc3, c_rate(:,:,:,:,3))
              deallocate (gc3)
           endif
@@ -119,78 +136,10 @@ contains
              call g_adjust (g, phinew, bparnew, -fphi, -fbpar)
              if (heating_flag) call g_adjust (gold, phi, bpar, -fphi, -fbpar)
           endif
-!****
-!# ifndef LOWFLOW
-!****
+
+# ifndef LOWFLOW
        endif
-!*****
-!# endif
-!*****
-
-      else
-        if (adjust) then
-           call g_adjust (g, phinew, bparnew, fphi, fbpar)
-           if (heating_flag) call g_adjust (gold, phi, bpar, fphi, fbpar)
-        end if
-        if (heating_flag) then
-           allocate (gc3(-ntgrid:ntgrid,2,g_lo%llim_proc:g_lo%ulim_alloc))
-           gc3 = g
-        end if
-
-        allocate (gle(nxi+1,negrid+1,le_lo%llim_proc:le_lo%ulim_alloc)) ; gle = 0.
-
-    ! map data from g_layout to le_layout
-        if (g_to_c) call gather (g2le, g, gle)
-
-!# ifdef LOWFLOW
-
-     allocate (gtmp(nxi+1,negrid+1)) ; gtmp = 0.
-
-       ! use semi-lagrange scheme to evaluate dg/dvpa term
-     do ile = le_lo%llim_proc, le_lo%ulim_proc
-        gtmp = gle(:,:,ile)
-        ig = ig_idx(le_lo,ile)
-        is = is_idx(le_lo,ile)
-        dvp = spec(is)%zstm*dphidth(ig+ntgrid+1)*gradpar(ig)*0.5*code_dt
-        do ie = 1, negrid
-           do ixi = 1, nxi
-              il = ixi_to_il(ig,ixi)
-              isgn = ixi_to_isgn(ig,ixi)
-              if (.not. forbid(ig,il)) &
-                 !call get_gvpa (gtmp, dvp, ig, il, ixi, ie, isgn, gle(ixi,ie,ile))
-                 ! EGH removed isgn from arguments
-                 call get_gvpa (gtmp, dvp, ig, il, ixi, ie, gle(ixi,ie,ile))
-           end do
-        end do
-     end do
-
-     deallocate (gtmp)
-
-     if (colls) then
-!# endif
-        ! update distribution function to take into account collisions
-        call solfp1 (gle, diagnostics)
-
-!# ifdef LOWFLOW
-        end if
-!# endif
-        ! remap from le_layout to g_layout
-        if (c_to_g) call scatter (g2le, gle, g)
-        deallocate (gle)
-        if (heating_flag) then
-          ! form (h_i+1 + h_i)/2 * C(h_i+1) and integrate.
-           gc3 = 0.5*conjg(g+gold)*(g-gc3)/code_dt
-           call integrate_moment (gc3, c_rate(:,:,:,:,3))
-           deallocate (gc3)
-        endif
-
-        if (adjust) then
-           call g_adjust (g, phinew, bparnew, -fphi, -fbpar)
-           if (heating_flag) call g_adjust (gold, phi, bpar, -fphi, -fbpar)
-        endif
-
-
-      end if
+# endif
 
       else
 
@@ -224,15 +173,15 @@ contains
          if (heating_flag) then
             call integrate_moment (gc1, c_rate(:,:,:,:,1))
             deallocate (gc1)
-
+          
             if (hyper_colls) call integrate_moment (gc2, c_rate(:,:,:,:,2))
             deallocate (gc2)
-
-            ! form (h_i+1 + h_i)/2 * C(h_i+1) and integrate.
+          
+            ! form (h_i+1 + h_i)/2 * C(h_i+1) and integrate.  
             gc3 = 0.5*conjg(g+gold)*(g-gc3)/code_dt
-
+          
             call integrate_moment (gc3, c_rate(:,:,:,:,3))
-
+          
             deallocate (gc3)
          end if
 
@@ -245,7 +194,7 @@ contains
   end if
 
   contains
-
+    
     subroutine get_gvpa (g_in, dv, ig0, il0, ixi0, ie0, g_out)
       use theta_grid, only: bmag
       use le_grids, only: speed, energy, al, xi, negrid, jend
@@ -271,7 +220,7 @@ contains
          vp0 = xi(ig0,ixi0)*speed(ie0)
          ! vp is the parallel speed at previous time level
          vp = vp0 + dv
-
+         
          ! v is the speed corresponding to the given (vpar,vperp) point
          v = sqrt(vp**2 + bmag(ig0)*al(il0)*energy(ie0))
          ! x is magnitude of cos(pitch-angle)
@@ -280,13 +229,13 @@ contains
          p = acos(x)
          ! lam is mu B / E
          lam = (1.0 - x**2) / bmag(ig0)
-
+         
          v_finished = .false. ; x_finished = .false.
-
+         
          ! find the cell in v-xi space where (vp,vperp) resides
          ! dv positive or negative influences how to search for the correct cell
          if (abs(vp) > abs(vp0)) then
-
+            
             if (ie0 < negrid) then
                ! energy of vp will be greater than or equal to that of vp0
                do ie = ie0+1, negrid
@@ -299,13 +248,13 @@ contains
                   end if
                end do
             end if
-
+            
             ! if vp falls above the largest speed on the grid, set ie_up = negrid+1
             ! to let interp_g know that it must extrapolate in speed to obtain g(vp,vperp)
             if (.not. v_finished) then
                ie_up = negrid+1 ; ie_low = negrid
             end if
-
+            
             if (il0 > 1) then
                ! pitch-angle goes to larger absolute value, corresponding to smaller il
                do il = il0-1, 1, -1
@@ -317,15 +266,15 @@ contains
                   end if
                end do
             end if
-
+            
             ! if vp falls below smallest lambda on grid, set il_low=0
             ! to let interp_g that it must extrapolate in lambda to obtain g(vp)
             if (.not. x_finished) then
                il_low = 0 ; il_up = 1
             end if
-
+            
          else
-
+            
             if (ie0 > 1) then
                ! energy of vp will be less than or equal to that of vp0
                do ie = ie0-1, 1, -1
@@ -338,15 +287,15 @@ contains
                   end if
                end do
             end if
-
+            
             if (.not. v_finished) then
                ie_low = 0 ; ie_up = 1
             end if
-
+            
             if (il0 == jend(ig0)) then
                call mp_abort('Error in get_gvpa: il0=jend(ig0) should not be possible here.',.true.)
             end if
-
+            
             ! pitch-angle goes to smaller absolute value, corresponding to larger il
             do il = il0+1, jend(ig0)
                ! find the two lambda values that bracket the lambda of (vp,vperp)
@@ -357,11 +306,11 @@ contains
                   exit
                end if
             end do
-
+            
             if (.not. x_finished) then
                call mp_abort('Error in get_gvpa: could not bracket il')
             end if
-
+            
          end if
 
          ! determine if vpar at which we want g is positive or negative
@@ -373,7 +322,7 @@ contains
             isgn = 1
             ix_low = il_low ; ix_up = il_up
          end if
-
+         
          ! bilinear interpolation using 4 grid points closest to (vp,vperp)
          call interp_g (ig0, isgn, il_low, il_up, ix_low, ix_up, ie_low, ie_up, v, x, g_in, g_out)
 

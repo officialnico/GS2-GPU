@@ -1,6 +1,6 @@
 !> A container for the arrays that are used to store the distribution function among other things.
 !!  These need to be accessible at a lower dependency level than the dist_fn module itself.
-!! These arrays are allocated in the function dist_fn::allocate_arrays.
+!! These arrays are allocated in the function dist_fn::allocate_arrays. 
 
 module dist_fn_arrays
 
@@ -14,13 +14,10 @@ module dist_fn_arrays
   public :: vpa_gf, vperp2_gf, aj0_gf, aj1_gf
   public :: c_rate
   public :: g_adjust, check_g_bouncepoints
-!******
-!#ifdef LOWFLOW
-!*******
+#ifdef LOWFLOW
   public :: hneoc, vparterm, wdfac, wstarfac, wdttpfac
-!*****
-!#endif
-!******
+#endif
+
   ! dist fn
   complex, dimension (:,:,:), allocatable :: g, gnew, g_restart_tmp
   ! (-ntgrid:ntgrid,2, -g-layout-)
@@ -46,21 +43,19 @@ module dist_fn_arrays
   ! collisional diagnostic of heating rate
   complex, dimension (:,:,:,:,:), allocatable :: c_rate
   ! (-ntgrid:ntgrid,ntheta0,naky,nspecies,2) replicated
-!***
-!#ifdef LOWFLOW
-!*****
+
+#ifdef LOWFLOW
   ! v-dependent factors in low-flow terms
   real, dimension (:,:,:), allocatable :: hneoc, vparterm, wdfac, wstarfac
   ! (-ntgrid:ntgrid,2, -g-layout-)
   real, dimension (:,:,:,:,:,:), allocatable :: wdttpfac
   ! (-ntgrid:ntgrid,ntheta0,naky,negrid,nspecies,2)
-!****
-!#endif
-!******
+#endif
+
 contains
 
   subroutine g_adjust (g, phi, bpar, facphi, facbpar)
-    !CMR, 17/4/2012:
+    !CMR, 17/4/2012: 
     ! g_adjust transforms between representations of perturbed dist'n func'n.
     !    <delta_f> = g_wesson J0(Z) - q phi/T F_m  where <> = gyroaverage
     !        g_gs2 = g_wesson - q phi/T J0(Z) F_m - m v_||^2/T B_||/B J1(Z)/Z F_m
@@ -95,14 +90,14 @@ contains
        is = is_idx(g_lo,iglo)
        il = il_idx(g_lo,iglo)
 
-       ! BD:  bpar == delta B_parallel / B_0(theta) so no extra factor of
+       ! BD:  bpar == delta B_parallel / B_0(theta) so no extra factor of 
        ! 1/bmag is needed here.
        do ig = -ntgrid, ntgrid
           !<DD>Don't adjust in the forbidden region as we don't set g/h here
-!CMR, 13/10/2014: attempting minor reduction in memory bandwidth by replacing
-!         if( forbid(ig,il) ) cycle with
+!CMR, 13/10/2014: attempting minor reduction in memory bandwidth by replacing 
+!         if( forbid(ig,il) ) cycle with 
 !         if ( trapped .and. il > jend(ig))
-          if ( trapped .and. il > jend(ig)) cycle
+          if ( trapped .and. il > jend(ig)) cycle 
 
           adj = anon(ie)*2.0*vperp2(ig,iglo)*aj1(ig,iglo) &
                *bpar(ig,it,ik)*facbpar &
@@ -115,16 +110,16 @@ contains
   end subroutine g_adjust
 
   subroutine check_g_bouncepoints(g, ik,it,il,ie,is,err,tol)
-    ! CMR, 3/10/2013:
-    !  This routine checks trapped particle bounce conditions:
+    ! CMR, 3/10/2013: 
+    !  This routine checks trapped particle bounce conditions: 
     !     g(thetab,1:ik,it,il,ie,is)=g(thetab,2:ik,it,il,ie,is)
-    !  and flags fractional errors exceeding a threshold tolerance, tol.
+    !  and flags fractional errors exceeding a threshold tolerance, tol. 
     !
     use theta_grid, only: ntgrid, bmag
     use gs2_layouts, only: g_lo, idx
     use le_grids, only: ng2, jend, al
     use mp, only: mp_abort
-
+    
     implicit none
     integer, intent(in) :: ik, it, il, ie, is
     complex, dimension(-ntgrid:,:,g_lo%llim_proc:), intent(in) :: g
@@ -136,8 +131,8 @@ contains
 
     started=.false.
     if (present(tol)) then
-       tolerance=tol
-    else
+       tolerance=tol 
+    else 
        tolerance=1.0e-6
     endif
     iglo=idx(g_lo,ik,it,il,ie,is)
