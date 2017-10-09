@@ -7248,6 +7248,7 @@ endif
     !   beta/2 * gamtot1 * phi + (beta * gamtot2 + 1) * bpar = - beta * antotp
     ! I haven't made any check for use_Bpar=T case.
     use run_parameters, only: beta, fphi, fapar, fbpar
+    use species, only: spec, has_electron_species
     use theta_grid, only: ntgrid, bmag
     use kt_grids, only: ntheta0, naky, kperp2
     
@@ -7274,6 +7275,10 @@ endif
        call getan_nogath (antot, antota, antotp)
     else
        call getan (antot, antota, antotp)
+    end if
+
+    if( .not. has_electron_species(spec) .and. adiabatic_option_switch == adiabatic_option_fieldlineavg ) then
+      call subtract_flux_surface_average(antot)
     end if
 
     ! get phi
@@ -10544,5 +10549,60 @@ endif
          call delete_list (to)
       endif
   end subroutine init_pass_wfb
+
+!---------------------------------------------------------------------------  
+!> @author 
+!> Joseph Parker, STFC
+!
+! DESCRIPTION: 
+!> Include flux surface averaging term in adiabatic response. 
+!> @brief
+!> If using adiabatic electrons and the option
+!> @dist_fn_knobs
+!>   adiabatic_option = "iphi00=2"
+!> /
+!> the field solve should subtract the flux surface average 
+!> from the perturbed electron distribution function,
+!> i.e. include the term <phi> in
+!>
+!>   f1e = q( phi - <phi>) f0e / Te
+!>
+!> This function accounts for the extra term by changing 
+!> antot.
+!
+!--------------------------------------------------------------------------- 
+  subroutine subtract_flux_surface_average (antot)
+
+    use kt_grids, only: naky, ntheta0, aky, kwork_filter
+    use run_parameters, only: tite
+    use theta_grid, only: ntgrid, delthet, jacob
+    implicit none
+    complex, dimension (-ntgrid:,:,:), intent (inout) :: antot
+    integer :: ik, it
+
+    if (.not. allocated(fl_avg)) allocate (fl_avg(ntheta0, naky))
+    fl_avg = 0.
+
+    if (.not. allocated(awgt)) then
+       allocate (awgt(ntheta0, naky))
+       awgt = 0.
+       do ik = 1, naky
+          if (aky(ik) > epsilon(0.0)) cycle
+          do it = 1, ntheta0
+             if(kwork_filter(it,ik)) cycle
+             awgt(it,ik) = 1.0/sum(delthet*jacob*gamtot3(:,it,ik))
+          end do
+       end do
+    endif
+     
+    do ik = 1, naky
+       do it = 1, ntheta0
+          if(kwork_filter(it,ik)) cycle
+          fl_avg(it,ik) = tite*sum(delthet*jacob*antot(:,it,ik)/gamtot(:,it,ik))*awgt(it,ik)
+          antot(:,it,ik) = antot(:,it,ik) + fl_avg(it,ik)
+       end do
+    end do
+
+  end subroutine subtract_flux_surface_average
 
 end module dist_fn
