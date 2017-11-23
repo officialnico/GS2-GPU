@@ -289,6 +289,37 @@ contains
           fbpar = faperp
        end if
 
+! Override fapar, fbpar and beta if set inconsistently:
+
+       !> If we have zero beta then disable apar and bpar fields
+       !! as these contribute nothing to result but slow down calculation.
+       if(beta.eq.0) then
+          if(((fapar.ne.0) .or. (fbpar.ne.0)).and. proc0) then
+             ierr = error_unit()
+             write(ierr,'("Warning: Disabling apar and bpar as beta = 0.")')
+          endif
+          fapar = 0.
+          fbpar = 0.
+       endif
+
+       !> If we have non-zero beta then alert the user that they have some
+       !! of the perturbed magnetic fields disabled. This may be intended
+       !! behaviour, so we throw a warning. However, if both are disabled,
+       !! we set beta=0. This will make the simulation electrostatic, as 
+       !! probably intended if both apar and bpar are set to zero.
+       if(fapar.eq.0 .and. fbpar.eq.0 .and. beta.ne.0) then
+          if(proc0) then
+             ierr = error_unit()
+             write(ierr,'("Warning: Both fapar and fbpar are zero: setting beta = 0.")')
+          endif
+          beta = 0.0
+       endif
+       if((beta.ne.0).and.proc0) then
+          ierr = error_unit()
+          if(fapar.eq.0) write(ierr,'("Warning: Running with finite beta but fapar=0.")')
+          if(fbpar.eq.0) write(ierr,'("Warning: Running with finite beta but fbpar=0.")')
+       endif
+
        if (eqzip) then
           if (secondary .and. tertiary) then
              ierr = error_unit()
