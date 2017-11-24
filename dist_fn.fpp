@@ -6685,27 +6685,7 @@ endif
     if (.not. has_electron_species(spec)) then
        if (adiabatic_option_switch == adiabatic_option_fieldlineavg) then
           
-!          if (first) then 
-          if (.not. allocated(awgt)) then
-             allocate (awgt(ntheta0, naky))
-             awgt = 0.
-             do ik = 1, naky
-                do it = 1, ntheta0
-                   if (aky(ik) > epsilon(0.0)) cycle
-                   awgt(it,ik) = 1.0/sum(delthet*jacob*gamtot3(:,it,ik))
-                end do
-             end do
-          endif
-           
-          do ik = 1, naky
-             do it = 1, ntheta0
-                fl_avg(it,ik) = tite*sum(delthet*jacob*antot(:,it,ik)/gamtot(:,it,ik))*awgt(it,ik)
-             end do
-          end do
-
-!          do it=2,ntheta0
-!             fl_avg(it, 1) = fl_avg(it, 1) - 1.0
-!          end do
+          call calculate_flux_surface_average(fl_avg,antot)
        end if
 
     end if
@@ -6804,24 +6784,7 @@ endif
 
     if (.not. has_electron_species(spec)) then
        if (adiabatic_option_switch == adiabatic_option_fieldlineavg) then
-          if (.not. allocated(awgt)) then
-             allocate (awgt(ntheta0, naky))
-             awgt = 0.
-             do ik = 1, naky
-                if (aky(ik) > epsilon(0.0)) cycle
-                do it = 1, ntheta0
-                   if(kwork_filter(it,ik)) cycle
-                   awgt(it,ik) = 1.0/sum(delthet*jacob*gamtot3(:,it,ik))
-                end do
-             end do
-          endif
-           
-          do ik = 1, naky
-             do it = 1, ntheta0
-                if(kwork_filter(it,ik)) cycle
-                fl_avg(it,ik) = tite*sum(delthet*jacob*antot(:,it,ik)/gamtot(:,it,ik))*awgt(it,ik)
-             end do
-          end do
+          call calculate_flux_surface_average(fl_avg,antot)
        end if
     end if
 
