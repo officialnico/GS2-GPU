@@ -99,6 +99,7 @@ module dist_fn
 
   public :: gf_lo_integrate
   public :: check_getan
+  public :: calculate_flux_surface_average
 
   ! knobs
   complex, dimension (:), allocatable :: fexp ! (nspec)
