@@ -7258,6 +7258,8 @@ endif
     complex, dimension (-ntgrid:ntgrid,ntheta0,naky) :: antot, antota, antotp
     complex, dimension (-ntgrid:ntgrid,ntheta0,naky) :: numerator
     real, dimension (-ntgrid:ntgrid,ntheta0,naky) :: bmagsp
+    complex, dimension (ntheta0,naky) :: fl_avg
+    complex, dimension (-ntgrid:ntgrid,ntheta0,naky) :: fl_avg_sp
     logical :: local_gf_lo
 
     if(present(gf_lo)) then
@@ -7277,15 +7279,17 @@ endif
        call getan (antot, antota, antotp)
     end if
 
+    fl_avg = 0.0
     if( .not. has_electron_species(spec) .and. adiabatic_option_switch == adiabatic_option_fieldlineavg ) then
-      call subtract_flux_surface_average(antot)
+      call calculate_flux_surface_average(fl_avg,antot)
     end if
+    fl_avg_sp(-ntgrid:ntgrid,:,:) = spread(fl_avg,1,2*ntgrid+1)
 
     ! get phi
     if (fphi > epsilon(0.0)) then
 
 !CMR, 1/8/2011:  bmag corrections here: 
-       numerator = (beta * gamtot2 + bmagsp**2) * antot - (beta * gamtot1) * antotp
+       numerator = (beta * gamtot2 + bmagsp**2) * (antot+fl_avg_sp) - (beta * gamtot1) * antotp
        denominator = (beta * gamtot2 + bmagsp**2) * gamtot + (beta/2.0) * gamtot1 * gamtot1
 
        where (abs(denominator) < epsilon(0.0)) ! it == ik == 1 only
@@ -10555,7 +10559,7 @@ endif
 !> Joseph Parker, STFC
 !
 ! DESCRIPTION: 
-!> Include flux surface averaging term in adiabatic response. 
+!> Calculate the flux surface average term for the adiabatic response. 
 !> @brief
 !> If using adiabatic electrons and the option
 !> @dist_fn_knobs
@@ -10567,20 +10571,19 @@ endif
 !>
 !>   f1e = q( phi - <phi>) f0e / Te
 !>
-!> This function accounts for the extra term by changing 
-!> antot.
+!> This function calculates <phi> and returns it as fl_avg.
 !
 !--------------------------------------------------------------------------- 
-  subroutine subtract_flux_surface_average (antot)
+  subroutine calculate_flux_surface_average (fl_avg,antot)
 
     use kt_grids, only: naky, ntheta0, aky, kwork_filter
     use run_parameters, only: tite
     use theta_grid, only: ntgrid, delthet, jacob
     implicit none
-    complex, dimension (-ntgrid:,:,:), intent (inout) :: antot
+    complex, dimension (ntheta0, naky), intent (out) :: fl_avg
+    complex, dimension (-ntgrid:ntgrid,ntheta0,naky), intent (in) :: antot
     integer :: ik, it
 
-    if (.not. allocated(fl_avg)) allocate (fl_avg(ntheta0, naky))
     fl_avg = 0.
 
     if (.not. allocated(awgt)) then
@@ -10599,10 +10602,9 @@ endif
        do it = 1, ntheta0
           if(kwork_filter(it,ik)) cycle
           fl_avg(it,ik) = tite*sum(delthet*jacob*antot(:,it,ik)/gamtot(:,it,ik))*awgt(it,ik)
-          antot(:,it,ik) = antot(:,it,ik) + fl_avg(it,ik)
        end do
     end do
 
-  end subroutine subtract_flux_surface_average
+  end subroutine calculate_flux_surface_average
 
 end module dist_fn
