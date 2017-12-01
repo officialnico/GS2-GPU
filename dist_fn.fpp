@@ -6564,7 +6564,7 @@ endif
 
   subroutine init_fieldeq
     use dist_fn_arrays, only: aj0, aj1, vperp2
-    use species, only: nspec, spec, has_electron_species
+    use species, only: nspec, spec, has_electron_species, has_ion_species
     use theta_grid, only: ntgrid
     use kt_grids, only: naky, ntheta0, aky, kperp2
     use le_grids, only: anon, integrate_species
@@ -6649,7 +6649,7 @@ endif
     endif
 
 ! adiabatic electrons 
-    if (.not. has_electron_species(spec)) then
+    if (.not. has_electron_species(spec) .or. .not. has_ion_species(spec) ) then
        if (adiabatic_option_switch == adiabatic_option_yavg) then
           do ik = 1, naky
              if (aky(ik) > epsilon(0.0)) gamtot(:,:,ik) = gamtot(:,:,ik) + tite
