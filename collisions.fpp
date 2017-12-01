@@ -52,7 +52,7 @@ module collisions
   end interface 
 
   ! knobs
-  logical :: use_le_layout = .false.
+  logical :: use_le_layout = .true.
   logical :: const_v, conserve_moments
   logical :: conservative, resistivity
   integer :: collision_model_switch
