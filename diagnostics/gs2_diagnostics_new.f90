@@ -767,6 +767,7 @@ contains
     use diagnostics_create_and_write, only: create_and_write_variable
     use diagnostics_dimensions, only: dim_string
     use species, only: nspec, spec
+    use run_parameters, only: beta
     implicit none
     call create_and_write_variable(gnostics, gnostics%rtype, "kx", dim_string(gnostics%dims%kx),  &
          "Values of kx, the wavenumber perpendicular to the flux surface ", "1/rho_r", akx)
@@ -799,5 +800,7 @@ contains
          "Normalised collision frequency for each species", "vtref/aref", spec(1:nspec)%vnewk)
     call create_and_write_variable(gnostics, gnostics%itype, "type", dim_string(gnostics%dims%species),  &
          "Type of each species: 1=ion, 2=electron, 3=slowing down, 4=trace", "", spec(1:nspec)%type)
+    call create_and_write_variable(gnostics, gnostics%rtype, "beta", "",  &
+         "Reference beta", "2.mu0.nref.Tref/B_a**2", beta)
   end subroutine write_dimensions
 end module gs2_diagnostics_new
