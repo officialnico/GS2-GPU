@@ -132,6 +132,10 @@ USE_FPIC ?=
 #       $ ./build_gs2 -c 'RUN_NAME_SIZE=<newsize>'
 RUN_NAME_SIZE?=2000
 
+# If defined, fpp files will be preprocessed and compiled in one step, as
+# is normal for modern FORTRAN compilers
+ONE_STEP_PP?=on
+
 #
 # * Targets:
 #
@@ -506,6 +510,26 @@ endif
 
 .rb.f90:
 	$(call RUBY_GENERATE,$@,$<)
+
+# On many systems the two steps of preprocessing and compiling
+# can be done simultaneously. This has many advantages, the
+# most important of which is correctly reporting line numbers in 
+# the .fpp when debugging. 
+#
+# On some systems (e.g. Mac OS X) using cpp doesn't work at all
+# and you HAVE to preprocess and compile in one step.
+ifdef ONE_STEP_PP
+
+.f90.o: 
+	$(FC) $(F90FLAGS) $(F90FLAGS_SFXJUNK) -c $<
+.fpp.o:
+	$(FC) $(CPPFLAGS) $(F90FLAGS) $(F90FLAGS_SFXJUNK) -c $<
+.F90.o:
+	$(FC) $(CPPFLAGS) $(F90FLAGS) $(F90FLAGS_SFXJUNK) -c $<
+
+else
+
+
 .f90.o: 
 	$(FC) $(F90FLAGS) $(F90FLAGS_SFXJUNK) -c $<
 .fpp.f90:
@@ -514,6 +538,21 @@ endif
 .F90.f90:
 #	$(CPP) $(CPPFLAGS) -nostdinc $< $@
 	$(CPP) $(CPPFLAGS) $< $@
+	
+# These are special rules for the suffix problem of absoft
+# (not tested)
+$(GK_PROJECT)_transforms.o: $(GK_PROJECT)_transforms.f90
+	$(FC) $(F90FLAGS) $(F90FLAGS_SFX0) -c $<
+$(GK_PROJECT)_io.o: $(GK_PROJECT)_io.f90
+	$(FC) $(F90FLAGS) $(F90FLAGS_SFX2) -c $<
+$(GK_PROJECT)_save.o: $(GK_PROJECT)_save.f90
+	$(FC) $(F90FLAGS) $(F90FLAGS_SFX2) -c $<
+mp.o: mp.f90
+	$(FC) $(F90FLAGS) $(F90FLAGS_SFX1) -c $<
+fft_work.o: fft_work.f90
+	$(FC) $(F90FLAGS) $(F90FLAGS_SFX0) -c $<
+endif
+
 .c.o:
 	$(CC) $(CFLAGS) $(subst -traditional,,$(subst -C,,$(subst -P,,$(CPPFLAGS)))) -c $<
 
@@ -567,18 +606,6 @@ sinclude Makefile.target_$(GK_PROJECT)
 .INTERMEDIATE: $(GK_PROJECT)_transforms.f90 $(GK_PROJECT)_io.f90 $(GK_PROJECT)_save.f90 \
 		mp.f90 fft_work.f90
 
-# These are special rules for the suffix problem of absoft
-# (not tested)
-$(GK_PROJECT)_transforms.o: $(GK_PROJECT)_transforms.f90
-	$(FC) $(F90FLAGS) $(F90FLAGS_SFX0) -c $<
-$(GK_PROJECT)_io.o: $(GK_PROJECT)_io.f90
-	$(FC) $(F90FLAGS) $(F90FLAGS_SFX2) -c $<
-$(GK_PROJECT)_save.o: $(GK_PROJECT)_save.f90
-	$(FC) $(F90FLAGS) $(F90FLAGS_SFX2) -c $<
-mp.o: mp.f90
-	$(FC) $(F90FLAGS) $(F90FLAGS_SFX1) -c $<
-fft_work.o: fft_work.f90
-	$(FC) $(F90FLAGS) $(F90FLAGS_SFX0) -c $<
 
 layouts_indices.o: layouts_type.h
 layouts_type.h: layouts_type.f90
