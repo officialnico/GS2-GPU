@@ -284,6 +284,13 @@ $(error Currently, USE_HDF5 works with USE_MPI)
 	endif
 endif
 
+
+ifndef USE_NETCDF
+ifdef USE_NEW_DIAG
+$(error 'USE_NETCDF is off/undefined. The new diagnostics module requires netcdf. Please build without the new diagnostics module (i.e. set USE_NEW_DIAG=) ')
+endif
+endif
+
 ifndef USE_FFT
 $(warning USE_FFT is off)
 $(warning Be sure that nonlinear run makes no sense)
