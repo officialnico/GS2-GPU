@@ -255,6 +255,10 @@ contains
        fbpar = -1.0
        faperp = 0.0
 
+       ! EGH added these defaults Feb 2018
+       delt = 0.1
+       nstep = 100
+
 !       include_lowflow = .false.
        neo_test = .false.
        wstar_units = .false.
