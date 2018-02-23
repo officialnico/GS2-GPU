@@ -134,7 +134,7 @@ RUN_NAME_SIZE?=2000
 
 # If defined, fpp files will be preprocessed and compiled in one step, as
 # is normal for modern FORTRAN compilers
-ONE_STEP_PP?=on
+ONE_STEP_PP?=
 
 #
 # * Targets:
