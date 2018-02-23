@@ -113,9 +113,8 @@ module dist_fn
   integer :: g_exb_start_timestep
   !logical :: dfexist, skexist, nonad_zero
   logical :: dfexist, skexist, nonad_zero, lf_default, lf_decompose, esv, opt_init_bc, opt_source
-!CMR, 12/9/13: New logical cllc to modify order of operator in timeadv
 !CMR, 21/5/14: New logical wfb_cmr to enforce trapping conditions on wfb
-  logical :: cllc, wfb_cmr
+  logical :: wfb_cmr
 
   real :: densfac_lin, uparfac_lin, tparfac_lin, tprpfac_lin
   real :: qparfac_lin, qprpfac_lin, phifac_lin
@@ -535,7 +534,6 @@ contains
        write (unit, fmt="(' nonad_zero = ',L1)") nonad_zero
        write (unit, fmt="(' gridfac = ',e17.10)") gridfac
        write (unit, fmt="(' esv = ',L1)") esv
-       write (unit, fmt="(' cllc = ',L1)") cllc
        write (unit, fmt="(' wfb_cmr = ',L1)") wfb_cmr
        write (unit, fmt="(' opt_init_bc = ',L1)") opt_init_bc
        write (unit, fmt="(' opt_source = ',L1)") opt_source
@@ -969,7 +967,7 @@ contains
     namelist /dist_fn_knobs/ boundary_option, nonad_zero, gridfac, apfac, &
          driftknob, tpdriftknob, poisfac, adiabatic_option, &
          kfilter, afilter, mult_imp, test, def_parity, even, wfb, &
-         g_exb, g_exbfac, omprimfac, btor_slab, mach, cllc, lf_default, &
+         g_exb, g_exbfac, omprimfac, btor_slab, mach, lf_default, &
          g_exb_start_time, g_exb_start_timestep, g_exb_error_limit, &
 
          lf_decompose, esv, wfb_cmr, opt_init_bc, opt_source, zero_forbid, &
@@ -988,7 +986,6 @@ contains
        boundary_option = 'default'
        nonad_zero = .true.  ! BD: Default value changed to TRUE  8.15.13
        wfb_cmr= .false.
-       cllc = .false.
        esv = .false.
        opt_init_bc = .false.
        opt_source = .false.
@@ -1065,7 +1062,6 @@ contains
     call broadcast (boundary_option_switch)
     call broadcast (nonad_zero)
     call broadcast (wfb_cmr)
-    call broadcast (cllc)
     call broadcast (esv)
     call broadcast (opt_init_bc)
     call broadcast (opt_source)
@@ -3849,72 +3845,27 @@ endif
     modep = 0
     if (present(mode)) modep = mode
 
-    if (istep.eq.0 .or. .not.cllc) then
-!CMR do the usual LC when computing response matrix
-       !Calculate the explicit nonlinear terms
-       call add_explicit_terms (gexp_1, gexp_2, gexp_3, &
+    !Calculate the explicit nonlinear terms
+    call add_explicit_terms (gexp_1, gexp_2, gexp_3, &
          phi, apar, bpar, istep, bkdiff(1))
-       call debug_message(verb, &
+    call debug_message(verb, &
         'dist_fn::timeadv calculated nonlinear term')
-       if(reset .and. immediate_reset) return !Return if resetting
-       !Solve for gnew
-       call invert_rhs (phi, apar, bpar, phinew, aparnew, bparnew, istep)
-       call debug_message(verb, &
+    if(reset .and. immediate_reset) return !Return if resetting
+    !Solve for gnew
+    call invert_rhs (phi, apar, bpar, phinew, aparnew, bparnew, istep)
+    call debug_message(verb, &
         'dist_fn::timeadv calculated rhs')
 
-       !Add hyper terms (damping)
-       call hyper_diff (gnew, phinew)
-       call debug_message(verb, &
+    !Add hyper terms (damping)
+    call hyper_diff (gnew, phinew)
+    call debug_message(verb, &
         'dist_fn::timeadv calculated hypviscosity')
-       !Add collisions
-       if( .not. split_collisions) then
-         call vspace_derivatives (gnew, g, g0, phi, bpar, phinew, bparnew, modep)
-         call debug_message(verb, &
+    !Add collisions
+    if( .not. split_collisions) then
+      call vspace_derivatives (gnew, g, g0, phi, bpar, phinew, bparnew, modep)
+      call debug_message(verb, &
           'dist_fn::timeadv calculated collisions etc')
-       end if
-    else if (istep.eq.1 .and. istep.ne.istep_last) then
-!CMR on first half step at istep=1 do CL with all redists
-       if( .not. split_collisions) then
-         call vspace_derivatives (gnew, g, g0, phi, bpar, phinew, bparnew, modep)
-       end if
-       !Calculate the explicit nonlinear terms
-       call add_explicit_terms (gexp_1, gexp_2, gexp_3, &
-         phi, apar, bpar, istep, bkdiff(1))
-       if(reset) return !Return if resetting
-       !Solve for gnew
-       call invert_rhs (phi, apar, bpar, phinew, aparnew, bparnew, istep)
-       !Add hyper terms (damping)
-       call hyper_diff (gnew, phinew)
-    else if (istep.ne.istep_last) then
-!CMR on first half step do CL with all redists without gtoc redist
-       if( .not. split_collisions) then
-         call vspace_derivatives (gnew, g, g0, phi, bpar, phinew, bparnew, modep,gtoc=.false.)
-       end if
-       !Calculate the explicit nonlinear terms
-       call add_explicit_terms (gexp_1, gexp_2, gexp_3, &
-         phi, apar, bpar, istep, bkdiff(1))
-       if(reset) return !Return if resetting
-       !Solve for gnew
-       call invert_rhs (phi, apar, bpar, phinew, aparnew, bparnew, istep)
-       !Add hyper terms (damping)
-       call hyper_diff (gnew, phinew)
-    else if (istep.eq.istep_last) then
-!CMR on second half of all timesteps do LC without ctog redist
-       !Calculate the explicit nonlinear terms 
-       !NB following call should be unnecessary as NL terms not added on second
-       !    half of istep: keeping for now as may be needed by some code
-       call add_explicit_terms (gexp_1, gexp_2, gexp_3, &
-         phi, apar, bpar, istep, bkdiff(1))
-       if(reset) return !Return if resetting
-
-       !Solve for gnew
-       call invert_rhs (phi, apar, bpar, phinew, aparnew, bparnew, istep)
-       !Add hyper terms (damping)
-       call hyper_diff (gnew, phinew)
-       if( .not. split_collisions) then
-         call vspace_derivatives (gnew, g, g0, phi, bpar, phinew, bparnew, modep, ctog=.false.)
-       end if
-    endif
+    end if
 
     !Enforce parity if desired (also performed in invert_rhs, but this is required
     !as collisions etc. may break parity?)
