@@ -152,7 +152,9 @@ ONE_STEP_PP?=
 
 MAKE		= make
 CPP		= cpp
+ifndef ONE_STEP_PP
 CPPFLAGS	= -P -traditional
+endif
 FC		= f90
 MPIFC		?= mpif90
 H5FC		?= h5fc
