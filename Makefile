@@ -534,6 +534,15 @@ ifdef ONE_STEP_PP
 .F90.o:
 	$(FC) $(CPPFLAGS) $(F90FLAGS) $(F90FLAGS_SFXJUNK) -c $<
 
+# The depend command needs the preprocessed source files. 
+# This is a little clunky, and maybe could be fixed in the future.
+.fpp.f90:
+#	$(CPP) $(CPPFLAGS) -nostdinc $< $@
+	$(CPP) $(CPPFLAGS) $< $@
+.F90.f90:
+#	$(CPP) $(CPPFLAGS) -nostdinc $< $@
+	$(CPP) $(CPPFLAGS) $< $@
+
 else
 
 
