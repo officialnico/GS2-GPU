@@ -51,10 +51,10 @@ ifdef TESTEXEC
 #$(info TESTEXEC is $(TESTEXEC))
 TESTCOMMAND=$(call TESTEXEC,$(NTESTPROCS)) ./
 else
-ifndef USE_MPI
-		TESTCOMMAND=mpirun -np $(NTESTPROCS) ./
+ifdef USE_MPI
+TESTCOMMAND=mpirun -np $(NTESTPROCS) ./
 else
-		TESTCOMMAND=./
+TESTCOMMAND=./
 endif
 endif
 
