@@ -64,12 +64,13 @@ module dist_fn
   !public :: init_vpar
   public :: read_parameters, wnml_dist_fn, wnml_dist_fn_species, check_dist_fn
   public :: timeadv, exb_shear, g_exb, g_exbfac
+  public :: collisions_advance
   public :: g_exb_error_limit
   public :: g_exb_start_timestep, g_exb_start_time
   public :: init_bessel, init_fieldeq
   public :: getfieldeq, getan, getmoms, getemoms, getmoms_gryfx_dist
   public :: getfieldeq_nogath
-  public :: flux, lf_flux, eexchange
+  public :: flux, flux_dist, lf_flux, eexchange
   public :: get_epar, get_heat
   public :: t0, omega0, gamma0, source0
   public :: reset_init, write_f, reset_physics, write_poly
@@ -80,7 +81,7 @@ module dist_fn
   public :: get_init_field, getan_nogath
   public :: flux_vs_theta_vs_vpa
   public :: pflux_vs_theta_vs_vpa
-  public :: flux_e
+  public :: flux_vs_e
   
   public :: gamtot,gamtot1,gamtot2
   public :: getmoms_notgc
@@ -99,6 +100,7 @@ module dist_fn
 
   public :: gf_lo_integrate
   public :: check_getan
+  public :: calculate_flux_surface_average
 
   ! knobs
   complex, dimension (:), allocatable :: fexp ! (nspec)
@@ -3881,6 +3883,7 @@ endif
     use hyper, only: hyper_diff
     use run_parameters, only: reset, immediate_reset
     use unit_tests, only: debug_message
+    use collisions, only: split_collisions
     implicit none
     complex, dimension (-ntgrid:,:,:), intent (in) :: phi, apar, bpar
     complex, dimension (-ntgrid:,:,:), intent (in) :: phinew, aparnew, bparnew
@@ -3911,12 +3914,16 @@ endif
        call debug_message(verb, &
         'dist_fn::timeadv calculated hypviscosity')
        !Add collisions
-       call vspace_derivatives (gnew, g, g0, phi, bpar, phinew, bparnew, modep)
-       call debug_message(verb, &
-        'dist_fn::timeadv calculated collisions etc')
+       if( .not. split_collisions) then
+         call vspace_derivatives (gnew, g, g0, phi, bpar, phinew, bparnew, modep)
+         call debug_message(verb, &
+          'dist_fn::timeadv calculated collisions etc')
+       end if
     else if (istep.eq.1 .and. istep.ne.istep_last) then
 !CMR on first half step at istep=1 do CL with all redists
-       call vspace_derivatives (gnew, g, g0, phi, bpar, phinew, bparnew, modep)
+       if( .not. split_collisions) then
+         call vspace_derivatives (gnew, g, g0, phi, bpar, phinew, bparnew, modep)
+       end if
        !Calculate the explicit nonlinear terms
        call add_explicit_terms (gexp_1, gexp_2, gexp_3, &
          phi, apar, bpar, istep, bkdiff(1))
@@ -3927,7 +3934,9 @@ endif
        call hyper_diff (gnew, phinew)
     else if (istep.ne.istep_last) then
 !CMR on first half step do CL with all redists without gtoc redist
-       call vspace_derivatives (gnew, g, g0, phi, bpar, phinew, bparnew, modep,gtoc=.false.)
+       if( .not. split_collisions) then
+         call vspace_derivatives (gnew, g, g0, phi, bpar, phinew, bparnew, modep,gtoc=.false.)
+       end if
        !Calculate the explicit nonlinear terms
        call add_explicit_terms (gexp_1, gexp_2, gexp_3, &
          phi, apar, bpar, istep, bkdiff(1))
@@ -3949,7 +3958,9 @@ endif
        call invert_rhs (phi, apar, bpar, phinew, aparnew, bparnew, istep)
        !Add hyper terms (damping)
        call hyper_diff (gnew, phinew)
-       call vspace_derivatives (gnew, g, g0, phi, bpar, phinew, bparnew, modep, ctog=.false.)
+       if( .not. split_collisions) then
+         call vspace_derivatives (gnew, g, g0, phi, bpar, phinew, bparnew, modep, ctog=.false.)
+       end if
     endif
 
     !Enforce parity if desired (also performed in invert_rhs, but this is required
@@ -3959,6 +3970,55 @@ endif
     istep_last=istep
 
   end subroutine timeadv
+
+!---------------------------------------------------------------------------  
+!> @author 
+!> Joseph Parker, STFC
+!
+! DESCRIPTION: 
+!> Advance collision term one timestep by implicit Euler.
+!> @brief
+!> Advance g under collisions one timestep by implicit Euler, then 
+!> solve Maxwell's equations to find consistent fields.
+!> This is only performed if collisions are not evolved as part of the 
+!> usual time advance in timeadv (i.e. if split_collisions=.true.).
+!> Splitting collisions also allows tricks like:
+!>   + not performing redistributes between collisions and the field solve 
+!>     if both are done in gf. 
+!>   + only applying collisions every nth timestep
+!
+!--------------------------------------------------------------------------- 
+
+  subroutine collisions_advance (phi, bpar, phinew, aparnew, bparnew, istep, mode)
+
+    use collisions, only: split_collisions
+    use dist_fn_arrays, only: gnew, g
+    use gs2_layouts, only: gf_lo
+    use le_derivatives, only: vspace_derivatives
+    use theta_grid, only: ntgrid
+    use unit_tests, only: debug_message
+    implicit none
+    complex, dimension (-ntgrid:,:,:), intent (in) :: phi, bpar
+    complex, dimension (-ntgrid:,:,:), intent (inout) :: phinew, aparnew, bparnew
+    integer, intent (in) :: istep
+    integer, optional, intent (in) :: mode
+    integer :: modep
+    integer, parameter :: verb = 3
+
+    if(.not. split_collisions) return
+
+    modep = 0
+    if (present(mode)) modep = mode
+
+    !Add collisions
+    call vspace_derivatives (gnew, g, g0, phi, bpar, phinew, bparnew, modep)
+    call debug_message(verb, &
+      'dist_fn::collisions_advance calculated collisions etc')
+
+    !Find fields for new distribution function
+    call get_init_field (phinew, aparnew, bparnew)
+
+  end subroutine collisions_advance
 
 ! communication initializations for exb_shear should be done once and 
 ! redistribute routines should be used  BD
@@ -6557,7 +6617,7 @@ endif
 
   subroutine init_fieldeq
     use dist_fn_arrays, only: aj0, aj1, vperp2
-    use species, only: nspec, spec, has_electron_species
+    use species, only: nspec, spec, has_electron_species, has_ion_species
     use theta_grid, only: ntgrid
     use kt_grids, only: naky, ntheta0, aky, kperp2
     use le_grids, only: integrate_species
@@ -6643,7 +6703,7 @@ endif
     endif
 
 ! adiabatic electrons 
-    if (.not. has_electron_species(spec)) then
+    if (.not. has_electron_species(spec) .or. .not. has_ion_species(spec) ) then
        if (adiabatic_option_switch == adiabatic_option_yavg) then
           do ik = 1, naky
              if (aky(ik) > epsilon(0.0)) gamtot(:,:,ik) = gamtot(:,:,ik) + tite
@@ -6680,27 +6740,7 @@ endif
     if (.not. has_electron_species(spec)) then
        if (adiabatic_option_switch == adiabatic_option_fieldlineavg) then
           
-!          if (first) then 
-          if (.not. allocated(awgt)) then
-             allocate (awgt(ntheta0, naky))
-             awgt = 0.
-             do ik = 1, naky
-                do it = 1, ntheta0
-                   if (aky(ik) > epsilon(0.0)) cycle
-                   awgt(it,ik) = 1.0/sum(delthet*jacob*gamtot3(:,it,ik))
-                end do
-             end do
-          endif
-           
-          do ik = 1, naky
-             do it = 1, ntheta0
-                fl_avg(it,ik) = tite*sum(delthet*jacob*antot(:,it,ik)/gamtot(:,it,ik))*awgt(it,ik)
-             end do
-          end do
-
-!          do it=2,ntheta0
-!             fl_avg(it, 1) = fl_avg(it, 1) - 1.0
-!          end do
+          call calculate_flux_surface_average(fl_avg,antot)
        end if
 
     end if
@@ -6799,24 +6839,7 @@ endif
 
     if (.not. has_electron_species(spec)) then
        if (adiabatic_option_switch == adiabatic_option_fieldlineavg) then
-          if (.not. allocated(awgt)) then
-             allocate (awgt(ntheta0, naky))
-             awgt = 0.
-             do ik = 1, naky
-                if (aky(ik) > epsilon(0.0)) cycle
-                do it = 1, ntheta0
-                   if(kwork_filter(it,ik)) cycle
-                   awgt(it,ik) = 1.0/sum(delthet*jacob*gamtot3(:,it,ik))
-                end do
-             end do
-          endif
-           
-          do ik = 1, naky
-             do it = 1, ntheta0
-                if(kwork_filter(it,ik)) cycle
-                fl_avg(it,ik) = tite*sum(delthet*jacob*antot(:,it,ik)/gamtot(:,it,ik))*awgt(it,ik)
-             end do
-          end do
+          call calculate_flux_surface_average(fl_avg,antot)
        end if
     end if
 
@@ -7245,6 +7268,7 @@ endif
     !   beta/2 * gamtot1 * phi + (beta * gamtot2 + 1) * bpar = - beta * antotp
     ! I haven't made any check for use_Bpar=T case.
     use run_parameters, only: beta, fphi, fapar, fbpar
+    use species, only: spec, has_electron_species
     use theta_grid, only: ntgrid, bmag
     use kt_grids, only: ntheta0, naky, kperp2
     
@@ -7254,6 +7278,8 @@ endif
     complex, dimension (-ntgrid:ntgrid,ntheta0,naky) :: antot, antota, antotp
     complex, dimension (-ntgrid:ntgrid,ntheta0,naky) :: numerator
     real, dimension (-ntgrid:ntgrid,ntheta0,naky) :: bmagsp
+    complex, dimension (ntheta0,naky) :: fl_avg
+    complex, dimension (-ntgrid:ntgrid,ntheta0,naky) :: fl_avg_sp
     logical :: local_gf_lo
 
     if(present(gf_lo)) then
@@ -7273,11 +7299,17 @@ endif
        call getan (antot, antota, antotp)
     end if
 
+    fl_avg = 0.0
+    if( .not. has_electron_species(spec) .and. adiabatic_option_switch == adiabatic_option_fieldlineavg ) then
+      call calculate_flux_surface_average(fl_avg,antot)
+    end if
+    fl_avg_sp(-ntgrid:ntgrid,:,:) = spread(fl_avg,1,2*ntgrid+1)
+
     ! get phi
     if (fphi > epsilon(0.0)) then
 
 !CMR, 1/8/2011:  bmag corrections here: 
-       numerator = (beta * gamtot2 + bmagsp**2) * antot - (beta * gamtot1) * antotp
+       numerator = (beta * gamtot2 + bmagsp**2) * (antot+fl_avg_sp) - (beta * gamtot1) * antotp
        denominator = (beta * gamtot2 + bmagsp**2) * gamtot + (beta/2.0) * gamtot1 * gamtot1
 
        where (abs(denominator) < epsilon(0.0)) ! it == ik == 1 only
@@ -7516,7 +7548,7 @@ endif
     deallocate (dnorm)
   end subroutine flux
 
-  subroutine flux_e (phi, apar, bpar, pflux, pmflux, pbflux)
+  subroutine flux_vs_e (phi, apar, bpar, pflux, pmflux, pbflux)
     use species, only: spec
     use theta_grid, only: ntgrid, bmag, gradpar, grho, delthet, drhodpsi
     use theta_grid, only: qval, shat, gds21, gds22
@@ -7552,7 +7584,7 @@ endif
        do isgn = 1, 2
           g0(:,isgn,:) = gnew(:,isgn,:)*aj0
        end do
-       call get_flux_e (phi, pflux, dnorm)
+       call get_flux_vs_e (phi, pflux, dnorm)
 
     else
        pflux = 0.
@@ -7566,7 +7598,7 @@ endif
                   = -gnew(:,isgn,iglo)*aj0(:,iglo)*spec(is)%stm*vpa(:,isgn,iglo)
           end do
        end do
-       call get_flux_e (apar, pmflux, dnorm)
+       call get_flux_vs_e (apar, pmflux, dnorm)
 
     else
        pmflux = 0.
@@ -7580,13 +7612,13 @@ endif
                   = gnew(:,isgn,iglo)*aj1(:,iglo)*2.0*vperp2(:,iglo)*spec(is)%tz
           end do
        end do
-       call get_flux_e (bpar, pbflux, dnorm)
+       call get_flux_vs_e (bpar, pbflux, dnorm)
     else
        pbflux = 0.
     end if
 
     deallocate (dnorm)
-  end subroutine flux_e
+  end subroutine flux_vs_e
 
   subroutine get_flux (fld, flx, dnorm)
     use theta_grid, only: ntgrid, grho
@@ -7630,6 +7662,47 @@ endif
 
   end subroutine get_flux
 
+! Identical to get_flux except don't integrate over poloidal angle ! JRB
+  subroutine get_flux_dist (fld, flx_dist, dnorm)
+    use theta_grid, only: ntgrid, grho
+    use kt_grids, only: ntheta0, aky, naky
+    use le_grids, only: integrate_moment
+    use species, only: nspec
+    implicit none
+    logical, parameter :: full_arr=moment_to_allprocs
+    complex, dimension (-ntgrid:,:,:), intent (in) :: fld
+    real, dimension (-ntgrid:,:,:,:), intent (in out) :: flx_dist
+    real, dimension (-ntgrid:,:,:) :: dnorm
+    complex, dimension (:,:,:,:), allocatable :: total
+    real :: wgt, fac
+    integer :: ik, it, is
+
+    allocate (total(-ntgrid:ntgrid,ntheta0,naky,nspec))
+    ! EGH added final parameter 'all'
+    ! to the call below for new parallel output
+    ! This is temporary until distributed fields
+    ! are implemented 1/2014
+    call integrate_moment (g0, total, moment_to_allprocs, full_arr)
+
+    ! EGH for new parallel I/O everyone
+    ! calculates fluxes
+    !if (proc0) then
+       do is = 1, nspec
+          do ik = 1, naky
+             do it = 1, ntheta0
+                wgt = sum(dnorm(:,it,ik)*grho)
+                flx_dist(:,it,ik,is) = aimag(total(:,it,ik,is)*conjg(fld(:,it,ik))) &
+                     *aky(ik)/wgt
+             end do
+          end do
+       end do
+       flx_dist = flx_dist*0.5
+    ! end if
+
+    deallocate (total)
+
+  end subroutine get_flux_dist
+
   subroutine get_flux_tormom (fld, flx, dnorm) !JPL
     use theta_grid, only: ntgrid
 #ifdef LOWFLOW
@@ -7672,7 +7745,7 @@ endif
 #endif
   end subroutine get_flux_tormom !JPL
 
-  subroutine get_flux_e (fld, flx, dnorm)
+  subroutine get_flux_vs_e (fld, flx, dnorm)
     use theta_grid, only: ntgrid, delthet, grho
     use kt_grids, only: ntheta0, aky, naky
     use le_grids, only: negrid,nlambda,wl
@@ -7708,7 +7781,11 @@ endif
           dnorm(-ntgrid:,it,ik) * aky(ik)) * wl(-ntgrid:,il)/wgt)
     end do
 
-  end subroutine get_flux_e
+    call sum_reduce(total,0)
+
+    if (proc0) flx = 0.5*total  
+
+  end subroutine get_flux_vs_e
 
   subroutine eexchange (phinew, phi, exchange1, exchange2)
 
@@ -8055,6 +8132,91 @@ endif
     vflx=0.
 #endif
   end subroutine pflux_vs_theta_vs_vpa
+
+
+!=============================================================================
+! Diagnose the poloidal distribution of the particle, angular momentum, 
+!    and energy fluxes ! JRB
+!=============================================================================
+  subroutine flux_dist (phi, pflux_dist, vflux_par_dist, vflux_perp_dist, qflux_dist)
+
+!CMR, 15/1/08: 
+!  Implemented Clemente Angioni's fix for fluxes by replacing g with gnew 
+!  so fields and distribution function are evaluated self-consistently in time.
+!  This fixed unphysical oscillations in non-ambipolar particle fluxes 
+!
+    use species, only: spec
+    use theta_grid, only: ntgrid, bmag, gradpar, delthet
+    use theta_grid, only: qval, shat, gds21, gds22
+    use kt_grids, only: naky, ntheta0, theta0, aky
+!   use theta_grid, only: drhodpsi, grho
+!    use kt_grids, only: akx
+    use le_grids, only: energy
+    use dist_fn_arrays, only: gnew, aj0, vpac, vpa, aj1, vperp2
+    use gs2_layouts, only: g_lo, ie_idx, is_idx, it_idx, ik_idx
+    use run_parameters, only: woutunits, fphi, fapar, fbpar
+    use constants, only: zi
+    use geometry, only: rhoc
+    use theta_grid, only: Rplot, Bpol
+    use species, only: nspec
+    implicit none
+    complex, dimension (-ntgrid:,:,:), intent (in) :: phi
+    real, dimension (-ntgrid:,:,:,:), intent (out) :: pflux_dist, vflux_par_dist, vflux_perp_dist, qflux_dist
+    real, dimension (:,:,:), allocatable :: dnorm
+    integer :: it, ik, is, isgn, ig
+    integer :: iglo
+
+    allocate (dnorm (-ntgrid:ntgrid,ntheta0,naky))
+
+    ! EGH for new parallel I/O everyone
+    ! calculates fluxes
+    !if (proc0) then
+       pflux_dist = 0.0; vflux_par_dist = 0.0; vflux_perp_dist = 0.0; qflux_dist= 0.0; 
+    !end if
+
+    do ik = 1, naky
+       do it = 1, ntheta0
+          dnorm(:,it,ik) = delthet/bmag/gradpar*woutunits(ik)
+       end do
+    end do
+
+    if (fphi > epsilon(0.0)) then
+       do isgn = 1, 2
+          g0(:,isgn,:) = gnew(:,isgn,:)*aj0
+       end do
+       call get_flux_dist (phi, pflux_dist, dnorm)
+
+       do iglo = g_lo%llim_proc, g_lo%ulim_proc
+          g0(:,:,iglo) = g0(:,:,iglo)*energy(ie_idx(g_lo,iglo),is_idx(g_lo,iglo))
+       end do
+       call get_flux_dist (phi, qflux_dist, dnorm)
+
+       do isgn = 1, 2
+          do ig = -ntgrid, ntgrid
+             g0(ig,isgn,:) = gnew(ig,isgn,:)*aj0(ig,:)*vpac(ig,isgn,:)*Rplot(ig)*sqrt(1.0-Bpol(ig)**2/bmag(ig)**2)
+          end do
+       end do
+       call get_flux_dist (phi, vflux_par_dist, dnorm)
+       do iglo = g_lo%llim_proc, g_lo%ulim_proc
+          it = it_idx(g_lo,iglo)
+          ik = ik_idx(g_lo,iglo)
+          is = is_idx(g_lo,iglo)
+          do isgn = 1, 2
+             g0(:,isgn,iglo) = -zi*aky(ik)*gnew(:,isgn,iglo)*aj1(:,iglo) &
+                  *rhoc*(gds21+theta0(it,ik)*gds22)*vperp2(:,iglo)*spec(is)%smz/(qval*shat*bmag**2)
+          end do
+       end do
+       call get_flux_dist (phi, vflux_perp_dist, dnorm)
+    else
+       pflux_dist = 0.
+       vflux_par_dist = 0.
+       vflux_perp_dist = 0.
+       qflux_dist = 0.
+    end if
+
+    deallocate (dnorm)
+
+ end subroutine flux_dist
 
 
 !=============================================================================
@@ -10528,5 +10690,58 @@ endif
          call delete_list (to)
       endif
   end subroutine init_pass_wfb
+
+!---------------------------------------------------------------------------  
+!> @author 
+!> Joseph Parker, STFC
+!
+! DESCRIPTION: 
+!> Calculate the flux surface average term for the adiabatic response. 
+!> @brief
+!> If using adiabatic electrons and the option
+!> @dist_fn_knobs
+!>   adiabatic_option = "iphi00=2"
+!> /
+!> the field solve should subtract the flux surface average 
+!> from the perturbed electron distribution function,
+!> i.e. include the term <phi> in
+!>
+!>   f1e = q( phi - <phi>) f0e / Te
+!>
+!> This function calculates <phi> and returns it as fl_avg.
+!
+!--------------------------------------------------------------------------- 
+  subroutine calculate_flux_surface_average (fl_avg,antot)
+
+    use kt_grids, only: naky, ntheta0, aky, kwork_filter
+    use run_parameters, only: tite
+    use theta_grid, only: ntgrid, delthet, jacob
+    implicit none
+    complex, dimension (ntheta0, naky), intent (out) :: fl_avg
+    complex, dimension (-ntgrid:ntgrid,ntheta0,naky), intent (in) :: antot
+    integer :: ik, it
+
+    fl_avg = 0.
+
+    if (.not. allocated(awgt)) then
+       allocate (awgt(ntheta0, naky))
+       awgt = 0.
+       do ik = 1, naky
+          if (aky(ik) > epsilon(0.0)) cycle
+          do it = 1, ntheta0
+             if(kwork_filter(it,ik)) cycle
+             awgt(it,ik) = 1.0/sum(delthet*jacob*gamtot3(:,it,ik))
+          end do
+       end do
+    endif
+     
+    do ik = 1, naky
+       do it = 1, ntheta0
+          if(kwork_filter(it,ik)) cycle
+          fl_avg(it,ik) = tite*sum(delthet*jacob*antot(:,it,ik)/gamtot(:,it,ik))*awgt(it,ik)
+       end do
+    end do
+
+  end subroutine calculate_flux_surface_average
 
 end module dist_fn

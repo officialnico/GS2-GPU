@@ -132,10 +132,12 @@ contains
   subroutine fields_pre_init
     use theta_grid, only: init_theta_grid
     use run_parameters, only: init_run_parameters
-    use dist_fn, only: init_dist_fn
+    use dist_fn, only: init_dist_fn, gf_lo_integrate
     use init_g, only: ginit, init_init_g
     use antenna, only: init_antenna
     use unit_tests, only: debug_message
+    use kt_grids, only: naky, ntheta0
+    use mp, only: nproc, proc0
     implicit none
     integer, parameter :: verb=3
     
@@ -153,6 +155,17 @@ contains
     call init_run_parameters
     call debug_message(verb, "init_fields: init_dist_fn")
     call init_dist_fn
+
+    if(nproc .lt. ntheta0*naky .and. fieldopt_switch .eq. fieldopt_gf_local) then
+       fieldopt_switch = fieldopt_local
+       gf_lo_integrate = .false.
+       if(proc0) then
+          write(*,*) 'gf local fields cannot be used as you are running less MPI processes than there are'
+          write(*,*) 'naky*ntheta0 points.  Defaulting to local fields.  You need to use at least',naky*ntheta0
+          write(*,*) 'MPI processes for this simulation'
+       end if
+    end if
+
     !call debug_message(verb, "init_fields: init_parameter_scan")
     !call init_parameter_scan
     call debug_message(verb, "init_fields: init_antenna")
@@ -297,6 +310,7 @@ contains
     use fields_gf_local, only: init_allfields_gf_local
     use dist_fn, only: gf_lo_integrate
     use gs2_layouts, only: gf_local_fields
+    use kt_grids, only: naky, ntheta0
     implicit none
     logical, parameter :: debug=.false.
     if(proc0.and.debug) write(6,*) "Syncing fields with g."
@@ -314,12 +328,14 @@ contains
        if (debug) write(6,*) "init_fields: init_allfields_gf_local"
        if(.not. gf_lo_integrate .or. .not. gf_local_fields) then
           if(proc0) then
+             write(*,*) 'gf_lo_integrate',gf_lo_integrate,'gf_local_fields',gf_local_fields
              write(*,*) 'gf local fields cannot be used by gf_lo_integrate'
              write(*,*) 'defaulting to local fields'
-             fieldopt_switch = fieldopt_local
              write(*,*) 'if you want to use gf local fields then set gf_lo_integrate to true in dist_fn_knobs'
-             write(*,*) 'and gf_local_fields to true in layout_knobs'
+             write(*,*) 'and gf_local_fields to true in layout_knobs and make sure you are running on more MPI'
+             write(*,*) 'mpi processes than naky*ntheta0.  For this simulation that is: ',naky*ntheta0
           end if
+          fieldopt_switch = fieldopt_local
           call init_allfields_local
        else
           call init_allfields_gf_local
@@ -374,6 +390,8 @@ contains
        endif
 
     end if
+
+
 
     call broadcast (fieldopt_switch)
     call broadcast (remove_zonal_flows_switch)

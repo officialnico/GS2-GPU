@@ -432,6 +432,7 @@ contains
     !write(*,*) 'INITGS2', initialized_x_transform
     
     if (proc0) call read_parameters
+
     call broadcast_results
 
   end subroutine init_gs2_layouts
@@ -461,7 +462,7 @@ contains
     max_unbalanced_xxf = 0.0
     max_unbalanced_yxf = 0.0
     layout = 'lxyes'
-    opt_redist_nbk = .false. !<DD>True=>Use nonblocking redistributes
+    opt_redist_nbk = .true. !<DD>True=>Use nonblocking redistributes
     opt_redist_persist = .false. !<DD>True=>Use persistent communications in redistributes
     opt_redist_persist_overlap = .false. !<DD>True=>Start comms before doing local copy
     opt_redist_init= .false. !<DD>True=>Use optimised routines to init redist objects
@@ -1007,6 +1008,18 @@ contains
           g_lo%ikitrange = g_lo%ikitrange + 1
        end if
     enddo
+
+    !AJ If the number of naky*ntheta0 points is less than the number of MPI
+    !AJ processes then disable gf_local_fields
+    if(nproc .lt. naky*ntheta0 .and. gf_local_fields) then
+       if(proc0) then
+          write(*,*) 'Disabling gf_local_fields in layouts because not enough MPI processes are being used'
+          write(*,*) 'To use gf_local_fields with this simulation ensure you use more than ',naky*ntheta0
+          write(*,*) 'MPI processes.  You will also need to set the field_option to gf_local in the fields'
+          write(*,*) 'properties list, and gf_lo_integrate to true in dist_fn properties'
+       end if
+       gf_local_fields = .false.
+    end if                                                                                                                                                                                                 
 
     !AJ Record the ik,it points this process have in a contigious array.
     allocate(g_lo%local_ikit_points(g_lo%ikitrange))

@@ -19,22 +19,36 @@ module overrides
     logical :: override_shat
     logical :: override_rgeo_lcfs
     logical :: override_rgeo_local
-    logical :: override_akappa
-    logical :: override_akappri
-    logical :: override_tri
-    logical :: override_tripri
+    logical :: override_geoType
+    logical :: override_aSurf
     logical :: override_shift
+    logical :: override_shiftVert
+    logical :: override_mMode
+    logical :: override_nMode
+    logical :: override_deltam
+    logical :: override_deltan
+    logical :: override_deltampri
+    logical :: override_deltanpri
+    logical :: override_thetam
+    logical :: override_thetan
     logical :: override_betaprim
     real :: rhoc
     real :: qinp
     real :: shat
     real :: rgeo_lcfs
     real :: rgeo_local
-    real :: akappa
-    real :: akappri
-    real :: tri
-    real :: tripri
+    integer :: geoType
+    real :: aSurf
     real :: shift
+    real :: shiftVert
+    integer :: mMode
+    integer :: nMode
+    real :: deltam
+    real :: deltan
+    real :: deltampri
+    real :: deltanpri
+    real :: thetam
+    real :: thetan
     real :: betaprim
     
   end type miller_geometry_overrides_type
@@ -84,6 +98,9 @@ module overrides
     logical :: override_local_field_solve
     logical :: override_layout
     logical :: override_field_option
+    logical :: override_gf_lo_integrate
+    logical :: override_gf_local_fields
+    logical :: override_simple_gf_decomposition
     logical :: override_field_subgath
     logical :: override_do_smart_update
     logical :: override_field_local_allreduce
@@ -99,6 +116,9 @@ module overrides
     logical :: local_field_solve
     character(len=5) :: layout
     character(len=8) :: field_option
+    logical :: gf_lo_integrate
+    logical :: gf_local_fields
+    logical :: simple_gf_decomposition
     logical :: field_subgath
     logical :: do_smart_update
     logical :: field_local_allreduce
@@ -205,11 +225,18 @@ contains
     overrides_obj%override_shat = .false.
     overrides_obj%override_rgeo_lcfs = .false.
     overrides_obj%override_rgeo_local = .false.
-    overrides_obj%override_akappa = .false.
-    overrides_obj%override_akappri = .false.
-    overrides_obj%override_tri = .false.
-    overrides_obj%override_tripri = .false.
+    overrides_obj%override_geoType = .false.
+    overrides_obj%override_aSurf = .false.
     overrides_obj%override_shift = .false.
+    overrides_obj%override_shiftVert = .false.
+    overrides_obj%override_mMode = .false.
+    overrides_obj%override_nMode = .false.
+    overrides_obj%override_deltam = .false.
+    overrides_obj%override_deltan = .false.
+    overrides_obj%override_deltampri = .false.
+    overrides_obj%override_deltanpri = .false.
+    overrides_obj%override_thetam = .false.
+    overrides_obj%override_thetan = .false.
     overrides_obj%override_betaprim = .false.
   end subroutine init_miller_geometry_overrides
 
@@ -226,11 +253,18 @@ contains
     overrides_obj%override_shat = .false.
     overrides_obj%override_rgeo_lcfs = .false.
     overrides_obj%override_rgeo_local = .false.
-    overrides_obj%override_akappa = .false.
-    overrides_obj%override_akappri = .false.
-    overrides_obj%override_tri = .false.
-    overrides_obj%override_tripri = .false.
+    overrides_obj%override_geoType = .false.
+    overrides_obj%override_aSurf = .false.
     overrides_obj%override_shift = .false.
+    overrides_obj%override_shiftVert = .false.
+    overrides_obj%override_mMode = .false.
+    overrides_obj%override_nMode = .false.
+    overrides_obj%override_deltam = .false.
+    overrides_obj%override_deltan = .false.
+    overrides_obj%override_deltampri = .false.
+    overrides_obj%override_deltanpri = .false.
+    overrides_obj%override_thetam = .false.
+    overrides_obj%override_thetan = .false.
     overrides_obj%override_betaprim = .false.
   end subroutine finish_miller_geometry_overrides
 
@@ -290,6 +324,9 @@ contains
     overrides_obj%override_local_field_solve = .false.
     overrides_obj%override_layout = .false.
     overrides_obj%override_field_option = .false.
+    overrides_obj%override_gf_lo_integrate = .false.
+    overrides_obj%override_gf_local_fields = .false.
+    overrides_obj%override_simple_gf_decomposition = .false.
     overrides_obj%override_field_subgath = .false.
     overrides_obj%override_do_smart_update = .false.
     overrides_obj%override_field_local_allreduce = .false.
@@ -315,6 +352,9 @@ contains
     overrides_obj%override_local_field_solve = .false.
     overrides_obj%override_layout = .false.
     overrides_obj%override_field_option = .false.
+    overrides_obj%override_gf_lo_integrate = .false.
+    overrides_obj%override_gf_local_fields = .false.
+    overrides_obj%override_simple_gf_decomposition = .false.
     overrides_obj%override_field_subgath = .false.
     overrides_obj%override_do_smart_update = .false.
     overrides_obj%override_field_local_allreduce = .false.

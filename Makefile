@@ -710,11 +710,15 @@ test_make:
 	@echo PLIBS is $(PLIBS)
 	@echo WITH_EIG is $(WITH_EIG)
 
+ifneq ($(GK_SYSTEM),macosx-homebrew)
+	SEDSYSTEMCONFIG=sed -i 's/^ //' system_config
+endif
+
 ifdef STANDARD_SYSTEM_CONFIGURATION
 system_config: Makefiles/Makefile.$(GK_SYSTEM) Makefile
 	@echo "#!/bin/bash " > system_config
 	@echo "$(STANDARD_SYSTEM_CONFIGURATION)" >> system_config
-	@sed -i 's/^ //' system_config
+	@$(SEDSYSTEMCONFIG)
 
 else
 .PHONY: system_config

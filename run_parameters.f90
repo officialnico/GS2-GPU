@@ -21,6 +21,10 @@ module run_parameters
   !> If true and nonlinear_mode is "off", return
   !! simple diffusive estimates of fluxes to trinity
   public :: trinity_linear_fluxes
+  !> If true and nonlinear_mode is "off", 
+  !! and trinity_linear_fluxes is true, return
+  !! quasilinear estimates of fluxes to trinity
+  public :: trinity_ql_fluxes
   public :: user_comments
 
   !> If true use old diagnostics. Included for testing
@@ -50,6 +54,7 @@ module run_parameters
   real :: rhostar
   logical :: neo_test
   logical :: trinity_linear_fluxes, do_eigsolve
+  logical :: trinity_ql_fluxes
   logical :: use_old_diagnostics
 
   character(len=100000) :: user_comments
@@ -236,7 +241,7 @@ contains
 !         avail_cpu_time, eqzip_option, include_lowflow, neo_test
          avail_cpu_time, margin_cpu_time, eqzip_option, neo_test, &
          trinity_linear_fluxes, do_eigsolve, immediate_reset, &
-         use_old_diagnostics
+         use_old_diagnostics,  trinity_ql_fluxes
 
     if (proc0) then
        beta = 0.0
@@ -263,6 +268,7 @@ contains
        avail_cpu_time = 1.e10
        margin_cpu_time = 300.
        trinity_linear_fluxes = .false.
+       trinity_ql_fluxes = .false.
        do_eigsolve = .false.
        immediate_reset = .true.
        use_old_diagnostics = .false.
@@ -282,6 +288,37 @@ contains
        if (fbpar == -1.) then
           fbpar = faperp
        end if
+
+! Override fapar, fbpar and beta if set inconsistently:
+
+       !> If we have zero beta then disable apar and bpar fields
+       !! as these contribute nothing to result but slow down calculation.
+       if(beta.eq.0) then
+          if(((fapar.ne.0) .or. (fbpar.ne.0)).and. proc0) then
+             ierr = error_unit()
+             write(ierr,'("Warning: Disabling apar and bpar as beta = 0.")')
+          endif
+          fapar = 0.
+          fbpar = 0.
+       endif
+
+       !> If we have non-zero beta then alert the user that they have some
+       !! of the perturbed magnetic fields disabled. This may be intended
+       !! behaviour, so we throw a warning. However, if both are disabled,
+       !! we set beta=0. This will make the simulation electrostatic, as 
+       !! probably intended if both apar and bpar are set to zero.
+       if(fapar.eq.0 .and. fbpar.eq.0 .and. beta.ne.0) then
+          if(proc0) then
+             ierr = error_unit()
+             write(ierr,'("Warning: Both fapar and fbpar are zero: setting beta = 0.")')
+          endif
+          beta = 0.0
+       endif
+       if((beta.ne.0).and.proc0) then
+          ierr = error_unit()
+          if(fapar.eq.0) write(ierr,'("Warning: Running with finite beta but fapar=0.")')
+          if(fbpar.eq.0) write(ierr,'("Warning: Running with finite beta but fbpar=0.")')
+       endif
 
        if (eqzip) then
           if (secondary .and. tertiary) then
@@ -364,6 +401,7 @@ contains
     call broadcast (rhostar)
     call broadcast (neo_test)
     call broadcast (trinity_linear_fluxes)
+    call broadcast (trinity_ql_fluxes)
     call broadcast (do_eigsolve)
     call broadcast (immediate_reset)
     call broadcast (use_old_diagnostics)

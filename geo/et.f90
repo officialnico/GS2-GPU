@@ -19,7 +19,7 @@ program eiktest
   real :: airat, wgt, wdavg, jac
   logical :: fast, dipole
 
-  namelist/stuff/ntheta,nperiod,rmaj,akappri,akappa,shift,equal_arc, &
+  namelist/stuff/ntheta,nperiod,geoType,rmaj,akappri,akappa,shift,equal_arc, &
        rhoc,rmin,rmax,itor,qinp,iflux,delrho,tri,bishop, &
        irho,isym,tripri,efit_eq,dfit_eq,writelots,R_geo, &
        gen_eq, ppl_eq, eqfile, local_eq, idfit_eq,&
@@ -58,6 +58,8 @@ program eiktest
   beta_prime_times = -1.
 
   profile_fac = 0.5
+
+  geoType = 0
 
   rmaj = 3   ;     akappa = 1   ;     tri = 0   ;     qinp = 2
   R_geo = 3  ;     akappri = 0  ;     tripri=0  ;     shat = 1

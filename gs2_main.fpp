@@ -1,7 +1,8 @@
 module old_interface_store
     integer :: ntspec_store
-    real :: rhoc_store, qval_store, shat_store, rgeo_lcfs_store, rgeo_local_store
-    real :: kap_store, kappri_store, tri_store, tripri_store, shift_store
+    real :: rhoc_store, qval_store, shat_store, rgeo_lcfs_store, rgeo_local_store, aSurf_store
+    real :: shift_store, shiftVert_store, deltam_store, deltan_store
+    real :: deltampri_store, deltanpri_store, thetam_store, thetan_store
     real :: betaprim_store, gexb_store, mach_store
     real, dimension (:), allocatable :: dens_store, fprim_store, temp_store, tprim_store, nu_store
     logical :: use_gs2_geo_store
@@ -1285,10 +1286,11 @@ contains
 #endif 
     use gs2_time, only: user_time
     use nonlinear_terms, only: nonlinear_mode_switch, nonlinear_mode_none
-    use run_parameters, only: trinity_linear_fluxes
+    use run_parameters, only: trinity_linear_fluxes, trinity_ql_fluxes
     use species, only: nspec, spec
     use species, only: ions, electrons, impurity
     use run_parameters, only: use_old_diagnostics
+    use mp, only: mp_abort
     implicit none
     type(gs2_program_state_type), intent(inout) :: state
     real :: time_interval
@@ -1306,7 +1308,7 @@ contains
       
    ! Use simple gamma / k^2 estimates for transport in the 
    ! linear case. This is for testing Trinity
-   if (trinity_linear_fluxes .and. &
+   if (trinity_linear_fluxes .and. .not. trinity_ql_fluxes .and. &
          nonlinear_mode_switch .eq. nonlinear_mode_none) then
      if (use_old_diagnostics) then
        diff = diffusivity()
@@ -1354,6 +1356,21 @@ contains
    state%outputs%qflux = qf/time_interval
    state%outputs%heat = ht/time_interval
    state%outputs%vflux = vf(1)/time_interval
+   
+   if (trinity_ql_fluxes) then
+#ifdef NEW_DIAG
+     qf = gnostics%current_results%species_heat_flux
+     pf = gnostics%current_results%species_particle_flux
+     ht = gnostics%current_results%species_heating
+     vf = gnostics%current_results%species_momentum_flux
+     state%outputs%pflux = pf/gnostics%current_results%phi2
+     state%outputs%qflux = qf/gnostics%current_results%phi2
+     state%outputs%heat = ht/gnostics%current_results%phi2
+     state%outputs%vflux = vf(1)/gnostics%current_results%phi2
+#else
+     call mp_abort('ERROR: trinity_ql_fluxes only works with new diagnostics', .true.)
+#endif 
+   end if
   end subroutine calculate_outputs
 
 
@@ -1786,16 +1803,24 @@ subroutine run_gs2 (mpi_comm, job_id, filename, nensembles, &
       old_iface_state%init%mgeo_ov%rgeo_lcfs = rgeo_lcfs_store
       old_iface_state%init%mgeo_ov%override_rgeo_local = .true.
       old_iface_state%init%mgeo_ov%rgeo_local = rgeo_local_store
-      old_iface_state%init%mgeo_ov%override_akappa = .true.
-      old_iface_state%init%mgeo_ov%akappa = kap_store
-      old_iface_state%init%mgeo_ov%override_akappri = .true.
-      old_iface_state%init%mgeo_ov%akappri = kappri_store
-      old_iface_state%init%mgeo_ov%override_tri = .true.
-      old_iface_state%init%mgeo_ov%tri = tri_store
-      old_iface_state%init%mgeo_ov%override_tripri = .true.
-      old_iface_state%init%mgeo_ov%tripri = tripri_store
+      old_iface_state%init%mgeo_ov%override_aSurf = .true.
+      old_iface_state%init%mgeo_ov%aSurf = aSurf_store
       old_iface_state%init%mgeo_ov%override_shift = .true.
       old_iface_state%init%mgeo_ov%shift = shift_store
+      old_iface_state%init%mgeo_ov%override_shiftVert = .true.
+      old_iface_state%init%mgeo_ov%shiftVert = shiftVert_store
+      old_iface_state%init%mgeo_ov%override_deltam = .true.
+      old_iface_state%init%mgeo_ov%deltam = deltam_store
+      old_iface_state%init%mgeo_ov%override_deltan = .true.
+      old_iface_state%init%mgeo_ov%deltan = deltan_store
+      old_iface_state%init%mgeo_ov%override_deltampri = .true.
+      old_iface_state%init%mgeo_ov%deltampri = deltampri_store
+      old_iface_state%init%mgeo_ov%override_deltanpri = .true.
+      old_iface_state%init%mgeo_ov%deltanpri = deltanpri_store
+      old_iface_state%init%mgeo_ov%override_thetam = .true.
+      old_iface_state%init%mgeo_ov%thetam = thetam_store
+      old_iface_state%init%mgeo_ov%override_thetan = .true.
+      old_iface_state%init%mgeo_ov%thetan = thetan_store
       old_iface_state%init%mgeo_ov%override_betaprim = .true.
       old_iface_state%init%mgeo_ov%betaprim = betaprim_store
     end if
@@ -1952,7 +1977,8 @@ subroutine run_gs2 (mpi_comm, job_id, filename, nensembles, &
       end if
   end subroutine write_trinity_parameters
 
-  subroutine gs2_trin_init (rhoc, qval, shat, rgeo_lcfs, rgeo_local, kap, kappri, tri, tripri, shift, &
+  subroutine gs2_trin_init (rhoc, qval, shat, rgeo_lcfs, rgeo_local, aSurf, shift, shiftVert, &
+       deltam, deltan, deltampri, deltanpri, thetam, thetan, &
        betaprim, ntspec, dens, temp, fprim, tprim, gexb, mach, nu, use_gs2_geo)
 
     use dist_fn, only: dist_fn_g_exb => g_exb
@@ -1962,7 +1988,8 @@ subroutine run_gs2 (mpi_comm, job_id, filename, nensembles, &
     implicit none
 
     integer, intent (inout) :: ntspec
-    real, intent (inout) :: rhoc, qval, shat, rgeo_lcfs, rgeo_local, kap, kappri, tri, tripri, shift
+    real, intent (inout) :: rhoc, qval, shat, rgeo_lcfs, rgeo_local, aSurf, shift, shiftVert
+    real, intent (inout) :: deltam, deltan, deltampri, deltanpri, thetam, thetan
     real, intent (inout) :: betaprim, gexb, mach
     real, dimension (:), intent (inout) :: dens, fprim, temp, tprim, nu
     logical, intent (inout) :: use_gs2_geo
@@ -1989,11 +2016,15 @@ subroutine run_gs2 (mpi_comm, job_id, filename, nensembles, &
        shat_store = shat
        rgeo_lcfs_store = rgeo_lcfs
        rgeo_local_store = rgeo_local
-       kap_store = kap
-       kappri_store = kappri
-       tri_store = tri
-       tripri_store = tripri
+       aSurf_store = aSurf
        shift_store = shift
+       shiftVert_store = shiftVert
+       deltam_store = deltam
+       deltan_store = deltan
+       deltampri_store = deltampri
+       deltanpri_store = deltanpri
+       thetam_store = thetam
+       thetan_store = thetan
        betaprim_store = betaprim
        override_miller_geometry = .true.
      end if

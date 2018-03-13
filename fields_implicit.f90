@@ -352,7 +352,7 @@ contains
     use fields_arrays, only: phi, apar, bpar, phinew, aparnew, bparnew
     use fields_arrays, only: apar_ext
     use antenna, only: antenna_amplitudes, no_driver
-    use dist_fn, only: timeadv, exb_shear
+    use dist_fn, only: timeadv, exb_shear, collisions_advance
     use dist_fn_arrays, only: g, gnew, kx_shift, theta0_shift
     use unit_tests, only: debug_message
     use mp, only: iproc
@@ -391,6 +391,9 @@ contains
     call debug_message(4, 'fields_implicit::advance_implicit calling timeadv')
     call timeadv (phi, apar, bpar, phinew, aparnew, bparnew, istep, diagnostics)
     call debug_message(4, 'fields_implicit::advance_implicit called timeadv')
+
+    ! Advance collisions, if separate from timeadv
+    call collisions_advance (phi, bpar, phinew, aparnew, bparnew, istep, diagnostics)
 
   end subroutine advance_implicit
 

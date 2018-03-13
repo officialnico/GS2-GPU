@@ -67,6 +67,7 @@ input_variables_for_diagnostics_config = [
   # CHANGE BACK TO FALSE below
   ['logical', 'write_fluxes_by_mode', '.true.'],
   ['logical', 'write_symmetry', '.false.'],
+  ['logical', 'write_nl_flux_dist', '.false.'],
   ['logical', 'write_parity', '.false.'],
 
   # Parameters for writing out growth rates and frequencies

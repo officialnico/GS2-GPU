@@ -13,7 +13,7 @@ program ball
   real :: bprev, pprev, stabmhd, bcrit, s_hat_max, shat_0
   logical :: diagram
 
-  namelist/stuff/ntheta,nperiod,rmaj,akappri,akappa,shift,equal_arc, &
+  namelist/stuff/ntheta,nperiod,geoType,rmaj,akappri,akappa,shift,equal_arc, &
        rhoc,rmin,rmax,itor,qinp,iflux,delrho,tri,bishop, &
        irho,isym,tripri,writelots,R_geo, &
        gen_eq,efit_eq,local_eq,eqfile,&
@@ -39,6 +39,7 @@ program ball
   diagram = .false.
   nshat = 1 ; s_hat_max = 2.0
 
+  geoType = 0
 
   rmaj = 3   ;     akappa = 1   ;     tri = 0   ;     qinp = 2
   R_geo = 3  ;     akappri = 0  ;     tripri=0  ;    shift = 0.

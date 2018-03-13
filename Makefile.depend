@@ -731,13 +731,16 @@ diagnostics_omega.o: \
 	 mp.o \
 	 run_parameters.o 
 diagnostics_screen_printout.o: \
+	 constants.o \
 	 diagnostics_config.o \
 	 diagnostics_omega.o \
+	 fields_arrays.o \
 	 file_utils.o \
 	 kt_grids.o \
 	 mp.o \
 	 run_parameters.o \
 	 species.o \
+	 theta_grid.o \
 	 volume_averages.o 
 diagnostics_turbulence.o: \
 	 diagnostics_config.o \
@@ -1008,6 +1011,7 @@ gs2_diagnostics.o: \
 	 antenna.o \
 	 collisions.o \
 	 constants.o \
+	 convert.o \
 	 dist_fn.o \
 	 dist_fn_arrays.o \
 	 fields_arrays.o \
@@ -1277,6 +1281,7 @@ init_g.o: \
 	 dist_fn_arrays.o \
 	 fields_arrays.o \
 	 file_utils.o \
+	 geometry.o \
 	 gs2_layouts.o \
 	 gs2_save.o \
 	 gs2_transforms.o \
@@ -1288,6 +1293,7 @@ init_g.o: \
 	 redistribute.o \
 	 run_parameters.o \
 	 species.o \
+	 spfunc.o \
 	 text_options.o \
 	 theta_grid.o \
 	 theta_grid_params.o \
@@ -1467,6 +1473,7 @@ theta_grid.o: \
 	 theta_grid_params.o \
 	 unit_tests.o 
 theta_grid_params.o: \
+	 constants.o \
 	 file_utils.o \
 	 overrides.o \
 	 unit_tests.o 

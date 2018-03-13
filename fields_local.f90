@@ -3303,7 +3303,7 @@ contains
     use run_parameters, only: beta, tite
     use species, only: spec, has_electron_species
     use dist_fn, only: gamtot,gamtot1, gamtot2, gamtot3, fl_avg, gridfac1, apfac, awgt
-    use dist_fn, only: adiabatic_option_switch, adiabatic_option_fieldlineavg
+    use dist_fn, only: adiabatic_option_switch, adiabatic_option_fieldlineavg, calculate_flux_surface_average
     implicit none
     class(fieldmat_type), intent(in) :: self
     complex, dimension (-ntgrid:,:,:), intent (in) :: phi, apar, bpar
@@ -3317,25 +3317,7 @@ contains
 
     if (.not. has_electron_species(spec)) then
        if (adiabatic_option_switch == adiabatic_option_fieldlineavg) then
-          if (.not. allocated(awgt)) then
-             allocate (awgt(ntheta0, naky))
-             awgt = 0.
-             do ik = 1, naky
-                if (aky(ik) > epsilon(0.0)) cycle
-                do it = 1, ntheta0
-                   if(kwork_filter(it,ik)) cycle
-                   awgt(it,ik) = 1.0/sum(delthet*jacob*gamtot3(:,it,ik))
-                end do
-             end do
-          endif
-           
-!AJ Can this be reduced given we don't necessarily work on all ik,it points?  Or is this unnecessary optimisation?
-          do ik = 1, naky
-             do it = 1, ntheta0
-                if(kwork_filter(it,ik)) cycle
-                fl_avg(it,ik) = tite*sum(delthet*jacob*antot(:,it,ik)/gamtot(:,it,ik))*awgt(it,ik)
-             end do
-          end do
+          call calculate_flux_surface_average(fl_avg,antot)
        end if
     end if
 
@@ -4143,6 +4125,7 @@ contains
     use fields_arrays, only: phi, apar, bpar, phinew
     use fields_arrays, only: aparnew, bparnew, apar_ext
     use dist_fn, only: timeadv, exb_shear, g_exb, g_exbfac
+    use dist_fn, only: collisions_advance
     use dist_fn_arrays, only: g, gnew
     use antenna, only: antenna_amplitudes, no_driver
     use gs2_layouts, only: g_lo
@@ -4214,6 +4197,10 @@ contains
     !Evolve gnew to next half time point
     call timeadv (phi, apar, bpar, phinew, &
          aparnew, bparnew, istep, diagnostics) 
+
+    ! Advance collisions, if separate from timeadv
+    call collisions_advance (phi, bpar, phinew, aparnew, bparnew, istep, diagnostics)
+
   end subroutine advance_local
 
   !> Routine to dump the current response matrix data

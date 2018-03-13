@@ -20,7 +20,7 @@ module diagnostics_fluxes
   !!  x, y and species. This function writes the whole array,
   !!  and also various averages of them.
   public :: calculate_fluxes
-  public :: write_symmetry, write_parity
+  public :: write_symmetry, write_parity, write_nl_flux_dist
 
   real, dimension (:,:,:,:), allocatable ::  qheat, qmheat, qbheat
   real, dimension (:,:,:), allocatable ::  pflux,  vflux, vflux_par, vflux_perp
@@ -28,6 +28,7 @@ module diagnostics_fluxes
   real, dimension (:,:,:), allocatable :: vflux0, vflux1  ! low flow correction to turbulent momentum flux
   real, dimension (:,:,:), allocatable :: pmflux, vmflux
   real, dimension (:,:,:), allocatable :: pbflux, vbflux
+  real, dimension (:,:), allocatable :: esflux_vs_e, apflux_vs_e, bpflux_vs_e
   real, dimension (:,:,:), allocatable :: exchange
   real, dimension (:,:,:), allocatable :: exchange1
 
@@ -35,6 +36,7 @@ contains
   subroutine init_diagnostics_fluxes(gnostics)
     use kt_grids, only: naky, ntheta0
     use species, only: nspec
+    use le_grids, only: negrid
     use diagnostics_config, only: diagnostics_type
     implicit none
     type(diagnostics_type), intent(inout) :: gnostics
@@ -64,11 +66,16 @@ contains
     allocate (pbflux(ntheta0,naky,nspec)) ; pbflux = 0.
     allocate (qbheat(ntheta0,naky,nspec,3)) ; qbheat = 0.
     allocate (vbflux(ntheta0,naky,nspec)) ; vbflux = 0.   
+
+    allocate (esflux_vs_e(negrid,nspec)) ; esflux_vs_e = 0.
+    allocate (apflux_vs_e(negrid,nspec)) ; apflux_vs_e = 0.
+    allocate (bpflux_vs_e(negrid,nspec)) ; bpflux_vs_e = 0.
   end subroutine init_diagnostics_fluxes
   
   subroutine finish_diagnostics_fluxes
     deallocate (pflux, pflux_tormom, qheat, vflux, vflux_par, vflux_perp, pmflux, qmheat, vmflux, &
-         pbflux, qbheat, vbflux, vflux0, vflux1, exchange, exchange1)
+         pbflux, qbheat, vbflux, vflux0, vflux1, exchange, exchange1, &
+         esflux_vs_e, apflux_vs_e, bpflux_vs_e)
   end subroutine finish_diagnostics_fluxes
 
 
@@ -83,7 +90,7 @@ contains
   end subroutine reset_averages_and_counters
 
   subroutine calculate_fluxes(gnostics)
-    use dist_fn, only: flux, lf_flux, eexchange
+    use dist_fn, only: flux, lf_flux, eexchange, flux_vs_e
     use dist_fn_arrays, only: g_adjust, gnew
     use species, only: nspec, spec
     use fields_arrays, only: phinew, bparnew, aparnew, phi
@@ -115,6 +122,7 @@ contains
       call flux (phinew, aparnew, bparnew, &
            pflux,  qheat,  vflux, vflux_par, vflux_perp, &
            pmflux, qmheat, vmflux, pbflux, qbheat, vbflux, pflux_tormom)
+      call flux_vs_e (phinew, aparnew, bparnew, esflux_vs_e, apflux_vs_e, bpflux_vs_e)
 
 #ifdef LOWFLOW
       !lowflow terms only implemented in electrostatic limit at present
@@ -134,6 +142,8 @@ contains
             
             pflux(:,:,is) = pflux(:,:,is) * spec(is)%dens
             pflux_tormom(:,:,is) = pflux_tormom(:,:,is) * spec(is)%dens  
+
+            esflux_vs_e(:,is) = esflux_vs_e(:,is) * spec(is)%dens
             
             vflux(:,:,is) = vflux(:,:,is) * spec(is)%dens*sqrt(spec(is)%mass*spec(is)%temp)
             vflux_par(:,:,is) = vflux_par(:,:,is) * spec(is)%dens*sqrt(spec(is)%mass*spec(is)%temp)
@@ -167,6 +177,12 @@ contains
        call calculate_standard_flux_properties(gnostics, &
             'es_mom_flux_perp', 'Flux of the perpendicular component of the toroidal angular momentum', 'Pi_gB =  ', &
             vflux_perp, gnostics%distributed)
+
+       call create_and_write_variable(gnostics, gnostics%rtype, "es_flux_vs_e", &
+            dim_string([gnostics%dims%energy,gnostics%dims%species,gnostics%dims%time]), &
+            "Electrostatic flux, as function of energy", &
+            "flux_es(E) = ", esflux_vs_e)
+
 #ifdef LOWFLOW
        call calculate_standard_flux_properties(gnostics, &
             'es_mom0', 'Low-flow momentum flux 0 (Ask Michael Barnes)', 'Pi_gB =  ', &
@@ -176,7 +192,6 @@ contains
             vflux0, gnostics%distributed)
 #endif
     end if
-
 
     if (fapar > epsilon(0.0)) then
        do is = 1, nspec
@@ -201,6 +216,11 @@ contains
        call calculate_standard_flux_properties(gnostics, &
             'apar_mom_flux',  'Turbulent flux of momentum resulting from &
             & perpendicular magnetic fluctuations', 'Pi_gB = ', vmflux(:,:,:), gnostics%distributed)
+
+       call create_and_write_variable(gnostics, gnostics%rtype, "apar_flux_vs_e", &
+            dim_string([gnostics%dims%energy,gnostics%dims%species,gnostics%dims%time]), &
+            "Perpendicular magnetic flux, as function of energy", &
+            "flux_es(E) = ", apflux_vs_e)
     end if
     if (fbpar > epsilon(0.0)) then
        do is = 1, nspec
@@ -209,6 +229,7 @@ contains
           qbheat(:,:,is,3)=qbheat(:,:,is,3) * spec(is)%dens*spec(is)%temp
           pbflux(:,:,is)=pbflux(:,:,is) * spec(is)%dens
           vbflux(:,:,is)=vbflux(:,:,is) * spec(is)%dens*spec(is)%mass*spec(is)%stm
+          bpflux_vs_e(:,is) = bpflux_vs_e(:,is) * spec(is)%dens
        end do
        call calculate_standard_flux_properties(gnostics, &
             'bpar_heat_flux',  'Turbulent flux of heat resulting from &
@@ -225,6 +246,10 @@ contains
        call calculate_standard_flux_properties(gnostics, &
             'bpar_mom_flux',  'Turbulent flux of momentum resulting from &
             & parallel magnetic fluctuations', 'Pi_gB = ', vbflux(:,:,:), gnostics%distributed)
+       call create_and_write_variable(gnostics, gnostics%rtype, "bpar_flux_vs_e", &
+            dim_string([gnostics%dims%energy,gnostics%dims%species,gnostics%dims%time]), &
+            "Parallel magnetic flux, as function of energy", &
+            "flux_es(E) = ", bpflux_vs_e)
     end if
     
     ! Update averages
@@ -964,4 +989,85 @@ contains
     deallocate (gnorm_all_tot, gnorm_nokx_tot, gnorm_nosig_tot)
     deallocate (phim)
   end subroutine write_parity
+
+! Calculate the poloidal distributions of the fluxes of particles, parallel
+! momentum, perpendicular momentum, and energy
+! (see section 3.1 and appendix A of Ball et al. PPCF 58 (2016) 045023 as well
+! as section 5 of "GS2 analytic geometry specification") ! JRB
+  subroutine write_nl_flux_dist(gnostics)
+    use dist_fn, only: flux_dist
+    use theta_grid, only: ntgrid
+    use le_grids, only: nlambda, negrid
+    use species, only: nspec, spec
+    use mp, only: proc0
+    use gs2_io, only: nc_loop_dist
+    use kt_grids, only: naky, ntheta0
+    use fields_arrays, only: phinew, bparnew
+    use dist_fn_arrays, only: gnew, g_adjust
+    use run_parameters, only: fphi, fbpar
+    use volume_averages, only: average_all
+    use diagnostics_create_and_write, only: create_and_write_variable
+    use diagnostics_dimensions, only: dim_string
+    use diagnostics_config, only: diagnostics_type
+
+    implicit none
+    type (diagnostics_type), intent(in) :: gnostics
+    real, dimension (:,:), allocatable :: part_fluxes_dist, mom_fluxes_par_dist, mom_fluxes_perp_dist, heat_fluxes_dist
+    real, dimension (:,:,:,:), allocatable :: pflux_dist, vflux_par_dist, vflux_perp_dist, qflux_dist
+    integer :: ig, is
+
+    allocate (part_fluxes_dist(-ntgrid:ntgrid,nspec))
+    allocate (mom_fluxes_par_dist(-ntgrid:ntgrid,nspec))
+    allocate (mom_fluxes_perp_dist(-ntgrid:ntgrid,nspec))
+    allocate (heat_fluxes_dist(-ntgrid:ntgrid,nspec))
+    allocate (pflux_dist(-ntgrid:ntgrid,ntheta0,naky,nspec))
+    allocate (vflux_par_dist(-ntgrid:ntgrid,ntheta0,naky,nspec))
+    allocate (vflux_perp_dist(-ntgrid:ntgrid,ntheta0,naky,nspec))
+    allocate (qflux_dist(-ntgrid:ntgrid,ntheta0,naky,nspec))
+    call g_adjust (gnew, phinew, bparnew, fphi, fbpar) ! convert from g to h
+    call flux_dist (phinew, pflux_dist, vflux_par_dist, vflux_perp_dist, qflux_dist)
+    call g_adjust (gnew, phinew, bparnew, -fphi, -fbpar) ! convert back from h to g
+    if (proc0) then
+       if (fphi > epsilon(0.0)) then
+          do ig = -ntgrid, ntgrid
+             do is = 1, nspec
+                pflux_dist(ig,:,:,is) = pflux_dist(ig,:,:,is) * spec(is)%dens
+                call average_all (pflux_dist(ig,:,:,is), part_fluxes_dist(ig,is), gnostics%distributed)
+                vflux_par_dist(ig,:,:,is) = vflux_par_dist(ig,:,:,is) * spec(is)%dens*sqrt(spec(is)%mass*spec(is)%temp)
+                call average_all (vflux_par_dist(ig,:,:,is), mom_fluxes_par_dist(ig,is), gnostics%distributed)
+                vflux_perp_dist(ig,:,:,is) = vflux_perp_dist(ig,:,:,is) * spec(is)%dens*sqrt(spec(is)%mass*spec(is)%temp)
+                call average_all (vflux_perp_dist(ig,:,:,is), mom_fluxes_perp_dist(ig,is), gnostics%distributed)
+                qflux_dist(ig,:,:,is) = qflux_dist(ig,:,:,is) * spec(is)%dens*spec(is)%temp
+                call average_all (qflux_dist(ig,:,:,is), heat_fluxes_dist(ig,is), gnostics%distributed)
+             end do
+          end do
+       end if
+    end if
+
+    call create_and_write_variable(gnostics, gnostics%rtype, "es_part_flux_dist", &
+       dim_string([gnostics%dims%theta,gnostics%dims%species,gnostics%dims%time]), &
+       "Particle flux density as a function theta, used for looking at the effect of up-down asymmetry, see Ball et al PPCF 58 045023 2016", &
+       "See ref", part_fluxes_dist)
+    call create_and_write_variable(gnostics, gnostics%rtype, "es_mom_flux_par_dist", &
+       dim_string([gnostics%dims%theta,gnostics%dims%species,gnostics%dims%time]), &
+       "Parallel momentum flux density as a function theta, used for looking at the effect of up-down asymmetry, see Ball et al PPCF 58 045023 2016", &
+       "See ref", mom_fluxes_par_dist)
+    call create_and_write_variable(gnostics, gnostics%rtype, "es_mom_flux_perp_dist", &
+       dim_string([gnostics%dims%theta,gnostics%dims%species,gnostics%dims%time]), &
+       "Perpendicular momentum flux density as a function theta, used for looking at the effect of up-down asymmetry, see Ball et al PPCF 58 045023 2016", &
+       "See ref", mom_fluxes_perp_dist)
+    call create_and_write_variable(gnostics, gnostics%rtype, "es_heat_flux_dist", &
+       dim_string([gnostics%dims%theta,gnostics%dims%species,gnostics%dims%time]), &
+       "Heat flux density as a function theta, used for looking at the effect of up-down asymmetry, see Ball et al PPCF 58 045023 2016", &
+       "See ref", heat_fluxes_dist)
+
+    deallocate (part_fluxes_dist)
+    deallocate (mom_fluxes_par_dist)
+    deallocate (mom_fluxes_perp_dist)
+    deallocate (heat_fluxes_dist)
+    deallocate (pflux_dist)
+    deallocate (vflux_par_dist)
+    deallocate (vflux_perp_dist)
+    deallocate (qflux_dist)
+  end subroutine write_nl_flux_dist
 end module diagnostics_fluxes

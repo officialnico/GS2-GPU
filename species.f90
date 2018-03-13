@@ -9,7 +9,7 @@ module species
   public :: nspec, specie, spec
   public :: ion_species, electron_species, nonmaxw_species, tracer_species
   public :: f0_maxwellian, f0_external, f0_sdanalytic, f0_sdsemianalytic, f0_kappa
-  public :: has_electron_species, has_nonmaxw_species
+  public :: has_ion_species, has_electron_species, has_nonmaxw_species
   public :: calculate_slowingdown_parameters
   public :: ions, electrons, impurity
   public :: set_overrides
@@ -378,6 +378,13 @@ contains
     deallocate(tmp_bcast)
 
   end subroutine read_parameters
+
+  pure function has_ion_species (spec)
+    implicit none
+    type (specie), dimension (:), intent (in) :: spec
+    logical :: has_ion_species
+    has_ion_species = any(spec%type == ion_species)
+  end function has_ion_species
 
   subroutine calculate_slowingdown_parameters(alpha_index,opt,vc,vcprim)
     use constants, only: pi

@@ -33,7 +33,8 @@ module init_g
        ginitopt_zonal_only = 31, ginitopt_single_parallel_mode = 32, &
        ginitopt_all_modes_equal = 33, &
        ginitopt_default_odd=34, ginitopt_restart_memory=35, & !Note ginitopt_restart_memory isn't meant to be a user selected choice.
-       ginitopt_restart_eig=36, ginitopt_no_zonal = 37
+       ginitopt_restart_eig=36, ginitopt_no_zonal = 37, &
+       ginitopt_stationary_mode = 38
 
   real :: width0, dphiinit, phiinit, imfac, refac, zf_init, phifrac
   real :: den0, upar0, tpar0, tperp0
@@ -817,6 +818,8 @@ contains
        call ginit_recon3
     case (ginitopt_ot)
        call ginit_ot
+    case (ginitopt_stationary_mode)
+       call ginit_stationary_mode
     end select
   end subroutine ginit
 
@@ -828,7 +831,7 @@ contains
 
     implicit none
 
-    type (text_option), dimension (35), parameter :: ginitopts = &
+    type (text_option), dimension (36), parameter :: ginitopts = &
          (/ text_option('default', ginitopt_default), &
             text_option('default_odd', ginitopt_default_odd), &
             text_option('noise', ginitopt_noise), &
@@ -863,7 +866,8 @@ contains
             text_option('no_zonal', ginitopt_no_zonal), &
             text_option('single_parallel_mode', ginitopt_single_parallel_mode), &
             text_option('all_modes_equal', ginitopt_all_modes_equal), &
-            text_option('eig_restart', ginitopt_restart_eig) &
+            text_option('eig_restart', ginitopt_restart_eig), &
+            text_option('stationary_mode', ginitopt_stationary_mode) &
             /)
     character(20) :: ginit_option
     namelist /init_g_knobs/ ginit_option, width0, phiinit, chop_side, &
@@ -3804,6 +3808,56 @@ contains
     gnew = g
 
   end subroutine ginit_restart_no_zonal
+
+! The stationary mode test case is a method of testing the geometry
+! implementation by initializing the distribution function in a particular way
+! For collisionless runs with ky=0, we expect the solution to be
+! time-independent (see section 3.3.1 of Ball MIT Masters thesis) ! JRB
+  subroutine ginit_stationary_mode
+    use species, only: spec, nspec
+    use theta_grid, only: ntgrid, theta, bmag
+    use kt_grids, only: akx
+    use dist_fn_arrays, only: g, gnew, vpa,  aj0
+    use gs2_layouts, only: g_lo, it_idx, is_idx
+    use constants
+    use geometry, only : rhoc, qinp, Rpos, R_geo
+    use spfunc, only: j0
+
+    implicit none
+
+    complex, dimension (-ntgrid:ntgrid) :: phi
+    integer :: iglo
+    integer :: ig, ik, it, il, is, ie
+
+    integer :: i
+    real, dimension (-ntgrid:ntgrid) :: numeratorSum
+    real :: denominatorSum
+
+    numeratorSum(:) = 0
+    denominatorSum = 0
+    it = 1
+    ik = 1
+    do is = 1, nspec
+      do ig = -ntgrid, ntgrid
+        numeratorSum(ig) = numeratorSum(ig) + ((spec(is)%z)**2)*spec(is)%dens*exp(-((spec(is)%mass*spec(is)%temp)/(4*(spec(is)%z)**2))*((qinp/rhoc)*akx(it)*Rpos(rhoc,theta(ig)))**2)
+      end do
+      denominatorSum = denominatorSum + (spec(is)%z)**2*spec(is)%dens/spec(is)%temp
+    end do
+
+    phi(:) = numeratorSum(:)/denominatorSum
+
+    do iglo = g_lo%llim_proc, g_lo%ulim_proc
+       it = it_idx(g_lo,iglo)
+       is = is_idx(g_lo,iglo)
+
+       g(:,1,iglo) = spec(is)%z*exp(-zi*(qinp/rhoc)*akx(it)*vpa(:,1,iglo)*R_geo*(spec(is)%mass/(spec(is)%z*bmag(:)))) &
+                   - (spec(is)%z/spec(is)%temp)*aj0(:,iglo)*phi(:)
+       g(:,2,iglo) = spec(is)%z*exp(-zi*(qinp/rhoc)*akx(it)*vpa(:,2,iglo)*R_geo*(spec(is)%mass/(spec(is)%z*bmag(:)))) &
+                   - (spec(is)%z/spec(is)%temp)*aj0(:,iglo)*phi(:)
+    end do
+
+    gnew = g
+  end subroutine ginit_stationary_mode
 
   subroutine reset_init(from_file)
     implicit none

@@ -98,11 +98,18 @@ parameter_list_geo = [
 ['real', 'shat'],
 ['real', 'rgeo_lcfs'],
 ['real', 'rgeo_local'],
-['real', 'akappa'],
-['real', 'akappri'],
-['real', 'tri'],
-['real', 'tripri'],
+['integer', 'geoType'],
+['real', 'aSurf'],
 ['real', 'shift'],
+['real', 'shiftVert'],
+['integer', 'mMode'],
+['integer', 'nMode'],
+['real', 'deltam'],
+['real', 'deltan'],
+['real', 'deltampri'],
+['real', 'deltanpri'],
+['real', 'thetam'],
+['real', 'thetan'],
 ['real', 'betaprim'],
 ].compact.map{|p| Generator.new(p)}
 
@@ -126,6 +133,9 @@ parameter_list_optimisations = [
 ['logical', 'local_field_solve'],
 ['character(len=5)', 'layout'],
 ['character(len=8)', 'field_option'],
+['logical', 'gf_lo_integrate'], # JRB
+['logical', 'gf_local_fields'], # JRB
+['logical', 'simple_gf_decomposition'], # JRB
 ['logical', 'field_subgath'],
 ['logical', 'do_smart_update'],
 ['logical', 'field_local_allreduce'],
