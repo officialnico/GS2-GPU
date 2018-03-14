@@ -55,10 +55,11 @@ program test_le_grids
 
   call announce_test('init_le_grids')
 
-  allocate(sizes(1))
+  allocate(sizes(2))
   allocate(energy_results(8,2,2)) ! negrid, nspec, nresults 
   sizes(1) = 24 ! Size of energy grid
   sizes(1) = 8 ! Size of energy grid
+  sizes(2) = 2 ! Size of species grid
 
   ! Resuls for energy grids
   energy_results(:,1,1) = (/4.0468821658005425E-003,  0.10438457502758539, &

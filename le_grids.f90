@@ -31,7 +31,7 @@ contains
   end subroutine init_egrid
 
   subroutine setvgrid (vcut_in, negrid, epts, wgts, nesub_in)
-    use general_f0, only: calculate_f0_arrays
+    use general_f0, only: calculate_f0_arrays, init_general_f0
     use constants, only: pi => dpi
     use gauss_quad, only: get_legendre_grids_from_cheb, get_laguerre_grids
     use species, only: nspec, spec, nonmaxw_species, f0_sdanalytic, f0_sdsemianalytic
@@ -45,6 +45,7 @@ contains
     real:: vcut
 
     call init_egrid (negrid)
+    call init_general_f0()
     
     do is = 1,nspec 
        if (spec(is)%type .EQ. nonmaxw_species) then

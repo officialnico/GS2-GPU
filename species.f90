@@ -392,7 +392,7 @@ contains
     integer, intent(in):: alpha_index, opt
     real, intent(inout):: vc, vcprim
     integer:: electron_spec, main_ion_species, is,js
-    real:: vinj, Te_prim
+    real:: vinj, Te_prim, ZI_fac_local
     
     electron_spec = -1
     main_ion_species = -1
@@ -431,21 +431,23 @@ contains
     ni_prim = 0.0
     ! If ZI_fac is not specified, calculate it from existing ion species:
     if (ZI_fac .LT. 0.0) then
-       ZI_fac = 0.0
+       ZI_fac_local = 0.0
        do js = 1,nspec
           if (spec(js)%type .eq. ion_species) then 
-             ZI_fac = ZI_fac   + spec(alpha_index)%mass*spec(js)%dens*spec(js)%z**2/(spec(js)%mass*ne)
+             ZI_fac_local = ZI_fac_local   + spec(alpha_index)%mass*spec(js)%dens*spec(js)%z**2/(spec(js)%mass*ne)
              ni_prim = ni_prim + spec(alpha_index)%mass*spec(js)%dens*spec(js)%z**2*spec(js)%fprim/(spec(js)%mass*ne)
           end if
        end do
+    else
+       ZI_fac_local = ZI_fac
     end if
-    ni_prim = ni_prim / ZI_fac 
+    ni_prim = ni_prim / ZI_fac_local
 
     if (opt == 2) Te_prim = spec(alpha_index)%tprim
     
     ! Calculate vc/vinj
     vinj = sqrt(spec(alpha_index)%temp/spec(alpha_index)%mass)
-    vc = (0.25*3.0*sqrt(pi)*ZI_fac*me/spec(alpha_index)%mass)**(1.0/3.0)*vte/vinj
+    vc = (0.25*3.0*sqrt(pi)*ZI_fac_local*me/spec(alpha_index)%mass)**(1.0/3.0)*vte/vinj
     vcprim = ni_prim - ne_prim + 1.5*Te_prim
 
   end subroutine calculate_slowingdown_parameters

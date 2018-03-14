@@ -252,6 +252,7 @@ contains
 
     is = is_local
 
+
     select case (spec(is)%type)
       case (ion_species)
         f0 = exp(-v**2)/(pi**1.5)
@@ -325,7 +326,9 @@ contains
           call calculate_f0_arrays_external(is)
         end select
       end select
+
     end do
+
     epoints = egrid
     wgts = weights
     
@@ -386,8 +389,8 @@ contains
     weights(:,is) = weights(:,is) * f0_values(:,is)
     do ie = 1,negrid
        df0dE(:,is) = -1.0/spec(is)%temp
-       write(gen_f0_output_file,*) ie, egrid(ie,is), f0_values(ie,is), & 
-                                   df0dE(ie,is)
+!       write(gen_f0_output_file,*) ie, egrid(ie,is), f0_values(ie,is), & 
+!                                   df0dE(ie,is)
     end do
     gtempoz(:,is) = -1.0 / (df0dE(:,is) * spec(is)%z)
     zogtemp(:,is) = -1.0 * df0dE(:,is) * spec(is)%z 
@@ -489,7 +492,7 @@ contains
 
        ! Diagnostic output
        do ie = 1,negrid
-          write(gen_f0_output_file,*) ie, egrid(ie,is), f0_values(ie,is), df0dE(ie,is), f0prim(ie,is)
+!          write(gen_f0_output_file,*) ie, egrid(ie,is), f0_values(ie,is), df0dE(ie,is), f0prim(ie,is)
        end do
 
     else if (mode .EQ. 2) then
@@ -540,7 +543,7 @@ contains
 
        ! Diagnostic output
        do ie = 1,negrid
-          write(gen_f0_output_file,*) ie, egrid(ie,is), f0_values(ie,is), df0dE(ie,is), f0prim(ie,is)
+!          write(gen_f0_output_file,*) ie, egrid(ie,is), f0_values(ie,is), df0dE(ie,is), f0prim(ie,is)
        end do
 
     else if (mode .EQ. 3) then
@@ -591,7 +594,7 @@ contains
 
        ! Diagnostic output
        do ie = 1,negrid
-          write(gen_f0_output_file,*) ie, egrid(ie,is), f0_values(ie,is), df0dE(ie,is), f0prim(ie,is)
+!          write(gen_f0_output_file,*) ie, egrid(ie,is), f0_values(ie,is), df0dE(ie,is), f0prim(ie,is)
        end do    
     else if (mode .EQ. 4) then
        ! Read f0, df0/dE, df0/drho
@@ -652,7 +655,7 @@ contains
 
        ! Diagnostic output
        do ie = 1,negrid
-          write(gen_f0_output_file,*) ie, egrid(ie,is), f0_values(ie,is), df0dE(ie,is), f0prim(ie,is)
+!          write(gen_f0_output_file,*) ie, egrid(ie,is), f0_values(ie,is), df0dE(ie,is), f0prim(ie,is)
        end do
 
        f0prim(:,is) = - spec(is)%fprim
@@ -724,6 +727,7 @@ contains
     real:: v
     integer:: ie, i, electron_spec
 
+
     do ie = 1,negrid 
        v = sqrt(egrid(ie,is))
        call eval_f0_sdanalytic(is,v,f0_values(ie,is),df0dE(ie,is),f0prim(ie,is))
@@ -747,22 +751,24 @@ contains
     integer,intent(in):: is
     real,intent(in):: v
     real,intent(inout):: f0,df0dE_out, f0prim
-    real:: A, df0dv,vcprim, vcrit
+    real:: A, df0dv,vcprim, vcrit_local
     integer:: ie, i, electron_spec
 
     if (vcrit .LE. 0.0) then
-       call calculate_slowingdown_parameters(is,vcrit_opt,vcrit,vcprim)
+       call calculate_slowingdown_parameters(is,vcrit_opt,vcrit_local,vcprim)
     else
        !> If vcrit is specified, there is no way of knowing its radial derivative, so set dvc/drho = 0
        vcprim = 0.0
+       vcrit_local = vcrit
     end if
 
-    A = (3.0/(4.0*pi))/log( (vcrit**3 + 1.0)/(vcrit**3))
+    A = (3.0/(4.0*pi))/log( (vcrit_local**3 + 1.0)/(vcrit_local**3))
 
-    f0 = A/(vcrit**3 + v**3)
-    df0dv = -A*3.0*v**2/(vcrit**3 + v**3)**2
+    f0 = A/(vcrit_local**3 + v**3)
+    df0dv = -A*3.0*v**2/(vcrit_local**3 + v**3)**2
     df0dE_out =  (0.5/v)*df0dv / ( f0 * spec(is)%temp )
-    f0prim = -spec(is)%fprim - (-(vcrit**3/(vcrit**3 + v**3)) + (1.0/( log(1.0 + vcrit**(-3)) * (1.0 + vcrit**(3)))))*vcprim
+    f0prim = -spec(is)%fprim - (-(vcrit_local**3/(vcrit_local**3 + v**3)) + (1.0/( log(1.0 + vcrit_local**(-3)) * (1.0 + vcrit_local**(3)))))*vcprim
+
 
   end subroutine eval_f0_sdanalytic
 

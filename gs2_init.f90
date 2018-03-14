@@ -91,24 +91,25 @@ module gs2_init
     integer :: run_parameters = 14
     integer :: hyper = 15
     integer :: species = 16
-    integer :: le_grids = 17
-    integer :: dist_fn_parameters = 18
-    integer :: dist_fn_layouts = 19
-    integer :: nonlinear_terms = 20
-    integer :: dist_fn_arrays = 21
-    integer :: dist_fn_level_1 = 22
-    integer :: antenna_level_1 = 23
-    integer :: fields_level_1 = 24
-    integer :: override_profiles = 25
-    integer :: antenna_level_2 = 26
-    integer :: dist_fn_level_2 = 27
-    integer :: override_timestep = 28
-    integer :: dist_fn_level_3 = 29
-    integer :: collisions = 30
-    integer :: fields_level_2 = 31
-    integer :: override_initial_values = 32
-    integer :: set_initial_values = 33
-    integer :: full = 34
+    integer :: general_f0 = 17
+    integer :: le_grids = 18
+    integer :: dist_fn_parameters = 19
+    integer :: dist_fn_layouts = 20
+    integer :: nonlinear_terms = 21
+    integer :: dist_fn_arrays = 22
+    integer :: dist_fn_level_1 = 23
+    integer :: antenna_level_1 = 24
+    integer :: fields_level_1 = 25
+    integer :: override_profiles = 26
+    integer :: antenna_level_2 = 27
+    integer :: dist_fn_level_2 = 28
+    integer :: override_timestep = 29
+    integer :: dist_fn_level_3 = 30
+    integer :: collisions = 31
+    integer :: fields_level_2 = 32
+    integer :: override_initial_values = 33
+    integer :: set_initial_values = 34
+    integer :: full = 35
   end type init_level_list_type
 
   type(init_level_list_type) :: init_level_list
@@ -209,6 +210,7 @@ contains
         if (up() .and. current%level == init_level_list%run_parameters-1) call run_parameters_subroutine
         if (up() .and. current%level == init_level_list%hyper-1) call hyper_subroutine
         if (up() .and. current%level == init_level_list%species-1) call species_subroutine
+        if (up() .and. current%level == init_level_list%general_f0-1) call general_f0_subroutine
         if (up() .and. current%level == init_level_list%le_grids-1) call le_grids_subroutine
         if (up() .and. current%level == init_level_list%dist_fn_parameters-1) call dist_fn_parameters_subroutine
         if (up() .and. current%level == init_level_list%dist_fn_layouts-1) call dist_fn_layouts_subroutine
@@ -246,6 +248,7 @@ contains
         if (down () .and. current%level == init_level_list%dist_fn_layouts) call dist_fn_layouts_subroutine
         if (down () .and. current%level == init_level_list%dist_fn_parameters) call dist_fn_parameters_subroutine
         if (down () .and. current%level == init_level_list%le_grids) call le_grids_subroutine
+        if (down () .and. current%level == init_level_list%general_f0) call general_f0_subroutine
         if (down () .and. current%level == init_level_list%species) call species_subroutine
         if (down () .and. current%level == init_level_list%hyper) call hyper_subroutine
         if (down () .and. current%level == init_level_list%run_parameters) call run_parameters_subroutine
@@ -513,6 +516,22 @@ contains
         end if
       end subroutine species_subroutine
 
+      subroutine general_f0_subroutine
+        use unit_tests, only: debug_message
+        use general_f0, only: init_general_f0
+        use general_f0, only: finish_general_f0
+        if (up()) call init_general_f0
+        if (down()) call finish_general_f0
+       
+        if (up()) then
+          call debug_message(1, 'gs2_init::init reached init level... general_f0   ')
+          current%level = 17
+        else if (down()) then  ! (down)
+          call debug_message(1, 'gs2_init::init left init level... general_f0   ')
+          current%level = 17 - 1
+        end if
+      end subroutine general_f0_subroutine
+
       subroutine le_grids_subroutine
         use unit_tests, only: debug_message
         use le_grids, only: init_le_grids
@@ -523,10 +542,10 @@ contains
        
         if (up()) then
           call debug_message(1, 'gs2_init::init reached init level... le_grids   ')
-          current%level = 17
+          current%level = 18
         else if (down()) then  ! (down)
           call debug_message(1, 'gs2_init::init left init level... le_grids   ')
-          current%level = 17 - 1
+          current%level = 18 - 1
         end if
       end subroutine le_grids_subroutine
 
@@ -539,10 +558,10 @@ contains
        
         if (up()) then
           call debug_message(1, 'gs2_init::init reached init level... dist_fn_parameters   ')
-          current%level = 18
+          current%level = 19
         else if (down()) then  ! (down)
           call debug_message(1, 'gs2_init::init left init level... dist_fn_parameters   ')
-          current%level = 18 - 1
+          current%level = 19 - 1
         end if
       end subroutine dist_fn_parameters_subroutine
 
@@ -558,10 +577,10 @@ contains
        
         if (up()) then
           call debug_message(1, 'gs2_init::init reached init level... dist_fn_layouts   ')
-          current%level = 19
+          current%level = 20
         else if (down()) then  ! (down)
           call debug_message(1, 'gs2_init::init left init level... dist_fn_layouts   ')
-          current%level = 19 - 1
+          current%level = 20 - 1
         end if
       end subroutine dist_fn_layouts_subroutine
 
@@ -574,10 +593,10 @@ contains
        
         if (up()) then
           call debug_message(1, 'gs2_init::init reached init level... nonlinear_terms   ')
-          current%level = 20
+          current%level = 21
         else if (down()) then  ! (down)
           call debug_message(1, 'gs2_init::init left init level... nonlinear_terms   ')
-          current%level = 20 - 1
+          current%level = 21 - 1
         end if
       end subroutine nonlinear_terms_subroutine
 
@@ -590,10 +609,10 @@ contains
        
         if (up()) then
           call debug_message(1, 'gs2_init::init reached init level... dist_fn_arrays   ')
-          current%level = 21
+          current%level = 22
         else if (down()) then  ! (down)
           call debug_message(1, 'gs2_init::init left init level... dist_fn_arrays   ')
-          current%level = 21 - 1
+          current%level = 22 - 1
         end if
       end subroutine dist_fn_arrays_subroutine
 
@@ -606,10 +625,10 @@ contains
        
         if (up()) then
           call debug_message(1, 'gs2_init::init reached init level... dist_fn_level_1   ')
-          current%level = 22
+          current%level = 23
         else if (down()) then  ! (down)
           call debug_message(1, 'gs2_init::init left init level... dist_fn_level_1   ')
-          current%level = 22 - 1
+          current%level = 23 - 1
         end if
       end subroutine dist_fn_level_1_subroutine
 
@@ -622,10 +641,10 @@ contains
        
         if (up()) then
           call debug_message(1, 'gs2_init::init reached init level... antenna_level_1   ')
-          current%level = 23
+          current%level = 24
         else if (down()) then  ! (down)
           call debug_message(1, 'gs2_init::init left init level... antenna_level_1   ')
-          current%level = 23 - 1
+          current%level = 24 - 1
         end if
       end subroutine antenna_level_1_subroutine
 
@@ -638,10 +657,10 @@ contains
        
         if (up()) then
           call debug_message(1, 'gs2_init::init reached init level... fields_level_1   ')
-          current%level = 24
+          current%level = 25
         else if (down()) then  ! (down)
           call debug_message(1, 'gs2_init::init left init level... fields_level_1   ')
-          current%level = 24 - 1
+          current%level = 25 - 1
         end if
       end subroutine fields_level_1_subroutine
 
@@ -655,10 +674,10 @@ contains
        
         if (up()) then
           call debug_message(1, 'gs2_init::init reached init level... override_profiles   ')
-          current%level = 25
+          current%level = 26
         else if (down()) then  ! (down)
           call debug_message(1, 'gs2_init::init left init level... override_profiles   ')
-          current%level = 25 - 1
+          current%level = 26 - 1
         end if
       end subroutine override_profiles_subroutine
 
@@ -671,10 +690,10 @@ contains
        
         if (up()) then
           call debug_message(1, 'gs2_init::init reached init level... antenna_level_2   ')
-          current%level = 26
+          current%level = 27
         else if (down()) then  ! (down)
           call debug_message(1, 'gs2_init::init left init level... antenna_level_2   ')
-          current%level = 26 - 1
+          current%level = 27 - 1
         end if
       end subroutine antenna_level_2_subroutine
 
@@ -687,10 +706,10 @@ contains
        
         if (up()) then
           call debug_message(1, 'gs2_init::init reached init level... dist_fn_level_2   ')
-          current%level = 27
+          current%level = 28
         else if (down()) then  ! (down)
           call debug_message(1, 'gs2_init::init left init level... dist_fn_level_2   ')
-          current%level = 27 - 1
+          current%level = 28 - 1
         end if
       end subroutine dist_fn_level_2_subroutine
 
@@ -702,10 +721,10 @@ contains
        
         if (up()) then
           call debug_message(1, 'gs2_init::init reached init level... override_timestep   ')
-          current%level = 28
+          current%level = 29
         else if (down()) then  ! (down)
           call debug_message(1, 'gs2_init::init left init level... override_timestep   ')
-          current%level = 28 - 1
+          current%level = 29 - 1
         end if
       end subroutine override_timestep_subroutine
 
@@ -718,10 +737,10 @@ contains
        
         if (up()) then
           call debug_message(1, 'gs2_init::init reached init level... dist_fn_level_3   ')
-          current%level = 29
+          current%level = 30
         else if (down()) then  ! (down)
           call debug_message(1, 'gs2_init::init left init level... dist_fn_level_3   ')
-          current%level = 29 - 1
+          current%level = 30 - 1
         end if
       end subroutine dist_fn_level_3_subroutine
 
@@ -734,10 +753,10 @@ contains
        
         if (up()) then
           call debug_message(1, 'gs2_init::init reached init level... collisions   ')
-          current%level = 30
+          current%level = 31
         else if (down()) then  ! (down)
           call debug_message(1, 'gs2_init::init left init level... collisions   ')
-          current%level = 30 - 1
+          current%level = 31 - 1
         end if
       end subroutine collisions_subroutine
 
@@ -750,10 +769,10 @@ contains
        
         if (up()) then
           call debug_message(1, 'gs2_init::init reached init level... fields_level_2   ')
-          current%level = 31
+          current%level = 32
         else if (down()) then  ! (down)
           call debug_message(1, 'gs2_init::init left init level... fields_level_2   ')
-          current%level = 31 - 1
+          current%level = 32 - 1
         end if
       end subroutine fields_level_2_subroutine
 
@@ -763,10 +782,10 @@ contains
        
         if (up()) then
           call debug_message(1, 'gs2_init::init reached init level... override_initial_values   ')
-          current%level = 32
+          current%level = 33
         else if (down()) then  ! (down)
           call debug_message(1, 'gs2_init::init left init level... override_initial_values   ')
-          current%level = 32 - 1
+          current%level = 33 - 1
         end if
       end subroutine override_initial_values_subroutine
 
@@ -776,10 +795,10 @@ contains
        
         if (up()) then
           call debug_message(1, 'gs2_init::init reached init level... set_initial_values   ')
-          current%level = 33
+          current%level = 34
         else if (down()) then  ! (down)
           call debug_message(1, 'gs2_init::init left init level... set_initial_values   ')
-          current%level = 33 - 1
+          current%level = 34 - 1
         end if
       end subroutine set_initial_values_subroutine
 
@@ -789,10 +808,10 @@ contains
        
         if (up()) then
           call debug_message(1, 'gs2_init::init reached init level... full   ')
-          current%level = 34
+          current%level = 35
         else if (down()) then  ! (down)
           call debug_message(1, 'gs2_init::init left init level... full   ')
-          current%level = 34 - 1
+          current%level = 35 - 1
         end if
       end subroutine full_subroutine
 

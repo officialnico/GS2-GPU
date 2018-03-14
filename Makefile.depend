@@ -1122,7 +1122,6 @@ gs2_io.o: \
 	 convert.o \
 	 fields_arrays.o \
 	 file_utils.o \
-	 general_f0.o \
 	 gs2_heating.o \
 	 gs2_layouts.o \
 	 gs2_transforms.o \
