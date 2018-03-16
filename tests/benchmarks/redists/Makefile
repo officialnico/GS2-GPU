@@ -3,9 +3,10 @@ sinclude ../Makefile.tests_common
 all: time_redists
 	for d in $(NTESTPROCS); \
 	do \
-	  $(call BENCHMARKCOMMAND,$$d,time_redists,time_redists.in) ; \
+	  $(call BENCHMARKCOMMAND,$$d,time_redists,time_redists_xyles.in) ; \
+	  $(call BENCHMARKCOMMAND,$$d,time_redists,time_redists_yxles.in) ; \
+	  $(call BENCHMARKCOMMAND,$$d,time_redists,time_redists_lexys.in) ; \
 	done
-	#$(TESTCOMMAND) time_redists time_redists.in
 
 TIMINGFILES=$(wildcard *.timing.*)
 

@@ -5,17 +5,17 @@
 !!   Written by: Joseph Parker (joseph.parker@stfc.ac.uk)
 program time_redists
   use unit_tests
-  use mp, only: init_mp, finish_mp, proc0, nproc, mp_comm
-  use file_utils, only: append_output_file, close_output_file
-  use job_manage, only: time_message
   use benchmarks, only: benchmark_identifier
-  use gs2_main, only: gs2_program_state_type, initialize_gs2, finalize_gs2
+  use file_utils, only: append_output_file, close_output_file
   use gs2_init, only: init, init_level_list
-  use redistribute, only: gather, scatter
+  use gs2_layouts, only: g_lo, le_lo, layout
+  use gs2_main, only: gs2_program_state_type, initialize_gs2, finalize_gs2
+  use job_manage, only: time_message
   use le_grids, only: nxi, negrid, g2le
+  use mp, only: init_mp, finish_mp, proc0, nproc, mp_comm
+  use redistribute, only: gather, scatter
   use run_parameters, only: nstep
   use theta_grid, only: ntgrid
-  use gs2_layouts, only: g_lo, le_lo
   implicit none
   type(gs2_program_state_type) :: state
   complex, dimension (:,:,:), allocatable :: gle, g
@@ -53,7 +53,7 @@ program time_redists
 
   if (proc0) then
     call time_message(.false., time_taken, "advance time")
-    write(*, '(" Time for ",I6," gather/scatters on ",I6," procs: ",F5.1," s")') nstep, nproc, time_taken(1)
+    write(*, '(" Time for ",I6," gather/scatters from g_lo::",A5," to le_lo on ",I6," procs: ",F5.1," s")') nstep, layout, nproc, time_taken(1)
     call append_output_file(timing_unit, &
       benchmark_identifier())
     write(timing_unit, '(I6,"   ",F9.3)') nproc, time_taken(1)
