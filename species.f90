@@ -374,6 +374,7 @@ contains
     tmp_bcast=spec%zt ; call broadcast(tmp_bcast) ; spec%zt=tmp_bcast
     tmp_bcast=spec%smz ; call broadcast(tmp_bcast) ; spec%smz=tmp_bcast
     tmp_bcast=spec%type ; call broadcast(tmp_bcast) ; spec%type=int(tmp_bcast)
+    tmp_bcast=spec%f0_type ; call broadcast(tmp_bcast) ; spec%f0_type=int(tmp_bcast)
     tmp_bcast=spec%bess_fac ; call broadcast(tmp_bcast) ; spec%bess_fac=tmp_bcast
     deallocate(tmp_bcast)
 

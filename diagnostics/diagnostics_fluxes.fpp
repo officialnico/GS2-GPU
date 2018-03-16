@@ -200,6 +200,8 @@ contains
           qmheat(:,:,is,3)=qmheat(:,:,is,3) * spec(is)%dens*spec(is)%temp
           pmflux(:,:,is)=pmflux(:,:,is) * spec(is)%dens
           vmflux(:,:,is)=vmflux(:,:,is) * spec(is)%dens*spec(is)%mass*spec(is)%stm
+
+          apflux_vs_e(:,is) = apflux_vs_e(:,is) * spec(is)%dens
        end do
        call calculate_standard_flux_properties(gnostics, &
             'apar_heat_flux',  'Turbulent flux of heat resulting from &

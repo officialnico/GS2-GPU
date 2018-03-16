@@ -981,7 +981,7 @@ contains
     namelist /dist_fn_knobs/ boundary_option, nonad_zero, gridfac, apfac, &
          driftknob, tpdriftknob, poisfac, adiabatic_option, &
          kfilter, afilter, mult_imp, test, def_parity, even, wfb, &
-         g_exb, g_exbfac, omprimfac, btor_slab, mach, cllc, lf_default, &
+         g_exb, g_exbfac, omprimfac, btor_slab, mach, lf_default, &
          g_exb_start_time, g_exb_start_timestep, g_exb_error_limit, &
 
          lf_decompose, esv, wfb_cmr, opt_init_bc, opt_source, zero_forbid, &
@@ -1000,7 +1000,6 @@ contains
        boundary_option = 'default'
        nonad_zero = .true.  ! BD: Default value changed to TRUE  8.15.13
        wfb_cmr= .false.
-       cllc = .false.
        esv = .false.
        opt_init_bc = .false.
        opt_source = .false.
@@ -1341,7 +1340,7 @@ contains
        wdriftgen(:,:,iglo) = &
                wdrift(:,:,iglo)*spec(is)%temp*(-df0dE(ie,is))
        wdriftttpgen(:,it,ik,ie,is,:) = &
-        wdriftttp(:,it,ik,ie,is,:)*spec(is)%temp*(-df0dE(ie,is))
+               wdriftttp(:,it,ik,ie,is,:)*spec(is)%temp*(-df0dE(ie,is))
     end do
 !    alloc = .false.
 !CMR
@@ -1746,7 +1745,6 @@ endif
        end do
     end do
 
-
   end subroutine init_invert_rhs
 
   subroutine init_bc
@@ -1779,7 +1777,7 @@ endif
   end subroutine init_bc
 
   subroutine init_source_term
-    use dist_fn_arrays, only: vpar, vpac, aj0
+    use dist_fn_arrays, only: vpar, vpac, aj0,vpargen, vpacgen
     use run_parameters, only: wunits, fapar
     use gs2_time, only: code_dt
     use species, only: spec,nspec
@@ -1841,19 +1839,19 @@ endif
 #else
 
              !Phi m
-             source_coeffs(1,ig,isgn,iglo)=-2*vpar(ig,isgn,iglo)
+             source_coeffs(1,ig,isgn,iglo)=-2.0*vpargen(ig,isgn,iglo)
              !Phi p
-             source_coeffs(2,ig,isgn,iglo)=-zi*wdrift(ig,isgn,iglo) &
+             source_coeffs(2,ig,isgn,iglo)=-zi*wdriftgen(ig,isgn,iglo) &
               + zi*(wstar(ik,ie,is) &
               + vpac(ig,isgn,iglo)*code_dt*wunits(ik)*ufac(ie,is) &
-              -2.0*omprimfac*vpac(ig,isgn,iglo)*code_dt*wunits(ik)*g_exb*itor_over_B(ig)/spec(is)%stm)
+              -2.0*omprimfac*vpacgen(ig,isgn,iglo)*code_dt*wunits(ik)*g_exb*itor_over_B(ig)/spec(is)%stm)
              if(fapar.gt.0)then
                 !Apar m
                 source_coeffs(3,ig,isgn,iglo)=-spec(is)%zstm*&
-                     vpac(ig,isgn,iglo)*(aj0(ig+1,iglo)+aj0(ig,iglo))*0.5
+                     vpacgen(ig,isgn,iglo)*(aj0(ig+1,iglo)+aj0(ig,iglo))*0.5
                 !Apar p
-                source_coeffs(4,ig,isgn,iglo)=D_res(it,ik)*spec(is)%zstm*&
-                     vpac(ig,isgn,iglo)-spec(is)%stm*vpac(ig,isgn,iglo)*&
+                source_coeffs(4,ig,isgn,iglo)=D_res(it,ik)*spec(is)%zstm*vpacgen(ig,isgn,iglo)&
+                     -spec(is)%stm*vpac(ig,isgn,iglo)*&
                      zi*(wstar(ik,ie,is) &
                      + vpac(ig,isgn,iglo)*code_dt*wunits(ik)*ufac(ie,is) &
                      -2.0*omprimfac*vpac(ig,isgn,iglo)*code_dt*wunits(ik)*g_exb*itor_over_B(ig)/spec(is)%stm) 
@@ -3896,72 +3894,27 @@ endif
     modep = 0
     if (present(mode)) modep = mode
 
-    if (istep.eq.0 .or. .not.cllc) then
-!CMR do the usual LC when computing response matrix
-       !Calculate the explicit nonlinear terms
-       call add_explicit_terms (gexp_1, gexp_2, gexp_3, &
+    !Calculate the explicit nonlinear terms
+    call add_explicit_terms (gexp_1, gexp_2, gexp_3, &
          phi, apar, bpar, istep, bkdiff(1))
-       call debug_message(verb, &
+    call debug_message(verb, &
         'dist_fn::timeadv calculated nonlinear term')
-       if(reset .and. immediate_reset) return !Return if resetting
-       !Solve for gnew
-       call invert_rhs (phi, apar, bpar, phinew, aparnew, bparnew, istep)
-       call debug_message(verb, &
+    if(reset .and. immediate_reset) return !Return if resetting
+    !Solve for gnew
+    call invert_rhs (phi, apar, bpar, phinew, aparnew, bparnew, istep)
+    call debug_message(verb, &
         'dist_fn::timeadv calculated rhs')
 
-       !Add hyper terms (damping)
-       call hyper_diff (gnew, phinew)
-       call debug_message(verb, &
+    !Add hyper terms (damping)
+    call hyper_diff (gnew, phinew)
+    call debug_message(verb, &
         'dist_fn::timeadv calculated hypviscosity')
-       !Add collisions
-       if( .not. split_collisions) then
-         call vspace_derivatives (gnew, g, g0, phi, bpar, phinew, bparnew, modep)
-         call debug_message(verb, &
+    !Add collisions
+    if( .not. split_collisions) then
+      call vspace_derivatives (gnew, g, g0, phi, bpar, phinew, bparnew, modep)
+      call debug_message(verb, &
           'dist_fn::timeadv calculated collisions etc')
-       end if
-    else if (istep.eq.1 .and. istep.ne.istep_last) then
-!CMR on first half step at istep=1 do CL with all redists
-       if( .not. split_collisions) then
-         call vspace_derivatives (gnew, g, g0, phi, bpar, phinew, bparnew, modep)
-       end if
-       !Calculate the explicit nonlinear terms
-       call add_explicit_terms (gexp_1, gexp_2, gexp_3, &
-         phi, apar, bpar, istep, bkdiff(1))
-       if(reset) return !Return if resetting
-       !Solve for gnew
-       call invert_rhs (phi, apar, bpar, phinew, aparnew, bparnew, istep)
-       !Add hyper terms (damping)
-       call hyper_diff (gnew, phinew)
-    else if (istep.ne.istep_last) then
-!CMR on first half step do CL with all redists without gtoc redist
-       if( .not. split_collisions) then
-         call vspace_derivatives (gnew, g, g0, phi, bpar, phinew, bparnew, modep,gtoc=.false.)
-       end if
-       !Calculate the explicit nonlinear terms
-       call add_explicit_terms (gexp_1, gexp_2, gexp_3, &
-         phi, apar, bpar, istep, bkdiff(1))
-       if(reset) return !Return if resetting
-       !Solve for gnew
-       call invert_rhs (phi, apar, bpar, phinew, aparnew, bparnew, istep)
-       !Add hyper terms (damping)
-       call hyper_diff (gnew, phinew)
-    else if (istep.eq.istep_last) then
-!CMR on second half of all timesteps do LC without ctog redist
-       !Calculate the explicit nonlinear terms 
-       !NB following call should be unnecessary as NL terms not added on second
-       !    half of istep: keeping for now as may be needed by some code
-       call add_explicit_terms (gexp_1, gexp_2, gexp_3, &
-         phi, apar, bpar, istep, bkdiff(1))
-       if(reset) return !Return if resetting
-
-       !Solve for gnew
-       call invert_rhs (phi, apar, bpar, phinew, aparnew, bparnew, istep)
-       !Add hyper terms (damping)
-       call hyper_diff (gnew, phinew)
-       if( .not. split_collisions) then
-         call vspace_derivatives (gnew, g, g0, phi, bpar, phinew, bparnew, modep, ctog=.false.)
-       end if
-    endif
+    end if
 
     !Enforce parity if desired (also performed in invert_rhs, but this is required
     !as collisions etc. may break parity?)
@@ -4711,7 +4664,7 @@ endif
 #ifdef LOWFLOW
     use dist_fn_arrays, only: hneoc, vparterm, wdfac, wstarfac, wdttpfac
 #endif
-    use dist_fn_arrays, only: aj0, aj1, vperp2, vpar, vpac, g, ittp
+    use dist_fn_arrays, only: aj0, aj1, vperp2, vpar, vpac, g, ittp, vpacgen,vpargen
     use theta_grid, only: ntgrid
     use kt_grids, only: aky
     use le_grids, only: nlambda, ng2, lmax, negrid
@@ -4996,14 +4949,14 @@ endif
               -2.0*omprimfac*vpac(ig,isgn,iglo)*code_dt*wunits(ik)*g_exb*itor_over_B(ig)/spec(is)%stm) &
               *(phi_p - apar_p*spec(is)%stm*vpac(ig,isgn,iglo))
 #else
-         source(ig) = (-2.0*vpar(ig,isgn,iglo)*phi_m &
-              -spec(is)%zstm*vpac(ig,isgn,iglo) &
+         source(ig) = (-2.0*vpargen(ig,isgn,iglo)*phi_m &
+              -spec(is)%zstm*vpacgen(ig,isgn,iglo) &
               *((aj0(ig+1,iglo) + aj0(ig,iglo))*0.5*apar_m  &
               + D_res(it,ik)*apar_p) &
-              -zi*wdrift(ig,isgn,iglo)*phi_p) &
+              -zi*wdriftgen(ig,isgn,iglo)*phi_p) &
               + zi*(wstar(ik,ie,is) &
               + vpac(ig,isgn,iglo)*code_dt*wunits(ik)*ufac(ie,is) &
-              -2.0*omprimfac*vpac(ig,isgn,iglo)*code_dt*wunits(ik)*g_exb*itor_over_B(ig)/spec(is)%stm) &
+              -2.0*omprimfac*vpacgen(ig,isgn,iglo)*code_dt*wunits(ik)*g_exb*itor_over_B(ig)/spec(is)%stm) &
               *(phi_p - apar_p*spec(is)%stm*vpac(ig,isgn,iglo))
 #endif
       end do
@@ -5148,7 +5101,7 @@ endif
              call set_source_opt
              if (aky(ik) < epsilon(0.0)) then
                 source(:ntgrid-1,isgn) = source(:ntgrid-1,isgn) &
-                  - zi*wdrift(:ntgrid-1,isgn,iglo) &
+                  - zi*wdriftgen(:ntgrid-1,isgn,iglo) &
                   *2.0*phi_ext*sourcefac*aj0(:ntgrid-1,iglo)
              end if
           end if
@@ -5189,7 +5142,7 @@ endif
                   - zi*(wdttpfac(ig,it,ik,ie,is,2)*hneoc(ig,2,iglo))*phigavg(ig) &
                   + zi*wstar(ik,ie,is)*hneoc(ig,2,iglo)*phigavg(ig)
 #else
-                  - zi*(wdriftttp(ig,it,ik,ie,is,2))*phigavg(ig) &
+                  - zi*(wdriftttpgen(ig,it,ik,ie,is,2))*phigavg(ig) &
                   + zi*wstar(ik,ie,is)*phigavg(ig)
 #endif             
           end do
@@ -5327,6 +5280,7 @@ endif
     use kt_grids, only: kwork_filter
     use species, only: spec
     use general_f0, only: df0dE
+    use mp, only: mp_abort
     implicit none
     complex, dimension (-ntgrid:,:,:), intent (in) :: phi,    apar,    bpar
     complex, dimension (-ntgrid:,:,:), intent (in) :: phinew, aparnew, bparnew
@@ -5654,11 +5608,11 @@ endif
          adjl = 2.0*vperp2(ntgl,iglo)*aj1(ntgl,iglo) &
               *bparnew(ntgl,it,ik)*fbpar &
               + spec(is)%z*phinew(ntgl,it,ik)*aj0(ntgl,iglo) &
-              /spec(is)%temp*fphi
+              *(-df0dE(ie,is))*fphi
          adjr = 2.0*vperp2(ntgr,iglo)*aj1(ntgr,iglo) &
               *bparnew(ntgr,it,ik)*fbpar &
               + spec(is)%z*phinew(ntgr,it,ik)*aj0(ntgr,iglo) &
-              /spec(is)%temp*fphi
+              *(-df0dE(ie,is))*fphi
          dadj = adjl-adjr
       else 
          dadj = cmplx(0.0,0.0)
@@ -5689,6 +5643,7 @@ endif
     use species, only: spec
     use spfunc, only: j0, j1
     use kt_grids, only: kperp2
+    use general_f0, only: df0dE
 
     implicit none
     complex, dimension (-ntgrid:,:,:), intent (in) :: phi,    apar,    bpar
@@ -5764,11 +5719,11 @@ endif
              adjl = 2.0*vperp2left*aj1l &
               *bparnew(-ntgrid,itl,ik)*fbpar &
               + spec(is)%z*phinew(-ntgrid,itl,ik)*aj0l &
-              /spec(is)%temp*fphi
+              *(-df0dE(ie,is))*fphi
              adjr = 2.0*vperp2right*aj1r &
               *bparnew(ntgrid,itr,ik)*fbpar &
               + spec(is)%z*phinew(ntgrid,itr,ik)*aj0r &
-              /spec(is)%temp*fphi
+              *(-df0dE(ie,is))*fphi
              dadj = adjl-adjr
 
              if (save_h(1, iglo)) then

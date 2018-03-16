@@ -46,7 +46,7 @@ contains
 
     call init_egrid (negrid)
     call init_general_f0()
-    
+
     do is = 1,nspec 
        if (spec(is)%type .EQ. nonmaxw_species) then
           !> If some version of the slowing-down distribution is used, v_ref is the injection
@@ -95,10 +95,9 @@ contains
     end do
 
     call calculate_f0_arrays(epts, wgts)
-
+    
     zeroes(:,:) = sqrt(epts(:negrid-1,:))
     x0(:) = sqrt(epts(negrid,:))
-
 
   end subroutine setvgrid
 end module egrid

@@ -288,6 +288,7 @@ contains
   subroutine calculate_f0_arrays(epoints, wgts)
     use species, only: nspec, spec
     use species, only: ion_species, electron_species, nonmaxw_species
+    use mp, only: iproc
     real, dimension(:,:), intent(inout) :: epoints
     real, dimension(:,:), intent(inout) :: wgts
     !real, intent(in) :: vcut_in
@@ -331,7 +332,7 @@ contains
 
     epoints = egrid
     wgts = weights
-    
+
   end subroutine calculate_f0_arrays
 
   subroutine allocate_arrays
@@ -720,13 +721,12 @@ contains
   subroutine calculate_f0_arrays_sdanalytic(is)
     use constants, only: pi
     use species, only: spec, nspec
-    use mp, only: mp_abort, proc0
+    use mp, only: mp_abort, proc0, iproc
     use species, only: ion_species, electron_species, nonmaxw_species
     implicit none
     integer,intent(in):: is
     real:: v
     integer:: ie, i, electron_spec
-
 
     do ie = 1,negrid 
        v = sqrt(egrid(ie,is))
