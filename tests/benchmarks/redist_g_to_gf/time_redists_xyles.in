@@ -1,6 +1,6 @@
 
 &layouts_knobs
-layout = 'xyles'
+ layout = 'xyles'
 /
 
 &collisions_knobs
@@ -30,30 +30,13 @@ layout = 'xyles'
   mass = 0.0005446623093681918
 /
 
-!&species_parameters_3
-!  type = 'alpha'
-!  z = 2.0
-!  temp = 3.6e2
-!  dens = 0.5
-!  mass = 4.0
-!  source = 0.01
-!  sprim = 1.6
-!  gamma_ae = 0.1
-!  gamma_ai = 0.1
-!/
-!
-!&general_f0_parameters
-!  alpha_f0 = 'split'
-!  energy_0 = 0.01
-!/
-
 &le_grids_knobs
   negrid = 8
   ngauss = 5
 /
 
 &knobs
- fphi = 1.0 
+ nstep = 1000
 /
 
 &species_knobs
