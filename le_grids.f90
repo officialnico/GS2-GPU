@@ -31,10 +31,9 @@ contains
   end subroutine init_egrid
 
   subroutine setvgrid (vcut_in, negrid, epts, wgts, nesub_in)
-    use general_f0, only: calculate_f0_arrays, init_general_f0
     use constants, only: pi => dpi
     use gauss_quad, only: get_legendre_grids_from_cheb, get_laguerre_grids
-    use species, only: nspec, spec, nonmaxw_species, f0_sdanalytic, f0_sdsemianalytic
+    use species, only: nspec, spec, f0_sdanalytic, f0_maxwellian, calculate_f0_arrays, f0_values, nonmaxw_corr, dlnf0drho
 
     implicit none
     integer, intent (in) :: negrid
@@ -45,28 +44,19 @@ contains
     real:: vcut
 
     call init_egrid (negrid)
-    call init_general_f0()
 
     do is = 1,nspec 
-       if (spec(is)%type .EQ. nonmaxw_species) then
-          !> If some version of the slowing-down distribution is used, v_ref is the injection
-          !! speed, so let that be vcut. For the semianalytic version, there are still some
-          !! points above vcut, so keep those. 
-          select case (spec(is)%f0_type)
-          case(f0_sdanalytic)
-             vcut = 1.0
-             nesub = negrid
-          case(f0_sdsemianalytic)
-             vcut = 1.0
-             nesub = nesub_in
-          case default 
-             vcut = vcut_in 
-             nesub = nesub_in
-          end select
-       else
+       select case (spec(is)%f0type)
+       case(f0_maxwellian)
           vcut = vcut_in
           nesub = nesub_in
-       end if
+       case(f0_sdanalytic)
+          vcut = 1.0
+          nesub = negrid
+       case default 
+          vcut = vcut_in 
+          nesub = nesub_in
+       end select
 
        ! get grid points in v up to vcut (epts is not E yet)
        call get_legendre_grids_from_cheb (0., vcut, epts(:nesub,is), wgts(:nesub,is))
@@ -94,7 +84,8 @@ contains
        end if
     end do
 
-    call calculate_f0_arrays(epts, wgts)
+    call calculate_f0_arrays(epts)
+    wgts = wgts * f0_values
     
     zeroes(:,:) = sqrt(epts(:negrid-1,:))
     x0(:) = sqrt(epts(negrid,:))
@@ -323,12 +314,18 @@ contains
     !call broadcast_results
      !write (*,*)  'zeros', zeroes
 
-    call announce_check('Size of energy array')
-    cr = agrees_with(size(energy), sizes(1)) 
-    call process_check(tr, cr, 'Size of energy array')
-    call announce_check('Size of w array')
-    cr = agrees_with(size(w), sizes(1)) 
-    call process_check(tr, cr, 'Size of w array')
+    call announce_check('Size of energy array (index 1)')
+    cr = agrees_with(size(energy(:,1)), sizes(1)) 
+    call process_check(tr, cr, 'Size of energy array (index 1)')
+    call announce_check('Size of energy array (index 2)')
+    cr = agrees_with(size(energy(1,:)), sizes(2)) 
+    call process_check(tr, cr, 'Size of energy array (index 2)')
+    call announce_check('Size of w array (index 1)')
+    cr = agrees_with(size(w(:,1)), sizes(1)) 
+    call process_check(tr, cr, 'Size of w array (index 1)')
+    call announce_check('Size of w array (index 2)')
+    cr = agrees_with(size(w(1,:)), sizes(2)) 
+    call process_check(tr, cr, 'Size of w array (index 2)')
 
     ! Energy grids only get calulcated on proc0
     if (proc0) then
@@ -381,7 +378,6 @@ contains
     use species, only: nspec
     use egrid, only: zeroes, x0, init_egrid, zeroes_maxw, x0_maxw
     use theta_grid, only: ntgrid
-    use general_f0, only: broadcast_arrays_gen_f0 => broadcast_arrays
 
     implicit none
     integer :: ig, il, is, ie, ipt, isgn, tsize
@@ -500,10 +496,9 @@ contains
   subroutine init_weights
 
     use file_utils, only: open_output_file, close_output_file
-    use general_f0, only: f0_values
     use egrid, only: zeroes
     use constants, only: pi => dpi
-    use species, only: nspec
+    use species, only: nspec, f0_values
 
     implicit none
 
@@ -723,6 +718,7 @@ contains
     use gs2_layouts, only: is_idx, ik_idx, it_idx, ie_idx, il_idx
     use kt_grids, only: kwork_filter
     use mp, only: sum_allreduce, iproc
+    use species, only: tracer_species, spec
 
     implicit none
 
@@ -746,7 +742,9 @@ contains
           il = il_idx(g_lo,iglo)
 
           !Sum up weighted g
-          total(:, it, ik) = total(:, it, ik) + weights(is)*w(ie,is)*wl(:,il)*(g(:,1,iglo)+g(:,2,iglo))
+          if (spec(is)%type .NE. tracer_species) then
+             total(:, it, ik) = total(:, it, ik) + weights(is)*w(ie,is)*wl(:,il)*(g(:,1,iglo)+g(:,2,iglo))
+          end if
        end do
     else
        do iglo = g_lo%llim_proc, g_lo%ulim_proc
@@ -758,7 +756,9 @@ contains
           il = il_idx(g_lo,iglo)
 
           !Sum up weighted g
-          total(:, it, ik) = total(:, it, ik) + weights(is)*w(ie,is)*wl(:,il)*(g(:,1,iglo)+g(:,2,iglo))
+          if (spec(is)%type .NE. tracer_species) then
+             total(:, it, ik) = total(:, it, ik) + weights(is)*w(ie,is)*wl(:,il)*(g(:,1,iglo)+g(:,2,iglo))
+          end if
        end do
     endif
     !Reduce sum across all procs to make integral over all velocity space and species
@@ -773,6 +773,7 @@ contains
     use gs2_layouts, only: is_idx, ik_idx, it_idx, ie_idx, il_idx
     use mp, only: sum_allreduce_sub, sum_allreduce
     use kt_grids, only: kwork_filter
+    use species, only: spec, tracer_species
     implicit none
 
     complex, dimension (-ntgrid:,:,g_lo%llim_proc:), intent (in) :: g
@@ -803,7 +804,9 @@ contains
           il = il_idx(g_lo,iglo)
           
           !Sum up weighted g
-          total_small(:, it, ik) = total_small(:, it, ik) + weights(is)*w(ie,is)*wl(:,il)*(g(:,1,iglo)+g(:,2,iglo))
+          if (spec(is)%type .NE. tracer_species) then
+             total_small(:, it, ik) = total_small(:, it, ik) + weights(is)*w(ie,is)*wl(:,il)*(g(:,1,iglo)+g(:,2,iglo))
+          end if
        end do
     else
        do iglo = g_lo%llim_proc, g_lo%ulim_proc
@@ -815,7 +818,9 @@ contains
           il = il_idx(g_lo,iglo)
           
           !Sum up weighted g
-          total_small(:, it, ik) = total_small(:, it, ik) + weights(is)*w(ie,is)*wl(:,il)*(g(:,1,iglo)+g(:,2,iglo))
+          if (spec(is)%type .NE. tracer_species) then
+             total_small(:, it, ik) = total_small(:, it, ik) + weights(is)*w(ie,is)*wl(:,il)*(g(:,1,iglo)+g(:,2,iglo))
+          end if
        end do
     endif
 
@@ -852,6 +857,7 @@ contains
     use mp, only: sum_allreduce_sub, sum_allreduce
     use kt_grids, only: kwork_filter
     use redistribute, only: gather
+    use species, only: spec, tracer_species
     implicit none
 
     complex, dimension (-ntgrid:,:,g_lo%llim_proc:), intent (in) :: g
@@ -873,7 +879,9 @@ contains
           do il = 1,gf_lo%nlambda
              do ie = 1,gf_lo%negrid
                 do is = 1,gf_lo%nspec
-                   total(:,it,ik) = total(:,it,ik) + weights(is)*w(ie,is)*wl(:,il)*(gf(:,1,is,ie,il,igf)+gf(:,2,is,ie,il,igf))
+                   if (spec(is)%type .NE. tracer_species) then
+                      total(:,it,ik) = total(:,it,ik) + weights(is)*w(ie,is)*wl(:,il)*(gf(:,1,is,ie,il,igf)+gf(:,2,is,ie,il,igf))
+                   end if
                 end do
              end do
           end do
@@ -885,7 +893,9 @@ contains
           do il = 1,gf_lo%nlambda
              do ie = 1,gf_lo%negrid
                 do is = 1,gf_lo%nspec
-                   total(:,it,ik) = total(:,it,ik) + weights(is)*w(ie,is)*wl(:,il)*(gf(:,1,is,ie,il,igf)+gf(:,2,is,ie,il,igf))
+                   if (spec(is)%type .NE. tracer_species) then
+                      total(:,it,ik) = total(:,it,ik) + weights(is)*w(ie,is)*wl(:,il)*(gf(:,1,is,ie,il,igf)+gf(:,2,is,ie,il,igf))
+                   end if
                 end do
              end do
           end do
@@ -905,6 +915,7 @@ contains
     use gs2_layouts, only: is_idx, ik_idx, it_idx, ie_idx, il_idx
     use mp, only: sum_allreduce_sub, sum_allreduce
     use kt_grids, only: kwork_filter
+    use species, only: spec, tracer_species
     implicit none
 
     complex, dimension (-ntgrid:ntgrid,2,nspec,negrid,nlambda,gf_lo%llim_proc:gf_lo%ulim_alloc), intent (in) :: gf
@@ -924,7 +935,9 @@ contains
           do il = 1,gf_lo%nlambda
              do ie = 1,gf_lo%negrid
                 do is = 1,gf_lo%nspec
-                   total(:,it,ik) = total(:,it,ik) + weights(is)*w(ie,is)*wl(:,il)*(gf(:,1,is,ie,il,igf)+gf(:,2,is,ie,il,igf))
+                   if (spec(is)%type .NE. tracer_species) then
+                      total(:,it,ik) = total(:,it,ik) + weights(is)*w(ie,is)*wl(:,il)*(gf(:,1,is,ie,il,igf)+gf(:,2,is,ie,il,igf))
+                   end if
                 end do
              end do
           end do
@@ -955,6 +968,7 @@ contains
     use gs2_layouts, only: is_idx, ik_idx, it_idx, ie_idx, il_idx
     use mp, only: sum_allreduce_sub, allgatherv
     use mp, only: nproc_comm,rank_comm,mp_abort
+    use species, only: spec, tracer_species
     implicit none
 
     complex, dimension (-ntgrid:,:,g_lo%llim_proc:), intent (in) :: g
@@ -1027,7 +1041,9 @@ contains
           nr=nl+(2*ntgrid)
           
           !Sum up weighted g
-          total_flat(nl:nr) = total_flat(nl:nr) + weights(is)*w(ie,is)*wl(:,il)*(g(:,1,iglo)+g(:,2,iglo))
+          if (spec(is)%type .NE. tracer_species) then
+             total_flat(nl:nr) = total_flat(nl:nr) + weights(is)*w(ie,is)*wl(:,il)*(g(:,1,iglo)+g(:,2,iglo))
+          end if
        end do
     else
        do iglo = g_lo%llim_proc, g_lo%ulim_proc
@@ -1043,7 +1059,9 @@ contains
           nr=nl+(2*ntgrid)
 
           !Sum up weighted g
-          total_flat(nl:nr) = total_flat(nl:nr) + weights(is)*w(ie,is)*wl(:,il)*(g(:,1,iglo)+g(:,2,iglo))
+          if (spec(is)%type .NE. tracer_species) then
+             total_flat(nl:nr) = total_flat(nl:nr) + weights(is)*w(ie,is)*wl(:,il)*(g(:,1,iglo)+g(:,2,iglo))
+          end if
        end do
     endif
 
@@ -1084,6 +1102,7 @@ contains
     use gs2_layouts, only: is_idx, ik_idx, it_idx, ig_idx, il_idx
     use theta_grid, only: ntgrid
     use mp, only: sum_reduce, sum_allreduce
+    use species, only: spec, tracer_species
     implicit none
 
     type (e_layout_type), intent (in) :: lo
@@ -1101,10 +1120,12 @@ contains
 !CMR: in e_lo il is lambda index, and isign is separate.
        il = il_idx(lo,ielo)
        !Perform local sum
-       do ie=1, negrid
-           total(ig, it, ik) = total(ig, it, ik) + &
-            weights(is)*w(ie,is)*wl(ig,il)*g(ie,ielo)
-       end do
+       if (spec(is)%type .NE. tracer_species) then
+          do ie=1, negrid
+              total(ig, it, ik) = total(ig, it, ik) + &
+               weights(is)*w(ie,is)*wl(ig,il)*g(ie,ielo)
+          end do
+       end if
     end do
 !Sum over all procs to make integral over all velocity space and species
     call sum_allreduce (total)
@@ -1117,6 +1138,7 @@ contains
     use gs2_layouts, only: is_idx, ik_idx, it_idx, ig_idx, ie_idx
     use theta_grid, only: ntgrid
     use mp, only: sum_reduce, sum_allreduce
+    use species, only: spec, tracer_species
     implicit none
 
     type (lz_layout_type), intent (in) :: lo
@@ -1141,11 +1163,13 @@ contains
 !   needed in collision operator as EQUIVALENT to g_lo(il=nlambda, isign=2).
 !   (In collisions at ig=0, both of these points are EXACTLY equivalent, xi=0.)
 !  
-       do ixi=1, nxi+1
-          il = ixi_to_il(ig,ixi)
-          total(ig, it, ik) = total(ig, it, ik) + &
-            weights(is)*w(ie,is)*wl(ig,il)*g(il,ilzlo)
-       end do
+       if (spec(is)%type .NE. tracer_species) then
+          do ixi=1, nxi+1
+             il = ixi_to_il(ig,ixi)
+             total(ig, it, ik) = total(ig, it, ik) + &
+               weights(is)*w(ie,is)*wl(ig,il)*g(il,ilzlo)
+          end do
+       end if
     end do
 !Sum over all procs to make integral over all velocity space and species
     call sum_allreduce (total)
@@ -1162,6 +1186,7 @@ contains
     use gs2_layouts, only: ig_idx, it_idx, ik_idx, is_idx
     use theta_grid, only: ntgrid
     use mp, only: sum_allreduce
+    use species, only: tracer_species, spec
 
     implicit none
 
@@ -1177,7 +1202,9 @@ contains
        it = it_idx (lo,ile)
        ik = ik_idx (lo,ile)
        is = is_idx (lo,ile)
-       do ie=1, negrid
+
+       if (spec(is)%type .NE. tracer_species) then
+          do ie=1, negrid
 !CMR, 2/10/2013:
 !   nxi+1 limit on do loop below is CRUCIAL, as its stores phase space point
 !   corresponding to g_lo (il=nlambda, isign=2).
@@ -1185,11 +1212,12 @@ contains
 !   needed in collision operator as EQUIVALENT to g_lo(il=nlambda, isign=2).
 !   (In collisions at ig=0, both of these points are EXACTLY equivalent, xi=0.)
 !  
-          do ixi=1, nxi+1
-             il = ixi_to_il(ig,ixi)
-             total(ig,it,ik) = total(ig,it,ik) + weights(is)*w(ie,is) * wl(ig,il) * g(ixi,ie,ile)
+             do ixi=1, nxi+1
+                il = ixi_to_il(ig,ixi)
+                total(ig,it,ik) = total(ig,it,ik) + weights(is)*w(ie,is) * wl(ig,il) * g(ixi,ie,ile)
+             end do
           end do
-       end do
+       end if
     end do
 !Sum over all procs to make integral over all velocity space and species
     call sum_allreduce (total)
@@ -2005,7 +2033,7 @@ contains
   subroutine set_grids
     use species, only: init_species
     use egrid, only: setvgrid, x0, x0_maxw, zeroes, zeroes_maxw
-    use species, only: nspec, spec, nonmaxw_species, ion_species, electron_species
+    use species, only: nspec, spec, ion_species, electron_species, f0_maxwellian
     use theta_grid, only: init_theta_grid, ntgrid, nbset, bset, eps
     implicit none
 
@@ -2025,7 +2053,7 @@ contains
     speed = sqrt(energy)
 
     do is = 1,nspec
-      if (.NOT. (spec(is)%type .EQ. nonmaxw_species)) then
+      if  (spec(is)%f0type .EQ. f0_maxwellian) then
          has_maxwellian_species = .true.
          w_maxw(:) = w(:,is)
          energy_maxw(:) = energy(:,is)

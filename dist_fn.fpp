@@ -171,17 +171,6 @@ module dist_fn
   real, dimension (:,:,:,:,:,:), allocatable :: wdriftttp
   ! (-ntgrid:ntgrid,ntheta0,naky,negrid,nspec) replicated
 
-  !> This is omega_drift multiplied by T_s/Tstar_s, 
-  !! for totally trapped particles
-  !! It multiples phi
-  real, dimension (:,:,:,:,:,:), allocatable :: wdriftttpgen
-
-  !> This is omega_drift multiplied by T_s/Tstar_s
-  !! It multiples phi
-  real, dimension (:,:,:), allocatable :: wdriftgen
-  ! (-ntgrid:ntgrid, 2, -g-layout-)
-
-  
   real, dimension (:,:,:), allocatable :: wstar
   ! (naky,negrid,nspec) replicated
 
@@ -1212,7 +1201,6 @@ contains
   subroutine init_wdrift
     use species, only: nspec, spec
     use theta_grid, only: ntgrid
-    use general_f0, only: df0dE
     use kt_grids, only: naky, ntheta0
     use le_grids, only: negrid, ng2, nlambda, jend, forbid
 !    use le_grids, only: al
@@ -1257,11 +1245,9 @@ contains
        ! allocate wdrift with sign(vpa) dependence because will contain 
        ! Coriolis as well as magnetic drifts
        allocate (wdrift(-ntgrid:ntgrid,2,g_lo%llim_proc:g_lo%ulim_alloc))
-       allocate (wdriftgen(-ntgrid:ntgrid,2,g_lo%llim_proc:g_lo%ulim_alloc))
        allocate (wdriftttp(-ntgrid:ntgrid,ntheta0,naky,negrid,nspec,2))
-       allocate (wdriftttpgen(-ntgrid:ntgrid,ntheta0,naky,negrid,nspec,2))
     end if
-    wdrift = 0.  ; wdriftttp = 0. ; wdriftgen = 0.; wdriftttpgen = 0.
+    wdrift = 0.  ; wdriftttp = 0. 
 #ifdef LOWFLOW
     if (.not. allocated(wcurv)) allocate (wcurv(-ntgrid:ntgrid,g_lo%llim_proc:g_lo%ulim_alloc))
     wcurv = 0.
@@ -1296,7 +1282,6 @@ contains
        end do
     end do
     wdriftttp = 0.0
-    wdriftttpgen = 0.0
     do is = 1, nspec
        do ie = 1, negrid
           do ik = 1, naky
@@ -1332,18 +1317,6 @@ contains
        end do
     end do
 
-    do iglo = g_lo%llim_proc, g_lo%ulim_proc
-       ie = ie_idx(g_lo,iglo)
-       is = is_idx(g_lo,iglo)
-       it = it_idx(g_lo,iglo)
-       ik = ik_idx(g_lo,iglo)
-       wdriftgen(:,:,iglo) = &
-               wdrift(:,:,iglo)*spec(is)%temp*(-df0dE(ie,is))
-       wdriftttpgen(:,it,ik,ie,is,:) = &
-               wdriftttp(:,it,ik,ie,is,:)*spec(is)%temp*(-df0dE(ie,is))
-    end do
-!    alloc = .false.
-!CMR
     if (debug) write(6,*) 'init_wdrift: driftknob, tpdriftknob=',driftknob,tpdriftknob
 
   end subroutine init_wdrift
@@ -1442,8 +1415,7 @@ contains
   end subroutine init_vperp2
 
   subroutine init_vpar
-    use dist_fn_arrays, only: vpa, vpar, vpac, vpargen, vpacgen, vperp2, vpa_gf, vperp2_gf
-    use general_f0, only: zogtemp, df0dE
+    use dist_fn_arrays, only: vpa, vpar, vpac, vperp2, vpa_gf, vperp2_gf
     use species, only: spec, nspec
     use theta_grid, only: ntgrid, delthet, bmag, gradpar
     use le_grids, only: energy, al, negrid, nlambda
@@ -1459,13 +1431,11 @@ contains
     if (.not.allocated(vpa)) then
        allocate (vpa    (-ntgrid:ntgrid,2,g_lo%llim_proc:g_lo%ulim_alloc))
        allocate (vpac   (-ntgrid:ntgrid,2,g_lo%llim_proc:g_lo%ulim_alloc))
-       allocate (vpacgen(-ntgrid:ntgrid,2,g_lo%llim_proc:g_lo%ulim_alloc))
        ! EGH Put vperp2 in a separate function
        !allocate (vperp2 (-ntgrid:ntgrid,  g_lo%llim_proc:g_lo%ulim_alloc))
        allocate (vpar   (-ntgrid:ntgrid,2,g_lo%llim_proc:g_lo%ulim_alloc))
-       allocate (vpargen(-ntgrid:ntgrid,2,g_lo%llim_proc:g_lo%ulim_alloc))
     endif
-    vpa = 0. ; vpac = 0. ; vpacgen = 0.; vperp2 = 0. ; vpar = 0. ; vpargen = 0.
+    vpa = 0. ; vpac = 0. ; vperp2 = 0. ; vpar = 0. 
 
     !AJ if we are doing gf_lo integrate then pre-calcuate some of the data used in the integrate.
 
@@ -1535,7 +1505,6 @@ contains
        is = is_idx(g_lo,iglo)
        ie = ie_idx(g_lo,iglo)
  
-       vpacgen(:,:,iglo) = vpac(:,:,iglo)*spec(is)%temp * (-df0dE(ie,is))
        vpar(-ntgrid:ntgrid-1,1,iglo) = &
             spec(is)%zstm*tunits(ik)*code_dt &
             *0.5/delthet(-ntgrid:ntgrid-1) &
@@ -1548,30 +1517,16 @@ contains
             *vpac(-ntgrid:ntgrid-1,2,iglo)
        vpar(ntgrid,:,iglo) = 0.0
 
-       vpargen(-ntgrid:ntgrid-1,1,iglo) = &
-            zogtemp(ie,is)* spec(is)%stm*tunits(ik)*code_dt &
-            *0.5/delthet(-ntgrid:ntgrid-1) &
-            *(abs(gradpar(-ntgrid:ntgrid-1)) + abs(gradpar(-ntgrid+1:ntgrid)))&
-            *vpac(-ntgrid:ntgrid-1,1,iglo)
-       vpargen(-ntgrid:ntgrid-1,2,iglo) = &
-            zogtemp(ie,is)*spec(is)%stm*tunits(ik)*code_dt &
-            *0.5/delthet(-ntgrid:ntgrid-1) &
-            *(abs(gradpar(-ntgrid:ntgrid-1)) + abs(gradpar(-ntgrid+1:ntgrid)))&
-            *vpac(-ntgrid:ntgrid-1,2,iglo)
-       vpargen(ntgrid,:,iglo) = 0.0
- 
-
     end do
 
   end subroutine init_vpar
 
   subroutine init_wstar
-    use species, only: nspec, spec
+    use species, only: nspec, spec, dlnf0drho
     use kt_grids, only: naky
     use le_grids, only: negrid, energy
     use run_parameters, only: wunits
     use gs2_time, only: code_dt
-    use general_f0, only: f0prim
 
     implicit none
     integer :: ik, ie, is
@@ -1581,7 +1536,7 @@ contains
     do is = 1, nspec
        do ie = 1, negrid
           do ik = 1, naky
-             wstar(ik,ie,is) = - code_dt*wunits(ik) * f0prim(ie,is)
+             wstar(ik,ie,is) = - code_dt*wunits(ik) * dlnf0drho(ie,is)
           end do
        end do
     end do
@@ -1777,10 +1732,10 @@ endif
   end subroutine init_bc
 
   subroutine init_source_term
-    use dist_fn_arrays, only: vpar, vpac, aj0,vpargen, vpacgen
+    use dist_fn_arrays, only: vpar, vpac, aj0
     use run_parameters, only: wunits, fapar
     use gs2_time, only: code_dt
-    use species, only: spec,nspec
+    use species, only: spec,nspec,nonmaxw_corr
     use hyper, only: D_res
     use theta_grid, only: ntgrid, itor_over_b
     use le_grids, only: negrid, energy
@@ -1839,18 +1794,18 @@ endif
 #else
 
              !Phi m
-             source_coeffs(1,ig,isgn,iglo)=-2.0*vpargen(ig,isgn,iglo)
+             source_coeffs(1,ig,isgn,iglo)=-2.0*vpar(ig,isgn,iglo)*nonmaxw_corr(ie,is)
              !Phi p
-             source_coeffs(2,ig,isgn,iglo)=-zi*wdriftgen(ig,isgn,iglo) &
+             source_coeffs(2,ig,isgn,iglo)=-zi*wdrift(ig,isgn,iglo)*nonmaxw_corr(ie,is) &
               + zi*(wstar(ik,ie,is) &
               + vpac(ig,isgn,iglo)*code_dt*wunits(ik)*ufac(ie,is) &
-              -2.0*omprimfac*vpacgen(ig,isgn,iglo)*code_dt*wunits(ik)*g_exb*itor_over_B(ig)/spec(is)%stm)
+              -2.0*omprimfac*vpac(ig,isgn,iglo)*nonmaxw_corr(ie,is)*code_dt*wunits(ik)*g_exb*itor_over_B(ig)/spec(is)%stm)
              if(fapar.gt.0)then
                 !Apar m
                 source_coeffs(3,ig,isgn,iglo)=-spec(is)%zstm*&
-                     vpacgen(ig,isgn,iglo)*(aj0(ig+1,iglo)+aj0(ig,iglo))*0.5
+                     vpac(ig,isgn,iglo)*nonmaxw_corr(ie,is)*(aj0(ig+1,iglo)+aj0(ig,iglo))*0.5
                 !Apar p
-                source_coeffs(4,ig,isgn,iglo)=D_res(it,ik)*spec(is)%zstm*vpacgen(ig,isgn,iglo)&
+                source_coeffs(4,ig,isgn,iglo)=D_res(it,ik)*spec(is)%zstm*vpac(ig,isgn,iglo)*nonmaxw_corr(ie,is)&
                      -spec(is)%stm*vpac(ig,isgn,iglo)*&
                      zi*(wstar(ik,ie,is) &
                      + vpac(ig,isgn,iglo)*code_dt*wunits(ik)*ufac(ie,is) &
@@ -4664,11 +4619,11 @@ endif
 #ifdef LOWFLOW
     use dist_fn_arrays, only: hneoc, vparterm, wdfac, wstarfac, wdttpfac
 #endif
-    use dist_fn_arrays, only: aj0, aj1, vperp2, vpar, vpac, g, ittp, vpacgen,vpargen
+    use dist_fn_arrays, only: aj0, aj1, vperp2, vpar, vpac, g, ittp
     use theta_grid, only: ntgrid
     use kt_grids, only: aky
     use le_grids, only: nlambda, ng2, lmax, negrid
-    use species, only: spec, nspec
+    use species, only: spec, nspec, nonmaxw_corr
     use run_parameters, only: fphi, fapar, fbpar, wunits
     use gs2_time, only: code_dt
     use gs2_time, only: dt0 => code_dt, dt1 => code_dt_prev1, dt2 => code_dt_prev2
@@ -4734,7 +4689,7 @@ endif
           call set_source
           if (aky(ik) < epsilon(0.0)) then
              source(:ntgrid-1) = source(:ntgrid-1) &
-                  - zi*wdriftgen(:ntgrid-1,isgn,iglo) &
+                  - zi*wdrift(:ntgrid-1,isgn,iglo)*nonmaxw_corr(ie,is) &
                   *2.0*phi_ext*sourcefac*aj0(:ntgrid-1,iglo)
           end if
        else
@@ -4782,7 +4737,7 @@ endif
                   - zi*(wdttpfac(ig,it,ik,ie,is,2)*hneoc(ig,2,iglo))*phigavg(ig) &
                   + zi*wstar(ik,ie,is)*hneoc(ig,2,iglo)*phigavg(ig)
 #else
-                  - zi*(wdriftttpgen(ig,it,ik,ie,is,2))*phigavg(ig) &
+                  - zi*(wdriftttp(ig,it,ik,ie,is,2))*nonmaxw_corr(ie,is)*phigavg(ig) &
                   + zi*wstar(ik,ie,is)*phigavg(ig)
 #endif             
           end do
@@ -4795,7 +4750,7 @@ endif
 #ifdef LOWFLOW
                      wdttpfac(ig,it,ik,ie,is,isgn)*2.0*phi_ext*sourcefac*aj0(ig,iglo)
 #else
-                     wdriftttpgen(ig,it,ik,ie,is,isgn)*2.0*phi_ext*sourcefac*aj0(ig,iglo)
+                     wdriftttp(ig,it,ik,ie,is,isgn)*nonmaxw_corr(ie,is)*2.0*phi_ext*sourcefac*aj0(ig,iglo)
 #endif
              end do
           endif
@@ -4872,7 +4827,7 @@ endif
 
     subroutine set_source
 
-      use species, only: spec
+      use species, only: spec, nonmaxw_corr
       use theta_grid, only: itor_over_B
       implicit none
       complex :: apar_p, apar_m, phi_p, phi_m!, bpar_p !GGH added bpar_p
@@ -4949,14 +4904,14 @@ endif
               -2.0*omprimfac*vpac(ig,isgn,iglo)*code_dt*wunits(ik)*g_exb*itor_over_B(ig)/spec(is)%stm) &
               *(phi_p - apar_p*spec(is)%stm*vpac(ig,isgn,iglo))
 #else
-         source(ig) = (-2.0*vpargen(ig,isgn,iglo)*phi_m &
-              -spec(is)%zstm*vpacgen(ig,isgn,iglo) &
+         source(ig) = (-2.0*vpar(ig,isgn,iglo)*nonmaxw_corr(ie,is)*phi_m &
+              -spec(is)%zstm*vpac(ig,isgn,iglo)*nonmaxw_corr(ie,is) &
               *((aj0(ig+1,iglo) + aj0(ig,iglo))*0.5*apar_m  &
               + D_res(it,ik)*apar_p) &
-              -zi*wdriftgen(ig,isgn,iglo)*phi_p) &
+              -zi*wdrift(ig,isgn,iglo)*nonmaxw_corr(ie,is)*phi_p) &
               + zi*(wstar(ik,ie,is) &
               + vpac(ig,isgn,iglo)*code_dt*wunits(ik)*ufac(ie,is) &
-              -2.0*omprimfac*vpacgen(ig,isgn,iglo)*code_dt*wunits(ik)*g_exb*itor_over_B(ig)/spec(is)%stm) &
+              -2.0*omprimfac*vpac(ig,isgn,iglo)*nonmaxw_corr(ie,is)*code_dt*wunits(ik)*g_exb*itor_over_B(ig)/spec(is)%stm) &
               *(phi_p - apar_p*spec(is)%stm*vpac(ig,isgn,iglo))
 #endif
       end do
@@ -5037,7 +4992,7 @@ endif
     use theta_grid, only: ntgrid
     use kt_grids, only: aky
     use le_grids, only: nlambda, ng2, lmax
-    use species, only: spec
+    use species, only: spec, nonmaxw_corr
     use run_parameters, only: fphi, fapar, fbpar
     use gs2_time, only: code_dt
     use gs2_time, only: dt0 => code_dt, dt1 => code_dt_prev1, dt2 => code_dt_prev2
@@ -5101,7 +5056,7 @@ endif
              call set_source_opt
              if (aky(ik) < epsilon(0.0)) then
                 source(:ntgrid-1,isgn) = source(:ntgrid-1,isgn) &
-                  - zi*wdriftgen(:ntgrid-1,isgn,iglo) &
+                  - zi*wdrift(:ntgrid-1,isgn,iglo)*nonmaxw_corr(ie,is) &
                   *2.0*phi_ext*sourcefac*aj0(:ntgrid-1,iglo)
              end if
           end if
@@ -5142,7 +5097,7 @@ endif
                   - zi*(wdttpfac(ig,it,ik,ie,is,2)*hneoc(ig,2,iglo))*phigavg(ig) &
                   + zi*wstar(ik,ie,is)*hneoc(ig,2,iglo)*phigavg(ig)
 #else
-                  - zi*(wdriftttpgen(ig,it,ik,ie,is,2))*phigavg(ig) &
+                  - zi*(wdriftttp(ig,it,ik,ie,is,2))*nonmaxw_corr(ie,is)*phigavg(ig) &
                   + zi*wstar(ik,ie,is)*phigavg(ig)
 #endif             
           end do
@@ -5278,8 +5233,7 @@ endif
     use prof, only: prof_entering, prof_leaving
     use run_parameters, only: fbpar, fphi, ieqzip
     use kt_grids, only: kwork_filter
-    use species, only: spec
-    use general_f0, only: df0dE
+    use species, only: spec, nonmaxw_corr
     use mp, only: mp_abort
     implicit none
     complex, dimension (-ntgrid:,:,:), intent (in) :: phi,    apar,    bpar
@@ -5368,8 +5322,8 @@ endif
           if (l_links(ik,it) .eq. 0) then
              adjleft = 2.0*vperp2(-ntgrid,iglo)*aj1(-ntgrid,iglo) &
                   *bparnew(-ntgrid,it,ik)*fbpar &
-                  + spec(is)%z*phinew(-ntgrid,it,ik)*aj0(-ntgrid,iglo) &
-                  *fphi*(-df0dE(ie,is))
+                  + spec(is)%zt*phinew(-ntgrid,it,ik)*aj0(-ntgrid,iglo) &
+                  *fphi*nonmaxw_corr(ie,is)
              gnew(-ntgrid,1,iglo) = gnew(-ntgrid,1,iglo) - adjleft
           end if
           !Only apply the new boundary condition to the rightmost
@@ -5377,8 +5331,8 @@ endif
           if (r_links(ik,it) .eq. 0) then
              adjright = 2.0*vperp2(ntgrid,iglo)*aj1(ntgrid,iglo) &
                   *bparnew(ntgrid,it,ik)*fbpar &
-                  + spec(is)%z*phinew(ntgrid,it,ik)*aj0(ntgrid,iglo) &
-                  *fphi*(-df0dE(ie,is))
+                  + spec(is)%zt*phinew(ntgrid,it,ik)*aj0(ntgrid,iglo) &
+                  *fphi*nonmaxw_corr(ie,is)
              gnew(ntgrid,2,iglo) = gnew(ntgrid,2,iglo) - adjright
          end if
        endif
@@ -5607,12 +5561,12 @@ endif
       if (il .eq. ng2+1) then 
          adjl = 2.0*vperp2(ntgl,iglo)*aj1(ntgl,iglo) &
               *bparnew(ntgl,it,ik)*fbpar &
-              + spec(is)%z*phinew(ntgl,it,ik)*aj0(ntgl,iglo) &
-              *(-df0dE(ie,is))*fphi
+              + spec(is)%zt*phinew(ntgl,it,ik)*aj0(ntgl,iglo) &
+              *nonmaxw_corr(ie,is)*fphi
          adjr = 2.0*vperp2(ntgr,iglo)*aj1(ntgr,iglo) &
               *bparnew(ntgr,it,ik)*fbpar &
-              + spec(is)%z*phinew(ntgr,it,ik)*aj0(ntgr,iglo) &
-              *(-df0dE(ie,is))*fphi
+              + spec(is)%zt*phinew(ntgr,it,ik)*aj0(ntgr,iglo) &
+              *nonmaxw_corr(ie,is)*fphi
          dadj = adjl-adjr
       else 
          dadj = cmplx(0.0,0.0)
@@ -5640,10 +5594,9 @@ endif
     use gs2_layouts, only: g_lo, ik_idx, it_idx, il_idx, ie_idx, is_idx, idx
     use redistribute, only: fill
     use run_parameters, only: fbpar, fphi
-    use species, only: spec
+    use species, only: spec, nonmaxw_corr
     use spfunc, only: j0, j1
     use kt_grids, only: kperp2
-    use general_f0, only: df0dE
 
     implicit none
     complex, dimension (-ntgrid:,:,:), intent (in) :: phi,    apar,    bpar
@@ -5718,12 +5671,12 @@ endif
 
              adjl = 2.0*vperp2left*aj1l &
               *bparnew(-ntgrid,itl,ik)*fbpar &
-              + spec(is)%z*phinew(-ntgrid,itl,ik)*aj0l &
-              *(-df0dE(ie,is))*fphi
+              + spec(is)%zt*phinew(-ntgrid,itl,ik)*aj0l &
+              *nonmaxw_corr(ie,is)*fphi
              adjr = 2.0*vperp2right*aj1r &
               *bparnew(ntgrid,itr,ik)*fbpar &
-              + spec(is)%z*phinew(ntgrid,itr,ik)*aj0r &
-              *(-df0dE(ie,is))*fphi
+              + spec(is)%zt*phinew(ntgrid,itr,ik)*aj0r &
+              *nonmaxw_corr(ie,is)*fphi
              dadj = adjl-adjr
 
              if (save_h(1, iglo)) then
@@ -6015,10 +5968,9 @@ endif
   end subroutine getan
 
   subroutine getmoms (phinew,bparnew,ntot, density, upar, tpar, tperp, qparflux, pperpj1, qpperpj1)
-    use general_f0, only: zogtemp
     use dist_fn_arrays, only: vpa, vperp2, aj0, aj1, gnew, g_adjust
     use gs2_layouts, only: is_idx, ie_idx, g_lo, ik_idx, it_idx
-    use species, only: nspec, spec
+    use species, only: nspec, spec, nonmaxw_corr
     use theta_grid, only: ntgrid
     use le_grids, only: integrate_moment, energy
     use prof, only: prof_entering, prof_leaving
@@ -6130,7 +6082,7 @@ endif
        ie = ie_idx(g_lo,iglo) ; is = is_idx(g_lo,iglo)
        ik = ik_idx(g_lo,iglo) ; it = it_idx(g_lo,iglo)
        do isgn = 1, 2
-          g0(:,isgn,iglo) = aj0(:,iglo)*gnew(:,isgn,iglo) - phinew(:,it,ik)*zogtemp(ie,is)
+          g0(:,isgn,iglo) = aj0(:,iglo)*gnew(:,isgn,iglo) - phinew(:,it,ik)*spec(is)%zt*nonmaxw_corr(ie,is)
        end do
     end do
 
@@ -6158,7 +6110,7 @@ endif
   subroutine getmoms_gryfx_dist (density_gryfx, upar_gryfx, tpar_gryfx, tperp_gryfx, qpar_gryfx, qperp_gryfx, phi_gryfx)
     use dist_fn_arrays, only: vpa, vperp2, aj0, aj1, gnew, g_adjust
     use gs2_layouts, only: is_idx, ie_idx, g_lo, ik_idx, it_idx
-    use species, only: nspec, spec
+    use species, only: nspec, spec, nonmaxw_corr
     use theta_grid, only: ntgrid
     use le_grids, only: integrate_moment, energy
     use prof, only: prof_entering, prof_leaving
@@ -6362,10 +6314,9 @@ endif
 
 
   subroutine getemoms (phinew, bparnew, ntot, tperp)
-    use general_f0, only: zogtemp
     use dist_fn_arrays, only: vperp2, aj0, gnew, g_adjust
     use gs2_layouts, only: is_idx, ie_idx, g_lo, ik_idx, it_idx
-    use species, only: nspec, spec
+    use species, only: nspec, spec, nonmaxw_corr
     use theta_grid, only: ntgrid
     use le_grids, only: integrate_moment
     use prof, only: prof_entering, prof_leaving
@@ -6416,7 +6367,7 @@ endif
        ie = ie_idx(g_lo,iglo) ; is = is_idx(g_lo,iglo)
        ik = ik_idx(g_lo,iglo) ; it = it_idx(g_lo,iglo)
        do isgn = 1, 2
-          g0(:,isgn,iglo) = aj0(:,iglo)*gnew(:,isgn,iglo) - phinew(:,it,ik)*zogtemp(ie,is)
+          g0(:,isgn,iglo) = aj0(:,iglo)*gnew(:,isgn,iglo) - phinew(:,it,ik)*spec(is)%zt*nonmaxw_corr(ie,is)
        end do
     end do
 
@@ -6428,7 +6379,8 @@ endif
        ie = ie_idx(g_lo,iglo) ; is = is_idx(g_lo,iglo)
        ik = ik_idx(g_lo,iglo) ; it = it_idx(g_lo,iglo)
        do isgn = 1, 2
-          g0(:,isgn,iglo) = aj0(:,iglo)*gnew(:,isgn,iglo)*vperp2(:,iglo) - phinew(:,it,ik)*zogtemp(ie,is)*vperp2(:,iglo)
+          g0(:,isgn,iglo) = aj0(:,iglo)*gnew(:,isgn,iglo)*vperp2(:,iglo) &
+             - phinew(:,it,ik)*spec(is)%zt*nonmaxw_corr(ie,is)*vperp2(:,iglo)
        end do
     end do
 
@@ -6452,10 +6404,9 @@ endif
   
   ! moment at not guiding center coordinate
   subroutine getmoms_notgc (phinew, bparnew, dens, upar, tpar, tper, ntot, jpar)
-    use general_f0, only: zogtemp, df0dE
     use dist_fn_arrays, only: vpa, vperp2, aj0, aj1, gnew
     use gs2_layouts, only: g_lo, is_idx, ik_idx, it_idx, ie_idx
-    use species, only: nspec, spec
+    use species, only: nspec, spec, nonmaxw_corr
     use theta_grid, only: ntgrid
     use kt_grids, only: nakx => ntheta0, naky
     use le_grids, only: integrate_moment
@@ -6489,12 +6440,12 @@ endif
           end do
           do isgn = 1, 2
              g0(:,isgn,iglo) = g0(:,isgn,iglo) + phinew(:,it,ik) &
-                  & *(aj0(:,iglo)**2-1.0) * zogtemp(ie,is)
+                  & *(aj0(:,iglo)**2-1.0) * spec(is)%zt * nonmaxw_corr(ie,is)
           end do
           do isgn = 1, 2
              g0(:,isgn,iglo) = g0(:,isgn,iglo) &
                   & + 2.*vperp2(:,iglo)*aj1(:,iglo)*aj0(:,iglo) &
-                  & * bparnew(:,it,ik) * spec(is)%temp * (-df0dE(ie,is))
+                  & * bparnew(:,it,ik) * nonmaxw_corr(ie,is)
           end do
        end do
        call integrate_moment (g0, ntot,  moment_to_allprocs,full_arr)
@@ -6572,13 +6523,12 @@ endif
 
   subroutine init_fieldeq
     use dist_fn_arrays, only: aj0, aj1, vperp2
-    use species, only: nspec, spec, has_electron_species, has_ion_species
+    use species, only: nspec, spec, has_electron_species, has_ion_species, nonmaxw_corr
     use theta_grid, only: ntgrid
     use kt_grids, only: naky, ntheta0, aky, kperp2
     use le_grids, only: integrate_species
     use gs2_layouts, only: g_lo, ie_idx, is_idx
     use run_parameters, only: tite
-    use general_f0, only: df0dE
     implicit none
     integer :: iglo, isgn
     integer :: ik, it, ie, is
@@ -6620,10 +6570,10 @@ endif
        ie = ie_idx(g_lo,iglo)
        is = is_idx(g_lo,iglo)
        do isgn = 1, 2
-          g0(:,isgn,iglo) = (1.0 - aj0(:,iglo)**2)*(-df0dE(ie,is))
+          g0(:,isgn,iglo) = (1.0 - aj0(:,iglo)**2)*nonmaxw_corr(ie,is)
        end do
     end do
-    wgt = spec%z*spec%z*spec%dens
+    wgt = spec%z*spec%z*spec%dens/spec(is)%temp
     call integrate_species (g0, wgt, tot)
     gamtot = real(tot) + kperp2*poisfac
     
@@ -6632,7 +6582,7 @@ endif
        is = is_idx(g_lo,iglo)
        do isgn = 1, 2
           g0(:,isgn,iglo) = aj0(:,iglo)*aj1(:,iglo) &
-               *2.0*vperp2(:,iglo) * (-df0dE(ie,is))*spec(is)%temp
+               *2.0*vperp2(:,iglo) * nonmaxw_corr(ie,is)
        end do
     end do
     wgt = spec%z*spec%dens
@@ -6643,7 +6593,7 @@ endif
        ie = ie_idx(g_lo,iglo)
        is = is_idx(g_lo,iglo)
        do isgn = 1, 2
-          g0(:,isgn,iglo) = aj1(:,iglo)**2*2.0*vperp2(:,iglo)**2*spec(is)%temp*(-df0dE(ie,is))
+          g0(:,isgn,iglo) = aj1(:,iglo)**2*2.0*vperp2(:,iglo)**2*nonmaxw_corr(ie,is)
        end do
     end do
     wgt = spec%temp*spec%dens

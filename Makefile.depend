@@ -32,7 +32,6 @@ dump_grids_mod = \
 	 eeq.o \
 	 file_utils.o \
 	 gauss_quad.o \
-	 general_f0.o \
 	 geometry.o \
 	 geq.o \
 	 gridgen4mod.o \
@@ -82,7 +81,6 @@ dump_response_mod = \
 	 fields_test.o \
 	 file_utils.o \
 	 gauss_quad.o \
-	 general_f0.o \
 	 geometry.o \
 	 geq.o \
 	 gridgen4mod.o \
@@ -187,7 +185,6 @@ ffttester_mod = \
 	 fields_test.o \
 	 file_utils.o \
 	 gauss_quad.o \
-	 general_f0.o \
 	 geometry.o \
 	 geq.o \
 	 gridgen4mod.o \
@@ -254,7 +251,6 @@ generate_fftw_wisdom_mod = \
 	 fields_arrays.o \
 	 file_utils.o \
 	 gauss_quad.o \
-	 general_f0.o \
 	 generate_fftw_wisdom.o \
 	 geometry.o \
 	 geq.o \
@@ -332,7 +328,6 @@ gs2_mod = \
 	 fields_test.o \
 	 file_utils.o \
 	 gauss_quad.o \
-	 general_f0.o \
 	 geometry.o \
 	 geq.o \
 	 gridgen4mod.o \
@@ -441,7 +436,6 @@ ingen_mod = \
 	 fields_test.o \
 	 file_utils.o \
 	 gauss_quad.o \
-	 general_f0.o \
 	 geometry.o \
 	 geq.o \
 	 gridgen4mod.o \
@@ -795,7 +789,6 @@ dist_fn.o: \
 	 fields_arrays.o \
 	 file_utils.o \
 	 gauss_quad.o \
-	 general_f0.o \
 	 geometry.o \
 	 gs2_heating.o \
 	 gs2_layouts.o \
@@ -817,7 +810,6 @@ dist_fn.o: \
 	 theta_grid.o \
 	 unit_tests.o 
 dist_fn_arrays.o: \
-	 general_f0.o \
 	 gs2_layouts.o \
 	 le_grids.o \
 	 mp.o \
@@ -1326,7 +1318,6 @@ le_grids.o: \
 	 constants.o \
 	 file_utils.o \
 	 gauss_quad.o \
-	 general_f0.o \
 	 gs2_layouts.o \
 	 kt_grids.o \
 	 layouts_type.o \
@@ -1362,7 +1353,6 @@ nonlinear_terms.o: \
 	 constants.o \
 	 dist_fn_arrays.o \
 	 file_utils.o \
-	 general_f0.o \
 	 gs2_layouts.o \
 	 gs2_time.o \
 	 gs2_transforms.o \
@@ -1452,6 +1442,8 @@ species.o: \
 	 kt_grids.o \
 	 mp.o \
 	 overrides.o \
+	 spfunc.o \
+	 spl.o \
 	 text_options.o \
 	 unit_tests.o 
 spfunc.o: \

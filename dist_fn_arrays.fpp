@@ -25,8 +25,7 @@ module dist_fn_arrays
   real, dimension(:), allocatable :: kx_shift, theta0_shift
   ! (naky)
 
-  real, dimension (:,:,:), allocatable :: vpa, vpac, vpar, fpacgen, vpargen, vpacgen
-  public :: vpargen, vpacgen
+  real, dimension (:,:,:), allocatable :: vpa, vpac, vpar
 !AJ
   real, dimension (:,:,:,:,:), allocatable :: vpa_gf
   real, dimension (:,:,:,:), allocatable :: vperp2_gf
@@ -69,11 +68,10 @@ contains
     ! or transform from gnew from g_wesson to g_gs2 form:
     !    call g_adjust(gnew,phinew,bparnew,-fphi,-fbpar)
     !
-    use species, only: spec
+    use species, only: spec, nonmaxw_corr
     use theta_grid, only: ntgrid
     use le_grids, only: jend, ng2
     use gs2_layouts, only: g_lo, ik_idx, it_idx, ie_idx, is_idx, il_idx
-    use general_f0, only: df0dE
     implicit none
     complex, dimension (-ntgrid:,:,g_lo%llim_proc:), intent (in out) :: g
     complex, dimension (-ntgrid:,:,:), intent (in) :: phi, bpar
@@ -103,8 +101,8 @@ contains
 
           adj = 2.0*vperp2(ig,iglo)*aj1(ig,iglo) &
                *bpar(ig,it,ik)*facbpar &
-               + spec(is)%z*phi(ig,it,ik)*aj0(ig,iglo) &
-               *facphi*(-df0dE(ie,is))
+               + spec(is)%zt*phi(ig,it,ik)*aj0(ig,iglo) &
+               *facphi*nonmaxw_corr(ie,is)
           g(ig,1,iglo) = g(ig,1,iglo) + adj
           g(ig,2,iglo) = g(ig,2,iglo) + adj
        end do
