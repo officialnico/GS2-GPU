@@ -14,7 +14,7 @@ module species
   public :: ions, electrons, impurity
   public :: set_overrides
   public :: determine_species_order
-  public :: calculate_f0_arrays
+  public :: calculate_f0_arrays, set_current_f0_species, eval_f0
   public :: nonmaxw_corr, f0_values, dlnf0drho
 
   type :: specie
@@ -192,31 +192,36 @@ contains
 
     do i=1,nspec
        write (unit, *)
-       write (unit, fmt="(' &',a)") "species_knobs"
-       write (unit, fmt="(' nspec = ',i2)") nspec
-       write (unit, fmt="(' /')")
-
-          write (unit, *)
-          write (line, *) i
-          write (unit, fmt="(' &',a)") &
-               & trim("species_parameters_"//trim(adjustl(line)))
-          write (unit, fmt="(' z = ',e13.6)") spec(i)%z
-          write (unit, fmt="(' mass = ',e13.6)") spec(i)%mass
-          write (unit, fmt="(' dens = ',e13.6)") spec(i)%dens
-          write (unit, fmt="(' temp = ',e13.6)") spec(i)%temp
-          write (unit, fmt="(' tprim = ',e13.6)") spec(i)%tprim
-          write (unit, fmt="(' fprim = ',e13.6)") spec(i)%fprim
-          write (unit, fmt="(' uprim = ',e13.6)") spec(i)%uprim
-          if (spec(i)%uprim2 /= 0.) write (unit, fmt="(' uprim2 = ',e13.6)") spec(i)%uprim2
-          write (unit, fmt="(' vnewk = ',e13.6)") spec(i)%vnewk
-          if (spec(i)%type == ion_species) &
-               write (unit, fmt="(a)") ' type = "ion" /'
-          if (spec(i)%type == electron_species) &
-               write (unit, fmt="(a)") ' type = "electron"  /'
-          write (unit, fmt="(' dens0 = ',e13.6)") spec(i)%dens0
-          if(spec(i)%bess_fac.ne.1.0) &
-               write (unit, fmt="(' bess_fac = ',e13.6)") spec(i)%bess_fac
-       end do
+       write (line, *) i
+       write (unit, fmt="(' &',a)") &
+            & trim("species_parameters_"//trim(adjustl(line)))
+       write (unit, fmt="(' z = ',e13.6)") spec(i)%z
+       write (unit, fmt="(' mass = ',e13.6)") spec(i)%mass
+       write (unit, fmt="(' dens = ',e13.6)") spec(i)%dens
+       write (unit, fmt="(' temp = ',e13.6)") spec(i)%temp
+       write (unit, fmt="(' tprim = ',e13.6)") spec(i)%tprim
+       write (unit, fmt="(' fprim = ',e13.6)") spec(i)%fprim
+       write (unit, fmt="(' uprim = ',e13.6)") spec(i)%uprim
+       write (unit, fmt="(' vcrit = ',e13.6)") spec(i)%vcrit
+       write (unit, fmt="(' vcprim = ',e13.6)") spec(i)%vcprim
+       if (spec(i)%uprim2 /= 0.) write (unit, fmt="(' uprim2 = ',e13.6)") spec(i)%uprim2
+       write (unit, fmt="(' vnewk = ',e13.6)") spec(i)%vnewk
+       if (spec(i)%type == ion_species) &
+            write (unit, fmt="(a)") ' type = "ion" /'
+       if (spec(i)%type == electron_species) &
+            write (unit, fmt="(a)") ' type = "electron"  /'
+       if (spec(i)%type == tracer_species) &
+            write (unit, fmt="(a)") ' type = "trace"  /'
+       if (spec(i)%f0type == f0_maxwellian) &
+            write (unit, fmt="(a)") ' f0type = "maxwellian" /'
+       if (spec(i)%f0type == f0_sdanalytic) &
+            write (unit, fmt="(a)") ' f0type = "sdanalytic"  /'
+       if (spec(i)%f0type == f0_tabulated) &
+            write (unit, fmt="(a)") ' f0type = "tabulated"  /'
+       write (unit, fmt="(' dens0 = ',e13.6)") spec(i)%dens0
+       if(spec(i)%bess_fac.ne.1.0) &
+            write (unit, fmt="(' bess_fac = ',e13.6)") spec(i)%bess_fac
+    end do
   end subroutine wnml_species
   
   subroutine init_species
@@ -344,7 +349,7 @@ contains
 
           ierr = error_unit()
           call get_option_value (type, typeopts, spec(is)%type, ierr, "type in species_parameters_x",.true.)
-          call get_option_value (f0type, f0_opts, spec(is)%f0type, ierr, "f0type in species_parameters_x")
+          call get_option_value (f0type, f0_opts, spec(is)%f0type, ierr, "f0type in species_parameters_x",.true.)
        end do
 
     end if
@@ -483,7 +488,7 @@ contains
               nonmaxw_corr(ie,is) = -spec(is)%temp*df0dE
               dlnf0drho(ie,is) = f0prim
            end select
-!           write(*,*) iproc, is, ie, f0_values(ie,is), -nonmaxw_corr(ie,is)/spec(is)%temp,dlnf0drho(ie,is)
+           write(*,*) iproc, is, ie, f0_values(ie,is), -nonmaxw_corr(ie,is)/spec(is)%temp,dlnf0drho(ie,is)
         end do
         if (spec(is)%f0type .EQ. f0_tabulated) then
            call calculate_f0_arrays_tabulated(is,egrid)
@@ -492,6 +497,13 @@ contains
      end do
 
   end subroutine calculate_f0_arrays
+
+  subroutine set_current_f0_species(is)
+     implicit none
+     integer, intent(in):: is
+     is_global = is
+  end subroutine set_current_f0_species
+
 
   !> Relies upon is_global to determine species. This function only takes one argument so that
   !! it can be passed as an argument to genquad
@@ -545,6 +557,13 @@ contains
     df0dv = -A*3.0*v**2/(vcrit**3 + v**3)**2
     df0dE_out =  (0.5/v)*df0dv / ( f0 * spec(is)%temp )
     f0prim = -spec(is)%fprim - (-(vcrit**3/(vcrit**3 + v**3)) + (1.0/( log(1.0 + vcrit**(-3)) * (1.0 + vcrit**(3)))))*vcprim
+
+    if (v .GT. 1.0) then
+       f0 = 0.0
+       f0prim = 0.0
+       df0dE_out = 1.0
+    end if
+
 !    write(*,*) v, vcrit,vcprim,f0prim
 
   end subroutine eval_f0_sdanalytic

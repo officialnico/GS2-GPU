@@ -108,6 +108,8 @@ MAKE_LIB ?=
 LOWFLOW ?=
 # Compile with PETSC/SLEPC support for determining eigensystem (bin).
 WITH_EIG ?=
+# Include LAPACK libraries for genquad scheme
+USE_LAPACK ?=
 
 # Compile with the new simplified diagnostics module
 USE_NEW_DIAG ?=on
@@ -183,6 +185,8 @@ FFT_INC ?=
 FFT_LIB ?=
 EIG_INC ?=
 EIG_LIB ?=
+LAPACK_INC ?=
+LAPACK_LIB ?=
 NETCDF_INC ?=
 NETCDF_LIB ?=
 HDF5_INC ?=
@@ -321,6 +325,11 @@ ifeq ($(USE_FFT),fftw3)
 	FFT_LIB ?= -lfftw -lrfftw
 endif
 
+ifdef USE_LAPACK
+	LAPACK_LIB ?= -llapack
+	CPPFLAGS += -DLAPACK
+endif
+
 ifeq ($(USE_FFT),mkl_fftw)
 	CPPFLAGS += -DFFT=_FFTW_
 endif
@@ -432,11 +441,11 @@ simpledataio:
 endif
 
 LIBS	+= $(DEFAULT_LIB) $(MPI_LIB) $(NETCDF_LIB) $(HDF5_LIB) $(FFT_LIB) \
-		$(IPM_LIB) $(NAG_LIB) $(EIG_LIB)
+		$(IPM_LIB) $(NAG_LIB) $(EIG_LIB) $(LAPACK_LIB)
 PLIBS 	+= $(LIBS) $(PGPLOT_LIB)
 F90FLAGS+= $(F90OPTFLAGS) \
-	   $(DEFAULT_INC) $(MPI_INC) $(NETCDF_INC) $(HDF5_INC)  $(FFT_INC)\
-		 $(SIMPLEDATAIO_INC) $(EIG_INC)
+	   $(DEFAULT_INC) $(MPI_INC) $(NETCDF_INC) $(HDF5_INC) $(FFT_INC)\
+		 $(SIMPLEDATAIO_INC) $(EIG_INC) $(LAPACK_INC)
 CFLAGS += $(COPTFLAGS) \
 	   $(DEFAULT_INC) $(MPI_INC) $(NETCDF_INC) $(HDF5_INC) $(FFT_INC) 
 

@@ -8,7 +8,7 @@ module egrid
 
   private
 
-  public :: setvgrid, init_egrid
+  public :: setvgrid, setvgrid_genquad, init_egrid
   public :: zeroes, x0, zeroes_maxw, x0_maxw
 
   real :: x0_maxw
@@ -34,13 +34,14 @@ contains
     use constants, only: pi => dpi
     use gauss_quad, only: get_legendre_grids_from_cheb, get_laguerre_grids
     use species, only: nspec, spec, f0_sdanalytic, f0_maxwellian, calculate_f0_arrays, f0_values, nonmaxw_corr, dlnf0drho
+    use mp, only: proc0
 
     implicit none
     integer, intent (in) :: negrid
     real, intent (in) :: vcut_in
     integer, intent (in) :: nesub_in
     real, dimension(:,:), intent (out) :: epts, wgts
-    integer:: nesub, is
+    integer:: nesub, is, ie
     real:: vcut
 
     call init_egrid (negrid)
@@ -90,7 +91,69 @@ contains
     zeroes(:,:) = sqrt(epts(:negrid-1,:))
     x0(:) = sqrt(epts(negrid,:))
 
+    !do is = 1,nspec
+    !do ie = 1,negrid
+    !if (proc0) write(*,*) is, ie, epts(ie,is),wgts(ie,is),f0_values(ie,is)
+    !end do
+    !end do
+
   end subroutine setvgrid
+
+  subroutine setvgrid_genquad (negrid, epts, wgts, nesub)
+    use mp, only: proc0, mp_abort, iproc
+    use genquad, only: get_quadrature_rule
+    use constants, only: pi => dpi
+    use gauss_quad, only: get_legendre_grids_from_cheb, get_laguerre_grids
+    use species, only: nspec, spec, calculate_f0_arrays, f0_values, eval_f0, set_current_f0_species, f0_maxwellian
+
+    implicit none
+    
+    integer, intent (in) :: negrid
+    integer, intent (in) :: nesub
+    real, dimension(:,:), intent (out) :: epts
+    real, dimension(:,:), intent (out) :: wgts
+    integer :: is,ie,js
+    logical :: infdomain = .false.
+
+    call init_egrid (negrid)
+
+    do is = 1,nspec
+
+      ! Call the function that sets the species number so that eval_f0 takes only one argument
+      call set_current_f0_species(is)
+
+      if ( spec(is)%f0type .EQ. f0_maxwellian ) then
+         ! If Maxwellian, use an semi-infinite domain
+         call get_quadrature_rule(eval_f0,negrid,0.0,1.0,epts(:,is),wgts(:,is),.false.,.true.)
+      else 
+         ! Otherwise, use a bounded domain with vmax = vref_s.
+         call get_quadrature_rule(eval_f0,negrid,0.0,1.0,epts(:,is),wgts(:,is),.false.,.false.)
+      end if
+    
+      ! change from v to E
+      epts(:,is) = epts(:,is)**2
+
+      ! absorb exponential and volume element in weights
+      !wgts(:nesub) = wgts(:nesub)*epts(:nesub)*exp(-epts(:nesub))/sqrt(pi)
+      ! No longer absorb maxwellian... allow for arbitrary f0. EGH/GW
+      ! See eq. 4.12 of M. Barnes's thesis
+      wgts(:, is) = wgts(:, is)*pi*epts(:,is)
+
+    end do
+
+    call calculate_f0_arrays(epts)
+
+    !do is = 1,nspec
+    !do ie = 1,negrid
+    !if (proc0) write(*,*) is, ie, epts(ie,is),wgts(ie,is),f0_values(ie,is)
+    !end do
+    !end do
+    
+    zeroes(:,:) = sqrt(epts(:negrid-1,:))
+    x0(:) = sqrt(epts(negrid,:))
+
+  end subroutine setvgrid_genquad
+
 end module egrid
 
 module le_grids
@@ -107,7 +170,7 @@ module le_grids
   public :: energy, energy_maxw, speed_maxw, al, delal, jend, forbid, dele, wl, w, w_maxw
   public :: negrid, nlambda, ng2, nxi, lmax, integrate_moment, nesub
   public :: xloc, sgn, ixi_to_il, ixi_to_isgn, speed, xi
-  public :: xx, nterp, new_trap_int, vcut
+  public :: xx, nterp, new_trap_int, vcut, genquad
   public :: init_weights, legendre_transform, lagrange_interp, lagrange_coefs
   public :: finish_weights
   public :: eint_error, lint_error, trap_error, wdim
@@ -149,14 +212,14 @@ module le_grids
   end interface
 
   real, dimension (:), allocatable :: xx ! (ng2)
-  real, dimension (:,:), allocatable, save :: wlerr, xloc ! mbmark
-  real, dimension (:,:,:), allocatable, save :: werr
-  real, dimension (:,:,:), allocatable, save :: wlterr
-  real, dimension (:,:,:,:), allocatable, save :: lgrnge
-  real, dimension (:,:,:), allocatable, save :: wlmod
-  real, dimension (:,:,:), allocatable, save :: wtmod
-  real, dimension (:,:,:), allocatable, save :: wmod
-  real, dimension (:,:,:), allocatable, save :: lpe
+  real, dimension (:,:), allocatable :: wlerr, xloc ! mbmark
+  real, dimension (:,:,:), allocatable :: werr
+  real, dimension (:,:,:), allocatable :: wlterr
+  real, dimension (:,:,:,:), allocatable :: lgrnge
+  real, dimension (:,:,:), allocatable :: wlmod
+  real, dimension (:,:,:), allocatable :: wtmod
+  real, dimension (:,:,:), allocatable :: wmod
+  real, dimension (:,:,:), allocatable :: lpe
   real, dimension (:,:), allocatable, save :: lpl
   real, dimension (:,:,:,:), allocatable, save :: lpt
 
@@ -181,6 +244,7 @@ module le_grids
  ! knobs
   integer :: ngauss, negrid, nesuper, nesub
   real :: bouncefuzz, vcut
+  logical :: genquad
 
   integer :: nlambda, ng2, lmax, nxi
   logical :: accel_x = .false.
@@ -252,7 +316,6 @@ contains
     end if
     call broadcast_input
     call set_vgrid
-    !call setvgrid (vcut, negrid, energy, w, nesub)
     if (proc0) then
        call set_grids
     end if
@@ -280,17 +343,15 @@ contains
 
   subroutine set_vgrid
     use species, only: nspec, init_species
-    use egrid, only: setvgrid !, setvgrid_genquad
+    use egrid, only: setvgrid, setvgrid_genquad
     call init_species
 
-    !write (*,*) 'negrid is', negrid, 'nspec is ', nspec
-
     allocate (energy(negrid,nspec), w(negrid,nspec))
-!    if (genquad) then
-!       call setvgrid_genquad (vcut, negrid, energy, w, nesub)
-!    else
+    if (genquad) then
+       call setvgrid_genquad (negrid, energy, w, nesub)
+    else
        call setvgrid (vcut, negrid, energy, w, nesub)
-!    end if
+    end if
   end subroutine set_vgrid
 
 
@@ -360,6 +421,7 @@ contains
     call broadcast (nesuper)
     call broadcast (nesub)
     call broadcast (vcut)
+    call broadcast (genquad)
     call broadcast (bouncefuzz)
     call broadcast (nxi)
     call broadcast (nlambda)
@@ -444,7 +506,7 @@ contains
     integer :: in_file
     namelist /le_grids_knobs/ ngauss, negrid, bouncefuzz, &
          nesuper, nesub, test, trapped_particles, &
-         nmax, wgt_fac, new_trap_int, nterp, vcut
+         nmax, wgt_fac, new_trap_int, nterp, vcut, genquad
 
     nesub = 8
     nesuper = 2
@@ -452,6 +514,7 @@ contains
     negrid = -10
     vcut = 2.5
     bouncefuzz = 1e-5
+    genquad = .false.
     in_file=input_unit_exist("le_grids_knobs", exist)
     if (exist) read (unit=in_file, nml=le_grids_knobs)
 

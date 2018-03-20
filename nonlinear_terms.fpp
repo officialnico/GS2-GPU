@@ -504,7 +504,7 @@ contains
   subroutine add_nl (g1, phi, apar, bpar)
     use mp, only: max_allreduce, nb_max_allreduce, iproc, nproc
     use theta_grid, only: ntgrid, kxfac
-    use gs2_layouts, only: g_lo, ik_idx, it_idx, il_idx, is_idx, ie_idx
+    use gs2_layouts, only: g_lo, ik_idx, it_idx
     use gs2_layouts, only: accelx_lo, yxf_lo
     use dist_fn_arrays, only: g, g_adjust
     use species, only: spec
@@ -521,7 +521,7 @@ contains
     real :: dt_cfl
     integer, parameter :: verb = 4
 
-    integer :: iglo, ik, it, is, ig, ia, isgn, ie
+    integer :: iglo, ik, it, is, ig, ia
     
     call debug_message(verb, 'nonlinear_terms::add_nl starting')
 

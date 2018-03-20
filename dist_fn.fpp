@@ -116,7 +116,7 @@ module dist_fn
   logical :: dfexist, skexist, nonad_zero, lf_default, lf_decompose, esv, opt_init_bc, opt_source
 !CMR, 12/9/13: New logical cllc to modify order of operator in timeadv
 !CMR, 21/5/14: New logical wfb_cmr to enforce trapping conditions on wfb
-  logical :: cllc, wfb_cmr
+  logical :: wfb_cmr
 
   real :: densfac_lin, uparfac_lin, tparfac_lin, tprpfac_lin
   real :: qparfac_lin, qprpfac_lin, phifac_lin
@@ -536,7 +536,6 @@ contains
        write (unit, fmt="(' nonad_zero = ',L1)") nonad_zero
        write (unit, fmt="(' gridfac = ',e17.10)") gridfac
        write (unit, fmt="(' esv = ',L1)") esv
-       write (unit, fmt="(' cllc = ',L1)") cllc
        write (unit, fmt="(' wfb_cmr = ',L1)") wfb_cmr
        write (unit, fmt="(' opt_init_bc = ',L1)") opt_init_bc
        write (unit, fmt="(' opt_source = ',L1)") opt_source
@@ -1065,7 +1064,6 @@ contains
     call broadcast (boundary_option_switch)
     call broadcast (nonad_zero)
     call broadcast (wfb_cmr)
-    call broadcast (cllc)
     call broadcast (esv)
     call broadcast (opt_init_bc)
     call broadcast (opt_source)
@@ -1247,7 +1245,7 @@ contains
        allocate (wdrift(-ntgrid:ntgrid,2,g_lo%llim_proc:g_lo%ulim_alloc))
        allocate (wdriftttp(-ntgrid:ntgrid,ntheta0,naky,negrid,nspec,2))
     end if
-    wdrift = 0.  ; wdriftttp = 0. 
+    wdrift = 0.  ; wdriftttp = 0.
 #ifdef LOWFLOW
     if (.not. allocated(wcurv)) allocate (wcurv(-ntgrid:ntgrid,g_lo%llim_proc:g_lo%ulim_alloc))
     wcurv = 0.
@@ -1415,7 +1413,8 @@ contains
   end subroutine init_vperp2
 
   subroutine init_vpar
-    use dist_fn_arrays, only: vpa, vpar, vpac, vperp2, vpa_gf, vperp2_gf
+    use dist_fn_arrays, only: vpa, vpar, vpac
+    use dist_fn_arrays, only: vpa_gf, vperp2_gf
     use species, only: spec, nspec
     use theta_grid, only: ntgrid, delthet, bmag, gradpar
     use le_grids, only: energy, al, negrid, nlambda
@@ -1435,7 +1434,7 @@ contains
        !allocate (vperp2 (-ntgrid:ntgrid,  g_lo%llim_proc:g_lo%ulim_alloc))
        allocate (vpar   (-ntgrid:ntgrid,2,g_lo%llim_proc:g_lo%ulim_alloc))
     endif
-    vpa = 0. ; vpac = 0. ; vperp2 = 0. ; vpar = 0. 
+    vpa = 0. ; vpac = 0.; vpar = 0.
 
     !AJ if we are doing gf_lo integrate then pre-calcuate some of the data used in the integrate.
 
@@ -1503,8 +1502,6 @@ contains
 
        ik = ik_idx(g_lo,iglo)
        is = is_idx(g_lo,iglo)
-       ie = ie_idx(g_lo,iglo)
- 
        vpar(-ntgrid:ntgrid-1,1,iglo) = &
             spec(is)%zstm*tunits(ik)*code_dt &
             *0.5/delthet(-ntgrid:ntgrid-1) &
@@ -1794,7 +1791,7 @@ endif
 #else
 
              !Phi m
-             source_coeffs(1,ig,isgn,iglo)=-2.0*vpar(ig,isgn,iglo)*nonmaxw_corr(ie,is)
+             source_coeffs(1,ig,isgn,iglo)=-2*vpar(ig,isgn,iglo)*nonmaxw_corr(ie,is)
              !Phi p
              source_coeffs(2,ig,isgn,iglo)=-zi*wdrift(ig,isgn,iglo)*nonmaxw_corr(ie,is) &
               + zi*(wstar(ik,ie,is) &
@@ -6573,7 +6570,7 @@ endif
           g0(:,isgn,iglo) = (1.0 - aj0(:,iglo)**2)*nonmaxw_corr(ie,is)
        end do
     end do
-    wgt = spec%z*spec%z*spec%dens/spec(is)%temp
+    wgt = spec%z*spec%z*spec%dens/spec%temp
     call integrate_species (g0, wgt, tot)
     gamtot = real(tot) + kperp2*poisfac
     
@@ -10172,7 +10169,6 @@ endif
   end subroutine init_mom_coeff
 
 #ifdef LOWFLOW
-  ! This rouinte must be called after init_collisions as it relies on the 
   ! This rouinte must be called after init_collisions as it relies on the 
   ! variable use_le_layout which is set in init_collisions based on input 
   ! from the user provided input file.
