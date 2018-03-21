@@ -57,7 +57,7 @@ contains
     procedure(real),pointer:: wgt_x
     procedure(real),pointer:: poly_sq 
     procedure(real),pointer:: poly_sqx 
-#ifdef LAPACK
+#ifdef GENQUAD
     wgt_x => wgt_x_func
     poly_sq => poly_sq_func
     poly_sqx => poly_sqx_func
@@ -208,7 +208,7 @@ contains
 #endif
   end subroutine get_quadrature_rule
 
-#ifdef LAPACK
+#ifdef GENQUAD
 
    subroutine set_poly_type()
      implicit none
