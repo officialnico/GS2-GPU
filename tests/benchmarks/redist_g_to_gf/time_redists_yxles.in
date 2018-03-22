@@ -61,7 +61,7 @@ grid_option="box"
 /
 
 &kt_grids_box_parameters
-ny = 15
+ny = 16
 nx = 16
 y0=10.0
 x0=10.0

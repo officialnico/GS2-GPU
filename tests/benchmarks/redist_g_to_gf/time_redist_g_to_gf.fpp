@@ -11,6 +11,7 @@ program time_redists
   use gs2_layouts, only: g_lo, gf_lo, layout
   use gs2_main, only: gs2_program_state_type, initialize_gs2, finalize_gs2
   use job_manage, only: time_message
+  use kt_grids, only: ntheta0, naky
   use le_grids, only: nlambda, negrid, g2gf
   use mp, only: init_mp, finish_mp, proc0, nproc, mp_comm
   use redistribute, only: gather, scatter
@@ -40,6 +41,14 @@ program time_redists
   call initialize_gs2(state)
 
   call init(state%init, init_level_list%collisions)
+
+  ! Check input file allows gf layout
+  ! gf layout assumes number of kx,ky Fourier modes is than number of cores 
+  ! available.
+  if (nproc < naky*ntheta0 .and. nproc .ne. 1) then
+    if (proc0) write(*,*) 'Must have number of mpi processes greater than naky*ntheta0.  For this input file, this is ',naky*ntheta0
+    if (proc0) write(*,*) 'This test will fail.'
+  end if
 
   ! Set up test-specific arrays
   allocate (g(-ntgrid:ntgrid,2,g_lo%llim_proc:g_lo%ulim_alloc)) ; g = 1.
