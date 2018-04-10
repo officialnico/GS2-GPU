@@ -11,7 +11,7 @@ program time_redists
   use gs2_layouts, only: g_lo, le_lo, layout
   use gs2_main, only: gs2_program_state_type, initialize_gs2, finalize_gs2
   use job_manage, only: time_message
-  use le_grids, only: nxi, negrid, g2le
+  use le_grids, only: nxi, negrid, g2le, check_g2le
   use mp, only: init_mp, finish_mp, proc0, nproc, mp_comm
   use redistribute, only: gather, scatter
   use run_parameters, only: nstep
@@ -45,6 +45,8 @@ program time_redists
 
   ! Begin test
   if (proc0) call time_message(.false., time_taken, "redist time")
+
+  !write(*,*) g2le%to_low
 
   do i = 1,nstep
     call gather (g2le, g, gle)
