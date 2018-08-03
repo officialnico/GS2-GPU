@@ -81,7 +81,7 @@ STATIC ?=
 # promotes precisions of real and complex (bin)
 DBLE ?= on
 # promotes precisions of double and double complex (bin)
-QUAD ?= on
+QUAD ?=
 # turns on distributed memory parallelization using MPI (mpi2, mpi3)
 USE_MPI ?= mpi2
 # turns on SHMEM parallel communications on SGI (bin)
