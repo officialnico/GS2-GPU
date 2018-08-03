@@ -64,6 +64,8 @@ GK_PROJECT ?= gs2
 # What values they have do not matter.
 # Be careful that DEBUG=off means DEBUG=on.
 #
+# Fortran Standard Specification (95, 2003, 2008, undefined)
+FORTRAN_SPEC ?=
 # turns on debug mode (bin)
 DEBUG ?=
 # turns on scalasca instrumentation mode (bin)
@@ -78,6 +80,8 @@ OPT ?= on
 STATIC ?=
 # promotes precisions of real and complex (bin)
 DBLE ?= on
+# promotes precisions of double and double complex (bin)
+QUAD ?= on
 # turns on distributed memory parallelization using MPI (mpi2, mpi3)
 USE_MPI ?= mpi2
 # turns on SHMEM parallel communications on SGI (bin)
@@ -98,6 +102,9 @@ USE_C_INDEX ?=
 USE_LOCAL_RAN ?=
 # Use posix for command_line (bin)
 USE_POSIX ?=
+# Use Fortran 2003, 2008 Intrinsics (bin)
+# (Note this overwhelms other special function options)
+USE_F200X_INTRINSICS ?=
 # Use local special functions (bin)
 USE_LOCAL_SPFUNC ?= 
 # Use nag libraray (spfunc,undefined)
@@ -259,7 +266,7 @@ endif
 ifeq ($(MAKECMDGOALS),depend)
 # must invoke full functionality when make depend
 	MAKE += USE_HDF5=on USE_FFT=fftw USE_NETCDF=on USE_MPI=mpi3 \
-		USE_LOCAL_BESSEL=on USE_LOCAL_RAN=mt
+		USE_LOCAL_SPFUNC=on USE_LOCAL_RAN=mt
 endif
 
 #Here we define SVN_REV based on the output of svnversion
@@ -375,11 +382,15 @@ endif
 ifdef USE_POSIX
 	CPPFLAGS += -DPOSIX
 endif
-ifdef USE_LOCAL_SPFUNC
-	CPPFLAGS += -DSPFUNC=_SPLOCAL_
+ifdef USE_F200X_INTRINSICS
+	CPPFLAGS += -DF200X_INTRINSICS -DSPFUNC=_SPF200X_
 else
-	ifeq ($(findstring spfunc,$(USE_NAGLIB)),spfunc)
-		CPPFLAGS += -DSPFUNC=_SPNAG_
+	ifdef USE_LOCAL_SPFUNC
+		CPPFLAGS += -DSPFUNC=_SPLOCAL_
+	else
+		ifeq ($(findstring spfunc,$(USE_NAGLIB)),spfunc)
+			CPPFLAGS += -DSPFUNC=_SPNAG_
+		endif
 	endif
 endif
 ifdef USE_NAGLIB
@@ -398,6 +409,10 @@ $(warning Precision mismatch with NAG libarray)
 endif
 ifndef DBLE
 	CPPFLAGS+=-DSINGLE_PRECISION
+endif
+ifdef QUAD
+	DBLE = on
+	CPPFLAGS+=-DQUAD_PRECISION
 endif
 ifndef PGPLOT_LIB
 	ifeq ($(MAKECMDGOALS),agk_fields_plot)
@@ -558,7 +573,7 @@ else
 .F90.f90:
 #	$(CPP) $(CPPFLAGS) -nostdinc $< $@
 	$(CPP) $(CPPFLAGS) $< $@
-	
+
 # These are special rules for the suffix problem of absoft
 # (not tested)
 $(GK_PROJECT)_transforms.o: $(GK_PROJECT)_transforms.f90
