@@ -4500,6 +4500,7 @@ contains
   subroutine finish_le_grids
     use redistribute, only: delete_redist
     use egrid, only: zeroes, x0, zeroes_maxw
+    use species, only: nonmaxw_corr, f0_values, dlnf0drho
 
     implicit none
     real, dimension(1,1,1,1,1) :: tmpf
@@ -4521,6 +4522,11 @@ contains
     if (allocated(ixi_to_isgn)) deallocate (ixi_to_isgn)
     if (allocated(recvcnts_intspec)) deallocate (recvcnts_intspec)
     if (allocated(displs_intspec)) deallocate (displs_intspec)
+
+    deallocate(nonmaxw_corr)
+    deallocate(f0_values)
+    deallocate(dlnf0drho)
+
 
     !Deallocate redistribute maps
     call delete_redist(lambda_map)

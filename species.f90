@@ -488,7 +488,7 @@ contains
               nonmaxw_corr(ie,is) = -spec(is)%temp*df0dE
               dlnf0drho(ie,is) = f0prim
            end select
-           write(*,*) iproc, is, ie, f0_values(ie,is), -nonmaxw_corr(ie,is)/spec(is)%temp,dlnf0drho(ie,is)
+           !write(*,*) iproc, is, ie, f0_values(ie,is), -nonmaxw_corr(ie,is)/spec(is)%temp,dlnf0drho(ie,is)
         end do
         if (spec(is)%f0type .EQ. f0_tabulated) then
            call calculate_f0_arrays_tabulated(is,egrid)
@@ -847,7 +847,7 @@ contains
   subroutine finish_species
     implicit none
     if(allocated(spec)) deallocate (spec)
-    if(allocated(f0_values)) deallocate (f0_values,nonmaxw_corr,dlnf0drho)
+!    if(allocated(f0_values)) deallocate (f0_values,nonmaxw_corr,dlnf0drho)
     initialized = .false.
   end subroutine finish_species
 

@@ -55,7 +55,7 @@ class GenerateInit
     ['gs2_layouts' , []],
     ['set_initial_values', ['fields_level_2', 'init_g', 'override_initial_values']],
     ['le_grids' ,
-      ['species', 'kt_grids', 'gs2_layouts', 'theta_grid']],
+      ['species', 'kt_grids', 'gs2_layouts', 'theta_grid','override_profiles']],
     ['antenna_level_2' , ['species', 'le_grids', 'run_parameters', 'override_profiles']],
     ['theta_grid' , ['theta_grid_params', 'override_miller_geometry']],
     ['normalisations', []],
@@ -82,7 +82,7 @@ class GenerateInit
     ['override_optimisations' , ['gs2_layouts', 'fields_parameters']],
     ['override_miller_geometry' , ['theta_grid_params']],
     # Override tprim, fprim, vnewk, temp and dens in species
-    ['override_profiles' , ['species','le_grids']],
+    ['override_profiles' , ['species']],
     # Override the timestep set in run_parameters
     ['override_timestep' , ['run_parameters']],
     ['override_initial_values', ['fields_level_2', 'init_g']],
