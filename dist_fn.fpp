@@ -1512,7 +1512,6 @@ contains
             *vpac(-ntgrid:ntgrid-1,2,iglo)
        vpar(ntgrid,:,iglo) = 0.0
 
-       vpar = vpar*spec(is)%stream_fac
     end do
 
   end subroutine init_vpar
