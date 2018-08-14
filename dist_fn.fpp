@@ -1511,6 +1511,8 @@ contains
             *(abs(gradpar(-ntgrid:ntgrid-1)) + abs(gradpar(-ntgrid+1:ntgrid)))&
             *vpac(-ntgrid:ntgrid-1,2,iglo)
        vpar(ntgrid,:,iglo) = 0.0
+
+       vpar = vpar*spec(is)%stream_fac
     end do
 
   end subroutine init_vpar
@@ -1650,7 +1652,7 @@ contains
              ! when doing parallel field solve for -vpar
              ! also, note that vpar is (vpa bhat + v_{magnetic}) . grad theta / delthet
              ! if compile with LOWFLOW defined
-             vp = vpar(ig,1,iglo)
+             vp = vpar(ig,1,iglo) 
              bd = bkdiff(is)
 
              ainv(ig,isgn,iglo) &
@@ -4869,14 +4871,17 @@ endif
 !   -coriolis terms
 !   2{\chi,f_{0s}}.delt  (allowing for sheared flow)
 !CMRend
+!GJW (2018): 
+! Ensuring apar respects bakdif. This fixes a numerical instability that prevents 
+! nonlinear electromagnetic runs.
 
       do ig = -ntgrid, ntgrid-1
          phi_p = bdfac_p*phigavg(ig+1)+bdfac_m*phigavg(ig)
          phi_m = phigavg(ig+1)-phigavg(ig)
          ! RN> bdfac factors seem missing for apar_p
-         apar_p = apargavg(ig+1)+apargavg(ig)
-         apar_m = aparnew(ig+1,it,ik)+aparnew(ig,it,ik) & 
-              -apar(ig+1,it,ik)-apar(ig,it,ik)
+         apar_p = bdfac_p*apargavg(ig+1)+bdfac_m*apargavg(ig)
+         apar_m = bdfac_p*aparnew(ig+1,it,ik)+bdfac_m*aparnew(ig,it,ik) & 
+              -bdfac_p*apar(ig+1,it,ik)-bdfac_m*apar(ig,it,ik)
 
 !MAB, 6/5/2009:
 ! added the omprimfac source term arising with equilibrium flow shear  

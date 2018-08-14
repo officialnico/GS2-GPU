@@ -67,7 +67,7 @@ GK_PROJECT ?= gs2
 # Fortran Standard Specification (95, 2003, 2008, undefined)
 FORTRAN_SPEC ?=
 # turns on debug mode (bin)
-DEBUG ?=
+DEBUG ?=on
 # turns on scalasca instrumentation mode (bin)
 SCAL ?=
 # turns on test mode (bin)

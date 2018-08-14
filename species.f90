@@ -28,6 +28,7 @@ module species
                        ! nu_h controls a hyperviscous term embedded in the collision operator
      real :: stm, zstm, tz, smz, zt
      real :: bess_fac !Artificial factor multiplying the Bessel function argument
+     real :: stream_fac
      integer :: type
   end type specie
 
@@ -80,6 +81,8 @@ contains
             write (report_unit, fmt="('      Bessel function arg multiplied by:   ',f7.3)") spec(is)%bess_fac
        !        write (report_unit, fmt="('    Ignore this:')")
        !        write (report_unit, fmt="('    D_0: ',es10.4)") spec(is)%dens0
+       if (spec(is)%stream_fac.ne.1.0) &
+            write (report_unit, fmt="('      Parallel streaming operator multiplied by:   ',f7.3)") spec(is)%stream_fac
        if (spec(is)%type /= 2) then
           zeff_calc = zeff_calc + spec(is)%dens*spec(is)%z**2
           charge = charge + spec(is)%dens*spec(is)%z
@@ -194,6 +197,8 @@ contains
        write (unit, fmt="(' dens0 = ',e13.6)") spec(i)%dens0
        if(spec(i)%bess_fac.ne.1.0) &
             write (unit, fmt="(' bess_fac = ',e13.6)") spec(i)%bess_fac
+       if(spec(i)%stream_fac.ne.1.0) &
+            write (unit, fmt="(' stream_fac = ',e13.6)") spec(i)%stream_fac
     end do
   end subroutine wnml_species
   
@@ -217,7 +222,7 @@ contains
     use mp, only: proc0, broadcast, mp_abort
     implicit none
     real :: z, mass, dens, dens0, u0, temp, tprim, fprim, uprim, uprim2, vnewk, nustar, nu, nu_h
-    real :: tperp0, tpar0, bess_fac
+    real :: tperp0, tpar0, bess_fac, stream_fac
     real, dimension(:), allocatable :: tmp_bcast
     character(20) :: type
     integer :: unit
@@ -225,7 +230,7 @@ contains
     namelist /species_knobs/ nspec
     namelist /species_parameters/ z, mass, dens, dens0, u0, temp, &
          tprim, fprim, uprim, uprim2, vnewk, nustar, type, nu, nu_h, &
-         tperp0, tpar0, bess_fac
+         tperp0, tpar0, bess_fac, stream_fac
     integer :: ierr, in_file
 
     type (text_option), dimension (9), parameter :: typeopts = &
@@ -279,6 +284,7 @@ contains
           nu = -1.0
           nu_h = 0.0
           bess_fac=1.0
+          stream_fac=1.0
           type = "default"
           read (unit=unit, nml=species_parameters, iostat=iostat)
           if(iostat /= 0) write(6,*) 'Error ',iostat,'reading species parameters'
@@ -309,6 +315,7 @@ contains
           spec(is)%smz = abs(sqrt(temp*mass)/z)
 
           spec(is)%bess_fac=bess_fac
+          spec(is)%stream_fac=bess_fac
 
           ierr = error_unit()
           call get_option_value (type, typeopts, spec(is)%type, ierr, "type in species_parameters_x",.true.)
@@ -341,6 +348,7 @@ contains
     tmp_bcast=spec%smz ; call broadcast(tmp_bcast) ; spec%smz=tmp_bcast
     tmp_bcast=spec%type ; call broadcast(tmp_bcast) ; spec%type=int(tmp_bcast)
     tmp_bcast=spec%bess_fac ; call broadcast(tmp_bcast) ; spec%bess_fac=tmp_bcast
+    tmp_bcast=spec%stream_fac ; call broadcast(tmp_bcast) ; spec%stream_fac=tmp_bcast
     deallocate(tmp_bcast)
 
   end subroutine read_parameters
