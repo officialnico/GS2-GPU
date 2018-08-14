@@ -32,6 +32,7 @@ dump_grids_mod = \
 	 eeq.o \
 	 file_utils.o \
 	 gauss_quad.o \
+	 genquad.o \
 	 geometry.o \
 	 geq.o \
 	 gridgen4mod.o \
@@ -46,11 +47,13 @@ dump_grids_mod = \
 	 netcdf_utils.o \
 	 overrides.o \
 	 peq.o \
+	 quadpack.o \
 	 read_chease.o \
 	 redistribute.o \
 	 runtime_tests.o \
 	 sorting.o \
 	 species.o \
+	 spfunc.o \
 	 spl.o \
 	 text_options.o \
 	 theta_grid.o \
@@ -80,6 +83,7 @@ dump_response_mod = \
 	 fields_test.o \
 	 file_utils.o \
 	 gauss_quad.o \
+	 genquad.o \
 	 geometry.o \
 	 geq.o \
 	 gridgen4mod.o \
@@ -108,6 +112,7 @@ dump_response_mod = \
 	 parameter_scan_arrays.o \
 	 peq.o \
 	 prof.o \
+	 quadpack.o \
 	 ran.o \
 	 read_chease.o \
 	 redistribute.o \
@@ -184,6 +189,7 @@ ffttester_mod = \
 	 fields_test.o \
 	 file_utils.o \
 	 gauss_quad.o \
+	 genquad.o \
 	 geometry.o \
 	 geq.o \
 	 gridgen4mod.o \
@@ -218,6 +224,7 @@ ffttester_mod = \
 	 parameter_scan_arrays.o \
 	 peq.o \
 	 prof.o \
+	 quadpack.o \
 	 ran.o \
 	 read_chease.o \
 	 redistribute.o \
@@ -251,6 +258,7 @@ generate_fftw_wisdom_mod = \
 	 file_utils.o \
 	 gauss_quad.o \
 	 generate_fftw_wisdom.o \
+	 genquad.o \
 	 geometry.o \
 	 geq.o \
 	 gridgen4mod.o \
@@ -271,12 +279,14 @@ generate_fftw_wisdom_mod = \
 	 parameter_scan_arrays.o \
 	 peq.o \
 	 prof.o \
+	 quadpack.o \
 	 read_chease.o \
 	 redistribute.o \
 	 run_parameters.o \
 	 runtime_tests.o \
 	 sorting.o \
 	 species.o \
+	 spfunc.o \
 	 spl.o \
 	 text_options.o \
 	 theta_grid.o \
@@ -326,6 +336,7 @@ gs2_mod = \
 	 fields_test.o \
 	 file_utils.o \
 	 gauss_quad.o \
+	 genquad.o \
 	 geometry.o \
 	 geq.o \
 	 gridgen4mod.o \
@@ -363,6 +374,7 @@ gs2_mod = \
 	 parameter_scan_arrays.o \
 	 peq.o \
 	 prof.o \
+	 quadpack.o \
 	 ran.o \
 	 read_chease.o \
 	 redistribute.o \
@@ -434,6 +446,7 @@ ingen_mod = \
 	 fields_test.o \
 	 file_utils.o \
 	 gauss_quad.o \
+	 genquad.o \
 	 geometry.o \
 	 geq.o \
 	 gridgen4mod.o \
@@ -467,6 +480,7 @@ ingen_mod = \
 	 parameter_scan_arrays.o \
 	 peq.o \
 	 prof.o \
+	 quadpack.o \
 	 ran.o \
 	 read_chease.o \
 	 redistribute.o \
@@ -963,6 +977,9 @@ generate_fftw_wisdom.o: \
 	 job_manage.o \
 	 mp.o \
 	 nonlinear_terms.o 
+genquad.o: \
+	 mp.o \
+	 quadpack.o 
 geometry.o: \
 	 ceq.o \
 	 constants.o \
@@ -1308,6 +1325,7 @@ le_grids.o: \
 	 constants.o \
 	 file_utils.o \
 	 gauss_quad.o \
+	 genquad.o \
 	 gs2_layouts.o \
 	 kt_grids.o \
 	 layouts_type.o \
@@ -1387,6 +1405,7 @@ peq.o: \
 pgplot_utils.o: \
 	 constants.o 
 prof.o: 
+quadpack.o: 
 ran.o: \
 	 constants.o 
 read_chease.o: 
@@ -1427,10 +1446,13 @@ simpledataio_write.o: \
 simpledataiof.o: 
 sorting.o: 
 species.o: \
+	 constants.o \
 	 file_utils.o \
 	 kt_grids.o \
 	 mp.o \
 	 overrides.o \
+	 spfunc.o \
+	 spl.o \
 	 text_options.o \
 	 unit_tests.o 
 spfunc.o: \

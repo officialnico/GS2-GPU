@@ -27,8 +27,8 @@ module dist_fn_arrays
 
   real, dimension (:,:,:), allocatable :: vpa, vpac, vpar
 !AJ
-  real, dimension (:,:,:,:), allocatable :: vpa_gf
-  real, dimension (:,:,:), allocatable :: vperp2_gf
+  real, dimension (:,:,:,:,:), allocatable :: vpa_gf
+  real, dimension (:,:,:,:), allocatable :: vperp2_gf
   ! (-ntgrid:ntgrid,2, -g-layout-)
 
   real, dimension (:,:), allocatable :: vperp2, aj0, aj1
@@ -68,9 +68,9 @@ contains
     ! or transform from gnew from g_wesson to g_gs2 form:
     !    call g_adjust(gnew,phinew,bparnew,-fphi,-fbpar)
     !
-    use species, only: spec
+    use species, only: spec, nonmaxw_corr
     use theta_grid, only: ntgrid
-    use le_grids, only: anon, jend, ng2
+    use le_grids, only: jend, ng2
     use gs2_layouts, only: g_lo, ik_idx, it_idx, ie_idx, is_idx, il_idx
     implicit none
     complex, dimension (-ntgrid:,:,g_lo%llim_proc:), intent (in out) :: g
@@ -99,10 +99,10 @@ contains
 !         if ( trapped .and. il > jend(ig))
           if ( trapped .and. il > jend(ig)) cycle 
 
-          adj = anon(ie)*2.0*vperp2(ig,iglo)*aj1(ig,iglo) &
+          adj = 2.0*vperp2(ig,iglo)*aj1(ig,iglo) &
                *bpar(ig,it,ik)*facbpar &
-               + spec(is)%z*anon(ie)*phi(ig,it,ik)*aj0(ig,iglo) &
-               /spec(is)%temp*facphi
+               + spec(is)%zt*phi(ig,it,ik)*aj0(ig,iglo) &
+               *facphi*nonmaxw_corr(ie,is)
           g(ig,1,iglo) = g(ig,1,iglo) + adj
           g(ig,2,iglo) = g(ig,2,iglo) + adj
        end do

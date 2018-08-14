@@ -115,6 +115,8 @@ MAKE_LIB ?=
 LOWFLOW ?=
 # Compile with PETSC/SLEPC support for determining eigensystem (bin).
 WITH_EIG ?=
+# Include LAPACK and GSL libraries for genquad scheme
+GENQUAD ?=
 
 # Compile with the new simplified diagnostics module
 USE_NEW_DIAG ?=on
@@ -142,7 +144,6 @@ RUN_NAME_SIZE?=2000
 # If defined, fpp files will be preprocessed and compiled in one step, as
 # is normal for modern FORTRAN compilers
 ONE_STEP_PP?=
-
 #
 # * Targets:
 #
@@ -194,6 +195,8 @@ FFT_INC ?=
 FFT_LIB ?=
 EIG_INC ?=
 EIG_LIB ?=
+GENQUAD_INC ?=
+GENQUAD_LIB ?=
 NETCDF_INC ?=
 NETCDF_LIB ?=
 HDF5_INC ?=
@@ -343,6 +346,11 @@ ifeq ($(USE_FFT),fftw3)
 	FFT_LIB ?= -lfftw -lrfftw
 endif
 
+ifdef GENQUAD
+	GENQUAD_LIB ?= -llapack 
+	CPPFLAGS += -DGENQUAD
+endif
+
 ifeq ($(USE_FFT),mkl_fftw)
 	CPPFLAGS += -DFFT=_FFTW_
 endif
@@ -462,11 +470,11 @@ simpledataio:
 endif
 
 LIBS	+= $(DEFAULT_LIB) $(MPI_LIB) $(NETCDF_LIB) $(HDF5_LIB) $(FFT_LIB) \
-		$(IPM_LIB) $(NAG_LIB) $(EIG_LIB)
+		$(IPM_LIB) $(NAG_LIB) $(EIG_LIB) $(GENQUAD_LIB)
 PLIBS 	+= $(LIBS) $(PGPLOT_LIB)
 F90FLAGS+= $(F90OPTFLAGS) \
-	   $(DEFAULT_INC) $(MPI_INC) $(NETCDF_INC) $(HDF5_INC)  $(FFT_INC)\
-		 $(SIMPLEDATAIO_INC) $(EIG_INC)
+	   $(DEFAULT_INC) $(MPI_INC) $(NETCDF_INC) $(HDF5_INC) $(FFT_INC)\
+		 $(SIMPLEDATAIO_INC) $(EIG_INC) $(GENQUAD_INC)
 CFLAGS += $(COPTFLAGS) \
 	   $(DEFAULT_INC) $(MPI_INC) $(NETCDF_INC) $(HDF5_INC) $(FFT_INC) 
 
@@ -640,7 +648,6 @@ sinclude Makefile.target_$(GK_PROJECT)
 
 .INTERMEDIATE: $(GK_PROJECT)_transforms.f90 $(GK_PROJECT)_io.f90 $(GK_PROJECT)_save.f90 \
 		mp.f90 fft_work.f90
-
 
 layouts_indices.o: layouts_type.h
 layouts_type.h: layouts_type.f90
