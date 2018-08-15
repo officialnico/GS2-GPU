@@ -152,6 +152,8 @@ module diagnostics_config
      logical :: save_many
      logical :: file_safety_check
      logical :: save_distfn
+     logical :: save_glo_info_and_grids
+     logical :: save_velocities
      logical :: write_zonal_transfer
      logical :: write_collisional
      logical :: write_omavg
@@ -305,6 +307,8 @@ contains
     logical :: save_many
     logical :: file_safety_check
     logical :: save_distfn
+    logical :: save_glo_info_and_grids
+    logical :: save_velocities
     logical :: write_zonal_transfer
     logical :: write_collisional
     logical :: write_omavg
@@ -383,6 +387,8 @@ contains
          save_many, &
          file_safety_check, &
          save_distfn, &
+         save_glo_info_and_grids, &
+         save_velocities, &
          write_zonal_transfer, &
          write_collisional, &
          write_omavg, &
@@ -465,6 +471,8 @@ contains
        save_many = .false.
        file_safety_check = .true.
        save_distfn = .false.
+       save_glo_info_and_grids = .false.
+       save_velocities = .false.
        write_zonal_transfer = .false.
        write_collisional = .false.
        write_omavg = .true.
@@ -546,6 +554,8 @@ contains
        gnostics%save_many = save_many
        gnostics%file_safety_check = file_safety_check
        gnostics%save_distfn = save_distfn
+       gnostics%save_glo_info_and_grids = save_glo_info_and_grids
+       gnostics%save_velocities = save_velocities
        gnostics%write_zonal_transfer = write_zonal_transfer
        gnostics%write_collisional = write_collisional
        gnostics%write_omavg = write_omavg
@@ -629,6 +639,8 @@ contains
     call broadcast (gnostics%save_many)
     call broadcast (gnostics%file_safety_check)
     call broadcast (gnostics%save_distfn)
+    call broadcast (gnostics%save_glo_info_and_grids)
+    call broadcast (gnostics%save_velocities)
     call broadcast (gnostics%write_zonal_transfer)
     call broadcast (gnostics%write_collisional)
     call broadcast (gnostics%write_omavg)

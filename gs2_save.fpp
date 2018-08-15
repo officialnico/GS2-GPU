@@ -24,7 +24,7 @@ module gs2_save
   use netcdf_utils, only: get_netcdf_code_precision
   use netcdf_utils, only: check_netcdf_file_precision
   use netcdf_utils, only: netcdf_error
-  use netcdf_utils, only: netcdf_real, kind_nf
+  use netcdf_utils, only: netcdf_real, netcdf_int, kind_nf
 # endif
 
   implicit none
@@ -71,10 +71,14 @@ module gs2_save
   integer (kind_nf) :: current_scan_parameter_value_id
   integer (kind_nf) :: a_antr_id, b_antr_id, a_anti_id, b_anti_id
 !<DD> Added for saving distribution function
+  integer (kind_nf) :: iglo_kykxsel_id, procid_kykxsel_id, iglo_llim_proc_id ! MRH added layout information for plotting
+  integer (kind_nf) :: theta_grid_id, kx_grid_id, ky_grid_id, jtwist_id ! MRH added grid information for plotting 
   INTEGER (KIND_NF) :: egridid,lgridid, vpa_id, vperp2_id
   INTEGER (KIND_NF) :: energy_id, lambda_id
   INTEGER (KIND_NF) :: nspecid, spec_id
   LOGICAL :: initialized_dfn= .false.
+  ! MRH arrays holding information about the layout for plotting
+  integer, dimension (:,:,:,:,:), allocatable :: procid_kykxsel, iglo_kykxsel
 !</DD> Added for saving distribution function
 !  integer (kind_nf) :: netcdf_real=0
 
@@ -88,34 +92,39 @@ module gs2_save
   !! I can think of no conceivable reason why this
   !! would ever need to be .false., but comments welcome. EGH
   logical, parameter :: abort_on_restart_fail = .true.
+  
 # endif
 
 contains
 
   subroutine gs2_save_for_restart &
-       (g, t0, delt0, vnm, istatus, fphi, fapar, fbpar, exit_in, distfn, fileopt)
+       (g, t0, delt0, vnm, istatus, fphi, fapar, fbpar, exit_in, distfn, fileopt, &
+        save_glo_info_and_grids, save_velocities)
 !<DD 18-10-2010> Added flag distfn to gs2_save_for_restart
 !If present then will save to "rootname.nc.dfn.proc" and will
 !include extra information including velocity and energy grids
 !</DD>
 !CMR, 5/4/2011: Add optional parameter fileopt to add to output filename
-
+! MRH 15/08/2018: added options to save g lo info and velocities for 
+! diagnostics for either restart .nc or save_dfn .nc.dfn files
+! These options change save_dfn =.true. default behaviour
 !MR, 2007: save kx_shift array in restart file if allocated    
 # ifdef NETCDF
     use fields_arrays, only: phinew, aparnew, bparnew
     use dist_fn_arrays, only: kx_shift  !MR
-    use kt_grids, only: naky, ntheta0
+    use kt_grids, only: naky, ntheta0, jtwist_out, akx, aky
     use antenna_data, only: nk_stir, a_ant, b_ant, ant_on
 # else
     use mp, only: proc0
 # endif    
-    use mp, only: iproc, barrier
-    use theta_grid, only: ntgrid
+    use mp, only: iproc, barrier, proc0
+    use theta_grid, only: ntgrid, theta
 ! Must include g_layout_type here to avoid obscure bomb while compiling
 ! gs2_diagnostics.f90 (which uses this module) with the Compaq F90 compiler:
 ! TT>
 !    use gs2_layouts, only: g_lo, g_layout_type
     use gs2_layouts, only: g_lo
+    use gs2_layouts, only: proc_id,ik_idx,it_idx,is_idx,ie_idx,il_idx ! MRH layout information for plotting
 # ifdef NETCDF_PARALLEL
     use gs2_layouts, only: layout
 # endif
@@ -138,6 +147,8 @@ contains
     logical, intent (in), optional :: exit_in
     LOGICAL, INTENT (in), optional :: distfn !<DD> Added for saving distribution function
     character (20), INTENT (in), optional :: fileopt
+    logical, intent (in), optional :: save_glo_info_and_grids ! MRH added to control if layout and diagnostic information is saved
+    logical, intent (in), optional :: save_velocities ! MRH added to control if vpa, vperp information is saved
 # ifdef NETCDF
     character (run_name_size) :: file_proc
     character (10) :: suffix
@@ -149,8 +160,9 @@ contains
 # endif
     logical :: exit
     logical :: local_init !<DD> Added for saving distribution function
+    logical :: save_glo_info_and_grids_local, save_velocities_info  ! MRH added to control if layout and diagnostic information is saved
     integer, parameter :: verb = 3
-
+    integer :: iglo
 
 !*********-----------------------_**********************
 
@@ -185,6 +197,18 @@ contains
        local_init=initialized
     END IF
     !</DD> Added for saving distribution function
+    
+     if(present(save_glo_info_and_grids)) then ! MRH 
+        save_glo_info_and_grids_local = save_glo_info_and_grids
+    else
+        save_glo_info_and_grids_local = .false.
+    endif 
+    
+    if(present(save_velocities)) then ! MRH 
+        save_velocities_info = save_velocities
+    else
+        save_velocities_info = .false.
+    endif 
     
     if (.not.local_init) then
 
@@ -325,9 +349,9 @@ contains
           end if
        end if
        
-       !<DD> Added for saving distribution function
-       IF (PRESENT(distfn)) THEN
-          !<DD 29-08-2010> Define energy and lambda dimensions
+       !For saving distribution function
+       IF (save_glo_info_and_grids_local .and. proc0) THEN ! only need these dimensions on proc0
+          !Define energy and lambda dimensions
 
           !Define negrid dimension (number of energy grid points)
           istatus = nf90_def_dim (ncid, "negrid", negrid, egridid)
@@ -348,9 +372,6 @@ contains
              WRITE(ierr,*) "nf90_def_dim nlambda error: ", nf90_strerror(istatus)
              GOTO 1
           END IF
-          !</DD>
-          
-          !<DD 01-09-2010> Define species dimension
           
           !Define nspec dimension (number of species)
           istatus = nf90_def_dim (ncid, "nspec", nspec, nspecid)
@@ -361,9 +382,9 @@ contains
              WRITE(ierr,*) "nf90_def_dim nspec error: ", nf90_strerror(istatus)
              GOTO 1
           END IF
-          !</DD>
+          
        END IF
-       !</DD> Added for saving distribution function
+       !For saving distribution function
        
        if (netcdf_real == 0) netcdf_real = get_netcdf_code_precision()
 
@@ -519,44 +540,131 @@ contains
              end if
           end if
 
-          !<DD> Added for saving distribution function
-          IF (PRESENT(distfn)) THEN
-             !<DD 29-08-2010> Define energy and lambda variables
-             !Define energy variable 
-             istatus = nf90_def_var (ncid, "energy", netcdf_real, (/ egridid /), energy_id)
+          !For saving distribution function
+          IF (save_glo_info_and_grids_local) THEN
+             if(proc0) then ! only store layout information on processor 0
+                 ! allocate layout information arrays for plotting
+                 if(.not. allocated(iglo_kykxsel)) allocate(iglo_kykxsel(naky,ntheta0,nspec,negrid,nlambda))
+                 if(.not. allocated(procid_kykxsel)) allocate(procid_kykxsel(naky,ntheta0,nspec,negrid,nlambda))
+                 
+                 do iglo=g_lo%llim_world,g_lo%ulim_world
+                    iglo_kykxsel(ik_idx(g_lo,iglo),it_idx(g_lo,iglo),is_idx(g_lo,iglo),ie_idx(g_lo,iglo),il_idx(g_lo,iglo)) = &
+                      iglo 
+                 enddo
+                 do iglo=g_lo%llim_world,g_lo%ulim_world
+                    procid_kykxsel(ik_idx(g_lo,iglo),it_idx(g_lo,iglo),is_idx(g_lo,iglo),ie_idx(g_lo,iglo),il_idx(g_lo,iglo)) = &
+                      proc_id(g_lo,iglo) 
+                 enddo
+                 !define layout information for plotting
+                 !Define iglo_kykxsel variable 
+                 istatus = nf90_def_var (ncid, "iglo_kykxsel", netcdf_int, (/ kyid, kxid, nspecid, egridid, lgridid /), iglo_kykxsel_id)
+                 
+                 !Check variable created successfully
+                 IF (istatus /= NF90_NOERR) THEN
+                    ierr = error_unit()
+                    WRITE(ierr,*) "nf90_def_var iglo_kykxsel error: ", nf90_strerror(istatus)
+                    GOTO 1
+                 END IF
+
+                 !Define procid_kykxsel variable 
+                 istatus = nf90_def_var (ncid, "procid_kykxsel", netcdf_int, (/ kyid, kxid, nspecid, egridid, lgridid /), procid_kykxsel_id)
+                 
+                 !Check variable created successfully
+                 IF (istatus /= NF90_NOERR) THEN
+                    ierr = error_unit()
+                    WRITE(ierr,*) "nf90_def_var procid_kykxsel error: ", nf90_strerror(istatus)
+                    GOTO 1
+                 END IF
+             endif
+             !Define iglo_llim_proc variable 
+             istatus = nf90_def_var (ncid, "iglo_llim_proc", netcdf_int, iglo_llim_proc_id)
              
              !Check variable created successfully
              IF (istatus /= NF90_NOERR) THEN
                 ierr = error_unit()
-                WRITE(ierr,*) "nf90_def_var energy error: ", nf90_strerror(istatus)
+                WRITE(ierr,*) "nf90_def_var iglo_llim_proc error: ", nf90_strerror(istatus)
                 GOTO 1
              END IF
              
-             !Define lambda variable (pitch angles)
-             istatus = nf90_def_var (ncid, "lambda", netcdf_real, &
-                  (/ lgridid /), lambda_id)
+             if(proc0) then ! only save grids on proc0
+                 !Define jtwist variable 
+                 istatus = nf90_def_var (ncid, "jtwist", netcdf_int, jtwist_id)
+                 
+                 !Check variable created successfully
+                 IF (istatus /= NF90_NOERR) THEN
+                    ierr = error_unit()
+                    WRITE(ierr,*) "nf90_def_var jtwist error: ", nf90_strerror(istatus)
+                    GOTO 1
+                 END IF
+                 
+                 !Define theta_grid variable 
+                 istatus = nf90_def_var (ncid, "theta_grid", netcdf_real, (/ thetaid /), theta_grid_id)
+                 
+                 !Check variable created successfully
+                 IF (istatus /= NF90_NOERR) THEN
+                    ierr = error_unit()
+                    WRITE(ierr,*) "nf90_def_var theta_grid error: ", nf90_strerror(istatus)
+                    GOTO 1
+                 END IF
+                 
+                 !Define ky_grid variable 
+                 istatus = nf90_def_var (ncid, "ky_grid", netcdf_real, (/ kyid /), ky_grid_id)
+                 
+                 !Check variable created successfully
+                 IF (istatus /= NF90_NOERR) THEN
+                    ierr = error_unit()
+                    WRITE(ierr,*) "nf90_def_var ky_grid error: ", nf90_strerror(istatus)
+                    GOTO 1
+                 END IF
+                 
+                 !Define kx_grid variable 
+                 istatus = nf90_def_var (ncid, "kx_grid", netcdf_real, (/ kxid /), kx_grid_id)
+                 
+                 !Check variable created successfully
+                 IF (istatus /= NF90_NOERR) THEN
+                    ierr = error_unit()
+                    WRITE(ierr,*) "nf90_def_var kx_grid error: ", nf90_strerror(istatus)
+                    GOTO 1
+                 END IF
+                 
+                 !Define energy and lambda variables
+                 !Define energy variable 
+                 istatus = nf90_def_var (ncid, "energy", netcdf_real, (/ egridid /), energy_id)
+                 
+                 !Check variable created successfully
+                 IF (istatus /= NF90_NOERR) THEN
+                    ierr = error_unit()
+                    WRITE(ierr,*) "nf90_def_var energy error: ", nf90_strerror(istatus)
+                    GOTO 1
+                 END IF
+                 
+                 !Define lambda variable (pitch angles)
+                 istatus = nf90_def_var (ncid, "lambda", netcdf_real, &
+                      (/ lgridid /), lambda_id)
+                 
+                 !Check variable created successfully
+                 IF (istatus /= NF90_NOERR) THEN
+                    ierr = error_unit()
+                    WRITE(ierr,*) "nf90_def_var lambda error: ", nf90_strerror(istatus)
+                    GOTO 1
+                 END IF
+                 
+                 !Define species variable - n.b. this variable seems redundant MRH
+                 istatus = nf90_def_var (ncid, "species", netcdf_real, &
+                      (/ nspecid /), spec_id)
+                 !Check variable created successfully
+                 IF (istatus /= NF90_NOERR) THEN
+                    ierr = error_unit()
+                    WRITE(ierr,*) "nf90_def_var species error: ",nf90_strerror(istatus)
+                    GOTO 1
+                 END IF
+              
+             endif
              
-             !Check variable created successfully
-             IF (istatus /= NF90_NOERR) THEN
-                ierr = error_unit()
-                WRITE(ierr,*) "nf90_def_var lambda error: ", nf90_strerror(istatus)
-                GOTO 1
-             END IF
-             !</DD>
-             
-             !<DD 01-09-2010> define species variable
-             !Define species variable
-             istatus = nf90_def_var (ncid, "species", netcdf_real, &
-                  (/ nspecid /), spec_id)
-             !Check variable created successfully
-             IF (istatus /= NF90_NOERR) THEN
-                ierr = error_unit()
-                WRITE(ierr,*) "nf90_def_var species error: ",nf90_strerror(istatus)
-                GOTO 1
-             END IF
-             !</DD>
-             
-             !<DD 02-09-2010> Define velocity variables
+          END IF
+          
+          if(save_velocities_info) then 
+             !Define velocity variables
              !Define vpa variable
              istatus = nf90_def_var (ncid, "vpa", netcdf_real, &
                   (/ thetaid, signid, gloid /), vpa_id)
@@ -578,9 +686,9 @@ contains
                 WRITE(ierr,*) "nf90_def_var vperp2 error: ",nf90_strerror(istatus)
                 GOTO 1
              END IF
-             !</DD>
-          END IF
-          !</DD> Added for saving distribution function
+             
+          endif
+          ! For saving distribution function
        end if
 
 ! remove allocated conditional because we want to be able to restart
@@ -748,24 +856,70 @@ contains
        if (istatus /= NF90_NOERR) call netcdf_error (istatus, ncid, gi_id, &
          var = 'gi put')
        
-       !<DD> Added for saving distribution function
-       IF (PRESENT(distfn)) THEN
-          !<DD 29-08-2010> Fill energy and lambda information
+       ! For saving distribution function
+       IF (save_glo_info_and_grids_local) THEN
+          ! Fill processor and layout information for plotting purposes
+          if (proc0) then
+              istatus = nf90_put_var (ncid, iglo_kykxsel_id, iglo_kykxsel)
+              
+              !Check store was successful
+              IF (istatus /= NF90_NOERR) CALL netcdf_error (istatus, ncid, iglo_kykxsel_id)
+
+
+              istatus = nf90_put_var (ncid, procid_kykxsel_id, procid_kykxsel)
+              
+              !Check store was successful
+              IF (istatus /= NF90_NOERR) CALL netcdf_error (istatus, ncid, procid_kykxsel_id)
+          endif
           
-          !Store variable energy
-          istatus = nf90_put_var (ncid, energy_id, energy)
+          !Store variable iglo_llim_proc
+          istatus = nf90_put_var (ncid, iglo_llim_proc_id, g_lo%llim_proc)
           
           !Check store was successful
-          IF (istatus /= NF90_NOERR) CALL netcdf_error (istatus, ncid, energy_id)
+          IF (istatus /= NF90_NOERR) CALL netcdf_error (istatus, ncid, iglo_llim_proc_id)
           
-          !Store variable lambda
-          istatus = nf90_put_var (ncid, lambda_id, al)
+          if(proc0) then ! only save grids on proc0
+              !Store variable jtwist
+              istatus = nf90_put_var (ncid, jtwist_id, jtwist_out)
+              
+              !Check store was successful
+              IF (istatus /= NF90_NOERR) CALL netcdf_error (istatus, ncid, jtwist_id)
+              
+              !Store variable theta_grid
+              istatus = nf90_put_var (ncid, theta_grid_id, theta)
+              
+              !Check store was successful
+              IF (istatus /= NF90_NOERR) CALL netcdf_error (istatus, ncid, theta_grid_id)
+              
+              !Store variable ky_grid
+              istatus = nf90_put_var (ncid, ky_grid_id, aky)
+              
+              !Check store was successful
+              IF (istatus /= NF90_NOERR) CALL netcdf_error (istatus, ncid, ky_grid_id)
+              
+              !Store variable kx_grid
+              istatus = nf90_put_var (ncid, kx_grid_id, akx)
+              
+              !Check store was successful
+              IF (istatus /= NF90_NOERR) CALL netcdf_error (istatus, ncid, kx_grid_id)
+              ! Fill energy and lambda information
+              
+              !Store variable energy
+              istatus = nf90_put_var (ncid, energy_id, energy)
+              
+              !Check store was successful
+              IF (istatus /= NF90_NOERR) CALL netcdf_error (istatus, ncid, energy_id)
+              
+              !Store variable lambda
+              istatus = nf90_put_var (ncid, lambda_id, al)
+              
+              !Check store was successful
+              IF (istatus /= NF90_NOERR) CALL netcdf_error (istatus, ncid, lambda_id)
+           endif
+       END IF
           
-          !Check store was successful
-          IF (istatus /= NF90_NOERR) CALL netcdf_error (istatus, ncid, lambda_id)
-          !</DD>
-          
-          !<DD 02-09-2010> Fill velocity variables
+       if(save_velocities_info) then
+          !Fill velocity variables
           
           !Store variable vpa
           istatus = nf90_put_var (ncid, vpa_id, vpa)
@@ -778,10 +932,8 @@ contains
           
           !Check store was successful
           IF (istatus /= NF90_NOERR) CALL netcdf_error (istatus, ncid, vperp2_id)
-          !</DD>
-       END IF
-       !</DD> Added for saving distribution function
-
+       endif
+       
 # ifdef NETCDF_PARALLEL                    
        if(save_many .or. iproc == 0) then
 # endif
@@ -864,6 +1016,10 @@ contains
 
 # endif
 
+    ! deallocate layout information arrays
+    if(allocated(iglo_kykxsel)) deallocate(iglo_kykxsel)
+    if(allocated(procid_kykxsel)) deallocate(procid_kykxsel)
+    
   end subroutine gs2_save_for_restart
 
   subroutine gs2_restore_many (g, scale, istatus, fphi, fapar, fbpar, fileopt)

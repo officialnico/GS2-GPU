@@ -139,8 +139,15 @@ input_variables_for_diagnostics_config = [
   ['logical', 'file_safety_check', '.true.'],
 
   # Save the distribution function
+  # MRH - saves the nonadiabatic piece in restart file format
   ['logical', 'save_distfn', '.false.'],
-
+  # MRH - saves glo layout information and the grids
+  #for diagnostic purposes in the restart file for proc0
+  ['logical', 'save_glo_info_and_grids', '.false.'],
+  # MRH controls if vpa(glo,theta), vperp2(glo,theta)
+  # are saved in the restart file
+  ['logical', 'save_velocities', '.false.'],
+  
   # Write free energy transfer as function of kx,ky
   ['logical', 'write_zonal_transfer', '.false.'],
   # Write collisional free energy dissipation as function of kx,ky

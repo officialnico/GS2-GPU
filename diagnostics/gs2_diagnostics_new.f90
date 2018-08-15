@@ -366,7 +366,9 @@ contains
     integer :: istatus
     if (gnostics%save_for_restart) then
        call gs2_save_for_restart (gnew, gnostics%user_time, user_dt, vnmult, istatus, &
-            fphi, fapar, fbpar, exit_in=.true.)
+            fphi, fapar, fbpar, exit_in=.true., & 
+            save_glo_info_and_grids= gnostics%save_glo_info_and_grids, &
+            save_velocities=gnostics%save_velocities)
     end if
     
     !<DD> Added for saving distribution function
@@ -376,7 +378,9 @@ contains
        
        !Save dfn, fields and velocity grids to file
        call gs2_save_for_restart (gnew, gnostics%user_time, user_dt, vnmult, istatus, &
-            fphi, fapar, fbpar, exit_in=.true.,distfn=.true.)
+            fphi, fapar, fbpar, exit_in=.true.,distfn=.true., & 
+            save_glo_info_and_grids= gnostics%save_glo_info_and_grids, &
+            save_velocities=gnostics%save_velocities)
        
        !Convert distribution function back to h
        call g_adjust(gnew,phinew,bparnew,-fphi,-fbpar)
