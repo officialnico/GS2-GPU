@@ -912,7 +912,7 @@ contains
     chop_side = .true.
     left = .true.
     even = .true.
-    clean_init=.false.
+    clean_init=.true. ! MRH Default changed 15/08/2018 Initial conditions should satisfy boundary condition
     new_field_init = .true.
     ikk(1) = 1
     ikk(2) = 2
