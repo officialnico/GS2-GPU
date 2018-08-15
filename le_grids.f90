@@ -252,7 +252,11 @@ module le_grids
   logical :: test = .false.
   logical :: trapped_particles = .true.
   logical :: new_trap_int = .false.
-
+  logical :: radau_gauss_grid =.true. ! default lambda grid changed
+  ! The default lambda grid is now gauss-radau, for passing particles up to 
+  ! and including the passing-trapped boundary (wfb). The grid gives finite weight to
+  ! the class of particles which bounce at theta = +/- pi (wfb) in the passing integral
+  ! Note that the old gauss-legendre is used in the case that trapped_particles =.false.
   logical :: intinit = .false.
   logical :: slintinit = .false.
   logical :: lintinit = .false.
@@ -430,6 +434,7 @@ contains
     call broadcast (test)
     call broadcast (nmax)
     call broadcast (trapped_particles)
+    call broadcast (radau_gauss_grid)
     call broadcast (wgt_fac)
     call broadcast (new_trap_int)
     call broadcast (nterp)
@@ -506,7 +511,8 @@ contains
     integer :: in_file
     namelist /le_grids_knobs/ ngauss, negrid, bouncefuzz, &
          nesuper, nesub, test, trapped_particles, &
-         nmax, wgt_fac, new_trap_int, nterp, vcut, genquad
+         nmax, wgt_fac, new_trap_int, nterp, vcut, genquad, &
+         radau_gauss_grid
 
     nesub = 8
     nesuper = 2
@@ -2161,13 +2167,13 @@ contains
 
   subroutine lgridset
     use theta_grid, only: ntgrid, bmag, bmax, eps
-    use gauss_quad, only: get_legendre_grids_from_cheb
+    use gauss_quad, only: get_legendre_grids_from_cheb, get_radau_gauss_grids
     use file_utils, only: open_output_file, close_output_file
     implicit none
 
 ! note that xgauss and wgauss are transposed wrt original code
 
-    real, dimension (2*ngauss) :: wx
+    real, dimension (:), allocatable :: wx, xx_radau
     real, dimension (:), allocatable :: ytmp, yb, yberr, wb, wberrtmp
     real, dimension (:,:), allocatable :: wberr
     integer :: npts, ix, ntrap
@@ -2178,9 +2184,21 @@ contains
 
 
     allocate (xx(2*ngauss))
-
-    call get_legendre_grids_from_cheb (1., 0., xx, wx)
-
+    if(radau_gauss_grid .and. nlambda > ng2 ) then
+        
+        ! This grid uses a fixed endpoint such that il = ng2+1 has a finite weight at bounce points
+        ! which contributes to the integration over passing particles
+        ! which is why xx, wx are one element longer than the standard Legendre Gauss grid
+        ! This grid should only be used when nlambda > ng2, i.e. there is a wfb and trapped particles
+ 
+        allocate (xx_radau(2*ngauss +1))
+        allocate (wx(2*ngauss +1))
+        call get_radau_gauss_grids(0.,1., xx_radau, wx,report_in=.false.) 
+        xx = xx_radau(:ng2)
+    else
+        allocate (wx(2*ngauss))
+        call get_legendre_grids_from_cheb (1., 0., xx, wx)
+    end if
     wl = 0.0
 
     al(:ng2) = (1.0 - xx(:ng2)**2)/bmax
@@ -2191,7 +2209,21 @@ contains
                *((1.0/bmax-al(il))/(1.0/bmag(ig)-al(il))))
        end do
     end do
-
+    ! assign the weight for wfb from the radau-gauss grid
+    if(radau_gauss_grid .and. nlambda > ng2 ) then
+        il=ng2+1
+        do ig = -ntgrid, ntgrid
+            if(bmag(ig)<bmax) then ! i.e. we are not the bounce point for wfb
+                wl(ig,il) = wx(il)*2.0*sqrt((bmag(ig)/bmax) &
+                 *((1.0/bmax-al(il))/(1.0/bmag(ig)-al(il))))
+            else ! at the bounce point
+                wl(ig,il) = wx(il)*2.0 
+            endif
+        end do
+    end if
+    
+    if(allocated(wx)) deallocate(wx)
+    
     jend = 0
     forbid = .false.
 
