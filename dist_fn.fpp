@@ -117,7 +117,13 @@ module dist_fn
 !CMR, 12/9/13: New logical cllc to modify order of operator in timeadv
 !CMR, 21/5/14: New logical wfb_cmr to enforce trapping conditions on wfb
   logical :: wfb_cmr
-
+  logical :: trapped_wfb, passing_wfb
+! MRH trapped_wfb, passing_wfb control the choice of wfb boundary condition
+  integer :: wfbbc_option_switch
+  integer, parameter :: wfbbc_option_mixed = 1, &
+       wfbbc_option_passing = 2, &
+       wfbbc_option_trapped = 3
+       
   real :: densfac_lin, uparfac_lin, tparfac_lin, tprpfac_lin
   real :: qparfac_lin, qprpfac_lin, phifac_lin
 
@@ -965,12 +971,20 @@ contains
             text_option('iphi00=2', adiabatic_option_fieldlineavg), &
             text_option('iphi00=3', adiabatic_option_yavg)/)
     character(30) :: adiabatic_option
+    
+    type (text_option), dimension (4), parameter :: wfbbcopts = &
+         (/ text_option('default', wfbbc_option_mixed), &
+            text_option('passing', wfbbc_option_passing), &
+            text_option('trapped', wfbbc_option_trapped), &
+            text_option('mixed', wfbbc_option_mixed)/)
+    character(20) :: wfbbc_option
             
     namelist /dist_fn_knobs/ boundary_option, nonad_zero, gridfac, apfac, &
          driftknob, tpdriftknob, poisfac, adiabatic_option, &
          kfilter, afilter, mult_imp, test, def_parity, even, wfb, &
          g_exb, g_exbfac, omprimfac, btor_slab, mach, lf_default, &
          g_exb_start_time, g_exb_start_timestep, g_exb_error_limit, &
+         wfbbc_option, &
 
          lf_decompose, esv, wfb_cmr, opt_init_bc, opt_source, zero_forbid, &
          densfac_lin, uparfac_lin, tparfac_lin, tprpfac_lin, &
@@ -988,6 +1002,9 @@ contains
        boundary_option = 'default'
        nonad_zero = .true.  ! BD: Default value changed to TRUE  8.15.13
        wfb_cmr= .false.
+       trapped_wfb = .false.! flag for treating wfb as a trapped particle
+       passing_wfb = .false.! flag for treating wfb as a passing particle
+       wfbbc_option = 'default'
        esv = .false.
        opt_init_bc = .false.
        opt_source = .false.
@@ -1049,6 +1066,9 @@ contains
             (boundary_option, boundaryopts, boundary_option_switch, &
             ierr, "boundary_option in dist_fn_knobs",.true.)
 
+       call get_option_value &
+            (wfbbc_option, wfbbcopts, wfbbc_option_switch, &
+            ierr, "wfbbc_option in dist_fn_knobs",.true.)
 
        call get_option_value &
             (source_option, sourceopts, source_option_switch, &
@@ -1057,6 +1077,26 @@ contains
             (adiabatic_option, adiabaticopts, adiabatic_option_switch, &
             ierr, "adiabatic_option in dist_fn_knobs",.true.)
 
+       select case (wfbbc_option_switch)
+        case(wfbbc_option_mixed) ! The previous default boundary condition which mixes the passing and trapped boundary conditions
+            passing_wfb =.false.
+            trapped_wfb =.false.
+        case(wfbbc_option_passing) ! Treats wfb using a passing particle boundary condition 
+            passing_wfb =.true.
+            trapped_wfb =.false.
+        case(wfbbc_option_trapped) ! Treats the wfb using a trapped particle boundary condition 
+            passing_wfb =.false.
+            trapped_wfb =.true.
+       end select
+       
+       if ((trapped_wfb .or. passing_wfb).and. opt_init_bc ) then
+        write (*,*) "opt_init_bc = T is not supported when trapped_wfb = T or passing_wfb = T"
+        write (*,*) "forcing opt_init_bc = F"
+        write (ierr,*) "opt_init_bc = T is not supported when trapped_wfb = T or passing_wfb = T"
+        write (ierr,*) "forcing opt_init_bc = F"
+        opt_init_bc = .false.
+       endif
+       
     end if
     if (.not.allocated(fexp)) allocate (fexp(nspec), bkdiff(nspec), bd_exp(nspec))
     if (proc0) call read_species_knobs
@@ -1064,6 +1104,9 @@ contains
     call broadcast (boundary_option_switch)
     call broadcast (nonad_zero)
     call broadcast (wfb_cmr)
+    call broadcast (trapped_wfb)
+    call broadcast (passing_wfb)
+    call broadcast (wfbbc_option_switch)
     call broadcast (esv)
     call broadcast (opt_init_bc)
     call broadcast (opt_source)
@@ -1924,7 +1967,9 @@ endif
        ! to mode j (kx) so we can set up communication -- MAB
 
 ! if non-wfb trapped particle, no connections
-       if (nlambda > ng2 .and. il >= ng2+2) then
+! or if wfb is trapped, no connections
+       if ((nlambda > ng2 .and. il >= ng2+2) .or. &
+       (nlambda > ng2 .and. il == ng2+1 .and. trapped_wfb)) then
           connections(iglo)%iproc_left = -1
           connections(iglo)%iglo_left = -1
           connections(iglo)%iproc_right = -1
@@ -1969,10 +2014,12 @@ endif
           if ( wfb_cmr ) then
 ! if wfb_cmr = .t.  do NOT save homogeneous solutions for wfb
              if (nlambda > ng2 .and. il == ng2+1) save_h(:,iglo) = .false.
-          else
+          else ! MRH below should not occur if we are treating wfb as standard passing
+               ! since save_h for passing particles is handled above
              if (nlambda > ng2               .and. &
                   il == ng2+1                .and. &
                   connections(iglo)%neighbor .and. &
+                  .not. passing_wfb .and. & 
                   aky(ik) /= 0.0) &
                   save_h (:,iglo) = .true.
           endif
@@ -2034,7 +2081,7 @@ endif
           end do
        end do
 ! wfb
-       if (n_links_max > 0) n_links_max = n_links_max + 3
+       if (n_links_max > 0 .and. (.not. trapped_wfb) .and. (.not. passing_wfb)) n_links_max = n_links_max + 3
        
 ! now set up communication pattern:
 ! excluding wfb
@@ -2051,9 +2098,13 @@ endif
 !                         (nb j=1 is nearest connection)
 
           il = il_idx(g_lo,iglo)
-          ! Exclude trapped particles (inc wfb)
-          if (nlambda > ng2 .and. il >= ng2+1) cycle
-
+          ! Exclude trapped particles (inc wfb-unless we treat it as passing)
+          if(passing_wfb) then
+            if (nlambda > ng2 .and. il >= ng2+2) cycle
+          else 
+            if (nlambda > ng2 .and. il >= ng2+1) cycle
+          endif
+          
           ip = proc_id(g_lo,iglo)
           ik = ik_idx(g_lo,iglo)
           it = it_idx(g_lo,iglo)
@@ -2110,8 +2161,12 @@ endif
        do iglo = g_lo%llim_world, g_lo%ulim_world
 
           il = il_idx(g_lo,iglo)
-          if (nlambda > ng2 .and. il >= ng2+1) cycle
-
+          if(passing_wfb) then
+            if (nlambda > ng2 .and. il >= ng2+2) cycle
+          else 
+            if (nlambda > ng2 .and. il >= ng2+1) cycle
+          endif
+          
           ip = proc_id(g_lo,iglo)
           ik = ik_idx(g_lo,iglo)
           it = it_idx(g_lo,iglo)
@@ -2187,9 +2242,9 @@ endif
        call delete_list (to)
        
 ! take care of wfb
-    if ( wfb_cmr ) then
+    if ( wfb_cmr .and. (.not. trapped_wfb) .and. (.not. passing_wfb) ) then
        call init_pass_wfb
-    else
+    else if ( (.not. trapped_wfb) .and. (.not. passing_wfb) ) then
 
        nn_to = 0
        nn_from = 0 
@@ -2360,8 +2415,12 @@ endif
 !          
 
           il = il_idx(g_lo,iglo)
-          if (nlambda > ng2 .and. il >= ng2+1) cycle
-
+          if(passing_wfb) then
+            if (nlambda > ng2 .and. il >= ng2+2) cycle
+          else 
+            if (nlambda > ng2 .and. il >= ng2+1) cycle
+          endif
+          
           ip = proc_id(g_lo,iglo)
           ik = ik_idx(g_lo,iglo)
           it = it_idx(g_lo,iglo)
@@ -2424,8 +2483,12 @@ endif
        do iglo = g_lo%llim_world, g_lo%ulim_world
 
           il = il_idx(g_lo,iglo)
-          if (nlambda > ng2 .and. il >= ng2+1) cycle
-
+          if(passing_wfb) then
+            if (nlambda > ng2 .and. il >= ng2+2) cycle
+          else 
+            if (nlambda > ng2 .and. il >= ng2+1) cycle
+          endif
+          
           ip = proc_id(g_lo,iglo)
           ik = ik_idx(g_lo,iglo)
           it = it_idx(g_lo,iglo)
@@ -2509,7 +2572,7 @@ endif
        call delete_list (to)
 
 ! now take care of wfb (homogeneous part)
-    if ( .not. wfb_cmr ) then
+    if ( (.not. wfb_cmr) .and. (.not. trapped_wfb) .and. (.not. passing_wfb)) then
        nn_to = 0
        nn_from = 0 
 
@@ -5316,7 +5379,7 @@ endif
 ! Here ensure ZERO incoming particles in nonadiabatic delta f at domain ends
 !  (exploits code used in subroutine g_adjust to transform g_wesson to g_gs2)
     if ( nonad_zero ) then 
-       if (il <= ng2) then
+       if (il <= ng2 .or. (il==ng2+1 .and. passing_wfb) ) then
           !Only apply the new boundary condition to the leftmost
           !cell for sign going from left to right
           if (l_links(ik,it) .eq. 0) then
@@ -5353,9 +5416,14 @@ endif
        end if
     end if
 
-    if (il == ng2+1) then ! ng2+1 is WFB
+    if (il == ng2+1 .and. (.not. trapped_wfb) .and. (.not. passing_wfb) ) then ! ng2+1 is WFB
        g1(-ntgrid,1) = wfb  ! wfb should be unity here; variable is for testing
        g1( ntgrid,2) = wfb  ! wfb should be unity here; variable is for testing
+    else if (il == ng2+1 .and. trapped_wfb) then ! MRH Only set the upper bounce point initial condition    
+       g1( ntgrid,2) = 1.0  
+    else if (il == ng2+1 .and. passing_wfb) then ! MRH give the passing initial condition
+       g1(-ntgrid,1) = 1.0
+       g1( ntgrid,2) = 1.0
     endif
 
 !CMR
@@ -5432,6 +5500,12 @@ endif
        end do
     end if
 
+    ! If trapped wfb enforce the bounce condition at the lower bounce point
+    if (nlambda > ng2 .and. il == ng2+1 .and. il <= lmax .and. trapped_wfb) then
+        ig = -ntgrid
+        g1(ig,1) = g1(ig,2)
+        gnew(ig,1,iglo) = gnew(ig,2,iglo)
+    endif 
     ! time advance vpar > 0 inhomogeneous part
     if (il <= lmax) then
        do ig = -ntgrid, ntgrid-1
@@ -5481,7 +5555,9 @@ endif
 !                     to satisfy self-periodic bc in fully linked SUPER-CELL
 
     if (boundary_option_switch == boundary_option_linked) then
-       if (speriod_flag .and. il <= ng2+1) then
+       if (speriod_flag .and. il <= ng2) then
+          call self_periodic
+       else if (speriod_flag .and. il==ng2+1 .and. .not. trapped_wfb) then
           call self_periodic
        else 
        ! save homogeneous solution as necessary
@@ -5490,14 +5566,14 @@ endif
        end if
 
 ! wfb (isolated)
-       if (il == ng2+1 .and. .not. connections(iglo)%neighbor) &
+       if (il == ng2+1 .and. .not. connections(iglo)%neighbor .and. .not. trapped_wfb .and. .not. passing_wfb ) &
             call self_periodic
 
     else       
        ! add correct amount of homogeneous solution now
-       if (use_pass_homog .and. il <= ng2+1) then
+       if (use_pass_homog .and. il <= ng2) then
           call self_periodic
-       else if (il == ng2 + 1) then
+       else if (il == ng2 + 1 .and. .not. trapped_wfb) then
           call self_periodic
        end if
 
@@ -5522,7 +5598,17 @@ endif
           gnew(ig,2,iglo) = gnew(ig,2,iglo) + beta1*g1(ig,2)
        end do
     end if
-
+! If wfb is trapped, enforce the bounce condition at the upper bounce point
+! By recombining, inhomogeneous and inhomogeneous solutions
+    if (il == ng2+1 .and. il <= lmax .and. trapped_wfb) then
+        ig = ntgrid
+        beta1 = (gnew(ig,1,iglo) - gnew(ig,2,iglo))/(1.0 - g1(ig,1))
+        do ig = ntgrid, -ntgrid, -1
+          gnew(ig,1,iglo) = gnew(ig,1,iglo) + beta1*g1(ig,1)
+          gnew(ig,2,iglo) = gnew(ig,2,iglo) + beta1*g1(ig,2)
+        end do
+    end if
+    
     if (def_parity) call enforce_parity(parity_redist)
 
 !CMR,DD, 25/7/2014: 
@@ -5558,7 +5644,7 @@ endif
       implicit none
       complex :: adjl, adjr, dadj
 
-      if (il .eq. ng2+1) then 
+      if ((il .eq. ng2+1 .and. nonad_zero) .and. .not. passing_wfb) then 
          adjl = 2.0*vperp2(ntgl,iglo)*aj1(ntgl,iglo) &
               *bparnew(ntgl,it,ik)*fbpar &
               + spec(is)%zt*phinew(ntgl,it,ik)*aj0(ntgl,iglo) &
@@ -5636,9 +5722,11 @@ endif
        !become partially serial.
        call fill (links_p, gnew, g_adj)
        call fill (links_h, g_h, g_adj)
-       call fill (wfb_p, gnew, g_adj)
-       call fill (wfb_h, g_h, g_adj)
-
+       if( (.not. trapped_wfb) .and. (.not. passing_wfb) ) then
+        call fill (wfb_p, gnew, g_adj)
+        call fill (wfb_h, g_h, g_adj)
+       endif
+       
        do iglo = g_lo%llim_proc, g_lo%ulim_proc
           ik = ik_idx(g_lo,iglo)
           it = it_idx(g_lo,iglo)
@@ -5649,7 +5737,7 @@ endif
           il = il_idx(g_lo,iglo)
 
 ! wfb
-          if (nlambda > ng2 .and. il == ng2+1) then
+          if ( (nlambda > ng2 .and. il == ng2+1) .and. (.not. trapped_wfb) .and. (.not. passing_wfb) ) then
              is = is_idx(g_lo,iglo)
              ie = ie_idx(g_lo,iglo)
 !CMR, 29/8/2014:
