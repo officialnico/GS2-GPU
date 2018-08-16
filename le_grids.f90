@@ -1231,7 +1231,7 @@ contains
 !   This MUST contribute to the v-space integral, but is NOT
 !   needed in collision operator as EQUIVALENT to g_lo(il=nlambda, isign=2).
 !   (In collisions at ig=0, both of these points are EXACTLY equivalent, xi=0.)
-!  
+!MRH actually nxi+1 is needed in the collision operator for consistency 16/08/2018
        if (spec(is)%type .NE. tracer_species) then
           do ixi=1, nxi+1
              il = ixi_to_il(ig,ixi)
@@ -1280,7 +1280,7 @@ contains
 !   This MUST contribute to the v-space integral, but is NOT
 !   needed in collision operator as EQUIVALENT to g_lo(il=nlambda, isign=2).
 !   (In collisions at ig=0, both of these points are EXACTLY equivalent, xi=0.)
-!  
+!MRH actually nxi+1 is needed in the collision operator for consistency 16/08/2018   
              do ixi=1, nxi+1
                 il = ixi_to_il(ig,ixi)
                 total(ig,it,ik) = total(ig,it,ik) + weights(is)*w(ie,is) * wl(ig,il) * g(ixi,ie,ile)
@@ -1770,7 +1770,7 @@ contains
 !   This MUST contribute to the v-space integral, but is NOT
 !   needed in collision operator as EQUIVALENT to g_lo(il=nlambda, isign=2).
 !   (In collisions at ig=0, both of these points are EXACTLY equivalent, xi=0.)
-!  
+!MRH actually nxi+1 is needed in the collision operator for consistency 16/08/2018!  
        do ixi=1, nxi+1
           il = ixi_to_il(ig,ixi)
           total(ig, it, ik, is) = total(ig, it, ik, is) + &
@@ -1822,7 +1822,7 @@ contains
 !   This MUST contribute to the v-space integral, but is NOT
 !   needed in collision operator as EQUIVALENT to g_lo(il=nlambda, isign=2).
 !   (In collisions at ig=0, both of these points are EXACTLY equivalent, xi=0.)
-!  
+!MRH actually nxi+1 is needed in the collision operator for consistency 16/08/2018  
           do ixi=1, nxup
              il = ixi_to_il(ig,ixi)
              total(ile) = total(ile) + w(ie,is) * wl(ig,il) * g(ixi,ie,ile)
@@ -1867,7 +1867,7 @@ contains
 !   This MUST contribute to the v-space integral, but is NOT
 !   needed in collision operator as EQUIVALENT to g_lo(il=nlambda, isign=2).
 !   (In collisions at ig=0, both of these points are EXACTLY equivalent, xi=0.)
-!  
+!MRH actually nxi+1 is needed in the collision operator for consistency 16/08/2018  
           do ixi=1, nxi+1
              il = ixi_to_il(ig,ixi)
              total(ig,it,ik,is) = total(ig,it,ik,is) + w(ie,is) * wl(ig,il) * g(ixi,ie,ile)
