@@ -64,6 +64,7 @@ module collisions
   logical :: test
   logical :: special_wfb_lorentz
   logical :: vpar_zero_mean
+  logical :: conserve_forbid_zero
   logical :: le_nxilim_fix
   
   integer, parameter :: collision_model_lorentz = 1      ! if this changes, check gs2_diagnostics
@@ -246,7 +247,7 @@ contains
          vnfac, etol, ewindow, ncheck, vnslow, vary_vnew, etola, ewindowa, &
          use_le_layout, special_wfb_lorentz, &
          split_collisions, vpar_zero_mean, &
-         le_nxilim_fix
+         conserve_forbid_zero, le_nxilim_fix
     integer :: ierr, in_file
 
     if (proc0) then
@@ -285,7 +286,7 @@ contains
 ! special_wfb_lorentz =.false. With these defaults pitch angle
 ! scattering at theta =+/- pi is now being handled physically
 ! i.e. vpar = 0 at this theta location is no longer being skipped  
-
+        conserve_forbid_zero = .true.
 ! MRH conserve_forbid_zero note
 ! the conserving terms calculated as part of the field
 ! particle collision operator should respect the forbidden
@@ -361,6 +362,7 @@ contains
     call broadcast (special_wfb_lorentz)
     call broadcast (split_collisions)
     call broadcast (vpar_zero_mean)
+    call broadcast (conserve_forbid_zero)
     call broadcast (le_nxilim_fix)
     
     drag = resistivity .and. (beta > epsilon(0.0)) .and. (nspec > 1) .and. (fapar.gt.0)
@@ -501,28 +503,45 @@ contains
     
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 ! Now get z0 (first form)
-
-    do iglo = g_lo%llim_proc, g_lo%ulim_proc
-       ik = ik_idx(g_lo,iglo)
-       ie = ie_idx(g_lo,iglo)
-       il = il_idx(g_lo,iglo)
-       is = is_idx(g_lo,iglo)
-       do isgn = 1, 2
-        do ig=-ntgrid,ntgrid
-          ! u0 = -2 nu_D^{ei} vpa J0 dt f0
-          if ( .not. forbid(ig,il) ) then ! MRH see conserve_forbid_zero note
-              if (conservative) then
-                 z0tmp(ig,isgn,iglo) = -2.0*code_dt*vns(ik,ie,is,3)*vpdiff(ig,isgn,il) &
-                      * sqrt(energy(ie))*aj0(ig,iglo)
+    if(conserve_forbid_zero) then ! MRH
+        do iglo = g_lo%llim_proc, g_lo%ulim_proc
+           ik = ik_idx(g_lo,iglo)
+           ie = ie_idx(g_lo,iglo)
+           il = il_idx(g_lo,iglo)
+           is = is_idx(g_lo,iglo)
+           do isgn = 1, 2
+            do ig=-ntgrid,ntgrid
+              ! u0 = -2 nu_D^{ei} vpa J0 dt f0
+              if ( .not. forbid(ig,il) ) then
+                  if (conservative) then
+                     z0tmp(ig,isgn,iglo) = -2.0*code_dt*vns(ik,ie,is,3)*vpdiff(ig,isgn,il) &
+                          * sqrt(energy(ie))*aj0(ig,iglo)
+                  else
+                     z0tmp(ig,isgn,iglo) = -2.0*code_dt*vns(ik,ie,is,3)*vpa(ig,isgn,iglo)*aj0(ig,iglo)
+                  end if
               else
-                 z0tmp(ig,isgn,iglo) = -2.0*code_dt*vns(ik,ie,is,3)*vpa(ig,isgn,iglo)*aj0(ig,iglo)
-              end if
-          else
-            z0tmp(ig,isgn,iglo) = 0.
-          endif
+                z0tmp(ig,isgn,iglo) = 0.
+              endif
+            end do
+           end do
         end do
-       end do
-    end do
+    else    
+        do iglo = g_lo%llim_proc, g_lo%ulim_proc
+           ik = ik_idx(g_lo,iglo)
+           ie = ie_idx(g_lo,iglo)
+           il = il_idx(g_lo,iglo)
+           is = is_idx(g_lo,iglo)
+           do isgn = 1, 2
+              ! u0 = -2 nu_D^{ei} vpa J0 dt f0
+              if (conservative) then
+                 z0tmp(:,isgn,iglo) = -2.0*code_dt*vns(ik,ie,is,3)*vpdiff(:,isgn,il) &
+                      * sqrt(energy(ie))*aj0(:,iglo)
+              else
+                 z0tmp(:,isgn,iglo) = -2.0*code_dt*vns(ik,ie,is,3)*vpa(:,isgn,iglo)*aj0(:,iglo)
+              end if
+           end do
+        end do
+    endif
 
     if(use_le_layout) then    
        call gather (g2le, z0tmp, ctmp)
@@ -601,30 +620,49 @@ contains
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 ! Now get s0 (first form)
-
-    do iglo = g_lo%llim_proc, g_lo%ulim_proc
-       it = it_idx(g_lo,iglo)
-       ik = ik_idx(g_lo,iglo)
-       ie = ie_idx(g_lo,iglo)
-       il = il_idx(g_lo,iglo)
-       is = is_idx(g_lo,iglo)
-       do isgn = 1, 2
-        do ig=-ntgrid,ntgrid
-          ! u1 = -3 nu_s vpa dt J0 f_0 / du
-          if ( .not. forbid(ig,il) ) then ! MRH see conserve_forbid_zero note
-              if (conservative) then
-                 s0tmp(ig,isgn,iglo) = -vns(ik,ie,is,1)*vpdiff(ig,isgn,il)*sqrt(energy(ie)) &
-                      * aj0(ig,iglo)*code_dt*duinv(ig,it,ik,is)
-              else
-                 s0tmp(ig,isgn,iglo) = -vns(ik,ie,is,1)*vpa(ig,isgn,iglo) &
-                      * aj0(ig,iglo)*code_dt*duinv(ig,it,ik,is)
-              end if
-          else 
-            s0tmp(ig,isgn,iglo) = 0.
-          endif
+    if(conserve_forbid_zero) then ! MRH
+        do iglo = g_lo%llim_proc, g_lo%ulim_proc
+           it = it_idx(g_lo,iglo)
+           ik = ik_idx(g_lo,iglo)
+           ie = ie_idx(g_lo,iglo)
+           il = il_idx(g_lo,iglo)
+           is = is_idx(g_lo,iglo)
+           do isgn = 1, 2
+            do ig=-ntgrid,ntgrid
+              ! u1 = -3 nu_s vpa dt J0 f_0 / du
+              if ( .not. forbid(ig,il) ) then
+                  if (conservative) then
+                     s0tmp(ig,isgn,iglo) = -vns(ik,ie,is,1)*vpdiff(ig,isgn,il)*sqrt(energy(ie)) &
+                          * aj0(ig,iglo)*code_dt*duinv(ig,it,ik,is)
+                  else
+                     s0tmp(ig,isgn,iglo) = -vns(ik,ie,is,1)*vpa(ig,isgn,iglo) &
+                          * aj0(ig,iglo)*code_dt*duinv(ig,it,ik,is)
+                  end if
+              else 
+                s0tmp(ig,isgn,iglo) = 0.
+              endif
+            end do
+           end do
         end do
-       end do
-    end do
+    else
+        do iglo = g_lo%llim_proc, g_lo%ulim_proc
+           it = it_idx(g_lo,iglo)
+           ik = ik_idx(g_lo,iglo)
+           ie = ie_idx(g_lo,iglo)
+           il = il_idx(g_lo,iglo)
+           is = is_idx(g_lo,iglo)
+           do isgn = 1, 2
+              ! u1 = -3 nu_s vpa dt J0 f_0 / du
+              if (conservative) then
+                 s0tmp(:,isgn,iglo) = -vns(ik,ie,is,1)*vpdiff(:,isgn,il)*sqrt(energy(ie)) &
+                      * aj0(:,iglo)*code_dt*duinv(:,it,ik,is)
+              else
+                 s0tmp(:,isgn,iglo) = -vns(ik,ie,is,1)*vpa(:,isgn,iglo) &
+                      * aj0(:,iglo)*code_dt*duinv(:,it,ik,is)
+              end if
+           end do
+        end do
+    endif    
 
     if(use_le_layout) then    
        call gather (g2le, s0tmp, ctmp)
@@ -695,32 +733,53 @@ contains
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 ! Now get w0
-
-    do iglo = g_lo%llim_proc, g_lo%ulim_proc
-       it = it_idx(g_lo,iglo)
-       ik = ik_idx(g_lo,iglo)
-       ie = ie_idx(g_lo,iglo)
-       il = il_idx(g_lo,iglo)
-       is = is_idx(g_lo,iglo)
-       do isgn = 1, 2
-         do ig=-ntgrid,ntgrid
-          ! u2 = -3 dt J1 vperp vus a f0 / du
-          if ( .not. forbid(ig,il) ) then ! MRH see conserve_forbid_zero note
-              if (conservative) then
-                 w0tmp(ig,isgn,iglo) = -vns(ik,ie,is,1)*energy(ie)*al(il)*aj1(ig,iglo) &
-                      * code_dt*spec(is)%smz**2*kperp2(ig,it,ik)*duinv(ig,it,ik,is) &
-                      / bmag(ig)
+    if(conserve_forbid_zero) then ! MRH
+        do iglo = g_lo%llim_proc, g_lo%ulim_proc
+           it = it_idx(g_lo,iglo)
+           ik = ik_idx(g_lo,iglo)
+           ie = ie_idx(g_lo,iglo)
+           il = il_idx(g_lo,iglo)
+           is = is_idx(g_lo,iglo)
+           do isgn = 1, 2
+            do ig=-ntgrid,ntgrid
+              ! u2 = -3 dt J1 vperp vus a f0 / du
+              if ( .not. forbid(ig,il) ) then 
+                  if (conservative) then
+                     w0tmp(ig,isgn,iglo) = -vns(ik,ie,is,1)*energy(ie)*al(il)*aj1(ig,iglo) &
+                          * code_dt*spec(is)%smz**2*kperp2(ig,it,ik)*duinv(ig,it,ik,is) &
+                          / bmag(ig)
+                  else
+                     w0tmp(ig,isgn,iglo) = -vns(ik,ie,is,1)*energy(ie)*al(il)*aj1(ig,iglo) &
+                          * code_dt*spec(is)%smz**2*kperp2(ig,it,ik)*duinv(ig,it,ik,is) &
+                          / bmag(ig)
+                  end if
               else
-                 w0tmp(ig,isgn,iglo) = -vns(ik,ie,is,1)*energy(ie)*al(il)*aj1(ig,iglo) &
-                      * code_dt*spec(is)%smz**2*kperp2(ig,it,ik)*duinv(ig,it,ik,is) &
-                      / bmag(ig)
+                w0tmp(ig,isgn,iglo) = 0. 
+              endif
+            end do
+           end do
+        end do
+    else
+        do iglo = g_lo%llim_proc, g_lo%ulim_proc
+           it = it_idx(g_lo,iglo)
+           ik = ik_idx(g_lo,iglo)
+           ie = ie_idx(g_lo,iglo)
+           il = il_idx(g_lo,iglo)
+           is = is_idx(g_lo,iglo)
+           do isgn = 1, 2
+              ! u2 = -3 dt J1 vperp vus a f0 / du
+              if (conservative) then
+                 w0tmp(:,isgn,iglo) = -vns(ik,ie,is,1)*energy(ie)*al(il)*aj1(:,iglo) &
+                      * code_dt*spec(is)%smz**2*kperp2(:,it,ik)*duinv(:,it,ik,is) &
+                      / bmag
+              else
+                 w0tmp(:,isgn,iglo) = -vns(ik,ie,is,1)*energy(ie)*al(il)*aj1(:,iglo) &
+                      * code_dt*spec(is)%smz**2*kperp2(:,it,ik)*duinv(:,it,ik,is) &
+                      / bmag
               end if
-          else
-            w0tmp(ig,isgn,iglo) = 0. 
-          endif
-         end do
-       end do
-    end do
+           end do
+        end do
+    endif
 
     if(use_le_layout) then    
        call gather (g2le, w0tmp, ctmp)
@@ -959,25 +1018,38 @@ contains
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 ! Now get z0 (first form)
-
-    do iglo = g_lo%llim_proc, g_lo%ulim_proc
-       it = it_idx(g_lo,iglo)
-       ik = ik_idx(g_lo,iglo)
-       ie = ie_idx(g_lo,iglo)
-       is = is_idx(g_lo,iglo)
-       do isgn = 1, 2
-          do ig=-ntgrid,ntgrid
+    if(conserve_forbid_zero) then ! MRH
+        do iglo = g_lo%llim_proc, g_lo%ulim_proc
+           it = it_idx(g_lo,iglo)
+           ik = ik_idx(g_lo,iglo)
+           ie = ie_idx(g_lo,iglo)
+           is = is_idx(g_lo,iglo)
+           il = il_idx(g_lo,iglo)
+           do isgn = 1, 2
+              do ig=-ntgrid,ntgrid
+                  ! u0 = -nu_E E dt J0 f_0 / du
+                  if ( .not. forbid(ig,il) ) then 
+                      bz0tmp(ig,isgn,iglo) = -code_dt*vnmult(2)*vnew_E(ik,ie,is) &
+                           * aj0(ig,iglo)*duinv(ig,it,ik,is)
+                  else
+                      bz0tmp(ig,isgn,iglo) = 0.
+                  endif
+              end do
+           end do
+        end do
+    else 
+        do iglo = g_lo%llim_proc, g_lo%ulim_proc
+           it = it_idx(g_lo,iglo)
+           ik = ik_idx(g_lo,iglo)
+           ie = ie_idx(g_lo,iglo)
+           is = is_idx(g_lo,iglo)
+           do isgn = 1, 2
               ! u0 = -nu_E E dt J0 f_0 / du
-              if ( .not. forbid(ig,il) ) then ! MRH see conserve_forbid_zero note
-                  bz0tmp(ig,isgn,iglo) = -code_dt*vnmult(2)*vnew_E(ik,ie,is) &
-                       * aj0(ig,iglo)*duinv(ig,it,ik,is)
-              else
-                  bz0tmp(ig,isgn,iglo) = 0.
-              endif
-          end do
-       end do
-    end do
-
+              bz0tmp(:,isgn,iglo) = -code_dt*vnmult(2)*vnew_E(ik,ie,is) &
+                   * aj0(:,iglo)*duinv(:,it,ik,is)
+           end do
+        end do
+    endif
     if(use_le_layout) then    
        call gather (g2le, bz0tmp, ctmp)
        call solfp_ediffuse_le_layout (ctmp)
@@ -1046,25 +1118,48 @@ contains
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 ! Now get s0 (first form)
-
-    do iglo = g_lo%llim_proc, g_lo%ulim_proc
-       it = it_idx(g_lo,iglo)
-       ik = ik_idx(g_lo,iglo)
-       ie = ie_idx(g_lo,iglo)
-       is = is_idx(g_lo,iglo)
-       do isgn = 1, 2
-          do ig=-ntgrid,ntgrid
-            ! u1 = -3 nu_s vpa dt J0 f_0 / du
-            if ( .not. forbid(ig,il) ) then ! MRH see conserve_forbid_zero note 
-              bs0tmp(ig,isgn,iglo) = -vns(ik,ie,is,1)*vpa(ig,isgn,iglo) &
-                   * aj0(ig,iglo)*code_dt*duinv(ig,it,ik,is)
-            else 
-              bs0tmp(ig,isgn,iglo) = 0.
-            endif
-          end do
-       end do
-    end do
-
+    if(conserve_forbid_zero) then 
+        do iglo = g_lo%llim_proc, g_lo%ulim_proc
+           it = it_idx(g_lo,iglo)
+           ik = ik_idx(g_lo,iglo)
+           ie = ie_idx(g_lo,iglo)
+           is = is_idx(g_lo,iglo)
+           il = il_idx(g_lo,iglo)
+           do isgn = 1, 2
+                do ig=-ntgrid,ntgrid
+              ! u1 = -3 nu_s vpa dt J0 f_0 / du
+    !          if (conservative) then
+                    if ( .not. forbid(ig,il) ) then 
+                      bs0tmp(ig,isgn,iglo) = -vns(ik,ie,is,1)*vpa(ig,isgn,iglo) &
+                           * aj0(ig,iglo)*code_dt*duinv(ig,it,ik,is)
+                    else 
+                      bs0tmp(ig,isgn,iglo) = 0.
+                    endif
+                end do
+    !          else
+    !             bs0(:,isgn,iglo) = -3.0*vns(ik,ie,is,2)*vpa(:,isgn,iglo) &
+    !                  * aj0(:,iglo)*code_dt*duinv(:,it,ik,is)
+    !          end if
+           end do
+        end do
+    else
+        do iglo = g_lo%llim_proc, g_lo%ulim_proc
+           it = it_idx(g_lo,iglo)
+           ik = ik_idx(g_lo,iglo)
+           ie = ie_idx(g_lo,iglo)
+           is = is_idx(g_lo,iglo)
+           do isgn = 1, 2
+              ! u1 = -3 nu_s vpa dt J0 f_0 / du
+    !          if (conservative) then
+              bs0tmp(:,isgn,iglo) = -vns(ik,ie,is,1)*vpa(:,isgn,iglo) &
+                   * aj0(:,iglo)*code_dt*duinv(:,it,ik,is)
+    !          else
+    !             bs0(:,isgn,iglo) = -3.0*vns(ik,ie,is,2)*vpa(:,isgn,iglo) &
+    !                  * aj0(:,iglo)*code_dt*duinv(:,it,ik,is)
+    !          end if
+           end do
+        end do
+    endif
     if(use_le_layout) then
        call gather (g2le, bs0tmp, ctmp)
        call solfp_ediffuse_le_layout (ctmp)
@@ -1132,27 +1227,41 @@ contains
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 ! Now get w0
-
-    do iglo = g_lo%llim_proc, g_lo%ulim_proc
-       it = it_idx(g_lo,iglo)
-       ik = ik_idx(g_lo,iglo)
-       ie = ie_idx(g_lo,iglo)
-       il = il_idx(g_lo,iglo)
-       is = is_idx(g_lo,iglo)
-       do isgn = 1, 2
-          do ig=-ntgrid,ntgrid
+    if (conserve_forbid_zero) then
+        do iglo = g_lo%llim_proc, g_lo%ulim_proc
+           it = it_idx(g_lo,iglo)
+           ik = ik_idx(g_lo,iglo)
+           ie = ie_idx(g_lo,iglo)
+           il = il_idx(g_lo,iglo)
+           is = is_idx(g_lo,iglo)
+           do isgn = 1, 2
+            do ig=-ntgrid,ntgrid
               ! u0 = -3 dt J1 vperp vus a f0 / du
-              if ( .not. forbid(ig,il) ) then ! MRH see conserve_forbid_zero note
+              if ( .not. forbid(ig,il) ) then
                   bw0tmp(ig,isgn,iglo) = -vns(ik,ie,is,1)*energy(ie)*al(il)*aj1(ig,iglo) &
                        * code_dt*spec(is)%smz**2*kperp2(ig,it,ik)*duinv(ig,it,ik,is) &
                        / bmag(ig)
               else
                   bw0tmp(ig,isgn,iglo) = 0.
               endif
-          end do
-       end do
-    end do
-
+            end do
+           end do
+        end do
+    else
+        do iglo = g_lo%llim_proc, g_lo%ulim_proc
+           it = it_idx(g_lo,iglo)
+           ik = ik_idx(g_lo,iglo)
+           ie = ie_idx(g_lo,iglo)
+           il = il_idx(g_lo,iglo)
+           is = is_idx(g_lo,iglo)
+           do isgn = 1, 2
+              ! u0 = -3 dt J1 vperp vus a f0 / du
+              bw0tmp(:,isgn,iglo) = -vns(ik,ie,is,1)*energy(ie)*al(il)*aj1(:,iglo) &
+                   * code_dt*spec(is)%smz**2*kperp2(:,it,ik)*duinv(:,it,ik,is) &
+                   / bmag
+           end do
+        end do
+    endif
     if(use_le_layout) then    
        call gather (g2le, bw0tmp, ctmp)
        call solfp_ediffuse_le_layout (ctmp)
