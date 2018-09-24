@@ -7,7 +7,6 @@ generate_fftw_wisdom
 # User's local Makefile
 Makefile.local
 
-*.a
 *.amoments
 *.dat
 *.eigenfunc
@@ -18,13 +17,10 @@ Makefile.local
 *.g
 *.gridgen.*
 *.lpc
-*.mod
 *.moments
 *.mom2
 *.nc
 *.nc.*
-*.o
-*.out
 *.parity
 *.phase
 results_of_test.txt
