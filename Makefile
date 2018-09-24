@@ -206,6 +206,9 @@ NAG_LIB ?=
 NAG_PREC ?= dble
 PGPLOT_LIB ?=
 
+#Patch file
+PATCHFILE:= .patch.make
+
 ################################################### SET COMPILE MODE SWITCHES
 
 ifdef TEST
@@ -272,9 +275,19 @@ ifeq ($(MAKECMDGOALS),depend)
 		USE_LOCAL_SPFUNC=on USE_LOCAL_RAN=mt
 endif
 
-#Here we define SVN_REV based on the output of svnversion
-SVN_REV='"$(shell svnversion -n .)"'
-CPPFLAGS+=-DSVN_REV=$(SVN_REV)
+CPPFLAGS+=-DGIT_HASH='"$(shell git rev-parse HEAD)"'
+# Find if there are any modified tracked files (except Makefile.depend)
+ifeq ($(shell git status --short -uno -- . ':(exclude)Makefiles/Makefile.depend' | wc -l), 0)
+	CPPFLAGS+=-DGIT_STATE='"clean"'
+$(shell touch $(PATCHFILE))
+else
+	CPPFLAGS+=-DGIT_STATE='"modified"'
+
+# Here we make a patch file, which could be read by the program if we wanted to keep a record
+$(shell git diff -w -- . ':(exclude)Makefiles/Makefile.depend' > $(PATCHFILE))
+endif
+CPPFLAGS+=-DGIT_PATCH_FILE='"$(PATCHFILE)"'
+
 
 # Define RUN_NAME_SIZE
 CPPFLAGS+=-DRUN_NAME_SIZE=$(RUN_NAME_SIZE) 
