@@ -87,7 +87,7 @@ USE_MPI ?= mpi2
 # turns on SHMEM parallel communications on SGI (bin)
 USE_SHMEM ?=
 # which FFT library to use (fftw,fftw3,mkl_fftw,undefined) 
-USE_FFT ?= fftw3
+USE_FFT ?= fftw
 # uses netcdf library (bin)
 USE_NETCDF ?= on
 # uses parallel netcdf library
@@ -812,7 +812,7 @@ unlink:
 	-rm -f $(F90FROMFPP) layouts_type.h
 
 revision:
-	@LANG=C svn info | awk '{if($$1=="Revision:") printf("%20d",$$2) }' > Revision
+	@LANG=C git rev-parse HEAD > Revision
 
 
 geometry_c_interface.o: geometry_c_interface.h
