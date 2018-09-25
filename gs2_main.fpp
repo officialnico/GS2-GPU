@@ -1411,7 +1411,7 @@ contains
 
 #ifdef WITH_EIG
           print '(/,'' Eigensolver'',T25,0pf8.2,'' min'',T40,2pf5.1,'' %'',/)', &
-               timers%eigval(1)/60.,timers%eigval(1)/timers%total(1))
+               timers%eigval(1)/60.,timers%eigval(1)/timers%total(1)
 #endif
           print '(/,'' Initialization'',T25,0pf8.2,'' min'',T40,2pf5.1,'' %'',/, &
                &'' Advance steps'',T25,0pf8.2,'' min'',T40,2pf5.1,'' %'',/, &
