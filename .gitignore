@@ -16,11 +16,15 @@ Makefile.local
 *.fort.*
 *.g
 *.gridgen.*
+*.heat
+*.heat2
+*.jext
 *.lpc
 *.moments
 *.mom2
 *.nc
 *.nc.*
+*.optim
 *.parity
 *.phase
 results_of_test.txt
