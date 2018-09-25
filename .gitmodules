@@ -1,6 +1,6 @@
 [submodule "utils"]
 	path = utils
-	url = git@bitbucket.org:gyrokinetics/utils.git
+	url = https://bitbucket.org/gyrokinetics/utils.git
 [submodule "Makefiles"]
 	path = Makefiles
-	url = git@bitbucket.org:gyrokinetics/Makefiles.git
+	url = https://bitbucket.org/gyrokinetics/Makefiles.git
