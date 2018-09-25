@@ -1,3 +1,9 @@
+
+We used git submodules to deal with the shared utils and Makefiles directories so When cloning you will likely find that the utils and Makefiles directories are empty. To avoid this you should either consider adding `--recursive` to the clone command or run the following after the initial checkout:
+
+    git submodule update --init --recursive --remote
+
+
 ####################################
 ## Compilation instructions for gs2
 ####################################
