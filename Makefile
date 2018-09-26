@@ -87,7 +87,7 @@ USE_MPI ?= mpi2
 # turns on SHMEM parallel communications on SGI (bin)
 USE_SHMEM ?=
 # which FFT library to use (fftw,fftw3,mkl_fftw,undefined) 
-USE_FFT ?= fftw
+USE_FFT ?= fftw3
 # uses netcdf library (bin)
 USE_NETCDF ?= on
 # uses parallel netcdf library
