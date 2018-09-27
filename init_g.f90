@@ -912,7 +912,7 @@ contains
     chop_side = .true.
     left = .true.
     even = .true.
-    clean_init=.false.
+    clean_init=.true. ! MRH Default changed 15/08/2018 Initial conditions should satisfy boundary condition
     new_field_init = .true.
     ikk(1) = 1
     ikk(2) = 2
@@ -2708,7 +2708,7 @@ contains
        il = il_idx(g_lo,iglo)
        ie = ie_idx(g_lo,iglo)
        is = is_idx(g_lo,iglo)
-       g(:,1,iglo) = exp(-energy(ie))
+       g(:,1,iglo) = exp(-energy(ie,is))
        where (forbid(:,il)) g(:,1,iglo) = 0.0
        g(:,2,iglo) = g(:,1,iglo)
     end do

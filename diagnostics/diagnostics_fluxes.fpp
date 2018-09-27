@@ -28,6 +28,7 @@ module diagnostics_fluxes
   real, dimension (:,:,:), allocatable :: vflux0, vflux1  ! low flow correction to turbulent momentum flux
   real, dimension (:,:,:), allocatable :: pmflux, vmflux
   real, dimension (:,:,:), allocatable :: pbflux, vbflux
+  real, dimension (:,:), allocatable :: esflux_vs_e, apflux_vs_e, bpflux_vs_e
   real, dimension (:,:,:), allocatable :: exchange
   real, dimension (:,:,:), allocatable :: exchange1
 
@@ -35,6 +36,7 @@ contains
   subroutine init_diagnostics_fluxes(gnostics)
     use kt_grids, only: naky, ntheta0
     use species, only: nspec
+    use le_grids, only: negrid
     use diagnostics_config, only: diagnostics_type
     implicit none
     type(diagnostics_type), intent(inout) :: gnostics
@@ -64,11 +66,16 @@ contains
     allocate (pbflux(ntheta0,naky,nspec)) ; pbflux = 0.
     allocate (qbheat(ntheta0,naky,nspec,3)) ; qbheat = 0.
     allocate (vbflux(ntheta0,naky,nspec)) ; vbflux = 0.   
+
+    allocate (esflux_vs_e(negrid,nspec)) ; esflux_vs_e = 0.
+    allocate (apflux_vs_e(negrid,nspec)) ; apflux_vs_e = 0.
+    allocate (bpflux_vs_e(negrid,nspec)) ; bpflux_vs_e = 0.
   end subroutine init_diagnostics_fluxes
   
   subroutine finish_diagnostics_fluxes
     deallocate (pflux, pflux_tormom, qheat, vflux, vflux_par, vflux_perp, pmflux, qmheat, vmflux, &
-         pbflux, qbheat, vbflux, vflux0, vflux1, exchange, exchange1)
+         pbflux, qbheat, vbflux, vflux0, vflux1, exchange, exchange1, &
+         esflux_vs_e, apflux_vs_e, bpflux_vs_e)
   end subroutine finish_diagnostics_fluxes
 
 
@@ -83,7 +90,7 @@ contains
   end subroutine reset_averages_and_counters
 
   subroutine calculate_fluxes(gnostics)
-    use dist_fn, only: flux, lf_flux, eexchange
+    use dist_fn, only: flux, lf_flux, eexchange, flux_vs_e
     use dist_fn_arrays, only: g_adjust, gnew
     use species, only: nspec, spec
     use fields_arrays, only: phinew, bparnew, aparnew, phi
@@ -115,6 +122,7 @@ contains
       call flux (phinew, aparnew, bparnew, &
            pflux,  qheat,  vflux, vflux_par, vflux_perp, &
            pmflux, qmheat, vmflux, pbflux, qbheat, vbflux, pflux_tormom)
+      call flux_vs_e (phinew, aparnew, bparnew, esflux_vs_e, apflux_vs_e, bpflux_vs_e)
 
 #ifdef LOWFLOW
       !lowflow terms only implemented in electrostatic limit at present
@@ -134,6 +142,8 @@ contains
             
             pflux(:,:,is) = pflux(:,:,is) * spec(is)%dens
             pflux_tormom(:,:,is) = pflux_tormom(:,:,is) * spec(is)%dens  
+
+            esflux_vs_e(:,is) = esflux_vs_e(:,is) * spec(is)%dens
             
             vflux(:,:,is) = vflux(:,:,is) * spec(is)%dens*sqrt(spec(is)%mass*spec(is)%temp)
             vflux_par(:,:,is) = vflux_par(:,:,is) * spec(is)%dens*sqrt(spec(is)%mass*spec(is)%temp)
@@ -167,6 +177,12 @@ contains
        call calculate_standard_flux_properties(gnostics, &
             'es_mom_flux_perp', 'Flux of the perpendicular component of the toroidal angular momentum', 'Pi_gB =  ', &
             vflux_perp, gnostics%distributed)
+
+       call create_and_write_variable(gnostics, gnostics%rtype, "es_flux_vs_e", &
+            dim_string([gnostics%dims%energy,gnostics%dims%species,gnostics%dims%time]), &
+            "Electrostatic flux, as function of energy", &
+            "flux_es(E) = ", esflux_vs_e)
+
 #ifdef LOWFLOW
        call calculate_standard_flux_properties(gnostics, &
             'es_mom0', 'Low-flow momentum flux 0 (Ask Michael Barnes)', 'Pi_gB =  ', &
@@ -177,7 +193,6 @@ contains
 #endif
     end if
 
-
     if (fapar > epsilon(0.0)) then
        do is = 1, nspec
           qmheat(:,:,is,1)=qmheat(:,:,is,1) * spec(is)%dens*spec(is)%temp
@@ -185,6 +200,8 @@ contains
           qmheat(:,:,is,3)=qmheat(:,:,is,3) * spec(is)%dens*spec(is)%temp
           pmflux(:,:,is)=pmflux(:,:,is) * spec(is)%dens
           vmflux(:,:,is)=vmflux(:,:,is) * spec(is)%dens*spec(is)%mass*spec(is)%stm
+
+          apflux_vs_e(:,is) = apflux_vs_e(:,is) * spec(is)%dens
        end do
        call calculate_standard_flux_properties(gnostics, &
             'apar_heat_flux',  'Turbulent flux of heat resulting from &
@@ -201,6 +218,11 @@ contains
        call calculate_standard_flux_properties(gnostics, &
             'apar_mom_flux',  'Turbulent flux of momentum resulting from &
             & perpendicular magnetic fluctuations', 'Pi_gB = ', vmflux(:,:,:), gnostics%distributed)
+
+       call create_and_write_variable(gnostics, gnostics%rtype, "apar_flux_vs_e", &
+            dim_string([gnostics%dims%energy,gnostics%dims%species,gnostics%dims%time]), &
+            "Perpendicular magnetic flux, as function of energy", &
+            "flux_es(E) = ", apflux_vs_e)
     end if
     if (fbpar > epsilon(0.0)) then
        do is = 1, nspec
@@ -209,6 +231,7 @@ contains
           qbheat(:,:,is,3)=qbheat(:,:,is,3) * spec(is)%dens*spec(is)%temp
           pbflux(:,:,is)=pbflux(:,:,is) * spec(is)%dens
           vbflux(:,:,is)=vbflux(:,:,is) * spec(is)%dens*spec(is)%mass*spec(is)%stm
+          bpflux_vs_e(:,is) = bpflux_vs_e(:,is) * spec(is)%dens
        end do
        call calculate_standard_flux_properties(gnostics, &
             'bpar_heat_flux',  'Turbulent flux of heat resulting from &
@@ -225,6 +248,10 @@ contains
        call calculate_standard_flux_properties(gnostics, &
             'bpar_mom_flux',  'Turbulent flux of momentum resulting from &
             & parallel magnetic fluctuations', 'Pi_gB = ', vbflux(:,:,:), gnostics%distributed)
+       call create_and_write_variable(gnostics, gnostics%rtype, "bpar_flux_vs_e", &
+            dim_string([gnostics%dims%energy,gnostics%dims%species,gnostics%dims%time]), &
+            "Parallel magnetic flux, as function of energy", &
+            "flux_es(E) = ", bpflux_vs_e)
     end if
     
     ! Update averages

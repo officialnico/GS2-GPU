@@ -91,17 +91,17 @@ module gs2_init
     integer :: run_parameters = 14
     integer :: hyper = 15
     integer :: species = 16
-    integer :: le_grids = 17
-    integer :: dist_fn_parameters = 18
-    integer :: dist_fn_layouts = 19
-    integer :: nonlinear_terms = 20
-    integer :: dist_fn_arrays = 21
-    integer :: dist_fn_level_1 = 22
-    integer :: antenna_level_1 = 23
-    integer :: fields_level_1 = 24
-    integer :: override_profiles = 25
-    integer :: antenna_level_2 = 26
-    integer :: dist_fn_level_2 = 27
+    integer :: override_profiles = 17
+    integer :: le_grids = 18
+    integer :: antenna_level_2 = 19
+    integer :: dist_fn_parameters = 20
+    integer :: dist_fn_layouts = 21
+    integer :: nonlinear_terms = 22
+    integer :: dist_fn_arrays = 23
+    integer :: dist_fn_level_1 = 24
+    integer :: dist_fn_level_2 = 25
+    integer :: antenna_level_1 = 26
+    integer :: fields_level_1 = 27
     integer :: override_timestep = 28
     integer :: dist_fn_level_3 = 29
     integer :: collisions = 30
@@ -209,17 +209,17 @@ contains
         if (up() .and. current%level == init_level_list%run_parameters-1) call run_parameters_subroutine
         if (up() .and. current%level == init_level_list%hyper-1) call hyper_subroutine
         if (up() .and. current%level == init_level_list%species-1) call species_subroutine
+        if (up() .and. current%level == init_level_list%override_profiles-1) call override_profiles_subroutine
         if (up() .and. current%level == init_level_list%le_grids-1) call le_grids_subroutine
+        if (up() .and. current%level == init_level_list%antenna_level_2-1) call antenna_level_2_subroutine
         if (up() .and. current%level == init_level_list%dist_fn_parameters-1) call dist_fn_parameters_subroutine
         if (up() .and. current%level == init_level_list%dist_fn_layouts-1) call dist_fn_layouts_subroutine
         if (up() .and. current%level == init_level_list%nonlinear_terms-1) call nonlinear_terms_subroutine
         if (up() .and. current%level == init_level_list%dist_fn_arrays-1) call dist_fn_arrays_subroutine
         if (up() .and. current%level == init_level_list%dist_fn_level_1-1) call dist_fn_level_1_subroutine
+        if (up() .and. current%level == init_level_list%dist_fn_level_2-1) call dist_fn_level_2_subroutine
         if (up() .and. current%level == init_level_list%antenna_level_1-1) call antenna_level_1_subroutine
         if (up() .and. current%level == init_level_list%fields_level_1-1) call fields_level_1_subroutine
-        if (up() .and. current%level == init_level_list%override_profiles-1) call override_profiles_subroutine
-        if (up() .and. current%level == init_level_list%antenna_level_2-1) call antenna_level_2_subroutine
-        if (up() .and. current%level == init_level_list%dist_fn_level_2-1) call dist_fn_level_2_subroutine
         if (up() .and. current%level == init_level_list%override_timestep-1) call override_timestep_subroutine
         if (up() .and. current%level == init_level_list%dist_fn_level_3-1) call dist_fn_level_3_subroutine
         if (up() .and. current%level == init_level_list%collisions-1) call collisions_subroutine
@@ -235,17 +235,17 @@ contains
         if (down () .and. current%level == init_level_list%collisions) call collisions_subroutine
         if (down () .and. current%level == init_level_list%dist_fn_level_3) call dist_fn_level_3_subroutine
         if (down () .and. current%level == init_level_list%override_timestep) call override_timestep_subroutine
-        if (down () .and. current%level == init_level_list%dist_fn_level_2) call dist_fn_level_2_subroutine
-        if (down () .and. current%level == init_level_list%antenna_level_2) call antenna_level_2_subroutine
-        if (down () .and. current%level == init_level_list%override_profiles) call override_profiles_subroutine
         if (down () .and. current%level == init_level_list%fields_level_1) call fields_level_1_subroutine
         if (down () .and. current%level == init_level_list%antenna_level_1) call antenna_level_1_subroutine
+        if (down () .and. current%level == init_level_list%dist_fn_level_2) call dist_fn_level_2_subroutine
         if (down () .and. current%level == init_level_list%dist_fn_level_1) call dist_fn_level_1_subroutine
         if (down () .and. current%level == init_level_list%dist_fn_arrays) call dist_fn_arrays_subroutine
         if (down () .and. current%level == init_level_list%nonlinear_terms) call nonlinear_terms_subroutine
         if (down () .and. current%level == init_level_list%dist_fn_layouts) call dist_fn_layouts_subroutine
         if (down () .and. current%level == init_level_list%dist_fn_parameters) call dist_fn_parameters_subroutine
+        if (down () .and. current%level == init_level_list%antenna_level_2) call antenna_level_2_subroutine
         if (down () .and. current%level == init_level_list%le_grids) call le_grids_subroutine
+        if (down () .and. current%level == init_level_list%override_profiles) call override_profiles_subroutine
         if (down () .and. current%level == init_level_list%species) call species_subroutine
         if (down () .and. current%level == init_level_list%hyper) call hyper_subroutine
         if (down () .and. current%level == init_level_list%run_parameters) call run_parameters_subroutine
@@ -513,6 +513,23 @@ contains
         end if
       end subroutine species_subroutine
 
+      subroutine override_profiles_subroutine
+        use unit_tests, only: debug_message
+          use dist_fn, only: dfso=>set_overrides
+          use species, only: sso=>set_overrides
+          if (up() .and. current%prof_ov%init) call dfso(current%prof_ov)
+          if (up() .and. current%prof_ov%init) call sso(current%prof_ov)
+
+       
+        if (up()) then
+          call debug_message(1, 'gs2_init::init reached init level... override_profiles   ')
+          current%level = 17
+        else if (down()) then  ! (down)
+          call debug_message(1, 'gs2_init::init left init level... override_profiles   ')
+          current%level = 17 - 1
+        end if
+      end subroutine override_profiles_subroutine
+
       subroutine le_grids_subroutine
         use unit_tests, only: debug_message
         use le_grids, only: init_le_grids
@@ -523,12 +540,28 @@ contains
        
         if (up()) then
           call debug_message(1, 'gs2_init::init reached init level... le_grids   ')
-          current%level = 17
+          current%level = 18
         else if (down()) then  ! (down)
           call debug_message(1, 'gs2_init::init left init level... le_grids   ')
-          current%level = 17 - 1
+          current%level = 18 - 1
         end if
       end subroutine le_grids_subroutine
+
+      subroutine antenna_level_2_subroutine
+        use unit_tests, only: debug_message
+        use antenna, only: init_antenna_level_2
+        use antenna, only: finish_antenna_level_2
+        if (up()) call init_antenna_level_2
+        if (down()) call finish_antenna_level_2
+       
+        if (up()) then
+          call debug_message(1, 'gs2_init::init reached init level... antenna_level_2   ')
+          current%level = 19
+        else if (down()) then  ! (down)
+          call debug_message(1, 'gs2_init::init left init level... antenna_level_2   ')
+          current%level = 19 - 1
+        end if
+      end subroutine antenna_level_2_subroutine
 
       subroutine dist_fn_parameters_subroutine
         use unit_tests, only: debug_message
@@ -539,10 +572,10 @@ contains
        
         if (up()) then
           call debug_message(1, 'gs2_init::init reached init level... dist_fn_parameters   ')
-          current%level = 18
+          current%level = 20
         else if (down()) then  ! (down)
           call debug_message(1, 'gs2_init::init left init level... dist_fn_parameters   ')
-          current%level = 18 - 1
+          current%level = 20 - 1
         end if
       end subroutine dist_fn_parameters_subroutine
 
@@ -558,10 +591,10 @@ contains
        
         if (up()) then
           call debug_message(1, 'gs2_init::init reached init level... dist_fn_layouts   ')
-          current%level = 19
+          current%level = 21
         else if (down()) then  ! (down)
           call debug_message(1, 'gs2_init::init left init level... dist_fn_layouts   ')
-          current%level = 19 - 1
+          current%level = 21 - 1
         end if
       end subroutine dist_fn_layouts_subroutine
 
@@ -574,10 +607,10 @@ contains
        
         if (up()) then
           call debug_message(1, 'gs2_init::init reached init level... nonlinear_terms   ')
-          current%level = 20
+          current%level = 22
         else if (down()) then  ! (down)
           call debug_message(1, 'gs2_init::init left init level... nonlinear_terms   ')
-          current%level = 20 - 1
+          current%level = 22 - 1
         end if
       end subroutine nonlinear_terms_subroutine
 
@@ -590,10 +623,10 @@ contains
        
         if (up()) then
           call debug_message(1, 'gs2_init::init reached init level... dist_fn_arrays   ')
-          current%level = 21
+          current%level = 23
         else if (down()) then  ! (down)
           call debug_message(1, 'gs2_init::init left init level... dist_fn_arrays   ')
-          current%level = 21 - 1
+          current%level = 23 - 1
         end if
       end subroutine dist_fn_arrays_subroutine
 
@@ -606,12 +639,28 @@ contains
        
         if (up()) then
           call debug_message(1, 'gs2_init::init reached init level... dist_fn_level_1   ')
-          current%level = 22
+          current%level = 24
         else if (down()) then  ! (down)
           call debug_message(1, 'gs2_init::init left init level... dist_fn_level_1   ')
-          current%level = 22 - 1
+          current%level = 24 - 1
         end if
       end subroutine dist_fn_level_1_subroutine
+
+      subroutine dist_fn_level_2_subroutine
+        use unit_tests, only: debug_message
+        use dist_fn, only: init_dist_fn_level_2
+        use dist_fn, only: finish_dist_fn_level_2
+        if (up()) call init_dist_fn_level_2
+        if (down()) call finish_dist_fn_level_2
+       
+        if (up()) then
+          call debug_message(1, 'gs2_init::init reached init level... dist_fn_level_2   ')
+          current%level = 25
+        else if (down()) then  ! (down)
+          call debug_message(1, 'gs2_init::init left init level... dist_fn_level_2   ')
+          current%level = 25 - 1
+        end if
+      end subroutine dist_fn_level_2_subroutine
 
       subroutine antenna_level_1_subroutine
         use unit_tests, only: debug_message
@@ -622,10 +671,10 @@ contains
        
         if (up()) then
           call debug_message(1, 'gs2_init::init reached init level... antenna_level_1   ')
-          current%level = 23
+          current%level = 26
         else if (down()) then  ! (down)
           call debug_message(1, 'gs2_init::init left init level... antenna_level_1   ')
-          current%level = 23 - 1
+          current%level = 26 - 1
         end if
       end subroutine antenna_level_1_subroutine
 
@@ -638,61 +687,12 @@ contains
        
         if (up()) then
           call debug_message(1, 'gs2_init::init reached init level... fields_level_1   ')
-          current%level = 24
-        else if (down()) then  ! (down)
-          call debug_message(1, 'gs2_init::init left init level... fields_level_1   ')
-          current%level = 24 - 1
-        end if
-      end subroutine fields_level_1_subroutine
-
-      subroutine override_profiles_subroutine
-        use unit_tests, only: debug_message
-          use dist_fn, only: dfso=>set_overrides
-          use species, only: sso=>set_overrides
-          if (up() .and. current%prof_ov%init) call dfso(current%prof_ov)
-          if (up() .and. current%prof_ov%init) call sso(current%prof_ov)
-
-       
-        if (up()) then
-          call debug_message(1, 'gs2_init::init reached init level... override_profiles   ')
-          current%level = 25
-        else if (down()) then  ! (down)
-          call debug_message(1, 'gs2_init::init left init level... override_profiles   ')
-          current%level = 25 - 1
-        end if
-      end subroutine override_profiles_subroutine
-
-      subroutine antenna_level_2_subroutine
-        use unit_tests, only: debug_message
-        use antenna, only: init_antenna_level_2
-        use antenna, only: finish_antenna_level_2
-        if (up()) call init_antenna_level_2
-        if (down()) call finish_antenna_level_2
-       
-        if (up()) then
-          call debug_message(1, 'gs2_init::init reached init level... antenna_level_2   ')
-          current%level = 26
-        else if (down()) then  ! (down)
-          call debug_message(1, 'gs2_init::init left init level... antenna_level_2   ')
-          current%level = 26 - 1
-        end if
-      end subroutine antenna_level_2_subroutine
-
-      subroutine dist_fn_level_2_subroutine
-        use unit_tests, only: debug_message
-        use dist_fn, only: init_dist_fn_level_2
-        use dist_fn, only: finish_dist_fn_level_2
-        if (up()) call init_dist_fn_level_2
-        if (down()) call finish_dist_fn_level_2
-       
-        if (up()) then
-          call debug_message(1, 'gs2_init::init reached init level... dist_fn_level_2   ')
           current%level = 27
         else if (down()) then  ! (down)
-          call debug_message(1, 'gs2_init::init left init level... dist_fn_level_2   ')
+          call debug_message(1, 'gs2_init::init left init level... fields_level_1   ')
           current%level = 27 - 1
         end if
-      end subroutine dist_fn_level_2_subroutine
+      end subroutine fields_level_1_subroutine
 
       subroutine override_timestep_subroutine
         use unit_tests, only: debug_message

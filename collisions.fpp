@@ -63,6 +63,10 @@ module collisions
   logical :: ei_coll_only
   logical :: test
   logical :: special_wfb_lorentz
+  logical :: vpar_zero_mean
+  logical :: conserve_forbid_zero
+  logical :: le_nxilim_fix
+  
   integer, parameter :: collision_model_lorentz = 1      ! if this changes, check gs2_diagnostics
   integer, parameter :: collision_model_none = 3
   integer, parameter :: collision_model_lorentz_test = 5 ! if this changes, check gs2_diagnostics
@@ -242,7 +246,8 @@ contains
 ! following only needed for adaptive collisionality
          vnfac, etol, ewindow, ncheck, vnslow, vary_vnew, etola, ewindowa, &
          use_le_layout, special_wfb_lorentz, &
-         split_collisions
+         split_collisions, vpar_zero_mean, &
+         conserve_forbid_zero, le_nxilim_fix
     integer :: ierr, in_file
 
     if (proc0) then
@@ -270,7 +275,42 @@ contains
        heating = .false.
        test = .false.
        ei_coll_only = .false.
-       special_wfb_lorentz=.true.
+       special_wfb_lorentz=.false. ! MRH changed default 16/08/2018
+       vpar_zero_mean=.true. ! MRH changed default
+! MRH vpar_zero_mean:
+! a flag to control how the duplicate vpar = 0 point is handled
+! when vpar_zero_mean = .true. the average of
+! g(vpar = 0) points at, (isgn=1,2) is used in the 
+! collision operator instead of just g(vpar = 0) at isgn=2
+! This is necessary to suppress a numerical instability when
+! special_wfb_lorentz =.false. With these defaults pitch angle
+! scattering at theta =+/- pi is now being handled physically
+! i.e. vpar = 0 at this theta location is no longer being skipped  
+        conserve_forbid_zero = .true.
+! MRH conserve_forbid_zero note
+! the conserving terms calculated as part of the field
+! particle collision operator should respect the forbidden
+! of the distribution function for trapped particles.
+! This is a cosmetic change, but has the result
+! that plots of the distribution function for trapped particles
+! makes sense.
+! Note that terms involving vpa do not need to be modified
+! Because vpa = 0 in the forbidden region
+! Because of this explicit forbid statements have not been added
+! To the  drag term involving apar
+        le_nxilim_fix = .true.! .false. for old behaviour
+! MRH le_nxilim_fix is a flag which controls
+! the limit of ixi loops in the le_layout.
+! When the limit is nxi,
+! which is incorrect when there are trapped particles,
+! There are numerical instabilities caused by missing
+! terms for totally trapped particles
+! By changing the limit to nxi +1, when this flag is true,
+! These numerical instabilities are removed and
+! le_layout gives the same result as the standard layout
+! nxi +1 must be included because it is the ixi index
+! for the duplicate vpar=0 point which must be included
+! For velocity integration to give the correct value      
        split_collisions=.false.
        !USE_LE_LAYOUT default set at module level
        !Note: If we want to move default here then we need to note
@@ -321,7 +361,10 @@ contains
     call broadcast (use_le_layout)
     call broadcast (special_wfb_lorentz)
     call broadcast (split_collisions)
-
+    call broadcast (vpar_zero_mean)
+    call broadcast (conserve_forbid_zero)
+    call broadcast (le_nxilim_fix)
+    
     drag = resistivity .and. (beta > epsilon(0.0)) .and. (nspec > 1) .and. (fapar.gt.0)
   end subroutine read_parameters
 
@@ -408,7 +451,7 @@ contains
     use species, only: nspec, spec, electron_species
     use kt_grids, only: kperp2, naky, ntheta0
     use theta_grid, only: ntgrid, bmag
-    use le_grids, only: energy, al, integrate_moment, negrid
+    use le_grids, only: energy => energy_maxw, al, integrate_moment, negrid, forbid
     use gs2_time, only: code_dt
     use dist_fn_arrays, only: aj0, aj1, vpa
     use run_parameters, only: tunits
@@ -422,7 +465,7 @@ contains
     complex, dimension (:,:,:), allocatable :: gtmp
     complex, dimension (:,:,:,:), allocatable :: duinv, dtmp
     real, dimension (:,:,:,:), allocatable :: vns
-    integer :: ie, il, ik, is, isgn, iglo,  it
+    integer :: ie, il, ik, is, isgn, iglo,  it, ig
     complex, dimension (:,:,:), allocatable :: ctmp, z_big
     complex, dimension(:,:,:), allocatable :: s0tmp, w0tmp, z0tmp
     logical :: all = .true.
@@ -460,22 +503,45 @@ contains
     
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 ! Now get z0 (first form)
-
-    do iglo = g_lo%llim_proc, g_lo%ulim_proc
-       ik = ik_idx(g_lo,iglo)
-       ie = ie_idx(g_lo,iglo)
-       il = il_idx(g_lo,iglo)
-       is = is_idx(g_lo,iglo)
-       do isgn = 1, 2
-          ! u0 = -2 nu_D^{ei} vpa J0 dt f0
-          if (conservative) then
-             z0tmp(:,isgn,iglo) = -2.0*code_dt*vns(ik,ie,is,3)*vpdiff(:,isgn,il) &
-                  * sqrt(energy(ie))*aj0(:,iglo)
-          else
-             z0tmp(:,isgn,iglo) = -2.0*code_dt*vns(ik,ie,is,3)*vpa(:,isgn,iglo)*aj0(:,iglo)
-          end if
-       end do
-    end do
+    if(conserve_forbid_zero) then ! MRH
+        do iglo = g_lo%llim_proc, g_lo%ulim_proc
+           ik = ik_idx(g_lo,iglo)
+           ie = ie_idx(g_lo,iglo)
+           il = il_idx(g_lo,iglo)
+           is = is_idx(g_lo,iglo)
+           do isgn = 1, 2
+            do ig=-ntgrid,ntgrid
+              ! u0 = -2 nu_D^{ei} vpa J0 dt f0
+              if ( .not. forbid(ig,il) ) then
+                  if (conservative) then
+                     z0tmp(ig,isgn,iglo) = -2.0*code_dt*vns(ik,ie,is,3)*vpdiff(ig,isgn,il) &
+                          * sqrt(energy(ie))*aj0(ig,iglo)
+                  else
+                     z0tmp(ig,isgn,iglo) = -2.0*code_dt*vns(ik,ie,is,3)*vpa(ig,isgn,iglo)*aj0(ig,iglo)
+                  end if
+              else
+                z0tmp(ig,isgn,iglo) = 0.
+              endif
+            end do
+           end do
+        end do
+    else    
+        do iglo = g_lo%llim_proc, g_lo%ulim_proc
+           ik = ik_idx(g_lo,iglo)
+           ie = ie_idx(g_lo,iglo)
+           il = il_idx(g_lo,iglo)
+           is = is_idx(g_lo,iglo)
+           do isgn = 1, 2
+              ! u0 = -2 nu_D^{ei} vpa J0 dt f0
+              if (conservative) then
+                 z0tmp(:,isgn,iglo) = -2.0*code_dt*vns(ik,ie,is,3)*vpdiff(:,isgn,il) &
+                      * sqrt(energy(ie))*aj0(:,iglo)
+              else
+                 z0tmp(:,isgn,iglo) = -2.0*code_dt*vns(ik,ie,is,3)*vpa(:,isgn,iglo)*aj0(:,iglo)
+              end if
+           end do
+        end do
+    endif
 
     if(use_le_layout) then    
        call gather (g2le, z0tmp, ctmp)
@@ -554,24 +620,49 @@ contains
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 ! Now get s0 (first form)
-
-    do iglo = g_lo%llim_proc, g_lo%ulim_proc
-       it = it_idx(g_lo,iglo)
-       ik = ik_idx(g_lo,iglo)
-       ie = ie_idx(g_lo,iglo)
-       il = il_idx(g_lo,iglo)
-       is = is_idx(g_lo,iglo)
-       do isgn = 1, 2
-          ! u1 = -3 nu_s vpa dt J0 f_0 / du
-          if (conservative) then
-             s0tmp(:,isgn,iglo) = -vns(ik,ie,is,1)*vpdiff(:,isgn,il)*sqrt(energy(ie)) &
-                  * aj0(:,iglo)*code_dt*duinv(:,it,ik,is)
-          else
-             s0tmp(:,isgn,iglo) = -vns(ik,ie,is,1)*vpa(:,isgn,iglo) &
-                  * aj0(:,iglo)*code_dt*duinv(:,it,ik,is)
-          end if
-       end do
-    end do
+    if(conserve_forbid_zero) then ! MRH
+        do iglo = g_lo%llim_proc, g_lo%ulim_proc
+           it = it_idx(g_lo,iglo)
+           ik = ik_idx(g_lo,iglo)
+           ie = ie_idx(g_lo,iglo)
+           il = il_idx(g_lo,iglo)
+           is = is_idx(g_lo,iglo)
+           do isgn = 1, 2
+            do ig=-ntgrid,ntgrid
+              ! u1 = -3 nu_s vpa dt J0 f_0 / du
+              if ( .not. forbid(ig,il) ) then
+                  if (conservative) then
+                     s0tmp(ig,isgn,iglo) = -vns(ik,ie,is,1)*vpdiff(ig,isgn,il)*sqrt(energy(ie)) &
+                          * aj0(ig,iglo)*code_dt*duinv(ig,it,ik,is)
+                  else
+                     s0tmp(ig,isgn,iglo) = -vns(ik,ie,is,1)*vpa(ig,isgn,iglo) &
+                          * aj0(ig,iglo)*code_dt*duinv(ig,it,ik,is)
+                  end if
+              else 
+                s0tmp(ig,isgn,iglo) = 0.
+              endif
+            end do
+           end do
+        end do
+    else
+        do iglo = g_lo%llim_proc, g_lo%ulim_proc
+           it = it_idx(g_lo,iglo)
+           ik = ik_idx(g_lo,iglo)
+           ie = ie_idx(g_lo,iglo)
+           il = il_idx(g_lo,iglo)
+           is = is_idx(g_lo,iglo)
+           do isgn = 1, 2
+              ! u1 = -3 nu_s vpa dt J0 f_0 / du
+              if (conservative) then
+                 s0tmp(:,isgn,iglo) = -vns(ik,ie,is,1)*vpdiff(:,isgn,il)*sqrt(energy(ie)) &
+                      * aj0(:,iglo)*code_dt*duinv(:,it,ik,is)
+              else
+                 s0tmp(:,isgn,iglo) = -vns(ik,ie,is,1)*vpa(:,isgn,iglo) &
+                      * aj0(:,iglo)*code_dt*duinv(:,it,ik,is)
+              end if
+           end do
+        end do
+    endif    
 
     if(use_le_layout) then    
        call gather (g2le, s0tmp, ctmp)
@@ -642,26 +733,53 @@ contains
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 ! Now get w0
-
-    do iglo = g_lo%llim_proc, g_lo%ulim_proc
-       it = it_idx(g_lo,iglo)
-       ik = ik_idx(g_lo,iglo)
-       ie = ie_idx(g_lo,iglo)
-       il = il_idx(g_lo,iglo)
-       is = is_idx(g_lo,iglo)
-       do isgn = 1, 2
-          ! u2 = -3 dt J1 vperp vus a f0 / du
-          if (conservative) then
-             w0tmp(:,isgn,iglo) = -vns(ik,ie,is,1)*energy(ie)*al(il)*aj1(:,iglo) &
-                  * code_dt*spec(is)%smz**2*kperp2(:,it,ik)*duinv(:,it,ik,is) &
-                  / bmag
-          else
-             w0tmp(:,isgn,iglo) = -vns(ik,ie,is,1)*energy(ie)*al(il)*aj1(:,iglo) &
-                  * code_dt*spec(is)%smz**2*kperp2(:,it,ik)*duinv(:,it,ik,is) &
-                  / bmag
-          end if
-       end do
-    end do
+    if(conserve_forbid_zero) then ! MRH
+        do iglo = g_lo%llim_proc, g_lo%ulim_proc
+           it = it_idx(g_lo,iglo)
+           ik = ik_idx(g_lo,iglo)
+           ie = ie_idx(g_lo,iglo)
+           il = il_idx(g_lo,iglo)
+           is = is_idx(g_lo,iglo)
+           do isgn = 1, 2
+            do ig=-ntgrid,ntgrid
+              ! u2 = -3 dt J1 vperp vus a f0 / du
+              if ( .not. forbid(ig,il) ) then 
+                  if (conservative) then
+                     w0tmp(ig,isgn,iglo) = -vns(ik,ie,is,1)*energy(ie)*al(il)*aj1(ig,iglo) &
+                          * code_dt*spec(is)%smz**2*kperp2(ig,it,ik)*duinv(ig,it,ik,is) &
+                          / bmag(ig)
+                  else
+                     w0tmp(ig,isgn,iglo) = -vns(ik,ie,is,1)*energy(ie)*al(il)*aj1(ig,iglo) &
+                          * code_dt*spec(is)%smz**2*kperp2(ig,it,ik)*duinv(ig,it,ik,is) &
+                          / bmag(ig)
+                  end if
+              else
+                w0tmp(ig,isgn,iglo) = 0. 
+              endif
+            end do
+           end do
+        end do
+    else
+        do iglo = g_lo%llim_proc, g_lo%ulim_proc
+           it = it_idx(g_lo,iglo)
+           ik = ik_idx(g_lo,iglo)
+           ie = ie_idx(g_lo,iglo)
+           il = il_idx(g_lo,iglo)
+           is = is_idx(g_lo,iglo)
+           do isgn = 1, 2
+              ! u2 = -3 dt J1 vperp vus a f0 / du
+              if (conservative) then
+                 w0tmp(:,isgn,iglo) = -vns(ik,ie,is,1)*energy(ie)*al(il)*aj1(:,iglo) &
+                      * code_dt*spec(is)%smz**2*kperp2(:,it,ik)*duinv(:,it,ik,is) &
+                      / bmag
+              else
+                 w0tmp(:,isgn,iglo) = -vns(ik,ie,is,1)*energy(ie)*al(il)*aj1(:,iglo) &
+                      * code_dt*spec(is)%smz**2*kperp2(:,it,ik)*duinv(:,it,ik,is) &
+                      / bmag
+              end if
+           end do
+        end do
+    endif
 
     if(use_le_layout) then    
        call gather (g2le, w0tmp, ctmp)
@@ -836,7 +954,8 @@ contains
     use species, only: nspec, spec
     use kt_grids, only: naky, ntheta0, kperp2
     use theta_grid, only: ntgrid, bmag
-    use le_grids, only: energy, al, integrate_moment, negrid
+    use le_grids, only: energy => energy_maxw, al, integrate_moment, negrid
+    use le_grids, only: forbid
     use gs2_time, only: code_dt
     use dist_fn_arrays, only: aj0, aj1, vpa
     use le_grids, only: g2le, nxi
@@ -848,7 +967,7 @@ contains
     complex, dimension (:,:,:), allocatable :: gtmp
     complex, dimension (:,:,:,:), allocatable :: duinv, dtmp
     real, dimension (:,:,:,:), allocatable :: vns
-    integer :: ie, il, ik, is, isgn, iglo, it
+    integer :: ie, il, ik, is, isgn, iglo, it, ig
     complex, dimension (:,:,:), allocatable :: ctmp, z_big
     complex, dimension (:,:,:), allocatable :: bs0tmp, bw0tmp, bz0tmp    
     logical :: all
@@ -899,19 +1018,38 @@ contains
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 ! Now get z0 (first form)
-
-    do iglo = g_lo%llim_proc, g_lo%ulim_proc
-       it = it_idx(g_lo,iglo)
-       ik = ik_idx(g_lo,iglo)
-       ie = ie_idx(g_lo,iglo)
-       is = is_idx(g_lo,iglo)
-       do isgn = 1, 2
-          ! u0 = -nu_E E dt J0 f_0 / du
-          bz0tmp(:,isgn,iglo) = -code_dt*vnmult(2)*vnew_E(ik,ie,is) &
-               * aj0(:,iglo)*duinv(:,it,ik,is)
-       end do
-    end do
-
+    if(conserve_forbid_zero) then ! MRH
+        do iglo = g_lo%llim_proc, g_lo%ulim_proc
+           it = it_idx(g_lo,iglo)
+           ik = ik_idx(g_lo,iglo)
+           ie = ie_idx(g_lo,iglo)
+           is = is_idx(g_lo,iglo)
+           il = il_idx(g_lo,iglo)
+           do isgn = 1, 2
+              do ig=-ntgrid,ntgrid
+                  ! u0 = -nu_E E dt J0 f_0 / du
+                  if ( .not. forbid(ig,il) ) then 
+                      bz0tmp(ig,isgn,iglo) = -code_dt*vnmult(2)*vnew_E(ik,ie,is) &
+                           * aj0(ig,iglo)*duinv(ig,it,ik,is)
+                  else
+                      bz0tmp(ig,isgn,iglo) = 0.
+                  endif
+              end do
+           end do
+        end do
+    else 
+        do iglo = g_lo%llim_proc, g_lo%ulim_proc
+           it = it_idx(g_lo,iglo)
+           ik = ik_idx(g_lo,iglo)
+           ie = ie_idx(g_lo,iglo)
+           is = is_idx(g_lo,iglo)
+           do isgn = 1, 2
+              ! u0 = -nu_E E dt J0 f_0 / du
+              bz0tmp(:,isgn,iglo) = -code_dt*vnmult(2)*vnew_E(ik,ie,is) &
+                   * aj0(:,iglo)*duinv(:,it,ik,is)
+           end do
+        end do
+    endif
     if(use_le_layout) then    
        call gather (g2le, bz0tmp, ctmp)
        call solfp_ediffuse_le_layout (ctmp)
@@ -980,24 +1118,48 @@ contains
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 ! Now get s0 (first form)
-
-    do iglo = g_lo%llim_proc, g_lo%ulim_proc
-       it = it_idx(g_lo,iglo)
-       ik = ik_idx(g_lo,iglo)
-       ie = ie_idx(g_lo,iglo)
-       is = is_idx(g_lo,iglo)
-       do isgn = 1, 2
-          ! u1 = -3 nu_s vpa dt J0 f_0 / du
-!          if (conservative) then
-          bs0tmp(:,isgn,iglo) = -vns(ik,ie,is,1)*vpa(:,isgn,iglo) &
-               * aj0(:,iglo)*code_dt*duinv(:,it,ik,is)
-!          else
-!             bs0(:,isgn,iglo) = -3.0*vns(ik,ie,is,2)*vpa(:,isgn,iglo) &
-!                  * aj0(:,iglo)*code_dt*duinv(:,it,ik,is)
-!          end if
-       end do
-    end do
-
+    if(conserve_forbid_zero) then 
+        do iglo = g_lo%llim_proc, g_lo%ulim_proc
+           it = it_idx(g_lo,iglo)
+           ik = ik_idx(g_lo,iglo)
+           ie = ie_idx(g_lo,iglo)
+           is = is_idx(g_lo,iglo)
+           il = il_idx(g_lo,iglo)
+           do isgn = 1, 2
+                do ig=-ntgrid,ntgrid
+              ! u1 = -3 nu_s vpa dt J0 f_0 / du
+    !          if (conservative) then
+                    if ( .not. forbid(ig,il) ) then 
+                      bs0tmp(ig,isgn,iglo) = -vns(ik,ie,is,1)*vpa(ig,isgn,iglo) &
+                           * aj0(ig,iglo)*code_dt*duinv(ig,it,ik,is)
+                    else 
+                      bs0tmp(ig,isgn,iglo) = 0.
+                    endif
+                end do
+    !          else
+    !             bs0(:,isgn,iglo) = -3.0*vns(ik,ie,is,2)*vpa(:,isgn,iglo) &
+    !                  * aj0(:,iglo)*code_dt*duinv(:,it,ik,is)
+    !          end if
+           end do
+        end do
+    else
+        do iglo = g_lo%llim_proc, g_lo%ulim_proc
+           it = it_idx(g_lo,iglo)
+           ik = ik_idx(g_lo,iglo)
+           ie = ie_idx(g_lo,iglo)
+           is = is_idx(g_lo,iglo)
+           do isgn = 1, 2
+              ! u1 = -3 nu_s vpa dt J0 f_0 / du
+    !          if (conservative) then
+              bs0tmp(:,isgn,iglo) = -vns(ik,ie,is,1)*vpa(:,isgn,iglo) &
+                   * aj0(:,iglo)*code_dt*duinv(:,it,ik,is)
+    !          else
+    !             bs0(:,isgn,iglo) = -3.0*vns(ik,ie,is,2)*vpa(:,isgn,iglo) &
+    !                  * aj0(:,iglo)*code_dt*duinv(:,it,ik,is)
+    !          end if
+           end do
+        end do
+    endif
     if(use_le_layout) then
        call gather (g2le, bs0tmp, ctmp)
        call solfp_ediffuse_le_layout (ctmp)
@@ -1065,21 +1227,41 @@ contains
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 ! Now get w0
-
-    do iglo = g_lo%llim_proc, g_lo%ulim_proc
-       it = it_idx(g_lo,iglo)
-       ik = ik_idx(g_lo,iglo)
-       ie = ie_idx(g_lo,iglo)
-       il = il_idx(g_lo,iglo)
-       is = is_idx(g_lo,iglo)
-       do isgn = 1, 2
-          ! u0 = -3 dt J1 vperp vus a f0 / du
-          bw0tmp(:,isgn,iglo) = -vns(ik,ie,is,1)*energy(ie)*al(il)*aj1(:,iglo) &
-               * code_dt*spec(is)%smz**2*kperp2(:,it,ik)*duinv(:,it,ik,is) &
-               / bmag
-       end do
-    end do
-
+    if (conserve_forbid_zero) then
+        do iglo = g_lo%llim_proc, g_lo%ulim_proc
+           it = it_idx(g_lo,iglo)
+           ik = ik_idx(g_lo,iglo)
+           ie = ie_idx(g_lo,iglo)
+           il = il_idx(g_lo,iglo)
+           is = is_idx(g_lo,iglo)
+           do isgn = 1, 2
+            do ig=-ntgrid,ntgrid
+              ! u0 = -3 dt J1 vperp vus a f0 / du
+              if ( .not. forbid(ig,il) ) then
+                  bw0tmp(ig,isgn,iglo) = -vns(ik,ie,is,1)*energy(ie)*al(il)*aj1(ig,iglo) &
+                       * code_dt*spec(is)%smz**2*kperp2(ig,it,ik)*duinv(ig,it,ik,is) &
+                       / bmag(ig)
+              else
+                  bw0tmp(ig,isgn,iglo) = 0.
+              endif
+            end do
+           end do
+        end do
+    else
+        do iglo = g_lo%llim_proc, g_lo%ulim_proc
+           it = it_idx(g_lo,iglo)
+           ik = ik_idx(g_lo,iglo)
+           ie = ie_idx(g_lo,iglo)
+           il = il_idx(g_lo,iglo)
+           is = is_idx(g_lo,iglo)
+           do isgn = 1, 2
+              ! u0 = -3 dt J1 vperp vus a f0 / du
+              bw0tmp(:,isgn,iglo) = -vns(ik,ie,is,1)*energy(ie)*al(il)*aj1(:,iglo) &
+                   * code_dt*spec(is)%smz**2*kperp2(:,it,ik)*duinv(:,it,ik,is) &
+                   / bmag
+           end do
+        end do
+    endif
     if(use_le_layout) then    
        call gather (g2le, bw0tmp, ctmp)
        call solfp_ediffuse_le_layout (ctmp)
@@ -1227,15 +1409,16 @@ contains
           deallocate(bz0tmp)
        endif
     end if
- end subroutine init_diffuse_conserve
 
- subroutine init_vnew (hee)
-   use species, only: nspec, spec, electron_species, has_electron_species
-   use le_grids, only: negrid, energy, w
-   use kt_grids, only: naky, ntheta0, kperp2
-   use theta_grid, only: ntgrid
-   use run_parameters, only: zeff, tunits
-    use constants, only: pi
+  end subroutine init_diffuse_conserve
+
+  subroutine init_vnew (hee)
+    use species, only: nspec, spec, electron_species, has_electron_species
+    use le_grids, only: negrid, energy => energy_maxw, w => w_maxw
+    use kt_grids, only: naky, ntheta0, kperp2
+    use theta_grid, only: ntgrid
+    use run_parameters, only: zeff, tunits
+    use constants
     use spfunc, only: erf => erf_ext
     real, dimension (:), intent (out) :: hee
     real,dimension (negrid)::heevth, hsg, hsgvth
@@ -1427,9 +1610,9 @@ contains
   end function hsg_func
 
   subroutine init_ediffuse (vnmult_target)
-    use le_grids, only: negrid, nxi
+    use le_grids, only: negrid, nxi, ng2
     use le_grids, only: forbid, ixi_to_il
-    use egrid, only: zeroes, x0
+    use egrid, only: zeroes => zeroes_maxw, x0 => x0_maxw
     use gs2_layouts, only: le_lo, e_lo, il_idx
     use gs2_layouts, only: ig_idx, it_idx, ik_idx, is_idx
 
@@ -1441,10 +1624,17 @@ contains
     real, dimension (:), allocatable :: aa, bb, cc, xe
     integer :: ile, ixi
     integer :: ielo
+    integer :: nxi_lim
 
     allocate (aa(negrid), bb(negrid), cc(negrid))
     allocate (xe(negrid))
-
+   
+    if(le_nxilim_fix .and. nxi > 2*ng2 ) then
+        nxi_lim = nxi + 1
+    else
+        nxi_lim = nxi
+    endif
+    
     ! want to use x variables instead of e because we want conservative form
     ! for the x-integration
     xe(1:negrid-1) = zeroes
@@ -1470,7 +1660,7 @@ contains
          it = it_idx(le_lo, ile)
          is = is_idx(le_lo, ile)
          ig = ig_idx(le_lo, ile)
-         do ixi=1, nxi
+         do ixi=1, nxi_lim
             il = ixi_to_il(ig,ixi)
             if (forbid(ig,il)) cycle
             call get_ediffuse_matrix (aa, bb, cc, ig, ik, it, il, is, xe)
@@ -1524,7 +1714,7 @@ contains
     use species, only: spec
     use run_parameters, only: tunits
     use theta_grid, only: bmag
-    use le_grids, only: al, negrid, w
+    use le_grids, only: al, negrid, w=>w_maxw
     use spfunc, only: erf => erf_ext
     use constants, only: pi
     use kt_grids, only: kperp2
@@ -1772,7 +1962,13 @@ contains
          it = it_idx(le_lo,ile)
          is = is_idx(le_lo,ile)
          je = jend(ig)
-         if (je <= ng2+1) then
+         !if (je <= ng2+1) then
+         ! MRH the above line is likely the original cause of the wfb bug in collisions
+         ! by treating collisions arrays here as if there are only passing particles
+         ! when there are only passing particles plus wfb (and no other trapped particles)
+         ! introduced an inconsistency in the tri-diagonal solve for theta =+/- pi 
+         ! Fixed below
+         if (je <= ng2 .or. (je <= ng2+1 .and. special_wfb_lorentz) ) then ! MRH
             te2 = 2*ng2
          else
             te2 = 2*je-1
@@ -1826,7 +2022,13 @@ contains
          ie = ie_idx(lz_lo,ilz)
          ig = ig_idx(lz_lo,ilz)
          je = jend(ig)
-         if (je <= ng2+1) then
+         !if (je <= ng2+1) then
+         ! MRH the above line is likely the original cause of the wfb bug in collisions
+         ! by treating collisions arrays here as if there are only passing particles
+         ! when there are only passing particles plus wfb (and no other trapped particles)
+         ! introduced an inconsistency in the tri-diagonal solve for theta =+/- pi 
+         ! Fixed below
+         if (je <= ng2 .or. (je <= ng2+1 .and. special_wfb_lorentz) ) then ! MRH
             te2 = 2*ng2
          else
             te2 = 2*je-1
@@ -1861,7 +2063,7 @@ contains
   subroutine get_lorentz_matrix (aa, bb, cc, dd, hh, ig, ik, it, ie, is)
 
     use species, only: spec
-    use le_grids, only: al, energy, xi, ng2
+    use le_grids, only: al, energy => energy_maxw, xi, ng2
     use le_grids, only: wl, jend, al
     use gs2_time, only: code_dt
     use kt_grids, only: kperp2
@@ -2013,6 +2215,12 @@ contains
 ! ASIDE: NB    deltaxi=wl is actually 2*spacing in xi !!!
 !              which explains upfront factor 2 in definition of aa, cc
        deltaxi=wl(ig,il)
+       if (te == je) deltaxi = 2.*deltaxi ! MRH vpar =0 fix 
+       ! MRH appropriate when endpoint (te) is a vpar = 0 point (je)
+       ! factor of 2 required above because xi=0 is a repeated point 
+       ! on vpar > 0, vpar < 0 grids, and hence has half the weight associated 
+       ! to it at each appearance compared to what the weight should be  
+       ! as calculated in the continuum of points xi = (-1,1)
        if (.not. special_wfb_lorentz .and. deltaxi .eq. 0. .and. il .eq. ng2+1) then 
           deltaxi=xi(ig,ng2)-xi(ig,ng2+2)
        endif
@@ -2436,7 +2644,7 @@ contains
     use theta_grid, only: ntgrid
     use run_parameters, only: beta
     use gs2_time, only: code_dt
-    use le_grids, only: energy
+    use le_grids, only: energy => energy_maxw
     use species, only: spec, electron_species
     use dist_fn_arrays, only: vpa, aj0
     use fields_arrays, only: aparnew
@@ -2588,7 +2796,7 @@ contains
     use theta_grid, only: bmag
     use run_parameters, only: beta, ieqzip
     use gs2_time, only: code_dt
-    use le_grids, only: energy, negrid, nxi, ixi_to_il, ixi_to_isgn, sgn, al
+    use le_grids, only: energy => energy_maxw, negrid, nxi, ixi_to_il, ixi_to_isgn, sgn, al, ng2
     use species, only: spec, electron_species
     use fields_arrays, only: aparnew
     use kt_grids, only: kwork_filter, kperp2
@@ -2601,7 +2809,14 @@ contains
     integer, optional, intent (in) :: diagnostics
 
     integer :: ig, it, ik, il, ie, is, ile, ixi, isgn
+    integer :: nxi_lim
 
+    if(le_nxilim_fix .and. nxi > 2*ng2 ) then
+        nxi_lim = nxi + 1
+    else
+        nxi_lim = nxi
+    endif
+    
     ! TMP FOR TESTING -- MAB
 !    integer :: t0, t1, t2, t3, t4, t5, tr
 !    real :: t1tot = 0., t2tot = 0., t3tot = 0., t4tot = 0., t5tot = 0.
@@ -2639,7 +2854,7 @@ contains
              if(kwork_filter(it,ik)) cycle
              ig = ig_idx(le_lo,ile)
              do ie = 1, negrid
-                do ixi = 1, nxi
+                do ixi = 1, nxi_lim
                    il = ixi_to_il(ig,ixi)
                    isgn = ixi_to_isgn(ig,ixi)
                    gle(ixi,ie,ile) = gle(ixi,ie,ile) + ieqzip(it,ik) * &
@@ -2691,7 +2906,7 @@ contains
              if(kwork_filter(it,ik)) cycle
              ig = ig_idx(le_lo,ile)
              do ie = 1, negrid
-                do ixi = 1, nxi
+                do ixi = 1, nxi_lim
                    il = ixi_to_il(ig,ixi)
                    isgn = ixi_to_isgn(ig,ixi)
                    gle(ixi,ie,ile) = gle(ixi,ie,ile) + ieqzip(it,ik) * &
@@ -2730,7 +2945,7 @@ contains
     use species, only: nspec
     use kt_grids, only: naky, ntheta0
     use gs2_layouts, only: g_lo, ik_idx, it_idx, ie_idx, il_idx, is_idx
-    use le_grids, only: energy, al, integrate_moment, negrid
+    use le_grids, only: energy => energy_maxw, al, integrate_moment, negrid
     use dist_fn_arrays, only: aj0, aj1, vpa
     use run_parameters, only: ieqzip
     use kt_grids, only: kwork_filter
@@ -2872,10 +3087,10 @@ contains
     use theta_grid, only: ntgrid
     use species, only: nspec
     use gs2_layouts, only: ik_idx, it_idx, ie_idx, il_idx, is_idx
-    use le_grids, only: energy, al, integrate_moment, negrid
+    use le_grids, only: energy => energy_maxw, al, integrate_moment, negrid
     use le_grids, only: ixi_to_il, ixi_to_isgn
     use run_parameters, only: ieqzip
-    use le_grids, only: sgn, nxi
+    use le_grids, only: sgn, nxi, ng2
     use gs2_layouts, only: le_lo, ig_idx
     use redistribute, only: scatter
     use run_parameters, only: tunits
@@ -2891,7 +3106,14 @@ contains
 
     integer :: ig, isgn, ik, ie, il, is, it
     integer :: ile, ixi
+    integer :: nxi_lim
 
+    if(le_nxilim_fix .and. nxi > 2*ng2 ) then
+        nxi_lim = nxi + 1
+    else
+        nxi_lim = nxi
+    endif
+    
     allocate (v0y0(le_lo%llim_proc:le_lo%ulim_alloc))
     allocate (v1y1(le_lo%llim_proc:le_lo%ulim_alloc))
     allocate (v2y2(le_lo%llim_proc:le_lo%ulim_alloc))
@@ -2909,7 +3131,7 @@ contains
        ! initially define vpanud to be vpa
        do is = 1, nspec
           do ie = 1, negrid
-             do ixi = 1, nxi
+             do ixi = 1, nxi_lim
                 do ig = -ntgrid, ntgrid
                    il = ixi_to_il(ig,ixi)
                    isgn = ixi_to_isgn(ig,ixi)
@@ -2949,7 +3171,7 @@ contains
     if (conservative) then
        do is = 1, nspec
           do ie = 1, negrid
-             do ixi = 1, nxi
+             do ixi = 1, nxi_lim
                 do ig = -ntgrid, ntgrid
                    il = ixi_to_il(ig,ixi)
                    isgn = ixi_to_isgn(ig,ixi)
@@ -2961,7 +3183,7 @@ contains
     else
        do is = 1, nspec
           do ie = 1, negrid
-             do ixi = 1, nxi
+             do ixi = 1, nxi_lim
                 do ig = -ntgrid, ntgrid
                    il = ixi_to_il(ig,ixi)
                    isgn = ixi_to_isgn(ig,ixi)
@@ -3005,7 +3227,7 @@ contains
        if(kwork_filter(it,ik)) cycle
        is = is_idx(le_lo,ile)
        ig = ig_idx(le_lo,ile)
-       do ixi=1, nxi
+       do ixi=1, nxi_lim
           il = ixi_to_il(ig,ixi)
           ! aj1vp2 = 2 * J1(arg)/arg * vperp^2
           gtmp(ixi,:negrid,ile) = vnmult(1) * vnew_D(ik,:negrid,is) * aj1le(ixi,:negrid,ile) &
@@ -3036,7 +3258,7 @@ contains
     use species, only: nspec
     use kt_grids, only: naky, ntheta0
     use gs2_layouts, only: g_lo, ik_idx, it_idx, ie_idx, il_idx, is_idx
-    use le_grids, only: energy, al, integrate_moment, negrid
+    use le_grids, only: energy => energy_maxw, al, integrate_moment, negrid
     use dist_fn_arrays, only: aj0, aj1, vpa
     use run_parameters, only: ieqzip
     use kt_grids, only: kwork_filter
@@ -3171,10 +3393,10 @@ contains
     use species, only: nspec
     use kt_grids, only: naky
     use gs2_layouts, only: ik_idx, it_idx, ie_idx, il_idx, is_idx
-    use le_grids, only: energy, al, integrate_moment, negrid
+    use le_grids, only: energy => energy_maxw, al, integrate_moment, negrid
     use le_grids, only: ixi_to_il, ixi_to_isgn
     use run_parameters, only: ieqzip
-    use le_grids, only: forbid, sgn, speed, nxi
+    use le_grids, only: forbid, sgn, speed => speed_maxw, nxi, ng2
     use gs2_layouts, only: le_lo, ig_idx, ik_idx, it_idx
     use redistribute, only: scatter
     use theta_grid, only: bmag
@@ -3192,6 +3414,7 @@ contains
 
     integer :: ig, isgn, ik, ie, il, is, it
     integer :: ile, ixi
+    integer :: nxi_lim
     real, dimension (:,:,:,:), allocatable :: vpadelnu
     complex, dimension (:), allocatable :: v0y0, v1y1, v2y2
 
@@ -3212,9 +3435,16 @@ contains
     !if(any(kwork_filter)) gtmp=0.
     gtmp=0.
 
+    if(le_nxilim_fix .and. nxi > 2*ng2 ) then
+        nxi_lim = nxi + 1
+    else
+        nxi_lim = nxi
+    endif
+
+    
     if (.not. allocated(vpatmp)) then
-       allocate(vpatmp(-ntgrid:ntgrid,nxi)) ; vpatmp = 0.0
-       do ixi = 1, nxi
+       allocate(vpatmp(-ntgrid:ntgrid,nxi_lim)) ; vpatmp = 0.0
+       do ixi = 1, nxi_lim
           do ig = -ntgrid, ntgrid
              il = ixi_to_il(ig,ixi)
              isgn = ixi_to_isgn(ig,ixi)
@@ -3238,7 +3468,7 @@ contains
        it = it_idx(le_lo,ile)
        if(kwork_filter(it,ik)) cycle
        do ie=1, negrid
-          do ixi = 1, nxi
+          do ixi = 1, nxi_lim
              gtmp(ixi,ie,ile) = vns(ik,ie,is)*aj0le(ixi,ie,ile)*gle(ixi,ie,ile)
           end do
        end do
@@ -3277,7 +3507,7 @@ contains
 
     do is = 1, nspec
        do ie = 1, negrid
-          vpadelnu(:,:nxi,ie,is) = vns(1,ie,is) * vpatmp * speed(ie)
+          vpadelnu(:,:nxi_lim,ie,is) = vns(1,ie,is) * vpatmp * speed(ie)
        end do
     end do
 
@@ -3339,7 +3569,7 @@ contains
 
        ig = ig_idx(le_lo,ile)
        do ie=1, negrid
-          do ixi = 1, nxi
+          do ixi = 1, nxi_lim
              il = ixi_to_il(ig,ixi)
              gtmp(ixi,ie,ile) = vns(ik,ie,is) &
                   * al(il)*aj1le(ixi,ie,ile) * gle(ixi,ie,ile)
@@ -3475,6 +3705,16 @@ contains
 !  je-1 = #physical xi values removing unphysical/duplicate extra point
        je=max(2*jend(ig),2*ng2+1)
        nxi_scatt=je-1
+       
+       if (je==2*jend(ig) .and. vpar_zero_mean) then 
+       ! MRH if we have trapped particles and hence 2 vpar=0 points on the grid
+       ! use the average of both vpar = 0 points in the lorentz diffusion in pitch angle
+       ! this turns out to be necessary to suppress numerical instability
+       ! when we handle pitch angle scattering physically at theta = +/- pi
+       ! by setting special_wfb_lorentz =.false.
+        glz(jend(ig),ilz)=(glz(jend(ig),ilz)+glz(2*jend(ig),ilz))/2.0
+       endif 
+       
        glz(je,ilz)=0.0  ! zero unphysical/duplicate extra point
        if (jend(ig) == ng2+1 .and.special_wfb_lorentz) then
 !CMRDDGC:  special_wfb_lorentz = t  => unphysical handling of wfb at bounce pt: 
@@ -3520,7 +3760,7 @@ contains
 ! Overall, this was a rare bug.
 !
 
-!       if (jend(ig) /= 0) glz(je,ilz) = glz(jend(ig),ilz)
+       ! update the duplicate vpar=0 point with the post pitch angle scattering value 
        if (jend(ig) /= 0) glz(2*jend(ig),ilz) = glz(jend(ig),ilz)
 
     end do
@@ -3643,6 +3883,14 @@ contains
 ! to satisfy trapping condition after invert_rhs.
 !
        do ie = 1, negrid
+          if (je==2*jend(ig) .and. vpar_zero_mean) then
+           ! MRH if we have trapped particles and hence 2 vpar=0 points on the grid
+           ! use the average of both vpar = 0 points in the lorentz diffusion in pitch angle
+           ! this turns out to be necessary to suppress numerical instability
+           ! when we handle pitch angle scattering physically at theta = +/- pi
+           ! by setting special_wfb_lorentz =.false.
+            gle(jend(ig),ie,ile)=(gle(jend(ig),ie,ile)+gle(2*jend(ig),ie,ile))/2.0
+          endif 
           gle(je,ie,ile)=0.0d0  ! zero redundant duplicate xi, isign=2 for vpar=0!
           if (jend(ig) == ng2+1 .and.special_wfb_lorentz) then
 !CMRDDGC:  special_wfb_lorentz = t  => unphysical handling of wfb at bounce pt: 
@@ -3682,7 +3930,7 @@ contains
 !CMR, 1/11/2013:
 ! next line ensures bounce condition is satisfied after lorentz collisions
 ! this is right thing to do, but it would mask any prior bug in trapping condition!
-
+          ! update the duplicate vpar=0 point with the post pitch angle scattering value 
           if (jend(ig) /= 0) gle(2*jend(ig),ie,ile) = gle(jend(ig),ie,ile)
 
        end do
@@ -3757,7 +4005,7 @@ contains
   subroutine solfp_ediffuse_le_layout (gle)
 
     use species, only: spec
-    use le_grids, only: nxi, negrid, forbid, ixi_to_il
+    use le_grids, only: nxi, negrid, forbid, ixi_to_il, ng2
     use gs2_layouts, only: ig_idx, it_idx, ik_idx, is_idx, le_lo
     use run_parameters, only: ieqzip
     use kt_grids, only: kwork_filter
@@ -3768,7 +4016,14 @@ contains
     integer :: ie, is, ig, il
     complex, dimension (negrid) :: delta
     integer :: ile, ixi, ik, it
-
+    integer :: nxi_lim
+    
+    if(le_nxilim_fix .and. nxi > 2*ng2 ) then
+        nxi_lim = nxi + 1
+    else
+        nxi_lim = nxi
+    endif
+    
     ! solve for gle row by row
     do ile = le_lo%llim_proc, le_lo%ulim_proc
 
@@ -3780,7 +4035,7 @@ contains
        if (ieqzip(it,ik)==0) cycle
        ig = ig_idx(le_lo,ile)
 
-       do ixi = 1, nxi
+       do ixi = 1, nxi_lim
           il = ixi_to_il(ig,ixi)
           if (forbid(ig,il)) cycle
 

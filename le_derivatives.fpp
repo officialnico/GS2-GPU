@@ -21,7 +21,7 @@ contains
     use gs2_layouts, only: ig_idx, is_idx
     use theta_grid, only: gradpar, theta
     use le_grids, only: ixi_to_il, ixi_to_isgn, forbid, write_mpdist_le, write_mpdist, jend
-    use le_grids, only: xi, speed, energy
+    use le_grids, only: xi, speed => speed_maxw, energy => energy_maxw
     use species, only: spec
     use lowflow, only: dphidth
 # endif
@@ -197,7 +197,7 @@ contains
     
     subroutine get_gvpa (g_in, dv, ig0, il0, ixi0, ie0, g_out)
       use theta_grid, only: bmag
-      use le_grids, only: speed, energy, al, xi, negrid, jend
+      use le_grids, only: speed=>speed_maxw, energy=>energy_maxw, al, xi, negrid, jend
       use mp, only: mp_abort
       implicit none
 
@@ -332,7 +332,7 @@ contains
 
     subroutine interp_g (ig0, isgn, il_low, il_up, ix_low, ix_up, ie_low, ie_up, v0, x0, g, gint)
 
-      use le_grids, only: speed, xi, negrid, sgn
+      use le_grids, only: speed => speed_maxw, xi, negrid, sgn
 !      use le_grids, only: nlambda,al
 
       implicit none

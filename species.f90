@@ -7,11 +7,15 @@ module species
   public :: write_trinity_parameters
   public :: wnml_species, check_species
   public :: nspec, specie, spec
-  public :: ion_species, electron_species, slowing_down_species, tracer_species
-  public :: has_ion_species, has_electron_species, has_slowing_down_species
+  public :: ion_species, electron_species, tracer_species
+  public :: f0_maxwellian, f0_tabulated, f0_sdanalytic
+  public :: has_ion_species, has_electron_species, has_nonmaxw_species
+  public :: calculate_slowingdown_parameters
   public :: ions, electrons, impurity
   public :: set_overrides
   public :: determine_species_order
+  public :: calculate_f0_arrays, set_current_f0_species, eval_f0
+  public :: nonmaxw_corr, f0_values, dlnf0drho
 
   type :: specie
      real :: z
@@ -28,13 +32,27 @@ module species
                        ! nu_h controls a hyperviscous term embedded in the collision operator
      real :: stm, zstm, tz, smz, zt
      real :: bess_fac !Artificial factor multiplying the Bessel function argument
+     real :: vcrit
+     real :: vcprim
      integer :: type
+     integer :: f0type
   end type specie
 
   integer, parameter :: ion_species = 1
   integer, parameter :: electron_species = 2 ! for collision operator
-  integer, parameter :: slowing_down_species = 3 ! slowing-down distn
-  integer, parameter :: tracer_species = 4 ! for test particle diffusion studies
+  integer, parameter :: tracer_species = 3 ! for test particle diffusion studies
+
+  integer, parameter :: f0_maxwellian = 1, &           !< Regular Maxwellian species
+                        f0_tabulated = 2, &            !< f0 determined from table in external input file
+                        f0_sdanalytic = 3              !< Analytic Gaffey slowing-down distribution
+
+  ! FIXME
+  !> Various quantities needed in the calculation of the slowing-down distribution in case electrons are
+  !! adiabatic
+  real:: me, ZI_fac
+
+  !> Defines a working species so that eval_f0 only needs to take one argument (needed for genquad)
+  integer:: is_global = -1
 
   integer :: nspec
   type (specie), dimension (:), allocatable :: spec
@@ -42,6 +60,7 @@ module species
   integer :: ions, electrons, impurity
   integer :: ntspec_trin
   real, dimension (:), allocatable :: dens_trin, temp_trin, fprim_trin, tprim_trin, nu_trin
+  real, dimension (:,:), allocatable :: nonmaxw_corr, f0_values, dlnf0drho
 
   logical :: initialized = .false.
   logical :: exist
@@ -183,14 +202,22 @@ contains
        write (unit, fmt="(' tprim = ',e13.6)") spec(i)%tprim
        write (unit, fmt="(' fprim = ',e13.6)") spec(i)%fprim
        write (unit, fmt="(' uprim = ',e13.6)") spec(i)%uprim
+       write (unit, fmt="(' vcrit = ',e13.6)") spec(i)%vcrit
+       write (unit, fmt="(' vcprim = ',e13.6)") spec(i)%vcprim
        if (spec(i)%uprim2 /= 0.) write (unit, fmt="(' uprim2 = ',e13.6)") spec(i)%uprim2
        write (unit, fmt="(' vnewk = ',e13.6)") spec(i)%vnewk
        if (spec(i)%type == ion_species) &
             write (unit, fmt="(a)") ' type = "ion" /'
        if (spec(i)%type == electron_species) &
             write (unit, fmt="(a)") ' type = "electron"  /'
-       if (spec(i)%type == slowing_down_species) &
-            write (unit, fmt="(a)") ' type = "fast"  /'
+       if (spec(i)%type == tracer_species) &
+            write (unit, fmt="(a)") ' type = "trace"  /'
+       if (spec(i)%f0type == f0_maxwellian) &
+            write (unit, fmt="(a)") ' f0type = "maxwellian" /'
+       if (spec(i)%f0type == f0_sdanalytic) &
+            write (unit, fmt="(a)") ' f0type = "sdanalytic"  /'
+       if (spec(i)%f0type == f0_tabulated) &
+            write (unit, fmt="(a)") ' f0type = "tabulated"  /'
        write (unit, fmt="(' dens0 = ',e13.6)") spec(i)%dens0
        if(spec(i)%bess_fac.ne.1.0) &
             write (unit, fmt="(' bess_fac = ',e13.6)") spec(i)%bess_fac
@@ -217,30 +244,33 @@ contains
     use mp, only: proc0, broadcast, mp_abort
     implicit none
     real :: z, mass, dens, dens0, u0, temp, tprim, fprim, uprim, uprim2, vnewk, nustar, nu, nu_h
-    real :: tperp0, tpar0, bess_fac
+    real :: tperp0, tpar0, bess_fac, vcrit, vcprim
     real, dimension(:), allocatable :: tmp_bcast
-    character(20) :: type
+    character(20) :: type, f0type
     integer :: unit
     integer :: is, iostat
-    namelist /species_knobs/ nspec
+    namelist /species_knobs/ nspec, ZI_fac, me
     namelist /species_parameters/ z, mass, dens, dens0, u0, temp, &
          tprim, fprim, uprim, uprim2, vnewk, nustar, type, nu, nu_h, &
-         tperp0, tpar0, bess_fac
+         tperp0, tpar0, bess_fac, f0type, vcrit, vcprim
     integer :: ierr, in_file
 
-    type (text_option), dimension (9), parameter :: typeopts = &
+    type (text_option), dimension (5), parameter :: typeopts = &
          (/ text_option('default', ion_species), &
             text_option('ion', ion_species), &
             text_option('electron', electron_species), &
             text_option('e', electron_species), &
-            text_option('beam', slowing_down_species), &
-            text_option('fast', slowing_down_species), &
-            text_option('alpha', slowing_down_species), &
-            text_option('slowing-down', slowing_down_species), &
             text_option('trace', tracer_species) /)
+
+    type (text_option), dimension (3), parameter :: f0_opts = &
+         (/ text_option('maxwellian', f0_maxwellian), &
+            text_option('tabulated', f0_tabulated), &
+            text_option('sdanalytic', f0_sdanalytic) /)
 
     if (proc0) then
        nspec = 2
+       ZI_fac = -1.0
+       me = -1.0
        in_file = input_unit_exist("species_knobs", exist)
 !       if (exist) read (unit=input_unit("species_knobs"), nml=species_knobs)
        if (exist) then
@@ -257,6 +287,8 @@ contains
     end if
 
     call broadcast (nspec)
+    call broadcast (ZI_fac)
+    call broadcast (me)
     allocate (spec(nspec))
 
     if (proc0) then
@@ -279,7 +311,10 @@ contains
           nu = -1.0
           nu_h = 0.0
           bess_fac=1.0
+          vcrit = -1.0
+          vcprim = -999.9
           type = "default"
+          f0type = "maxwellian"
           read (unit=unit, nml=species_parameters, iostat=iostat)
           if(iostat /= 0) write(6,*) 'Error ',iostat,'reading species parameters'
           close (unit=unit, iostat=iostat)
@@ -309,10 +344,14 @@ contains
           spec(is)%smz = abs(sqrt(temp*mass)/z)
 
           spec(is)%bess_fac=bess_fac
+          spec(is)%vcrit=vcrit
+          spec(is)%vcprim=vcprim
 
           ierr = error_unit()
           call get_option_value (type, typeopts, spec(is)%type, ierr, "type in species_parameters_x",.true.)
+          call get_option_value (f0type, f0_opts, spec(is)%f0type, ierr, "f0type in species_parameters_x",.true.)
        end do
+
     end if
 
     !We use a temporary array here to allow us to broadcast all species data at once
@@ -340,7 +379,10 @@ contains
     tmp_bcast=spec%zt ; call broadcast(tmp_bcast) ; spec%zt=tmp_bcast
     tmp_bcast=spec%smz ; call broadcast(tmp_bcast) ; spec%smz=tmp_bcast
     tmp_bcast=spec%type ; call broadcast(tmp_bcast) ; spec%type=int(tmp_bcast)
+    tmp_bcast=spec%f0type ; call broadcast(tmp_bcast) ; spec%f0type=int(tmp_bcast)
     tmp_bcast=spec%bess_fac ; call broadcast(tmp_bcast) ; spec%bess_fac=tmp_bcast
+    tmp_bcast=spec%vcrit ; call broadcast(tmp_bcast) ; spec%vcrit=tmp_bcast
+    tmp_bcast=spec%vcprim ; call broadcast(tmp_bcast) ; spec%vcprim=tmp_bcast
     deallocate(tmp_bcast)
 
   end subroutine read_parameters
@@ -352,6 +394,442 @@ contains
     has_ion_species = any(spec%type == ion_species)
   end function has_ion_species
 
+  subroutine calculate_slowingdown_parameters(alpha_index,vc,vcprim)
+    use constants, only: pi
+    use mp, only: proc0
+    implicit none
+    integer, intent(in):: alpha_index
+    real, intent(inout):: vc, vcprim
+    integer:: electron_spec, main_ion_species, is,js
+    real:: vinj, Te_prim, ZI_fac_local, ne_prim, ni_prim, ne, vte
+    
+    electron_spec = -1
+    main_ion_species = -1
+
+    do is = 1,nspec
+       if (spec(is)%type .eq. electron_species)                            electron_spec = is
+       if (main_ion_species < 1 .and. spec(is)%type .eq. ion_species)      main_ion_species = is
+    end do
+
+    if (electron_spec .GT. 0) then
+       me = spec(electron_spec)%mass
+       ne = spec(electron_spec)%dens
+       ne_prim = spec(electron_spec)%fprim
+       Te_prim = spec(electron_spec)%tprim
+       vte = sqrt(spec(electron_spec)%temp/spec(electron_spec)%mass)
+    else
+       if (me .LT. 0.0) then
+          if (proc0) write(*,*) "WARNING: vte not specified in species_knobs. Assuming reference species is deuterium, so me = 0.0002723085"
+          me = 0.0002723085
+       end if             
+
+       ne = sum(spec(:)%z*spec(:)%dens)
+       ne_prim = sum(spec(:)%z*spec(:)%dens*spec(:)%fprim)/ne
+       Te_prim = spec(main_ion_species)%tprim
+       vte = sqrt(spec(main_ion_species)%temp/spec(main_ion_species)%mass)
+       if (proc0) then
+          write(*,*) "Since electrons are adiabatic, we need to improvise electron parameters to "
+          write(*,*) "caluclate alpha species properties. Imposed by global quasineutrality:"
+          write(*,*) "  ne = ", ne
+          write(*,*) "  vte = ", vte
+          write(*,*) "  ne_prim = ", ne_prim
+          write(*,*) "  Te_prim = ", Te_prim
+       end if
+    end if
+
+    ni_prim = 0.0
+    ! If ZI_fac is not specified, calculate it from existing ion species:
+    if (ZI_fac .LT. 0.0) then
+       ZI_fac_local = 0.0
+       do js = 1,nspec
+          if (spec(js)%type .eq. ion_species) then 
+             ZI_fac_local = ZI_fac_local   + spec(alpha_index)%mass*spec(js)%dens*spec(js)%z**2/(spec(js)%mass*ne)
+             ni_prim = ni_prim + spec(alpha_index)%mass*spec(js)%dens*spec(js)%z**2*spec(js)%fprim/(spec(js)%mass*ne)
+          end if
+       end do
+    else
+       ZI_fac_local = ZI_fac
+    end if
+    ni_prim = ni_prim / ZI_fac_local
+
+    ! Calculate vc/vinj
+    vinj = sqrt(spec(alpha_index)%temp/spec(alpha_index)%mass)
+    vc = (0.25*3.0*sqrt(pi)*ZI_fac_local*me/spec(alpha_index)%mass)**(1.0/3.0)*vte/vinj
+    vcprim = ni_prim - ne_prim + 1.5*Te_prim
+
+  end subroutine calculate_slowingdown_parameters
+
+  subroutine calculate_f0_arrays(egrid)
+     use mp, only: iproc
+     implicit none
+     real, dimension (:,:), intent (in) :: egrid
+     integer:: negrid,is,ie
+     real:: v, f0, df0dE, f0prim
+    
+     negrid = size(egrid(:,1))
+
+     allocate(nonmaxw_corr(negrid,nspec))
+     allocate(f0_values(negrid,nspec))
+     allocate(dlnf0drho(negrid,nspec))
+
+     do is = 1,nspec
+        is_global = is
+        do ie = 1,negrid
+           v = sqrt(egrid(ie,is))
+
+           select case (spec(is)%f0type)
+           case (f0_maxwellian)
+              f0_values(ie,is) = eval_f0(v)
+              nonmaxw_corr(ie,is) = 1.0
+              dlnf0drho(ie,is) = -spec(is)%fprim - (egrid(ie,is) - 1.5)*spec(is)%tprim
+           case (f0_sdanalytic)
+              call eval_f0_sdanalytic(is,v,f0,df0dE,f0prim)
+              f0_values(ie,is) = f0
+              nonmaxw_corr(ie,is) = -spec(is)%temp*df0dE
+              dlnf0drho(ie,is) = f0prim
+           end select
+           !write(*,*) iproc, is, ie, f0_values(ie,is), -nonmaxw_corr(ie,is)/spec(is)%temp,dlnf0drho(ie,is)
+        end do
+        if (spec(is)%f0type .EQ. f0_tabulated) then
+           call calculate_f0_arrays_tabulated(is,egrid)
+        end if
+        
+     end do
+
+  end subroutine calculate_f0_arrays
+
+  subroutine set_current_f0_species(is)
+     implicit none
+     integer, intent(in):: is
+     is_global = is
+  end subroutine set_current_f0_species
+
+
+  !> Relies upon is_global to determine species. This function only takes one argument so that
+  !! it can be passed as an argument to genquad
+  function eval_f0(v)
+     use constants, only: pi
+     use mp, only: mp_abort
+     implicit none
+     real, intent(in):: v
+     real:: eval_f0
+     real::f0temp, dummy1,dummy2
+
+     if (is_global .LT. 0)  call mp_abort("is_global not specified when calling eval_f0")
+
+     select case(spec(is_global)%f0type)
+     case (f0_maxwellian)
+        f0temp = exp(-v**2)/pi**1.5        
+     case (f0_sdanalytic)
+        call eval_f0_sdanalytic(is_global,v,f0temp,dummy1,dummy2)
+     case (f0_tabulated)
+        call mp_abort("ERROR: eval_f0 cannot yet handle tabulated option.")
+     end select
+
+     eval_f0 = f0temp
+
+  end function eval_f0
+
+  subroutine eval_f0_sdanalytic(is,v,f0,df0dE_out,f0prim)
+    use constants, only: pi
+    use mp, only: mp_abort, proc0
+    use spfunc, only: erf => erf_ext
+    implicit none
+    integer,intent(in):: is
+    real,intent(in):: v
+    real,intent(inout):: f0,df0dE_out, f0prim
+    real:: A, df0dv,vcprim, vcrit
+    integer:: ie, i, electron_spec
+
+    if (spec(is)%vcrit .LE. 0.0) then
+       call calculate_slowingdown_parameters(is,vcrit,vcprim)
+       if (abs(spec(is)%vcprim + 999.0) .LT. 1.0e-3)  vcprim = spec(is)%vcprim
+    else
+       !> If vcrit is specified, there is no way of knowing its radial derivative, so set dvc/drho = 0
+       vcrit = spec(is)%vcrit
+       if (abs(spec(is)%vcprim + 999.0) .LT. 1.0e-3)   vcprim = 0.0
+    end if
+
+
+    A = (3.0/(4.0*pi))/log( (vcrit**3 + 1.0)/(vcrit**3))
+
+    f0 = A/(vcrit**3 + v**3)
+    df0dv = -A*3.0*v**2/(vcrit**3 + v**3)**2
+    df0dE_out =  (0.5/v)*df0dv / ( f0 * spec(is)%temp )
+    f0prim = -spec(is)%fprim - (-(vcrit**3/(vcrit**3 + v**3)) + (1.0/( log(1.0 + vcrit**(-3)) * (1.0 + vcrit**(3)))))*vcprim
+
+    if (v .GT. 1.0) then
+       f0 = 0.0
+       f0prim = 0.0
+       df0dE_out = 1.0
+    end if
+
+!    write(*,*) v, vcrit,vcprim,f0prim
+
+  end subroutine eval_f0_sdanalytic
+
+!> This subroutine calculates f0 on the grid from an external
+!! input file. The grid on the input file can differ from that 
+!! of gs2. A cubic spline is used to interpolate between the two.
+!! The user can either specify df0/dE or it can be estimated internally.
+!! The radial derivative of f0 as a function of energy should also be given.
+  subroutine calculate_f0_arrays_tabulated(is,egrid)
+    !
+    ! The egrid is already given by get_legendre_grids. 
+    !
+    ! The input file can take two forms, as controlled by the
+    ! control parameter mode, the first integer read from the file
+    !  mode = 1: E points in first columns, F0(E) in second. To calculate
+    !            generalized temperature, a cubic spline is used to 
+    !            interpolate and the slope is taken from that.
+    !       = 2: First column is E, second is F0(E), the third is (1/F0)*dF0/dE
+    !       = 3: E, F0(E), -(1/F0)*dF0/drho 
+    !       = 4: E, F0(E),dF0/dE, -(1/F0)*dF0/drho 
+    use mp, only: broadcast
+    use constants, only: pi
+    use file_utils, only: run_name
+    use splines, only: fitp_curvd, fitp_curv1, fitp_curv2
+    implicit none
+    integer, intent(in) :: is
+    real, dimension(:,:),intent(in):: egrid
+    integer:: f0in_unit = 21, mode, ie, ierr, numdat, il, it, negrid
+    logical:: acceptable_spline
+    real:: test, moment0, moment2, sigma, sigma_fac, df0dE
+    real, dimension(:), allocatable:: f0_values_dat, df0dE_dat, egrid_dat, &
+                                      yp, temp, df0drho_dat
+    
+    ! Open file and read column option
+    open(unit=f0in_unit,file=trim(run_name)//'.f0in',status='old',action='read')
+    read(f0in_unit,*) mode
+    read(f0in_unit,*) numdat
+
+    allocate(f0_values_dat(numdat))
+    allocate(df0dE_dat(numdat))
+    allocate(df0drho_dat(numdat))
+    allocate(egrid_dat(numdat))
+    allocate(yp(numdat))
+    allocate(temp(numdat))
+
+    sigma = 1.0
+    sigma_fac = 2.0
+    acceptable_spline = .false.
+
+    if (mode .EQ. 1) then
+       ! Read f0 values
+       do ie = 1,numdat
+          read(f0in_unit,*) egrid_dat(ie), f0_values_dat(ie)
+       end do
+       close(f0in_unit)
+
+       ! Perform cubic spline to get F0 and its slope at grid points
+       ! If F0 ends up being negative or zero anywhere on the grid, double the tension
+       ! factor and try again
+
+       do while (.NOT. acceptable_spline)
+          ! Generate spline parameters
+          call fitp_curv1(numdat,egrid_dat,f0_values_dat,0.0,0.0,3,yp,temp,sigma,ierr)
+          if (ierr .NE. 0) then
+             write(*,*) "fitp_curv1 returned error code ", ierr
+             stop 1
+          end if
+
+          do ie = 1,negrid
+             ! Interpolate to get f0 at grid points
+             f0_values(ie,is) = fitp_curv2(egrid(ie,is),numdat,egrid_dat, &
+                             f0_values_dat,yp,sigma)
+
+             ! Calculate d/dE lnF0 to get generalised temperature
+             df0dE =  fitp_curvd(egrid(ie,is),numdat,egrid_dat, f0_values_dat,yp,sigma)  / &
+                                (f0_values(ie,is) * spec(is)%temp)
+             nonmaxw_corr(ie,is) = -spec(is)%temp*df0dE
+
+          end do
+
+          if (minval(f0_values(:,is)) .GT. epsilon(0.0)) then 
+             acceptable_spline = .true.
+          else
+             sigma = sigma * sigma_fac
+          end if
+       end do
+
+       dlnf0drho(:,is) = - spec(is)%fprim
+
+    else if (mode .EQ. 2) then
+       ! Read both f0 and df0/dE
+       do ie = 1,numdat
+          read(f0in_unit,*) egrid_dat(ie), f0_values_dat(ie), df0dE_dat(ie)
+       end do
+       close(f0in_unit)
+
+       do while (.NOT. acceptable_spline)
+          ! Generate spline parameters for f0
+          call fitp_curv1(numdat,egrid_dat,f0_values_dat,0.0,0.0,3,yp,temp,sigma,ierr)
+
+          if (ierr .NE. 0) then
+             write(*,*) "fitp_curv1 returned error code ", ierr
+             stop 1
+          end if
+
+          do ie = 1,negrid
+
+             ! Interpolate to get F0 at grid points
+             f0_values(ie,is) = fitp_curv2(egrid(ie,is),numdat,egrid_dat, &
+                                f0_values_dat,yp,sigma)
+          end do
+
+          ! Generate spline parameters for df0/dE
+          call fitp_curv1(numdat,egrid_dat,df0dE_dat,0.0,0.0,3,yp,temp,sigma,ierr)
+          if (ierr .NE. 0) then
+             write(*,*) "fitp_curv1 returned error code ", ierr
+             stop 1
+          end if
+
+          do ie = 1,negrid
+             ! Interpolate to get f0 at grid points
+             df0dE     = fitp_curv2(egrid(ie,is),numdat,egrid_dat, &
+                                df0dE_dat,yp,sigma)  / spec(is)%temp
+             nonmaxw_corr(ie,is) = -spec(is)%temp*df0dE
+          end do
+ 
+          if (minval(f0_values(:,is)) .GT. epsilon(0.0)) then 
+             acceptable_spline = .true.
+          else
+             sigma = sigma * sigma_fac
+          end if
+
+       end do
+
+       dlnf0drho(:,is) = - spec(is)%fprim
+
+    else if (mode .EQ. 3) then
+       ! Read f0 and df0/drho
+       do ie = 1,numdat
+          read(f0in_unit,*) egrid_dat(ie), f0_values_dat(ie), df0drho_dat(ie)
+       end do
+       close(f0in_unit)
+
+       do while (.NOT. acceptable_spline)
+          ! Generate spline parameters for f0
+          call fitp_curv1(numdat,egrid_dat,f0_values_dat,0.0,0.0,3,yp,temp,sigma,ierr)
+
+          if (ierr .NE. 0) then
+             write(*,*) "fitp_curv1 returned error code ", ierr
+             stop 1
+          end if
+
+          do ie = 1,negrid
+             ! Interpolate to get F0 at grid points
+             f0_values(ie,is) = fitp_curv2(egrid(ie,is),numdat,egrid_dat, &
+                                 f0_values_dat,yp,sigma)
+             ! Calculate d/dE lnF0 to get generalised temperature
+             df0dE = fitp_curvd(egrid(ie,is),numdat,egrid_dat, &
+                             f0_values_dat,yp,sigma) / (f0_values(ie,is) * spec(is)%temp)
+             nonmaxw_corr(ie,is) = -spec(is)%temp*df0dE
+          end do
+
+          ! Generate spline parameters for df0/drho
+          call fitp_curv1(numdat,egrid_dat,df0drho_dat,0.0,0.0,3,yp,temp,sigma,ierr)
+          if (ierr .NE. 0) then
+             write(*,*) "fitp_curv1 returned error code ", ierr
+             stop 1
+          end if
+
+          do ie = 1,negrid
+             ! Interpolate to get f0prim at grid points
+             dlnf0drho(ie,is)    = fitp_curv2(egrid(ie,is),numdat,egrid_dat, &
+                                df0drho_dat,yp,sigma)
+          end do
+ 
+          if (minval(f0_values(:,is)) .GT. epsilon(0.0)) then 
+             acceptable_spline = .true.
+          else
+             sigma = sigma * sigma_fac
+          end if
+
+       end do
+
+    else if (mode .EQ. 4) then
+       ! Read f0, df0/dE, df0/drho
+       do ie = 1,numdat
+          read(f0in_unit,*) egrid_dat(ie), f0_values_dat(ie), df0dE_dat(ie), df0drho_dat(ie)
+       end do
+       close(f0in_unit)
+
+       do while (.NOT. acceptable_spline)
+          ! Generate spline parameters for f0
+          call fitp_curv1(numdat,egrid_dat,f0_values_dat,0.0,0.0,3,yp,temp,sigma,ierr)
+
+          if (ierr .NE. 0) then
+             write(*,*) "fitp_curv1 returned error code ", ierr
+             stop 1
+          end if
+
+          do ie = 1,negrid
+
+             ! Interpolate to get F0 at grid points
+             f0_values(ie,is) = fitp_curv2(egrid(ie,is),numdat,egrid_dat, &
+                                f0_values_dat,yp,sigma)
+          end do
+
+          ! Generate spline parameters for df0/dE
+          call fitp_curv1(numdat,egrid_dat,df0dE_dat,0.0,0.0,3,yp,temp,sigma,ierr)
+          if (ierr .NE. 0) then
+             write(*,*) "fitp_curv1 returned error code ", ierr
+             stop 1
+          end if
+
+          do ie = 1,negrid
+             ! Interpolate to get f0 at grid points
+             df0dE     = fitp_curv2(egrid(ie,is),numdat,egrid_dat, &
+                                df0dE_dat,yp,sigma)  / spec(is)%temp
+             nonmaxw_corr(ie,is) = -spec(is)%temp*df0dE
+          end do
+ 
+          ! Generate spline parameters for df0/drho
+          call fitp_curv1(numdat,egrid_dat,df0drho_dat,0.0,0.0,3,yp,temp,sigma,ierr)
+          if (ierr .NE. 0) then
+             write(*,*) "fitp_curv1 returned error code ", ierr
+             stop 1
+          end if
+
+          do ie = 1,negrid
+             ! Interpolate to get f0 at grid points
+             dlnf0drho(ie,is)     = fitp_curv2(egrid(ie,is),numdat,egrid_dat, &
+                                 df0drho_dat,yp,sigma) 
+          end do
+ 
+          if (minval(f0_values(:,is)) .GT. epsilon(0.0)) then 
+             acceptable_spline = .true.
+          else
+             sigma = sigma * sigma_fac
+          end if
+
+       end do
+
+       dlnf0drho(:,is) = - spec(is)%fprim
+
+    else
+       write(*,*) "ERROR. First line in f0 input file should be mode" 
+       stop 1
+    end if
+
+    ! Now calculate moments of F0 from trapezoidal rule.
+    ! Should probably do this by quadrature, 
+    ! but le_grids is not defined yet
+
+    moment0 = 0.0
+    do ie = 1,numdat-1
+       moment0  = moment0 + 0.5*(egrid_dat(ie+1)-egrid_dat(ie)) * &
+                           ( sqrt(egrid_dat(ie))*f0_values_dat(ie) + &
+                             sqrt(egrid_dat(ie+1))*f0_values_dat(ie+1) )
+    end do
+    moment0 = moment0*4.0*pi
+
+    
+    deallocate(egrid_dat,f0_values_dat,df0dE_dat,df0drho_dat,yp,temp)
+
+  end subroutine calculate_f0_arrays_tabulated
+
   pure function has_electron_species (spec)
     implicit none
     type (specie), dimension (:), intent (in) :: spec
@@ -359,16 +837,17 @@ contains
     has_electron_species = any(spec%type == electron_species)
   end function has_electron_species
 
-  pure function has_slowing_down_species (spec)
+  pure function has_nonmaxw_species (spec)
     implicit none
     type (specie), dimension (:), intent (in) :: spec
-    logical :: has_slowing_down_species
-    has_slowing_down_species = any(spec%type == slowing_down_species)
-  end function has_slowing_down_species
+    logical :: has_nonmaxw_species
+    has_nonmaxw_species = .NOT. all(spec%f0type == f0_maxwellian)
+  end function has_nonmaxw_species
 
   subroutine finish_species
     implicit none
     if(allocated(spec)) deallocate (spec)
+!    if(allocated(f0_values)) deallocate (f0_values,nonmaxw_corr,dlnf0drho)
     initialized = .false.
   end subroutine finish_species
 

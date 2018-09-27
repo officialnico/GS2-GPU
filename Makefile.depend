@@ -32,6 +32,7 @@ dump_grids_mod = \
 	 eeq.o \
 	 file_utils.o \
 	 gauss_quad.o \
+	 genquad.o \
 	 geometry.o \
 	 geq.o \
 	 gridgen4mod.o \
@@ -46,11 +47,13 @@ dump_grids_mod = \
 	 netcdf_utils.o \
 	 overrides.o \
 	 peq.o \
+	 quadpack.o \
 	 read_chease.o \
 	 redistribute.o \
 	 runtime_tests.o \
 	 sorting.o \
 	 species.o \
+	 spfunc.o \
 	 spl.o \
 	 text_options.o \
 	 theta_grid.o \
@@ -80,6 +83,7 @@ dump_response_mod = \
 	 fields_test.o \
 	 file_utils.o \
 	 gauss_quad.o \
+	 genquad.o \
 	 geometry.o \
 	 geq.o \
 	 gridgen4mod.o \
@@ -108,6 +112,7 @@ dump_response_mod = \
 	 parameter_scan_arrays.o \
 	 peq.o \
 	 prof.o \
+	 quadpack.o \
 	 ran.o \
 	 read_chease.o \
 	 redistribute.o \
@@ -184,6 +189,7 @@ ffttester_mod = \
 	 fields_test.o \
 	 file_utils.o \
 	 gauss_quad.o \
+	 genquad.o \
 	 geometry.o \
 	 geq.o \
 	 gridgen4mod.o \
@@ -218,11 +224,15 @@ ffttester_mod = \
 	 parameter_scan_arrays.o \
 	 peq.o \
 	 prof.o \
+	 quadpack.o \
 	 ran.o \
 	 read_chease.o \
 	 redistribute.o \
 	 run_parameters.o \
 	 runtime_tests.o \
+	 simpledataio_read.o \
+	 simpledataio_write.o \
+	 simpledataiof.o \
 	 sorting.o \
 	 species.o \
 	 spfunc.o \
@@ -248,6 +258,7 @@ generate_fftw_wisdom_mod = \
 	 file_utils.o \
 	 gauss_quad.o \
 	 generate_fftw_wisdom.o \
+	 genquad.o \
 	 geometry.o \
 	 geq.o \
 	 gridgen4mod.o \
@@ -268,12 +279,14 @@ generate_fftw_wisdom_mod = \
 	 parameter_scan_arrays.o \
 	 peq.o \
 	 prof.o \
+	 quadpack.o \
 	 read_chease.o \
 	 redistribute.o \
 	 run_parameters.o \
 	 runtime_tests.o \
 	 sorting.o \
 	 species.o \
+	 spfunc.o \
 	 spl.o \
 	 text_options.o \
 	 theta_grid.o \
@@ -323,6 +336,7 @@ gs2_mod = \
 	 fields_test.o \
 	 file_utils.o \
 	 gauss_quad.o \
+	 genquad.o \
 	 geometry.o \
 	 geq.o \
 	 gridgen4mod.o \
@@ -360,11 +374,15 @@ gs2_mod = \
 	 parameter_scan_arrays.o \
 	 peq.o \
 	 prof.o \
+	 quadpack.o \
 	 ran.o \
 	 read_chease.o \
 	 redistribute.o \
 	 run_parameters.o \
 	 runtime_tests.o \
+	 simpledataio_read.o \
+	 simpledataio_write.o \
+	 simpledataiof.o \
 	 sorting.o \
 	 species.o \
 	 spfunc.o \
@@ -428,6 +446,7 @@ ingen_mod = \
 	 fields_test.o \
 	 file_utils.o \
 	 gauss_quad.o \
+	 genquad.o \
 	 geometry.o \
 	 geq.o \
 	 gridgen4mod.o \
@@ -461,6 +480,7 @@ ingen_mod = \
 	 parameter_scan_arrays.o \
 	 peq.o \
 	 prof.o \
+	 quadpack.o \
 	 ran.o \
 	 read_chease.o \
 	 redistribute.o \
@@ -584,6 +604,7 @@ diagnostics_config.o: \
 	 file_utils.o \
 	 kt_grids.o \
 	 mp.o \
+	 simpledataiof.o \
 	 species.o \
 	 text_options.o \
 	 unit_tests.o 
@@ -593,8 +614,12 @@ diagnostics_create_and_write.o: \
 	 fields_parallelization.o \
 	 file_utils.o \
 	 kt_grids.o \
-	 mp.o 
+	 mp.o \
+	 simpledataio_read.o \
+	 simpledataio_write.o \
+	 simpledataiof.o 
 diagnostics_dimensions.o: \
+	 simpledataiof.o \
 	 unit_tests.o 
 diagnostics_fields.o: \
 	 diagnostics_config.o \
@@ -676,7 +701,8 @@ diagnostics_metadata.o: \
 	 file_utils.o \
 	 mp.o \
 	 run_parameters.o \
-	 runtime_tests.o 
+	 runtime_tests.o \
+	 simpledataiof.o 
 diagnostics_moments.o: \
 	 diagnostics_config.o \
 	 diagnostics_create_and_write.o \
@@ -711,13 +737,16 @@ diagnostics_omega.o: \
 	 mp.o \
 	 run_parameters.o 
 diagnostics_screen_printout.o: \
+	 constants.o \
 	 diagnostics_config.o \
 	 diagnostics_omega.o \
+	 fields_arrays.o \
 	 file_utils.o \
 	 kt_grids.o \
 	 mp.o \
 	 run_parameters.o \
 	 species.o \
+	 theta_grid.o \
 	 volume_averages.o 
 diagnostics_turbulence.o: \
 	 diagnostics_config.o \
@@ -929,6 +958,7 @@ file_utils.o: \
 	 constants.o 
 functional_tests.o: \
 	 gs2_diagnostics.o \
+	 gs2_diagnostics_new.o \
 	 gs2_main.o \
 	 job_manage.o \
 	 kt_grids.o \
@@ -947,6 +977,9 @@ generate_fftw_wisdom.o: \
 	 job_manage.o \
 	 mp.o \
 	 nonlinear_terms.o 
+genquad.o: \
+	 mp.o \
+	 quadpack.o 
 geometry.o: \
 	 ceq.o \
 	 constants.o \
@@ -1037,6 +1070,8 @@ gs2_diagnostics_new.o: \
 	 mp.o \
 	 nonlinear_terms.o \
 	 run_parameters.o \
+	 simpledataio_write.o \
+	 simpledataiof.o \
 	 species.o \
 	 theta_grid.o \
 	 unit_tests.o \
@@ -1290,6 +1325,7 @@ le_grids.o: \
 	 constants.o \
 	 file_utils.o \
 	 gauss_quad.o \
+	 genquad.o \
 	 gs2_layouts.o \
 	 kt_grids.o \
 	 layouts_type.o \
@@ -1369,6 +1405,7 @@ peq.o: \
 pgplot_utils.o: \
 	 constants.o 
 prof.o: 
+quadpack.o: 
 ran.o: \
 	 constants.o 
 read_chease.o: 
@@ -1401,12 +1438,21 @@ shm_mpi3_alloc_tmpl.inc:
 shm_mpi3_fence_tmpl.inc: 
 shm_mpi3_free_tmpl.inc: 
 shm_mpi3_get_node_pointer_tmpl.inc: 
+simpledataio_read.o: \
+	 simpledataio_write.o \
+	 simpledataiof.o 
+simpledataio_write.o: \
+	 simpledataiof.o 
+simpledataiof.o: 
 sorting.o: 
 species.o: \
+	 constants.o \
 	 file_utils.o \
 	 kt_grids.o \
 	 mp.o \
 	 overrides.o \
+	 spfunc.o \
+	 spl.o \
 	 text_options.o \
 	 unit_tests.o 
 spfunc.o: \
