@@ -13,7 +13,7 @@ git checkout git_info
 cd ..
 export GK_SYSTEM=bitbucket
 export MAKEFLAGS=-IMakefiles
-export TESTEXEC='mpirun -np 8'
+export TESTEXEC='mpirun -np 8 --oversubscribe'
 chmod +x tests/write_test_xml.sh
 mpif90 --version
 make depend
