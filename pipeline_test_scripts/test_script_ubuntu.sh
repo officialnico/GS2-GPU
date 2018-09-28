@@ -7,6 +7,10 @@ git clone git@bitbucket.org:gyrokinetics/makefiles.git Makefiles
 cd Makefiles
 git checkout automated-testing
 cd ..
+# Checkout the utils branch which knows about git information
+cd utils
+git checkout git_info
+cd ..
 export GK_SYSTEM=bitbucket
 export MAKEFLAGS=-IMakefiles
 export TESTEXEC='mpirun -np 8'
