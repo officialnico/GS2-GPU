@@ -244,6 +244,16 @@ $(error GK_SYSTEM is not set)
 endif
 include Makefile.$(GK_SYSTEM)
 
+# Make sure the submodules are updated
+Makefiles:
+utils:
+	@echo "Downloading submodules"
+	git submodule update --init --recursive
+
+# This works because make tries to read all the makefiles first, then
+# update any that need updating
+Makefile.$(GK_SYSTEM): | Makefiles utils
+
 # include Makefile.local if exists
 sinclude Makefile.local
 
