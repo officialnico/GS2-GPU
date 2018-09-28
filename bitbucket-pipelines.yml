@@ -13,4 +13,4 @@ pipelines:
           name: josephparker/gs2-dockerfiles:ubuntu-gfortran-8
           run-as-user: 1000
         script:
-          - bash ./test_script_ubuntu.sh
+          - bash pipeline_test_scripts/test_script_ubuntu.sh
