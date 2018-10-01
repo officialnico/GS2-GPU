@@ -10,7 +10,7 @@ pipelines:
     - step:
         name: ubuntu-gfortran-8-O3
         image: 
-          name: josephparker/gs2-dockerfiles:ubuntu-gfortran-8
+          name: josephparker/gs2-dockerfiles:ubuntu-gfortran-8.2
           run-as-user: 1000
         script:
           - bash pipeline_test_scripts/test_script_ubuntu.sh
