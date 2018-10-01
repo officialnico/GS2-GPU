@@ -244,15 +244,18 @@ $(error GK_SYSTEM is not set)
 endif
 include Makefile.$(GK_SYSTEM)
 
+# These directories are submodules
+Makefiles: | submodules
+utils: | submodules
+
 # Make sure the submodules are updated
-Makefiles:
-utils:
+submodules:
 	@echo "Downloading submodules"
 	git submodule update --init --recursive
 
 # This works because make tries to read all the makefiles first, then
 # update any that need updating
-Makefile.$(GK_SYSTEM): | Makefiles utils
+Makefile.$(GK_SYSTEM): | Makefiles
 
 # include Makefile.local if exists
 sinclude Makefile.local
@@ -625,7 +628,7 @@ ifeq ($(notdir $(CURDIR)),geo)
 	.DEFAULT_GOAL := geo_all
 endif
 
-.PHONY: all $(GK_PROJECT)_all unit_tests linear_tests nonlinear_tests benchmarks clean_tests
+.PHONY: all $(GK_PROJECT)_all unit_tests linear_tests nonlinear_tests benchmarks clean_tests submodules
 
 all: $(.DEFAULT_GOAL)
 
