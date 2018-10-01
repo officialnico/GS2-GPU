@@ -1,3 +1,24 @@
+# GS2
+
+GS2 is a physics application, developed to study low-frequency
+turbulence in magnetized plasma. It is typically used to assess the
+microstability of plasmas produced in the laboratory and to calculate
+key properties of the turbulence which results from instabilities. It
+is also used to simulate turbulence in plasmas which occur in nature,
+such as in astrophysical and magnetospheric systems.
+
+## Dependencies
+
+GS2 has no required external dependencies, but does have the following
+optional ones:
+
+- MPI
+- NetCDF
+- HDF5
+- FFTW
+- LAPACK
+- NAG
+
 # Compilation instructions for gs2
 
 The level of difficulty of compiling depends on how much your system is
