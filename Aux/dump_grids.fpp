@@ -1,7 +1,7 @@
 program dump_grids
   use job_manage, only: job_fork, time_message
   use mp, only: init_mp, proc0, nproc, broadcast
-  use file_utils, only: init_file_utils, run_name
+  use file_utils, only: init_file_utils, run_name, run_name_target
   use kt_grids, only: init_kt_grids
   use theta_grid, only: init_theta_grid
   use le_grids, only: init_le_grids
@@ -37,9 +37,9 @@ program dump_grids
   ! <doc> If given a list of jobs, fork </doc>
   if (list) call job_fork
   
-  if (proc0) cbuff = trim(run_name)
-  call broadcast (cbuff)
-  if (.not. proc0) run_name => cbuff
+  if (proc0) run_name_target = trim(run_name)
+  call broadcast (run_name_target)
+  if (.not. proc0) run_name => run_name_target
 
   !Initialise
   time_measure=0.
