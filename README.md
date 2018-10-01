@@ -65,20 +65,20 @@ This text explains how to make agk/gs2.
 
 You must set two environment variables to compile agk/gs2: `GK_SYSTEM` and `MAKEFLAGS`.
 Since system-specific settings are written in `Makefiles/Makefile.$(GK_SYSTEM)`,
-you should specify what system you are on. Officially supported common systems
-are franklin, hopper, carver (NERSC), ranger (TACC), jaguar, jaguarpf (ORNL),
-and Kraken (NICS).
+you should specify what system you are on. There are many supported
+systems -- look in `Makefiles` to see if yours is already in there!
 
-And, to load `Makefile.$(GK_SYSTEM)` in Makefiles/ directory, you must tell "make"
-command that you need to include some files in Makefiles/ directory. This can
-be done by command line option
+In order to load `Makefile.$(GK_SYSTEM)` from the `Makefiles/`
+directory, you must tell `make` that it should search in that
+directory for files. This can be done with the command line option
 
-    make -IMakefiles
+    make -I Makefiles
 
-or, alternatively, use `MAKEFLAGS` environment variable to give "-I" option.
+or, alternatively, use the `MAKEFLAGS` environment variable to give
+the `-I` option.
 
-Those environment variables can be set in your .cshrc or .bashrc. Add the
-following,
+The `GK_SYSTEM` and `MAKEFLAGS` environment variables can be set in
+your `.cshrc` or `.bashrc`. Add the following:
 
 (tcsh)
 
@@ -94,17 +94,18 @@ For utils and geo directories in gs2, do as follows,
 
     make -I.. -I../Makefiles
 
-After setting those environment variable, you just type `make` to get an
-executable. The default target is automatically chosen depending on
-where you are making. Other common targets are,
-test_make, clean, distclean, tar, and depend.
+After setting those environment variables, you just type `make` to get
+an executable. The default target is automatically chosen depending on
+where you are making. Other common targets are: `test_make`, `clean`,
+`distclean`, `tar`, and `depend`.
 
-We have prepared some compile-time switches. To invoke them, add SWITCH=value
-to your make command. For example, if you want to invoke DEBUG flags,
+We have prepared some compile-time switches. To invoke them, add `SWITCH=value`
+to your make command. For example, if you want to use the debug flags:
 
     make DEBUG=on
 
-Following is the full list of switches:
+The following is the full list of switches the possible options in
+`()` brackets and the default in `[]` square brackets:
  - `DEBUG` (defined [undefined]): turns on debug mode
  - `TEST` (defined [undefined]): turns on test mode (not working yet)
  - `PROF` (gprof,ipm [undefined]): turns on profiling mode
@@ -133,13 +134,13 @@ Following is the full list of switches:
                   (NOTE: NAG_PREC=dble (or sngl) must be
                   chosen appropriately for your NAG library)
 
-Values that each switches takes are shown in the bracket, where
-"defined" ("undefined") means whether the switch is defined (or not),
-but not having that value. (Technically speaking, ifdef statement is
-used in the makefile.) Thus, note that DEBUG=off means DEBUG is defined
+Values that each switch takes are shown in brackets, where "defined"
+("undefined") means whether the switch is defined (or not), but not
+having that value. (Technically speaking, `ifdef` statement is used in
+the makefile.) Thus, note that `DEBUG=off` means `DEBUG` is defined
 because this flag is just checked if it is defined or not. Be careful!
 
-In the square bracket, default values in the main makefile (Makefile)
+In the square bracket, default values in the main makefile (`Makefile`)
 are given. Some of those default values are overwritten depending on
 hosts, compilers, and also environment variables. This implies that,
 for some systems where "module" is provided, those default values are
@@ -147,9 +148,9 @@ set properly depending on what modules are loaded.
 
 ### More details in CPPFLAGS
 
-Here, the description of full CPPFLAGS available are given. However,
-CPPFLAGS are basically set by above make swithces and users need not
-be aware of the exact CPPFLAGS.
+Here, the description of full `CPPFLAGS` available are given. However,
+`CPPFLAGS` are basically set by above make switches and users need not
+be aware of the exact `CPPFLAGS`.
 
 In the values column, the top line is the value chosen for the undefined
 macro (`-D{variable}` is NOT invoked).  The second line corresponds to the
