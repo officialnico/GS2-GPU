@@ -19,6 +19,42 @@ optional ones:
 - LAPACK
 - NAG
 
+## Important note on sub-modules
+
+We use git submodules to deal with the sub-projects `utils` and
+`Makefiles` that are shared with other gyrokinetics
+projects. Therefore, when cloning, you will find that the `utils` and
+`Makefiles` directories are empty unless you clone using the
+`--recursive` (git < v2.13) or `--recurse-submodules` (git >= v2.13)
+options. alternatively, you can run the following after the initial
+checkout:
+
+    cd gs2
+    git submodule update --init --recursive --remote
+
+See this nice summary on stackoverflow for further details:
+https://stackoverflow.com/questions/3796927/how-to-git-clone-including-submodules/4438292#4438292
+
+Furthermore, the default protocol of the submodules is HTTPS. This is
+necessary to enable GS2 users (non-developers) to download the code
+successfully. Therefore, developers who wish to modify code belonging
+to `utils` or `Makefiles` will either have to:
+
+- clone a separate copy of `utils` and `Makefiles` via the git
+  protocol, make changes to those, push those changes and then pull
+  them into their `gs2` working copy; or
+
+- add `git config --global url.git@bitbucket.org:gyrokinetics/`
+  instead of `https://bitbucket.org/gyrokinetics/` to their git
+  configuration before cloning `gs2`, thus allowing them to make and
+  push changes directly from the `utils` and `Makefiles`
+  subdirectories within their `gs2` working copy. However, the updated
+  submodules need to be registered with the `gs2` project via commits.
+
+See the official git documentaion e-book for further details on
+working with sub-modules:
+https://git-scm.com/book/en/v2/Git-Tools-Submodules
+
 # Compilation instructions for gs2
 
 The level of difficulty of compiling depends on how much your system is
