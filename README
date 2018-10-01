@@ -9,7 +9,7 @@ directories are empty unless you clone using the `--recursive` (git < v2.13) or
 initial checkout:
 
     cd gs2
-    git submodule update --init --recursive --remote
+    make submodules
 
 See this nice summary on stackoverflow for further details:
 https://stackoverflow.com/questions/3796927/how-to-git-clone-including-submodules/4438292#4438292
@@ -21,11 +21,12 @@ belonging to `utils` or `Makefiles` will either have to:
 - clone a separate copy of `utils` and `Makefiles` via the git protocol, make changes to those, push
   those changes and then pull them into their `gs2` working copy; or
 
-- add `git config --global url.git@bitbucket.org:gyrokinetics/.insteadOf
-  https://bitbucket.org/gyrokinetics/` to their git configuration before cloning `gs2`, thus
-allowing them to make and push changes directly from the `utils` and `Makefiles` subdirectories
-within their `gs2` working copy. However, the updated submodules need to be registered with the
-`gs2` project via commits.
+- add `git config --global url.git@bitbucket.org:gyrokinetics/`
+  instead of `https://bitbucket.org/gyrokinetics/` to their git
+  configuration before cloning `gs2`, thus allowing them to make and
+  push changes directly from the `utils` and `Makefiles`
+  subdirectories within their `gs2` working copy. However, the updated
+  submodules need to be registered with the `gs2` project via commits.
 
 See the official git documentaion e-book for further details on working with sub-modules:
 https://git-scm.com/book/en/v2/Git-Tools-Submodules
