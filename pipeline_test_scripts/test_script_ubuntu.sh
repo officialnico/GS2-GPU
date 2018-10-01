@@ -12,7 +12,7 @@ cd utils
 git checkout git_info
 cd ..
 export GK_SYSTEM=bitbucket
-export MAKEFLAGS=-IMakefiles
+export MAKEFLAGS=-IMakefiles DEBUG=on
 export TESTEXEC='mpirun -np 8 --oversubscribe'
 chmod +x tests/write_test_xml.sh
 mpif90 --version
