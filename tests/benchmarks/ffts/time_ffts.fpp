@@ -22,7 +22,6 @@ program time_ffts
   use nonlinear_terms, only: nonlinear_terms_unit_test_time_add_nl
   use kt_grids, only: ntheta0, naky
   use job_manage, only: time_message
-  !use runtime_tests, only: get_svn_rev, get_compiler_name
   use benchmarks, only: benchmark_identifier
   use gs2_main, only: gs2_program_state_type, initialize_gs2, finalize_gs2
   use gs2_init, only: init, init_level_list

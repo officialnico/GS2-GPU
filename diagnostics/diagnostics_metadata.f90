@@ -13,7 +13,7 @@ contains
     use simpledataio, only: add_metadata
     use simpledataio, only: add_standard_metadata
     use runtime_tests, only: build_identifier
-    use runtime_tests, only: get_svn_rev
+    use runtime_tests, only: get_git_hash, get_git_modified
     use runtime_tests, only: is_release, release
     use run_parameters, only: user_comments
     type(diagnostics_type), intent(in) :: gnostics
@@ -108,8 +108,15 @@ contains
       jline(""))
     call add_metadata(gnostics%sfile, "user_comments", &
       trim(user_comments))
-    call add_metadata(gnostics%sfile, "svn_revision", &
-      trim(get_svn_rev()))
+    call add_metadata(gnostics%sfile, "git_hash", &
+      trim(get_git_hash()))
+    if (get_git_modified()) then
+      call add_metadata(gnostics%sfile, "git_state_modified", &
+        "modified")
+    else
+      call add_metadata(gnostics%sfile, "git_state_modified", &
+        "clean")
+    end if
     call add_metadata(gnostics%sfile, "build_identifier", &
       trim(build_identifier()))
     if (is_release()) then

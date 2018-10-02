@@ -19,7 +19,6 @@ program generate_fftw_wisdom
   !use nonlinear_terms, only: nonlinear_terms_unit_test_time_add_nl
   !use kt_grids, only: ntheta0, naky
   use job_manage, only: time_message
-  !use runtime_tests, only: get_svn_rev, get_compiler_name
   use benchmarks, only: benchmark_identifier
   use constants, only: run_name_size
   implicit none
