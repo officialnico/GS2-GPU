@@ -66,8 +66,6 @@ simpledataio_read.f90
 simpledataio_write.f90
 simpledataiof.f90
 spfunc.f90
-tests/unit_tests/gs2_diagnostics_new/test_gs2_diagnostics_new.f90
-tests/unit_tests/nonlinear_terms/test_nonlinear_terms.f90
 
 .patch.make
 Revision
