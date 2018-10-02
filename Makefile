@@ -70,8 +70,6 @@ FORTRAN_SPEC ?=
 DEBUG ?=
 # turns on scalasca instrumentation mode (bin)
 SCAL ?=
-# turns on test mode (bin)
-TEST ?=
 # turns on profile mode (gprof,ipm)
 PROF ?=
 # optimization (on,aggressive,undefined)
@@ -202,11 +200,6 @@ NAG_PREC ?= dble
 PGPLOT_LIB ?=
 
 ################################################### SET COMPILE MODE SWITCHES
-
-ifdef TEST
-$(warning TEST mode is not working yet)
-	override TEST =
-endif
 
 # It makes no sense to set USE_PARALLEL_NETCDF without
 # setting USE_HDF5... so we set USE_HDF5 here. 
