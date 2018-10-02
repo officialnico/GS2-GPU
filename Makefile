@@ -174,13 +174,6 @@ RANLIB		= ranlib
 AWK 		= awk
 PERL		= perl
 
-# These macros are used for the suffix problem of absoft
-F90FLAGS_SFX0 =
-F90FLAGS_SFX1 =
-F90FLAGS_SFX2 =
-#This one is just used to ensure that the non-preprocessed
-#files line up the same as preprocessed (make output a little clearer)
-F90FLAGS_SFXJNK =
 
 MPI_INC	?=
 MPI_LIB ?=
