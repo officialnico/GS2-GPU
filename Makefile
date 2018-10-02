@@ -183,6 +183,7 @@ HDF5_INC ?=
 HDF5_LIB ?=
 NAG_LIB ?=
 NAG_PREC ?= dble
+MACRO_DEFS ?=
 
 ################################################### SET COMPILE MODE SWITCHES
 
@@ -242,10 +243,10 @@ endif
 
 #Here we define SVN_REV based on the output of svnversion
 SVN_REV='"$(shell svnversion -n .)"'
-CPPFLAGS+=-DSVN_REV=$(SVN_REV)
+MACRO_DEFS+=-DSVN_REV=$(SVN_REV)
 
 # Define RUN_NAME_SIZE
-CPPFLAGS+=-DRUN_NAME_SIZE=$(RUN_NAME_SIZE) 
+MACRO_DEFS+=-DRUN_NAME_SIZE=$(RUN_NAME_SIZE) 
 
 ############################################################################# Deal with user flags
 
@@ -254,13 +255,13 @@ CPPFLAGS+=-DRUN_NAME_SIZE=$(RUN_NAME_SIZE)
 RELEASE_FILE = $(shell cat RELEASE)
 ifneq ($(RELEASE_FILE),) # If the file is not empty
 	RELEASE=$(RELEASE_FILE)
-	CPPFLAGS+=-DRELEASE=$(RELEASE_FILE)
+	MACRO_DEFS+=-DRELEASE=$(RELEASE_FILE)
 	DOC_FOLDER=releases/$(RELEASE_FILE)/
 endif
 
 # Define GK_SYSTEM for runtime_tests so that we can get the system name
 # at runtime
-CPPFLAGS+=-DGK_SYSTEM='"$(GK_SYSTEM)"'
+MACRO_DEFS+=-DGK_SYSTEM='"$(GK_SYSTEM)"'
 
 ifdef USE_HDF5
 	ifndef USE_MPI
@@ -283,19 +284,19 @@ endif
 ifdef USE_MPI
 	FC = $(MPIFC)
 	CC = $(MPICC)
-	CPPFLAGS += -DMPI
+	MACRO_DEFS += -DMPI
 endif
  
 ifeq ($(USE_MPI),mpi3)
-	CPPFLAGS += -DMPI3
+	MACRO_DEFS += -DMPI3
 endif
 
 ifdef HAS_ISO_C_BINDING
-	CPPFLAGS += -DISO_C_BINDING
+	MACRO_DEFS += -DISO_C_BINDING
 endif
 
 ifeq ($(USE_NEW_DIAG),on)
-	CPPFLAGS+=-DNEW_DIAG
+	MACRO_DEFS += -DNEW_DIAG
 endif
 
 ifeq ($(USE_FPIC),on)
@@ -304,62 +305,63 @@ ifeq ($(USE_FPIC),on)
 endif
 
 ifdef USE_SHMEM
-	CPPFLAGS += -DSHMEM
+	MACRO_DEFS += -DSHMEM
 endif
 
 ifeq ($(USE_FFT),fftw)
-	CPPFLAGS += -DFFT=_FFTW_
+	MACRO_DEFS += -DFFT=_FFTW_
 	FFT_LIB ?= -lfftw -lrfftw
 endif
 
 ifeq ($(USE_FFT),fftw3)
-	CPPFLAGS += -DFFT=_FFTW3_ $(FFT_INC)
+	MACRO_DEFS += -DFFT=_FFTW3_
+        CPPFLAGS += $(FFT_INC)
 	FFT_LIB ?= -lfftw -lrfftw
 endif
 
 ifdef GENQUAD
 	GENQUAD_LIB ?= -llapack 
-	CPPFLAGS += -DGENQUAD
+	MACRO_DEFS += -DGENQUAD
 endif
 
 ifeq ($(USE_FFT),mkl_fftw)
-	CPPFLAGS += -DFFT=_FFTW_
+	MACRO_DEFS += -DFFT=_FFTW_
 endif
 
 ifdef USE_NETCDF
 	NETCDF_LIB ?= -lnetcdf
-	CPPFLAGS += -DNETCDF
+	MACRO_DEFS += -DNETCDF
 endif
 
 ifdef USE_HDF5
 	FC = $(H5FC_par)
 	CC = $(H5CC_par)
 	ifdef USE_PARALLEL_NETCDF
-		CPPFLAGS += -DNETCDF_PARALLEL
+		MACRO_DEFS += -DNETCDF_PARALLEL
 	endif
-	CPPFLAGS += -DHDF
+	MACRO_DEFS += -DHDF
 endif
 
 ifdef USE_C_INDEX
-	CPPFLAGS += -DUSE_C_INDEX
+	MACRO_DEFS += -DUSE_C_INDEX
 endif
 
 ifeq ($(USE_LOCAL_RAN),mt)
-	CPPFLAGS += -DRANDOM=_RANMT_
+	MACRO_DEFS += -DRANDOM=_RANMT_
 endif
 
 ifdef USE_POSIX
-	CPPFLAGS += -DPOSIX
+	MACRO_DEFS += -DPOSIX
 endif
 
 ifdef USE_F200X_INTRINSICS
-	CPPFLAGS += -DF200X_INTRINSICS -DSPFUNC=_SPF200X_
+	MACRO_DEFS += -DF200X_INTRINSICS -DSPFUNC=_SPF200X_
 else
 	ifdef USE_LOCAL_SPFUNC
-		CPPFLAGS += -DSPFUNC=_SPLOCAL_
+		MACRO_DEFS += -DSPFUNC=_SPLOCAL_
 	else
 		ifeq ($(findstring spfunc,$(USE_NAGLIB)),spfunc)
-			CPPFLAGS += -DSPFUNC=_SPNAG_
+			MACRO_DEFS += -DSPFUNC=_SPNAG_
 		endif
 	endif
 endif
@@ -369,35 +371,35 @@ ifdef USE_NAGLIB
 		ifndef DBLE
 $(warning Precision mismatch with NAG libarray)	
 		endif
-		CPPFLAGS += -DNAG_PREC=_NAGDBLE_
+		MACRO_DEFS += -DNAG_PREC=_NAGDBLE_
 	endif
 	ifeq ($(NAG_PREC),sngl)
 		ifdef DBLE
 $(warning Precision mismatch with NAG libarray)	
 		endif
-		CPPFLAGS += -DNAG_PREC=_NAGSNGL_
+		MACRO_DEFS += -DNAG_PREC=_NAGSNGL_
 	endif
 endif
 
 ifndef DBLE
-	CPPFLAGS+=-DSINGLE_PRECISION
+	MACRO_DEFS += -DSINGLE_PRECISION
 endif
 
 ifdef QUAD
 	DBLE = on
-	CPPFLAGS+=-DQUAD_PRECISION
+	MACRO_DEFS += -DQUAD_PRECISION
 endif
 
 ifdef MAKE_LIB
-	CPPFLAGS += -DMAKE_LIB
+	MACRO_DEFS += -DMAKE_LIB
 endif
 
 ifdef LOWFLOW
-	CPPFLAGS += -DLOWFLOW
+	MACRO_DEFS += -DLOWFLOW
 endif
 
 ifdef USE_LE_LAYOUT
-	CPPFLAGS += -DUSE_LE_LAYOUT
+	MACRO_DEFS += -DUSE_LE_LAYOUT
 endif
 
 #Setup the flags for using the eigensolver
@@ -417,7 +419,8 @@ ifdef WITH_EIG
 	endif
 	EIG_LIB += -lslepc -lpetsc
 
-	CPPFLAGS += -DWITH_EIG $(EIG_INC)
+	MACRO_DEFS += -DWITH_EIG
+	CPPFLAGS += $(EIG_INC)
 	CFLAGS += -DWITH_EIG 
 endif 
 
@@ -518,9 +521,9 @@ endif
 # The depend command needs the preprocessed source files. 
 # This is a little clunky, and maybe could be fixed in the future.
 .fpp.f90:
-	$(CPP) $(CPPFLAGS) $< $@
+	$(CPP) $(CPPFLAGS) $(MACRO_DEFS) $< $@
 .F90.f90:
-	$(CPP) $(CPPFLAGS) $< $@
+	$(CPP) $(CPPFLAGS) $(MACRO_DEFS) $< $@
 
 # On many systems the two steps of preprocessing and compiling
 # can be done simultaneously. This has many advantages, the
@@ -531,9 +534,9 @@ endif
 # and you HAVE to preprocess and compile in one step.
 ifdef ONE_STEP_PP
 .fpp.o:
-	$(FC) $(CPPFLAGS) $(F90FLAGS) $(F90FLAGS_SFXJUNK) -c $<
+	$(FC) $(MACRO_DEFS) $(F90FLAGS) $(F90FLAGS_SFXJUNK) -c $<
 .F90.o:
-	$(FC) $(CPPFLAGS) $(F90FLAGS) $(F90FLAGS_SFXJUNK) -c $<
+	$(FC) $(MACRO_DEFS) $(F90FLAGS) $(F90FLAGS_SFXJUNK) -c $<
 
 else
 # These are special rules for the suffix problem of absoft
@@ -747,6 +750,7 @@ test_make:
 	@echo LDFLAGS is $(LDFLAGS)
 	@echo CPP is $(CPP)
 	@echo CPPFLAGS is $(CPPFLAGS)
+	@echo MACRO_DEFS is $(MACRO_DEFS)
 	@echo LIBS is $(LIBS)
 	@echo WITH_EIG is $(WITH_EIG)
 
