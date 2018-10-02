@@ -260,12 +260,6 @@ ifndef ONE_STEP_PP
 CPPFLAGS	+= -P -traditional
 endif
 
-ifeq ($(GK_PROJECT),rmhdper)
-	override USE_MPI =
-	override USE_FFT = fftw
-	override USE_HDF5 =
-endif
-
 ifeq ($(MAKECMDGOALS),depend)
 # must invoke full functionality when make depend
 	MAKE += USE_HDF5=on USE_FFT=fftw USE_NETCDF=on USE_MPI=mpi3 \
