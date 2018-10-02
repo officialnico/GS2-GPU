@@ -33,9 +33,6 @@ results_of_test.txt
 *.vres
 *.vres2
 
-Makefiles/*
-utils/*
-
 # Files generated from .fpp
 collisions.f90
 command_line.f90
