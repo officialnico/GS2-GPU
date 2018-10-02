@@ -71,6 +71,9 @@ spfunc.f90
 Revision
 system_config
 
+# Top-level output of 'make tests'
+test-results/
+
 # The following are taken from https://github.com/github/gitignore
 
 # Temporary files

@@ -1,1 +1,5 @@
 test_gs2_diagnostics_new.f90
+.test_gs2_diagnostics_new.in
+.test_gs2_diagnostics_new_append.in
+.test_gs2_diagnostics_new_start.in
+test_gs2_diagnostics_new
