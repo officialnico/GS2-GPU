@@ -189,7 +189,6 @@ HDF5_INC ?=
 HDF5_LIB ?=
 NAG_LIB ?=
 NAG_PREC ?= dble
-PGPLOT_LIB ?=
 
 ################################################### SET COMPILE MODE SWITCHES
 
@@ -396,11 +395,6 @@ ifdef QUAD
 	DBLE = on
 	CPPFLAGS+=-DQUAD_PRECISION
 endif
-ifndef PGPLOT_LIB
-	ifeq ($(MAKECMDGOALS),agk_fields_plot)
-$(error PGPLOT_LIB is not defined)
-	endif
-endif
 ifdef MAKE_LIB
 	CPPFLAGS += -DMAKE_LIB
 endif
@@ -445,7 +439,6 @@ endif
 
 LIBS	+= $(DEFAULT_LIB) $(MPI_LIB) $(NETCDF_LIB) $(HDF5_LIB) $(FFT_LIB) \
 		$(NAG_LIB) $(EIG_LIB) $(GENQUAD_LIB)
-PLIBS 	+= $(LIBS) $(PGPLOT_LIB)
 F90FLAGS+= $(F90OPTFLAGS) \
 	   $(DEFAULT_INC) $(MPI_INC) $(NETCDF_INC) $(HDF5_INC) $(FFT_INC)\
 		 $(SIMPLEDATAIO_INC) $(EIG_INC) $(GENQUAD_INC)
@@ -750,7 +743,6 @@ test_make:
 	@echo CPP is $(CPP)
 	@echo CPPFLAGS is $(CPPFLAGS)
 	@echo LIBS is $(LIBS)
-	@echo PLIBS is $(PLIBS)
 	@echo WITH_EIG is $(WITH_EIG)
 
 
