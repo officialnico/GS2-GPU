@@ -278,7 +278,7 @@ endif
 
 ifndef USE_FFT
 $(warning USE_FFT is undefined/off)
-$(warning Nonlinear run makes are therefore not sensible)
+$(warning Nonlinear runs are therefore not sensible)
 endif
 
 ifdef USE_MPI
