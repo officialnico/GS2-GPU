@@ -8,7 +8,7 @@ cd Makefiles
 git checkout automated-testing
 cd ..
 export GK_SYSTEM=bitbucket
-export MAKEFLAGS=-IMakefiles DEBUG=on
+export MAKEFLAGS=-IMakefiles DEBUG=on ONE_STEP_PP=on
 export TESTEXEC='mpirun -np 8'
 chmod +x tests/write_test_xml.sh
 mpif90 --version
