@@ -150,7 +150,7 @@ ONE_STEP_PP?=
 #
 # These variables can be set in platform-dependent Makefile.
 #
-
+SHELL           = bash
 MAKE		= make
 CPP		= cpp
 CPPFLAGS = 
@@ -761,8 +761,10 @@ test_make:
 	@echo PLIBS is $(PLIBS)
 	@echo WITH_EIG is $(WITH_EIG)
 
+
+
 ifneq ($(GK_SYSTEM),macosx-homebrew)
-	SEDSYSTEMCONFIG=sed -i 's/^ //' system_config
+SEDSYSTEMCONFIG=$(shell sed -i 's/^ //' system_config)
 endif
 
 ifdef STANDARD_SYSTEM_CONFIGURATION
