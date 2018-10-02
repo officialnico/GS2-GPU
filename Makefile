@@ -120,11 +120,6 @@ GENQUAD ?=
 
 # Compile with the new simplified diagnostics module
 USE_NEW_DIAG ?=on
-
-# Use autotools to configure the code (currently only affects the new diagnostics module)
-# Possible values... on, off
-USE_AUTOTOOLS ?= off
-
 HAS_ISO_C_BINDING ?= on
 
 # If on, build with position independent code, needed if GS2 is going to be included
