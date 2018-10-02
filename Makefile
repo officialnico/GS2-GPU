@@ -512,6 +512,16 @@ endif
 .rb.f90:
 	$(call RUBY_GENERATE,$@,$<)
 
+.f90.o: 
+	$(FC) $(F90FLAGS) $(F90FLAGS_SFXJUNK) -c $<
+
+# The depend command needs the preprocessed source files. 
+# This is a little clunky, and maybe could be fixed in the future.
+.fpp.f90:
+	$(CPP) $(CPPFLAGS) $< $@
+.F90.f90:
+	$(CPP) $(CPPFLAGS) $< $@
+
 # On many systems the two steps of preprocessing and compiling
 # can be done simultaneously. This has many advantages, the
 # most important of which is correctly reporting line numbers in 
@@ -520,35 +530,12 @@ endif
 # On some systems (e.g. Mac OS X) using cpp doesn't work at all
 # and you HAVE to preprocess and compile in one step.
 ifdef ONE_STEP_PP
-
-.f90.o: 
-	$(FC) $(F90FLAGS) $(F90FLAGS_SFXJUNK) -c $<
 .fpp.o:
 	$(FC) $(CPPFLAGS) $(F90FLAGS) $(F90FLAGS_SFXJUNK) -c $<
 .F90.o:
 	$(FC) $(CPPFLAGS) $(F90FLAGS) $(F90FLAGS_SFXJUNK) -c $<
 
-# The depend command needs the preprocessed source files. 
-# This is a little clunky, and maybe could be fixed in the future.
-.fpp.f90:
-#	$(CPP) $(CPPFLAGS) -nostdinc $< $@
-	$(CPP) $(CPPFLAGS) $< $@
-.F90.f90:
-#	$(CPP) $(CPPFLAGS) -nostdinc $< $@
-	$(CPP) $(CPPFLAGS) $< $@
-
 else
-
-
-.f90.o: 
-	$(FC) $(F90FLAGS) $(F90FLAGS_SFXJUNK) -c $<
-.fpp.f90:
-#	$(CPP) $(CPPFLAGS) -nostdinc $< $@
-	$(CPP) $(CPPFLAGS) $< $@
-.F90.f90:
-#	$(CPP) $(CPPFLAGS) -nostdinc $< $@
-	$(CPP) $(CPPFLAGS) $< $@
-
 # These are special rules for the suffix problem of absoft
 # (not tested)
 $(GK_PROJECT)_transforms.o: $(GK_PROJECT)_transforms.f90
