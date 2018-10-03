@@ -114,9 +114,9 @@ tests: unit_tests_no_message linear_tests_no_message nonlinear_tests_no_message
 
 test_script: unit_tests_no_message linear_tests_no_message
 	echo "" > test_script.sh
-	find $(PWD)/$(TEST_DIR)/unit_tests -executable | grep -v svn | grep '$(TEST_DIR)/unit_tests/.*/' | sed -e 's/^\(.\+\)$$/\1 $(BLUEGENEARGS) \1.in \&\&/' | sed -e 's/^/$(TESTEXEC) /'  >> test_script.sh
-	find $(PWD)/$(TEST_DIR)/linear_tests -executable | grep -v svn | grep '$(TEST_DIR)/linear_tests/.*/' | sed -e 's/^\(.\+\)$$/\1 \1.in \&\&/' | sed -e 's/^/$(TESTEXEC) /'  >> test_script.sh
-	find $(PWD)/$(TEST_DIR)/nonlinear_tests -executable | grep -v svn | grep '$(TEST_DIR)/nonlinear_tests/.*/' | sed -e 's/^\(.\+\)$$/\1 \1.in \&\&/' | sed -e 's/^/$(TESTEXEC) /'  >> test_script.sh
+	find $(PWD)/$(TEST_DIR)/unit_tests -executable | grep '$(TEST_DIR)/unit_tests/.*/' | sed -e 's/^\(.\+\)$$/\1 $(BLUEGENEARGS) \1.in \&\&/' | sed -e 's/^/$(TESTEXEC) /'  >> test_script.sh
+	find $(PWD)/$(TEST_DIR)/linear_tests -executable | grep '$(TEST_DIR)/linear_tests/.*/' | sed -e 's/^\(.\+\)$$/\1 \1.in \&\&/' | sed -e 's/^/$(TESTEXEC) /'  >> test_script.sh
+	find $(PWD)/$(TEST_DIR)/nonlinear_tests -executable | grep '$(TEST_DIR)/nonlinear_tests/.*/' | sed -e 's/^\(.\+\)$$/\1 \1.in \&\&/' | sed -e 's/^/$(TESTEXEC) /'  >> test_script.sh
 	echo "echo \"Tests Successful\"" >> test_script.sh
 
 benchmarks_no_message: unit_tests.o $(TEST_DEPS)
