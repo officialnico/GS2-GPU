@@ -32,6 +32,7 @@ Makefile.local
 *.phase
 results_of_test.txt
 *.scratch
+*.timing.*
 *.trinpars
 *.vres
 *.vres2
