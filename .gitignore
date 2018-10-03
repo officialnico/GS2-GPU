@@ -10,6 +10,7 @@ Makefile.local
 
 # GS2 output files
 *.amoments
+*.bin
 *.dat
 *.decomp.*
 *.eigenfunc
