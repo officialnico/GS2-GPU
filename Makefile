@@ -245,13 +245,21 @@ endif
 include Makefile.$(GK_SYSTEM)
 
 # These directories are submodules
+# The pipe means "order only", i.e. the target only needs to exist,
+# don't worry about timestamps
 Makefiles: | submodules
 utils: | submodules
 
-# Make sure the submodules are updated
+# Make sure the submodules exist
+# Due to the way make works, we need to rerun the target in a clean
+# process -- but don't do this if the target is explicitly
+# "submodules", or we'll end up in an infinite loop!
 submodules:
 	@echo "Downloading submodules"
 	git submodule update --init --recursive
+ifneq ($(MAKECMDGOALS),submodules)
+	$(MAKE) $(MAKECMDGOALS)
+endif
 
 # This works because make tries to read all the makefiles first, then
 # update any that need updating
