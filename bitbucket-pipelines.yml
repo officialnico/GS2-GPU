@@ -5,6 +5,8 @@
 
 clone: 
   depth: 10
+options:
+  max-time: 10
 pipelines:
   default:
     - step:
