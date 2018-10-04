@@ -8,9 +8,19 @@ clone:
 options:
   max-time: 10
 pipelines:
+  branches:
+    next:
+      - step:
+          name: ubuntu-gfortran-8-O3
+          image: 
+            name: josephparker/gs2-dockerfiles:ubuntu-gfortran-8.2
+            run-as-user: 1000
+          script:
+            - bash pipeline_test_scripts/test_script_ubuntu.sh
   default:
     - step:
         name: ubuntu-gfortran-8-O3
+        trigger: manual
         image: 
           name: josephparker/gs2-dockerfiles:ubuntu-gfortran-8.2
           run-as-user: 1000
