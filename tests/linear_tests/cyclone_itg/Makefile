@@ -19,7 +19,7 @@ all:
 	@echo "==> Skipping test in ${PWD}/$(TEST_FOLD) (Test_level ${TEST_LEVEL}, This test ${MY_TEST_LEVEL})."
 else
 all: cyclone_itg_low_res cyclone_itg_replay
-	#$(call RUNCOMMAND,cyclone_itg_low_res,cyclone_itg_low_res.in,implicit)
+	$(call RUNCOMMAND,cyclone_itg_low_res,cyclone_itg_low_res.in,implicit)
 	$(call RUNCOMMAND,cyclone_itg_low_res,cyclone_itg_low_res_fields_local.in,local)
 	$(call RUNCOMMAND,cyclone_itg_low_res,cyclone_itg_low_res_fields_gf_local.in,gf_local)
 	$(call COPY)
