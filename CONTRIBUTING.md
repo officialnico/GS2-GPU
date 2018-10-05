@@ -190,6 +190,58 @@ how to actually work with this new workflow, and get changes into GS2:
       person who knows the section of code well and a second who
       doesn’t, to spread the knowledge around
 
+## Making changes to the submodules
+
+GS2 currently has two submodules, `utils` and `Makefiles`. These are
+separate repositories shared with the rest of the Gyrokinetics
+project. A git submodule can be thought of as a bit like a pointer to
+a particular commit in another repository. We store a specific version
+of `utils` and `Makefiles` in the gs2 repo. In order to bring a change
+to one of the submodules into gs2, it is necessary to update the
+particular version we store.
+
+To update `utils`/`Makefiles`, you need to first submit the change to
+the relevant main repo. After that has been approved and merged, you
+can then update the submodule in gs2:
+
+    cd <utils|Makefiles>        # Go into relevant submodule
+    git checkout master         # Make sure you are on the master branch
+    git pull origin master      # Get the latest changes
+    cd ..                       # Go back to gs2
+    git add <utils|Makefiles>   # Add the updated submodule version
+
+If someone else has updated one of the submodules, you may need to
+bring in those changes:
+
+    git submodule update --init --recursive
+
+In recent versions of `git`, you can run the following command to make
+`git` pull updated submodules automatically:
+
+    git config --global submodule.recurse true
+
+### A note on developing the submodules
+
+The default protocol of the submodules is HTTPS (rather than
+SSH). This is necessary to enable GS2 users (non-developers) to
+download the code successfully. Therefore, developers who wish to
+modify code belonging to `utils` or `Makefiles` will either have to:
+
+- clone a separate copy of `utils` and `Makefiles` via the git
+  protocol, make changes to those, push those changes and then pull
+  them into their `gs2` working copy; or
+
+- add `git config --global url.git@bitbucket.org:gyrokinetics/`
+  instead of `https://bitbucket.org/gyrokinetics/` to their git
+  configuration before cloning `gs2`, thus allowing them to make and
+  push changes directly from the `utils` and `Makefiles`
+  subdirectories within their `gs2` working copy. You will still need
+  to add the new submodule commit to `gs2`!
+
+See the official git documentaion e-book for further details on
+working with sub-modules:
+https://git-scm.com/book/en/v2/Git-Tools-Submodules
+
 
 ## Moving uncommitted changes from an subversion checkout to git
 
