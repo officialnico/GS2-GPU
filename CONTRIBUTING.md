@@ -107,9 +107,9 @@ This will pop up your default text editor to write a commit
 message. After saving the message and closing the editor, your changes
 will be committed.
 
-A tip for writing commit messages: it’s a strong convention to write
+A tip for writing commit messages: it's a strong convention to write
 your commit messages as if they would complete the sentence "this
-commit will…", e.g.:
+commit will...", e.g.:
 
     Add new method to calculate energy
     Fix bug with calculating potential
@@ -130,8 +130,8 @@ easy to work with.
 
 We have two "special" branches:
 
-- `master` – the stable branch
-- `next` – the development branch
+- `master` - the stable branch
+- `next` - the development branch
 
 These two branches are locked and cannot be modified
 directly. Instead, work is initially done in feature branch starting
@@ -165,13 +165,21 @@ sometimes be tricky, so members of the GC will be happy to help with
 these.
 
 If you have questions about any part of the development workflow,
-again, please don’t hesitate to ask a member of the GC, raise an issue
+again, please don't hesitate to ask a member of the GC, raise an issue
 on bitbucket (https://bitbucket.org/gyrokinetics/gs2), or ask in the
 Slack channel (https://gyrokinetics.slack.com).
 
-We encourage developers to use one branch per feature or bug
-fix. Multiple features in a branch make PRs difficult to review, as it
-can be hard to see how changes are related to one another.
+We encourage developers to use one branch per feature or bug fix.
+Multiple features in a branch make PRs difficult to review, as it can be
+hard to see how changes are related to one another. Branches should
+preferably have a short descriptive name (5 or fewer words) with words
+separated by '-' and prefixed with 'feat/' or 'bugfix/' to identify it
+as a feature branch or a bug-fix branch respectively, e.g.
+'feat/new-parallel-grid' or 'bugfix/parallel-boundary-condition'. The
+prefix with a forward slash keeps the branches organised within git's
+internal storage structure, short names allow the output of `git branch`
+to fit on the screen nicely and consistency makes it easy for us all to
+navigate the branches.
 
 We strongly encourage commits to be atomic, i.e., contain one,
 irreducible piece of code development. Small, orthogonal commits with
@@ -188,7 +196,8 @@ how to actually work with this new workflow, and get changes into GS2:
         git checkout -b my_branch
 
 3. Start implementing your new feature or bug fix
-4. Commit your changes with a good commit message:
+4. Commit your changes with a good commit message (NB: bug-fix commits
+   should reference the issue number - see resources below):
 
         git add <file>...
         git commit -m "Add new feature"
@@ -252,12 +261,11 @@ modify code belonging to `utils` or `Makefiles` will either have to:
   protocol, make changes to those, push those changes and then pull
   them into their `gs2` working copy; or
 
-- add `git config --global url.git@bitbucket.org:gyrokinetics/`
-  instead of `https://bitbucket.org/gyrokinetics/` to their git
-  configuration before cloning `gs2`, thus allowing them to make and
-  push changes directly from the `utils` and `Makefiles`
-  subdirectories within their `gs2` working copy. You will still need
-  to add the new submodule commit to `gs2`!
+- add `git config --global url.git@bitbucket.org:gyrokinetics/.insteadOf
+  https://bitbucket.org/gyrokinetics/` to their git configuration before
+cloning `gs2`, thus allowing them to make and push changes directly from
+the `utils` and `Makefiles` subdirectories within their `gs2` working
+copy. You will still need to add the new submodule commit to `gs2`!
 
 See the official git documentaion e-book for further details on
 working with sub-modules:
@@ -267,9 +275,9 @@ https://git-scm.com/book/en/v2/Git-Tools-Submodules
 ## Moving uncommitted changes from an subversion checkout to git
 
 If you have uncommitted changes in your local working copy of the
-subversion repository, don’t worry, you can follow these simple steps
+subversion repository, don't worry, you can follow these simple steps
 below to get them under git. If your changes are based on a branch
-that’s up to date, do the following:
+that's up to date, do the following:
 
 1. Create a new branch in git starting at the branch you were working
    from:
@@ -280,8 +288,8 @@ that’s up to date, do the following:
    repository on top of the ones in your git working copy
 3. Carry on from step 4 above
 
-However, if your changes are based on a branch that’s not up-to-date
-with the svn one, you’ll have to make a new branch based on the last
+However, if your changes are based on a branch that's not up-to-date
+with the svn one, you'll have to make a new branch based on the last
 commit you do have. This will make the rest of the process much
 cleaner.
 
@@ -300,7 +308,7 @@ changes into several smaller commits. You could do this either with a
 git tool, or a diff tool to copy parts of your changes instead of all
 of them at once.
 
-Please don’t hesitate to raise an issue on Bitbucket or ask a question
+Please don't hesitate to raise an issue on Bitbucket or ask a question
 on Slack if you get stuck in this process!
 
 ## Resources
@@ -321,3 +329,10 @@ on Slack if you get stuck in this process!
 - Some guides on the workflow model:
     - https://confluence.atlassian.com/bitbucket/workflow-for-git-feature-branching-814201830.html
     - https://www.atlassian.com/git/tutorials/comparing-workflows/gitflow-workflow
+
+- How to reference issues in commit messages:
+    - https://confluence.atlassian.com/bitbucket/resolve-issues-automatically-when-users-push-code-221451126.html
+    - It is recommended that you write 'This addresses issue #X' with
+      the keyword 'addesses' rather than 'fixes' or 'resolves' etc. as
+the former keeps the issue open until the pull request is merged but the
+latter automatically sets the issue to resolved.
