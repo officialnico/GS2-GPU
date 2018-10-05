@@ -19,6 +19,11 @@ optional ones:
 - LAPACK
 - NAG
 
+## Developing GS2
+
+Please see the [CONTRIBUTING.md](CONTRIBUTING.md) document for help
+and guidelines on contributing to GS2.
+
 ## Important note on sub-modules
 
 We use git submodules to deal with the sub-projects `utils` and
