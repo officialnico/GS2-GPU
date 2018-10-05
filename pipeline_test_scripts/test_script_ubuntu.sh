@@ -1,12 +1,7 @@
 #!/bin/bash
 
 echo "Starting build and tests at $(date)"
-git clone git@bitbucket.org:gyrokinetics/utils.git
-git clone git@bitbucket.org:gyrokinetics/makefiles.git Makefiles
-# Checkout the correct Makefiles branch
-cd Makefiles
-git checkout automated-testing
-cd ..
+git submodule update --init --recursive
 export GK_SYSTEM=bitbucket
 export MAKEFLAGS=-IMakefiles DEBUG=on
 export TESTEXEC='mpirun -np 8'
