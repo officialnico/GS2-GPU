@@ -12,9 +12,30 @@ refresh.
 A brief overview of how to contribute:
 
 - Clone the GS2 repository
+
+        git clone git@bitbucket.org:gyrokinetics/gs2.git
+
 - Do your development in a new branch starting at `next`
+
+        git checkout next
+        git pull origin next
+        git checkout -b my_new_branch
+
 - Make sure the submodules are up-to-date
-- Submit a pull request on bitbucket
+
+        git submodule update --init --recursive
+
+- Commit your changes
+
+        git add <files>
+        git commit -m "Add my new feature"
+
+- Push your changes to bitbucket
+
+        git push origin my_new_branch
+
+- Open a pull request on bitbucket: https://bitbucket.org/gyrokinetics/gs2/pull-requests/
+
 
 ## First steps with git
 
