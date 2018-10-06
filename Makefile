@@ -117,6 +117,8 @@ LOWFLOW ?=
 WITH_EIG ?=
 # Include LAPACK and GSL libraries for genquad scheme
 GENQUAD ?=
+# Compile with gcov flags to check for code coverage
+USE_GCOV ?=
 
 # Compile with the new simplified diagnostics module
 USE_NEW_DIAG ?=on
@@ -450,6 +452,9 @@ endif
 ifdef USE_LE_LAYOUT
 	CPPFLAGS += -DUSE_LE_LAYOUT
 endif
+ifdef USE_GCOV
+	F90FLAGS += -fprofile-arcs -ftest-coverage
+endif
 
 #Setup the flags for using the eigensolver
 ifdef WITH_EIG
@@ -660,7 +665,7 @@ sinclude Makefile.target_$(GK_PROJECT)
 # comment this out to keep intermediate .f90 files
 #.PRECIOUS: $(F90FROMFPP)
 
-.INTERMEDIATE: $(GK_PROJECT)_transforms.f90 $(GK_PROJECT)_io.f90 $(GK_PROJECT)_save.f90 \
+#.INTERMEDIATE: $(GK_PROJECT)_transforms.f90 $(GK_PROJECT)_io.f90 $(GK_PROJECT)_save.f90 \
 		mp.f90 fft_work.f90
 
 layouts_indices.o: layouts_type.h
@@ -694,7 +699,7 @@ sync_input_doc:
 	coderunner cc read_mediawiki_documentation wiki_in.tmp -C gs2
 	coderunner cc write_mediawiki_documentation > wiki_out.txt -C gs2
 
-clean: clean_simpledataio
+clean: clean_simpledataio clean_coverage
 	-rm -f *.o *.mod *.g90 *.h core */core
 
 CLEANCOMMAND=echo $$$$PWD
@@ -715,7 +720,10 @@ cleanconfig:
 clean_doxygendoc: #Doxygen documentation
 	rm -rf doc/
 
-distclean: unlink clean cleanlib clean_tests clean_benchmarks distclean_simpledataio cleanconfig clean_doxygendoc cleandoc
+clean_coverage:
+	rm *.gcov *.gcda *.gcno
+
+distclean: unlink clean cleanlib clean_tests clean_benchmarks distclean_simpledataio cleanconfig clean_doxygendoc cleandoc clean_coverage
 
 tar:
 	@[ ! -d $(TARDIR) ] || echo "ERROR: directory $(TARDIR) exists. Stop."
@@ -753,6 +761,7 @@ test_make:
 	@echo FC is $(FC)
 	@echo CC is $(CC)
 	@echo FORD is $(FORD)
+	@echo USE_GCOV is $(USE_GCOV)
 	@echo SVN_REV is $(SVN_REV)
 	@echo
 	@echo Compile mode:
