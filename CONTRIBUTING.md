@@ -105,7 +105,13 @@ commit the changes:
 
 This will pop up your default text editor to write a commit
 message. After saving the message and closing the editor, your changes
-will be committed.
+will be committed. You can change the default editor either through
+the `EDITOR` environment variable, or with
+
+    git config --global core.editor "<editor name>"
+
+This can be useful if your default editor wants to open a graphical
+window on non-graphical remote sessions!
 
 A tip for writing commit messages: it's a strong convention to write
 your commit messages as if they would complete the sentence "this
