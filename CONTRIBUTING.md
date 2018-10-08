@@ -230,15 +230,23 @@ of `utils` and `Makefiles` in the gs2 repo. In order to bring a change
 to one of the submodules into gs2, it is necessary to update the
 particular version we store.
 
-To update `utils`/`Makefiles`, you need to first submit the change to
-the relevant main repo. After that has been approved and merged, you
-can then update the submodule in gs2:
+To update `utils`/`Makefiles`, you need to first make the change to
+the relevant main repo in a new branch, and then update the submodule
+in `gs2`:
 
-    cd <utils|Makefiles>        # Go into relevant submodule
-    git checkout master         # Make sure you are on the master branch
-    git pull origin master      # Get the latest changes
-    cd ..                       # Go back to gs2
-    git add <utils|Makefiles>   # Add the updated submodule version
+    cd <utils|Makefiles>          # Go into relevant submodule
+    git checkout <your branch>    # Switch to the branch with your changes
+    git pull origin <your branch> # Make sure it's up to date
+    cd ..                         # Go back to gs2
+    git add <utils|Makefiles>     # Add the updated submodule version
+    git commit                    # Commit the new submodule version
+
+Because `utils` and `Makefiles` are used in other projects beside
+`gs2`, we need to make sure any changes to the submodules don't break
+the other projects. For that reason, you will need to submit separate
+pull requests for your changes to `utils`/`Makefiles` and to
+`gs2`. Once the submodule PR has been approved and merged, one of the
+maintainers will update your `gs2` PR with the merged submodule PR.
 
 If someone else has updated one of the submodules, you may need to
 bring in those changes:
