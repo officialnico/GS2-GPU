@@ -453,7 +453,8 @@ ifdef USE_LE_LAYOUT
 	CPPFLAGS += -DUSE_LE_LAYOUT
 endif
 ifdef USE_GCOV
-	F90FLAGS += -fprofile-arcs -ftest-coverage
+	F90FLAGS += --coverage
+	LDFLAGS += --coverage
 endif
 
 #Setup the flags for using the eigensolver
