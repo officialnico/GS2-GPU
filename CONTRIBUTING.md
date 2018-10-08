@@ -170,16 +170,10 @@ on bitbucket (https://bitbucket.org/gyrokinetics/gs2), or ask in the
 Slack channel (https://gyrokinetics.slack.com).
 
 We encourage developers to use one branch per feature or bug fix.
-Multiple features in a branch make PRs difficult to review, as it can be
-hard to see how changes are related to one another. Branches should
-preferably have a short descriptive name (5 or fewer words) with words
-separated by '-' and prefixed with 'feat/' or 'bugfix/' to identify it
-as a feature branch or a bug-fix branch respectively, e.g.
-'feat/new-parallel-grid' or 'bugfix/parallel-boundary-condition'. The
-prefix with a forward slash keeps the branches organised within git's
-internal storage structure, short names allow the output of `git branch`
-to fit on the screen nicely and consistency makes it easy for us all to
-navigate the branches.
+Multiple features in a branch make PRs difficult to review, as it can
+be hard to see how changes are related to one another. A short
+descriptive branch name can help keep track of what's in different
+branches, e.g. `new-parallel-grid`, `bugfix-boundary-condition`.
 
 We strongly encourage commits to be atomic, i.e., contain one,
 irreducible piece of code development. Small, orthogonal commits with
