@@ -261,11 +261,13 @@ modify code belonging to `utils` or `Makefiles` will either have to:
   protocol, make changes to those, push those changes and then pull
   them into their `gs2` working copy; or
 
-- add `git config --global url.git@bitbucket.org:gyrokinetics/.insteadOf
-  https://bitbucket.org/gyrokinetics/` to their git configuration before
-cloning `gs2`, thus allowing them to make and push changes directly from
-the `utils` and `Makefiles` subdirectories within their `gs2` working
-copy. You will still need to add the new submodule commit to `gs2`!
+- add `git config --global
+  url.git@bitbucket.org:gyrokinetics/.insteadOf
+  https://bitbucket.org/gyrokinetics/` to their git configuration
+  before cloning `gs2`, thus allowing them to make and push changes
+  directly from the `utils` and `Makefiles` subdirectories within
+  their `gs2` working copy. You will still need to add the new
+  submodule commit to `gs2`!
 
 See the official git documentaion e-book for further details on
 working with sub-modules:
@@ -334,5 +336,5 @@ on Slack if you get stuck in this process!
     - https://confluence.atlassian.com/bitbucket/resolve-issues-automatically-when-users-push-code-221451126.html
     - It is recommended that you write 'This addresses issue #X' with
       the keyword 'addesses' rather than 'fixes' or 'resolves' etc. as
-the former keeps the issue open until the pull request is merged but the
-latter automatically sets the issue to resolved.
+      the former keeps the issue open until the pull request is merged
+      but the latter automatically sets the issue to resolved.
