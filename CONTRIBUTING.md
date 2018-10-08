@@ -118,12 +118,22 @@ your commit messages as if they would complete the sentence "this
 commit will...", e.g.:
 
     Add new method to calculate energy
+
+or
+
     Fix bug with calculating potential
 
-See the Resources section at the bottom for some more tips.
+A bad commit message tells the reader nothing about the commit:
 
-Committing changes in git is not like svn -- the commit stays on your
-local machine until you are ready to push the changes:
+    Update code
+
+All commits "update code"! What does this particular one do?
+
+See the Resources section at the bottom for some more tips on writing
+commit messages. This is a surprisingly useful skill to master!
+
+Lastly, committing changes in git is not like svn -- the commit stays
+on your local machine until you are ready to push the changes:
 
     git push origin <branch>
 
