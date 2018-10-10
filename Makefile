@@ -452,14 +452,6 @@ endif
 ifdef USE_LE_LAYOUT
 	CPPFLAGS += -DUSE_LE_LAYOUT
 endif
-ifdef USE_GCOV
-ifeq ($(COMPILER),gnu-gfortran)
-	F90FLAGS += --coverage
-	LDFLAGS += --coverage
-else
-$(error Must use gnu-gfortran compiler to use gcov)
-endif
-endif
 
 #Setup the flags for using the eigensolver
 ifdef WITH_EIG
