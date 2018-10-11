@@ -119,6 +119,7 @@ WITH_EIG ?=
 GENQUAD ?=
 # Compile with gcov flags to check for code coverage
 USE_GCOV ?=
+INTERNAL_USE_GCOV=$(USE_GCOV)
 
 # Compile with the new simplified diagnostics module
 USE_NEW_DIAG ?=on
