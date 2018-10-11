@@ -79,7 +79,8 @@ endef
 
 define RUN_TESTS
 	@find $(TEST_DIR)/$(1) -name results_of_test.txt | xargs rm -f
-	@cd $(TEST_DIR)/$(1) && time ${MAKETESTS} 
+	@echo ${MAKETESTS}
+	@cd $(TEST_DIR)/$(1) && ${MAKETESTS} 
 endef
 
 clean_tests:
@@ -108,7 +109,10 @@ nonlinear_tests_no_message: functional_tests.o unit_tests.o $(TEST_DEPS)
 nonlinear_tests: nonlinear_tests_no_message
 	$(call TEST_PRINTOUT,$(call TEST_RESULTS,$@))
 
-tests: unit_tests_no_message linear_tests_no_message nonlinear_tests_no_message
+make_results_dir:
+	@mkdir -p $(GK_HEAD_DIR)/test-results
+
+tests: make_results_dir unit_tests_no_message linear_tests_no_message nonlinear_tests_no_message
 	$(call TEST_PRINTOUT,$(call TEST_RESULTS,unit_tests)$(call TEST_RESULTS,linear_tests)$(call TEST_RESULTS,nonlinear_tests))
 
 
