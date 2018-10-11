@@ -245,7 +245,16 @@ particular version we store.
 
 To update `utils`/`Makefiles`, you need to first make the change to
 the relevant main repo in a new branch, and then update the submodule
-in `gs2`:
+in `gs2`. The full workflow would look like this:
+
+First, in your checkout of `utils` or `Makefiles`:
+
+    git checkout -b <new branch>  # Create a new branch
+    git add <changed files>       # Make your changes and commit them
+    git commit                    # Don't forget a good commit message!
+    git push origin               # Push your changes to the bitbucket repo
+
+Then in your checkout of `gs2`:
 
     cd <utils|Makefiles>          # Go into relevant submodule
     git checkout <your branch>    # Switch to the branch with your changes
