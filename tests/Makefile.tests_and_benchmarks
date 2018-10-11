@@ -111,7 +111,7 @@ nonlinear_tests: nonlinear_tests_no_message
 tests: unit_tests_no_message linear_tests_no_message nonlinear_tests_no_message
 	$(call TEST_PRINTOUT,$(call TEST_RESULTS,unit_tests)$(call TEST_RESULTS,linear_tests)$(call TEST_RESULTS,nonlinear_tests))
 
-ifeq ($(INTERNAL_USE_GCOV),on)
+ifeq ($(HAS_GCOV),on)
 tests_coverage: tests
 	gcov *.f90
 	# execute this from top dir where the gcov note files are:
