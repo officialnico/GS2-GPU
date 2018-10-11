@@ -187,9 +187,12 @@ Slack channel (https://gyrokinetics.slack.com).
 
 We encourage developers to use one branch per feature or bug fix.
 Multiple features in a branch make PRs difficult to review, as it can
-be hard to see how changes are related to one another. A short
-descriptive branch name can help keep track of what's in different
-branches, e.g. `new-parallel-grid`, `bugfix-boundary-condition`.
+be hard to see how changes are related to one another.
+
+A suggested convention for naming branches is to use a few, short
+descriptive words in lowercase, separated by hyphens,
+e.g. `new-parallel-grid`, `fix-boundary-condition`. You might like to
+use an optional prefix of `bugfix/` or `feature/`, as appropriate.
 
 We strongly encourage commits to be atomic, i.e., contain one,
 irreducible piece of code development. Small, orthogonal commits with
