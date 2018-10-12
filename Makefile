@@ -117,6 +117,9 @@ LOWFLOW ?=
 WITH_EIG ?=
 # Include LAPACK and GSL libraries for genquad scheme
 GENQUAD ?=
+# Compile with gcov flags to check for code coverage
+USE_GCOV ?=
+HAS_GCOV=$(USE_GCOV)
 
 # Compile with the new simplified diagnostics module
 USE_NEW_DIAG ?=on
@@ -694,7 +697,7 @@ sync_input_doc:
 	coderunner cc read_mediawiki_documentation wiki_in.tmp -C gs2
 	coderunner cc write_mediawiki_documentation > wiki_out.txt -C gs2
 
-clean: clean_simpledataio
+clean: clean_simpledataio clean_coverage
 	-rm -f *.o *.mod *.g90 *.h core */core
 
 CLEANCOMMAND=echo $$$$PWD
@@ -715,7 +718,10 @@ cleanconfig:
 clean_doxygendoc: #Doxygen documentation
 	rm -rf doc/
 
-distclean: unlink clean cleanlib clean_tests clean_benchmarks distclean_simpledataio cleanconfig clean_doxygendoc cleandoc
+clean_coverage:
+	-rm *.gcov *.gcda *.gcno
+
+distclean: unlink clean cleanlib clean_tests clean_benchmarks distclean_simpledataio cleanconfig clean_doxygendoc cleandoc clean_coverage
 
 tar:
 	@[ ! -d $(TARDIR) ] || echo "ERROR: directory $(TARDIR) exists. Stop."
@@ -753,6 +759,7 @@ test_make:
 	@echo FC is $(FC)
 	@echo CC is $(CC)
 	@echo FORD is $(FORD)
+	@echo USE_GCOV is $(USE_GCOV)
 	@echo SVN_REV is $(SVN_REV)
 	@echo
 	@echo Compile mode:

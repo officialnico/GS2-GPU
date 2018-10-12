@@ -17,6 +17,7 @@ OPTIONS:
    -t <VAL>    Run a particular test (automatically implies -o tests)
    -v <VAL>    Set the verbosity for tests (0-5)
    -d          Build with DEBUG=on
+   -g          Build with gcov coverage flags (USE_GCOV=on)
    -n          When used with tests, build but don't run the tests.
    -l <level>  Set test level: higher values include slower tests; default is 1
    -o <VAL>    Specify operation to perform, can be one of:
@@ -60,6 +61,15 @@ function print_help {
   echo "E.g."
   echo " $ ./build_gs2 -t le_grids -s <system>"
   echo " $ ./build_gs2 -t 'le_grids cyclone_itg' -s <system>"
+  echo 
+  echo "To run tests while measuring code coverage, use the g flag:"
+  echo " $ ./build_gs2 -t <test> -s <system> -g"
+  echo "E.g."
+  echo " $ ./build_gs2 -t le_grids -s <system> -g"
+  echo " $ ./build_gs2 -t 'le_grids cyclone_itg' -s <system> -g"
+  echo "After running, annoted source code showing lines touched"
+  echo "is saved in the directory 'coverage_<command>', "
+  echo "e.g. 'coverage_test', 'coverage_linear_tests'"
   echo 
   echo "For more specific commands you can use the "
   echo "-c flag:"
@@ -105,13 +115,24 @@ run_configuration
 source system_config
 }
 
+function teardown {
+GCOV_DIR=coverage_$COMMAND
+if [ ${RUN_GCOV} == "on" ]
+then
+gcov *.f90
+gcov utils/*.f90 -o .
+mkdir -p $GCOV_DIR
+mv *.gcov $GCOV_DIR/.
+fi
+}
+
 
 #Defaults
 MAKE_OPTIONAL_COMMAND=""
 COMMAND="build"
 
 #Parse arguments
-while getopts "hdns:c:o:t:v:l:" OPTIONS
+while getopts "hdngs:c:o:t:v:l:" OPTIONS
 do
   case ${OPTIONS} in
     h)
@@ -126,6 +147,10 @@ do
       ;;
     d)
       DBGFLAG=DEBUG=on
+      ;;
+    g)
+      GCOVFLAG=USE_GCOV=on
+      RUN_GCOV=on
       ;;
     n)
       TESTNORUNFLAG=TESTNORUN=true
@@ -153,7 +178,7 @@ do
 done
 
 # Define combined make flags
-MAKEFLAGSALL="$MAKEFLAGS $DBGFLAG $TESTNORUNFLAG $VERBSET GK_SYSTEM=$GK_SYSTEM $MAKE_OPTIONAL_COMMAND $LEVELSET" 
+MAKEFLAGSALL="$MAKEFLAGS $DBGFLAG $TESTNORUNFLAG $VERBSET GK_SYSTEM=$GK_SYSTEM $MAKE_OPTIONAL_COMMAND $LEVELSET $GCOVFLAG"
 
 #Now perform operation
 case $COMMAND in 
@@ -191,6 +216,7 @@ case $COMMAND in
       make $COMMAND "$TESTSET" $MAKEFLAGSALL
     #echo make $COMMAND $TESTSET $MAKEFLAGSALL
     fi
+    teardown
     ;;
   update)
     svn up Makefiles
