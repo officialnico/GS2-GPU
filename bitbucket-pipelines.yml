@@ -18,4 +18,4 @@ pipelines:
           script:
             - bash pipeline_test_scripts/test_script_ubuntu.sh
           after_success:
-            - bash <(curl -s https://codecov.io/bash) -t $CODECOV_TOKEN
+            - bash <(curl -s https://codecov.io/bash) -t "a848e445-4d00-4aa9-8d00-e9950fcf29f2"
