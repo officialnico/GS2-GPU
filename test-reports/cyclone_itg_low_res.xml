@@ -1,6 +1,0 @@
-<?xml version="1.0" encoding="UTF-8"?>
-<testsuite name="cyclone_itg_low_res" tests="1" errors="0" failures="0" skip="0">
-    <testcase classname="cyclone_itg_low_res"
-              name="cyclone_itg_low_res" time="0">
-    </testcase>
-</testsuite>
