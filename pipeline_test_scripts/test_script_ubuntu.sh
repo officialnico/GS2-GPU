@@ -9,4 +9,4 @@ chmod +x tests/write_test_xml.sh
 mpif90 --version
 make depend
 make -j
-make tests
+#make tests
