@@ -17,3 +17,5 @@ pipelines:
             run-as-user: 1000
           script:
             - bash pipeline_test_scripts/test_script_ubuntu.sh
+          after_success:
+            - bash <(curl -s https://codecov.io/bash) -t $CODECOV_TOKEN
