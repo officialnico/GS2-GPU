@@ -17,10 +17,7 @@ program test_fields_local_tuning
   use file_utils, only: init_file_utils
   use species, only: init_species, nspec
   use constants, only: pi
-  !use fields, only: init_fields
-  !use fields_arrays, only: phi
   use dist_fn, only: init_dist_fn
-  !use dist_fn_arrays, only: g
   use kt_grids, only: naky, ntheta0, init_kt_grids
   use theta_grid, only: ntgrid, init_theta_grid
   use gs2_layouts, only: init_gs2_layouts, g_lo, ie_idx
@@ -28,7 +25,6 @@ program test_fields_local_tuning
   use gs2_init, only: init, init_level_list
   implicit none
   real :: eps
-  logical :: dummy
   type(gs2_program_state_type) :: gs2_state
 
 
@@ -89,7 +85,6 @@ contains
     character(len=29) :: message
     real, intent(in) :: eps
     logical :: test_advance
-    logical :: check_result
     logical :: restarted
     integer :: istep, ik, it
 

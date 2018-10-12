@@ -12,16 +12,14 @@ program test_nonlinear_terms
   use unit_tests
   use mp, only: init_mp, finish_mp, proc0, broadcast
   use file_utils, only: init_file_utils, run_name
-  use species, only: init_species, nspec, spec
+  use species, only: init_species, nspec
   use dist_fn, only: init_dist_fn, finish_dist_fn
   use constants, only: pi
   use kt_grids, only: naky, ntheta0, init_kt_grids
   use theta_grid, only: ntgrid, init_theta_grid
   use gs2_layouts, only: init_gs2_layouts, g_lo, ie_idx
   use nonlinear_terms, only: init_nonlinear_terms, finish_nonlinear_terms
-  use dist_fn_arrays, only: g
   use nonlinear_terms, only: nonlinear_terms_unit_test_time_add_nl
-  use kt_grids, only: ntheta0, naky
   use constants, only: run_name_size
   
 #ifdef MPI
@@ -33,15 +31,8 @@ program test_nonlinear_terms
   implicit none
   real :: eps
   character(run_name_size), target :: cbuff
-  real :: tstart
   logical :: dummy=.false.
-  integer, dimension(:), allocatable :: sizes
-  real, dimension(:,:,:), allocatable :: energy_results
-  real :: energy_min
-  real :: vcut_local
-  integer :: i
 
-  complex, dimension (:,:,:), allocatable :: integrate_species_results
 #ifdef SHMEM
   complex, dimension (:,:,:), pointer,contiguous :: g1 => null()
 #else
@@ -76,7 +67,6 @@ program test_nonlinear_terms
 #else
   allocate(g1(-ntgrid:ntgrid,2,g_lo%llim_proc:g_lo%ulim_proc))
 #endif
-  !allocate(g(-ntgrid:ntgrid,2,g_lo%llim_proc:g_lo%ulim_proc))
   allocate(phi(-ntgrid:ntgrid,ntheta0,naky))
   allocate(apar(-ntgrid:ntgrid,ntheta0,naky))
   allocate(bpar(-ntgrid:ntgrid,ntheta0,naky))
@@ -146,10 +136,10 @@ function ffttest (jx,jy,debug)
   use gs2_transforms, only: transform2, inverse2
   use species, only: nspec
   use theta_grid, only: ntgrid
-  use kt_grids, only: akx, aky, naky, ikx, nx, ny, ntheta0, box, theta0
+  use kt_grids, only: naky, nx, ny, ntheta0
   use le_grids, only: negrid, nlambda
   use le_grids, only: integrate_moment
-  use mp, only: iproc, nproc, proc0, barrier
+  use mp, only: nproc, proc0, barrier
 #ifdef MPI
   use mpi
 #endif
