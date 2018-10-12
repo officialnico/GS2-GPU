@@ -6,7 +6,7 @@
 clone: 
   depth: 10
 options:
-  max-time: 10
+  max-time: 20
 pipelines:
   branches:
     next:
