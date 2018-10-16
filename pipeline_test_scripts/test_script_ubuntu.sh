@@ -8,5 +8,6 @@ export TESTEXEC='mpirun -np 8'
 chmod +x tests/write_test_xml.sh
 mpif90 --version
 make depend
+make test_make
 make -j
 make tests
