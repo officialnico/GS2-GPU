@@ -4,7 +4,8 @@ echo "Starting build at $(date)"
 export GK_SYSTEM=jenkins
 export MAKEFLAGS=-IMakefiles DEBUG=on
 
-module load gcc/7.2.0 openmpi/1.10.0 fftw
+module load gcc/7.2.0 openmpi/1.10.0 
+module load fftw
 
 # Manually installed netcdf/netcdff
 echo \$LD_LIBRARY_PATH
