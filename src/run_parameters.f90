@@ -32,6 +32,8 @@ module run_parameters
   public :: trinity_ql_fluxes
   public :: user_comments
 
+  public :: hzero_passing_electron
+  
   !> If true use old diagnostics. Included for testing
   !! only and will eventually be removed. Please use 
   !! the new diagnostics module!
@@ -68,6 +70,8 @@ module run_parameters
 
   character(len=100000) :: user_comments
 
+  logical :: hzero_passing_electron
+  
   integer, allocatable :: ieqzip(:,:)
   integer :: eqzip_option_switch
   integer, parameter :: &
@@ -125,6 +129,9 @@ module run_parameters
      real :: fphi = 1.0
      !> See [[knobs:eqzip]]
      logical :: harris = .false.
+     !> When true, the electron response for non-zonal passing
+     !> particles is set to be adiabatic. (h=0)
+     logical :: hzero_passing_electron = .false.
      !> Determines the behaviour when the CFL condition is broken in the nonlinear term:
      logical :: immediate_reset = .true.
      !> Used in [[init_g_knobs:ginit_option]] "harris" and "convect". Should be
@@ -453,7 +460,8 @@ contains
     seed  = knobs_config%seed
     tertiary  = knobs_config%tertiary 
     faperp  = knobs_config%faperp 
-    harris  = knobs_config%harris 
+    harris  = knobs_config%harris
+    hzero_passing_electron  = knobs_config%hzero_passing_electron 
     avail_cpu_time  = knobs_config%avail_cpu_time 
     margin_cpu_time  = knobs_config%margin_cpu_time 
     eqzip_option  = knobs_config%eqzip_option 
@@ -674,11 +682,11 @@ contains
     character(len = 100000) :: user_comments
     character(len = 20) :: delt_option, eqzip_option
     integer :: nstep, seed
-    logical :: do_eigsolve, eqzip, harris, immediate_reset, neo_test, secondary, tertiary, trinity_linear_fluxes, trinity_ql_fluxes, use_old_diagnostics, wstar_units
+    logical :: do_eigsolve, eqzip, harris, hzero_passing_electron, immediate_reset, neo_test, secondary, tertiary, trinity_linear_fluxes, trinity_ql_fluxes, use_old_diagnostics, wstar_units
     real :: avail_cpu_time, beta, delt, fapar, faperp, fbpar, fphi, k0, margin, margin_cpu_time, rhostar, teti, tite, zeff
 
-    namelist /knobs/ avail_cpu_time, beta, delt, delt_option, do_eigsolve, eqzip, eqzip_option, fapar, faperp, fbpar, fphi, harris, immediate_reset, k0, margin, margin_cpu_time, neo_test, nstep, rhostar, secondary, seed, &
-         tertiary, teti, tite, trinity_linear_fluxes, trinity_ql_fluxes, use_old_diagnostics, user_comments, wstar_units, zeff
+    namelist /knobs/ avail_cpu_time, beta, delt, delt_option, do_eigsolve, eqzip, eqzip_option, fapar, faperp, fbpar, fphi, harris, hzero_passing_electron, immediate_reset, k0, margin, margin_cpu_time, neo_test, nstep, rhostar, &
+         secondary, seed, tertiary, teti, tite, trinity_linear_fluxes, trinity_ql_fluxes, use_old_diagnostics, user_comments, wstar_units, zeff
 
     ! Only proc0 reads from file
     if (.not. proc0) return
@@ -696,6 +704,7 @@ contains
     fbpar = self%fbpar
     fphi = self%fphi
     harris = self%harris
+    hzero_passing_electron = self%hzero_passing_electron    
     immediate_reset = self%immediate_reset
     k0 = self%k0
     margin = self%margin
@@ -740,6 +749,7 @@ contains
     self%fbpar = fbpar
     self%fphi = fphi
     self%harris = harris
+    self%hzero_passing_electron = hzero_passing_electron
     self%immediate_reset = immediate_reset
     self%k0 = k0
     self%margin = margin
@@ -787,6 +797,7 @@ contains
     call self%write_key_val("fbpar", self%fbpar, unit_internal)
     call self%write_key_val("fphi", self%fphi, unit_internal)
     call self%write_key_val("harris", self%harris, unit_internal)
+    call self%write_key_val("hzero_passing_electron", self%hzero_passing_electron, unit_internal)
     call self%write_key_val("immediate_reset", self%immediate_reset, unit_internal)
     call self%write_key_val("k0", self%k0, unit_internal)
     call self%write_key_val("margin", self%margin, unit_internal)
@@ -836,6 +847,7 @@ contains
     call broadcast(self%fbpar)
     call broadcast(self%fphi)
     call broadcast(self%harris)
+    call broadcast(self%hzero_passing_electron)
     call broadcast(self%immediate_reset)
     call broadcast(self%k0)
     call broadcast(self%margin)

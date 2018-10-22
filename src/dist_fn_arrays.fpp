@@ -16,7 +16,7 @@ module dist_fn_arrays
 !AJ
   public :: vpa_gf, vperp2_gf, aj0_gf, aj1_gf
   public :: c_rate
-  public :: g_adjust, check_g_bouncepoints
+  public :: g_adjust, check_g_bouncepoints, set_h_zero
 #ifdef LOWFLOW
   public :: hneoc, vparterm, wdfac, wstarfac, wdttpfac
 #endif
@@ -188,4 +188,48 @@ contains
     write(6,fmt='(5i6,1pe12.4)')ik,it,il,ie,is,err
     write(6,*) "-----"
   end subroutine check_g_bouncepoints
+  
+  subroutine set_h_zero (g, phi, bpar, facphi, facbpar, iglo)
+    ! MRH subroutine which assigns g a value
+    ! corresponding to h (g_wesson of CMR's note in g_adjust) of h = 0
+    ! in order to be consistent with g_adjust, the correct function call
+    ! To set h = 0 is
+    ! call set_h_zero(g, phi, bpar, -fphi, -fbpar, iglo)
+    use species, only: spec
+    use theta_grid, only: ntgrid
+    use le_grids, only: anon, jend, ng2
+    use gs2_layouts, only: g_lo, ik_idx, it_idx, ie_idx, is_idx, il_idx
+    implicit none
+    complex, dimension (-ntgrid:,:), intent (out) :: g
+    complex, dimension (-ntgrid:,:,:), intent (in) :: phi, bpar
+    real, intent (in) :: facphi, facbpar
+    integer, intent (in) :: iglo
+    integer :: ig, ik, it, ie, is, il
+    complex :: adj
+    logical :: trapped=.false.
+    
+    if (minval(jend) .gt. ng2) trapped=.true.
+
+    ik = ik_idx(g_lo,iglo)
+    it = it_idx(g_lo,iglo)
+    ie = ie_idx(g_lo,iglo)
+    is = is_idx(g_lo,iglo)
+    il = il_idx(g_lo,iglo)
+
+    ! bpar == delta B_parallel / B_0(theta) so no extra factor of 
+    ! 1/bmag is needed here.
+    do ig = -ntgrid, ntgrid
+        !Don't adjust in the forbidden region as we don't set g/h here
+        if ( trapped .and. il > jend(ig)) cycle 
+
+        adj = anon(ie)*2.0*vperp2(ig,iglo)*aj1(ig,iglo) &
+              *bpar(ig,it,ik)*facbpar &
+              + spec(is)%z*anon(ie)*phi(ig,it,ik)*aj0(ig,iglo) &
+              /spec(is)%temp*facphi
+        g(ig,1) = adj
+        g(ig,2) = adj
+    end do
+
+  end subroutine set_h_zero
+  
 end module dist_fn_arrays

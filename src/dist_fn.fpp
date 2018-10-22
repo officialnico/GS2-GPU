@@ -4563,8 +4563,9 @@ contains
   subroutine invert_rhs_1 &
        (phi, apar, bpar, phinew, aparnew, bparnew, istep, &
         sourcefac)
-    use dist_fn_arrays, only: gnew, ittp, vperp2, aj1, aj0
+    use dist_fn_arrays, only: gnew, ittp, vperp2, aj1, aj0, set_h_zero
     use run_parameters, only: eqzip, secondary, tertiary, harris
+    use run_parameters, only: hzero_passing_electron
     use theta_grid, only: ntgrid
     use le_grids, only: nlambda, ng2, lmax, forbid
     use kt_grids, only: aky, ntheta0
@@ -4572,7 +4573,7 @@ contains
     use prof, only: prof_entering, prof_leaving
     use run_parameters, only: fbpar, fphi, ieqzip
     use kt_grids, only: kwork_filter
-    use species, only: spec, nonmaxw_corr
+    use species, only: spec, electron_species, nonmaxw_corr
     use mp, only: mp_abort
     use gs2_time, only: get_adams_bashforth_coefficients
     use nonlinear_terms, only: nonlin
@@ -4632,6 +4633,16 @@ contains
        ie = ie_idx(g_lo,iglo)
        is = is_idx(g_lo,iglo)
 
+       !/////////////////////////
+       !// Handle hybrid electrons when passing
+       !/////////////////////////
+       
+       if (hzero_passing_electron .and. spec(is)%type == electron_species &
+            .and. aky(ik) /= 0. .and. il <= ng2+1)  then
+          call set_h_zero (gnew(:,:,iglo), phinew, bparnew,-fphi,-fbpar,iglo)
+          cycle
+       end if
+       
        !/////////////////////////
        !// Get the source terms
        !/////////////////////////
@@ -5033,9 +5044,10 @@ contains
     use gs2_layouts, only: g_lo, ik_idx, it_idx, il_idx, ie_idx, is_idx, idx
     use redistribute, only: fill
     use run_parameters, only: fbpar, fphi
-    use species, only: spec, nonmaxw_corr
+    use run_parameters, only: hzero_passing_electron
+    use species, only: spec, nonmaxw_corr, electron_species
     use spfunc, only: j0, j1
-    use kt_grids, only: kperp2
+    use kt_grids, only: kperp2, aky
 
     implicit none
     complex, dimension (-ntgrid:,:,:), intent (in) :: phi,    apar,    bpar
@@ -5083,8 +5095,15 @@ contains
 
           ncell = r_links(ik, it) + l_links(ik, it) + 1
           if (ncell == 1) cycle
-
+          
           il = il_idx(g_lo,iglo)
+          is = is_idx(g_lo,iglo)
+          if (hzero_passing_electron .and. spec(is)%type == electron_species &
+           .and. aky(ik) /= 0. .and. il <= ng2+1)  cycle
+          ! MRH above line causes us to skip the loops below which
+          ! build the solution along the connected cells
+          ! MRH we skip this in the case that we have taken the non-zonal
+          ! passing electron (il<=ng2+1 including wfb) solution to be h=0
 
 ! wfb
           if ( (nlambda > ng2 .and. il == ng2+1) .and. (.not. trapped_wfb) .and. (.not. passing_wfb) ) then
