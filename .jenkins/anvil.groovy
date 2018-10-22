@@ -68,31 +68,46 @@ node('sl7') {
   
   
   stage('Install netcdff') {
-          sh """module load gcc/7.2.0 openmpi/1.10.0
-        
-        rm -rf /home/jenkins/workspace/Gyrokinetics/test_job/software/gcc-7.2.0/netcdf/4.6.1
-        rm -rf /home/jenkins/workspace/Gyrokinetics/test_job/software/gcc-7.2.0/netcdf-fortran/4.4.4
-        
-        mkdir -p /home/jenkins/workspace/Gyrokinetics/test_job/software/gcc-7.2.0/netcdf/4.6.1
-        wget ftp://ftp.unidata.ucar.edu/pub/netcdf/netcdf-4.6.1.tar.gz
-        tar xvf netcdf-4.6.1.tar.gz
-        cd netcdf-4.6.1
-        ./configure --prefix=/home/jenkins/workspace/Gyrokinetics/test_job/software/gcc-7.2.0/netcdf/4.6.1 --disable-netcdf-4
-        make
-        make install
-        ls /home/jenkins/workspace/Gyrokinetics/test_job/software/gcc-7.2.0/netcdf/4.6.1/include
-        export LD_LIBRARY_PATH=/home/jenkins/workspace/Gyrokinetics/test_job/software/gcc-7.2.0/netcdf/4.6.1/lib
-        export CPPFLAGS=-I/home/jenkins/workspace/Gyrokinetics/test_job/software/gcc-7.2.0/netcdf/4.6.1/include
-        export LDFLAGS=-L/home/jenkins/workspace/Gyrokinetics/test_job/software/gcc-7.2.0/netcdf/4.6.1/lib
-        cd ..
-        
-        mkdir -p /home/jenkins/workspace/Gyrokinetics/test_job/software/gcc-7.2.0/netcdf-fortran/4.4.4
-        wget ftp://ftp.unidata.ucar.edu/pub/netcdf/netcdf-fortran-4.4.4.tar.gz
-        tar xvf netcdf-fortran-4.4.4.tar.gz
-        cd netcdf-fortran-4.4.4
-        ./configure --prefix=${params.netcdff_path}
-        make
-        make install"""
+
+        currentBuild.description = "Installing netcdf/netcdff, if necessary"
+
+        sh """
+
+        export TEST_FILE_NETCDF=/home/jenkins/workspace/Gyrokinetics/test_job/software/gcc-7.2.0/netcdf/4.6.1/netcdf.h
+        export TEST_FILE_NETCDFF=/home/jenkins/workspace/Gyrokinetics/test_job/software/gcc-7.2.0/netcdf-fortran/4.4.4/netcdf.mod
+
+        # true if either file missing
+        if [ [ -f TEST_FILE_NETCDF ] || [ -f TEST_FILE_NETCDFF ] ]
+        then 
+              echo "netcdf + nectdff found"
+        else
+              module load gcc/7.2.0 openmpi/1.10.0
+
+              rm -rf /home/jenkins/workspace/Gyrokinetics/test_job/software/gcc-7.2.0/netcdf/4.6.1
+              rm -rf /home/jenkins/workspace/Gyrokinetics/test_job/software/gcc-7.2.0/netcdf-fortran/4.4.4
+
+              mkdir -p /home/jenkins/workspace/Gyrokinetics/test_job/software/gcc-7.2.0/netcdf/4.6.1
+              wget ftp://ftp.unidata.ucar.edu/pub/netcdf/netcdf-4.6.1.tar.gz
+              tar xvf netcdf-4.6.1.tar.gz
+              cd netcdf-4.6.1
+              ./configure --prefix=/home/jenkins/workspace/Gyrokinetics/test_job/software/gcc-7.2.0/netcdf/4.6.1 --disable-netcdf-4
+              make
+              make install
+              ls /home/jenkins/workspace/Gyrokinetics/test_job/software/gcc-7.2.0/netcdf/4.6.1/include
+              export LD_LIBRARY_PATH=/home/jenkins/workspace/Gyrokinetics/test_job/software/gcc-7.2.0/netcdf/4.6.1/lib
+              export CPPFLAGS=-I/home/jenkins/workspace/Gyrokinetics/test_job/software/gcc-7.2.0/netcdf/4.6.1/include
+              export LDFLAGS=-L/home/jenkins/workspace/Gyrokinetics/test_job/software/gcc-7.2.0/netcdf/4.6.1/lib
+              cd ..
+
+              mkdir -p /home/jenkins/workspace/Gyrokinetics/test_job/software/gcc-7.2.0/netcdf-fortran/4.4.4
+              wget ftp://ftp.unidata.ucar.edu/pub/netcdf/netcdf-fortran-4.4.4.tar.gz
+              tar xvf netcdf-fortran-4.4.4.tar.gz
+              cd netcdf-fortran-4.4.4
+              ./configure --prefix=${params.netcdff_path}
+              make
+              make install
+        fi
+        """
   }
   
   
