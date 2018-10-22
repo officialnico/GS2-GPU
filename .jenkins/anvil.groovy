@@ -73,8 +73,8 @@ node('sl7') {
 
         sh """
 
-        export TEST_FILE_NETCDF=/home/jenkins/workspace/Gyrokinetics/test_job/software/gcc-7.2.0/netcdf/4.6.1/netcdf.h
-        export TEST_FILE_NETCDFF=/home/jenkins/workspace/Gyrokinetics/test_job/software/gcc-7.2.0/netcdf-fortran/4.4.4/netcdf.mod
+        export TEST_FILE_NETCDF=/home/jenkins/workspace/Gyrokinetics/test_job/software/gcc-7.2.0/netcdf/4.6.1/include/netcdf.h
+        export TEST_FILE_NETCDFF=/home/jenkins/workspace/Gyrokinetics/test_job/software/gcc-7.2.0/netcdf-fortran/4.4.4/include/netcdf.mod
 
         # true if either file missing
         if [[ -f \$TEST_FILE_NETCDF && -f \$TEST_FILE_NETCDFF ]]
