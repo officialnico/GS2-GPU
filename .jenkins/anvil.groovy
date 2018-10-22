@@ -77,7 +77,7 @@ node('sl7') {
         export TEST_FILE_NETCDFF=/home/jenkins/workspace/Gyrokinetics/test_job/software/gcc-7.2.0/netcdf-fortran/4.4.4/netcdf.mod
 
         # true if either file missing
-        if [ [ -f TEST_FILE_NETCDF ] || [ -f TEST_FILE_NETCDFF ] ]
+        if [[ -f $TEST_FILE_NETCDF && -f $TEST_FILE_NETCDFF ]]
         then 
               echo "netcdf + nectdff found"
         else
