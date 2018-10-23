@@ -144,13 +144,11 @@ node('sl7') {
 
         currentBuild.description = "Running tests"
     
-        dir('gs2') {
-            sh """
-                module load gcc/7.2.0 openmpi/1.10.0
-                module load fftw
-                .jenkins/run-tests.sh
-            """
-        }
+        sh """
+            module load gcc/7.2.0 openmpi/1.10.0
+            module load fftw
+            .jenkins/run-tests.sh
+        """
     }
 }
 
