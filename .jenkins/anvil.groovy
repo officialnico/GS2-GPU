@@ -66,7 +66,8 @@ node('sl7') {
   // Add a known host in advance so that the machine is recognized.
   sh "mkdir -p ~/.ssh; ssh-keyscan -t rsa ${params.repo_host} >> ~/.ssh/known_hosts"
 
-  checkout([$class: 'GitSCM', branches: [[name: '**']], doGenerateSubmoduleConfigurations: false, extensions: [], submoduleCfg: [], userRemoteConfigs: [[url: 'https://bitbucket.org/gyrokinetics/gs2']]])
+  checkout([$class: 'GitSCM', branches: [[name: '**']], doGenerateSubmoduleConfigurations: false, extensions: [[$class: 'SubmoduleOption', disableSubmodules: false, parentCredentials: false, recursiveSubmodules: true, reference: 'https://bitbucket.org/gyrokinetics/Makefiles https://bitbucket.org/gyrokinetics/utils', trackingSubmodules: false]], submoduleCfg: [], userRemoteConfigs: [[url: 'https://bitbucket.org/gyrokinetics/gs2']]])
+
   
   stage('Install netcdff') {
 
