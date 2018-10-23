@@ -129,8 +129,13 @@ node('sl7') {
 
         currentBuild.description = "Building"
     
+	sh """
+	    pwd
+	    ls
+           """
         dir('gs2') {
             sh """
+                echo "entering gs2 dir
                 pwd
 		ls
                 module load gcc/7.2.0 openmpi/1.10.0
