@@ -132,6 +132,7 @@ node('sl7') {
         currentBuild.description = "Building"
     
 	sh """
+                module avail
                 module load gcc/7.2.0 openmpi/1.10.0
                 module load fftw
                 .jenkins/build-gcc-7.2.0.sh
