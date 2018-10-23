@@ -120,11 +120,9 @@ node('sl7') {
         sh """
            git submodule update --init --recursive --remote
            cd Makefiles
-           git checkout jenkins 
-           cd ..
-	   pwd
-           ls
-           ls Makefiles
+           git checkout jenkins
+           pwd
+           ls ..
            """
     }
 
@@ -133,10 +131,9 @@ node('sl7') {
         currentBuild.description = "Building"
     
 	sh """
-		ls Makefiles
                 module load gcc/7.2.0 openmpi/1.10.0
                 module load fftw
-               .jenkins/build-gcc-7.2.0.sh
+                .jenkins/build-gcc-7.2.0.sh
            """
     }
         
