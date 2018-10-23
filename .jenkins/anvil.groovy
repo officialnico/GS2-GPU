@@ -119,14 +119,10 @@ node('sl7') {
 
         // Old directory is kept
         sh "rm -rf gs2"
-        sh "git clone https://bitbucket.org/gyrokinetics/gs2.git"
-        dir('gs2') {
-            sh """
-                git checkout next
-                git submodule update --init --recursive --remote
-                git checkout jenkins
-            """
-        }
+        checkout([$class: 'GitSCM', branches: [[name: 'jenkins']], userRemoteConfigs: [[url: 'https://bitbucket.org/gyrokinetics/gs2']]])
+        sh """
+           git submodule update --init --recursive --remote
+           """
     }
 
     stage('Build') {
