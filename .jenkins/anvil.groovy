@@ -121,6 +121,7 @@ node('sl7') {
            git submodule update --init --recursive --remote
            cd Makefiles
            git checkout jenkins
+           cd ..
            pwd
            ls ..
            """
