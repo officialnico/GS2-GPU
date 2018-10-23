@@ -66,6 +66,8 @@ node('sl7') {
   // Add a known host in advance so that the machine is recognized.
   sh "mkdir -p ~/.ssh; ssh-keyscan -t rsa ${params.repo_host} >> ~/.ssh/known_hosts"
 
+  checkout([$class: 'GitSCM', branches: [[name: '**']], doGenerateSubmoduleConfigurations: false, extensions: [[$class: 'SubmoduleOption', disableSubmodules: false, parentCredentials: false, recursiveSubmodules: true, reference: 'https://bitbucket.org/gyrokinetics/Makefiles https://bitbucket.org/gyrokinetics/utils', trackingSubmodules: false]], submoduleCfg: [], userRemoteConfigs: [[url: 'https://bitbucket.org/gyrokinetics/gs2']]])
+
   
   stage('Install netcdff') {
 
@@ -117,8 +119,14 @@ node('sl7') {
 
         // Old directory is kept
         sh "rm -rf gs2"
-
-        checkout([$class: 'GitSCM', branches: [[name: '*/jenkins']], doGenerateSubmoduleConfigurations: false, extensions: [[$class: 'SubmoduleOption', disableSubmodules: false, parentCredentials: false, recursiveSubmodules: true, reference: 'https://bitbucket.org/gyrokinetics/Makefiles https://bitbucket.org/gyrokinetics/utils', trackingSubmodules: false]], submoduleCfg: [], userRemoteConfigs: [[url: 'https://bitbucket.org/gyrokinetics/gs2']]])
+        sh "git clone https://bitbucket.org/gyrokinetics/gs2.git"
+        dir('gs2') {
+            sh """
+                git checkout next
+                git submodule update --init --recursive --remote
+                git checkout jenkins
+            """
+        }
     }
 
     stage('Build') {
