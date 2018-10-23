@@ -106,6 +106,8 @@ node('sl7') {
               make
               make install
         fi
+	pwd
+	ls 
         """
   }
   
@@ -122,8 +124,6 @@ node('sl7') {
            cd Makefiles
            git checkout jenkins
            cd ..
-           pwd
-           ls ..
            """
     }
 
@@ -132,9 +132,9 @@ node('sl7') {
         currentBuild.description = "Building"
     
 	sh """
-                module avail
                 module load gcc/7.2.0 openmpi/1.10.0
                 module load fftw
+                module avail
                 .jenkins/build-gcc-7.2.0.sh
            """
     }
