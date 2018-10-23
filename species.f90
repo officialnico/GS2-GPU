@@ -610,6 +610,8 @@ contains
     allocate(yp(numdat))
     allocate(temp(numdat))
 
+    negrid = size(egrid(:,1))
+    
     sigma = 1.0
     sigma_fac = 2.0
     acceptable_spline = .false.
