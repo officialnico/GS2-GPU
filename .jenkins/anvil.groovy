@@ -121,9 +121,6 @@ node('sl7') {
               ./configure --prefix=${params.netcdff_path}
               make
               make install
-        fi
-	pwd
-	ls 
         """
   }
   
