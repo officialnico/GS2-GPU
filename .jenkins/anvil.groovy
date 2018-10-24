@@ -76,7 +76,7 @@ node('sl7') {
         checkout([$class: 'GitSCM', branches: [[name: '**']], userRemoteConfigs: [[url: 'https://bitbucket.org/gyrokinetics/gs2']]])
         sh """
            git submodule update --init --recursive --remote
-           export CURRENT_BRANCH=\$(git branch | grep \* | cut -d ' ' -f2)
+           export CURRENT_BRANCH=\$(git branch | grep \\* | cut -d ' ' -f2)
            cd Makefiles
            git checkout \$(CURRENT_BRANCH)
            cd ..
