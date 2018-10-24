@@ -73,11 +73,15 @@ node('sl7') {
 
         // Old directory is kept
         sh "rm -rf gs2"
-        checkout([$class: 'GitSCM', branches: [[name: 'jenkins']], userRemoteConfigs: [[url: 'https://bitbucket.org/gyrokinetics/gs2']]])
+        checkout([$class: 'GitSCM', branches: [[name: '**']], userRemoteConfigs: [[url: 'https://bitbucket.org/gyrokinetics/gs2']]])
         sh """
            git submodule update --init --recursive --remote
+           export CURRENT_BRANCH=$(git branch | grep \* | cut -d ' ' -f2)
            cd Makefiles
-           git checkout jenkins
+           git checkout $(CURRENT_BRANCH)
+           cd ..
+           cd utils
+           git checkout $(CURRENT_BRANCH)
            cd ..
            """
     }
