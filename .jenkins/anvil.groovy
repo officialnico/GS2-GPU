@@ -76,6 +76,9 @@ node('sl7') {
         checkout([$class: 'GitSCM', branches: [[name: '*/jenkins']], userRemoteConfigs: [[url: 'https://bitbucket.org/gyrokinetics/gs2']]])
         sh """
            git submodule update --init --recursive --remote
+           cd Makefiles
+           git checkout jenkins
+           cd ..
            export payload=\${BITBUCKET_PAYLOAD}
 	   echo \${payload}
            """
