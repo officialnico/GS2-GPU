@@ -71,6 +71,8 @@ module run_parameters
   character(len=100000) :: user_comments
 
   logical :: hzero_passing_electron
+  logical :: hzero_passing_electron_collisions
+  logical :: hzero_passing_electron_collisions_matrix  
   
   integer, allocatable :: ieqzip(:,:)
   integer :: eqzip_option_switch
@@ -132,6 +134,10 @@ module run_parameters
      !> When true, the electron response for non-zonal passing
      !> particles is set to be adiabatic. (h=0)
      logical :: hzero_passing_electron = .false.
+     !> FIXME: Add documentation
+     logical :: hzero_passing_electron_collisions = .false.
+     !> FIXME: Add documentation
+     logical :: hzero_passing_electron_collisions_matrix = .false.     
      !> Determines the behaviour when the CFL condition is broken in the nonlinear term:
      logical :: immediate_reset = .true.
      !> Used in [[init_g_knobs:ginit_option]] "harris" and "convect". Should be
@@ -440,37 +446,39 @@ contains
     call knobs_config%init(name = 'knobs', requires_index = .false.)
 
     ! Copy out internal values into module level parameters
-    beta  = knobs_config%beta 
-    zeff  = knobs_config%zeff 
-    tite  = knobs_config%tite 
-    teti  = knobs_config%teti 
-    k0    = knobs_config%k0   
-    rhostar  = knobs_config%rhostar 
-    user_comments  = knobs_config%user_comments 
-    fphi  = knobs_config%fphi 
-    fapar  = knobs_config%fapar 
-    fbpar  = knobs_config%fbpar 
-    delt  = knobs_config%delt 
-    nstep  = knobs_config%nstep 
-    wstar_units  = knobs_config%wstar_units 
-    eqzip  = knobs_config%eqzip 
-    delt_option  = knobs_config%delt_option 
+    avail_cpu_time = knobs_config%avail_cpu_time
+    beta = knobs_config%beta
+    delt = knobs_config%delt
+    delt_option = knobs_config%delt_option
+    do_eigsolve = knobs_config%do_eigsolve
+    eqzip = knobs_config%eqzip
+    eqzip_option = knobs_config%eqzip_option
+    fapar = knobs_config%fapar
+    faperp = knobs_config%faperp
+    fbpar = knobs_config%fbpar
+    fphi = knobs_config%fphi
+    harris = knobs_config%harris
+    hzero_passing_electron = knobs_config%hzero_passing_electron
+    hzero_passing_electron_collisions = knobs_config%hzero_passing_electron_collisions
+    hzero_passing_electron_collisions_matrix = knobs_config%hzero_passing_electron_collisions_matrix
+    immediate_reset = knobs_config%immediate_reset
+    k0 = knobs_config%k0
     margin = knobs_config%margin
-    secondary  = knobs_config%secondary
-    seed  = knobs_config%seed
-    tertiary  = knobs_config%tertiary 
-    faperp  = knobs_config%faperp 
-    harris  = knobs_config%harris
-    hzero_passing_electron  = knobs_config%hzero_passing_electron 
-    avail_cpu_time  = knobs_config%avail_cpu_time 
-    margin_cpu_time  = knobs_config%margin_cpu_time 
-    eqzip_option  = knobs_config%eqzip_option 
-    neo_test  = knobs_config%neo_test 
-    trinity_linear_fluxes  = knobs_config%trinity_linear_fluxes 
-    do_eigsolve  = knobs_config%do_eigsolve 
-    immediate_reset  = knobs_config%immediate_reset 
-    use_old_diagnostics  = knobs_config%use_old_diagnostics 
-    trinity_ql_fluxes  = knobs_config%trinity_ql_fluxes 
+    margin_cpu_time = knobs_config%margin_cpu_time
+    neo_test = knobs_config%neo_test
+    nstep = knobs_config%nstep
+    rhostar = knobs_config%rhostar
+    secondary = knobs_config%secondary
+    seed = knobs_config%seed
+    tertiary = knobs_config%tertiary
+    teti = knobs_config%teti
+    tite = knobs_config%tite
+    trinity_linear_fluxes = knobs_config%trinity_linear_fluxes
+    trinity_ql_fluxes = knobs_config%trinity_ql_fluxes
+    use_old_diagnostics = knobs_config%use_old_diagnostics
+    user_comments = knobs_config%user_comments
+    wstar_units = knobs_config%wstar_units
+    zeff = knobs_config%zeff
   
     knexist = knobs_config%exist
 
@@ -678,15 +686,17 @@ contains
 
     ! Note: When this routine is in the module where these variables live
     ! we shadow the module level variables here. This is intentional to provide
-    ! isolation and ensure we can move this routine to another module easily.
+    ! isolation and ensure we can move this routine to another module easily.    
     character(len = 100000) :: user_comments
     character(len = 20) :: delt_option, eqzip_option
     integer :: nstep, seed
-    logical :: do_eigsolve, eqzip, harris, hzero_passing_electron, immediate_reset, neo_test, secondary, tertiary, trinity_linear_fluxes, trinity_ql_fluxes, use_old_diagnostics, wstar_units
+    logical :: do_eigsolve, eqzip, harris, hzero_passing_electron, hzero_passing_electron_collisions, hzero_passing_electron_collisions_matrix, immediate_reset, neo_test, secondary, tertiary, trinity_linear_fluxes
+    logical :: trinity_ql_fluxes, use_old_diagnostics, wstar_units
     real :: avail_cpu_time, beta, delt, fapar, faperp, fbpar, fphi, k0, margin, margin_cpu_time, rhostar, teti, tite, zeff
 
-    namelist /knobs/ avail_cpu_time, beta, delt, delt_option, do_eigsolve, eqzip, eqzip_option, fapar, faperp, fbpar, fphi, harris, hzero_passing_electron, immediate_reset, k0, margin, margin_cpu_time, neo_test, nstep, rhostar, &
-         secondary, seed, tertiary, teti, tite, trinity_linear_fluxes, trinity_ql_fluxes, use_old_diagnostics, user_comments, wstar_units, zeff
+    namelist /knobs/ avail_cpu_time, beta, delt, delt_option, do_eigsolve, eqzip, eqzip_option, fapar, faperp, fbpar, fphi, harris, hzero_passing_electron, hzero_passing_electron_collisions, &
+         hzero_passing_electron_collisions_matrix, immediate_reset, k0, margin, margin_cpu_time, neo_test, nstep, rhostar, secondary, seed, tertiary, teti, tite, trinity_linear_fluxes, trinity_ql_fluxes, &
+         use_old_diagnostics, user_comments, wstar_units, zeff
 
     ! Only proc0 reads from file
     if (.not. proc0) return
@@ -704,7 +714,9 @@ contains
     fbpar = self%fbpar
     fphi = self%fphi
     harris = self%harris
-    hzero_passing_electron = self%hzero_passing_electron    
+    hzero_passing_electron = self%hzero_passing_electron
+    hzero_passing_electron_collisions = self%hzero_passing_electron_collisions
+    hzero_passing_electron_collisions_matrix = self%hzero_passing_electron_collisions_matrix
     immediate_reset = self%immediate_reset
     k0 = self%k0
     margin = self%margin
@@ -750,6 +762,8 @@ contains
     self%fphi = fphi
     self%harris = harris
     self%hzero_passing_electron = hzero_passing_electron
+    self%hzero_passing_electron_collisions = hzero_passing_electron_collisions
+    self%hzero_passing_electron_collisions_matrix = hzero_passing_electron_collisions_matrix
     self%immediate_reset = immediate_reset
     self%k0 = k0
     self%margin = margin
@@ -798,6 +812,8 @@ contains
     call self%write_key_val("fphi", self%fphi, unit_internal)
     call self%write_key_val("harris", self%harris, unit_internal)
     call self%write_key_val("hzero_passing_electron", self%hzero_passing_electron, unit_internal)
+    call self%write_key_val("hzero_passing_electron_collisions", self%hzero_passing_electron_collisions, unit_internal)
+    call self%write_key_val("hzero_passing_electron_collisions_matrix", self%hzero_passing_electron_collisions_matrix, unit_internal)
     call self%write_key_val("immediate_reset", self%immediate_reset, unit_internal)
     call self%write_key_val("k0", self%k0, unit_internal)
     call self%write_key_val("margin", self%margin, unit_internal)
@@ -848,6 +864,8 @@ contains
     call broadcast(self%fphi)
     call broadcast(self%harris)
     call broadcast(self%hzero_passing_electron)
+    call broadcast(self%hzero_passing_electron_collisions)
+    call broadcast(self%hzero_passing_electron_collisions_matrix)
     call broadcast(self%immediate_reset)
     call broadcast(self%k0)
     call broadcast(self%margin)
@@ -883,7 +901,7 @@ contains
     logical :: get_default_requires_index_knobs_config
     get_default_requires_index_knobs_config = .false.
   end function get_default_requires_index_knobs_config
-  
+
   !---------------------------------------
   ! Following is for the parameters config_type
   !---------------------------------------
