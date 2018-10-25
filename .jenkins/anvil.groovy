@@ -78,8 +78,8 @@ node('sl7') {
            git submodule update --init --recursive --remote
            export payload=\${BITBUCKET_PAYLOAD}
 	   echo \${payload}
-           echo sh(returnStdout: true, script: 'env')
            """
+	echo sh(returnStdout: true, script: 'env')
         
     }
 
