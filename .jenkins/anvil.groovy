@@ -81,7 +81,10 @@ node('sl7') {
            cd ..
 	   echo ${params.payload}
            """
-	echo sh(returnStdout: true, script: 'env')
+	sh 'env > env.txt' 
+	for (String i : readFile('env.txt').split("\r?\n")) {
+    		println i
+	}
         
     }
 
