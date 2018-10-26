@@ -79,8 +79,9 @@ node('sl7') {
            cd Makefiles
            git checkout jenkins
            cd ..
-           export payload=\${BITBUCKET_PAYLOAD}
-	   echo \${payload}
+	   echo ${params.payload}
+    	   def payload = new groovy.json.JsonSlurper().parseText("${params.payload}")
+           echo payload.push.changes[0].new.target.hash
            """
 	echo sh(returnStdout: true, script: 'env')
         
