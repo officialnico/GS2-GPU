@@ -31,8 +31,6 @@ module run_parameters
   !! quasilinear estimates of fluxes to trinity
   public :: trinity_ql_fluxes
   public :: user_comments
-
-  public :: hzero_passing_electron
   
   !> If true use old diagnostics. Included for testing
   !! only and will eventually be removed. Please use 
@@ -69,10 +67,6 @@ module run_parameters
   logical :: use_old_diagnostics
 
   character(len=100000) :: user_comments
-
-  logical :: hzero_passing_electron
-  logical :: hzero_passing_electron_collisions
-  logical :: hzero_passing_electron_collisions_matrix  
   
   integer, allocatable :: ieqzip(:,:)
   integer :: eqzip_option_switch
@@ -131,13 +125,6 @@ module run_parameters
      real :: fphi = 1.0
      !> See [[knobs:eqzip]]
      logical :: harris = .false.
-     !> When true, the electron response for non-zonal passing
-     !> particles is set to be adiabatic. (h=0)
-     logical :: hzero_passing_electron = .false.
-     !> FIXME: Add documentation
-     logical :: hzero_passing_electron_collisions = .false.
-     !> FIXME: Add documentation
-     logical :: hzero_passing_electron_collisions_matrix = .false.     
      !> Determines the behaviour when the CFL condition is broken in the nonlinear term:
      logical :: immediate_reset = .true.
      !> Used in [[init_g_knobs:ginit_option]] "harris" and "convect". Should be
@@ -458,9 +445,6 @@ contains
     fbpar = knobs_config%fbpar
     fphi = knobs_config%fphi
     harris = knobs_config%harris
-    hzero_passing_electron = knobs_config%hzero_passing_electron
-    hzero_passing_electron_collisions = knobs_config%hzero_passing_electron_collisions
-    hzero_passing_electron_collisions_matrix = knobs_config%hzero_passing_electron_collisions_matrix
     immediate_reset = knobs_config%immediate_reset
     k0 = knobs_config%k0
     margin = knobs_config%margin
@@ -674,7 +658,7 @@ contains
   !---------------------------------------
   ! Following is for the knobs config_type
   !--------------------------------------- 
-  
+
   !> Reads in the knobs namelist and populates the member variables
   subroutine read_knobs_config(self)
     use file_utils, only: input_unit_exist, get_indexed_namelist_unit
@@ -690,13 +674,11 @@ contains
     character(len = 100000) :: user_comments
     character(len = 20) :: delt_option, eqzip_option
     integer :: nstep, seed
-    logical :: do_eigsolve, eqzip, harris, hzero_passing_electron, hzero_passing_electron_collisions, hzero_passing_electron_collisions_matrix, immediate_reset, neo_test, secondary, tertiary, trinity_linear_fluxes
-    logical :: trinity_ql_fluxes, use_old_diagnostics, wstar_units
+    logical :: do_eigsolve, eqzip, harris, immediate_reset, neo_test, secondary, tertiary, trinity_linear_fluxes, trinity_ql_fluxes, use_old_diagnostics, wstar_units
     real :: avail_cpu_time, beta, delt, fapar, faperp, fbpar, fphi, k0, margin, margin_cpu_time, rhostar, teti, tite, zeff
 
-    namelist /knobs/ avail_cpu_time, beta, delt, delt_option, do_eigsolve, eqzip, eqzip_option, fapar, faperp, fbpar, fphi, harris, hzero_passing_electron, hzero_passing_electron_collisions, &
-         hzero_passing_electron_collisions_matrix, immediate_reset, k0, margin, margin_cpu_time, neo_test, nstep, rhostar, secondary, seed, tertiary, teti, tite, trinity_linear_fluxes, trinity_ql_fluxes, &
-         use_old_diagnostics, user_comments, wstar_units, zeff
+    namelist /knobs/ avail_cpu_time, beta, delt, delt_option, do_eigsolve, eqzip, eqzip_option, fapar, faperp, fbpar, fphi, harris, immediate_reset, k0, margin, margin_cpu_time, neo_test, nstep, rhostar, secondary, seed, &
+         tertiary, teti, tite, trinity_linear_fluxes, trinity_ql_fluxes, use_old_diagnostics, user_comments, wstar_units, zeff
 
     ! Only proc0 reads from file
     if (.not. proc0) return
@@ -714,9 +696,6 @@ contains
     fbpar = self%fbpar
     fphi = self%fphi
     harris = self%harris
-    hzero_passing_electron = self%hzero_passing_electron
-    hzero_passing_electron_collisions = self%hzero_passing_electron_collisions
-    hzero_passing_electron_collisions_matrix = self%hzero_passing_electron_collisions_matrix
     immediate_reset = self%immediate_reset
     k0 = self%k0
     margin = self%margin
@@ -761,9 +740,6 @@ contains
     self%fbpar = fbpar
     self%fphi = fphi
     self%harris = harris
-    self%hzero_passing_electron = hzero_passing_electron
-    self%hzero_passing_electron_collisions = hzero_passing_electron_collisions
-    self%hzero_passing_electron_collisions_matrix = hzero_passing_electron_collisions_matrix
     self%immediate_reset = immediate_reset
     self%k0 = k0
     self%margin = margin
@@ -811,9 +787,6 @@ contains
     call self%write_key_val("fbpar", self%fbpar, unit_internal)
     call self%write_key_val("fphi", self%fphi, unit_internal)
     call self%write_key_val("harris", self%harris, unit_internal)
-    call self%write_key_val("hzero_passing_electron", self%hzero_passing_electron, unit_internal)
-    call self%write_key_val("hzero_passing_electron_collisions", self%hzero_passing_electron_collisions, unit_internal)
-    call self%write_key_val("hzero_passing_electron_collisions_matrix", self%hzero_passing_electron_collisions_matrix, unit_internal)
     call self%write_key_val("immediate_reset", self%immediate_reset, unit_internal)
     call self%write_key_val("k0", self%k0, unit_internal)
     call self%write_key_val("margin", self%margin, unit_internal)
@@ -863,9 +836,6 @@ contains
     call broadcast(self%fbpar)
     call broadcast(self%fphi)
     call broadcast(self%harris)
-    call broadcast(self%hzero_passing_electron)
-    call broadcast(self%hzero_passing_electron_collisions)
-    call broadcast(self%hzero_passing_electron_collisions_matrix)
     call broadcast(self%immediate_reset)
     call broadcast(self%k0)
     call broadcast(self%margin)
@@ -901,7 +871,7 @@ contains
     logical :: get_default_requires_index_knobs_config
     get_default_requires_index_knobs_config = .false.
   end function get_default_requires_index_knobs_config
-
+  
   !---------------------------------------
   ! Following is for the parameters config_type
   !---------------------------------------

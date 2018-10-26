@@ -4565,7 +4565,6 @@ contains
         sourcefac)
     use dist_fn_arrays, only: gnew, ittp, vperp2, aj1, aj0, set_h_zero
     use run_parameters, only: eqzip, secondary, tertiary, harris
-    use run_parameters, only: hzero_passing_electron
     use theta_grid, only: ntgrid
     use le_grids, only: nlambda, ng2, lmax, forbid
     use kt_grids, only: aky, ntheta0
@@ -4573,7 +4572,7 @@ contains
     use prof, only: prof_entering, prof_leaving
     use run_parameters, only: fbpar, fphi, ieqzip
     use kt_grids, only: kwork_filter
-    use species, only: spec, electron_species, nonmaxw_corr
+    use species, only: spec, electron_species, nonmaxw_corr, hzero_passing_electron
     use mp, only: mp_abort
     use gs2_time, only: get_adams_bashforth_coefficients
     use nonlinear_terms, only: nonlin
@@ -5044,8 +5043,7 @@ contains
     use gs2_layouts, only: g_lo, ik_idx, it_idx, il_idx, ie_idx, is_idx, idx
     use redistribute, only: fill
     use run_parameters, only: fbpar, fphi
-    use run_parameters, only: hzero_passing_electron
-    use species, only: spec, nonmaxw_corr, electron_species
+    use species, only: spec, nonmaxw_corr, electron_species, hzero_passing_electron
     use spfunc, only: j0, j1
     use kt_grids, only: kperp2, aky
 

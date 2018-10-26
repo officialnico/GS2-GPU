@@ -83,12 +83,11 @@ contains
   !>    call g_adjust(gnew,phinew,bparnew,-fphi,-fbpar)
   !> CMR, 17/4/2012:
   subroutine g_adjust (g, phi, bpar, facphi, facbpar)
-    use species, only: spec, nonmaxw_corr, electron_species
+    use species, only: spec, nonmaxw_corr, electron_species, hzero_passing_electron
     use theta_grid, only: ntgrid
     use le_grids, only: jend, ng2
     use gs2_layouts, only: g_lo, ik_idx, it_idx, ie_idx, is_idx, il_idx
     use kt_grids, only: aky
-    use run_parameters, only: hzero_passing_electron_collisions_matrix
     implicit none
     complex, dimension (-ntgrid:,:,g_lo%llim_proc:), intent (in out) :: g
     complex, dimension (-ntgrid:,:,:), intent (in) :: phi, bpar
@@ -101,6 +100,7 @@ contains
     real :: phi_factor, bpar_factor
 
     trapped = .false.
+
     if (minval(jend) .gt. ng2) trapped=.true.
 
     with_bpar = facbpar /= 0
@@ -137,9 +137,10 @@ contains
           g(ig,1,iglo) = g(ig,1,iglo) + adj
           g(ig,2,iglo) = g(ig,2,iglo) + adj
 
-          if (hzero_passing_electron_collisions_matrix .and. spec(is)%type == electron_species &
+          if (hzero_passing_electron .and. spec(is)%type == electron_species &
                .and. aky(ik) /= 0. .and. il <= ng2+1 .and. facphi > 0.) then
              ! Special behaviour when h=0 for passing non-zonal electrons
+             ! if going from g_gs2 to h ( g_wesson ), enforce h = 0 explicitly
              g(ig,1,iglo) = 0.
              g(ig,2,iglo) = 0.
           endif

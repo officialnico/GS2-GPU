@@ -19,7 +19,8 @@ module species
   public :: determine_species_order
   public :: calculate_f0_arrays, set_current_f0_species, eval_f0
   public :: nonmaxw_corr, f0_values, dlnf0drho
-
+  public :: hzero_passing_electron, hzero_passing_electron_collisions_matrix
+  
   public :: species_config_type
   public :: species_element_config_type
   public :: set_species_config
@@ -59,6 +60,8 @@ module species
   !! adiabatic
   real:: me, ZI_fac
 
+  logical :: hzero_passing_electron, hzero_passing_electron_collisions_matrix
+  
   !> Defines a working species so that eval_f0 only needs to take one argument (needed for genquad)
   integer:: is_global = -1
 
@@ -68,6 +71,7 @@ module species
   integer :: ions, electrons, impurity
   real, dimension (:,:), allocatable :: nonmaxw_corr, f0_values, dlnf0drho
 
+
   logical :: initialized = .false.
   logical :: exist
 
@@ -75,6 +79,12 @@ module species
   type, extends(abstract_config_type) :: species_config_type
      ! namelist : species_knobs
      ! indexed : false
+     !> When true, the electron response for non-zonal passing
+     !> particles is set to be adiabatic. (h=0)
+     logical :: hzero_passing_electron = .false.
+     !> If true, the non-zonal electron collision operator is modified to
+     !> reflect the h=0 (zero passing) boundary condition for trapped particles
+     logical :: hzero_passing_electron_collisions_matrix = .false.     
      !> Specifies the electron mass used in calculating the slowing
      !> down parameters in simulations without kinetic electrons.
      real :: me = -1.0
@@ -415,6 +425,8 @@ contains
     call species_config%init(name = 'species_knobs', requires_index = .false.)
 
     ! Copy out internal values into module level parameters
+    hzero_passing_electron = species_config%hzero_passing_electron
+    hzero_passing_electron_collisions_matrix = species_config%hzero_passing_electron_collisions_matrix
     me = species_config%me
     nspec = species_config%nspec
     zi_fac = species_config%zi_fac
@@ -1154,14 +1166,17 @@ contains
     ! we shadow the module level variables here. This is intentional to provide
     ! isolation and ensure we can move this routine to another module easily.    
     integer :: nspec
+    logical :: hzero_passing_electron, hzero_passing_electron_collisions_matrix
     real :: me, zi_fac
 
-    namelist /species_knobs/ me, nspec, zi_fac
+    namelist /species_knobs/ hzero_passing_electron, hzero_passing_electron_collisions_matrix, me, nspec, zi_fac
 
     ! Only proc0 reads from file
     if (.not. proc0) return
 
     ! First set local variables from current values
+    hzero_passing_electron = self%hzero_passing_electron
+    hzero_passing_electron_collisions_matrix = self%hzero_passing_electron_collisions_matrix
     me = self%me
     nspec = self%nspec
     zi_fac = self%zi_fac
@@ -1179,6 +1194,8 @@ contains
     endif
 
     ! Now copy from local variables into type members
+    self%hzero_passing_electron = hzero_passing_electron
+    self%hzero_passing_electron_collisions_matrix = hzero_passing_electron_collisions_matrix
     self%me = me
     self%nspec = nspec
     self%zi_fac = zi_fac
@@ -1199,6 +1216,8 @@ contains
     endif
 
     call self%write_namelist_header(unit_internal)
+    call self%write_key_val("hzero_passing_electron", self%hzero_passing_electron, unit_internal)
+    call self%write_key_val("hzero_passing_electron_collisions_matrix", self%hzero_passing_electron_collisions_matrix, unit_internal)
     call self%write_key_val("me", self%me, unit_internal)
     call self%write_key_val("nspec", self%nspec, unit_internal)
     call self%write_key_val("zi_fac", self%zi_fac, unit_internal)
@@ -1221,13 +1240,15 @@ contains
     use mp, only: broadcast
     implicit none
     class(species_config_type), intent(in out) :: self
+    call broadcast(self%hzero_passing_electron)
+    call broadcast(self%hzero_passing_electron_collisions_matrix)
     call broadcast(self%me)
     call broadcast(self%nspec)
     call broadcast(self%zi_fac)
 
     call broadcast(self%exist)
   end subroutine broadcast_species_config
-    
+
   !> Gets the default name for this namelist
   function get_default_name_species_config()
     implicit none

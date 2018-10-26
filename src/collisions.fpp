@@ -2096,9 +2096,8 @@ contains
     use le_grids, only: g2le, xi
     use theta_grid, only: ntgrid
     use dist_fn_arrays, only: aj0, aj1
-    use species, only: spec, electron_species
+    use species, only: spec, electron_species, hzero_passing_electron_collisions_matrix
     use kt_grids, only: aky
-    use run_parameters, only: hzero_passing_electron_collisions, hzero_passing_electron_collisions_matrix
     implicit none
 
     real, intent (in), optional :: vnmult_target
@@ -2205,45 +2204,15 @@ contains
                h1le(:,ie,ile) = hh
             end if
             
-            if (hzero_passing_electron_collisions .and. spec(is)%type == electron_species &
-           .and. aky(ik) /= 0.) then ! MRH special behaviour when h=0 for passing non-zonal electrons
-            ! The effect of these changes is to exclude passing electrons
-            ! From pitch angle scattering, and to enforce 0 passing as a boundary condition
-            ! For the trapped particle pitch angle scattering
-                if(je <= ng2+1) then ! There are only passing particles- wfb is considered passing
-                    betaale(:,ie,ile) = 0.
-                    qle(:,ie,ile) = 0.
-                    c1le(:,ie,ile) = 0.
-                else
-                    il_llim = ng2 + 2 ! il index of 1st non-wfb trapped particle
-                    il_ulim = 2*je-1 - (ng2+ 1) ! il index of last non-wfb trapped particle  
-                    do il = 1, il_llim-1 ! 1st half of passing particles
-                        betaale(il,ie,ile) = 0.
-                        qle(il,ie,ile) = 0.
-                    enddo
-                    do il = il_llim,il_ulim ! trapped particles excluding wfb
-                        qle(il,ie,ile) = aa(il) * betaale(il-1,ie,ile)
-                        betaale(il,ie,ile) = 1.0 / ( bb(il) - qle(il,ie,ile) &
-                        * c1le(il-1,ie,ile) )
-                    enddo
-                    c1le(il_ulim,ie,ile) = 0.
-                    do il = il_ulim+1,2*je ! 2nd half of passing particles and 2nd vpar=0 point
-                        betaale(il,ie,ile) = 0.
-                        qle(il,ie,ile) = 0.
-                        c1le(il,ie,ile) = 0.
-                    enddo
-                endif
-            else ! Standard behaviour
-                qle(1,ie,ile) = 0.0
-                betaale(1,ie,ile) = 1.0/bb(1)
-                do il = 1, te2-1
-                   qle(il+1,ie,ile) = aa(il+1) * betaale(il,ie,ile)
-                   betaale(il+1,ie,ile) = 1.0 / ( bb(il+1) - qle(il+1,ie,ile) &
-                        * c1le(il,ie,ile) )
-                end do
-                qle(te2+1,ie,ile) = 0.0
-                betaale(te2+1,ie,ile) = 0.0
-            endif
+            qle(1,ie,ile) = 0.0
+            betaale(1,ie,ile) = 1.0/bb(1)
+            do il = 1, te2-1
+               qle(il+1,ie,ile) = aa(il+1) * betaale(il,ie,ile)
+               betaale(il+1,ie,ile) = 1.0 / ( bb(il+1) - qle(il+1,ie,ile) &
+                    * c1le(il,ie,ile) )
+            end do
+            qle(te2+1,ie,ile) = 0.0
+            betaale(te2+1,ie,ile) = 0.0
          end do
       end do
 
@@ -2308,46 +2277,17 @@ contains
             d1(:,ilz) = dd
             h1(:,ilz) = hh
          end if
-         if (hzero_passing_electron_collisions .and. spec(is)%type == electron_species &
-           .and. aky(ik) /= 0.) then ! MRH special behaviour when h=0 for passing non-zonal electrons
-            ! The effect of these changes is to exclude passing electrons
-            ! From pitch angle scattering, and to enforce 0 passing as a boundary condition
-            ! For the trapped particle pitch angle scattering
-                if(je <= ng2+1) then ! There are only passing partics- wfb is considered passing
-                    betaa(:,ilz) = 0.
-                    ql(:,ilz) = 0.
-                    c1(:,ilz) = 0.
-                else
-                    il_llim = ng2 + 2 ! il index of 1st non-wfb trapped partic
-                    il_ulim = 2*je-1 - (ng2+ 1) ! il index of last non-wfb trapped partic
-                    do il = 1, il_llim-1 ! 1st half of passing partics
-                        betaa(il,ilz) = 0.
-                        ql(il,ilz) = 0.
-                    enddo
-                    do il = il_llim,il_ulim ! trapped partics excluding wfb
-                        ql(il,ilz) = aa(il) * betaa(il-1,ilz)
-                        betaa(il,ilz) = 1.0 / ( bb(il) - ql(il,ilz) &
-                        * c1(il-1,ilz) )
-                    enddo
-                    c1(il_ulim,ilz) = 0.
-                    do il = il_ulim+1,2*je ! 2nd half of passing partics and 2nd vpar=0 point
-                        betaa(il,ilz) = 0.
-                        ql(il,ilz) = 0.
-                        c1(il,ilz) = 0.
-                    enddo
-                endif
-         else ! Standard behaviour
-             betaa(1,ilz) = 1.0/bb(1)
-             do il = 1, te2-1
-                ql(il+1,ilz) = aa(il+1)*betaa(il,ilz)
-                betaa(il+1,ilz) = 1.0/(bb(il+1)-ql(il+1,ilz)*c1(il,ilz))
-             end do
+         
+         betaa(1,ilz) = 1.0/bb(1)
+         do il = 1, te2-1
+            ql(il+1,ilz) = aa(il+1)*betaa(il,ilz)
+            betaa(il+1,ilz) = 1.0/(bb(il+1)-ql(il+1,ilz)*c1(il,ilz))
+         end do
 
-             ql(1,ilz) = 0.0
-             ql(te2+1:,ilz) = 0.0
-             c1(te2+1:,ilz) = 0.0
-             betaa(te2+1:,ilz) = 0.0
-         endif
+         ql(1,ilz) = 0.0
+         ql(te2+1:,ilz) = 0.0
+         c1(te2+1:,ilz) = 0.0
+         betaa(te2+1:,ilz) = 0.0
       end do
 
     end if
