@@ -80,8 +80,6 @@ node('sl7') {
            git checkout jenkins
            cd ..
 	   echo ${params.payload}
-    	   def payload = new groovy.json.JsonSlurper().parseText("${params.payload}")
-           echo payload.push.changes[0].new.target.hash
            """
 	echo sh(returnStdout: true, script: 'env')
         
