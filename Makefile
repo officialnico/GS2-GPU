@@ -117,6 +117,9 @@ LOWFLOW ?=
 WITH_EIG ?=
 # Include LAPACK and GSL libraries for genquad scheme
 GENQUAD ?=
+# Compile with gcov flags to check for code coverage
+USE_GCOV ?=
+HAS_GCOV=$(USE_GCOV)
 
 # Compile with the new simplified diagnostics module
 USE_NEW_DIAG ?=on
@@ -180,6 +183,7 @@ ARCHFLAGS 	= cr
 RANLIB		= ranlib
 AWK 		= awk
 PERL		= perl
+FORD           ?= ford
 
 # These macros are used for the suffix problem of absoft
 F90FLAGS_SFX0 =
@@ -485,9 +489,9 @@ endif
 LIBS	+= $(DEFAULT_LIB) $(MPI_LIB) $(NETCDF_LIB) $(HDF5_LIB) $(FFT_LIB) \
 		$(IPM_LIB) $(NAG_LIB) $(EIG_LIB) $(GENQUAD_LIB)
 PLIBS 	+= $(LIBS) $(PGPLOT_LIB)
-F90FLAGS+= $(F90OPTFLAGS) \
-	   $(DEFAULT_INC) $(MPI_INC) $(NETCDF_INC) $(HDF5_INC) $(FFT_INC)\
+INCLUDES = 	   $(DEFAULT_INC) $(MPI_INC) $(NETCDF_INC) $(HDF5_INC) $(FFT_INC)\
 		 $(SIMPLEDATAIO_INC) $(EIG_INC) $(GENQUAD_INC)
+F90FLAGS+= $(F90OPTFLAGS) $(INCLUDES)
 CFLAGS += $(COPTFLAGS) \
 	   $(DEFAULT_INC) $(MPI_INC) $(NETCDF_INC) $(HDF5_INC) $(FFT_INC) 
 
@@ -677,7 +681,7 @@ depend: $(FORTFROMRUBY) $(F90FROMFPP)
 # Make sure template dependencies are specified
 gs2_init.f90: templates/gs2_init_template.f90
 
-doc: $(F90FROMFPP) $(FORTFROMRUBY)
+doxygen_doc: $(F90FROMFPP) $(FORTFROMRUBY)
 	doxygen doxygen_config 
 	rm -f $(F90FROMFPP)
 
@@ -693,7 +697,7 @@ sync_input_doc:
 	coderunner cc read_mediawiki_documentation wiki_in.tmp -C gs2
 	coderunner cc write_mediawiki_documentation > wiki_out.txt -C gs2
 
-clean: clean_simpledataio
+clean: clean_simpledataio clean_coverage
 	-rm -f *.o *.mod *.g90 *.h core */core
 
 CLEANCOMMAND=echo $$$$PWD
@@ -711,10 +715,13 @@ cleanlib:
 cleanconfig:
 	rm -f system_config .tmp_output
 
-cleandoc:
+clean_doxygendoc: #Doxygen documentation
 	rm -rf doc/
 
-distclean: unlink clean cleanlib clean_tests clean_benchmarks distclean_simpledataio cleanconfig cleandoc
+clean_coverage:
+	-rm *.gcov *.gcda *.gcno
+
+distclean: unlink clean cleanlib clean_tests clean_benchmarks distclean_simpledataio cleanconfig clean_doxygendoc cleandoc clean_coverage
 
 tar:
 	@[ ! -d $(TARDIR) ] || echo "ERROR: directory $(TARDIR) exists. Stop."
@@ -751,6 +758,8 @@ test_make:
 	@echo FFT_DIR is $(FFT_DIR)
 	@echo FC is $(FC)
 	@echo CC is $(CC)
+	@echo FORD is $(FORD)
+	@echo USE_GCOV is $(USE_GCOV)
 	@echo SVN_REV is $(SVN_REV)
 	@echo
 	@echo Compile mode:
@@ -829,6 +838,21 @@ TAGS:	*.f90 *.fpp */*.f90 */*.fpp
 help:
 		# make SCAL=on : makes with SCALASCA instrumentation
 
+############################################################# Documentation
+.PHONY: doc docs/html docs/graphs cleandoc
 
+ifneq ("$(wildcard $(shell which $(FORD) 2>/dev/null))","")
+check_ford_install:
+	@echo "Using ford at $(shell which $(FORD))"
+else
+check_ford_install:
+	@echo "Ford command $(FORD) not in path -- is it installed?\\n\\tConsider installing with 'pip install --user ford' and add ${HOME}/.local/bin to PATH" ; which $(FORD)
+endif
 
+docs/html:
+doc: docs/.docs.config.md check_ford_install
+	$(FORD) $(subst -D,--macro ,$(MACRO_DEFS)) $(INCLUDES) $<
+
+cleandoc: docs/html docs/graphs
+	-@rm -rf $^
 

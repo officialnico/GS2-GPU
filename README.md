@@ -169,6 +169,7 @@ The following is the full list of switches the possible options in
                           Currently, only used for special functions
                   (NOTE: NAG_PREC=dble (or sngl) must be
                   chosen appropriately for your NAG library)
+ - `USE_GCOV` (defined [undefined]): generates gcov notes files
 
 Values that each switch takes are shown in brackets, where "defined"
 ("undefined") means whether the switch is defined (or not), but not

@@ -1,0 +1,19 @@
+# This is a sample build configuration for Other.
+# Check our guides at https://confluence.atlassian.com/x/5Q4SMw for more examples.
+# Only use spaces to indent your .yml configuration.
+# -----
+
+clone: 
+  depth: 10
+options:
+  max-time: 20
+pipelines:
+  branches:
+    next:
+      - step:
+          name: ubuntu-gfortran-8-O3
+          image: 
+            name: josephparker/gs2-dockerfiles:ubuntu-gfortran-8.2
+            run-as-user: 1000
+          script:
+            - bash pipeline_test_scripts/test_script_ubuntu.sh
