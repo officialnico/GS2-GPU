@@ -1,4 +1,3 @@
-
 &layouts_knobs
 layout = 'xyles'
 opt_redist_init = .true.
@@ -93,7 +92,7 @@ nonlinear_mode = "on"
 /
 
 &fields_knobs
- field_option = "implicit" ! Controls which time-advance algorithm is used for the linear terms.
+ field_option = "local" ! Controls which time-advance algorithm is used for the linear terms.
 /
 
 &knobs
