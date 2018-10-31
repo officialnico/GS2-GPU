@@ -54,7 +54,7 @@ boolean buildSuccess = true
 // Do all the work on a node
 node('sl7') {
 
-	echo ${BITBUCKET_PAYLOAD}
+	echo "${BITBUCKET_PAYLOAD}"
 
   /*
 
