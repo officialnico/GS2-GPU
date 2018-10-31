@@ -160,7 +160,6 @@ command = "set +x; curl -X POST -H 'Content-Type: application/json' -d '${payloa
         
     }
 
-/*
   stage('Install netcdff') {
 
         currentBuild.description = "Installing netcdf/netcdff, if necessary"
@@ -227,13 +226,22 @@ command = "set +x; curl -X POST -H 'Content-Type: application/json' -d '${payloa
             .jenkins/run-tests.sh
         """
     }
-*/
 
-    stage('Slack end notification') {
+    stage('Finishing') {
+
+        currentBuild.description = "Parsing test results"
+
+	sh '''
+		ls test-results
+		export failCount=$(grep 'failures="1"' test-results/*.xml | wc -l)
+	'''
+
+	def env = System.getenv()
+	String fails=env['failCount']
+
         currentBuild.description = "Sending notification to slack"
-
 	
-	// "currentBuild.durationString" unhelpfully returns the time followed by "and still counting" because we're still in the pipeline. Bah.
+	// "currentBuild.durationString" unhelpfully returns the time followed by "and counting" because we're still in the pipeline. Bah.
 	runDuration=currentBuild.durationString[0..-14]
         endMessage = "Anvil build #${env.BUILD_NUMBER} for ${env.JOB_NAME}. (<${env.JOB_URL}|View>)"
 	fallback = "Jenkins build ended in mysterious circumstances"
@@ -241,36 +249,27 @@ command = "set +x; curl -X POST -H 'Content-Type: application/json' -d '${payloa
 	colourCode = '#FF0000' // failure red
 	result = currentBuild.result ?: 'SUCCESS'
   	resultMessage = "Build ${env.BUILD_NUMBER} for ${env.JOB_NAME} failed to compile. (<${env.JOB_URL}|View>)"
-  	if (!buildSuccess) {
-    		result = 'FAILURE'
-    		currentBuild.result = 'FAILURE'
-    		currentBuild.description = "Build failed to compile"
-    		resultMessage = "Build ${env.BUILD_NUMBER} for ${env.JOB_NAME} failed to compile. (<${env.JOB_URL}|View>)"
+  	if (result == 'ABORTED') {
+    		colourCode = '#808080' // anonymous grey
+    		currentBuild.description = "Build aborted"
+    		resultMessage = "Anvil build <${env.JOB_URL}/${env.BUILD_NUMBER}|#${env.BUILD_NUMBER}> for <${env.JOB_URL}|${env.JOB_NAME}> was aborted."
+        	fallback = "Anvil build #${env.BUILD_NUMBER} for ${env.JOB_NAME} was aborted." // same message but without hyperlinks, for pop up notifications
   	}
-  	else if (testSkipped > 0) {
-    		colourCode = '#FF0000'
-    		result = 'FAILURE'
-    		currentBuild.result = 'FAILURE'
-    		currentBuild.description = "Failed build with ${testSkipped} runtime errors and ${testFailures} regression failures."
-    		resultMessage = "Build ${env.BUILD_NUMBER} for ${env.JOB_NAME} had ${testSkipped} runtime errors and failed ${testFailures} regression tests. (<${env.JOB_URL}|View>) ${regressionDetails}"
-  	}
-  	else if (numErrors > 0) {
-    		colourCode = '#FF8000' // iffy orange
-    		result = 'UNSTABLE'
-    		currentBuild.result = 'UNSTABLE'
-   		currentBuild.description = "Unstable build with ${testFailures} regression failures."
-    		resultMessage = "Build ${env.BUILD_NUMBER} for ${env.JOB_NAME} failed ${testFailures} regression tests. (<${env.JOB_URL}|View>) ${regressionDetails}"
-  	}
-  	if (result == 'SUCCESS') {
+  	else if (fails > 0) {
     		colourCode = '#32CD32' // lovely successful green
     		currentBuild.description = "Stable build"
     		resultMessage = "Anvil build <${env.JOB_URL}/${env.BUILD_NUMBER}|#${env.BUILD_NUMBER}> for <${env.JOB_URL}|${env.JOB_NAME}> finished successfully in ${runDuration}."
         	fallback = "Anvil build #${env.BUILD_NUMBER} for ${env.JOB_NAME} finished successfully in ${runDuration}." // same message but without hyperlinks, for pop up notifications
         	endMessage = '' // No title
-  	} else if (result == 'ABORTED') {
-    		colourCode = '#808080' // anonymous grey
-    		currentBuild.description = "Build aborted"
-    		resultMessage = "Build ${env.BUILD_NUMBER} for ${env.JOB_NAME} was aborted. (<${env.BUILD_URL}|View>)"
+	}
+  	else {
+    		colourCode = '#FF0000'
+    		currentBuild.description = "Build fails"
+    		result = 'FAILURE'
+    		currentBuild.result = 'FAILURE'
+    		resultMessage = "Anvil build <${env.JOB_URL}/${env.BUILD_NUMBER}|#${env.BUILD_NUMBER}> for <${env.JOB_URL}|${env.JOB_NAME}> finished with ${fails} failures in ${runDuration}."
+        	fallback = "Anvil build #${env.BUILD_NUMBER} for ${env.JOB_NAME} finished with ${fails} failures in ${runDuration}." // same message but without hyperlinks, for pop up notifications
+        	endMessage = '' // No title
   	}
   	attachment = [text: resultMessage,
 		pretext: endMessage,
