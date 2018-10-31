@@ -73,6 +73,9 @@ node('sl7') {
 
         currentBuild.description = "Checking out from repository"
 
+	sh '''
+		curl https://anvil.softeng-support.ac.uk/jenkins/job/Gyrokinetics/job/test_job/178/api/json
+	'''
 	
 	def inputFile = new File("${env.BUILD_URL}/api/json")
 	def InputJSON = new JsonSlurper().parseText(inputFile.text)
