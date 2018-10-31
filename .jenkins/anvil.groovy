@@ -72,7 +72,7 @@ node('sl7') {
 // Set up for Slack API
 slackURL = "${params.baseURL}jenkins-ci?token=${env.TOKEN}"
 
-startMessage = "Build no. ${env.BUILD_NUMBER} for ${env.JOB_NAME}.(<${env.JOB_URL}|View>)"
+startMessage = "Anvil build #${env.BUILD_NUMBER} for ${env.JOB_NAME}. (<${env.JOB_URL}|View>)"
 
 
 
@@ -112,7 +112,7 @@ catch (jsonError) {
 
   // Construct the json as a string - much easier to get wrong, much harder to debug
 
-  payload = "{\"channel\":\"#buildservice\",\"attachments\":[{\"pretext\":\"${fallback}\",\"text\":\"${startMessage}\",\"fallback\":\"${fallback}\",\"color\":\"#439FE0\",\"mrkdwn_in\":[\"pretext\",\"text\",\"fields\"]}]}"
+  payload = "{\"channel\":\"#jenkins\",\"attachments\":[{\"pretext\":\"${fallback}\",\"text\":\"${startMessage}\",\"fallback\":\"${fallback}\",\"color\":\"#439FE0\",\"mrkdwn_in\":[\"pretext\",\"text\",\"fields\"]}]}"
 
 }
 
@@ -123,7 +123,7 @@ command = "set +x; curl -X POST -H 'Content-Type: application/json' -d '${payloa
   // Add a known host in advance so that the machine is recognized.
   sh "mkdir -p ~/.ssh; ssh-keyscan -t rsa ${params.repo_host} >> ~/.ssh/known_hosts"
 
-    stage('Slack notifications') {
+    stage('Slack start notification') {
         currentBuild.description = "Sending notification to slack"
 
 	try {
@@ -156,7 +156,7 @@ command = "set +x; curl -X POST -H 'Content-Type: application/json' -d '${payloa
            '''
         
     }
-
+/*
   stage('Install netcdff') {
 
         currentBuild.description = "Installing netcdf/netcdff, if necessary"
@@ -222,6 +222,65 @@ command = "set +x; curl -X POST -H 'Content-Type: application/json' -d '${payloa
             module load fftw
             .jenkins/run-tests.sh
         """
+    }
+*/
+
+    stage('Slack end notification') {
+        currentBuild.description = "Sending notification to slack"
+
+	colourCode = '#FF0000' // failure red
+	result = currentBuild.result ?: 'SUCCESS'
+  	resultMessage = "Build ${env.BUILD_NUMBER} for ${env.JOB_NAME} failed to compile. (<${env.JOB_URL}|View>)"
+  	if (!buildSuccess) {
+    		result = 'FAILURE'
+    		currentBuild.result = 'FAILURE'
+    		currentBuild.description = "Build failed to compile"
+    		resultMessage = "Build ${env.BUILD_NUMBER} for ${env.JOB_NAME} failed to compile. (<${env.JOB_URL}|View>)"
+  	}
+  	else if (testSkipped > 0) {
+    		colourCode = '#FF0000'
+    		result = 'FAILURE'
+    		currentBuild.result = 'FAILURE'
+    		currentBuild.description = "Failed build with ${testSkipped} runtime errors and ${testFailures} regression failures."
+    		resultMessage = "Build ${env.BUILD_NUMBER} for ${env.JOB_NAME} had ${testSkipped} runtime errors and failed ${testFailures} regression tests. (<${env.JOB_URL}|View>) ${regressionDetails}"
+  	}
+  	else if (numErrors > 0) {
+    		colourCode = '#FF8000' // iffy orange
+    		result = 'UNSTABLE'
+    		currentBuild.result = 'UNSTABLE'
+   		currentBuild.description = "Unstable build with ${testFailures} regression failures."
+    		resultMessage = "Build ${env.BUILD_NUMBER} for ${env.JOB_NAME} failed ${testFailures} regression tests. (<${env.JOB_URL}|View>) ${regressionDetails}"
+  	}
+  	if (result == 'SUCCESS') {
+    		colourCode = '#32CD32' // lovely successful green
+    		currentBuild.description = "Stable build"
+    		resultMessage = "Build ${env.BUILD_NUMBER} for ${env.JOB_NAME} finished with no problems. (<${env.JOB_URL}|View>)"
+  	} else if (result == 'ABORTED') {
+    		colourCode = '#808080' // anonymous grey
+    		currentBuild.description = "Build aborted"
+    		resultMessage = "Build ${env.BUILD_NUMBER} for ${env.JOB_NAME} was aborted. (<${env.BUILD_URL}|View>)"
+  	}
+  	attachment = [text: resultMessage,
+		pretext: "Jenkins Build Ended",
+		fallback: "Jenkins Build Ended",
+		color: colourCode,
+		mrkdwn_in: mrkdwn]
+  	attachments = [ attachment ]
+  	load = [ channel: channel, attachments: attachments ]
+  	try {
+    		endJson = new JsonBuilder(load)
+    		payload = endJson.toString()
+    		endJson = null // Need to nullify the Json object as it is not "serializable" by Java
+  	} catch (jsonError) {
+    		echo "Error contructing final Slack message - likely a library permissions issue"
+    		payload = "{\"channel\":\"#buildservice\",\"attachments\":[{\"Job Ended\",\"text\":\"${resultMessage}\",\"fallback\":\"Job Ended\",\"color\":\"${colourCode}\",\"mrkdwn_in\":[\"pretext\",\"text\",\"fields\"]}]}"
+  	}
+  	command = "set +x; curl -X POST -H 'Content-Type: application/json' -d '${payload}' ${slackURL}"
+	try {
+		sh command
+	} catch (slackError) {
+		echo "Error posting to Slack"
+	}
     }
 }
 
