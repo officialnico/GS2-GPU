@@ -70,11 +70,7 @@ node('sl7') {
   */
 
 // Set up for Slack API
-withCredentials([string(credentialsId: 'slack-token', variable: 'token')]) {
-  slackURL = "${params.baseURL}jenkins-ci?token=${env.TOKEN}"
-}
-
-
+slackURL = "${params.baseURL}jenkins-ci?token=${env.TOKEN}"
 
 startMessage = "Build no. ${env.BUILD_NUMBER} for ${env.JOB_NAME}.(<${env.JOB_URL}|View>)"
 
@@ -87,39 +83,23 @@ fallback = "gs2 ${params.label} \"${params.opt}\" ${params.comms} build started 
 
 
 channel = "#jenkins"
-
-
-
 colourCode = "#439FE0" // Jenkins blue
 
-
-
 // Construct the json payload
-
 def mrkdwn = [ "pretext", "text", "fields" ]  // Required for Slack API
-
 def attachment = [pretext: fallback,
-
                   text: startMessage,
-
 		  fallback: fallback,
-
 		  color: colourCode,
-
 		  mrkdwn_in: mrkdwn]
 
 def attachments = [ attachment ]
-
 def load = [ channel: channel, attachments: attachments ]
-
-
 
 try {
 
   def json = new JsonBuilder(load) // This may fail if the script isn't whitelisted
-
   payload = json.toString()
-
   json = null // Need to nullify the Json object as it is not "serializable" by Java
 
 }
