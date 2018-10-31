@@ -233,6 +233,7 @@ command = "set +x; curl -X POST -H 'Content-Type: application/json' -d '${payloa
 	
 	// "currentBuild.durationString" unhelpfully returns the time followed by "and still counting" because we're still in the pipeline. Bah.
 	runDuration=currentBuild.durationString[0..-14]
+        endMessage = "Anvil build #${env.BUILD_NUMBER} for ${env.JOB_NAME}. (<${env.JOB_URL}|View>)"
 
 	colourCode = '#FF0000' // failure red
 	result = currentBuild.result ?: 'SUCCESS'
@@ -261,13 +262,14 @@ command = "set +x; curl -X POST -H 'Content-Type: application/json' -d '${payloa
     		colourCode = '#32CD32' // lovely successful green
     		currentBuild.description = "Stable build"
     		resultMessage = "Anvil build <${env.JOB_URL}/${env.BUILD_NUMBER}|#${env.BUILD_NUMBER}> for <${env.JOB_URL}|${env.JOB_NAME}> finished successfully in ${runDuration}."
+        	endMessage = resultMessage
   	} else if (result == 'ABORTED') {
     		colourCode = '#808080' // anonymous grey
     		currentBuild.description = "Build aborted"
     		resultMessage = "Build ${env.BUILD_NUMBER} for ${env.JOB_NAME} was aborted. (<${env.BUILD_URL}|View>)"
   	}
   	attachment = [text: resultMessage,
-		pretext: "Jenkins Build Ended",
+		pretext: endMessage,
 		fallback: "Jenkins Build Ended",
 		color: colourCode,
 		mrkdwn_in: mrkdwn]
