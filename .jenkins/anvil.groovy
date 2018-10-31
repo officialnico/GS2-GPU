@@ -236,8 +236,7 @@ command = "set +x; curl -X POST -H 'Content-Type: application/json' -d '${payloa
 		export failCount=$(grep 'failures="1"' test-results/*.xml | wc -l)
 	'''
 
-	def env = System.getenv()
-	String fails=env['failCount']
+	println env.failCount
 
         currentBuild.description = "Sending notification to slack"
 	
