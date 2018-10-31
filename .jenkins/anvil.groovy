@@ -52,9 +52,7 @@ int testFailures = 0
 int testSkipped = 0
 boolean buildSuccess = true
 
-import groovy.json.JsonSlurper
 import groovy.json.JsonBuilder // For json construction.
-import hudson.Util;            // For formatting build time
   
 
 // Do all the work on a node
@@ -122,7 +120,7 @@ command = "set +x; curl -X POST -H 'Content-Type: application/json' -d '${payloa
 
 
   // Add a known host in advance so that the machine is recognized.
-  sh "mkdir -p ~/.ssh; ssh-keyscan -t rsa ${params.repo_host} >> ~/.ssh/known_hosts"
+  //sh "mkdir -p ~/.ssh; ssh-keyscan -t rsa ${params.repo_host} >> ~/.ssh/known_hosts"
 
 /*
     stage('Slack start notification') {
@@ -231,9 +229,10 @@ command = "set +x; curl -X POST -H 'Content-Type: application/json' -d '${payloa
 
         currentBuild.description = "Parsing test results"
 
-	sh '''
-		export params.testFailures=$(grep 'failures="1"' test-results/*.xml | wc -l)
-	'''
+	// This doesn't work, need a better way to parse files
+	//sh '''
+	//	export params.testFailures=$(grep 'failures="1"' test-results/*.xml | wc -l)
+	//'''
 
         currentBuild.description = "Sending notification to slack"
 	
