@@ -77,7 +77,7 @@ node('sl7') {
         // Old directory is kept
         sh "rm -rf gs2"
         checkout([$class: 'GitSCM', branches: [[name: '*/jenkins']], userRemoteConfigs: [[url: 'https://bitbucket.org/gyrokinetics/gs2']]])
-        sh """
+        sh '''
            git submodule update --init --recursive --remote
            cd Makefiles
            git checkout jenkins
@@ -88,7 +88,7 @@ node('sl7') {
 	   export current_hash = $(git rev-parse HEAD)
 	   echo ${current_hash}
 
-           """
+           '''
 	sh 'env > env.txt' 
 	for (String i : readFile('env.txt').split("\r?\n")) {
     		println i
