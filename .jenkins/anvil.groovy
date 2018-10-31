@@ -83,9 +83,9 @@ node('sl7') {
            git checkout jenkins
            cd ..
 
-	   export current_branch = $(git rev-parse --abbrev-ref HEAD)
+	   export current_branch=$(git rev-parse --abbrev-ref HEAD)
 	   echo ${current_branch}
-	   export current_hash = $(git rev-parse HEAD)
+	   export current_hash=$(git rev-parse HEAD)
 	   echo ${current_hash}
 
            '''
