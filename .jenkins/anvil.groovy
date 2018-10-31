@@ -123,6 +123,17 @@ command = "set +x; curl -X POST -H 'Content-Type: application/json' -d '${payloa
   // Add a known host in advance so that the machine is recognized.
   sh "mkdir -p ~/.ssh; ssh-keyscan -t rsa ${params.repo_host} >> ~/.ssh/known_hosts"
 
+    stage('Slack notifications') {
+        currentBuild.description = "Sending notification to slack"
+
+	try {
+		sh command
+	} catch (slackError) {
+		echo "Error posting to Slack"
+	}
+
+    }
+
     stage('Checkout') {
 
         currentBuild.description = "Checking out from repository"
