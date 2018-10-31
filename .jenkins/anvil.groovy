@@ -67,6 +67,7 @@ node('sl7') {
   // Add a known host in advance so that the machine is recognized.
   sh "mkdir -p ~/.ssh; ssh-keyscan -t rsa ${params.repo_host} >> ~/.ssh/known_hosts"
 
+  import groovy.json.JsonSlurper
   
     stage('Checkout') {
 
@@ -76,7 +77,6 @@ node('sl7') {
 		export j=${BUILD_URL}/api/json
 		echo $j
 	'''
-	import groovy.json.JsonSlurper
 
 	def inputFile = new File($j)
 	def InputJSON = new JsonSlurper().parseText(inputFile.text)
