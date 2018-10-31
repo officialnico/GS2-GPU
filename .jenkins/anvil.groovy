@@ -54,6 +54,7 @@ boolean buildSuccess = true
 
 import groovy.json.JsonSlurper
 import groovy.json.JsonBuilder // For json construction.
+import hudson.Util;            // For formatting build time
   
 
 // Do all the work on a node
@@ -229,6 +230,8 @@ command = "set +x; curl -X POST -H 'Content-Type: application/json' -d '${payloa
     stage('Slack end notification') {
         currentBuild.description = "Sending notification to slack"
 
+	export runDuration=${Util.getTimeSpanString(System.currentTimeMillis() - currentBuild.startTimeInMillis)}
+
 	colourCode = '#FF0000' // failure red
 	result = currentBuild.result ?: 'SUCCESS'
   	resultMessage = "Build ${env.BUILD_NUMBER} for ${env.JOB_NAME} failed to compile. (<${env.JOB_URL}|View>)"
@@ -255,7 +258,7 @@ command = "set +x; curl -X POST -H 'Content-Type: application/json' -d '${payloa
   	if (result == 'SUCCESS') {
     		colourCode = '#32CD32' // lovely successful green
     		currentBuild.description = "Stable build"
-    		resultMessage = "Anvil build <${env.JOB_URL}/${env.BUILD_NUMBER}|#${env.BUILD_NUMBER}> for <${env.JOB_URL}|${env.JOB_NAME}> finished successfully in ${currentBuild.durationString}."
+    		resultMessage = "Anvil build <${env.JOB_URL}/${env.BUILD_NUMBER}|#${env.BUILD_NUMBER}> for <${env.JOB_URL}|${env.JOB_NAME}> finished successfully in ${runDuration}."
   	} else if (result == 'ABORTED') {
     		colourCode = '#808080' // anonymous grey
     		currentBuild.description = "Build aborted"
