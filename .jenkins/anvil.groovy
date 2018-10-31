@@ -134,7 +134,6 @@ command = "set +x; curl -X POST -H 'Content-Type: application/json' -d '${payloa
 
     }
 
-/*
     stage('Checkout') {
 
         currentBuild.description = "Checking out from repository"
@@ -158,6 +157,7 @@ command = "set +x; curl -X POST -H 'Content-Type: application/json' -d '${payloa
         
     }
 
+/*
   stage('Install netcdff') {
 
         currentBuild.description = "Installing netcdf/netcdff, if necessary"
