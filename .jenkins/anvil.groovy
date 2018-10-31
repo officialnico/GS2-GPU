@@ -73,12 +73,8 @@ node('sl7') {
 
         currentBuild.description = "Checking out from repository"
 
-	sh '''
-		export j=${BUILD_URL}/api/json
-		echo $j
-	'''
-
-	def inputFile = new File($j)
+	
+	def inputFile = new File("${env.BUILD_URL}/api/json")
 	def InputJSON = new JsonSlurper().parseText(inputFile.text)
 	InputJSON.each{ println it }
 
