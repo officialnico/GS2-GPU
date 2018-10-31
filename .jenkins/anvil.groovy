@@ -119,9 +119,6 @@ catch (jsonError) {
 command = "set +x; curl -X POST -H 'Content-Type: application/json' -d '${payload}' ${slackURL}"
 
 
-  // Add a known host in advance so that the machine is recognized.
-  //sh "mkdir -p ~/.ssh; ssh-keyscan -t rsa ${params.repo_host} >> ~/.ssh/known_hosts"
-
 /*
     stage('Slack start notification') {
         currentBuild.description = "Sending notification to slack"
@@ -233,6 +230,7 @@ command = "set +x; curl -X POST -H 'Content-Type: application/json' -d '${payloa
 	//sh '''
 	//	export params.testFailures=$(grep 'failures="1"' test-results/*.xml | wc -l)
 	//'''
+	params.testFailures = 0
 
         currentBuild.description = "Sending notification to slack"
 	
