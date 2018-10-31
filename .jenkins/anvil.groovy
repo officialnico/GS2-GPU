@@ -232,7 +232,7 @@ command = "set +x; curl -X POST -H 'Content-Type: application/json' -d '${payloa
         currentBuild.description = "Parsing test results"
 
 	sh '''
-		export \${params.testFailures}=$(grep 'failures="1"' test-results/*.xml | wc -l)
+		export ${params.testFailures}=$(grep 'failures="1"' test-results/*.xml | wc -l)
 	'''
 
         currentBuild.description = "Sending notification to slack"
