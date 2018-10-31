@@ -156,7 +156,7 @@ command = "set +x; curl -X POST -H 'Content-Type: application/json' -d '${payloa
            '''
         
     }
-/*
+
   stage('Install netcdff') {
 
         currentBuild.description = "Installing netcdf/netcdff, if necessary"
@@ -223,7 +223,6 @@ command = "set +x; curl -X POST -H 'Content-Type: application/json' -d '${payloa
             .jenkins/run-tests.sh
         """
     }
-*/
 
     stage('Slack end notification') {
         currentBuild.description = "Sending notification to slack"
@@ -254,7 +253,7 @@ command = "set +x; curl -X POST -H 'Content-Type: application/json' -d '${payloa
   	if (result == 'SUCCESS') {
     		colourCode = '#32CD32' // lovely successful green
     		currentBuild.description = "Stable build"
-    		resultMessage = "Anvil build <${env.JOB_URL}|#${env.BUILD_NUMBER}> for ${env.JOB_NAME} finished with no problems."
+    		resultMessage = "Anvil build <${env.JOB_URL}|#${env.BUILD_NUMBER}> for <${env.JOB_URL}|${env.JOB_NAME}> finished with no problems."
   	} else if (result == 'ABORTED') {
     		colourCode = '#808080' // anonymous grey
     		currentBuild.description = "Build aborted"
