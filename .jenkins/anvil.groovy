@@ -124,6 +124,7 @@ command = "set +x; curl -X POST -H 'Content-Type: application/json' -d '${payloa
   // Add a known host in advance so that the machine is recognized.
   sh "mkdir -p ~/.ssh; ssh-keyscan -t rsa ${params.repo_host} >> ~/.ssh/known_hosts"
 
+/*
     stage('Slack start notification') {
         currentBuild.description = "Sending notification to slack"
 
@@ -134,6 +135,7 @@ command = "set +x; curl -X POST -H 'Content-Type: application/json' -d '${payloa
 	}
 
     }
+*/
 
     stage('Checkout') {
 
@@ -234,6 +236,7 @@ command = "set +x; curl -X POST -H 'Content-Type: application/json' -d '${payloa
 	// "currentBuild.durationString" unhelpfully returns the time followed by "and still counting" because we're still in the pipeline. Bah.
 	runDuration=currentBuild.durationString[0..-14]
         endMessage = "Anvil build #${env.BUILD_NUMBER} for ${env.JOB_NAME}. (<${env.JOB_URL}|View>)"
+	fallback = "Jenkins build ended in mysterious circumstances"
 
 	colourCode = '#FF0000' // failure red
 	result = currentBuild.result ?: 'SUCCESS'
@@ -262,7 +265,8 @@ command = "set +x; curl -X POST -H 'Content-Type: application/json' -d '${payloa
     		colourCode = '#32CD32' // lovely successful green
     		currentBuild.description = "Stable build"
     		resultMessage = "Anvil build <${env.JOB_URL}/${env.BUILD_NUMBER}|#${env.BUILD_NUMBER}> for <${env.JOB_URL}|${env.JOB_NAME}> finished successfully in ${runDuration}."
-        	endMessage = resultMessage
+        	endMessage = '' //resultMessage
+        	fallback = resultMessage
   	} else if (result == 'ABORTED') {
     		colourCode = '#808080' // anonymous grey
     		currentBuild.description = "Build aborted"
@@ -270,7 +274,7 @@ command = "set +x; curl -X POST -H 'Content-Type: application/json' -d '${payloa
   	}
   	attachment = [text: resultMessage,
 		pretext: endMessage,
-		fallback: "Jenkins Build Ended",
+		fallback: fallback,
 		color: colourCode,
 		mrkdwn_in: mrkdwn]
   	attachments = [ attachment ]
