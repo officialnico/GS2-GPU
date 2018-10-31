@@ -71,6 +71,9 @@ node('sl7') {
 
         currentBuild.description = "Checking out from repository"
 
+	String version = currentBuild.rawBuild.getAction(hudson.plugins.git.GitChangeSetList).getParameter("items")
+	println version
+
         // Old directory is kept
         sh "rm -rf gs2"
         checkout([$class: 'GitSCM', branches: [[name: '*/jenkins']], userRemoteConfigs: [[url: 'https://bitbucket.org/gyrokinetics/gs2']]])
