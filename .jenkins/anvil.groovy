@@ -50,6 +50,8 @@ int testFailures = 0
 int testSkipped = 0
 boolean buildSuccess = true
 
+import groovy.json.JsonSlurper
+  
 
 // Do all the work on a node
 node('sl7') {
@@ -67,8 +69,6 @@ node('sl7') {
   // Add a known host in advance so that the machine is recognized.
   sh "mkdir -p ~/.ssh; ssh-keyscan -t rsa ${params.repo_host} >> ~/.ssh/known_hosts"
 
-  import groovy.json.JsonSlurper
-  
     stage('Checkout') {
 
         currentBuild.description = "Checking out from repository"
