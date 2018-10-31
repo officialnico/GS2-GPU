@@ -230,7 +230,9 @@ command = "set +x; curl -X POST -H 'Content-Type: application/json' -d '${payloa
     stage('Slack end notification') {
         currentBuild.description = "Sending notification to slack"
 
-	export runDuration=${Util.getTimeSpanString(System.currentTimeMillis() - currentBuild.startTimeInMillis)}
+	
+	// "currentBuild.durationString" unhelpfully returns the time 
+	runDuration=${Util.getTimeSpanString(System.currentTimeMillis() - currentBuild.startTimeInMillis)}
 
 	colourCode = '#FF0000' // failure red
 	result = currentBuild.result ?: 'SUCCESS'
