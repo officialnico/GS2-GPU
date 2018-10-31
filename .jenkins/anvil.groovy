@@ -57,6 +57,8 @@ sh '''
 // Do all the work on a node
 node('sl7') {
 
+	echo ${BITBUCKET_PAYLOAD}
+
   /*
 
     Stage 1
