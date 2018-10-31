@@ -133,6 +133,7 @@ command = "set +x; curl -X POST -H 'Content-Type: application/json' -d '${payloa
 		echo "Error posting to Slack"
 	}
 
+	println currentBuild.durationString.split(' ')
     }
 
     stage('Checkout') {
@@ -232,6 +233,7 @@ command = "set +x; curl -X POST -H 'Content-Type: application/json' -d '${payloa
 
 	
 	// "currentBuild.durationString" unhelpfully returns the time followed by "and still counting" because we're still in the pipeline. Bah.
+	println currentBuild.durationString.split(' ')
 	runDuration=Util.getTimeSpanString(System.currentTimeMillis() - currentBuild.startTimeInMillis)
 
 	colourCode = '#FF0000' // failure red
