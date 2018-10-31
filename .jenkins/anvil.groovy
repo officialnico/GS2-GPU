@@ -53,6 +53,7 @@ int testSkipped = 0
 boolean buildSuccess = true
 
 import groovy.json.JsonSlurper
+import groovy.json.JsonBuilder // For json construction.
   
 
 // Do all the work on a node
