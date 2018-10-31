@@ -73,17 +73,6 @@ node('sl7') {
 
         currentBuild.description = "Checking out from repository"
 
-	sh '''
-		declare -p
-	'''
-
-	
-	def inputFile = new File("${env.BUILD_URL}/api/json")
-	def InputJSON = new JsonSlurper().parseText(inputFile.text)
-	InputJSON.each{ println it }
-
-	String version = currentBuild.rawBuild.getAction(hudson.plugins.git.GitChangeSetList).getParameter("items")
-	println version
 
         // Old directory is kept
         sh "rm -rf gs2"
@@ -94,6 +83,7 @@ node('sl7') {
            git checkout jenkins
            cd ..
 	   echo ${params.payload}
+	   declare -p
            """
 	sh 'env > env.txt' 
 	for (String i : readFile('env.txt').split("\r?\n")) {
