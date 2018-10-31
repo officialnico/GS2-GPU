@@ -23,7 +23,9 @@ properties([[
   string(name: "mathLibDir", defaultValue: "", description: "Specify maths library location"),
   string(name: "fft", defaultValue: "fftw3", description: "Select FFT to use"),
   string(name: "fftLibDir", defaultValue: "", description: "Specify fft library location"),
-  string(name: "netcdff_path", defaultValue: "/home/jenkins/workspace/Gyrokinetics/test_job/software/gcc-7.2.0/netcdf-fortran/4.4.4", description: "Install path for netcdff")
+  string(name: "netcdff_path", defaultValue: "/home/jenkins/workspace/Gyrokinetics/test_job/software/gcc-7.2.0/netcdf-fortran/4.4.4", description: "Install path for netcdff"),
+  string(name: "baseURL", defaultValue: "https://gyrokinetics.slack.com/services/hooks/", description: "Base URL for Slack webhook"),
+  string(name: "TOKEN", defaultValue: "cvxSY36OQb3FswQVi0wcZcrg", description: "Token for Slack webhook")
 ]]])
 
 // Mercurial repository to use
@@ -66,6 +68,77 @@ node('sl7') {
 
   */
 
+// Set up for Slack API
+withCredentials([string(credentialsId: 'gyrokinetics', variable: 'token')]) {
+  slackURL = "${params.baseURL}jenkins-ci?token=${env.TOKEN}"
+}
+
+
+
+startMessage = "Build no. ${env.BUILD_NUMBER} for ${env.JOB_NAME}.(<${env.JOB_URL}|View>)"
+
+
+
+// This fallback message shows in a Slack notification
+
+fallback = "gs2 ${params.label} \"${params.opt}\" ${params.comms} build started for branch ${params.branch}"
+
+
+
+channel = "#jenkins"
+
+
+
+colourCode = "#439FE0" // Jenkins blue
+
+
+
+// Construct the json payload
+
+def mrkdwn = [ "pretext", "text", "fields" ]  // Required for Slack API
+
+def attachment = [pretext: fallback,
+
+                  text: startMessage,
+
+		  fallback: fallback,
+
+		  color: colourCode,
+
+		  mrkdwn_in: mrkdwn]
+
+def attachments = [ attachment ]
+
+def load = [ channel: channel, attachments: attachments ]
+
+
+
+try {
+
+  def json = new JsonBuilder(load) // This may fail if the script isn't whitelisted
+
+  payload = json.toString()
+
+  json = null // Need to nullify the Json object as it is not "serializable" by Java
+
+}
+
+catch (jsonError) {
+
+  echo "Error constructing json for Slack message - likely a script whitelist issue"
+
+
+
+  // Construct the json as a string - much easier to get wrong, much harder to debug
+
+  payload = "{\"channel\":\"#buildservice\",\"attachments\":[{\"pretext\":\"${fallback}\",\"text\":\"${startMessage}\",\"fallback\":\"${fallback}\",\"color\":\"#439FE0\",\"mrkdwn_in\":[\"pretext\",\"text\",\"fields\"]}]}"
+
+}
+
+// Construct the command as a string so that variables are expanded properly
+command = "set +x; curl -X POST -H 'Content-Type: application/json' -d '${payload}' ${slackURL}"
+
+
   // Add a known host in advance so that the machine is recognized.
   sh "mkdir -p ~/.ssh; ssh-keyscan -t rsa ${params.repo_host} >> ~/.ssh/known_hosts"
 
@@ -89,10 +162,6 @@ node('sl7') {
 	   echo ${current_hash}
 
            '''
-	sh 'env > env.txt' 
-	for (String i : readFile('env.txt').split("\r?\n")) {
-    		println i
-	}
         
     }
 
