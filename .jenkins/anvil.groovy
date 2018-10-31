@@ -70,7 +70,7 @@ node('sl7') {
   */
 
 // Set up for Slack API
-withCredentials([string(credentialsId: 'gyrokinetics', variable: 'token')]) {
+withCredentials([string(credentialsId: 'slack-token', variable: 'token')]) {
   slackURL = "${params.baseURL}jenkins-ci?token=${env.TOKEN}"
 }
 
