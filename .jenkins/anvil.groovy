@@ -50,6 +50,10 @@ int testFailures = 0
 int testSkipped = 0
 boolean buildSuccess = true
 
+sh '''
+	echo $BITBUCKET_PAYLOAD
+   '''
+
 // Do all the work on a node
 node('sl7') {
 
