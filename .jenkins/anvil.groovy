@@ -232,7 +232,7 @@ command = "set +x; curl -X POST -H 'Content-Type: application/json' -d '${payloa
 
 	
 	// "currentBuild.durationString" unhelpfully returns the time followed by "and still counting" because we're still in the pipeline. Bah.
-	runDuration=currentBuild.durationString[0..-15]
+	runDuration=currentBuild.durationString[0..-14]
 
 	colourCode = '#FF0000' // failure red
 	result = currentBuild.result ?: 'SUCCESS'
