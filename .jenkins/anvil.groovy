@@ -54,8 +54,6 @@ boolean buildSuccess = true
 // Do all the work on a node
 node('sl7') {
 
-	echo "${BITBUCKET_PAYLOAD}"
-
   /*
 
     Stage 1
@@ -73,6 +71,16 @@ node('sl7') {
     stage('Checkout') {
 
         currentBuild.description = "Checking out from repository"
+
+	sh '''
+		export j=${BUILD_URL}/api/json
+		echo $j
+	'''
+	import groovy.json.JsonSlurper
+
+	def inputFile = new File($j)
+	def InputJSON = new JsonSlurper().parseText(inputFile.text)
+	InputJSON.each{ println it }
 
 	String version = currentBuild.rawBuild.getAction(hudson.plugins.git.GitChangeSetList).getParameter("items")
 	println version
