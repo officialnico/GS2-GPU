@@ -82,8 +82,12 @@ node('sl7') {
            cd Makefiles
            git checkout jenkins
            cd ..
-	   echo ${params.payload}
-	   declare -p
+
+	   export current_branch = $(git rev-parse --abbrev-ref HEAD)
+	   echo ${current_branch}
+	   export current_hash = $(git rev-parse HEAD)
+	   echo ${current_hash}
+
            """
 	sh 'env > env.txt' 
 	for (String i : readFile('env.txt').split("\r?\n")) {
