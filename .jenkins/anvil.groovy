@@ -264,6 +264,7 @@ command = "set +x; curl -X POST -H 'Content-Type: application/json' -d '${payloa
         	fallback = "Anvil build #${env.BUILD_NUMBER} for ${env.JOB_NAME} finished with ${fails} failures in ${runDuration}." // same message but without hyperlinks, for pop up notifications
         	endMessage = '' // No title
   	}
+/*
   	attachment = [text: resultMessage,
 		pretext: endMessage,
 		fallback: fallback,
@@ -285,6 +286,7 @@ command = "set +x; curl -X POST -H 'Content-Type: application/json' -d '${payloa
 	} catch (slackError) {
 		echo "Error posting to Slack"
 	}
+*/
     }
 }
 
