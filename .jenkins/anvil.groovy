@@ -79,8 +79,6 @@ startMessage = "Anvil build #${env.BUILD_NUMBER} for ${env.JOB_NAME}. (<${env.JO
 
 fallback = "gs2 ${params.label} \"${params.opt}\" ${params.comms} build started for branch ${params.branch}"
 
-
-
 channel = "#jenkins"
 colourCode = "#439FE0" // Jenkins blue
 
