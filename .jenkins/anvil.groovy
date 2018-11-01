@@ -236,6 +236,7 @@ command = "set +x; curl -X POST -H 'Content-Type: application/json' -d '${payloa
 
         currentBuild.description = "Sending notification to slack"
 	
+/*
 	// "currentBuild.durationString" unhelpfully returns the time followed by "and counting" because we're still in the pipeline. Bah.
 	runDuration=currentBuild.durationString[0..-14]
         endMessage = "Anvil build #${env.BUILD_NUMBER} for ${env.JOB_NAME}. (<${env.JOB_URL}|View>)"
@@ -287,6 +288,7 @@ command = "set +x; curl -X POST -H 'Content-Type: application/json' -d '${payloa
 	} catch (slackError) {
 		echo "Error posting to Slack"
 	}
+*/
     }
 }
 
