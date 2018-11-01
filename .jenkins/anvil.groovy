@@ -257,12 +257,10 @@ command = "set +x; curl -X POST -H 'Content-Type: application/json' -d '${payloa
         	fallback = "Anvil build #${env.BUILD_NUMBER} for ${env.JOB_NAME} finished successfully in ${runDuration}." // same message but without hyperlinks, for pop up notifications
         	endMessage = '' // No title
 	}
-/*
   	else {
     		colourCode = '#FF0000'
     		currentBuild.description = "Build fails"
     		result = 'FAILURE'
-    		currentBuild.result = 'FAILURE'
     		resultMessage = "Anvil build <${env.JOB_URL}/${env.BUILD_NUMBER}|#${env.BUILD_NUMBER}> for <${env.JOB_URL}|${env.JOB_NAME}> finished with ${fails} failures in ${runDuration}."
         	fallback = "Anvil build #${env.BUILD_NUMBER} for ${env.JOB_NAME} finished with ${fails} failures in ${runDuration}." // same message but without hyperlinks, for pop up notifications
         	endMessage = '' // No title
