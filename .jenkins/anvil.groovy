@@ -72,7 +72,6 @@ slackURL = "${params.baseURL}jenkins-ci?token=${env.TOKEN}"
 
 startMessage = "Anvil build #${env.BUILD_NUMBER} for ${env.JOB_NAME}. (<${env.JOB_URL}|View>)"
 
-
 // This fallback message shows in a Slack notification
 
 fallback = "gs2 ${params.label} \"${params.opt}\" ${params.comms} build started for branch ${params.branch}"
