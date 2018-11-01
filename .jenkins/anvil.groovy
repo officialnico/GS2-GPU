@@ -23,7 +23,9 @@ properties([[
   string(name: "mathLibDir", defaultValue: "", description: "Specify maths library location"),
   string(name: "fft", defaultValue: "fftw3", description: "Select FFT to use"),
   string(name: "fftLibDir", defaultValue: "", description: "Specify fft library location"),
-  string(name: "netcdff_path", defaultValue: "/home/jenkins/workspace/Gyrokinetics/test_job/software/gcc-7.2.0/netcdf-fortran/4.4.4", description: "Install path for netcdff")
+  string(name: "netcdff_path", defaultValue: "/home/jenkins/workspace/Gyrokinetics/test_job/software/gcc-7.2.0/netcdf-fortran/4.4.4", description: "Install path for netcdff"),
+  string(name: "baseURL", defaultValue: "https://gyrokinetics.slack.com/services/hooks/", description: "Base URL for Slack webhook"),
+  string(name: "TOKEN", defaultValue: "cvxSY36OQb3FswQVi0wcZcrg", description: "Token for Slack webhook")
 ]]])
 
 // Mercurial repository to use
@@ -50,9 +52,8 @@ int testFailures = 0
 int testSkipped = 0
 boolean buildSuccess = true
 
-sh '''
-	echo $BITBUCKET_PAYLOAD
-   '''
+import groovy.json.JsonBuilder // For json construction.
+  
 
 // Do all the work on a node
 node('sl7') {
@@ -67,34 +68,94 @@ node('sl7') {
 
   */
 
-  // Add a known host in advance so that the machine is recognized.
-  sh "mkdir -p ~/.ssh; ssh-keyscan -t rsa ${params.repo_host} >> ~/.ssh/known_hosts"
+// Set up for Slack API
+slackURL = "${params.baseURL}jenkins-ci?token=${env.TOKEN}"
 
-  
+startMessage = "Anvil build #${env.BUILD_NUMBER} for ${env.JOB_NAME}. (<${env.JOB_URL}|View>)"
+
+
+
+// This fallback message shows in a Slack notification
+
+fallback = "gs2 ${params.label} \"${params.opt}\" ${params.comms} build started for branch ${params.branch}"
+
+
+
+channel = "#jenkins"
+colourCode = "#439FE0" // Jenkins blue
+
+// Construct the json payload
+def mrkdwn = [ "pretext", "text", "fields" ]  // Required for Slack API
+def attachment = [pretext: fallback,
+                  text: startMessage,
+		  fallback: fallback,
+		  color: colourCode,
+		  mrkdwn_in: mrkdwn]
+
+def attachments = [ attachment ]
+def load = [ channel: channel, attachments: attachments ]
+
+try {
+
+  def json = new JsonBuilder(load) // This may fail if the script isn't whitelisted
+  payload = json.toString()
+  json = null // Need to nullify the Json object as it is not "serializable" by Java
+
+}
+
+catch (jsonError) {
+
+  echo "Error constructing json for Slack message - likely a script whitelist issue"
+
+
+
+  // Construct the json as a string - much easier to get wrong, much harder to debug
+
+  payload = "{\"channel\":\"#jenkins\",\"attachments\":[{\"pretext\":\"${fallback}\",\"text\":\"${startMessage}\",\"fallback\":\"${fallback}\",\"color\":\"#439FE0\",\"mrkdwn_in\":[\"pretext\",\"text\",\"fields\"]}]}"
+
+}
+
+// Construct the command as a string so that variables are expanded properly
+command = "set +x; curl -X POST -H 'Content-Type: application/json' -d '${payload}' ${slackURL}"
+
+
+/*
+    stage('Slack start notification') {
+        currentBuild.description = "Sending notification to slack"
+
+	try {
+		sh command
+	} catch (slackError) {
+		echo "Error posting to Slack"
+	}
+
+    }
+*/
+
     stage('Checkout') {
 
         currentBuild.description = "Checking out from repository"
 
-	String version = currentBuild.rawBuild.getAction(hudson.plugins.git.GitChangeSetList).getParameter("items")
-	println version
 
         // Old directory is kept
         sh "rm -rf gs2"
         checkout([$class: 'GitSCM', branches: [[name: '*/jenkins']], userRemoteConfigs: [[url: 'https://bitbucket.org/gyrokinetics/gs2']]])
-        sh """
+        sh '''
            git submodule update --init --recursive --remote
            cd Makefiles
            git checkout jenkins
            cd ..
-	   echo ${params.payload}
-           """
-	sh 'env > env.txt' 
-	for (String i : readFile('env.txt').split("\r?\n")) {
-    		println i
-	}
+
+	   export current_branch=$(git rev-parse --abbrev-ref HEAD)
+	   echo ${current_branch}
+	   export current_hash=$(git rev-parse HEAD)
+	   echo ${current_hash}
+
+           '''
         
     }
 
+/*
   stage('Install netcdff') {
 
         currentBuild.description = "Installing netcdf/netcdff, if necessary"
@@ -160,6 +221,72 @@ node('sl7') {
             module load fftw
             .jenkins/run-tests.sh
         """
+    }
+*/
+
+    stage('Finishing') {
+
+        currentBuild.description = "Parsing test results"
+
+	// This doesn't work, need a better way to parse files
+	//sh '''
+	//	export params.testFailures=$(grep 'failures="1"' test-results/*.xml | wc -l)
+	//'''
+	testsFailed = sh ( script: """ grep 'failures="1"' test-results/*.xml | wc -l """ )
+
+        currentBuild.description = "Sending notification to slack"
+	
+	// "currentBuild.durationString" unhelpfully returns the time followed by "and counting" because we're still in the pipeline. Bah.
+	runDuration=currentBuild.durationString[0..-14]
+        endMessage = "Anvil build #${env.BUILD_NUMBER} for ${env.JOB_NAME}. (<${env.JOB_URL}|View>)"
+	fallback = "Jenkins build ended in mysterious circumstances"
+
+	colourCode = '#FF0000' // failure red
+	result = currentBuild.result ?: 'SUCCESS'
+  	resultMessage = "Build ${env.BUILD_NUMBER} for ${env.JOB_NAME} failed to compile. (<${env.JOB_URL}|View>)"
+  	if (result == 'ABORTED') {
+    		colourCode = '#808080' // anonymous grey
+    		currentBuild.description = "Build aborted"
+    		resultMessage = "Anvil build <${env.JOB_URL}/${env.BUILD_NUMBER}|#${env.BUILD_NUMBER}> for <${env.JOB_URL}|${env.JOB_NAME}> was aborted."
+        	fallback = "Anvil build #${env.BUILD_NUMBER} for ${env.JOB_NAME} was aborted." // same message but without hyperlinks, for pop up notifications
+  	}
+  	else if (testsFailed > 0) {
+    		colourCode = '#32CD32' // lovely successful green
+    		currentBuild.description = "Stable build"
+    		resultMessage = "Anvil build <${env.JOB_URL}/${env.BUILD_NUMBER}|#${env.BUILD_NUMBER}> for <${env.JOB_URL}|${env.JOB_NAME}> finished successfully in ${runDuration}."
+        	fallback = "Anvil build #${env.BUILD_NUMBER} for ${env.JOB_NAME} finished successfully in ${runDuration}." // same message but without hyperlinks, for pop up notifications
+        	endMessage = '' // No title
+	}
+  	else {
+    		colourCode = '#FF0000'
+    		currentBuild.description = "Build fails"
+    		result = 'FAILURE'
+    		currentBuild.result = 'FAILURE'
+    		resultMessage = "Anvil build <${env.JOB_URL}/${env.BUILD_NUMBER}|#${env.BUILD_NUMBER}> for <${env.JOB_URL}|${env.JOB_NAME}> finished with ${fails} failures in ${runDuration}."
+        	fallback = "Anvil build #${env.BUILD_NUMBER} for ${env.JOB_NAME} finished with ${fails} failures in ${runDuration}." // same message but without hyperlinks, for pop up notifications
+        	endMessage = '' // No title
+  	}
+  	attachment = [text: resultMessage,
+		pretext: endMessage,
+		fallback: fallback,
+		color: colourCode,
+		mrkdwn_in: mrkdwn]
+  	attachments = [ attachment ]
+  	load = [ channel: channel, attachments: attachments ]
+  	try {
+    		endJson = new JsonBuilder(load)
+    		payload = endJson.toString()
+    		endJson = null // Need to nullify the Json object as it is not "serializable" by Java
+  	} catch (jsonError) {
+    		echo "Error contructing final Slack message - likely a library permissions issue"
+    		payload = "{\"channel\":\"#jenkins\",\"attachments\":[{\"Job Ended\",\"text\":\"${resultMessage}\",\"fallback\":\"Job Ended\",\"color\":\"${colourCode}\",\"mrkdwn_in\":[\"pretext\",\"text\",\"fields\"]}]}"
+  	}
+  	command = "set +x; curl -X POST -H 'Content-Type: application/json' -d '${payload}' ${slackURL}"
+	try {
+		sh command
+	} catch (slackError) {
+		echo "Error posting to Slack"
+	}
     }
 }
 
