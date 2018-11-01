@@ -155,6 +155,7 @@ command = "set +x; curl -X POST -H 'Content-Type: application/json' -d '${payloa
         
     }
 
+/*
   stage('Install netcdff') {
 
         currentBuild.description = "Installing netcdf/netcdff, if necessary"
@@ -221,6 +222,7 @@ command = "set +x; curl -X POST -H 'Content-Type: application/json' -d '${payloa
             .jenkins/run-tests.sh
         """
     }
+*/
 
     stage('Finishing') {
 
@@ -230,7 +232,7 @@ command = "set +x; curl -X POST -H 'Content-Type: application/json' -d '${payloa
 	//sh '''
 	//	export params.testFailures=$(grep 'failures="1"' test-results/*.xml | wc -l)
 	//'''
-	testFailures = 0
+	testsFailed = sh ( script: """ grep 'failures="1"' test-results/*.xml | wc -l """ )
 
         currentBuild.description = "Sending notification to slack"
 	
@@ -248,7 +250,7 @@ command = "set +x; curl -X POST -H 'Content-Type: application/json' -d '${payloa
     		resultMessage = "Anvil build <${env.JOB_URL}/${env.BUILD_NUMBER}|#${env.BUILD_NUMBER}> for <${env.JOB_URL}|${env.JOB_NAME}> was aborted."
         	fallback = "Anvil build #${env.BUILD_NUMBER} for ${env.JOB_NAME} was aborted." // same message but without hyperlinks, for pop up notifications
   	}
-  	else if (testFailures > 0) {
+  	else if (testsFailed > 0) {
     		colourCode = '#32CD32' // lovely successful green
     		currentBuild.description = "Stable build"
     		resultMessage = "Anvil build <${env.JOB_URL}/${env.BUILD_NUMBER}|#${env.BUILD_NUMBER}> for <${env.JOB_URL}|${env.JOB_NAME}> finished successfully in ${runDuration}."
