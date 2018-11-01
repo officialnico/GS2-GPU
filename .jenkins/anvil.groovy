@@ -131,7 +131,7 @@ command = "set +x; curl -X POST -H 'Content-Type: application/json' -d '${payloa
 
         currentBuild.description = "Checking out from repository"
 
-	echo ${BITBUCKET_PAYLOAD}
+	echo "${BITBUCKET_PAYLOAD}"
 
         // Old directory is kept
         sh "rm -rf gs2"
