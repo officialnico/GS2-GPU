@@ -155,7 +155,6 @@ command = "set +x; curl -X POST -H 'Content-Type: application/json' -d '${payloa
         
     }
 
-/*
   stage('Install netcdff') {
 
         currentBuild.description = "Installing netcdf/netcdff, if necessary"
@@ -222,7 +221,6 @@ command = "set +x; curl -X POST -H 'Content-Type: application/json' -d '${payloa
             .jenkins/run-tests.sh
         """
     }
-*/
 
     stage('Finishing') {
 
