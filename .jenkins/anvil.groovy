@@ -236,12 +236,12 @@ command = "set +x; curl -X POST -H 'Content-Type: application/json' -d '${payloa
 
         currentBuild.description = "Sending notification to slack"
 	
-/*
 	// "currentBuild.durationString" unhelpfully returns the time followed by "and counting" because we're still in the pipeline. Bah.
 	runDuration=currentBuild.durationString[0..-14]
         endMessage = "Anvil build #${env.BUILD_NUMBER} for ${env.JOB_NAME}. (<${env.JOB_URL}|View>)"
 	fallback = "Jenkins build ended in mysterious circumstances"
 
+/*
 	colourCode = '#FF0000' // failure red
 	result = currentBuild.result ?: 'SUCCESS'
   	resultMessage = "Build ${env.BUILD_NUMBER} for ${env.JOB_NAME} failed to compile. (<${env.JOB_URL}|View>)"
