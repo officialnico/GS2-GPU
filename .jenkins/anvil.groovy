@@ -241,7 +241,6 @@ command = "set +x; curl -X POST -H 'Content-Type: application/json' -d '${payloa
         endMessage = "Anvil build #${env.BUILD_NUMBER} for ${env.JOB_NAME}. (<${env.JOB_URL}|View>)"
 	fallback = "Jenkins build ended in mysterious circumstances"
 
-/*
 	colourCode = '#FF0000' // failure red
 	result = currentBuild.result ?: 'SUCCESS'
   	resultMessage = "Build ${env.BUILD_NUMBER} for ${env.JOB_NAME} failed to compile. (<${env.JOB_URL}|View>)"
@@ -251,6 +250,7 @@ command = "set +x; curl -X POST -H 'Content-Type: application/json' -d '${payloa
     		resultMessage = "Anvil build <${env.JOB_URL}/${env.BUILD_NUMBER}|#${env.BUILD_NUMBER}> for <${env.JOB_URL}|${env.JOB_NAME}> was aborted."
         	fallback = "Anvil build #${env.BUILD_NUMBER} for ${env.JOB_NAME} was aborted." // same message but without hyperlinks, for pop up notifications
   	}
+/*
   	else if (testsFailed > 0) {
     		colourCode = '#32CD32' // lovely successful green
     		currentBuild.description = "Stable build"
