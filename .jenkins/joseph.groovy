@@ -170,6 +170,8 @@ command = "set +x; curl -X POST -H 'Content-Type: application/json' -d '${payloa
 				git pull
 				git checkout ${targetBranch}
 				git pull
+				git submodule update --init
+				git checkout -b tmp
 				git merge ${sourceBranch}
 			'''
 		} catch(gitError) {
