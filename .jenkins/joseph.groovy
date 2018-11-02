@@ -114,7 +114,6 @@ catch (jsonError) {
 // Construct the command as a string so that variables are expanded properly
 command = "set +x; curl -X POST -H 'Content-Type: application/json' -d '${payload}' ${slackURL}"
 
-
 /*
     stage('Slack start notification') {
         currentBuild.description = "Sending notification to slack"
