@@ -164,6 +164,7 @@ command = "set +x; curl -X POST -H 'Content-Type: application/json' -d '${payloa
         	currentBuild.description = "Attempting PR merge"
 
 		sh '''
+			git checkout ${sourceBranch}
 			git checkout ${targetBranch}
 			git merge ${sourceBranch}
 		'''
