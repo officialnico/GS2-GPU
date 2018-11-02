@@ -140,7 +140,7 @@ command = "set +x; curl -X POST -H 'Content-Type: application/json' -d '${payloa
      			extensions: [[ $class: 'PreBuildMerge',  
             	 	options: [mergeStrategy: 'MergeCommand.Strategy', fastForwardMode: 'NO_FF', mergeRemote: 'origin', mergeTarget: PULL_REQUEST_TO_BRANCH]]],  
              		submoduleCfg: [],  
-             		userRemoteConfigs: [[credentialsId: 'jdengel', url: 'ssh://git@172.17.23.33:7999/pul/branch_test.git']]] 
+			userRemoteConfigs: [[url: 'https://bitbucket.org/gyrokinetics/gs2']]]
 		)
         	sh '''
            	git submodule update --init --recursive --remote
