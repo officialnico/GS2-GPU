@@ -259,10 +259,6 @@ command = "set +x; curl -X POST -H 'Content-Type: application/json' -d '${payloa
 
         currentBuild.description = "Parsing test results"
 
-	// This doesn't work, need a better way to parse files
-	//sh '''
-	//	export params.testFailures=$(grep 'failures="1"' test-results/*.xml | wc -l)
-	//'''
 	testsFailed = sh ( script: """ grep 'failures="1"' test-results/*.xml | wc -l """ )
 
         currentBuild.description = "Sending notification to slack"
