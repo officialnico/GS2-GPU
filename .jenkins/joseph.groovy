@@ -1,0 +1,386 @@
+#!groovy
+/*
+  README
+  ======
+
+  Parameterised variables are used to define the build configuration.
+  Properties used are string or choice, for a choice, the first entry is default.
+
+*/
+properties([[
+  $class: "ParametersDefinitionProperty",
+  parameterDefinitions: [
+  string(name: "branch", defaultValue: "default", description: "Mercurial branch to use"),
+  string(name: "label", defaultValue: "default", description: "Label for Slack fallback"),
+  string(name: "repo_host", defaultValue: "bitbucket.org", description: "Domain for repository"),
+  string(name: "repo_path", defaultValue: "gyrokinetics/gs2", description: "Relative path to repository"),
+  choice(name: "repo_method", choices: "ssh\nhttps", description: "Protocol used to access repository"),
+  string(name: "arch", defaultValue: "linux_x86_64_gfortran7.0", description: "Manually set build arch"),
+  choice(name: "opt", choices: "intermediate\ndebug\nfast\nwarnings\ncoverage", description: "Build type"),
+  choice(name: "comms", choices: "serial\nmpi", description: "Communications paradigm"),
+  string(name: "modules", defaultValue: "gcc/7.2.0 fftw openmpi/1.10.0", description: "Module environments to load"),
+  string(name: "mathLibs", defaultValue: "openblas", description: "Select BLAS/LAPACK to use"),
+  string(name: "mathLibDir", defaultValue: "", description: "Specify maths library location"),
+  string(name: "fft", defaultValue: "fftw3", description: "Select FFT to use"),
+  string(name: "fftLibDir", defaultValue: "", description: "Specify fft library location"),
+  string(name: "netcdff_path", defaultValue: "/home/jenkins/workspace/Gyrokinetics/test_job/software/gcc-7.2.0/netcdf-fortran/4.4.4", description: "Install path for netcdff"),
+  string(name: "baseURL", defaultValue: "https://gyrokinetics.slack.com/services/hooks/", description: "Base URL for Slack webhook"),
+  string(name: "TOKEN", defaultValue: "cvxSY36OQb3FswQVi0wcZcrg", description: "Token for Slack webhook")
+]]])
+
+// Mercurial repository to use
+String repo = "${params.repo_method}://${params.repo_host}/${params.repo_path}" 
+
+/*
+ End README
+*/
+
+// Declare variables
+String slackURL
+String startMessage
+String channel
+String payload
+String command
+String colourCode
+String result
+String resultMessage
+String fallback
+String regressionDetails = ""
+String netcdff_path
+int numErrors = 0
+int testFailures = 0
+int testSkipped = 0
+boolean buildSuccess = true
+
+import groovy.json.JsonBuilder // For json construction.
+import groovy.json.JsonSlurper
+  
+// Do all the work on a node
+node {
+
+  /*
+
+    Stage 1
+    =======
+
+    Checkout the source code.
+    Here we use a clone for test purposes.
+
+  */
+
+// Set up for Slack API
+slackURL = "${params.baseURL}jenkins-ci?token=${env.TOKEN}"
+
+startMessage = "Anvil build #${env.BUILD_NUMBER} for ${env.JOB_NAME}. (<${env.JOB_URL}|View>)"
+
+// This fallback message shows in a Slack notification
+
+fallback = "gs2 ${params.label} \"${params.opt}\" ${params.comms} build started for branch ${params.branch}"
+
+channel = "#jenkins"
+colourCode = "#439FE0" // Jenkins blue
+
+// Construct the json payload
+def mrkdwn = [ "pretext", "text", "fields" ]  // Required for Slack API
+def attachment = [pretext: fallback,
+                  text: startMessage,
+		  fallback: fallback,
+		  color: colourCode,
+		  mrkdwn_in: mrkdwn]
+
+def attachments = [ attachment ]
+def load = [ channel: channel, attachments: attachments ]
+
+try {
+
+  def json = new JsonBuilder(load) // This may fail if the script isn't whitelisted
+  payload = json.toString()
+  json = null // Need to nullify the Json object as it is not "serializable" by Java
+
+}
+
+catch (jsonError) {
+
+  echo "Error constructing json for Slack message - likely a script whitelist issue"
+
+
+
+  // Construct the json as a string - much easier to get wrong, much harder to debug
+
+  payload = "{\"channel\":\"#jenkins\",\"attachments\":[{\"pretext\":\"${fallback}\",\"text\":\"${startMessage}\",\"fallback\":\"${fallback}\",\"color\":\"#439FE0\",\"mrkdwn_in\":[\"pretext\",\"text\",\"fields\"]}]}"
+
+}
+
+// Construct the command as a string so that variables are expanded properly
+command = "set +x; curl -X POST -H 'Content-Type: application/json' -d '${payload}' ${slackURL}"
+
+
+/*
+    stage('Slack start notification') {
+        currentBuild.description = "Sending notification to slack"
+
+	try {
+		sh command
+	} catch (slackError) {
+		echo "Error posting to Slack"
+	}
+
+    }
+*/
+
+    stage('Checkout') {
+
+        currentBuild.description = "Checking out from repository"
+
+        // Old directory is kept
+        sh "rm -rf gs2"
+        checkout([$class: 'GitSCM', branches: [[name: '*/jenkins']], userRemoteConfigs: [[url: 'https://bitbucket.org/gyrokinetics/gs2']]])
+        sh '''
+           git submodule update --init --recursive --remote
+           cd Makefiles
+           git checkout jenkins
+           cd ..
+
+	   export current_branch=$(git rev-parse --abbrev-ref HEAD)
+	   echo ${current_branch}
+	   export current_hash=$(git rev-parse HEAD)
+	   echo ${current_hash}
+
+           '''
+
+           // This print correct, but useless, information
+	   echo "BUILD_NUMBER $BUILD_NUMBER"
+	   echo "BUILD_ID $BUILD_ID"
+	   echo "BUILD_DISPLAY_NAME $BUILD_DISPLAY_NAME"
+           echo "JOB_NAME $JOB_NAME"
+           echo "JOB_BASE_NAME $JOB_BASE_NAME"
+           echo "BUILD_TAG $BUILD_TAG"
+           echo "EXECUTOR_NUMBER $EXECUTOR_NUMBER"
+           echo "NODE_NAME $NODE_NAME"
+           echo "NODE_LABELS $NODE_LABELS"
+           echo "WORKSPACE $WORKSPACE"
+           echo "JENKINS_HOME $JENKINS_HOME"
+           echo "JENKINS_URL $JENKINS_URL"
+           echo "BUILD_URL$BUILD_URL"
+           echo "JOB_URL $JOB_URL"
+
+	   // These give groovy errors, despite "being available in shell"
+	   //echo "BRANCH_NAME $BRANCH_NAME"
+	   //echo "CHANGE_ID $CHANGE_ID"
+	   //echo "CHANGE_AUTHOR $CHANGE_AUTHOR"
+	   //echo "GIT_COMMIT $GIT_COMMIT"
+	   //echo "GIT_BRANCH $GIT_BRANCH"
+
+           // This just doesn't work
+	   //echo "BITBUCKET_PAYLOAD $BITBUCKET_PAYLOAD"
+
+	   echo sh(returnStdout: true, script: 'env')
+
+	   // These print null
+	   //println("${env.BRANCH_NAME}")
+	   //println("${env.CHANGE_ID}")
+	   //println("${env.CHANGE_AUTHOR}")
+	   //println("${env.GIT_COMMIT}")
+	   //println("${env.GIT_BRANCH}")
+	   //println("${env.BITBUCKET_PAYLOAD}")
+
+    }
+
+/*
+  stage('Install netcdff') {
+
+        currentBuild.description = "Installing netcdf/netcdff, if necessary"
+
+        sh """
+
+        export TEST_FILE_NETCDF=/home/jenkins/workspace/Gyrokinetics/test_job/software/gcc-7.2.0/netcdf/4.6.1/include/netcdf.h
+        export TEST_FILE_NETCDFF=/home/jenkins/workspace/Gyrokinetics/test_job/software/gcc-7.2.0/netcdf-fortran/4.4.4/include/netcdf.mod
+
+        # true if either file missing
+        if [[ -f \$TEST_FILE_NETCDF && -f \$TEST_FILE_NETCDFF ]]
+        then 
+              echo "netcdf + nectdff found"
+        else
+              module load gcc/7.2.0 openmpi/1.10.0
+
+              rm -rf /home/jenkins/workspace/Gyrokinetics/test_job/software/gcc-7.2.0/netcdf/4.6.1
+              rm -rf /home/jenkins/workspace/Gyrokinetics/test_job/software/gcc-7.2.0/netcdf-fortran/4.4.4
+
+              mkdir -p /home/jenkins/workspace/Gyrokinetics/test_job/software/gcc-7.2.0/netcdf/4.6.1
+              wget ftp://ftp.unidata.ucar.edu/pub/netcdf/netcdf-4.6.1.tar.gz
+              tar xvf netcdf-4.6.1.tar.gz
+              cd netcdf-4.6.1
+              ./configure --prefix=/home/jenkins/workspace/Gyrokinetics/test_job/software/gcc-7.2.0/netcdf/4.6.1 --disable-netcdf-4
+              make
+              make install
+              ls /home/jenkins/workspace/Gyrokinetics/test_job/software/gcc-7.2.0/netcdf/4.6.1/include
+              export LD_LIBRARY_PATH=/home/jenkins/workspace/Gyrokinetics/test_job/software/gcc-7.2.0/netcdf/4.6.1/lib
+              export CPPFLAGS=-I/home/jenkins/workspace/Gyrokinetics/test_job/software/gcc-7.2.0/netcdf/4.6.1/include
+              export LDFLAGS=-L/home/jenkins/workspace/Gyrokinetics/test_job/software/gcc-7.2.0/netcdf/4.6.1/lib
+              cd ..
+
+              mkdir -p /home/jenkins/workspace/Gyrokinetics/test_job/software/gcc-7.2.0/netcdf-fortran/4.4.4
+              wget ftp://ftp.unidata.ucar.edu/pub/netcdf/netcdf-fortran-4.4.4.tar.gz
+              tar xvf netcdf-fortran-4.4.4.tar.gz
+              cd netcdf-fortran-4.4.4
+              ./configure --prefix=${params.netcdff_path}
+              make
+              make install
+	fi
+        """
+  }
+  
+
+    stage('Build') {
+
+        currentBuild.description = "Building"
+    
+	sh """
+                module load gcc/7.2.0 openmpi/1.10.0
+                module load fftw
+                module avail
+                .jenkins/build-gcc-7.2.0.sh
+           """
+    }
+        
+    stage('Test') {
+
+        currentBuild.description = "Running tests"
+    
+        sh """
+            module load gcc/7.2.0 openmpi/1.10.0
+            module load fftw
+            .jenkins/run-tests.sh
+        """
+    }
+*/
+
+    stage('Finishing') {
+
+        currentBuild.description = "Parsing test results"
+
+	// This doesn't work, need a better way to parse files
+	//sh '''
+	//	export params.testFailures=$(grep 'failures="1"' test-results/*.xml | wc -l)
+	//'''
+	testsFailed = sh ( script: """ grep 'failures="1"' test-results/*.xml | wc -l """ )
+
+        currentBuild.description = "Sending notification to slack"
+	
+	// "currentBuild.durationString" unhelpfully returns the time followed by "and counting" because we're still in the pipeline. Bah.
+	runDuration=currentBuild.durationString[0..-14]
+        endMessage = ""
+	colourCode = '#FF0000' // failure red
+    	resultMessage = "Anvil build <${env.JOB_URL}/${env.BUILD_NUMBER}|#${env.BUILD_NUMBER}> for <${env.JOB_URL}|${env.JOB_NAME}> finished in mysterious circumstances."
+    	fallback = "Anvil build #${env.BUILD_NUMBER} for ${env.JOB_NAME} finished in mysterious circumstances."
+
+	result = currentBuild.result ?: 'SUCCESS'
+
+  	if (result == 'ABORTED') {
+    		colourCode = '#808080' // anonymous grey
+    		currentBuild.description = "Build aborted"
+    		resultMessage = "Anvil build <${env.JOB_URL}/${env.BUILD_NUMBER}|#${env.BUILD_NUMBER}> for <${env.JOB_URL}|${env.JOB_NAME}> was aborted."
+        	fallback = "Anvil build #${env.BUILD_NUMBER} for ${env.JOB_NAME} was aborted." // same message but without hyperlinks, for pop up notifications
+  	}
+  	else if (testsFailed > 0) {
+    		colourCode = '#FF0000'
+    		currentBuild.description = "Build fails"
+    		resultMessage = "Anvil build <${env.JOB_URL}/${env.BUILD_NUMBER}|#${env.BUILD_NUMBER}> for <${env.JOB_URL}|${env.JOB_NAME}> finished with ${testsFailed} failures in ${runDuration}."
+        	fallback = "Anvil build #${env.BUILD_NUMBER} for ${env.JOB_NAME} finished with ${testsFailed} failures in ${runDuration}." // same message but without hyperlinks, for pop up notifications
+        	endMessage = '' // No title
+	}
+  	else {
+    		colourCode = '#32CD32' // lovely successful green
+    		currentBuild.description = "Stable build"
+    		resultMessage = "Anvil build <${env.JOB_URL}/${env.BUILD_NUMBER}|#${env.BUILD_NUMBER}> for <${env.JOB_URL}|${env.JOB_NAME}> finished successfully in ${runDuration}."
+        	fallback = "Anvil build #${env.BUILD_NUMBER} for ${env.JOB_NAME} finished successfully in ${runDuration}." // same message but without hyperlinks, for pop up notifications
+        	endMessage = '' // No title
+  	}
+
+  	attachment = [text: resultMessage,
+		pretext: endMessage,
+		fallback: fallback,
+		color: colourCode,
+		mrkdwn_in: mrkdwn]
+  	attachments = [ attachment ]
+  	load = [ channel: channel, attachments: attachments ]
+  	try {
+    		endJson = new JsonBuilder(load)
+    		payload = endJson.toString()
+    		endJson = null // Need to nullify the Json object as it is not "serializable" by Java
+  	} catch (jsonError) {
+    		echo "Error contructing final Slack message - likely a library permissions issue"
+    		payload = "{\"channel\":\"#jenkins\",\"attachments\":[{\"Job Ended\",\"text\":\"${resultMessage}\",\"fallback\":\"Job Ended\",\"color\":\"${colourCode}\",\"mrkdwn_in\":[\"pretext\",\"text\",\"fields\"]}]}"
+  	}
+  	command = "set +x; curl -X POST -H 'Content-Type: application/json' -d '${payload}' ${slackURL}"
+	try {
+		sh command
+	} catch (slackError) {
+		echo "Error posting to Slack"
+	}
+    }
+}
+
+//node {
+//    stage 'Checkout'
+//        notifyBitbucket('INPROGRESS')
+//        cleanWs()
+//        checkout scm
+//    enter code here
+//    stage 'Build'
+//        bat "nuget restore \"${workspace}/PlaygroundForVaults.sln\""
+//        bat "\"C:/Program Files/dotnet/dotnet.exe\" restore \"${workspace}/PlaygroundForVaults.sln\""
+//        bat "\"C:/Program Files/dotnet/dotnet.exe\" build \"${workspace}/PlaygroundForVaults.sln\""
+//    stage 'UnitTests'
+//        bat returnStatus: true, script: "\"C:/Program Files/dotnet/dotnet.exe\" test \"${workspace}/PlaygroundForVaults.sln\" --logger \"trx;LogFileName=unit_tests.xml\" --no-build"
+//        step([$class: 'MSTestPublisher', testResultsFile:"**/unit_tests.xml", failOnError: true, keepLongStdio: true])
+//        def allTestPassed = allTestPass()
+//        if(allTestPassed == false)
+//        {
+//            notifyBitbucket('FAILED')
+//            assert false
+//        }
+//        else
+//        {
+//            notifyBitbucket('SUCCESS')
+//        }
+//}
+//
+//def allTestPass() {
+//    def testStatus = ""
+//    def allTestPass = 0
+//    AbstractTestResultAction testResultAction = currentBuild.rawBuild.getAction(AbstractTestResultAction.class)
+//    if (testResultAction != null) {
+//        def total = testResultAction.totalCount
+//        def failed = testResultAction.failCount
+//        def skipped = testResultAction.skipCount
+//        def passed = total - failed - skipped
+//        testStatus = "Test Status:\n  Passed: ${passed}, Failed: ${failed} ${testResultAction.failureDiffString}, Skipped: ${skipped}"
+//        if (failed == 0) {
+//            currentBuild.result = 'SUCCESS'
+//        }
+//        allTestPass = (failed == 0)
+//    }
+//    else
+//    {
+//        testStatus = "Didn't find any tests..."
+//        allTestPass = false
+//    }
+//    println testStatus
+//    return allTestPass
+//}
+//def notifyBitbucket(String state) {
+//    println "Notify Bitbucket With " + state + ", Commit = " + "${Commit}"
+//    if('SUCCESS' == state || 'FAILED' == state) {
+//        currentBuild.result = state         // Set result of currentBuild !Important!
+//    }
+//
+//    notifyBitbucket commitSha1: '${Commit}', 
+//                    credentialsId: 'Bitbucket_PG_Global_For_Notification_User_Pass', 
+//                    disableInprogressNotification: false, 
+//                    considerUnstableAsSuccess: false, 
+//                    ignoreUnverifiedSSLPeer: true, 
+//                    includeBuildNumberInKey: false, `enter code here`
+//                    prependParentProjectKey: false, 
+//                    projectKey: '', 
+//                    stashServerBaseUrl: '<your server ip>:7990'
