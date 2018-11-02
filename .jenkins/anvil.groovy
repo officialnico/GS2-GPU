@@ -151,7 +151,7 @@ command = "set +x; curl -X POST -H 'Content-Type: application/json' -d '${payloa
 	    def jsonSlurper = new JsonSlurper()
 
 	    def bitbucket = jsonSlurper.parseText('''
-	       $BITBUCKET_PAYLOAD'''
+	       \$BITBUCKET_PAYLOAD'''
 	    )
 
 	   println(bitbucket.actor.username)
