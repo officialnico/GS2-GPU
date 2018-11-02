@@ -219,7 +219,8 @@ command = "set +x; curl -X POST -H 'Content-Type: application/json' -d '${payloa
 
         currentBuild.description = "Parsing test results"
 
-	testsFailed = sh ( script: """ grep 'failures="1"' test-results/*.xml | wc -l """ )
+	def testsFailed = sh ( script: """ grep 'failures="1"' test-results/*.xml | wc -l """ )
+	echo "${testsFailed}"
 
     }
 }
