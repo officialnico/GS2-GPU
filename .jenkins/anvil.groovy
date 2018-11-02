@@ -136,10 +136,11 @@ command = "set +x; curl -X POST -H 'Content-Type: application/json' -d '${payloa
 	sh """
 		module load gcc/system openmpi/1.10.0
 		module avail
-		module spider netcdf
-		module load netcdf
+		module spider netcdf/4.3.3.1
+		module load netcdf/4.3.3.1
 
 		ls /opt/software/gcc-system/
+		ls /opt/software/gcc-system/netcdf/*
 		ls /opt/software/*
 	"""
 
