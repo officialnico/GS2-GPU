@@ -136,6 +136,13 @@ command = "set +x; curl -X POST -H 'Content-Type: application/json' -d '${payloa
         	//checkout([$class: 'GitSCM', branches: [[name: '*/jenkins']], userRemoteConfigs: [[url: 'https://bitbucket.org/gyrokinetics/gs2']]])
 
 		echo "${sourceBranch}"
+		echo "${targetBranch}"
+		echo "${repositoryOwner}"
+		echo "${repositoryName}"
+		echo "${pullRequestId}"
+		echo "${pullRequestTitle}"
+		echo "${pullRequestAuthor}"
+
 
 		checkout([$class: 'GitSCM',  
      			branches: [[name: "${env.PULL_REQUEST_FROM_HASH}" ]],  
@@ -144,10 +151,10 @@ command = "set +x; curl -X POST -H 'Content-Type: application/json' -d '${payloa
 			userRemoteConfigs: [[url: 'https://bitbucket.org/gyrokinetics/gs2']]]
 		)
         	sh '''
-           	git submodule update --init --recursive --remote
-           	cd Makefiles
-           	git checkout jenkins
-           	cd ..
+           		git submodule update --init --recursive --remote
+           		cd Makefiles
+           		git checkout jenkins
+           		cd ..
 
 		'''
     	}
@@ -156,15 +163,9 @@ command = "set +x; curl -X POST -H 'Content-Type: application/json' -d '${payloa
 
         	currentBuild.description = "Attempting PR merge"
 
-
-        	// Old directory is kept
-        	sh "rm -rf gs2"
-        	checkout([$class: 'GitSCM', branches: [[name: '*/jenkins']], userRemoteConfigs: [[url: 'https://bitbucket.org/gyrokinetics/gs2']]])
-        	sh '''
-           	git submodule update --init --recursive --remote
-           	cd Makefiles
-           	git checkout jenkins
-           	cd ..
+		sh '''
+			git checkout ${targetBranch}
+			git merge ${sourceBranch}
 		'''
 
     	}
