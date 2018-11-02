@@ -206,7 +206,7 @@ command = "set +x; curl -X POST -H 'Content-Type: application/json' -d '${payloa
 		try{
 			sh '''
 				export GK_SYSTEM=joseph-jenkins-gfortran
-				make tests -I Makefiles
+				make tests -I Makefiles NTESTPROCS=6
 			'''
 		} catch(testError) {
         		currentBuild.description = "Tests failed"
@@ -215,12 +215,4 @@ command = "set +x; curl -X POST -H 'Content-Type: application/json' -d '${payloa
 
     	}
 
-    stage('Finishing') {
-
-        currentBuild.description = "Parsing test results"
-
-	def testsFailed = sh ( script: """ grep 'failures="1"' test-results/*.xml | wc -l """ )
-	echo "${testsFailed}"
-
-    }
 }
