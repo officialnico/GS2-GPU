@@ -183,7 +183,7 @@ command = "set +x; curl -X POST -H 'Content-Type: application/json' -d '${payloa
 		
 		try{
 			sh '''
-				export GK_SYSTEM=joseph-thinkpad-gfortran
+				export GK_SYSTEM=joseph-jenkins-gfortran
 				make depend -I Makefiles
 				make -I Makefiles
 			'''
