@@ -148,13 +148,16 @@ command = "set +x; curl -X POST -H 'Content-Type: application/json' -d '${payloa
 
            '''
 
+	   echo sh(returnStdout: true, script: 'env')
 
-	   println("${env.BRANCH_NAME}")
-	   println("${env.CHANGE_ID}")
-	   println("${env.CHANGE_AUTHOR}")
-	   println("${env.GIT_COMMIT}")
-	   println("${env.GIT_BRANCH}")
-	   //println("${env.BITBUCKET_PAYLOAD}")
+	   // These print null
+	   //println("${env.BRANCH_NAME}")
+	   //println("${env.CHANGE_ID}")
+	   //println("${env.CHANGE_AUTHOR}")
+	   //println("${env.GIT_COMMIT}")
+	   //println("${env.GIT_BRANCH}")
+
+	   println("${BITBUCKET_PAYLOAD}")
         
     }
 
