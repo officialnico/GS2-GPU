@@ -136,7 +136,11 @@ command = "set +x; curl -X POST -H 'Content-Type: application/json' -d '${payloa
 	sh """
 		module load gcc/system openmpi/1.10.0
 		module avail
-		module show netcdf
+		module spider netcdf
+		module load netcdf
+
+		ls /opt/software/gcc-system/
+		ls /opt/software/*
 	"""
 
         // Old directory is kept
