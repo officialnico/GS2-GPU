@@ -56,7 +56,8 @@ import groovy.json.JsonBuilder // For json construction.
 import groovy.json.JsonSlurper
   
 // Do all the work on a node
-node('sl7') {
+//node('sl7') {
+node('ubuntu1604') {
 
   /*
 
@@ -131,9 +132,6 @@ command = "set +x; curl -X POST -H 'Content-Type: application/json' -d '${payloa
     stage('Checkout') {
 
         currentBuild.description = "Checking out from repository"
-
-   	def description = "<a href='$PULL_REQUEST_URL'>PR #$PULL_REQUEST_ID</a>"  
-   	currentBuild.setDescription(description) 
 
         // Old directory is kept
         sh "rm -rf gs2"
