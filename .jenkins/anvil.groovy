@@ -134,12 +134,7 @@ command = "set +x; curl -X POST -H 'Content-Type: application/json' -d '${payloa
         currentBuild.description = "Checking out from repository"
 
 	sh """
-		module avail
-		module load gcc/7.2.0 
-		module spider openmpi
-		module spider openmpi/1.10.0
-		module avail
-		module load openmpi/1.10.0
+		module load gcc/system openmpi/1.10.0
 		module avail
 		module show netcdf
 	"""
