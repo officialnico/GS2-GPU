@@ -114,7 +114,7 @@ node {
 		try{
 			sh '''
 				export GK_SYSTEM=joseph-jenkins-gfortran
-				make tests -I Makefiles NTESTPROCS=6
+				make tests -I Makefiles
 			'''
 		} catch(testError) {
         		currentBuild.description = "Tests failed"
