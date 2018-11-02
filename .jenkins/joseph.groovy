@@ -164,6 +164,7 @@ command = "set +x; curl -X POST -H 'Content-Type: application/json' -d '${payloa
            	cd Makefiles
            	git checkout jenkins
            	cd ..
+		'''
 
     	}
 	
