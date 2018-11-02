@@ -134,7 +134,6 @@ command = "set +x; curl -X POST -H 'Content-Type: application/json' -d '${payloa
         	// Old directory is kept
         	sh "rm -rf gs2"
         	//checkout([$class: 'GitSCM', branches: [[name: '*/jenkins']], userRemoteConfigs: [[url: 'https://bitbucket.org/gyrokinetics/gs2']]])
-		echo "${PULL_REQUEST_FROM_HASH}"
 
 		echo "${sourceBranch}"
 
