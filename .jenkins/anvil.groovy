@@ -162,7 +162,9 @@ echo "JENKINS_HOME $JENKINS_HOME"
 echo "JENKINS_URL $JENKINS_URL"
 echo "BUILD_URL$BUILD_URL"
 echo "JOB_URL $JOB_URL"
-	   //echo "BRANCH_NAME $BRANCH_NAME"
+
+	   // Do these work with git commit triggers?
+	   echo "BRANCH_NAME $BRANCH_NAME"
 	   echo "CHANGE_ID $CHANGE_ID"
 	   echo "CHANGE_AUTHOR $CHANGE_AUTHOR"
 	   echo "GIT_COMMIT $GIT_COMMIT"
