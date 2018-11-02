@@ -148,28 +148,31 @@ command = "set +x; curl -X POST -H 'Content-Type: application/json' -d '${payloa
 
            '''
 
+           // This print correct, but useless, information
 	   echo "BUILD_NUMBER $BUILD_NUMBER"
 	   echo "BUILD_ID $BUILD_ID"
 	   echo "BUILD_DISPLAY_NAME $BUILD_DISPLAY_NAME"
-echo "JOB_NAME $JOB_NAME"
-echo "JOB_BASE_NAME $JOB_BASE_NAME"
-echo "BUILD_TAG $BUILD_TAG"
-echo "EXECUTOR_NUMBER $EXECUTOR_NUMBER"
-echo "NODE_NAME $NODE_NAME"
-echo "NODE_LABELS $NODE_LABELS"
-echo "WORKSPACE $WORKSPACE"
-echo "JENKINS_HOME $JENKINS_HOME"
-echo "JENKINS_URL $JENKINS_URL"
-echo "BUILD_URL$BUILD_URL"
-echo "JOB_URL $JOB_URL"
+           echo "JOB_NAME $JOB_NAME"
+           echo "JOB_BASE_NAME $JOB_BASE_NAME"
+           echo "BUILD_TAG $BUILD_TAG"
+           echo "EXECUTOR_NUMBER $EXECUTOR_NUMBER"
+           echo "NODE_NAME $NODE_NAME"
+           echo "NODE_LABELS $NODE_LABELS"
+           echo "WORKSPACE $WORKSPACE"
+           echo "JENKINS_HOME $JENKINS_HOME"
+           echo "JENKINS_URL $JENKINS_URL"
+           echo "BUILD_URL$BUILD_URL"
+           echo "JOB_URL $JOB_URL"
 
-	   // Do these work with git commit triggers?
+	   // These give groovy errors, despite "being available in shell"
 	   //echo "BRANCH_NAME $BRANCH_NAME"
 	   //echo "CHANGE_ID $CHANGE_ID"
 	   //echo "CHANGE_AUTHOR $CHANGE_AUTHOR"
 	   //echo "GIT_COMMIT $GIT_COMMIT"
 	   //echo "GIT_BRANCH $GIT_BRANCH"
-	   echo "BITBUCKET_PAYLOAD $BITBUCKET_PAYLOAD"
+
+           // This just doesn't work
+	   //echo "BITBUCKET_PAYLOAD $BITBUCKET_PAYLOAD"
 
 	   echo sh(returnStdout: true, script: 'env')
 
@@ -180,7 +183,7 @@ echo "JOB_URL $JOB_URL"
 	   //println("${env.GIT_COMMIT}")
 	   //println("${env.GIT_BRANCH}")
 
-	   println("${BITBUCKET_PAYLOAD}")
+	   println("${env.BITBUCKET_PAYLOAD}")
         
     }
 
