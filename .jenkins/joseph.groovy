@@ -162,12 +162,18 @@ command = "set +x; curl -X POST -H 'Content-Type: application/json' -d '${payloa
 	stage('Merge') {
 
         	currentBuild.description = "Attempting PR merge"
-
-		sh '''
-			git checkout ${sourceBranch}
-			git checkout ${targetBranch}
-			git merge ${sourceBranch}
-		'''
+		
+		try{
+			sh '''
+				git checkout ${sourceBranch}
+				git checkout ${targetBranch}
+				git merge ${sourceBranch}
+				should fail
+			'''
+		} catch(gitError) {
+        		currentBuild.description = "PR merge failed"
+			currentBuild.result = 'FAILURE'
+		}
 
     	}
 	
