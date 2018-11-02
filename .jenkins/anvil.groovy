@@ -148,20 +148,13 @@ command = "set +x; curl -X POST -H 'Content-Type: application/json' -d '${payloa
 
            '''
 
-	    def jsonSlurper = new JsonSlurper()
 
-	    def bitbucket = jsonSlurper.parseText('''
-	       \$BITBUCKET_PAYLOAD'''
-	    )
-
-	   println(bitbucket.actor.username)
-
-	   println {env.BRANCH_NAME}
-	   println  {env.CHANGE_ID}
-	   println  {env.CHANGE_AUTHOR}
-	   println  {env.GIT_COMMIT}
-	   println  {env.GIT_BRANCH}
-	   println  {env.BITBUCKET_PAYLOAD}
+	   println(env.BRANCH_NAME)
+	   println(env.CHANGE_ID)
+	   println(env.CHANGE_AUTHOR)
+	   println(env.GIT_COMMIT)
+	   println(env.GIT_BRANCH)
+	   println(env.BITBUCKET_PAYLOAD)
         
     }
 
