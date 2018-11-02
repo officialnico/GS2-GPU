@@ -186,6 +186,12 @@ command = "set +x; curl -X POST -H 'Content-Type: application/json' -d '${payloa
 	   //println("${env.GIT_COMMIT}")
 	   //println("${env.GIT_BRANCH}")
 	   //println("${env.BITBUCKET_PAYLOAD}")
+
+	sh """
+		module load gcc/7.2.0 openmpi/1.10.0
+		module avail
+		module show netcdf
+	"""
         
     }
 
