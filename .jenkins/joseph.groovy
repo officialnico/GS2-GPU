@@ -163,26 +163,6 @@ command = "set +x; curl -X POST -H 'Content-Type: application/json' -d '${payloa
            echo "BUILD_URL$BUILD_URL"
            echo "JOB_URL $JOB_URL"
 
-	   // These give groovy errors, despite "being available in shell"
-	   //echo "BRANCH_NAME $BRANCH_NAME"
-	   //echo "CHANGE_ID $CHANGE_ID"
-	   //echo "CHANGE_AUTHOR $CHANGE_AUTHOR"
-	   //echo "GIT_COMMIT $GIT_COMMIT"
-	   //echo "GIT_BRANCH $GIT_BRANCH"
-
-           // This just doesn't work
-	   //echo "BITBUCKET_PAYLOAD $BITBUCKET_PAYLOAD"
-
-	   echo sh(returnStdout: true, script: 'env')
-
-	   // These print null
-	   //println("${env.BRANCH_NAME}")
-	   //println("${env.CHANGE_ID}")
-	   //println("${env.CHANGE_AUTHOR}")
-	   //println("${env.GIT_COMMIT}")
-	   //println("${env.GIT_BRANCH}")
-	   //println("${env.BITBUCKET_PAYLOAD}")
-
     }
 
 /*
