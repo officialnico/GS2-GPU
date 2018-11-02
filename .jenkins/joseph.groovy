@@ -28,104 +28,12 @@ properties([[
   string(name: "TOKEN", defaultValue: "cvxSY36OQb3FswQVi0wcZcrg", description: "Token for Slack webhook")
 ]]])
 
-// Mercurial repository to use
-String repo = "${params.repo_method}://${params.repo_host}/${params.repo_path}" 
-
 /*
  End README
 */
-
-// Declare variables
-String slackURL
-String startMessage
-String channel
-String payload
-String command
-String colourCode
-String result
-String resultMessage
-String fallback
-String regressionDetails = ""
-String netcdff_path
-int numErrors = 0
-int testFailures = 0
-int testSkipped = 0
-boolean buildSuccess = true
-
-import groovy.json.JsonBuilder // For json construction.
-import groovy.json.JsonSlurper
   
 // Do all the work on a node
 node {
-
-  /*
-
-    Stage 1
-    =======
-
-    Checkout the source code.
-    Here we use a clone for test purposes.
-
-  */
-
-// Set up for Slack API
-slackURL = "${params.baseURL}jenkins-ci?token=${env.TOKEN}"
-
-startMessage = "Anvil build #${env.BUILD_NUMBER} for ${env.JOB_NAME}. (<${env.JOB_URL}|View>)"
-
-// This fallback message shows in a Slack notification
-
-fallback = "gs2 ${params.label} \"${params.opt}\" ${params.comms} build started for branch ${params.branch}"
-
-channel = "#jenkins"
-colourCode = "#439FE0" // Jenkins blue
-
-// Construct the json payload
-def mrkdwn = [ "pretext", "text", "fields" ]  // Required for Slack API
-def attachment = [pretext: fallback,
-                  text: startMessage,
-		  fallback: fallback,
-		  color: colourCode,
-		  mrkdwn_in: mrkdwn]
-
-def attachments = [ attachment ]
-def load = [ channel: channel, attachments: attachments ]
-
-try {
-
-  def json = new JsonBuilder(load) // This may fail if the script isn't whitelisted
-  payload = json.toString()
-  json = null // Need to nullify the Json object as it is not "serializable" by Java
-
-}
-
-catch (jsonError) {
-
-  echo "Error constructing json for Slack message - likely a script whitelist issue"
-
-
-
-  // Construct the json as a string - much easier to get wrong, much harder to debug
-
-  payload = "{\"channel\":\"#jenkins\",\"attachments\":[{\"pretext\":\"${fallback}\",\"text\":\"${startMessage}\",\"fallback\":\"${fallback}\",\"color\":\"#439FE0\",\"mrkdwn_in\":[\"pretext\",\"text\",\"fields\"]}]}"
-
-}
-
-// Construct the command as a string so that variables are expanded properly
-command = "set +x; curl -X POST -H 'Content-Type: application/json' -d '${payload}' ${slackURL}"
-
-/*
-    stage('Slack start notification') {
-        currentBuild.description = "Sending notification to slack"
-
-	try {
-		sh command
-	} catch (slackError) {
-		echo "Error posting to Slack"
-	}
-
-    }
-*/
 
 	stage('Checkout') {
 
