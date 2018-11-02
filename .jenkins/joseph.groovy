@@ -205,9 +205,10 @@ command = "set +x; curl -X POST -H 'Content-Type: application/json' -d '${payloa
 		
 		try{
 			sh '''
+				export GK_SYSTEM=joseph-jenkins-gfortran
 				make tests -I Makefiles
 			'''
-		} catch(buildError) {
+		} catch(testError) {
         		currentBuild.description = "Tests failed"
 			currentBuild.result = 'FAILURE'
 		}
