@@ -161,7 +161,7 @@ command = "set +x; curl -X POST -H 'Content-Type: application/json' -d '${payloa
 
 	stage('Merge') {
 
-        	currentBuild.description = "Attempting PR merge"
+        	currentBuild.description = "Merging PR"
 		
 		try{
 			sh '''
@@ -176,6 +176,23 @@ command = "set +x; curl -X POST -H 'Content-Type: application/json' -d '${payloa
 
     	}
 	
+
+	stage('Build') {
+
+        	currentBuild.description = "Building"
+		
+		try{
+			sh '''
+				export GK_SYSTEM=joseph-thinkpad-gfortran
+				make depend -I Makefiles
+				make -I Makefiles
+			'''
+		} catch(buildError) {
+        		currentBuild.description = "Build failed"
+			currentBuild.result = 'FAILURE'
+		}
+
+    	}
 
 /*
   stage('Install netcdff') {
