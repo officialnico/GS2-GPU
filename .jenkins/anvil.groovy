@@ -138,10 +138,10 @@ command = "set +x; curl -X POST -H 'Content-Type: application/json' -d '${payloa
 		module avail
 		module spider netcdf/4.3.3.1
 		module load netcdf/4.3.3.1
+		module show netcdf/4.3.3.1
 
 		ls /opt/software/gcc-system/
 		ls /opt/software/gcc-system/netcdf/*
-		ls /opt/software/*
 	"""
 
         // Old directory is kept
