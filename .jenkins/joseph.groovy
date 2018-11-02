@@ -127,43 +127,46 @@ command = "set +x; curl -X POST -H 'Content-Type: application/json' -d '${payloa
     }
 */
 
-    stage('Checkout') {
+	stage('Checkout') {
 
-        currentBuild.description = "Checking out from repository"
+        	currentBuild.description = "Checking out from repository"
 
-        // Old directory is kept
-        sh "rm -rf gs2"
-        checkout([$class: 'GitSCM', branches: [[name: '*/jenkins']], userRemoteConfigs: [[url: 'https://bitbucket.org/gyrokinetics/gs2']]])
-        sh '''
-           git submodule update --init --recursive --remote
-           cd Makefiles
-           git checkout jenkins
-           cd ..
+        	// Old directory is kept
+        	sh "rm -rf gs2"
+        	//checkout([$class: 'GitSCM', branches: [[name: '*/jenkins']], userRemoteConfigs: [[url: 'https://bitbucket.org/gyrokinetics/gs2']]])
+		checkout([$class: 'GitSCM',  
+     			branches: [[name: PULL_REQUEST_FROM_HASH ]],  
+     			doGenerateSubmoduleConfigurations: false,  
+     			extensions: [[ $class: 'PreBuildMerge',  
+            	 	options: [mergeStrategy: 'MergeCommand.Strategy', fastForwardMode: 'NO_FF', mergeRemote: 'origin', mergeTarget: PULL_REQUEST_TO_BRANCH]]],  
+             		submoduleCfg: [],  
+             		userRemoteConfigs: [[credentialsId: 'jdengel', url: 'ssh://git@172.17.23.33:7999/pul/branch_test.git']]] 
+		)
+        	sh '''
+           	git submodule update --init --recursive --remote
+           	cd Makefiles
+           	git checkout jenkins
+           	cd ..
 
-	   export current_branch=$(git rev-parse --abbrev-ref HEAD)
-	   echo ${current_branch}
-	   export current_hash=$(git rev-parse HEAD)
-	   echo ${current_hash}
+		'''
+    	}
 
-           '''
+	stage('Merge') {
 
-           // This print correct, but useless, information
-	   echo "BUILD_NUMBER $BUILD_NUMBER"
-	   echo "BUILD_ID $BUILD_ID"
-	   echo "BUILD_DISPLAY_NAME $BUILD_DISPLAY_NAME"
-           echo "JOB_NAME $JOB_NAME"
-           echo "JOB_BASE_NAME $JOB_BASE_NAME"
-           echo "BUILD_TAG $BUILD_TAG"
-           echo "EXECUTOR_NUMBER $EXECUTOR_NUMBER"
-           echo "NODE_NAME $NODE_NAME"
-           echo "NODE_LABELS $NODE_LABELS"
-           echo "WORKSPACE $WORKSPACE"
-           echo "JENKINS_HOME $JENKINS_HOME"
-           echo "JENKINS_URL $JENKINS_URL"
-           echo "BUILD_URL$BUILD_URL"
-           echo "JOB_URL $JOB_URL"
+        	currentBuild.description = "Attempting PR merge"
 
-    }
+
+        	// Old directory is kept
+        	sh "rm -rf gs2"
+        	checkout([$class: 'GitSCM', branches: [[name: '*/jenkins']], userRemoteConfigs: [[url: 'https://bitbucket.org/gyrokinetics/gs2']]])
+        	sh '''
+           	git submodule update --init --recursive --remote
+           	cd Makefiles
+           	git checkout jenkins
+           	cd ..
+
+    	}
+	
 
 /*
   stage('Install netcdff') {
