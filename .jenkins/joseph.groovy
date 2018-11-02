@@ -134,11 +134,12 @@ command = "set +x; curl -X POST -H 'Content-Type: application/json' -d '${payloa
         	// Old directory is kept
         	sh "rm -rf gs2"
         	//checkout([$class: 'GitSCM', branches: [[name: '*/jenkins']], userRemoteConfigs: [[url: 'https://bitbucket.org/gyrokinetics/gs2']]])
+		println("${env.PULL_REQUEST_FROM_HASH}")
 		checkout([$class: 'GitSCM',  
      			branches: [[name: "${env.PULL_REQUEST_FROM_HASH}" ]],  
      			doGenerateSubmoduleConfigurations: false,  
      			extensions: [[ $class: 'PreBuildMerge',  
-            	 	options: [mergeStrategy: 'MergeCommand.Strategy', fastForwardMode: 'NO_FF', mergeRemote: 'origin', mergeTarget: "${env.PULL_REQUEST_TO_BRANCH}"]]],  
+            	 	options: [mergeStrategy: 'MergeCommand.Strategy', mergeRemote: 'origin', mergeTarget: "${env.PULL_REQUEST_TO_BRANCH}"]]],  
              		submoduleCfg: [],  
 			userRemoteConfigs: [[url: 'https://bitbucket.org/gyrokinetics/gs2']]]
 		)
