@@ -167,7 +167,9 @@ command = "set +x; curl -X POST -H 'Content-Type: application/json' -d '${payloa
 			sh '''
 				git fetch
 				git checkout ${sourceBranch}
+				git pull
 				git checkout ${targetBranch}
+				git pull
 				git merge ${sourceBranch}
 			'''
 		} catch(gitError) {
