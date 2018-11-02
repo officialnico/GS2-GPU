@@ -132,6 +132,9 @@ command = "set +x; curl -X POST -H 'Content-Type: application/json' -d '${payloa
 
         currentBuild.description = "Checking out from repository"
 
+   	def description = "<a href='$PULL_REQUEST_URL'>PR #$PULL_REQUEST_ID</a>"  
+   	currentBuild.setDescription(description) 
+
         // Old directory is kept
         sh "rm -rf gs2"
         checkout([$class: 'GitSCM', branches: [[name: '*/jenkins']], userRemoteConfigs: [[url: 'https://bitbucket.org/gyrokinetics/gs2']]])
@@ -182,8 +185,7 @@ command = "set +x; curl -X POST -H 'Content-Type: application/json' -d '${payloa
 	   //println("${env.CHANGE_AUTHOR}")
 	   //println("${env.GIT_COMMIT}")
 	   //println("${env.GIT_BRANCH}")
-
-	   println("${env.BITBUCKET_PAYLOAD}")
+	   //println("${env.BITBUCKET_PAYLOAD}")
         
     }
 
@@ -320,3 +322,66 @@ command = "set +x; curl -X POST -H 'Content-Type: application/json' -d '${payloa
     }
 }
 
+//node {
+//    stage 'Checkout'
+//        notifyBitbucket('INPROGRESS')
+//        cleanWs()
+//        checkout scm
+//    enter code here
+//    stage 'Build'
+//        bat "nuget restore \"${workspace}/PlaygroundForVaults.sln\""
+//        bat "\"C:/Program Files/dotnet/dotnet.exe\" restore \"${workspace}/PlaygroundForVaults.sln\""
+//        bat "\"C:/Program Files/dotnet/dotnet.exe\" build \"${workspace}/PlaygroundForVaults.sln\""
+//    stage 'UnitTests'
+//        bat returnStatus: true, script: "\"C:/Program Files/dotnet/dotnet.exe\" test \"${workspace}/PlaygroundForVaults.sln\" --logger \"trx;LogFileName=unit_tests.xml\" --no-build"
+//        step([$class: 'MSTestPublisher', testResultsFile:"**/unit_tests.xml", failOnError: true, keepLongStdio: true])
+//        def allTestPassed = allTestPass()
+//        if(allTestPassed == false)
+//        {
+//            notifyBitbucket('FAILED')
+//            assert false
+//        }
+//        else
+//        {
+//            notifyBitbucket('SUCCESS')
+//        }
+//}
+//
+//def allTestPass() {
+//    def testStatus = ""
+//    def allTestPass = 0
+//    AbstractTestResultAction testResultAction = currentBuild.rawBuild.getAction(AbstractTestResultAction.class)
+//    if (testResultAction != null) {
+//        def total = testResultAction.totalCount
+//        def failed = testResultAction.failCount
+//        def skipped = testResultAction.skipCount
+//        def passed = total - failed - skipped
+//        testStatus = "Test Status:\n  Passed: ${passed}, Failed: ${failed} ${testResultAction.failureDiffString}, Skipped: ${skipped}"
+//        if (failed == 0) {
+//            currentBuild.result = 'SUCCESS'
+//        }
+//        allTestPass = (failed == 0)
+//    }
+//    else
+//    {
+//        testStatus = "Didn't find any tests..."
+//        allTestPass = false
+//    }
+//    println testStatus
+//    return allTestPass
+//}
+//def notifyBitbucket(String state) {
+//    println "Notify Bitbucket With " + state + ", Commit = " + "${Commit}"
+//    if('SUCCESS' == state || 'FAILED' == state) {
+//        currentBuild.result = state         // Set result of currentBuild !Important!
+//    }
+//
+//    notifyBitbucket commitSha1: '${Commit}', 
+//                    credentialsId: 'Bitbucket_PG_Global_For_Notification_User_Pass', 
+//                    disableInprogressNotification: false, 
+//                    considerUnstableAsSuccess: false, 
+//                    ignoreUnverifiedSSLPeer: true, 
+//                    includeBuildNumberInKey: false, `enter code here`
+//                    prependParentProjectKey: false, 
+//                    projectKey: '', 
+//                    stashServerBaseUrl: '<your server ip>:7990'
