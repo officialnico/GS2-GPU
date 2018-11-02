@@ -137,6 +137,9 @@ command = "set +x; curl -X POST -H 'Content-Type: application/json' -d '${payloa
 		module avail
 		module load gcc/7.2.0 
 		module spider openmpi
+		module spider openmpi/1.10.0
+		module avail
+		module load openmpi/1.10.0
 		module avail
 		module show netcdf
 	"""
