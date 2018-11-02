@@ -56,8 +56,7 @@ import groovy.json.JsonBuilder // For json construction.
 import groovy.json.JsonSlurper
   
 // Do all the work on a node
-//node('sl7') {
-node('ubuntu1604') {
+node('sl7') {
 
   /*
 
@@ -132,18 +131,6 @@ command = "set +x; curl -X POST -H 'Content-Type: application/json' -d '${payloa
     stage('Checkout') {
 
         currentBuild.description = "Checking out from repository"
-
-	sh """
-		module load gcc/system openmpi/1.10.0
-		module avail
-		module spider netcdf/4.3.3.1
-		module load netcdf/4.3.3.1
-		module show netcdf/4.3.3.1
-
-		ls /opt/software/gcc-system/netcdf/4.3.3.1/bin
-		ls /opt/software/gcc-system/netcdf/4.3.3.1/include
-		ls /opt/software/gcc-system/netcdf/4.3.3.1/lib
-	"""
 
         // Old directory is kept
         sh "rm -rf gs2"
