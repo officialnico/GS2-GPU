@@ -145,13 +145,14 @@ command = "set +x; curl -X POST -H 'Content-Type: application/json' -d '${payloa
 	   export current_hash=$(git rev-parse HEAD)
 	   echo ${current_hash}
 
-	   echo ${env.BRANCH_NAME}
-	   echo ${env.CHANGE_ID}
-	   echo ${env.CHANGE_AUTHOR}
-	   echo ${env.GIT_COMMIT}
-	   echo ${env.GIT_BRANCH}
-
            '''
+
+	   println ${env.BRANCH_NAME}
+	   println  ${env.CHANGE_ID}
+	   println  ${env.CHANGE_AUTHOR}
+	   println  ${env.GIT_COMMIT}
+	   println  ${env.GIT_BRANCH}
+	   println  ${env.BITBUCKET_PAYLOAD}
         
     }
 
