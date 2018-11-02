@@ -192,7 +192,6 @@ command = "set +x; curl -X POST -H 'Content-Type: application/json' -d '${payloa
 		module avail
 		module show netcdf
 	"""
-        
     }
 
   stage('Install netcdff') {
