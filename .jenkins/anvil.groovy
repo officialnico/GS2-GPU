@@ -164,11 +164,11 @@ echo "BUILD_URL$BUILD_URL"
 echo "JOB_URL $JOB_URL"
 
 	   // Do these work with git commit triggers?
-	   echo "BRANCH_NAME $BRANCH_NAME"
-	   echo "CHANGE_ID $CHANGE_ID"
-	   echo "CHANGE_AUTHOR $CHANGE_AUTHOR"
-	   echo "GIT_COMMIT $GIT_COMMIT"
-	   echo "GIT_BRANCH $GIT_BRANCH"
+	   //echo "BRANCH_NAME $BRANCH_NAME"
+	   //echo "CHANGE_ID $CHANGE_ID"
+	   //echo "CHANGE_AUTHOR $CHANGE_AUTHOR"
+	   //echo "GIT_COMMIT $GIT_COMMIT"
+	   //echo "GIT_BRANCH $GIT_BRANCH"
 	   echo "BITBUCKET_PAYLOAD $BITBUCKET_PAYLOAD"
 
 	   echo sh(returnStdout: true, script: 'env')
