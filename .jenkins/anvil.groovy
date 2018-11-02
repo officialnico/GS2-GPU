@@ -56,7 +56,7 @@ import groovy.json.JsonBuilder // For json construction.
 import groovy.json.JsonSlurper
   
 // Do all the work on a node
-node('sl7') {
+node {
 
   /*
 
