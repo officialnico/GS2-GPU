@@ -53,6 +53,7 @@ int testSkipped = 0
 boolean buildSuccess = true
 
 import groovy.json.JsonBuilder // For json construction.
+import groovy.json.JsonSlurper
   
 // Do all the work on a node
 node('sl7') {
@@ -146,6 +147,14 @@ command = "set +x; curl -X POST -H 'Content-Type: application/json' -d '${payloa
 	   echo ${current_hash}
 
            '''
+
+	    def jsonSlurper = new JsonSlurper()
+
+	    def bitbucket = jsonSlurper.parseText('''
+	       $BITBUCKET_PAYLOAD'''
+	    )
+
+	   println(bitbucket.actor.username)
 
 	   println {env.BRANCH_NAME}
 	   println  {env.CHANGE_ID}
