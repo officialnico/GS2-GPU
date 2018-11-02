@@ -133,6 +133,14 @@ command = "set +x; curl -X POST -H 'Content-Type: application/json' -d '${payloa
 
         currentBuild.description = "Checking out from repository"
 
+	sh """
+		module avail
+		module load gcc/7.2.0 
+		module spider openmpi
+		module avail
+		module show netcdf
+	"""
+
         // Old directory is kept
         sh "rm -rf gs2"
         checkout([$class: 'GitSCM', branches: [[name: '*/jenkins']], userRemoteConfigs: [[url: 'https://bitbucket.org/gyrokinetics/gs2']]])
@@ -185,11 +193,6 @@ command = "set +x; curl -X POST -H 'Content-Type: application/json' -d '${payloa
 	   //println("${env.GIT_BRANCH}")
 	   //println("${env.BITBUCKET_PAYLOAD}")
 
-	sh """
-		module load gcc/7.2.0 openmpi/1.10.0
-		module avail
-		module show netcdf
-	"""
     }
 
   stage('Install netcdff') {
