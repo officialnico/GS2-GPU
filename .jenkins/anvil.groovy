@@ -145,11 +145,11 @@ command = "set +x; curl -X POST -H 'Content-Type: application/json' -d '${payloa
 	   export current_hash=$(git rev-parse HEAD)
 	   echo ${current_hash}
 
-	   echo ${BRANCH_NAME}
-	   echo ${CHANGE_ID}
-	   echo ${CHANGE_AUTHOR}
-	   echo ${GIT_COMMIT}
-	   echo ${GIT_BRANCH}
+	   echo ${env.BRANCH_NAME}
+	   echo ${env.CHANGE_ID}
+	   echo ${env.CHANGE_AUTHOR}
+	   echo ${env.GIT_COMMIT}
+	   echo ${env.GIT_BRANCH}
 
            '''
         
