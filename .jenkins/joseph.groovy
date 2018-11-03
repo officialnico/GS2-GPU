@@ -78,7 +78,7 @@ node {
 				git checkout ${sourceBranch}
 				git pull
 				git checkout origin/${targetBranch}
-				exists=`git show-ref tmp-${sourceBranch}-${targetBranch}`
+				export exists=`git show-ref tmp-${sourceBranch}-${targetBranch}`
 				if [ -n "$exists" ]; then     
 					git branch -D tmp-${sourceBranch}-${targetBranch}
 				fi
