@@ -78,8 +78,6 @@ node {
 				git checkout ${sourceBranch}
 				git pull
 				git checkout origin/${targetBranch}
-				git pull
-				git submodule update --init
 				git branch -d tmp
 				git checkout -b tmp
 				git merge ${sourceBranch}
