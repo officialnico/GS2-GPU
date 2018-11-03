@@ -76,6 +76,7 @@ test-results/
 
 # gcov files
 coverage/
+*.gcov
 *.gcda
 *.gcno
 
