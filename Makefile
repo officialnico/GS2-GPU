@@ -249,6 +249,11 @@ $(warning use GK_SYSTEM instead)
 $(error GK_SYSTEM is not set)
 	endif
 endif
+ifneq ($(GK_SYSTEM),macosx-homebrew)
+	SEDSYSTEMCONFIG=sed -i 's/^ //' system_config
+endif
+
+
 include Makefile.$(GK_SYSTEM)
 
 # include Makefile.local if exists
@@ -800,9 +805,8 @@ test_make:
 	@echo LIBS is $(LIBS)
 	@echo PLIBS is $(PLIBS)
 	@echo WITH_EIG is $(WITH_EIG)
-
 ifneq ($(GK_SYSTEM),macosx-homebrew)
-	SEDSYSTEMCONFIG=sed -i 's/^ //' system_config
+	@echo SEDSYSTEMCONFIG is $(SEDSYSTEMCONFIG)
 endif
 
 ifdef STANDARD_SYSTEM_CONFIGURATION
