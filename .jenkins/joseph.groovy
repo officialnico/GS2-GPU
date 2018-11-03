@@ -78,7 +78,7 @@ node {
 				git checkout ${sourceBranch}
 				git pull
 				git checkout origin/${targetBranch}
-				git branch -d tmp
+				git branch -D tmp
 				git checkout -b tmp
 				git merge ${sourceBranch}
 			'''
