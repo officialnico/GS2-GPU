@@ -78,8 +78,11 @@ node {
 				git checkout ${sourceBranch}
 				git pull
 				git checkout origin/${targetBranch}
-				git branch -D tmp
-				git checkout -b tmp
+				exists=`git show-ref tmp-${sourceBranch}-${targetBranch}`
+				if [ -n "$exists" ]; then     
+					git branch -D tmp-${sourceBranch}-${targetBranch}
+				fi
+				git checkout -b tmp-${sourceBranch}-${targetBranch}
 				git merge ${sourceBranch}
 			'''
 		} catch(gitError) {
