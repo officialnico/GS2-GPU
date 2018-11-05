@@ -56,7 +56,6 @@ node {
 			git pull
            		cd ..
 
-			git for-each-ref --format '%(refname:short)' refs/heads | grep -v master | xargs git branch -D
 			git fetch
 			git checkout ${sourceBranch}
 			git pull
