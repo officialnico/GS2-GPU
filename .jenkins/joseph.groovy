@@ -82,6 +82,7 @@ node {
 				git checkout origin/${targetBranch}
 				git checkout -b tmp-${sourceBranch}-${targetBranch}
 				git merge ${sourceBranch}
+				rm -rf tests/unit_tests/collisions/
 			'''
 		} catch(gitError) {
         		currentBuild.description = "PR merge failed"
