@@ -122,6 +122,10 @@ tests_coverage: tests
 	gcov utils/*.f90 -o .
 	mkdir -p coverage
 	mv *.gcov coverage/.
+else
+tests_coverage:
+	@echo "Cannot run coverage tests as gcov is not invoked."
+	@echo "To use gcov, set the environment variable USE_GCOV=on and ensure your compiler supports gcov."
 endif
 
 test_script: unit_tests_no_message linear_tests_no_message
