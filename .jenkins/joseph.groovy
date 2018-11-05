@@ -117,8 +117,7 @@ node {
 			sh '''
 				export GK_SYSTEM=joseph-jenkins-gfortran
 				export MAKEFLAGS=-IMakefiles DEBUG=on USE_GCOV=on 
-				make tests_coverage
-				if [ $? -eq 0 ]; then bash <(curl -s https://codecov.io/bash) -t "${params.CODECOV_TOKEN}"; fi
+				make tests
 			'''
 		} catch(testError) {
         		currentBuild.description = "Tests failed"
