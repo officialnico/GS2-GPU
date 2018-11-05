@@ -26,6 +26,7 @@ properties([[
   string(name: "netcdff_path", defaultValue: "/home/jenkins/workspace/Gyrokinetics/test_job/software/gcc-7.2.0/netcdf-fortran/4.4.4", description: "Install path for netcdff"),
   string(name: "baseURL", defaultValue: "https://gyrokinetics.slack.com/services/hooks/", description: "Base URL for Slack webhook"),
   string(name: "TOKEN", defaultValue: "cvxSY36OQb3FswQVi0wcZcrg", description: "Token for Slack webhook")
+  string(name: "CODECOV_TOKEN", defaultValue: "a848e445-4d00-4aa9-8d00-e9950fcf29f2", description: "Token for Codecov upload")
 ]]])
 
 /*
@@ -43,6 +44,9 @@ node {
         	sh "rm -rf gs2"
         	//checkout([$class: 'GitSCM', branches: [[name: '*/jenkins']], userRemoteConfigs: [[url: 'https://bitbucket.org/gyrokinetics/gs2']]])
 
+		sh '''
+			echo ${params.CODECOV_TOKEN}
+		'''
 		echo "${sourceBranch}"
 		echo "${targetBranch}"
 		echo "${repositoryOwner}"
@@ -100,8 +104,9 @@ node {
 		try{
 			sh '''
 				export GK_SYSTEM=joseph-jenkins-gfortran
-				make depend -I Makefiles
-				make -I Makefiles
+				export MAKEFLAGS=-IMakefiles DEBUG=on USE_GCOV=on 
+				make depend
+				make
 			'''
 		} catch(buildError) {
         		currentBuild.description = "Build failed"
@@ -117,7 +122,9 @@ node {
 		try{
 			sh '''
 				export GK_SYSTEM=joseph-jenkins-gfortran
-				make tests -I Makefiles
+				export MAKEFLAGS=-IMakefiles DEBUG=on USE_GCOV=on 
+				make tests_coverage
+				if [ $? -eq 0 ]; then bash <(curl -s https://codecov.io/bash) -t "${params.CODECOV_TOKEN}"; fi
 			'''
 		} catch(testError) {
         		currentBuild.description = "Tests failed"
