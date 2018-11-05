@@ -98,7 +98,7 @@ node {
 		try{
 			sh '''
 				export GK_SYSTEM=joseph-jenkins-gfortran
-				export MAKEFLAGS=-IMakefiles DEBUG=on USE_GCOV=on 
+				export MAKEFLAGS=-IMakefiles 
 				make depend
 				make
 			'''
@@ -116,7 +116,7 @@ node {
 		try{
 			sh '''
 				export GK_SYSTEM=joseph-jenkins-gfortran
-				export MAKEFLAGS=-IMakefiles DEBUG=on USE_GCOV=on 
+				export MAKEFLAGS=-IMakefiles 
 				make tests
 			'''
 		} catch(testError) {
