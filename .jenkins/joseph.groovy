@@ -75,14 +75,11 @@ node {
 		
 		try{
 			sh '''
+				git for-each-ref --format '%(refname:short)' refs/heads | grep -v master | xargs git branch -D
 				git fetch
 				git checkout ${sourceBranch}
 				git pull
 				git checkout origin/${targetBranch}
-				export exists=`git show-ref tmp-${sourceBranch}-${targetBranch}`
-				if [ -n "$exists" ]; then     
-					git branch -D tmp-${sourceBranch}-${targetBranch}
-				fi
 				git checkout -b tmp-${sourceBranch}-${targetBranch}
 				git merge ${sourceBranch}
 			'''
