@@ -100,7 +100,5 @@ node {
         		currentBuild.description = "Tests failed"
 			currentBuild.result = 'FAILURE'
 		}
-
     	}
-
 }
