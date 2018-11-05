@@ -10330,15 +10330,17 @@ endif
        write (neo_unit,*) "# all quantities given at theta=0 for species 1"
        write (neo_unit,fmt='(10a12)') "# 1) vpa", "2) vpe", "3) energy", "4) vpa/v", &
             "5) dH/dE", "6) dH/dxi", "7) vpa*dH/dE", "8) dH/dr", "9) dH/dtheta", "10) H"
+       ! Only write species 1:
+       is = 1
        do isgn = 1, 2
           do il = 1, nlambda
              do ie = 1, negrid
                 if (.not. forbid(0,il)) then
-                   write (neo_unit,'(10e12.4)') sign(sqrt(energy(ie)*(1.-al(il)*bmag(0))),1.5-real(isgn)), &
-                        sqrt(energy(ie)*al(il)*bmag(0)), energy(ie), &
+                   write (neo_unit,'(10e12.4)') sign(sqrt(energy(ie,is)*(1.-al(il)*bmag(0))),1.5-real(isgn)), &
+                        sqrt(energy(ie,is)*al(il)*bmag(0)), energy(ie,is), &
                         sign(sqrt(1.-al(il)*bmag(0)),1.5-real(isgn)), &
-                        tmp1(0,il,ie,isgn,1), tmp2(0,il,ie,isgn,1), tmp3(0,il,ie,isgn,1), &
-                        tmp4(0,il,ie,isgn,1), tmp5(0,il,ie,isgn,1), tmp6(0,il,ie,isgn,1)
+                        tmp1(0,il,ie,isgn,is), tmp2(0,il,ie,isgn,is), tmp3(0,il,ie,isgn,is), &
+                        tmp4(0,il,ie,isgn,is), tmp5(0,il,ie,isgn,is), tmp6(0,il,ie,isgn,is)
                 end if
              end do
              write (neo_unit,*)
@@ -10352,10 +10354,12 @@ endif
        call get_flux_vs_theta_vs_vpa (tmp6, hneovpth)
 
        write (neovpth_unit,'(3a12)') '1) theta', '2) vpa', '3) Fneo'
+       ! Only write species 1:
+       is = 1
        do ie = 1, negrid*nlambda
           do ig = -ntgrid, ntgrid
-             write (neovpth_unit,'(3e12.4)'), theta(ig), sqrt(energy(negrid))*(1.-2.*(ie-1)/real(negrid*nlambda-1)), &
-                  hneovpth(ig,ie,1)
+             write (neovpth_unit,'(3e12.4)'), theta(ig), sqrt(energy(negrid,is))*(1.-2.*(ie-1)/real(negrid*nlambda-1)), &
+                  hneovpth(ig,ie,is)
           end do
           write (neovpth_unit,*)
        end do
@@ -10437,7 +10441,7 @@ endif
           ! when constructing neoclassical distribution function (see lowflow.f90).
           ! Otherwise, the below line of code takes care of it.
           wstarfac(:,:,iglo) = wstarfac(:,:,iglo) + code_dt*wunits(ik) &
-               *spec(is)%tprim*energy(ie)*dhdec(:,:,iglo)
+               *spec(is)%tprim*energy(ie,is)*dhdec(:,:,iglo)
        end if
        
        wstarfac(ntgrid,:,iglo) = 0.0
@@ -10446,16 +10450,16 @@ endif
        ! as part of the curvature drift term of Eq. 54.  the other part of 
        ! the curvature drift term of Eq. 54 is dealt with by cdfac below.
        ! no code_dt in wdfac because it multiplies wdrift, which has code_dt in it
-       wdfac(-ntgrid:ntgrid-1,1,iglo) = 0.5*dhdxic(-ntgrid:ntgrid-1,1,iglo)*vpac(-ntgrid:ntgrid-1,1,iglo)/energy(ie)**1.5 &
+       wdfac(-ntgrid:ntgrid-1,1,iglo) = 0.5*dhdxic(-ntgrid:ntgrid-1,1,iglo)*vpac(-ntgrid:ntgrid-1,1,iglo)/energy(ie,is)**1.5 &
             - dhdec(-ntgrid:ntgrid-1,1,iglo)
-       wdfac(-ntgrid:ntgrid-1,2,iglo) = 0.5*dhdxic(-ntgrid:ntgrid-1,2,iglo)*vpac(-ntgrid:ntgrid-1,2,iglo)/energy(ie)**1.5 &
+       wdfac(-ntgrid:ntgrid-1,2,iglo) = 0.5*dhdxic(-ntgrid:ntgrid-1,2,iglo)*vpac(-ntgrid:ntgrid-1,2,iglo)/energy(ie,is)**1.5 &
             - dhdec(-ntgrid:ntgrid-1,2,iglo)
        wdfac(ntgrid,:,iglo) = 0.0
 
        ! takes care of part of curvature drift term in Eq. 54 of MAB's GS2 notes.
        ! no code_dt in cdfac because it multiples wcurv, which has code_dt in it.
-       cdfac(-ntgrid:ntgrid-1,1,iglo) = -0.5*dhdxic(-ntgrid:ntgrid-1,1,iglo)*vpac(-ntgrid:ntgrid-1,1,iglo)/sqrt(energy(ie))
-       cdfac(-ntgrid:ntgrid-1,2,iglo) = -0.5*dhdxic(-ntgrid:ntgrid-1,2,iglo)*vpac(-ntgrid:ntgrid-1,2,iglo)/sqrt(energy(ie))
+       cdfac(-ntgrid:ntgrid-1,1,iglo) = -0.5*dhdxic(-ntgrid:ntgrid-1,1,iglo)*vpac(-ntgrid:ntgrid-1,1,iglo)/sqrt(energy(ie,is))
+       cdfac(-ntgrid:ntgrid-1,2,iglo) = -0.5*dhdxic(-ntgrid:ntgrid-1,2,iglo)*vpac(-ntgrid:ntgrid-1,2,iglo)/sqrt(energy(ie,is))
        cdfac(ntgrid,:,iglo) = 0.0
        
        ! this is the first term multiplying dF_1/dE in Eq. 42 of MAB's GS2 notes
