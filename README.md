@@ -35,7 +35,7 @@ options. alternatively, you can run the following after the initial
 checkout:
 
     cd gs2
-    git submodule update --init --recursive --remote
+    make submodules
 
 See this nice summary on stackoverflow for further details:
 https://stackoverflow.com/questions/3796927/how-to-git-clone-including-submodules/4438292#4438292
