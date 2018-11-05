@@ -115,11 +115,11 @@ node {
         	currentBuild.description = "Testing"
 		
 		try{
-			sh '''
+			bash '''
 				export GK_SYSTEM=joseph-jenkins-gfortran
 				export MAKEFLAGS=-IMakefiles USE_GCOV=on 
 				make tests_coverage
-				if [ $? -eq 0 ]; then curl -s https://codecov.io/bash -t "$CODECOV_TOKEN"; fi
+				if [ $? -eq 0 ]; then bash <(curl -s https://codecov.io/bash) -t "$CODECOV_TOKEN"; fi
 			'''
 		} catch(testError) {
         		currentBuild.description = "Tests failed"
