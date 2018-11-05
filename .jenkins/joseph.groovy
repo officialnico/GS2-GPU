@@ -42,17 +42,16 @@ node {
 
         	// Old directory is kept
         	sh "rm -rf gs2"
-        	//checkout([$class: 'GitSCM', branches: [[name: '*/jenkins']], userRemoteConfigs: [[url: 'https://bitbucket.org/gyrokinetics/gs2']]])
 
-		echo "${params.CODECOV_TOKEN}"
-		echo "${sourceBranch}"
-		echo "${targetBranch}"
-		echo "${repositoryOwner}"
-		echo "${repositoryName}"
-		echo "${pullRequestId}"
-		echo "${pullRequestTitle}"
-		echo "${pullRequestAuthor}"
-
+		// These are available variables
+		//echo "${params.CODECOV_TOKEN}"
+		//echo "${sourceBranch}"
+		//echo "${targetBranch}"
+		//echo "${repositoryOwner}"
+		//echo "${repositoryName}"
+		//echo "${pullRequestId}"
+		//echo "${pullRequestTitle}"
+		//echo "${pullRequestAuthor}"
 
 		checkout([$class: 'GitSCM',  
      			branches: [[name: "${env.PULL_REQUEST_FROM_HASH}" ]],  
