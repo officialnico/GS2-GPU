@@ -54,7 +54,7 @@ node {
 		//echo "${pullRequestAuthor}"
 
 		checkout([$class: 'GitSCM',  
-     			branches: [[name: "${env.PULL_REQUEST_FROM_HASH}" ]],  
+     			branches: [],  
      			doGenerateSubmoduleConfigurations: false,  
              		submoduleCfg: [],  
 			userRemoteConfigs: [[url: 'https://bitbucket.org/gyrokinetics/gs2']]]
