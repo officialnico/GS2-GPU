@@ -98,7 +98,7 @@ node {
 		try{
 			sh '''
 				export GK_SYSTEM=joseph-jenkins-gfortran
-				export MAKEFLAGS=-IMakefiles 
+				export MAKEFLAGS=-IMakefiles USE_GCOV=on 
 				make depend
 				make
 			'''
@@ -116,8 +116,8 @@ node {
 		try{
 			sh '''
 				export GK_SYSTEM=joseph-jenkins-gfortran
-				export MAKEFLAGS=-IMakefiles 
-				make tests
+				export MAKEFLAGS=-IMakefiles USE_GCOV=on 
+				make tests_coverage
 			'''
 		} catch(testError) {
         		currentBuild.description = "Tests failed"
