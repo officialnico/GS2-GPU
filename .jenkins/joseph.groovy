@@ -54,12 +54,11 @@ node {
 		//echo "${pullRequestAuthor}"
 
 		checkout([$class: 'GitSCM',  
-     			branches: [],  
+     			branches: [[name: "${env.PULL_REQUEST_FROM_HASH}" ]],  
      			doGenerateSubmoduleConfigurations: false,  
              		submoduleCfg: [],  
 			userRemoteConfigs: [[url: 'https://bitbucket.org/gyrokinetics/gs2']]]
 		)
-		/*
         	sh '''
            		git submodule update --init --recursive --remote
            		cd Makefiles
@@ -68,17 +67,12 @@ node {
            		cd ..
 
 		'''
-		*/
-		sh '''
-			git log -n 1
-		'''
     	}
 
 	stage('Merge') {
 
         	currentBuild.description = "Merging PR"
 		
-		/*
 		try{
 			sh '''
 				git fetch
@@ -96,7 +90,6 @@ node {
         		currentBuild.description = "PR merge failed"
 			currentBuild.result = 'FAILURE'
 		}
-		*/
 
     	}
 	
