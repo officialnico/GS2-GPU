@@ -118,6 +118,8 @@ node {
 				export GK_SYSTEM=joseph-jenkins-gfortran
 				export MAKEFLAGS=-IMakefiles
 				make tests
+				cd ../
+				rm -rf gs2
 			'''
 		} catch(testError) {
         		currentBuild.description = "Tests failed"

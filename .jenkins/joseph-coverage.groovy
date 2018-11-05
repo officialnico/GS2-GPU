@@ -93,6 +93,8 @@ node {
 				export MAKEFLAGS=-IMakefiles USE_GCOV=on 
 				make tests_coverage
 				if [ $? -eq 0 ]; then bash <(curl -s https://codecov.io/bash) -t "$CODECOV_TOKEN"; fi
+				cd ../
+				rm -rf gs2
 			'''
 		} catch(testError) {
         		currentBuild.description = "Tests failed"
