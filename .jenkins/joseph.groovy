@@ -45,7 +45,7 @@ node {
         	//checkout([$class: 'GitSCM', branches: [[name: '*/jenkins']], userRemoteConfigs: [[url: 'https://bitbucket.org/gyrokinetics/gs2']]])
 
 		sh '''
-			echo ${params.CODECOV_TOKEN}
+			echo \${params.CODECOV_TOKEN}
 		'''
 		echo "${sourceBranch}"
 		echo "${targetBranch}"
