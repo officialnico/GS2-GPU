@@ -257,6 +257,8 @@ utils: | submodules
 submodules:
 	@echo "Downloading submodules"
 	git submodule update --init --recursive
+	@test -f Makefiles/Makefile.$(GK_SYSTEM) \
+      || (echo -e "\n*** Unknown GK_SYSTEM="$(GK_SYSTEM)". Stop."; exit 2)
 ifneq ($(MAKECMDGOALS),submodules)
 	$(MAKE) $(MAKECMDGOALS)
 endif
