@@ -256,6 +256,29 @@ endif
 
 include Makefile.$(GK_SYSTEM)
 
+# These directories are submodules
+# The pipe means "order only", i.e. the target only needs to exist,
+# don't worry about timestamps
+Makefiles: | submodules
+utils: | submodules
+
+# Make sure the submodules exist
+# Due to the way make works, we need to rerun the target in a clean
+# process -- but don't do this if the target is explicitly
+# "submodules", or we'll end up in an infinite loop!
+submodules:
+	@echo "Downloading submodules"
+	git submodule update --init --recursive
+	@test -f Makefiles/Makefile.$(GK_SYSTEM) \
+      || (echo -e "\n*** Unknown GK_SYSTEM="$(GK_SYSTEM)". Stop."; exit 2)
+ifneq ($(MAKECMDGOALS),submodules)
+	$(MAKE) $(MAKECMDGOALS)
+endif
+
+# This works because make tries to read all the makefiles first, then
+# update any that need updating
+Makefile.$(GK_SYSTEM): | Makefiles
+
 # include Makefile.local if exists
 sinclude Makefile.local
 
@@ -637,7 +660,7 @@ ifeq ($(notdir $(CURDIR)),geo)
 	.DEFAULT_GOAL := geo_all
 endif
 
-.PHONY: all $(GK_PROJECT)_all unit_tests linear_tests nonlinear_tests benchmarks clean_tests
+.PHONY: all $(GK_PROJECT)_all unit_tests linear_tests nonlinear_tests benchmarks clean_tests submodules
 
 all: $(.DEFAULT_GOAL)
 
