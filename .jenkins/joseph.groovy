@@ -115,7 +115,7 @@ node {
         	currentBuild.description = "Testing"
 		
 		try{
-			bash '''
+			sh '''#!/bin/bash
 				export GK_SYSTEM=joseph-jenkins-gfortran
 				export MAKEFLAGS=-IMakefiles USE_GCOV=on 
 				make tests_coverage
