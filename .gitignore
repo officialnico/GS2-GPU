@@ -74,6 +74,12 @@ system_config
 # Top-level output of 'make tests'
 test-results/
 
+# gcov files
+coverage/
+*.gcov
+*.gcda
+*.gcno
+
 # The following are taken from https://github.com/github/gitignore
 
 # Temporary files
