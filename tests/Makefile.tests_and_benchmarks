@@ -79,7 +79,8 @@ endef
 
 define RUN_TESTS
 	@find $(TEST_DIR)/$(1) -name results_of_test.txt | xargs rm -f
-	@cd $(TEST_DIR)/$(1) && time ${MAKETESTS} 
+	@echo ${MAKETESTS}
+	@cd $(TEST_DIR)/$(1) && ${MAKETESTS} 
 endef
 
 clean_tests:
@@ -108,15 +109,30 @@ nonlinear_tests_no_message: functional_tests.o unit_tests.o $(TEST_DEPS)
 nonlinear_tests: nonlinear_tests_no_message
 	$(call TEST_PRINTOUT,$(call TEST_RESULTS,$@))
 
-tests: unit_tests_no_message linear_tests_no_message nonlinear_tests_no_message
+make_results_dir:
+	@mkdir -p $(GK_HEAD_DIR)/test-results
+
+tests: make_results_dir unit_tests_no_message linear_tests_no_message nonlinear_tests_no_message
 	$(call TEST_PRINTOUT,$(call TEST_RESULTS,unit_tests)$(call TEST_RESULTS,linear_tests)$(call TEST_RESULTS,nonlinear_tests))
 
+ifeq ($(HAS_GCOV),on)
+tests_coverage: tests
+	gcov *.f90
+	# execute this from top dir where the gcov note files are:
+	gcov utils/*.f90 -o .
+	mkdir -p coverage
+	mv *.gcov coverage/.
+else
+tests_coverage:
+	@echo "Cannot run coverage tests as gcov is not invoked."
+	@echo "To use gcov, set the environment variable USE_GCOV=on and ensure your compiler supports gcov."
+endif
 
 test_script: unit_tests_no_message linear_tests_no_message
 	echo "" > test_script.sh
-	find $(PWD)/$(TEST_DIR)/unit_tests -executable | grep -v svn | grep '$(TEST_DIR)/unit_tests/.*/' | sed -e 's/^\(.\+\)$$/\1 $(BLUEGENEARGS) \1.in \&\&/' | sed -e 's/^/$(TESTEXEC) /'  >> test_script.sh
-	find $(PWD)/$(TEST_DIR)/linear_tests -executable | grep -v svn | grep '$(TEST_DIR)/linear_tests/.*/' | sed -e 's/^\(.\+\)$$/\1 \1.in \&\&/' | sed -e 's/^/$(TESTEXEC) /'  >> test_script.sh
-	find $(PWD)/$(TEST_DIR)/nonlinear_tests -executable | grep -v svn | grep '$(TEST_DIR)/nonlinear_tests/.*/' | sed -e 's/^\(.\+\)$$/\1 \1.in \&\&/' | sed -e 's/^/$(TESTEXEC) /'  >> test_script.sh
+	find $(PWD)/$(TEST_DIR)/unit_tests -executable | grep '$(TEST_DIR)/unit_tests/.*/' | sed -e 's/^\(.\+\)$$/\1 $(BLUEGENEARGS) \1.in \&\&/' | sed -e 's/^/$(TESTEXEC) /'  >> test_script.sh
+	find $(PWD)/$(TEST_DIR)/linear_tests -executable | grep '$(TEST_DIR)/linear_tests/.*/' | sed -e 's/^\(.\+\)$$/\1 \1.in \&\&/' | sed -e 's/^/$(TESTEXEC) /'  >> test_script.sh
+	find $(PWD)/$(TEST_DIR)/nonlinear_tests -executable | grep '$(TEST_DIR)/nonlinear_tests/.*/' | sed -e 's/^\(.\+\)$$/\1 \1.in \&\&/' | sed -e 's/^/$(TESTEXEC) /'  >> test_script.sh
 	echo "echo \"Tests Successful\"" >> test_script.sh
 
 benchmarks_no_message: unit_tests.o $(TEST_DEPS)

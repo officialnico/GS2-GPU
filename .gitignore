@@ -1,12 +1,14 @@
 # GS2 binaries
 gs2
 ingen
+ideal_ball
 rungridgen
 generate_fftw_wisdom
 
 # User's local Makefile
 Makefile.local
 
+# GS2 output files
 *.amoments
 *.dat
 *.eigenfunc
@@ -32,9 +34,6 @@ results_of_test.txt
 *.trinpars
 *.vres
 *.vres2
-
-Makefiles/*
-utils/*
 
 # Files generated from .fpp
 collisions.f90
@@ -71,6 +70,15 @@ spfunc.f90
 .patch.make
 Revision
 system_config
+
+# Top-level output of 'make tests'
+test-results/
+
+# gcov files
+coverage/
+*.gcov
+*.gcda
+*.gcno
 
 # The following are taken from https://github.com/github/gitignore
 

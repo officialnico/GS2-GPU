@@ -112,6 +112,10 @@ LOWFLOW ?=
 WITH_EIG ?=
 # Include LAPACK and GSL libraries for genquad scheme
 GENQUAD ?=
+# Compile with gcov flags to check for code coverage
+USE_GCOV ?=
+HAS_GCOV=$(USE_GCOV)
+
 # Compile with the new simplified diagnostics module (bin)
 USE_NEW_DIAG ?=on
 # Does the compiler version support the iso_c_binding features of Fortran?
@@ -167,6 +171,7 @@ ARCHFLAGS 	= cr
 RANLIB		= ranlib
 AWK 		= awk
 PERL		= perl
+FORD           ?= ford
 
 
 MPI_INC	?=
@@ -184,6 +189,9 @@ HDF5_LIB ?=
 NAG_LIB ?=
 NAG_PREC ?= dble
 MACRO_DEFS ?=
+
+#Patch file
+PATCHFILE:= .patch.make
 
 ################################################### SET COMPILE MODE SWITCHES
 
@@ -216,7 +224,35 @@ $(warning use GK_SYSTEM instead)
 $(error GK_SYSTEM is not set)
 	endif
 endif
+ifneq ($(GK_SYSTEM),macosx-homebrew)
+	SEDSYSTEMCONFIG=sed -i 's/^ //' system_config
+endif
+
+
 include Makefile.$(GK_SYSTEM)
+
+# These directories are submodules
+# The pipe means "order only", i.e. the target only needs to exist,
+# don't worry about timestamps
+Makefiles: | submodules
+utils: | submodules
+
+# Make sure the submodules exist
+# Due to the way make works, we need to rerun the target in a clean
+# process -- but don't do this if the target is explicitly
+# "submodules", or we'll end up in an infinite loop!
+submodules:
+	@echo "Downloading submodules"
+	git submodule update --init --recursive
+	@test -f Makefiles/Makefile.$(GK_SYSTEM) \
+      || (echo -e "\n*** Unknown GK_SYSTEM="$(GK_SYSTEM)". Stop."; exit 2)
+ifneq ($(MAKECMDGOALS),submodules)
+	$(MAKE) $(MAKECMDGOALS)
+endif
+
+# This works because make tries to read all the makefiles first, then
+# update any that need updating
+Makefile.$(GK_SYSTEM): | Makefiles
 
 # include Makefile.local if exists
 sinclude Makefile.local
@@ -241,9 +277,19 @@ ifeq ($(MAKECMDGOALS),depend)
 		USE_LOCAL_SPFUNC=on USE_LOCAL_RAN=mt
 endif
 
-#Here we define SVN_REV based on the output of svnversion
-SVN_REV='"$(shell svnversion -n .)"'
-MACRO_DEFS+=-DSVN_REV=$(SVN_REV)
+MACRO_DEFS+=-DGIT_HASH='"$(shell git rev-parse HEAD)"'
+# Find if there are any modified tracked files (except Makefile.depend)
+ifeq ($(shell git status --short -uno -- . ':(exclude)Makefiles/Makefile.depend' | wc -l), 0)
+	MACRO_DEFS+=-DGIT_STATE='"clean"'
+$(shell touch $(PATCHFILE))
+else
+	MACRO_DEFS+=-DGIT_STATE='"modified"'
+
+# Here we make a patch file, which could be read by the program if we wanted to keep a record
+$(shell git diff -w -- . ':(exclude)Makefiles/Makefile.depend' > $(PATCHFILE))
+endif
+MACRO_DEFS+=-DGIT_PATCH_FILE='"$(PATCHFILE)"'
+
 
 # Define RUN_NAME_SIZE
 MACRO_DEFS+=-DRUN_NAME_SIZE=$(RUN_NAME_SIZE) 
@@ -441,10 +487,10 @@ endif
 ############################################################################# Done dealing with user flags
 
 LIBS	+= $(DEFAULT_LIB) $(MPI_LIB) $(NETCDF_LIB) $(HDF5_LIB) $(FFT_LIB) \
-		$(NAG_LIB) $(EIG_LIB) $(GENQUAD_LIB)
-F90FLAGS+= $(F90OPTFLAGS) \
-	   $(DEFAULT_INC) $(MPI_INC) $(NETCDF_INC) $(HDF5_INC) $(FFT_INC)\
-		 $(SIMPLEDATAIO_INC) $(EIG_INC) $(GENQUAD_INC)
+		   $(NAG_LIB) $(EIG_LIB) $(GENQUAD_LIB)
+INCLUDES = $(DEFAULT_INC) $(MPI_INC) $(NETCDF_INC) $(HDF5_INC) $(FFT_INC)\
+		   $(SIMPLEDATAIO_INC) $(EIG_INC) $(GENQUAD_INC)
+F90FLAGS+= $(F90OPTFLAGS) $(INCLUDES)
 CFLAGS += $(COPTFLAGS) \
 	   $(DEFAULT_INC) $(MPI_INC) $(NETCDF_INC) $(HDF5_INC) $(FFT_INC) 
 
@@ -574,6 +620,8 @@ ifeq ($(notdir $(CURDIR)),geo)
 	.DEFAULT_GOAL := geo_all
 endif
 
+.PHONY: all $(GK_PROJECT)_all unit_tests linear_tests nonlinear_tests benchmarks clean_tests submodules
+
 all: $(.DEFAULT_GOAL)
 
 #TODO : Add a rule to automatically build the depend file when appropriate.
@@ -625,8 +673,7 @@ system_config:
 	$(error "STANDARD_SYSTEM_CONFIGURATION is not defined for this system")
 endif
 
-############################################################# Documentation targets
-doc: $(F90FROMFPP) $(FORTFROMRUBY)
+doxygen_doc: $(F90FROMFPP) $(FORTFROMRUBY)
 	doxygen doxygen_config 
 	rm -f $(F90FROMFPP)
 
@@ -645,7 +692,7 @@ sync_input_doc:
 	coderunner cc write_mediawiki_documentation > wiki_out.txt -C gs2
 
 ############################################################# Cleanup targets
-clean: clean_simpledataio
+clean: clean_simpledataio clean_coverage
 	-rm -f *.o *.mod *.g90 *.h core */core
 
 CLEANCOMMAND=echo $$$$PWD
@@ -663,10 +710,13 @@ cleanlib:
 cleanconfig:
 	rm -f system_config .tmp_output
 
-cleandoc:
+clean_doxygendoc: #Doxygen documentation
 	rm -rf doc/
 
-distclean: unlink clean cleanlib clean_tests clean_benchmarks distclean_simpledataio cleanconfig cleandoc
+clean_coverage:
+	-rm *.gcov *.gcda *.gcno
+
+distclean: unlink clean cleanlib clean_tests clean_benchmarks distclean_simpledataio cleanconfig clean_doxygendoc cleandoc clean_coverage
 
 unlink:
 	-rm -f $(F90FROMFPP) layouts_type.h
@@ -713,6 +763,8 @@ test_make:
 	@echo FFT_DIR is $(FFT_DIR)
 	@echo FC is $(FC)
 	@echo CC is $(CC)
+	@echo FORD is $(FORD)
+	@echo USE_GCOV is $(USE_GCOV)
 	@echo SVN_REV is $(SVN_REV)
 	@echo
 	@echo Compile mode:
@@ -755,7 +807,7 @@ test_make:
 	@echo WITH_EIG is $(WITH_EIG)
 
 revision:
-	@LANG=C svn info | awk '{if($$1=="Revision:") printf("%20d",$$2) }' > Revision
+	@LANG=C git rev-parse HEAD > Revision
 
 #This only works if a helplocal rule has been defined in the specific system makefile.
 #It would be nice to provide a default helplocal target that just says no help available
@@ -764,6 +816,21 @@ help: helplocal
 TAGS:	*.f90 *.fpp */*.f90 */*.fpp
 	etags $^
 
+############################################################# Documentation
+.PHONY: doc docs/html docs/graphs cleandoc
 
+ifneq ("$(wildcard $(shell which $(FORD) 2>/dev/null))","")
+check_ford_install:
+	@echo "Using ford at $(shell which $(FORD))"
+else
+check_ford_install:
+	@echo "Ford command $(FORD) not in path -- is it installed?\\n\\tConsider installing with 'pip install --user ford' and add ${HOME}/.local/bin to PATH" ; which $(FORD)
+endif
 
+docs/html:
+doc: docs/.docs.config.md check_ford_install
+	$(FORD) $(subst -D,--macro ,$(MACRO_DEFS)) $(INCLUDES) $<
+
+cleandoc: docs/html docs/graphs
+	-@rm -rf $^
 
