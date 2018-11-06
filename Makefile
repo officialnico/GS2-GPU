@@ -604,7 +604,7 @@ endif
 	$(CC) $(CFLAGS) $(subst -traditional,,$(subst -C,,$(subst -P,,$(CPPFLAGS)))) -c $<
 
 # This prevents error messages like m2c: Command not found
-# Presumably this is from a default makefile rule that we're overriding
+# This is from a implicit makefile rule that we're overriding
 %.o : %.mod
 
 depend: $(FORTFROMRUBY) $(F90FROMFPP)
