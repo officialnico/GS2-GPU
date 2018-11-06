@@ -547,8 +547,9 @@ endif
 
 .SUFFIXES: .fpp .f90 .c .o .F90 .rb
 
-.PHONY: all $(GK_PROJECT)_all unit_tests linear_tests nonlinear_tests benchmarks clean_tests
+.PHONY: all $(GK_PROJECT)_all unit_tests linear_tests nonlinear_tests benchmarks clean_tests submodules
 .PHONY: depend clean distclean tar test_make diagnostics simpledataio
+.PHONY: doc docs/html docs/graphs cleandoc check_ford_install
 
 # comment this out to keep intermediate .f90 files
 #.PRECIOUS: $(F90FROMFPP)
@@ -619,8 +620,6 @@ endif
 ifeq ($(notdir $(CURDIR)),geo)
 	.DEFAULT_GOAL := geo_all
 endif
-
-.PHONY: all $(GK_PROJECT)_all unit_tests linear_tests nonlinear_tests benchmarks clean_tests submodules
 
 all: $(.DEFAULT_GOAL)
 
@@ -817,7 +816,6 @@ TAGS:	*.f90 *.fpp */*.f90 */*.fpp
 	etags $^
 
 ############################################################# Documentation
-.PHONY: doc docs/html docs/graphs cleandoc
 
 ifneq ("$(wildcard $(shell which $(FORD) 2>/dev/null))","")
 check_ford_install:
