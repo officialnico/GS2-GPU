@@ -713,7 +713,7 @@ clean_doxygendoc: #Doxygen documentation
 	rm -rf doc/
 
 clean_coverage:
-	-rm *.gcov *.gcda *.gcno
+	-rm -f *.gcov *.gcda *.gcno
 
 distclean: unlink clean cleanlib clean_tests clean_benchmarks distclean_simpledataio cleanconfig clean_doxygendoc cleandoc clean_coverage
 
