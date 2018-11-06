@@ -8,11 +8,15 @@ MY_TEST_LEVEL=1
 VAL:= $(shell expr ${MY_TEST_LEVEL} \<= ${TEST_LEVEL})
 ifeq "$(VAL)" "0"
 all:
-	@echo "==> Skipping test in ${PWD}/$(TEST_FOLD) (Test_level ${TEST_LEVEL}, This test ${MY_TEST_LEVEL})."
+	$(call SKIPCOMMAND,test_level is ${TEST_LEVEL}: this test is level ${MY_TEST_LEVEL})
+else
+ifeq ($(shell expr ${NTESTPROCS} \< 6; echo $?),1)
+all:
+	$(call SKIPCOMMAND,field_gf_local test requires 6 processors but we are using only ${NTESTPROCS})
 else
 all: test_fields_gf_local 
 	$(call RUNCOMMAND,test_fields_gf_local,test_fields_gf_local.in)
-
+endif
 endif
 
 #$(info "TEST_MODS=$(TEST_MODS)")
