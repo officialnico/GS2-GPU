@@ -438,7 +438,7 @@ contains
        omegatinst = 1.0e6
        omegatol = -0.001
        exit_when_converged = .true.
-       write_verr = .true.
+       write_verr = .false.
        write_cerr = .false.
        write_max_verr = .false.
        ncheck = 10

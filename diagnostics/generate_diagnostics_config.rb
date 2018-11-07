@@ -78,7 +78,7 @@ input_variables_for_diagnostics_config = [
   ['logical', 'exit_when_converged', '.true.'],
 
   # Parameters for writing out velocity space diagnostics
-  ['logical', 'write_verr', '.true.'],
+  ['logical', 'write_verr', '.false.'],
   ['logical', 'write_cerr', '.false.'],
   ['logical', 'write_max_verr', '.false.'],
   ['integer', 'ncheck', '10'],
