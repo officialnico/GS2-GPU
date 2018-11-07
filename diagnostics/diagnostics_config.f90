@@ -429,7 +429,7 @@ contains
        write_upar_over_time = .false.
        write_tperp_over_time = .false.
        write_fluxes = .true.
-       write_fluxes_by_mode = .true.
+       write_fluxes_by_mode = .false.
        write_symmetry = .false.
        write_nl_flux_dist = .false.
        write_parity = .false.
