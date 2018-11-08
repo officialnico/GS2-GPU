@@ -63,8 +63,7 @@ input_variables_for_diagnostics_config = [
 
 
   # Parameters for writing out fluxes
-  ['logical', 'write_fluxes', '.true.'],
-  # CHANGE BACK TO FALSE below
+  ['logical', 'write_fluxes', '.false.'],
   ['logical', 'write_fluxes_by_mode', '.false.'],
   ['logical', 'write_symmetry', '.false.'],
   ['logical', 'write_nl_flux_dist', '.false.'],
