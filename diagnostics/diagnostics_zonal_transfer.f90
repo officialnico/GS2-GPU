@@ -26,6 +26,8 @@ contains
     type(diagnostics_type), intent(inout) :: gnostics
 
     logical :: accel
+
+    if(.not. gnostics%write_zonal_transfer) return
     
     accel=.false.
 
