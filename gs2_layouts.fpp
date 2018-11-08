@@ -504,10 +504,9 @@ contains
        write(*,*) 'max_unbalanced_yxf too small, setting to 0.0'
     end if
 
-    !Disable settings if dependent settings not set
-    opt_redist_persist=opt_redist_persist.and.opt_redist_nbk
-    opt_redist_persist_overlap=opt_redist_persist_overlap.and.opt_redist_persist
+    call ensure_redist_persist_consistency(opt_redist_nbk, opt_redist_persist, opt_redist_persist_overlap)
     call get_wisdom_file(fft_wisdom_file)
+
   end subroutine read_parameters
 
   subroutine set_overrides(opt_ov)
@@ -523,12 +522,23 @@ contains
       intmom_sub = opt_ov%intmom_sub
     if (opt_ov%override_intspec_sub) &
       intspec_sub = opt_ov%intspec_sub
-    !Disable settings if dependent settings not set
-    opt_redist_persist=opt_redist_persist.and.opt_redist_nbk
-    opt_redist_persist_overlap=opt_redist_persist_overlap.and.opt_redist_persist
+
+    call ensure_redist_persist_consistency(opt_redist_nbk, opt_redist_persist, opt_redist_persist_overlap)
+
   end subroutine set_overrides
 
+  ! Disable opt_redist_persist and opt_redist_persist_overlap if dependent settings not set
+  subroutine ensure_redist_persist_consistency(opt_redist_nbk, opt_redist_persist, opt_redist_persist_overlap)
+
+    implicit none
+    logical, intent(in) :: opt_redist_nbk
+    logical, intent(inout) :: opt_redist_persist
+    logical, intent(inout) :: opt_redist_persist_overlap
+
+    opt_redist_persist=opt_redist_persist.and.opt_redist_nbk
+    opt_redist_persist_overlap=opt_redist_persist_overlap.and.opt_redist_persist
     
+  end subroutine ensure_redist_persist_consistency
 
   !> Set the fft_wisdom_file based on the value set in the namelist (if any)
   !! and the value in the GK_FFTW3_WISDOM environment variable
