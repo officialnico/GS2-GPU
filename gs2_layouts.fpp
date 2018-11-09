@@ -535,8 +535,8 @@ contains
     logical, intent(inout) :: opt_redist_persist
     logical, intent(inout) :: opt_redist_persist_overlap
 
-    opt_redist_persist=opt_redist_persist.and.opt_redist_nbk
-    opt_redist_persist_overlap=opt_redist_persist_overlap.and.opt_redist_persist
+    opt_redist_persist = opt_redist_persist .and. opt_redist_nbk
+    opt_redist_persist_overlap = opt_redist_persist_overlap .and. opt_redist_persist
     
   end subroutine ensure_redist_persist_consistency
 
