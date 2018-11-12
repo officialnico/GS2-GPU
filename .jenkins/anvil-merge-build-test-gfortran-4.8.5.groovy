@@ -44,7 +44,7 @@ node ('sl7') {
         	sh "rm -rf gs2"
 
 		checkout([$class: 'GitSCM',  
-     			branches: [[name: "jenkins" ]],  
+     			branches: [[name: "${env.PULL_REQUEST_FROM_HASH}" ]],  
      			doGenerateSubmoduleConfigurations: false,  
              		submoduleCfg: [],  
 			userRemoteConfigs: [[url: 'https://bitbucket.org/gyrokinetics/gs2']]]
