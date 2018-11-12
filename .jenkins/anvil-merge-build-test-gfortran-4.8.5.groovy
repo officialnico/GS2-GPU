@@ -62,7 +62,7 @@ node ('sl7') {
 	stage('Merge') {
 
         	currentBuild.description = "Merging PR"
-		
+/*		
 		try{
 			sh '''
 				git fetch
@@ -77,12 +77,13 @@ node ('sl7') {
         		currentBuild.description = "PR merge failed"
 			currentBuild.result = 'FAILURE'
 		}
-    	}
+*/  
+  	}
 	
   stage('Install netcdff') {
 
         currentBuild.description = "Installing netcdf/netcdff, if necessary"
-
+/*
         sh """
 
         export TEST_FILE_NETCDF=/home/jenkins/workspace/Gyrokinetics/Merge+Build+Test-gfortran-4.8.5/software/gcc-4.8.5/netcdf/4.6.1/include/netcdf.h
@@ -120,12 +121,13 @@ node ('sl7') {
               make install
 	fi
         """
+*/
   }
 
 	stage('Build') {
 
         	currentBuild.description = "Building"
-		
+/*		
 		try{
 			sh '''
                               	export GK_SYSTEM=jenkins-4.8.5
@@ -144,12 +146,13 @@ node ('sl7') {
         		currentBuild.description = "Build failed"
 			currentBuild.result = 'FAILURE'
 		}
-
+*/
     	}
 
 	stage('Test') {
 
         	currentBuild.description = "Testing"
+/*
 		try{
 			sh '''
                               	export GK_SYSTEM=jenkins-4.8.5
@@ -168,6 +171,7 @@ node ('sl7') {
         		currentBuild.description = "Tests failed"
 			currentBuild.result = 'FAILURE'
 		}
+*/
     	}
 }
 
