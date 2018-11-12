@@ -168,8 +168,6 @@ node ('sl7') {
         		currentBuild.description = "Tests failed"
 			currentBuild.result = 'FAILURE'
 		}
-
     	}
-
 }
 
