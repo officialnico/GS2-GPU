@@ -63,6 +63,7 @@ node ('sl7') {
 
         	currentBuild.description = "Merging PR"
 		
+/*
 		try{
 			sh '''
 				git fetch
@@ -77,7 +78,7 @@ node ('sl7') {
         		currentBuild.description = "PR merge failed"
 			currentBuild.result = 'FAILURE'
 		}
-
+*/
     	}
 	
   stage('Install netcdff') {
