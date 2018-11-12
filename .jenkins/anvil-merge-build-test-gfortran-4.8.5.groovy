@@ -63,7 +63,6 @@ node ('sl7') {
 
         	currentBuild.description = "Merging PR"
 		
-/*
 		try{
 			sh '''
 				git fetch
@@ -78,7 +77,6 @@ node ('sl7') {
         		currentBuild.description = "PR merge failed"
 			currentBuild.result = 'FAILURE'
 		}
-*/
     	}
 	
   stage('Install netcdff') {
@@ -152,7 +150,6 @@ node ('sl7') {
 	stage('Test') {
 
         	currentBuild.description = "Testing"
-/*		
 		try{
 			sh '''
                               	export GK_SYSTEM=jenkins-4.8.5
@@ -171,7 +168,6 @@ node ('sl7') {
         		currentBuild.description = "Tests failed"
 			currentBuild.result = 'FAILURE'
 		}
-*/
 
     	}
 
