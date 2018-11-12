@@ -17,10 +17,7 @@
   
 // Do all the work on a node
 node {
-
 	stage('Null') {
-
     	}
-
 }
 
