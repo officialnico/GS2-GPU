@@ -34,7 +34,7 @@ properties([[
 */
   
 // Do all the work on a node
-node {
+node ('sl7') {
 
 	stage('Checkout') {
 
