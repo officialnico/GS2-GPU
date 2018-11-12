@@ -129,7 +129,7 @@ node {
 		
 		try{
 			sh '''
-                              	export GK_SYSTEM=jenkins
+                              	export GK_SYSTEM=jenkins-4.8.5
                               	export MAKEFLAGS=-IMakefiles DEBUG=on
                               	export TESTEXEC='mpirun -np 6'
 
@@ -154,7 +154,7 @@ node {
 		
 		try{
 			sh '''#!/bin/bash
-                              	export GK_SYSTEM=jenkins
+                              	export GK_SYSTEM=jenkins-4.8.5
                               	export MAKEFLAGS=-IMakefiles DEBUG=on
                               	export TESTEXEC='mpirun -np 6'
 
