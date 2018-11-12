@@ -44,6 +44,7 @@ node {
         	sh "rm -rf gs2"
 
 		checkout([$class: 'GitSCM',  
+     			branches: [[name: "next" ]],  
      			doGenerateSubmoduleConfigurations: false,  
              		submoduleCfg: [],  
 			userRemoteConfigs: [[url: 'https://bitbucket.org/gyrokinetics/gs2']]]
