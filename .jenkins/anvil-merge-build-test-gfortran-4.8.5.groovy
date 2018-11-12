@@ -151,7 +151,7 @@ node {
 	stage('Test') {
 
         	currentBuild.description = "Testing"
-		
+/*		
 		try{
 			sh '''
                               	export GK_SYSTEM=jenkins-4.8.5
@@ -170,6 +170,7 @@ node {
         		currentBuild.description = "Tests failed"
 			currentBuild.result = 'FAILURE'
 		}
+*/
 
     	}
 
