@@ -44,7 +44,7 @@ node {
         	sh "rm -rf gs2"
 
 		checkout([$class: 'GitSCM',  
-     			branches: [[name: "next" ]],  
+     			branches: [[name: "jenkins" ]],  
      			doGenerateSubmoduleConfigurations: false,  
              		submoduleCfg: [],  
 			userRemoteConfigs: [[url: 'https://bitbucket.org/gyrokinetics/gs2']]]
@@ -153,7 +153,7 @@ node {
         	currentBuild.description = "Testing"
 		
 		try{
-			sh '''#!/bin/bash
+			sh '''
                               	export GK_SYSTEM=jenkins-4.8.5
                               	export MAKEFLAGS=-IMakefiles DEBUG=on
                               	export TESTEXEC='mpirun -np 6'
