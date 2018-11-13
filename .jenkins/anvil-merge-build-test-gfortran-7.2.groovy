@@ -89,13 +89,13 @@ node ('sl7') {
 	export GCC_VERSION=gcc-7.2.0
 	export MY_NETCDF_DIR=${JOB_URL}/software/\$GCC_VERSION/netcdf/4.6.1
         export MY_NETCDFF_DIR=${JOB_URL}/software/\$GCC_VERSION/netcdf-fortran/4.4.4
-	export MY_NETCDF_INC=${MY_NETCDF_DIR}/include
-	export MY_NETCDFF_INC=${MY_NETCDFF_DIR}/include
-	export MY_NETCDF_LIB=${MY_NETCDF_DIR}/lib
-	export MY_NETCDFF_LIB=${MY_NETCDFF_DIR}/lib
+	export MY_NETCDF_INC=\$MY_NETCDF_DIR/include
+	export MY_NETCDFF_INC=\$MY_NETCDFF_DIR/include
+	export MY_NETCDF_LIB=\$MY_NETCDF_DIR/lib
+	export MY_NETCDFF_LIB=\$MY_NETCDFF_DIR/lib
 
-        export TEST_FILE_NETCDF=${MY_NETCDF_DIR}/include/netcdf.h
-        export TEST_FILE_NETCDFF=${MY_NETCDFF_DIR}/include/netcdf.mod
+        export TEST_FILE_NETCDF=\$MY_NETCDF_DIR/include/netcdf.h
+        export TEST_FILE_NETCDFF=\$MY_NETCDFF_DIR/include/netcdf.mod
 
         # true if either file missing
         if [[ -f \$TEST_FILE_NETCDF && -f \$TEST_FILE_NETCDFF ]]
@@ -104,27 +104,27 @@ node ('sl7') {
         else
               module load gcc/7.2.0 openmpi/1.10.0
 
-              rm -rf ${MY_NETCDF_DIR}
-              rm -rf ${MY_NETCDFF_DIR}
+              rm -rf \$MY_NETCDF_DIR
+              rm -rf \$MY_NETCDFF_DIR
 
-              mkdir -p ${MY_NETCDF_DIR}
+              mkdir -p \$MY_NETCDF_DIR
               wget ftp://ftp.unidata.ucar.edu/pub/netcdf/netcdf-4.6.1.tar.gz
               tar xvf netcdf-4.6.1.tar.gz
               cd netcdf-4.6.1
-              ./configure --prefix=${MY_NETCDF_DIR} --disable-netcdf-4
+              ./configure --prefix=\$MY_NETCDF_DIR --disable-netcdf-4
               make
               make install
-              ls ${MY_NETCDF_INC}
-              export LD_LIBRARY_PATH=${MY_NETCDF_LIB}
-              export CPPFLAGS=-I${MY_NETCDF_INC}
-              export LDFLAGS=-L${MY_NETCDF_LIB}
+              ls \$MY_NETCDF_INC
+              export LD_LIBRARY_PATH=\$MY_NETCDF_LIB
+              export CPPFLAGS=-I\$MY_NETCDF_INC
+              export LDFLAGS=-L\$MY_NETCDF_LIB
               cd ..
 
-              mkdir -p ${MY_NETCDFF_DIR}
+              mkdir -p \$MY_NETCDFF_DIR
               wget ftp://ftp.unidata.ucar.edu/pub/netcdf/netcdf-fortran-4.4.4.tar.gz
               tar xvf netcdf-fortran-4.4.4.tar.gz
               cd netcdf-fortran-4.4.4
-              ./configure --prefix=${MY_NETCDFF_DIR}
+              ./configure --prefix=\$MY_NETCDFF_DIR
               make
               make install
 	fi
@@ -143,7 +143,7 @@ node ('sl7') {
 
             			module load gcc/7.2.0 openmpi/1.10.0
             			module load fftw
-                              	export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:${MY_NETCDF_LIB}:${MY_NETCDFF_LIB}:/opt/software/gcc-7.2.0/fftw/3.3.5/lib
+                              	export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:\$MY_NETCDF_LIB:\$MY_NETCDFF_LIB:/opt/software/gcc-7.2.0/fftw/3.3.5/lib
 
 				make depend
 				make test_make
@@ -167,7 +167,7 @@ node ('sl7') {
 
             			module load gcc/7.2.0 openmpi/1.10.0
             			module load fftw
-                              	export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:${MY_NETCDF_LIB}:{MY_NETCDFF_LIB}:/opt/software/gcc-7.2.0/fftw/3.3.5/lib
+                              	export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:\$MY_NETCDF_LIB:\$MY_NETCDFF_LIB:/opt/software/gcc-7.2.0/fftw/3.3.5/lib
 
 				make tests
 				cd ../
