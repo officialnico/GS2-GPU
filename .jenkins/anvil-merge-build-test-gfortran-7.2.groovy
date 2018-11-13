@@ -140,16 +140,6 @@ node ('sl7') {
                               	export GK_SYSTEM=jenkins
                               	export MAKEFLAGS=-IMakefiles DEBUG=on
                               	export TESTEXEC='mpirun -np 6'
-				export GCC_VERSION=gcc-7.2.0
-				export MY_NETCDF_DIR=${WORKSPACE}/software/\$GCC_VERSION/netcdf/4.6.1
-				export MY_NETCDFF_DIR=${WORKSPACE}/software/\$GCC_VERSION/netcdf-fortran/4.4.4
-				export MY_NETCDF_INC=\$MY_NETCDF_DIR/include
-				export MY_NETCDFF_INC=\$MY_NETCDFF_DIR/include
-				export MY_NETCDF_LIB=\$MY_NETCDF_DIR/lib
-				export MY_NETCDFF_LIB=\$MY_NETCDFF_DIR/lib
-    				export NETCDF_INC = -I$(MY_NETCDF_INC) -I$(MY_NETCDFF_INC)
-    				export NETCDF_LIB = -L$(MY_NETCDF_LIB) -L$(MY_NETCDFF_LIB) -lnetcdff -lnetcdf
-    				export SIMPLEDATAIO_CONF_SYSTEM = CFLAGS="$(NETCDF_INC)" FCFLAGS="$(NETCDF_INC)" LDFLAGS="$(NETCDF_LIB)" LIBS="$(LIBS)"
 
             			module load gcc/7.2.0 openmpi/1.10.0
             			module load fftw
@@ -174,17 +164,6 @@ node ('sl7') {
                               	export GK_SYSTEM=jenkins
                               	export MAKEFLAGS=-IMakefiles DEBUG=on
                               	export TESTEXEC='mpirun -np 6'
-				export GCC_VERSION=gcc-7.2.0
-				export MY_NETCDF_DIR=${WORKSPACE}/software/\$GCC_VERSION/netcdf/4.6.1
-				export MY_NETCDFF_DIR=${WORKSPACE}/software/\$GCC_VERSION/netcdf-fortran/4.4.4
-				export MY_NETCDF_INC=\$MY_NETCDF_DIR/include
-				export MY_NETCDFF_INC=\$MY_NETCDFF_DIR/include
-				export MY_NETCDF_LIB=\$MY_NETCDF_DIR/lib
-				export MY_NETCDFF_LIB=\$MY_NETCDFF_DIR/lib
-    				export NETCDF_INC = -I\$MY_NETCDF_INC -I\$MY_NETCDFF_INC
-    				export NETCDF_LIB = -L\$MY_NETCDF_LIB -L\$MY_NETCDFF_LIB -lnetcdff -lnetcdf
-    				export SIMPLEDATAIO_CONF_SYSTEM = CFLAGS="\$NETCDF_INC" FCFLAGS="\$NETCDF_INC" LDFLAGS="\$NETCDF_LIB" LIBS="$(LIBS)"
-
             			module load gcc/7.2.0 openmpi/1.10.0
             			module load fftw
                               	export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:\$MY_NETCDF_LIB:\$MY_NETCDFF_LIB:/opt/software/gcc-7.2.0/fftw/3.3.5/lib
