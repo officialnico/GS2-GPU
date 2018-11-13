@@ -181,9 +181,9 @@ node ('sl7') {
 				export MY_NETCDFF_INC=\$MY_NETCDFF_DIR/include
 				export MY_NETCDF_LIB=\$MY_NETCDF_DIR/lib
 				export MY_NETCDFF_LIB=\$MY_NETCDFF_DIR/lib
-    				export NETCDF_INC = -I$(MY_NETCDF_INC) -I$(MY_NETCDFF_INC)
-    				export NETCDF_LIB = -L$(MY_NETCDF_LIB) -L$(MY_NETCDFF_LIB) -lnetcdff -lnetcdf
-    				export SIMPLEDATAIO_CONF_SYSTEM = CFLAGS="$(NETCDF_INC)" FCFLAGS="$(NETCDF_INC)" LDFLAGS="$(NETCDF_LIB)" LIBS="$(LIBS)"
+    				export NETCDF_INC = -I\$MY_NETCDF_INC -I\$MY_NETCDFF_INC
+    				export NETCDF_LIB = -L\$MY_NETCDF_LIB -L\$MY_NETCDFF_LIB -lnetcdff -lnetcdf
+    				export SIMPLEDATAIO_CONF_SYSTEM = CFLAGS="\$NETCDF_INC" FCFLAGS="\$NETCDF_INC" LDFLAGS="\$NETCDF_LIB" LIBS="$(LIBS)"
 
             			module load gcc/7.2.0 openmpi/1.10.0
             			module load fftw
