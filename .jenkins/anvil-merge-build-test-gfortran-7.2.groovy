@@ -137,6 +137,14 @@ node ('sl7') {
 		
 		try{
 			sh '''
+				export GCC_VERSION=gcc-7.2.0
+				export MY_NETCDF_DIR=${WORKSPACE}/software/\$GCC_VERSION/netcdf/4.6.1
+				export MY_NETCDFF_DIR=${WORKSPACE}/software/\$GCC_VERSION/netcdf-fortran/4.4.4
+				export MY_NETCDF_INC=\$MY_NETCDF_DIR/include
+				export MY_NETCDFF_INC=\$MY_NETCDFF_DIR/include
+				export MY_NETCDF_LIB=\$MY_NETCDF_DIR/lib
+				export MY_NETCDFF_LIB=\$MY_NETCDFF_DIR/lib
+
                               	export GK_SYSTEM=jenkins
                               	export MAKEFLAGS=-IMakefiles DEBUG=on
                               	export TESTEXEC='mpirun -np 6'
@@ -161,6 +169,14 @@ node ('sl7') {
         	currentBuild.description = "Testing"
 		try{
 			sh '''
+				export GCC_VERSION=gcc-7.2.0
+				export MY_NETCDF_DIR=${WORKSPACE}/software/\$GCC_VERSION/netcdf/4.6.1
+				export MY_NETCDFF_DIR=${WORKSPACE}/software/\$GCC_VERSION/netcdf-fortran/4.4.4
+				export MY_NETCDF_INC=\$MY_NETCDF_DIR/include
+				export MY_NETCDFF_INC=\$MY_NETCDFF_DIR/include
+				export MY_NETCDF_LIB=\$MY_NETCDF_DIR/lib
+				export MY_NETCDFF_LIB=\$MY_NETCDFF_DIR/lib
+
                               	export GK_SYSTEM=jenkins
                               	export MAKEFLAGS=-IMakefiles DEBUG=on
                               	export TESTEXEC='mpirun -np 6'
