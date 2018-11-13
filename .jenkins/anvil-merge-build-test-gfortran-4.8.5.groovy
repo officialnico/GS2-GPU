@@ -23,7 +23,6 @@ properties([[
   string(name: "mathLibDir", defaultValue: "", description: "Specify maths library location"),
   string(name: "fft", defaultValue: "fftw3", description: "Select FFT to use"),
   string(name: "fftLibDir", defaultValue: "", description: "Specify fft library location"),
-  string(name: "netcdff_path", defaultValue: "/home/jenkins/workspace/Gyrokinetics/Merge+Build+Test-gfortran-4.8.5/software/gcc-4.8.5/netcdf-fortran/4.4.4", description: "Install path for netcdff"),
   string(name: "baseURL", defaultValue: "https://gyrokinetics.slack.com/services/hooks/", description: "Base URL for Slack webhook"),
   string(name: "TOKEN", defaultValue: "cvxSY36OQb3FswQVi0wcZcrg", description: "Token for Slack webhook"),
   string(name: "CODECOV_TOKEN", defaultValue: "a848e445-4d00-4aa9-8d00-e9950fcf29f2", description: "Token for Codecov upload")
@@ -50,6 +49,8 @@ node ('sl7') {
 			userRemoteConfigs: [[url: 'https://bitbucket.org/gyrokinetics/gs2']]]
 		)
         	sh '''
+			git config --global user.email "joseph.parker@stfc.ac.uk"
+			git config --global user.name "Joseph Parker"
            		git submodule update --init --recursive --remote
            		cd Makefiles
            		git checkout jenkins
