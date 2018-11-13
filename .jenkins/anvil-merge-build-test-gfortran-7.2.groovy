@@ -23,7 +23,6 @@ properties([[
   string(name: "mathLibDir", defaultValue: "", description: "Specify maths library location"),
   string(name: "fft", defaultValue: "fftw3", description: "Select FFT to use"),
   string(name: "fftLibDir", defaultValue: "", description: "Specify fft library location"),
-  string(name: "netcdff_path", defaultValue: "/home/jenkins/workspace/Gyrokinetics/Merge+Build+Test-gfortran-7.2.0/software/gcc-7.2.0/netcdf-fortran/4.4.4", description: "Install path for netcdff"),
   string(name: "baseURL", defaultValue: "https://gyrokinetics.slack.com/services/hooks/", description: "Base URL for Slack webhook"),
   string(name: "TOKEN", defaultValue: "cvxSY36OQb3FswQVi0wcZcrg", description: "Token for Slack webhook"),
   string(name: "CODECOV_TOKEN", defaultValue: "a848e445-4d00-4aa9-8d00-e9950fcf29f2", description: "Token for Codecov upload")
@@ -50,6 +49,8 @@ node ('sl7') {
 			userRemoteConfigs: [[url: 'https://bitbucket.org/gyrokinetics/gs2']]]
 		)
         	sh '''
+			git config --global user.email "joseph.parker@stfc.ac.uk"
+			git config --global user.name "Joseph Parker"
            		git submodule update --init --recursive --remote
            		cd Makefiles
            		git checkout jenkins
@@ -85,8 +86,16 @@ node ('sl7') {
 
         sh """
 
-        export TEST_FILE_NETCDF=/home/jenkins/workspace/Gyrokinetics/Merge+Build+Test-gfortran-7.2.0/software/gcc-7.2.0/netcdf/4.6.1/include/netcdf.h
-        export TEST_FILE_NETCDFF=/home/jenkins/workspace/Gyrokinetics/Merge+Build+Test-gfortran-7.2.0/software/gcc-7.2.0/netcdf-fortran/4.4.4/include/netcdf.mod
+	export GCC_VERSION=gcc-7.2.0
+	export MY_NETCDF_DIR=${JOB_URL}/software/${GCC_VERSION}/netcdf/4.6.1
+        export MY_NETCDFF_DIR=${JOB_URL}/software/${GCC_VERSION}/netcdf-fortran/4.4.4
+	export MY_NETCDF_INC=${MY_NETCDF_DIR}/include
+	export MY_NETCDFF_INC=${MY_NETCDFF_DIR}/include
+	export MY_NETCDF_LIB=${MY_NETCDF_DIR}/lib
+	export MY_NETCDFF_LIB=${MY_NETCDFF_DIR}/lib
+
+        export TEST_FILE_NETCDF=${MY_NETCDF_DIR}/include/netcdf.h
+        export TEST_FILE_NETCDFF=${MY_NETCDFF_DIR}/include/netcdf.mod
 
         # true if either file missing
         if [[ -f \$TEST_FILE_NETCDF && -f \$TEST_FILE_NETCDFF ]]
@@ -95,27 +104,27 @@ node ('sl7') {
         else
               module load gcc/7.2.0 openmpi/1.10.0
 
-              rm -rf /home/jenkins/workspace/Gyrokinetics/Merge+Build+Test-gfortran-7.2.0/software/gcc-7.2.0/netcdf/4.6.1
-              rm -rf /home/jenkins/workspace/Gyrokinetics/Merge+Build+Test-gfortran-7.2.0/software/gcc-7.2.0/netcdf-fortran/4.4.4
+              rm -rf ${MY_NETCDF_DIR}
+              rm -rf ${MY_NETCDFF_DIR}
 
-              mkdir -p /home/jenkins/workspace/Gyrokinetics/Merge+Build+Test-gfortran-7.2.0/software/gcc-7.2.0/netcdf/4.6.1
+              mkdir -p ${MY_NETCDF_DIR}
               wget ftp://ftp.unidata.ucar.edu/pub/netcdf/netcdf-4.6.1.tar.gz
               tar xvf netcdf-4.6.1.tar.gz
               cd netcdf-4.6.1
-              ./configure --prefix=/home/jenkins/workspace/Gyrokinetics/Merge+Build+Test-gfortran-7.2.0/software/gcc-7.2.0/netcdf/4.6.1 --disable-netcdf-4
+              ./configure --prefix=${MY_NETCDF_DIR} --disable-netcdf-4
               make
               make install
-              ls /home/jenkins/workspace/Gyrokinetics/Merge+Build+Test-gfortran-7.2.0/software/gcc-7.2.0/netcdf/4.6.1/include
-              export LD_LIBRARY_PATH=/home/jenkins/workspace/Gyrokinetics/Merge+Build+Test-gfortran-7.2.0/software/gcc-7.2.0/netcdf/4.6.1/lib
-              export CPPFLAGS=-I/home/jenkins/workspace/Gyrokinetics/Merge+Build+Test-gfortran-7.2.0/software/gcc-7.2.0/netcdf/4.6.1/include
-              export LDFLAGS=-L/home/jenkins/workspace/Gyrokinetics/Merge+Build+Test-gfortran-7.2.0/software/gcc-7.2.0/netcdf/4.6.1/lib
+              ls ${MY_NETCDF_INC}
+              export LD_LIBRARY_PATH=${MY_NETCDF_LIB}
+              export CPPFLAGS=-I${MY_NETCDF_INC}
+              export LDFLAGS=-L${MY_NETCDF_LIB}
               cd ..
 
-              mkdir -p /home/jenkins/workspace/Gyrokinetics/Merge+Build+Test-gfortran-7.2.0/software/gcc-7.2.0/netcdf-fortran/4.4.4
+              mkdir -p ${MY_NETCDFF_DIR}
               wget ftp://ftp.unidata.ucar.edu/pub/netcdf/netcdf-fortran-4.4.4.tar.gz
               tar xvf netcdf-fortran-4.4.4.tar.gz
               cd netcdf-fortran-4.4.4
-              ./configure --prefix=${params.netcdff_path}
+              ./configure --prefix=${MY_NETCDFF_DIR}
               make
               make install
 	fi
@@ -134,7 +143,7 @@ node ('sl7') {
 
             			module load gcc/7.2.0 openmpi/1.10.0
             			module load fftw
-                              	export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/home/jenkins/workspace/Gyrokinetics/Merge+Build+Test-gfortran-7.2.0/software/gcc-7.2.0/netcdf/4.6.1/lib:/home/jenkins/workspace/Gyrokinetics/Merge+Build+Test-gfortran-7.2.0/software/gcc-7.2.0/netcdf-fortran/4.4.4/lib:/opt/software/gcc-7.2.0/fftw/3.3.5/lib
+                              	export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:${MY_NETCDF_LIB}:${MY_NETCDFF_LIB}:/opt/software/gcc-7.2.0/fftw/3.3.5/lib
 
 				make depend
 				make test_make
@@ -158,7 +167,7 @@ node ('sl7') {
 
             			module load gcc/7.2.0 openmpi/1.10.0
             			module load fftw
-                              	export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/home/jenkins/workspace/Gyrokinetics/Merge+Build+Test-gfortran-7.2.0/software/gcc-7.2.0/netcdf/4.6.1/lib:/home/jenkins/workspace/Gyrokinetics/Merge+Build+Test-gfortran-7.2.0/software/gcc-7.2.0/netcdf-fortran/4.4.4/lib:/opt/software/gcc-7.2.0/fftw/3.3.5/lib
+                              	export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:${MY_NETCDF_LIB}:{MY_NETCDFF_LIB}:/opt/software/gcc-7.2.0/fftw/3.3.5/lib
 
 				make tests
 				cd ../
