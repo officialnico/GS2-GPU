@@ -116,7 +116,7 @@ node ('sl7') {
               wget ftp://ftp.unidata.ucar.edu/pub/netcdf/netcdf-fortran-4.4.4.tar.gz
               tar xvf netcdf-fortran-4.4.4.tar.gz
               cd netcdf-fortran-4.4.4
-              ./configure --prefix=${params.netcdff_path}
+              ./configure --prefix=/home/jenkins/workspace/Gyrokinetics/Merge+Build+Test-gfortran-4.8.5/software/gcc-4.8.5/netcdf-fortran/4.4.4
               make
               make install
 	fi
