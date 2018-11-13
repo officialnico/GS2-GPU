@@ -86,9 +86,11 @@ node ('sl7') {
 
         sh """
 
+	export NETCDF_VERSION=4.1.3
+	export NETCDFF_VERSION=4.4.3
 	export GCC_VERSION=gcc-7.2.0
-	export MY_NETCDF_DIR=${WORKSPACE}/software/\$GCC_VERSION/netcdf/4.6.1
-        export MY_NETCDFF_DIR=${WORKSPACE}/software/\$GCC_VERSION/netcdf-fortran/4.4.4
+	export MY_NETCDF_DIR=${WORKSPACE}/software/\$GCC_VERSION/netcdf/\$NETCDF_VERSION
+        export MY_NETCDFF_DIR=${WORKSPACE}/software/\$GCC_VERSION/netcdf-fortran/\$NETCDFF_VERSION
 	export MY_NETCDF_INC=\$MY_NETCDF_DIR/include
 	export MY_NETCDFF_INC=\$MY_NETCDFF_DIR/include
 	export MY_NETCDF_LIB=\$MY_NETCDF_DIR/lib
@@ -108,9 +110,9 @@ node ('sl7') {
               rm -rf \$MY_NETCDFF_DIR
 
               mkdir -p \$MY_NETCDF_DIR
-              wget ftp://ftp.unidata.ucar.edu/pub/netcdf/netcdf-4.6.1.tar.gz
-              tar xvf netcdf-4.6.1.tar.gz
-              cd netcdf-4.6.1
+              wget ftp://ftp.unidata.ucar.edu/pub/netcdf/netcdf-\$NETCDF_VERSION.tar.gz
+              tar xvf netcdf-\$NETCDF_VERSION.tar.gz
+              cd netcdf-\$NETCDF_VERSION
               ./configure --prefix=\$MY_NETCDF_DIR --disable-netcdf-4
               make
               make install
@@ -121,9 +123,9 @@ node ('sl7') {
               cd ..
 
               mkdir -p \$MY_NETCDFF_DIR
-              wget ftp://ftp.unidata.ucar.edu/pub/netcdf/netcdf-fortran-4.4.4.tar.gz
-              tar xvf netcdf-fortran-4.4.4.tar.gz
-              cd netcdf-fortran-4.4.4
+              wget ftp://ftp.unidata.ucar.edu/pub/netcdf/netcdf-fortran-\$NETCDFF_VERSION.tar.gz
+              tar xvf netcdf-fortran-\$NETCDFF_VERSION.tar.gz
+              cd netcdf-fortran-\$NETCDFF_VERSION
               ./configure --prefix=\$MY_NETCDFF_DIR
               make
               make install
@@ -137,9 +139,11 @@ node ('sl7') {
 		
 		try{
 			sh '''
+				export NETCDF_VERSION=4.1.3
+				export NETCDFF_VERSION=4.4.3
 				export GCC_VERSION=gcc-7.2.0
-				export MY_NETCDF_DIR=${WORKSPACE}/software/\$GCC_VERSION/netcdf/4.6.1
-				export MY_NETCDFF_DIR=${WORKSPACE}/software/\$GCC_VERSION/netcdf-fortran/4.4.4
+				export MY_NETCDF_DIR=${WORKSPACE}/software/\$GCC_VERSION/netcdf/\$NETCDF_VERSION
+				export MY_NETCDFF_DIR=${WORKSPACE}/software/\$GCC_VERSION/netcdf-fortran/\$NETCDFF_VERSION
 				export MY_NETCDF_INC=\$MY_NETCDF_DIR/include
 				export MY_NETCDFF_INC=\$MY_NETCDFF_DIR/include
 				export MY_NETCDF_LIB=\$MY_NETCDF_DIR/lib
@@ -169,9 +173,11 @@ node ('sl7') {
         	currentBuild.description = "Testing"
 		try{
 			sh '''
+				export NETCDF_VERSION=4.1.3
+				export NETCDFF_VERSION=4.4.3
 				export GCC_VERSION=gcc-7.2.0
-				export MY_NETCDF_DIR=${WORKSPACE}/software/\$GCC_VERSION/netcdf/4.6.1
-				export MY_NETCDFF_DIR=${WORKSPACE}/software/\$GCC_VERSION/netcdf-fortran/4.4.4
+				export MY_NETCDF_DIR=${WORKSPACE}/software/\$GCC_VERSION/netcdf/\$NETCDF_VERSION
+				export MY_NETCDFF_DIR=${WORKSPACE}/software/\$GCC_VERSION/netcdf-fortran/\$NETCDFF_VERSION
 				export MY_NETCDF_INC=\$MY_NETCDF_DIR/include
 				export MY_NETCDFF_INC=\$MY_NETCDFF_DIR/include
 				export MY_NETCDF_LIB=\$MY_NETCDF_DIR/lib
