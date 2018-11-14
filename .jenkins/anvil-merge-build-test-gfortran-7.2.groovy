@@ -80,29 +80,86 @@ node ('sl7') {
 		}
     	}
 	
+  stage('Install netcdff') {
+
+        currentBuild.description = "Installing netcdf/netcdff, if necessary"
+
+        sh """
+
+	export NETCDF_VERSION=4.6.1
+	export NETCDFF_VERSION=4.4.4
+	export GCC_VERSION=gcc-7.2.0
+	export MY_NETCDF_DIR=${WORKSPACE}/software/\$GCC_VERSION/netcdf/\$NETCDF_VERSION
+        export MY_NETCDFF_DIR=${WORKSPACE}/software/\$GCC_VERSION/netcdf-fortran/\$NETCDFF_VERSION
+	export MY_NETCDF_INC=\$MY_NETCDF_DIR/include
+	export MY_NETCDFF_INC=\$MY_NETCDFF_DIR/include
+	export MY_NETCDF_LIB=\$MY_NETCDF_DIR/lib
+	export MY_NETCDFF_LIB=\$MY_NETCDFF_DIR/lib
+
+        export TEST_FILE_NETCDF=\$MY_NETCDF_DIR/include/netcdf.h
+        export TEST_FILE_NETCDFF=\$MY_NETCDFF_DIR/include/netcdf.mod
+
+        # true if either file missing
+        if [[ -f \$TEST_FILE_NETCDF && -f \$TEST_FILE_NETCDFF ]]
+        then 
+              echo "netcdf + nectdff found"
+        else
+              module load gcc/7.2.0 openmpi/1.10.0
+	      module avail
+
+
+              rm -rf \$MY_NETCDF_DIR
+              rm -rf \$MY_NETCDFF_DIR
+
+              mkdir -p \$MY_NETCDF_DIR
+              wget ftp://ftp.unidata.ucar.edu/pub/netcdf/netcdf-\$NETCDF_VERSION.tar.gz
+              tar xvf netcdf-\$NETCDF_VERSION.tar.gz
+              cd netcdf-\$NETCDF_VERSION
+              ./configure --prefix=\$MY_NETCDF_DIR --disable-netcdf-4
+              make
+              make install
+              ls \$MY_NETCDF_INC
+              export LD_LIBRARY_PATH=\$MY_NETCDF_LIB
+              export CPPFLAGS=-I\$MY_NETCDF_INC
+              export LDFLAGS=-L\$MY_NETCDF_LIB
+              cd ..
+
+              mkdir -p \$MY_NETCDFF_DIR
+              wget ftp://ftp.unidata.ucar.edu/pub/netcdf/netcdf-fortran-\$NETCDFF_VERSION.tar.gz
+              tar xvf netcdf-fortran-\$NETCDFF_VERSION.tar.gz
+              cd netcdf-fortran-\$NETCDFF_VERSION
+              ./configure --prefix=\$MY_NETCDFF_DIR
+              make
+              make install
+
+	      nf-config --all
+	fi
+        """
+  }
+
 	stage('Build') {
 
         	currentBuild.description = "Building"
 		
 		try{
 			sh '''
+				export NETCDF_VERSION=4.6.1
+				export NETCDFF_VERSION=4.4.4
+				export GCC_VERSION=gcc-7.2.0
+				export MY_NETCDF_DIR=${WORKSPACE}/software/\$GCC_VERSION/netcdf/\$NETCDF_VERSION
+				export MY_NETCDFF_DIR=${WORKSPACE}/software/\$GCC_VERSION/netcdf-fortran/\$NETCDFF_VERSION
+				export MY_NETCDF_INC=\$MY_NETCDF_DIR/include
+				export MY_NETCDFF_INC=\$MY_NETCDFF_DIR/include
+				export MY_NETCDF_LIB=\$MY_NETCDF_DIR/lib
+				export MY_NETCDFF_LIB=\$MY_NETCDFF_DIR/lib
 
                               	export GK_SYSTEM=jenkins
                               	export MAKEFLAGS=-IMakefiles DEBUG=on
                               	export TESTEXEC='mpirun -np 6'
 
             			module load gcc/7.2.0 openmpi/1.10.0
-                                module load netcdf/4.3.3.1
             			module load fftw
-				nc-config --all
-				nf-config --all
-				ls /opt/software/gcc-7.2.0/netcdf/4.3.3.1/lib
-				ls /opt/software/gcc-7.2.0/netcdf/4.3.3.1/include
-				ls /opt/software/gcc-7.2.0/
-				ls /usr/lib
-				ls /usr/include
-				module show netcdf/4.3.3.1
-                              	export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/opt/software/gcc-7.2.0/netcdf/4.3.3.1/lib:/usr/lib:/opt/software/gcc-7.2.0/fftw/3.3.5/lib
+                              	export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:\$MY_NETCDF_LIB:\$MY_NETCDFF_LIB:/opt/software/gcc-7.2.0/fftw/3.3.5/lib
 
 				make depend
 				make test_make
@@ -120,13 +177,22 @@ node ('sl7') {
         	currentBuild.description = "Testing"
 		try{
 			sh '''
+				export NETCDF_VERSION=4.6.1
+				export NETCDFF_VERSION=4.4.4
+				export GCC_VERSION=gcc-7.2.0
+				export MY_NETCDF_DIR=${WORKSPACE}/software/\$GCC_VERSION/netcdf/\$NETCDF_VERSION
+				export MY_NETCDFF_DIR=${WORKSPACE}/software/\$GCC_VERSION/netcdf-fortran/\$NETCDFF_VERSION
+				export MY_NETCDF_INC=\$MY_NETCDF_DIR/include
+				export MY_NETCDFF_INC=\$MY_NETCDFF_DIR/include
+				export MY_NETCDF_LIB=\$MY_NETCDF_DIR/lib
+				export MY_NETCDFF_LIB=\$MY_NETCDFF_DIR/lib
+
                               	export GK_SYSTEM=jenkins
                               	export MAKEFLAGS=-IMakefiles DEBUG=on
                               	export TESTEXEC='mpirun -np 6'
             			module load gcc/7.2.0 openmpi/1.10.0
-                                module load netcdf/4.3.3.1
             			module load fftw
-                              	export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/opt/software/gcc-7.2.0/netcdf/4.3.3.1/lib:/usr/lib:/opt/software/gcc-7.2.0/fftw/3.3.5/lib
+                              	export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:\$MY_NETCDF_LIB:\$MY_NETCDFF_LIB:/opt/software/gcc-7.2.0/fftw/3.3.5/lib
 
 				make tests
 				cd ../
