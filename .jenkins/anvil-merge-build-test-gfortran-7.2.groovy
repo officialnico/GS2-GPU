@@ -154,7 +154,7 @@ node ('sl7') {
 				export MY_NETCDFF_LIB=\$MY_NETCDFF_DIR/lib
 
                               	export GK_SYSTEM=jenkins
-                              	export MAKEFLAGS=-IMakefiles DEBUG=on
+                              	export MAKEFLAGS=-IMakefiles
                               	export TESTEXEC='mpirun -np 6'
 
             			module load gcc/7.2.0 openmpi/1.10.0
@@ -188,7 +188,7 @@ node ('sl7') {
 				export MY_NETCDFF_LIB=\$MY_NETCDFF_DIR/lib
 
                               	export GK_SYSTEM=jenkins
-                              	export MAKEFLAGS=-IMakefiles DEBUG=on
+                              	export MAKEFLAGS=-IMakefiles
                               	export TESTEXEC='mpirun -np 2'
             			module load gcc/7.2.0 openmpi/1.10.0
             			module load fftw
