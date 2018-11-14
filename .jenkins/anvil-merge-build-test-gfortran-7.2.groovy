@@ -96,6 +96,11 @@ node ('sl7') {
             			module load fftw
 				nc-config --all
 				nf-config --all
+				ls /opt/software/gcc-7.2.0/netcdf/4.3.3.1/lib
+				ls /opt/software/gcc-7.2.0/netcdf/4.3.3.1/include
+				ls /opt/software/gcc-7.2.0/
+				ls /usr/lib
+				ls /usr/include
 				module show netcdf/4.3.3.1
                               	export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/opt/software/gcc-7.2.0/netcdf/4.3.3.1/lib:/usr/lib:/opt/software/gcc-7.2.0/fftw/3.3.5/lib
 
