@@ -23,7 +23,6 @@ all: cyclone_itg_low_res cyclone_itg_replay
 	$(call RUNCOMMAND,cyclone_itg_low_res,cyclone_itg_low_res_fields_local.in,local)
 	$(call RUNCOMMAND,cyclone_itg_low_res,cyclone_itg_low_res_fields_gf_local.in,gf_local)
 	$(call COPY)
-	export GK_VERBOSITY=5
 	$(call RUNCOMMAND,cyclone_itg_replay,cyclone_itg_replay.in,)
 endif
 

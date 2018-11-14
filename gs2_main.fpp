@@ -614,6 +614,7 @@ contains
       diagnostics_init_options%parallel_io_capable = .false.
 #endif
 
+      write(*,*) "before init options"
       ! Here we check if reals have been promoted to doubles
       diagnostics_init_options%default_double =  (precision(precision_test).gt.10)
       ! Check whether this is a Trinity run... enforces calculation of the
@@ -622,14 +623,17 @@ contains
       ! Specifiy whether we are doing a replay.
       diagnostics_init_options%replay = state%replay
 
+      write(*,*) "init_gs2_diagnostics_new"
       call init_gs2_diagnostics_new(diagnostics_init_options)
 
       call debug_message(state%verb, &
         'gs2_main::initialize_diagnostics calling run_diagnostics')
       ! Create variables and write constants
+      write(*,*) "run_diagnostics -1"
       call run_diagnostics(-1,state%exit, state%replay)
       !call broadcast(state%exit)
       ! Write initial values
+      write(*,*) "run_diagnostics 0"
       call run_diagnostics(0,state%exit, state%replay)
 #else
       call mp_abort("use_old_diagnostics is .false. but you have &
