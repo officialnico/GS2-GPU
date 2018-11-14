@@ -178,6 +178,7 @@ contains
     write(*,*) "sdatio_init"
     call sdatio_init(gnostics%sfile, trim(run_name)//'.out.nc')
     if (gnostics%parallel) then 
+       write(*,*) "set_parallel"
        call set_parallel(gnostics%sfile, mp_comm)
     else
        if (.not. gnostics%serial_netcdf4) then 
@@ -188,8 +189,10 @@ contains
     call debug_message(gnostics%verbosity, &
       'gs2_diagnostics_new::init_gs2_diagnostics_new opening file')
     if (gnostics%parallel.or.proc0) then 
+       write(*,*) "inquire"
        inquire(file=trim(run_name)//'.out.nc', exist=ex)
        if (init_options%replay) then
+         write(*,*) "inside replay"
          if (ex) then
           call debug_message(gnostics%verbosity, &
             'gs2_diagnostics_new::init_gs2_diagnostics_new replaying')
@@ -207,9 +210,11 @@ contains
          end if
          gnostics%appending=.false.
        else if (gnostics%append_old .and. ex) then
+         write(*,*) "else if replay"
          gnostics%appending=.true.
          call open_file(gnostics%sfile)
        else
+         write(*,*) "else replay"
          gnostics%appending=.false.
          call create_file(gnostics%sfile)
          call write_metadata(gnostics)
