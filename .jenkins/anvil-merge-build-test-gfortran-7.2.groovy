@@ -115,7 +115,7 @@ node ('sl7') {
               wget ftp://ftp.unidata.ucar.edu/pub/netcdf/netcdf-\$NETCDF_VERSION.tar.gz
               tar xvf netcdf-\$NETCDF_VERSION.tar.gz
               cd netcdf-\$NETCDF_VERSION
-              ./configure --prefix=\$MY_NETCDF_DIR --disable-netcdf-4
+              ./configure --prefix=\$MY_NETCDF_DIR
               make
               make install
               ls \$MY_NETCDF_INC
