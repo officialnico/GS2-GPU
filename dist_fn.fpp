@@ -5509,6 +5509,7 @@ endif
     ! time advance vpar > 0 inhomogeneous part
     if (il <= lmax) then
        do ig = -ntgrid, ntgrid-1
+         ! Use this conditional to *prevent* erroneous vectorization of this loop by gfortran 7.2
          if (ig == 0) then
            gnew(ig+1,1,iglo) = -gnew(ig,1,iglo)*r(ig,1,iglo) + ainv(ig,1,iglo)*source(ig,1)
          else 
