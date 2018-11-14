@@ -105,6 +105,8 @@ node ('sl7') {
               echo "netcdf + nectdff found"
         else
               module load gcc/7.2.0 openmpi/1.10.0
+	      module avail
+
 
               rm -rf \$MY_NETCDF_DIR
               rm -rf \$MY_NETCDFF_DIR
@@ -129,6 +131,9 @@ node ('sl7') {
               ./configure --prefix=\$MY_NETCDFF_DIR
               make
               make install
+
+	      nc-config --all
+	      nf-config --all
 	fi
         """
   }
