@@ -103,7 +103,7 @@ node ('sl7') {
               wget ftp://ftp.unidata.ucar.edu/pub/netcdf/netcdf-4.6.1.tar.gz
               tar xvf netcdf-4.6.1.tar.gz
               cd netcdf-4.6.1
-              ./configure --prefix=/home/jenkins/workspace/Gyrokinetics/Merge+Build+Test-gfortran-4.8.5/software/gcc-4.8.5/netcdf/4.6.1 --disable-netcdf-4
+              ./configure --prefix=/home/jenkins/workspace/Gyrokinetics/Merge+Build+Test-gfortran-4.8.5/software/gcc-4.8.5/netcdf/4.6.1
               make
               make install
               ls /home/jenkins/workspace/Gyrokinetics/Merge+Build+Test-gfortran-4.8.5/software/gcc-4.8.5/netcdf/4.6.1/include
