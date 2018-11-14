@@ -105,12 +105,9 @@ node ('sl7') {
               echo "netcdf + nectdff found"
         else
               module load gcc/7.2.0 openmpi/1.10.0
-	      module avail
-	      module spider
-              module load netcdf/4.3.3.1
-	      module avail
-	      module spider
-
+              module load netcdf
+	      nc-config --all
+              nf-config --all
 
               rm -rf \$MY_NETCDF_DIR
               rm -rf \$MY_NETCDFF_DIR
