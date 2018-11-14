@@ -130,8 +130,8 @@ node ('sl7') {
 		try{
 			sh '''
                               	export GK_SYSTEM=jenkins-4.8.5
-                              	export MAKEFLAGS=-IMakefiles DEBUG=on
-                              	export TESTEXEC='mpirun -np 6'
+                              	export MAKEFLAGS=-IMakefiles
+                              	export TESTEXEC='mpirun -np 2'
 
             			module load gcc/4.8.5 openmpi/1.10.0
             			module load fftw
@@ -154,8 +154,8 @@ node ('sl7') {
 		try{
 			sh '''
                               	export GK_SYSTEM=jenkins-4.8.5
-                              	export MAKEFLAGS=-IMakefiles DEBUG=on
-                              	export TESTEXEC='mpirun -np 6'
+                              	export MAKEFLAGS=-IMakefiles
+                              	export TESTEXEC='mpirun -np 2'
 
             			module load gcc/4.8.5 openmpi/1.10.0
             			module load fftw
