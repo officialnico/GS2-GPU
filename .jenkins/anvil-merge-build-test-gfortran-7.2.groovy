@@ -106,6 +106,10 @@ node ('sl7') {
         else
               module load gcc/7.2.0 openmpi/1.10.0
 	      module avail
+	      module spider
+              module load netcdf/4.3.3.1
+	      module avail
+	      module spider
 
 
               rm -rf \$MY_NETCDF_DIR
