@@ -69,14 +69,17 @@ contains
     
     call debug_message(gnostics%verbosity, &
       'gs2_diagnostics_new::init_gs2_diagnostics_new starting')
+    write(*,*) "int_diagnostics_config"
     call init_diagnostics_config(gnostics)
     call debug_message(gnostics%verbosity, &
       'gs2_diagnostics_new::init_gs2_diagnostics_new initialized config')
+    write(*,*) "check_parameters"
     call check_parameters
     !call check_restart_file_writeable
     call debug_message(gnostics%verbosity, &
       'gs2_diagnostics_new::init_gs2_diagnostics_new  checked restart file')
     
+    write(*,*) "init_volume_averages"
     call init_volume_averages
 
     call debug_message(gnostics%verbosity, &
@@ -143,24 +146,36 @@ contains
     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     !!! Open Text Files (if required)
     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    write(*,*) "set_ascii_file_switches"
     if (proc0) call set_ascii_file_switches
+    write(*,*) "init_diagnostics_ascii"
     if (proc0) call init_diagnostics_ascii(gnostics%ascii_files)
     
     !!!!!!!!!!!!!!!!!!!!!!!!!!!
     ! Initialise submodules
     !!!!!!!!!!!!!!!!!!!!!!!!!!
+    write(*,*) "init_diagnostics_fluxes"
     call init_diagnostics_fluxes(gnostics)
+    write(*,*) "init_diagnostics_omega"
     call init_diagnostics_omega(gnostics)
     !if (gnostics%write_max_verr) gnostics%write_verr = .true.
+    write(*,*) "init_diagnostics_velocity_space"
     call init_diagnostics_velocity_space(gnostics)
+    write(*,*) "init_diagnostics_antenna"
     call init_diagnostics_antenna(gnostics)
+    write(*,*) "init_diagnostics_transfer"
     call init_diagnostics_transfer(gnostics)
+    write(*,*) "init_collisional"
     call init_collisional(gnostics)
 
+    write(*,*) "init_diagnostics_heating"
     if (gnostics%write_heating) call init_diagnostics_heating(gnostics)
+    write(*,*) "init_nonlinear_convergence"
     if (nonlin.and.gnostics%use_nonlin_convergence) call init_nonlinear_convergence(gnostics)
+    write(*,*) "read_input_file_and_get_size"
     call read_input_file_and_get_size(gnostics)
     
+    write(*,*) "sdatio_init"
     call sdatio_init(gnostics%sfile, trim(run_name)//'.out.nc')
     if (gnostics%parallel) then 
        call set_parallel(gnostics%sfile, mp_comm)
@@ -178,9 +193,11 @@ contains
          if (ex) then
           call debug_message(gnostics%verbosity, &
             'gs2_diagnostics_new::init_gs2_diagnostics_new replaying')
+           write(*,*) "open_file"
            call open_file(gnostics%sfile)
           call debug_message(gnostics%verbosity, &
             'gs2_diagnostics_new::init_gs2_diagnostics_new opened replay')
+           write(*,*) "set_dimension_start"
            call set_dimension_start(gnostics%sfile, "t", 1)
           call debug_message(gnostics%verbosity, &
             'gs2_diagnostics_new::init_gs2_diagnostics_new set dimension start')
