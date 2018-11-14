@@ -132,7 +132,7 @@ node ('sl7') {
               make
               make install
 
-	      nf-config --all
+	      \$MY_NETCDFF_DIR/bin/nf-config --all
 	fi
         """
   }
