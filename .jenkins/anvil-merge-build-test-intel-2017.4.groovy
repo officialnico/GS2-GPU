@@ -104,8 +104,7 @@ node ('sl7') {
               echo "netcdf + nectdff found"
         else
 	      module avail
-              module load intel/2017.4 openmpi/1.10.0
-	      module load intelmpi/2017.4
+              module load intel/2017.4 intelmpi/2017.4
 
               rm -rf \$MY_NETCDF_DIR
               rm -rf \$MY_NETCDFF_DIR
@@ -156,8 +155,7 @@ node ('sl7') {
                               	export MAKEFLAGS=-IMakefiles
                               	export TESTEXEC='mpirun -np 6'
 
-            			module load intel/2017.4 openmpi/1.10.0
-	                        module load intelmpi/2017.4
+            			module load intel/2017.4 intelmpi/2017.4
             			module load fftw
                               	export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:\$MY_NETCDF_LIB:\$MY_NETCDFF_LIB:/opt/software/\$INTEL_VERSION/fftw/3.3.5/lib
 
@@ -190,8 +188,7 @@ node ('sl7') {
                               	export GK_SYSTEM=jenkins-intel
                               	export MAKEFLAGS=-IMakefiles
                               	export TESTEXEC='mpirun -np 2'
-            			module load intel/2017.4 openmpi/1.10.0
-	                        module load intelmpi/2017.4
+            			module load intel/2017.4 intelmpi/2017.4
             			module load fftw
                               	export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:\$MY_NETCDF_LIB:\$MY_NETCDFF_LIB:/opt/software/\$INTEL_VERSION/fftw/3.3.5/lib
 
