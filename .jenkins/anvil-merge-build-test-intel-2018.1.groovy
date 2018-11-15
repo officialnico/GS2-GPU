@@ -18,7 +18,6 @@ properties([[
   string(name: "arch", defaultValue: "linux_x86_64_gfortran7.0", description: "Manually set build arch"),
   choice(name: "opt", choices: "intermediate\ndebug\nfast\nwarnings\ncoverage", description: "Build type"),
   choice(name: "comms", choices: "serial\nmpi", description: "Communications paradigm"),
-  string(name: "modules", defaultValue: "gcc/7.2.0 fftw openmpi/1.10.0", description: "Module environments to load"),
   string(name: "mathLibs", defaultValue: "openblas", description: "Select BLAS/LAPACK to use"),
   string(name: "mathLibDir", defaultValue: "", description: "Specify maths library location"),
   string(name: "fft", defaultValue: "fftw3", description: "Select FFT to use"),
@@ -159,7 +158,7 @@ node ('sl7') {
 
             			module load intel/2018.1 openmpi/1.10.0
             			module load fftw
-                              	export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:\$MY_NETCDF_LIB:\$MY_NETCDFF_LIB:/opt/software/gcc-7.2.0/fftw/3.3.5/lib
+                              	export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:\$MY_NETCDF_LIB:\$MY_NETCDFF_LIB:/opt/software/\$INTEL_VERSION/fftw/3.3.5/lib
 
 				make depend
 				make test_make
@@ -192,7 +191,7 @@ node ('sl7') {
                               	export TESTEXEC='mpirun -np 2'
             			module load intel/2018.1 openmpi/1.10.0
             			module load fftw
-                              	export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:\$MY_NETCDF_LIB:\$MY_NETCDFF_LIB:/opt/software/gcc-7.2.0/fftw/3.3.5/lib
+                              	export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:\$MY_NETCDF_LIB:\$MY_NETCDFF_LIB:/opt/software/\$INTEL_VERSION/fftw/3.3.5/lib
 
 				make tests
 				cd ../
