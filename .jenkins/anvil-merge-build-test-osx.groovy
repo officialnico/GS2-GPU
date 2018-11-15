@@ -165,7 +165,7 @@ node ('osx') {
 				export MY_NETCDF_LIB=\$MY_NETCDF_DIR/lib
 				export MY_NETCDFF_LIB=\$MY_NETCDFF_DIR/lib
 
-                              	export GK_SYSTEM=jenkins
+                              	export GK_SYSTEM=jenkins-osx
                               	export MAKEFLAGS=-IMakefiles
                               	export TESTEXEC='mpirun -np 6'
 
@@ -199,7 +199,7 @@ node ('osx') {
 				export MY_NETCDF_LIB=\$MY_NETCDF_DIR/lib
 				export MY_NETCDFF_LIB=\$MY_NETCDFF_DIR/lib
 
-                              	export GK_SYSTEM=jenkins
+                              	export GK_SYSTEM=jenkins-osx
                               	export MAKEFLAGS=-IMakefiles
                               	export TESTEXEC='mpirun -np 2'
             			module load gcc openmpi/1.10.0
