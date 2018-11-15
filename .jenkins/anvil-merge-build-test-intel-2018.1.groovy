@@ -103,8 +103,9 @@ node ('sl7') {
         then 
               echo "netcdf + nectdff found"
         else
-              module load intel/2018.1 openmpi/1.10.0
 	      module avail
+              module load intel/2018.1 
+	      module load openmpi/1.10.0
 
 
               rm -rf \$MY_NETCDF_DIR
