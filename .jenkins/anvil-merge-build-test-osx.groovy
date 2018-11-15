@@ -18,7 +18,7 @@ properties([[
   string(name: "arch", defaultValue: "linux_x86_64_gfortran7.0", description: "Manually set build arch"),
   choice(name: "opt", choices: "intermediate\ndebug\nfast\nwarnings\ncoverage", description: "Build type"),
   choice(name: "comms", choices: "serial\nmpi", description: "Communications paradigm"),
-  string(name: "modules", defaultValue: "gcc/7.2.0 fftw openmpi/1.10.0", description: "Module environments to load"),
+  string(name: "modules", defaultValue: "gcc/4.2.1 fftw openmpi/1.10.0", description: "Module environments to load"),
   string(name: "mathLibs", defaultValue: "openblas", description: "Select BLAS/LAPACK to use"),
   string(name: "mathLibDir", defaultValue: "", description: "Specify maths library location"),
   string(name: "fft", defaultValue: "fftw3", description: "Select FFT to use"),
@@ -33,7 +33,7 @@ properties([[
 */
   
 // Do all the work on a node
-node ('sl7') {
+node ('osx') {
 
 	stage('Checkout') {
 
@@ -88,7 +88,7 @@ node ('sl7') {
 
 	export NETCDF_VERSION=4.6.1
 	export NETCDFF_VERSION=4.4.4
-	export GCC_VERSION=gcc-7.2.0
+	export GCC_VERSION=gcc-4.2.1
 	export MY_NETCDF_DIR=${WORKSPACE}/software/\$GCC_VERSION/netcdf/\$NETCDF_VERSION
         export MY_NETCDFF_DIR=${WORKSPACE}/software/\$GCC_VERSION/netcdf-fortran/\$NETCDFF_VERSION
 	export MY_NETCDF_INC=\$MY_NETCDF_DIR/include
@@ -104,7 +104,7 @@ node ('sl7') {
         then 
               echo "netcdf + nectdff found"
         else
-              module load gcc/7.2.0 openmpi/1.10.0
+              module load gcc/4.2.1 openmpi/1.10.0
 	      module avail
 
 
@@ -145,7 +145,7 @@ node ('sl7') {
 			sh '''
 				export NETCDF_VERSION=4.6.1
 				export NETCDFF_VERSION=4.4.4
-				export GCC_VERSION=gcc-7.2.0
+				export GCC_VERSION=gcc-4.2.1
 				export MY_NETCDF_DIR=${WORKSPACE}/software/\$GCC_VERSION/netcdf/\$NETCDF_VERSION
 				export MY_NETCDFF_DIR=${WORKSPACE}/software/\$GCC_VERSION/netcdf-fortran/\$NETCDFF_VERSION
 				export MY_NETCDF_INC=\$MY_NETCDF_DIR/include
@@ -157,9 +157,9 @@ node ('sl7') {
                               	export MAKEFLAGS=-IMakefiles
                               	export TESTEXEC='mpirun -np 6'
 
-            			module load gcc/7.2.0 openmpi/1.10.0
+            			module load gcc/4.2.1 openmpi/1.10.0
             			module load fftw
-                              	export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:\$MY_NETCDF_LIB:\$MY_NETCDFF_LIB:/opt/software/gcc-7.2.0/fftw/3.3.5/lib
+                              	export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:\$MY_NETCDF_LIB:\$MY_NETCDFF_LIB:/opt/software/gcc-4.2.1/fftw/3.3.5/lib
 
 				make depend
 				make test_make
@@ -179,7 +179,7 @@ node ('sl7') {
 			sh '''
 				export NETCDF_VERSION=4.6.1
 				export NETCDFF_VERSION=4.4.4
-				export GCC_VERSION=gcc-7.2.0
+				export GCC_VERSION=gcc-4.2.1
 				export MY_NETCDF_DIR=${WORKSPACE}/software/\$GCC_VERSION/netcdf/\$NETCDF_VERSION
 				export MY_NETCDFF_DIR=${WORKSPACE}/software/\$GCC_VERSION/netcdf-fortran/\$NETCDFF_VERSION
 				export MY_NETCDF_INC=\$MY_NETCDF_DIR/include
@@ -190,9 +190,9 @@ node ('sl7') {
                               	export GK_SYSTEM=jenkins
                               	export MAKEFLAGS=-IMakefiles
                               	export TESTEXEC='mpirun -np 2'
-            			module load gcc/7.2.0 openmpi/1.10.0
+            			module load gcc/4.2.1 openmpi/1.10.0
             			module load fftw
-                              	export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:\$MY_NETCDF_LIB:\$MY_NETCDFF_LIB:/opt/software/gcc-7.2.0/fftw/3.3.5/lib
+                              	export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:\$MY_NETCDF_LIB:\$MY_NETCDFF_LIB:/opt/software/gcc-4.2.1/fftw/3.3.5/lib
 
 				make tests
 				cd ../
