@@ -86,9 +86,11 @@ node ('osx') {
 
         sh """
 
+	export HDF5_VERSION=1.10.4
 	export NETCDF_VERSION=4.6.1
 	export NETCDFF_VERSION=4.4.4
 	export GCC_VERSION=gcc-4.2.1
+	export MY_HDF5_DIR=${WORKSPACE}/software/\$GCC_VERSION/hdf5/\$HDF5_VERSION
 	export MY_NETCDF_DIR=${WORKSPACE}/software/\$GCC_VERSION/netcdf/\$NETCDF_VERSION
         export MY_NETCDFF_DIR=${WORKSPACE}/software/\$GCC_VERSION/netcdf-fortran/\$NETCDFF_VERSION
 	export MY_NETCDF_INC=\$MY_NETCDF_DIR/include
@@ -110,6 +112,16 @@ node ('osx') {
 
               rm -rf \$MY_NETCDF_DIR
               rm -rf \$MY_NETCDFF_DIR
+              rm -rf \$MY_HDF5_DIR
+
+              mkdir -p \$MY_HDF5_DIR
+	      wget https://support.hdfgroup.org/ftp/HDF5/releases/hdf5-1.10/hdf5-1.10.4/src/hdf5-1.10.4.tar.gz
+	      tar xvf hdf5-1.10.4.tar.gz
+              cd hdf5-1.10.4/
+              ./configure --prefix=\$MY_HDF5_DIR
+              make
+              make install
+              ls \$MY_HDF5_INC
 
               mkdir -p \$MY_NETCDF_DIR
               wget ftp://ftp.unidata.ucar.edu/pub/netcdf/netcdf-\$NETCDF_VERSION.tar.gz
