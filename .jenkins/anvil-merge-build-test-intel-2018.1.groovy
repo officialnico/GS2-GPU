@@ -105,6 +105,7 @@ node ('sl7') {
         else
 	      module avail
               module load intel/2018.1 
+	      module spider openmpi
 	      module spider openmpi/1.10.0
 	      module load openmpi/1.10.0
 
