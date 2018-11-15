@@ -16,7 +16,7 @@ properties([[
   string(name: "repo_path", defaultValue: "gyrokinetics/gs2", description: "Relative path to repository"),
   choice(name: "repo_method", choices: "ssh\nhttps", description: "Protocol used to access repository"),
   string(name: "arch", defaultValue: "linux_x86_64_gfortran7.0", description: "Manually set build arch"),
-  choice(name: "opt", choices: "intermediate\ndebug\nfast\nwarnings\ncoverage", description: "Build type"),
+  choice(name: "opt", choices: "debug\nintermediate\nfast\nwarnings\ncoverage", description: "Build type"),
   choice(name: "comms", choices: "serial\nmpi", description: "Communications paradigm"),
   string(name: "mathLibs", defaultValue: "openblas", description: "Select BLAS/LAPACK to use"),
   string(name: "mathLibDir", defaultValue: "", description: "Specify maths library location"),
@@ -153,6 +153,10 @@ node ('sl7') {
 
                               	export GK_SYSTEM=jenkins-intel
                               	export MAKEFLAGS=-IMakefiles
+				if [ params.opt == "debug" ] 
+				then
+					export MAKEFLAGS=\$MAKEFLAGS DEBUG=on
+				fi				
                               	export TESTEXEC='mpirun -np 6'
 
             			module load intel/2017.4 intelmpi/2017.4
@@ -187,6 +191,10 @@ node ('sl7') {
 
                               	export GK_SYSTEM=jenkins-intel
                               	export MAKEFLAGS=-IMakefiles
+				if [ params.opt == "debug" ] 
+				then
+					export MAKEFLAGS=\$MAKEFLAGS DEBUG=on
+				fi				
                               	export TESTEXEC='mpirun -np 2'
             			module load intel/2017.4 intelmpi/2017.4
             			module load fftw
