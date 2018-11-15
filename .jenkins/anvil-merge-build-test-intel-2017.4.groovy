@@ -87,7 +87,7 @@ node ('sl7') {
 
 	export NETCDF_VERSION=4.6.1
 	export NETCDFF_VERSION=4.4.4
-	export INTEL_VERSION=intel-2018.1
+	export INTEL_VERSION=intel-2017.4
 	export MY_NETCDF_DIR=${WORKSPACE}/software/\$INTEL_VERSION/netcdf/\$NETCDF_VERSION
         export MY_NETCDFF_DIR=${WORKSPACE}/software/\$INTEL_VERSION/netcdf-fortran/\$NETCDFF_VERSION
 	export MY_NETCDF_INC=\$MY_NETCDF_DIR/include
@@ -104,11 +104,7 @@ node ('sl7') {
               echo "netcdf + nectdff found"
         else
 	      module avail
-              module load intel/2018.1 
-	      module spider openmpi
-	      module spider openmpi/1.10.0
-	      module load openmpi/1.10.0
-
+              module load intel/2017.4 openmpi/1.10.0
 
               rm -rf \$MY_NETCDF_DIR
               rm -rf \$MY_NETCDFF_DIR
@@ -147,7 +143,7 @@ node ('sl7') {
 			sh '''
 				export NETCDF_VERSION=4.6.1
 				export NETCDFF_VERSION=4.4.4
-				export INTEL_VERSION=intel-2018.1
+				export INTEL_VERSION=intel-2017.4
 				export MY_NETCDF_DIR=${WORKSPACE}/software/\$INTEL_VERSION/netcdf/\$NETCDF_VERSION
 				export MY_NETCDFF_DIR=${WORKSPACE}/software/\$INTEL_VERSION/netcdf-fortran/\$NETCDFF_VERSION
 				export MY_NETCDF_INC=\$MY_NETCDF_DIR/include
@@ -159,7 +155,7 @@ node ('sl7') {
                               	export MAKEFLAGS=-IMakefiles
                               	export TESTEXEC='mpirun -np 6'
 
-            			module load intel/2018.1 openmpi/1.10.0
+            			module load intel/2017.4 openmpi/1.10.0
             			module load fftw
                               	export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:\$MY_NETCDF_LIB:\$MY_NETCDFF_LIB:/opt/software/\$INTEL_VERSION/fftw/3.3.5/lib
 
@@ -181,7 +177,7 @@ node ('sl7') {
 			sh '''
 				export NETCDF_VERSION=4.6.1
 				export NETCDFF_VERSION=4.4.4
-				export INTEL_VERSION=intel-2018.1
+				export INTEL_VERSION=intel-2017.4
 				export MY_NETCDF_DIR=${WORKSPACE}/software/\$INTEL_VERSION/netcdf/\$NETCDF_VERSION
 				export MY_NETCDFF_DIR=${WORKSPACE}/software/\$INTEL_VERSION/netcdf-fortran/\$NETCDFF_VERSION
 				export MY_NETCDF_INC=\$MY_NETCDF_DIR/include
@@ -192,7 +188,7 @@ node ('sl7') {
                               	export GK_SYSTEM=jenkins-intel
                               	export MAKEFLAGS=-IMakefiles
                               	export TESTEXEC='mpirun -np 2'
-            			module load intel/2018.1 openmpi/1.10.0
+            			module load intel/2017.4 openmpi/1.10.0
             			module load fftw
                               	export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:\$MY_NETCDF_LIB:\$MY_NETCDFF_LIB:/opt/software/\$INTEL_VERSION/fftw/3.3.5/lib
 
