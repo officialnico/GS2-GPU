@@ -127,7 +127,7 @@ node ('osx') {
               wget ftp://ftp.unidata.ucar.edu/pub/netcdf/netcdf-\$NETCDF_VERSION.tar.gz
               tar xvf netcdf-\$NETCDF_VERSION.tar.gz
               cd netcdf-\$NETCDF_VERSION
-              ./configure --prefix=\$MY_NETCDF_DIR
+              CPPFLAGS=-I\$MY_HDF5_DIR/include LDFLAGS=-L\$MY_HDF5_DIR/lib ./configure --prefix=\$MY_NETCDF_DIR
               make
               make install
               ls \$MY_NETCDF_INC
