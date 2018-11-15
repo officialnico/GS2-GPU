@@ -101,12 +101,14 @@ node ('osx') {
         export TEST_FILE_NETCDF=\$MY_NETCDF_DIR/include/netcdf.h
         export TEST_FILE_NETCDFF=\$MY_NETCDFF_DIR/include/netcdf.mod
 	echo \$TEST_FILE_NETCDF
-	ls \$TEST_FILE_NETCDF
+	ls \$MY_NETCDF_DIR
+	ls \$MY_NETCDF_LIB
+	ls \$MY_NETCDF_INC
 	echo \$TEST_FILE_NETCDFF
-	ls \$TEST_FILE_NETCDFF
+	ls \$MY_NETCDFF_DIR
+	ls \$MY_NETCDFF_LIB
+	ls \$MY_NETCDFF_INC
 	
-
-/*
         # true if either file missing
         if [[ -f \$TEST_FILE_NETCDF && -f \$TEST_FILE_NETCDFF ]]
         then 
@@ -152,7 +154,6 @@ node ('osx') {
 
 	      \$MY_NETCDFF_DIR/bin/nf-config --all
 	fi
-*/
         """
   }
 
