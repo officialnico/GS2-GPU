@@ -104,8 +104,8 @@ node ('osx') {
         then 
               echo "netcdf + nectdff found"
         else
-              module load gcc/4.2.1 openmpi/1.10.0
 	      module avail
+              module load gcc openmpi/1.10.0
 
 
               rm -rf \$MY_NETCDF_DIR
@@ -157,7 +157,7 @@ node ('osx') {
                               	export MAKEFLAGS=-IMakefiles
                               	export TESTEXEC='mpirun -np 6'
 
-            			module load gcc/4.2.1 openmpi/1.10.0
+            			module load gcc openmpi/1.10.0
             			module load fftw
                               	export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:\$MY_NETCDF_LIB:\$MY_NETCDFF_LIB:/opt/software/gcc-4.2.1/fftw/3.3.5/lib
 
@@ -190,7 +190,7 @@ node ('osx') {
                               	export GK_SYSTEM=jenkins
                               	export MAKEFLAGS=-IMakefiles
                               	export TESTEXEC='mpirun -np 2'
-            			module load gcc/4.2.1 openmpi/1.10.0
+            			module load gcc openmpi/1.10.0
             			module load fftw
                               	export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:\$MY_NETCDF_LIB:\$MY_NETCDFF_LIB:/opt/software/gcc-4.2.1/fftw/3.3.5/lib
 
