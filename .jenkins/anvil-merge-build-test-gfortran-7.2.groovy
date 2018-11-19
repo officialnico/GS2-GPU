@@ -31,6 +31,7 @@ properties([[
 /*
  End README
 */
+import groovy.json.JsonBuilder // For json construction.
   
 // Do all the work on a node
 node ('sl7') {
