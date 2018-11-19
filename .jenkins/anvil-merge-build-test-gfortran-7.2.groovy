@@ -203,5 +203,70 @@ node ('sl7') {
 			currentBuild.result = 'FAILURE'
 		}
     	}
+
+    stage('Finishing') {
+
+        currentBuild.description = "Parsing test results"
+
+	// This doesn't work, need a better way to parse files
+	//sh '''
+	//	export params.testFailures=$(grep 'failures="1"' test-results/*.xml | wc -l)
+	//'''
+	testsFailed = sh ( script: """ grep 'failures="1"' test-results/*.xml | wc -l """ )
+
+        currentBuild.description = "Sending notification to slack"
+	
+	// "currentBuild.durationString" unhelpfully returns the time followed by "and counting" because we're still in the pipeline. Bah.
+	runDuration=currentBuild.durationString[0..-14]
+        endMessage = ""
+	colourCode = '#FF0000' // failure red
+    	resultMessage = "Anvil build <${env.JOB_URL}/${env.BUILD_NUMBER}|#${env.BUILD_NUMBER}> for <${env.JOB_URL}|${env.JOB_NAME}> finished in mysterious circumstances."
+    	fallback = "Anvil build #${env.BUILD_NUMBER} for ${env.JOB_NAME} finished in mysterious circumstances."
+
+	result = currentBuild.result ?: 'SUCCESS'
+
+  	if (result == 'ABORTED') {
+    		colourCode = '#808080' // anonymous grey
+    		currentBuild.description = "Build aborted"
+    		resultMessage = "Anvil build <${env.JOB_URL}/${env.BUILD_NUMBER}|#${env.BUILD_NUMBER}> for <${env.JOB_URL}|${env.JOB_NAME}> was aborted."
+        	fallback = "Anvil build #${env.BUILD_NUMBER} for ${env.JOB_NAME} was aborted." // same message but without hyperlinks, for pop up notifications
+  	}
+  	else if (testsFailed > 0) {
+    		colourCode = '#FF0000'
+    		currentBuild.description = "Build fails"
+    		resultMessage = "Anvil build <${env.JOB_URL}/${env.BUILD_NUMBER}|#${env.BUILD_NUMBER}> for <${env.JOB_URL}|${env.JOB_NAME}> finished with ${testsFailed} failures in ${runDuration}."
+        	fallback = "Anvil build #${env.BUILD_NUMBER} for ${env.JOB_NAME} finished with ${testsFailed} failures in ${runDuration}." // same message but without hyperlinks, for pop up notifications
+        	endMessage = '' // No title
+	}
+  	else {
+    		colourCode = '#32CD32' // lovely successful green
+    		currentBuild.description = "Stable build"
+    		resultMessage = "Anvil build <${env.JOB_URL}/${env.BUILD_NUMBER}|#${env.BUILD_NUMBER}> for <${env.JOB_URL}|${env.JOB_NAME}> finished successfully in ${runDuration}."
+        	fallback = "Anvil build #${env.BUILD_NUMBER} for ${env.JOB_NAME} finished successfully in ${runDuration}." // same message but without hyperlinks, for pop up notifications
+        	endMessage = '' // No title
+  	}
+
+  	attachment = [text: resultMessage,
+		pretext: endMessage,
+		fallback: fallback,
+		color: colourCode,
+		mrkdwn_in: mrkdwn]
+  	attachments = [ attachment ]
+  	load = [ channel: channel, attachments: attachments ]
+  	try {
+    		endJson = new JsonBuilder(load)
+    		payload = endJson.toString()
+    		endJson = null // Need to nullify the Json object as it is not "serializable" by Java
+  	} catch (jsonError) {
+    		echo "Error contructing final Slack message - likely a library permissions issue"
+    		payload = "{\"channel\":\"#jenkins\",\"attachments\":[{\"Job Ended\",\"text\":\"${resultMessage}\",\"fallback\":\"Job Ended\",\"color\":\"${colourCode}\",\"mrkdwn_in\":[\"pretext\",\"text\",\"fields\"]}]}"
+  	}
+  	command = "set +x; curl -X POST -H 'Content-Type: application/json' -d '${payload}' ${slackURL}"
+	try {
+		sh command
+	} catch (slackError) {
+		echo "Error posting to Slack"
+	}
+    }
 }
 
