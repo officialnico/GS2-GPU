@@ -279,7 +279,7 @@ command = "set +x; curl -X POST -H 'Content-Type: application/json' -d '${payloa
 	//sh '''
 	//	export params.testFailures=$(grep 'failures="1"' test-results/*.xml | wc -l)
 	//'''
-	//testsFailed = sh ( script: """ grep 'failures="1"' test-results/*.xml | wc -l """ )
+	testsFailed = sh ( script: """ grep 'failures="1"' test-results/*.xml | wc -l """ )
 
         currentBuild.description = "Sending notification to slack"
 	
