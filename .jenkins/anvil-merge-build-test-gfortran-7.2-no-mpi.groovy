@@ -154,7 +154,6 @@ node ('sl7') {
 
                               	export GK_SYSTEM=jenkins
                               	export MAKEFLAGS=-IMakefiles USE_MPI=
-                              	export TESTEXEC='mpirun -np 1'
 
             			module load gcc/7.2.0
             			module load fftw
@@ -188,7 +187,6 @@ node ('sl7') {
 
                               	export GK_SYSTEM=jenkins
                               	export MAKEFLAGS=-IMakefiles USE_MPI=
-                              	export TESTEXEC='mpirun -np 1'
             			module load gcc/7.2.0
             			module load fftw
                               	export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:\$MY_NETCDF_LIB:\$MY_NETCDFF_LIB:/opt/software/gcc-7.2.0/fftw/3.3.5/lib
