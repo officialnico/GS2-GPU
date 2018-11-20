@@ -153,7 +153,7 @@ command = "set +x; curl -X POST -H 'Content-Type: application/json' -d '${payloa
 		try{
 			sh '''
                               	export GK_SYSTEM=jenkins
-                              	export MAKEFLAGS=-IMakefiles USE_NETCDF= USE_FFT=
+                              	export MAKEFLAGS=-IMakefiles USE_NETCDF= USE_FFT= USE_NEW_DIAG=
                               	export TESTEXEC='mpirun -np 6'
 
             			module load gcc/7.2.0 openmpi/1.10.0
@@ -175,7 +175,7 @@ command = "set +x; curl -X POST -H 'Content-Type: application/json' -d '${payloa
 		try{
 			sh '''
                               	export GK_SYSTEM=jenkins
-                              	export MAKEFLAGS=-IMakefiles USE_NETCDF= USE_FFT=
+                              	export MAKEFLAGS=-IMakefiles USE_NETCDF= USE_FFT= USE_NEW_DIAG=
                               	export TESTEXEC='mpirun -np 2'
             			module load gcc/7.2.0 openmpi/1.10.0
 
