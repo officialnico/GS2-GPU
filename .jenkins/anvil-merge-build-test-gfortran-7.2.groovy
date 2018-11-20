@@ -10,7 +10,6 @@
 properties([[
   $class: "ParametersDefinitionProperty",
   parameterDefinitions: [
-  string(name: "branch", defaultValue: "default", description: "Mercurial branch to use"),
   string(name: "label", defaultValue: "default", description: "Label for Slack fallback"),
   string(name: "repo_host", defaultValue: "bitbucket.org", description: "Domain for repository"),
   string(name: "repo_path", defaultValue: "gyrokinetics/gs2", description: "Relative path to repository"),
