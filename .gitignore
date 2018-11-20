@@ -10,7 +10,9 @@ Makefile.local
 
 # GS2 output files
 *.amoments
+*.bin
 *.dat
+*.decomp.*
 *.eigenfunc
 *.error
 *.fftw_wisdom
@@ -31,6 +33,7 @@ Makefile.local
 *.phase
 results_of_test.txt
 *.scratch
+*.timing.*
 *.trinpars
 *.vres
 *.vres2
