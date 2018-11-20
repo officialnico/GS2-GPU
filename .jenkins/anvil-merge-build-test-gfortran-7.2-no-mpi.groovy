@@ -84,6 +84,12 @@ node ('sl7') {
         currentBuild.description = "Installing netcdf/netcdff, if necessary"
 
         sh """
+        module load gcc/7.2.0
+	module avail
+	module load hdf5/1.8.17
+	module avail
+	module load netcdf/4.3.3.1
+	module avail
 
 	export NETCDF_VERSION=4.6.1
 	export NETCDFF_VERSION=4.4.4
