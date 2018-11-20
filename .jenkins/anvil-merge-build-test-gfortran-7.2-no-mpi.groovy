@@ -92,6 +92,10 @@ node ('sl7') {
 	ls /opt/software/gcc-7.2.0/netcdf/4.3.3.1
 	ls /opt/software/gcc-7.2.0/netcdf/4.3.3.1/include
 	ls /opt/software/gcc-7.2.0/netcdf/4.3.3.1/lib
+	ls /opt/software/gcc-7.2.0/hdf5/
+	ls /opt/software/gcc-7.2.0/hdf5/1.8.17
+	ls /opt/software/gcc-7.2.0/hdf5/1.8.17/include
+	ls /opt/software/gcc-7.2.0/hdf5/1.8.17/lib
 
 	export NETCDF_VERSION=4.6.1
 	export NETCDFF_VERSION=4.4.4
