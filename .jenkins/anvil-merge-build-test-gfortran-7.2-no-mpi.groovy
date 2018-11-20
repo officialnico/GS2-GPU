@@ -85,11 +85,16 @@ node ('sl7') {
 
         sh """
         module load gcc/7.2.0
-	module avail
 	module load hdf5/1.8.17
-	module avail
 	module load netcdf/4.3.3.1
-	module avail
+	sh '''
+		ls /opt/software/gcc-7.2.0/
+		ls /opt/software/gcc-7.2.0/netcdf
+		ls /opt/software/gcc-7.2.0/netcdf/4.3.3.1
+		ls /opt/software/gcc-7.2.0/netcdf/4.3.3.1/include
+		ls /opt/software/gcc-7.2.0/netcdf/4.3.3.1/lib
+
+	'''
 
 	export NETCDF_VERSION=4.6.1
 	export NETCDFF_VERSION=4.4.4
