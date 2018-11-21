@@ -135,7 +135,7 @@ command = "set +x; curl -X POST -H 'Content-Type: application/json' -d '${payloa
         	currentBuild.description = PRname + " - Merging PR"
 		
 		try{
-			sh './merge.sh'
+			sh '.jenkins/merge.sh'
 		} finally {
         		currentBuild.description = PRname + " - PR merge failed"
 			currentBuild.result = 'FAILURE'
