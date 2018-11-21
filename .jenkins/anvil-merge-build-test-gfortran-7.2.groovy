@@ -145,14 +145,14 @@ command = "set +x; curl -X POST -H 'Content-Type: application/json' -d '${payloa
 				rm -rf tests/unit_tests/collisions/
 			'''
 		} finally {
-        		currentBuild.description = "PR merge failed"
+        		currentBuild.description = PRname + "- PR merge failed"
 			currentBuild.result = 'FAILURE'
 	
 			runDuration=currentBuild.durationString[0..-14]
         		endMessage = ""
 			colourCode = '#FF0000' // failure red
-    			resultMessage = "Anvil build <${env.JOB_URL}/${env.BUILD_NUMBER}|#${env.BUILD_NUMBER}> for <${env.JOB_URL}|${env.JOB_NAME}> failed in git merge step"
-    			fallback = "Anvil build #${env.BUILD_NUMBER} for ${env.JOB_NAME} failed in git merge step"
+    			resultMessage = "Anvil build <${env.JOB_URL}/${env.BUILD_NUMBER}|#${env.BUILD_NUMBER}> for <${env.JOB_URL}|${env.JOB_NAME}> failed in git merge step after ${runDuration}"
+    			fallback = "Anvil build #${env.BUILD_NUMBER} for ${env.JOB_NAME} failed in git merge step after ${runDuration}"
 
   			attachment = [text: resultMessage,
 				pretext: endMessage,
