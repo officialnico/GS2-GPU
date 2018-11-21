@@ -132,20 +132,12 @@ command = "set +x; curl -X POST -H 'Content-Type: application/json' -d '${payloa
 
 	stage('Merge') {
 
-        	currentBuild.description = "Merging PR"
+        	currentBuild.description = PRname + " - Merging PR"
 		
 		try{
-			sh '''
-				git fetch
-				git checkout ${sourceBranch}
-				git pull
-				git checkout origin/${targetBranch}
-				git checkout -b jobid-${BUILD_NUMBER}-${sourceBranch}-${targetBranch}
-				git merge ${sourceBranch}
-				rm -rf tests/unit_tests/collisions/
-			'''
+			sh './merge.sh'
 		} finally {
-        		currentBuild.description = PRname + "- PR merge failed"
+        		currentBuild.description = PRname + " - PR merge failed"
 			currentBuild.result = 'FAILURE'
 	
 			runDuration=currentBuild.durationString[0..-14]
