@@ -167,6 +167,8 @@ command = "set +x; curl -X POST -H 'Content-Type: application/json' -d '${payloa
 			} catch (slackError) {
 				echo "Error posting to Slack"
 			}
+			// Must manually exit
+			sh 'exit 1'
 		}
     	}
 	
