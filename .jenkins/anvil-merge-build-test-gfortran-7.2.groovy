@@ -47,11 +47,15 @@ int numErrors = 0
 int testFailures = 0
 int testSkipped = 0
 boolean buildSuccess = true
+String PRname
 
 import groovy.json.JsonBuilder // For json construction.
   
 // Do all the work on a node
 node ('sl7') {
+
+// Store nicely formatted orginal name (easier than working out how it is passed to Jenkins!)
+PRname = currentBuild.description
 
 // Set up for Slack API
 slackURL = "${params.baseURL}jenkins-ci?token=${env.TOKEN}"
@@ -333,6 +337,10 @@ command = "set +x; curl -X POST -H 'Content-Type: application/json' -d '${payloa
 	} catch (slackError) {
 		echo "Error posting to Slack"
 	}
+
+	// Now everything is finished, set the name back to a useful hyperlink:
+	currentBuild.description = PRname
+
     }
 }
 
