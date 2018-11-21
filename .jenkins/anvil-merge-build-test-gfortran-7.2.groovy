@@ -144,7 +144,7 @@ command = "set +x; curl -X POST -H 'Content-Type: application/json' -d '${payloa
 				git merge ${sourceBranch}
 				rm -rf tests/unit_tests/collisions/
 			'''
-		} catch(gitError) {
+		} catch(Exception ex) {
         		currentBuild.description = "PR merge failed"
 			currentBuild.result = 'FAILURE'
 		}
