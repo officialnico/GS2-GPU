@@ -10,9 +10,14 @@ ifeq "$(VAL)" "0"
 all:
 	@echo "==> Skipping test in ${PWD}/$(TEST_FOLD) (Test_level ${TEST_LEVEL}, This test ${MY_TEST_LEVEL})."
 else
+ifndef USE_FFT
+all:
+	$(call SKIPCOMMAND,compiled without FFT library; compile with USE_FFT=on to run this test)
+else
 all: test_nonlinear_terms 
 	$(call RUNCOMMAND,test_nonlinear_terms,test_nonlinear_terms.in)
 
+endif
 endif
 
 test_nonlinear_terms.o:  ${TEST_MODS} 
