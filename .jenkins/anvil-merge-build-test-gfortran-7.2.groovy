@@ -118,7 +118,7 @@ command = "set +x; curl -X POST -H 'Content-Type: application/json' -d '${payloa
              		submoduleCfg: [],  
 			userRemoteConfigs: [[url: 'https://bitbucket.org/gyrokinetics/gs2']]]
 		)
-        	sh '''
+        	sh """
                         export GK_SYSTEM=${params.gksystem}
 			git config --global user.email "joseph.parker@stfc.ac.uk"
 			git config --global user.name "Joseph Parker"
@@ -128,7 +128,7 @@ command = "set +x; curl -X POST -H 'Content-Type: application/json' -d '${payloa
 			git pull
            		cd ..
 
-		'''
+		"""
     	}
 
 	stage('Merge') {
