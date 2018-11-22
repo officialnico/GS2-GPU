@@ -18,7 +18,7 @@ properties([[
   choice(name: "opt", choices: "intermediate\ndebug\nfast\nwarnings\ncoverage", description: "Build type"),
   choice(name: "comms", choices: "serial\nmpi", description: "Communications paradigm"),
   string(name: "modules", defaultValue: "gcc/7.2.0 fftw openmpi/1.10.0", description: "Module environments to load"),
-  string(name: "gksystem", defaultValue: "jenkins", description: "Module environments to load"),
+  string(name: "GK_SYSTEM", defaultValue: "jenkins", description: "Module environments to load"),
   string(name: "mathLibDir", defaultValue: "", description: "Specify maths library location"),
   string(name: "fft", defaultValue: "fftw3", description: "Select FFT to use"),
   string(name: "fftLibDir", defaultValue: "", description: "Specify fft library location"),
@@ -119,7 +119,6 @@ command = "set +x; curl -X POST -H 'Content-Type: application/json' -d '${payloa
 			userRemoteConfigs: [[url: 'https://bitbucket.org/gyrokinetics/gs2']]]
 		)
         	sh """
-                        export GK_SYSTEM=${params.gksystem}
 			git config --global user.email "joseph.parker@stfc.ac.uk"
 			git config --global user.name "Joseph Parker"
            		git submodule update --init --recursive --remote
@@ -244,7 +243,7 @@ command = "set +x; curl -X POST -H 'Content-Type: application/json' -d '${payloa
         	currentBuild.description = "Building"
 		
 		try{
-			sh '''
+			sh """
 				export NETCDF_VERSION=4.6.1
 				export NETCDFF_VERSION=4.4.4
 				export GCC_VERSION=gcc-7.2.0
@@ -255,7 +254,7 @@ command = "set +x; curl -X POST -H 'Content-Type: application/json' -d '${payloa
 				export MY_NETCDF_LIB=\$MY_NETCDF_DIR/lib
 				export MY_NETCDFF_LIB=\$MY_NETCDFF_DIR/lib
 
-                              	export GK_SYSTEM="${params.GK_SYSTEM}"
+                              	export GK_SYSTEM=${params.GK_SYSTEM}
                               	export MAKEFLAGS=-IMakefiles
                               	export TESTEXEC='mpirun -np 6'
 
@@ -266,7 +265,7 @@ command = "set +x; curl -X POST -H 'Content-Type: application/json' -d '${payloa
 				make depend
 				make test_make
 				make -j
-			'''
+			"""
 		} catch(Exception buildError) {
         		currentBuild.description = PRname + " - build failed"
 			currentBuild.result = 'FAILURE'
@@ -280,7 +279,7 @@ command = "set +x; curl -X POST -H 'Content-Type: application/json' -d '${payloa
 
         	currentBuild.description = "Testing"
 		try{
-			sh '''
+			sh """
 				export NETCDF_VERSION=4.6.1
 				export NETCDFF_VERSION=4.4.4
 				export GCC_VERSION=gcc-7.2.0
@@ -289,7 +288,7 @@ command = "set +x; curl -X POST -H 'Content-Type: application/json' -d '${payloa
 				export MY_NETCDF_LIB=\$MY_NETCDF_DIR/lib
 				export MY_NETCDFF_LIB=\$MY_NETCDFF_DIR/lib
 
-                              	export GK_SYSTEM=\${params.GK_SYSTEM}
+                              	export GK_SYSTEM=${params.GK_SYSTEM}
                               	export MAKEFLAGS=-IMakefiles
                               	export TESTEXEC='mpirun -np 2'
               			module load ${params.modules}
@@ -299,7 +298,7 @@ command = "set +x; curl -X POST -H 'Content-Type: application/json' -d '${payloa
 				make tests
 				cd ../
 				rm -rf gs2
-			'''
+			"""
 		} catch(Exception testError) {
         		currentBuild.description = PRname + " - tests failed"
 			currentBuild.result = 'FAILURE'
