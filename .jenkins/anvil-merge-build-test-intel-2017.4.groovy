@@ -18,7 +18,7 @@ properties([[
   choice(name: "opt", choices: "debug\nintermediate\nfast\nwarnings\ncoverage", description: "Build type"),
   choice(name: "comms", choices: "serial\nmpi", description: "Communications paradigm"),
   string(name: "modules", defaultValue: "intel/2017.4 fftw intelmpi/2017.4", description: "Module environments to load"),
-  string(name: "compiler", defaultValue: "gcc-7.2.0", description: "compiler-version, for consitent path names"),
+  string(name: "compiler", defaultValue: "intel-2017.4", description: "compiler-version, for consitent path names"),
   string(name: "GK_SYSTEM", defaultValue: "jenkins-intel", description: "Module environments to load"),
   string(name: "mathLibDir", defaultValue: "", description: "Specify maths library location"),
   string(name: "fft", defaultValue: "fftw3", description: "Select FFT to use"),
