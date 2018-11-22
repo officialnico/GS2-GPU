@@ -137,6 +137,8 @@ command = "set +x; curl -X POST -H 'Content-Type: application/json' -d '${payloa
 		try{
 			sh '.jenkins/merge.sh'
 		} finally {
+
+			evaluate(new File(".jenkins/slack_git_fail.groovy"))
         		currentBuild.description = PRname + " - PR merge failed"
 			currentBuild.result = 'FAILURE'
 	
