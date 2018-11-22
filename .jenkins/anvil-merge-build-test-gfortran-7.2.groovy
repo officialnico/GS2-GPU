@@ -138,12 +138,8 @@ command = "set +x; curl -X POST -H 'Content-Type: application/json' -d '${payloa
 			sh '.jenkins/merge.sh'
 		} finally {
 
-    			sh '''
-        			ls -lhrta
-        			ls .jenkins -lhrta
-    			'''
 			def externalMethod = load '.jenkins/slack_git_fail.groovy'
-         		externalMethod.sendSlackMessage()
+         		//externalMethod.sendSlackMessage()
 
         		currentBuild.description = PRname + " - PR merge failed"
 			currentBuild.result = 'FAILURE'
@@ -204,7 +200,7 @@ command = "set +x; curl -X POST -H 'Content-Type: application/json' -d '${payloa
         then 
               echo "netcdf + nectdff found"
         else
-              module load gcc/7.2.0 openmpi/1.10.0
+              module load ${params.modules}
 	      module avail
 
 
@@ -257,7 +253,7 @@ command = "set +x; curl -X POST -H 'Content-Type: application/json' -d '${payloa
                               	export MAKEFLAGS=-IMakefiles
                               	export TESTEXEC='mpirun -np 6'
 
-            			module load gcc/7.2.0 openmpi/1.10.0
+              			module load ${params.modules}
             			module load fftw
                               	export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:\$MY_NETCDF_LIB:\$MY_NETCDFF_LIB:/opt/software/gcc-7.2.0/fftw/3.3.5/lib
 
@@ -290,7 +286,7 @@ command = "set +x; curl -X POST -H 'Content-Type: application/json' -d '${payloa
                               	export GK_SYSTEM=jenkins
                               	export MAKEFLAGS=-IMakefiles
                               	export TESTEXEC='mpirun -np 2'
-            			module load gcc/7.2.0 openmpi/1.10.0
+              			module load ${params.modules}
             			module load fftw
                               	export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:\$MY_NETCDF_LIB:\$MY_NETCDFF_LIB:/opt/software/gcc-7.2.0/fftw/3.3.5/lib
 
