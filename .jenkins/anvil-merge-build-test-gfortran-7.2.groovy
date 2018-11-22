@@ -261,15 +261,12 @@ command = "set +x; curl -X POST -H 'Content-Type: application/json' -d '${payloa
                               	export MAKEFLAGS=-IMakefiles
                               	export TESTEXEC='mpirun -np 6'
 				echo "Before load modules"
-              			module load ${params.modules}
                             	export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:\$MY_NETCDF_LIB:\$MY_NETCDFF_LIB:/opt/software/gcc-7.2.0/fftw/3.3.5/lib
+				echo "Before make"
+				make depend
+				make test_make
+				make -j
 			"""
-//
-//				echo "Before make"
-//				make depend
-//				make test_make
-//				make -j
-//			"""
 		} catch(buildError) {
         		currentBuild.description = PRname + " - build failed"
 			currentBuild.result = 'FAILURE'
