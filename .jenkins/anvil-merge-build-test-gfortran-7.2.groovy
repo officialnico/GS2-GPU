@@ -238,46 +238,46 @@ command = "set +x; curl -X POST -H 'Content-Type: application/json' -d '${payloa
         """
   }
 
-//	stage('Build') {
-//
-//        	currentBuild.description = "Building"
-//		
-//		try{
-//			sh '''
-//				echo "Start of building"
-//				export NETCDF_VERSION=4.6.1
-//				export NETCDFF_VERSION=4.4.4
-//				export GCC_VERSION=gcc-7.2.0
-//				export MY_NETCDF_DIR=${WORKSPACE}/software/\$GCC_VERSION/netcdf/\$NETCDF_VERSION
-//				export MY_NETCDFF_DIR=${WORKSPACE}/software/\$GCC_VERSION/netcdf-fortran/\$NETCDFF_VERSION
-//				export MY_NETCDF_INC=\$MY_NETCDF_DIR/include
-//				export MY_NETCDFF_INC=\$MY_NETCDFF_DIR/include
-//				export MY_NETCDF_LIB=\$MY_NETCDF_DIR/lib
-//				export MY_NETCDFF_LIB=\$MY_NETCDFF_DIR/lib
-//
-//				echo "Before setting flags"
-//                              	export GK_SYSTEM=${params.GK_SYSTEM}
-//                              	export MAKEFLAGS=-IMakefiles
-//                              	export TESTEXEC='mpirun -np 6'
-//
-//				echo "Before load modules"
-//              			module load ${params.modules}
-//            			module load fftw
-//                              	export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:\$MY_NETCDF_LIB:\$MY_NETCDFF_LIB:/opt/software/gcc-7.2.0/fftw/3.3.5/lib
-//
-//				echo "Before make"
-//				make depend
-//				make test_make
-//				make -j
-//			'''
-//		} catch(Exception buildError) {
-//        		currentBuild.description = PRname + " - build failed"
-//			currentBuild.result = 'FAILURE'
-//			// Must manually exit
-//			sh 'exit 1'
-//		}
-//
-//    	}
+	stage('Build') {
+
+        	currentBuild.description = "Building"
+		
+		try{
+			sh """
+				echo "Start of building"
+				export NETCDF_VERSION=4.6.1
+				export NETCDFF_VERSION=4.4.4
+				export GCC_VERSION=gcc-7.2.0
+				export MY_NETCDF_DIR=${WORKSPACE}/software/\$GCC_VERSION/netcdf/\$NETCDF_VERSION
+				export MY_NETCDFF_DIR=${WORKSPACE}/software/\$GCC_VERSION/netcdf-fortran/\$NETCDFF_VERSION
+				export MY_NETCDF_INC=\$MY_NETCDF_DIR/include
+				export MY_NETCDFF_INC=\$MY_NETCDFF_DIR/include
+				export MY_NETCDF_LIB=\$MY_NETCDF_DIR/lib
+				export MY_NETCDFF_LIB=\$MY_NETCDFF_DIR/lib
+
+				echo "Before setting flags"
+                              	export GK_SYSTEM=${params.GK_SYSTEM}
+                              	export MAKEFLAGS=-IMakefiles
+                              	export TESTEXEC='mpirun -np 6'
+
+				echo "Before load modules"
+              			module load ${params.modules}
+            			module load fftw
+                              	export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:\$MY_NETCDF_LIB:\$MY_NETCDFF_LIB:/opt/software/gcc-7.2.0/fftw/3.3.5/lib
+
+				echo "Before make"
+				make depend
+				make test_make
+				make -j
+			"""
+		} catch(buildError) {
+        		currentBuild.description = PRname + " - build failed"
+			currentBuild.result = 'FAILURE'
+			// Must manually exit
+			//sh 'exit 1'
+		}
+
+    	}
 
 	stage('Test') {
 
@@ -303,7 +303,7 @@ command = "set +x; curl -X POST -H 'Content-Type: application/json' -d '${payloa
 				cd ../
 				rm -rf gs2
 			"""
-		} catch(Exception testError) {
+		} catch(testError) {
         		currentBuild.description = PRname + " - tests failed"
 			currentBuild.result = 'FAILURE'
 		}
