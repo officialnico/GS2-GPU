@@ -268,8 +268,10 @@ command = "set +x; curl -X POST -H 'Content-Type: application/json' -d '${payloa
 				make -j
 			"""
 		} catch(buildError) {
+			
         		currentBuild.description = PRname + " - build failed"
 			currentBuild.result = 'FAILURE'
+			throw buildError
 			// Must manually exit
 			//sh 'exit 1'
 		}
