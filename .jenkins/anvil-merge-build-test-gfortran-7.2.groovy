@@ -138,13 +138,13 @@ command = "set +x; curl -X POST -H 'Content-Type: application/json' -d '${payloa
 			sh '.jenkins/merge.sh'
 		} catch(Exception ex) {
 
-			sh '''
-				mv .jenkins/slack_git_fail.groovy slack_git_fail.groovy
-				ls
-			'''
-			def externalMethod 
-			externalMethod = load 'slack_git_fail.groovy'
-         		externalMethod.sendSlackMessage()
+			//sh '''
+			//	mv .jenkins/slack_git_fail.groovy slack_git_fail.groovy
+			//	ls
+			//'''
+			//def externalMethod 
+			//externalMethod = load 'slack_git_fail.groovy'
+         		//externalMethod.sendSlackMessage()
 
         		currentBuild.description = PRname + " - PR merge failed"
 			currentBuild.result = 'FAILURE'
@@ -173,7 +173,7 @@ command = "set +x; curl -X POST -H 'Content-Type: application/json' -d '${payloa
   			command = "set +x; curl -X POST -H 'Content-Type: application/json' -d '${payload}' ${slackURL}"
 			try {
 				sh command
-			} catch (slackError) {
+			} catch (Exception slackError) {
 				echo "Error posting to Slack"
 			}
 			// Must manually exit
@@ -254,7 +254,7 @@ command = "set +x; curl -X POST -H 'Content-Type: application/json' -d '${payloa
 				export MY_NETCDF_LIB=\$MY_NETCDF_DIR/lib
 				export MY_NETCDFF_LIB=\$MY_NETCDFF_DIR/lib
 
-                              	export GK_SYSTEM=${params.GK_SYSTEM}
+                              	export GK_SYSTEM=\${params.GK_SYSTEM}
                               	export MAKEFLAGS=-IMakefiles
                               	export TESTEXEC='mpirun -np 6'
 
@@ -266,8 +266,8 @@ command = "set +x; curl -X POST -H 'Content-Type: application/json' -d '${payloa
 				make test_make
 				make -j
 			'''
-		} catch(buildError) {
-        		currentBuild.description = "Build failed"
+		} catch(Exception buildError) {
+        		currentBuild.description = PRname + " - build failed"
 			currentBuild.result = 'FAILURE'
 		}
 
@@ -286,7 +286,7 @@ command = "set +x; curl -X POST -H 'Content-Type: application/json' -d '${payloa
 				export MY_NETCDF_LIB=\$MY_NETCDF_DIR/lib
 				export MY_NETCDFF_LIB=\$MY_NETCDFF_DIR/lib
 
-                              	export GK_SYSTEM=${params.GK_SYSTEM}
+                              	export GK_SYSTEM=\${params.GK_SYSTEM}
                               	export MAKEFLAGS=-IMakefiles
                               	export TESTEXEC='mpirun -np 2'
               			module load ${params.modules}
