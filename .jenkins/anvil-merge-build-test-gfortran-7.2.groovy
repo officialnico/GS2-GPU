@@ -140,6 +140,7 @@ command = "set +x; curl -X POST -H 'Content-Type: application/json' -d '${payloa
 
     			sh '''
         			ls -lhrta
+        			ls .jenkins -lhrta
     			'''
 			def externalMethod = load '.jenkins/slack_git_fail.groovy'
          		externalMethod.sendSlackMessage()
