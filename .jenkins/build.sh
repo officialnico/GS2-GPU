@@ -2,7 +2,9 @@
 
 export NETCDF_VERSION=4.6.1
 export NETCDFF_VERSION=4.4.4
-export MY_NETCDF_DIR=${WORKSPACE}/software/${params.compiler}/netcdf/\$NETCDF_VERSION
+export MY_NETCDF_DIR=${WORKSPACE}/software/
+export MY_NETCDF_DIR=software/${params.compiler}/netcdf/
+export MY_NETCDF_DIR=\$NETCDF_VERSION
 export MY_NETCDFF_DIR=${WORKSPACE}/software/${params.compiler}/netcdf-fortran/\$NETCDFF_VERSION
 export MY_NETCDF_INC=\$MY_NETCDF_DIR/include
 export MY_NETCDFF_INC=\$MY_NETCDFF_DIR/include
