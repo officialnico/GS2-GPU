@@ -16,7 +16,7 @@ then
 	export MAKEFLAGS=\$MAKEFLAGS DEBUG=on
 fi				
 export TESTEXEC='mpirun -np 6'
-module load $3
+module load $3 $4 $5
 export LD_LIBRARY_PATH=\$LD_LIBRARY_PATH:\$MY_NETCDF_LIB:\$MY_NETCDFF_LIB:/opt/software/$1/fftw/3.3.5/lib
 
 make depend
