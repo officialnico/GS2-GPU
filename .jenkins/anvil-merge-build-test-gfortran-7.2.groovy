@@ -240,7 +240,7 @@ command = "set +x; curl -X POST -H 'Content-Type: application/json' -d '${payloa
         	currentBuild.description = "Building"
 		
 		try{
-			sh '.jenkins/build.sh'
+			sh ".jenkins/build.sh"
 		} catch(buildError) {
         		currentBuild.description = PRname + " - build failed"
 			currentBuild.result = 'FAILURE'
