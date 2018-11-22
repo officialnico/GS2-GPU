@@ -136,7 +136,7 @@ command = "set +x; curl -X POST -H 'Content-Type: application/json' -d '${payloa
 		
 		try{
 			sh '.jenkins/merge.sh'
-		} except {
+		} catch(Exception ex) {
 
 			sh '''
 				mv .jenkins/slack_git_fail.groovy slack_git_fail.groovy
