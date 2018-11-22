@@ -118,7 +118,7 @@ command = "set +x; curl -X POST -H 'Content-Type: application/json' -d '${payloa
              		submoduleCfg: [],  
 			userRemoteConfigs: [[url: 'https://bitbucket.org/gyrokinetics/gs2']]]
 		)
-        	sh """
+        	sh '''
 			git config --global user.email "joseph.parker@stfc.ac.uk"
 			git config --global user.name "Joseph Parker"
            		git submodule update --init --recursive --remote
@@ -127,7 +127,7 @@ command = "set +x; curl -X POST -H 'Content-Type: application/json' -d '${payloa
 			git pull
            		cd ..
 
-		"""
+		'''
     	}
 
 	stage('Merge') {
@@ -145,7 +145,9 @@ command = "set +x; curl -X POST -H 'Content-Type: application/json' -d '${payloa
 			//def externalMethod 
 			//externalMethod = load 'slack_git_fail.groovy'
          		//externalMethod.sendSlackMessage()
-
+			sh '''
+				echo "git fail"
+			'''
         		currentBuild.description = PRname + " - PR merge failed"
 			currentBuild.result = 'FAILURE'
 	
@@ -243,7 +245,7 @@ command = "set +x; curl -X POST -H 'Content-Type: application/json' -d '${payloa
         	currentBuild.description = "Building"
 		
 		try{
-			sh """
+			sh '''
 				echo "Start of building"
 				export NETCDF_VERSION=4.6.1
 				export NETCDFF_VERSION=4.4.4
@@ -256,7 +258,7 @@ command = "set +x; curl -X POST -H 'Content-Type: application/json' -d '${payloa
 				export MY_NETCDFF_LIB=\$MY_NETCDFF_DIR/lib
 
 				echo "Before setting flags"
-                              	export GK_SYSTEM=${params.GK_SYSTEM}
+                              	export GK_SYSTEM=jenkins
                               	export MAKEFLAGS=-IMakefiles
                               	export TESTEXEC='mpirun -np 6'
 
@@ -269,7 +271,7 @@ command = "set +x; curl -X POST -H 'Content-Type: application/json' -d '${payloa
 				make depend
 				make test_make
 				make -j
-			"""
+			'''
 		} catch(buildError) {
         		currentBuild.description = PRname + " - build failed"
 			currentBuild.result = 'FAILURE'
@@ -283,7 +285,7 @@ command = "set +x; curl -X POST -H 'Content-Type: application/json' -d '${payloa
 
         	currentBuild.description = "Testing"
 		try{
-			sh """
+			sh '''
 				export NETCDF_VERSION=4.6.1
 				export NETCDFF_VERSION=4.4.4
 				export GCC_VERSION=gcc-7.2.0
@@ -302,7 +304,7 @@ command = "set +x; curl -X POST -H 'Content-Type: application/json' -d '${payloa
 				make tests
 				cd ../
 				rm -rf gs2
-			"""
+			'''
 		} catch(testError) {
         		currentBuild.description = PRname + " - tests failed"
 			currentBuild.result = 'FAILURE'
