@@ -246,7 +246,6 @@ command = "set +x; curl -X POST -H 'Content-Type: application/json' -d '${payloa
 		
 		try{
 			sh """
-				echo "Start of building"
 				export NETCDF_VERSION=4.6.1
 				export NETCDFF_VERSION=4.4.4
 				export GCC_VERSION=gcc-7.2.0
@@ -256,13 +255,11 @@ command = "set +x; curl -X POST -H 'Content-Type: application/json' -d '${payloa
 				export MY_NETCDFF_INC=\$MY_NETCDFF_DIR/include
 				export MY_NETCDF_LIB=\$MY_NETCDF_DIR/lib
 				export MY_NETCDFF_LIB=\$MY_NETCDFF_DIR/lib
-				echo "Before setting flags"
                               	export GK_SYSTEM=jenkins
                               	export MAKEFLAGS=-IMakefiles
                               	export TESTEXEC='mpirun -np 6'
-				echo "Before load modules"
-                            	export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:\$MY_NETCDF_LIB:\$MY_NETCDFF_LIB:/opt/software/gcc-7.2.0/fftw/3.3.5/lib
-				echo "Before make"
+				module load ${params.modules}
+                            	export LD_LIBRARY_PATH=\$LD_LIBRARY_PATH:\$MY_NETCDF_LIB:\$MY_NETCDFF_LIB:/opt/software/gcc-7.2.0/fftw/3.3.5/lib
 				make depend
 				make test_make
 				make -j
@@ -272,8 +269,6 @@ command = "set +x; curl -X POST -H 'Content-Type: application/json' -d '${payloa
         		currentBuild.description = PRname + " - build failed"
 			currentBuild.result = 'FAILURE'
 			throw buildError
-			// Must manually exit
-			//sh 'exit 1'
 		}
 
     	}
