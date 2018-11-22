@@ -136,7 +136,7 @@ command = "set +x; curl -X POST -H 'Content-Type: application/json' -d '${payloa
 		
 		try{
 			sh '.jenkins/merge.sh'
-		} finally {
+		} except {
 
 			sh '''
 				mv .jenkins/slack_git_fail.groovy slack_git_fail.groovy
@@ -283,8 +283,6 @@ command = "set +x; curl -X POST -H 'Content-Type: application/json' -d '${payloa
 				export GCC_VERSION=gcc-7.2.0
 				export MY_NETCDF_DIR=${WORKSPACE}/software/\$GCC_VERSION/netcdf/\$NETCDF_VERSION
 				export MY_NETCDFF_DIR=${WORKSPACE}/software/\$GCC_VERSION/netcdf-fortran/\$NETCDFF_VERSION
-				export MY_NETCDF_INC=\$MY_NETCDF_DIR/include
-				export MY_NETCDFF_INC=\$MY_NETCDFF_DIR/include
 				export MY_NETCDF_LIB=\$MY_NETCDF_DIR/lib
 				export MY_NETCDFF_LIB=\$MY_NETCDFF_DIR/lib
 
