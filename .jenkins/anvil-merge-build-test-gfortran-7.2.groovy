@@ -138,8 +138,12 @@ command = "set +x; curl -X POST -H 'Content-Type: application/json' -d '${payloa
 			sh '.jenkins/merge.sh'
 		} finally {
 
-			sh 'mv .jenkins/slack_git_fail.groovy slack_git_fail.groovy'
-			def externalMethod = load 'slack_git_fail.groovy'
+			sh '''
+				mv .jenkins/slack_git_fail.groovy slack_git_fail.groovy'
+				ls
+			'''
+			def externalMethod 
+			externalMethod = load 'slack_git_fail.groovy'
          		externalMethod.sendSlackMessage()
 
         		currentBuild.description = PRname + " - PR merge failed"
