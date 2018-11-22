@@ -256,12 +256,11 @@ command = "set +x; curl -X POST -H 'Content-Type: application/json' -d '${payloa
 				export MY_NETCDFF_INC=\$MY_NETCDFF_DIR/include
 				export MY_NETCDF_LIB=\$MY_NETCDF_DIR/lib
 				export MY_NETCDFF_LIB=\$MY_NETCDFF_DIR/lib
+				echo "Before setting flags"
+                              	export GK_SYSTEM=jenkins
+                              	export MAKEFLAGS=-IMakefiles
+                              	export TESTEXEC='mpirun -np 6'
 			"""
-//				echo "Before setting flags"
-//                              	export GK_SYSTEM=jenkins
-//                              	export MAKEFLAGS=-IMakefiles
-//                              	export TESTEXEC='mpirun -np 6'
-//
 //				echo "Before load modules"
 //              			module load ${params.modules}
 //            			module load fftw
