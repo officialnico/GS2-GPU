@@ -138,7 +138,6 @@ command = "set +x; curl -X POST -H 'Content-Type: application/json' -d '${payloa
 			sh '.jenkins/merge.sh'
 		} finally {
 
-			evaluate(new File(".jenkins/slack_git_fail.groovy"))
 			def externalMethod = load(".jenkins/slack_git_fail.groovy")
          		externalMethod.sendSlackMessage()
 
