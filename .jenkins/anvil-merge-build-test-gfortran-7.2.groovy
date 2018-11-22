@@ -18,7 +18,7 @@ properties([[
   choice(name: "opt", choices: "intermediate\ndebug\nfast\nwarnings\ncoverage", description: "Build type"),
   choice(name: "comms", choices: "serial\nmpi", description: "Communications paradigm"),
   string(name: "modules", defaultValue: "gcc/7.2.0 fftw openmpi/1.10.0", description: "Module environments to load"),
-  string(name: "mathLibs", defaultValue: "openblas", description: "Select BLAS/LAPACK to use"),
+  string(name: "GK_SYSTEM", defaultValue: "jenkins", description: "Module environments to load"),
   string(name: "mathLibDir", defaultValue: "", description: "Specify maths library location"),
   string(name: "fft", defaultValue: "fftw3", description: "Select FFT to use"),
   string(name: "fftLibDir", defaultValue: "", description: "Specify fft library location"),
@@ -139,7 +139,7 @@ command = "set +x; curl -X POST -H 'Content-Type: application/json' -d '${payloa
 		} finally {
 
 			sh '''
-				mv .jenkins/slack_git_fail.groovy slack_git_fail.groovy'
+				mv .jenkins/slack_git_fail.groovy slack_git_fail.groovy
 				ls
 			'''
 			def externalMethod 
@@ -254,7 +254,7 @@ command = "set +x; curl -X POST -H 'Content-Type: application/json' -d '${payloa
 				export MY_NETCDF_LIB=\$MY_NETCDF_DIR/lib
 				export MY_NETCDFF_LIB=\$MY_NETCDFF_DIR/lib
 
-                              	export GK_SYSTEM=jenkins
+                              	export GK_SYSTEM=${params.GK_SYSTEM}
                               	export MAKEFLAGS=-IMakefiles
                               	export TESTEXEC='mpirun -np 6'
 
@@ -288,7 +288,7 @@ command = "set +x; curl -X POST -H 'Content-Type: application/json' -d '${payloa
 				export MY_NETCDF_LIB=\$MY_NETCDF_DIR/lib
 				export MY_NETCDFF_LIB=\$MY_NETCDFF_DIR/lib
 
-                              	export GK_SYSTEM=jenkins
+                              	export GK_SYSTEM=${params.GK_SYSTEM}
                               	export MAKEFLAGS=-IMakefiles
                               	export TESTEXEC='mpirun -np 2'
               			module load ${params.modules}
