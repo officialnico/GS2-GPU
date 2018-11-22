@@ -1,1 +1,4 @@
-println "reading from external file"
+def sendSlackMessage() {
+	println "reading from external file"
+}
+return this
