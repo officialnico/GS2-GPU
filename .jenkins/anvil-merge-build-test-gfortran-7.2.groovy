@@ -119,6 +119,7 @@ command = "set +x; curl -X POST -H 'Content-Type: application/json' -d '${payloa
 			userRemoteConfigs: [[url: 'https://bitbucket.org/gyrokinetics/gs2']]]
 		)
         	sh '''
+                        export GK_SYSTEM=\$params.GK_SYSTEM
 			git config --global user.email "joseph.parker@stfc.ac.uk"
 			git config --global user.name "Joseph Parker"
            		git submodule update --init --recursive --remote
