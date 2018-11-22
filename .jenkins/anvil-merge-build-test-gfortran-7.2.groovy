@@ -250,14 +250,13 @@ command = "set +x; curl -X POST -H 'Content-Type: application/json' -d '${payloa
 				export NETCDF_VERSION=4.6.1
 				export NETCDFF_VERSION=4.4.4
 				export GCC_VERSION=gcc-7.2.0
+				export MY_NETCDF_DIR=${WORKSPACE}/software/\$GCC_VERSION/netcdf/\$NETCDF_VERSION
+				export MY_NETCDFF_DIR=${WORKSPACE}/software/\$GCC_VERSION/netcdf-fortran/\$NETCDFF_VERSION
+				export MY_NETCDF_INC=\$MY_NETCDF_DIR/include
+				export MY_NETCDFF_INC=\$MY_NETCDFF_DIR/include
+				export MY_NETCDF_LIB=\$MY_NETCDF_DIR/lib
+				export MY_NETCDFF_LIB=\$MY_NETCDFF_DIR/lib
 			"""
-//				export MY_NETCDF_DIR=${WORKSPACE}/software/\$GCC_VERSION/netcdf/\$NETCDF_VERSION
-//				export MY_NETCDFF_DIR=${WORKSPACE}/software/\$GCC_VERSION/netcdf-fortran/\$NETCDFF_VERSION
-//				export MY_NETCDF_INC=\$MY_NETCDF_DIR/include
-//				export MY_NETCDFF_INC=\$MY_NETCDFF_DIR/include
-//				export MY_NETCDF_LIB=\$MY_NETCDF_DIR/lib
-//				export MY_NETCDFF_LIB=\$MY_NETCDFF_DIR/lib
-//
 //				echo "Before setting flags"
 //                              	export GK_SYSTEM=jenkins
 //                              	export MAKEFLAGS=-IMakefiles
