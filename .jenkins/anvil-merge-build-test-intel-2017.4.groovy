@@ -17,7 +17,9 @@ properties([[
   string(name: "arch", defaultValue: "linux_x86_64_gfortran7.0", description: "Manually set build arch"),
   choice(name: "opt", choices: "debug\nintermediate\nfast\nwarnings\ncoverage", description: "Build type"),
   choice(name: "comms", choices: "serial\nmpi", description: "Communications paradigm"),
-  string(name: "mathLibs", defaultValue: "openblas", description: "Select BLAS/LAPACK to use"),
+  string(name: "modules", defaultValue: "intel/2017.4 fftw intelmpi/2017.4", description: "Module environments to load"),
+  string(name: "compiler", defaultValue: "gcc-7.2.0", description: "compiler-version, for consitent path names"),
+  string(name: "GK_SYSTEM", defaultValue: "jenkins-intel", description: "Module environments to load"),
   string(name: "mathLibDir", defaultValue: "", description: "Specify maths library location"),
   string(name: "fft", defaultValue: "fftw3", description: "Select FFT to use"),
   string(name: "fftLibDir", defaultValue: "", description: "Specify fft library location"),
@@ -131,21 +133,14 @@ command = "set +x; curl -X POST -H 'Content-Type: application/json' -d '${payloa
 
 	stage('Merge') {
 
-        	currentBuild.description = "Merging PR"
+        	currentBuild.description = PRname + " - Merging PR"
 		
 		try{
-			sh '''
-				git fetch
-				git checkout ${sourceBranch}
-				git pull
-				git checkout origin/${targetBranch}
-				git checkout -b jobid-${BUILD_NUMBER}-${sourceBranch}-${targetBranch}
-				git merge ${sourceBranch}
-				rm -rf tests/unit_tests/collisions/
-			'''
+			sh '.jenkins/merge.sh'
 		} catch(gitError) {
-        		currentBuild.description = "PR merge failed"
+        		currentBuild.description = PRname + " - PR merge failed"
 			currentBuild.result = 'FAILURE'
+			throw gitError
 		}
     	}
 	
@@ -157,9 +152,8 @@ command = "set +x; curl -X POST -H 'Content-Type: application/json' -d '${payloa
 
 	export NETCDF_VERSION=4.6.1
 	export NETCDFF_VERSION=4.4.4
-	export INTEL_VERSION=intel-2017.4
-	export MY_NETCDF_DIR=${WORKSPACE}/software/\$INTEL_VERSION/netcdf/\$NETCDF_VERSION
-        export MY_NETCDFF_DIR=${WORKSPACE}/software/\$INTEL_VERSION/netcdf-fortran/\$NETCDFF_VERSION
+	export MY_NETCDF_DIR=${WORKSPACE}/software/${params.compiler}/netcdf/\$NETCDF_VERSION
+        export MY_NETCDFF_DIR=${WORKSPACE}/software/${params.compiler}/netcdf-fortran/\$NETCDFF_VERSION
 	export MY_NETCDF_INC=\$MY_NETCDF_DIR/include
 	export MY_NETCDFF_INC=\$MY_NETCDFF_DIR/include
 	export MY_NETCDF_LIB=\$MY_NETCDF_DIR/lib
@@ -173,8 +167,8 @@ command = "set +x; curl -X POST -H 'Content-Type: application/json' -d '${payloa
         then 
               echo "netcdf + nectdff found"
         else
+              module load ${params.modules}
 	      module avail
-              module load intel/2017.4 intelmpi/2017.4
 
               rm -rf \$MY_NETCDF_DIR
               rm -rf \$MY_NETCDFF_DIR
@@ -210,36 +204,33 @@ command = "set +x; curl -X POST -H 'Content-Type: application/json' -d '${payloa
         	currentBuild.description = "Building"
 		
 		try{
-			sh '''
+			sh """
 				export NETCDF_VERSION=4.6.1
 				export NETCDFF_VERSION=4.4.4
-				export INTEL_VERSION=intel-2017.4
-				export MY_NETCDF_DIR=${WORKSPACE}/software/\$INTEL_VERSION/netcdf/\$NETCDF_VERSION
-				export MY_NETCDFF_DIR=${WORKSPACE}/software/\$INTEL_VERSION/netcdf-fortran/\$NETCDFF_VERSION
+				export MY_NETCDF_DIR=${WORKSPACE}/software/${params.compiler}/netcdf/\$NETCDF_VERSION
+				export MY_NETCDFF_DIR=${WORKSPACE}/software/${params.compiler}/netcdf-fortran/\$NETCDFF_VERSION
 				export MY_NETCDF_INC=\$MY_NETCDF_DIR/include
 				export MY_NETCDFF_INC=\$MY_NETCDFF_DIR/include
 				export MY_NETCDF_LIB=\$MY_NETCDF_DIR/lib
 				export MY_NETCDFF_LIB=\$MY_NETCDFF_DIR/lib
-
-                              	export GK_SYSTEM=jenkins-intel
+                              	export GK_SYSTEM=${params.GK_SYSTEM}
                               	export MAKEFLAGS=-IMakefiles
 				if [ params.opt == "debug" ] 
 				then
+					echo "Compiling in DEBUG mode"
 					export MAKEFLAGS=\$MAKEFLAGS DEBUG=on
 				fi				
                               	export TESTEXEC='mpirun -np 6'
-
-            			module load intel/2017.4 intelmpi/2017.4
-            			module load fftw
-                              	export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:\$MY_NETCDF_LIB:\$MY_NETCDFF_LIB:/opt/software/\$INTEL_VERSION/fftw/3.3.5/lib
-
+				module load ${params.modules}
+                              	export LD_LIBRARY_PATH=\$LD_LIBRARY_PATH:\$MY_NETCDF_LIB:\$MY_NETCDFF_LIB:/opt/software/${params.compiler}/fftw/3.3.5/lib
 				make depend
 				make test_make
 				make -j
-			'''
+			"""
 		} catch(buildError) {
-        		currentBuild.description = "Build failed"
+        		currentBuild.description = PRname + " - build failed"
 			currentBuild.result = 'FAILURE'
+			throw buildError
 		}
 
     	}
@@ -248,35 +239,32 @@ command = "set +x; curl -X POST -H 'Content-Type: application/json' -d '${payloa
 
         	currentBuild.description = "Testing"
 		try{
-			sh '''
+			sh """
 				export NETCDF_VERSION=4.6.1
 				export NETCDFF_VERSION=4.4.4
-				export INTEL_VERSION=intel-2017.4
-				export MY_NETCDF_DIR=${WORKSPACE}/software/\$INTEL_VERSION/netcdf/\$NETCDF_VERSION
-				export MY_NETCDFF_DIR=${WORKSPACE}/software/\$INTEL_VERSION/netcdf-fortran/\$NETCDFF_VERSION
-				export MY_NETCDF_INC=\$MY_NETCDF_DIR/include
-				export MY_NETCDFF_INC=\$MY_NETCDFF_DIR/include
+				export MY_NETCDF_DIR=${WORKSPACE}/software/${params.compiler}/netcdf/\$NETCDF_VERSION
+				export MY_NETCDFF_DIR=${WORKSPACE}/software/${params.compiler}/netcdf-fortran/\$NETCDFF_VERSION
 				export MY_NETCDF_LIB=\$MY_NETCDF_DIR/lib
 				export MY_NETCDFF_LIB=\$MY_NETCDFF_DIR/lib
 
-                              	export GK_SYSTEM=jenkins-intel
+                              	export GK_SYSTEM=${params.GK_SYSTEM}
                               	export MAKEFLAGS=-IMakefiles
 				if [ params.opt == "debug" ] 
 				then
 					export MAKEFLAGS=\$MAKEFLAGS DEBUG=on
 				fi				
                               	export TESTEXEC='mpirun -np 2'
-            			module load intel/2017.4 intelmpi/2017.4
-            			module load fftw
-                              	export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:\$MY_NETCDF_LIB:\$MY_NETCDFF_LIB:/opt/software/\$INTEL_VERSION/fftw/3.3.5/lib
+              			module load ${params.modules}
+                              	export LD_LIBRARY_PATH=\$LD_LIBRARY_PATH:\$MY_NETCDF_LIB:\$MY_NETCDFF_LIB:/opt/software/${params.compiler}/fftw/3.3.5/lib
 
 				make tests
 				cd ../
 				rm -rf gs2
-			'''
+			"""
 		} catch(testError) {
-        		currentBuild.description = "Tests failed"
+        		currentBuild.description = PRname + " - tests failed"
 			currentBuild.result = 'FAILURE'
+			throw testError
 		}
     	}
 

@@ -18,6 +18,7 @@ properties([[
   choice(name: "opt", choices: "intermediate\ndebug\nfast\nwarnings\ncoverage", description: "Build type"),
   choice(name: "comms", choices: "serial\nmpi", description: "Communications paradigm"),
   string(name: "modules", defaultValue: "gcc/7.2.0 fftw openmpi/1.10.0", description: "Module environments to load"),
+  string(name: "compiler", defaultValue: "gcc-7.2.0", description: "compiler-version, for consitent path names"),
   string(name: "GK_SYSTEM", defaultValue: "jenkins", description: "Module environments to load"),
   string(name: "mathLibDir", defaultValue: "", description: "Specify maths library location"),
   string(name: "fft", defaultValue: "fftw3", description: "Select FFT to use"),
@@ -187,9 +188,8 @@ command = "set +x; curl -X POST -H 'Content-Type: application/json' -d '${payloa
 
 	export NETCDF_VERSION=4.6.1
 	export NETCDFF_VERSION=4.4.4
-	export GCC_VERSION=gcc-7.2.0
-	export MY_NETCDF_DIR=${WORKSPACE}/software/\$GCC_VERSION/netcdf/\$NETCDF_VERSION
-        export MY_NETCDFF_DIR=${WORKSPACE}/software/\$GCC_VERSION/netcdf-fortran/\$NETCDFF_VERSION
+	export MY_NETCDF_DIR=${WORKSPACE}/software/${params.compiler}/netcdf/\$NETCDF_VERSION
+        export MY_NETCDFF_DIR=${WORKSPACE}/software/${params.compiler}/netcdf-fortran/\$NETCDFF_VERSION
 	export MY_NETCDF_INC=\$MY_NETCDF_DIR/include
 	export MY_NETCDFF_INC=\$MY_NETCDFF_DIR/include
 	export MY_NETCDF_LIB=\$MY_NETCDF_DIR/lib
@@ -205,7 +205,6 @@ command = "set +x; curl -X POST -H 'Content-Type: application/json' -d '${payloa
         else
               module load ${params.modules}
 	      module avail
-
 
               rm -rf \$MY_NETCDF_DIR
               rm -rf \$MY_NETCDFF_DIR
@@ -244,24 +243,22 @@ command = "set +x; curl -X POST -H 'Content-Type: application/json' -d '${payloa
 			sh """
 				export NETCDF_VERSION=4.6.1
 				export NETCDFF_VERSION=4.4.4
-				export GCC_VERSION=gcc-7.2.0
-				export MY_NETCDF_DIR=${WORKSPACE}/software/\$GCC_VERSION/netcdf/\$NETCDF_VERSION
-				export MY_NETCDFF_DIR=${WORKSPACE}/software/\$GCC_VERSION/netcdf-fortran/\$NETCDFF_VERSION
+				export MY_NETCDF_DIR=${WORKSPACE}/software/${params.compiler}/netcdf/\$NETCDF_VERSION
+				export MY_NETCDFF_DIR=${WORKSPACE}/software/${params.compiler}/netcdf-fortran/\$NETCDFF_VERSION
 				export MY_NETCDF_INC=\$MY_NETCDF_DIR/include
 				export MY_NETCDFF_INC=\$MY_NETCDFF_DIR/include
 				export MY_NETCDF_LIB=\$MY_NETCDF_DIR/lib
 				export MY_NETCDFF_LIB=\$MY_NETCDFF_DIR/lib
-                              	export GK_SYSTEM=jenkins
+                              	export GK_SYSTEM=${params.GK_SYSTEM}
                               	export MAKEFLAGS=-IMakefiles
                               	export TESTEXEC='mpirun -np 6'
 				module load ${params.modules}
-                            	export LD_LIBRARY_PATH=\$LD_LIBRARY_PATH:\$MY_NETCDF_LIB:\$MY_NETCDFF_LIB:/opt/software/gcc-7.2.0/fftw/3.3.5/lib
+                              	export LD_LIBRARY_PATH=\$LD_LIBRARY_PATH:\$MY_NETCDF_LIB:\$MY_NETCDFF_LIB:/opt/software/${params.compiler}/fftw/3.3.5/lib
 				make depend
 				make test_make
 				make -j
 			"""
 		} catch(buildError) {
-			
         		currentBuild.description = PRname + " - build failed"
 			currentBuild.result = 'FAILURE'
 			throw buildError
@@ -276,9 +273,8 @@ command = "set +x; curl -X POST -H 'Content-Type: application/json' -d '${payloa
 			sh """
 				export NETCDF_VERSION=4.6.1
 				export NETCDFF_VERSION=4.4.4
-				export GCC_VERSION=gcc-7.2.0
-				export MY_NETCDF_DIR=${WORKSPACE}/software/\$GCC_VERSION/netcdf/\$NETCDF_VERSION
-				export MY_NETCDFF_DIR=${WORKSPACE}/software/\$GCC_VERSION/netcdf-fortran/\$NETCDFF_VERSION
+				export MY_NETCDF_DIR=${WORKSPACE}/software/${params.compiler}/netcdf/\$NETCDF_VERSION
+				export MY_NETCDFF_DIR=${WORKSPACE}/software/${params.compiler}/netcdf-fortran/\$NETCDFF_VERSION
 				export MY_NETCDF_LIB=\$MY_NETCDF_DIR/lib
 				export MY_NETCDFF_LIB=\$MY_NETCDFF_DIR/lib
 
@@ -286,7 +282,7 @@ command = "set +x; curl -X POST -H 'Content-Type: application/json' -d '${payloa
                               	export MAKEFLAGS=-IMakefiles
                               	export TESTEXEC='mpirun -np 2'
               			module load ${params.modules}
-                              	export LD_LIBRARY_PATH=\$LD_LIBRARY_PATH:\$MY_NETCDF_LIB:\$MY_NETCDFF_LIB:/opt/software/gcc-7.2.0/fftw/3.3.5/lib
+                              	export LD_LIBRARY_PATH=\$LD_LIBRARY_PATH:\$MY_NETCDF_LIB:\$MY_NETCDFF_LIB:/opt/software/${params.compiler}/fftw/3.3.5/lib
 
 				make tests
 				cd ../
