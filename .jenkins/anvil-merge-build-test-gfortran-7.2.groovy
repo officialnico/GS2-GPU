@@ -136,7 +136,7 @@ command = "set +x; curl -X POST -H 'Content-Type: application/json' -d '${payloa
 		
 		try{
 			sh '.jenkins/merge.sh'
-		} catch(Exception ex) {
+		} catch(gitError) {
 
 			//sh '''
 			//	mv .jenkins/slack_git_fail.groovy slack_git_fail.groovy
@@ -145,9 +145,6 @@ command = "set +x; curl -X POST -H 'Content-Type: application/json' -d '${payloa
 			//def externalMethod 
 			//externalMethod = load 'slack_git_fail.groovy'
          		//externalMethod.sendSlackMessage()
-			sh '''
-				echo "git fail"
-			'''
         		currentBuild.description = PRname + " - PR merge failed"
 			currentBuild.result = 'FAILURE'
 	
@@ -178,8 +175,7 @@ command = "set +x; curl -X POST -H 'Content-Type: application/json' -d '${payloa
 			} catch (Exception slackError) {
 				echo "Error posting to Slack"
 			}
-			// Must manually exit
-			sh 'exit 1'
+			throw gitError
 		}
     	}
 	
@@ -277,7 +273,7 @@ command = "set +x; curl -X POST -H 'Content-Type: application/json' -d '${payloa
 
         	currentBuild.description = "Testing"
 		try{
-			sh '''
+			sh """
 				export NETCDF_VERSION=4.6.1
 				export NETCDFF_VERSION=4.4.4
 				export GCC_VERSION=gcc-7.2.0
@@ -290,16 +286,16 @@ command = "set +x; curl -X POST -H 'Content-Type: application/json' -d '${payloa
                               	export MAKEFLAGS=-IMakefiles
                               	export TESTEXEC='mpirun -np 2'
               			module load ${params.modules}
-            			module load fftw
-                              	export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:\$MY_NETCDF_LIB:\$MY_NETCDFF_LIB:/opt/software/gcc-7.2.0/fftw/3.3.5/lib
+                              	export LD_LIBRARY_PATH=\$LD_LIBRARY_PATH:\$MY_NETCDF_LIB:\$MY_NETCDFF_LIB:/opt/software/gcc-7.2.0/fftw/3.3.5/lib
 
 				make tests
 				cd ../
 				rm -rf gs2
-			'''
+			"""
 		} catch(testError) {
         		currentBuild.description = PRname + " - tests failed"
 			currentBuild.result = 'FAILURE'
+			throw testError
 		}
     	}
 
