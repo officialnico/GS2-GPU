@@ -113,7 +113,8 @@ String MY_NETCDF_INC="${MY_NETCDF_DIR}/include"
 String MY_NETCDFF_INC="${MY_NETCDFF_DIR}/include"
 String MY_NETCDF_LIB="${MY_NETCDF_DIR}/lib"
 String MY_NETCDFF_LIB="${MY_NETCDFF_DIR}/lib"
-String libpath="${MY_NETCDF_LIB}:${MY_NETCDFF_LIB}"
+//String libpath="${MY_NETCDF_LIB}:${MY_NETCDFF_LIB}"
+String libpath="/opt/software/intel/compilers_and_libraries_2017.4.196/linux/mpi/intel64/lib:/opt/software/intel/compilers_and_libraries_2017.4.196/linux/mpi/mic/lib:/opt/software/intel-2017.4/fftw/3.3.5/lib:/opt/software/intel/compilers_and_libraries_2017.4.196/linux/compiler/lib/intel64:/opt/software/intel/compilers_and_libraries_2017.4.196/linux/compiler/lib/intel64_lin:/opt/software/intel/compilers_and_libraries_2017.4.196/linux/mkl/lib/intel64_lin:/opt/software/intel/compilers_and_libraries_2017.4.196/linux/tbb/lib/intel64/gcc4.7:/home/jenkins/workspace/Gyrokinetics/Merge+Build+Tests-Intel/software/intel-2017.4/netcdf/4.6.1/lib:/home/jenkins/workspace/Gyrokinetics/Merge+Build+Tests-Intel/software/intel-2017.4/netcdf-fortran/4.4.4/lib"
 
 
 	stage('Checkout') {
