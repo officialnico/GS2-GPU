@@ -49,6 +49,7 @@ int testFailures = 0
 int testSkipped = 0
 boolean buildSuccess = true
 String PRname
+String libpath 
 
 import groovy.json.JsonBuilder // For json construction.
   
@@ -233,6 +234,7 @@ command = "set +x; curl -X POST -H 'Content-Type: application/json' -d '${payloa
               make install
 
 	      \$MY_NETCDFF_DIR/bin/nf-config --all
+              ${libpath}=$(LD_LIBRARY_PATH)
 	fi
         """
   }
@@ -242,7 +244,12 @@ command = "set +x; curl -X POST -H 'Content-Type: application/json' -d '${payloa
         	currentBuild.description = "Building"
 		
 		try{
-			sh ".jenkins/build.sh ${params.compiler} ${params.GK_SYSTEM} ${params.modules}"
+			sh """
+				module load ${params.modules}
+				export GK_SYSTEM=${params.GK_SYSTEM}
+    				export LD_LIBRARY_PATH=${libpath}
+				.jenkins/build.sh
+			"""
 		} catch(buildError) {
         		currentBuild.description = PRname + " - build failed"
 			currentBuild.result = 'FAILURE'
