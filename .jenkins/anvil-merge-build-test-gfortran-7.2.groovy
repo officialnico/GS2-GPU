@@ -285,8 +285,7 @@ String libpath="${MY_NETCDF_LIB}:${MY_NETCDFF_LIB}" //:/opt/software/gcc-7.2.0/f
 	//sh '''
 	//	export params.testFailures=$(grep 'failures="1"' test-results/*.xml | wc -l)
 	//'''
-	testsFailed = sh ( script: """ grep 'failures="1"' test-results/*.xml | wc -l """, returnStdout: true )
-	println "$testsFailed"
+	testFailures = sh ( script: """ grep 'failures="1"' test-results/*.xml | wc -l """, returnStdout: true )
 
         currentBuild.description = "Sending notification to slack"
 	
@@ -305,19 +304,21 @@ String libpath="${MY_NETCDF_LIB}:${MY_NETCDFF_LIB}" //:/opt/software/gcc-7.2.0/f
     		resultMessage = "Anvil build <${env.JOB_URL}/${env.BUILD_NUMBER}|#${env.BUILD_NUMBER}> for <${env.JOB_URL}|${env.JOB_NAME}> was aborted."
         	fallback = "Anvil build #${env.BUILD_NUMBER} for ${env.JOB_NAME} was aborted." // same message but without hyperlinks, for pop up notifications
   	}
-  	else if (testsFailed > 0) {
+  	else if (testFailures > 0) {
     		colourCode = '#FF0000'
     		currentBuild.description = "Build fails"
-    		resultMessage = "Anvil build <${env.JOB_URL}/${env.BUILD_NUMBER}|#${env.BUILD_NUMBER}> for <${env.JOB_URL}|${env.JOB_NAME}> finished with ${testsFailed} failures in ${runDuration}."
-        	fallback = "Anvil build #${env.BUILD_NUMBER} for ${env.JOB_NAME} finished with ${testsFailed} failures in ${runDuration}." // same message but without hyperlinks, for pop up notifications
+    		resultMessage = "Anvil build <${env.JOB_URL}/${env.BUILD_NUMBER}|#${env.BUILD_NUMBER}> for <${env.JOB_URL}|${env.JOB_NAME}> finished with ${testFailures} failures in ${runDuration}."
+        	fallback = "Anvil build #${env.BUILD_NUMBER} for ${env.JOB_NAME} finished with ${testFailures} failures in ${runDuration}." // same message but without hyperlinks, for pop up notifications
         	endMessage = '' // No title
 	}
-  	else {
+  	else if (testFailures == 0) {
     		colourCode = '#32CD32' // lovely successful green
     		currentBuild.description = "Stable build"
     		resultMessage = "Anvil build <${env.JOB_URL}/${env.BUILD_NUMBER}|#${env.BUILD_NUMBER}> for <${env.JOB_URL}|${env.JOB_NAME}> finished successfully in ${runDuration}."
         	fallback = "Anvil build #${env.BUILD_NUMBER} for ${env.JOB_NAME} finished successfully in ${runDuration}." // same message but without hyperlinks, for pop up notifications
         	endMessage = '' // No title
+  	else {
+		println "Something is wrong with our counting"
   	}
 
   	attachment = [text: resultMessage,
