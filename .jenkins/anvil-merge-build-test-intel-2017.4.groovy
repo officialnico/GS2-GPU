@@ -269,6 +269,7 @@ String libpath="/opt/software/intel/compilers_and_libraries_2017.4.196/linux/mpi
     		currentBuild.description = "Build aborted"
     		resultMessage = "Anvil build <${env.JOB_URL}/${env.BUILD_NUMBER}|#${env.BUILD_NUMBER}> for <${env.JOB_URL}|${env.JOB_NAME}> was aborted."
         	fallback = "Anvil build #${env.BUILD_NUMBER} for ${env.JOB_NAME} was aborted." // same message but without hyperlinks, for pop up notifications
+		currentBuild.result = 'ABORTED'
   	}
   	else if (testsFailed > 0) {
     		colourCode = '#FF0000'
@@ -276,13 +277,17 @@ String libpath="/opt/software/intel/compilers_and_libraries_2017.4.196/linux/mpi
     		resultMessage = "Anvil build <${env.JOB_URL}/${env.BUILD_NUMBER}|#${env.BUILD_NUMBER}> for <${env.JOB_URL}|${env.JOB_NAME}> finished with ${testsFailed} failures in ${runDuration}."
         	fallback = "Anvil build #${env.BUILD_NUMBER} for ${env.JOB_NAME} finished with ${testsFailed} failures in ${runDuration}." // same message but without hyperlinks, for pop up notifications
         	endMessage = '' // No title
+		currentBuild.result = 'FAILURE'
 	}
-  	else {
+  	else if (testFailures == 0) {
     		colourCode = '#32CD32' // lovely successful green
     		currentBuild.description = "Stable build"
     		resultMessage = "Anvil build <${env.JOB_URL}/${env.BUILD_NUMBER}|#${env.BUILD_NUMBER}> for <${env.JOB_URL}|${env.JOB_NAME}> finished successfully in ${runDuration}."
         	fallback = "Anvil build #${env.BUILD_NUMBER} for ${env.JOB_NAME} finished successfully in ${runDuration}." // same message but without hyperlinks, for pop up notifications
         	endMessage = '' // No title
+	}
+  	else {
+		println "Something is wrong with our counting"
   	}
 
   	attachment = [text: resultMessage,
