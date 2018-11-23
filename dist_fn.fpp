@@ -5509,7 +5509,9 @@ endif
     ! time advance vpar > 0 inhomogeneous part
     if (il <= lmax) then
        do ig = -ntgrid, ntgrid-1
-          gnew(ig+1,1,iglo) = -gnew(ig,1,iglo)*r(ig,1,iglo) + ainv(ig,1,iglo)*source(ig,1)
+         ! Use two statements here to *prevent* erroneous vectorization of this loop by gfortran 7.2
+         gnew(ig+1,1,iglo) = ainv(ig,1,iglo)*source(ig,1)
+         gnew(ig+1,1,iglo) = gnew(ig+1,1,iglo) - gnew(ig,1,iglo)*r(ig,1,iglo)
        end do
     end if
 

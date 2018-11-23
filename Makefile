@@ -277,13 +277,16 @@ ifeq ($(MAKECMDGOALS),depend)
 		USE_LOCAL_SPFUNC=on USE_LOCAL_RAN=mt
 endif
 
-MACRO_DEFS+=-DGIT_HASH='"$(shell git rev-parse HEAD)"'
+GIT_HASH=$(shell git rev-parse HEAD)
+MACRO_DEFS+=-DGIT_HASH='"$(GIT_HASH)"'
 # Find if there are any modified tracked files (except Makefile.depend)
 ifeq ($(shell git status --short -uno -- . ':(exclude)Makefiles/Makefile.depend' | wc -l), 0)
-	MACRO_DEFS+=-DGIT_STATE='"clean"'
+	GIT_STATE="clean"
+	MACRO_DEFS+=-DGIT_STATE='$(GIT_STATE)'
 $(shell touch $(PATCHFILE))
 else
-	MACRO_DEFS+=-DGIT_STATE='"modified"'
+	GIT_STATE="modified"
+	MACRO_DEFS+=-DGIT_STATE='$(GIT_STATE)'
 
 # Here we make a patch file, which could be read by the program if we wanted to keep a record
 $(shell git diff -w -- . ':(exclude)Makefiles/Makefile.depend' > $(PATCHFILE))
@@ -760,14 +763,17 @@ test_make:
 	@echo NETCDF_DIR is $(NETCDF_DIR)
 	@echo FFT_LIB is $(FFT_LIB)
 	@echo FFT_DIR is $(FFT_DIR)
-	@echo FC is $(FC)
-	@echo CC is $(CC)
+	@echo LD_LIBRARY_PATH is $(LD_LIBRARY_PATH)
 	@echo FORD is $(FORD)
 	@echo USE_GCOV is $(USE_GCOV)
-	@echo SVN_REV is $(SVN_REV)
+	@echo GIT_HASH is $(GIT_HASH)
+	@echo GIT_STATE is $(GIT_STATE)
+	@echo PATCHFILE is $(PATCHFILE)
 	@echo
 	@echo Compile mode:
 	@echo  COMPILER is $(COMPILER)
+	@echo  FC is $(FC)
+	@echo  CC is $(CC)
 	@echo  DEBUG is $(DEBUG)
 	@echo  SCAL is $(SCAL)
 	@echo  TEST is $(TEST)
