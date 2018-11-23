@@ -203,7 +203,7 @@ String libpath="${MY_NETCDF_LIB}:${MY_NETCDFF_LIB}"
         export TEST_FILE_NETCDFF=${MY_NETCDFF_DIR}/include/netcdf.mod
 
         # true if either file missing
-        if [[ -f ${TEST_FILE_NETCDF} && -f ${TEST_FILE_NETCDFF} ]]
+        if [[ -f \$TEST_FILE_NETCDF && -f \$TEST_FILE_NETCDFF ]]
         then 
               echo "netcdf + nectdff found"
         else
