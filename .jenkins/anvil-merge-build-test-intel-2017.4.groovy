@@ -49,7 +49,6 @@ int testFailures = 0
 int testSkipped = 0
 boolean buildSuccess = true
 String PRname
-String libpath 
 
 import groovy.json.JsonBuilder // For json construction.
   
@@ -105,6 +104,16 @@ catch (jsonError) {
 // Construct the command as a string so that variables are expanded properly
 command = "set +x; curl -X POST -H 'Content-Type: application/json' -d '${payload}' ${slackURL}"
 
+// Set up netcdf paths
+String NETCDF_VERSION="4.6.1"
+String NETCDFF_VERSION="4.4.4"
+String MY_NETCDF_DIR="${WORKSPACE}/software/${params.compiler}/netcdf/${NETCDF_VERSION}"
+String MY_NETCDFF_DIR="${WORKSPACE}/software/${params.compiler}/netcdf-fortran/${NETCDFF_VERSION}"
+String MY_NETCDF_INC="${MY_NETCDF_DIR}/include"
+String MY_NETCDFF_INC="${MY_NETCDFF_DIR}/include"
+String MY_NETCDF_LIB="${MY_NETCDF_DIR}/lib"
+String MY_NETCDFF_LIB="${MY_NETCDFF_DIR}/lib"
+String libpath="${MY_NETCDF_LIB}:${MY_NETCDFF_LIB}"
 
 
 	stage('Checkout') {
@@ -153,17 +162,9 @@ command = "set +x; curl -X POST -H 'Content-Type: application/json' -d '${payloa
 
         sh """
 
-	export NETCDF_VERSION=4.6.1
-	export NETCDFF_VERSION=4.4.4
-	export MY_NETCDF_DIR=${WORKSPACE}/software/${params.compiler}/netcdf/\$NETCDF_VERSION
-        export MY_NETCDFF_DIR=${WORKSPACE}/software/${params.compiler}/netcdf-fortran/\$NETCDFF_VERSION
-	export MY_NETCDF_INC=\$MY_NETCDF_DIR/include
-	export MY_NETCDFF_INC=\$MY_NETCDFF_DIR/include
-	export MY_NETCDF_LIB=\$MY_NETCDF_DIR/lib
-	export MY_NETCDFF_LIB=\$MY_NETCDFF_DIR/lib
 
-        export TEST_FILE_NETCDF=\$MY_NETCDF_DIR/include/netcdf.h
-        export TEST_FILE_NETCDFF=\$MY_NETCDFF_DIR/include/netcdf.mod
+        export TEST_FILE_NETCDF=${MY_NETCDF_DIR}/include/netcdf.h
+        export TEST_FILE_NETCDFF=${MY_NETCDFF_DIR}/include/netcdf.mod
 
         # true if either file missing
         if [[ -f \$TEST_FILE_NETCDF && -f \$TEST_FILE_NETCDFF ]]
@@ -173,32 +174,31 @@ command = "set +x; curl -X POST -H 'Content-Type: application/json' -d '${payloa
               module load ${params.modules}
 	      module avail
 
-              rm -rf \$MY_NETCDF_DIR
-              rm -rf \$MY_NETCDFF_DIR
+              rm -rf ${MY_NETCDF_DIR}
+              rm -rf ${MY_NETCDFF_DIR}
 
-              mkdir -p \$MY_NETCDF_DIR
-              wget ftp://ftp.unidata.ucar.edu/pub/netcdf/netcdf-\$NETCDF_VERSION.tar.gz
-              tar xvf netcdf-\$NETCDF_VERSION.tar.gz
-              cd netcdf-\$NETCDF_VERSION
-              ./configure --prefix=\$MY_NETCDF_DIR
+              mkdir -p ${MY_NETCDF_DIR}
+              wget ftp://ftp.unidata.ucar.edu/pub/netcdf/netcdf-${NETCDF_VERSION}.tar.gz
+              tar xvf netcdf-${NETCDF_VERSION}.tar.gz
+              cd netcdf-${NETCDF_VERSION}
+              ./configure --prefix=${MY_NETCDF_DIR}
               make
               make install
-              ls \$MY_NETCDF_INC
-              export LD_LIBRARY_PATH=\$MY_NETCDF_LIB
-              export CPPFLAGS=-I\$MY_NETCDF_INC
-              export LDFLAGS=-L\$MY_NETCDF_LIB
+              ls ${MY_NETCDF_INC}
+              export LD_LIBRARY_PATH=${MY_NETCDF_LIB}
+              export CPPFLAGS=-I${MY_NETCDF_INC}
+              export LDFLAGS=-L${MY_NETCDF_LIB}
               cd ..
 
-              mkdir -p \$MY_NETCDFF_DIR
-              wget ftp://ftp.unidata.ucar.edu/pub/netcdf/netcdf-fortran-\$NETCDFF_VERSION.tar.gz
-              tar xvf netcdf-fortran-\$NETCDFF_VERSION.tar.gz
-              cd netcdf-fortran-\$NETCDFF_VERSION
-              ./configure --prefix=\$MY_NETCDFF_DIR
+              mkdir -p ${MY_NETCDFF_DIR}
+              wget ftp://ftp.unidata.ucar.edu/pub/netcdf/netcdf-fortran-${NETCDFF_VERSION}.tar.gz
+              tar xvf netcdf-fortran-${NETCDFF_VERSION}.tar.gz
+              cd netcdf-fortran-${NETCDFF_VERSION}
+              ./configure --prefix=${MY_NETCDFF_DIR}
               make
               make install
 
-	      \$MY_NETCDFF_DIR/bin/nf-config --all
-              ${libpath}=\$LD_LIBRARY_PATH
+	      ${MY_NETCDFF_DIR}/bin/nf-config --all
 	fi
         """
   }
