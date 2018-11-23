@@ -234,7 +234,7 @@ command = "set +x; curl -X POST -H 'Content-Type: application/json' -d '${payloa
               make install
 
 	      \$MY_NETCDFF_DIR/bin/nf-config --all
-              ${libpath}=$(LD_LIBRARY_PATH)
+              ${libpath}=\$LD_LIBRARY_PATH
 	fi
         """
   }
