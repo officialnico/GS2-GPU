@@ -317,6 +317,7 @@ String libpath="${MY_NETCDF_LIB}:${MY_NETCDFF_LIB}" //:/opt/software/gcc-7.2.0/f
     		resultMessage = "Anvil build <${env.JOB_URL}/${env.BUILD_NUMBER}|#${env.BUILD_NUMBER}> for <${env.JOB_URL}|${env.JOB_NAME}> finished successfully in ${runDuration}."
         	fallback = "Anvil build #${env.BUILD_NUMBER} for ${env.JOB_NAME} finished successfully in ${runDuration}." // same message but without hyperlinks, for pop up notifications
         	endMessage = '' // No title
+	}
   	else {
 		println "Something is wrong with our counting"
   	}
