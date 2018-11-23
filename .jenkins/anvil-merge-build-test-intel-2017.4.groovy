@@ -185,7 +185,7 @@ String libpath="${MY_NETCDF_LIB}:${MY_NETCDFF_LIB}"
               make
               make install
               ls ${MY_NETCDF_INC}
-              export LD_LIBRARY_PATH=${MY_NETCDF_LIB}
+              export LD_LIBRARY_PATH=\$LD_LIBRARY_PATH:${MY_NETCDF_LIB}
               export CPPFLAGS=-I${MY_NETCDF_INC}
               export LDFLAGS=-L${MY_NETCDF_LIB}
               cd ..
@@ -197,8 +197,11 @@ String libpath="${MY_NETCDF_LIB}:${MY_NETCDFF_LIB}"
               ./configure --prefix=${MY_NETCDFF_DIR}
               make
               make install
+              export LD_LIBRARY_PATH=\$LD_LIBRARY_PATH:${MY_NETCDFF_LIB}
 
+              ls ${MY_NETCDFF_INC}
 	      ${MY_NETCDFF_DIR}/bin/nf-config --all
+              echo \$LD_LIBRARY_PATH
 	fi
         """
   }
