@@ -285,7 +285,7 @@ String libpath="${MY_NETCDF_LIB}:${MY_NETCDFF_LIB}" //:/opt/software/gcc-7.2.0/f
 	//sh '''
 	//	export params.testFailures=$(grep 'failures="1"' test-results/*.xml | wc -l)
 	//'''
-	testFailures = sh ( script: """ grep 'failures="1"' test-results/*.xml | wc -l """, returnStdout: true )
+	testFailures = sh ( script: """ grep 'failures="1"' test-results/*.xml | wc -l """, returnStdout: true ) as Integer
 
         currentBuild.description = "Sending notification to slack"
 	
