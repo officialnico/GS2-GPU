@@ -49,7 +49,6 @@ int testFailures = 0
 int testSkipped = 0
 boolean buildSuccess = true
 String PRname
-String libpath 
 
 import groovy.json.JsonBuilder // For json construction.
   
