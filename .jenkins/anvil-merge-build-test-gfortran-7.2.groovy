@@ -113,7 +113,7 @@ String MY_NETCDF_INC="${MY_NETCDF_DIR}/include"
 String MY_NETCDFF_INC="${MY_NETCDFF_DIR}/include"
 String MY_NETCDF_LIB="${MY_NETCDF_DIR}/lib"
 String MY_NETCDFF_LIB="${MY_NETCDFF_DIR}/lib"
-String libpath="${MY_NETCDF_LIB}:${MY_NETCDFF_LIB}:/opt/software/gcc-7.2.0/fftw/3.3.5/lib"
+String libpath="${MY_NETCDF_LIB}:${MY_NETCDFF_LIB}:/opt/software/gcc-7.2.0/openmpi/1.10.0/lib:/opt/software/gcc-7.2.0/fftw/3.3.5/lib:/opt/software/gcc/7.2.0/lib64:/opt/software/gcc/7.2.0/lib"
 
 
 	stage('Checkout') {
