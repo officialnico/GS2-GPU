@@ -19,7 +19,8 @@ properties([[
   choice(name: "opt", choices: "intermediate\ndebug\nfast\nwarnings\ncoverage", description: "Build type"),
   choice(name: "comms", choices: "serial\nmpi", description: "Communications paradigm"),
   string(name: "modules", defaultValue: "gcc/7.2.0 fftw openmpi/1.10.0", description: "Module environments to load"),
-  string(name: "mathLibs", defaultValue: "openblas", description: "Select BLAS/LAPACK to use"),
+  string(name: "compiler", defaultValue: "gcc-7.2.0", description: "compiler-version, for consitent path names"),
+  string(name: "GK_SYSTEM", defaultValue: "jenkins", description: "Module environments to load"),
   string(name: "mathLibDir", defaultValue: "", description: "Specify maths library location"),
   string(name: "fft", defaultValue: "fftw3", description: "Select FFT to use"),
   string(name: "fftLibDir", defaultValue: "", description: "Specify fft library location"),
@@ -61,6 +62,8 @@ node {
 		)
         	sh '''
            		git submodule update --init --recursive --remote
+           		git checkout jenkins
+			git pull
            		cd Makefiles
            		git checkout jenkins
 			git pull
@@ -71,18 +74,10 @@ node {
 
 	stage('Merge') {
 
-        	currentBuild.description = "Merging PR"
+        	currentBuild.description = PRname + " - Merging PR"
 		
 		try{
-			sh '''
-				git fetch
-				git checkout ${sourceBranch}
-				git pull
-				git checkout origin/${targetBranch}
-				git checkout -b jobid-${BUILD_NUMBER}-${sourceBranch}-${targetBranch}
-				git merge ${sourceBranch}
-				rm -rf tests/unit_tests/collisions/
-			'''
+			sh '.jenkins/merge.sh'
 		} catch(gitError) {
         		currentBuild.description = "PR merge failed"
 			currentBuild.result = 'FAILURE'
