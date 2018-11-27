@@ -17,7 +17,7 @@ properties([[
   string(name: "arch", defaultValue: "linux_x86_64_gfortran7.0", description: "Manually set build arch"),
   choice(name: "opt", choices: "intermediate\ndebug\nfast\nwarnings\ncoverage", description: "Build type"),
   choice(name: "comms", choices: "serial\nmpi", description: "Communications paradigm"),
-  string(name: "modules", defaultValue: "gcc/7.2.0 fftw netcdf/4.3.3.1 hdf5/1.8.17 openmpi/1.10.0", description: "Module environments to load"),
+  string(name: "modules", defaultValue: "gcc/7.2.0 fftw openmpi/1.10.0", description: "Module environments to load"),
   string(name: "compiler", defaultValue: "gcc-7.2.0", description: "compiler-version, for consitent path names"),
   string(name: "GK_SYSTEM", defaultValue: "jenkins", description: "Module environments to load"),
   string(name: "mathLibDir", defaultValue: "", description: "Specify maths library location"),
@@ -194,22 +194,37 @@ String libpath="${MY_NETCDF_LIB}:${MY_NETCDFF_LIB}:/opt/software/gcc-7.2.0/fftw/
 	
   stage('Install netcdff') {
 
-        currentBuild.description = "Installing netcdff"
+        currentBuild.description = "Installing netcdf/netcdff, if necessary"
 
         sh """
 
+
+        export TEST_FILE_NETCDF=${MY_NETCDF_DIR}/include/netcdf.h
         export TEST_FILE_NETCDFF=${MY_NETCDFF_DIR}/include/netcdf.mod
-        
-	module load ${params.modules}
-	module avail
-	module show netcdf/4.3.3.1
 
-        if [[ -f \$TEST_FILE_NETCDFF ]]
+        # true if either file missing
+        if [[ -f \$TEST_FILE_NETCDF && -f \$TEST_FILE_NETCDFF ]]
         then 
-              echo "nectdff found"
+              echo "netcdf + nectdff found"
         else
+              module load ${params.modules}
+	      module avail
 
+              rm -rf ${MY_NETCDF_DIR}
               rm -rf ${MY_NETCDFF_DIR}
+
+              mkdir -p ${MY_NETCDF_DIR}
+              wget ftp://ftp.unidata.ucar.edu/pub/netcdf/netcdf-${NETCDF_VERSION}.tar.gz
+              tar xvf netcdf-${NETCDF_VERSION}.tar.gz
+              cd netcdf-${NETCDF_VERSION}
+              ./configure --prefix=${MY_NETCDF_DIR}
+              make
+              make install
+              ls ${MY_NETCDF_INC}
+              export LD_LIBRARY_PATH=${MY_NETCDF_LIB}
+              export CPPFLAGS=-I${MY_NETCDF_INC}
+              export LDFLAGS=-L${MY_NETCDF_LIB}
+              cd ..
 
               mkdir -p ${MY_NETCDFF_DIR}
               wget ftp://ftp.unidata.ucar.edu/pub/netcdf/netcdf-fortran-${NETCDFF_VERSION}.tar.gz
