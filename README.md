@@ -270,6 +270,14 @@ by the depend target using the perl script "fortdep". The script is
 distributed for developers convenience. Users do not need to reconstruct
 it.
 
+## Citing GS2
+
+If you use GS2 in your work, please cite the metadata contained in CITATION.cff.
+You can convert the CITATION.cff file into a Bibtex file as follows:
+
+    pip3 install --user cffconvert
+    cffconvert -if CITATION.cff -f bibtex -of CITATION.bib 
+
 ## TODO
 
 1. auto detection of the system for common system (like test_os script)
