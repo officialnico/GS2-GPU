@@ -215,7 +215,7 @@ String libpath="${MY_NETCDF_LIB}:${MY_NETCDFF_LIB}:/opt/software/gcc-7.2.0/fftw/
               wget ftp://ftp.unidata.ucar.edu/pub/netcdf/netcdf-fortran-${NETCDFF_VERSION}.tar.gz
               tar xvf netcdf-fortran-${NETCDFF_VERSION}.tar.gz
               cd netcdf-fortran-${NETCDFF_VERSION}
-              ./configure
+              ./configure --prefix=${MY_NETCDFF_DIR}
               make
               make install
               export LD_LIBRARY_PATH=\$LD_LIBRARY_PATH:${MY_NETCDFF_LIB}
