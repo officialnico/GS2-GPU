@@ -266,7 +266,7 @@ String libpath="${MY_NETCDF_LIB}:${MY_NETCDFF_LIB}:/opt/software/gcc-7.2.0/openm
         	currentBuild.description = "Testing"
 		try{
 			sh """
-				export TESTEXEC=${params.testexec}
+				export TESTEXEC="${params.testexec}"
 				module load ${params.modules}
 				export GK_SYSTEM=${params.GK_SYSTEM}
     				export LD_LIBRARY_PATH=${libpath}
