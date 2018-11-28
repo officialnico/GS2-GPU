@@ -1009,16 +1009,16 @@ contains
             call netcdf_error (istatus, message='nf90_sync error')
     end if
 
+    ! deallocate layout information arrays
+    if(allocated(iglo_kykxsel)) deallocate(iglo_kykxsel)
+    if(allocated(procid_kykxsel)) deallocate(procid_kykxsel)
+
 # else
 
     if (proc0) write (error_unit(),*) &
          'WARNING: gs2_save_for_restart is called without netcdf library'
 
 # endif
-
-    ! deallocate layout information arrays
-    if(allocated(iglo_kykxsel)) deallocate(iglo_kykxsel)
-    if(allocated(procid_kykxsel)) deallocate(procid_kykxsel)
     
   end subroutine gs2_save_for_restart
 
