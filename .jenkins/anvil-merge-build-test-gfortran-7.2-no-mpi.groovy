@@ -17,6 +17,7 @@ properties([[
   string(name: "arch", defaultValue: "linux_x86_64_gfortran7.0", description: "Manually set build arch"),
   choice(name: "opt", choices: "intermediate\ndebug\nfast\nwarnings\ncoverage", description: "Build type"),
   choice(name: "comms", choices: "serial\nmpi", description: "Communications paradigm"),
+  string(name: "testexec", defaultValue: "", description: "Test command"),
   string(name: "modules", defaultValue: "gcc/7.2.0 fftw", description: "Module environments to load"),
   string(name: "compiler", defaultValue: "gcc-7.2.0", description: "compiler-version, for consitent path names"),
   string(name: "GK_SYSTEM", defaultValue: "jenkins", description: "Module environments to load"),
@@ -256,7 +257,7 @@ String libpath="${MY_NETCDF_LIB}:${MY_NETCDFF_LIB}:/opt/software/gcc-7.2.0/fftw/
         	currentBuild.description = "Testing"
 		try{
 			sh """
-				export TESTEXEC=${params.testexec}
+				export TESTEXEC="${params.testexec}"
 				module load ${params.modules}
 				export GK_SYSTEM=${params.GK_SYSTEM}
     				export LD_LIBRARY_PATH=${libpath}
