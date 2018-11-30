@@ -17,8 +17,10 @@ properties([[
   string(name: "arch", defaultValue: "linux_x86_64_gfortran7.0", description: "Manually set build arch"),
   choice(name: "opt", choices: "intermediate\ndebug\nfast\nwarnings\ncoverage", description: "Build type"),
   choice(name: "comms", choices: "serial\nmpi", description: "Communications paradigm"),
-  string(name: "modules", defaultValue: "gcc/7.2.0 fftw openmpi/1.10.0", description: "Module environments to load"),
-  string(name: "mathLibs", defaultValue: "openblas", description: "Select BLAS/LAPACK to use"),
+  string(name: "testexec", defaultValue: "mpirun -np 2", description: "Test command"),
+  string(name: "modules", defaultValue: "gcc/7.2.0 openmpi/1.10.0", description: "Module environments to load"),
+  string(name: "compiler", defaultValue: "gcc-7.2.0", description: "compiler-version, for consitent path names"),
+  string(name: "GK_SYSTEM", defaultValue: "jenkins", description: "Module environments to load"),
   string(name: "mathLibDir", defaultValue: "", description: "Specify maths library location"),
   string(name: "fft", defaultValue: "fftw3", description: "Select FFT to use"),
   string(name: "fftLibDir", defaultValue: "", description: "Specify fft library location"),
@@ -47,7 +49,7 @@ int numErrors = 0
 int testFailures = 0
 int testSkipped = 0
 boolean buildSuccess = true
-String PRname 
+String PRname
 
 import groovy.json.JsonBuilder // For json construction.
   
@@ -122,6 +124,8 @@ command = "set +x; curl -X POST -H 'Content-Type: application/json' -d '${payloa
 			git config --global user.email "joseph.parker@stfc.ac.uk"
 			git config --global user.name "Joseph Parker"
            		git submodule update --init --recursive --remote
+           		git checkout jenkins
+			git pull
            		cd Makefiles
            		git checkout jenkins
 			git pull
@@ -132,21 +136,42 @@ command = "set +x; curl -X POST -H 'Content-Type: application/json' -d '${payloa
 
 	stage('Merge') {
 
-        	currentBuild.description = "Merging PR"
+        	currentBuild.description = PRname + " - Merging PR"
 		
 		try{
-			sh '''
-				git fetch
-				git checkout ${sourceBranch}
-				git pull
-				git checkout origin/${targetBranch}
-				git checkout -b jobid-${BUILD_NUMBER}-${sourceBranch}-${targetBranch}
-				git merge ${sourceBranch}
-				rm -rf tests/unit_tests/collisions/
-			'''
+			sh '.jenkins/merge.sh'
 		} catch(gitError) {
-        		currentBuild.description = "PR merge failed"
+        		currentBuild.description = PRname + " - PR merge failed"
 			currentBuild.result = 'FAILURE'
+	
+			runDuration=currentBuild.durationString[0..-14]
+        		endMessage = ""
+			colourCode = '#FF0000' // failure red
+    			resultMessage = "Anvil build <${env.JOB_URL}/${env.BUILD_NUMBER}|#${env.BUILD_NUMBER}> for <${env.JOB_URL}|${env.JOB_NAME}> failed in git merge step after ${runDuration}"
+    			fallback = "Anvil build #${env.BUILD_NUMBER} for ${env.JOB_NAME} failed in git merge step after ${runDuration}"
+
+  			attachment = [text: resultMessage,
+				pretext: endMessage,
+				fallback: fallback,
+				color: colourCode,
+				mrkdwn_in: mrkdwn]
+  			attachments = [ attachment ]
+  			load = [ channel: channel, attachments: attachments ]
+  			try {
+    				endJson = new JsonBuilder(load)
+    				payload = endJson.toString()
+ 		   		endJson = null // Need to nullify the Json object as it is not "serializable" by Java
+ 		 	} catch (jsonError) {
+    				echo "Error contructing final Slack message - likely a library permissions issue"
+		    		payload = "{\"channel\":\"#jenkins\",\"attachments\":[{\"Job Ended\",\"text\":\"${resultMessage}\",\"fallback\":\"Job Ended\",\"color\":\"${colourCode}\",\"mrkdwn_in\":[\"pretext\",\"text\",\"fields\"]}]}"
+  			}
+  			command = "set +x; curl -X POST -H 'Content-Type: application/json' -d '${payload}' ${slackURL}"
+			try {
+				sh command
+			} catch (Exception slackError) {
+				echo "Error posting to Slack"
+			}
+			throw gitError
 		}
     	}
 	
@@ -155,20 +180,20 @@ command = "set +x; curl -X POST -H 'Content-Type: application/json' -d '${payloa
         	currentBuild.description = "Building"
 		
 		try{
-			sh '''
-                              	export GK_SYSTEM=jenkins
+			sh """
+				module load ${params.modules}
+				export GK_SYSTEM=${params.GK_SYSTEM}
                               	export MAKEFLAGS=-IMakefiles USE_NETCDF= USE_FFT= USE_NEW_DIAG=
                               	export TESTEXEC='mpirun -np 6'
-
-            			module load gcc/7.2.0 openmpi/1.10.0
 
 				make depend
 				make test_make
 				make -j
-			'''
+			"""
 		} catch(buildError) {
-        		currentBuild.description = "Build failed"
+        		currentBuild.description = PRname + " - build failed"
 			currentBuild.result = 'FAILURE'
+			throw buildError
 		}
 
     	}
@@ -177,20 +202,20 @@ command = "set +x; curl -X POST -H 'Content-Type: application/json' -d '${payloa
 
         	currentBuild.description = "Testing"
 		try{
-			sh '''
-                              	export GK_SYSTEM=jenkins
+			sh """
+				export TESTEXEC="${params.testexec}"
+				module load ${params.modules}
+				export GK_SYSTEM=${params.GK_SYSTEM}
                               	export MAKEFLAGS=-IMakefiles USE_NETCDF= USE_FFT= USE_NEW_DIAG=
-                              	export TESTEXEC='mpirun -np 2'
-            			module load gcc/7.2.0 openmpi/1.10.0
 
 				make tests
 				cd ../
 				rm -rf gs2
-				ls
-			'''
+			"""
 		} catch(testError) {
-        		currentBuild.description = "Tests failed"
+        		currentBuild.description = PRname + " - tests failed"
 			currentBuild.result = 'FAILURE'
+			throw testError
 		}
     	}
 
@@ -202,7 +227,7 @@ command = "set +x; curl -X POST -H 'Content-Type: application/json' -d '${payloa
 	//sh '''
 	//	export params.testFailures=$(grep 'failures="1"' test-results/*.xml | wc -l)
 	//'''
-	testsFailed = sh ( script: """ grep 'failures="1"' test-results/*.xml | wc -l """ )
+	testFailures = sh ( script: """ grep 'failures="1"' test-results/*.xml | wc -l """, returnStdout: true ) as Integer
 
         currentBuild.description = "Sending notification to slack"
 	
@@ -220,20 +245,25 @@ command = "set +x; curl -X POST -H 'Content-Type: application/json' -d '${payloa
     		currentBuild.description = "Build aborted"
     		resultMessage = "Anvil build <${env.JOB_URL}/${env.BUILD_NUMBER}|#${env.BUILD_NUMBER}> for <${env.JOB_URL}|${env.JOB_NAME}> was aborted."
         	fallback = "Anvil build #${env.BUILD_NUMBER} for ${env.JOB_NAME} was aborted." // same message but without hyperlinks, for pop up notifications
+		currentBuild.result = 'ABORTED'
   	}
-  	else if (testsFailed > 0) {
+  	else if (testFailures > 0) {
     		colourCode = '#FF0000'
     		currentBuild.description = "Build fails"
-    		resultMessage = "Anvil build <${env.JOB_URL}/${env.BUILD_NUMBER}|#${env.BUILD_NUMBER}> for <${env.JOB_URL}|${env.JOB_NAME}> finished with ${testsFailed} failures in ${runDuration}."
-        	fallback = "Anvil build #${env.BUILD_NUMBER} for ${env.JOB_NAME} finished with ${testsFailed} failures in ${runDuration}." // same message but without hyperlinks, for pop up notifications
+    		resultMessage = "Anvil build <${env.JOB_URL}/${env.BUILD_NUMBER}|#${env.BUILD_NUMBER}> for <${env.JOB_URL}|${env.JOB_NAME}> finished with ${testFailures} failures in ${runDuration}."
+        	fallback = "Anvil build #${env.BUILD_NUMBER} for ${env.JOB_NAME} finished with ${testFailures} failures in ${runDuration}." // same message but without hyperlinks, for pop up notifications
         	endMessage = '' // No title
+		currentBuild.result = 'FAILURE'
 	}
-  	else {
+  	else if (testFailures == 0) {
     		colourCode = '#32CD32' // lovely successful green
     		currentBuild.description = "Stable build"
     		resultMessage = "Anvil build <${env.JOB_URL}/${env.BUILD_NUMBER}|#${env.BUILD_NUMBER}> for <${env.JOB_URL}|${env.JOB_NAME}> finished successfully in ${runDuration}."
         	fallback = "Anvil build #${env.BUILD_NUMBER} for ${env.JOB_NAME} finished successfully in ${runDuration}." // same message but without hyperlinks, for pop up notifications
         	endMessage = '' // No title
+	}
+  	else {
+		println "Something is wrong with our counting"
   	}
 
   	attachment = [text: resultMessage,
