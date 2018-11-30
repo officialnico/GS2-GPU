@@ -6,6 +6,7 @@ CLEANCOMMAND+= test_gs2_diagnostics_new old_diagnostics/.test_* old_diagnostics/
 #Define this tests level
 MY_TEST_LEVEL=1
 VAL:= $(shell expr ${MY_TEST_LEVEL} \<= ${TEST_LEVEL})
+ifdef USE_NEW_DIAG
 ifeq "$(VAL)" "0"
 all:
 	@echo "==> Skipping test in ${PWD}/$(TEST_FOLD) (Test_level ${TEST_LEVEL}, This test ${MY_TEST_LEVEL})."
@@ -25,6 +26,10 @@ all: test_gs2_diagnostics_new
 	cp test_gs2_diagnostics_new_start.out.nc test_gs2_diagnostics_new_append.out.nc; echo
 	$(call RUNCOMMAND,test_gs2_diagnostics_new,test_gs2_diagnostics_new_append.in)
 
+endif
+else
+all:
+	$(call SKIPCOMMAND,compiled without new diagnostics; compile with USE_NEW_DIAG=on to run this test)
 endif
 
 #$(info "TEST_MODS=$(TEST_MODS)")
