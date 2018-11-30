@@ -259,13 +259,11 @@ String libpath="${MY_NETCDF_LIB}:${MY_NETCDFF_LIB}:/opt/software/gcc-7.2.0/openm
         	currentBuild.description = "Testing"
 		try{
 			sh """
+				export TESTEXEC="${params.testexec}"
+				module load ${params.modules}
 				export GK_SYSTEM=${params.GK_SYSTEM}
+                              	export LD_LIBRARY_PATH=\$LD_LIBRARY_PATH:/home/jenkins/workspace/Gyrokinetics/Merge+Build+Test-gfortran-4.8.5/software/gcc-4.8.5/netcdf/4.6.1/lib:/home/jenkins/workspace/Gyrokinetics/Merge+Build+Test-gfortran-4.8.5/software/gcc-4.8.5/netcdf-fortran/4.4.4/lib:/opt/software/gcc-system/fftw/3.3.5/lib
                               	export MAKEFLAGS=-IMakefiles
-                              	export TESTEXEC='mpirun -np 2'
-
-            			module load gcc/4.8.5 openmpi/1.10.0
-            			module load fftw
-                              	export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/home/jenkins/workspace/Gyrokinetics/Merge+Build+Test-gfortran-4.8.5/software/gcc-4.8.5/netcdf/4.6.1/lib:/home/jenkins/workspace/Gyrokinetics/Merge+Build+Test-gfortran-4.8.5/software/gcc-4.8.5/netcdf-fortran/4.4.4/lib:/opt/software/gcc-system/fftw/3.3.5/lib
 
 				make tests TEST_LEVEL=2
 				cd ../
