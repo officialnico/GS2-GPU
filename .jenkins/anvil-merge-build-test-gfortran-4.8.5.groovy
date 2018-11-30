@@ -105,6 +105,16 @@ catch (jsonError) {
 // Construct the command as a string so that variables are expanded properly
 command = "set +x; curl -X POST -H 'Content-Type: application/json' -d '${payload}' ${slackURL}"
 
+// Set up netcdf paths
+String NETCDF_VERSION="4.6.1"
+String NETCDFF_VERSION="4.4.4"
+String MY_NETCDF_DIR="${WORKSPACE}/software/${params.compiler}/netcdf/${NETCDF_VERSION}"
+String MY_NETCDFF_DIR="${WORKSPACE}/software/${params.compiler}/netcdf-fortran/${NETCDFF_VERSION}"
+String MY_NETCDF_INC="${MY_NETCDF_DIR}/include"
+String MY_NETCDFF_INC="${MY_NETCDFF_DIR}/include"
+String MY_NETCDF_LIB="${MY_NETCDF_DIR}/lib"
+String MY_NETCDFF_LIB="${MY_NETCDFF_DIR}/lib"
+String libpath="${MY_NETCDF_LIB}:${MY_NETCDFF_LIB}:/opt/software/gcc-7.2.0/openmpi/1.10.0/lib:/opt/software/gcc-7.2.0/fftw/3.3.5/lib:/opt/software/gcc/7.2.0/lib64:/opt/software/gcc/7.2.0/lib"
 
 
 	stage('Checkout') {
@@ -230,7 +240,7 @@ command = "set +x; curl -X POST -H 'Content-Type: application/json' -d '${payloa
 
             			module load gcc/4.8.5 openmpi/1.10.0
             			module load fftw
-                              	export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/home/jenkins/workspace/Gyrokinetics/Merge+Build+Test-gfortran-4.8.5/software/gcc-4.8.5/netcdf/4.6.1/lib:/home/jenkins/workspace/Gyrokinetics/Merge+Build+Test-gfortran-4.8.5/software/gcc-4.8.5/netcdf-fortran/4.4.4/lib:/opt/software/gcc-system/fftw/3.3.5/lib
+                              	export LD_LIBRARY_PATH=\$LD_LIBRARY_PATH:/home/jenkins/workspace/Gyrokinetics/Merge+Build+Test-gfortran-4.8.5/software/gcc-4.8.5/netcdf/4.6.1/lib:/home/jenkins/workspace/Gyrokinetics/Merge+Build+Test-gfortran-4.8.5/software/gcc-4.8.5/netcdf-fortran/4.4.4/lib:/opt/software/gcc-system/fftw/3.3.5/lib
 
 				make depend
 				make test_make
