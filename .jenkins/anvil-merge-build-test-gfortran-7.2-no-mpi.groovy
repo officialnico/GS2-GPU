@@ -18,7 +18,7 @@ properties([[
   choice(name: "opt", choices: "intermediate\ndebug\nfast\nwarnings\ncoverage", description: "Build type"),
   choice(name: "comms", choices: "serial\nmpi", description: "Communications paradigm"),
   string(name: "testexec", defaultValue: "", description: "Test command"),
-  string(name: "modules", defaultValue: "gcc/7.2.0 fftw", description: "Module environments to load"),
+  string(name: "modules", defaultValue: "gcc/7.2.0 fftw python/3.6.0", description: "Module environments to load"),
   string(name: "compiler", defaultValue: "gcc-7.2.0", description: "compiler-version, for consitent path names"),
   string(name: "GK_SYSTEM", defaultValue: "jenkins", description: "Module environments to load"),
   string(name: "mathLibDir", defaultValue: "", description: "Specify maths library location"),

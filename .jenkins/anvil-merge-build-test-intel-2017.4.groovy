@@ -17,7 +17,8 @@ properties([[
   string(name: "arch", defaultValue: "linux_x86_64_gfortran7.0", description: "Manually set build arch"),
   choice(name: "opt", choices: "debug\nintermediate\nfast\nwarnings\ncoverage", description: "Build type"),
   choice(name: "comms", choices: "serial\nmpi", description: "Communications paradigm"),
-  string(name: "modules", defaultValue: "intel/2017.4 fftw intelmpi/2017.4", description: "Module environments to load"),
+  string(name: "testexec", defaultValue: "mpirun -np 2", description: "Test command"),
+  string(name: "modules", defaultValue: "intel/2017.4 fftw python/3.6.0 intelmpi/2017.4", description: "Module environments to load"),
   string(name: "compiler", defaultValue: "intel-2017.4", description: "compiler-version, for consitent path names"),
   string(name: "GK_SYSTEM", defaultValue: "jenkins-intel", description: "Module environments to load"),
   string(name: "mathLibDir", defaultValue: "", description: "Specify maths library location"),
@@ -153,6 +154,34 @@ String libpath="/opt/software/intel/compilers_and_libraries_2017.4.196/linux/mpi
 		} catch(gitError) {
         		currentBuild.description = PRname + " - PR merge failed"
 			currentBuild.result = 'FAILURE'
+	
+			runDuration=currentBuild.durationString[0..-14]
+        		endMessage = ""
+			colourCode = '#FF0000' // failure red
+    			resultMessage = "Anvil build <${env.JOB_URL}/${env.BUILD_NUMBER}|#${env.BUILD_NUMBER}> for <${env.JOB_URL}|${env.JOB_NAME}> failed in git merge step after ${runDuration}"
+    			fallback = "Anvil build #${env.BUILD_NUMBER} for ${env.JOB_NAME} failed in git merge step after ${runDuration}"
+
+  			attachment = [text: resultMessage,
+				pretext: endMessage,
+				fallback: fallback,
+				color: colourCode,
+				mrkdwn_in: mrkdwn]
+  			attachments = [ attachment ]
+  			load = [ channel: channel, attachments: attachments ]
+  			try {
+    				endJson = new JsonBuilder(load)
+    				payload = endJson.toString()
+ 		   		endJson = null // Need to nullify the Json object as it is not "serializable" by Java
+ 		 	} catch (jsonError) {
+    				echo "Error contructing final Slack message - likely a library permissions issue"
+		    		payload = "{\"channel\":\"#jenkins\",\"attachments\":[{\"Job Ended\",\"text\":\"${resultMessage}\",\"fallback\":\"Job Ended\",\"color\":\"${colourCode}\",\"mrkdwn_in\":[\"pretext\",\"text\",\"fields\"]}]}"
+  			}
+  			command = "set +x; curl -X POST -H 'Content-Type: application/json' -d '${payload}' ${slackURL}"
+			try {
+				sh command
+			} catch (Exception slackError) {
+				echo "Error posting to Slack"
+			}
 			throw gitError
 		}
     	}
@@ -162,7 +191,6 @@ String libpath="/opt/software/intel/compilers_and_libraries_2017.4.196/linux/mpi
         currentBuild.description = "Installing netcdf/netcdff, if necessary"
 
         sh """
-
 
         export TEST_FILE_NETCDF=${MY_NETCDF_DIR}/include/netcdf.h
         export TEST_FILE_NETCDFF=${MY_NETCDFF_DIR}/include/netcdf.mod
@@ -200,7 +228,6 @@ String libpath="/opt/software/intel/compilers_and_libraries_2017.4.196/linux/mpi
               make install
               export LD_LIBRARY_PATH=\$LD_LIBRARY_PATH:${MY_NETCDFF_LIB}
 
-              ls ${MY_NETCDFF_INC}
 	      ${MY_NETCDFF_DIR}/bin/nf-config --all
               echo \$LD_LIBRARY_PATH
 	fi
@@ -231,6 +258,7 @@ String libpath="/opt/software/intel/compilers_and_libraries_2017.4.196/linux/mpi
         	currentBuild.description = "Testing"
 		try{
 			sh """
+				export TESTEXEC="${params.testexec}"
 				module load ${params.modules}
 				export GK_SYSTEM=${params.GK_SYSTEM}
     				export LD_LIBRARY_PATH=${libpath}
@@ -251,7 +279,7 @@ String libpath="/opt/software/intel/compilers_and_libraries_2017.4.196/linux/mpi
 	//sh '''
 	//	export params.testFailures=$(grep 'failures="1"' test-results/*.xml | wc -l)
 	//'''
-	testsFailed = sh ( script: """ grep 'failures="1"' test-results/*.xml | wc -l """ )
+	testFailures = sh ( script: """ grep 'failures="1"' test-results/*.xml | wc -l """, returnStdout: true ) as Integer
 
         currentBuild.description = "Sending notification to slack"
 	
@@ -271,11 +299,11 @@ String libpath="/opt/software/intel/compilers_and_libraries_2017.4.196/linux/mpi
         	fallback = "Anvil build #${env.BUILD_NUMBER} for ${env.JOB_NAME} was aborted." // same message but without hyperlinks, for pop up notifications
 		currentBuild.result = 'ABORTED'
   	}
-  	else if (testsFailed > 0) {
+  	else if (testFailures > 0) {
     		colourCode = '#FF0000'
     		currentBuild.description = "Build fails"
-    		resultMessage = "Anvil build <${env.JOB_URL}/${env.BUILD_NUMBER}|#${env.BUILD_NUMBER}> for <${env.JOB_URL}|${env.JOB_NAME}> finished with ${testsFailed} failures in ${runDuration}."
-        	fallback = "Anvil build #${env.BUILD_NUMBER} for ${env.JOB_NAME} finished with ${testsFailed} failures in ${runDuration}." // same message but without hyperlinks, for pop up notifications
+    		resultMessage = "Anvil build <${env.JOB_URL}/${env.BUILD_NUMBER}|#${env.BUILD_NUMBER}> for <${env.JOB_URL}|${env.JOB_NAME}> finished with ${testFailures} failures in ${runDuration}."
+        	fallback = "Anvil build #${env.BUILD_NUMBER} for ${env.JOB_NAME} finished with ${testFailures} failures in ${runDuration}." // same message but without hyperlinks, for pop up notifications
         	endMessage = '' // No title
 		currentBuild.result = 'FAILURE'
 	}
