@@ -278,6 +278,7 @@ String libpath="${MY_NETCDF_LIB}:${MY_NETCDFF_LIB}:/opt/software/gcc-7.2.0/openm
 				module load ${params.modules}
 				export GK_SYSTEM=${params.GK_SYSTEM}
     				export LD_LIBRARY_PATH=${libpath}
+				pip install --user netCDF4
 				.jenkins/test.sh
 			"""
 		} catch(testError) {
@@ -290,11 +291,6 @@ String libpath="${MY_NETCDF_LIB}:${MY_NETCDFF_LIB}:/opt/software/gcc-7.2.0/openm
     stage('Finishing') {
 
         currentBuild.description = "Parsing test results"
-
-	// This doesn't work, need a better way to parse files
-	//sh '''
-	//	export params.testFailures=$(grep 'failures="1"' test-results/*.xml | wc -l)
-	//'''
 	testFailures = sh ( script: """ grep 'failures="1"' test-results/*.xml | wc -l """, returnStdout: true ) as Integer
 
         currentBuild.description = "Sending notification to slack"
@@ -318,8 +314,9 @@ String libpath="${MY_NETCDF_LIB}:${MY_NETCDFF_LIB}:/opt/software/gcc-7.2.0/openm
   	else if (testFailures > 0) {
     		colourCode = '#FF0000'
     		currentBuild.description = "Build fails"
-    		resultMessage = "Anvil build <${env.JOB_URL}/${env.BUILD_NUMBER}|#${env.BUILD_NUMBER}> for <${env.JOB_URL}|${env.JOB_NAME}> finished with ${testFailures} failures in ${runDuration}."
-        	fallback = "Anvil build #${env.BUILD_NUMBER} for ${env.JOB_NAME} finished with ${testFailures} failures in ${runDuration}." // same message but without hyperlinks, for pop up notifications
+		outcome = " finished with ${testFailures} failures in ${runDuration}."
+    		resultMessage = jobDescription+outcome
+        	fallback = jobDescriptionNoLink+outcome // same message but without hyperlinks, for pop up notifications
         	endMessage = '' // No title
 		currentBuild.result = 'FAILURE'
 	}

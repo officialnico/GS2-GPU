@@ -274,13 +274,7 @@ String libpath="/opt/software/intel/compilers_and_libraries_2017.4.196/linux/mpi
     stage('Finishing') {
 
         currentBuild.description = "Parsing test results"
-
-	// This doesn't work, need a better way to parse files
-	//sh '''
-	//	export params.testFailures=$(grep 'failures="1"' test-results/*.xml | wc -l)
-	//'''
 	testFailures = sh ( script: """ grep 'failures="1"' test-results/*.xml | wc -l """, returnStdout: true ) as Integer
-
         currentBuild.description = "Sending notification to slack"
 	
 	// "currentBuild.durationString" unhelpfully returns the time followed by "and counting" because we're still in the pipeline. Bah.
