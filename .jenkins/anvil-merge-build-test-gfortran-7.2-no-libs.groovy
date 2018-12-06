@@ -207,7 +207,7 @@ command = "set +x; curl -X POST -H 'Content-Type: application/json' -d '${payloa
 				module load ${params.modules}
 				export GK_SYSTEM=${params.GK_SYSTEM}
                               	export MAKEFLAGS=-IMakefiles USE_NETCDF= USE_FFT= USE_NEW_DIAG=
-
+				pip install --user netCDF4
 				make tests
 				cd ../
 				rm -rf gs2

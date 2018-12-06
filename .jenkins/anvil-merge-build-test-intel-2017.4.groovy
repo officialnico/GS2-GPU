@@ -262,6 +262,7 @@ String libpath="/opt/software/intel/compilers_and_libraries_2017.4.196/linux/mpi
 				module load ${params.modules}
 				export GK_SYSTEM=${params.GK_SYSTEM}
     				export LD_LIBRARY_PATH=${libpath}
+				pip install --user netCDF4
 				.jenkins/test.sh
 			"""
 		} catch(testError) {
