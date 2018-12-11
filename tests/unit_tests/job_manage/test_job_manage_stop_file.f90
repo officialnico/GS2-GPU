@@ -6,7 +6,7 @@ program test_job_manage
    use gs2_main, only: old_iface_state, finalize_gs2, finalize_diagnostics
    use gs2_main, only: finalize_equations
    use unit_tests
-   use mp, only: init_mp, mp_comm, proc0, test_driver_flag, finish_mp
+   use mp, only: init_mp, mp_comm, proc0, finish_mp
    use job_manage, only: timer_local
    implicit none
    real :: start_time
@@ -16,7 +16,6 @@ program test_job_manage
    call init_mp
 
    ! Tell make system to run this test
-   test_driver_flag = .true.
    functional_test_flag = .true.
 
    call announce_module_test("job_manage")
