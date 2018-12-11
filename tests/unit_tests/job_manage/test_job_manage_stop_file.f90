@@ -3,7 +3,7 @@
 !
 program test_job_manage
    use gs2_main, only: run_gs2
-   use gs2_main, only: old_iface_state, finalize_gs2, finalize_diagnostics
+   use gs2_main, only: old_iface_state, finalize_gs2
    use gs2_main, only: finalize_equations
    use unit_tests
    use mp, only: init_mp, mp_comm, proc0, finish_mp
@@ -32,7 +32,6 @@ program test_job_manage
      "gs2 doesn't run without limit when run_name.stop is present")
 
    ! Finalize gs2
-   call finalize_diagnostics(old_iface_state)
    call finalize_equations(old_iface_state)
    call finalize_gs2(old_iface_state)
 
