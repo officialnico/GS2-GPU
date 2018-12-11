@@ -1,5 +1,5 @@
 !> This unit runs a tiny grid with nstep=10000, and checks
-!! that the .stop file mechanism is working
+!! that the creation of a .stop file causes GS2 to exit.
 !
 program test_job_manage
    use gs2_main, only: run_gs2
@@ -15,20 +15,24 @@ program test_job_manage
    ! Initialize
    call init_mp
 
+   ! Tell make system to run this test
    test_driver_flag = .true.
    functional_test_flag = .true.
 
    call announce_module_test("job_manage")
 
-   ! Run test
+   ! Run test:
+   ! 1. Create stop file
+   ! 2. Run gs2
+   ! 3. Check gs2 exits before the available cpu time expires
    if (proc0) call system("touch test_job_manage.stop")
    call announce_test("that gs2 doesn't run without limit when run_name.stop is present")
    start_time = timer_local()
    call run_gs2(mp_comm)
    call process_test((timer_local() - start_time < avail_time), &
-     "that gs2 doesn't run without limit when run_name.stop is present")
+     "gs2 doesn't run without limit when run_name.stop is present")
 
-   ! Finalize
+   ! Finalize gs2
    call finalize_diagnostics(old_iface_state)
    call finalize_equations(old_iface_state)
    call finalize_gs2(old_iface_state)
@@ -37,6 +41,7 @@ program test_job_manage
 
    call finish_mp
 
+   ! Delete stop file
    if (proc0) call system("rm test_job_manage.stop")
 
 contains
