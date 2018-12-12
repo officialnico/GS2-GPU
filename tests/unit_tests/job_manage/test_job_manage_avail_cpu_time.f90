@@ -10,7 +10,8 @@ program test_job_manage
     use job_manage, only: timer_local
     implicit none
     real :: start_time
-    real :: avail_time = 2.0
+    real :: avail_time = 2.0 ! expected time for this test
+    real :: elapsed_time
 
    ! Initialize
    call init_mp
@@ -26,7 +27,11 @@ program test_job_manage
    call announce_test("that gs2 doesn't run without limit when avail_cpu_time is set")
    start_time = timer_local()
    call run_gs2(mp_comm)
-   call process_test(((timer_local() - start_time .gt. avail_time - 1.0) ), &
+
+   elapsed_time = timer_local() - start_time
+   call process_test(( &
+     ( elapsed_time .gt. avail_time ) .and. &
+     ( elapsed_time .lt. 10.0 ) ), &
      "gs2 doesn't run without limit when avail_cpu_time is set")
 
    ! Finalize gs2
