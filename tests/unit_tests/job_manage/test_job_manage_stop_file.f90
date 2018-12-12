@@ -28,6 +28,9 @@ program test_job_manage
    call announce_test("that gs2 doesn't run without limit when run_name.stop is present")
    start_time = timer_local()
    call run_gs2(mp_comm)
+
+   ! If gs2 was aborted by the stop file, the elapsed time (timer_local - start_time)
+   ! will be less than avail_time.
    call process_test((timer_local() - start_time < avail_time), &
      "gs2 doesn't run without limit when run_name.stop is present")
 
