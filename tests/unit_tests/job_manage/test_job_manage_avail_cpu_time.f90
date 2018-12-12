@@ -31,7 +31,7 @@ program test_job_manage
    elapsed_time = timer_local() - start_time
    call process_test(( &
      ( elapsed_time .gt. avail_time ) .and. &
-     ( elapsed_time .lt. 10.0 ) ), &
+     ( elapsed_time .lt. 3 ) ), &
      "gs2 doesn't run without limit when avail_cpu_time is set")
 
    ! Finalize gs2

@@ -10,7 +10,7 @@ These tests check that jobs are aborted by these two mechanisms. In `test_job_ma
 `avail_cpu_time` is set to 302 seconds, so jobs should exit after 2 seconds.
 
 * **`test_job_manage_avail_cpu_time`** checks that the job has stopped after two seconds,
-  but before ten seconds.  Without limit, the job takes around 20 seconds.
+  but before three seconds.  Without limit, the job takes around 10 seconds.
 * **`test_job_manage_stop_file`** creates a stop file, runs gs2, and checks
   that gs2 finishes _before_ two seconds have elapsed.
   
