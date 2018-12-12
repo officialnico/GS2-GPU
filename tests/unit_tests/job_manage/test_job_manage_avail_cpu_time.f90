@@ -2,16 +2,16 @@
 !! that GS2 exits when run time exceeds avail_time.
 !
 program test_job_manage
-    use gs2_main, only: run_gs2
-    use gs2_main, only: old_iface_state, finalize_gs2
-    use gs2_main, only: finalize_equations
-    use unit_tests
-    use mp, only: init_mp, mp_comm, finish_mp
-    use job_manage, only: timer_local
-    implicit none
-    real :: start_time
-    real :: avail_time = 2.0 ! expected time for this test
-    real :: elapsed_time
+   use gs2_main, only: run_gs2
+   use gs2_main, only: old_iface_state, finalize_gs2
+   use gs2_main, only: finalize_equations
+   use unit_tests
+   use mp, only: init_mp, mp_comm, finish_mp
+   use job_manage, only: timer_local
+   implicit none
+   real :: start_time
+   real :: avail_time = 2.0 ! expected time for this test
+   real :: elapsed_time
 
    ! Initialize
    call init_mp
