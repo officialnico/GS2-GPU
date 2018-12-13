@@ -22,8 +22,12 @@ all: cyclone_itg_low_res cyclone_itg_replay
 	$(call RUNCOMMAND,cyclone_itg_low_res,cyclone_itg_low_res.in,implicit)
 	$(call RUNCOMMAND,cyclone_itg_low_res,cyclone_itg_low_res_fields_local.in,local)
 	$(call RUNCOMMAND,cyclone_itg_low_res,cyclone_itg_low_res_fields_gf_local.in,gf_local)
+ifdef USE_NEW_DIAG
 	$(call COPY)
 	$(call RUNCOMMAND,cyclone_itg_replay,cyclone_itg_replay.in,)
+else
+	$(call SKIPCOMMAND,compiled without new diagnostics; compile with USE_NEW_DIAG=on to run this test)
+endif
 endif
 
 cyclone_itg_low_res.o cyclone_itg_replay.o:  ${TEST_MODS} 

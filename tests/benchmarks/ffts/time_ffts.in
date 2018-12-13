@@ -45,6 +45,10 @@ layout = 'xyles'
   ngauss = 5
 /
 
+&knobs
+ nstep = 10
+/
+
 &species_knobs
   nspec = 2
 /
