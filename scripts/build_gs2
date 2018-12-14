@@ -130,6 +130,7 @@ fi
 #Defaults
 MAKE_OPTIONAL_COMMAND=""
 COMMAND="build"
+RUN_GCOV=off
 
 #Parse arguments
 while getopts "hdngs:c:o:t:v:l:" OPTIONS
