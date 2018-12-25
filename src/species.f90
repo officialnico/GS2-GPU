@@ -20,6 +20,7 @@ module species
   public :: calculate_f0_arrays, set_current_f0_species, eval_f0
   public :: nonmaxw_corr, f0_values, dlnf0drho
   public :: hzero_passing_electron, hzero_passing_electron_collisions_matrix
+  public :: hzero_passing_electron_response, hzero_passing_electron_response_init
   
   public :: species_config_type
   public :: species_element_config_type
@@ -61,6 +62,7 @@ module species
   real:: me, ZI_fac
 
   logical :: hzero_passing_electron, hzero_passing_electron_collisions_matrix
+  logical :: hzero_passing_electron_response, hzero_passing_electron_response_init
   
   !> Defines a working species so that eval_f0 only needs to take one argument (needed for genquad)
   integer:: is_global = -1
@@ -84,7 +86,14 @@ module species
      logical :: hzero_passing_electron = .false.
      !> If true, the non-zonal electron collision operator is modified to
      !> reflect the h=0 (zero passing) boundary condition for trapped particles
-     logical :: hzero_passing_electron_collisions_matrix = .false.     
+     logical :: hzero_passing_electron_collisions_matrix = .false.
+     !> FIXME: Add documentation
+     logical :: hzero_passing_electron_response = .false.
+     !> If true, the electron response for non-zonal
+     !> passing particles is set to be adiabatic. (h=0)
+     !> by removing g_electron from the calculation of the fields
+     !> and modifying the fields calculation (and the response matrix)
+     logical :: hzero_passing_electron_response_init = .false.
      !> Specifies the electron mass used in calculating the slowing
      !> down parameters in simulations without kinetic electrons.
      real :: me = -1.0
@@ -427,6 +436,8 @@ contains
     ! Copy out internal values into module level parameters
     hzero_passing_electron = species_config%hzero_passing_electron
     hzero_passing_electron_collisions_matrix = species_config%hzero_passing_electron_collisions_matrix
+    hzero_passing_electron_response = species_config%hzero_passing_electron_response
+    hzero_passing_electron_response_init = species_config%hzero_passing_electron_response_init
     me = species_config%me
     nspec = species_config%nspec
     zi_fac = species_config%zi_fac
@@ -1152,7 +1163,7 @@ contains
   !---------------------------------------
   ! Following is for the config_type
   !---------------------------------------
-  
+
   !> Reads in the species_knobs namelist and populates the member variables
   subroutine read_species_config(self)
     use file_utils, only: input_unit_exist, get_indexed_namelist_unit
@@ -1166,10 +1177,10 @@ contains
     ! we shadow the module level variables here. This is intentional to provide
     ! isolation and ensure we can move this routine to another module easily.    
     integer :: nspec
-    logical :: hzero_passing_electron, hzero_passing_electron_collisions_matrix
+    logical :: hzero_passing_electron, hzero_passing_electron_collisions_matrix, hzero_passing_electron_response, hzero_passing_electron_response_init
     real :: me, zi_fac
 
-    namelist /species_knobs/ hzero_passing_electron, hzero_passing_electron_collisions_matrix, me, nspec, zi_fac
+    namelist /species_knobs/ hzero_passing_electron, hzero_passing_electron_collisions_matrix, hzero_passing_electron_response, hzero_passing_electron_response_init, me, nspec, zi_fac
 
     ! Only proc0 reads from file
     if (.not. proc0) return
@@ -1177,6 +1188,8 @@ contains
     ! First set local variables from current values
     hzero_passing_electron = self%hzero_passing_electron
     hzero_passing_electron_collisions_matrix = self%hzero_passing_electron_collisions_matrix
+    hzero_passing_electron_response = self%hzero_passing_electron_response
+    hzero_passing_electron_response_init = self%hzero_passing_electron_response_init
     me = self%me
     nspec = self%nspec
     zi_fac = self%zi_fac
@@ -1196,6 +1209,8 @@ contains
     ! Now copy from local variables into type members
     self%hzero_passing_electron = hzero_passing_electron
     self%hzero_passing_electron_collisions_matrix = hzero_passing_electron_collisions_matrix
+    self%hzero_passing_electron_response = hzero_passing_electron_response
+    self%hzero_passing_electron_response_init = hzero_passing_electron_response_init
     self%me = me
     self%nspec = nspec
     self%zi_fac = zi_fac
@@ -1218,6 +1233,8 @@ contains
     call self%write_namelist_header(unit_internal)
     call self%write_key_val("hzero_passing_electron", self%hzero_passing_electron, unit_internal)
     call self%write_key_val("hzero_passing_electron_collisions_matrix", self%hzero_passing_electron_collisions_matrix, unit_internal)
+    call self%write_key_val("hzero_passing_electron_response", self%hzero_passing_electron_response, unit_internal)
+    call self%write_key_val("hzero_passing_electron_response_init", self%hzero_passing_electron_response_init, unit_internal)
     call self%write_key_val("me", self%me, unit_internal)
     call self%write_key_val("nspec", self%nspec, unit_internal)
     call self%write_key_val("zi_fac", self%zi_fac, unit_internal)
@@ -1242,6 +1259,8 @@ contains
     class(species_config_type), intent(in out) :: self
     call broadcast(self%hzero_passing_electron)
     call broadcast(self%hzero_passing_electron_collisions_matrix)
+    call broadcast(self%hzero_passing_electron_response)
+    call broadcast(self%hzero_passing_electron_response_init)
     call broadcast(self%me)
     call broadcast(self%nspec)
     call broadcast(self%zi_fac)

@@ -1037,6 +1037,10 @@ contains
   !> FIXME : Add documentation  
   subroutine ginit (restarted, override_ginitopt_switch)
     use gs2_save, only: read_t0_from_restart_file
+    use fields_arrays, only: phi, bpar, apar, bparnew, aparnew, phinew
+    use dist_fn_arrays, only: g, gnew
+    use dist_fn, only: get_init_field
+    use species, only: hzero_passing_electron_response_init
     implicit none
     logical, intent (out) :: restarted
     integer, intent(in), optional :: override_ginitopt_switch
@@ -1184,6 +1188,15 @@ contains
        call set_gnew_from_nonadiabatic_dfn
     end if
 
+    ! This looks curious, why is this here now?
+    if (hzero_passing_electron_response_init) then
+        call get_init_field (phinew, aparnew, bparnew)
+        phinew = phi 
+        aparnew = apar
+        bparnew = bpar
+        g = gnew
+    endif 
+    
   end subroutine ginit
 
   !> Take the existing gnew value and, assuming it is the nonadiabatic dfn,
@@ -1533,7 +1546,7 @@ contains
     use dist_fn_arrays, only: g, gnew
     use gs2_layouts, only: g_lo, ik_idx, it_idx, il_idx, is_idx, proc_id
     use dist_fn, only: boundary_option_linked, boundary_option_switch
-    use dist_fn, only: l_links, r_links
+    use dist_fn, only: l_links, r_links, get_init_field
     use dist_fn, only: pass_right, init_pass_ends
     use redistribute, only: fill, delete_redist
     use ran, only: ranf
