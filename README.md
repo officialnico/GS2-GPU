@@ -7,6 +7,14 @@ key properties of the turbulence which results from instabilities. It
 is also used to simulate turbulence in plasmas which occur in nature,
 such as in astrophysical and magnetospheric systems.
 
+To download the source run:
+
+    git clone --recurse-submodules https://bitbucket.org/gyrokinetics/gs2.git
+
+or for git < v2.13:
+
+    git clone --recursive https://bitbucket.org/gyrokinetics/gs2.git
+
 ## Dependencies
 
 GS2 has no required external dependencies, but does have the following
