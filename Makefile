@@ -231,28 +231,42 @@ endif
 
 include Makefile.$(GK_SYSTEM)
 
-# These directories are submodules
-# The pipe means "order only", i.e. the target only needs to exist,
-# don't worry about timestamps
-Makefiles: | submodules
-utils: | submodules
-
-# Make sure the submodules exist
-# Due to the way make works, we need to rerun the target in a clean
-# process -- but don't do this if the target is explicitly
-# "submodules", or we'll end up in an infinite loop!
-submodules:
+# Make sure the submodules exist; they all share the same recipe
+Makefiles utils submodules:
 	@echo "Downloading submodules"
 	git submodule update --init --recursive
-	@test -f Makefiles/Makefile.$(GK_SYSTEM) \
-      || (echo -e "\n*** Unknown GK_SYSTEM="$(GK_SYSTEM)". Stop."; exit 2)
+# If we're running this recipe as a prerequisite, we need to rerun the
+# original target in a clean process -- but don't do this if the
+# target is explicitly "submodules", or we'll end up in an infinite
+# loop! The actual submodules are directories so Make can see if they
+# exist and therefore should skip the entire recipe
 ifneq ($(MAKECMDGOALS),submodules)
 	$(MAKE) $(MAKECMDGOALS)
 endif
 
-# This works because make tries to read all the makefiles first, then
-# update any that need updating
+# Set if the GK_SYSTEM Makefile exists in one of Make's include
+# directories
+FOUND_MAKEFILE = $(shell \
+for dir in $(.INCLUDE_DIRS);\
+  do test -f "$$dir/Makefile.$(GK_SYSTEM)" && echo "yes";\
+done)
+
+# CAREFUL! Defines a newline to be used in make's error
+# function. Requires *two* blank lines for reasons
+define newline_
+
+
+endef
+
+# This works because Make tries to read all the makefiles first, then
+# update any that need updating. The pipe means order-only,
+# i.e. doesn't check the timestamp
 Makefile.$(GK_SYSTEM): | Makefiles
+ifneq ($(FOUND_MAKEFILE),yes)
+	$(error Could not find Makefile.$(GK_SYSTEM)$(newline_)$(newline_)\
+	*** Have you correctly set $$GK_SYSTEM and/or $$MAKEFLAGS?$(newline_)\
+	*** (looking in $(PWD) $(.INCLUDE_DIRS))$(newline_)$(newline_))
+endif
 
 # include Makefile.local if exists
 sinclude Makefile.local
@@ -335,7 +349,7 @@ ifdef USE_MPI
 	CC = $(MPICC)
 	MACRO_DEFS += -DMPI
 endif
- 
+
 ifeq ($(USE_MPI),mpi3)
 	MACRO_DEFS += -DMPI3
 endif
