@@ -13,6 +13,7 @@ else
 all: test_job_manage_stop_file test_job_manage_avail_cpu_time
 	$(call RUNCOMMAND,test_job_manage_stop_file,test_job_manage.in)
 	$(call RUNCOMMAND,test_job_manage_avail_cpu_time,test_job_manage.in)
+	-rm test_job_manage.stop
 endif
 
 test_job_manage_stop_file.o:  ${TEST_MODS} 
