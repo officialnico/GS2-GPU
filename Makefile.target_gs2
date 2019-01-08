@@ -44,15 +44,15 @@ ffttester: $(ffttester_mod)
 
 # Order-only prerequisites need to be specified separately for this to
 # work properly
-modules: | utils
+modules: | $(UTILS_SENTINEL)
 modules: utils.a geo.a libgs2.a diagnostics
 
 ### UTILS
-utils_all: | utils
+utils_all: | $(UTILS_SENTINEL)
 utils_all: utils.a
 
 UTIL_OBJ = spl.o constants.o file_utils.o netcdf_utils.o command_line.o runtime_tests.o constant_random.o
-utils.a: | utils
+utils.a: | $(UTILS_SENTINEL)
 utils.a: $(UTIL_OBJ)
 	$(ARCH) $(ARCHFLAGS) $@ $^
 	$(RANLIB) $@
