@@ -155,6 +155,8 @@ The following is the full list of switches the possible options in
                   (NOTE: NAG_PREC=dble (or sngl) must be
                   chosen appropriately for your NAG library)
  - `USE_GCOV` (defined [undefined]): generates gcov notes files
+ - `NO_TEST_COLOURS` (defined [undefined]): do not use terminal colours when 
+                  reporting test results
 
 Values that each switch takes are shown in brackets, where "defined"
 ("undefined") means whether the switch is defined (or not), but not
