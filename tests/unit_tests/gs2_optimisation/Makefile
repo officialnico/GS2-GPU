@@ -1,7 +1,7 @@
 
 sinclude ../Makefile.tests_common
 
-CLEANCOMMAND+= test_gs2_optimisation
+CLEANCOMMAND+= test_gs2_optimisation test_gs2_optimisation.report test_gs2_optimisation_run.report
 
 #Define this tests level
 MY_TEST_LEVEL=2
