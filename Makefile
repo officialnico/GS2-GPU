@@ -231,28 +231,57 @@ endif
 
 include Makefile.$(GK_SYSTEM)
 
-# These directories are submodules
-# The pipe means "order only", i.e. the target only needs to exist,
-# don't worry about timestamps
-Makefiles: | submodules
-utils: | submodules
+# Files that we know are going to be in the submodule directories.
+# This is in case the directories exist but the submodules haven't
+# actually been initialised
+MAKEFILES_SENTINEL = Makefiles/Makefile.bitbucket
+UTILS_SENTINEL = utils/Makefile
 
-# Make sure the submodules exist
-# Due to the way make works, we need to rerun the target in a clean
-# process -- but don't do this if the target is explicitly
-# "submodules", or we'll end up in an infinite loop!
-submodules:
+# Make sure the submodules exist; they all share the same recipe
+$(MAKEFILES_SENTINEL) $(UTILS_SENTINEL) submodules:
 	@echo "Downloading submodules"
 	git submodule update --init --recursive
-	@test -f Makefiles/Makefile.$(GK_SYSTEM) \
-      || (echo -e "\n*** Unknown GK_SYSTEM="$(GK_SYSTEM)". Stop."; exit 2)
+# If we're running this recipe as a prerequisite, we need to rerun the
+# original target in a clean process -- but don't do this if the
+# target is explicitly "submodules", or we'll end up in an infinite
+# loop! The actual submodules are directories so Make can see if they
+# exist and therefore should skip the entire recipe
 ifneq ($(MAKECMDGOALS),submodules)
-	$(MAKE) $(MAKECMDGOALS)
+	@$(MAKE) $(MAKECMDGOALS)
+	@exit
 endif
 
-# This works because make tries to read all the makefiles first, then
-# update any that need updating
-Makefile.$(GK_SYSTEM): | Makefiles
+# CAREFUL! Defines a newline to be used in make's error
+# function. Requires *two* blank lines for reasons
+define newline_
+
+
+endef
+
+BITBUCKET_ISSUE_URL = https://bitbucket.org/gyrokinetics/gs2/issues/new
+
+# This works because Make tries to read all the makefiles first, then
+# update any that need updating. The pipe means order-only,
+# i.e. doesn't check the timestamp. If we actually try to run the
+# recipe that means something has gone wrong -- normally GK_SYSTEM is
+# wrong
+Makefile.$(GK_SYSTEM): | $(MAKEFILES_SENTINEL)
+	$(error Could not find Makefile.$(GK_SYSTEM)$(newline_)\
+	*** Looking in: $(PWD) $(.INCLUDE_DIRS)$(newline_)\
+	***     Note: the above does not include non-existent directories!$(newline_)\
+	***$(newline_)\
+	*** Have you correctly set GK_SYSTEM and/or MAKEFLAGS?$(newline_)\
+	***     GK_SYSTEM: $(GK_SYSTEM)$(newline_)\
+	***     MAKEFLAGS: $(MAKEFLAGS)$(newline_)\
+	***$(newline_)\
+	*** If you are sure both GK_SYSTEM and MAKEFLAGS are correct, please try$(newline_)\
+	*** running your 'make' command again. If you still get this error,$(newline_)\
+	*** something else has gone wrong! Please report it at$(newline_)\
+	***$(newline_)\
+	***     $(BITBUCKET_ISSUE_URL)$(newline_)\
+	***$(newline_)\
+	*** including your 'make' command and its output$(newline_)\
+	)
 
 # include Makefile.local if exists
 sinclude Makefile.local
@@ -335,7 +364,7 @@ ifdef USE_MPI
 	CC = $(MPICC)
 	MACRO_DEFS += -DMPI
 endif
- 
+
 ifeq ($(USE_MPI),mpi3)
 	MACRO_DEFS += -DMPI3
 endif
@@ -562,6 +591,12 @@ endif
 		mp.f90 fft_work.f90
 
 ####################################################################### Source code targets
+
+# This is to ensure the utils submodule gets initialised. The file
+# mp.o is not important, we just need to add prerequisite for some
+# file in utils
+mp.o: | $(UTILS_SENTINEL)
+
 .rb.f90:
 	$(call RUBY_GENERATE,$@,$<)
 
