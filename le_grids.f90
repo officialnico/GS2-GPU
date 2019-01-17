@@ -4409,8 +4409,8 @@ contains
     use gs2_layouts, only: g_lo, ik_idx, it_idx, is_idx
     use gs2_layouts, only: ie_idx, il_idx, idx_local, proc_id
     use theta_grid, only: ntgrid, bmag, theta
-	use kt_grids, only: aky, akx ! MRH added to index with ky, kx
-	
+    use kt_grids, only: aky, akx ! MRH added to index with ky, kx
+
     implicit none
 
     complex, dimension (-ntgrid:,:,g_lo%llim_proc:), intent (in) :: dist
