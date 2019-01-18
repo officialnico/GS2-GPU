@@ -2,7 +2,7 @@ stages:
   - test
   - ci_status
 
-unit-tests
+unit-tests:
   script:
     - echo "Success. Add your tests!"
 
