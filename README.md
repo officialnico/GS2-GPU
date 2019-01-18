@@ -1,5 +1,7 @@
 # GS2
 
+[![pipeline status](https://gitlab.com/gyrokinetics/gs2/badges/master/pipeline.svg)](https://gitlab.com/gyrokinetics/gs2/commits/master)
+
 GS2 is a physics application, developed to study low-frequency
 turbulence in magnetized plasma. It is typically used to assess the
 microstability of plasmas produced in the laboratory and to calculate
