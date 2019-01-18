@@ -132,7 +132,8 @@ contains
     integer :: sel, nbeta, j, ise
     real :: beta_low, beta_high, dbeta, beta_save
     real :: fapar_save, fbpar_save, pri, pe, alpi, tpe_save, ptot, alp, dbdr
-    real :: alt, aln, fac, beta_prime_save, bishop_save
+    real :: alt, aln, fac, beta_prime_save
+    integer :: bishop_save
     real, dimension (:), allocatable :: tp_save, fp_save
     character (500) :: tag1, tag2
     logical :: first = .true.
