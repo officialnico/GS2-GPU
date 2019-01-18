@@ -17,11 +17,12 @@ module genquad
 
   private
 
+#ifdef GENQUAD
   real,dimension(:),allocatable:: a_poly, b_poly
   logical:: inf_flag1, inf_flag2
   real:: epsfac = 1.0 
   integer:: poly_type, poly_order
- 
+#endif
 
 contains
 !> Accepts a weighting function (with only one argument), defined as external, 
@@ -48,6 +49,7 @@ contains
     real,intent(in):: v0, vf
     real,dimension(1:), intent(inout):: out_abscissae, out_wgts
     logical,optional,intent(in):: inf_flag1_in, inf_flag2_in
+#ifdef GENQUAD
     real,dimension(0:N_out):: alpha,beta
     integer:: i, nerr, ier, neval, n
     real:: errest, moment1, moment2
@@ -57,7 +59,7 @@ contains
     procedure(real),pointer:: wgt_x
     procedure(real),pointer:: poly_sq 
     procedure(real),pointer:: poly_sqx 
-#ifdef GENQUAD
+
     wgt_x => wgt_x_func
     poly_sq => poly_sq_func
     poly_sqx => poly_sqx_func
