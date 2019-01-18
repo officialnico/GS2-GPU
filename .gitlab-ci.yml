@@ -2,6 +2,9 @@ stages:
   - test
   - ci_status
 
+variables:
+  GIT_SUBMODULE_STRATEGY: recursive
+  
 simple_compile:
   before_script:
     - apt-get update -qq && apt-get install -y -qq libfftw3-dev libnetcdf-dev netcdf-bin openmpi-bin libopenmpi-dev gfortran
