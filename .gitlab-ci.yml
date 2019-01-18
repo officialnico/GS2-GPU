@@ -7,10 +7,8 @@ variables:
   
 simple_compile:
   before_script:
-    - apt-get update -qq && apt-get install -y -qq libfftw3-dev libnetcdf-dev netcdf-bin openmpi-bin libopenmpi-dev gfortran
+    - apt-get update -qq && apt-get install -y -qq libfftw3-dev libnetcdf-dev libnetcdff-dev netcdf-bin openmpi-bin libopenmpi-dev gfortran
   script:
-    - MAKEFLAGS=-IMakefiles GK_SYSTEM=bitbucket make submodules
-    - ls Makefiles
     - MAKEFLAGS=-IMakefiles GK_SYSTEM=bitbucket make USE_NEW_DIAG= depend    
     - MAKEFLAGS=-IMakefiles GK_SYSTEM=bitbucket make USE_NEW_DIAG= -j gs2    
 
