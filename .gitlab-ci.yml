@@ -1,27 +1,27 @@
 stages:
-   - test
-   - ci_status
+  - test
+  - ci_status
 
- unit-tests
-   script:
-     - echo "Success. Add your tests!"
+unit-tests
+  script:
+    - echo "Success. Add your tests!"
 
- success:
-   stage: ci_status
-   before_script:
-     - ""
-   after_script:
-     - ""
-   script:
-     - BUILD_STATUS=passed BUILD_KEY=push ./.push_gitlab_build_status
-   when: on_success
+success:
+  stage: ci_status
+  before_script:
+    - ""
+  after_script:
+    - ""
+  script:
+    - BUILD_STATUS=passed BUILD_KEY=push ./.push_gitlab_build_status
+  when: on_success
 
- failure:
-   stage: ci_status
-   before_script:
-     - ""
-   after_script:
-     - ""
-   script:
-     - BUILD_STATUS=failed BUILD_KEY=push ./.push_gitlab_build_status
-   when: on_failure
+failure:
+  stage: ci_status
+  before_script:
+    - ""
+  after_script:
+    - ""
+  script:
+    - BUILD_STATUS=failed BUILD_KEY=push ./.push_gitlab_build_status
+  when: on_failure
