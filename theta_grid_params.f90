@@ -54,7 +54,6 @@ contains
   subroutine read_parameters
     use file_utils, only: input_unit, input_unit_exist
     use unit_tests, only: debug_message
-    use constants, only: pi=>pi
     implicit none
     integer, parameter :: verb=3
     integer :: in_file

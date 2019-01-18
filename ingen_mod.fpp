@@ -115,7 +115,6 @@ contains
   end subroutine run_ingen
 
   subroutine init_ingen
-    use mp, only: nproc
     n_sweet_spots = 0
     npmax=100000
     allocate(sweet_spots(1))
@@ -693,8 +692,6 @@ contains
     use antenna, only: init_antenna
     use collisions, only: coll_read_parameters=>read_parameters
     use collisions, only: collision_model_switch, collision_model_none
-    use collisions, only: collision_model_full, collision_model_ediffuse
-    use collisions, only: collision_model_lorentz, collision_model_lorentz_test
     use fields, only : fields_read_parameters=>read_parameters
     use hyper, only : hyper_read_parameters=>read_parameters
     use species,only : spec, nspec
@@ -711,7 +708,6 @@ contains
     use kt_grids, only: init_kt_grids
     use le_grids, only: init_le_grids
     use theta_grid, only: init_theta_grid, ntgrid
-    use constants, only: pi
     implicit none
     logical :: list, accelx=.false., accelv=.false.
     logical, parameter :: debug=.false.
@@ -931,7 +927,7 @@ if (debug) write(6,*) 'get_namelists: returning'
      use theta_grid, only: gb_to_cv, ntgrid
      use theta_grid_params, only: nperiod, ntheta, eps, epsl, rmaj, r_geo
      use theta_grid_params, only: pk, qinp, rhoc, shift, shat
-     use collisions, only: collision_model_switch, collision_model_none
+     use collisions, only: collision_model_switch
      use collisions, only: collision_model_full, collision_model_ediffuse
      use collisions, only: collision_model_lorentz, collision_model_lorentz_test
      use collisions, only: use_le_layout

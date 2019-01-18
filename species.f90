@@ -2,7 +2,7 @@ module species
   implicit none
 
   private
-  public :: init_species, finish_species !, reinit_species, init_trin_species, finish_trin_species
+  public :: init_species, finish_species
 
   public :: write_trinity_parameters
   public :: wnml_species, check_species
@@ -58,8 +58,6 @@ module species
   type (specie), dimension (:), allocatable :: spec
 
   integer :: ions, electrons, impurity
-  integer :: ntspec_trin
-  real, dimension (:), allocatable :: dens_trin, temp_trin, fprim_trin, tprim_trin, nu_trin
   real, dimension (:,:), allocatable :: nonmaxw_corr, f0_values, dlnf0drho
 
   logical :: initialized = .false.
@@ -225,17 +223,13 @@ contains
   end subroutine wnml_species
   
   subroutine init_species
-    !use mp, only: trin_flag
     implicit none
 
     if (initialized) return
     initialized = .true.
 
     call read_parameters
-    !if (trin_flag) then
-       !call reinit_species (ntspec_trin, dens_trin, &
-         !temp_trin, fprim_trin, tprim_trin, nu_trin)
-    !endif
+
   end subroutine init_species
 
   subroutine read_parameters
@@ -460,7 +454,6 @@ contains
   end subroutine calculate_slowingdown_parameters
 
   subroutine calculate_f0_arrays(egrid)
-     use mp, only: iproc
      implicit none
      real, dimension (:,:), intent (in) :: egrid
      integer:: negrid,is,ie
@@ -488,7 +481,6 @@ contains
               nonmaxw_corr(ie,is) = -spec(is)%temp*df0dE
               dlnf0drho(ie,is) = f0prim
            end select
-           !write(*,*) iproc, is, ie, f0_values(ie,is), -nonmaxw_corr(ie,is)/spec(is)%temp,dlnf0drho(ie,is)
         end do
         if (spec(is)%f0type .EQ. f0_tabulated) then
            call calculate_f0_arrays_tabulated(is,egrid)
@@ -532,14 +524,13 @@ contains
 
   subroutine eval_f0_sdanalytic(is,v,f0,df0dE_out,f0prim)
     use constants, only: pi
-    use mp, only: mp_abort, proc0
+    use mp, only: mp_abort
     use spfunc, only: erf => erf_ext
     implicit none
     integer,intent(in):: is
     real,intent(in):: v
     real,intent(inout):: f0,df0dE_out, f0prim
     real:: A, df0dv,vcprim, vcrit
-    integer:: ie, i, electron_spec
 
     if (spec(is)%vcrit .LE. 0.0) then
        call calculate_slowingdown_parameters(is,vcrit,vcprim)
@@ -592,9 +583,9 @@ contains
     implicit none
     integer, intent(in) :: is
     real, dimension(:,:),intent(in):: egrid
-    integer:: f0in_unit = 21, mode, ie, ierr, numdat, il, it, negrid
+    integer:: f0in_unit = 21, mode, ie, ierr, numdat, negrid
     logical:: acceptable_spline
-    real:: test, moment0, moment2, sigma, sigma_fac, df0dE
+    real:: moment0, sigma, sigma_fac, df0dE
     real, dimension(:), allocatable:: f0_values_dat, df0dE_dat, egrid_dat, &
                                       yp, temp, df0drho_dat
     

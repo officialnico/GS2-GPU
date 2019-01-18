@@ -546,7 +546,7 @@ contains
 
   subroutine init_parameters_box
     use file_utils, only: input_unit, input_unit_exist
-    use theta_grid, only: init_theta_grid, shat, drhodpsi
+    use theta_grid, only: init_theta_grid, shat
     use constants, only: pi
     integer :: in_file
     logical :: exist

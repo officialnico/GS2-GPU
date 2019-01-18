@@ -113,7 +113,7 @@ module eeq
   public :: psi,      initialize_psi
   public :: verbosity  !Should this be replaced by usage of runtime_test:verbosity?
 
-  integer :: nw, nh, nbbbs, ntime, ntstar
+  integer :: nw, nh, nbbbs
 
   integer :: verbosity = 0  !Should this be replaced by usage of runtime_test:verbosity?
 

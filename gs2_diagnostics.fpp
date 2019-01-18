@@ -90,7 +90,7 @@ module gs2_diagnostics
   complex, dimension (:, :), allocatable :: omega, omegaavg
   !EGH>
 
-  integer :: out_unit, kp_unit, heat_unit, polar_raw_unit, polar_avg_unit, heat_unit2, lpc_unit
+  integer :: out_unit, kp_unit, heat_unit, heat_unit2, lpc_unit
   integer :: jext_unit   !GGH Additions
   integer :: phase_unit
   integer :: dump_check1_unit, dump_check2_unit
@@ -2560,7 +2560,7 @@ contains
   subroutine do_write_nl_flux_dist
     use dist_fn, only: flux_dist
     use theta_grid, only: ntgrid
-    use le_grids, only: nlambda, negrid
+    use le_grids, only: negrid
     use species, only: nspec, spec
     use mp, only: proc0
     use gs2_io, only: nc_loop_dist

@@ -181,8 +181,6 @@ contains
     implicit none
     type(init_type), intent(inout) :: current
     integer, intent(in) :: target_level
-    integer :: i
-    !logical :: up, down
     if (current%level .lt. init_level_list%basic) then
       write (*,*) "gs2_init::init cannot be called before &
        & initialize_gs2 in gs2 main"
@@ -939,7 +937,6 @@ contains
     use fields, only: set_init_fields
     use file_utils, only: error_unit
     use init_g, only: ginit
-    use init_g, only: ginitopt_restart_memory
     use init_g, only: ginitopt_restart_many
     use run_parameters, only: fphi, fapar, fbpar
     use mp, only: proc0

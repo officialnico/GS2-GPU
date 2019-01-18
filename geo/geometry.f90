@@ -2952,9 +2952,6 @@ end subroutine geofax
     integer, intent(in) :: nt
     integer :: i
 
-!cmr Jun06: adding following debug switch
-    logical, parameter :: debug=.false.
-!cmr
     logical :: first_local = .true.
 
     ntheta=nt

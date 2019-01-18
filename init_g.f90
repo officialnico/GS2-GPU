@@ -1166,7 +1166,6 @@ contains
     use mp, only: mp_abort
     implicit none
     complex, dimension (-ntgrid:ntgrid,ntheta0,naky), intent(inout) :: phi
-    real :: a, b
     integer :: ig, ik, it
 
     if (ikx_init  < 2 .or. ikx_init > (ntheta0+1)/2) then
@@ -3769,7 +3768,6 @@ contains
     use gs2_save, only: gs2_restore
     use mp, only: proc0
     use file_utils, only: error_unit
-    use kt_grids, only: naky, ntheta0
     use le_grids, only: forbid
     use dist_fn_arrays, only: g, gnew
     use gs2_layouts, only: g_lo, ik_idx, it_idx, il_idx, is_idx
@@ -3827,9 +3825,8 @@ contains
 
     complex, dimension (-ntgrid:ntgrid) :: phi
     integer :: iglo
-    integer :: ig, ik, it, il, is, ie
+    integer :: ig, ik, it, is
 
-    integer :: i
     real, dimension (-ntgrid:ntgrid) :: numeratorSum
     real :: denominatorSum
 

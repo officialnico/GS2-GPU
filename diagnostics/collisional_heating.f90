@@ -15,14 +15,13 @@ module collisional_heating
 contains
   
   subroutine init_collisional(gnostics) 
-    use kt_grids, only: naky, ntheta0, nx, ny, akx, aky
+    use kt_grids, only: naky, ntheta0, nx, ny
     use theta_grid, only: ntgrid
     use species, only: nspec
     use diagnostics_config, only: diagnostics_type
     use le_grids, only: init_le_grids, nlambda, negrid
     use gs2_transforms, only: init_transforms
     use gs2_layouts, only: g_lo, init_dist_fn_layouts
-    use gs2_layouts, only: yxf_lo
     use hyper, only: init_hyper
     
     implicit none
@@ -65,13 +64,12 @@ contains
   end subroutine finish_collisional
   
   subroutine calculate_collisional(gnostics)
-    
-    use fields_arrays, only: phinew
+
     use dist_fn_arrays, only: g, gnew
     use diagnostics_config, only: diagnostics_type
     use dist_fn_arrays, only: c_rate, g_adjust
     use theta_grid, only: ntgrid, delthet, jacob
-    use kt_grids, only: naky, ntheta0, akx, aky
+    use kt_grids, only: naky, ntheta0, aky
     use species, only: spec, nspec
     use le_grids, only: integrate_moment
     use gs2_layouts, only: g_lo, it_idx, ik_idx, is_idx
@@ -162,7 +160,6 @@ contains
     use diagnostics_create_and_write, only: create_and_write_distributed_fieldlike_variable
     use diagnostics_dimensions, only: dim_string
     use fields_parallelization, only: field_k_local
-    use kt_grids, only: ntheta0, naky
     use diagnostics_config, only: diagnostics_type
     
     implicit none

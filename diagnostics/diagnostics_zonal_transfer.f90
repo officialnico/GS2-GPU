@@ -13,7 +13,7 @@ contains
 
   subroutine init_diagnostics_transfer(gnostics)
 
-    use kt_grids, only: naky, ntheta0, nx, ny, akx, aky
+    use kt_grids, only: naky, ntheta0, nx, ny
     use theta_grid, only: ntgrid
     use species, only: nspec
     use le_grids, only: init_le_grids, nlambda, negrid
@@ -63,7 +63,7 @@ contains
     implicit none
     
     complex, dimension (-ntgrid:,:,g_lo%llim_proc:), intent(out) :: g1
-    integer :: i, j, k, isgn
+    integer :: i, j
 !    complex, dimension(-ntgrid:ntgrid,nspec,negrid,nlambda,2) :: test_sum
     integer :: iglo, ik, it, ig, is
     
@@ -263,7 +263,7 @@ contains
     use mp, only: proc0, broadcast
     use theta_grid, only: ntgrid
     use gs2_layouts, only: g_lo, ik_idx, it_idx
-    use species, only: nspec, spec
+    use species, only: nspec
     use kt_grids, only: ntheta0, naky
     use le_grids, only: integrate_moment
 
@@ -275,7 +275,7 @@ contains
     complex, dimension (:,:,:), allocatable :: inter
     complex, dimension (:,:,:,:), allocatable :: inter_s
 
-    integer :: ik, it, is, iglo
+    integer :: ik, it, is
     
     allocate (g0(-ntgrid:ntgrid,2,g_lo%llim_proc:g_lo%ulim_alloc))
     allocate (inter(-ntgrid:ntgrid,ntheta0,naky)) ; inter = 0.
@@ -317,7 +317,6 @@ contains
     use diagnostics_create_and_write, only: create_and_write_variable
     use diagnostics_dimensions, only: dim_string
     use fields_parallelization, only: field_k_local
-    use kt_grids, only: ntheta0, naky
     use diagnostics_config, only: diagnostics_type
     
     implicit none
