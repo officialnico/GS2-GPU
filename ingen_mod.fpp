@@ -1998,7 +1998,7 @@ if (debug) write(6,*) 'get_namelists: returning'
     call calculate_unbalanced_x(npe, 0, xxf_unbalanced_amount)
     if(xxf_unbalanced_amount .gt. 0) then
        use_unbalanced_xxf = .true.
-       percentage_xxf_unbalanced_amount = xxf_unbalanced_amount * 100
+       percentage_xxf_unbalanced_amount = int(xxf_unbalanced_amount * 100.0)
     else
        use_unbalanced_xxf = .false.  
        percentage_xxf_unbalanced_amount = 0
@@ -2006,7 +2006,7 @@ if (debug) write(6,*) 'get_namelists: returning'
     call calculate_unbalanced_y(npe, 0, yxf_unbalanced_amount)
     if(yxf_unbalanced_amount .gt. 0) then
        use_unbalanced_yxf = .true.
-       percentage_yxf_unbalanced_amount = yxf_unbalanced_amount * 100
+       percentage_yxf_unbalanced_amount = int(yxf_unbalanced_amount * 100.0)
     else
        use_unbalanced_yxf = .false. 
        percentage_yxf_unbalanced_amount = 0
