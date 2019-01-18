@@ -36,8 +36,6 @@ module geometry
   
   real, allocatable, dimension(:) :: theta_eqarc, gradpar_prime, theta_prime_eqarc, theta_prime
 
-  real :: Rref_X, Bref_X
-
   real :: dbetadrho, kxfac
 
   integer :: geotype, mMode, nMode
@@ -45,7 +43,7 @@ module geometry
   real :: deltam, deltan, deltampri, deltanpri, thetam, thetan
   real :: qinp, s_hat_input
 
-  real :: shat, dpressdrho
+  real :: shat
   real :: rmin, rmax, qsf, aminor, bi_out
   
   real :: p_prime_input, invLp_input, beta_prime_input
@@ -58,7 +56,7 @@ module geometry
    
   real :: dp_new, di_new
   real :: psi_0, psi_a
-  real :: B_T0, avgrmid, dvdrhon, surfarea, grho1n, grho2n, drhodpsin
+  real :: B_T0, avgrmid, dvdrhon, surfarea, grho2n, drhodpsin
   real :: grhoavg  ! needed for Trinity -- MAB
 
   real, dimension(3) :: rpval
@@ -205,7 +203,6 @@ module geometry
     real :: bi
   end type constant_coefficients_type
 
-  type(coefficients_type) :: output_coefficients
   type(constant_coefficients_type) :: constant_coefficients
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -311,7 +308,6 @@ module geometry
 !!!     qinp :: safety factor q at surface of interest
 !!!     shat :: d q/drho at surface of interest
 !!!     dIdrho :: d I/drho where I = R B_T
-!!!     dpressdrho :: dpressure /drho = 0.5 dbeta /drho at surface of interest.
 !!!  
 !!!     delrho :: numerical parameter.  Should be "small enough".  Typically 0.001 ok.
 !!!     rmin :: minimum minor radius at which items are evaluated
@@ -3816,7 +3812,7 @@ subroutine geometry_get_coefficients(grid_size, coefficients_out)
     subroutine create_interp_matrix
       use geometry, only: theta, theta_eqarc
       use splines, only: inter_cspl
-      integer :: j,k
+      integer :: j
       real, dimension(grid_size) :: delta_array
       do j = 1,grid_size
         delta_array = 0.
@@ -3840,7 +3836,7 @@ subroutine geometry_get_coefficients(grid_size, coefficients_out)
 end subroutine geometry_get_coefficients
 
 subroutine geometry_get_constant_coefficients(constant_coefficients_out)
-  use geometry, only: qsf, rmaj, shat, kxfac, aminor, drhodpsin, gradpar
+  use geometry, only: qsf, rmaj, shat, kxfac, aminor, drhodpsin
   use geometry, only: bi_out
   use geometry, only: constant_coefficients_type, constant_coefficients
   implicit none
