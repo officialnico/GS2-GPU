@@ -45,6 +45,5 @@ program test_job_manage
    ! Delete stop file
    if (proc0) call system("rm test_job_manage.stop")
 
-contains
 
 end program test_job_manage
