@@ -78,7 +78,6 @@ program test_gs2_main
 
 
 
-contains
   
 
 
