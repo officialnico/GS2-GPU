@@ -39,6 +39,9 @@ authors:
     given-names: Stephen
     affiliation: University of York
 
+  - family-names: Numata
+    given-names: Ryusuke
+
   - family-names: Wilkie
     given-names: George
 
@@ -84,9 +87,6 @@ authors:
 
   - family-names: Mauriya
     given-names: Adwiteey
-
-  - family-names: Numata
-    given-names: Ryusuke
 
   - family-names: Tatsuno
     given-names: Tomo
