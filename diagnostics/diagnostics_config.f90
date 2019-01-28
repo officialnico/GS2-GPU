@@ -466,7 +466,7 @@ contains
        write_final_moments = .false.
        write_final_antot = .false.
        write_gs = .false.
-       nsave = 1000
+       nsave = -1
        save_for_restart = .false.
        save_many = .false.
        file_safety_check = .true.
@@ -652,7 +652,11 @@ contains
     call broadcast (gnostics%dump_check1)
     call broadcast (gnostics%dump_check2)
     call broadcast (gnostics%nmovie)
-    
+
+    if (.not.(gnostics%save_for_restart.or.gnostics%save_distfn)) then
+       gnostics%nsave = -1
+    endif
+
     if (override_screen_printout_options) then 
        gnostics%print_line = .true.
        gnostics%print_flux_line = .true.
