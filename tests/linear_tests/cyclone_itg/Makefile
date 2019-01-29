@@ -16,12 +16,16 @@ MY_TEST_LEVEL=1
 VAL:= $(shell expr ${MY_TEST_LEVEL} \<= ${TEST_LEVEL})
 ifeq "$(VAL)" "0"
 all:
-	@echo "==> Skipping test in ${PWD}/$(TEST_FOLD) (Test_level ${TEST_LEVEL}, This test ${MY_TEST_LEVEL})."
+	$(call SKIPCOMMAND,current TEST_LEVEL=${TEST_LEVEL}; set TEST_LEVEL>=${MY_TEST_LEVEL} to run this test)
 else
 all: cyclone_itg_low_res cyclone_itg_replay
 	$(call RUNCOMMAND,cyclone_itg_low_res,cyclone_itg_low_res.in,implicit)
 	$(call RUNCOMMAND,cyclone_itg_low_res,cyclone_itg_low_res_fields_local.in,local)
+ifeq ($(shell expr ${NTESTPROCS} \< 6; echo $?),1)
+	$(call SKIPCOMMAND,current NTESTPROCS=${NTESTPROCS}; set NTESTPROCS>=6 to run this test)
+else
 	$(call RUNCOMMAND,cyclone_itg_low_res,cyclone_itg_low_res_fields_gf_local.in,gf_local)
+endif
 ifdef USE_NEW_DIAG
 	$(call COPY)
 	$(call RUNCOMMAND,cyclone_itg_replay,cyclone_itg_replay.in,)
