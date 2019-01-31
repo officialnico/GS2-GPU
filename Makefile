@@ -693,7 +693,6 @@ include Makefile.target_$(GK_PROJECT)
 
 ############################################################# System config targets
 ifdef STANDARD_SYSTEM_CONFIGURATION
-#system_config: Makefiles/Makefile.$(GK_SYSTEM) Makefile
 system_config: Makefile.$(GK_SYSTEM) Makefile
 	@echo "#!/bin/bash " > system_config
 	@echo "$(STANDARD_SYSTEM_CONFIGURATION)" >> system_config
