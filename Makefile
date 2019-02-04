@@ -538,8 +538,6 @@ ifneq ($(TOPDIR),$(CURDIR))
 endif
 
 VPATH = $(UTILS):$(GEO):Aux:diagnostics:../$(UTILS):../$(GEO):../diagnostics$(SIMPLEDATAIO_VPATH)
-# add .INCLUDE_DIRS to VPATH
-VPATH += $(shell echo $(.INCLUDE_DIRS) | sed "s/ /:/g")
 # this just removes non-existing directory from VPATH
 VPATH_tmp := $(foreach tmpvp,$(subst :, ,$(VPATH)),$(shell [ -d $(tmpvp) ] && echo $(tmpvp)))
 VPATH = .:$(shell echo $(VPATH_tmp) | sed "s/ /:/g")
@@ -692,13 +690,13 @@ gryfx_libs: utils.a geo.a geo/geometry_c_interface.o
 include Makefile.target_$(GK_PROJECT)
 
 ############################################################# System config targets
+.PHONY: system_config
 ifdef STANDARD_SYSTEM_CONFIGURATION
-system_config: Makefile.$(GK_SYSTEM) Makefile
+system_config:
 	@echo "#!/bin/bash " > system_config
 	@echo "$(STANDARD_SYSTEM_CONFIGURATION)" >> system_config
 
 else
-.PHONY: system_config
 system_config:
 	$(error "STANDARD_SYSTEM_CONFIGURATION is not defined for this system")
 endif
