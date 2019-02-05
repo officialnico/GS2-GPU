@@ -1,5 +1,6 @@
 ## v8.0.1 (2019-02-05)
 
+* Add CHANGELOG.md for v8.0.1, remove RELEASE, README_RELEASE and STATUS files [PR #63 | Joseph Parker](https://bitbucket.org/gyrokinetics/gs2/pull-requests/63)
 * Update Makefiles and utils for v8.0.1 [PR #64 | Joseph Parker](https://bitbucket.org/gyrokinetics/gs2/pull-requests/64)
 * Remove explicit location from GK_SYSTEM [PR #68 | Ryusuke Numata](https://bitbucket.org/gyrokinetics/gs2/pull-requests/68)
 * Update CITATION.cff [PR #51 | Joseph Parker](https://bitbucket.org/gyrokinetics/gs2/pull-requests/51)
