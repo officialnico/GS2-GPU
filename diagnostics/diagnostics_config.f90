@@ -428,8 +428,8 @@ contains
        write_density_over_time = .false.
        write_upar_over_time = .false.
        write_tperp_over_time = .false.
-       write_fluxes = .true.
-       write_fluxes_by_mode = .true.
+       write_fluxes = .false.
+       write_fluxes_by_mode = .false.
        write_symmetry = .false.
        write_nl_flux_dist = .false.
        write_parity = .false.
@@ -438,7 +438,7 @@ contains
        omegatinst = 1.0e6
        omegatol = -0.001
        exit_when_converged = .true.
-       write_verr = .true.
+       write_verr = .false.
        write_cerr = .false.
        write_max_verr = .false.
        ncheck = 10
@@ -466,7 +466,7 @@ contains
        write_final_moments = .false.
        write_final_antot = .false.
        write_gs = .false.
-       nsave = 1000
+       nsave = -1
        save_for_restart = .false.
        save_many = .false.
        file_safety_check = .true.
@@ -652,7 +652,11 @@ contains
     call broadcast (gnostics%dump_check1)
     call broadcast (gnostics%dump_check2)
     call broadcast (gnostics%nmovie)
-    
+
+    if (.not.(gnostics%save_for_restart.or.gnostics%save_distfn)) then
+       gnostics%nsave = -1
+    endif
+
     if (override_screen_printout_options) then 
        gnostics%print_line = .true.
        gnostics%print_flux_line = .true.

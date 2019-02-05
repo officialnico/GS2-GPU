@@ -45,18 +45,10 @@ MAKETESTS = $(MAKE) $(TESTS_ENVIRONMENT)
 #export TESTCOMMAND
 export TESTEXEC
 
-ifneq ($(GK_SYSTEM),macosx-homebrew)
-ifndef NO_TEST_COLOURS
-COLOUR_COMMAND=| sed -e 's/passed/\x1b[32mpassed\x1b[39m/' \
-										 -e 's/FAILED/\x1b[31mFAILED\x1b[39m/' \
-										 -e 's/skipped/\x1b[34mskipped\x1b[39m/'
-endif
-else
 ifndef NO_TEST_COLOURS
 COLOUR_COMMAND=| sed -e "s/passed/[32mpassed[39m/" \
 										 -e "s/FAILED/[31mFAILED[39m/" \
 										 -e "s/skipped/[34mskipped[39m/"
-endif
 endif
 
 define TEST_PRINTOUT
