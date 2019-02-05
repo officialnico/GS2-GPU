@@ -12,8 +12,6 @@ program cyclone_itg_replay
   use gs2_main
   implicit none
   type(gs2_program_state_type) :: state
-  !type(optimisation_type) :: optim
-  call initialize_wall_clock_timer
 
   ! This is what we are testing
   state%replay = .true.

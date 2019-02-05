@@ -6,11 +6,7 @@
 #
 #  (requires GNU's gmake)
 #
-#GK_PROJECT ?= trinity
 GK_PROJECT ?= gs2
-#GK_PROJECT ?= agk
-#GK_PROJECT ?= gsp
-#GK_PROJECT ?= rmhdper
 #
 #  Makefile written by Bill Dorland and Ryusuke Numata
 #
@@ -70,8 +66,6 @@ FORTRAN_SPEC ?=
 DEBUG ?=
 # turns on scalasca instrumentation mode (bin)
 SCAL ?=
-# turns on test mode (bin)
-TEST ?=
 # turns on profile mode (gprof,ipm)
 PROF ?=
 # optimization (on,aggressive,undefined)
@@ -114,24 +108,22 @@ MAKE_LIB ?=
 # Include higher-order terms in GK equation arising from low-flow physics
 LOWFLOW ?=
 # Compile with PETSC/SLEPC support for determining eigensystem (bin).
+# TODO : Rename USE_EIG for consistency
 WITH_EIG ?=
 # Include LAPACK and GSL libraries for genquad scheme
 GENQUAD ?=
+# Compile with gcov flags to check for code coverage
+USE_GCOV ?=
+HAS_GCOV=$(USE_GCOV)
 
-# Compile with the new simplified diagnostics module
+# Compile with the new simplified diagnostics module (bin)
 USE_NEW_DIAG ?=on
-
-# Use autotools to configure the code (currently only affects the new diagnostics module)
-# Possible values... on, off
-USE_AUTOTOOLS ?= off
-
+# Does the compiler version support the iso_c_binding features of Fortran?
 HAS_ISO_C_BINDING ?= on
-
 # If on, build with position independent code, needed if GS2 is going to be included
 # in a shared library or linked dynamically (e.g. it's needed by GRYFX).
 # This *may* have performance implications, but it hasn't been tested yet.
 USE_FPIC ?= 
-
 # Defines the size of the constant character arrays that are used to store the run
 # name. 2000 has been selected as the default as being longer than most people will 
 # need. However, this can be overriden by setting this parameter either in the environment
@@ -140,9 +132,8 @@ USE_FPIC ?=
 #       $ touch utils/constants.fpp
 #       $ ./build_gs2 -c 'RUN_NAME_SIZE=<newsize>'
 RUN_NAME_SIZE?=2000
-
 # If defined, fpp files will be preprocessed and compiled in one step, as
-# is normal for modern FORTRAN compilers
+# is normal for modern FORTRAN compilers (bin)
 ONE_STEP_PP?=
 #
 # * Targets:
@@ -157,10 +148,10 @@ ONE_STEP_PP?=
 #
 # These variables can be set in platform-dependent Makefile.
 #
-
+SHELL           = bash
 MAKE		= make
 CPP		= cpp
-CPPFLAGS = 
+CPPFLAGS        = 
 FC		= f90
 MPIFC		?= mpif90
 H5FC		?= h5fc
@@ -180,14 +171,8 @@ ARCHFLAGS 	= cr
 RANLIB		= ranlib
 AWK 		= awk
 PERL		= perl
+FORD           ?= ford
 
-# These macros are used for the suffix problem of absoft
-F90FLAGS_SFX0 =
-F90FLAGS_SFX1 =
-F90FLAGS_SFX2 =
-#This one is just used to ensure that the non-preprocessed
-#files line up the same as preprocessed (make output a little clearer)
-F90FLAGS_SFXJNK =
 
 MPI_INC	?=
 MPI_LIB ?=
@@ -201,20 +186,14 @@ NETCDF_INC ?=
 NETCDF_LIB ?=
 HDF5_INC ?=
 HDF5_LIB ?=
-IPM_LIB ?=
 NAG_LIB ?=
 NAG_PREC ?= dble
-PGPLOT_LIB ?=
+MACRO_DEFS ?=
 
 #Patch file
 PATCHFILE:= .patch.make
 
 ################################################### SET COMPILE MODE SWITCHES
-
-ifdef TEST
-$(warning TEST mode is not working yet)
-	override TEST =
-endif
 
 # It makes no sense to set USE_PARALLEL_NETCDF without
 # setting USE_HDF5... so we set USE_HDF5 here. 
@@ -245,7 +224,61 @@ $(warning use GK_SYSTEM instead)
 $(error GK_SYSTEM is not set)
 	endif
 endif
+
+
 include Makefile.$(GK_SYSTEM)
+
+# Files that we know are going to be in the submodule directories.
+# This is in case the directories exist but the submodules haven't
+# actually been initialised
+MAKEFILES_SENTINEL = Makefiles/Makefile.bitbucket
+UTILS_SENTINEL = utils/Makefile
+
+# Make sure the submodules exist; they all share the same recipe
+$(MAKEFILES_SENTINEL) $(UTILS_SENTINEL) submodules:
+	@echo "Downloading submodules"
+	git submodule update --init --recursive
+# If we're running this recipe as a prerequisite, we need to rerun the
+# original target in a clean process -- but don't do this if the
+# target is explicitly "submodules", or we'll end up in an infinite
+# loop! The actual submodules are directories so Make can see if they
+# exist and therefore should skip the entire recipe
+ifneq ($(MAKECMDGOALS),submodules)
+	@$(MAKE) $(MAKECMDGOALS)
+	@exit
+endif
+
+# CAREFUL! Defines a newline to be used in make's error
+# function. Requires *two* blank lines for reasons
+define newline_
+
+
+endef
+
+BITBUCKET_ISSUE_URL = https://bitbucket.org/gyrokinetics/gs2/issues/new
+
+# This works because Make tries to read all the makefiles first, then
+# update any that need updating. The pipe means order-only,
+# i.e. doesn't check the timestamp. If we actually try to run the
+# recipe that means something has gone wrong -- normally GK_SYSTEM is
+# wrong
+Makefile.$(GK_SYSTEM): | $(MAKEFILES_SENTINEL)
+	$(error Could not find Makefile.$(GK_SYSTEM)$(newline_)\
+	*** Looking in: $(PWD) $(.INCLUDE_DIRS)$(newline_)\
+	***     Note: the above does not include non-existent directories!$(newline_)\
+	***$(newline_)\
+	*** Have you correctly set GK_SYSTEM and/or MAKEFLAGS?$(newline_)\
+	***     GK_SYSTEM: $(GK_SYSTEM)$(newline_)\
+	***     MAKEFLAGS: $(MAKEFLAGS)$(newline_)\
+	***$(newline_)\
+	*** If you are sure both GK_SYSTEM and MAKEFLAGS are correct, please try$(newline_)\
+	*** running your 'make' command again. If you still get this error,$(newline_)\
+	*** something else has gone wrong! Please report it at$(newline_)\
+	***$(newline_)\
+	***     $(BITBUCKET_ISSUE_URL)$(newline_)\
+	***$(newline_)\
+	*** including your 'make' command and its output$(newline_)\
+	)
 
 # include Makefile.local if exists
 sinclude Makefile.local
@@ -254,6 +287,7 @@ sinclude Makefile.local
 
 #Record the top level path
 GK_HEAD_DIR:=$(PWD)
+#TODO: Avoid this export as leads to a side effect (modifies user environment)
 export GK_HEAD_DIR
 
 UTILS=utils
@@ -263,51 +297,50 @@ ifndef ONE_STEP_PP
 CPPFLAGS	+= -P -traditional
 endif
 
-ifeq ($(GK_PROJECT),rmhdper)
-	override USE_MPI =
-	override USE_FFT = fftw
-	override USE_HDF5 =
-endif
-
 ifeq ($(MAKECMDGOALS),depend)
 # must invoke full functionality when make depend
 	MAKE += USE_HDF5=on USE_FFT=fftw USE_NETCDF=on USE_MPI=mpi3 \
 		USE_LOCAL_SPFUNC=on USE_LOCAL_RAN=mt
 endif
 
-CPPFLAGS+=-DGIT_HASH='"$(shell git rev-parse HEAD)"'
+GIT_HASH=$(shell git rev-parse HEAD)
+MACRO_DEFS+=-DGIT_HASH='"$(GIT_HASH)"'
 # Find if there are any modified tracked files (except Makefile.depend)
 ifeq ($(shell git status --short -uno -- . ':(exclude)Makefiles/Makefile.depend' | wc -l), 0)
-	CPPFLAGS+=-DGIT_STATE='"clean"'
+	GIT_STATE="clean"
+	MACRO_DEFS+=-DGIT_STATE='$(GIT_STATE)'
 $(shell touch $(PATCHFILE))
 else
-	CPPFLAGS+=-DGIT_STATE='"modified"'
+	GIT_STATE="modified"
+	MACRO_DEFS+=-DGIT_STATE='$(GIT_STATE)'
 
 # Here we make a patch file, which could be read by the program if we wanted to keep a record
 $(shell git diff -w -- . ':(exclude)Makefiles/Makefile.depend' > $(PATCHFILE))
 endif
-CPPFLAGS+=-DGIT_PATCH_FILE='"$(PATCHFILE)"'
+MACRO_DEFS+=-DGIT_PATCH_FILE='"$(PATCHFILE)"'
 
 
 # Define RUN_NAME_SIZE
-CPPFLAGS+=-DRUN_NAME_SIZE=$(RUN_NAME_SIZE) 
+MACRO_DEFS+=-DRUN_NAME_SIZE=$(RUN_NAME_SIZE) 
+
+############################################################################# Deal with user flags
 
 # Define RELEASE based on the contents of the RELEASE
 # file, which is empty unless we are in a release.
 RELEASE_FILE = $(shell cat RELEASE)
 ifneq ($(RELEASE_FILE),) # If the file is not empty
 	RELEASE=$(RELEASE_FILE)
-	CPPFLAGS+=-DRELEASE=$(RELEASE_FILE)
+	MACRO_DEFS+=-DRELEASE=$(RELEASE_FILE)
 	DOC_FOLDER=releases/$(RELEASE_FILE)/
 endif
 
 # Define GK_SYSTEM for runtime_tests so that we can get the system name
 # at runtime
-CPPFLAGS+=-DGK_SYSTEM='"$(GK_SYSTEM)"'
+MACRO_DEFS+=-DGK_SYSTEM='"$(GK_SYSTEM)"'
 
 ifdef USE_HDF5
 	ifndef USE_MPI
-$(error Currently, USE_HDF5 works with USE_MPI)
+$(error Currently, USE_HDF5 only works with USE_MPI)
 	endif
 endif
 
@@ -319,26 +352,26 @@ endif
 endif
 
 ifndef USE_FFT
-$(warning USE_FFT is off)
-$(warning Be sure that nonlinear run makes no sense)
+$(warning USE_FFT is undefined/off)
+$(warning Nonlinear runs are therefore not sensible)
 endif
 
 ifdef USE_MPI
 	FC = $(MPIFC)
 	CC = $(MPICC)
-	CPPFLAGS += -DMPI
+	MACRO_DEFS += -DMPI
 endif
- 
+
 ifeq ($(USE_MPI),mpi3)
-	CPPFLAGS += -DMPI3
+	MACRO_DEFS += -DMPI3
 endif
 
 ifdef HAS_ISO_C_BINDING
-	CPPFLAGS += -DISO_C_BINDING
+	MACRO_DEFS += -DISO_C_BINDING
 endif
 
 ifeq ($(USE_NEW_DIAG),on)
-	CPPFLAGS+=-DNEW_DIAG
+	MACRO_DEFS += -DNEW_DIAG
 endif
 
 ifeq ($(USE_FPIC),on)
@@ -347,107 +380,101 @@ ifeq ($(USE_FPIC),on)
 endif
 
 ifdef USE_SHMEM
-	CPPFLAGS += -DSHMEM
+	MACRO_DEFS += -DSHMEM
 endif
+
 ifeq ($(USE_FFT),fftw)
-	CPPFLAGS += -DFFT=_FFTW_
+	MACRO_DEFS += -DFFT=_FFTW_
 	FFT_LIB ?= -lfftw -lrfftw
 endif
 
 ifeq ($(USE_FFT),fftw3)
-	CPPFLAGS += -DFFT=_FFTW3_ $(FFT_INC)
+	MACRO_DEFS += -DFFT=_FFTW3_
+        CPPFLAGS += $(FFT_INC)
 	FFT_LIB ?= -lfftw -lrfftw
 endif
 
 ifdef GENQUAD
 	GENQUAD_LIB ?= -llapack 
-	CPPFLAGS += -DGENQUAD
+	MACRO_DEFS += -DGENQUAD
 endif
 
 ifeq ($(USE_FFT),mkl_fftw)
-	CPPFLAGS += -DFFT=_FFTW_
+	MACRO_DEFS += -DFFT=_FFTW_
 endif
 
 ifdef USE_NETCDF
 	NETCDF_LIB ?= -lnetcdf
-	CPPFLAGS += -DNETCDF
+	MACRO_DEFS += -DNETCDF
 endif
+
 ifdef USE_HDF5
-	ifdef USE_MPI
-		FC = $(H5FC_par)
-		CC = $(H5CC_par)
-		ifdef USE_PARALLEL_NETCDF
-			CPPFLAGS += -DNETCDF_PARALLEL
-		endif
-
-	else
-		FC = $(H5FC)
-		CC = $(H5CC)
+	FC = $(H5FC_par)
+	CC = $(H5CC_par)
+	ifdef USE_PARALLEL_NETCDF
+		MACRO_DEFS += -DNETCDF_PARALLEL
 	endif
-	CPPFLAGS += -DHDF
+	MACRO_DEFS += -DHDF
 endif
 
-
-
-#ifndef USE_HDF5
-#   ifdef USE_PARALLEL_NETCDF
-#      $(error 'USE_PARALLEL_NETCDF will not work unless USE_HDF5 is set to on.')
-#   endif
-#endif
 ifdef USE_C_INDEX
-	CPPFLAGS += -DUSE_C_INDEX
+	MACRO_DEFS += -DUSE_C_INDEX
 endif
+
 ifeq ($(USE_LOCAL_RAN),mt)
-	CPPFLAGS += -DRANDOM=_RANMT_
+	MACRO_DEFS += -DRANDOM=_RANMT_
 endif
+
 ifdef USE_POSIX
-	CPPFLAGS += -DPOSIX
+	MACRO_DEFS += -DPOSIX
 endif
+
 ifdef USE_F200X_INTRINSICS
-	CPPFLAGS += -DF200X_INTRINSICS -DSPFUNC=_SPF200X_
+	MACRO_DEFS += -DF200X_INTRINSICS -DSPFUNC=_SPF200X_
 else
 	ifdef USE_LOCAL_SPFUNC
-		CPPFLAGS += -DSPFUNC=_SPLOCAL_
+		MACRO_DEFS += -DSPFUNC=_SPLOCAL_
 	else
 		ifeq ($(findstring spfunc,$(USE_NAGLIB)),spfunc)
-			CPPFLAGS += -DSPFUNC=_SPNAG_
+			MACRO_DEFS += -DSPFUNC=_SPNAG_
 		endif
 	endif
 endif
+
 ifdef USE_NAGLIB
 	ifeq ($(NAG_PREC),dble)
 		ifndef DBLE
 $(warning Precision mismatch with NAG libarray)	
 		endif
-		CPPFLAGS += -DNAG_PREC=_NAGDBLE_
+		MACRO_DEFS += -DNAG_PREC=_NAGDBLE_
 	endif
 	ifeq ($(NAG_PREC),sngl)
 		ifdef DBLE
 $(warning Precision mismatch with NAG libarray)	
 		endif
-		CPPFLAGS += -DNAG_PREC=_NAGSNGL_
+		MACRO_DEFS += -DNAG_PREC=_NAGSNGL_
 	endif
 endif
+
 ifndef DBLE
-	CPPFLAGS+=-DSINGLE_PRECISION
+	MACRO_DEFS += -DSINGLE_PRECISION
 endif
+
 ifdef QUAD
 	DBLE = on
-	CPPFLAGS+=-DQUAD_PRECISION
+	MACRO_DEFS += -DQUAD_PRECISION
 endif
-ifndef PGPLOT_LIB
-	ifeq ($(MAKECMDGOALS),agk_fields_plot)
-$(error PGPLOT_LIB is not defined)
-	endif
-endif
+
 ifdef MAKE_LIB
-	CPPFLAGS += -DMAKE_LIB
+	MACRO_DEFS += -DMAKE_LIB
 endif
+
 ifdef LOWFLOW
-	CPPFLAGS += -DLOWFLOW
+	MACRO_DEFS += -DLOWFLOW
 endif
+
 ifdef USE_LE_LAYOUT
-	CPPFLAGS += -DUSE_LE_LAYOUT
+	MACRO_DEFS += -DUSE_LE_LAYOUT
 endif
 
 #Setup the flags for using the eigensolver
@@ -467,14 +494,18 @@ ifdef WITH_EIG
 	endif
 	EIG_LIB += -lslepc -lpetsc
 
-	CPPFLAGS += -DWITH_EIG $(EIG_INC)
+	MACRO_DEFS += -DWITH_EIG
+	CPPFLAGS += $(EIG_INC)
 	CFLAGS += -DWITH_EIG 
 endif 
 
+ifdef SCAL
+   FC:= scalasca -instrument $(FC)
+endif
+
 #Make empty targets if not using the new diagnostics
 ifeq ($(USE_NEW_DIAG),on)
-#ifdef USE_NEW_DIAG
-sinclude diagnostics/Makefile.diagnostics
+	sinclude diagnostics/Makefile.diagnostics
 else
 distclean_simpledataio:
 clean_simpledataio:
@@ -482,12 +513,13 @@ diagnostics:
 simpledataio:
 endif
 
+############################################################################# Done dealing with user flags
+
 LIBS	+= $(DEFAULT_LIB) $(MPI_LIB) $(NETCDF_LIB) $(HDF5_LIB) $(FFT_LIB) \
-		$(IPM_LIB) $(NAG_LIB) $(EIG_LIB) $(GENQUAD_LIB)
-PLIBS 	+= $(LIBS) $(PGPLOT_LIB)
-F90FLAGS+= $(F90OPTFLAGS) \
-	   $(DEFAULT_INC) $(MPI_INC) $(NETCDF_INC) $(HDF5_INC) $(FFT_INC)\
-		 $(SIMPLEDATAIO_INC) $(EIG_INC) $(GENQUAD_INC)
+		   $(NAG_LIB) $(EIG_LIB) $(GENQUAD_LIB)
+INCLUDES = $(DEFAULT_INC) $(MPI_INC) $(NETCDF_INC) $(HDF5_INC) $(FFT_INC)\
+		   $(SIMPLEDATAIO_INC) $(EIG_INC) $(GENQUAD_INC)
+F90FLAGS+= $(F90OPTFLAGS) $(INCLUDES)
 CFLAGS += $(COPTFLAGS) \
 	   $(DEFAULT_INC) $(MPI_INC) $(NETCDF_INC) $(HDF5_INC) $(FFT_INC) 
 
@@ -518,12 +550,7 @@ DEPEND_CMD=$(PERL) scripts/fortdep
 
 # most common include and library directories
 DEFAULT_INC_LIST = . $(UTILS) $(GEO) .. ../$(UTILS) ../$(GEO)
-#DEFAULT_INC_LIST = . $(UTILS) $(GEO) .. ../$(UTILS) ../$(GEO) \
-#		/usr/include /usr/local/include \
-#	   	/opt/local/include /sw/include
 DEFAULT_LIB_LIST =
-#DEFAULT_LIB_LIST = /usr/lib /usr/local/lib \
-#		/opt/local/lib /sw/lib
 # This default library path list can simplify the procedure of porting,
 # however, I found this (actually -L/usr/lib flag) causes an error
 # when linking gs2 at bassi (RS6000 with xl fortran)
@@ -536,9 +563,6 @@ DEFAULT_LIB=$(foreach tmplib,$(DEFAULT_LIB_LIST),$(shell [ -d $(tmplib) ] && ech
 # because some antique systems don't have ruby
 FORTFROMRUBY=$(subst generate_,,$(patsubst %.rb,%.f90,$(wildcard *.rb */*.rb)))
 FORTFROMRUBY+= gs2_init.f90 overrides.f90
-# Has to be added separately as doesn't end in f90
-#FORTFROMRUBY+=diagnostics/simpledataio/src/simpledataio_write.F90
-# ... but we treat simpledataio as a separate library so don't include for now
 
 # list of intermediate f90 files generated by preprocessor
 F90FROMFPP = $(patsubst %.fpp,%.f90,$(notdir $(wildcard *.fpp */*.fpp)))
@@ -547,16 +571,41 @@ F90FROMFPP += tests/unit_tests/gs2_diagnostics_new/test_gs2_diagnostics_new.f90
 ifdef USE_NEW_DIAG
 F90FROMFPP += simpledataiof.f90 simpledataio_write.f90 simpledataio_read.f90
 endif
-ifdef SCAL
-   FC:= scalasca -instrument $(FC)
-endif
+
 ####################################################################### RULES
 
-.SUFFIXES:
 .SUFFIXES: .fpp .f90 .c .o .F90 .rb
+
+.PHONY: all $(GK_PROJECT)_all unit_tests linear_tests nonlinear_tests benchmarks clean_tests submodules
+.PHONY: depend clean distclean tar test_make diagnostics simpledataio
+.PHONY: doc docs/html docs/graphs cleandoc check_ford_install
+
+# comment this out to keep intermediate .f90 files
+#.PRECIOUS: $(F90FROMFPP)
+
+# Can we replace the following with `.INTERMEDIATE: $(F90FROMFPP)`?
+.INTERMEDIATE: $(GK_PROJECT)_transforms.f90 $(GK_PROJECT)_io.f90 $(GK_PROJECT)_save.f90 \
+		mp.f90 fft_work.f90
+
+####################################################################### Source code targets
+
+# This is to ensure the utils submodule gets initialised. The file
+# mp.o is not important, we just need to add prerequisite for some
+# file in utils
+mp.o: | $(UTILS_SENTINEL)
 
 .rb.f90:
 	$(call RUBY_GENERATE,$@,$<)
+
+.f90.o: 
+	$(FC) $(F90FLAGS) $(F90FLAGS_SFXJUNK) -c $<
+
+# The depend command needs the preprocessed source files. 
+# This is a little clunky, and maybe could be fixed in the future.
+.fpp.f90:
+	$(CPP) $(CPPFLAGS) $(MACRO_DEFS) $< $@
+.F90.f90:
+	$(CPP) $(CPPFLAGS) $(MACRO_DEFS) $< $@
 
 # On many systems the two steps of preprocessing and compiling
 # can be done simultaneously. This has many advantages, the
@@ -566,35 +615,12 @@ endif
 # On some systems (e.g. Mac OS X) using cpp doesn't work at all
 # and you HAVE to preprocess and compile in one step.
 ifdef ONE_STEP_PP
-
-.f90.o: 
-	$(FC) $(F90FLAGS) $(F90FLAGS_SFXJUNK) -c $<
 .fpp.o:
-	$(FC) $(CPPFLAGS) $(F90FLAGS) $(F90FLAGS_SFXJUNK) -c $<
+	$(FC) $(MACRO_DEFS) $(F90FLAGS) $(F90FLAGS_SFXJUNK) -c $<
 .F90.o:
-	$(FC) $(CPPFLAGS) $(F90FLAGS) $(F90FLAGS_SFXJUNK) -c $<
-
-# The depend command needs the preprocessed source files. 
-# This is a little clunky, and maybe could be fixed in the future.
-.fpp.f90:
-#	$(CPP) $(CPPFLAGS) -nostdinc $< $@
-	$(CPP) $(CPPFLAGS) $< $@
-.F90.f90:
-#	$(CPP) $(CPPFLAGS) -nostdinc $< $@
-	$(CPP) $(CPPFLAGS) $< $@
+	$(FC) $(MACRO_DEFS) $(F90FLAGS) $(F90FLAGS_SFXJUNK) -c $<
 
 else
-
-
-.f90.o: 
-	$(FC) $(F90FLAGS) $(F90FLAGS_SFXJUNK) -c $<
-.fpp.f90:
-#	$(CPP) $(CPPFLAGS) -nostdinc $< $@
-	$(CPP) $(CPPFLAGS) $< $@
-.F90.f90:
-#	$(CPP) $(CPPFLAGS) -nostdinc $< $@
-	$(CPP) $(CPPFLAGS) $< $@
-
 # These are special rules for the suffix problem of absoft
 # (not tested)
 $(GK_PROJECT)_transforms.o: $(GK_PROJECT)_transforms.f90
@@ -613,11 +639,13 @@ endif
 	$(CC) $(CFLAGS) $(subst -traditional,,$(subst -C,,$(subst -P,,$(CPPFLAGS)))) -c $<
 
 # This prevents error messages like m2c: Command not found
+# This is from a implicit makefile rule that we're overriding
 %.o : %.mod
 
+depend: $(FORTFROMRUBY) $(F90FROMFPP)
+	@$(DEPEND_CMD) -m "$(MAKE)" -1 -o -v=1 $(VPATH)
 
-##################################################################### TARGETS
-
+##################################################################### Main TARGETS
 # .DEFAULT_GOAL works for GNU make 3.81 (or higher)
 # For 3.80 or less, see all target
 .DEFAULT_GOAL := $(GK_PROJECT)_all
@@ -628,12 +656,10 @@ ifeq ($(notdir $(CURDIR)),geo)
 	.DEFAULT_GOAL := geo_all
 endif
 
-.PHONY: all $(GK_PROJECT)_all unit_tests linear_tests nonlinear_tests benchmarks clean_tests
-
 all: $(.DEFAULT_GOAL)
 
+#TODO : Add a rule to automatically build the depend file when appropriate.
 include $(DEPEND)
-
 
 #If we're using fft(w) then we want to link the fft_save_wisdom object file
 #this currently has to be handled specially as it comes from a c source file
@@ -645,55 +671,56 @@ ifdef USE_FFT
     generate_fftw_wisdom_mod += fft_save_wisdom.o
 endif
 
-#include Makefile.doc_depend
-
 ifdef USE_C_INDEX
-astrogk_mod += layouts_indices.o
-gs2_mod += layouts_indices.o
+    gs2_mod += layouts_indices.o
 endif
-
-sinclude Makefile.target_$(GK_PROJECT)
-
-############################################################### SPECIAL RULES
-
-# comment this out to keep intermediate .f90 files
-#.PRECIOUS: $(F90FROMFPP)
-
-.INTERMEDIATE: $(GK_PROJECT)_transforms.f90 $(GK_PROJECT)_io.f90 $(GK_PROJECT)_save.f90 \
-		mp.f90 fft_work.f90
 
 layouts_indices.o: layouts_type.h
 layouts_type.h: layouts_type.f90
 	$(AWK) -f makehead.awk $^ > $@
-help: helplocal
-
-############################################################# MORE DIRECTIVES
-
-.PHONY: depend clean distclean tar test_make diagnostics simpledataio
-
-depend: $(FORTFROMRUBY) $(F90FROMFPP)
-	@$(DEPEND_CMD) -m "$(MAKE)" -1 -o -v=1 $(VPATH)
 
 # Make sure template dependencies are specified
 gs2_init.f90: templates/gs2_init_template.f90
 
-doc: $(F90FROMFPP) $(FORTFROMRUBY)
+geometry_c_interface.o: geometry_c_interface.h
+
+gryfx_libs: utils.a geo.a geo/geometry_c_interface.o
+
+############################################################# Get project specific targets
+include Makefile.target_$(GK_PROJECT)
+
+############################################################# System config targets
+.PHONY: system_config
+ifdef STANDARD_SYSTEM_CONFIGURATION
+system_config:
+	@echo "#!/bin/bash " > system_config
+	@echo "$(STANDARD_SYSTEM_CONFIGURATION)" >> system_config
+
+else
+system_config:
+	$(error "STANDARD_SYSTEM_CONFIGURATION is not defined for this system")
+endif
+
+doxygen_doc: $(F90FROMFPP) $(FORTFROMRUBY)
 	doxygen doxygen_config 
 	rm -f $(F90FROMFPP)
 
+#TODO: This will need updating when documentation has migrated to bitbucket
 sync_doc: 
 	rsync -av --delete --exclude=releases doc/html/	${USER},gyrokinetics@web.sourceforge.net:htdocs/gs2_documentation/$(DOC_FOLDER)
 	mkdir -p doc/html/releases
 	echo "Options +Indexes" > doc/html/releases/.htaccess
 	rsync -av doc/html/releases/ ${USER},gyrokinetics@web.sourceforge.net:htdocs/gs2_documentation/releases/
 
+#This has an external dependency on coderunner
 sync_input_doc:
 	coderunner cc synchronise_variables . -C gs2
 	curl 'http://sourceforge.net/apps/mediawiki/gyrokinetics/index.php?title=GS2_Input_Parameters&action=edit' | sed 's/&amp;/\&/g' | sed 's/&quot;/"/g' | sed 's/&gt;/>/g' | sed 's/&lt;/</g'  | sed 's/&nbsp;/ /g' > wiki_in.tmp
 	coderunner cc read_mediawiki_documentation wiki_in.tmp -C gs2
 	coderunner cc write_mediawiki_documentation > wiki_out.txt -C gs2
 
-clean: clean_simpledataio
+############################################################# Cleanup targets
+clean: clean_simpledataio clean_coverage
 	-rm -f *.o *.mod *.g90 *.h core */core
 
 CLEANCOMMAND=echo $$$$PWD
@@ -711,11 +738,18 @@ cleanlib:
 cleanconfig:
 	rm -f system_config .tmp_output
 
-cleandoc:
+clean_doxygendoc: #Doxygen documentation
 	rm -rf doc/
 
-distclean: unlink clean cleanlib clean_tests clean_benchmarks distclean_simpledataio cleanconfig cleandoc
+clean_coverage:
+	-rm -f *.gcov *.gcda *.gcno
 
+distclean: unlink clean cleanlib clean_tests clean_benchmarks distclean_simpledataio cleanconfig clean_doxygendoc cleandoc clean_coverage
+
+unlink:
+	-rm -f $(F90FROMFPP) layouts_type.h
+
+############################################################# Tar targets
 tar:
 	@[ ! -d $(TARDIR) ] || echo "ERROR: directory $(TARDIR) exists. Stop."
 	@[ -d $(TARDIR) ] || $(MAKE) tar_exec
@@ -739,6 +773,12 @@ tar_exec:
 	@tar cvf - $(TARDIR) | bzip2 -9 > $(TARDIR).tar.bz2
 	@rm -rf $(TARDIR)
 
+############################################################# Testing targets
+#This is the location of the individual test suites
+TEST_DIR:=tests
+sinclude $(TEST_DIR)/Makefile.tests_and_benchmarks
+
+############################################################# Introspection targets
 test_make:
 	@echo GK_SYSTEM is $(GK_SYSTEM)
 	@echo .DEFAULT_GOAL is $(.DEFAULT_GOAL)
@@ -749,12 +789,17 @@ test_make:
 	@echo NETCDF_DIR is $(NETCDF_DIR)
 	@echo FFT_LIB is $(FFT_LIB)
 	@echo FFT_DIR is $(FFT_DIR)
-	@echo FC is $(FC)
-	@echo CC is $(CC)
-	@echo SVN_REV is $(SVN_REV)
+	@echo LD_LIBRARY_PATH is $(LD_LIBRARY_PATH)
+	@echo FORD is $(FORD)
+	@echo USE_GCOV is $(USE_GCOV)
+	@echo GIT_HASH is $(GIT_HASH)
+	@echo GIT_STATE is $(GIT_STATE)
+	@echo PATCHFILE is $(PATCHFILE)
 	@echo
 	@echo Compile mode:
 	@echo  COMPILER is $(COMPILER)
+	@echo  FC is $(FC)
+	@echo  CC is $(CC)
 	@echo  DEBUG is $(DEBUG)
 	@echo  SCAL is $(SCAL)
 	@echo  TEST is $(TEST)
@@ -788,47 +833,34 @@ test_make:
 	@echo LDFLAGS is $(LDFLAGS)
 	@echo CPP is $(CPP)
 	@echo CPPFLAGS is $(CPPFLAGS)
+	@echo MACRO_DEFS is $(MACRO_DEFS)
 	@echo LIBS is $(LIBS)
-	@echo PLIBS is $(PLIBS)
 	@echo WITH_EIG is $(WITH_EIG)
-
-ifneq ($(GK_SYSTEM),macosx-homebrew)
-	SEDSYSTEMCONFIG=sed -i 's/^ //' system_config
-endif
-
-ifdef STANDARD_SYSTEM_CONFIGURATION
-system_config: Makefiles/Makefile.$(GK_SYSTEM) Makefile
-	@echo "#!/bin/bash " > system_config
-	@echo "$(STANDARD_SYSTEM_CONFIGURATION)" >> system_config
-	@$(SEDSYSTEMCONFIG)
-
-else
-.PHONY: system_config
-system_config:
-	$(error "STANDARD_SYSTEM_CONFIGURATION is not defined for this system")
-endif
-
-unlink:
-	-rm -f $(F90FROMFPP) layouts_type.h
 
 revision:
 	@LANG=C git rev-parse HEAD > Revision
 
-
-geometry_c_interface.o: geometry_c_interface.h
-
-gryfx_libs: utils.a geo.a geo/geometry_c_interface.o
-
-#This is the location of the individual test suites
-TEST_DIR:=tests
-sinclude $(TEST_DIR)/Makefile.tests_and_benchmarks
+#This only works if a helplocal rule has been defined in the specific system makefile.
+#It would be nice to provide a default helplocal target that just says no help available
+help: helplocal
 
 TAGS:	*.f90 *.fpp */*.f90 */*.fpp
 	etags $^
 
-help:
-		# make SCAL=on : makes with SCALASCA instrumentation
+############################################################# Documentation
 
+ifneq ("$(wildcard $(shell which $(FORD) 2>/dev/null))","")
+check_ford_install:
+	@echo "Using ford at $(shell which $(FORD))"
+else
+check_ford_install:
+	@echo "Ford command $(FORD) not in path -- is it installed?\\n\\tConsider installing with 'pip install --user ford' and add ${HOME}/.local/bin to PATH" ; which $(FORD)
+endif
 
+docs/html:
+doc: docs/.docs.config.md check_ford_install
+	$(FORD) $(subst -D,--macro ,$(MACRO_DEFS)) $(INCLUDES) $<
 
+cleandoc: docs/html docs/graphs
+	-@rm -rf $^
 

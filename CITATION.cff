@@ -1,0 +1,102 @@
+# This file is a citation metadata file in the Citation File Format
+# (http://citation-file-format.github.io/).
+#
+# It provides citation metadata for this version of GS2
+
+cff-version: 1.0.3-1
+message: If you use GS2 in your work, please cite it using the following metadata.
+title: GS2
+authors:
+  - family-names: Barnes
+    given-names: Michael
+    affiliation: University of Oxford
+
+  - family-names: Dickinson
+    given-names: David
+    orcid: https://orcid.org/0000-0002-0868-211X
+    affiliation: University of York
+
+  - family-names: Dorland
+    given-names: William
+    orcid: https://orcid.org/0000-0003-2915-724X
+    affiliation: University of Maryland
+
+  - family-names: Hill
+    given-names: Peter Alec
+    orcid: https://orcid.org/0000-0003-3092-1858
+    affiliation: University of York
+
+  - family-names: Parker
+    given-names: Joseph Thomas
+    orcid: https://orcid.org/0000-0002-5573-6475
+    affiliation: Science and Technology Facilities Council
+
+  - family-names: Roach
+    given-names: Colin Malcolm
+    affiliation: Culham Centre for Fusion Energy
+
+  - family-names: Biggs-Fox
+    given-names: Stephen
+    affiliation: University of York
+
+  - family-names: Numata
+    given-names: Ryusuke
+
+  - family-names: Wilkie
+    given-names: George
+
+  - family-names: Anton
+    given-names: Lucian
+
+  - family-names: Ball
+    given-names: Justin
+
+  - family-names: Baumgaertel
+    given-names: Jessica
+
+  - family-names: Colyer
+    given-names: Greg
+
+  - family-names: Hardman
+    given-names: Michael
+
+  - family-names: Hein
+    given-names: Joachim
+
+  - family-names: Highcock
+    given-names: Edmund
+
+  - family-names: Howes
+    given-names: Gregory
+
+  - family-names: Jackson
+    given-names: Adrian
+
+  - family-names: Kotschenreuther
+    given-names: Michael T.
+    affiliation: Institute for Fusion Studies, University of Texas
+
+  - family-names: Lee
+    given-names: Jungpyo
+
+  - family-names: Leggate
+    given-names: Huw
+
+  - family-names: Mandell
+    given-names: Noah
+
+  - family-names: Mauriya
+    given-names: Adwiteey
+
+  - family-names: Tatsuno
+    given-names: Tomo
+
+  - family-names: Van Wyk
+    given-names: Ferdinand
+
+version: 8.0.1
+date-released: 2018-11-09
+repository-code: https://bitbucket.org/gyrokinetics/gs2/
+url: https://gyrokinetics.bitbucket.io/
+doi: 10.5281/zenodo.2551067
+license: 'MIT'

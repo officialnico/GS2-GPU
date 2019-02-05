@@ -41,6 +41,7 @@ module gs2_transforms
   public :: init_x_transform, init_zf, kz_spectrum
   public :: transform_x, transform_y, transform2
   public :: inverse_x, inverse_y, inverse2
+  public :: g2x, x2y
 
   logical :: initialized=.false., initialized_x=.false., initialized_y_fft=.false.
   logical :: initialized_x_redist=.false., initialized_y_redist=.false., initialized_3d=.false.
@@ -157,10 +158,11 @@ contains
     else
        !Recommended for p+log(p)>log(N) where p is number of processors and N is total number of mesh points
        !Could automate selection, though above condition is only fairly rough
-       if (debug) write (*,*) 'init_transforms: init_y_redist'
        if (opt_redist_init) then
+          if (debug) write (*,*) 'init_transforms: init_y_redist_local'
           call init_y_redist_local (ntgrid, naky, ntheta0, nlambda, negrid, nspec, nx, ny)
        else
+          if (debug) write (*,*) 'init_transforms: init_y_redist'
           call init_y_redist (ntgrid, naky, ntheta0, nlambda, negrid, nspec, nx, ny)
        endif
     end if

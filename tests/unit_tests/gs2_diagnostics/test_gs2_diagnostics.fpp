@@ -68,7 +68,6 @@ program test_gs2_diagnostics
 
     call finish_mp
 
-contains
   
 
 

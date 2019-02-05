@@ -9,29 +9,19 @@ program time_ffts
 #ifdef SHMEM
   use shm_mpi3
 #endif
-  use mp, only: init_mp, finish_mp, proc0, broadcast, nproc, mp_comm
-  !use file_utils, only: init_file_utils, run_name
+  use mp, only: init_mp, finish_mp, proc0, nproc, mp_comm
   use file_utils, only: append_output_file, close_output_file
-  use species, only: init_species, nspec
-  use constants, only: pi
-  use kt_grids, only: naky, ntheta0, init_kt_grids
-  use theta_grid, only: ntgrid, init_theta_grid
-  use gs2_layouts, only: init_gs2_layouts, g_lo, ie_idx
-  use nonlinear_terms, only: init_nonlinear_terms, finish_nonlinear_terms
-  use dist_fn_arrays, only: g
+  use kt_grids, only: naky, ntheta0
+  use theta_grid, only: ntgrid
+  use gs2_layouts, only: g_lo
   use nonlinear_terms, only: nonlinear_terms_unit_test_time_add_nl
-  use kt_grids, only: ntheta0, naky
   use job_manage, only: time_message
-  !use runtime_tests, only: get_svn_rev, get_compiler_name
   use benchmarks, only: benchmark_identifier
   use gs2_main, only: gs2_program_state_type, initialize_gs2, finalize_gs2
   use gs2_init, only: init, init_level_list
+  use run_parameters, only: nstep
   implicit none
   type(gs2_program_state_type) :: state
-  real :: eps
-    !character (500), target :: cbuff
-  !real :: tstart
-  !logical :: dummy=.false.
   real :: time_taken(2) = 0.0
   integer :: i
   integer :: timing_unit
@@ -47,18 +37,10 @@ program time_ffts
 
 
   ! General config
-  eps = 1.0e-7
+  ! (none)
 
   ! Set up depenencies
   call init_mp
-  !if (proc0) call init_file_utils(dummy, name="gs")
-       !if (proc0) then
-          !cbuff = trim(run_name)
-       !end if
-      ! 
-       !call broadcast (cbuff)
-       !if (.not. proc0) run_name => cbuff
-
 
   call announce_module_test('time_ffts')
 
@@ -70,35 +52,29 @@ program time_ffts
   call init(state%init, init_level_list%dist_fn_level_2)
 
 
-  !call init_nonlinear_terms
 #ifdef SHMEM
   call shm_alloc(g1,(/-ntgrid, ntgrid, 1, 2, g_lo%llim_proc, g_lo%ulim_proc/))
 #else
   allocate(g1(-ntgrid:ntgrid,2,g_lo%llim_proc:g_lo%ulim_proc))
 #endif
-  !allocate(g(-ntgrid:ntgrid,2,g_lo%llim_proc:g_lo%ulim_proc))
   allocate(phi(-ntgrid:ntgrid,ntheta0,naky))
   allocate(apar(-ntgrid:ntgrid,ntheta0,naky))
   allocate(bpar(-ntgrid:ntgrid,ntheta0,naky))
 
   if (proc0) call time_message(.false., time_taken, "FFT time")
 
-  do i = 1,50
+  do i = 1,nstep
     call nonlinear_terms_unit_test_time_add_nl(g1, phi, apar, bpar)
-    !if (proc0) write (*,*) 'Finished nonlinear_terms_unit_test_time_add_nl ', i
   end do
 
   if (proc0) then
     call time_message(.false., time_taken, "FFT time")
-    write(*, '(" Time for nonlinear_terms on ",I6," procs: ",F3.1," s")') nproc, time_taken(1)
-    write(*,*)
+    write(*, '(" Time for ",I6," nonlinear_terms on ",I6," procs: ",F5.1," s")') nstep, nproc, time_taken(1)
     call append_output_file(timing_unit, &
       benchmark_identifier())
     write(timing_unit, '(I6,"   ",F9.3)') nproc, time_taken(1)
     call close_output_file(timing_unit)
   end if
-
-  !call finish_nonlinear_terms
 
   call init(state%init, init_level_list%basic)
   call finalize_gs2(state)
