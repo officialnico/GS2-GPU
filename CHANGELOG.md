@@ -1,10 +1,10 @@
 ## v8.0.1 (2019-02-05)
 
-* Add CHANGELOG.md for v8.0.1, remove RELEASE, README_RELEASE and STATUS files [PR #63 | Joseph Parker](https://bitbucket.org/gyrokinetics/gs2/pull-requests/63)
+* Add CHANGELOG.md for v8.0.1, remove README_RELEASE and STATUS files [PR #63 | Joseph Parker](https://bitbucket.org/gyrokinetics/gs2/pull-requests/63)
 * Update Makefiles and utils for v8.0.1 [PR #64 | Joseph Parker](https://bitbucket.org/gyrokinetics/gs2/pull-requests/64)
+* Add empty RELEASE file [PR #69 | Joseph Parker](https://bitbucket.org/gyrokinetics/gs2/pull-requests/69)
 * Remove explicit location from GK_SYSTEM [PR #68 | Ryusuke Numata](https://bitbucket.org/gyrokinetics/gs2/pull-requests/68)
 * Update CITATION.cff [PR #51 | Joseph Parker](https://bitbucket.org/gyrokinetics/gs2/pull-requests/51)
-* Add CHANGELOG, remove RELEASE, README_RELEASE and STATUS [PR #63 | Joseph Parker](https://bitbucket.org/gyrokinetics/gs2/pull-requests/63)
 * Add an option of build_gs2 to choose MPI procs [PR #65 | Ryusuke Numata](https://bitbucket.org/gyrokinetics/gs2/pull-requests/65)
 * Remove SEDSYSTEMCONFIG from Makefile [PR #66 | Ryusuke Numata](https://bitbucket.org/gyrokinetics/gs2/pull-requests/66)
 * Turn off expensive diagnostics by default [PR #36 | Joseph Parker](https://bitbucket.org/gyrokinetics/gs2/pull-requests/36)
