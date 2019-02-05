@@ -690,13 +690,13 @@ gryfx_libs: utils.a geo.a geo/geometry_c_interface.o
 include Makefile.target_$(GK_PROJECT)
 
 ############################################################# System config targets
+.PHONY: system_config
 ifdef STANDARD_SYSTEM_CONFIGURATION
-system_config: Makefiles/Makefile.$(GK_SYSTEM) Makefile
+system_config:
 	@echo "#!/bin/bash " > system_config
 	@echo "$(STANDARD_SYSTEM_CONFIGURATION)" >> system_config
 
 else
-.PHONY: system_config
 system_config:
 	$(error "STANDARD_SYSTEM_CONFIGURATION is not defined for this system")
 endif
