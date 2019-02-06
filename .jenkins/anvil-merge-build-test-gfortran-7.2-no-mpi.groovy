@@ -134,13 +134,6 @@ String libpath="${MY_NETCDF_LIB}:${MY_NETCDFF_LIB}:/opt/software/gcc-7.2.0/fftw/
 			git config --global user.email "joseph.parker@stfc.ac.uk"
 			git config --global user.name "Joseph Parker"
            		git submodule update --init --recursive --remote
-           		git checkout jenkins
-			git pull
-           		cd Makefiles
-           		git checkout jenkins
-			git pull
-           		cd ..
-
 		'''
     	}
 
