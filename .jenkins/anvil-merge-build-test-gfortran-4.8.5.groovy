@@ -19,7 +19,7 @@ properties([[
   choice(name: "comms", choices: "serial\nmpi", description: "Communications paradigm"),
   string(name: "testexec", defaultValue: "mpirun -np 2", description: "Test command"),
   string(name: "modules", defaultValue: "gcc/4.8.5 fftw python/3.6.0 openmpi/1.10.0", description: "Module environments to load"),
-  string(name: "compiler", defaultValue: "gcc-7.2.0", description: "compiler-version, for consitent path names"),
+  string(name: "compiler", defaultValue: "gcc-4.8.5", description: "compiler-version, for consitent path names"),
   string(name: "GK_SYSTEM", defaultValue: "jenkins-4.8.5", description: "Value of GK_SYSTEM, which determines the local Makefile used"),
   string(name: "mathLibDir", defaultValue: "", description: "Specify maths library location"),
   string(name: "fft", defaultValue: "fftw3", description: "Select FFT to use"),
