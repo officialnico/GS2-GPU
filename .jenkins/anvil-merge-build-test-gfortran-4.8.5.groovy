@@ -184,39 +184,42 @@ String libpath="${MY_NETCDF_LIB}:${MY_NETCDFF_LIB}:/opt/software/gcc-7.2.0/openm
 
         sh """
 
-        export TEST_FILE_NETCDF=/home/jenkins/workspace/Gyrokinetics/Merge+Build+Test-gfortran-4.8.5/software/gcc-4.8.5/netcdf/4.6.1/include/netcdf.h
-        export TEST_FILE_NETCDFF=/home/jenkins/workspace/Gyrokinetics/Merge+Build+Test-gfortran-4.8.5/software/gcc-4.8.5/netcdf-fortran/4.4.4/include/netcdf.mod
+        export TEST_FILE_NETCDF=${MY_NETCDF_DIR}/include/netcdf.h
+        export TEST_FILE_NETCDFF=${MY_NETCDFF_DIR}/include/netcdf.mod
 
         # true if either file missing
         if [[ -f \$TEST_FILE_NETCDF && -f \$TEST_FILE_NETCDFF ]]
         then 
               echo "netcdf + nectdff found"
         else
-              module load gcc/4.8.5 openmpi/1.10.0
+              module load ${params.modules}
 
-              rm -rf /home/jenkins/workspace/Gyrokinetics/Merge+Build+Test-gfortran-4.8.5/software/gcc-4.8.5/netcdf/4.6.1
-              rm -rf /home/jenkins/workspace/Gyrokinetics/Merge+Build+Test-gfortran-4.8.5/software/gcc-4.8.5/netcdf-fortran/4.4.4
+              rm -rf ${MY_NETCDF_DIR}
+              rm -rf ${MY_NETCDFF_DIR}
 
-              mkdir -p /home/jenkins/workspace/Gyrokinetics/Merge+Build+Test-gfortran-4.8.5/software/gcc-4.8.5/netcdf/4.6.1
-              wget ftp://ftp.unidata.ucar.edu/pub/netcdf/netcdf-4.6.1.tar.gz
-              tar xvf netcdf-4.6.1.tar.gz
-              cd netcdf-4.6.1
-              ./configure --prefix=/home/jenkins/workspace/Gyrokinetics/Merge+Build+Test-gfortran-4.8.5/software/gcc-4.8.5/netcdf/4.6.1
+              mkdir -p ${MY_NETCDF_DIR}
+              wget ftp://ftp.unidata.ucar.edu/pub/netcdf/netcdf-${NETCDF_VERSION}.tar.gz
+              tar xvf netcdf-${NETCDF_VERSION}.tar.gz
+              cd netcdf-${NETCDF_VERSION}
+              ./configure --prefix=${MY_NETCDF_DIR}
               make
               make install
-              ls /home/jenkins/workspace/Gyrokinetics/Merge+Build+Test-gfortran-4.8.5/software/gcc-4.8.5/netcdf/4.6.1/include
-              export LD_LIBRARY_PATH=/home/jenkins/workspace/Gyrokinetics/Merge+Build+Test-gfortran-4.8.5/software/gcc-4.8.5/netcdf/4.6.1/lib
-              export CPPFLAGS=-I/home/jenkins/workspace/Gyrokinetics/Merge+Build+Test-gfortran-4.8.5/software/gcc-4.8.5/netcdf/4.6.1/include
-              export LDFLAGS=-L/home/jenkins/workspace/Gyrokinetics/Merge+Build+Test-gfortran-4.8.5/software/gcc-4.8.5/netcdf/4.6.1/lib
+              export LD_LIBRARY_PATH=\$LD_LIBRARY_PATH:${MY_NETCDF_LIB}
+              export CPPFLAGS=-I${MY_NETCDF_INC}
+              export LDFLAGS=-L${MY_NETCDF_LIB}
               cd ..
 
-              mkdir -p /home/jenkins/workspace/Gyrokinetics/Merge+Build+Test-gfortran-4.8.5/software/gcc-4.8.5/netcdf-fortran/4.4.4
-              wget ftp://ftp.unidata.ucar.edu/pub/netcdf/netcdf-fortran-4.4.4.tar.gz
-              tar xvf netcdf-fortran-4.4.4.tar.gz
-              cd netcdf-fortran-4.4.4
-              ./configure --prefix=/home/jenkins/workspace/Gyrokinetics/Merge+Build+Test-gfortran-4.8.5/software/gcc-4.8.5/netcdf-fortran/4.4.4
+              mkdir -p ${MY_NETCDFF_DIR}
+              wget ftp://ftp.unidata.ucar.edu/pub/netcdf/netcdf-fortran-${NETCDFF_VERSION}.tar.gz
+              tar xvf netcdf-fortran-${NETCDFF_VERSION}.tar.gz
+              cd netcdf-fortran-${NETCDFF_VERSION}
+              ./configure --prefix=${MY_NETCDFF_DIR}
               make
               make install
+              export LD_LIBRARY_PATH=\$LD_LIBRARY_PATH:${MY_NETCDFF_LIB}
+
+	      ${MY_NETCDFF_DIR}/bin/nf-config --all
+              echo \$LD_LIBRARY_PATH
 	fi
         """
   }
@@ -227,13 +230,11 @@ String libpath="${MY_NETCDF_LIB}:${MY_NETCDFF_LIB}:/opt/software/gcc-7.2.0/openm
 		
 		try{
 			sh """
+				module load ${params.modules}
 				export GK_SYSTEM=${params.GK_SYSTEM}
+    				export LD_LIBRARY_PATH=\$LD_LIBRARY_PATH:${libpath}
                               	export MAKEFLAGS=-IMakefiles
                               	export TESTEXEC='mpirun -np 2'
-
-            			module load gcc/4.8.5 openmpi/1.10.0
-            			module load fftw
-                              	export LD_LIBRARY_PATH=\$LD_LIBRARY_PATH:/home/jenkins/workspace/Gyrokinetics/Merge+Build+Test-gfortran-4.8.5/software/gcc-4.8.5/netcdf/4.6.1/lib:/home/jenkins/workspace/Gyrokinetics/Merge+Build+Test-gfortran-4.8.5/software/gcc-4.8.5/netcdf-fortran/4.4.4/lib:/opt/software/gcc-system/fftw/3.3.5/lib
 
 				make depend
 				make test_make
@@ -255,7 +256,7 @@ String libpath="${MY_NETCDF_LIB}:${MY_NETCDFF_LIB}:/opt/software/gcc-7.2.0/openm
 				export TESTEXEC="${params.testexec}"
 				module load ${params.modules}
 				export GK_SYSTEM=${params.GK_SYSTEM}
-                              	export LD_LIBRARY_PATH=\$LD_LIBRARY_PATH:/home/jenkins/workspace/Gyrokinetics/Merge+Build+Test-gfortran-4.8.5/software/gcc-4.8.5/netcdf/4.6.1/lib:/home/jenkins/workspace/Gyrokinetics/Merge+Build+Test-gfortran-4.8.5/software/gcc-4.8.5/netcdf-fortran/4.4.4/lib:/opt/software/gcc-system/fftw/3.3.5/lib
+    				export LD_LIBRARY_PATH=${libpath}
                               	export MAKEFLAGS=-IMakefiles
 				pip install --user netCDF4
 				make tests TEST_LEVEL=2
@@ -290,7 +291,7 @@ String libpath="${MY_NETCDF_LIB}:${MY_NETCDFF_LIB}:/opt/software/gcc-7.2.0/openm
     		currentBuild.description = "Build aborted"
     		resultMessage = "Anvil build <${env.JOB_URL}/${env.BUILD_NUMBER}|#${env.BUILD_NUMBER}> for <${env.JOB_URL}|${env.JOB_NAME}> was aborted."
         	fallback = "Anvil build #${env.BUILD_NUMBER} for ${env.JOB_NAME} was aborted." // same message but without hyperlinks, for pop up notifications
-		currentBuild.result = 'STOPPED'
+		currentBuild.result = 'ABORTED'
   	}
   	else if (testFailures > 0) {
     		colourCode = '#FF0000'
