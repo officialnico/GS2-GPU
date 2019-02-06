@@ -272,11 +272,6 @@ String libpath="${MY_NETCDF_LIB}:${MY_NETCDFF_LIB}:/opt/software/gcc-7.2.0/fftw/
     stage('Finishing') {
 
         currentBuild.description = "Parsing test results"
-
-	// This doesn't work, need a better way to parse files
-	//sh '''
-	//	export params.testFailures=$(grep 'failures="1"' test-results/*.xml | wc -l)
-	//'''
 	testFailures = sh ( script: """ grep 'failures="1"' test-results/*.xml | wc -l """, returnStdout: true ) as Integer
 
         currentBuild.description = "Sending notification to slack"

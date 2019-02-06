@@ -142,13 +142,6 @@ String libpath="${MY_NETCDF_LIB}:${MY_NETCDFF_LIB}:/opt/software/gcc-7.2.0/openm
 			git config --global user.email "joseph.parker@stfc.ac.uk"
 			git config --global user.name "Joseph Parker"
            		git submodule update --init --recursive --remote
-           		git checkout jenkins
-			git pull
-           		cd Makefiles
-           		git checkout jenkins
-			git pull
-           		cd ..
-
 		'''
     	}
 
@@ -217,7 +210,6 @@ String libpath="${MY_NETCDF_LIB}:${MY_NETCDFF_LIB}:/opt/software/gcc-7.2.0/openm
         else
               module load ${params.modules}
 	      module avail
-              module show gcc/7.2.0
 
               rm -rf ${MY_NETCDF_DIR}
               rm -rf ${MY_NETCDFF_DIR}
