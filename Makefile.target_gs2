@@ -42,12 +42,17 @@ ffttester: $(ffttester_mod)
 
 .PHONY: modules utils_all geo_all libgs2_all
 
+# Order-only prerequisites need to be specified separately for this to
+# work properly
+modules: | $(UTILS_SENTINEL)
 modules: utils.a geo.a libgs2.a diagnostics
 
 ### UTILS
-utils_all: utils.a 
+utils_all: | $(UTILS_SENTINEL)
+utils_all: utils.a
 
 UTIL_OBJ = spl.o constants.o file_utils.o netcdf_utils.o command_line.o runtime_tests.o constant_random.o
+utils.a: | $(UTILS_SENTINEL)
 utils.a: $(UTIL_OBJ)
 	$(ARCH) $(ARCHFLAGS) $@ $^
 	$(RANLIB) $@

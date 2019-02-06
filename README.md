@@ -7,6 +7,14 @@ key properties of the turbulence which results from instabilities. It
 is also used to simulate turbulence in plasmas which occur in nature,
 such as in astrophysical and magnetospheric systems.
 
+To download the source run:
+
+    git clone --recurse-submodules https://bitbucket.org/gyrokinetics/gs2.git
+
+or for git < v2.13:
+
+    git clone --recursive https://bitbucket.org/gyrokinetics/gs2.git
+
 ## Dependencies
 
 GS2 has no required external dependencies, but does have the following
@@ -155,6 +163,8 @@ The following is the full list of switches the possible options in
                   (NOTE: NAG_PREC=dble (or sngl) must be
                   chosen appropriately for your NAG library)
  - `USE_GCOV` (defined [undefined]): generates gcov notes files
+ - `NO_TEST_COLOURS` (defined [undefined]): do not use terminal colours when 
+                  reporting test results
 
 Values that each switch takes are shown in brackets, where "defined"
 ("undefined") means whether the switch is defined (or not), but not

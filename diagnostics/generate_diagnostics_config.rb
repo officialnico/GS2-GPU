@@ -63,9 +63,8 @@ input_variables_for_diagnostics_config = [
 
 
   # Parameters for writing out fluxes
-  ['logical', 'write_fluxes', '.true.'],
-  # CHANGE BACK TO FALSE below
-  ['logical', 'write_fluxes_by_mode', '.true.'],
+  ['logical', 'write_fluxes', '.false.'],
+  ['logical', 'write_fluxes_by_mode', '.false.'],
   ['logical', 'write_symmetry', '.false.'],
   ['logical', 'write_nl_flux_dist', '.false.'],
   ['logical', 'write_parity', '.false.'],
@@ -78,7 +77,7 @@ input_variables_for_diagnostics_config = [
   ['logical', 'exit_when_converged', '.true.'],
 
   # Parameters for writing out velocity space diagnostics
-  ['logical', 'write_verr', '.true.'],
+  ['logical', 'write_verr', '.false.'],
   ['logical', 'write_cerr', '.false.'],
   ['logical', 'write_max_verr', '.false.'],
   ['integer', 'ncheck', '10'],
@@ -133,7 +132,7 @@ input_variables_for_diagnostics_config = [
   # we don't want it to conflict with the old
   # module, but eventually I think it should
   # default to true. EGH
-  ['integer', 'nsave', '1000'],
+  ['integer', 'nsave', '-1'],
   ['logical', 'save_for_restart', '.false.'],
   ['logical', 'save_many', '.false.'],
   ['logical', 'file_safety_check', '.true.'],
@@ -404,7 +403,11 @@ contains
     
 
     #{generators.map{|g| g.broadcast}.join("\n    ")}
-    
+
+    if (.not.(gnostics%save_for_restart.or.gnostics%save_distfn)) then
+       gnostics%nsave = -1
+    endif
+
     if (override_screen_printout_options) then 
        gnostics%print_line = .true.
        gnostics%print_flux_line = .true.

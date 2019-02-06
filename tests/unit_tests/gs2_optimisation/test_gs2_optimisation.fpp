@@ -34,7 +34,6 @@ program test_optimisation
 
 
 
-contains
   
 
 
