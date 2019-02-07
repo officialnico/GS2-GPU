@@ -243,8 +243,6 @@ String libpath="${MY_NETCDF_LIB}:${MY_NETCDFF_LIB}:/opt/software/gcc-7.2.0/openm
 				module load ${params.modules}
 				export GK_SYSTEM=${params.GK_SYSTEM}
     				export LD_LIBRARY_PATH=\$LD_LIBRARY_PATH:${libpath}
-				export NETCDF_INC=-I${MY_NETCDF_INC}
-				export NETCDF_LIB="-L${MY_NETCDF_LIB} -lnetcdff -lnetcdf"
 				.jenkins/build.sh
 			"""
 		} catch(buildError) {
@@ -264,8 +262,6 @@ String libpath="${MY_NETCDF_LIB}:${MY_NETCDFF_LIB}:/opt/software/gcc-7.2.0/openm
 				module load ${params.modules}
 				export GK_SYSTEM=${params.GK_SYSTEM}
     				export LD_LIBRARY_PATH=${libpath}
-				export NETCDF_INC=-I${MY_NETCDF_INC}
-				export NETCDF_LIB="-L${MY_NETCDF_LIB} -lnetcdff -lnetcdf"
 				pip install --user netCDF4
 				.jenkins/test.sh
 			"""
