@@ -69,7 +69,9 @@ jobDescription = "Anvil build <${env.JOB_URL}/${env.BUILD_NUMBER}|#${env.BUILD_N
 jobDescriptionNoLink = "Anvil build #${env.BUILD_NUMBER} for suite ${env.JOB_NAME} and PR "+PRnameNoLink
 
 // Set up for Slack API
-slackURL = "${params.baseURL}jenkins-ci?token=${env.TOKEN}"
+withCredentials([string(credentialsId: 'slack-id', variable: 'token')]) { 
+	slackURL = "${params.baseURL}jenkins-ci?token=${token}"
+}
 
 startMessage = "Anvil build #${env.BUILD_NUMBER} for ${env.JOB_NAME}. (<${env.JOB_URL}|View>)"
 
