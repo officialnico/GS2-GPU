@@ -50,6 +50,9 @@ int testFailures = 0
 int testSkipped = 0
 boolean buildSuccess = true
 String PRname
+String jobDescription
+String jobDescriptionNoLink
+String outcome
 
 import groovy.json.JsonBuilder // For json construction.
   
@@ -58,6 +61,11 @@ node ('sl7') {
 
 // Store nicely formatted orginal name (easier than working out how it is passed to Jenkins!)
 PRname = currentBuild.description
+
+// Description of build and PR used in Slack messages
+jobDescription = "Anvil build <${env.JOB_URL}/${env.BUILD_NUMBER}|#${env.BUILD_NUMBER}> for suite <${env.JOB_URL}|${env.JOB_NAME}> and PR "+PRname
+// Text-only version of jobDescription
+jobDescriptionNoLink = "Anvil build #${env.BUILD_NUMBER} for suite ${env.JOB_NAME} and PR "+PRname
 
 // Set up for Slack API
 slackURL = "${params.baseURL}jenkins-ci?token=${env.TOKEN}"
@@ -296,16 +304,18 @@ String libpath="${MY_NETCDF_LIB}:${MY_NETCDFF_LIB}:/opt/software/gcc-7.2.0/openm
   	else if (testFailures > 0) {
     		colourCode = '#FF0000'
     		currentBuild.description = "Build fails"
-    		resultMessage = "Anvil build <${env.JOB_URL}/${env.BUILD_NUMBER}|#${env.BUILD_NUMBER}> for <${env.JOB_URL}|${env.JOB_NAME}> finished with ${testFailures} failures in ${runDuration}."
-        	fallback = "Anvil build #${env.BUILD_NUMBER} for ${env.JOB_NAME} finished with ${testFailures} failures in ${runDuration}." // same message but without hyperlinks, for pop up notifications
+		outcome = " finished with ${testFailures} failures in ${runDuration}."
+    		resultMessage = jobDescription+outcome
+        	fallback = jobDescriptionNoLink+outcome // same message but without hyperlinks, for pop up notifications
         	endMessage = '' // No title
 		currentBuild.result = 'FAILURE'
 	}
   	else if (testFailures == 0) {
     		colourCode = '#32CD32' // lovely successful green
     		currentBuild.description = "Stable build"
-    		resultMessage = "Anvil build <${env.JOB_URL}/${env.BUILD_NUMBER}|#${env.BUILD_NUMBER}> for <${env.JOB_URL}|${env.JOB_NAME}> finished successfully in ${runDuration}."
-        	fallback = "Anvil build #${env.BUILD_NUMBER} for ${env.JOB_NAME} finished successfully in ${runDuration}." // same message but without hyperlinks, for pop up notifications
+		outcome = " finished successfully in ${runDuration}."
+    		resultMessage = jobDescription+outcome
+        	fallback = jobDescriptionNoLink+outcome // same message but without hyperlinks, for pop up notifications
         	endMessage = '' // No title
 	}
   	else {

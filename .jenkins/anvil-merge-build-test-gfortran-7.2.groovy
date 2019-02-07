@@ -201,7 +201,6 @@ String libpath="${MY_NETCDF_LIB}:${MY_NETCDFF_LIB}:/opt/software/gcc-7.2.0/openm
               echo "netcdf + nectdff found"
         else
               module load ${params.modules}
-	      module avail
 
               rm -rf ${MY_NETCDF_DIR}
               rm -rf ${MY_NETCDFF_DIR}
@@ -213,7 +212,6 @@ String libpath="${MY_NETCDF_LIB}:${MY_NETCDFF_LIB}:/opt/software/gcc-7.2.0/openm
               ./configure --prefix=${MY_NETCDF_DIR}
               make
               make install
-              ls ${MY_NETCDF_INC}
               export LD_LIBRARY_PATH=\$LD_LIBRARY_PATH:${MY_NETCDF_LIB}
               export CPPFLAGS=-I${MY_NETCDF_INC}
               export LDFLAGS=-L${MY_NETCDF_LIB}
@@ -276,7 +274,6 @@ String libpath="${MY_NETCDF_LIB}:${MY_NETCDFF_LIB}:/opt/software/gcc-7.2.0/openm
 
         currentBuild.description = "Parsing test results"
 	testFailures = sh ( script: """ grep 'failures="1"' test-results/*.xml | wc -l """, returnStdout: true ) as Integer
-
         currentBuild.description = "Sending notification to slack"
 	
 	// "currentBuild.durationString" unhelpfully returns the time followed by "and counting" because we're still in the pipeline. Bah.
