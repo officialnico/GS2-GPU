@@ -155,22 +155,13 @@ command = "set +x; curl -X POST -H 'Content-Type: application/json' -d '${payloa
         	currentBuild.description = "Building"
 		
 		try{
-			sh """
-				module load ${params.modules}
-				export GK_SYSTEM=${params.GK_SYSTEM}
-                              	export MAKEFLAGS=-IMakefiles USE_NETCDF= USE_FFT= USE_NEW_DIAG=
-                              	export TESTEXEC='mpirun -np 6'
-
-				make depend
-				make test_make
-				make -j
-			"""
+		        def externalMethod = load("build.groovy")
+		        externalMethod.build()
 		} catch(buildError) {
         		currentBuild.description = PRname + " - build failed"
 			currentBuild.result = 'FAILURE'
 			throw buildError
 		}
-
     	}
 
 	stage('Test') {
