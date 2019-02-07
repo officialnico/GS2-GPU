@@ -16,4 +16,4 @@ git checkout -b jobid-${BUILD_NUMBER}-${sourceBranch}-${targetBranch}
 git merge ${sourceBranch}
 
 # Ensure submodules are the version that would be used after the PR is merged.
-git submodule update
+git submodule update --init --recursive
