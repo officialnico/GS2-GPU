@@ -50,6 +50,7 @@ int testFailures = 0
 int testSkipped = 0
 boolean buildSuccess = true
 String PRname
+String PRnameNoLink
 String jobDescription
 String jobDescriptionNoLink
 String outcome
@@ -59,13 +60,13 @@ import groovy.json.JsonBuilder // For json construction.
 // Do all the work on a node
 node ('sl7') {
 
-// Store nicely formatted orginal name (easier than working out how it is passed to Jenkins!)
-PRname = currentBuild.description
+PRname = "<https://${env.repo_host}/${env.repo_path}/pull-requests/${env.pullRequestId}|#${env.pullRequestId} ${env.pullRequestTitle}>"
+PRnameNoLink = "#${env.pullRequestId} ${env.pullRequestTitle}"
 
 // Description of build and PR used in Slack messages
 jobDescription = "Anvil build <${env.JOB_URL}/${env.BUILD_NUMBER}|#${env.BUILD_NUMBER}> for suite <${env.JOB_URL}|${env.JOB_NAME}> and PR "+PRname
 // Text-only version of jobDescription
-jobDescriptionNoLink = "Anvil build #${env.BUILD_NUMBER} for suite ${env.JOB_NAME} and PR "+PRname
+jobDescriptionNoLink = "Anvil build #${env.BUILD_NUMBER} for suite ${env.JOB_NAME} and PR "+PRnameNoLink
 
 // Set up for Slack API
 slackURL = "${params.baseURL}jenkins-ci?token=${env.TOKEN}"
@@ -127,10 +128,6 @@ String libpath="${MY_NETCDF_LIB}:${MY_NETCDFF_LIB}:/opt/software/gcc-7.2.0/openm
 
 	stage('Checkout') {
 
-		sh 'env > env.txt' 
-		for (String i : readFile('env.txt').split("\r?\n")) {
-		    println i
-		}
         	currentBuild.description = "Checking out from repository"
 
         	// Old directory is kept
