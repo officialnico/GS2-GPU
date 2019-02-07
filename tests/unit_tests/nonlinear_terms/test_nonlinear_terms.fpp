@@ -14,7 +14,6 @@ program test_nonlinear_terms
   use file_utils, only: init_file_utils, run_name
   use species, only: init_species, nspec
   use dist_fn, only: init_dist_fn, finish_dist_fn
-  use constants, only: pi
   use kt_grids, only: naky, ntheta0, init_kt_grids
   use theta_grid, only: ntgrid, init_theta_grid
   use gs2_layouts, only: init_gs2_layouts, g_lo, ie_idx

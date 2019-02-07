@@ -16,7 +16,6 @@ program test_fields_local
   use mp, only: init_mp, finish_mp, broadcast, mp_comm
   use file_utils, only: init_file_utils
   use species, only: init_species, nspec
-  use constants, only: pi
   use dist_fn, only: init_dist_fn
   use kt_grids, only: naky, ntheta0, init_kt_grids
   use theta_grid, only: ntgrid, init_theta_grid
