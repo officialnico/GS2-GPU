@@ -42,6 +42,5 @@ program test_job_manage
 
    call finish_mp
 
-contains
 
 end program test_job_manage

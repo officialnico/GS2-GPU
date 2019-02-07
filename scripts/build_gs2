@@ -20,6 +20,7 @@ OPTIONS:
    -g          Build with gcov coverage flags (USE_GCOV=on)
    -n          When used with tests, build but don't run the tests.
    -l <level>  Set test level: higher values include slower tests; default is 1
+   -p <nprocs> Set number of MPI processes to use for tests
    -o <VAL>    Specify operation to perform, can be one of:
                      ls              : List the supported systems 
                      help            : Prints the long help
@@ -71,11 +72,13 @@ function print_help {
   echo "is saved in the directory 'coverage_<command>', "
   echo "e.g. 'coverage_test', 'coverage_linear_tests'"
   echo 
-  echo "For more specific commands you can use the "
-  echo "-c flag:"
+  echo "To run tests with a given number of MPI processes, use the p flag:"
+  echo " $ ./build_gs2 -t <test> -s <system> -p <nprocs>"
+  echo
+  echo "For more specific commands you can use the c flag:"
   echo " $ ./build_gs2 -c DEBUG=on"
   echo " $ ./build_gs2 -c 'DEBUG=on USE_FFT=fftw3'"
-  echo "The -c flag passes an arbitrary string to the"
+  echo "The c flag passes an arbitrary string to the"
   echo "make command."
   echo 
   echo "To print the configuration for a given system:"
@@ -133,7 +136,7 @@ COMMAND="build"
 RUN_GCOV=off
 
 #Parse arguments
-while getopts "hdngs:c:o:t:v:l:" OPTIONS
+while getopts "hdngs:c:o:t:v:l:p:" OPTIONS
 do
   case ${OPTIONS} in
     h)
@@ -166,6 +169,9 @@ do
     l)
       LEVELSET=TEST_LEVEL=$OPTARG
       ;;
+    p)
+      MPIPROCSET=NPROCS=$OPTARG
+      ;;
     v)
       COMMAND=tests
       VERBSET=GK_VERBOSITY=$OPTARG
@@ -179,7 +185,7 @@ do
 done
 
 # Define combined make flags
-MAKEFLAGSALL="$MAKEFLAGS $DBGFLAG $TESTNORUNFLAG $VERBSET GK_SYSTEM=$GK_SYSTEM $MAKE_OPTIONAL_COMMAND $LEVELSET $GCOVFLAG"
+MAKEFLAGSALL="$MAKEFLAGS $DBGFLAG $TESTNORUNFLAG $VERBSET GK_SYSTEM=$GK_SYSTEM $MAKE_OPTIONAL_COMMAND $LEVELSET $GCOVFLAG $MPIPROCSET"
 
 #Now perform operation
 case $COMMAND in 

@@ -26,6 +26,8 @@ contains
     type(diagnostics_type), intent(inout) :: gnostics
 
     logical :: accel
+
+    if(.not. gnostics%write_zonal_transfer) return
     
     accel=.false.
 
@@ -322,7 +324,7 @@ contains
     
     implicit none
     
-    type(diagnostics_type), intent(in) :: gnostics
+    type(diagnostics_type), intent(in out) :: gnostics
     
 !    call create_and_write_distributed_fieldlike_variable(gnostics, gnostics%rtype, "zonal_transfer", &
 !         dim_string([gnostics%dims%ri,gnostics%dims%kx,gnostics%dims%ky,gnostics%dims%time]), &

@@ -224,9 +224,6 @@ $(warning use GK_SYSTEM instead)
 $(error GK_SYSTEM is not set)
 	endif
 endif
-ifneq ($(GK_SYSTEM),macosx-homebrew)
-	SEDSYSTEMCONFIG=sed -i 's/^ //' system_config
-endif
 
 
 include Makefile.$(GK_SYSTEM)
@@ -693,19 +690,13 @@ gryfx_libs: utils.a geo.a geo/geometry_c_interface.o
 include Makefile.target_$(GK_PROJECT)
 
 ############################################################# System config targets
-#TODO : Document why this can't be run for one specific system
-ifneq ($(GK_SYSTEM),macosx-homebrew)
-	SEDSYSTEMCONFIG=$(shell sed -i 's/^ //' system_config)
-endif
-
+.PHONY: system_config
 ifdef STANDARD_SYSTEM_CONFIGURATION
-system_config: Makefiles/Makefile.$(GK_SYSTEM) Makefile
+system_config:
 	@echo "#!/bin/bash " > system_config
 	@echo "$(STANDARD_SYSTEM_CONFIGURATION)" >> system_config
-	@$(SEDSYSTEMCONFIG)
 
 else
-.PHONY: system_config
 system_config:
 	$(error "STANDARD_SYSTEM_CONFIGURATION is not defined for this system")
 endif
