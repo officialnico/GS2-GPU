@@ -7539,7 +7539,7 @@ endif
 
   subroutine flux_vs_e (phi, apar, bpar, pflux, pmflux, pbflux)
     use species, only: spec
-    use theta_grid, only: ntgrid, bmag, gradpar, grho, delthet, shat
+    use theta_grid, only: ntgrid, bmag, gradpar, delthet
     use kt_grids, only: naky, ntheta0
     use dist_fn_arrays, only: gnew, aj0, vpa, aj1, vperp2
     use gs2_layouts, only: g_lo, ie_idx, is_idx, it_idx, ik_idx

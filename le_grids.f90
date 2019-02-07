@@ -33,7 +33,7 @@ contains
   subroutine setvgrid (vcut_in, negrid, epts, wgts, nesub_in)
     use constants, only: pi => dpi
     use gauss_quad, only: get_legendre_grids_from_cheb, get_laguerre_grids
-    use species, only: nspec, spec, f0_sdanalytic, f0_maxwellian, calculate_f0_arrays, f0_values, nonmaxw_corr, dlnf0drho
+    use species, only: nspec, spec, f0_sdanalytic, f0_maxwellian, calculate_f0_arrays, f0_values
     use mp, only: proc0
 
     implicit none

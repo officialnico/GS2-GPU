@@ -502,7 +502,7 @@ contains
   end subroutine nonlinear_terms_unit_test_time_add_nl
 
   subroutine add_nl (g1, phi, apar, bpar)
-    use mp, only: max_allreduce, nb_max_allreduce, iproc, nproc
+    use mp, only: max_allreduce, nb_max_allreduce
     use theta_grid, only: ntgrid, kxfac
     use gs2_layouts, only: g_lo, ik_idx, it_idx
     use gs2_layouts, only: accelx_lo, yxf_lo
@@ -817,20 +817,15 @@ contains
 
   subroutine add_nl_gryfx (g1)
     use mp, only: max_allreduce
-    use theta_grid, only: ntgrid, kxfac
+    use theta_grid, only: ntgrid
     use gs2_layouts, only: g_lo, ik_idx, it_idx, is_idx
-    use gs2_layouts, only: accelx_lo, yxf_lo
-    use dist_fn_arrays, only: g, g_adjust, vpa, vperp2
-    use species, only: spec
+    use dist_fn_arrays, only: g_adjust, vpa, vperp2
     use gs2_transforms, only: transform2, inverse2
-    use run_parameters, only: fapar, fbpar, fphi, reset, immediate_reset
-    use kt_grids, only: aky, akx
+    use run_parameters, only: fapar, fbpar, fphi, immediate_reset
     use gs2_time, only: save_dt_cfl, check_time_step_too_large
     use mp, only: broadcast
     implicit none
     complex, dimension (-ntgrid:,:,g_lo%llim_proc:), intent (out) :: g1
-    integer :: i, j, k
-    real :: dt_cfl
 
     integer :: iglo, ik, it, ig, iz, is, isgn, index_gryfx
 
