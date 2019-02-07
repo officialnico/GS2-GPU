@@ -261,20 +261,20 @@ String libpath="${MY_NETCDF_LIB}:${MY_NETCDFF_LIB}:/opt/software/gcc-7.2.0/openm
 
         	currentBuild.description = "Testing"
 		try{
-			sh """
-				export TESTEXEC="${params.testexec}"
-				module load ${params.modules}
-				export GK_SYSTEM=${params.GK_SYSTEM}
-    				export LD_LIBRARY_PATH=${libpath}
-				pip install --user netCDF4
-				export MAKEFLAGS=-IMakefiles DEBUG=on USE_GCOV=on
-				export TESTEXEC='mpirun -np 2'
-
-				make tests_coverage
-				if [ $? -eq 0 ]; then bash <(curl -s https://codecov.io/bash) -t "$CODECOV_TOKEN"; fi
-				cd ../
-				rm -rf gs2
-			"""
+//			sh """
+//				export TESTEXEC="${params.testexec}"
+//				module load ${params.modules}
+//				export GK_SYSTEM=${params.GK_SYSTEM}
+//    				export LD_LIBRARY_PATH=${libpath}
+//				pip install --user netCDF4
+//				export MAKEFLAGS=-IMakefiles DEBUG=on USE_GCOV=on
+//				export TESTEXEC='mpirun -np 2'
+//
+//				make tests_coverage
+//				if [ $? -eq 0 ]; then bash <(curl -s https://codecov.io/bash) -t "$CODECOV_TOKEN"; fi
+//				cd ../
+//				rm -rf gs2
+//			"""
 		} catch(testError) {
         		currentBuild.description = PRname + " - tests failed"
 			currentBuild.result = 'FAILURE'
