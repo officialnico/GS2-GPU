@@ -1,13 +1,19 @@
 #!/bin/bash
+: '
+ Script for merging the source branch into the target branch.
+'
 
+# Make sure branches are up to date by checking out and pulling
 git fetch
 git checkout ${sourceBranch}
 git pull
+git checkout ${targetBranch}
+git pull
 
-# Until Jenkins branch merged with next, force the targetBranch to be
-# jenkins, to ensure all necessary files exist
-git checkout origin/${targetBranch}
-
+# Now on target branch. 
+# Make test branch from this and attempt merge
 git checkout -b jobid-${BUILD_NUMBER}-${sourceBranch}-${targetBranch}
 git merge ${sourceBranch}
+
+# Ensure submodules are the version that would be used after the PR is merged.
 git submodule update
