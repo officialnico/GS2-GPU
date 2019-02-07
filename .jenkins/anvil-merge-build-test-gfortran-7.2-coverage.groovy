@@ -260,9 +260,9 @@ String libpath="${MY_NETCDF_LIB}:${MY_NETCDFF_LIB}:/opt/software/gcc-7.2.0/openm
 	stage('Test') {
 
         	currentBuild.description = "Testing"
-		try{
-			// Set up for Codecov token
-			withCredentials([string(credentialsId: 'codecov-id', variable: 'codecov_token')]) { 
+		// Set up for Codecov token
+		withCredentials([string(credentialsId: 'codecov-id', variable: 'codecov_token')]) { 
+		  try{
 				sh """
 					export TESTEXEC="${params.testexec}"
 					module load ${params.modules}
