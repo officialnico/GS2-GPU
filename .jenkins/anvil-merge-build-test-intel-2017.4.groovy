@@ -14,19 +14,14 @@ properties([[
   string(name: "repo_host", defaultValue: "bitbucket.org", description: "Domain for repository"),
   string(name: "repo_path", defaultValue: "gyrokinetics/gs2", description: "Relative path to repository"),
   choice(name: "repo_method", choices: "ssh\nhttps", description: "Protocol used to access repository"),
-  string(name: "arch", defaultValue: "linux_x86_64_gfortran7.0", description: "Manually set build arch"),
   choice(name: "opt", choices: "debug\nintermediate\nfast\nwarnings\ncoverage", description: "Build type"),
   choice(name: "comms", choices: "serial\nmpi", description: "Communications paradigm"),
   string(name: "testexec", defaultValue: "mpirun -np 2", description: "Test command"),
   string(name: "modules", defaultValue: "intel/2017.4 fftw python/3.6.0 intelmpi/2017.4", description: "Module environments to load"),
   string(name: "compiler", defaultValue: "intel-2017.4", description: "compiler-version, for consitent path names"),
   string(name: "GK_SYSTEM", defaultValue: "jenkins-intel", description: "Module environments to load"),
-  string(name: "mathLibDir", defaultValue: "", description: "Specify maths library location"),
   string(name: "fft", defaultValue: "fftw3", description: "Select FFT to use"),
-  string(name: "fftLibDir", defaultValue: "", description: "Specify fft library location"),
-  string(name: "baseURL", defaultValue: "https://gyrokinetics.slack.com/services/hooks/", description: "Base URL for Slack webhook"),
-  string(name: "TOKEN", defaultValue: "cvxSY36OQb3FswQVi0wcZcrg", description: "Token for Slack webhook"),
-  string(name: "CODECOV_TOKEN", defaultValue: "a848e445-4d00-4aa9-8d00-e9950fcf29f2", description: "Token for Codecov upload")
+  string(name: "baseURL", defaultValue: "https://gyrokinetics.slack.com/services/hooks/", description: "Base URL for Slack webhook")
 ]]])
 
 /*
@@ -73,7 +68,9 @@ jobDescription = "Anvil build <${env.JOB_URL}/${env.BUILD_NUMBER}|#${env.BUILD_N
 jobDescriptionNoLink = "Anvil build #${env.BUILD_NUMBER} for suite ${env.JOB_NAME} and PR "+PRnameNoLink
 
 // Set up for Slack API
-slackURL = "${params.baseURL}jenkins-ci?token=${env.TOKEN}"
+withCredentials([string(credentialsId: 'slack-id', variable: 'token')]) { 
+	slackURL = "${params.baseURL}jenkins-ci?token=${token}"
+}
 
 startMessage = "Anvil build #${env.BUILD_NUMBER} for ${env.JOB_NAME}. (<${env.JOB_URL}|View>)"
 
