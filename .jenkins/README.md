@@ -61,3 +61,33 @@ e.g. `https://2dd93fe4.ngrok.io/bitbucket-hook/`.  Now Bitbucket PRs will trigge
 builds on your local instance of Jenkins.  
 
 Note that ngrok generated addresses expire after a few hours.
+
+
+Tokens
+------
+
+To integrate Jenkins tests with services like Slack and CodeCov, it is necessary to 
+provide project tokens. These are secret, and including them in the gyrokinetics 
+repository is a security risk. Therefore, tokens must be stored on Jenkins and 
+accessed in groovy scripts using variables.
+
+To store a token, click on "Credentials" in the sidebar of the "Gyrokinetics" project
+page. Click on the folder "Global credentials (unrestricted)" and on the sidebar, 
+click "Add Credentials".  In the "Kind" dropdown menu, click "Secret text". Paste the
+token into the "Secret" box, and put a variable name in the "ID" box, e.g. "slack-id".
+
+To use this token in the groovy script, load the token into a variable with:
+
+```
+withCredentials([string(credentialsId: 'variable-id', variable: 'token')]) { 
+	// The value of the "Secret" box is now in ${token}	
+}
+```
+
+For example, we set up the Slack integration with the variable "slack-id", we do:
+
+```
+withCredentials([string(credentialsId: 'slack-id', variable: 'token')]) { 
+	slackURL = "${params.baseURL}jenkins-ci?token=${token}"
+}
+```
