@@ -236,7 +236,7 @@ String libpath="${MY_NETCDF_LIB}:${MY_NETCDFF_LIB}:/opt/software/gcc-7.2.0/fftw/
     				export LD_LIBRARY_PATH=\$LD_LIBRARY_PATH:${libpath}
                                 export USE_MPI=
 				export NETCDF_INC=-I${MY_NETCDF_INC}
-				export NETCDF_LIB=-L${MY_NETCDF_LIB} -lnetcdff -lnetcdf
+				export NETCDF_LIB="-L${MY_NETCDF_LIB} -lnetcdff -lnetcdf"
 				.jenkins/build.sh
 			"""
 		} catch(buildError) {
@@ -259,7 +259,7 @@ String libpath="${MY_NETCDF_LIB}:${MY_NETCDFF_LIB}:/opt/software/gcc-7.2.0/fftw/
 				export TESTEXEC="${params.testexec}"
 				export MAKEFLAGS=-IMakefiles DEBUG=on
 				export NETCDF_INC=-I${MY_NETCDF_INC}
-				export NETCDF_LIB=-L${MY_NETCDF_LIB} -lnetcdff -lnetcdf
+				export NETCDF_LIB="-L${MY_NETCDF_LIB} -lnetcdff -lnetcdf"
 				pip install --user netCDF4
 				make tests
 				cd ../
