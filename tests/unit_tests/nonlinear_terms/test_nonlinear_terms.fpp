@@ -148,7 +148,10 @@ function ffttest (jx,jy,debug)
   logical :: ffttest
 !  ik,is,ie,il,it are indices for ky, species, energy, lambda and kx respectively
   integer:: ik,is,ie,il,it,ia
-  integer:: isgn, ig, iglo, index, mpierr
+  integer:: isgn, ig, iglo, index
+#ifdef MPI
+  integer :: mpierr
+#endif
   logical:: printlots, fail, anyfail
   logical, save :: accelerated
   logical,save:: first=.true. 
