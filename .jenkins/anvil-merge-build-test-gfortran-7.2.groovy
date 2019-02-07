@@ -127,6 +127,10 @@ String libpath="${MY_NETCDF_LIB}:${MY_NETCDFF_LIB}:/opt/software/gcc-7.2.0/openm
 
 	stage('Checkout') {
 
+		sh 'env > env.txt' 
+		for (String i : readFile('env.txt').split("\r?\n")) {
+		    println i
+		}
         	currentBuild.description = "Checking out from repository"
 
         	// Old directory is kept
