@@ -50,6 +50,7 @@ int testFailures = 0
 int testSkipped = 0
 boolean buildSuccess = true
 String PRname
+String PRnameLink
 String PRnameNoLink
 String jobDescription
 String jobDescriptionNoLink
@@ -60,11 +61,14 @@ import groovy.json.JsonBuilder // For json construction.
 // Do all the work on a node
 node ('sl7') {
 
-PRname = "<https://${env.repo_host}/${env.repo_path}/pull-requests/${env.pullRequestId}|#${env.pullRequestId} ${env.pullRequestTitle}>"
+// PR name for display in Jenkins
+PRname = currentBuild.description
+// PR name for display in Slack
 PRnameNoLink = "#${env.pullRequestId} ${env.pullRequestTitle}"
+PRnameLink = "<https://${env.repo_host}/${env.repo_path}/pull-requests/${env.pullRequestId}|"+PRnameNoLink+">"
 
 // Description of build and PR used in Slack messages
-jobDescription = "Anvil build <${env.JOB_URL}/${env.BUILD_NUMBER}|#${env.BUILD_NUMBER}> for suite <${env.JOB_URL}|${env.JOB_NAME}> and PR "+PRname
+jobDescription = "Anvil build <${env.JOB_URL}/${env.BUILD_NUMBER}|#${env.BUILD_NUMBER}> for suite <${env.JOB_URL}|${env.JOB_NAME}> and PR "+PRnameLink
 // Text-only version of jobDescription
 jobDescriptionNoLink = "Anvil build #${env.BUILD_NUMBER} for suite ${env.JOB_NAME} and PR "+PRnameNoLink
 
