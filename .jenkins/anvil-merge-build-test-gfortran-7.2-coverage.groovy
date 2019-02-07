@@ -262,7 +262,6 @@ String libpath="${MY_NETCDF_LIB}:${MY_NETCDFF_LIB}:/opt/software/gcc-7.2.0/openm
         	currentBuild.description = "Testing"
 		try{
 			sh """
-				export TESTEXEC="${params.testexec}"
 				pip install --user netCDF4
 				export MAKEFLAGS="-IMakefiles DEBUG=on USE_GCOV=on"
 
