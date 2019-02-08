@@ -144,10 +144,16 @@ String libpath="${MY_NETCDF_LIB}:${MY_NETCDFF_LIB}:/opt/software/gcc-7.2.0/openm
 			git config --global user.email "joseph.parker@stfc.ac.uk"
 			git config --global user.name "Joseph Parker"
            		git submodule update --init --recursive --remote
+		'''
+		// We are on the desired commit, but in a detached state.
+		// Store commit, checkout branch, then go back to commit
+		sh 'git rev-parse HEAD > commit'
+		def commit = readFile('commit').trim()
+		sh '''
 			git branch
 			git checkout ${sourceBranch}
 			git branch
-			git checkout ${env.PULL_REQUEST_FROM_HASH}
+			git checkout ${commit}
 			git branch
 		'''
     	}
