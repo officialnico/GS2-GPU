@@ -306,7 +306,7 @@ endif
 GIT_HASH=$(shell git rev-parse HEAD)
 MACRO_DEFS+=-DGIT_HASH='"$(GIT_HASH)"'
 # Find if there are any modified tracked files (except Makefile.depend)
-ifeq ($(shell git status --short -uno -- . ':(exclude)Makefiles/Makefile.depend' | wc -l), 0)
+ifeq ($(shell git status --short -uno -- . | wc -l), 0)
 	GIT_STATE="clean"
 	MACRO_DEFS+=-DGIT_STATE='$(GIT_STATE)'
 $(shell touch $(PATCHFILE))
@@ -315,7 +315,7 @@ else
 	MACRO_DEFS+=-DGIT_STATE='$(GIT_STATE)'
 
 # Here we make a patch file, which could be read by the program if we wanted to keep a record
-$(shell git diff -w -- . ':(exclude)Makefiles/Makefile.depend' > $(PATCHFILE))
+$(shell git diff -w -- .  > $(PATCHFILE))
 endif
 MACRO_DEFS+=-DGIT_PATCH_FILE='"$(PATCHFILE)"'
 
