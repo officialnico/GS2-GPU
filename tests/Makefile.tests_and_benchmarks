@@ -109,9 +109,7 @@ tests: make_results_dir unit_tests_no_message linear_tests_no_message nonlinear_
 
 ifeq ($(HAS_GCOV),on)
 tests_coverage: tests
-	gcov *.f90
-	# execute this from top dir where the gcov note files are:
-	gcov utils/*.f90 -o .
+	gcov $(shell find . -type f -name "*.f??") -p -o .
 	mkdir -p coverage
 	mv *.gcov coverage/.
 else
