@@ -642,7 +642,12 @@ endif
 # This is from a implicit makefile rule that we're overriding
 %.o : %.mod
 
-depend: $(FORTFROMRUBY) $(F90FROMFPP)
+$(DEPEND):
+	touch $(DEPEND)
+	@$(MAKE) depend
+	@$(MAKE) $(MAKECMDGOALS)
+
+depend: $(FORTFROMRUBY) $(F90FROMFPP) $(DEPEND)
 	@$(DEPEND_CMD) -m "$(MAKE)" -1 -o -v=1 $(VPATH)
 
 ##################################################################### Main TARGETS
