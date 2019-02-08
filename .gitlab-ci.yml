@@ -12,10 +12,6 @@ simple_compile:
     - MAKEFLAGS=-IMakefiles GK_SYSTEM=bitbucket make USE_NEW_DIAG= depend    
     - MAKEFLAGS=-IMakefiles GK_SYSTEM=bitbucket make USE_NEW_DIAG= -j gs2    
 
-unit-tests:
-  script:
-    - echo "Success. Add your tests!"
-
 success:
   stage: ci_status
   before_script:
