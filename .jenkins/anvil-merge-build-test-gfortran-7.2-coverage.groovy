@@ -135,7 +135,7 @@ String libpath="${MY_NETCDF_LIB}:${MY_NETCDFF_LIB}:/opt/software/gcc-7.2.0/openm
         	sh "rm -rf gs2"
 
 		checkout([$class: 'GitSCM',  
-     			branches: [[name: "${sourceBranch}" ]],  
+     			branches: [[name: "${env.PULL_REQUEST_FROM_HASH}" ]],  
      			doGenerateSubmoduleConfigurations: false,  
              		submoduleCfg: [],  
 			userRemoteConfigs: [[url: 'https://bitbucket.org/gyrokinetics/gs2']]]
@@ -144,6 +144,10 @@ String libpath="${MY_NETCDF_LIB}:${MY_NETCDFF_LIB}:/opt/software/gcc-7.2.0/openm
 			git config --global user.email "joseph.parker@stfc.ac.uk"
 			git config --global user.name "Joseph Parker"
            		git submodule update --init --recursive --remote
+			git branch
+			git checkout ${sourceBranch}
+			git branch
+			git checkout ${env.PULL_REQUEST_FROM_HASH}
 			git branch
 		'''
     	}
