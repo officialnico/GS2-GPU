@@ -109,7 +109,7 @@ tests: make_results_dir unit_tests_no_message linear_tests_no_message nonlinear_
 
 ifeq ($(HAS_GCOV),on)
 tests_coverage: tests
-	gcov $(shell find . -type f -name "*.f90") -p -o .
+	gcov $(shell find . -type f -name "*.f??") -p -o .
 	mkdir -p coverage
 	mv *.gcov coverage/.
 else
