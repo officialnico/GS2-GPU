@@ -644,11 +644,22 @@ endif
 
 $(DEPEND):
 	touch $(DEPEND)
+ifneq ($(MAKECMDGOALS),depend)
+#No point building the dependency file if we're just going to remove it!
+ifneq ($(MAKECMDGOALS),distclean)
 	@$(MAKE) depend
+endif
+ifneq ($(MAKECMDGOALS),'')
 	@$(MAKE) $(MAKECMDGOALS)
+endif
+	@exit
+endif
 
-depend: $(FORTFROMRUBY) $(F90FROMFPP) $(DEPEND)
+depend: |$(DEPEND)
+depend: $(FORTFROMRUBY) $(F90FROMFPP)
+	@echo "Running depend as target is $(MAKECMDGOALS)"
 	@$(DEPEND_CMD) -m "$(MAKE)" -1 -o -v=1 $(VPATH)
+	@echo "Done running depend"
 
 ##################################################################### Main TARGETS
 # .DEFAULT_GOAL works for GNU make 3.81 (or higher)
