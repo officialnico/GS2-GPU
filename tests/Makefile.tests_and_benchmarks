@@ -39,24 +39,16 @@ endif
 # which dependencies to build any more. EGH 04/03/2015
 # UPDATE: we now build and test the gs2 exec as well. EGH 14/03/15
 TEST_DEPS?=libgs2.a functional_tests.o benchmarks.o gs2
-TESTS_ENVIRONMENT=FC="$(FC)" F90FLAGS="${F90FLAGS}" CPP="$(CPP)"  LD="$(LD)" LDFLAGS="$(LDFLAGS) -L$(PWD) $(SDATIO_LINK)" LIBS=" -lgs2 $(SDATIO_LIB) $(LIBS)" CPPFLAGS="$(CPPFLAGS)" ONE_STEP_PP="${ONE_STEP_PP}"
+TESTS_ENVIRONMENT=FC="$(FC)" F90FLAGS="${F90FLAGS}" CPP="$(CPP)"  LD="$(LD)" LDFLAGS="$(LDFLAGS) -L$(PWD) $(SDATIO_LINK)" LIBS=" -lgs2 $(SDATIO_LIB) $(LIBS)" CPPFLAGS="$(CPPFLAGS)" ONE_STEP_PP="$(ONE_STEP_PP)" USE_NEW_DIAG="$(USE_NEW_DIAG)" USE_NETCDF="$(USE_NETCDF)" USE_FFT="$(USE_FFT)"
 MAKETESTS = $(MAKE) $(TESTS_ENVIRONMENT)
 
 #export TESTCOMMAND
 export TESTEXEC
 
-ifneq ($(GK_SYSTEM),macosx-homebrew)
-ifndef NO_TEST_COLOURS
-COLOUR_COMMAND=| sed -e 's/passed/\x1b[32mpassed\x1b[39m/' \
-										 -e 's/FAILED/\x1b[31mFAILED\x1b[39m/' \
-										 -e 's/skipped/\x1b[34mskipped\x1b[39m/'
-endif
-else
 ifndef NO_TEST_COLOURS
 COLOUR_COMMAND=| sed -e "s/passed/[32mpassed[39m/" \
 										 -e "s/FAILED/[31mFAILED[39m/" \
 										 -e "s/skipped/[34mskipped[39m/"
-endif
 endif
 
 define TEST_PRINTOUT
@@ -117,9 +109,7 @@ tests: make_results_dir unit_tests_no_message linear_tests_no_message nonlinear_
 
 ifeq ($(HAS_GCOV),on)
 tests_coverage: tests
-	gcov *.f90
-	# execute this from top dir where the gcov note files are:
-	gcov utils/*.f90 -o .
+	gcov $(shell find . -type f -name "*.f??") -p -o .
 	mkdir -p coverage
 	mv *.gcov coverage/.
 else

@@ -52,7 +52,7 @@ module collisions
   end interface 
 
   ! knobs
-  logical :: use_le_layout = .false.
+  logical :: use_le_layout = .true.
   logical :: const_v, conserve_moments
   logical :: conservative, resistivity
   integer :: collision_model_switch
@@ -1467,38 +1467,45 @@ contains
        if (spec(is)%type == electron_species) then
           do ie = 1, negrid
              do ik = 1, naky
-                if (const_v) then
-                   vnew(ik,ie,is) = spec(is)%vnewk &
-                        *(zeff+heevth(ie))*0.5*tunits(ik)                   
-                   vnew_s(ik,ie,is) = spec(is)%vnewk &
-                        *hsgvth(ie)*4.0*tunits(ik)
-                   vnew_D(ik,ie,is) = spec(is)%vnewk &
-                        *heevth(ie)*tunits(ik)                   
-                   if (.not. conservative) then
-                      vnew_E(ik,ie,is) = vnew_s(ik,ie,is)*1.5 &
-                           - 2.0*vnew_D(ik,ie,is)
-                      delvnew(ik,ie,is) = vnew_s(ik,ie,is)-vnew_D(ik,ie,is)
-                   end if
-                else
-                   vnew(ik,ie,is) = spec(is)%vnewk/energy(ie)**1.5 &
-                        *(zeff + hee(ie))*0.5*tunits(ik)
-                   vnew_s(ik,ie,is) = spec(is)%vnewk/sqrt(energy(ie)) &
-                        *hsg(ie)*4.0*tunits(ik)
-                   vnew_D(ik,ie,is) = spec(is)%vnewk/energy(ie)**1.5 &
-                        *hee(ie)*tunits(ik)
-                   if (.not. conservative) then
-                      vnew_E(ik,ie,is) = energy(ie)*(vnew_s(ik,ie,is)*(2.0-0.5/energy(ie)) &
-                           - 2.0*vnew_D(ik,ie,is))
-                      delvnew(ik,ie,is) = vnew_s(ik,ie,is)-vnew_D(ik,ie,is)
-                   end if
-                end if
                 if (ei_coll_only) then
-                   vnew(ik,ie,is) = spec(is)%vnewk/energy(ie)**1.5 &
-                        *zeff*0.5*tunits(ik)
+                   if (const_v) then
+                      vnew(ik,ie,is) = spec(is)%vnewk &
+                           *zeff*0.5*tunits(ik)
+                   else
+                      vnew(ik,ie,is) = spec(is)%vnewk/energy(ie)**1.5 &
+                           *zeff*0.5*tunits(ik)
+                   endif
+
                    vnew_s(ik,ie,is)=0.
                    vnew_D(ik,ie,is)=0.
                    vnew_E(ik,ie,is)=0.
                    delvnew(ik,ie,is)=0.
+                else
+                   if (const_v) then
+                      vnew(ik,ie,is) = spec(is)%vnewk &
+                           *(zeff+heevth(ie))*0.5*tunits(ik)
+                      vnew_s(ik,ie,is) = spec(is)%vnewk &
+                           *hsgvth(ie)*4.0*tunits(ik)
+                      vnew_D(ik,ie,is) = spec(is)%vnewk &
+                           *heevth(ie)*tunits(ik)
+                      if (.not. conservative) then
+                         vnew_E(ik,ie,is) = vnew_s(ik,ie,is)*1.5 &
+                              - 2.0*vnew_D(ik,ie,is)
+                         delvnew(ik,ie,is) = vnew_s(ik,ie,is)-vnew_D(ik,ie,is)
+                      end if
+                   else
+                      vnew(ik,ie,is) = spec(is)%vnewk/energy(ie)**1.5 &
+                           *(zeff + hee(ie))*0.5*tunits(ik)
+                      vnew_s(ik,ie,is) = spec(is)%vnewk/sqrt(energy(ie)) &
+                           *hsg(ie)*4.0*tunits(ik)
+                      vnew_D(ik,ie,is) = spec(is)%vnewk/energy(ie)**1.5 &
+                           *hee(ie)*tunits(ik)
+                      if (.not. conservative) then
+                         vnew_E(ik,ie,is) = energy(ie)*(vnew_s(ik,ie,is)*(2.0-0.5/energy(ie)) &
+                              - 2.0*vnew_D(ik,ie,is))
+                         delvnew(ik,ie,is) = vnew_s(ik,ie,is)-vnew_D(ik,ie,is)
+                      end if
+                   end if
                 endif
              end do
           end do

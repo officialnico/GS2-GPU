@@ -1,11 +1,22 @@
 # GS2
 
+[![Build Status](https://anvil.softeng-support.ac.uk/jenkins/buildStatus/icon?job=Gyrokinetics/Merge+Build+Tests-gfortran-7.2)](https://anvil.softeng-support.ac.uk/jenkins/job/Gyrokinetics/Merge+Build+Tests-gfortran-7.2)
+[![codecov](https://codecov.io/bb/gyrokinetics/gs2/branch/master/graph/badge.svg)](https://codecov.io/bb/gyrokinetics/gs2)
+
 GS2 is a physics application, developed to study low-frequency
 turbulence in magnetized plasma. It is typically used to assess the
 microstability of plasmas produced in the laboratory and to calculate
 key properties of the turbulence which results from instabilities. It
 is also used to simulate turbulence in plasmas which occur in nature,
 such as in astrophysical and magnetospheric systems.
+
+To download the source run:
+
+    git clone --recurse-submodules https://bitbucket.org/gyrokinetics/gs2.git
+
+or for git < v2.13:
+
+    git clone --recursive https://bitbucket.org/gyrokinetics/gs2.git
 
 ## Dependencies
 
@@ -155,6 +166,8 @@ The following is the full list of switches the possible options in
                   (NOTE: NAG_PREC=dble (or sngl) must be
                   chosen appropriately for your NAG library)
  - `USE_GCOV` (defined [undefined]): generates gcov notes files
+ - `NO_TEST_COLOURS` (defined [undefined]): do not use terminal colours when 
+                  reporting test results
 
 Values that each switch takes are shown in brackets, where "defined"
 ("undefined") means whether the switch is defined (or not), but not
@@ -269,6 +282,14 @@ The dependency list is given in Makefile.depend, which is auto-generated
 by the depend target using the perl script "fortdep". The script is
 distributed for developers convenience. Users do not need to reconstruct
 it.
+
+## Citing GS2
+
+If you use GS2 in your work, please cite the metadata contained in CITATION.cff.
+You can convert the CITATION.cff file into a Bibtex file as follows:
+
+    pip3 install --user cffconvert
+    cffconvert -if CITATION.cff -f bibtex -of CITATION.bib 
 
 ## TODO
 
