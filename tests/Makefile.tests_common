@@ -58,9 +58,13 @@ TESTCOMMAND=./
 endif
 endif
 
-RUNCOMMAND= @$(TESTCOMMAND)$(1) $(BLUEGENEARGS) $(2) $(3); if test "$$?" != 0; then  echo "FAILED: `basename $$PWD` ($(TESTCOMMAND)$(1) $(2) $(3))" >> results_of_test.txt; else echo "passed: `basename $$PWD` ($(TESTCOMMAND)$(1) $(2) $(3))" >> results_of_test.txt;  fi
+RUNCOMMAND= @$(TESTCOMMAND)$(1) $(BLUEGENEARGS) $(2) $(3); if test "$$?" != 0; then $(FAILCOMMAND) ; else $(PASSCOMMAND) ;  fi
 
-SKIPCOMMAND= @echo "skipped: `basename $$PWD` ($(1))" >> results_of_test.txt
+FAILCOMMAND= echo "FAILED: `basename $$PWD` ($(TESTCOMMAND)$(1) $(2) $(3))" >> results_of_test.txt ; ../../write_test_xml.sh `basename $$PWD` 1 0 1 0
+
+PASSCOMMAND= echo "passed: `basename $$PWD` ($(TESTCOMMAND)$(1) $(2) $(3))" >> results_of_test.txt ; ../../write_test_xml.sh `basename $$PWD` 1 0 0 0
+
+SKIPCOMMAND= @echo "skipped: `basename $$PWD` ($(1))" >> results_of_test.txt ; ../../write_test_xml.sh `basename $$PWD` 1 0 0 1
 
 BENCHMARKEXEC=$(call TESTEXEC,$(1)) ./$(2) $(BLUEGENEARGS)  $(3)
 

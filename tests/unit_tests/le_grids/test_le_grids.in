@@ -39,6 +39,7 @@
 &le_grids_knobs
   negrid = 8
   ngauss = 5
+  radau_gauss_grid = .false.
 /
 
 &species_knobs

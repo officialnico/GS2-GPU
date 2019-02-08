@@ -10,6 +10,7 @@ module collisional_heating
   complex, dimension (:,:,:,:), allocatable :: tot              !!!! they must be dummy arguments...
   
   complex, dimension(:,:), allocatable :: coll_heating, coll_heating_2 !!! we will use the hk variable in diagnostics_heating
+  logical :: initialized = .false.
   
 contains
   
@@ -29,6 +30,9 @@ contains
     logical :: accel
     
     accel=.false.
+
+    if(.not. gnostics%write_collisional .or. initialized) return
+    initialized = .true.
     
 !!!calls every initiation routine we need: le_grids for integration, init_gs2 transforms to initiate fourier transforms routines...
     
@@ -53,10 +57,12 @@ contains
   end subroutine init_collisional
   
   subroutine finish_collisional
+    if(.not. initialized) return
     deallocate(coll_heating)
     deallocate(coll_heating_2)
     deallocate(tot)
     deallocate(g0)
+    initialized = .false.
   end subroutine finish_collisional
   
   subroutine calculate_collisional(gnostics)

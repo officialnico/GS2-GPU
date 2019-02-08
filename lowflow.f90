@@ -45,7 +45,7 @@ contains
     
     real, dimension (:), intent (in) :: theta, bmag
     real, dimension (:), intent (in) ::  al
-    real, dimension (:), intent (in) :: energy
+    real, dimension (:,:), intent (in) :: energy
     real, dimension (:,:,:,:,:), intent (out) :: dHdec, dHdxic, dHdrc, dHdthc, vpadHdEc, hneoc
     real, dimension (:), intent (out) :: dphidthc, dphidrc, phi_neo
     logical, intent (in) :: lf_default, lf_decompose
@@ -156,8 +156,8 @@ contains
     do is = 1, ns
        do ie = 1, nenergy
           do ir = 1, nr
-             call chebyshev (zfnc(energy(ie),emax(ir,is)), chebyp1(ir,ie,:,is), 1)
-             call chebyshev (zfnc(energy(ie),emax(ir,is)), chebyp2(ir,ie,:,is), 2)
+             call chebyshev (zfnc(energy(ie,is),emax(ir,is)), chebyp1(ir,ie,:,is), 1)
+             call chebyshev (zfnc(energy(ie,is),emax(ir,is)), chebyp2(ir,ie,:,is), 2)
           end do
        end do
     end do
@@ -217,14 +217,14 @@ contains
        do ir=1, nr 
           do is=1, ns
              do ie = 1, nenergy
-                w_r(ie) = w(ie) * exp(energy(ie)*(1.0-1.0/temp_neo(ir,is))) / temp_neo(ir,is)**1.5
+                w_r(ie) = w(ie,is) * exp(energy(ie,is)*(1.0-1.0/temp_neo(ir,is))) / temp_neo(ir,is)**1.5
                 do ixi = 1, nxi
                    il = min(ixi, nxi+1-ixi)
                    do ig = 1, ntheta
                       upar(ir,is,ig) = upar(ir,is,ig) + hneo(ir,ig,ixi,ie,is) &
-                           * sqrt(energy(ie))*xi(ig,ixi) * w_r(ie) * wl(-ntgrid+ig-1,il)
+                           * sqrt(energy(ie,is))*xi(ig,ixi) * w_r(ie) * wl(-ntgrid+ig-1,il)
                       qpar(ir,is,ig) = qpar(ir,is,ig) + hneo(ir,ig,ixi,ie,is) &
-                           * sqrt(energy(ie))*xi(ig,ixi)*(energy(ie)-2.5*temp_neo(ir,is)) &
+                           * sqrt(energy(ie,is))*xi(ig,ixi)*(energy(ie,is)-2.5*temp_neo(ir,is)) &
                            * dens_neo(ir,is) * w_r(ie) * wl(-ntgrid+ig-1,il)
                    end do
                 end do
@@ -342,14 +342,14 @@ contains
           do is = 1, ns
              drlt = drad_neo(ir)*spec(is)%tprim ; drln = drad_neo(ir)*spec(is)%fprim
              do ie = 1, nenergy
-                w_r(ie) = w(ie) * exp(energy(ie)*(1.0-1.0/(1.0-drlt))) / (1.0-drlt)**1.5
+                w_r(ie) = w(ie,is) * exp(energy(ie,is)*(1.0-1.0/(1.0-drlt))) / (1.0-drlt)**1.5
                 do ixi = 1, nxi
                    il = min(ixi, nxi+1-ixi)
                    do ig = 1, ntheta
                       upar(ir,is,ig) = upar(ir,is,ig) + hneo(ir,ig,ixi,ie,is) &
-                           * sqrt(energy(ie))*xi(ig,ixi) * w_r(ie) * wl(-ntgrid+ig-1,il)
+                           * sqrt(energy(ie,is))*xi(ig,ixi) * w_r(ie) * wl(-ntgrid+ig-1,il)
                       qpar(ir,is,ig) = qpar(ir,is,ig) + hneo(ir,ig,ixi,ie,is) &
-                           * sqrt(energy(ie))*xi(ig,ixi)*(energy(ie)-2.5*(1.0-drlt)) &
+                           * sqrt(energy(ie,is))*xi(ig,ixi)*(energy(ie,is)-2.5*(1.0-drlt)) &
                            * (1.0-drln) * w_r(ie) * wl(-ntgrid+ig-1,il)
                    end do
                 end do
@@ -410,7 +410,7 @@ contains
           ! get dH/dxi at fixed E and dH/dE at fixed xi
           call get_dHdxi (coefs(ir_loc,ig,:,:,is), legp(ig,:,:), chebyp1(ir_loc,:,:,is), xi(ig,:), dHdxi(ig,:,:,is))
           call get_dHdE (coefs(ir_loc,ig,:,:,is), legp(ig,:,:), chebyp1(ir_loc,:,:,is), chebyp2(ir_loc,:,:,is), &
-               energy(:), emax(ir_loc,is), dHdE(ig,:,:,is))
+               energy(:,is), emax(ir_loc,is), dHdE(ig,:,:,is))
        end do
     end do
 
@@ -456,8 +456,8 @@ contains
     do ie = 1, nenergy
        do ixi = 1, nxi
           do ig = 1, ntheta
-             vpadHdE(ig,ixi,ie,:) = sqrt(energy(ie))*xi(ig,ixi)*dHdE(ig,ixi,ie,:) &
-                  + (1.-xi(ig,ixi)**2)*dHdxi(ig,ixi,ie,:)/(2.*sqrt(energy(ie)))
+             vpadHdE(ig,ixi,ie,:) = sqrt(energy(ie,is))*xi(ig,ixi)*dHdE(ig,ixi,ie,:) &
+                  + (1.-xi(ig,ixi)**2)*dHdxi(ig,ixi,ie,:)/(2.*sqrt(energy(ie,is)))
           end do
        end do
     end do
