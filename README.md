@@ -1,5 +1,8 @@
 # GS2
 
+[![Build Status](https://anvil.softeng-support.ac.uk/jenkins/buildStatus/icon?job=Gyrokinetics/Merge+Build+Tests-gfortran-7.2)](https://anvil.softeng-support.ac.uk/jenkins/job/Gyrokinetics/Merge+Build+Tests-gfortran-7.2)
+[![codecov](https://codecov.io/bb/gyrokinetics/gs2/branch/master/graph/badge.svg)](https://codecov.io/bb/gyrokinetics/gs2)
+
 GS2 is a physics application, developed to study low-frequency
 turbulence in magnetized plasma. It is typically used to assess the
 microstability of plasmas produced in the laboratory and to calculate
