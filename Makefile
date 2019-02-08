@@ -649,9 +649,7 @@ ifneq ($(MAKECMDGOALS),depend)
 ifneq ($(MAKECMDGOALS),distclean)
 	@$(MAKE) depend
 endif
-ifneq ($(MAKECMDGOALS),'')
 	@$(MAKE) $(MAKECMDGOALS)
-endif
 	@exit
 endif
 
