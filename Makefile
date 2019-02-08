@@ -657,9 +657,7 @@ endif
 
 depend: |$(DEPEND)
 depend: $(FORTFROMRUBY) $(F90FROMFPP)
-	@echo "Running depend as target is $(MAKECMDGOALS)"
 	@$(DEPEND_CMD) -m "$(MAKE)" -1 -o -v=1 $(VPATH)
-	@echo "Done running depend"
 
 ##################################################################### Main TARGETS
 # .DEFAULT_GOAL works for GNU make 3.81 (or higher)
