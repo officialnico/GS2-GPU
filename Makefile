@@ -749,7 +749,10 @@ clean_doxygendoc: #Doxygen documentation
 clean_coverage:
 	-rm -f *.gcov *.gcda *.gcno
 
-distclean: unlink clean cleanlib clean_tests clean_benchmarks distclean_simpledataio cleanconfig clean_doxygendoc cleandoc clean_coverage
+clean_depend:
+	-rm -f $(DEPEND)
+
+distclean: unlink clean cleanlib clean_tests clean_benchmarks distclean_simpledataio cleanconfig clean_doxygendoc cleandoc clean_coverage clean_depend
 
 unlink:
 	-rm -f $(F90FROMFPP) layouts_type.h
