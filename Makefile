@@ -184,7 +184,7 @@ RANLIB		= ranlib
 AWK 		= awk
 PERL		= perl
 FORD           ?= ford
-
+MKDIR           = mkdir -p
 
 MPI_INC	?=
 MPI_LIB ?=
@@ -876,6 +876,7 @@ test_make:
 	$(call messageKeyVal, "VPATH", $(VPATH))
 	$(call messageKeyVal, "CURDIR", $(CURDIR))
 	$(call messageKeyVal, "TOPDIR", $(TOPDIR))
+	$(call messageKeyVal, "MAKECMDGOALS", $(MAKECMDGOALS))
 	$(call messageKeyVal, ".DEFAULT_GOAL", $(.DEFAULT_GOAL))
 	$(call messageKeyVal, "DEFAULT_LIB", $(DEFAULT_LIB))
 	$(call messageKeyVal, "DEPEND_CMD", $(DEPEND_CMD))
@@ -898,6 +899,7 @@ test_make:
 	$(call messageKeyVal, "SHELL", $(SHELL))
 	$(call messageKeyVal, "MAKE", $(MAKE))
 	$(call messageKeyVal, "FORD", $(FORD))
+	$(call messageKeyVal, "MKDIR", $(MKDIR))
 	@echo
 	$(call messageInfo,"Compilation mode:")
 	$(call messageKeyVal, "DEBUG", $(DEBUG))
@@ -950,6 +952,14 @@ ifdef USE_NETCDF
 	$(call messageKeyVal, "NETCDF_INC", $(NETCDF_INC))
 else
 	$(call messageInfo,"Netcdf: DISABLED")
+endif
+	@echo
+ifdef USE_HDF5
+	$(call messageInfo,"HDF5:")
+	$(call messageKeyVal, "HDF5_LIB", $(HDF5_LIB))
+	$(call messageKeyVal, "HDF5_INC", $(HDF5_INC))
+else
+	$(call messageInfo,"HDF5: DISABLED")
 endif
 	@echo
 ifdef USE_FFT
