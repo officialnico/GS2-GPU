@@ -205,55 +205,6 @@ MACRO_DEFS ?=
 #Patch file
 PATCHFILE:= .patch.make
 
-############################################################################# COLOURS
-ifdef WITH_COLOUR
-C_BLA:=\033[0;30m
-C_RED:=\033[0;31m
-C_GRE:=\033[0;32m
-C_YEL:=\033[0;33m
-C_BLU:=\033[0;34m
-C_MAG:=\033[0;35m
-C_CYA:=\033[0;36m
-C_WHI:=\033[0;37m
-
-C_BLA_BOLD:=\033[30;1m
-C_RED_BOLD:=\033[31;1m
-C_GRE_BOLD:=\033[32;1m
-C_YEL_BOLD:=\033[33;1m
-C_BLU_BOLD:=\033[34;1m
-C_MAG_BOLD:=\033[35;1m
-C_CYA_BOLD:=\033[36;1m
-C_WHI_BOLD:=\033[37;1m
-
-C_END:=\033[0m
-endif
-
-#############################################################################
-
-############################################################################# MESSAGES
-ifdef QUIET
-# Main line for turning off command output
-QUIETSYM=@
-# Helper methods for colourising and displaying various message types
-SEPARATOR_ITEM=":"
-whitebold  = "$(C_WHI_BOLD)$(1)$(C_END)"
-blue  = "$(C_BLU)$(1)$(C_END)"
-operation  = "$(C_WHI_BOLD)$(1)$(C_END)"
-spacing    = " $(1) "
-spacingBld = " $(C_WHI)$(1)$(C_END) "
-input      = "$(C_BLU)$(1)$(C_END)"
-output     = "$(C_GRE)$(1)$(C_END)"
-messageOp  = @echo -e $(call operation,$(1))$(call spacing,$(2))$(call input,$(3))$(call spacingBld,$(4))$(call output,$(5))
-messageRm  = @echo -e "$(C_RED)Removing$(C_END)\t: $(C_CYA)$(1)$(C_END)."
-messageInfo = @echo -e $(call whitebold,$(1))
-messageItem = @echo -e $(call blue,$(1))
-messageKeyVal = @echo -e "\t"$(call operation,$(1))"\t$(SEPARATOR_ITEM) "$(call blue,$(2))
-errEndAndFail = || (echo -en "$(C_END)" ; exit 1)
-errHighlightStart = (echo -en "$(C_RED)");
-endif
-#############################################################################
-
-
 ################################################### SET COMPILE MODE SWITCHES
 
 # It makes no sense to set USE_PARALLEL_NETCDF without
@@ -344,6 +295,54 @@ Makefile.$(GK_SYSTEM): | $(MAKEFILES_SENTINEL)
 # include Makefile.local if exists
 sinclude Makefile.local
 
+#############################################################################
+
+############################################################################# COLOURS
+ifdef WITH_COLOUR
+C_BLA:=\033[0;30m
+C_RED:=\033[0;31m
+C_GRE:=\033[0;32m
+C_YEL:=\033[0;33m
+C_BLU:=\033[0;34m
+C_MAG:=\033[0;35m
+C_CYA:=\033[0;36m
+C_WHI:=\033[0;37m
+
+C_BLA_BOLD:=\033[30;1m
+C_RED_BOLD:=\033[31;1m
+C_GRE_BOLD:=\033[32;1m
+C_YEL_BOLD:=\033[33;1m
+C_BLU_BOLD:=\033[34;1m
+C_MAG_BOLD:=\033[35;1m
+C_CYA_BOLD:=\033[36;1m
+C_WHI_BOLD:=\033[37;1m
+
+C_END:=\033[0m
+endif
+
+#############################################################################
+
+############################################################################# MESSAGES
+ifdef QUIET
+# Main line for turning off command output
+QUIETSYM=@
+# Helper methods for colourising and displaying various message types
+SEPARATOR_ITEM=":"
+whitebold  = "$(C_WHI_BOLD)$(1)$(C_END)"
+blue  = "$(C_BLU)$(1)$(C_END)"
+operation  = "$(C_WHI_BOLD)$(1)$(C_END)"
+spacing    = " $(1) "
+spacingBld = " $(C_WHI)$(1)$(C_END) "
+input      = "$(C_BLU)$(1)$(C_END)"
+output     = "$(C_GRE)$(1)$(C_END)"
+messageOp  = @echo -e $(call operation,$(1))$(call spacing,$(2))$(call input,$(3))$(call spacingBld,$(4))$(call output,$(5))
+messageRm  = @echo -e "$(C_RED)Removing$(C_END)\t: $(C_CYA)$(1)$(C_END)."
+messageInfo = @echo -e $(call whitebold,$(1))
+messageItem = @echo -e $(call blue,$(1))
+messageKeyVal = @echo -e "\t"$(call operation,$(1))"\t$(SEPARATOR_ITEM) "$(call blue,$(2))
+errEndAndFail = || (echo -en "$(C_END)" ; exit 1)
+errHighlightStart = (echo -en "$(C_RED)");
+endif
 #############################################################################
 
 #Record the top level path
