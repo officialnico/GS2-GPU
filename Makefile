@@ -139,14 +139,7 @@ ONE_STEP_PP?=
 QUIET           ?= yes
 # If defined then use escape commands to colourise some output
 # Note hack to support both spellings
-WITH_COLOUR     ?=
-ifdef WITH_COLOUR
-WITH_COLOR      := $(WITH_COLOUR)
-endif
-ifdef WITH_COLOR
-WITH_COLOUR      := $(WITH_COLOR)
-endif
-
+WITH_COLOUR     ?= $(WITH_COLOR)
 #
 # * Targets:
 #
@@ -298,7 +291,7 @@ sinclude Makefile.local
 #############################################################################
 
 ############################################################################# COLOURS
-ifdef WITH_COLOUR
+ifneq ("$(WITH_COLOUR)","")
 C_BLA:=\033[0;30m
 C_RED:=\033[0;31m
 C_GRE:=\033[0;32m
