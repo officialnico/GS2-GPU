@@ -135,6 +135,10 @@ RUN_NAME_SIZE?=2000
 # If defined, fpp files will be preprocessed and compiled in one step, as
 # is normal for modern FORTRAN compilers (bin)
 ONE_STEP_PP?=
+# If defined then don't show the full command being run everywhere
+QUIET           ?= yes
+# If defined then use escape commands to colourise some output
+WITH_COL        ?= 
 #
 # * Targets:
 #
@@ -192,6 +196,55 @@ MACRO_DEFS ?=
 
 #Patch file
 PATCHFILE:= .patch.make
+
+############################################################################# COLOURS
+ifdef WITH_COL
+C_BLA:=\033[0;30m
+C_RED:=\033[0;31m
+C_GRE:=\033[0;32m
+C_YEL:=\033[0;33m
+C_BLU:=\033[0;34m
+C_MAG:=\033[0;35m
+C_CYA:=\033[0;36m
+C_WHI:=\033[0;37m
+
+C_BLA_BOLD:=\033[30;1m
+C_RED_BOLD:=\033[31;1m
+C_GRE_BOLD:=\033[32;1m
+C_YEL_BOLD:=\033[33;1m
+C_BLU_BOLD:=\033[34;1m
+C_MAG_BOLD:=\033[35;1m
+C_CYA_BOLD:=\033[36;1m
+C_WHI_BOLD:=\033[37;1m
+
+C_END:=\033[0m
+endif
+
+#############################################################################
+
+############################################################################# MESSAGES
+ifdef QUIET
+# Main line for turning off command output
+QUIETSYM=@
+# Helper methods for colourising and displaying various message types
+SEPARATOR_ITEM=":"
+whitebold  = "$(C_WHI_BOLD)$(1)$(C_END)"
+blue  = "$(C_BLU)$(1)$(C_END)"
+operation  = "$(C_WHI_BOLD)$(1)$(C_END)"
+spacing    = " $(1) "
+spacingBld = " $(C_WHI)$(1)$(C_END) "
+input      = "$(C_BLU)$(1)$(C_END)"
+output     = "$(C_GRE)$(1)$(C_END)"
+messageOp  = @echo -e $(call operation,$(1))$(call spacing,$(2))$(call input,$(3))$(call spacingBld,$(4))$(call output,$(5))
+messageRm  = @echo -e "$(C_RED)Removing$(C_END)\t: $(C_CYA)$(1)$(C_END)."
+messageInfo = @echo -e $(call whitebold,$(1))
+messageItem = @echo -e $(call blue,$(1))
+messageKeyVal = @echo -e "\t"$(call operation,$(1))"\t$(SEPARATOR_ITEM) "$(call blue,$(2))
+errEndAndFail = || (echo -en "$(C_END)" ; exit 1)
+errHighlightStart = (echo -en "$(C_RED)");
+endif
+#############################################################################
+
 
 ################################################### SET COMPILE MODE SWITCHES
 
@@ -595,17 +648,21 @@ endif
 mp.o: | $(UTILS_SENTINEL)
 
 .rb.f90:
-	$(call RUBY_GENERATE,$@,$<)
+	$(call messageOp,"Generating from ruby","\\t:",$<)
+	$(QUIETSYM)$(call RUBY_GENERATE,$@,$<)
 
-.f90.o: 
-	$(FC) $(F90FLAGS) $(F90FLAGS_SFXJUNK) -c $<
+.f90.o:
+	$(call messageOp,"Compiling","\\t:",$<)
+	$(QUIETSYM)$(FC) $(F90FLAGS) $(F90FLAGS_SFXJUNK) -c $<
 
 # The depend command needs the preprocessed source files. 
 # This is a little clunky, and maybe could be fixed in the future.
 .fpp.f90:
-	$(CPP) $(CPPFLAGS) $(MACRO_DEFS) $< $@
+	$(call messageOp,"Preprocessing","\\t:",$<)
+	$(QUIETSYM)$(CPP) $(CPPFLAGS) $(MACRO_DEFS) $< $@
 .F90.f90:
-	$(CPP) $(CPPFLAGS) $(MACRO_DEFS) $< $@
+	$(call messageOp,"Preprocessing","\\t:",$<)
+	$(QUIETSYM)$(CPP) $(CPPFLAGS) $(MACRO_DEFS) $< $@
 
 # On many systems the two steps of preprocessing and compiling
 # can be done simultaneously. This has many advantages, the
@@ -616,34 +673,43 @@ mp.o: | $(UTILS_SENTINEL)
 # and you HAVE to preprocess and compile in one step.
 ifdef ONE_STEP_PP
 .fpp.o:
-	$(FC) $(MACRO_DEFS) $(F90FLAGS) $(F90FLAGS_SFXJUNK) -c $<
+	$(call messageOp,"Compiling and preprocessing","\\t:",$<)
+	$(QUIETSYM)$(FC) $(MACRO_DEFS) $(F90FLAGS) $(F90FLAGS_SFXJUNK) -c $<
 .F90.o:
-	$(FC) $(MACRO_DEFS) $(F90FLAGS) $(F90FLAGS_SFXJUNK) -c $<
+	$(call messageOp,"Compiling and preprocessing","\\t:",$<)
+	$(QUIETSYM)$(FC) $(MACRO_DEFS) $(F90FLAGS) $(F90FLAGS_SFXJUNK) -c $<
 
 else
 # These are special rules for the suffix problem of absoft
 # (not tested)
 $(GK_PROJECT)_transforms.o: $(GK_PROJECT)_transforms.f90
-	$(FC) $(F90FLAGS) $(F90FLAGS_SFX0) -c $<
+	$(call messageOp,"Compiling","\\t:",$<)
+	$(QUIETSYM)$(FC) $(F90FLAGS) $(F90FLAGS_SFX0) -c $<
 $(GK_PROJECT)_io.o: $(GK_PROJECT)_io.f90
-	$(FC) $(F90FLAGS) $(F90FLAGS_SFX2) -c $<
+	$(call messageOp,"Compiling","\\t:",$<)
+	$(QUIETSYM)$(FC) $(F90FLAGS) $(F90FLAGS_SFX2) -c $<
 $(GK_PROJECT)_save.o: $(GK_PROJECT)_save.f90
-	$(FC) $(F90FLAGS) $(F90FLAGS_SFX2) -c $<
+	$(call messageOp,"Compiling","\\t:",$<)
+	$(QUIETSYM)$(FC) $(F90FLAGS) $(F90FLAGS_SFX2) -c $<
 mp.o: mp.f90
-	$(FC) $(F90FLAGS) $(F90FLAGS_SFX1) -c $<
+	$(call messageOp,"Compiling","\\t:",$<)
+	$(QUIETSYM)$(FC) $(F90FLAGS) $(F90FLAGS_SFX1) -c $<
 fft_work.o: fft_work.f90
-	$(FC) $(F90FLAGS) $(F90FLAGS_SFX0) -c $<
+	$(call messageOp,"Compiling","\\t:",$<)
+	$(QUIETSYM)$(FC) $(F90FLAGS) $(F90FLAGS_SFX0) -c $<
 endif
 
 .c.o:
-	$(CC) $(CFLAGS) $(subst -traditional,,$(subst -C,,$(subst -P,,$(CPPFLAGS)))) -c $<
+	$(call messageOp,"Compiling C-file","\\t:",$<)
+	$(QUIETSYM)$(CC) $(CFLAGS) $(subst -traditional,,$(subst -C,,$(subst -P,,$(CPPFLAGS)))) -c $<
 
 # This prevents error messages like m2c: Command not found
 # This is from a implicit makefile rule that we're overriding
 %.o : %.mod
 
 depend: $(FORTFROMRUBY) $(F90FROMFPP)
-	@$(DEPEND_CMD) -m "$(MAKE)" -1 -o -v=1 $(VPATH)
+	$(call messageOp,"Generating dependency file","\\t:",$(DEPEND))
+	$(QUIETSYM)$(DEPEND_CMD) -m "$(MAKE)" -1 -o -v=1 $(VPATH)
 
 ##################################################################### Main TARGETS
 # .DEFAULT_GOAL works for GNU make 3.81 (or higher)
@@ -721,7 +787,8 @@ sync_input_doc:
 
 ############################################################# Cleanup targets
 clean: clean_simpledataio clean_coverage
-	-rm -f *.o *.mod *.g90 *.h core */core
+	$(call messageRm,"Object and module files")
+	-$(QUIETSYM)rm -f *.o *.mod *.g90 *.h core */core
 
 CLEANCOMMAND=echo $$$$PWD
 CLEANCOMMAND=rm -f *.o *.error *.out *.out.nc *.gridgen.200 *.lpc *.vres *.fields *.g *.fort.?? *.mod .*.scratch *.timing.* *.moments *.cdf *.jext *.parity *.heat *.heat2 *.vres2 *.amoments *.eigenfunc *.nc* *.mom2 *.epar .*.in results_of_test.txt *.stop *.fftw_wisdom *.phase *.kpar *.interp *.dist 
@@ -733,21 +800,26 @@ endif
 export CLEANCOMMAND
 
 cleanlib:
-	-rm -f *.a
+	$(call messageRm,"Libraries")
+	-$(QUIETSYM)rm -f *.a
 
 cleanconfig:
-	rm -f system_config .tmp_output
+	$(call messageRm,"System config")
+	-$(QUIETSYM)rm -f system_config .tmp_output
 
 clean_doxygendoc: #Doxygen documentation
-	rm -rf doc/
+	$(call messageRm,"Doxygen documentation")
+	-$(QUIETSYM)rm -rf doc/
 
 clean_coverage:
-	-rm -f *.gcov *.gcda *.gcno
+	$(call messageRm,"Gcov files")	
+	-$(QUIETSYM)rm -f *.gcov *.gcda *.gcno
 
 distclean: unlink clean cleanlib clean_tests clean_benchmarks distclean_simpledataio cleanconfig clean_doxygendoc cleandoc clean_coverage
 
 unlink:
-	-rm -f $(F90FROMFPP) layouts_type.h
+	$(call messageRm,"Preprocessed files")	
+	-$(QUIETSYM)rm -f $(F90FROMFPP) layouts_type.h
 
 ############################################################# Tar targets
 tar:
@@ -780,62 +852,104 @@ sinclude $(TEST_DIR)/Makefile.tests_and_benchmarks
 
 ############################################################# Introspection targets
 test_make:
-	@echo GK_SYSTEM is $(GK_SYSTEM)
-	@echo .DEFAULT_GOAL is $(.DEFAULT_GOAL)
-	@echo VPATH is $(VPATH)
-	@echo CURDIR is $(CURDIR)
-	@echo TOPDIR is $(TOPDIR)
-	@echo NETCDF_LIB is $(NETCDF_LIB)
-	@echo NETCDF_DIR is $(NETCDF_DIR)
-	@echo FFT_LIB is $(FFT_LIB)
-	@echo FFT_DIR is $(FFT_DIR)
-	@echo LD_LIBRARY_PATH is $(LD_LIBRARY_PATH)
-	@echo FORD is $(FORD)
-	@echo USE_GCOV is $(USE_GCOV)
-	@echo GIT_HASH is $(GIT_HASH)
-	@echo GIT_STATE is $(GIT_STATE)
-	@echo PATCHFILE is $(PATCHFILE)
+	$(call messageInfo,"Global settings:")
+	$(call messageKeyVal, "GK_SYSTEM", $(GK_SYSTEM))
+	$(call messageKeyVal, "VPATH", $(VPATH))
+	$(call messageKeyVal, "CURDIR", $(CURDIR))
+	$(call messageKeyVal, "TOPDIR", $(TOPDIR))
+	$(call messageKeyVal, ".DEFAULT_GOAL", $(.DEFAULT_GOAL))
+	$(call messageKeyVal, "DEFAULT_LIB", $(DEFAULT_LIB))
+	$(call messageKeyVal, "DEPEND_CMD", $(DEPEND_CMD))
+	$(call messageKeyVal, "DEPEND", $(DEPEND))
+	$(call messageKeyVal, "QUIET", $(QUIET))
+	$(call messageKeyVal, "WITH_COL", $(WITH_COL))
+	$(call messageKeyVal, "GIT_HASH", $(GIT_HASH))
+	$(call messageKeyVal, "GIT_STATE", $(GIT_STATE))
+	$(call messageKeyVal, "PATCHFILE", $(PATHFILE))
 	@echo
-	@echo Compile mode:
-	@echo  COMPILER is $(COMPILER)
-	@echo  FC is $(FC)
-	@echo  CC is $(CC)
-	@echo  DEBUG is $(DEBUG)
-	@echo  SCAL is $(SCAL)
-	@echo  TEST is $(TEST)
-	@echo  PROF is $(PROF)
-	@echo  OPT is $(OPT)
-	@echo  STATIC is $(STATIC)
-	@echo  DBLE is $(DBLE)
+	$(call messageInfo,"Commands:")
+	$(call messageKeyVal, "COMPILER", $(COMPILER))
+	$(call messageKeyVal, "FC", $(FC))
+	$(call messageKeyVal, "CC", $(CC))
+	$(call messageKeyVal, "LD", $(LD))
+	$(call messageKeyVal, "CPP", $(CPP))
+	$(call messageKeyVal, "ARCH", $(ARCH))
+	$(call messageKeyVal, "RANLIB", $(RANLIB))
+	$(call messageKeyVal, "PERL", $(PERL))
+	$(call messageKeyVal, "SHELL", $(SHELL))
+	$(call messageKeyVal, "MAKE", $(MAKE))
+	$(call messageKeyVal, "FORD", $(FORD))
 	@echo
-	@echo Functions:
-	@echo  USE_MPI is $(USE_MPI)
-	@echo  USE_SHMEM is $(USE_SHMEM)
-	@echo  USE_FFT is $(USE_FFT)
-	@echo  USE_NETCDF is $(USE_NETCDF)
-	@echo  USE_HDF5 is $(USE_HDF5)
-	@echo  USE_C_INDEX is $(USE_C_INDEX)
-	@echo  USE_POSIX is $(USE_POSIX)
-	@echo  USE_LOCAL_RAN is $(USE_LOCAL_RAN)
-	@echo  USE_LOCAL_SPFUNC is $(USE_LOCAL_SPFUNC)
-	@echo  USE_NAGLIB is $(USE_NAGLIB)
-	@echo  USE_NEW_DIAG is $(USE_NEW_DIAG)
-	@echo  DEFAULT_LIB is $(DEFAULT_LIB)
-	@echo  MPI_LIB is $(MPI_LIB)
+	$(call messageInfo,"Compilation mode:")
+	$(call messageKeyVal, "DEBUG", $(DEBUG))
+	$(call messageKeyVal, "SCAL", $(SCAL))
+	$(call messageKeyVal, "TEST", $(TEST))
+	$(call messageKeyVal, "PROF", $(PROF))
+	$(call messageKeyVal, "OPT", $(OPT))
+	$(call messageKeyVal, "STATIC", $(STATIC))
+	$(call messageKeyVal, "DBLE", $(DBLE))
 	@echo
-	@echo FC is $(FC)
-	@echo F90FLAGS is $(F90FLAGS)
-	@echo F90OPTFLAGS is $(F90OPTFLAGS)
-	@echo CC is $(CC)
-	@echo CFLAGS is $(CFLAGS)
-	@echo COPTFLAGS is $(COPTFLAGS)
-	@echo LD is $(LD)
-	@echo LDFLAGS is $(LDFLAGS)
-	@echo CPP is $(CPP)
-	@echo CPPFLAGS is $(CPPFLAGS)
-	@echo MACRO_DEFS is $(MACRO_DEFS)
-	@echo LIBS is $(LIBS)
-	@echo WITH_EIG is $(WITH_EIG)
+	$(call messageInfo,"Functionality:")
+	$(call messageKeyVal, "USE_MPI", $(USE_MPI))
+	$(call messageKeyVal, "USE_SHMEM", $(USE_SHMEM))
+	$(call messageKeyVal, "USE_FFT", $(USE_FFT))
+	$(call messageKeyVal, "USE_NETCDF", $(USE_NETCDF))
+	$(call messageKeyVal, "USE_HDF5", $(USE_HDF5))
+	$(call messageKeyVal, "WITH_EIG", $(WITH_EIG))
+	$(call messageKeyVal, "USE_C_INDEX", $(USE_C_INDEX))
+	$(call messageKeyVal, "USE_POSIX", $(USE_POSIX))
+	$(call messageKeyVal, "USE_LOCAL_RAN", $(USE_LOCAL_RN))
+	$(call messageKeyVal, "USE_SPFUNC", $(USE_SPFUNC))
+	$(call messageKeyVal, "USE_NAGLIB", $(USE_NAGLIB))
+	$(call messageKeyVal, "USE_NEW_DIAG", $(USE_NEW_DIAG))
+	$(call messageKeyVal, "USE_GCOV", $(USE_GCOV))
+	@echo
+	$(call messageInfo,"Flags:")
+	$(call messageKeyVal, "F90FLAGS", $(F90FLAGS))
+	$(call messageKeyVal, "F90OPTFLAGS", $(F90OPTFLAGS))
+	$(call messageKeyVal, "CFLAGS", $(CFLAGS))
+	$(call messageKeyVal, "COPTFLAGS", $(COPTFLAGS))
+	$(call messageKeyVal, "LDFLAGS", $(LDFLAGS))
+	$(call messageKeyVal, "CPPFLAGS", $(CPPFLAGS))
+	$(call messageKeyVal, "ARCHFLAGS", $(ARCHFLAGS))
+	$(call messageKeyVal, "MACRO_DEFS", $(MACRO_DEFS))
+	$(call messageKeyVal, "LD_LIBRARY_PATH", $(LD_LIBRARY_PATH))
+	$(call messageKeyVal, "LIBS", $(LIBS))
+	$(call messageKeyVal, "INCS", $(INCS))
+ifdef USE_MPI
+	$(call messageInfo,"MPI:")
+	$(call messageKeyVal, "MPI_MOD_NAME", $(MPI_MOD_NAME))
+	$(call messageKeyVal, "MPI_LIB", $(MPI_LIB))
+	$(call messageKeyVal, "MPI_INC", $(MPI_INC))
+else
+	$(call messageInfo,"MPI: DISABLED")
+endif
+	@echo
+ifdef USE_NETCDF
+	$(call messageInfo,"Netcdf:")
+	$(call messageKeyVal, "NETCDF_LIB", $(NETCDF_LIB))
+	$(call messageKeyVal, "NETCDF_INC", $(NETCDF_INC))
+else
+	$(call messageInfo,"Netcdf: DISABLED")
+endif
+	@echo
+ifdef USE_FFT
+	$(call messageInfo,"FFT:")
+	$(call messageKeyVal, "FFT_LIB", $(FFT_LIB))
+	$(call messageKeyVal, "FFT_INC", $(FFT_INC))
+	$(call messageKeyVal, "FFT_DIR", $(FFT_DIR))
+else
+	$(call messageInfo,"FFT: DISABLED")
+endif
+	@echo
+ifdef WITH_EIG
+	$(call messageInfo,"Eigensolver:")
+	$(call messageKeyVal, "EIG_LIB", $(EIG_LIB))
+	$(call messageKeyVal, "EIG_INC", $(EIG_INC))
+else
+	$(call messageInfo,"Eigensolver: DISABLED")
+endif
+	@echo
 
 revision:
 	@LANG=C git rev-parse HEAD > Revision
@@ -851,10 +965,10 @@ TAGS:	*.f90 *.fpp */*.f90 */*.fpp
 
 ifneq ("$(wildcard $(shell which $(FORD) 2>/dev/null))","")
 check_ford_install:
-	@echo "Using ford at $(shell which $(FORD))"
+	$(call messageInfo,"Using ford at $(shell which $(FORD))")
 else
 check_ford_install:
-	@echo "Ford command $(FORD) not in path -- is it installed?\\n\\tConsider installing with 'pip install --user ford' and add ${HOME}/.local/bin to PATH" ; which $(FORD)
+	$(call messageInfo,"Ford command $(FORD) not in path -- is it installed?\\n\\tConsider installing with 'pip install --user ford' and add ${HOME}/.local/bin to PATH") ; which $(FORD)
 endif
 
 docs/html:
@@ -862,5 +976,7 @@ doc: docs/.docs.config.md check_ford_install
 	$(FORD) $(subst -D,--macro ,$(MACRO_DEFS)) $(INCLUDES) $<
 
 cleandoc: docs/html docs/graphs
-	-@rm -rf $^
+	$(call messageRm,"FORD docs")	
+	-$(QUIETSYM)rm -rf $^
+
 
