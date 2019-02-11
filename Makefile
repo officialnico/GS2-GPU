@@ -815,8 +815,10 @@ clean_doxygendoc: #Doxygen documentation
 	-$(QUIETSYM)rm -rf doc/
 
 clean_coverage:
+ifeq ($(HAS_GCOV),on)
 	$(call messageRm,"Gcov files")	
 	-$(QUIETSYM)rm -f *.gcov *.gcda *.gcno
+endif
 
 distclean: unlink clean cleanlib clean_tests clean_benchmarks distclean_simpledataio cleanconfig clean_doxygendoc cleandoc clean_coverage
 
