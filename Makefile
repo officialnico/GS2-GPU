@@ -707,7 +707,7 @@ fft_work.o: fft_work.f90
 endif
 
 .c.o:
-	$(call messageOp,"Compiling C-file","\\t:",$<)
+	$(call messageOp,"Compiling C","\\t:",$<)
 	$(QUIETSYM)$(CC) $(CFLAGS) $(subst -traditional,,$(subst -C,,$(subst -P,,$(CPPFLAGS)))) -c $<
 
 # This prevents error messages like m2c: Command not found
