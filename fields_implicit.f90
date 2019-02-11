@@ -116,7 +116,6 @@ contains
     use dist_fn_arrays, only: g, gnew
     use dist_fn, only: get_init_field
     use init_g, only: new_field_init
-    use mp, only: iproc
 
     implicit none
 
@@ -355,12 +354,10 @@ contains
     use dist_fn, only: timeadv, exb_shear, collisions_advance
     use dist_fn_arrays, only: g, gnew, kx_shift, theta0_shift
     use unit_tests, only: debug_message
-    use mp, only: iproc
     implicit none
     integer :: diagnostics = 1
     integer, intent (in) :: istep
     logical, intent (in) :: remove_zonal_flows_switch
-    integer, parameter :: verb=4
 
     !GGH NOTE: apar_ext is initialized in this call
     if(.not.no_driver) call antenna_amplitudes (apar_ext)

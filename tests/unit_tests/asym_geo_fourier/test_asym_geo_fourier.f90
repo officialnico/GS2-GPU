@@ -11,16 +11,13 @@
 !!   Adapted by: Justin Ball (Justin.Ball@epfl.ch)
 program test_asym_geo_fourier
   use unit_tests
-  use theta_grid, only: init_theta_grid, finish_theta_grid
-  use theta_grid, only: initialized, theta
+  use theta_grid, only: init_theta_grid, finish_theta_grid, theta
   use theta_grid, only: bmag, grho, gbdrift, cvdrift, gds2, gds21
   use egrid
   use mp, only: init_mp, finish_mp, proc0
   use file_utils, only: init_file_utils, finish_file_utils
-  use species, only: init_species, nspec, spec
-  use constants, only: pi
-  use kt_grids, only: naky, ntheta0, init_kt_grids
-  use gs2_layouts, only: init_gs2_layouts, g_lo, ie_idx
+  use species, only: init_species, nspec
+  use gs2_layouts, only: init_gs2_layouts, ie_idx
   implicit none
   real :: eps
   logical :: dummy

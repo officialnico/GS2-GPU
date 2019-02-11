@@ -51,7 +51,6 @@ module gs2_io
   integer, dimension (4) :: xmode_dim
   integer :: nx_id, ny_id, nth_id, x_id, y_id, th_id, time_movie_id
   integer :: phi_by_xmode_id, apar_by_xmode_id, bpar_by_xmode_id
-  integer :: code_id_movie
 
   integer :: nakx_id, naky_id, nttot_id, akx_id, aky_id, theta_id, nspec_id
   integer :: negrid_id, nlambda_id, egrid_id, lambda_id
@@ -75,7 +74,7 @@ module gs2_io
   integer :: es_heat_by_k_id, es_mom_by_k_id, es_part_by_k_id
   integer :: es_part_tormom_by_k_id, es_exchange_by_k_id
   integer :: es_parmom_by_k_id, es_perpmom_by_k_id, es_mom0_by_k_id, es_mom1_by_k_id
-  integer :: es_mom_sym_id, phi_corr_id, phi2_extend_id, phi_corr_2pi_id, es_part_sym_tormom_id 
+  integer :: es_mom_sym_id, phi_corr_id, phi2_extend_id, phi_corr_2pi_id
   integer :: es_part_sym_id 
   integer :: apar_heat_by_k_id, apar_mom_by_k_id, apar_part_by_k_id
   integer :: apar_heat_by_x_id
@@ -101,7 +100,7 @@ module gs2_io
   integer :: cvdrift_id, cvdrift0_id, gds2_id, gds21_id, gds22_id
   integer :: grho_id, jacob_id, shat_id, eps_id, drhodpsi_id, q_id, surfarea_id
   integer :: beta_id
-  integer :: code_id, datestamp_id, timestamp_id, timezone_id
+  integer :: code_id
   integer :: h_energy_id, h_energy_dot_id, h_antenna_id
   integer :: h_eapar_id, h_ebpar_id
   integer :: h_delfs2_id, h_hs2_id, h_phis2_id
@@ -2514,7 +2513,7 @@ contains
 
     use species, only: nspec
     use run_parameters, only: fphi
-    use le_grids, only: negrid, nlambda
+    use le_grids, only: negrid
     use theta_grid, only: ntgrid
 # ifdef NETCDF
     use netcdf, only: nf90_put_var

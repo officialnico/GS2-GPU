@@ -18,6 +18,7 @@ authors:
 
   - family-names: Dorland
     given-names: William
+    orcid: https://orcid.org/0000-0003-2915-724X
     affiliation: University of Maryland
 
   - family-names: Hill
@@ -27,6 +28,7 @@ authors:
 
   - family-names: Parker
     given-names: Joseph Thomas
+    orcid: https://orcid.org/0000-0002-5573-6475
     affiliation: Science and Technology Facilities Council
 
   - family-names: Roach
@@ -36,6 +38,9 @@ authors:
   - family-names: Biggs-Fox
     given-names: Stephen
     affiliation: University of York
+
+  - family-names: Numata
+    given-names: Ryusuke
 
   - family-names: Wilkie
     given-names: George
@@ -67,6 +72,10 @@ authors:
   - family-names: Jackson
     given-names: Adrian
 
+  - family-names: Kotschenreuther
+    given-names: Michael T.
+    affiliation: Institute for Fusion Studies, University of Texas
+
   - family-names: Lee
     given-names: Jungpyo
 
@@ -79,9 +88,6 @@ authors:
   - family-names: Mauriya
     given-names: Adwiteey
 
-  - family-names: Numata
-    given-names: Ryusuke
-
   - family-names: Tatsuno
     given-names: Tomo
 
@@ -92,5 +98,5 @@ version: 8.0.1
 date-released: 2018-11-09
 repository-code: https://bitbucket.org/gyrokinetics/gs2/
 url: https://gyrokinetics.bitbucket.io/
-doi: 
+doi: 10.5281/zenodo.2551067
 license: 'MIT'

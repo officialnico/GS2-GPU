@@ -7,7 +7,7 @@ module diagnostics_turbulence
   public :: write_correlation_extend, write_cross_phase
   public :: write_correlation
 
-  integer :: ntg_out, ntg_extend, nth0_extend
+  integer :: ntg_extend, nth0_extend
 contains
 
   subroutine write_correlation(gnostics)

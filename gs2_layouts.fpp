@@ -2885,7 +2885,7 @@ contains
           gf_lo%largegapsize = gf_lo%smallgapsize + 1
           gf_lo%largeblocklimit = mod(gf_lo%nproc,gf_lo%divisionblock)
           gf_lo%largeregionlimit = gf_lo%largeblocklimit * gf_lo%largegapsize
-	  if(gf_lo%iproc .le. gf_lo%largeregionlimit) then
+          if(gf_lo%iproc .le. gf_lo%largeregionlimit) then
             if(mod(gf_lo%iproc,gf_lo%largegapsize) .eq. 0) then 
                gf_lo%xypoints = gf_lo%largeblocksize
                gf_lo%llim_proc = (gf_lo%iproc / gf_lo%largegapsize) + 1
@@ -3033,9 +3033,9 @@ contains
 !AJ does not exactly divide by the number of processes, so some have larger blocks than others.
     if(lo%largeblocksize .gt. 1) then
        if(i .gt. lo%largeregionlimit) then
-    	   proc_id_gf = (((i - (lo%largeblocksize * lo%largeblocklimit) - lo%llim_world)/lo%smallblocksize) + lo%largeblocklimit)
+           proc_id_gf = (((i - (lo%largeblocksize * lo%largeblocklimit) - lo%llim_world)/lo%smallblocksize) + lo%largeblocklimit)
        else
-       	   proc_id_gf = (i - lo%llim_world) / lo%largeblocksize
+           proc_id_gf = (i - lo%llim_world) / lo%largeblocksize
        end if
 !AJ For this scenario we have less blocks than processes so we try to spread the blocks between processes.
     else if(lo%largeblocksize .eq. 1) then

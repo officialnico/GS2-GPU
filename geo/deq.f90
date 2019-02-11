@@ -40,8 +40,6 @@ module deq
   logical :: init_beta = .true.
   logical :: init_rho = .true.
   logical :: init_psi = .true.
-  logical :: init_R = .true.
-  logical :: init_Z = .true.
 
 contains
   subroutine dfitin(eqfile, psi_0, psi_a, rmaj, B_T, amin, initeq)

@@ -34,11 +34,7 @@ module geometry
        Rplot, Zplot, Rprime, Zprime, aplot, aprime, Uk1, Uk2, &
        cdrift, cdrift0, gds23, gds24, gds24_noq, gbdrift_th, cvdrift_th, Bpol ! MAB
   
-  real, allocatable, dimension(:) :: J_X, B_X, g11_X, g12_X, g22_X, &
-       K1_X, K2_X, gradpar_X, theta_eqarc, gradpar_prime, theta_prime_eqarc, &
-       theta_prime
-
-  real :: Rref_X, Bref_X
+  real, allocatable, dimension(:) :: theta_eqarc, gradpar_prime, theta_prime_eqarc, theta_prime
 
   real :: dbetadrho, kxfac
 
@@ -47,7 +43,7 @@ module geometry
   real :: deltam, deltan, deltampri, deltanpri, thetam, thetan
   real :: qinp, s_hat_input
 
-  real :: shat, dpressdrho
+  real :: shat
   real :: rmin, rmax, qsf, aminor, bi_out
   
   real :: p_prime_input, invLp_input, beta_prime_input
@@ -60,7 +56,7 @@ module geometry
    
   real :: dp_new, di_new
   real :: psi_0, psi_a
-  real :: B_T0, avgrmid, dvdrhon, surfarea, grho1n, grho2n, drhodpsin
+  real :: B_T0, avgrmid, dvdrhon, surfarea, grho2n, drhodpsin
   real :: grhoavg  ! needed for Trinity -- MAB
 
   real, dimension(3) :: rpval
@@ -207,7 +203,6 @@ module geometry
     real :: bi
   end type constant_coefficients_type
 
-  type(coefficients_type) :: output_coefficients
   type(constant_coefficients_type) :: constant_coefficients
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -313,7 +308,6 @@ module geometry
 !!!     qinp :: safety factor q at surface of interest
 !!!     shat :: d q/drho at surface of interest
 !!!     dIdrho :: d I/drho where I = R B_T
-!!!     dpressdrho :: dpressure /drho = 0.5 dbeta /drho at surface of interest.
 !!!  
 !!!     delrho :: numerical parameter.  Should be "small enough".  Typically 0.001 ok.
 !!!     rmin :: minimum minor radius at which items are evaluated
@@ -1127,11 +1121,8 @@ if (debug) write(6,*) "eikcoefs: end gradients"
          dqdrp, dpsidrho, drhodrp, Bmod, Bpolmag, Rpol, th_bish, ltheta)
      
 !     compute the magnetic field along theta
-!    call  bmagtgrid(rgrid, bmagtg)    
 
     if(itor /= 0) then
-!       call periodic_copy(bmagtg, 0.) 
-!       bmag = bmagtg
        if(nperiod > 1 ) call periodic_copy(Bmod, 0.) 
        bmag = Bmod
     else
@@ -1301,29 +1292,6 @@ if (debug) write(6,*) "eikcoefs: end gradients"
     call close_output_file(fort11_unit)
 
     if (start_file_utils) call finish_file_utils
-! Generate metric tensor elements to compare with Xanthopoulos and Jenko    
-! Need to change normalization to match XJ
-
-!    if (Xanthopoulos) then
-!
-!       Rref_phys = (rmaj+rgrid(0)) * avgrmid ! This is R_ref in physical units
-!
-!       Bref_X = 
-!       Rref_X =
-!
-!       call alloc_Xanth (ntgrid)
-!       
-!       K1_X = - Rref_X * gbdrift0 ! Must be clear: changing normalization, or unnormalizing?
-!       K2_X = - Rref_X * gbdrift  ! Must be clear: changing normalization, or unnormalizing?
-!       gradpar_X = gradpar ! dimensionless for both of us, but same normalization?
-!       B_X = bmag  ! * Bref ??
-!       J_X = jacob ! coordinates are different, so this is trickier
-!       g11_X = 
-!       g12_X = 
-!       g22_X = 
-!
-!    end if
-
 
   contains
 
@@ -1532,16 +1500,6 @@ if (debug) write(6,*) "eikcoefs: end gradients"
     c = a(:,1)*b(:,1) + a(:,2)*b(:,2) + a(:,3)*b(:,3)
   end subroutine dottgridf
 
-  subroutine bmagtgrid(rgrid, bmagtg)
-    real, dimension (-ntgrid:), intent (in) :: rgrid
-    real, dimension (-ntgrid:), intent (out) :: bmagtg
-    integer :: i      
-
-    do i=-nth,nth
-       bmagtg(i)=bmagfun(rgrid(i),theta(i))
-    enddo
-  end subroutine bmagtgrid
-      
   real function bmagfun(r, thet)
     use mp, only: mp_abort
     implicit none
@@ -2851,51 +2809,6 @@ end subroutine geofax
     enddo
   end subroutine R_pol
 
-  subroutine test(rgrid, theta, Bpolmag, Bmod, Rpol, th_bish, bgrad, nth)
-    implicit none
-    integer, intent (in) :: nth
-    real, dimension(-ntgrid:), intent (in) :: rgrid, theta, Bmod, Bpolmag, &
-         Rpol, th_bish
-    real, dimension(-ntgrid:, :), intent(in) :: bgrad
-    real, dimension(-ntgrid:ntgrid) :: rmajor, bbgrad
-    real :: dp, bi, di, bp
-    integer :: i
-
-    call rmajortgrid(rgrid, theta, rmajor)
-
-    if(iflux /= 1) write(*,*) 'should not be using test.'
-    dp = dpfun(rgrid(0),theta(0))
-    bi = btori(rgrid(0),theta(0))
-    di = dbtori(rgrid(0),theta(0))
-    do i = -nth, nth
-       bp=-Bpolmag(i)
-       bbgrad(i) = bp/Bmod(i) &
-            *(bp/Rpol(i) + dp*rmajor(i) &
-            - bi**2*sin(th_bish(i))/rmajor(i)**3/bp)
-!       bbgrad(i) = -di*bi/rmajor(i)*bp &
-!            -bi**2*sin(th_bish(i))/rmajor(i)**3
-    enddo
-
-    do i=-nth,nth
-       bp=-Bpolmag(i)
-       write(*,100) theta(i), &
-!            bi/rmajor(i)*bgrad(i,1), &
-            bgrad(i,1), &
-            bbgrad(i), &
-            +Bp**2/Bmod(i)/Rpol(i), &
-            +Bp/Bmod(i)*dp*rmajor(i), &
-            -1./Bmod(i)*bi**2*sin(th_bish(i))/rmajor(i)**3, &
-!            Rpol(i), &
-!            th_bish(i), &
-!            -di*bi/rmajor(i)*Bp, &
-!            -bi**2*sin(th_bish(i))/rmajor(i)**3, &
-            bbgrad(i) - bgrad(i,1)
-!            Bmod(i), bgrad(i,2)
-    enddo
-
-100 format(20(1x,g13.6))
-  end subroutine test
-
   subroutine tdef(nthg, ntheta_returned)
     use constants, only: pi
     implicit none
@@ -2931,20 +2844,6 @@ end subroutine geofax
        theta(-i)=-theta(i)
     enddo
   end subroutine tdef
-
-  subroutine alloc_Xanth (n)
-    integer, intent(in) :: n
-
-    if (allocated(g11_X)) return
-    allocate (g11_X     (-n:n), &
-              g12_X     (-n:n), &
-              g22_X     (-n:n), &
-              B_X       (-n:n), &
-              J_X       (-n:n), &
-              K1_X      (-n:n), &
-              K2_X      (-n:n), &
-              gradpar_X (-n:n))
-  end subroutine alloc_Xanth
 
   subroutine alloc_module_arrays(n)
     integer, intent(in) :: n
@@ -3049,9 +2948,6 @@ end subroutine geofax
     integer, intent(in) :: nt
     integer :: i
 
-!cmr Jun06: adding following debug switch
-    logical, parameter :: debug=.false.
-!cmr
     logical :: first_local = .true.
 
     ntheta=nt
@@ -3916,7 +3812,7 @@ subroutine geometry_get_coefficients(grid_size, coefficients_out)
     subroutine create_interp_matrix
       use geometry, only: theta, theta_eqarc
       use splines, only: inter_cspl
-      integer :: j,k
+      integer :: j
       real, dimension(grid_size) :: delta_array
       do j = 1,grid_size
         delta_array = 0.
@@ -3940,7 +3836,7 @@ subroutine geometry_get_coefficients(grid_size, coefficients_out)
 end subroutine geometry_get_coefficients
 
 subroutine geometry_get_constant_coefficients(constant_coefficients_out)
-  use geometry, only: qsf, rmaj, shat, kxfac, aminor, drhodpsin, gradpar
+  use geometry, only: qsf, rmaj, shat, kxfac, aminor, drhodpsin
   use geometry, only: bi_out
   use geometry, only: constant_coefficients_type, constant_coefficients
   implicit none

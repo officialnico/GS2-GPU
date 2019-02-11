@@ -81,7 +81,6 @@ contains
 
   subroutine reset_averages_and_counters(gnostics)
     use diagnostics_config, only: diagnostics_type
-    use mp, only: proc0
     implicit none
     type(diagnostics_type), intent(inout) :: gnostics
     gnostics%current_results%species_heat_flux_avg = 0.0
@@ -999,7 +998,7 @@ contains
   subroutine write_nl_flux_dist(gnostics)
     use dist_fn, only: flux_dist
     use theta_grid, only: ntgrid
-    use le_grids, only: nlambda, negrid
+    use le_grids, only: negrid
     use species, only: nspec, spec
     use mp, only: proc0
     use gs2_io, only: nc_loop_dist

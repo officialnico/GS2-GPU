@@ -502,7 +502,7 @@ contains
   end subroutine nonlinear_terms_unit_test_time_add_nl
 
   subroutine add_nl (g1, phi, apar, bpar)
-    use mp, only: max_allreduce, nb_max_allreduce, iproc, nproc
+    use mp, only: max_allreduce, nb_max_allreduce
     use theta_grid, only: ntgrid, kxfac
     use gs2_layouts, only: g_lo, ik_idx, it_idx
     use gs2_layouts, only: accelx_lo, yxf_lo
@@ -731,13 +731,13 @@ contains
          is = is_idx(g_lo,iglo)
 !AJ Optimisatin
          do ig = -ntgrid, ntgrid
-	    fac = zi*akx(it)*aj0(ig,iglo)*spec(is)%stm*apar(ig,it,ik)*fapar
+            fac = zi*akx(it)*aj0(ig,iglo)*spec(is)%stm*apar(ig,it,ik)*fapar
             g1(ig,1,iglo) = g1(ig,1,iglo) - fac*vpa(ig,1,iglo)
 !         end do
 !         do ig = -ntgrid, ntgrid
 !            g1(ig,2,iglo) = g1(ig,2,iglo) - zi*akx(it)*aj0(ig,iglo)*spec(is)%stm &
 !                 *vpa(ig,2,iglo)*apar(ig,it,ik)*fapar 
- 	    g1(ig,2,iglo) = g1(ig,2,iglo) - fac*vpa(ig,2,iglo)
+            g1(ig,2,iglo) = g1(ig,2,iglo) - fac*vpa(ig,2,iglo)
          end do
       end do
 
@@ -755,15 +755,15 @@ contains
          is = is_idx(g_lo,iglo)
 !AJ Optimisation
          do ig = -ntgrid, ntgrid
-	    fac = zi*aky(ik)*aj0(ig,iglo)*spec(is)%stm*apar(ig,it,ik)*fapar
-	    g1(ig,1,iglo) = g1(ig,1,iglo) - fac*vpa(ig,1,iglo)
+            fac = zi*aky(ik)*aj0(ig,iglo)*spec(is)%stm*apar(ig,it,ik)*fapar
+            g1(ig,1,iglo) = g1(ig,1,iglo) - fac*vpa(ig,1,iglo)
 !            g1(ig,1,iglo) = g1(ig,1,iglo) - zi*aky(ik)*aj0(ig,iglo)*spec(is)%stm &
 !                 *vpa(ig,1,iglo)*apar(ig,it,ik)*fapar 
 !         end do
 !         do ig = -ntgrid, ntgrid
 !            g1(ig,2,iglo) = g1(ig,2,iglo) - zi*aky(ik)*aj0(ig,iglo)*spec(is)%stm &
 !                 *vpa(ig,2,iglo)*apar(ig,it,ik)*fapar 
-	     g1(ig,2,iglo) = g1(ig,2,iglo) - fac*vpa(ig,2,iglo)
+             g1(ig,2,iglo) = g1(ig,2,iglo) - fac*vpa(ig,2,iglo)
          end do
       end do
 
@@ -817,21 +817,15 @@ contains
 
   subroutine add_nl_gryfx (g1)
     use mp, only: max_allreduce
-    use theta_grid, only: ntgrid, kxfac
+    use theta_grid, only: ntgrid
     use gs2_layouts, only: g_lo, ik_idx, it_idx, is_idx
-    use gs2_layouts, only: accelx_lo, yxf_lo
-    use dist_fn_arrays, only: g, g_adjust, vpa, vperp2
-    use species, only: spec
+    use dist_fn_arrays, only: g_adjust, vpa, vperp2
     use gs2_transforms, only: transform2, inverse2
-    use run_parameters, only: fapar, fbpar, fphi, reset, immediate_reset
-    use kt_grids, only: aky, akx
+    use run_parameters, only: fapar, fbpar, fphi, immediate_reset
     use gs2_time, only: save_dt_cfl, check_time_step_too_large
-    use constants, only: zi
     use mp, only: broadcast
     implicit none
     complex, dimension (-ntgrid:,:,g_lo%llim_proc:), intent (out) :: g1
-    integer :: i, j, k
-    real :: dt_cfl
 
     integer :: iglo, ik, it, ig, iz, is, isgn, index_gryfx
 
