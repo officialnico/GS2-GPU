@@ -776,17 +776,27 @@ endif
 
 doxygen_doc: $(F90FROMFPP) $(FORTFROMRUBY)
 	doxygen doxygen_config 
-	rm -f $(F90FROMFPP)
 
 #TODO: This will need updating when documentation has migrated to bitbucket
-sync_doc: 
+sync_doc:
+	$(call messageInfo,"Warning: Target sync_doc out of date."
 	rsync -av --delete --exclude=releases doc/html/	${USER},gyrokinetics@web.sourceforge.net:htdocs/gs2_documentation/$(DOC_FOLDER)
-	mkdir -p doc/html/releases
+	$(MKDIR) doc/html/releases
 	echo "Options +Indexes" > doc/html/releases/.htaccess
 	rsync -av doc/html/releases/ ${USER},gyrokinetics@web.sourceforge.net:htdocs/gs2_documentation/releases/
 
+
+ifneq ("$(wildcard $(shell which $(coderunner) 2>/dev/null))","")
+check_coderunner_install:
+	$(call messageInfo,"Using coderunner at $(shell which coderunner)")
+else
+check_coderunner_install:
+	$(call messageInfo,"Coderunner command coderunner not in path -- is it installed?") ; which coderunner
+endif
+
 #This has an external dependency on coderunner
-sync_input_doc:
+sync_input_doc: |check_coderunner_install
+	$(call messageInfo,"Warning: Target sync_input_doc out of date."
 	coderunner cc synchronise_variables . -C gs2
 	curl 'http://sourceforge.net/apps/mediawiki/gyrokinetics/index.php?title=GS2_Input_Parameters&action=edit' | sed 's/&amp;/\&/g' | sed 's/&quot;/"/g' | sed 's/&gt;/>/g' | sed 's/&lt;/</g'  | sed 's/&nbsp;/ /g' > wiki_in.tmp
 	coderunner cc read_mediawiki_documentation wiki_in.tmp -C gs2
