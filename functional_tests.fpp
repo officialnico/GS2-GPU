@@ -75,7 +75,7 @@ contains
     use gs2_diagnostics, only: get_omegaavg
     use kt_grids, only: ntheta0, naky
     use mp, only: proc0, grp0, scope, subprocs, allprocs
-    use mp, only: iproc, nproc, sum_allreduce
+    use mp, only: iproc, sum_allreduce
     use kt_grids, only: aky
     use run_parameters, only: wstar_units
     use job_manage, only: njobs

@@ -23,14 +23,13 @@ module ideq
   integer :: nr, nt
 
   real, allocatable, dimension (:) :: rho_d, eqpsi, psi_bar, fp, qsf, beta, pressure, diam, rc
-  real, allocatable, dimension (:) :: rho_mid, psi_mid
   real, allocatable, dimension (:,:)   :: R_psi, Z_psi, B_psi
   real, allocatable, dimension (:,:,:) :: dpm, dtm, drm, dzm, dbm, dbtm
   real, allocatable, dimension (:,:,:) :: dpcart, dbcart, dtcart, dbtcart
   real, allocatable, dimension (:,:,:) :: dpbish, dbbish, dtbish, dbtbish
 
   real :: psi_N, psi_a, psi_0
-  real :: R_mag, Z_mag, B_T0, aminor, beta_0
+  real :: R_mag, Z_mag, B_T0, beta_0
 
   logical :: init_btori = .true.
   logical :: init_dbtori = .true.
@@ -38,10 +37,7 @@ module ideq
   logical :: init_pressure = .true.
   logical :: init_dpressure = .true.
   logical :: init_beta = .true.
-  logical :: init_rho = .true.
   logical :: init_psi = .true.
-  logical :: init_R = .true.
-  logical :: init_Z = .true.
   logical :: init_invR = .true.
   logical :: init_rcenter = .true.
   logical :: init_diameter = .true.

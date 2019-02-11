@@ -117,13 +117,13 @@ program test_gs2_gryfx_zonal
      
     ! in GryfX, only proc0 will know values of arrays
     if(proc0) then
-      dens_ky0 = 1.e-10
-      upar_ky0 = 1.e-10
-      tpar_ky0 = 1.e-10
-      tprp_ky0 = 1.e-10
-      qpar_ky0 = 1.e-10
-      qprp_ky0 = 1.e-10
-      phi_ky0 = 1.e-10
+      dens_ky0 = cmplx(1.e-10, kind=kind(dens_ky0))
+      upar_ky0 = cmplx(1.e-10, kind=kind(upar_ky0))
+      tpar_ky0 = cmplx(1.e-10, kind=kind(tpar_ky0))
+      tprp_ky0 = cmplx(1.e-10, kind=kind(tprp_ky0))
+      qpar_ky0 = cmplx(1.e-10, kind=kind(qpar_ky0))
+      qprp_ky0 = cmplx(1.e-10, kind=kind(qprp_ky0))
+      phi_ky0 = cmplx(1.e-10, kind=kind(phi_ky0))
     endif
   call process_test(.true., 'initialize gs2 gryfx II')
 
@@ -149,13 +149,13 @@ program test_gs2_gryfx_zonal
   call init_gs2_gryfx(len_trim(file_name), file_name, gs2_state%mp_comm, &
                                 gryfx_theta, gryfx_parameters)
     if(proc0) then
-      dens_ky0 = 1.e-10
-      upar_ky0 = 1.e-10
-      tpar_ky0 = 1.e-10
-      tprp_ky0 = 1.e-10
-      qpar_ky0 = 1.e-10
-      qprp_ky0 = 1.e-10
-      phi_ky0 = 1.e-10
+      dens_ky0 = cmplx(1.e-10, kind=kind(dens_ky0))
+      upar_ky0 = cmplx(1.e-10, kind=kind(upar_ky0))
+      tpar_ky0 = cmplx(1.e-10, kind=kind(tpar_ky0))
+      tprp_ky0 = cmplx(1.e-10, kind=kind(tprp_ky0))
+      qpar_ky0 = cmplx(1.e-10, kind=kind(qpar_ky0))
+      qprp_ky0 = cmplx(1.e-10, kind=kind(qprp_ky0))
+      phi_ky0 = cmplx(1.e-10, kind=kind(phi_ky0))
     endif
   gs2_counter = 1
 
@@ -167,26 +167,26 @@ program test_gs2_gryfx_zonal
                         qprp_ky0, phi_ky0, first_half_step)
   gs2_counter = gs2_counter + 1
     if(proc0) then
-      dens_ky0 = 1.e-10
-      upar_ky0 = 1.e-10
-      tpar_ky0 = 1.e-10
-      tprp_ky0 = 1.e-10
-      qpar_ky0 = 1.e-10
-      qprp_ky0 = 1.e-10
-      phi_ky0 = 1.e-10
+      dens_ky0 = cmplx(1.e-10, kind=kind(dens_ky0))
+      upar_ky0 = cmplx(1.e-10, kind=kind(upar_ky0))
+      tpar_ky0 = cmplx(1.e-10, kind=kind(tpar_ky0))
+      tprp_ky0 = cmplx(1.e-10, kind=kind(tprp_ky0))
+      qpar_ky0 = cmplx(1.e-10, kind=kind(qpar_ky0))
+      qprp_ky0 = cmplx(1.e-10, kind=kind(qprp_ky0))
+      phi_ky0 = cmplx(1.e-10, kind=kind(phi_ky0))
     endif
   first_half_step = .false.
   call advance_gs2_gryfx(gs2_counter, dens_ky0, upar_ky0, tpar_ky0, tprp_ky0, qpar_ky0, &
                         qprp_ky0, phi_ky0, first_half_step)
   gs2_counter = gs2_counter + 1
     if(proc0) then
-      dens_ky0 = 1.e-10
-      upar_ky0 = 1.e-10
-      tpar_ky0 = 1.e-10
-      tprp_ky0 = 1.e-10
-      qpar_ky0 = 1.e-10
-      qprp_ky0 = 1.e-10
-      phi_ky0 = 1.e-10
+      dens_ky0 = cmplx(1.e-10, kind=kind(dens_ky0))
+      upar_ky0 = cmplx(1.e-10, kind=kind(upar_ky0))
+      tpar_ky0 = cmplx(1.e-10, kind=kind(tpar_ky0))
+      tprp_ky0 = cmplx(1.e-10, kind=kind(tprp_ky0))
+      qpar_ky0 = cmplx(1.e-10, kind=kind(qpar_ky0))
+      qprp_ky0 = cmplx(1.e-10, kind=kind(qprp_ky0))
+      phi_ky0 = cmplx(1.e-10, kind=kind(phi_ky0))
     endif
   end do
 

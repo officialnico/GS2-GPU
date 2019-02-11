@@ -218,7 +218,6 @@ contains
     use unit_tests, only: debug_message
     implicit none
     integer, parameter :: verb=3
-    logical, parameter :: debug = .false.
     select case (fieldopt_switch)
     case (fieldopt_implicit)
        call debug_message(verb, &

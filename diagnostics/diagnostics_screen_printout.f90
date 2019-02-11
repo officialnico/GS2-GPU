@@ -67,24 +67,24 @@ contains
        end do
     end do
     write (outunit,*) 
-	
-	contains
-	  subroutine phinorm (phitot)
-		use fields_arrays, only: phinew, aparnew, bparnew
-		use theta_grid, only: delthet
-		use kt_grids, only: naky, ntheta0
-		use constants, only: pi
-		implicit none
-		real, dimension (:,:), intent (out) :: phitot
-		integer :: ik, it
-		do ik = 1, naky
-		   do it = 1, ntheta0
-			  phitot(it,ik) =0.5/pi &
-			   *(sum((abs(phinew(:,it,ik))**2 + abs(aparnew(:,it,ik))**2 &
-					  + abs(bparnew(:,it,ik))**2) &
-					 *delthet(:)))
-		   end do
-		end do
+
+    contains
+      subroutine phinorm (phitot)
+        use fields_arrays, only: phinew, aparnew, bparnew
+        use theta_grid, only: delthet
+        use kt_grids, only: naky, ntheta0
+        use constants, only: pi
+        implicit none
+        real, dimension (:,:), intent (out) :: phitot
+        integer :: ik, it
+        do ik = 1, naky
+           do it = 1, ntheta0
+              phitot(it,ik) =0.5/pi &
+               *(sum((abs(phinew(:,it,ik))**2 + abs(aparnew(:,it,ik))**2 &
+                      + abs(bparnew(:,it,ik))**2) &
+                     *delthet(:)))
+           end do
+        end do
       end subroutine phinorm
   end subroutine output_line
   

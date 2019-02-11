@@ -245,8 +245,7 @@ contains
                             gryfx_parameters) &
                             bind(c, name='init_gs2')
     use iso_c_binding
-    use theta_grid, only: ntgrid
-    use mp, only: proc0, broadcast
+    use mp, only: broadcast
     implicit none
     integer(c_int), intent(in) :: strlen
     character(kind=c_char), intent(in) :: run_name
@@ -482,13 +481,11 @@ contains
   subroutine advance_gs2_gryfx(istep, dens_ky0, upar_ky0, tpar_ky0, tprp_ky0, &
                                qpar_ky0, qprp_ky0, phi_ky0, first_half_step)
 
-    use theta_grid, only: ntgrid
-    use kt_grids, only: ntheta0, naky
     use species, only: nspec
     use nonlinear_terms, only: gryfx_zonal
     use gs2_main, only: evolve_equations
     use dist_fn, only: getmoms_gryfx_dist 
-    use mp, only: proc0, broadcast
+    use mp, only: broadcast
     use unit_tests, only: debug_message
 
     implicit none

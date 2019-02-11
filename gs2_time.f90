@@ -13,7 +13,6 @@ module gs2_time
 
   real :: user_dt, code_dt 
   real :: code_dt_prev1, code_dt_prev2
-  real :: user_tstart, code_tstart
   real :: user_dt_cfl = -1.
   real :: code_dt_cfl = -1.
 

@@ -322,7 +322,6 @@ if (debug) write(6,*) "gridgen4_2: call gg4finish"
       use mp, only: mp_abort
       use file_utils, only: open_output_file, get_unused_unit
       implicit none
-      logical :: od
       real, dimension (2*nbmag) :: tmp
       integer :: ierr, i
 

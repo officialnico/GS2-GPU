@@ -25,7 +25,7 @@ program test_gs2_diagnostics
     use gs2_main, only: run_gs2, finish_gs2
     use unit_tests
     use file_utils, only: run_name, error_unit
-    use mp, only: init_mp, mp_comm, proc0, test_driver_flag, finish_mp, mp_abort
+    use mp, only: init_mp, mp_comm, test_driver_flag, finish_mp, mp_abort
     use gs2_diagnostics
 #ifdef NEW_DIAG
     use gs2_diagnostics_new, only: finish_gs2_diagnostics_new

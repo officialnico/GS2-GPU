@@ -41,10 +41,10 @@ program test_gs2_reinit
     !use fields_local, only: init_fields_local, finish_fields_local
     use unit_tests
     use unit_tests, only: should_print
-    use mp, only: init_mp, mp_comm, proc0, test_driver_flag, finish_mp
+    use mp, only: init_mp, test_driver_flag, finish_mp
     use mp, only: broadcast, barrier, iproc
     use fields_arrays, only: phinew, aparnew, bparnew
-    use dist_fn_arrays, only: gnew, g
+    use dist_fn_arrays, only: gnew
     use gs2_diagnostics, only: finish_gs2_diagnostics
   use kt_grids, only: naky, ntheta0, init_kt_grids
   use theta_grid, only: ntgrid, init_theta_grid
@@ -53,20 +53,15 @@ program test_gs2_reinit
   use run_parameters, only: use_old_diagnostics
 #ifdef NEW_DIAG
     use gs2_diagnostics_new, only: finish_gs2_diagnostics_new
-    use gs2_diagnostics_new, only: gnostics
 #endif
     implicit none
-    integer :: n_vars, n_file_names
-    integer :: i, it, ik
     real :: eps
     complex, dimension (:,:,:), allocatable :: gbak 
     complex, dimension (:,:,:), allocatable :: phi_bak, apar_bak, bpar_bak
     complex, dimension (:,:), allocatable :: rowbloc
     character(len=29) :: message
-    logical :: test_result
     logical :: dummy
     integer :: supercell_idx
-    integer :: offset=400
 
 
 
@@ -311,8 +306,9 @@ contains
       response_unchanged = .false.
     end if
   end function response_unchanged
+
   function test_fields_and_dist(fields_changed)
-    use theta_grid, only: ntheta
+
     use gs2_layouts, only: g_lo
     logical :: test_fields_and_dist
     logical :: test_result
