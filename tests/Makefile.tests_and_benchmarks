@@ -14,6 +14,11 @@ export NTESTPROCS
 export TESTEXEC
 export USE_MPI
 
+COVERAGE_DIR := coverage
+
+$(COVERAGE_DIR):
+	$(QUIETSYM)$(MKDIR) $@
+
 #export TESTCOMMAND
 
 #Set the level of testing, currently loosely defined as
@@ -104,15 +109,16 @@ nonlinear_tests: nonlinear_tests_no_message
 	$(call TEST_PRINTOUT,$(call TEST_RESULTS,$@))
 
 make_results_dir:
-	@mkdir -p $(GK_HEAD_DIR)/test-results
+	@$(MKDIR) $(GK_HEAD_DIR)/test-results
 
 tests: make_results_dir unit_tests_no_message linear_tests_no_message nonlinear_tests_no_message
 	$(call TEST_PRINTOUT,$(call TEST_RESULTS,unit_tests)$(call TEST_RESULTS,linear_tests)$(call TEST_RESULTS,nonlinear_tests))
 
 ifeq ($(HAS_GCOV),on)
+tests_coverage: | $(COVERAGE_DIR)
 tests_coverage: tests
 	gcov $(shell find . -type f -name "*.f??") -p -o .
-	mkdir -p coverage
+	$(MKDIR) coverage
 	mv *.gcov coverage/.
 else
 tests_coverage:

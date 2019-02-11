@@ -845,6 +845,9 @@ tar:
 	@[ ! -d $(TARDIR) ] || echo "ERROR: directory $(TARDIR) exists. Stop."
 	@[ -d $(TARDIR) ] || $(MAKE) tar_exec
 
+$(TARDIR):
+	$(QUIETSYM)$(MKDIR) $@
+
 ### setting tar_exec local $(TARLIST*) variables
 # expand wildcards listed $(TARLIST_wild) in ( $(TARLIST_dir) + . )
 # directories and add them into TARLIST
@@ -852,17 +855,17 @@ tar_exec: TARLIST = makehead.awk scripts/fortdep AstroGK.in
 tar_exec: TARLIST_dir = Makefiles utils geo Aux
 tar_exec: TARLIST_wild = *.f90 *.fpp *.inc *.c Makefile Makefile.* README README.*
 tar_exec: TARLIST += $(foreach dir,. $(TARLIST_dir),$(wildcard $(addprefix $(dir)/,$(TARLIST_wild))))
+tar_exec: | $(TARDIR)
 
 tar_exec:
-	@mkdir $(TARDIR)
 	@for dir in $(TARLIST_dir) ;\
-	  do ( [ ! -d $$dir ] ||  mkdir $(TARDIR)/$$dir ; ) ;\
+	  do ( [ ! -d $$dir ] ||  $(MKDIR) $(TARDIR)/$$dir ; ) ;\
 	done
 	@for name in $(TARLIST) ;\
 	  do ( [ -f $$name ] && ln $$name $(TARDIR)/$$name ; ) ;\
 	done
 	@tar cvf - $(TARDIR) | bzip2 -9 > $(TARDIR).tar.bz2
-	@rm -rf $(TARDIR)
+	@rm -rf $(TARDIR) # This looks dangerous
 
 ############################################################# Testing targets
 #This is the location of the individual test suites
