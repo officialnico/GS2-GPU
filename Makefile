@@ -140,8 +140,13 @@ QUIET           ?= yes
 # If defined then use escape commands to colourise some output
 # Note hack to support both spellings
 WITH_COLOUR     ?=
-WITH_COLOR      += $(WITH_COLOUR)
-WITH_COLOUR     += $(WITH_COLOR)
+ifdef WITH_COLOUR
+WITH_COLOR      := $(WITH_COLOUR)
+endif
+ifdef WITH_COLOR
+WITH_COLOUR      := $(WITH_COLOR)
+endif
+
 #
 # * Targets:
 #
