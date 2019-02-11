@@ -75,7 +75,7 @@ define TEST_RESULTS
 endef
 
 define RUN_TESTS
-	@find $(TEST_DIR)/$(1) -name results_of_test.txt | xargs rm -f
+	@find $(TEST_DIR)/$(1) -name results_of_test.txt -delete
 	@echo ${MAKETESTS}
 	@cd $(TEST_DIR)/$(1) && ${MAKETESTS} 
 endef
