@@ -76,12 +76,14 @@ define RUN_TESTS
 endef
 
 clean_tests:
-	$(MAKE) clean -C $(TEST_DIR)/nonlinear_tests 
-	$(MAKE) clean -C $(TEST_DIR)/linear_tests 
-	$(MAKE) clean -C $(TEST_DIR)/unit_tests 
+	$(call messageRm,"Test files")
+	$(QUIETSYM)$(MAKE) clean -C $(TEST_DIR)/nonlinear_tests
+	$(QUIETSYM)$(MAKE) clean -C $(TEST_DIR)/linear_tests
+	$(QUIETSYM)$(MAKE) clean -C $(TEST_DIR)/unit_tests
 
 clean_benchmarks:
-	$(MAKE) clean -C $(TEST_DIR)/benchmarks 
+	$(call messageRm,"Benchmark files")
+	$(QUIETSYM)$(MAKE) clean -C $(TEST_DIR)/benchmarks 
 
 unit_tests_no_message: unit_tests.o $(TEST_DEPS)
 	$(call RUN_TESTS,unit_tests)
