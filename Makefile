@@ -873,7 +873,6 @@ test_make:
 	$(call messageKeyVal, "DEPEND", $(DEPEND))
 	$(call messageKeyVal, "QUIET", $(QUIET))
 	$(call messageKeyVal, "WITH_COLOUR", $(WITH_COLOUR))
-	$(call messageKeyVal, "WITH_COLOR", $(WITH_COLOR))
 	$(call messageKeyVal, "GIT_HASH", $(GIT_HASH))
 	$(call messageKeyVal, "GIT_STATE", $(GIT_STATE))
 	$(call messageKeyVal, "PATCHFILE", $(PATHFILE))
