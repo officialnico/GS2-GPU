@@ -138,7 +138,10 @@ ONE_STEP_PP?=
 # If defined then don't show the full command being run everywhere
 QUIET           ?= yes
 # If defined then use escape commands to colourise some output
-WITH_COL        ?= 
+# Note hack to support both spellings
+WITH_COLOUR     ?=
+WITH_COLOR      += $(WITH_COLOUR)
+WITH_COLOUR     += $(WITH_COLOR)
 #
 # * Targets:
 #
@@ -198,7 +201,7 @@ MACRO_DEFS ?=
 PATCHFILE:= .patch.make
 
 ############################################################################# COLOURS
-ifdef WITH_COL
+ifdef WITH_COLOUR
 C_BLA:=\033[0;30m
 C_RED:=\033[0;31m
 C_GRE:=\033[0;32m
@@ -862,7 +865,8 @@ test_make:
 	$(call messageKeyVal, "DEPEND_CMD", $(DEPEND_CMD))
 	$(call messageKeyVal, "DEPEND", $(DEPEND))
 	$(call messageKeyVal, "QUIET", $(QUIET))
-	$(call messageKeyVal, "WITH_COL", $(WITH_COL))
+	$(call messageKeyVal, "WITH_COLOUR", $(WITH_COLOUR))
+	$(call messageKeyVal, "WITH_COLOR", $(WITH_COLOR))
 	$(call messageKeyVal, "GIT_HASH", $(GIT_HASH))
 	$(call messageKeyVal, "GIT_STATE", $(GIT_STATE))
 	$(call messageKeyVal, "PATCHFILE", $(PATHFILE))
