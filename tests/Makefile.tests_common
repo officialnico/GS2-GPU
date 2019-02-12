@@ -2,27 +2,22 @@
 .SUFFIXES: .fpp .f90 .c .o
 .PHONY: all clean
 
-#$(info "F90FLAGS is $(F90FLAGS)")
-#F90FLAGS = $(F90FLAGS) -I ../../
-#$(info "F90FLAGS is $(F90FLAGS)")
-#LDFLAGS += -I ../../
-#CFLAGS += -I ../../
-#CPPFLAGS += -I ../../
+.f90.o:
+	$(call messageOp,"Compiling","\\t:",$<)
+	$(QUIETSYM)$(FC) $(F90FLAGS) -I$(GK_HEAD_DIR) -c $< 
+
+.c.o:
+	$(call messageOp,"Compiling C","\\t:",$<)
+	$(QUIETSYM)$(CC) $(CFLAGS) -I$(GK_HEAD_DIR) -c $< 
 
 ifdef ONE_STEP_PP
-.f90.o: 
-	$(FC) $(F90FLAGS) -I$(GK_HEAD_DIR) -c $< 
 .fpp.o:
-	$(FC) $(CPPFLAGS) $(F90FLAGS) -I$(GK_HEAD_DIR) -c $< 
-.c.o:
-	$(CC) $(CFLAGS) -I$(GK_HEAD_DIR) -c $< 
+	$(call messageOp,"Compiling and preprocessing","\\t:",$<)
+	$(QUIETSYM)$(FC) $(CPPFLAGS) $(F90FLAGS) -I$(GK_HEAD_DIR) -c $< 
 else
-.f90.o: 
-	$(FC) $(F90FLAGS) -I$(GK_HEAD_DIR) -c $< 
 .fpp.f90:
-	$(CPP) $(CPPFLAGS) -I$(GK_HEAD_DIR) $< $@ 
-.c.o:
-	$(CC) $(CFLAGS) -I$(GK_HEAD_DIR) -c $< 
+	$(call messageOp,"Preprocessing","\\t:",$<)
+	$(QUIETSYM)$(CPP) $(CPPFLAGS) -I$(GK_HEAD_DIR) $< $@ 
 endif
 
 # This prevents error messages like m2c: Command not found
@@ -30,7 +25,7 @@ endif
 
 clean:
 	$(call messageRm,"Clean command")
-	$(CLEANCOMMAND)
+	$(QUIETSYM)$(CLEANCOMMAND)
 
 upload:
 	$(UPLOADCOMMAND)
