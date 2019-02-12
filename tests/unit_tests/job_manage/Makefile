@@ -19,9 +19,11 @@ endif
 test_job_manage_stop_file.o:  ${TEST_MODS} 
 
 test_job_manage_stop_file: test_job_manage_stop_file.o $(TEST_MODS)
-	$(LD) $(LDFLAGS) -o $@ $^ $(LIBS)
+	$(call messageOp,"Linking ","\\t:",$^,"\\n\\t\-\-\-\-\-\-\>",$@)
+	$(QUIETSYM)$(LD) $(LDFLAGS) -o $@ $^ $(LIBS)
 
 test_job_manage_avail_cpu_time.o:  ${TEST_MODS} 
 
 test_job_manage_avail_cpu_time: test_job_manage_avail_cpu_time.o $(TEST_MODS)
-	$(LD) $(LDFLAGS) -o $@ $^ $(LIBS)
+	$(call messageOp,"Linking ","\\t:",$^,"\\n\\t\-\-\-\-\-\-\>",$@)
+	$(QUIETSYM)$(LD) $(LDFLAGS) -o $@ $^ $(LIBS)
