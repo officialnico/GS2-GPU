@@ -27,7 +27,7 @@ endif
 %.o : %.mod
 
 clean:
-	$(call messageRm,"Test case $(TEST_NAME)")
+	$(call messageRm,"\\t$(TEST_NAME)")
 	$(QUIETSYM)$(CLEANCOMMAND)
 
 upload:

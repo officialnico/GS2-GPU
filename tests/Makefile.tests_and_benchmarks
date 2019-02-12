@@ -77,25 +77,21 @@ endef
 
 clean_unit_tests: TYPE=Unit
 clean_unit_tests:
-	$(call messageRm,"$(TYPE) tests")
-	$(QUIETSYM)$(MAKE) clean -C $(TEST_DIR)/$(call lowerCase,$(TYPE))_tests TEST_TYPE=$(TYPE)
+	$(QUIETSYM)$(MAKE) clean -C $(TEST_DIR)/$(call lowerCase,$(TYPE))_tests TEST_TYPE=$(TYPE) --no-print-directory
 
 clean_linear_tests: TYPE=Linear
 clean_linear_tests:
-	$(call messageRm,"$(TYPE) tests")
-	$(QUIETSYM)$(MAKE) clean -C $(TEST_DIR)/$(call lowerCase,$(TYPE))_tests TEST_TYPE=$(TYPE)
+	$(QUIETSYM)$(MAKE) clean -C $(TEST_DIR)/$(call lowerCase,$(TYPE))_tests TEST_TYPE=$(TYPE) --no-print-directory
 
 clean_nonlinear_tests: TYPE=Nonlinear
 clean_nonlinear_tests:
-	$(call messageRm,"$(TYPE) tests")
-	$(QUIETSYM)$(MAKE) clean -C $(TEST_DIR)/$(call lowerCase,$(TYPE))_tests TEST_TYPE=$(TYPE)
+	$(QUIETSYM)$(MAKE) clean -C $(TEST_DIR)/$(call lowerCase,$(TYPE))_tests TEST_TYPE=$(TYPE) --no-print-directory
 
 clean_tests: clean_unit_tests clean_linear_tests clean_nonlinear_tests
-	@echo ""
+	@echo -n ''
 
 clean_benchmarks:
-	$(call messageRm,"Benchmark files")
-	$(QUIETSYM)$(MAKE) clean -C $(TEST_DIR)/benchmarks 
+	$(QUIETSYM)$(MAKE) clean -C $(TEST_DIR)/benchmarks TEST_TYPE=Benchmarks --no-print-directory
 
 unit_tests_no_message: unit_tests.o $(TEST_DEPS)
 	$(call RUN_TESTS,unit_tests)
