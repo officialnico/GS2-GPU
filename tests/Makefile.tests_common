@@ -55,13 +55,22 @@ TESTCOMMAND=./
 endif
 endif
 
-RUNCOMMAND= @$(TESTCOMMAND)$(1) $(BLUEGENEARGS) $(2) $(3); if test "$$?" != 0; then $(FAILCOMMAND) ; else $(PASSCOMMAND) ;  fi
+define RUNCOMMAND
+$(call messageOp,"Running ","\\t:",$(1))
+@$(TESTCOMMAND)$(1) $(BLUEGENEARGS) $(2) $(3) > OUTPUT ; if test "$$?" != 0; then $(FAILCOMMAND) ; else $(PASSCOMMAND) ;  fi
+endef
 
-FAILCOMMAND= echo "FAILED: `basename $$PWD` ($(TESTCOMMAND)$(1) $(2) $(3))" >> results_of_test.txt ; ../../write_test_xml.sh `basename $$PWD` 1 0 1 0
+define FAILCOMMAND
+echo "FAILED: `basename $$PWD` ($(TESTCOMMAND)$(1) $(2) $(3))" >> results_of_test.txt ; ../../write_test_xml.sh `basename $$PWD` 1 0 1 0 ; cat OUTPUT
+endef
 
-PASSCOMMAND= echo "passed: `basename $$PWD` ($(TESTCOMMAND)$(1) $(2) $(3))" >> results_of_test.txt ; ../../write_test_xml.sh `basename $$PWD` 1 0 0 0
+define PASSCOMMAND
+echo "passed: `basename $$PWD` ($(TESTCOMMAND)$(1) $(2) $(3))" >> results_of_test.txt ; ../../write_test_xml.sh `basename $$PWD` 1 0 0 0
+endef
 
-SKIPCOMMAND= @echo "skipped: `basename $$PWD` ($(1))" >> results_of_test.txt ; ../../write_test_xml.sh `basename $$PWD` 1 0 0 1
+define SKIPCOMMAND
+@echo "skipped: `basename $$PWD` ($(1))" >> results_of_test.txt ; ../../write_test_xml.sh `basename $$PWD` 1 0 0 1
+endef
 
 BENCHMARKEXEC=$(call TESTEXEC,$(1)) ./$(2) $(BLUEGENEARGS)  $(3)
 
