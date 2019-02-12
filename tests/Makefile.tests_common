@@ -43,7 +43,6 @@ ifdef TESTEXEC
 # This will still work (so any system Makefiles that haven't
 # been updated will still work), but the correct form is now
 # TESTEXEC=aprun -N $$(1) -n $$(1)';
-#$(info TESTEXEC is $(TESTEXEC))
 TESTCOMMAND=$(call TESTEXEC,$(NTESTPROCS)) ./
 else
 ifdef USE_MPI

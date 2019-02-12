@@ -10,10 +10,6 @@ ifdef TESTNORUN
 override TESTEXEC=:
 endif
 
-export NTESTPROCS
-export TESTEXEC
-export USE_MPI
-
 COVERAGE_DIR := coverage
 
 $(COVERAGE_DIR):
@@ -28,7 +24,6 @@ $(COVERAGE_DIR):
 ifndef TEST_LEVEL
        TEST_LEVEL:=1
 endif
-export TEST_LEVEL
 
 ifdef SIMPLEDATAIO_LIB_DIR_ABS
       SDATIO_LINK=-L$(SIMPLEDATAIO_LIB_DIR_ABS)
@@ -42,10 +37,10 @@ endif
 # which dependencies to build any more. EGH 04/03/2015
 # UPDATE: we now build and test the gs2 exec as well. EGH 14/03/15
 TEST_DEPS?=libgs2.a functional_tests.o benchmarks.o gs2
-TESTS_ENVIRONMENT=FC="$(FC)" F90FLAGS="${F90FLAGS}" CPP="$(CPP)"  LD="$(LD)" LDFLAGS="$(LDFLAGS) -L$(PWD) $(SDATIO_LINK)" LIBS=" -lgs2 $(SDATIO_LIB) $(LIBS)" CPPFLAGS="$(CPPFLAGS)" ONE_STEP_PP="$(ONE_STEP_PP)" USE_NEW_DIAG="$(USE_NEW_DIAG)" USE_NETCDF="$(USE_NETCDF)" USE_FFT="$(USE_FFT)"
-MAKETESTS = $(MAKE) $(TESTS_ENVIRONMENT)
-
-export TESTEXEC
+#We need to pass in some extra libraries in some cases so currently have
+#to wrap calls to make to ensure these get passed in. Ideally LIBS would
+#already contain this information
+MAKETESTS =$(QUIETSYM)$(MAKE) "LIBS=$(SDATIO_LINK) $(SDATIO_LIB) $(LIBS)"
 
 ifndef NO_TEST_COLOURS
 COLOUR_COMMAND=| sed -e "s/passed/[32mpassed[39m/" \
