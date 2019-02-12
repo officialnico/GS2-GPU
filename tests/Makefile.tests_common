@@ -1,3 +1,4 @@
+export
 SHELL = bash
 include $(GK_HEAD_DIR)/Makefile.utils
 

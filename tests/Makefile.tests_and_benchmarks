@@ -1,3 +1,4 @@
+export
 SHELL = bash
 include tests/Makefile.test_utils
 

@@ -1,3 +1,4 @@
+export
 include $(GK_HEAD_DIR)/Makefile.utils
 
 # Specify any required modules that are not in libgs2.a

@@ -733,6 +733,8 @@ ifdef CLEAN_TEXTFILES
 	CLEANCOMMAND+= *~ *.orig
 endif
 
+export CLEANCOMMAND
+
 cleanlib:
 	$(call messageRm,"Libraries")
 	-$(QUIETSYM)rm -f *.a
