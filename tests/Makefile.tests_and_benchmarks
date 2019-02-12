@@ -1,3 +1,5 @@
+include tests/Makefile.test_utils
+
 ifdef NPROCS
 	NTESTPROCS=$(NPROCS)
 else

@@ -1,0 +1,55 @@
+############################################################################# UTILS
+#The following converts to lower case
+define lowerCase
+$(shell echo $1 | tr '[:upper:]' '[:lower:]')
+endef
+
+#The following returns a list of fortran source files found in
+#a particular path.
+define getListSource
+$(notdir $(basename $(shell find $(1) -regextype sed -regex ".*/.*.f..")))
+endef
+
+#The following returns a list of directories found in
+#a particular path. It finds the full path to source files
+#and then extracts just the directory and sorts and uniques.
+#This is to ensure we avoid listing empty directories.
+define getListDir
+$(sort $(dir $(basename $(shell find $(1) -regextype sed -regex ".*/.*.f.."))))
+endef
+#############################################################################
+
+#Test directory setup
+TEST_DIR := tests
+UNIT_TEST_DIR := $(TEST_DIR)/unit_tests
+LINEAR_TEST_DIR := $(TEST_DIR)/linear_tests
+NONLINEAR_TEST_DIR := $(TEST_DIR)/nonlinear_tests
+
+#Define the different types of tests
+TEST_TYPES=UNIT LINEAR NONLINEAR
+
+.PHONY: list_unit_tests
+
+#A function to define various recipes for the different types of tests,
+#currently it just defines a list_<type>_tests recipe and adds it as a
+#prerequisite for the list_tests recipe
+define defineTestRecipes
+
+.PHONY: list_$(call lowerCase,$(1))_tests
+
+list_tests: list_$(call lowerCase,$(1))_tests
+
+list_$(call lowerCase,$(1))_tests:
+	$(call messageInfo,"Test cases found in directory "$($(1)_TEST_DIR)" "($(call lowerCase, $(1)))":")
+#This uses some magic to put each unit in $(1)_TESTS on its own line but
+#still applies the appropriate colouring. Apologies for the horrendous escaping
+	$(call messageItem,"\\t"$(shell echo $(call getListDir,$($(1)_TEST_DIR)) | sed 's/ /\\\\n\\\\t/g'))
+	@echo ""
+endef
+
+#For each type of test use defineTestRecipes to define recipes for
+#that test type
+$(foreach testType, $(TEST_TYPES), $(eval $(call defineTestRecipes,$(testType))))
+
+list_tests:
+	@echo ""
