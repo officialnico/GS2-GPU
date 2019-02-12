@@ -42,7 +42,7 @@ TEST_DEPS?=libgs2.a functional_tests.o benchmarks.o gs2
 #We need to pass in some extra libraries in some cases so currently have
 #to wrap calls to make to ensure these get passed in. Ideally LIBS would
 #already contain this information
-MAKETESTS =$(QUIETSYM)$(MAKE) "LIBS=$(SDATIO_LINK) $(SDATIO_LIB) $(LIBS)"
+MAKETESTS=$(MAKE) "LIBS=$(SDATIO_LINK) $(SDATIO_LIB) $(LIBS)"
 
 ifndef NO_TEST_COLOURS
 COLOUR_COMMAND=| sed -e "s/passed/[32mpassed[39m/" \
@@ -70,8 +70,7 @@ endef
 
 define RUN_TESTS
 	@find $(TEST_DIR)/$(1) -name results_of_test.txt -delete
-	@echo ${MAKETESTS}
-	@cd $(TEST_DIR)/$(1) && ${MAKETESTS} 
+	@$(MAKETESTS) -C $(TEST_DIR)/$(1) --no-print-directory
 endef
 
 
