@@ -70,7 +70,7 @@ endef
 
 define RUN_TESTS
 	@find $(TEST_DIR)/$(1) -name results_of_test.txt -delete
-	@$(MAKETESTS) -C $(TEST_DIR)/$(1) --no-print-directory
+	@$(MAKETESTS) -C $(TEST_DIR)/$(1) --no-print-directory TEST_TYPE=$(2)
 endef
 
 
@@ -93,19 +93,19 @@ clean_benchmarks:
 	$(QUIETSYM)$(MAKE) clean -C $(TEST_DIR)/benchmarks TEST_TYPE=Benchmarks --no-print-directory
 
 unit_tests_no_message: unit_tests.o $(TEST_DEPS)
-	$(call RUN_TESTS,unit_tests)
+	$(call RUN_TESTS,unit_tests,unit)
 
 unit_tests: unit_tests_no_message
 	$(call TEST_PRINTOUT,$(call TEST_RESULTS,$@))
 
 linear_tests_no_message: functional_tests.o unit_tests.o $(TEST_DEPS)
-	$(call RUN_TESTS,linear_tests)
+	$(call RUN_TESTS,linear_tests,linear)
 
 linear_tests: linear_tests_no_message
 	$(call TEST_PRINTOUT,$(call TEST_RESULTS,$@))
 
 nonlinear_tests_no_message: functional_tests.o unit_tests.o $(TEST_DEPS)
-	$(call RUN_TESTS,nonlinear_tests)
+	$(call RUN_TESTS,nonlinear_tests,nonlinear)
 
 nonlinear_tests: nonlinear_tests_no_message
 	$(call TEST_PRINTOUT,$(call TEST_RESULTS,$@))
@@ -136,7 +136,7 @@ test_script: unit_tests_no_message linear_tests_no_message
 	echo "echo \"Tests Successful\"" >> test_script.sh
 
 benchmarks_no_message: unit_tests.o $(TEST_DEPS)
-	$(call RUN_TESTS,benchmarks)
+	$(call RUN_TESTS,benchmarks,benchmark)
 
 benchmarks: benchmarks_no_message
 	$(call TEST_PRINTOUT,$(call TEST_RESULTS,$@))

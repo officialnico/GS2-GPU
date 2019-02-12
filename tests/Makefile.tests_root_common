@@ -31,5 +31,5 @@ clean:
 	$(QUIETSYM)$(foreach element, $(TESTS_ACTUAL),$(MAKE) $@ -C $(element) TEST_NAME=$(dir $(element)) --no-print-directory;)
 
 $(TESTS_ACTUAL):
-	$(call messageOp,"Making test case",$@)
+	$(call messageOp,"Making $(TEST_TYPE) test case","\\t:",$@)
 	$(QUIETSYM)$(MAKE) all -C $@ TEST_FOLD=$@
