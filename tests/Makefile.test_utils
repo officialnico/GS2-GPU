@@ -28,7 +28,7 @@ NONLINEAR_TEST_DIR := $(TEST_DIR)/nonlinear_tests
 #Define the different types of tests
 TEST_TYPES=UNIT LINEAR NONLINEAR
 
-.PHONY: list_unit_tests
+.PHONY: list_tests
 
 #A function to define various recipes for the different types of tests,
 #currently it just defines a list_<type>_tests recipe and adds it as a

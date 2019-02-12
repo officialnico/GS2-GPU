@@ -73,6 +73,12 @@ define RUN_TESTS
 endef
 
 
+.PHONY: tests unit_tests linear_tests nonlinear_tests benchmarks
+.PHONY: unit_tests_no_message linear_tests_no_message
+.PHONY: nonlinear_tests_no_message benchmarks_no_message
+.PHONY: clean_tests clean_unit_tests clean_linear_tests clean_nonlinear_tests clean_benchmarks
+.PHONY: upload_benchmarks tests_coverage test_script make_results_dir
+
 clean_unit_tests: TYPE=Unit
 clean_unit_tests:
 	$(QUIETSYM)$(MAKE) clean -C $(TEST_DIR)/$(call lowerCase,$(TYPE))_tests TEST_TYPE=$(TYPE) --no-print-directory
@@ -127,7 +133,9 @@ tests_coverage:
 	@echo "To use gcov, set the environment variable USE_GCOV=on and ensure your compiler supports gcov."
 endif
 
-test_script: unit_tests_no_message linear_tests_no_message
+test_script: test_script.sh
+
+test_script.sh: unit_tests_no_message linear_tests_no_message
 	echo "" > test_script.sh
 	find $(PWD)/$(TEST_DIR)/unit_tests -executable | grep '$(TEST_DIR)/unit_tests/.*/' | sed -e 's/^\(.\+\)$$/\1 $(BLUEGENEARGS) \1.in \&\&/' | sed -e 's/^/$(TESTEXEC) /'  >> test_script.sh
 	find $(PWD)/$(TEST_DIR)/linear_tests -executable | grep '$(TEST_DIR)/linear_tests/.*/' | sed -e 's/^\(.\+\)$$/\1 \1.in \&\&/' | sed -e 's/^/$(TESTEXEC) /'  >> test_script.sh

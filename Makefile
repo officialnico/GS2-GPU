@@ -1,17 +1,18 @@
+#The following ensures that any recursive calls to make should automatically
+#get access to the variables defined in the parent make. There are of course
+#various exceptions that can be sought out in the manual for make.
 export
 #
 #
-#  Makefile for Trinity (GS2) / AstroGK Gyrokinetic Turbulence code 
-#               GSP Gyrokinetic PIC code
-#               rmhdper reduced MHD code
+#  Makefile for GS2 Gyrokinetic Turbulence code 
 #
 #  (requires GNU's gmake)
 #
-GK_PROJECT ?= gs2
+GK_PROJECT := gs2
 #
 #  Makefile written by Bill Dorland and Ryusuke Numata
+#  Modified by GS2 contributors
 #
-#  LAST UPDATE: 10/12/09
 #
 # * Changelogs
 # 26/09/10: added targets doc_depend and doc to make doxygen documentation. EGH.
@@ -582,7 +583,7 @@ endif
 
 .SUFFIXES: .fpp .f90 .c .o .F90 .rb
 
-.PHONY: all $(GK_PROJECT)_all unit_tests linear_tests nonlinear_tests benchmarks clean_tests submodules
+.PHONY: all $(GK_PROJECT)_all submodules
 .PHONY: depend clean distclean tar test_make diagnostics simpledataio
 .PHONY: doc docs/html docs/graphs cleandoc check_ford_install
 
