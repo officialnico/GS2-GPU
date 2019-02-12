@@ -1,3 +1,5 @@
+export
+SHELL = bash
 
 .SUFFIXES: .fpp .f90 .c .o
 .PHONY: all clean
