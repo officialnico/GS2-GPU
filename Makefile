@@ -1,3 +1,4 @@
+export
 #
 #
 #  Makefile for Trinity (GS2) / AstroGK Gyrokinetic Turbulence code 
