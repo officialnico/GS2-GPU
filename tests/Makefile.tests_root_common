@@ -1,4 +1,5 @@
 export
+include $(GK_HEAD_DIR)/Makefile.utils
 
 # Specify any required modules that are not in libgs2.a
 TEST_MODS= $(GK_HEAD_DIR)/functional_tests.o  $(GK_HEAD_DIR)/libgs2.a $(GK_HEAD_DIR)/benchmarks.o
@@ -26,8 +27,8 @@ upload:
 	$(QUIETSYM)$(foreach element, $(TESTS_ACTUAL),$(MAKE) $@ -C $(element);)
 
 clean:
-	$(call messageRm,"Test cases")
-	$(QUIETSYM)$(foreach element, $(TESTS_ACTUAL),$(MAKE) $@ -C $(element);)
+	$(call messageRm,"$(TEST_TYPE) test cases")
+	$(QUIETSYM)$(foreach element, $(TESTS_ACTUAL),$(MAKE) $@ -C $(element) TEST_NAME=$(dir $(element));)
 
 $(TESTS_ACTUAL):
 	$(call messageOp,"Making test case",$@)

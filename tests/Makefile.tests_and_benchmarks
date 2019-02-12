@@ -75,17 +75,20 @@ define RUN_TESTS
 endef
 
 
+clean_unit_tests: TYPE=Unit
 clean_unit_tests:
-	$(call messageRm,"Unit test files")
-	$(QUIETSYM)$(MAKE) clean -C $(TEST_DIR)/unit_tests
+	$(call messageRm,"$(TYPE) tests")
+	$(QUIETSYM)$(MAKE) clean -C $(TEST_DIR)/$(call lowerCase,$(TYPE))_tests TEST_TYPE=$(TYPE)
 
+clean_linear_tests: TYPE=Linear
 clean_linear_tests:
-	$(call messageRm,"Linear test files")
-	$(QUIETSYM)$(MAKE) clean -C $(TEST_DIR)/linear_tests
+	$(call messageRm,"$(TYPE) tests")
+	$(QUIETSYM)$(MAKE) clean -C $(TEST_DIR)/$(call lowerCase,$(TYPE))_tests TEST_TYPE=$(TYPE)
 
+clean_nonlinear_tests: TYPE=Nonlinear
 clean_nonlinear_tests:
-	$(call messageRm,"Nonlinear test files")
-	$(QUIETSYM)$(MAKE) clean -C $(TEST_DIR)/nonlinear_tests
+	$(call messageRm,"$(TYPE) tests")
+	$(QUIETSYM)$(MAKE) clean -C $(TEST_DIR)/$(call lowerCase,$(TYPE))_tests TEST_TYPE=$(TYPE)
 
 clean_tests: clean_unit_tests clean_linear_tests clean_nonlinear_tests
 	@echo ""

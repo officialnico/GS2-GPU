@@ -1,5 +1,6 @@
 export
 SHELL = bash
+include $(GK_HEAD_DIR)/Makefile.utils
 
 .SUFFIXES: .fpp .f90 .c .o
 .PHONY: all clean
@@ -26,7 +27,7 @@ endif
 %.o : %.mod
 
 clean:
-	$(call messageRm,"Clean command")
+	$(call messageRm,"Test case $(TEST_NAME)")
 	$(QUIETSYM)$(CLEANCOMMAND)
 
 upload:
