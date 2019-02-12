@@ -1,5 +1,4 @@
-
-
+export
 
 # Specify any required modules that are not in libgs2.a
 TEST_MODS= $(GK_HEAD_DIR)/functional_tests.o  $(GK_HEAD_DIR)/libgs2.a $(GK_HEAD_DIR)/benchmarks.o
@@ -18,17 +17,18 @@ else
 TESTS_ACTUAL = $(TESTS_TMP)
 endif
 
-
-export
-     
-.PHONY: all $(TESTS_ACTUAL) clean
+.PHONY: all $(TESTS_ACTUAL) clean upload
 
 all: $(TESTS_ACTUAL)
 
+upload:
+	$(call messageOp,"Uploading test results")
+	$(QUIETSYM)$(foreach element, $(TESTS_ACTUAL),$(MAKE) $@ -C $(element);)
 
-clean upload:
+clean:
 	$(call messageRm,"Test cases")
 	$(QUIETSYM)$(foreach element, $(TESTS_ACTUAL),$(MAKE) $@ -C $(element);)
 
-$(TESTS_ACTUAL): 
+$(TESTS_ACTUAL):
+	$(call messageOp,"Making test case",$@)
 	$(QUIETSYM)$(MAKE) all -C $@ TEST_FOLD=$@
