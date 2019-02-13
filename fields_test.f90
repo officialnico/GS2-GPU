@@ -1,3 +1,4 @@
+!> FIXME : Add documentation
 module fields_test
   implicit none
 
@@ -11,7 +12,7 @@ module fields_test
   logical :: initialized = .false.
 
 contains
-
+  !> FIXME : Add documentation
   subroutine init_fields_test
     implicit none
 
@@ -20,6 +21,7 @@ contains
 
   end subroutine init_fields_test
 
+  !> FIXME : Add documentation  
   subroutine init_phi_test
     use fields_arrays, only: phi, apar, bpar, phinew, aparnew, bparnew
     implicit none
@@ -32,6 +34,7 @@ contains
     bparnew = 0.0
   end subroutine init_phi_test
 
+  !> FIXME : Add documentation
   subroutine advance_test (istep)
     use fields_arrays, only: phi, apar, bpar, phinew, aparnew, bparnew
     use dist_fn, only: timeadv
@@ -43,6 +46,7 @@ contains
     call timeadv (phi, apar, bpar, phinew, aparnew, bparnew, istep)
   end subroutine advance_test
 
+  !> FIXME : Add documentation
   subroutine reset_init
     initialized = .false.
   end subroutine reset_init
