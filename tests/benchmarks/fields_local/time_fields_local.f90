@@ -21,8 +21,8 @@ program time_fields_local
   use unit_tests
 
   use benchmarks, only: benchmark_identifier
-  use fields, only: remove_zonal_flows_switch
-  use fields_local, only: advance_local, fields_local_functional, do_smart_update
+  use fields_arrays, only: phi, apar, bpar
+  use fields_local, only: getfield_local, fields_local_functional
   use file_utils, only: append_output_file, close_output_file
   use gs2_init, only: init, init_level_list
   use gs2_main, only: initialize_gs2, gs2_program_state_type, finalize_gs2
@@ -35,6 +35,8 @@ program time_fields_local
   real :: time_taken(2) = 0.0
   integer :: istep
   integer :: timing_unit
+  logical :: do_gather = .true.
+  logical :: do_update = .true.
 
   ! General config
   ! (none)
@@ -64,7 +66,7 @@ program time_fields_local
     if (proc0) call time_message(.false., time_taken, "fields local time")
 
     do istep=1,nstep
-        call advance_local(istep, remove_zonal_flows_switch)
+      call getfield_local(phi, apar, bpar, do_gather, do_update)
     enddo
 
     if (proc0) then

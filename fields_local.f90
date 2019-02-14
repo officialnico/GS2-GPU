@@ -14,6 +14,7 @@ module fields_local
   public :: do_smart_update, field_local_allreduce, field_local_allreduce_sub
   public :: field_local_tuneminnrow,  field_local_nonblocking_collectives
   public :: minNRow
+  public :: getfield_local
 
   !> Unit tests
   public :: fields_local_unit_test_init_fields_matrixlocal
