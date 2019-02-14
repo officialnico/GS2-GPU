@@ -1,3 +1,4 @@
+!> FIXME : Add documentation
 module leq
   implicit none
 
@@ -17,7 +18,8 @@ module leq
 
   real :: beta_0
   real :: thetaShift
- 
+
+  !> FIXME : Add documentation  
   type :: flux_surface
      real :: Rmaj, Rgeo, r, dr, aSurf, sHorz, sVert, delm, deln, delmp, delnp, thm, thn, q, shat
      integer :: nt, geoType, mMode, nMode
@@ -26,6 +28,8 @@ module leq
   type (flux_surface) :: surf
 
 contains
+  
+  !> FIXME : Add documentation  
   subroutine leqin(geoType, Rmaj, Rgeo, r, dr, aSurf, sHorz, sVert, mMode, nMode, delm, deln, delmp, delnp, thm, thn, q, shat, nt_used, thShift)
     implicit none
     real, intent(in) :: Rmaj, Rgeo, r, dr, aSurf, sHorz, sVert, delm, deln, delmp, delnp, thm, thn, q, shat
@@ -77,7 +81,9 @@ contains
     call leq_init
   end subroutine leqin
 
+  !> FIXME : Add documentation  
   subroutine alloc_arrays(nr, nt)
+    implicit none
     integer, intent(in) :: nr, nt
 
     allocate(eqpsi(nr), fp(nr), beta(nr), pressure(nr))
@@ -89,6 +95,7 @@ contains
 
   end subroutine alloc_arrays
 
+  !> FIXME : Add documentation  
   subroutine dealloc_arrays
     implicit none
     if(allocated(eqpsi)) deallocate(eqpsi, fp, beta, pressure)
@@ -98,11 +105,13 @@ contains
     if(allocated(dpbish)) deallocate(dpbish,dtbish,dbtbish)
   end subroutine dealloc_arrays
 
+  !> FIXME : Add documentation  
   subroutine leq_finish
     implicit none
     call dealloc_arrays
   end subroutine leq_finish
 
+  !> FIXME : Add documentation  
   subroutine leq_init
     use constants, only: pi=>pi
     implicit none
@@ -176,6 +185,7 @@ contains
 
   end subroutine leq_init
 
+  !> FIXME : Add documentation  
   subroutine derm(f, dfm, char)
     use constants, only: pi=>pi
     implicit none
@@ -221,6 +231,7 @@ contains
 
   end subroutine derm
 
+  !> FIXME : Add documentation  
   subroutine gradient(theta, grad, char, rp, nth_used, ntm)
     use splines, only: inter_d_cspl
     implicit none
@@ -275,6 +286,7 @@ contains
     endif
   end subroutine gradient
 
+  !> FIXME : Add documentation  
   subroutine bgradient(theta, grad, char, rp, nth_used, ntm)
     use splines, only: inter_d_cspl
     implicit none
@@ -315,6 +327,7 @@ contains
     endif
   end subroutine bgradient
 
+  !> FIXME : Add documentation  
   subroutine eqitem(theta_in, f, fstar, char)
     use constants, only: pi=>pi
     implicit none
@@ -372,6 +385,7 @@ contains
 !     write(*,*) mtheta(jstar),mtheta(jstar+1)
   end subroutine eqitem
 
+  !> FIXME : Add documentation  
   subroutine eqdcart(dfm, dfcart)
     implicit none
     real, dimension (:,-nt:,:), intent(in)  :: dfm
@@ -394,6 +408,7 @@ contains
     enddo
   end subroutine eqdcart
 
+  !> FIXME : Add documentation  
   subroutine eqdbish(dcart, dbish)
     implicit none
     real, dimension(:,-nt:,:), intent (in) :: dcart
@@ -414,14 +429,18 @@ contains
     enddo
   end subroutine eqdbish
 
+  !> FIXME : Add documentation  
   function invR (r, theta)
+    implicit none
     real, intent (in) :: r, theta
     real :: invR
     
     invR=1./Rpos(r, theta)
   end function invR
 
+  !> FIXME : Add documentation  
   function rcenter()
+    implicit none
     real :: rcenter
     
     ! If using the global geometry, Rmaj is the center of the shaped flux surface
@@ -434,6 +453,7 @@ contains
     end if
   end function rcenter
 
+  !> FIXME : Add documentation  
   function Rpos (r, theta)
     implicit none
     real, intent (in) :: r, theta
@@ -455,6 +475,7 @@ contains
     end select
   end function Rpos
 
+  !> FIXME : Add documentation  
   function Zpos (r, theta)
     implicit none
     real, intent (in) :: r, theta
@@ -476,9 +497,12 @@ contains
     end select
   end function Zpos
 
+  !> FIXME : Add documentation
+  !!
+  !! see section 3.2.1 of Ball MIT Masters thesis or section 2.1.1 of
+  !! "GS2 analytic geometry specification"
   subroutine geo_Miller(r, theta, Rpos, Zpos)
-    ! see section 3.2.1 of Ball MIT Masters thesis or section 2.1.1 of
-    ! "GS2 analytic geometry specification"
+    implicit none
     real, intent (in) :: r, theta
     real, intent (out) :: Rpos, Zpos
     real :: dr, thAdj 
@@ -524,9 +548,12 @@ contains
 
   end subroutine geo_Miller
 
+  !> FIXME : Add documentation  
+  !!
+  !! see section 2.1.2 of
+  !! "GS2 analytic geometry specification"
   subroutine geo_global(r, theta, Rpos, Zpos)
-    ! see section 2.1.2 of
-    ! "GS2 analytic geometry specification"
+    implicit none
     real, intent (in) :: r, theta
     real, intent (out) :: Rpos, Zpos
     real :: rho0, thAdj, rCyl, Rc, Zc
@@ -561,9 +588,12 @@ contains
 
   end subroutine geo_global
 
+  !> FIXME : Add documentation
+  !!
+  !! see section 5.1.2 of Ball Oxford PhD thesis or section 2.1.3 of
+  !! "GS2 analytic geometry specification"
   subroutine geo_generalizedEllipticity(r, theta, Rpos, Zpos)
-    ! see section 5.1.2 of Ball Oxford PhD thesis or section 2.1.3 of
-    ! "GS2 analytic geometry specification"
+    implicit none
     real, intent (in) :: r, theta
     real, intent (out) :: Rpos, Zpos
     real :: dr, thAdj, rCyl, rCylp, Rfinal, Zfinal, Rfinalp, Zfinalp
@@ -591,9 +621,12 @@ contains
 
   end subroutine geo_generalizedEllipticity
 
+  !> FIXME : Add documentation
+  !!
+  !! see section 5.1.1 of Ball Oxford PhD thesis or section 2.1.4 of
+  !! "GS2 analytic geometry specification"
   subroutine geo_FourierSeries(r, theta, Rpos, Zpos)
-    ! see section 5.1.1 of Ball Oxford PhD thesis or section 2.1.4 of
-    ! "GS2 analytic geometry specification"
+    implicit none
     real, intent (in) :: r, theta
     real, intent (out) :: Rpos, Zpos
     real :: dr, thAdj, rCyl, rCylp, Rfinal, Zfinal, Rfinalp, Zfinalp
@@ -615,15 +648,19 @@ contains
 
   end subroutine geo_FourierSeries
 
+  !> FIXME : Add documentation  
   function psi (r)
+    implicit none
     real, intent (in) :: r
     real :: psi
 
     psi = r - surf%r
   end function psi
 
+  !> FIXME : Add documentation  
   function mod2pi (theta)
     use constants, only: pi=>pi
+    implicit none
     real, intent(in) :: theta
     real :: th, mod2pi
     real, parameter :: theta_tol = 1.e-6
@@ -652,45 +689,61 @@ contains
     enddo
     mod2pi=th
   end function mod2pi
-   
+
+  !> FIXME : Add documentation  
   function diameter (rp)
+    implicit none
     real, intent(in) :: rp
     real :: diameter
 
     diameter = 2.*rp
   end function diameter
 
+  !> FIXME : Add documentation  
   function dbtori ()
+    implicit none
     real :: dbtori
     dbtori = 1.
   end function dbtori
 
+  !> FIXME : Add documentation  
   function btori ()
+    implicit none
     real :: btori
     btori = surf%Rgeo
   end function btori
 
+  !> FIXME : Add documentation  
   function qfun ()
+    implicit none
     real :: qfun
     qfun = surf%q
   end function qfun
 
+  !> FIXME : Add documentation
   function pfun ()
+    implicit none
     real :: pfun
     pfun = 0.5*beta_0
   end function pfun
-  
-  function dpfun ()  
+
+  !> FIXME : Add documentation  
+  function dpfun ()
+    implicit none
     real :: dpfun    
     dpfun = -1.
   end function dpfun
 
+  !> FIXME : Add documentation  
   function dpdrhofun()
+    implicit none
     real :: dpdrhofun
     dpdrhofun = 0 ! surf%pp
   end function dpdrhofun
-  
-  function betafun ()  
+
+  !> FIXME : Add documentation  
+  function betafun ()
+    implicit none
     real :: betafun
     betafun = beta_0
   end function betafun
