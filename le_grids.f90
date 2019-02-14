@@ -1,3 +1,4 @@
+!> FIXME : Add documentation
 module egrid
 
 ! By Tomo Tatsuno, Aug 2005
@@ -18,6 +19,7 @@ module egrid
 
 contains
 
+  !> FIXME : Add documentation  
   subroutine init_egrid (negrid)
     use species, only: nspec
     implicit none
@@ -29,7 +31,8 @@ contains
        allocate (x0(nspec))
     end if
   end subroutine init_egrid
-
+  
+  !> FIXME : Add documentation
   subroutine setvgrid (vcut_in, negrid, epts, wgts, nesub_in)
     use constants, only: pi => dpi
     use gauss_quad, only: get_legendre_grids_from_cheb, get_laguerre_grids
@@ -99,6 +102,7 @@ contains
 
   end subroutine setvgrid
 
+  !> FIXME : Add documentation  
   subroutine setvgrid_genquad (negrid, epts, wgts, nesub)
     use mp, only: proc0, mp_abort, iproc
     use genquad, only: get_quadrature_rule
@@ -155,6 +159,7 @@ contains
 
 end module egrid
 
+!> FIXME : Add documentation
 module le_grids
   
   use redistribute, only: redist_type
@@ -280,6 +285,7 @@ module le_grids
 
 contains
 
+  !> FIXME : Add documentation  
   subroutine wnml_le_grids(unit)
     implicit none
     integer, intent(in) :: unit
@@ -293,6 +299,7 @@ contains
     write (unit, fmt="(' /')")
   end subroutine wnml_le_grids
 
+  !> FIXME : Add documentation  
   subroutine init_le_grids (accelerated_x, accelerated_v)
     use mp, only: proc0, finish_mp
     use species, only: init_species
@@ -342,6 +349,7 @@ contains
     
   end subroutine init_le_grids
 
+  !> FIXME : Add documentation  
   subroutine set_vgrid
     use species, only: nspec, init_species
     use egrid, only: setvgrid, setvgrid_genquad
@@ -355,7 +363,7 @@ contains
     end if
   end subroutine set_vgrid
 
-
+  !> FIXME : Add documentation
   function le_grids_unit_test_init_le_grids(sizes, energy_results, err)
     use unit_tests, only: announce_check, process_check, agrees_with
     use species, only: nspec
@@ -408,6 +416,7 @@ contains
     le_grids_unit_test_init_le_grids = tr
   end function le_grids_unit_test_init_le_grids
 
+  !> FIXME : Add documentation  
   subroutine broadcast_input
     use mp, only: broadcast
     implicit none
@@ -435,6 +444,7 @@ contains
     call broadcast (nterp)
  end subroutine broadcast_input
 
+ !> FIXME : Add documentation 
  subroutine broadcast_results
     use mp, only: proc0, broadcast
     use species, only: nspec
@@ -498,6 +508,7 @@ contains
 
   end subroutine broadcast_results
 
+  !> FIXME : Add documentation  
   subroutine read_parameters
     use file_utils, only: input_unit_exist
     implicit none
@@ -529,6 +540,7 @@ contains
 
   end subroutine read_parameters
 
+  !> FIXME : Add documentation  
   subroutine init_integrations
     use kt_grids, only: naky, ntheta0
     use species, only: nspec
@@ -555,6 +567,7 @@ contains
 
   end subroutine init_integrations
 
+  !> FIXME : Add documentation  
   subroutine init_weights
 
     use file_utils, only: open_output_file, close_output_file
@@ -638,9 +651,8 @@ contains
 
   end subroutine init_weights
 
-! the get_weights subroutine determines how to divide up the integral into 
-! subintervals and how many grid points should be in each subinterval
-
+  !> The get_weights subroutine determines how to divide up the integral into 
+  !! subintervals and how many grid points should be in each subinterval
   subroutine get_weights (maxpts_in, llim, ulim, nodes, wgts, ndiv, divmax, err_flag)
 
     implicit none
@@ -740,6 +752,7 @@ contains
 
   end subroutine get_weights
 
+  !> FIXME : Add documentation  
   subroutine get_intrvl_weights (llim, ulim, nodes, wgts)
     use gauss_quad, only: get_legendre_grids_from_cheb
     
@@ -774,6 +787,7 @@ contains
        
   end subroutine get_intrvl_weights
 
+  !> FIXME : Add documentation  
   subroutine integrate_species_original (g, weights, total)
     use theta_grid, only: ntgrid
     use gs2_layouts, only: g_lo
@@ -828,7 +842,7 @@ contains
   end subroutine integrate_species_original
 
 
-  !<DD>Integrate species on xy subcommunicator - NO GATHER
+  !> Integrate species on xy subcommunicator - NO GATHER
   subroutine integrate_species_sub (g, weights, total)
     use theta_grid, only: ntgrid
     use gs2_layouts, only: g_lo, intspec_sub
@@ -909,8 +923,7 @@ contains
 
   end subroutine integrate_species_sub
 
-
-  !AJ>Integrate species using gf_lo data format
+  !>Integrate species using gf_lo data format
   subroutine integrate_species_gf (g, weights, total)
     use species, only : nspec
     use theta_grid, only: ntgrid
@@ -966,10 +979,12 @@ contains
     
   end subroutine integrate_species_gf
 
-  !AJ Integrate species using gf_lo data format assuming that gf has already been gathered prior to being 
-  !AJ passed to this routine.
-  !AJ Currently this routine isn't being used as the functionality has been directly added to 
-  !AJ getan_nogath in dist_fn.
+  !> Integrate species using gf_lo data format assuming that gf has already been gathered prior to being 
+  !! passed to this routine.
+  !! Currently this routine isn't being used as the functionality has been directly added to 
+  !! getan_nogath in dist_fn.
+  !!
+  !! AJ
   subroutine integrate_species_gf_nogather (gf, weights, total)
     use species, only : nspec
     use theta_grid, only: ntgrid
@@ -1021,8 +1036,8 @@ contains
     
   end subroutine integrate_species_gf_nogather
   
-  !<DD>integrate_species on subcommunicator with gather
-  !Falls back to original method if not using xyblock sub comm
+  !> Integrate_species on subcommunicator with gather
+  !! Falls back to original method if not using xyblock sub comm
   subroutine integrate_species_master (g, weights, total, nogath, gf_lo)
     use theta_grid, only: ntgrid
     use kt_grids, only: ntheta0, naky
@@ -1156,10 +1171,9 @@ contains
 
     deallocate(total_flat)
   end subroutine integrate_species_master
-!</DD>
 
+  !> Integrate over velocity space whilst in e_lo_LAYOUT. 
   subroutine integrate_species_e (lo, g, weights, total)
-!Integrate over velocity space whilst in e_lo_LAYOUT. 
     use layouts_type, only: e_layout_type
     use gs2_layouts, only: is_idx, ik_idx, it_idx, ig_idx, il_idx
     use theta_grid, only: ntgrid
@@ -1193,9 +1207,8 @@ contains
     call sum_allreduce (total)
   end subroutine integrate_species_e
 
-
+  !> Integrate over velocity space whilst in lz_lo_LAYOUT. 
   subroutine integrate_species_lz (lo, g, weights, total)
-!Integrate over velocity space whilst in lz_lo_LAYOUT. 
     use layouts_type, only: lz_layout_type
     use gs2_layouts, only: is_idx, ik_idx, it_idx, ig_idx, ie_idx
     use theta_grid, only: ntgrid
@@ -1238,12 +1251,12 @@ contains
   end subroutine integrate_species_lz
 
 
+  !> Perform an integral over velocity space whilst in the LE_LAYOUT in 
+  !! which we have ensured that all of velocity space is local. As such
+  !! we don't need any calls to MPI reduction routines. Note that this means
+  !! the processors for different distributed spatial points (x,y) don't know
+  !! the results at other points.
   subroutine integrate_species_le (lo, g, weights, total)
-!Perform an integral over velocity space whilst in the LE_LAYOUT in 
-!which we have ensured that all of velocity space is local. As such
-!we don't need any calls to MPI reduction routines. Note that this means
-!the processors for different distributed spatial points (x,y) don't know
-!the results at other points.
     use layouts_type, only: le_layout_type
     use gs2_layouts, only: ig_idx, it_idx, ik_idx, is_idx
     use theta_grid, only: ntgrid
@@ -1286,6 +1299,7 @@ contains
 
   end subroutine integrate_species_le
 
+  !> FIXME : Add documentation  
   function le_grids_unit_test_integrate_species(g, weights, sizes, rslt, err)
     use unit_tests, only: announce_check, process_check, agrees_with
     use theta_grid, only: ntgrid
@@ -1330,6 +1344,7 @@ contains
     le_grids_unit_test_integrate_species = tr
   end function le_grids_unit_test_integrate_species
 
+  !> FIXME : Add documentation    
   subroutine legendre_transform (g, tote, totl, tott)  
     use egrid, only: zeroes
     use mp, only: nproc
@@ -1462,10 +1477,9 @@ contains
 
   end subroutine legendre_transform
 
-! TEMP FOR TESTING -- MAB
-!  subroutine legendre_polynomials (ulim, xptsdum, lpdum)
+  !> FIXME : Add documentation  
   subroutine legendre_polynomials (llim, ulim, xptsdum, lpdum)
-
+    implicit none
     double precision, dimension (:), allocatable :: lp1, lp2, lp3, zshift
 
     real, intent (in) :: ulim, llim
@@ -1501,8 +1515,9 @@ contains
 
   end subroutine legendre_polynomials
 
+  !> FIXME : Add documentation
   subroutine lagrange_interp (g, poly, istep, all)
-!<DD>WARNING: THIS ROUTINE DOESN'T USE g0 FOR ANYTHING IS THIS CORRECT?
+    !<DD>WARNING: THIS ROUTINE DOESN'T USE g0 FOR ANYTHING IS THIS CORRECT?
     use theta_grid, only: ntgrid, bmag
     use kt_grids, only: naky, ntheta0
     use gs2_layouts, only: g_lo, idx, idx_local
@@ -1554,10 +1569,12 @@ contains
 
   end subroutine lagrange_interp
 
+  !> FIXME : Add documentation
+  !!
+  !! returns results to PE 0 [or to all processors if 'all' is present in input arg list]
+  !! NOTE: Takes f = f(x, y, z, sigma, lambda, E, species) and returns int f, where the integral
+  !! is over all velocity space
   subroutine integrate_moment_c34 (g, total, all, full_arr)
-! returns results to PE 0 [or to all processors if 'all' is present in input arg list]
-! NOTE: Takes f = f(x, y, z, sigma, lambda, E, species) and returns int f, where the integral
-! is over all velocity space
 ! TT>
     use gs2_layouts, only: g_lo, is_idx, ik_idx, it_idx, ie_idx, il_idx,intmom_sub
 ! <TT
@@ -1651,10 +1668,12 @@ contains
 
   end subroutine integrate_moment_c34
 
+  !> FIXME : Add documentation
+  !!
+  !! returns results to PE 0 [or to all processors if 'all' is present in input arg list]
+  !! NOTE: Takes f = f(y, z, sigma, lambda, E, species) and returns int f, where the integral
+  !! is over all velocity space
   subroutine integrate_moment_r33 (g, total, all)
-! returns results to PE 0 [or to all processors if 'all' is present in input arg list]
-! NOTE: Takes f = f(y, z, sigma, lambda, E, species) and returns int f, where the integral
-! is over all velocity space
     use mp, only: nproc
     use gs2_layouts, only: p_lo, is_idx, ik_idx, ie_idx, il_idx
     use mp, only: sum_reduce, sum_allreduce
@@ -1696,8 +1715,8 @@ contains
 
   end subroutine integrate_moment_r33
 
+  !> Integrate over velocity space whilst in e_lo_LAYOUT. 
   subroutine integrate_moment_e (lo, g, total, all)
-!Integrate over velocity space whilst in e_lo_LAYOUT. 
     use layouts_type, only: e_layout_type
     use gs2_layouts, only: is_idx, ik_idx, it_idx, ig_idx, il_idx
     use theta_grid, only: ntgrid
@@ -1734,8 +1753,8 @@ contains
     end if
   end subroutine integrate_moment_e
 
+  !> Integrate over velocity space whilst in lz_lo_LAYOUT. 
   subroutine integrate_moment_lz (lo, g, total, all)
-!Integrate over velocity space whilst in lz_lo_LAYOUT. 
     use layouts_type, only: lz_layout_type
     use gs2_layouts, only: is_idx, ik_idx, it_idx, ig_idx, ie_idx
     use theta_grid, only: ntgrid
@@ -1780,12 +1799,12 @@ contains
     end if
   end subroutine integrate_moment_lz
 
+  !> Perform an integral over velocity space whilst in the LE_LAYOUT in 
+  !! which we have ensured that all of velocity space is local. As such
+  !! we don't need any calls to MPI reduction routines. Note that this means
+  !! the processors for different distributed spatial points (x,y) don't know
+  !! the results at other points.
   subroutine integrate_moment_lec (lo, g, total)
-!Perform an integral over velocity space whilst in the LE_LAYOUT in 
-!which we have ensured that all of velocity space is local. As such
-!we don't need any calls to MPI reduction routines. Note that this means
-!the processors for different distributed spatial points (x,y) don't know
-!the results at other points.
     use layouts_type, only: le_layout_type
     use gs2_layouts, only: ig_idx, it_idx, ik_idx, is_idx
     use kt_grids, only: kwork_filter
@@ -1830,12 +1849,12 @@ contains
 
   end subroutine integrate_moment_lec
 
+  !> Perform an integral over velocity space whilst in the LE_LAYOUT in 
+  !! which we have ensured that all of velocity space is local. As such
+  !! we don't need any calls to MPI reduction routines. Note that this means
+  !! the processors for different distributed spatial points (x,y) don't know
+  !! the results at other points.
   subroutine integrate_moment_le (lo, g, total)
-!Perform an integral over velocity space whilst in the LE_LAYOUT in 
-!which we have ensured that all of velocity space is local. As such
-!we don't need any calls to MPI reduction routines. Note that this means
-!the processors for different distributed spatial points (x,y) don't know
-!the results at other points.
     use layouts_type, only: le_layout_type
     use gs2_layouts, only: ig_idx, it_idx, ik_idx, is_idx
     use theta_grid, only: ntgrid
@@ -1871,10 +1890,12 @@ contains
     ! and each prcessor does not touch the unset place
   end subroutine integrate_moment_le
 
+  !> FIXME : Add documentation
+  !!
+  !! returns results to PE 0 [or to all processors if 'all' is present in input arg list]
+  !! NOTE: Takes f = f(y, lambda, E, species) and returns int sum_{ky} f, where the integral
+  !! is over energy and lambda (not sigma)
   subroutine integrate_kysum (g, ig, total, all)
-! returns results to PE 0 [or to all processors if 'all' is present in input arg list]
-! NOTE: Takes f = f(y, lambda, E, species) and returns int sum_{ky} f, where the integral
-! is over energy and lambda (not sigma)
     use species, only: nspec
     use kt_grids, only: aky
     use constants, only: zi
@@ -1923,6 +1944,7 @@ contains
 
   end subroutine integrate_kysum
 
+  !> FIXME : Add documentation  
   subroutine lint_error (g, weights, total)
     use theta_grid, only: ntgrid, bmag, bmax
     use gs2_layouts, only: g_lo
@@ -1980,6 +2002,7 @@ contains
 
   end subroutine lint_error
 
+  !> FIXME : Add documentation  
   subroutine trap_error (g, weights, total)
     use theta_grid, only: ntgrid
     use gs2_layouts, only: g_lo
@@ -2041,6 +2064,7 @@ contains
 
   end subroutine trap_error
 
+  !> FIXME : Add documentation  
   subroutine eint_error (g, weights, total)
     use theta_grid, only: ntgrid
     use species, only: nspec
@@ -2089,9 +2113,9 @@ contains
 
     !Moved this out of the above loop over ipt
     call sum_allreduce (total) 
-
   end subroutine eint_error
 
+  !> FIXME : Add documentation  
   subroutine set_grids
     use species, only: init_species
     use egrid, only: setvgrid, x0, x0_maxw, zeroes, zeroes_maxw
@@ -2158,6 +2182,7 @@ contains
     delal(2:) = al(2:) - al(:nlambda-1)
   end subroutine set_grids
 
+  !> FIXME : Add documentation  
   subroutine lgridset
     use theta_grid, only: ntgrid, bmag, bmax, eps
     use gauss_quad, only: get_legendre_grids_from_cheb, get_radau_gauss_grids
@@ -2429,6 +2454,7 @@ contains
 
   end subroutine lgridset
 
+  !> FIXME : Add documentation  
   subroutine xigridset
     use theta_grid, only: ntgrid, bmag
     implicit none
@@ -2501,6 +2527,7 @@ contains
 
   end subroutine xigridset
 
+  !> FIXME : Add documentation  
   subroutine lagrange_coefs (ig, nodes, lfac, xloc)
     use theta_grid, only: bmag, bmax
     implicit none
@@ -2543,6 +2570,7 @@ contains
 
   end subroutine lagrange_coefs
 
+  !> FIXME : Add documentation  
   subroutine stop_message (message)
 !<DD>WARNING THIS COULD CAUSE A HANG IF NOT CALLED BY ALL PROCS
 !JAB: print an error message and end program
@@ -2560,10 +2588,12 @@ contains
     stop
   end subroutine stop_message
 
+  !> FIXME : Add documentation
+  !!
+  !! returns results to PE 0 [or to all processors if 'all' is present in input arg list]
+  !! NOTE: Takes f = f(x, y, z, sigma, lambda, E, species) and returns int f, where the integral
+  !! is over x-y space
   subroutine integrate_volume_c (g, total, all)
-! returns results to PE 0 [or to all processors if 'all' is present in input arg list]
-! NOTE: Takes f = f(x, y, z, sigma, lambda, E, species) and returns int f, where the integral
-! is over x-y space
     use theta_grid, only: ntgrid
     use kt_grids, only: aky
     use gs2_layouts, only: g_lo, is_idx, ik_idx, ie_idx, il_idx
@@ -2613,10 +2643,12 @@ contains
 
   end subroutine integrate_volume_c
 
+  !> FIXME : Add documentation
+  !!
+  !! returns results to PE 0 [or to all processors if 'all' is present in input arg list]
+  !! NOTE: Takes f = f(x, y, z, sigma, lambda, E, species) and returns int f, where the integral
+  !! is over x-y space  
   subroutine integrate_volume_r (g, total, all)
-! returns results to PE 0 [or to all processors if 'all' is present in input arg list]
-! NOTE: Takes f = f(x, y, z, sigma, lambda, E, species) and returns int f, where the integral
-! is over x-y space
     use theta_grid, only: ntgrid
     use kt_grids, only: aky
     use gs2_layouts, only: g_lo, is_idx, ik_idx, ie_idx, il_idx
@@ -2666,8 +2698,8 @@ contains
 
   end subroutine integrate_volume_r
 
-  ! calculates and returns toroidal momentum flux as a function
-  ! of vpar and theta
+  !> Calculates and returns toroidal momentum flux as a function
+  !! of vpar and theta
   subroutine get_flux_vs_theta_vs_vpa (f, vflx, dealloc)
 
     use theta_grid, only: ntgrid, bmag
@@ -2750,12 +2782,10 @@ contains
     
   end subroutine get_flux_vs_theta_vs_vpa
 
+  !> Returns Gn = Hn / sqrt(2^n n!) / pi^(1/4),
+  !! where Hn are the hermite polynomials
+  !! i.e. int dx Gm * Gn exp(-x^2) = 1
   subroutine get_hermite_polynomials_4d (xptsdum, hpdum)
-
-    ! this subroutine returns Gn = Hn / sqrt(2^n n!) / pi^(1/4),
-    ! where Hn are the hermite polynomials
-    ! i.e. int dx Gm * Gn exp(-x^2) = 1
-
     use constants, only: pi
     use theta_grid, only: ntgrid
 
@@ -2791,14 +2821,11 @@ contains
 
   end subroutine get_hermite_polynomials_4d
 
+  !> Returns Gn = Hn / sqrt(2^n n!) / pi^(1/4),
+  !! where Hn are the hermite polynomials
+  !! i.e. int dx Gm * Gn exp(-x^2) = 1
   subroutine get_hermite_polynomials_1d (xptsdum, hpdum)
-
-    ! this subroutine returns Gn = Hn / sqrt(2^n n!) / pi^(1/4),
-    ! where Hn are the hermite polynomials
-    ! i.e. int dx Gm * Gn exp(-x^2) = 1
-
     use constants, only: pi
-
     implicit none
 
     real, dimension (:), intent (in)   :: xptsdum
@@ -2831,10 +2858,8 @@ contains
 
   end subroutine get_hermite_polynomials_1d
 
+  !> Returns probabilist's Hermite polynomials, He_n(x)
   elemental function hermite_prob (n, x)
-
-    ! returns probabilist's Hermite polynomials, He_n(x)
-
     implicit none
     integer, intent (in) :: n
     real, intent (in) :: x
@@ -2862,9 +2887,8 @@ contains
 
   end function hermite_prob
 
-
+  !> FIXME : Add documentation
   subroutine init_map (use_lz_layout, use_e_layout, use_le_layout, test)
-
     use mp, only: finish_mp, proc0
     use redistribute, only: report_map_property
     use gs2_layouts, only: opt_redist_init
@@ -2914,12 +2938,11 @@ contains
 
     if (test) then
        if (proc0) print *, 'init_map done'
-!!$    call finish_mp
-!!$    stop
     end if
 
   end subroutine init_map
 
+  !> FIXME : Add documentation  
   subroutine init_g2gf(test)
     implicit none
 
@@ -2931,8 +2954,8 @@ contains
 
   end subroutine init_g2gf
 
+  !> FIXME : Add documentation  
   subroutine init_g2le_redistribute
-
     use mp, only: nproc
     use species, only: nspec
     use theta_grid, only: ntgrid
@@ -3057,9 +3080,8 @@ contains
 
   end subroutine init_g2le_redistribute
 
-!<DD>
+  !> FIXME : Add documentation
   subroutine init_g2le_redistribute_local
-
     use mp, only: nproc
     use species, only: nspec
     use theta_grid, only: ntgrid
@@ -3364,7 +3386,8 @@ contains
     !call delete_list (old_list)
 
   end subroutine init_g2le_redistribute_local
-!</DD>
+
+  !> FIXME : Add documentation
   subroutine check_g2le
 
     use file_utils, only: error_unit
@@ -3457,8 +3480,8 @@ contains
 
   end subroutine check_g2le
 
+  !> FIXME : Add documentation  
   subroutine init_g2gf_redistribute
-
     use mp, only: nproc
     use species, only: nspec
     use theta_grid, only: ntgrid
@@ -3646,8 +3669,8 @@ contains
 
   end subroutine init_g2gf_redistribute
 
+  !> FIXME : Add documentation  
   subroutine check_g2gf
-
     use file_utils, only: error_unit
     use mp, only: finish_mp, iproc, proc0
     use species, only : nspec
@@ -3728,17 +3751,16 @@ contains
 !    stop
 
   contains
-
+    !> FIXME : Add documentation
     function rule (ig, isgn, ik, it, il, ie, is)
       integer, intent (in) :: ig, isgn, ik, it, il, ie, is
       integer :: rule
       rule = ig + isgn + ik + it + il + ie + is  ! make whatever you want
     end function rule
-
   end subroutine check_g2gf
 
+  !> FIXME : Add documentation  
   subroutine init_lambda_redistribute
-
     use mp, only: nproc
     use species, only: nspec
     use theta_grid, only: ntgrid
@@ -3863,9 +3885,8 @@ contains
 
   end subroutine init_lambda_redistribute
 
-!<DD>
+  !> FIXME : Add documentation
   subroutine init_lambda_redistribute_local
-
     use mp, only: nproc, barrier
     use species, only: nspec
     use theta_grid, only: ntgrid
@@ -4073,10 +4094,9 @@ contains
     call delete_list (sort_list)
 
   end subroutine init_lambda_redistribute_local
-!</DD>
 
+  !> FIXME : Add documentation
   subroutine init_energy_redistribute
-
     use mp, only: nproc
     use species, only: nspec
     use theta_grid, only: ntgrid
@@ -4195,7 +4215,7 @@ contains
 
   end subroutine init_energy_redistribute
 
-!<DD>
+  !> FIXME : Add documentation
   subroutine init_energy_redistribute_local
     use mp, only: nproc
     use species, only: nspec
@@ -4388,13 +4408,11 @@ contains
     call delete_list (sort_list)
 
   end subroutine init_energy_redistribute_local
-!</DD>
 
-  ! subroutine used for testing
-  ! takes as input an array using g_lo and
-  ! writes it to a .distmp output file
+  !> Used for testing
+  !! takes as input an array using g_lo and
+  !! writes it to a .distmp output file
   subroutine write_mpdist (dist, extension, last)
-
     use mp, only: proc0, send, receive
     use file_utils, only: open_output_file, close_output_file
     use gs2_layouts, only: g_lo, ik_idx, it_idx, is_idx
@@ -4457,11 +4475,10 @@ contains
 
    end subroutine write_mpdist
 
-  ! subroutine used for testing
-  ! takes as input an array using le_lo and
-  ! writes it to a .distmp output file
+  !> Used for testing
+  !! takes as input an array using le_lo and
+  !! writes it to a .distmp output file
   subroutine write_mpdist_le (dist, extension, last)
-
     use mp, only: proc0, send, receive
     use file_utils, only: open_output_file, close_output_file
     use gs2_layouts, only: le_lo, ig_idx, ik_idx, it_idx, is_idx
@@ -4474,7 +4491,7 @@ contains
 !    real, dimension (:,:,le_lo%llim_proc:), intent (in) :: dist
     character (*), intent (in) :: extension
     logical, intent (in), optional :: last
-
+    
     integer :: ile, ixi, nxi, ik, it, is, ie, il, ig, isgn
     integer, save :: unit
     logical :: done = .false.
@@ -4482,44 +4499,45 @@ contains
     complex :: gtmp
 !    real :: gtmp
 
-     if (.not. done) then
-        if (proc0) call open_output_file (unit, trim(extension))
-        nxi = max(2*nlambda-1, 2*ng2)
-        do ile=le_lo%llim_world, le_lo%ulim_world
-           ig = ig_idx(le_lo, ile)
-           ik = ik_idx(le_lo, ile)
-           it = it_idx(le_lo, ile)
-           is = is_idx(le_lo, ile)
-           do ie = 1, negrid
-              do ixi = 1, nxi
-                 il = ixi_to_il(ig,ixi)
-                 isgn = ixi_to_isgn(ig,ixi)
-                 if (idx_local (le_lo, ig, ik, it, is)) then
-                    if (proc0) then
-                       gtmp = dist(ixi,ie,ile)
-                    else
-                       call send (dist(ixi,ie,ile), 0)
-                    end if
-                 else if (proc0) then
-                    call receive (gtmp, proc_id(le_lo, ile))
-                 end if
-                 if (proc0) then
-                    if (.not. forbid(ig,il)) then
-                       vpa1 = sqrt(energy_maxw(ie)*max(0.0,1.0-al(il)*bmag(ig)))
-                       write (unit,'(5e14.5)') theta(ig), sgn(isgn)*vpa1, energy_maxw(ie), &
-                            real(gtmp), aimag(gtmp)
-!                    write (unit,'(5e14.5)') theta(ig), vpa1, energy(ie), gtmp(1), gtmp(2)
-                    end if
-                 end if
-              end do
-           end do
-        end do
-        if (proc0) call close_output_file (unit)
-        if (present(last)) done = .true.
-     end if
+    if (.not. done) then
+       if (proc0) call open_output_file (unit, trim(extension))
+       nxi = max(2*nlambda-1, 2*ng2)
+       do ile=le_lo%llim_world, le_lo%ulim_world
+          ig = ig_idx(le_lo, ile)
+          ik = ik_idx(le_lo, ile)
+          it = it_idx(le_lo, ile)
+          is = is_idx(le_lo, ile)
+          do ie = 1, negrid
+             do ixi = 1, nxi
+                il = ixi_to_il(ig,ixi)
+                isgn = ixi_to_isgn(ig,ixi)
+                if (idx_local (le_lo, ig, ik, it, is)) then
+                   if (proc0) then
+                      gtmp = dist(ixi,ie,ile)
+                   else
+                      call send (dist(ixi,ie,ile), 0)
+                   end if
+                else if (proc0) then
+                   call receive (gtmp, proc_id(le_lo, ile))
+                end if
+                if (proc0) then
+                   if (.not. forbid(ig,il)) then
+                      vpa1 = sqrt(energy_maxw(ie)*max(0.0,1.0-al(il)*bmag(ig)))
+                      write (unit,'(5e14.5)') theta(ig), sgn(isgn)*vpa1, energy_maxw(ie), &
+                           real(gtmp), aimag(gtmp)
+                      !                    write (unit,'(5e14.5)') theta(ig), vpa1, energy(ie), gtmp(1), gtmp(2)
+                   end if
+                end if
+             end do
+          end do
+       end do
+       if (proc0) call close_output_file (unit)
+       if (present(last)) done = .true.
+    end if
+    
+  end subroutine write_mpdist_le
 
-   end subroutine write_mpdist_le
-
+  !> FIXME : Add documentation  
   subroutine finish_le_grids
     use redistribute, only: delete_redist
     use egrid, only: zeroes, x0, zeroes_maxw
@@ -4574,13 +4592,13 @@ contains
 
   end subroutine finish_le_grids
 
+  !> FIXME : Add documentation  
   subroutine finish_weights
     if (allocated(werr)) deallocate (werr)
     if (allocated(wlerr)) deallocate (wlerr)
     init_weights_init = .false.
   end subroutine finish_weights
-
 end module le_grids
 
 
- 
+
