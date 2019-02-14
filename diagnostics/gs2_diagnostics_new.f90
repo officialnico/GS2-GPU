@@ -17,7 +17,8 @@ module gs2_diagnostics_new
   
   !> Options passed to init_gs2_diagnostics_new 
   public :: diagnostics_init_options_type
-  
+
+  !> FIXME : Add documentation  
   type diagnostics_init_options_type
      logical :: parallel_io_capable
      logical :: default_double
@@ -31,6 +32,7 @@ module gs2_diagnostics_new
   logical, parameter :: debug=.false.
 
 contains
+
   !> Read namelist diagnostics_config, initialise submodules,
   !! open output file 'run_name.cdf' and create dimensions.
   subroutine init_gs2_diagnostics_new(init_options)
@@ -45,7 +47,6 @@ contains
     use diagnostics_nonlinear_convergence, only: init_nonlinear_convergence
     use diagnostics_zonal_transfer, only: init_diagnostics_transfer
     use collisional_heating, only: init_collisional
-
     use nonlinear_terms, only: nonlin
     use gs2_save, only: save_many
     use file_utils, only: run_name, error_unit
@@ -222,7 +223,8 @@ contains
       'gs2_diagnostics_new::init_gs2_diagnostics_new finished')
     
   end subroutine init_gs2_diagnostics_new
-  
+
+  !> FIXME : Add documentation  
   subroutine check_parameters
     use run_parameters, only: fapar
     use file_utils, only: error_unit
@@ -245,10 +247,11 @@ contains
     
   end subroutine check_parameters
 
-
+  !> FIXME : Add documentation
   subroutine check_restart_file_writeable
     use gs2_save, only: restart_writable
     use mp, only: proc0, mp_abort, broadcast
+    implicit none
     logical :: writable
     !Verify restart file can be written
     if((gnostics%save_for_restart.or.gnostics%save_distfn).and.(gnostics%file_safety_check))then
@@ -355,6 +358,7 @@ contains
     call finish_diagnostics_config(gnostics)
   end subroutine finish_gs2_diagnostics_new
 
+  !> FIXME : Add documentation  
   subroutine save_restart_dist_fn
     use run_parameters, only: fphi, fapar, fbpar
     use collisions, only: vnmult
@@ -387,7 +391,8 @@ contains
     end if
     !</DD> Added for saving distribution function
   end subroutine save_restart_dist_fn
-  
+
+  !> FIXME : Add documentation  
   subroutine run_diagnostics_to_be_updated
     use fields_arrays, only: phinew, bparnew
     use dist_fn, only: write_fyx, write_f, write_poly, collision_error
@@ -622,7 +627,8 @@ contains
     gnostics%start_time = user_time
 
   end subroutine reset_averages_and_counters
-  
+
+  !> FIXME : Add documentation  
   subroutine run_old_final_routines
     use diagnostics_final_routines,only: do_write_eigenfunc
     use diagnostics_final_routines,only: do_write_final_fields
@@ -682,7 +688,8 @@ contains
          & finished')
     
   end subroutine run_old_final_routines
-  
+
+  !> FIXME : Add documentation  
   subroutine create_dimensions(add_to_file)
     use simpledataio_write, only: real_imaginary_dimension_name
     use kt_grids, only: naky, ntheta0, nx, ny, jtwist_out, box
@@ -758,12 +765,7 @@ contains
     if(add_to_file) call gnostics%dims%input_file_dim%add_to_file(gnostics%sfile)
   end subroutine create_dimensions
 
-  !subroutine create_dimensions_movie
-  !use gs2_layouts, only: yxf_lo
-  !call add_dimension(gnostics%sfilemovie, "x", yxf_lo%nx, "The x dimension", "")
-  !call add_dimension(gnostics%sfilemovie, "y", yxf_lo%ny, "The y dimension", "")
-  !end subroutine create_dimensions_movie
-
+  !> FIXME : Add documentation  
   subroutine write_dimensions
     use kt_grids, only: aky, akx, theta0
     use theta_grid, only: theta

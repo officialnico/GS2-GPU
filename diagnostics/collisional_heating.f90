@@ -1,3 +1,4 @@
+!> FIXME : Add documentation
 module collisional_heating
 
   implicit none
@@ -13,7 +14,8 @@ module collisional_heating
   logical :: initialized = .false.
   
 contains
-  
+
+  !> FIXME : Add documentation  
   subroutine init_collisional(gnostics) 
     use kt_grids, only: naky, ntheta0, nx, ny
     use theta_grid, only: ntgrid
@@ -53,7 +55,8 @@ contains
     coll_heating_2=0.0
     
   end subroutine init_collisional
-  
+
+  !> FIXME : Add documentation  
   subroutine finish_collisional
     if(.not. initialized) return
     deallocate(coll_heating)
@@ -62,9 +65,9 @@ contains
     deallocate(g0)
     initialized = .false.
   end subroutine finish_collisional
-  
-  subroutine calculate_collisional(gnostics)
 
+  !> FIXME : Add documentation  
+  subroutine calculate_collisional(gnostics)
     use dist_fn_arrays, only: g, gnew
     use diagnostics_config, only: diagnostics_type
     use dist_fn_arrays, only: c_rate, g_adjust
@@ -154,9 +157,9 @@ contains
     coll_heating_2 = colls_part + hyper_part_2
     
   end subroutine calculate_collisional
-  
+
+  !> FIXME : Add documentation  
   subroutine write_collisional(gnostics)
-    
     use diagnostics_create_and_write, only: create_and_write_distributed_fieldlike_variable
     use diagnostics_dimensions, only: dim_string
     use fields_parallelization, only: field_k_local

@@ -89,7 +89,7 @@ contains
     call debug_message(4, 'finished initializing dimension '//dim_name_in)
   end subroutine dimension_type_init
   
-  !>Attach the dimension to file
+  !> Attach the dimension to file
   subroutine dimension_add_to_file(self,sfile)
     use simpledataio, only: add_dimension, sdatio_file
     implicit none
@@ -102,7 +102,7 @@ contains
          self%length,trim(self%description),trim(self%units))
   end subroutine dimension_add_to_file
 
-  !>Return the dimensions name
+  !> Return the dimensions name
   function dimension_get_dim_name(self)
     implicit none
     class(diagnostics_dimension_type), intent(in) :: self
@@ -118,9 +118,10 @@ contains
   !// STANDARD PROCEDURES
   !/////////////////////////////
 
-  !>Returns a string representing the dimension, to pass to
-  !!the file/io routines when creating variables etc.
+  !> Returns a string representing the dimension, to pass to
+  !! the file/io routines when creating variables etc.
   function make_dim_string(dim)
+    implicit none
     type(diagnostics_dimension_type), intent(in) :: dim
 !<DD>Comment following as some old compilers don't support allocatable strings
 !at some point in the future we can reinstate this.
@@ -132,9 +133,10 @@ contains
     make_dim_string=trim(dim%get_dim_name())
   end function make_dim_string
 
-  !>Returns a string representing the dimensions, to pass to
-  !!the file/io routines when creating variables etc.
+  !> Returns a string representing the dimensions, to pass to
+  !! the file/io routines when creating variables etc.
   function make_dim_string_arr(dims)
+    implicit none
     type(diagnostics_dimension_type), dimension(:), intent(in) :: dims
 !<DD>Comment following as some old compilers don't support allocatable strings
 !at some point in the future we can reinstate this.

@@ -10,10 +10,10 @@ module diagnostics_turbulence
   integer :: ntg_extend, nth0_extend
 contains
 
+  !> FIXME : Add documentation  
   subroutine write_correlation(gnostics)
     use theta_grid, only: ntgrid
     use kt_grids, only: naky
-    !use mp, only: proc0
     use gs2_io, only: nc_loop_corr
     use diagnostics_config, only: diagnostics_type
     use diagnostics_create_and_write, only: create_and_write_variable
@@ -31,6 +31,7 @@ contains
     deallocate (phi_corr_2pi)
   end subroutine write_correlation
 
+  !> FIXME : Add documentation  
   subroutine correlation (cfnc_2pi)
     use kt_grids, only: naky, ntheta0
     use theta_grid, only: ntgrid
@@ -55,10 +56,11 @@ contains
        end do
     end do
   end subroutine correlation
+
+  !> FIXME : Add documentation  
   subroutine write_correlation_extend(gnostics)
     use theta_grid, only: ntgrid
     use kt_grids, only: jtwist_out, ntheta0, naky
-    !use mp, only: proc0
     use gs2_io, only: nc_loop_corr_extend
     use diagnostics_config, only: diagnostics_type
     use diagnostics_create_and_write, only: create_and_write_variable
@@ -104,11 +106,10 @@ contains
     deallocate (phi_corr, phi2_extend)
   end subroutine write_correlation_extend
 
+  !> FIXME : Add documentation  
   subroutine correlation_extend (cfnc,phi2extend)
-!    use constants, only: pi
     use fields_arrays, only: phinew
     use theta_grid, only: ntgrid, jacob, delthet
-!   use theta_grid, only: theta
     use kt_grids, only: ntheta0, naky, jtwist_out
     implicit none
     real, dimension (:,:,:), intent (out) :: phi2extend
@@ -205,6 +206,7 @@ contains
     
   end subroutine correlation_extend
 
+  !> FIXME : Add documentation  
   subroutine reorder_kx (unord, ord)
     use kt_grids, only: ntheta0
     implicit none
@@ -216,6 +218,7 @@ contains
     
   end subroutine reorder_kx
 
+  !> FIXME : Add documentation  
   subroutine write_cross_phase(gnostics)
     use mp, only: proc0
     use diagnostics_config, only: diagnostics_type
