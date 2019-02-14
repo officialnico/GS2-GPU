@@ -7,7 +7,6 @@
 !! In a third scenario, the parameter is varied using a root finding algorithm.
 !!
 !! In addition, the condition for changing the parameter may be changed from a simple number of time steps to, for example, reaching a saturated state.
-
 module parameter_scan
 
   !These should really be moved to specific routines where required
@@ -54,13 +53,16 @@ module parameter_scan
   real :: target_val
   integer :: scan_output_file
   real :: current_target_value = 0.0
-    logical :: initialized = .false.
+  logical :: initialized = .false.
 
 contains
+
+  !> FIXME : Add documentation
   subroutine init_parameter_scan
     use gs2_save, only: restore_current_scan_parameter_value 
     use init_g, only: init_init_g
     use file_utils, only: open_output_file
+    implicit none
     !write (*,*) "initializing parameter_scan"
 
     if (initialized) return
@@ -96,11 +98,7 @@ contains
 
   end subroutine init_parameter_scan
 
-  !subroutine set_restarted_scan_parameter_value(value)
-    !restarted = .true.
-    !current_scan_parameter_value = value
-  !end subroutine set_restarted_scan_parameter_value 
-
+  !> FIXME : Add documentation
   subroutine allocate_target_arrays(nwrite,write_nl_flux)
 !    use gs2_diagnostics, only: nwrite, write_nl_flux
 !    use gs2_diagnostics, only: write_flux_line
@@ -135,23 +133,28 @@ contains
      !write (*,*) "allocating target arrays ", nwrite, ",", nstep 
   end subroutine allocate_target_arrays
 
+  !> FIXME : Add documentation  
   subroutine deallocate_target_arrays
+    implicit none
     if (allocated(hflux_tot)) deallocate(hflux_tot)
     if (allocated(momflux_tot)) deallocate(momflux_tot)
     if (allocated(phi2_tot)) deallocate(phi2_tot)
   end subroutine deallocate_target_arrays
 
-
+  !> FIXME : Add documentation
   subroutine finish_parameter_scan
     use file_utils, only: close_output_file
+    implicit none
     call deallocate_target_arrays
     call close_output_file(scan_output_file)
     initialized = .false.
   end subroutine finish_parameter_scan
-  
+
+  !> FIXME : Add documentation  
   subroutine update_scan_parameter_value(istep, reset, exit)
     use mp, only : mp_abort
     use gs2_time, only: user_time
+    implicit none
     logical, intent (inout) :: exit, reset
     integer, intent (in) :: istep
     real :: increment
@@ -211,7 +214,9 @@ contains
     if (exit) write (scan_output_file, *) "Parameter scan is complete...."
   end subroutine update_scan_parameter_value
 
+  !> FIXME : Add documentation  
   subroutine check_target_reached(target_reached)
+    implicit none
     logical, intent (out) :: target_reached
     logical, save :: first = .true.
     real, save :: last_value = 0.0
@@ -242,13 +247,16 @@ contains
 
   end subroutine check_target_reached
 
+  !> FIXME : Add documentation  
   subroutine increment_scan_parameter(increment, reset)
+    implicit none
     real, intent (in) :: increment
     logical, intent (inout) :: reset
     current_scan_parameter_value = current_scan_parameter_value + increment
     call set_scan_parameter(reset)
   end subroutine increment_scan_parameter
-     
+
+  !> FIXME : Add documentation  
   subroutine set_scan_parameter(reset)
     !use parameter_scan_arrays, only: current_scan_parameter_value
     !use parameter_scan_arrays, only: scan_parameter_switch
@@ -258,6 +266,7 @@ contains
     use species, only: spec 
     use dist_fn, only: g_exb
     use mp, only: proc0
+    implicit none
     logical, intent (inout) :: reset
      
     select case (scan_parameter_switch)
@@ -274,9 +283,11 @@ contains
     end select
   end subroutine set_scan_parameter
 
+  !> FIXME : Add documentation  
   subroutine check_increment_condition_satisfied(istep, increment_condition_satisfied)
     use gs2_time, only: user_time
     use mp, only : mp_abort, proc0
+    implicit none
     logical, intent (out) :: increment_condition_satisfied
     integer, intent (in) :: istep
     integer, save :: last_timestep = 0
@@ -323,6 +334,7 @@ contains
     end select 
   end subroutine check_increment_condition_satisfied
 
+  !> FIXME : Add documentation  
   subroutine read_parameters
     use file_utils, only: input_unit, error_unit, input_unit_exist
     use text_options, only: text_option, get_option_value

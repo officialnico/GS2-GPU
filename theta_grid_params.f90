@@ -1,3 +1,4 @@
+!> FIXME : Add documentation
 module theta_grid_params
   implicit none
 
@@ -28,6 +29,8 @@ module theta_grid_params
   logical :: exist
 
 contains
+
+  !> FIXME : Add documentation  
   subroutine init_theta_grid_params
     use unit_tests, only: debug_message
     implicit none
@@ -46,11 +49,13 @@ contains
     call debug_message(verb, "theta_grid_params::init_theta_grid_params end")
   end subroutine init_theta_grid_params
 
+  !> FIXME : Add documentation
   subroutine finish_theta_grid_params
     implicit none
     initialized = .false.
   end subroutine finish_theta_grid_params
 
+  !> FIXME : Add documentation
   subroutine read_parameters
     use file_utils, only: input_unit, input_unit_exist
     use unit_tests, only: debug_message
@@ -206,6 +211,7 @@ contains
 
   end subroutine read_parameters
 
+  !> FIXME : Add documentation
   subroutine wnml_theta_grid_params(unit)
     implicit none
     integer, intent(in) :: unit
@@ -240,6 +246,7 @@ contains
     write (unit, fmt="(' /')")
   end subroutine wnml_theta_grid_params
 
+  !> FIXME : Add documentation
   subroutine write_trinity_parameters(trinpars_unit)
     integer, intent(in) :: trinpars_unit
     write (trinpars_unit, "(A22)") '&theta_grid_parameters'
@@ -264,7 +271,7 @@ contains
     write (trinpars_unit, "(A1)") '/'
   end subroutine write_trinity_parameters
 
-
+  !> FIXME : Add documentation
   subroutine set_overrides(mgeo_ov)
     use overrides, only: miller_geometry_overrides_type
     type(miller_geometry_overrides_type), intent(in) :: mgeo_ov
@@ -304,6 +311,4 @@ contains
     if (mgeo_ov%override_thetan) thetan = mgeo_ov%thetan
     if (mgeo_ov%override_betaprim) betaprim = mgeo_ov%betaprim
   end subroutine set_overrides
-
-
 end module theta_grid_params
