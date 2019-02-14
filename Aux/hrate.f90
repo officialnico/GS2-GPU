@@ -1,3 +1,4 @@
+!> FIXME : Add documentation
 program hrate
 
   use command_line, only: cl_getarg, cl_iargc

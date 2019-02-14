@@ -1,3 +1,4 @@
+!> FIXME : Add documentation  
 program rungridgen
   use file_utils
   use gridgen4mod
@@ -50,7 +51,7 @@ program rungridgen
   stop
 
 contains
-
+  !> FIXME : Add documentation  
   subroutine read_parameters
     implicit none
     namelist /testgridgen/ source, gsource, &
@@ -87,6 +88,7 @@ contains
     nthetaout = nthetaout + 1
   end subroutine read_parameters
 
+  !> FIXME : Add documentation  
   subroutine allocate_arrays
     implicit none
     integer :: unit
@@ -120,6 +122,7 @@ contains
     allocate (aprime(-ntgridin:ntgridin))
   end subroutine allocate_arrays
 
+  !> FIXME : Add documentation    
   subroutine allocate_arrays_3d
     implicit none
     integer :: unit, ntor
@@ -168,8 +171,8 @@ contains
     
   end subroutine allocate_arrays_3d
 
+  !> FIXME : Add documentation  
   subroutine get_initial_grids
-
     use file_utils, only: get_unused_unit
     implicit none
     integer :: unit
@@ -212,6 +215,7 @@ contains
     bmagin = bmag(-nthetain/2:nthetain/2)
   end subroutine get_initial_grids
 
+  !> FIXME : Add documentation  
   subroutine get_initial_grids_3d
     use file_utils, only: get_unused_unit
     implicit none
@@ -253,6 +257,7 @@ contains
     bmagin = bmag(-nthetain/2:nthetain/2)
   end subroutine get_initial_grids_3d
 
+  !> FIXME : Add documentation  
   subroutine do_smoothing
     implicit none
     real :: var
@@ -283,6 +288,7 @@ contains
     end if
   end subroutine do_smoothing
 
+  !> FIXME : Add documentation  
   subroutine generate_grids
     implicit none
     integer :: i, iter, nin
@@ -355,6 +361,7 @@ contains
 
   end subroutine generate_grids
 
+  !> FIXME : Add documentation    
   subroutine spline (nin, xin, yin, nout, xout, yout)
     use splines, only: fitp_curv1, fitp_curv2
     implicit none
@@ -379,6 +386,7 @@ contains
     deallocate (work, tmp)
   end subroutine spline
 
+  !> FIXME : Add documentation    
   subroutine write_output
     use splines, only: fitp_curvp2
     implicit none

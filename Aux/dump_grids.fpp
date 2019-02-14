@@ -1,3 +1,4 @@
+!> FIXME : Add documentation
 program dump_grids
   use job_manage, only: job_fork, time_message
   use mp, only: init_mp, proc0, nproc, broadcast
@@ -94,6 +95,8 @@ contains
 
 #ifdef NETCDF
 !Prefer to write to netcdf file if possible
+
+  !> FIXME : Add documentation
   subroutine write_grids_to_file(fname)
     use netcdf, only: NF90_CLOBBER
     use netcdf, only: nf90_create, nf90_close
@@ -149,7 +152,9 @@ contains
     ierr=nf90_close(ncid)
   end subroutine write_grids_to_file
 #else
-!Fall back to binary output when netcdf unavailable
+  !Fall back to binary output when netcdf unavailable
+
+  !> FIXME : Add documentation
   subroutine write_grids_to_file(fname)
     use kt_grids, only: aky, akx, theta0
     use theta_grid, only: theta
