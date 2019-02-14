@@ -1,6 +1,6 @@
-! nexp has been changed in a rush.  Only known to be correct for nexp=2
-!
-!
+!> FIXME : Add documentation
+!!
+!! @note nexp has been changed in a rush.  Only known to be correct for nexp=2
 module hyper
   
   implicit none
@@ -39,6 +39,7 @@ module hyper
 
 contains
 
+  !> FIXME : Add documentation  
   subroutine check_hyper(report_unit)
     implicit none
     integer, intent(in) :: report_unit
@@ -202,6 +203,7 @@ contains
     end if
   end subroutine check_hyper
 
+  !> FIXME : Add documentation
   subroutine wnml_hyper(unit)
     implicit none
     integer, intent(in) :: unit          
@@ -240,6 +242,7 @@ contains
     write (unit, fmt="(' /')")
   end subroutine wnml_hyper
 
+  !> FIXME : Add documentation
   subroutine init_hyper
     use kt_grids, only: ntheta0, naky, akx, aky
     use gs2_time, only: code_dt
@@ -291,6 +294,7 @@ contains
 
   end subroutine init_hyper
 
+  !> FIXME : Add documentation
   subroutine read_parameters
     use file_utils, only: input_unit, error_unit, input_unit_exist
     use text_options, only: text_option, get_option_value
@@ -425,6 +429,7 @@ contains
 
   end subroutine read_parameters
 
+  !> FIXME : Add documentation  
   subroutine allocate_arrays
     use theta_grid, only: ntgrid
     use kt_grids, only: ntheta0, naky
@@ -440,14 +445,13 @@ contains
 
   end subroutine allocate_arrays
 
+  !> FIXME : Add documentation  
   subroutine hyper_diff (g0, phi)
-
     use gs2_layouts, only: ik_idx, it_idx, is_idx
     use theta_grid, only: ntgrid
     use gs2_time, only: code_dt
     use gs2_layouts, only: g_lo
     use kt_grids, only: aky, akx, naky, ntheta0
-
     implicit none
     complex, dimension (-ntgrid:,:,g_lo%llim_proc:), intent (in out) :: g0
     complex, dimension (-ntgrid:,:,:), intent (in) :: phi
@@ -483,6 +487,7 @@ contains
 
   contains
 
+    !> FIXME : Add documentation
     subroutine aniso_shear 
 
       real, dimension(naky) :: fac
@@ -547,6 +552,7 @@ contains
     
     end subroutine aniso_shear
 
+    !> FIXME : Add documentation    
     subroutine iso_shear
 
       real, dimension(naky) :: fac
@@ -582,6 +588,7 @@ contains
 
   end subroutine hyper_diff
 
+  !> FIXME : Add documentation  
   subroutine finish_hyper
 
     implicit none
