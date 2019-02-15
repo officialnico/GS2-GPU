@@ -7,7 +7,7 @@ module fields_local
   implicit none
   private
 
-  !> Module level routines
+  ! Module level routines
   public :: init_fields_local, init_allfields_local, finish_fields_local
   public :: advance_local, reset_fields_local, dump_response_to_file_local
   public :: fields_local_functional, read_response_from_file_local
@@ -15,13 +15,13 @@ module fields_local
   public :: field_local_tuneminnrow,  field_local_nonblocking_collectives
   public :: minNRow
 
-  !> Unit tests
+  ! Unit tests
   public :: fields_local_unit_test_init_fields_matrixlocal
 
-  !> User set parameters
+  ! User set parameters
   public :: dump_response, read_response
 
-  !> Made public for testing
+  ! Made public for testing
   public :: fieldmat
 
   !//////////////////////////////

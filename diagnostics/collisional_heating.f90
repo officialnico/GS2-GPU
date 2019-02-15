@@ -7,10 +7,10 @@ module collisional_heating
   public :: init_collisional, finish_collisional
   public :: write_collisional, calculate_collisional
   
-  complex, dimension (:,:,:), allocatable :: g0   !!!! g0 will be used in calculate_collisional,
-  complex, dimension (:,:,:,:), allocatable :: tot              !!!! they must be dummy arguments...
+  complex, dimension (:,:,:), allocatable :: g0   !< g0 will be used in calculate_collisional,
+  complex, dimension (:,:,:,:), allocatable :: tot              !< they must be dummy arguments...
   
-  complex, dimension(:,:), allocatable :: coll_heating, coll_heating_2 !!! we will use the hk variable in diagnostics_heating
+  complex, dimension(:,:), allocatable :: coll_heating, coll_heating_2 !< we will use the hk variable in diagnostics_heating
   logical :: initialized = .false.
   
 contains
@@ -85,8 +85,8 @@ contains
     implicit none
 
     type(diagnostics_type), intent(inout) :: gnostics
-    real, dimension(-ntgrid:ntgrid) :: wgt !! weights for theta integration
-    complex, dimension(ntheta0,naky) :: hyper_part, hyper_part_2, colls_part   !!! two parts of c_rate array: collisions and hypervisocity
+    real, dimension(-ntgrid:ntgrid) :: wgt !< weights for theta integration
+    complex, dimension(ntheta0,naky) :: hyper_part, hyper_part_2, colls_part   !< two parts of c_rate array: collisions and hypervisocity
     !complex, dimension(-ntgrid:ntgrid,ntheta0,naky) :: tot
     integer :: is, ik, it, ig, isgn, iglo
     complex :: dgdt_hypervisc, havg
@@ -102,10 +102,10 @@ contains
     g0=g
     weights=1.
   
-    call g_adjust(g0,phi,bpar,fphi,fbpar)   !!! transforms g into h (minus boltzmann response), anyway fbpar=0
+    call g_adjust(g0,phi,bpar,fphi,fbpar)   !< transforms g into h (minus boltzmann response), anyway fbpar=0
 
     !call vspace_derivatives(gnew,g,g0,phi, bpar, phinew, bparnew)  !!!!! assigns values to c_rate
-    call hyper_diff(g0,phi) !!!! assigns values to hypervisc_filter
+    call hyper_diff(g0,phi) !< assigns values to hypervisc_filter
        
     do is = 1, nspec
        do ik = 1, naky

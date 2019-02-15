@@ -184,7 +184,7 @@ contains
     
     !> FIXME : Add documentation
     subroutine load_kx_phi      
-      use dist_fn_arrays, only: aj0  !!!bessel function from the fourier coeff of average
+      use dist_fn_arrays, only: aj0  !< bessel function from the fourier coeff of average
       implicit none
       complex :: fac
 

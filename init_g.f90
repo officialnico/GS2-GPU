@@ -2383,7 +2383,7 @@ contains
     implicit none
     integer :: iglo, ik, it, is, i
     real :: fac
-    complex, dimension (-ntgrid:ntgrid,nakx,naky) :: phi, jpar !! local !!
+    complex, dimension (-ntgrid:ntgrid,nakx,naky) :: phi, jpar ! local !
     real, dimension (-ntgrid:ntgrid) :: dfac, ufac
 
     !! phi, jpar are local !!
@@ -3700,7 +3700,7 @@ contains
     
     ! Set all non-zonal components of phi to 0
     do it = 1, ntheta0
-       do ik = 2, naky ! Starting at 2 is the crucial bit!!
+       do ik = 2, naky ! Starting at 2 is the crucial bit!
           phinew(:,it,ik) = cmplx(0.0,0.0)
        end do
     end do

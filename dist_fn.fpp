@@ -5483,7 +5483,7 @@ contains
     if (use_pass_homog) then
        ilmin = 1
     else
-       ilmin = ng2 + 1              !!! ilmin = ng2 + 2
+       ilmin = ng2 + 1
     end if
 
 ! time advance vpar < 0 homogeneous part: g1
