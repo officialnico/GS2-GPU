@@ -233,13 +233,15 @@ how to actually work with this new workflow, and get changes into GS2:
       person who knows the section of code well and a second who
       doesn’t, to spread the knowledge around
 
-GS2 currently has two submodules, `utils` and `Makefiles`. These are
-separate repositories shared with the rest of the Gyrokinetics
-project. A git submodule can be thought of as a bit like a pointer to
-a particular commit in another repository. We store a specific version
-of `utils` and `Makefiles` in the gs2 repo. In order to bring a change
-to one of the submodules into gs2, it is necessary to update the
-particular version we store.
+## Making changes to the submodules
+
+GS2 currently has two submodules,
+`utils` and `Makefiles`. These are separate repositories shared with
+the rest of the Gyrokinetics project. A git submodule can be thought
+of as a bit like a pointer to a particular commit in another
+repository. We store a specific version of `utils` and `Makefiles` in
+the gs2 repo. In order to bring a change to one of the submodules into
+gs2, it is necessary to update the particular version we store.
 
 To update `utils`/`Makefiles`, you need to first make the change to
 the relevant main repo in a new branch, and then update the submodule
@@ -307,8 +309,7 @@ GS2 has three main ways of providing documentation currently
 
 1. The [wiki](bitbucket.org/gyrokinetics/gs2/wiki) -- this is a useful
 place for discussion and documentation of broad topics and can be
-updated without changes to the repository.  ## Making changes to the
-submodules
+updated without changes to the repository. 
 
 2. In code comments -- these are processed by
 [ford](https://github.com/cmacmackin/ford/) by running `make doc` from
