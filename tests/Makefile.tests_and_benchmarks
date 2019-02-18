@@ -1,3 +1,7 @@
+export
+SHELL = bash
+include tests/Makefile.test_utils
+
 ifdef NPROCS
 	NTESTPROCS=$(NPROCS)
 else
@@ -5,16 +9,13 @@ else
 endif
 
 ifdef TESTNORUN
-	#TESTCOMMAND=: 
 override TESTEXEC=:
-#else
 endif
 
-export NTESTPROCS
-export TESTEXEC
-export USE_MPI
+COVERAGE_DIR := coverage
 
-#export TESTCOMMAND
+$(COVERAGE_DIR):
+	$(QUIETSYM)$(MKDIR) $@
 
 #Set the level of testing, currently loosely defined as
 # 0 : Only most basic tests included
@@ -25,7 +26,6 @@ export USE_MPI
 ifndef TEST_LEVEL
        TEST_LEVEL:=1
 endif
-export TEST_LEVEL
 
 ifdef SIMPLEDATAIO_LIB_DIR_ABS
       SDATIO_LINK=-L$(SIMPLEDATAIO_LIB_DIR_ABS)
@@ -39,11 +39,10 @@ endif
 # which dependencies to build any more. EGH 04/03/2015
 # UPDATE: we now build and test the gs2 exec as well. EGH 14/03/15
 TEST_DEPS?=libgs2.a functional_tests.o benchmarks.o gs2
-TESTS_ENVIRONMENT=FC="$(FC)" F90FLAGS="${F90FLAGS}" CPP="$(CPP)"  LD="$(LD)" LDFLAGS="$(LDFLAGS) -L$(PWD) $(SDATIO_LINK)" LIBS=" -lgs2 $(SDATIO_LIB) $(LIBS)" CPPFLAGS="$(CPPFLAGS)" ONE_STEP_PP="$(ONE_STEP_PP)" USE_NEW_DIAG="$(USE_NEW_DIAG)" USE_NETCDF="$(USE_NETCDF)" USE_FFT="$(USE_FFT)"
-MAKETESTS = $(MAKE) $(TESTS_ENVIRONMENT)
-
-#export TESTCOMMAND
-export TESTEXEC
+#We need to pass in some extra libraries in some cases so currently have
+#to wrap calls to make to ensure these get passed in. Ideally LIBS would
+#already contain this information
+MAKETESTS=$(MAKE) "LIBS=$(SDATIO_LINK) $(SDATIO_LIB) $(LIBS)"
 
 ifndef NO_TEST_COLOURS
 COLOUR_COMMAND=| sed -e "s/passed/[32mpassed[39m/" \
@@ -70,47 +69,64 @@ define TEST_RESULTS
 endef
 
 define RUN_TESTS
-	@find $(TEST_DIR)/$(1) -name results_of_test.txt | xargs rm -f
-	@echo ${MAKETESTS}
-	@cd $(TEST_DIR)/$(1) && ${MAKETESTS} 
+	@find $(TEST_DIR)/$(1) -name results_of_test.txt -delete
+	@$(MAKETESTS) -C $(TEST_DIR)/$(1) --no-print-directory TEST_TYPE=$(2)
 endef
 
-clean_tests:
-	$(MAKE) clean -C $(TEST_DIR)/nonlinear_tests 
-	$(MAKE) clean -C $(TEST_DIR)/linear_tests 
-	$(MAKE) clean -C $(TEST_DIR)/unit_tests 
+
+.PHONY: tests unit_tests linear_tests nonlinear_tests benchmarks
+.PHONY: unit_tests_no_message linear_tests_no_message
+.PHONY: nonlinear_tests_no_message benchmarks_no_message
+.PHONY: clean_tests clean_unit_tests clean_linear_tests clean_nonlinear_tests clean_benchmarks
+.PHONY: upload_benchmarks tests_coverage test_script make_results_dir
+
+clean_unit_tests: TYPE=Unit
+clean_unit_tests:
+	$(QUIETSYM)$(MAKE) clean -C $(TEST_DIR)/$(call lowerCase,$(TYPE))_tests TEST_TYPE=$(TYPE) --no-print-directory
+
+clean_linear_tests: TYPE=Linear
+clean_linear_tests:
+	$(QUIETSYM)$(MAKE) clean -C $(TEST_DIR)/$(call lowerCase,$(TYPE))_tests TEST_TYPE=$(TYPE) --no-print-directory
+
+clean_nonlinear_tests: TYPE=Nonlinear
+clean_nonlinear_tests:
+	$(QUIETSYM)$(MAKE) clean -C $(TEST_DIR)/$(call lowerCase,$(TYPE))_tests TEST_TYPE=$(TYPE) --no-print-directory
+
+clean_tests: clean_unit_tests clean_linear_tests clean_nonlinear_tests
+	@echo -n ''
 
 clean_benchmarks:
-	$(MAKE) clean -C $(TEST_DIR)/benchmarks 
+	$(QUIETSYM)$(MAKE) clean -C $(TEST_DIR)/benchmarks TEST_TYPE=Benchmarks --no-print-directory
 
 unit_tests_no_message: unit_tests.o $(TEST_DEPS)
-	$(call RUN_TESTS,unit_tests)
+	$(call RUN_TESTS,unit_tests,unit)
 
 unit_tests: unit_tests_no_message
 	$(call TEST_PRINTOUT,$(call TEST_RESULTS,$@))
 
 linear_tests_no_message: functional_tests.o unit_tests.o $(TEST_DEPS)
-	$(call RUN_TESTS,linear_tests)
+	$(call RUN_TESTS,linear_tests,linear)
 
 linear_tests: linear_tests_no_message
 	$(call TEST_PRINTOUT,$(call TEST_RESULTS,$@))
 
 nonlinear_tests_no_message: functional_tests.o unit_tests.o $(TEST_DEPS)
-	$(call RUN_TESTS,nonlinear_tests)
+	$(call RUN_TESTS,nonlinear_tests,nonlinear)
 
 nonlinear_tests: nonlinear_tests_no_message
 	$(call TEST_PRINTOUT,$(call TEST_RESULTS,$@))
 
 make_results_dir:
-	@mkdir -p $(GK_HEAD_DIR)/test-results
+	@$(MKDIR) $(GK_HEAD_DIR)/test-results
 
 tests: make_results_dir unit_tests_no_message linear_tests_no_message nonlinear_tests_no_message
 	$(call TEST_PRINTOUT,$(call TEST_RESULTS,unit_tests)$(call TEST_RESULTS,linear_tests)$(call TEST_RESULTS,nonlinear_tests))
 
 ifeq ($(HAS_GCOV),on)
+tests_coverage: | $(COVERAGE_DIR)
 tests_coverage: tests
 	gcov $(shell find . -type f -name "*.f??") -p -o .
-	mkdir -p coverage
+	$(MKDIR) coverage
 	mv *.gcov coverage/.
 else
 tests_coverage:
@@ -118,7 +134,9 @@ tests_coverage:
 	@echo "To use gcov, set the environment variable USE_GCOV=on and ensure your compiler supports gcov."
 endif
 
-test_script: unit_tests_no_message linear_tests_no_message
+test_script: test_script.sh
+
+test_script.sh: unit_tests_no_message linear_tests_no_message
 	echo "" > test_script.sh
 	find $(PWD)/$(TEST_DIR)/unit_tests -executable | grep '$(TEST_DIR)/unit_tests/.*/' | sed -e 's/^\(.\+\)$$/\1 $(BLUEGENEARGS) \1.in \&\&/' | sed -e 's/^/$(TESTEXEC) /'  >> test_script.sh
 	find $(PWD)/$(TEST_DIR)/linear_tests -executable | grep '$(TEST_DIR)/linear_tests/.*/' | sed -e 's/^\(.\+\)$$/\1 \1.in \&\&/' | sed -e 's/^/$(TESTEXEC) /'  >> test_script.sh
@@ -126,7 +144,7 @@ test_script: unit_tests_no_message linear_tests_no_message
 	echo "echo \"Tests Successful\"" >> test_script.sh
 
 benchmarks_no_message: unit_tests.o $(TEST_DEPS)
-	$(call RUN_TESTS,benchmarks)
+	$(call RUN_TESTS,benchmarks,benchmark)
 
 benchmarks: benchmarks_no_message
 	$(call TEST_PRINTOUT,$(call TEST_RESULTS,$@))
