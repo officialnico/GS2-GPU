@@ -17,5 +17,6 @@ endif
 wstar_units.o:  ${TEST_MODS} 
 
 wstar_units: wstar_units.o $(TEST_MODS)
-	$(LD) $(LDFLAGS) -o $@ $^ $(LIBS)
+	$(call messageOp,"Linking ","\\t:",$^,"\\n\\t\-\-\-\-\-\-\>",$@)
+	$(QUIETSYM)$(LD) $(LDFLAGS) -o $@ $^ $(LIBS)
 

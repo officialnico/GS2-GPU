@@ -32,10 +32,9 @@ all:
 	$(call SKIPCOMMAND,compiled without new diagnostics; compile with USE_NEW_DIAG=on to run this test)
 endif
 
-#$(info "TEST_MODS=$(TEST_MODS)")
-
 test_gs2_diagnostics_new.o:  ${TEST_MODS} 
 
 test_gs2_diagnostics_new: test_gs2_diagnostics_new.o $(TEST_MODS)
-	$(LD) $(LDFLAGS) -o $@ $^ $(LIBS)
+	$(call messageOp,"Linking ","\\t:",$^,"\\n\\t\-\-\-\-\-\-\>",$@)
+	$(QUIETSYM)$(LD) $(LDFLAGS) -o $@ $^ $(LIBS)
 
