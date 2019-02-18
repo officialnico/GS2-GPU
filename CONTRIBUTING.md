@@ -231,7 +231,7 @@ how to actually work with this new workflow, and get changes into GS2:
       branch (another good reason to write commit messages carefully!)
     - Optionally: request a reviewer(s). You may like to consider one
       person who knows the section of code well and a second who
-      doesn’t, to spread the knowledge around
+      doesn't, to spread the knowledge around
 
 ## Making changes to the submodules
 
@@ -312,8 +312,8 @@ place for discussion and documentation of broad topics and can be
 updated without changes to the repository. 
 
 2. In markdown files as a part of the
-[ford](https://github.com/cmacmackin/ford/) documentation. Places
-these additional files in `docs/pages` and they will be added to
+[ford](https://github.com/cmacmackin/ford/) documentation. Place
+these additional files in `docs/pages` and they will be added to the
 generated html (under "Notes"). This is probably best used for more
 conceptual/discussive documentation.
 
