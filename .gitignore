@@ -48,6 +48,7 @@ constants.f90
 diagnostics_fluxes.f90
 dist_fn.f90
 dist_fn_arrays.f90
+dump_grids.f90
 eigval.f90
 file_utils.f90
 functional_tests.f90
@@ -56,8 +57,11 @@ genquad.f90
 geq.f90
 gs2.f90
 gs2_diagnostics.f90
+gs2_io.f90
 gs2_layouts.f90
 gs2_main.f90
+gs2_save.f90
+gs2_transforms.f90
 ingen.f90
 ingen_mod.f90
 job_manage.f90

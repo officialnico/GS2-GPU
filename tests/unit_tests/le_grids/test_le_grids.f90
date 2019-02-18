@@ -9,25 +9,19 @@ program test_le_grids
   use unit_tests
   use le_grids
   use egrid
-  !use general_f0, only: init_general_f0
   use mp, only: init_mp, finish_mp, proc0
   use file_utils, only: init_file_utils
-  use species, only: init_species, nspec, spec
+  use species, only: init_species, nspec
   use constants, only: pi
-  !use fields, only: init_fields
-  !use fields_arrays, only: phi
-  !use dist_fn, only: init_dist_fn
-  !use dist_fn_arrays, only: g
   use kt_grids, only: naky, ntheta0, init_kt_grids
   use theta_grid, only: ntgrid, init_theta_grid
   use gs2_layouts, only: init_gs2_layouts, g_lo, ie_idx
+
   implicit none
   real :: eps
   logical :: dummy
   integer, dimension(:), allocatable :: sizes
   real, dimension(:,:,:), allocatable :: energy_results
-  real :: energy_min
-  real :: vcut_local
 
   complex, dimension (:,:,:), allocatable :: integrate_species_results
   complex, dimension (:,:,:), allocatable :: g

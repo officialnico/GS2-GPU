@@ -23,5 +23,6 @@ endif
 test_nonlinear_terms.o:  ${TEST_MODS} 
 
 test_nonlinear_terms: test_nonlinear_terms.o $(TEST_MODS)
-	$(LD) $(LDFLAGS) -o $@ $^ $(LIBS)
+	$(call messageOp,"Linking ","\\t:",$^,"\\n\\t\-\-\-\-\-\-\>",$@)
+	$(QUIETSYM)$(LD) $(LDFLAGS) -o $@ $^ $(LIBS)
 

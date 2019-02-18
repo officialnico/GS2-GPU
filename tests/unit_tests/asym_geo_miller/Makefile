@@ -21,5 +21,6 @@ ogyropsi.dat EQDSK:
 test_asym_geo_miller.o:  ${TEST_MODS} 
 
 test_asym_geo_miller: test_asym_geo_miller.o $(TEST_MODS)
-	$(LD) $(LDFLAGS) -o $@ $^ $(LIBS)
+	$(call messageOp,"Linking ","\\t:",$^,"\\n\\t\-\-\-\-\-\-\>",$@)
+	$(QUIETSYM)$(LD) $(LDFLAGS) -o $@ $^ $(LIBS)
 

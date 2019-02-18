@@ -252,7 +252,6 @@ module fields_gf_local
   !//////////////////////////////
   !// MODULE VARIABLES
   !//////////////////////////////
-  integer :: lun=6 !File unit for printing
   integer :: dlun=6 !File unit for debug printing
   !Tuning this can improve advance/init time (usually one at the expense of other)
   logical,parameter :: debug=.false. !Do we do debug stuff?
@@ -2494,10 +2493,10 @@ contains
     !AJ I THINK it should be possible to do this in a single array.
     complex, dimension(-ntgrid:,:,:), intent(inout) :: ph,ap,bp,gf_ph,gf_ap,gf_bp
     complex, dimension(-ntgrid:,:,:), intent(inout) :: phnew,apnew,bpnew,gf_phnew,gf_apnew,gf_bpnew
-    integer :: is, ic, iex, ig, bnd
+    integer :: is, ic
     integer :: ik, it, ikit, sendreqnum, recvreqnum, sender, receiver, tag
     integer, dimension (:), allocatable :: recv_handles, send_handles
-    integer :: tempfield, head, sub, local_iproc
+    integer :: tempfield, local_iproc
     complex, dimension(:,:,:,:), allocatable :: tempdata
 
     allocate(tempdata(-ntgrid:ntgrid,nfield,ntheta0,naky))
@@ -3550,13 +3549,13 @@ contains
 
   subroutine fm_getfieldeq1_nogath (self,phi, apar, bpar, antot, antota, antotp, &
        fieldeq, fieldeqa, fieldeqp)
-    use gs2_layouts, only: gf_lo,  ik_idx, it_idx
-    use theta_grid, only: ntgrid, bmag, delthet, jacob
-    use kt_grids, only: naky, ntheta0, aky, kperp2, kwork_filter
+    use gs2_layouts, only: ik_idx, it_idx
+    use theta_grid, only: ntgrid, bmag
+    use kt_grids, only: naky, ntheta0, kperp2, kwork_filter
     use run_parameters, only: fphi, fapar, fbpar
     use run_parameters, only: beta, tite
     use species, only: spec, has_electron_species
-    use dist_fn, only: gamtot,gamtot1, gamtot2, gamtot3, fl_avg, gridfac1, apfac, awgt
+    use dist_fn, only: gamtot, gamtot1, gamtot2, fl_avg, gridfac1, apfac
     use dist_fn, only: adiabatic_option_switch, adiabatic_option_fieldlineavg, calculate_flux_surface_average
     implicit none
     class(fieldmat_type), intent(in) :: self
@@ -3564,7 +3563,7 @@ contains
     complex, dimension (-ntgrid:,:,:), intent (in) :: antot, antota, antotp
     complex, dimension (-ntgrid:,:,:), intent (out) ::fieldeq,fieldeqa,fieldeqp
 
-    integer :: igf, ik, it, is, ic
+    integer :: ik, it, is, ic
 
     if (.not. allocated(fl_avg)) allocate (fl_avg(ntheta0, naky))
     if (.not. has_electron_species(spec)) fl_avg = 0.
@@ -3893,7 +3892,7 @@ contains
 
   !>Routine use to initialise field matrix data
   subroutine init_fields_matrixlocal
-    use mp, only: proc0, barrier, iproc
+    use mp, only: proc0, barrier
     implicit none
     real :: ts,te
 
@@ -4144,7 +4143,6 @@ contains
     use dist_fn, only: collisions_advance
     use dist_fn_arrays, only: g, gnew
     use antenna, only: antenna_amplitudes, no_driver
-    use mp, only: iproc
     implicit none
     integer, intent(in) :: istep
     logical, intent(in) :: remove_zonal_flows_switch

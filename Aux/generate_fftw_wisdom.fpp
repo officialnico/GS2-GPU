@@ -23,7 +23,6 @@ program generate_fftw_wisdom
   use constants, only: run_name_size
   implicit none
   character(run_name_size), target :: cbuff
-  real :: tstart
   logical :: dummy=.false.
   real :: time_taken(2) = 0.0
   !integer :: i

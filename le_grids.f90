@@ -33,7 +33,7 @@ contains
   subroutine setvgrid (vcut_in, negrid, epts, wgts, nesub_in)
     use constants, only: pi => dpi
     use gauss_quad, only: get_legendre_grids_from_cheb, get_laguerre_grids
-    use species, only: nspec, spec, f0_sdanalytic, f0_maxwellian, calculate_f0_arrays, f0_values, nonmaxw_corr, dlnf0drho
+    use species, only: nspec, spec, f0_sdanalytic, f0_maxwellian, calculate_f0_arrays, f0_values
     use mp, only: proc0
 
     implicit none
@@ -104,7 +104,7 @@ contains
     use genquad, only: get_quadrature_rule
     use constants, only: pi => dpi
     use gauss_quad, only: get_legendre_grids_from_cheb, get_laguerre_grids
-    use species, only: nspec, spec, calculate_f0_arrays, f0_values, eval_f0, set_current_f0_species, f0_maxwellian
+    use species, only: nspec, spec, calculate_f0_arrays, eval_f0, set_current_f0_species, f0_maxwellian
 
     implicit none
     
@@ -112,8 +112,7 @@ contains
     integer, intent (in) :: nesub
     real, dimension(:,:), intent (out) :: epts
     real, dimension(:,:), intent (out) :: wgts
-    integer :: is,ie,js
-    logical :: infdomain = .false.
+    integer :: is
 
     call init_egrid (negrid)
 
@@ -235,8 +234,6 @@ module le_grids
   integer, dimension (2) :: sgn
 
   integer :: wdim
-  integer :: lint_lo, lint_hi, eint_lo, eint_hi
-  integer :: geint2g_lo, geint2g_hi
   complex, dimension (:,:), allocatable :: integration_work
   ! (-ntgrid:ntgrid, -*- processor-dependent -*-)
   logical :: exist
@@ -412,9 +409,7 @@ contains
   end function le_grids_unit_test_init_le_grids
 
   subroutine broadcast_input
-    use mp, only: proc0, broadcast
-    use egrid, only: zeroes, x0, init_egrid
-    use theta_grid, only: ntgrid
+    use mp, only: broadcast
     implicit none
     integer :: tsize
 
@@ -443,15 +438,13 @@ contains
  subroutine broadcast_results
     use mp, only: proc0, broadcast
     use species, only: nspec
-    use egrid, only: zeroes, x0, init_egrid, zeroes_maxw, x0_maxw
+    use egrid, only: init_egrid, zeroes_maxw, x0_maxw
     use theta_grid, only: ntgrid
 
     implicit none
-    integer :: ig, il, is, ie, ipt, isgn, tsize
+    integer :: tsize
 
     tsize = 2*nterp-1
-
-
 
     call broadcast (lmax)
     call broadcast (ng2)
@@ -573,7 +566,7 @@ contains
 
     real, dimension (:), allocatable :: modzeroes, werrtmp  ! (negrid-2)
     real, dimension (:), allocatable :: lmodzeroes, wlerrtmp ! (ng2-1)
-    integer :: ipt, ndiv, divmax, ie,is
+    integer :: ipt, ndiv, divmax, is
     logical :: eflag = .false.
 
     if (init_weights_init) return
@@ -786,7 +779,7 @@ contains
     use gs2_layouts, only: g_lo
     use gs2_layouts, only: is_idx, ik_idx, it_idx, ie_idx, il_idx
     use kt_grids, only: kwork_filter
-    use mp, only: sum_allreduce, iproc
+    use mp, only: sum_allreduce
     use species, only: tracer_species, spec
 
     implicit none
@@ -2102,12 +2095,12 @@ contains
   subroutine set_grids
     use species, only: init_species
     use egrid, only: setvgrid, x0, x0_maxw, zeroes, zeroes_maxw
-    use species, only: nspec, spec, ion_species, electron_species, f0_maxwellian
+    use species, only: nspec, spec, f0_maxwellian
     use theta_grid, only: init_theta_grid, ntgrid, nbset, bset, eps
     implicit none
 
     integer :: tsize,is
-    logical :: has_maxwellian_species, is_maxwellian
+    logical :: has_maxwellian_species
 
     call init_theta_grid
     call init_species
@@ -2841,8 +2834,6 @@ contains
   elemental function hermite_prob (n, x)
 
     ! returns probabilist's Hermite polynomials, He_n(x)
-
-    use constants, only: pi
 
     implicit none
     integer, intent (in) :: n
@@ -4409,8 +4400,8 @@ contains
     use gs2_layouts, only: g_lo, ik_idx, it_idx, is_idx
     use gs2_layouts, only: ie_idx, il_idx, idx_local, proc_id
     use theta_grid, only: ntgrid, bmag, theta
-	use kt_grids, only: aky, akx ! MRH added to index with ky, kx
-	
+    use kt_grids, only: aky, akx ! MRH added to index with ky, kx
+
     implicit none
 
     complex, dimension (-ntgrid:,:,g_lo%llim_proc:), intent (in) :: dist

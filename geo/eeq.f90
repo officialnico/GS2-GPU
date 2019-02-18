@@ -113,7 +113,7 @@ module eeq
   public :: psi,      initialize_psi
   public :: verbosity  !Should this be replaced by usage of runtime_test:verbosity?
 
-  integer :: nw, nh, nbbbs, ntime, ntstar
+  integer :: nw, nh, nbbbs
 
   integer :: verbosity = 0  !Should this be replaced by usage of runtime_test:verbosity?
 
@@ -1098,7 +1098,8 @@ if (debug) write(6,*) "gs2din: B_T0, aminor, psi_0, psi_a=", B_T0, aminor, psi_0
     real, intent(in) :: Z_mag
     real, intent(out) :: a
     real :: r1, r2
-    integer, parameter :: nz = 5
+    integer, parameter :: nz = 5, half_nz = nz/2
+    integer :: index
     real, dimension(nz) :: rtmp, ztmp
     integer i, j, i1, n
     type (spline) :: spl
@@ -1120,20 +1121,20 @@ if (debug) write(6,*) "gs2din: B_T0, aminor, psi_0, psi_a=", B_T0, aminor, psi_0
     endif
 
     j = 0
-    do i = nz/2+1,1,-1
+    do i = half_nz+1,1,-1
        j = j + 1
        ztmp(j) = z(i)
        rtmp(j) = r(i)
     enddo
 
     if(r(1) == r(n) .and. z(1) == z(n)) then
-       do i = n-1, n-nz/2, -1
+       do i = n-1, n-half_nz, -1
           j = j + 1
           ztmp(j) = z(i)
           rtmp(j) = r(i)
        enddo
     else
-       do i = n, n-nz/2+1, -1
+       do i = n, n-half_nz+1, -1
           j = j + 1
           ztmp(j) = z(i)
           rtmp(j) = r(i)
@@ -1160,14 +1161,15 @@ if (debug) write(6,*) "gs2din: B_T0, aminor, psi_0, psi_a=", B_T0, aminor, psi_0
 !CMR, 28/10/08: modify this code to avoid duplicate points in 5 point spline 
 !               to determine r2 on inboard mid-plane
     do i = 1, nz
-       rtmp(i) = r(i1 - nz/2 + i - 1 + k )
-       ztmp(i) = z(i1 - nz/2 + i - 1 + k )
+       index = i1 - half_nz + i - 1 + k
+       rtmp(i) = r(index)
+       ztmp(i) = z(index)
        if ( i.gt.1 ) then
           if ((rtmp(i)-rtmp(i-1))**2+(ztmp(i)-ztmp(i-1))**2 .lt. 1.0e-7) then
              k=k+1
              if (debug) write(6,fmt='("a_minor: duplicate pt, set k=",i2)') k
-             rtmp(i) = r(i1 - nz/2 + i - 1 + k)
-             ztmp(i) = z(i1 - nz/2 + i - 1 + k)
+             rtmp(i) = r(index)
+             ztmp(i) = z(index)
           endif
        endif
     enddo

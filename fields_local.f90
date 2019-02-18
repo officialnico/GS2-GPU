@@ -275,7 +275,6 @@ module fields_local
   !//////////////////////////////
   !// MODULE VARIABLES
   !//////////////////////////////
-  integer :: lun=6 !File unit for printing
   integer :: dlun=6 !File unit for debug printing
   !Tuning this can improve advance/init time (usually one at the expense of other)
   logical :: do_smart_update=.false. !If true and x/y distributed then use a "smart" update which only updates
@@ -293,8 +292,6 @@ module fields_local
   integer :: minNRow = 16 !Tuning this can influence both init and advance times
   type(pc_type),save :: pc !This is the parallel control object
   type(fieldmat_type),save :: fieldmat !This is the top level field matrix object
-
-  real, dimension(:), allocatable :: start_times, end_times, best_times
 
 contains
 
@@ -1656,7 +1653,6 @@ contains
     use mp, only: nproc, max_reduce, min_reduce, sum_reduce, broadcast, proc0
     use fields_arrays, only: phinew, aparnew, bparnew
     use gs2_layouts, only: g_lo
-    use kt_grids, only: naky
     implicit none
     integer :: i
     integer :: current_best_size
@@ -1954,7 +1950,6 @@ contains
     use fields_arrays, only: phi, apar, bpar, phinew, aparnew, bparnew
     use dist_fn_arrays, only: g
     use kt_grids, only: kwork_filter
-    use mp, only: iproc
     implicit none
     class(fieldmat_type), intent(inout) :: self
     integer :: ifl, pts_remain, ik, is
@@ -2062,7 +2057,6 @@ contains
     use theta_grid, only: ntgrid
     use dist_fn, only: getfieldeq, getfieldeq_nogath, timeadv
     use fields_arrays, only: phi, apar, bpar, phinew, aparnew, bparnew
-    use mp, only: iproc
     implicit none
     class(fieldmat_type), intent(inout) :: self
     complex, dimension(-ntgrid:ntgrid,ntheta0,naky), intent(inout) :: field
@@ -2244,7 +2238,6 @@ contains
     use kt_grids, only: ntheta0, naky
     use theta_grid, only: ntgrid
     use dist_fn, only: getfieldeq, getfieldeq_nogath
-    use mp, only: iproc
     implicit none
     class(fieldmat_type), intent(inout) :: self
     complex, dimension(:,:,:), intent(inout) :: phi,apar,bpar
@@ -3031,7 +3024,7 @@ contains
     use theta_grid, only: ntgrid
     use run_parameters, only: fphi, fapar, fbpar
     use gs2_layouts, only: gf_lo, proc_id, idx, ik_idx, it_idx
-    use kt_grids, only: naky, ntheta0, kwork_filter
+    use kt_grids, only: kwork_filter
     use job_manage, only: time_message
     implicit none
     class(fieldmat_type), intent(in) :: self
@@ -3297,12 +3290,12 @@ contains
 
   subroutine fm_getfieldeq1_nogath (self,phi, apar, bpar, antot, antota, antotp, &
        fieldeq, fieldeqa, fieldeqp)
-    use theta_grid, only: ntgrid, bmag, delthet, jacob
-    use kt_grids, only: naky, ntheta0, aky, kperp2, kwork_filter
+    use theta_grid, only: ntgrid, bmag
+    use kt_grids, only: naky, ntheta0, kperp2, kwork_filter
     use run_parameters, only: fphi, fapar, fbpar
     use run_parameters, only: beta, tite
     use species, only: spec, has_electron_species
-    use dist_fn, only: gamtot,gamtot1, gamtot2, gamtot3, fl_avg, gridfac1, apfac, awgt
+    use dist_fn, only: gamtot,gamtot1, gamtot2, fl_avg, gridfac1, apfac
     use dist_fn, only: adiabatic_option_switch, adiabatic_option_fieldlineavg, calculate_flux_surface_average
     implicit none
     class(fieldmat_type), intent(in) :: self
@@ -3802,7 +3795,7 @@ contains
   subroutine init_fields_local
     use antenna, only: init_antenna
     use theta_grid, only: init_theta_grid
-    use kt_grids, only: init_kt_grids,naky
+    use kt_grids, only: init_kt_grids
     use gs2_layouts, only: init_gs2_layouts, g_lo
     use mp, only: proc0, mp_abort
     use file_utils, only: error_unit
@@ -3856,7 +3849,7 @@ contains
 
   !>Routine use to initialise field matrix data
   subroutine init_fields_matrixlocal(tuning_in)
-    use mp, only: proc0, mp_abort, iproc !, barrier
+    use mp, only: proc0, mp_abort
     implicit none
     logical, optional :: tuning_in
     logical :: tuning
@@ -4109,7 +4102,6 @@ contains
   !>Initialise the fields from the initial g, just uses the
   !fields_implicit routine
   subroutine init_allfields_local
-    use mp, only: proc0
     use fields_implicit, only: init_allfields_implicit
     implicit none
     !EGH Note that this will fail if someone has set

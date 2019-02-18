@@ -6,21 +6,17 @@
 !! This is free software released under the MIT license
 !!   Written by: Edmund Highcock (edmundhighcock@sourceforge.net)
 program test_fields_local
+
   use unit_tests
   use fields_local, only: fields_local_unit_test_init_fields_matrixlocal, advance_local, fields_local_functional, minnrow, do_smart_update
   use fields_implicit, only: fields_implicit_unit_test_init_fields_implicit, advance_implicit
 
   use fields, only: fields_pre_init
   use egrid
-  !use general_f0, only: init_general_f0
-  use mp, only: init_mp, finish_mp, proc0, broadcast, mp_comm
+  use mp, only: init_mp, finish_mp, broadcast, mp_comm
   use file_utils, only: init_file_utils
-  use species, only: init_species, nspec, spec
-  use constants, only: pi
-  !use fields, only: init_fields
-  !use fields_arrays, only: phi
+  use species, only: init_species, nspec
   use dist_fn, only: init_dist_fn
-  !use dist_fn_arrays, only: g
   use kt_grids, only: naky, ntheta0, init_kt_grids
   use theta_grid, only: ntgrid, init_theta_grid
   use gs2_layouts, only: init_gs2_layouts, g_lo, ie_idx
@@ -28,7 +24,6 @@ program test_fields_local
   use gs2_init, only: init, init_level_list
   implicit none
   real :: eps
-  logical :: dummy
   type(gs2_program_state_type) :: gs2_state
 
 
@@ -96,7 +91,6 @@ contains
     character(len=29) :: message
     real, intent(in) :: eps
     logical :: test_advance
-    logical :: check_result
     logical :: restarted
     integer :: istep, ik, it
 

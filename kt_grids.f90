@@ -127,8 +127,6 @@ module kt_grids_range
   !reuse these flags (rename to spacingopt_...).
   integer, parameter :: kyspacingopt_linear=1, kyspacingopt_exp=2 
 
-  real :: n0_tmp
-
   namelist /kt_grids_range_parameters/ naky, ntheta0, nn0, n0_min, n0_max, &
        aky_min, aky_max, theta0_min, theta0_max, akx_min, akx_max, rhostar_range,&
        kyspacing_option
@@ -178,6 +176,10 @@ contains
     use file_utils, only: error_unit
     implicit none
     integer :: ierr
+    !! Temporary value of n0 as floating point
+    real :: n0_tmp
+    !! Temporary variable for swapping n0_{min,max}
+    integer :: n0_swap
     
     call init_parameters_range
 
@@ -228,9 +230,9 @@ contains
        !If n0_min>n0_max swap values
        if(n0_min.gt.n0_max) then
           write(ierr,'("Warning: Swapping max and min n0 values")')
-          n0_tmp = n0_min
+          n0_swap = n0_min
           n0_min = n0_max
-          n0_max = n0_tmp
+          n0_max = n0_swap
        endif
 
        !If n0_min == n0_max ensure nn0=1
@@ -546,7 +548,7 @@ contains
 
   subroutine init_parameters_box
     use file_utils, only: input_unit, input_unit_exist
-    use theta_grid, only: init_theta_grid, shat, drhodpsi
+    use theta_grid, only: init_theta_grid, shat
     use constants, only: pi
     integer :: in_file
     logical :: exist
