@@ -762,7 +762,8 @@ ifeq ($(HAS_GCOV),on)
 endif
 
 clean_depend:
-	-rm -f $(DEPEND)
+	$(call messageRm,"Dependency file")	
+	-$(QUIETSYM)rm -f $(DEPEND)
 
 distclean: unlink clean cleanlib clean_tests clean_benchmarks distclean_simpledataio cleanconfig clean_doxygendoc cleandoc clean_coverage clean_depend
 
