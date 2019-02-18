@@ -231,7 +231,7 @@ how to actually work with this new workflow, and get changes into GS2:
       branch (another good reason to write commit messages carefully!)
     - Optionally: request a reviewer(s). You may like to consider one
       person who knows the section of code well and a second who
-      doesnâ€™t, to spread the knowledge around
+      doesn’t, to spread the knowledge around
 
 ## Making changes to the submodules
 
@@ -311,7 +311,13 @@ GS2 has three main ways of providing documentation currently
 place for discussion and documentation of broad topics and can be
 updated without changes to the repository. 
 
-2. In code comments -- these are processed by
+2. In markdown files as a part of the
+[ford](https://github.com/cmacmackin/ford/) documentation. Places
+these additional files in `docs/pages` and they will be added to
+generated html (under "Notes"). This is probably best used for more
+conceptual/discussive documentation.
+
+3. In code comments -- these are processed by
 [ford](https://github.com/cmacmackin/ford/) by running `make doc` from
 the cloned GS2 repository. This generates a html site that can be
 accessed by opening `docs/html/index.html` in your preferred
@@ -320,16 +326,12 @@ structures. In particular adding `!>` _before_ something you want to
 document or `!<` _after_ something you want to document will be
 recognised as a valid documentation comment. The `!!` and `!#` comment
 structures can be used to represent the start and end of large
-documentation comment blocks. Please avoid using these inline with
-code (e.g. `integer :: i !! Comment` will cause problems, `integer ::
-i !< This is an integer` is the correct way to document this on the
-same line as the code).
-
-3. In markdown files as a part of the
-[ford](https://github.com/cmacmackin/ford/) documentation. Places
-these additional files in `docs/pages` and they will be added to
-generated html (under "Notes"). This is probably best used for more
-conceptual/discussive documentation.
+documentation comment blocks. Note: please avoid using these inline with
+code e.g. of the two lines below the first is allowed but the second is not.
+```fortran    
+      integer :: i !< This comment is ok and describes this an integer
+      integer :: i !! This comment will cause documentation problems.
+```
 
 ## Moving uncommitted changes from an subversion checkout to git
 
