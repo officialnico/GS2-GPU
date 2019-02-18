@@ -312,6 +312,9 @@ contains
 ! for the duplicate vpar=0 point which must be included
 ! For velocity integration to give the correct value      
        split_collisions=.false.
+       !use_le_layout default set at module level
+       !Note: If we want to move default here then we need to note
+       !      that if LOWFLOW then we want default to be .true.
        in_file = input_unit_exist ("collisions_knobs", exist)
 !       if (exist) read (unit=input_unit("collisions_knobs"), nml=collisions_knobs)
        if (exist) read (unit=in_file, nml=collisions_knobs)
