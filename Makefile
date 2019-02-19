@@ -279,7 +279,6 @@ BITBUCKET_ISSUE_URL = https://bitbucket.org/gyrokinetics/gs2/issues/new
 Makefile.$(GK_SYSTEM): |$(MAKEFILES_SENTINEL)
 
 Makefile.$(GK_SYSTEM): $(MAKEFILES_SENTINEL)
-# MakefileSystemMissing:
 	$(error Could not find Makefile.$(GK_SYSTEM)$(newline_)\
 	*** Looking in: $(PWD) $(.INCLUDE_DIRS)$(newline_)\
 	***     Note: the above does not include non-existent directories!$(newline_)\
@@ -565,6 +564,7 @@ VPATH = .:$(shell echo $(VPATH_tmp) | sed "s/ /:/g")
 ifdef SUBDIR
 	VPATH +=:..
 endif
+
 DEPEND=Makefile.depend
 DEPEND_CMD=$(PERL) scripts/fortdep
 
@@ -701,7 +701,9 @@ endif
 all: $(.DEFAULT_GOAL)
 
 #TODO : Add a rule to automatically build the depend file when appropriate.
+ifneq ("$(MAKECMDGOALS)", "distclean")
 include $(DEPEND)
+endif
 
 #If we're using fft(w) then we want to link the fft_save_wisdom object file
 #this currently has to be handled specially as it comes from a c source file
