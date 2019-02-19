@@ -594,7 +594,7 @@ endif
 
 ####################################################################### RULES
 
-.SUFFIXES: .fpp .f90 .c .o .F90 .rb
+.SUFFIXES:
 
 .PHONY: all $(GK_PROJECT)_all submodules
 .PHONY: depend tar tar_exec test_make diagnostics simpledataio
@@ -614,20 +614,20 @@ endif
 # file in utils
 mp.o: | $(UTILS_SENTINEL)
 
-.rb.f90:
+%.f90: %.rb
 	$(call messageOp,"Generating from ruby","\\t:",$<)
 	$(QUIETSYM)$(call RUBY_GENERATE,$@,$<)
 
-.f90.o:
+%.o: %.f90
 	$(call messageOp,"Compiling","\\t:",$<)
 	$(QUIETSYM)$(FC) $(F90FLAGS) $(F90FLAGS_SFXJUNK) -c $<
 
 # The depend command needs the preprocessed source files. 
 # This is a little clunky, and maybe could be fixed in the future.
-.fpp.f90:
+%.f90: %.fpp
 	$(call messageOp,"Preprocessing","\\t:",$<)
 	$(QUIETSYM)$(CPP) $(CPPFLAGS) $(MACRO_DEFS) $< $@
-.F90.f90:
+%.f90: %.F90
 	$(call messageOp,"Preprocessing","\\t:",$<)
 	$(QUIETSYM)$(CPP) $(CPPFLAGS) $(MACRO_DEFS) $< $@
 
@@ -639,10 +639,10 @@ mp.o: | $(UTILS_SENTINEL)
 # On some systems (e.g. Mac OS X) using cpp doesn't work at all
 # and you HAVE to preprocess and compile in one step.
 ifdef ONE_STEP_PP
-.fpp.o:
+%.o: %.fpp
 	$(call messageOp,"Compiling and preprocessing","\\t:",$<)
 	$(QUIETSYM)$(FC) $(MACRO_DEFS) $(F90FLAGS) $(F90FLAGS_SFXJUNK) -c $<
-.F90.o:
+%.o: %.F90
 	$(call messageOp,"Compiling and preprocessing","\\t:",$<)
 	$(QUIETSYM)$(FC) $(MACRO_DEFS) $(F90FLAGS) $(F90FLAGS_SFXJUNK) -c $<
 
@@ -666,7 +666,7 @@ fft_work.o: fft_work.f90
 	$(QUIETSYM)$(FC) $(F90FLAGS) $(F90FLAGS_SFX0) -c $<
 endif
 
-.c.o:
+%.o: %.c
 	$(call messageOp,"Compiling C","\\t:",$<)
 	$(QUIETSYM)$(CC) $(CFLAGS) $(subst -traditional,,$(subst -C,,$(subst -P,,$(CPPFLAGS)))) -c $<
 
