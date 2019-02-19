@@ -239,10 +239,11 @@ include Makefile.$(GK_SYSTEM)
 # This is in case the directories exist but the submodules haven't
 # actually been initialised
 MAKEFILES_SENTINEL = Makefiles/Makefile.bitbucket
-UTILS_SENTINEL = utils/Makefile
+UTILS_SENTINEL = utils/mp.fpp
 
-# Make sure the submodules exist; they all share the same recipe
-$(MAKEFILES_SENTINEL) $(UTILS_SENTINEL) submodules:
+
+# Make sure the submodules exist; they all currently share the same recipe
+$(UTILS_SENTINEL) $(MAKEFILES_SENTINEL)  submodules:
 	@echo "Downloading submodules"
 	git submodule update --init --recursive
 # If we're running this recipe as a prerequisite, we need to rerun the
@@ -251,6 +252,7 @@ $(MAKEFILES_SENTINEL) $(UTILS_SENTINEL) submodules:
 # loop! The actual submodules are directories so Make can see if they
 # exist and therefore should skip the entire recipe
 ifneq ($(MAKECMDGOALS),submodules)
+	@$(MAKE) depend
 	@$(MAKE) $(MAKECMDGOALS)
 	@exit
 endif
@@ -269,7 +271,11 @@ BITBUCKET_ISSUE_URL = https://bitbucket.org/gyrokinetics/gs2/issues/new
 # i.e. doesn't check the timestamp. If we actually try to run the
 # recipe that means something has gone wrong -- normally GK_SYSTEM is
 # wrong
-Makefile.$(GK_SYSTEM): | $(MAKEFILES_SENTINEL)
+# 
+Makefile.$(GK_SYSTEM): |$(MAKEFILES_SENTINEL)
+
+Makefile.$(GK_SYSTEM): $(MAKEFILES_SENTINEL)
+# MakefileSystemMissing:
 	$(error Could not find Makefile.$(GK_SYSTEM)$(newline_)\
 	*** Looking in: $(PWD) $(.INCLUDE_DIRS)$(newline_)\
 	***     Note: the above does not include non-existent directories!$(newline_)\
@@ -304,11 +310,11 @@ ifndef ONE_STEP_PP
 CPPFLAGS	+= -P -traditional
 endif
 
-ifeq ($(MAKECMDGOALS),depend)
-# must invoke full functionality when make depend
-	MAKE += USE_HDF5=on USE_FFT=fftw USE_NETCDF=on USE_MPI=mpi3 \
-		USE_LOCAL_SPFUNC=on USE_LOCAL_RAN=mt
-endif
+# ifeq ($(MAKECMDGOALS),depend)
+# # must invoke full functionality when make depend
+# 	MAKE += USE_HDF5=on USE_FFT=fftw USE_NETCDF=on USE_MPI=mpi3 \
+# 		USE_LOCAL_SPFUNC=on USE_LOCAL_RAN=mt
+# endif
 
 GIT_HASH=$(shell git rev-parse HEAD)
 MACRO_DEFS+=-DGIT_HASH='"$(GIT_HASH)"'
@@ -661,18 +667,8 @@ endif
 # This is from a implicit makefile rule that we're overriding
 %.o : %.mod
 
-$(DEPEND):
-	touch $(DEPEND)
-ifneq ($(MAKECMDGOALS),depend)
-#No point building the dependency file if we're just going to remove it!
-ifneq ($(MAKECMDGOALS),distclean)
-	@$(MAKE) depend
-endif
-	@$(MAKE) $(MAKECMDGOALS)
-	@exit
-endif
+$(DEPEND): |$(UTILS_SENTINEL)
 
-depend: |$(DEPEND)
 depend: $(FORTFROMRUBY) $(F90FROMFPP)
 	$(call messageOp,"Generating dependency file","\\t:",$(DEPEND))
 	$(QUIETSYM)$(DEPEND_CMD) -m "$(MAKE)" -1 -o -v=1 $(VPATH)
