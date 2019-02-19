@@ -220,6 +220,7 @@ endif
 # However, Makefile.local may override some options set in Makefile.$(GK_SYSTEM),
 # thus it is included before and after Makefile.$(GK_SYSTEM)
 sinclude Makefile.local
+Makefile.local: ;
 
 # include system-dependent make variables
 ifndef GK_SYSTEM
@@ -301,6 +302,8 @@ sinclude Makefile.local
 
 #Include utility makefile
 include Makefile.utils
+Makefile.utils: ;
+
 #############################################################################
 
 #Record the top level path
@@ -521,7 +524,8 @@ endif
 
 #Make empty targets if not using the new diagnostics
 ifeq ($(USE_NEW_DIAG),on)
-	sinclude diagnostics/Makefile.diagnostics
+sinclude diagnostics/Makefile.diagnostics
+Makefile.diagnostics/Makefile.diagnostics: ;
 else
 distclean_simpledataio:
 clean_simpledataio:
@@ -726,7 +730,7 @@ gryfx_libs: utils.a geo.a geo/geometry_c_interface.o
 
 ############################################################# Get project specific targets
 include Makefile.target_$(GK_PROJECT)
-
+Makefile.target_$(GK_PROJECT): ;
 ############################################################# System config targets
 ifdef STANDARD_SYSTEM_CONFIGURATION
 system_config:
@@ -808,7 +812,7 @@ tar_exec:
 #This is the location of the individual test suites
 TEST_DIR:=tests
 sinclude $(TEST_DIR)/Makefile.tests_and_benchmarks
-
+Makefile.$(TEST_DIR)/Makefile.tests_and_benchmarks: ;
 ############################################################# Introspection targets
 test_make:
 	$(call messageInfo,"Global settings:")
