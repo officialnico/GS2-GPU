@@ -669,7 +669,14 @@ endif
 # This is from a implicit makefile rule that we're overriding
 %.o : %.mod
 
+# Only define recipe to build dependency file if it doesn't exist
+ifeq ("$(wildcard $(DEPEND))", "")
+.PRECIOUS: $(DEPEND)
 $(DEPEND): |$(UTILS_SENTINEL)
+$(DEPEND): depend
+	$(MAKE) $(MAKECMDGOALS)
+	@exit
+endif
 
 depend: $(FORTFROMRUBY) $(F90FROMFPP)
 	$(call messageOp,"Generating dependency file","\\t:",$(DEPEND))
