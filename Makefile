@@ -241,6 +241,7 @@ include Makefile.$(GK_SYSTEM)
 MAKEFILES_SENTINEL = Makefiles/Makefile.bitbucket
 UTILS_SENTINEL = utils/mp.fpp
 
+.PRECIOUS: $(MAKEFILES_SENTINEL) $(UTILS_SENTINEL)
 
 # Make sure the submodules exist; they all currently share the same recipe
 $(UTILS_SENTINEL) : $(MAKEFILES_SENTINEL)
