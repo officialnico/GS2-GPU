@@ -243,7 +243,9 @@ UTILS_SENTINEL = utils/mp.fpp
 
 
 # Make sure the submodules exist; they all currently share the same recipe
-$(UTILS_SENTINEL) $(MAKEFILES_SENTINEL)  submodules:
+$(UTILS_SENTINEL) : $(MAKEFILES_SENTINEL)
+
+$(MAKEFILES_SENTINEL) submodules:
 	@echo "Downloading submodules"
 	git submodule update --init --recursive
 # If we're running this recipe as a prerequisite, we need to rerun the
