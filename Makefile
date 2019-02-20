@@ -256,7 +256,7 @@ $(MAKEFILES_SENTINEL) submodules:
 # loop! The actual submodules are directories so Make can see if they
 # exist and therefore should skip the entire recipe
 ifneq ($(MAKECMDGOALS),submodules)
-	@$(MAKE) depend
+	@touch $(DEPEND) && $(MAKE) depend
 	@$(MAKE) $(MAKECMDGOALS)
 	@exit
 endif
@@ -277,6 +277,7 @@ BITBUCKET_ISSUE_URL = https://bitbucket.org/gyrokinetics/gs2/issues/new
 # wrong
 # 
 Makefile.$(GK_SYSTEM): |$(MAKEFILES_SENTINEL)
+
 
 Makefile.$(GK_SYSTEM): $(MAKEFILES_SENTINEL)
 	$(error Could not find Makefile.$(GK_SYSTEM)$(newline_)\
@@ -565,9 +566,6 @@ ifdef SUBDIR
 	VPATH +=:..
 endif
 
-DEPEND=Makefile.depend
-DEPEND_CMD=$(PERL) scripts/fortdep
-
 # most common include and library directories
 DEFAULT_INC_LIST = . $(GK_HEAD_DIR)/$(UTILS) $(GK_HEAD_DIR)/$(GEO) .. ../$(UTILS) ../$(GEO)
 DEFAULT_LIB_LIST =
@@ -608,11 +606,6 @@ endif
 .INTERMEDIATE: $(F90FROMFPP)
 
 ####################################################################### Source code targets
-
-# This is to ensure the utils submodule gets initialised. The file
-# mp.o is not important, we just need to add prerequisite for some
-# file in utils
-mp.o: | $(UTILS_SENTINEL)
 
 %.f90: %.rb
 	$(call messageOp,"Generating from ruby","\\t:",$<)
@@ -674,13 +667,16 @@ endif
 # This is from a implicit makefile rule that we're overriding
 %.o : %.mod
 
+
+DEPEND=Makefile.depend
+DEPEND_CMD=$(PERL) scripts/fortdep
+
 # Only define recipe to build dependency file if it doesn't exist
 ifeq ("$(wildcard $(DEPEND))", "")
 .PRECIOUS: $(DEPEND)
-$(DEPEND): |$(UTILS_SENTINEL)
+$(DEPEND): $(UTILS_SENTINEL)
 $(DEPEND): depend
-	$(MAKE) $(MAKECMDGOALS)
-	@exit
+	$(info "Built dependency and then hopefully built requested target.")
 endif
 
 depend: $(FORTFROMRUBY) $(F90FROMFPP)
