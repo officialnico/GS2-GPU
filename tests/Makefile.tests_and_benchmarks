@@ -1,6 +1,8 @@
 export
 SHELL = bash
-include tests/Makefile.test_utils
+
+$(TEST_DIR)/Makefile.test_utils: ;
+include $(TEST_DIR)/Makefile.test_utils
 
 ifdef NPROCS
 	NTESTPROCS=$(NPROCS)

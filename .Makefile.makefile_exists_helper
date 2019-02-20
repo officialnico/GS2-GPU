@@ -1,5 +1,6 @@
 include Makefile.$(GK_SYSTEM)
 
+.Makefile.makefile_exists_helper: ;
 
 # CAREFUL! Defines a newline to be used in make's error
 # function. Requires *two* blank lines for reasons

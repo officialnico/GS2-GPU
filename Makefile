@@ -147,6 +147,9 @@ WITH_COLOUR     ?= $(WITH_COLOR)
 #  distclean: does "make clean" + removes platform links & executables
 #  tar: pack
 #
+###############################################################
+# A default empty rule to say we can't rebuild this makefile so don't bother trying
+Makefile: ;
 ############################################################### DEFAULT VALUE
 #
 # These variables can be set in platform-dependent Makefile.
@@ -215,8 +218,8 @@ endif
 # compiler options.
 # However, Makefile.local may override some options set in Makefile.$(GK_SYSTEM),
 # thus it is included before and after Makefile.$(GK_SYSTEM)
-sinclude Makefile.local
 Makefile.local: ;
+sinclude Makefile.local
 
 # include system-dependent make variables
 ifndef GK_SYSTEM
@@ -247,6 +250,9 @@ $(MAKEFILES_SENTINEL) submodules:
 	@echo "Downloading submodules"
 	git submodule update --init --recursive
 
+
+.Makefile.makefile_exists_helper: ;
+
 # Here we have a dependency on $(MAKEFILES_SENTINEL) such that this
 # will fetch the submodules first. We then try to build a null target
 # in a helper makefile which includes Makefile.$(GK_SYSTEM). This helper
@@ -260,8 +266,8 @@ Makefile.$(GK_SYSTEM): $(MAKEFILES_SENTINEL)
 sinclude Makefile.local
 
 #Include utility makefile
-include Makefile.utils
 Makefile.utils: ;
+include Makefile.utils
 
 #############################################################################
 
@@ -481,8 +487,8 @@ endif
 
 #Make empty targets if not using the new diagnostics
 ifeq ($(USE_NEW_DIAG),on)
-sinclude diagnostics/Makefile.diagnostics
 Makefile.diagnostics/Makefile.diagnostics: ;
+sinclude diagnostics/Makefile.diagnostics
 else
 distclean_simpledataio:
 clean_simpledataio:
@@ -700,8 +706,8 @@ geometry_c_interface.o: geometry_c_interface.h
 gryfx_libs: utils.a geo.a geo/geometry_c_interface.o
 
 ############################################################# Get project specific targets
-include Makefile.target_$(GK_PROJECT)
 Makefile.target_$(GK_PROJECT): ;
+include Makefile.target_$(GK_PROJECT)
 ############################################################# System config targets
 ifdef STANDARD_SYSTEM_CONFIGURATION
 system_config:
@@ -782,8 +788,8 @@ tar_exec:
 ############################################################# Testing targets
 #This is the location of the individual test suites
 TEST_DIR:=tests
+$(TEST_DIR)/Makefile.tests_and_benchmarks: ;
 sinclude $(TEST_DIR)/Makefile.tests_and_benchmarks
-Makefile.$(TEST_DIR)/Makefile.tests_and_benchmarks: ;
 ############################################################# Introspection targets
 test_make:
 	$(call messageInfo,"Global settings:")
