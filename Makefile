@@ -277,6 +277,10 @@ endif
 
 GIT_HASH=$(shell git rev-parse HEAD)
 MACRO_DEFS+=-DGIT_HASH='"$(GIT_HASH)"'
+
+GIT_BRANCH=$(shell git branch | grep \* | cut -d ' ' -f2-)
+MACRO_DEFS+=-DGIT_BRANCH='"$(GIT_BRANCH)"'
+
 # Find if there are any modified tracked files (except Makefile.depend)
 ifeq ($(shell git status --short -uno -- . | wc -l), 0)
 	GIT_STATE="clean"
@@ -796,6 +800,7 @@ test_make:
 	$(call messageKeyVal, "WITH_COLOUR", $(WITH_COLOUR))
 	$(call messageKeyVal, "GIT_HASH", $(GIT_HASH))
 	$(call messageKeyVal, "GIT_STATE", $(GIT_STATE))
+	$(call messageKeyVal, "GIT_BRANCH", $(GIT_BRANCH))
 	$(call messageKeyVal, "PATCHFILE", $(PATHFILE))
 	$(call messageKeyVal, "F90FROMFPP", $(F90FROMFPP))
 	@echo
