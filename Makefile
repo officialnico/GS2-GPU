@@ -280,22 +280,7 @@ Makefile.$(GK_SYSTEM): |$(MAKEFILES_SENTINEL)
 
 
 Makefile.$(GK_SYSTEM): $(MAKEFILES_SENTINEL)
-	$(error Could not find Makefile.$(GK_SYSTEM)$(newline_)\
-	*** Looking in: $(PWD) $(.INCLUDE_DIRS)$(newline_)\
-	***     Note: the above does not include non-existent directories!$(newline_)\
-	***$(newline_)\
-	*** Have you correctly set GK_SYSTEM and/or MAKEFLAGS?$(newline_)\
-	***     GK_SYSTEM: $(GK_SYSTEM)$(newline_)\
-	***     MAKEFLAGS: $(MAKEFLAGS)$(newline_)\
-	***$(newline_)\
-	*** If you are sure both GK_SYSTEM and MAKEFLAGS are correct, please try$(newline_)\
-	*** running your 'make' command again. If you still get this error,$(newline_)\
-	*** something else has gone wrong! Please report it at$(newline_)\
-	***$(newline_)\
-	***     $(BITBUCKET_ISSUE_URL)$(newline_)\
-	***$(newline_)\
-	*** including your 'make' command and its output$(newline_)\
-	)
+	@$(MAKE) -f .Makefile.makefile_exists_helper
 
 # include Makefile.local if exists
 sinclude Makefile.local
