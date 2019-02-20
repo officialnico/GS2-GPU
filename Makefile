@@ -258,7 +258,7 @@ $(MAKEFILES_SENTINEL) submodules:
 # an error -- this allows us to abort if the makefile can't be found even
 # after fetching the submodules
 Makefile.$(GK_SYSTEM): $(MAKEFILES_SENTINEL)
-	@$(MAKE) -f .Makefile.makefile_exists_helper
+	@$(MAKE) -f .Makefile.makefile_exists_helper --no-print-directory
 
 # include Makefile.local if exists
 sinclude Makefile.local
@@ -635,8 +635,9 @@ DEPEND_CMD=$(PERL) scripts/fortdep
 ifeq ("$(wildcard $(DEPEND))", "")
 .PRECIOUS: $(DEPEND)
 $(DEPEND): $(UTILS_SENTINEL)
-$(DEPEND):  $(UTILS_SENTINEL) depend
-	$(info "Built dependency and then hopefully built requested target.")
+$(DEPEND): $(UTILS_SENTINEL) depend
+#Provide a no-op recipe
+	@echo -n ""
 endif
 
 depend: $(FORTFROMRUBY) $(UTILS_SENTINEL) Makefile.$(GK_SYSTEM)
