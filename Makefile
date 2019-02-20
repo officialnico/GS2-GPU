@@ -648,7 +648,7 @@ depend: $(FORTFROMRUBY) $(UTILS_SENTINEL) Makefile.$(GK_SYSTEM)
 # Note we force UTILS to be included in the paths that we pass to fortdep
 # We touch the dependency file first as fortdep will call make in order to try
 # and preprocess files, so we need this to avoid recursion
-	$(QUIETSYM)touch $(DEPEND) && $(DEPEND_CMD) -m "$(MAKE)" -1 -o -v=1\
+	$(QUIETSYM)touch $(DEPEND) && $(DEPEND_CMD) -m "$(MAKE) --no-print-directory" -1 -o -v=1\
 		--keep=$(KEEP_PROCESSED_FILES_FROM_DEPEND) $(VPATH):$(UTILS) ||\
 		rm $(DEPEND)
 
