@@ -316,12 +316,6 @@ ifndef ONE_STEP_PP
 CPPFLAGS	+= -P -traditional
 endif
 
-# ifeq ($(MAKECMDGOALS),depend)
-# # must invoke full functionality when make depend
-# 	MAKE += USE_HDF5=on USE_FFT=fftw USE_NETCDF=on USE_MPI=mpi3 \
-# 		USE_LOCAL_SPFUNC=on USE_LOCAL_RAN=mt
-# endif
-
 GIT_HASH=$(shell git rev-parse HEAD)
 MACRO_DEFS+=-DGIT_HASH='"$(GIT_HASH)"'
 # Find if there are any modified tracked files (except Makefile.depend)
