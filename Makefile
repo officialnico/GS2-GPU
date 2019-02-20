@@ -250,25 +250,6 @@ $(UTILS_SENTINEL) : $(MAKEFILES_SENTINEL)
 $(MAKEFILES_SENTINEL) submodules:
 	@echo "Downloading submodules"
 	git submodule update --init --recursive
-# If we're running this recipe as a prerequisite, we need to rerun the
-# original target in a clean process -- but don't do this if the
-# target is explicitly "submodules", or we'll end up in an infinite
-# loop! The actual submodules are directories so Make can see if they
-# exist and therefore should skip the entire recipe
-ifneq ($(MAKECMDGOALS),submodules)
-	@touch $(DEPEND) && $(MAKE) depend
-	@$(MAKE) $(MAKECMDGOALS)
-	@exit
-endif
-
-# CAREFUL! Defines a newline to be used in make's error
-# function. Requires *two* blank lines for reasons
-define newline_
-
-
-endef
-
-BITBUCKET_ISSUE_URL = https://bitbucket.org/gyrokinetics/gs2/issues/new
 
 # This works because Make tries to read all the makefiles first, then
 # update any that need updating. The pipe means order-only,
@@ -276,8 +257,7 @@ BITBUCKET_ISSUE_URL = https://bitbucket.org/gyrokinetics/gs2/issues/new
 # recipe that means something has gone wrong -- normally GK_SYSTEM is
 # wrong
 # 
-Makefile.$(GK_SYSTEM): |$(MAKEFILES_SENTINEL)
-
+Makefile.$(GK_SYSTEM): |$(DEPEND)
 
 Makefile.$(GK_SYSTEM): $(MAKEFILES_SENTINEL)
 	@$(MAKE) -f .Makefile.makefile_exists_helper
@@ -657,13 +637,16 @@ DEPEND_CMD=$(PERL) scripts/fortdep
 ifeq ("$(wildcard $(DEPEND))", "")
 .PRECIOUS: $(DEPEND)
 $(DEPEND): $(UTILS_SENTINEL)
-$(DEPEND): depend
+$(DEPEND):  $(UTILS_SENTINEL) depend
 	$(info "Built dependency and then hopefully built requested target.")
 endif
 
-depend: $(FORTFROMRUBY) $(F90FROMFPP)
+depend: $(FORTFROMRUBY) $(UTILS_SENTINEL)
 	$(call messageOp,"Generating dependency file","\\t:",$(DEPEND))
-	$(QUIETSYM)$(DEPEND_CMD) -m "$(MAKE)" -1 -o -v=1 $(VPATH)
+# Note we force UTILS to be included in the paths that we pass to fortdep
+# We touch the dependency file first as fortdep will call make in order to try
+# and preprocess files, so we need this to avoid recursion
+	$(QUIETSYM)touch $(DEPEND) && $(DEPEND_CMD) -m "$(MAKE)" -k -1 -o -v=1 $(VPATH):$(UTILS)
 
 ##################################################################### Main TARGETS
 # .DEFAULT_GOAL works for GNU make 3.81 (or higher)

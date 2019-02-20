@@ -1,5 +1,15 @@
 include Makefile.$(GK_SYSTEM)
 
+
+# CAREFUL! Defines a newline to be used in make's error
+# function. Requires *two* blank lines for reasons
+define newline_
+
+
+endef
+
+BITBUCKET_ISSUE_URL = https://bitbucket.org/gyrokinetics/gs2/issues/new
+
 all: ;
 
 Makefile.$(GK_SYSTEM):
