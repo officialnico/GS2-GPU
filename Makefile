@@ -602,7 +602,10 @@ endif
 .PHONY: doxygen_doc clean_doxygendoc sync_doc check_coderunner_install sync_input_doc
 
 # comment this out to keep intermediate .f90 files
-#.PRECIOUS: $(F90FROMFPP)
+ifdef KEEP_PROCESSED
+.PRECIOUS: $(F90FROMFPP)
+endif
+
 .INTERMEDIATE: $(F90FROMFPP)
 
 ####################################################################### Source code targets
