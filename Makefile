@@ -640,12 +640,20 @@ $(DEPEND): $(UTILS_SENTINEL) depend
 	@echo -n ""
 endif
 
+ifdef ONE_STEP_PP
+KEEP_PROCESSED_FILES_FROM_DEPEND="no"
+else
+KEEP_PROCESSED_FILES_FROM_DEPEND="yes"
+endif
+
 depend: $(FORTFROMRUBY) $(UTILS_SENTINEL) Makefile.$(GK_SYSTEM)
 	$(call messageOp,"Generating dependency file","\\t:",$(DEPEND))
 # Note we force UTILS to be included in the paths that we pass to fortdep
 # We touch the dependency file first as fortdep will call make in order to try
 # and preprocess files, so we need this to avoid recursion
-	$(QUIETSYM)touch $(DEPEND) && $(DEPEND_CMD) -m "$(MAKE)" -1 -o -v=1 --keep $(VPATH):$(UTILS)
+	$(QUIETSYM)touch $(DEPEND) && $(DEPEND_CMD) -m "$(MAKE)" -1 -o -v=1\
+		--keep=$(KEEP_PROCESSED_FILES_FROM_DEPEND) $(VPATH):$(UTILS) ||\
+		rm $(DEPEND)
 
 ##################################################################### Main TARGETS
 # .DEFAULT_GOAL works for GNU make 3.81 (or higher)

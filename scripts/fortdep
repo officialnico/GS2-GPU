@@ -22,7 +22,7 @@ my $DEPFILE="Makefile.depend";
 	                  # module/program files (otherwise, ask which to use)
 	"verbose" => 2, # verbose level (0: silent, 1: info, 
                         # 2: warning [default], 3: debug)
-        "keep" => undef, # If defined then don't cleanup processed files
+        "keep" => "no", # If defined then don't cleanup processed files
 	);
 
     # store search path;
@@ -88,7 +88,7 @@ my $DEPFILE="Makefile.depend";
     &check_circular(\%REQFILE,\%MSGTYPE);
 
     # need cleanup of preprocessed files
-    if ( ! $OPTION{'keep'} ) {
+    if ( $OPTION{'keep'} ne "yes" ) {
         &cleanprep(\%SOURCE,\%OPTION,\%MSGTYPE);
     }
     
@@ -127,7 +127,7 @@ sub process_options {
 	'overwrite' => \$opt_overwrite,
 	'1' => \$opt_first,
 	'verbose=i' => \$opt_verb,
-        'keep' => \$opt_keep,
+        'keep=s' => \$opt_keep,
 	'help' => \$opt_help
 	);
     die ("Invalid argument, bye.\n") if ($#ARGV > 0);
@@ -141,7 +141,7 @@ sub process_options {
     $$option{'overwrite'} = $opt_overwrite if ( $opt_overwrite );
     $$option{'first'} = $opt_first if ( $opt_first );
     $$option{'verbose'} = $opt_verb if ( $opt_verb ne "" && $opt_verb >=0 );
-    $$option{'keep'} = $opt_keep if ( $opt_keep );    
+    $$option{'keep'} = $opt_keep if ( $opt_keep ne "" );    
     &usage if ( $opt_help );
 
     return;
