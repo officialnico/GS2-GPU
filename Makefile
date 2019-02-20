@@ -797,6 +797,7 @@ test_make:
 	$(call messageKeyVal, "GIT_HASH", $(GIT_HASH))
 	$(call messageKeyVal, "GIT_STATE", $(GIT_STATE))
 	$(call messageKeyVal, "PATCHFILE", $(PATHFILE))
+	$(call messageKeyVal, "F90FROMFPP", $(F90FROMFPP))
 	@echo
 	$(call messageInfo,"Commands:")
 	$(call messageKeyVal, "COMPILER", $(COMPILER))
