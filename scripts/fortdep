@@ -506,7 +506,7 @@ sub preprocess{
 	    my $f90file = $file;
 	    $f90file =~ s/\.(fpp|F90)/\.f90/;
 	    system("$$option{'makecmd'} $f90file >/dev/null");
-	    $$source{$f90file}{'dir'} = ".";
+	    $$source{$f90file}{'dir'} = $$source{$file}{'dir'};
 	    $$source{$f90file}{'type'} = "fort";
 	}
     }
@@ -531,7 +531,7 @@ sub cleanprep{
 	    my $f90file = $file;
 	    $f90file =~ s/\.(fpp|F90)/\.f90/;
 	    if ($$source{$f90file}{'type'} ne ""){
-		unlink $f90file;
+		unlink "$$source{$file}{'dir'}/$f90file";
 		foreach my $key ( keys %{$$source{$file}} ){
 		    delete $$source{$file}{$key};
 		}
