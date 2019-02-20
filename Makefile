@@ -251,14 +251,12 @@ $(MAKEFILES_SENTINEL) submodules:
 	@echo "Downloading submodules"
 	git submodule update --init --recursive
 
-# This works because Make tries to read all the makefiles first, then
-# update any that need updating. The pipe means order-only,
-# i.e. doesn't check the timestamp. If we actually try to run the
-# recipe that means something has gone wrong -- normally GK_SYSTEM is
-# wrong
-# 
-Makefile.$(GK_SYSTEM): |$(DEPEND)
-
+# Here we have a dependency on $(MAKEFILES_SENTINEL) such that this
+# will fetch the submodules first. We then try to build a null target
+# in a helper makefile which includes Makefile.$(GK_SYSTEM). This helper
+# makefile has a recipe to built Makefile.$(GK_SYSTEM) which just raises
+# an error -- this allows us to abort if the makefile can't be found even
+# after fetching the submodules
 Makefile.$(GK_SYSTEM): $(MAKEFILES_SENTINEL)
 	@$(MAKE) -f .Makefile.makefile_exists_helper
 
@@ -641,7 +639,7 @@ $(DEPEND):  $(UTILS_SENTINEL) depend
 	$(info "Built dependency and then hopefully built requested target.")
 endif
 
-depend: $(FORTFROMRUBY) $(UTILS_SENTINEL)
+depend: $(FORTFROMRUBY) $(UTILS_SENTINEL) Makefile.$(GK_SYSTEM)
 	$(call messageOp,"Generating dependency file","\\t:",$(DEPEND))
 # Note we force UTILS to be included in the paths that we pass to fortdep
 # We touch the dependency file first as fortdep will call make in order to try
