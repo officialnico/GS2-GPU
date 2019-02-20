@@ -21,7 +21,8 @@ my $DEPFILE="Makefile.depend";
 	                  # or program file if there are more than one 
 	                  # module/program files (otherwise, ask which to use)
 	"verbose" => 2, # verbose level (0: silent, 1: info, 
-	                # 2: warning [default], 3: debug)
+                        # 2: warning [default], 3: debug)
+        "keep" => undef, # If defined then don't cleanup processed files
 	);
 
     # store search path;
@@ -87,8 +88,10 @@ my $DEPFILE="Makefile.depend";
     &check_circular(\%REQFILE,\%MSGTYPE);
 
     # need cleanup of preprocessed files
-    &cleanprep(\%SOURCE,\%OPTION,\%MSGTYPE);
-
+    if ( ! $OPTION{'keep'} ) {
+        &cleanprep(\%SOURCE,\%OPTION,\%MSGTYPE);
+    }
+    
     my %OBJLIST=();
     # make an object file list for given main programs
     &make_objlist(\%FILEINFO,\%REQFILE,\%OBJLIST,\%OPTION,\%MSGTYPE);
@@ -116,7 +119,7 @@ sub process_options {
     use Getopt::Long;
 
     my ($option, $path) = @_;
-    my ($opt_makecmd,$opt_file,$opt_overwrite,$opt_first,$opt_verb,$opt_help);
+    my ($opt_makecmd,$opt_file,$opt_overwrite,$opt_first,$opt_verb,$opt_keep,$opt_help);
 
     &GetOptions(
 	'makecmd=s' => \$opt_makecmd,
@@ -124,6 +127,7 @@ sub process_options {
 	'overwrite' => \$opt_overwrite,
 	'1' => \$opt_first,
 	'verbose=i' => \$opt_verb,
+        'keep' => \$opt_keep,
 	'help' => \$opt_help
 	);
     die ("Invalid argument, bye.\n") if ($#ARGV > 0);
@@ -137,6 +141,7 @@ sub process_options {
     $$option{'overwrite'} = $opt_overwrite if ( $opt_overwrite );
     $$option{'first'} = $opt_first if ( $opt_first );
     $$option{'verbose'} = $opt_verb if ( $opt_verb ne "" && $opt_verb >=0 );
+    $$option{'keep'} = $opt_keep if ( $opt_keep );    
     &usage if ( $opt_help );
 
     return;
@@ -736,6 +741,7 @@ sub usage{
     print "  --overwrite            : overwrite mode\n";
     print "  --1                    : use 1st found file for multiply defined module\n";
     print "  --verbose=0-3          : verbose level (0: silent, 1: info, 2: warn [default], 3: debug)\n";
+    print "  --keep                 : don't clean preprocessed files\n";    
     print "\n";
     print "This script may be kicked by make depend\n";
     print "Add the folloing statement in your Makefile\n";
