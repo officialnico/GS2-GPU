@@ -636,10 +636,11 @@ $(DEPEND): $(UTILS_SENTINEL) depend
 	@echo -n ""
 endif
 
+# If this is true then we keep the preprocessed files generated in the process
+# of producing the dependency file. This is a minor optimisation to make
+KEEP_PROCESSED_FILES_FROM_DEPEND?="no"
 ifdef ONE_STEP_PP
 KEEP_PROCESSED_FILES_FROM_DEPEND="no"
-else
-KEEP_PROCESSED_FILES_FROM_DEPEND="yes"
 endif
 
 depend: $(FORTFROMRUBY) $(UTILS_SENTINEL) Makefile.$(GK_SYSTEM)
