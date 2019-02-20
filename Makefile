@@ -1,7 +1,3 @@
-#The following ensures that any recursive calls to make should automatically
-#get access to the variables defined in the parent make. There are of course
-#various exceptions that can be sought out in the manual for make.
-export
 #
 #
 #  Makefile for GS2 Gyrokinetic Turbulence code 
