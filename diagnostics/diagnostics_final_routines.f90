@@ -14,6 +14,7 @@ module diagnostics_final_routines
 
 contains
 
+  !> FIXME : Add documentation  
   subroutine init_par_filter
     use theta_grid, only: ntgrid
     use gs2_transforms, only: init_zf
@@ -25,6 +26,7 @@ contains
     call init_zf (ntgrid, ntheta0*naky)
   end subroutine init_par_filter
 
+  !> FIXME : Add documentation  
   subroutine par_spectrum(an, an2)
     use gs2_transforms, only: kz_spectrum
     use theta_grid, only: ntgrid
@@ -38,6 +40,7 @@ contains
     an2 = an2*scale
   end subroutine par_spectrum
 
+  !> FIXME : Add documentation  
   subroutine do_write_eigenfunc(gnostics, phi0)
     use mp, only: proc0
     use file_utils, only: open_output_file, close_output_file
@@ -95,7 +98,8 @@ contains
     !Do netcdf output
     call nc_eigenfunc (phi0)
   end subroutine do_write_eigenfunc
-  
+
+  !> FIXME : Add documentation  
   subroutine do_write_final_fields(gnostics)
     use mp, only: proc0
     use file_utils, only: open_output_file, close_output_file
@@ -130,6 +134,7 @@ contains
     end if
   end subroutine do_write_final_fields
 
+  !> FIXME : Add documentation  
   subroutine do_write_kpar(gnostics)
     use mp, only: proc0
     use file_utils, only: open_output_file, close_output_file
@@ -199,6 +204,7 @@ contains
     deallocate (phi2, apar2, bpar2)
   end subroutine do_write_kpar
 
+  !> FIXME : Add documentation  
   subroutine do_write_final_epar(gnostics)
     use mp, only: proc0
     use file_utils, only: open_output_file, close_output_file
@@ -243,6 +249,7 @@ contains
     deallocate (epar)
   end subroutine do_write_final_epar
 
+  !> FIXME : Add documentation
   subroutine do_write_final_db(gnostics)
     use file_utils, only: open_output_file, close_output_file
     use mp, only: proc0
@@ -291,6 +298,7 @@ contains
     !No netcdf output for this diagnostic yet
   end subroutine do_write_final_db
 
+  !> FIXME : Add documentation  
   subroutine do_write_final_moments(gnostics, phi0_in)
     use theta_grid, only: ntgrid, theta
     use kt_grids, only: ntheta0, naky, aky, akx, theta0
@@ -410,7 +418,8 @@ contains
     
     deallocate (ntot, density, upar, tpar, tperp, qparflux, pperpj1, qpperpj1)
   end subroutine do_write_final_moments
-  
+
+  !> FIXME : Add documentation  
   subroutine do_write_final_antot(gnostics)
     use file_utils, only: open_output_file, close_output_file
     use mp, only: proc0
@@ -456,6 +465,7 @@ contains
     deallocate (antot, antota, antotp)
   end subroutine do_write_final_antot
 
+  !> FIXME : Add documentation  
   subroutine do_write_gs(gnostics)
     use file_utils, only: open_output_file, close_output_file
     use mp, only: proc0, sum_reduce, iproc, nproc

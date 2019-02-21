@@ -1,3 +1,4 @@
+!> FIXME : Add documentation
 module theta_grid_gridgen
   implicit none
 
@@ -14,6 +15,8 @@ module theta_grid_gridgen
   logical :: exist, initialized=.false.
 
 contains
+  
+  !> FIXME : Add documentation  
   subroutine wnml_theta_grid_gridgen(unit)
     implicit none
     integer, intent(in) :: unit
@@ -32,17 +35,21 @@ contains
     write (unit, fmt="(' /')")
   end subroutine wnml_theta_grid_gridgen
 
+  !> FIXME : Add documentation  
   subroutine theta_grid_gridgen_init
     implicit none
     if (initialized) return
     initialized = .true.
     call read_parameters
   end subroutine theta_grid_gridgen_init
-  
+
+  !> FIXME : Add documentation  
   subroutine finish_theta_grid_gridgen
+    implicit none
     initialized = .false.
   end subroutine finish_theta_grid_gridgen
 
+  !> FIXME : Add documentation  
   subroutine read_parameters
     use file_utils, only: input_unit, input_unit_exist
     implicit none
@@ -64,6 +71,7 @@ contains
          nml=theta_grid_gridgen_knobs)
   end subroutine read_parameters
 
+  !> FIXME : Add documentation  
   subroutine gridgen_get_grids (nperiod, ntheta, ntgrid, nbset, &
        theta, bset, bmag, gradpar, gbdrift, gbdrift0, cvdrift, &
        cvdrift0, cdrift, cdrift0, gbdrift_th, cvdrift_th, &
@@ -167,7 +175,9 @@ if (debug) write(6,*) 'gridgen_get_grids: call regrid'
 if (debug) write(6,*) 'gridgen_get_grids: end'
   end subroutine gridgen_get_grids
 
-  !<DD>NOTE: This routine assumes nnew<nold
+  !> FIXME : Add documentation
+  !!
+  !! @note This routine assumes nnew<nold
   subroutine regrid (nold, x, y, nnew, xnew)
     use splines, only: new_spline, splint, delete_spline, spline
     implicit none
@@ -189,6 +199,7 @@ if (debug) write(6,*) 'gridgen_get_grids: end'
   end subroutine regrid
 end module theta_grid_gridgen
 
+!> FIXME : Add documentation
 module theta_grid_salpha
   implicit none
 
@@ -211,6 +222,7 @@ module theta_grid_salpha
   logical :: exist, initialized = .false.
 
 contains
+  !> FIXME : Add documentation  
   subroutine check_theta_grid_salpha(report_unit,alne,dbetadrho)
     use theta_grid_params, only: eps, epsl, pk, shat
     implicit none
@@ -356,7 +368,8 @@ contains
        write (report_unit, *) 
     end select
   end subroutine check_theta_grid_salpha
-   
+
+  !> FIXME : Add documentation  
   subroutine wnml_theta_grid_salpha(unit)
     implicit none
     integer, intent(in) :: unit
@@ -392,7 +405,8 @@ contains
     end select
     write (unit, fmt="(' /')")
   end subroutine wnml_theta_grid_salpha
-   
+
+  !> FIXME : Add documentation  
   subroutine init_theta_grid_salpha
     use theta_grid_params, only: init_theta_grid_params, rhoc, eps, epsl
     use geometry, only: rhoc_geo=>rhoc
@@ -413,10 +427,13 @@ contains
     call read_parameters
   end subroutine init_theta_grid_salpha
 
+  !> FIXME : Add documentation
   subroutine finish_theta_grid_salpha
+    implicit none
     initialized = .false.
   end subroutine finish_theta_grid_salpha
 
+  !> FIXME : Add documentation  
   subroutine read_parameters
     use file_utils, only: input_unit, error_unit, input_unit_exist
     use theta_grid_params, only: shift_in => shift, alpmhd
@@ -458,6 +475,7 @@ contains
 
   end subroutine read_parameters
 
+  !> FIXME : Add documentation  
   subroutine salpha_get_sizes (nthetaout, nperiodout, nbsetout)
     use theta_grid_params, only: ntheta, nperiod
     implicit none
@@ -468,6 +486,7 @@ contains
     nbsetout = ntheta/2+1 ! upper bound when alpha1 model is used
   end subroutine salpha_get_sizes
 
+  !> FIXME : Add documentation  
   subroutine salpha_get_grids (nperiod, ntheta, ntgrid, nbset, theta, bset, &
        bmag, gradpar, gbdrift, gbdrift0, cvdrift, cvdrift0, cdrift, cdrift0, &
        gbdrift_th, cvdrift_th, gds2, gds21, gds22, gds23, gds24, gds24_noq, grho, &
@@ -639,6 +658,7 @@ contains
   end subroutine salpha_get_grids
 end module theta_grid_salpha
 
+!> FIXME : Add documentation
 module theta_grid_eik
   implicit none
 
@@ -650,6 +670,7 @@ module theta_grid_eik
   logical :: exist, initialized = .false.
 
 contains
+  !> FIXME : Add documentation
   subroutine wnml_theta_grid_eik(unit)
     use geometry, only: alpha_input, beta_prime_input, invLp_input, s_hat_input
     use geometry, only: delrho, dp_mult, rmin, rmax
@@ -691,6 +712,7 @@ contains
     write (unit, fmt="(' /')")
   end subroutine wnml_theta_grid_eik
 
+  !> FIXME : Add documentation  
   subroutine check_theta_grid_eik(report_unit,dbetadrho)
     use theta_grid_params, only: deltam, deltan, deltampri, deltanpri, eps
     use theta_grid_params, only: geoType, aSurf, shift, shiftVert, mMode, nMode, thetam, thetan
@@ -969,6 +991,7 @@ contains
     end if
   end subroutine check_theta_grid_eik
 
+  !> FIXME : Add documentation  
   subroutine checklogic_theta_grid_eik(report_unit)
     use geometry, only: geq=>gen_eq, eeq=>efit_eq, peq=>ppl_eq
     use geometry, only: leq=>local_eq, deq=>dfit_eq, ceq=>chs_eq
@@ -1095,6 +1118,7 @@ contains
     endif
   end subroutine checklogic_theta_grid_eik
 
+  !> FIXME : Add documentation  
   subroutine init_theta_grid_eik
     use geometry, only: init_theta, nperiod_geo => nperiod
     use geometry, only: eikcoefs, itor, delrho, rhoc
@@ -1163,6 +1187,7 @@ contains
     
   end subroutine finish_theta_grid_eik
 
+  !> FIXME : Add documentation  
   subroutine eik_get_sizes (nthetaout, nperiodout, nbsetout)
     use geometry, only: nperiod
     use theta_grid_params, only: ntheta
@@ -1174,6 +1199,7 @@ contains
     nbsetout = ntheta/2+1 ! upper bound
   end subroutine eik_get_sizes
 
+  !> FIXME : Add documentation  
   subroutine eik_get_grids (nperiod, ntheta, ntgrid, nbset, theta, bset, bmag,&
             gradpar, gbdrift, gbdrift0, cvdrift, cvdrift0, cdrift, cdrift0, &
             gbdrift_th, cvdrift_th, gds2, gds21, gds22, gds23, gds24, gds24_noq, &
@@ -1288,6 +1314,7 @@ contains
      call debug_message(verb, 'eik_get_grids: end')
   end subroutine eik_get_grids
 
+  !> FIXME : Add documentation  
   subroutine read_parameters
     use file_utils, only: input_unit, input_unit_exist
     use geometry, only: nperiod
@@ -1373,6 +1400,7 @@ contains
   end subroutine read_parameters
 end module theta_grid_eik
 
+!> FIXME : Add documentation
 module theta_grid_file
   implicit none
 
@@ -1390,6 +1418,7 @@ module theta_grid_file
   logical :: exist, initialized = .false.
 contains
 
+  !> FIXME : Add documentation
   subroutine wnml_theta_grid_file(unit)
     implicit none
     integer, intent(in) :: unit
@@ -1400,6 +1429,7 @@ contains
     write (unit, fmt="(' /')")
   end subroutine wnml_theta_grid_file
 
+  !> FIXME : Add documentation  
   subroutine check_theta_grid_file(report_unit)
     use file_utils, only: get_unused_unit
     implicit none
@@ -1450,6 +1480,7 @@ contains
 100 continue
   end subroutine check_theta_grid_file
 
+  !> FIXME : Add documentation  
   subroutine init_theta_grid_file
     use theta_grid_params, only: init_theta_grid_params
     implicit none
@@ -1461,10 +1492,13 @@ contains
     call read_parameters
   end subroutine init_theta_grid_file
 
+  !> FIXME : Add documentation  
   subroutine finish_theta_grid_file
+    implicit none
     initialized = .false.
   end subroutine finish_theta_grid_file
 
+  !> FIXME : Add documentation
   subroutine read_parameters
     use file_utils, only: input_unit, input_unit_exist
     implicit none
@@ -1476,6 +1510,7 @@ contains
     if (exist) read (unit=input_unit("theta_grid_file_knobs"), nml=theta_grid_file_knobs)
   end subroutine read_parameters
 
+  !> FIXME : Add documentation  
   subroutine file_get_sizes
     use file_utils, only: get_unused_unit
     implicit none
@@ -1501,6 +1536,7 @@ contains
     close (unit=unit)
   end subroutine file_get_sizes
 
+  !> FIXME : Add documentation  
   subroutine file_get_grids (nperiod, ntheta, ntgrid, nbset, theta, bset, &
        bmag, gradpar, gbdrift, gbdrift0, cvdrift, cvdrift0, cdrift, cdrift0, &
        gbdrift_th, cvdrift_th, gds2, gds21, gds22, gds23, gds24, gds24_noq, grho, &
@@ -1620,6 +1656,7 @@ contains
   end subroutine file_get_grids
 end module theta_grid_file
 
+!> FIXME : Add documentation
 module theta_grid
   implicit none
 
@@ -1660,6 +1697,8 @@ module theta_grid
   logical :: exist, initialized = .false.
 
 contains
+  
+  !> FIXME : Add documentation  
   subroutine check_theta_grid(report_unit, alne, dbetadrho)
     use theta_grid_salpha, only: check_theta_grid_salpha
     use theta_grid_eik, only: check_theta_grid_eik
@@ -1690,6 +1729,7 @@ contains
     end if
   end subroutine check_theta_grid
 
+  !> FIXME : Add documentation
   subroutine wnml_theta_grid(unit)
     use theta_grid_salpha, only: wnml_theta_grid_salpha
     use theta_grid_eik, only: wnml_theta_grid_eik
@@ -1722,6 +1762,7 @@ contains
     call wnml_theta_grid_gridgen(unit)
   end subroutine wnml_theta_grid
 
+  !> FIXME : Add documentation
   subroutine init_theta_grid
     use mp, only: proc0
     use unit_tests, only: debug_message
@@ -1745,38 +1786,15 @@ contains
     call broadcast_results
   end subroutine init_theta_grid
 
-  !function theta_grid_unit_test_init_theta_grid(eqoption, eqfle, bish)
-    !use mp, only: proc0
-    !integer, intent(in) :: eqoption, bish
-    !logical :: theta_grid_unit_test_init_theta_grid
-    !character(*), intent(in) :: eqfle
-    !if (proc0) then
-!if (debug) write(6,*) "init_theta_grid: call read_parameters"
-       !call read_parameters
-       !eqopt_switch = eqoption
-       !bishop = bish
-       !eqfile = eqfle
-!if (debug) write(6,*) "init_theta_grid: call get_sizes"
-       !call get_sizes
-!if (debug) write(6,*) "init_theta_grid: call allocate_arrays"
-       !call allocate_arrays
-!if (debug) write(6,*) "init_theta_grid: call get_grids"
-       !call get_grids
-!if (debug) write(6,*) "init_theta_grid: call finish_init"
-       !call finish_init
-    !end if
-    !call broadcast_results
-
-    !theta_grid_unit_test_init_theta_grid = .true.
-  !end function
-
+  !> FIXME : Add documentation
   subroutine finish_theta_grid
     use theta_grid_gridgen, only: finish_theta_grid_gridgen
     use theta_grid_salpha, only: finish_theta_grid_salpha
     use theta_grid_eik, only: finish_theta_grid_eik
     use theta_grid_file, only: finish_theta_grid_file
     use theta_grid_params, only: finish_theta_grid_params
-
+    implicit none
+    
     initialized = .false.
     
     call finish_theta_grid_gridgen
@@ -1789,6 +1807,7 @@ contains
 
   end subroutine finish_theta_grid
 
+  !> FIXME : Add documentation  
   subroutine broadcast_results
     use mp, only: proc0, broadcast
     use geometry, only: rhoc
@@ -1857,6 +1876,7 @@ contains
     call debug_message(verb, "theta_grid::broadcast_results finished")
   end subroutine broadcast_results
 
+  !> FIXME : Add documentation  
   subroutine read_parameters
     use file_utils, only: input_unit, error_unit, input_unit_exist
     use text_options, only: text_option, get_option_value
@@ -1889,6 +1909,7 @@ contains
          ierr, "equilibrium_option in theta_grid_knobs",.true.)
   end subroutine read_parameters
 
+  !> FIXME : Add documentation  
   subroutine allocate_arrays
     implicit none
     allocate (theta(-ntgrid:ntgrid))
@@ -1922,6 +1943,7 @@ contains
     allocate (Bpol(-ntgrid:ntgrid))
   end subroutine allocate_arrays
 
+  !> FIXME : Add documentation
   subroutine deallocate_arrays
     implicit none
     if(allocated(theta)) deallocate (theta)
@@ -1960,6 +1982,7 @@ contains
 
   end subroutine deallocate_arrays
 
+  !> FIXME : Add documentation
   subroutine finish_init
     implicit none
     real, dimension (nbset) :: bset_save
@@ -2081,6 +2104,7 @@ contains
     jacob = 1.0/(drhodpsi*gradpar*bmag)
   end subroutine finish_init
 
+  !> FIXME : Add documentation
   subroutine get_sizes
     use theta_grid_eik, only: eik_get_sizes, init_theta_grid_eik
     use theta_grid_salpha, only: salpha_get_sizes, init_theta_grid_salpha
@@ -2114,6 +2138,7 @@ if (debug) write(6,*) 'get_sizes: call file_get_sizes'
 if (debug) write(6,*) 'get_sizes: done'
   end subroutine get_sizes
 
+  !> FIXME : Add documentation
   subroutine get_grids
     use theta_grid_eik, only: eik_get_grids
     use theta_grid_salpha, only: salpha_get_grids

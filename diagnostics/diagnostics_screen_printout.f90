@@ -11,6 +11,7 @@ module diagnostics_printout
   public :: write_flux_line
 
 contains
+
   !> Print out growth rates to screen.
   !! Doesn't quite conform to the principle of having all
   !! useful results stored in gnostics... takes stuff 
@@ -30,12 +31,12 @@ contains
     type(diagnostics_type), intent(in) :: gnostics
     call output_line(gnostics, gnostics%ascii_files%out)
   end subroutine write_line
-  
+
+!> FIXME : Add documentation  
   subroutine output_line(gnostics, outunit)
     use mp, only: proc0, sum_reduce
     use kt_grids, only: naky, ntheta0, aky, akx, theta0
     use run_parameters, only: woutunits
-    !use fields_arrays, only: phinew
     use volume_averages, only: average_theta
     use diagnostics_omega, only: omegahist, omega_average
     use diagnostics_config, only: diagnostics_type
@@ -68,7 +69,8 @@ contains
     end do
     write (outunit,*) 
 
-    contains
+  contains
+    !> FIXME : Add documentation    
       subroutine phinorm (phitot)
         use fields_arrays, only: phinew, aparnew, bparnew
         use theta_grid, only: delthet
@@ -104,7 +106,8 @@ contains
     type(diagnostics_type), intent(in) :: gnostics
     call output_flux_line(gnostics, stdout_unit)
   end subroutine print_flux_line
-  
+
+  !> FIXME : Add documentation  
   subroutine output_flux_line(gnostics, outunit)
     use run_parameters, only: fphi, fapar, fbpar
     use species, only: nspec

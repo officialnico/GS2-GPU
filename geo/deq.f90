@@ -1,3 +1,4 @@
+!> FIXME : Add documentation
 module deq
 
   implicit none
@@ -42,22 +43,21 @@ module deq
   logical :: init_psi = .true.
 
 contains
+
+  !> This subroutine reads an DFIT output file containing 
+  !! the axisymmetric magnetic field geometry on a rectangular 
+  !! domain defined by the coordinates (R,Z).
+  !
+  !! dfit_R     R grid
+  !! dfit_Z     Z grid
+  !! fp    F on psibar grid
+  !! dfit_psi   psi on (R,Z) grid
+  !! R_mag        major radius of the magnetic axis
+  !! Z_mag        elevation of the magnetic axis
+  !! rwid       total width of the domain
+  !! rleft      position of leftmost point of domain
+  !! zhei       total height of domain
   subroutine dfitin(eqfile, psi_0, psi_a, rmaj, B_T, amin, initeq)
-!
-!     This subroutine reads an DFIT output file containing 
-!     the axisymmetric magnetic field geometry on a rectangular 
-!     domain defined by the coordinates (R,Z).
-!
-!     dfit_R     R grid
-!     dfit_Z     Z grid
-!     fp    F on psibar grid
-!     dfit_psi   psi on (R,Z) grid
-!     R_mag        major radius of the magnetic axis
-!     Z_mag        elevation of the magnetic axis
-!     rwid       total width of the domain
-!     rleft      position of leftmost point of domain
-!     zhei       total height of domain
-!
     use mp, only: mp_abort
     use constants, only: pi, twopi
     use splines, only: inter_cspl
@@ -280,8 +280,9 @@ contains
 
   end subroutine dfitin
 
+  !> FIXME : Add documentation
   subroutine dfit_init
-
+    implicit none
     real, dimension(nw, nh) :: eqth 
     integer :: i, j
     
@@ -300,6 +301,7 @@ contains
     
   end subroutine dfit_init
 
+  !> FIXME : Add documentation
   subroutine tderm(f, dfm)
     use constants, only: pi
     implicit none
@@ -338,8 +340,8 @@ contains
     
   end subroutine tderm
 
+  !> FIXME : Add documentation
   subroutine derm(f, dfm)
-
     implicit none
     real, dimension(:,:), intent(in) :: f
     real, dimension(:,:,:), intent(out) :: dfm
@@ -370,6 +372,7 @@ contains
     
   end subroutine derm
 
+  !> FIXME : Add documentation
   subroutine gradient(rgrid, theta, grad, char, rp, nth, ntm)
     use splines, only: inter_d_cspl
     implicit none
@@ -397,6 +400,7 @@ contains
 
   end subroutine gradient
 
+  !> FIXME : Add documentation  
   subroutine bgradient(rgrid, theta, grad, char, rp, nth_used, ntm)
     use splines, only: inter_d_cspl
     implicit none
@@ -445,6 +449,7 @@ contains
 
   end subroutine bgradient
 
+  !> FIXME : Add documentation  
   subroutine eqitem(r, thetin, f, fstar)
     use mp, only: mp_abort
     implicit none
@@ -514,45 +519,53 @@ contains
 
   end subroutine eqitem
 
+  !> FIXME : Add documentation  
   function Zpos (r, theta)
+    implicit none
     real, intent (in) :: r, theta
-    real :: Zpos
-    
+    real :: Zpos    
     Zpos = Z_mag + r * sin(theta)
   end function Zpos
 
+  !> FIXME : Add documentation  
   function Rpos (r, theta)
+    implicit none
     real, intent (in) :: r, theta
     real :: Rpos
-
     Rpos = R_mag + r * cos(theta)
   end function Rpos
 
+  !> FIXME : Add documentation  
   function invR (r, theta)
+    implicit none
     real, intent (in) :: r, theta
     real :: invR
-
     invR = 1/(R_mag + r*cos(theta))
   end function invR
 
-  function initialize_psi (init) 
+  !> FIXME : Add documentation  
+  function initialize_psi (init)
+    implicit none
     integer, intent(in) :: init
-    integer :: initialize_psi
-    
+    integer :: initialize_psi    
     init_psi = .false.
     if(init == 1) init_psi = .true.
     initialize_psi = 1
   end function initialize_psi
 
+  !> FIXME : Add documentation  
   function psi (r, theta)
+    implicit none
     real, intent (in) :: r, theta
     real :: f, psi
 
     call eqitem(r, theta, dfit_psi, f)
     psi = f
   end function psi
-   
-  function initialize_btori (init) 
+
+  !> FIXME : Add documentation  
+  function initialize_btori (init)
+    implicit none
     integer, intent(in) :: init
     integer :: initialize_btori
     
@@ -561,6 +574,7 @@ contains
     initialize_btori = 1
   end function initialize_btori
 
+  !> FIXME : Add documentation  
   function btori (pbar)
     use splines, only: new_spline, splint, spline
     implicit none
@@ -573,7 +587,9 @@ contains
     btori = splint(pbar, spl)
   end function btori
 
-  function initialize_dbtori (init) 
+  !> FIXME : Add documentation  
+  function initialize_dbtori (init)
+    implicit none
     integer, intent(in) :: init
     integer :: initialize_dbtori
     
@@ -582,6 +598,7 @@ contains
     initialize_dbtori = 1
   end function initialize_dbtori
 
+  !> FIXME : Add documentation  
   function dbtori (pbar)
     use splines, only: new_spline, dsplint, spline
     implicit none
@@ -594,7 +611,9 @@ contains
     dbtori = dsplint(pbar, spl)/psi_N
   end function dbtori
 
-  function initialize_q (init) 
+  !> FIXME : Add documentation  
+  function initialize_q (init)
+    implicit none
     integer, intent(in) :: init
     integer :: initialize_q
     
@@ -603,6 +622,7 @@ contains
     initialize_q = 1
   end function initialize_q
 
+  !> FIXME : Add documentation    
   function qfun (pbar)
     use splines, only: new_spline, splint, spline
     implicit none
@@ -617,7 +637,9 @@ contains
     qfun = splint(pbar, spl)
   end function qfun
 
-  function initialize_pressure (init) 
+  !> FIXME : Add documentation    
+  function initialize_pressure (init)
+    implicit none
     integer, intent(in) :: init
     integer :: initialize_pressure
     
@@ -626,6 +648,7 @@ contains
     initialize_pressure = 1
   end function initialize_pressure
 
+  !> FIXME : Add documentation    
   function pfun (pbar)
     use splines, only: new_spline, splint, spline
     implicit none
@@ -638,7 +661,9 @@ contains
     pfun = splint(pbar, spl) * beta_0/2.
   end function pfun
 
-  function initialize_dpressure (init) 
+  !> FIXME : Add documentation    
+  function initialize_dpressure (init)
+    implicit none
     integer, intent(in) :: init
     integer :: initialize_dpressure
     
@@ -647,6 +672,7 @@ contains
     initialize_dpressure = 1
   end function initialize_dpressure
 
+  !> FIXME : Add documentation    
   function dpfun (pbar)
     use splines, only: new_spline, dsplint, spline
     implicit none
@@ -659,7 +685,9 @@ contains
     dpfun = dsplint(pbar, spl)/psi_N * beta_0/2.
   end function dpfun
 
-  function initialize_beta (init) 
+  !> FIXME : Add documentation    
+  function initialize_beta (init)
+    implicit none
     integer, intent(in) :: init
     integer :: initialize_beta
     
@@ -668,6 +696,7 @@ contains
     initialize_beta = 1
   end function initialize_beta
 
+  !> FIXME : Add documentation    
   function betafun (pbar)
     use splines, only: new_spline, splint, spline
     implicit none
@@ -680,7 +709,9 @@ contains
     betafun = splint(pbar, spl)
   end function betafun
 
-  function initialize_rho (init) 
+  !> FIXME : Add documentation    
+  function initialize_rho (init)
+    implicit none
     integer, intent(in) :: init
     integer :: initialize_rho
     
@@ -689,6 +720,7 @@ contains
     initialize_rho = 1
   end function initialize_rho
 
+  !> FIXME : Add documentation    
   function rhofun (pbar)
     use splines, only: new_spline, splint, spline
     implicit none
@@ -701,7 +733,9 @@ contains
     rhofun = splint(pbar, spl)
   end function rhofun
 
-  function initialize_bound (init) 
+  !> FIXME : Add documentation    
+  function initialize_bound (init)
+    implicit none
     integer, intent(in) :: init
     integer :: initialize_bound
     
@@ -710,6 +744,7 @@ contains
     initialize_bound = 1
   end function initialize_bound
 
+  !> FIXME : Add documentation    
   function bound(theta) 
     use splines, only: new_spline, splint, spline
     implicit none
@@ -723,7 +758,9 @@ contains
     bound = splint(theta, spl)
   end function bound    
 
+  !> FIXME : Add documentation    
   subroutine alloc_module_arrays(np, nw, nh, nws, nhs, nrho)
+    implicit none
     integer, intent(in) :: np, nw, nh, nws, nhs, nrho
  
     allocate (rho_mid(nrho), psi_mid(nrho))
@@ -736,6 +773,7 @@ contains
 
   end subroutine alloc_module_arrays
 
+  !> FIXME : Add documentation    
   subroutine dealloc_module_arrays
     implicit none
     if(allocated(rho_mid)) deallocate(rho_mid,psi_mid)
@@ -746,13 +784,17 @@ contains
     if(allocated(dpm)) deallocate(dpm,dtm)
   end subroutine dealloc_module_arrays
 
+  !> FIXME : Add documentation    
   subroutine dfit_finish
     implicit none
     call dealloc_module_arrays
   end subroutine dfit_finish
 
-!Could we use routines from the sorting module instead?
+  !> FIXME : Add documentation
+  !!
+  !! @note Could we use routines from the sorting module instead?
   subroutine sort(a, b, c, d)
+    implicit none
     real, dimension(:), intent(in out) :: a, b, c, d
     real :: tmp
     integer :: i, j, jmax

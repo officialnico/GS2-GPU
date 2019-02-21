@@ -5,8 +5,9 @@ module diagnostics_moments
   private
   public :: write_moments, write_full_moments_notgc
 contains
+
+  !> FIXME : Add documentation  
   subroutine write_moments(gnostics)
-    !use gs2_io, only: nc_write_moments
     use theta_grid, only: ntgrid
     use kt_grids, only: naky, ntheta0
     use species, only: nspec
@@ -44,6 +45,7 @@ contains
     !'upar',  'The non-adiabatic part of the perturbed species density', 'n_r', ntot, gnostics%distributed)
   end subroutine write_moments
 
+  !> FIXME : Add documentation  
   subroutine write_full_moments_notgc(gnostics)
     use gs2_io, only: nc_write_moments
     use theta_grid, only: ntgrid
@@ -78,6 +80,7 @@ contains
          & in non-guiding centre coordinates', 'T_r', tperp, gnostics%distributed)
   end subroutine write_full_moments_notgc
 
+  !> FIXME : Add documentation  
   subroutine write_standard_moment_properties(gnostics, moment_name, moment_description, &
        moment_units, moment_value, distributed)
     use diagnostics_create_and_write, only: create_and_write_variable
@@ -182,6 +185,4 @@ contains
          moment_units, moment_value)
 
   end subroutine write_standard_moment_properties
-
-
 end module diagnostics_moments

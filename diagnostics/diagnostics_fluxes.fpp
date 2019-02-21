@@ -33,6 +33,7 @@ module diagnostics_fluxes
   real, dimension (:,:,:), allocatable :: exchange1
 
 contains
+  !> FIXME : Add documentation  
   subroutine init_diagnostics_fluxes(gnostics)
     use kt_grids, only: naky, ntheta0
     use species, only: nspec
@@ -71,8 +72,10 @@ contains
     allocate (apflux_vs_e(negrid,nspec)) ; apflux_vs_e = 0.
     allocate (bpflux_vs_e(negrid,nspec)) ; bpflux_vs_e = 0.
   end subroutine init_diagnostics_fluxes
-  
+
+  !> FIXME : Add documentation  
   subroutine finish_diagnostics_fluxes
+    implicit none
     deallocate (pflux, pflux_tormom, qheat, vflux, vflux_par, vflux_perp, pmflux, qmheat, vmflux, &
          pbflux, qbheat, vbflux, vflux0, vflux1, exchange, exchange1, &
          esflux_vs_e, apflux_vs_e, bpflux_vs_e)
@@ -88,6 +91,7 @@ contains
     gnostics%current_results%species_momentum_flux_avg = 0.0
   end subroutine reset_averages_and_counters
 
+  !> FIXME : Add documentation  
   subroutine calculate_fluxes(gnostics)
     use dist_fn, only: flux, lf_flux, eexchange, flux_vs_e
     use dist_fn_arrays, only: g_adjust, gnew
@@ -519,8 +523,7 @@ contains
     end if
   end subroutine calculate_standard_flux_properties
 
-
-  !> 
+  !> FIXME : Add documentation  
   subroutine write_symmetry(gnostics)
     use dist_fn, only: flux_vs_theta_vs_vpa
     use dist_fn, only: pflux_vs_theta_vs_vpa
@@ -556,6 +559,7 @@ contains
     deallocate (vflx_sym)
   end subroutine write_symmetry
 
+  !> FIXME : Add documentation  
   subroutine write_parity(gnostics)
     use theta_grid, only: ntgrid
     use kt_grids, only: naky, ntheta0
@@ -991,10 +995,10 @@ contains
     deallocate (phim)
   end subroutine write_parity
 
-! Calculate the poloidal distributions of the fluxes of particles, parallel
-! momentum, perpendicular momentum, and energy
-! (see section 3.1 and appendix A of Ball et al. PPCF 58 (2016) 045023 as well
-! as section 5 of "GS2 analytic geometry specification") ! JRB
+  !> Calculate the poloidal distributions of the fluxes of particles, parallel
+  !! momentum, perpendicular momentum, and energy
+  !! (see section 3.1 and appendix A of Ball et al. PPCF 58 (2016) 045023 as well
+  !! as section 5 of "GS2 analytic geometry specification") ! JRB
   subroutine write_nl_flux_dist(gnostics)
     use dist_fn, only: flux_dist
     use theta_grid, only: ntgrid

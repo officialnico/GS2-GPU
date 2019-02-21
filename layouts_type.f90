@@ -1,7 +1,7 @@
+!> FIXME : Add documentation
 module layouts_type
   ! This can be made by just replacing nakx by ntheta0
   !   from AstroGK's layouts_type.f90
-
   use mp, only: comm_type
   
   implicit none
@@ -11,11 +11,13 @@ module layouts_type
   public :: g_layout_type, lz_layout_type, e_layout_type
   public :: le_layout_type, p_layout_type, gf_layout_type
 
+  !> FIXME : Add documentation  
   type :: ikit
      sequence
      integer :: ik, it
   end type ikit
 
+  !> FIXME : Add documentation  
   type :: ikitprocs
      sequence
      logical :: mine
@@ -25,6 +27,7 @@ module layouts_type
      integer,dimension(:),allocatable :: sub_proc_list
   end type ikitprocs
 
+  !> FIXME : Add documentation  
   type :: g_layout_type
      sequence
      integer :: iproc
@@ -61,6 +64,7 @@ module layouts_type
      integer, allocatable :: proc_map(:) ! llimit on all ranks
   end type g_layout_type
 
+  !> FIXME : Add documentation  
   type :: lz_layout_type
      sequence
      integer :: iproc
@@ -75,6 +79,7 @@ module layouts_type
 
   end type lz_layout_type
 
+  !> FIXME : Add documentation
   type :: e_layout_type
      sequence
      integer :: iproc
@@ -87,6 +92,7 @@ module layouts_type
      integer,dimension(6) :: compound_count
   end type e_layout_type
 
+  !> FIXME : Add documentation
   type :: le_layout_type
      sequence
      integer :: iproc
@@ -102,6 +108,7 @@ module layouts_type
      logical :: x_local, y_local, t_local, s_local !Used to record if various dimensions are entirely local
   end type le_layout_type
 
+  !> FIXME : Add documentation  
   type :: gf_layout_type
      sequence
      integer :: iproc, nproc
@@ -112,7 +119,7 @@ module layouts_type
      integer :: largeregionlimit, smallgapsize, largegapsize
   end type gf_layout_type
 
-
+  !> FIXME : Add documentation
   type :: p_layout_type
      sequence
      integer :: iproc

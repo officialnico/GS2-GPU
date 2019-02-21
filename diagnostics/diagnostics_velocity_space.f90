@@ -10,7 +10,8 @@ module diagnostics_velocity_space
   public :: finish_diagnostics_velocity_space
 
 contains
-  
+
+  !> FIXME : Add documentation  
   subroutine init_diagnostics_velocity_space(gnostics)
     use le_grids, only: init_weights
     use mp, only: proc0
@@ -35,6 +36,7 @@ contains
     end if
   end subroutine init_diagnostics_velocity_space
 
+  !> FIXME : Add documentation  
   subroutine finish_diagnostics_velocity_space(gnostics)
     use le_grids, only: finish_weights
     use mp, only: proc0
@@ -44,8 +46,7 @@ contains
     if (proc0) call finish_weights
   end subroutine finish_diagnostics_velocity_space
 
-  
-  
+  !> FIXME : Add documentation  
   subroutine write_velocity_space_checks(gnostics)
     use dist_fn, only: get_verr, get_gtran
     use mp, only: proc0
@@ -120,6 +121,7 @@ contains
    deallocate(errest,erridx)
    
  contains
+   !> FIXME : Add documentation   
    subroutine write_ascii
      if (nlambda - ng2 > 1) then
         write(gnostics%ascii_files%lpc,"(4(1x,e13.6))") user_time, geavg, glavg, gtavg
@@ -139,9 +141,9 @@ contains
    end subroutine write_ascii
  end subroutine write_velocity_space_checks
 
+ !> FIXME : Add documentation 
  subroutine write_collision_error (gnostics)
-    
-    use mp, only: proc0, send, receive, barrier
+   use mp, only: proc0, send, receive, barrier
     use le_grids, only: ng2, jend, nlambda, lambda_map
     use theta_grid, only: ntgrid
     use dist_fn_arrays, only: gnew, g_adjust
@@ -157,7 +159,6 @@ contains
     implicit none
 
     type(diagnostics_type), intent(in) :: gnostics
-
 
     integer :: je, te, ig, il, ip, ilz, ie, is, ik, it
     integer :: igmax, ikmax, itmax, iemax, ilmax, ismax

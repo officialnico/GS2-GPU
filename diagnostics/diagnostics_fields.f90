@@ -9,7 +9,7 @@ module diagnostics_fields
   public :: write_fields, dump_fields_periodically, write_movie
 
 contains
-
+  !> FIXME : Add documentation
   subroutine write_fields(gnostics)
     use fields_arrays, only: phinew, aparnew, bparnew
     use run_parameters, only: fphi, fapar, fbpar
@@ -27,6 +27,7 @@ contains
       'bpar', 'The parallel magnetic potential', '...', bparnew)
   end subroutine write_fields
 
+  !> FIXME : Add documentation  
   subroutine write_standard_field_properties(gnostics, field_name, field_description, &
        field_units, field_value)
     use diagnostics_create_and_write, only: create_and_write_variable
@@ -158,6 +159,7 @@ contains
     close (unit=unit)
   end subroutine dump_fields_periodically
 
+  !> FIXME : Add documentation  
   subroutine write_movie(gnostics)
     use gs2_transforms, only: init_transforms
     use gs2_layouts, only: yxf_lo

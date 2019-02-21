@@ -1,3 +1,4 @@
+!> FIXME : Add documentation
 module gs2_reinit
   implicit none
 
@@ -9,29 +10,26 @@ module gs2_reinit
   public :: reduce_time_step, increase_time_step
   public :: init_gs2_reinit, finish_gs2_reinit
 
-
-
-  !> This subroutine reinitializes the modules which are responsible for
-  !! solving the linear, collisonal and nonlinear parts of the GK eqn,
-  !! as well as the modules which solve the field equations. This is 
-  !! typically necessary because some parameter (e.g. the timestep) which
-  !! is used to calculate the value of cached arrays (e.g. the response
-  !! matrix) in those modules has changed. Note that this will not cause
-  !! dist_fn to reread its namelist.. thus you can change g_exb (and any
-  !! other physics parameter in any other module, of course) 
-  !! before calling this function 
-  !! and expect your changes to be preserved. The function 
-  !! save_fields_and_dist_fn must be called before this, or 
-  !! otherwise the current field and dist_fn values will be lost. The
-  !! logical flag in_memory must be given the same value that was 
-  !! set in save_fields_and_dist_fn. 
+  !!> This subroutine reinitializes the modules which are responsible for
+  !!! solving the linear, collisonal and nonlinear parts of the GK eqn,
+  !!! as well as the modules which solve the field equations. This is 
+  !!! typically necessary because some parameter (e.g. the timestep) which
+  !!! is used to calculate the value of cached arrays (e.g. the response
+  !!! matrix) in those modules has changed. Note that this will not cause
+  !!! dist_fn to reread its namelist.. thus you can change g_exb (and any
+  !!! other physics parameter in any other module, of course) 
+  !!! before calling this function 
+  !!! and expect your changes to be preserved. The function 
+  !!! save_fields_and_dist_fn must be called before this, or 
+  !!! otherwise the current field and dist_fn values will be lost. The
+  !!! logical flag in_memory must be given the same value that was 
+  !!! set in save_fields_and_dist_fn. 
   !public :: reinit_gk_and_field_equations
 
   !> This function overrides the in_memory flag
   !! and should only be used if you know what
   !! you are doing.
   public :: gs2_reinit_unit_test_set_in_memory
-
 
   real :: delt_adj, dt0
   real :: delt_cushion
@@ -43,13 +41,16 @@ module gs2_reinit
 
 contains
 
+  !> FIXME : Add documentation  
   subroutine gs2_reinit_unit_test_set_in_memory(in_memory_in)
     use gs2_init, only: gs2_init_in_memory=>in_memory
+    implicit none
     logical, intent(in) :: in_memory_in
     in_memory = in_memory_in
     gs2_init_in_memory = in_memory
   end subroutine gs2_reinit_unit_test_set_in_memory
-
+  
+  !> FIXME : Add documentation  
   subroutine wnml_gs2_reinit(unit)
     implicit none
     integer, intent(in) :: unit
@@ -60,6 +61,7 @@ contains
     write (unit, fmt="(' /')")       
   end subroutine wnml_gs2_reinit
 
+  !> FIXME : Add documentation  
   subroutine reduce_time_step
     use gs2_time, only: code_dt
     implicit none
@@ -67,6 +69,7 @@ contains
     code_dt = code_dt/delt_adj
   end subroutine reduce_time_step
 
+  !> FIXME : Add documentation  
   subroutine increase_time_step
     use gs2_time, only: code_dt
     implicit none
@@ -74,10 +77,7 @@ contains
     code_dt = min(code_dt*delt_adj, dt0)
   end subroutine increase_time_step
 
-
-
-
-
+  !> FIXME : Add documentation  
   subroutine reset_time_step (current_init, istep, my_exit, job_id)
     use run_parameters, only: reset
     use gs2_time, only: code_dt, user_dt, code_dt_cfl, save_dt
@@ -174,6 +174,7 @@ contains
 
   end subroutine reset_time_step
 
+  !> FIXME : Add documentation  
   subroutine check_time_step (reset, exit)
     use gs2_time, only: code_dt_cfl, code_dt
     use nonlinear_terms, only: gryfx_zonal, nb_check_time_step_too_large
@@ -211,15 +212,17 @@ contains
 
   end subroutine check_time_step
 
-
+  !> FIXME : Add documentation
   subroutine init_gs2_reinit
     call init_reinit
   end subroutine init_gs2_reinit
 
+  !> FIXME : Add documentation  
   subroutine finish_gs2_reinit
     first = .true.
   end subroutine finish_gs2_reinit
 
+  !> FIXME : Add documentation  
   subroutine init_reinit
     use run_parameters, only: code_delt_max
     use mp, only: proc0, broadcast

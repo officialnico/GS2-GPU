@@ -16,7 +16,8 @@ module diagnostics_heating
   type (heating_diagnostics), dimension(:,:), allocatable :: hk
   type (heating_diagnostics), dimension(:,:,:), allocatable :: hk_hist
 contains
-    
+
+  !> FIXME : Add documentation  
   subroutine finish_diagnostics_heating(gnostics)
     use gs2_heating, only: del_htype
     use diagnostics_config, only: diagnostics_type
@@ -33,6 +34,7 @@ contains
     if (allocated(h_hist)) deallocate (h_hist, hk_hist, hk)
   end subroutine finish_diagnostics_heating
 
+  !> FIXME : Add documentation  
   subroutine init_diagnostics_heating(gnostics)
     use gs2_heating, only: init_htype
     use kt_grids, only: naky, ntheta0
@@ -62,13 +64,15 @@ contains
     end if
   end subroutine init_diagnostics_heating
 
+  !> FIXME : Add documentation
   subroutine reset_averages_and_counters(gnostics)
     use diagnostics_config, only: diagnostics_type
     implicit none
     type(diagnostics_type), intent (inout) :: gnostics
     gnostics%current_results%species_heating_avg = 0.0
   end subroutine reset_averages_and_counters
-  
+
+  !> FIXME : Add documentation  
   subroutine calculate_heating (gnostics)
     use mp, only: proc0
     use dist_fn, only: get_heat
@@ -127,6 +131,7 @@ contains
     call avg_hk(hk, hk_hist, gnostics%istep, gnostics%navg)
   end subroutine calculate_heating
 
+  !> FIXME : Add documentation  
   subroutine write_heating(gnostics)
     use species, only: nspec
     use file_utils, only: flush_output_file
@@ -207,7 +212,9 @@ contains
     if (gnostics%write_ascii .and. proc0) call write_ascii
     
   contains
+    !> FIXME : Add documentation    
     subroutine write_ascii
+      implicit none
       integer :: heat_unit
       integer :: heat_unit2
       

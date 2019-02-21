@@ -480,10 +480,6 @@ ifdef LOWFLOW
 	MACRO_DEFS += -DLOWFLOW
 endif
 
-ifdef USE_LE_LAYOUT
-	MACRO_DEFS += -DUSE_LE_LAYOUT
-endif
-
 #Setup the flags for using the eigensolver
 ifdef WITH_EIG
 	EIG_INC += -I$(PETSC_DIR)/include -I$(SLEPC_DIR)/include
@@ -920,7 +916,7 @@ endif
 
 docs/html:
 doc: docs/.docs.config.md check_ford_install
-	$(FORD) $(subst -D,--macro ,$(MACRO_DEFS)) $(INCLUDES) $<
+	$(FORD) $(subst -D,--macro ,$(MACRO_DEFS)) $(INCLUDES) -r $(GIT_HASH) $<
 
 cleandoc: docs/html docs/graphs
 	$(call messageRm,"FORD docs")	

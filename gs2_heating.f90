@@ -1,3 +1,4 @@
+!> FIXME : Add documentation
 module gs2_heating
 
   implicit none
@@ -37,6 +38,7 @@ module gs2_heating
      module procedure del_dvtype_0, del_dvtype_1, del_dvtype_2, del_dvtype_3
   end interface
 
+  !> FIXME : Add documentation  
   type :: heating_diagnostics
 ! total quantities:
      real :: energy
@@ -58,7 +60,8 @@ module gs2_heating
      real, dimension(:), pointer :: heating    => null()
   end type heating_diagnostics
 
-!GGH>
+  !GGH>
+  !> FIXME : Add documentation  
   type :: dens_vel_diagnostics
      !GGH NOTE: Dimension here is for species
      real, dimension(:), pointer :: dvpar  => null()
@@ -68,8 +71,9 @@ module gs2_heating
 !<GGH
 contains
 
+  !> FIXME : Add documentation  
   subroutine init_htype_0 (h, nspec)
-
+    implicit none
     type (heating_diagnostics), intent(in out) :: h
     integer, intent (in) :: nspec
     
@@ -89,8 +93,9 @@ contains
 
   end subroutine init_htype_0
 
+  !> FIXME : Add documentation
   subroutine init_htype_1 (h, nspec)
-
+    implicit none
     type (heating_diagnostics), dimension(:), intent(in out) :: h
     integer, intent (in) :: nspec
     integer :: n, nmax
@@ -115,8 +120,9 @@ contains
 
   end subroutine init_htype_1
 
+  !> FIXME : Add documentation  
   subroutine init_htype_2 (h, nspec)
-
+    implicit none
     type (heating_diagnostics), dimension(:,:), intent(in out) :: h
     integer, intent (in) :: nspec
     integer :: m, n, mmax, nmax
@@ -143,9 +149,10 @@ contains
     call zero_htype (h)
 
   end subroutine init_htype_2
-    
-  subroutine init_htype_3 (h, nspec)
 
+  !> FIXME : Add documentation
+  subroutine init_htype_3 (h, nspec)
+    implicit none
     type (heating_diagnostics), dimension(:,:,:), intent(in out) :: h
     integer, intent (in) :: nspec
     integer :: l, m, n, lmax, mmax, nmax
@@ -175,9 +182,10 @@ contains
     call zero_htype (h)
 
   end subroutine init_htype_3
-    
-  subroutine zero_htype_0 (h)
 
+  !> FIXME : Add documentation
+  subroutine zero_htype_0 (h)
+    implicit none
     type (heating_diagnostics), intent(in out) :: h
     
     h % energy = 0.
@@ -199,8 +207,9 @@ contains
 
   end subroutine zero_htype_0
 
+  !> FIXME : Add documentation
   subroutine zero_htype_1 (h)
-
+    implicit none
     type (heating_diagnostics), dimension(:), intent(in out) :: h
     integer :: n, nmax
 
@@ -227,8 +236,9 @@ contains
 
   end subroutine zero_htype_1
 
+  !> FIXME : Add documentation
   subroutine zero_htype_2 (h)
-
+    implicit none
     type (heating_diagnostics), dimension(:,:), intent(in out) :: h
     integer :: n, nmax, m, mmax
 
@@ -258,8 +268,9 @@ contains
 
   end subroutine zero_htype_2
 
+  !> FIXME : Add documentation
   subroutine zero_htype_3 (h)
-
+    implicit none
     type (heating_diagnostics), dimension(:,:,:), intent(in out) :: h
     integer :: n, nmax, m, mmax, l, lmax
 
@@ -292,8 +303,9 @@ contains
 
   end subroutine zero_htype_3
 
+  !> FIXME : Add documentation
   subroutine del_htype_0 (h)
-
+    implicit none
     type (heating_diagnostics), intent(in out) :: h
     
     deallocate (h % delfs2)
@@ -310,8 +322,9 @@ contains
 
   end subroutine del_htype_0
 
+  !> FIXME : Add documentation  
   subroutine del_htype_1 (h)
-
+    implicit none
     type (heating_diagnostics), dimension(:), intent(in out) :: h
     integer :: m, mmax
     
@@ -333,8 +346,9 @@ contains
 
   end subroutine del_htype_1
 
+  !> FIXME : Add documentation
   subroutine del_htype_2 (h)
-
+    implicit none
     type (heating_diagnostics), dimension(:,:), intent(in out) :: h
     integer :: m, mmax, n, nmax
     
@@ -359,8 +373,9 @@ contains
 
   end subroutine del_htype_2
 
+  !> FIXME : Add documentation
   subroutine del_htype_3 (h)
-
+    implicit none
     type (heating_diagnostics), dimension(:,:,:), intent(in out) :: h
     integer :: l, m, n, lmax, mmax, nmax
 
@@ -388,10 +403,11 @@ contains
 
   end subroutine del_htype_3
 
+  !> FIXME : Add documentation
   subroutine avg_h (h, h_hist, istep, navg)
-
     use mp, only: proc0
     use species, only: nspec
+    implicit none
     type (heating_diagnostics), intent(in out) :: h
     type (heating_diagnostics), dimension (0:), intent(in out) :: h_hist
     integer, intent (in) :: istep, navg
@@ -446,10 +462,11 @@ contains
 
   end subroutine avg_h
 
+  !> FIXME : Add documentation
   subroutine avg_hk (hk, hk_hist, istep, navg)
-
     use mp, only: proc0
     use species, only: nspec
+    implicit none    
     type (heating_diagnostics), dimension(:,:), intent(in out) :: hk
     type (heating_diagnostics), dimension (:,:,0:), intent(in out) :: hk_hist
     integer, intent (in) :: istep, navg
@@ -517,9 +534,10 @@ contains
 
   end subroutine avg_hk
 
+  !> FIXME : Add documentation
   subroutine hk_repack (hk, i, tmp)
-
     use species, only: nspec
+    implicit none    
     type (heating_diagnostics), dimension (:,:), intent(in) :: hk
     real, dimension(:,:,:), intent (out) :: tmp
     integer, intent (in) :: i
@@ -612,12 +630,15 @@ contains
     end select
     
   end subroutine hk_repack
-!=============================================================================
-!<GGH
-! Density velocity perturbation routines
-!=============================================================================
-    subroutine init_dvtype_0 (dv, nspec)
 
+  !=============================================================================
+  !<GGH
+  ! Density velocity perturbation routines
+  !=============================================================================
+
+  !> FIXME : Add documentation
+  subroutine init_dvtype_0 (dv, nspec)
+    implicit none
     type (dens_vel_diagnostics), intent(in out) :: dv
     integer, intent (in) :: nspec
 
@@ -628,8 +649,11 @@ contains
     call zero_dvtype (dv)
 
   end subroutine init_dvtype_0
-!=============================================================================
+  
+  !=============================================================================
+  !> FIXME : Add documentation
   subroutine init_dvtype_1 (dv, nspec)
+    implicit none
     type (dens_vel_diagnostics), dimension(:), intent(in out) :: dv
     integer, intent (in) :: nspec
     integer :: n, nmax
@@ -645,8 +669,11 @@ contains
     call zero_dvtype (dv)
 
   end subroutine init_dvtype_1
-!=============================================================================
+  
+  !=============================================================================
+  !> FIXME : Add documentation
   subroutine init_dvtype_2 (dv, nspec)
+    implicit none
     type (dens_vel_diagnostics), dimension(:,:), intent(in out) :: dv
     integer, intent (in) :: nspec
     integer :: m, n, mmax, nmax
@@ -665,8 +692,11 @@ contains
     call zero_dvtype (dv)
 
   end subroutine init_dvtype_2
-!=============================================================================
+
+  !=============================================================================
+  !> FIXME : Add documentation
   subroutine init_dvtype_3 (dv, nspec)
+    implicit none
     type (dens_vel_diagnostics), dimension(:,:,:), intent(in out) :: dv
     integer, intent (in) :: nspec
     integer :: l, m, n, lmax, mmax, nmax
@@ -688,9 +718,11 @@ contains
     call zero_dvtype (dv)
 
   end subroutine init_dvtype_3
-!=============================================================================
-  subroutine zero_dvtype_0 (dv)
 
+  !=============================================================================
+  !> FIXME : Add documentation
+  subroutine zero_dvtype_0 (dv)
+    implicit none
     type (dens_vel_diagnostics), intent(in out) :: dv
 
     dv % dvpar = 0. 
@@ -698,9 +730,11 @@ contains
     dv % dn = 0.
 
   end subroutine zero_dvtype_0
-!=============================================================================
+  
+  !=============================================================================
+  !> FIXME : Add documentation
   subroutine zero_dvtype_1 (dv)
-
+    implicit none
     type (dens_vel_diagnostics), dimension(:), intent(in out) :: dv
     integer :: n, nmax
 
@@ -713,9 +747,11 @@ contains
     end do
 
   end subroutine zero_dvtype_1
-!=============================================================================
- subroutine zero_dvtype_2 (dv)
 
+  !=============================================================================
+  !> FIXME : Add documentation
+  subroutine zero_dvtype_2 (dv)
+    implicit none
     type (dens_vel_diagnostics), dimension(:,:), intent(in out) :: dv
     integer :: n, nmax, m, mmax
 
@@ -731,9 +767,11 @@ contains
     end do
 
   end subroutine zero_dvtype_2
-!=============================================================================
- subroutine zero_dvtype_3 (dv)
-
+  
+  !=============================================================================
+  !> FIXME : Add documentation
+  subroutine zero_dvtype_3 (dv)
+    implicit none
     type (dens_vel_diagnostics), dimension(:,:,:), intent(in out) :: dv
     integer :: n, nmax, m, mmax, l, lmax
 
@@ -752,8 +790,11 @@ contains
     end do
 
   end subroutine zero_dvtype_3
-!=============================================================================
+
+  !=============================================================================
+  !> FIXME : Add documentation
   subroutine del_dvtype_0 (dv)
+    implicit none
     type (dens_vel_diagnostics), intent(in out) :: dv
     
     deallocate (dv % dvpar)
@@ -761,8 +802,11 @@ contains
     deallocate (dv % dn)
 
   end subroutine del_dvtype_0
-!=============================================================================
+  
+  !=============================================================================
+  !> FIXME : Add documentation  
   subroutine del_dvtype_1 (dv)
+    implicit none
     type (dens_vel_diagnostics), dimension(:), intent(in out) :: dv
     integer :: m, mmax
 
@@ -775,9 +819,11 @@ contains
     end do
 
   end subroutine del_dvtype_1
-!=============================================================================
- subroutine del_dvtype_2 (dv)
 
+  !=============================================================================
+  !> FIXME : Add documentation
+  subroutine del_dvtype_2 (dv)
+    implicit none
     type (dens_vel_diagnostics), dimension(:,:), intent(in out) :: dv
     integer :: m, mmax, n, nmax
     
@@ -793,9 +839,11 @@ contains
     end do
 
   end subroutine del_dvtype_2
-!=============================================================================
- subroutine del_dvtype_3 (dv)
-
+  
+  !=============================================================================
+  !> FIXME : Add documentation
+  subroutine del_dvtype_3 (dv)
+    implicit none
     type (dens_vel_diagnostics), dimension(:,:,:), intent(in out) :: dv
     integer :: l, lmax, m, mmax, n, nmax
     
@@ -814,9 +862,12 @@ contains
     end do
 
   end subroutine del_dvtype_3
-!=============================================================================
-  subroutine avg_dv (dv, dv_hist, istep, navg)
+  
+  !=============================================================================
+  !> FIXME : Add documentation
+  subroutine avg_dv (dv, dv_hist, istep, navg)  
     use mp, only: proc0
+    implicit none
     type (dens_vel_diagnostics), intent(in out) :: dv
     type (dens_vel_diagnostics), dimension (0:), intent(in out) :: dv_hist
     integer, intent (in) :: istep, navg
@@ -842,9 +893,12 @@ contains
     end if
 
   end subroutine avg_dv
-!=============================================================================
-  subroutine avg_dvk (dvk, dvk_hist, istep, navg)
+
+  !=============================================================================
+  !> FIXME : Add documentation
+  subroutine avg_dvk (dvk, dvk_hist, istep, navg)    
     use mp, only: proc0
+    implicit none
     type (dens_vel_diagnostics), dimension(:,:), intent(in out) :: dvk
     type (dens_vel_diagnostics), dimension (:,:,0:), intent(in out) :: dvk_hist
     integer, intent (in) :: istep, navg
@@ -881,7 +935,4 @@ contains
     end if
 
   end subroutine avg_dvk
-!>GGH
-!=============================================================================
-
 end module gs2_heating
