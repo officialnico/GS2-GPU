@@ -1,4 +1,4 @@
-! This module contains routines to read from CMR's GS2D equilibrium solver
+!> This module contains routines to read from CMR's GS2D equilibrium solver
 module gs2d
   private
 
@@ -14,6 +14,7 @@ module gs2d
 
 contains
 
+  !> FIXME : Add documentation
   subroutine read_gs2d(filename)
     implicit none
 !CMR, 2/3/2006: lengthen the string filename to 80
@@ -46,7 +47,8 @@ contains
     read(1,fmt='(a80)') line ; read(1,fmt='(1p,8e16.8)') psi
     close(1)
   end subroutine read_gs2d
-  
+
+  !> FIXME : Add documentation
   subroutine write_gs2d(filename)
     implicit none
     character(len=40), intent(in) :: filename
@@ -113,7 +115,7 @@ module eeq
   public :: psi,      initialize_psi
   public :: verbosity  !Should this be replaced by usage of runtime_test:verbosity?
 
-  integer :: nw, nh, nbbbs, ntime, ntstar
+  integer :: nw, nh, nbbbs
 
   integer :: verbosity = 0  !Should this be replaced by usage of runtime_test:verbosity?
 
@@ -137,22 +139,21 @@ module eeq
   logical :: init_psi = .true.
 
 contains
+
+  !> This subroutine reads a GS2D output file containing 
+  !! the axisymmetric magnetic field geometry on a rectangular 
+  !! domain defined by the coordinates (R,Z).
+  !!
+  !! efit_R     R grid
+  !! efit_Z     Z grid
+  !! fp    F on psibar grid
+  !! efit_psi   psi on (R,Z) grid
+  !! R_mag        major radius of the magnetic axis
+  !! Z_mag        elevation of the magnetic axis
+  !! rwid       total width of the domain
+  !! rleft      position of leftmost point of domain
+  !! zhei       total height of domain
   subroutine gs2din(eqfile, psi_0, psi_a, rmaj, B_T, amin, initeq, big)
-!
-!     This subroutine reads a GS2D output file containing 
-!     the axisymmetric magnetic field geometry on a rectangular 
-!     domain defined by the coordinates (R,Z).
-!
-!     efit_R     R grid
-!     efit_Z     Z grid
-!     fp    F on psibar grid
-!     efit_psi   psi on (R,Z) grid
-!     R_mag        major radius of the magnetic axis
-!     Z_mag        elevation of the magnetic axis
-!     rwid       total width of the domain
-!     rleft      position of leftmost point of domain
-!     zhei       total height of domain
-!
     use splines, only: inter_cspl, fitp_surf2, fitp_surf1
     use constants, only: pi, twopi
     use gs2d, only: read_gs2d, psi, b0, f, ippsi, nr, nz, p, ps
@@ -344,23 +345,21 @@ if (debug) write(6,*) "gs2din: B_T0, aminor, psi_0, psi_a=", B_T0, aminor, psi_0
 
   end subroutine gs2din
 
-  !>   This subroutine reads an EFIT output file containing 
-  !!   the axisymmetric magnetic field geometry on a rectangular 
-  !!   domain defined by the coordinates (R,Z). It reads and stores
-  !!   the following quantities (among others).
+  !> This subroutine reads an EFIT output file containing 
+  !! the axisymmetric magnetic field geometry on a rectangular 
+  !! domain defined by the coordinates (R,Z). It reads and stores
+  !! the following quantities (among others).
   !!  
-  !!   - efit_R:     R grid
-  !!   - efit_Z:     Z grid
-  !!   - fp:    F on psibar grid
-  !!   - efit_psi:   psi on (R,Z) grid
-  !!   - R_mag:        major radius of the magnetic axis
-  !!   - Z_mag:        elevation of the magnetic axis
-  !!   - rwid:       total width of the domain
-  !!   - rleft:      position of leftmost point of domain
-  !!   - zhei:       total height of domain
+  !! - efit_R:     R grid
+  !! - efit_Z:     Z grid
+  !! - fp:    F on psibar grid
+  !! - efit_psi:   psi on (R,Z) grid
+  !! - R_mag:        major radius of the magnetic axis
+  !! - Z_mag:        elevation of the magnetic axis
+  !! - rwid:       total width of the domain
+  !! - rleft:      position of leftmost point of domain
+  !! - zhei:       total height of domain
   subroutine efitin(eqfile, psi_0, psi_a, rmaj, B_T, amin, initeq, big)
-!
-!
     use constants, only: pi, twopi
     use splines, only: inter_cspl, fitp_surf2, fitp_surf1
     implicit none
@@ -579,10 +578,11 @@ if (debug) write(6,*) "gs2din: B_T0, aminor, psi_0, psi_a=", B_T0, aminor, psi_0
   end subroutine efitin
 
   !> Calculate the following arrays:
-  !!  - eqth, which is theta on an R,Z grid
-  !!  - dpm, which is (d psi / d R) and (d psi / d Z) on an R,Z grid
-  !!  - dtm, which is (d theta / d R) and (d theta / d Z) on an R,Z grid 
+  !! - eqth, which is theta on an R,Z grid
+  !! - dpm, which is (d psi / d R) and (d psi / d Z) on an R,Z grid
+  !! - dtm, which is (d theta / d R) and (d theta / d Z) on an R,Z grid 
   subroutine efit_init
+    implicit none
     real, dimension(:, :), allocatable :: eqth 
     integer :: i, j
 
@@ -610,6 +610,7 @@ if (debug) write(6,*) "gs2din: B_T0, aminor, psi_0, psi_a=", B_T0, aminor, psi_0
     
   end subroutine efit_init
 
+  !> FIXME : Add documentation
   subroutine tderm(f, dfm)
     use constants, only: pi
     implicit none
@@ -690,14 +691,14 @@ if (debug) write(6,*) "gs2din: B_T0, aminor, psi_0, psi_a=", B_T0, aminor, psi_0
 
   !> Calculate the derivative of psi/(a^2 B_a) w.r.t. R and Z. Parameters
   !! are: 
-  !!   - rgrid: distance to mag axis as a fn of theta
-  !!   - theta: grid of theta
-  !!   - grad(:,1): deriv w.r.t. R as fn of theta
-  !!   - grad(:,2): deriv w.r.t  Z as fn of theta
-  !!   - char: if char = 'R', return the gradient of pressure instead
-  !!   - rp: value of psi/(a^2 B_a) on the flux surface where we want the grad
-  !!   - nth: number of theta points
-  !!   - ntm: lower index of theta array is -ntm
+  !! - rgrid: distance to mag axis as a fn of theta
+  !! - theta: grid of theta
+  !! - grad(:,1): deriv w.r.t. R as fn of theta
+  !! - grad(:,2): deriv w.r.t  Z as fn of theta
+  !! - char: if char = 'R', return the gradient of pressure instead
+  !! - rp: value of psi/(a^2 B_a) on the flux surface where we want the grad
+  !! - nth: number of theta points
+  !! - ntm: lower index of theta array is -ntm
   subroutine gradient(rgrid, theta, grad, char, rp, nth, ntm)
     use splines, only: inter_d_cspl
     implicit none
@@ -732,17 +733,17 @@ if (debug) write(6,*) "gs2din: B_T0, aminor, psi_0, psi_a=", B_T0, aminor, psi_0
   !> Calculate the derivative of psi/(a^2 B_a) w.r.t. R and Z and return
   !! the modulus sqrt(dpsi/dR ^ 2 + dpsi/dZ^2). I.e. return |grad psi|.
   !! Parameters are: 
-  !!   - rgrid: distance to mag axis as a fn of theta
-  !!   - theta: grid of theta
-  !!   - grad(:,1): |grad psi|
-  !!   - grad(:,2): 0.0
-  !!   - char: if char = 'R', return |grad pressure| instead
-  !!   - char: if char = 'T', then return theta gradient in bishop form
-  !!    - grad(:,1): (dtheta/dZ d psi/dR - dtheta/dR dpsi/dZ)/ |grad psi|
-  !!    - grad(:,2): (dtheta/dR d psi/dR + dtheta/dZ dpsi/dZ)/ |grad psi|
-  !!   - rp: value of psi/(a^2 B_a) on the flux surface where we want the grad
-  !!   - nth: number of theta points
-  !!   - ntm: lower index of theta array is -ntm
+  !! - rgrid: distance to mag axis as a fn of theta
+  !! - theta: grid of theta
+  !! - grad(:,1): |grad psi|
+  !! - grad(:,2): 0.0
+  !! - char: if char = 'R', return |grad pressure| instead
+  !! - char: if char = 'T', then return theta gradient in bishop form
+  !!  - grad(:,1): (dtheta/dZ d psi/dR - dtheta/dR dpsi/dZ)/ |grad psi|
+  !!  - grad(:,2): (dtheta/dR d psi/dR + dtheta/dZ dpsi/dZ)/ |grad psi|
+  !! - rp: value of psi/(a^2 B_a) on the flux surface where we want the grad
+  !! - nth: number of theta points
+  !! - ntm: lower index of theta array is -ntm
   subroutine bgradient(rgrid, theta, grad, char, rp, nth_used, ntm)
     use splines, only: inter_d_cspl
     implicit none
@@ -870,28 +871,36 @@ if (debug) write(6,*) "gs2din: B_T0, aminor, psi_0, psi_a=", B_T0, aminor, psi_0
 
   end subroutine eqitem
 
+  !> FIXME : Add documentation  
   function Zpos (r, theta)
+    implicit none
     real, intent (in) :: r, theta
     real :: Zpos
     
     Zpos = Z_mag + r * sin(theta)
   end function Zpos
 
+  !> FIXME : Add documentation  
   function Rpos (r, theta)
+    implicit none
     real, intent (in) :: r, theta
     real :: Rpos
 
     Rpos = R_mag + r * cos(theta)
   end function Rpos
 
+  !> FIXME : Add documentation  
   function invR (r, theta)
+    implicit none
     real, intent (in) :: r, theta
     real :: invR
 
     invR = 1/(R_mag + r*cos(theta))
   end function invR
 
-  function initialize_psi (init) 
+  !> FIXME : Add documentation  
+  function initialize_psi (init)
+    implicit none
     integer, intent(in) :: init
     integer :: initialize_psi
     
@@ -900,7 +909,9 @@ if (debug) write(6,*) "gs2din: B_T0, aminor, psi_0, psi_a=", B_T0, aminor, psi_0
     initialize_psi = 1
   end function initialize_psi
 
+  !> FIXME : Add documentation  
   function psi (r, theta)
+    implicit none
     real, intent (in) :: r, theta
     real :: f, psi
 
@@ -908,7 +919,9 @@ if (debug) write(6,*) "gs2din: B_T0, aminor, psi_0, psi_a=", B_T0, aminor, psi_0
     psi = f
   end function psi
    
-  function initialize_btori (init) 
+  !> FIXME : Add documentation
+  function initialize_btori (init)
+    implicit none
     integer, intent(in) :: init
     integer :: initialize_btori
     
@@ -917,6 +930,7 @@ if (debug) write(6,*) "gs2din: B_T0, aminor, psi_0, psi_a=", B_T0, aminor, psi_0
     initialize_btori = 1
   end function initialize_btori
 
+  !> FIXME : Add documentation  
   function btori (pbar)
     use splines, only: new_spline, splint, spline
     implicit none
@@ -929,7 +943,9 @@ if (debug) write(6,*) "gs2din: B_T0, aminor, psi_0, psi_a=", B_T0, aminor, psi_0
     btori = splint(pbar, spl)
   end function btori
 
-  function initialize_dbtori (init) 
+  !> FIXME : Add documentation  
+  function initialize_dbtori (init)
+    implicit none
     integer, intent(in) :: init
     integer :: initialize_dbtori
     
@@ -938,6 +954,7 @@ if (debug) write(6,*) "gs2din: B_T0, aminor, psi_0, psi_a=", B_T0, aminor, psi_0
     initialize_dbtori = 1
   end function initialize_dbtori
 
+  !> FIXME : Add documentation  
   function dbtori (pbar)
     use splines, only: new_spline, dsplint, spline
     implicit none
@@ -950,7 +967,9 @@ if (debug) write(6,*) "gs2din: B_T0, aminor, psi_0, psi_a=", B_T0, aminor, psi_0
     dbtori = dsplint(pbar, spl)/psi_N
   end function dbtori
 
-  function initialize_q (init) 
+  !> FIXME : Add documentation  
+  function initialize_q (init)
+    implicit none
     integer, intent(in) :: init
     integer :: initialize_q
     
@@ -959,6 +978,7 @@ if (debug) write(6,*) "gs2din: B_T0, aminor, psi_0, psi_a=", B_T0, aminor, psi_0
     initialize_q = 1
   end function initialize_q
 
+  !> FIXME : Add documentation  
   function qfun (pbar)
     use splines, only: new_spline, splint, spline
     implicit none
@@ -973,7 +993,9 @@ if (debug) write(6,*) "gs2din: B_T0, aminor, psi_0, psi_a=", B_T0, aminor, psi_0
     qfun = splint(pbar, spl)
   end function qfun
 
-  function initialize_pressure (init) 
+  !> FIXME : Add documentation  
+  function initialize_pressure (init)
+    implicit none
     integer, intent(in) :: init
     integer :: initialize_pressure
     
@@ -982,6 +1004,7 @@ if (debug) write(6,*) "gs2din: B_T0, aminor, psi_0, psi_a=", B_T0, aminor, psi_0
     initialize_pressure = 1
   end function initialize_pressure
 
+  !> FIXME : Add documentation  
   function pfun (pbar)
     use splines, only: new_spline, splint, spline
     implicit none
@@ -994,7 +1017,9 @@ if (debug) write(6,*) "gs2din: B_T0, aminor, psi_0, psi_a=", B_T0, aminor, psi_0
     pfun = splint(pbar, spl) * beta_0/2.
   end function pfun
 
-  function initialize_dpressure (init) 
+  !> FIXME : Add documentation  
+  function initialize_dpressure (init)
+    implicit none
     integer, intent(in) :: init
     integer :: initialize_dpressure
     
@@ -1003,6 +1028,7 @@ if (debug) write(6,*) "gs2din: B_T0, aminor, psi_0, psi_a=", B_T0, aminor, psi_0
     initialize_dpressure = 1
   end function initialize_dpressure
 
+  !> FIXME : Add documentation  
   function dpfun (pbar)
     use splines, only: new_spline, dsplint, spline
     implicit none
@@ -1014,8 +1040,10 @@ if (debug) write(6,*) "gs2din: B_T0, aminor, psi_0, psi_a=", B_T0, aminor, psi_0
 
     dpfun = dsplint(pbar, spl)/psi_N * beta_0/2.
   end function dpfun
-
-  function initialize_beta (init) 
+  
+  !> FIXME : Add documentation
+  function initialize_beta (init)
+    implicit none
     integer, intent(in) :: init
     integer :: initialize_beta
     
@@ -1024,6 +1052,7 @@ if (debug) write(6,*) "gs2din: B_T0, aminor, psi_0, psi_a=", B_T0, aminor, psi_0
     initialize_beta = 1
   end function initialize_beta
 
+  !> FIXME : Add documentation  
   function betafun (pbar)
     use splines, only: new_spline, splint, spline
     implicit none
@@ -1036,7 +1065,9 @@ if (debug) write(6,*) "gs2din: B_T0, aminor, psi_0, psi_a=", B_T0, aminor, psi_0
     betafun = splint(pbar, spl)
   end function betafun
 
-  function initialize_bound (init) 
+  !> FIXME : Add documentation  
+  function initialize_bound (init)
+    implicit none
     integer, intent(in) :: init
     integer :: initialize_bound
     
@@ -1045,6 +1076,7 @@ if (debug) write(6,*) "gs2din: B_T0, aminor, psi_0, psi_a=", B_T0, aminor, psi_0
     initialize_bound = 1
   end function initialize_bound
 
+  !> FIXME : Add documentation  
   function bound(theta) 
     use splines, only: new_spline, splint, spline
     implicit none
@@ -1058,7 +1090,9 @@ if (debug) write(6,*) "gs2din: B_T0, aminor, psi_0, psi_a=", B_T0, aminor, psi_0
     bound = splint(theta, spl)
   end function bound    
 
+  !> FIXME : Add documentation  
   subroutine alloc_module_arrays(np, nw, nh, nws, nhs, ntime)
+    implicit none
     integer, intent(in) :: np, nw, nh, nws, nhs
     integer, intent (in), optional :: ntime
  
@@ -1074,6 +1108,7 @@ if (debug) write(6,*) "gs2din: B_T0, aminor, psi_0, psi_a=", B_T0, aminor, psi_0
     end if
   end subroutine alloc_module_arrays
 
+  !> FIXME : Add documentation  
   subroutine dealloc_module_arrays
     implicit none
     if(allocated(psi_bar)) deallocate(psi_bar,fp,qsf,pressure,beta)
@@ -1085,11 +1120,13 @@ if (debug) write(6,*) "gs2din: B_T0, aminor, psi_0, psi_a=", B_T0, aminor, psi_0
     if(allocated(efit_t)) deallocate(efit_t)
   end subroutine dealloc_module_arrays
 
+  !> FIXME : Add documentation  
   subroutine efit_finish
     implicit none
     call dealloc_module_arrays
   end subroutine efit_finish
 
+  !> FIXME : Add documentation  
   subroutine a_minor(r, z, Z_mag, a)
 !    use mp, only: mp_abort
     use splines, only: new_spline, splint, delete_spline, spline
@@ -1098,7 +1135,8 @@ if (debug) write(6,*) "gs2din: B_T0, aminor, psi_0, psi_a=", B_T0, aminor, psi_0
     real, intent(in) :: Z_mag
     real, intent(out) :: a
     real :: r1, r2
-    integer, parameter :: nz = 5
+    integer, parameter :: nz = 5, half_nz = nz/2
+    integer :: index
     real, dimension(nz) :: rtmp, ztmp
     integer i, j, i1, n
     type (spline) :: spl
@@ -1120,20 +1158,20 @@ if (debug) write(6,*) "gs2din: B_T0, aminor, psi_0, psi_a=", B_T0, aminor, psi_0
     endif
 
     j = 0
-    do i = nz/2+1,1,-1
+    do i = half_nz+1,1,-1
        j = j + 1
        ztmp(j) = z(i)
        rtmp(j) = r(i)
     enddo
 
     if(r(1) == r(n) .and. z(1) == z(n)) then
-       do i = n-1, n-nz/2, -1
+       do i = n-1, n-half_nz, -1
           j = j + 1
           ztmp(j) = z(i)
           rtmp(j) = r(i)
        enddo
     else
-       do i = n, n-nz/2+1, -1
+       do i = n, n-half_nz+1, -1
           j = j + 1
           ztmp(j) = z(i)
           rtmp(j) = r(i)
@@ -1160,14 +1198,15 @@ if (debug) write(6,*) "gs2din: B_T0, aminor, psi_0, psi_a=", B_T0, aminor, psi_0
 !CMR, 28/10/08: modify this code to avoid duplicate points in 5 point spline 
 !               to determine r2 on inboard mid-plane
     do i = 1, nz
-       rtmp(i) = r(i1 - nz/2 + i - 1 + k )
-       ztmp(i) = z(i1 - nz/2 + i - 1 + k )
+       index = i1 - half_nz + i - 1 + k
+       rtmp(i) = r(index)
+       ztmp(i) = z(index)
        if ( i.gt.1 ) then
           if ((rtmp(i)-rtmp(i-1))**2+(ztmp(i)-ztmp(i-1))**2 .lt. 1.0e-7) then
              k=k+1
              if (debug) write(6,fmt='("a_minor: duplicate pt, set k=",i2)') k
-             rtmp(i) = r(i1 - nz/2 + i - 1 + k)
-             ztmp(i) = z(i1 - nz/2 + i - 1 + k)
+             rtmp(i) = r(index)
+             ztmp(i) = z(index)
           endif
        endif
     enddo
@@ -1186,8 +1225,10 @@ if (debug) write(6,*) "gs2din: B_T0, aminor, psi_0, psi_a=", B_T0, aminor, psi_0
 
   end subroutine a_minor
 
-!Can we use something from the sorting module?
+  !> FIXME : Add documentation
   subroutine sort(a, b, c, d)
+    !Can we use something from the sorting module?
+    implicit none    
     real, dimension(:), intent(in out) :: a, b, c, d
     real :: tmp
     integer :: i, jmax
@@ -1210,26 +1251,4 @@ if (debug) write(6,*) "gs2din: B_T0, aminor, psi_0, psi_a=", B_T0, aminor, psi_0
     enddo
 
   end subroutine sort
-
-! alternative coding
-!  subroutine sort(a, b, c, d)
-!
-!    real, dimension(:), intent(in out) :: a, b, c, d
-!    real tmp
-!    integer :: i, j, jmax
-!
-!    jmax = size(a)
-!
-!    do j=1,jmax
-!       do i=1,jmax-j
-!          if(a(i+1) < a(i)) then
-!             tmp=a(i); a(i)=a(i+1); a(i+1)=tmp             
-!             tmp=b(i); b(i)=b(i+1); b(i+1)=tmp
-!             tmp=c(i); c(i)=c(i+1); c(i+1)=tmp
-!             tmp=d(i); d(i)=d(i+1); d(i+1)=tmp
-!          endif
-!       enddo
-!    enddo
-!  end subroutine sort
-!
 end module eeq

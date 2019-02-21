@@ -1,3 +1,4 @@
+!> FIXME : Add documentation
 module fields_implicit
   implicit none
 
@@ -22,6 +23,7 @@ module fields_implicit
   !// DCELL : 
   ! Within each supercell, there are are N_class primary cells.  Each 
   ! has (2*ntgrid+1)*nfield points.
+  !> FIXME : Add documentation  
   type dcell_type
      complex, dimension(:), pointer :: supercell => null()
   end type dcell_type
@@ -35,7 +37,8 @@ module fields_implicit
   ! are distributed -- thus, "dcells"
   
   !////////////////////////////////////////////////////////////////
-  !// FIELD_MATRIX_TYPE : 
+  !// FIELD_MATRIX_TYPE :
+  !> FIXME : Add documentation  
   type :: field_matrix_type
      type(dcell_type), dimension (:), pointer :: dcell => null()
   end type field_matrix_type
@@ -61,7 +64,7 @@ module fields_implicit
   logical :: dump_response=.false., read_response=.false.
   integer, dimension(:), allocatable :: recvcnts, displs
 contains
-
+  !> FIXME : Add documentation
   subroutine init_fields_implicit
     use antenna, only: init_antenna
     use theta_grid, only: init_theta_grid
@@ -103,6 +106,7 @@ contains
     call init_antenna
   end subroutine init_fields_implicit
 
+  !> FIXME : Add documentation
   function fields_implicit_unit_test_init_fields_implicit()
     implicit none
     logical :: fields_implicit_unit_test_init_fields_implicit
@@ -111,12 +115,12 @@ contains
     fields_implicit_unit_test_init_fields_implicit = .true.
   end function fields_implicit_unit_test_init_fields_implicit
 
+  !> FIXME : Add documentation  
   subroutine init_allfields_implicit(gf_lo)
     use fields_arrays, only: phi, apar, bpar, phinew, aparnew, bparnew
     use dist_fn_arrays, only: g, gnew
     use dist_fn, only: get_init_field
     use init_g, only: new_field_init
-    use mp, only: iproc
 
     implicit none
 
@@ -147,6 +151,7 @@ contains
 
   end subroutine init_allfields_implicit
 
+  !> FIXME : Add documentation  
   subroutine get_field_vector (fl, phi, apar, bpar)
     use theta_grid, only: ntgrid
     use kt_grids, only: naky, ntheta0
@@ -192,6 +197,7 @@ contains
     call prof_leaving ("get_field_vector", "fields_implicit")
   end subroutine get_field_vector
 
+  !> FIXME : Add documentation  
   subroutine get_field_solution (u)
     use fields_arrays, only: phinew, aparnew, bparnew
     use theta_grid, only: ntgrid
@@ -243,6 +249,7 @@ contains
     call prof_leaving ("get_field_solution", "fields_implicit")
   end subroutine get_field_solution
 
+  !> FIXME : Add documentation  
   subroutine getfield (phi, apar, bpar)
     use kt_grids, only: naky, ntheta0
     use gs2_layouts, only: f_lo, jf_lo, ij, mj, dj
@@ -347,6 +354,7 @@ contains
 
   end subroutine getfield
 
+  !> FIXME : Add documentation  
   subroutine advance_implicit (istep, remove_zonal_flows_switch)
     use run_parameters, only: reset
     use fields_arrays, only: phi, apar, bpar, phinew, aparnew, bparnew
@@ -355,12 +363,10 @@ contains
     use dist_fn, only: timeadv, exb_shear, collisions_advance
     use dist_fn_arrays, only: g, gnew, kx_shift, theta0_shift
     use unit_tests, only: debug_message
-    use mp, only: iproc
     implicit none
     integer :: diagnostics = 1
     integer, intent (in) :: istep
     logical, intent (in) :: remove_zonal_flows_switch
-    integer, parameter :: verb=4
 
     !GGH NOTE: apar_ext is initialized in this call
     if(.not.no_driver) call antenna_amplitudes (apar_ext)
@@ -397,6 +403,7 @@ contains
 
   end subroutine advance_implicit
 
+  !> FIXME : Add documentation  
   subroutine remove_zonal_flows
     use fields_arrays, only: phinew
     use theta_grid, only: ntgrid
@@ -416,9 +423,9 @@ contains
   !> This generates a field line average of phi_in and writes it to 
   !! phi_average. If ik_only is supplied, it will only calculate the
   !! field line average for that ky, leaving the rest of phi_avg unchanged. EGH
-  
-  ! It replaces the routines fieldlineavgphi_loc and fieldlineavgphi_tot,
-  ! in fields.f90, which I  think are defunct, as phi is always on every processor.
+  !!
+  !! It replaces the routines fieldlineavgphi_loc and fieldlineavgphi_tot,
+  !! in fields.f90, which I  think are defunct, as phi is always on every processor.
   subroutine fieldline_average_phi (phi_in, phi_average, ik_only)
     use theta_grid, only: ntgrid, drhodpsi, gradpar, bmag, delthet
     use kt_grids, only: ntheta0, naky
@@ -450,6 +457,7 @@ contains
 
   end subroutine fieldline_average_phi
 
+  !> FIXME : Add documentation
   subroutine reset_init
     use gs2_layouts, only: finish_jfields_layouts
     ! finish_fields_layouts name conflicts with routine in 
@@ -480,6 +488,7 @@ contains
     call finish_jfields_layouts
   end subroutine reset_init
 
+  !> FIXME : Add documentation  
   subroutine init_response_matrix
     use mp, only: barrier
     use fields_arrays, only: phi, apar, bpar, phinew, aparnew, bparnew
@@ -665,6 +674,7 @@ contains
 
   end subroutine init_response_matrix
 
+  !> FIXME : Add documentation  
   subroutine init_response_row (ig, ifield, am, ic, n)
     use fields_arrays, only: phi, apar, bpar, phinew, aparnew, bparnew
     use theta_grid, only: ntgrid
@@ -751,6 +761,7 @@ contains
     call prof_leaving ("init_response_row", "fields_implicit")
   end subroutine init_response_row
 
+  !> FIXME : Add documentation  
   subroutine init_inverse_matrix (am, ic)
     use file_utils, only: error_unit
     use kt_grids, only: aky, akx
@@ -1097,6 +1108,7 @@ contains
     call prof_leaving ("init_inverse_matrix", "fields_implicit")
   end subroutine init_inverse_matrix
 
+  !> FIXME : Add documentation  
   subroutine finish_fields_layouts
     use dist_fn, only: N_class, i_class, itright, boundary
     use kt_grids, only: naky, ntheta0
@@ -1158,6 +1170,7 @@ contains
 
   end subroutine finish_fields_layouts
 
+  !> FIXME : Add documentation  
   subroutine kt2ki (i, n, ik, it)
     use mp, only: mp_abort
     use file_utils, only: error_unit
@@ -1193,7 +1206,7 @@ contains
 
   end subroutine kt2ki
 
-  !>A routine to dump the current response matrix to file
+  !> A routine to dump the current response matrix to file
   subroutine dump_response_to_file_imp(suffix)
     use fields_arrays, only: response_file
     use theta_grid, only: ntgrid
@@ -1415,8 +1428,8 @@ contains
 
   end subroutine dump_response_to_file_imp
 
-  !>A routine to read the response matrix from file and populate the implicit
-  !response storage, note we also allocate the response storage objects
+  !> A routine to read the response matrix from file and populate the implicit
+  !! response storage, note we also allocate the response storage objects
   subroutine read_response_from_file_imp(suffix)
     use fields_arrays, only: response_file
     use theta_grid, only: ntgrid
@@ -1697,7 +1710,7 @@ contains
     deallocate(tmp_vec,tmp_arr,leftmost_it,it_to_is)
   end subroutine read_response_from_file_imp
 
-  !>A subroutine to allocate the response matrix storage objects
+  !> A subroutine to allocate the response matrix storage objects
   subroutine alloc_response_objects
     use dist_fn, only: i_class, N_class
     use gs2_layouts, only: jf_lo, f_lo, im_idx, in_idx, ig_idx, ifield_idx, ij_idx,dj,mj, idx_local

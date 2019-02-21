@@ -1,3 +1,4 @@
+!> FIXME : Add documentation
 module diagnostics_zonal_transfer
 
 !> calculate tau(kx,ky), the transfer of free energy by the non-linearity in fourier space
@@ -10,10 +11,9 @@ module diagnostics_zonal_transfer
   public :: calculate_zonal_transfer, write_zonal_transfer
 
 contains
-
+  !> FIXME : Add documentation
   subroutine init_diagnostics_transfer(gnostics)
-
-    use kt_grids, only: naky, ntheta0, nx, ny, akx, aky
+    use kt_grids, only: naky, ntheta0, nx, ny
     use theta_grid, only: ntgrid
     use species, only: nspec
     use le_grids, only: init_le_grids, nlambda, negrid
@@ -25,11 +25,9 @@ contains
 
     type(diagnostics_type), intent(inout) :: gnostics
 
-    logical :: accel
+    logical :: accel_x, accel_v
 
     if(.not. gnostics%write_zonal_transfer) return
-    
-    accel=.false.
 
     !> initialize zonal_transfer to zero
     gnostics%current_results%zonal_transfer = 0.0
@@ -38,9 +36,9 @@ contains
     !! le_grids for integration, init_gs2 transforms to initiate fourier transforms routines, etc.
     
     !> calls init_theta_grid, init_kt_grids, init_gs2_layouts, and init_species for later use
-    call init_le_grids(accel,accel)
+    call init_le_grids(accel_x, accel_v)
     !> will need to use fft routines
-    call init_transforms(ntgrid, naky, ntheta0, nlambda, negrid, nspec, nx, ny, accel)
+    call init_transforms(ntgrid, naky, ntheta0, nlambda, negrid, nspec, nx, ny, accel_x)
     call init_dist_fn_layouts(naky, ntheta0, nlambda, negrid, nspec)
 !!!! accel_x =false : useless
     
@@ -49,7 +47,6 @@ contains
   !> calculate nonlinear term appearing in GKE
   !! for now assume electrostatic
   subroutine non_linear_term (g1)
-
     use theta_grid, only: ntgrid, kxfac
     use gs2_layouts, only: g_lo, ik_idx, it_idx, is_idx
     use gs2_layouts, only: yxf_lo
@@ -65,7 +62,7 @@ contains
     implicit none
     
     complex, dimension (-ntgrid:,:,g_lo%llim_proc:), intent(out) :: g1
-    integer :: i, j, k, isgn
+    integer :: i, j
 !    complex, dimension(-ntgrid:ntgrid,nspec,negrid,nlambda,2) :: test_sum
     integer :: iglo, ik, it, ig, is
     
@@ -185,9 +182,10 @@ contains
     
   contains
     
-    subroutine load_kx_phi
-      
-      use dist_fn_arrays, only: aj0  !!!bessel function from the fourier coeff of average
+    !> FIXME : Add documentation
+    subroutine load_kx_phi      
+      use dist_fn_arrays, only: aj0  !< bessel function from the fourier coeff of average
+      implicit none
       complex :: fac
 
       do iglo = g_lo%llim_proc, g_lo%ulim_proc
@@ -202,9 +200,10 @@ contains
 
     end subroutine load_kx_phi
 
+    !> FIXME : Add documentation    
     subroutine load_ky_phi
-
       use dist_fn_arrays, only: aj0
+      implicit none
       complex :: fac
 
       do iglo = g_lo%llim_proc, g_lo%ulim_proc
@@ -239,11 +238,9 @@ contains
     
 !   end subroutine integrate
 
-  !> average over theta
+  !> Average over theta
   subroutine average_theta(a, axb)
-    
-    use theta_grid, only: ntgrid, delthet, jacob
-    
+    use theta_grid, only: ntgrid, delthet, jacob       
     implicit none
     
     complex, dimension (-ntgrid:), intent (in) :: a
@@ -259,13 +256,12 @@ contains
     
   end subroutine average_theta
 
-  !> returns tau, the transfer of free energy as a function of (kx,ky)
-  subroutine total_term(tau)
-    
+  !> Returns tau, the transfer of free energy as a function of (kx,ky)
+  subroutine total_term(tau)    
     use mp, only: proc0, broadcast
     use theta_grid, only: ntgrid
     use gs2_layouts, only: g_lo, ik_idx, it_idx
-    use species, only: nspec, spec
+    use species, only: nspec
     use kt_grids, only: ntheta0, naky
     use le_grids, only: integrate_moment
 
@@ -277,7 +273,7 @@ contains
     complex, dimension (:,:,:), allocatable :: inter
     complex, dimension (:,:,:,:), allocatable :: inter_s
 
-    integer :: ik, it, is, iglo
+    integer :: ik, it, is
     
     allocate (g0(-ntgrid:ntgrid,2,g_lo%llim_proc:g_lo%ulim_alloc))
     allocate (inter(-ntgrid:ntgrid,ntheta0,naky)) ; inter = 0.
@@ -312,14 +308,12 @@ contains
     deallocate (g0, inter, inter_s)
     
   end subroutine total_term
-  
+
+  !> FIXME : Add documentation  
   subroutine write_zonal_transfer(gnostics)
-    
-!    use diagnostics_create_and_write, only: create_and_write_distributed_fieldlike_variable
     use diagnostics_create_and_write, only: create_and_write_variable
     use diagnostics_dimensions, only: dim_string
     use fields_parallelization, only: field_k_local
-    use kt_grids, only: ntheta0, naky
     use diagnostics_config, only: diagnostics_type
     
     implicit none
@@ -337,12 +331,11 @@ contains
          "Tr2*rhor*c*ns*vth6 / Ba2*e*a3", gnostics%current_results%zonal_transfer)
     
   end subroutine write_zonal_transfer
-  
-  subroutine calculate_zonal_transfer(gnostics)
 
+  !> FIXME : Add documentation  
+  subroutine calculate_zonal_transfer(gnostics)
     use diagnostics_config, only: diagnostics_type
     use kt_grids, only: ntheta0, naky
-
     implicit none
     
     type(diagnostics_type), intent(inout) :: gnostics

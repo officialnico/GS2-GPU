@@ -27,16 +27,19 @@ module functional_tests
   public :: check_growth_rates_equal_in_list
 contains
 
+  !> FIXME : Add documentation
   subroutine announce_functional_test(test_name)
     character(*), intent(in) :: test_name
     if (verbosity() .gt. 0) call print_with_stars('Starting functional test: ', test_name)
   end subroutine announce_functional_test
 
+  !> FIXME : Add documentation  
   subroutine close_functional_test(test_name)
     character(*), intent(in) :: test_name
     if (verbosity() .gt. 0) call print_with_stars('Completed functional test: ', test_name)
   end subroutine close_functional_test
 
+  !> FIXME : Add documentation  
   function check_growth_rate(rslt, err)
     use unit_tests, only: ilast_step
     use gs2_diagnostics, only: get_omegaavg
@@ -70,12 +73,13 @@ contains
     end if
   end function check_growth_rate
 
+  !> FIXME : Add documentation  
   function check_growth_rates_equal_in_list(err)
     use unit_tests, only: ilast_step
     use gs2_diagnostics, only: get_omegaavg
     use kt_grids, only: ntheta0, naky
     use mp, only: proc0, grp0, scope, subprocs, allprocs
-    use mp, only: iproc, nproc, sum_allreduce
+    use mp, only: iproc, sum_allreduce
     use kt_grids, only: aky
     use run_parameters, only: wstar_units
     use job_manage, only: njobs
@@ -135,6 +139,7 @@ contains
 
   end function check_growth_rates_equal_in_list
 
+  !> FIXME : Add documentation  
   subroutine test_gs2(test_name, test_function)
     use gs2_main, only: run_gs2, finish_gs2, old_iface_state
     use gs2_main, only: finalize_diagnostics, finalize_equations, finalize_gs2

@@ -1,44 +1,50 @@
+!> FIXME : Add more documentation
+!!
+!! MRH 15/11/2017
+!! Previous versions of gridgen4_2  produced different theta grids on different machines
+!! In this version of gridgen4mod I have corrected this bug by making changes in the following subroutines (in gridgen4_2):
+!! heapsort- modified the inequalities in the sorting algorithm for reasons discussed below.
+!! get_thetares-corrected this routine so that thetares is 0 when thetares is computed using
+!! (theta (i) - theta (j)) and theta(i) equals theta (j) to machine error, and the output should be identically 0.
+!! get_lambdares-corrected this routine in the same manner as get_thetares, the output is 0 when it should be identically 0.
+!! gg4remove- modification of the inequalities used to choose which points to delete from the superset of theta points.
+!!
+!! The function of this module seems to be to optimise the choice of theta grid points.
+!! It does this by taking the magnetic field and theta grid generated in the geometry module,
+!! and spline fitting the magnetic field on a fine-mesh theta grid.
+!! By using the metrics defined in get_lambdares and get_thetares 
+!! the subroutine gg4remove removes points from the fine-mesh theta grid iteratively until the required number of points remain.
+!! The theta grid pair with the lowest value for the metric is deleted at each iteration.
+!! The reason for the bug was that these metrics were calculated in a sloppy manner,
+!! and the routine for finding the lowest value in the metric did not allow for the 
+!! case that the metrics were identical up to machine precision:
+!! -In the 1st iteration of gg4remove all of the metrics should be identically 0 but were not
+!! -The 1st theta grid pair were deleted based on a decision made with machine precision sized values of the metric-this led to random behaviour
+!! -When all duplicate values of the theta grid pairs 
+!! ----- (theta grid superset contains duplicate values of the theta grid pairs for reasons unbeknownst to me)
+!! had all been deleted, because the fine-mesh theta grid had almost equally spaced points
+!! the values for the metrics for the theta grid pairs near theta =0 were almost exactly equal.
+!! -Depending on the machine, the metric would be slightly lower for one pair of points than another
+!! and therefore the choice of which pair of points to delete 1st from the non-duplicate set was random.
+!! This behaviour led to different theta grids between different machines.
+!!
+!! I fixed the above bug by biasing the gg4remove procedure to remove the 1st theta grid pair in array element order 
+!! (of the sorted theta grid superset array) in the case that the metrics were equal up to machine error.
+!! The variable precision_bound controls this behaviour, precision_bound equal 0.0 returns this module to its original behaviour.
+!! Finite but small precision_bound is enough to remove machine dependence.
+!! I biased heapsort in a similar manner to enable debugging - the sorting algorithm
+!! was also machine dependent because of the duplicate theta grid points in the superset.
+!!
+!! run_name.gridgen.200 contains the debug output from this module
+!! To see verbose output ensure that debug_output =.true.and verbose_debug_output =.true.
+!!
+!! @todo : This file/module needs tidying/pruning. More consistent usage of tolerance comparisons would help
+!! Testing may be tricky but would be very helpful.
 module gridgen4mod
-! MRH 15/11/2017
-! Previous versions of gridgen4_2  produced different theta grids on different machines
-! In this version of gridgen4mod I have corrected this bug by making changes in the following subroutines (in gridgen4_2):
-! heapsort- modified the inequalities in the sorting algorithm for reasons discussed below.
-! get_thetares-corrected this routine so that thetares is 0 when thetares is computed using
-! (theta (i) - theta (j)) and theta(i) equals theta (j) to machine error, and the output should be identically 0.
-! get_lambdares-corrected this routine in the same manner as get_thetares, the output is 0 when it should be identically 0.
-! gg4remove- modification of the inequalities used to choose which points to delete from the superset of theta points.
-!
-! The function of this module seems to be to optimise the choice of theta grid points.
-! It does this by taking the magnetic field and theta grid generated in the geometry module,
-! and spline fitting the magnetic field on a fine-mesh theta grid.
-! By using the metrics defined in get_lambdares and get_thetares 
-! the subroutine gg4remove removes points from the fine-mesh theta grid iteratively until the required number of points remain.
-! The theta grid pair with the lowest value for the metric is deleted at each iteration.
-! The reason for the bug was that these metrics were calculated in a sloppy manner,
-! and the routine for finding the lowest value in the metric did not allow for the 
-! case that the metrics were identical up to machine precision:
-! -In the 1st iteration of gg4remove all of the metrics should be identically 0 but were not
-! -The 1st theta grid pair were deleted based on a decision made with machine precision sized values of the metric-this led to random behaviour
-! -When all duplicate values of the theta grid pairs 
-! ----- (theta grid superset contains duplicate values of the theta grid pairs for reasons unbeknownst to me)
-! had all been deleted, because the fine-mesh theta grid had almost equally spaced points
-! the values for the metrics for the theta grid pairs near theta =0 were almost exactly equal.
-! -Depending on the machine, the metric would be slightly lower for one pair of points than another
-! and therefore the choice of which pair of points to delete 1st from the non-duplicate set was random.
-! This behaviour led to different theta grids between different machines.
-
-! I fixed the above bug by biasing the gg4remove procedure to remove the 1st theta grid pair in array element order 
-! (of the sorted theta grid superset array) in the case that the metrics were equal up to machine error.
-! The variable precision_bound controls this behaviour, precision_bound equal 0.0 returns this module to its original behaviour.
-! Finite but small precision_bound is enough to remove machine dependence.
-! I biased heapsort in a similar manner to enable debugging - the sorting algorithm
-! was also machine dependent because of the duplicate theta grid points in the superset.
-
-! run_name.gridgen.200 contains the debug output from this module
-! To see verbose output ensure that debug_output =.true.and verbose_debug_output =.true.
 
 contains
 
+  !> FIXME : Add documentation
   subroutine gridgen4read (filename,ntheta,nperiod,ntgrid,nlambda,theta,alambda, &
        gbdrift,gradpar,cvdrift,gds2,bmag,gds21,gds22,cvdrift0,gbdrift0)
     use mp, only: mp_abort
@@ -123,7 +129,8 @@ contains
     
     close (unit=unit)
   end subroutine gridgen4read
-  
+
+  !> FIXME : Add documentation  
   subroutine gridgen4 (n,nbmag,thetain,bmagin, npadd, &
        alknob,epsknob,bpknob,extrknob,thetamax,deltaw,widthw, &
        ntheta,nlambda,thetagrid,bmaggrid,alambdagrid)
@@ -141,7 +148,8 @@ contains
          alknob,epsknob,bpknob,extrknob,thetamax,deltaw,widthw,1.0, &
          ntheta,nlambda,thetagrid,bmaggrid,alambdagrid)
   end subroutine gridgen4
-  
+
+  !> FIXME : Add documentation  
   subroutine gridgen4_1 (n,nbmag,thetain,bmagin, npadd, &
        alknob,epsknob,bpknob,extrknob,thetamax,deltaw,widthw,tension, &
        ntheta,nlambda,thetagrid,bmaggrid,alambdagrid)
@@ -161,7 +169,8 @@ contains
          ntheta,nlambda,thetagrid,bmaggrid,alambdagrid)
     alambdagrid(1:nlambda) = 1.0/alambdagrid(1:nlambda)
   end subroutine gridgen4_1
-  
+
+  !> FIXME : Add documentation  
   subroutine gridgen4_2 (n,nbmag,thetain,bmagin, npadd, &
        alknob,epsknob,bpknob,extrknob,thetamax,deltaw,widthw,tension, &
        ntheta,nbset,thetagrid,bmaggrid,bset)
@@ -316,13 +325,13 @@ if (debug) write(6,*) "gridgen4_2: call gg4finish"
     call gg4finish
 
   contains
-  
+    
+    !> FIXME : Add documentation  
     subroutine gg4init
       use splines, only: fitp_curvp1
       use mp, only: mp_abort
       use file_utils, only: open_output_file, get_unused_unit
       implicit none
-      logical :: od
       real, dimension (2*nbmag) :: tmp
       integer :: ierr, i
 
@@ -368,6 +377,7 @@ if (debug) write(6,*) "gridgen4_2: call gg4finish"
       if (debug) write(6,*) 'gg4init: end'
     end subroutine gg4init
 
+    !> FIXME : Add documentation    
     subroutine gg4finish
 !      use mp, only: mp_abort
       use file_utils, only: close_output_file
@@ -399,6 +409,7 @@ if (debug) write(6,*) "gridgen4_2: call gg4finish"
       end if
     end subroutine gg4finish
 
+    !> FIXME : Add documentation    
     subroutine old_gg4finish
       implicit none
       
@@ -417,6 +428,7 @@ if (debug) write(6,*) "gridgen4_2: call gg4finish"
       end if
     end subroutine old_gg4finish
 
+    !> FIXME : Add documentation    
     subroutine gg4start (n)
       implicit none
       integer, intent (in) :: n
@@ -520,6 +532,7 @@ if (debug) write(6,*) "gridgen4_2: call gg4finish"
       end do
     end subroutine gg4start
 
+    !> FIXME : Add documentation    
     subroutine old_gg4start
       implicit none
       integer :: i, j
@@ -602,6 +615,7 @@ if (debug) write(6,*) "gridgen4_2: call gg4finish"
       end do
     end subroutine old_gg4start
 
+    !> FIXME : Add documentation
     subroutine add_start (theta, essential)
       implicit none
       real, intent (in) :: theta
@@ -868,6 +882,7 @@ if (debug) write(6,*) "gridgen4_2: call gg4finish"
 
     end subroutine gg4collect
 
+    !> FIXME : Add documentation    
     subroutine old_gg4collect
       use mp, only: mp_abort
       implicit none
@@ -1131,6 +1146,7 @@ if (debug) write(6,*) "gridgen4_2: call gg4finish"
       end do starting_points
     end subroutine old_gg4collect
 
+    !> FIXME : Add documentation
     subroutine add_set (bmag, essential)
       implicit none
       real, intent (in) :: bmag
@@ -1156,6 +1172,7 @@ if (debug) write(6,*) "gridgen4_2: call gg4finish"
       essentialset(nset) = essential
     end subroutine add_set
 
+    !> FIXME : Add documentation    
     subroutine add_setset (theta, ibmag, icoll)
       implicit none
       real, intent (in) :: theta
@@ -1189,7 +1206,8 @@ if (debug) write(6,*) "gridgen4_2: call gg4finish"
          ibmagsetset(nsetset) = 0
       end if
     end subroutine add_setset
-    
+
+    !> FIXME : Add documentation    
     subroutine add_setset_root (thetal, thetag, bmagi, ibmag, icoll)
       implicit none
       real, intent (in) :: thetal, thetag, bmagi
@@ -1213,20 +1231,24 @@ if (debug) write(6,*) "gridgen4_2: call gg4finish"
       end do
       call add_setset (theta0, ibmag, icoll)
     end subroutine add_setset_root
-    
+
+    !> FIXME : Add documentation    
     subroutine gg4sort
       implicit none
       allocate (ithetasort(nsetset), ibmagsort(nset))
       call heapsort (nsetset, thetasetset(1:nsetset), ithetasort)
       call heapsort (nset, bmagset(1:nset), ibmagsort)
     end subroutine gg4sort
-!MRH
-!bset(n) = bmagset(ibmagsort(i))
-!The above line comes from GG4results
-! For that line to make sense index here must be:
-! A map which takes the new position of an element in the sorted list
-! Returns the index of the old position of the same element in the unsorted list
-! MRH
+
+    !MRH
+    !bset(n) = bmagset(ibmagsort(i))
+    !The above line comes from GG4results
+    ! For that line to make sense index here must be:
+    ! A map which takes the new position of an element in the sorted list
+    ! Returns the index of the old position of the same element in the unsorted list
+    ! MRH
+
+    !> FIXME : Add documentation    
     subroutine heapsort (n, v, index)
       implicit none
       integer, intent (in) :: n
@@ -1276,6 +1298,7 @@ if (debug) write(6,*) "gridgen4_2: call gg4finish"
       end do
     end subroutine heapsort
 
+    !> FIXME : Add documentation    
     subroutine gg4metrics
       implicit none
       integer :: i
@@ -1293,7 +1316,8 @@ if (debug) write(6,*) "gridgen4_2: call gg4finish"
       end do
       
     end subroutine gg4metrics
-    
+
+    !> FIXME : Add documentation    
     subroutine get_thetares (iset, thetares)
       implicit none
       integer, intent (in) :: iset
@@ -1389,6 +1413,7 @@ if (debug) write(6,*) "gridgen4_2: call gg4finish"
       end if
     end subroutine get_thetares
     
+    !> FIXME : Add documentation
     subroutine get_lambdares (iset, alambdares)
       implicit none
       integer, intent (in) :: iset
@@ -1462,6 +1487,7 @@ if (debug) write(6,*) "gridgen4_2: call gg4finish"
       end if
     end subroutine get_lambdares
 
+    !> FIXME : Add documentation    
     subroutine gg4remove
       use mp, only: mp_abort
       implicit none
@@ -1564,7 +1590,7 @@ if (debug) write(6,*) "gridgen4_2: call gg4finish"
       end do
     end subroutine gg4remove
     
-
+    !> FIXME : Add documentation
     function minimum_index (n, array, mask, machine_error)
     ! MRH the function minimum_index has been written to have the same features as minloc
     ! MRH n is the length of the array and mask
@@ -1607,7 +1633,8 @@ if (debug) write(6,*) "gridgen4_2: call gg4finish"
         enddo
         
     end function minimum_index
-    
+
+    !> FIXME : Add documentation    
     subroutine delete_set (idel, work, ntheta_left)
       implicit none
       integer, intent (in) :: idel
@@ -1677,6 +1704,7 @@ if (debug) write(6,*) "gridgen4_2: call gg4finish"
       end do
     end subroutine delete_set
     
+    !> FIXME : Add documentation
     subroutine gg4results (iperiod)
       implicit none
       integer, intent (in) :: iperiod
@@ -1708,6 +1736,7 @@ if (debug) write(6,*) "gridgen4_2: call gg4finish"
       nlambdaout = n
     end subroutine gg4results
 
+    !> FIXME : Add documentation    
     subroutine gg4debug (n, x, y, label)
       implicit none
       integer, intent (in) :: n
@@ -1723,7 +1752,8 @@ if (debug) write(6,*) "gridgen4_2: call gg4finish"
          end do
       end if
     end subroutine gg4debug
-    
+
+    !> FIXME : Add documentation    
     subroutine gg4debugi (n, x, i1, i2, label)
       implicit none
       integer, intent (in) :: n
@@ -1742,6 +1772,7 @@ if (debug) write(6,*) "gridgen4_2: call gg4finish"
       end if
     end subroutine gg4debugi
 
+    !> FIXME : Add documentation    
     subroutine gg4debugl (n, x, label)
       implicit none
       integer, intent (in) :: n
@@ -1758,7 +1789,8 @@ if (debug) write(6,*) "gridgen4_2: call gg4finish"
          end do
       end if
     end subroutine gg4debugl
-    
+
+    !> FIXME : Add documentation    
     subroutine gg4debug4 (n, x, y, p,q, label)
       implicit none
       integer, intent (in) :: n
@@ -1774,7 +1806,8 @@ if (debug) write(6,*) "gridgen4_2: call gg4finish"
          end do
       end if
     end subroutine gg4debug4
-    
+
+    !> FIXME : Add documentation    
     function bmagint (theta)
       use splines, only: fitp_curvp2
       implicit none
@@ -1782,7 +1815,8 @@ if (debug) write(6,*) "gridgen4_2: call gg4finish"
       real :: bmagint
       bmagint = fitp_curvp2(theta,nbmag-1,thetain,bmagin,npi,bmagspl,tension)
     end function bmagint
-    
+
+    !> FIXME : Add documentation    
     function bmagp (theta)
       implicit none
       real, intent (in) :: theta
@@ -1796,7 +1830,8 @@ if (debug) write(6,*) "gridgen4_2: call gg4finish"
       bm2 = bmagint (th2)
       bmagp = (bm1-bm2)/diff
     end function bmagp
-    
+
+    !> FIXME : Add documentation    
     real function tfunc (theta)
       implicit none
       real :: theta
@@ -1806,6 +1841,7 @@ if (debug) write(6,*) "gridgen4_2: call gg4finish"
     
   end subroutine gridgen4_2
 
+  !> FIXME : Add documentation  
   subroutine dsmooth (n, xin, yin, yout)
     implicit none
 
@@ -1851,6 +1887,7 @@ if (debug) write(6,*) "gridgen4_2: call gg4finish"
 
   end subroutine dsmooth
 
+  !> FIXME : Add documentation
   subroutine d2smooth (n, xin, yin, yout)
     implicit none
 
@@ -1899,6 +1936,7 @@ if (debug) write(6,*) "gridgen4_2: call gg4finish"
     
   end subroutine d2smooth
 
+  !> FIXME : Add documentation  
   subroutine smooth (n, xin, yin, var, yout, ifail)
     implicit none
 
@@ -2060,6 +2098,7 @@ if (debug) write(6,*) "gridgen4_2: call gg4finish"
 !
 !-----------------------------------------------------------------------
 !
+  !> FIXME : Add documentation
   subroutine cubgcv(x,f,df,n,y,c,ic,var,job,se,wk,ier)
 !
 !---specifications for arguments---
@@ -2175,7 +2214,8 @@ if (debug) write(6,*) "gridgen4_2: call gg4finish"
 !     if (ier.ne.0) continue
 150 return
   end subroutine cubgcv
-
+  
+  !> FIXME : Add documentation
   subroutine spint1(x,avh,y,dy,avdy,n,a,c,ic,r,t,ier)
 !
 ! initializes the arrays c, r and t for one dimensional cubic
@@ -2273,6 +2313,7 @@ if (debug) write(6,*) "gridgen4_2: call gg4finish"
     return
   end subroutine spint1
 
+  !> FIXME : Add documentation  
   subroutine spfit1(x,avh,dy,n,rho,p,q,fun,var,stat,a,c,ic,r,t,u,v)
 !
 ! fits a cubic smoothing spline to data with relative
@@ -2404,6 +2445,7 @@ if (debug) write(6,*) "gridgen4_2: call gg4finish"
 90  return
   end subroutine spfit1
 
+  !> FIXME : Add documentation  
   subroutine sperr1(x,avh,dy,n,r,p,var,se)
 !
 ! calculates bayesian estimates of the standard errors of the fitted
@@ -2448,6 +2490,7 @@ if (debug) write(6,*) "gridgen4_2: call gg4finish"
     
   end subroutine sperr1
 
+  !> FIXME : Add documentation
   subroutine spcof1(x,avh,y,dy,n,p,q,a,c,ic,u,v)
 !
 ! calculates coefficients of a cubic smoothing spline from

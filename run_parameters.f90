@@ -1,4 +1,5 @@
-!> This module is basically a store for the input parameters that are specified in the namelists \a knobs and \a parameters. In general, the names of the public variables in this module are the same as the name of the input parameter they correspond to.
+!> This module is basically a store for the input parameters that are specified in the namelists \a knobs and \a parameters.
+!! In general, the names of the public variables in this module are the same as the name of the input parameter they correspond to.
 module run_parameters
   implicit none
 
@@ -68,6 +69,8 @@ module run_parameters
        eqzip_option_equilibrium = 4
 
 contains
+
+  !> FIXME : Add documentation  
   subroutine check_run_parameters(report_unit)
     implicit none
     integer, intent(in) :: report_unit
@@ -135,6 +138,7 @@ contains
     write (report_unit, *) 
   end subroutine check_run_parameters
 
+  !> FIXME : Add documentation    
   subroutine wnml_run_parameters(unit,electrons,collisions)
     implicit none
     integer, intent(in) :: unit
@@ -175,6 +179,7 @@ contains
     endif
   end subroutine wnml_run_parameters
 
+  !> FIXME : Add documentation  
   subroutine init_run_parameters
     use kt_grids, only: init_kt_grids, naky, nakx => ntheta0
     use gs2_time, only: init_delt, user2code
@@ -212,6 +217,7 @@ contains
     end select
   end subroutine init_run_parameters
 
+  !> FIXME : Add documentation    
   subroutine read_parameters
     use file_utils, only: input_unit, error_unit, input_unit_exist
     use mp, only: proc0, broadcast
@@ -353,34 +359,13 @@ contains
        call get_option_value ( &
             eqzip_option, eqzipopts, eqzip_option_switch, error_unit(), &
             "eqzip_option in knobs",.true.)
-
-!!$       ! eqzip_option replaces eqzip, secondary, tertiary, harris
-!!$       if (eqzip .and. eqzip_option_switch == eqzip_option_none) then
-!!$          if (harris) then
-!!$             eqzip_option_switch = eqzip_option_equilibrium
-!!$             write(error_unit(),*) 'eqzip_option is set to equilibrium'
-!!$          else
-!!$             if (tertiary) then
-!!$                eqzip_option_switch = eqzip_option_tertiary
-!!$                write(error_unit(),*) 'eqzip_option is set to tertiary'
-!!$             else
-!!$                eqzip_option_switch = eqzip_option_secondary
-!!$                write(error_unit(),*) 'eqzip_option is set to secondary'
-!!$             end if
-!!$          end if
-!!$       else if (eqzip .and. eqzip_option_switch /= eqzip_option_none) then
-!!$          write(error_unit(),*) 'eqzip, secondary, tertiary, harris are ignored'
-!!$          write(error_unit(),*) 'because eqzip_option exists'
-!!$       end if
-
     end if
     
-    ! FOR GRYFX 
+    ! FOR GRYFX
     if (gryfx()) then
       delt = sqrt(2.0)*delt/2.0
       nstep = nstep*2
     end if
-
 
     call broadcast (delt_option_switch)
     call broadcast (delt)
@@ -422,7 +407,8 @@ contains
     endif
 
   end subroutine read_parameters
-  
+
+  !> FIXME : Add documentation    
   subroutine write_trinity_parameters(trinpars_unit)
     integer, intent(in) :: trinpars_unit
     write(trinpars_unit, "(A15)") '&run_parameters'
@@ -431,12 +417,14 @@ contains
 
   end subroutine write_trinity_parameters
 
+  !> FIXME : Add documentation    
   subroutine set_overrides(tstep_ov)
     use overrides, only: timestep_overrides_type
     type(timestep_overrides_type), intent(in) :: tstep_ov
     if (tstep_ov%override_immediate_reset) immediate_reset=tstep_ov%immediate_reset
   end subroutine set_overrides
 
+  !> FIXME : Add documentation    
   subroutine adjust_time_norm
     use file_utils, only: error_unit
     use mp, only: proc0
@@ -479,6 +467,7 @@ contains
     woutunits = 1.0/tunits
   end subroutine adjust_time_norm
 
+  !> FIXME : Add documentation    
   subroutine finish_run_parameters
     implicit none
 

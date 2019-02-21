@@ -16,10 +16,9 @@ all: test_gs2_diagnostics
 
 endif
 
-#$(info "TEST_MODS=$(TEST_MODS)")
-
 test_gs2_diagnostics.o:  ${TEST_MODS} 
 
 test_gs2_diagnostics: test_gs2_diagnostics.o $(TEST_MODS)
-	$(LD) $(LDFLAGS) -o $@ $^ $(LIBS)
+	$(call messageOp,"Linking ","\\t:",$^,"\\n\\t\-\-\-\-\-\-\>",$@)
+	$(QUIETSYM)$(LD) $(LDFLAGS) -o $@ $^ $(LIBS)
 

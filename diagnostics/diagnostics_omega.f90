@@ -34,8 +34,10 @@ contains
     omegahist = 0.0
     omega_average = 0.0
   end subroutine init_diagnostics_omega
-  
+
+  !> FIXME : Add documentation  
   subroutine finish_diagnostics_omega
+    implicit none
     deallocate(omegahist)
     deallocate(domega)
     deallocate(omega_average)

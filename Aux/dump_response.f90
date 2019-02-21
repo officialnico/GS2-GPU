@@ -1,6 +1,7 @@
 !> A program to generate response matrix data for a given input file 
 !! and dump the resulting arrays to file to be used by subsequent runs
-!!  Written by : David Dickinson (ddickinson@users.sourceforge.net)
+!!
+!! Written by : David Dickinson (ddickinson@users.sourceforge.net)
 program dump_response
   use job_manage, only: job_fork
   use mp, only: init_mp, proc0, nproc, broadcast
@@ -60,6 +61,7 @@ program dump_response
   call finish_dump_response
 
 contains
+  !> FIXME : Add documentation  
   subroutine next_time_step
     use gs2_time, only: code_dt, save_dt
     use gs2_reinit, only: reduce_time_step
@@ -80,6 +82,7 @@ contains
     call f_reset
   end subroutine next_time_step
 
+  !> FIXME : Add documentation  
   subroutine init_and_dump(quiet)
     use fields, only: fields_pre_init, fields_init_response, set_dump_and_read_response, dump_response_to_file
     use job_manage, only: time_message
@@ -137,6 +140,7 @@ contains
     time_measure=0.
   end subroutine init_and_dump
 
+  !> FIXME : Add documentation
   subroutine finish_dump_response
     use antenna, only: finish_antenna
     use collisions, only: finish_collisions
@@ -167,6 +171,5 @@ contains
     call finish_mp
 
   end subroutine finish_dump_response
-
 end program dump_response
 

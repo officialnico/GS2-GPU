@@ -1,11 +1,6 @@
 # include "define.inc"
 
-!> The old module for writing to netcdf. THIS MODULE IS NOW DEPRECATED.
-!! It is scheduled to be disabled by default on 1st Jan 2015 and removed
-!! from the repository on 1st March 2015. Do not edit or extend this module
-!! in any way apart from vital fixes. Any changes you make may not be 
-!! transferred to the new diagnostics module... please use the new diagnostics 
-!! module contained in the diagnostics folder instead.
+!> A module for writing to netcdf.
 module gs2_io
 
 # ifdef NETCDF
@@ -51,7 +46,6 @@ module gs2_io
   integer, dimension (4) :: xmode_dim
   integer :: nx_id, ny_id, nth_id, x_id, y_id, th_id, time_movie_id
   integer :: phi_by_xmode_id, apar_by_xmode_id, bpar_by_xmode_id
-  integer :: code_id_movie
 
   integer :: nakx_id, naky_id, nttot_id, akx_id, aky_id, theta_id, nspec_id
   integer :: negrid_id, nlambda_id, egrid_id, lambda_id
@@ -75,7 +69,7 @@ module gs2_io
   integer :: es_heat_by_k_id, es_mom_by_k_id, es_part_by_k_id
   integer :: es_part_tormom_by_k_id, es_exchange_by_k_id
   integer :: es_parmom_by_k_id, es_perpmom_by_k_id, es_mom0_by_k_id, es_mom1_by_k_id
-  integer :: es_mom_sym_id, phi_corr_id, phi2_extend_id, phi_corr_2pi_id, es_part_sym_tormom_id 
+  integer :: es_mom_sym_id, phi_corr_id, phi2_extend_id, phi_corr_2pi_id
   integer :: es_part_sym_id 
   integer :: apar_heat_by_k_id, apar_mom_by_k_id, apar_part_by_k_id
   integer :: apar_heat_by_x_id
@@ -101,7 +95,7 @@ module gs2_io
   integer :: cvdrift_id, cvdrift0_id, gds2_id, gds21_id, gds22_id
   integer :: grho_id, jacob_id, shat_id, eps_id, drhodpsi_id, q_id, surfarea_id
   integer :: beta_id
-  integer :: code_id, datestamp_id, timestamp_id, timezone_id
+  integer :: code_id
   integer :: h_energy_id, h_energy_dot_id, h_antenna_id
   integer :: h_eapar_id, h_ebpar_id
   integer :: h_delfs2_id, h_hs2_id, h_phis2_id
@@ -122,7 +116,8 @@ module gs2_io
 !  include 'netcdf.inc'
   
 contains
-
+  
+  !> FIXME : Add documentation
   subroutine init_gs2_io (write_nl_flux, write_omega, &
       write_hrate, write_final_antot, write_eigenfunc, &
       make_movie, nmovie_tot, write_verr, &
@@ -254,6 +249,7 @@ contains
 
   end subroutine init_gs2_io
 
+  !> FIXME : Add documentation  
   subroutine define_dims (nwrite_big_tot)
 # ifdef NETCDF
     use file_utils, only: num_input_lines
@@ -307,13 +303,13 @@ contains
 # endif
   end subroutine define_dims
 
-  !Define the dimensions used in the movie file. Some duplication with
-  !main file -- may want to merge movie data into main file
-  !Main reason for using a new file is we can only have one unlimited dimension
-  !per file (with new versions of NETCDF this is no longer true) and we 
-  !probably don't want to write movie data as often as other data.
-  !However, at the moment we precalculate the number of outputs, so it
-  !isn't actually unlimited
+  !> Define the dimensions used in the movie file. Some duplication with
+  !! main file -- may want to merge movie data into main file
+  !! Main reason for using a new file is we can only have one unlimited dimension
+  !! per file (with new versions of NETCDF this is no longer true) and we 
+  !! probably don't want to write movie data as often as other data.
+  !! However, at the moment we precalculate the number of outputs, so it
+  !! isn't actually unlimited
   subroutine define_dims_mymovie(nmovie_tot)
 # ifdef NETCDF
     use gs2_layouts, only: yxf_lo
@@ -342,6 +338,7 @@ contains
 # endif
   end subroutine define_dims_mymovie
 
+  !> FIXME : Add documentation
   subroutine nc_grids
 # ifdef NETCDF
     use theta_grid, only: ntgrid, theta
@@ -394,6 +391,7 @@ contains
 # endif
   end subroutine nc_grids
 
+  !> FIXME : Add documentation
   subroutine nc_norms
 # ifdef NETCDF
     use netcdf, only: nf90_put_var
@@ -424,7 +422,7 @@ contains
 # endif
   end subroutine nc_norms
 
-  !Put the grid data into the movie file
+  !> Puts the grid data into the movie file
   subroutine nc_grids_mymovie
 #ifdef NETCDF
     use constants, only: pi
@@ -467,6 +465,7 @@ contains
 # endif
   end subroutine nc_grids_mymovie
 
+  !> FIXME : Add documentation  
   subroutine netcdf_init (serial_io2)
 # ifdef NETCDF
     use mp, only: proc0
@@ -478,6 +477,7 @@ contains
 # endif
   end subroutine netcdf_init
 
+  !> FIXME : Add documentation  
   subroutine nc_finish
 # ifdef NETCDF
     use mp, only: proc0
@@ -498,8 +498,8 @@ contains
 # endif
   end subroutine nc_finish
 
+  !> Save the input file in the NetCDF file
   subroutine save_input
-    !<doc> Save the input file in the NetCDF file </doc>
 # ifdef NETCDF    
     use file_utils, only: num_input_lines, get_input_unit
     use netcdf, only: nf90_put_var
@@ -525,6 +525,7 @@ contains
 # endif
   end subroutine save_input
 
+  !> FIXME : Add documentation
   subroutine define_vars (write_nl_flux, write_omega, &
        write_hrate, write_final_antot, write_eigenfunc, write_verr, &
        write_moments, write_full_moments_notgc, write_sym, write_pflux_sym, &
@@ -1618,13 +1619,13 @@ contains
 # endif
   end subroutine define_vars
 
-  !Define the vars in the movie file. A fair bit of duplication wrt main
-  !file -- may want to think about merging movie data into main file.
-  !Main reason for using a new file is we can only have one unlimited dimension
-  !per file (with new versions of NETCDF this is no longer true) and we 
-  !probably don't want to write movie data as often as other data.
-  !However, at the moment we precalculate the number of outputs, so it
-  !isn't actually unlimited
+  !> Define the vars in the movie file. A fair bit of duplication wrt main
+  !! file -- may want to think about merging movie data into main file.
+  !! Main reason for using a new file is we can only have one unlimited dimension
+  !! per file (with new versions of NETCDF this is no longer true) and we 
+  !! probably don't want to write movie data as often as other data.
+  !! However, at the moment we precalculate the number of outputs, so it
+  !! isn't actually unlimited
   subroutine define_vars_mymovie
 # ifdef NETCDF
     use run_parameters, only: fphi, fapar, fbpar
@@ -1700,6 +1701,7 @@ contains
 #endif
   end subroutine define_vars_mymovie
 
+  !> FIXME : Add documentation
   subroutine nc_eigenfunc (phase)
 # ifdef NETCDF
     use convert, only: c2r
@@ -1802,7 +1804,7 @@ contains
 !   end subroutine nc_write_fields
 ! !MR end
 
-!CMR begin
+  !> FIXME : Add documentation
   subroutine nc_write_moments (nout, ntot, density, upar, tpar, tperp, qparflux, pperpj1, qpperpj1, ob_midplane) 
     use theta_grid, only: ntgrid
 # ifdef NETCDF
@@ -1922,8 +1924,8 @@ contains
 
 # endif
   end subroutine nc_write_moments
-!CMR end
 
+  !> FIXME : Add documentation
   subroutine nc_final_fields
 # ifdef NETCDF
     use convert, only: c2r
@@ -1957,6 +1959,7 @@ contains
 # endif
   end subroutine nc_final_fields
 
+  !> FIXME : Add documentation  
   subroutine nc_final_epar (epar)
 # ifdef NETCDF
     use convert, only: c2r
@@ -1976,6 +1979,7 @@ contains
 # endif
   end subroutine nc_final_epar
 
+  !> FIXME : Add documentation  
   subroutine nc_final_moments (ntot, density, upar, tpar, tperp, qparflux, pperpj1, qpperpj1)
 # ifdef NETCDF
     use convert, only: c2r
@@ -2026,55 +2030,7 @@ contains
 # endif
   end subroutine nc_final_moments
 
-!   subroutine nc_loop_vres (nout, errest_by_mode, lpcoef_by_mode)
-
-! !    use nf90_mod, only: nf90_put_vara
-!     use theta_grid, only: ntgrid
-!     use kt_grids, only: naky, ntheta0
-!     use species, only: nspec
-
-!     integer, intent (in) :: nout
-!     real, dimension(:,:,:,:), intent (in) :: errest_by_mode
-!     real, dimension(:,:,:,:,:), intent (in) :: lpcoef_by_mode
-! # ifdef NETCDF
-!     integer, dimension (6) :: start2, count2
-!     integer, dimension (5) :: start1, count1
-! !    integer :: status
-
-!     start1(1) = 1
-!     start1(2) = 1
-!     start1(3) = 1
-!     start1(4) = 1
-!     start1(5) = nout
-
-!     start2(1) = 1
-!     start2(2) = 1
-!     start2(3) = 1
-!     start2(4) = 1
-!     start2(5) = 1
-!     start2(6) = nout
-  
-!     count1(1) = 2*ntgrid+1
-!     count1(2) = ntheta0
-!     count1(3) = naky
-!     count1(4) = 4
-!     count1(5) = 1
-
-!     count2(1) = 2*ntgrid+1
-!     count2(2) = ntheta0
-!     count2(3) = naky
-!     count2(4) = nspec
-!     count2(5) = 2
-!     count2(6) = 1
-
-! !    status = nf90_put_var (ncid, errest_by_mode_id, start=start1, count=count1, errest_by_mode)
-! !    if (status /= NF90_NOERR) call netcdf_error (status, ncid, errest_by_mode_id)
-! !    status = nf90_put_var (ncid, lpcoef_by_mode_id, start=start2, count=count2, lpcoef_by_mode)
-! !    if (status /= NF90_NOERR) call netcdf_error (status, ncid, lpcoef_by_mode_id)
-! # endif
-!   end subroutine nc_loop_vres
-
-!Note these are averaged (volume/field line) moments.
+  !> Write averaged (volume/field line) moments.
   subroutine nc_loop_moments (nout, ntot2, ntot2_by_mode, ntot20, ntot20_by_mode, &
        phi00, ntot00, density00, upar00, tpar00, tperp00, tpar2_by_mode, tperp2_by_mode)
 # ifdef NETCDF
@@ -2172,6 +2128,7 @@ contains
 # endif
   end subroutine nc_loop_moments
 
+  !> FIXME : Add documentation  
   subroutine nc_final_an (antot, antota, antotp)
 # ifdef NETCDF
     use convert, only: c2r
@@ -2206,6 +2163,7 @@ contains
 # endif
   end subroutine nc_final_an
 
+  !> FIXME : Add documentation  
   subroutine nc_exchange (nout, exchange, exchange_avg)
 # ifdef NETCDF
     use species, only: nspec
@@ -2247,6 +2205,7 @@ contains
 # endif
   end subroutine nc_exchange
 
+  !> FIXME : Add documentation  
   subroutine nc_qflux (nout, qheat, qmheat, qbheat, &
        heat_par,  mheat_par,  bheat_par, &
        heat_perp, mheat_perp, bheat_perp, &
@@ -2335,6 +2294,7 @@ contains
 # endif
   end subroutine nc_qflux
 
+  !> FIXME : Add documentation  
   subroutine nc_pflux (nout, pflux, pmflux, pbflux, &
        part_fluxes, mpart_fluxes, bpart_fluxes, zflux_tot)
 # ifdef NETCDF
@@ -2395,7 +2355,8 @@ contains
 # endif
   end subroutine nc_pflux
 
- subroutine nc_pflux_tormom (nout, pflux_tormom, part_tormom_fluxes)
+  !> FIXME : Add documentation  
+  subroutine nc_pflux_tormom (nout, pflux_tormom, part_tormom_fluxes)
 # ifdef NETCDF
     use species, only: nspec
     use kt_grids, only: naky, ntheta0
@@ -2437,6 +2398,7 @@ contains
 # endif
   end subroutine nc_pflux_tormom
 
+  !> FIXME : Add documentation  
   subroutine nc_vflux (nout, vflux, vmflux, vbflux, &
        mom_fluxes, mmom_fluxes, bmom_fluxes, vflux_tot, &
        vflux_par, vflux_perp, vflux0, vflux1)
@@ -2508,13 +2470,13 @@ contains
 # endif
   end subroutine nc_vflux
 
-! Output the poloidal distributions of the fluxes of particles, perpendicular
-! momentum, parallel momentum, and energy ! JRB
+  !> Output the poloidal distributions of the fluxes of particles, perpendicular
+  !! momentum, parallel momentum, and energy ! JRB
   subroutine nc_loop_dist (nout, part_fluxes_dist, mom_fluxes_par_dist, mom_fluxes_perp_dist, heat_fluxes_dist, phi_dist)
 
     use species, only: nspec
     use run_parameters, only: fphi
-    use le_grids, only: negrid, nlambda
+    use le_grids, only: negrid
     use theta_grid, only: ntgrid
 # ifdef NETCDF
     use netcdf, only: nf90_put_var
@@ -2558,7 +2520,8 @@ contains
 
 # endif
   end subroutine nc_loop_dist
-
+  
+  !> FIXME : Add documentation
   subroutine nc_loop_sym (nout, vflx_sym)
     use theta_grid, only: ntgrid
 # ifdef NETCDF
@@ -2592,6 +2555,7 @@ contains
 # endif
   end subroutine nc_loop_sym
   
+  !> FIXME : Add documentation
   subroutine nc_loop_partsym_tormom (nout, partflx_sym) 
     use theta_grid, only: ntgrid
 # ifdef NETCDF
@@ -2625,6 +2589,7 @@ contains
 # endif
   end subroutine nc_loop_partsym_tormom
 
+  !> FIXME : Add documentation  
   subroutine nc_loop_corr (nout,phi_2pi_corr)
     use theta_grid, only: ntgrid
 # ifdef NETCDF
@@ -2661,6 +2626,7 @@ contains
 # endif
   end subroutine nc_loop_corr
 
+  !> FIXME : Add documentation  
   subroutine nc_loop_corr_extend (nout_big,phi_corr,phi2_extend)
 # ifdef NETCDF
     use file_utils, only: error_unit
@@ -2715,6 +2681,7 @@ contains
 # endif
   end subroutine nc_loop_corr_extend
 
+  !> FIXME : Add documentation  
   subroutine nc_loop (nout, time, fluxfac, &
        phi0,   phi2,   phi2_by_mode, &
        apar0,  apar2,  apar2_by_mode, &
@@ -3046,7 +3013,7 @@ contains
 # endif
   end subroutine nc_loop
 
-  ! RN> output full not guiding center moments 
+  !> Outputs full not guiding center moments 
   subroutine nc_loop_fullmom (nout, time, &
        & ntot0, density0, upar0, tpar0, tperp0)
 # ifdef NETCDF
@@ -3090,9 +3057,10 @@ contains
     if (status /= NF90_NOERR) call netcdf_error (status, ncid, tperp0_id)
 # endif
   end subroutine nc_loop_fullmom
-  ! <RN
 
-  ! added by EAB on 03/05/04
+  !> FIXME : Add documentation
+  !!
+  !! @note added by EAB on 03/05/04
   subroutine nc_loop_movie (nout_movie, time, yxphi, yxapar, yxbpar)
 # ifdef NETCDF
     use gs2_layouts, only: yxf_lo
@@ -3163,6 +3131,7 @@ contains
 # endif
   end subroutine nc_sync
 
+  !> FIXME : Add documentation
   subroutine nc_species
 # ifdef NETCDF
     use species, only: spec
@@ -3197,7 +3166,8 @@ contains
 !    if (status /= NF90_NOERR) call netcdf_error (status, ncid_movie, betatot_id)
 # endif
   end subroutine nc_species
-
+  
+  !> FIXME : Add documentation
   subroutine nc_geo
 # ifdef NETCDF
     use theta_grid, only: bmag, gradpar, gbdrift, gbdrift0, &

@@ -1,19 +1,16 @@
-!> \mainpage
-!! \section intro Introduction
-!! 
+!> Main program. Used when running GS2 standalone, as opposed as a library for, e.g., Trinity.
+!! Essentially this initializes a gs2_program_state_type 
+!! object, and then calls the standard sequence of subroutines
+!! from gs2_main to run the program. See gs2_main for more 
+!! information.
+!!
+!! @note Currently FORD seems to ignore everything beyond the first line
+!!
+!! @note The following should probably be moved to a standalone file
+!!
 !! GS2 is an initial value nonlinear code which solves the gyrokinetic equation. This is the source code documentation for GS2, and is aimed at developers. 
 !!
-#ifdef RELEASE
-!! This is the documentation for release RELEASE.
-!! For documentation for the development trunk please go to
-!! http://gyrokinetics.sourceforge.net/gs2_documentation
-#else
-!! This is the documentation for the development trunk.
-!! For documentation for specific releases please go to
-!! http://gyrokinetics.sourceforge.net/gs2_documentation/releases
-#endif
-!!
-!! \subsection udoc User Documentation
+!! User Documentation
 !! For a general introduction and user documentation please go to the Gyrokinetics Wiki: http://gyrokinetics.sourceforge.net/wiki/index.php/Main_Page
 !! 
 !! Some useful pages are: 
@@ -21,53 +18,36 @@
 !!  - A general introduction to GS2: http://gyrokinetics.sourceforge.net/wiki/index.php/An_Introduction_to_GS2
 !!  - A comprehensive guide to the GS2 input parameters: http://gyrokinetics.sourceforge.net/wiki/index.php/GS2_Input_Parameters
 !!
-!! \section doc Documentation Structure
+!! @section doc Documentation Structure
 !! Documentation is categorized by namespaces (i.e. modules), class (which in
 !! fortran means custom types), and files. Within each namespace the subroutines
 !! are documented in various ways, including developer comments and (very useful)
 !! a chart showing which other subroutines  call the subroutine and which are
 !! called by it.
 !!
-!! \section starting Starting Out
+!! @section starting Starting Out
 !!
-!!  If you want to start at the beginning and work out what GS2 does, start at
+!! If you want to start at the beginning and work out what GS2 does, start at
 !! gs2.f90, and use the call graphs to follow the algorithm.
 !!
-!! \section update Updating this documentation.
-!! \subsection incode Updating Source Code Comments
+!! @section Updating this documentation.
+!! @section Updating Source Code Comments
 !! This documentation is generated from commments added to the source code; to
 !! add to it, add more comments to the <i>trunk</i> source. All documenting
 !! comments begin with <tt>!></tt> and are continued with <tt>!!</tt>. For more help see the
 !! doxygen help: http://www.stack.nl/~dimitri/doxygen/manual/docblocks.html
 !!
-!! DO NOT add comments in between ifdef/endif preprocessor blocks. Such
-!! comments will probably be ignored.
-!!
-!! DO NOT  add documentation for variables which also happen to be
-!! input parameters. Your changes will be ignored in favour of the
-!! automatically generated input parameter documentation. To edit 
-!! this input parameter documentation, please go to the wiki page: 
-!! http://gyrokinetics.sourceforge.net/wiki/index.php/Gs2_Input_Parameters. 
-!! \subsection gen Updating this Documentation
+!! : gen Updating this Documentation
 !!
 !! - Install doxygen: http://www.stack.nl/~dimitri/doxygen/
 !! - Go to the trunk folder and type 
 !! 
 !!  <tt> make doc sync_doc USER=[sourceforge user name]</tt>
-
-!> Main program. Used when running GS2
-!! standalone, as opposed as a library for, e.g., Trinity.
-!! Essentially this initializes a gs2_program_state_type 
-!! object, and then calls the standard sequence of subroutines
-!! from gs2_main to run the program. See gs2_main for more 
-!! information.
-
 program gs2
 
   ! make_lib is a compiler flag used if running with 
   ! an old version of trinity (coupled flux tube code)
   ! MAKE_LIB is now deprecated.
-
 # ifndef MAKE_LIB 
   !use optimisation_config, only: optimisation_type
   use gs2_optimisation, only: initialize_gs2_optimisation
@@ -118,7 +98,4 @@ program gs2
   call run_gs2
 
 # endif
-
-
-
 end program gs2

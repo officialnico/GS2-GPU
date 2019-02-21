@@ -1,11 +1,10 @@
 # include "define.inc"
 
-!>  Routines for implementing the model collision operator
-!!defined by Barnes, Abel et al. 2009. The collision operator causes 
-!! physically motivated smoothing of structure in velocity space which 
-!!is necessary to prevent buildup of structure at fine scales in 
-!!velocity space, while conserving energy and momentum.
-
+!> Routines for implementing the model collision operator
+!! defined by Barnes, Abel et al. 2009. The collision operator causes
+!! physically motivated smoothing of structure in velocity space which
+!! is necessary to prevent buildup of structure at fine scales in
+!! velocity space, while conserving energy and momentum.
 module collisions
   
   use redistribute, only: redist_type
@@ -52,7 +51,7 @@ module collisions
   end interface 
 
   ! knobs
-  logical :: use_le_layout = .false.
+  logical :: use_le_layout = .true.
   logical :: const_v, conserve_moments
   logical :: conservative, resistivity
   integer :: collision_model_switch
@@ -153,7 +152,8 @@ module collisions
   logical :: exist
 
 contains
-
+  
+  !> FIXME : Add documentation
   subroutine check_collisions(report_unit)
     implicit none
     integer, intent(in) :: report_unit
@@ -169,6 +169,7 @@ contains
     end select
   end subroutine check_collisions
 
+  !> FIXME : Add documentation
   subroutine wnml_collisions(unit)
     implicit none
     integer, intent(in) :: unit
@@ -189,6 +190,7 @@ contains
     write (unit, fmt="(' /')")
   end subroutine wnml_collisions
 
+  !> FIXME : Add documentation
   subroutine init_collisions
     use species, only: init_species, nspec, spec
     use theta_grid, only: init_theta_grid
@@ -218,6 +220,7 @@ contains
 
   end subroutine init_collisions
 
+  !> FIXME : Add documentation
   subroutine read_parameters
     use file_utils, only: input_unit, error_unit, input_unit_exist
     use text_options, only: text_option, get_option_value
@@ -368,6 +371,7 @@ contains
     drag = resistivity .and. (beta > epsilon(0.0)) .and. (nspec > 1) .and. (fapar.gt.0)
   end subroutine read_parameters
 
+  !> FIXME : Add documentation
   subroutine init_arrays
     use species, only: nspec
     use le_grids, only: negrid, init_map
@@ -442,11 +446,9 @@ contains
 
   end subroutine init_arrays
 
+  !> Precompute three quantities needed for momentum and energy conservation:
+  !! z0, w0, s0 (z0le, w0le, s0le if use_le_layout chosen in the input file defined)
   subroutine init_lorentz_conserve
-
-! Precompute three quantities needed for momentum and energy conservation:
-! z0, w0, s0 (z0le, w0le, s0le if use_le_layout chosen in the input file defined)
-    
     use gs2_layouts, only: g_lo, ie_idx, is_idx, ik_idx, il_idx, it_idx
     use species, only: nspec, spec, electron_species
     use kt_grids, only: kperp2, naky, ntheta0
@@ -945,11 +947,9 @@ contains
     
   end subroutine init_lorentz_conserve
 
+  !> Precompute three quantities needed for momentum and energy conservation:
+  !! bz0, bw0, bs0
   subroutine init_diffuse_conserve
-
-! Precompute three quantities needed for momentum and energy conservation:
-! bz0, bw0, bs0
-    
     use gs2_layouts, only: g_lo, ie_idx, is_idx, ik_idx, il_idx, it_idx
     use species, only: nspec, spec
     use kt_grids, only: naky, ntheta0, kperp2
@@ -1412,6 +1412,7 @@ contains
 
   end subroutine init_diffuse_conserve
 
+  !> FIXME : Add documentation
   subroutine init_vnew (hee)
     use species, only: nspec, spec, electron_species, has_electron_species
     use le_grids, only: negrid, energy => energy_maxw, w => w_maxw
@@ -1602,6 +1603,7 @@ contains
     
   end subroutine init_vnew
 
+  !> FIXME : Add documentation  
   function hsg_func (vel)
 
     use constants, only: pi
@@ -1616,6 +1618,7 @@ contains
 
   end function hsg_func
 
+  !> FIXME : Add documentation  
   subroutine init_ediffuse (vnmult_target)
     use le_grids, only: negrid, nxi, ng2
     use le_grids, only: forbid, ixi_to_il
@@ -1716,8 +1719,8 @@ contains
 
   end subroutine init_ediffuse
 
+  !> FIXME : Add documentation
   subroutine get_ediffuse_matrix (aa, bb, cc, ig, ik, it, il, is, xe)
-
     use species, only: spec
     use run_parameters, only: tunits
     use theta_grid, only: bmag
@@ -1891,6 +1894,7 @@ contains
 
   end subroutine get_ediffuse_matrix
 
+  !> FIXME : Add documentation  
   subroutine init_lorentz (vnmult_target)
     use le_grids, only: negrid, jend, ng2, nxi
     use gs2_layouts, only: le_lo
@@ -2067,6 +2071,7 @@ contains
 
   end subroutine init_lorentz
 
+  !> FIXME : Add documentation
   subroutine get_lorentz_matrix (aa, bb, cc, dd, hh, ig, ik, it, ie, is)
 
     use species, only: spec
@@ -2329,6 +2334,7 @@ contains
 
   end subroutine get_lorentz_matrix
 
+  !> FIXME : Add documentation  
   subroutine init_lorentz_error
 
     use le_grids, only: jend, al, ng2, nlambda
@@ -2645,8 +2651,8 @@ contains
     deallocate (slb, dprod, dlcoef, d2lcoef)
   end subroutine init_lorentz_error
 
+  !> FIXME : Add documentation  
   subroutine solfp1_standard_layout (g, g1, gc1, gc2, diagnostics, gtoc, ctog)
-
     use gs2_layouts, only: g_lo, it_idx, ik_idx, ie_idx, is_idx
     use theta_grid, only: ntgrid
     use run_parameters, only: beta
@@ -2797,8 +2803,8 @@ contains
    
   end subroutine solfp1_standard_layout
 
+  !> FIXME : Add documentation  
   subroutine solfp1_le_layout (gle, diagnostics)
-
     use gs2_layouts, only: le_lo, it_idx, ik_idx, ig_idx, is_idx
     use theta_grid, only: bmag
     use run_parameters, only: beta, ieqzip
@@ -2945,9 +2951,8 @@ contains
    
   end subroutine solfp1_le_layout
 
-
+  !> FIXME : Add documentation
   subroutine conserve_lorentz_standard_layout (g, g1)
-
     use theta_grid, only: ntgrid
     use species, only: nspec
     use kt_grids, only: naky, ntheta0
@@ -3088,9 +3093,8 @@ contains
 
   end subroutine conserve_lorentz_standard_layout
 
-
+  !> FIXME : Add documentation
   subroutine conserve_lorentz_le_layout (gle)
-
     use theta_grid, only: ntgrid
     use species, only: nspec
     use gs2_layouts, only: ik_idx, it_idx, ie_idx, il_idx, is_idx
@@ -3258,9 +3262,8 @@ contains
 
   end subroutine conserve_lorentz_le_layout
 
-
+  !> FIXME : Add documentation
   subroutine conserve_diffuse_standard_layout (g, g1)
-
     use theta_grid, only: ntgrid
     use species, only: nspec
     use kt_grids, only: naky, ntheta0
@@ -3394,8 +3397,8 @@ contains
 
   end subroutine conserve_diffuse_standard_layout
 
+  !> FIXME : Add documentation
   subroutine conserve_diffuse_le_layout (gle)
-
     use theta_grid, only: ntgrid
     use species, only: nspec
     use kt_grids, only: naky
@@ -3618,8 +3621,8 @@ contains
 
   end subroutine conserve_diffuse_le_layout
 
+  !> FIXME : Add documentation
   subroutine solfp_lorentz_standard_layout (g, gc, gh, diagnostics)
-
     use theta_grid, only: ntgrid
     use le_grids, only: nlambda, jend, ng2, lambda_map, nxi
     use gs2_layouts, only: g_lo
@@ -3781,9 +3784,8 @@ contains
 
   end subroutine solfp_lorentz_standard_layout
 
-
+  !> FIXME : Add documentation
   subroutine solfp_lorentz_le_layout (gle, diagnostics)
-
     use le_grids, only: jend, ng2, negrid, nxi, integrate_moment
     use gs2_layouts, only: ig_idx, ik_idx, is_idx, it_idx
     use prof, only: prof_entering, prof_leaving
@@ -3949,11 +3951,10 @@ contains
 
   end subroutine solfp_lorentz_le_layout
 
-  ! energy diffusion subroutine used with energy layout (not le_layout)
-  ! this is always the case when initializing the conserving terms,
-  ! otherwise is the case if use_le_layout is no specified in the input file.
+  !> Energy diffusion subroutine used with energy layout (not le_layout)
+  !! this is always the case when initializing the conserving terms,
+  !! otherwise is the case if use_le_layout is no specified in the input file.
   subroutine solfp_ediffuse_standard_layout (g)
-
     use species, only: spec
     use theta_grid, only: ntgrid
     use le_grids, only: negrid, forbid
@@ -4008,9 +4009,8 @@ contains
 
   end subroutine solfp_ediffuse_standard_layout
 
-
+  !> FIXME : Add documentation
   subroutine solfp_ediffuse_le_layout (gle)
-
     use species, only: spec
     use le_grids, only: nxi, negrid, forbid, ixi_to_il, ng2
     use gs2_layouts, only: ig_idx, it_idx, ik_idx, is_idx, le_lo
@@ -4061,9 +4061,8 @@ contains
 
   end subroutine solfp_ediffuse_le_layout
 
-
+  !> FIXME : Add documentation
   subroutine check_g (str, g)
-
     use gs2_layouts, only: g_lo
     use theta_grid, only: ntgrid
     implicit none    
@@ -4083,8 +4082,8 @@ contains
 
   end subroutine check_g
 
+  !> FIXME : Add documentation
   subroutine check_glz (str, glz)
-
     use gs2_layouts, only: lz_lo, ig_idx, ie_idx
     use le_grids, only: jend
     use theta_grid, only: ntgrid
@@ -4110,8 +4109,8 @@ contains
 
   end subroutine check_glz
 
+  !> FIXME : Add documentation
   subroutine init_vpdiff
-
     use le_grids, only: al, wl, nlambda, jend, ng2
     use theta_grid, only: ntgrid, bmag
 
@@ -4173,19 +4172,16 @@ contains
     
   end subroutine init_vpdiff
 
+  !> Forces recalculation of coefficients in collision operator
+  !! when timestep changes. Currently just calls [[finish_collisions]]
   subroutine reset_init
-!
-! forces recalculation of coefficients in collision operator
-! when timestep changes.
     call finish_collisions
-!    
-
   end subroutine reset_init
 
+  !> Forces recalculation of coefficients in collision operator
+  !! when timestep changes.
   subroutine finish_collisions
-
     use dist_fn_arrays, only: c_rate
-
     implicit none
 
     vnmult = 0.0

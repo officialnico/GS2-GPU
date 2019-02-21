@@ -1,4 +1,4 @@
-!> This unit runs a tiny grid with nstep=10000, and checks
+!> This unit runs a tiny grid with nstep=20000, and checks
 !! that GS2 exits when run time exceeds avail_time.
 !
 program test_job_manage
@@ -22,17 +22,20 @@ program test_job_manage
    call announce_module_test("job_manage")
 
    ! Run test:
-   ! 1. Run a long job that will take more than avail_time = 2 secs to complete
-   ! 2. Check that the job is finished after avail_time has elapsed.
-   call announce_test("that gs2 doesn't run without limit when avail_cpu_time is set")
+   ! 1. Run a long job that will take more than avail_time = 2 secs to complete,
+   !    and should therefore be aborted.
+   ! 2. Run gs2 and at the end check that the job was aborted, i.e. that:
+   !    a) more than avail_time has elapsed
+   !    b) fewer than nstep timesteps have been completed
+   call announce_test("that gs2 stops when time elaspsed exceeds avail_cpu_time")
    start_time = timer_local()
    call run_gs2(mp_comm)
 
    elapsed_time = timer_local() - start_time
    call process_test(( &
      ( elapsed_time .gt. avail_time ) .and. &
-     ( elapsed_time .lt. 3 ) ), &
-     "gs2 doesn't run without limit when avail_cpu_time is set")
+     ( old_iface_state%istep_end .lt. old_iface_state%nstep ) ), &
+     "gs2 doesn't stop when time elapsed exceeds avail_cpu_time")
 
    ! Finalize gs2
    call finalize_equations(old_iface_state)

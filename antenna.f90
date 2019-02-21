@@ -1,8 +1,5 @@
-module antenna
-!!  
+!> Provides random forcing for Alfven wave problem
 !! Originally by Hammett, Dorland and Quataert, Dec. 5, 2001
-!!
-!! Provides random forcing for Alfven wave problem
 !!
 !! init_antenna should be called once per run
 !! antenna_amplitudes provides the necessary info per time step
@@ -26,6 +23,7 @@ module antenna
 !!               : list of k components that are to be driven; integers
 !!    travel     : logical; choose false to make a standing wave
 !!               : default value is .true.
+module antenna
 
   use antenna_data, only: nk_stir, a_ant, b_ant
   implicit none
@@ -54,7 +52,7 @@ module antenna
   logical :: initialized = .false.
 
 contains
-!=============================================================================
+  !> FIXME : Add documentation
   subroutine check_antenna(report_unit)
     use file_utils, only: run_name
     implicit none
@@ -91,6 +89,7 @@ contains
     end if
   end subroutine check_antenna
 
+  !> FIXME : Add documentation
   subroutine wnml_antenna(unit)
     implicit none
     integer, intent(in) :: unit
@@ -120,21 +119,26 @@ contains
     end do
   end subroutine wnml_antenna
 
+  !> FIXME : Add documentation
   subroutine init_antenna_level_1
      call read_parameters
   end subroutine init_antenna_level_1
 
+  !> FIXME : Add documentation
   subroutine finish_antenna_level_1
   end subroutine finish_antenna_level_1
 
+  !> FIXME : Add documentation
   subroutine init_antenna_level_2
     call init_antenna
   end subroutine init_antenna_level_2
 
+  !> FIXME : Add documentation
   subroutine finish_antenna_level_2
     call finish_antenna
   end subroutine finish_antenna_level_2
 
+  !> FIXME : Add documentation
   subroutine init_antenna
     use species, only: spec, nspec, init_species
     use run_parameters, only: beta
@@ -172,7 +176,7 @@ contains
     end if
   end subroutine init_antenna
 
-!=============================================================================    
+  !> FIXME : Add documentation
   subroutine read_parameters 
     use file_utils, only: input_unit_exist, get_indexed_namelist_unit, get_unused_unit
     use file_utils, only: open_output_file, input_unit
@@ -282,7 +286,8 @@ contains
     call broadcast (b_ant)
        
   end subroutine read_parameters
-!=============================================================================
+
+  !> FIXME : Add documentation
   subroutine finish_antenna
     use file_utils, only: close_output_file
     use antenna_data, only: finish_antenna_data
@@ -297,7 +302,8 @@ contains
     initialized = .false.
 
   end subroutine finish_antenna
-!=============================================================================
+
+  !> FIXME : Add documentation
   subroutine antenna_amplitudes (apar)
     use mp, only: broadcast, proc0
     use gs2_time, only: code_dt, code_time
@@ -402,8 +408,7 @@ contains
 
   end subroutine antenna_amplitudes
 
-!=============================================================================
-
+  !> FIXME : Add documentation
   subroutine antenna_apar (kperp2, j_ext)
 !      GGH ERR? Is this correct? It uses apar_new rather than just the applied
 !      current, so does this include the plasma response? 
@@ -445,8 +450,7 @@ contains
 
   end subroutine antenna_apar
 
-!=============================================================================
-
+  !> FIXME : Add documentation
   subroutine a_ext_data (A_ext_old, A_ext_new)
 !      this routine returns current and previous A_ext vectors
     use theta_grid, only: ntgrid
@@ -463,14 +467,15 @@ contains
     end if
 
   end subroutine a_ext_data
-!=============================================================================
+
+  !> FIXME : Add documentation  
   function antenna_w ()
     implicit none
     complex :: antenna_w
     antenna_w = wtmp
   end function antenna_w
 
-!=============================================================================
+  !> FIXME : Add documentation
   subroutine dump_ant_amp
     use gs2_time, only: user_time
     use mp, only: proc0
@@ -491,12 +496,11 @@ contains
     end if
   end subroutine dump_ant_amp
 
-!=============================================================================
-! used when interfacing GS2 with Trinity -- MAB
+  !> FIXME : Add documentation
   subroutine reset_init
+    ! used when interfacing GS2 with Trinity -- MAB
     implicit none
     initialized = .false.
   end subroutine reset_init
-!=============================================================================
 end module antenna
 

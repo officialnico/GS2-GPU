@@ -5,6 +5,8 @@ module diagnostics_geometry
   private
   public :: write_geometry
 contains
+  
+  !> FIXME : Add documentation  
   subroutine write_geometry(gnostics)
     use theta_grid, only: bmag, gradpar, gbdrift, gbdrift0, &
          cvdrift, cvdrift0, gds2, gds21, gds22, grho, jacob, &
@@ -97,9 +99,8 @@ contains
        call open_output_file (unit, ".g")
        write (unit,fmt="('# shape: ',a)") trim(shape)
        write (unit,fmt="('# q = ',e11.4,' drhodpsi = ',e11.4)") qval, drhodpsi
-       write (unit,fmt="('# theta1             R2                  Z3               alpha4      ', &
-          &  '       Rprime5              Zprime6           alpha_prime7     ', & 
-          &  '      bpol8')")
+       write (unit,fmt="('# theta1             R2                  Z3               alpha4"&
+          & //"             Rprime5              Zprime6           alpha_prime7           bpol8')")
        do i=-ntgrid,ntgrid
           write (unit,'(20(1x,1pg18.11))') theta(i),Rplot(i),Zplot(i),aplot(i), &
                Rprime(i),Zprime(i),aprime(i),Bpol(i)

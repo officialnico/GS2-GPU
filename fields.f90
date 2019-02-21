@@ -1,3 +1,4 @@
+!> FIXME : Add documentation
 module fields
   use text_options, only: text_option
 
@@ -24,6 +25,7 @@ module fields
   !> Made public for replay
   public :: allocate_arrays
 
+  !> FIXME : Add documentation
   interface fieldlineavgphi
      module procedure fieldlineavgphi_loc
      module procedure fieldlineavgphi_tot
@@ -49,6 +51,7 @@ module fields
           text_option('implicit_local', fieldopt_local)/)
 contains
 
+  !> FIXME : Add documentation  
   subroutine check_fields(report_unit)
     use fields_local, only: do_smart_update, minNRow
     implicit none
@@ -76,6 +79,7 @@ contains
     end select
   end subroutine check_fields
 
+  !> FIXME : Add documentation  
   subroutine wnml_fields(unit)
     use fields_local, only: do_smart_update, minNRow
     implicit none
@@ -100,6 +104,7 @@ contains
     write (unit, fmt="(' /')")
   end subroutine wnml_fields
 
+  !> FIXME : Add documentation
   subroutine set_overrides(opt_ov)
     use overrides, only: optimisations_overrides_type
     use file_utils, only: error_unit
@@ -175,7 +180,8 @@ contains
     call debug_message(verb, "init_fields: allocate_arrays")
     call allocate_arrays
   end subroutine fields_pre_init
-  
+
+  !> FIXME : Add documentation  
   subroutine init_fields_parameters
     use unit_tests, only: debug_message
     implicit none
@@ -186,10 +192,12 @@ contains
     parameters_read = .true.
   end subroutine init_fields_parameters
 
+  !> FIXME : Add documentation  
   subroutine finish_fields_parameters
     parameters_read = .false.
   end subroutine finish_fields_parameters
 
+  !> FIXME : Add documentation  
   subroutine init_fields_level_1
     use unit_tests, only: debug_message
     implicit none
@@ -198,18 +206,22 @@ contains
     call allocate_arrays
   end subroutine init_fields_level_1
 
+  !> FIXME : Add documentation  
   subroutine finish_fields_level_1
     call finish_fields
   end subroutine finish_fields_level_1
 
+  !> FIXME : Add documentation  
   subroutine init_fields_level_2
     call init_fields
   end subroutine init_fields_level_2
 
+  !> FIXME : Add documentation  
   subroutine finish_fields_level_2
     call reset_init
   end subroutine finish_fields_level_2
 
+  !> FIXME : Add documentation  
   subroutine fields_init_response
     use fields_implicit, only: init_fields_implicit
     use fields_test, only: init_fields_test
@@ -218,7 +230,6 @@ contains
     use unit_tests, only: debug_message
     implicit none
     integer, parameter :: verb=3
-    logical, parameter :: debug = .false.
     select case (fieldopt_switch)
     case (fieldopt_implicit)
        call debug_message(verb, &
@@ -240,9 +251,10 @@ contains
     end select
   end subroutine fields_init_response
 
+  !> FIXME : Add documentation  
   subroutine init_fields
-!CMR,18/2/2011:
-! add optional logical arg "noalloc" to avoid array allocations in ingen
+    !CMR,18/2/2011:
+    ! add optional logical arg "noalloc" to avoid array allocations in ingen
     use theta_grid, only: init_theta_grid
     use run_parameters, only: init_run_parameters
     use dist_fn, only: init_dist_fn
@@ -281,7 +293,7 @@ contains
     if(gridopt_switch.eq.gridopt_box) kwork_filter(1,1)=.true.
   end subroutine init_fields
 
-  !>Force the current 
+  !> Force the current response matrices to be written to file
   subroutine dump_response_to_file(suffix)
     use fields_implicit, only: dump_response_to_file_imp
     use fields_local, only: dump_response_to_file_local
@@ -302,6 +314,7 @@ contains
     end select
   end subroutine dump_response_to_file
 
+  !> FIXME : Add documentation
   subroutine set_init_fields
     use fields_implicit, only: init_allfields_implicit
     use fields_test, only: init_phi_test
@@ -343,6 +356,7 @@ contains
     end select
   end subroutine set_init_fields
 
+  !> FIXME : Add documentation  
   subroutine read_parameters
     use file_utils, only: input_unit, error_unit, input_unit_exist
     use text_options, only: text_option, get_option_value
@@ -391,8 +405,6 @@ contains
 
     end if
 
-
-
     call broadcast (fieldopt_switch)
     call broadcast (remove_zonal_flows_switch)
     call broadcast (field_subgath)
@@ -423,6 +435,7 @@ contains
 
   end subroutine read_parameters
 
+  !> FIXME : Add documentation  
   subroutine set_dump_and_read_response(dump_flag, read_flag)
     use fields_implicit, only: dump_response_imp => dump_response, read_response_imp=>read_response
     use fields_local, only: dump_response_loc => dump_response, read_response_loc=>read_response
@@ -444,6 +457,7 @@ contains
     end select
   end subroutine set_dump_and_read_response
 
+  !> FIXME : Add documentation  
   subroutine allocate_arrays
     use theta_grid, only: ntgrid
     use kt_grids, only: naky, ntheta0
@@ -492,6 +506,7 @@ contains
     endif
   end subroutine allocate_arrays
 
+  !> FIXME : Add documentation  
   subroutine advance (istep)
     use fields_implicit, only: advance_implicit
     use fields_test, only: advance_test
@@ -513,7 +528,9 @@ contains
     end select
   end subroutine advance
 
-  !This routine has a potentially misleading name and isn't used anywhere
+  !> FIXME : Add documentation
+  !!
+  !! @note This routine has a potentially misleading name and isn't used anywhere
   subroutine kperp (ntgrid_output, akperp)
     use theta_grid, only: delthet
     use kt_grids, only: naky, aky, ntheta0, kperp2
@@ -545,7 +562,9 @@ contains
     end do
   end subroutine kperp
 
-  !This routine isn't used anywhere
+  !> FIXME : Add documentation  
+  !!
+  !! @note This routine isn't used anywhere
   subroutine fieldlineavgphi_loc (ntgrid_output, it, ik, phiavg)
     use theta_grid, only: ntgrid, drhodpsi, gradpar, bmag, delthet
     use fields_arrays, only: phi
@@ -562,7 +581,9 @@ contains
                  *jac(-ntgrid_output:ntgrid_output))
   end subroutine fieldlineavgphi_loc
 
-  !This doesn't look like a useful routine and isn't used anywhere
+  !> FIXME : Add documentation
+  !!
+  !! @note This doesn't look like a useful routine and isn't used anywhere
   subroutine fieldlineavgphi_tot (phiavg)
     use theta_grid, only: ntgrid, drhodpsi, gradpar, bmag
 !    use theta_grid, only: delthet
@@ -601,6 +622,7 @@ contains
 
   !end subroutine fieldline_average_phi
 
+  !> FIXME : Add documentation  
   subroutine reset_init
     use fields_implicit, only: fi_reset => reset_init
     use fields_test, only: ft_reset => reset_init
@@ -637,6 +659,7 @@ contains
     end select
   end subroutine reset_init
 
+  !> FIXME : Add documentation  
   subroutine finish_fields
 
     use fields_implicit, only: implicit_reset => reset_init

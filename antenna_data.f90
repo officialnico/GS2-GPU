@@ -1,3 +1,4 @@
+!> FIXME : Add documentation
 module antenna_data
 
 ! quick fix for now; put amplitudes here and thus be 
@@ -15,7 +16,7 @@ module antenna_data
   logical :: ant_on = .false., initialized = .false.
 
 contains
-
+  !> FIXME : Add documentation
   subroutine init_antenna_data (nk_stir_in)
 
     integer, intent (in) :: nk_stir_in
@@ -39,6 +40,7 @@ contains
 
   end subroutine init_antenna_data
 
+  !> FIXME : Add documentation
   subroutine finish_antenna_data
 
     implicit none

@@ -1,3 +1,4 @@
+!> FIXME : Add documentation
 module old_interface_store
     integer :: ntspec_store
     real :: rhoc_store, qval_store, shat_store, rgeo_lcfs_store, rgeo_local_store, aSurf_store
@@ -76,7 +77,6 @@ end module old_interface_store
 !! A particular consequence of this is that only one instance of the
 !! gs2_program_state object should exist on each process, i.e. in a given 
 !! memory space.
-
 module gs2_main
   use gs2_init, only: init_type, init_level_list
   use optimisation_config, only: optimisation_type
@@ -107,13 +107,14 @@ module gs2_main
   public :: finalize_overrides
 
   public :: old_iface_state
-  !> Unit tests
+  !! Unit tests
 
   public :: gs2_main_unit_test_reset_gs2
 
   public :: initialize_wall_clock_timer
 
 
+  !> FIXME : Add documentation
   type gs2_timers_type
     real :: init(2) 
     real :: advance(2) = 0.
@@ -148,7 +149,6 @@ module gs2_main
     real :: vflux
   end type gs2_outputs_type
 
-
   !> The object which specifies and records the gs2 program state.
   !! Some attributes of the object, like mp_comm_external, are
   !! designed to directly manipulated by the user, and some are
@@ -164,7 +164,7 @@ module gs2_main
 
     !> A type for keeping track of the current
     !! initialization level of gs2, as well
-    !! as storing all the overrides. See 
+   !! as storing all the overrides. See 
     !! gs2_init::init_type for more information.
     type(init_type) :: init
 
@@ -176,10 +176,8 @@ module gs2_main
     !! lie idle.
     logical :: included = .true.
 
-
     ! Timers
     type(gs2_timers_type) :: timers
-
 
     !> The exit flag is set to true by any 
     !! part of the main timestep loop that 
@@ -688,7 +686,6 @@ contains
   !!      call evolve_equations(state, state%nstep/2)
   !!      call reset_equations(state)
   !!      call evolve_equations(state, state%nstep/2)
-
   subroutine evolve_equations(state, nstep_run)
     use collisions, only: vnmult
     use dist_fn_arrays, only: gnew
@@ -916,6 +913,7 @@ contains
 
   end subroutine evolve_equations
 
+  !> FIXME : Add documentation
   subroutine run_eigensolver(state)
 #ifdef WITH_EIG
     use eigval, only: init_eigval, finish_eigval, time_eigval
@@ -950,20 +948,8 @@ contains
 
   end subroutine run_eigensolver
 
-  !subroutine save_current(state)
-    !use gs2_init, only: save_fields_and_dist_fn
-    !use mp, only: scope, subprocs, allprocs
-    !implicit none
-    !type(gs2_program_state_type), intent(inout) :: state
-
-
-    !if (state%nensembles > 1) call scope (subprocs)
-    !call save_fields_and_dist_fn
-    !if (state%nensembles > 1) call scope (allprocs)
-  !end subroutine save_current
-
+  !> FIXME : Add documentation
   subroutine reset_equations (state)
-
     use gs2_diagnostics, only: gd_reset => reset_init
 #ifdef NEW_DIAG
     use gs2_diagnostics_new, only: reset_averages_and_counters
@@ -1011,6 +997,7 @@ contains
 
   end subroutine reset_equations
 
+  !> FIXME : Add documentation  
   subroutine finalize_diagnostics(state)
     use gs2_diagnostics, only: finish_gs2_diagnostics
 #ifdef NEW_DIAG
@@ -1054,6 +1041,7 @@ contains
     if (proc0) call time_message(.false.,state%timers%total,' Total')
   end subroutine finalize_diagnostics
 
+  !> FIXME : Add documentation  
   subroutine finalize_equations(state)
     use gs2_init, only: init
     use job_manage, only: time_message
@@ -1084,6 +1072,7 @@ contains
 
   end subroutine finalize_equations
 
+  !> FIXME : Add documentation  
   subroutine finalize_gs2(state)
     use file_utils, only: finish_file_utils
     use gs2_init, only: finish_gs2_init
@@ -1149,6 +1138,7 @@ contains
     !if (.not. present(mpi_comm) .and. .not. nofin) call finish_mp
   end subroutine finalize_gs2
 
+  !> FIXME : Add documentation  
   subroutine prepare_optimisations_overrides(state)
     use overrides, only: init_optimisations_overrides
     use gs2_init, only: init, init_level_list
@@ -1159,6 +1149,7 @@ contains
     call init_optimisations_overrides(state%init%opt_ov)
   end subroutine prepare_optimisations_overrides
 
+  !> FIXME : Add documentation  
   subroutine prepare_miller_geometry_overrides(state)
     use overrides, only: init_miller_geometry_overrides
     use gs2_init, only: init, init_level_list
@@ -1169,6 +1160,7 @@ contains
     call init_miller_geometry_overrides(state%init%mgeo_ov)
   end subroutine prepare_miller_geometry_overrides
 
+  !> FIXME : Add documentation  
   subroutine prepare_profiles_overrides(state)
     use overrides, only: init_profiles_overrides
     use gs2_init, only: init, init_level_list
@@ -1181,6 +1173,7 @@ contains
     call init_profiles_overrides(state%init%prof_ov, nspec)
   end subroutine prepare_profiles_overrides
 
+  !> FIXME : Add documentation  
   subroutine prepare_kt_grids_overrides(state)
     use overrides, only: init_kt_grids_overrides
     use gs2_init, only: init, init_level_list
@@ -1192,6 +1185,7 @@ contains
     call init_kt_grids_overrides(state%init%kt_ov)
   end subroutine prepare_kt_grids_overrides
 
+  !> FIXME : Add documentation  
   subroutine prepare_initial_values_overrides(state)
     use overrides, only: init_initial_values_overrides
     use fields, only: force_maxwell_reinit
@@ -1212,15 +1206,13 @@ contains
       in_memory=in_memory)
   end subroutine prepare_initial_values_overrides
 
+  !> FIXME : Add documentation  
   subroutine set_initval_overrides_to_current_vals(initval_ov)
-    use dist_fn_arrays, only: gnew, g_restart_tmp
+    use dist_fn_arrays, only: gnew
     use gs2_save, only: gs2_save_for_restart
     use mp, only: proc0, broadcast, mp_abort
     use collisions, only: vnmult
-    use gs2_layouts, only: g_lo
-    use theta_grid, only: ntgrid
     use file_utils, only: error_unit
-    use kt_grids, only: ntheta0, naky
     use run_parameters, only: fphi, fapar, fbpar
     use fields, only:  force_maxwell_reinit
     use fields_arrays, only: phinew, aparnew, bparnew
@@ -1229,7 +1221,6 @@ contains
     use antenna, only: dump_ant_amp
     implicit none
     type(initial_values_overrides_type), intent(inout) :: initval_ov
-    integer :: iostat
     integer :: istatus
     !if (.not. state%included) return
 
@@ -1261,6 +1252,7 @@ contains
 
   end subroutine set_initval_overrides_to_current_vals
 
+  !> FIXME : Add documentation  
   subroutine finalize_overrides(state)
     use overrides, only: finish_profiles_overrides
     use overrides, only: finish_miller_geometry_overrides
@@ -1275,7 +1267,7 @@ contains
       finish_initial_values_overrides(state%init%initval_ov)
   end subroutine finalize_overrides
 
-  
+  !> FIXME : Add documentation
   subroutine calculate_outputs(state)
     use gs2_diagnostics, only: start_time
     use gs2_diagnostics, only: pflux_avg, qflux_avg, heat_avg, vflux_avg !, start_time, nwrite, write_nl_flux
@@ -1288,7 +1280,6 @@ contains
     use nonlinear_terms, only: nonlinear_mode_switch, nonlinear_mode_none
     use run_parameters, only: trinity_linear_fluxes, trinity_ql_fluxes
     use species, only: nspec, spec
-    use species, only: ions, electrons, impurity
     use run_parameters, only: use_old_diagnostics
     use mp, only: mp_abort
     implicit none
@@ -1378,8 +1369,7 @@ contains
   !! Private subroutines
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
-
-
+  !> FIXME : Add documentation
   subroutine reset_timers(timers)
     type(gs2_timers_type), intent(inout) :: timers
     timers%init = 0.
@@ -1392,8 +1382,9 @@ contains
     timers%main_loop = 0.
   end subroutine reset_timers
 
+  !> FIXME : Add documentation  
   subroutine print_times(state, timers)
-    use mp, only: proc0, nproc, min_reduce, max_reduce, sum_reduce
+    use mp, only: proc0, min_reduce, max_reduce, sum_reduce
     use redistribute, only: time_redist
     use fields_arrays, only: time_field
     use gs2_reinit, only: time_reinit
@@ -1433,6 +1424,7 @@ contains
 
   end subroutine print_times
 
+  !> FIXME : Add documentation  
   subroutine allocate_outputs(state)
     use species, only: nspec
     type(gs2_program_state_type), intent(inout) :: state
@@ -1443,6 +1435,7 @@ contains
     end if
   end subroutine allocate_outputs
 
+  !> FIXME : Add documentation  
   subroutine deallocate_outputs(state)
     type(gs2_program_state_type), intent(inout) :: state
     if (allocated(state%outputs%pflux)) then
@@ -1452,13 +1445,7 @@ contains
     end if
   end subroutine deallocate_outputs
 
-
-
-
-
-
-
-  !> Deprecated. This is the main subroutine in which gs2 is initialized, equations are advanced,
+  !> This is the main subroutine in which gs2 is initialized, equations are advanced,
   !!   and the program is finalized.
   !! \section Basic Structure 
   !!  This subroutine broadly falls into 3 sections: 
@@ -1479,16 +1466,11 @@ contains
   !! \section arguments Arguments
   !! All arguments are optional and are not used for gs2. 
   !! (EGH - used for Trinity?)
-
-
-
-subroutine run_gs2 (mpi_comm, job_id, filename, nensembles, &
-     pflux, qflux, vflux, heat, dvdrho, grho, trinity_reset, converged)
-   use job_manage, only: trin_reset
-
-   
-   use job_manage, only: trin_restart, trin_reset, time_message
-    use unit_tests, only: functional_test_flag, ilast_step
+  subroutine run_gs2 (mpi_comm, job_id, filename, nensembles, &
+       pflux, qflux, vflux, heat, dvdrho, grho, trinity_reset, converged)
+    use job_manage, only: trin_reset   
+    use job_manage, only: trin_restart, trin_reset, time_message
+    use unit_tests, only: functional_test_flag
     use mp, only: proc0
     use old_interface_store, only: override_profiles, override_miller_geometry
     implicit none
@@ -1587,7 +1569,7 @@ subroutine run_gs2 (mpi_comm, job_id, filename, nensembles, &
     
   end subroutine run_gs2
   
-! HJL <
+  !> FIXME : Add documentation
   subroutine trin_finish_gs2
 
     call finalize_diagnostics(old_iface_state)
@@ -1596,11 +1578,9 @@ subroutine run_gs2 (mpi_comm, job_id, filename, nensembles, &
     call finalize_overrides(old_iface_state)
 
   end subroutine trin_finish_gs2
-! > HJL
 
-
+  !> FIXME : Add documentation  
   subroutine finish_gs2
-    
     use antenna, only: finish_antenna
     use collisions, only: finish_collisions
     use dist_fn, only: finish_dist_fn
@@ -1670,8 +1650,8 @@ subroutine run_gs2 (mpi_comm, job_id, filename, nensembles, &
 
   end function gs2_main_unit_test_reset_gs2
 
+  !> FIXME : Add documentation  
   subroutine reset_gs2 (ntspec, dens, temp, fprim, tprim, gexb, mach, nu, nensembles)
-
     use dist_fn, only: dist_fn_g_exb => g_exb
     use gs2_init, only: init, init_level_list
     use nonlinear_terms, only: nonlinear_mode_switch, nonlinear_mode_none
@@ -1682,7 +1662,7 @@ subroutine run_gs2 (mpi_comm, job_id, filename, nensembles, &
     use mp, only: scope, subprocs, allprocs
     use mp, only: mp_abort
     use run_parameters, only: trinity_linear_fluxes
-    use species, only: nspec, spec, impurity, ions, electrons
+    use species, only: nspec
     use species, only: determine_species_order
     use run_parameters, only: use_old_diagnostics
 #ifdef NEW_DIAG
@@ -1784,9 +1764,11 @@ subroutine run_gs2 (mpi_comm, job_id, filename, nensembles, &
 
   end subroutine reset_gs2
 
+  !> FIXME : Add documentation  
   subroutine old_interface_set_overrides
     use old_interface_store
-    use gs2_init, only: init, init_level_list
+    use gs2_init, only: init
+    implicit none
     integer :: is, isg
 
     if (override_miller_geometry) then 
@@ -1849,8 +1831,9 @@ subroutine run_gs2 (mpi_comm, job_id, filename, nensembles, &
     override_miller_geometry = .false.
   end subroutine old_interface_set_overrides
 
+  !> FIXME : Add documentation  
   subroutine determine_gs2spec_from_trin(ntspec, trin_multispec_in)
-    use species, only: determine_species_order, spec, nspec, impurity, ions
+    use species, only: determine_species_order, nspec, impurity, ions
     use species, only: electrons
     use mp, only: mp_abort
     integer, intent(in) :: ntspec
@@ -1905,56 +1888,43 @@ subroutine run_gs2 (mpi_comm, job_id, filename, nensembles, &
     end if
   end subroutine determine_gs2spec_from_trin
 
+  !> FIXME : Add documentation  
   subroutine reset_linear_magnitude
     use dist_fn_arrays, only: g, gnew
     use fields, only: set_init_fields
     use fields_arrays, only: phi, apar, bpar, phinew, aparnew,  bparnew
     use run_parameters, only: fphi, fapar, fbpar
     use init_g, only: ginit
-!    real :: norm
+    implicit none
     logical :: dummy
-
-!    if (fphi .gt. epsilon(0.0)) then
-!      norm = maxval(real(conjg(phi)*phi))
-!    elseif (fapar .gt. epsilon(0.0)) then
-!      norm = maxval(real(conjg(apar)*apar))
-!    elseif (fbpar .gt. epsilon(0.0)) then
-!      norm = maxval(real(conjg(bpar)*bpar))
-!    endif
-!
-!    norm = norm**0.5
-!
-!    phi = phi/norm
-!    apar = apar/norm
-!    bpar = bpar/norm
-!    gnew = gnew/norm
-!    g = g/norm
-     
-     if (fphi > 0.) then 
+    
+    if (fphi > 0.) then 
        phi = 0.0 
        phinew = 0.0
-     end if
-       
-     if (fapar > 0.) then 
+    end if
+    
+    if (fapar > 0.) then 
        apar = 0.0
        aparnew = 0.0
-     end if
-     if (fbpar > 0.) then 
+    end if
+    if (fbpar > 0.) then 
        bpar = 0.0
        bparnew = 0.0
-     end if
-     g = 0.0; gnew = 0.0
-
-     call ginit(dummy)
-     call set_init_fields
+    end if
+    g = 0.0; gnew = 0.0
+    
+    call ginit(dummy)
+    call set_init_fields
   end subroutine reset_linear_magnitude
 
+  !> FIXME : Add documentation  
   subroutine write_trinity_parameters(state)
       use file_utils, only: open_output_file, close_output_file
       use theta_grid_params, only: write_theta_grid => write_trinity_parameters
       use species, only: write_species => write_trinity_parameters
       use run_parameters, only: write_run_parameters => write_trinity_parameters
       use mp, only: proc0
+      implicit none
       type(gs2_program_state_type), intent(in) :: state
       integer :: trinpars_unit
       character(len=1000) :: ext
@@ -1975,6 +1945,7 @@ subroutine run_gs2 (mpi_comm, job_id, filename, nensembles, &
       end if
   end subroutine write_trinity_parameters
 
+  !> FIXME : Add documentation  
   subroutine gs2_trin_init (rhoc, qval, shat, rgeo_lcfs, rgeo_local, aSurf, shift, shiftVert, &
        deltam, deltan, deltampri, deltanpri, thetam, thetan, &
        betaprim, ntspec, dens, temp, fprim, tprim, gexb, mach, nu, use_gs2_geo)

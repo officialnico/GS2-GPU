@@ -1,3 +1,4 @@
+!> FIXME : Add documentation
 module gs2_time
 
   implicit none
@@ -13,7 +14,6 @@ module gs2_time
 
   real :: user_dt, code_dt 
   real :: code_dt_prev1, code_dt_prev2
-  real :: user_tstart, code_tstart
   real :: user_dt_cfl = -1.
   real :: code_dt_cfl = -1.
 
@@ -29,8 +29,9 @@ module gs2_time
 
 contains
 
+  !> FIXME : Add documentation  
   subroutine init_tstart (tstart)
-
+    implicit none
     real, intent (in) :: tstart
 
     user_time = tstart
@@ -38,7 +39,9 @@ contains
 
   end subroutine init_tstart
 
+  !> FIXME : Add documentation  
   subroutine init_delt (delt)
+    implicit none
     real, intent (in) :: delt
 !
 ! delt_in is a user input, from the run_parameters module.
@@ -52,14 +55,16 @@ contains
 
   end subroutine init_delt
 
-  !Check if the current time step is too big
+  !> Check if the current time step is too big
   subroutine check_time_step_too_large(reset)
     implicit none
     logical, intent(out) :: reset
     reset=(code_dt>code_dt_cfl)
   end subroutine check_time_step_too_large
 
+  !> FIXME : Add documentation  
   subroutine update_time
+    implicit none
 ! for using a changing-timestep AB3 algorithm for the nonlinear term  
     code_dt_prev2 = code_dt_prev1
     code_dt_prev1 = code_dt
@@ -73,8 +78,9 @@ contains
 
   end subroutine update_time
 
+  !> FIXME : Add documentation
   subroutine save_dt_cfl (delt_cfl)
-
+    implicit none
     real, intent (in) :: delt_cfl
 
     code_dt_cfl = delt_cfl
@@ -82,8 +88,9 @@ contains
 
   end subroutine save_dt_cfl
 
+  !> FIXME : Add documentation  
   subroutine save_dt_min (dt_min)
-
+    implicit none
     real, intent (in) :: dt_min
 
     user_dt_min = dt_min
@@ -91,8 +98,9 @@ contains
 
   end subroutine save_dt_min
 
+  !> FIXME : Add documentation
   subroutine save_dt(delt)
-    
+    implicit none
     real, intent (in) :: delt
 
     code_dt = delt
@@ -100,20 +108,19 @@ contains
     
   end subroutine save_dt
 
+  !> FIXME : Add documentation  
   subroutine write_dt
-
+    implicit none
     if (user_dt_cfl > 0. .and. user_dt_cfl < 1.e7) &
          write(*,*) user_dt_cfl,' : ',user_dt
-       
   end subroutine write_dt
 
+  !> FIXME : Add documentation  
   subroutine user2code (usertime, codetime)
-
+    implicit none
     real, intent (in) :: usertime
     real, intent (out) :: codetime
-
     codetime = usertime
-
   end subroutine user2code
 
 end module gs2_time

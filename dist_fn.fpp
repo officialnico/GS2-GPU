@@ -10,7 +10,6 @@
 !!In addition it contains a routine for implementing perpendicular
 !!velocity shear and calculating the right-hand side of the field 
 !!equation, as well as a host of other functions.
-
 module dist_fn
   use redistribute, only: redist_type
   implicit none
@@ -294,6 +293,7 @@ module dist_fn
 
 contains
 
+  !> FIXME : Add documentation
   subroutine check_dist_fn(report_unit)
     use kt_grids, only: grid_option, gridopt_box, gridopt_switch
     use nonlinear_terms, only: nonlinear_mode_switch, nonlinear_mode_on
@@ -515,6 +515,7 @@ contains
     
   end subroutine check_dist_fn
 
+  !> FIXME : Add documentation  
   subroutine wnml_dist_fn(unit)
     use species, only: spec, has_electron_species
     implicit none
@@ -598,7 +599,7 @@ contains
     endif
   end subroutine wnml_dist_fn
 
-
+  !> FIXME : Add documentation
   subroutine wnml_dist_fn_species(unit)
     use species, only: nspec
     implicit none
@@ -616,6 +617,7 @@ contains
     end do
   end subroutine wnml_dist_fn_species
 
+  !> FIXME : Add documentation  
   subroutine init_dist_fn_parameters
     use gs2_layouts, only: init_gs2_layouts
     use kt_grids, only: init_kt_grids
@@ -647,6 +649,7 @@ contains
 
   end subroutine init_dist_fn_parameters
 
+  !> FIXME : Add documentation
   subroutine init_dist_fn_arrays
     use mp, only: proc0, finish_mp, mp_abort
     use species, only: nspec
@@ -695,6 +698,7 @@ contains
 
   end subroutine init_dist_fn_arrays
 
+  !> FIXME : Add documentation
   subroutine init_dist_fn_level_1
     if (initialized_dist_fn_level_1) return
     initialized_dist_fn_level_1 = .true.
@@ -709,6 +713,7 @@ contains
   
   end subroutine init_dist_fn_level_1
 
+  !> FIXME : Add documentation  
   subroutine init_dist_fn_level_2
     logical,parameter:: debug=.false.
 
@@ -724,12 +729,14 @@ contains
     call init_fieldeq
   end subroutine init_dist_fn_level_2
 
+  !> FIXME : Add documentation  
   subroutine init_dist_fn
     call init_dist_fn_level_3
   end subroutine init_dist_fn
 
+  !> FIXME : Add documentation  
   subroutine init_dist_fn_level_3
-    use mp, only: proc0, finish_mp, mp_abort
+    use mp, only: finish_mp, mp_abort
     use species, only: init_species, nspec
     use collisions, only: init_collisions!, vnmult
     use hyper, only: init_hyper
@@ -781,10 +788,12 @@ contains
 
   end subroutine init_dist_fn_level_3
 
+  !> FIXME : Add documentation
   subroutine finish_dist_fn
     call finish_dist_fn_parameters
   end subroutine finish_dist_fn
 
+  !> FIXME : Add documentation  
   subroutine finish_dist_fn_parameters
     if (.not. initialized_dist_fn_parameters) return
     initialized_dist_fn_parameters = .false.
@@ -876,6 +885,7 @@ contains
 
   end subroutine finish_dist_fn_level_1
 
+  !> FIXME : Add documentation  
   subroutine finish_dist_fn_level_2
     use dist_fn_arrays, only: aj0, aj1, aj0_gf, aj1_gf
 
@@ -892,7 +902,8 @@ contains
     if (allocated(gamtot3)) deallocate (gamtot3)
     if (allocated(a)) deallocate (a, b, r, ainv)
   end subroutine finish_dist_fn_level_2
-  
+
+  !> FIXME : Add documentation  
   subroutine finish_dist_fn_level_3
     use dist_fn_arrays, only: gnew, g
     use dist_fn_arrays, only: vpa, vpac, vpar
@@ -921,6 +932,7 @@ contains
     if (allocated(vpa_gf)) deallocate(vpa_gf, vperp2_gf)
   end subroutine finish_dist_fn_level_3
 
+  !> FIXME : Add documentation  
   subroutine set_profiles_overrides(prof_ov)
     use overrides, only: profiles_overrides_type
     use unit_tests, only: debug_message
@@ -930,12 +942,14 @@ contains
     if (prof_ov%override_mach) mach = prof_ov%mach
   end subroutine set_profiles_overrides
 
+  !> FIXME : Add documentation  
   subroutine set_optimisations_overrides(opt_ov)
     use overrides, only: optimisations_overrides_type
     type(optimisations_overrides_type), intent(in) :: opt_ov
     if (opt_ov%override_opt_source) opt_source = opt_ov%opt_source
   end subroutine set_optimisations_overrides
 
+  !> FIXME : Add documentation  
   subroutine read_parameters
     use file_utils, only: input_unit, error_unit, input_unit_exist
     use theta_grid, only: shat
@@ -1202,6 +1216,7 @@ contains
 
   end subroutine read_parameters 
 
+  !> FIXME : Add documentation  
   subroutine read_species_knobs
     use species, only: nspec
     use file_utils, only: get_indexed_namelist_unit
@@ -1218,6 +1233,7 @@ contains
     end do
   end subroutine read_species_knobs
 
+  !> FIXME : Add documentation  
   subroutine fill_species_knobs (unit, fexp_out, bakdif_out, bd_exp_out)
     implicit none
     integer, intent (in) :: unit
@@ -1239,8 +1255,9 @@ contains
     bakdif_out = bakdif
   end subroutine fill_species_knobs
 
+  !> FIXME : Add documentation
   subroutine init_wdrift
-    use species, only: nspec, spec
+    use species, only: nspec
     use theta_grid, only: ntgrid
     use kt_grids, only: naky, ntheta0
     use le_grids, only: negrid, ng2, nlambda, jend, forbid
@@ -1362,6 +1379,7 @@ contains
 
   end subroutine init_wdrift
 
+  !> FIXME : Add documentation  
   function wdrift_func (ig, il, ie, it, ik, is)
     use theta_grid, only: bmag, gbdrift, gbdrift0, cvdrift, cvdrift0
     use theta_grid, only: shat
@@ -1389,6 +1407,7 @@ contains
   end function wdrift_func
 
 #ifdef LOWFLOW
+  !> FIXME : Add documentation  
   function wcurv_func (ig, it, ik)
     use theta_grid, only: cvdrift, cvdrift0, shat
     use kt_grids, only: aky, theta0, akx
@@ -1408,6 +1427,7 @@ contains
   end function wcurv_func
 #endif
 
+  !> FIXME : Add documentation
   function wcoriolis_func (ig, il, ie, it, ik, is)
 
     use theta_grid, only: bmag, cdrift, cdrift0, shat
@@ -1432,6 +1452,7 @@ contains
 
   end function wcoriolis_func
 
+  !> FIXME : Add documentation  
   subroutine init_vperp2
     use theta_grid, only: ntgrid, bmag
     use gs2_layouts, only: g_lo, ik_idx, il_idx, ie_idx, is_idx
@@ -1455,6 +1476,7 @@ contains
 
   end subroutine init_vperp2
 
+  !> FIXME : Add documentation
   subroutine init_vpar
     use dist_fn_arrays, only: vpa, vpar, vpac
     use dist_fn_arrays, only: vpa_gf, vperp2_gf
@@ -1561,10 +1583,11 @@ contains
 
   end subroutine init_vpar
 
+  !> FIXME : Add documentation  
   subroutine init_wstar
-    use species, only: nspec, spec, dlnf0drho
+    use species, only: nspec, dlnf0drho
     use kt_grids, only: naky
-    use le_grids, only: negrid, energy
+    use le_grids, only: negrid
     use run_parameters, only: wunits
     use gs2_time, only: code_dt
 
@@ -1582,6 +1605,7 @@ contains
     end do
   end subroutine init_wstar
 
+  !> FIXME : Add documentation  
   subroutine init_bessel
     use dist_fn_arrays, only: aj0, aj1
  !AJ
@@ -1650,11 +1674,11 @@ contains
     end if
   end subroutine init_bessel
 
+  !> FIXME : Add documentation  
   subroutine init_invert_rhs
     use dist_fn_arrays, only: vpar, ittp
     use species, only: spec, nspec
     use theta_grid, only: ntgrid
-    use kt_grids, only: naky, ntheta0
     use le_grids, only: nlambda, ng2, forbid, negrid
     use constants, only: zi
     use gs2_layouts, only: g_lo, ik_idx, it_idx, il_idx, ie_idx, is_idx
@@ -1723,11 +1747,11 @@ contains
 !  set ainv=1 just left of lower bounce points ONLY for RIGHTWARDS travelling 
 !  trapped particles. Part of multiple trapped particle algorithm
 !  NB not applicable to ttp or wfb!
-if( isgn.eq.1 )then
-                if (forbid(ig,il) .and. .not. forbid(ig+1,il)) then
-                   ainv(ig,isgn,iglo) = 1.0 + ainv(ig,isgn,iglo)
-                end if
-endif
+                if( isgn.eq.1 )then
+                   if (forbid(ig,il) .and. .not. forbid(ig+1,il)) then
+                      ainv(ig,isgn,iglo) = 1.0 + ainv(ig,isgn,iglo)
+                   end if
+                endif
                 ! ???? mysterious mucking around with totally trapped particles
                 ! part of multiple trapped particle algorithm
                 if (il >= ittp(ig) .and. .not. forbid(ig, il)) then
@@ -1742,8 +1766,8 @@ endif
 
   end subroutine init_invert_rhs
 
+  !> FIXME : Add documentation  
   subroutine init_bc
-    use theta_grid, only: ntgrid
     use kt_grids, only: naky, ntheta0
     select case (boundary_option_switch)
     case (boundary_option_linked)
@@ -1771,6 +1795,7 @@ endif
     end select
   end subroutine init_bc
 
+  !> FIXME : Add documentation  
   subroutine init_source_term
     use dist_fn_arrays, only: vpar, vpac, aj0
     use run_parameters, only: wunits, fapar
@@ -1857,6 +1882,7 @@ endif
     enddo
   end subroutine init_source_term
 
+  !> FIXME : Add documentation  
   subroutine init_connected_bc
     use theta_grid, only: ntgrid, nperiod, ntheta, theta
     use kt_grids, only: naky, ntheta0, aky, theta0
@@ -2801,6 +2827,7 @@ endif
 
   end subroutine init_connected_bc
 
+  !> FIXME : Add documentation
   subroutine init_connected_bc_opt
     use theta_grid, only: ntgrid, nperiod, ntheta, theta
     use kt_grids, only: naky, ntheta0, aky, theta0
@@ -3470,31 +3497,31 @@ endif
 
   end subroutine init_connected_bc_opt
 
+  !> Create a pass_right object to pass boundary values to the left connection
+  !! for sigma=1 (i.e. rightwards moving particles).
   subroutine init_pass_right
-    !Create a pass_right object to pass boundary values to the left connection
-    !for sigma=1 (i.e. rightwards moving particles).
     call init_pass_ends(pass_right,'r',1,'c')
   end subroutine init_pass_right
 
+  !> Create a pass_left object to pass boundary values to the left connection
+  !! for sigma=2 (i.e. leftwards moving particles).
   subroutine init_pass_left
-    !Create a pass_left object to pass boundary values to the left connection
-    !for sigma=2 (i.e. leftwards moving particles).
     call init_pass_ends(pass_left,'l',2,'c')
   end subroutine init_pass_left
-
+  
+  !> Copy of CMR's init_pass_right (revision 2085) 
+  !! but in customisable direction to aid code reuse and with optional
+  !!range in theta (i.e. so can pass more than just boundary points)
+  !! An example use is:
+  !! call init_pass_ends(pass_right,'r',1,'c',3)
+  !! call fill(pass_right,gnew,gnew)
+  !! This will pass gnew(ntgrid-2:ntgrid,1,iglo) to 
+  !! gnew(-ntgrid-2:-ntgrid,1,iglo_linked)
+  !!
+  !! @TODO:
+  !!      1. May be helpful to be able to pass both sigmas at once (e.g. for explicit scheme)
+  !! DD 01/02/2013
   subroutine init_pass_ends(pass_obj,dir,sigma,typestr,ngsend)
-    !<DD> 01/02/2013: Copy of CMR's init_pass_right (revision 2085) 
-    !but in customisable direction to aid code reuse and with optional
-    !range in theta (i.e. so can pass more than just boundary points)
-    
-    !An example use is:
-    ! call init_pass_ends(pass_right,'r',1,'c',3)
-    ! call fill(pass_right,gnew,gnew)
-    !This will pass gnew(ntgrid-2:ntgrid,1,iglo) to 
-    !gnew(-ntgrid-2:-ntgrid,1,iglo_linked)
-    
-    !TODO:
-    !      1) May be helpful to be able to pass both sigmas at once (e.g. for explicit scheme)
     use gs2_layouts, only: g_lo, il_idx, idx, proc_id
     use le_grids, only: ng2
     use mp, only: iproc, nproc, max_allreduce, proc0
@@ -3503,11 +3530,11 @@ endif
 
     implicit none
 
-    type (redist_type), intent(out) :: pass_obj !Redist type object to hold communication logic
-    character(1),intent(in)::dir                  !Character string for direction of communication, should be 'l' for left and 'r' for right
-    character(1),intent(in)::typestr              !Character string for type of data to be communicated. Should be 'c','r','i' or 'l'
-    integer,intent(in) :: sigma                   !Which sigma index to send
-    integer,intent(in),optional::ngsend           !How many theta grid points are we sending
+    type (redist_type), intent(out) :: pass_obj   !< Redist type object to hold communication logic
+    character(1),intent(in)::dir                  !< Character string for direction of communication, should be 'l' for left and 'r' for right
+    character(1),intent(in)::typestr              !< Character string for type of data to be communicated. Should be 'c','r','i' or 'l'
+    integer,intent(in) :: sigma                   !< Which sigma index to send
+    integer,intent(in),optional::ngsend           !< How many theta grid points are we sending
 
     !Internal variables
     type (index_list_type), dimension(0:nproc-1) :: to, from
@@ -3714,6 +3741,7 @@ endif
     endif
   end subroutine init_pass_ends
 
+  !> FIXME : Add documentation
   subroutine get_left_connection (iglo, iglo_left, iproc_left)
     use gs2_layouts, only: g_lo, proc_id, idx
     use gs2_layouts, only: ik_idx, it_idx, il_idx, ie_idx, is_idx
@@ -3739,6 +3767,7 @@ endif
     iproc_left = proc_id(g_lo,iglo_left)
   end subroutine get_left_connection
 
+  !> FIXME : Add documentation  
   subroutine get_right_connection (iglo, iglo_right, iproc_right)
     use gs2_layouts, only: g_lo, proc_id, idx
     use gs2_layouts, only: ik_idx, it_idx, il_idx, ie_idx, is_idx
@@ -3764,7 +3793,7 @@ endif
     iproc_right = proc_id(g_lo,iglo_right)
   end subroutine get_right_connection
 
-  !>Helper function for finding the leftmost it of supercell
+  !> Helper function for finding the leftmost it of supercell
   function get_leftmost_it(it,ik)
     implicit none
     integer, intent(in) :: ik, it
@@ -3784,7 +3813,7 @@ endif
     get_leftmost_it=it_cur
   end function get_leftmost_it
 
-  !>Helper function for finding the rightmost it of supercell
+  !> Helper function for finding the rightmost it of supercell
   function get_rightmost_it(it,ik)
     implicit none
     integer, intent(in) :: ik, it
@@ -3803,7 +3832,8 @@ endif
     endif
     get_rightmost_it=it_cur
   end function get_rightmost_it
-
+  
+  !> FIXME : Add documentation
   subroutine allocate_arrays
     use kt_grids, only: naky,  box
     use theta_grid, only: ntgrid, shat
@@ -3886,7 +3916,6 @@ endif
   !! After solving for the new dist funcs, this routine calls hyper_diff, which
   !! adds hyper diffusion if present, and solfp1, from the collisions module,
   !! which adds collisions if present.
-
   subroutine timeadv (phi, apar, bpar, phinew, aparnew, bparnew, istep, mode)
 
     use theta_grid, only: ntgrid
@@ -3939,29 +3968,21 @@ endif
 
   end subroutine timeadv
 
-!---------------------------------------------------------------------------  
-!> @author 
-!> Joseph Parker, STFC
-!
-! DESCRIPTION: 
-!> Advance collision term one timestep by implicit Euler.
-!> @brief
-!> Advance g under collisions one timestep by implicit Euler, then 
-!> solve Maxwell's equations to find consistent fields.
-!> This is only performed if collisions are not evolved as part of the 
-!> usual time advance in timeadv (i.e. if split_collisions=.true.).
-!> Splitting collisions also allows tricks like:
-!>   + not performing redistributes between collisions and the field solve 
-!>     if both are done in gf. 
-!>   + only applying collisions every nth timestep
-!
-!--------------------------------------------------------------------------- 
-
+  !> Advance collision term one timestep by implicit Euler.
+  !!
+  !! Advance g under collisions one timestep by implicit Euler, then 
+  !! solve Maxwell's equations to find consistent fields.
+  !! This is only performed if collisions are not evolved as part of the 
+  !! usual time advance in timeadv (i.e. if split_collisions=.true.).
+  !! Splitting collisions also allows tricks like:
+  !!   + not performing redistributes between collisions and the field solve 
+  !!     if both are done in gf. 
+  !!   + only applying collisions every nth timestep
+  !!
+  !!  Author : Joseph Parker, STFC
   subroutine collisions_advance (phi, bpar, phinew, aparnew, bparnew, istep, mode)
-
     use collisions, only: split_collisions
     use dist_fn_arrays, only: gnew, g
-    use gs2_layouts, only: gf_lo
     use le_derivatives, only: vspace_derivatives
     use theta_grid, only: ntgrid
     use unit_tests, only: debug_message
@@ -4001,6 +4022,7 @@ endif
 !
 !  end subroutine init_exb_shear
 
+  !> FIXME : Add documentation
   subroutine exb_shear (g0, phi, apar, bpar, istep, field_local)
 ! MR, 2007: modified Bill Dorland's version to include grids where kx grid
 !           is split over different processors
@@ -4417,7 +4439,7 @@ endif
     end if
   end subroutine exb_shear
 
-  !<DD>Subroutine to setup a redistribute object to be used in enforcing parity
+  !> Subroutine to setup a redistribute object to be used in enforcing parity
   subroutine init_enforce_parity(redist_obj,ik_ind)
     use theta_grid, only : ntgrid
     use gs2_layouts, only : g_lo,proc_id, ik_idx
@@ -4554,10 +4576,9 @@ endif
        call delete_list(to)
     endif
   end subroutine init_enforce_parity
-  !</DD>
 
-  !<DD>Subroutine to return the iglo corresponding to the part of the domain given
-  !by iglo reflected in theta=theta0
+  !> Return the iglo corresponding to the part of the domain given
+  !! by iglo reflected in theta=theta0
   subroutine get_parity_conn(iglo,iglo_conn,iproc_conn)
     use gs2_layouts, only: ik_idx,it_idx,proc_id,g_lo
     implicit none
@@ -4610,9 +4631,8 @@ endif
        enddo
     endif
   end subroutine get_parity_conn
-  !</DD>
 
-  !<DD>Subroutine to enforce requested parity
+  !> Enforce requested parity
   subroutine enforce_parity(redist_obj,ik_ind)
     use theta_grid, only:ntgrid
     use dist_fn_arrays, only: gnew
@@ -4671,8 +4691,8 @@ endif
     endif
     
   end subroutine enforce_parity
-  !</DD>
 
+  !> FIXME : Add documentation
   subroutine get_source_term &
        (phi, apar, bpar, phinew, aparnew, bparnew, istep, &
         isgn, iglo,ik,it,il,ie,is, sourcefac, source)
@@ -4884,7 +4904,7 @@ endif
     end if
 
   contains
-
+    !> FIXME : Add documentation
     subroutine set_source
 
       use species, only: spec, nonmaxw_corr
@@ -5042,9 +5062,9 @@ endif
 
   end subroutine get_source_term
 
-  !This is a version of get_source_term which does both sign (sigma) together
-  !and uses precalculated constant terms. Leads to more memory usage than 
-  !original version but can be significantly faster (~50%)
+  !> This is a version of [[get_source_term]] which does both sign (sigma) together
+  !! and uses precalculated constant terms. Leads to more memory usage than 
+  !! original version but can be significantly faster (~50%)
   subroutine get_source_term_opt &
        (phi, apar, bpar, phinew, aparnew, bparnew, istep, &
         iglo,ik,it,il,ie,is, sourcefac, source)
@@ -5214,7 +5234,7 @@ endif
     end if
 
   contains
-
+    !> FIXME : Add documentation
     subroutine set_source_opt
       implicit none
       complex :: apar_p, apar_m, phi_p, phi_m
@@ -5284,6 +5304,7 @@ endif
 
   end subroutine get_source_term_opt
 
+  !> FIXME : Add documentation  
   subroutine invert_rhs_1 &
        (phi, apar, bpar, phinew, aparnew, bparnew, istep, &
         iglo, sourcefac)
@@ -5462,7 +5483,7 @@ endif
     if (use_pass_homog) then
        ilmin = 1
     else
-       ilmin = ng2 + 1              !!! ilmin = ng2 + 2
+       ilmin = ng2 + 1
     end if
 
 ! time advance vpar < 0 homogeneous part: g1
@@ -5628,7 +5649,7 @@ endif
 !    call prof_leaving ("invert_rhs_1", "dist_fn")
 
   contains
-
+    !> FIXME : Add documentation
     subroutine self_periodic
 !CMR: sets sum of homogeneous and inhomogeneous solutions to give a result
 !     gnew(ntgr,2) = gnew(ntgl,2)
@@ -5674,6 +5695,7 @@ endif
 
   end subroutine invert_rhs_1
 
+  !> FIXME : Add documentation  
   subroutine invert_rhs_linked &
        (phi, apar, bpar, phinew, aparnew, bparnew, istep, sourcefac)
     use dist_fn_arrays, only: gnew
@@ -5888,6 +5910,7 @@ endif
 
   end subroutine invert_rhs_linked
 
+  !> FIXME : Add documentation
   subroutine invert_rhs (phi, apar, bpar, phinew, aparnew, bparnew, istep)
     use theta_grid, only: ntgrid
     use gs2_layouts, only: g_lo
@@ -5932,8 +5955,8 @@ endif
     call prof_leaving ("invert_rhs", "dist_fn")
   end subroutine invert_rhs
 
-  !>Ensure that linked boundary values of passed complex field are single valued (e.g. kperp2(ntgrid,ikx,iky) is
-  !!equal to gnew(-ntgrid,ikx_link,iky) as these correspond to the same location).
+  !> Ensure that linked boundary values of passed complex field are single valued (e.g. kperp2(ntgrid,ikx,iky) is
+  !! equal to gnew(-ntgrid,ikx_link,iky) as these correspond to the same location).
   subroutine ensure_single_val_fields_pass(arr)
     !Added by <DD>
     use theta_grid, only: ntgrid
@@ -5955,8 +5978,8 @@ endif
     !    call broadcast(arr)
   end subroutine ensure_single_val_fields_pass
 
-  !>Ensure that linked boundary values of passed complex field are single valued (e.g. kperp2(ntgrid,ikx,iky) is
-  !!equal to gnew(-ntgrid,ikx_link,iky) as these correspond to the same location).
+  !> Ensure that linked boundary values of passed complex field are single valued (e.g. kperp2(ntgrid,ikx,iky) is
+  !! equal to gnew(-ntgrid,ikx_link,iky) as these correspond to the same location).
   subroutine ensure_single_val_fields_pass_r(arr)
     !Added by <DD>
     use theta_grid, only: ntgrid
@@ -5978,6 +6001,7 @@ endif
     !    call broadcast(arr)
   end subroutine ensure_single_val_fields_pass_r
 
+  !> FIXME : Add documentation  
   subroutine getan (antot, antota, antotp)
     use dist_fn_arrays, only: vpa, vperp2, aj0, aj1, gnew
     use kt_grids, only: kperp2
@@ -6057,6 +6081,7 @@ endif
     call prof_leaving ("getan", "dist_fn")
   end subroutine getan
 
+  !> FIXME : Add documentation  
   subroutine getmoms (phinew,bparnew,ntot, density, upar, tpar, tperp, qparflux, pperpj1, qpperpj1)
     use dist_fn_arrays, only: vpa, vperp2, aj0, aj1, gnew, g_adjust
     use gs2_layouts, only: is_idx, ie_idx, g_lo, ik_idx, it_idx
@@ -6197,20 +6222,21 @@ endif
     call prof_leaving ("getmoms", "dist_fn")
   end subroutine getmoms
 
+  !> FIXME : Add documentation
   subroutine getmoms_gryfx_dist (density_gryfx, upar_gryfx, tpar_gryfx, tperp_gryfx, qpar_gryfx, qperp_gryfx, phi_gryfx)
-    use dist_fn_arrays, only: vpa, vperp2, aj0, aj1, gnew, g_adjust
+    use dist_fn_arrays, only: vpa, vperp2, gnew, g_adjust
     use gs2_layouts, only: is_idx, ie_idx, g_lo, ik_idx, it_idx
-    use species, only: nspec, spec, nonmaxw_corr
+    use species, only: nspec
     use theta_grid, only: ntgrid
-    use le_grids, only: integrate_moment, energy
+    use le_grids, only: integrate_moment
     use prof, only: prof_entering, prof_leaving
     use run_parameters, only: fphi, fbpar
-    use fields_arrays, only: phinew, bparnew, phi
+    use fields_arrays, only: phinew
     use kt_grids, only: ntheta0, naky
-    use mp, only: proc0, iproc
+    use mp, only: proc0
 
     implicit none
-    integer :: ik, it, isgn, ie, is, iglo, ig, iz, index_gryfx
+    integer :: ik, it, isgn, is, iglo, ig, iz, index_gryfx
     complex*8, dimension(:), intent(out) :: density_gryfx, upar_gryfx, &
          tpar_gryfx, tperp_gryfx, qpar_gryfx, qperp_gryfx
     complex*8, dimension(:), intent(out) :: phi_gryfx       
@@ -6376,9 +6402,9 @@ endif
 
   end subroutine getmoms_gryfx_dist
 
+  !> Calculates hermite-laguerre moments of g
+  !! uses gryfx normalization convention (see getmoms_gryfx above)
   subroutine get_mom_glm (glm, l, m)
-    ! calculates hermite-laguerre moments of g
-    ! uses gryfx normalization convention (see getmoms_gryfx above)
     use dist_fn_arrays, only: vpa, vperp2, gnew
     use gs2_layouts, only: g_lo
     use theta_grid, only: ntgrid
@@ -6389,7 +6415,7 @@ endif
     logical, parameter :: full_arr=moment_to_allprocs
     complex, dimension (-ntgrid:,:,:,:), intent (out) :: glm
     integer, intent(in) :: l, m
-    integer :: ik, it, isgn, ie, is, iglo, ig
+    integer :: isgn, iglo, ig
 
     do iglo = g_lo%llim_proc, g_lo%ulim_proc
       do isgn = 1, 2
@@ -6402,7 +6428,7 @@ endif
     call integrate_moment (g0, glm,  moment_to_allprocs, full_arr)
   end subroutine get_mom_glm
 
-
+  !> FIXME : Add documentation
   subroutine getemoms (phinew, bparnew, ntot, tperp)
     use dist_fn_arrays, only: vperp2, aj0, gnew, g_adjust
     use gs2_layouts, only: is_idx, ie_idx, g_lo, ik_idx, it_idx
@@ -6492,7 +6518,7 @@ endif
     call prof_leaving ("getemoms", "dist_fn")
   end subroutine getemoms
   
-  ! moment at not guiding center coordinate
+  !> Calculates moments at not guiding center coordinate
   subroutine getmoms_notgc (phinew, bparnew, dens, upar, tpar, tper, ntot, jpar)
     use dist_fn_arrays, only: vpa, vperp2, aj0, aj1, gnew
     use gs2_layouts, only: g_lo, is_idx, ik_idx, it_idx, ie_idx
@@ -6611,6 +6637,7 @@ endif
     endif
   end subroutine getmoms_notgc
 
+  !> FIXME : Add documentation  
   subroutine init_fieldeq
     use dist_fn_arrays, only: aj0, aj1, vperp2
     use species, only: nspec, spec, has_electron_species, has_ion_species, nonmaxw_corr
@@ -6713,10 +6740,11 @@ endif
     endif
   end subroutine init_fieldeq
 
+  !> FIXME : Add documentation    
   subroutine getfieldeq1 (phi, apar, bpar, antot, antota, antotp, &
        fieldeq, fieldeqa, fieldeqp)
-    use theta_grid, only: ntgrid, bmag, delthet, jacob
-    use kt_grids, only: naky, ntheta0, aky, kperp2
+    use theta_grid, only: ntgrid, bmag
+    use kt_grids, only: naky, ntheta0, kperp2
     use run_parameters, only: fphi, fapar, fbpar
     use run_parameters, only: beta, tite
     use species, only: spec, has_electron_species
@@ -6771,6 +6799,7 @@ endif
 
   end subroutine getfieldeq1
 
+  !> FIXME : Add documentation    
   subroutine getfieldeq (phi, apar, bpar, fieldeq, fieldeqa, fieldeqp)
     use theta_grid, only: ntgrid
     use kt_grids, only: naky, ntheta0
@@ -6791,9 +6820,11 @@ endif
   end subroutine getfieldeq
 
 
-!///////////////////////////////////////
-!// SOME NO GATHER TEST ROUTINES
-!///////////////////////////////////////
+  !///////////////////////////////////////
+  !// SOME NO GATHER TEST ROUTINES
+  !///////////////////////////////////////
+  
+  !> FIXME : Add documentation    
   subroutine getfieldeq_nogath (phi, apar, bpar, fieldeq, fieldeqa, fieldeqp)
     use theta_grid, only: ntgrid
     use kt_grids, only: naky, ntheta0
@@ -6815,10 +6846,11 @@ endif
 
   end subroutine getfieldeq_nogath
 
+  !> FIXME : Add documentation    
   subroutine getfieldeq1_nogath (phi, apar, bpar, antot, antota, antotp, &
        fieldeq, fieldeqa, fieldeqp)
-    use theta_grid, only: ntgrid, bmag, delthet, jacob
-    use kt_grids, only: naky, ntheta0, aky, kperp2
+    use theta_grid, only: ntgrid, bmag
+    use kt_grids, only: naky, ntheta0, kperp2
     use run_parameters, only: fphi, fapar, fbpar
     use run_parameters, only: beta, tite
     use kt_grids, only: kwork_filter
@@ -6870,11 +6902,12 @@ endif
     end if
   end subroutine getfieldeq1_nogath
 
+  !> FIXME : Add documentation    
   subroutine check_getan (antot, antota, antotp, tempantot, tempantota, tempantotp)
     use mp, only : iproc
     use species, only: nspec
     use theta_grid, only: ntgrid
-    use le_grids, only: negrid, nlambda
+    use le_grids, only: negrid
     use run_parameters, only: fphi, fapar, fbpar
     use kt_grids, only: naky, ntheta0, kwork_filter
     use gs2_layouts, only: g_lo, it_idx, ik_idx, gf_lo, idx, proc_id
@@ -6995,23 +7028,23 @@ endif
 
   end subroutine check_getan
 
-  !AJ getan_nogath has been substantially changed to enable gf_lo field calculations, it can now operate in 
-  !AJ 2 modes; using the standard integrate_species (integrate_species_sub in le_grids) when called from
-  !AJ fields_local and gf_lo_integrate is false (which is teh default, or doing the integrate in place when 
-  !AJ called from fields_gf_local or from fields_local when gf_lo_integrate is true.  Note, if this is called from
-  !AJ fields_local and gf_lo_integrate is true then the calculation will be done locally but there is a function
-  !AJ called after this has finished in fields_local that sends the data back (from gf_lo to g_lo layouts).
-  !AJ When call with gf_lo_integrate = .true. this routine does a gather that converts the gnew array from g_lo
-  !AJ data distribution to gf_lo data distribution and stores the result in gfarray.  With gf_lo_integrate = .false.
-  !AJ gnew is used instead and this is in g_lo data distribution.
+  !> Getan_nogath has been substantially changed to enable gf_lo field calculations, it can now operate in 
+  !! 2 modes; using the standard integrate_species (integrate_species_sub in le_grids) when called from
+  !! fields_local and gf_lo_integrate is false (which is teh default, or doing the integrate in place when 
+  !! called from fields_gf_local or from fields_local when gf_lo_integrate is true.  Note, if this is called from
+  !! fields_local and gf_lo_integrate is true then the calculation will be done locally but there is a function
+  !! called after this has finished in fields_local that sends the data back (from gf_lo to g_lo layouts).
+  !! When call with gf_lo_integrate = .true. this routine does a gather that converts the gnew array from g_lo
+  !! data distribution to gf_lo data distribution and stores the result in gfarray.  With gf_lo_integrate = .false.
+  !! gnew is used instead and this is in g_lo data distribution.
+  !!
+  !! AJ
   subroutine getan_nogath (antot, antota, antotp)
-    use mp, only : iproc
     use dist_fn_arrays, only: vpa, vperp2, aj0, aj1, gnew
-!AJ
     use dist_fn_arrays, only: vpa_gf, vperp2_gf, aj0_gf, aj1_gf
     use species, only: nspec, spec
-    use theta_grid, only: ntgrid, bmag
-    use le_grids, only: integrate_species, al, energy, g2gf, negrid, nlambda, w, wl
+    use theta_grid, only: ntgrid
+    use le_grids, only: integrate_species, g2gf, negrid, nlambda, w, wl
     use run_parameters, only: beta, fphi, fapar, fbpar
     use gs2_layouts, only: g_lo, it_idx,ik_idx, gf_lo, proc_id, idx, ie_idx, is_idx, il_idx
     use spfunc, only: j0, j1
@@ -7023,8 +7056,7 @@ endif
 
     complex, dimension (-ntgrid:,:,:), intent (out) :: antot, antota, antotp
     real, dimension (nspec) :: wgt
-    integer :: isgn, iglo, it, ik, igf, ig
-    complex :: tol = (1e-13,1e-13)
+    integer :: isgn, iglo, it, ik, igf
     complex, dimension (-ntgrid:ntgrid,2,nspec,negrid,nlambda,gf_lo%llim_proc:gf_lo%ulim_alloc) :: gfarray
     integer :: ie, il, is
     real, dimension(-ntgrid:ntgrid) :: temparg3
@@ -7252,16 +7284,18 @@ endif
 !///////////////////////////////////////
 !///////////////////////////////////////
 
-  
-! MAB> ported from agk
-! TT> Given initial distribution function this obtains consistent fields
-!CMR, 1/8/2011> corrections below for inhomogeneous bmag
+
+  !> Inverts the field equations:
+  !!   gamtot * phi - gamtot1 * bpar = antot
+  !!   kperp2 * apar = antota
+  !!   beta/2 * gamtot1 * phi + (beta * gamtot2 + 1) * bpar = - beta * antotp
+  !!
+  !! @note I haven't made any check for use_Bpar=T case.
+  !!
+  !! TT> Given initial distribution function this obtains consistent fields
+  !! MAB> ported from agk
+  !! CMR, 1/8/2011> corrections below for inhomogeneous bmag
   subroutine get_init_field (phi, apar, bpar, gf_lo)
-    ! inverts the field equations:
-    !   gamtot * phi - gamtot1 * bpar = antot
-    !   kperp2 * apar = antota
-    !   beta/2 * gamtot1 * phi + (beta * gamtot2 + 1) * bpar = - beta * antotp
-    ! I haven't made any check for use_Bpar=T case.
     use run_parameters, only: beta, fphi, fapar, fbpar
     use species, only: spec, has_electron_species
     use theta_grid, only: ntgrid, bmag
@@ -7342,7 +7376,8 @@ endif
     end if
 
   end subroutine get_init_field
- 
+
+  !> FIXME : Add documentation
   subroutine flux (phi, apar, bpar, &
        pflux,  qflux,  vflux, vflux_par, vflux_perp, &
        pmflux, qmflux, vmflux, &
@@ -7543,24 +7578,20 @@ endif
     deallocate (dnorm)
   end subroutine flux
 
+  !> FIXME : Add documentation  
   subroutine flux_vs_e (phi, apar, bpar, pflux, pmflux, pbflux)
     use species, only: spec
-    use theta_grid, only: ntgrid, bmag, gradpar, grho, delthet, drhodpsi
-    use theta_grid, only: qval, shat, gds21, gds22
-    use kt_grids, only: naky, ntheta0, akx, theta0, aky
-    use le_grids, only: energy
-    use dist_fn_arrays, only: gnew, aj0, vpac, vpa, aj1, vperp2
+    use theta_grid, only: ntgrid, bmag, gradpar, delthet
+    use kt_grids, only: naky, ntheta0
+    use dist_fn_arrays, only: gnew, aj0, vpa, aj1, vperp2
     use gs2_layouts, only: g_lo, ie_idx, is_idx, it_idx, ik_idx
     use mp, only: proc0
     use run_parameters, only: woutunits, fphi, fapar, fbpar
-    use constants, only: zi
-    use geometry, only: rhoc
-    use theta_grid, only: Rplot, Bpol
     implicit none
     complex, dimension (-ntgrid:,:,:), intent (in) :: phi, apar, bpar
     real, dimension (:,:), intent (inout) :: pflux, pmflux, pbflux
     real, dimension (:,:,:), allocatable :: dnorm
-    integer :: it, ik, is, isgn, ig
+    integer :: it, ik, is, isgn
     integer :: iglo
 
     allocate (dnorm (-ntgrid:ntgrid,ntheta0,naky))
@@ -7615,6 +7646,7 @@ endif
     deallocate (dnorm)
   end subroutine flux_vs_e
 
+  !> FIXME : Add documentation  
   subroutine get_flux (fld, flx, dnorm)
     use theta_grid, only: ntgrid, grho
     use kt_grids, only: ntheta0, aky, naky
@@ -7657,7 +7689,7 @@ endif
 
   end subroutine get_flux
 
-! Identical to get_flux except don't integrate over poloidal angle ! JRB
+  !> Identical to get_flux except don't integrate over poloidal angle ! JRB
   subroutine get_flux_dist (fld, flx_dist, dnorm)
     use theta_grid, only: ntgrid, grho
     use kt_grids, only: ntheta0, aky, naky
@@ -7669,7 +7701,7 @@ endif
     real, dimension (-ntgrid:,:,:,:), intent (in out) :: flx_dist
     real, dimension (-ntgrid:,:,:) :: dnorm
     complex, dimension (:,:,:,:), allocatable :: total
-    real :: wgt, fac
+    real :: wgt
     integer :: ik, it, is
 
     allocate (total(-ntgrid:ntgrid,ntheta0,naky,nspec))
@@ -7698,6 +7730,7 @@ endif
 
   end subroutine get_flux_dist
 
+  !> FIXME : Add documentation  
   subroutine get_flux_tormom (fld, flx, dnorm) !JPL
     use theta_grid, only: ntgrid
 #ifdef LOWFLOW
@@ -7740,20 +7773,21 @@ endif
 #endif
   end subroutine get_flux_tormom !JPL
 
+  !> FIXME : Add documentation
   subroutine get_flux_vs_e (fld, flx, dnorm)
-    use theta_grid, only: ntgrid, delthet, grho
-    use kt_grids, only: ntheta0, aky, naky
-    use le_grids, only: negrid,nlambda,wl
+    use theta_grid, only: ntgrid, grho
+    use kt_grids, only: aky
+    use le_grids, only: negrid, wl
     use species, only: nspec
     use mp, only: sum_reduce, proc0
-    use gs2_layouts, only: g_lo,ie_idx,il_idx,is_idx,it_idx,ik_idx,isign_idx,yxf_lo
+    use gs2_layouts, only: g_lo,ie_idx,il_idx,is_idx,it_idx,ik_idx,isign_idx
     implicit none
     complex, dimension (-ntgrid:,:,:), intent (in) :: fld
     real, dimension (:,:), intent (inout) :: flx
     real, dimension (-ntgrid:,:,:) :: dnorm
     real, dimension (:,:), allocatable :: total
     real:: wgt,fac
-    integer :: ik, it, is, ig, iglo, ie, il, isgn
+    integer :: ik, it, is, iglo, ie, il
 
     allocate(total(negrid,nspec))
     total = 0.
@@ -7782,8 +7816,8 @@ endif
 
   end subroutine get_flux_vs_e
 
+  !> FIXME : Add documentation  
   subroutine eexchange (phinew, phi, exchange1, exchange2)
-
     use mp, only: proc0
     use constants, only: zi
     use gs2_layouts, only: g_lo, il_idx, ie_idx, it_idx, ik_idx, is_idx
@@ -7910,8 +7944,8 @@ endif
 
   end subroutine eexchange
 
+  !> FIXME : Add documentation  
   subroutine lf_flux (phi, vflx0, vflx1)
-
     use species, only: nspec
     use theta_grid, only: ntgrid, bmag, gradpar, delthet
     use theta_grid, only: drhodpsi, IoB
@@ -7987,6 +8021,7 @@ endif
     deallocate (dnorm,dum,dphi)
   end subroutine lf_flux
 
+  !> FIXME : Add documentation  
   subroutine get_lfflux (fld, flx, dnorm)
     use theta_grid, only: ntgrid, grho
     use kt_grids, only: ntheta0, naky
@@ -8023,6 +8058,7 @@ endif
 
   end subroutine get_lfflux
 
+  !> FIXME : Add documentation  
   subroutine flux_vs_theta_vs_vpa (phinew,vflx)
     use constants, only: zi
     use dist_fn_arrays, only: gnew, vperp2, aj1, aj0, vpac
@@ -8072,11 +8108,10 @@ endif
 
   end subroutine flux_vs_theta_vs_vpa
 
-!=============================================================================
-! JPL: Diagnose particle flux contribution to toroidal momentum flux 
-!      in the lab frame in terms of vpar and theta. 
-!=============================================================================
-
+  !> Diagnose particle flux contribution to toroidal momentum flux 
+  !! in the lab frame in terms of vpar and theta.
+  !!
+  !! JPL
   subroutine pflux_vs_theta_vs_vpa (vflx)
 #ifdef LOWFLOW   
     use dist_fn_arrays, only: gnew, aj0
@@ -8128,11 +8163,10 @@ endif
 #endif
   end subroutine pflux_vs_theta_vs_vpa
 
-
-!=============================================================================
-! Diagnose the poloidal distribution of the particle, angular momentum, 
-!    and energy fluxes ! JRB
-!=============================================================================
+  !> Diagnose the poloidal distribution of the particle, angular momentum, 
+  !! and energy fluxes
+  !!
+  !! JRB
   subroutine flux_dist (phi, pflux_dist, vflux_par_dist, vflux_perp_dist, qflux_dist)
 
 !CMR, 15/1/08: 
@@ -8147,7 +8181,7 @@ endif
 !   use theta_grid, only: drhodpsi, grho
 !    use kt_grids, only: akx
     use le_grids, only: energy
-    use dist_fn_arrays, only: gnew, aj0, vpac, vpa, aj1, vperp2
+    use dist_fn_arrays, only: gnew, aj0, vpac, aj1, vperp2
     use gs2_layouts, only: g_lo, ie_idx, is_idx, it_idx, ik_idx
     use run_parameters, only: woutunits, fphi, fapar, fbpar
     use constants, only: zi
@@ -8216,45 +8250,41 @@ endif
 
 !=============================================================================
 ! Density: Calculate Density perturbations
-!=============================================================================
-  !NOTE... this routine is deprecated... its contents have been moved to the 
-  ! new diagnostics module and this routine is only needed by the old
-  ! diagnostics module. It is thus scheduled for deletion at some point, 
-  ! unless someone pleads for its life :-) . EGH.
-  subroutine get_jext(j_ext)
-    use kt_grids, only: ntheta0, naky,aky, kperp2
-!    use mp, only: proc0
-    use theta_grid, only: jacob, delthet, ntgrid
-    use antenna, only: antenna_apar
-    implicit none
-    !Passed
-    !Intent(in) only needed as initialised to zero at top level
-    real, dimension(:,:), intent(in out) ::  j_ext 
-    !Local 
-    complex, dimension(:,:,:), allocatable :: j_extz
-    integer :: ig,ik, it                             !Indices
-    real :: fac2                                     !Factor
-    real, dimension (:), allocatable :: wgt
+ !=============================================================================
+ 
+ !> FIXME : Add documentation
+ subroutine get_jext(j_ext)
+   use kt_grids, only: ntheta0, naky,aky, kperp2
+   use theta_grid, only: jacob, delthet, ntgrid
+   use antenna, only: antenna_apar
+   implicit none
+   !Passed
+   !Intent(in) only needed as initialised to zero at top level
+   real, dimension(:,:), intent(in out) ::  j_ext 
+   !Local 
+   complex, dimension(:,:,:), allocatable :: j_extz
+   integer :: ig,ik, it                             !Indices
+   real :: fac2                                     !Factor
+   real, dimension (:), allocatable :: wgt
     
-
-    !Get z-centered j_ext at current time
-    allocate (j_extz(-ntgrid:ntgrid, ntheta0, naky)) ; j_extz = 0.
-    call antenna_apar (kperp2, j_extz)       
-
-    !Set weighting factor for z-averages
-!    if (proc0) then
-       allocate (wgt(-ntgrid:ntgrid))
-       !GGH NOTE: Here wgt is 1/(2*ntgrid)
-       wgt = 0.
-       do ig=-ntgrid,ntgrid-1
-          wgt(ig) = delthet(ig)*jacob(ig)
-       end do
-       wgt = wgt/sum(wgt)         
-!    endif
-
-    !Take average over z
-    do ig=-ntgrid, ntgrid-1
-       do ik = 1, naky
+   !Get z-centered j_ext at current time
+   allocate (j_extz(-ntgrid:ntgrid, ntheta0, naky)) ; j_extz = 0.
+   call antenna_apar (kperp2, j_extz)       
+   
+   !Set weighting factor for z-averages
+   !    if (proc0) then
+   allocate (wgt(-ntgrid:ntgrid))
+   !GGH NOTE: Here wgt is 1/(2*ntgrid)
+   wgt = 0.
+   do ig=-ntgrid,ntgrid-1
+      wgt(ig) = delthet(ig)*jacob(ig)
+   end do
+   wgt = wgt/sum(wgt)         
+   !    endif
+   
+   !Take average over z
+   do ig=-ntgrid, ntgrid-1
+      do ik = 1, naky
           fac2 = 0.5
           if (aky(ik) < epsilon(0.0)) fac2 = 1.0
           do it = 1, ntheta0
@@ -8262,15 +8292,15 @@ endif
           end do
        end do
     enddo
-
-!    if (proc0) then
-       deallocate (wgt)
-!    endif
+    
+    !    if (proc0) then
+    deallocate (wgt)
+    !    endif
     deallocate (j_extz)
-
+    
   end subroutine get_jext
-!<GGH
-!=============================================================================
+
+  !> FIXME : Add documentation
   subroutine get_heat (h, hk, phi, apar, bpar, phinew, aparnew, bparnew)
     use mp, only: proc0
     use constants, only: zi
@@ -8962,31 +8992,18 @@ endif
 
   end subroutine get_heat
 
+  !> FIXME : Add documentation  
   subroutine reset_init
     call finish_dist_fn_level_3
-
-    !use dist_fn_arrays, only: gnew, g
-    !initializing  = .true.
-    !initialized = .false.
-   ! 
-    !wdrift = 0.
-    !wdriftttp = 0.
-    !a = 0.
-    !b = 0.
-    !r = 0.
-    !ainv = 0.
-    !gnew = 0.
-    !g0 = 0.
-    !g = 0.
-
   end subroutine reset_init
 
+  !> FIXME : Add documentation    
   subroutine reset_physics
     call init_wstar
   end subroutine reset_physics
 
-  subroutine get_verr (errest, erridx, phi, bpar)
-     
+  !> FIXME : Add documentation    
+  subroutine get_verr (errest, erridx, phi, bpar)    
     use mp, only: broadcast
     use le_grids, only: integrate_species
     use le_grids, only: eint_error, trap_error, lint_error, wdim
@@ -9198,8 +9215,8 @@ endif
 
   end subroutine get_verr
 
+  !> FIXME : Add documentation    
   subroutine get_vnewk (vnm, vnm_target, incr)
-
     use collisions, only: vnfac, vnslow
 
     implicit none
@@ -9217,8 +9234,8 @@ endif
 
   end subroutine get_vnewk
 
+  !> FIXME : Add documentation  
   subroutine estimate_error (app1, app2, kmax_local, errest, erridx, trap)
-
     use kt_grids, only: naky, ntheta0
     use theta_grid, only: ntgrid
     use le_grids, only: ng2, jend
@@ -9287,8 +9304,8 @@ endif
 
   end subroutine estimate_error
 
+  !> FIXME : Add documentation  
   subroutine get_gtran (geavg, glavg, gtavg, phi, bpar)
-
     use le_grids, only: legendre_transform, nlambda, ng2, nesub, jend
     use theta_grid, only: ntgrid
     use kt_grids, only: ntheta0, naky
@@ -9415,8 +9432,8 @@ endif
 
   end subroutine get_gtran
 
+  !> FIXME : Add documentation  
   subroutine write_poly (phi, bpar, last, istep)
-
     use file_utils, only: open_output_file, close_output_file
     use dist_fn_arrays, only: gnew, aj0, g_adjust
     use run_parameters, only: fphi, fbpar
@@ -9481,8 +9498,8 @@ endif
 
   end subroutine write_poly
 
+  !> FIXME : Add documentation  
   subroutine write_f (last)
-
     use mp, only: proc0, send, receive
     use file_utils, only: open_output_file, close_output_file, get_unused_unit
     use gs2_layouts, only: g_lo, ik_idx, it_idx, is_idx, il_idx, ie_idx
@@ -9559,8 +9576,8 @@ endif
     
   end subroutine write_f
 
+  !> FIXME : Add documentation  
   subroutine write_fyx (phi,bpar,last)
-
     use mp, only: proc0, send, receive, barrier
     use file_utils, only: open_output_file, close_output_file, flush_output_file
     use gs2_layouts, only: il_idx, ig_idx, ik_idx, it_idx, is_idx, isign_idx, ie_idx
@@ -9766,11 +9783,8 @@ endif
 
   end subroutine write_fyx
 
-  !> This routine is now only needed by the old diagnostics
-  !! module and is scheduled for deletion. Its functionality
-  !! is now in diagnostics/diagnostics_velocity_space.f90
-  subroutine collision_error (phi, bpar, last)
-    
+  !> This routine is also in diagnostics/diagnostics_velocity_space.f90
+  subroutine collision_error (phi, bpar, last)   
     use mp, only: proc0, send, receive, barrier
     use le_grids, only: ng2, jend, nlambda, lambda_map
     use theta_grid, only: ntgrid
@@ -9992,6 +10006,7 @@ endif
     
   end subroutine collision_error
 
+  !> FIXME : Add documentation
   subroutine boundary(linked)
     implicit none
     logical, intent(out) :: linked
@@ -9999,7 +10014,9 @@ endif
     linked = boundary_option_switch == boundary_option_linked
   end subroutine boundary
 
-! This subroutine only returns epar correctly for linear runs.
+  !> FIXME : Add documentation
+  !!
+  !! @note This subroutine only returns epar correctly for linear runs.
   subroutine get_epar (phi, apar, phinew, aparnew, epar)
 
     use theta_grid, only: ntgrid, delthet, gradpar
@@ -10031,6 +10048,7 @@ endif
 
   end subroutine get_epar
 
+  !> FIXME : Add documentation
   subroutine find_leftmost_link (iglo, iglo_left, ipleft)
     use gs2_layouts, only: it_idx,ik_idx,g_lo,il_idx,ie_idx,is_idx,idx,proc_id
     implicit none
@@ -10062,6 +10080,7 @@ endif
 
   end subroutine find_leftmost_link
 
+  !> FIXME : Add documentation  
   subroutine find_rightmost_link (iglo, iglo_right, ipright)
     use gs2_layouts, only: it_idx,ik_idx,g_lo,il_idx,ie_idx,is_idx,idx,proc_id
     implicit none
@@ -10093,15 +10112,13 @@ endif
 
   end subroutine find_rightmost_link
 
+
+  !> Get a theta-centered and time-centered estimate of the time derivative 
+  !! of a field.
+  !! 
+  !! tunits(ky) == 1. unless the "omega_*" units are chosen.
+  !! omega_* units normalize time by an additional factor of ky.
   subroutine dot (a, anew, adot, fac)
-
-! Get a theta-centered and time-centered estimate of the time derivative 
-! of a field.
-! 
-! tunits(ky) == 1. unless the "omega_*" units are chosen.
-! omega_* units normalize time by an additional factor of ky.
-!    
-
     use run_parameters, only: tunits
     use gs2_time, only: code_dt
     use kt_grids, only: naky, ntheta0
@@ -10126,31 +10143,34 @@ endif
     
   end subroutine dot
 
+  !> FIXME : Add documentation
   complex function fdot (fl, fr, fnewl, fnewr, dtinv)
     complex, intent (in) :: fl, fr, fnewl, fnewr
     real, intent (in) :: dtinv
     fdot = 0.5*(fnewl+fnewr-fl-fr)*dtinv
   end function fdot
 
-! construct time and space-centered quantities
-! (should use actual bakdif and fexpr values?)
-!
+  !> Construct time and space-centered quantities
+  !! (should use actual bakdif and fexpr values?)
   complex function favg (fl, fr, fnewl, fnewr)
     complex, intent (in) :: fl, fr, fnewl, fnewr
     favg = 0.25*(fnewl+fnewr+fl+fr)
   end function favg
- 
+
+  !> FIXME : Add documentation
   complex function fdot_t (f,fnew, dtinv)
     complex, intent (in) :: f, fnew
     real, intent (in) :: dtinv
     fdot_t = (fnew-f)*dtinv
   end function fdot_t
 
+  !> FIXME : Add documentation  
   complex function favg_x (fl, fr)
     complex, intent (in) :: fl, fr
     favg_x = 0.5*(fl+fr)
   end function favg_x
 
+  !> FIXME : Add documentation  
   subroutine init_mom_coeff
     use gs2_layouts, only: g_lo
     use species, only: nspec, spec
@@ -10262,11 +10282,12 @@ endif
   end subroutine init_mom_coeff
 
 #ifdef LOWFLOW
-  ! This rouinte must be called after init_collisions as it relies on the 
-  ! variable use_le_layout which is set in init_collisions based on input 
-  ! from the user provided input file.
+  !> FIXME : Add documentation
+  !!
+  !! @note This routine must be called after init_collisions as it relies on the 
+  !! variable use_le_layout which is set in init_collisions based on input 
+  !! from the user provided input file.
   subroutine init_lowflow
-
     use constants, only: zi
     use dist_fn_arrays, only: vparterm, wdfac, vpac, wdttpfac
     use dist_fn_arrays, only: wstarfac, hneoc, vpar
@@ -10556,12 +10577,13 @@ endif
 
   end subroutine init_lowflow
 #endif
-
+  
+  !> FIXME : Add documentation
   subroutine init_pass_wfb
-! CMR, 21/5/2014: 
-!       simple experimental new routine sets up "pass_wfb" redist_type to pass 
-!       g(ntgrid,1,iglo)  => g(-ntgrid,1,iglo_right) in right connected cell.
-!       g(-ntgrid,2,iglo) => g(ntgrid,1,iglo_right) in left connected cell.
+    ! CMR, 21/5/2014: 
+    !       simple experimental new routine sets up "pass_wfb" redist_type to pass 
+    !       g(ntgrid,1,iglo)  => g(-ntgrid,1,iglo_right) in right connected cell.
+    !       g(-ntgrid,2,iglo) => g(ntgrid,1,iglo_right) in left connected cell.
     use gs2_layouts, only: g_lo, il_idx, idx, proc_id
     use le_grids, only: ng2
     use mp, only: iproc, nproc, max_allreduce
@@ -10689,28 +10711,25 @@ endif
       endif
   end subroutine init_pass_wfb
 
-!---------------------------------------------------------------------------  
-!> @author 
-!> Joseph Parker, STFC
-!
-! DESCRIPTION: 
-!> Calculate the flux surface average term for the adiabatic response. 
-!> @brief
-!> If using adiabatic electrons and the option
-!> @dist_fn_knobs
-!>   adiabatic_option = "iphi00=2"
-!> /
-!> the field solve should subtract the flux surface average 
-!> from the perturbed electron distribution function,
-!> i.e. include the term <phi> in
-!>
-!>   f1e = q( phi - <phi>) f0e / Te
-!>
-!> This function calculates <phi> and returns it as fl_avg.
-!
-!--------------------------------------------------------------------------- 
-  subroutine calculate_flux_surface_average (fl_avg,antot)
 
+
+  
+  !> Calculate the flux surface average term for the adiabatic response. 
+  !!
+  !! If using adiabatic electrons and the option
+  !! dist_fn_knobs
+  !!   adiabatic_option = "iphi00=2"
+  !! /
+  !! the field solve should subtract the flux surface average 
+  !! from the perturbed electron distribution function,
+  !! i.e. include the term <phi> in
+  !!
+  !!   f1e = q( phi - <phi>) f0e / Te
+  !!
+  !! This function calculates <phi> and returns it as fl_avg.
+  !!
+  !! Joseph Parker, STFC  
+  subroutine calculate_flux_surface_average (fl_avg,antot)
     use kt_grids, only: naky, ntheta0, aky, kwork_filter
     use run_parameters, only: tite
     use theta_grid, only: ntgrid, delthet, jacob

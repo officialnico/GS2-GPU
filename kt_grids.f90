@@ -1,7 +1,5 @@
+!> Set up values of kx and ky for linear runs that use a single k_perp mode.
 module kt_grids_single
-! <doc> Set up values of kx and ky for linear runs that use a single k_perp mode.
-! </doc>
-
   implicit none
 
   private
@@ -17,8 +15,10 @@ module kt_grids_single
 
 contains
 
+  !> FIXME : Add documentation
   subroutine init_parameters_single
     use file_utils, only: input_unit, input_unit_exist
+    implicit none
     integer :: in_file
     logical :: exist
     namelist /kt_grids_single_parameters/ n0, aky, theta0, akx, rhostar_single
@@ -32,10 +32,13 @@ contains
     if (exist) read (in_file, nml=kt_grids_single_parameters)
   end subroutine init_parameters_single
 
+  !> FIXME : Add documentation
   subroutine finish_parameters_single
+    implicit none
     parameters_read = .false.
   end subroutine finish_parameters_single
 
+  !> FIXME : Add documentation  
   subroutine init_kt_grids_single
 !CMR, 14/10/2013: 
 ! New namelist variables n0, rhostar_single to set aky using toroidal mode number.
@@ -52,6 +55,7 @@ contains
 
   end subroutine init_kt_grids_single
 
+  !> FIXME : Add documentation  
   subroutine wnml_kt_grids_single(unit)
     implicit none
     integer, intent(in) :: unit
@@ -62,6 +66,7 @@ contains
     write (unit, fmt="(' /')")
   end subroutine wnml_kt_grids_single
 
+  !> FIXME : Add documentation  
   subroutine single_get_sizes (naky, ntheta0, nx, ny)
     implicit none
     integer, intent (out) :: naky, ntheta0, nx, ny
@@ -71,6 +76,7 @@ contains
 
   end subroutine single_get_sizes
 
+  !> FIXME : Add documentation  
   subroutine single_get_grids (aky_out, theta0_out, akx_out)
     implicit none
     real, dimension (:), intent (out) :: aky_out, akx_out
@@ -81,6 +87,7 @@ contains
     akx_out = akx
   end subroutine single_get_grids
 
+  !> FIXME : Add documentation  
   subroutine check_kt_grids_single(report_unit)
     implicit none
     integer, intent(in) :: report_unit
@@ -103,9 +110,8 @@ contains
   end subroutine check_kt_grids_single
 end module kt_grids_single
 
+!> Set up ranges of kx and ky for linear runs.
 module kt_grids_range
-! <doc> Set up ranges of kx and ky for linear runs.
-! </doc>
   implicit none
 
   private
@@ -127,17 +133,17 @@ module kt_grids_range
   !reuse these flags (rename to spacingopt_...).
   integer, parameter :: kyspacingopt_linear=1, kyspacingopt_exp=2 
 
-  real :: n0_tmp
-
   namelist /kt_grids_range_parameters/ naky, ntheta0, nn0, n0_min, n0_max, &
        aky_min, aky_max, theta0_min, theta0_max, akx_min, akx_max, rhostar_range,&
        kyspacing_option
 
 contains
 
+  !> FIXME : Add documentation
   subroutine init_parameters_range
     use file_utils, only: input_unit, input_unit_exist, error_unit
     use text_options, only: text_option, get_option_value
+    implicit none
     integer :: ierr
     integer :: in_file
     logical :: exist
@@ -165,10 +171,14 @@ contains
     call get_option_value(kyspacing_option, kyspacingopts, kyspacingopt_switch,&
          ierr, "kyspacing_option in kt_grids_range_parameters",.true.)
   end subroutine init_parameters_range
+
+  !> FIXME : Add documentation  
   subroutine finish_parameters_range
+    implicit none
     parameters_read = .false.
   end subroutine finish_parameters_range
 
+  !> FIXME : Add documentation  
   subroutine init_kt_grids_range
 !CMR, 14/10/2013: 
 ! New namelist variables nn0, n0_min, n0_max, rhostar_range to set ky grid 
@@ -178,6 +188,10 @@ contains
     use file_utils, only: error_unit
     implicit none
     integer :: ierr
+    !! Temporary value of n0 as floating point
+    real :: n0_tmp
+    !! Temporary variable for swapping n0_{min,max}
+    integer :: n0_swap
     
     call init_parameters_range
 
@@ -228,9 +242,9 @@ contains
        !If n0_min>n0_max swap values
        if(n0_min.gt.n0_max) then
           write(ierr,'("Warning: Swapping max and min n0 values")')
-          n0_tmp = n0_min
+          n0_swap = n0_min
           n0_min = n0_max
-          n0_max = n0_tmp
+          n0_max = n0_swap
        endif
 
        !If n0_min == n0_max ensure nn0=1
@@ -254,6 +268,7 @@ contains
 
   end subroutine init_kt_grids_range
 
+  !> FIXME : Add documentation  
   subroutine wnml_kt_grids_range(unit)
     implicit none
     integer, intent(in) :: unit
@@ -280,6 +295,7 @@ contains
     write (unit, fmt="(' /')")
   end subroutine wnml_kt_grids_range
 
+  !> FIXME : Add documentation
   subroutine range_get_sizes (naky_x, ntheta0_x, nx, ny)
     implicit none
     integer, intent (out) :: naky_x, ntheta0_x, nx, ny
@@ -287,8 +303,9 @@ contains
     nx = 0         ;  ny = 0
   end subroutine range_get_sizes
 
-! BD: Could add some logic here to set theta0 if akx is given?  When do we need what?
+  !> FIXME : Add documentation  
   subroutine range_get_grids (aky, theta0, akx)
+    ! BD: Could add some logic here to set theta0 if akx is given?  When do we need what?
     use theta_grid, only: shat
     use mp, only: mp_abort
     implicit none
@@ -359,6 +376,7 @@ contains
 
   end subroutine range_get_grids
 
+  !> FIXME : Add documentation    
   subroutine check_kt_grids_range(report_unit)
     use constants, only: twopi
     use theta_grid, only: shat
@@ -407,9 +425,8 @@ contains
   end subroutine check_kt_grids_range
 end module kt_grids_range
 
+!> Set up sets of (kx, ky) values for linear runs.
 module kt_grids_specified
-! <doc> Set up sets of (kx, ky) values for linear runs.
-! </doc>
   implicit none
 
   private
@@ -422,6 +439,7 @@ module kt_grids_specified
 
 contains
 
+  !> FIXME : Add documentation
   subroutine init_kt_grids_specified
     use file_utils, only: input_unit, input_unit_exist
     implicit none
@@ -436,6 +454,7 @@ contains
 
   end subroutine init_kt_grids_specified
 
+  !> FIXME : Add documentation  
   subroutine wnml_kt_grids_specified (unit, aky, theta0)
     implicit none
     integer, intent(in) :: unit
@@ -455,6 +474,7 @@ contains
     end do
   end subroutine wnml_kt_grids_specified
 
+  !> FIXME : Add documentation  
   subroutine specified_get_sizes (naky_x, ntheta0_x, nx_x, ny_x)
     implicit none
     integer, intent (out) :: naky_x, ntheta0_x, nx_x, ny_x
@@ -464,6 +484,7 @@ contains
 
   end subroutine specified_get_sizes
 
+  !> FIXME : Add documentation  
   subroutine specified_get_grids (aky, theta0, akx)
     implicit none
     real, dimension (:), intent (out) :: akx, aky
@@ -482,6 +503,7 @@ contains
 
   end subroutine specified_get_grids
 
+  !> FIXME : Add documentation  
   subroutine read_element (i, aky_dummy, theta0_dummy, akx_dummy)
     use file_utils, only: get_indexed_namelist_unit
     implicit none
@@ -519,9 +541,8 @@ contains
   end subroutine check_kt_grids_specified
 end module kt_grids_specified
 
+!> Set the perpendicular box size and resolution for linear or nonlinear runs.
 module kt_grids_box
-! <doc> Set the perpendicular box size and resolution for linear or nonlinear runs.
-! </doc>
   implicit none
 
   private
@@ -544,10 +565,12 @@ module kt_grids_box
 
 contains
 
+  !> FIXME : Add documentation
   subroutine init_parameters_box
     use file_utils, only: input_unit, input_unit_exist
-    use theta_grid, only: init_theta_grid, shat, drhodpsi
+    use theta_grid, only: init_theta_grid, shat
     use constants, only: pi
+    implicit none
     integer :: in_file
     logical :: exist
     namelist /kt_grids_box_parameters/ naky, ntheta0, ly, nx, ny, n0, jtwist, &
@@ -571,10 +594,13 @@ contains
     if (exist) read (in_file, nml=kt_grids_box_parameters)
   end subroutine init_parameters_box
 
+  !> FIXME : Add documentation  
   subroutine finish_parameters_box
+    implicit none
     parameters_read = .false.
   end subroutine finish_parameters_box
 
+  !> FIXME : Add documentation  
   subroutine init_kt_grids_box
 !CMR, 14/10/2013: 
 ! New namelist variables: n0, rhostar_box. 
@@ -653,6 +679,7 @@ contains
     ny_private = ny
   end subroutine init_kt_grids_box
 
+  !> FIXME : Add documentation  
   subroutine wnml_kt_grids_box (unit)
     implicit none
     integer, intent(in) :: unit
@@ -670,6 +697,7 @@ contains
     write (unit, fmt="(' /')")
   end subroutine wnml_kt_grids_box
 
+  !> FIXME : Add documentation  
   subroutine box_get_sizes (naky, ntheta0, nx, ny, nkpolar)
     implicit none
     integer, intent (out) :: naky, ntheta0, nx, ny, nkpolar
@@ -680,6 +708,7 @@ contains
     nkpolar = nkpolar_private
   end subroutine box_get_sizes
 
+  !> FIXME : Add documentation  
   subroutine box_set_overrides(grids_ov)
     use overrides, only: kt_grids_overrides_type
     type(kt_grids_overrides_type), intent(in) :: grids_ov
@@ -692,6 +721,7 @@ contains
     if (grids_ov%override_gryfx) gryfx = grids_ov%gryfx
   end subroutine box_set_overrides
 
+  !> FIXME : Add documentation  
   subroutine box_get_grids (aky, theta0, akx, ikx, iky)
     use theta_grid, only: shat
     use constants, only: pi
@@ -767,6 +797,7 @@ contains
 
   end subroutine box_get_grids
 
+  !> FIXME : Add documentation  
   subroutine check_kt_grids_box(report_unit)
     use theta_grid, only: shat_real => shat
     use constants, only: pi
@@ -831,9 +862,8 @@ contains
   end subroutine check_kt_grids_box
 end module kt_grids_box
 
+!> Set up the perpendicular wavenumbers by calling the appropriate sub-modules. 
 module kt_grids
-!  <doc> Set up the perpendicular wavenumbers by calling the appropriate sub-modules. 
-! </doc>
   use kt_grids_box, only: jtwist
   implicit none
 
@@ -873,7 +903,7 @@ module kt_grids
   logical :: parameters_read = .false.
 
 contains
-
+  !> FIXME : Add documentation
   subroutine init_kt_grids_parameters
     use theta_grid, only: init_theta_grid
     use mp, only: proc0
@@ -899,11 +929,13 @@ contains
 
   end subroutine init_kt_grids_parameters
 
+  !> FIXME : Add documentation  
   subroutine finish_kt_grids_parameters
     use kt_grids_single, only: finish_parameters_single
     use kt_grids_range, only: finish_parameters_range
     use kt_grids_box, only: finish_parameters_box
-
+    implicit none
+    
     call finish_parameters_single
     call finish_parameters_range
     call finish_parameters_box
@@ -911,11 +943,14 @@ contains
     parameters_read = .false.
   end subroutine finish_kt_grids_parameters
 
+  !> FIXME : Add documentation  
   subroutine set_overrides(grids_ov)
     use overrides, only: kt_grids_overrides_type
     use kt_grids_box, only: box_set_overrides
     use mp, only: mp_abort, proc0
+    implicit none
     type(kt_grids_overrides_type), intent(in) :: grids_ov
+    
     if (proc0) then
       select case (gridopt_switch)          
       case (gridopt_box)
@@ -926,15 +961,17 @@ contains
     end if
   end subroutine set_overrides
 
+  !> FIXME : Add documentation  
   function gryfx()
     use mp, only: broadcast
     use kt_grids_box, only: grbx=>gryfx
+    implicit none
     logical :: gryfx
     gryfx = grbx
     !call broadcast(gryfx)
   end function gryfx
 
-
+  !> FIXME : Add documentation
   subroutine init_kt_grids
     use mp, only: proc0, broadcast
     implicit none
@@ -971,6 +1008,7 @@ contains
     call init_kperp2
   end subroutine init_kt_grids
 
+  !> FIXME : Add documentation  
   subroutine read_parameters_internal
     use file_utils, only: input_unit, error_unit, input_unit_exist
     use text_options, only: text_option, get_option_value
@@ -994,6 +1032,7 @@ contains
 
   end subroutine read_parameters_internal
 
+  !> FIXME : Add documentation  
   subroutine wnml_kt(unit)
     use kt_grids_single, only: wnml_kt_grids_single
     use kt_grids_range, only: wnml_kt_grids_range
@@ -1028,6 +1067,7 @@ contains
     end select
   end subroutine wnml_kt
 
+  !> FIXME : Add documentation  
   subroutine allocate_arrays
     implicit none
     allocate (akx(ntheta0))
@@ -1037,6 +1077,7 @@ contains
     allocate (iky(naky))
   end subroutine allocate_arrays
 
+  !> FIXME : Add documentation  
   subroutine get_sizes
     use kt_grids_single, only: init_kt_grids_single, single_get_sizes
     use kt_grids_range, only: init_kt_grids_range, range_get_sizes
@@ -1061,6 +1102,7 @@ contains
     end select
   end subroutine get_sizes
 
+  !> FIXME : Add documentation  
   subroutine get_grids
     use kt_grids_single, only: single_get_grids
     use kt_grids_range, only: range_get_grids
@@ -1079,6 +1121,7 @@ contains
     end select
   end subroutine get_grids
 
+  !> FIXME : Add documentation  
   subroutine init_kperp2
     use theta_grid, only: ntgrid, gds2, gds21, gds22, shat
     implicit none
@@ -1103,6 +1146,7 @@ contains
     end do
   end subroutine init_kperp2
 
+  !> FIXME : Add documentation  
   subroutine finish_kt_grids
 
     implicit none
@@ -1116,6 +1160,7 @@ contains
 
   end subroutine finish_kt_grids
 
+  !> FIXME : Add documentation  
   subroutine check_kt_grids(report_unit)
 !CMR, 22/9/2010:
 ! add routine to GS2 to perform ingen checking and reporting

@@ -1,7 +1,8 @@
+!> FIXME : Add documentation
 module nonlinear_terms
-!
-! missing factors of B_a/B(theta) in A_perp terms??
-!
+  !
+  ! missing factors of B_a/B(theta) in A_perp terms??
+  !
   implicit none
 
   private
@@ -15,13 +16,12 @@ module nonlinear_terms
   public :: gryfx_zonal
   public :: cfl_req_hand, nb_check_time_step_too_large
 
+  !> FIXME : Add documentation  
   type gs2_gryfx_zonal_type
-
     logical :: on = .false.
     complex*8, dimension (:), pointer :: NLdens_ky0, NLupar_ky0, NLtpar_ky0, &
                                          NLtprp_ky0, NLqpar_ky0, NLqprp_ky0
     logical :: first_half_step = .false.
-
   end type gs2_gryfx_zonal_type
 
   type(gs2_gryfx_zonal_type) gryfx_zonal
@@ -74,7 +74,8 @@ module nonlinear_terms
   logical :: exist
   
 contains
-  
+
+  !> FIXME : Add documentation
   subroutine check_nonlinear_terms(report_unit,delt_adj)
     use gs2_time, only: code_dt_min
     use kt_grids, only: box
@@ -132,6 +133,7 @@ contains
     endif
   end subroutine check_nonlinear_terms
 
+  !> FIXME : Add documentation  
   subroutine wnml_nonlinear_terms(unit)
     implicit none
     integer, intent(in) :: unit
@@ -147,6 +149,7 @@ contains
     endif
   end subroutine wnml_nonlinear_terms
 
+  !> FIXME : Add documentation  
   subroutine init_nonlinear_terms 
     use theta_grid, only: init_theta_grid, ntgrid
     use kt_grids, only: init_kt_grids, naky, ntheta0, nx, ny, akx, aky
@@ -219,6 +222,7 @@ contains
 
   end subroutine init_nonlinear_terms
 
+  !> FIXME : Add documentation  
   subroutine read_parameters
     use file_utils, only: input_unit_exist, error_unit
     use text_options, only: text_option, get_option_value
@@ -300,6 +304,7 @@ contains
 
   end subroutine read_parameters
 
+  !> FIXME : Add documentation  
   subroutine add_explicit_terms (g1, g2, g3, phi, apar, bpar, istep, bd)
     use theta_grid, only: ntgrid
     use gs2_layouts, only: g_lo
@@ -329,6 +334,7 @@ contains
     end select
   end subroutine add_explicit_terms
 
+  !> FIXME : Add documentation  
   subroutine add_explicit (g1, g2, g3, phi, apar, bpar, istep, bd,  nl)
     use theta_grid, only: ntgrid
     use gs2_layouts, only: g_lo, ik_idx, it_idx, il_idx, is_idx
@@ -360,9 +366,9 @@ contains
     endif
 
 
-!
-! Currently not self-starting.  Need to fix this.
-!
+    !
+    ! Currently not self-starting.  Need to fix this.
+    !
 
     call debug_message(verb, 'nonlinear_terms::add_explicit copying old terms')
 
@@ -416,9 +422,9 @@ contains
 
   contains
 
-    ! subroutine 'center' takes input array evaluated at theta grid points
-    ! and overwrites it with array evaluated at cell centers
-    ! note that there is an extra factor of 2 in output array
+    !> Takes input array evaluated at theta grid points
+    !! and overwrites it with array evaluated at cell centers
+    !! note that there is an extra factor of 2 in output array
     subroutine center (gtmp)
 !
 !CMR, 13/10/2014
@@ -493,16 +499,19 @@ contains
     end subroutine center
   end subroutine add_explicit
 
+  !> FIXME : Add documentation  
   subroutine nonlinear_terms_unit_test_time_add_nl(g1, phi, apar, bpar)
     use gs2_layouts, only: g_lo, ik_idx, it_idx, il_idx, is_idx
     use theta_grid, only: ntgrid
+    implicit none
     complex, dimension (-ntgrid:,:,g_lo%llim_proc:), intent (out) :: g1
     complex, dimension (-ntgrid:,:,:), intent (in) :: phi, apar, bpar
     call add_nl(g1, phi, apar, bpar)
   end subroutine nonlinear_terms_unit_test_time_add_nl
 
+  !> FIXME : Add documentation  
   subroutine add_nl (g1, phi, apar, bpar)
-    use mp, only: max_allreduce, nb_max_allreduce, iproc, nproc
+    use mp, only: max_allreduce, nb_max_allreduce
     use theta_grid, only: ntgrid, kxfac
     use gs2_layouts, only: g_lo, ik_idx, it_idx
     use gs2_layouts, only: accelx_lo, yxf_lo
@@ -683,9 +692,10 @@ contains
       'nonlinear_terms::add_nl calculated nonlinear term')
     
   contains
+    !> FIXME : Add documentation    
     subroutine load_kx_phi
-
       use dist_fn_arrays, only: aj0
+      implicit none
       complex :: fac
 
       do iglo = g_lo%llim_proc, g_lo%ulim_proc
@@ -700,9 +710,10 @@ contains
 
     end subroutine load_kx_phi
 
+    !> FIXME : Add documentation    
     subroutine load_ky_phi
-
       use dist_fn_arrays, only: aj0
+      implicit none
       complex :: fac
 
       do iglo = g_lo%llim_proc, g_lo%ulim_proc
@@ -719,10 +730,11 @@ contains
 
 ! should I use vpa or vpac in next two routines??
 
+    !> FIXME : Add documentation    
     subroutine load_kx_apar
-
       use dist_fn_arrays, only: vpa, aj0
       use gs2_layouts, only: is_idx
+      implicit none
       complex :: fac
 
       do iglo = g_lo%llim_proc, g_lo%ulim_proc
@@ -731,22 +743,23 @@ contains
          is = is_idx(g_lo,iglo)
 !AJ Optimisatin
          do ig = -ntgrid, ntgrid
-	    fac = zi*akx(it)*aj0(ig,iglo)*spec(is)%stm*apar(ig,it,ik)*fapar
+            fac = zi*akx(it)*aj0(ig,iglo)*spec(is)%stm*apar(ig,it,ik)*fapar
             g1(ig,1,iglo) = g1(ig,1,iglo) - fac*vpa(ig,1,iglo)
 !         end do
 !         do ig = -ntgrid, ntgrid
 !            g1(ig,2,iglo) = g1(ig,2,iglo) - zi*akx(it)*aj0(ig,iglo)*spec(is)%stm &
 !                 *vpa(ig,2,iglo)*apar(ig,it,ik)*fapar 
- 	    g1(ig,2,iglo) = g1(ig,2,iglo) - fac*vpa(ig,2,iglo)
+            g1(ig,2,iglo) = g1(ig,2,iglo) - fac*vpa(ig,2,iglo)
          end do
       end do
 
     end subroutine load_kx_apar
 
+    !> FIXME : Add documentation    
     subroutine load_ky_apar
-
       use dist_fn_arrays, only: vpa, aj0
       use gs2_layouts, only: is_idx
+      implicit none
       complex :: fac
 
       do iglo = g_lo%llim_proc, g_lo%ulim_proc
@@ -755,24 +768,25 @@ contains
          is = is_idx(g_lo,iglo)
 !AJ Optimisation
          do ig = -ntgrid, ntgrid
-	    fac = zi*aky(ik)*aj0(ig,iglo)*spec(is)%stm*apar(ig,it,ik)*fapar
-	    g1(ig,1,iglo) = g1(ig,1,iglo) - fac*vpa(ig,1,iglo)
+            fac = zi*aky(ik)*aj0(ig,iglo)*spec(is)%stm*apar(ig,it,ik)*fapar
+            g1(ig,1,iglo) = g1(ig,1,iglo) - fac*vpa(ig,1,iglo)
 !            g1(ig,1,iglo) = g1(ig,1,iglo) - zi*aky(ik)*aj0(ig,iglo)*spec(is)%stm &
 !                 *vpa(ig,1,iglo)*apar(ig,it,ik)*fapar 
 !         end do
 !         do ig = -ntgrid, ntgrid
 !            g1(ig,2,iglo) = g1(ig,2,iglo) - zi*aky(ik)*aj0(ig,iglo)*spec(is)%stm &
 !                 *vpa(ig,2,iglo)*apar(ig,it,ik)*fapar 
-	     g1(ig,2,iglo) = g1(ig,2,iglo) - fac*vpa(ig,2,iglo)
+             g1(ig,2,iglo) = g1(ig,2,iglo) - fac*vpa(ig,2,iglo)
          end do
       end do
 
     end subroutine load_ky_apar
 
+    !> FIXME : Add documentation    
     subroutine load_kx_bpar
-
       use dist_fn_arrays, only: vperp2, aj1
       use gs2_layouts, only: is_idx
+      implicit none
       complex :: fac
 
 ! Is this factor of two from the old normalization?
@@ -791,10 +805,11 @@ contains
 
     end subroutine load_kx_bpar
 
+    !> FIXME : Add documentation    
     subroutine load_ky_bpar
-
       use dist_fn_arrays, only: vperp2, aj1
       use gs2_layouts, only: is_idx
+      implicit none
       complex :: fac
 
 ! Is this factor of two from the old normalization?
@@ -815,101 +830,86 @@ contains
 
   end subroutine add_nl
 
+  !> this subroutine constructs the GK nonlinear term from the 6 GryfX
+  !! gyrofluid nonlinear terms.  we first construct in gryfx units.
+  !! gryfx uses vt=sqrt(T/m) normalization, 
+  !! so vt_gs2 = sqrt(2T/m) = sqrt(2) vt_gryfx.
+  !! since vpa and vperp2 are normalized to vt_gs2, below we multiply by
+  !! factors of sqrt(2) to get vpa and vperp2 in gryfx units, i.e.
+  !! vpa_gryfx = sqrt(2) vpa
+  !! vperp2_gryfx = 2 vperp2
+  !!
+  !! the Hermite-Laguerre construction of the distribution from the gyrofluid
+  !! moments is of the form
+  !! df/F_M = n + vpar/vt upar + 1/2(vpar^2/vt^2-1) tpar 
+  !! + (vprp^2/2vt^2-1) tprp + 1/6(vpar^3/3vt^3 - 3 vpar/vt) qpar
+  !! + vpar/vt (vprp^2/2vt^2-1) qprp
+  !! where vt=vt_gryfx, and moments are normalized in gryfx units
   subroutine add_nl_gryfx (g1)
     use mp, only: max_allreduce
-    use theta_grid, only: ntgrid, kxfac
+    use theta_grid, only: ntgrid
     use gs2_layouts, only: g_lo, ik_idx, it_idx, is_idx
-    use gs2_layouts, only: accelx_lo, yxf_lo
-    use dist_fn_arrays, only: g, g_adjust, vpa, vperp2
-    use species, only: spec
+    use dist_fn_arrays, only: g_adjust, vpa, vperp2
     use gs2_transforms, only: transform2, inverse2
-    use run_parameters, only: fapar, fbpar, fphi, reset, immediate_reset
-    use kt_grids, only: aky, akx
+    use run_parameters, only: fapar, fbpar, fphi, immediate_reset
     use gs2_time, only: save_dt_cfl, check_time_step_too_large
-    use constants, only: zi
     use mp, only: broadcast
     implicit none
     complex, dimension (-ntgrid:,:,g_lo%llim_proc:), intent (out) :: g1
-    integer :: i, j, k
-    real :: dt_cfl
 
     integer :: iglo, ik, it, ig, iz, is, isgn, index_gryfx
 
-    ! this subroutine constructs the GK nonlinear term from the 6 GryfX
-    ! gyrofluid nonlinear terms.  we first construct in gryfx units.
-    ! gryfx uses vt=sqrt(T/m) normalization, 
-    ! so vt_gs2 = sqrt(2T/m) = sqrt(2) vt_gryfx.
-    ! since vpa and vperp2 are normalized to vt_gs2, below we multiply by
-    ! factors of sqrt(2) to get vpa and vperp2 in gryfx units, i.e.
-    ! vpa_gryfx = sqrt(2) vpa
-    ! vperp2_gryfx = 2 vperp2
-
-    ! the Hermite-Laguerre construction of the distribution from the gyrofluid
-    ! moments is of the form
-    ! df/F_M = n + vpar/vt upar + 1/2(vpar^2/vt^2-1) tpar 
-    ! + (vprp^2/2vt^2-1) tprp + 1/6(vpar^3/3vt^3 - 3 vpar/vt) qpar
-    ! + vpar/vt (vprp^2/2vt^2-1) qprp
-    ! where vt=vt_gryfx, and moments are normalized in gryfx units
-
     do iglo = g_lo%llim_proc, g_lo%ulim_proc
-    ik = ik_idx(g_lo,iglo)
-    it = it_idx(g_lo,iglo)
-    is = is_idx(g_lo,iglo)
-    do isgn = 1, 2
-      do ig = -ntgrid, ntgrid
-      iz = ig + ntgrid + 1
-      if(ig==ntgrid) iz = 1 ! periodic point not included in gryfx arrays
-        index_gryfx = 1 + (ik-1) + g_lo%naky*((it-1)) + &
-                      g_lo%naky*g_lo%ntheta0*(iz-1) + &
-                      (2*ntgrid)*g_lo%naky*g_lo%ntheta0*(is-1)
+       ik = ik_idx(g_lo,iglo)
+       it = it_idx(g_lo,iglo)
+       is = is_idx(g_lo,iglo)
+       do isgn = 1, 2
+          do ig = -ntgrid, ntgrid
+             iz = ig + ntgrid + 1
+             if(ig==ntgrid) iz = 1 ! periodic point not included in gryfx arrays
+             index_gryfx = 1 + (ik-1) + g_lo%naky*((it-1)) + &
+                  g_lo%naky*g_lo%ntheta0*(iz-1) + &
+                  (2*ntgrid)*g_lo%naky*g_lo%ntheta0*(is-1)
+             
+             g1(ig,isgn,iglo) =  gryfx_zonal%NLdens_ky0(index_gryfx) + &
+                  
+                  0.5*(2.*vpa(ig,isgn,iglo)*vpa(ig,isgn,iglo) - 1.)* &
+                  gryfx_zonal%NLtpar_ky0(index_gryfx) + &
+                  
+                  (vperp2(ig,iglo) - 1.0)* &
+                  gryfx_zonal%NLtprp_ky0(index_gryfx) + &
 
-        g1(ig,isgn,iglo) =  gryfx_zonal%NLdens_ky0(index_gryfx) + &
-
-                0.5*(2.*vpa(ig,isgn,iglo)*vpa(ig,isgn,iglo) - 1.)* &
-                     gryfx_zonal%NLtpar_ky0(index_gryfx) + &
-
-                 (vperp2(ig,iglo) - 1.0)* &
-                     gryfx_zonal%NLtprp_ky0(index_gryfx) + &
-
-                 sqrt(2.)*vpa(ig,isgn,iglo)* &
+                  sqrt(2.)*vpa(ig,isgn,iglo)* &
                      gryfx_zonal%NLupar_ky0(index_gryfx) + &
-
-                 1./6.*( (sqrt(2.)*vpa(ig,isgn,iglo))**3. &
-                            - 3*sqrt(2.)*vpa(ig,isgn,iglo) )* &
+                     
+                     1./6.*( (sqrt(2.)*vpa(ig,isgn,iglo))**3. &
+                     - 3*sqrt(2.)*vpa(ig,isgn,iglo) )* &
                      gryfx_zonal%NLqpar_ky0(index_gryfx) + &
-
-                 sqrt(2.)*vpa(ig,isgn,iglo)*(vperp2(ig,iglo) - 1.)* &
+                     
+                     sqrt(2.)*vpa(ig,isgn,iglo)*(vperp2(ig,iglo) - 1.)* &
                      gryfx_zonal%NLqprp_ky0(index_gryfx) 
- 
- ! now we must account for the fact that phi and g are normalized to a/rho_i,
- ! and grad ~ k is normalized to rho_i, and rho_gs2 = sqrt2 rho_gryfx.
- ! we have just calculated the GK nonlinear term in gryfx units:
- ! g1 = z_hat X grad_gryfx phi_gryfx . grad_gryfx g_gryfx =
- ! z_hat X (1/sqrt2 grad_gs2)(sqrt2 phi_gs2) . (1/sqrt2 grad_gs2)(sqrt2 g_gs2)
- ! = z_hat X grad_gs2 phi_gs2 . grad_gs2 g_gs2
- ! so it turns out that the GK nonlinear term is the same in gryfx units
- ! and gs2 units, so we don't need any additional factors.
+             
+             ! now we must account for the fact that phi and g are normalized to a/rho_i,
+             ! and grad ~ k is normalized to rho_i, and rho_gs2 = sqrt2 rho_gryfx.
+             ! we have just calculated the GK nonlinear term in gryfx units:
+             ! g1 = z_hat X grad_gryfx phi_gryfx . grad_gryfx g_gryfx =
+             ! z_hat X (1/sqrt2 grad_gs2)(sqrt2 phi_gs2) . (1/sqrt2 grad_gs2)(sqrt2 g_gs2)
+             ! = z_hat X grad_gs2 phi_gs2 . grad_gs2 g_gs2
+             ! so it turns out that the GK nonlinear term is the same in gryfx units
+             ! and gs2 units, so we don't need any additional factors.
 
-         end do
+          end do
        end do
     end do
-    g1 = -g1 !left-handed / right-handed conversion
-
-
-    
+    g1 = -g1 !left-handed / right-handed conversion    
   end subroutine add_nl_gryfx
 
-!---------------------------------------------------------------------------  
-!> @author 
-!> Joseph Parker, STFC
-!
-! DESCRIPTION: 
-!> Nonblocking version of check_time_step_too_large
-!> @brief
-!> This receives the mpi_iallreduce of the maximum velocity and calculates
-!> the CFL condition.
-!
-!--------------------------------------------------------------------------- 
+  !> Nonblocking version of check_time_step_too_large
+  !!
+  !! This receives the mpi_iallreduce of the maximum velocity and calculates
+  !! the CFL condition.
+  !!
+  !! Joseph Parker, STFC
   subroutine nb_check_time_step_too_large
     use mp, only: iproc
     use run_parameters, only: reset, immediate_reset
@@ -934,19 +934,20 @@ contains
   
   end subroutine nb_check_time_step_too_large
 
+  !> FIXME : Add documentation
   subroutine reset_init
-    
+    implicit none
     initialized = .false.
     initializing = .true.
-
   end subroutine reset_init
 
+  !> FIXME : Add documentation  
   subroutine finish_init
-
+    implicit none
     initializing = .false.
-
   end subroutine finish_init
 
+  !> FIXME : Add documentation  
   subroutine finish_nonlinear_terms
     use gs2_transforms, only: finish_transforms
 #ifdef SHMEM

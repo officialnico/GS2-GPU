@@ -1,3 +1,4 @@
+!> FIXME : Add documentation
 module collisional_heating
 
   implicit none
@@ -6,41 +7,40 @@ module collisional_heating
   public :: init_collisional, finish_collisional
   public :: write_collisional, calculate_collisional
   
-  complex, dimension (:,:,:), allocatable :: g0   !!!! g0 will be used in calculate_collisional,
-  complex, dimension (:,:,:,:), allocatable :: tot              !!!! they must be dummy arguments...
+  complex, dimension (:,:,:), allocatable :: g0   !< g0 will be used in calculate_collisional,
+  complex, dimension (:,:,:,:), allocatable :: tot              !< they must be dummy arguments...
   
-  complex, dimension(:,:), allocatable :: coll_heating, coll_heating_2 !!! we will use the hk variable in diagnostics_heating
+  complex, dimension(:,:), allocatable :: coll_heating, coll_heating_2 !< we will use the hk variable in diagnostics_heating
   logical :: initialized = .false.
   
 contains
-  
+
+  !> FIXME : Add documentation  
   subroutine init_collisional(gnostics) 
-    use kt_grids, only: naky, ntheta0, nx, ny, akx, aky
+    use kt_grids, only: naky, ntheta0, nx, ny
     use theta_grid, only: ntgrid
     use species, only: nspec
     use diagnostics_config, only: diagnostics_type
     use le_grids, only: init_le_grids, nlambda, negrid
     use gs2_transforms, only: init_transforms
     use gs2_layouts, only: g_lo, init_dist_fn_layouts
-    use gs2_layouts, only: yxf_lo
     use hyper, only: init_hyper
     
     implicit none
     type(diagnostics_type), intent(inout) :: gnostics
-    logical :: accel
-    
-    accel=.false.
+    logical :: accel_x, accel_v
 
     if(.not. gnostics%write_collisional .or. initialized) return
     initialized = .true.
-    
+
 !!!calls every initiation routine we need: le_grids for integration, init_gs2 transforms to initiate fourier transforms routines...
     
-    call init_le_grids(accel,accel)  !!!! benefit: calls init_theta_grid, init_kt_grids, init_gs2_layouts and init_species for later use
-    call init_transforms(ntgrid, naky, ntheta0, nlambda, negrid, nspec, nx, ny, accel)  !!! in order to use fft transform routines
+    ! benefit: calls init_theta_grid, init_kt_grids, init_gs2_layouts and init_species for later use
+    call init_le_grids(accel_x, accel_v)
+    ! in order to use fft transform routines
+    call init_transforms(ntgrid, naky, ntheta0, nlambda, negrid, nspec, nx, ny, accel_x)
     call init_dist_fn_layouts(naky, ntheta0, nlambda, negrid, nspec)
-!!!! accel_x =false : useless
-    
+
 !!!!! now need to initiate and assign hypervisc_filter
     call init_hyper
     
@@ -55,7 +55,8 @@ contains
     coll_heating_2=0.0
     
   end subroutine init_collisional
-  
+
+  !> FIXME : Add documentation  
   subroutine finish_collisional
     if(.not. initialized) return
     deallocate(coll_heating)
@@ -64,15 +65,14 @@ contains
     deallocate(g0)
     initialized = .false.
   end subroutine finish_collisional
-  
+
+  !> FIXME : Add documentation  
   subroutine calculate_collisional(gnostics)
-    
-    use fields_arrays, only: phinew
     use dist_fn_arrays, only: g, gnew
     use diagnostics_config, only: diagnostics_type
     use dist_fn_arrays, only: c_rate, g_adjust
     use theta_grid, only: ntgrid, delthet, jacob
-    use kt_grids, only: naky, ntheta0, akx, aky
+    use kt_grids, only: naky, ntheta0, aky
     use species, only: spec, nspec
     use le_grids, only: integrate_moment
     use gs2_layouts, only: g_lo, it_idx, ik_idx, is_idx
@@ -85,8 +85,8 @@ contains
     implicit none
 
     type(diagnostics_type), intent(inout) :: gnostics
-    real, dimension(-ntgrid:ntgrid) :: wgt !! weights for theta integration
-    complex, dimension(ntheta0,naky) :: hyper_part, hyper_part_2, colls_part   !!! two parts of c_rate array: collisions and hypervisocity
+    real, dimension(-ntgrid:ntgrid) :: wgt !< weights for theta integration
+    complex, dimension(ntheta0,naky) :: hyper_part, hyper_part_2, colls_part   !< two parts of c_rate array: collisions and hypervisocity
     !complex, dimension(-ntgrid:ntgrid,ntheta0,naky) :: tot
     integer :: is, ik, it, ig, isgn, iglo
     complex :: dgdt_hypervisc, havg
@@ -102,10 +102,10 @@ contains
     g0=g
     weights=1.
   
-    call g_adjust(g0,phi,bpar,fphi,fbpar)   !!! transforms g into h (minus boltzmann response), anyway fbpar=0
+    call g_adjust(g0,phi,bpar,fphi,fbpar)   !< transforms g into h (minus boltzmann response), anyway fbpar=0
 
     !call vspace_derivatives(gnew,g,g0,phi, bpar, phinew, bparnew)  !!!!! assigns values to c_rate
-    call hyper_diff(g0,phi) !!!! assigns values to hypervisc_filter
+    call hyper_diff(g0,phi) !< assigns values to hypervisc_filter
        
     do is = 1, nspec
        do ik = 1, naky
@@ -157,13 +157,12 @@ contains
     coll_heating_2 = colls_part + hyper_part_2
     
   end subroutine calculate_collisional
-  
+
+  !> FIXME : Add documentation  
   subroutine write_collisional(gnostics)
-    
     use diagnostics_create_and_write, only: create_and_write_distributed_fieldlike_variable
     use diagnostics_dimensions, only: dim_string
     use fields_parallelization, only: field_k_local
-    use kt_grids, only: ntheta0, naky
     use diagnostics_config, only: diagnostics_type
     
     implicit none

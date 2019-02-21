@@ -1,3 +1,4 @@
+!> FIXME : Add documentation
 module lowflow
   
   implicit none
@@ -16,6 +17,7 @@ module lowflow
   real, dimension (:), allocatable :: mach_lab
 
 contains
+  !> FIXME : Add documentation  
   subroutine finish_lowflow_terms
     implicit none
     !<DD>May actually be able to deallocate most of these much
@@ -31,6 +33,7 @@ contains
     if(allocated(temp_neo)) deallocate(temp_neo)
   end subroutine finish_lowflow_terms
 
+  !> FIXME : Add documentation  
   subroutine get_lowflow_terms (theta, al, energy, bmag, dHdEc, dHdxic, vpadHdEc, dHdrc, &
        dHdthc, hneoc, dphidrc, dphidthc, phi_neo, lf_default, lf_decompose)
     
@@ -506,7 +509,8 @@ contains
     deallocate (afac, bfac)
     
   end subroutine get_lowflow_terms
-  
+
+  !> FIXME : Add documentation  
   function zfnc (enrgy, enrgymax)
     
     implicit none
@@ -519,8 +523,10 @@ contains
     return
     
   end function zfnc
-  
-  ! knd = 1 (2) for cheb polys of first (second) kind
+
+  !> FIXME : Add documentation
+  !!
+  !! @note knd = 1 (2) for cheb polys of first (second) kind
   subroutine chebyshev (x, chebyp, knd)
     
     implicit none
@@ -545,7 +551,8 @@ contains
     end do
     
   end subroutine chebyshev
-  
+
+  !> FIXME : Add documentation  
   subroutine legendre (x, legp)
     
     implicit none
@@ -565,7 +572,8 @@ contains
     end do
     
   end subroutine legendre
-  
+
+  !> FIXME : Add documentation  
   subroutine get_H (gjk, legdre, chebyshv, h, phi, ig, is)
 
     use species, only: spec
@@ -598,6 +606,7 @@ contains
 
   end subroutine get_H
 
+  !> FIXME : Add documentation  
   subroutine get_dHdxi (gjk, legdre, chebyshv, x, dH)
     
     implicit none
@@ -623,7 +632,8 @@ contains
     end do
 
   end subroutine get_dHdxi
-  
+
+  !> FIXME : Add documentation
   subroutine get_dHdE (gjk, legdre, chebyshv1, chebyshv2, x, xmax, dH)
     
     implicit none
@@ -662,7 +672,7 @@ contains
     
   end subroutine get_dHdE
 
-  ! returns radial derivative at center of 3 points
+  !> Get radial derivative at center of 3 points
   subroutine get_radgrad (h, rad, ir, dh)
 
     implicit none
@@ -675,6 +685,7 @@ contains
     
   end subroutine get_radgrad
 
+  !> FIXME : Add documentation  
   subroutine get_thgrad (h, th, dh)
 
     implicit none
@@ -695,6 +706,7 @@ contains
 
   end subroutine get_thgrad
 
+  !> FIXME : Add documentation  
   subroutine get_gradH (dgjk, dphi, legdre, chebyshv, dH)
     
     implicit none
@@ -724,6 +736,7 @@ contains
 
   end subroutine get_gradH
 
+  !> FIXME : Add documentation  
   subroutine read_neocoefs (theta, nspec_neo, nenergy_neo, nxi_neo, nrad_neo, ir_neo)
 
     use mp, only: proc0, broadcast
@@ -922,5 +935,4 @@ contains
        deallocate (neo_coefs_ext, theta_neo_ext, neo_phi_ext, dneo_phi_ext) 
     endif
   end subroutine read_neocoefs
-
 end module lowflow

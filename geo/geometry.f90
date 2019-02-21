@@ -1,3 +1,143 @@
+!> Deals with most types of equilibria to generate GS2's expected geometrical parameters
+!! Input: 
+!! rhoc :: minor radius of surface of interest (see irho below)
+!! itor :: default one.  Choose zero to get "s-alpha" equilibria (see iflux=0)
+!! iflux :: chooses mode of operation.  
+!!          case (0)  :: no equilibrium.  Analytic parameterization of local equilibrium
+!!                       iflux = 0 forces local_eq = .true. and irho = 2
+!!          case (1)  :: use numerical equilibrium.  5 choices:
+!!             ppl_eq = .true. :: use PPL style NetCDF equilibrium (Menard)
+!!             transp_eq = .true. :: use TRXPL style NetCDF equilibrium (Menard)
+!!             gen_eq = .true. :: use GA style NetCDF equilibrium (TOQ)
+!!             chs_eq = .true. ::  Use CHEASE generated equilibrium
+!! -------------------> [note: if either of the above == .true., 
+!!                      set eqfile = input file name]
+!!             efit_eq = .true. :: use EFIT  equilibrium
+!!             dfit_eq = .true. :: use dipole equilibrium
+!!          case (2) :: running inside nt without actual equilibria
+!!                       iflux = 2 forces local_eq = .true. and irho = 2
+!!         case (10) :: used by nt to initialize some variables.  Obsolescent.
+!! irho :: choose flux surface label
+!!         case (1) :: sqrt(toroidal flux)/sqrt(toroidal flux of LCFS)
+!!         case (2) :: diameter/(diameter of LCFS).  recommended
+!!         case (3) :: poloidal flux/(poloidal flux of LCFS)
+!! 
+!! equal_arc :: .true. makes grad_par coefficient a constant.
+!!
+!! New feature:  Given an actual equilibrium, allow s_hat and d pressure/d rho
+!! to vary self-consistently (a la Greene and Chance, Bishop).  We use the 
+!! Bishop formalism [C. M. Bishop, et al., NF, Vol. 24, 1579 (1984).]
+!!
+!! bishop :: uses Bishop relations to generate coefficients.  
+!!        case(0) :: do not use Bishop relations
+!!        case(1) :: use Bishop relations with actual equilibrium shat, p'
+!!        case(3) :: use Bishop relations with new shat, L_p from below
+!! s_hat_input :: new magnetic shear, rho/q*dq/drho
+!! invLp_input :: new -1/pressure * d pressure/d rho
+!!        case(4) :: use Bishop relations with new shat, beta' from below
+!! s_hat_input :: new magnetic shear, rho/q*dq/drho
+!! beta_prime_input :: new d beta/d rho
+!!        case(5) :: use Bishop relations with new shat, alpha from below
+!! s_hat_input :: new magnetic shear, rho/q*dq/drho
+!! alpha_input :: new alpha = -q**2 * rmaj * d pressure/d rho
+!!        case(6) :: use Bishop relations with equilibrium shat, beta' from below
+!! beta_prime_input :: new d beta/d rho
+!!        case(7) :: use Bishop relations with equilibrium shat, beta' from below
+!! dp_mult :: d pressure/d rho = equilibrium gradient * dp_mult
+!!         (In each case, the definition of rho is determined by irho above)
+!!
+!! nperiod :: number of cells of width 2 pi in theta. 
+!!  
+!! geoType :: determines the analytic geometry specification
+!!         case (0) :: the tilted Miller geometry: generalization of Miller et al. PoP 1998
+!!           (see Chapter 3.2.1 of J. Ball MIT Masters thesis)
+!!         case (1) :: the global MHD solution geometry: calculated by inverting the large
+!!           aspect ratio, constant-current MHD solution
+!!           (see J. Ball "Optimized up-down asymmetry to drive fast intrinsic rotation in tokamak reactors")
+!!         case (2) :: the generalized ellipticity geometry: the polar formula for an ellipse generalized
+!!           to arbitrary shaping effect mode number (see Chapter 5.1.2 of J. Ball Oxford PhD thesis)
+!!         case (3) :: the Fourier series geometry: Fourier decomposition of the minor radius as a function
+!!           of poloidal angle (see Chapter 5.1.1 of J. Ball Oxford PhD thesis)
+!! rmaj :: major radius of magnetic axis (in units of aminor) if iflux = 1
+!!      or major radius of center of flux surface of interest (units of aminor) otherwise
+!! r_geo :: major radius of last closed flux surface or
+!!       if iflux=0: sets the reference magnetic field to be the value of the toroidal
+!!       field at R=r_geo on the flux surface of interest
+!! aSurf :: the real-space flux surface label of the surface with deltam and deltan shaping as well as
+!!   a major radius of Rmaj (only used when geoType={1})
+!! shift :: d rmaj/drho.  (Typically < 0.) (only used when geoType={0,2,3})
+!! -> Alternative definitions:
+!!   Raxis :: major radial location of the magnetic axis. (only used when geoType={1})
+!! shiftVert :: d zmaj/drho. (< 0 for a vertical shift) (only used when geoType={0,2,3})
+!! -> Alternative definitions:
+!!   Zaxis :: axial location of the magnetic axis. (only used when geoType={1})
+!! mMode :: the first poloidal mode number (only used when geoType={2,3})
+!! nMode :: the second poloidal mode number (only used when geoType={2,3})
+!! deltam :: magnitude of the first poloidal shaping effect (only used when geoType={2,3})
+!! -> Alternative definitions:
+!!   delta2 :: identical to akappa (only used when geoType={1})
+!!   akappa :: flux surface elongation (only used when geoType={0})
+!! deltan :: magnitude of the second poloidal shaping effect (only used when geoType={2,3})
+!! -> Alternative definitions:
+!!   delta3 :: magnitude of the triangulaity-like shaping effect (only used when geoType={1})
+!!   tri :: flux surface triangulaity (only used when geoType={0})
+!! deltampri :: d(deltam)/d(rhoc) (only used when geoType={2,3})
+!! -> Alternative definitions:
+!!   akappapri :: d(akappa)/d(rhoc) (only used when geoType={0})
+!! deltanpri :: d(deltan)/d(rhoc) (only used when geoType={2,3})
+!! -> Alternative definitions:
+!!   tripri :: d(tri)/d(rhoc) (only used when geoType={0})
+!! thetam :: tilt angle of the first poloidal shaping effect (only used when geoType={2,3})
+!! -> Alternative definitions:
+!!   theta2 :: tilt angle of the flux surface elongation (only used when geoType={1})
+!!   thetak :: tilt angle of the flux surface elongation (only used when geoType={0})
+!! thetan :: tilt angle of the first poloidal shaping effect (only used when geoType={2,3})
+!! -> Alternative definitions:
+!!   theta3 :: tilt angle of the triangularity-like shaping effect (only used when geoType={1})
+!!   thetad :: tilt angle of the flux surface triangularity (only used when geoType={0})
+!! qinp :: safety factor q at surface of interest
+!! shat :: d q/drho at surface of interest
+!! dIdrho :: d I/drho where I = R B_T
+!!  
+!! delrho :: numerical parameter.  Should be "small enough".  Typically 0.001 ok.
+!! rmin :: minimum minor radius at which items are evaluated
+!! rmax :: should be equal to unity 
+!! 
+!! isym :: 1 -> assume up-down symmetric equilibrium.
+!! in_nt :: .true. if running inside of nt.
+!! writelots :: .true. for more output
+!!  
+!! Output: 
+!! theta :: the theta grid of the results.  The final grid has 
+!!          pi - 2*pi*nperiod <= theta <= 2*pi*nperiod - pi
+!! bmag :: |B| 
+!! gradpar :: coefficient of b_hat.grad operator 
+!! grho :: grad(rho)
+!! cvdrift  :: coefficient of v_par**2/Omega b_hat x (b_hat.grad b_hat).grad 
+!! cvdrift0 :: part of total curvature drift operator proportional to theta_0
+!! gbdrift  :: coefficient of mu/Omega b_hat x (grad B).grad operator
+!! gbdrift0 :: part of total grad B drift operator proportional to theta_0
+!! gbdrift_th :: grad B drift . grad theta
+!! cvdrift_th :: curvature drift . grad theta
+!! cdrift :: part of coriolis drift operator independent of theta_0
+!! cdrift0 :: part of coriolis drift operator proportional to theta_0
+!! gds2 :: part of grad_perp**2 operator independent of theta_0
+!! gds21 :: part of grad_perp**2 operator proportional to theta_0
+!! gds22 :: part of grad_perp**2 operator proportional to theta_0**2
+!! gds23 :: part of v_E . grad theta operator independent of theta_0
+!! gds24 :: part of v_E . grad theta operator proportional to theta_0
+!! gds24_noq :: gds24/dqdrp
+!! jacob :: Jacobian
+!! 
+!!  Use: 
+!! Include this module, set input variables appropriately and call eikcoefs.  
+!!
+!! NOTE: If gen_eq and ppl_eq are false, you should call init_theta
+!!       before eikcoefs to set the number of theta gridpoints per 2 pi.
+!!
+!! I do not recommend calling other routines, but a few are available for 
+!! diagnostic purposes.  
+!!  
 module geometry
 
   implicit none
@@ -34,11 +174,7 @@ module geometry
        Rplot, Zplot, Rprime, Zprime, aplot, aprime, Uk1, Uk2, &
        cdrift, cdrift0, gds23, gds24, gds24_noq, gbdrift_th, cvdrift_th, Bpol ! MAB
   
-  real, allocatable, dimension(:) :: J_X, B_X, g11_X, g12_X, g22_X, &
-       K1_X, K2_X, gradpar_X, theta_eqarc, gradpar_prime, theta_prime_eqarc, &
-       theta_prime
-
-  real :: Rref_X, Bref_X
+  real, allocatable, dimension(:) :: theta_eqarc, gradpar_prime, theta_prime_eqarc, theta_prime
 
   real :: dbetadrho, kxfac
 
@@ -47,7 +183,7 @@ module geometry
   real :: deltam, deltan, deltampri, deltanpri, thetam, thetan
   real :: qinp, s_hat_input
 
-  real :: shat, dpressdrho
+  real :: shat
   real :: rmin, rmax, qsf, aminor, bi_out
   
   real :: p_prime_input, invLp_input, beta_prime_input
@@ -60,7 +196,7 @@ module geometry
    
   real :: dp_new, di_new
   real :: psi_0, psi_a
-  real :: B_T0, avgrmid, dvdrhon, surfarea, grho1n, grho2n, drhodpsin
+  real :: B_T0, avgrmid, dvdrhon, surfarea, grho2n, drhodpsin
   real :: grhoavg  ! needed for Trinity -- MAB
 
   real, dimension(3) :: rpval
@@ -96,6 +232,7 @@ module geometry
 
   character(len=800) :: eqfile
 
+  !> FIXME : Add documentation  
   type advanced_parameters_type  
     logical :: equal_arc
     real :: dp_mult
@@ -108,6 +245,7 @@ module geometry
     integer :: itor
   end type advanced_parameters_type
 
+  !> FIXME : Add documentation  
   type miller_parameters_type
      integer :: geoType
      real :: rmaj
@@ -207,158 +345,11 @@ module geometry
     real :: bi
   end type constant_coefficients_type
 
-  type(coefficients_type) :: output_coefficients
   type(constant_coefficients_type) :: constant_coefficients
-
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-!!!  
-!!!  Input: 
-!!!     rhoc :: minor radius of surface of interest (see irho below)
-!!!     itor :: default one.  Choose zero to get "s-alpha" equilibria (see iflux=0)
-!!!     iflux :: chooses mode of operation.  
-!!!              case (0)  :: no equilibrium.  Analytic parameterization of local equilibrium
-!!!                           iflux = 0 forces local_eq = .true. and irho = 2
-!!!              case (1)  :: use numerical equilibrium.  5 choices:
-!!!                 ppl_eq = .true. :: use PPL style NetCDF equilibrium (Menard)
-!!!                 transp_eq = .true. :: use TRXPL style NetCDF equilibrium (Menard)
-!!!                 gen_eq = .true. :: use GA style NetCDF equilibrium (TOQ)
-!!!                 chs_eq = .true. ::  Use CHEASE generated equilibrium
-!!!     -------------------> [note: if either of the above == .true., 
-!!!                          set eqfile = input file name]
-!!!                 efit_eq = .true. :: use EFIT  equilibrium
-!!!                 dfit_eq = .true. :: use dipole equilibrium
-!!!              case (2) :: running inside nt without actual equilibria
-!!!                           iflux = 2 forces local_eq = .true. and irho = 2
-!!!             case (10) :: used by nt to initialize some variables.  Obsolescent.
-!!!     irho :: choose flux surface label
-!!!             case (1) :: sqrt(toroidal flux)/sqrt(toroidal flux of LCFS)
-!!!             case (2) :: diameter/(diameter of LCFS).  recommended
-!!!             case (3) :: poloidal flux/(poloidal flux of LCFS)
-!!!     
-!!!     equal_arc :: .true. makes grad_par coefficient a constant.
-!!!
-!!!     !! New feature:  Given an actual equilibrium, allow s_hat and d pressure/d rho
-!!!     !! to vary self-consistently (a la Greene and Chance, Bishop).  We use the 
-!!!     !! Bishop formalism [C. M. Bishop, et al., NF, Vol. 24, 1579 (1984).]
-!!!
-!!!     bishop :: uses Bishop relations to generate coefficients.  
-!!!            case(0) :: do not use Bishop relations
-!!!            case(1) :: use Bishop relations with actual equilibrium shat, p'
-!!!            case(3) :: use Bishop relations with new shat, L_p from below
-!!!     s_hat_input :: new magnetic shear, rho/q*dq/drho
-!!!     invLp_input :: new -1/pressure * d pressure/d rho
-!!!            case(4) :: use Bishop relations with new shat, beta' from below
-!!!     s_hat_input :: new magnetic shear, rho/q*dq/drho
-!!!     beta_prime_input :: new d beta/d rho
-!!!            case(5) :: use Bishop relations with new shat, alpha from below
-!!!     s_hat_input :: new magnetic shear, rho/q*dq/drho
-!!!     alpha_input :: new alpha = -q**2 * rmaj * d pressure/d rho
-!!!            case(6) :: use Bishop relations with equilibrium shat, beta' from below
-!!!     beta_prime_input :: new d beta/d rho
-!!!            case(7) :: use Bishop relations with equilibrium shat, beta' from below
-!!!     dp_mult :: d pressure/d rho = equilibrium gradient * dp_mult
-!!!             (In each case, the definition of rho is determined by irho above)
-!!!
-!!!     nperiod :: number of cells of width 2 pi in theta. 
-!!!  
-!!!     geoType :: determines the analytic geometry specification
-!!!             case (0) :: the tilted Miller geometry: generalization of Miller et al. PoP 1998
-!!!               (see Chapter 3.2.1 of J. Ball MIT Masters thesis)
-!!!             case (1) :: the global MHD solution geometry: calculated by inverting the large
-!!!               aspect ratio, constant-current MHD solution
-!!!               (see J. Ball "Optimized up-down asymmetry to drive fast intrinsic rotation in tokamak reactors")
-!!!             case (2) :: the generalized ellipticity geometry: the polar formula for an ellipse generalized
-!!!               to arbitrary shaping effect mode number (see Chapter 5.1.2 of J. Ball Oxford PhD thesis)
-!!!             case (3) :: the Fourier series geometry: Fourier decomposition of the minor radius as a function
-!!!               of poloidal angle (see Chapter 5.1.1 of J. Ball Oxford PhD thesis)
-!!!     rmaj :: major radius of magnetic axis (in units of aminor) if iflux = 1
-!!!          or major radius of center of flux surface of interest (units of aminor) otherwise
-!!!     r_geo :: major radius of last closed flux surface or
-!!!           if iflux=0: sets the reference magnetic field to be the value of the toroidal
-!!!           field at R=r_geo on the flux surface of interest
-!!!     aSurf :: the real-space flux surface label of the surface with deltam and deltan shaping as well as
-!!!       a major radius of Rmaj (only used when geoType={1})
-!!!     shift :: d rmaj/drho.  (Typically < 0.) (only used when geoType={0,2,3})
-!!!     -> Alternative definitions:
-!!!       Raxis :: major radial location of the magnetic axis. (only used when geoType={1})
-!!!     shiftVert :: d zmaj/drho. (< 0 for a vertical shift) (only used when geoType={0,2,3})
-!!!     -> Alternative definitions:
-!!!       Zaxis :: axial location of the magnetic axis. (only used when geoType={1})
-!!!     mMode :: the first poloidal mode number (only used when geoType={2,3})
-!!!     nMode :: the second poloidal mode number (only used when geoType={2,3})
-!!!     deltam :: magnitude of the first poloidal shaping effect (only used when geoType={2,3})
-!!!     -> Alternative definitions:
-!!!       delta2 :: identical to akappa (only used when geoType={1})
-!!!       akappa :: flux surface elongation (only used when geoType={0})
-!!!     deltan :: magnitude of the second poloidal shaping effect (only used when geoType={2,3})
-!!!     -> Alternative definitions:
-!!!       delta3 :: magnitude of the triangulaity-like shaping effect (only used when geoType={1})
-!!!       tri :: flux surface triangulaity (only used when geoType={0})
-!!!     deltampri :: d(deltam)/d(rhoc) (only used when geoType={2,3})
-!!!     -> Alternative definitions:
-!!!       akappapri :: d(akappa)/d(rhoc) (only used when geoType={0})
-!!!     deltanpri :: d(deltan)/d(rhoc) (only used when geoType={2,3})
-!!!     -> Alternative definitions:
-!!!       tripri :: d(tri)/d(rhoc) (only used when geoType={0})
-!!!     thetam :: tilt angle of the first poloidal shaping effect (only used when geoType={2,3})
-!!!     -> Alternative definitions:
-!!!       theta2 :: tilt angle of the flux surface elongation (only used when geoType={1})
-!!!       thetak :: tilt angle of the flux surface elongation (only used when geoType={0})
-!!!     thetan :: tilt angle of the first poloidal shaping effect (only used when geoType={2,3})
-!!!     -> Alternative definitions:
-!!!       theta3 :: tilt angle of the triangularity-like shaping effect (only used when geoType={1})
-!!!       thetad :: tilt angle of the flux surface triangularity (only used when geoType={0})
-!!!     qinp :: safety factor q at surface of interest
-!!!     shat :: d q/drho at surface of interest
-!!!     dIdrho :: d I/drho where I = R B_T
-!!!     dpressdrho :: dpressure /drho = 0.5 dbeta /drho at surface of interest.
-!!!  
-!!!     delrho :: numerical parameter.  Should be "small enough".  Typically 0.001 ok.
-!!!     rmin :: minimum minor radius at which items are evaluated
-!!!     rmax :: should be equal to unity 
-!!!     
-!!!     isym :: 1 -> assume up-down symmetric equilibrium.
-!!!     in_nt :: .true. if running inside of nt.
-!!!     writelots :: .true. for more output
-!!!  
-!!!  Output: 
-!!!     theta :: the theta grid of the results.  The final grid has 
-!!!              pi - 2*pi*nperiod <= theta <= 2*pi*nperiod - pi
-!!!     bmag :: |B| 
-!!!     gradpar :: coefficient of b_hat.grad operator 
-!!!     grho :: grad(rho)
-!!!     cvdrift  :: coefficient of v_par**2/Omega b_hat x (b_hat.grad b_hat).grad 
-!!!     cvdrift0 :: part of total curvature drift operator proportional to theta_0
-!!!     gbdrift  :: coefficient of mu/Omega b_hat x (grad B).grad operator
-!!!     gbdrift0 :: part of total grad B drift operator proportional to theta_0
-!!!     gbdrift_th :: grad B drift . grad theta
-!!!     cvdrift_th :: curvature drift . grad theta
-!!!     cdrift :: part of coriolis drift operator independent of theta_0
-!!!     cdrift0 :: part of coriolis drift operator proportional to theta_0
-!!!     gds2 :: part of grad_perp**2 operator independent of theta_0
-!!!     gds21 :: part of grad_perp**2 operator proportional to theta_0
-!!!     gds22 :: part of grad_perp**2 operator proportional to theta_0**2
-!!!     gds23 :: part of v_E . grad theta operator independent of theta_0
-!!!     gds24 :: part of v_E . grad theta operator proportional to theta_0
-!!!     gds24_noq :: gds24/dqdrp
-!!!     jacob :: Jacobian
-!!!     
-!!!  Use: 
-!!!     Include this module, set input variables appropriately and call eikcoefs.  
-!!!
-!!!     NOTE: If gen_eq and ppl_eq are false, you should call init_theta
-!!!           before eikcoefs to set the number of theta gridpoints per 2 pi.
-!!!
-!!!     I do not recommend calling other routines, but a few are available for 
-!!!     diagnostic purposes.  
-!!!  
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
    
 contains
+  
+  !> FIXME : Add documentation    
   subroutine eikcoefs (ntheta_returned)
     use  geq, only: eqin, geq_init
     ! CHEASE EQUILIBRIUM  EGH
@@ -788,7 +779,7 @@ if (debug) write(6,*) "eikcoefs: call rmajortgrid"
           write(*,*) "Bmax is not located at +pi or -pi, translating theta by",thetaShift," so that it is..."
        end if
     end if
-end do
+ end do
 ! End theta shift calc
 
 !<DD> If anyone uncomments the below loop please use get_unused_unit and open_output_file
@@ -1127,11 +1118,8 @@ if (debug) write(6,*) "eikcoefs: end gradients"
          dqdrp, dpsidrho, drhodrp, Bmod, Bpolmag, Rpol, th_bish, ltheta)
      
 !     compute the magnetic field along theta
-!    call  bmagtgrid(rgrid, bmagtg)    
 
     if(itor /= 0) then
-!       call periodic_copy(bmagtg, 0.) 
-!       bmag = bmagtg
        if(nperiod > 1 ) call periodic_copy(Bmod, 0.) 
        bmag = Bmod
     else
@@ -1301,34 +1289,13 @@ if (debug) write(6,*) "eikcoefs: end gradients"
     call close_output_file(fort11_unit)
 
     if (start_file_utils) call finish_file_utils
-! Generate metric tensor elements to compare with Xanthopoulos and Jenko    
-! Need to change normalization to match XJ
-
-!    if (Xanthopoulos) then
-!
-!       Rref_phys = (rmaj+rgrid(0)) * avgrmid ! This is R_ref in physical units
-!
-!       Bref_X = 
-!       Rref_X =
-!
-!       call alloc_Xanth (ntgrid)
-!       
-!       K1_X = - Rref_X * gbdrift0 ! Must be clear: changing normalization, or unnormalizing?
-!       K2_X = - Rref_X * gbdrift  ! Must be clear: changing normalization, or unnormalizing?
-!       gradpar_X = gradpar ! dimensionless for both of us, but same normalization?
-!       B_X = bmag  ! * Bref ??
-!       J_X = jacob ! coordinates are different, so this is trickier
-!       g11_X = 
-!       g12_X = 
-!       g22_X = 
-!
-!    end if
-
 
   contains
 
+
+    !> FIXME : Add documentation
     subroutine alloc_local_arrays(n)
-      
+      implicit none
       integer, intent(in) :: n
 
       allocate(smodel (-n:n), &
@@ -1375,8 +1342,10 @@ if (debug) write(6,*) "eikcoefs: end gradients"
 
     end subroutine alloc_local_arrays
 
+    !> FIXME : Add documentation      
     subroutine dealloc_local_arrays
-
+      implicit none
+      
       deallocate(smodel, &
            dsdrp     , &
            grho2     , &
@@ -1423,6 +1392,7 @@ if (debug) write(6,*) "eikcoefs: end gradients"
 
   end subroutine eikcoefs
 
+  !> FIXME : Add documentation  
   function surfareafun(rgrid)
     use constants, only: pi
     implicit none
@@ -1449,6 +1419,7 @@ if (debug) write(6,*) "eikcoefs: end gradients"
     surfareafun=ans(nth)-ans(-nth)
   end function surfareafun
 
+  !> FIXME : Add documentation  
   subroutine bvectortgrid(rgrid, theta, nth, rpgrad, dpsidrp, bvector)
     integer, intent (in) :: nth
     real, dimension(-ntgrid:  ), intent (in) :: rgrid, theta
@@ -1481,6 +1452,7 @@ if (debug) write(6,*) "eikcoefs: end gradients"
     return!?
   end subroutine bvectortgrid
 
+  !> FIXME : Add documentation  
   subroutine gradstottgrid (rmajor, grads, gradstot)
     real, dimension(-ntgrid:), intent (in) :: rmajor
     real, dimension(-ntgrid:, :), intent (in) :: grads
@@ -1501,6 +1473,7 @@ if (debug) write(6,*) "eikcoefs: end gradients"
     enddo
   end subroutine gradstottgrid
 
+  !> FIXME : Add documentation  
   subroutine crosstgrid(a, b, c)
     real, dimension(-ntgrid:, :), intent (in) ::  a, b
     real, dimension(-ntgrid:, :), intent (out) ::  c
@@ -1513,6 +1486,7 @@ if (debug) write(6,*) "eikcoefs: end gradients"
     enddo
   end subroutine crosstgrid
 
+  !> FIXME : Add documentation  
   subroutine dottgrid(a, b, c) 
     real, dimension (-ntgrid:, :) :: a, b
     real, dimension (-ntgrid:) :: c
@@ -1526,22 +1500,14 @@ if (debug) write(6,*) "eikcoefs: end gradients"
     enddo
   end subroutine dottgrid
 
+  !> FIXME : Add documentation    
   subroutine dottgridf(a, b, c)
     real, dimension(-ntgrid:,:), intent(in) :: a, b
     real, dimension(-ntgrid:), intent(out) :: c
     c = a(:,1)*b(:,1) + a(:,2)*b(:,2) + a(:,3)*b(:,3)
   end subroutine dottgridf
 
-  subroutine bmagtgrid(rgrid, bmagtg)
-    real, dimension (-ntgrid:), intent (in) :: rgrid
-    real, dimension (-ntgrid:), intent (out) :: bmagtg
-    integer :: i      
-
-    do i=-nth,nth
-       bmagtg(i)=bmagfun(rgrid(i),theta(i))
-    enddo
-  end subroutine bmagtgrid
-      
+  !> FIXME : Add documentation    
   real function bmagfun(r, thet)
     use mp, only: mp_abort
     implicit none
@@ -1560,6 +1526,7 @@ if (debug) write(6,*) "eikcoefs: end gradients"
     endif
   end function bmagfun
 
+  !> FIXME : Add documentation    
   function Rpos(r, thet)
     use  geq, only: geq_R => Rpos
     use  peq, only: peq_R => Rpos
@@ -1568,7 +1535,7 @@ if (debug) write(6,*) "eikcoefs: end gradients"
     use  eeq, only: eeq_R => Rpos
     use  deq, only: deq_R => Rpos
     use ideq, only: ideq_R => Rpos
-
+    implicit none
     real, intent (in) :: r, thet
     real :: rpos
 
@@ -1581,6 +1548,7 @@ if (debug) write(6,*) "eikcoefs: end gradients"
     if(local_eq)Rpos = leq_R (r, thet)       
   end function Rpos
 
+  !> FIXME : Add documentation    
   function Zpos(r, thet)
     use  geq, only: geq_Z => Zpos
     use  peq, only: peq_Z => Zpos
@@ -1589,7 +1557,7 @@ if (debug) write(6,*) "eikcoefs: end gradients"
     use  eeq, only: eeq_Z => Zpos
     use  deq, only: deq_Z => Zpos
     use ideq, only: ideq_Z => Zpos
-
+    implicit none
     real, intent (in) :: r, thet
     real :: Zpos
 
@@ -1601,7 +1569,8 @@ if (debug) write(6,*) "eikcoefs: end gradients"
     if(idfit_eq)Zpos = ideq_Z (r, thet)
     if(local_eq)Zpos =  leq_Z (r, thet)       
   end function Zpos
-  
+
+  !> FIXME : Add documentation    
   function invRfun(r, thet)
     use  geq, only: geq_invR => invR
     use  peq, only: peq_invR => invR
@@ -1610,7 +1579,7 @@ if (debug) write(6,*) "eikcoefs: end gradients"
     use  eeq, only: eeq_invR => invR
     use  deq, only: deq_invR => invR
     use ideq, only: ideq_invR => invR
-
+    implicit none
     real, intent (in) :: r, thet
     real :: invRfun
 
@@ -1627,10 +1596,11 @@ if (debug) write(6,*) "eikcoefs: end gradients"
     endif
   end function invRfun
 
+  !> FIXME : Add documentation    
   subroutine drift(rgrid, rp, bvector, gradstot,  &
        gradrptot, gradztot, gradthtot, dqdrp, dpsidrho, drhodrp, Bmod, &
        Bpolmag, Rpol, th_bish, ltheta)
-
+    implicit none
     real, dimension (-ntgrid:), intent (in) :: rgrid, Bmod, Bpolmag, Rpol, th_bish, ltheta
     real, dimension (-ntgrid:, :), intent (in) :: bvector, gradstot, gradrptot, gradztot, gradthtot
     real, intent (in) :: rp, dqdrp, dpsidrho, drhodrp
@@ -1751,7 +1721,9 @@ if (debug) write(6,*) "eikcoefs: end gradients"
     endif
   end subroutine drift
 
+  !> FIXME : Add documentation    
   subroutine sym(a, isign, ntgrid)
+    implicit none
     integer, intent(in) :: isign, ntgrid
     real, dimension(-ntgrid:), intent (in out) :: a
     integer :: i
@@ -1791,6 +1763,7 @@ if (debug) write(6,*) "eikcoefs: end gradients"
     call eikonal(rgrid, rpgrad, thgrad, qval, seik, dsdthet, dpsidrp)
   end subroutine seikon
 
+  !> FIXME : Add documentation    
   subroutine eikonal(rgrid, rpgrad, thgrad, qval, seik, dsdthet, dpsidrp)
     use constants, only: pi
     implicit none
@@ -1825,6 +1798,7 @@ if (debug) write(6,*) "eikcoefs: end gradients"
     endif
   end subroutine eikonal
 
+  !> FIXME : Add documentation    
   subroutine thetagrad(rgrid, thgrad)
     use mp, only: mp_abort
     implicit none
@@ -1849,6 +1823,7 @@ if (debug) write(6,*) "eikcoefs: end gradients"
     endif
   end subroutine thetagrad
 
+  !> FIXME : Add documentation    
   function diameter(rp)
     use geq, only: geq_diameter => diameter, geq_init_diameter => initialize_diameter
     use peq, only: peq_diameter => diameter, peq_init_diameter => initialize_diameter
@@ -1889,13 +1864,16 @@ if (debug) write(6,*) "eikcoefs: end gradients"
     endif
   end function diameter
 
+  !> FIXME : Add documentation  
   function psifun (rp)
+    implicit none
     real, intent (in) :: rp
     real :: psifun
 
     psifun=min(1.,max(0.,(rp-psi_0)/(psi_a-psi_0)))
   end function psifun
-      
+
+  !> FIXME : Add documentation    
   function rhofun (rp)
     use deq, only: deq_rhofun => rhofun, init_rho => initialize_rho
     implicit none
@@ -1910,15 +1888,19 @@ if (debug) write(6,*) "eikcoefs: end gradients"
     i = init_rho(initrho)
     rhofun=deq_rhofun(pbar)
   end function rhofun
-      
+
+  !> FIXME : Add documentation    
   function rpfun(r, thet)
+    implicit none
     real, intent (in) :: r, thet
     real :: rpfun
 
     rpfun=psi(r, thet)
   end function rpfun
-      
+
+  !> FIXME : Add documentation    
   function rpofrho(rho)
+    implicit none
     real, intent(in) :: rho
     real :: rpofrho
     real :: a, b, xerrbi, xerrsec, fval, soln
@@ -1955,8 +1937,10 @@ if (debug) write(6,*) "eikcoefs: end gradients"
     rpofrho=soln
     if(ier > 0) write(fort11_unit,*) 'error in rpofrho,rho=',rho
   end function rpofrho
-  
+
+  !> FIXME : Add documentation    
   subroutine tripprod2dtgrid(x, y, rgrid, val)
+    implicit none
     real, dimension(-ntgrid:), intent (in) :: rgrid
     real, dimension(-ntgrid:), intent (out) :: val
     real, dimension(-ntgrid:, :), intent(in) :: x, y
@@ -1969,13 +1953,14 @@ if (debug) write(6,*) "eikcoefs: end gradients"
     enddo
   end subroutine tripprod2dtgrid
 
+  !> FIXME : Add documentation    
   function btori(r, thet)
     use geq, only: geq_btori => btori , geq_init_btori => initialize_btori
     use peq, only: peq_btori => btori , ppl_init_btori => initialize_btori
     use ceq, only: ceq_btori => btori , chs_init_btori => initialize_btori
     use eeq, only: eeq_btori => btori, efit_init_btori => initialize_btori
     use leq, only: leq_btori => btori
-
+    implicit none
     real, intent (in) :: r, thet
     real :: btori
     real :: pbar, f
@@ -2026,15 +2011,15 @@ if (debug) write(6,*) "eikcoefs: end gradients"
     first_run = .false.
   end function btori
 
+  !> FIXME : Add documentation    
   function dbtori(r, thet)
-
  ! returns dI/dpsi
     use geq, only: geq_dbtori => dbtori , geq_init_dbtori => initialize_dbtori
     use peq, only: peq_dbtori => dbtori , ppl_init_dbtori => initialize_dbtori
     use ceq, only: ceq_dbtori => dbtori , chs_init_dbtori => initialize_dbtori
     use leq, only: leq_dbtori => dbtori
     use eeq, only: eeq_dbtori => dbtori, efit_init_dbtori => initialize_dbtori
-
+    implicit none
     real, intent (in) :: r, thet
     real :: dbtori
     real :: pbar, f
@@ -2073,6 +2058,7 @@ if (debug) write(6,*) "eikcoefs: end gradients"
     endif
   end function dbtori
 
+  !> FIXME : Add documentation    
   function iofrho(rho)
     use geq, only: geq_iofpbar => btori
     use peq, only: peq_iofpbar => btori
@@ -2110,6 +2096,7 @@ if (debug) write(6,*) "eikcoefs: end gradients"
   !! to the central axis (rmajor not to be confused with rmaj, r_geo etc)
   !! rgrid is the submodule radial grid (r_circ for EFIT & deq, rp otherwise)
   subroutine rmajortgrid(rgrid, theta, rmajor)
+    implicit none
     real, dimension(-ntgrid:), intent(in) :: rgrid, theta
     real, dimension(-ntgrid:), intent(out) :: rmajor
     integer :: i
@@ -2121,7 +2108,9 @@ if (debug) write(6,*) "eikcoefs: end gradients"
     return!?
   end subroutine rmajortgrid
 
+  !> FIXME : Add documentation    
   subroutine Ztgrid(rgrid, theta, Zoftheta)
+    implicit none
     real, dimension(-ntgrid:), intent(in) :: rgrid, theta
     real, dimension(-ntgrid:), intent(out) :: Zoftheta
     integer :: i
@@ -2133,6 +2122,7 @@ if (debug) write(6,*) "eikcoefs: end gradients"
     return!?
   end subroutine Ztgrid
 
+  !> FIXME : Add documentation    
   function qfun(pbar)
     use geq, only: geq_qfun => qfun, geq_init_q => initialize_q
     use peq, only: peq_qfun => qfun, ppl_init_q => initialize_q
@@ -2175,6 +2165,7 @@ if (debug) write(6,*) "eikcoefs: end gradients"
     if(initq == 1) initq = 0
   end function qfun
 
+  !> FIXME : Add documentation    
   function pfun(r,thet)
     use  geq, only: geq_pfun => pfun, geq_init_pressure => initialize_pressure
     use  peq, only: peq_pfun => pfun, ppl_init_pressure => initialize_pressure
@@ -2221,7 +2212,8 @@ if (debug) write(6,*) "eikcoefs: end gradients"
 
     if(initp == 1) initp = 0
   end function pfun
-      
+
+  !> FIXME : Add documentation    
   function dpfun(r, thet)
     use  geq, only: geq_dpfun => dpfun, geq_init_dpressure => initialize_dpressure
     use  peq, only: peq_dpfun => dpfun, ppl_init_dpressure => initialize_dpressure
@@ -2262,6 +2254,7 @@ if (debug) write(6,*) "eikcoefs: end gradients"
     if(idfit_eq) dpfun = ideq_dpfun(pbar)
   end function dpfun
 
+  !> FIXME : Add documentation    
   function beta_a_fun(r,thet)
     use  geq, only: geq_beta => betafun,  geq_init_beta => initialize_beta
     use  peq, only: peq_beta => betafun,  ppl_init_beta => initialize_beta
@@ -2310,8 +2303,10 @@ if (debug) write(6,*) "eikcoefs: end gradients"
     initbeta = 0
     beta_a_fun=f
   end function beta_a_fun
-      
+
+  !> FIXME : Add documentation    
   function pbarofrho(rho)
+    implicit none
     real, intent (in) :: rho
     real :: pbarofrho
 !     punt for now; not used
@@ -2325,13 +2320,16 @@ if (debug) write(6,*) "eikcoefs: end gradients"
     pbarofrho=min(1.,max(0.,(rpofrho(rho)-psi_0)/(psi_a-psi_0)))
   end function pbarofrho
 
+  !> FIXME : Add documentation    
   function dqdrhofun(rho)
+    implicit none
     real, intent (in) :: rho
     real dqdrhofun
     
     dqdrhofun=shat*qfun(pbarofrho(rho))/(rhoc)
   end function dqdrhofun
 
+  !> FIXME : Add documentation    
   subroutine root(f,fval,a,b,xerrbi,xerrsec,nsolv,ier,soln)
     implicit none
     real, external :: f
@@ -2396,6 +2394,7 @@ if (debug) write(6,*) "eikcoefs: end gradients"
 
   end subroutine root
 
+  !> FIXME : Add documentation    
   function phi(rp)
     use mp, only: mp_abort
     implicit none
@@ -2428,6 +2427,7 @@ if (debug) write(6,*) "eikcoefs: end gradients"
     phi=phi*(psi_a-psi_0)   ! fixed by MB
   end function phi
       
+  !> FIXME : Add documentation  
   function psi(r, thet)
     use  geq, only: geq_psi => psi,  geq_init_psi => initialize_psi
     use  peq, only: peq_psi => psi,  ppl_init_psi => initialize_psi
@@ -2479,7 +2479,9 @@ if (debug) write(6,*) "eikcoefs: end gradients"
     init = 0
   end function psi
 
+  !> FIXME : Add documentation    
   function between(x,x1,x2)
+    implicit none
     real, intent(in) :: x, x1, x2
     logical :: between
     if( ((x1 <= x).and.(x <= x2)) .or. ((x1 >= x).and.(x >= x2)) ) then
@@ -2489,7 +2491,9 @@ if (debug) write(6,*) "eikcoefs: end gradients"
     end if
   end function between
 
-  !This routine is just used by eik, not GS2
+  !> FIXME : Add documentation
+  !!
+  !! @note This routine is just used by eik, not GS2
   subroutine geofax(rho, t, e, d)
     implicit none
     real, intent (in) :: rho
@@ -2512,7 +2516,7 @@ if (debug) write(6,*) "eikcoefs: end gradients"
        rgrid = rp
     endif
 
-! do not treat up-down asymmetry completely for now
+    ! do not treat up-down asymmetry completely for now
     hmaxu = -1.e6
     hmaxl = 1.e6
     rmaxu = 0.
@@ -2537,29 +2541,30 @@ if (debug) write(6,*) "eikcoefs: end gradients"
 
        Rlo = min(a,aa)
        Rhi = max(a,aa)
-!<DD>WARNING : Rinnr has not been defined on first loop through
+       !<DD>WARNING : Rinnr has not been defined on first loop through
        if (Rinnr > Rlo) then
           Rinnr = Rlo
        end if
-!<DD>WARNING : Routr has not been defined on first loop through
+       !<DD>WARNING : Routr has not been defined on first loop through
        if (Routr < Rhi) then
           Routr = Rhi
        endif
     enddo
     a = (Rpos(rgrid(0), theta(0))-Rpos(rgrid(nth), theta(nth)))
     e = (hmaxu-hmaxl)/a
-! Ro=(Routr+Rinnr)/2. should = rcenter(rp)    
+    ! Ro=(Routr+Rinnr)/2. should = rcenter(rp)    
     rmid=(Routr-Rinnr)/2. ! midplane minor radius of this surface
-! Returning only the upper triangularity:
+    ! Returning only the upper triangularity:
     rmax=rmaxu
-! wasn't properly normalized before 29 Feb 08, and don't use asin:
-!    t = asin(rcenter(rp)-rmax)
+    ! wasn't properly normalized before 29 Feb 08, and don't use asin:
+    !    t = asin(rcenter(rp)-rmax)
     t = (rcenter(rp)-rmax)/rmid
     d = rcenter(rp) - rcenter(psi_a)
-end subroutine geofax
-      
-  function rmagaxis()
+  end subroutine geofax
 
+  !> FIXME : Add documentation    
+  function rmagaxis()
+    implicit none
     real :: rmagaxis
     
     if(iflux == 1) then
@@ -2578,8 +2583,8 @@ end subroutine geofax
     
   end function rmagaxis
 
+  !> FIXME : Add documentation    
   function rcenter(rp)
-
     use geq, only: geq_rcenter => rcenter, geq_init_rc => initialize_rcenter
     use peq, only: peq_rcenter => rcenter, peq_init_rc => initialize_rcenter
     use ceq, only: ceq_rcenter => rcenter, ceq_init_rc => initialize_rcenter
@@ -2615,6 +2620,7 @@ end subroutine geofax
     if(local_eq) rcenter = leq_rcenter()
   end function rcenter
 
+  !> FIXME : Add documentation    
   function bmodfun(r,thet)
     use geq, only: geqitem => eqitem, eqB_psi => B_psi
     use ideq, only: ideqitem => eqitem, ideqB_psi => B_psi
@@ -2643,6 +2649,7 @@ end subroutine geofax
     endif
   end function bmodfun
 
+  !> FIXME : Add documentation    
   subroutine arclength (ntheta, nperiod, gpar, arcl)
     use constants, only: pi
     implicit none
@@ -2673,7 +2680,9 @@ end subroutine geofax
     enddo
   end subroutine arclength
 
+  !> FIXME : Add documentation  
   subroutine loftheta(rgrid, theta, ltheta)
+    implicit none
     real, dimension (-ntgrid:), intent(in) :: rgrid, theta
     real, dimension (-ntgrid:), intent(out) :: ltheta
     integer :: i
@@ -2721,7 +2730,9 @@ end subroutine geofax
     enddo
   end subroutine loftheta
 
+  !> FIXME : Add documentation    
   subroutine gradl (ltheta, f, dfdl, ext, n)
+    implicit none
     real, dimension (-ntgrid:), intent(in) :: ltheta, f
     real, dimension (-ntgrid:), intent(out) :: dfdl
     real, intent(in) :: ext
@@ -2738,6 +2749,7 @@ end subroutine geofax
     dfdl(n) = dfdl(-n)
   end subroutine gradl
 
+  !> FIXME : Add documentation    
   subroutine th_bishop(rpgrad, th_bish, nth)
     use constants, only: pi
     implicit none
@@ -2774,7 +2786,9 @@ end subroutine geofax
     enddo
   end subroutine th_bishop
 
+  !> FIXME : Add documentation    
   subroutine B_pol(rgrid, theta, rpgrad, Bpolmag, nth)
+    implicit none
     integer, intent (in) :: nth
     real, dimension (-ntgrid:), intent (in) :: rgrid, theta
     real, dimension (-ntgrid:, :), intent (in) :: rpgrad
@@ -2791,7 +2805,9 @@ end subroutine geofax
     enddo
   end subroutine B_pol
 
+  !> FIXME : Add documentation    
   subroutine B_mod(rgrid, theta, Bpolmag, Bmod, nth)
+    implicit none
     integer, intent (in) :: nth
     real, dimension (-ntgrid:), intent (in) :: rgrid, theta, Bpolmag
     real, dimension(-ntgrid:), intent (out) :: Bmod
@@ -2805,6 +2821,7 @@ end subroutine geofax
     enddo
   end subroutine B_mod
 
+  !> FIXME : Add documentation    
   subroutine R_pol(theta, th_bish, ltheta, Rpol, nth)
     use constants, only: pi
     implicit none
@@ -2851,51 +2868,7 @@ end subroutine geofax
     enddo
   end subroutine R_pol
 
-  subroutine test(rgrid, theta, Bpolmag, Bmod, Rpol, th_bish, bgrad, nth)
-    implicit none
-    integer, intent (in) :: nth
-    real, dimension(-ntgrid:), intent (in) :: rgrid, theta, Bmod, Bpolmag, &
-         Rpol, th_bish
-    real, dimension(-ntgrid:, :), intent(in) :: bgrad
-    real, dimension(-ntgrid:ntgrid) :: rmajor, bbgrad
-    real :: dp, bi, di, bp
-    integer :: i
-
-    call rmajortgrid(rgrid, theta, rmajor)
-
-    if(iflux /= 1) write(*,*) 'should not be using test.'
-    dp = dpfun(rgrid(0),theta(0))
-    bi = btori(rgrid(0),theta(0))
-    di = dbtori(rgrid(0),theta(0))
-    do i = -nth, nth
-       bp=-Bpolmag(i)
-       bbgrad(i) = bp/Bmod(i) &
-            *(bp/Rpol(i) + dp*rmajor(i) &
-            - bi**2*sin(th_bish(i))/rmajor(i)**3/bp)
-!       bbgrad(i) = -di*bi/rmajor(i)*bp &
-!            -bi**2*sin(th_bish(i))/rmajor(i)**3
-    enddo
-
-    do i=-nth,nth
-       bp=-Bpolmag(i)
-       write(*,100) theta(i), &
-!            bi/rmajor(i)*bgrad(i,1), &
-            bgrad(i,1), &
-            bbgrad(i), &
-            +Bp**2/Bmod(i)/Rpol(i), &
-            +Bp/Bmod(i)*dp*rmajor(i), &
-            -1./Bmod(i)*bi**2*sin(th_bish(i))/rmajor(i)**3, &
-!            Rpol(i), &
-!            th_bish(i), &
-!            -di*bi/rmajor(i)*Bp, &
-!            -bi**2*sin(th_bish(i))/rmajor(i)**3, &
-            bbgrad(i) - bgrad(i,1)
-!            Bmod(i), bgrad(i,2)
-    enddo
-
-100 format(20(1x,g13.6))
-  end subroutine test
-
+  !> FIXME : Add documentation    
   subroutine tdef(nthg, ntheta_returned)
     use constants, only: pi
     implicit none
@@ -2932,21 +2905,9 @@ end subroutine geofax
     enddo
   end subroutine tdef
 
-  subroutine alloc_Xanth (n)
-    integer, intent(in) :: n
-
-    if (allocated(g11_X)) return
-    allocate (g11_X     (-n:n), &
-              g12_X     (-n:n), &
-              g22_X     (-n:n), &
-              B_X       (-n:n), &
-              J_X       (-n:n), &
-              K1_X      (-n:n), &
-              K2_X      (-n:n), &
-              gradpar_X (-n:n))
-  end subroutine alloc_Xanth
-
+  !> FIXME : Add documentation    
   subroutine alloc_module_arrays(n)
+    implicit none
     integer, intent(in) :: n
 !cmr Jun06: adding following debug switch
     logical, parameter :: debug=.false.
@@ -2987,7 +2948,9 @@ end subroutine geofax
     if (debug) write(6,*) "alloc_module_arrays: done"
   end subroutine alloc_module_arrays
 
+  !> FIXME : Add documentation    
   subroutine dealloc_module_arrays
+    implicit none
     if (allocated(grho)) deallocate(grho   , &
          theta, &
          bmag       , &
@@ -3022,6 +2985,7 @@ end subroutine geofax
          Bpol       )
   end subroutine dealloc_module_arrays
 
+  !> FIXME : Add documentation    
   subroutine finish_geometry
     use  geq, only:  geq_finish
     use  peq, only:  peq_finish
@@ -3044,14 +3008,13 @@ end subroutine geofax
     if(local_eq) call  leq_finish
   end subroutine finish_geometry
 
+  !> FIXME : Add documentation    
   subroutine init_theta(nt)
     use constants, only: pi
+    implicit none
     integer, intent(in) :: nt
     integer :: i
 
-!cmr Jun06: adding following debug switch
-    logical, parameter :: debug=.false.
-!cmr
     logical :: first_local = .true.
 
     ntheta=nt
@@ -3067,7 +3030,9 @@ end subroutine geofax
 
   end subroutine init_theta
 
+  !> FIXME : Add documentation    
   subroutine periodic_copy(a, ext)
+    implicit none
     real, dimension(-ntgrid:ntgrid), intent(in out) :: a
     real, intent(in) :: ext
     integer :: i, k, itot
@@ -3089,7 +3054,9 @@ end subroutine geofax
     enddo
   end subroutine periodic_copy
 
+  !> FIXME : Add documentation    
   subroutine bishop_gradB(rgrid, Bmod, Bpolmag, Rpol, th_bish, ltheta, gradB)
+    implicit none
     real, dimension(-ntgrid:), intent (in) :: rgrid, Bmod, Bpolmag, Rpol, th_bish, ltheta
     real, dimension(-ntgrid:,:), intent(out) :: gradB
     real, dimension(-ntgrid:ntgrid) :: rmajor, dBdl
@@ -3108,6 +3075,7 @@ end subroutine geofax
     enddo
   end subroutine bishop_gradB
 
+  !> FIXME : Add documentation    
   subroutine check(geq, eeq, peq, leq, deq, ideq, ceq)
     use mp, only: mp_abort
     implicit none
@@ -3214,21 +3182,21 @@ end subroutine geofax
      if(idfit_eq) call ideq_gradient(rgrid, theta, gradf, char, rp, nth, ntgrid)
      if(local_eq) call  leq_gradient(theta, gradf, char, rp, nth, ntgrid)
    end subroutine grad
-
-  !> Calculate the derivative of rp w.r.t. R and Z and return
-  !! the modulus sqrt(drp/dR ^ 2 + drp/dZ^2). I.e. return |grad rp|.
-  !! Parameters are: 
-  !!   - rgrid: Submodule radial grid (r_circ for EFIT, rp otherwise)
-  !!   - theta: grid of theta
-  !!   - gradf(:,1): |grad psi|
-  !!   - gradf(:,2): 0.0
-  !!   - char: if char = 'R', return |grad pressure| instead
-  !!   - char: if char = 'T', then return theta gradient in bishop form
-  !!    - gradf(:,1): (dtheta/dZ d rp/dR - dtheta/dR drp/dZ)/ |grad rp|
-  !!    - gradf(:,2): (dtheta/dR d rp/dR + dtheta/dZ drp/dZ)/ |grad rp|
-  !!   - rp: value of rp on the flux surface where we want the grad
-  !!   - nth: number of theta points
-  !!   - ntgrid: lower index of theta array is -ntgrid
+   
+   !> Calculate the derivative of rp w.r.t. R and Z and return
+   !! the modulus sqrt(drp/dR ^ 2 + drp/dZ^2). I.e. return |grad rp|.
+   !! Parameters are: 
+   !!   - rgrid: Submodule radial grid (r_circ for EFIT, rp otherwise)
+   !!   - theta: grid of theta
+   !!   - gradf(:,1): |grad psi|
+   !!   - gradf(:,2): 0.0
+   !!   - char: if char = 'R', return |grad pressure| instead
+   !!   - char: if char = 'T', then return theta gradient in bishop form
+   !!    - gradf(:,1): (dtheta/dZ d rp/dR - dtheta/dR drp/dZ)/ |grad rp|
+   !!    - gradf(:,2): (dtheta/dR d rp/dR + dtheta/dZ drp/dZ)/ |grad rp|
+   !!   - rp: value of rp on the flux surface where we want the grad
+   !!   - nth: number of theta points
+   !!   - ntgrid: lower index of theta array is -ntgrid
    subroutine bgrad(rgrid, theta, gradf, char, rp, nth, ntgrid)
      use  geq, only:  geq_bgradient => bgradient
      use  peq, only:  peq_bgradient => bgradient
@@ -3356,6 +3324,7 @@ end subroutine geofax
 ! 1000 format(1x,11e16.9)
   end function rfun
 
+  !> FIXME : Add documentation    
   function zbrent(func, x1, x2, rootval, thetroot, tol)
     use mp, only: mp_abort
     implicit none
@@ -3443,7 +3412,9 @@ end subroutine geofax
        zbrent=b
   end function zbrent
 
-  !Not used by GS2 (just eik/et)
+  !> FIXME : Add documentation  
+  !!
+  !! @note Not used by GS2 (just eik/et)
   subroutine Hahm_Burrell(i, a)   
     use geq, only: geq_Hahm_Burrell => Hahm_Burrell
     use peq, only: peq_Hahm_Burrell => Hahm_Burrell
@@ -3458,7 +3429,9 @@ end subroutine geofax
     if(chs_eq) call ceq_Hahm_Burrell(i, a)
   end subroutine Hahm_Burrell
 
+  !> FIXME : Add documentation    
   function nth_get()
+    implicit none
     integer :: nth_get
 
     nth_get = nth
@@ -3468,6 +3441,7 @@ end subroutine geofax
   !! with respect to the internal flux label rp (the 
   !! normalised poloidal flux)
   subroutine drho_drp(rp, drhodrp)
+    implicit none
     real, intent(in) :: rp
     real, intent (out) :: drhodrp
     real :: rp1, rp2, rho1, rho2
@@ -3491,7 +3465,9 @@ end subroutine geofax
     drhodrp=(rho2-rho1)/(rp2-rp1)
   end subroutine drho_drp
 
+  !> FIXME : Add documentation    
   subroutine drho_drhod(rp, drhodrp, drhodrhod)
+    implicit none
     real, intent (in) :: drhodrp, rp
     real, intent (out) :: drhodrhod
     real :: rp1, rp2,  rho1, rho2
@@ -3504,7 +3480,9 @@ end subroutine geofax
     drhodrhod=drhodrp/((rho2-rho1)/(rp2-rp1))
   end subroutine drho_drhod
 
+  !> FIXME : Add documentation    
   function fluxavg(f)
+    implicit none
     real, dimension(-nth:nth), intent(in) :: f
     real :: fluxavg
     real, dimension(-nth:nth) :: delth
@@ -3516,7 +3494,9 @@ end subroutine geofax
     fluxavg = sum(f*jacob(-nth:nth)*delth)/sum(jacob(-nth:nth)*delth)
   end function fluxavg
 
+  !> FIXME : Add documentation    
   function f_trap(b_mag)
+    implicit none
     real, dimension(-nth:nth), intent (in) :: b_mag
     real :: f_trap, ftu, ftl, havg, h2avg, h(-nth:nth)
 
@@ -3530,7 +3510,9 @@ end subroutine geofax
     f_trap = 0.75*ftu + 0.25*ftl 
   end function f_trap
 
+  !> FIXME : Add documentation    
   subroutine plotdata (rgrid, seik, grads, dpsidrho)
+    implicit none
     real, dimension (-ntgrid:), intent (in) :: rgrid, seik
     real, dimension (-ntgrid:,:), intent (in) :: grads
     real, intent (in) :: dpsidrho
@@ -3571,9 +3553,7 @@ end subroutine geofax
   end subroutine plotdata
 end module geometry
 
-
-
-  !type(geometry_advanced_parameters_type) :: geometry_advanced_parameters 
+!> THE FOLLOWING FREE ROUTINES SHOULD BE PLACED IN A MODULE IF POSSIBLE
 
 !> This subroutine implements a general interface to geometry
 !! which can be used outside GS2; in particular, it can be
@@ -3592,8 +3572,6 @@ end module geometry
 !!
 !! Massive note to self, check where iflux and local_eq are set
 !! in GS2
-
-!contains
 subroutine geometry_set_inputs(equilibrium_type,&
                                !eqfile_in, &
                                irho_in, &
@@ -3668,7 +3646,6 @@ end subroutine geometry_set_inputs
 !> This subroutine gets default values for the advanced switches,
 !! returning a derived type (advanced_parameters_type) containing
 !! all the parameters. It does not modify the geometry variables. 
-
 subroutine geometry_get_default_advanced_parameters(advanced_parameters_out)
   use geometry, only: advanced_parameters_type
   implicit none
@@ -3732,6 +3709,7 @@ subroutine geometry_set_advanced_parameters(advanced_parameters_in)
 
 end subroutine geometry_set_advanced_parameters
 
+!> FIXME : Add documentation
 subroutine geometry_get_miller_parameters(miller_parameters_out)
   use geometry, only: geoType, rmaj, r_geo, aSurf, shift, shiftVert, mMode, nMode
   use geometry, only: deltam, deltan, deltampri, deltanpri, thetam, thetan, qinp, shat
@@ -3760,6 +3738,7 @@ subroutine geometry_get_miller_parameters(miller_parameters_out)
 
 end subroutine geometry_get_miller_parameters
 
+!> FIXME : Add documentation
 subroutine geometry_set_miller_parameters(miller_parameters_in)
   use geometry, only: geoType, rmaj, r_geo, aSurf, shift, shiftVert, mMode, nMode
   use geometry, only: deltam, deltan, deltampri, deltanpri, thetam, thetan, qinp, shat
@@ -3799,7 +3778,6 @@ end subroutine geometry_set_miller_parameters
 !> Vary the magnetic shear and pressure gradient 
 !! while maintaing a solution to the Grad-Shrafranov eqn,
 !! as described variously by Greene & Chance, Bishop and Miller.
-!! 
 subroutine geometry_vary_s_alpha(s_hat_input_in, beta_prime_input_in)
   use geometry, only: s_hat_input, beta_prime_input
   implicit none
@@ -3808,6 +3786,7 @@ subroutine geometry_vary_s_alpha(s_hat_input_in, beta_prime_input_in)
   beta_prime_input = beta_prime_input_in
 end subroutine geometry_vary_s_alpha
 
+!> FIXME : Add documentation
 subroutine geometry_calculate_coefficients(grid_size)
   use geometry, only: eikcoefs, nperiod, equal_arc
   implicit none
@@ -3916,7 +3895,7 @@ subroutine geometry_get_coefficients(grid_size, coefficients_out)
     subroutine create_interp_matrix
       use geometry, only: theta, theta_eqarc
       use splines, only: inter_cspl
-      integer :: j,k
+      integer :: j
       real, dimension(grid_size) :: delta_array
       do j = 1,grid_size
         delta_array = 0.
@@ -3939,8 +3918,9 @@ subroutine geometry_get_coefficients(grid_size, coefficients_out)
 
 end subroutine geometry_get_coefficients
 
+!> FIXME : Add documentation
 subroutine geometry_get_constant_coefficients(constant_coefficients_out)
-  use geometry, only: qsf, rmaj, shat, kxfac, aminor, drhodpsin, gradpar
+  use geometry, only: qsf, rmaj, shat, kxfac, aminor, drhodpsin
   use geometry, only: bi_out
   use geometry, only: constant_coefficients_type, constant_coefficients
   implicit none

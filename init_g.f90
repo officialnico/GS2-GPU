@@ -1,6 +1,5 @@
 !> This module contains the subroutines which set the initial value of the
 !! fields and the distribution function.
-
 module init_g
   implicit none
 
@@ -92,6 +91,7 @@ module init_g
 
 contains
 
+  !> FIXME : Add documentation
   subroutine wnml_init_g(unit)
     use run_parameters, only: k0
     implicit none
@@ -263,7 +263,8 @@ contains
     end select
     write (unit, fmt="(' /')")
   end subroutine wnml_init_g
- 
+
+  !> FIXME : Add documentation  
   subroutine check_init_g(report_unit)
     use run_parameters, only : delt_option_switch, delt_option_auto
     use species, only : spec, has_electron_species
@@ -586,6 +587,7 @@ contains
     end if
   end subroutine check_init_g
 
+  !> FIXME : Add documentation  
   subroutine init_init_g
     use gs2_save, only: set_restart_file, read_many
     use gs2_layouts, only: init_gs2_layouts
@@ -682,6 +684,7 @@ contains
     
   end subroutine init_init_g
 
+  !> FIXME : Add documentation  
   subroutine ginit (restarted, override_ginitopt_switch)
     use gs2_save, only: init_tstart
     implicit none
@@ -823,6 +826,7 @@ contains
     end select
   end subroutine ginit
 
+  !> FIXME : Add documentation  
   subroutine read_parameters
     use file_utils, only: input_unit, error_unit, run_name, input_unit_exist
     use text_options, only: text_option, get_option_value
@@ -962,6 +966,7 @@ contains
          ierr, "ginit_option in ginit_knobs",.true.)
   end subroutine read_parameters
 
+  !> FIXME : Add documentation  
   subroutine ginit_default
     use species, only: spec
     use theta_grid, only: ntgrid, theta
@@ -1009,6 +1014,7 @@ contains
     gnew = g
   end subroutine ginit_default
 
+  !> FIXME : Add documentation  
   subroutine ginit_default_odd
     use species, only: spec
     use theta_grid, only: ntgrid, theta
@@ -1056,8 +1062,7 @@ contains
     gnew = g
   end subroutine ginit_default_odd
 
-  !> Initialise with only the kparallel = 0 mode.
-  
+  !> Initialise with only the kparallel = 0 mode. 
   subroutine ginit_kz0
     use species, only: spec
     use theta_grid, only: ntgrid 
@@ -1103,62 +1108,7 @@ contains
     gnew = g
   end subroutine ginit_kz0
 
-!  subroutine ginit_noise
-!    use species, only: spec
-!    use theta_grid, only: ntgrid 
-!    use kt_grids, only: naky, ntheta0, aky, reality
-!    use le_grids, only: forbid
-!    use dist_fn_arrays, only: g, gnew
-!    use gs2_layouts, only: g_lo, ik_idx, it_idx, il_idx, is_idx
-!    use ran
-!    implicit none
-!    complex, dimension (-ntgrid:ntgrid,ntheta0,naky) :: phi
-!    real :: a, b
-!    integer :: iglo
-!    integer :: ig, ik, it, il, is
-!
-!! keep old (it, ik) loop order to get old results exactly: 
-!    do it = 1, ntheta0
-!       do ik = 1, naky
-!          do ig = -ntgrid, ntgrid
-!             a = ranf()-0.5
-!             b = ranf()-0.5
-!!             phi(:,it,ik) = cmplx(a,b)
-!             phi(ig,it,ik) = cmplx(a,b)
-!          end do
-!          if (chop_side) then
-!             if (left) then
-!                phi(:-1,it,ik) = 0.0
-!             else
-!                phi(1:,it,ik) = 0.0
-!             end if
-!          end if
-!       end do
-!    end do
-!
-!    if (naky > 1 .and. aky(1) == 0.0) then
-!       phi(:,:,1) = phi(:,:,1)*zf_init
-!    end if
-!! reality condition for k_theta = 0 component:
-!    if (reality) then
-!       do it = 1, ntheta0/2
-!          phi(:,it+(ntheta0+1)/2,1) = conjg(phi(:,(ntheta0+1)/2+1-it,1))
-!       enddo
-!    end if
-!       
-!
-!    do iglo = g_lo%llim_proc, g_lo%ulim_proc
-!       ik = ik_idx(g_lo,iglo)
-!       it = it_idx(g_lo,iglo)
-!       il = il_idx(g_lo,iglo)
-!       is = is_idx(g_lo,iglo)
-!       g(:,1,iglo) = -phi(:,it,ik)*spec(is)%z*phiinit
-!       where (forbid(:,il)) g(:,1,iglo) = 0.0
-!       g(:,2,iglo) = g(:,1,iglo)
-!    end do
-!    gnew = g
-!  end subroutine ginit_noise
-  
+  !> FIXME : Add documentation  
   subroutine single_initial_kx(phi)
     use theta_grid, only: ntgrid 
     use kt_grids, only: naky, ntheta0
@@ -1166,7 +1116,6 @@ contains
     use mp, only: mp_abort
     implicit none
     complex, dimension (-ntgrid:ntgrid,ntheta0,naky), intent(inout) :: phi
-    real :: a, b
     integer :: ig, ik, it
 
     if (ikx_init  < 2 .or. ikx_init > (ntheta0+1)/2) then
@@ -1553,7 +1502,8 @@ contains
     gnew = g
 
   end subroutine ginit_all_modes_equal
-  
+
+  !> FIXME : Add documentation  
   subroutine ginit_nl
     use species, only: spec
     use theta_grid, only: ntgrid 
@@ -1605,6 +1555,7 @@ contains
     gnew = g
   end subroutine ginit_nl
 
+  !> FIXME : Add documentation  
   subroutine ginit_nl2
     use species, only: spec
     use theta_grid, only: ntgrid, theta
@@ -1659,6 +1610,7 @@ contains
     gnew = g
   end subroutine ginit_nl2
 
+  !> FIXME : Add documentation  
   subroutine ginit_nl3
     use species, only: spec, has_electron_species
     use theta_grid, only: ntgrid, theta
@@ -1759,6 +1711,7 @@ contains
     gnew = g
   end subroutine ginit_nl3
 
+  !> FIXME : Add documentation  
   subroutine ginit_nl3r
     use species, only: spec, has_electron_species
     use theta_grid, only: ntgrid, theta
@@ -1864,6 +1817,7 @@ contains
     gnew = g
   end subroutine ginit_nl3r
 
+  !> FIXME : Add documentation  
   subroutine ginit_harris
     use species, only: spec, has_electron_species
     use kt_grids, only: naky, ntheta0, reality, nx
@@ -1962,6 +1916,7 @@ contains
 
   end subroutine ginit_harris
 
+  !> FIXME : Add documentation  
   subroutine ginit_recon
     use mp, only: proc0
     use species, only: spec, has_electron_species
@@ -2077,8 +2032,10 @@ contains
     gnew = g
   end subroutine ginit_recon
 
-! nl4 has been monkeyed with over time.  Do not expect to recover old results
-! that use this startup routine.
+  !> FIXME : Add documentation
+  !!
+  !! @note nl4 has been monkeyed with over time.  Do not expect to recover old results
+  !! that use this startup routine.
   subroutine ginit_nl4
     use mp, only: proc0
     use species, only: spec
@@ -2180,6 +2137,7 @@ contains
 
   end subroutine ginit_nl4
 
+  !> FIXME : Add documentation  
   subroutine ginit_nl5
     use mp, only: proc0
     use species, only: spec
@@ -2270,6 +2228,7 @@ contains
 
   end subroutine ginit_nl5
 
+  !> FIXME : Add documentation  
   subroutine ginit_nl6
     use mp, only: proc0
     use gs2_save, only: gs2_restore
@@ -2326,6 +2285,7 @@ contains
 
   end subroutine ginit_nl6
 
+  !> FIXME : Add documentation  
   subroutine ginit_nl7
     use species, only: spec, has_electron_species
     use theta_grid, only: ntgrid, theta
@@ -2411,7 +2371,7 @@ contains
 
   end subroutine ginit_nl7
 
-  ! Orszag-Tang 2D vortex problem
+  !> Orszag-Tang 2D vortex problem
   subroutine ginit_ot
     use species, only: spec
     use theta_grid, only: ntgrid
@@ -2423,7 +2383,7 @@ contains
     implicit none
     integer :: iglo, ik, it, is, i
     real :: fac
-    complex, dimension (-ntgrid:ntgrid,nakx,naky) :: phi, jpar !! local !!
+    complex, dimension (-ntgrid:ntgrid,nakx,naky) :: phi, jpar ! local !
     real, dimension (-ntgrid:ntgrid) :: dfac, ufac
 
     !! phi, jpar are local !!
@@ -2508,6 +2468,7 @@ contains
 
   end subroutine ginit_ot
 
+  !> FIXME : Add documentation
   subroutine ginit_kpar
     use species, only: spec, has_electron_species
     use theta_grid, only: ntgrid, theta
@@ -2580,6 +2541,7 @@ contains
     gnew = g
   end subroutine ginit_kpar
 
+  !> FIXME : Add documentation  
   subroutine ginit_gs
     use species, only: spec, has_electron_species
     use theta_grid, only: ntgrid, theta
@@ -2645,6 +2607,7 @@ contains
     gnew = g
   end subroutine ginit_gs
 
+  !> FIXME : Add documentation  
   subroutine ginit_xi
     use theta_grid, only: ntgrid, theta, bmag
     use le_grids, only: forbid, al
@@ -2670,6 +2633,7 @@ contains
     gnew = g
   end subroutine ginit_xi
 
+  !> FIXME : Add documentation  
   subroutine ginit_xi2
     use theta_grid, only: ntgrid, theta, bmag
     use le_grids, only: forbid, al
@@ -2695,6 +2659,7 @@ contains
     gnew = g
   end subroutine ginit_xi2
 
+  !> FIXME : Add documentation  
   subroutine ginit_rh
     use le_grids, only: forbid, energy
     use dist_fn_arrays, only: g, gnew
@@ -2715,6 +2680,7 @@ contains
     gnew = g
   end subroutine ginit_rh
 
+  !> FIXME : Add documentation
   subroutine ginit_alf
     use theta_grid, only: theta
     use le_grids, only: forbid
@@ -2739,6 +2705,7 @@ contains
     gnew = g
   end subroutine ginit_alf
 
+  !> FIXME : Add documentation
   subroutine ginit_zero
     use dist_fn_arrays, only: g, gnew
     implicit none
@@ -2746,6 +2713,7 @@ contains
     gnew = 0.0
   end subroutine ginit_zero
 
+  !> FIXME : Add documentation  
   subroutine ginit_test3
     use dist_fn_arrays, only: g, gnew, vpa
     use theta_grid, only: ntgrid, delthet, bmag
@@ -2780,6 +2748,7 @@ contains
     gnew = g
   end subroutine ginit_test3
 
+  !> FIXME : Add documentation  
   subroutine ginit_convect
     use dist_fn_arrays, only: g, gnew
     use theta_grid, only: theta
@@ -2798,6 +2767,7 @@ contains
     gnew = g
   end subroutine ginit_convect
 
+  !> FIXME : Add documentation  
   subroutine ginit_recon3
     use mp, only: proc0, mp_abort
     use species, only: nspec, spec, has_electron_species
@@ -3446,7 +3416,9 @@ contains
     endif
 
   contains
+    !> FIXME : Add documentation    
     function get_xmax(xguess) result(xsol)
+      implicit none
       real :: xsol
       real, intent(in) :: xguess
       real, parameter :: tol=1.e-20
@@ -3464,7 +3436,9 @@ contains
       end do
     end function get_xmax
 
+    !> FIXME : Add documentation    
     function f(x)
+      implicit none
       real :: f
       real, intent(in) :: x
       real :: xa, xl1, xl2
@@ -3485,7 +3459,9 @@ contains
 
     end function f
 
+    !> FIXME : Add documentation
     function fprime(x)
+      implicit none
       real :: fprime
       real, intent(in) :: x
       real :: xa, xl1, xl2
@@ -3512,6 +3488,7 @@ contains
 
   end subroutine ginit_recon3
 
+  !> FIXME : Add documentation  
   subroutine ginit_restart_file
     use dist_fn_arrays, only: g, gnew
     use fields_arrays, only: phi, apar, bpar, phinew, aparnew, bparnew
@@ -3533,6 +3510,7 @@ contains
 
   end subroutine ginit_restart_file
 
+  !> FIXME : Add documentation  
   subroutine ginit_restart_many
     use dist_fn_arrays, only: g, gnew
     use fields_arrays, only: phi, apar, bpar, phinew, aparnew, bparnew
@@ -3556,6 +3534,7 @@ contains
     phi=phinew ; apar=aparnew ; bpar=bparnew
   end subroutine ginit_restart_many
 
+  !> FIXME : Add documentation  
   subroutine ginit_restart_eig
     use dist_fn_arrays, only: g, gnew
     use fields_arrays, only: phi, apar, bpar, phinew, aparnew, bparnew
@@ -3579,6 +3558,7 @@ contains
     phi=phinew ; apar=aparnew ; bpar=bparnew
   end subroutine ginit_restart_eig
 
+  !> FIXME : Add documentation  
   subroutine ginit_restart_memory
     use dist_fn_arrays, only: g, gnew, g_restart_tmp
     use file_utils, only: error_unit
@@ -3594,6 +3574,7 @@ contains
     end if
   end subroutine ginit_restart_memory
 
+  !> FIXME : Add documentation    
   subroutine ginit_restart_small
     use dist_fn_arrays, only: g, gnew
     use gs2_save, only: gs2_restore
@@ -3616,8 +3597,8 @@ contains
 
   end subroutine ginit_restart_small
 
+  !> FIXME : Add documentation    
   subroutine ginit_restart_smallflat
-
     use gs2_save, only: gs2_restore
     use mp, only: proc0
     use file_utils, only: error_unit
@@ -3681,9 +3662,9 @@ contains
   !> Restart but remove all turbulence except the zonal flow (ky = 0) component upon 
   !! restarting. It can be selected by setting the input parameter ginit to "zonal_only". 
   !! The size of the zonal flows can be adjusted using the input parameter zf_init. 
-  ! Author EGH
+  !!
+  !! Author EGH
   subroutine ginit_restart_zonal_only
-
     use gs2_save, only: gs2_restore
     use mp, only: proc0
     use file_utils, only: error_unit
@@ -3719,7 +3700,7 @@ contains
     
     ! Set all non-zonal components of phi to 0
     do it = 1, ntheta0
-       do ik = 2, naky ! Starting at 2 is the crucial bit!!
+       do ik = 2, naky ! Starting at 2 is the crucial bit!
           phinew(:,it,ik) = cmplx(0.0,0.0)
        end do
     end do
@@ -3764,12 +3745,12 @@ contains
   !> Restart but remove the zonal flow (ky = 0) component upon restarting.
   !! It can be selected by setting the input parameter ginit to "no_zonal". 
   !! The size of the zonal flows can be adjusted using the input parameter zf_init.
+  !!
   !! Author: FvW (copy of EGH code)
   subroutine ginit_restart_no_zonal
     use gs2_save, only: gs2_restore
     use mp, only: proc0
     use file_utils, only: error_unit
-    use kt_grids, only: naky, ntheta0
     use le_grids, only: forbid
     use dist_fn_arrays, only: g, gnew
     use gs2_layouts, only: g_lo, ik_idx, it_idx, il_idx, is_idx
@@ -3809,10 +3790,12 @@ contains
 
   end subroutine ginit_restart_no_zonal
 
-! The stationary mode test case is a method of testing the geometry
-! implementation by initializing the distribution function in a particular way
-! For collisionless runs with ky=0, we expect the solution to be
-! time-independent (see section 3.3.1 of Ball MIT Masters thesis) ! JRB
+  !> The stationary mode test case is a method of testing the geometry
+  !! implementation by initializing the distribution function in a particular way
+  !! For collisionless runs with ky=0, we expect the solution to be
+  !! time-independent (see section 3.3.1 of Ball MIT Masters thesis)
+  !!
+  !! JRB
   subroutine ginit_stationary_mode
     use species, only: spec, nspec
     use theta_grid, only: ntgrid, theta, bmag
@@ -3827,9 +3810,8 @@ contains
 
     complex, dimension (-ntgrid:ntgrid) :: phi
     integer :: iglo
-    integer :: ig, ik, it, il, is, ie
+    integer :: ig, ik, it, is
 
-    integer :: i
     real, dimension (-ntgrid:ntgrid) :: numeratorSum
     real :: denominatorSum
 
@@ -3859,6 +3841,7 @@ contains
     gnew = g
   end subroutine ginit_stationary_mode
 
+  !> FIXME : Add documentation    
   subroutine reset_init(from_file)
     implicit none
     logical, intent(in) :: from_file
@@ -3870,6 +3853,7 @@ contains
     endif
   end subroutine reset_init
 
+  !> FIXME : Add documentation    
   subroutine flae (g, gavg)
     use species, only: spec, electron_species 
     use theta_grid, only: ntgrid, delthet, jacob
@@ -3893,6 +3877,7 @@ contains
 
   end subroutine flae
 
+  !> FIXME : Add documentation    
   subroutine init_vnmult (vnm)
     use gs2_save, only: init_vnm
     real, dimension (2), intent(in out) :: vnm
@@ -3902,9 +3887,9 @@ contains
 
   end subroutine init_vnmult
 
+  !> FIXME : Add documentation    
   subroutine finish_init_g
     implicit none
-
     initialized = .false.
   end subroutine finish_init_g
 end module init_g

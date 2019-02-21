@@ -1,4 +1,3 @@
-
 !> A program that calls init_transforms, to be used for generating fftw wisdom 
 !! for a given input file.
 !!
@@ -23,7 +22,6 @@ program generate_fftw_wisdom
   use constants, only: run_name_size
   implicit none
   character(run_name_size), target :: cbuff
-  real :: tstart
   logical :: dummy=.false.
   real :: time_taken(2) = 0.0
   !integer :: i
@@ -33,29 +31,25 @@ program generate_fftw_wisdom
   ! Set up depenencies
   call init_mp
   if (proc0) call init_file_utils(dummy, name="gs")
-       if (proc0) then
-          cbuff = trim(run_name)
-       end if
-       
-       call broadcast (cbuff)
-       if (.not. proc0) run_name => cbuff
+  if (proc0) then
+     cbuff = trim(run_name)
+  end if
 
-
-
-
+  call broadcast (cbuff)
+  if (.not. proc0) run_name => cbuff
 
   if (proc0) call time_message(.false., time_taken, "Init transforms")
 
   call init_nonlinear_terms
 
   if (proc0) then
-    call time_message(.false., time_taken, "Init transforms")
-    write(*, '(" Time taken to calculate fftw plans ",I6," procs: ",F3.1," s")') nproc, time_taken(1)
-    write(*,*)
-!    call append_output_file(timing_unit, &
-!      benchmark_identifier())
-!    write(timing_unit, '(I6,"   ",F9.3)') nproc, time_taken(1)
-!    call close_output_file(timing_unit)
+     call time_message(.false., time_taken, "Init transforms")
+     write(*, '(" Time taken to calculate fftw plans ",I6," procs: ",F3.1," s")') nproc, time_taken(1)
+     write(*,*)
+     !    call append_output_file(timing_unit, &
+     !      benchmark_identifier())
+     !    write(timing_unit, '(I6,"   ",F9.3)') nproc, time_taken(1)
+     !    call close_output_file(timing_unit)
   end if
 
   !call finish_nonlinear_terms
