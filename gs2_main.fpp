@@ -1213,14 +1213,11 @@ contains
   end subroutine prepare_initial_values_overrides
 
   subroutine set_initval_overrides_to_current_vals(initval_ov)
-    use dist_fn_arrays, only: gnew, g_restart_tmp
+    use dist_fn_arrays, only: gnew
     use gs2_save, only: gs2_save_for_restart
     use mp, only: proc0, broadcast, mp_abort
     use collisions, only: vnmult
-    use gs2_layouts, only: g_lo
-    use theta_grid, only: ntgrid
     use file_utils, only: error_unit
-    use kt_grids, only: ntheta0, naky
     use run_parameters, only: fphi, fapar, fbpar
     use fields, only:  force_maxwell_reinit
     use fields_arrays, only: phinew, aparnew, bparnew
@@ -1229,7 +1226,6 @@ contains
     use antenna, only: dump_ant_amp
     implicit none
     type(initial_values_overrides_type), intent(inout) :: initval_ov
-    integer :: iostat
     integer :: istatus
     !if (.not. state%included) return
 
@@ -1288,7 +1284,6 @@ contains
     use nonlinear_terms, only: nonlinear_mode_switch, nonlinear_mode_none
     use run_parameters, only: trinity_linear_fluxes, trinity_ql_fluxes
     use species, only: nspec, spec
-    use species, only: ions, electrons, impurity
     use run_parameters, only: use_old_diagnostics
     use mp, only: mp_abort
     implicit none
@@ -1393,7 +1388,7 @@ contains
   end subroutine reset_timers
 
   subroutine print_times(state, timers)
-    use mp, only: proc0, nproc, min_reduce, max_reduce, sum_reduce
+    use mp, only: proc0, min_reduce, max_reduce, sum_reduce
     use redistribute, only: time_redist
     use fields_arrays, only: time_field
     use gs2_reinit, only: time_reinit
@@ -1488,7 +1483,7 @@ subroutine run_gs2 (mpi_comm, job_id, filename, nensembles, &
 
    
    use job_manage, only: trin_restart, trin_reset, time_message
-    use unit_tests, only: functional_test_flag, ilast_step
+    use unit_tests, only: functional_test_flag
     use mp, only: proc0
     use old_interface_store, only: override_profiles, override_miller_geometry
     implicit none
@@ -1682,7 +1677,7 @@ subroutine run_gs2 (mpi_comm, job_id, filename, nensembles, &
     use mp, only: scope, subprocs, allprocs
     use mp, only: mp_abort
     use run_parameters, only: trinity_linear_fluxes
-    use species, only: nspec, spec, impurity, ions, electrons
+    use species, only: nspec
     use species, only: determine_species_order
     use run_parameters, only: use_old_diagnostics
 #ifdef NEW_DIAG
@@ -1786,7 +1781,7 @@ subroutine run_gs2 (mpi_comm, job_id, filename, nensembles, &
 
   subroutine old_interface_set_overrides
     use old_interface_store
-    use gs2_init, only: init, init_level_list
+    use gs2_init, only: init
     integer :: is, isg
 
     if (override_miller_geometry) then 
@@ -1850,7 +1845,7 @@ subroutine run_gs2 (mpi_comm, job_id, filename, nensembles, &
   end subroutine old_interface_set_overrides
 
   subroutine determine_gs2spec_from_trin(ntspec, trin_multispec_in)
-    use species, only: determine_species_order, spec, nspec, impurity, ions
+    use species, only: determine_species_order, nspec, impurity, ions
     use species, only: electrons
     use mp, only: mp_abort
     integer, intent(in) :: ntspec

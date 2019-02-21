@@ -13,7 +13,7 @@ contains
 
   subroutine init_diagnostics_transfer(gnostics)
 
-    use kt_grids, only: naky, ntheta0, nx, ny, akx, aky
+    use kt_grids, only: naky, ntheta0, nx, ny
     use theta_grid, only: ntgrid
     use species, only: nspec
     use le_grids, only: init_le_grids, nlambda, negrid
@@ -25,11 +25,9 @@ contains
 
     type(diagnostics_type), intent(inout) :: gnostics
 
-    logical :: accel
+    logical :: accel_x, accel_v
 
     if(.not. gnostics%write_zonal_transfer) return
-    
-    accel=.false.
 
     !> initialize zonal_transfer to zero
     gnostics%current_results%zonal_transfer = 0.0
@@ -38,9 +36,9 @@ contains
     !! le_grids for integration, init_gs2 transforms to initiate fourier transforms routines, etc.
     
     !> calls init_theta_grid, init_kt_grids, init_gs2_layouts, and init_species for later use
-    call init_le_grids(accel,accel)
+    call init_le_grids(accel_x, accel_v)
     !> will need to use fft routines
-    call init_transforms(ntgrid, naky, ntheta0, nlambda, negrid, nspec, nx, ny, accel)
+    call init_transforms(ntgrid, naky, ntheta0, nlambda, negrid, nspec, nx, ny, accel_x)
     call init_dist_fn_layouts(naky, ntheta0, nlambda, negrid, nspec)
 !!!! accel_x =false : useless
     
@@ -65,7 +63,7 @@ contains
     implicit none
     
     complex, dimension (-ntgrid:,:,g_lo%llim_proc:), intent(out) :: g1
-    integer :: i, j, k, isgn
+    integer :: i, j
 !    complex, dimension(-ntgrid:ntgrid,nspec,negrid,nlambda,2) :: test_sum
     integer :: iglo, ik, it, ig, is
     
@@ -265,7 +263,7 @@ contains
     use mp, only: proc0, broadcast
     use theta_grid, only: ntgrid
     use gs2_layouts, only: g_lo, ik_idx, it_idx
-    use species, only: nspec, spec
+    use species, only: nspec
     use kt_grids, only: ntheta0, naky
     use le_grids, only: integrate_moment
 
@@ -277,7 +275,7 @@ contains
     complex, dimension (:,:,:), allocatable :: inter
     complex, dimension (:,:,:,:), allocatable :: inter_s
 
-    integer :: ik, it, is, iglo
+    integer :: ik, it, is
     
     allocate (g0(-ntgrid:ntgrid,2,g_lo%llim_proc:g_lo%ulim_alloc))
     allocate (inter(-ntgrid:ntgrid,ntheta0,naky)) ; inter = 0.
@@ -319,7 +317,6 @@ contains
     use diagnostics_create_and_write, only: create_and_write_variable
     use diagnostics_dimensions, only: dim_string
     use fields_parallelization, only: field_k_local
-    use kt_grids, only: ntheta0, naky
     use diagnostics_config, only: diagnostics_type
     
     implicit none

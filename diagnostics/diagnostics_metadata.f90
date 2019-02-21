@@ -17,10 +17,6 @@ contains
     use runtime_tests, only: is_release, release
     use run_parameters, only: user_comments
     type(diagnostics_type), intent(in) :: gnostics
-    character (20) :: datestamp, timestamp, timezone
-    character (31) :: strtime
-    !integer :: inttime
-    integer, dimension(8) :: values
 
     call add_metadata(gnostics%sfile, "title", &
       jline("")//&

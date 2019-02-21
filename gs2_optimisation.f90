@@ -35,7 +35,7 @@ module gs2_optimisation
     end subroutine finalize_gs2_optimisation
 
     subroutine optimise_gs2(state)
-      use mp, only: proc0, mp_abort
+      use mp, only: mp_abort
       use fields_implicit, only: skip_initialisation
       use fields_local, only: fieldmat
       implicit none
@@ -251,7 +251,6 @@ write(ou,formt)bk,bk,bk,bk,bk,'b','s','a','v','c','u','u','t','t','c','u','o',bk
       use gs2_main, only: initialize_gs2, initialize_equations, initialize_diagnostics
       use gs2_main, only: finalize_gs2, finalize_equations, finalize_diagnostics
       type(gs2_program_state_type), intent(inout) :: state
-      integer, dimension (4) :: nproc_values = (/8,4,2,1/)
       integer :: i
 
       state%init%opt_ov%override_nproc = .false.
@@ -293,7 +292,6 @@ write(ou,formt)bk,bk,bk,bk,bk,'b','s','a','v','c','u','u','t','t','c','u','o',bk
     end subroutine optimise_nprocs
 
     subroutine optimise_layout(state)
-      use mp, only: proc0
       type(gs2_program_state_type), intent(inout) :: state
       !> Measure default layout
       state%init%opt_ov%override_layout = .true.

@@ -115,7 +115,6 @@ contains
   end subroutine run_ingen
 
   subroutine init_ingen
-    use mp, only: nproc
     n_sweet_spots = 0
     npmax=100000
     allocate(sweet_spots(1))
@@ -132,7 +131,8 @@ contains
     integer :: sel, nbeta, j, ise
     real :: beta_low, beta_high, dbeta, beta_save
     real :: fapar_save, fbpar_save, pri, pe, alpi, tpe_save, ptot, alp, dbdr
-    real :: alt, aln, fac, beta_prime_save, bishop_save
+    real :: alt, aln, fac, beta_prime_save
+    integer :: bishop_save
     real, dimension (:), allocatable :: tp_save, fp_save
     character (500) :: tag1, tag2
     logical :: first = .true.
@@ -692,8 +692,6 @@ contains
     use antenna, only: init_antenna
     use collisions, only: coll_read_parameters=>read_parameters
     use collisions, only: collision_model_switch, collision_model_none
-    use collisions, only: collision_model_full, collision_model_ediffuse
-    use collisions, only: collision_model_lorentz, collision_model_lorentz_test
     use fields, only : fields_read_parameters=>read_parameters
     use hyper, only : hyper_read_parameters=>read_parameters
     use species,only : spec, nspec
@@ -710,7 +708,6 @@ contains
     use kt_grids, only: init_kt_grids
     use le_grids, only: init_le_grids
     use theta_grid, only: init_theta_grid, ntgrid
-    use constants, only: pi
     implicit none
     logical :: list, accelx=.false., accelv=.false.
     logical, parameter :: debug=.false.
@@ -930,7 +927,7 @@ if (debug) write(6,*) 'get_namelists: returning'
      use theta_grid, only: gb_to_cv, ntgrid
      use theta_grid_params, only: nperiod, ntheta, eps, epsl, rmaj, r_geo
      use theta_grid_params, only: pk, qinp, rhoc, shift, shat
-     use collisions, only: collision_model_switch, collision_model_none
+     use collisions, only: collision_model_switch
      use collisions, only: collision_model_full, collision_model_ediffuse
      use collisions, only: collision_model_lorentz, collision_model_lorentz_test
      use collisions, only: use_le_layout
@@ -2001,7 +1998,7 @@ if (debug) write(6,*) 'get_namelists: returning'
     call calculate_unbalanced_x(npe, 0, xxf_unbalanced_amount)
     if(xxf_unbalanced_amount .gt. 0) then
        use_unbalanced_xxf = .true.
-       percentage_xxf_unbalanced_amount = xxf_unbalanced_amount * 100
+       percentage_xxf_unbalanced_amount = int(xxf_unbalanced_amount * 100.0)
     else
        use_unbalanced_xxf = .false.  
        percentage_xxf_unbalanced_amount = 0
@@ -2009,7 +2006,7 @@ if (debug) write(6,*) 'get_namelists: returning'
     call calculate_unbalanced_y(npe, 0, yxf_unbalanced_amount)
     if(yxf_unbalanced_amount .gt. 0) then
        use_unbalanced_yxf = .true.
-       percentage_yxf_unbalanced_amount = yxf_unbalanced_amount * 100
+       percentage_yxf_unbalanced_amount = int(yxf_unbalanced_amount * 100.0)
     else
        use_unbalanced_yxf = .false. 
        percentage_yxf_unbalanced_amount = 0

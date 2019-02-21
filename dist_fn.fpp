@@ -729,7 +729,7 @@ contains
   end subroutine init_dist_fn
 
   subroutine init_dist_fn_level_3
-    use mp, only: proc0, finish_mp, mp_abort
+    use mp, only: finish_mp, mp_abort
     use species, only: init_species, nspec
     use collisions, only: init_collisions!, vnmult
     use hyper, only: init_hyper
@@ -1240,7 +1240,7 @@ contains
   end subroutine fill_species_knobs
 
   subroutine init_wdrift
-    use species, only: nspec, spec
+    use species, only: nspec
     use theta_grid, only: ntgrid
     use kt_grids, only: naky, ntheta0
     use le_grids, only: negrid, ng2, nlambda, jend, forbid
@@ -1562,9 +1562,9 @@ contains
   end subroutine init_vpar
 
   subroutine init_wstar
-    use species, only: nspec, spec, dlnf0drho
+    use species, only: nspec, dlnf0drho
     use kt_grids, only: naky
-    use le_grids, only: negrid, energy
+    use le_grids, only: negrid
     use run_parameters, only: wunits
     use gs2_time, only: code_dt
 
@@ -1654,7 +1654,6 @@ contains
     use dist_fn_arrays, only: vpar, ittp
     use species, only: spec, nspec
     use theta_grid, only: ntgrid
-    use kt_grids, only: naky, ntheta0
     use le_grids, only: nlambda, ng2, forbid, negrid
     use constants, only: zi
     use gs2_layouts, only: g_lo, ik_idx, it_idx, il_idx, ie_idx, is_idx
@@ -1743,7 +1742,6 @@ endif
   end subroutine init_invert_rhs
 
   subroutine init_bc
-    use theta_grid, only: ntgrid
     use kt_grids, only: naky, ntheta0
     select case (boundary_option_switch)
     case (boundary_option_linked)
@@ -3961,7 +3959,6 @@ endif
 
     use collisions, only: split_collisions
     use dist_fn_arrays, only: gnew, g
-    use gs2_layouts, only: gf_lo
     use le_derivatives, only: vspace_derivatives
     use theta_grid, only: ntgrid
     use unit_tests, only: debug_message
@@ -6198,19 +6195,19 @@ endif
   end subroutine getmoms
 
   subroutine getmoms_gryfx_dist (density_gryfx, upar_gryfx, tpar_gryfx, tperp_gryfx, qpar_gryfx, qperp_gryfx, phi_gryfx)
-    use dist_fn_arrays, only: vpa, vperp2, aj0, aj1, gnew, g_adjust
+    use dist_fn_arrays, only: vpa, vperp2, gnew, g_adjust
     use gs2_layouts, only: is_idx, ie_idx, g_lo, ik_idx, it_idx
-    use species, only: nspec, spec, nonmaxw_corr
+    use species, only: nspec
     use theta_grid, only: ntgrid
-    use le_grids, only: integrate_moment, energy
+    use le_grids, only: integrate_moment
     use prof, only: prof_entering, prof_leaving
     use run_parameters, only: fphi, fbpar
-    use fields_arrays, only: phinew, bparnew, phi
+    use fields_arrays, only: phinew
     use kt_grids, only: ntheta0, naky
-    use mp, only: proc0, iproc
+    use mp, only: proc0
 
     implicit none
-    integer :: ik, it, isgn, ie, is, iglo, ig, iz, index_gryfx
+    integer :: ik, it, isgn, is, iglo, ig, iz, index_gryfx
     complex*8, dimension(:), intent(out) :: density_gryfx, upar_gryfx, &
          tpar_gryfx, tperp_gryfx, qpar_gryfx, qperp_gryfx
     complex*8, dimension(:), intent(out) :: phi_gryfx       
@@ -6389,7 +6386,7 @@ endif
     logical, parameter :: full_arr=moment_to_allprocs
     complex, dimension (-ntgrid:,:,:,:), intent (out) :: glm
     integer, intent(in) :: l, m
-    integer :: ik, it, isgn, ie, is, iglo, ig
+    integer :: isgn, iglo, ig
 
     do iglo = g_lo%llim_proc, g_lo%ulim_proc
       do isgn = 1, 2
@@ -6715,8 +6712,8 @@ endif
 
   subroutine getfieldeq1 (phi, apar, bpar, antot, antota, antotp, &
        fieldeq, fieldeqa, fieldeqp)
-    use theta_grid, only: ntgrid, bmag, delthet, jacob
-    use kt_grids, only: naky, ntheta0, aky, kperp2
+    use theta_grid, only: ntgrid, bmag
+    use kt_grids, only: naky, ntheta0, kperp2
     use run_parameters, only: fphi, fapar, fbpar
     use run_parameters, only: beta, tite
     use species, only: spec, has_electron_species
@@ -6817,8 +6814,8 @@ endif
 
   subroutine getfieldeq1_nogath (phi, apar, bpar, antot, antota, antotp, &
        fieldeq, fieldeqa, fieldeqp)
-    use theta_grid, only: ntgrid, bmag, delthet, jacob
-    use kt_grids, only: naky, ntheta0, aky, kperp2
+    use theta_grid, only: ntgrid, bmag
+    use kt_grids, only: naky, ntheta0, kperp2
     use run_parameters, only: fphi, fapar, fbpar
     use run_parameters, only: beta, tite
     use kt_grids, only: kwork_filter
@@ -6874,7 +6871,7 @@ endif
     use mp, only : iproc
     use species, only: nspec
     use theta_grid, only: ntgrid
-    use le_grids, only: negrid, nlambda
+    use le_grids, only: negrid
     use run_parameters, only: fphi, fapar, fbpar
     use kt_grids, only: naky, ntheta0, kwork_filter
     use gs2_layouts, only: g_lo, it_idx, ik_idx, gf_lo, idx, proc_id
@@ -7005,13 +7002,11 @@ endif
   !AJ data distribution to gf_lo data distribution and stores the result in gfarray.  With gf_lo_integrate = .false.
   !AJ gnew is used instead and this is in g_lo data distribution.
   subroutine getan_nogath (antot, antota, antotp)
-    use mp, only : iproc
     use dist_fn_arrays, only: vpa, vperp2, aj0, aj1, gnew
-!AJ
     use dist_fn_arrays, only: vpa_gf, vperp2_gf, aj0_gf, aj1_gf
     use species, only: nspec, spec
-    use theta_grid, only: ntgrid, bmag
-    use le_grids, only: integrate_species, al, energy, g2gf, negrid, nlambda, w, wl
+    use theta_grid, only: ntgrid
+    use le_grids, only: integrate_species, g2gf, negrid, nlambda, w, wl
     use run_parameters, only: beta, fphi, fapar, fbpar
     use gs2_layouts, only: g_lo, it_idx,ik_idx, gf_lo, proc_id, idx, ie_idx, is_idx, il_idx
     use spfunc, only: j0, j1
@@ -7023,8 +7018,7 @@ endif
 
     complex, dimension (-ntgrid:,:,:), intent (out) :: antot, antota, antotp
     real, dimension (nspec) :: wgt
-    integer :: isgn, iglo, it, ik, igf, ig
-    complex :: tol = (1e-13,1e-13)
+    integer :: isgn, iglo, it, ik, igf
     complex, dimension (-ntgrid:ntgrid,2,nspec,negrid,nlambda,gf_lo%llim_proc:gf_lo%ulim_alloc) :: gfarray
     integer :: ie, il, is
     real, dimension(-ntgrid:ntgrid) :: temparg3
@@ -7545,22 +7539,17 @@ endif
 
   subroutine flux_vs_e (phi, apar, bpar, pflux, pmflux, pbflux)
     use species, only: spec
-    use theta_grid, only: ntgrid, bmag, gradpar, grho, delthet, drhodpsi
-    use theta_grid, only: qval, shat, gds21, gds22
-    use kt_grids, only: naky, ntheta0, akx, theta0, aky
-    use le_grids, only: energy
-    use dist_fn_arrays, only: gnew, aj0, vpac, vpa, aj1, vperp2
+    use theta_grid, only: ntgrid, bmag, gradpar, delthet
+    use kt_grids, only: naky, ntheta0
+    use dist_fn_arrays, only: gnew, aj0, vpa, aj1, vperp2
     use gs2_layouts, only: g_lo, ie_idx, is_idx, it_idx, ik_idx
     use mp, only: proc0
     use run_parameters, only: woutunits, fphi, fapar, fbpar
-    use constants, only: zi
-    use geometry, only: rhoc
-    use theta_grid, only: Rplot, Bpol
     implicit none
     complex, dimension (-ntgrid:,:,:), intent (in) :: phi, apar, bpar
     real, dimension (:,:), intent (inout) :: pflux, pmflux, pbflux
     real, dimension (:,:,:), allocatable :: dnorm
-    integer :: it, ik, is, isgn, ig
+    integer :: it, ik, is, isgn
     integer :: iglo
 
     allocate (dnorm (-ntgrid:ntgrid,ntheta0,naky))
@@ -7669,7 +7658,7 @@ endif
     real, dimension (-ntgrid:,:,:,:), intent (in out) :: flx_dist
     real, dimension (-ntgrid:,:,:) :: dnorm
     complex, dimension (:,:,:,:), allocatable :: total
-    real :: wgt, fac
+    real :: wgt
     integer :: ik, it, is
 
     allocate (total(-ntgrid:ntgrid,ntheta0,naky,nspec))
@@ -7741,19 +7730,19 @@ endif
   end subroutine get_flux_tormom !JPL
 
   subroutine get_flux_vs_e (fld, flx, dnorm)
-    use theta_grid, only: ntgrid, delthet, grho
-    use kt_grids, only: ntheta0, aky, naky
-    use le_grids, only: negrid,nlambda,wl
+    use theta_grid, only: ntgrid, grho
+    use kt_grids, only: aky
+    use le_grids, only: negrid, wl
     use species, only: nspec
     use mp, only: sum_reduce, proc0
-    use gs2_layouts, only: g_lo,ie_idx,il_idx,is_idx,it_idx,ik_idx,isign_idx,yxf_lo
+    use gs2_layouts, only: g_lo,ie_idx,il_idx,is_idx,it_idx,ik_idx,isign_idx
     implicit none
     complex, dimension (-ntgrid:,:,:), intent (in) :: fld
     real, dimension (:,:), intent (inout) :: flx
     real, dimension (-ntgrid:,:,:) :: dnorm
     real, dimension (:,:), allocatable :: total
     real:: wgt,fac
-    integer :: ik, it, is, ig, iglo, ie, il, isgn
+    integer :: ik, it, is, iglo, ie, il
 
     allocate(total(negrid,nspec))
     total = 0.
@@ -8147,7 +8136,7 @@ endif
 !   use theta_grid, only: drhodpsi, grho
 !    use kt_grids, only: akx
     use le_grids, only: energy
-    use dist_fn_arrays, only: gnew, aj0, vpac, vpa, aj1, vperp2
+    use dist_fn_arrays, only: gnew, aj0, vpac, aj1, vperp2
     use gs2_layouts, only: g_lo, ie_idx, is_idx, it_idx, ik_idx
     use run_parameters, only: woutunits, fphi, fapar, fbpar
     use constants, only: zi

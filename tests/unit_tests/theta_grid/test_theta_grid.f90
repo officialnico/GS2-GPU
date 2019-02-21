@@ -9,22 +9,15 @@
 !! This is free software released under the MIT license
 !!   Written by: Edmund Highcock (edmundhighcock@users.sourceforge.net)
 program test_theta_grid
+
   use unit_tests
   use theta_grid, only: init_theta_grid, finish_theta_grid
   use theta_grid, only: initialized, theta
   use theta_grid, only: bmag, grho, gbdrift, cvdrift, gds2, gds21
   use egrid
-  !use general_f0, only: init_general_f0
   use mp, only: init_mp, finish_mp, proc0
   use file_utils, only: init_file_utils, finish_file_utils
-  use species, only: init_species, nspec, spec
-  use constants, only: pi
-  !use fields, only: init_fields
-  !use fields_arrays, only: phi
-  !use dist_fn, only: init_dist_fn
-  !use dist_fn_arrays, only: g
-  use kt_grids, only: naky, ntheta0, init_kt_grids
-  use gs2_layouts, only: init_gs2_layouts, g_lo, ie_idx
+
   implicit none
   real :: eps
   logical :: dummy

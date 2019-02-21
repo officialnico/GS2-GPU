@@ -1,36 +1,34 @@
+export
+SHELL = bash
+include $(GK_HEAD_DIR)/Makefile.utils
 
 .SUFFIXES: .fpp .f90 .c .o
 .PHONY: all clean
 
-#$(info "F90FLAGS is $(F90FLAGS)")
-#F90FLAGS = $(F90FLAGS) -I ../../
-#$(info "F90FLAGS is $(F90FLAGS)")
-#LDFLAGS += -I ../../
-#CFLAGS += -I ../../
-#CPPFLAGS += -I ../../
+.f90.o:
+	$(call messageOp,"Compiling","\\t:",$<)
+	$(QUIETSYM)$(FC) $(F90FLAGS) -I$(GK_HEAD_DIR) -c $< 
+
+.c.o:
+	$(call messageOp,"Compiling C","\\t:",$<)
+	$(QUIETSYM)$(CC) $(CFLAGS) -I$(GK_HEAD_DIR) -c $< 
 
 ifdef ONE_STEP_PP
-.f90.o: 
-	$(FC) $(F90FLAGS) -I$(GK_HEAD_DIR) -c $< 
 .fpp.o:
-	$(FC) $(CPPFLAGS) $(F90FLAGS) -I$(GK_HEAD_DIR) -c $< 
-.c.o:
-	$(CC) $(CFLAGS) -I$(GK_HEAD_DIR) -c $< 
+	$(call messageOp,"Compiling and preprocessing","\\t:",$<)
+	$(QUIETSYM)$(FC) $(CPPFLAGS) $(F90FLAGS) -I$(GK_HEAD_DIR) -c $< 
 else
-.f90.o: 
-	$(FC) $(F90FLAGS) -I$(GK_HEAD_DIR) -c $< 
 .fpp.f90:
-	$(CPP) $(CPPFLAGS) -I$(GK_HEAD_DIR) $< $@ 
-.c.o:
-	$(CC) $(CFLAGS) -I$(GK_HEAD_DIR) -c $< 
+	$(call messageOp,"Preprocessing","\\t:",$<)
+	$(QUIETSYM)$(CPP) $(CPPFLAGS) -I$(GK_HEAD_DIR) $< $@ 
 endif
-	
+
 # This prevents error messages like m2c: Command not found
 %.o : %.mod
 
-
-clean: 
-	$(CLEANCOMMAND)
+clean:
+	$(call messageRm,"\\t$(TEST_NAME)")
+	$(QUIETSYM)$(CLEANCOMMAND)
 
 upload:
 	$(UPLOADCOMMAND)
@@ -48,7 +46,6 @@ ifdef TESTEXEC
 # This will still work (so any system Makefiles that haven't
 # been updated will still work), but the correct form is now
 # TESTEXEC=aprun -N $$(1) -n $$(1)';
-#$(info TESTEXEC is $(TESTEXEC))
 TESTCOMMAND=$(call TESTEXEC,$(NTESTPROCS)) ./
 else
 ifdef USE_MPI
@@ -58,13 +55,22 @@ TESTCOMMAND=./
 endif
 endif
 
-RUNCOMMAND= @$(TESTCOMMAND)$(1) $(BLUEGENEARGS) $(2) $(3); if test "$$?" != 0; then $(FAILCOMMAND) ; else $(PASSCOMMAND) ;  fi
+define RUNCOMMAND
+$(call messageOp,"Running ","\\t:",$(1))
+@$(TESTCOMMAND)$(1) $(BLUEGENEARGS) $(2) $(3) > OUTPUT ; if test "$$?" != 0; then $(FAILCOMMAND) ; else $(PASSCOMMAND) ;  fi
+endef
 
-FAILCOMMAND= echo "FAILED: `basename $$PWD` ($(TESTCOMMAND)$(1) $(2) $(3))" >> results_of_test.txt ; ../../write_test_xml.sh `basename $$PWD` 1 0 1 0
+define FAILCOMMAND
+echo "FAILED: `basename $$PWD` ($(TESTCOMMAND)$(1) $(2) $(3))" >> results_of_test.txt ; ../../write_test_xml.sh `basename $$PWD` 1 0 1 0 ; cat OUTPUT
+endef
 
-PASSCOMMAND= echo "passed: `basename $$PWD` ($(TESTCOMMAND)$(1) $(2) $(3))" >> results_of_test.txt ; ../../write_test_xml.sh `basename $$PWD` 1 0 0 0
+define PASSCOMMAND
+echo "passed: `basename $$PWD` ($(TESTCOMMAND)$(1) $(2) $(3))" >> results_of_test.txt ; ../../write_test_xml.sh `basename $$PWD` 1 0 0 0
+endef
 
-SKIPCOMMAND= @echo "skipped: `basename $$PWD` ($(1))" >> results_of_test.txt ; ../../write_test_xml.sh `basename $$PWD` 1 0 0 1
+define SKIPCOMMAND
+@echo "skipped: `basename $$PWD` ($(1))" >> results_of_test.txt ; ../../write_test_xml.sh `basename $$PWD` 1 0 0 1
+endef
 
 BENCHMARKEXEC=$(call TESTEXEC,$(1)) ./$(2) $(BLUEGENEARGS)  $(3)
 
