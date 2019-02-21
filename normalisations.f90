@@ -1,3 +1,4 @@
+!> FIXME : Add documentation
 module normalisations
   implicit none
   
@@ -7,10 +8,10 @@ module normalisations
   public :: init_normalisations, finish_normalisations
   public :: check_normalisations, wnml_normalisations
 
-  !>Define a type to hold the set of normalisations, we
-  !!could imagine extending this in the future to provide
-  !!a normalise/denormalise routine which can be used to
-  !!automatically convert quantities
+  !> Define a type to hold the set of normalisations, we
+  !! could imagine extending this in the future to provide
+  !! a normalise/denormalise routine which can be used to
+  !! automatically convert quantities
   type norms_type
      private
      !Internal parameters
@@ -53,6 +54,8 @@ contains
   !/////////////////////////////
   !// TYPE BOUND PROCEDURES
   !/////////////////////////////
+
+  !> FIXME : Add documentation  
   subroutine norms_set_value(self, val_name, val)
     use runtime_tests, only: verbosity
     use mp, only: proc0
@@ -95,6 +98,7 @@ contains
     end select
   end subroutine norms_set_value
 
+  !> FIXME : Add documentation  
   elemental function norms_get_value(self, val_name)
     !use mp, only: mp_abort
     implicit none
@@ -127,6 +131,7 @@ contains
     end select
   end function norms_get_value
 
+  !> FIXME : Add documentation  
   subroutine norms_read_parameters(self)
     use file_utils, only: input_unit_exist
     use mp, only: proc0, broadcast
@@ -172,7 +177,7 @@ contains
     call self%set_value("rhoref",rhoref)
   end subroutine norms_read_parameters
 
-  !>Initialise the norms object
+  !> Initialise the norms object
   subroutine norms_init(self)
     implicit none
     class(norms_type), intent(in out) :: self
@@ -195,7 +200,7 @@ contains
     call self%read_parameters
   end subroutine norms_init
 
-  !>Reset the properties
+  !> Reset the properties
   subroutine norms_reset(self)
     implicit none
     class(norms_type), intent(in out) :: self
@@ -211,7 +216,7 @@ contains
     call self%set_logicals
   end subroutine norms_reset
 
-  !>Reset and free memory
+  !> Reset and free memory
   subroutine norms_finish(self)
     implicit none
     class(norms_type), intent(in out) :: self
@@ -219,7 +224,7 @@ contains
     if(allocated(self%names)) deallocate(self%names)
   end subroutine norms_finish
 
-  !Decide if a given normalisation has been set
+  !> Decide if a given normalisation has been set
   elemental function norms_check_if_set(self,val_name)
     implicit none
     class(norms_type), intent(in) :: self
@@ -228,7 +233,7 @@ contains
     norms_check_if_set = self%get_value(val_name).ne.self%def_val
   end function norms_check_if_set
 
-  !Decide if all/some of the normalisations have been set
+  !> Decide if all/some of the normalisations have been set
   subroutine norms_set_logicals(self)
     implicit none
     class(norms_type), intent(in out) :: self
@@ -253,6 +258,8 @@ contains
   !/////////////////////////////
   !// MODULE LEVEL PROCDURES
   !/////////////////////////////
+  
+  !> FIXME : Add documentation
   subroutine check_normalisations(report_unit)
     implicit none
     integer, intent(in) :: report_unit
@@ -270,6 +277,7 @@ contains
     write(report_unit,fmt='(A," the normalisation parameters have been provided.")') trim(msg)
   end subroutine check_normalisations
 
+  !> FIXME : Add documentation  
   subroutine wnml_normalisations(unit)
     implicit none
     integer, intent(in) :: unit
@@ -283,19 +291,19 @@ contains
     write(unit,'("/")')
   end subroutine wnml_normalisations
 
-  !>Read input file and populate the norms object
+  !> Read input file and populate the norms object
   subroutine init_normalisations
     implicit none
     call norms%init
   end subroutine init_normalisations
 
-  !>Free memory etc. associated with normalisations
+  !> Free memory etc. associated with normalisations
   subroutine finish_normalisations
     implicit none
     call norms%finish
   end subroutine finish_normalisations
 
-  !>Reset normalisations object
+  !> Reset normalisations object
   subroutine reset_normalisations
     implicit none
     call norms%reset

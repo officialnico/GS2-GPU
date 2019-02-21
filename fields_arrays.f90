@@ -1,3 +1,5 @@
+!> Provides storage for the EM potentials
+!! and some related data
 module fields_arrays
   use constants, only: run_name_size
   implicit none

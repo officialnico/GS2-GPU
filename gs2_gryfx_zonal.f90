@@ -1,3 +1,7 @@
+!> FIXME : Add documentation
+!!
+!! @note This looks like an addon to GS2 perhaps we should think about moving this
+!! out of the main source directory.
 module gs2_gryfx_zonal
 
   use gs2_main, only: gs2_program_state_type
@@ -16,105 +20,107 @@ module gs2_gryfx_zonal
   public :: interpolate_theta ! for testing
   public :: gs2_2_gryfx_grid
 
- 
+
   public :: test_flag
 
   logical :: test_flag = .false.
 
+  !> FIXME : Add documentation  
   type, bind(c) :: gryfx_parameters_type
-      integer(c_int) :: mpirank
-      integer(c_int) :: restart
-      integer(c_int) :: nstep
-      real(c_double) :: end_time
-      integer(c_int) :: job_id
-      integer(c_int) :: trinity_timestep
-      integer(c_int) :: trinity_iteration
-      integer(c_int) :: trinity_conv_count
+     integer(c_int) :: mpirank
+     integer(c_int) :: restart
+     integer(c_int) :: nstep
+     real(c_double) :: end_time
+     integer(c_int) :: job_id
+     integer(c_int) :: trinity_timestep
+     integer(c_int) :: trinity_iteration
+     integer(c_int) :: trinity_conv_count
 
-       ! Name of gryfx/gryfx input file
-       !character(len=1000) :: input_file
-      !Base geometry parameters - not currently set by trinity 
-      !See geometry.f90
-       integer(c_int) :: equilibrium_type
-       !character(len=800) :: eqfile
-       integer(c_int) :: irho
-       real(c_double) :: rhoc
-       integer(c_int) :: bishop
-       integer(c_int) :: nperiod
-       integer(c_int) :: ntheta
+     ! Name of gryfx/gryfx input file
+     !character(len=1000) :: input_file
+     !Base geometry parameters - not currently set by trinity 
+     !See geometry.f90
+     integer(c_int) :: equilibrium_type
+     !character(len=800) :: eqfile
+     integer(c_int) :: irho
+     real(c_double) :: rhoc
+     integer(c_int) :: bishop
+     integer(c_int) :: nperiod
+     integer(c_int) :: ntheta
 
-      ! Miller parameters
-       real(c_double) :: rgeo_lcfs
-       real(c_double) :: rgeo_local
-       real(c_double) :: akappa
-       real(c_double) :: akappri
-       real(c_double) :: tri
-       real(c_double) :: tripri
-       real(c_double) :: shift
-       real(c_double) :: qinp
-       real(c_double) :: shat
-       real(c_double) :: asym
-       real(c_double) :: asympri
+     ! Miller parameters
+     real(c_double) :: rgeo_lcfs
+     real(c_double) :: rgeo_local
+     real(c_double) :: akappa
+     real(c_double) :: akappri
+     real(c_double) :: tri
+     real(c_double) :: tripri
+     real(c_double) :: shift
+     real(c_double) :: qinp
+     real(c_double) :: shat
+     real(c_double) :: asym
+     real(c_double) :: asympri
 
-      ! Geometry parameters
-      ! To be implemented but not until
-      ! after the 7.0 release as it breaks
-      ! compatibility with current Trintiy
-      ! and gryfx. We need at least
-      ! one release with the current
-      ! interface.
+     ! Geometry parameters
+     ! To be implemented but not until
+     ! after the 7.0 release as it breaks
+     ! compatibility with current Trintiy
+     ! and gryfx. We need at least
+     ! one release with the current
+     ! interface.
 
-       !real(c_double) :: rgeo_lcfs
-       !real(c_double) :: rgeo_local
-       !real(c_int) :: geoType
-       !real(c_double) :: aSurf
-       !real(c_double) :: shift
-       !real(c_double) :: shiftVert
-       !real(c_int) :: mMode
-       !real(c_int) :: nMode
-       !real(c_double) :: deltam
-       !real(c_double) :: deltan
-       !real(c_double) :: deltampri
-       !real(c_double) :: deltanpri
-       !real(c_double) :: thetam
-       !real(c_double) :: thetan
-       !real(c_double) :: qinp
-       !real(c_double) :: shat
-       !real(c_double) :: asym
-       !real(c_double) :: asympri
+     !real(c_double) :: rgeo_lcfs
+     !real(c_double) :: rgeo_local
+     !real(c_int) :: geoType
+     !real(c_double) :: aSurf
+     !real(c_double) :: shift
+     !real(c_double) :: shiftVert
+     !real(c_int) :: mMode
+     !real(c_int) :: nMode
+     !real(c_double) :: deltam
+     !real(c_double) :: deltan
+     !real(c_double) :: deltampri
+     !real(c_double) :: deltanpri
+     !real(c_double) :: thetam
+     !real(c_double) :: thetan
+     !real(c_double) :: qinp
+     !real(c_double) :: shat
+     !real(c_double) :: asym
+     !real(c_double) :: asympri
 
-       ! For backwards compatibility
+     ! For backwards compatibility
 
-       ! Circular parameters
-       real(c_double) :: eps
+     ! Circular parameters
+     real(c_double) :: eps
 
-       ! Other geometry parameters - Bishop/Greene & Chance
-       real(c_double) :: beta_prime_input
-       real(c_double) :: s_hat_input
+     ! Other geometry parameters - Bishop/Greene & Chance
+     real(c_double) :: beta_prime_input
+     real(c_double) :: s_hat_input
 
-       ! Flow shear
-       real(c_double) :: g_exb
-       ! Species parameters... I think allowing 20 species should be enough!
-       ! Allocating the structs and arrays is tedious and prone to segfaults
-       ! and is unnecessary given the tiny memory usage of this data object
-       ! Most importantly it is not interoperable with C!
-       integer(c_int) :: ntspec
-       real(c_double):: dens(20)
-       real(c_double):: temp(20)
-       real(c_double):: fprim(20)
-       real(c_double):: tprim(20)
-       real(c_double):: nu(20)
+     ! Flow shear
+     real(c_double) :: g_exb
+     ! Species parameters... I think allowing 20 species should be enough!
+     ! Allocating the structs and arrays is tedious and prone to segfaults
+     ! and is unnecessary given the tiny memory usage of this data object
+     ! Most importantly it is not interoperable with C!
+     integer(c_int) :: ntspec
+     real(c_double):: dens(20)
+     real(c_double):: temp(20)
+     real(c_double):: fprim(20)
+     real(c_double):: tprim(20)
+     real(c_double):: nu(20)
 
-       type(c_ptr) :: everything_struct_address
+     type(c_ptr) :: everything_struct_address
 
-     end type gryfx_parameters_type
+  end type gryfx_parameters_type
 
-    integer, parameter :: verb = 2
+  integer, parameter :: verb = 2
 
-    real, dimension(:,:), allocatable :: gs2_2_gryfx_grid, gryfx_2_gs2_grid
+  real, dimension(:,:), allocatable :: gs2_2_gryfx_grid, gryfx_2_gs2_grid
 
 contains
 
+  !> FIXME : Add documentation
   subroutine create_interp_matrices(gryfx_theta)
     use theta_grid, only: ntgrid, theta
     use splines, only: inter_cspl
@@ -128,23 +134,24 @@ contains
     !write (*,*) 'theta', theta, 'gryfx_theta_real', gryfx_theta_real
 
     do iz = 1,2*ntgrid
-      delta_array = 0.
-      delta_array(iz) = 1.
-      call inter_cspl(2*ntgrid, gryfx_theta_real, delta_array, &
-                      2*ntgrid, theta(-ntgrid:ntgrid-1), gryfx_2_gs2_grid(:,iz))
-      call inter_cspl(2*ntgrid, theta(-ntgrid:ntgrid-1), delta_array, &
-                      2*ntgrid, gryfx_theta_real, gs2_2_gryfx_grid(:,iz))
+       delta_array = 0.
+       delta_array(iz) = 1.
+       call inter_cspl(2*ntgrid, gryfx_theta_real, delta_array, &
+            2*ntgrid, theta(-ntgrid:ntgrid-1), gryfx_2_gs2_grid(:,iz))
+       call inter_cspl(2*ntgrid, theta(-ntgrid:ntgrid-1), delta_array, &
+            2*ntgrid, gryfx_theta_real, gs2_2_gryfx_grid(:,iz))
     end do
 
   end subroutine create_interp_matrices
 
+  !> FIXME : Add documentation  
   subroutine interpolate_theta(matrix, array, is_field)
     use theta_grid, only: ntgrid
     use kt_grids, only: naky, ntheta0
     use species, only: nspec
     real, dimension(:,:), intent(in) :: matrix
     complex*8, dimension (:), intent (inout) :: &
-                    array
+         array
     logical, intent(in) :: is_field
     complex*8, dimension (:), allocatable :: array_temp
     integer :: iz_row, iz_col, is, it, ik, index_gryfx_row, index_gryfx_col
@@ -160,41 +167,41 @@ contains
     if (is_field) spec_max = 1
 
     do is = 1,spec_max
-      do ik = 1,naky
-        do it = 1,ntheta0
-          do iz_row = 1,2*ntgrid
-            index_gryfx_row = 1 + &
-                             (ik-1) + &
-                             naky*(it-1) + &
-                             naky*ntheta0*(iz_row-1) + &
-                             (2*ntgrid)*naky*ntheta0*(is-1)
-            array(index_gryfx_row) = 0.0
-            do iz_col = 1,2*ntgrid
-              index_gryfx_col = 1 + &
-                               (ik-1) +  &
-                               naky*(it-1) + &
-                               naky*ntheta0*(iz_col-1) + &
-                               (2*ntgrid)*naky*ntheta0*(is-1)
+       do ik = 1,naky
+          do it = 1,ntheta0
+             do iz_row = 1,2*ntgrid
+                index_gryfx_row = 1 + &
+                     (ik-1) + &
+                     naky*(it-1) + &
+                     naky*ntheta0*(iz_row-1) + &
+                     (2*ntgrid)*naky*ntheta0*(is-1)
+                array(index_gryfx_row) = 0.0
+                do iz_col = 1,2*ntgrid
+                   index_gryfx_col = 1 + &
+                        (ik-1) +  &
+                        naky*(it-1) + &
+                        naky*ntheta0*(iz_col-1) + &
+                        (2*ntgrid)*naky*ntheta0*(is-1)
 
-              array(index_gryfx_row) = array(index_gryfx_row) + &
-                 matrix(iz_row, iz_col) * &
-                 array_temp(index_gryfx_col)
-                
-            end do
+                   array(index_gryfx_row) = array(index_gryfx_row) + &
+                        matrix(iz_row, iz_col) * &
+                        array_temp(index_gryfx_col)
+
+                end do
+             end do
           end do
-        end do
-      end do
+       end do
     end do
 
   end subroutine interpolate_theta
 
-
+  !> FIXME : Add documentation
   subroutine allocate_gryfx_zonal_arrays
     use theta_grid, only: ntgrid
     use kt_grids, only: ntheta0, naky
     use species, only: nspec
     use nonlinear_terms, only: gryfx_zonal
-    
+
     implicit none
     integer :: tot_size
 
@@ -208,18 +215,19 @@ contains
     allocate(gryfx_zonal%NLtprp_ky0(tot_size))
     allocate(gryfx_zonal%NLqpar_ky0(tot_size))
     allocate(gryfx_zonal%NLqprp_ky0(tot_size))
-  end subroutine allocate_gryfx_zonal_arrays    
+  end subroutine allocate_gryfx_zonal_arrays
 
+  !> FIXME : Add documentation  
   subroutine deallocate_gryfx_zonal_arrays
     use mp, only: mp_abort
     use nonlinear_terms, only: gryfx_zonal
     use unit_tests, only: debug_message
-    
+
     implicit none
-    
+
     if(.not. associated(gryfx_zonal%NLqprp_ky0)) &
-      call mp_abort("Attempting to deallocated unassociated pointers&
-     & in deallocate_gryfx_zonal_arrays", .true.) 
+         call mp_abort("Attempting to deallocated unassociated pointers&
+         & in deallocate_gryfx_zonal_arrays", .true.) 
 
     deallocate(gs2_2_gryfx_grid, gryfx_2_gs2_grid)
 
@@ -227,23 +235,24 @@ contains
     deallocate(gryfx_zonal%NLupar_ky0)
     deallocate(gryfx_zonal%NLtpar_ky0)
     call debug_message(verb, &
-      'gs2_gryfx_zonal::deallocate_gryfx_zonal_arrays 50% done')
+         'gs2_gryfx_zonal::deallocate_gryfx_zonal_arrays 50% done')
     deallocate(gryfx_zonal%NLtprp_ky0)
     call debug_message(verb, &
-      'gs2_gryfx_zonal::deallocate_gryfx_zonal_arrays 65% done')
+         'gs2_gryfx_zonal::deallocate_gryfx_zonal_arrays 65% done')
     deallocate(gryfx_zonal%NLqpar_ky0)
     call debug_message(verb, &
-      'gs2_gryfx_zonal::deallocate_gryfx_zonal_arrays 85% done')
+         'gs2_gryfx_zonal::deallocate_gryfx_zonal_arrays 85% done')
     deallocate(gryfx_zonal%NLqprp_ky0)
     call debug_message(verb, &
-      'gs2_gryfx_zonal::deallocate_gryfx_zonal_arrays finished')
-  end subroutine deallocate_gryfx_zonal_arrays    
+         'gs2_gryfx_zonal::deallocate_gryfx_zonal_arrays finished')
+  end subroutine deallocate_gryfx_zonal_arrays
 
+  !> FIXME : Add documentation  
   subroutine init_gs2_gryfx_c(strlen, run_name, mp_comm, &
-                            nz, &
-                            gryfx_theta, &
-                            gryfx_parameters) &
-                            bind(c, name='init_gs2')
+       nz, &
+       gryfx_theta, &
+       gryfx_parameters) &
+       bind(c, name='init_gs2')
     use iso_c_binding
     use mp, only: broadcast
     implicit none
@@ -264,8 +273,9 @@ contains
 
   end subroutine init_gs2_gryfx_c
 
+  !> FIXME : Add documentation  
   subroutine init_gs2_gryfx(strlen, file_name, mp_comm, &
-                            gryfx_theta, gryfx_parameters )
+       gryfx_theta, gryfx_parameters )
     use gs2_main, only: initialize_gs2
     use gs2_main, only: initialize_equations
     use gs2_main, only: initialize_diagnostics
@@ -304,7 +314,7 @@ contains
     state%trinity_iteration = gryfx_parameters%trinity_iteration
 
     gryfx_zonal%on = .true.
- 
+
 
     call initialize_gs2(state)
     !if(proc0) write(*,*) 'initialize_gs2 complete. gs2 thinks run_name is ', run_name
@@ -312,31 +322,31 @@ contains
     !currently this is hard-coded in kt_grids.f90 and run_parameters.f90
     !just search for "GRYFX"
     if(.not. test_flag) then 
-      call prepare_miller_geometry_overrides(state)
-      call set_miller_geometry_overrides
+       call prepare_miller_geometry_overrides(state)
+       call set_miller_geometry_overrides
     end if
     call prepare_kt_grids_overrides(state)
     call debug_message(verb, 'setting overrides')
     state%init%kt_ov%override_gryfx = .true.
     state%init%kt_ov%gryfx = .true.
     if(.not. test_flag) then 
-      call prepare_profiles_overrides(state)
-      call set_profiles_overrides
+       call prepare_profiles_overrides(state)
+       call set_profiles_overrides
     endif
     if (gryfx_parameters%restart==1) then
-      ! Load the saved value of dt
-      call init_dt(delt, istatus)
-      call init_delt(delt)
-      ! Set up gs2 state so that it reads the
-      ! initial values from the restart file.
-      call prepare_initial_values_overrides(state)
-      if (state%init%initval_ov%in_memory) then
-        call mp_abort('ERROR: Gryfx/GS2 restart does not currently work with &
-          & in_memory set to true', .true.)
-      end if
-      state%init%initval_ov%override = .true.
+       ! Load the saved value of dt
+       call init_dt(delt, istatus)
+       call init_delt(delt)
+       ! Set up gs2 state so that it reads the
+       ! initial values from the restart file.
+       call prepare_initial_values_overrides(state)
+       if (state%init%initval_ov%in_memory) then
+          call mp_abort('ERROR: Gryfx/GS2 restart does not currently work with &
+               & in_memory set to true', .true.)
+       end if
+       state%init%initval_ov%override = .true.
     else 
-      state%init%initval_ov%override = .false.
+       state%init%initval_ov%override = .false.
     end if
     call initialize_equations(state)
     call debug_message(verb, 'initialize_equations complete.')
@@ -345,125 +355,128 @@ contains
 
     call broadcast(equal_arc)
     if (equal_arc) then
-      write (*,*) 'equal_arc true'
-      call mp_abort(&
-      "gs2_gryfx_zonal doesn't work with equal_arc yet", .true.)
+       write (*,*) 'equal_arc true'
+       call mp_abort(&
+            "gs2_gryfx_zonal doesn't work with equal_arc yet", .true.)
     end if
-    
+
     call allocate_gryfx_zonal_arrays
 
     call broadcast(gryfx_theta)
     call create_interp_matrices(gryfx_theta)
 
-contains
+  contains
+    
+    !> FIXME : Add documentation
+    subroutine set_miller_geometry_overrides
+      state%init%mgeo_ov%override_rhoc = .true.
+      state%init%mgeo_ov%rhoc = gryfx_parameters%rhoc
 
-      subroutine set_miller_geometry_overrides
-        state%init%mgeo_ov%override_rhoc = .true.
-        state%init%mgeo_ov%rhoc = gryfx_parameters%rhoc
+      state%init%mgeo_ov%override_qinp = .true.
+      state%init%mgeo_ov%qinp = gryfx_parameters%qinp ! qval_gs2
 
-        state%init%mgeo_ov%override_qinp = .true.
-        state%init%mgeo_ov%qinp = gryfx_parameters%qinp ! qval_gs2
+      state%init%mgeo_ov%override_shat = .true.
+      state%init%mgeo_ov%shat = gryfx_parameters%shat ! shat_gs2
 
-        state%init%mgeo_ov%override_shat = .true.
-        state%init%mgeo_ov%shat = gryfx_parameters%shat ! shat_gs2
+      state%init%mgeo_ov%override_rgeo_lcfs = .true.
+      state%init%mgeo_ov%rgeo_lcfs = gryfx_parameters%rgeo_lcfs
 
-        state%init%mgeo_ov%override_rgeo_lcfs = .true.
-        state%init%mgeo_ov%rgeo_lcfs = gryfx_parameters%rgeo_lcfs
+      state%init%mgeo_ov%override_rgeo_local = .true.
+      state%init%mgeo_ov%rgeo_local = gryfx_parameters%rgeo_local
 
-        state%init%mgeo_ov%override_rgeo_local = .true.
-        state%init%mgeo_ov%rgeo_local = gryfx_parameters%rgeo_local
+      ! OK
+      state%init%mgeo_ov%override_geoType = .true.
+      state%init%mgeo_ov%geoType = 0
 
-        ! OK
-        state%init%mgeo_ov%override_geoType = .true.
-        state%init%mgeo_ov%geoType = 0
+      state%init%mgeo_ov%override_aSurf = .false.
+      !state%init%mgeo_ov%aSurf = gryfx_parameters%aSurf
 
-        state%init%mgeo_ov%override_aSurf = .false.
-        !state%init%mgeo_ov%aSurf = gryfx_parameters%aSurf
+      state%init%mgeo_ov%override_shift = .true.
+      state%init%mgeo_ov%shift = gryfx_parameters%shift
 
-        state%init%mgeo_ov%override_shift = .true.
-        state%init%mgeo_ov%shift = gryfx_parameters%shift
+      state%init%mgeo_ov%override_shiftVert = .false.
+      !state%init%mgeo_ov%shiftVert = gryfx_parameters%shiftVert
 
-        state%init%mgeo_ov%override_shiftVert = .false.
-        !state%init%mgeo_ov%shiftVert = gryfx_parameters%shiftVert
+      state%init%mgeo_ov%override_mMode = .false.
+      !state%init%mgeo_ov%mMode = gryfx_parameters%mMode
 
-        state%init%mgeo_ov%override_mMode = .false.
-        !state%init%mgeo_ov%mMode = gryfx_parameters%mMode
+      state%init%mgeo_ov%override_nMode = .false.
+      !state%init%mgeo_ov%nMode = gryfx_parameters%nMode
 
-        state%init%mgeo_ov%override_nMode = .false.
-        !state%init%mgeo_ov%nMode = gryfx_parameters%nMode
+      state%init%mgeo_ov%override_deltam = .false.
+      !state%init%mgeo_ov%deltam = gryfx_parameters%deltam
 
-        state%init%mgeo_ov%override_deltam = .false.
-        !state%init%mgeo_ov%deltam = gryfx_parameters%deltam
+      state%init%mgeo_ov%override_deltan = .true.
+      state%init%mgeo_ov%deltan = gryfx_parameters%tri
 
-        state%init%mgeo_ov%override_deltan = .true.
-        state%init%mgeo_ov%deltan = gryfx_parameters%tri
+      state%init%mgeo_ov%override_deltampri = .true.
+      state%init%mgeo_ov%deltampri = gryfx_parameters%akappri
 
-        state%init%mgeo_ov%override_deltampri = .true.
-        state%init%mgeo_ov%deltampri = gryfx_parameters%akappri
+      state%init%mgeo_ov%override_deltanpri = .true.
+      state%init%mgeo_ov%deltanpri = gryfx_parameters%tripri
 
-        state%init%mgeo_ov%override_deltanpri = .true.
-        state%init%mgeo_ov%deltanpri = gryfx_parameters%tripri
+      state%init%mgeo_ov%override_thetam = .false.
+      !state%init%mgeo_ov%thetam = gryfx_parameters%thetam
 
-        state%init%mgeo_ov%override_thetam = .false.
-        !state%init%mgeo_ov%thetam = gryfx_parameters%thetam
+      state%init%mgeo_ov%override_thetan = .false.
+      !state%init%mgeo_ov%thetan = gryfx_parameters%thetan
 
-        state%init%mgeo_ov%override_thetan = .false.
-        !state%init%mgeo_ov%thetan = gryfx_parameters%thetan
+      state%init%mgeo_ov%override_betaprim = .true.
+      state%init%mgeo_ov%betaprim = gryfx_parameters%beta_prime_input
+    end subroutine set_miller_geometry_overrides
 
-        state%init%mgeo_ov%override_betaprim = .true.
-        state%init%mgeo_ov%betaprim = gryfx_parameters%beta_prime_input
-      end subroutine set_miller_geometry_overrides
+    !> FIXME : Add documentation    
+    subroutine set_profiles_overrides
+      use species, only: nspec
+      integer :: is, isg, idens
+      !write (*,*) 'SET_PROFILES_OVERRIDES'
+      do is = 1,nspec
+         isg = is
+         state%init%prof_ov%override_dens(isg) = .true.
+         state%init%prof_ov%dens(isg) = gryfx_parameters%dens(is) ! dens_ms(1,is)/dens_ms(1,idens)
 
-      subroutine set_profiles_overrides
-        use species, only: nspec
-        integer :: is, isg, idens
-        !write (*,*) 'SET_PROFILES_OVERRIDES'
-        do is = 1,nspec
-            isg = is
-          state%init%prof_ov%override_dens(isg) = .true.
-          state%init%prof_ov%dens(isg) = gryfx_parameters%dens(is) ! dens_ms(1,is)/dens_ms(1,idens)
+         state%init%prof_ov%override_temp(isg) = .true.
+         state%init%prof_ov%temp(isg) = gryfx_parameters%temp(is) ! temp_ms(1,is)/temp_ms(1,1)
 
-          state%init%prof_ov%override_temp(isg) = .true.
-          state%init%prof_ov%temp(isg) = gryfx_parameters%temp(is) ! temp_ms(1,is)/temp_ms(1,1)
+         state%init%prof_ov%override_fprim(isg) = .true.
+         state%init%prof_ov%fprim(isg) = gryfx_parameters%fprim(is) ! fprim_gs2(is)
 
-          state%init%prof_ov%override_fprim(isg) = .true.
-          state%init%prof_ov%fprim(isg) = gryfx_parameters%fprim(is) ! fprim_gs2(is)
+         state%init%prof_ov%override_tprim(isg) = .true.
+         state%init%prof_ov%tprim(isg) = gryfx_parameters%tprim(is) ! tprim_gs2(is)
 
-          state%init%prof_ov%override_tprim(isg) = .true.
-          state%init%prof_ov%tprim(isg) = gryfx_parameters%tprim(is) ! tprim_gs2(is)
+         state%init%prof_ov%override_vnewk(isg) = .true.
+         state%init%prof_ov%vnewk(isg) = gryfx_parameters%nu(is) ! nu_gs2(is)
+      end do
+      !gs2_state%init%prof_ov%override_g_exb = .true.
+      !gs2_state%init%prof_ov%g_exb = gexb_gs2
+      !gs2_state%init%prof_ov%override_mach = .true.
+      !gs2_state%init%prof_ov%mach = mach_gs2
 
-          state%init%prof_ov%override_vnewk(isg) = .true.
-          state%init%prof_ov%vnewk(isg) = gryfx_parameters%nu(is) ! nu_gs2(is)
-        end do
-        !gs2_state%init%prof_ov%override_g_exb = .true.
-        !gs2_state%init%prof_ov%g_exb = gexb_gs2
-        !gs2_state%init%prof_ov%override_mach = .true.
-        !gs2_state%init%prof_ov%mach = mach_gs2
-
-      end subroutine set_profiles_overrides
+    end subroutine set_profiles_overrides
 
   end subroutine init_gs2_gryfx
 
+  !> FIXME : Add documentation  
   subroutine advance_gs2_gryfx_c(istep, dens_ky0, upar_ky0, tpar_ky0, tprp_ky0, &
-                               qpar_ky0, qprp_ky0, phi_ky0, first_half_step) &
-                                    bind(c, name='advance_gs2')
+       qpar_ky0, qprp_ky0, phi_ky0, first_half_step) &
+       bind(c, name='advance_gs2')
     use iso_c_binding
     use theta_grid, only: ntgrid
     use kt_grids, only: ntheta0, naky
     use species, only: nspec
     implicit none
     complex (c_float_complex), intent (inout) :: & 
-                                dens_ky0(naky*ntheta0*2*ntgrid*nspec)
+         dens_ky0(naky*ntheta0*2*ntgrid*nspec)
     complex (c_float_complex), intent (inout) :: & 
-                                upar_ky0(naky*ntheta0*2*ntgrid*nspec)
+         upar_ky0(naky*ntheta0*2*ntgrid*nspec)
     complex (c_float_complex), intent (inout) :: & 
-                                tpar_ky0(naky*ntheta0*2*ntgrid*nspec)
+         tpar_ky0(naky*ntheta0*2*ntgrid*nspec)
     complex (c_float_complex), intent (inout) :: & 
-                                tprp_ky0(naky*ntheta0*2*ntgrid*nspec)
+         tprp_ky0(naky*ntheta0*2*ntgrid*nspec)
     complex (c_float_complex), intent (inout) :: & 
-                                qpar_ky0(naky*ntheta0*2*ntgrid*nspec)
+         qpar_ky0(naky*ntheta0*2*ntgrid*nspec)
     complex (c_float_complex), intent (inout) :: & 
-                                qprp_ky0(naky*ntheta0*2*ntgrid*nspec)
+         qprp_ky0(naky*ntheta0*2*ntgrid*nspec)
     complex (c_float_complex), intent (out) :: phi_ky0(naky*ntheta0*2*ntgrid)
     integer(c_int), intent (in) :: first_half_step
     integer(c_int), intent (in) :: istep
@@ -473,13 +486,14 @@ contains
     if (first_half_step.eq.1) first_half_step_l = .true.
 
     call advance_gs2_gryfx(istep, dens_ky0, upar_ky0, tpar_ky0, tprp_ky0, &
-                               qpar_ky0, qprp_ky0, phi_ky0, first_half_step_l)
+         qpar_ky0, qprp_ky0, phi_ky0, first_half_step_l)
 
 
   end subroutine advance_gs2_gryfx_c
 
+  !> FIXME : Add documentation  
   subroutine advance_gs2_gryfx(istep, dens_ky0, upar_ky0, tpar_ky0, tprp_ky0, &
-                               qpar_ky0, qprp_ky0, phi_ky0, first_half_step)
+       qpar_ky0, qprp_ky0, phi_ky0, first_half_step)
 
     use species, only: nspec
     use nonlinear_terms, only: gryfx_zonal
@@ -490,7 +504,7 @@ contains
 
     implicit none
     complex*8, dimension (:), intent (inout) :: &
-                    dens_ky0, upar_ky0, tpar_ky0, tprp_ky0, qpar_ky0, qprp_ky0
+         dens_ky0, upar_ky0, tpar_ky0, tprp_ky0, qpar_ky0, qprp_ky0
     complex*8, dimension (:), intent (inout) :: phi_ky0
     logical, intent (in) :: first_half_step
     integer, intent (in) :: istep
@@ -510,7 +524,7 @@ contains
     ! all procs know value of first_half_step already
 
     call debug_message(verb+1, &
-      'gs2_gryfx_zonal::advance_gs2_gryfx broadcasted hybrid arrays')
+         'gs2_gryfx_zonal::advance_gs2_gryfx broadcasted hybrid arrays')
 
     call interpolate_theta(gryfx_2_gs2_grid, dens_ky0, .false.)
     call interpolate_theta(gryfx_2_gs2_grid, upar_ky0, .false.)
@@ -520,7 +534,7 @@ contains
     call interpolate_theta(gryfx_2_gs2_grid, qprp_ky0, .false.)
 
     call debug_message(verb+1, &
-      'gs2_gryfx_zonal::advance_gs2_gryfx interpolated hybrid arrays')
+         'gs2_gryfx_zonal::advance_gs2_gryfx interpolated hybrid arrays')
 
     ! now that all procs know values, copy into gryfx_zonal structure
     gryfx_zonal%first_half_step = first_half_step 
@@ -532,18 +546,18 @@ contains
     gryfx_zonal%NLqprp_ky0 = qprp_ky0
 
     call debug_message(verb+1, &
-      'gs2_gryfx_zonal::advance_gs2_gryfx set hybrid arrays')
+         'gs2_gryfx_zonal::advance_gs2_gryfx set hybrid arrays')
 
     if(first_half_step) then
-      state%dont_change_timestep = .true.
-      state%skip_diagnostics = .true.
+       state%dont_change_timestep = .true.
+       state%skip_diagnostics = .true.
     else 
-      state%dont_change_timestep = .false.
-      state%skip_diagnostics = .false.
+       state%dont_change_timestep = .false.
+       state%skip_diagnostics = .false.
     endif
 
     call debug_message(verb+1, &
-      'gs2_gryfx_zonal::advance_gs2_gryfx evolving equations')
+         'gs2_gryfx_zonal::advance_gs2_gryfx evolving equations')
     ! only advance one timestep
     call evolve_equations(state, 1)
     ! getmoms_gryfx takes moments of g and puts results into arguments.
@@ -553,13 +567,13 @@ contains
     !write (*,*) 'Calling getmoms_gryfx'
 
     call debug_message(verb+1, &
-      'gs2_gryfx_zonal::advance_gs2_gryfx getting gryfx moments')
+         'gs2_gryfx_zonal::advance_gs2_gryfx getting gryfx moments')
 
     call getmoms_gryfx_dist(dens_ky0, upar_ky0, tpar_ky0, &
-                 tprp_ky0, qpar_ky0, qprp_ky0, phi_ky0)
+         tprp_ky0, qpar_ky0, qprp_ky0, phi_ky0)
 
     call debug_message(verb+1, &
-      'gs2_gryfx_zonal::advance_gs2_gryfx interpolating back')
+         'gs2_gryfx_zonal::advance_gs2_gryfx interpolating back')
 
     call interpolate_theta(gs2_2_gryfx_grid, dens_ky0, .false.)
     call interpolate_theta(gs2_2_gryfx_grid, upar_ky0, .false.)
@@ -570,10 +584,11 @@ contains
     call interpolate_theta(gs2_2_gryfx_grid, phi_ky0, .true.)
 
     call debug_message(verb+1, &
-      'gs2_gryfx_zonal::advance_gs2_gryfx finished')
+         'gs2_gryfx_zonal::advance_gs2_gryfx finished')
 
   end subroutine advance_gs2_gryfx
 
+  !> FIXME : Add documentation  
   subroutine finish_gs2_gryfx_c() bind(c, name='finish_gs2')
 
     use iso_c_binding
@@ -582,6 +597,7 @@ contains
 
   end subroutine finish_gs2_gryfx_c
 
+  !> FIXME : Add documentation  
   subroutine finish_gs2_gryfx
     use gs2_main, only: finalize_diagnostics
     use gs2_main, only: finalize_equations
@@ -605,9 +621,10 @@ contains
 
   end subroutine finish_gs2_gryfx
 
+  !> FIXME : Add documentation  
   subroutine getmoms_gryfx_c (dens_ky0, upar_ky0, tpar_ky0, tprp_ky0, &
-                              qpar_ky0, qprp_ky0, phi_ky0) &
-                                   bind(c, name='getmoms_gryfx')
+       qpar_ky0, qprp_ky0, phi_ky0) &
+       bind(c, name='getmoms_gryfx')
     use dist_fn, only: getmoms_gryfx_dist
     use theta_grid, only: ntgrid
     use kt_grids, only: ntheta0, naky
@@ -615,21 +632,21 @@ contains
     use iso_c_binding
     implicit none
     complex (c_float_complex), intent (inout) :: & 
-                                dens_ky0(naky*ntheta0*2*ntgrid*nspec)
+         dens_ky0(naky*ntheta0*2*ntgrid*nspec)
     complex (c_float_complex), intent (inout) :: & 
-                                upar_ky0(naky*ntheta0*2*ntgrid*nspec)
+         upar_ky0(naky*ntheta0*2*ntgrid*nspec)
     complex (c_float_complex), intent (inout) :: & 
-                                tpar_ky0(naky*ntheta0*2*ntgrid*nspec)
+         tpar_ky0(naky*ntheta0*2*ntgrid*nspec)
     complex (c_float_complex), intent (inout) :: & 
-                                tprp_ky0(naky*ntheta0*2*ntgrid*nspec)
+         tprp_ky0(naky*ntheta0*2*ntgrid*nspec)
     complex (c_float_complex), intent (inout) :: & 
-                                qpar_ky0(naky*ntheta0*2*ntgrid*nspec)
+         qpar_ky0(naky*ntheta0*2*ntgrid*nspec)
     complex (c_float_complex), intent (inout) :: & 
-                                qprp_ky0(naky*ntheta0*2*ntgrid*nspec)
+         qprp_ky0(naky*ntheta0*2*ntgrid*nspec)
     complex (c_float_complex), intent (out) :: phi_ky0(naky*ntheta0*2*ntgrid)
-    
+
     call getmoms_gryfx_dist(dens_ky0, upar_ky0, tpar_ky0, &
-            tprp_ky0, qpar_ky0, qprp_ky0, phi_ky0)
+         tprp_ky0, qpar_ky0, qprp_ky0, phi_ky0)
 
     call interpolate_theta(gs2_2_gryfx_grid, dens_ky0, .false.)
     call interpolate_theta(gs2_2_gryfx_grid, upar_ky0, .false.)
@@ -640,6 +657,7 @@ contains
     call interpolate_theta(gs2_2_gryfx_grid, phi_ky0, .true.)
   end subroutine getmoms_gryfx_c
 
+  !> FIXME : Add documentation  
   subroutine broadcast_integer_c(a) bind(c, name='broadcast_integer')
     use iso_c_binding
     use mp, only : broadcast
@@ -649,8 +667,9 @@ contains
     call broadcast(a) 
   end subroutine broadcast_integer_c
 
+  !> FIXME : Add documentation  
   subroutine init_gs2_file_utils_c(strlen, run_name) &
-                            bind(c, name='init_gs2_file_utils')
+       bind(c, name='init_gs2_file_utils')
     use iso_c_binding
     use file_utils, only: init_file_utils
     implicit none
@@ -661,6 +680,7 @@ contains
 
   end subroutine init_gs2_file_utils_c
 
+  !> FIXME : Add documentation  
   subroutine init_gs2_file_utils_c_actual(strlen, run_name) 
     use file_utils, only: init_file_utils
     implicit none
@@ -670,17 +690,13 @@ contains
 
     write (*,*) 'Initialising file utils with run name', run_name
     call init_file_utils(dummy, name=run_name, trin_run=.true.)
-
-
   end subroutine init_gs2_file_utils_c_actual
 
-
+  !> FIXME : Add documentation
   subroutine finish_gs2_file_utils_c() bind(c, name='finish_gs2_file_utils')
     use file_utils, only: finish_file_utils
     call finish_file_utils
   end subroutine finish_gs2_file_utils_c
-
-  
 end module gs2_gryfx_zonal
 
 

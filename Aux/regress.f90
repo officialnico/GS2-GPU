@@ -1,3 +1,4 @@
+!> FIXME : Add documentation
 program regressp
 
   use regression
@@ -40,7 +41,4 @@ program regressp
   y = yp (var, 10.)
 
   write (*,*) y
-
-  
-
 end program regressp
