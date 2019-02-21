@@ -1,5 +1,7 @@
 # GS2
 
+
+[![gitlab pipeline status](https://gitlab.com/gyrokinetics/gs2/badges/master/pipeline.svg)](https://gitlab.com/gyrokinetics/gs2/commits/master)
 [![Build Status](https://anvil.softeng-support.ac.uk/jenkins/buildStatus/icon?job=Gyrokinetics/Merge+Build+Tests-gfortran-7.2)](https://anvil.softeng-support.ac.uk/jenkins/job/Gyrokinetics/Merge+Build+Tests-gfortran-7.2)
 [![codecov](https://codecov.io/bb/gyrokinetics/gs2/branch/master/graph/badge.svg)](https://codecov.io/bb/gyrokinetics/gs2)
 
