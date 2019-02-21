@@ -480,10 +480,6 @@ ifdef LOWFLOW
 	MACRO_DEFS += -DLOWFLOW
 endif
 
-ifdef USE_LE_LAYOUT
-	MACRO_DEFS += -DUSE_LE_LAYOUT
-endif
-
 #Setup the flags for using the eigensolver
 ifdef WITH_EIG
 	EIG_INC += -I$(PETSC_DIR)/include -I$(SLEPC_DIR)/include
