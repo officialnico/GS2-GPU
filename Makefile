@@ -117,6 +117,9 @@ GENQUAD ?=
 # Compile with gcov flags to check for code coverage
 USE_GCOV ?=
 HAS_GCOV=$(USE_GCOV)
+# Compile with changes to allow pfunit testing
+USE_PFUNIT ?=
+HAS_PFUNIT=$(USE_PFUNIT)
 
 # Compile with the new simplified diagnostics module (bin)
 USE_NEW_DIAG ?=on
@@ -480,6 +483,10 @@ ifdef LOWFLOW
 	MACRO_DEFS += -DLOWFLOW
 endif
 
+ifdef USE_PFUNIT
+	CPPFLAGS += -DWITH_PFUNIT
+endif
+
 #Setup the flags for using the eigensolver
 ifdef WITH_EIG
 	EIG_INC += -I$(PETSC_DIR)/include -I$(SLEPC_DIR)/include
@@ -519,12 +526,12 @@ endif
 ############################################################################# Done dealing with user flags
 
 LIBS	+= $(DEFAULT_LIB) $(MPI_LIB) $(NETCDF_LIB) $(HDF5_LIB) $(FFT_LIB) \
-		   $(NAG_LIB) $(EIG_LIB) $(GENQUAD_LIB)
+		   $(NAG_LIB) $(EIG_LIB) $(GENQUAD_LIB) $(PFUNIT_LIB)
 INCLUDES = $(DEFAULT_INC) $(MPI_INC) $(NETCDF_INC) $(HDF5_INC) $(FFT_INC)\
-		   $(SIMPLEDATAIO_INC) $(EIG_INC) $(GENQUAD_INC)
+		   $(SIMPLEDATAIO_INC) $(EIG_INC) $(GENQUAD_INC) $(PFUNIT_INC)
 F90FLAGS+= $(F90OPTFLAGS) $(INCLUDES)
 CFLAGS += $(COPTFLAGS) \
-	   $(DEFAULT_INC) $(MPI_INC) $(NETCDF_INC) $(HDF5_INC) $(FFT_INC) 
+	   $(DEFAULT_INC) $(MPI_INC) $(NETCDF_INC) $(HDF5_INC) $(FFT_INC) $(PFUNIT_INC)
 
 
 DATE=$(shell date +%y%m%d)
@@ -783,6 +790,10 @@ tar_exec:
 TEST_DIR:=tests
 sinclude $(TEST_DIR)/Makefile.tests_and_benchmarks
 
+#This is the location of the pfunit test suites
+PFUNIT_TEST_DIR:=$(TEST_DIR)/pfunit_tests
+sinclude $(PFUNIT_TEST_DIR)/Makefile
+
 ############################################################# Introspection targets
 test_make:
 	$(call messageInfo,"Global settings:")
@@ -838,6 +849,7 @@ test_make:
 	$(call messageKeyVal, "USE_NAGLIB", $(USE_NAGLIB))
 	$(call messageKeyVal, "USE_NEW_DIAG", $(USE_NEW_DIAG))
 	$(call messageKeyVal, "USE_GCOV", $(USE_GCOV))
+	$(call messageKeyVal, "USE_PFUNIT", $(USE_PFUNIT))
 	@echo
 	$(call messageInfo,"Flags:")
 	$(call messageKeyVal, "F90FLAGS", $(F90FLAGS))

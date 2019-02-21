@@ -1,0 +1,77 @@
+.PHONY: tests clean
+MPIF90 ?= mpif90
+
+GCOV_FLAGS= --coverage
+
+TEST_DEPS?=libgs2.a functional_tests.o benchmarks.o #gs2
+
+%.o : %.F90
+	$(MPIF90) -ffree-line-length-none -fno-backslash -fdefault-real-8 -fdefault-double-8 -g -Wall -fimplicit-none -fbounds-check  -fbacktrace -c $< -I$(PFUNIT)/mod -I ../. 
+%.F90: %.pf
+	$(PFUNIT)/bin/pFUnitParser.py $< $@ -I. 
+
+all: pfunit_tests
+
+#DEPEND=../../Makefile.depend
+#include $(DEPEND)
+GS2_TMP = $(patsubst %.o,../../%.o,$(gs2_mod))
+GS2_OBJS = $(patsubst ../../gs2.o,,$(GS2_TMP))
+#GS2_TMP = $(gs2_mod)
+#GS2_OBJS = $(patsubst gs2.o,,$(GS2_TMP))
+
+SRCS = $(wildcard *.F90)
+TESTS = $(wildcard *.pf)
+
+OBJS = $(SRCS:.F90=.o) $(TESTS:.pf=.o)
+DRIVER = $(PFUNIT)/include/driver.F90 
+
+make_test: gs2 #pftest_utils
+	@cd $(PFUNIT_TEST_DIR) && $(RM) tests.x
+	@cd $(PFUNIT_TEST_DIR) && make tests.x
+
+tests.x: $(DRIVER) $(OBJS) testSuites.inc
+	$(MPIF90) -o $@ $(GS2_OBJS) -DUSE_MPI=YES -I$(PFUNIT)/mod $(DRIVER) $(OBJS) -L$(PFUNIT)/lib -lpfunit -I. ../../libsimpledataio.a -lnetcdff -lnetcdf    -L/usr/lib -L/usr/lib/x86_64-linux-gnu -lnetcdff -lnetcdf  -L/usr/lib -L/usr/lib/x86_64-linux-gnu/ -lfftw3 -lfftw3f $(F90FLAGS) -fprofile-arcs -ftest-coverage
+
+
+pftest_utils:
+	$(FC) $(F90FLAGS) $(F90FLAGS_SFXJUNK) -c pftest_utils.f90
+
+ifeq ($(GK_SYSTEM),bitbucket)
+run_test: gs2
+		@cd $(PFUNIT_TEST_DIR) && mpirun -np 4 /opt/atlassian/pipelines/agent/build/pfunit_tests/tests.x -robust -xml $(GK_HEAD_DIR)/test-results/pfunit.xml
+else
+run_test: gs2
+		@cd $(PFUNIT_TEST_DIR) && mpirun -np 4 ./tests.x -robust -xml $(GK_HEAD_DIR)/test-results/pfunit.xml
+endif
+
+run_gcov:
+	gcov *.f90
+
+ifndef USE_PFUNIT
+pfunit_tests: test_fail_target
+test_fail_target:
+	$(error Cannot make pfunit_tests as USE_PFUNIT undefined. Rebuild everything with USE_PFUNIT=on)
+else
+pfunit_tests: make_test run_test
+endif
+
+ifndef USE_PFUNIT
+pfunit_coverage: coverage_pfunit_fail
+coverage_pfunit_fail:
+	$(error Cannot make pfunit_coverage as USE_PFUNIT undefined. Rebuild everything with USE_PFUNIT=on USE_GCOV=on)
+else
+ifndef USE_GCOV
+pfunit_coverage: coverage_gcov_fail
+coverage_gcov_fail:
+	$(error Cannot make pfunit_coverage as USE_GCOV undefined. Rebuild everything with USE_PFUNIT=on USE_GCOV=on)
+else
+pfunit_coverage: gs2 make_test run_test run_gcov
+	mkdir -p coverage-pfunit
+	mv *.gcov coverage-pfunit/.
+endif
+endif
+
+pfunit_clean:
+	$(RM) *.gcov *.gcda *.gcno
+	@cd $(PFUNIT_TEST_DIR) && $(RM) *.o *.mod *.x *~ *.gcov *.gcda *.gcno
+
