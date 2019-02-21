@@ -3,21 +3,18 @@ MPIF90 ?= mpif90
 
 GCOV_FLAGS= --coverage
 
-TEST_DEPS?=libgs2.a functional_tests.o benchmarks.o #gs2
+TEST_DEPS?=libgs2.a functional_tests.o benchmarks.o
 
 %.o : %.F90
 	$(MPIF90) -ffree-line-length-none -fno-backslash -fdefault-real-8 -fdefault-double-8 -g -Wall -fimplicit-none -fbounds-check  -fbacktrace -c $< -I$(PFUNIT)/mod -I ../. 
+
 %.F90: %.pf
 	$(PFUNIT)/bin/pFUnitParser.py $< $@ -I. 
 
 all: pfunit_tests
 
-#DEPEND=../../Makefile.depend
-#include $(DEPEND)
 GS2_TMP = $(patsubst %.o,../../%.o,$(gs2_mod))
 GS2_OBJS = $(patsubst ../../gs2.o,,$(GS2_TMP))
-#GS2_TMP = $(gs2_mod)
-#GS2_OBJS = $(patsubst gs2.o,,$(GS2_TMP))
 
 SRCS = $(wildcard *.F90)
 TESTS = $(wildcard *.pf)
@@ -30,11 +27,7 @@ make_test: gs2 #pftest_utils
 	@cd $(PFUNIT_TEST_DIR) && make tests.x
 
 tests.x: $(DRIVER) $(OBJS) testSuites.inc
-	$(MPIF90) -o $@ $(GS2_OBJS) -DUSE_MPI=YES -I$(PFUNIT)/mod $(DRIVER) $(OBJS) -L$(PFUNIT)/lib -lpfunit -I. ../../libsimpledataio.a -lnetcdff -lnetcdf    -L/usr/lib -L/usr/lib/x86_64-linux-gnu -lnetcdff -lnetcdf  -L/usr/lib -L/usr/lib/x86_64-linux-gnu/ -lfftw3 -lfftw3f $(F90FLAGS) -fprofile-arcs -ftest-coverage
-
-
-pftest_utils:
-	$(FC) $(F90FLAGS) $(F90FLAGS_SFXJUNK) -c pftest_utils.f90
+	$(MPIF90) -o $@ $(GS2_OBJS) -DUSE_MPI=YES -I$(PFUNIT)/mod $(DRIVER) $(OBJS) -L$(PFUNIT)/lib -lpfunit -I. ../../libsimpledataio.a $(LIBS) $(F90FLAGS) $(GCOV_FLAGS)
 
 ifeq ($(GK_SYSTEM),bitbucket)
 run_test: gs2
