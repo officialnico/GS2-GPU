@@ -527,7 +527,7 @@ contains
 
   end subroutine set_overrides
 
-  ! Disable opt_redist_persist and opt_redist_persist_overlap if dependent settings not set
+  !> Disable opt_redist_persist and opt_redist_persist_overlap if dependent settings not set
   subroutine ensure_redist_persist_consistency(opt_redist_nbk, opt_redist_persist, opt_redist_persist_overlap)
 
     implicit none
