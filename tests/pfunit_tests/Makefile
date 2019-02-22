@@ -1,12 +1,11 @@
 .PHONY: tests clean
-MPIF90 ?= mpif90
 
 GCOV_FLAGS= --coverage
 
 TEST_DEPS?=libgs2.a functional_tests.o benchmarks.o
 
 %.o : %.F90
-	$(MPIF90) -ffree-line-length-none -fno-backslash -fdefault-real-8 -fdefault-double-8 -g -Wall -fimplicit-none -fbounds-check  -fbacktrace -c $< -I$(PFUNIT)/mod -I ../../. 
+	$(FC) -ffree-line-length-none -fno-backslash -fdefault-real-8 -fdefault-double-8 -g -Wall -fimplicit-none -fbounds-check  -fbacktrace -c $< -I$(PFUNIT)/mod -I ../../.
 
 %.F90: %.pf
 	$(PFUNIT)/bin/pFUnitParser.py $< $@ -I. 
@@ -27,7 +26,7 @@ make_test: gs2 #pftest_utils
 	@cd $(PFUNIT_TEST_DIR) && make tests.x
 
 tests.x: $(DRIVER) $(OBJS) testSuites.inc
-	$(MPIF90) -o $@ $(GS2_OBJS) -DUSE_MPI=YES -I$(PFUNIT)/mod $(DRIVER) $(OBJS) -L$(PFUNIT)/lib -lpfunit -I. ../../libsimpledataio.a $(LIBS) $(F90FLAGS) $(GCOV_FLAGS)
+	$(FC) -o $@ $(GS2_OBJS) -DUSE_MPI=YES -I$(PFUNIT)/mod $(DRIVER) $(OBJS) -L$(PFUNIT)/lib -lpfunit -I. ../../libsimpledataio.a $(LIBS) $(F90FLAGS) $(GCOV_FLAGS)
 
 ifeq ($(GK_SYSTEM),bitbucket)
 run_test: gs2
@@ -65,6 +64,6 @@ endif
 endif
 
 pfunit_clean:
-	$(RM) *.gcov *.gcda *.gcno
+	@$(RM) *.gcov *.gcda *.gcno
 	@cd $(PFUNIT_TEST_DIR) && $(RM) *.o *.mod *.x *~ *.gcov *.gcda *.gcno
 
