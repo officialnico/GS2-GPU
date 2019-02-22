@@ -573,23 +573,6 @@ endif
 
 ####################################################################### Source code targets
 
-%.f90: %.rb
-	$(call messageOp,"Generating from ruby","\\t:",$<)
-	$(QUIETSYM)$(call RUBY_GENERATE,$@,$<)
-
-%.o: %.f90
-	$(call messageOp,"Compiling","\\t:",$<)
-	$(QUIETSYM)$(FC) $(F90FLAGS) $(F90FLAGS_SFXJUNK) -c $<
-
-# The depend command needs the preprocessed source files. 
-# This is a little clunky, and maybe could be fixed in the future.
-%.f90: %.fpp
-	$(call messageOp,"Preprocessing","\\t:",$<)
-	$(QUIETSYM)$(CPP) $(CPPFLAGS) $(MACRO_DEFS) $< $@
-%.f90: %.F90
-	$(call messageOp,"Preprocessing","\\t:",$<)
-	$(QUIETSYM)$(CPP) $(CPPFLAGS) $(MACRO_DEFS) $< $@
-
 # On many systems the two steps of preprocessing and compiling
 # can be done simultaneously. This has many advantages, the
 # most important of which is correctly reporting line numbers in 
@@ -624,6 +607,23 @@ fft_work.o: fft_work.f90
 	$(call messageOp,"Compiling","\\t:",$<)
 	$(QUIETSYM)$(FC) $(F90FLAGS) $(F90FLAGS_SFX0) -c $<
 endif
+
+%.f90: %.rb
+	$(call messageOp,"Generating from ruby","\\t:",$<)
+	$(QUIETSYM)$(call RUBY_GENERATE,$@,$<)
+
+%.o: %.f90
+	$(call messageOp,"Compiling","\\t:",$<)
+	$(QUIETSYM)$(FC) $(F90FLAGS) $(F90FLAGS_SFXJUNK) -c $<
+
+# The depend command needs the preprocessed source files. 
+# This is a little clunky, and maybe could be fixed in the future.
+%.f90: %.fpp
+	$(call messageOp,"Preprocessing","\\t:",$<)
+	$(QUIETSYM)$(CPP) $(CPPFLAGS) $(MACRO_DEFS) $< $@
+%.f90: %.F90
+	$(call messageOp,"Preprocessing","\\t:",$<)
+	$(QUIETSYM)$(CPP) $(CPPFLAGS) $(MACRO_DEFS) $< $@
 
 %.o: %.c
 	$(call messageOp,"Compiling C","\\t:",$<)
