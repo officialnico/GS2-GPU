@@ -485,6 +485,8 @@ endif
 
 ifdef USE_PFUNIT
 	MACRO_DEFS += -DWITH_PFUNIT
+	PFUNIT_LIB=-L$(PFUNIT_DIR)/lib -lpfunit
+	PFUNIT_INC=-I$(PFUNIT_DIR)/mod
 endif
 
 #Setup the flags for using the eigensolver
