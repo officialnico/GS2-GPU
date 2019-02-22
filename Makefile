@@ -620,10 +620,10 @@ endif
 # This is a little clunky, and maybe could be fixed in the future.
 %.f90: %.fpp
 	$(call messageOp,"Preprocessing","\\t:",$<)
-	$(QUIETSYM)$(CPP) $(CPPFLAGS) $(MACRO_DEFS) $< $@
+	$(QUIETSYM)$(CPP) $(CPPFLAGS) $(MACRO_DEFS) $< -o $@
 %.f90: %.F90
 	$(call messageOp,"Preprocessing","\\t:",$<)
-	$(QUIETSYM)$(CPP) $(CPPFLAGS) $(MACRO_DEFS) $< $@
+	$(QUIETSYM)$(CPP) $(CPPFLAGS) $(MACRO_DEFS) $< -o $@
 
 %.o: %.c
 	$(call messageOp,"Compiling C","\\t:",$<)
