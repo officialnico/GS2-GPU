@@ -5,10 +5,10 @@ GCOV_FLAGS= --coverage
 TEST_DEPS?=libgs2.a functional_tests.o benchmarks.o
 
 %.o : %.F90
-	$(FC) $(F90FLAGS) -c $< -I$(PFUNIT)/mod -I ../../.
+	$(FC) $(F90FLAGS) -c $< -I$(PFUNIT_DIR)/mod -I ../../.
 
 %.F90: %.pf
-	$(PFUNIT)/bin/pFUnitParser.py $< $@ -I. 
+	$(PFUNIT_DIR)/bin/pFUnitParser.py $< $@ -I. 
 
 all: pfunit_tests
 
@@ -19,14 +19,14 @@ SRCS = $(wildcard *.F90)
 TESTS = $(wildcard *.pf)
 
 OBJS = $(SRCS:.F90=.o) $(TESTS:.pf=.o)
-DRIVER = $(PFUNIT)/include/driver.F90 
+DRIVER = $(PFUNIT_DIR)/include/driver.F90 
 
 make_test: gs2 #pftest_utils
 	@cd $(PFUNIT_TEST_DIR) && $(RM) tests.x
 	@cd $(PFUNIT_TEST_DIR) && make tests.x
 
 tests.x: $(DRIVER) $(OBJS) testSuites.inc
-	$(FC) -o $@ $(GS2_OBJS) -DUSE_MPI=YES -I$(PFUNIT)/mod $(DRIVER) $(OBJS) -L$(PFUNIT)/lib -lpfunit -I. ../../libsimpledataio.a $(LIBS) $(F90FLAGS) $(GCOV_FLAGS)
+	$(FC) -o $@ $(GS2_OBJS) -DUSE_MPI=YES -I$(PFUNIT_DIR)/mod $(DRIVER) $(OBJS) -L$(PFUNIT_DIR)/lib -lpfunit -I. ../../libsimpledataio.a $(LIBS) $(F90FLAGS) $(GCOV_FLAGS)
 
 ifeq ($(GK_SYSTEM),bitbucket)
 run_test: gs2
