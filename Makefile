@@ -284,7 +284,8 @@ endif
 GIT_HASH=$(shell git rev-parse HEAD)
 MACRO_DEFS+=-DGIT_HASH='"$(GIT_HASH)"'
 
-GIT_BRANCH=$(shell git branch | grep \* | cut -d ' ' -f2-)
+#The magic sed esacpes either ( or ) by replacing with \( or \)
+GIT_BRANCH=$(shell git branch | grep \* | cut -d ' ' -f2- | sed 's|\([()]\)|\\\1|g')
 MACRO_DEFS+=-DGIT_BRANCH='"$(GIT_BRANCH)"'
 
 # Find if there are any modified tracked files (except Makefile.depend)
