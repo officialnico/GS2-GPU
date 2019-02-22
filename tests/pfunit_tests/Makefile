@@ -5,7 +5,7 @@ GCOV_FLAGS= --coverage
 TEST_DEPS?=libgs2.a functional_tests.o benchmarks.o
 
 %.o : %.F90
-	$(FC) -ffree-line-length-none -fno-backslash -fdefault-real-8 -fdefault-double-8 -g -Wall -fimplicit-none -fbounds-check  -fbacktrace -c $< -I$(PFUNIT)/mod -I ../../.
+	$(FC) $(F90FLAGS) -c $< -I$(PFUNIT)/mod -I ../../.
 
 %.F90: %.pf
 	$(PFUNIT)/bin/pFUnitParser.py $< $@ -I. 
