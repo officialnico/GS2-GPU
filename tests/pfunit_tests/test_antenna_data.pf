@@ -127,20 +127,4 @@ contains
 
   end subroutine test_init_antenna_data
 
-!!!@test
-!!!subroutine test_finish_antenna_data ()
-!!!use pFUnit_mod
-!!!use antenna_data
-!!!
-!!!integer :: nk_stir_in = 3
-!!!
-!!!call init_antenna_data(nk_stir_in)
-!!!call finish_antenna_data
-!!!
-!!!@assertEquivalent (.false. , ant_on )
-!!!@assertSameShape ( shape(nk_stir_in) , shape(a_ant) )
-!!!@assertSameShape ( shape(nk_stir_in) , shape(b_ant) )
-!!!
-!!!end subroutine test_finish_antenna_data
-
 end module test_antenna_data_mod
