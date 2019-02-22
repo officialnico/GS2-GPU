@@ -484,7 +484,7 @@ ifdef LOWFLOW
 endif
 
 ifdef USE_PFUNIT
-	CPPFLAGS += -DWITH_PFUNIT
+	MACRO_DEFS += -DWITH_PFUNIT
 endif
 
 #Setup the flags for using the eigensolver
