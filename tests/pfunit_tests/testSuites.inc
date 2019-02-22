@@ -11,8 +11,8 @@
 !!!!!!ADD_TEST_SUITE(test_species_mod_suite)
 !!!!!!ADD_TEST_SUITE(test_init_g_mod_suite)
 !!!!!!
-!!!!!!! working, but need reformatting
-!!!!!!ADD_TEST_SUITE(test_antenna_data_suite)
+!! working, but need reformatting
+ADD_TEST_SUITE(test_antenna_data_mod_suite)
 !!!!!!
 !!!!!!! working, but fail
 !!!!!!!ADD_TEST_SUITE(test_theta_grid_params_mod_suite)
