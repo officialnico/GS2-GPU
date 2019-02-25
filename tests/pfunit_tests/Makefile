@@ -16,7 +16,7 @@ GS2_OBJS = $(filter-out ../../gs2.o, $(GS2_TMP))
 SRCS = $(wildcard *.F90)
 TESTS = $(wildcard *.pf)
 
-OBJS = $(SRCS:.F90=.o) $(TESTS:.pf=.o)
+OBJS = $(TESTS:.pf=.o)
 DRIVER = $(PFUNIT_DIR)/include/driver.F90 
 
 make_test: gs2 #pftest_utils
