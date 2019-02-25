@@ -1,0 +1,252 @@
+module test_gs2_time_mod
+  use pfunit_mod
+  use gs2_main, only: gs2_program_state_type
+  implicit none
+
+  public :: test_gs2_time
+
+@TestCase(npes=[1,2,4])
+  type, extends(MpiTestCase) :: test_gs2_time
+    type(gs2_program_state_type) :: gs2_state
+  contains
+    procedure :: setUp     ! overides generic
+    procedure :: tearDown  ! overrides generic
+  end type test_gs2_time
+
+contains
+
+  ! No need to annotate setUp() when _extending_ TestCase
+  subroutine setUp(this)
+
+    use gs2_init, only: init, init_level_list
+    use gs2_main, only: initialize_gs2
+    use mp, only: mp_comm
+
+    implicit none
+
+    class (test_gs2_time), intent(inout) :: this
+    integer :: comm
+
+    comm = this%getMpiCommunicator()
+
+    ! Set up depenencies
+    this%gs2_state%mp_comm_external = .true.
+    this%gs2_state%mp_comm = comm
+    this%gs2_state%run_name_external = .true.
+    this%gs2_state%run_name = trim("gs2_time")
+    call initialize_gs2(this%gs2_state)
+    call init(this%gs2_state%init, init_level_list%basic)
+
+  end subroutine setUp
+
+  ! No need to annotate tearDown() _extending_ TestCase
+  subroutine tearDown(this)
+
+    use gs2_init, only: init, init_level_list
+    use gs2_main, only: finalize_gs2
+    implicit none
+    class (test_gs2_time), intent(inout) :: this
+
+    call init(this%gs2_state%init, init_level_list%basic)
+    call finalize_gs2(this%gs2_state)
+
+  end subroutine tearDown
+
+@test
+  !> Test that init_tstart correctly initializes user_time and code_time
+  subroutine test_init_tstart(this)
+    use pFUnit_mod
+    use gs2_time
+    implicit none
+    class (test_gs2_time), intent(inout) :: this
+
+    real :: delt_in = 0.01
+    call init_tstart(delt_in)
+!
+! init_tstart sets user_time and code_time to delt_in
+!
+    @mpiAssertEqual (delt_in , user_time )
+    @mpiAssertEqual (delt_in , code_time )
+
+  end subroutine test_init_tstart
+
+@test
+  !> Test that init_delt correctly sets user_dt, code_dt, code_dt_prev_1  and
+  !! code_dt_prev_2
+  subroutine test_init_delt(this)
+    use pFUnit_mod
+    use gs2_time
+    implicit none
+    class (test_gs2_time), intent(inout) :: this
+
+    real :: delt_in = 0.01
+    call init_delt(delt_in)
+!
+! init_delt sets user_dt, code_dt, code_prev1 and code_prev2 to delt_in
+!
+    @mpiAssertEqual (delt_in , user_dt )
+    @mpiAssertEqual (delt_in , code_dt )
+    @mpiAssertEqual (delt_in , code_dt_prev1 )
+    @mpiAssertEqual (delt_in , code_dt_prev2 )
+
+  end subroutine test_init_delt
+
+@test
+  !> Test that check_time_step_too_large correctly compares code_dt and 
+  !! code_dt_cfl
+  subroutine test_check_time_step_too_large(this)
+    use pFUnit_mod
+    use gs2_time
+    implicit none
+    class (test_gs2_time), intent(inout) :: this
+
+    logical :: reset
+!
+! check_time_step_too_large returns true when code_dt is larger than
+! code_dt_cfl, and false otherwise
+!
+    code_dt = 0.1
+    code_dt_cfl = 0.01
+    call check_time_step_too_large(reset)
+    @mpiAssertEqual (.true.,reset)
+
+    code_dt = 0.01
+    code_dt_cfl = 0.1
+    call check_time_step_too_large(reset)
+    @mpiAssertEqual (.false.,reset)
+
+  end subroutine test_check_time_step_too_large
+
+@test
+  !> Test that update_time correctly reassigns values
+  subroutine test_update_time(this)
+    use pFUnit_mod
+    use gs2_time
+    implicit none
+    class (test_gs2_time), intent(inout) :: this
+
+    real :: code_dt_in
+    real :: code_dt_prev1_in
+    real :: code_time_in
+    real :: user_dt_in
+    real :: user_time_in
+
+    code_dt = 2.
+    code_dt_prev1 = 3.
+    user_dt = 5.
+
+    code_dt_in = code_dt
+    code_dt_prev1_in = code_dt_prev1
+    code_time_in = code_time
+    user_dt_in = user_dt
+    user_time_in = user_time
+
+    call update_time
+
+    @mpiAssertEqual (code_dt_prev2 , code_dt_prev1_in )
+    @mpiAssertEqual (code_dt_prev1 , code_dt_in )
+    @mpiAssertEqual (code_dt_old , code_dt_in )
+    @mpiAssertEqual (code_time , code_time_in + code_dt_in )
+    @mpiAssertEqual (user_time , user_time_in + user_dt_in )
+
+  end subroutine test_update_time
+
+@test
+  subroutine test_save_dt_cfl (this)
+    use pFUnit_mod
+    use gs2_time
+    implicit none
+    class (test_gs2_time), intent(inout) :: this
+
+    real :: delt_cfl = 0.01
+!
+! save_dt_cfl sets code_dt_cfl and user_dt_cfl to delt_cfl. 
+! user_dt_cfl is not tested as it is private
+!
+    call save_dt_cfl(delt_cfl)
+
+    @mpiAssertEqual (code_dt_cfl , delt_cfl )
+
+    ! See https://stackoverflow.com/questions/1093020/unit-testing-and-checking-private-variable-value#1093481
+    !@mpiAssertEqual (user_dt_cfl , delt_cfl )
+
+  end subroutine test_save_dt_cfl
+
+@test
+  subroutine test_save_dt_min (this)
+  use pFUnit_mod
+  use gs2_time
+  implicit none
+  class (test_gs2_time), intent(inout) :: this
+
+  real :: dt_min = 0.01
+!
+! save_dt_min sets code_dt_min and user_dt_min to dt_min. 
+! user_dt_min is not tested as it is private
+!
+  call save_dt_min(dt_min)
+
+  @mpiAssertEqual (code_dt_min , dt_min )
+  !@mpiAssertEqual (user_dt_min , dt_min )
+
+end subroutine test_save_dt_min
+
+@test
+subroutine test_save_dt(this)
+  use pFUnit_mod
+  use gs2_time
+  implicit none
+  class (test_gs2_time), intent(inout) :: this
+
+  real :: delt = 0.01
+!
+! save_dt sets code_dt and user_dt to delt. 
+! user_dt is not tested as it is private
+!
+  call save_dt(delt)
+
+  @mpiAssertEqual (code_dt, delt )
+  !@mpiAssertEqual (user_dt, delt )
+
+end subroutine test_save_dt
+
+@test
+subroutine test_write_dt(this)
+  use pFUnit_mod
+  use gs2_time
+  implicit none
+  class (test_gs2_time), intent(inout) :: this
+
+  real :: delt = 0.01
+!
+! write_dt writes the value of user_dt_cfl and user_dt 
+! check that this does not crash
+!
+  call write_dt
+
+end subroutine test_write_dt
+
+@test
+subroutine test_user2code(this)
+  use pFUnit_mod
+  use gs2_time
+  implicit none
+  class (test_gs2_time), intent(inout) :: this
+
+  real :: usertime_in, usertime, codetime
+
+  usertime = 0.01
+  codetime = 0.1
+
+  usertime_in = usertime
+!
+! user2code sets codetime equal to usertime 
+!
+  call user2code(usertime, codetime)
+
+  @mpiAssertEqual (usertime_in, codetime )
+  @mpiAssertEqual (usertime_in, usertime )
+
+end subroutine test_user2code
+
+end module test_gs2_time_mod

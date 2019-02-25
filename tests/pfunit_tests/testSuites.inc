@@ -1,9 +1,9 @@
 ADD_TEST_SUITE(test_antenna_data_mod_suite)
+ADD_TEST_SUITE(test_gs2_time_mod_suite)
 
 !!!! working, but need tidying
 !!!ADD_TEST_SUITE(test_diagnostics_fluxes_mod_suite)
 !!!ADD_TEST_SUITE(test_gs2_layouts_mod_suite)
-!!!ADD_TEST_SUITE(test_gs2_time_mod_suite)
 !!!ADD_TEST_SUITE(test_gs2_save_mod_suite)
 !!!ADD_TEST_SUITE(test_fields_mod_suite)
 !!!ADD_TEST_SUITE(test_normalisations_mod_suite)
