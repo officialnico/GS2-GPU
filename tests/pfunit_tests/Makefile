@@ -6,7 +6,7 @@ TEST_DEPS?=libgs2.a functional_tests.o benchmarks.o
 	$(FC) $(F90FLAGS) -c $< $(PFUNIT_INC) -I ../../.
 
 %.F90: %.pf
-	$(PFUNIT_DIR)/bin/pFUnitParser.py $< $@ -I. 
+	$(PFUNIT_DIR)/bin/pFUnitParser.py $< $@
 
 all: pfunit_tests
 
