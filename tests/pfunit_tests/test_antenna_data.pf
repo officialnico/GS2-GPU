@@ -1,118 +1,54 @@
 module test_antenna_data_mod
 
-  use gs2_init
   use pfunit_mod
-  use gs2_main, only: gs2_program_state_type
   implicit none
 
-  public :: test_antenna_data
-
-  @testParameter(contsructor = newTest)
-  type, extends(MpiTestParameter) :: stir_case
+  @testParameter(contsructor = new_test)
+  type, extends(MpiTestParameter) :: case
      integer :: nk_stir_in
-  end type stir_case
+  end type case
 
-@TestCase(constructor = newTest)
-  type, extends(MpiTestCase) :: test_antenna_data
-    type(gs2_program_state_type) :: gs2_state
+@TestCase(constructor = new_test)
+  type, extends(MpiTestCase) :: test_parameters
     integer :: nk_stir_in
-!!!  contains
-!!!    procedure :: setUp     ! overides generic
-!!!    procedure :: tearDown  ! overrides generic
-!!!    procedure :: setUpInputFile
-  end type test_antenna_data
+  end type test_parameters
 
 contains
 
   ! Constructor
-  function newTest(testParameter) result (tst)
-    type (test_antenna_data) :: tst
-    type (stir_case), intent(in) :: testParameter
+  function new_test(test_parameter) result (test)
+    type (test_parameters) :: test
+    type (case), intent(in) :: test_parameter
 
-    tst%nk_stir_in = testParameter%nk_stir_in
+    test%nk_stir_in = test_parameter%nk_stir_in
 
-  end function newTest
+  end function new_test
 
-  ! No need to annotate setUp() when _extending_ TestCase
-  subroutine setUp(this)
-
-    use gs2_main, only: initialize_gs2, gs2_program_state_type
-
-    implicit none
-
-    class (test_antenna_data), intent(inout) :: this
-
-    call setUpInputFile( this, "antenna_data.in" )
-     
-  end subroutine setUp
-
-  ! Do a setup specifying a different input file, allowing us to test different
-  ! input parameters.  Could do this in pfunit, using input filename as a 
-  ! parameter to scan, but most tests don't need to be repeated with different
-  ! input files, so this is simpler.  
-  subroutine setUpInputFile( this, input_filename )
-
-    use gs2_main, only: initialize_gs2, gs2_program_state_type
-
-    implicit none
-
-    class (test_antenna_data), intent(inout) :: this
-    integer :: comm
-    character(*), intent(in) :: input_filename
-
-    comm = this%getMpiCommunicator()
-
-    ! Set up depenencies
-    this%gs2_state%mp_comm_external = .true.
-    this%gs2_state%mp_comm = comm
-    this%gs2_state%run_name_external = .true.
-    this%gs2_state%run_name = trim(input_filename)
-    call initialize_gs2(this%gs2_state)
-    call init(this%gs2_state%init, init_level_list%basic)
-
-  end subroutine setUpInputFile
-
-  ! No need to annotate tearDown() _extending_ TestCase
-  subroutine tearDown(this)
-
-    use gs2_init, only:  init
-    use gs2_main, only:  finalize_gs2
-    use file_utils, only: finish_file_utils
-
-    implicit none
-    class (test_antenna_data), intent(inout) :: this
-
-    call init(this%gs2_state%init, 0)
-    call finalize_gs2(this%gs2_state)
-
-  end subroutine tearDown
-
-  function newPeCase(nk_stir_in)
-     type (stir_case) :: newPeCase
+  function new_case(nk_stir_in)
+     type (case) :: new_case
      integer, intent(in) :: nk_stir_in
-     newPeCase%nk_stir_in = nk_stir_in
-  end function newPeCase
+     new_case%nk_stir_in = nk_stir_in
+  end function new_case
 
   ! Define the parameters scan
-  function getParameters() result(params)
-    type(stir_case), allocatable :: params(:)
+  function get_parameters() result(params)
+    type(case), allocatable :: params(:)
 
     params = [ &
-         & newPeCase(nk_stir_in=-1), &
-         & newPeCase(nk_stir_in=3) &
+         & new_case(nk_stir_in=-1), &
+         & new_case(nk_stir_in=3) &
          & ]
 
-  end function getParameters
+  end function get_parameters
 
-@test(npes=[1,2,4],testParameters={getParameters()})
+@test(npes=[1,2,4],testParameters={get_parameters()})
   !> Test for initialization with no antenna
-  subroutine test_init_antenna_data_no_antenna(this)
+  subroutine test_init_antenna_data(this)
 
-    use pFUnit_mod
     use antenna_data
 
     implicit none
-    class (test_antenna_data), intent(inout) :: this
+    class (test_parameters), intent(inout) :: this
 
     integer :: nk_stir_in
     associate( nk_stir_in => this%nk_stir_in )
@@ -133,18 +69,12 @@ contains
       ! Reset module
       call finish_antenna_data
 
-      if( nk_stir_in .lt. 0 ) then ! Antenna off
-	@mpiAssertFalse(ant_on)
-	@mpiAssertFalse(allocated(a_ant))
-	@mpiAssertFalse(allocated(b_ant))
-      else ! Antenna on
-        @mpiAssertFalse(ant_on)
-        @mpiAssertFalse(allocated(a_ant))
-        @mpiAssertFalse(allocated(b_ant))
-      end if
+      @mpiAssertFalse(ant_on)
+      @mpiAssertFalse(allocated(a_ant))
+      @mpiAssertFalse(allocated(b_ant))
 
     end associate
 
-  end subroutine test_init_antenna_data_no_antenna
+  end subroutine test_init_antenna_data
 
 end module test_antenna_data_mod
