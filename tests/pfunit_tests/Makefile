@@ -2,6 +2,8 @@
 
 TEST_DEPS?=libgs2.a functional_tests.o benchmarks.o
 
+PFUNIT_TEST_EXE=pfunit_test_suite
+
 %.o : %.F90
 	$(FC) $(F90FLAGS) -c $< $(PFUNIT_INC) -I ../../.
 
@@ -20,18 +22,18 @@ OBJS = $(TESTS:.pf=.o)
 DRIVER = $(PFUNIT_DIR)/include/driver.F90 
 
 make_test: gs2 #pftest_utils
-	@cd $(PFUNIT_TEST_DIR) && $(RM) tests.x
-	@cd $(PFUNIT_TEST_DIR) && make tests.x
+	@cd $(PFUNIT_TEST_DIR) && $(RM) $(PFUNIT_TEST_EXE)
+	@cd $(PFUNIT_TEST_DIR) && make $(PFUNIT_TEST_EXE)
 
-tests.x: $(DRIVER) $(OBJS) testSuites.inc
+$(PFUNIT_TEST_EXE): $(DRIVER) $(OBJS) testSuites.inc
 	$(FC) -o $@ $(GS2_OBJS) -DUSE_MPI=YES $(PFUNIT_INC) $(DRIVER) $(OBJS) -L$(PFUNIT_LIB) -I. ../../libsimpledataio.a $(LIBS) $(F90FLAGS)
 
 ifeq ($(GK_SYSTEM),bitbucket)
 run_test: gs2
-		@cd $(PFUNIT_TEST_DIR) && mpirun -np 4 /opt/atlassian/pipelines/agent/build/pfunit_tests/tests.x -robust -xml $(GK_HEAD_DIR)/test-results/pfunit.xml
+		@cd $(PFUNIT_TEST_DIR) && mpirun -np 4 /opt/atlassian/pipelines/agent/build/pfunit_tests/$(PFUNIT_TEST_EXE) -robust -xml $(GK_HEAD_DIR)/test-results/pfunit.xml
 else
 run_test: gs2
-		@cd $(PFUNIT_TEST_DIR) && mpirun -np 4 ./tests.x -robust -xml $(GK_HEAD_DIR)/test-results/pfunit.xml
+		@cd $(PFUNIT_TEST_DIR) && mpirun -np 4 ./$(PFUNIT_TEST_EXE) -robust -xml $(GK_HEAD_DIR)/test-results/pfunit.xml
 endif
 
 run_gcov:
