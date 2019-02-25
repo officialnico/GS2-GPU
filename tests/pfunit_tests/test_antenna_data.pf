@@ -7,16 +7,31 @@ module test_antenna_data_mod
 
   public :: test_antenna_data
 
-@TestCase(npes=[1,2,4])
+  @testParameter(contsructor = newTest)
+  type, extends(MpiTestParameter) :: stir_case
+     integer :: nk_stir_in
+  end type stir_case
+
+@TestCase(constructor = newTest)
   type, extends(MpiTestCase) :: test_antenna_data
     type(gs2_program_state_type) :: gs2_state
-  contains
-    procedure :: setUp     ! overides generic
-    procedure :: tearDown  ! overrides generic
-    procedure :: setUpInputFile
+    integer :: nk_stir_in
+!!!  contains
+!!!    procedure :: setUp     ! overides generic
+!!!    procedure :: tearDown  ! overrides generic
+!!!    procedure :: setUpInputFile
   end type test_antenna_data
 
 contains
+
+  ! Constructor
+  function newTest(testParameter) result (tst)
+    type (test_antenna_data) :: tst
+    type (stir_case), intent(in) :: testParameter
+
+    tst%nk_stir_in = testParameter%nk_stir_in
+
+  end function newTest
 
   ! No need to annotate setUp() when _extending_ TestCase
   subroutine setUp(this)
@@ -72,7 +87,24 @@ contains
 
   end subroutine tearDown
 
-@test
+  function newPeCase(nk_stir_in)
+     type (stir_case) :: newPeCase
+     integer, intent(in) :: nk_stir_in
+     newPeCase%nk_stir_in = nk_stir_in
+  end function newPeCase
+
+  ! Define the parameters scan
+  function getParameters() result(params)
+    type(stir_case), allocatable :: params(:)
+
+    params = [ &
+         & newPeCase(nk_stir_in=-1), &
+         & newPeCase(nk_stir_in=3) &
+         & ]
+
+  end function getParameters
+
+@test(npes=[1,2,4],testParameters={getParameters()})
   !> Test for initialization with no antenna
   subroutine test_init_antenna_data_no_antenna(this)
 
@@ -82,49 +114,37 @@ contains
     implicit none
     class (test_antenna_data), intent(inout) :: this
 
-    integer :: nk_stir_in = -1
+    integer :: nk_stir_in
+    associate( nk_stir_in => this%nk_stir_in )
 
-    call init_antenna_data(nk_stir_in)
+      call init_antenna_data(nk_stir_in)
 
-    @mpiAssertFalse(ant_on)
-    @mpiAssertSameShape ( shape(nk_stir_in) , shape(a_ant) )
-    @mpiAssertSameShape ( shape(nk_stir_in) , shape(b_ant) )
+      if( nk_stir_in .lt. 0 ) then ! Antenna off
+	@mpiAssertFalse(ant_on)
+	@mpiAssertSameShape ( shape(nk_stir_in) , shape(a_ant) )
+	@mpiAssertSameShape ( shape(nk_stir_in) , shape(b_ant) )
+      else ! Antenna on
+        @mpiAssertTrue(ant_on)
+        @mpiAssertEqual(nk_stir_in , nk_stir )
+        @mpiAssertSameShape ( shape(nk_stir_in) , shape(a_ant) )
+        @mpiAssertSameShape ( shape(nk_stir_in) , shape(b_ant) )
+      end if
 
-    ! Reset module
-    call finish_antenna_data
+      ! Reset module
+      call finish_antenna_data
 
-    @mpiAssertFalse(ant_on)
-    @mpiAssertFalse(allocated(a_ant))
-    @mpiAssertFalse(allocated(b_ant))
+      if( nk_stir_in .lt. 0 ) then ! Antenna off
+	@mpiAssertFalse(ant_on)
+	@mpiAssertFalse(allocated(a_ant))
+	@mpiAssertFalse(allocated(b_ant))
+      else ! Antenna on
+        @mpiAssertFalse(ant_on)
+        @mpiAssertFalse(allocated(a_ant))
+        @mpiAssertFalse(allocated(b_ant))
+      end if
+
+    end associate
 
   end subroutine test_init_antenna_data_no_antenna
-
-@test
-  !> Test for initialization with antenna on
-  subroutine test_init_antenna_data(this)
-
-    use pFUnit_mod
-    use antenna_data
-
-    implicit none
-    class (test_antenna_data), intent(inout) :: this
-
-    integer :: nk_stir_in = 3
-
-    call init_antenna_data(nk_stir_in)
-
-    @mpiAssertTrue(ant_on)
-    @mpiAssertEqual(nk_stir_in , nk_stir )
-    @mpiAssertSameShape ( shape(nk_stir_in) , shape(a_ant) )
-    @mpiAssertSameShape ( shape(nk_stir_in) , shape(b_ant) )
-
-    ! Reset module
-    call finish_antenna_data
-
-    @mpiAssertFalse(ant_on)
-    @mpiAssertFalse(allocated(a_ant))
-    @mpiAssertFalse(allocated(b_ant))
-
-  end subroutine test_init_antenna_data
 
 end module test_antenna_data_mod
