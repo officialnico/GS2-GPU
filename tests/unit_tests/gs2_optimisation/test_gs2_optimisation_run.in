@@ -22,7 +22,7 @@
  auto = .true.
  nstep_measure = 1
  warm_up = .false.
- max_unused_procs = 4
+ max_unused_procs = 0
  max_imbalance = -1.0
  !min_efficiency = 0.3
 /
