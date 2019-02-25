@@ -662,7 +662,7 @@ depend: $(FORTFROMRUBY) $(UTILS_SENTINEL) Makefile.$(GK_SYSTEM)
 	$(QUIETSYM)touch $(DEPEND) && $(DEPEND_CMD) -m "$(MAKE) --no-print-directory" -1 -o -v=1\
 		--keep=$(KEEP_PROCESSED_FILES_FROM_DEPEND) $(VPATH):$(UTILS) ||\
 		rm $(DEPEND)
-
+	$(call messageOp,"Dependency file created at","\\t:",$(DEPEND))
 ##################################################################### Main TARGETS
 # .DEFAULT_GOAL works for GNU make 3.81 (or higher)
 # For 3.80 or less, see all target
