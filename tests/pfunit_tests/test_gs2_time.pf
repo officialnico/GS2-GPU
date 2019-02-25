@@ -1,13 +1,11 @@
 module test_gs2_time_mod
   use pfunit_mod
-  use gs2_main, only: gs2_program_state_type
   implicit none
 
   public :: test_gs2_time
 
 @TestCase(npes=[1,2,4])
   type, extends(MpiTestCase) :: test_gs2_time
-    type(gs2_program_state_type) :: gs2_state
   end type test_gs2_time
 
 contains
