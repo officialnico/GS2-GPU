@@ -168,6 +168,10 @@ The following is the full list of switches the possible options in
  - `USE_GCOV` (defined [undefined]): generates gcov notes files
  - `NO_TEST_COLOURS` (defined [undefined]): do not use terminal colours when 
                   reporting test results
+ - `KEEP_PROCESSED` (defined [undefined]): if defined then mark processed source files
+                  as PRECIOUS so they are not automatically deleted. This can be helpful
+                  for debugging the build process and can provide a small optimisation
+                  if generating dependency file and then recompiling.
 
 Values that each switch takes are shown in brackets, where "defined"
 ("undefined") means whether the switch is defined (or not), but not
