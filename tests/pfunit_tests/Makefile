@@ -26,7 +26,7 @@ make_test: gs2 #pftest_utils
 	@cd $(PFUNIT_TEST_DIR) && make $(PFUNIT_TEST_EXE)
 
 $(PFUNIT_TEST_EXE): $(DRIVER) $(OBJS) testSuites.inc
-	$(FC) -o $@ $(GS2_OBJS) -DUSE_MPI=YES $(PFUNIT_INC) $(DRIVER) $(OBJS) -L$(PFUNIT_LIB) -I. ../../libsimpledataio.a $(LIBS) $(F90FLAGS)
+	$(FC) -o $@ $(GS2_OBJS) -DUSE_MPI=YES $(PFUNIT_INC) $(DRIVER) $(OBJS) -L$(PFUNIT_LIB) -I. $(SIMPLEDATAIO_LIB_ABS) $(LIBS) $(F90FLAGS)
 
 ifeq ($(GK_SYSTEM),bitbucket)
 run_test: gs2
