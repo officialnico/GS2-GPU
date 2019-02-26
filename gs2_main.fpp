@@ -389,7 +389,6 @@ contains
       'gs2_main::initialize_gs2 called init_checktime')
   
     if (proc0) then
-#ifndef WITH_PFUNIT
        ! Report # of processors being used </doc>
        if (nproc == 1) then
          write(*,*) 'Running on ',nproc,' processor'
@@ -402,7 +401,6 @@ contains
        end if
 
        write (*,*) 
-#endif
        ! Call init_file_utils, ie. initialize the run_name, checking 
        !  whether we are doing a Trinity run or a list of runs.
        ! Until the logic of init_file_utils is fixed we set trin_run
@@ -1395,7 +1393,6 @@ contains
     type(gs2_program_state_type), intent(in) :: state
     type(gs2_timers_type), intent(in) :: timers
 
-#ifndef WITH_PFUNIT
     if (proc0) then
        if (.not. state%print_full_timers) then
           print '(/,'' Job ID:'', i4,'', total from timer is:'', 0pf9.2,'' min'',/)', &
@@ -1424,7 +1421,6 @@ contains
                timers%finish(1)/60.,timers%finish(1)/timers%total(1),timers%total(1)/60.
        endif
     end if
-#endif
 
   end subroutine print_times
 
