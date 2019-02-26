@@ -75,14 +75,12 @@ contains
 
       if( nk_stir_in .lt. 0 ) then ! Antenna off
 	@mpiAssertFalse(ant_on)
-	@mpiAssertSameShape ( shape(nk_stir_in) , shape(a_ant) )
-	@mpiAssertSameShape ( shape(nk_stir_in) , shape(b_ant) )
       else ! Antenna on
         @mpiAssertTrue(ant_on)
         @mpiAssertEqual(nk_stir_in , nk_stir )
-        @mpiAssertSameShape ( shape(nk_stir_in) , shape(a_ant) )
-        @mpiAssertSameShape ( shape(nk_stir_in) , shape(b_ant) )
       end if
+      @mpiAssertSameShape ( shape(nk_stir_in) , shape(a_ant) )
+      @mpiAssertSameShape ( shape(nk_stir_in) , shape(b_ant) )
 
       ! Reset module
       call finish_antenna_data
