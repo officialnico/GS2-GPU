@@ -899,6 +899,15 @@ else
 	$(call messageInfo,"FFT: DISABLED")
 endif
 	@echo
+ifdef USE_NEW_DIAG
+	$(call messageInfo,"SIMPLEDATAIO:")
+	$(call messageKeyVal, "SIMPLEDATAIO_LIB", $(SIMPLEDATAIO_LIB))
+	$(call messageKeyVal, "SIMPLEDATAIO_LIB_ABS", $(SIMPLEDATAIO_LIB_ABS))
+	$(call messageKeyVal, "SIMPLEDATAIO_INC" $(SIMPLEDATAIO_INC))
+else
+	$(call messageInfo,"SIMPLEDATAIO: DISABLED")
+endif
+	@echo
 ifdef WITH_EIG
 	$(call messageInfo,"Eigensolver:")
 	$(call messageKeyVal, "EIG_LIB", $(EIG_LIB))
