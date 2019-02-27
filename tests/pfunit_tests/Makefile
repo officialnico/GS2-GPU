@@ -16,15 +16,15 @@ GS2_OBJS = $(filter-out $(GK_HEAD_DIR)/gs2.o, $(patsubst %.o, $(GK_HEAD_DIR)/%.o
 
 TESTS= $(shell find ./ -name '*.pf')
 
-OBJS = $(TESTS:.pf=.o)
-DRIVER = $(PFUNIT_DIR)/include/driver.F90 
+PFUNIT_OBJS = $(TESTS:.pf=.o)
+PFUNIT_DRIVER = $(PFUNIT_DIR)/include/driver.F90
 
 make_test: $(GS2_OBJS)
 	@$(RM) $(PFUNIT_TEST_DIR)/$(PFUNIT_TEST_EXE)
 	@$(MAKE) -C $(PFUNIT_TEST_DIR) $(PFUNIT_TEST_EXE)
 
-$(PFUNIT_TEST_EXE): $(DRIVER) $(OBJS) testSuites.inc
-	$(FC) -o $@ $(GS2_OBJS) -DUSE_MPI=YES $(PFUNIT_INC) $(DRIVER) $(OBJS) -L$(PFUNIT_LIB) -I. $(SIMPLEDATAIO_LIB_ABS) $(LIBS) $(F90FLAGS)
+$(PFUNIT_TEST_EXE): $(PFUNIT_DRIVER) $(PFUNIT_OBJS) testSuites.inc
+	$(FC) -o $@ $(GS2_OBJS) -DUSE_MPI=YES $(PFUNIT_INC) $(PFUNIT_DRIVER) $(PFUNIT_OBJS) -L$(PFUNIT_LIB) -I. $(SIMPLEDATAIO_LIB_ABS) $(LIBS) $(F90FLAGS)
 
 ifeq ($(GK_SYSTEM),bitbucket)
 run_test: make_test
