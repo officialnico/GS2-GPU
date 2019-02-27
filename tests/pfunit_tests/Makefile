@@ -5,7 +5,7 @@ TEST_DEPS?=libgs2.a functional_tests.o benchmarks.o
 PFUNIT_TEST_EXE=pfunit_test_suite
 
 %.o : %.F90
-	$(FC) $(F90FLAGS) -c $< $(PFUNIT_INC) -I ../../.
+	$(FC) $(F90FLAGS) -c $< $(PFUNIT_INC) -I ../../. -o $@
 
 %.F90: %.pf
 	$(PFUNIT_DIR)/bin/pFUnitParser.py $< $@
@@ -16,7 +16,7 @@ GS2_TMP = $(patsubst %.o,../../%.o,$(gs2_mod))
 GS2_OBJS = $(filter-out ../../gs2.o, $(GS2_TMP))
 
 SRCS = $(wildcard *.F90)
-TESTS = $(wildcard *.pf)
+TESTS = $(wildcard *.pf) $(wildcard */*.pf)
 
 OBJS = $(TESTS:.pf=.o)
 DRIVER = $(PFUNIT_DIR)/include/driver.F90 
