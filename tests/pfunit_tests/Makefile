@@ -14,7 +14,7 @@ all: pfunit_tests
 
 GS2_OBJS = $(filter-out $(GK_HEAD_DIR)/gs2.o, $(patsubst %.o, $(GK_HEAD_DIR)/%.o, $(gs2_mod)))
 
-TESTS = $(wildcard *.pf) $(wildcard */*.pf)
+TESTS= $(shell find ./ -name '*.pf')
 
 OBJS = $(TESTS:.pf=.o)
 DRIVER = $(PFUNIT_DIR)/include/driver.F90 
