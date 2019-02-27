@@ -15,7 +15,6 @@ all: pfunit_tests
 GS2_TMP = $(patsubst %.o,../../%.o,$(gs2_mod))
 GS2_OBJS = $(filter-out ../../gs2.o, $(GS2_TMP))
 
-SRCS = $(wildcard *.F90)
 TESTS = $(wildcard *.pf) $(wildcard */*.pf)
 
 OBJS = $(TESTS:.pf=.o)
