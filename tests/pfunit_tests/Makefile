@@ -28,10 +28,10 @@ $(PFUNIT_TEST_EXE): $(DRIVER) $(OBJS) testSuites.inc
 
 ifeq ($(GK_SYSTEM),bitbucket)
 run_test: gs2
-		@cd $(PFUNIT_TEST_DIR) && mpirun -np 4 /opt/atlassian/pipelines/agent/build/pfunit_tests/$(PFUNIT_TEST_EXE) -robust -xml $(GK_HEAD_DIR)/test-results/pfunit.xml -o pfunit.log > /dev/null 2> pfunit.error
+	@cd $(PFUNIT_TEST_DIR) && mpirun -np 4 /opt/atlassian/pipelines/agent/build/pfunit_tests/$(PFUNIT_TEST_EXE) -robust -xml $(GK_HEAD_DIR)/test-results/pfunit.xml -o pfunit.log > /dev/null 2> pfunit.error
 else
 run_test: gs2
-		@cd $(PFUNIT_TEST_DIR) && mpirun -np 4 ./$(PFUNIT_TEST_EXE) -robust -xml $(GK_HEAD_DIR)/test-results/pfunit.xml -o pfunit.log > /dev/null 2> pfunit.error && cat pfunit.log || cat pfunit.error
+	@cd $(PFUNIT_TEST_DIR) && mpirun -np 4 ./$(PFUNIT_TEST_EXE) -robust -xml $(GK_HEAD_DIR)/test-results/pfunit.xml -o pfunit.log > /dev/null 2> pfunit.error && cat pfunit.log || cat pfunit.error
 endif
 
 run_gcov:
