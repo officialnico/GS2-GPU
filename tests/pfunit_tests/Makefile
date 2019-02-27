@@ -1,7 +1,5 @@
 .PHONY: tests clean
 
-TEST_DEPS?=libgs2.a functional_tests.o benchmarks.o
-
 PFUNIT_TEST_EXE=pfunit_test_suite
 
 %.o : %.F90
