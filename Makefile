@@ -1,7 +1,3 @@
-#The following ensures that any recursive calls to make should automatically
-#get access to the variables defined in the parent make. There are of course
-#various exceptions that can be sought out in the manual for make.
-export
 #
 #
 #  Makefile for GS2 Gyrokinetic Turbulence code 
@@ -154,6 +150,9 @@ WITH_COLOUR     ?= $(WITH_COLOR)
 #  distclean: does "make clean" + removes platform links & executables
 #  tar: pack
 #
+###############################################################
+# A default empty rule to say we can't rebuild this makefile so don't bother trying
+Makefile: ;
 ############################################################### DEFAULT VALUE
 #
 # These variables can be set in platform-dependent Makefile.
@@ -222,6 +221,7 @@ endif
 # compiler options.
 # However, Makefile.local may override some options set in Makefile.$(GK_SYSTEM),
 # thus it is included before and after Makefile.$(GK_SYSTEM)
+Makefile.local: ;
 sinclude Makefile.local
 
 # include system-dependent make variables
@@ -242,59 +242,36 @@ include Makefile.$(GK_SYSTEM)
 # This is in case the directories exist but the submodules haven't
 # actually been initialised
 MAKEFILES_SENTINEL = Makefiles/Makefile.bitbucket
-UTILS_SENTINEL = utils/Makefile
+UTILS_SENTINEL = utils/mp.fpp
 
-# Make sure the submodules exist; they all share the same recipe
-$(MAKEFILES_SENTINEL) $(UTILS_SENTINEL) submodules:
+.PRECIOUS: $(MAKEFILES_SENTINEL) $(UTILS_SENTINEL)
+
+# Make sure the submodules exist; they all currently share the same recipe
+$(UTILS_SENTINEL) : $(MAKEFILES_SENTINEL)
+
+$(MAKEFILES_SENTINEL) submodules:
 	@echo "Downloading submodules"
 	git submodule update --init --recursive
-# If we're running this recipe as a prerequisite, we need to rerun the
-# original target in a clean process -- but don't do this if the
-# target is explicitly "submodules", or we'll end up in an infinite
-# loop! The actual submodules are directories so Make can see if they
-# exist and therefore should skip the entire recipe
-ifneq ($(MAKECMDGOALS),submodules)
-	@$(MAKE) $(MAKECMDGOALS)
-	@exit
-endif
-
-# CAREFUL! Defines a newline to be used in make's error
-# function. Requires *two* blank lines for reasons
-define newline_
 
 
-endef
+.Makefile.makefile_exists_helper: ;
 
-BITBUCKET_ISSUE_URL = https://bitbucket.org/gyrokinetics/gs2/issues/new
-
-# This works because Make tries to read all the makefiles first, then
-# update any that need updating. The pipe means order-only,
-# i.e. doesn't check the timestamp. If we actually try to run the
-# recipe that means something has gone wrong -- normally GK_SYSTEM is
-# wrong
-Makefile.$(GK_SYSTEM): | $(MAKEFILES_SENTINEL)
-	$(error Could not find Makefile.$(GK_SYSTEM)$(newline_)\
-	*** Looking in: $(PWD) $(.INCLUDE_DIRS)$(newline_)\
-	***     Note: the above does not include non-existent directories!$(newline_)\
-	***$(newline_)\
-	*** Have you correctly set GK_SYSTEM and/or MAKEFLAGS?$(newline_)\
-	***     GK_SYSTEM: $(GK_SYSTEM)$(newline_)\
-	***     MAKEFLAGS: $(MAKEFLAGS)$(newline_)\
-	***$(newline_)\
-	*** If you are sure both GK_SYSTEM and MAKEFLAGS are correct, please try$(newline_)\
-	*** running your 'make' command again. If you still get this error,$(newline_)\
-	*** something else has gone wrong! Please report it at$(newline_)\
-	***$(newline_)\
-	***     $(BITBUCKET_ISSUE_URL)$(newline_)\
-	***$(newline_)\
-	*** including your 'make' command and its output$(newline_)\
-	)
+# Here we have a dependency on $(MAKEFILES_SENTINEL) such that this
+# will fetch the submodules first. We then try to build a null target
+# in a helper makefile which includes Makefile.$(GK_SYSTEM). This helper
+# makefile has a recipe to built Makefile.$(GK_SYSTEM) which just raises
+# an error -- this allows us to abort if the makefile can't be found even
+# after fetching the submodules
+Makefile.$(GK_SYSTEM): $(MAKEFILES_SENTINEL)
+	@$(MAKE) -f .Makefile.makefile_exists_helper --no-print-directory
 
 # include Makefile.local if exists
 sinclude Makefile.local
 
 #Include utility makefile
+Makefile.utils: ;
 include Makefile.utils
+
 #############################################################################
 
 #Record the top level path
@@ -307,16 +284,15 @@ ifndef ONE_STEP_PP
 CPPFLAGS	+= -P -traditional
 endif
 
-ifeq ($(MAKECMDGOALS),depend)
-# must invoke full functionality when make depend
-	MAKE += USE_HDF5=on USE_FFT=fftw USE_NETCDF=on USE_MPI=mpi3 \
-		USE_LOCAL_SPFUNC=on USE_LOCAL_RAN=mt
-endif
-
 GIT_HASH=$(shell git rev-parse HEAD)
 MACRO_DEFS+=-DGIT_HASH='"$(GIT_HASH)"'
+
+#The magic sed esacpes either ( or ) by replacing with \( or \)
+GIT_BRANCH=$(shell git branch | grep \* | cut -d ' ' -f2- | sed 's|\([()]\)|\\\1|g')
+MACRO_DEFS+=-DGIT_BRANCH='"$(GIT_BRANCH)"'
+
 # Find if there are any modified tracked files (except Makefile.depend)
-ifeq ($(shell git status --short -uno -- . ':(exclude)Makefiles/Makefile.depend' | wc -l), 0)
+ifeq ($(shell git status --short -uno -- . | wc -l), 0)
 	GIT_STATE="clean"
 	MACRO_DEFS+=-DGIT_STATE='$(GIT_STATE)'
 $(shell touch $(PATCHFILE))
@@ -325,7 +301,7 @@ else
 	MACRO_DEFS+=-DGIT_STATE='$(GIT_STATE)'
 
 # Here we make a patch file, which could be read by the program if we wanted to keep a record
-$(shell git diff -w -- . ':(exclude)Makefiles/Makefile.depend' > $(PATCHFILE))
+$(shell git diff -w -- .  > $(PATCHFILE))
 endif
 MACRO_DEFS+=-DGIT_PATCH_FILE='"$(PATCHFILE)"'
 
@@ -517,7 +493,8 @@ endif
 
 #Make empty targets if not using the new diagnostics
 ifeq ($(USE_NEW_DIAG),on)
-	sinclude diagnostics/Makefile.diagnostics
+Makefile.diagnostics/Makefile.diagnostics: ;
+sinclude diagnostics/Makefile.diagnostics
 else
 distclean_simpledataio:
 clean_simpledataio:
@@ -557,8 +534,6 @@ VPATH = .:$(shell echo $(VPATH_tmp) | sed "s/ /:/g")
 ifdef SUBDIR
 	VPATH +=:..
 endif
-DEPEND=Makefile.depend
-DEPEND_CMD=$(PERL) scripts/fortdep
 
 # most common include and library directories
 DEFAULT_INC_LIST = . $(GK_HEAD_DIR)/$(UTILS) $(GK_HEAD_DIR)/$(GEO) .. ../$(UTILS) ../$(GEO)
@@ -586,7 +561,7 @@ endif
 
 ####################################################################### RULES
 
-.SUFFIXES: .fpp .f90 .c .o .F90 .rb
+.SUFFIXES:
 
 .PHONY: all $(GK_PROJECT)_all submodules
 .PHONY: depend tar tar_exec test_make diagnostics simpledataio
@@ -596,32 +571,13 @@ endif
 .PHONY: doxygen_doc clean_doxygendoc sync_doc check_coderunner_install sync_input_doc
 
 # comment this out to keep intermediate .f90 files
-#.PRECIOUS: $(F90FROMFPP)
+ifdef KEEP_PROCESSED
+.PRECIOUS: $(F90FROMFPP)
+endif
+
 .INTERMEDIATE: $(F90FROMFPP)
 
 ####################################################################### Source code targets
-
-# This is to ensure the utils submodule gets initialised. The file
-# mp.o is not important, we just need to add prerequisite for some
-# file in utils
-mp.o: | $(UTILS_SENTINEL)
-
-.rb.f90:
-	$(call messageOp,"Generating from ruby","\\t:",$<)
-	$(QUIETSYM)$(call RUBY_GENERATE,$@,$<)
-
-.f90.o:
-	$(call messageOp,"Compiling","\\t:",$<)
-	$(QUIETSYM)$(FC) $(F90FLAGS) $(F90FLAGS_SFXJUNK) -c $<
-
-# The depend command needs the preprocessed source files. 
-# This is a little clunky, and maybe could be fixed in the future.
-.fpp.f90:
-	$(call messageOp,"Preprocessing","\\t:",$<)
-	$(QUIETSYM)$(CPP) $(CPPFLAGS) $(MACRO_DEFS) $< $@
-.F90.f90:
-	$(call messageOp,"Preprocessing","\\t:",$<)
-	$(QUIETSYM)$(CPP) $(CPPFLAGS) $(MACRO_DEFS) $< $@
 
 # On many systems the two steps of preprocessing and compiling
 # can be done simultaneously. This has many advantages, the
@@ -631,10 +587,10 @@ mp.o: | $(UTILS_SENTINEL)
 # On some systems (e.g. Mac OS X) using cpp doesn't work at all
 # and you HAVE to preprocess and compile in one step.
 ifdef ONE_STEP_PP
-.fpp.o:
+%.o: %.fpp
 	$(call messageOp,"Compiling and preprocessing","\\t:",$<)
 	$(QUIETSYM)$(FC) $(MACRO_DEFS) $(F90FLAGS) $(F90FLAGS_SFXJUNK) -c $<
-.F90.o:
+%.o: %.F90
 	$(call messageOp,"Compiling and preprocessing","\\t:",$<)
 	$(QUIETSYM)$(FC) $(MACRO_DEFS) $(F90FLAGS) $(F90FLAGS_SFXJUNK) -c $<
 
@@ -658,7 +614,24 @@ fft_work.o: fft_work.f90
 	$(QUIETSYM)$(FC) $(F90FLAGS) $(F90FLAGS_SFX0) -c $<
 endif
 
-.c.o:
+%.f90: %.rb
+	$(call messageOp,"Generating from ruby","\\t:",$<)
+	$(QUIETSYM)$(call RUBY_GENERATE,$@,$<)
+
+%.o: %.f90
+	$(call messageOp,"Compiling","\\t:",$<)
+	$(QUIETSYM)$(FC) $(F90FLAGS) $(F90FLAGS_SFXJUNK) -c $<
+
+# The depend command needs the preprocessed source files. 
+# This is a little clunky, and maybe could be fixed in the future.
+%.f90: %.fpp
+	$(call messageOp,"Preprocessing","\\t:",$<)
+	$(QUIETSYM)$(CPP) $(CPPFLAGS) $(MACRO_DEFS) $< -o $@
+%.f90: %.F90
+	$(call messageOp,"Preprocessing","\\t:",$<)
+	$(QUIETSYM)$(CPP) $(CPPFLAGS) $(MACRO_DEFS) $< -o $@
+
+%.o: %.c
 	$(call messageOp,"Compiling C","\\t:",$<)
 	$(QUIETSYM)$(CC) $(CFLAGS) $(subst -traditional,,$(subst -C,,$(subst -P,,$(CPPFLAGS)))) -c $<
 
@@ -666,10 +639,35 @@ endif
 # This is from a implicit makefile rule that we're overriding
 %.o : %.mod
 
-depend: $(FORTFROMRUBY) $(F90FROMFPP)
-	$(call messageOp,"Generating dependency file","\\t:",$(DEPEND))
-	$(QUIETSYM)$(DEPEND_CMD) -m "$(MAKE)" -1 -o -v=1 $(VPATH)
 
+DEPEND=Makefile.depend
+DEPEND_CMD=$(PERL) scripts/fortdep
+
+# Only define recipe to build dependency file if it doesn't exist
+ifeq ("$(wildcard $(DEPEND))", "")
+.PRECIOUS: $(DEPEND)
+$(DEPEND): $(UTILS_SENTINEL)
+$(DEPEND): $(UTILS_SENTINEL) depend
+#Provide a no-op recipe
+	@echo -n ""
+endif
+
+# If this is true then we keep the preprocessed files generated in the process
+# of producing the dependency file. This is a minor optimisation to make
+KEEP_PROCESSED_FILES_FROM_DEPEND?="no"
+ifdef ONE_STEP_PP
+KEEP_PROCESSED_FILES_FROM_DEPEND="no"
+endif
+
+depend: $(FORTFROMRUBY) $(UTILS_SENTINEL) Makefile.$(GK_SYSTEM)
+	$(call messageOp,"Generating dependency file","\\t:",$(DEPEND))
+# Note we force UTILS to be included in the paths that we pass to fortdep
+# We touch the dependency file first as fortdep will call make in order to try
+# and preprocess files, so we need this to avoid recursion
+	$(QUIETSYM)touch $(DEPEND) && $(DEPEND_CMD) -m "$(MAKE) --no-print-directory" -1 -o -v=1\
+		--keep=$(KEEP_PROCESSED_FILES_FROM_DEPEND) $(VPATH):$(UTILS) ||\
+		rm $(DEPEND)
+	$(call messageOp,"Dependency file created at","\\t:",$(DEPEND))
 ##################################################################### Main TARGETS
 # .DEFAULT_GOAL works for GNU make 3.81 (or higher)
 # For 3.80 or less, see all target
@@ -684,7 +682,9 @@ endif
 all: $(.DEFAULT_GOAL)
 
 #TODO : Add a rule to automatically build the depend file when appropriate.
+ifneq ("$(MAKECMDGOALS)", "distclean")
 include $(DEPEND)
+endif
 
 #If we're using fft(w) then we want to link the fft_save_wisdom object file
 #this currently has to be handled specially as it comes from a c source file
@@ -712,8 +712,8 @@ geometry_c_interface.o: geometry_c_interface.h
 gryfx_libs: utils.a geo.a geo/geometry_c_interface.o
 
 ############################################################# Get project specific targets
+Makefile.target_$(GK_PROJECT): ;
 include Makefile.target_$(GK_PROJECT)
-
 ############################################################# System config targets
 ifdef STANDARD_SYSTEM_CONFIGURATION
 system_config:
@@ -754,7 +754,11 @@ ifeq ($(HAS_GCOV),on)
 	-$(QUIETSYM)rm -f *.gcov *.gcda *.gcno
 endif
 
-distclean: unlink clean cleanlib clean_tests clean_benchmarks distclean_simpledataio cleanconfig clean_doxygendoc cleandoc clean_coverage
+clean_depend:
+	$(call messageRm,"Dependency file")	
+	-$(QUIETSYM)rm -f $(DEPEND)
+
+distclean: unlink clean cleanlib clean_tests clean_benchmarks distclean_simpledataio cleanconfig clean_doxygendoc cleandoc clean_coverage clean_depend
 
 unlink:
 	$(call messageRm,"Preprocessed files")	
@@ -790,6 +794,7 @@ tar_exec:
 ############################################################# Testing targets
 #This is the location of the individual test suites
 TEST_DIR:=tests
+$(TEST_DIR)/Makefile.tests_and_benchmarks: ;
 sinclude $(TEST_DIR)/Makefile.tests_and_benchmarks
 
 #This is the location of the pfunit test suites
@@ -812,7 +817,9 @@ test_make:
 	$(call messageKeyVal, "WITH_COLOUR", $(WITH_COLOUR))
 	$(call messageKeyVal, "GIT_HASH", $(GIT_HASH))
 	$(call messageKeyVal, "GIT_STATE", $(GIT_STATE))
+	$(call messageKeyVal, "GIT_BRANCH", $(GIT_BRANCH))
 	$(call messageKeyVal, "PATCHFILE", $(PATHFILE))
+	$(call messageKeyVal, "F90FROMFPP", $(F90FROMFPP))
 	@echo
 	$(call messageInfo,"Commands:")
 	$(call messageKeyVal, "COMPILER", $(COMPILER))
