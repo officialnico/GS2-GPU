@@ -12,8 +12,7 @@ PFUNIT_TEST_EXE=pfunit_test_suite
 
 all: pfunit_tests
 
-GS2_TMP = $(patsubst %.o,../../%.o,$(gs2_mod))
-GS2_OBJS = $(filter-out ../../gs2.o, $(GS2_TMP))
+GS2_OBJS = $(filter-out $(GK_HEAD_DIR)/gs2.o, $(patsubst %.o, $(GK_HEAD_DIR)/%.o, $(gs2_mod)))
 
 TESTS = $(wildcard *.pf) $(wildcard */*.pf)
 
