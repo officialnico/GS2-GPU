@@ -55,39 +55,14 @@ module volume_averages
   end interface
 
 contains
+  !> FIXME : Add documentation  
   subroutine init_volume_averages
     use theta_grid, only: ntgrid
+    implicit none
     ntg_out = ntgrid
   end subroutine init_volume_averages
 
-  !subroutine average_theta_distributed(a, b, axb_by_mode)
-    !use theta_grid, only: ntgrid, delthet, jacob, nperiod, ntheta
-    !use kt_grids, only: naky, ntheta0
-    !implicit none
-    !complex, dimension (-ntgrid:,:,:), intent (in) :: a, b
-    !real, dimension (:,:), intent (out) :: axb_by_mode
-
-
-    !integer :: ik, it
-    !integer :: ng
-    !real, dimension (-ntg_out:ntg_out) :: wgt
-    !real :: anorm
-
-    !ng = ntg_out
-    !wgt = delthet(-ng:ng)*jacob(-ng:ng)
-    !anorm = sum(wgt)
-
-    !do ik = 1, naky
-       !do it = 1, ntheta0
-         !if (field_k_local(it,ik)) then
-            !axb_by_mode(it,ik) &
-                 != sum(real(conjg(a(-ng:ng,it,ik))*b(-ng:ng,it,ik))*wgt)/anorm
-          !end if
-       !end do
-    !end do
-
-  !end subroutine average_theta_distributed
-
+  !> FIXME : Add documentation  
   subroutine average_all_2_complex_txy(a, b, avg, distributed)
     use theta_grid, only: ntgrid
     use kt_grids, only: naky, ntheta0
@@ -103,6 +78,7 @@ contains
     avg = sum(axb_by_kx(:))
   end subroutine average_all_2_complex_txy
 
+  !> FIXME : Add documentation  
   subroutine average_all_2_complex_xy(a, b, avg, distributed)
     use kt_grids, only: naky, ntheta0
     implicit none
@@ -115,6 +91,7 @@ contains
     avg = sum(axb_by_kx(:))
   end subroutine average_all_2_complex_xy
 
+  !> FIXME : Add documentation  
   subroutine average_all_complex_xy(a, avg, distributed)
     use kt_grids, only: naky, ntheta0
     implicit none
@@ -127,6 +104,7 @@ contains
     avg = sum(axb_by_kx(:))
   end subroutine average_all_complex_xy
 
+  !> FIXME : Add documentation  
   subroutine average_all_real_xy(a, avg, distributed)
     use kt_grids, only: naky, ntheta0
     implicit none
@@ -139,6 +117,7 @@ contains
     avg = sum(axb_by_kx(:))
   end subroutine average_all_real_xy
 
+  !> FIXME : Add documentation  
   subroutine average_all_real_xys (a, avg, distributed)
     use kt_grids, only: naky, ntheta0
     use species, only: nspec
@@ -155,6 +134,7 @@ contains
     end do
   end subroutine average_all_real_xys
 
+  !> FIXME : Add documentation  
   subroutine average_all_txy (a, b, avg, distributed)
     use theta_grid, only: ntgrid
     use kt_grids, only: naky, ntheta0
@@ -170,6 +150,7 @@ contains
     avg = sum(axb_by_ky)
   end subroutine average_all_txy
 
+  !> FIXME : Add documentation  
   subroutine average_theta_complex_complex_txys (a, axb_by_mode, distributed)
     use theta_grid, only: ntgrid
     use kt_grids, only: naky, ntheta0
@@ -196,6 +177,7 @@ contains
     end do
   end subroutine average_theta_complex_complex_txys
 
+  !> FIXME : Add documentation  
   subroutine average_theta_txys (a, b, axb_by_mode, distributed)
     use theta_grid, only: ntgrid, delthet, jacob
     use kt_grids, only: naky, ntheta0
@@ -227,6 +209,7 @@ contains
     end do
   end subroutine average_theta_txys
 
+  !> FIXME : Add documentation  
   subroutine average_theta_1_real_txy (a, axb_by_mode, distributed)
     use theta_grid, only: ntgrid, delthet, jacob
     use kt_grids, only: naky, ntheta0
@@ -256,6 +239,7 @@ contains
     end do
   end subroutine average_theta_1_real_txy
 
+  !> FIXME : Add documentation
   subroutine average_theta_real_real_t (a, axb)
     use theta_grid, only: ntgrid, delthet, jacob
     implicit none
@@ -272,6 +256,7 @@ contains
     axb = sum(a*wgt)/anorm
   end subroutine average_theta_real_real_t
 
+  !> FIXME : Add documentation  
   subroutine average_theta_complex_complex_complex_t (a, b, axb)
     use theta_grid, only: ntgrid, delthet, jacob
     implicit none
@@ -288,6 +273,7 @@ contains
     axb = sum(conjg(a(-ng:ng))*b(-ng:ng)*wgt)/anorm
   end subroutine average_theta_complex_complex_complex_t
 
+  !> FIXME : Add documentation  
   subroutine average_theta_complex_complex_t (a, axb)
     use theta_grid, only: ntgrid, delthet, jacob
     implicit none
@@ -304,6 +290,7 @@ contains
     axb = sum(a(-ng:ng)*wgt)/anorm
   end subroutine average_theta_complex_complex_t
 
+  !> FIXME : Add documentation  
   subroutine average_theta_complex_complex_real_t (a, b, axb)
     use theta_grid, only: ntgrid
     implicit none
@@ -315,6 +302,7 @@ contains
     axb = real(axbcomplex)
   end subroutine average_theta_complex_complex_real_t
 
+  !> FIXME : Add documentation  
   subroutine average_theta_txy (a, b, axb_by_mode, distributed)
     use theta_grid, only: ntgrid, delthet, jacob
     use kt_grids, only: naky, ntheta0
@@ -344,6 +332,7 @@ contains
     end do
   end subroutine average_theta_txy
 
+  !> FIXME : Add documentation  
   subroutine average_theta_2_complex_txy (a, b, axb_by_mode, distributed)
     use theta_grid, only: ntgrid, delthet, jacob
     use kt_grids, only: naky, ntheta0
@@ -373,6 +362,7 @@ contains
     end do
   end subroutine average_theta_2_complex_txy
 
+  !> FIXME : Add documentation
   subroutine average_ky_complex_xy (f, favg, distributed)
     use kt_grids, only: naky, ntheta0, aky
     use fields_parallelization, only: field_k_local
@@ -407,6 +397,7 @@ contains
     if (distributed) call sum_allreduce(favg)
   end subroutine average_ky_complex_xy
 
+  !> FIXME : Add documentation  
   subroutine average_ky_2_complex_xy (f, g, favg, distributed)
     use kt_grids, only: naky, ntheta0, aky
     use fields_parallelization, only: field_k_local
@@ -440,6 +431,7 @@ contains
     if (distributed) call sum_allreduce(favg)
   end subroutine average_ky_2_complex_xy
 
+  !> FIXME : Add documentation
   subroutine average_ky_xy (f, favg, distributed)
     use kt_grids, only: naky, ntheta0, aky
     use fields_parallelization, only: field_k_local
@@ -473,6 +465,7 @@ contains
     if (distributed) call sum_allreduce(favg)
   end subroutine average_ky_xy
 
+  !> FIXME : Add documentation
   subroutine average_ky_xys (f, favg, distributed)
     use kt_grids, only: naky, ntheta0, aky
     use species, only: nspec
@@ -509,6 +502,7 @@ contains
     if (distributed) call sum_allreduce(favg)
   end subroutine average_ky_xys
 
+  !> FIXME : Add documentation
   subroutine average_kx_xys (f, favg, distributed)
     use species, only: nspec
     use mp, only: sum_allreduce
@@ -522,6 +516,7 @@ contains
     end do
   end subroutine average_kx_xys
 
+  !> FIXME : Add documentation  
   subroutine average_kx_xy (f, favg, distributed)
     use kt_grids, only: naky, ntheta0, aky
     use mp, only: sum_allreduce

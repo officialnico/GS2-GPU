@@ -27,27 +27,34 @@ SIMPLEDATAIO_VPATH=:diagnostics/simpledataio/src/:../diagnostics/simpledataio/sr
 diagnostics: libsimpledataio.a
 
 libsimpledataio.a: simpledataio_write.o simpledataiof.o simpledataio.o simpledataio_read.o
-	$(ARCH) $(ARCHFLAGS) $@ $^
-	$(RANLIB) $@
+	$(call messageOp,"Linking ","\\t:",$^,"\\n\\t\-\-\-\-\-\-\>",$@)
+	$(QUIETSYM)$(ARCH) $(ARCHFLAGS) $@ $^
+	$(QUIETSYM)$(RANLIB) $@
 
 ifdef ONE_STEP_PP
 simpledataio_write.o: simpledataio_write.F90 simpledataiof.o
-	$(FC) $(MACRO_DEFS) $(subst $(DBLEFLAGS),,$(F90FLAGS)) $(F90FLAGS_SFXJUNK) -c $<
+	$(call messageOp,"Compiling and preprocessing","\\t:",$<)
+	$(QUIETSYM)$(FC) $(MACRO_DEFS) $(subst $(DBLEFLAGS),,$(F90FLAGS)) $(F90FLAGS_SFXJUNK) -c $<
 
 simpledataio_read.o: simpledataio_read.F90 simpledataiof.o simpledataio_write.o
-	$(FC) $(MACRO_DEFS) $(subst $(DBLEFLAGS),,$(F90FLAGS)) $(F90FLAGS_SFXJUNK) -c $<
+	$(call messageOp,"Compiling and preprocessing","\\t:",$<)
+	$(QUIETSYM)$(FC) $(MACRO_DEFS) $(subst $(DBLEFLAGS),,$(F90FLAGS)) $(F90FLAGS_SFXJUNK) -c $<
 
-simpledataiof.o: simpledataiof.F90 simpledataio.o 
-	$(FC) $(MACRO_DEFS) $(subst $(DBLEFLAGS),,$(F90FLAGS)) $(F90FLAGS_SFXJUNK) -c $<
+simpledataiof.o: simpledataiof.F90 simpledataio.o
+	$(call messageOp,"Compiling and preprocessing","\\t:",$<)
+	$(QUIETSYM)$(FC) $(MACRO_DEFS) $(subst $(DBLEFLAGS),,$(F90FLAGS)) $(F90FLAGS_SFXJUNK) -c $<
 else
 simpledataio_write.o: simpledataio_write.f90 simpledataiof.o
-	$(FC) $(subst $(DBLEFLAGS),,$(F90FLAGS)) $(F90FLAGS_SFXJUNK) -c $<
+	$(call messageOp,"Compiling","\\t:",$<)
+	$(QUIETSYM)$(FC) $(subst $(DBLEFLAGS),,$(F90FLAGS)) $(F90FLAGS_SFXJUNK) -c $<
 
 simpledataio_read.o: simpledataio_read.f90 simpledataiof.o simpledataio_write.o
-	$(FC) $(subst $(DBLEFLAGS),,$(F90FLAGS)) $(F90FLAGS_SFXJUNK) -c $<
+	$(call messageOp,"Compiling","\\t:",$<)
+	$(QUIETSYM)$(FC) $(subst $(DBLEFLAGS),,$(F90FLAGS)) $(F90FLAGS_SFXJUNK) -c $<
 
-simpledataiof.o: simpledataiof.f90 simpledataio.o 
-	$(FC) $(subst $(DBLEFLAGS),,$(F90FLAGS)) $(F90FLAGS_SFXJUNK) -c $<
+simpledataiof.o: simpledataiof.f90 simpledataio.o
+	$(call messageOp,"Compiling","\\t:",$<)
+	$(QUIETSYM)$(FC) $(subst $(DBLEFLAGS),,$(F90FLAGS)) $(F90FLAGS_SFXJUNK) -c $<
 endif
 
 simpledataio.o: diagnostics/simpledataio/include/definitions.h diagnostics/simpledataio/include/simpledataio.h
@@ -57,21 +64,27 @@ simpledataio.o: diagnostics/simpledataio/include/definitions.h diagnostics/simpl
 #endif
 
 diagnostics/simpledataio/src/simpledataio_write.F90: diagnostics/simpledataio/src/generate_simpledataio_write.rb
-	$(call RUBY_GENERATE,$@,$<)
+	$(call messageOp,"Generating from ruby","\\t:",$<)
+	$(QUIETSYM)$(call RUBY_GENERATE,$@,$<)
 diagnostics/simpledataio/src/simpledataio_read.F90: diagnostics/simpledataio/src/generate_simpledataio_read.rb
-	$(call RUBY_GENERATE,$@,$<)
+	$(call messageOp,"Generating from ruby","\\t:",$<)
+	$(QUIETSYM)$(call RUBY_GENERATE,$@,$<)
 
 # Commands for generating repetitive Fortran files from Ruby scripts
-diagnostics/diagnostics_create_and_write.f90: diagnostics/generate_diagnostics_create_and_write.rb 
-	$(call RUBY_GENERATE,$@,$<)
-diagnostics/diagnostics_config.f90: diagnostics/generate_diagnostics_config.rb  
-	$(call RUBY_GENERATE,$@,$<)
-diagnostics/diagnostics_ascii.f90: diagnostics/generate_diagnostics_ascii.rb  
-	$(call RUBY_GENERATE,$@,$<)
+diagnostics/diagnostics_create_and_write.f90: diagnostics/generate_diagnostics_create_and_write.rb
+	$(call messageOp,"Generating from ruby","\\t:",$<)
+	$(QUIETSYM)$(call RUBY_GENERATE,$@,$<)
+diagnostics/diagnostics_config.f90: diagnostics/generate_diagnostics_config.rb
+	$(call messageOp,"Generating from ruby","\\t:",$<)
+	$(QUIETSYM)$(call RUBY_GENERATE,$@,$<)
+diagnostics/diagnostics_ascii.f90: diagnostics/generate_diagnostics_ascii.rb
+	$(call messageOp,"Generating from ruby","\\t:",$<)
+	$(QUIETSYM)$(call RUBY_GENERATE,$@,$<)
 
 # This must be built without promotion of reals to doubles
 diagnostics_create_and_write.o: diagnostics_create_and_write.f90
-	$(FC) $(subst $(DBLEFLAGS),,$(F90FLAGS)) $(F90FLAGS_SFXJUNK) -c $<
+	$(call messageOp,"Compiling","\\t:",$<)
+	$(QUIETSYM)$(FC) $(subst $(DBLEFLAGS),,$(F90FLAGS)) $(F90FLAGS_SFXJUNK) -c $<
 
 # This line ensures that libsimpledataio is built before any of the diagnostics
 # modules

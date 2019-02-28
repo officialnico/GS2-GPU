@@ -1,3 +1,4 @@
+!> FIXME : Add documentation
 module diagnostics_zonal_transfer
 
 !> calculate tau(kx,ky), the transfer of free energy by the non-linearity in fourier space
@@ -10,9 +11,8 @@ module diagnostics_zonal_transfer
   public :: calculate_zonal_transfer, write_zonal_transfer
 
 contains
-
+  !> FIXME : Add documentation
   subroutine init_diagnostics_transfer(gnostics)
-
     use kt_grids, only: naky, ntheta0, nx, ny
     use theta_grid, only: ntgrid
     use species, only: nspec
@@ -47,7 +47,6 @@ contains
   !> calculate nonlinear term appearing in GKE
   !! for now assume electrostatic
   subroutine non_linear_term (g1)
-
     use theta_grid, only: ntgrid, kxfac
     use gs2_layouts, only: g_lo, ik_idx, it_idx, is_idx
     use gs2_layouts, only: yxf_lo
@@ -183,9 +182,10 @@ contains
     
   contains
     
-    subroutine load_kx_phi
-      
-      use dist_fn_arrays, only: aj0  !!!bessel function from the fourier coeff of average
+    !> FIXME : Add documentation
+    subroutine load_kx_phi      
+      use dist_fn_arrays, only: aj0  !< bessel function from the fourier coeff of average
+      implicit none
       complex :: fac
 
       do iglo = g_lo%llim_proc, g_lo%ulim_proc
@@ -200,9 +200,10 @@ contains
 
     end subroutine load_kx_phi
 
+    !> FIXME : Add documentation    
     subroutine load_ky_phi
-
       use dist_fn_arrays, only: aj0
+      implicit none
       complex :: fac
 
       do iglo = g_lo%llim_proc, g_lo%ulim_proc
@@ -237,11 +238,9 @@ contains
     
 !   end subroutine integrate
 
-  !> average over theta
+  !> Average over theta
   subroutine average_theta(a, axb)
-    
-    use theta_grid, only: ntgrid, delthet, jacob
-    
+    use theta_grid, only: ntgrid, delthet, jacob       
     implicit none
     
     complex, dimension (-ntgrid:), intent (in) :: a
@@ -257,9 +256,8 @@ contains
     
   end subroutine average_theta
 
-  !> returns tau, the transfer of free energy as a function of (kx,ky)
-  subroutine total_term(tau)
-    
+  !> Returns tau, the transfer of free energy as a function of (kx,ky)
+  subroutine total_term(tau)    
     use mp, only: proc0, broadcast
     use theta_grid, only: ntgrid
     use gs2_layouts, only: g_lo, ik_idx, it_idx
@@ -310,10 +308,9 @@ contains
     deallocate (g0, inter, inter_s)
     
   end subroutine total_term
-  
+
+  !> FIXME : Add documentation  
   subroutine write_zonal_transfer(gnostics)
-    
-!    use diagnostics_create_and_write, only: create_and_write_distributed_fieldlike_variable
     use diagnostics_create_and_write, only: create_and_write_variable
     use diagnostics_dimensions, only: dim_string
     use fields_parallelization, only: field_k_local
@@ -334,12 +331,11 @@ contains
          "Tr2*rhor*c*ns*vth6 / Ba2*e*a3", gnostics%current_results%zonal_transfer)
     
   end subroutine write_zonal_transfer
-  
-  subroutine calculate_zonal_transfer(gnostics)
 
+  !> FIXME : Add documentation  
+  subroutine calculate_zonal_transfer(gnostics)
     use diagnostics_config, only: diagnostics_type
     use kt_grids, only: ntheta0, naky
-
     implicit none
     
     type(diagnostics_type), intent(inout) :: gnostics

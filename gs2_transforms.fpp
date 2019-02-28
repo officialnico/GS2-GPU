@@ -28,6 +28,7 @@
 
 #endif
 
+!> FIXME : Add documentation
 module gs2_transforms
 
   use redistribute, only: redist_type
@@ -49,11 +50,11 @@ module gs2_transforms
 
   interface transform_x
      module procedure transform_x5d
-  end interface
+  end interface transform_x
 
   interface transform_y
      module procedure transform_y5d
-  end interface
+  end interface transform_y
 
   interface transform2
      module procedure transform2_5d_accel
@@ -61,22 +62,22 @@ module gs2_transforms
      module procedure transform2_4d
      module procedure transform2_3d
      module procedure transform2_2d
-  end interface
+  end interface transform2
 
   interface inverse_x
      module procedure inverse_x5d
-  end interface
+  end interface inverse_x
 
   interface inverse_y
      module procedure inverse_y5d
-  end interface
+  end interface inverse_y
 
   interface inverse2
      module procedure inverse2_5d_accel
      module procedure inverse2_5d
      module procedure inverse2_3d
      module procedure inverse2_2d
-  end interface
+  end interface inverse2
 
   ! redistribution
 
@@ -99,10 +100,10 @@ module gs2_transforms
 
   logical :: xfft_initted = .false.
 
-! accel will be set to true if the v layout is used AND the number of
-! PEs is such that each PE has a complete copy of the x,y space --
-! in that case, no communication is needed to evaluate the nonlinear
-! terms
+  ! accel will be set to true if the v layout is used AND the number of
+  ! PEs is such that each PE has a complete copy of the x,y space --
+  ! in that case, no communication is needed to evaluate the nonlinear
+  ! terms
   logical :: accel = .false.
 
   logical, dimension (:), allocatable :: aidx  ! aidx == aliased index
@@ -116,6 +117,7 @@ module gs2_transforms
 
 contains
 
+  !> FIXME : Add documentation  
   subroutine init_transforms &
        (ntgrid, naky, ntheta0, nlambda, negrid, nspec, nx, ny, accelerated)
     use mp, only: nproc, proc0
@@ -132,7 +134,7 @@ contains
     logical, parameter :: debug = .false.
 
     character (1) :: char
-! CMR, 12/2/2010:  return correct status of "accelerated" even if already initialised
+    ! CMR, 12/2/2010:  return correct status of "accelerated" even if already initialised
     accelerated = accel
 
     !Early exit if possible
@@ -141,7 +143,7 @@ contains
 
     measure_plan = fft_measure_plan
     if (fft_use_wisdom) call load_wisdom(trim(fft_wisdom_file))
-    
+
     if (debug) write (*,*) 'init_transforms: init_gs2_layouts'
     call init_gs2_layouts
 
@@ -167,29 +169,30 @@ contains
        endif
     end if
 
-! need these for movies
-     if (debug) write (*,*) 'init_transforms: init_y_transform_layouts'
+    ! need these for movies
+    if (debug) write (*,*) 'init_transforms: init_y_transform_layouts'
     call init_y_transform_layouts (ntgrid, naky, ntheta0, nlambda, negrid, nspec, nx, ny)
-     if (debug) write (*,*) 'init_transforms: init_x_transform_layouts'
+    if (debug) write (*,*) 'init_transforms: init_x_transform_layouts'
     call init_x_transform_layouts (ntgrid, naky, ntheta0, nlambda, negrid, nspec, nx)
-
+    
     if (debug) write (*,*) 'init_transforms: init_y_fft'
     call init_y_fft (ntgrid)
-
+    
     if (debug) write (*,*) 'init_transforms: done'
     accelerated = accel
     
     if (proc0.and.fft_use_wisdom) call save_wisdom(trim(fft_wisdom_file))
-
+    
   end subroutine init_transforms
 
+  !> FIXME : Add documentation  
   subroutine init_x_transform (ntgrid, naky, ntheta0, nlambda, negrid, nspec, nx)
-
-  !JH As of 7th December 2011 this routine is dead code and should be considered
-  !JH for removal from the source.  
-  !JH This functionality is presently implemented in subroutine init_y_fft 
-  !JH present later in this file.
-
+    
+    !JH As of 7th December 2011 this routine is dead code and should be considered
+    !JH for removal from the source.  
+    !JH This functionality is presently implemented in subroutine init_y_fft 
+    !JH present later in this file.
+    
     use mp, only: nproc
     use fft_work, only: init_ccfftw
     use gs2_layouts, only: xxf_lo, pe_layout
@@ -206,7 +209,7 @@ contains
 
     if (initialized_x) return
     initialized_x = .true.
-
+    
     call pe_layout (char)
 
 #ifndef SHMEM
@@ -219,34 +222,33 @@ contains
        call init_x_redist (ntgrid, naky, ntheta0, nlambda, negrid, nspec, nx)
 
 # if FFT == _FFTW_
-
+       
        call init_ccfftw (xf_fft,  1, xxf_lo%nx)
        call init_ccfftw (xb_fft, -1, xxf_lo%nx)
-
+       
 # elif FFT == _FFTW3_
-
+       
        if (.not.allocated(xxf)) then
           allocate (xxf(xxf_lo%nx,xxf_lo%llim_proc:xxf_lo%ulim_alloc))
        endif
-
+       
        ! number of ffts to be calculated
        nb_ffts = xxf_lo%ulim_proc - xxf_lo%llim_proc + 1
-
+       
        call init_ccfftw (xf_fft,  1, xxf_lo%nx, nb_ffts, xxf)
        call init_ccfftw (xb_fft, -1, xxf_lo%nx, nb_ffts, xxf)
 # endif
-
+       
        xfft_initted = .true.
     end if
-
+    
   end subroutine init_x_transform
 
-  
-  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
+  !> FIXME : Add documentation
   subroutine init_y_fft (ntgrid)
-
     use gs2_layouts, only: xxf_lo, yxf_lo, accel_lo, accelx_lo, dealiasing
     use fft_work, only: init_crfftw, init_rcfftw, init_ccfftw
 #ifdef SHMEM
@@ -256,7 +258,7 @@ contains
 #endif
     implicit none
     integer, intent (in) :: ntgrid
-
+    
     integer :: idx, i
 #ifdef SHMEM
     integer howmany,stride,n2,n3,idw,nwk,envlen,ts1,ts2
@@ -274,8 +276,8 @@ contains
     initialized_y_fft = .true.
 
     if (accel) then
-
-! prepare for dealiasing 
+       
+       ! prepare for dealiasing 
        allocate (ia (accel_lo%nia))
        allocate (iak(accel_lo%nia))
 #ifndef SHMEM 
@@ -286,7 +288,6 @@ contains
        call shm_alloc(ag, (/ -ntgrid, ntgrid, 1, 2, accel_lo%llim_proc, accel_lo%ulim_alloc /))
 #endif
        aidx = .true.
-
 
 #ifndef SHMEM
        do i = accel_lo%llim_proc, accel_lo%ulim_proc
@@ -312,7 +313,7 @@ contains
        end do
 #endif
 
-       !JH FFTW plan creation for the accelerated 2d transforms
+             !JH FFTW plan creation for the accelerated 2d transforms
 #if FFT == _FFTW_ 
 
        call init_crfftw (yf_fft,  1, accel_lo%ny, accel_lo%nx)
@@ -330,79 +331,77 @@ contains
        call get_environment_variable("GS2_SHM_2D_PLAN_BUFF",VALUE=envval, LENGTH=envlen)
        if (envlen >0) read(envval,*) use_shm_2d_plan_buff
        if (proc0) then
-         if (use_shm_2d_plan) then
-           write(*,*)' SHM with 2D plans'      
-           if (use_shm_2d_plan_buff) then 
-             write(*,*)' SHM 2D plans with buffering'
-           endif
-         else 
-           write(*,*)' SHM with 1D plans'
-         endif
+          if (use_shm_2d_plan) then
+             write(*,*)' SHM with 2D plans'      
+             if (use_shm_2d_plan_buff) then 
+                write(*,*)' SHM 2D plans with buffering'
+             endif
+          else 
+             write(*,*)' SHM with 1D plans'
+          endif
        endif
-
+       
        call compute_ntgrid_split
        
        if (use_shm_2d_plan) then
-         n2 = accel_lo%ny
-         n3 = accel_lo%nx
-
-         ! attention, trouble if ppn =1
-         if ( shm_info%size > 1 ) then
-           if (shm_info%id < shm_info%size / 2) then
-             idw = shm_info%id
+          n2 = accel_lo%ny
+          n3 = accel_lo%nx
+          
+          ! attention, trouble if ppn =1
+          if ( shm_info%size > 1 ) then
+             if (shm_info%id < shm_info%size / 2) then
+                idw = shm_info%id
+                ts2=1
+                nwk = shm_info%size / 2
+             else
+                idw = shm_info%id - shm_info%size / 2
+                ts2=2
+                nwk = shm_info%size - shm_info%size / 2! for odd ppn 
+             endif
+          else
+             idw = 0
              ts2=1
-             nwk = shm_info%size / 2
-           else
-             idw = shm_info%id - shm_info%size / 2
-             ts2=2
-             nwk = shm_info%size - shm_info%size / 2! for odd ppn 
-           endif
-         else
-           idw = 0
-           ts2=1
-           nwk=1
-         endif
-         ts1 = -ntgrid + (2*ntgrid+1)/nwk * idw &
-              + min(mod(2*ntgrid+1,nwk), idw)
-         howmany =  (2*ntgrid+1)/nwk
-         if ( idw < mod(2*ntgrid+1,nwk)) howmany = howmany+1
-         if(shm_info%size == 1) howmany = 2*(2*ntgrid+1)
-         
-         if ( use_shm_2d_plan_buff) then
-           stride=howmany
-         else
-           stride=2*(2*accel_lo%ntgrid+1)
-         endif
-         
-         call init_crfftw (yf_fft_shm,  1, accel_lo%ny, accel_lo%nx, &
+             nwk=1
+          endif
+          ts1 = -ntgrid + (2*ntgrid+1)/nwk * idw &
+               + min(mod(2*ntgrid+1,nwk), idw)
+          howmany =  (2*ntgrid+1)/nwk
+          if ( idw < mod(2*ntgrid+1,nwk)) howmany = howmany+1
+          if(shm_info%size == 1) howmany = 2*(2*ntgrid+1)
+
+          if ( use_shm_2d_plan_buff) then
+             stride=howmany
+          else
+             stride=2*(2*accel_lo%ntgrid+1)
+          endif
+
+          call init_crfftw (yf_fft_shm,  1, accel_lo%ny, accel_lo%nx, &
                howmany, stride) !(2*accel_lo%ntgrid+1) * 2)
 
- ! now the inverse        
-                  
-       call init_rcfftw (yb_fft_shm, -1, accel_lo%ny, accel_lo%nx, &
-             howmany, stride) !(2*accel_lo%ntgrid+1) * 2)
+          ! now the inverse        
 
-       ! init_... has intent out for plan var
-       yf_fft_shm%ts1=ts1
-       yf_fft_shm%ts2=ts2
-       yb_fft_shm%ts1=ts1
-       yb_fft_shm%ts2=ts2
-       
+          call init_rcfftw (yb_fft_shm, -1, accel_lo%ny, accel_lo%nx, &
+               howmany, stride) !(2*accel_lo%ntgrid+1) * 2)
+
+          ! init_... has intent out for plan var
+          yf_fft_shm%ts1=ts1
+          yf_fft_shm%ts2=ts2
+          yb_fft_shm%ts1=ts1
+          yb_fft_shm%ts2=ts2
+
        else
-         call init_crfftw(faccel_shmx, 1, accel_lo%ny, 2*(2*ntgrid+1), "t")
-         allocate(dummy( 2*(2*ntgrid+1), accel_lo%ndky * accel_lo%nx))
-         call init_ccfftw(faccel_shmy, 1, accel_lo%nx, 2*(2*ntgrid+1), dummy, "t", accel_lo%ndky)
-         deallocate(dummy)
-         call init_rcfftw(baccel_shmx, -1, accelx_lo%ny, 2*(2*ntgrid+1), "t")
-         allocate(dummy( 2*(2*ntgrid+1), accelx_lo%ny * accelx_lo%nx))
-         call init_ccfftw(baccel_shmy, -1, accel_lo%nx, 2*(2*ntgrid+1), dummy, "t",accel_lo%ndky)
-         deallocate(dummy)
+          call init_crfftw(faccel_shmx, 1, accel_lo%ny, 2*(2*ntgrid+1), "t")
+          allocate(dummy( 2*(2*ntgrid+1), accel_lo%ndky * accel_lo%nx))
+          call init_ccfftw(faccel_shmy, 1, accel_lo%nx, 2*(2*ntgrid+1), dummy, "t", accel_lo%ndky)
+          deallocate(dummy)
+          call init_rcfftw(baccel_shmx, -1, accelx_lo%ny, 2*(2*ntgrid+1), "t")
+          allocate(dummy( 2*(2*ntgrid+1), accelx_lo%ny * accelx_lo%nx))
+          call init_ccfftw(baccel_shmy, -1, accel_lo%nx, 2*(2*ntgrid+1), dummy, "t",accel_lo%ndky)
+          deallocate(dummy)
        end if
 #endif
 
 #endif
-
-    
     else
        ! non-accelerated
        allocate (fft(yxf_lo%ny/2+1, yxf_lo%llim_proc:yxf_lo%ulim_alloc))
@@ -426,10 +425,9 @@ contains
           !JH to be xxf_lo%llim_proc in this situation, and that will give 
           !JH 1 FFT to be calculated which the code can correctly undertake.
           nb_ffts = xxf_lo%ulim_alloc - xxf_lo%llim_proc + 1
-          
+
           call init_ccfftw (xf_fft,  1, xxf_lo%nx, nb_ffts, xxf)
           call init_ccfftw (xb_fft, -1,  xxf_lo%nx, nb_ffts, xxf)
-          
 # endif
           xfft_initted = .true.
        end if
@@ -451,36 +449,32 @@ contains
 
        call init_crfftw (yf_fft,  1, yxf_lo%ny, nb_ffts)
        call init_rcfftw (yb_fft, -1,  yxf_lo%ny, nb_ffts)
-
 #endif
-
     end if
 
 #ifdef SHMEM
-
   contains
-
+    !> FIXME : Add documentation
     subroutine compute_ntgrid_split
       implicit none
-
       integer k, ir, idw, nw
 
       ! computes only shifts for its ite (base 0)
-      
+
       if (shm_info%size > 1) then
-        if (shm_info%id < shm_info%size / 2) then
-          idw = shm_info%id
-          nw  = shm_info%size / 2
-          ips =1; ipe =1
-        else
-          idw = shm_info%id - shm_info%size / 2
-          nw = shm_info%size - shm_info%size / 2
-          ips=2;ipe=2
-        endif
+         if (shm_info%id < shm_info%size / 2) then
+            idw = shm_info%id
+            nw  = shm_info%size / 2
+            ips =1; ipe =1
+         else
+            idw = shm_info%id - shm_info%size / 2
+            nw = shm_info%size - shm_info%size / 2
+            ips=2;ipe=2
+         endif
       else
-        idw = 0
-        ips=1; ipe=2
-        nw = shm_info%size
+         idw = 0
+         ips=1; ipe=2
+         nw = shm_info%size
       end if
       k=(2*ntgrid+1)/nw
       ir=mod((2*ntgrid+1),nw)
@@ -488,16 +482,16 @@ contains
       ite = its + k-1
       if ( idw < ir) ite=ite+1
     end subroutine compute_ntgrid_split
-
 #endif   
-    
+
   end subroutine init_y_fft
 
+  !> FIXME : Add documentation  
   subroutine init_x_redist (ntgrid, naky, ntheta0, nlambda, negrid, nspec, nx)
     use gs2_layouts, only: init_x_transform_layouts
     use gs2_layouts, only: g_lo, xxf_lo, gidx2xxfidx, proc_id, idx_local
     use gs2_layouts, only: opt_local_copy, layout
-    
+
     use mp, only: nproc
     use redistribute, only: index_list_type, init_redist, delete_list
     use redistribute, only: set_redist_character_type, set_xxf_optimised_variables
@@ -515,11 +509,11 @@ contains
     if (initialized_x_redist) return
     initialized_x_redist = .true.
 
-!<DD>This routine can probably be optimised somewhat.
-!in particular the large number of calls to the index lookup routines
-!and idx_local can be reduced significantly by exploiting knowledge of
-!the xxf layout and similar.
-!For most cases init_x_redist_local is faster
+    !<DD>This routine can probably be optimised somewhat.
+    !in particular the large number of calls to the index lookup routines
+    !and idx_local can be reduced significantly by exploiting knowledge of
+    !the xxf layout and similar.
+    !For most cases init_x_redist_local is faster
 
     call init_x_transform_layouts &
          (ntgrid, naky, ntheta0, nlambda, negrid, nspec, nx)
@@ -534,7 +528,7 @@ contains
              if (idx_local(g_lo,iglo)) &
                   nn_from(proc_id(xxf_lo,ixxf)) = nn_from(proc_id(xxf_lo,ixxf)) + 1
              if (idx_local(xxf_lo,ixxf)) &
-                nn_to(proc_id(g_lo,iglo)) = nn_to(proc_id(g_lo,iglo)) + 1
+                  nn_to(proc_id(g_lo,iglo)) = nn_to(proc_id(g_lo,iglo)) + 1
           end do
        end do
     end do
@@ -583,7 +577,7 @@ contains
     from_low (3) = g_lo%llim_proc
 
     to_low = xxf_lo%llim_proc
-    
+
     to_high(1) = xxf_lo%nx
     to_high(2) = xxf_lo%ulim_alloc
 
@@ -593,7 +587,7 @@ contains
 
     call set_redist_character_type(g2x, 'g2x')
     call set_xxf_optimised_variables(opt_local_copy, naky, ntgrid, ntheta0, &
-       nlambda, negrid, nx, xxf_lo%ulim_proc, g_lo%blocksize, layout)
+         nlambda, negrid, nx, xxf_lo%ulim_proc, g_lo%blocksize, layout)
     call init_redist (g2x, 'c', to_low, to_high, to_list, &
          from_low, from_high, from_list)
 
@@ -602,7 +596,7 @@ contains
 
   end subroutine init_x_redist
 
-  !<DD>
+  !> FIXME : Add documentation
   subroutine init_x_redist_local (ntgrid, naky, ntheta0, nlambda, negrid, nspec, nx)
     use gs2_layouts, only: init_x_transform_layouts
     use gs2_layouts, only: g_lo, xxf_lo, gidx2xxfidx, proc_id, idx_local
@@ -796,7 +790,7 @@ contains
     from_low (3) = g_lo%llim_proc
 
     to_low = xxf_lo%llim_proc
-    
+
     to_high(1) = xxf_lo%nx
     to_high(2) = xxf_lo%ulim_alloc
 
@@ -806,7 +800,7 @@ contains
 
     call set_redist_character_type(g2x, 'g2x')
     call set_xxf_optimised_variables(opt_local_copy, naky, ntgrid, ntheta0, &
-       nlambda, negrid, nx, xxf_lo%ulim_proc, g_lo%blocksize, layout)
+         nlambda, negrid, nx, xxf_lo%ulim_proc, g_lo%blocksize, layout)
 
     !Create g2x redistribute object
     call init_redist (g2x, 'c', to_low, to_high, to_list, &
@@ -818,8 +812,8 @@ contains
     call delete_list(sort_list)
 
   end subroutine init_x_redist_local
-!</DD>
 
+  !> FIXME : Add documentation
   subroutine init_y_redist (ntgrid, naky, ntheta0, nlambda, negrid, nspec, nx, ny)
     use gs2_layouts, only: init_y_transform_layouts
     use gs2_layouts, only: xxf_lo, yxf_lo, xxfidx2yxfidx, proc_id, idx_local
@@ -836,11 +830,11 @@ contains
 
     integer :: it, ixxf, ik, iyxf
     integer :: n, ip
-!<DD>This routine can probably be optimised somewhat.
-!in particular the large number of calls to the index lookup routines
-!and idx_local can be reduced significantly by exploiting knowledge of
-!the xxf layout and similar.
-!For most cases init_y_redist_local is faster
+    !<DD>This routine can probably be optimised somewhat.
+    !in particular the large number of calls to the index lookup routines
+    !and idx_local can be reduced significantly by exploiting knowledge of
+    !the xxf layout and similar.
+    !For most cases init_y_redist_local is faster
 
     if (initialized_y_redist) return
     initialized_y_redist = .true.
@@ -856,9 +850,9 @@ contains
        do it = 1, yxf_lo%nx
           call xxfidx2yxfidx (it, ixxf, xxf_lo, yxf_lo, ik, iyxf)
           if (idx_local(xxf_lo,ixxf)) &
-             nn_from(proc_id(yxf_lo,iyxf)) = nn_from(proc_id(yxf_lo,iyxf)) + 1
+               nn_from(proc_id(yxf_lo,iyxf)) = nn_from(proc_id(yxf_lo,iyxf)) + 1
           if (idx_local(yxf_lo,iyxf)) &
-             nn_to(proc_id(xxf_lo,ixxf)) = nn_to(proc_id(xxf_lo,ixxf)) + 1
+               nn_to(proc_id(xxf_lo,ixxf)) = nn_to(proc_id(xxf_lo,ixxf)) + 1
        end do
     end do
 
@@ -876,20 +870,20 @@ contains
     ! get local indices of elements distributed to/from other processors
     nn_to = 0
     nn_from = 0
-!
-!CMR: loop over all xxf indices, find corresponding yxf indices
-!
+    !
+    !CMR: loop over all xxf indices, find corresponding yxf indices
+    !
     do ixxf = xxf_lo%llim_world, xxf_lo%ulim_world
        do it = 1, yxf_lo%nx
-!
-!CMR obtain corresponding yxf indices
-!
+          !
+          !CMR obtain corresponding yxf indices
+          !
           call xxfidx2yxfidx (it, ixxf, xxf_lo, yxf_lo, ik, iyxf)
           if (idx_local(xxf_lo,ixxf)) then
-!CMR: if xxf index local, set:
-!         ip = corresponding yxf processor
-!        from_list%first,second arrays = it,ixxf  (ie xxf indices)
-!     later will send from_list to proc ip
+             !CMR: if xxf index local, set:
+             !         ip = corresponding yxf processor
+             !        from_list%first,second arrays = it,ixxf  (ie xxf indices)
+             !     later will send from_list to proc ip
              ip = proc_id(yxf_lo,iyxf)
              n = nn_from(ip) + 1
              nn_from(ip) = n
@@ -897,9 +891,9 @@ contains
              from_list(ip)%second(n) = ixxf
           end if
           if (idx_local(yxf_lo,iyxf)) then
-!CMR: if yxf index local, set ip to corresponding xxf processor
-!     set to_list%first,second arrays = ik,iyxf  (ie yxf indices)
-!     will receive to_list from ip
+             !CMR: if yxf index local, set ip to corresponding xxf processor
+             !     set to_list%first,second arrays = ik,iyxf  (ie yxf indices)
+             !     will receive to_list from ip
              ip = proc_id(xxf_lo,ixxf)
              n = nn_to(ip) + 1
              nn_to(ip) = n
@@ -927,10 +921,10 @@ contains
          from_low, from_high, from_list)
     call delete_list (to_list)
     call delete_list (from_list)
-    
+
   end subroutine init_y_redist
 
-!<DD>
+  !> FIXME : Add documentation  
   subroutine init_y_redist_local (ntgrid, naky, ntheta0, nlambda, negrid, nspec, nx, ny)
     use gs2_layouts, only: init_y_transform_layouts
     use gs2_layouts, only: xxf_lo, yxf_lo, xxfidx2yxfidx, proc_id, idx_local
@@ -1105,7 +1099,7 @@ contains
 
     to_high(1) = yxf_lo%ny/2+1
     to_high(2) = yxf_lo%ulim_alloc
-
+    
     from_high(1) = xxf_lo%nx
     from_high(2) = xxf_lo%ulim_alloc
 
@@ -1115,17 +1109,15 @@ contains
     !Create x2y redist object
     call init_redist (x2y, 'c', to_low, to_high, to_list, &
          from_low, from_high, from_list)
-    
+
     !Deallocate list objects
     call delete_list (to_list)
     call delete_list (from_list)
     call delete_list (sort_list)
 
   end subroutine init_y_redist_local
-!</DD>
 
-!</DD>
-
+  !> FIXME : Add documentation
   subroutine transform_x5d (g, xxf)
     use gs2_layouts, only: xxf_lo, g_lo
     use prof, only: prof_entering, prof_leaving
@@ -1142,9 +1134,9 @@ contains
 
     ! intent statement in gather actually makes this next line non-standard: 
     xxf = 0.
-!CMR, 7/3/2011: gather pulls appropriate pieces of g onto this processor for
-!    local Fourier transform in x, and may also pad with zeros for dealiasing
-!
+    !CMR, 7/3/2011: gather pulls appropriate pieces of g onto this processor for
+    !    local Fourier transform in x, and may also pad with zeros for dealiasing
+    !
     call gather (g2x, g, xxf)
 
     ! do ffts
@@ -1168,6 +1160,7 @@ contains
     call prof_leaving ("transform_x5d", "gs2_transforms")
   end subroutine transform_x5d
 
+  !> FIXME : Add documentation  
   subroutine inverse_x5d (xxf, g)
     use gs2_layouts, only: xxf_lo, g_lo
     use prof, only: prof_entering, prof_leaving
@@ -1205,6 +1198,7 @@ contains
     call prof_leaving ("inverse_x5d", "gs2_transforms")
   end subroutine inverse_x5d
 
+  !> FIXME : Add documentation
   subroutine transform_y5d (xxf, yxf)
     use gs2_layouts, only: xxf_lo, yxf_lo
     use prof, only: prof_entering, prof_leaving
@@ -1223,8 +1217,8 @@ contains
 
     call prof_entering ("transform_y5d", "gs2_transforms")
 
-!Note here we're doing the communication even if we're not using
-!an FFT routine.
+    !Note here we're doing the communication even if we're not using
+    !an FFT routine.
     fft = 0.
     call gather (x2y, xxf, fft)
 
@@ -1247,6 +1241,7 @@ contains
     call prof_leaving ("transform_y5d", "gs2_transforms")
   end subroutine transform_y5d
 
+  !> FIXME : Add documentation  
   subroutine inverse_y5d (yxf, xxf)
     use gs2_layouts, only: xxf_lo, yxf_lo
     use prof, only: prof_entering, prof_leaving
@@ -1280,6 +1275,7 @@ contains
     call prof_leaving ("inverse_y5d", "gs2_transforms")
   end subroutine inverse_y5d
 
+  !> FIXME : Add documentation  
   subroutine transform2_5d (g, yxf)
     use gs2_layouts, only: g_lo, yxf_lo, ik_idx
     use unit_tests,only: debug_message
@@ -1290,20 +1286,20 @@ contains
 
     call debug_message(4, 'gs2_transforms::transform2_5d starting')
 
-!CMR+GC: 2/9/2013
-!  gs2's Fourier coefficients,  F_k^gs2, not standard form: i.e. f(x) = f_k e^(i k.x)
-!
-!  F_k^gs2 are 2 x larger for ky > 0,   i.e.
-!                     F_k^gs2 = |    f_k   for ky = 0
-!                               |  2 f_k   for ky > 0
-!
-! Following large loop (due to this) can be eliminated with std Fourier coeffs.
-! Similar optimisations possible in: 
-!          "inverse2_5d", "transform2_5d_accel", "inverse2_5d_accel" 
-!
-! NB Moving to standard Fourier coeffs would impact considerably on diagnostics:
-!       e.g. fac in get_volume_average
-!
+    !CMR+GC: 2/9/2013
+    !  gs2's Fourier coefficients,  F_k^gs2, not standard form: i.e. f(x) = f_k e^(i k.x)
+    !
+    !  F_k^gs2 are 2 x larger for ky > 0,   i.e.
+    !                     F_k^gs2 = |    f_k   for ky = 0
+    !                               |  2 f_k   for ky > 0
+    !
+    ! Following large loop (due to this) can be eliminated with std Fourier coeffs.
+    ! Similar optimisations possible in: 
+    !          "inverse2_5d", "transform2_5d_accel", "inverse2_5d_accel" 
+    !
+    ! NB Moving to standard Fourier coeffs would impact considerably on diagnostics:
+    !       e.g. fac in get_volume_average
+    !
 
     do iglo = g_lo%llim_proc, g_lo%ulim_proc
        if (ik_idx(g_lo, iglo) == 1) cycle
@@ -1314,6 +1310,7 @@ contains
     call transform_y (xxf, yxf)
   end subroutine transform2_5d
 
+  !> FIXME : Add documentation  
   subroutine inverse2_5d (yxf, g)
     use gs2_layouts, only: g_lo, yxf_lo, ik_idx
     implicit none
@@ -1326,10 +1323,10 @@ contains
 
     g = g * xb_fft%scale * yb_fft%scale
 
-!CMR+GC: 2/9/2013
-! Following large loop can be eliminated if gs2 used standard Fourier coefficients.
-! (See above comment in transform2_5d.)
-!
+    !CMR+GC: 2/9/2013
+    ! Following large loop can be eliminated if gs2 used standard Fourier coefficients.
+    ! (See above comment in transform2_5d.)
+    !
 
     do iglo = g_lo%llim_proc, g_lo%ulim_proc
        if (ik_idx(g_lo, iglo) == 1) cycle
@@ -1340,6 +1337,7 @@ contains
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
+  !> FIXME : Add documentation
   subroutine transform2_5d_accel (g, axf, i)
     use gs2_layouts, only: g_lo, accel_lo, accelx_lo, ik_idx
     use unit_tests, only: debug_message
@@ -1373,24 +1371,24 @@ contains
     g_ptr (1:,1:,g_lo%llim_node:) => shm_get_node_pointer(g, -1)
     ag_ptr (-ntgrid:,1:,accel_lo%llim_node:) => shm_get_node_pointer(ag, -1)
     if(firsttime)then
-      firsttime=.false.
-      call compute_block_partition(g_lo%ntheta0 * g_lo%naky, iglo_s, iglo_e)
-      call compute_block_partition(accel_lo%nxnky, kbs, kbe)
+       firsttime=.false.
+       call compute_block_partition(g_lo%ntheta0 * g_lo%naky, iglo_s, iglo_e)
+       call compute_block_partition(accel_lo%nxnky, kbs, kbe)
     end if
-    
+
 #endif
-!
-!CMR+GC, 2/9/2013:
-!  Scaling g would not be necessary if gs2 used standard Fourier coefficients.
-!
+    !
+    !CMR+GC, 2/9/2013:
+    !  Scaling g would not be necessary if gs2 used standard Fourier coefficients.
+    !
     ! scale the g and copy into the anti-aliased array ag
     ! zero out empty ag
     ! touch each g and ag only once
 #ifndef SHMEM
     idx = g_lo%llim_proc
     do k = accel_lo%llim_proc, accel_lo%ulim_proc
-! CMR: aidx is true for modes killed by the dealiasing mask
-! so following line removes ks in dealiasing region
+       ! CMR: aidx is true for modes killed by the dealiasing mask
+       ! so following line removes ks in dealiasing region
        if (aidx(k)) then
           ag(:,:,k) = 0.0
        else
@@ -1420,40 +1418,40 @@ contains
     call shm_node_barrier
     bidx=0
     do kb = accel_lo%llim_node, accel_lo%ulim_node, accel_lo%nxnky
-      idx = g_lo%llim_node +bidx * g_lo%naky*g_lo%ntheta0
+       idx = g_lo%llim_node +bidx * g_lo%naky*g_lo%ntheta0
 
-    ! we might not have scaled all g
-      Do iglo = idx+iglo_s, idx+iglo_s+iglo_e
-       if (ik_idx(g_lo, iglo) .ne. 1) then
-          g_ptr(:,:, iglo) = 0.5 * g_ptr(:,:,iglo)
-       endif
+       ! we might not have scaled all g
+       Do iglo = idx+iglo_s, idx+iglo_s+iglo_e
+          if (ik_idx(g_lo, iglo) .ne. 1) then
+             g_ptr(:,:, iglo) = 0.5 * g_ptr(:,:,iglo)
+          endif
+       enddo
+
+       call shm_node_barrier
+       call shm_fence(g_ptr(1,1,g_lo%llim_node))
+
+       do k = kb+kbs, kb+kbs+kbe !accel_lo%llim_node, accel_lo%ulim_node       
+          ! CMR: aidx is true for modes killed by the dealiasing mask
+          ! so following line removes ks in dealiasing region
+          if (aidx(k)) then
+             ag_ptr(:,:,k) = 0.0
+          else
+             do iduo = 1, 2
+                do itgrid =1, 2*ntgrid +1
+                   ag_ptr(itgrid - (ntgrid+1), iduo, k) &
+                        = g_ptr(itgrid, iduo, gidx(k))
+                enddo
+             enddo
+             !         idx=idx+1
+          endif
+       enddo
+       bidx=bidx+1
     enddo
-      
-    call shm_node_barrier
-    call shm_fence(g_ptr(1,1,g_lo%llim_node))
-      
-    do k = kb+kbs, kb+kbs+kbe !accel_lo%llim_node, accel_lo%ulim_node       
-! CMR: aidx is true for modes killed by the dealiasing mask
-! so following line removes ks in dealiasing region
-       if (aidx(k)) then
-          ag_ptr(:,:,k) = 0.0
-       else
-         do iduo = 1, 2
-           do itgrid =1, 2*ntgrid +1
-             ag_ptr(itgrid - (ntgrid+1), iduo, k) &
-                  = g_ptr(itgrid, iduo, gidx(k))
-           enddo
-         enddo
-!         idx=idx+1
-       endif
-     enddo
-     bidx=bidx+1
-   enddo
 #endif
 
-!CMR+GC: 2/9/2013
-! Following large loop can be eliminated if gs2 used standard Fourier coefficients.
-! (See above comment in transform2_5d.)
+    !CMR+GC: 2/9/2013
+    ! Following large loop can be eliminated if gs2 used standard Fourier coefficients.
+    ! (See above comment in transform2_5d.)
 
 #ifndef SHMEM
     ! we might not have scaled all g
@@ -1464,11 +1462,11 @@ contains
     enddo
 #else
 
-       axf_ptr(-ntgrid:,1:,accelx_lo%llim_node:) => & 
-            shm_get_node_pointer(axf, -1)
+    axf_ptr(-ntgrid:,1:,accelx_lo%llim_node:) => & 
+         shm_get_node_pointer(axf, -1)
 #endif
-       
-       
+
+
     ! transform
     i = (2*accel_lo%ntgrid+1)*2
 #ifndef SHMEM
@@ -1487,22 +1485,22 @@ contains
 
 #else
     ! in the following the ranks operate on other data ranges
-      call shm_node_barrier
+    call shm_node_barrier
 
     if (use_shm_2d_plan) then
-      idx = 1 + shm_info%id
-      idx = mod(idx -1, accel_lo%nia) +1
-      nk = accel_lo%ulim_node - accel_lo%llim_node +1
+       idx = 1 + shm_info%id
+       idx = mod(idx -1, accel_lo%nia) +1
+       nk = accel_lo%ulim_node - accel_lo%llim_node +1
     else
-      idx = 1
+       idx = 1
     endif
     do k = accel_lo%llim_node, accel_lo%ulim_node, accel_lo%nxnky
-      if (use_shm_2d_plan) then
-        kk = k + shm_info%id * accel_lo%nxnky
-        kk = mod(kk - accel_lo%llim_node, nk) + accel_lo%llim_node
-      else
-        kk = k
-      endif
+       if (use_shm_2d_plan) then
+          kk = k + shm_info%id * accel_lo%nxnky
+          kk = mod(kk - accel_lo%llim_node, nk) + accel_lo%llim_node
+       else
+          kk = k
+       endif
 # if FFT == _FFTW_
        call rfftwnd_f77_complex_to_real (yf_fft%plan, i, ag(:,:,k:), i, 1, &
             axf(:,:,ia(idx):), i, 1)
@@ -1511,116 +1509,119 @@ contains
 # endif
        idx = idx + 1
        if ( use_shm_2d_plan) then
-         idx = mod(idx -1, accel_lo%nia) +1
+          idx = mod(idx -1, accel_lo%nia) +1
        endif
     end do
     call shm_node_barrier
-    
+
   contains
 
 # if FFT == _FFTW3_
+    !> FIXME : Add documentation
+    subroutine fft_shm(k1, k2)
+      use mp, only : proc0
+      implicit none
+      integer, intent(in) :: k1, k2
 
-   subroutine fft_shm(k1, k2)
-     use mp, only : proc0
-     implicit none
-     integer, intent(in) :: k1, k2
+      if (use_shm_2d_plan) then 
+         call fft2d_shm(k1, k2)
+      else
+         call fft1d_shm(k1,k2)
+      endif
 
-     if (use_shm_2d_plan) then 
-       call fft2d_shm(k1, k2)
-     else
-       call fft1d_shm(k1,k2)
-     endif
+    end subroutine fft_shm
 
-   end subroutine fft_shm
-
+    !> FIXME : Add documentation
     subroutine fft1d_shm(k1,k2)
       use shm_mpi3, only : shm_info, shm_fence
       implicit none
       integer, intent(in) :: k1, k2
-      
-       integer i, j, is, ie, js, je, idw, nwk
-       integer n1,n2,n3,p1,p2,p3
-       
-       n1 = 2*(2*ntgrid+1)
-       n2 = accel_lo%ndky
-       n3 = accel_lo%nx
-       p1 = 2*(2*ntgrid+1)
-       p2 = accelx_lo%ny
-       p3 =  accelx_lo%nx
 
-       if ( p3 /= n3 ) then 
-          write(0,*) "fft_shm: WARNING third dimesions not equal"
-       endif
+      integer i, j, is, ie, js, je, idw, nwk
+      integer n1,n2,n3,p1,p2,p3
 
-       nwk = g_lo%ppn
-       idw = shm_info%id
-       is = idw*(n2/nwk) + min(idw,mod(n2, nwk))
-       ie = is + (n2/nwk) -1 
-       if ( idw < mod(n2, nwk)) ie = ie +1
-       js = idw*(p3/nwk) + min(idw,mod(p3, nwk))
-       je = js + (p3/nwk) -1 
-       if ( idw < mod(p3, nwk)) je = je +1
-       
-       do i = is, ie 
-          call FFTW_PREFIX(_execute_dft)(faccel_shmy%plan, ag_ptr(-ntgrid,1,k1+i),ag_ptr(-ntgrid,1,k1+i))
-       enddo
+      n1 = 2*(2*ntgrid+1)
+      n2 = accel_lo%ndky
+      n3 = accel_lo%nx
+      p1 = 2*(2*ntgrid+1)
+      p2 = accelx_lo%ny
+      p3 =  accelx_lo%nx
 
-       call shm_node_barrier
-       call shm_fence(ag_ptr(-ntgrid,1,accel_lo%llim_node))
+      if ( p3 /= n3 ) then 
+         write(0,*) "fft_shm: WARNING third dimesions not equal"
+      endif
 
-       do j = js, je
-          call FFTW_PREFIX(_execute_dft_c2r)(faccel_shmx%plan, ag_ptr(-ntgrid,1,k1+j*n2), axf_ptr(-ntgrid,1,k2+j*p2))
-       enddo
-      
+      nwk = g_lo%ppn
+      idw = shm_info%id
+      is = idw*(n2/nwk) + min(idw,mod(n2, nwk))
+      ie = is + (n2/nwk) -1 
+      if ( idw < mod(n2, nwk)) ie = ie +1
+      js = idw*(p3/nwk) + min(idw,mod(p3, nwk))
+      je = js + (p3/nwk) -1 
+      if ( idw < mod(p3, nwk)) je = je +1
+
+      do i = is, ie 
+         call FFTW_PREFIX(_execute_dft)(faccel_shmy%plan, ag_ptr(-ntgrid,1,k1+i),ag_ptr(-ntgrid,1,k1+i))
+      enddo
+
+      call shm_node_barrier
+      call shm_fence(ag_ptr(-ntgrid,1,accel_lo%llim_node))
+
+      do j = js, je
+         call FFTW_PREFIX(_execute_dft_c2r)(faccel_shmx%plan, ag_ptr(-ntgrid,1,k1+j*n2), axf_ptr(-ntgrid,1,k2+j*p2))
+      enddo
+
     end subroutine fft1d_shm
 
+    !> FIXME : Add documentation         
     subroutine fft2d_shm(k1,k2)
       use, intrinsic :: iso_c_binding 
       use shm_mpi3, only : shm_info, shm_fence
       implicit none
       integer, intent(in) :: k1, k2
-      
-       integer i, j, n2,n3, howmany,ts1,ts2
 
-       complex,allocatable :: cin(:,:)
-       real, allocatable ::  rout(:,:) 
-       
-       n2 = accel_lo%ny
-       n3 = accel_lo%nx
-       howmany = yf_fft_shm%howmany
-       ts1=yf_fft_shm%ts1
-       ts2=yf_fft_shm%ts2
-       
-       if (use_shm_2d_plan_buff) then
+      integer i, j, n2,n3, howmany,ts1,ts2
+
+      complex,allocatable :: cin(:,:)
+      real, allocatable ::  rout(:,:) 
+
+      n2 = accel_lo%ny
+      n3 = accel_lo%nx
+      howmany = yf_fft_shm%howmany
+      ts1=yf_fft_shm%ts1
+      ts2=yf_fft_shm%ts2
+
+      if (use_shm_2d_plan_buff) then
          allocate(rout(howmany, n2*n3), &
-            cin(howmany, (n2/2+1)*n3))
+              cin(howmany, (n2/2+1)*n3))
 
          do j=1,(n2/2+1)*n3
-           do i=1,howmany
-             cin(i,j) =  ag_ptr(ts1+i-1, ts2,k1+j-1)
-          enddo
+            do i=1,howmany
+               cin(i,j) =  ag_ptr(ts1+i-1, ts2,k1+j-1)
+            enddo
          enddo
 
          call FFTW_PREFIX(_execute_dft_c2r)(yf_fft_shm%plan, cin, rout)       
 
          do j=1,n2*n3
-           do i=1,howmany
-             axf_ptr(ts1+i-1,ts2,k2+j-1)= rout(i,j)
-           enddo
+            do i=1,howmany
+               axf_ptr(ts1+i-1,ts2,k2+j-1)= rout(i,j)
+            enddo
          enddo
-       else 
+      else 
          call FFTW_PREFIX(_execute_dft_c2r)(yf_fft_shm%plan, ag_ptr(ts1, ts2,k1), axf_ptr(ts1,ts2,k2))       
-       endif
-     
-     end subroutine fft2d_shm
+      endif
+
+    end subroutine fft2d_shm
 
 # endif
 # endif
 
   end subroutine transform2_5d_accel
 
-  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
+  !> FIXME : Add documentation
   subroutine inverse2_5d_accel (axf, g, i)
     use gs2_layouts, only: g_lo, accel_lo, accelx_lo, ik_idx
 #ifdef SHMEM
@@ -1644,7 +1645,7 @@ contains
     ntgrid = accel_lo%ntgrid
     i = (2*accel_lo%ntgrid+1)*2
 #ifndef SHMEM
-! transform
+    ! transform
     idx = 1
     do k = accelx_lo%llim_proc, accelx_lo%ulim_proc, accelx_lo%nxny
 # if FFT == _FFTW_
@@ -1661,9 +1662,9 @@ contains
     do k = accel_lo%llim_proc, accel_lo%ulim_proc
        ! ignore the large k (anti-alias)
        if ( .not.aidx(k)) then
-!
-!CMR+GC, 2/9/2013:
-!  Scaling g here would be unnecessary if gs2 used standard Fourier coefficients.
+          !
+          !CMR+GC, 2/9/2013:
+          !  Scaling g here would be unnecessary if gs2 used standard Fourier coefficients.
           ! different scale factors depending on ky == 0
           if (ik_idx(g_lo, idx) .ne. 1) then
              do iduo = 1, 2 
@@ -1683,10 +1684,10 @@ contains
           idx = idx + 1
        endif
     enddo
-    
-!CMR+GC: 2/9/2013
-! Following large loop can be eliminated if gs2 used standard Fourier coefficients.
-! (See above comment in transform2_5d.)
+
+    !CMR+GC: 2/9/2013
+    ! Following large loop can be eliminated if gs2 used standard Fourier coefficients.
+    ! (See above comment in transform2_5d.)
 
     ! we might not have scaled all g
     Do iglo = idx, g_lo%ulim_proc
@@ -1696,25 +1697,25 @@ contains
     enddo
 
 #else
-! shm
-     ag_ptr (-ntgrid:,1:,accel_lo%llim_node:) => shm_get_node_pointer(ag, -1)
-     axf_ptr(1:,1:,accelx_lo%llim_node:) => shm_get_node_pointer(axf, -1)
+    ! shm
+    ag_ptr (-ntgrid:,1:,accel_lo%llim_node:) => shm_get_node_pointer(ag, -1)
+    axf_ptr(1:,1:,accelx_lo%llim_node:) => shm_get_node_pointer(axf, -1)
 
     call shm_node_barrier
-! transform
+    ! transform
     if ( use_shm_2d_plan) then
-      idx = 1 + shm_info%id
-      idx = mod(idx-1,accel_lo%nia) +1
-      nk = accelx_lo%ulim_node - accelx_lo%llim_node +1
+       idx = 1 + shm_info%id
+       idx = mod(idx-1,accel_lo%nia) +1
+       nk = accelx_lo%ulim_node - accelx_lo%llim_node +1
     else
-      idx = 1
+       idx = 1
     endif
     do k = accelx_lo%llim_node, accelx_lo%ulim_node, accelx_lo%nxny
        if (use_shm_2d_plan) then
-         kk = k + shm_info%id * accelx_lo%nxny
-         kk = mod(kk - accelx_lo%llim_node, nk) + accelx_lo%llim_node
+          kk = k + shm_info%id * accelx_lo%nxny
+          kk = mod(kk - accelx_lo%llim_node, nk) + accelx_lo%llim_node
        else
-         kk = k
+          kk = k
        endif
 # if FFT == _FFTW_
        call rfftwnd_f77_real_to_complex (yb_fft%plan, i, axf(:,:,k:), i, 1, &
@@ -1724,7 +1725,7 @@ contains
 # endif
        idx = idx + 1
        if ( use_shm_2d_plan) then
-         idx = mod(idx-1, accel_lo%nia) +1
+          idx = mod(idx-1, accel_lo%nia) +1
        endif
     end do
 
@@ -1732,146 +1733,148 @@ contains
     call shm_node_barrier
 
     if(firsttime)then
-      firsttime=.false.
-      call compute_block_partition(g_lo%ntheta0 * g_lo%naky, iglo_s, iglo_e)
-      call compute_block_partition(accel_lo%nxnky, kbs, kbe)
+       firsttime=.false.
+       call compute_block_partition(g_lo%ntheta0 * g_lo%naky, iglo_s, iglo_e)
+       call compute_block_partition(accel_lo%nxnky, kbs, kbe)
     end if
-    
+
     g_ptr (1:,1:,g_lo%llim_node:) => shm_get_node_pointer(g, -1)
     bidx=0
     do kb = accel_lo%llim_node, accel_lo%ulim_node,accel_lo%nxnky
-!      idx = g_lo%llim_node +bidx * g_lo%naky*g_lo%ntheta0 + iglo_s !g_lo%llim_node !gidx_s !g_lo%llim_proc
-      do k = kb+kbs, kb+kbs+kbe 
-       ! ignore the large k (anti-alias)
-        if ( .not.aidx(k)) then
-!
-!CMR+GC, 2/9/2013:
-!  Scaling g here would be unnecessary if gs2 used standard Fourier coefficients.
-          ! different scale factors depending on ky == 0
-            do iduo = 1, 2 
-              do itgrid = 1, 2*ntgrid+1
-                g_ptr(itgrid, iduo, gidx(k)) &
-                     = yb_fft%scale * ag_ptr(itgrid-(ntgrid+1), iduo, k)
-              enddo
-            enddo
-!          idx = idx + 1
-        endif
-      enddo
-      call shm_node_barrier
-      call shm_fence(g_ptr(1,1,g_lo%llim_node))
-      ! we might not have scaled all g
-      idx = g_lo%llim_node +bidx * g_lo%naky*g_lo%ntheta0 
-      Do iglo = idx+iglo_s, idx+iglo_s+iglo_e
-        if (ik_idx(g_lo, iglo) .ne. 1) then
-          g_ptr(:,:, iglo) = 2.0 * g_ptr(:,:,iglo)
-        endif
-      enddo
-      bidx=bidx+1
+       !      idx = g_lo%llim_node +bidx * g_lo%naky*g_lo%ntheta0 + iglo_s !g_lo%llim_node !gidx_s !g_lo%llim_proc
+       do k = kb+kbs, kb+kbs+kbe 
+          ! ignore the large k (anti-alias)
+          if ( .not.aidx(k)) then
+             !
+             !CMR+GC, 2/9/2013:
+             !  Scaling g here would be unnecessary if gs2 used standard Fourier coefficients.
+             ! different scale factors depending on ky == 0
+             do iduo = 1, 2 
+                do itgrid = 1, 2*ntgrid+1
+                   g_ptr(itgrid, iduo, gidx(k)) &
+                        = yb_fft%scale * ag_ptr(itgrid-(ntgrid+1), iduo, k)
+                enddo
+             enddo
+             !          idx = idx + 1
+          endif
+       enddo
+       call shm_node_barrier
+       call shm_fence(g_ptr(1,1,g_lo%llim_node))
+       ! we might not have scaled all g
+       idx = g_lo%llim_node +bidx * g_lo%naky*g_lo%ntheta0 
+       Do iglo = idx+iglo_s, idx+iglo_s+iglo_e
+          if (ik_idx(g_lo, iglo) .ne. 1) then
+             g_ptr(:,:, iglo) = 2.0 * g_ptr(:,:,iglo)
+          endif
+       enddo
+       bidx=bidx+1
     enddo
 
-!CMR+GC: 2/9/2013
-! Following large loop can be eliminated if gs2 used standard Fourier coefficients.
-! (See above comment in transform2_5d.)
+    !CMR+GC: 2/9/2013
+    ! Following large loop can be eliminated if gs2 used standard Fourier coefficients.
+    ! (See above comment in transform2_5d.)
 
     call shm_node_barrier
 
   contains
 
 # if FFT == _FFTW3_
-
-   subroutine fft_shm_inv(k1, k2)
-     implicit none
-     integer, intent(in) :: k1, k2
-
-
-     if (use_shm_2d_plan) then
-       call fft2d_shm_inv(k1, k2)
-     else
-       call fft1d_shm_inv(k1,k2)
-     endif
-   end subroutine fft_shm_inv
+    !> FIXME : Add documentation
+    subroutine fft_shm_inv(k1, k2)
+      implicit none
+      integer, intent(in) :: k1, k2
 
 
+      if (use_shm_2d_plan) then
+         call fft2d_shm_inv(k1, k2)
+      else
+         call fft1d_shm_inv(k1,k2)
+      endif
+    end subroutine fft_shm_inv
+
+    !> FIXME : Add documentation
     subroutine fft1d_shm_inv(k1,k2)
       use shm_mpi3, only : shm_info, shm_fence
       implicit none
       integer, intent(in) :: k1, k2
-      
-       integer i, j, is, ie, js, je, idw, nwk
-       integer nx, ny, px, py
 
-       ! test ny == py !!!
-       nx = accelx_lo%ny
-       ny = accelx_lo%nx
-       px = accel_lo%ndky 
-       py = accel_lo%nx
+      integer i, j, is, ie, js, je, idw, nwk
+      integer nx, ny, px, py
 
-       nwk = g_lo%ppn
-       idw = shm_info%id
-       is = idw*(px/nwk) + min(idw,mod(px, nwk))
-       ie = is + (px/nwk) -1 
-       if ( idw < mod(px, nwk)) ie = ie +1
-       js = idw*(ny/nwk) + min(idw,mod(ny, nwk))
-       je = js + (ny/nwk) -1 
-       if ( idw < mod(ny, nwk)) je = je +1
-       
-       do j = js, je
-          call FFTW_PREFIX(_execute_dft_r2c)(baccel_shmx%plan, axf_ptr(1,1,k1+j*nx), ag_ptr(-ntgrid,1,k2+j*px))
-       enddo
+      ! test ny == py !!!
+      nx = accelx_lo%ny
+      ny = accelx_lo%nx
+      px = accel_lo%ndky 
+      py = accel_lo%nx
 
-       call shm_node_barrier
-       call shm_fence(ag_ptr(-ntgrid,1,accel_lo%llim_node))
+      nwk = g_lo%ppn
+      idw = shm_info%id
+      is = idw*(px/nwk) + min(idw,mod(px, nwk))
+      ie = is + (px/nwk) -1 
+      if ( idw < mod(px, nwk)) ie = ie +1
+      js = idw*(ny/nwk) + min(idw,mod(ny, nwk))
+      je = js + (ny/nwk) -1 
+      if ( idw < mod(ny, nwk)) je = je +1
 
-       do i = is, ie 
-          call FFTW_PREFIX(_execute_dft)(baccel_shmy%plan, ag_ptr(-ntgrid,1,k2+i), ag_ptr(-ntgrid,1,k2+i))
-       enddo
+      do j = js, je
+         call FFTW_PREFIX(_execute_dft_r2c)(baccel_shmx%plan, axf_ptr(1,1,k1+j*nx), ag_ptr(-ntgrid,1,k2+j*px))
+      enddo
 
-     end subroutine fft1d_shm_inv
+      call shm_node_barrier
+      call shm_fence(ag_ptr(-ntgrid,1,accel_lo%llim_node))
 
-   subroutine fft2d_shm_inv(k1,k2)
+      do i = is, ie 
+         call FFTW_PREFIX(_execute_dft)(baccel_shmy%plan, ag_ptr(-ntgrid,1,k2+i), ag_ptr(-ntgrid,1,k2+i))
+      enddo
+
+    end subroutine fft1d_shm_inv
+
+    !> FIXME : Add documentation          
+    subroutine fft2d_shm_inv(k1,k2)
       use, intrinsic :: iso_c_binding 
       use shm_mpi3, only : shm_info, shm_fence
       implicit none
       integer, intent(in) :: k1, k2
-      
-       integer i,j, ts1, ts1o, ts2, n2,n3, howmany
-       real, allocatable :: rin(:,:)
-       complex,allocatable::cout(:,:)
-       
-         n2 = accel_lo%ny
-         n3 = accel_lo%nx
-         ts1 = yb_fft_shm%ts1
-         ts2=yb_fft_shm%ts2
-         howmany=yb_fft_shm%howmany
-         ts1o=ntgrid +1+ts1
 
-         if ( use_shm_2d_plan_buff) then 
-           allocate( rin(howmany, n2*n3), &
+      integer i,j, ts1, ts1o, ts2, n2,n3, howmany
+      real, allocatable :: rin(:,:)
+      complex,allocatable::cout(:,:)
+
+      n2 = accel_lo%ny
+      n3 = accel_lo%nx
+      ts1 = yb_fft_shm%ts1
+      ts2=yb_fft_shm%ts2
+      howmany=yb_fft_shm%howmany
+      ts1o=ntgrid +1+ts1
+
+      if ( use_shm_2d_plan_buff) then 
+         allocate( rin(howmany, n2*n3), &
               cout(howmany,(n2/2+1)*n3))
- 
+
          do j=1,n2*n3
-           do i=1,howmany
-             rin(i,j) =  axf_ptr(ts1o+i-1,ts2,k1+j-1)
-           enddo
+            do i=1,howmany
+               rin(i,j) =  axf_ptr(ts1o+i-1,ts2,k1+j-1)
+            enddo
          enddo
          call FFTW_PREFIX(_execute_dft_r2c)(yb_fft_shm%plan, rin, cout)       
          do j=1,(n2/2+1)*n3
-           do i=1,howmany
-             ag_ptr(ts1+i-1,ts2,k2+j-1) = cout(i,j)
-           enddo
+            do i=1,howmany
+               ag_ptr(ts1+i-1,ts2,k2+j-1) = cout(i,j)
+            enddo
          enddo
       else
-        call FFTW_PREFIX(_execute_dft_r2c)(yb_fft_shm%plan, axf_ptr(ts1o,ts2,k1), ag_ptr(ts1,ts2,k2))       
+         call FFTW_PREFIX(_execute_dft_r2c)(yb_fft_shm%plan, axf_ptr(ts1o,ts2,k1), ag_ptr(ts1,ts2,k2))       
       endif
-      
-     end subroutine fft2d_shm_inv
 
-     
+    end subroutine fft2d_shm_inv
+
+
 # endif
 
 # endif
   end subroutine inverse2_5d_accel
 
+  !> FIXME : Add documentation        
   subroutine init_3d (nny_in, nnx_in, how_many_in)
     use fft_work, only: init_crfftw, init_rcfftw, delete_fft
     implicit none
@@ -1910,6 +1913,7 @@ contains
 
   end subroutine init_3d
 
+  !> FIXME : Add documentation        
   subroutine transform2_3d (phi, phixf, nny, nnx)
     use theta_grid, only: ntgrid
     use kt_grids, only: naky, ntheta0, aky
@@ -1922,7 +1926,7 @@ contains
     real :: fac
     integer :: ig, ik, it, i
 
-! scale, dealias and transpose
+    ! scale, dealias and transpose
 
     call init_3d (nny, nnx, 2*ntgrid+1)
 
@@ -1940,13 +1944,13 @@ contains
        end do
        do it=(ntheta0+1)/2+1,ntheta0
           do ig=-ntgrid, ntgrid
-!CMR, 30/3/2010: bug fix to replace nx by nnx on next line
+             !CMR, 30/3/2010: bug fix to replace nx by nnx on next line
              aphi(ig,ik,it-ntheta0+nnx) = phi(ig,it,ik)*fac
           end do
        end do
     end do
 
-! transform
+    ! transform
     i = 2*ntgrid+1
 # if FFT == _FFTW_
     call rfftwnd_f77_complex_to_real (xf3d_cr%plan, i, aphi, i, 1, phix, i, 1)
@@ -1965,10 +1969,11 @@ contains
     deallocate (aphi, phix)
 
   end subroutine transform2_3d
-  
+
+  !> FIXME : Add documentation
   subroutine inverse2_3d (phixf, phi, nny, nnx)
-!CMR, 30/4/2010:  
-! Fixed up previously buggy handling of dealiasing.
+    !CMR, 30/4/2010:  
+    ! Fixed up previously buggy handling of dealiasing.
     use theta_grid, only: ntgrid
     use kt_grids, only: naky, ntheta0, aky
     implicit none
@@ -1991,7 +1996,7 @@ contains
        end do
     end do
 
-! transform
+    ! transform
     i = 2*ntgrid+1
 # if FFT == _FFTW_
     call rfftwnd_f77_real_to_complex (xf3d_rc%plan, i, phix, i, 1, aphi, i, 1)
@@ -1999,7 +2004,7 @@ contains
     call FFTW_PREFIX(_execute_dft_r2c) (xf3d_rc%plan, phix, aphi)
 # endif
 
-! dealias and scale
+    ! dealias and scale
     do it=1,(ntheta0+1)/2
        do ik=1,naky
           fac = 2.0
@@ -2010,7 +2015,7 @@ contains
        end do
     end do
 
-!CMR, 30/4/2010:  fixed up previously buggy handling of dealiasing
+    !CMR, 30/4/2010:  fixed up previously buggy handling of dealiasing
     do it=(ntheta0+1)/2+1,ntheta0
        do ik=1,naky
           fac = 2.0
@@ -2025,8 +2030,9 @@ contains
 
   end subroutine inverse2_3d
 
-  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
+  !> FIXME : Add documentation
   subroutine transform2_2d (phi, phixf, nny, nnx)
     use fft_work, only: FFTW_BACKWARD, delete_fft, init_crfftw
     use kt_grids, only: naky, nakx => ntheta0, nx, aky
@@ -2057,7 +2063,7 @@ contains
     allocate (aphi (nny/2+1, nnx))
     phix(:,:)=0.; aphi(:,:)=cmplx(0.,0.)
 
-! scale, dealias and transpose
+    ! scale, dealias and transpose
     do ik=1,naky
        fac = 0.5
        if (aky(ik) < epsilon(0.)) fac = 1.0
@@ -2069,7 +2075,7 @@ contains
        end do
     end do
 
-! transform
+    ! transform
 # if FFT == _FFTW_
     call rfftwnd_f77_complex_to_real (xf2d%plan, 1, aphi, 1, 1, phix, 1, 1)
 # elif FFT == _FFTW3_
@@ -2079,13 +2085,13 @@ contains
     phixf(:,:)=transpose(phix(:,:))
 
     deallocate (aphi, phix)
-!RN> this statement causes error for lahey with DEBUG. I don't know why
-!<DD>Reinstating after discussion with RN, if this causes anyone an issue
-!    then we can guard this line with some directives.   
+    !RN> this statement causes error for lahey with DEBUG. I don't know why
+    !<DD>Reinstating after discussion with RN, if this causes anyone an issue
+    !    then we can guard this line with some directives.   
     call delete_fft(xf2d)
   end subroutine transform2_2d
 
-
+  !> FIXME : Add documentation
   subroutine inverse2_2d (phixf, phi, nny, nnx)
     use fft_work, only: FFTW_FORWARD, delete_fft, init_rcfftw
     use kt_grids, only: naky, nakx => ntheta0, aky
@@ -2118,14 +2124,14 @@ contains
 
     phix(:,:)=transpose(phixf(:,:))
 
-! transform
+    ! transform
 # if FFT == _FFTW_
     call rfftwnd_f77_real_to_complex (xf2d%plan, 1, phix, 1, 1, aphi, 1, 1)
 # elif FFT == _FFTW3_
     call FFTW_PREFIX(_execute_dft_r2c) (xf2d%plan, phix, aphi)
 # endif
 
-! scale, dealias and transpose
+    ! scale, dealias and transpose
     do it=1,nakx
        do ik=1,naky
           fac = 2.0
@@ -2135,18 +2141,19 @@ contains
     end do
 
     deallocate (aphi, phix)
-!RN> this statement causes error for lahey with DEBUG. I don't know why
-!<DD>Reinstating after discussion with RN, if this causes anyone an issue
-!    then we can guard this line with some directives.   
+    !RN> this statement causes error for lahey with DEBUG. I don't know why
+    !<DD>Reinstating after discussion with RN, if this causes anyone an issue
+    !    then we can guard this line with some directives.   
     call delete_fft(xf2d)
   end subroutine inverse2_2d
 
-  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
+  !> FIXME : Add documentation        
   subroutine transform2_4d (den, phixf, nny, nnx)
-!CMR, 30/3/2010: den input has 4th index being species, 
-!     but transform only operates for species=1
-!     anyone who uses this routine should be aware of/fix this!
+    !CMR, 30/3/2010: den input has 4th index being species, 
+    !     but transform only operates for species=1
+    !     anyone who uses this routine should be aware of/fix this!
     use theta_grid, only: ntgrid
     use kt_grids, only: naky, ntheta0, aky
     implicit none
@@ -2158,7 +2165,7 @@ contains
     real :: fac
     integer :: ig, ik, it, i
 
-! scale, dealias and transpose
+    ! scale, dealias and transpose
 
     call init_3d (nny, nnx, 2*ntgrid+1)
 
@@ -2176,13 +2183,13 @@ contains
        end do
        do it=(ntheta0+1)/2+1,ntheta0
           do ig=-ntgrid, ntgrid
-!CMR, 30/3/2010: bug fix to replace nx by nnx on next line
+             !CMR, 30/3/2010: bug fix to replace nx by nnx on next line
              aphi(ig,ik,it-ntheta0+nnx) = den(ig,it,ik,1)*fac
           end do
        end do
     end do
 
-! transform
+    ! transform
     i = 2*ntgrid+1
 # if FFT == _FFTW_
     call rfftwnd_f77_complex_to_real (xf3d_cr%plan, i, aphi, i, 1, phix, i, 1)
@@ -2201,9 +2208,10 @@ contains
     deallocate (aphi, phix)
 
   end subroutine transform2_4d
-  
-  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+  !> FIXME : Add documentation        
   subroutine init_zf (ntgrid, howmany)
 
     use fft_work, only: init_z
@@ -2214,11 +2222,12 @@ contains
     initialized_zf = .true.
 
     call init_z (zf_fft, 1, 2*ntgrid, howmany)
-    
+
   end subroutine init_zf
 
-  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-    
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+  !> FIXME : Add documentation        
   subroutine kz_spectrum (an, an2)
 # if FFT == _FFTW_
     use kt_grids, only: naky, ntheta0
@@ -2235,8 +2244,7 @@ contains
 
   end subroutine kz_spectrum
 
-! HJL <
-
+  !> FIXME : Add documentation
   subroutine finish_transforms
     use redistribute, only : delete_redist
     use fft_work, only: delete_fft, finish_fft_work
@@ -2278,14 +2286,13 @@ contains
     initialized_3d = .false.
     xfft_initted = .false.
     initialized_zf = .false.
-    
+
     !Tidy up fft internals (FFTW3 only)
     call finish_fft_work
   end subroutine finish_transforms
-  ! > HJL
 
 #ifdef SHMEM
-
+  !> FIXME : Add documentation
   subroutine compute_block_partition(whole_range, shift, extend)
     ! computes shift + extend
     use shm_mpi3, only : shm_info
@@ -2293,17 +2300,15 @@ contains
 
     integer, intent(in) :: whole_range
     integer, intent(out) :: shift, extend
-    
+
     integer n, chnk
-    
+
     n = whole_range
     chnk = n / shm_info%size
     shift = shm_info%id * chnk + min(shm_info%id, mod(n,shm_info%size))
     extend = chnk-1
     if (shm_info%id< mod(n,shm_info%size)) extend= extend + 1
-    
-  end subroutine compute_block_partition
 
-#endif
-  
+  end subroutine compute_block_partition
+#endif       
 end module gs2_transforms

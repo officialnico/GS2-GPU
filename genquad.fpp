@@ -1,16 +1,13 @@
+!> Allows a general weight function (as specified by an external function) for integration.
+!!   Returns the Gaussian quadrature weights and abscissae corresponding to the 
+!!   set of orthogonal polynomials associated with this weight.
+!! See: 
+!! Gnauchi, in: "Orthogonal Polynomials: Theory and Practice", Nevai (Ed.). Kluwer, 1990.
+!! Wheeler, Rocky Mountain Journal of Mathematics, Vol 4, p. 287 (1974)
+!!
+!! Written by: George Wilkie
+!! See Appendix of PhD Thesis, University of Maryland, 2015.
 module genquad
-
-! Allows a general weight function (as specified by an external function) for integration.
-!   Returns the Gaussian quadrature weights and abscissae corresponding to the 
-!   set of orthogonal polynomials associated with this weight.
-! See: 
-! Gnauchi, in: "Orthogonal Polynomials: Theory and Practice", Nevai (Ed.). Kluwer, 1990.
-! Wheeler, Rocky Mountain Journal of Mathematics, Vol 4, p. 287 (1974)
-!
-! Written by: George Wilkie
-! See Appendix of PhD Thesis, University of Maryland, 2015.
-!
-
   implicit none
 
   public :: get_quadrature_rule
@@ -25,20 +22,21 @@ module genquad
 #endif
 
 contains
-!> Accepts a weighting function (with only one argument), defined as external, 
-!! calculates the modified moments, and returns the abscissae and weights for a new 
-!! scheme based on polynomials orthogonal to the given weight function. The method is 
-!! that of Wheeler. Also described in Numerical Recipes, 3rd ed. section 4.6.2 and 4.6.3.
+  
+  !> Accepts a weighting function (with only one argument), defined as external, 
+  !! calculates the modified moments, and returns the abscissae and weights for a new 
+  !! scheme based on polynomials orthogonal to the given weight function. The method is 
+  !! that of Wheeler. Also described in Numerical Recipes, 3rd ed. section 4.6.2 and 4.6.3.
   subroutine get_quadrature_rule ( &
-    wgt_func, &        !< Input: Suitable integration weights as a single-argument function.
-                       !!   Defined as "external" in calling routine!
-    N_out,&            !< Input: The number of integration points desired
-    v0,&               !< Input: The left boundary of the integration domain
-    vf,&               !< Input: The right boundary of the integration domain
-    out_abscissae, &   !< Output: The abscissae (quadrature points) for integration
-    out_wgts, &        !< Output: The integration weights
-    inf_flag1_in, &    !< Optional: Set to true to make lower bound -inf
-    inf_flag2_in)      !< Optional: Set to true to make upper bound +inf
+       wgt_func, &        !< Input: Suitable integration weights as a single-argument function.
+                          !!   Defined as "external" in calling routine!
+       N_out,&            !< Input: The number of integration points desired
+       v0,&               !< Input: The left boundary of the integration domain
+       vf,&               !< Input: The right boundary of the integration domain
+       out_abscissae, &   !< Output: The abscissae (quadrature points) for integration
+       out_wgts, &        !< Output: The integration weights
+       inf_flag1_in, &    !< Optional: Set to true to make lower bound -inf
+       inf_flag2_in)      !< Optional: Set to true to make upper bound +inf
 
     use quadpack, only: qagi, qags
     use mp, only: mp_abort, proc0
@@ -157,134 +155,134 @@ contains
     end if
 
     call solve_jacobi_matrix(N_out,out_abscissae,out_wgts)
-
+    
     call finish_general_quad()
+    
+  contains
 
-contains
+    !> FIXME : Add documentation
+    real function wgt_x_func(x)
+      implicit none
+      real,intent(in):: x
+      wgt_x_func = wgt_func(x)*x
+      return
+    end function wgt_x_func
 
-   real function wgt_x_func(x)
-     implicit none
-     real,intent(in):: x
-     wgt_x_func = wgt_func(x)*x
-     return
-   end function wgt_x_func
+    !> FIXME : Add documentation  
+    real function poly_sqx_func(x)
+      implicit none
+      real,intent(in):: x
+      real:: ym1,y,temp
+      integer:: i,j
 
-   real function poly_sqx_func(x)
-     implicit none
-     real,intent(in):: x
-     real:: ym1,y,temp
-     integer:: i,j
+      ym1 = 0.0
+      y = 1.0
+      do i = 1,poly_order
+         temp = y
+         y = (x-a_poly(i-1))*y - b_poly(i-1)*ym1
+         ym1 = temp
+      end do
+      poly_sqx_func = wgt_func(x)*y*y*x
+      return
+    end function poly_sqx_func
 
-     ym1 = 0.0
-     y = 1.0
-     do i = 1,poly_order
-       temp = y
-       y = (x-a_poly(i-1))*y - b_poly(i-1)*ym1
-       ym1 = temp
-     end do 
-     poly_sqx_func = wgt_func(x)*y*y*x
-     return
-   end function poly_sqx_func
+    !> FIXME : Add documentation  
+    real function poly_sq_func(x)
+      implicit none
+      real,intent(in):: x
+      real:: ym1,y,temp
+      integer:: i,j
 
-
-   real function poly_sq_func(x)
-     implicit none
-     real,intent(in):: x
-     real:: ym1,y,temp
-     integer:: i,j
-
-     ym1 = 0.0
-     y = 1.0
-     do i = 1,poly_order
-       temp = y
-       y = (x-a_poly(i-1))*y - b_poly(i-1)*ym1
-       ym1 = temp
-     end do 
-     poly_sq_func = wgt_func(x)*y*y
-     return
-   end function poly_sq_func
+      ym1 = 0.0
+      y = 1.0
+      do i = 1,poly_order
+         temp = y
+         y = (x-a_poly(i-1))*y - b_poly(i-1)*ym1
+         ym1 = temp
+      end do
+      poly_sq_func = wgt_func(x)*y*y
+      return
+    end function poly_sq_func
 
 #else
-     if (proc0) write(*,*) "ERROR: Must link to LAPACK for genquad to work. Set USE_LAPACK=on in Makefile."
-     call mp_abort("You must link to LAPACK for genquad to work. Set USE_LAPACK=on in Makefile.")
+    if (proc0) write(*,*) "ERROR: Must link to LAPACK for genquad to work. Set USE_LAPACK=on in Makefile."
+    call mp_abort("You must link to LAPACK for genquad to work. Set USE_LAPACK=on in Makefile.")
 #endif
   end subroutine get_quadrature_rule
 
 #ifdef GENQUAD
 
-   subroutine set_poly_type()
-     implicit none
-
-     if ( (.NOT. inf_flag1) .AND. (.NOT. inf_flag2)) then
-        ! Finite domain
-        poly_type = 0
-     else if ( (.NOT. inf_flag1) .AND. inf_flag2 ) then
-        ! Semi-infinite domain
-        poly_type = 1
-     else if ( inf_flag1 .AND. (.NOT. inf_flag2) ) then
-        ! Semi-infinite domain
-        poly_type = -1
-     else
+  !> FIXME : Add documentation  
+  subroutine set_poly_type()
+    implicit none
+    
+    if ( (.NOT. inf_flag1) .AND. (.NOT. inf_flag2)) then
+       ! Finite domain
+       poly_type = 0
+    else if ( (.NOT. inf_flag1) .AND. inf_flag2 ) then
+       ! Semi-infinite domain
+       poly_type = 1
+    else if ( inf_flag1 .AND. (.NOT. inf_flag2) ) then
+       ! Semi-infinite domain
+       poly_type = -1
+    else
        ! Infinite domain
        poly_type = 2
-     end if
- 
-   end subroutine set_poly_type
+    end if
 
-!> Evaluates a polynomial given recursion coefficients
-   real function evaluate_poly(a,b,n,x)
-     implicit none
-     real,dimension(0:),intent(in):: a,b
-     real,intent(in):: x
-     integer,intent(in):: n
-     real:: y, ym1, temp
-     integer:: i,j
-     
-     ym1 = 0.0
-     y = 1.0
-     do i = 1,n 
-        temp = y
-        y = (x-a(i-1))*y - b(i-1)*ym1
-        ym1 = temp
-     end do 
+  end subroutine set_poly_type
 
-     evaluate_poly = y
-     return
+  !> Evaluates a polynomial given recursion coefficients
+  real function evaluate_poly(a,b,n,x)
+    implicit none
+    real,dimension(0:),intent(in):: a,b
+    real,intent(in):: x
+    integer,intent(in):: n
+    real:: y, ym1, temp
+    integer:: i,j
 
-   end function evaluate_poly
+    ym1 = 0.0
+    y = 1.0
+    do i = 1,n 
+       temp = y
+       y = (x-a(i-1))*y - b(i-1)*ym1
+       ym1 = temp
+    end do
 
-!> Uses Wheeler's algorithm to obtain the recurrence relation for the new polynomials
-!! given the recurrence relation and modified moments of a given set of polynomials (here
-!! we use Legendre)
-   subroutine calculate_new_coeffs(N)
-     implicit none
-     integer, intent(in):: N
-     integer:: k
-     real:: moment1, moment2
+    evaluate_poly = y
+    return
 
-     b_poly(0) = 0.0 
+  end function evaluate_poly
 
-     if (poly_type .EQ. 1) then
-   
-     end if
+  !> Uses Wheeler's algorithm to obtain the recurrence relation for the new polynomials
+  !! given the recurrence relation and modified moments of a given set of polynomials (here
+  !! we use Legendre)
+  subroutine calculate_new_coeffs(N)
+    implicit none
+    integer, intent(in):: N
+    integer:: k
+    real:: moment1, moment2
 
-     contains
+    b_poly(0) = 0.0 
 
+    if (poly_type .EQ. 1) then
 
-    end subroutine calculate_new_coeffs
+    end if
+  end subroutine calculate_new_coeffs
 
-   subroutine init_genquad (N)
-     implicit none
-     integer,intent(in):: N
-     
-     allocate(a_poly(0:N-1)); a_poly = 0.0
-     allocate(b_poly(0:N-1)); b_poly = 0.0
+  !> FIXME : Add documentation  
+  subroutine init_genquad (N)
+    implicit none
+    integer,intent(in):: N
 
-   end subroutine init_genquad
+    allocate(a_poly(0:N-1)); a_poly = 0.0
+    allocate(b_poly(0:N-1)); b_poly = 0.0
 
-!> Finds the eigenvalues and eigenvectors for a symmetric tridiagonal matrix and interprets
-!! them as the absissae and weights for Gaussian quadrature. See Numerical Recipes, 3rd Ed. 
-!! section 4.6.2. Uses the LAPACK routine, given as an external source file.
+  end subroutine init_genquad
+
+  !> Finds the eigenvalues and eigenvectors for a symmetric tridiagonal matrix and interprets
+  !! them as the absissae and weights for Gaussian quadrature. See Numerical Recipes, 3rd Ed. 
+  !! section 4.6.2. Uses the LAPACK routine, given as an external source file.
   subroutine solve_jacobi_matrix(N,abscissae,wgts)
     implicit none
     integer,intent(in):: N
@@ -313,22 +311,21 @@ contains
     end if
 
     do i = 1,N 
-!       abscissae(i) = a_use(N-i)
-!       wgts(i) = b_poly(0)* eigenvectors(1,N-i+1)**2
+       !       abscissae(i) = a_use(N-i)
+       !       wgts(i) = b_poly(0)* eigenvectors(1,N-i+1)**2
        abscissae(i) = a_use(i-1)
        wgts(i) = b_poly(0)* eigenvectors(1,i)**2
     end do
 
-  end subroutine
+  end subroutine solve_jacobi_matrix
 
-   subroutine finish_general_quad
-     implicit none
-
-     if(allocated(a_poly)) deallocate(a_poly)
-     if(allocated(b_poly)) deallocate(b_poly)
-   
-   end subroutine finish_general_quad
+  !> FIXME : Add documentation    
+  subroutine finish_general_quad
+    implicit none
+    if(allocated(a_poly)) deallocate(a_poly)
+    if(allocated(b_poly)) deallocate(b_poly)
+  end subroutine finish_general_quad
 
 #endif
 end module genquad
-  
+

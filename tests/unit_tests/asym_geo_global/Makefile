@@ -21,5 +21,6 @@ ogyropsi.dat EQDSK:
 test_asym_geo_global.o:  ${TEST_MODS} 
 
 test_asym_geo_global: test_asym_geo_global.o $(TEST_MODS)
-	$(LD) $(LDFLAGS) -o $@ $^ $(LIBS)
+	$(call messageOp,"Linking ","\\t:",$^,"\\n\\t\-\-\-\-\-\-\>",$@)
+	$(QUIETSYM)$(LD) $(LDFLAGS) -o $@ $^ $(LIBS)
 

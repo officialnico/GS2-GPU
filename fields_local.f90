@@ -7,7 +7,7 @@ module fields_local
   implicit none
   private
 
-  !> Module level routines
+  ! Module level routines
   public :: init_fields_local, init_allfields_local, finish_fields_local
   public :: advance_local, reset_fields_local, dump_response_to_file_local
   public :: fields_local_functional, read_response_from_file_local
@@ -16,31 +16,31 @@ module fields_local
   public :: minNRow
   public :: fields_local_benchmarking_getfield_local
 
-  !> Unit tests
+  ! Unit tests
   public :: fields_local_unit_test_init_fields_matrixlocal
 
-  !> User set parameters
+  ! User set parameters
   public :: dump_response, read_response
 
-  !> Made public for testing
+  ! Made public for testing
   public :: fieldmat
 
   !//////////////////////////////
   !// CUSTOM TYPES
   !//////////////////////////////
 
-  !>This is the lowest level of data object and will hold the actual data
-  !involved with the field matrix
+  !> This is the lowest level of data object and will hold the actual data
+  !! involved with the field matrix
   type, private :: rowblock_type
-     complex, dimension(:,:), allocatable :: data !This is the field data
-     integer :: row_llim, row_ulim !The row limits this block corresponds to
-     integer :: col_llim, col_ulim !The col limits this block corresponds to
-     integer :: nrow, ncol !The size of the row block
-     complex, dimension(:),allocatable :: tmp_sum !Work space for field update
+     complex, dimension(:,:), allocatable :: data !< This is the field data
+     integer :: row_llim, row_ulim !< The row limits this block corresponds to
+     integer :: col_llim, col_ulim !< The col limits this block corresponds to
+     integer :: nrow, ncol !< The size of the row block
+     complex, dimension(:),allocatable :: tmp_sum !< Work space for field update
      !/Row and parent properties. Mostly for debug printing
-     integer :: ir_ind !Property of rowblock
-     integer :: it_ind, ik_ind !Details of parents
-     integer :: is_ind, ic_ind !Details of parents so cell can find itself
+     integer :: ir_ind !< Property of rowblock
+     integer :: it_ind, ik_ind !< Details of parents
+     integer :: is_ind, ic_ind !< Details of parents so cell can find itself
    contains
      private
      procedure :: deallocate => rb_deallocate
@@ -53,27 +53,27 @@ module fields_local
      procedure :: set_nrow => rb_set_nrow
   end type rowblock_type
 
-  !>This is the next level up of data and represents the cell type.
-  !A cell has a unique it,ik pair and represents all the fields/field eq
-  !on the extended domain for the given it/ik
+  !> This is the next level up of data and represents the cell type.
+  !! A cell has a unique it,ik pair and represents all the fields/field eq
+  !! on the extended domain for the given it/ik
   type, private :: cell_type
-     type(rowblock_type), dimension(:), allocatable :: rb !These are the row blocks, currently one for each field equation
-     integer :: nrb !How many row blocks, equal to nfield
+     type(rowblock_type), dimension(:), allocatable :: rb !< These are the row blocks, currently one for each field equation
+     integer :: nrb !< How many row blocks, equal to nfield
      !//NOTE: probably don't want these as this data should be stored by the row blocks only
-     integer :: row_llim, row_ulim !The row limits, always 1 to nfield*nextend
-     integer, dimension(:), allocatable :: col_llim, col_ulim !These are the column limits for each fdq
+     integer :: row_llim, row_ulim !< The row limits, always 1 to nfield*nextend
+     integer, dimension(:), allocatable :: col_llim, col_ulim !< These are the column limits for each fdq
      !//////
-     integer :: nrow, ncol !The number of rows and columns for each field equation.
-     integer :: ncol_tot !The total number of columns (nfdq*ncol)
-     logical :: is_local !Does this cell have any data on this proc?
-     logical :: is_empty !Have we got any data for this cell on this proc?
-     logical :: is_all_local !Is all of this cells data on this proc?
-     logical :: ignore_boundary !Do we ignore the boundary point (column) in this cell?
-     complex, dimension(:),allocatable :: tmp_sum !Work space for field update
-     type(comm_type) :: parent_sub !Sub communicator involving all processors in parent
+     integer :: nrow, ncol !< The number of rows and columns for each field equation.
+     integer :: ncol_tot !< The total number of columns (nfdq*ncol)
+     logical :: is_local !< Does this cell have any data on this proc?
+     logical :: is_empty !< Have we got any data for this cell on this proc?
+     logical :: is_all_local !< Is all of this cells data on this proc?
+     logical :: ignore_boundary !< Do we ignore the boundary point (column) in this cell?
+     complex, dimension(:),allocatable :: tmp_sum !< Work space for field update
+     type(comm_type) :: parent_sub !< Sub communicator involving all processors in parent
      !Cell and parent properties. Mostly for debug printing.
-     integer :: ic_ind, it_ind !Cell properties
-     integer :: ik_ind, is_ind !Parent properties
+     integer :: ic_ind, it_ind !< Cell properties
+     integer :: ik_ind, is_ind !< Parent properties
    contains
      private
      procedure :: deallocate => c_deallocate
@@ -86,31 +86,31 @@ module fields_local
      procedure :: has_row => c_has_row
   end type cell_type
 
-  !>This is the next level up of data and represents the supercell type.
-  !A supercell represents a collection of connected cells
+  !> This is the next level up of data and represents the supercell type.
+  !! A supercell represents a collection of connected cells
   type, private :: supercell_type
-     type(cell_type), dimension(:), allocatable :: cells !These are the cells
+     type(cell_type), dimension(:), allocatable :: cells !< These are the cells
      integer :: ncell
-     integer :: nextend !Length of the extended domain
-     integer :: nrow, ncol !The number of rows and columns. Equal to nextend*nfield
-     integer :: it_left !It index of leftmost cell
-     integer :: head_iproc !The proc id (in sc_sub_all) of the head proc
-     integer :: head_iproc_pd !The proc id (in sc_sub_pd) of the head proc
-     logical :: is_local !Does this supercell have any data on this proc?
-     logical :: is_empty !Have we got any data for this supercell on this proc?
-     logical :: is_all_local !Is all of this supercells data on this proc?
-     complex, dimension(:),allocatable :: tmp_sum !Work space for field update
-     type(comm_type) :: sc_sub_all !Sub communicator involving all processors with this supercell
-     type(comm_type) :: sc_sub_pd !Sub communicator for all procs with some data but not all of it
-     type(comm_type) :: sc_sub_not_full !Sub communicator involving all processors with this supercell
-     type(comm_type) :: parent_sub !Sub communicator involving all processors in parent
-     integer, dimension(:),allocatable :: nb_req_hand !For non-blocking broadcast request handle storage
-     logical :: initdone !Have we finished initialising this block?
-     logical, dimension(:), allocatable :: initialised !Have we initialised each point?
-     logical :: is_head=.false. !Are we the head of this supercell?
+     integer :: nextend !< Length of the extended domain
+     integer :: nrow, ncol !< The number of rows and columns. Equal to nextend*nfield
+     integer :: it_left !< It index of leftmost cell
+     integer :: head_iproc !< The proc id (in sc_sub_all) of the head proc
+     integer :: head_iproc_pd !< The proc id (in sc_sub_pd) of the head proc
+     logical :: is_local !< Does this supercell have any data on this proc?
+     logical :: is_empty !< Have we got any data for this supercell on this proc?
+     logical :: is_all_local !< Is all of this supercells data on this proc?
+     complex, dimension(:),allocatable :: tmp_sum !< Work space for field update
+     type(comm_type) :: sc_sub_all !< Sub communicator involving all processors with this supercell
+     type(comm_type) :: sc_sub_pd !< Sub communicator for all procs with some data but not all of it
+     type(comm_type) :: sc_sub_not_full !< Sub communicator involving all processors with this supercell
+     type(comm_type) :: parent_sub !< Sub communicator involving all processors in parent
+     integer, dimension(:),allocatable :: nb_req_hand !< For non-blocking broadcast request handle storage
+     logical :: initdone !< Have we finished initialising this block?
+     logical, dimension(:), allocatable :: initialised !< Have we initialised each point?
+     logical :: is_head=.false. !< Are we the head of this supercell?
      !Cell and parent properties. Mostly for debug printing.
      integer :: is_ind
-     integer :: ik_ind !Parent properties
+     integer :: ik_ind !< Parent properties
      integer :: collective_request
    contains
      private
@@ -148,17 +148,17 @@ module fields_local
      procedure :: gfu_finish_recv => sc_gfu_finish_recv
   end type supercell_type
 
-  !>This is the next level up of data and represents the ky type.
-  !A ky block consists of a number of supercells
+  !> This is the next level up of data and represents the ky type.
+  !! A ky block consists of a number of supercells
   type, private :: ky_type
-     type(supercell_type), dimension(:), allocatable :: supercells !These are the supercells
+     type(supercell_type), dimension(:), allocatable :: supercells !< These are the supercells
      integer :: nsupercell
-     logical :: is_local !Does this supercell have any data on this proc?
-     logical :: is_empty !Have we got any data for this supercell on this proc?
-     logical :: is_all_local !Is all of this supercells data on this proc?
-     logical :: initdone !Have we finished initialising this block?
-     type(comm_type) :: ky_sub_all !Sub communicator involving all processors with this ky
-     type(comm_type) :: parent_sub !Sub communicator involving all processors in parent
+     logical :: is_local !< Does this supercell have any data on this proc?
+     logical :: is_empty !< Have we got any data for this supercell on this proc?
+     logical :: is_all_local !< Is all of this supercells data on this proc?
+     logical :: initdone !< Have we finished initialising this block?
+     type(comm_type) :: ky_sub_all !< Sub communicator involving all processors with this ky
+     type(comm_type) :: parent_sub !< Sub communicator involving all processors in parent
      !Cell and parent properties. Mostly for debug printing.
      integer :: ik_ind
    contains
@@ -177,27 +177,27 @@ module fields_local
      procedure :: make_subcom_2 => ky_make_subcom_2
   end type ky_type
 
-  !>This is the top level object, consisting of a collection of
-  !ky blocks.
+  !> This is the top level object, consisting of a collection of
+  !! ky blocks.
   type, private :: fieldmat_type
-     type(ky_type), dimension(:), allocatable :: kyb !The ky blocks
-     integer :: naky !Number of ky blocks
+     type(ky_type), dimension(:), allocatable :: kyb !< The ky blocks
+     integer :: naky !< Number of ky blocks
      integer :: ntheta0 
-     integer :: npts !Total number of theta grid points on all extended domains
-     integer :: nbound !Number of ignored boundary points
-     logical :: is_local !Does this supercell have any data on this proc?
-     logical :: is_empty !Have we got any data for the fieldmat on this proc?
-     logical :: is_all_local !Is all of this supercells data on this proc?
-     type(comm_type) :: fm_sub_all !Sub communicator involving all processors with fieldmat
-     type(comm_type) :: fm_sub_headsc_p0 !Sub communicator involving the supercell heads and proc0
-     integer :: prepare_type=0 !What sort of preparation do we do to the field matrix
-     integer, dimension(:,:), allocatable :: heads ! An array that holds the iproc (from comm world) of the supercell head for a given ik,it point
+     integer :: npts !< Total number of theta grid points on all extended domains
+     integer :: nbound !< Number of ignored boundary points
+     logical :: is_local !< Does this supercell have any data on this proc?
+     logical :: is_empty !< Have we got any data for the fieldmat on this proc?
+     logical :: is_all_local !< Is all of this supercells data on this proc?
+     type(comm_type) :: fm_sub_all !< Sub communicator involving all processors with fieldmat
+     type(comm_type) :: fm_sub_headsc_p0 !< Sub communicator involving the supercell heads and proc0
+     integer :: prepare_type=0 !< What sort of preparation do we do to the field matrix
+     integer, dimension(:,:), allocatable :: heads !<  An array that holds the iproc (from comm world) of the supercell head for a given ik,it point
      !Currently only support:
      !0   : Invert the field matrix
      !In the future may wish to do things like LU decomposition etc.
      !Could also do things like eigenvalue analysis etc.
-     logical :: no_populate=.false. !Advanced usage only, if true then don't populate response
-     logical :: no_prepare=.false. !Advanced usage only, if true then don't prepare (invert) response
+     logical :: no_populate=.false. !< Advanced usage only, if true then don't populate response
+     logical :: no_prepare=.false. !< Advanced usage only, if true then don't prepare (invert) response
    contains
      private
      procedure :: deallocate => fm_deallocate
@@ -225,24 +225,24 @@ module fields_local
      procedure :: update_fields_newstep => fm_update_fields_newstep
   end type fieldmat_type
 
-  !>This is the type which controls/organises the parallel
-  !data decomposition etc.
+  !> This is the type which controls/organises the parallel
+  !! data decomposition etc.
   type, private :: pc_type
-     integer, dimension(:,:), allocatable :: is_local !Is the given it,ik on this proc?
+     integer, dimension(:,:), allocatable :: is_local !< Is the given it,ik on this proc?
      !NOTE: We have is_local as integer rather than logical so we can reduce across procs
      !to count how many procs have a given cell
-     type(comm_type), dimension(:,:), allocatable :: itik_subcom !Cell level sub-communicators
-     integer, dimension(:,:), allocatable :: nproc_per_cell !How many procs have this cell
-     integer, dimension(:,:), allocatable :: nresp_per_cell !How many rows are we personally responsible for in each cell
-     integer, dimension(:,:), allocatable :: navail_per_cell !How many rows could we be responsible for in each cell
-     integer :: nresp_tot, navail_tot !Total number of rows available/potentially available
-     logical :: force_local_invert=.false. !If true then we force local inversion
+     type(comm_type), dimension(:,:), allocatable :: itik_subcom !< Cell level sub-communicators
+     integer, dimension(:,:), allocatable :: nproc_per_cell !< How many procs have this cell
+     integer, dimension(:,:), allocatable :: nresp_per_cell !< How many rows are we personally responsible for in each cell
+     integer, dimension(:,:), allocatable :: navail_per_cell !< How many rows could we be responsible for in each cell
+     integer :: nresp_tot, navail_tot !< Total number of rows available/potentially available
+     logical :: force_local_invert=.false. !< If true then we force local inversion
      !the local fields. This may impact diagnostics/parallel writing as it means only the processors g_lo local section
      !of the fields are evolved on this processor.
      !NOTE: If we're doing force local invert really when we populate the supercell we should store all of the 
      !data locally so we don't need to fetch it later.
-     logical :: has_to_gather=.true. !If true we have to gather when calling getfieldeq, determined by decomp routine
-     integer :: decomp_type=3 !This sets what type of decomposition is done
+     logical :: has_to_gather=.true. !< If true we have to gather when calling getfieldeq, determined by decomp routine
+     integer :: decomp_type=3 !< This sets what type of decomposition is done
      !By defining your own decomposition routine and associating it with a
      !particular value of decomp_type you should be able to easily add in
      !new parallel decompositions easily without having to rewrite any other
@@ -276,23 +276,23 @@ module fields_local
   !//////////////////////////////
   !// MODULE VARIABLES
   !//////////////////////////////
-  integer :: dlun=6 !File unit for debug printing
+  integer :: dlun=6 !< File unit for debug printing
   !Tuning this can improve advance/init time (usually one at the expense of other)
-  logical :: do_smart_update=.false. !If true and x/y distributed then use a "smart" update which only updates
-  logical,parameter :: debug=.false. !Do we do debug stuff?
-  logical :: initialised=.false. !Have we initialised yet?
-  logical :: reinit=.false. !Are we reinitialising?
-  logical :: dump_response=.false. !Do we dump the response matrix?
-  logical :: read_response=.false. !Do we read the response matrix from dump?
-  logical :: field_local_allreduce = .false. !If true use an allreduce to gather field else use reduce+broadcast
-  logical :: field_local_allreduce_sub = .false. !If true and field_local_allreduce true then do two sub comm all reduces rather than 1
-  logical :: field_local_tuneminnrow = .false. !Are auto-tuning minnrow
+  logical :: do_smart_update=.false. !< If true and x/y distributed then use a "smart" update which only updates
+  logical,parameter :: debug=.false. !< Do we do debug stuff?
+  logical :: initialised=.false. !< Have we initialised yet?
+  logical :: reinit=.false. !< Are we reinitialising?
+  logical :: dump_response=.false. !< Do we dump the response matrix?
+  logical :: read_response=.false. !< Do we read the response matrix from dump?
+  logical :: field_local_allreduce = .false. !< If true use an allreduce to gather field else use reduce+broadcast
+  logical :: field_local_allreduce_sub = .false. !< If true and field_local_allreduce true then do two sub comm all reduces rather than 1
+  logical :: field_local_tuneminnrow = .false. !< Are auto-tuning minnrow
   logical :: field_local_nonblocking_collectives = .false.
-  integer :: nfield !How many fields
-  integer :: nfq !How many field equations (always equal to nfield)
-  integer :: minNRow = 16 !Tuning this can influence both init and advance times
-  type(pc_type),save :: pc !This is the parallel control object
-  type(fieldmat_type),save :: fieldmat !This is the top level field matrix object
+  integer :: nfield !< How many fields
+  integer :: nfq !< How many field equations (always equal to nfield)
+  integer :: minNRow = 16 !< Tuning this can influence both init and advance times
+  type(pc_type),save :: pc !< This is the parallel control object
+  type(fieldmat_type),save :: fieldmat !< This is the top level field matrix object
 
 contains
 
@@ -303,7 +303,8 @@ contains
 !================
 !ROWBLOCK
 !================
-  !>Allocate storage space
+  
+  !> Allocate storage space
   subroutine rb_allocate(self)
     implicit none
     class(rowblock_type), intent(inout) :: self
@@ -311,7 +312,7 @@ contains
     allocate(self%tmp_sum(self%nrow))
   end subroutine rb_allocate
 
-  !>Deallocate storage space
+  !> Deallocate storage space
   subroutine rb_deallocate(self)
     implicit none
     class(rowblock_type), intent(inout) :: self
@@ -319,7 +320,7 @@ contains
     if(allocated(self%tmp_sum)) deallocate(self%tmp_sum)
   end subroutine rb_deallocate
 
-  !>Debug printing
+  !> Debug printing
   subroutine rb_debug_print(self)
     implicit none
     class(rowblock_type), intent(in) :: self
@@ -329,7 +330,7 @@ contains
          self%col_llim, self%col_ulim
   end subroutine rb_debug_print
 
-  !>Matrix vector multiplication
+  !> Matrix vector multiplication
   function rb_mv_mult_fun(self,vect)
     implicit none
     class(rowblock_type), intent(in) :: self
@@ -345,7 +346,7 @@ contains
 !    enddo
   end function rb_mv_mult_fun
 
-  !>Matrix vector multiplication stored in tmp_sum
+  !> Matrix vector multiplication stored in tmp_sum
   subroutine rb_mv_mult(self,vect)
     implicit none
     class(rowblock_type), intent(inout) :: self
@@ -353,7 +354,7 @@ contains
     self%tmp_sum=self%mv_mult_fun(vect)
   end subroutine rb_mv_mult
   
-  !>Convert extended row index to local row index
+  !> Convert extended row index to local row index
   function rb_irex_to_irloc(self,irex)
     implicit none
     class(rowblock_type), intent(in) :: self
@@ -362,7 +363,7 @@ contains
     rb_irex_to_irloc=1+(irex-self%row_llim)
   end function rb_irex_to_irloc
 
-  !>Set the nrow variables
+  !> Set the nrow variables
   subroutine rb_set_nrow(self)
     implicit none
     class(rowblock_type), intent(inout) :: self
@@ -373,7 +374,7 @@ contains
     endif
   end subroutine rb_set_nrow
 
-  !>A routine to reset the object
+  !> A routine to reset the object
   subroutine rb_reset(self)
     implicit none
     class(rowblock_type), intent(inout) :: self
@@ -391,7 +392,8 @@ contains
 !================
 !CELL
 !================
-  !>Allocate storage space
+
+  !> Allocate storage space
   subroutine c_allocate(self)
     implicit none
     class(cell_type), intent(inout) :: self
@@ -402,7 +404,7 @@ contains
     enddo
   end subroutine c_allocate
 
-  !>Deallocate storage space
+  !> Deallocate storage space
   subroutine c_deallocate(self)
     implicit none
     class(cell_type), intent(inout) :: self
@@ -410,7 +412,7 @@ contains
     if(allocated(self%rb)) deallocate(self%rb)
   end subroutine c_deallocate
 
-  !>Debug printing
+  !> Debug printing
   subroutine c_debug_print(self)
     implicit none
     class(cell_type), intent(in) :: self
@@ -418,7 +420,7 @@ contains
          self%ic_ind, self%nrow, self%ncol
   end subroutine c_debug_print
 
-  !>Do matrix vector multiplication at rowblock level
+  !> Do matrix vector multiplication at rowblock level
   subroutine c_mv_mult_rb(self,vect,ifq)
     implicit none
     class(cell_type), intent(inout) :: self
@@ -427,9 +429,9 @@ contains
     call self%rb(ifq)%mv_mult(vect)
   end subroutine c_mv_mult_rb
 
-  !>Get the field update for this cells data
-  !Note still need to reduce across other cells in this
-  !supercell.
+  !> Get the field update for this cells data
+  !! Note still need to reduce across other cells in this
+  !! supercell.
   subroutine c_get_field_update(self,fq,fqa,fqp)
     use run_parameters, only: fphi, fapar, fbpar
     implicit none
@@ -465,7 +467,7 @@ contains
 
   end subroutine c_get_field_update
 
-  !>A routine to reset the object
+  !> A routine to reset the object
   subroutine c_reset(self)
     implicit none
     class(cell_type), intent(inout) :: self
@@ -482,7 +484,7 @@ contains
     !Could zero out variables but no real need
   end subroutine c_reset
 
-  !>Set the locality of each object
+  !> Set the locality of each object
   subroutine c_set_locality(self)
     use kt_grids, only: aky, akx
     implicit none
@@ -503,7 +505,7 @@ contains
 
   end subroutine c_set_locality
 
-  !>Test if a given row belongs to the current cell
+  !> Test if a given row belongs to the current cell
   function c_has_row(self,irow)
     implicit none
     class(cell_type), intent(in) :: self
@@ -523,7 +525,8 @@ contains
 !================
 !SUPERCELL
 !================
-  !>Allocate storage space
+
+  !> Allocate storage space
   subroutine sc_allocate(self)
     implicit none
     class(supercell_type), intent(inout) :: self
@@ -534,7 +537,7 @@ contains
     enddo
   end subroutine sc_allocate
 
-  !>Deallocate storage space
+  !> Deallocate storage space
   subroutine sc_deallocate(self)
     implicit none
     class(supercell_type), intent(inout) :: self
@@ -542,7 +545,7 @@ contains
     if(allocated(self%cells)) deallocate(self%cells)
   end subroutine sc_deallocate
 
-  !>Debug printing
+  !> Debug printing
   subroutine sc_debug_print(self)
     implicit none
     class(supercell_type), intent(in) :: self
@@ -550,7 +553,7 @@ contains
          self%is_ind, self%nrow, self%ncol
   end subroutine sc_debug_print
 
-  !>Get the field update
+  !> Get the field update
   subroutine sc_get_field_update(self,fq,fqa,fqp)
     implicit none
     class(supercell_type), intent(inout) :: self
@@ -582,7 +585,7 @@ contains
 
   end subroutine sc_get_field_update
 
-  !>Reduce the field update across cells to give the final answer
+  !> Reduce the field update across cells to give the final answer
   subroutine sc_reduce_tmpsum(self)
     use mp, only: sum_allreduce_sub, sum_reduce_sub, nb_sum_reduce_sub
     implicit none
@@ -618,8 +621,8 @@ contains
 !    if(self%sc_sub_not_full%nproc.gt.1)call broadcast_sub(self%tmp_sum,0,self%sc_sub_not_full%id)
   end subroutine sc_reduce_tmpsum
 
-  !>Post any non-blocking receives associated with filling the
-  !empty procs supercells
+  !> Post any non-blocking receives associated with filling the
+  !! empty procs supercells
   subroutine sc_gfu_post_recv(self)
     use mp, only: nbrecv
     implicit none
@@ -640,8 +643,8 @@ contains
     call nbrecv(self%tmp_sum,0,self%is_ind,self%sc_sub_not_full,self%nb_req_hand(1))
   end subroutine sc_gfu_post_recv
 
-  !>Post any non-blocking receives associated with filling the
-  !empty procs supercells
+  !> Post any non-blocking receives associated with filling the
+  !! empty procs supercells
   subroutine sc_gfu_post_send(self)
     use mp, only: nbsend
     implicit none
@@ -661,8 +664,8 @@ contains
     enddo
   end subroutine sc_gfu_post_send
 
-  !>Check if the non-blocking communications have
-  !finished and wait until they have
+  !> Check if the non-blocking communications have
+  !! finished and wait until they have
   subroutine sc_gfu_finish_comms(self)
     use mp, only: waitall
     implicit none
@@ -680,8 +683,8 @@ contains
     endif
   end subroutine sc_gfu_finish_comms
 
-  !>Check if the non-blocking recv have
-  !finished and wait until they have
+  !> Check if the non-blocking recv have
+  !! finished and wait until they have
   subroutine sc_gfu_finish_recv(self)
     use mp, only: waitall
     implicit none
@@ -697,8 +700,8 @@ contains
     endif
   end subroutine sc_gfu_finish_recv
 
-  !>Check if the non-blocking send have
-  !finished and wait until they have
+  !> Check if the non-blocking send have
+  !! finished and wait until they have
   subroutine sc_gfu_finish_send(self)
     use mp, only: waitall
     implicit none
@@ -714,8 +717,8 @@ contains
     endif
   end subroutine sc_gfu_finish_send
 
-  !>Check if the non-blocking communications have
-  !finished, if not then exit
+  !> Check if the non-blocking communications have
+  !! finished, if not then exit
   subroutine sc_gfu_test_comms(self)
     use mp, only: testall
     implicit none
@@ -734,8 +737,8 @@ contains
     endif
   end subroutine sc_gfu_test_comms
 
-  !>Check if the non-blocking recv have
-  !finished, if not then exit
+  !> Check if the non-blocking recv have
+  !! finished, if not then exit
   subroutine sc_gfu_test_recv(self)
     use mp, only: testall
     implicit none
@@ -752,8 +755,8 @@ contains
     endif
   end subroutine sc_gfu_test_recv
 
-  !>Check if the non-blocking send have
-  !finished, if not then exit
+  !> Check if the non-blocking send have
+  !! finished, if not then exit
   subroutine sc_gfu_test_send(self)
     use mp, only: testall
     implicit none
@@ -770,8 +773,9 @@ contains
     endif
   end subroutine sc_gfu_test_send
     
-!<DD>The iex_to routines all need testing!
-  !>Convert the extended domain index to ig, it and ifl
+  !> Convert the extended domain index to ig, it and ifl
+  !!
+  !! @note The iex_to routines all need testing!
   subroutine sc_iex_to_dims(self,iex,ig,ic,it,ifl)
     use theta_grid, only: ntgrid
     implicit none
@@ -790,7 +794,7 @@ contains
     ig=-ntgrid+iex-(ifl-1)*self%nextend-1-2*ntgrid*(ic-1)
   end subroutine sc_iex_to_dims
     
-  !>Convert the extended domain index to ifl
+  !> Convert the extended domain index to ifl
   subroutine sc_iex_to_ifl(self,iex,ifl)
     implicit none
     class(supercell_type), intent(in) :: self
@@ -799,7 +803,7 @@ contains
     ifl=1+(iex-1)/self%nextend
   end subroutine sc_iex_to_ifl
 
-  !>Convert the extended domain index to ic
+  !> Convert the extended domain index to ic
   subroutine sc_iex_to_ic(self,iex,ic)
     use theta_grid, only: ntgrid
     implicit none
@@ -814,7 +818,7 @@ contains
     ic=MIN(int((iex_tmp-1)/(2*ntgrid))+1,self%ncell)
   end subroutine sc_iex_to_ic
 
-  !>Convert the extended domain index to it
+  !> Convert the extended domain index to it
   subroutine sc_iex_to_it(self,iex,it)
     use theta_grid, only: ntgrid
     implicit none
@@ -830,7 +834,7 @@ contains
     it=self%cells(ic)%it_ind
   end subroutine sc_iex_to_it
 
-  !>Convert the extended domain index to ig
+  !> Convert the extended domain index to ig
   subroutine sc_iex_to_ig(self,iex,ig)
     use theta_grid, only: ntgrid
     implicit none
@@ -850,7 +854,7 @@ contains
     endif
   end subroutine sc_iex_to_ig
 
-  !>Is the passed it a member of this supercell
+  !> Is the passed it a member of this supercell
   function sc_has_it(self,it)
     implicit none
     class(supercell_type), intent(in) :: self
@@ -859,7 +863,7 @@ contains
     sc_has_it=any(self%cells%it_ind.eq.it)
   end function sc_has_it
 
-  !>A routine to reset the object
+  !> A routine to reset the object
   subroutine sc_reset(self)
     use mp, only: free_comm
     implicit none
@@ -888,7 +892,7 @@ contains
     !Could zero out variables but no real need
   end subroutine sc_reset
 
-  !>Set the locality of each object
+  !> Set the locality of each object
   subroutine sc_set_locality(self)
     implicit none
     class(supercell_type), intent(inout) :: self
@@ -906,7 +910,7 @@ contains
 
   end subroutine sc_set_locality
 
-  !>Given an it value get the it of the left connected cell
+  !> Given an it value get the it of the left connected cell
   function sc_get_left_it(self,it)
     implicit none
     class(supercell_type),intent(in) :: self
@@ -940,7 +944,7 @@ contains
     sc_get_left_it=tmp
   end function sc_get_left_it
 
-  !>Debug routine to dump the current supercell
+  !> Debug routine to dump the current supercell
   subroutine sc_dump(self,prefix)
     use mp, only: proc0
     implicit none
@@ -972,7 +976,7 @@ contains
     deallocate(tmp)
   end subroutine sc_dump
 
-  !>Store the field equations at row level
+  !> Store the field equations at row level
   subroutine sc_store_fq(self,fq,fqa,fqp,ifl_in,it_in,ig_in)
     use theta_grid, only: ntgrid
     use run_parameters, only: fphi, fapar, fbpar
@@ -1049,7 +1053,7 @@ contains
 
   end subroutine sc_store_fq
 
-  !>Prepare the field matrix for calculating field updates
+  !> Prepare the field matrix for calculating field updates
   subroutine sc_prepare(self,prepare_type)
     use mp, only: mp_abort
     implicit none
@@ -1072,7 +1076,7 @@ contains
     end select
   end subroutine sc_prepare
 
-  !>A routine to invert the field matrix
+  !> A routine to invert the field matrix
   subroutine sc_invert(self)
     implicit none
     class(supercell_type), intent(inout) :: self
@@ -1093,7 +1097,7 @@ contains
 
   end subroutine sc_invert
 
-  !>A routine to invert the field matrix locally
+  !> A routine to invert the field matrix locally
   subroutine sc_invert_local(self)
     use mat_inv, only: inverse_gj
     implicit none
@@ -1122,7 +1126,7 @@ contains
 
   end subroutine sc_invert_local
 
-  !>A routine to invert the field matrix using mpi
+  !> A routine to invert the field matrix using mpi
   subroutine sc_invert_mpi(self)
     use mp, only: mp_abort
     implicit none
@@ -1131,9 +1135,8 @@ contains
     call mp_abort("ERROR: Invert with mpi not yet implemented.")
   end subroutine sc_invert_mpi
 
-  !>A routine to collect all the row level data and store in passed array
-
-  !>Gather the row blocks up for this cell to fill an array
+  !> A routine to collect all the row level data and store in passed array
+  !! Gather the row blocks up for this cell to fill an array
   subroutine sc_pull_rows_to_arr(self,arr)
     use mp, only: sum_allreduce_sub
     implicit none
@@ -1180,7 +1183,7 @@ contains
 
   end subroutine sc_pull_rows_to_arr
 
-  !>A routine to distribute an array to appropriate row blocks
+  !> A routine to distribute an array to appropriate row blocks
   subroutine sc_push_arr_to_rows(self,arr)
     use mp, only: broadcast_sub, mp_abort
     implicit none
@@ -1208,7 +1211,7 @@ contains
     enddo
   end subroutine sc_push_arr_to_rows
 
-  !>Create primary (top level) sub communicators
+  !> Create primary (top level) sub communicators
   subroutine sc_make_subcom_1(self)
     use mp, only: comm_type, split, free_comm
     implicit none
@@ -1249,7 +1252,7 @@ contains
 
   end subroutine sc_make_subcom_1
 
-  !>Create the secondary (intraobject) subcommunicators
+  !> Create the secondary (intraobject) subcommunicators
   subroutine sc_make_subcom_2(self)
     use mp, only: comm_type, split, free_comm, sum_allreduce_sub, proc0
     implicit none
@@ -1440,7 +1443,8 @@ contains
 !================
 !KYBLOCK
 !================
-  !>Allocate storage space
+
+  !> Allocate storage space
   subroutine ky_allocate(self)
     implicit none
     class(ky_type), intent(inout) :: self
@@ -1450,14 +1454,14 @@ contains
     enddo
   end subroutine ky_allocate
 
-  !>Deallocate storage space
+  !> Deallocate storage space
   subroutine ky_deallocate(self)
     implicit none
     class(ky_type), intent(inout) :: self
     if(allocated(self%supercells)) deallocate(self%supercells)
   end subroutine ky_deallocate
 
-  !>Debug printing
+  !> Debug printing
   subroutine ky_debug_print(self)
     implicit none
     class(ky_type), intent(in) :: self
@@ -1465,7 +1469,7 @@ contains
          self%ik_ind, self%nsupercell
   end subroutine ky_debug_print
 
-  !>Get the field update for this ik
+  !> Get the field update for this ik
   subroutine ky_get_field_update(self,fq,fqa,fqp)
     implicit none
     class(ky_type), intent(inout) :: self
@@ -1483,7 +1487,7 @@ contains
     enddo
   end subroutine ky_get_field_update
 
-  !>Wait on the nonblocking collective communications if they have been used.
+  !> Wait on the nonblocking collective communications if they have been used.
   subroutine ky_wait_for_nonblocking_collectives(self)
     use mp, only : wait
     implicit none
@@ -1498,7 +1502,7 @@ contains
     enddo
   end subroutine ky_wait_for_nonblocking_collectives
 
-  !>Store the field equation at row level
+  !> Store the field equation at row level
   subroutine ky_store_fq(self,fq,fqa,fqp,ifl_in,it_in,ig_in)
     implicit none
     class(ky_type), intent(inout) :: self
@@ -1516,7 +1520,7 @@ contains
     enddo
   end subroutine ky_store_fq
 
-  !>Given it say what the supercell id is
+  !> Given it say what the supercell id is
   function ky_is_from_it(self,it)
     implicit none
     class(ky_type), intent(inout) :: self
@@ -1532,7 +1536,7 @@ contains
     enddo
   end function ky_is_from_it
 
-  !>A routine to reset the object
+  !> A routine to reset the object
   subroutine ky_reset(self)
     use mp, only: free_comm, mp_comm_null
     implicit none
@@ -1554,7 +1558,7 @@ contains
     !Could zero out variables but no real need
   end subroutine ky_reset
 
-  !>Set the locality of each object
+  !> Set the locality of each object
   subroutine ky_set_locality(self)
     implicit none
     class(ky_type), intent(inout) :: self
@@ -1572,7 +1576,7 @@ contains
 
   end subroutine ky_set_locality
 
-  !>Prepare the field matrix for calculating field updates
+  !> Prepare the field matrix for calculating field updates
   subroutine ky_prepare(self,prepare_type)
     implicit none
     class(ky_type), intent(inout) :: self
@@ -1589,7 +1593,7 @@ contains
     enddo
   end subroutine ky_prepare
 
-  !>Create the primary subcommunicators
+  !> Create the primary subcommunicators
   subroutine ky_make_subcom_1(self)
     use mp, only: comm_type, split, free_comm
     implicit none
@@ -1630,7 +1634,7 @@ contains
     enddo
   end subroutine ky_make_subcom_1
 
-  !>Create the secondary subcommunicators
+  !> Create the secondary subcommunicators
   subroutine ky_make_subcom_2(self)
     implicit none
     class(ky_type), intent(inout) :: self
@@ -1711,7 +1715,8 @@ contains
 !================
 !FIELDMAT
 !================
-  !>Allocate storage space
+
+  !> Allocate storage space
   subroutine fm_allocate(self)
     implicit none
     class(fieldmat_type), intent(inout) :: self
@@ -1723,7 +1728,7 @@ contains
     enddo
   end subroutine fm_allocate
 
-  !>Deallocate storage space
+  !> Deallocate storage space
   subroutine fm_deallocate(self)
     implicit none
     class(fieldmat_type), intent(inout) :: self
@@ -1731,7 +1736,7 @@ contains
     if(allocated(self%heads)) deallocate(self%heads)
   end subroutine fm_deallocate
 
-  !>Debug printing
+  !> Debug printing
   subroutine fm_debug_print(self)
     implicit none
     class(fieldmat_type), intent(in) :: self
@@ -1739,7 +1744,7 @@ contains
          self%naky
   end subroutine fm_debug_print
 
-  !>Just work out the locality (also sets is_empty etc. but is not intended for this)
+  !> Just work out the locality (also sets is_empty etc. but is not intended for this)
   subroutine fm_set_is_local(self)
     implicit none
     class(fieldmat_type), intent(inout) :: self
@@ -1756,7 +1761,7 @@ contains
     self%is_all_local=all(self%kyb%is_local)
   end subroutine fm_set_is_local
 
-  !>Initialise the field objects
+  !> Initialise the field objects
   subroutine fm_init(self)
     use kt_grids, only: naky, ntheta0
     use dist_fn, only: itright, get_leftmost_it
@@ -1944,8 +1949,8 @@ contains
     deallocate(nsuper,supercell_ids,ncells,is_to_itmin)
   end subroutine fm_init
 
-  !>Find the response of g to delta-fn field perturbations 
-  !and store at the row level
+  !> Find the response of g to delta-fn field perturbations 
+  !! and store at the row level
   subroutine fm_populate(self)
     use run_parameters, only: fphi, fapar, fbpar
     use fields_arrays, only: phi, apar, bpar, phinew, aparnew, bparnew
@@ -2051,8 +2056,8 @@ contains
     kwork_filter=.false.
   end subroutine fm_populate
 
-  !>Initialise the next set of delta functions, find the response
-  !and store in the appropriate rows.
+  !> Initialise the next set of delta functions, find the response
+  !! and store in the appropriate rows.
   subroutine fm_init_next_field_points(self,field,pts_remain,kwork_filter,ifl)
     use kt_grids, only: naky, ntheta0
     use theta_grid, only: ntgrid
@@ -2217,7 +2222,7 @@ contains
     deallocate(fq,fqa,fqp)
   end subroutine fm_init_next_field_points
 
-  !>Prepare the field matrix for calculating field updates
+  !> Prepare the field matrix for calculating field updates
   subroutine fm_prepare(self)
     implicit none
     class(fieldmat_type), intent(inout) :: self
@@ -2234,7 +2239,7 @@ contains
     enddo
   end subroutine fm_prepare
 
-  !>A routine to calculate the update to the fields
+  !> A routine to calculate the update to the fields
   subroutine fm_get_field_update(self, phi, apar, bpar)
     use kt_grids, only: ntheta0, naky
     use theta_grid, only: ntgrid
@@ -2299,8 +2304,8 @@ contains
 
   end subroutine fm_get_field_update
 
-  !>A routine to unpack the supercell tmp_sum vectors to
-  !full field arrays
+  !> A routine to unpack the supercell tmp_sum vectors to
+  !! full field arrays
   subroutine fm_unpack_to_field(self,ph,ap,bp)
     use theta_grid, only: ntgrid
     use run_parameters, only: fphi,fapar,fbpar
@@ -2402,7 +2407,7 @@ contains
 
   end subroutine fm_unpack_to_field
 
-  !>A routine to reset the object
+  !> A routine to reset the object
   subroutine fm_reset(self)
     use mp, only: free_comm
     implicit none
@@ -2423,7 +2428,7 @@ contains
     !Could zero out variables but no real need
   end subroutine fm_reset
 
-  !>Count how many subcommunicators will be created
+  !> Count how many subcommunicators will be created
   subroutine fm_count_subcom(self)
     use mp, only: iproc, barrier, nproc
     implicit none
@@ -2455,7 +2460,7 @@ contains
     if(iproc.eq.0)write(dlun,'()')
   end subroutine fm_count_subcom
 
-  !>Create all the necessary subcommunicators
+  !> Create all the necessary subcommunicators
   subroutine fm_make_subcom_1(self)
     use mp, only: iproc, nproc, mp_comm, comm_type, split, free_comm, proc0
     implicit none
@@ -2489,7 +2494,7 @@ contains
 
   end subroutine fm_make_subcom_1
 
-  !>Create the secondary subcommunicators
+  !> Create the secondary subcommunicators
   subroutine fm_make_subcom_2(self)
     use mp, only: split, free_comm
     implicit none
@@ -2559,7 +2564,7 @@ contains
 
   end subroutine fm_calc_sc_heads
   
-  !>Gather all the fields to proc0/all for diagnostics etc.
+  !> Gather all the fields to proc0/all for diagnostics etc.
   subroutine fm_gather_fields(self,ph,ap,bp,to_all_in,do_allreduce_in)
     use theta_grid, only: ntgrid
     use kt_grids, only: naky, ntheta0
@@ -2770,7 +2775,7 @@ contains
 
   end subroutine fm_gather_fields
 
-  !>Update the fields using calculated update
+  !> Update the fields using calculated update
   subroutine fm_update_fields(self,phi,apar,bpar)
     use fields_arrays, only: orig_phi=>phi, orig_apar=>apar, orig_bpar=>bpar
     use run_parameters, only: fphi, fapar, fbpar
@@ -2812,7 +2817,7 @@ contains
 
   end subroutine fm_update_fields
 
-  !>Update the fields using the new fields
+  !> Update the fields using the new fields
   subroutine fm_update_fields_newstep(self)
     use fields_arrays, only: phi,apar,bpar,phinew,aparnew,bparnew
     use run_parameters, only: fphi, fapar, fbpar
@@ -2853,7 +2858,7 @@ contains
 
   end subroutine fm_update_fields_newstep
 
-  !>Write some debug data to file
+  !> Write some debug data to file
   subroutine fm_write_debug_data(self)
     use file_utils, only: open_output_file, close_output_file
     use mp, only: iproc, nproc_comm, rank_comm
@@ -3355,7 +3360,7 @@ contains
 !================
 !PROC_DECOMP
 !================
-  !>Allocate storage space
+  !> Allocate storage space
   subroutine pc_allocate(self)
     use kt_grids, only: naky, ntheta0
     implicit none
@@ -3367,7 +3372,7 @@ contains
     allocate(self%navail_per_cell(ntheta0,naky))
   end subroutine pc_allocate
 
-  !>Deallocate storage space
+  !> Deallocate storage space
   subroutine pc_deallocate(self)
     implicit none
     class(pc_type), intent(inout) :: self
@@ -3378,7 +3383,7 @@ contains
     if(allocated(self%navail_per_cell)) deallocate(self%navail_per_cell)
   end subroutine pc_deallocate
 
-  !>Debug printing
+  !> Debug printing
   subroutine pc_debug_print(self)
     implicit none
     class(pc_type), intent(in) :: self
@@ -3386,7 +3391,7 @@ contains
          self%current_nresp()
   end subroutine pc_debug_print
 
-  !>Return the current number of rows we're responsible for
+  !> Return the current number of rows we're responsible for
   function pc_current_nresp(self)
     implicit none
     class(pc_type), intent(in) :: self
@@ -3394,7 +3399,7 @@ contains
     pc_current_nresp=sum(self%nresp_per_cell)
   end function pc_current_nresp
 
-  !>Work out which cells are local
+  !> Work out which cells are local
   subroutine pc_find_locality(self)
     use gs2_layouts, only: g_lo, ik_idx, it_idx
     use mp, only: sum_allreduce
@@ -3422,7 +3427,7 @@ contains
     call sum_allreduce(self%nproc_per_cell)
   end subroutine pc_find_locality
 
-  !>Work out how many rows are available in each cell
+  !> Work out how many rows are available in each cell
   subroutine pc_count_avail(self)
     use kt_grids, only: ntheta0, naky
     implicit none
@@ -3454,9 +3459,10 @@ contains
     self%navail_tot=sum(self%navail_per_cell)
   end subroutine pc_count_avail
 
-  !>Do we have any cells with passed ik?
-  !NOTE: This just says if we can see index
-  !not that we have any data there
+  !> Determine if we have any cells with passed ik.
+  !!
+  !! @note This just says if we can see index
+  !! not that we have any data there
   function pc_has_ik(self,ik)
     implicit none
     class(pc_type), intent(in) :: self
@@ -3465,9 +3471,10 @@ contains
     pc_has_ik=any(self%is_local(:,ik).eq.1)
   end function pc_has_ik
 
-  !>Do we have any cells with passed it?
-  !NOTE: This just says if we can see index
-  !not that we have any data there
+  !> Determine if we have any cells with passed it.
+  !!
+  !! @note This just says if we can see index
+  !! not that we have any data there
   function pc_has_it(self,it)
     implicit none
     class(pc_type), intent(in) :: self
@@ -3476,7 +3483,7 @@ contains
     pc_has_it=any(self%is_local(it,:).eq.1)
   end function pc_has_it
  
-  !>A wrapper routine to do the decomposition
+  !> A wrapper routine to do the decomposition
   subroutine pc_make_decomp(self)
     use mp, only: mp_abort
     implicit none
@@ -3512,7 +3519,7 @@ contains
     end select
   end subroutine pc_make_decomp
 
-  !>A routine to reset the pc object
+  !> A routine to reset the pc object
   subroutine pc_reset(self)
     implicit none
     class(pc_type), intent(inout) :: self
@@ -3542,7 +3549,7 @@ contains
   !Decomposition routines
   !---------------------------
 
-  !>All serial and local || Decomp_type=0
+  !> All serial and local || Decomp_type=0
   subroutine pc_decomp_all_serial_local(self)
     implicit none
     class(pc_type), intent(inout) :: self
@@ -3574,8 +3581,8 @@ contains
     enddo
   end subroutine pc_decomp_all_serial_local
 
-  !>Serial and local but only for the supercells  || Decomp_type=1
-  !for which we have some data
+  !> Serial and local but only for the supercells  || Decomp_type=1
+  !! for which we have some data
   subroutine pc_decomp_own_serial_local(self)
     implicit none
     class(pc_type), intent(inout) :: self
@@ -3630,8 +3637,8 @@ contains
     enddo
   end subroutine pc_decomp_own_serial_local
 
-  !>Serial and local but only for the cells  || Decomp_type=2
-  !for which we have some data
+  !> Serial and local but only for the cells  || Decomp_type=2
+  !! for which we have some data
   subroutine pc_decomp_owncells_serial_local(self)
     implicit none
     class(pc_type), intent(inout) :: self
@@ -3673,7 +3680,7 @@ contains
     enddo
   end subroutine pc_decomp_owncells_serial_local
 
-  !>Cells are decomposed based on proc || Decomp_type=3
+  !> Cells are decomposed based on proc || Decomp_type=3
   subroutine pc_decomp_owncells_simplempi(self)
     use mp, only: split, comm_type, free_comm
     implicit none
@@ -3792,7 +3799,7 @@ contains
 !// MODULE LEVEL ROUTINES
 !//////////////////////////////
 
-  !>Routine to initialise
+  !> Routine to initialise
   subroutine init_fields_local
     use antenna, only: init_antenna
     use theta_grid, only: init_theta_grid
@@ -3848,7 +3855,7 @@ contains
 
   end function fields_local_unit_test_init_fields_matrixlocal
 
-  !>Routine use to initialise field matrix data
+  !> Routine use to initialise field matrix data
   subroutine init_fields_matrixlocal(tuning_in)
     use mp, only: proc0, mp_abort
     implicit none
@@ -4031,14 +4038,14 @@ contains
 !    call fieldmat%write_debug_data
   end subroutine init_fields_matrixlocal
 
-  !>Reset the fields_local module
+  !> Reset the fields_local module
   subroutine reset_fields_local
     implicit none
     initialised=.false.
     reinit=.true.
   end subroutine reset_fields_local
 
-  !>Finish the fields_local module
+  !> Finish the fields_local module
   subroutine finish_fields_local()
     implicit none
     call pc%reset
@@ -4047,7 +4054,7 @@ contains
     initialised=.false.
   end subroutine finish_fields_local
 
-  !>Calculate the update to the fields
+  !> Calculate the update to the fields
   subroutine getfield_local(phi,apar,bpar,do_gather_in,do_update_in)
     use fields_arrays, only: time_field
     use mp, only: proc0 !, barrier
@@ -4118,8 +4125,8 @@ contains
 
   end subroutine fields_local_benchmarking_getfield_local
 
-  !>Initialise the fields from the initial g, just uses the
-  !fields_implicit routine
+  !> Initialise the fields from the initial g, just uses the
+  !! fields_implicit routine
   subroutine init_allfields_local
     use fields_implicit, only: init_allfields_implicit
     implicit none
@@ -4129,7 +4136,7 @@ contains
     call init_allfields_implicit
   end subroutine init_allfields_local
 
-  !>This routine advances the solution by one full time step
+  !> This routine advances the solution by one full time step
   subroutine advance_local(istep, remove_zonal_flows_switch)
     use run_parameters, only: fphi, fapar, fbpar, reset
     use fields_implicit, only: remove_zonal_flows

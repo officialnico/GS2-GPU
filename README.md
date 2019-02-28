@@ -1,5 +1,7 @@
 # GS2
 
+
+[![gitlab pipeline status](https://gitlab.com/gyrokinetics/gs2/badges/master/pipeline.svg)](https://gitlab.com/gyrokinetics/gs2/commits/master)
 [![Build Status](https://anvil.softeng-support.ac.uk/jenkins/buildStatus/icon?job=Gyrokinetics/Merge+Build+Tests-gfortran-7.2)](https://anvil.softeng-support.ac.uk/jenkins/job/Gyrokinetics/Merge+Build+Tests-gfortran-7.2)
 [![codecov](https://codecov.io/bb/gyrokinetics/gs2/branch/master/graph/badge.svg)](https://codecov.io/bb/gyrokinetics/gs2)
 
@@ -168,6 +170,10 @@ The following is the full list of switches the possible options in
  - `USE_GCOV` (defined [undefined]): generates gcov notes files
  - `NO_TEST_COLOURS` (defined [undefined]): do not use terminal colours when 
                   reporting test results
+ - `KEEP_PROCESSED` (defined [undefined]): if defined then mark processed source files
+                  as PRECIOUS so they are not automatically deleted. This can be helpful
+                  for debugging the build process and can provide a small optimisation
+                  if generating dependency file and then recompiling.
 
 Values that each switch takes are shown in brackets, where "defined"
 ("undefined") means whether the switch is defined (or not), but not
@@ -251,9 +257,6 @@ might expect).
 |                 |               | from lorentz to ediffuse layouts.                |
 |                 |               | Requires additional memory, but might enhance    |
 |                 |               | performance --- not much, though.                |
-|                 |               |                                                  |
-| `USE_LE_LAYOUT` | `_NONE_`      | Affects collision.fpp.  Under development.       |
-| (agk only)      |               | Mutually exclusive with USE_L2E_MAP.             |
 
 The standard .F90 extension is not used since some file systems do not
 distinguish the case difference of the file names, eg. Windows or Mac.

@@ -3,6 +3,7 @@
 ! on behalf of EPSRC for the HECToR project
 # include "define.inc"
 
+!> FIXME : Add documentation
 module gs2_layouts
 
 ! TT: What are gint_layout_type and geint_layout_type?
@@ -120,20 +121,14 @@ module gs2_layouts
   logical :: simple_gf_decomposition
   logical :: gf_local_fields
 
-! TT>
-!!$  type :: g_layout_type
-!!$     integer :: iproc
-!!$     integer :: naky, ntheta0, nlambda, negrid, nspec
-!!$     integer :: llim_world, ulim_world, llim_proc, ulim_proc, ulim_alloc, blocksize
-!!$  end type g_layout_type
-! <TT
-
+  !> FIXME : Add documentation
   type :: gint_layout_type
      integer :: iproc
      integer :: naky, ntheta0, negrid, nspec
      integer :: llim_world, ulim_world, llim_proc, ulim_proc, ulim_alloc, blocksize
   end type gint_layout_type
 
+  !> FIXME : Add documentation  
   type :: geint_layout_type
      integer :: iproc
      integer :: naky, ntheta0, nspec
@@ -149,6 +144,7 @@ module gs2_layouts
 ! <TT
   type (p_layout_type) :: p_lo
 
+  !> FIXME : Add documentation  
   type :: f_layout_type
      integer :: iproc
      integer :: nidx, nfield, ntgrid, nindex, naky, ntheta0, M_class, N_class, i_class
@@ -159,6 +155,7 @@ module gs2_layouts
 
   type (f_layout_type), dimension(:), allocatable :: f_lo
 
+  !> FIXME : Add documentation
   type :: jf_layout_type
      integer :: iproc
      integer :: nindex, naky, ntheta0, ntgrid, nfield
@@ -171,27 +168,11 @@ module gs2_layouts
   integer, dimension(:), allocatable :: ij, mj
   integer, dimension(:,:), allocatable :: dj
 
-! TT>
-!!$  type :: lz_layout_type
-!!$     integer :: iproc
-!!$     integer :: ntgrid, naky, ntheta0, negrid, nspec, ng2
-!!$     integer :: llim_world, ulim_world, llim_proc, ulim_proc, ulim_alloc, blocksize, gsize
-!!$     integer :: llim_group, ulim_group, igroup, ngroup, nprocset, iset, nset, groupblocksize
-!!$  end type lz_layout_type
-! <TT
-
   type (lz_layout_type) :: lz_lo
-
-! TT>
-!!$  type :: e_layout_type
-!!$     integer :: iproc
-!!$     integer :: ntgrid, naky, ntheta0, nlambda, nspec, nsign
-!!$     integer :: llim_world, ulim_world, llim_proc, ulim_proc, ulim_alloc, blocksize
-!!$  end type e_layout_type
-! <TT
 
   type (e_layout_type) :: e_lo
 
+  !> FIXME : Add documentation
   type :: xxf_layout_type
      integer :: iproc
      integer :: ntgrid, nsign, naky, ntheta0, nx, nadd, negrid, nlambda, nspec, ntgridtotal
@@ -207,6 +188,7 @@ module gs2_layouts
 
   type (xxf_layout_type) :: xxf_lo
 
+  !> FIXME : Add documentation  
   type :: yxf_layout_type
      integer :: iproc
      integer :: ntgrid, nsign, naky, ny, ntheta0, nx, negrid, nlambda, nspec, ntgridtotal
@@ -222,6 +204,7 @@ module gs2_layouts
 
   type (yxf_layout_type) :: yxf_lo
 
+  !> FIXME : Add documentation  
   type :: accel_layout_type
      integer :: iproc
      integer :: ntgrid, nsign, naky, ndky, ny, ntheta0
@@ -234,6 +217,7 @@ module gs2_layouts
 
   type (accel_layout_type) :: accel_lo
 
+  !> FIXME : Add documentation  
   type :: accelx_layout_type
      integer :: iproc
      integer :: ntgrid, nsign, naky, ny, ntheta0, nx, nxny, negrid, nlambda, nspec
@@ -410,7 +394,8 @@ module gs2_layouts
      module procedure idx_local_parity, ig_local_parity
   end interface
 
-contains
+contains 
+  !> FIXME : Add documentation 
   subroutine wnml_gs2_layouts(unit)
     implicit none
     integer, intent(in) :: unit
@@ -422,6 +407,7 @@ contains
     write (unit, fmt="(' /')")
   end subroutine wnml_gs2_layouts
 
+  !> FIXME : Add documentation   
   subroutine init_gs2_layouts
     use mp, only: proc0
     implicit none
@@ -437,12 +423,13 @@ contains
 
   end subroutine init_gs2_layouts
 
-
+  !> FIXME : Add documentation 
   subroutine finish_gs2_layouts
     call finish_layouts
     initialized_layouts = .false.
   end subroutine finish_gs2_layouts
 
+  !> FIXME : Add documentation   
   subroutine read_parameters
     use file_utils, only: input_unit, error_unit, input_unit_exist, error_unit
     use redistribute, only: opt_redist_nbk, opt_redist_persist, opt_redist_persist_overlap
@@ -504,12 +491,12 @@ contains
        write(*,*) 'max_unbalanced_yxf too small, setting to 0.0'
     end if
 
-    !Disable settings if dependent settings not set
-    opt_redist_persist=opt_redist_persist.and.opt_redist_nbk
-    opt_redist_persist_overlap=opt_redist_persist_overlap.and.opt_redist_persist
+    call ensure_redist_persist_consistency(opt_redist_nbk, opt_redist_persist, opt_redist_persist_overlap)
     call get_wisdom_file(fft_wisdom_file)
+
   end subroutine read_parameters
 
+  !> FIXME : Add documentation 
   subroutine set_overrides(opt_ov)
     use overrides, only: optimisations_overrides_type
     use redistribute, only: opt_redist_nbk, opt_redist_persist, opt_redist_persist_overlap
@@ -523,15 +510,29 @@ contains
       intmom_sub = opt_ov%intmom_sub
     if (opt_ov%override_intspec_sub) &
       intspec_sub = opt_ov%intspec_sub
-    !Disable settings if dependent settings not set
-    opt_redist_persist=opt_redist_persist.and.opt_redist_nbk
-    opt_redist_persist_overlap=opt_redist_persist_overlap.and.opt_redist_persist
+
+    call ensure_redist_persist_consistency(opt_redist_nbk, opt_redist_persist, opt_redist_persist_overlap)
+
   end subroutine set_overrides
 
+  !> Disable opt_redist_persist and opt_redist_persist_overlap if dependent settings not set
+  subroutine ensure_redist_persist_consistency(opt_redist_nbk, opt_redist_persist, opt_redist_persist_overlap)
+
+    implicit none
+    logical, intent(in) :: opt_redist_nbk
+    logical, intent(inout) :: opt_redist_persist
+    logical, intent(inout) :: opt_redist_persist_overlap
+
+    opt_redist_persist = opt_redist_persist .and. opt_redist_nbk
+    opt_redist_persist_overlap = opt_redist_persist_overlap .and. opt_redist_persist
     
+  end subroutine ensure_redist_persist_consistency
 
   !> Set the fft_wisdom_file based on the value set in the namelist (if any)
   !! and the value in the GK_FFTW3_WISDOM environment variable
+  !!
+  !! @note This doesn't seem like the correct place for this routine. Can we move into
+  !! the fft module?
   subroutine get_wisdom_file(wisdom_file)
     use file_utils, only: run_name
     use constants, only: run_name_size
@@ -547,9 +548,9 @@ contains
         wisdom_file = env_wisdom_file
       end if
     end if
-    !write (*,*) 'wisdom_file', wisdom_file
   end subroutine get_wisdom_file
 
+  !> FIXME : Add documentation   
   subroutine broadcast_results
     use mp, only: broadcast
     use redistribute, only: opt_redist_nbk, opt_redist_persist, opt_redist_persist_overlap
@@ -575,6 +576,7 @@ contains
     call broadcast (gf_local_fields)
   end subroutine broadcast_results
 
+  !> FIXME : Add documentation   
   subroutine check_accel (ntheta0, naky, nlambda, negrid, nspec, nblock)
     use mp, only: nproc
     implicit none
@@ -631,8 +633,8 @@ contains
 
   end subroutine check_accel
 
+  !> FIXME : Add documentation 
   subroutine check_llocal (ntheta0, naky, nlambda, negrid, nspec)
-
     use mp, only: nproc
     implicit none
     integer, intent (in) :: negrid, nspec, nlambda, naky, ntheta0
@@ -743,6 +745,7 @@ contains
 ! Distribution function layouts
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
+  !> FIXME : Add documentation 
   subroutine init_dist_fn_layouts &
        (naky, ntheta0, nlambda, negrid, nspec)
     use mp, only: iproc, nproc, proc0, comm_type, mp_abort
@@ -1531,8 +1534,8 @@ contains
 
   end subroutine init_dist_fn_layouts
 
+  !> FIXME : Add documentation 
   subroutine is_kx_local(negrid, nspec, nlambda, naky, kx_local)  
-
     use mp, only: nproc
     implicit none
     integer, intent (in) :: negrid, nspec, nlambda, naky
@@ -1660,8 +1663,10 @@ contains
 
 ! TT>
 # ifdef USE_C_INDEX
+  !> FIXME : Add documentation 
   function is_idx_g (lo, i)
 # else
+  !> FIXME : Add documentation     
   elemental function is_idx_g (lo, i)
 # endif
 ! <TT
@@ -1689,8 +1694,10 @@ contains
 
 ! TT>
 # ifdef USE_C_INDEX
+  !> FIXME : Add documentation   
   function il_idx_g (lo, i)
 # else
+  !> FIXME : Add documentation     
   elemental function il_idx_g (lo, i)
 # endif
 ! <TT
@@ -1718,8 +1725,10 @@ contains
 
 ! TT>
 # ifdef USE_C_INDEX
+  !> FIXME : Add documentation   
   function ie_idx_g (lo, i)
 # else
+  !> FIXME : Add documentation     
   elemental function ie_idx_g (lo, i)
 # endif
 ! <TT
@@ -1747,8 +1756,10 @@ contains
 
 ! TT>
 # ifdef USE_C_INDEX
+  !> FIXME : Add documentation 
   function it_idx_g (lo, i)
 # else
+  !> FIXME : Add documentation     
   elemental function it_idx_g (lo, i)
 # endif
 ! <TT
@@ -1777,8 +1788,10 @@ contains
 
 ! TT>
 # ifdef USE_C_INDEX
+  !> FIXME : Add documentation   
   function ik_idx_g (lo, i)
 # else
+  !> FIXME : Add documentation     
   elemental function ik_idx_g (lo, i)
 # endif
 ! <TT
@@ -1804,6 +1817,7 @@ contains
 
   end function ik_idx_g
 
+  !> FIXME : Add documentation   
   elemental function proc_id_g (lo, i)
 #ifdef SHMEM
     use mp, only : nproc
@@ -1831,8 +1845,10 @@ contains
 
 ! TT>
 # ifdef USE_C_INDEX
+  !> FIXME : Add documentation   
   function idx_g (lo, ik, it, il, ie, is)
 # else
+  !> FIXME : Add documentation     
   elemental function idx_g (lo, ik, it, il, ie, is)
 # endif
 ! <TT
@@ -1873,8 +1889,10 @@ contains
 
 ! TT>
 # ifdef USE_C_INDEX
+  !> FIXME : Add documentation   
   function idx_local_g (lo, ik, it, il, ie, is)
 # else
+  !> FIXME : Add documentation     
   elemental function idx_local_g (lo, ik, it, il, ie, is)
 # endif
 ! <TT
@@ -1886,6 +1904,7 @@ contains
     idx_local_g = idx_local(lo, idx(lo, ik, it, il, ie, is))
   end function idx_local_g
 
+  !> FIXME : Add documentation   
   elemental function ig_local_g (lo, ig)
     implicit none
     logical :: ig_local_g
@@ -1904,7 +1923,8 @@ contains
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 ! Once-integrated distribution function layouts
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-
+  
+  !> FIXME : Add documentation 
   elemental function is_idx_gint (lo, i)
     implicit none
     integer :: is_idx_gint
@@ -1927,6 +1947,7 @@ contains
     end select
   end function is_idx_gint
 
+  !> FIXME : Add documentation   
   elemental function ie_idx_gint (lo, i)
     implicit none
     integer :: ie_idx_gint
@@ -1950,6 +1971,7 @@ contains
 
   end function ie_idx_gint
 
+  !> FIXME : Add documentation   
   elemental function it_idx_gint (lo, i)
     implicit none
     integer :: it_idx_gint
@@ -1972,6 +1994,7 @@ contains
     end select
   end function it_idx_gint
 
+  !> FIXME : Add documentation 
   elemental function ik_idx_gint (lo, i)
     implicit none
     integer :: ik_idx_gint
@@ -1994,6 +2017,7 @@ contains
     end select
   end function ik_idx_gint
 
+  !> FIXME : Add documentation   
   elemental function proc_id_gint (lo, i)
     implicit none
     integer :: proc_id_gint
@@ -2003,6 +2027,7 @@ contains
     proc_id_gint = i/lo%blocksize
   end function proc_id_gint
 
+  !> FIXME : Add documentation 
   elemental function idx_gint (lo, ik, it, ie, is)
     implicit none
     integer :: idx_gint
@@ -2025,6 +2050,7 @@ contains
     end select
   end function idx_gint
 
+  !> FIXME : Add documentation 
   elemental function idx_local_gint (lo, ik, it, ie, is)
     implicit none
     logical :: idx_local_gint
@@ -2034,6 +2060,7 @@ contains
     idx_local_gint = idx_local(lo, idx(lo, ik, it, ie, is))
   end function idx_local_gint
 
+  !> FIXME : Add documentation 
   elemental function ig_local_gint (lo, ig)
     implicit none
     logical :: ig_local_gint
@@ -2047,6 +2074,7 @@ contains
 ! Twice-integrated distribution function layouts
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
+  !> FIXME : Add documentation 
   elemental function is_idx_geint (lo, i)
     implicit none
     integer :: is_idx_geint
@@ -2070,6 +2098,7 @@ contains
 
   end function is_idx_geint
 
+  !> FIXME : Add documentation 
   elemental function it_idx_geint (lo, i)
     implicit none
     integer :: it_idx_geint
@@ -2091,7 +2120,8 @@ contains
        it_idx_geint = 1 + mod(i - lo%llim_world, lo%ntheta0)
     end select
   end function it_idx_geint
-
+  
+  !> FIXME : Add documentation 
   elemental function ik_idx_geint (lo, i)
     implicit none
     integer :: ik_idx_geint
@@ -2114,6 +2144,7 @@ contains
     end select
   end function ik_idx_geint
 
+  !> FIXME : Add documentation   
   elemental function proc_id_geint (lo, i)
     implicit none
     integer :: proc_id_geint
@@ -2123,6 +2154,7 @@ contains
     proc_id_geint = i/lo%blocksize
   end function proc_id_geint
 
+  !> FIXME : Add documentation   
   elemental function idx_geint (lo, ik, it, is)
     implicit none
     integer :: idx_geint
@@ -2145,6 +2177,7 @@ contains
     end select
   end function idx_geint
 
+  !> FIXME : Add documentation 
   elemental function idx_local_geint (lo, ik, it, is)
     implicit none
     logical :: idx_local_geint
@@ -2154,6 +2187,7 @@ contains
     idx_local_geint = idx_local(lo, idx(lo, ik, it, is))
   end function idx_local_geint
 
+  !> FIXME : Add documentation   
   elemental function ig_local_geint (lo, ig)
     implicit none
     logical :: ig_local_geint
@@ -2163,7 +2197,6 @@ contains
     ig_local_geint = lo%iproc == proc_id(lo, ig)
   end function ig_local_geint
 
-
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 ! Field layouts
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -2172,6 +2205,7 @@ contains
 ! N_class(i) = size of i_th supercell
 ! i_class = number of classes of (different sized) supercells.  
 
+  !> FIXME : Add documentation   
   subroutine init_fields_layouts (nfield, nindex, naky, ntheta0, &
        M_class, N_class, i_class)
     use mp, only: iproc, nproc
@@ -2217,6 +2251,7 @@ contains
 
   end subroutine init_fields_layouts
 
+  !> FIXME : Add documentation   
   subroutine finish_fields_layouts
     implicit none
 
@@ -2233,8 +2268,10 @@ contains
     initialized_fields_layouts = .false.
   end subroutine finish_fields_layouts
 
-! HJL < Finish routine so that gs2 can be restarted with a different
-! number of processors by trinity
+  !> FIXME : Add documentation
+  !!
+  !! Finish routine so that gs2 can be restarted with a different
+  !! number of processors by trinity
   subroutine finish_layouts
     implicit none
     call finish_fields_layouts
@@ -2251,8 +2288,8 @@ contains
     initialized_y_transform = .false.
 
   end subroutine finish_layouts
-! > HJL
 
+  !> FIXME : Add documentation
   subroutine finish_dist_fn_layouts
     if (allocated(g_lo%les_kxky_range)) deallocate(g_lo%les_kxky_range)
     initialized_dist_fn_layouts = .false.
@@ -2262,7 +2299,7 @@ contains
     if(allocated(g_lo%local_ikit_points)) deallocate(g_lo%local_ikit_points)
   end subroutine finish_dist_fn_layouts
 
-!<DD>Added
+  !> FIXME : Add documentation
   function ik_idx_f (lo, i)
     implicit none
     integer :: ik_idx_f
@@ -2271,7 +2308,7 @@ contains
     ik_idx_f = lo%ik(im_idx(lo,i),in_idx(lo,i))
   end function ik_idx_f
 
-!<DD>Added
+  !> FIXME : Add documentation
   function it_idx_f (lo, i)
     implicit none
     integer :: it_idx_f
@@ -2280,6 +2317,7 @@ contains
     it_idx_f = lo%it(im_idx(lo,i),in_idx(lo,i))
   end function it_idx_f
 
+  !> FIXME : Add documentation  
   function im_idx_f (lo, i)
     implicit none
     integer :: im_idx_f
@@ -2288,6 +2326,7 @@ contains
     im_idx_f = 1 + mod((i - lo%llim_world)/lo%nindex, lo%M_class)
   end function im_idx_f
 
+  !> FIXME : Add documentation  
   function if_idx_f (lo, i)
     implicit none
     integer :: if_idx_f
@@ -2296,6 +2335,7 @@ contains
     if_idx_f = 1 + mod(i - lo%llim_world, lo%nindex)
   end function if_idx_f
 
+  !> FIXME : Add documentation  
   function idx_f (lo, if, im)
     implicit none
     integer :: idx_f
@@ -2304,6 +2344,7 @@ contains
     idx_f = if-1 + lo%nindex*(im-1)
   end function idx_f
 
+  !> FIXME : Add documentation  
   function proc_id_f (lo, i)
     implicit none
     integer :: proc_id_f
@@ -2312,6 +2353,7 @@ contains
     proc_id_f = i/lo%blocksize
   end function proc_id_f
 
+  !> FIXME : Add documentation  
   function idx_local_f (lo, if, im)
     implicit none
     logical :: idx_local_f
@@ -2321,6 +2363,7 @@ contains
     idx_local_f = idx_local(lo, idx(lo, if, im))
   end function idx_local_f
 
+  !> FIXME : Add documentation  
   function ig_local_f (lo, ig)
     implicit none
     logical :: ig_local_f
@@ -2330,6 +2373,7 @@ contains
     ig_local_f = lo%iproc == proc_id(lo, ig)
   end function ig_local_f
 
+  !> FIXME : Add documentation  
   function in_idx_f (lo, i)
     implicit none
     integer :: in_idx_f
@@ -2338,6 +2382,7 @@ contains
     in_idx_f = 1 + mod((i - lo%llim_world)/lo%nidx, lo%N_class)
   end function in_idx_f
 
+  !> FIXME : Add documentation  
   function ig_idx_f (lo, i)
     implicit none
     integer :: ig_idx_f
@@ -2346,6 +2391,7 @@ contains
     ig_idx_f = -lo%ntgrid + mod((i - lo%llim_world)/lo%nfield, (2*lo%ntgrid+1))
   end function ig_idx_f
 
+  !> FIXME : Add documentation  
   function ij_idx_f (lo, ig, if, n)
     implicit none
     integer :: ij_idx_f
@@ -2354,6 +2400,7 @@ contains
     ij_idx_f = ig+lo%ntgrid + (2*lo%ntgrid+1)*(if-1 + lo%nfield*(n-1))
   end function ij_idx_f
 
+  !> FIXME : Add documentation  
   function ifield_idx_f (lo, i)
     implicit none
     integer :: ifield_idx_f
@@ -2366,6 +2413,7 @@ contains
 ! Fast field layouts
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
+  !> FIXME : Add documentation  
   subroutine init_jfields_layouts (nfield, nindex, naky, ntheta0, i_class)
     use mp, only: iproc, nproc
     implicit none
@@ -2414,6 +2462,7 @@ contains
     
   end subroutine init_jfields_layouts
 
+  !> FIXME : Add documentation  
   subroutine finish_jfields_layouts
     implicit none
     if(allocated(ij)) deallocate(ij)
@@ -2422,6 +2471,7 @@ contains
     initialized_jfields_layouts = .false.
   end subroutine finish_jfields_layouts
 
+  !> FIXME : Add documentation  
   function ik_idx_jf (lo, i)
     implicit none
     integer :: ik_idx_jf
@@ -2430,6 +2480,7 @@ contains
     ik_idx_jf = 1 + mod((i - lo%llim_world)/lo%nindex/lo%ntheta0, lo%naky)
   end function ik_idx_jf
 
+  !> FIXME : Add documentation  
   function it_idx_jf (lo, i)
     implicit none
     integer :: it_idx_jf
@@ -2438,7 +2489,9 @@ contains
     it_idx_jf = 1 + mod((i - lo%llim_world)/lo%nindex, lo%ntheta0)
   end function it_idx_jf
 
-  !Here if is the compound theta*field index
+  !> FIXME : Add documentation
+  !!
+  !! @note Here if is the compound theta*field index
   function if_idx_jf (lo, i)
     implicit none
     integer :: if_idx_jf
@@ -2447,7 +2500,7 @@ contains
     if_idx_jf = 1 + mod(i - lo%llim_world, lo%nindex)
   end function if_idx_jf
 
-  !<DD>Added
+  !> FIXME : Add documentation
   function ig_idx_jf (lo, i)
     implicit none
     integer :: ig_idx_jf
@@ -2456,7 +2509,7 @@ contains
     ig_idx_jf = -lo%ntgrid + mod(i - lo%llim_world, lo%ntgrid*2+1)
   end function ig_idx_jf
 
-  !<DD>Added
+  !> FIXME : Add documentation
   function ifield_idx_jf (lo, i)
     implicit none
     integer :: ifield_idx_jf
@@ -2465,6 +2518,7 @@ contains
     ifield_idx_jf = 1 + mod((i - lo%llim_world)/(2*lo%ntgrid+1), lo%nfield)
   end function ifield_idx_jf
 
+  !> FIXME : Add documentation  
   function idx_jf (lo, if, ik, it)
     implicit none
     integer :: idx_jf
@@ -2473,6 +2527,7 @@ contains
     idx_jf = if-1 + lo%nindex*(it-1 + lo%ntheta0*(ik-1))
   end function idx_jf
 
+  !> FIXME : Add documentation  
   function ij_idx_jf (lo, ig, if, ik, it)
     implicit none
     integer :: ij_idx_jf
@@ -2481,6 +2536,7 @@ contains
     ij_idx_jf = ig+lo%ntgrid + (2*lo%ntgrid+1)*(if-1+lo%nfield*(it-1+lo%ntheta0*(ik-1)))
   end function ij_idx_jf
 
+  !> FIXME : Add documentation  
   function proc_id_jf (lo, i)
     implicit none
     integer :: proc_id_jf
@@ -2489,6 +2545,7 @@ contains
     proc_id_jf = i/lo%blocksize
   end function proc_id_jf
 
+  !> FIXME : Add documentation  
   function idx_local_jf (lo, if, ik, it)
     implicit none
     logical :: idx_local_jf
@@ -2498,6 +2555,7 @@ contains
     idx_local_jf = idx_local(lo, idx(lo, if, ik, it))
   end function idx_local_jf
 
+  !> FIXME : Add documentation  
   function ig_local_jf (lo, ig)
     implicit none
     logical :: ig_local_jf
@@ -2512,6 +2570,7 @@ contains
 ! Lambda-Energy layouts
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
+  !> FIXME : Add documentation  
   subroutine init_le_layouts (ntgrid, naky, ntheta0, nspec)
     use mp, only: iproc, nproc
     use file_utils, only: error_unit
@@ -2649,6 +2708,7 @@ contains
 # endif
   end subroutine init_le_layouts
 
+  !> FIXME : Add documentation  
   elemental function is_idx_le (lo, i)
     implicit none
     integer :: is_idx_le
@@ -2658,8 +2718,10 @@ contains
   end function is_idx_le
 
 # ifdef USE_C_INDEX
+  !> FIXME : Add documentation  
   function it_idx_le (lo, i)
 # else
+  !> FIXME : Add documentation    
   elemental function it_idx_le (lo, i)
 # endif
     implicit none
@@ -2682,8 +2744,10 @@ contains
   end function it_idx_le
 
 # ifdef USE_C_INDEX
+  !> FIXME : Add documentation
   function ik_idx_le (lo, i)
 # else
+  !> FIXME : Add documentation    
   elemental function ik_idx_le (lo, i)
 # endif
     implicit none
@@ -2705,6 +2769,7 @@ contains
 # endif
   end function ik_idx_le
 
+  !> FIXME : Add documentation  
   elemental function ig_idx_le (lo, i)
     implicit none
     integer :: ig_idx_le
@@ -2714,8 +2779,10 @@ contains
   end function ig_idx_le
 
 # ifdef USE_C_INDEX
+  !> FIXME : Add documentation  
   function idx_le (lo, ig, ik, it, is)
 # else
+  !> FIXME : Add documentation    
   elemental function idx_le (lo, ig, ik, it, is)
 # endif
     implicit none
@@ -2756,6 +2823,7 @@ contains
 # endif
   end function idx_le
 
+  !> FIXME : Add documentation  
   elemental function proc_id_le (lo, i)
     implicit none
     integer :: proc_id_le
@@ -2767,8 +2835,10 @@ contains
   end function proc_id_le
 
 # ifdef USE_C_INDEX
+  !> FIXME : Add documentation  
   function idx_local_le (lo, ig, ik, it, is)
 # else
+  !> FIXME : Add documentation    
   elemental function idx_local_le (lo, ig, ik, it, is)
 # endif
     implicit none
@@ -2779,6 +2849,7 @@ contains
     idx_local_le = idx_local(lo, idx(lo, ig, ik, it, is))
   end function idx_local_le
 
+  !> FIXME : Add documentation  
   elemental function ig_local_le (lo, ig)
     implicit none
     logical :: ig_local_le
@@ -2797,6 +2868,8 @@ contains
 ! that amongst theta so that a single naky,ntheta point is only owned by 
 ! a single process.
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+  !> FIXME : Add documentation  
   subroutine init_gf_layouts (ntgrid, naky, ntheta0, negrid, nlambda, nspec)
     use mp, only: iproc, nproc, mp_abort
     use file_utils, only: error_unit
@@ -2952,8 +3025,10 @@ contains
   end subroutine init_gf_layouts
 
 # ifdef USE_C_INDEX
+  !> FIXME : Add documentation  
   function it_idx_gf (lo, i)
 # else
+  !> FIXME : Add documentation    
   elemental function it_idx_gf (lo, i)
 # endif
     implicit none
@@ -2976,8 +3051,10 @@ contains
   end function it_idx_gf
 
 # ifdef USE_C_INDEX
+  !> FIXME : Add documentation  
   function ik_idx_gf (lo, i)
 # else
+  !> FIXME : Add documentation    
   elemental function ik_idx_gf (lo, i)
 # endif
     implicit none
@@ -3000,8 +3077,10 @@ contains
   end function ik_idx_gf
 
 # ifdef USE_C_INDEX
+  !> FIXME : Add documentation  
   function idx_gf (lo, ik, it)
 # else
+  !> FIXME : Add documentation    
   elemental function idx_gf (lo, ik, it)
 # endif
     implicit none
@@ -3023,6 +3102,7 @@ contains
 # endif
   end function idx_gf
 
+  !> FIXME : Add documentation  
   elemental function proc_id_gf (lo, i)
     implicit none
     integer :: proc_id_gf
@@ -3056,8 +3136,10 @@ contains
   end function proc_id_gf
 
 # ifdef USE_C_INDEX
+  !> FIXME : Add documentation  
   function idx_local_gf (lo, ik, it)
 # else
+  !> FIXME : Add documentation    
   elemental function idx_local_gf (lo, ik, it)
 # endif
     implicit none
@@ -3068,6 +3150,7 @@ contains
     idx_local_gf = idx_local(lo, idx(lo, ik, it))
   end function idx_local_gf
 
+  !> FIXME : Add documentation  
   elemental function ig_local_gf (lo, ig)
     implicit none
     logical :: ig_local_gf
@@ -3078,12 +3161,11 @@ contains
   end function ig_local_gf
 
 
-
-
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 ! Energy layouts
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
+  !> FIXME : Add documentation
   subroutine init_energy_layouts &
        (ntgrid, naky, ntheta0, nlambda, nspec)
     use mp, only: iproc, nproc
@@ -3224,8 +3306,10 @@ contains
 
 ! TT>
 # ifdef USE_C_INDEX
+  !> FIXME : Add documentation  
   function is_idx_e (lo, i)
 # else
+  !> FIXME : Add documentation    
   elemental function is_idx_e (lo, i)
 # endif
 ! <TT
@@ -3253,8 +3337,10 @@ contains
 
 ! TT>
 # ifdef USE_C_INDEX
+  !> FIXME : Add documentation  
   function il_idx_e (lo, i)
 # else
+  !> FIXME : Add documentation    
   elemental function il_idx_e (lo, i)
 # endif
 ! <TT
@@ -3280,7 +3366,7 @@ contains
 
   end function il_idx_e
 
-
+  !> FIXME : Add documentation
   elemental function isign_idx_e (lo, i)
     implicit none
     integer :: isign_idx_e
@@ -3290,12 +3376,12 @@ contains
     isign_idx_e = 1 + mod((i - lo%llim_world)/(2*lo%ntgrid + 1),lo%nsign)
   end function isign_idx_e
 
-
-
 ! TT>
 # ifdef USE_C_INDEX
+  !> FIXME : Add documentation  
   function it_idx_e (lo, i)
 # else
+  !> FIXME : Add documentation    
   elemental function it_idx_e (lo, i)
 # endif
 ! <TT
@@ -3323,8 +3409,10 @@ contains
 
 ! TT>
 # ifdef USE_C_INDEX
+  !> FIXME : Add documentation  
   function ik_idx_e (lo, i)
 # else
+  !> FIXME : Add documentation    
   elemental function ik_idx_e (lo, i)
 # endif
 ! <TT
@@ -3350,6 +3438,7 @@ contains
 
   end function ik_idx_e
 
+  !> FIXME : Add documentation
   elemental function ig_idx_e (lo, i)
     implicit none
     integer :: ig_idx_e
@@ -3360,8 +3449,10 @@ contains
 
 ! TT>
 # ifdef USE_C_INDEX
+  !> FIXME : Add documentation  
   function idx_e (lo, ig, isign, ik, it, il, is)
 # else
+  !> FIXME : Add documentation    
   elemental function idx_e (lo, ig, isign, ik, it, il, is)
 # endif
 ! <TT
@@ -3406,6 +3497,7 @@ contains
 
   end function idx_e
 
+  !> FIXME : Add documentation  
   elemental function proc_id_e (lo, i)
     implicit none
     integer :: proc_id_e
@@ -3418,8 +3510,10 @@ contains
 
 ! TT>
 # ifdef USE_C_INDEX
+  !> FIXME : Add documentation  
   function idx_local_e (lo, ig, isign, ik, it, il, is)
 # else
+  !> FIXME : Add documentation
   elemental function idx_local_e (lo, ig, isign, ik, it, il, is)
 # endif
 ! <TT
@@ -3431,6 +3525,7 @@ contains
     idx_local_e = idx_local(lo, idx(lo, ig, isign, ik, it, il, is))
   end function idx_local_e
 
+  !> FIXME : Add documentation  
   elemental function ig_local_e (lo, ig)
     implicit none
     logical :: ig_local_e
@@ -3444,6 +3539,7 @@ contains
 ! Lambda layouts
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
+  !> FIXME : Add documentation  
   subroutine init_lambda_layouts &
        (ntgrid, naky, ntheta0, nlambda, negrid, nspec, ng2)
     use mp, only: iproc, nproc
@@ -3601,15 +3697,14 @@ contains
 # endif
 ! <TT
 
-!    if(proc0) write(6,*) 'Initialized lambda layouts', initialized_lambda_layouts
-
-
   end subroutine init_lambda_layouts
 
 ! TT>
 # ifdef USE_C_INDEX
+  !> FIXME : Add documentation  
   function is_idx_lz (lo, i)
 # else
+  !> FIXME : Add documentation    
   elemental function is_idx_lz (lo, i)
 # endif
 ! <TT
@@ -3637,8 +3732,10 @@ contains
 
 ! TT>
 # ifdef USE_C_INDEX
+  !> FIXME : Add documentation  
   function ie_idx_lz (lo, i)
 # else
+  !> FIXME : Add documentation    
   elemental function ie_idx_lz (lo, i)
 # endif
 ! <TT
@@ -3667,8 +3764,10 @@ contains
 
 ! TT>
 # ifdef USE_C_INDEX
+  !> FIXME : Add documentation  
   function it_idx_lz (lo, i)
 # else
+  !> FIXME : Add documentation    
   elemental function it_idx_lz (lo, i)
 # endif
 ! <TT
@@ -3696,8 +3795,10 @@ contains
 
 ! TT>
 # ifdef USE_C_INDEX
+  !> FIXME : Add documentation  
   function ik_idx_lz (lo, i)
 # else
+  !> FIXME : Add documentation    
   elemental function ik_idx_lz (lo, i)
 # endif
 ! <TT
@@ -3723,6 +3824,7 @@ contains
 
   end function ik_idx_lz
 
+  !> FIXME : Add documentation  
   elemental function ig_idx_lz (lo, i)
     implicit none
     integer :: ig_idx_lz
@@ -3733,8 +3835,10 @@ contains
 
 ! TT>
 # ifdef USE_C_INDEX
+  !> FIXME : Add documentation  
   function idx_lz (lo, ig, ik, it, ie, is)
 # else
+  !> FIXME : Add documentation    
   elemental function idx_lz (lo, ig, ik, it, ie, is)
 # endif
 ! <TT
@@ -3779,6 +3883,7 @@ contains
 
   end function idx_lz
 
+  !> FIXME : Add documentation  
   elemental function proc_id_lz (lo, i)
     implicit none
     integer :: proc_id_lz
@@ -3795,8 +3900,10 @@ contains
 
 ! TT>
 # ifdef USE_C_INDEX
+  !> FIXME : Add documentation  
   function idx_local_lz (lo, ig, ik, it, ie, is)
 # else
+  !> FIXME : Add documentation    
   elemental function idx_local_lz (lo, ig, ik, it, ie, is)
 # endif
 ! <TT
@@ -3808,6 +3915,7 @@ contains
     idx_local_lz = idx_local(lo, idx(lo, ig, ik, it, ie, is))
   end function idx_local_lz
 
+  !> FIXME : Add documentation  
   elemental function ig_local_lz (lo, ig)
     implicit none
     logical :: ig_local_lz
@@ -3821,6 +3929,7 @@ contains
 ! layouts for parity diagnostic 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
+  !> FIXME : Add documentation  
   subroutine init_parity_layouts &
        (naky, nlambda, negrid, nspec)
     use mp, only: iproc, nproc
@@ -3906,6 +4015,7 @@ contains
 
   end subroutine init_parity_layouts
 
+  !> FIXME : Add documentation  
   elemental function idx_parity (lo, ik, il, ie, is)
     implicit none
     integer :: idx_parity
@@ -3927,6 +4037,7 @@ contains
     end select
   end function idx_parity
 
+  !> FIXME : Add documentation  
   elemental function idx_local_parity (lo, ik, il, ie, is)
     implicit none
     logical :: idx_local_parity
@@ -3936,6 +4047,7 @@ contains
     idx_local_parity = idx_local(lo, idx(lo, ik, il, ie, is))
   end function idx_local_parity
 
+  !> FIXME : Add documentation  
   elemental function ig_local_parity (lo, ip)
     implicit none
     logical :: ig_local_parity
@@ -3945,6 +4057,7 @@ contains
     ig_local_parity = lo%iproc == proc_id(lo, ip)
   end function ig_local_parity
 
+  !> FIXME : Add documentation  
   elemental function proc_id_parity (lo, i)
     implicit none
     integer :: proc_id_parity
@@ -3953,6 +4066,7 @@ contains
     proc_id_parity = i/lo%blocksize
   end function proc_id_parity
 
+  !> FIXME : Add documentation  
   elemental function ik_idx_parity (lo, i)
     implicit none
     integer :: ik_idx_parity
@@ -3961,6 +4075,7 @@ contains
     ik_idx_parity = 1+mod((i - lo%llim_world)/lo%ik_comp, lo%naky)
   end function ik_idx_parity
 
+  !> FIXME : Add documentation  
   elemental function is_idx_parity (lo, i)
     
     implicit none
@@ -3971,6 +4086,7 @@ contains
     is_idx_parity = 1+mod((i - lo%llim_world)/lo%is_comp, lo%nspec)
   end function is_idx_parity
 
+  !> FIXME : Add documentation  
   elemental function il_idx_parity (lo, i)
 
     implicit none
@@ -3981,6 +4097,7 @@ contains
     il_idx_parity = 1+mod((i - lo%llim_world)/lo%il_comp, lo%nlambda)
   end function il_idx_parity
 
+  !> FIXME : Add documentation  
   elemental function ie_idx_parity (lo, i)
 
     implicit none
@@ -3994,6 +4111,7 @@ contains
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 ! X-space layouts
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  !> FIXME : Add documentation  
   subroutine init_x_transform_layouts &
        (ntgrid, naky, ntheta0, nlambda, negrid, nspec, nx)
     use mp, only: iproc, nproc, proc0, barrier
@@ -4186,6 +4304,29 @@ contains
 
   end subroutine init_x_transform_layouts
 
+  !> This subroutine (calculate_unbalanced_x) wraps up all the 
+  !! functionality required to calculate the xxf blocksizes and 
+  !! work out if and unbalanced decomposition should be used, and if so 
+  !! the size of the unbalanced blocks.
+  !!
+  !! This routine takes the number of processes to be used and the rank 
+  !! of the calling process and returns the amount of unbalance in the 
+  !! calculate decomposition (in a real variable with a range between 
+  !! 0.0 and 1.0 where 1.0 is a 100% difference between the small and 
+  !! large block size and 0.0 is no difference between the small and 
+  !! large block sizes).
+  !!
+  !! This routine can be called from routines within the gs2_layouts
+  !! module (specifically init_x_transform_layouts) or from outside 
+  !! this module (specifically it is currently called from ingen to 
+  !! provide suggestions for unbalanced decompositions and process 
+  !! counts).  However, this routine relies on init_x_transform_layouts 
+  !! having been called to initialise some of the values it used 
+  !! (those in xxf_lo%) which is why there is a check whether the 
+  !! initialize_x_transform variable has been set to true.  If not this 
+  !! routine will not run and will notify the user of the problem.
+  !!
+  !! AJ, November 2011: New code from DCSE project  
   subroutine calculate_unbalanced_x(nproc, iproc, unbalanced_amount)
   !====================================================================
   ! AJ, November 2011: New code from DCSE project
@@ -4494,6 +4635,34 @@ contains
     
   end subroutine calculate_unbalanced_x
   
+  !> This subroutine (calculate_block_breakdown) is used in the code
+  !! to create unbalanced xxf and yxf layouts to address MPI
+  !! communication overheads in the redistribution of data for the
+  !! FFTs used in the nonlinear calculations to move from Fourier
+  !! space to real space and back again.
+  !!
+  !! The routine calculates the factor k divided by a provided number
+  !! of processors/cores and returns it in integer j.  As j is an
+  !! integer the number returned will be more than zero if k is larger
+  !! than level_proc_num and zero if k is smaller than level_proc_num.
+  !!
+  !! The integer i that is returned is the remained when k is divided
+  !! by level_proc_num.  This is used in the unbalanced decomposition
+  !! code to work out whether the factor divides exactly by the number
+  !! of procs  (in level_proc_num).  If it does then it is not an
+  !! unbalanced decomposition (so the original decomposition can be
+  !! used.
+  !!
+  !! The integer m which is returned by this subroutine is the remainder
+  !! of level_proc_num divided by k.  This is used in the unbalanced
+  !! decomposition code to work out if the factor k exactly divides
+  !! the number of processors/cores in level_proc_num.  If it does
+  !! (i.e. m is zero) then the decomposition code can perform this
+  !! division and move on to the next factor.  If it does not then
+  !! the code keeps the factor k and multiplies it by the next factor
+  !! and checks that one (and so on).
+  !!
+  !! AJ, November 2011: New code from DCSE project  
   subroutine calculate_block_breakdown (k, i, m, j, level_proc_num)
   !====================================================================
   ! AJ, November 2011: New code from DCSE project
@@ -4536,6 +4705,40 @@ contains
   end subroutine calculate_block_breakdown
 
 
+  !> This subroutine (calculate_unbalanced_decomposition) is used in the code
+  !! to create unbalanced xxf and yxf layouts to address MPI
+  !! communication overheads in the redistribution of data for the
+  !! FFTs used in the nonlinear calculations to move from Fourier
+  !! space to real space and back again.
+  !!
+  !! k is an integer input which is the factor that needs to be decomposed
+  !! across the number of processes (the input integer localprocs)
+  !! that we have at this point in the decomposition.
+  !!
+  !! When this subroutine is called k is larger than
+  !! localprocs (this is enforced through the if and else statements
+  !! in the code that calls this routine).  It is also only called when
+  !! localprocs does not completely/equally divide k (so k/localprocs
+  !! will not given a round number).
+  !!
+  !! The subroutine returns four integers; i, j, numlarge, and numsmall
+  !!
+  !! j is calculated as the integer division of k/localprocs.  As this
+  !! is an integer division the result is rounded down (remembering
+  !! that k/localprocs will not be an equal division).  j is used by the
+  !! small block factor (the relative size of the small block).
+  !!
+  !! i is the large block factor.  As j is the rounded down division,
+  !! i = j + 1.  This gives two different block sizes (when these are
+  !! later calculated).
+  !!
+  !! numlarge is used to work out how many processes will use the large
+  !! block size in the decomposition.
+  !!
+  !! numsmall is used to work out how many processes will use the small
+  !! block size in the decomposition.
+  !!
+  !! AJ, November 2011: New code from DCSE project
   subroutine calculate_unbalanced_decomposition(k, j, i, numsmall, numlarge, localprocs)
   !====================================================================
   ! AJ, November 2011: New code from DCSE project
@@ -4597,7 +4800,53 @@ contains
 
   end subroutine calculate_unbalanced_decomposition
 
-
+  !> This subroutine (calculate_block_size) is used in the code
+  !! to create unbalanced xxf and yxf layouts to address MPI
+  !! communication overheads in the redistribution of data for the
+  !! FFTs used in the nonlinear calculations to move from Fourier
+  !! space to real space and back again.
+  !!
+  !! Input iproc is this processes MPI id.
+  !!
+  !! Input numsmall is the number of processes that will use the small
+  !! block size (calculated in subroutine
+  !! calculate_unbalanced_decomposition).
+  !!
+  !! Input numlarge is the number of processes that will use the large
+  !! block size (calculated in suboutine
+  !! calcuate_unbalanced_decomposition).
+  !!
+  !! Input smalldecomp is the small_block_balance_factor of the
+  !! decomposition (calculated in subroutine
+  !! calculate_unbalanced_decomposition where it is referred to as j.
+  !!
+  !! Input largedecomp is the large_block_balance_factor of the
+  !! decomposition (calculated in subroutine
+  !! calculate_unbalanced_decomposition where it is referred to as i.
+  !!
+  !! Input sizeblock is the factor that needs to be split over the
+  !! cores/processors we have (i.e. everything that has not yet been
+  !! decomposed).
+  !!
+  !! Output blocksize is the blocksize assigned to this actual process
+  !! (to be used throughout the code of the decompositions).
+  !!
+  !! Output smallblocksize is the small block size.
+  !!
+  !! Output largeblocksize is the large block size.
+  !!
+  !! Output block_multiple is the size of the small block and large block
+  !! added together.  This is used to calculate which process owns a particular
+  !! data point at later points in the code (particular in the subroutine 
+  !! proc_id).
+  !! 
+  !! Output llim is the lower limit of the data block for this process.
+  !!
+  !! Output ulim is the upper limit of the data block for this process.
+  !!
+  !! Output ulim_alloc is the upper allocation limit for this processes block.
+  !!
+  !! AJ, November 2011: New code from DCSE project
   subroutine calculate_block_size(iproc, numsmall, numlarge, smalldecomp, largedecomp, sizeblock, blocksize, smallblocksize, largeblocksize, block_multiple, llim, ulim, ulim_alloc)
   !====================================================================
   ! AJ, November 2011: New code from DCSE project
@@ -4714,6 +4963,19 @@ contains
 
   end subroutine calculate_block_size
 
+  !> This subroutine (calculate_idle_processes) is used to calculate the 
+  !! difference between the number of processes used in the xxf and yxf
+  !! data layouts.  This is important as it can affect the amount of 
+  !! communication that the code has to undertake when moving between 
+  !! linear and non-linear calculations.  
+  !!
+  !! This routine is used by ingen when it is suggesting optimal process
+  !! counts for users to flag up when suggested process counts will 
+  !! results in there being a significant difference in the processes 
+  !! used in the two layouts, and therefore a significant communication 
+  !! overhead moving between the two layouts.
+  !!
+  !! AJ, November 2011: New code from DCSE project
   subroutine calculate_idle_processes(nprocs, idle_percentage)
   !====================================================================
   ! AJ, November 2011: New code from DCSE project
@@ -4792,7 +5054,7 @@ contains
 
   end subroutine calculate_idle_processes
 
-
+  !> FIXME : Add documentation
   elemental function is_idx_xxf (lo, i)
     implicit none
     integer :: is_idx_xxf
@@ -4801,6 +5063,7 @@ contains
     is_idx_xxf = 1+mod((i-lo%llim_world)/lo%is_comp,lo%nspec)
   end function is_idx_xxf
 
+  !> FIXME : Add documentation  
   elemental function ie_idx_xxf (lo, i)
     implicit none
     integer :: ie_idx_xxf
@@ -4809,6 +5072,7 @@ contains
     ie_idx_xxf=1+mod((i-lo%llim_world)/lo%ie_comp,lo%negrid)
   end function ie_idx_xxf
 
+  !> FIXME : Add documentation  
   elemental function il_idx_xxf (lo, i)
     implicit none
     integer :: il_idx_xxf
@@ -4817,6 +5081,7 @@ contains
     il_idx_xxf = 1+mod((i-lo%llim_world)/lo%il_comp,lo%nlambda)
   end function il_idx_xxf
 
+  !> FIXME : Add documentation  
   elemental function isign_idx_xxf (lo, i)
     implicit none
     integer :: isign_idx_xxf
@@ -4825,6 +5090,7 @@ contains
     isign_idx_xxf = 1+mod((i-lo%llim_world)/lo%isgn_comp,lo%nsign)
   end function isign_idx_xxf
 
+  !> FIXME : Add documentation  
   elemental function ig_idx_xxf (lo, i)
     implicit none
     integer :: ig_idx_xxf
@@ -4833,6 +5099,7 @@ contains
     ig_idx_xxf = -lo%ntgrid+mod((i-lo%llim_world)/lo%ig_comp,lo%ntgridtotal)
   end function ig_idx_xxf
 
+  !> FIXME : Add documentation
   elemental function ik_idx_xxf (lo, i)
     implicit none
     integer :: ik_idx_xxf
@@ -4841,6 +5108,7 @@ contains
     ik_idx_xxf = 1+mod((i-lo%llim_world)/lo%ik_comp,lo%naky)
   end function ik_idx_xxf
 
+  !> FIXME : Add documentation  
   elemental function idx_xxf (lo, ig, isign, ik, il, ie, is)
     implicit none
     integer :: idx_xxf
@@ -4869,7 +5137,7 @@ contains
     end select
   end function idx_xxf
 
-
+  !> FIXME : Add documentation
   elemental function proc_id_xxf (lo, i)
     implicit none
     integer :: proc_id_xxf
@@ -4939,9 +5207,9 @@ contains
           proc_id_xxf = i/lo%blocksize
        end if
     end if
-
   end function proc_id_xxf
 
+  !> FIXME : Add documentation  
   elemental function idx_local_xxf (lo, ig, isign, ik, il, ie, is)
     implicit none
     logical :: idx_local_xxf
@@ -4950,6 +5218,7 @@ contains
     idx_local_xxf = idx_local (lo, idx(lo, ig, isign, ik, il, ie, is))
   end function idx_local_xxf
 
+  !> FIXME : Add documentation  
   elemental function ig_local_xxf (lo, i)
     implicit none
     logical ig_local_xxf
@@ -4958,6 +5227,7 @@ contains
     ig_local_xxf = lo%iproc == proc_id(lo, i)
   end function ig_local_xxf
 
+  !> FIXME : Add documentation  
   elemental function xxf_ky_is_zero (lo, i)
     implicit none
     logical xxf_ky_is_zero
@@ -4972,6 +5242,7 @@ contains
 ! Y-space layouts
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
+  !> FIXME : Add documentation  
   subroutine init_y_transform_layouts &
        (ntgrid, naky, ntheta0, nlambda, negrid, nspec, nx, ny)
     use mp, only: iproc, nproc, proc0
@@ -5173,8 +5444,8 @@ contains
 
   end subroutine init_y_transform_layouts
 
+  !> FIXME : Add documentation
   subroutine calculate_unbalanced_y(nproc, iproc,  unbalanced_amount)
-
     implicit none
     integer, intent (in) :: nproc, iproc
     real, intent (out) :: unbalanced_amount
@@ -5359,6 +5630,7 @@ contains
 
   end subroutine calculate_unbalanced_y
 
+  !> FIXME : Add documentation
   elemental function is_idx_yxf (lo, i)
     implicit none
     integer :: is_idx_yxf
@@ -5367,6 +5639,7 @@ contains
     is_idx_yxf = 1+mod((i-lo%llim_world)/lo%is_comp,lo%nspec)
   end function is_idx_yxf
 
+  !> FIXME : Add documentation  
   elemental function ie_idx_yxf (lo, i)
     implicit none
     integer :: ie_idx_yxf
@@ -5375,6 +5648,7 @@ contains
     ie_idx_yxf = 1+mod((i-lo%llim_world)/lo%ie_comp,lo%negrid)
   end function ie_idx_yxf
 
+  !> FIXME : Add documentation  
   elemental function il_idx_yxf (lo, i)
     implicit none
     integer :: il_idx_yxf
@@ -5383,14 +5657,16 @@ contains
     il_idx_yxf = 1+mod((i-lo%llim_world)/lo%il_comp,lo%nlambda)
   end function il_idx_yxf
 
+  !> FIXME : Add documentation
   elemental function isign_idx_yxf (lo, i)
     implicit none
     integer :: isign_idx_yxf
     type (yxf_layout_type), intent (in) :: lo
     integer, intent (in) :: i
     isign_idx_yxf = 1+mod((i-lo%llim_world)/lo%isgn_comp,lo%nsign)
- end function isign_idx_yxf
-
+  end function isign_idx_yxf
+ 
+  !> FIXME : Add documentation
   elemental function ig_idx_yxf (lo, i)
     implicit none
     integer :: ig_idx_yxf
@@ -5399,6 +5675,7 @@ contains
     ig_idx_yxf = -lo%ntgrid+mod((i-lo%llim_world)/lo%ig_comp,lo%ntgridtotal)
   end function ig_idx_yxf
 
+  !> FIXME : Add documentation  
   elemental function it_idx_yxf (lo, i)
     implicit none
     integer :: it_idx_yxf
@@ -5407,6 +5684,7 @@ contains
     it_idx_yxf = 1+mod((i-lo%llim_world)/lo%it_comp,lo%nx)
   end function it_idx_yxf
 
+  !> FIXME : Add documentation  
   elemental function idx_accelx (lo, ik, it, il, ie, is)
     implicit none
     integer :: idx_accelx
@@ -5427,6 +5705,7 @@ contains
     end select
   end function idx_accelx
 
+  !> FIXME : Add documentation  
   elemental function idx_yxf (lo, ig, isign, it, il, ie, is)
     implicit none
     integer :: idx_yxf
@@ -5480,6 +5759,7 @@ contains
 
   end function proc_id_accelx
 
+  !> FIXME : Add documentation
   elemental function proc_id_yxf (lo, i)
     implicit none
     integer :: proc_id_yxf
@@ -5550,6 +5830,7 @@ contains
     end if
   end function proc_id_yxf
 
+  !> FIXME : Add documentation  
   elemental function idx_local_accelx (lo, ik, it, il, ie, is)
     implicit none
     logical :: idx_local_accelx
@@ -5558,6 +5839,7 @@ contains
     idx_local_accelx = idx_local (lo, idx(lo, ik, it, il, ie, is))
   end function idx_local_accelx
 
+  !> FIXME : Add documentation  
   elemental function ig_local_accelx (lo, i)
     implicit none
     logical ig_local_accelx
@@ -5572,6 +5854,7 @@ contains
 #endif
   end function ig_local_accelx
 
+  !> FIXME : Add documentation
   elemental function idx_local_yxf (lo, ig, isign, it, il, ie, is)
     implicit none
     logical :: idx_local_yxf
@@ -5580,6 +5863,7 @@ contains
     idx_local_yxf = idx_local (lo, idx(lo, ig, isign, it, il, ie, is))
   end function idx_local_yxf
 
+  !> FIXME : Add documentation
   elemental function ig_local_yxf (lo, i)
     implicit none
     logical ig_local_yxf
@@ -5592,6 +5876,7 @@ contains
 ! Accelerated FFT layouts
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
+  !> FIXME : Add documentation  
   subroutine init_accel_transform_layouts &
        (ntgrid, naky, ntheta0, nlambda, negrid, nspec, nx, ny)
     use mp, only: iproc, nproc
@@ -5754,11 +6039,9 @@ contains
     endif
 
 #endif
-
-
-
   end subroutine init_accel_transform_layouts
 
+  !> FIXME : Add documentation
   elemental function is_idx_accelx (lo, i)
     implicit none
     integer :: is_idx_accelx
@@ -5767,6 +6050,7 @@ contains
     is_idx_accelx = 1 + mod((i - lo%llim_world)/lo%nxny/lo%negrid/lo%nlambda, lo%nspec)
   end function is_idx_accelx
 
+  !> FIXME : Add documentation  
   elemental function ie_idx_accelx (lo, i)
     implicit none
     integer :: ie_idx_accelx
@@ -5784,6 +6068,7 @@ contains
     end select
   end function ie_idx_accelx
 
+  !> FIXME : Add documentation  
   elemental function il_idx_accelx (lo, i)
     implicit none
     integer :: il_idx_accelx
@@ -5801,6 +6086,7 @@ contains
     end select
   end function il_idx_accelx
 
+  !> FIXME : Add documentation  
   elemental function it_idx_accelx (lo, i)
     implicit none
     integer :: it_idx_accelx
@@ -5819,6 +6105,7 @@ contains
 !    end select
   end function it_idx_accelx
 
+  !> FIXME : Add documentation  
   elemental function ik_idx_accelx (lo, i)
     implicit none
     integer :: ik_idx_accelx
@@ -5837,6 +6124,7 @@ contains
 !    end select
   end function ik_idx_accelx
 
+  !> FIXME : Add documentation  
   elemental function it_idx_accel (lo, i)
     implicit none
     integer :: it_idx_accel
@@ -5854,6 +6142,7 @@ contains
 !    end select
   end function it_idx_accel
 
+  !> FIXME : Add documentation
   elemental function ik_idx_accel (lo, i)
     implicit none
     integer :: ik_idx_accel
@@ -5871,6 +6160,7 @@ contains
 !    end select
   end function ik_idx_accel
 
+  !> FIXME : Add documentation  
   elemental function dealiasing (lo, ia)
     implicit none
     logical dealiasing
@@ -5894,8 +6184,10 @@ contains
 
 ! TT>
 # ifdef USE_C_INDEX
+  !> FIXME : Add documentation  
   subroutine gidx2lzidx (ig, isign, g_lo, iglo, lz_lo, ntgrid, jend, il, ilz)
 # else
+  !> FIXME : Add documentation    
   pure subroutine gidx2lzidx (ig, isign, g_lo, iglo, lz_lo, ntgrid, jend, &
                               il, ilz)
 # endif
@@ -5940,8 +6232,10 @@ contains
 
 ! TT>
 # ifdef USE_C_INDEX
+  !> FIXME : Add documentation
   subroutine gidx2gintidx (g_lo, iglo, gint_lo, il, igint)
 # else
+  !> FIXME : Add documentation    
   elemental subroutine gidx2gintidx (g_lo, iglo, gint_lo, il, igint)
 # endif
 ! <TT
@@ -5957,6 +6251,7 @@ contains
          ie_idx(g_lo,iglo), is_idx(g_lo,iglo))
   end subroutine gidx2gintidx
 
+  !> FIXME : Add documentation
   elemental subroutine gintidx2geidx (gint_lo, igint, ie, geint_lo, igeint)
     implicit none
     type (gint_layout_type), intent (in) :: gint_lo
@@ -5973,8 +6268,10 @@ contains
 
 ! TT>
 # ifdef USE_C_INDEX
+  !> FIXME : Add documentation  
   subroutine gidx2xxfidx (ig, isign, iglo, g_lo, xxf_lo, it, ixxf)
 # else
+  !> FIXME : Add documentation    
   elemental subroutine gidx2xxfidx (ig, isign, iglo, g_lo, xxf_lo, it, ixxf)
 # endif
 ! <TT
@@ -5995,8 +6292,10 @@ contains
 
 ! TT>
 # ifdef USE_C_INDEX
+  !> FIXME : Add documentation  
   subroutine xxfidx2gidx (it, ixxf, xxf_lo, g_lo, ig, isign, iglo)
 # else
+  !> FIXME : Add documentation    
   elemental subroutine xxfidx2gidx (it, ixxf, xxf_lo, g_lo, ig, isign, iglo)
 # endif
 ! <TT
@@ -6024,6 +6323,7 @@ contains
          ie_idx(xxf_lo,ixxf), is_idx(xxf_lo,ixxf))
   end subroutine xxfidx2gidx
 
+  !> FIXME : Add documentation  
   elemental subroutine xxfidx2yxfidx (it, ixxf, xxf_lo, yxf_lo, ik, iyxf)
     implicit none
     integer, intent (in) :: it, ixxf
@@ -6036,6 +6336,7 @@ contains
          it, il_idx(xxf_lo,ixxf), ie_idx(xxf_lo,ixxf), is_idx(xxf_lo,ixxf))
   end subroutine xxfidx2yxfidx
 
+  !> FIXME : Add documentation  
   elemental subroutine yxfidx2xxfidx (ik, iyxf, yxf_lo, xxf_lo, it, ixxf)
     implicit none
     integer, intent (in) :: ik, iyxf
@@ -6056,8 +6357,9 @@ contains
          ik0, il_idx(yxf_lo,iyxf), ie_idx(yxf_lo,iyxf), is_idx(yxf_lo,iyxf))
   end subroutine yxfidx2xxfidx
 
+  !> FIXME : Add documentation  
   subroutine pe_layout (char)
-
+    implicit none
     character (1), intent (out) :: char
 
     select case (layout)
@@ -6081,6 +6383,7 @@ contains
 
   end subroutine pe_layout
 
+  !> FIXME : Add documentation  
   subroutine factors (n, j, div)
     !CMR, 3/10/13:
     !    Find all the factors of n and return in div(j)
@@ -6105,34 +6408,4 @@ contains
     end do
     div(j) = n
   end subroutine factors
-
 end module gs2_layouts
-
-
-
-! save:
-
-!       xxf_lo%groupblocksize = (negrid*nspec-1)/nproc + 1
-!
-!       xxf_lo%ngroup = min (nproc, negrid*nspec)
-!       xxf_lo%nprocset = nproc / xxf_lo%ngroup
-!
-!       xxf_lo%llim_group = xxf_lo%groupblocksize*(iproc/nprocset)
-!       xxf_lo%ulim_group = xxf_lo%llim_group + xxf_lo%groupblocksize - 1
-!       
-!       xxf_lo%nset = (naky*(2*ntgrid+1)*2*nlambda - 1)/nprocset + 1
-!       
-!       xxf_lo%llim_set = xxf_lo%nset*mod(iproc, nprocset)
-!       xxf_lo%ulim_set = min( &
-!            naky*(2*ntgrid+1)*2*nlambda - 1, xxf_lo%llim_set + xxf_lo%nset - 1)
-!
-!       llim_proc:
-!       ulim_proc:
-!       ulim_alloc:
-!
-!
-!       ixxf = iset + xxf_lo%nset*igroup + (iproc/xxf_lo%ngroup)*xxf_lo%nset*xxf_lo%ngroup
-
-! igroup: llim_group:ulim_group
-! iset: llim_set:ulim_set
-!

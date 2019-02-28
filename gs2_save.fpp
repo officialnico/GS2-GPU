@@ -1,5 +1,6 @@
 # include "define.inc"
 
+!> FIXME : Add documentation
 module gs2_save
 
   use mp, only: mp_comm, mp_info
@@ -39,15 +40,12 @@ module gs2_save
   public :: set_restart_file
   public :: init_vnm, restart_writable, EigNetcdfID
   public :: init_eigenfunc_file, finish_eigenfunc_file, add_eigenpair_to_file
-!# ifdef NETCDF
-!  public :: netcdf_real, kind_nf, get_netcdf_code_precision, netcdf_error
-!# endif
 
   interface gs2_restore
      module procedure gs2_restore_many!, gs2_restore_one
   end interface
 
-  !A custom type to look after the netcdf ids for the eigenvalue file
+  !> A custom type to look after the netcdf ids for the eigenvalue file
   type EigNetcdfID
      integer :: ncid, conv_dim_id, theta_dim_id, ri_dim_id
      integer :: omega_var_id, theta_var_id, phi_var_id
@@ -97,6 +95,7 @@ module gs2_save
 
 contains
 
+  !> FIXME : Add documentation  
   subroutine gs2_save_for_restart &
        (g, t0, delt0, vnm, istatus, fphi, fapar, fbpar, exit_in, distfn, fileopt, &
         save_glo_info_and_grids, save_velocities)
@@ -1021,7 +1020,8 @@ contains
 # endif
     
   end subroutine gs2_save_for_restart
-
+  
+  !> FIXME : Add documentation
   subroutine gs2_restore_many (g, scale, istatus, fphi, fapar, fbpar, fileopt)
 !MR, 2007: restore kx_shift array if already allocated
 # ifdef NETCDF
@@ -1281,8 +1281,8 @@ contains
 
   end subroutine gs2_restore_many
 
-  !>This routine writes a passed square complex array to a file
-  !with passed name
+  !> This routine writes a passed square complex array to a file
+  !! with passed name
   subroutine gs2_save_response(resp,fname)
     use file_utils, only: error_unit
 #ifdef NETCDF
@@ -1364,8 +1364,8 @@ contains
 #endif
   end subroutine gs2_save_response
 
-  !>This routine reads a square complex array from a file
-  !with passed name
+  !> This routine reads a square complex array from a file
+  !! with passed name
   subroutine gs2_restore_response(resp,fname)
     use file_utils, only: error_unit
 #ifdef NETCDF
@@ -1426,7 +1426,7 @@ contains
 #endif
   end subroutine gs2_restore_response
 
-  !>Initialises a file for saving output of eigensolver to netcdf
+  !> Initialises a file for saving output of eigensolver to netcdf
   subroutine init_eigenfunc_file(fname,fphi,fapar,fbpar,IDs)
     use file_utils, only: error_unit
     use theta_grid, only: ntgrid, theta
@@ -1494,7 +1494,7 @@ contains
 #endif
   end subroutine init_eigenfunc_file
 
-  !>Add an eigenpairs data to file
+  !> Add an eigenpairs data to file
   subroutine add_eigenpair_to_file(eval,fphi,fapar,fbpar,IDs,my_conv)
     use fields_arrays, only: phinew, aparnew, bparnew
     use convert, only: c2r
@@ -1560,7 +1560,7 @@ contains
 #endif
   end subroutine add_eigenpair_to_file
 
-  !>Close the eigenfunction file
+  !> Close the eigenfunction file
   subroutine finish_eigenfunc_file(IDs)
     implicit none
     type(EigNetcdfID), intent(inout) :: IDs
@@ -1573,10 +1573,10 @@ contains
 #endif
   end subroutine finish_eigenfunc_file
 
-  !>This function checks to see if we can create a file with name
-  !<restart_file>//<SomeSuffix> if not then our restarts are not
-  !going to be possible and we return false. Can also be used to check
-  !that we can read from the restart file (which assumes it exists).
+  !> This function checks to see if we can create a file with name
+  !! <restart_file>//<SomeSuffix> if not then our restarts are not
+  !! going to be possible and we return false. Can also be used to check
+  !! that we can read from the restart file (which assumes it exists).
   function restart_writable(read_only,my_file)
     use mp, only: proc0, broadcast
     use file_utils, only: get_unused_unit
@@ -1637,17 +1637,21 @@ contains
     restart_writable=writable
   end function restart_writable
 
+  !> FIXME : Add documentation
   subroutine init_gs2_save
   end subroutine init_gs2_save
 
+!> FIXME : Add documentation  
   subroutine set_restart_file (file)
     use constants, only: run_name_size
+    implicit none
     character(run_name_size), intent (in) :: file
     
     restart_file = file
 
   end subroutine set_restart_file
 
+  !> FIXME : Add documentation  
   subroutine finish_gs2_save
 #ifdef NETCDF    
     if (allocated(tmpr)) deallocate(tmpr)
@@ -1662,6 +1666,7 @@ contains
 #endif
   end subroutine finish_gs2_save
 
+  !> FIXME : Add documentation  
   subroutine restore_current_scan_parameter_value(current_scan_parameter_value)
 # ifdef NETCDF
     use mp, only: proc0, broadcast
@@ -1714,8 +1719,9 @@ contains
     !write (*,*) "Finishing restore_current_scan_parameter_value"
 
 # endif
-   end subroutine restore_current_scan_parameter_value
+  end subroutine restore_current_scan_parameter_value
 
+  !> FIXME : Add documentation  
   subroutine init_dt (delt0, istatus)
 
 # ifdef NETCDF
@@ -1766,8 +1772,8 @@ contains
 
   end subroutine init_dt
 
+!> FIXME : Add documentation  
   subroutine init_vnm (vnm, istatus)
-
 # ifdef NETCDF
     use mp, only: proc0, broadcast
     use file_utils, only: error_unit
@@ -1825,7 +1831,9 @@ contains
 
   end subroutine init_vnm
 
-! This routine gets a_ant and b_ant for proc 0 only!!
+  !> FIXME : Add documentation
+  !!
+  !! @note This routine gets a_ant and b_ant for proc 0 only!
   subroutine init_ant_amp (a_ant, b_ant, nk_stir, istatus)
 
 # ifdef NETCDF
@@ -1917,6 +1925,7 @@ contains
 
   end subroutine init_ant_amp
 
+  !> FIXME : Add documentation  
   subroutine init_tstart (tstart, istatus)
 
 # ifdef NETCDF
@@ -1966,187 +1975,4 @@ contains
 # endif
 
   end subroutine init_tstart
-!!$
-!!$# ifdef NETCDF
-!!$  function get_netcdf_code_precision () result (code_real)
-!!$
-!!$    use file_utils, only: error_unit
-!!$    use constants, only: pi, kind_rs, kind_rd
-!!$    integer :: code_real
-!!$    integer :: ierr
-!!$
-!!$    ! second condition for Cray
-!!$    if ( (kind(pi)==kind_rs) .or. (kind_rs==kind_rd) ) then
-!!$       code_real = NF90_FLOAT
-!!$    else if (kind(pi)==kind_rd) then
-!!$       code_real = NF90_DOUBLE
-!!$    else
-!!$       ierr = error_unit()
-!!$       write (ierr,*) 'ERROR: precision mismatch in get_netcdf_code_precision'
-!!$    end if
-!!$
-!!$  end function get_netcdf_code_precision
-!!$
-!!$  subroutine check_netcdf_file_precision (ncid, filename)
-!!$
-!!$    use file_utils, only: error_unit
-!!$
-!!$    integer (kind_nf), intent (in), optional :: ncid
-!!$    character (*), intent (in), optional :: filename
-!!$    integer (kind_nf) :: file_real
-!!$    integer (kind_nf) :: ist, ncid_private, tid
-!!$    integer :: ierr
-!!$
-!!$    ist = NF90_NOERR
-!!$    file_real = -1
-!!$
-!!$    if (present(ncid)) then
-!!$       if (present(filename)) then
-!!$          ierr = error_unit()
-!!$          write (ierr,*) 'WARNING: in calling check_netcdf_file_precision'
-!!$          write (ierr,*) &
-!!$               'WARNING: both filename and ncid given -- filename ignored'
-!!$       end if
-!!$       ncid_private = ncid
-!!$    else
-!!$       if (present(filename)) then
-!!$          ist = nf90_open (filename, NF90_NOWRITE, ncid_private)
-!!$          if (test) write (error_unit(),*) &
-!!$               'opened netcdf file ', trim(filename), ' with ncid: ', &
-!!$               ncid_private, ' in check_netcdf_file_precision'
-!!$          if (ist /= NF90_NOERR) then
-!!$             call netcdf_error (ist, file=filename)
-!!$             return
-!!$          end if
-!!$       else
-!!$          ierr = error_unit()
-!!$          write (ierr,*) 'ERROR: in calling check_netcdf_file_precision'
-!!$          write (ierr,*) 'ERROR: either filename or ncid should be given'
-!!$          return
-!!$       end if
-!!$    end if
-!!$
-!!$    ist = nf90_inq_varid (ncid_private, 't0', tid)
-!!$    if (ist /= NF90_NOERR) call netcdf_error (ist, var='t0')
-!!$
-!!$    ! get file_real
-!!$    if (ist == NF90_NOERR) then
-!!$       ist = nf90_inquire_variable (ncid_private, tid, xtype=file_real)
-!!$       if (ist /= NF90_NOERR) call netcdf_error (ist, ncid_private, tid)
-!!$    end if
-!!$
-!!$    if (.not.present(ncid)) then
-!!$       ist = nf90_close (ncid_private)
-!!$       if (ist /= NF90_NOERR) call netcdf_error (ist, file=filename)
-!!$    end if
-!!$
-!!$    ! check if file_real == code_real
-!!$    if (file_real /= netcdf_real) then
-!!$       ierr = error_unit()
-!!$       write (ierr,*) 'WARNING: precision mismatch in input netcdf file and running code'
-!!$       if (file_real == NF90_FLOAT) then
-!!$          write (ierr,*) 'WARNING: file_real = NF90_FLOAT'
-!!$       else if (file_real == NF90_DOUBLE) then
-!!$          write (ierr,*) 'WARNING: file_real = NF90_DOUBLE'
-!!$       else
-!!$          write (ierr,*) 'WARNING: unknown file_real', file_real
-!!$       end if
-!!$       if (netcdf_real == NF90_FLOAT) then
-!!$          write (ierr,*) 'WARNING: code_real = NF90_FLOAT'
-!!$       else if (netcdf_real == NF90_DOUBLE) then
-!!$          write (ierr,*) 'WARNING: code_real = NF90_DOUBLE'
-!!$       else
-!!$          write (ierr,*) 'WARNING: unknown code_real'
-!!$       end if
-!!$    end if
-!!$
-!!$  end subroutine check_netcdf_file_precision
-!!$
-!!$  subroutine netcdf_error &
-!!$       (istatus, ncid, varid, dimid, file, dim, var, att, message)
-!!$
-!!$    use mp, only: proc0, iproc
-!!$    use file_utils, only: error_unit
-!!$    use netcdf, only: NF90_GLOBAL
-!!$
-!!$    integer (kind_nf), intent (in) :: istatus
-!!$    integer (kind_nf), intent (in), optional :: ncid
-!!$    integer (kind_nf), intent (in), optional :: varid
-!!$    integer (kind_nf), intent (in), optional :: dimid
-!!$    character (*), intent (in), optional :: file
-!!$    character (*), intent (in), optional :: dim
-!!$    character (*), intent (in), optional :: var
-!!$    character (*), intent (in), optional :: att
-!!$    character (*), intent (in), optional :: message
-!!$    integer (kind_nf) :: ist
-!!$    integer :: ierr
-!!$    character (20) :: varname, dimname
-!!$
-!!$    ierr = error_unit()
-!!$
-!!$    write (ierr, '(2a,$)') 'ERROR: ', trim (nf90_strerror (istatus))
-!!$    ! TT: If $ control fails, there is an alternative advance='no' specifier
-!!$
-!!$    if (present(file)) &
-!!$         write (ierr, '(2a,$)') ' in file: ', trim (file)
-!!$
-!!$    if (present(dim)) &
-!!$         write (ierr, '(2a,$)') ' in dimension: ', trim (dim)
-!!$
-!!$    if (present(var)) &
-!!$         write (ierr, '(2a,$)') ' in variable: ', trim (var)
-!!$
-!!$    if (present(varid)) then
-!!$       if (present(ncid)) then
-!!$          if ( (varid == NF90_GLOBAL) .and. present(att) ) then
-!!$             write (ierr, '(2a)') ' in global attribute: ', trim(att)
-!!$             return
-!!$          else
-!!$             ist = nf90_inquire_variable (ncid, varid, varname)
-!!$             if (ist == NF90_NOERR) then
-!!$                write (ierr, '(a,i8,2a,$)') ' in varid: ', varid, &
-!!$                     & ' variable name: ', trim (varname)
-!!$             else
-!!$                write (ierr, *) ''
-!!$                write (ierr, '(3a,i8,a,i8,$)') 'ERROR in netcdf_error: ', &
-!!$                     trim (nf90_strerror(ist)), ' in varid: ', varid, &
-!!$                     ', ncid: ', ncid
-!!$             end if
-!!$          end if
-!!$          if (present(att)) &
-!!$               write (ierr, '(2a)') ' with the attribute: ', trim(att)
-!!$       else
-!!$          write (ierr, *) ''
-!!$          write (ierr, '(2a,$)') 'ERROR in netcdf_error: ', &
-!!$               & 'ncid missing while varid present in the argument'
-!!$       end if
-!!$    end if
-!!$
-!!$    if (present(dimid)) then
-!!$       if (present(ncid)) then
-!!$          ist = nf90_inquire_dimension (ncid, dimid, dimname)
-!!$          if (ist == NF90_NOERR) then
-!!$             write (ierr, '(a,i8,2a,$)') ' in dimid: ', dimid, &
-!!$                  & ' dimension name: ', trim (dimname)
-!!$          else
-!!$             write (ierr, *) ''
-!!$             write (ierr, '(3a,i8,a,i8,$)') 'ERROR in netcdf_error: ', &
-!!$                  trim (nf90_strerror(ist)), ' in dimid: ', dimid, &
-!!$                  ', ncid: ', ncid
-!!$          end if
-!!$       else
-!!$          write (ierr, *) ''
-!!$          write (ierr, '(2a,$)') 'ERROR in netcdf_error: ', &
-!!$               & 'ncid missing while dimid present in the argument'
-!!$       end if
-!!$    end if
-!!$
-!!$    if (present(message)) write (ierr, '(a,$)') trim(message)
-!!$
-!!$    write (ierr, '(a,i8)') ' on iproc: ', iproc
-!!$
-!!$  end subroutine netcdf_error
-!!$# endif
-!!$! <TT
-
 end module gs2_save

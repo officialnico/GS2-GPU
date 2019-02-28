@@ -6,6 +6,7 @@
 !! to dimensionalise the outputs.
 module diagnostics_normalisations
 contains
+  !> FIXME : Add documentation
   subroutine write_normalisations(gnostics)
     use normalisations, only: norms
     use diagnostics_config, only: diagnostics_type
@@ -29,5 +30,4 @@ contains
     call create_and_write_variable_noread(gnostics, gnostics%rtype, "rhoref", "", &
          "The reference larmour radius ", "m", norms%get_value("rhoref"))
   end subroutine write_normalisations
-
 end module diagnostics_normalisations

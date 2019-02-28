@@ -1,7 +1,9 @@
-!> A container for the arrays that are used to store the distribution function among other things.
-!!  These need to be accessible at a lower dependency level than the dist_fn module itself.
-!! These arrays are allocated in the function dist_fn::allocate_arrays. 
-
+!> A container for the arrays that are used to store the distribution
+!! function among other things.
+!!
+!! These need to be accessible at a lower dependency level than the
+!! dist_fn module itself.  These arrays are allocated in the function
+!! dist_fn::allocate_arrays.
 module dist_fn_arrays
 
   implicit none
@@ -54,20 +56,19 @@ module dist_fn_arrays
 
 contains
 
+  !> g_adjust transforms between representations of perturbed dist'n func'n.
+  !!    <delta_f> = g_wesson J0(Z) - q phi/T F_m  where <> = gyroaverage
+  !!        g_gs2 = g_wesson - q phi/T J0(Z) F_m - m v_||^2/T B_||/B J1(Z)/Z F_m
+  !! For numerical convenience the GS2 variable g uses the form g_gs2.
+  !! g_wesson (see Wesson's book, Tokamaks) is often a more convenient form:
+  !!     e.g. for handling collisions, calculating v-space moments in real space.
+  !!
+  !! To transform gnew from g_gs2 to g_wesson form:
+  !!    call g_adjust(gnew,phinew,bparnew,fphi,fbpar)
+  !! or transform from gnew from g_wesson to g_gs2 form:
+  !!    call g_adjust(gnew,phinew,bparnew,-fphi,-fbpar)
+  !! CMR, 17/4/2012: 
   subroutine g_adjust (g, phi, bpar, facphi, facbpar)
-    !CMR, 17/4/2012: 
-    ! g_adjust transforms between representations of perturbed dist'n func'n.
-    !    <delta_f> = g_wesson J0(Z) - q phi/T F_m  where <> = gyroaverage
-    !        g_gs2 = g_wesson - q phi/T J0(Z) F_m - m v_||^2/T B_||/B J1(Z)/Z F_m
-    ! For numerical convenience the GS2 variable g uses the form g_gs2.
-    ! g_wesson (see Wesson's book, Tokamaks) is often a more convenient form:
-    !     e.g. for handling collisions, calculating v-space moments in real space.
-    !
-    ! To transform gnew from g_gs2 to g_wesson form:
-    !    call g_adjust(gnew,phinew,bparnew,fphi,fbpar)
-    ! or transform from gnew from g_wesson to g_gs2 form:
-    !    call g_adjust(gnew,phinew,bparnew,-fphi,-fbpar)
-    !
     use species, only: spec, nonmaxw_corr
     use theta_grid, only: ntgrid
     use le_grids, only: jend, ng2
@@ -109,12 +110,11 @@ contains
     end do
   end subroutine g_adjust
 
+  !> This routine checks trapped particle bounce conditions: 
+  !!     g(thetab,1:ik,it,il,ie,is)=g(thetab,2:ik,it,il,ie,is)
+  !!  and flags fractional errors exceeding a threshold tolerance, tol.
+  !! CMR, 3/10/2013:   
   subroutine check_g_bouncepoints(g, ik,it,il,ie,is,err,tol)
-    ! CMR, 3/10/2013: 
-    !  This routine checks trapped particle bounce conditions: 
-    !     g(thetab,1:ik,it,il,ie,is)=g(thetab,2:ik,it,il,ie,is)
-    !  and flags fractional errors exceeding a threshold tolerance, tol. 
-    !
     use theta_grid, only: ntgrid, bmag
     use gs2_layouts, only: g_lo, idx
     use le_grids, only: ng2, jend, al

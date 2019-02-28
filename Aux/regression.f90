@@ -1,6 +1,9 @@
+!> FIXME : Add documentation
 module regression
 
   implicit none
+
+  !> FIXME : Add documentation  
   type :: reg_type
     integer :: n = 0
     real :: xy = 0.
@@ -16,7 +19,9 @@ module regression
 
 contains
 
+  !> FIXME : Add documentation  
   subroutine regress_0 (reg, x, y, a, b)
+    implicit none    
     type (reg_type), target :: reg
     real, intent (in) :: x, y
     real, intent (out), optional :: a, b
@@ -51,7 +56,9 @@ contains
 
   end subroutine regress_0
 
+  !> FIXME : Add documentation  
   subroutine regress_1 (reg, x, y, a, b)
+    implicit none    
     type (reg_type), target :: reg
     real, dimension(:), intent (in) :: x, y
     real, dimension(:), intent (out), optional :: a, b
@@ -86,7 +93,9 @@ contains
 
   end subroutine regress_1
 
+  !> FIXME : Add documentation
   subroutine regress_2 (reg, x, y, a, b)
+    implicit none    
     type (reg_type), dimension(:), target :: reg
     real, dimension(:), intent (in) :: x, y
     real, dimension(:), intent (out), optional :: a, b
@@ -120,8 +129,10 @@ contains
     end if
 
   end subroutine regress_2
-  
+
+  !> FIXME : Add documentation  
   elemental function yp (reg, x)
+    implicit none    
     real :: yp
     type (reg_type), intent (in) :: reg
     real, intent (in) :: x
@@ -130,7 +141,9 @@ contains
 
   end function yp
 
+  !> FIXME : Add documentation  
   elemental function xp (reg, y)
+    implicit none
     real :: xp
     type (reg_type), intent (in) :: reg
     real, intent (in) :: y
@@ -140,7 +153,6 @@ contains
     else
        xp = (y-reg%a)/reg%b
     end if
-
   end function xp
 
 end module regression

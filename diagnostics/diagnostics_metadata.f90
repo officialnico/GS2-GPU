@@ -9,6 +9,7 @@ module diagnostics_metadata
   integer :: inputfile_length
 
 contains
+  !> FIXME : Add documentation  
   subroutine write_metadata(gnostics)
     use simpledataio, only: add_metadata
     use simpledataio, only: add_standard_metadata
@@ -16,6 +17,7 @@ contains
     use runtime_tests, only: get_git_hash, get_git_modified
     use runtime_tests, only: is_release, release
     use run_parameters, only: user_comments
+    implicit none
     type(diagnostics_type), intent(in) :: gnostics
 
     call add_metadata(gnostics%sfile, "title", &
@@ -124,15 +126,13 @@ contains
         jline("a development version)"))
     end if
 
-
-
-
-
     call add_standard_metadata(gnostics%sfile)
   end subroutine write_metadata
 
+  !> FIXME : Add documentation  
   function jline(inputline)
     use mp, only: mp_abort
+    implicit none
     character(*), intent(in) :: inputline
     character(len=52) :: jline
     integer :: lenin
@@ -148,9 +148,11 @@ contains
     
   end function jline
 
+  !> FIXME : Add documentation  
   subroutine read_input_file_and_get_size(gnostics)
     use file_utils, only: get_input_unit
     use mp, only: proc0, broadcast
+    implicit none
     type(diagnostics_type), intent(in) :: gnostics
     character(len=1000) :: line
     integer :: inputunit
@@ -195,20 +197,17 @@ contains
     call broadcast(inputfile_array)
   end subroutine read_input_file_and_get_size
 
-  !> Write the input file.
- 
+  !> Write the input file. 
   subroutine write_input_file(gnostics)
     use file_utils, only: get_input_unit
     use diagnostics_create_and_write, only: create_and_write_variable
     use simpledataio, only: SDATIO_CHAR
     use diagnostics_dimensions, only: dim_string
+    implicit none
     type(diagnostics_type), intent(in) :: gnostics
 
     call create_and_write_variable(gnostics, SDATIO_CHAR, "input_file", &
       trim(dim_string(gnostics%dims%input_file_dim)), &
        "Full text of the input file", "text", inputfile_array) 
-
-
-
   end subroutine write_input_file
 end module diagnostics_metadata

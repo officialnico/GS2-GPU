@@ -16,13 +16,15 @@ module diagnostics_nonlinear_convergence
   real, save :: heat_sum_av = 0, heat_av = 0, heat_av_test = 0
 contains
 
+  !> FIXME : Add documentation  
   subroutine init_nonlinear_convergence(gnostics)
     use diagnostics_config, only: diagnostics_type
     implicit none
     type(diagnostics_type), intent(in) :: gnostics
     if(.not. allocated(conv_heat)) allocate(conv_heat(0:gnostics%conv_nstep_av/gnostics%nwrite-1))
   end subroutine  init_nonlinear_convergence
-  
+
+  !> FIXME : Add documentation  
   subroutine finish_nonlinear_convergence(gnostics)
     use diagnostics_config, only: diagnostics_type
     implicit none
@@ -30,6 +32,7 @@ contains
     deallocate(conv_heat)
   end subroutine  finish_nonlinear_convergence
 
+  !> FIXME : Add documentation  
   subroutine reset_averages_and_counters(gnostics)
     use diagnostics_config, only: diagnostics_type
     use mp, only: proc0

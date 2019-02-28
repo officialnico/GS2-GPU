@@ -1,6 +1,6 @@
+#ifdef WITH_EIG
 !> A module for finding eigenvalues and eigenmodes
 !! Requires SLEPC and PETSC
-#ifdef WITH_EIG
 module eigval
   use petscvec
   use petscmat
@@ -119,7 +119,7 @@ module eigval
   !If true then save restart files for each eigenmode
   logical :: save_restarts
 
-  !A custom type to make it easy to encapsulate specific settings
+  !> A custom type to make it easy to encapsulate specific settings
   type EpsSettings
      logical :: use_ginit
      integer :: n_eig
@@ -144,7 +144,7 @@ module eigval
 
 contains
 
-  !>Returns true if GS2 was compiled with WITH_EIG defined
+  !> Returns true if GS2 was compiled with WITH_EIG defined
   function eigval_functional()
     logical :: eigval_functional
     eigval_functional=.true.
@@ -754,6 +754,7 @@ contains
     endif
   end subroutine SetupEPS
 
+  !> Writes the current settings to a file with extension '.eig.solver_settings'
   subroutine ReportSolverSettings(eps_solver,fext)
     use mp, only: proc0
     use file_utils, only: open_output_file, close_output_file
@@ -832,6 +833,8 @@ contains
     call close_output_file(ounit)
   end subroutine ReportSolverSettings
 
+  !> Main routine that does the setup, starts the solver and
+  !! coordinates reporting of the results
   subroutine BasicSolve
     use theta_grid, only: ntgrid
     use gs2_layouts, only: g_lo
@@ -995,6 +998,7 @@ contains
     endif
   end subroutine ReportResults
 
+  !> Function to convert SLEPc eigenvalue to a GS2 one
   elemental complex function Eig_SlepcToGs2(eig)
     use gs2_time, only: code_dt
     implicit none
@@ -1002,6 +1006,7 @@ contains
     Eig_SlepcToGs2=log(eig)*cmplx(0.0,1.0)/(code_dt*nadv)
   end function Eig_SlepcToGs2
 
+  !> Function to convert a GS2 eigenvalue to a SLEPc one
   elemental PetscScalar function Eig_Gs2ToSlepc(eig)
     use gs2_time, only: code_dt
     implicit none
@@ -1015,6 +1020,7 @@ contains
 #endif
   end function Eig_Gs2ToSlepc
 
+  !> Call back routine to represent linear advance operator
   subroutine advance_eigen(MatOperator,VecIn,Res,ierr)
     use fields, only: set_init_fields, advance
     implicit none
@@ -1042,6 +1048,7 @@ contains
     call GnewToVec(Res)
   end subroutine advance_eigen
 
+  !> Unpacks a SLEPc vector into gnew
   subroutine VecToGnew(VecIn)
     use theta_grid, only: ntgrid
     use gs2_layouts, only: g_lo
@@ -1123,7 +1130,8 @@ contains
     call VecRestoreArrayF90(VecInI,VecInIArr,ierr)
   end subroutine VecToGnew2
 #endif
- 
+
+  !> Packs gnew into a SLEPc vector
   subroutine GnewToVec(VecIn)
     use theta_grid, only: ntgrid
     use gs2_layouts, only: g_lo
@@ -1163,6 +1171,7 @@ contains
     call VecRestoreArrayF90(VecIn,VecInArr,ierr)
   end subroutine GnewToVec
 
+  !> An example of a custom SLEPc monitor -- may not work well
   PetscErrorCode function SimpleMonitor(solver,iters,nconv,eig_r,eig_i,err_est,n_est,mm)
     use mp, only: proc0
     use gs2_time, only: code_dt
@@ -1199,12 +1208,15 @@ end module eigval
 !###############################################################
 !THE SECTION BELOW PROVIDES THE EIGENVAL MODULE IN THE ABSENCE OF
 !SLEPC/PETSC (i.e. WITH_EIG not defined).
+
+!> A stub module representing the eigenvalue solver
 module eigval
   implicit none
   private
   public :: eigval_functional
 contains
-  !>Returns true if GS2 was compiled with WITH_EIG defined
+  !> Returns true if GS2 was compiled with WITH_EIG defined -- here forced to .false.
+  !! as compiled without SLEPc support
   function eigval_functional()
     logical :: eigval_functional
     eigval_functional=.false.

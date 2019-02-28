@@ -1,3 +1,4 @@
+!> FIXME : Add documentation
 program ball
   
   use geometry, psi_g => psi

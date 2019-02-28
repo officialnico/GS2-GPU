@@ -11,6 +11,8 @@ module diagnostics_antenna
   real, dimension(:,:,:), allocatable ::  j_ext_hist
 
 contains
+  
+  !> FIXME : Add documentation  
   subroutine init_diagnostics_antenna(gnostics)
     use diagnostics_config, only: diagnostics_type
     use kt_grids, only: ntheta0, naky
@@ -26,6 +28,7 @@ contains
       & mode."
   end subroutine init_diagnostics_antenna
 
+  !> FIXME : Add documentation  
   subroutine finish_diagnostics_antenna(gnostics)
     use diagnostics_config, only: diagnostics_type
     implicit none
@@ -33,6 +36,7 @@ contains
     if (gnostics%write_jext.and.allocated(j_ext_hist)) deallocate(j_ext_hist)
   end subroutine finish_diagnostics_antenna
 
+  !> FIXME : Add documentation  
   subroutine write_jext(gnostics)
     use kt_grids, only: ntheta0, naky
     use diagnostics_create_and_write, only: create_and_write_variable
@@ -74,6 +78,7 @@ contains
     deallocate(j_ext)
   end subroutine write_jext
 
+  !> FIXME : Add documentation  
   subroutine write_lorentzian(gnostics)
     use antenna, only: antenna_w
     use diagnostics_create_and_write, only: create_and_write_variable

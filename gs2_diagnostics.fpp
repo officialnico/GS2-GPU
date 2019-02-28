@@ -1,12 +1,11 @@
-!> The original module for calculating and writing gs2 outputs.
-
+!> A module for calculating and writing the main GS2 outputs.
 module gs2_diagnostics
   use gs2_heating, only: heating_diagnostics
   use gs2_save, only: save_many
 
-! what about boundary condition contributions?  In the presence 
-! of magnetic shear, there are not always zero amplitudes at the ends
-! of the supercells.
+  ! what about boundary condition contributions?  In the presence 
+  ! of magnetic shear, there are not always zero amplitudes at the ends
+  ! of the supercells.
 
   implicit none
 
@@ -29,19 +28,19 @@ module gs2_diagnostics
   public :: get_omegaavg
   interface get_vol_average
      module procedure get_vol_average_one, get_vol_average_all
-  end interface
+  end interface get_vol_average
 
   interface get_vol_int
      module procedure get_vol_int_one, get_vol_int_all
-  end interface
+  end interface get_vol_int
 
   interface get_fldline_avg
      module procedure get_fldline_avg_r, get_fldline_avg_c
-  end interface
+  end interface get_fldline_avg
 
-!CMR, 17/11/2009:   read_parameters now public so ingen can USE instead of copy
-!
-! Why are these variables public?  This is not good.
+  !CMR, 17/11/2009:   read_parameters now public so ingen can USE instead of copy
+  !
+  ! Why are these variables public?  This is not good.
   real, public :: omegatol, omegatinst
   logical, public :: print_line, print_flux_line
   logical, public :: print_summary, write_line, write_flux_line
@@ -69,11 +68,11 @@ module gs2_diagnostics
   integer, public :: navg, nsave, nwrite_mult
 
   logical, public :: write_phi_over_time, write_apar_over_time, write_bpar_over_time !EGH
-!>GGH
+  !>GGH
   logical :: write_jext=.true.
-!<GGH
+  !<GGH
 
-! HJL <  Variables for convergence condition testing
+  ! HJL <  Variables for convergence condition testing
   integer :: trin_istep = 0
   integer :: conv_isteps_converged = 0
   real, allocatable, dimension(:) :: conv_heat
@@ -83,9 +82,9 @@ module gs2_diagnostics
   ! internal
   logical :: write_any, write_any_fluxes, dump_any
   logical, private :: initialized = .false.
-! HJL < moved here so that it can be deallocated
+  ! HJL < moved here so that it can be deallocated
   complex, allocatable, dimension (:,:,:) :: domega
-! > HJL
+  ! > HJL
   !<EGH moved here to make available for diffusivity function
   complex, dimension (:, :), allocatable :: omega, omegaavg
   !EGH>
@@ -133,283 +132,285 @@ module gs2_diagnostics
   logical :: exist
 
   namelist /gs2_diagnostics_knobs/ print_line, print_flux_line, &
-         write_line, write_flux_line, &
-         write_omega, write_omavg, write_ascii, write_kpar, &
-         write_gs, write_gyx, write_g, write_gg, write_hrate, write_lpoly, &
-         write_eigenfunc, write_fields, write_final_fields, write_final_antot, &
-         write_final_epar, write_moments, ob_midplane, write_final_moments, write_cerr, &
-         write_verr, write_max_verr, write_nl_flux, write_final_db, &
-         nwrite, nmovie, nsave, navg, omegatol, omegatinst, igomega, write_lorentzian, &
-         exit_when_converged, use_nonlin_convergence, write_avg_moments, &
-         write_full_moments_notgc, write_cross_phase, &
-         dump_check1, dump_check2, &
-         dump_fields_periodically, make_movie, &
-         save_for_restart, save_many, &
-         write_parity, write_symmetry, save_distfn, & !<DD> Added for saving distribution function
-         write_correlation_extend, nwrite_mult, write_correlation, &
-         write_phi_over_time, write_apar_over_time, write_bpar_over_time, &
-         write_pflux_sym, write_nl_flux_dist, write_pflux_tormom, file_safety_check, &
-         conv_nstep_av, conv_test_multiplier, conv_min_step, conv_max_step, conv_nsteps_converged
+       write_line, write_flux_line, &
+       write_omega, write_omavg, write_ascii, write_kpar, &
+       write_gs, write_gyx, write_g, write_gg, write_hrate, write_lpoly, &
+       write_eigenfunc, write_fields, write_final_fields, write_final_antot, &
+       write_final_epar, write_moments, ob_midplane, write_final_moments, write_cerr, &
+       write_verr, write_max_verr, write_nl_flux, write_final_db, &
+       nwrite, nmovie, nsave, navg, omegatol, omegatinst, igomega, write_lorentzian, &
+       exit_when_converged, use_nonlin_convergence, write_avg_moments, &
+       write_full_moments_notgc, write_cross_phase, &
+       dump_check1, dump_check2, &
+       dump_fields_periodically, make_movie, &
+       save_for_restart, save_many, &
+       write_parity, write_symmetry, save_distfn, & !<DD> Added for saving distribution function
+       write_correlation_extend, nwrite_mult, write_correlation, &
+       write_phi_over_time, write_apar_over_time, write_bpar_over_time, &
+       write_pflux_sym, write_nl_flux_dist, write_pflux_tormom, file_safety_check, &
+       conv_nstep_av, conv_test_multiplier, conv_min_step, conv_max_step, conv_nsteps_converged
 
 
 contains
+
   !> Define NetCDF vars, call real_init, which calls read_parameters; broadcast all the different write flags. 
-   subroutine wnml_gs2_diagnostics(unit)
-     implicit none
-     integer, intent(in) :: unit
-     if (.not.exist) return
-     write (unit, *)
-     write (unit, fmt="(' &',a)") "gs2_diagnostics_knobs"
-     write (unit, fmt="(' save_for_restart = ',L1)") save_for_restart
-     write (unit, fmt="(' save_distfn = ',L1)") save_distfn
-     write (unit, fmt="(' save_many = ',L1)") save_many
-     write (unit, fmt="(' file_safety_check = ',L1)") file_safety_check
-     write (unit, fmt="(' print_line = ',L1)") print_line 
-     write (unit, fmt="(' write_line = ',L1)") write_line
-     write (unit, fmt="(' print_flux_line = ',L1)") print_flux_line
-     write (unit, fmt="(' write_flux_line = ',L1)") write_flux_line
-     write (unit, fmt="(' nmovie = ',i6)") nmovie
-     write (unit, fmt="(' nwrite_mult = ',i6)") nwrite_mult
-     write (unit, fmt="(' nwrite = ',i6)") nwrite
-     write (unit, fmt="(' nsave = ',i6)") nsave
-     write (unit, fmt="(' navg = ',i6)") navg
-     write (unit, fmt="(' omegatol = ',e17.10)") omegatol
-     write (unit, fmt="(' omegatinst = ',e17.10)") omegatinst
-     ! should be legal -- not checked yet
-     if (igomega /= 0) write (unit, fmt="(' igomega = ',i6)") igomega  
+  subroutine wnml_gs2_diagnostics(unit)
+    implicit none
+    integer, intent(in) :: unit
+    if (.not.exist) return
+    write (unit, *)
+    write (unit, fmt="(' &',a)") "gs2_diagnostics_knobs"
+    write (unit, fmt="(' save_for_restart = ',L1)") save_for_restart
+    write (unit, fmt="(' save_distfn = ',L1)") save_distfn
+    write (unit, fmt="(' save_many = ',L1)") save_many
+    write (unit, fmt="(' file_safety_check = ',L1)") file_safety_check
+    write (unit, fmt="(' print_line = ',L1)") print_line 
+    write (unit, fmt="(' write_line = ',L1)") write_line
+    write (unit, fmt="(' print_flux_line = ',L1)") print_flux_line
+    write (unit, fmt="(' write_flux_line = ',L1)") write_flux_line
+    write (unit, fmt="(' nmovie = ',i6)") nmovie
+    write (unit, fmt="(' nwrite_mult = ',i6)") nwrite_mult
+    write (unit, fmt="(' nwrite = ',i6)") nwrite
+    write (unit, fmt="(' nsave = ',i6)") nsave
+    write (unit, fmt="(' navg = ',i6)") navg
+    write (unit, fmt="(' omegatol = ',e17.10)") omegatol
+    write (unit, fmt="(' omegatinst = ',e17.10)") omegatinst
+    ! should be legal -- not checked yet
+    if (igomega /= 0) write (unit, fmt="(' igomega = ',i6)") igomega  
 
-     if (write_ascii) then
-        write (unit, fmt="(' write_ascii = ',L1)") write_ascii
-        write (unit, fmt="(' write_omega = ',L1)") write_omega
-        write (unit, fmt="(' write_omavg = ',L1)") write_omavg
-     end if
-     write (unit, fmt="(' write_hrate = ',L1)") write_hrate
-     write (unit, fmt="(' write_lorentzian = ',L1)") write_lorentzian
-     write (unit, fmt="(' write_eigenfunc = ',L1)") write_eigenfunc
-     write (unit, fmt="(' write_final_fields = ',L1)") write_final_fields
-     write (unit, fmt="(' write_final_epar = ',L1)") write_final_epar
-     write (unit, fmt="(' write_final_db = ',L1)") write_final_db
-     write (unit, fmt="(' write_final_moments = ',L1)") write_final_moments
-     write (unit, fmt="(' write_final_antot = ',L1)") write_final_antot
-     write (unit, fmt="(' write_nl_flux = ',L1)") write_nl_flux
-     write (unit, fmt="(' exit_when_converged = ',L1)") exit_when_converged
-     write (unit, fmt="(' use_nonlin_convergence = ',L1)") use_nonlin_convergence
-     if (write_avg_moments) write (unit, fmt="(' write_avg_moments = ',L1)") write_avg_moments
-     if (dump_check1) write (unit, fmt="(' dump_check1 = ',L1)") dump_check1
-     if (dump_check2) write (unit, fmt="(' dump_check2 = ',L1)") dump_check2
-     if (dump_fields_periodically) &
-          write (unit, fmt="(' dump_fields_periodically = ',L1)") dump_fields_periodically
-     if (make_movie) &
-          write (unit, fmt="(' make_movie = ',L1)") make_movie
+    if (write_ascii) then
+       write (unit, fmt="(' write_ascii = ',L1)") write_ascii
+       write (unit, fmt="(' write_omega = ',L1)") write_omega
+       write (unit, fmt="(' write_omavg = ',L1)") write_omavg
+    end if
+    write (unit, fmt="(' write_hrate = ',L1)") write_hrate
+    write (unit, fmt="(' write_lorentzian = ',L1)") write_lorentzian
+    write (unit, fmt="(' write_eigenfunc = ',L1)") write_eigenfunc
+    write (unit, fmt="(' write_final_fields = ',L1)") write_final_fields
+    write (unit, fmt="(' write_final_epar = ',L1)") write_final_epar
+    write (unit, fmt="(' write_final_db = ',L1)") write_final_db
+    write (unit, fmt="(' write_final_moments = ',L1)") write_final_moments
+    write (unit, fmt="(' write_final_antot = ',L1)") write_final_antot
+    write (unit, fmt="(' write_nl_flux = ',L1)") write_nl_flux
+    write (unit, fmt="(' exit_when_converged = ',L1)") exit_when_converged
+    write (unit, fmt="(' use_nonlin_convergence = ',L1)") use_nonlin_convergence
+    if (write_avg_moments) write (unit, fmt="(' write_avg_moments = ',L1)") write_avg_moments
+    if (dump_check1) write (unit, fmt="(' dump_check1 = ',L1)") dump_check1
+    if (dump_check2) write (unit, fmt="(' dump_check2 = ',L1)") dump_check2
+    if (dump_fields_periodically) &
+         write (unit, fmt="(' dump_fields_periodically = ',L1)") dump_fields_periodically
+    if (make_movie) &
+         write (unit, fmt="(' make_movie = ',L1)") make_movie
 
-     write (unit, fmt="(' /')")       
-   end subroutine wnml_gs2_diagnostics
+    write (unit, fmt="(' /')")       
+  end subroutine wnml_gs2_diagnostics
 
-   subroutine check_gs2_diagnostics(report_unit)
-     use file_utils, only: run_name
-     use nonlinear_terms, only: nonlinear_mode_switch, nonlinear_mode_on
-     use dist_fn, only : def_parity, even 
-     use kt_grids, only : gridopt_switch, gridopt_box
-     use init_g, only : restart_file
-     use gs2_save, only: restart_writable
-     implicit none
-     integer, intent(in) :: report_unit
-     logical :: writable
-     write (report_unit, *) 
-     write (report_unit, fmt="('------------------------------------------------------------')")
-     write (report_unit, *) 
-     write (report_unit, fmt="('Diagnostic control section.')")
+  !> FIXME : Add documentation
+  subroutine check_gs2_diagnostics(report_unit)
+    use file_utils, only: run_name
+    use nonlinear_terms, only: nonlinear_mode_switch, nonlinear_mode_on
+    use dist_fn, only : def_parity, even 
+    use kt_grids, only : gridopt_switch, gridopt_box
+    use init_g, only : restart_file
+    use gs2_save, only: restart_writable
+    implicit none
+    integer, intent(in) :: report_unit
+    logical :: writable
+    write (report_unit, *) 
+    write (report_unit, fmt="('------------------------------------------------------------')")
+    write (report_unit, *) 
+    write (report_unit, fmt="('Diagnostic control section.')")
 
-     if (print_line) then
-        write (report_unit, fmt="('print_line = T:            Estimated frequencies &
-             & output to the screen every ',i4,' steps.')") nwrite
-     else
-        ! nothing
-     end if
+    if (print_line) then
+       write (report_unit, fmt="('print_line = T:            Estimated frequencies &
+            & output to the screen every ',i4,' steps.')") nwrite
+    else
+       ! nothing
+    end if
 
-     if (write_line) then
-        if (write_ascii) then
-           write (report_unit, fmt="('write_line = T:            Estimated frequencies output to ',a,' every ',i4,' steps.')") &
-                & trim(run_name)//'.out',  nwrite
-        end if
-        write (report_unit, fmt="('write_line = T:            Estimated frequencies output to ',a,' every ',i4,' steps.')") &
-             & trim(run_name)//'.out.nc',  nwrite
-     else
-        ! nothing
-     end if
+    if (write_line) then
+       if (write_ascii) then
+          write (report_unit, fmt="('write_line = T:            Estimated frequencies output to ',a,' every ',i4,' steps.')") &
+               & trim(run_name)//'.out',  nwrite
+       end if
+       write (report_unit, fmt="('write_line = T:            Estimated frequencies output to ',a,' every ',i4,' steps.')") &
+            & trim(run_name)//'.out.nc',  nwrite
+    else
+       ! nothing
+    end if
 
-     if (print_flux_line) then
-        write (report_unit, fmt="('print_flux_line = T:       Instantaneous fluxes output to screen every ', &
-             & i4,' steps.')") nwrite
-     else
-        ! nothing
-     end if
+    if (print_flux_line) then
+       write (report_unit, fmt="('print_flux_line = T:       Instantaneous fluxes output to screen every ', &
+            & i4,' steps.')") nwrite
+    else
+       ! nothing
+    end if
 
-     if (write_flux_line) then
-        if (write_ascii) then
-           write (report_unit, fmt="('write_flux_line = T:       Instantaneous fluxes output to ',a,' every ',i4,' steps.')") &
-                & trim(run_name)//'.out',  nwrite
-        end if
-        write (report_unit, fmt="('write_flux_line = T:       Instantaneous fluxes output to ',a,' every ',i4,' steps.')") &
-             & trim(run_name)//'.out.nc',  nwrite
-     else
-        ! nothing
-     end if
+    if (write_flux_line) then
+       if (write_ascii) then
+          write (report_unit, fmt="('write_flux_line = T:       Instantaneous fluxes output to ',a,' every ',i4,' steps.')") &
+               & trim(run_name)//'.out',  nwrite
+       end if
+       write (report_unit, fmt="('write_flux_line = T:       Instantaneous fluxes output to ',a,' every ',i4,' steps.')") &
+            & trim(run_name)//'.out.nc',  nwrite
+    else
+       ! nothing
+    end if
 
-     if (write_omega) then
-        if (write_ascii) then
-           write (report_unit, fmt="('write_omega = T:           Instantaneous frequencies written to ',a)") trim(run_name)//'.out'
-        else
-           write (report_unit, fmt="('write_omega = T:           No effect.')")
-        end if
-        write (report_unit, fmt="('                           Frequencies calculated at igomega = ',i4)") igomega
-        if (def_parity .and. .not. even) then
-           write (report_unit, fmt="('################# WARNING #######################')")
-           write (report_unit, fmt="('   You probably want igomega /= 0 for odd parity modes.')") 
-           write (report_unit, fmt="('################# WARNING #######################')")
-           write (report_unit, *) 
-        end if
-     end if
+    if (write_omega) then
+       if (write_ascii) then
+          write (report_unit, fmt="('write_omega = T:           Instantaneous frequencies written to ',a)") trim(run_name)//'.out'
+       else
+          write (report_unit, fmt="('write_omega = T:           No effect.')")
+       end if
+       write (report_unit, fmt="('                           Frequencies calculated at igomega = ',i4)") igomega
+       if (def_parity .and. .not. even) then
+          write (report_unit, fmt="('################# WARNING #######################')")
+          write (report_unit, fmt="('   You probably want igomega /= 0 for odd parity modes.')") 
+          write (report_unit, fmt="('################# WARNING #######################')")
+          write (report_unit, *) 
+       end if
+    end if
 
-     if (write_omavg) then
-        if (write_ascii) then
-           write (report_unit, fmt="('write_omavg = T:           Time-averaged frequencies written to ',a)") trim(run_name)//'.out'
-           write (report_unit, fmt="('                           Averages taken over ',i4,' timesteps.')") navg
-        else
-           write (report_unit, fmt="('write_omavg = T:           No effect.')")
-        end if
-     end if
+    if (write_omavg) then
+       if (write_ascii) then
+          write (report_unit, fmt="('write_omavg = T:           Time-averaged frequencies written to ',a)") trim(run_name)//'.out'
+          write (report_unit, fmt="('                           Averages taken over ',i4,' timesteps.')") navg
+       else
+          write (report_unit, fmt="('write_omavg = T:           No effect.')")
+       end if
+    end if
 
-     if (write_ascii) then
-        write (report_unit, fmt="('write_ascii = T:           Write some data to ',a)") trim(run_name)//'.out'
-     end if
+    if (write_ascii) then
+       write (report_unit, fmt="('write_ascii = T:           Write some data to ',a)") trim(run_name)//'.out'
+    end if
 
-     if (write_eigenfunc) then
-        if (write_ascii) then
-           write (report_unit, fmt="('write_eigenfunc = T:       Normalized Phi(theta) written to ',a)") trim(run_name)//'.eigenfunc'
-        end if
-        write (report_unit, fmt="('write_eigenfunc = T:       Normalized Phi(theta) written to ',a)") trim(run_name)//'.out.nc'
-     end if
+    if (write_eigenfunc) then
+       if (write_ascii) then
+          write (report_unit, fmt="('write_eigenfunc = T:       Normalized Phi(theta) written to ',a)") trim(run_name)//'.eigenfunc'
+       end if
+       write (report_unit, fmt="('write_eigenfunc = T:       Normalized Phi(theta) written to ',a)") trim(run_name)//'.out.nc'
+    end if
 
-     if (write_final_fields) then
-        if (write_ascii) then
-           write (report_unit, fmt="('write_final_fields = T:    Phi(theta), etc. written to ',a)") trim(run_name)//'.fields'
-        end if
-        write (report_unit, fmt="('write_final_fields = T:    Phi(theta), etc. written to ',a)") trim(run_name)//'.out.nc'
-     end if
+    if (write_final_fields) then
+       if (write_ascii) then
+          write (report_unit, fmt="('write_final_fields = T:    Phi(theta), etc. written to ',a)") trim(run_name)//'.fields'
+       end if
+       write (report_unit, fmt="('write_final_fields = T:    Phi(theta), etc. written to ',a)") trim(run_name)//'.out.nc'
+    end if
 
-     if (write_final_antot) then
-        if (write_ascii) then
-           write (report_unit, fmt="('write_final_antot = T:          Sources for Maxwell eqns. written to ',a)") &
-                & trim(run_name)//'.antot'
-        end if
-        write (report_unit, fmt="('write_final_antot = T:          Sources for Maxwell eqns. written to ',a)") &
-             & trim(run_name)//'.out.nc'
-     end if
+    if (write_final_antot) then
+       if (write_ascii) then
+          write (report_unit, fmt="('write_final_antot = T:          Sources for Maxwell eqns. written to ',a)") &
+               & trim(run_name)//'.antot'
+       end if
+       write (report_unit, fmt="('write_final_antot = T:          Sources for Maxwell eqns. written to ',a)") &
+            & trim(run_name)//'.out.nc'
+    end if
 
-     if (write_final_moments) then
-        if (write_ascii) then
-           write (report_unit, fmt="('write_final_moments = T:   Low-order moments of g written to ',a)") &
-                & trim(run_name)//'.moments'
-           write (report_unit, fmt="('write_final_moments = T:   int dl/B average of low-order moments of g written to ',a)") &
-                & trim(run_name)//'.amoments'
-        end if
-        write (report_unit, fmt="('write_final_moments = T:   Low-order moments of g written to ',a)") &
-             & trim(run_name)//'.out.nc'
-        write (report_unit, fmt="('write_final_moments = T:   int dl/B average of low-order moments of g written to ',a)") &
-             & trim(run_name)//'.out.nc'
-     end if
+    if (write_final_moments) then
+       if (write_ascii) then
+          write (report_unit, fmt="('write_final_moments = T:   Low-order moments of g written to ',a)") &
+               & trim(run_name)//'.moments'
+          write (report_unit, fmt="('write_final_moments = T:   int dl/B average of low-order moments of g written to ',a)") &
+               & trim(run_name)//'.amoments'
+       end if
+       write (report_unit, fmt="('write_final_moments = T:   Low-order moments of g written to ',a)") &
+            & trim(run_name)//'.out.nc'
+       write (report_unit, fmt="('write_final_moments = T:   int dl/B average of low-order moments of g written to ',a)") &
+            & trim(run_name)//'.out.nc'
+    end if
 
-     if (write_avg_moments) then
-        if (gridopt_switch /= gridopt_box) then
-           write (report_unit, *) 
-           write (report_unit, fmt="('################# WARNING #######################')")
-           write (report_unit, fmt="('write_avg_moments = T:          Ignored unless grid_option=box')")
-           write (report_unit, fmt="('################# WARNING #######################')")
-           write (report_unit, *) 
-        else
-           if (write_ascii) then
-              write (report_unit, fmt="('write_avg_moments = T:     Flux surface averaged low-order moments of g written to ',a)") &
-                   & trim(run_name)//'.moments'
-           end if
-           write (report_unit, fmt="('write_avg_moments = T:     Flux surface averaged low-order moments of g written to ',a)") &
-                & trim(run_name)//'.out.nc'
-        end if
-     end if
+    if (write_avg_moments) then
+       if (gridopt_switch /= gridopt_box) then
+          write (report_unit, *) 
+          write (report_unit, fmt="('################# WARNING #######################')")
+          write (report_unit, fmt="('write_avg_moments = T:          Ignored unless grid_option=box')")
+          write (report_unit, fmt="('################# WARNING #######################')")
+          write (report_unit, *) 
+       else
+          if (write_ascii) then
+             write (report_unit, fmt="('write_avg_moments = T:     Flux surface averaged low-order moments of g written to ',a)") &
+                  & trim(run_name)//'.moments'
+          end if
+          write (report_unit, fmt="('write_avg_moments = T:     Flux surface averaged low-order moments of g written to ',a)") &
+               & trim(run_name)//'.out.nc'
+       end if
+    end if
 
-     if (write_final_epar) then
-        if (write_ascii) then
-           write (report_unit, fmt="('write_final_epar = T:      E_parallel(theta) written to ',a)") trim(run_name)//'.epar'
-        end if
-        write (report_unit, fmt="('write_final_epar = T:      E_parallel(theta) written to ',a)") trim(run_name)//'.out.nc'
-     end if
+    if (write_final_epar) then
+       if (write_ascii) then
+          write (report_unit, fmt="('write_final_epar = T:      E_parallel(theta) written to ',a)") trim(run_name)//'.epar'
+       end if
+       write (report_unit, fmt="('write_final_epar = T:      E_parallel(theta) written to ',a)") trim(run_name)//'.out.nc'
+    end if
 
-     if (write_nl_flux) then
-        if (write_ascii) then
-           write (report_unit, fmt="('write_nl_flux = T:         Phi**2(kx, ky) written to ',a)") trim(run_name)//'.out'
-        end if
-     else
-        write (report_unit, fmt="('write_nl_flux = F:         Phi**2(kx, ky) NOT written to ',a)") trim(run_name)//'.out'
-     end if
+    if (write_nl_flux) then
+       if (write_ascii) then
+          write (report_unit, fmt="('write_nl_flux = T:         Phi**2(kx, ky) written to ',a)") trim(run_name)//'.out'
+       end if
+    else
+       write (report_unit, fmt="('write_nl_flux = F:         Phi**2(kx, ky) NOT written to ',a)") trim(run_name)//'.out'
+    end if
 
-     if (dump_check1) then
-        write (report_unit, fmt="('dump_check1 = T:          Field-line avg of Phi written to ',a)") 'dump.check1'
-        write (report_unit, fmt="('This option is usually used for Rosenbluth-Hinton calculations.')") 
-        write (report_unit, fmt="('THIS IS PROBABLY AN ERROR.')") 
-     end if
+    if (dump_check1) then
+       write (report_unit, fmt="('dump_check1 = T:          Field-line avg of Phi written to ',a)") 'dump.check1'
+       write (report_unit, fmt="('This option is usually used for Rosenbluth-Hinton calculations.')") 
+       write (report_unit, fmt="('THIS IS PROBABLY AN ERROR.')") 
+    end if
 
-     if (dump_check2) then
-        write (report_unit, fmt="('dump_check2 = T:           Apar(kx, ky, igomega) written to ',a)") trim(run_name)//'.dc2'
-        write (report_unit, fmt="('THIS IS PROBABLY AN ERROR.')") 
-     end if
+    if (dump_check2) then
+       write (report_unit, fmt="('dump_check2 = T:           Apar(kx, ky, igomega) written to ',a)") trim(run_name)//'.dc2'
+       write (report_unit, fmt="('THIS IS PROBABLY AN ERROR.')") 
+    end if
 
-     if (dump_fields_periodically) then
-        write (report_unit, fmt="('dump_fields_periodically = T:          Phi, Apar, Bpar written to ',a)") 'dump.fields.t=(time)'
-        write (report_unit, fmt="('THIS IS PROBABLY AN ERROR.  IT IS EXPENSIVE.')") 
-     end if
+    if (dump_fields_periodically) then
+       write (report_unit, fmt="('dump_fields_periodically = T:          Phi, Apar, Bpar written to ',a)") 'dump.fields.t=(time)'
+       write (report_unit, fmt="('THIS IS PROBABLY AN ERROR.  IT IS EXPENSIVE.')") 
+    end if
 
-     if (save_for_restart) then
-        write (report_unit, fmt="('save_for_restart = T:      Restart files written to ',a)") trim(restart_file)//'.(PE)'
-     else
-        if (nonlinear_mode_switch == nonlinear_mode_on) then
-           write (report_unit, *) 
-           write (report_unit, fmt="('################# WARNING #######################')")
-           write (report_unit, fmt="('save_for_restart = F:              This run cannot be continued.')")
-           write (report_unit, fmt="('THIS IS PROBABLY AN ERROR.')") 
-           write (report_unit, fmt="('################# WARNING #######################')")
-           write (report_unit, *) 
-        end if
-     end if
+    if (save_for_restart) then
+       write (report_unit, fmt="('save_for_restart = T:      Restart files written to ',a)") trim(restart_file)//'.(PE)'
+    else
+       if (nonlinear_mode_switch == nonlinear_mode_on) then
+          write (report_unit, *) 
+          write (report_unit, fmt="('################# WARNING #######################')")
+          write (report_unit, fmt="('save_for_restart = F:              This run cannot be continued.')")
+          write (report_unit, fmt="('THIS IS PROBABLY AN ERROR.')") 
+          write (report_unit, fmt="('################# WARNING #######################')")
+          write (report_unit, *) 
+       end if
+    end if
 
-     !Verify restart file can be written
-     if((save_for_restart.or.save_distfn).and.(file_safety_check))then
-        !Can we write file?
-        writable=restart_writable()
+    !Verify restart file can be written
+    if((save_for_restart.or.save_distfn).and.(file_safety_check))then
+       !Can we write file?
+       writable=restart_writable()
 
-        !If we can't write the restart file then we should probably quit
-        if((.not.writable))then
-           if(save_for_restart)then 
-              write (report_unit, *) 
-              write (report_unit, fmt="('################# WARNING #######################')")
-              write (report_unit, fmt="('save_for_restart = T:   But we cannot write to a test file like ',A,'.')") trim(restart_file)
-              write (report_unit, fmt="('THIS IS PROBABLY AN ERROR --> Check restart_dir.')") 
-              write (report_unit, fmt="('################# WARNING #######################')")
-              write (report_unit, *) 
-           endif
-           if(save_distfn)then 
-              write (report_unit, *) 
-              write (report_unit, fmt="('################# WARNING #######################')")
-              write (report_unit, fmt="('save_distfn = T:   But we cannot write to a test file like ',A,'.')") trim(restart_file)
-              write (report_unit, fmt="('THIS IS PROBABLY AN ERROR --> Check restart_dir.')") 
-              write (report_unit, fmt="('################# WARNING #######################')")
-              write (report_unit, *) 
-           endif
-        endif
-     endif
+       !If we can't write the restart file then we should probably quit
+       if((.not.writable))then
+          if(save_for_restart)then 
+             write (report_unit, *) 
+             write (report_unit, fmt="('################# WARNING #######################')")
+             write (report_unit, fmt="('save_for_restart = T:   But we cannot write to a test file like ',A,'.')") trim(restart_file)
+             write (report_unit, fmt="('THIS IS PROBABLY AN ERROR --> Check restart_dir.')") 
+             write (report_unit, fmt="('################# WARNING #######################')")
+             write (report_unit, *) 
+          endif
+          if(save_distfn)then 
+             write (report_unit, *) 
+             write (report_unit, fmt="('################# WARNING #######################')")
+             write (report_unit, fmt="('save_distfn = T:   But we cannot write to a test file like ',A,'.')") trim(restart_file)
+             write (report_unit, fmt="('THIS IS PROBABLY AN ERROR --> Check restart_dir.')") 
+             write (report_unit, fmt="('################# WARNING #######################')")
+             write (report_unit, *) 
+          endif
+       endif
+    endif
 
   end subroutine check_gs2_diagnostics
 
-
+  !> FIXME : Add documentation
   subroutine init_gs2_diagnostics (list, nstep)
     use theta_grid, only: init_theta_grid
     use kt_grids, only: init_kt_grids, ntheta0, naky
@@ -510,11 +511,11 @@ contains
     nwrite_big_tot = nstep/(nwrite*nwrite_mult)-nstep/4/(nwrite*nwrite_mult)
     if(nwrite_big_tot .le. 0) nwrite_big_tot = 1
 
-! initialize weights for less accurate integrals used
-! to provide an error estimate for v-space integrals (energy and untrapped)
+    ! initialize weights for less accurate integrals used
+    ! to provide an error estimate for v-space integrals (energy and untrapped)
     if (write_verr .and. proc0) call init_weights
 
-! allocate heating diagnostic data structures
+    ! allocate heating diagnostic data structures
     if (write_hrate) then
        allocate (h_hist(0:navg-1))
        call init_htype (h_hist,  nspec)
@@ -531,8 +532,8 @@ contains
        allocate (hk(1,1))
        allocate (hk_hist(1,1,0))
     end if
-       
-!GGH Allocate density and velocity perturbation diagnostic structures
+
+    !GGH Allocate density and velocity perturbation diagnostic structures
     if (write_jext) allocate (j_ext_hist(ntheta0, naky,0:navg-1)) 
 
     call init_gs2_io (write_nl_flux, write_omega, &
@@ -544,7 +545,7 @@ contains
          write_phi_over_time, write_apar_over_time, write_bpar_over_time, &
          write_avg_moments, write_final_moments, write_final_epar, &
          ob_midplane=ob_midplane)
-    
+
     if (write_cerr) then
        if (collision_model_switch == 1 .or. collision_model_switch == 5) then
           call init_lorentz_error
@@ -576,8 +577,8 @@ contains
     !Setup the parallel fft if we're writing/using the parallel spectrum
     if(write_kpar.or.write_gs) call init_par_filter
   end subroutine init_gs2_diagnostics
- 
 
+  !> FIXME : Add documentation
   subroutine real_init (list)
     use run_parameters, only: fapar
     use file_utils, only: open_output_file, get_unused_unit
@@ -594,8 +595,8 @@ contains
     if (proc0) then
        if (write_ascii) then
           call open_output_file (out_unit, ".out")          
-!          if (write_kpar) call open_output_file (kp_unit, ".kp")
-       end if             
+          !          if (write_kpar) call open_output_file (kp_unit, ".kp")
+       end if
 
        if (write_cross_phase .and. write_ascii) then
           call open_output_file (phase_unit, ".phase")
@@ -629,12 +630,12 @@ contains
           call get_unused_unit (dump_check1_unit)
           open (unit=dump_check1_unit, file="dump.check1", status="unknown")
        end if
-       
+
        if (dump_check2) then
           call get_unused_unit (dump_check2_unit)
           call open_output_file (dump_check2_unit, ".dc2")
        end if
-       
+
        if (write_ascii) then
           write (unit=out_unit, fmt="('gs2')")
           datestamp(:) = ' '
@@ -651,7 +652,7 @@ contains
 
     end if
 
-    !<doc> Allocate arrays for storing the various fluxes which the diagnostics will output </doc>
+    !> Allocate arrays for storing the various fluxes which the diagnostics will output </doc>
     allocate (pflux (ntheta0,naky,nspec)) ; pflux = 0.
     allocate (pflux_tormom (ntheta0,naky,nspec)) ; pflux_tormom = 0. 
     allocate (qheat (ntheta0,naky,nspec,3)) ; qheat = 0.
@@ -674,21 +675,22 @@ contains
     allocate (vbflux(ntheta0,naky,nspec)) ; vbflux = 0.
 
     if (.not. allocated(omega)) then
-      allocate(omega(ntheta0, naky))
-      allocate(omegaavg(ntheta0, naky))
-      omega=0
-      omegaavg=0
+       allocate(omega(ntheta0, naky))
+       allocate(omegaavg(ntheta0, naky))
+       omega=0
+       omegaavg=0
     end if
-      
+
   end subroutine real_init
 
+  !> FIXME : Add documentation  
   subroutine read_parameters (list)
-!CMR, 17/11/2009:   namelist gs2_diagnostics_knobs made public
-!                   so that ingen can just USE it instead of copying it!
-!
+    !CMR, 17/11/2009:   namelist gs2_diagnostics_knobs made public
+    !                   so that ingen can just USE it instead of copying it!
+    !
     use file_utils, only: input_unit, input_unit_exist
     use theta_grid, only: nperiod, ntheta
-!    use kt_grids, only: box
+    !    use kt_grids, only: box
     use run_parameters, only: fphi
     use mp, only: proc0
     implicit none
@@ -764,10 +766,10 @@ contains
 
        !<doc> Read in parameters from the namelist gs2_diagnostics_knobs, if the namelist exists </doc>
        if (exist) read (unit=in_file, nml=gs2_diagnostics_knobs)
-!
-!CMR, 12/8/2014: 
-! Ensure write_full_moments_notgc=.false. if (write_moments .and. ob_midplane)
-! to avoid a conflict.  
+       !
+       !CMR, 12/8/2014: 
+       ! Ensure write_full_moments_notgc=.false. if (write_moments .and. ob_midplane)
+       ! to avoid a conflict.  
        if (write_moments .and. ob_midplane) write_full_moments_notgc=.false.
 
        !Override flags
@@ -789,8 +791,8 @@ contains
        if(fphi.eq.0) write_correlation_extend = .false.
 
        if (.not. save_for_restart) nsave = -1
-! changed temporarily for testing -- MAB
-!       write_avg_moments = write_avg_moments .and. box
+       ! changed temporarily for testing -- MAB
+       !       write_avg_moments = write_avg_moments .and. box
        write_avg_moments = write_avg_moments
 
        write_any = write_line .or. write_omega     .or. write_omavg &
@@ -802,9 +804,10 @@ contains
             .or. write_full_moments_notgc
 
        ntg_out = ntheta/2 + (nperiod-1)*ntheta
-    end if 
- end subroutine read_parameters
+    end if
+  end subroutine read_parameters
 
+  !> FIXME : Add documentation  
   subroutine finish_gs2_diagnostics (istep)
     use mp, only: proc0
     use run_parameters, only: fphi, fapar, fbpar
@@ -827,7 +830,7 @@ contains
     logical :: last = .true.
 
     call debug_message(3, 'gs2_diagnostics::finish_gs2_diagnostics &
-      & starting')
+         & starting')
 
     if (write_gyx) call write_fyx (phinew,bparnew,last)
     if (write_g) call write_f (last)
@@ -843,7 +846,7 @@ contains
        if (write_final_fields) call do_write_final_fields
        if (write_kpar) call do_write_kpar
        if (write_final_epar) call do_write_final_epar
-   
+
        ! definition here assumes we are not using wstar_units
        if (write_final_db) call do_write_final_db
     end if
@@ -863,11 +866,11 @@ contains
     if (save_distfn) then
        !Convert h to distribution function
        call g_adjust(gnew,phinew,bparnew,fphi,fbpar)
-       
+
        !Save dfn, fields and velocity grids to file
        call gs2_save_for_restart (gnew, user_time, user_dt, vnmult, istatus, &
             fphi, fapar, fbpar, exit_in=.true.,distfn=.true.)
-       
+
        !Convert distribution function back to h
        call g_adjust(gnew,phinew,bparnew,-fphi,-fbpar)
     end if
@@ -879,7 +882,7 @@ contains
     if (proc0) call dump_ant_amp
 
     if (write_gs) call do_write_gs
-    
+
     if (proc0) call do_write_geom
 
     !Now tidy up
@@ -888,7 +891,8 @@ contains
     wtmp_old = 0. ; nout = 1 ; nout_movie = 1 ; nout_big = 1
     initialized = .false.
   end subroutine finish_gs2_diagnostics
-  
+
+  !> FIXME : Add documentation
   subroutine deallocate_arrays
     use mp, only: proc0
     use job_manage, only: trin_reset, trin_restart
@@ -916,12 +920,13 @@ contains
 
     if (proc0 .and. trin_reset .and. allocated(conv_heat)) deallocate (conv_heat)
 
-! HJL <    
-! EGH only proc0 has domega
+    ! HJL <    
+    ! EGH only proc0 has domega
     if (proc0 .and. allocated(domega)) deallocate(domega)
-! > HJL
+    ! > HJL
   end subroutine deallocate_arrays
 
+  !> FIXME : Add documentation  
   subroutine close_files
     use file_utils, only: close_output_file
     use mp, only: proc0
@@ -944,6 +949,7 @@ contains
 
   end subroutine close_files
 
+  !> FIXME : Add documentation  
   subroutine loop_diagnostics (istep, exit, debopt)
     use species, only: nspec, spec, has_electron_species
     use kt_grids, only: naky, ntheta0
@@ -1025,9 +1031,9 @@ contains
     call prof_leaving ("loop_diagnostics")
     if (debug) write(6,*) "loop_diagnostics: call update_time"
 
-!########################################################
-!The rest of the routine only happens every nwrite steps
-!########################################################
+    !########################################################
+    !The rest of the routine only happens every nwrite steps
+    !########################################################
     if (mod(istep,nwrite) /= 0 .and. .not. exit) return
 
     !DONE
@@ -1057,10 +1063,10 @@ contains
     ! DONE
     if (write_cross_phase .and. has_electron_species(spec) .and. write_ascii ) call do_write_crossphase(t)
 
-!###########################
-!<DD> The following large section could do with being moved to separate routines but
-!     at the moment its all quite interlinked which makes this hard.
-!###########################
+    !###########################
+    !<DD> The following large section could do with being moved to separate routines but
+    !     at the moment its all quite interlinked which makes this hard.
+    !###########################
 
     !Zero various arrays which may or may not get filled
     part_fluxes = 0.0 ; mpart_fluxes = 0.0 ; bpart_fluxes = 0.0
@@ -1096,7 +1102,7 @@ contains
 
                 qheat(:,:,is,3) = qheat(:,:,is,3) * spec(is)%dens*spec(is)%temp
                 call get_volume_average (qheat(:,:,is,3), heat_perp(is))
-                
+
                 pflux(:,:,is) = pflux(:,:,is) * spec(is)%dens
                 call get_volume_average (pflux(:,:,is), part_fluxes(is))
 
@@ -1122,8 +1128,8 @@ contains
                 vflux1(:,:,is) = vflux1(:,:,is) * spec(is)%dens*spec(is)%mass*spec(is)%temp/spec(is)%z
                 call get_volume_average (vflux1(:,:,is), vflux1_avg(is))
 
-! TMP UNTIL VFLUX0 IS TESTED
-!                   mom_fluxes = mom_fluxes + lfmom_fluxes
+                ! TMP UNTIL VFLUX0 IS TESTED
+                !                   mom_fluxes = mom_fluxes + lfmom_fluxes
 #endif
              end do
           end if
@@ -1139,7 +1145,7 @@ contains
 
                 qmheat(:,:,is,3)=qmheat(:,:,is,3) * spec(is)%dens*spec(is)%temp
                 call get_volume_average (qmheat(:,:,is,3), mheat_perp(is))
-                
+
                 pmflux(:,:,is)=pmflux(:,:,is) * spec(is)%dens
                 call get_volume_average (pmflux(:,:,is), mpart_fluxes(is))
 
@@ -1157,7 +1163,7 @@ contains
 
                 qbheat(:,:,is,3)=qbheat(:,:,is,3) * spec(is)%dens*spec(is)%temp
                 call get_volume_average (qbheat(:,:,is,3), bheat_perp(is))
-                
+
                 pbflux(:,:,is)=pbflux(:,:,is) * spec(is)%dens
                 call get_volume_average (pbflux(:,:,is), bpart_fluxes(is))
 
@@ -1169,7 +1175,7 @@ contains
           qflux_avg = qflux_avg + (heat_fluxes + mheat_fluxes + bheat_fluxes)*(t-t_old)
           vflux_avg = vflux_avg + (mom_fluxes + mmom_fluxes + bmom_fluxes)*(t-t_old)
           if (write_hrate) heat_avg = heat_avg + h%imp_colls*(t-t_old)
-!          t_old = t
+          !          t_old = t
        end if
 
        !<DD>These are for trinity -- can we detect if this is a trinity run
@@ -1208,8 +1214,8 @@ contains
 
     ! DONE UP TO HERE
 
-! Check for convergence
-   ! DONE
+    ! Check for convergence
+    ! DONE
     if(nonlin .and. use_nonlin_convergence) call check_nonlin_convergence(istep, heat_fluxes(1), exit)
 
     call prof_leaving ("loop_diagnostics-1")
@@ -1224,12 +1230,12 @@ contains
        if (write_ascii) write (unit=out_unit, fmt=*) 'time=', t
        if (write_ascii .and. write_hrate) call do_write_hrate(t)
 
-!>GGH
+       !>GGH
        !Write out data for j_external
        ! DONE
        if (write_ascii .and. write_jext) call do_write_jext(t,istep)
-!<GGH
-        ! DONE
+       !<GGH
+       ! DONE
        if (write_flux_line) then
           hflux_tot = 0.
           zflux_tot = 0.
@@ -1250,9 +1256,9 @@ contains
                      t, phi2, energy_exchange(1:min(nspec,5))
 
 #ifdef LOWFLOW
-                   write (unit=out_unit, fmt="('t= ',e17.10,' <phi**2>= ',e11.4, &
-                        & ' lfmom fluxes: ', 5(1x,e11.4),' lfvflx1: ', 5(1x,e11.4))") &
-                        t, phi2, lfmom_fluxes(1:min(nspec,5)), vflux1_avg(1:min(nspec,5))
+                write (unit=out_unit, fmt="('t= ',e17.10,' <phi**2>= ',e11.4, &
+                     & ' lfmom fluxes: ', 5(1x,e11.4),' lfvflx1: ', 5(1x,e11.4))") &
+                     t, phi2, lfmom_fluxes(1:min(nspec,5)), vflux1_avg(1:min(nspec,5))
 #endif
              end if
              hflux_tot = sum(heat_fluxes)
@@ -1302,8 +1308,8 @@ contains
              call nc_exchange (nout, exchange, energy_exchange)
              ! Update the target array in parameter_scan_arrays
              !<DD>Do you really want the scan parameter to rely on a diagnostic flag?
-! below line gives out-of-bounds array for runs inside trinity
-!                  scan_hflux(nout) = hflux_tot
+             ! below line gives out-of-bounds array for runs inside trinity
+             !                  scan_hflux(nout) = hflux_tot
              scan_hflux(mod(nout-1,nstep/nwrite+1)+1) = hflux_tot
 
              call nc_vflux (nout, vflux, vmflux, vbflux, &
@@ -1311,17 +1317,17 @@ contains
                   vflux_par, vflux_perp, vflux0, vflux1)
              ! Update the target array in parameter_scan_arrays
              !<DD>Do you really want the scan parameter to rely on a diagnostic flag?
-! below line gives out-of-bounds array for runs inside trinity
-!                  scan_momflux(nout) = vflux_tot
-                  scan_momflux(mod(nout-1,nstep/nwrite+1)+1) = vflux_tot
+             ! below line gives out-of-bounds array for runs inside trinity
+             !                  scan_momflux(nout) = vflux_tot
+             scan_momflux(mod(nout-1,nstep/nwrite+1)+1) = vflux_tot
              call nc_pflux (nout, pflux, pmflux, pbflux, &
                   part_fluxes, mpart_fluxes, bpart_fluxes, zflux_tot)
           end if
 
           if (write_pflux_tormom) call nc_pflux_tormom (nout, pflux_tormom, part_tormom_fluxes)
 
-! below line gives out-of-bounds array for runs inside trinity
-!               scan_phi2_tot(nout) = phi2
+          ! below line gives out-of-bounds array for runs inside trinity
+          !               scan_phi2_tot(nout) = phi2
           scan_phi2_tot(mod(nout-1,nstep/nwrite+1)+1) = phi2
        end if
 
@@ -1349,7 +1355,7 @@ contains
 
     ! DONE
     if (write_pflux_sym) call do_write_pflux_sym
-    
+
     ! DONE
     if (write_correlation) call do_write_correlation
 
@@ -1366,15 +1372,15 @@ contains
     ! DONE
     if (write_full_moments_notgc) call do_write_full_moments_notgc(t)
 
-!
-! I have not checked the units in this section. BD
-!       
+    !
+    ! I have not checked the units in this section. BD
+    !       
     if (dump_check1) call do_write_dump_1(t)
     if (dump_check2) call do_write_dump_2(t)
 
     ! DONE
     if (dump_fields_periodically .and. mod(istep,10*nwrite) == 0) call do_dump_fields_periodically(t)
-    
+
     ! Update the counter in parameter_scan_arrays
     scan_nout = nout
 
@@ -1387,7 +1393,7 @@ contains
     !Flush files
     ! DONE
     if (write_ascii .and. mod(nout, 10) == 0 .and. proc0) call flush_files
-    
+
     !Update time
     t_old = t
 
@@ -1396,6 +1402,7 @@ contains
     if (debug) write(6,*) "loop_diagnostics: done"
   end subroutine loop_diagnostics
 
+  !> FIXME : Add documentation  
   subroutine do_get_omega(istep,debug,exit)
     use mp, only: proc0, broadcast
     use nonlinear_terms, only: nonlin
@@ -1421,6 +1428,7 @@ contains
     endif
   end subroutine do_get_omega
 
+  !> FIXME : Add documentation
   subroutine do_write_ncloop(t,istep,phi2,apar2,bpar2,phitot)
     use fields_arrays, only: phinew, aparnew, bparnew
     use run_parameters, only: fphi, fapar, fbpar, woutunits
@@ -1460,7 +1468,7 @@ contains
          aparnew(igomega,:,:), apar2, apar2_by_mode, &
          bparnew(igomega,:,:), bpar2, bpar2_by_mode, &
          h, hk, omega, omegaavg, woutunits, phitot, write_omega, write_hrate)
-    
+
   end subroutine do_write_ncloop
 
   subroutine bcast_scan_parameter(scan_hflux,scan_momflux,scan_phi2)
@@ -1483,6 +1491,7 @@ contains
 
   end subroutine bcast_scan_parameter
 
+  !> FIXME : Add documentation
   subroutine do_write_eigenfunc(phi0)
     use mp, only: proc0
     use file_utils, only: open_output_file, close_output_file
@@ -1539,6 +1548,7 @@ contains
     call nc_eigenfunc (phi0)
   end subroutine do_write_eigenfunc
 
+  !> FIXME : Add documentation  
   subroutine do_write_final_fields
     use mp, only: proc0
     use file_utils, only: open_output_file, close_output_file
@@ -1575,6 +1585,7 @@ contains
     call nc_final_fields
   end subroutine do_write_final_fields
 
+  !> FIXME : Add documentation  
   subroutine do_write_kpar
     use mp, only: proc0
     use file_utils, only: open_output_file, close_output_file
@@ -1643,6 +1654,7 @@ contains
     deallocate (phi2, apar2, bpar2)
   end subroutine do_write_kpar
 
+  !> FIXME : Add documentation  
   subroutine do_write_final_epar
     use mp, only: proc0
     use file_utils, only: open_output_file, close_output_file
@@ -1656,9 +1668,9 @@ contains
     integer :: ik, it, ig, unit
 
     if(.not.proc0) return
-    
+
     allocate (epar(-ntgrid:ntgrid,ntheta0,naky))
-    
+
     !Calculate
     call get_epar (phi, apar, phinew, aparnew, epar)
 
@@ -1685,6 +1697,7 @@ contains
     deallocate (epar)
   end subroutine do_write_final_epar
 
+  !> FIXME : Add documentation  
   subroutine do_write_final_db
     use file_utils, only: open_output_file, close_output_file
     use mp, only: proc0
@@ -1731,6 +1744,7 @@ contains
     !No netcdf output for this diagnostic yet
   end subroutine do_write_final_db
 
+  !> FIXME : Add documentation
   subroutine do_write_final_moments(phi0_in)
     use theta_grid, only: ntgrid, theta
     use kt_grids, only: ntheta0, naky, aky, akx, theta0
@@ -1837,7 +1851,7 @@ contains
              end do
           end do
           call close_output_file (unit)          
-          
+
           deallocate(phi0,phi02)
        end if
 
@@ -1848,6 +1862,7 @@ contains
     deallocate (ntot, density, upar, tpar, tperp, qparflux, pperpj1, qpperpj1)
   end subroutine do_write_final_moments
 
+  !> FIXME : Add documentation  
   subroutine do_write_final_antot
     use file_utils, only: open_output_file, close_output_file
     use mp, only: proc0
@@ -1883,14 +1898,15 @@ contains
           end do
           call close_output_file (unit)
        end if
-       
+
        !Do netcdf output
        call nc_final_an (antot, antota, antotp)
     end if
 
     deallocate (antot, antota, antotp)
   end subroutine do_write_final_antot
-  
+
+  !> FIXME : Add documentation  
   subroutine do_write_gs
     use file_utils, only: open_output_file, close_output_file
     use mp, only: proc0, sum_reduce, iproc, nproc
@@ -2198,6 +2214,7 @@ contains
     deallocate (vx, vy, rvx, rvy)
   end subroutine do_write_gs
 
+  !> FIXME : Add documentation
   subroutine do_write_geom
     use mp, only: proc0
     use file_utils, only: open_output_file, close_output_file
@@ -2219,9 +2236,10 @@ contains
             Rprime(i),Zprime(i),aprime(i)
     enddo
     call close_output_file (unit)
-1000  format(20(1x,1pg18.11))
+1000 format(20(1x,1pg18.11))
   end subroutine do_write_geom
 
+  !> FIXME : Add documentation  
   subroutine do_write_movie(t)
     use gs2_layouts, only: yxf_lo
     use theta_grid, only: ntgrid
@@ -2267,6 +2285,7 @@ contains
     nout_movie = nout_movie + 1
   end subroutine do_write_movie
 
+  !> FIXME : Add documentation  
   subroutine do_print_line(phitot)
     use mp, only: proc0
     use kt_grids, only: naky, ntheta0, aky, akx, theta0
@@ -2292,6 +2311,7 @@ contains
     write (*,*) 
   end subroutine do_print_line
 
+  !> FIXME : Add documentation  
   subroutine do_write_jext(t,istep)
     use kt_grids, only: ntheta0, naky
     use mp, only: proc0
@@ -2316,6 +2336,7 @@ contains
     deallocate(j_ext)
   end subroutine do_write_jext
 
+  !> FIXME : Add documentation  
   subroutine do_write_moments
     use gs2_io, only: nc_write_moments
     use theta_grid, only: ntgrid
@@ -2332,6 +2353,7 @@ contains
     if(proc0) call nc_write_moments(nout, ntot, density, upar, tpar, tperp,qparflux, pperpj1, qpperpj1,ob_midplane=ob_midplane) 
   end subroutine do_write_moments
 
+  !> FIXME : Add documentation  
   subroutine do_write_crossphase(t)
     use mp, only: proc0
     implicit none
@@ -2343,6 +2365,7 @@ contains
          & t, phase_tot, phase_theta
   end subroutine do_write_crossphase
 
+  !> FIXME : Add documentation  
   subroutine do_write_line(t,it,ik,phitot)
     use kt_grids, only: aky, akx, theta0
     use run_parameters, only: woutunits
@@ -2359,6 +2382,7 @@ contains
          phitot,theta0(it,ik)
   end subroutine do_write_line
 
+  !> FIXME : Add documentation  
   subroutine do_write_omega(it,ik)
     use run_parameters, only: tunits, woutunits
     implicit none
@@ -2369,6 +2393,7 @@ contains
          omega(it,ik)/tunits(ik), omega(it,ik)*woutunits(ik)
   end subroutine do_write_omega
 
+  !> FIXME : Add documentation  
   subroutine do_write_omavg(it,ik)
     use run_parameters, only: tunits, woutunits
     implicit none
@@ -2379,6 +2404,7 @@ contains
          omegaavg(it,ik)/tunits(ik), omegaavg(it,ik)*woutunits(ik)               
   end subroutine do_write_omavg
 
+  !> FIXME : Add documentation  
   subroutine do_write_verr
     use dist_fn, only: get_verr, get_gtran
     use mp, only: proc0
@@ -2427,6 +2453,7 @@ contains
     deallocate(errest,erridx)
   end subroutine do_write_verr
 
+  !> FIXME : Add documentation  
   subroutine do_write_hrate(t)
     use species, only: nspec
     use file_utils, only: flush_output_file
@@ -2492,7 +2519,7 @@ contains
        !  18      df ** 2
        !  19      h ** 2
        !  20      Phi_bar ** 2
-       
+
        write (unit=heat_unit, fmt="(28es12.4)") t,h % energy,  &
             h % energy_dot, h % antenna, h % imp_colls, h % hypercoll, h % collisions, &
             h % gradients, h % heating, sum(h % imp_colls), sum(h % hypercoll), sum(h % collisions), &
@@ -2536,6 +2563,7 @@ contains
     end if
   end subroutine do_write_hrate
 
+  !> FIXME : Add documentation  
   subroutine do_write_symmetry
     use dist_fn, only: flux_vs_theta_vs_vpa
     use theta_grid, only: ntgrid
@@ -2553,10 +2581,10 @@ contains
     deallocate (vflx_sym)
   end subroutine do_write_symmetry
 
-! Calculate the poloidal distributions of the fluxes of particles, parallel
-! momentum, perpendicular momentum, and energy
-! (see section 3.1 and appendix A of Ball et al. PPCF 58 (2016) 045023 as well
-! as section 5 of "GS2 analytic geometry specification")
+  !> Calculate the poloidal distributions of the fluxes of particles, parallel
+  !! momentum, perpendicular momentum, and energy
+  !! (see section 3.1 and appendix A of Ball et al. PPCF 58 (2016) 045023 as well
+  !! as section 5 of "GS2 analytic geometry specification")
   subroutine do_write_nl_flux_dist
     use dist_fn, only: flux_dist
     use theta_grid, only: ntgrid
@@ -2622,6 +2650,7 @@ contains
     deallocate (phi_byMode_dist)
   end subroutine do_write_nl_flux_dist
 
+  !> FIXME : Add documentation  
   subroutine do_write_pflux_sym
     use dist_fn, only: pflux_vs_theta_vs_vpa
     use theta_grid, only: ntgrid
@@ -2638,6 +2667,7 @@ contains
     deallocate (pflux_sym)
   end subroutine do_write_pflux_sym
 
+  !> FIXME : Add documentation  
   subroutine do_write_correlation
     use theta_grid, only: ntgrid
     use kt_grids, only: naky
@@ -2651,6 +2681,7 @@ contains
     deallocate (phi_corr_2pi)
   end subroutine do_write_correlation
 
+  !> FIXME : Add documentation  
   subroutine do_write_correlation_extend(t,t_old,istep)
     use theta_grid, only: ntgrid
     use kt_grids, only: jtwist_out, ntheta0, naky
@@ -2685,6 +2716,7 @@ contains
     deallocate (phi_corr, phi2_extend)
   end subroutine do_write_correlation_extend
 
+  !> FIXME : Add documentation  
   subroutine do_write_parity(t)
     use theta_grid, only: ntgrid
     use kt_grids, only: naky, ntheta0
@@ -3114,6 +3146,7 @@ contains
     deallocate (phim)
   end subroutine do_write_parity
 
+  !> FIXME : Add documentation  
   subroutine do_write_avg_moments
     use dist_fn, only: getmoms
     use mp, only: proc0
@@ -3172,6 +3205,7 @@ contains
     end if
   end subroutine do_write_avg_moments
 
+  !> FIXME : Add documentation  
   subroutine do_write_full_moments_notgc(t)
     use dist_fn, only: getmoms_notgc
     use theta_grid, only: ntgrid
@@ -3193,6 +3227,7 @@ contains
     endif
   end subroutine do_write_full_moments_notgc
 
+  !> FIXME : Add documentation  
   subroutine do_write_dump_1(t)
     use mp, only: proc0
     use kt_grids, only: naky, ntheta0, aky, akx
@@ -3226,6 +3261,7 @@ contains
     end do
   end subroutine do_write_dump_1
 
+  !> FIXME : Add documentation  
   subroutine do_write_dump_2(t)
     use mp, only: proc0
     use kt_grids, only: naky, ntheta0, aky, akx
@@ -3243,6 +3279,7 @@ contains
     end do
   end subroutine do_write_dump_2
 
+  !> FIXME : Add documentation  
   subroutine do_dump_fields_periodically(t)
     use file_utils, only: get_unused_unit
     use kt_grids, only: naky, ntheta0, aky, theta0, akx
@@ -3271,6 +3308,7 @@ contains
     close (unit=unit)
   end subroutine do_dump_fields_periodically
 
+  !> FIXME : Add documentation
   subroutine flush_files
     use file_utils, only: flush_output_file
     implicit none
@@ -3282,8 +3320,8 @@ contains
     if (write_parity) call flush_output_file (parity_unit)
   end subroutine flush_files
 
-  ! Trinity convergence condition - simple and experimental
-  ! look for the averaged differential of the summed averaged heat flux to drop below a threshold
+  !> Trinity convergence condition - simple and experimental
+  !! look for the averaged differential of the summed averaged heat flux to drop below a threshold
   subroutine check_nonlin_convergence(istep, heat_flux, exit)
     use job_manage, only: trin_job
     use gs2_time, only: user_time
@@ -3293,7 +3331,7 @@ contains
     integer, intent(in) :: istep
     real, intent(in) :: heat_flux
 
-! Variables for convergence condition (HJL)
+    ! Variables for convergence condition (HJL)
     real :: heat_av_new, heat_av_diff
     integer :: place, iwrite, nwrite_av
     logical :: debug = .false.
@@ -3307,7 +3345,7 @@ contains
 
        place = mod(trin_istep,conv_nstep_av)/nwrite
        conv_heat(place) = heat_flux
-     
+
        if (debug) write(6,'(A,I5,A,e11.4,A,I6,I6)') 'Job ',trin_job, &
             ' time = ',user_time, ' step = ',trin_istep
        if (debug) write(6,'(A,I5,A,e11.4,A,e11.4)') 'Job ',trin_job, &
@@ -3326,7 +3364,7 @@ contains
              conv_isteps_converged = 0
              heat_av_test = heat_sum_av * conv_test_multiplier
           endif
-          
+
           if ((conv_isteps_converged .ge. conv_nsteps_converged/nwrite) .and. &
                (trin_istep .ge. conv_min_step)) then
              if (debug) write(6,'(A,I5,A,I6,I3)')'Job ',trin_job, &  
@@ -3346,6 +3384,7 @@ contains
 
   end subroutine check_nonlin_convergence
 
+  !> FIXME : Add documentation  
   subroutine heating (istep, h, hk)
     use mp, only: proc0
     use dist_fn, only: get_heat
@@ -3363,17 +3402,17 @@ contains
     real, dimension(-ntgrid:ntgrid) :: wgt
     real :: fac
     integer :: is, ik, it, ig
-    
+
     !Zero out variables for heating diagnostics
     call zero_htype(h)
     call zero_htype(hk)
 
     if (proc0) then
-       
+
        !GGH NOTE: Here wgt is 1/(2*ntgrid+1)
        wgt = delthet*jacob
        wgt = wgt/sum(wgt)
-          
+
        do is = 1, nspec
           do ik = 1, naky
              fac = 0.5
@@ -3381,7 +3420,7 @@ contains
              do it = 1, ntheta0
                 if (aky(ik) < epsilon(0.0) .and. abs(akx(it)) < epsilon(0.0)) cycle
                 do ig = -ntgrid, ntgrid
-                   
+
                    !Sum heating by k over all z points (ig)
                    hk(it, ik) % collisions(is) = hk(it, ik) % collisions(is) &
                         + real(c_rate(ig,it,ik,is,1))*fac*wgt(ig)*spec(is)%temp*spec(is)%dens
@@ -3407,10 +3446,11 @@ contains
     call avg_hk(hk, hk_hist, istep, navg)
 
   end subroutine heating
-!=============================================================================
-! Density: Calculate Density perturbations
-!=============================================================================
- subroutine calc_jext (istep, j_ext)
+
+  !> FIXME : Add documentation
+  !!
+  !! @note is this duplicated in dist_fn and if so why?
+  subroutine calc_jext (istep, j_ext)
     use mp, only: proc0
     use dist_fn, only: get_jext
     implicit none
@@ -3423,7 +3463,7 @@ contains
 
     !Call routine to calculate density and velocity perturbations
     call get_jext(j_ext)    
-    
+
     !Do averages with a history variable
     if (proc0) then
        !Save variable to history
@@ -3442,8 +3482,8 @@ contains
     end if
 
   end subroutine calc_jext
-!=============================================================================
-!<GGH
+  !=============================================================================
+  !<GGH
 
   !> A linear estimate of the diffusivity, used for Trinity testing
   function diffusivity()
@@ -3454,13 +3494,13 @@ contains
     integer  :: ik, it
     diffusivity_by_k = 0.0
     do ik=1,naky
-      do it=1,ntheta0
-        !if (akx(it).eq.0) cycle
-        if (kperp2(igomega,it,ik).eq.0.0) cycle
-        !diffusivity_by_k(it,ik) = max(aimag(omegaavg(it,ik)), 0.0)/akx(it)**2.0/2.0**0.5
-        diffusivity_by_k(it,ik) = &
-          max(aimag(omegaavg(it,ik)), 0.0)/kperp2(igomega, it, ik)*2.0
-      end do
+       do it=1,ntheta0
+          !if (akx(it).eq.0) cycle
+          if (kperp2(igomega,it,ik).eq.0.0) cycle
+          !diffusivity_by_k(it,ik) = max(aimag(omegaavg(it,ik)), 0.0)/akx(it)**2.0/2.0**0.5
+          diffusivity_by_k(it,ik) = &
+               max(aimag(omegaavg(it,ik)), 0.0)/kperp2(igomega, it, ik)*2.0
+       end do
     end do
     !write (*,*) 'diffusivity_by_k', diffusivity_by_k, 'omegaavg', omegaavg
     !call get_volume_average(diffusivity_by_k, diffusivity)
@@ -3469,6 +3509,7 @@ contains
 
   end function diffusivity
 
+  !> FIXME : Add documentation  
   function diagnostics_unit_test_diffusivity(results, eps)
     use unit_tests, only: agrees_with
     use mp,only: proc0
@@ -3476,10 +3517,11 @@ contains
     logical :: diagnostics_unit_test_diffusivity
     diagnostics_unit_test_diffusivity = .true.
     if (proc0) then
-      diagnostics_unit_test_diffusivity = agrees_with(diffusivity(), results, eps)
+       diagnostics_unit_test_diffusivity = agrees_with(diffusivity(), results, eps)
     end if
   end function diagnostics_unit_test_diffusivity
 
+  !> FIXME : Add documentation  
   subroutine get_omegaavg (istep, exit, omegaavg, debopt)
     use kt_grids, only: naky, ntheta0
     use fields_arrays, only: phi, apar, bpar, phinew, aparnew, bparnew
@@ -3491,52 +3533,52 @@ contains
     complex, dimension (:,:), intent (out) :: omegaavg
     logical, intent (in), optional :: debopt
     real :: fac
-!CMR, 7/11/2008: save here crucial to avoid crippling memory leak with mpixl!
-!HJL - moved to top of module
-!    complex, allocatable, save, dimension (:,:,:) :: domega
+    !CMR, 7/11/2008: save here crucial to avoid crippling memory leak with mpixl!
+    !HJL - moved to top of module
+    !    complex, allocatable, save, dimension (:,:,:) :: domega
     integer :: j
 
     logical :: debug=.false.
 
     if (debug) write(6,*) "get_omeaavg: allocate domega"
-if (.not. allocated(domega)) allocate(domega(navg,ntheta0,naky))
+    if (.not. allocated(domega)) allocate(domega(navg,ntheta0,naky))
     if (present(debopt)) debug=debopt
-if (debug) write(6,*) "get_omeaavg: start"
+    if (debug) write(6,*) "get_omeaavg: start"
     j = igomega
-!<DD>The logic below was originally
-!    where (abs(phinew(j,:,:)+aparnew(j,:,:)+bparnew(j,:,:)) < epsilon(0.0) &
-!           .or. abs(phi(j,:,:)+apar(j,:,:)+bpar(j,:,:)) < epsilon(0.0))
-!This results in not calculating the frequency whenever the fields drop below epsilon(0.0) [~1d-16 for DP]
-!What we really want to do is prevent dividing by too small a number. 
+    !<DD>The logic below was originally
+    !    where (abs(phinew(j,:,:)+aparnew(j,:,:)+bparnew(j,:,:)) < epsilon(0.0) &
+    !           .or. abs(phi(j,:,:)+apar(j,:,:)+bpar(j,:,:)) < epsilon(0.0))
+    !This results in not calculating the frequency whenever the fields drop below epsilon(0.0) [~1d-16 for DP]
+    !What we really want to do is prevent dividing by too small a number. 
     if(omegatol.eq.0)then
        fac=1.0
     else
        fac=1000/abs(omegatol)
     endif
-if (debug) write(6,*) "get_omeaavg: set omegahist"
+    if (debug) write(6,*) "get_omeaavg: set omegahist"
     where (abs(phinew(j,:,:)+aparnew(j,:,:)+bparnew(j,:,:)) < tiny(0.0)*fac &
-           .or. abs(phi(j,:,:)+apar(j,:,:)+bpar(j,:,:)) < tiny(0.0)*fac)
+         .or. abs(phi(j,:,:)+apar(j,:,:)+bpar(j,:,:)) < tiny(0.0)*fac)
        omegahist(mod(istep,navg),:,:) = 0.0
     elsewhere
        omegahist(mod(istep,navg),:,:) &
             = log((phinew(j,:,:) + aparnew(j,:,:) + bparnew(j,:,:)) &
-                  /(phi(j,:,:)   + apar(j,:,:)    + bpar(j,:,:)))*zi/code_dt
+            /(phi(j,:,:)   + apar(j,:,:)    + bpar(j,:,:)))*zi/code_dt
     end where
 
-if (debug) write(6,*) "get_omeaavg: set omegahist at istep = 0"
+    if (debug) write(6,*) "get_omeaavg: set omegahist at istep = 0"
     !During initialisation fieldnew==field but floating error can lead to finite omegahist
     !Force omegahist=0 here to avoid erroneous values.
     !Could think about forcing omegahist=0 where abs(omegahist)<tol
     if(istep.eq.0) omegahist(:,:,:)=0.0
 
-if (debug) write(6,*) "get_omeaavg: set omegaavg"
+    if (debug) write(6,*) "get_omeaavg: set omegaavg"
     omegaavg = sum(omegahist/real(navg),dim=1)
-if (debug) write(6,*) "get_omegaavg: omegaavg=",omegaavg
+    if (debug) write(6,*) "get_omegaavg: omegaavg=",omegaavg
     if (istep > navg) then
        domega = spread(omegaavg,1,navg) - omegahist
        if (all(sqrt(sum(abs(domega)**2/real(navg),dim=1)) &
             .le. min(abs(omegaavg),1.0)*omegatol)) &
-       then
+            then
           if (write_ascii) write (out_unit, "('*** omega converged')")
           exit = .true. .and. exit_when_converged
        end if
@@ -3546,9 +3588,10 @@ if (debug) write(6,*) "get_omegaavg: omegaavg=",omegaavg
           exit = .true.
        end if
     end if
-if (debug) write(6,*) "get_omegaavg: done"
+    if (debug) write(6,*) "get_omegaavg: done"
   end subroutine get_omegaavg
 
+  !> FIXME : Add documentation  
   subroutine phinorm (phitot)
     use fields_arrays, only: phinew, aparnew, bparnew
     use theta_grid, only: delthet
@@ -3560,14 +3603,16 @@ if (debug) write(6,*) "get_omegaavg: done"
     do ik = 1, naky
        do it = 1, ntheta0
           phitot(it,ik) = 0.5/pi &
-           *(sum((abs(phinew(:,it,ik))**2 + abs(aparnew(:,it,ik))**2 &
-                  + abs(bparnew(:,it,ik))**2) &
-                 *delthet))
+               *(sum((abs(phinew(:,it,ik))**2 + abs(aparnew(:,it,ik))**2 &
+               + abs(bparnew(:,it,ik))**2) &
+               *delthet))
        end do
     end do
   end subroutine phinorm
 
-!NOTE: Here we calculate the correction factors for each possible kperp
+  !> FIXME : Add documentation
+  !!
+  !! @note Here we calculate the correction factors for each possible kperp
   subroutine get_vol_average_all (a, b, axb, axb_by_mode)
     use theta_grid, only: ntgrid, delthet, jacob
     use kt_grids, only: naky, ntheta0
@@ -3595,8 +3640,8 @@ if (debug) write(6,*) "get_omegaavg: done"
     call get_volume_average (axb_by_mode, axb)
   end subroutine get_vol_average_all
 
+  !> FIXME : Add documentation  
   subroutine get_vol_average_one (a, b, axb, axb_by_mode)
-
     implicit none
     complex, dimension (:,:), intent (in) :: a, b
     real, intent (out) :: axb
@@ -3608,6 +3653,7 @@ if (debug) write(6,*) "get_omegaavg: done"
 
   end subroutine get_vol_average_one
 
+  !> FIXME : Add documentation  
   subroutine get_volume_average (f, favg)
     use kt_grids, only: naky, ntheta0, aky
     implicit none
@@ -3616,14 +3662,14 @@ if (debug) write(6,*) "get_omegaavg: done"
     real :: fac
     integer :: ik, it
 
-! ky=0 modes have correct amplitudes; rest must be scaled
-! note contrast with scaling factors in FFT routines.
+    ! ky=0 modes have correct amplitudes; rest must be scaled
+    ! note contrast with scaling factors in FFT routines.
 
-!CMR+GC: 2/9/2013
-!  fac values here arise because gs2's Fourier coefficients, F_k^gs2, not standard form: 
-!          i.e. f(x) = f_k e^(i k.x)
-!  With standard Fourier coeffs in gs2, we would instead need:  fac=2.0 for ky > 0
-!      (fac=2.0 would account ky<0 contributions, not stored due to reality condition)
+    !CMR+GC: 2/9/2013
+    !  fac values here arise because gs2's Fourier coefficients, F_k^gs2, not standard form: 
+    !          i.e. f(x) = f_k e^(i k.x)
+    !  With standard Fourier coeffs in gs2, we would instead need:  fac=2.0 for ky > 0
+    !      (fac=2.0 would account ky<0 contributions, not stored due to reality condition)
     favg = 0.
     do ik = 1, naky
        fac = 0.5
@@ -3635,6 +3681,7 @@ if (debug) write(6,*) "get_omegaavg: done"
 
   end subroutine get_volume_average
 
+  !> FIXME : Add documentation  
   subroutine get_surf_average (f, favg)
     use kt_grids, only: naky, ntheta0, aky
     implicit none
@@ -3643,14 +3690,14 @@ if (debug) write(6,*) "get_omegaavg: done"
     real :: fac
     integer :: ik, it
 
-! ky=0 modes have correct amplitudes; rest must be scaled
-! note contrast with scaling factors in FFT routines.
+    ! ky=0 modes have correct amplitudes; rest must be scaled
+    ! note contrast with scaling factors in FFT routines.
 
-!CMR+GC: 2/9/2013
-!  fac values here arise because gs2's Fourier coefficients, F_k^gs2, not standard form: 
-!          i.e. f(x) = f_k e^(i k.x)
-!  With standard Fourier coeffs in gs2, we would instead need:  fac=2.0 for ky > 0
-!      (fac=2.0 would account ky<0 contributions, not stored due to reality condition)
+    !CMR+GC: 2/9/2013
+    !  fac values here arise because gs2's Fourier coefficients, F_k^gs2, not standard form: 
+    !          i.e. f(x) = f_k e^(i k.x)
+    !  With standard Fourier coeffs in gs2, we would instead need:  fac=2.0 for ky > 0
+    !      (fac=2.0 would account ky<0 contributions, not stored due to reality condition)
 
     favg = 0.
     do ik = 1, naky
@@ -3663,6 +3710,7 @@ if (debug) write(6,*) "get_omegaavg: done"
 
   end subroutine get_surf_average
 
+  !> FIXME : Add documentation  
   subroutine reset_init
 
     use gs2_time, only: user_time
@@ -3670,7 +3718,7 @@ if (debug) write(6,*) "get_omegaavg: done"
 
     implicit none
 
-! HJL > reset values for convergence condition
+    ! HJL > reset values for convergence condition
     if(proc0) then
        conv_isteps_converged = 0
        heat_sum_av = 0.0
@@ -3682,6 +3730,7 @@ if (debug) write(6,*) "get_omegaavg: done"
 
   end subroutine reset_init
 
+  !> FIXME : Add documentation  
   subroutine ensemble_average (nensembles, time_int)
     use mp, only: scope, allprocs, group_to_all, broadcast
     use gs2_time, only: user_time
@@ -3718,6 +3767,7 @@ if (debug) write(6,*) "get_omegaavg: done"
     end if
   end subroutine ensemble_average
 
+  !> FIXME : Add documentation  
   subroutine get_fldline_avg_r (fld_in, fld_out)
     use theta_grid, only: delthet, jacob
     implicit none
@@ -3736,6 +3786,7 @@ if (debug) write(6,*) "get_omegaavg: done"
 
   end subroutine get_fldline_avg_r
 
+  !> FIXME : Add documentation  
   subroutine get_fldline_avg_c (fld_in, fld_out)
     use theta_grid, only: delthet, jacob
     implicit none
@@ -3754,14 +3805,14 @@ if (debug) write(6,*) "get_omegaavg: done"
 
   end subroutine get_fldline_avg_c
 
+  !> This is a highly simplified synthetic diagnostic which 
+  !! calculates the cross phase between the electron density and the 
+  !! perpendicular electron temperature for comparisons with DIII-D.  
+  !! Returns the value of the cross-phase at the outboard midplane and 
+  !! integrated over all v and x. We can generalize this routine to 
+  !! other fields at some point, but for now this is just a skeleton for 
+  !! a more realistic synthetic diagnostic.
   subroutine get_cross_phase (phase_tot, phase_theta)
-! <doc> This is a highly simplified synthetic diagnostic which 
-! calculates the cross phase between the electron density and the 
-! perpendicular electron temperature for comparisons with DIII-D.  
-! Returns the value of the cross-phase at the outboard midplane and 
-! integrated over all v and x. We can generalize this routine to 
-! other fields at some point, but for now this is just a skeleton for 
-! a more realistic synthetic diagnostic. </doc>
     use species, only: nspec, spec, electron_species
     use kt_grids, only: ntheta0, naky
     use theta_grid, only: ntgrid
@@ -3772,8 +3823,8 @@ if (debug) write(6,*) "get_omegaavg: done"
     complex, dimension (:,:,:,:), allocatable :: ntot, tperp
     complex, dimension (ntheta0, naky) :: nTp_by_mode
     complex :: nTp
-!    real, dimension (ntheta0, naky) :: n2_by_mode, T2_by_mode
-!    real :: n2, T2
+    !    real, dimension (ntheta0, naky) :: n2_by_mode, T2_by_mode
+    !    real :: n2, T2
 
     integer ::  is
 
@@ -3786,13 +3837,13 @@ if (debug) write(6,*) "get_omegaavg: done"
        if (spec(is)%type == electron_species) then
           ! get cross_phase at outboard midplane
           call get_vol_int (ntot(0,:,:,is), tperp(0,:,:,is), nTp, nTp_by_mode)
-!          call get_vol_average (ntot(0,:,:,is), ntot(0,:,:,is), n2, n2_by_mode)
-!          call get_vol_average (tperp(0,:,:,is), tperp(0,:,:,is), T2, T2_by_mode)
+          !          call get_vol_average (ntot(0,:,:,is), ntot(0,:,:,is), n2, n2_by_mode)
+          !          call get_vol_average (tperp(0,:,:,is), tperp(0,:,:,is), T2, T2_by_mode)
           phase_theta = atan2(aimag(nTp),real(nTp))!/sqrt(n2*T2)
           ! get integrated cross_phase 
           call get_vol_int (ntot(:,:,:,is), tperp(:,:,:,is), nTp, nTp_by_mode)
-!          call get_vol_average (ntot(:,:,:,is), ntot(:,:,:,is), n2, n2_by_mode)
-!          call get_vol_average (tperp(:,:,:,is), tperp(:,:,:,is), T2, T2_by_mode)
+          !          call get_vol_average (ntot(:,:,:,is), ntot(:,:,:,is), n2, n2_by_mode)
+          !          call get_vol_average (tperp(:,:,:,is), tperp(:,:,:,is), T2, T2_by_mode)
           phase_tot = atan2(aimag(nTp),real(nTp))!/sqrt(n2*T2)
        end if
     end do
@@ -3801,6 +3852,7 @@ if (debug) write(6,*) "get_omegaavg: done"
 
   end subroutine get_cross_phase
 
+  !> FIXME : Add documentation
   subroutine get_vol_int_all (a, b, axb, axb_by_mode)
     use theta_grid, only: ntgrid, delthet, jacob
     use kt_grids, only: naky, ntheta0
@@ -3827,6 +3879,7 @@ if (debug) write(6,*) "get_omegaavg: done"
     call get_volume_int (axb_by_mode, axb)
   end subroutine get_vol_int_all
 
+  !> FIXME : Add documentation  
   subroutine get_vol_int_one (a, b, axb, axb_by_mode)
     implicit none
     complex, dimension (:,:), intent (in) :: a, b
@@ -3838,6 +3891,7 @@ if (debug) write(6,*) "get_omegaavg: done"
 
   end subroutine get_vol_int_one
 
+  !> FIXME : Add documentation    
   subroutine get_volume_int (f, favg)
     use kt_grids, only: naky, ntheta0, aky
     implicit none
@@ -3846,14 +3900,14 @@ if (debug) write(6,*) "get_omegaavg: done"
     real :: fac
     integer :: ik, it
 
-! ky=0 modes have correct amplitudes; rest must be scaled
-! note contrast with scaling factors in FFT routines.
+    ! ky=0 modes have correct amplitudes; rest must be scaled
+    ! note contrast with scaling factors in FFT routines.
 
-!CMR+GC: 2/9/2013
-!  fac values here arise because gs2's Fourier coefficients, F_k^gs2, not standard form: 
-!          i.e. f(x) = f_k e^(i k.x)
-!  With standard Fourier coeffs in gs2, we would instead need:  fac=2.0 for ky > 0
-!      (fac=2.0 would account ky<0 contributions, not stored due to reality condition)
+    !CMR+GC: 2/9/2013
+    !  fac values here arise because gs2's Fourier coefficients, F_k^gs2, not standard form: 
+    !          i.e. f(x) = f_k e^(i k.x)
+    !  With standard Fourier coeffs in gs2, we would instead need:  fac=2.0 for ky > 0
+    !      (fac=2.0 would account ky<0 contributions, not stored due to reality condition)
 
     favg = 0.
     do ik = 1, naky
@@ -3866,12 +3920,12 @@ if (debug) write(6,*) "get_omegaavg: done"
 
   end subroutine get_volume_int
 
-!  subroutine autocorrelation (cfnc,phi2extend,cfnc_2pi)
+  !> FIXME : Add documentation    
   subroutine correlation_extend (cfnc,phi2extend)
-!    use constants, only: pi
+    !    use constants, only: pi
     use fields_arrays, only: phinew
     use theta_grid, only: ntgrid, jacob, delthet
-!   use theta_grid, only: theta
+    !   use theta_grid, only: theta
     use kt_grids, only: ntheta0, naky, jtwist_out
 
     implicit none
@@ -3881,42 +3935,42 @@ if (debug) write(6,*) "get_omegaavg: done"
 
     integer :: ig, it, ik, im, igmod
     integer :: itshift, nconnect, offset
-!    real :: fac
+    !    real :: fac
 
     real, dimension (:), allocatable :: dl_over_b
     complex, dimension (:,:,:), allocatable :: phiextend
     complex, dimension (:,:), allocatable :: phir
-!    real, dimension (:), allocatable :: phisum
+    !    real, dimension (:), allocatable :: phisum
 
     allocate (dl_over_b(2*ntgrid+1))
     dl_over_b = delthet*jacob
 
-!    allocate (theta_extend(ntg_extend)) ; theta_extend = 0.0
-!    do ig = 1, (ntheta0-1)/jtwist_out+1
-!       theta_extend((ig-1)*(2*ntgrid+1)+1:ig*(2*ntgrid+1)) = pi+theta+(ig-1)*2.*pi
-!    end do
-!    theta_extend = theta_extend - theta_extend(size(theta_extend))/2.
+    !    allocate (theta_extend(ntg_extend)) ; theta_extend = 0.0
+    !    do ig = 1, (ntheta0-1)/jtwist_out+1
+    !       theta_extend((ig-1)*(2*ntgrid+1)+1:ig*(2*ntgrid+1)) = pi+theta+(ig-1)*2.*pi
+    !    end do
+    !    theta_extend = theta_extend - theta_extend(size(theta_extend))/2.
 
     allocate (phiextend(ntg_extend,ntheta0,naky)) ; phiextend = 0.0
     allocate (phir(-ntgrid:ntgrid,ntheta0))
-!    allocate (phisum(naky))
+    !    allocate (phisum(naky))
 
-!    phisum = 0.0 ; cfnc_2pi = 0.0
-!     do ik = 1, naky
-!        if (ik==1) then
-!           fac = 1.0
-!        else
-!           fac = 0.5
-!        end if
-!        ! integrate over x
-!        do it = 1, ntheta0
-!           do ig = -ntgrid, ntgrid
-!              cfnc_2pi(ig,ik) = cfnc_2pi(ig,ik) + phinew(0,it,ik)*conjg(phinew(ig,it,ik))*fac
-!           end do
-! !          phisum(ik) = phisum(ik) + phinew(0,it,ik)*conjg(0,it,ik)*fac
-!        end do
-! !       cfnc_2pi(:,ik) = cfnc_2pi(:,ik)/phisum(ik)
-!     end do
+    !    phisum = 0.0 ; cfnc_2pi = 0.0
+    !     do ik = 1, naky
+    !        if (ik==1) then
+    !           fac = 1.0
+    !        else
+    !           fac = 0.5
+    !        end if
+    !        ! integrate over x
+    !        do it = 1, ntheta0
+    !           do ig = -ntgrid, ntgrid
+    !              cfnc_2pi(ig,ik) = cfnc_2pi(ig,ik) + phinew(0,it,ik)*conjg(phinew(ig,it,ik))*fac
+    !           end do
+    ! !          phisum(ik) = phisum(ik) + phinew(0,it,ik)*conjg(0,it,ik)*fac
+    !        end do
+    ! !       cfnc_2pi(:,ik) = cfnc_2pi(:,ik)/phisum(ik)
+    !     end do
 
     cfnc = 0.0 ; phiextend = 0.0
     offset = ((ntheta0-1)/jtwist_out)*(2*ntgrid+1)/2
@@ -3951,7 +4005,7 @@ if (debug) write(6,*) "get_omegaavg: done"
           offset = (2*ntgrid+1)*((ntheta0-1)/jtwist_out-nconnect)/2
           do ig = 1, nconnect+1
              phiextend(offset+(ig-1)*(2*ntgrid+1)+1:offset+ig*(2*ntgrid+1),it,ik) &
-                     = phir(:,ntheta0-it-(ig-1)*itshift+1)
+                  = phir(:,ntheta0-it-(ig-1)*itshift+1)
           end do
           do im = 1, (2*ntgrid+1)*(nconnect+1)
              do ig = im+offset, offset+(2*ntgrid+1)*(nconnect+1)
@@ -3964,14 +4018,15 @@ if (debug) write(6,*) "get_omegaavg: done"
           cfnc(:,it,ik) = cfnc(:,it,ik) / cfnc(1,it,ik)
        end do
     end do
-    
+
     phi2extend = phiextend*conjg(phiextend)
 
-!    deallocate (dl_over_b, phir, phiextend, phisum)
+    !    deallocate (dl_over_b, phir, phiextend, phisum)
     deallocate (dl_over_b, phir, phiextend)
 
   end subroutine correlation_extend
 
+  !> FIXME : Add documentation  
   subroutine correlation (cfnc_2pi)
     use kt_grids, only: naky, ntheta0
     use theta_grid, only: ntgrid
@@ -3998,6 +4053,7 @@ if (debug) write(6,*) "get_omegaavg: done"
 
   end subroutine correlation
 
+  !> FIXME : Add documentation    
   subroutine reorder_kx (unord, ord)
     use kt_grids, only: ntheta0
     implicit none
@@ -4009,6 +4065,7 @@ if (debug) write(6,*) "get_omegaavg: done"
 
   end subroutine reorder_kx
 
+  !> FIXME : Add documentation    
   subroutine init_par_filter
     use theta_grid, only: ntgrid
     use gs2_transforms, only: init_zf
@@ -4022,6 +4079,7 @@ if (debug) write(6,*) "get_omegaavg: done"
 
   end subroutine init_par_filter
 
+  !> FIXME : Add documentation    
   subroutine par_spectrum(an, an2)
     use gs2_transforms, only: kz_spectrum
     use theta_grid, only: ntgrid

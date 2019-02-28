@@ -1,3 +1,4 @@
+!> FIXME : Add documentation  
 module species
   implicit none
 
@@ -17,6 +18,7 @@ module species
   public :: calculate_f0_arrays, set_current_f0_species, eval_f0
   public :: nonmaxw_corr, f0_values, dlnf0drho
 
+  !> FIXME : Add documentation 
   type :: specie
      real :: z
      real :: mass
@@ -64,6 +66,7 @@ module species
   logical :: exist
 
 contains
+  !> FIXME : Add documentation   
   subroutine check_species(report_unit,beta,tite,alne,dbetadrho_spec)
     implicit none
     integer, intent(in) :: report_unit
@@ -177,6 +180,7 @@ contains
     write (report_unit, fmt="('corresponding to d beta / d rho = ',f10.4)") dbetadrho_spec
   end subroutine check_species
 
+  !> FIXME : Add documentation   
   subroutine wnml_species(unit)
     implicit none
     integer, intent(in) :: unit
@@ -221,7 +225,8 @@ contains
             write (unit, fmt="(' bess_fac = ',e13.6)") spec(i)%bess_fac
     end do
   end subroutine wnml_species
-  
+
+  !> FIXME : Add documentation   
   subroutine init_species
     implicit none
 
@@ -232,6 +237,7 @@ contains
 
   end subroutine init_species
 
+  !> FIXME : Add documentation   
   subroutine read_parameters
     use file_utils, only: input_unit, error_unit, get_indexed_namelist_unit, input_unit_exist
     use text_options, only: text_option, get_option_value
@@ -381,6 +387,7 @@ contains
 
   end subroutine read_parameters
 
+  !> FIXME : Add documentation   
   pure function has_ion_species (spec)
     implicit none
     type (specie), dimension (:), intent (in) :: spec
@@ -388,6 +395,7 @@ contains
     has_ion_species = any(spec%type == ion_species)
   end function has_ion_species
 
+  !> FIXME : Add documentation   
   subroutine calculate_slowingdown_parameters(alpha_index,vc,vcprim)
     use constants, only: pi
     use mp, only: proc0
@@ -453,6 +461,7 @@ contains
 
   end subroutine calculate_slowingdown_parameters
 
+  !> FIXME : Add documentation   
   subroutine calculate_f0_arrays(egrid)
      implicit none
      real, dimension (:,:), intent (in) :: egrid
@@ -490,6 +499,7 @@ contains
 
   end subroutine calculate_f0_arrays
 
+  !> FIXME : Add documentation   
   subroutine set_current_f0_species(is)
      implicit none
      integer, intent(in):: is
@@ -497,7 +507,9 @@ contains
   end subroutine set_current_f0_species
 
 
-  !> Relies upon is_global to determine species. This function only takes one argument so that
+  !> FIXME : Add documentation
+  !!
+  !! @note Relies upon is_global to determine species. This function only takes one argument so that
   !! it can be passed as an argument to genquad
   function eval_f0(v)
      use constants, only: pi
@@ -522,6 +534,7 @@ contains
 
   end function eval_f0
 
+  !> FIXME : Add documentation   
   subroutine eval_f0_sdanalytic(is,v,f0,df0dE_out,f0prim)
     use constants, only: pi
     use mp, only: mp_abort
@@ -559,11 +572,11 @@ contains
 
   end subroutine eval_f0_sdanalytic
 
-!> This subroutine calculates f0 on the grid from an external
-!! input file. The grid on the input file can differ from that 
-!! of gs2. A cubic spline is used to interpolate between the two.
-!! The user can either specify df0/dE or it can be estimated internally.
-!! The radial derivative of f0 as a function of energy should also be given.
+  !> This subroutine calculates f0 on the grid from an external
+  !! input file. The grid on the input file can differ from that 
+  !! of gs2. A cubic spline is used to interpolate between the two.
+  !! The user can either specify df0/dE or it can be estimated internally.
+  !! The radial derivative of f0 as a function of energy should also be given.
   subroutine calculate_f0_arrays_tabulated(is,egrid)
     !
     ! The egrid is already given by get_legendre_grids. 
@@ -823,6 +836,7 @@ contains
 
   end subroutine calculate_f0_arrays_tabulated
 
+  !> FIXME : Add documentation   
   pure function has_electron_species (spec)
     implicit none
     type (specie), dimension (:), intent (in) :: spec
@@ -830,6 +844,7 @@ contains
     has_electron_species = any(spec%type == electron_species)
   end function has_electron_species
 
+  !> FIXME : Add documentation   
   pure function has_nonmaxw_species (spec)
     implicit none
     type (specie), dimension (:), intent (in) :: spec
@@ -837,6 +852,7 @@ contains
     has_nonmaxw_species = .NOT. all(spec%f0type == f0_maxwellian)
   end function has_nonmaxw_species
 
+  !> FIXME : Add documentation   
   subroutine finish_species
     implicit none
     if(allocated(spec)) deallocate (spec)
@@ -877,6 +893,7 @@ contains
      end if
   end subroutine determine_species_order
 
+  !> FIXME : Add documentation   
   subroutine set_overrides(prof_ov)
     use overrides, only: profiles_overrides_type
     use unit_tests, only: debug_message
@@ -901,7 +918,7 @@ contains
     call debug_message(verbosity, 'species::set_overrides finishing')
   end subroutine set_overrides
 
-
+  !> FIXME : Add documentation 
   subroutine calculate_and_broadcast_species_properties
     use mp, only: proc0, broadcast
     use kt_grids, only: gryfx
@@ -936,6 +953,7 @@ contains
     end do
   end subroutine calculate_and_broadcast_species_properties
 
+  !> FIXME : Add documentation   
   subroutine write_trinity_parameters(trinpars_unit)
     integer, intent(in) :: trinpars_unit
     integer :: is
@@ -952,7 +970,6 @@ contains
       write (trinpars_unit, *) ' vnewk = ', spec(is)%vnewk
       write (trinpars_unit, "(A1)") '/'
     end do
-
   end subroutine write_trinity_parameters
 
 end module species

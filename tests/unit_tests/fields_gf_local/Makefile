@@ -19,10 +19,9 @@ all: test_fields_gf_local
 endif
 endif
 
-#$(info "TEST_MODS=$(TEST_MODS)")
-
 test_fields_gf_local.o:  ${TEST_MODS} 
 
 test_fields_gf_local: test_fields_gf_local.o $(TEST_MODS)
-	$(LD) $(LDFLAGS) -o $@ $^ $(LIBS)
+	$(call messageOp,"Linking ","\\t:",$^,"\\n\\t\-\-\-\-\-\-\>",$@)
+	$(QUIETSYM)$(LD) $(LDFLAGS) -o $@ $^ $(LIBS)
 

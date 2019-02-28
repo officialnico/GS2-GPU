@@ -5,6 +5,8 @@ module diagnostics_geometry
   private
   public :: write_geometry
 contains
+  
+  !> FIXME : Add documentation  
   subroutine write_geometry(gnostics)
     use theta_grid, only: bmag, gradpar, gbdrift, gbdrift0, &
          cvdrift, cvdrift0, gds2, gds21, gds22, grho, jacob, &

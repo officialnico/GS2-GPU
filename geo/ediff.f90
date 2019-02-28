@@ -1,5 +1,6 @@
+!> FIXME : Add documentation
 program ediff
-
+  implicit none
   integer :: n, ndum, i, j
   real, dimension(4) :: r1, r2
   real :: rdiff, rmax
@@ -41,5 +42,4 @@ program ediff
 
   write(*,*) rmax
 
-  stop
-  end
+end program ediff

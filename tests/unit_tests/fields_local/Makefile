@@ -16,15 +16,15 @@ all: test_fields_local test_fields_local_tuning
 
 endif
 
-#$(info "TEST_MODS=$(TEST_MODS)")
-
 test_fields_local.o:  ${TEST_MODS} 
 
 test_fields_local: test_fields_local.o $(TEST_MODS)
-	$(LD) $(LDFLAGS) -o $@ $^ $(LIBS)
+	$(call messageOp,"Linking ","\\t:",$^,"\\n\\t\-\-\-\-\-\-\>",$@)
+	$(QUIETSYM)$(LD) $(LDFLAGS) -o $@ $^ $(LIBS)
 
 test_fields_local_tuning.o:  ${TEST_MODS}
 
 test_fields_local_tuning: test_fields_local_tuning.o $(TEST_MODS)
-	$(LD) $(LDFLAGS) -o $@ $^ $(LIBS)
+	$(call messageOp,"Linking ","\\t:",$^,"\\n\\t\-\-\-\-\-\-\>",$@)
+	$(QUIETSYM)$(LD) $(LDFLAGS) -o $@ $^ $(LIBS)
 

@@ -1,3 +1,4 @@
-
+export
+SHELL=bash
 sinclude ../../Makefile.tests_common
 
