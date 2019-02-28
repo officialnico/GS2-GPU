@@ -22,7 +22,7 @@ program time_fields_local
 
   use benchmarks, only: benchmark_identifier
   use fields_arrays, only: phi, apar, bpar
-  use fields_local, only: getfield_local, fields_local_functional
+  use fields_local, only: fields_local_benchmarking_getfield_local, fields_local_functional
   use file_utils, only: append_output_file, close_output_file
   use gs2_init, only: init, init_level_list
   use gs2_main, only: initialize_gs2, gs2_program_state_type, finalize_gs2
@@ -66,7 +66,7 @@ program time_fields_local
     if (proc0) call time_message(.false., time_taken, "fields local time")
 
     do istep=1,nstep
-      call getfield_local(phi, apar, bpar, do_gather, do_update)
+      call fields_local_benchmarking_getfield_local(phi, apar, bpar, do_gather, do_update)
     enddo
 
     if (proc0) then
