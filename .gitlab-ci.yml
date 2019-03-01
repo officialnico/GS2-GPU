@@ -8,8 +8,8 @@ variables:
 standard_tests:
   before_script:
     - apt-get update -qq && apt-get install -y -qq libfftw3-dev libnetcdf-dev libnetcdff-dev netcdf-bin openmpi-bin libopenmpi-dev gfortran
-    - adduser --disabled-password --gecos "" theUser
-    - su theUser
+    - adduser theuser --disabled-password --gecos ""
+    - su theuser
   script:
     - MAKEFLAGS=-IMakefiles GK_SYSTEM=bitbucket make USE_NEW_DIAG= -j tests
     
