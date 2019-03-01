@@ -159,7 +159,7 @@ contains
     
     call save_dt (code_dt)
 
-    if (proc0 .and. .not. present(job_id)) write(*,*) 'Changing time step to ', user_dt, ' from ', original_time_step
+    if (proc0 .and. .not. present(job_id)) write(*,*) 'Changing time step to ', user_dt, ' from ', original_time_step, ' on step number ', istep
 
     ! Don't reset antenna here because species parameters
     ! have not changed so resetting antenna would cause
