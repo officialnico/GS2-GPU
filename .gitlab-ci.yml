@@ -24,7 +24,10 @@ pages:
   artifacts:
     paths:
       - public
-      
+  only:
+    - master
+    - next
+    
 success:
   stage: ci_status
   before_script:
