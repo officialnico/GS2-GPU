@@ -4113,15 +4113,7 @@ contains
     complex, dimension(:,:,:), intent(out) :: phi,apar,bpar
     logical, optional, intent(in) :: do_gather, do_update
 
-    if(present(do_gather)) then
-      if(present(do_update)) then
-        call getfield_local(phi, apar, bpar, do_gather, do_update)
-      else
-        call getfield_local(phi, apar, bpar, do_gather)
-      end if
-    else
-      call getfield_local(phi, apar, bpar)
-    end if
+    call getfield_local(phi, apar, bpar, do_gather, do_update)
 
   end subroutine fields_local_benchmarking_getfield_local
 
