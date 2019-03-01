@@ -14,7 +14,6 @@ module fields_local
   public :: do_smart_update, field_local_allreduce, field_local_allreduce_sub
   public :: field_local_tuneminnrow,  field_local_nonblocking_collectives
   public :: minNRow
-  public :: fields_local_benchmarking_getfield_local
 
   ! Unit tests
   public :: fields_local_unit_test_init_fields_matrixlocal
@@ -24,6 +23,12 @@ module fields_local
 
   ! Made public for testing
   public :: fieldmat
+
+  !> Public type allowing tests to access otherwise-private routines
+  type, public :: fields_local_testing
+    contains
+      procedure, nopass :: getfield_local
+  end type fields_local_testing
 
   !//////////////////////////////
   !// CUSTOM TYPES
@@ -4106,16 +4111,6 @@ contains
     !if(debug)call barrier !!/These barriers influence the reported time
     if (proc0) call time_message(.false.,time_field,' Field Solver')
   end subroutine getfield_local
-
-  !> Call to getfield_local used in benchmarking
-  subroutine fields_local_benchmarking_getfield_local(phi,apar,bpar,do_gather,do_update)
-    implicit none
-    complex, dimension(:,:,:), intent(out) :: phi,apar,bpar
-    logical, optional, intent(in) :: do_gather, do_update
-
-    call getfield_local(phi, apar, bpar, do_gather, do_update)
-
-  end subroutine fields_local_benchmarking_getfield_local
 
   !> Initialise the fields from the initial g, just uses the
   !! fields_implicit routine
