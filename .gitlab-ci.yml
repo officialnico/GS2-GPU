@@ -14,6 +14,17 @@ standard_tests:
     - su -c "whoami ; MAKEFLAGS=-IMakefiles GK_SYSTEM=bitbucket make USE_NEW_DIAG= -j tests" theuser
     - pipeline_test_scripts/didTestsFail.sh ${PWD}/tests results_of_tests.txt
     
+pages:
+  stage: test
+  script:
+    - apt-get update -qq && apt-get install -y -qq libfftw3-dev libnetcdf-dev libnetcdff-dev netcdf-bin openmpi-bin libopenmpi-dev python3 gfortran
+    - pip install ford
+    - MAKEFLAGS=-IMakefiles GK_SYSTEM=bitbucket make USE_NEW_DIAG= docs
+    - mv docs/html ./public
+  artifacts:
+    paths:
+      - public
+      
 success:
   stage: ci_status
   before_script:
@@ -34,15 +45,4 @@ failure:
     - BUILD_STATUS=failed BUILD_KEY=push ./.push_gitlab_build_status
   when: on_failure
 
-
-    
-pages:
-  stage: test
-  script:
-    - pip install ford
-    - MAKEFLAGS=-IMakefiles GK_SYSTEM=bitbucket make USE_NEW_DIAG= docs
-    - mv docs/html ./public
-  artifacts:
-    paths:
-      - public
   
