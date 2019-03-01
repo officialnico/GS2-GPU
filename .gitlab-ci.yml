@@ -11,7 +11,8 @@ standard_tests:
     - adduser theuser --disabled-password --gecos ""
     - su theuser
   script:
-    - MAKEFLAGS=-IMakefiles GK_SYSTEM=bitbucket make USE_NEW_DIAG= -j tests
+    - whoami
+    - su -c "whoami ; MAKEFLAGS=-IMakefiles GK_SYSTEM=bitbucket make USE_NEW_DIAG= -j tests" theuser
     
 success:
   stage: ci_status
