@@ -1,7 +1,8 @@
 stages:
   - test
   - ci_status
-
+  - deploy
+  
 variables:
   GIT_SUBMODULE_STRATEGY: recursive
 
@@ -32,3 +33,16 @@ failure:
   script:
     - BUILD_STATUS=failed BUILD_KEY=push ./.push_gitlab_build_status
   when: on_failure
+
+
+    
+pages:
+  stage: test
+  script:
+    - pip install ford
+    - MAKEFLAGS=-IMakefiles GK_SYSTEM=bitbucket make USE_NEW_DIAG= docs
+    - mv docs/html ./public
+  artifacts:
+    paths:
+      - public
+  
