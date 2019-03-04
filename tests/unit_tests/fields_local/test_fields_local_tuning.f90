@@ -9,6 +9,7 @@
 program test_fields_local_tuning
   use unit_tests
   use fields_local, only: fields_local_testing, advance_local, fields_local_functional, minnrow, do_smart_update, field_local_tuneminnrow
+  use fields_local, only: init_fields_local, finish_fields_local
   use fields_implicit, only: fields_implicit_testing, advance_implicit
 
   use fields, only: fields_pre_init
@@ -57,7 +58,7 @@ program test_fields_local_tuning
   if (fields_local_functional()) then
 
     call announce_test('init_fields_matrixlocal')
-    call process_test(fields_local_tests%unit_test_init_fields_matrixlocal(), 'init_fields_matrixlocal')
+    call process_test(test_init_fields_local(), 'init_fields_matrixlocal')
 
     call announce_test('advance')
     call process_test(test_advance(eps), 'advance')
@@ -153,5 +154,19 @@ contains
     end do
 
   end function test_advance
+
+  function test_init_fields_local()
+    logical :: test_init_fields_local
+
+    call init_fields_local
+
+    ! check that we can finish and then init
+    call finish_fields_local
+
+    call init_fields_local
+
+    test_init_fields_local = .true.
+
+  end function test_init_fields_local
 
 end program test_fields_local_tuning

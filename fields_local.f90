@@ -25,7 +25,6 @@ module fields_local
   type, public :: fields_local_testing
     contains
       procedure, nopass :: getfield_local
-      procedure, nopass :: unit_test_init_fields_matrixlocal
 
   end type fields_local_testing
 
@@ -3844,20 +3843,6 @@ contains
     initialised = .true.
     reinit = .false.
   end subroutine init_fields_local
-
-  function unit_test_init_fields_matrixlocal()
-    logical :: unit_test_init_fields_matrixlocal
-
-    call init_fields_local
-
-    ! check that we can finish and then init
-    call finish_fields_local
-
-    call init_fields_local
-
-    unit_test_init_fields_matrixlocal = .true.
-
-  end function unit_test_init_fields_matrixlocal
 
   !> Routine use to initialise field matrix data
   subroutine init_fields_matrixlocal(tuning_in)
