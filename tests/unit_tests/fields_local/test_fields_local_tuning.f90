@@ -153,21 +153,19 @@ contains
 
   end function test_advance
 
+  !> Return true if fields_local can finish and initialize again without error
   function test_init_fields_local()
     logical :: test_init_fields_local
 
     call init_fields_local
-
-    ! check that we can finish and then init
     call finish_fields_local
-
     call init_fields_local
 
     test_init_fields_local = .true.
 
   end function test_init_fields_local
 
-  !> FIXME : Add documentation
+  !> Initialize fields_implicit and return true if there is no error
   function test_init_fields_implicit()
     implicit none
     logical :: test_init_fields_implicit
