@@ -90,7 +90,7 @@ program test_le_grids
     !(/11.4454095380492, 7.12710579325183, 6.70488115401418, 6.49924424567821, 6.13726132537038, 5.72552031567843, 5.43111188929011, 2.41424807372596e-156/) / 2.0
 
 
-  call process_test(le_grids_unit_test_init_le_grids(sizes, energy_results, eps), &
+  call process_test(test_init_le_grids(sizes, energy_results, eps), &
     'init_le_grids')
   !call init_le_grids(dummy, dummy)
 
@@ -118,7 +118,7 @@ program test_le_grids
   integrate_species_results = cmplx(1.0,1.0)
   call announce_test('integrate species ions only g = 1')
   call process_test(&
-    le_grids_unit_test_integrate_species(&
+    test_integrate_species(&
       g, &
       species_weights, &
       sizes, &
@@ -140,7 +140,7 @@ program test_le_grids
   !write (*,*) 'g is ', size(g)
   integrate_species_results = cmplx(64.5070177949108,1.0)
   call process_test(&
-    le_grids_unit_test_integrate_species(&
+    test_integrate_species(&
       g, &
       species_weights, &
       sizes, &
@@ -170,5 +170,92 @@ program test_le_grids
 
   call close_module_test('le_grids')
   call finish_mp
+
+  contains
+    function test_integrate_species(g, weights, sizes, rslt, err)
+      use unit_tests, only: announce_check, process_check, agrees_with
+      use theta_grid, only: ntgrid
+      use kt_grids, only: naky, ntheta0
+      use gs2_layouts, only: g_lo
+
+      complex, dimension (-ntgrid:,:,g_lo%llim_proc:), intent (inout) :: g
+      real, dimension (:), intent (in) :: weights
+      integer, dimension (:), intent (in) :: sizes
+      complex, dimension (:,:,:), allocatable :: total
+      complex, dimension (-ntgrid:,:,:), intent(in) :: rslt
+      real, intent(in) :: err
+      logical :: test_integrate_species
+      logical :: tr
+      logical :: cr
+
+      tr = .true.
+
+      call announce_check('Size of naky')
+      cr = agrees_with(naky, sizes(1))
+      call process_check(tr, cr, 'Size of naky')
+      call announce_check('Size of ntheta0')
+      cr = agrees_with(ntheta0, sizes(2))
+      call process_check(tr, cr, 'Size of ntheta0')
+      call announce_check('Size of ntgrid')
+      cr = agrees_with(ntgrid, sizes(3))
+      call process_check(tr, cr, 'Size of ntgrid')
+
+      allocate(total(-ntgrid:ntgrid,ntheta0,naky))
+
+      total = cmplx(0.0,0.0)
+
+      call integrate_species(g, weights, total)
+
+      call announce_check('total')
+      cr = agrees_with(total(:,1,1), rslt(:,1,1), err)
+      call process_check(tr, cr, 'total ')
+
+      deallocate(total)
+
+      test_integrate_species = tr
+
+    end function test_integrate_species
+
+    function test_init_le_grids(sizes, energy_results, err)
+      use unit_tests, only: announce_check, process_check, agrees_with
+      use species, only: nspec
+      use mp, only: proc0
+      integer, dimension(:), intent(in) :: sizes
+      real, dimension(:,:,:), intent(in) :: energy_results
+      real, intent(in) :: err
+      logical :: test_init_le_grids
+      logical :: tr ! Test result
+      logical :: cr ! check result
+      logical :: accelerated_x, accelerated_v
+      integer :: i
+      character(2) :: istr
+
+      tr = .true.
+
+      call init_le_grids(accelerated_x, accelerated_v)
+
+      call announce_check('Size of energy array (index 1)')
+      cr = agrees_with(size(energy(:,1)), sizes(1))
+      call process_check(tr, cr, 'Size of energy array (index 1)')
+      call announce_check('Size of energy array (index 2)')
+      cr = agrees_with(size(energy(1,:)), sizes(2))
+      call process_check(tr, cr, 'Size of energy array (index 2)')
+      call announce_check('Size of w array (index 1)')
+      cr = agrees_with(size(w(:,1)), sizes(1))
+      call process_check(tr, cr, 'Size of w array (index 1)')
+      call announce_check('Size of w array (index 2)')
+      cr = agrees_with(size(w(1,:)), sizes(2))
+      call process_check(tr, cr, 'Size of w array (index 2)')
+
+      ! Energy grids only get calulcated on proc0
+      do i = 1,nspec
+        write(istr, '(I2)') i
+        call announce_check('values of energy weights for species '//istr)
+        cr =  agrees_with(w(:,i), energy_results(:,i,2), err)
+        call process_check(tr, cr, 'values of energy weights for species '//istr)
+      end do
+
+      test_init_le_grids = tr
+    end function test_init_le_grids
 
 end program test_le_grids
