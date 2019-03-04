@@ -175,5 +175,4 @@ contains
     test_init_fields_implicit = .true.
   end function test_init_fields_implicit
 
-
 end program test_fields_local

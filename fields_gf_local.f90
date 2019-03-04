@@ -25,13 +25,6 @@ module fields_gf_local
   !> Made public for testing
   public :: fieldmat
 
-  !> Public type allowing tests to access otherwise-private routines
-  type, public :: fields_gf_local_testing
-    contains
-      procedure, nopass :: unit_test_init_fields_matrixlocal
-
-  end type fields_gf_local_testing
-
   !//////////////////////////////
   !// CUSTOM TYPES
   !//////////////////////////////
@@ -3888,21 +3881,6 @@ contains
     initialised = .true.
     reinit = .false.
   end subroutine init_fields_gf_local
-
-  !> FIXME : Add documentation
-  function unit_test_init_fields_matrixlocal()
-    logical :: unit_test_init_fields_matrixlocal
-
-    call init_fields_gf_local
-
-    ! check that we can finish and then init
-    call finish_fields_gf_local
- 
-    call init_fields_gf_local
-
-    unit_test_init_fields_matrixlocal = .true.
-
-  end function unit_test_init_fields_matrixlocal
 
   !> Routine use to initialise field matrix data
   subroutine init_fields_matrixlocal
