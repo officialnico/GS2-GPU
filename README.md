@@ -37,6 +37,13 @@ optional ones:
 Please see the [CONTRIBUTING.md](CONTRIBUTING.md) document for help
 and guidelines on contributing to GS2.
 
+## Documentation
+
+Auto-generated source code documentation is currently available at
+[https://gyrokinetics.gitlab.io/gs2/](https://gyrokinetics.gitlab.io/gs2/).
+Further details are available on the
+[wiki](https://bitbucket.org/gyrokinetics/gs2/wiki/)
+
 ## Important note on sub-modules
 
 We use git submodules to deal with the sub-projects `utils` and
