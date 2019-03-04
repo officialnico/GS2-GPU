@@ -8,7 +8,7 @@
 program test_fields_local
 
   use unit_tests
-  use fields_local, only: fields_local_unit_test_init_fields_matrixlocal, advance_local, fields_local_functional, minnrow, do_smart_update
+  use fields_local, only: fields_local_testing, advance_local, fields_local_functional, minnrow, do_smart_update
   use fields_implicit, only: fields_implicit_unit_test_init_fields_implicit, advance_implicit
 
   use fields, only: fields_pre_init
@@ -25,6 +25,8 @@ program test_fields_local
   implicit none
   real :: eps
   type(gs2_program_state_type) :: gs2_state
+  !> Instance for access to private functions in fields_local
+  type(fields_local_testing) :: fields_local_tests
 
 
   ! General config
@@ -61,7 +63,7 @@ program test_fields_local
   if (fields_local_functional()) then
 
     call announce_test('init_fields_matrixlocal')
-    call process_test(fields_local_unit_test_init_fields_matrixlocal(), 'init_fields_matrixlocal')
+    call process_test(fields_local_tests%unit_test_init_fields_matrixlocal(), 'init_fields_matrixlocal')
 
     call announce_test('advance')
     call process_test(test_advance(eps), 'advance')
