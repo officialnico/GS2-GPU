@@ -70,7 +70,7 @@ program test_gs2_diagnostics
 
   contains
 
-    !> FIXME : Add documentation
+    !> Return true if calculated diffusivity is within tolerance
     function test_diffusivity(results, eps)
       use unit_tests, only: agrees_with
       use mp,only: proc0
