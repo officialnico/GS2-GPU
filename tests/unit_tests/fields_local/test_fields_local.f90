@@ -10,7 +10,7 @@ program test_fields_local
   use unit_tests
   use fields_local, only: fields_local_testing, advance_local, fields_local_functional, minnrow, do_smart_update
   use fields_local, only: init_fields_local, finish_fields_local
-  use fields_implicit, only: fields_implicit_testing, advance_implicit
+  use fields_implicit, only: advance_implicit, init_fields_implicit
 
   use fields, only: fields_pre_init
   use egrid
@@ -28,8 +28,6 @@ program test_fields_local
   type(gs2_program_state_type) :: gs2_state
   !> Instance for access to private functions in fields_local
   type(fields_local_testing) :: fields_local_tests
-  type(fields_implicit_testing) :: fields_implicit_tests
-
 
   ! General config
   eps = 1.0e-7
@@ -52,7 +50,7 @@ program test_fields_local
   call broadcast(do_smart_update)
 
   call announce_test('init_fields_implicit')
-  call process_test(fields_implicit_tests%unit_test_init_fields_implicit(), 'init_fields_implicit')
+  call process_test(test_init_fields_implicit(), 'init_fields_implicit')
 
   if (fields_local_functional()) then
 
@@ -167,5 +165,15 @@ contains
     test_init_fields_local = .true.
 
   end function test_init_fields_local
+
+  !> FIXME : Add documentation
+  function test_init_fields_implicit()
+    implicit none
+    logical :: test_init_fields_implicit
+
+    call init_fields_implicit
+    test_init_fields_implicit = .true.
+  end function test_init_fields_implicit
+
 
 end program test_fields_local

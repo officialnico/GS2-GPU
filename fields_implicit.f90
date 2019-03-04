@@ -12,13 +12,6 @@ module fields_implicit
   public :: field_subgath, dump_response, read_response
   public :: dump_response_to_file_imp
 
-  !> Public type allowing tests to access otherwise-private routines
-  type, public :: fields_implicit_testing
-    contains
-      procedure, nopass :: unit_test_init_fields_implicit
-
-  end type fields_implicit_testing
-
 !///////////////////////////////////////////////////////
 !// DERIVED TYPES FOR FIELD MATRIX REPRESENTATION
 !///////////////////////////////////////////////////////
@@ -109,15 +102,6 @@ contains
     if (debug) write(6,*) "init_fields_implicit: antenna"
     call init_antenna
   end subroutine init_fields_implicit
-
-  !> FIXME : Add documentation
-  function unit_test_init_fields_implicit()
-    implicit none
-    logical :: unit_test_init_fields_implicit
-
-    call init_fields_implicit
-    unit_test_init_fields_implicit = .true.
-  end function unit_test_init_fields_implicit
 
   !> FIXME : Add documentation  
   subroutine init_allfields_implicit(gf_lo)
