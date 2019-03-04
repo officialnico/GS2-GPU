@@ -9,7 +9,7 @@
 program test_fields_gf_local
   use unit_tests
   use init_g, only: ginit
-  use fields_gf_local, only: fields_gf_local_unit_test_init_fields_matrixlocal, fields_gf_local_functional
+  use fields_gf_local, only: fields_gf_local_testing, fields_gf_local_functional
   use fields_implicit, only: fields_implicit_unit_test_init_fields_implicit
   use fields, only: fieldopt_implicit,fieldopt_gf_local
   use fields, only: fields_pre_init
@@ -29,6 +29,8 @@ program test_fields_gf_local
   implicit none
   real :: eps
   type(gs2_program_state_type) :: state
+  !> Instance for access to private functions in fields_local
+  type(fields_gf_local_testing) :: fields_gf_local_tests
   complex, dimension (:,:,:), allocatable :: gbak
   complex, dimension (:,:,:), allocatable :: phi_imp, apar_imp, bpar_imp
   complex, dimension (:,:,:), allocatable :: phi_loc, apar_loc, bpar_loc
@@ -79,7 +81,7 @@ program test_fields_gf_local
   if (fields_gf_local_functional()) then
 
     call announce_test('init_fields_matrixlocal')
-    call process_test(fields_gf_local_unit_test_init_fields_matrixlocal(), 'init_fields_matrixlocal')
+    call process_test(fields_gf_local_tests%unit_test_init_fields_matrixlocal(), 'init_fields_matrixlocal')
     call test_local_advance(phi_loc,apar_loc,bpar_loc)
 
   else 
