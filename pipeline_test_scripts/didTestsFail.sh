@@ -7,10 +7,12 @@ NTEST=$(find ${DIR} -name ${RESULTS_NAME} | wc -l)
 
 if [ ${NTEST} == 0 ]
 then
-   echo "No test results found -- check compilation achieved."
-   exit -1
+    echo "Found ${NTEST} tests"
+    echo "No test results found -- check compilation achieved."
+    exit 1
 fi
 
 # Now know tests did run -- check if any failed
 NFAIL=$(grep -E "^FAILED:" $(find ${DIR} -name ${RESULTS_NAME}) | wc -l)
+echo "Found ${NFAIL} failing tests"
 exit ${NFAIL}
