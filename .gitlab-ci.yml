@@ -8,7 +8,7 @@ variables:
   
 standard_tests:
   variables:
-    CASENAME: '"standard"'
+    CASENAME: "standard"
   before_script:
     - BUILD_STATUS=running BUILD_KEY=push ./.push_gitlab_build_status ${CASENAME}   
     - apt-get update -qq && apt-get install -y -qq libfftw3-dev libnetcdf-dev libnetcdff-dev netcdf-bin openmpi-bin libopenmpi-dev gfortran
@@ -20,7 +20,7 @@ standard_tests:
 
 nompi_tests:
   variables:
-    CASENAME: '"no mpi"'
+    CASENAME: "no_mpi"
   before_script:
     - BUILD_STATUS=running  BUILD_KEY=push ./.push_gitlab_build_status ${CASENAME}   
     - apt-get update -qq && apt-get install -y -qq libfftw3-dev libnetcdf-dev libnetcdff-dev netcdf-bin gfortran
@@ -32,7 +32,7 @@ nompi_tests:
     
 nodeps_tests:
   variables:
-    CASENAME: '"no dependency"'
+    CASENAME: "no_dependency"
   before_script:
     - BUILD_STATUS=running  BUILD_KEY=push ./.push_gitlab_build_status ${CASENAME}    
     - apt-get update -qq && apt-get install -y -qq gfortran
@@ -44,7 +44,7 @@ nodeps_tests:
 
 intentional_fail:
   variables:
-    CASENAME: '"intentional failure"'
+    CASENAME: "intentional_failure"
   before_script:
     - BUILD_STATUS=running  BUILD_KEY=push ./.push_gitlab_build_status ${CASENAME}
     - apt-get update -qq && apt-get install -y -qq gfortran
