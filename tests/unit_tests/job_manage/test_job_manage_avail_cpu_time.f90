@@ -12,10 +12,13 @@ program test_job_manage
    real :: start_time
    real :: avail_time = 2.0 ! expected time for this test
    real :: elapsed_time
-
+   logical :: test_result
+   
    ! Initialize
    call init_mp
 
+   test_result = .true.
+   
    ! Tell make system to run this test
    functional_test_flag = .true.
 
@@ -33,14 +36,16 @@ program test_job_manage
 
    elapsed_time = timer_local() - start_time
 
-   call process_test(( old_iface_state%istep_end .lt. old_iface_state%nstep ), &
+   call process_check(test_result, ( old_iface_state%istep_end .lt. old_iface_state%nstep ), &
      "gs2 doesn't stop when time elapsed exceeds avail_cpu_time -- too many steps")
 
    
-   call process_test( &
+   call process_check( test_result, &
      ( elapsed_time .gt. avail_time ), &
      "gs2 doesn't stop when time elapsed exceeds avail_cpu_time -- stopped too early")
 
+   call process_test( test_result, "At least one of the checks failed")
+   
    ! Finalize gs2
    call finalize_equations(old_iface_state)
    call finalize_gs2(old_iface_state)
