@@ -37,7 +37,7 @@ program test_job_manage
      "gs2 doesn't stop when time elapsed exceeds avail_cpu_time -- too many steps")
 
    
-   call process_test(( &
+   call process_test( &
      ( elapsed_time .gt. avail_time ), &
      "gs2 doesn't stop when time elapsed exceeds avail_cpu_time -- stopped too early")
 
