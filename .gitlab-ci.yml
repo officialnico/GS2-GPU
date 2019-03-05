@@ -21,7 +21,15 @@ nompi_tests:
   script:
     - su -c "whoami ; MAKEFLAGS=-IMakefiles GK_SYSTEM=bitbucket make USE_MPI= USE_NEW_DIAG= -j tests" theuser
     - pipeline_test_scripts/didTestsFail.sh ${PWD}/tests results_of_tests.txt
-    
+
+nodeps_tests:
+  before_script:
+    - apt-get update -qq && apt-get install -y -qq gfortran
+    - adduser theuser --disabled-password --gecos ""
+  script:
+    - su -c "whoami ; MAKEFLAGS=-IMakefiles GK_SYSTEM=bitbucket make USE_FFT= USE_NETCDF= USE_MPI= USE_NEW_DIAG= -j tests" theuser
+    - pipeline_test_scripts/didTestsFail.sh ${PWD}/tests results_of_tests.txt
+
 pages:
   stage: test
   script:
