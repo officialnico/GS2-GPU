@@ -1,3 +1,11 @@
+!==============================================================================
+!
+!  GS2 is a gyrokinetic flux tube initial value turbulence code 
+!  which can be used for fusion or astrophysical plasmas.
+!  
+!  	See http://bitbucket.org/gyrokinetics/gs2
+!
+!==============================================================================
 
 !==============================
 !GENERAL PARAMETERS  
