@@ -32,10 +32,14 @@ program test_job_manage
    call run_gs2(mp_comm)
 
    elapsed_time = timer_local() - start_time
+
+   call process_test(( old_iface_state%istep_end .lt. old_iface_state%nstep ), &
+     "gs2 doesn't stop when time elapsed exceeds avail_cpu_time -- too many steps")
+
+   
    call process_test(( &
-     ( elapsed_time .gt. avail_time ) .and. &
-     ( old_iface_state%istep_end .lt. old_iface_state%nstep ) ), &
-     "gs2 doesn't stop when time elapsed exceeds avail_cpu_time")
+     ( elapsed_time .gt. avail_time ), &
+     "gs2 doesn't stop when time elapsed exceeds avail_cpu_time -- stopped too early")
 
    ! Finalize gs2
    call finalize_equations(old_iface_state)
