@@ -10,48 +10,48 @@ standard_tests:
   variables:
     CASENAME: '"standard"'
   before_script:
-    - BUILD_STATUS=running ./.push_gitlab_build_status ${CASENAME}   
+    - BUILD_STATUS=running BUILD_KEY=push ./.push_gitlab_build_status ${CASENAME}   
     - apt-get update -qq && apt-get install -y -qq libfftw3-dev libnetcdf-dev libnetcdff-dev netcdf-bin openmpi-bin libopenmpi-dev gfortran
     - adduser theuser --disabled-password --gecos ""
   script:
     - su -c "whoami ; MAKEFLAGS=-IMakefiles GK_SYSTEM=bitbucket make USE_NEW_DIAG= -j tests" theuser
     - pipeline_test_scripts/didTestsFail.sh ${PWD}/tests results_of_test.txt
-    - BUILD_STATUS=passed ./.push_gitlab_build_status ${CASENAME}
+    - BUILD_STATUS=passed  BUILD_KEY=push ./.push_gitlab_build_status ${CASENAME}
 
 nompi_tests:
   variables:
     CASENAME: '"no mpi"'
   before_script:
-    - BUILD_STATUS=running ./.push_gitlab_build_status ${CASENAME}   
+    - BUILD_STATUS=running  BUILD_KEY=push ./.push_gitlab_build_status ${CASENAME}   
     - apt-get update -qq && apt-get install -y -qq libfftw3-dev libnetcdf-dev libnetcdff-dev netcdf-bin gfortran
     - adduser theuser --disabled-password --gecos ""
   script:
     - su -c "whoami ; MAKEFLAGS=-IMakefiles GK_SYSTEM=bitbucket make USE_MPI= USE_NEW_DIAG= -j tests" theuser
     - pipeline_test_scripts/didTestsFail.sh ${PWD}/tests results_of_test.txt
-    - BUILD_STATUS=passed ./.push_gitlab_build_status ${CASENAME}
+    - BUILD_STATUS=passed  BUILD_KEY=push ./.push_gitlab_build_status ${CASENAME}
     
 nodeps_tests:
   variables:
     CASENAME: '"no dependency"'
   before_script:
-    - BUILD_STATUS=running ./.push_gitlab_build_status ${CASENAME}    
+    - BUILD_STATUS=running  BUILD_KEY=push ./.push_gitlab_build_status ${CASENAME}    
     - apt-get update -qq && apt-get install -y -qq gfortran
     - adduser theuser --disabled-password --gecos ""
   script:
     - su -c "whoami ; MAKEFLAGS=-IMakefiles GK_SYSTEM=bitbucket make USE_FFT= USE_NETCDF= USE_MPI= USE_NEW_DIAG= -j tests" theuser
     - pipeline_test_scripts/didTestsFail.sh ${PWD}/tests results_of_test.txt
-    - BUILD_STATUS=passed ./.push_gitlab_build_status ${CASENAME}
+    - BUILD_STATUS=passed  BUILD_KEY=push ./.push_gitlab_build_status ${CASENAME}
 
 intentional_fail:
   variables:
     CASENAME: '"intentional failure"'
   before_script:
-    - BUILD_STATUS=running ./.push_gitlab_build_status ${CASENAME}
+    - BUILD_STATUS=running  BUILD_KEY=push ./.push_gitlab_build_status ${CASENAME}
     - apt-get update -qq && apt-get install -y -qq gfortran
     - adduser theuser --disabled-password --gecos ""
   script:
     - su -c "whoami" theuser    
-    - pipeline_test_scripts/didTestsFail.sh ${PWD}/tests results_of_test.txt && BUILD_STATUS=passed BUILD_KEY=push ./.push_gitlab_build_status ${CASENAME} || (BUILD_STATUS=failed BUILD_KEY=push ./.push_gitlab_build_status ${CASENAME} ; exit 1)
+    - pipeline_test_scripts/didTestsFail.sh ${PWD}/tests results_of_test.txt && BUILD_STATUS=passed BUILD_KEY=push  BUILD_KEY=push ./.push_gitlab_build_status ${CASENAME} || (BUILD_STATUS=failed BUILD_KEY=push ./.push_gitlab_build_status ${CASENAME} ; exit 1)
     
 pages:
   stage: test
@@ -74,7 +74,7 @@ success:
   after_script:
     - ""
   script:
-    - BUILD_STATUS=allpassed ./.push_gitlab_build_status
+    - BUILD_STATUS=allpassed  BUILD_KEY=push ./.push_gitlab_build_status
   when: on_success
 
 failure:
@@ -84,7 +84,7 @@ failure:
   after_script:
     - ""
   script:
-    - BUILD_STATUS=somefailed ./.push_gitlab_build_status
+    - BUILD_STATUS=somefailed  BUILD_KEY=push ./.push_gitlab_build_status
   when: on_failure
 
   
