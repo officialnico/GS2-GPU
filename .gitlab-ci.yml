@@ -8,9 +8,9 @@ variables:
   
 standard_tests:
   variables:
-    CASENAME: "standard"
+    CASENAME: '"standard"'
   before_script:
-    - BUILD_STATUS=running ./.push_gitlab_build_status    
+    - BUILD_STATUS=running ./.push_gitlab_build_status ${CASENAME}   
     - apt-get update -qq && apt-get install -y -qq libfftw3-dev libnetcdf-dev libnetcdff-dev netcdf-bin openmpi-bin libopenmpi-dev gfortran
     - adduser theuser --disabled-password --gecos ""
   script:
@@ -20,9 +20,9 @@ standard_tests:
 
 nompi_tests:
   variables:
-    CASENAME: "no mpi"
+    CASENAME: '"no mpi"'
   before_script:
-    - BUILD_STATUS=running ./.push_gitlab_build_status        
+    - BUILD_STATUS=running ./.push_gitlab_build_status ${CASENAME}   
     - apt-get update -qq && apt-get install -y -qq libfftw3-dev libnetcdf-dev libnetcdff-dev netcdf-bin gfortran
     - adduser theuser --disabled-password --gecos ""
   script:
@@ -32,9 +32,9 @@ nompi_tests:
     
 nodeps_tests:
   variables:
-    CASENAME: "no dependency"
+    CASENAME: '"no dependency"'
   before_script:
-    - BUILD_STATUS=running ./.push_gitlab_build_status    
+    - BUILD_STATUS=running ./.push_gitlab_build_status ${CASENAME}    
     - apt-get update -qq && apt-get install -y -qq gfortran
     - adduser theuser --disabled-password --gecos ""
   script:
@@ -44,9 +44,9 @@ nodeps_tests:
 
 intentional_fail:
   variables:
-    CASENAME: "intentional failure"
+    CASENAME: '"intentional failure"'
   before_script:
-    - BUILD_STATUS=running ./.push_gitlab_build_status    
+    - BUILD_STATUS=running ./.push_gitlab_build_status ${CASENAME}
     - apt-get update -qq && apt-get install -y -qq gfortran
     - adduser theuser --disabled-password --gecos ""
   script:
