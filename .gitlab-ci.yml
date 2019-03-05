@@ -43,7 +43,7 @@ intentional_fail:
     - adduser theuser --disabled-password --gecos ""
   script:
     - su -c "whoami" theuser    
-    - pipeline_test_scripts/didTestsFail.sh ${PWD}/tests results_of_tests.txt && BUILD_STATUS=passed BUILD_KEY=push ./.push_gitlab_build_status || BUILD_STATUS=failed BUILD_KEY=push ./.push_gitlab_build_status    
+    - pipeline_test_scripts/didTestsFail.sh ${PWD}/tests results_of_tests.txt && BUILD_STATUS=passed BUILD_KEY=push ./.push_gitlab_build_status || (BUILD_STATUS=failed BUILD_KEY=push ./.push_gitlab_build_status ; exit 1)
     
 pages:
   stage: test
