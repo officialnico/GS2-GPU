@@ -7,7 +7,7 @@ NTEST=$(find ${DIR} -name ${RESULTS_NAME} | wc -l)
 
 if [ ${NTEST} == 0 ]
 then
-    echo "Found ${NTEST} tests"
+    echo "Found ${NTEST} tests when looking in ${DIR} for ${RESULTS_NAME}"
     echo "No test results found -- check compilation achieved."
     exit 1
 fi
