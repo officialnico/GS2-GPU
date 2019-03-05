@@ -13,7 +13,7 @@ standard_tests:
     - adduser theuser --disabled-password --gecos ""
   script:
     - su -c "whoami ; MAKEFLAGS=-IMakefiles GK_SYSTEM=bitbucket make USE_NEW_DIAG= -j tests" theuser
-    - pipeline_test_scripts/didTestsFail.sh ${PWD}/tests results_of_tests.txt
+    - pipeline_test_scripts/didTestsFail.sh ${PWD}/tests results_of_test.txt
     - BUILD_STATUS=passed BUILD_KEY=push ./.push_gitlab_build_status    
 
 nompi_tests:
@@ -23,7 +23,7 @@ nompi_tests:
     - adduser theuser --disabled-password --gecos ""
   script:
     - su -c "whoami ; MAKEFLAGS=-IMakefiles GK_SYSTEM=bitbucket make USE_MPI= USE_NEW_DIAG= -j tests" theuser
-    - pipeline_test_scripts/didTestsFail.sh ${PWD}/tests results_of_tests.txt
+    - pipeline_test_scripts/didTestsFail.sh ${PWD}/tests results_of_test.txt
     - BUILD_STATUS=passed BUILD_KEY=push ./.push_gitlab_build_status    
     
 nodeps_tests:
@@ -33,7 +33,7 @@ nodeps_tests:
     - adduser theuser --disabled-password --gecos ""
   script:
     - su -c "whoami ; MAKEFLAGS=-IMakefiles GK_SYSTEM=bitbucket make USE_FFT= USE_NETCDF= USE_MPI= USE_NEW_DIAG= -j tests" theuser
-    - pipeline_test_scripts/didTestsFail.sh ${PWD}/tests results_of_tests.txt
+    - pipeline_test_scripts/didTestsFail.sh ${PWD}/tests results_of_test.txt
     - BUILD_STATUS=passed BUILD_KEY=push ./.push_gitlab_build_status    
 
 intentional_fail:
@@ -43,7 +43,7 @@ intentional_fail:
     - adduser theuser --disabled-password --gecos ""
   script:
     - su -c "whoami" theuser    
-    - pipeline_test_scripts/didTestsFail.sh ${PWD}/tests results_of_tests.txt && BUILD_STATUS=passed BUILD_KEY=push ./.push_gitlab_build_status || (BUILD_STATUS=failed BUILD_KEY=push ./.push_gitlab_build_status ; exit 1)
+    - pipeline_test_scripts/didTestsFail.sh ${PWD}/tests results_of_test.txt && BUILD_STATUS=passed BUILD_KEY=push ./.push_gitlab_build_status || (BUILD_STATUS=failed BUILD_KEY=push ./.push_gitlab_build_status ; exit 1)
     
 pages:
   stage: test
