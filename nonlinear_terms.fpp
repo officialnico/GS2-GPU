@@ -15,9 +15,10 @@ module nonlinear_terms
   public :: nonlinear_mode_none, nonlinear_mode_on
   public :: gryfx_zonal
   public :: cfl_req_hand, nb_check_time_step_too_large
+  public :: nonlinear_terms_testing
 
   !> Public type allowing tests to access otherwise-private routines
-  type, public :: nonlinear_terms_testing
+  type :: nonlinear_terms_testing
     contains
       procedure, nopass :: add_nl
 
