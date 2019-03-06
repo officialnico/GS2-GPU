@@ -7,10 +7,6 @@
 !
 !==============================================================================
 
-&parameters
- beta = 0.0
-/
-
 &kt_grids_knobs
  grid_option = "single"
 /
@@ -31,7 +27,8 @@
 
 &dist_fn_knobs
  boundary_option = "linked"
-
+/
+ 
 &knobs
  fphi = 1.0
  fapar = 0.0
