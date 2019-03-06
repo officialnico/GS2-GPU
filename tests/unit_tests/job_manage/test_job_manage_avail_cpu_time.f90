@@ -39,11 +39,18 @@ program test_job_manage
    call process_check(test_result, ( old_iface_state%istep_end .lt. old_iface_state%nstep ), &
      "gs2 doesn't stop when time elapsed exceeds avail_cpu_time -- too many steps")
 
+   if(.not. test_result) then
+      write(*,'("Steps taken : ",I0," Expected less than ",I0)') old_iface_state%istep_end, old_iface_state%nstep
+   endif
    
    call process_check( test_result, &
      ( elapsed_time .gt. avail_time ), &
      "gs2 doesn't stop when time elapsed exceeds avail_cpu_time -- stopped too early")
 
+   if(.not. test_result) then
+      write(*,'("Elapsed time : ",F12.5," expected more than ",F12.5)') elapsed_time, avail_time
+   endif
+   
    call process_test( test_result, "At least one of the checks failed")
    
    ! Finalize gs2
