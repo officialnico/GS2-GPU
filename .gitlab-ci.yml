@@ -1,17 +1,33 @@
 stages:
   - test
   - ci_status
-
+  - deploy
+  
 variables:
   GIT_SUBMODULE_STRATEGY: recursive
-  
-simple_compile:
+
+standard_tests:
   before_script:
     - apt-get update -qq && apt-get install -y -qq libfftw3-dev libnetcdf-dev libnetcdff-dev netcdf-bin openmpi-bin libopenmpi-dev gfortran
+    - adduser theuser --disabled-password --gecos ""
   script:
-    - MAKEFLAGS=-IMakefiles GK_SYSTEM=bitbucket make USE_NEW_DIAG= depend    
-    - MAKEFLAGS=-IMakefiles GK_SYSTEM=bitbucket make USE_NEW_DIAG= -j gs2    
-
+    - su -c "whoami ; MAKEFLAGS=-IMakefiles GK_SYSTEM=bitbucket make USE_NEW_DIAG= -j tests" theuser
+    - pipeline_test_scripts/didTestsFail.sh ${PWD}/tests results_of_tests.txt
+    
+pages:
+  stage: test
+  script:
+    - apt-get update -qq && apt-get install -y -qq libfftw3-dev libnetcdf-dev libnetcdff-dev netcdf-bin openmpi-bin libopenmpi-dev python python-pip gfortran
+    - pip install ford
+    - MAKEFLAGS=-IMakefiles GK_SYSTEM=bitbucket make USE_NEW_DIAG= doc
+    - mv docs/html ./public
+  artifacts:
+    paths:
+      - public
+  only:
+    - master
+    - next
+    
 success:
   stage: ci_status
   before_script:
@@ -31,3 +47,5 @@ failure:
   script:
     - BUILD_STATUS=failed BUILD_KEY=push ./.push_gitlab_build_status
   when: on_failure
+
+  

@@ -97,7 +97,7 @@ contains
     integer, save :: istep_last = -1 ! allow adjustment on first time step
     integer, save :: nconsec=0
     type(init_type), intent(inout) :: current_init
-
+    real :: original_time_step
     real :: fac = 1.0
 
     if (first) call init_reinit
@@ -147,6 +147,8 @@ contains
       fac = 1.9999
     endif
 
+    original_time_step = code_dt
+    
 ! If timestep is too big, make it smaller
     if (code_dt*fac > code_dt_cfl) then
        call reduce_time_step
@@ -157,7 +159,7 @@ contains
     
     call save_dt (code_dt)
 
-    if (proc0 .and. .not. present(job_id)) write(*,*) 'Changing time step to ', user_dt
+    if (proc0 .and. .not. present(job_id)) write(*,*) 'Changing time step to ', user_dt, ' from ', original_time_step, ' on step number ', istep
 
     ! Don't reset antenna here because species parameters
     ! have not changed so resetting antenna would cause
