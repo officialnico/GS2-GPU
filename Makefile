@@ -683,7 +683,9 @@ all: $(.DEFAULT_GOAL)
 
 #TODO : Add a rule to automatically build the depend file when appropriate.
 ifneq ("$(MAKECMDGOALS)", "distclean")
+ifneq ("$(MAKECMDGOALS)", "depend")
 include $(DEPEND)
+endif
 endif
 
 #If we're using fft(w) then we want to link the fft_save_wisdom object file

@@ -24,6 +24,12 @@ module fields_local
   ! Made public for testing
   public :: fieldmat
 
+  !> Public type allowing tests to access otherwise-private routines
+  type, public :: fields_local_testing
+    contains
+      procedure, nopass :: getfield_local
+  end type fields_local_testing
+
   !//////////////////////////////
   !// CUSTOM TYPES
   !//////////////////////////////

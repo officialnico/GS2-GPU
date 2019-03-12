@@ -1,3 +1,4 @@
 .test_job_manage.in
+.test_job_manage_time.in
 test_job_manage_avail_cpu_time
 test_job_manage_stop_file
