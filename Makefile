@@ -505,12 +505,12 @@ endif
 ############################################################################# Done dealing with user flags
 
 LIBS	+= $(DEFAULT_LIB) $(MPI_LIB) $(NETCDF_LIB) $(HDF5_LIB) $(FFT_LIB) \
-		   $(NAG_LIB) $(EIG_LIB) $(GENQUAD_LIB) $(PFUNIT_LIB)
+		   $(NAG_LIB) $(EIG_LIB) $(GENQUAD_LIB)
 INCLUDES = $(DEFAULT_INC) $(MPI_INC) $(NETCDF_INC) $(HDF5_INC) $(FFT_INC)\
-		   $(SIMPLEDATAIO_INC) $(EIG_INC) $(GENQUAD_INC) $(PFUNIT_INC)
+		   $(SIMPLEDATAIO_INC) $(EIG_INC) $(GENQUAD_INC)
 F90FLAGS+= $(F90OPTFLAGS) $(INCLUDES)
 CFLAGS += $(COPTFLAGS) \
-	   $(DEFAULT_INC) $(MPI_INC) $(NETCDF_INC) $(HDF5_INC) $(FFT_INC) $(PFUNIT_INC)
+	   $(DEFAULT_INC) $(MPI_INC) $(NETCDF_INC) $(HDF5_INC) $(FFT_INC)
 
 
 DATE=$(shell date +%y%m%d)
