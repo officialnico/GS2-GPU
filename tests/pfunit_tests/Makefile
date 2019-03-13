@@ -1,5 +1,3 @@
-.PHONY: tests clean
-
 PFUNIT_TEST_EXE=pfunit_test_suite
 
 %.o : %.F90
@@ -8,13 +6,11 @@ PFUNIT_TEST_EXE=pfunit_test_suite
 %.F90: %.pf
 	$(PFUNIT_DIR)/bin/pFUnitParser.py $< $@
 
-all: pfunit_tests
-
 GS2_OBJS = $(filter-out $(GK_HEAD_DIR)/gs2.o, $(patsubst %.o, $(GK_HEAD_DIR)/%.o, $(gs2_mod)))
 
-TESTS= $(shell find ./ -name '*.pf')
+PFUNIT_TESTS= $(shell find ./ -name '*.pf')
 
-PFUNIT_OBJS = $(TESTS:.pf=.o)
+PFUNIT_OBJS = $(PFUNIT_TESTS:.pf=.o)
 PFUNIT_DRIVER = $(PFUNIT_DIR)/include/driver.F90
 
 make_test: $(GS2_OBJS)
