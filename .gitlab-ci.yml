@@ -2,18 +2,34 @@ stages:
   - test
   - ci_status
   - deploy
-  
+
 variables:
   GIT_SUBMODULE_STRATEGY: recursive
 
 standard_tests:
+  variables:
+    CASENAME: "standard"
   before_script:
+    - BUILD_STATUS=running BUILD_KEY=push ./.push_gitlab_build_status ${CASENAME}
     - apt-get update -qq && apt-get install -y -qq libfftw3-dev libnetcdf-dev libnetcdff-dev netcdf-bin openmpi-bin libopenmpi-dev gfortran
     - adduser theuser --disabled-password --gecos ""
   script:
     - su -c "whoami ; MAKEFLAGS=-IMakefiles GK_SYSTEM=bitbucket make USE_NEW_DIAG= -j tests" theuser
-    - pipeline_test_scripts/didTestsFail.sh ${PWD}/tests results_of_tests.txt
-    
+    - pipeline_test_scripts/didTestsFail.sh ${PWD}/tests results_of_test.txt
+    - BUILD_STATUS=passed  BUILD_KEY=push ./.push_gitlab_build_status ${CASENAME}
+
+nodeps_tests:
+  variables:
+    CASENAME: "no_dependency"
+  before_script:
+    - BUILD_STATUS=running  BUILD_KEY=push ./.push_gitlab_build_status ${CASENAME}
+    - apt-get update -qq && apt-get install -y -qq gfortran
+    - adduser theuser --disabled-password --gecos ""
+  script:
+    - su -c "whoami ; MAKEFLAGS=-IMakefiles GK_SYSTEM=bitbucket make USE_FFT= USE_NETCDF= USE_MPI= USE_NEW_DIAG= -j tests" theuser
+    - pipeline_test_scripts/didTestsFail.sh ${PWD}/tests results_of_test.txt
+    - BUILD_STATUS=passed  BUILD_KEY=push ./.push_gitlab_build_status ${CASENAME}
+
 pages:
   stage: test
   script:
@@ -27,7 +43,7 @@ pages:
   only:
     - master
     - next
-    
+
 success:
   stage: ci_status
   before_script:
@@ -35,7 +51,7 @@ success:
   after_script:
     - ""
   script:
-    - BUILD_STATUS=passed BUILD_KEY=push ./.push_gitlab_build_status
+    - echo "All tests passed."
   when: on_success
 
 failure:
@@ -45,7 +61,7 @@ failure:
   after_script:
     - ""
   script:
-    - BUILD_STATUS=failed BUILD_KEY=push ./.push_gitlab_build_status
+    - echo "At least one test failed."
   when: on_failure
 
-  
+
