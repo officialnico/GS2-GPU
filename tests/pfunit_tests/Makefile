@@ -56,6 +56,5 @@ endif
 endif
 
 pfunit_clean:
-	@cd $(PFUNIT_TEST_DIR) && $(RM) $(PFUNIT_TEST_EXE) *.o *.mod *~ *.gcov *.gcda *.gcno *.log *.error
-	@cd $(PFUNIT_TEST_DIR) && $(RM) */*.o */*.mod */*~ */*.gcov */*.gcda */*.gcno
-
+	$(call messageRm,"pFUnit tests")
+	$(QUIETSYM)$(RM) $(PFUNIT_TEST_EXE) *.o *.mod *~ *.gcov *.gcda *.gcno *.log *.error */*.o */*.mod */*~ */*.gcov */*.gcda */*.gcno
