@@ -301,6 +301,15 @@ You can convert the CITATION.cff file into a Bibtex file as follows:
     pip3 install --user cffconvert
     cffconvert -if CITATION.cff -f bibtex -of CITATION.bib 
 
+## Tests
+
+Users should run the GS2 tests after installing, updating or developing the
+code. Tests are also run automatically on code that is pushed to the
+Bitbucket repository. Please report any problems or bugs by [creating an
+issue on Bitbucket](https://bitbucket.org/gyrokinetics/gs2/issues?status=new&status=open).
+
+For details on running the tests, see the README in the `tests` folder.
+
 ## TODO
 
 1. auto detection of the system for common system (like test_os script)
