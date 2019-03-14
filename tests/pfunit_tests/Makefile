@@ -57,5 +57,6 @@ endif
 
 pfunit_clean:
 	@$(RM) *.gcov *.gcda *.gcno
-	@cd $(PFUNIT_TEST_DIR) && $(RM) *.o *.mod *.x *~ *.gcov *.gcda *.gcno
+	@cd $(PFUNIT_TEST_DIR) && $(RM) $(PFUNIT_TEST_EXE) *.o *.mod *~ *.gcov *.gcda *.gcno *.log *.error
+	@cd $(PFUNIT_TEST_DIR) && $(RM) */*.o */*.mod */*~ */*.gcov */*.gcda */*.gcno
 
