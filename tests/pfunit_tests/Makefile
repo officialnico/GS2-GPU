@@ -1,5 +1,11 @@
 PFUNIT_TEST_EXE=pfunit_test_suite
 
+ifeq ($(GK_SYSTEM),bitbucket)
+  PFUNIT_TEST_PATH=/opt/atlassian/pipelines/agent/build/pfunit_tests
+else
+  PFUNIT_TEST_PATH=.
+endif
+
 %.o : %.F90
 	$(FC) $(F90FLAGS) -c $< $(PFUNIT_INC) -I$(GK_HEAD_DIR) -o $@
 
@@ -20,13 +26,8 @@ make_test: $(GS2_OBJS)
 $(PFUNIT_TEST_EXE): $(PFUNIT_DRIVER) $(PFUNIT_OBJS) testSuites.inc
 	$(FC) -o $@ $(GS2_OBJS) -DUSE_MPI=YES $(PFUNIT_INC) $(PFUNIT_DRIVER) $(PFUNIT_OBJS) $(PFUNIT_LIB) -I. $(SIMPLEDATAIO_LIB_ABS) $(LIBS) $(F90FLAGS)
 
-ifeq ($(GK_SYSTEM),bitbucket)
 run_test: make_test
-	@cd $(PFUNIT_TEST_DIR) && mpirun -np 4 /opt/atlassian/pipelines/agent/build/pfunit_tests/$(PFUNIT_TEST_EXE) -robust -xml $(GK_HEAD_DIR)/test-results/pfunit.xml -o pfunit.log > /dev/null 2> pfunit.error
-else
-run_test: make_test
-	@cd $(PFUNIT_TEST_DIR) && mpirun -np 4 ./$(PFUNIT_TEST_EXE) -robust -xml $(GK_HEAD_DIR)/test-results/pfunit.xml -o pfunit.log > /dev/null 2> pfunit.error && cat pfunit.log || cat pfunit.error
-endif
+	@cd $(PFUNIT_TEST_DIR) && mpirun -np 4 $(PFUNIT_TEST_PATH)/$(PFUNIT_TEST_EXE) -robust -xml $(GK_HEAD_DIR)/test-results/pfunit.xml -o pfunit.log > /dev/null 2> pfunit.error && cat pfunit.log || cat pfunit.error
 
 run_gcov:
 	gcov *.f90
