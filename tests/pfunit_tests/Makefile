@@ -20,14 +20,16 @@ PFUNIT_OBJS = $(PFUNIT_TESTS:.pf=.o)
 PFUNIT_DRIVER = $(PFUNIT_DIR)/include/driver.F90
 
 make_test: $(GS2_OBJS)
-	@$(RM) $(PFUNIT_TEST_DIR)/$(PFUNIT_TEST_EXE)
-	@$(MAKE) -C $(PFUNIT_TEST_DIR) $(PFUNIT_TEST_EXE)
+	$(QUIETSYM)$(RM) $(PFUNIT_TEST_DIR)/$(PFUNIT_TEST_EXE)
+	$(QUIETSYM)$(MAKE) -C $(PFUNIT_TEST_DIR) $(PFUNIT_TEST_EXE)
 
 $(PFUNIT_TEST_EXE): $(PFUNIT_DRIVER) $(PFUNIT_OBJS) testSuites.inc
-	$(FC) -o $@ $(GS2_OBJS) -DUSE_MPI=YES $(PFUNIT_INC) $(PFUNIT_DRIVER) $(PFUNIT_OBJS) $(PFUNIT_LIB) -I. $(SIMPLEDATAIO_LIB_ABS) $(LIBS) $(F90FLAGS)
+	$(call messageOp,"Compiling","\\t:","pFUnit tests")
+	$(QUIETSYM)$(FC) -o $@ $(GS2_OBJS) -DUSE_MPI=YES $(PFUNIT_INC) $(PFUNIT_DRIVER) $(PFUNIT_OBJS) $(PFUNIT_LIB) -I. $(SIMPLEDATAIO_LIB_ABS) $(LIBS) $(F90FLAGS)
 
 run_test: make_test
-	@cd $(PFUNIT_TEST_DIR) && mpirun -np 4 $(PFUNIT_TEST_PATH)/$(PFUNIT_TEST_EXE) -robust -xml $(GK_HEAD_DIR)/test-results/pfunit.xml -o pfunit.log > /dev/null 2> pfunit.error && cat pfunit.log || cat pfunit.error
+	$(call messageOp,"Running ","\\t:","pFUnit tests")
+	$(QUIETSYM)cd $(PFUNIT_TEST_DIR) && mpirun -np 4 $(PFUNIT_TEST_PATH)/$(PFUNIT_TEST_EXE) -robust -xml $(GK_HEAD_DIR)/test-results/pfunit.xml -o pfunit.log > /dev/null 2> pfunit.error && cat pfunit.log || cat pfunit.error
 
 run_gcov:
 	gcov *.f90
