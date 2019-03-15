@@ -12,7 +12,7 @@ endif
 %.F90: %.pf
 	$(PFUNIT_DIR)/bin/pFUnitParser.py $< $@
 
-GS2_OBJS = $(filter-out $(GK_HEAD_DIR)/gs2.o, $(patsubst %.o, $(GK_HEAD_DIR)/%.o, $(gs2_mod)))
+GS2_OBJS = $(filter-out gs2.o, $(gs2_mod))
 
 PFUNIT_TESTS= $(shell find ./ -name '*.pf')
 
