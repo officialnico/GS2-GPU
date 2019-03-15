@@ -38,7 +38,7 @@ $(PFUNIT_TEST_EXE): $(PFUNIT_DRIVER) $(PFUNIT_OBJS) $(GS2_OBJS)
 
 run_test: make_test
 	$(call messageOp,"Running ","\\t:","pFUnit tests")
-	$(QUIETSYM)mpirun -np $(PFUNIT_NPROC) $(PFUNIT_TEST_PATH)/$(PFUNIT_TEST_EXE) -robust -xml $(GK_HEAD_DIR)/test-results/pfunit.xml -o pfunit.log > /dev/null 2> pfunit.error && cat pfunit.log || (cat pfunit.error ; exit 1)
+	$(QUIETSYM)(touch pfunit.log ; tail -f pfunit.log &  mpirun -np $(PFUNIT_NPROC) $(PFUNIT_TEST_PATH)/$(PFUNIT_TEST_EXE) -robust -xml $(GK_HEAD_DIR)/test-results/pfunit.xml -o pfunit.log > /dev/null 2> pfunit.error ) || (cat pfunit.error ; exit 1)
 
 run_gcov:
 	gcov *.f90
