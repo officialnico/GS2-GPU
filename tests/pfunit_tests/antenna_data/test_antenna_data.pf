@@ -68,7 +68,6 @@ contains
     implicit none
     class (test_parameters), intent(inout) :: this
 
-    integer :: nk_stir_in
     associate( nk_stir_in => this%nk_stir_in )
 
       call init_antenna_data(nk_stir_in)
