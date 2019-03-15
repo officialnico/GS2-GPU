@@ -11,8 +11,6 @@ else
   PFUNIT_TEST_PATH=.
 endif
 
-%.o : %.F90
-	$(FC) $(F90FLAGS) -c $< $(PFUNIT_INC) -I$(GK_HEAD_DIR) -o $@
 
 %.F90: %.pf
 	$(PFUNIT_DIR)/bin/pFUnitParser.py $< $@
@@ -21,7 +19,7 @@ GS2_OBJS = $(filter-out gs2.o, $(gs2_mod))
 
 PFUNIT_TESTS= $(shell find $(PFUNIT_TEST_DIR) -name '*.pf')
 
-PFUNIT_OBJS = $(notdir $(PFUNIT_TESTS:.pf=.o))
+PFUNIT_OBJS = $(PFUNIT_TESTS:.pf=.o)
 PFUNIT_DRIVER = $(PFUNIT_DIR)/include/driver.F90
 PFUNIT_TEST_LIST = $(PFUNIT_TEST_DIR)/testSuites.inc
 
@@ -32,7 +30,7 @@ make_test: $(PFUNIT_TEST_EXE)
 $(PFUNIT_DRIVER): $(PFUNIT_TEST_LIST)
 	@touch $(PFUNIT_DRIVER)
 
-$(PFUNIT_TEST_EXE): $(GS2_OBJS) $(PFUNIT_DRIVER) $(PFUNIT_OBJS) 
+$(PFUNIT_TEST_EXE): $(GS2_OBJS) $(PFUNIT_DRIVER) $(PFUNIT_OBJS)
 	$(call messageOp,"Compiling","\\t:","pFUnit tests")
 	$(QUIETSYM)$(FC) -o $@ $^ -DUSE_MPI=YES $(PFUNIT_INC) $(PFUNIT_LIB) -I. $(SIMPLEDATAIO_LIB_ABS) $(LIBS) $(F90FLAGS) -I$(PFUNIT_TEST_DIR)
 

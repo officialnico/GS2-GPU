@@ -605,6 +605,10 @@ fft_work.o: fft_work.f90
 	$(QUIETSYM)$(FC) $(F90FLAGS) $(F90FLAGS_SFX0) -c $<
 endif
 
+%.o : %.pf
+	$(PFUNIT_DIR)/bin/pFUnitParser.py $< $(basename $<).F90
+	$(QUIETSYM)$(FC) $(F90FLAGS) -c $(basename $<).F90 $(PFUNIT_INC) -I$(GK_HEAD_DIR) -o $@
+
 %.f90: %.rb
 	$(call messageOp,"Generating from ruby","\\t:",$<)
 	$(QUIETSYM)$(call RUBY_GENERATE,$@,$<)
