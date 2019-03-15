@@ -25,7 +25,7 @@ PFUNIT_OBJS = $(PFUNIT_TESTS:.pf=.o)
 PFUNIT_DRIVER = $(PFUNIT_DIR)/include/driver.F90
 PFUNIT_TEST_LIST = $(PFUNIT_TEST_DIR)/testSuites.inc
 
-
+.PHONY: pfunit_tests make_test run_test check_pfunit_install pfunit_coverage run_gcov pfunit_clean
 
 make_test: $(PFUNIT_TEST_EXE)
 
