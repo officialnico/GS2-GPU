@@ -607,7 +607,12 @@ endif
 
 %.o : %.pf
 	$(PFUNIT_DIR)/bin/pFUnitParser.py $< $(basename $<).F90
+ifdef ONE_STEP_PP
 	$(QUIETSYM)$(FC) $(F90FLAGS) -c $(basename $<).F90 $(PFUNIT_INC) -I$(GK_HEAD_DIR) -o $@
+else
+	$(QUIETSYM)$(CPP) $(CPPFLAGS) $(MACRO_DEFS) $(basename $<).F90 -o $(basename $<).f90
+	$(QUIETSYM)$(FC) $(F90FLAGS) -c $(basename $<).f90 $(PFUNIT_INC) -I$(GK_HEAD_DIR) -o $@
+endif
 
 %.f90: %.rb
 	$(call messageOp,"Generating from ruby","\\t:",$<)
