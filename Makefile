@@ -113,9 +113,6 @@ GENQUAD ?=
 # Compile with gcov flags to check for code coverage
 USE_GCOV ?=
 HAS_GCOV=$(USE_GCOV)
-# Compile with changes to allow pfunit testing
-USE_PFUNIT ?=
-HAS_PFUNIT=$(USE_PFUNIT)
 
 # Compile with the new simplified diagnostics module (bin)
 USE_NEW_DIAG ?=on
@@ -457,12 +454,6 @@ endif
 
 ifdef LOWFLOW
 	MACRO_DEFS += -DLOWFLOW
-endif
-
-ifdef USE_PFUNIT
-	MACRO_DEFS += -DWITH_PFUNIT
-	PFUNIT_LIB=-L$(PFUNIT_DIR)/lib -lpfunit
-	PFUNIT_INC=-I$(PFUNIT_DIR)/mod
 endif
 
 #Setup the flags for using the eigensolver
@@ -860,7 +851,6 @@ test_make:
 	$(call messageKeyVal, "USE_NAGLIB", $(USE_NAGLIB))
 	$(call messageKeyVal, "USE_NEW_DIAG", $(USE_NEW_DIAG))
 	$(call messageKeyVal, "USE_GCOV", $(USE_GCOV))
-	$(call messageKeyVal, "USE_PFUNIT", $(USE_PFUNIT))
 	@echo
 	$(call messageInfo,"Flags:")
 	$(call messageKeyVal, "F90FLAGS", $(F90FLAGS))

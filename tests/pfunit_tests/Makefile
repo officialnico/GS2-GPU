@@ -1,6 +1,9 @@
 PFUNIT_TEST_EXE=pfunit_test_suite
 PFUNIT_TEST_DIR=$(GK_HEAD_DIR)/tests/pfunit_tests
 
+PFUNIT_LIB=-L$(PFUNIT_DIR)/lib -lpfunit
+PFUNIT_INC=-I$(PFUNIT_DIR)/mod
+
 ifeq ($(GK_SYSTEM),bitbucket)
   PFUNIT_TEST_PATH=/opt/atlassian/pipelines/agent/build/pfunit_tests
 else
@@ -39,28 +42,16 @@ run_test: make_test
 run_gcov:
 	gcov *.f90
 
-ifndef USE_PFUNIT
-pfunit_tests: test_fail_target
-test_fail_target:
-	$(error Cannot make pfunit_tests as USE_PFUNIT undefined. Rebuild everything with USE_PFUNIT=on)
-else
 pfunit_tests: make_test run_test
-endif
 
-ifndef USE_PFUNIT
-pfunit_coverage: coverage_pfunit_fail
-coverage_pfunit_fail:
-	$(error Cannot make pfunit_coverage as USE_PFUNIT undefined. Rebuild everything with USE_PFUNIT=on USE_GCOV=on)
-else
 ifndef USE_GCOV
 pfunit_coverage: coverage_gcov_fail
 coverage_gcov_fail:
-	$(error Cannot make pfunit_coverage as USE_GCOV undefined. Rebuild everything with USE_PFUNIT=on USE_GCOV=on)
+	$(error Cannot make pfunit_coverage as USE_GCOV undefined. Rebuild everything with USE_GCOV=on)
 else
 pfunit_coverage: gs2 make_test run_test run_gcov
 	mkdir -p coverage-pfunit
 	mv *.gcov coverage-pfunit/.
-endif
 endif
 
 pfunit_clean:
