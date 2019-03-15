@@ -21,7 +21,7 @@ GS2_OBJS = $(filter-out gs2.o, $(gs2_mod))
 
 PFUNIT_TESTS= $(shell find $(PFUNIT_TEST_DIR) -name '*.pf')
 
-PFUNIT_OBJS = $(PFUNIT_TESTS:.pf=.o)
+PFUNIT_OBJS = $(notdir $(PFUNIT_TESTS:.pf=.o))
 PFUNIT_DRIVER = $(PFUNIT_DIR)/include/driver.F90
 PFUNIT_TEST_LIST = $(PFUNIT_TEST_DIR)/testSuites.inc
 
