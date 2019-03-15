@@ -23,9 +23,12 @@ make_test: $(GS2_OBJS)
 	$(QUIETSYM)$(RM) $(PFUNIT_TEST_DIR)/$(PFUNIT_TEST_EXE)
 	$(QUIETSYM)$(MAKE) -C $(PFUNIT_TEST_DIR) $(PFUNIT_TEST_EXE)
 
-$(PFUNIT_TEST_EXE): $(PFUNIT_DRIVER) $(PFUNIT_OBJS) testSuites.inc
+$(PFUNIT_DRIVER): testSuites.inc
+	@touch $(PFUNIT_DRIVER)
+
+$(PFUNIT_TEST_EXE): $(PFUNIT_DRIVER) $(PFUNIT_OBJS) $(GS2_OBJS)
 	$(call messageOp,"Compiling","\\t:","pFUnit tests")
-	$(QUIETSYM)$(FC) -o $@ $(GS2_OBJS) -DUSE_MPI=YES $(PFUNIT_INC) $(PFUNIT_DRIVER) $(PFUNIT_OBJS) $(PFUNIT_LIB) -I. $(SIMPLEDATAIO_LIB_ABS) $(LIBS) $(F90FLAGS)
+	$(QUIETSYM)$(FC) -o $@ $^ -DUSE_MPI=YES $(PFUNIT_INC) $(PFUNIT_LIB) -I. $(SIMPLEDATAIO_LIB_ABS) $(LIBS) $(F90FLAGS)
 
 run_test: make_test
 	$(call messageOp,"Running ","\\t:","pFUnit tests")
