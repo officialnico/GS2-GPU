@@ -30,8 +30,10 @@ Tests can also be _excluded_ by setting the `EXCLUDE_TESTS` variable.
 GS2 also has unit testing implemented in [pFUnit](https://github.com/Goddard-Fortran-Ecosystem/pFUnit).
 These tests are in the folder `pfunit_tests` and subfolders. To run these
 tests, build GS2 with the variable `USE_PFUNIT=on` and make the target
-`pfunit_tests`:
+`pfunit_tests`, after setting the variable `PFUNIT_DIR` to the location of your
+pFUnit install (usually the value of the variable `PFUNIT`):
 ```
+$ export PFUNIT_DIR=path/to/install/pfunit
 $ make USE_PFUNIT=on
 $ make pfunit_tests USE_PFUNIT=on
 ```
