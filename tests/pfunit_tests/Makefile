@@ -1,5 +1,6 @@
 PFUNIT_TEST_EXE=pfunit_test_suite
 PFUNIT_TEST_DIR=$(GK_HEAD_DIR)/tests/pfunit_tests
+PFUNIT_NPROC=4
 
 PFUNIT_LIB=-L$(PFUNIT_DIR)/lib -lpfunit
 PFUNIT_INC=-I$(PFUNIT_DIR)/mod
@@ -37,7 +38,7 @@ $(PFUNIT_TEST_EXE): $(PFUNIT_DRIVER) $(PFUNIT_OBJS) $(GS2_OBJS)
 
 run_test: make_test
 	$(call messageOp,"Running ","\\t:","pFUnit tests")
-	$(QUIETSYM)cd $(PFUNIT_TEST_DIR) && mpirun -np 4 $(PFUNIT_TEST_PATH)/$(PFUNIT_TEST_EXE) -robust -xml $(GK_HEAD_DIR)/test-results/pfunit.xml -o pfunit.log > /dev/null 2> pfunit.error && cat pfunit.log || cat pfunit.error
+	$(QUIETSYM)mpirun -np $(PFUNIT_NPROC $(PFUNIT_TEST_PATH)/$(PFUNIT_TEST_EXE) -robust -xml $(GK_HEAD_DIR)/test-results/pfunit.xml -o pfunit.log > /dev/null 2> pfunit.error && cat pfunit.log || (cat pfunit.error ; exit 1)
 
 run_gcov:
 	gcov *.f90
