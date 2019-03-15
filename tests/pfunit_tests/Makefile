@@ -42,7 +42,13 @@ run_test: make_test
 run_gcov:
 	gcov *.f90
 
-pfunit_tests: make_test run_test
+pfunit_tests: check_pfunit_install make_test run_test
+
+check_pfunit_install:
+ifeq ("$(wildcard $(PFUNIT_DIR)/bin/pFUnitParser.py)","")
+	$(error pFUnit files not found. Make sure pFUnit is installed and PFUNIT_DIR is set to its location)
+endif
+
 
 ifndef USE_GCOV
 pfunit_coverage: coverage_gcov_fail
