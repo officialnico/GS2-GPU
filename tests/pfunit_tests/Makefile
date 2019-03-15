@@ -14,7 +14,7 @@ endif
 
 GS2_OBJS = $(filter-out gs2.o, $(gs2_mod))
 
-PFUNIT_TESTS= $(shell find ./ -name '*.pf')
+PFUNIT_TESTS= $(shell find $(GK_HEAD_DIR)/tests -name '*.pf')
 
 PFUNIT_OBJS = $(PFUNIT_TESTS:.pf=.o)
 PFUNIT_DRIVER = $(PFUNIT_DIR)/include/driver.F90
