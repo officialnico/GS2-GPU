@@ -12,6 +12,7 @@
 6. [Compilation](#compilation)
     1. [with build_gs2](#build-gs2)
     2. [with make](#make)
+7. [Tests](#tests)
 7. [Citing GS2](#citing-gs2)
     1. [Citation](#citation)
     2. [Acknowledgements](#acknowledgements)
@@ -315,6 +316,16 @@ by the depend target using the perl script "fortdep". The script is
 distributed for developers convenience. Users do not need to reconstruct
 it.
 
+<a name="tests"></a>
+## Tests
+
+Users should run the GS2 tests after installing, updating or developing the
+code. Tests are also run automatically on code that is pushed to the
+Bitbucket repository. Please report any problems or bugs by [creating an
+issue on Bitbucket](https://bitbucket.org/gyrokinetics/gs2/issues?status=new&status=open).
+
+For details on running the tests, see the README in the `tests` folder.
+
 <a name="citing-gs2"></a>
 ## Citing GS2
 
@@ -338,4 +349,3 @@ Please acknowledge grants which support the development of GS2:
 > "This work made use of computational support by CoSeC, the Computational
 > Science Centre for Research Communities, through CPP Plasma ([EP/M022463/1](https://gow.epsrc.ukri.org/NGBOViewGrant.aspx?GrantRef=EP/M022463/1))
 > and HEC Plasma ([EP/R029148/1](https://gow.epsrc.ukri.org/NGBOViewGrant.aspx?GrantRef=EP/R029148/1))."
-
