@@ -323,7 +323,8 @@ support its development.
 
 <a name="citation"></a>
 ### Citation
-The citation for GS2 may be found in CITATION.cff. You can convert the
+GS2's DOI is [10.5281/zenodo.2551067](https://doi.org/10.5281/zenodo.2551067).
+The full citation for GS2 may be alos found in CITATION.cff. You can convert the
 CITATION.cff file into a Bibtex file as follows:
 
     pip3 install --user cffconvert
