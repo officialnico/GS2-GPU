@@ -1,0 +1,1 @@
+ADD_TEST_SUITE(test_antenna_data_mod_suite)

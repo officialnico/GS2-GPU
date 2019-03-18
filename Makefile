@@ -498,10 +498,10 @@ endif
 LIBS	+= $(DEFAULT_LIB) $(MPI_LIB) $(NETCDF_LIB) $(HDF5_LIB) $(FFT_LIB) \
 		   $(NAG_LIB) $(EIG_LIB) $(GENQUAD_LIB)
 INCLUDES = $(DEFAULT_INC) $(MPI_INC) $(NETCDF_INC) $(HDF5_INC) $(FFT_INC)\
-		   $(SIMPLEDATAIO_INC) $(EIG_INC) $(GENQUAD_INC)
+		   $(SIMPLEDATAIO_INC) $(EIG_INC) $(GENQUAD_INC) $(PFUNIT_INC)
 F90FLAGS+= $(F90OPTFLAGS) $(INCLUDES)
 CFLAGS += $(COPTFLAGS) \
-	   $(DEFAULT_INC) $(MPI_INC) $(NETCDF_INC) $(HDF5_INC) $(FFT_INC) 
+	   $(DEFAULT_INC) $(MPI_INC) $(NETCDF_INC) $(HDF5_INC) $(FFT_INC)
 
 
 DATE=$(shell date +%y%m%d)
@@ -517,7 +517,7 @@ ifneq ($(TOPDIR),$(CURDIR))
 	SUBDIR=true
 endif
 
-VPATH = $(UTILS):$(GEO):Aux:diagnostics:../$(UTILS):../$(GEO):../diagnostics$(SIMPLEDATAIO_VPATH)
+VPATH = $(GK_HEAD_DIR):$(UTILS):$(GEO):Aux:diagnostics:../$(UTILS):../$(GEO):../diagnostics$(SIMPLEDATAIO_VPATH)
 # this just removes non-existing directory from VPATH
 VPATH_tmp := $(foreach tmpvp,$(subst :, ,$(VPATH)),$(shell [ -d $(tmpvp) ] && echo $(tmpvp)))
 VPATH = .:$(shell echo $(VPATH_tmp) | sed "s/ /:/g")
@@ -605,6 +605,15 @@ fft_work.o: fft_work.f90
 	$(QUIETSYM)$(FC) $(F90FLAGS) $(F90FLAGS_SFX0) -c $<
 endif
 
+%.o : %.pf
+	$(PFUNIT_DIR)/bin/pFUnitParser.py $< $(basename $<).F90
+ifdef ONE_STEP_PP
+	$(QUIETSYM)$(FC) $(F90FLAGS) -c $(basename $<).F90 $(PFUNIT_INC) -I$(GK_HEAD_DIR) -o $@
+else
+	$(QUIETSYM)$(CPP) $(CPPFLAGS) $(MACRO_DEFS) $(basename $<).F90 -o $(basename $<).f90
+	$(QUIETSYM)$(FC) $(F90FLAGS) -c $(basename $<).f90 $(PFUNIT_INC) -I$(GK_HEAD_DIR) -o $@
+endif
+
 %.f90: %.rb
 	$(call messageOp,"Generating from ruby","\\t:",$<)
 	$(QUIETSYM)$(call RUBY_GENERATE,$@,$<)
@@ -674,7 +683,9 @@ all: $(.DEFAULT_GOAL)
 
 #TODO : Add a rule to automatically build the depend file when appropriate.
 ifneq ("$(MAKECMDGOALS)", "distclean")
+ifneq ("$(MAKECMDGOALS)", "depend")
 include $(DEPEND)
+endif
 endif
 
 #If we're using fft(w) then we want to link the fft_save_wisdom object file
@@ -749,7 +760,7 @@ clean_depend:
 	$(call messageRm,"Dependency file")	
 	-$(QUIETSYM)rm -f $(DEPEND)
 
-distclean: unlink clean cleanlib clean_tests clean_benchmarks distclean_simpledataio cleanconfig clean_doxygendoc cleandoc clean_coverage clean_depend
+distclean: unlink clean cleanlib clean_tests clean_benchmarks distclean_simpledataio cleanconfig clean_doxygendoc cleandoc clean_coverage clean_depend pfunit_clean
 
 unlink:
 	$(call messageRm,"Preprocessed files")	
@@ -787,6 +798,11 @@ tar_exec:
 TEST_DIR:=tests
 $(TEST_DIR)/Makefile.tests_and_benchmarks: ;
 sinclude $(TEST_DIR)/Makefile.tests_and_benchmarks
+
+#This is the location of the pfunit test suites
+PFUNIT_TEST_DIR:=$(TEST_DIR)/pfunit_tests
+sinclude $(PFUNIT_TEST_DIR)/Makefile
+
 ############################################################# Introspection targets
 test_make:
 	$(call messageInfo,"Global settings:")
@@ -889,6 +905,15 @@ ifdef USE_FFT
 	$(call messageKeyVal, "FFT_DIR", $(FFT_DIR))
 else
 	$(call messageInfo,"FFT: DISABLED")
+endif
+	@echo
+ifdef USE_NEW_DIAG
+	$(call messageInfo,"SIMPLEDATAIO:")
+	$(call messageKeyVal, "SIMPLEDATAIO_LIB", $(SIMPLEDATAIO_LIB))
+	$(call messageKeyVal, "SIMPLEDATAIO_LIB_ABS", $(SIMPLEDATAIO_LIB_ABS))
+	$(call messageKeyVal, "SIMPLEDATAIO_INC" $(SIMPLEDATAIO_INC))
+else
+	$(call messageInfo,"SIMPLEDATAIO: DISABLED")
 endif
 	@echo
 ifdef WITH_EIG
