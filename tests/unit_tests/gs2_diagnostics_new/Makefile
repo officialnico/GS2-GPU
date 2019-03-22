@@ -3,6 +3,10 @@ sinclude ../Makefile.tests_common
 
 CLEANCOMMAND+= test_gs2_diagnostics_new old_diagnostics/.test_* old_diagnostics/*.{o,error,out*,vres,*mom*,eigenfunc,fields,g,heat*,jext,lpc,parity,phase} averages.dat tmpdata.dat
 
+ifdef TESTNORUN
+all:
+	$(call SKIPCOMMAND,variable TESTNORUN is defined; unset TESTNORUN to run this test)
+else
 #Define this tests level
 MY_TEST_LEVEL=1
 VAL:= $(shell expr ${MY_TEST_LEVEL} \<= ${TEST_LEVEL})
@@ -30,6 +34,7 @@ endif
 else
 all:
 	$(call SKIPCOMMAND,compiled without new diagnostics; compile with USE_NEW_DIAG=on to run this test)
+endif
 endif
 
 test_gs2_diagnostics_new.o:  ${TEST_MODS} 

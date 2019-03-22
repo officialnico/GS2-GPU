@@ -3,6 +3,10 @@ sinclude ../Makefile.tests_common
 
 CLEANCOMMAND+= test_fields_local test_fields_local_tuning
 
+ifdef TESTNORUN
+all:
+	$(call SKIPCOMMAND,variable TESTNORUN is defined; unset TESTNORUN to run this test)
+else
 #Define this tests level
 MY_TEST_LEVEL=1
 VAL:= $(shell expr ${MY_TEST_LEVEL} \<= ${TEST_LEVEL})
@@ -13,7 +17,7 @@ else
 all: test_fields_local test_fields_local_tuning 
 	$(call RUNCOMMAND,test_fields_local,test_fields_local.in)
 	$(call RUNCOMMAND,test_fields_local_tuning,test_fields_local_tuning.in)
-
+endif
 endif
 
 test_fields_local.o:  ${TEST_MODS} 
