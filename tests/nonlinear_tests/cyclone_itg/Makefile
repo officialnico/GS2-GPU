@@ -4,7 +4,7 @@ sinclude ../Makefile.tests_common
 CLEANCOMMAND+= cyclone_itg_low_res
 
 ifdef TESTNORUN
-all:
+all: cyclone_itg_low_res
 	$(call SKIPCOMMAND,variable TESTNORUN is defined; unset TESTNORUN to run this test)
 else
 #Define this tests level

@@ -4,7 +4,7 @@ sinclude ../Makefile.tests_common
 CLEANCOMMAND+= test_theta_grid ogyropsi.dat EQDSK
 
 ifdef TESTNORUN
-all:
+all: test_theta_grid ogyropsi.dat EQDSK
 	$(call SKIPCOMMAND,variable TESTNORUN is defined; unset TESTNORUN to run this test)
 else
 #Define this tests level

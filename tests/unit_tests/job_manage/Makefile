@@ -3,7 +3,7 @@ sinclude ../Makefile.tests_common
 
 CLEANCOMMAND+= test_job_manage_stop_file
 ifdef TESTNORUN
-all:
+all: test_job_manage_stop_file
 	$(call SKIPCOMMAND,variable TESTNORUN is defined; unset TESTNORUN to run this test)
 else
 #Define this tests level

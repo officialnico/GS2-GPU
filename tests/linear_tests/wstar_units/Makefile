@@ -4,7 +4,7 @@ sinclude ../Makefile.tests_common
 CLEANCOMMAND+= wstar_units
 
 ifdef TESTNORUN
-all:
+all: wstar_units 
 	$(call SKIPCOMMAND,variable TESTNORUN is defined; unset TESTNORUN to run this test)
 else
 #Define this tests level

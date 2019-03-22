@@ -4,7 +4,7 @@ sinclude ../Makefile.tests_common
 CLEANCOMMAND+= test_gs2_gryfx_zonal
 
 ifdef TESTNORUN
-all:
+all: test_gs2_gryfx_zonal 
 	$(call SKIPCOMMAND,variable TESTNORUN is defined; unset TESTNORUN to run this test)
 else
 all: test_gs2_gryfx_zonal 

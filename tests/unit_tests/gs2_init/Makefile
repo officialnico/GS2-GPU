@@ -4,7 +4,7 @@ sinclude ../Makefile.tests_common
 CLEANCOMMAND+= test_gs2_init
 
 ifdef TESTNORUN
-all:
+all: test_gs2_init 
 	$(call SKIPCOMMAND,variable TESTNORUN is defined; unset TESTNORUN to run this test)
 else
 ifndef USE_NETCDF

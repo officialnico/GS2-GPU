@@ -4,7 +4,7 @@ sinclude ../Makefile.tests_common
 CLEANCOMMAND+= test_fields_local test_fields_local_tuning
 
 ifdef TESTNORUN
-all:
+all: test_fields_local test_fields_local_tuning 
 	$(call SKIPCOMMAND,variable TESTNORUN is defined; unset TESTNORUN to run this test)
 else
 #Define this tests level

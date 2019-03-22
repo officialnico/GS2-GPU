@@ -4,7 +4,7 @@ sinclude ../Makefile.tests_common
 CLEANCOMMAND+= test_asym_geo_fourier
 
 ifdef TESTNORUN
-all:
+all: test_asym_geo_fourier
 	$(call SKIPCOMMAND,variable TESTNORUN is defined; unset TESTNORUN to run this test)
 else
 #Define this tests level

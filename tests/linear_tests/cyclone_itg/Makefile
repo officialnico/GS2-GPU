@@ -6,7 +6,7 @@ CLEANCOMMAND+= cyclone_itg_low_res cyclone_itg_replay
 COPY=cp  cyclone_itg_low_res_fields_local.out.nc cyclone_itg_replay.out.nc
 
 ifdef TESTNORUN
-all:
+all: cyclone_itg_low_res cyclone_itg_replay
 	$(call SKIPCOMMAND,variable TESTNORUN is defined; unset TESTNORUN to run this test)
 else
 #Define this tests level

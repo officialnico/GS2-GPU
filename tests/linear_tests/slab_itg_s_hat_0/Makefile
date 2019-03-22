@@ -6,7 +6,7 @@ CLEANCOMMAND+= slab_itg_s_hat_0_low_res
 COPY=cp ../../../gs2 gs2_slab_itg
 
 ifdef TESTNORUN
-all:
+all: slab_itg_s_hat_0_low_res 
 	$(call SKIPCOMMAND,variable TESTNORUN is defined; unset TESTNORUN to run this test)
 else
 #Define this tests level
