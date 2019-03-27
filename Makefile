@@ -499,6 +499,13 @@ LIBS	+= $(DEFAULT_LIB) $(MPI_LIB) $(NETCDF_LIB) $(HDF5_LIB) $(FFT_LIB) \
 		   $(NAG_LIB) $(EIG_LIB) $(GENQUAD_LIB)
 INCLUDES = $(DEFAULT_INC) $(MPI_INC) $(NETCDF_INC) $(HDF5_INC) $(FFT_INC)\
 		   $(SIMPLEDATAIO_INC) $(EIG_INC) $(GENQUAD_INC) $(PFUNIT_INC)
+
+# Here we attempt to remove non-existent directories from INCLUDES. We assume that
+# INCLUDES is currently just a list of entries of the form -I<some directory> so for
+# each entry we strip the -I and then echo -I<some directory> if <some directory> is
+# found to exist. This can help avoid warnings about non-existent directories
+INCLUDES := $(foreach tmpvp,$(subst -I, ,$(INCLUDES)),$(shell [ -d $(tmpvp) ] && echo -I$(tmpvp)))
+
 F90FLAGS+= $(F90OPTFLAGS) $(INCLUDES)
 CFLAGS += $(COPTFLAGS) \
 	   $(DEFAULT_INC) $(MPI_INC) $(NETCDF_INC) $(HDF5_INC) $(FFT_INC)
