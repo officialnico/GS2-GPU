@@ -53,7 +53,7 @@ module nonlinear_terms
 
 ! CFL coefficients
   real :: cfl, cflx, cfly
-  real :: max_vel, zero
+  real :: max_vel
   integer :: cfl_req_hand
 
 ! hyperviscosity coefficients
@@ -534,18 +534,10 @@ contains
     
     call debug_message(verb, 'nonlinear_terms::add_nl starting')
 
-    !Initialise zero so we can be sure tests are sensible
-    zero = epsilon(0.0)
-
     !Form g1=i*kx*chi
-    if (fphi > zero) then
-       call load_kx_phi
-    else
-       g1 = 0.
-    end if
-
-    if (fbpar > zero) call load_kx_bpar
-    if (fapar  > zero) call load_kx_apar
+    call load_kx_phi(g1, phi)    
+    call load_kx_bpar(g1, bpar)    
+    call load_kx_apar(g1, apar)    
 
     call debug_message(verb, 'nonlinear_terms::add_nl calling transform2')
     !Transform to real space
@@ -604,14 +596,9 @@ contains
     call debug_message(verb, 'nonlinear_terms::add_nl calculated dphi/dx.dg/dy')
 
     !Form g1=i*ky*chi
-    if (fphi > zero) then
-       call load_ky_phi
-    else
-       g1 = 0.
-    end if
-    
-    if (fbpar > zero) call load_ky_bpar
-    if (fapar  > zero) call load_ky_apar
+    call load_ky_phi(g1, phi)
+    call load_ky_bpar(g1, bpar)
+    call load_ky_apar(g1, apar)
 
     call debug_message(verb, 'nonlinear_terms::add_nl calculated dphi/dy')
 
@@ -690,145 +677,185 @@ contains
 
     call debug_message(verb, &
       'nonlinear_terms::add_nl calculated nonlinear term')
-    
-  contains
-    !> FIXME : Add documentation    
-    subroutine load_kx_phi
-      use dist_fn_arrays, only: aj0
-      implicit none
-      complex :: fac
-
-      do iglo = g_lo%llim_proc, g_lo%ulim_proc
-         it = it_idx(g_lo,iglo)
-         ik = ik_idx(g_lo,iglo)
-         do ig = -ntgrid, ntgrid
-            fac = zi*akx(it)*aj0(ig,iglo)*phi(ig,it,ik)*fphi
-            g1(ig,1,iglo) = fac
-            g1(ig,2,iglo) = fac
-         end do
-      end do
-
-    end subroutine load_kx_phi
-
-    !> FIXME : Add documentation    
-    subroutine load_ky_phi
-      use dist_fn_arrays, only: aj0
-      implicit none
-      complex :: fac
-
-      do iglo = g_lo%llim_proc, g_lo%ulim_proc
-         it = it_idx(g_lo,iglo)
-         ik = ik_idx(g_lo,iglo)
-         do ig = -ntgrid, ntgrid
-            fac = zi*aky(ik)*aj0(ig,iglo)*phi(ig,it,ik)*fphi
-            g1(ig,1,iglo) = fac
-            g1(ig,2,iglo) = fac
-         end do
-      end do
-
-    end subroutine load_ky_phi
-
-! should I use vpa or vpac in next two routines??
-
-    !> FIXME : Add documentation    
-    subroutine load_kx_apar
-      use dist_fn_arrays, only: vpa, aj0
-      use gs2_layouts, only: is_idx
-      implicit none
-      complex :: fac
-
-      do iglo = g_lo%llim_proc, g_lo%ulim_proc
-         it = it_idx(g_lo,iglo)
-         ik = ik_idx(g_lo,iglo)
-         is = is_idx(g_lo,iglo)
-!AJ Optimisatin
-         do ig = -ntgrid, ntgrid
-            fac = zi*akx(it)*aj0(ig,iglo)*spec(is)%stm*apar(ig,it,ik)*fapar
-            g1(ig,1,iglo) = g1(ig,1,iglo) - fac*vpa(ig,1,iglo)
-!         end do
-!         do ig = -ntgrid, ntgrid
-!            g1(ig,2,iglo) = g1(ig,2,iglo) - zi*akx(it)*aj0(ig,iglo)*spec(is)%stm &
-!                 *vpa(ig,2,iglo)*apar(ig,it,ik)*fapar 
-            g1(ig,2,iglo) = g1(ig,2,iglo) - fac*vpa(ig,2,iglo)
-         end do
-      end do
-
-    end subroutine load_kx_apar
-
-    !> FIXME : Add documentation    
-    subroutine load_ky_apar
-      use dist_fn_arrays, only: vpa, aj0
-      use gs2_layouts, only: is_idx
-      implicit none
-      complex :: fac
-
-      do iglo = g_lo%llim_proc, g_lo%ulim_proc
-         it = it_idx(g_lo,iglo)
-         ik = ik_idx(g_lo,iglo)
-         is = is_idx(g_lo,iglo)
-!AJ Optimisation
-         do ig = -ntgrid, ntgrid
-            fac = zi*aky(ik)*aj0(ig,iglo)*spec(is)%stm*apar(ig,it,ik)*fapar
-            g1(ig,1,iglo) = g1(ig,1,iglo) - fac*vpa(ig,1,iglo)
-!            g1(ig,1,iglo) = g1(ig,1,iglo) - zi*aky(ik)*aj0(ig,iglo)*spec(is)%stm &
-!                 *vpa(ig,1,iglo)*apar(ig,it,ik)*fapar 
-!         end do
-!         do ig = -ntgrid, ntgrid
-!            g1(ig,2,iglo) = g1(ig,2,iglo) - zi*aky(ik)*aj0(ig,iglo)*spec(is)%stm &
-!                 *vpa(ig,2,iglo)*apar(ig,it,ik)*fapar 
-             g1(ig,2,iglo) = g1(ig,2,iglo) - fac*vpa(ig,2,iglo)
-         end do
-      end do
-
-    end subroutine load_ky_apar
-
-    !> FIXME : Add documentation    
-    subroutine load_kx_bpar
-      use dist_fn_arrays, only: vperp2, aj1
-      use gs2_layouts, only: is_idx
-      implicit none
-      complex :: fac
-
-! Is this factor of two from the old normalization?
-
-      do iglo = g_lo%llim_proc, g_lo%ulim_proc
-         it = it_idx(g_lo,iglo)
-         ik = ik_idx(g_lo,iglo)
-         is = is_idx(g_lo,iglo)
-         do ig = -ntgrid, ntgrid
-            fac = g1(ig,1,iglo) + zi*akx(it)*aj1(ig,iglo) &
-                 *2.0*vperp2(ig,iglo)*spec(is)%tz*bpar(ig,it,ik)*fbpar
-            g1(ig,1,iglo) = fac
-            g1(ig,2,iglo) = fac
-         end do
-      end do
-
-    end subroutine load_kx_bpar
-
-    !> FIXME : Add documentation    
-    subroutine load_ky_bpar
-      use dist_fn_arrays, only: vperp2, aj1
-      use gs2_layouts, only: is_idx
-      implicit none
-      complex :: fac
-
-! Is this factor of two from the old normalization?
-
-      do iglo = g_lo%llim_proc, g_lo%ulim_proc
-         it = it_idx(g_lo,iglo)
-         ik = ik_idx(g_lo,iglo)
-         is = is_idx(g_lo,iglo)
-         do ig = -ntgrid, ntgrid
-            fac = g1(ig,1,iglo) + zi*aky(ik)*aj1(ig,iglo) &
-                 *2.0*vperp2(ig,iglo)*spec(is)%tz*bpar(ig,it,ik)*fbpar
-            g1(ig,1,iglo) = fac 
-            g1(ig,2,iglo) = fac
-         end do
-      end do
-
-    end subroutine load_ky_bpar
 
   end subroutine add_nl
+  
+  !> FIXME : Add documentation    
+  subroutine load_kx_phi(g1, phi)
+    use theta_grid, only: ntgrid
+    use gs2_layouts, only: g_lo, ik_idx, it_idx
+    use dist_fn_arrays, only: aj0
+    use run_parameters, only: fphi
+    use kt_grids, only: akx
+    use constants, only: zi
+    implicit none
+    complex, dimension (-ntgrid:,:,g_lo%llim_proc:), intent (in out) :: g1
+    complex, dimension (-ntgrid:,:,:), intent (in) :: phi      
+    complex, dimension(-ntgrid:ntgrid) :: fac
+    integer :: iglo, it, ik
+
+    if (fphi > epsilon(0.0)) then
+       do iglo = g_lo%llim_proc, g_lo%ulim_proc
+          it = it_idx(g_lo,iglo)
+          ik = ik_idx(g_lo,iglo)
+          fac = zi*akx(it)*aj0(:,iglo)*phi(:,it,ik)*fphi
+          g1(:,1,iglo) = fac
+          g1(:,2,iglo) = fac
+       end do
+    else
+       g1 = 0.
+    endif
+  end subroutine load_kx_phi
+
+  !> FIXME : Add documentation    
+  subroutine load_ky_phi(g1, phi)
+    use theta_grid, only: ntgrid
+    use gs2_layouts, only: g_lo, ik_idx, it_idx
+    use dist_fn_arrays, only: aj0
+    use run_parameters, only: fphi
+    use kt_grids, only: aky
+    use constants, only: zi
+    implicit none
+    complex, dimension (-ntgrid:,:,g_lo%llim_proc:), intent (in out) :: g1
+    complex, dimension (-ntgrid:,:,:), intent (in) :: phi      
+    complex, dimension(-ntgrid:ntgrid) :: fac
+    integer :: iglo, it, ik
+
+    if (fphi > epsilon(0.0)) then      
+       do iglo = g_lo%llim_proc, g_lo%ulim_proc
+          it = it_idx(g_lo,iglo)
+          ik = ik_idx(g_lo,iglo)
+          fac = zi*aky(ik)*aj0(:,iglo)*phi(:,it,ik)*fphi
+          g1(:,1,iglo) = fac
+          g1(:,2,iglo) = fac
+       end do
+    else
+       g1 = 0.
+    endif
+
+  end subroutine load_ky_phi
+
+  ! should I use vpa or vpac in next two routines??
+
+  !> FIXME : Add documentation    
+  subroutine load_kx_apar(g1, apar)
+    use theta_grid, only: ntgrid
+    use gs2_layouts, only: g_lo, ik_idx, it_idx, is_idx
+    use dist_fn_arrays, only: vpa, aj0
+    use species, only: spec
+    use run_parameters, only: fapar
+    use kt_grids, only: akx
+    use constants, only: zi
+    implicit none
+    complex, dimension (-ntgrid:,:,g_lo%llim_proc:), intent (in out) :: g1
+    complex, dimension (-ntgrid:,:,:), intent (in) :: apar
+    complex, dimension(-ntgrid:ntgrid) :: fac    
+    integer iglo, it, ik, is
+
+    if(fapar <= epsilon(0.0)) return
+
+    do iglo = g_lo%llim_proc, g_lo%ulim_proc
+       it = it_idx(g_lo,iglo)
+       ik = ik_idx(g_lo,iglo)
+       is = is_idx(g_lo,iglo)
+
+       fac = zi*akx(it)*aj0(:,iglo)*spec(is)%stm*apar(:,it,ik)*fapar
+       g1(:,1,iglo) = g1(:,1,iglo) - fac*vpa(:,1,iglo)
+       g1(:,2,iglo) = g1(:,2,iglo) - fac*vpa(:,2,iglo)
+    end do
+
+  end subroutine load_kx_apar
+
+  !> FIXME : Add documentation    
+  subroutine load_ky_apar(g1, apar)
+    use theta_grid, only: ntgrid
+    use gs2_layouts, only: g_lo, ik_idx, it_idx, is_idx
+    use dist_fn_arrays, only: vpa, aj0
+    use species, only: spec
+    use run_parameters, only: fapar
+    use kt_grids, only: aky
+    use constants, only: zi
+    implicit none
+    complex, dimension (-ntgrid:,:,g_lo%llim_proc:), intent (in out) :: g1
+    complex, dimension (-ntgrid:,:,:), intent (in) :: apar            
+    complex, dimension(-ntgrid:ntgrid) :: fac    
+    integer iglo, it, ik, is
+
+    if(fapar <= epsilon(0.0)) return
+
+    do iglo = g_lo%llim_proc, g_lo%ulim_proc
+       it = it_idx(g_lo,iglo)
+       ik = ik_idx(g_lo,iglo)
+       is = is_idx(g_lo,iglo)
+
+       fac = zi*aky(ik)*aj0(:,iglo)*spec(is)%stm*apar(:,it,ik)*fapar
+       g1(:,1,iglo) = g1(:,1,iglo) - fac*vpa(:,1,iglo)
+       g1(:,2,iglo) = g1(:,2,iglo) - fac*vpa(:,2,iglo)
+    end do
+
+  end subroutine load_ky_apar
+
+  !> FIXME : Add documentation    
+  subroutine load_kx_bpar(g1, bpar)
+    use theta_grid, only: ntgrid
+    use gs2_layouts, only: g_lo, ik_idx, it_idx, is_idx
+    use dist_fn_arrays, only: vperp2, aj1
+    use species, only: spec
+    use run_parameters, only: fbpar
+    use kt_grids, only: akx
+    use constants, only: zi
+    implicit none
+    complex, dimension (-ntgrid:,:,g_lo%llim_proc:), intent (in out) :: g1
+    complex, dimension (-ntgrid:,:,:), intent (in) :: bpar      
+    complex, dimension(-ntgrid:ntgrid) :: fac    
+    integer iglo, it, ik, is
+
+    if (fbpar <= epsilon(0.0)) return
+
+    ! Is this factor of two from the old normalization?
+
+    do iglo = g_lo%llim_proc, g_lo%ulim_proc
+       it = it_idx(g_lo,iglo)
+       ik = ik_idx(g_lo,iglo)
+       is = is_idx(g_lo,iglo)
+       fac = zi*akx(it)*aj1(:,iglo) &
+            *2.0*vperp2(:,iglo)*spec(is)%tz*bpar(:,it,ik)*fbpar
+       g1(:,1,iglo) = g1(:,1,iglo) + fac
+       g1(:,2,iglo) = g1(:,2,iglo) + fac
+    end do
+
+  end subroutine load_kx_bpar
+
+  !> FIXME : Add documentation    
+  subroutine load_ky_bpar(g1, bpar)
+    use theta_grid, only: ntgrid
+    use gs2_layouts, only: g_lo, ik_idx, it_idx, is_idx
+    use dist_fn_arrays, only: vperp2, aj1
+    use species, only: spec
+    use run_parameters, only: fbpar
+    use kt_grids, only: aky
+    use constants, only: zi
+    implicit none
+    complex, dimension (-ntgrid:,:,g_lo%llim_proc:), intent (in out) :: g1
+    complex, dimension (-ntgrid:,:,:), intent (in) :: bpar
+    complex, dimension(-ntgrid:ntgrid) :: fac
+    integer iglo, it, ik, is
+
+    if (fbpar <= epsilon(0.0)) return
+
+    ! Is this factor of two from the old normalization?
+
+    do iglo = g_lo%llim_proc, g_lo%ulim_proc
+       it = it_idx(g_lo,iglo)
+       ik = ik_idx(g_lo,iglo)
+       is = is_idx(g_lo,iglo)
+       fac =  zi*aky(ik)*aj1(:,iglo) &
+            *2.0*vperp2(:,iglo)*spec(is)%tz*bpar(:,it,ik)*fbpar
+       g1(:,1,iglo) = g1(:,1,iglo) + fac
+       g1(:,2,iglo) = g1(:,2,iglo) + fac
+    end do
+
+  end subroutine load_ky_bpar
 
   !> this subroutine constructs the GK nonlinear term from the 6 GryfX
   !! gyrofluid nonlinear terms.  we first construct in gryfx units.
