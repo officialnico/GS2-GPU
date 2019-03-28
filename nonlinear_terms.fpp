@@ -512,9 +512,8 @@ contains
   !> FIXME : Add documentation  
   subroutine add_nl (g1, phi, apar, bpar)
     use mp, only: max_allreduce, nb_max_allreduce
-    use theta_grid, only: ntgrid, kxfac
+    use theta_grid, only: ntgrid
     use gs2_layouts, only: g_lo, ik_idx, it_idx
-    use gs2_layouts, only: accelx_lo, yxf_lo
     use dist_fn_arrays, only: g, g_adjust
     use species, only: spec
     use gs2_transforms, only: transform2, inverse2
@@ -565,27 +564,11 @@ contains
     end if
 
     call debug_message(verb, 'nonlinear_terms::add_nl calculated dg/dy')
-    
-    !It should be possible to write the following with vector notation
-    !Calculate (d Chi /dx).(d g_wesson/dy)
-    if (accelerated) then
-       do k = accelx_lo%llim_proc, accelx_lo%ulim_proc
-          do j = 1, 2
-             do i = 1, 2*ntgrid+1
-                abracket(i,j,k) = aba(i,j,k)*agb(i,j,k)*kxfac
-             end do
-          end do
-       end do
-    else
-       do j = yxf_lo%llim_proc, yxf_lo%ulim_proc
-          do i = 1, yxf_lo%ny
-             bracket(i,j) = ba(i,j)*gb(i,j)*kxfac
-          end do
-       end do
-    endif
 
     max_vel = 0.
     call get_max_vel(cfly)
+
+    call calculate_bracket(.true.)
     
     call debug_message(verb, 'nonlinear_terms::add_nl calculated dphi/dx.dg/dy')
 
@@ -619,26 +602,10 @@ contains
     end if
 
     call debug_message(verb, 'nonlinear_terms::add_nl calculated dg/dx')
-
-    !It should be possible to write the following with vector notation
-    !Calculate (d Chi /dy).(d g_wesson/dx) and subtract from (d Chi /dx).(d g_wesson/dy)
-    if (accelerated) then
-       do k = accelx_lo%llim_proc, accelx_lo%ulim_proc
-          do j = 1, 2
-             do i = 1, 2*ntgrid+1
-                abracket(i,j,k) = abracket(i,j,k) - aba(i,j,k)*agb(i,j,k)*kxfac
-             end do
-          end do
-       end do
-    else
-       do j = yxf_lo%llim_proc, yxf_lo%ulim_proc
-          do i = 1, yxf_lo%ny
-             bracket(i,j) = bracket(i,j) - ba(i,j)*gb(i,j)*kxfac
-          end do
-       end do
-    end if
     
     call get_max_vel(cflx)
+
+    call calculate_bracket(.false.)
     
     call debug_message(verb, &
       'nonlinear_terms::add_nl calculated dphi/dx.dg/dy.dphi/dy.dg/dx')
@@ -867,6 +834,28 @@ contains
 
     max_vel = max(max_vel, local_max_vel)
   end subroutine get_max_vel
+
+  !> Calculate (d Chi /dx).(d g_wesson/dy) and store in bracket if is_first_term = .true.
+  !! else calculate (d Chi /dy).(d g_wesson/dx) and subtract from bracket
+  subroutine calculate_bracket(is_first_term)
+    use theta_grid, only: kxfac
+    implicit none
+    logical :: is_first_term
+
+    if (is_first_term) then
+       if (accelerated) then
+          abracket = aba*agb*kxfac
+       else
+          bracket = ba*gb*kxfac
+       endif
+    else
+       if (accelerated) then
+          abracket = abracket - aba*agb*kxfac
+       else
+          bracket = bracket - ba*gb*kxfac
+       endif
+    endif
+  end subroutine calculate_bracket
   
   !> this subroutine constructs the GK nonlinear term from the 6 GryfX
   !! gyrofluid nonlinear terms.  we first construct in gryfx units.
