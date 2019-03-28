@@ -53,7 +53,7 @@ module nonlinear_terms
 
 ! CFL coefficients
   real :: cfl, cflx, cfly
-  real :: max_vel
+  real :: max_vel !< This currently has to be module level due to potential non-blocking reduction
   integer :: cfl_req_hand
 
 ! hyperviscosity coefficients
@@ -567,32 +567,26 @@ contains
     call debug_message(verb, 'nonlinear_terms::add_nl calculated dg/dy')
     
     !It should be possible to write the following with vector notation
-    !To find max_vel we'd then use MAXVAL rather than MAX
     !Calculate (d Chi /dx).(d g_wesson/dy)
     if (accelerated) then
-       max_vel = 0.
        do k = accelx_lo%llim_proc, accelx_lo%ulim_proc
           do j = 1, 2
              do i = 1, 2*ntgrid+1
                 abracket(i,j,k) = aba(i,j,k)*agb(i,j,k)*kxfac
-                max_vel = max(max_vel, abs(aba(i,j,k)))
              end do
           end do
        end do
-       max_vel = max_vel * cfly
-!       max_vel = maxval(abs(aba)*cfly)
     else
-       max_vel = 0.
        do j = yxf_lo%llim_proc, yxf_lo%ulim_proc
           do i = 1, yxf_lo%ny
              bracket(i,j) = ba(i,j)*gb(i,j)*kxfac
-             max_vel = max(max_vel,abs(ba(i,j)))
           end do
        end do
-       max_vel = max_vel*cfly
-!       max_vel = maxval(abs(ba)*cfly)
     endif
 
+    max_vel = 0.
+    call get_max_vel(cfly)
+    
     call debug_message(verb, 'nonlinear_terms::add_nl calculated dphi/dx.dg/dy')
 
     !Form g1=i*ky*chi
@@ -627,14 +621,12 @@ contains
     call debug_message(verb, 'nonlinear_terms::add_nl calculated dg/dx')
 
     !It should be possible to write the following with vector notation
-    !To find max_vel we'd then use MAXVAL rather than MAX   
     !Calculate (d Chi /dy).(d g_wesson/dx) and subtract from (d Chi /dx).(d g_wesson/dy)
     if (accelerated) then
        do k = accelx_lo%llim_proc, accelx_lo%ulim_proc
           do j = 1, 2
              do i = 1, 2*ntgrid+1
                 abracket(i,j,k) = abracket(i,j,k) - aba(i,j,k)*agb(i,j,k)*kxfac
-                max_vel = max(max_vel, abs(aba(i,j,k))*cflx)
              end do
           end do
        end do
@@ -642,10 +634,12 @@ contains
        do j = yxf_lo%llim_proc, yxf_lo%ulim_proc
           do i = 1, yxf_lo%ny
              bracket(i,j) = bracket(i,j) - ba(i,j)*gb(i,j)*kxfac
-             max_vel = max(max_vel,abs(ba(i,j))*cflx)
           end do
        end do
     end if
+    
+    call get_max_vel(cflx)
+    
     call debug_message(verb, &
       'nonlinear_terms::add_nl calculated dphi/dx.dg/dy.dphi/dy.dg/dx')
 
@@ -857,6 +851,23 @@ contains
 
   end subroutine load_ky_bpar
 
+  !> Calculates an estimate of the current maximum velocity due to the
+  !! perturbed potentials. This is currenly a processor local estimate.
+  subroutine get_max_vel(scaling)
+    implicit none
+    real, intent(in) :: scaling
+    real :: local_max_vel
+    if (accelerated) then
+       local_max_vel = maxval(abs(aba))
+    else
+       local_max_vel = maxval(abs(ba))
+    end if
+    
+    local_max_vel = local_max_vel * scaling
+
+    max_vel = max(max_vel, local_max_vel)
+  end subroutine get_max_vel
+  
   !> this subroutine constructs the GK nonlinear term from the 6 GryfX
   !! gyrofluid nonlinear terms.  we first construct in gryfx units.
   !! gryfx uses vt=sqrt(T/m) normalization, 
