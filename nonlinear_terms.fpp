@@ -10,7 +10,7 @@ module nonlinear_terms
   public :: init_nonlinear_terms, finish_nonlinear_terms
   public :: read_parameters, wnml_nonlinear_terms, check_nonlinear_terms
   public :: add_explicit_terms, nonlinear_mode_switch
-  public :: finish_init, reset_init, algorithm, nonlin, accelerated
+  public :: finish_init, reset_init, nonlin, accelerated
   public :: nonlinear_terms_unit_test_time_add_nl, cfl
   public :: nonlinear_mode_none, nonlinear_mode_on
   public :: gryfx_zonal
@@ -24,16 +24,14 @@ module nonlinear_terms
     logical :: first_half_step = .false.
   end type gs2_gryfx_zonal_type
 
-  type(gs2_gryfx_zonal_type) gryfx_zonal
+  type(gs2_gryfx_zonal_type) :: gryfx_zonal
 
   integer :: istep_last = 0
 
   ! knobs
   integer :: nonlinear_mode_switch
-  integer :: flow_mode_switch !THIS IS NOT SUPPORTED, SHOULD BE REMOVED?
 
   integer, parameter :: nonlinear_mode_none = 1, nonlinear_mode_on = 2
-  integer, parameter :: flow_mode_off = 1, flow_mode_on = 2
 
 #ifndef SHMEM
   real, dimension (:,:), allocatable :: ba, gb, bracket
@@ -56,13 +54,9 @@ module nonlinear_terms
   real :: max_vel !< This currently has to be module level due to potential non-blocking reduction
   integer :: cfl_req_hand
 
-! hyperviscosity coefficients
-  real :: C_par, C_perp, p_x, p_y, p_z
-
 ! for gryfx
   real :: densfac, uparfac, tparfac, tprpfac, qparfac, qprpfac
 
-  integer :: algorithm = 1
   logical :: nonlin = .false.
   logical :: initialized = .false.
   logical :: initializing = .true.
@@ -71,7 +65,7 @@ module nonlinear_terms
   logical :: nl_forbid_force_zero = .true.
   logical :: accelerated = .false.
 
-  logical :: exist
+  logical :: exist = .false.
   
 contains
 
@@ -79,7 +73,7 @@ contains
   subroutine check_nonlinear_terms(report_unit,delt_adj)
     use gs2_time, only: code_dt_min
     use kt_grids, only: box
-    use run_parameters, only: margin, code_delt_max, nstep, wstar_units
+    use run_parameters, only: code_delt_max, nstep, wstar_units
     use theta_grid, only: nperiod
     implicit none
     integer, intent(in) :: report_unit
@@ -115,21 +109,11 @@ contains
           write (report_unit, *) 
        end if
 
-       if (flow_mode_switch == flow_mode_on) then
-          write (report_unit, *) 
-          write (report_unit, fmt="('################# WARNING #######################')")
-          write (report_unit, fmt="('flow_mode=on is not allowed.  Flow mode is buggy.')") 
-          write (report_unit, fmt="('THIS IS AN ERROR.')") 
-          write (report_unit, fmt="('################# WARNING #######################')")
-          write (report_unit, *) 
-       end if
        write (report_unit, fmt="('The minimum delt ( code_dt_min ) = ',e11.4)") code_dt_min
        write (report_unit, fmt="('The maximum delt (code_delt_max) = ',e11.4)") code_delt_max
        write (report_unit, fmt="('The maximum delt < ',f10.4,' * min(Delta_perp/v_perp). (cfl)')") cfl
        write (report_unit, fmt="('When the time step needs to be changed, it is adjusted by a factor of ',f10.4)") delt_adj
        write (report_unit, fmt="('The number of time steps nstep = ',i7)") nstep
-       write (report_unit, fmt="('If running in batch mode on the NERSC T3E, the run will stop when ', &
-            & f7.4,' % of the time remains.')") 100.*margin
     endif
   end subroutine check_nonlinear_terms
 
@@ -216,8 +200,8 @@ contains
           alloc = .false.
        end if
 
-       cfly = aky(naky)/cfl*0.5
-       cflx = akx((ntheta0+1)/2)/cfl*0.5
+       cfly = (aky(naky)/cfl)*0.5
+       cflx = (akx((ntheta0+1)/2)/cfl)*0.5
     end if
 
   end subroutine init_nonlinear_terms
@@ -234,25 +218,14 @@ contains
             text_option('off', nonlinear_mode_none), &
             text_option('on', nonlinear_mode_on) /)
     character(20) :: nonlinear_mode
-    type (text_option), dimension (3), parameter :: flowopts = &
-         (/ text_option('default', flow_mode_off), &
-            text_option('off', flow_mode_off), &
-            text_option('on', flow_mode_on) /)
-    character(20) :: flow_mode
-    namelist /nonlinear_terms_knobs/ nonlinear_mode, flow_mode, cfl, &
-         C_par, C_perp, p_x, p_y, p_z, zip, nl_forbid_force_zero, &
+    namelist /nonlinear_terms_knobs/ nonlinear_mode, cfl, &
+         zip, nl_forbid_force_zero, &
          densfac, uparfac, tparfac, tprpfac, qparfac, qprpfac
     integer :: ierr, in_file
 
     if (proc0) then
        nonlinear_mode = 'default'
-       flow_mode = 'default'
        cfl = 0.1
-       C_par = 0.1
-       C_perp = 0.1
-       p_x = 6.0
-       p_y = 6.0
-       p_z = 6.0
 
        densfac = 1.
        uparfac = 1./sqrt(2.)
@@ -268,19 +241,10 @@ contains
        call get_option_value &
             (nonlinear_mode, nonlinearopts, nonlinear_mode_switch, &
             ierr, "nonlinear_mode in nonlinear_terms_knobs",.true.)
-       call get_option_value &
-            (flow_mode, flowopts, flow_mode_switch, &
-            ierr, "flow_mode in nonlinear_terms_knobs",.true.)
     end if
 
     call broadcast (nonlinear_mode_switch)
-    call broadcast (flow_mode_switch)
     call broadcast (cfl)
-    call broadcast (C_par) 
-    call broadcast (C_perp) 
-    call broadcast (p_x)
-    call broadcast (p_y)
-    call broadcast (p_z)
     call broadcast (nl_forbid_force_zero)
     call broadcast (zip)
     call broadcast (densfac)
@@ -292,13 +256,7 @@ contains
 
     istep_last = 0
 
-    if (flow_mode_switch == flow_mode_on) then
-       if (proc0) write(*,*) 'Forcing flow_mode = off'
-       flow_mode_switch = flow_mode_off
-    endif
-
     if (nonlinear_mode_switch == nonlinear_mode_on)  then
-       algorithm = 1 
        nonlin = .true.
     end if
 
@@ -405,7 +363,6 @@ contains
 
     if (zip) then
        do iglo = g_lo%llim_proc, g_lo%ulim_proc
-          it = it_idx(g_lo,iglo)
           ik = ik_idx(g_lo,iglo)
           if (ik /= 1) then
              g (:,1,iglo) = 0.
@@ -974,8 +931,9 @@ contains
 
   !> FIXME : Add documentation  
   subroutine finish_nonlinear_terms
+#ifndef SHMEM    
     use gs2_transforms, only: finish_transforms
-#ifdef SHMEM
+#else
     use shm_mpi3, only : shm_free
 #endif
     implicit none
@@ -998,7 +956,7 @@ contains
     endif
 #endif
     nonlin = .false. ; alloc = .true. ; zip = .false. ; accelerated = .false.
-    initialized = .false. ; initializing = .true.
+    initialized = .false. ; initializing = .true. ; exist = .false.
 
 #ifndef SHMEM
     call finish_transforms

@@ -149,8 +149,6 @@ contains
        write (unit, fmt="(' beta = ',e17.10)") beta       ! if zero, fapar, fbpar should be zero
        if (collisions) write (unit, fmt="(' zeff = ',e17.10)") zeff
        if (.not. electrons)  write (unit, fmt="(' tite = ',e17.10)") tite
-!CMR, 10/2/2011: zip not in this namelist, so removing it!
-!       if (zip) write (unit, fmt="(' zip = ',L1)") zip
        write (unit, fmt="(' /')")
     endif
     if (knexist) then
