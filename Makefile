@@ -879,7 +879,7 @@ test_make:
 	$(call messageKeyVal, "MACRO_DEFS", $(MACRO_DEFS))
 	$(call messageKeyVal, "LD_LIBRARY_PATH", $(LD_LIBRARY_PATH))
 	$(call messageKeyVal, "LIBS", $(LIBS))
-	$(call messageKeyVal, "INCS", $(INCS))
+	$(call messageKeyVal, "INCS", $(INCLUDES))
 ifdef USE_MPI
 	$(call messageInfo,"MPI:")
 	$(call messageKeyVal, "MPI_MOD_NAME", $(MPI_MOD_NAME))
