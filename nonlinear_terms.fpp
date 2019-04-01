@@ -10,7 +10,7 @@ module nonlinear_terms
   public :: init_nonlinear_terms, finish_nonlinear_terms
   public :: read_parameters, wnml_nonlinear_terms, check_nonlinear_terms
   public :: add_explicit_terms, nonlinear_mode_switch
-  public :: finish_init, reset_init, algorithm, nonlin, accelerated
+  public :: finish_init, reset_init, nonlin, accelerated
   public :: nonlinear_terms_unit_test_time_add_nl, cfl
   public :: nonlinear_mode_none, nonlinear_mode_on
   public :: gryfx_zonal
@@ -24,16 +24,14 @@ module nonlinear_terms
     logical :: first_half_step = .false.
   end type gs2_gryfx_zonal_type
 
-  type(gs2_gryfx_zonal_type) gryfx_zonal
+  type(gs2_gryfx_zonal_type) :: gryfx_zonal
 
   integer :: istep_last = 0
 
   ! knobs
   integer :: nonlinear_mode_switch
-  integer :: flow_mode_switch !THIS IS NOT SUPPORTED, SHOULD BE REMOVED?
 
   integer, parameter :: nonlinear_mode_none = 1, nonlinear_mode_on = 2
-  integer, parameter :: flow_mode_off = 1, flow_mode_on = 2
 
 #ifndef SHMEM
   real, dimension (:,:), allocatable :: ba, gb, bracket
@@ -53,16 +51,12 @@ module nonlinear_terms
 
 ! CFL coefficients
   real :: cfl, cflx, cfly
-  real :: max_vel, zero
+  real :: max_vel !< This currently has to be module level due to potential non-blocking reduction
   integer :: cfl_req_hand
-
-! hyperviscosity coefficients
-  real :: C_par, C_perp, p_x, p_y, p_z
 
 ! for gryfx
   real :: densfac, uparfac, tparfac, tprpfac, qparfac, qprpfac
 
-  integer :: algorithm = 1
   logical :: nonlin = .false.
   logical :: initialized = .false.
   logical :: initializing = .true.
@@ -71,7 +65,7 @@ module nonlinear_terms
   logical :: nl_forbid_force_zero = .true.
   logical :: accelerated = .false.
 
-  logical :: exist
+  logical :: exist = .false.
   
 contains
 
@@ -79,7 +73,7 @@ contains
   subroutine check_nonlinear_terms(report_unit,delt_adj)
     use gs2_time, only: code_dt_min
     use kt_grids, only: box
-    use run_parameters, only: margin, code_delt_max, nstep, wstar_units
+    use run_parameters, only: code_delt_max, nstep, wstar_units
     use theta_grid, only: nperiod
     implicit none
     integer, intent(in) :: report_unit
@@ -115,21 +109,11 @@ contains
           write (report_unit, *) 
        end if
 
-       if (flow_mode_switch == flow_mode_on) then
-          write (report_unit, *) 
-          write (report_unit, fmt="('################# WARNING #######################')")
-          write (report_unit, fmt="('flow_mode=on is not allowed.  Flow mode is buggy.')") 
-          write (report_unit, fmt="('THIS IS AN ERROR.')") 
-          write (report_unit, fmt="('################# WARNING #######################')")
-          write (report_unit, *) 
-       end if
        write (report_unit, fmt="('The minimum delt ( code_dt_min ) = ',e11.4)") code_dt_min
        write (report_unit, fmt="('The maximum delt (code_delt_max) = ',e11.4)") code_delt_max
        write (report_unit, fmt="('The maximum delt < ',f10.4,' * min(Delta_perp/v_perp). (cfl)')") cfl
        write (report_unit, fmt="('When the time step needs to be changed, it is adjusted by a factor of ',f10.4)") delt_adj
        write (report_unit, fmt="('The number of time steps nstep = ',i7)") nstep
-       write (report_unit, fmt="('If running in batch mode on the NERSC T3E, the run will stop when ', &
-            & f7.4,' % of the time remains.')") 100.*margin
     endif
   end subroutine check_nonlinear_terms
 
@@ -216,8 +200,8 @@ contains
           alloc = .false.
        end if
 
-       cfly = aky(naky)/cfl*0.5
-       cflx = akx((ntheta0+1)/2)/cfl*0.5
+       cfly = (aky(naky)/cfl)*0.5
+       cflx = (akx((ntheta0+1)/2)/cfl)*0.5
     end if
 
   end subroutine init_nonlinear_terms
@@ -234,25 +218,14 @@ contains
             text_option('off', nonlinear_mode_none), &
             text_option('on', nonlinear_mode_on) /)
     character(20) :: nonlinear_mode
-    type (text_option), dimension (3), parameter :: flowopts = &
-         (/ text_option('default', flow_mode_off), &
-            text_option('off', flow_mode_off), &
-            text_option('on', flow_mode_on) /)
-    character(20) :: flow_mode
-    namelist /nonlinear_terms_knobs/ nonlinear_mode, flow_mode, cfl, &
-         C_par, C_perp, p_x, p_y, p_z, zip, nl_forbid_force_zero, &
+    namelist /nonlinear_terms_knobs/ nonlinear_mode, cfl, &
+         zip, nl_forbid_force_zero, &
          densfac, uparfac, tparfac, tprpfac, qparfac, qprpfac
     integer :: ierr, in_file
 
     if (proc0) then
        nonlinear_mode = 'default'
-       flow_mode = 'default'
        cfl = 0.1
-       C_par = 0.1
-       C_perp = 0.1
-       p_x = 6.0
-       p_y = 6.0
-       p_z = 6.0
 
        densfac = 1.
        uparfac = 1./sqrt(2.)
@@ -268,19 +241,10 @@ contains
        call get_option_value &
             (nonlinear_mode, nonlinearopts, nonlinear_mode_switch, &
             ierr, "nonlinear_mode in nonlinear_terms_knobs",.true.)
-       call get_option_value &
-            (flow_mode, flowopts, flow_mode_switch, &
-            ierr, "flow_mode in nonlinear_terms_knobs",.true.)
     end if
 
     call broadcast (nonlinear_mode_switch)
-    call broadcast (flow_mode_switch)
     call broadcast (cfl)
-    call broadcast (C_par) 
-    call broadcast (C_perp) 
-    call broadcast (p_x)
-    call broadcast (p_y)
-    call broadcast (p_z)
     call broadcast (nl_forbid_force_zero)
     call broadcast (zip)
     call broadcast (densfac)
@@ -292,13 +256,7 @@ contains
 
     istep_last = 0
 
-    if (flow_mode_switch == flow_mode_on) then
-       if (proc0) write(*,*) 'Forcing flow_mode = off'
-       flow_mode_switch = flow_mode_off
-    endif
-
     if (nonlinear_mode_switch == nonlinear_mode_on)  then
-       algorithm = 1 
        nonlin = .true.
     end if
 
@@ -327,7 +285,6 @@ contains
             call add_explicit (g1, g2, g3, phi, apar, bpar, istep, bd)
 #endif
     case (nonlinear_mode_on)
-!       if (istep /= 0) call add_nl (g1, g2, g3, phi, apar, bpar, istep, bd, fexp)
        if (istep /= 0) then
          call add_explicit (g1, g2, g3, phi, apar, bpar, istep, bd, nl)
        endif
@@ -343,16 +300,14 @@ contains
     use run_parameters, only: reset
     use unit_tests, only: debug_message
     implicit none
-
     complex, dimension (-ntgrid:,:,g_lo%llim_proc:), intent (in out) :: g1, g2, g3
     complex, dimension (-ntgrid:,:,:), intent (in) :: phi, apar, bpar
     integer, intent (in) :: istep
     real, intent (in) :: bd
     logical, intent (in), optional :: nl
-
     integer, parameter :: verb = 4
+    real, parameter :: zero = epsilon(0.0)
     integer :: iglo, ik, it
-    real :: zero
     real :: dt_cfl
 
     call debug_message(verb, 'nonlinear_terms::add_explicit starting')
@@ -367,14 +322,18 @@ contains
 
 
     !
-    ! Currently not self-starting.  Need to fix this.
+    ! @todo Currently not self-starting.  Need to fix this.
     !
 
     call debug_message(verb, 'nonlinear_terms::add_explicit copying old terms')
 
     if (istep /= istep_last) then
-
-       zero = epsilon(0.0)
+       ! Shuffle time history along -- this is a place pointers might help
+       ! avoid some copying.
+       ! Should we only need to do this if we have a nonlinear simulation?
+       ! It's possible we might have other explicit sources, in which case we
+       ! probably always need to do this shuffling, however in that case this
+       ! subroutine probably best belongs in a different module.
        g3 = g2
        g2 = g1
 
@@ -391,7 +350,7 @@ contains
           endif
           if(reset) return !Return if resetting
           ! takes g1 at grid points and returns 2*g1 at cell centers
-          call center (g1)
+          call nl_center (g1, bd)
        else
           g1 = 0.
        end if
@@ -404,12 +363,8 @@ contains
 
     if (zip) then
        do iglo = g_lo%llim_proc, g_lo%ulim_proc
-          it = it_idx(g_lo,iglo)
           ik = ik_idx(g_lo,iglo)
-!          if (it == 3 .or. it == ntheta0-1) then
-!          if (it /= 1) then
           if (ik /= 1) then
-!          if (ik == 2 .and. it == 1) then
              g (:,1,iglo) = 0.
              g (:,2,iglo) = 0.
              g1(:,1,iglo) = 0.
@@ -419,85 +374,85 @@ contains
     end if
      
     istep_last = istep
-
-  contains
-
-    !> Takes input array evaluated at theta grid points
-    !! and overwrites it with array evaluated at cell centers
-    !! note that there is an extra factor of 2 in output array
-    subroutine center (gtmp)
-!
-!CMR, 13/10/2014
-! Fixing some (cosmetic) issues from prior to R3021.
-! (1) forbid(-ntgrid:ntgrid) refers to grid points at cell boundaries
-!     gtmp(-ntgrid:ntgrid-1) refers to cell centers
-!     => applying forbid to output gtmp did not zero the correct things!!!
-! (2) totally trapped particles are special, so return source without upwinding is fine
-!     BUT source for other trapped particles should NOT enter forbidden region.
-!     if ig or ig+1 forbidden (i.e. ig+1 or ig is bounce point) now return gtmp(ig,:,iglo)=0
-!
-      use dist_fn_arrays, only: ittp
-      use gs2_layouts, only: g_lo, il_idx
-      use theta_grid, only: ntgrid
-      use le_grids, only: forbid, ng2, jend
-      use mp, only: mp_abort
-
-      implicit none
-
-      integer :: iglo, il, ig
-      complex, dimension (-ntgrid:,:,g_lo%llim_proc:), intent (in out) :: gtmp
-      logical :: trapped = .false.
-
-      if (minval(jend) .gt. ng2) trapped=.true.
-
-      ! factor of one-half appears elsewhere
-      do iglo = g_lo%llim_proc, g_lo%ulim_proc
-         il = il_idx(g_lo, iglo)
-
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-!CMR, 7/10/2014: 
-! Incoming gtmp SHOULD vanish in forbidden region, 
-! New logical in nonlinear_terms_knobs namelist: nl_forbid_force_zero
-!     nl_forbid_force_zero =.t. : force zeroing    (default)
-!     nl_forbid_force_zero =.f. : NO forced zeroing
-!                                 ie assume forbidden gtmp is zero on entry 
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-
-         if ( nl_forbid_force_zero ) then
-         ! force spurious gtmp outside trapped boundary to be zero
-            where (forbid(:,il))
-               gtmp(:,1,iglo) = 0.0
-               gtmp(:,2,iglo) = 0.0
-            end where
-         endif
-
-         do ig = -ntgrid, ntgrid-1
-!
-!CMR, 7/10/2014: 
-! loop sets gtmp to value at upwinded cell center RIGHT of theta(ig)
-!           except for ttp where upwinding makes no sense!
-!
-            if (il >= ittp(ig)) cycle
-            if ( trapped .and. ( il > jend(ig) .or. il > jend(ig+1)) ) then
-               !
-!CMR, 7/10/2014: 
-!   if either ig or ig+1 is forbidden, no source possible in a cell RIGHT of theta(ig) 
-!   => gtmp(ig,1:2,iglo)=0
-!
-               gtmp(ig,1:2,iglo) = 0.0
-            else 
-!
-!CMR, 7/10/2014: 
-!    otherwise ig and ig+1 BOTH allowed, and upwinding in cell RIGHT of theta(ig) is fine
-!
-               gtmp(ig,1,iglo) = (1.+bd)*gtmp(ig+1,1,iglo) + (1.-bd)*gtmp(ig,1,iglo)
-               gtmp(ig,2,iglo) = (1.-bd)*gtmp(ig+1,2,iglo) + (1.+bd)*gtmp(ig,2,iglo)
-
-            endif
-         end do
-      end do
-    end subroutine center
   end subroutine add_explicit
+  
+  !> Takes input array evaluated at theta grid points
+  !! and overwrites it with array evaluated at cell centers
+  !! note that there is an extra factor of 2 in output array
+  subroutine nl_center (gtmp, bd)
+    !
+    !CMR, 13/10/2014
+    ! Fixing some (cosmetic) issues from prior to R3021.
+    ! (1) forbid(-ntgrid:ntgrid) refers to grid points at cell boundaries
+    !     gtmp(-ntgrid:ntgrid-1) refers to cell centers
+    !     => applying forbid to output gtmp did not zero the correct things!!!
+    ! (2) totally trapped particles are special, so return source without upwinding is fine
+    !     BUT source for other trapped particles should NOT enter forbidden region.
+    !     if ig or ig+1 forbidden (i.e. ig+1 or ig is bounce point) now return gtmp(ig,:,iglo)=0
+    !
+    use dist_fn_arrays, only: ittp
+    use gs2_layouts, only: g_lo, il_idx
+    use theta_grid, only: ntgrid
+    use le_grids, only: forbid, ng2, jend
+    use mp, only: mp_abort
+
+    implicit none
+    real, intent (in) :: bd    
+    complex, dimension (-ntgrid:,:,g_lo%llim_proc:), intent (in out) :: gtmp
+    integer :: iglo, il, ig
+    logical :: trapped
+
+    trapped = .false.
+
+    if (minval(jend) .gt. ng2) trapped=.true.
+
+    ! factor of one-half appears elsewhere
+    do iglo = g_lo%llim_proc, g_lo%ulim_proc
+       il = il_idx(g_lo, iglo)
+
+       !
+       !CMR, 7/10/2014: 
+       ! Incoming gtmp SHOULD vanish in forbidden region, 
+       ! New logical in nonlinear_terms_knobs namelist: nl_forbid_force_zero
+       !     nl_forbid_force_zero =.t. : force zeroing    (default)
+       !     nl_forbid_force_zero =.f. : NO forced zeroing
+       !                                 ie assume forbidden gtmp is zero on entry 
+       !
+
+       if ( nl_forbid_force_zero ) then
+          ! force spurious gtmp outside trapped boundary to be zero
+          where (forbid(:,il))
+             gtmp(:,1,iglo) = 0.0
+             gtmp(:,2,iglo) = 0.0
+          end where
+       endif
+
+       do ig = -ntgrid, ntgrid-1
+          !
+          !CMR, 7/10/2014: 
+          ! loop sets gtmp to value at upwinded cell center RIGHT of theta(ig)
+          !           except for ttp where upwinding makes no sense!
+          !
+          if (il >= ittp(ig)) cycle
+          if ( trapped .and. ( il > jend(ig) .or. il > jend(ig+1)) ) then
+             !
+             !CMR, 7/10/2014: 
+             !   if either ig or ig+1 is forbidden, no source possible in a cell RIGHT of theta(ig) 
+             !   => gtmp(ig,1:2,iglo)=0
+             !
+             gtmp(ig,1:2,iglo) = 0.0
+          else 
+             !
+             !CMR, 7/10/2014: 
+             !    otherwise ig and ig+1 BOTH allowed, and upwinding in cell RIGHT of theta(ig) is fine
+             !
+             gtmp(ig,1,iglo) = (1.+bd)*gtmp(ig+1,1,iglo) + (1.-bd)*gtmp(ig,1,iglo)
+             gtmp(ig,2,iglo) = (1.-bd)*gtmp(ig+1,2,iglo) + (1.+bd)*gtmp(ig,2,iglo)
+
+          endif
+       end do
+    end do
+  end subroutine nl_center
 
   !> FIXME : Add documentation  
   subroutine nonlinear_terms_unit_test_time_add_nl(g1, phi, apar, bpar)
@@ -512,9 +467,8 @@ contains
   !> FIXME : Add documentation  
   subroutine add_nl (g1, phi, apar, bpar)
     use mp, only: max_allreduce, nb_max_allreduce
-    use theta_grid, only: ntgrid, kxfac
+    use theta_grid, only: ntgrid
     use gs2_layouts, only: g_lo, ik_idx, it_idx
-    use gs2_layouts, only: accelx_lo, yxf_lo
     use dist_fn_arrays, only: g, g_adjust
     use species, only: spec
     use gs2_transforms, only: transform2, inverse2
@@ -534,18 +488,10 @@ contains
     
     call debug_message(verb, 'nonlinear_terms::add_nl starting')
 
-    !Initialise zero so we can be sure tests are sensible
-    zero = epsilon(0.0)
-
     !Form g1=i*kx*chi
-    if (fphi > zero) then
-       call load_kx_phi
-    else
-       g1 = 0.
-    end if
-
-    if (fbpar > zero) call load_kx_bpar
-    if (fapar  > zero) call load_kx_apar
+    call load_kx_phi(g1, phi)    
+    call load_kx_bpar(g1, bpar)    
+    call load_kx_apar(g1, apar)    
 
     call debug_message(verb, 'nonlinear_terms::add_nl calling transform2')
     !Transform to real space
@@ -573,45 +519,18 @@ contains
     end if
 
     call debug_message(verb, 'nonlinear_terms::add_nl calculated dg/dy')
-    
-    !It should be possible to write the following with vector notation
-    !To find max_vel we'd then use MAXVAL rather than MAX
-    !Calculate (d Chi /dx).(d g_wesson/dy)
-    if (accelerated) then
-       max_vel = 0.
-       do k = accelx_lo%llim_proc, accelx_lo%ulim_proc
-          do j = 1, 2
-             do i = 1, 2*ntgrid+1
-                abracket(i,j,k) = aba(i,j,k)*agb(i,j,k)*kxfac
-                max_vel = max(max_vel, abs(aba(i,j,k)))
-             end do
-          end do
-       end do
-       max_vel = max_vel * cfly
-!       max_vel = maxval(abs(aba)*cfly)
-    else
-       max_vel = 0.
-       do j = yxf_lo%llim_proc, yxf_lo%ulim_proc
-          do i = 1, yxf_lo%ny
-             bracket(i,j) = ba(i,j)*gb(i,j)*kxfac
-             max_vel = max(max_vel,abs(ba(i,j)))
-          end do
-       end do
-       max_vel = max_vel*cfly
-!       max_vel = maxval(abs(ba)*cfly)
-    endif
 
+    max_vel = 0.
+    call get_max_vel(cfly)
+
+    call calculate_bracket(.true.)
+    
     call debug_message(verb, 'nonlinear_terms::add_nl calculated dphi/dx.dg/dy')
 
     !Form g1=i*ky*chi
-    if (fphi > zero) then
-       call load_ky_phi
-    else
-       g1 = 0.
-    end if
-    
-    if (fbpar > zero) call load_ky_bpar
-    if (fapar  > zero) call load_ky_apar
+    call load_ky_phi(g1, phi)
+    call load_ky_bpar(g1, bpar)
+    call load_ky_apar(g1, apar)
 
     call debug_message(verb, 'nonlinear_terms::add_nl calculated dphi/dy')
 
@@ -638,27 +557,11 @@ contains
     end if
 
     call debug_message(verb, 'nonlinear_terms::add_nl calculated dg/dx')
+    
+    call get_max_vel(cflx)
 
-    !It should be possible to write the following with vector notation
-    !To find max_vel we'd then use MAXVAL rather than MAX   
-    !Calculate (d Chi /dy).(d g_wesson/dx) and subtract from (d Chi /dx).(d g_wesson/dy)
-    if (accelerated) then
-       do k = accelx_lo%llim_proc, accelx_lo%ulim_proc
-          do j = 1, 2
-             do i = 1, 2*ntgrid+1
-                abracket(i,j,k) = abracket(i,j,k) - aba(i,j,k)*agb(i,j,k)*kxfac
-                max_vel = max(max_vel, abs(aba(i,j,k))*cflx)
-             end do
-          end do
-       end do
-    else
-       do j = yxf_lo%llim_proc, yxf_lo%ulim_proc
-          do i = 1, yxf_lo%ny
-             bracket(i,j) = bracket(i,j) - ba(i,j)*gb(i,j)*kxfac
-             max_vel = max(max_vel,abs(ba(i,j))*cflx)
-          end do
-       end do
-    end if
+    call calculate_bracket(.false.)
+    
     call debug_message(verb, &
       'nonlinear_terms::add_nl calculated dphi/dx.dg/dy.dphi/dy.dg/dx')
 
@@ -690,146 +593,225 @@ contains
 
     call debug_message(verb, &
       'nonlinear_terms::add_nl calculated nonlinear term')
-    
-  contains
-    !> FIXME : Add documentation    
-    subroutine load_kx_phi
-      use dist_fn_arrays, only: aj0
-      implicit none
-      complex :: fac
-
-      do iglo = g_lo%llim_proc, g_lo%ulim_proc
-         it = it_idx(g_lo,iglo)
-         ik = ik_idx(g_lo,iglo)
-         do ig = -ntgrid, ntgrid
-            fac = zi*akx(it)*aj0(ig,iglo)*phi(ig,it,ik)*fphi
-            g1(ig,1,iglo) = fac
-            g1(ig,2,iglo) = fac
-         end do
-      end do
-
-    end subroutine load_kx_phi
-
-    !> FIXME : Add documentation    
-    subroutine load_ky_phi
-      use dist_fn_arrays, only: aj0
-      implicit none
-      complex :: fac
-
-      do iglo = g_lo%llim_proc, g_lo%ulim_proc
-         it = it_idx(g_lo,iglo)
-         ik = ik_idx(g_lo,iglo)
-         do ig = -ntgrid, ntgrid
-            fac = zi*aky(ik)*aj0(ig,iglo)*phi(ig,it,ik)*fphi
-            g1(ig,1,iglo) = fac
-            g1(ig,2,iglo) = fac
-         end do
-      end do
-
-    end subroutine load_ky_phi
-
-! should I use vpa or vpac in next two routines??
-
-    !> FIXME : Add documentation    
-    subroutine load_kx_apar
-      use dist_fn_arrays, only: vpa, aj0
-      use gs2_layouts, only: is_idx
-      implicit none
-      complex :: fac
-
-      do iglo = g_lo%llim_proc, g_lo%ulim_proc
-         it = it_idx(g_lo,iglo)
-         ik = ik_idx(g_lo,iglo)
-         is = is_idx(g_lo,iglo)
-!AJ Optimisatin
-         do ig = -ntgrid, ntgrid
-            fac = zi*akx(it)*aj0(ig,iglo)*spec(is)%stm*apar(ig,it,ik)*fapar
-            g1(ig,1,iglo) = g1(ig,1,iglo) - fac*vpa(ig,1,iglo)
-!         end do
-!         do ig = -ntgrid, ntgrid
-!            g1(ig,2,iglo) = g1(ig,2,iglo) - zi*akx(it)*aj0(ig,iglo)*spec(is)%stm &
-!                 *vpa(ig,2,iglo)*apar(ig,it,ik)*fapar 
-            g1(ig,2,iglo) = g1(ig,2,iglo) - fac*vpa(ig,2,iglo)
-         end do
-      end do
-
-    end subroutine load_kx_apar
-
-    !> FIXME : Add documentation    
-    subroutine load_ky_apar
-      use dist_fn_arrays, only: vpa, aj0
-      use gs2_layouts, only: is_idx
-      implicit none
-      complex :: fac
-
-      do iglo = g_lo%llim_proc, g_lo%ulim_proc
-         it = it_idx(g_lo,iglo)
-         ik = ik_idx(g_lo,iglo)
-         is = is_idx(g_lo,iglo)
-!AJ Optimisation
-         do ig = -ntgrid, ntgrid
-            fac = zi*aky(ik)*aj0(ig,iglo)*spec(is)%stm*apar(ig,it,ik)*fapar
-            g1(ig,1,iglo) = g1(ig,1,iglo) - fac*vpa(ig,1,iglo)
-!            g1(ig,1,iglo) = g1(ig,1,iglo) - zi*aky(ik)*aj0(ig,iglo)*spec(is)%stm &
-!                 *vpa(ig,1,iglo)*apar(ig,it,ik)*fapar 
-!         end do
-!         do ig = -ntgrid, ntgrid
-!            g1(ig,2,iglo) = g1(ig,2,iglo) - zi*aky(ik)*aj0(ig,iglo)*spec(is)%stm &
-!                 *vpa(ig,2,iglo)*apar(ig,it,ik)*fapar 
-             g1(ig,2,iglo) = g1(ig,2,iglo) - fac*vpa(ig,2,iglo)
-         end do
-      end do
-
-    end subroutine load_ky_apar
-
-    !> FIXME : Add documentation    
-    subroutine load_kx_bpar
-      use dist_fn_arrays, only: vperp2, aj1
-      use gs2_layouts, only: is_idx
-      implicit none
-      complex :: fac
-
-! Is this factor of two from the old normalization?
-
-      do iglo = g_lo%llim_proc, g_lo%ulim_proc
-         it = it_idx(g_lo,iglo)
-         ik = ik_idx(g_lo,iglo)
-         is = is_idx(g_lo,iglo)
-         do ig = -ntgrid, ntgrid
-            fac = g1(ig,1,iglo) + zi*akx(it)*aj1(ig,iglo) &
-                 *2.0*vperp2(ig,iglo)*spec(is)%tz*bpar(ig,it,ik)*fbpar
-            g1(ig,1,iglo) = fac
-            g1(ig,2,iglo) = fac
-         end do
-      end do
-
-    end subroutine load_kx_bpar
-
-    !> FIXME : Add documentation    
-    subroutine load_ky_bpar
-      use dist_fn_arrays, only: vperp2, aj1
-      use gs2_layouts, only: is_idx
-      implicit none
-      complex :: fac
-
-! Is this factor of two from the old normalization?
-
-      do iglo = g_lo%llim_proc, g_lo%ulim_proc
-         it = it_idx(g_lo,iglo)
-         ik = ik_idx(g_lo,iglo)
-         is = is_idx(g_lo,iglo)
-         do ig = -ntgrid, ntgrid
-            fac = g1(ig,1,iglo) + zi*aky(ik)*aj1(ig,iglo) &
-                 *2.0*vperp2(ig,iglo)*spec(is)%tz*bpar(ig,it,ik)*fbpar
-            g1(ig,1,iglo) = fac 
-            g1(ig,2,iglo) = fac
-         end do
-      end do
-
-    end subroutine load_ky_bpar
 
   end subroutine add_nl
+  
+  !> FIXME : Add documentation    
+  subroutine load_kx_phi(g1, phi)
+    use theta_grid, only: ntgrid
+    use gs2_layouts, only: g_lo, ik_idx, it_idx
+    use dist_fn_arrays, only: aj0
+    use run_parameters, only: fphi
+    use kt_grids, only: akx
+    use constants, only: zi
+    implicit none
+    complex, dimension (-ntgrid:,:,g_lo%llim_proc:), intent (in out) :: g1
+    complex, dimension (-ntgrid:,:,:), intent (in) :: phi      
+    complex, dimension(-ntgrid:ntgrid) :: fac
+    integer :: iglo, it, ik
 
+    if (fphi > epsilon(0.0)) then
+       do iglo = g_lo%llim_proc, g_lo%ulim_proc
+          it = it_idx(g_lo,iglo)
+          ik = ik_idx(g_lo,iglo)
+          fac = zi*akx(it)*aj0(:,iglo)*phi(:,it,ik)*fphi
+          g1(:,1,iglo) = fac
+          g1(:,2,iglo) = fac
+       end do
+    else
+       g1 = 0.
+    endif
+  end subroutine load_kx_phi
+
+  !> FIXME : Add documentation    
+  subroutine load_ky_phi(g1, phi)
+    use theta_grid, only: ntgrid
+    use gs2_layouts, only: g_lo, ik_idx, it_idx
+    use dist_fn_arrays, only: aj0
+    use run_parameters, only: fphi
+    use kt_grids, only: aky
+    use constants, only: zi
+    implicit none
+    complex, dimension (-ntgrid:,:,g_lo%llim_proc:), intent (in out) :: g1
+    complex, dimension (-ntgrid:,:,:), intent (in) :: phi      
+    complex, dimension(-ntgrid:ntgrid) :: fac
+    integer :: iglo, it, ik
+
+    if (fphi > epsilon(0.0)) then      
+       do iglo = g_lo%llim_proc, g_lo%ulim_proc
+          it = it_idx(g_lo,iglo)
+          ik = ik_idx(g_lo,iglo)
+          fac = zi*aky(ik)*aj0(:,iglo)*phi(:,it,ik)*fphi
+          g1(:,1,iglo) = fac
+          g1(:,2,iglo) = fac
+       end do
+    else
+       g1 = 0.
+    endif
+
+  end subroutine load_ky_phi
+
+  ! should I use vpa or vpac in next two routines??
+
+  !> FIXME : Add documentation    
+  subroutine load_kx_apar(g1, apar)
+    use theta_grid, only: ntgrid
+    use gs2_layouts, only: g_lo, ik_idx, it_idx, is_idx
+    use dist_fn_arrays, only: vpa, aj0
+    use species, only: spec
+    use run_parameters, only: fapar
+    use kt_grids, only: akx
+    use constants, only: zi
+    implicit none
+    complex, dimension (-ntgrid:,:,g_lo%llim_proc:), intent (in out) :: g1
+    complex, dimension (-ntgrid:,:,:), intent (in) :: apar
+    complex, dimension(-ntgrid:ntgrid) :: fac    
+    integer iglo, it, ik, is
+
+    if(fapar <= epsilon(0.0)) return
+
+    do iglo = g_lo%llim_proc, g_lo%ulim_proc
+       it = it_idx(g_lo,iglo)
+       ik = ik_idx(g_lo,iglo)
+       is = is_idx(g_lo,iglo)
+
+       fac = zi*akx(it)*aj0(:,iglo)*spec(is)%stm*apar(:,it,ik)*fapar
+       g1(:,1,iglo) = g1(:,1,iglo) - fac*vpa(:,1,iglo)
+       g1(:,2,iglo) = g1(:,2,iglo) - fac*vpa(:,2,iglo)
+    end do
+
+  end subroutine load_kx_apar
+
+  !> FIXME : Add documentation    
+  subroutine load_ky_apar(g1, apar)
+    use theta_grid, only: ntgrid
+    use gs2_layouts, only: g_lo, ik_idx, it_idx, is_idx
+    use dist_fn_arrays, only: vpa, aj0
+    use species, only: spec
+    use run_parameters, only: fapar
+    use kt_grids, only: aky
+    use constants, only: zi
+    implicit none
+    complex, dimension (-ntgrid:,:,g_lo%llim_proc:), intent (in out) :: g1
+    complex, dimension (-ntgrid:,:,:), intent (in) :: apar            
+    complex, dimension(-ntgrid:ntgrid) :: fac    
+    integer iglo, it, ik, is
+
+    if(fapar <= epsilon(0.0)) return
+
+    do iglo = g_lo%llim_proc, g_lo%ulim_proc
+       it = it_idx(g_lo,iglo)
+       ik = ik_idx(g_lo,iglo)
+       is = is_idx(g_lo,iglo)
+
+       fac = zi*aky(ik)*aj0(:,iglo)*spec(is)%stm*apar(:,it,ik)*fapar
+       g1(:,1,iglo) = g1(:,1,iglo) - fac*vpa(:,1,iglo)
+       g1(:,2,iglo) = g1(:,2,iglo) - fac*vpa(:,2,iglo)
+    end do
+
+  end subroutine load_ky_apar
+
+  !> FIXME : Add documentation    
+  subroutine load_kx_bpar(g1, bpar)
+    use theta_grid, only: ntgrid
+    use gs2_layouts, only: g_lo, ik_idx, it_idx, is_idx
+    use dist_fn_arrays, only: vperp2, aj1
+    use species, only: spec
+    use run_parameters, only: fbpar
+    use kt_grids, only: akx
+    use constants, only: zi
+    implicit none
+    complex, dimension (-ntgrid:,:,g_lo%llim_proc:), intent (in out) :: g1
+    complex, dimension (-ntgrid:,:,:), intent (in) :: bpar      
+    complex, dimension(-ntgrid:ntgrid) :: fac    
+    integer iglo, it, ik, is
+
+    if (fbpar <= epsilon(0.0)) return
+
+    ! Is this factor of two from the old normalization?
+
+    do iglo = g_lo%llim_proc, g_lo%ulim_proc
+       it = it_idx(g_lo,iglo)
+       ik = ik_idx(g_lo,iglo)
+       is = is_idx(g_lo,iglo)
+       fac = zi*akx(it)*aj1(:,iglo) &
+            *2.0*vperp2(:,iglo)*spec(is)%tz*bpar(:,it,ik)*fbpar
+       g1(:,1,iglo) = g1(:,1,iglo) + fac
+       g1(:,2,iglo) = g1(:,2,iglo) + fac
+    end do
+
+  end subroutine load_kx_bpar
+
+  !> FIXME : Add documentation    
+  subroutine load_ky_bpar(g1, bpar)
+    use theta_grid, only: ntgrid
+    use gs2_layouts, only: g_lo, ik_idx, it_idx, is_idx
+    use dist_fn_arrays, only: vperp2, aj1
+    use species, only: spec
+    use run_parameters, only: fbpar
+    use kt_grids, only: aky
+    use constants, only: zi
+    implicit none
+    complex, dimension (-ntgrid:,:,g_lo%llim_proc:), intent (in out) :: g1
+    complex, dimension (-ntgrid:,:,:), intent (in) :: bpar
+    complex, dimension(-ntgrid:ntgrid) :: fac
+    integer iglo, it, ik, is
+
+    if (fbpar <= epsilon(0.0)) return
+
+    ! Is this factor of two from the old normalization?
+
+    do iglo = g_lo%llim_proc, g_lo%ulim_proc
+       it = it_idx(g_lo,iglo)
+       ik = ik_idx(g_lo,iglo)
+       is = is_idx(g_lo,iglo)
+       fac =  zi*aky(ik)*aj1(:,iglo) &
+            *2.0*vperp2(:,iglo)*spec(is)%tz*bpar(:,it,ik)*fbpar
+       g1(:,1,iglo) = g1(:,1,iglo) + fac
+       g1(:,2,iglo) = g1(:,2,iglo) + fac
+    end do
+
+  end subroutine load_ky_bpar
+
+  !> Calculates an estimate of the current maximum velocity due to the
+  !! perturbed potentials. This is currenly a processor local estimate.
+  subroutine get_max_vel(scaling)
+    implicit none
+    real, intent(in) :: scaling
+    real :: local_max_vel
+    if (accelerated) then
+       local_max_vel = maxval(abs(aba))
+    else
+       local_max_vel = maxval(abs(ba))
+    end if
+    
+    local_max_vel = local_max_vel * scaling
+
+    max_vel = max(max_vel, local_max_vel)
+  end subroutine get_max_vel
+
+  !> Calculate (d Chi /dx).(d g_wesson/dy) and store in bracket if is_first_term = .true.
+  !! else calculate (d Chi /dy).(d g_wesson/dx) and subtract from bracket
+  subroutine calculate_bracket(is_first_term)
+    use theta_grid, only: kxfac
+    implicit none
+    logical :: is_first_term
+
+    if (is_first_term) then
+       if (accelerated) then
+          abracket = aba*agb*kxfac
+       else
+          bracket = ba*gb*kxfac
+       endif
+    else
+       if (accelerated) then
+          abracket = abracket - aba*agb*kxfac
+       else
+          bracket = bracket - ba*gb*kxfac
+       endif
+    endif
+  end subroutine calculate_bracket
+  
   !> this subroutine constructs the GK nonlinear term from the 6 GryfX
   !! gyrofluid nonlinear terms.  we first construct in gryfx units.
   !! gryfx uses vt=sqrt(T/m) normalization, 
@@ -949,8 +931,9 @@ contains
 
   !> FIXME : Add documentation  
   subroutine finish_nonlinear_terms
+#ifndef SHMEM    
     use gs2_transforms, only: finish_transforms
-#ifdef SHMEM
+#else
     use shm_mpi3, only : shm_free
 #endif
     implicit none
@@ -973,7 +956,7 @@ contains
     endif
 #endif
     nonlin = .false. ; alloc = .true. ; zip = .false. ; accelerated = .false.
-    initialized = .false. ; initializing = .true.
+    initialized = .false. ; initializing = .true. ; exist = .false.
 
 #ifndef SHMEM
     call finish_transforms
