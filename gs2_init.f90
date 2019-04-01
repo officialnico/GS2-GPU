@@ -932,7 +932,7 @@ contains
   !end subroutine save_fields_and_dist_fn
   subroutine set_initial_field_and_dist_fn_values(current)
     use dist_fn_arrays, only: g, gnew
-    use fields_arrays, only: phinew, aparnew, bparnew
+    use fields_arrays, only: phinew, aparnew, bparnew, phi, apar, bpar
     use fields, only: force_maxwell_reinit
     use fields, only: set_init_fields
     use file_utils, only: error_unit
@@ -964,18 +964,26 @@ contains
       !if (.not. proc0) write (*,*) 'field value jjjj kkkk', phinew(-5, 3, 2), job_id
       !if (.not. proc0) write (*,*) 'field value sum jjjj kkkk', sum(real(conjg(phinew)*phinew)), job_id
     else
-      write(error_unit(), *) "INFO: You have disabled &
-        & force_maxwell_reinit which causes the fields to be &
-        & recalculated self-consistently from the the dist fn. &
-        & You are on your own and here be dragons."
       if(current%initval_ov%override .and. current%initval_ov%in_memory) then 
-        if(fphi.gt.0) &
-          phinew=current%initval_ov%phi
-        if(fapar.gt.0) &
-          aparnew=current%initval_ov%apar
-        if(fbpar.gt.0) &
-          bparnew=current%initval_ov%bpar
-      else
+        if(fphi.gt.0) then
+           phinew=current%initval_ov%phi
+        else
+           phinew = 0.           
+        endif
+        if(fapar.gt.0) then
+           aparnew=current%initval_ov%apar
+        else
+           aparnew = 0.
+        endif
+        if(fbpar.gt.0) then
+           bparnew=current%initval_ov%bpar
+        else
+           bparnew = 0.
+        endif
+        phi = phinew
+        apar = aparnew
+        bpar = bparnew
+     else
         ! No need to do anything: fields read from file.
       end if
     end if
