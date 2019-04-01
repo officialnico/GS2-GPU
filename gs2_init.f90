@@ -800,7 +800,7 @@ contains
 
   subroutine init_gs2_init(current)
     use file_utils, only: input_unit, input_unit_exist
-    use mp, only: proc0
+    use mp, only: proc0, broadcast
     namelist /init_knobs/ in_memory
     type(init_type), intent(inout) :: current
     integer :: in_file
@@ -810,7 +810,9 @@ contains
     if (proc0) then
       in_file = input_unit_exist("init_knobs",exist)
       if(exist) read (unit=in_file, nml=init_knobs)
-    endif
+   endif
+
+   call broadcast(in_memory)
   end subroutine init_gs2_init
 
   subroutine finish_gs2_init(current)
