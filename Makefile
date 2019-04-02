@@ -640,7 +640,7 @@ endif
 
 %.o: %.c
 	$(call messageOp,"Compiling C","\\t:",$<)
-	$(QUIETSYM)$(CC) $(CFLAGS) $(subst -traditional,,$(subst -C,,$(subst -P,,$(CPPFLAGS)))) -c $<
+	$(QUIETSYM)$(CC) $(CFLAGS) $(subst -traditional,,$(subst -C,,$(subst -P,,$(CPPFLAGS)))) $(MACRO_DEFS) -c $<
 
 # This prevents error messages like m2c: Command not found
 # This is from a implicit makefile rule that we're overriding
