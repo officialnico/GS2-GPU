@@ -4,20 +4,8 @@
 [![Build Status](https://anvil.softeng-support.ac.uk/jenkins/buildStatus/icon?job=Gyrokinetics/Merge+Build+Tests-gfortran-7.2)](https://anvil.softeng-support.ac.uk/jenkins/job/Gyrokinetics/Merge+Build+Tests-gfortran-7.2)
 [![codecov](https://codecov.io/bb/gyrokinetics/gs2/branch/master/graph/badge.svg)](https://codecov.io/bb/gyrokinetics/gs2)
 
-1. [Introduction](#introduction)
-2. [Dependencies](#dependencies)
-3. [Developing GS2](#developing-gs2)
-4. [Documentation](#documentation)
-5. [Submodules](#submodules)
-6. [Compilation](#compilation)
-    1. [with build_gs2](#build-gs2)
-    2. [with make](#make)
-7. [Tests](#tests)
-7. [Citing GS2](#citing-gs2)
-    1. [Citation](#citation)
-    2. [Acknowledgements](#acknowledgements)
+[TOC]
 
-<a name="introduction"></a>
 ## Introduction
 
 GS2 is a physics application, developed to study low-frequency
@@ -35,7 +23,6 @@ or for git < v2.13:
 
     git clone --recursive https://bitbucket.org/gyrokinetics/gs2.git
 
-<a name="dependencies"></a>
 ## Dependencies
 
 GS2 has no required external dependencies, but does have the following
@@ -48,13 +35,11 @@ optional ones:
 - LAPACK
 - NAG
 
-<a name="developing-gs2"></a>
 ## Developing GS2
 
 Please see the [CONTRIBUTING.md](CONTRIBUTING.md) document for help
 and guidelines on contributing to GS2.
 
-<a name="documentation"></a>
 ## Documentation
 
 Auto-generated source code documentation is currently available at
@@ -62,7 +47,6 @@ Auto-generated source code documentation is currently available at
 Further details are available on the
 [wiki](https://bitbucket.org/gyrokinetics/gs2/wiki/)
 
-<a name="submodules"></a>
 ## Important note on sub-modules
 
 We use git submodules to deal with the sub-projects `utils` and
@@ -79,7 +63,6 @@ checkout:
 See this nice summary on stackoverflow for further details:
 https://stackoverflow.com/questions/3796927/how-to-git-clone-including-submodules/4438292#4438292
 
-<a name="compilation"></a>
 ## Compilation
 
 There are two approaches to compiling GS2:
@@ -87,7 +70,6 @@ There are two approaches to compiling GS2:
 1. using the `build_gs2` script
 2. using `make` directly
 
-<a name="build-gs2"></a>
 ### Compilation using `build_gs2`
 
 The level of difficulty of compiling depends on how much your system is
@@ -123,7 +105,6 @@ Failing that, please raise a support request here:
 
 https://bitbucket.org/gyrokinetics/gs2/issues
 
-<a name="make"></a>
 ### Compilation using `make`
 
 You must set two environment variables to compile agk/gs2: `GK_SYSTEM` and `MAKEFLAGS`.
@@ -316,7 +297,6 @@ by the depend target using the perl script "fortdep". The script is
 distributed for developers convenience. Users do not need to reconstruct
 it.
 
-<a name="tests"></a>
 ## Tests
 
 Users should run the GS2 tests after installing, updating or developing the
@@ -326,13 +306,11 @@ issue on Bitbucket](https://bitbucket.org/gyrokinetics/gs2/issues?status=new&sta
 
 For details on running the tests, see the README in the `tests` folder.
 
-<a name="citing-gs2"></a>
 ## Citing GS2
 
 If you use GS2 in your work, please cite GS2 and acknowledge the grants that
 support its development.
 
-<a name="citation"></a>
 ### Citation
 GS2's DOI is [10.5281/zenodo.2551067](https://doi.org/10.5281/zenodo.2551067).
 The full citation for GS2 may be also found in CITATION.cff. You can convert the
@@ -341,7 +319,6 @@ CITATION.cff file into a Bibtex file as follows:
     pip3 install --user cffconvert
     cffconvert -if CITATION.cff -f bibtex -of CITATION.bib 
 
-<a name="acknowledgements"></a>
 ### Acknowledgement
 
 Please acknowledge grants which support the development of GS2:
