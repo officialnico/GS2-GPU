@@ -10,10 +10,6 @@ else
 	NTESTPROCS=2
 endif
 
-ifdef TESTNORUN
-override TESTEXEC=:
-endif
-
 COVERAGE_DIR := coverage
 
 $(COVERAGE_DIR):

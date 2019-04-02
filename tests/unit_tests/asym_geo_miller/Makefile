@@ -3,6 +3,10 @@ sinclude ../Makefile.tests_common
 
 CLEANCOMMAND+= test_asym_geo_miller
 
+ifdef TESTNORUN
+all: test_asym_geo_miller
+	$(call SKIPCOMMAND,variable TESTNORUN is defined; unset TESTNORUN to run this test)
+else
 #Define this tests level
 MY_TEST_LEVEL=1
 VAL:= $(shell expr ${MY_TEST_LEVEL} \<= ${TEST_LEVEL})
@@ -12,7 +16,7 @@ all:
 else
 all: test_asym_geo_miller
 	$(call RUNCOMMAND,test_asym_geo_miller,)
-
+endif
 endif
 
 ogyropsi.dat EQDSK:
