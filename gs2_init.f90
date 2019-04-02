@@ -808,11 +808,11 @@ contains
 
     in_memory = .false.
     if (proc0) then
-      in_file = input_unit_exist("init_knobs",exist)
-      if(exist) read (unit=in_file, nml=init_knobs)
-   endif
+       in_file = input_unit_exist("init_knobs",exist)
+       if(exist) read (unit=in_file, nml=init_knobs)
+    endif
 
-   call broadcast(in_memory)
+    call broadcast(in_memory)
   end subroutine init_gs2_init
 
   subroutine finish_gs2_init(current)
@@ -949,12 +949,12 @@ contains
 
     !write (*,*) 'set_init_field in_memory', in_memory, fields_and_dist_fn_saved
 
-    if (.not. current%initval_ov%override) then 
-      ! This is the usual initial setup 
+    if (.not. current%initval_ov%override) then
+      ! This is the usual initial setup
       call ginit (restarted)
     else
-      if (current%initval_ov%in_memory) then 
-        g = current%initval_ov%g 
+      if (current%initval_ov%in_memory) then
+        g = current%initval_ov%g
         gnew = g
       else
         call ginit(restarted, ginitopt_restart_many)
@@ -966,28 +966,29 @@ contains
       !if (.not. proc0) write (*,*) 'field value jjjj kkkk', phinew(-5, 3, 2), job_id
       !if (.not. proc0) write (*,*) 'field value sum jjjj kkkk', sum(real(conjg(phinew)*phinew)), job_id
     else
-      if(current%initval_ov%override .and. current%initval_ov%in_memory) then 
-        if(fphi.gt.0) then
-           phinew=current%initval_ov%phi
-        else
-           phinew = 0.           
-        endif
-        if(fapar.gt.0) then
-           aparnew=current%initval_ov%apar
-        else
-           aparnew = 0.
-        endif
-        if(fbpar.gt.0) then
-           bparnew=current%initval_ov%bpar
-        else
-           bparnew = 0.
-        endif
-        phi = phinew
-        apar = aparnew
-        bpar = bparnew
-     else
-        ! No need to do anything: fields read from file.
-      end if
+
+       if(current%initval_ov%override .and. current%initval_ov%in_memory) then
+          if(fphi.gt.0) then
+             phinew=current%initval_ov%phi
+          else
+             phinew = 0.
+          endif
+          if(fapar.gt.0) then
+             aparnew=current%initval_ov%apar
+          else
+             aparnew = 0.
+          endif
+          if(fbpar.gt.0) then
+             bparnew=current%initval_ov%bpar
+          else
+             bparnew = 0.
+          endif
+          phi = phinew
+          apar = aparnew
+          bpar = bparnew
+       else
+          ! No need to do anything: fields read from file.
+       end if
     end if
   end subroutine set_initial_field_and_dist_fn_values
   !subroutine deallocate_saved_arrays 

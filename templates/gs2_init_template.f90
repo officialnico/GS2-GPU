@@ -150,8 +150,6 @@ contains
     implicit none
     type(init_type), intent(inout) :: current
     integer, intent(in) :: target_level
-    integer :: i
-    !logical :: up, down
 
     ! TEMPLATE_CHECK_GS2_INITIALISED
 
@@ -329,12 +327,12 @@ contains
 
     !write (*,*) 'set_init_field in_memory', in_memory, fields_and_dist_fn_saved
 
-    if (.not. current%initval_ov%override) then 
-      ! This is the usual initial setup 
+    if (.not. current%initval_ov%override) then
+      ! This is the usual initial setup
       call ginit (restarted)
     else
-      if (current%initval_ov%in_memory) then 
-        g = current%initval_ov%g 
+      if (current%initval_ov%in_memory) then
+        g = current%initval_ov%g
         gnew = g
       else
         call ginit(restarted, ginitopt_restart_many)
@@ -347,11 +345,11 @@ contains
       !if (.not. proc0) write (*,*) 'field value sum jjjj kkkk', sum(real(conjg(phinew)*phinew)), job_id
     else
 
-       if(current%initval_ov%override .and. current%initval_ov%in_memory) then 
+       if(current%initval_ov%override .and. current%initval_ov%in_memory) then
           if(fphi.gt.0) then
              phinew=current%initval_ov%phi
           else
-             phinew = 0.           
+             phinew = 0.
           endif
           if(fapar.gt.0) then
              aparnew=current%initval_ov%apar
