@@ -1,5 +1,3 @@
-# Generation of large fortran source files
-RUBY_GENERATE=env ruby $2 $1; if test "$$?" != 0; then  echo && echo && echo  "Warning: no ruby: $1 is not updated!!!" && echo && echo; fi
 
 ifdef USE_MPI
 MACRO_DEFS += -DHAVE_MPI
