@@ -499,6 +499,13 @@ LIBS	+= $(DEFAULT_LIB) $(MPI_LIB) $(NETCDF_LIB) $(HDF5_LIB) $(FFT_LIB) \
 		   $(NAG_LIB) $(EIG_LIB) $(GENQUAD_LIB)
 INCLUDES = $(DEFAULT_INC) $(MPI_INC) $(NETCDF_INC) $(HDF5_INC) $(FFT_INC)\
 		   $(SIMPLEDATAIO_INC) $(EIG_INC) $(GENQUAD_INC) $(PFUNIT_INC)
+
+# Here we attempt to remove non-existent directories from INCLUDES. We assume that
+# INCLUDES is currently just a list of entries of the form -I<some directory> so for
+# each entry we strip the -I and then echo -I<some directory> if <some directory> is
+# found to exist. This can help avoid warnings about non-existent directories
+INCLUDES := $(foreach tmpvp,$(INCLUDES),$(shell [ -d $(echo $(tmpvp) | sed 's/^-I//g') ] && echo $(tmpvp)))
+
 F90FLAGS+= $(F90OPTFLAGS) $(INCLUDES)
 CFLAGS += $(COPTFLAGS) \
 	   $(DEFAULT_INC) $(MPI_INC) $(NETCDF_INC) $(HDF5_INC) $(FFT_INC)
@@ -734,7 +741,7 @@ clean: clean_simpledataio clean_coverage
 	-$(QUIETSYM)rm -f *.o *.mod *.g90 *.h core */core
 
 CLEANCOMMAND=echo $$$$PWD
-CLEANCOMMAND=rm -f *.o *.error *.out *.out.nc *.gridgen.200 *.lpc *.vres *.fields *.g *.fort.?? *.mod .*.scratch *.timing.* *.moments *.cdf *.jext *.parity *.heat *.heat2 *.vres2 *.amoments *.eigenfunc *.nc* *.mom2 *.epar .*.in results_of_test.txt *.stop *.fftw_wisdom *.phase *.kpar *.interp *.dist 
+CLEANCOMMAND=rm -f *.o *.error *.out *.out.nc *.gridgen.200 *.lpc *.vres *.fields *.g *.fort.?? *.mod .*.scratch *.moments *.cdf *.jext *.parity *.heat *.heat2 *.vres2 *.amoments *.eigenfunc *.nc* *.mom2 *.epar .*.in results_of_test.txt *.stop *.fftw_wisdom *.phase *.kpar *.interp *.dist
 
 ifdef CLEAN_TEXTFILES
 	CLEANCOMMAND+= *~ *.orig
@@ -872,7 +879,7 @@ test_make:
 	$(call messageKeyVal, "MACRO_DEFS", $(MACRO_DEFS))
 	$(call messageKeyVal, "LD_LIBRARY_PATH", $(LD_LIBRARY_PATH))
 	$(call messageKeyVal, "LIBS", $(LIBS))
-	$(call messageKeyVal, "INCS", $(INCS))
+	$(call messageKeyVal, "INCS", $(INCLUDES))
 ifdef USE_MPI
 	$(call messageInfo,"MPI:")
 	$(call messageKeyVal, "MPI_MOD_NAME", $(MPI_MOD_NAME))
