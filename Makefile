@@ -590,29 +590,10 @@ endif
 ifdef ONE_STEP_PP
 %.o: %.fpp
 	$(call messageOp,"Compiling and preprocessing","\\t:",$<)
-	$(QUIETSYM)$(FC) $(MACRO_DEFS) $(F90FLAGS) $(F90FLAGS_SFXJUNK) -c $<
+	$(QUIETSYM)$(FC) $(MACRO_DEFS) $(F90FLAGS) -c $<
 %.o: %.F90
 	$(call messageOp,"Compiling and preprocessing","\\t:",$<)
-	$(QUIETSYM)$(FC) $(MACRO_DEFS) $(F90FLAGS) $(F90FLAGS_SFXJUNK) -c $<
-
-else
-# These are special rules for the suffix problem of absoft
-# (not tested)
-$(GK_PROJECT)_transforms.o: $(GK_PROJECT)_transforms.f90
-	$(call messageOp,"Compiling","\\t:",$<)
-	$(QUIETSYM)$(FC) $(F90FLAGS) $(F90FLAGS_SFX0) -c $<
-$(GK_PROJECT)_io.o: $(GK_PROJECT)_io.f90
-	$(call messageOp,"Compiling","\\t:",$<)
-	$(QUIETSYM)$(FC) $(F90FLAGS) $(F90FLAGS_SFX2) -c $<
-$(GK_PROJECT)_save.o: $(GK_PROJECT)_save.f90
-	$(call messageOp,"Compiling","\\t:",$<)
-	$(QUIETSYM)$(FC) $(F90FLAGS) $(F90FLAGS_SFX2) -c $<
-mp.o: mp.f90
-	$(call messageOp,"Compiling","\\t:",$<)
-	$(QUIETSYM)$(FC) $(F90FLAGS) $(F90FLAGS_SFX1) -c $<
-fft_work.o: fft_work.f90
-	$(call messageOp,"Compiling","\\t:",$<)
-	$(QUIETSYM)$(FC) $(F90FLAGS) $(F90FLAGS_SFX0) -c $<
+	$(QUIETSYM)$(FC) $(MACRO_DEFS) $(F90FLAGS) -c $<
 endif
 
 %.o : %.pf
@@ -630,7 +611,7 @@ endif
 
 %.o: %.f90
 	$(call messageOp,"Compiling","\\t:",$<)
-	$(QUIETSYM)$(FC) $(F90FLAGS) $(F90FLAGS_SFXJUNK) -c $<
+	$(QUIETSYM)$(FC) $(F90FLAGS) -c $<
 
 # The depend command needs the preprocessed source files. 
 # This is a little clunky, and maybe could be fixed in the future.
