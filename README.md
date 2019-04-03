@@ -23,6 +23,13 @@ or for git < v2.13:
 
     git clone --recursive https://bitbucket.org/gyrokinetics/gs2.git
 
+Alternatively, tarballs are available for the 
+[latest release](https://bitbucket.org/gyrokinetics/gs2/get/master.tar.gz)
+and 
+[latest development branch](https://bitbucket.org/gyrokinetics/gs2/get/next.tar.gz)
+along with other tags and branches on the 
+[Bitbucket downloads page](https://bitbucket.org/gyrokinetics/gs2/downloads/)
+
 ## Dependencies
 
 GS2 has no required external dependencies, but does have the following
