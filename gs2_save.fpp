@@ -797,7 +797,7 @@ contains
     if(save_many .or. iproc == 0) then
 # endif
 
-       istatus = nf90_put_var (ncid, delt0id, delt0)
+       istatus = nf90_put_var (ncid, delt0id, code_dt)
        if (istatus /= NF90_NOERR) then
           ierr = error_unit()
           write (ierr,*) "nf90_put_var delt0 error: ", nf90_strerror(istatus)
