@@ -199,19 +199,6 @@ module dist_fn
   complex, dimension (:,:,:), allocatable :: g_adj
   ! (N(links), 2, -g-layout-)
 
-!  complex, dimension (:,:,:), allocatable, save :: gnl_1, gnl_2, gnl_3
-#ifndef SHMEM
-  complex, dimension (:,:,:), allocatable :: gexp_1, gexp_2, gexp_3
-#else
-  complex, dimension (:,:,:), pointer, save, contiguous :: gexp_1 => null()
-  complex, dimension (:,:,:), allocatable :: gexp_2, gexp_3
-#endif
-  ! (-ntgrid:ntgrid,2, -g-layout-)
-
-  ! momentum conservation
-!  complex, dimension (:,:), allocatable :: g3int
-!  real, dimension (:,:,:), allocatable :: sq
-
   ! exb shear
   integer, dimension(:), allocatable :: jump, ikx_indexed
 
@@ -804,9 +791,12 @@ contains
 
   subroutine finish_dist_fn_arrays
     use dist_fn_arrays, only: g, gnew, kx_shift, theta0_shift, vperp2
+    use dist_fn_arrays, only: gexp_1, gexp_2, gexp_3
 #ifdef SHMEM
     use shm_mpi3, only : shm_free
 #endif
+
+    implicit none
 
     if (.not. initialized_dist_fn_arrays) return
     initialized_dist_fn_arrays = .false.
@@ -3839,6 +3829,7 @@ contains
     use theta_grid, only: ntgrid, shat
     use dist_fn_arrays, only: g, gnew
     use dist_fn_arrays, only: kx_shift, theta0_shift   ! MR
+    use dist_fn_arrays, only: gexp_1, gexp_2, gexp_3
     use gs2_layouts, only: g_lo
     use nonlinear_terms, only: nonlin
     use run_parameters, only: fapar
@@ -3919,6 +3910,7 @@ contains
     use theta_grid, only: ntgrid
     use le_derivatives, only: vspace_derivatives
     use dist_fn_arrays, only: gnew, g
+    use dist_fn_arrays, only: gexp_1, gexp_2, gexp_3
     use nonlinear_terms, only: add_explicit_terms
     use hyper, only: hyper_diff
     use run_parameters, only: reset, immediate_reset
@@ -4698,6 +4690,7 @@ contains
     use dist_fn_arrays, only: hneoc, vparterm, wdfac, wstarfac, wdttpfac
 #endif
     use dist_fn_arrays, only: aj0, aj1, vperp2, vpar, vpac, g, ittp
+    use dist_fn_arrays, only: gexp_1, gexp_2, gexp_3
     use theta_grid, only: ntgrid
     use kt_grids, only: aky
     use le_grids, only: nlambda, ng2, lmax, negrid
@@ -5070,6 +5063,7 @@ contains
     use dist_fn_arrays, only: hneoc, vparterm, wdfac, wstarfac, wdttpfac
 #endif
     use dist_fn_arrays, only: aj0, aj1, vperp2, g, ittp
+    use dist_fn_arrays, only: gexp_1, gexp_2, gexp_3
     use theta_grid, only: ntgrid
     use kt_grids, only: aky
     use le_grids, only: nlambda, ng2, lmax
