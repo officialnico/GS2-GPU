@@ -65,7 +65,8 @@ module gs2_save
   integer (kind_nf) :: ncid, thetaid, signid, gloid, kyid, kxid, nk_stir_dim
   integer (kind_nf) :: phir_id, phii_id, aparr_id, apari_id, bparr_id, bpari_id
   integer (kind_nf) :: kx_shift_id   ! MR: added to save kx_shift variable
-  integer (kind_nf) :: t0id, gr_id, gi_id, vnm1id, vnm2id, delt0id
+  integer (kind_nf) :: t0id, gr_id, gi_id, vnm1id, vnm2id
+  integer (kind_nf) :: delt0id, delt1id, delt2id
   integer (kind_nf) :: gexp_1_r_id, gexp_1_i_id
   integer (kind_nf) :: gexp_2_r_id, gexp_2_i_id
   integer (kind_nf) :: gexp_3_r_id, gexp_3_i_id
@@ -141,6 +142,7 @@ contains
     !</DD> Added for saving distribution function
     use parameter_scan_arrays, only: current_scan_parameter_value
     use unit_tests, only: debug_message
+    use gs2_time, only: code_dt, code_dt_prev1, code_dt_prev2
     implicit none
     complex, dimension (-ntgrid:,:,g_lo%llim_proc:), intent (in) :: g
     real, intent (in) :: t0, delt0
@@ -404,6 +406,20 @@ contains
        if (istatus /= NF90_NOERR) then
           ierr = error_unit()
           write(ierr,*) "nf90_def_var delt0 error: ", nf90_strerror(istatus)
+          goto 1
+       end if
+
+       istatus = nf90_def_var (ncid, "delt1", netcdf_real, delt1id)
+       if (istatus /= NF90_NOERR) then
+          ierr = error_unit()
+          write(ierr,*) "nf90_def_var delt1 error: ", nf90_strerror(istatus)
+          goto 1
+       end if
+
+       istatus = nf90_def_var (ncid, "delt2", netcdf_real, delt2id)
+       if (istatus /= NF90_NOERR) then
+          ierr = error_unit()
+          write(ierr,*) "nf90_def_var delt2 error: ", nf90_strerror(istatus)
           goto 1
        end if
        
@@ -787,7 +803,21 @@ contains
           write (ierr,*) "nf90_put_var delt0 error: ", nf90_strerror(istatus)
           goto 1
        end if
- 
+
+       istatus = nf90_put_var (ncid, delt1id, code_dt_prev1)
+       if (istatus /= NF90_NOERR) then
+          ierr = error_unit()
+          write (ierr,*) "nf90_put_var delt1 error: ", nf90_strerror(istatus)
+          goto 1
+       end if
+
+       istatus = nf90_put_var (ncid, delt1id, code_dt_prev2)
+       if (istatus /= NF90_NOERR) then
+          ierr = error_unit()
+          write (ierr,*) "nf90_put_var delt1 error: ", nf90_strerror(istatus)
+          goto 1
+       end if
+       
        istatus = nf90_put_var (ncid, t0id, t0)
        if (istatus /= NF90_NOERR) then
           ierr = error_unit()
