@@ -7,7 +7,7 @@ endef
 #The following returns a list of fortran source files found in
 #a particular path.
 define getListSource
-$(notdir $(basename $(shell find $(1) -regextype sed -regex ".*/.*.f..")))
+$(if $(1),$(notdir $(basename $(shell find $(1) -regextype sed -regex ".*/.*.f.."))))
 endef
 
 #The following returns a list of directories found in
@@ -15,12 +15,11 @@ endef
 #and then extracts just the directory and sorts and uniques.
 #This is to ensure we avoid listing empty directories.
 define getListDir
-$(sort $(dir $(basename $(shell find $(1) -regextype sed -regex ".*/.*.f.."))))
+$(if $(1),$(sort $(dir $(basename $(shell find $(1) -regextype sed -regex ".*/.*.f..")))))
 endef
 #############################################################################
 
 #Test directory setup
-TEST_DIR := tests
 UNIT_TEST_DIR := $(TEST_DIR)/unit_tests
 LINEAR_TEST_DIR := $(TEST_DIR)/linear_tests
 NONLINEAR_TEST_DIR := $(TEST_DIR)/nonlinear_tests
