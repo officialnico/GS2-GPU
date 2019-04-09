@@ -3881,8 +3881,6 @@ contains
           allocate (gexp_2(-ntgrid:ntgrid,2,g_lo%llim_proc:g_lo%ulim_alloc))
           allocate (gexp_3(-ntgrid:ntgrid,2,g_lo%llim_proc:g_lo%ulim_alloc))
           gexp_1 = 0. ; gexp_2 = 0. ; gexp_3 = 0.
-       else
-          allocate (gexp_1(1,2,1), gexp_2(1,2,1), gexp_3(1,2,1))
        end if
 #endif
        if (boundary_option_switch == boundary_option_linked) then
