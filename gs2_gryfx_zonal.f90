@@ -299,7 +299,7 @@ contains
     real*8, intent(inout), dimension(2*ntgrid) :: gryfx_theta
     type(gryfx_parameters_type), intent(in) :: gryfx_parameters
     integer :: istatus
-    real :: delt
+    real :: delt, delt1, delt2
 
     !gryfx_zonal%on = .true.
     state%mp_comm_external = .true.
@@ -335,8 +335,8 @@ contains
     endif
     if (gryfx_parameters%restart==1) then
        ! Load the saved value of dt
-       call init_dt(delt, istatus)
-       call init_delt(delt)
+       call init_dt(delt, delt1, delt2, istatus)
+       call init_delt(delt, delt1, delt2)
        ! Set up gs2 state so that it reads the
        ! initial values from the restart file.
        call prepare_initial_values_overrides(state)

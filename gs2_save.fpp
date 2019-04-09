@@ -2054,14 +2054,13 @@ contains
   end subroutine restore_current_scan_parameter_value
 
   !> FIXME : Add documentation  
-  subroutine init_dt (delt0, istatus)
-
+  subroutine init_dt (delt0, delt1, delt2, istatus)
 # ifdef NETCDF
     use mp, only: proc0, broadcast
     use file_utils, only: error_unit
 # endif
     implicit none
-    real, intent (in out) :: delt0
+    real, intent (in out) :: delt0, delt1, delt2
     integer, intent (out) :: istatus
 # ifdef NETCDF
     character (run_name_size) :: file_proc        
@@ -2082,11 +2081,11 @@ contains
 
           istatus = nf90_open (file_proc, NF90_NOWRITE, ncid)
           if (istatus /= NF90_NOERR) call netcdf_error (istatus,file=file_proc)
-
-          istatus = nf90_inq_varid (ncid, "delt0", delt0id)
-          if (istatus /= NF90_NOERR) call netcdf_error (istatus, var='delt0')
        end if
 
+       istatus = nf90_inq_varid (ncid, "delt0", delt0id)
+       if (istatus /= NF90_NOERR) call netcdf_error (istatus, var='delt0')
+       
        istatus = nf90_get_var (ncid, delt0id, delt0)
 
        if (istatus /= NF90_NOERR) then
@@ -2094,11 +2093,33 @@ contains
           delt0 = -1.
        endif           
 
+       istatus = nf90_inq_varid (ncid, "delt1", delt1id)
+       if (istatus /= NF90_NOERR) call netcdf_error (istatus, var='delt1')
+       
+       istatus = nf90_get_var (ncid, delt1id, delt1)
+
+       if (istatus /= NF90_NOERR) then
+          call netcdf_error (istatus, ncid, delt1id, message=' in init_dt')
+          delt1 = -1.
+       endif           
+
+       istatus = nf90_inq_varid (ncid, "delt2", delt2id)
+       if (istatus /= NF90_NOERR) call netcdf_error (istatus, var='delt2')
+       
+       istatus = nf90_get_var (ncid, delt2id, delt1)
+
+       if (istatus /= NF90_NOERR) then
+          call netcdf_error (istatus, ncid, delt2id, message=' in init_dt')
+          delt2 = -1.
+       endif           
+       
        if (.not.initialized) istatus = nf90_close (ncid)
     endif
 
     call broadcast (istatus)
     call broadcast (delt0)
+    call broadcast (delt1)
+    call broadcast (delt2)        
 
 # endif
 

@@ -39,20 +39,19 @@ contains
 
   end subroutine init_tstart
 
-  !> FIXME : Add documentation  
-  subroutine init_delt (delt)
+  !> Set the full timestep history.
+  !! Inputs set the current, previous and last but one timesteps
+  subroutine init_delt (delt, delt1, delt2)
     implicit none
-    real, intent (in) :: delt
+    real, intent (in) :: delt, delt1, delt2
 !
-! delt_in is a user input, from the run_parameters module.
+! delt* are user input, from the run_parameters module.
 ! In a perfect world, we could have a gs2_time namelist. 
 ! 
     user_dt = delt
     code_dt = delt
-    code_dt_prev1 = delt
-    code_dt_prev2 = delt
-
-
+    code_dt_prev1 = delt1
+    code_dt_prev2 = delt2
   end subroutine init_delt
 
   !> Check if the current time step is too big
