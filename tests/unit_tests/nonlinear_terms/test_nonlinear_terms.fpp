@@ -18,7 +18,7 @@ program test_nonlinear_terms
   use theta_grid, only: ntgrid, init_theta_grid
   use gs2_layouts, only: init_gs2_layouts, g_lo, ie_idx
   use nonlinear_terms, only: init_nonlinear_terms, finish_nonlinear_terms
-  use nonlinear_terms, only: nonlinear_terms_unit_test_time_add_nl
+  use nonlinear_terms, only: nonlinear_terms_testing
   use constants, only: run_name_size
   
 #ifdef MPI
@@ -28,6 +28,7 @@ program test_nonlinear_terms
 #endif
 #endif
   implicit none
+  type(nonlinear_terms_testing) :: nonlinear_terms_tests
   real :: eps
   character(run_name_size), target :: cbuff
   logical :: dummy=.false.
@@ -71,7 +72,7 @@ program test_nonlinear_terms
   allocate(bpar(-ntgrid:ntgrid,ntheta0,naky))
 
   call announce_test('run nonlinear terms')
-  call nonlinear_terms_unit_test_time_add_nl(g1, phi, apar, bpar)
+  call nonlinear_terms_tests%add_nl(g1, phi, apar, bpar)
   call process_test(.true., 'run nonlinear terms')
 
   call announce_test('fast fourier transforms in nonlinear term')

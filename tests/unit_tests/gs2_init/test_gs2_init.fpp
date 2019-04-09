@@ -27,7 +27,6 @@ program test_gs2_reinit
     use gs2_reinit, only: gs2_reinit_unit_test_set_in_memory
     use gs2_main, only: run_gs2, finish_gs2
     use gs2_init, only:  init, init_level_list
-    use gs2_main, only: gs2_main_unit_test_reset_gs2
     use gs2_main, only: finalize_diagnostics, initialize_diagnostics
     use gs2_main, only: prepare_initial_values_overrides
     use gs2_main, only: set_initval_overrides_to_current_vals
@@ -37,6 +36,7 @@ program test_gs2_reinit
     use gs2_main, only: prepare_miller_geometry_overrides
     use gs2_main, only: initialize_gs2, initialize_equations, finalize_equations
     use gs2_main, only: initialize_diagnostics
+    use gs2_main, only: reset_gs2
     use fields, only: finish_fields_level_2, init_fields_level_2
     !use fields_local, only: init_fields_local, finish_fields_local
     use unit_tests
@@ -207,7 +207,7 @@ program test_gs2_reinit
     call process_test(response_unchanged() ,&
       'Value of response matrix after restoring timestep')
 
-    dummy = gs2_main_unit_test_reset_gs2(1.0)
+    dummy = test_reset_gs2(1.0)
     call announce_test('Values of fields and dist fn after calling gs2_reset')
     call process_test(test_fields_and_dist(), 'Values of fields and dist fn after calling gs2_reset')
 
@@ -216,7 +216,7 @@ program test_gs2_reinit
       'Value of response matrix  after calling gs2_reset')
 
 
-    dummy = gs2_main_unit_test_reset_gs2(2.0)
+    dummy = test_reset_gs2(2.0)
     call announce_test('Values of fields and dist fn after calling gs2_reset with a factor')
     call process_test(test_fields_and_dist(), 'Values of fields and dist fn after calling gs2_reset with a factor')
 
@@ -224,7 +224,7 @@ program test_gs2_reinit
     call process_test(.not. response_unchanged() ,&
       'Value of response matrix should have changed after calling gs2_reset with a factor')
 
-    dummy = gs2_main_unit_test_reset_gs2(0.5)
+    dummy = test_reset_gs2(0.5)
     call announce_test('Values of fields and dist fn after calling gs2_reset to initial')
     call process_test(test_fields_and_dist(), 'Values of fields and dist fn after calling gs2_reset to _initial')
 
@@ -349,5 +349,33 @@ contains
     test_fields_and_dist = test_result
   end function test_fields_and_dist
 
+  !> This function calls reset_gs2 using
+  !! all the default parameters, multiplied
+  !! by a factor. It is used
+  !! in the gs2_reinit unit test
+  function test_reset_gs2(fac)
+    use species, only: spec, nspec
+    use dist_fn, only: g_exb
+    use mp, only: mp_abort
+    logical :: test_reset_gs2
+    real, intent(in) :: fac
+
+    if (nspec.ne.2)  &
+      call mp_abort("test_reset_gs2 only works with 2 species", .true.)
+
+    call reset_gs2(nspec, &
+      ! Deliberately leave fac off the next 2 lines
+      ! so QN is unaffected
+      (/spec(1)%dens, spec(2)%dens/), &
+      (/spec(1)%temp, spec(2)%temp/), &
+      (/spec(1)%fprim, spec(2)%fprim/)*fac, &
+      (/spec(1)%tprim, spec(2)%tprim/)*fac, &
+      g_exb, 0.0, &
+      (/spec(1)%vnewk, spec(2)%vnewk/), &
+      1)
+
+    test_reset_gs2 = .true.
+
+  end function test_reset_gs2
 
 end program test_gs2_reinit

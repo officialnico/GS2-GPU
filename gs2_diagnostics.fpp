@@ -21,11 +21,8 @@ module gs2_diagnostics
   public :: reset_init
   public :: pflux_avg, qflux_avg, heat_avg, vflux_avg, start_time
   public :: diffusivity
-
-  !Unit tests
-  public :: diagnostics_unit_test_diffusivity
-
   public :: get_omegaavg
+
   interface get_vol_average
      module procedure get_vol_average_one, get_vol_average_all
   end interface get_vol_average
@@ -3508,18 +3505,6 @@ contains
     diffusivity = maxval(diffusivity_by_k) * grho(igomega)
 
   end function diffusivity
-
-  !> FIXME : Add documentation  
-  function diagnostics_unit_test_diffusivity(results, eps)
-    use unit_tests, only: agrees_with
-    use mp,only: proc0
-    real, intent(in) :: results, eps
-    logical :: diagnostics_unit_test_diffusivity
-    diagnostics_unit_test_diffusivity = .true.
-    if (proc0) then
-       diagnostics_unit_test_diffusivity = agrees_with(diffusivity(), results, eps)
-    end if
-  end function diagnostics_unit_test_diffusivity
 
   !> FIXME : Add documentation  
   subroutine get_omegaavg (istep, exit, omegaavg, debopt)

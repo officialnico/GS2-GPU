@@ -11,10 +11,18 @@ module nonlinear_terms
   public :: read_parameters, wnml_nonlinear_terms, check_nonlinear_terms
   public :: add_explicit_terms, nonlinear_mode_switch
   public :: finish_init, reset_init, nonlin, accelerated
-  public :: nonlinear_terms_unit_test_time_add_nl, cfl
+  public :: cfl
   public :: nonlinear_mode_none, nonlinear_mode_on
   public :: gryfx_zonal
   public :: cfl_req_hand, nb_check_time_step_too_large
+  public :: nonlinear_terms_testing
+
+  !> Public type allowing tests to access otherwise-private routines
+  type :: nonlinear_terms_testing
+    contains
+      procedure, nopass :: add_nl
+
+  end type nonlinear_terms_testing
 
   !> FIXME : Add documentation  
   type gs2_gryfx_zonal_type
@@ -461,16 +469,6 @@ contains
        end do
     end do
   end subroutine nl_center
-
-  !> FIXME : Add documentation  
-  subroutine nonlinear_terms_unit_test_time_add_nl(g1, phi, apar, bpar)
-    use gs2_layouts, only: g_lo, ik_idx, it_idx, il_idx, is_idx
-    use theta_grid, only: ntgrid
-    implicit none
-    complex, dimension (-ntgrid:,:,g_lo%llim_proc:), intent (out) :: g1
-    complex, dimension (-ntgrid:,:,:), intent (in) :: phi, apar, bpar
-    call add_nl(g1, phi, apar, bpar)
-  end subroutine nonlinear_terms_unit_test_time_add_nl
 
   !> FIXME : Add documentation  
   subroutine add_nl (g1, phi, apar, bpar)
