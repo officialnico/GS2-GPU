@@ -220,6 +220,7 @@ contains
   subroutine read_parameters
     use file_utils, only: input_unit, error_unit, input_unit_exist
     use mp, only: proc0, broadcast
+    use gs2_time, only: dt_not_set
     use gs2_save, only: init_dt, init_vnm
     use text_options, only: text_option, get_option_value
     use kt_grids, only: gryfx
@@ -396,9 +397,9 @@ contains
 
     user_delt_max = delt
 
-    delt0 = delt
-    delt1 = delt
-    delt2 = delt
+    !! @todo: Add input variables to allow these to be set directly
+    delt_prev1 = dt_not_set
+    delt_prev2 = dt_not_set
     
     if (delt_option_switch == delt_option_auto) then
        vnm_init = 1.0

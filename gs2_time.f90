@@ -6,7 +6,7 @@ module gs2_time
   private
 
   public :: user_dt, code_dt, update_time, code_dt_old
-  public :: time_history_available
+  public :: time_history_available, dt_not_set
   public :: code_dt_prev1, code_dt_prev2
   public :: user_time, code_time, check_time_step_too_large
   public :: save_dt_min, save_dt, save_dt_cfl, write_dt
@@ -15,7 +15,8 @@ module gs2_time
 
   real, parameter :: dt_not_set = -1.0
   real :: user_dt, code_dt 
-  real :: code_dt_prev1 = dt_not_set, code_dt_prev2 = dt_not_set
+  real :: code_dt_prev1 = dt_not_set
+  real :: code_dt_prev2 = dt_not_set
   real :: user_dt_cfl
   real :: code_dt_cfl
   
@@ -83,7 +84,6 @@ contains
   subroutine save_dt_cfl (delt_cfl)
     implicit none
     real, intent (in) :: delt_cfl
-
     code_dt_cfl = delt_cfl
     user_dt_cfl = delt_cfl
 
