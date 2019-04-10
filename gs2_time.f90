@@ -15,10 +15,10 @@ module gs2_time
 
   real, parameter :: dt_not_set = -1.0
   real :: user_dt, code_dt 
-  real :: code_dt_prev1, code_dt_prev2
-  real :: user_dt_cfl = dt_not_set
-  real :: code_dt_cfl = dt_not_set
-
+  real :: code_dt_prev1 = dt_not_set, code_dt_prev2 = dt_not_set
+  real :: user_dt_cfl
+  real :: code_dt_cfl
+  
   real :: code_dt_min, user_dt_min
 
   ! added May 18, 2009 to take care of problems
