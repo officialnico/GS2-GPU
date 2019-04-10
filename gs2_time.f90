@@ -132,11 +132,11 @@ contains
     implicit none
     integer :: time_history_available
     if (code_dt_prev2 .ne. dt_not_set) then
-       return 3
+       time_history_available =  3
     else if (code_dt_prev1 .ne. dt_not_set) then
-       return 2
+       time_history_available =  2
     else
-       return 1
+       time_history_available =  1
     endif
   end function time_history_available
 end module gs2_time
