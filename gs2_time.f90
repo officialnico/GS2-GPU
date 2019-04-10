@@ -126,7 +126,8 @@ contains
 
   !> Reports how many previous time steps are available
   !! by checking if the previous code_dt values have been
-  !! set to anything.
+  !! set to anything. Note we assume that if a time step is
+  !! set then all more recent values have also been set.
   function time_history_available()
     implicit none
     integer :: time_history_available
