@@ -4684,7 +4684,7 @@ contains
 
   !> FIXME : Add documentation
   subroutine get_source_term &
-       (phi, apar, bpar, phinew, aparnew, bparnew, istep, &
+       (phi, apar, bpar, phinew, aparnew, bparnew, nstep_available, &
         isgn, iglo,ik,it,il,ie,is, sourcefac, source)
 #ifdef LOWFLOW
     use dist_fn_arrays, only: hneoc, vparterm, wdfac, wstarfac, wdttpfac
@@ -4704,7 +4704,7 @@ contains
     implicit none
     complex, dimension (-ntgrid:,:,:), intent (in) :: phi,    apar,    bpar
     complex, dimension (-ntgrid:,:,:), intent (in) :: phinew, aparnew, bparnew
-    integer, intent (in) :: istep
+    integer, intent (in) :: nstep_available
     integer, intent (in) :: isgn, iglo, ik, it, il, ie, is
     complex, intent (in) :: sourcefac
     complex, dimension (-ntgrid:), intent (out) :: source
@@ -4827,7 +4827,7 @@ contains
           endif
 
 #ifdef LOWFLOW
-          select case (istep)
+          select case (nstep_available)
           case (0)
              ! nothing
           case (1)
@@ -4859,7 +4859,7 @@ contains
 #else
 ! add in nonlinear terms 
           if (nonlin) then         
-             select case (istep)
+             select case (nstep_available)
              case (0)
                 ! nothing
              case (1)
@@ -4991,7 +4991,7 @@ contains
       end do
 
 #ifdef LOWFLOW
-      select case (istep)
+      select case (nstep_available)
       case (0)
          ! nothing
       case (1)
@@ -5020,7 +5020,7 @@ contains
 #else
 ! add in nonlinear terms 
       if (nonlin) then         
-         select case (istep)
+         select case (nstep_available)
          case (0)
             ! nothing
          case (1)
@@ -5057,7 +5057,7 @@ contains
   !! and uses precalculated constant terms. Leads to more memory usage than 
   !! original version but can be significantly faster (~50%)
   subroutine get_source_term_opt &
-       (phi, apar, bpar, phinew, aparnew, bparnew, istep, &
+       (phi, apar, bpar, phinew, aparnew, bparnew, nstep_available, &
         iglo,ik,it,il,ie,is, sourcefac, source)
 #ifdef LOWFLOW
     use dist_fn_arrays, only: hneoc, vparterm, wdfac, wstarfac, wdttpfac
@@ -5076,7 +5076,7 @@ contains
     implicit none
     complex, dimension (-ntgrid:,:,:), intent (in) :: phi,    apar,    bpar
     complex, dimension (-ntgrid:,:,:), intent (in) :: phinew, aparnew, bparnew
-    integer, intent (in) :: istep
+    integer, intent (in) :: nstep_available
     integer, intent (in) :: iglo, ik, it, il, ie, is
     complex, intent (in) :: sourcefac
     complex, dimension (-ntgrid:,:), intent (out) :: source
@@ -5192,7 +5192,7 @@ contains
 
           ! add in nonlinear terms 
           if (nonlin) then         
-             select case (istep)
+             select case (nstep_available)
              case (0)
                 ! nothing
              case (1)
@@ -5264,7 +5264,7 @@ contains
 
 ! add in nonlinear terms 
       if (nonlin) then         
-         select case (istep)
+         select case (nstep_available)
          case (0)
             ! nothing
          case (1)
@@ -5311,6 +5311,7 @@ contains
     use kt_grids, only: kwork_filter
     use species, only: spec, nonmaxw_corr
     use mp, only: mp_abort
+    use gs2_time, only: time_history_available
     implicit none
     complex, dimension (-ntgrid:,:,:), intent (in) :: phi,    apar,    bpar
     complex, dimension (-ntgrid:,:,:), intent (in) :: phinew, aparnew, bparnew
@@ -5326,6 +5327,7 @@ contains
     complex :: adjleft, adjright
     logical :: use_pass_homog, speriod_flag
     integer :: ntgl, ntgr
+    integer :: nstep_available
 
 !    call prof_entering ("invert_rhs_1", "dist_fn")
 
@@ -5348,13 +5350,19 @@ contains
     ie = ie_idx(g_lo,iglo)
     is = is_idx(g_lo,iglo)
 
+    if (istep .eq. 0) then
+       nstep_available = 0
+    else
+       nstep_available = time_history_available()
+    endif
+    
     if(opt_source)then
        call get_source_term_opt (phi, apar, bpar, phinew, aparnew, bparnew, &
-            istep, iglo,ik,it,il,ie,is, sourcefac, source)
+            nstep_available, iglo,ik,it,il,ie,is, sourcefac, source)
     else
        do isgn = 1, 2
           call get_source_term (phi, apar, bpar, phinew, aparnew, bparnew, &
-               istep, isgn, iglo,ik,it,il,ie,is, sourcefac, source(:,isgn))
+               nstep_available, isgn, iglo,ik,it,il,ie,is, sourcefac, source(:,isgn))
        end do
     endif
 
