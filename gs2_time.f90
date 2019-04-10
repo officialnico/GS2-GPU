@@ -6,6 +6,7 @@ module gs2_time
   private
 
   public :: user_dt, code_dt, update_time, code_dt_old
+  public :: time_history_available
   public :: code_dt_prev1, code_dt_prev2
   public :: user_time, code_time, check_time_step_too_large
   public :: save_dt_min, save_dt, save_dt_cfl, write_dt
@@ -123,4 +124,18 @@ contains
     codetime = usertime
   end subroutine user2code
 
+  !> Reports how many previous time steps are available
+  !! by checking if the previous code_dt values have been
+  !! set to anything.
+  function time_history_available()
+    implicit none
+    integer :: time_history_available
+    if (code_dt_prev2 .ne. dt_not_set) then
+       return 3
+    else if (code_dt_prev1 .ne. dt_not_set) then
+       return 2
+    else
+       return 1
+    endif
+  end function time_history_available
 end module gs2_time
