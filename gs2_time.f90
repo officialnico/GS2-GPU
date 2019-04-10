@@ -12,10 +12,11 @@ module gs2_time
   public :: init_tstart, init_delt
   public :: code_dt_cfl, code_dt_min, user2code
 
+  real, parameter :: dt_not_set = -1.0
   real :: user_dt, code_dt 
   real :: code_dt_prev1, code_dt_prev2
-  real :: user_dt_cfl = -1.
-  real :: code_dt_cfl = -1.
+  real :: user_dt_cfl = dt_not_set
+  real :: code_dt_cfl = dt_not_set
 
   real :: code_dt_min, user_dt_min
 
