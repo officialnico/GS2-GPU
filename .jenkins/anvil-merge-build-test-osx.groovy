@@ -17,7 +17,7 @@ properties([[
   choice(name: "opt", choices: "intermediate\ndebug\nfast\nwarnings\ncoverage", description: "Build type"),
   choice(name: "comms", choices: "serial\nmpi", description: "Communications paradigm"),
   string(name: "testexec", defaultValue: "mpirun -np 2", description: "Test command"),
-  string(name: "modules", defaultValue: "gcc/8.0.0 fftw python openmpi/1.10.0", description: "Module environments to load"),
+  string(name: "modules", defaultValue: "gcc/8.0.0 fftw openmpi/1.10.0", description: "Module environments to load"),
   string(name: "compiler", defaultValue: "gcc-8.0.0", description: "compiler-version, for consitent path names"),
   string(name: "GK_SYSTEM", defaultValue: "jenkins", description: "Module environments to load"),
   string(name: "fft", defaultValue: "fftw3", description: "Select FFT to use"),
