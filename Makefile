@@ -954,7 +954,7 @@ check_ford_install:
 endif
 
 docs/html:
-doc: docs/.docs.config.md check_ford_install
+doc: docs/docs.config.md check_ford_install
 	$(FORD) $(subst -D,--macro ,$(MACRO_DEFS)) $(INCLUDES) -r $(GIT_HASH) $<
 
 cleandoc: docs/html docs/graphs

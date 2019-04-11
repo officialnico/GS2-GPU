@@ -55,6 +55,7 @@ pages:
   only:
     - master
     - next
+    - micro/landing-page
 
 success:
   stage: ci_status
