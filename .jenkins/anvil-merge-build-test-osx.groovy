@@ -17,7 +17,7 @@ properties([[
   choice(name: "opt", choices: "intermediate\ndebug\nfast\nwarnings\ncoverage", description: "Build type"),
   choice(name: "comms", choices: "serial\nmpi", description: "Communications paradigm"),
   string(name: "testexec", defaultValue: "mpirun -np 2", description: "Test command"),
-  string(name: "modules", defaultValue: "gcc/4.2.1 fftw python/3.6.0 openmpi/1.10.0", description: "Module environments to load"),
+  string(name: "modules", defaultValue: "gcc fftw python openmpi/1.10.0", description: "Module environments to load"),
   string(name: "compiler", defaultValue: "gcc-4.2.1", description: "compiler-version, for consitent path names"),
   string(name: "GK_SYSTEM", defaultValue: "jenkins", description: "Module environments to load"),
   string(name: "fft", defaultValue: "fftw3", description: "Select FFT to use"),
@@ -202,6 +202,7 @@ String libpath="${MY_NETCDF_LIB}:${MY_NETCDFF_LIB}:/opt/software/gcc-7.2.0/openm
         then 
               echo "netcdf + nectdff found"
         else
+              module avail
               module load ${params.modules}
 
               rm -rf ${MY_NETCDF_DIR}
