@@ -1,6 +1,6 @@
 #!/bin/bash
 
-export MAKEFLAGS=-IMakefiles DEBUG=on QUIET=
+export MAKEFLAGS=-IMakefiles DEBUG=on
 
 make depend
 make test_make
