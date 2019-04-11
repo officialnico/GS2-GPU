@@ -194,8 +194,6 @@ String libpath="${MY_NETCDF_LIB}:${MY_NETCDFF_LIB}:/opt/software/gcc-7.2.0/openm
 
         sh """
 
-	sh -c "\$(curl -fsSL https://raw.githubusercontent.com/Linuxbrew/install/master/install.sh)"
-
         export TEST_FILE_NETCDF=${MY_NETCDF_DIR}/include/netcdf.h
         export TEST_FILE_NETCDFF=${MY_NETCDFF_DIR}/include/netcdf.mod
 
@@ -250,8 +248,7 @@ String libpath="${MY_NETCDF_LIB}:${MY_NETCDFF_LIB}:/opt/software/gcc-7.2.0/openm
 				module load ${params.modules}
 				export GK_SYSTEM=${params.GK_SYSTEM}
     				export LD_LIBRARY_PATH=\$LD_LIBRARY_PATH:${libpath}
-                                export EXCLUDE_TESTS="gs2_diagnostics_new cyclone_itg"
-				.jenkins/build.sh
+				.jenkins/build-osx.sh
 			"""
 		} catch(buildError) {
         		currentBuild.description = PRname + " - build failed"
