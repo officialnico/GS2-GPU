@@ -1103,14 +1103,6 @@ contains
             trapped_wfb =.true.
        end select
        
-       if ((trapped_wfb .or. passing_wfb).and. opt_init_bc ) then
-        write (*,*) "opt_init_bc = T is not supported when trapped_wfb = T or passing_wfb = T"
-        write (*,*) "forcing opt_init_bc = F"
-        write (ierr,*) "opt_init_bc = T is not supported when trapped_wfb = T or passing_wfb = T"
-        write (ierr,*) "forcing opt_init_bc = F"
-        opt_init_bc = .false.
-       endif
-       
     end if
     if (.not.allocated(fexp)) allocate (fexp(nspec), bkdiff(nspec), bd_exp(nspec))
     if (proc0) call read_species_knobs
