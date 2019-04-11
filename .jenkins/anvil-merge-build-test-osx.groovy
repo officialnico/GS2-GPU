@@ -248,7 +248,7 @@ String libpath="${MY_NETCDF_LIB}:${MY_NETCDFF_LIB}:/opt/software/gcc-7.2.0/openm
 				module load ${params.modules}
 				export GK_SYSTEM=${params.GK_SYSTEM}
     				export LD_LIBRARY_PATH=\$LD_LIBRARY_PATH:${libpath}
-				.jenkins/build-osx.sh
+				.jenkins/build.sh
 			"""
 		} catch(buildError) {
         		currentBuild.description = PRname + " - build failed"
@@ -267,6 +267,7 @@ String libpath="${MY_NETCDF_LIB}:${MY_NETCDFF_LIB}:/opt/software/gcc-7.2.0/openm
 				module load ${params.modules}
 				export GK_SYSTEM=${params.GK_SYSTEM}
     				export LD_LIBRARY_PATH=${libpath}
+				export EXCLUDE_TESTS="gs2_diagnostics_new cyclone_itg"
 				.jenkins/test.sh
 			"""
 		} catch(testError) {
