@@ -19,9 +19,6 @@ module fields_gf_local
   public :: fields_gf_local_functional, read_response_from_file_gf_local
   public :: field_local_allreduce_sub
 
-  !> Unit tests
-  public :: fields_gf_local_unit_test_init_fields_matrixlocal
-
   !> User set parameters
   public :: dump_response, read_response
 
@@ -3884,21 +3881,6 @@ contains
     initialised = .true.
     reinit = .false.
   end subroutine init_fields_gf_local
-
-  !> FIXME : Add documentation
-  function fields_gf_local_unit_test_init_fields_matrixlocal()
-    logical :: fields_gf_local_unit_test_init_fields_matrixlocal
-
-    call init_fields_gf_local
-
-    ! check that we can finish and then init
-    call finish_fields_gf_local
- 
-    call init_fields_gf_local
-
-    fields_gf_local_unit_test_init_fields_matrixlocal = .true.
-
-  end function fields_gf_local_unit_test_init_fields_matrixlocal
 
   !> Routine use to initialise field matrix data
   subroutine init_fields_matrixlocal

@@ -8,8 +8,9 @@
 program test_fields_local
 
   use unit_tests
-  use fields_local, only: fields_local_unit_test_init_fields_matrixlocal, advance_local, fields_local_functional, minnrow, do_smart_update
-  use fields_implicit, only: fields_implicit_unit_test_init_fields_implicit, advance_implicit
+  use fields_local, only: fields_local_testing, advance_local, fields_local_functional, minnrow, do_smart_update
+  use fields_local, only: init_fields_local, finish_fields_local
+  use fields_implicit, only: advance_implicit, init_fields_implicit
 
   use fields, only: fields_pre_init
   use egrid
@@ -25,7 +26,8 @@ program test_fields_local
   implicit none
   real :: eps
   type(gs2_program_state_type) :: gs2_state
-
+  !> Instance for access to private functions in fields_local
+  type(fields_local_testing) :: fields_local_tests
 
   ! General config
   eps = 1.0e-7
@@ -34,9 +36,6 @@ program test_fields_local
 
   ! Set up depenencies
   call init_mp
-  !if (proc0) call init_file_utils(dummy)
-  !call init_species
-  !call init_general_f0
   gs2_state%mp_comm_external = .true.
   gs2_state%mp_comm = mp_comm
   call initialize_gs2(gs2_state)
@@ -47,21 +46,16 @@ program test_fields_local
 
   call init(gs2_state%init, init_level_list%fields_level_2 - 1)
 
-  !call init_kt_grids
-  !call init_theta_grid
-  !call init_dist_fn
-  !call fields_pre_init
   call broadcast(MinNrow)
   call broadcast(do_smart_update)
-  !call init_fields_implicit
 
   call announce_test('init_fields_implicit')
-  call process_test(fields_implicit_unit_test_init_fields_implicit(), 'init_fields_implicit')
+  call process_test(test_init_fields_implicit(), 'init_fields_implicit')
 
   if (fields_local_functional()) then
 
     call announce_test('init_fields_matrixlocal')
-    call process_test(fields_local_unit_test_init_fields_matrixlocal(), 'init_fields_matrixlocal')
+    call process_test(test_init_fields_local(), 'init_fields_matrixlocal')
 
     call announce_test('advance')
     call process_test(test_advance(eps), 'advance')
@@ -109,10 +103,7 @@ contains
     !Backup this initial g
     gbak=g
 
-    !//USE 'IMPLICIT'
-
     !Now we setup the initial fields to be consistent with g
-    !gnew =0.0
     call get_init_field(phinew,aparnew,bparnew)
     phi = phinew; apar = aparnew; bpar = bparnew; g = gnew
 
@@ -126,7 +117,6 @@ contains
     apar_imp=aparnew
     bpar_imp=bparnew
 
-    !//USE 'LOCAL'
     !Restore original g
     g=gbak
     gnew=g
@@ -145,9 +135,6 @@ contains
     apar_loc=aparnew
     bpar_loc=bparnew
 
-    !ig = maxexponent(eps)/4
-
-    !write (*,*) 'max exponent', maxexponent(eps), 10.0**(-real(maxexponent(eps)-100)), ig, 10.0**(-ig), 1.0e-300 .lt. 10.0**(-ig)
     do ik = 1,naky
       do it = 1,ntheta0
         if (it==1 .and. ik==1) cycle
@@ -160,11 +147,30 @@ contains
         write(message, fmt="(A19, I2, A6, I2)") 'value of bpar, it =', it, ' ik = ', ik
         call announce_check(message)
         call process_check(test_advance, agrees_with(bpar_imp(:, it, ik), bpar_loc(:, it, ik), eps), message)
-        !check_result =  agrees_with(phi_imp(ik, it, :), phi_loc(ik, it, :), eps) .and. check_result
-        !if (check_result) write (*,*) it,ik
       end do
     end do
 
   end function test_advance
+
+  !> Return true if fields_local can finish and initialize again without error
+  function test_init_fields_local()
+    logical :: test_init_fields_local
+
+    call init_fields_local
+    call finish_fields_local
+    call init_fields_local
+
+    test_init_fields_local = .true.
+
+  end function test_init_fields_local
+
+  !> Initialize fields_implicit and return true if there is no error
+  function test_init_fields_implicit()
+    implicit none
+    logical :: test_init_fields_implicit
+
+    call init_fields_implicit
+    test_init_fields_implicit = .true.
+  end function test_init_fields_implicit
 
 end program test_fields_local

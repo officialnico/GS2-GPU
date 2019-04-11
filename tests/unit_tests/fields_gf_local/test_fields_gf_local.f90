@@ -9,8 +9,9 @@
 program test_fields_gf_local
   use unit_tests
   use init_g, only: ginit
-  use fields_gf_local, only: fields_gf_local_unit_test_init_fields_matrixlocal, fields_gf_local_functional
-  use fields_implicit, only: fields_implicit_unit_test_init_fields_implicit
+  use fields_gf_local, only: fields_gf_local_functional
+  use fields_gf_local, only: init_fields_gf_local, finish_fields_gf_local
+  use fields_implicit, only: init_fields_implicit
   use fields, only: fieldopt_implicit,fieldopt_gf_local
   use fields, only: fields_pre_init
   use egrid
@@ -79,7 +80,7 @@ program test_fields_gf_local
   if (fields_gf_local_functional()) then
 
     call announce_test('init_fields_matrixlocal')
-    call process_test(fields_gf_local_unit_test_init_fields_matrixlocal(), 'init_fields_matrixlocal')
+    call process_test(test_init_fields_local(), 'init_fields_matrixlocal')
     call test_local_advance(phi_loc,apar_loc,bpar_loc)
 
   else 
@@ -110,7 +111,7 @@ program test_fields_gf_local
   gnew = g
   
   call announce_test('init_fields_implicit')
-  call process_test(fields_implicit_unit_test_init_fields_implicit(), 'init_fields_implicit')
+  call process_test(test_init_fields_implicit(), 'init_fields_implicit')
 
   call test_implicit_advance(phi_imp,apar_imp,bpar_imp)
 
@@ -226,5 +227,25 @@ contains
 
   end function check_results
 
+  !> Return true if fields_local can finish and initialize again without error
+  function test_init_fields_local()
+    logical :: test_init_fields_local
+
+    call init_fields_gf_local
+    call finish_fields_gf_local
+    call init_fields_gf_local
+
+    test_init_fields_local = .true.
+
+  end function test_init_fields_local
+
+  !> Initialize fields_implicit and return true if there is no error
+  function test_init_fields_implicit()
+    implicit none
+    logical :: test_init_fields_implicit
+
+    call init_fields_implicit
+    test_init_fields_implicit = .true.
+  end function test_init_fields_implicit
 
 end program test_fields_gf_local

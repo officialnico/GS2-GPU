@@ -11,10 +11,18 @@ module nonlinear_terms
   public :: read_parameters, wnml_nonlinear_terms, check_nonlinear_terms
   public :: add_explicit_terms, nonlinear_mode_switch
   public :: finish_init, reset_init, nonlin, accelerated
-  public :: nonlinear_terms_unit_test_time_add_nl, cfl
+  public :: cfl
   public :: nonlinear_mode_none, nonlinear_mode_on
   public :: gryfx_zonal
   public :: cfl_req_hand, nb_check_time_step_too_large
+  public :: nonlinear_terms_testing
+
+  !> Public type allowing tests to access otherwise-private routines
+  type :: nonlinear_terms_testing
+    contains
+      procedure, nopass :: add_nl
+
+  end type nonlinear_terms_testing
 
   !> FIXME : Add documentation  
   type gs2_gryfx_zonal_type
@@ -328,6 +336,9 @@ contains
     call debug_message(verb, 'nonlinear_terms::add_explicit copying old terms')
 
     if (istep /= istep_last) then
+
+       istep_last = istep
+
        ! Shuffle time history along -- this is a place pointers might help
        ! avoid some copying.
        ! Should we only need to do this if we have a nonlinear simulation?
@@ -344,13 +355,18 @@ contains
        if (present(nl)) then
           call debug_message(verb, 'nonlinear_terms::add_explicit calling add_nl')
           if(gryfx_zonal%on) then
-            call add_nl_gryfx (g1) 
-          else 
-            call add_nl (g1, phi, apar, bpar)
+             call add_nl_gryfx (g1)
+          else
+             call add_nl (g1, phi, apar, bpar)
           endif
-          if(reset) return !Return if resetting
           ! takes g1 at grid points and returns 2*g1 at cell centers
+
           call nl_center (g1, bd)
+
+          if(reset) then
+             return !Return if resetting
+          endif
+
        else
           g1 = 0.
        end if
@@ -372,10 +388,10 @@ contains
           end if
        end do
     end if
-     
+
     istep_last = istep
   end subroutine add_explicit
-  
+ 
   !> Takes input array evaluated at theta grid points
   !! and overwrites it with array evaluated at cell centers
   !! note that there is an extra factor of 2 in output array
@@ -453,16 +469,6 @@ contains
        end do
     end do
   end subroutine nl_center
-
-  !> FIXME : Add documentation  
-  subroutine nonlinear_terms_unit_test_time_add_nl(g1, phi, apar, bpar)
-    use gs2_layouts, only: g_lo, ik_idx, it_idx, il_idx, is_idx
-    use theta_grid, only: ntgrid
-    implicit none
-    complex, dimension (-ntgrid:,:,g_lo%llim_proc:), intent (out) :: g1
-    complex, dimension (-ntgrid:,:,:), intent (in) :: phi, apar, bpar
-    call add_nl(g1, phi, apar, bpar)
-  end subroutine nonlinear_terms_unit_test_time_add_nl
 
   !> FIXME : Add documentation  
   subroutine add_nl (g1, phi, apar, bpar)
@@ -565,25 +571,6 @@ contains
     call debug_message(verb, &
       'nonlinear_terms::add_nl calculated dphi/dx.dg/dy.dphi/dy.dg/dx')
 
-    !Estimate the global cfl limit based on max_vel
-    !If immediate_reset, do a max allreduce.
-    !If not, overlap comms and work, and check for 
-    ! reset at the end of the timestep.
-    if(immediate_reset)then
-       call max_allreduce(max_vel)    
-       dt_cfl = 1./max_vel
-       call save_dt_cfl (dt_cfl)
-
-       !Now check to see if we've violated the 
-       !cfl condition if requested
-       call check_time_step_too_large(reset)
-       !If we have violated cfl then return immediately
-       if(reset)return
-    else
-       !Do a nonblocking reduce and check later
-       call nb_max_allreduce(max_vel, cfl_req_hand)    
-    endif
-
     !Transform NL source back to spectral space
     if (accelerated) then
        call inverse2 (abracket, g1, ia)
@@ -591,11 +578,30 @@ contains
        call inverse2 (bracket, g1)
     end if
 
+    !Estimate the global cfl limit based on max_vel
+    !If immediate_reset, do a max allreduce.
+    !If not, overlap comms and work, and check for
+    ! reset at the end of the timestep.
+    if(immediate_reset)then
+       call max_allreduce(max_vel)
+       dt_cfl = 1./max_vel
+       call save_dt_cfl (dt_cfl)
+
+       !Now check to see if we've violated the
+       !cfl condition if requested
+       call check_time_step_too_large(reset)
+       !If we have violated cfl then return immediately
+       if (reset) return
+    else
+       !Do a nonblocking reduce and check later
+       call nb_max_allreduce(max_vel, cfl_req_hand)
+    endif
+
     call debug_message(verb, &
       'nonlinear_terms::add_nl calculated nonlinear term')
 
   end subroutine add_nl
-  
+
   !> FIXME : Add documentation    
   subroutine load_kx_phi(g1, phi)
     use theta_grid, only: ntgrid

@@ -107,9 +107,6 @@ module gs2_main
   public :: finalize_overrides
 
   public :: old_iface_state
-  !! Unit tests
-
-  public :: gs2_main_unit_test_reset_gs2
 
   public :: initialize_wall_clock_timer
 
@@ -1620,35 +1617,6 @@ contains
     if (proc0) call finish_file_utils
 
   end subroutine finish_gs2
-  
-  !> This function calls reset_gs2 using
-  !! all the default parameters, multiplied
-  !! by a factor. It is used
-  !! in the gs2_reinit unit test
-  function gs2_main_unit_test_reset_gs2(fac)
-    use species, only: spec, nspec
-    use dist_fn, only: g_exb 
-    use mp, only: mp_abort
-    logical :: gs2_main_unit_test_reset_gs2
-    real, intent(in) :: fac
-
-    if (nspec.ne.2)  & 
-      call mp_abort("gs2_main_unit_test_reset_gs2 only works with 2 species", .true.)
-
-    call reset_gs2(nspec, &
-      ! Deliberately leave fac off the next 2 lines
-      ! so QN is unaffected
-      (/spec(1)%dens, spec(2)%dens/), &
-      (/spec(1)%temp, spec(2)%temp/), &
-      (/spec(1)%fprim, spec(2)%fprim/)*fac, &
-      (/spec(1)%tprim, spec(2)%tprim/)*fac, &
-      g_exb, 0.0, &
-      (/spec(1)%vnewk, spec(2)%vnewk/), &
-      1)
-
-    gs2_main_unit_test_reset_gs2 = .true.
-
-  end function gs2_main_unit_test_reset_gs2
 
   !> FIXME : Add documentation  
   subroutine reset_gs2 (ntspec, dens, temp, fprim, tprim, gexb, mach, nu, nensembles)
