@@ -204,6 +204,7 @@ String libpath="${MY_NETCDF_LIB}:${MY_NETCDFF_LIB}:/opt/software/gcc-7.2.0/openm
         else
               module avail
               module load ${params.modules}
+              module avail
 
               rm -rf ${MY_NETCDF_DIR}
               rm -rf ${MY_NETCDFF_DIR}
@@ -212,7 +213,7 @@ String libpath="${MY_NETCDF_LIB}:${MY_NETCDFF_LIB}:/opt/software/gcc-7.2.0/openm
               wget ftp://ftp.unidata.ucar.edu/pub/netcdf/netcdf-${NETCDF_VERSION}.tar.gz
               tar xvf netcdf-${NETCDF_VERSION}.tar.gz
               cd netcdf-${NETCDF_VERSION}
-              ./configure --prefix=${MY_NETCDF_DIR}
+              ./configure --prefix=${MY_NETCDF_DIR} --disable-netcdf-4
               make
               make install
               export LD_LIBRARY_PATH=\$LD_LIBRARY_PATH:${MY_NETCDF_LIB}
