@@ -19,7 +19,7 @@ properties([[
   string(name: "testexec", defaultValue: "mpirun -np 2", description: "Test command"),
   string(name: "modules", defaultValue: "gcc/8.0.0 fftw openmpi/1.10.0", description: "Module environments to load"),
   string(name: "compiler", defaultValue: "gcc-8.0.0", description: "compiler-version, for consitent path names"),
-  string(name: "GK_SYSTEM", defaultValue: "jenkins", description: "Module environments to load"),
+  string(name: "GK_SYSTEM", defaultValue: "jenkins-osx", description: "Module environments to load"),
   string(name: "fft", defaultValue: "fftw3", description: "Select FFT to use"),
   string(name: "baseURL", defaultValue: "https://gyrokinetics.slack.com/services/hooks/", description: "Base URL for Slack webhook")
 ]]])
