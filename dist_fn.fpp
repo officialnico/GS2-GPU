@@ -2035,7 +2035,7 @@ contains
              if (nlambda > ng2               .and. &
                   il == ng2+1                .and. &
                   connections(iglo)%neighbor .and. &
-                  .not. passing_wfb .and. & 
+                  (.not. passing_wfb) .and. & 
                   aky(ik) /= 0.0) &
                   save_h (:,iglo) = .true.
           endif
@@ -2981,7 +2981,7 @@ contains
              if (nlambda > ng2               .and. &
                   il == ng2+1                .and. &
                   connections(iglo)%neighbor .and. &
-                  .not. passing_wfb .and. & 
+                  (.not. passing_wfb) .and. & 
                   aky(ik) /= 0.0) &
                   save_h (:,iglo) = .true.
           endif
