@@ -194,6 +194,8 @@ String libpath="${MY_NETCDF_LIB}:${MY_NETCDFF_LIB}:/opt/software/gcc-7.2.0/openm
 
         sh """
 
+        /usr/bin/ruby -e "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/master/install)"
+
         export TEST_FILE_NETCDF=${MY_NETCDF_DIR}/include/netcdf.h
         export TEST_FILE_NETCDFF=${MY_NETCDFF_DIR}/include/netcdf.mod
 
