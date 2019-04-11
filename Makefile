@@ -577,6 +577,15 @@ endif
 
 ####################################################################### Source code targets
 
+%.o : %.pf
+	$(PFUNIT_DIR)/bin/pFUnitParser.py $< $(basename $<).F90
+ifdef ONE_STEP_PP
+	$(QUIETSYM)$(FC) $(MACRO_DEFS) $(F90FLAGS) -c $(basename $<).F90 $(PFUNIT_INC) -I$(GK_HEAD_DIR) -o $@
+else
+	$(QUIETSYM)$(CPP) $(FPPFLAGS) $(CPPFLAGS) $(MACRO_DEFS) $(basename $<).F90 -o $(basename $<).f90
+	$(QUIETSYM)$(FC) $(F90FLAGS) -c $(basename $<).f90 $(PFUNIT_INC) -I$(GK_HEAD_DIR) -o $@
+endif
+
 # On many systems the two steps of preprocessing and compiling
 # can be done simultaneously. This has many advantages, the
 # most important of which is correctly reporting line numbers in 
@@ -610,15 +619,6 @@ mp.o: mp.f90
 fft_work.o: fft_work.f90
 	$(call messageOp,"Compiling","\\t:",$<)
 	$(QUIETSYM)$(FC) $(F90FLAGS) $(F90FLAGS_SFX0) -c $<
-endif
-
-%.o : %.pf
-	$(PFUNIT_DIR)/bin/pFUnitParser.py $< $(basename $<).F90
-ifdef ONE_STEP_PP
-	$(QUIETSYM)$(FC) $(F90FLAGS) -c $(basename $<).F90 $(PFUNIT_INC) -I$(GK_HEAD_DIR) -o $@
-else
-	$(QUIETSYM)$(CPP) $(FPPFLAGS) $(CPPFLAGS) $(MACRO_DEFS) $(basename $<).F90 -o $(basename $<).f90
-	$(QUIETSYM)$(FC) $(F90FLAGS) -c $(basename $<).f90 $(PFUNIT_INC) -I$(GK_HEAD_DIR) -o $@
 endif
 
 %.f90: %.rb
