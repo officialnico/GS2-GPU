@@ -158,6 +158,7 @@ SHELL           = bash
 MAKE		= make
 CPP		= cpp
 CPPFLAGS        = 
+FPPFLAGS	= -P -traditional
 FC		= f90
 MPIFC		?= mpif90
 H5FC		?= h5fc
@@ -276,10 +277,6 @@ GK_HEAD_DIR:=$(PWD)
 
 UTILS=utils
 GEO=geo
-
-ifndef ONE_STEP_PP
-CPPFLAGS	+= -P -traditional
-endif
 
 GIT_HASH=$(shell git rev-parse HEAD)
 MACRO_DEFS+=-DGIT_HASH='"$(GIT_HASH)"'
@@ -620,7 +617,7 @@ endif
 ifdef ONE_STEP_PP
 	$(QUIETSYM)$(FC) $(F90FLAGS) -c $(basename $<).F90 $(PFUNIT_INC) -I$(GK_HEAD_DIR) -o $@
 else
-	$(QUIETSYM)$(CPP) $(CPPFLAGS) $(MACRO_DEFS) $(basename $<).F90 -o $(basename $<).f90
+	$(QUIETSYM)$(CPP) $(FPPFLAGS) $(CPPFLAGS) $(MACRO_DEFS) $(basename $<).F90 -o $(basename $<).f90
 	$(QUIETSYM)$(FC) $(F90FLAGS) -c $(basename $<).f90 $(PFUNIT_INC) -I$(GK_HEAD_DIR) -o $@
 endif
 
@@ -636,10 +633,10 @@ endif
 # This is a little clunky, and maybe could be fixed in the future.
 %.f90: %.fpp
 	$(call messageOp,"Preprocessing","\\t:",$<)
-	$(QUIETSYM)$(CPP) $(CPPFLAGS) $(MACRO_DEFS) $< -o $@
+	$(QUIETSYM)$(CPP) $(FPPFLAGS) $(CPPFLAGS) $(MACRO_DEFS) $< -o $@
 %.f90: %.F90
 	$(call messageOp,"Preprocessing","\\t:",$<)
-	$(QUIETSYM)$(CPP) $(CPPFLAGS) $(MACRO_DEFS) $< -o $@
+	$(QUIETSYM)$(CPP) $(FPPFLAGS) $(CPPFLAGS) $(MACRO_DEFS) $< -o $@
 
 %.o: %.c
 	$(call messageOp,"Compiling C","\\t:",$<)
@@ -878,6 +875,7 @@ test_make:
 	$(call messageKeyVal, "COPTFLAGS", $(COPTFLAGS))
 	$(call messageKeyVal, "LDFLAGS", $(LDFLAGS))
 	$(call messageKeyVal, "CPPFLAGS", $(CPPFLAGS))
+	$(call messageKeyVal, "FPPFLAGS", $(FPPFLAGS))
 	$(call messageKeyVal, "ARCHFLAGS", $(ARCHFLAGS))
 	$(call messageKeyVal, "MACRO_DEFS", $(MACRO_DEFS))
 	$(call messageKeyVal, "LD_LIBRARY_PATH", $(LD_LIBRARY_PATH))
