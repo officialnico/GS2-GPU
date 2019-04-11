@@ -206,6 +206,7 @@ String libpath="${MY_NETCDF_LIB}:${MY_NETCDFF_LIB}:/opt/software/gcc-7.2.0/openm
               module load ${params.modules}
               module avail
               module show fftw/3.3.5
+              ls /opt/software/gcc-system/fftw/3.3.5/lib
 
               rm -rf ${MY_NETCDF_DIR}
               rm -rf ${MY_NETCDFF_DIR}
