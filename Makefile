@@ -578,7 +578,7 @@ endif
 ####################################################################### Source code targets
 
 %.o : %.pf
-	$(PFUNIT_DIR)/bin/pFUnitParser.py $< $(basename $<).F90
+	$(PFUNIT_PREPROCESSOR) $< $(basename $<).F90
 ifdef ONE_STEP_PP
 	$(QUIETSYM)$(FC) $(MACRO_DEFS) $(F90FLAGS) -c $(basename $<).F90 $(PFUNIT_INC) -I$(GK_HEAD_DIR) -o $@
 else

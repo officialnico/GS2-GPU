@@ -18,7 +18,12 @@
 
 module test_antenna_data_mod
 
+#if PFUNIT_VERSION_MAJOR >= 4
+  use pfunit
+#else
   use pfunit_mod
+#endif
+
   implicit none
 
   @testParameter(contsructor = new_test)

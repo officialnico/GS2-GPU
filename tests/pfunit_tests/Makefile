@@ -2,8 +2,22 @@ PFUNIT_TEST_EXE=pfunit_test_suite
 PFUNIT_TEST_DIR=$(GK_HEAD_DIR)/tests/pfunit_tests
 PFUNIT_NPROC=4
 
-PFUNIT_LIB=-L$(PFUNIT_DIR)/lib -lpfunit
-PFUNIT_INC=-I$(PFUNIT_DIR)/mod
+PFUNIT_VERSION_MAJOR ?= 4
+
+MACRO_DEFS += -DPFUNIT_VERSION_MAJOR=$(PFUNIT_VERSION_MAJOR)
+
+ifeq ($(PFUNIT_VERSION_MAJOR),4)
+  include $(PFUNIT_DIR)/include/PFUNIT.mk
+
+  PFUNIT_PREPROCESSOR ?= $(PFUNIT_BIN_DIR)/funitproc
+  PFUNIT_INC := -I$(PFUNIT_INCLUDE_DIR)
+  PFUNIT_LIB := -L$(PFUNIT_TOP_DIR)/lib -lpfunit -lfunit $(FARGPARSE_LIBRARIES)
+  F90FLAGS += $(PFUNIT_EXTRA_FFLAGS)
+else
+  PFUNIT_PREPROCESSOR ?= $(PFUNIT_DIR)/bin/pFUnitParser.py
+  PFUNIT_INC := -I$(PFUNIT_DIR)/mod
+  PFUNIT_LIB := -L$(PFUNIT_DIR)/lib -lpfunit
+endif
 
 ifeq ($(GK_SYSTEM),bitbucket)
   PFUNIT_TEST_PATH=/opt/atlassian/pipelines/agent/build/pfunit_tests
@@ -27,17 +41,19 @@ PFUNIT_TEST_LIST = $(PFUNIT_TEST_DIR)/testSuites.inc
 
 make_test: $(PFUNIT_TEST_EXE)
 
+FFLAGS += $(F90FLAGS) $(PFUNIT_EXTRA_FFLAGS)
+
 $(PFUNIT_DRIVER): $(PFUNIT_TEST_LIST)
 	@touch $(PFUNIT_DRIVER)
 
 $(PFUNIT_TEST_EXE): $(GS2_OBJS) $(PFUNIT_DRIVER) $(PFUNIT_OBJS)
 	$(call messageOp,"Compiling","\\t:","pFUnit tests")
-	$(QUIETSYM)$(FC) -o $@ $^ -DUSE_MPI=YES $(PFUNIT_INC) $(PFUNIT_LIB) -I. $(SIMPLEDATAIO_LIB_ABS) $(LIBS) $(F90FLAGS) -I$(PFUNIT_TEST_DIR)
+	$(QUIETSYM)$(FC) -o $@ $^ -DUSE_MPI=YES $(PFUNIT_INC) $(PFUNIT_LIB) -I. $(SIMPLEDATAIO_LIB_ABS) $(LIBS) $(F90FLAGS) -I$(PFUNIT_TEST_DIR) -D_TEST_SUITES='"$(PFUNIT_TEST_LIST)"'
 
 run_test: make_test
 	-@$(RM) pfunit.log pfunit.error
 	$(call messageOp,"Running ","\\t:","pFUnit tests")
-	$(QUIETSYM)(touch pfunit.log ; tail -f pfunit.log &  mpirun -np $(PFUNIT_NPROC) $(PFUNIT_TEST_PATH)/$(PFUNIT_TEST_EXE) -robust -xml $(GK_HEAD_DIR)/test-results/pfunit.xml -o pfunit.log > /dev/null 2> pfunit.error ) || (cat pfunit.error ; exit 1)
+	$(QUIETSYM)(touch pfunit.log ; tail -f pfunit.log &  mpirun -np $(PFUNIT_NPROC) $(PFUNIT_TEST_PATH)/$(PFUNIT_TEST_EXE) -o pfunit.log > /dev/null 2> pfunit.error ) || (cat pfunit.error ; exit 1)
 
 run_gcov:
 	gcov *.f90
@@ -45,7 +61,7 @@ run_gcov:
 pfunit_tests: check_pfunit_install make_test run_test
 
 check_pfunit_install:
-ifeq ("$(wildcard $(PFUNIT_DIR)/bin/pFUnitParser.py)","")
+ifeq ("$(wildcard $(PFUNIT_PREPROCESSOR))","")
 	$(error pFUnit files not found. Make sure pFUnit is installed and PFUNIT_DIR is set to its location)
 endif
 
