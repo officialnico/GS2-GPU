@@ -158,6 +158,7 @@ SHELL           = bash
 MAKE		= make
 CPP		= cpp
 CPPFLAGS        = 
+FPPFLAGS	= -P -traditional
 FC		= f90
 MPIFC		?= mpif90
 H5FC		?= h5fc
@@ -276,10 +277,6 @@ GK_HEAD_DIR:=$(PWD)
 
 UTILS=utils
 GEO=geo
-
-ifndef ONE_STEP_PP
-CPPFLAGS	+= -P -traditional
-endif
 
 GIT_HASH=$(shell git rev-parse HEAD)
 MACRO_DEFS+=-DGIT_HASH='"$(GIT_HASH)"'
@@ -580,6 +577,15 @@ endif
 
 ####################################################################### Source code targets
 
+%.o : %.pf
+	$(PFUNIT_DIR)/bin/pFUnitParser.py $< $(basename $<).F90
+ifdef ONE_STEP_PP
+	$(QUIETSYM)$(FC) $(MACRO_DEFS) $(F90FLAGS) -c $(basename $<).F90 $(PFUNIT_INC) -I$(GK_HEAD_DIR) -o $@
+else
+	$(QUIETSYM)$(CPP) $(FPPFLAGS) $(CPPFLAGS) $(MACRO_DEFS) $(basename $<).F90 -o $(basename $<).f90
+	$(QUIETSYM)$(FC) $(F90FLAGS) -c $(basename $<).f90 $(PFUNIT_INC) -I$(GK_HEAD_DIR) -o $@
+endif
+
 # On many systems the two steps of preprocessing and compiling
 # can be done simultaneously. This has many advantages, the
 # most important of which is correctly reporting line numbers in 
@@ -590,38 +596,10 @@ endif
 ifdef ONE_STEP_PP
 %.o: %.fpp
 	$(call messageOp,"Compiling and preprocessing","\\t:",$<)
-	$(QUIETSYM)$(FC) $(MACRO_DEFS) $(F90FLAGS) $(F90FLAGS_SFXJUNK) -c $<
+	$(QUIETSYM)$(FC) $(MACRO_DEFS) $(F90FLAGS) -c $<
 %.o: %.F90
 	$(call messageOp,"Compiling and preprocessing","\\t:",$<)
-	$(QUIETSYM)$(FC) $(MACRO_DEFS) $(F90FLAGS) $(F90FLAGS_SFXJUNK) -c $<
-
-else
-# These are special rules for the suffix problem of absoft
-# (not tested)
-$(GK_PROJECT)_transforms.o: $(GK_PROJECT)_transforms.f90
-	$(call messageOp,"Compiling","\\t:",$<)
-	$(QUIETSYM)$(FC) $(F90FLAGS) $(F90FLAGS_SFX0) -c $<
-$(GK_PROJECT)_io.o: $(GK_PROJECT)_io.f90
-	$(call messageOp,"Compiling","\\t:",$<)
-	$(QUIETSYM)$(FC) $(F90FLAGS) $(F90FLAGS_SFX2) -c $<
-$(GK_PROJECT)_save.o: $(GK_PROJECT)_save.f90
-	$(call messageOp,"Compiling","\\t:",$<)
-	$(QUIETSYM)$(FC) $(F90FLAGS) $(F90FLAGS_SFX2) -c $<
-mp.o: mp.f90
-	$(call messageOp,"Compiling","\\t:",$<)
-	$(QUIETSYM)$(FC) $(F90FLAGS) $(F90FLAGS_SFX1) -c $<
-fft_work.o: fft_work.f90
-	$(call messageOp,"Compiling","\\t:",$<)
-	$(QUIETSYM)$(FC) $(F90FLAGS) $(F90FLAGS_SFX0) -c $<
-endif
-
-%.o : %.pf
-	$(PFUNIT_DIR)/bin/pFUnitParser.py $< $(basename $<).F90
-ifdef ONE_STEP_PP
-	$(QUIETSYM)$(FC) $(F90FLAGS) -c $(basename $<).F90 $(PFUNIT_INC) -I$(GK_HEAD_DIR) -o $@
-else
-	$(QUIETSYM)$(CPP) $(CPPFLAGS) $(MACRO_DEFS) $(basename $<).F90 -o $(basename $<).f90
-	$(QUIETSYM)$(FC) $(F90FLAGS) -c $(basename $<).f90 $(PFUNIT_INC) -I$(GK_HEAD_DIR) -o $@
+	$(QUIETSYM)$(FC) $(MACRO_DEFS) $(F90FLAGS) -c $<
 endif
 
 %.f90: %.rb
@@ -630,16 +608,16 @@ endif
 
 %.o: %.f90
 	$(call messageOp,"Compiling","\\t:",$<)
-	$(QUIETSYM)$(FC) $(F90FLAGS) $(F90FLAGS_SFXJUNK) -c $<
+	$(QUIETSYM)$(FC) $(F90FLAGS) -c $<
 
 # The depend command needs the preprocessed source files. 
 # This is a little clunky, and maybe could be fixed in the future.
 %.f90: %.fpp
 	$(call messageOp,"Preprocessing","\\t:",$<)
-	$(QUIETSYM)$(CPP) $(CPPFLAGS) $(MACRO_DEFS) $< -o $@
+	$(QUIETSYM)$(CPP) $(FPPFLAGS) $(CPPFLAGS) $(MACRO_DEFS) $< -o $@
 %.f90: %.F90
 	$(call messageOp,"Preprocessing","\\t:",$<)
-	$(QUIETSYM)$(CPP) $(CPPFLAGS) $(MACRO_DEFS) $< -o $@
+	$(QUIETSYM)$(CPP) $(FPPFLAGS) $(CPPFLAGS) $(MACRO_DEFS) $< -o $@
 
 %.o: %.c
 	$(call messageOp,"Compiling C","\\t:",$<)
@@ -878,6 +856,7 @@ test_make:
 	$(call messageKeyVal, "COPTFLAGS", $(COPTFLAGS))
 	$(call messageKeyVal, "LDFLAGS", $(LDFLAGS))
 	$(call messageKeyVal, "CPPFLAGS", $(CPPFLAGS))
+	$(call messageKeyVal, "FPPFLAGS", $(FPPFLAGS))
 	$(call messageKeyVal, "ARCHFLAGS", $(ARCHFLAGS))
 	$(call messageKeyVal, "MACRO_DEFS", $(MACRO_DEFS))
 	$(call messageKeyVal, "LD_LIBRARY_PATH", $(LD_LIBRARY_PATH))
@@ -956,7 +935,7 @@ check_ford_install:
 endif
 
 docs/html:
-doc: docs/.docs.config.md check_ford_install
+doc: docs/docs.config.md check_ford_install
 	$(FORD) $(subst -D,--macro ,$(MACRO_DEFS)) $(INCLUDES) -r $(GIT_HASH) $<
 
 cleandoc: docs/html docs/graphs
