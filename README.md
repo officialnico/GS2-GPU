@@ -1,9 +1,12 @@
 # GS2
 
-
 [![gitlab pipeline status](https://gitlab.com/gyrokinetics/gs2/badges/master/pipeline.svg)](https://gitlab.com/gyrokinetics/gs2/commits/master)
 [![Build Status](https://anvil.softeng-support.ac.uk/jenkins/buildStatus/icon?job=Gyrokinetics/Merge+Build+Tests-gfortran-7.2)](https://anvil.softeng-support.ac.uk/jenkins/job/Gyrokinetics/Merge+Build+Tests-gfortran-7.2)
 [![codecov](https://codecov.io/bb/gyrokinetics/gs2/branch/master/graph/badge.svg)](https://codecov.io/bb/gyrokinetics/gs2)
+
+[TOC]
+
+## Introduction
 
 GS2 is a physics application, developed to study low-frequency
 turbulence in magnetized plasma. It is typically used to assess the
@@ -19,6 +22,13 @@ To download the source run:
 or for git < v2.13:
 
     git clone --recursive https://bitbucket.org/gyrokinetics/gs2.git
+
+Alternatively, tarballs are available for the 
+[latest release](https://bitbucket.org/gyrokinetics/gs2/get/master.tar.gz)
+and 
+[latest development branch](https://bitbucket.org/gyrokinetics/gs2/get/next.tar.gz)
+along with other tags and branches on the 
+[Bitbucket downloads page](https://bitbucket.org/gyrokinetics/gs2/downloads/)
 
 ## Dependencies
 
@@ -37,12 +47,18 @@ optional ones:
 Please see the [CONTRIBUTING.md](CONTRIBUTING.md) document for help
 and guidelines on contributing to GS2.
 
-## Documentation
+## Help and Documentation
 
 Auto-generated source code documentation is currently available at
 [https://gyrokinetics.gitlab.io/gs2/](https://gyrokinetics.gitlab.io/gs2/).
 Further details are available on the
-[wiki](https://bitbucket.org/gyrokinetics/gs2/wiki/)
+[wiki](https://bitbucket.org/gyrokinetics/gs2/wiki/).
+
+Please report any bugs by 
+[raising an issue on Bitbucket](https://bitbucket.org/gyrokinetics/gs2/issues?status=open).
+
+You can also get support by contacting users and developers on our 
+[Slack channel](https://gyrokinetics.slack.com).
 
 ## Important note on sub-modules
 
@@ -60,7 +76,14 @@ checkout:
 See this nice summary on stackoverflow for further details:
 https://stackoverflow.com/questions/3796927/how-to-git-clone-including-submodules/4438292#4438292
 
-# Compilation instructions for gs2
+## Compilation
+
+There are two approaches to compiling GS2:
+
+1. using the `build_gs2` script
+2. using `make` directly
+
+### Compilation using `build_gs2`
 
 The level of difficulty of compiling depends on how much your system is
 supported.
@@ -95,14 +118,7 @@ Failing that, please raise a support request here:
 
 https://bitbucket.org/gyrokinetics/gs2/issues
 
-
-## Old build instructions, using make directly
-
-These instructions still work, and also include details of some configuration options
-
-This text explains how to make agk/gs2.
-
-### Compile
+### Compilation using `make`
 
 You must set two environment variables to compile agk/gs2: `GK_SYSTEM` and `MAKEFLAGS`.
 Since system-specific settings are written in `Makefiles/Makefile.$(GK_SYSTEM)`,
@@ -147,6 +163,7 @@ to your make command. For example, if you want to use the debug flags:
 
 The following is the full list of switches the possible options in
 `()` brackets and the default in `[]` square brackets:
+
  - `DEBUG` (defined [undefined]): turns on debug mode
  - `TEST` (defined [undefined]): turns on test mode (not working yet)
  - `PROF` (gprof,ipm [undefined]): turns on profiling mode
@@ -293,14 +310,6 @@ by the depend target using the perl script "fortdep". The script is
 distributed for developers convenience. Users do not need to reconstruct
 it.
 
-## Citing GS2
-
-If you use GS2 in your work, please cite the metadata contained in CITATION.cff.
-You can convert the CITATION.cff file into a Bibtex file as follows:
-
-    pip3 install --user cffconvert
-    cffconvert -if CITATION.cff -f bibtex -of CITATION.bib 
-
 ## Tests
 
 Users should run the GS2 tests after installing, updating or developing the
@@ -310,8 +319,23 @@ issue on Bitbucket](https://bitbucket.org/gyrokinetics/gs2/issues?status=new&sta
 
 For details on running the tests, see the README in the `tests` folder.
 
-## TODO
+## Citing GS2
 
-1. auto detection of the system for common system (like test_os script)
-2. can test the Sun f90 on ranger
+If you use GS2 in your work, please cite GS2 and acknowledge the grants that
+support its development.
 
+### Citation
+GS2's DOI is [10.5281/zenodo.2551067](https://doi.org/10.5281/zenodo.2551067).
+The full citation for GS2 may be also found in CITATION.cff. You can convert the
+CITATION.cff file into a Bibtex file as follows:
+
+    pip3 install --user cffconvert
+    cffconvert -if CITATION.cff -f bibtex -of CITATION.bib 
+
+### Acknowledgement
+
+Please acknowledge grants which support the development of GS2:
+
+> "This work made use of computational support by CoSeC, the Computational
+> Science Centre for Research Communities, through CPP Plasma ([EP/M022463/1](https://gow.epsrc.ukri.org/NGBOViewGrant.aspx?GrantRef=EP/M022463/1))
+> and HEC Plasma ([EP/R029148/1](https://gow.epsrc.ukri.org/NGBOViewGrant.aspx?GrantRef=EP/R029148/1))."
