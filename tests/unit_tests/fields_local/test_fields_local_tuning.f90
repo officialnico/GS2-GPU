@@ -8,8 +8,9 @@
 !!   Based on the test_fileds_local test
 program test_fields_local_tuning
   use unit_tests
-  use fields_local, only: fields_local_unit_test_init_fields_matrixlocal, advance_local, fields_local_functional, minnrow, do_smart_update, field_local_tuneminnrow
-  use fields_implicit, only: fields_implicit_unit_test_init_fields_implicit, advance_implicit
+  use fields_local, only: fields_local_testing, advance_local, fields_local_functional, minnrow, do_smart_update, field_local_tuneminnrow
+  use fields_local, only: init_fields_local, finish_fields_local
+  use fields_implicit, only: advance_implicit, init_fields_implicit
 
   use fields, only: fields_pre_init
   use egrid
@@ -25,7 +26,8 @@ program test_fields_local_tuning
   implicit none
   real :: eps
   type(gs2_program_state_type) :: gs2_state
-
+  !> Instance for access to private functions in fields_local
+  type(fields_local_testing) :: fields_local_tests
 
   ! General config
   eps = 1.0e-7
@@ -49,12 +51,12 @@ program test_fields_local_tuning
   call broadcast(field_local_tuneminnrow)
 
   call announce_test('init_fields_implicit')
-  call process_test(fields_implicit_unit_test_init_fields_implicit(), 'init_fields_implicit')
+  call process_test(test_init_fields_implicit(), 'init_fields_implicit')
 
   if (fields_local_functional()) then
 
     call announce_test('init_fields_matrixlocal')
-    call process_test(fields_local_unit_test_init_fields_matrixlocal(), 'init_fields_matrixlocal')
+    call process_test(test_init_fields_local(), 'init_fields_matrixlocal')
 
     call announce_test('advance')
     call process_test(test_advance(eps), 'advance')
@@ -150,5 +152,26 @@ contains
     end do
 
   end function test_advance
+
+  !> Return true if fields_local can finish and initialize again without error
+  function test_init_fields_local()
+    logical :: test_init_fields_local
+
+    call init_fields_local
+    call finish_fields_local
+    call init_fields_local
+
+    test_init_fields_local = .true.
+
+  end function test_init_fields_local
+
+  !> Initialize fields_implicit and return true if there is no error
+  function test_init_fields_implicit()
+    implicit none
+    logical :: test_init_fields_implicit
+
+    call init_fields_implicit
+    test_init_fields_implicit = .true.
+  end function test_init_fields_implicit
 
 end program test_fields_local_tuning

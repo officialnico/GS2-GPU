@@ -6,11 +6,9 @@ CLEANCOMMAND+= cyclone_itg_low_res cyclone_itg_replay
 COPY=cp  cyclone_itg_low_res_fields_local.out.nc cyclone_itg_replay.out.nc
 
 ifdef TESTNORUN
-	ifeq "$(TESTNORUN)" "true"
-		COPY=
-	endif
-endif
-
+all: cyclone_itg_low_res cyclone_itg_replay
+	$(call SKIPCOMMAND,variable TESTNORUN is defined; unset TESTNORUN to run this test)
+else
 #Define this tests level
 MY_TEST_LEVEL=1
 VAL:= $(shell expr ${MY_TEST_LEVEL} \<= ${TEST_LEVEL})
@@ -31,6 +29,7 @@ ifdef USE_NEW_DIAG
 	$(call RUNCOMMAND,cyclone_itg_replay,cyclone_itg_replay.in,)
 else
 	$(call SKIPCOMMAND,compiled without new diagnostics; compile with USE_NEW_DIAG=on to run this test)
+endif
 endif
 endif
 

@@ -15,9 +15,6 @@ module fields_local
   public :: field_local_tuneminnrow,  field_local_nonblocking_collectives
   public :: minNRow
 
-  ! Unit tests
-  public :: fields_local_unit_test_init_fields_matrixlocal
-
   ! User set parameters
   public :: dump_response, read_response
 
@@ -28,6 +25,7 @@ module fields_local
   type, public :: fields_local_testing
     contains
       procedure, nopass :: getfield_local
+
   end type fields_local_testing
 
   !//////////////////////////////
@@ -3845,20 +3843,6 @@ contains
     initialised = .true.
     reinit = .false.
   end subroutine init_fields_local
-
-  function fields_local_unit_test_init_fields_matrixlocal()
-    logical :: fields_local_unit_test_init_fields_matrixlocal
-
-    call init_fields_local
-
-    ! check that we can finish and then init
-    call finish_fields_local
-
-    call init_fields_local
-
-    fields_local_unit_test_init_fields_matrixlocal = .true.
-
-  end function fields_local_unit_test_init_fields_matrixlocal
 
   !> Routine use to initialise field matrix data
   subroutine init_fields_matrixlocal(tuning_in)

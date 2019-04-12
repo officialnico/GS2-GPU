@@ -1321,7 +1321,7 @@ contains
     call inverse_y (yxf, xxf)
     call inverse_x (xxf, g)
 
-    g = g * xb_fft%scale * yb_fft%scale
+    g = g * (xb_fft%scale * yb_fft%scale * 2.0)
 
     !CMR+GC: 2/9/2013
     ! Following large loop can be eliminated if gs2 used standard Fourier coefficients.
@@ -1329,8 +1329,8 @@ contains
     !
 
     do iglo = g_lo%llim_proc, g_lo%ulim_proc
-       if (ik_idx(g_lo, iglo) == 1) cycle
-       g(:,:,iglo) = g(:,:,iglo) * 2.0
+       if (ik_idx(g_lo, iglo) .ne. 1) cycle
+       g(:,:,iglo) = g(:,:,iglo) * 0.5
     end do
 
   end subroutine inverse2_5d
