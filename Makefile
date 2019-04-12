@@ -887,6 +887,7 @@ test_make:
 	$(call messageKeyVal, "PFUNIT_PREPROCESSOR", $(PFUNIT_PREPROCESSOR))
 	$(call messageKeyVal, "PFUNIT_TESTS", $(PFUNIT_TESTS))
 	$(call messageKeyVal, "PFUNIT_NPROC", $(PFUNIT_NPROC))
+	$(call messageKeyVal, "PFUNIT_MOD", $(PFUNIT_MOD))
 	$(call messageKeyVal, "PFUNIT_TEST_DIR", $(PFUNIT_TEST_DIR))
 	$(call messageKeyVal, "PFUNIT_TEST_EXE", $(PFUNIT_TEST_EXE))
 	$(call messageKeyVal, "PFUNIT_DRIVER", $(PFUNIT_DRIVER))

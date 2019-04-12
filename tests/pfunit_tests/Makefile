@@ -8,16 +8,19 @@ MACRO_DEFS += -DPFUNIT_VERSION_MAJOR=$(PFUNIT_VERSION_MAJOR)
 
 ifeq ($(PFUNIT_VERSION_MAJOR),4)
   include $(PFUNIT_DIR)/include/PFUNIT.mk
-
+  PFUNIT_MOD := pfunit
   PFUNIT_PREPROCESSOR ?= $(PFUNIT_BIN_DIR)/funitproc
   PFUNIT_INC := -I$(PFUNIT_INCLUDE_DIR)
   PFUNIT_LIB := -L$(PFUNIT_TOP_DIR)/lib -lpfunit -lfunit $(FARGPARSE_LIBRARIES)
   F90FLAGS += $(PFUNIT_EXTRA_FFLAGS)
 else
+  PFUNIT_MOD := pfunit_mod
   PFUNIT_PREPROCESSOR ?= $(PFUNIT_DIR)/bin/pFUnitParser.py
   PFUNIT_INC := -I$(PFUNIT_DIR)/mod
   PFUNIT_LIB := -L$(PFUNIT_DIR)/lib -lpfunit
 endif
+
+MACRO_DEFS += -DPFUNIT_MOD=$(PFUNIT_MOD)
 
 ifeq ($(GK_SYSTEM),bitbucket)
   PFUNIT_TEST_PATH=/opt/atlassian/pipelines/agent/build/pfunit_tests
