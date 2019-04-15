@@ -1,5 +1,5 @@
 [submodule "utils"]
-	path = utils
+	path = externals/utils
 	url = https://bitbucket.org/gyrokinetics/utils.git
 [submodule "Makefiles"]
 	path = Makefiles

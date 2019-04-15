@@ -10,8 +10,6 @@ else
 	NTESTPROCS=2
 endif
 
-COVERAGE_DIR := coverage
-
 $(COVERAGE_DIR):
 	$(QUIETSYM)$(MKDIR) $@
 
@@ -36,7 +34,7 @@ endif
 # UPDATE: Tests link against libgs2 now, so you can't choose 
 # which dependencies to build any more. EGH 04/03/2015
 # UPDATE: we now build and test the gs2 exec as well. EGH 14/03/15
-TEST_DEPS?=libgs2.a functional_tests.o benchmarks.o gs2
+TEST_DEPS?=$(LIBDIR)/libgs2.a $(OBJDIR)/functional_tests.o $(OBJDIR)/benchmarks.o gs2
 #We need to pass in some extra libraries in some cases so currently have
 #to wrap calls to make to ensure these get passed in. Ideally LIBS would
 #already contain this information
@@ -96,36 +94,41 @@ clean_tests: clean_unit_tests clean_linear_tests clean_nonlinear_tests
 clean_benchmarks:
 	$(QUIETSYM)$(MAKE) clean -C $(TEST_DIR)/benchmarks TEST_TYPE=Benchmarks --no-print-directory
 
-unit_tests_no_message: unit_tests.o $(TEST_DEPS)
+unit_tests_no_message: | $(TEST_RESULT_DIR)
+unit_tests_no_message: $(OBJDIR)/unit_tests.o $(TEST_DEPS)
 	$(call RUN_TESTS,unit_tests,unit)
 
 unit_tests: unit_tests_no_message
 	$(call TEST_PRINTOUT,$(call TEST_RESULTS,$@))
 
-linear_tests_no_message: functional_tests.o unit_tests.o $(TEST_DEPS)
+linear_tests_no_message: | $(TEST_RESULT_DIR)
+linear_tests_no_message: $(OBJDIR)/functional_tests.o $(OBJDIR)/unit_tests.o $(TEST_DEPS)
 	$(call RUN_TESTS,linear_tests,linear)
 
 linear_tests: linear_tests_no_message
 	$(call TEST_PRINTOUT,$(call TEST_RESULTS,$@))
 
-nonlinear_tests_no_message: functional_tests.o unit_tests.o $(TEST_DEPS)
+nonlinear_tests_no_message: | $(TEST_RESULT_DIR)
+nonlinear_tests_no_message: $(OBJDIR)/functional_tests.o $(OBJDIR)/unit_tests.o $(TEST_DEPS)
 	$(call RUN_TESTS,nonlinear_tests,nonlinear)
 
 nonlinear_tests: nonlinear_tests_no_message
 	$(call TEST_PRINTOUT,$(call TEST_RESULTS,$@))
 
-make_results_dir:
-	@$(MKDIR) $(GK_HEAD_DIR)/test-results
+$(TEST_RESULT_DIR): 
+	@$(MKDIR) $(TEST_RESULT_DIR)
 
-tests: make_results_dir unit_tests_no_message linear_tests_no_message nonlinear_tests_no_message
+make_results_dir: | $(TEST_RESULT_DIR)
+
+tests: |$(TEST_RESULT_DIR)
+tests: unit_tests_no_message linear_tests_no_message nonlinear_tests_no_message
 	$(call TEST_PRINTOUT,$(call TEST_RESULTS,unit_tests)$(call TEST_RESULTS,linear_tests)$(call TEST_RESULTS,nonlinear_tests))
 
 ifeq ($(HAS_GCOV),on)
 tests_coverage: | $(COVERAGE_DIR)
 tests_coverage: tests
-	gcov $(shell find . -type f -name "*.f??") -p -o .
-	$(MKDIR) coverage
-	mv *.gcov coverage/.
+	gcov $(shell find $(SRCDIR) $(SUBDIRS) -type f -name "*.f??" ) -p -o $(OBJDIR)
+	mv *.gcov $(COVERAGE_DIR)/
 else
 tests_coverage:
 	@echo "Cannot run coverage tests as gcov is not invoked."
@@ -141,7 +144,7 @@ test_script.sh: unit_tests_no_message linear_tests_no_message
 	find $(PWD)/$(TEST_DIR)/nonlinear_tests -executable | grep '$(TEST_DIR)/nonlinear_tests/.*/' | sed -e 's/^\(.\+\)$$/\1 \1.in \&\&/' | sed -e 's/^/$(TESTEXEC) /'  >> test_script.sh
 	echo "echo \"Tests Successful\"" >> test_script.sh
 
-benchmarks_no_message: unit_tests.o $(TEST_DEPS)
+benchmarks_no_message: $(OBJDIR)/unit_tests.o $(TEST_DEPS)
 	$(call RUN_TESTS,benchmarks,benchmark)
 
 benchmarks: benchmarks_no_message
@@ -150,3 +153,11 @@ benchmarks: benchmarks_no_message
 upload_benchmarks: 
 	cd $(TEST_DIR)/benchmarks && time ${MAKETESTS} upload && echo && echo "Completed Benchmarks"
 
+
+clean: clean_coverage
+
+clean_coverage:
+ifeq ($(HAS_GCOV),on)
+	$(call messageRm,"Gcov files")	
+	-$(QUIETSYM)rm -f $(COVERAGE_DIR)/*.gcov $(OBJDIR)/*.gcda $(OBJDIR)/*.gcno
+endif

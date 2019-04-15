@@ -29,7 +29,7 @@ else
 endif
 
 
-GS2_OBJS = $(filter-out gs2.o, $(gs2_mod))
+GS2_OBJS = $(filter-out $(OBJDIR)/gs2.o, $(gs2_mod))
 
 PFUNIT_TESTS= $(shell find $(PFUNIT_TEST_DIR) -name '*.pf')
 

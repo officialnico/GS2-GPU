@@ -61,15 +61,15 @@ $(call messageOp,"Running ","\\t:",$(1))
 endef
 
 define FAILCOMMAND
-echo "FAILED: `basename $$PWD` ($(TESTCOMMAND)$(1) $(2) $(3))" >> results_of_test.txt ; ../../write_test_xml.sh `basename $$PWD` 1 0 1 0 ; cat OUTPUT
+echo "FAILED: `basename $$PWD` ($(TESTCOMMAND)$(1) $(2) $(3))" >> results_of_test.txt ; $(TEST_DIR)/write_test_xml.sh `basename $$PWD` 1 0 1 0 $(TEST_RESULT_DIR); cat OUTPUT
 endef
 
 define PASSCOMMAND
-echo "passed: `basename $$PWD` ($(TESTCOMMAND)$(1) $(2) $(3))" >> results_of_test.txt ; ../../write_test_xml.sh `basename $$PWD` 1 0 0 0
+echo "passed: `basename $$PWD` ($(TESTCOMMAND)$(1) $(2) $(3))" >> results_of_test.txt ; $(TEST_DIR)/write_test_xml.sh `basename $$PWD` 1 0 0 0 $(TEST_RESULT_DIR)
 endef
 
 define SKIPCOMMAND
-@echo "skipped: `basename $$PWD` ($(1))" >> results_of_test.txt ; ../../write_test_xml.sh `basename $$PWD` 1 0 0 1
+@echo "skipped: `basename $$PWD` ($(1))" >> results_of_test.txt ; $(TEST_DIR)/write_test_xml.sh `basename $$PWD` 1 0 0 1 $(TEST_RESULT_DIR)
 endef
 
 BENCHMARKEXEC=$(call TESTEXEC,$(1)) ./$(2) $(BLUEGENEARGS)  $(3)

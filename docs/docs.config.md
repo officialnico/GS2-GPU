@@ -17,15 +17,12 @@ author_description:
     GS2 has been developed by dozens of developers over the years.
     For a complete list, please see <https://doi.org/10.5281/zenodo.2551066>
 parallel: 16
-src_dir: ../
+src_dir: ../src
+src_dir: ../externals/utils
 output_dir: ./html
 graph_dir: ./graphs
 page_dir: ./pages
-exclude_dir: ../tests
-exclude_dir: ../Makefiles
-exclude_dir: ../scripts
-exclude_dir: ../templates
-exclude_dir: ../docs
+exclude_dir: ../src/templates
 media_dir: ./media
 favicon: ./media/favicon.ico
 fpp_extensions: fpp

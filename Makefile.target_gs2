@@ -2,64 +2,100 @@
 gs2_all: diagnostics modules gs2 ingen rungridgen generate_fftw_wisdom
 
 #Main code
-gs2: $(gs2_mod) $(SIMPLEDATAIO_LIB)
+$(BINDIR)/gs2: $(gs2_mod) $(SIMPLEDATAIO_LIB) | $(BINDIR)
 	$(call messageOp,"Linking ","\\t:",$^,"\\n\\t\-\-\-\-\-\-\>",$@)
 	$(QUIETSYM)$(LD) $(LDFLAGS) -o $@ $^ $(LIBS) 
 
+.PHONY: gs2
+gs2: $(BINDIR)/gs2
+
 #Main code, may not work as missing SIMPLEDATAIO_LIB dependency
-gs2.x: $(gs2_mod)
+$(BINDIR)/gs2.x: $(gs2_mod) | $(BINDIR)
 	$(call messageOp,"Linking ","\\t:",$^,"\\n\\t\-\-\-\-\-\-\>",$@)
 	$(QUIETSYM)$(LD) $(LDFLAGS) -o $@ $^ $(LIBS)
 
+.PHONY: gs2.x
+gs2.x: $(BINDIR)/gs2.x
+
 #Input file checker
-ingen: $(ingen_mod) $(SIMPLEDATAIO_LIB)
+$(BINDIR)/ingen: $(ingen_mod) $(SIMPLEDATAIO_LIB) | $(BINDIR)
 	$(call messageOp,"Linking ","\\t:",$^,"\\n\\t\-\-\-\-\-\-\>",$@)
 	$(QUIETSYM)$(LD) $(LDFLAGS) -o $@ $^ $(LIBS) 
+
+.PHONY: ingen
+ingen: $(BINDIR)/ingen
 
 #Utility to produce fftw wisdom files for given problem size
-generate_fftw_wisdom: $(generate_fftw_wisdom_mod) $(SIMPLEDATAIO_LIB)
+$(BINDIR)/generate_fftw_wisdom: $(generate_fftw_wisdom_mod) $(SIMPLEDATAIO_LIB)
 	$(call messageOp,"Linking ","\\t:",$^,"\\n\\t\-\-\-\-\-\-\>",$@)
 	$(QUIETSYM)$(LD) $(LDFLAGS) -o $@ $^ $(LIBS) 
+
+.PHONY: generate_fftw_wisdom
+generate_fftw_wisdom: $(BINDIR)/generate_fftw_wisdom
 
 #Calculates the field response matrix for current input file and writes to file
-dump_response: $(dump_response_mod)
+$(BINDIR)/dump_response: $(dump_response_mod)
 	$(call messageOp,"Linking ","\\t:",$^,"\\n\\t\-\-\-\-\-\-\>",$@)
 	$(QUIETSYM)$(LD) $(LDFLAGS) -o $@ $^ $(LIBS) 
+
+.PHONY: dump_response
+dump_response: $(BINDIR)/dump_response
 
 #Initialises theta, kx, ky, lambda and energy grids and writes to file
-dump_grids: $(dump_grids_mod)
+$(BINDIR)/dump_grids: $(dump_grids_mod)
 	$(call messageOp,"Linking ","\\t:",$^,"\\n\\t\-\-\-\-\-\-\>",$@)
 	$(QUIETSYM)$(LD) $(LDFLAGS) -o $@ $^ $(LIBS) 
 
+.PHONY: dump_grids
+dump_grids: $(BINDIR)/dump_grids
+
 #Calculates the ideal ballooning stability (optionally over a scan in shat/beta_prime)
-ideal_ball: $(ideal_ball_mod)
+$(BINDIR)/ideal_ball: $(ideal_ball_mod)
 	$(call messageOp,"Linking ","\\t:",$^,"\\n\\t\-\-\-\-\-\-\>",$@)
 	$(LD) $(LDFLAGS) -o $@ $^ $(LIBS) 
 
+.PHONY: ideal_ball
+ideal_ball: $(BINDIR)/ideal_ball
+
 #Driver program for gridgen?
-rungridgen: $(rungridgen_mod)
+$(BINDIR)/rungridgen: $(rungridgen_mod)
 	$(call messageOp,"Linking ","\\t:",$^,"\\n\\t\-\-\-\-\-\-\>",$@)
 	$(QUIETSYM)$(LD) $(LDFLAGS) -o $@ $^ $(LIBS)
+
+.PHONY: rungridgen
+rungridgen: $(BINDIR)/rungridgen
 
 #A simple program to test linear regression on random data || Not at all gs2 specific!
-regress: $(drive_mod)
+$(BINDIR)/regress: $(drive_mod)
 	$(call messageOp,"Linking ","\\t:",$^,"\\n\\t\-\-\-\-\-\-\>",$@)
 	$(QUIETSYM)$(LD) $(LDFLAGS) -o $@ $^ $(LIBS)
+
+.PHONY: regress
+regress: $(BINDIR)/regress
 
 #A program which test the fft transforms used in GS2
-ffttester: $(ffttester_mod)
+$(BINDIR)/ffttester: $(ffttester_mod)
 	$(call messageOp,"Linking ","\\t:",$^,"\\n\\t\-\-\-\-\-\-\>",$@)
 	$(QUIETSYM)$(LD) $(LDFLAGS) -o $@ $^ $(LIBS)
+
+.PHONY: ffttester
+ffttester: $(BINDIR)/ffttester
 
 #Program to calculate ideal MHD ballooning stability
-ball: $(ball_mod)
+$(BINDIR)/ball: $(ball_mod)
 	$(call messageOp,"Linking ","\\t:",$^,"\\n\\t\-\-\-\-\-\-\>",$@)
 	$(QUIETSYM)$(LD) $(LDFLAGS) -o $@ $^ $(LIBS)
 
+.PHONY: ball
+ball: $(BINDIR)/ball
+
 #Program to calculate eikcoeffs (geometry coefficients etc.) and write to file
-eiktest: $(eiktest_mod)
+$(BINDIR)/eiktest: $(eiktest_mod)
 	$(call messageOp,"Linking ","\\t:",$^,"\\n\\t\-\-\-\-\-\-\>",$@)
 	$(QUIETSYM)$(LD) $(LDFLAGS) -o $@ $^ $(LIBS)
+
+.PHONY: eiktest
+eiktest: $(BINDIR)/eiktest
 
 
 ############################################################################# LIBRARIES
@@ -74,22 +110,30 @@ modules: utils.a geo.a libgs2.a diagnostics
 utils_all: | $(UTILS_SENTINEL)
 utils_all: utils.a
 
-UTIL_OBJ = spl.o constants.o file_utils.o netcdf_utils.o command_line.o runtime_tests.o constant_random.o
-utils.a: | $(UTILS_SENTINEL)
-utils.a: $(UTIL_OBJ)
+UTIL_OBJ_LIST := spl.o constants.o file_utils.o netcdf_utils.o command_line.o runtime_tests.o constant_random.o
+UTIL_OBJ = $(addprefix $(OBJDIR)/, $(UTIL_OBJ_LIST))
+$(LIBDIR)/utils.a: | $(UTILS_SENTINEL)
+$(LIBDIR)/utils.a: $(UTIL_OBJ) |$(LIBDIR)
 	$(call messageOp,"Linking ","\\t:",$^,"\\n\\t\-\-\-\-\-\-\>",$@)
 	$(QUIETSYM)$(ARCH) $(ARCHFLAGS) $@ $^
 	$(QUIETSYM)$(RANLIB) $@
+
+.PHONY: utils.a
+utils.a: $(LIBDIR)/utils.a
 
 ### GEO
 geo_all: geo.a eiktest ball
 
-GEO_OBJ = geometry.o geq.o eeq.o peq.o leq.o deq.o ideq.o ceq.o read_chease.o
+GEO_OBJ_LIST := geometry.o geq.o eeq.o peq.o leq.o deq.o ideq.o ceq.o read_chease.o
+GEO_OBJ = $(addprefix $(OBJDIR)/, $(GEO_OBJ_LIST))
 
-geo.a: $(GEO_OBJ)
+$(LIBDIR)/geo.a: $(GEO_OBJ) |$(LIBDIR)
 	$(call messageOp,"Linking ","\\t:",$^,"\\n\\t\-\-\-\-\-\-\>",$@)
 	$(QUIETSYM)$(ARCH) $(ARCHFLAGS) $@ $^
 	$(QUIETSYM)$(RANLIB) $@
+
+.PHONY: geo.a
+geo.a: $(LIBDIR)/geo.a
 
 #### Not sure what the following two rules are for
 geo_c: geometry_c_driver.o ../geo.a ../utils.a  
@@ -99,12 +143,15 @@ geo_c.a: geometry_c_interface.o ../geo.a ../utils.a
 	$(QUIETSYM)$(FC) -o  geo_c2.a geometry_c_interface.o ../geo.a ../utils.a -Mnomain -Mnostartup -Mnostdlib
 
 ### LIBGS2
-libgs2_all: libgs2.a
+libgs2_all: $(LIBDIR)/libgs2.a
 
-libgs2.a: $(filter-out gs2.o simpledataiof.o simpledataio_write.o, $(gs2_mod)) gs2_gryfx_zonal.o
+$(LIBDIR)/libgs2.a: $(filter-out $(OBJDIR)/gs2.o $(OBJDIR)/simpledataiof.o $(OBJDIR)/simpledataio_write.o, $(gs2_mod)) $(OBJDIR)/gs2_gryfx_zonal.o |$(LIBDIR)
 	$(call messageOp,"Linking ","\\t:",$^,"\\n\\t\-\-\-\-\-\-\>",$@)
 	$(QUIETSYM)$(ARCH) $(ARCHFLAGS) $@ $^
 	$(QUIETSYM)$(RANLIB) $@
+
+.PHONY: libgs2.a
+libgs2.a: $(LIBDIR)/libgs2.a
 
 ############################################################################# CLEANUP
 distclean:

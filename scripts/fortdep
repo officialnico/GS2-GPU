@@ -23,6 +23,7 @@ my $DEPFILE="Makefile.depend";
 	"verbose" => 2, # verbose level (0: silent, 1: info, 
                         # 2: warning [default], 3: debug)
         "keep" => "no", # If defined then don't cleanup processed files
+        "generated_src_dir" => "/dev/null"
 	);
 
     # store search path;
@@ -119,7 +120,7 @@ sub process_options {
     use Getopt::Long;
 
     my ($option, $path) = @_;
-    my ($opt_makecmd,$opt_file,$opt_overwrite,$opt_first,$opt_verb,$opt_keep,$opt_help);
+    my ($opt_makecmd,$opt_file,$opt_overwrite,$opt_first,$opt_verb,$opt_keep,$opt_generated_src_dir,$opt_help);
 
     &GetOptions(
 	'makecmd=s' => \$opt_makecmd,
@@ -128,6 +129,7 @@ sub process_options {
 	'1' => \$opt_first,
 	'verbose=i' => \$opt_verb,
         'keep=s' => \$opt_keep,
+        'generated_src_dir=s' => \$opt_generated_src_dir,        
 	'help' => \$opt_help
 	);
     die ("Invalid argument, bye.\n") if ($#ARGV > 0);
@@ -141,7 +143,8 @@ sub process_options {
     $$option{'overwrite'} = $opt_overwrite if ( $opt_overwrite );
     $$option{'first'} = $opt_first if ( $opt_first );
     $$option{'verbose'} = $opt_verb if ( $opt_verb ne "" && $opt_verb >=0 );
-    $$option{'keep'} = $opt_keep if ( $opt_keep ne "" );    
+    $$option{'keep'} = $opt_keep if ( $opt_keep ne "" );
+    $$option{'generated_src_dir'} = $opt_generated_src_dir if ( $opt_generated_src_dir ne "" );        
     &usage if ( $opt_help );
 
     return;
@@ -513,12 +516,12 @@ sub preprocess{
 	    $f90file =~ s/\.(fpp|F90)/\.f90/;
             $files = $files . $f90file . " ";            
 #	    system("$$option{'makecmd'} $f90file");
-	    $$source{$f90file}{'dir'} = $$source{$file}{'dir'};
+	    $$source{$f90file}{'dir'} = $$option{'generated_src_dir'};
 	    $$source{$f90file}{'type'} = "fort";
 	}
     }
     if( $files ne '' ) {
-        system("$$option{'makecmd'} $files");
+        system("$$option{'makecmd'} $$option{'generated_src_dir'}/$files");
     }
     
 #    &message($$msgtype{'info'},"end\n");
@@ -542,7 +545,7 @@ sub cleanprep{
 	    my $f90file = $file;
 	    $f90file =~ s/\.(fpp|F90)/\.f90/;
 	    if ($$source{$f90file}{'type'} ne ""){
-		unlink "$$source{$file}{'dir'}/$f90file";
+		unlink "$f90file";
 		foreach my $key ( keys %{$$source{$file}} ){
 		    delete $$source{$file}{$key};
 		}
@@ -638,7 +641,7 @@ sub write_dependency{
 	print DEP "$key\_mod = ";
 	foreach my $obj ( sort ( keys %{$$objlist{$key}} ) ){
 	    print DEP "\\\n";
-	    print DEP "\t $obj ";
+	    print DEP "\t \$(OBJDIR)/$obj ";
 	}
 	print DEP "\n\n";
     }
@@ -646,12 +649,12 @@ sub write_dependency{
     foreach my $key ( sort ( keys %$reqfile ) ){
 	my $keyo=$key;
 	$keyo =~ s/\.f90$/\.o/g;
-	print DEP "$keyo: ";
+	print DEP "\$(OBJDIR)/$keyo: ";
 	foreach my $obj ( sort ( keys %{$$reqfile{$key}} ) ){
 	    my $objo = $obj;
 	    $objo =~ s/\.f90$/\.o/g;
 	    print DEP "\\\n";
-	    print DEP "\t $objo ";
+	    print DEP "\t \$(OBJDIR)/$objo ";
 	}
 	print DEP "\n";
     }
