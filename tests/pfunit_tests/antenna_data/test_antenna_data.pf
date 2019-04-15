@@ -17,16 +17,16 @@
 ! CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 module test_antenna_data_mod
+  use PFUNIT_MOD
 
-  use pfunit_mod
   implicit none
 
   @testParameter(contsructor = new_test)
   type, extends(MpiTestParameter) :: case
-     integer :: nk_stir_in
+    integer :: nk_stir_in
   end type case
 
-@TestCase(constructor = new_test)
+  @TestCase(constructor = new_test)
   type, extends(MpiTestCase) :: test_parameters
     integer :: nk_stir_in
   end type test_parameters
@@ -43,9 +43,9 @@ contains
   end function new_test
 
   function new_case(nk_stir_in)
-     type (case) :: new_case
-     integer, intent(in) :: nk_stir_in
-     new_case%nk_stir_in = nk_stir_in
+    type (case) :: new_case
+    integer, intent(in) :: nk_stir_in
+    new_case%nk_stir_in = nk_stir_in
   end function new_case
 
   ! Define the parameters scan
@@ -59,7 +59,7 @@ contains
 
   end function get_parameters
 
-@test(npes=[1,2,4],testParameters={get_parameters()})
+  @test(npes=[1,2,4],testParameters={get_parameters()})
   !> Test for initialization with no antenna
   subroutine test_init_antenna_data(this)
 
@@ -73,7 +73,7 @@ contains
       call init_antenna_data(nk_stir_in)
 
       if( nk_stir_in .lt. 0 ) then ! Antenna off
-	@mpiAssertFalse(ant_on)
+        @mpiAssertFalse(ant_on)
       else ! Antenna on
         @mpiAssertTrue(ant_on)
         @mpiAssertEqual(nk_stir_in , nk_stir )

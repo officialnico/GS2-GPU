@@ -578,7 +578,7 @@ endif
 ####################################################################### Source code targets
 
 %.o : %.pf
-	$(PFUNIT_DIR)/bin/pFUnitParser.py $< $(basename $<).F90
+	$(PFUNIT_PREPROCESSOR) $< $(basename $<).F90
 ifdef ONE_STEP_PP
 	$(QUIETSYM)$(FC) $(MACRO_DEFS) $(F90FLAGS) -c $(basename $<).F90 $(PFUNIT_INC) -I$(GK_HEAD_DIR) -o $@
 else
@@ -862,6 +862,19 @@ test_make:
 	$(call messageKeyVal, "LD_LIBRARY_PATH", $(LD_LIBRARY_PATH))
 	$(call messageKeyVal, "LIBS", $(LIBS))
 	$(call messageKeyVal, "INCS", $(INCLUDES))
+	@echo
+	$(call messageInfo,"PFUNIT:")
+	$(call messageKeyVal, "PFUNIT_VERSION_MAJOR", $(PFUNIT_VERSION_MAJOR))
+	$(call messageKeyVal, "PFUNIT_PREPROCESSOR", $(PFUNIT_PREPROCESSOR))
+	$(call messageKeyVal, "PFUNIT_TESTS", $(PFUNIT_TESTS))
+	$(call messageKeyVal, "PFUNIT_NPROC", $(PFUNIT_NPROC))
+	$(call messageKeyVal, "PFUNIT_MOD", $(PFUNIT_MOD))
+	$(call messageKeyVal, "PFUNIT_TEST_DIR", $(PFUNIT_TEST_DIR))
+	$(call messageKeyVal, "PFUNIT_TEST_EXE", $(PFUNIT_TEST_EXE))
+	$(call messageKeyVal, "PFUNIT_DRIVER", $(PFUNIT_DRIVER))
+	$(call messageKeyVal, "PFUNIT_INC", $(PFUNIT_INC))
+	$(call messageKeyVal, "PFUNIT_LIB", $(PFUNIT_LIB))
+	@echo
 ifdef USE_MPI
 	$(call messageInfo,"MPI:")
 	$(call messageKeyVal, "MPI_MOD_NAME", $(MPI_MOD_NAME))
