@@ -6,17 +6,20 @@ module gs2_time
   private
 
   public :: user_dt, code_dt, update_time, code_dt_old
+  public :: time_history_available, dt_not_set
   public :: code_dt_prev1, code_dt_prev2
   public :: user_time, code_time, check_time_step_too_large
   public :: save_dt_min, save_dt, save_dt_cfl, write_dt
   public :: init_tstart, init_delt
   public :: code_dt_cfl, code_dt_min, user2code
 
+  real, parameter :: dt_not_set = -1.0
   real :: user_dt, code_dt 
-  real :: code_dt_prev1, code_dt_prev2
-  real :: user_dt_cfl = -1.
-  real :: code_dt_cfl = -1.
-
+  real :: code_dt_prev1 = dt_not_set
+  real :: code_dt_prev2 = dt_not_set
+  real :: user_dt_cfl
+  real :: code_dt_cfl
+  
   real :: code_dt_min, user_dt_min
 
   ! added May 18, 2009 to take care of problems
@@ -39,20 +42,19 @@ contains
 
   end subroutine init_tstart
 
-  !> FIXME : Add documentation  
-  subroutine init_delt (delt)
+  !> Set the full timestep history.
+  !! Inputs set the current, previous and last but one timesteps
+  subroutine init_delt (delt, delt1, delt2)
     implicit none
-    real, intent (in) :: delt
+    real, intent (in) :: delt, delt1, delt2
 !
-! delt_in is a user input, from the run_parameters module.
+! delt* are user input, from the run_parameters module.
 ! In a perfect world, we could have a gs2_time namelist. 
 ! 
     user_dt = delt
     code_dt = delt
-    code_dt_prev1 = delt
-    code_dt_prev2 = delt
-
-
+    code_dt_prev1 = delt1
+    code_dt_prev2 = delt2
   end subroutine init_delt
 
   !> Check if the current time step is too big
@@ -82,7 +84,6 @@ contains
   subroutine save_dt_cfl (delt_cfl)
     implicit none
     real, intent (in) :: delt_cfl
-
     code_dt_cfl = delt_cfl
     user_dt_cfl = delt_cfl
 
@@ -123,4 +124,19 @@ contains
     codetime = usertime
   end subroutine user2code
 
+  !> Reports how many previous time steps are available
+  !! by checking if the previous code_dt values have been
+  !! set to anything. Note we assume that if a time step is
+  !! set then all more recent values have also been set.
+  function time_history_available()
+    implicit none
+    integer :: time_history_available
+    if (code_dt_prev2 .ne. dt_not_set) then
+       time_history_available =  3
+    else if (code_dt_prev1 .ne. dt_not_set) then
+       time_history_available =  2
+    else
+       time_history_available =  1
+    endif
+  end function time_history_available
 end module gs2_time

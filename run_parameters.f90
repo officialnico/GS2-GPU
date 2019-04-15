@@ -38,7 +38,8 @@ module run_parameters
 
   real :: beta, zeff, tite
   real :: fphi, fapar, fbpar, faperp
-  real :: delt, code_delt_max, user_delt_max, margin
+  real :: delt, delt_prev1, delt_prev2
+  real :: code_delt_max, user_delt_max, margin
   real, dimension (:), allocatable :: wunits, woutunits, tunits
   real, dimension (2) :: vnm_init
   real :: avail_cpu_time, margin_cpu_time
@@ -189,7 +190,7 @@ contains
     call read_parameters
 
     call init_kt_grids
-    call init_delt (delt)
+    call init_delt (delt, delt_prev1, delt_prev2)
     call user2code (user_delt_max, code_delt_max)
 
     if(.not. allocated(wunits)) allocate (wunits(naky))
@@ -219,6 +220,7 @@ contains
   subroutine read_parameters
     use file_utils, only: input_unit, error_unit, input_unit_exist
     use mp, only: proc0, broadcast
+    use gs2_time, only: dt_not_set
     use gs2_save, only: init_dt, init_vnm
     use text_options, only: text_option, get_option_value
     use kt_grids, only: gryfx
@@ -235,7 +237,7 @@ contains
             text_option('check_restart', delt_option_auto) /)
     character(20) :: delt_option
     integer :: ierr, istatus, in_file
-    real :: delt_saved
+    real :: delt0, delt1, delt2
     real, dimension (2) :: vnm_saved
 
     real :: teti  ! for back-compatibility
@@ -395,15 +397,21 @@ contains
 
     user_delt_max = delt
 
-    delt_saved = delt
+    !! @todo: Add input variables to allow these to be set directly
+    delt_prev1 = dt_not_set
+    delt_prev2 = dt_not_set
+    
     if (delt_option_switch == delt_option_auto) then
        vnm_init = 1.0
        call init_vnm (vnm_saved, istatus)
        if (istatus == 0) vnm_init = vnm_saved
-       call init_dt (delt_saved, istatus)
-       if (istatus == 0) delt  = delt_saved
+       call init_dt (delt0, delt1, delt2, istatus)
+       if (istatus == 0) then
+          delt  = delt0
+          delt_prev1 = delt1
+          delt_prev2 = delt2
+       endif
     endif
-
   end subroutine read_parameters
 
   !> FIXME : Add documentation    
