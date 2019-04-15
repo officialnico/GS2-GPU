@@ -1103,14 +1103,6 @@ contains
             trapped_wfb =.true.
        end select
        
-       if ((trapped_wfb .or. passing_wfb).and. opt_init_bc ) then
-        write (*,*) "opt_init_bc = T is not supported when trapped_wfb = T or passing_wfb = T"
-        write (*,*) "forcing opt_init_bc = F"
-        write (ierr,*) "opt_init_bc = T is not supported when trapped_wfb = T or passing_wfb = T"
-        write (ierr,*) "forcing opt_init_bc = F"
-        opt_init_bc = .false.
-       endif
-       
     end if
     if (.not.allocated(fexp)) allocate (fexp(nspec), bkdiff(nspec), bd_exp(nspec))
     if (proc0) call read_species_knobs
@@ -1915,18 +1907,16 @@ contains
 
     if (naky > 1 .and. ntheta0 > 1) then
        jshift0 = int((theta(ng)-theta(-ng))/(theta0(2,2)-theta0(1,2)) + 0.01)
-!       if (proc0) write (*,*) 'init_connected_bc: ',theta0(2,2), theta0(1,2), jshift0
     else if (naky == 1 .and. ntheta0 > 1 .and. aky(1) /= 0.0) then
        jshift0 = int((theta(ng)-theta(-ng))/(theta0(2,1)-theta0(1,1)) + 0.01)
     else
        jshift0 = 1
     end if
     
-!    if (proc0) write (*,*) 'init_connected_bc: jshift0 = ',jshift0
-
     allocate (itleft(naky,ntheta0), itright(naky,ntheta0))
     itleft(1,:) = -1 ! No connected segments when ky = 0. EGH
     itright(1,:) = -1
+    
     do ik = 1, naky
        do it = 1, ntheta0
           if (it > (ntheta0+1)/2) then
@@ -1952,8 +1942,6 @@ contains
              itl = it0 + (ik-1)*jshift0
              itr = it0 - (ik-1)*jshift0
           end if
-
-!          if (ik>1 .and. proc0) write(*,*) 'init_connected_bc: itl, itr = ',itl, itr
 
           ! remap to usual GS2 indices -- MAB
           if (itl >= 0 .and. itl < (ntheta0+1)/2) then
@@ -1983,24 +1971,25 @@ contains
     allocate (connections(g_lo%llim_proc:g_lo%ulim_alloc))
 
     do iglo = g_lo%llim_proc, g_lo%ulim_proc
-       ik = ik_idx(g_lo,iglo)
-       it = it_idx(g_lo,iglo)
        il = il_idx(g_lo,iglo)
-       ie = ie_idx(g_lo,iglo)
-       is = is_idx(g_lo,iglo)
 
        ! get processors and indices for j' (kx') modes connecting
        ! to mode j (kx) so we can set up communication -- MAB
 
-! if non-wfb trapped particle, no connections
-! or if wfb is trapped, no connections
+       ! if non-wfb trapped particle, no connections
+       ! or if wfb is trapped, no connections
        if ((nlambda > ng2 .and. il >= ng2+2) .or. &
-       (nlambda > ng2 .and. il == ng2+1 .and. trapped_wfb)) then
+            (nlambda > ng2 .and. il == ng2+1 .and. trapped_wfb)) then
           connections(iglo)%iproc_left = -1
           connections(iglo)%iglo_left = -1
           connections(iglo)%iproc_right = -1
           connections(iglo)%iglo_right = -1
        else
+          ik = ik_idx(g_lo,iglo)
+          it = it_idx(g_lo,iglo)
+          ie = ie_idx(g_lo,iglo)
+          is = is_idx(g_lo,iglo)
+
           if (itleft(ik,it) < 0) then
              connections(iglo)%iproc_left = -1
              connections(iglo)%iglo_left = -1
@@ -2036,16 +2025,17 @@ contains
                save_h (1,iglo) = .true.
           if (connections(iglo)%iglo_right >= 0 .and. aky(ik) /= 0.0) &
                save_h (2,iglo) = .true.
-! wfb (linked)
+          
+          ! wfb (linked)
           if ( wfb_cmr ) then
-! if wfb_cmr = .t.  do NOT save homogeneous solutions for wfb
+             ! if wfb_cmr = .t.  do NOT save homogeneous solutions for wfb
              if (nlambda > ng2 .and. il == ng2+1) save_h(:,iglo) = .false.
           else ! MRH below should not occur if we are treating wfb as standard passing
                ! since save_h for passing particles is handled above
              if (nlambda > ng2               .and. &
                   il == ng2+1                .and. &
                   connections(iglo)%neighbor .and. &
-                  .not. passing_wfb .and. & 
+                  (.not. passing_wfb) .and. & 
                   aky(ik) /= 0.0) &
                   save_h (:,iglo) = .true.
           endif
@@ -2131,13 +2121,14 @@ contains
             if (nlambda > ng2 .and. il >= ng2+1) cycle
           endif
           
-          ip = proc_id(g_lo,iglo)
           ik = ik_idx(g_lo,iglo)
           it = it_idx(g_lo,iglo)
           
           ncell = r_links(ik, it) + l_links(ik, it) + 1
           if (ncell == 1) cycle
 
+          ip = proc_id(g_lo,iglo)
+          
           iglo_star = iglo
           do j = 1, r_links(ik, it)
              call get_right_connection (iglo_star, iglo_right, ipright)
@@ -2193,12 +2184,13 @@ contains
             if (nlambda > ng2 .and. il >= ng2+1) cycle
           endif
           
-          ip = proc_id(g_lo,iglo)
           ik = ik_idx(g_lo,iglo)
           it = it_idx(g_lo,iglo)
           
           ncell = r_links(ik, it) + l_links(ik, it) + 1
           if (ncell == 1) cycle
+
+          ip = proc_id(g_lo,iglo)
           
           iglo_star = iglo
           do j = 1, r_links(ik, it)
@@ -2287,13 +2279,14 @@ contains
           il = il_idx(g_lo,iglo)
           if (il /= ng2+1) cycle
 
-          ip = proc_id(g_lo,iglo)
           ik = ik_idx(g_lo,iglo)
           it = it_idx(g_lo,iglo)
           
           ncell = r_links(ik, it) + l_links(ik, it) + 1
           if (ncell == 1) cycle
-             
+
+          ip = proc_id(g_lo,iglo)
+          
           iglo_right = iglo ; iglo_left = iglo ; ipright = ip ; ipleft = ip
 
 ! v_par > 0:
@@ -2342,13 +2335,14 @@ contains
           il = il_idx(g_lo,iglo)
           if (il /= ng2+1) cycle
 
-          ip = proc_id(g_lo,iglo)
           ik = ik_idx(g_lo,iglo)
           it = it_idx(g_lo,iglo)
           
           ncell = r_links(ik, it) + l_links(ik, it) + 1
           if (ncell == 1) cycle
 
+          ip = proc_id(g_lo,iglo)
+          
           iglo_right = iglo ; iglo_left = iglo ; ipright = ip ; ipleft = ip
 
 ! v_par > 0: 
@@ -2763,7 +2757,6 @@ contains
           do ik = 1, naky
              n_k(k) = 1 + l_links(ik, it) + r_links(ik, it)
              k = k + 1
-!             if (proc0) write (*,*) 'init_connected_bc: ',ik, it, l_links(ik, it), r_links(ik, it)
           end do
        end do
 
@@ -2929,8 +2922,10 @@ contains
        ! get processors and indices for j' (kx') modes connecting
        ! to mode j (kx) so we can set up communication -- MAB
 
-! if non-wfb trapped particle, no connections
-       if (nlambda > ng2 .and. il >= ng2+2) then
+       ! if non-wfb trapped particle, no connections
+       ! or if wfb is trapped, no connections
+       if ((nlambda > ng2 .and. il >= ng2+2) .or. &
+            (nlambda > ng2 .and. il == ng2+1 .and. trapped_wfb)) then
           connections(iglo)%iproc_left = -1
           connections(iglo)%iglo_left = -1
           connections(iglo)%iproc_right = -1
@@ -2940,6 +2935,7 @@ contains
           it = it_idx(g_lo,iglo)
           ie = ie_idx(g_lo,iglo)
           is = is_idx(g_lo,iglo)
+          
           if (itleft(ik,it) < 0) then
              connections(iglo)%iproc_left = -1
              connections(iglo)%iglo_left = -1
@@ -2975,12 +2971,20 @@ contains
                save_h (1,iglo) = .true.
           if (connections(iglo)%iglo_right >= 0 .and. aky(ik) /= 0.0) &
                save_h (2,iglo) = .true.
-! wfb (linked)
-          if (nlambda > ng2               .and. &
-               il == ng2+1                .and. &
-               connections(iglo)%neighbor .and. &
-               aky(ik) /= 0.0) &
-               save_h (:,iglo) = .true.
+          
+          ! wfb (linked)
+          if ( wfb_cmr ) then
+             ! if wfb_cmr = .t.  do NOT save homogeneous solutions for wfb
+             if (nlambda > ng2 .and. il == ng2+1) save_h(:,iglo) = .false.
+          else ! MRH below should not occur if we are treating wfb as standard passing
+               ! since save_h for passing particles is handled above
+             if (nlambda > ng2               .and. &
+                  il == ng2+1                .and. &
+                  connections(iglo)%neighbor .and. &
+                  (.not. passing_wfb) .and. & 
+                  aky(ik) /= 0.0) &
+                  save_h (:,iglo) = .true.
+          endif
        end do
 
        allocate (l_links(naky, ntheta0))
@@ -3039,7 +3043,7 @@ contains
           end do
        end do
 ! wfb
-       if (n_links_max > 0) n_links_max = n_links_max + 3
+       if (n_links_max > 0 .and. (.not. trapped_wfb) .and. (.not. passing_wfb)) n_links_max = n_links_max + 3
        
 ! now set up communication pattern:
 ! excluding wfb
@@ -3061,10 +3065,20 @@ contains
        nn_from_h = 0 
 
        do iglo = g_lo%llim_world, g_lo%ulim_world
+!CMR, 20/10/2013:
+!     Communicate pattern sends passing particles to downwind linked cells
+!      (ntgrid,1,iglo)  => each RH connected cell (j,1,iglo_right)
+!      (-ntgrid,2,iglo) => each LH connected cell (j,2,iglo_left)
+!          where j index in receive buffer = #hops in connection
+!                         (nb j=1 is nearest connection)
 
           il = il_idx(g_lo,iglo)
           ! Exclude trapped particles (inc wfb)
-          if (nlambda > ng2 .and. il >= ng2+1) cycle
+          if(passing_wfb) then
+            if (nlambda > ng2 .and. il >= ng2+2) cycle
+          else 
+            if (nlambda > ng2 .and. il >= ng2+1) cycle
+          endif
 
           ik = ik_idx(g_lo,iglo)
           it = it_idx(g_lo,iglo)
@@ -3082,13 +3096,13 @@ contains
 ! receiver
              if (ipright == iproc) nn_to(ip) = nn_to(ip) + 1
 
+             iglo_star = iglo_right
+
              !Special counting for links_h
              if(l_links(ik,it)>0) then
                 if (ip == iproc) nn_from_h(ipright) = nn_from_h(ipright) + 1
                 if (ipright == iproc) nn_to_h(ip) = nn_to_h(ip) + 1
              endif
-
-             iglo_star = iglo_right
           end do
              
           iglo_star = iglo
@@ -3099,13 +3113,13 @@ contains
 ! receiver
              if (ipleft == iproc) nn_to(ip) = nn_to(ip) + 1
 
+             iglo_star = iglo_left
+
              !Special counting for links_h
              if(r_links(ik,it)>0) then
                 if (ip == iproc) nn_from_h(ipleft) = nn_from_h(ipleft) + 1
                 if (ipleft == iproc) nn_to_h(ip) = nn_to_h(ip) + 1
-             endif
-
-             iglo_star = iglo_left
+             endif             
           end do
 
        end do
@@ -3148,7 +3162,11 @@ contains
        do iglo = g_lo%llim_world, g_lo%ulim_world
 
           il = il_idx(g_lo,iglo)
-          if (nlambda > ng2 .and. il >= ng2+1) cycle
+          if(passing_wfb) then
+            if (nlambda > ng2 .and. il >= ng2+2) cycle
+          else 
+            if (nlambda > ng2 .and. il >= ng2+1) cycle
+          endif
 
           ik = ik_idx(g_lo,iglo)
           it = it_idx(g_lo,iglo)
@@ -3262,12 +3280,21 @@ contains
        call delete_list (to_h)
 
 ! take care of wfb
-
+    if ( wfb_cmr .and. (.not. trapped_wfb) .and. (.not. passing_wfb) ) then
+       call init_pass_wfb
+    else if ( (.not. trapped_wfb) .and. (.not. passing_wfb) ) then       
        nn_to = 0
        nn_from = 0 
 
        !NOTE: No special restriction/counting for wfb_h unlike links_h
        do iglo = g_lo%llim_world, g_lo%ulim_world
+!CMR, 20/10/2013:
+!     Communicate pattern sends wfb endpoint to ALL linked cells
+!      (ntgrid,1,iglo)  => ALL connected cells (j,1,iglo_conn)
+!            where j index in receive buffer = r_links(iglo)+1
+!      (-ntgrid,2,iglo) => ALL connected cells (j,2,iglo_conn)
+!         where j index in receive buffer = l_links(iglo)+1
+!
 
           il = il_idx(g_lo,iglo)
           if (il /= ng2+1) cycle
@@ -3283,6 +3310,8 @@ contains
           iglo_right = iglo ; iglo_left = iglo ; ipright = ip ; ipleft = ip
 
 ! v_par > 0:
+!CMR: introduced iglo_star to make notation below less confusing
+!
           call find_leftmost_link (iglo, iglo_star, ipright)
           do j = 1, ncell
 ! sender
@@ -3414,7 +3443,8 @@ contains
        call delete_list (from)
        call delete_list (to_p)
        call delete_list (to_h)
-      
+    endif
+    
 ! n_links_max is typically 2 * number of cells in largest supercell
        allocate (g_adj (n_links_max, 2, g_lo%llim_proc:g_lo%ulim_alloc))
 !################################
