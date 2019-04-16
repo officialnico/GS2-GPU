@@ -958,7 +958,7 @@ contains
              istatus = nf90_var_par_access(ncid, gexp_1_i_id, NF90_COLLECTIVE)
 
              start_pos = (/1,1,g_lo%llim_proc+1/)
-             counts = (/2*ntgexp_1_rid+1, 2, n_elements/)
+             counts = (/2*ntgrid+1, 2, n_elements/)
 
              istatus = nf90_put_var (ncid, gexp_1_r_id, tmpr, start=start_pos, count=counts)
           endif
@@ -995,7 +995,7 @@ contains
              istatus = nf90_var_par_access(ncid, gexp_2_i_id, NF90_COLLECTIVE)
 
              start_pos = (/1,1,g_lo%llim_proc+1/)
-             counts = (/2*ntgexp_2_rid+1, 2, n_elements/)
+             counts = (/2*ntgrid+1, 2, n_elements/)
 
              istatus = nf90_put_var (ncid, gexp_2_r_id, tmpr, start=start_pos, count=counts)
           endif
@@ -1032,7 +1032,7 @@ contains
              istatus = nf90_var_par_access(ncid, gexp_3_i_id, NF90_COLLECTIVE)
 
              start_pos = (/1,1,g_lo%llim_proc+1/)
-             counts = (/2*ntgexp_3_rid+1, 2, n_elements/)
+             counts = (/2*ntgrid+1, 2, n_elements/)
 
              istatus = nf90_put_var (ncid, gexp_3_r_id, tmpr, start=start_pos, count=counts)
           endif
@@ -1443,7 +1443,7 @@ contains
 #ifdef NETCDF_PARALLEL
        else
           start_pos = (/1,1,g_lo%llim_proc+1/)
-          counts = (/2*ntgexp_1_rid+1, 2, n_elements/)
+          counts = (/2*ntgrid+1, 2, n_elements/)         
           istatus = nf90_get_var (ncid, gexp_1_r_id, tmpr, start=start_pos, count=counts)
        end if
 # endif
@@ -1477,7 +1477,7 @@ contains
 #ifdef NETCDF_PARALLEL
        else
           start_pos = (/1,1,g_lo%llim_proc+1/)
-          counts = (/2*ntgexp_2_rid+1, 2, n_elements/)
+          counts = (/2*ntgrid+1, 2, n_elements/)          
           istatus = nf90_get_var (ncid, gexp_2_r_id, tmpr, start=start_pos, count=counts)
        end if
 # endif
@@ -1511,7 +1511,7 @@ contains
 #ifdef NETCDF_PARALLEL
        else
           start_pos = (/1,1,g_lo%llim_proc+1/)
-          counts = (/2*ntgexp_3_rid+1, 2, n_elements/)
+          counts = (/2*ntgrid+1, 2, n_elements/)
           istatus = nf90_get_var (ncid, gexp_3_r_id, tmpr, start=start_pos, count=counts)
        end if
 # endif
