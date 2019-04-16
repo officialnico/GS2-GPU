@@ -504,8 +504,8 @@ contains
     if (opt_init_bc) then
        write (report_unit, *) 
        write (report_unit, fmt="('################# WARNING #######################')")
-       write (report_unit, fmt="('The opt_init_bc is deprecated')")
-       write (report_unit, fmt="('it will be removed in a future version')")       
+       write (report_unit, fmt="('The opt_init_bc flag is due for removal.')")
+       write (report_unit, fmt="('It does not influence the behaviour of the code.')")       
        write (report_unit, fmt="('################# WARNING #######################')")
        write (report_unit, *)        
     endif
