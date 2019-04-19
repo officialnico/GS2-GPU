@@ -417,11 +417,12 @@ contains
       ! Initialize file utils with a run name we provide
       ! and by setting trin_run prevent it from searching
       ! the command line arguments. 
-      write(*,*) 'WARNING: Automatically initializing file_utils&
-      & in eikcoefs. This is a hack to &
-      & support older programs like eiktest. You should&
-      & initialize file utils before calling eikcoefs'
-      call init_file_utils(dummy, name='geometry_module', trin_run=.true.)
+!      write(*,*) 'WARNING: Automatically initializing file_utils&
+!      & in eikcoefs. This is a hack to &
+!      & support older programs like eiktest. You should&
+!      & initialize file utils before calling eikcoefs'
+!      call init_file_utils(dummy, name='geometry_module', trin_run=.true.)
+      call init_file_utils(dummy, name='geometry_module', trin_run=.false.)
     else
       start_file_utils = .false.
     end if
@@ -3133,7 +3134,7 @@ if (debug) write(6,*) "eikcoefs: end gradients"
     if(deq .and. leq) then
        write(*,*) 'Choosing dfit_eq = .true. AND iflux = 0 is not permitted.'
        write(*,*) 'Stopping.'
-       call mp_abort('Clash of equilibrium flags.')
+!       call mp_abort('Clash of equilibrium flags.')
     endif
 
     if(deq .and. peq) then
