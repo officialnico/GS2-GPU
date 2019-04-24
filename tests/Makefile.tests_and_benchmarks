@@ -38,7 +38,7 @@ TEST_DEPS?=$(LIBDIR)/libgs2.a $(OBJDIR)/functional_tests.o $(OBJDIR)/benchmarks.
 #We need to pass in some extra libraries in some cases so currently have
 #to wrap calls to make to ensure these get passed in. Ideally LIBS would
 #already contain this information
-MAKETESTS=$(MAKE) "LIBS=-lgs2 $(SDATIO_LINK) $(SDATIO_LIB) $(LIBS)"
+MAKETESTS=$(MAKE) "LIBS=-L$(LIBDIR) -lgs2 $(SDATIO_LINK) $(SDATIO_LIB) $(LIBS)"
 
 ifndef NO_TEST_COLOURS
 COLOUR_COMMAND=| sed -e "s/passed/[32mpassed[39m/" \
