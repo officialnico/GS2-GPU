@@ -70,7 +70,10 @@ program test_nonlinear_terms
   allocate(phi(-ntgrid:ntgrid,ntheta0,naky))
   allocate(apar(-ntgrid:ntgrid,ntheta0,naky))
   allocate(bpar(-ntgrid:ntgrid,ntheta0,naky))
-
+  g1 = 0.
+  phi = 1.
+  apar = 0.
+  bpar = 0.
   call announce_test('run nonlinear terms')
   call nonlinear_terms_tests%add_nl(g1, phi, apar, bpar)
   call process_test(.true., 'run nonlinear terms')
