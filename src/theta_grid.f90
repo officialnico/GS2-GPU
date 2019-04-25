@@ -1353,7 +1353,7 @@ contains
          equal_arc, bishop, local_eq, idfit_eq, gs2d_eq, transp_eq, &
          s_hat_input, alpha_input, invLp_input, beta_prime_input, dp_mult, &
          delrho, rmin, rmax, isym, writelots,chs_eq
-
+    
     nperiod = nperiod_in  
     alpha_input = alpmhd_in
     rhoc = rhoc_in
@@ -1374,7 +1374,8 @@ contains
     qinp = qinp_in
     s_hat_input = shat_in
     beta_prime_input = betaprim_in
-
+    invLp_input = 0. !< Arbitrary default value
+    
     itor = 1
     iflux = 0
     irho = 2
@@ -1397,6 +1398,8 @@ contains
     transp_eq = .false.
     idfit_eq = .false.
 
+    eqfile = "default_unset_value"
+    
     in_file = input_unit_exist("theta_grid_eik_knobs", exist)
     if (exist) read (unit=input_unit("theta_grid_eik_knobs"), nml=theta_grid_eik_knobs)
   end subroutine read_parameters
