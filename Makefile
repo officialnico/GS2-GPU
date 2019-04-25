@@ -197,6 +197,8 @@ NAG_LIB ?=
 NAG_PREC ?= dble
 MACRO_DEFS ?=
 
+# Makefile.local may override some options set in Makefile.$(GK_SYSTEM),
+# thus it is included before and after Makefile.$(GK_SYSTEM)
 Makefile.local: ;
 sinclude Makefile.local
 
@@ -260,9 +262,6 @@ endif
 # compile mode switches (DEBUG, TEST, PROF, OPT, STATIC, DBLE)
 # must be set before loading Makefile.$(GK_SYSTEM) because they may affect
 # compiler options.
-# However, Makefile.local may override some options set in Makefile.$(GK_SYSTEM),
-# thus it is included before and after Makefile.$(GK_SYSTEM)
-sinclude Makefile.local
 
 # include system-dependent make variables
 ifndef GK_SYSTEM
