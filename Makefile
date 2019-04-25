@@ -197,6 +197,9 @@ NAG_LIB ?=
 NAG_PREC ?= dble
 MACRO_DEFS ?=
 
+Makefile.local: ;
+sinclude Makefile.local
+
 #### directories
 
 #Record the top level path
@@ -259,7 +262,6 @@ endif
 # compiler options.
 # However, Makefile.local may override some options set in Makefile.$(GK_SYSTEM),
 # thus it is included before and after Makefile.$(GK_SYSTEM)
-Makefile.local: ;
 sinclude Makefile.local
 
 # include system-dependent make variables
