@@ -409,7 +409,7 @@ contains
   !> FIXME : Add documentation  
   subroutine init_theta_grid_salpha
     use theta_grid_params, only: init_theta_grid_params, rhoc, eps, epsl
-    use geometry, only: rhoc_geo=>rhoc
+    use geometry, only: rhoc_geo=>rhoc, surfarea
     implicit none
 
     if (initialized) return
@@ -424,6 +424,8 @@ contains
     end if
     rhoc_geo=rhoc
 
+    ! Only required for trinity interface and not yet defined in s-alpha
+    surfarea = -1.0
     call read_parameters
   end subroutine init_theta_grid_salpha
 
