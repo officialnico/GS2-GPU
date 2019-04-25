@@ -258,6 +258,8 @@ contains
        user_comments = ''
        k0 = 1.
 
+       fphi  =  1.0
+       fapar =  0.0
        fbpar = -1.0
        faperp = 0.0
 
