@@ -1,5 +1,3 @@
-# include "define.inc"
-
 !> FIXME : Add documentation
 module geq
 # ifdef NETCDF
