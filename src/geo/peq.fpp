@@ -39,8 +39,8 @@ module peq
   real, allocatable, dimension (:)     :: pressure, diam, rc, qsf, rho_b
   real, allocatable, dimension (:,:)   :: R_psi, Z_psi !, B_psi
   real, allocatable, dimension (:,:,:) :: drm, dzm, dbtm, dpm, dtm  !, dbm
-  real, allocatable, dimension (:,:,:) :: dpcart, dbcart, dtcart, dbtcart
-  real, allocatable, dimension (:,:,:) :: dpbish, dbbish, dtbish, dbtbish
+  real, allocatable, dimension (:,:,:) :: dpcart, dtcart, dbtcart
+  real, allocatable, dimension (:,:,:) :: dpbish, dtbish, dbtbish
 
   real :: psi_0, psi_a, B_T, beta_0
   real :: R_mag, Z_mag, aminor
