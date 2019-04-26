@@ -196,7 +196,7 @@ module geometry
    
   real :: dp_new, di_new
   real :: psi_0, psi_a
-  real :: B_T0, avgrmid, dvdrhon, surfarea, grho2n, drhodpsin
+  real :: B_T0, avgrmid, dvdrhon, surfarea, drhodpsin
   real :: grhoavg  ! needed for Trinity -- MAB
 
   real, dimension(3) :: rpval
