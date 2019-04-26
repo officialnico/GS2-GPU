@@ -36,21 +36,6 @@ contains
     real, intent(in) :: thShift
     integer, intent(in) :: nt_used, geoType, mMode, nMode
 
-!R0   3.1601153788426086        3.0818707511680938        1.3431053933541011
-!      0.10381317967192064        3.3317843820181277E-002   8.0267210436786265E-002
-!  0.37777777777777777        1.0000000000000000E-003  -4.6851042901036040E-002
-!   1.0642542534450539       0.32875578050587551        0.0000000000000000        0.0000000000000000                4
-!f R0   3.1601153788426086        3.0818707511680938        1.3431053933541011
-!        2.5126356633383937E-316   3.3317843820181277E-002   4.9406564584124654E-324
-!   2.5126356633383937E-316   1.0000000000000000E-003   9.1922790858218116E-317
-!   1.0642542534450539        2.3564531823208357E-310   0.0000000000000000        0.0000000000000000                4
-!f R0   3.1601153788426086        3.0818707511680938        1.3431053933541011
-!        2.2724233178454796E-316   3.3317843820181277E-002   4.9406564584124654E-324
-!   2.2724233178454796E-316   1.0000000000000000E-003   9.1922790858218116E-317   
-!   1.0642542534450539        2.3203788153401778E-310   0.0000000000000000        0.0000000000000000                4
-
-! kp, dp, r, s, qs
-    !write (*,*) 'leq inputs', R0,Ra, k, kp, d, dp, r, dr, s, qq, qs, a, ap, nt_used
     surf%geoType = geoType
     surf%Rmaj = Rmaj
     surf%Rgeo = Rgeo
@@ -150,37 +135,22 @@ contains
     call derm(Z_psi,  dzm,  'O')
     call derm(eqbtor, dbtm, 'E')
     call derm(eqpsi1, dpm,  'E')
-    
-! diagnostics
-!      do j=1,nt
-!         do i=1,nr
-!            write(*,*) i,j
-!            write(*,100) drm(i,j,1),drm(i,j,2),R_psi(i,j)
-!            write(*,101) dzm(i,j,1),dzm(i,j,2),Z_psi(i,j)
-!            write(*,102) dtm(i,j,1),dtm(i,j,2),eqth(i,j)
-!         enddo
-!      enddo
-! 100  format('(gr R)1 ',g10.4,' (gr R)2 ',g10.4,' R ',g10.4)
-! 101  format('(gr Z)1 ',g10.4,' (gr Z)2 ',g10.4,' Z ',g10.4)
-! 102  format('(gr t)1 ',g10.4,' (gr t)2 ',g10.4,' t ',g10.4)
-!      write(*,*) nr, nt
-!      stop
 
-! below is actually grad(rho) instead of grad(psi),
-! and 'cartesian' refers to (R,Z) coordinates -- MAB
-! grad(psi) in cartesian form 
+    ! below is actually grad(rho) instead of grad(psi),
+    ! and 'cartesian' refers to (R,Z) coordinates -- MAB
+    ! grad(psi) in cartesian form 
     call eqdcart(dpm, dpcart)
-! grad(psi) in Bishop form 
+    ! grad(psi) in Bishop form 
     call eqdbish(dpcart, dpbish)
 
-! grad(BT) in cartesian form
+    ! grad(BT) in cartesian form
     call eqdcart(dbtm, dbtcart)
-! grad(BT) in Bishop form
+    ! grad(BT) in Bishop form
     call eqdbish(dbtcart, dbtbish)
 
-! grad(theta) in cartesian form
+    ! grad(theta) in cartesian form
     call eqdcart(dtm, dtcart)
-! grad(theta) in Bishop form
+    ! grad(theta) in Bishop form
     call eqdbish(dtcart, dtbish)
 
   end subroutine leq_init
@@ -315,7 +285,7 @@ contains
        call eqitem(theta(i), dbish(:,:,2), grad(i,2), 'Z')
     enddo
 
-!     to get grad(pressure), multiply grad(psi) by dpressure/dpsi
+    !     to get grad(pressure), multiply grad(psi) by dpressure/dpsi
 
     if(char == 'R') then
        rpt(1) = rp
@@ -339,19 +309,19 @@ contains
     real :: tp
     real :: st, dt
     real, dimension(-nt:nt) :: mtheta
-! find r on psi mesh
+    ! find r on psi mesh
     
     istar = 2
 
-! Now do theta direction
+    ! Now do theta direction
 
     tp = mod2pi(theta_in)
 
-! get thet on theta mesh
+    ! get thet on theta mesh
 
     mtheta = (/ ( real(j)*pi/real(nt-1), j=-nt,nt) /)
   
-! note that theta(1)=0 for local_eq theta 
+    ! note that theta(1)=0 for local_eq theta 
 
     jstar=-nt-1
     do j=-nt,nt
@@ -364,7 +334,7 @@ contains
        if(jstar /= -nt-1) write(*,*) 'exit error j'
     enddo
       
-! treat theta = pi separately
+    ! treat theta = pi separately
   
     if(jstar == -nt-1) then
        jstar=nt-1
@@ -372,17 +342,12 @@ contains
        st=0.
     endif
 
-! use opposite area stencil to interpolate
+    ! use opposite area stencil to interpolate
 
     fstar=f(istar    , jstar    )  * st &
          +f(istar    , jstar + 1)  * dt
     fstar=fstar &
          /(mtheta(jstar+1)-mtheta(jstar))
-!     write(*,*) i, dr, dt, sr, st
-!     write(*,*) f(istar,jstar+1),f(istar+1,jstar+1)
-!     write(*,*) f(istar,jstar),f(istar+1,jstar)
-!     write(*,*) eqpsi(istar),eqpsi(istar+1)
-!     write(*,*) mtheta(jstar),mtheta(jstar+1)
   end subroutine eqitem
 
   !> FIXME : Add documentation  
