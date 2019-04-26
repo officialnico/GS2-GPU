@@ -1,5 +1,3 @@
-# include "define.inc"
-
 !> FIXME : Add documentation
 module gs2_save
 

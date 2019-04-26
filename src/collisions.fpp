@@ -1,5 +1,3 @@
-# include "define.inc"
-
 !> Routines for implementing the model collision operator
 !! defined by Barnes, Abel et al. 2009. The collision operator causes
 !! physically motivated smoothing of structure in velocity space which
