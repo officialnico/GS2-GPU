@@ -346,7 +346,8 @@ module geometry
   end type constant_coefficients_type
 
   type(constant_coefficients_type) :: constant_coefficients
-   
+
+  real, parameter :: invalidValue = -24680.123579 !< Used to initialise values to indicate unset
 contains
   
   !> FIXME : Add documentation    
@@ -1535,17 +1536,23 @@ if (debug) write(6,*) "eikcoefs: end gradients"
     use  eeq, only: eeq_R => Rpos
     use  deq, only: deq_R => Rpos
     use ideq, only: ideq_R => Rpos
+    use mp, only: mp_abort
     implicit none
     real, intent (in) :: r, thet
     real :: rpos
 
+    Rpos = invalidValue
+    
     if(gen_eq)  Rpos = geq_R (r, thet)       
     if(ppl_eq)  Rpos = peq_R (r, thet)       
     if(chs_eq)  Rpos = ceq_R (r, thet)       
     if(efit_eq) Rpos = eeq_R (r, thet)
     if(dfit_eq) Rpos = deq_R (r, thet)
     if(idfit_eq)Rpos = ideq_R (r, thet)
-    if(local_eq)Rpos = leq_R (r, thet)       
+    if(local_eq)Rpos = leq_R (r, thet)
+
+    if (Rpos == invalidValue) call mp_abort("Rpos not set")
+
   end function Rpos
 
   !> FIXME : Add documentation    
@@ -1557,17 +1564,22 @@ if (debug) write(6,*) "eikcoefs: end gradients"
     use  eeq, only: eeq_Z => Zpos
     use  deq, only: deq_Z => Zpos
     use ideq, only: ideq_Z => Zpos
+    use mp, only: mp_abort
     implicit none
     real, intent (in) :: r, thet
     real :: Zpos
 
+    Zpos = invalidValue
     if(gen_eq)  Zpos =  geq_Z (r, thet)       
     if(ppl_eq)  Zpos =  peq_Z (r, thet)       
     if(chs_eq)  Zpos =  ceq_Z (r, thet)       
     if(efit_eq) Zpos =  eeq_Z (r, thet)
     if(dfit_eq) Zpos =  deq_Z (r, thet)
     if(idfit_eq)Zpos = ideq_Z (r, thet)
-    if(local_eq)Zpos =  leq_Z (r, thet)       
+    if(local_eq)Zpos =  leq_Z (r, thet)
+
+    if (Zpos == invalidValue) call mp_abort("Zpos not set")
+    
   end function Zpos
 
   !> FIXME : Add documentation    
@@ -1579,10 +1591,13 @@ if (debug) write(6,*) "eikcoefs: end gradients"
     use  eeq, only: eeq_invR => invR
     use  deq, only: deq_invR => invR
     use ideq, only: ideq_invR => invR
+    use mp, only: mp_abort
     implicit none
     real, intent (in) :: r, thet
     real :: invRfun
 
+    invRfun = invalidValue
+    
     if(itor == 0) then
        invRfun=1./rmaj
     else
@@ -1594,6 +1609,9 @@ if (debug) write(6,*) "eikcoefs: end gradients"
        if(idfit_eq)invRfun = ideq_invR (r, thet)
        if(local_eq)invRfun =  leq_invR (r, thet)
     endif
+
+    if (invRfun == invalidValue) call mp_abort("invRFun not set")
+    
   end function invRfun
 
   !> FIXME : Add documentation    
@@ -1831,11 +1849,15 @@ if (debug) write(6,*) "eikcoefs: end gradients"
     use ideq,only: ideq_diameter => diameter, ideq_init_diameter => initialize_diameter
     use eeq, only: bound
     use constants, only: pi
+    use mp, only: mp_abort
     implicit none
     real, intent(in) :: rp
     integer :: i, initd = 1
     real :: diameter
     real :: broot0, brootpi
+
+    diameter = invalidValue
+    
     if(rp <= rpmin .and. .not. efit_eq) then 
        diameter = 0.
        return
@@ -1862,6 +1884,8 @@ if (debug) write(6,*) "eikcoefs: end gradients"
           diameter = rfun(rp, 0., broot0) + rfun(rp, pi, brootpi)
        endif
     endif
+
+    if (diameter == invalidValue) call mp_abort("diameter not set")    
   end function diameter
 
   !> FIXME : Add documentation  
@@ -1905,7 +1929,8 @@ if (debug) write(6,*) "eikcoefs: end gradients"
     real :: rpofrho
     real :: a, b, xerrbi, xerrsec, fval, soln
     integer :: nsolv,ier
-    
+
+    ier = 123456 ! Default to indicating error
     a=rpmin
     b=rpmax
     xerrbi=1.e-4
@@ -1924,7 +1949,7 @@ if (debug) write(6,*) "eikcoefs: end gradients"
        fval=rho*rhofun(b)
        call root(rhofun, fval, a, b, xerrbi, xerrsec, nsolv, ier, soln)
     endif
-    !<EGH
+
     if (debug) then 
        write (*,*) "Values in root: "
        write (*,*) 'rho:  ', rho
@@ -1933,7 +1958,7 @@ if (debug) write(6,*) "eikcoefs: end gradients"
        write (*,*) 'rpmin: ', rpmin
        write (*,*) 'rpmax: ', rpmax
     end if
-    !EGH>
+
     rpofrho=soln
     if(ier > 0) write(fort11_unit,*) 'error in rpofrho,rho=',rho
   end function rpofrho
@@ -2065,16 +2090,21 @@ if (debug) write(6,*) "eikcoefs: end gradients"
     use ceq, only: ceq_iofpbar => btori
     use eeq, only: eeq_iofpbar => btori
     use leq, only: leq_i => btori
+    use mp, only: mp_abort
     implicit none
     real, intent (in) :: rho    
     real :: iofrho
-            
+
+    iofrho = invalidValue
+    
     if (gen_eq) iofrho = geq_iofpbar(pbarofrho(rho))
     if (ppl_eq) iofrho = peq_iofpbar(pbarofrho(rho))
     if (chs_eq) iofrho = ceq_iofpbar(pbarofrho(rho))
     if(efit_eq) iofrho = eeq_iofpbar(pbarofrho(rho))
     if(dfit_eq) iofrho = 0.
     if(local_eq) iofrho = leq_i()
+
+    if (iofrho == invalidValue) call mp_abort("iofrho not set")
   end function iofrho
 
   subroutine integrate(arg, grid, ans, n)
@@ -2129,15 +2159,13 @@ if (debug) write(6,*) "eikcoefs: end gradients"
     use ceq, only: ceq_qfun => qfun, chs_init_q => initialize_q
     use eeq, only: eeq_qfun => qfun, efit_init_q => initialize_q
     use leq, only: leq_qfun => qfun
+    use mp, only: mp_abort
     implicit none
     real, intent(in) :: pbar
     real :: qfun
     integer :: i, initq = 1
     
-!    if(in_nt .and. iflux == 1) then
-!       write(*,*) 'qfun not update in nt.'
-!stop
-!endif
+    qfun = invalidValue
     
     if(iflux == 0 .or. iflux == 2) then
        qfun=leq_qfun()
@@ -2163,6 +2191,9 @@ if (debug) write(6,*) "eikcoefs: end gradients"
     endif
 
     if(initq == 1) initq = 0
+
+    if (qfun == invalidValue) call mp_abort("qfun not set")
+    
   end function qfun
 
   !> FIXME : Add documentation    
@@ -2174,12 +2205,15 @@ if (debug) write(6,*) "eikcoefs: end gradients"
     use  deq, only: deq_pfun => pfun, dfit_init_pressure => initialize_pressure
     use ideq, only: ideq_pfun => pfun, idfit_init_pressure => initialize_pressure
     use  leq, only: leq_pfun => pfun
+    use mp, only: mp_abort
     implicit none
     real, intent (in) :: r, thet
     real :: pfun
     real :: pbar, f
     integer :: i, initp = 1
 
+    pfun = invalidValue
+    
     if(iflux /= 1) then
        pfun=leq_pfun() 
        return
@@ -2211,6 +2245,9 @@ if (debug) write(6,*) "eikcoefs: end gradients"
     endif
 
     if(initp == 1) initp = 0
+
+    if (pfun == invalidValue) call mp_abort("pfun not set")
+
   end function pfun
 
   !> FIXME : Add documentation    
@@ -2222,12 +2259,15 @@ if (debug) write(6,*) "eikcoefs: end gradients"
     use  deq, only: deq_dpfun => dpfun, dfit_init_dpressure => initialize_dpressure
     use ideq, only: ideq_dpfun => dpfun, idfit_init_dpressure => initialize_dpressure
     use  leq, only: leq_dpfun => dpfun
+    use mp, only: mp_abort
     implicit none
     real, intent (in) :: r, thet
     real :: dpfun
     real :: pbar, f
     integer :: i, initdp = 1
 
+    dpfun = invalidValue
+    
     if(iflux /= 1) then
        dpfun=leq_dpfun() 
        return
@@ -2252,6 +2292,9 @@ if (debug) write(6,*) "eikcoefs: end gradients"
     if(efit_eq)  dpfun = eeq_dpfun(pbar)
     if(dfit_eq)  dpfun = deq_dpfun(pbar)
     if(idfit_eq) dpfun = ideq_dpfun(pbar)
+
+    if (dpfun == invalidValue) call mp_abort("dpfun not set")
+    
   end function dpfun
 
   !> FIXME : Add documentation    
@@ -2436,11 +2479,14 @@ if (debug) write(6,*) "eikcoefs: end gradients"
     use  deq, only: deq_psi => psi, dfit_init_psi => initialize_psi
     use ideq, only: ideq_psi => psi, idfit_init_psi => initialize_psi
     use  leq, only: leq_psi => psi
+    use mp, only: mp_abort
     implicit none
     real, intent (in) :: r, thet
     real :: psi    
     integer :: init = 1, i
-     
+
+    psi = invalidValue
+    
     if(r == 0.) then
        psi=psi_0
        return
@@ -2477,6 +2523,9 @@ if (debug) write(6,*) "eikcoefs: end gradients"
     endif
 
     init = 0
+
+    if (psi == invalidValue) call mp_abort("psi not set")
+    
   end function psi
 
   !> FIXME : Add documentation    
