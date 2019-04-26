@@ -2,7 +2,7 @@
 module gs2d
   private
 
-  public :: read_gs2d, psi, b0, f, ippsi, nr, nz, p, ps
+  public :: write_gs2d, read_gs2d, psi, b0, f, ippsi, nr, nz, p, ps
   public :: psip, psmin, q, r0, rgrid, rmag, rsep, zgrid, zmag, zsep
 
   real, dimension(:), allocatable :: ps,amin_gs2d,q,f,p,pp
