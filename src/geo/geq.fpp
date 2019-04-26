@@ -77,8 +77,6 @@ contains
     !
     ! what is the best way to handle the netcdf single/double problem?
     !
-!    real*4, allocatable, dimension(:) :: workr, work
-!    real*4 :: work1    
     real :: f_N, psi_N
 
     !     read the data
@@ -91,14 +89,12 @@ contains
 
        nchar=index(eqfile,' ')-1
        filename=eqfile(1:nchar)
-!       filename=trim(eqfile) ?
     else
        filename='dskeq.cdf'
     endif
 
 # ifdef NETCDF
     !     netcdf open file         
-!    ncid = ncopn (filename, NCNOWRIT, ifail)
     istatus = nf90_open(filename, NF90_NOWRITE, ncid)
     if (istatus /= NF90_NOERR) call netcdf_error (istatus, file=filename)
 
@@ -106,8 +102,6 @@ contains
     !
     !     nr == number of radial grid points in radial eq grid
 
-!    id = ncdid (ncid, 'psi', ifail)
-!    call ncdinq (ncid, id, fortrancrap, nr, ifail)
     istatus = nf90_inq_dimid (ncid, 'psi', id)
     if (istatus /= NF90_NOERR) call netcdf_error (istatus, dim='psi')
 
@@ -118,14 +112,11 @@ contains
     !
     !     nt == number of theta grid points in theta eq grid
 
-!    id = ncdid (ncid, 'theta', ifail)
-!    call ncdinq (ncid, id, fortrancrap, nt, ifail)
     istatus = nf90_inq_dimid (ncid, 'theta', id)
     if (istatus /= NF90_NOERR) call netcdf_error (istatus, dim='theta')
     istatus = nf90_inquire_dimension (ncid, id, len=nt)
     if (istatus /= NF90_NOERR) call netcdf_error (istatus, ncid, dimid=id)
 
-!    write (*,*) nr, nt
     call alloc_arrays(nr, nt)
 
     !     netcdf read scalars: psi_0,psi_a,B_T,I_0
@@ -135,37 +126,24 @@ contains
     !     B_T == vacuum toroidal magnetic field at R_center
     !     I_0 == total plasma current
 
-!    start(1) = 1
-!    id = ncvid (ncid, 'psi_0', ifail)
-!    call ncvgt1 (ncid, id, start, work1, ifail)
-!    psi_0 = work1*1.e-8
     istatus = nf90_inq_varid (ncid, 'psi_0', id)
     if (istatus /= NF90_NOERR) call netcdf_error (istatus, var='psi_0')
     istatus = nf90_get_var (ncid, id, psi_0)
     if (istatus /= NF90_NOERR) call netcdf_error (istatus, ncid, id)
     psi_0 = psi_0*1.e-8
 
-!    id = ncvid (ncid, 'psi_a', ifail)
-!    call ncvgt1 (ncid, id, start, work1, ifail)
-!    psi_a = work1*1.e-8
     istatus = nf90_inq_varid (ncid, 'psi_a', id)
     if (istatus /= NF90_NOERR) call netcdf_error (istatus, var='psi_a')
     istatus = nf90_get_var (ncid, id, psi_a)
     if (istatus /= NF90_NOERR) call netcdf_error (istatus, ncid, id)
     psi_a = psi_a*1.e-8
 
-!    id = ncvid (ncid, 'B_T', ifail)
-!    call ncvgt1 (ncid, id, start, work1, ifail)
-!    B_T = work1*1.e-4  ! cgs to MKS
     istatus = nf90_inq_varid (ncid, 'B_T', id)
     if (istatus /= NF90_NOERR) call netcdf_error (istatus, var='B_T')
     istatus = nf90_get_var (ncid, id, B_T)
     if (istatus /= NF90_NOERR) call netcdf_error (istatus, ncid, id)
     B_T = B_T*1.e-4  ! cgs to MKS
     
-!    id = ncvid (ncid, 'I_0', ifail)
-!    call ncvgt1 (ncid, id, start, work1, ifail)
-!    I_0 = work1
     istatus = nf90_inq_varid (ncid, 'I_0', id)
     if (istatus /= NF90_NOERR) call netcdf_error (istatus, var='I_0')
     istatus = nf90_get_var (ncid, id, I_0)
@@ -177,27 +155,18 @@ contains
     !     Z_mag == Z position of magnetic axis
     !     aminor    == half diameter of last flux surface at elevation of Z_mag
 
-!    id = ncvid (ncid, 'Rmag', ifail)
-!    call ncvgt1 (ncid, id, start, work1, ifail)
-!    R_mag = work1/100.
     istatus = nf90_inq_varid (ncid, 'Rmag', id)
     if (istatus /= NF90_NOERR) call netcdf_error (istatus, var='Rmag')
     istatus = nf90_get_var (ncid, id, R_mag)
     if (istatus /= NF90_NOERR) call netcdf_error (istatus, ncid, id)
     R_mag = R_mag/100.
 
-!    id = ncvid (ncid, 'Zmag', ifail)
-!    call ncvgt1 (ncid, id, start, work1, ifail)
-!    Z_mag = work1/100.
     istatus = nf90_inq_varid (ncid, 'Zmag', id)
     if (istatus /= NF90_NOERR) call netcdf_error (istatus, var='Zmag')
     istatus = nf90_get_var (ncid, id, Z_mag)
     if (istatus /= NF90_NOERR) call netcdf_error (istatus, ncid, id)
     Z_mag = Z_mag/100.
 
-!    id = ncvid (ncid, 'a', ifail)
-!    call ncvgt1 (ncid, id, start, work1, ifail)
-!    aminor = work1/100.
     istatus = nf90_inq_varid (ncid, 'a', id)
     if (istatus /= NF90_NOERR) call netcdf_error (istatus, var='a')
     istatus = nf90_get_var (ncid, id, aminor)
@@ -220,56 +189,33 @@ contains
     !     pressure(1:nr) == pressure profile on the radial grid,
     !     normalized to the value at the magnetic axis.     
 
-!    allocate(workr(nr))
-!    workr = 0.
-!    start(1) = 1
-!    cnt(1) = nr
-
-!    id = ncvid (ncid, 'rho', ifail)
-!    call ncvgt (ncid, id, start, cnt, workr, ifail)
-!    rho_d = workr
     istatus = nf90_inq_varid (ncid, 'rho', id)
     if (istatus /= NF90_NOERR) call netcdf_error (istatus, var='rho')
     istatus = nf90_get_var (ncid, id, rho_d)
     if (istatus /= NF90_NOERR) call netcdf_error (istatus, ncid, id)
 
-!    id = ncvid (ncid, 'psi', ifail)
-!    call ncvgt (ncid, id, start, cnt, workr, ifail)
-!    eqpsi = workr*1.e-8
     istatus = nf90_inq_varid (ncid, 'psi', id)
     if (istatus /= NF90_NOERR) call netcdf_error (istatus, var='psi')
     istatus = nf90_get_var (ncid, id, eqpsi)
     if (istatus /= NF90_NOERR) call netcdf_error (istatus, ncid, id)
     eqpsi = eqpsi*1.e-8
 
-!    id = ncvid (ncid, 'psibar', ifail)
-!    call ncvgt (ncid, id, start, cnt, workr, ifail)
-!    psi_bar = workr
     istatus = nf90_inq_varid (ncid, 'psibar', id)
     if (istatus /= NF90_NOERR) call netcdf_error (istatus, var='psibar')
     istatus = nf90_get_var (ncid, id, psi_bar)
     if (istatus /= NF90_NOERR) call netcdf_error (istatus, ncid, id)
 
-!    id = ncvid (ncid, 'fp', ifail)
-!    call ncvgt (ncid, id, start, cnt, workr, ifail)
-!    fp = workr*1.e-6
     istatus = nf90_inq_varid (ncid, 'fp', id)
     if (istatus /= NF90_NOERR) call netcdf_error (istatus, var='fp')
     istatus = nf90_get_var (ncid, id, fp)
     if (istatus /= NF90_NOERR) call netcdf_error (istatus, ncid, id)
     fp = fp*1.e-6
 
-!    id = ncvid (ncid, 'q', ifail)
-!    call ncvgt (ncid, id, start, cnt, workr, ifail)
-!    qsf = workr
     istatus = nf90_inq_varid (ncid, 'q', id)
     if (istatus /= NF90_NOERR) call netcdf_error (istatus, var='q')
     istatus = nf90_get_var (ncid, id, qsf)
     if (istatus /= NF90_NOERR) call netcdf_error (istatus, ncid, id)
 
-!    id = ncvid (ncid, 'beta', ifail)
-!    call ncvgt (ncid, id, start, cnt, workr, ifail)
-!    beta = workr
     istatus = nf90_inq_varid (ncid, 'beta', id)
     if (istatus /= NF90_NOERR) call netcdf_error (istatus, var='beta')
     istatus = nf90_get_var (ncid, id, beta)
@@ -277,9 +223,6 @@ contains
 
     beta_0 = beta(1)
 
-!    id = ncvid (ncid, 'pressure', ifail)
-!    call ncvgt (ncid, id, start, cnt, workr, ifail)       
-!    pressure = workr 
     istatus = nf90_inq_varid (ncid, 'pressure', id)
     if (istatus /= NF90_NOERR) call netcdf_error (istatus, var='pressure')
     istatus = nf90_get_var (ncid, id, pressure)
@@ -292,63 +235,26 @@ contains
     !     eq_Bpsi(1:nr, 1:nt)
     !         
 
-!    allocate(work(nr*nt))
-!    start(1) = 1
-!    start(2) = 1
-!    cnt(1) = nr
-!    cnt(2) = nt
-
-!    id = ncvid (ncid, 'R_psi', ifail)
-!    call ncvgt (ncid, id, start, cnt, work, ifail)
-!    do j=1,nt
-!       do i=1,nr
-!          R_psi(i,j) = work(1+i-1+nr*(j-1))/100./aminor
-!       enddo
-!    enddo
-
     istatus = nf90_inq_varid (ncid, 'R_psi', id)
     if (istatus /= NF90_NOERR) call netcdf_error (istatus, var='R_psi')
     istatus = nf90_get_var (ncid, id, R_psi, count=(/ nr, nt /))
     if (istatus /= NF90_NOERR) call netcdf_error (istatus, ncid, id)
     R_psi(1:nr,1:nt)=R_psi(1:nr,1:nt)/100./aminor
 
-!    cnt(1) = nr
-!    cnt(2) = nt
-!    id = ncvid (ncid, 'Z_psi', ifail)
-!    call ncvgt (ncid, id, start, cnt, work, ifail)
-!    do j=1,nt
-!       do i=1,nr
-!          Z_psi(i,j) = work(1+i-1+nr*(j-1))/100./aminor
-!       enddo
-!    enddo
     istatus = nf90_inq_varid (ncid, 'Z_psi', id)
     if (istatus /= NF90_NOERR) call netcdf_error (istatus, var='Z_psi')
     istatus = nf90_get_var (ncid, id, Z_psi, count=(/ nr, nt /))
     if (istatus /= NF90_NOERR) call netcdf_error (istatus, ncid, id)
     Z_psi(1:nr,1:nt)=Z_psi(1:nr,1:nt)/100./aminor
 
-!    cnt(1) = nr
-!    cnt(2) = nt
-!    id = ncvid (ncid, 'B_psi', ifail)
-!    call ncvgt (ncid, id, start, cnt, work, ifail)
-!    do j=1,nt
-!       do i=1,nr
-!          B_psi(i,j) = work(1+i-1+nr*(j-1))/B_T*1.e-4
-!       enddo
-!    enddo
     istatus = nf90_inq_varid (ncid, 'B_psi', id)
     if (istatus /= NF90_NOERR) call netcdf_error (istatus, var='B_psi')
     istatus = nf90_get_var (ncid, id, B_psi, count=(/ nr, nt /))
     if (istatus /= NF90_NOERR) call netcdf_error (istatus, ncid, id)
     B_psi(1:nr,1:nt) = B_psi(1:nr,1:nt)/B_T*1.e-4
 
-!    call ncclos (ncid, ifail)
     istatus = nf90_close (ncid)
     if (istatus /= NF90_NOERR) call netcdf_error (istatus)
-
- !   deallocate(work,workr)
-
-    !    endif   ! end of external reads
 
     !
     !     Normalize, rename quantities 
@@ -418,7 +324,6 @@ contains
        do i=1,nr
           eqbtor(i,j) = fp(i)/R_psi(i,j)
           eqpsi1(i,j) = eqpsi(i)
-!          eqth(i,j) = (j-1)*pi/float(nt-1)
           eqth(i,j) = (j-1)*pi/real(nt-1)
        enddo
     enddo
@@ -429,22 +334,6 @@ contains
     call derm(B_psi,  dbm,  'E')
     call derm(eqbtor, dbtm, 'E')
     call derm(eqpsi1, dpm,  'E')
-
-
-    ! diagnostics
-    !      do j=1,nt
-    !         do i=1,nr
-    !            write(*,*) i,j
-    !            write(*,100) drm(i,j,1),drm(i,j,2),R_psi(i,j)
-    !            write(*,101) dzm(i,j,1),dzm(i,j,2),Z_psi(i,j)
-    !            write(*,102) dzm(i,j,1),dtm(i,j,2),eqth(i,j)
-    !         enddo
-    !      enddo
-    ! 100  format('(gr R)1 ',g10.4,' (gr R)2 ',g10.4,' R ',g10.4)
-    ! 101  format('(gr Z)1 ',g10.4,' (gr Z)2 ',g10.4,' Z ',g10.4)
-    ! 102  format('(gr t)1 ',g10.4,' (gr t)2 ',g10.4,' t ',g10.4)
-    !      write(*,*) nr, nt
-    !      call mp_abort('')
 
     ! grad(psi) in cartesian form 
     call eqdcart(dpm, dpcart)    
@@ -465,12 +354,6 @@ contains
     call eqdcart(dtm, dtcart)
     ! grad(theta) in Bishop form
     call eqdbish(dtcart, dtbish)
-
-    ! diagnostics
-    !      call inter_cspl(nr, eqpsi,dpcart(1,1,1),1,rp,f)
-    !      write(*,*) f
-    !      call inter_cspl(nr, eqpsi,dpcart(1,1,2),1,rp,f)
-    !      write(*,*) f
   end subroutine geq_init
 
   !> FIXME : Add documentation    
@@ -668,7 +551,6 @@ contains
 
     ! disallow evaluations outside the plasma surface for now
 
-    !!! RN: Isn't r intent=in?
     if(r == eqpsi(nr)) then
        rt = 0.9999999999*r
        if(rt > eqpsi(nr)) rt = 1.0000000001*r
@@ -691,14 +573,6 @@ contains
        endif
     enddo
 
-    ! no gradients available at axis, so do not get too close
-
-    if(istar == 1) then
-       !       write(*,*) 'Too close to axis in eqitem'
-       !       write(*,*) r, theta_in, eqpsi(1), eqpsi(2)
-       !       call mp_abort('Too close to axis in eqitem')
-    endif
-
     ! Now do theta direction
 
     thet = mod2pi(theta_in)
@@ -712,7 +586,6 @@ contains
     ! get thet on theta mesh
 
     do j=1,nt
-!       mtheta(j)=(j-1)*pi/float(nt-1)
        mtheta(j)=(j-1)*pi/real(nt-1)
     enddo
 
@@ -737,9 +610,6 @@ contains
     endif
 
     ! use opposite area stencil to interpolate
-
-    !    if(char == 'R') i=1
-    !    if(char == 'Z') i=2
     fstar=f(istar    , jstar    ) * sr * st &
          +f(istar + 1, jstar    ) * dr * st &
          +f(istar    , jstar + 1) * sr * dt &
@@ -747,11 +617,6 @@ contains
     fstar=fstar*tps &
          /abs(eqpsi(istar+1)-eqpsi(istar)) &
          /(mtheta(jstar+1)-mtheta(jstar))
-    !     write(*,*) i, dr, dt, sr, st
-    !     write(*,*) f(istar,jstar+1),f(istar+1,jstar+1)
-    !     write(*,*) f(istar,jstar),f(istar+1,jstar)
-    !     write(*,*) eqpsi(istar),eqpsi(istar+1)
-    !     write(*,*) mtheta(jstar),mtheta(jstar+1)
   end subroutine eqitem
 
   !> FIXME : Add documentation    
@@ -763,9 +628,6 @@ contains
     integer :: i, j
 
     denom(:,:) = drm(:,:,1)*dzm(:,:,2) - drm(:,:,2)*dzm(:,:,1)
-
-!!!
-    !    dfcart = 0.
 
     dfcart(:,:,1) =   dfm(:,:,1)*dzm(:,:,2) - dzm(:,:,1)*dfm(:,:,2)
     dfcart(:,:,2) = - dfm(:,:,1)*drm(:,:,2) + drm(:,:,1)*dfm(:,:,2)
