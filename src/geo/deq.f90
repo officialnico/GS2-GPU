@@ -24,7 +24,7 @@ module deq
   real, allocatable, dimension (:) :: psi_bar, fp, qsf, pressure, beta, spsi_bar
   real, allocatable, dimension (:) :: dummy, dfit_R, dfit_Z, sdfit_R, sdfit_Z
   real, allocatable, dimension (:) :: rho_mid, psi_mid
-  real, allocatable, dimension (:,:) :: dfit_psi, sdfit_psi
+  real, allocatable, dimension (:,:) :: dfit_psi
   real, allocatable, dimension (:,:,:) :: dpm, dtm
   real, allocatable, dimension (:) :: rbbbs, zbbbs, thetab, r_bound !boundary of plasma
 
