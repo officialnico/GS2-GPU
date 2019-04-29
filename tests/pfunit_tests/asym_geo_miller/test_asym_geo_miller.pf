@@ -1,0 +1,153 @@
+module test_asym_geo_miller_mod
+  use PFUNIT_MOD
+  implicit none
+  
+  integer, parameter :: grid_size = 33 !! Theta-grid size
+
+contains
+
+  !>  Calculates several geometric coefficients from the generalized
+  !!  Miller flux surface specification to verify that they have not
+  !!  changed.
+  @test(npes=[1])
+  subroutine test_asym_geo_miller(this)
+    use theta_grid, only: bmag, grho, gbdrift, cvdrift, gds2, gds21
+    use file_utils, only: init_file_utils, finish_file_utils
+    use theta_grid, only : init_theta_grid, finish_theta_grid, theta
+    use mp, only : init_mp, proc0
+
+    class(MPITestMethod), intent(inout) :: this
+
+    logical :: dummy
+    real, parameter :: previous_theta(grid_size) = [ &
+         -3.14159265358979, -2.97594459719933, -2.85073726519902, &
+         -2.72853682453103, -2.60980530472059, -2.38010497482605, &
+         -2.15984494934298, -1.94567889369262, -1.73538518182181, &
+         -1.52684198548675, -1.37095504545554, -1.2149120143528, &
+         -1.00530512671691, -0.790644314389682, -0.565215038408503, &
+         -0.384918896303878, -0.257895879552839, -0.130899693899575, &
+         0.0654498469497874, 0.327249234748937, 0.589048622548086, &
+         0.850848010347236, 1.0471975511966, 1.24354709204596, &
+         1.50534647984511, 1.76714586764426, 2.0291349586737, &
+         2.29074464324256, 2.55254403104171, 2.68344372494128, &
+         2.81434341884086, 2.94524311274043, 3.14159265358979 ]
+    real, parameter :: previous_Bmag(grid_size) = [ &
+         1.33635293795397, 1.33099298605246, 1.3208382604873, &
+         1.30611183977309, 1.28747670894275, 1.24134318228424, &
+         1.18813663296922, 1.13242253596807, 1.07791588926715, &
+         1.02730267223936, 0.99314465209834, 0.96291268928643, &
+         0.929288388168257, 0.903719992907863, 0.886650771022432, &
+         0.879908821295329, 0.878602935681074, 0.879908821295329, &
+         0.886650771022432, 0.903719992907863, 0.929288388168257, &
+         0.962912689286433, 0.993144652098344, 1.02730267223936,  &
+         1.07791588926715, 1.13242253596807, 1.18813663296922, &
+         1.24134318228424, 1.28747670894275, 1.30611183977309, &
+         1.32083826048736, 1.33099298605246, 1.33635293795397 ]
+    real, parameter :: previous_grho(grid_size) = [ &
+         0.667160314205449, 0.622453410657498, 0.602899024411932, &
+         0.599142857131351, 0.611574280834602, 0.672518190265384, &
+         0.758016862439057, 0.846773772079592, 0.927113987252141, &
+         0.993589597835576, 1.03276991427162, 1.06254403390402,  &
+         1.08915559841928, 1.10451464927511, 1.11239887596248, &
+         1.11250687629734, 1.10731572604846, 1.09620267112108, &
+         1.06430465152906, 0.99522595215316, 0.91284297136964, &
+         0.846435645844334, 0.824093762206988, 0.828268665219625, &
+         0.859902010868401, 0.893632206020437, 0.907480262096228, &
+         0.892513933879149, 0.847424295358233, 0.814398370817557, &
+         0.775431910758813, 0.732696031393377, 0.667160314205449 ]
+    real, parameter :: previous_gbdrift(grid_size) = [ &
+         -1.22026576022393, -0.90357523118211, -0.71598605403796, &
+         -0.567381993978907, -0.439741221931316, -0.255744871661724, &
+         -0.124708414671471, -0.00058249117964475, 0.123608710922522,  &
+         0.240518645458633, 0.318060592907738, 0.383609438669541, &
+         0.449547484612142, 0.490415189625785, 0.509141238388929, &
+         0.512174058841872, 0.510695941276762, 0.50756376800829, &
+         0.501666383275845, 0.496378611835425, 0.49665420689191, &
+         0.494154068044408, 0.475761744403759, 0.43218042831176, &
+         0.32640137154253, 0.16763130891599, -0.029329724386237, &
+         -0.250499996166318, -0.49412729371684, -0.62868335890139, &
+         -0.768678318970532, -0.932256763916757, -1.2737999061093 ]
+    real, parameter :: previous_cvdrift(grid_size) = [ &
+         -1.18536683564224, -0.86992328858315, -0.68208438750284, &
+         -0.532544851605555, -0.403847604859617, -0.217162192271672, &
+         -0.0826642473409987, 0.0456852732459802, 0.174737581937518, &
+         0.296934311836471, 0.378545526109623, 0.448092082838868, &
+         0.518955527557727, 0.563890422179597, 0.585414837300507, &
+         0.589520590774497, 0.588208335794617, 0.58480844051307, &
+         0.577675433597027, 0.5694188058172, 0.56573947962056, &
+         0.558670802517906, 0.536537762078167, 0.48898979810806, &
+         0.377880215653248, 0.214167933201222, 0.012887838219454, &
+         -0.211852683090303, -0.458210460088527, -0.59374749297421, &
+         -0.734620521378639, -0.898636216162353, -1.2389009815924 ]
+    real, parameter :: previous_gds2(grid_size) = [ &
+         14.6622031752583, 10.8127164989928, 8.53346330670264, &
+         6.79130175992707, 5.40912406372689, 3.51112002926702, &
+         2.41545202039911, 1.74924318137651, 1.32640260823814, &
+         1.06051005261671, 0.930431128403171, 0.838444251569858, &
+         0.750231510712446, 0.684927220648682, 0.63999108702712, &
+         0.624560076602478, 0.626459273255338, 0.640175550331027, &
+         0.688370233068644, 0.815677312595317, 1.03775018073447, &
+         1.38814490543868, 1.74322890827708, 2.1561337867837, &
+         2.70954090244443, 3.12969183361711, 3.35954589888537, &
+         3.49820732874776, 3.74474098629792, 4.00201179157527, &
+         4.35535153947453, 4.96360102477642, 6.76079200396937 ]
+    real, parameter :: previous_gds21(grid_size) = [ &
+         2.44236017138935, 1.77974713495525, 1.34904900141465, &
+         0.995579802561283, 0.71327093531472, 0.311117444895333, &
+         0.0920218878086749, 0.0171273876293668, 0.0370579437321012, &
+         0.100623772863893, 0.149674688180077, 0.183450087633031, &
+         0.191119417450097, 0.155549817028141, 0.0937499641579587, &
+         0.0474497484950457, 0.0237179999240448, 0.00858178266280109, &
+         -0.00304635627853939, -0.0285080244269559, -0.11894187448759, &
+         -0.306855334356314, -0.508135577805063, -0.742719995445783, &
+         -1.04925035380732, -1.26337909556127, -1.33491363123388, &
+         -1.28254183201944, -1.17094143759241, -1.12059091765804, &
+         -1.08876836578566, -1.09175040324748, -1.18481152607719 ]
+
+    real, dimension(grid_size) :: new_bmag, new_grho, new_gbdrift, new_cvdrift, new_gds2, new_gds21
+
+    call init_mp(this%getMpiCommunicator())
+    if (proc0) then
+      ! This is very fragile! Assumes executable is called from top-level directory
+      ! FIXME: initialise relevant modules with parameters directly
+      call init_file_utils(dummy, .true., .true., .false., 'tests/pfunit_tests/asym_geo_miller/local')
+    end if
+    call init_theta_grid
+
+    new_bmag = interpolate(bmag, previous_theta, theta)
+    new_grho = interpolate(grho, previous_theta, theta)
+    new_gbdrift = interpolate(gbdrift, previous_theta, theta)
+    new_cvdrift = interpolate(cvdrift, previous_theta, theta)
+    new_gds2 = interpolate(gds2, previous_theta, theta)
+    new_gds21 = interpolate(gds21, previous_theta, theta)
+
+    if (proc0) call finish_file_utils
+    call finish_theta_grid
+
+    @assertEqual(new_bmag, previous_Bmag, tolerance=1.e-8, message="Bmag")
+    @assertEqual(new_grho, previous_grho, tolerance=1.e-8, message="grho")
+    @assertEqual(new_gbdrift, previous_gbdrift, tolerance=1.e-8, message="gbdrift")
+    @assertEqual(new_cvdrift, previous_cvdrift, tolerance=1.e-8, message="cvdrift")
+    @assertEqual(new_gds2, previous_gds2, tolerance=1.e-8, message="gds2")
+    @assertEqual(new_gds21, previous_gds21, tolerance=1.e-8, message="gds21")
+
+  end subroutine test_asym_geo_miller
+
+  !> Interpolate `var` from `new_theta` onto `old_theta`
+  function interpolate(var, old_theta, new_theta)
+    use splines, only : new_spline, splint, delete_spline, spline_type => spline
+    real, dimension(grid_size), intent(in) :: var       !! The variable to spline
+    real, dimension(grid_size), intent(in) :: old_theta !! The old theta grid
+    real, dimension(grid_size), intent(in) :: new_theta !! The new theta grid
+    real, dimension(grid_size) :: interpolate
+    type(spline_type) :: spline
+    integer :: i
+
+    call new_spline(size(var), new_theta, var, spline)
+    do i = 1, grid_size
+      interpolate(i) = splint(old_theta(i), spline)
+    end do
+    call delete_spline(spline)
+  end function interpolate
+
+end module test_asym_geo_miller_mod
