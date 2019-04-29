@@ -23,8 +23,44 @@ module leq
 
   !> FIXME : Add documentation  
   type :: flux_surface
-     real :: Rmaj, Rgeo, r, dr, aSurf, sHorz, sVert, delm, deln, delmp, delnp, thm, thn, q, shat
-     integer :: nt, geoType, mMode, nMode
+     !> Flux surface major radius, $R_{0N}$, input variable: `Rmaj`
+     real :: Rmaj
+     !> Location of reference magnetic field, $R_{geoN}$, input variable: `R_geo`
+     real :: Rgeo
+     !> Minor radius, $r_{\psi N}$, input variable: `rhoc`
+     real :: r
+     !> Step size for radial derivatives, $\Delta r_{\psi N}$, input variable: `delrho`
+     real :: dr
+     !> Minor radius of shaping surface, $a_{\psi N}$, input variable: `aSurf`
+     real :: aSurf
+     !> Horizontal Shafranov shift, $dR_{0N}/dr_{\psi N}$, input variable: `shift`, `Raxis`
+     real :: sHorz
+     !> Veritcal Shafranov shift, $dZ_{0N}/dr_{\psi N}$, input variable: `shiftVert`, `Zaxis`
+     real :: sVert
+     !> First shaping mode strength, $\Delta_m$, input variable: `akappa`, `delta2`, `deltam`
+     real :: delm
+     !> Second shaping mode strength, $\Delta_n$, input variable: `tri`, `delta3`, `deltan`
+     real :: deln
+     !> First shaping mode derivative, $d\Delta_m/dr_{\psi N}$, input variable: `akappri`, `deltampri`
+     real :: delmp
+     !> Second shaping mode derivative, $d\Delta_n/dr_{\psi N}$, input variable: `tripri`, `deltanpri`
+     real :: delnp
+     !> First shaping mode tilt angle, $\theta_m$, input variable: `thetak`, `theta2`, `thetam`
+     real :: thm
+     !> Second shaping mode tilt angle, $\theta_n$, input variable: `thetad`, `theta2`, `thetan`
+     real :: thn
+     !> Safety factor, $q$, input variable: `qinp`
+     real :: q
+     !> Magnetic shear, $\hat{s}$, input variable: `s_hat_input`
+     real :: shat
+     !> Number of points in theta, input variable: `ntheta(nperiod - 1/2)`
+     integer :: nt
+     !> Geometry specification type, input variable: `geoType`
+     integer :: geoType
+     !> The first poloidal mode number, input variable: `mMode`
+     integer :: mMode
+     !> The second poloidal mode number, input variable: `nMode`
+     integer :: nMode
   end type flux_surface
 
   type (flux_surface) :: surf
