@@ -630,37 +630,29 @@ contains
     psi = r - surf%r
   end function psi
 
-  !> FIXME : Add documentation  
+  !> Put `theta` into the range `[-pi, pi]`
+  !!
+  !! This version also sets `theta == +(-)pi +(-) theta_tol` to be
+  !! exactly `+(-)pi`, where `theta_tol == 1.e-6`
+  !!
+  !! General purpose, could be moved into utils? Could also drop the
+  !! tolerance?
   function mod2pi (theta)
-    use constants, only: pi=>pi
-    implicit none
+    use constants, only: pi
     real, intent(in) :: theta
-    real :: th, mod2pi
+    real :: mod2pi
     real, parameter :: theta_tol = 1.e-6
-    logical :: out
     if(theta <= pi .and. theta >= -pi) then
-       mod2pi = theta
-       return
+      mod2pi = theta
+      return
+    else if(theta - theta_tol <= pi .and. theta >= -pi) then
+      mod2pi = pi
+      return
+    else if(theta <= pi .and. theta + theta_tol >= -pi) then
+      mod2pi = -pi
+      return
     endif
-    
-    if(theta - theta_tol <= pi .and. theta >= -pi) then
-       mod2pi = pi
-       return
-    endif
-
-    if(theta <= pi .and. theta + theta_tol >= -pi) then
-       mod2pi = -pi
-       return
-    endif
-
-    th=theta
-    out=.true.
-    do while(out)
-       if(th > pi) th = th - 2.*pi
-       if(th <-pi) th = th + 2.*pi
-       if(th <= pi .and. th >= -pi) out=.false.
-    enddo
-    mod2pi=th
+    mod2pi = modulo(theta + pi, 2.*pi) - pi
   end function mod2pi
 
   !> FIXME : Add documentation  
