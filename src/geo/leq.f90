@@ -8,6 +8,8 @@ module leq
   public :: invR, Rpos, Zpos, diameter, btori, dbtori, qfun, pfun
   public :: dpfun, betafun, psi, rcenter, dpdrhofun
 
+  public :: leq_testing_type
+
   integer :: nr, nt
 
   real, allocatable, dimension (:)     :: eqpsi, fp, beta, pressure
@@ -26,6 +28,12 @@ module leq
   end type flux_surface
 
   type (flux_surface) :: surf
+
+  !> Expose private routines for testing only!
+  type :: leq_testing_type
+  contains
+    procedure, nopass :: mod2pi
+  end type leq_testing_type
 
 contains
   

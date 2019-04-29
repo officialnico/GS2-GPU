@@ -1,0 +1,34 @@
+module test_leq_mod
+  use PFUNIT_MOD
+  implicit none
+
+contains
+
+  @test
+  subroutine test_mod2pi()
+    use constants, only : pi
+    use leq, only : leq_testing_type
+    type(leq_testing_type) :: leq_privates
+
+    @assertEqual(0.0, leq_privates%mod2pi(0.0))
+    @assertEqual(1.0, leq_privates%mod2pi(1.0))
+    @assertEqual(-1.0, leq_privates%mod2pi(-1.0))
+    @assertEqual(pi, leq_privates%mod2pi(pi))
+    @assertEqual(-pi, leq_privates%mod2pi(-pi))
+    @assertEqual(0.0, leq_privates%mod2pi(2. * pi))
+    @assertEqual(0.0, leq_privates%mod2pi(-2. * pi))
+    @assertEqual(pi / 2., leq_privates%mod2pi(2. * pi + (pi/2.)))
+    @assertEqual(-pi / 2., leq_privates%mod2pi(pi + (pi/2.)))
+  end subroutine test_mod2pi
+
+  @test
+  subroutine test_diameter()
+    use constants, only : pi
+    use leq, only : diameter
+
+    @assertEqual(0.0, diameter(0.0))
+    @assertEqual(2.0, diameter(1.0))
+    @assertEqual(2.0 * pi, diameter(pi))
+  end subroutine test_diameter
+
+end module test_leq_mod
