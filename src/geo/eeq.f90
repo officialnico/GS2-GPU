@@ -2,7 +2,7 @@
 module gs2d
   private
 
-  public :: read_gs2d, psi, b0, f, ippsi, nr, nz, p, ps
+  public :: write_gs2d, read_gs2d, psi, b0, f, ippsi, nr, nz, p, ps
   public :: psip, psmin, q, r0, rgrid, rmag, rsep, zgrid, zmag, zsep
 
   real, dimension(:), allocatable :: ps,amin_gs2d,q,f,p,pp
@@ -1128,14 +1128,14 @@ if (debug) write(6,*) "gs2din: B_T0, aminor, psi_0, psi_a=", B_T0, aminor, psi_0
 
   !> FIXME : Add documentation  
   subroutine a_minor(r, z, Z_mag, a)
-!    use mp, only: mp_abort
+    use mp, only: mp_abort
     use splines, only: new_spline, splint, delete_spline, spline
     implicit none
     real, dimension(:), intent (in) :: r, z
     real, intent(in) :: Z_mag
     real, intent(out) :: a
     real :: r1, r2
-    integer, parameter :: nz = 5, half_nz = nz/2
+    integer, parameter :: nz = 5, half_nz = nz/2, invalidPoint = -nz
     integer :: index
     real, dimension(nz) :: rtmp, ztmp
     integer i, j, i1, n
@@ -1188,6 +1188,12 @@ if (debug) write(6,*) "gs2din: B_T0, aminor, psi_0, psi_a=", B_T0, aminor, psi_0
 
 ! find point near magnetic axis elevation on low field side
 
+    ! Initialise i1 to some invalid value so we can check if an appropriate
+    ! point is not found.
+    i1 = invalidPoint
+    
+    ! Note there appears to be an assumption here about the order
+    ! of z which may not be true
     do i = nz, n
        if(z(i)-Z_mag > 0.) then
           i1 = i - 1
@@ -1195,6 +1201,11 @@ if (debug) write(6,*) "gs2din: B_T0, aminor, psi_0, psi_a=", B_T0, aminor, psi_0
        endif
     enddo
 
+    if (i1 == invalidPoint) then
+       write(*, '("Could not find point near magnetic axis elevation on low field side in aminor of eeq.f90")')
+       call mp_abort("Could not find point near magnetic axis elevation on low field side in aminor of eeq.f90")
+    endif
+    
 !CMR, 28/10/08: modify this code to avoid duplicate points in 5 point spline 
 !               to determine r2 on inboard mid-plane
     do i = 1, nz

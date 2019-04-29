@@ -81,22 +81,18 @@ contains
     allocate(psi_chease(npsi_chease))
     read(infile, *)
     read(infile, *) psi_chease
-    !write(*, *) psi_chease, "<---psi_chease"
 
     allocate(chi_chease(nchi_chease))
     read(infile, *)
     read(infile, *) chi_chease
-    !write(*, *) chi_chease, "<---chi_chease"
 
     #{one_dim_vars.map{|v| "allocate(#{v}(npsi_chease))
     read(infile, *)
     read(infile, *) #{v}
-    !write(*, *) #{v}, \"<---#{v}\""}.join("\n\n    ")}
 
     #{two_dim_vars.map{|v| "allocate(#{v}(npsi_chease,nchi_chease))
     read(infile, *)
     read(infile, *) #{v}
-    !write(*, *) #{v}, \"<---#{v}\""}.join("\n\n    ")}
   end subroutine read_infile
 
   subroutine finish
@@ -105,12 +101,6 @@ contains
     #{(one_dim_vars + two_dim_vars).map{|v| "deallocate(#{v})"}.join("\n    ")}
   end subroutine finish
 end module read_chease
-
-!program test
-!  use read_chease
-!  call read_infile("ogyropsi.dat")
-!
-!end program test
 
 EOF
 
