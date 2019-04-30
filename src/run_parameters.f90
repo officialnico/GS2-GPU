@@ -656,8 +656,6 @@ contains
     integer, intent(in) , optional:: unit
     integer :: unit_internal
 
-    if (.not.self%is_initialised()) return
-
     unit_internal = 6 ! @todo -- get stdout from file_utils
     if (present(unit)) then
        unit_internal = unit
