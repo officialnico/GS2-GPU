@@ -283,9 +283,11 @@ contains
   !> FIXME : Add documentation
   subroutine dfit_init
     implicit none
-    real, dimension(nw, nh) :: eqth 
+    real, allocatable :: eqth(:,:)
     integer :: i, j
     
+    if (.not.allocated(eqth)) allocate(eqth(nw,nh))
+
     do i = 1, nw
        do j = 1,nh
           if(dfit_Z(j) == Z_mag .and. dfit_R(i) == R_mag) then
@@ -299,6 +301,8 @@ contains
     call derm(dfit_psi, dpm)
     call tderm(eqth, dtm)
     
+    if (allocated(eqth)) deallocate(eqth)
+
   end subroutine dfit_init
 
   !> FIXME : Add documentation
@@ -411,9 +415,11 @@ contains
     real, intent(in) :: rp
     integer, intent(in) :: nth_used, ntm
     real :: tmp(2), aa(1), daa(1), rpt(1)
-    real, dimension(nw, nh, 2) ::  dbish
+    real, allocatable ::  dbish(:,:,:)
     integer :: i
  
+    if (.not.allocated(dbish)) allocate(dbish(nw,nh,2))
+
     dbish(:,:,1) = sqrt(dpm(:,:,1)**2 + dpm(:,:,2)**2)
     dbish(:,:,2) = 0.
     
@@ -446,6 +452,8 @@ contains
           grad(i,2)=grad(i,2)*daa(1) * 0.5*beta_0/psi_N
        enddo
     endif
+
+    if (allocated(dbish)) deallocate(dbish)
 
   end subroutine bgradient
 
