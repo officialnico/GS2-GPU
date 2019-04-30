@@ -1,0 +1,159 @@
+!> Define abstract type to use as a base type for derived types used to represent
+!! the input configuration of a module (actual or logical). In other words it can
+!! be used to represent a namelist state.
+module abstract_config
+  implicit none
+  private
+
+  !Types
+  public :: abstract_config_type
+
+  integer, parameter :: MAX_NAME_LEN = 64
+
+  !> Define abstract type to represent the config type,
+  !! allows common code to be moved here
+  type, abstract :: abstract_config_type
+     logical, private :: initialised = .false. !< Have we initialised the instance?
+     logical :: exist = .false. !< Does the related namelist exist in the target input file?
+     logical :: requiresIndex = .false. !< Is this a numbered namelist with an index
+     integer :: index = 0 !< Used to hold the specific index of numbered namelists
+     character(len = MAX_NAME_LEN) :: name="Undefined name." !< The name of the namelist that we represent.
+   contains
+     procedure :: is_initialised => is_initialised_generic
+     procedure :: reset => reset_generic
+     procedure :: setup => setup_generic
+     procedure :: write_namelist_header
+     procedure, nopass :: write_namelist_footer
+     procedure, private, nopass :: write_key_val_string
+     procedure, private, nopass :: write_key_val_real
+     procedure, private, nopass :: write_key_val_integer
+     procedure, private, nopass :: write_key_val_logical
+     generic :: write_key_val => write_key_val_string, write_key_val_real, write_key_val_integer, write_key_val_logical
+     procedure(init_interface), deferred :: init
+     procedure(read_interface), deferred :: read
+     procedure(write_interface), deferred :: write
+     procedure(read_interface), deferred :: broadcast
+     procedure(set_to_defaults_interface), deferred :: set_to_defaults
+  end type abstract_config_type
+
+  interface
+     subroutine init_interface(self, index)
+       import
+       class(abstract_config_type), intent(in out) :: self
+       integer, intent(in), optional :: index
+     end subroutine init_interface
+
+     subroutine read_interface(self)
+       import
+       class(abstract_config_type), intent(in out) :: self
+     end subroutine read_interface
+
+     subroutine write_interface(self, unit)
+       import
+       class(abstract_config_type), intent(in) :: self
+       integer, intent(in), optional :: unit
+     end subroutine write_interface
+
+     subroutine broadcast_interface(self)
+       import
+       class(abstract_config_type), intent(in out) :: self
+     end subroutine broadcast_interface
+
+     subroutine set_to_defaults_interface(self)
+       import
+       class(abstract_config_type), intent(in out) :: self
+     end subroutine set_to_defaults_interface
+  end interface
+contains
+
+  !> Is this instance initialised?
+  function is_initialised_generic(self)
+    class(abstract_config_type), intent(in) :: self
+    logical :: is_initialised_generic
+    is_initialised_generic = self%initialised
+  end function is_initialised_generic
+
+  !> Reset initialised state
+  subroutine reset_generic(self)
+    class(abstract_config_type), intent(inout) :: self
+    self%initialised = .false.
+    call self%set_to_defaults()
+  end subroutine reset_generic
+
+  !> Do some standard setup/checking
+  subroutine setup_generic(self, name, requires_index, index)
+    implicit none
+    class(abstract_config_type), intent(inout) :: self
+    character(len=*), intent(in) :: name
+    logical, intent(in) :: requires_index
+    integer, intent(in), optional :: index
+    self%name = name
+    self%requiresIndex = requires_index
+
+    !Set a default index number if required and not set (could abort)
+    if(present(index)) then
+       self%index = index
+    else
+       if(self%requiresIndex) self%index = 1
+    endif
+
+    self%initialised = .true.
+  end subroutine setup_generic
+
+  !> Write the namelist header for this instance
+  subroutine write_namelist_header(self, unit)
+    implicit none
+    class(abstract_config_type), intent(in) :: self
+    integer, intent(in) :: unit
+    !Decide if we should include the index or not
+    if(self%index.ne.0) then
+       write(unit,'("&",A,"_",I0)') trim(self%name), self%index
+    else
+       write(unit,'("&",A)') trim(self%name)
+    endif
+  end subroutine write_namelist_header
+
+  !> Write the namelist footer
+  subroutine write_namelist_footer(unit)
+    implicit none
+    integer, intent(in) :: unit
+    write(unit,'("/")')
+    write(unit,'()')
+  end subroutine write_namelist_footer
+
+  !> Writes a {key,val} pair where the value is of type character
+  subroutine write_key_val_string(key, val, unit)
+    character(len=*), intent(in) :: key
+    character(len=*), intent(in) :: val
+    integer, intent(in) :: unit
+    write(unit,'("  ",A20," = "," ",A)') key, '"'//trim(val)//'"'
+  end subroutine write_key_val_string
+
+  !> Writes a {key,val} pair where the value is of type real
+  subroutine write_key_val_real(key, val, unit)
+    character(len=*), intent(in) :: key
+    real, intent(in) :: val
+    integer, intent(in) :: unit
+    write(unit,'("  ",A20," = ",e18.11)') key, val
+  end subroutine write_key_val_real
+
+  !> Writes a {key,val} pair where the value is of type integer
+  subroutine write_key_val_integer(key, val, unit)
+    character(len=*), intent(in) :: key
+    integer, intent(in) :: val
+    integer, intent(in) :: unit
+    if (val.lt.0) then
+       write(unit,'("  ",A20," = ",I0)') key, val
+    else
+       write(unit,'("  ",A20," = "," ",I0)') key, val
+    endif
+  end subroutine write_key_val_integer
+
+  !> Writes a {key,val} pair where the value is of type logical
+  subroutine write_key_val_logical(key, val, unit)
+    character(len=*), intent(in) :: key
+    logical, intent(in) :: val
+    integer, intent(in) :: unit
+    write(unit,'("  ",A20," = "," ",L1)') key, val
+  end subroutine write_key_val_logical
+end module abstract_config
