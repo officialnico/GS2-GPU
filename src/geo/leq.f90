@@ -10,18 +10,53 @@ module leq
 
   public :: leq_testing_type
 
-  integer :: nr, nt
+  !> Number of radial grid points
+  !!
+  !! Unconditionally always set to 3?
+  integer :: nr
+  !> Number of theta grid points
+  integer :: nt
 
   real, allocatable, dimension (:)     :: eqpsi, fp, beta, pressure
   real, allocatable, dimension (:,:)   :: R_psi, Z_psi
-  real, allocatable, dimension (:,:,:) :: drm, dzm, dbtm, dpm, dtm
-  real, allocatable, dimension (:,:,:) :: dpcart, dtcart, dbtcart
-  real, allocatable, dimension (:,:,:) :: dpbish, dtbish, dbtbish
 
+  ! The following quantities represent changes between adjacent grid
+  ! points. The first two dimensions are minor radius and theta,
+  ! respectively. The last dimension is the difference along either
+  ! the (minor) radial or theta directions, respectively
+
+  !> Major radius differences on theta, minor radius grids
+  real, allocatable, dimension (:,:,:) :: drm
+  !> Vertical differences on theta, minor radius grids
+  real, allocatable, dimension (:,:,:) :: dzm
+  !> Magnetic field magnitude differences on theta, minor radius grids
+  real, allocatable, dimension (:,:,:) :: dbtm
+  !> Minor radius differences on theta, minor radius grids, note: `dpm(:,:,2) == 0.0`
+  real, allocatable, dimension (:,:,:) :: dpm
+  !> Theta differences on theta, minor radius grids, note: `dtm(:,:,1) == 0.0`
+  real, allocatable, dimension (:,:,:) :: dtm
+  !> Minor radius gradient in cylindrical coordinates $(\hat{e}_R, \hat{e}_Z, \hat{e}_\zeta)$
+  real, allocatable, dimension (:,:,:) :: dpcart
+  !> Theta gradient in cylindrical coordinates $(\hat{e}_R, \hat{e}_Z, \hat{e}_\zeta)$
+  real, allocatable, dimension (:,:,:) :: dtcart
+  !> Magnetic field magnitude gradient in cylindrical coordinates $(\hat{e}_R, \hat{e}_Z, \hat{e}_\zeta)$
+  real, allocatable, dimension (:,:,:) :: dbtcart
+  !> Minor radius gradient in Bishop coordinates $(\hat{e}_{r_\psi}, \hat{e}_l, \hat{e}_\zeta)$
+  real, allocatable, dimension (:,:,:) :: dpbish
+  !> Theta gradient in Bishop coordinates $(\hat{e}_{r_\psi}, \hat{e}_l, \hat{e}_\zeta)$
+  real, allocatable, dimension (:,:,:) :: dtbish
+  !> Magnetic field magnitude gradient in Bishop coordinates $(\hat{e}_{r_\psi}, \hat{e}_l, \hat{e}_\zeta)$
+  real, allocatable, dimension (:,:,:) :: dbtbish
+
+  !> FIXME : Add documentation
   real :: beta_0
+
+  !> Used to translate definition of the poloidal angle such that the location
+  !! of the maximium magnetic field is at pi (see section 3.2.3 of Ball MIT
+  !! Masters thesis or section 2.4 of "GS2 analytic geometry specification")
   real :: thetaShift
 
-  !> FIXME : Add documentation  
+  !> Private helper type to wrap up some module-level variables
   type :: flux_surface
      !> Flux surface major radius, $R_{0N}$, input variable: `Rmaj`
      real :: Rmaj
@@ -35,7 +70,7 @@ module leq
      real :: aSurf
      !> Horizontal Shafranov shift, $dR_{0N}/dr_{\psi N}$, input variable: `shift`, `Raxis`
      real :: sHorz
-     !> Veritcal Shafranov shift, $dZ_{0N}/dr_{\psi N}$, input variable: `shiftVert`, `Zaxis`
+     !> Vertical Shafranov shift, $dZ_{0N}/dr_{\psi N}$, input variable: `shiftVert`, `Zaxis`
      real :: sVert
      !> First shaping mode strength, $\Delta_m$, input variable: `akappa`, `delta2`, `deltam`
      real :: delm
@@ -199,7 +234,14 @@ contains
 
   end subroutine leq_init
 
-  !> FIXME : Add documentation  
+  !> Index-space derivatives of `f` in each direction. Gradient in
+  !! first direction is in `dfm(:,:,1)`, second is in `dfm(:,:,2)`.
+  !! `char` controls the boundary conditions in the second direction.
+  !!
+  !! Acceptable values for `char`:
+  !!   - `E` means continuous and even at theta = +/- pi -- FIXME: confirm
+  !!   - `O` means continuous and odd at theta = +/- pi -- FIXME: confirm
+  !!   - `T` means a jump of 2 pi at theta = +/- pi
   subroutine derm(f, dfm, char)
     use constants, only: pi=>pi
     implicit none
