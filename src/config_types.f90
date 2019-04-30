@@ -52,7 +52,7 @@ module config_types
      !> Determines how initial timestep is set
      character(len = 20) :: delt_option = 'default'
      !> Not used anywhere -- to be removed.
-     real :: margin =- 0.05
+     real :: margin = 0.05
      !> Advanced
      logical :: secondary = .true.
      !> Advanced
