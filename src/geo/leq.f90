@@ -104,10 +104,21 @@ module leq
   type :: leq_testing_type
   contains
     procedure, nopass :: mod2pi
+    procedure, nopass :: derm
+    procedure, nopass :: set_ntnr
   end type leq_testing_type
 
 contains
   
+  !> Set module-level `nt`, `nr`
+  !! PURELY FOR TESTING
+  !! FIXME: Remove when we have more control over module-level variables for testing
+  subroutine set_ntnr(ntheta, nradius)
+    integer, intent(in) :: ntheta, nradius
+    nt = ntheta
+    nr = nradius
+  end subroutine set_ntnr
+
   !> FIXME : Add documentation  
   subroutine leqin(geoType, Rmaj, Rgeo, r, dr, aSurf, sHorz, sVert, mMode, nMode, delm, deln, delmp, delnp, thm, thn, q, shat, nt_used, thShift)
     implicit none

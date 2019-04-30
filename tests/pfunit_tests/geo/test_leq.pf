@@ -2,6 +2,8 @@ module test_leq_mod
   use PFUNIT_MOD
   implicit none
 
+  real, parameter :: derivative_tolerance = 5.e-3
+
 contains
 
   @test
@@ -30,5 +32,109 @@ contains
     @assertEqual(2.0, diameter(1.0))
     @assertEqual(2.0 * pi, diameter(pi))
   end subroutine test_diameter
+
+  @test
+  subroutine test_derm_even_function()
+    use constants, only : pi
+    use leq, only : leq_testing_type
+    type(leq_testing_type) :: leq_privates
+
+    integer, parameter :: nradius = 3
+    integer, parameter :: ntheta = 128
+    integer, parameter :: total_ntheta = 2*ntheta + 1
+    integer, parameter :: total_size(2) = [nradius, total_ntheta]
+    real, parameter :: theta_grid_spacing = 2 * pi / (total_ntheta - 1)
+    real, dimension(nradius, -ntheta:ntheta) :: f_input
+    real, dimension(nradius, -ntheta:ntheta, 2) :: df_result
+    real, dimension(nradius, -ntheta:ntheta, 2) :: df_expected
+
+    integer :: i, j
+
+    call leq_privates%set_ntnr(ntheta, nradius)
+
+    f_input = reshape([([(i*i + cos(j * theta_grid_spacing), &
+         i=0, nradius-1)], j=-ntheta, ntheta)], total_size)
+
+    df_expected(:, :, 1) = reshape([([0., 2., 4.], j=-ntheta, ntheta)], total_size)
+    df_expected(:, :, 2) = reshape([([(-sin(j * theta_grid_spacing) * theta_grid_spacing, &
+         i=0, nradius-1)], j=-ntheta, ntheta)], total_size)
+
+    call leq_privates%derm(f_input, df_result, 'E')
+
+    @assertEqual(df_expected(:, :, 1), df_result(:, :, 1), tolerance=derivative_tolerance, message="Radial derivative")
+    ! Only the first radial point actually has the correct symmetry
+    @assertEqual(df_expected(1, :, 2), df_result(1, :, 2), tolerance=derivative_tolerance, message="Theta derivative (including boundary)")
+    ! For the rest of the radial points, only check interior points
+    @assertEqual(df_expected(2:, -ntheta+1:ntheta-1, 2), df_result(2:, -ntheta+1:ntheta-1, 2), tolerance=derivative_tolerance, message="Theta derivative (excluding boundary)")
+  end subroutine test_derm_even_function
+
+  @test
+  subroutine test_derm_odd_function()
+    use constants, only : pi
+    use leq, only : leq_testing_type
+    type(leq_testing_type) :: leq_privates
+
+    integer, parameter :: nradius = 3
+    integer, parameter :: ntheta = 128
+    integer, parameter :: total_ntheta = 2*ntheta + 1
+    integer, parameter :: total_size(2) = [nradius, total_ntheta]
+    real, parameter :: theta_grid_spacing = 2 * pi / (total_ntheta - 1)
+    real, dimension(nradius, -ntheta:ntheta) :: f_input
+    real, dimension(nradius, -ntheta:ntheta, 2) :: df_result
+    real, dimension(nradius, -ntheta:ntheta, 2) :: df_expected
+
+    integer :: i, j
+
+    call leq_privates%set_ntnr(ntheta, nradius)
+
+    f_input = reshape([([(i*i + sin(j * theta_grid_spacing), &
+         i=0, nradius-1)], j=-ntheta, ntheta)], total_size)
+
+    df_expected(:, :, 1) = reshape([([0., 2., 4.], j=-ntheta, ntheta)], total_size)
+    df_expected(:, :, 2) = reshape([([(cos(j * theta_grid_spacing) * theta_grid_spacing, &
+         i=0, nradius-1)], j=-ntheta, ntheta)], total_size)
+
+    call leq_privates%derm(f_input, df_result, 'O')
+
+    @assertEqual(df_expected(:, :, 1), df_result(:, :, 1), tolerance=derivative_tolerance)
+    ! Only the first radial point actually has the correct symmetry
+    @assertEqual(df_expected(1, :, 2), df_result(1, :, 2), tolerance=derivative_tolerance)
+    ! For the rest of the radial points, only check interior points
+    @assertEqual(df_expected(2:, -ntheta+1:ntheta-1, 2), df_result(2:, -ntheta+1:ntheta-1, 2), tolerance=derivative_tolerance)
+  end subroutine test_derm_odd_function
+
+  @test
+  subroutine test_derm_T()
+    use constants, only : pi
+    use leq, only : leq_testing_type
+    type(leq_testing_type) :: leq_privates
+
+    integer, parameter :: nradius = 3
+    integer, parameter :: ntheta = 4
+    integer, parameter :: total_ntheta = 2*ntheta + 1
+    integer, parameter :: total_size(2) = [nradius, total_ntheta]
+    real, parameter :: theta_grid_spacing = 2 * pi / (total_ntheta - 1)
+    real, dimension(nradius, -ntheta:ntheta) :: f_input
+    real, dimension(nradius, -ntheta:ntheta, 2) :: df_result
+    real, dimension(nradius, -ntheta:ntheta, 2) :: df_expected
+
+    integer :: i, j
+
+    call leq_privates%set_ntnr(ntheta, nradius)
+
+    f_input = reshape([([(i*i + j*theta_grid_spacing, i=0, nradius-1)], j=-ntheta, ntheta)], total_size)
+
+    df_expected(:, :, 1) = reshape([([0., 2., 4.], j=-ntheta, ntheta)], total_size)
+    df_expected(:, :, 2) = theta_grid_spacing! reshape([([theta_grid_spacing], j=-ntheta, ntheta)], total_size)
+
+    call leq_privates%derm(f_input, df_result, 'T')
+
+    @assertEqual(df_expected(:, :, 1), df_result(:, :, 1), tolerance=1.e-14)
+    ! Only the first radial point actually has the correct symmetry
+    @assertEqual(df_expected(1, :, 2), df_result(1, :, 2), tolerance=derivative_tolerance)
+    ! For the rest of the radial points, only check interior points
+    @assertEqual(df_expected(2:, -ntheta+1:ntheta-1, 2), df_result(2:, -ntheta+1:ntheta-1, 2), tolerance=derivative_tolerance)
+
+  end subroutine test_derm_T
 
 end module test_leq_mod
