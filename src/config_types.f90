@@ -10,7 +10,7 @@ module config_types
   implicit none
   private
 
-  public :: run_parameters_config
+  public :: run_parameters_config_type
 
   !> Used to represent the input configuration of run_parameters
   !! This actually involves two namelists, "parameters" and "knobs".
@@ -18,7 +18,7 @@ module config_types
   !! @todo These two namelists should probably be merged. This is actually
   !! implemented here by adding the contents of "parameters" to "knobs".
   !! This should be documented clearly. Eventually we should remove parameters
-  type, extends(abstract_config_type) :: run_parameters_config
+  type, extends(abstract_config_type) :: run_parameters_config_type
      ! Parameters
      !> \(\beta\) is the ratio of the reference pressure to the reference magnetic energy density, \(\beta=2\mu_0n_{ref}T_{ref}/B^2_{ref}\).
      real :: beta
@@ -85,13 +85,13 @@ module config_types
      procedure, public :: write => write_run_paramters
      procedure, public :: broadcast => broadcast_run_parameters
      procedure, public :: set_to_defaults => set_to_defaults_run_parameters
-  end type run_parameters_config
+  end type run_parameters_config_type
 contains
 
   !> Almost entirely generic currently
   subroutine init_run_parameters(self, index)
     implicit none
-    class (run_parameters_config), intent(in out) :: self
+    class (run_parameters_config_type), intent(in out) :: self
     integer, intent(in), optional :: index
 
     if (self%is_initialised()) return
@@ -105,7 +105,7 @@ contains
     use file_utils, only: input_unit_exist
     use mp, only: proc0
     implicit none
-    class (run_parameters_config), intent(in out) :: self
+    class (run_parameters_config_type), intent(in out) :: self
     logical :: exist
     integer :: in_file
 
@@ -209,7 +209,7 @@ contains
 
   subroutine write_run_paramters(self, unit)
     implicit none
-    class(run_parameters_config), intent(in) :: self
+    class(run_parameters_config_type), intent(in) :: self
     integer, intent(in) , optional:: unit
     integer :: unit_internal
 
@@ -255,7 +255,7 @@ contains
 
   subroutine set_to_defaults_run_parameters(self)
     implicit none
-    class (run_parameters_config), intent(in out) :: self
+    class (run_parameters_config_type), intent(in out) :: self
     self%beta  = 0.0
     self%zeff  = 1.0
     self%tite  = 1.0
@@ -290,7 +290,7 @@ contains
   subroutine broadcast_run_parameters(self)
     use mp, only: broadcast
     implicit none
-    class (run_parameters_config), intent(in out) :: self
+    class (run_parameters_config_type), intent(in out) :: self
     call broadcast(self%beta)
     call broadcast(self%zeff)
     call broadcast(self%tite)

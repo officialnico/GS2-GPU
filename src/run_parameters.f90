@@ -1,7 +1,7 @@
 !> This module is basically a store for the input parameters that are specified in the namelists \a knobs and \a parameters.
 !! In general, the names of the public variables in this module are the same as the name of the input parameter they correspond to.
 module run_parameters
-  use config_types, only: run_parameters_config
+  use config_types, only: run_parameters_config_type
 
   implicit none
 
@@ -38,7 +38,7 @@ module run_parameters
 
   public :: set_overrides
 
-  type(run_parameters_config) :: config_internal
+  type(run_parameters_config_type) :: config_internal
 
   real :: beta, zeff, tite
   real :: fphi, fapar, fbpar, faperp
@@ -229,7 +229,7 @@ contains
     use text_options, only: text_option, get_option_value
     use kt_grids, only: gryfx
     implicit none
-    type(run_parameters_config), intent(in), optional :: config_in
+    type(run_parameters_config_type), intent(in), optional :: config_in
     type (text_option), dimension (4), parameter :: eqzipopts = &
          (/ text_option('none', eqzip_option_none), &
             text_option('secondary', eqzip_option_secondary), &
