@@ -52,20 +52,20 @@ contains
 
     call leq_privates%set_ntnr(ntheta, nradius)
 
-    f_input = reshape([([(i*i + cos(j * theta_grid_spacing), &
+    f_input = reshape([([(i*i*cos(j * theta_grid_spacing), &
          i=0, nradius-1)], j=-ntheta, ntheta)], total_size)
 
-    df_expected(:, :, 1) = reshape([([0., 2., 4.], j=-ntheta, ntheta)], total_size)
-    df_expected(:, :, 2) = reshape([([(-sin(j * theta_grid_spacing) * theta_grid_spacing, &
+    df_expected(:, :, 1) = reshape( &
+         [([0., 2., 4.]*cos(j * theta_grid_spacing), &
+         j=-ntheta, ntheta)], total_size)
+    df_expected(:, :, 2) = reshape( &
+         [([(-i*i*sin(j * theta_grid_spacing) * theta_grid_spacing, &
          i=0, nradius-1)], j=-ntheta, ntheta)], total_size)
 
     call leq_privates%derm(f_input, df_result, 'E')
 
-    @assertEqual(df_expected(:, :, 1), df_result(:, :, 1), tolerance=derivative_tolerance, message="Radial derivative")
-    ! Only the first radial point actually has the correct symmetry
-    @assertEqual(df_expected(1, :, 2), df_result(1, :, 2), tolerance=derivative_tolerance, message="Theta derivative (including boundary)")
-    ! For the rest of the radial points, only check interior points
-    @assertEqual(df_expected(2:, -ntheta+1:ntheta-1, 2), df_result(2:, -ntheta+1:ntheta-1, 2), tolerance=derivative_tolerance, message="Theta derivative (excluding boundary)")
+    @assertEqual(df_expected(:,:,1), df_result(:,:,1), tolerance=derivative_tolerance, message="Radial derivative")
+    @assertEqual(df_expected(:,:,2), df_result(:,:,2), tolerance=derivative_tolerance, message="Theta derivative")
   end subroutine test_derm_even_function
 
   @test
@@ -87,20 +87,20 @@ contains
 
     call leq_privates%set_ntnr(ntheta, nradius)
 
-    f_input = reshape([([(i*i + sin(j * theta_grid_spacing), &
+    f_input = reshape([([(i*i * sin(j * theta_grid_spacing), &
          i=0, nradius-1)], j=-ntheta, ntheta)], total_size)
 
-    df_expected(:, :, 1) = reshape([([0., 2., 4.], j=-ntheta, ntheta)], total_size)
-    df_expected(:, :, 2) = reshape([([(cos(j * theta_grid_spacing) * theta_grid_spacing, &
+    df_expected(:, :, 1) = reshape( &
+         [([0., 2., 4.] * sin(j * theta_grid_spacing), &
+         j=-ntheta, ntheta)], total_size)
+    df_expected(:, :, 2) = reshape( &
+         [([(i*i*cos(j * theta_grid_spacing) * theta_grid_spacing, &
          i=0, nradius-1)], j=-ntheta, ntheta)], total_size)
 
     call leq_privates%derm(f_input, df_result, 'O')
 
-    @assertEqual(df_expected(:, :, 1), df_result(:, :, 1), tolerance=derivative_tolerance)
-    ! Only the first radial point actually has the correct symmetry
-    @assertEqual(df_expected(1, :, 2), df_result(1, :, 2), tolerance=derivative_tolerance)
-    ! For the rest of the radial points, only check interior points
-    @assertEqual(df_expected(2:, -ntheta+1:ntheta-1, 2), df_result(2:, -ntheta+1:ntheta-1, 2), tolerance=derivative_tolerance)
+    @assertEqual(df_expected(:, :, 1), df_result(:, :, 1), tolerance=derivative_tolerance, message="Radial derivative")
+    @assertEqual(df_expected(:, :, 2), df_result(:, :, 2), tolerance=derivative_tolerance, message="Theta derivative")
   end subroutine test_derm_odd_function
 
   @test
@@ -122,18 +122,15 @@ contains
 
     call leq_privates%set_ntnr(ntheta, nradius)
 
-    f_input = reshape([([(i*i + j*theta_grid_spacing, i=0, nradius-1)], j=-ntheta, ntheta)], total_size)
+    f_input = reshape([([(j*theta_grid_spacing, i=1, nradius)], j=-ntheta, ntheta)], total_size)
 
-    df_expected(:, :, 1) = reshape([([0., 2., 4.], j=-ntheta, ntheta)], total_size)
-    df_expected(:, :, 2) = theta_grid_spacing! reshape([([theta_grid_spacing], j=-ntheta, ntheta)], total_size)
+    df_expected(:, :, 1) = 0.
+    df_expected(:, :, 2) = theta_grid_spacing
 
     call leq_privates%derm(f_input, df_result, 'T')
 
     @assertEqual(df_expected(:, :, 1), df_result(:, :, 1), tolerance=1.e-14)
-    ! Only the first radial point actually has the correct symmetry
-    @assertEqual(df_expected(1, :, 2), df_result(1, :, 2), tolerance=derivative_tolerance)
-    ! For the rest of the radial points, only check interior points
-    @assertEqual(df_expected(2:, -ntheta+1:ntheta-1, 2), df_result(2:, -ntheta+1:ntheta-1, 2), tolerance=derivative_tolerance)
+    @assertEqual(df_expected(:, :, 2), df_result(:, :, 2), tolerance=1.e-14)
 
   end subroutine test_derm_T
 
