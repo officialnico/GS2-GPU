@@ -21,82 +21,81 @@ module config_types
   type, extends(abstract_config_type) :: run_parameters_config_type
      ! Parameters
      !> \(\beta\) is the ratio of the reference pressure to the reference magnetic energy density, \(\beta=2\mu_0n_{ref}T_{ref}/B^2_{ref}\).
-     real :: beta
+     real :: beta = 0.0
      !> Effective ionic charge appearing in electron collision frequency
-     real :: zeff
+     real :: zeff = 1.0
      !> Ratio of ion to electron temperature, only used when there is an adiabatic species
-     real :: tite
+     real :: tite = 1.0
      !> Deprecated
-     real :: teti
+     real :: teti = -100.0
      !> Unknown, only uses in [[init_g]] -- should be moved to init_g namelist.
-     real :: k0
+     real :: k0 = 1.0
      !> Normalised gyro-radius, only used for low flow builds
-     real :: rhostar
+     real :: rhostar = 3.0e-3
      !> Custom description of run to be added to netcdf output (new diagnostics only)
-     character(len = 100000) :: user_comments
+     character(len = 100000) :: user_comments = ''
      ! Knobs
      !> Multiplies \(\phi\) throughout.
-     real :: fphi
+     real :: fphi = 1.0
      !> Multiplies \(A_\|\) throughout.
-     real :: fapar
+     real :: fapar = 0.0
      !> Multiplies \(B_\|\) throughout.
-     real :: fbpar
+     real :: fbpar = -1.0
      !> Initial timestep
-     real :: delt
+     real :: delt = 0.1
      !> Maximum number of steps to take
-     integer :: nstep
+     integer :: nstep = 100
      !>If true makes timestep proportional to ky*rho. Only sensible for linear runs.
-     logical :: wstar_units
+     logical :: wstar_units = .false.
      !> Advanced option to freeze evolution of certain modes
-     logical :: eqzip
+     logical :: eqzip = .false.
      !> Determines how initial timestep is set
-     character(len = 20) :: delt_option
+     character(len = 20) :: delt_option = 'default'
      !> Not used anywhere -- to be removed.
-     real :: margin
+     real :: margin =- 0.05
      !> Advanced
-     logical :: secondary
+     logical :: secondary = .true.
      !> Advanced
-     logical :: tertiary
+     logical :: tertiary = .false.
      !> Deprecated
-     real :: faperp
+     real :: faperp = 0.0
      !> Advanced
-     logical :: harris
+     logical :: harris = .false.
      !> The maximum wall clock time available to GS2
-     real :: avail_cpu_time
+     real :: avail_cpu_time = 1.0e10
      !> How close to avail_cpu_time can we go before trying to stop the run cleanly
-     real :: margin_cpu_time
+     real :: margin_cpu_time = 300.0
      !> What types of modes are frozen with eqzip
-     character(len = 20) :: eqzip_option
+     character(len = 20) :: eqzip_option = 'none'
      !> Lowflow only.
-     logical :: neo_test
+     logical :: neo_test = .false.
      !> If true and running linearly, return linear diffusive flux estimates to Trinity.
-     logical :: trinity_linear_fluxes
+     logical :: trinity_linear_fluxes = .false.
      !> If true then use eigensolver instead of initial value solver.
-     logical :: do_eigsolve
+     logical :: do_eigsolve = .false.
      !> Determines the behaviour when the CFL condition is broken in the nonlinear term:
-     logical :: immediate_reset
+     logical :: immediate_reset = .true.
      !> If true use original diagnostics rather than new form
-     logical :: use_old_diagnostics
+     logical :: use_old_diagnostics = .false.
      !> Unknown
-     logical :: trinity_ql_fluxes
+     logical :: trinity_ql_fluxes = .false.
    contains
      procedure, public :: init => init_run_parameters
      procedure, public :: read => read_run_parameters
      procedure, public :: write => write_run_paramters
+     procedure, public :: reset => reset_run_parameters     
      procedure, public :: broadcast => broadcast_run_parameters
-     procedure, public :: set_to_defaults => set_to_defaults_run_parameters
   end type run_parameters_config_type
 contains
 
   !> Almost entirely generic currently
   subroutine init_run_parameters(self, index)
     implicit none
-    class (run_parameters_config_type), intent(in out) :: self
+    class(run_parameters_config_type), intent(in out) :: self
     integer, intent(in), optional :: index
 
     if (self%is_initialised()) return
     call self%setup(name = 'knobs', requires_index = .false., index = index)
-    call self%set_to_defaults()
     call self%read()
     call self%broadcast()
   end subroutine init_run_parameters
@@ -105,7 +104,7 @@ contains
     use file_utils, only: input_unit_exist
     use mp, only: proc0
     implicit none
-    class (run_parameters_config_type), intent(in out) :: self
+    class(run_parameters_config_type), intent(in out) :: self
     logical :: exist
     integer :: in_file
 
@@ -253,44 +252,19 @@ contains
     call self%write_namelist_footer(unit_internal)
   end subroutine write_run_paramters
 
-  subroutine set_to_defaults_run_parameters(self)
-    implicit none
-    class (run_parameters_config_type), intent(in out) :: self
-    self%beta  = 0.0
-    self%zeff  = 1.0
-    self%tite  = 1.0
-    self%teti  = -100.0
-    self%k0    = 1.0
-    self%rhostar  = 3.0e-3
-    self%user_comments  = ''
-    self%fphi  = 1.0
-    self%fapar  = 0.0
-    self%fbpar  = -1.0
-    self%delt  = 0.1
-    self%nstep  = 100
-    self%wstar_units = .false.
-    self%eqzip  = .false.
-    self%delt_option  = 'default'
-    self%margin = 0.05
-    self%secondary  = .true.
-    self%tertiary  = .false.
-    self%faperp  = 0.0
-    self%harris  = .false.
-    self%avail_cpu_time  = 1.0e10
-    self%margin_cpu_time  = 300.0
-    self%eqzip_option  = 'none'
-    self%neo_test  = .false.
-    self%trinity_linear_fluxes  = .false.
-    self%do_eigsolve  = .false.
-    self%immediate_reset  = .true.
-    self%use_old_diagnostics  = .false.
-    self%trinity_ql_fluxes  = .false.
-  end subroutine set_to_defaults_run_parameters
+  subroutine reset_run_parameters(self)
+    class(run_parameters_config_type), intent(in out) :: self
+    type(run_parameters_config_type) :: empty
+    select type (self)
+    type is (run_parameters_config_type)
+       self = empty
+    end select
+  end subroutine reset_run_parameters
 
   subroutine broadcast_run_parameters(self)
     use mp, only: broadcast
     implicit none
-    class (run_parameters_config_type), intent(in out) :: self
+    class(run_parameters_config_type), intent(in out) :: self
     call broadcast(self%beta)
     call broadcast(self%zeff)
     call broadcast(self%tite)

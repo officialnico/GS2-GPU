@@ -20,7 +20,6 @@ module abstract_config
      character(len = MAX_NAME_LEN) :: name="Undefined name." !< The name of the namelist that we represent.
    contains
      procedure :: is_initialised => is_initialised_generic
-     procedure :: reset => reset_generic
      procedure :: setup => setup_generic
      procedure :: write_namelist_header
      procedure, nopass :: write_namelist_footer
@@ -32,8 +31,8 @@ module abstract_config
      procedure(init_interface), deferred :: init
      procedure(read_interface), deferred :: read
      procedure(write_interface), deferred :: write
+     procedure(reset_interface), deferred :: reset
      procedure(read_interface), deferred :: broadcast
-     procedure(set_to_defaults_interface), deferred :: set_to_defaults
   end type abstract_config_type
 
   interface
@@ -54,15 +53,15 @@ module abstract_config
        integer, intent(in), optional :: unit
      end subroutine write_interface
 
+     subroutine reset_interface(self)
+       import
+       class(abstract_config_type), intent(in out) :: self
+     end subroutine reset_interface
+
      subroutine broadcast_interface(self)
        import
        class(abstract_config_type), intent(in out) :: self
      end subroutine broadcast_interface
-
-     subroutine set_to_defaults_interface(self)
-       import
-       class(abstract_config_type), intent(in out) :: self
-     end subroutine set_to_defaults_interface
   end interface
 contains
 
@@ -72,13 +71,6 @@ contains
     logical :: is_initialised_generic
     is_initialised_generic = self%initialised
   end function is_initialised_generic
-
-  !> Reset initialised state
-  subroutine reset_generic(self)
-    class(abstract_config_type), intent(inout) :: self
-    self%initialised = .false.
-    call self%set_to_defaults()
-  end subroutine reset_generic
 
   !> Do some standard setup/checking
   subroutine setup_generic(self, name, requires_index, index)
