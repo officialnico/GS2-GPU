@@ -217,14 +217,17 @@ contains
   end subroutine init_run_parameters
 
   !> FIXME : Add documentation    
-  subroutine read_parameters
+  subroutine read_parameters(config_in)
     use file_utils, only: input_unit, error_unit, input_unit_exist
     use mp, only: proc0, broadcast
     use gs2_time, only: dt_not_set
     use gs2_save, only: init_dt, init_vnm
     use text_options, only: text_option, get_option_value
     use kt_grids, only: gryfx
+    use config_types, only: run_parameters_config
     implicit none
+    type(run_parameters_config), intent(in), optional :: config_in
+    type(run_parameters_config) :: config_internal    
     type (text_option), dimension (4), parameter :: eqzipopts = &
          (/ text_option('none', eqzip_option_none), &
             text_option('secondary', eqzip_option_secondary), &
@@ -241,160 +244,121 @@ contains
     real, dimension (2) :: vnm_saved
 
     real :: teti  ! for back-compatibility
-    namelist /parameters/ beta, zeff, tite, teti, k0, rhostar, user_comments
-    namelist /knobs/ fphi, fapar, fbpar, delt, nstep, wstar_units, eqzip, &
-         delt_option, margin, secondary, tertiary, faperp, harris, &
-         avail_cpu_time, margin_cpu_time, eqzip_option, neo_test, &
-         trinity_linear_fluxes, do_eigsolve, immediate_reset, &
-         use_old_diagnostics,  trinity_ql_fluxes
 
-    if (proc0) then
-       beta = 0.0
-       zeff = 1.0
-       tite = 1.0
-       teti = -100.0
-       rhostar = 3.e-3
-       user_comments = ''
-       k0 = 1.
+    if (present(config_in)) config_internal = config_in
 
-       fphi  =  1.0
-       fapar =  0.0
-       fbpar = -1.0
-       faperp = 0.0
+    call config_internal%init()
 
-       ! EGH added these defaults Feb 2018
-       delt = 0.1
-       nstep = 100
+    ! Copy out internal values into module level parameters
+    beta  = config_internal%beta 
+    zeff  = config_internal%zeff 
+    tite  = config_internal%tite 
+    teti  = config_internal%teti 
+    k0    = config_internal%k0   
+    rhostar  = config_internal%rhostar 
+    user_comments  = config_internal%user_comments 
+    fphi  = config_internal%fphi 
+    fapar  = config_internal%fapar 
+    fbpar  = config_internal%fbpar 
+    delt  = config_internal%delt 
+    nstep  = config_internal%nstep 
+    wstar_units  = config_internal%wstar_units 
+    eqzip  = config_internal%eqzip 
+    delt_option  = config_internal%delt_option 
+    margin = config_internal%margin
+    secondary  = config_internal%secondary 
+    tertiary  = config_internal%tertiary 
+    faperp  = config_internal%faperp 
+    harris  = config_internal%harris 
+    avail_cpu_time  = config_internal%avail_cpu_time 
+    margin_cpu_time  = config_internal%margin_cpu_time 
+    eqzip_option  = config_internal%eqzip_option 
+    neo_test  = config_internal%neo_test 
+    trinity_linear_fluxes  = config_internal%trinity_linear_fluxes 
+    do_eigsolve  = config_internal%do_eigsolve 
+    immediate_reset  = config_internal%immediate_reset 
+    use_old_diagnostics  = config_internal%use_old_diagnostics 
+    trinity_ql_fluxes  = config_internal%trinity_ql_fluxes 
+  
+    if(proc0) in_file = input_unit_exist("parameters", rpexist)
+    knexist = config_internal%exist
 
-!       include_lowflow = .false.
-       neo_test = .false.
-       wstar_units = .false.
-       eqzip_option = 'none'
-       eqzip = .false.
-       secondary = .true.
-       tertiary = .false.
-       harris = .false.
-       delt_option = 'default'
-       margin = 0.05
-       avail_cpu_time = 1.e10
-       margin_cpu_time = 300.
-       trinity_linear_fluxes = .false.
-       trinity_ql_fluxes = .false.
-       do_eigsolve = .false.
-       immediate_reset = .true.
-       use_old_diagnostics = .false.
-       
-       in_file = input_unit_exist("parameters", rpexist)
-!       if (rpexist) read (unit=input_unit("parameters"), nml=parameters)
-       if (rpexist) read (unit=in_file,nml=parameters)
+    ! Now handle inputs to calculate derived quantities
+    
+    if (teti /= -100.0) tite = teti
 
-       in_file = input_unit_exist("knobs", knexist)
-!       if (knexist) read (unit=input_unit("knobs"), nml=knobs)
-       if (knexist) read (unit=in_file, nml=knobs)
-
-       if (teti /= -100.0) tite = teti
-
-! Allow faperp-style initialization for backwards compatibility.
-! Only fbpar is used outside of this subroutine.
-       if (fbpar == -1.) then
-          fbpar = faperp
-       end if
-
-! Override fapar, fbpar and beta if set inconsistently:
-
-       !> If we have zero beta then disable apar and bpar fields
-       !! as these contribute nothing to result but slow down calculation.
-       if(beta.eq.0) then
-          if(((fapar.ne.0) .or. (fbpar.ne.0)).and. proc0) then
-             ierr = error_unit()
-             write(ierr,'("Warning: Disabling apar and bpar as beta = 0.")')
-          endif
-          fapar = 0.
-          fbpar = 0.
-       endif
-
-       !> If we have non-zero beta then alert the user that they have some
-       !! of the perturbed magnetic fields disabled. This may be intended
-       !! behaviour, so we throw a warning. However, if both are disabled,
-       !! we set beta=0. This will make the simulation electrostatic, as 
-       !! probably intended if both apar and bpar are set to zero.
-       if(fapar.eq.0 .and. fbpar.eq.0 .and. beta.ne.0) then
-          if(proc0) then
-             ierr = error_unit()
-             write(ierr,'("Warning: Both fapar and fbpar are zero: setting beta = 0.")')
-          endif
-          beta = 0.0
-       endif
-       if((beta.ne.0).and.proc0) then
-          ierr = error_unit()
-          if(fapar.eq.0) write(ierr,'("Warning: Running with finite beta but fapar=0.")')
-          if(fbpar.eq.0) write(ierr,'("Warning: Running with finite beta but fbpar=0.")')
-       endif
-
-       if (eqzip) then
-          if (secondary .and. tertiary) then
-             ierr = error_unit()
-             write (ierr, *) 'Forcing secondary = FALSE'
-             write (ierr, *) 'because you have chosen tertiary = TRUE'
-             secondary = .false.
-          end if
-          if (secondary .and. harris) then
-             ierr = error_unit()
-             write (ierr, *) 'Forcing secondary = FALSE'
-             write (ierr, *) 'because you have chosen harris = TRUE'
-             secondary = .false.
-          end if
-          if (tertiary .and. harris) then
-             ierr = error_unit()
-             write (ierr, *) 'Forcing tertiary = FALSE'
-             write (ierr, *) 'because you have chosen harris = TRUE'
-             tertiary = .false.
-          end if
-       endif
-
-       ierr = error_unit()
-       call get_option_value &
-            (delt_option, deltopts, delt_option_switch, ierr, &
-            "delt_option in knobs",.true.)
-
-       call get_option_value ( &
-            eqzip_option, eqzipopts, eqzip_option_switch, error_unit(), &
-            "eqzip_option in knobs",.true.)
+    ! Allow faperp-style initialization for backwards compatibility.
+    ! Only fbpar is used outside of this subroutine.
+    if (fbpar == -1.) then
+       fbpar = faperp
     end if
     
+    ! Override fapar, fbpar and beta if set inconsistently:
+    
+    !> If we have zero beta then disable apar and bpar fields
+    !! as these contribute nothing to result but slow down calculation.
+    if(beta.eq.0) then
+       if(((fapar.ne.0) .or. (fbpar.ne.0)).and. proc0) then
+          ierr = error_unit()
+          write(ierr,'("Warning: Disabling apar and bpar as beta = 0.")')
+       endif
+       fapar = 0.
+       fbpar = 0.
+    endif
+
+    !> If we have non-zero beta then alert the user that they have some
+    !! of the perturbed magnetic fields disabled. This may be intended
+    !! behaviour, so we throw a warning. However, if both are disabled,
+    !! we set beta=0. This will make the simulation electrostatic, as 
+    !! probably intended if both apar and bpar are set to zero.
+    if(fapar.eq.0 .and. fbpar.eq.0 .and. beta.ne.0) then
+       if(proc0) then
+          ierr = error_unit()
+          write(ierr,'("Warning: Both fapar and fbpar are zero: setting beta = 0.")')
+       endif
+       beta = 0.0
+    endif
+    if((beta.ne.0).and.proc0) then
+       ierr = error_unit()
+       if(fapar.eq.0) write(ierr,'("Warning: Running with finite beta but fapar=0.")')
+       if(fbpar.eq.0) write(ierr,'("Warning: Running with finite beta but fbpar=0.")')
+    endif
+    
+    if (eqzip) then
+       if (secondary .and. tertiary) then
+          ierr = error_unit()
+          write (ierr, *) 'Forcing secondary = FALSE'
+          write (ierr, *) 'because you have chosen tertiary = TRUE'
+          secondary = .false.
+       end if
+       if (secondary .and. harris) then
+          ierr = error_unit()
+          write (ierr, *) 'Forcing secondary = FALSE'
+          write (ierr, *) 'because you have chosen harris = TRUE'
+          secondary = .false.
+       end if
+       if (tertiary .and. harris) then
+          ierr = error_unit()
+          write (ierr, *) 'Forcing tertiary = FALSE'
+          write (ierr, *) 'because you have chosen harris = TRUE'
+          tertiary = .false.
+       end if
+    endif
+    
+    ierr = error_unit()
+    call get_option_value &
+         (delt_option, deltopts, delt_option_switch, ierr, &
+         "delt_option in knobs",.true.)
+    
+    call get_option_value ( &
+         eqzip_option, eqzipopts, eqzip_option_switch, error_unit(), &
+         "eqzip_option in knobs",.true.)
+
     ! FOR GRYFX
     if (gryfx()) then
-      delt = sqrt(2.0)*delt/2.0
-      nstep = nstep*2
+       delt = sqrt(2.0)*delt/2.0
+       nstep = nstep*2
     end if
-
-    call broadcast (delt_option_switch)
-    call broadcast (delt)
-    call broadcast (beta)
-    call broadcast (zeff)
-    call broadcast (tite)
-    call broadcast (fphi)
-    call broadcast (fapar)
-    call broadcast (fbpar)
-    call broadcast (nstep)
-    call broadcast (wstar_units)
-    call broadcast (eqzip)
-    call broadcast (secondary)
-    call broadcast (tertiary)
-    call broadcast (harris)
-    call broadcast (margin)
-    call broadcast (k0)
-    call broadcast (avail_cpu_time)
-    call broadcast (margin_cpu_time)
-    call broadcast (eqzip_option_switch)
-!    call broadcast (include_lowflow)
-    call broadcast (rhostar)
-    call broadcast (neo_test)
-    call broadcast (trinity_linear_fluxes)
-    call broadcast (trinity_ql_fluxes)
-    call broadcast (do_eigsolve)
-    call broadcast (immediate_reset)
-    call broadcast (use_old_diagnostics)
 
     user_delt_max = delt
 
