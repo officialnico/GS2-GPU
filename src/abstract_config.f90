@@ -20,6 +20,7 @@ module abstract_config
      character(len = MAX_NAME_LEN) :: name="Undefined name." !< The name of the namelist that we represent.
    contains
      procedure :: is_initialised => is_initialised_generic
+     procedure :: init => init_generic
      procedure :: setup => setup_generic
      procedure :: write_namelist_header
      procedure, nopass :: write_namelist_footer
@@ -28,7 +29,6 @@ module abstract_config
      procedure, private, nopass :: write_key_val_integer
      procedure, private, nopass :: write_key_val_logical
      generic :: write_key_val => write_key_val_string, write_key_val_real, write_key_val_integer, write_key_val_logical
-     procedure(init_interface), deferred :: init
      procedure(read_interface), deferred :: read
      procedure(write_interface), deferred :: write
      procedure(reset_interface), deferred :: reset
@@ -36,12 +36,6 @@ module abstract_config
   end type abstract_config_type
 
   interface
-     subroutine init_interface(self, index)
-       import
-       class(abstract_config_type), intent(in out) :: self
-       integer, intent(in), optional :: index
-     end subroutine init_interface
-
      subroutine read_interface(self)
        import
        class(abstract_config_type), intent(in out) :: self
@@ -72,11 +66,24 @@ contains
     is_initialised_generic = self%initialised
   end function is_initialised_generic
 
+  !> Fully initialise the config object
+  subroutine init_generic(self, name, requires_index, index)
+    implicit none
+    class(abstract_config_type), intent(inout) :: self
+    character(len = *), intent(in) :: name
+    logical, intent(in) :: requires_index
+    integer, intent(in), optional :: index
+    if (self%is_initialised()) return
+    call self%setup(name, requires_index, index)
+    call self%read()
+    call self%broadcast()
+  end subroutine init_generic
+  
   !> Do some standard setup/checking
   subroutine setup_generic(self, name, requires_index, index)
     implicit none
     class(abstract_config_type), intent(inout) :: self
-    character(len=*), intent(in) :: name
+    character(len = *), intent(in) :: name
     logical, intent(in) :: requires_index
     integer, intent(in), optional :: index
     self%name = name

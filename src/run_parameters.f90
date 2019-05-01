@@ -107,7 +107,6 @@ module run_parameters
      !> Unknown
      logical :: trinity_ql_fluxes = .false.
    contains
-     procedure, public :: init => init_run_parameters_config
      procedure, public :: read => read_run_parameters_config
      procedure, public :: write => write_run_paramters_config
      procedure, public :: reset => reset_run_parameters_config
@@ -325,7 +324,7 @@ contains
 
     if (present(config_in)) config_internal = config_in
 
-    call config_internal%init()
+    call config_internal%init(name = 'knobs', requires_index = .false.)
 
     ! Copy out internal values into module level parameters
     beta  = config_internal%beta 
@@ -529,18 +528,6 @@ contains
   !---------------------------------------
   ! Following is for the config_type
   !---------------------------------------
-
-  !> Fully initialises the config object.
-  subroutine init_run_parameters_config(self, index)
-    implicit none
-    class(run_parameters_config_type), intent(in out) :: self
-    integer, intent(in), optional :: index
-
-    if (self%is_initialised()) return
-    call self%setup(name = 'knobs', requires_index = .false., index = index)
-    call self%read()
-    call self%broadcast()
-  end subroutine init_run_parameters_config
   
   !> Reads in the parameters and knobs namelists and populates the member variables
   subroutine read_run_parameters_config(self)
