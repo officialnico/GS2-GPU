@@ -618,7 +618,7 @@ contains
     use theta_grid_params, only: shift_in => shift, alpmhd
     use text_options, only: text_option, get_option_value
     implicit none
-    type(theta_grid_salpha_config_type), intent(in out), optional :: config_in
+    type(theta_grid_salpha_config_type), intent(in), optional :: config_in
     
     character(20) :: model_option
     type (text_option), dimension (8), parameter :: modelopts = &
