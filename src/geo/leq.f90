@@ -106,6 +106,11 @@ module leq
     procedure, nopass :: mod2pi
     procedure, nopass :: derm
     procedure, nopass :: set_ntnr
+    procedure, nopass :: set_drm
+    procedure, nopass :: set_dzm
+    procedure, nopass :: eqdcart
+    procedure, nopass :: eqdbish
+    procedure, nopass :: alloc_arrays, dealloc_arrays
   end type leq_testing_type
 
 contains
@@ -118,6 +123,22 @@ contains
     nt = ntheta
     nr = nradius
   end subroutine set_ntnr
+
+  !> Set module-level `drm`
+  !! PURELY FOR TESTING
+  !! FIXME: Remove when we have more control over module-level variables for testing
+  subroutine set_drm(drm_in)
+    real, dimension(nr,-nt:nt,2), intent(in) :: drm_in
+    drm = drm_in
+  end subroutine set_drm
+
+  !> Set module-level `dzm`
+  !! PURELY FOR TESTING
+  !! FIXME: Remove when we have more control over module-level variables for testing
+  subroutine set_dzm(dzm_in)
+    real, dimension(nr,-nt:nt,2), intent(in) :: dzm_in
+    dzm = dzm_in
+  end subroutine set_dzm
 
   !> FIXME : Add documentation  
   subroutine leqin(geoType, Rmaj, Rgeo, r, dr, aSurf, sHorz, sVert, mMode, nMode, delm, deln, delmp, delnp, thm, thn, q, shat, nt_used, thShift)

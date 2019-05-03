@@ -134,4 +134,60 @@ contains
 
   end subroutine test_derm_T
 
+  @test
+  subroutine test_eqdcart()
+    use constants, only : pi
+    use leq, only : leq_testing_type
+    type(leq_testing_type) :: leq_privates
+
+    integer, parameter :: nradius = 3
+    integer, parameter :: ntheta = 4
+    integer, parameter :: total_ntheta = 2*ntheta + 1
+    integer, parameter :: total_size(2) = [nradius, total_ntheta]
+    real, parameter :: theta_grid_spacing = 2 * pi / (total_ntheta - 1)
+    real, dimension(nradius, -ntheta:ntheta, 2) :: drm, dzm
+    real, dimension(nradius, -ntheta:ntheta, 2) :: R_cylindrical, Z_cylindrical
+    real, dimension(nradius, -ntheta:ntheta, 2) :: R_cylindrical_expected, Z_cylindrical_expected
+
+    integer :: i, j
+
+    ! Index-space derivatives of R
+    drm(:, :, 1) = reshape( &
+         [([(cos(j * theta_grid_spacing), &
+         i=1, nradius)], j=-ntheta, ntheta)], total_size)
+    drm(:, :, 2) = reshape( &
+         [([(-sin(j * theta_grid_spacing) * theta_grid_spacing, &
+         i=1, nradius)], j=-ntheta, ntheta)], total_size)
+
+    ! Index-space derivatives of Z
+    dzm(:, :, 1) = reshape( &
+         [([(sin(j * theta_grid_spacing), &
+         i=1, nradius)], j=-ntheta, ntheta)], total_size)
+    dzm(:, :, 2) = reshape( &
+         [([(cos(j * theta_grid_spacing) * theta_grid_spacing, &
+         i=1, nradius)], j=-ntheta, ntheta)], total_size)
+
+    call leq_privates%set_ntnr(ntheta, nradius)
+    call leq_privates%alloc_arrays(nradius, ntheta)
+    call leq_privates%set_drm(drm)
+    call leq_privates%set_dzm(dzm)
+
+    call leq_privates%eqdcart(drm, R_cylindrical)
+    call leq_privates%eqdcart(dzm, Z_cylindrical)
+
+    call leq_privates%dealloc_arrays()
+
+    R_cylindrical_expected(:,:,1) = 1.
+    R_cylindrical_expected(:,:,2) = 0.
+    Z_cylindrical_expected(:,:,1) = 0.
+    Z_cylindrical_expected(:,:,2) = 1.
+
+    ! why is the output only divided by the denominator on the r-range 2,nr?
+    @assertEqual(R_cylindrical_expected(2:,:,1), R_cylindrical(2:,:,1), tolerance=1.e-8)
+    @assertEqual(R_cylindrical_expected(2:,:,2), R_cylindrical(2:,:,2), tolerance=1.e-8)
+    @assertEqual(Z_cylindrical_expected(2:,:,1), Z_cylindrical(2:,:,1), tolerance=1.e-8)
+    @assertEqual(Z_cylindrical_expected(2:,:,2), Z_cylindrical(2:,:,2), tolerance=1.e-8)
+
+  end subroutine test_eqdcart
+
 end module test_leq_mod
