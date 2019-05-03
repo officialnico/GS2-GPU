@@ -538,6 +538,10 @@ contains
     logical :: exist
     integer :: in_file
 
+    ! Note: When this routine is in the module where these variables live
+    ! we shadow the module level variables here. This is intentional to provide
+    ! isolation and ensure we can move this routine to another module easily.
+
     ! Parameters
     real :: beta, zeff, tite, teti, k0, rhostar
     character(len = 100000) :: user_comments
