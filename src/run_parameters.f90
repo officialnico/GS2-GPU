@@ -46,7 +46,8 @@ module run_parameters
   !! implemented here by adding the contents of "parameters" to "knobs".
   !! This should be documented clearly. Eventually we should remove parameters
   type, extends(abstract_config_type) :: run_parameters_config_type
-     ! Parameters
+     ! namelist : knobs
+     ! also deals with parameters
      !> \(\beta\) is the ratio of the reference pressure to the reference magnetic energy density, \(\beta=2\mu_0n_{ref}T_{ref}/B^2_{ref}\).
      real :: beta = 0.0
      !> Effective ionic charge appearing in electron collision frequency
