@@ -348,6 +348,8 @@ end module theta_grid_gridgen
 
 !> FIXME : Add documentation
 module theta_grid_salpha
+  use abstract_config, only: abstract_config_type
+  
   implicit none
 
   private
@@ -368,6 +370,34 @@ module theta_grid_salpha
   real :: shift
   logical :: exist, initialized = .false.
 
+  !> Used to represent the input configuration of theta_grid_salpha
+  type, extends(abstract_config_type) :: theta_grid_salpha_config_type
+     ! namelist : theta_grid_salpha_knobs
+     !> Used in conjunction with `alpmhd` of [[theta_grid_parameters]] to override `shift`, set as `shift=−alpmhd∗alpmhdfac`.
+     real :: alpmhdfac = 0.0
+     !> Coefficient in model when `model_option='alpha1'` has been selected.
+     real :: alpha1 = 0.0
+     !> Sets the particular model for the magnetic field and related drifts. NB: All options have gbdrift = cvdrift except where noted.
+     !> 's-alpha' - High aspect ratio toroidal equilibrium
+     !> 'default' - Same as 's-alpha'
+     !> 'alpha1' - Mainly same as 's-alpha' but with different definition of bmag and bset
+     !> 'rogers' - (aka. model_eps) From ingen output: "This model differs from the normal s-alpha model only in the curv and grad_B drifts." Indeed, cvdrift and gbdrift have an extra term, -(epsl*eps), while cvdrift0 and gbdrift0 are the same as 's-alpha'
+     !> 'b2' - From ingen output: "This model differs from the normal s-alpha model by an additional factor of 1/B(theta)**2 in the curv and grad_B drifts." Definition of bmag is also different.
+     !> 'normal_only' - Different definition of cvdrift (shat and shift terms removed) and cvdrift0 set to zero. Presumably this means that only the component of the curvature drift normal to the flux surface is retained while the component on the surface is 0. Useful for picking apart the effect of parameters on drifts and the effects of drifts on other quantities such as stability.
+     !> NB: For the final two options here ('const-curv' and 'no-curvature')
+     !> 'const-curv' - From ingen output: "Constant curvature is assumed. The grad-B and curvature drifts are both = epsl", i.e. shape = 'cylinder' NB: in contradiction to ingen output, gbdrift is not equal to cvdrift since cvdrift = epsl but gbdrift = cvdrift*(1.-shift). However, gbdrift0 = cvdrift0 = 0.
+     !> 'no-curvature' - From ingen output "Zero curvature is assumed", i.e. shape = 'slab'. NB: cvdrift = cvdrift0 = gbdrift0 = 0 but gbdrift is not 0 (gbdrift = epsl). NB: This does not yield the same result as cvdriftknob=0 in 's-alpha' model with non-zero epsl
+     !> (See also ingen output and contents of [[theta_grid.f90]] for further details
+     character(len = 20) :: model_option = "default"
+   contains
+     procedure, public :: read => read_theta_grid_salpha_config
+     procedure, public :: write => write_theta_grid_salpha_config
+     procedure, public :: reset => reset_theta_grid_salpha_config
+     procedure, public :: broadcast => broadcast_theta_grid_salpha_config
+  end type theta_grid_salpha_config_type
+
+  type(theta_grid_salpha_config_type) :: config_internal
+  
 contains
   !> FIXME : Add documentation  
   subroutine check_theta_grid_salpha(report_unit,alne,dbetadrho)
@@ -583,12 +613,13 @@ contains
   end subroutine finish_theta_grid_salpha
 
   !> FIXME : Add documentation  
-  subroutine read_parameters
+  subroutine read_parameters(config_in)
     use file_utils, only: input_unit, error_unit, input_unit_exist
     use theta_grid_params, only: shift_in => shift, alpmhd
     use text_options, only: text_option, get_option_value
     implicit none
-
+    type(theta_grid_salpha_config_type), intent(in out), optional :: config_in
+    
     character(20) :: model_option
     type (text_option), dimension (8), parameter :: modelopts = &
          (/ text_option('default', model_salpha), &
@@ -600,17 +631,19 @@ contains
             text_option('const-curv', model_ccurv), &
             text_option('no-curvature', model_nocurve) /)
 
-    namelist /theta_grid_salpha_knobs/ alpmhdfac, alpha1, model_option
     integer :: ierr, in_file
 
-    alpmhdfac = 0.0
-    alpha1 = 0.0
-    model_option = 'default'
-    in_file = input_unit_exist("theta_grid_salpha_knobs", exist)
-!    if (exist) read (unit=input_unit("theta_grid_salpha_knobs"), &
-!         nml=theta_grid_salpha_knobs)
-    if (exist) read (unit=in_file,nml=theta_grid_salpha_knobs)
+    if (present(config_in)) config_internal = config_in
 
+    call config_internal%init(name = 'theta_grid_salpha_knobs', requires_index = .false.)
+
+    ! Copy out internal values into module level parameters
+    alpha1 = config_internal%alpha1
+    alpmhdfac = config_internal%alpmhdfac
+    model_option = config_internal%model_option
+
+    exist = config_internal%exist
+    
     ierr = error_unit()
     call get_option_value &
          (model_option, modelopts, model_switch, &
@@ -805,6 +838,96 @@ contains
             jacob, Rplot, Zplot, Rprime, Zprime, aplot, aprime, Bpol)
     end if
   end subroutine salpha_get_grids
+
+  !---------------------------------------
+  ! Following is for the config_type
+  !--------------------------------------- 
+  
+  !> Reads in the theta_grid_salpha_knobs namelist and populates the member variables
+  subroutine read_theta_grid_salpha_config(self)
+    use file_utils, only: input_unit_exist, get_indexed_namelist_unit
+    use mp, only: proc0
+    implicit none
+    class(theta_grid_salpha_config_type), intent(in out) :: self
+    logical :: exist
+    integer :: in_file, iostat
+
+    ! Note: When this routine is in the module where these variables live
+    ! we shadow the module level variables here. This is intentional to provide
+    ! isolation and ensure we can move this routine to another module easily.    
+    real :: alpha1, alpmhdfac
+    character(len = 20) :: model_option
+
+    namelist /theta_grid_salpha_knobs/ alpha1, alpmhdfac, model_option
+
+    ! Only proc0 reads from file
+    if (.not. proc0) return
+
+    ! First set local variables from current values
+    alpha1 = self%alpha1
+    alpmhdfac = self%alpmhdfac
+    model_option = self%model_option
+
+    ! Now read in the main namelist
+    if (self%requiresIndex) then
+       call get_indexed_namelist_unit(in_file, self%name, self%index)
+       read(in_file, nml = theta_grid_salpha_knobs, iostat = iostat)
+       exist = .true.
+       if (iostat .ne.0) exist = .false.
+    else
+       in_file = input_unit_exist(self%name, exist)
+       if (exist) read(in_file, nml = theta_grid_salpha_knobs)
+    endif
+
+    ! Now copy from local variables into type members
+    self%alpha1 = alpha1
+    self%alpmhdfac = alpmhdfac
+    self%model_option = model_option
+
+    self%exist = exist
+  end subroutine read_theta_grid_salpha_config
+
+  !> Writes out a namelist representing the current state of the config object
+  subroutine write_theta_grid_salpha_config(self, unit)
+    implicit none
+    class(theta_grid_salpha_config_type), intent(in) :: self
+    integer, intent(in) , optional:: unit
+    integer :: unit_internal
+
+    unit_internal = 6 ! @todo -- get stdout from file_utils
+    if (present(unit)) then
+       unit_internal = unit
+    endif
+
+    call self%write_namelist_header(unit_internal)
+    call self%write_key_val("alpha1", self%alpha1, unit_internal)
+    call self%write_key_val("alpmhdfac", self%alpmhdfac, unit_internal)
+    call self%write_key_val("model_option", self%model_option, unit_internal)
+    call self%write_namelist_footer(unit_internal)
+  end subroutine write_theta_grid_salpha_config
+
+  !> Resets the config object to the initial empty state
+  subroutine reset_theta_grid_salpha_config(self)
+    class(theta_grid_salpha_config_type), intent(in out) :: self
+    type(theta_grid_salpha_config_type) :: empty
+    select type (self)
+    type is (theta_grid_salpha_config_type)
+       self = empty
+    end select
+  end subroutine reset_theta_grid_salpha_config
+
+  !> Broadcasts all config parameters so object is populated identically on
+  !! all processors
+  subroutine broadcast_theta_grid_salpha_config(self)
+    use mp, only: broadcast,iproc,nproc,barrier
+    implicit none
+    class(theta_grid_salpha_config_type), intent(in out) :: self
+    call broadcast(self%alpha1)
+    call broadcast(self%alpmhdfac)
+    call broadcast(self%model_option)
+
+    call broadcast(self%exist)
+  end subroutine broadcast_theta_grid_salpha_config
 end module theta_grid_salpha
 
 !> FIXME : Add documentation
