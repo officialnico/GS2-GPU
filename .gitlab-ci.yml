@@ -15,7 +15,7 @@ standard_tests:
     - adduser theuser --disabled-password --gecos ""
   script:
     - su -c "whoami ; MAKEFLAGS=-IMakefiles GK_SYSTEM=bitbucket make USE_NEW_DIAG= -j tests || (BUILD_STATUS=failed  BUILD_KEY=push ./.push_gitlab_build_status ${CASENAME}; exit 1)" theuser
-    - pipeline_test_scripts/didTestsFail.sh ${PWD}/tests results_of_test.txt
+    - pipeline_test_scripts/didTestsFail.sh ${PWD}/tests results_of_test.txt || (BUILD_STATUS=failed  BUILD_KEY=push ./.push_gitlab_build_status ${CASENAME}; exit 1)
     - BUILD_STATUS=passed  BUILD_KEY=push ./.push_gitlab_build_status ${CASENAME}
 
 standard_tests_onestep:
@@ -27,7 +27,7 @@ standard_tests_onestep:
     - adduser theuser --disabled-password --gecos ""
   script:
     - su -c "whoami ; echo 'F90FLAGS += -ffree-form' > Makefile.local ; MAKEFLAGS=-IMakefiles GK_SYSTEM=bitbucket make USE_NEW_DIAG= -j tests ONE_STEP_PP=on || (BUILD_STATUS=failed  BUILD_KEY=push ./.push_gitlab_build_status ${CASENAME}; exit 1)" theuser
-    - pipeline_test_scripts/didTestsFail.sh ${PWD}/tests results_of_test.txt
+    - pipeline_test_scripts/didTestsFail.sh ${PWD}/tests results_of_test.txt || (BUILD_STATUS=failed  BUILD_KEY=push ./.push_gitlab_build_status ${CASENAME}; exit 1)
     - BUILD_STATUS=passed  BUILD_KEY=push ./.push_gitlab_build_status ${CASENAME}
     
 nodeps_tests:
@@ -39,7 +39,7 @@ nodeps_tests:
     - adduser theuser --disabled-password --gecos ""
   script:
     - su -c "whoami ; MAKEFLAGS=-IMakefiles GK_SYSTEM=bitbucket make USE_FFT= USE_NETCDF= USE_MPI= USE_NEW_DIAG= -j tests || (BUILD_STATUS=failed  BUILD_KEY=push ./.push_gitlab_build_status ${CASENAME}; exit 1)" theuser
-    - pipeline_test_scripts/didTestsFail.sh ${PWD}/tests results_of_test.txt
+    - pipeline_test_scripts/didTestsFail.sh ${PWD}/tests results_of_test.txt || (BUILD_STATUS=failed  BUILD_KEY=push ./.push_gitlab_build_status ${CASENAME}; exit 1)
     - BUILD_STATUS=passed  BUILD_KEY=push ./.push_gitlab_build_status ${CASENAME}
 
 pages:
