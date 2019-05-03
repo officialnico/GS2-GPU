@@ -1,5 +1,7 @@
 !> FIXME : Add documentation
 module theta_grid_gridgen
+  use abstract_config, only: abstract_config_type
+
   implicit none
 
   private
@@ -13,6 +15,36 @@ module theta_grid_gridgen
   real :: alknob, epsknob, bpknob, extrknob, tension
   real :: thetamax, deltaw, widthw
   logical :: exist, initialized=.false.
+
+  !> Used to represent the input configuration of theta_grid_gridgen
+  type, extends(abstract_config_type) :: theta_grid_gridgen_config_type
+     ! namelist : theta_grid_gridgen_knobs
+     !> Unknown
+     integer :: npadd = 2
+     !> Unknown
+     real :: alknob = 0.0
+     !> Unknown
+     real :: epsknob = 1e-5
+     !> Unknown
+     real :: bpknob = 1.e-8
+     !> Unknown
+     real :: extrknob = 0.0
+     !> Unknown
+     real :: tension = 1.0
+     !> Unknown
+     real :: thetamax = 0.0
+     !> Unknown
+     real :: deltaw = 0.0
+     !> Unknown
+     real :: widthw = 1.0
+   contains
+     procedure, public :: read => read_theta_grid_gridgen_config
+     procedure, public :: write => write_run_paramters_config
+     procedure, public :: reset => reset_theta_grid_gridgen_config
+     procedure, public :: broadcast => broadcast_theta_grid_gridgen_config
+  end type theta_grid_gridgen_config_type
+
+  type(theta_grid_gridgen_config_type) :: config_internal
 
 contains
   
@@ -49,26 +81,31 @@ contains
     initialized = .false.
   end subroutine finish_theta_grid_gridgen
 
-  !> FIXME : Add documentation  
-  subroutine read_parameters
+  !> FIXME : Add documentation
+  subroutine read_parameters(config_in)
     use file_utils, only: input_unit, input_unit_exist
     implicit none
-    integer :: in_file
-    namelist /theta_grid_gridgen_knobs/ &
-         npadd, alknob, epsknob, bpknob, extrknob, tension, thetamax, deltaw, widthw
+    type(theta_grid_gridgen_config_type), intent(in), optional :: config_in
+    integer :: npadd
+    real :: alknob, epsknob, bpknob, extrknob, tension
+    real :: thetamax, deltaw, widthw
 
-    npadd = 2
-    alknob = 0.0
-    epsknob = 1e-5
-    bpknob = 1.e-8
-    extrknob = 0.0
-    tension = 1.0
-    thetamax = 0.0
-    deltaw = 0.0
-    widthw = 1.0
-    in_file = input_unit_exist("theta_grid_gridgen_knobs", exist)
-    if (exist) read (unit=input_unit("theta_grid_gridgen_knobs"), &
-         nml=theta_grid_gridgen_knobs)
+    if (present(config_in)) config_internal = config_in
+
+    call config_internal%init(name = 'theta_grid_gridgen_knobs', requires_index = .false.)
+
+    ! Copy out internal values into module level parameters
+    npadd  = config_internal%npadd
+    alknob  = config_internal%alknob
+    epsknob  = config_internal%epsknob
+    bpknob  = config_internal%bpknob
+    extrknob  = config_internal%extrknob
+    tension  = config_internal%tension
+    thetamax  = config_internal%thetamax
+    deltaw  = config_internal%deltaw
+    widthw  = config_internal%widthw
+
+    exist = config_internal%exist
   end subroutine read_parameters
 
   !> FIXME : Add documentation  
@@ -197,6 +234,116 @@ if (debug) write(6,*) 'gridgen_get_grids: end'
 
     call delete_spline (spl)
   end subroutine regrid
+
+
+  !---------------------------------------
+  ! Following is for the config_type
+  !---------------------------------------
+
+  !> Reads in the parameters and knobs namelists and populates the member variables
+  subroutine read_theta_grid_gridgen_config(self)
+    use file_utils, only: input_unit_exist
+    use mp, only: proc0
+    implicit none
+    class(theta_grid_gridgen_config_type), intent(in out) :: self
+    logical :: exist
+    integer :: in_file
+    ! Note: When this routine is in the module where these variables live
+    ! we shadow the module level variables here. This is intentional to provide
+    ! isolation and ensure we can move this routine to another module easily.
+    integer :: npadd
+    real :: alknob, epsknob, bpknob, extrknob, tension
+    real :: thetamax, deltaw, widthw
+
+    namelist /theta_grid_gridgen_knobs/ &
+         npadd, alknob, epsknob, bpknob, extrknob, tension, thetamax, deltaw, widthw
+
+    ! Only proc0 reads from file
+    if (.not. proc0) return
+
+    ! First set local variables from current values
+    npadd  = self%npadd
+    alknob  = self%alknob
+    epsknob  = self%epsknob
+    bpknob  = self%bpknob
+    extrknob  = self%extrknob
+    tension  = self%tension
+    thetamax  = self%thetamax
+    deltaw  = self%deltaw
+    widthw  = self%widthw
+
+    ! Now read in the main namelist
+    in_file = input_unit_exist(self%name, exist)
+    if (exist) read(in_file, nml = theta_grid_gridgen_knobs)
+
+    ! Now copy from local variables into type members
+    self%npadd   = npadd
+    self%alknob   = alknob
+    self%epsknob   = epsknob
+    self%bpknob   = bpknob
+    self%extrknob   = extrknob
+    self%tension   = tension
+    self%thetamax   = thetamax
+    self%deltaw   = deltaw
+    self%widthw   = widthw
+
+    self%exist = exist
+  end subroutine read_theta_grid_gridgen_config
+
+  !> Writes out a namelist representing the current state of the config object
+  subroutine write_run_paramters_config(self, unit)
+    implicit none
+    class(theta_grid_gridgen_config_type), intent(in) :: self
+    integer, intent(in) , optional:: unit
+    integer :: unit_internal
+
+    unit_internal = 6 ! @todo -- get stdout from file_utils
+    if (present(unit)) then
+       unit_internal = unit
+    endif
+
+    call self%write_namelist_header(unit_internal)
+    call self%write_key_val("npadd", self%npadd ,unit_internal)
+    call self%write_key_val("alknob", self%alknob ,unit_internal)
+    call self%write_key_val("epsknob", self%epsknob ,unit_internal)
+    call self%write_key_val("bpknob", self%bpknob ,unit_internal)
+    call self%write_key_val("extrknob", self%extrknob ,unit_internal)
+    call self%write_key_val("tension", self%tension ,unit_internal)
+    call self%write_key_val("thetamax", self%thetamax ,unit_internal)
+    call self%write_key_val("deltaw", self%deltaw ,unit_internal)
+    call self%write_key_val("widthw", self%widthw ,unit_internal)
+    call self%write_namelist_footer(unit_internal)
+  end subroutine write_run_paramters_config
+
+  !> Resets the config object to the initial empty state
+  subroutine reset_theta_grid_gridgen_config(self)
+    class(theta_grid_gridgen_config_type), intent(in out) :: self
+    type(theta_grid_gridgen_config_type) :: empty
+    select type (self)
+    type is (theta_grid_gridgen_config_type)
+       self = empty
+    end select
+  end subroutine reset_theta_grid_gridgen_config
+
+  !> Broadcasts all config parameters so object is populated identically on
+  !! all processors
+  subroutine broadcast_theta_grid_gridgen_config(self)
+    use mp, only: broadcast
+    implicit none
+    class(theta_grid_gridgen_config_type), intent(in out) :: self
+    call broadcast(self%npadd)
+    call broadcast(self%alknob)
+    call broadcast(self%epsknob)
+    call broadcast(self%bpknob)
+    call broadcast(self%extrknob)
+    call broadcast(self%tension)
+    call broadcast(self%thetamax)
+    call broadcast(self%deltaw)
+    call broadcast(self%widthw)
+
+    call broadcast(self%exist)
+  end subroutine broadcast_theta_grid_gridgen_config
+
 end module theta_grid_gridgen
 
 !> FIXME : Add documentation
