@@ -932,6 +932,8 @@ end module theta_grid_salpha
 
 !> FIXME : Add documentation
 module theta_grid_eik
+  use abstract_config, only: abstract_config_type
+  
   implicit none
 
   private
@@ -941,6 +943,103 @@ module theta_grid_eik
 
   logical :: exist, initialized = .false.
 
+  !> Used to represent the input configuration of theta_grid
+  type, extends(abstract_config_type) :: theta_grid_eik_config_type
+     ! namelist : theta_grid_eik_knobs
+     !> Used in calculation of `dp_new = -alpha_input/qval**2/rmaj*drhodpsi`
+     !> @note This gets a "smart" default.
+     real :: alpha_input = 0.0
+     !> The gradient of the pressure. Strictly speaking this parameter
+     !> is not \(\frac{\partial \beta}{\partial \rho}\) but \(\beta
+     !> \frac{1}{p}\frac{\partial p}{\partial \rho}\): in other words,
+     !> the gradient of the magnetic field is ignored. Used only if
+     !> `bishop` = 4 or 9.
+     !> @note This gets a "smart" default.
+     real :: beta_prime_input = 0.0
+     !> Use Bishop relations to generate metric coefficients.
+     !> -  0: Use high-aspect ratio coefficients (only for debugging)
+     !> -  1: Use actual equilibrium values of shat, p' recommended
+     !> -  2: Use numerical equilibrium + s_hat_input and p_prime_input
+     !> -  3: Use numerical equilibrium + s_hat_input and inv_Lp_input
+     !> -  4: Use numerical equilibrium + s_hat_input and beta_prime_input
+     !> -  5: Use numerical equilibrium + s_hat_input and alpha_input
+     !> -  6: Use numerical equilibrium + beta_prime_input
+     !> -  7: Use numerical equilibrium and multiply pressure gradient by dp_mult
+     !> -  8: Use numerical equilibrium + s_hat_input and multiply pressure gradient by dp_mult
+     !> -  9: Use numerical equilibrium + s_hat_input and beta_prime_input
+     !> -  Otherwise: Use magnetic shear and pressure gradient as set elsewhere.
+     integer :: bishop = 5
+     !> Use equilbrium data from the CHEASE file ogyropsi.dat
+     logical :: chs_eq = .false.
+     !> Default usually okay
+     !> @todo Expand documentation
+     real :: delrho = 1e-3
+     !> Vacuum magnetic dipole geometry
+     logical :: dfit_eq = .false.
+     !> Used to scale the pressure gradient, only if bishop = 7 or 8.
+     real :: dp_mult = 1.0
+     !> Use EFIT equilibrium (EFIT, codes with eqdsk format)
+     logical :: efit_eq = .false.
+     !> Name of file with numerical equilibrium data (if required)
+     character(len = 800) :: eqfile = "default_unset_value"
+     !> Change field-line coordinate. Recommended value: F
+     !> @note We recommend `.false.` but default to `.true.`. We should consider
+     !> changing the default.
+     logical :: equal_arc = .true.
+     !> Use Toq-style NetCDF equilibrium (TOQ)
+     logical :: gen_eq = .false.
+     !> Read Colin Roach's GS2D equilibrium file
+     logical :: gs2d_eq = .false.
+     !> FIXME: Add documentation
+     logical :: idfit_eq = .false.
+     !> Choose mode of operation:
+     !> -  0: Use analytic parameterization of local toroidal MHD equilibrium (Miller).
+     !> -  1: Read equilibrium data from output of MHD Grad Shafranov solver
+     !> -  2: Running inside a transport code without numerical equilibrium
+     integer :: iflux = 0
+     !> FIXME: Add documentation
+     real :: invlp_input = 0.
+     !> Choose definition of flux surface coordinate
+     !> -  1: rho == sqrt(toroidal flux)/sqrt(toroidal flux of LCFS)
+     !> -  2: rho == midplane diameter/LCFS diameter - Recommended
+     !> -  3: rho == poloidal flux/poloidal flux of LCFS
+     !> NB For consistency fprim, tprim, shat, uprim, g_exb etc
+     !>  *must be computed using same radial variable*,
+     !>  i.e. *depend on choice of irho*!
+     integer :: irho = 2
+     !> 0: Recommended
+     !> 1: Force up-down symmetry.
+     !> @todo Consider changing type to logical
+     integer :: isym = 0
+     !> Do not change
+     !> @todo Consider removing
+     integer :: itor = 1
+     !> If `.true.` use Miller-style local equilibrium else use other
+     !> numerical equilibrium types
+     logical :: local_eq = .true.
+     !> Use Menard-style NetCDF equilibrium (JSOLVER)
+     logical :: ppl_eq = .false.
+     !> Never used
+     real :: rmax = 1.0
+     !> Never used
+     real :: rmin = 1e-3
+     !> Used to overrides s_hat prescribed by the numerical
+     !> equilibrium, but _only_ if bishop=2,3,4,5,8, or 9.
+     !> @note This gets a "smart" default.
+     real :: s_hat_input = 0.0
+     !> Use PPL NetCDF equilibrium (psipqgrz equilibrium from TRANSP/TRXPL)
+     logical :: transp_eq = .false.
+     !> Write a little extra about geometry to the screen.
+     logical :: writelots = .false.
+   contains
+     procedure, public :: read => read_theta_grid_eik_config
+     procedure, public :: write => write_theta_grid_eik_config
+     procedure, public :: reset => reset_theta_grid_eik_config
+     procedure, public :: broadcast => broadcast_theta_grid_eik_config
+  end type theta_grid_eik_config_type
+
+  type(theta_grid_eik_config_type) :: config_internal
+  
 contains
   !> FIXME : Add documentation
   subroutine wnml_theta_grid_eik(unit)
@@ -1587,7 +1686,7 @@ contains
   end subroutine eik_get_grids
 
   !> FIXME : Add documentation  
-  subroutine read_parameters
+  subroutine read_parameters(config_in)
     use file_utils, only: input_unit, input_unit_exist
     use geometry, only: nperiod
     use geometry, only: rhoc
@@ -1616,16 +1715,12 @@ contains
     use theta_grid_params, only: thetam_in => thetam, thetan_in => thetan
     use theta_grid_params, only: betaprim_in => betaprim
     implicit none
-    integer :: in_file
+    type(theta_grid_eik_config_type), intent(in), optional :: config_in
 
-    namelist /theta_grid_eik_knobs/ itor, iflux, irho, &
-         ppl_eq, gen_eq, efit_eq, eqfile, dfit_eq, &
-         equal_arc, bishop, local_eq, idfit_eq, gs2d_eq, transp_eq, &
-         s_hat_input, alpha_input, invLp_input, beta_prime_input, dp_mult, &
-         delrho, rmin, rmax, isym, writelots,chs_eq
+    in_nt = .false.
     
+    ! Copy some values from theta_grid_params into this module
     nperiod = nperiod_in  
-    alpha_input = alpmhd_in
     rhoc = rhoc_in
     rmaj = rmaj_in
     r_geo = r_geo_in
@@ -1642,37 +1737,225 @@ contains
     thetam = thetam_in
     thetan = thetan_in
     qinp = qinp_in
-    s_hat_input = shat_in
-    beta_prime_input = betaprim_in
-    invLp_input = 0. !< Arbitrary default value
-    
-    itor = 1
-    iflux = 0
-    irho = 2
-    equal_arc = .true.
-    bishop = 5
-    dp_mult = 1.0
-    delrho = 1e-3
-    rmin = 1e-3
-    rmax = 1.0
-    isym = 0
-    in_nt = .false.
-    writelots = .false.
-    local_eq = .true.
-    chs_eq = .false.
-    ppl_eq = .false.
-    gen_eq = .false.
-    efit_eq = .false.
-    dfit_eq = .false.
-    gs2d_eq = .false.
-    transp_eq = .false.
-    idfit_eq = .false.
 
-    eqfile = "default_unset_value"
-    
-    in_file = input_unit_exist("theta_grid_eik_knobs", exist)
-    if (exist) read (unit=input_unit("theta_grid_eik_knobs"), nml=theta_grid_eik_knobs)
+    if (present(config_in)) config_internal = config_in
+
+    ! Smart defaults
+    config_internal%alpha_input = alpmhd_in
+    config_internal%s_hat_input = shat_in
+    config_internal%beta_prime_input = betaprim_in
+
+    call config_internal%init(name = 'theta_grid_eik_knobs', requires_index = .false.)
+
+    ! Copy out internal values into module level parameters
+    alpha_input = config_internal%alpha_input
+    beta_prime_input = config_internal%beta_prime_input
+    bishop = config_internal%bishop
+    chs_eq = config_internal%chs_eq
+    delrho = config_internal%delrho
+    dfit_eq = config_internal%dfit_eq
+    dp_mult = config_internal%dp_mult
+    efit_eq = config_internal%efit_eq
+    eqfile = config_internal%eqfile
+    equal_arc = config_internal%equal_arc
+    gen_eq = config_internal%gen_eq
+    gs2d_eq = config_internal%gs2d_eq
+    idfit_eq = config_internal%idfit_eq
+    iflux = config_internal%iflux
+    invlp_input = config_internal%invlp_input
+    irho = config_internal%irho
+    isym = config_internal%isym
+    itor = config_internal%itor
+    local_eq = config_internal%local_eq
+    ppl_eq = config_internal%ppl_eq
+    rmax = config_internal%rmax
+    rmin = config_internal%rmin
+    s_hat_input = config_internal%s_hat_input
+    transp_eq = config_internal%transp_eq
+    writelots = config_internal%writelots
+
+    exist = config_internal%exist   
   end subroutine read_parameters
+
+  !---------------------------------------
+  ! Following is for the config_type
+  !---------------------------------------
+  
+  !> Reads in the theta_grid_eik_knobs namelist and populates the member variables
+  subroutine read_theta_grid_eik_config(self)
+    use file_utils, only: input_unit_exist, get_indexed_namelist_unit
+    use mp, only: proc0
+    implicit none
+    class(theta_grid_eik_config_type), intent(in out) :: self
+    logical :: exist
+    integer :: in_file, iostat
+
+    ! Note: When this routine is in the module where these variables live
+    ! we shadow the module level variables here. This is intentional to provide
+    ! isolation and ensure we can move this routine to another module easily.    
+    integer :: bishop, iflux, irho, isym, itor
+    logical :: chs_eq, dfit_eq, efit_eq, equal_arc, gen_eq, gs2d_eq, idfit_eq, local_eq, ppl_eq, transp_eq, writelots
+    character(len = 800) :: eqfile
+    real :: alpha_input, beta_prime_input, delrho, dp_mult, invlp_input, rmax, rmin, s_hat_input
+
+    namelist /theta_grid_eik_knobs/ alpha_input, beta_prime_input, bishop, chs_eq, delrho, dfit_eq, dp_mult, efit_eq, eqfile, equal_arc, gen_eq, gs2d_eq, idfit_eq, iflux, invlp_input, irho, isym, itor, local_eq, ppl_eq, rmax, rmin, s_hat_input, transp_eq, writelots
+
+    ! Only proc0 reads from file
+    if (.not. proc0) return
+
+    ! First set local variables from current values
+    alpha_input = self%alpha_input
+    beta_prime_input = self%beta_prime_input
+    bishop = self%bishop
+    chs_eq = self%chs_eq
+    delrho = self%delrho
+    dfit_eq = self%dfit_eq
+    dp_mult = self%dp_mult
+    efit_eq = self%efit_eq
+    eqfile = self%eqfile
+    equal_arc = self%equal_arc
+    gen_eq = self%gen_eq
+    gs2d_eq = self%gs2d_eq
+    idfit_eq = self%idfit_eq
+    iflux = self%iflux
+    invlp_input = self%invlp_input
+    irho = self%irho
+    isym = self%isym
+    itor = self%itor
+    local_eq = self%local_eq
+    ppl_eq = self%ppl_eq
+    rmax = self%rmax
+    rmin = self%rmin
+    s_hat_input = self%s_hat_input
+    transp_eq = self%transp_eq
+    writelots = self%writelots
+
+    ! Now read in the main namelist
+    if (self%requiresIndex) then
+       call get_indexed_namelist_unit(in_file, self%name, self%index)
+       read(in_file, nml = theta_grid_eik_knobs, iostat = iostat)
+       exist = .true.
+       if (iostat .ne.0) exist = .false.
+    else
+       in_file = input_unit_exist(self%name, exist)
+       if (exist) read(in_file, nml = theta_grid_eik_knobs)
+    endif
+
+    ! Now copy from local variables into type members
+    self%alpha_input = alpha_input
+    self%beta_prime_input = beta_prime_input
+    self%bishop = bishop
+    self%chs_eq = chs_eq
+    self%delrho = delrho
+    self%dfit_eq = dfit_eq
+    self%dp_mult = dp_mult
+    self%efit_eq = efit_eq
+    self%eqfile = eqfile
+    self%equal_arc = equal_arc
+    self%gen_eq = gen_eq
+    self%gs2d_eq = gs2d_eq
+    self%idfit_eq = idfit_eq
+    self%iflux = iflux
+    self%invlp_input = invlp_input
+    self%irho = irho
+    self%isym = isym
+    self%itor = itor
+    self%local_eq = local_eq
+    self%ppl_eq = ppl_eq
+    self%rmax = rmax
+    self%rmin = rmin
+    self%s_hat_input = s_hat_input
+    self%transp_eq = transp_eq
+    self%writelots = writelots
+
+    self%exist = exist
+  end subroutine read_theta_grid_eik_config
+
+  !> Writes out a namelist representing the current state of the config object
+  subroutine write_theta_grid_eik_config(self, unit)
+    implicit none
+    class(theta_grid_eik_config_type), intent(in) :: self
+    integer, intent(in) , optional:: unit
+    integer :: unit_internal
+
+    unit_internal = 6 ! @todo -- get stdout from file_utils
+    if (present(unit)) then
+       unit_internal = unit
+    endif
+
+    call self%write_namelist_header(unit_internal)
+    call self%write_key_val("alpha_input", self%alpha_input, unit_internal)
+    call self%write_key_val("beta_prime_input", self%beta_prime_input, unit_internal)
+    call self%write_key_val("bishop", self%bishop, unit_internal)
+    call self%write_key_val("chs_eq", self%chs_eq, unit_internal)
+    call self%write_key_val("delrho", self%delrho, unit_internal)
+    call self%write_key_val("dfit_eq", self%dfit_eq, unit_internal)
+    call self%write_key_val("dp_mult", self%dp_mult, unit_internal)
+    call self%write_key_val("efit_eq", self%efit_eq, unit_internal)
+    call self%write_key_val("eqfile", self%eqfile, unit_internal)
+    call self%write_key_val("equal_arc", self%equal_arc, unit_internal)
+    call self%write_key_val("gen_eq", self%gen_eq, unit_internal)
+    call self%write_key_val("gs2d_eq", self%gs2d_eq, unit_internal)
+    call self%write_key_val("idfit_eq", self%idfit_eq, unit_internal)
+    call self%write_key_val("iflux", self%iflux, unit_internal)
+    call self%write_key_val("invlp_input", self%invlp_input, unit_internal)
+    call self%write_key_val("irho", self%irho, unit_internal)
+    call self%write_key_val("isym", self%isym, unit_internal)
+    call self%write_key_val("itor", self%itor, unit_internal)
+    call self%write_key_val("local_eq", self%local_eq, unit_internal)
+    call self%write_key_val("ppl_eq", self%ppl_eq, unit_internal)
+    call self%write_key_val("rmax", self%rmax, unit_internal)
+    call self%write_key_val("rmin", self%rmin, unit_internal)
+    call self%write_key_val("s_hat_input", self%s_hat_input, unit_internal)
+    call self%write_key_val("transp_eq", self%transp_eq, unit_internal)
+    call self%write_key_val("writelots", self%writelots, unit_internal)
+    call self%write_namelist_footer(unit_internal)
+  end subroutine write_theta_grid_eik_config
+
+  !> Resets the config object to the initial empty state
+  subroutine reset_theta_grid_eik_config(self)
+    class(theta_grid_eik_config_type), intent(in out) :: self
+    type(theta_grid_eik_config_type) :: empty
+    select type (self)
+    type is (theta_grid_eik_config_type)
+       self = empty
+    end select
+  end subroutine reset_theta_grid_eik_config
+
+  !> Broadcasts all config parameters so object is populated identically on
+  !! all processors
+  subroutine broadcast_theta_grid_eik_config(self)
+    use mp, only: broadcast
+    implicit none
+    class(theta_grid_eik_config_type), intent(in out) :: self
+    call broadcast(self%alpha_input)
+    call broadcast(self%beta_prime_input)
+    call broadcast(self%bishop)
+    call broadcast(self%chs_eq)
+    call broadcast(self%delrho)
+    call broadcast(self%dfit_eq)
+    call broadcast(self%dp_mult)
+    call broadcast(self%efit_eq)
+    call broadcast(self%eqfile)
+    call broadcast(self%equal_arc)
+    call broadcast(self%gen_eq)
+    call broadcast(self%gs2d_eq)
+    call broadcast(self%idfit_eq)
+    call broadcast(self%iflux)
+    call broadcast(self%invlp_input)
+    call broadcast(self%irho)
+    call broadcast(self%isym)
+    call broadcast(self%itor)
+    call broadcast(self%local_eq)
+    call broadcast(self%ppl_eq)
+    call broadcast(self%rmax)
+    call broadcast(self%rmin)
+    call broadcast(self%s_hat_input)
+    call broadcast(self%transp_eq)
+    call broadcast(self%writelots)
+
+    call broadcast(self%exist)
+  end subroutine broadcast_theta_grid_eik_config
 end module theta_grid_eik
 
 !> FIXME : Add documentation
