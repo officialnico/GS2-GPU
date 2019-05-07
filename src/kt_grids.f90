@@ -1117,6 +1117,8 @@ end module kt_grids_specified
 
 !> Set the perpendicular box size and resolution for linear or nonlinear runs.
 module kt_grids_box
+  use abstract_config, only: abstract_config_type
+  
   implicit none
 
   private
@@ -1137,41 +1139,92 @@ module kt_grids_box
   logical :: gryfx
   logical :: parameters_read = .false.
 
+  !> Used to represent the input configuration of kt_grids_box
+  type, extends(abstract_config_type) :: kt_grids_box_config_type
+     ! namelist : kt_grids_box_parameters
+     !> FIXME: Add documentation
+     logical :: gryfx = .false.
+     !> FIXME: Add documentation
+     !> @note This gets a smart default
+     integer :: jtwist = 1 
+     !> FIXME: Add documentation
+     real :: ly = 0.0
+     !> FIXME: Add documentation
+     integer :: n0 = 0
+     !> FIXME: Add documentation
+     integer :: naky = 0
+     !> FIXME: Add documentation
+     integer :: nkpolar = 0
+     !> FIXME: Add documentation
+     integer :: ntheta0 = 0
+     !> FIXME: Add documentation
+     integer :: nx = 0
+     !> FIXME: Add documentation
+     integer :: ny = 0      
+     !> FIXME: Add documentation
+     real :: rhostar_box = 0.0
+     !> FIXME: Add documentation
+     real :: rtwist = 0.0
+     !> FIXME: Add documentation
+     real :: x0 = 0.
+     !> FIXME: Add documentation
+     real :: y0 = 2.0
+   contains
+     procedure, public :: read => read_kt_grids_box_config
+     procedure, public :: write => write_kt_grids_box_config
+     procedure, public :: reset => reset_kt_grids_box_config
+     procedure, public :: broadcast => broadcast_kt_grids_box_config
+  end type kt_grids_box_config_type
+
+  type(kt_grids_box_config_type) :: config_internal
+  
 contains
 
   !> FIXME : Add documentation
-  subroutine init_parameters_box
+  subroutine init_parameters_box(config_in)
     use file_utils, only: input_unit, input_unit_exist
     use theta_grid, only: init_theta_grid, shat
     use constants, only: pi
     implicit none
+    type(kt_grids_box_config_type), intent(in), optional :: config_in    
     integer :: in_file
     logical :: exist
-    namelist /kt_grids_box_parameters/ naky, ntheta0, ly, nx, ny, n0, jtwist, &
-         y0, rtwist, x0, nkpolar, rhostar_box
 
     if (parameters_read) return
     parameters_read = .true. 
 
     call init_theta_grid
-    nkpolar = 0   ;   naky = 0    ;  ntheta0 = 0
-    ly = 0.0      ;   y0 = 2.0    ;  x0 = 0.
-    nx = 0        ;   ny = 0      
-    n0=0          ;   rhostar_box=0.0
 
-    gryfx = .false.
+    if (present(config_in)) config_internal = config_in
 
-    jtwist = max(int(2.0*pi*shat + 0.5),1)  ! default jtwist -- MAB
-    rtwist = 0.0
+    ! Set the smart defaults
+    config_internal%jtwist = max(int(2.0*pi*shat + 0.5),1)  ! default jtwist -- MAB
 
-    in_file = input_unit_exist("kt_grids_box_parameters", exist)
-    if (exist) read (in_file, nml=kt_grids_box_parameters)
+    call config_internal%init(name = 'kt_grids_box_parameters', requires_index = .false.)
+
+    ! Copy out internal values into module level parameters
+    gryfx = config_internal%gryfx
+    jtwist = config_internal%jtwist
+    ly = config_internal%ly
+    n0 = config_internal%n0
+    naky = config_internal%naky
+    nkpolar = config_internal%nkpolar
+    ntheta0 = config_internal%ntheta0
+    nx = config_internal%nx
+    ny = config_internal%ny
+    rhostar_box = config_internal%rhostar_box
+    rtwist = config_internal%rtwist
+    x0 = config_internal%x0
+    y0 = config_internal%y0
+    
+    exist = config_internal%exist
   end subroutine init_parameters_box
 
   !> FIXME : Add documentation  
   subroutine finish_parameters_box
     implicit none
     parameters_read = .false.
+    call config_internal%reset()
   end subroutine finish_parameters_box
 
   !> FIXME : Add documentation  
@@ -1434,6 +1487,138 @@ contains
     write (report_unit, fmt="('After de-aliasing, there will be ',i4,'  ky >= 0 modes and ',i4,' kx modes.')") naky, ntheta0
     write (report_unit, fmt="('The modes with ky < 0 are determined by the reality condition.')")
   end subroutine check_kt_grids_box
+
+  !---------------------------------------
+  ! Following is for the config_type
+  !---------------------------------------
+ 
+  
+  !> Reads in the kt_grids_box_parameters namelist and populates the member variables
+  subroutine read_kt_grids_box_config(self)
+    use file_utils, only: input_unit_exist, get_indexed_namelist_unit
+    use mp, only: proc0
+    implicit none
+    class(kt_grids_box_config_type), intent(in out) :: self
+    logical :: exist
+    integer :: in_file, iostat
+
+    ! Note: When this routine is in the module where these variables live
+    ! we shadow the module level variables here. This is intentional to provide
+    ! isolation and ensure we can move this routine to another module easily.    
+    real :: ly, rhostar_box, rtwist, x0, y0
+    logical :: gryfx
+    integer :: jtwist, n0, naky, nkpolar, ntheta0, nx, ny
+
+    namelist /kt_grids_box_parameters/ gryfx, jtwist, ly, n0, naky, nkpolar, ntheta0, nx, ny, rhostar_box, rtwist, x0, y0
+
+    ! Only proc0 reads from file
+    if (.not. proc0) return
+
+    ! First set local variables from current values
+    gryfx = self%gryfx
+    jtwist = self%jtwist
+    ly = self%ly
+    n0 = self%n0
+    naky = self%naky
+    nkpolar = self%nkpolar
+    ntheta0 = self%ntheta0
+    nx = self%nx
+    ny = self%ny
+    rhostar_box = self%rhostar_box
+    rtwist = self%rtwist
+    x0 = self%x0
+    y0 = self%y0
+
+    ! Now read in the main namelist
+    if (self%requiresIndex) then
+       call get_indexed_namelist_unit(in_file, self%name, self%index)
+       read(in_file, nml = kt_grids_box_parameters, iostat = iostat)
+       exist = .true.
+       if (iostat .ne.0) exist = .false.
+    else
+       in_file = input_unit_exist(self%name, exist)
+       if (exist) read(in_file, nml = kt_grids_box_parameters)
+    endif
+
+    ! Now copy from local variables into type members
+    self%gryfx = gryfx
+    self%jtwist = jtwist
+    self%ly = ly
+    self%n0 = n0
+    self%naky = naky
+    self%nkpolar = nkpolar
+    self%ntheta0 = ntheta0
+    self%nx = nx
+    self%ny = ny
+    self%rhostar_box = rhostar_box
+    self%rtwist = rtwist
+    self%x0 = x0
+    self%y0 = y0
+
+    self%exist = exist
+  end subroutine read_kt_grids_box_config
+
+  !> Writes out a namelist representing the current state of the config object
+  subroutine write_kt_grids_box_config(self, unit)
+    implicit none
+    class(kt_grids_box_config_type), intent(in) :: self
+    integer, intent(in) , optional:: unit
+    integer :: unit_internal
+
+    unit_internal = 6 ! @todo -- get stdout from file_utils
+    if (present(unit)) then
+       unit_internal = unit
+    endif
+
+    call self%write_namelist_header(unit_internal)
+    call self%write_key_val("gryfx", self%gryfx, unit_internal)
+    call self%write_key_val("jtwist", self%jtwist, unit_internal)
+    call self%write_key_val("ly", self%ly, unit_internal)
+    call self%write_key_val("n0", self%n0, unit_internal)
+    call self%write_key_val("naky", self%naky, unit_internal)
+    call self%write_key_val("nkpolar", self%nkpolar, unit_internal)
+    call self%write_key_val("ntheta0", self%ntheta0, unit_internal)
+    call self%write_key_val("nx", self%nx, unit_internal)
+    call self%write_key_val("ny", self%ny, unit_internal)
+    call self%write_key_val("rhostar_box", self%rhostar_box, unit_internal)
+    call self%write_key_val("rtwist", self%rtwist, unit_internal)
+    call self%write_key_val("x0", self%x0, unit_internal)
+    call self%write_key_val("y0", self%y0, unit_internal)
+    call self%write_namelist_footer(unit_internal)
+  end subroutine write_kt_grids_box_config
+
+  !> Resets the config object to the initial empty state
+  subroutine reset_kt_grids_box_config(self)
+    class(kt_grids_box_config_type), intent(in out) :: self
+    type(kt_grids_box_config_type) :: empty
+    select type (self)
+    type is (kt_grids_box_config_type)
+       self = empty
+    end select
+  end subroutine reset_kt_grids_box_config
+
+  !> Broadcasts all config parameters so object is populated identically on
+  !! all processors
+  subroutine broadcast_kt_grids_box_config(self)
+    use mp, only: broadcast
+    implicit none
+    class(kt_grids_box_config_type), intent(in out) :: self
+    call broadcast(self%gryfx)
+    call broadcast(self%jtwist)
+    call broadcast(self%ly)
+    call broadcast(self%n0)
+    call broadcast(self%naky)
+    call broadcast(self%nkpolar)
+    call broadcast(self%ntheta0)
+    call broadcast(self%nx)
+    call broadcast(self%ny)
+    call broadcast(self%rhostar_box)
+    call broadcast(self%rtwist)
+    call broadcast(self%x0)
+    call broadcast(self%y0)
+
+    call broadcast(self%exist)
+  end subroutine broadcast_kt_grids_box_config
 end module kt_grids_box
 
 !> Set up the perpendicular wavenumbers by calling the appropriate sub-modules. 
