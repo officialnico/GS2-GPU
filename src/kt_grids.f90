@@ -246,6 +246,8 @@ end module kt_grids_single
 
 !> Set up ranges of kx and ky for linear runs.
 module kt_grids_range
+  use abstract_config, only: abstract_config_type
+  
   implicit none
 
   private
@@ -267,17 +269,65 @@ module kt_grids_range
   !reuse these flags (rename to spacingopt_...).
   integer, parameter :: kyspacingopt_linear=1, kyspacingopt_exp=2 
 
-  namelist /kt_grids_range_parameters/ naky, ntheta0, nn0, n0_min, n0_max, &
-       aky_min, aky_max, theta0_min, theta0_max, akx_min, akx_max, rhostar_range,&
-       kyspacing_option
+  !> Used to represent the input configuration of kt_grids_single
+  type, extends(abstract_config_type) :: kt_grids_range_config_type
+     ! namelist : kt_grids_range_parameters
+     !> Max kx for periodic finite kx ballooning space runs with
+     !> \(\hat{s}=0\).
+     real :: akx_max = 0.0
+     !> Min kx for periodic finite kx ballooning space runs with
+     !> \(\hat{s}=0\).
+     real :: akx_min = 0.0
+     !> Upper limit of \(k_y \rho\) range. Should set to something other
+     !> than zero.
+     real :: aky_max = 0.0
+     !> Lower limit of \(k_y \rho\) range. Should typically set to
+     !> something other than zero.
+     real :: aky_min = 0.0
+     !> Sets the type of spacing between ky grid points, available options are :
+     !> -  'default' : Same as 'linear'
+     !> -  'exponential' : Evenly spaced in log(ky).
+     !> -  'linear' : Evenly spaced in ky.   
+     character(len = 20) :: kyspacing_option = 'default'
+     !> Maximum toroidal mode number. Use instead of `aky_max`.
+     integer :: n0_max = 0
+     !> Minimum toroidal mode number. Use instead of `aky_min`.
+     integer :: n0_min = 0
+     !> The number of 'actual' ky modes.
+     integer :: naky = 1
+     !> Number of toroidal modes, only used if `n0_min`>0. Overrides `naky`
+     !> in kt_grids_range_parameters. Note if the number of modes isn't compatible
+     !> with the requested min and max toroidal mode numbers then we just run with
+     !> one mode, determined by `n0_max`.
+     integer :: nn0 = 1
+     !> Number of \(\theta_0\) (kx) modes
+     integer :: ntheta0 = 1  
+     !> Used to convert `n0_min`, `n0_max` range into `aky_min`,
+     !> `aky_max`, if `n0_min`>0. If `n0_min` is set,
+     !> `aky_min=n0_min*drhodpsi*rhostar_range` and
+     !> `aky_max=n0_max*drhodpsi*rhostar_range`
+     real :: rhostar_range = 1.0e-4
+     !> Upper limit of `theta_0` range
+     real :: theta0_max = 0.0
+     !> Lower limit of `theta_0` range
+     real :: theta0_min = 0.0
+   contains
+     procedure, public :: read => read_kt_grids_range_config
+     procedure, public :: write => write_kt_grids_range_config
+     procedure, public :: reset => reset_kt_grids_range_config
+     procedure, public :: broadcast => broadcast_kt_grids_range_config
+  end type kt_grids_range_config_type
 
+  type(kt_grids_range_config_type) :: config_internal
+  
 contains
 
   !> FIXME : Add documentation
-  subroutine init_parameters_range
+  subroutine init_parameters_range(config_in)
     use file_utils, only: input_unit, input_unit_exist, error_unit
     use text_options, only: text_option, get_option_value
     implicit none
+    type(kt_grids_range_config_type), intent(in), optional :: config_in
     integer :: ierr
     integer :: in_file
     logical :: exist
@@ -289,17 +339,27 @@ contains
     if (parameters_read) return
     parameters_read = .true.
 
-    naky = 1          ;  ntheta0 = 1  
-    aky_min = 0.0     ;  aky_max = 0.0
-    theta0_min = 0.0  ;  theta0_max = 0.0
-    akx_min = 0.0     ;  akx_max = 0.0
-    nn0 = 1           ;  ntheta0 = 1  
-    n0_min = 0        ;  n0_max = 0
-    rhostar_range=1.0e-4
-    kyspacing_option='default'
-  
-    in_file = input_unit_exist ("kt_grids_range_parameters", exist)
-    if (exist) read (in_file, nml=kt_grids_range_parameters)
+    if (present(config_in)) config_internal = config_in
+
+    call config_internal%init(name = 'kt_grids_range_parameters', requires_index = .false.)
+
+    ! Copy out internal values into module level parameters
+    akx_max = config_internal%akx_max
+    akx_min = config_internal%akx_min
+    aky_max = config_internal%aky_max
+    aky_min = config_internal%aky_min
+    kyspacing_option = config_internal%kyspacing_option
+    n0_max = config_internal%n0_max
+    n0_min = config_internal%n0_min
+    naky = config_internal%naky
+    nn0 = config_internal%nn0
+    ntheta0 = config_internal%ntheta0
+    ntheta0 = config_internal%ntheta0
+    rhostar_range = config_internal%rhostar_range
+    theta0_max = config_internal%theta0_max
+    theta0_min = config_internal%theta0_min
+
+    exist = config_internal%exist
 
     ierr = error_unit()
     call get_option_value(kyspacing_option, kyspacingopts, kyspacingopt_switch,&
@@ -310,6 +370,7 @@ contains
   subroutine finish_parameters_range
     implicit none
     parameters_read = .false.
+    call config_internal%reset()
   end subroutine finish_parameters_range
 
   !> FIXME : Add documentation  
@@ -557,6 +618,140 @@ contains
     endif
 
   end subroutine check_kt_grids_range
+
+  
+  !---------------------------------------
+  ! Following is for the config_type
+  !---------------------------------------
+  
+  
+  !> Reads in the kt_grids_range_parameters namelist and populates the member variables
+  subroutine read_kt_grids_range_config(self)
+    use file_utils, only: input_unit_exist, get_indexed_namelist_unit
+    use mp, only: proc0
+    implicit none
+    class(kt_grids_range_config_type), intent(in out) :: self
+    logical :: exist
+    integer :: in_file, iostat
+
+    ! Note: When this routine is in the module where these variables live
+    ! we shadow the module level variables here. This is intentional to provide
+    ! isolation and ensure we can move this routine to another module easily.    
+    character(len = 20) :: kyspacing_option
+    real :: akx_max, akx_min, aky_max, aky_min, rhostar_range, theta0_max, theta0_min
+    integer :: n0_max, n0_min, naky, nn0, ntheta0
+
+    namelist /kt_grids_range_parameters/ akx_max, akx_min, aky_max, aky_min, kyspacing_option, n0_max, n0_min, naky, nn0, ntheta0, rhostar_range, theta0_max, theta0_min
+
+    ! Only proc0 reads from file
+    if (.not. proc0) return
+
+    ! First set local variables from current values
+    akx_max = self%akx_max
+    akx_min = self%akx_min
+    aky_max = self%aky_max
+    aky_min = self%aky_min
+    kyspacing_option = self%kyspacing_option
+    n0_max = self%n0_max
+    n0_min = self%n0_min
+    naky = self%naky
+    nn0 = self%nn0
+    ntheta0 = self%ntheta0
+    rhostar_range = self%rhostar_range
+    theta0_max = self%theta0_max
+    theta0_min = self%theta0_min
+
+    ! Now read in the main namelist
+    if (self%requiresIndex) then
+       call get_indexed_namelist_unit(in_file, self%name, self%index)
+       read(in_file, nml = kt_grids_range_parameters, iostat = iostat)
+       exist = .true.
+       if (iostat .ne.0) exist = .false.
+    else
+       in_file = input_unit_exist(self%name, exist)
+       if (exist) read(in_file, nml = kt_grids_range_parameters)
+    endif
+
+    ! Now copy from local variables into type members
+    self%akx_max = akx_max
+    self%akx_min = akx_min
+    self%aky_max = aky_max
+    self%aky_min = aky_min
+    self%kyspacing_option = kyspacing_option
+    self%n0_max = n0_max
+    self%n0_min = n0_min
+    self%naky = naky
+    self%nn0 = nn0
+    self%ntheta0 = ntheta0
+    self%rhostar_range = rhostar_range
+    self%theta0_max = theta0_max
+    self%theta0_min = theta0_min
+
+    self%exist = exist
+  end subroutine read_kt_grids_range_config
+
+  !> Writes out a namelist representing the current state of the config object
+  subroutine write_kt_grids_range_config(self, unit)
+    implicit none
+    class(kt_grids_range_config_type), intent(in) :: self
+    integer, intent(in) , optional:: unit
+    integer :: unit_internal
+
+    unit_internal = 6 ! @todo -- get stdout from file_utils
+    if (present(unit)) then
+       unit_internal = unit
+    endif
+
+    call self%write_namelist_header(unit_internal)
+    call self%write_key_val("akx_max", self%akx_max, unit_internal)
+    call self%write_key_val("akx_min", self%akx_min, unit_internal)
+    call self%write_key_val("aky_max", self%aky_max, unit_internal)
+    call self%write_key_val("aky_min", self%aky_min, unit_internal)
+    call self%write_key_val("kyspacing_option", self%kyspacing_option, unit_internal)
+    call self%write_key_val("n0_max", self%n0_max, unit_internal)
+    call self%write_key_val("n0_min", self%n0_min, unit_internal)
+    call self%write_key_val("naky", self%naky, unit_internal)
+    call self%write_key_val("nn0", self%nn0, unit_internal)
+    call self%write_key_val("ntheta0", self%ntheta0, unit_internal)
+    call self%write_key_val("rhostar_range", self%rhostar_range, unit_internal)
+    call self%write_key_val("theta0_max", self%theta0_max, unit_internal)
+    call self%write_key_val("theta0_min", self%theta0_min, unit_internal)
+    call self%write_namelist_footer(unit_internal)
+  end subroutine write_kt_grids_range_config
+
+  !> Resets the config object to the initial empty state
+  subroutine reset_kt_grids_range_config(self)
+    class(kt_grids_range_config_type), intent(in out) :: self
+    type(kt_grids_range_config_type) :: empty
+    select type (self)
+    type is (kt_grids_range_config_type)
+       self = empty
+    end select
+  end subroutine reset_kt_grids_range_config
+
+  !> Broadcasts all config parameters so object is populated identically on
+  !! all processors
+  subroutine broadcast_kt_grids_range_config(self)
+    use mp, only: broadcast
+    implicit none
+    class(kt_grids_range_config_type), intent(in out) :: self
+    call broadcast(self%akx_max)
+    call broadcast(self%akx_min)
+    call broadcast(self%aky_max)
+    call broadcast(self%aky_min)
+    call broadcast(self%kyspacing_option)
+    call broadcast(self%n0_max)
+    call broadcast(self%n0_min)
+    call broadcast(self%naky)
+    call broadcast(self%nn0)
+    call broadcast(self%ntheta0)
+    call broadcast(self%rhostar_range)
+    call broadcast(self%theta0_max)
+    call broadcast(self%theta0_min)
+
+    call broadcast(self%exist)
+  end subroutine broadcast_kt_grids_range_config
+
 end module kt_grids_range
 
 !> Set up sets of (kx, ky) values for linear runs.
