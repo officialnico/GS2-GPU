@@ -79,6 +79,7 @@ contains
   subroutine finish_theta_grid_gridgen
     implicit none
     initialized = .false.
+    call config_internal%reset()
   end subroutine finish_theta_grid_gridgen
 
   !> FIXME : Add documentation
@@ -610,6 +611,7 @@ contains
   subroutine finish_theta_grid_salpha
     implicit none
     initialized = .false.
+    call config_internal%reset()
   end subroutine finish_theta_grid_salpha
 
   !> FIXME : Add documentation  
@@ -1555,7 +1557,7 @@ contains
 
     initialized = .false.
     call finish_geometry
-    
+    call config_internal%reset()
   end subroutine finish_theta_grid_eik
 
   !> FIXME : Add documentation  
@@ -1774,7 +1776,7 @@ contains
     transp_eq = config_internal%transp_eq
     writelots = config_internal%writelots
 
-    exist = config_internal%exist   
+    exist = config_internal%exist
   end subroutine read_parameters
 
   !---------------------------------------
@@ -2073,6 +2075,7 @@ contains
   subroutine finish_theta_grid_file
     implicit none
     initialized = .false.
+    call config_internal%reset()
   end subroutine finish_theta_grid_file
 
   !> FIXME : Add documentation
@@ -2499,7 +2502,7 @@ contains
     ! This is now handled separately by gs2_init
     !call finish_theta_grid_params
     call deallocate_arrays
-
+    call config_internal%reset()
   end subroutine finish_theta_grid
 
   !> FIXME : Add documentation  

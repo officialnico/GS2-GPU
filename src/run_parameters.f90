@@ -524,6 +524,7 @@ contains
     if (allocated(ieqzip)) deallocate (ieqzip)
 
     initialized = .false.
+    call config_internal%reset()
   end subroutine finish_run_parameters
 
   !---------------------------------------
