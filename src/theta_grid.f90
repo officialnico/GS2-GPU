@@ -2470,11 +2470,12 @@ contains
     if (initialized) return
     initialized = .true.
 
+
+    call debug_message(verb, "init_theta_grid: call read_parameters")
+    call read_parameters
+    call debug_message(verb, "init_theta_grid: call get_sizes")
+    call get_sizes
     if (proc0) then
-       call debug_message(verb, "init_theta_grid: call read_parameters")
-       call read_parameters
-       call debug_message(verb, "init_theta_grid: call get_sizes")
-       call get_sizes
        call debug_message(verb, "init_theta_grid: call allocate_arrays")
        call allocate_arrays
        call debug_message(verb, "init_theta_grid: call get_grids")
