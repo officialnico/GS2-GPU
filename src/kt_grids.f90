@@ -1,5 +1,7 @@
 !> Set up values of kx and ky for linear runs that use a single k_perp mode.
 module kt_grids_single
+  use abstract_config, only: abstract_config_type
+  
   implicit none
 
   private
@@ -13,29 +15,63 @@ module kt_grids_single
   integer :: n0
   logical :: parameters_read = .false.
 
+  !> Used to represent the input configuration of kt_grids_single
+  type, extends(abstract_config_type) :: kt_grids_single_config_type
+     ! namelist : kt_grids_single_parameters
+     !> kx rho (but set theta_0 instead.)
+     real :: akx = 0.0
+     !> \(k_y \rho\) for the reference species.
+     real :: aky = 0.4
+     !> if `n0`>0 use toroidal mode number to override `aky` and set
+     !> `aky=n0*drhodpsi*rhostar_single`
+     integer :: n0 = 0
+     !> Used in conjunction with `n0`:
+     !> `aky=n0*drhodpsi*rhostar_single` (if `n0` is set).
+     real :: rhostar_single = 1.0e-4
+     !> \(\theta_0\) is the ballooning angle, sets the point in
+     !> \(\theta\) where the radial wavenumber is zero
+     real :: theta0 = 0.0
+   contains
+     procedure, public :: read => read_kt_grids_single_config
+     procedure, public :: write => write_kt_grids_single_config
+     procedure, public :: reset => reset_kt_grids_single_config
+     procedure, public :: broadcast => broadcast_kt_grids_single_config
+  end type kt_grids_single_config_type
+
+  type(kt_grids_single_config_type) :: config_internal
+  
 contains
 
   !> FIXME : Add documentation
-  subroutine init_parameters_single
+  subroutine init_parameters_single(config_in)
     use file_utils, only: input_unit, input_unit_exist
     implicit none
+    type(kt_grids_single_config_type), intent(in), optional :: config_in
     integer :: in_file
     logical :: exist
-    namelist /kt_grids_single_parameters/ n0, aky, theta0, akx, rhostar_single
 
     if (parameters_read) return
     parameters_read = .true.
 
-    aky = 0.4   ;  theta0 = 0.0   ;   akx = 0.0
-    n0 = 0      ; rhostar_single=1.0e-4
-    in_file = input_unit_exist ("kt_grids_single_parameters", exist)
-    if (exist) read (in_file, nml=kt_grids_single_parameters)
+    if (present(config_in)) config_internal = config_in
+
+    call config_internal%init(name = 'kt_grids_single_parameters', requires_index = .false.)
+
+    ! Copy out internal values into module level parameters
+    akx = config_internal%akx
+    aky = config_internal%aky
+    n0 = config_internal%n0
+    rhostar_single = config_internal%rhostar_single
+    theta0 = config_internal%theta0
+
+    exist = config_internal%exist
   end subroutine init_parameters_single
 
   !> FIXME : Add documentation
   subroutine finish_parameters_single
     implicit none
     parameters_read = .false.
+    call config_internal%reset()
   end subroutine finish_parameters_single
 
   !> FIXME : Add documentation  
@@ -108,6 +144,104 @@ contains
        write (report_unit, *) 
     end if
   end subroutine check_kt_grids_single
+
+  !---------------------------------------
+  ! Following is for the config_type
+  !--------------------------------------- 
+  
+  !> Reads in the kt_grids_single_parameters namelist and populates the member variables
+  subroutine read_kt_grids_single_config(self)
+    use file_utils, only: input_unit_exist, get_indexed_namelist_unit
+    use mp, only: proc0
+    implicit none
+    class(kt_grids_single_config_type), intent(in out) :: self
+    logical :: exist
+    integer :: in_file, iostat
+
+    ! Note: When this routine is in the module where these variables live
+    ! we shadow the module level variables here. This is intentional to provide
+    ! isolation and ensure we can move this routine to another module easily.    
+    real :: akx, aky, rhostar_single, theta0
+    integer :: n0
+
+    namelist /kt_grids_single_parameters/ akx, aky, n0, rhostar_single, theta0
+
+    ! Only proc0 reads from file
+    if (.not. proc0) return
+
+    ! First set local variables from current values
+    akx = self%akx
+    aky = self%aky
+    n0 = self%n0
+    rhostar_single = self%rhostar_single
+    theta0 = self%theta0
+
+    ! Now read in the main namelist
+    if (self%requiresIndex) then
+       call get_indexed_namelist_unit(in_file, self%name, self%index)
+       read(in_file, nml = kt_grids_single_parameters, iostat = iostat)
+       exist = .true.
+       if (iostat .ne.0) exist = .false.
+    else
+       in_file = input_unit_exist(self%name, exist)
+       if (exist) read(in_file, nml = kt_grids_single_parameters)
+    endif
+
+    ! Now copy from local variables into type members
+    self%akx = akx
+    self%aky = aky
+    self%n0 = n0
+    self%rhostar_single = rhostar_single
+    self%theta0 = theta0
+
+    self%exist = exist
+  end subroutine read_kt_grids_single_config
+
+  !> Writes out a namelist representing the current state of the config object
+  subroutine write_kt_grids_single_config(self, unit)
+    implicit none
+    class(kt_grids_single_config_type), intent(in) :: self
+    integer, intent(in) , optional:: unit
+    integer :: unit_internal
+
+    unit_internal = 6 ! @todo -- get stdout from file_utils
+    if (present(unit)) then
+       unit_internal = unit
+    endif
+
+    call self%write_namelist_header(unit_internal)
+    call self%write_key_val("akx", self%akx, unit_internal)
+    call self%write_key_val("aky", self%aky, unit_internal)
+    call self%write_key_val("n0", self%n0, unit_internal)
+    call self%write_key_val("rhostar_single", self%rhostar_single, unit_internal)
+    call self%write_key_val("theta0", self%theta0, unit_internal)
+    call self%write_namelist_footer(unit_internal)
+  end subroutine write_kt_grids_single_config
+
+  !> Resets the config object to the initial empty state
+  subroutine reset_kt_grids_single_config(self)
+    class(kt_grids_single_config_type), intent(in out) :: self
+    type(kt_grids_single_config_type) :: empty
+    select type (self)
+    type is (kt_grids_single_config_type)
+       self = empty
+    end select
+  end subroutine reset_kt_grids_single_config
+
+  !> Broadcasts all config parameters so object is populated identically on
+  !! all processors
+  subroutine broadcast_kt_grids_single_config(self)
+    use mp, only: broadcast
+    implicit none
+    class(kt_grids_single_config_type), intent(in out) :: self
+    call broadcast(self%akx)
+    call broadcast(self%aky)
+    call broadcast(self%n0)
+    call broadcast(self%rhostar_single)
+    call broadcast(self%theta0)
+
+    call broadcast(self%exist)
+  end subroutine broadcast_kt_grids_single_config
 end module kt_grids_single
 
 !> Set up ranges of kx and ky for linear runs.
