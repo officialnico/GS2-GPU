@@ -1502,6 +1502,7 @@ contains
     use theta_grid_params, only: init_theta_grid_params, ntheta, nperiod
     use runtime_tests, only: verbosity
     use unit_tests, only: debug_message
+    use mp, only: proc0
     implicit none
     real :: rhoc_save
 !CMR nov04: adding following debug switch
@@ -1545,7 +1546,7 @@ contains
 
     write(ntheta_char, "(I4)") ntheta
      call debug_message(verb, "init_theta_grid_eik: call eikcoefs, ntheta="//ntheta_char)
-    call eikcoefs (ntheta)
+    if(proc0) call eikcoefs (ntheta)
     write(ntheta_char, "(I4)") ntheta
      call debug_message(verb, "init_theta_grid_eik: done, ntheta="//ntheta_char)
 
