@@ -872,10 +872,11 @@ contains
 
     ! Now read in the main namelist
     if (self%requiresIndex) then
-       call get_indexed_namelist_unit(in_file, self%name, self%index)
+       call get_indexed_namelist_unit(in_file, trim(self%name), self%index)
        read(in_file, nml = theta_grid_salpha_knobs, iostat = iostat)
        exist = .true.
        if (iostat .ne.0) exist = .false.
+       close(unit = in_file, iostat = iostat)       
     else
        in_file = input_unit_exist(self%name, exist)
        if (exist) read(in_file, nml = theta_grid_salpha_knobs)
@@ -1835,10 +1836,11 @@ contains
 
     ! Now read in the main namelist
     if (self%requiresIndex) then
-       call get_indexed_namelist_unit(in_file, self%name, self%index)
+       call get_indexed_namelist_unit(in_file, trim(self%name), self%index)
        read(in_file, nml = theta_grid_eik_knobs, iostat = iostat)
        exist = .true.
        if (iostat .ne.0) exist = .false.
+       close(unit = in_file, iostat = iostat)       
     else
        in_file = input_unit_exist(self%name, exist)
        if (exist) read(in_file, nml = theta_grid_eik_knobs)
@@ -2271,10 +2273,11 @@ contains
 
     ! Now read in the main namelist
     if (self%requiresIndex) then
-       call get_indexed_namelist_unit(in_file, self%name, self%index)
+       call get_indexed_namelist_unit(in_file, trim(self%name), self%index)
        read(in_file, nml = theta_grid_file_knobs, iostat = iostat)
        exist = .true.
        if (iostat .ne.0) exist = .false.
+       close(unit = in_file, iostat = iostat)       
     else
        in_file = input_unit_exist(self%name, exist)
        if (exist) read(in_file, nml = theta_grid_file_knobs)
@@ -2950,10 +2953,11 @@ if (debug) write(6,*) 'get_grids: call file_get_grids'
 
     ! Now read in the main namelist
     if (self%requiresIndex) then
-       call get_indexed_namelist_unit(in_file, self%name, self%index)
+       call get_indexed_namelist_unit(in_file, trim(self%name), self%index)
        read(in_file, nml = theta_grid_knobs, iostat = iostat)
        exist = .true.
        if (iostat .ne.0) exist = .false.
+       close(unit = in_file, iostat = iostat)       
     else
        in_file = input_unit_exist(self%name, exist)
        if (exist) read(in_file, nml = theta_grid_knobs)

@@ -178,10 +178,11 @@ contains
 
     ! Now read in the main namelist
     if (self%requiresIndex) then
-       call get_indexed_namelist_unit(in_file, self%name, self%index)
+       call get_indexed_namelist_unit(in_file, trim(self%name), self%index)
        read(in_file, nml = kt_grids_single_parameters, iostat = iostat)
        exist = .true.
        if (iostat .ne.0) exist = .false.
+       close(unit = in_file, iostat = iostat)       
     else
        in_file = input_unit_exist(self%name, exist)
        if (exist) read(in_file, nml = kt_grids_single_parameters)
@@ -663,10 +664,11 @@ contains
 
     ! Now read in the main namelist
     if (self%requiresIndex) then
-       call get_indexed_namelist_unit(in_file, self%name, self%index)
+       call get_indexed_namelist_unit(in_file, trim(self%name), self%index)
        read(in_file, nml = kt_grids_range_parameters, iostat = iostat)
        exist = .true.
        if (iostat .ne.0) exist = .false.
+       close(unit = in_file, iostat = iostat)       
     else
        in_file = input_unit_exist(self%name, exist)
        if (exist) read(in_file, nml = kt_grids_range_parameters)
@@ -968,10 +970,11 @@ contains
 
     ! Now read in the main namelist
     if (self%requiresIndex) then
-       call get_indexed_namelist_unit(in_file, self%name, self%index)
+       call get_indexed_namelist_unit(in_file, trim(self%name), self%index)
        read(in_file, nml = kt_grids_specified_parameters, iostat = iostat)
        exist = .true.
        if (iostat .ne.0) exist = .false.
+       close(unit = in_file, iostat = iostat)       
     else
        in_file = input_unit_exist(self%name, exist)
        if (exist) read(in_file, nml = kt_grids_specified_parameters)
@@ -1060,10 +1063,11 @@ contains
 
     ! Now read in the main namelist
     if (self%requiresIndex) then
-       call get_indexed_namelist_unit(in_file, self%name, self%index)
+       call get_indexed_namelist_unit(in_file, trim(self%name), self%index)
        read(in_file, nml = kt_grids_specified_element, iostat = iostat)
        exist = .true.
        if (iostat .ne.0) exist = .false.
+       close(unit = in_file, iostat = iostat)       
     else
        in_file = input_unit_exist(self%name, exist)
        if (exist) read(in_file, nml = kt_grids_specified_element)
@@ -1536,10 +1540,11 @@ contains
 
     ! Now read in the main namelist
     if (self%requiresIndex) then
-       call get_indexed_namelist_unit(in_file, self%name, self%index)
+       call get_indexed_namelist_unit(in_file, trim(self%name), self%index)
        read(in_file, nml = kt_grids_box_parameters, iostat = iostat)
        exist = .true.
        if (iostat .ne.0) exist = .false.
+       close(unit = in_file, iostat = iostat)       
     else
        in_file = input_unit_exist(self%name, exist)
        if (exist) read(in_file, nml = kt_grids_box_parameters)
@@ -1998,10 +2003,11 @@ contains
 
     ! Now read in the main namelist
     if (self%requiresIndex) then
-       call get_indexed_namelist_unit(in_file, self%name, self%index)
+       call get_indexed_namelist_unit(in_file, trim(self%name), self%index)
        read(in_file, nml = kt_grids_knobs, iostat = iostat)
        exist = .true.
        if (iostat .ne.0) exist = .false.
+       close(unit = in_file, iostat = iostat)       
     else
        in_file = input_unit_exist(self%name, exist)
        if (exist) read(in_file, nml = kt_grids_knobs)
