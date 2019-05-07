@@ -2814,6 +2814,7 @@ contains
     use theta_grid_file, only: file_get_sizes, init_theta_grid_file
     use theta_grid_file, only: ntheta_file=>ntheta, nperiod_file=>nperiod
     use theta_grid_file, only: nbset_file=>nbset
+    use theta_grid_gridgen, only: theta_grid_gridgen_init
     implicit none
     logical, parameter :: debug=.false.
 if (debug) write(6,*) 'get_sizes: eqopt_switch=',eqopt_switch
@@ -2837,7 +2838,11 @@ if (debug) write(6,*) 'get_sizes: call file_get_sizes'
        nperiod=nperiod_file
        nbset=nbset_file
     end select
-    ntgrid = ntheta/2 + (nperiod-1)*ntheta 
+    ntgrid = ntheta/2 + (nperiod-1)*ntheta
+
+    ! Make sure gridgen is setup on all procs
+    call theta_grid_gridgen_init
+
 if (debug) write(6,*) 'get_sizes: done'
   end subroutine get_sizes
 
