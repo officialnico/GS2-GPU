@@ -11,6 +11,8 @@ declString = "{typ} :: {name}"
 assignmentString = " = {value}"
 
 readParamsSubString = """
+type({module}_config_type), intent(in), optional :: config_in
+
 if (present(config_in)) config_internal = config_in
 
 call config_internal%init(name = '{namelist}', requires_index = {req})
@@ -240,7 +242,7 @@ class config():
         if self.requiresIndex:
             req = ".true."
             
-        return readParamsSubString.format(namelist = self.namelistName, COPYOUT_LIST = self.copyOutList(instanceName='config_internal', **kwargs), req=req)
+        return readParamsSubString.format(module = self.moduleName, namelist = self.namelistName, COPYOUT_LIST = self.copyOutList(instanceName='config_internal', **kwargs), req=req)
     
     def readConfig(self, **kwargs):
         return readSubString.format(namelist = self.namelistName, module = self.moduleName,
