@@ -867,29 +867,34 @@ contains
 
  end subroutine specified_get_sizes
 
-  !> FIXME : Add documentation  
-  subroutine specified_get_grids (aky, theta0, akx, config_in)
-    implicit none
-    real, dimension (:), intent (out) :: akx, aky
-    real, dimension (:,:), intent (out) :: theta0
-    type(kt_grids_specified_element_config_type), intent(in), dimension(:), optional :: config_in    
-    real :: aky_dummy, theta0_dummy, akx_dummy
-    integer :: i, naky, ntheta0, nmodes
-
-    naky = size(aky)  ;  ntheta0 = size(akx)
-    nmodes = max(naky,ntheta0)
-    
-    if(.not.allocated(config_internal_elements)) allocate(config_internal_elements(nmodes))
-    
-    do i = 1, nmodes
-       call read_element (i, aky_dummy, theta0_dummy, akx_dummy, config_in)
-       if (i <= naky) aky(i) = aky_dummy
-       if (i <= ntheta0) theta0(i,:) = theta0_dummy
-       if (i <= ntheta0) akx(i) = akx_dummy
+ !> FIXME : Add documentation  
+ subroutine specified_get_grids (aky, theta0, akx, config_in)
+   use mp, only: proc0
+   implicit none
+   real, dimension (:), intent (out) :: akx, aky
+   real, dimension (:,:), intent (out) :: theta0
+   type(kt_grids_specified_element_config_type), intent(in), dimension(:), optional :: config_in    
+   real :: aky_dummy, theta0_dummy, akx_dummy
+   integer :: i, naky, ntheta0, nmodes
+   
+   naky = size(aky)  ;  ntheta0 = size(akx)
+   nmodes = max(naky,ntheta0)
+   
+   if(.not.allocated(config_internal_elements)) allocate(config_internal_elements(nmodes))
+   
+   if (size(config_internal_elements) .ne. nmodes) then
+      if(proc0) print*,"Warning: inconsistent number of config elements."
+   end if
+   
+   do i = 1, nmodes
+      call read_element (i, aky_dummy, theta0_dummy, akx_dummy, config_in)
+      if (i <= naky) aky(i) = aky_dummy
+      if (i <= ntheta0) theta0(i,:) = theta0_dummy
+      if (i <= ntheta0) akx(i) = akx_dummy
     end do
-
+    
   end subroutine specified_get_grids
-
+  
   !> FIXME : Add documentation  
   subroutine read_element (i, aky_dummy, theta0_dummy, akx_dummy, config_in)
     use file_utils, only: get_indexed_namelist_unit
@@ -1623,7 +1628,9 @@ end module kt_grids_box
 
 !> Set up the perpendicular wavenumbers by calling the appropriate sub-modules. 
 module kt_grids
+  use abstract_config, only: abstract_config_type
   use kt_grids_box, only: jtwist
+  
   implicit none
 
   private
@@ -1648,8 +1655,6 @@ module kt_grids
   integer :: naky, ntheta0, nx, ny, nkpolar, jtwist_out
   character(20) :: grid_option
 
-  namelist /kt_grids_knobs/ grid_option
-
   ! internal variables
   integer :: gridopt_switch
   integer, parameter :: gridopt_single = 1, gridopt_range = 2, &
@@ -1660,24 +1665,36 @@ module kt_grids
   logical :: kp2init=.false.
   logical :: nml_exist
   logical :: parameters_read = .false.
+  
+  !> Used to represent the input configuration of kt_grids
+  type, extends(abstract_config_type) :: kt_grids_config_type
+     ! namelist : kt_grids_knobs
+     !> FIXME: Add documentation     
+     character(len = 20) :: grid_option = "default"
+   contains
+     procedure, public :: read => read_kt_grids_config
+     procedure, public :: write => write_kt_grids_config
+     procedure, public :: reset => reset_kt_grids_config
+     procedure, public :: broadcast => broadcast_kt_grids_config
+  end type kt_grids_config_type
 
+  type(kt_grids_config_type) :: config_internal
+  
 contains
   !> FIXME : Add documentation
-  subroutine init_kt_grids_parameters
+  subroutine init_kt_grids_parameters(config_in)
     use theta_grid, only: init_theta_grid
-    use mp, only: proc0
     use kt_grids_single, only: init_parameters_single
     use kt_grids_range, only: init_parameters_range
     use kt_grids_box, only: init_parameters_box
     implicit none
-
+    type(kt_grids_config_type), intent(in), optional :: config_in
+    
     if (parameters_read) return
     parameters_read = .true.
     call init_theta_grid
-    if (proc0) then
-       nkpolar = 0   ! will be set to non-zero value only in box case; only used for an MHD diagnostic
-       call read_parameters_internal
-    end if
+    nkpolar = 0   ! will be set to non-zero value only in box case; only used for an MHD diagnostic
+    call read_parameters_internal(config_in)
 
     ! Read all namelists in case grid_option is overriden
     ! kt_grids_specified parameters cannot be overriden at this time
@@ -1701,6 +1718,7 @@ contains
     call finish_parameters_range
     call finish_parameters_box
 
+    call config_internal%reset()
     parameters_read = .false.
   end subroutine finish_kt_grids_parameters
 
@@ -1733,14 +1751,15 @@ contains
   end function gryfx
 
   !> FIXME : Add documentation
-  subroutine init_kt_grids
+  subroutine init_kt_grids(config_in)
     use mp, only: proc0, broadcast
     implicit none
+    type(kt_grids_config_type), intent(in), optional :: config_in    
 
     if (initialized) return
     initialized = .true.
 
-    call init_kt_grids_parameters
+    call init_kt_grids_parameters(config_in)
 
 
     if (proc0) then
@@ -1770,10 +1789,11 @@ contains
   end subroutine init_kt_grids
 
   !> FIXME : Add documentation  
-  subroutine read_parameters_internal
+  subroutine read_parameters_internal(config_in)
     use file_utils, only: input_unit, error_unit, input_unit_exist
     use text_options, only: text_option, get_option_value
     implicit none
+    type(kt_grids_config_type), intent(in), optional :: config_in
     type (text_option), dimension (6), parameter :: gridopts = &
          (/ text_option('default', gridopt_single), &
             text_option('single', gridopt_single), &
@@ -1783,10 +1803,15 @@ contains
             text_option('nonlinear', gridopt_box) /)
     integer :: ierr, in_file
 
-    grid_option = 'default'
-    in_file = input_unit_exist ("kt_grids_knobs", nml_exist)
-    if (nml_exist) read (unit=in_file, nml=kt_grids_knobs)
+    if (present(config_in)) config_internal = config_in
 
+    call config_internal%init(name = 'kt_grids_knobs', requires_index = .false.)
+
+    ! Copy out internal values into module level parameters
+    grid_option = config_internal%grid_option
+    
+    nml_exist = config_internal%exist
+    
     ierr = error_unit()
     call get_option_value (grid_option, gridopts, gridopt_switch, &
          ierr, "grid_option in kt_grids_knobs",.true.)
@@ -1918,7 +1943,7 @@ contains
     reality = .false. ; box = .false.
     kp2init = .false.
     initialized = .false.
-
+    call finish_kt_grids_parameters
   end subroutine finish_kt_grids
 
   !> FIXME : Add documentation  
@@ -1943,5 +1968,87 @@ contains
        call check_kt_grids_box (report_unit)
     end select
   end subroutine check_kt_grids
+
+  !---------------------------------------
+  ! Following is for the config_type
+  !---------------------------------------
+  
+  
+  !> Reads in the kt_grids_knobs namelist and populates the member variables
+  subroutine read_kt_grids_config(self)
+    use file_utils, only: input_unit_exist, get_indexed_namelist_unit
+    use mp, only: proc0
+    implicit none
+    class(kt_grids_config_type), intent(in out) :: self
+    logical :: exist
+    integer :: in_file, iostat
+
+    ! Note: When this routine is in the module where these variables live
+    ! we shadow the module level variables here. This is intentional to provide
+    ! isolation and ensure we can move this routine to another module easily.    
+    character(len = 20) :: grid_option
+
+    namelist /kt_grids_knobs/ grid_option
+
+    ! Only proc0 reads from file
+    if (.not. proc0) return
+
+    ! First set local variables from current values
+    grid_option = self%grid_option
+
+    ! Now read in the main namelist
+    if (self%requiresIndex) then
+       call get_indexed_namelist_unit(in_file, self%name, self%index)
+       read(in_file, nml = kt_grids_knobs, iostat = iostat)
+       exist = .true.
+       if (iostat .ne.0) exist = .false.
+    else
+       in_file = input_unit_exist(self%name, exist)
+       if (exist) read(in_file, nml = kt_grids_knobs)
+    endif
+
+    ! Now copy from local variables into type members
+    self%grid_option = grid_option
+
+    self%exist = exist
+  end subroutine read_kt_grids_config
+
+  !> Writes out a namelist representing the current state of the config object
+  subroutine write_kt_grids_config(self, unit)
+    implicit none
+    class(kt_grids_config_type), intent(in) :: self
+    integer, intent(in) , optional:: unit
+    integer :: unit_internal
+
+    unit_internal = 6 ! @todo -- get stdout from file_utils
+    if (present(unit)) then
+       unit_internal = unit
+    endif
+
+    call self%write_namelist_header(unit_internal)
+    call self%write_key_val("grid_option", self%grid_option, unit_internal)
+    call self%write_namelist_footer(unit_internal)
+  end subroutine write_kt_grids_config
+
+  !> Resets the config object to the initial empty state
+  subroutine reset_kt_grids_config(self)
+    class(kt_grids_config_type), intent(in out) :: self
+    type(kt_grids_config_type) :: empty
+    select type (self)
+    type is (kt_grids_config_type)
+       self = empty
+    end select
+  end subroutine reset_kt_grids_config
+
+  !> Broadcasts all config parameters so object is populated identically on
+  !! all processors
+  subroutine broadcast_kt_grids_config(self)
+    use mp, only: broadcast
+    implicit none
+    class(kt_grids_config_type), intent(in out) :: self
+    call broadcast(self%grid_option)
+
+    call broadcast(self%exist)
+  end subroutine broadcast_kt_grids_config
 end module kt_grids
 
