@@ -39,7 +39,7 @@ module theta_grid_gridgen
      real :: widthw = 1.0
    contains
      procedure, public :: read => read_theta_grid_gridgen_config
-     procedure, public :: write => write_run_paramters_config
+     procedure, public :: write => write_theta_grid_gridgen_config
      procedure, public :: reset => reset_theta_grid_gridgen_config
      procedure, public :: broadcast => broadcast_theta_grid_gridgen_config
   end type theta_grid_gridgen_config_type
@@ -292,7 +292,7 @@ if (debug) write(6,*) 'gridgen_get_grids: end'
   end subroutine read_theta_grid_gridgen_config
 
   !> Writes out a namelist representing the current state of the config object
-  subroutine write_run_paramters_config(self, unit)
+  subroutine write_theta_grid_gridgen_config(self, unit)
     implicit none
     class(theta_grid_gridgen_config_type), intent(in) :: self
     integer, intent(in) , optional:: unit
@@ -314,7 +314,7 @@ if (debug) write(6,*) 'gridgen_get_grids: end'
     call self%write_key_val("deltaw", self%deltaw ,unit_internal)
     call self%write_key_val("widthw", self%widthw ,unit_internal)
     call self%write_namelist_footer(unit_internal)
-  end subroutine write_run_paramters_config
+  end subroutine write_theta_grid_gridgen_config
 
   !> Resets the config object to the initial empty state
   subroutine reset_theta_grid_gridgen_config(self)
