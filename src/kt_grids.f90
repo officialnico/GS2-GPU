@@ -899,8 +899,6 @@ contains
     type(kt_grids_specified_element_config_type), intent(in), dimension(:), optional :: config_in    
     real :: akx, aky, theta0
     logical :: exist
-    
-    namelist /kt_grids_specified_element/ aky, theta0, akx
 
     if (present(config_in)) config_internal_elements(i) = config_in(i)
 
