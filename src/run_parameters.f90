@@ -359,6 +359,7 @@ contains
     trinity_ql_fluxes  = config_internal%trinity_ql_fluxes 
   
     if(proc0) in_file = input_unit_exist("parameters", rpexist)
+    call broadcast(rpexist)
     knexist = config_internal%exist
 
     ! Now handle inputs to calculate derived quantities
