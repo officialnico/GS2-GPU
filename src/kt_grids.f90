@@ -763,7 +763,7 @@ module kt_grids_specified
   private
 
   public :: init_kt_grids_specified, specified_get_sizes, specified_get_grids
-  public :: check_kt_grids_specified, wnml_kt_grids_specified
+  public :: check_kt_grids_specified, wnml_kt_grids_specified, finish_parameters_specified
 
   integer :: naky, ntheta0, nx, ny
 
@@ -830,6 +830,13 @@ contains
 
   end subroutine init_kt_grids_specified
 
+  !> FIXME : Add documentation  
+  subroutine finish_parameters_specified
+    implicit none
+    call config_internal%reset()
+    if(allocated(config_internal_elements)) deallocate(config_internal_elements)
+  end subroutine finish_parameters_specified
+  
   !> FIXME : Add documentation  
   subroutine wnml_kt_grids_specified (unit, aky, theta0)
     implicit none
@@ -1502,10 +1509,12 @@ contains
   subroutine finish_kt_grids_parameters
     use kt_grids_single, only: finish_parameters_single
     use kt_grids_range, only: finish_parameters_range
+    use kt_grids_specified, only: finish_parameters_specified
     use kt_grids_box, only: finish_parameters_box
     implicit none
     
     call finish_parameters_single
+    call finish_parameters_specified    
     call finish_parameters_range
     call finish_parameters_box
 
