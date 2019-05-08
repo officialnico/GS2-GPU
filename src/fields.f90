@@ -1,5 +1,6 @@
 !> FIXME : Add documentation
 module fields
+  use abstract_config, only: abstract_config_type
   use text_options, only: text_option
 
   implicit none
@@ -49,6 +50,44 @@ module fields
           text_option('local', fieldopt_local),&
           text_option('gf_local', fieldopt_gf_local),&
           text_option('implicit_local', fieldopt_local)/)
+  
+  !> Used to represent the input configuration of fields
+  type, extends(abstract_config_type) :: fields_config_type
+     ! namelist : fields_knobs
+     !> FIXME: Add documentation
+     logical :: do_smart_update = .false.
+     !> FIXME: Add documentation
+     logical :: dump_response = .false.
+     !> FIXME: Add documentation
+     logical :: field_local_allreduce = .false.
+     !> FIXME: Add documentation
+     logical :: field_local_allreduce_sub = .false.
+     !> FIXME: Add documentation
+     logical :: field_local_nonblocking_collectives = .false.
+     !> FIXME: Add documentation
+     logical :: field_local_tuneminnrow = .false.
+     !> FIXME: Add documentation
+     character(len = 20) :: field_option = 'default'
+     !> FIXME: Add documentation
+     logical :: field_subgath = .false.
+     !> FIXME: Add documentation
+     logical :: force_maxwell_reinit = .true. !Should this go into the reinit namelist?
+     !> FIXME: Add documentation
+     integer :: minnrow = 16
+     !> FIXME: Add documentation
+     logical :: read_response = .false.
+     !> FIXME: Add documentation
+     logical :: remove_zonal_flows_switch = .false.
+     !> FIXME: Add documentation
+     character(len = 256) :: response_dir = ''
+   contains
+     procedure, public :: read => read_fields_config
+     procedure, public :: write => write_fields_config
+     procedure, public :: reset => reset_fields_config
+     procedure, public :: broadcast => broadcast_fields_config
+  end type fields_config_type
+
+  type(fields_config_type) :: config_internal  
 contains
 
   !> FIXME : Add documentation  
@@ -357,7 +396,7 @@ contains
   end subroutine set_init_fields
 
   !> FIXME : Add documentation  
-  subroutine read_parameters
+  subroutine read_parameters(config_in)
     use file_utils, only: input_unit, error_unit, input_unit_exist
     use text_options, only: text_option, get_option_value
     use mp, only: proc0, broadcast, mp_abort
@@ -368,71 +407,45 @@ contains
     use fields_arrays, only: response_file
     use file_utils, only: run_name
     implicit none
+    type(fields_config_type), intent(in), optional :: config_in    
     character(20) :: field_option
     character(len=256) :: response_dir
-    namelist /fields_knobs/ field_option, remove_zonal_flows_switch, field_subgath, force_maxwell_reinit,&
-         dump_response, read_response, minNRow, do_smart_update, field_local_allreduce, field_local_allreduce_sub,&
-         response_dir, field_local_tuneminnrow,  field_local_nonblocking_collectives
     integer :: ierr, in_file
 
-    if (proc0) then
-       field_option = 'default'
-       remove_zonal_flows_switch = .false.
-       field_subgath=.false.
-       force_maxwell_reinit=.true.
-       dump_response=.false.
-       read_response=.false.
-       do_smart_update=.false.
-       field_local_allreduce=.false.
-       field_local_allreduce_sub=.false.
-       field_local_tuneminnrow=.false.
-       field_local_nonblocking_collectives=.false.
 
-       response_dir=''
-       in_file = input_unit_exist ("fields_knobs", exist)
-       if (exist) read (unit=in_file, nml=fields_knobs)
+    if (present(config_in)) config_internal = config_in
 
-       ierr = error_unit()
-       call get_option_value &
-            (field_option, fieldopts, fieldopt_switch, &
-            ierr, "field_option in fields_knobs",.true.)
+    call config_internal%init(name = 'fields_knobs', requires_index = .false.)
 
-       if(trim(response_dir).eq.'')then
-          write(response_file,'(A)') trim(run_name)
-       else
-          write(response_file,'(A,"/",A)') trim(response_dir),trim(run_name)
-       endif
+    ! Copy out internal values into module level parameters
+    do_smart_update = config_internal%do_smart_update
+    dump_response = config_internal%dump_response
+    field_local_allreduce = config_internal%field_local_allreduce
+    field_local_allreduce_sub = config_internal%field_local_allreduce_sub
+    field_local_nonblocking_collectives = config_internal%field_local_nonblocking_collectives
+    field_local_tuneminnrow = config_internal%field_local_tuneminnrow
+    field_option = config_internal%field_option
+    field_subgath = config_internal%field_subgath
+    force_maxwell_reinit = config_internal%force_maxwell_reinit
+    minnrow = config_internal%minnrow
+    read_response = config_internal%read_response
+    remove_zonal_flows_switch = config_internal%remove_zonal_flows_switch
+    response_dir = config_internal%response_dir
 
-    end if
+    exist = config_internal%exist
+    ierr = error_unit()
+    call get_option_value &
+         (field_option, fieldopts, fieldopt_switch, &
+         ierr, "field_option in fields_knobs",.true.)
 
-    call broadcast (fieldopt_switch)
-    call broadcast (remove_zonal_flows_switch)
-    call broadcast (field_subgath)
-    call broadcast (force_maxwell_reinit)
-    call broadcast (dump_response)
-    call broadcast (read_response)
-
-    !Setup response file location
-    call broadcast(response_dir)
-    call broadcast(response_file)
+    if(trim(response_dir).eq.'')then
+       write(response_file,'(A)') trim(run_name)
+    else
+       write(response_file,'(A,"/",A)') trim(response_dir),trim(run_name)
+    endif
 
     !Set the solve type specific flags
     call set_dump_and_read_response(dump_response, read_response)
-    !select case (fieldopt_switch)
-    !case (fieldopt_implicit)
-    !case (fieldopt_test)
-    !case (fieldopt_local)
-    ! EGH commented it out as we want to be able to 
-    ! change field option dynamically and so we want
-    ! these parameters to be broadcast in all circumstances.
-       call broadcast (minNrow)
-       call broadcast (do_smart_update)
-       call broadcast (field_local_allreduce)
-       call broadcast (field_local_tuneminnrow)
-       call broadcast (field_local_nonblocking_collectives)
-       call broadcast (field_local_allreduce_sub)
-    !end select
-
   end subroutine read_parameters
 
   !> FIXME : Add documentation  
@@ -712,6 +725,139 @@ contains
     call debug_message(verbosity, &
       'fields::finish_fields deallocated fields')
 
+    call config_internal%reset()
   end subroutine finish_fields
 
+  !---------------------------------------
+  ! Following is for the config_type
+  !---------------------------------------
+  
+  !> Reads in the fields_knobs namelist and populates the member variables
+  subroutine read_fields_config(self)
+    use file_utils, only: input_unit_exist, get_indexed_namelist_unit
+    use mp, only: proc0
+    implicit none
+    class(fields_config_type), intent(in out) :: self
+    logical :: exist
+    integer :: in_file, iostat
+
+    ! Note: When this routine is in the module where these variables live
+    ! we shadow the module level variables here. This is intentional to provide
+    ! isolation and ensure we can move this routine to another module easily.    
+    character(len = 256) :: response_dir
+    integer :: minnrow
+    character(len = 20) :: field_option
+    logical :: do_smart_update, dump_response, field_local_allreduce, field_local_allreduce_sub, field_local_nonblocking_collectives, field_local_tuneminnrow, field_subgath, force_maxwell_reinit, read_response, remove_zonal_flows_switch
+
+    namelist /fields_knobs/ do_smart_update, dump_response, field_local_allreduce, field_local_allreduce_sub, field_local_nonblocking_collectives, field_local_tuneminnrow, field_option, field_subgath, force_maxwell_reinit, minnrow, read_response, remove_zonal_flows_switch, response_dir
+
+    ! Only proc0 reads from file
+    if (.not. proc0) return
+
+    ! First set local variables from current values
+    do_smart_update = self%do_smart_update
+    dump_response = self%dump_response
+    field_local_allreduce = self%field_local_allreduce
+    field_local_allreduce_sub = self%field_local_allreduce_sub
+    field_local_nonblocking_collectives = self%field_local_nonblocking_collectives
+    field_local_tuneminnrow = self%field_local_tuneminnrow
+    field_option = self%field_option
+    field_subgath = self%field_subgath
+    force_maxwell_reinit = self%force_maxwell_reinit
+    minnrow = self%minnrow
+    read_response = self%read_response
+    remove_zonal_flows_switch = self%remove_zonal_flows_switch
+    response_dir = self%response_dir
+
+    ! Now read in the main namelist
+    if (self%requiresIndex) then
+       call get_indexed_namelist_unit(in_file, trim(self%name), self%index)
+       read(in_file, nml = fields_knobs, iostat = iostat)
+       exist = .true.
+       if (iostat .ne.0) exist = .false.
+       close(unit = in_file, iostat = iostat)
+    else
+       in_file = input_unit_exist(self%name, exist)
+       if (exist) read(in_file, nml = fields_knobs)
+    endif
+
+    ! Now copy from local variables into type members
+    self%do_smart_update = do_smart_update
+    self%dump_response = dump_response
+    self%field_local_allreduce = field_local_allreduce
+    self%field_local_allreduce_sub = field_local_allreduce_sub
+    self%field_local_nonblocking_collectives = field_local_nonblocking_collectives
+    self%field_local_tuneminnrow = field_local_tuneminnrow
+    self%field_option = field_option
+    self%field_subgath = field_subgath
+    self%force_maxwell_reinit = force_maxwell_reinit
+    self%minnrow = minnrow
+    self%read_response = read_response
+    self%remove_zonal_flows_switch = remove_zonal_flows_switch
+    self%response_dir = response_dir
+
+    self%exist = exist
+  end subroutine read_fields_config
+
+  !> Writes out a namelist representing the current state of the config object
+  subroutine write_fields_config(self, unit)
+    implicit none
+    class(fields_config_type), intent(in) :: self
+    integer, intent(in) , optional:: unit
+    integer :: unit_internal
+
+    unit_internal = 6 ! @todo -- get stdout from file_utils
+    if (present(unit)) then
+       unit_internal = unit
+    endif
+
+    call self%write_namelist_header(unit_internal)
+    call self%write_key_val("do_smart_update", self%do_smart_update, unit_internal)
+    call self%write_key_val("dump_response", self%dump_response, unit_internal)
+    call self%write_key_val("field_local_allreduce", self%field_local_allreduce, unit_internal)
+    call self%write_key_val("field_local_allreduce_sub", self%field_local_allreduce_sub, unit_internal)
+    call self%write_key_val("field_local_nonblocking_collectives", self%field_local_nonblocking_collectives, unit_internal)
+    call self%write_key_val("field_local_tuneminnrow", self%field_local_tuneminnrow, unit_internal)
+    call self%write_key_val("field_option", self%field_option, unit_internal)
+    call self%write_key_val("field_subgath", self%field_subgath, unit_internal)
+    call self%write_key_val("force_maxwell_reinit", self%force_maxwell_reinit, unit_internal)
+    call self%write_key_val("minnrow", self%minnrow, unit_internal)
+    call self%write_key_val("read_response", self%read_response, unit_internal)
+    call self%write_key_val("remove_zonal_flows_switch", self%remove_zonal_flows_switch, unit_internal)
+    call self%write_key_val("response_dir", self%response_dir, unit_internal)
+    call self%write_namelist_footer(unit_internal)
+  end subroutine write_fields_config
+
+  !> Resets the config object to the initial empty state
+  subroutine reset_fields_config(self)
+    class(fields_config_type), intent(in out) :: self
+    type(fields_config_type) :: empty
+    select type (self)
+    type is (fields_config_type)
+       self = empty
+    end select
+  end subroutine reset_fields_config
+
+  !> Broadcasts all config parameters so object is populated identically on
+  !! all processors
+  subroutine broadcast_fields_config(self)
+    use mp, only: broadcast
+    implicit none
+    class(fields_config_type), intent(in out) :: self
+    call broadcast(self%do_smart_update)
+    call broadcast(self%dump_response)
+    call broadcast(self%field_local_allreduce)
+    call broadcast(self%field_local_allreduce_sub)
+    call broadcast(self%field_local_nonblocking_collectives)
+    call broadcast(self%field_local_tuneminnrow)
+    call broadcast(self%field_option)
+    call broadcast(self%field_subgath)
+    call broadcast(self%force_maxwell_reinit)
+    call broadcast(self%minnrow)
+    call broadcast(self%read_response)
+    call broadcast(self%remove_zonal_flows_switch)
+    call broadcast(self%response_dir)
+
+    call broadcast(self%exist)
+  end subroutine broadcast_fields_config
 end module fields
