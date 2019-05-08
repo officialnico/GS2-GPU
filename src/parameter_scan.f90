@@ -8,7 +8,8 @@
 !!
 !! In addition, the condition for changing the parameter may be changed from a simple number of time steps to, for example, reaching a saturated state.
 module parameter_scan
-
+  use abstract_config, only: abstract_config_type
+  
   !These should really be moved to specific routines where required
   use parameter_scan_arrays, only: current_scan_parameter_value, write_scan_parameter, run_scan
   use parameter_scan_arrays, only: scan_parameter_switch, scan_parameter_tprim, scan_parameter_g_exb
@@ -55,6 +56,46 @@ module parameter_scan
   real :: current_target_value = 0.0
   logical :: initialized = .false.
 
+  !> Used to represent the input configuration of parameter_scan
+  type, extends(abstract_config_type) :: parameter_scan_config_type
+     ! namelist : parameter_scan_knobs
+     !> FIXME: Add documentation
+     real :: delta_t_inc = 0.0
+     !> FIXME: Add documentation
+     real :: delta_t_init = 0.0
+     !> FIXME: Add documentation
+     character(len = 20) :: inc_con = 'delta_t'
+     !> FIXME: Add documentation
+     integer :: nstep_inc = 0
+     !> FIXME: Add documentation
+     integer :: nstep_init = 0
+     !> FIXME: Add documentation
+     real :: par_end = 0.0
+     !> FIXME: Add documentation
+     real :: par_inc = 0.0
+     !> FIXME: Add documentation
+     real :: par_start = 0.0
+     !> FIXME: Add documentation
+     character(len = 20) :: scan_par = 'tprim'
+     !> FIXME: Add documentation
+     logical :: scan_restarted = .false.
+     !> FIXME: Add documentation
+     integer :: scan_spec = 1
+     !> FIXME: Add documentation
+     character(len = 20) :: scan_type = 'none'
+     !> FIXME: Add documentation
+     character(len = 20) :: target_par = 'hflux_tot'
+     !> FIXME: Add documentation
+     real :: target_val = 0.0
+   contains
+     procedure, public :: read => read_parameter_scan_config
+     procedure, public :: write => write_parameter_scan_config
+     procedure, public :: reset => reset_parameter_scan_config
+     procedure, public :: broadcast => broadcast_parameter_scan_config
+  end type parameter_scan_config_type
+
+  type(parameter_scan_config_type) :: config_internal
+  
 contains
 
   !> FIXME : Add documentation
@@ -335,11 +376,13 @@ contains
   end subroutine check_increment_condition_satisfied
 
   !> FIXME : Add documentation  
-  subroutine read_parameters
+  subroutine read_parameters(config_in)
     use file_utils, only: input_unit, error_unit, input_unit_exist
     use text_options, only: text_option, get_option_value
-    use mp, only: proc0, broadcast
+    use mp, only: proc0
     implicit none
+    type(parameter_scan_config_type), intent(in), optional :: config_in
+    
     type (text_option), dimension (2), parameter :: scan_parameter_opts = &
          (/ text_option('tprim', scan_parameter_tprim), &
             text_option('g_exb', scan_parameter_g_exb) /)
@@ -379,59 +422,182 @@ contains
     integer :: ierr, in_file
     logical :: exist
 
-    if (proc0) then
-       scan_par = 'tprim'
-       scan_type = 'none'
-       target_par = 'hflux_tot'
-       inc_con = 'delta_t'
-       par_start = 0.0
-       par_end = 0.0
-       par_inc = 0.0
-       target_val = 0.0
-       nstep_init = 0
-       nstep_inc = 0
-       delta_t_init = 0.0
-       delta_t_inc = 0.0
-       scan_spec = 1
-       scan_restarted = .false.
+    if (present(config_in)) config_internal = config_in
 
-       in_file = input_unit_exist ("parameter_scan_knobs", exist)
-       if (exist) read (unit=in_file, nml=parameter_scan_knobs)
+    call config_internal%init(name = 'parameter_scan_knobs', requires_index = .false.)
 
-       ierr = error_unit()
-       call get_option_value &
-            (scan_par, scan_parameter_opts, scan_parameter_switch, &
-            ierr, "scan_par in parameter_scan_knobs",.true.)
-       call get_option_value &
-            (scan_type, scan_type_opts, scan_type_switch, &
-            ierr, "scan_type in parameter_scan_knobs",.true.)
-       call get_option_value &
-            (target_par, target_parameter_opts, target_parameter_switch, &
-            ierr, "target_par in parameter_scan_knobs",.true.)
-       call get_option_value &
-            (inc_con, increment_condition_opts, &
-            increment_condition_switch, &
-            ierr, "inc_con in parameter_scan_knobs",.true.)
+    ! Copy out internal values into module level parameters
+    delta_t_inc = config_internal%delta_t_inc
+    delta_t_init = config_internal%delta_t_init
+    inc_con = config_internal%inc_con
+    nstep_inc = config_internal%nstep_inc
+    nstep_init = config_internal%nstep_init
+    par_end = config_internal%par_end
+    par_inc = config_internal%par_inc
+    par_start = config_internal%par_start
+    scan_par = config_internal%scan_par
+    scan_restarted = config_internal%scan_restarted
+    scan_spec = config_internal%scan_spec
+    scan_type = config_internal%scan_type
+    target_par = config_internal%target_par
+    target_val = config_internal%target_val
 
-    end if
+    exist = config_internal%exist
 
-    call broadcast (scan_parameter_switch)
-    call broadcast (scan_type_switch)
-    call broadcast (target_parameter_switch)
-    call broadcast (par_start)
-    call broadcast (par_end)
-    call broadcast (par_inc)
-    call broadcast (increment_condition_switch)
-    call broadcast (nstep_init)
-    call broadcast (nstep_inc)
-    call broadcast (delta_t_init)
-    call broadcast (delta_t_inc)
-    call broadcast (scan_spec)
-    call broadcast (target_val)
-    call broadcast (scan_restarted)
+    ierr = error_unit()
+    call get_option_value &
+         (scan_par, scan_parameter_opts, scan_parameter_switch, &
+         ierr, "scan_par in parameter_scan_knobs",.true.)
+    call get_option_value &
+         (scan_type, scan_type_opts, scan_type_switch, &
+         ierr, "scan_type in parameter_scan_knobs",.true.)
+    call get_option_value &
+         (target_par, target_parameter_opts, target_parameter_switch, &
+         ierr, "target_par in parameter_scan_knobs",.true.)
+    call get_option_value &
+         (inc_con, increment_condition_opts, &
+         increment_condition_switch, &
+         ierr, "inc_con in parameter_scan_knobs",.true.)
 
     if (.not. scan_restarted) current_scan_parameter_value = par_start
 
   end subroutine read_parameters
+
+  !---------------------------------------
+  ! Following is for the config_type
+  !---------------------------------------
+  
+  !> Reads in the parameter_scan_knobs namelist and populates the member variables
+  subroutine read_parameter_scan_config(self)
+    use file_utils, only: input_unit_exist, get_indexed_namelist_unit
+    use mp, only: proc0
+    implicit none
+    class(parameter_scan_config_type), intent(in out) :: self
+    logical :: exist
+    integer :: in_file, iostat
+
+    ! Note: When this routine is in the module where these variables live
+    ! we shadow the module level variables here. This is intentional to provide
+    ! isolation and ensure we can move this routine to another module easily.    
+    integer :: nstep_inc, nstep_init, scan_spec
+    real :: delta_t_inc, delta_t_init, par_end, par_inc, par_start, target_val
+    logical :: scan_restarted
+    character(len = 20) :: inc_con, scan_par, scan_type, target_par
+
+    namelist /parameter_scan_knobs/ delta_t_inc, delta_t_init, inc_con, nstep_inc, nstep_init, par_end, par_inc, par_start, scan_par, scan_restarted, scan_spec, scan_type, target_par, target_val
+
+    ! Only proc0 reads from file
+    if (.not. proc0) return
+
+    ! First set local variables from current values
+    delta_t_inc = self%delta_t_inc
+    delta_t_init = self%delta_t_init
+    inc_con = self%inc_con
+    nstep_inc = self%nstep_inc
+    nstep_init = self%nstep_init
+    par_end = self%par_end
+    par_inc = self%par_inc
+    par_start = self%par_start
+    scan_par = self%scan_par
+    scan_restarted = self%scan_restarted
+    scan_spec = self%scan_spec
+    scan_type = self%scan_type
+    target_par = self%target_par
+    target_val = self%target_val
+
+    ! Now read in the main namelist
+    if (self%requiresIndex) then
+       call get_indexed_namelist_unit(in_file, trim(self%name), self%index)
+       read(in_file, nml = parameter_scan_knobs, iostat = iostat)
+       exist = .true.
+       if (iostat .ne.0) exist = .false.
+       close(unit = in_file, iostat = iostat)
+    else
+       in_file = input_unit_exist(self%name, exist)
+       if (exist) read(in_file, nml = parameter_scan_knobs)
+    endif
+
+    ! Now copy from local variables into type members
+    self%delta_t_inc = delta_t_inc
+    self%delta_t_init = delta_t_init
+    self%inc_con = inc_con
+    self%nstep_inc = nstep_inc
+    self%nstep_init = nstep_init
+    self%par_end = par_end
+    self%par_inc = par_inc
+    self%par_start = par_start
+    self%scan_par = scan_par
+    self%scan_restarted = scan_restarted
+    self%scan_spec = scan_spec
+    self%scan_type = scan_type
+    self%target_par = target_par
+    self%target_val = target_val
+
+    self%exist = exist
+  end subroutine read_parameter_scan_config
+
+  !> Writes out a namelist representing the current state of the config object
+  subroutine write_parameter_scan_config(self, unit)
+    implicit none
+    class(parameter_scan_config_type), intent(in) :: self
+    integer, intent(in) , optional:: unit
+    integer :: unit_internal
+
+    unit_internal = 6 ! @todo -- get stdout from file_utils
+    if (present(unit)) then
+       unit_internal = unit
+    endif
+
+    call self%write_namelist_header(unit_internal)
+    call self%write_key_val("delta_t_inc", self%delta_t_inc, unit_internal)
+    call self%write_key_val("delta_t_init", self%delta_t_init, unit_internal)
+    call self%write_key_val("inc_con", self%inc_con, unit_internal)
+    call self%write_key_val("nstep_inc", self%nstep_inc, unit_internal)
+    call self%write_key_val("nstep_init", self%nstep_init, unit_internal)
+    call self%write_key_val("par_end", self%par_end, unit_internal)
+    call self%write_key_val("par_inc", self%par_inc, unit_internal)
+    call self%write_key_val("par_start", self%par_start, unit_internal)
+    call self%write_key_val("scan_par", self%scan_par, unit_internal)
+    call self%write_key_val("scan_restarted", self%scan_restarted, unit_internal)
+    call self%write_key_val("scan_spec", self%scan_spec, unit_internal)
+    call self%write_key_val("scan_type", self%scan_type, unit_internal)
+    call self%write_key_val("target_par", self%target_par, unit_internal)
+    call self%write_key_val("target_val", self%target_val, unit_internal)
+    call self%write_namelist_footer(unit_internal)
+  end subroutine write_parameter_scan_config
+
+  !> Resets the config object to the initial empty state
+  subroutine reset_parameter_scan_config(self)
+    class(parameter_scan_config_type), intent(in out) :: self
+    type(parameter_scan_config_type) :: empty
+    select type (self)
+    type is (parameter_scan_config_type)
+       self = empty
+    end select
+  end subroutine reset_parameter_scan_config
+
+  !> Broadcasts all config parameters so object is populated identically on
+  !! all processors
+  subroutine broadcast_parameter_scan_config(self)
+    use mp, only: broadcast
+    implicit none
+    class(parameter_scan_config_type), intent(in out) :: self
+    call broadcast(self%delta_t_inc)
+    call broadcast(self%delta_t_init)
+    call broadcast(self%inc_con)
+    call broadcast(self%nstep_inc)
+    call broadcast(self%nstep_init)
+    call broadcast(self%par_end)
+    call broadcast(self%par_inc)
+    call broadcast(self%par_start)
+    call broadcast(self%scan_par)
+    call broadcast(self%scan_restarted)
+    call broadcast(self%scan_spec)
+    call broadcast(self%scan_type)
+    call broadcast(self%target_par)
+    call broadcast(self%target_val)
+
+    call broadcast(self%exist)
+  end subroutine broadcast_parameter_scan_config
 end module parameter_scan
 
