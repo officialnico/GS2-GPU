@@ -11,6 +11,7 @@
 !!velocity shear and calculating the right-hand side of the field 
 !!equation, as well as a host of other functions.
 module dist_fn
+  use abstract_config, only: abstract_config_type
   use redistribute, only: redist_type
   implicit none
 
@@ -277,8 +278,142 @@ module dist_fn
   logical, parameter :: moment_to_allprocs = .true.
 #else
   logical, parameter :: moment_to_allprocs = .false.
-#endif
+#endif 
 
+  !> Used to represent the input configuration of dist_fn
+  type, extends(abstract_config_type) :: dist_fn_config_type
+     ! namelist : dist_fn_knobs
+     !> FIXME: Add documentation
+     character(len = 30) :: adiabatic_option = 'default'
+     !> FIXME: Add documentation
+     real :: afilter = 0.0
+     !> FIXME: Add documentation
+     real :: apfac = 1.0
+     !> FIXME: Add documentation
+     character(len = 20) :: boundary_option = 'default'
+     !> FIXME: Add documentation
+     real :: btor_slab = 0.0
+     !> FIXME: Add documentation
+     logical :: def_parity = .false.
+     !> FIXME: Add documentation
+     real :: densfac_lin = sqrt(2.)     ! GRYFX - should be moved elsewhere - ~ rho_i
+     !> FIXME: Add documentation
+     real :: driftknob = 1.0
+     !> FIXME: Add documentation
+     logical :: esv = .false.
+     !> FIXME: Add documentation
+     logical :: even = .true.
+     !> FIXME: Add documentation
+     real :: g_exb = 0.0
+     !> FIXME: Add documentation
+     real :: g_exb_error_limit = 0.0
+     !> FIXME: Add documentation
+     real :: g_exb_start_time = -1
+     !> FIXME: Add documentation
+     real :: g_exb_start_timestep = -1
+     !> FIXME: Add documentation
+     real :: g_exbfac = 1.0
+     !> FIXME: Add documentation
+     logical :: gf_lo_integrate = .false. !Should this be a field input?
+     !> FIXME: Add documentation
+     real :: gridfac = 1.0  ! used to be 5.e4
+     !> FIXME: Add documentation
+     real :: kfilter = 0.0
+     !> FIXME: Add documentation
+     logical :: lf_decompose = .false.
+     !> FIXME: Add documentation
+     logical :: lf_default = .true.
+     !> FIXME: Add documentation
+     real :: mach = 0.0
+     !> FIXME: Add documentation
+     logical :: mult_imp = .false.
+     !> FIXME: Add documentation
+     logical :: nonad_zero = .true.  ! BD: Default value changed to TRUE  8.15.13
+     !> FIXME: Add documentation
+     real :: omprimfac = 1.0
+     !> FIXME: Add documentation
+     logical :: opt_init_bc = .false. !Deprecated
+     !> FIXME: Add documentation
+     logical :: opt_source = .false.
+     !> FIXME: Add documentation
+     real :: phifac_lin = sqrt(2.)      ! GRYFX - should be moved elsewhere - ~ rho_i
+     !> FIXME: Add documentation
+     real :: poisfac = 0.0
+     !> FIXME: Add documentation
+     real :: qparfac_lin = 4.           ! GRYFX - should be moved elsewhere - ~ rho_i vti^3
+     !> FIXME: Add documentation
+     real :: qprpfac_lin = 4.           ! GRYFX - should be moved elsewhere - ~ rho_i vti^3
+     !> FIXME: Add documentation
+     logical :: test = .false.
+     !> FIXME: Add documentation
+     real :: tparfac_lin = 2.*sqrt(2.)  ! GRYFX - should be moved elsewhere - ~ rho_i vti^2
+     !> FIXME: Add documentation
+     real :: tpdriftknob = -9.9e9
+     !> FIXME: Add documentation
+     real :: tprpfac_lin = 2.*sqrt(2.)  ! GRYFX - should be moved elsewhere - ~ rho_i vti^2
+     !> FIXME: Add documentation
+     real :: uparfac_lin = 2.           ! GRYFX - should be moved elsewhere - ~ rho_i vti
+     !> FIXME: Add documentation
+     real :: wfb = 1.0
+     !> FIXME: Add documentation
+     logical :: wfb_cmr = .false.
+     !> FIXME: Add documentation
+     character(len = 20) :: wfbbc_option = 'default'
+     !> FIXME: Add documentation
+     logical :: zero_forbid = .false.
+   contains
+     procedure, public :: read => read_dist_fn_config
+     procedure, public :: write => write_dist_fn_config
+     procedure, public :: reset => reset_dist_fn_config
+     procedure, public :: broadcast => broadcast_dist_fn_config
+  end type dist_fn_config_type
+
+  type(dist_fn_config_type) :: config_internal
+  
+  !> Used to represent the input configuration of source
+  type, extends(abstract_config_type) :: source_config_type
+     ! namelist : source_knobs
+     !> FIXME: Add documentation
+     real :: gamma0 = 0.0
+     !> FIXME: Add documentation
+     real :: omega0 = 0.0
+     !> FIXME: Add documentation
+     real :: phi_ext = 0.0
+     !> FIXME: Add documentation
+     real :: source0 = 1.0
+     !> FIXME: Add documentation
+     character(len = 20) :: source_option = 'default'
+     !> FIXME: Add documentation
+     real :: t0 = 100.0
+   contains
+     procedure, public :: read => read_source_config
+     procedure, public :: write => write_source_config
+     procedure, public :: reset => reset_source_config
+     procedure, public :: broadcast => broadcast_source_config
+  end type source_config_type
+
+  type(source_config_type) :: config_source_internal
+
+  !> Used to represent the input configuration of dist_fn_species
+  type, extends(abstract_config_type) :: dist_fn_species_config_type
+     ! namelist : dist_fn_species_knobs
+     !> FIXME: Add documentation
+     real :: bakdif = 0.0
+     !> FIXME: Add documentation
+     integer :: bd_exp = 0 ! Not used for anything - should be removed
+     !> FIXME: Add documentation
+     real :: fexpi = 0.0
+     !> FIXME: Add documentation
+     real :: fexpr = 0.4
+   contains
+     procedure, public :: read => read_dist_fn_species_config
+     procedure, public :: write => write_dist_fn_species_config
+     procedure, public :: reset => reset_dist_fn_species_config
+     procedure, public :: broadcast => broadcast_dist_fn_species_config
+  end type dist_fn_species_config_type
+
+  type(dist_fn_species_config_type), dimension(:), allocatable :: config_dist_fn_species_internal
+  
 contains
 
   !> FIXME : Add documentation
@@ -928,6 +1063,10 @@ contains
     if (allocated(wstar)) deallocate (wstar)
 !AJ
     if (allocated(vpa_gf)) deallocate(vpa_gf, vperp2_gf)
+
+    call config_internal%reset()
+    call config_source_internal%reset()
+    if(allocated(config_dist_fn_species_internal)) deallocate(config_dist_fn_species_internal)
   end subroutine finish_dist_fn_level_3
 
   !> FIXME : Add documentation  
@@ -948,7 +1087,7 @@ contains
   end subroutine set_optimisations_overrides
 
   !> FIXME : Add documentation  
-  subroutine read_parameters
+  subroutine read_parameters(config_in, config_source_in, config_elements_in)
     use file_utils, only: input_unit, error_unit, input_unit_exist
     use theta_grid, only: shat
     use text_options, only: text_option, get_option_value
@@ -956,6 +1095,9 @@ contains
     use mp, only: proc0, broadcast
     use theta_grid, only: itor_over_B
     implicit none
+    type(dist_fn_config_type), intent(in), optional :: config_in
+    type(source_config_type), intent(in), optional :: config_source_in
+    type(dist_fn_species_config_type), intent(in), dimension(:), optional :: config_elements_in
     type (text_option), dimension (3), parameter :: sourceopts = &
          (/ text_option('default', source_option_full), &
             text_option('full', source_option_full), &
@@ -990,172 +1132,121 @@ contains
             text_option('trapped', wfbbc_option_trapped), &
             text_option('mixed', wfbbc_option_mixed)/)
     character(20) :: wfbbc_option
-            
-    namelist /dist_fn_knobs/ boundary_option, nonad_zero, gridfac, apfac, &
-         driftknob, tpdriftknob, poisfac, adiabatic_option, &
-         kfilter, afilter, mult_imp, test, def_parity, even, wfb, &
-         g_exb, g_exbfac, omprimfac, btor_slab, mach, lf_default, &
-         g_exb_start_time, g_exb_start_timestep, g_exb_error_limit, &
-         wfbbc_option, &
 
-         lf_decompose, esv, wfb_cmr, opt_init_bc, opt_source, zero_forbid, &
-         densfac_lin, uparfac_lin, tparfac_lin, tprpfac_lin, &
-         qparfac_lin, qprpfac_lin, phifac_lin, &
-         gf_lo_integrate
-    
-    namelist /source_knobs/ t0, omega0, gamma0, source0, phi_ext, source_option
     integer :: ierr, is, in_file
     real :: bd
 
     if (readinit) return
     readinit = .true.
 
-    if (proc0) then
-       boundary_option = 'default'
-       nonad_zero = .true.  ! BD: Default value changed to TRUE  8.15.13
-       wfb_cmr= .false.
-       trapped_wfb = .false.! flag for treating wfb as a trapped particle
-       passing_wfb = .false.! flag for treating wfb as a passing particle
-       wfbbc_option = 'default'
-       esv = .false.
-       opt_init_bc = .false. !Deprecated
-       opt_source = .false.
-       adiabatic_option = 'default'
-       poisfac = 0.0
-       gridfac = 1.0  ! used to be 5.e4
-       apfac = 1.0
-       driftknob = 1.0
-       tpdriftknob = -9.9e9
-       t0 = 100.0
-       source0 = 1.0
-       omega0 = 0.0
-       gamma0 = 0.0
-       phi_ext = 0.0
-       afilter = 0.0
-       kfilter = 0.0
-       g_exb = 0.0
-       g_exbfac = 1.0
-       g_exb_error_limit = 0.0
-       g_exb_start_time = -1
-       g_exb_start_timestep = -1
-       mach = 0.0
-       omprimfac = 1.0
-       btor_slab = 0.0
-       wfb = 1.
-       mult_imp = .false.
-       test = .false.
-       def_parity = .false.
-       zero_forbid = .false.
-       gf_lo_integrate = .false.
-       even = .true.
-       lf_default = .true.
-       lf_decompose = .false.
-       source_option = 'default'
 
-       densfac_lin = sqrt(2.)           ! ~ rho_i
-       uparfac_lin = 2.                 ! ~ rho_i vti
-       tparfac_lin = 2.*sqrt(2.)        ! ~ rho_i vti^2
-       tprpfac_lin = 2.*sqrt(2.)        ! ~ rho_i vti^2
-       qparfac_lin = 4.                 ! ~ rho_i vti^3
-       qprpfac_lin = 4.                 ! ~ rho_i vti^3
-       phifac_lin = densfac_lin         ! ~ rho_i
+    !Deal with source_knobs namelist
+    if (present(config_source_in)) config_source_internal = config_source_in
 
-       in_file = input_unit_exist("dist_fn_knobs", dfexist)
-!       if (dfexist) read (unit=input_unit("dist_fn_knobs"), nml=dist_fn_knobs)
-       if (dfexist) read (unit=in_file, nml=dist_fn_knobs)
-       if (tpdriftknob == -9.9e9) tpdriftknob=driftknob
+    call config_source_internal%init(name = 'source_knobs', requires_index = .false.)
 
-       in_file = input_unit_exist("source_knobs", skexist)
-!       if (skexist) read (unit=input_unit("source_knobs"), nml=source_knobs)
-       if (skexist) read (unit=in_file, nml=source_knobs)
+    ! Copy out internal values into module level parameters
+    gamma0 = config_source_internal%gamma0
+    omega0 = config_source_internal%omega0
+    phi_ext = config_source_internal%phi_ext
+    source0 = config_source_internal%source0
+    source_option = config_source_internal%source_option
+    t0 = config_source_internal%t0
 
+    skexist = config_source_internal%exist
 
-       ierr = error_unit()
+    !Deal with dist_fn_knobs namelist    
+    if (present(config_in)) config_internal = config_in
 
-       if(abs(shat) <=  1.e-5) boundary_option = 'periodic'
+    call config_internal%init(name = 'dist_fn_knobs', requires_index = .false.)
 
-       call get_option_value &
-            (boundary_option, boundaryopts, boundary_option_switch, &
-            ierr, "boundary_option in dist_fn_knobs",.true.)
+    ! Copy out internal values into module level parameters
+    adiabatic_option = config_internal%adiabatic_option
+    afilter = config_internal%afilter
+    apfac = config_internal%apfac
+    boundary_option = config_internal%boundary_option
+    btor_slab = config_internal%btor_slab
+    def_parity = config_internal%def_parity
+    densfac_lin = config_internal%densfac_lin
+    driftknob = config_internal%driftknob
+    esv = config_internal%esv
+    even = config_internal%even
+    g_exb = config_internal%g_exb
+    g_exb_error_limit = config_internal%g_exb_error_limit
+    g_exb_start_time = config_internal%g_exb_start_time
+    g_exb_start_timestep = config_internal%g_exb_start_timestep
+    g_exbfac = config_internal%g_exbfac
+    gf_lo_integrate = config_internal%gf_lo_integrate
+    gridfac = config_internal%gridfac
+    kfilter = config_internal%kfilter
+    lf_decompose = config_internal%lf_decompose
+    lf_default = config_internal%lf_default
+    mach = config_internal%mach
+    mult_imp = config_internal%mult_imp
+    nonad_zero = config_internal%nonad_zero
+    omprimfac = config_internal%omprimfac
+    opt_init_bc = config_internal%opt_init_bc
+    opt_source = config_internal%opt_source
+    phifac_lin = config_internal%phifac_lin
+    poisfac = config_internal%poisfac
+    qparfac_lin = config_internal%qparfac_lin
+    qprpfac_lin = config_internal%qprpfac_lin
+    test = config_internal%test
+    tparfac_lin = config_internal%tparfac_lin
+    tpdriftknob = config_internal%tpdriftknob
+    tprpfac_lin = config_internal%tprpfac_lin
+    uparfac_lin = config_internal%uparfac_lin
+    wfb = config_internal%wfb
+    wfb_cmr = config_internal%wfb_cmr
+    wfbbc_option = config_internal%wfbbc_option
+    zero_forbid = config_internal%zero_forbid
 
-       call get_option_value &
-            (wfbbc_option, wfbbcopts, wfbbc_option_switch, &
-            ierr, "wfbbc_option in dist_fn_knobs",.true.)
+    dfexist = config_internal%exist
+    
+    if (tpdriftknob == -9.9e9) tpdriftknob=driftknob
 
-       call get_option_value &
-            (source_option, sourceopts, source_option_switch, &
-            ierr, "source_option in source_knobs",.true.)
-       call get_option_value &
-            (adiabatic_option, adiabaticopts, adiabatic_option_switch, &
-            ierr, "adiabatic_option in dist_fn_knobs",.true.)
+    ierr = error_unit()
 
-       select case (wfbbc_option_switch)
-        case(wfbbc_option_mixed) ! The previous default boundary condition which mixes the passing and trapped boundary conditions
-            passing_wfb =.false.
-            trapped_wfb =.false.
-        case(wfbbc_option_passing) ! Treats wfb using a passing particle boundary condition 
-            passing_wfb =.true.
-            trapped_wfb =.false.
-        case(wfbbc_option_trapped) ! Treats the wfb using a trapped particle boundary condition 
-            passing_wfb =.false.
-            trapped_wfb =.true.
-       end select
+    if(abs(shat) <=  1.e-5) boundary_option = 'periodic'
+
+    call get_option_value &
+         (boundary_option, boundaryopts, boundary_option_switch, &
+         ierr, "boundary_option in dist_fn_knobs",.true.)
+
+    call get_option_value &
+         (wfbbc_option, wfbbcopts, wfbbc_option_switch, &
+         ierr, "wfbbc_option in dist_fn_knobs",.true.)
+
+    call get_option_value &
+         (source_option, sourceopts, source_option_switch, &
+         ierr, "source_option in source_knobs",.true.)
+    call get_option_value &
+         (adiabatic_option, adiabaticopts, adiabatic_option_switch, &
+         ierr, "adiabatic_option in dist_fn_knobs",.true.)
+
+    trapped_wfb = .false.! flag for treating wfb as a trapped particle
+    passing_wfb = .false.! flag for treating wfb as a passing particle
+
+    select case (wfbbc_option_switch)
+    case(wfbbc_option_mixed) ! The previous default boundary condition which mixes the passing and trapped boundary conditions
+       passing_wfb =.false.
+       trapped_wfb =.false.
+    case(wfbbc_option_passing) ! Treats wfb using a passing particle boundary condition 
+       passing_wfb =.true.
+       trapped_wfb =.false.
+    case(wfbbc_option_trapped) ! Treats the wfb using a trapped particle boundary condition 
+       passing_wfb =.false.
+       trapped_wfb =.true.
+    end select
        
-    end if
     if (.not.allocated(fexp)) allocate (fexp(nspec), bkdiff(nspec), bd_exp(nspec))
-    if (proc0) call read_species_knobs
 
-    call broadcast (boundary_option_switch)
-    call broadcast (nonad_zero)
-    call broadcast (wfb_cmr)
-    call broadcast (trapped_wfb)
-    call broadcast (passing_wfb)
-    call broadcast (wfbbc_option_switch)
-    call broadcast (esv)
-    call broadcast (opt_init_bc)
-    call broadcast (opt_source)
-    call broadcast (adiabatic_option_switch)
-    call broadcast (gridfac)
-    call broadcast (poisfac)
-    call broadcast (apfac)
-    call broadcast (driftknob)
-    call broadcast (tpdriftknob)
-    call broadcast (t0)
-    call broadcast (source0)
-    call broadcast (omega0)
-    call broadcast (gamma0)
-    call broadcast (phi_ext)
-    call broadcast (g_exb)
-    call broadcast (g_exbfac)
-    call broadcast (g_exb_start_timestep)
-    call broadcast (g_exb_start_time)
-    call broadcast (g_exb_error_limit)
-    call broadcast (mach)
-    call broadcast (omprimfac)
-    call broadcast (btor_slab)
-    call broadcast (afilter)
-    call broadcast (kfilter)
-    call broadcast (source_option_switch)
+    call read_species_knobs(config_elements_in)
+
     call broadcast (fexp)
     call broadcast (bkdiff)
     call broadcast (bd_exp)
-    call broadcast (mult_imp)
-    call broadcast (test)
-    call broadcast (def_parity)
-    call broadcast (zero_forbid)
-    call broadcast (gf_lo_integrate)
-    call broadcast (lf_default)
-    call broadcast (lf_decompose)
-    call broadcast (even)
-    call broadcast (wfb)
-    call broadcast (densfac_lin)
-    call broadcast (uparfac_lin)
-    call broadcast (tparfac_lin)
-    call broadcast (tprpfac_lin)
-    call broadcast (qparfac_lin)
-    call broadcast (qprpfac_lin)
-    call broadcast (phifac_lin)
-
+  
     !<DD>Turn off esv if not using linked boundaries
     esv=esv.and.(boundary_option_switch.eq.boundary_option_linked)
 
@@ -1207,43 +1298,36 @@ contains
   end subroutine read_parameters 
 
   !> FIXME : Add documentation  
-  subroutine read_species_knobs
+  subroutine read_species_knobs(config_in)
     use species, only: nspec
+    use mp, only: proc0
     use file_utils, only: get_indexed_namelist_unit
     implicit none
+    type(dist_fn_species_config_type), intent(in), dimension(:), optional :: config_in    
     integer :: is, unit
+    logical :: exist
+    real :: fexpr, fexpi
+
+    if(present(config_in)) config_dist_fn_species_internal = config_in
+    if(.not.allocated(config_dist_fn_species_internal)) allocate(config_dist_fn_species_internal(nspec))
+    if(size(config_dist_fn_species_internal).ne.nspec) then
+       if(proc0) print*,"Warning: inconsistent config size in read_species_knobs"
+    endif
+    
     do is = 1, nspec
-       fexp(is) = (0.4,0.0)
-       bkdiff(is) = 0.0
-       bd_exp(is) = 0
+       call config_dist_fn_species_internal(is)%init(name = 'dist_fn_species_knobs', requires_index = .true., index = is)
+
+       ! Copy out internal values into module level parameters
+       bkdiff(is) = config_dist_fn_species_internal(is)%bakdif
+       bd_exp(is) = config_dist_fn_species_internal(is)%bd_exp
+       fexpi = config_dist_fn_species_internal(is)%fexpi
+       fexpr = config_dist_fn_species_internal(is)%fexpr
        
-       call get_indexed_namelist_unit (unit, "dist_fn_species_knobs", is)
-       call fill_species_knobs (unit, fexp(is), bkdiff(is), bd_exp(is))
-       close (unit=unit)
+       exist = config_dist_fn_species_internal(is)%exist
+       
+       fexp(is) = cmplx(fexpr,fexpi)
     end do
   end subroutine read_species_knobs
-
-  !> FIXME : Add documentation  
-  subroutine fill_species_knobs (unit, fexp_out, bakdif_out, bd_exp_out)
-    implicit none
-    integer, intent (in) :: unit
-    complex, intent (in out) :: fexp_out
-    real, intent (in out) :: bakdif_out
-    integer, intent (in out) :: bd_exp_out
-    integer :: bd_exp,iostat
-    real :: fexpr, fexpi, bakdif
-    namelist /dist_fn_species_knobs/ fexpr, fexpi, bakdif, bd_exp
-
-    fexpr = real(fexp_out)
-    fexpi = aimag(fexp_out)
-    bakdif = bakdif_out
-    bd_exp = bd_exp_out
-    read (unit=unit, nml=dist_fn_species_knobs,iostat=iostat)
-    if(iostat /= 0) write(6,*) 'Error ',iostat,'dist_fn species knobs'
-    fexp_out = cmplx(fexpr,fexpi)
-    bd_exp_out = bd_exp
-    bakdif_out = bakdif
-  end subroutine fill_species_knobs
 
   !> FIXME : Add documentation
   subroutine init_wdrift
@@ -9798,9 +9882,6 @@ endif
          call delete_list (to)
       endif
   end subroutine init_pass_wfb
-
-
-
   
   !> Calculate the flux surface average term for the adiabatic response. 
   !!
@@ -9849,4 +9930,437 @@ endif
 
   end subroutine calculate_flux_surface_average
 
+  !---------------------------------------
+  ! Following is for the dist_fn config_type
+  !---------------------------------------
+  
+  !> Reads in the dist_fn_knobs namelist and populates the member variables
+  subroutine read_dist_fn_config(self)
+    use file_utils, only: input_unit_exist, get_indexed_namelist_unit
+    use mp, only: proc0
+    implicit none
+    class(dist_fn_config_type), intent(in out) :: self
+    logical :: exist
+    integer :: in_file, iostat
+
+    ! Note: When this routine is in the module where these variables live
+    ! we shadow the module level variables here. This is intentional to provide
+    ! isolation and ensure we can move this routine to another module easily.    
+    character(len = 30) :: adiabatic_option
+    real :: afilter, apfac, btor_slab, densfac_lin, driftknob, g_exb, g_exb_error_limit, g_exb_start_time, g_exb_start_timestep, g_exbfac, gridfac, kfilter, mach, omprimfac, phifac_lin, poisfac, qparfac_lin, qprpfac_lin, tparfac_lin, tpdriftknob, tprpfac_lin, uparfac_lin, wfb
+    character(len = 20) :: boundary_option, wfbbc_option
+    logical :: def_parity, esv, even, gf_lo_integrate, lf_decompose, lf_default, mult_imp, nonad_zero, opt_init_bc, opt_source, test, wfb_cmr, zero_forbid
+
+    namelist /dist_fn_knobs/ adiabatic_option, afilter, apfac, boundary_option, btor_slab, def_parity, densfac_lin, driftknob, esv, even, g_exb, g_exb_error_limit, g_exb_start_time, g_exb_start_timestep, g_exbfac, gf_lo_integrate, gridfac, kfilter, lf_decompose, lf_default, mach, mult_imp, nonad_zero, omprimfac, opt_init_bc, opt_source, phifac_lin, poisfac, qparfac_lin, qprpfac_lin, test, tparfac_lin, tpdriftknob, tprpfac_lin, uparfac_lin, wfb, wfb_cmr, wfbbc_option, zero_forbid
+
+    ! Only proc0 reads from file
+    if (.not. proc0) return
+
+    ! First set local variables from current values
+    adiabatic_option = self%adiabatic_option
+    afilter = self%afilter
+    apfac = self%apfac
+    boundary_option = self%boundary_option
+    btor_slab = self%btor_slab
+    def_parity = self%def_parity
+    densfac_lin = self%densfac_lin
+    driftknob = self%driftknob
+    esv = self%esv
+    even = self%even
+    g_exb = self%g_exb
+    g_exb_error_limit = self%g_exb_error_limit
+    g_exb_start_time = self%g_exb_start_time
+    g_exb_start_timestep = self%g_exb_start_timestep
+    g_exbfac = self%g_exbfac
+    gf_lo_integrate = self%gf_lo_integrate
+    gridfac = self%gridfac
+    kfilter = self%kfilter
+    lf_decompose = self%lf_decompose
+    lf_default = self%lf_default
+    mach = self%mach
+    mult_imp = self%mult_imp
+    nonad_zero = self%nonad_zero
+    omprimfac = self%omprimfac
+    opt_init_bc = self%opt_init_bc
+    opt_source = self%opt_source
+    phifac_lin = self%phifac_lin
+    poisfac = self%poisfac
+    qparfac_lin = self%qparfac_lin
+    qprpfac_lin = self%qprpfac_lin
+    test = self%test
+    tparfac_lin = self%tparfac_lin
+    tpdriftknob = self%tpdriftknob
+    tprpfac_lin = self%tprpfac_lin
+    uparfac_lin = self%uparfac_lin
+    wfb = self%wfb
+    wfb_cmr = self%wfb_cmr
+    wfbbc_option = self%wfbbc_option
+    zero_forbid = self%zero_forbid
+
+    ! Now read in the main namelist
+    if (self%requiresIndex) then
+       call get_indexed_namelist_unit(in_file, trim(self%name), self%index)
+       read(in_file, nml = dist_fn_knobs, iostat = iostat)
+       exist = .true.
+       if (iostat .ne.0) exist = .false.
+       close(unit = in_file, iostat = iostat)
+    else
+       in_file = input_unit_exist(self%name, exist)
+       if (exist) read(in_file, nml = dist_fn_knobs)
+    endif
+
+    ! Now copy from local variables into type members
+    self%adiabatic_option = adiabatic_option
+    self%afilter = afilter
+    self%apfac = apfac
+    self%boundary_option = boundary_option
+    self%btor_slab = btor_slab
+    self%def_parity = def_parity
+    self%densfac_lin = densfac_lin
+    self%driftknob = driftknob
+    self%esv = esv
+    self%even = even
+    self%g_exb = g_exb
+    self%g_exb_error_limit = g_exb_error_limit
+    self%g_exb_start_time = g_exb_start_time
+    self%g_exb_start_timestep = g_exb_start_timestep
+    self%g_exbfac = g_exbfac
+    self%gf_lo_integrate = gf_lo_integrate
+    self%gridfac = gridfac
+    self%kfilter = kfilter
+    self%lf_decompose = lf_decompose
+    self%lf_default = lf_default
+    self%mach = mach
+    self%mult_imp = mult_imp
+    self%nonad_zero = nonad_zero
+    self%omprimfac = omprimfac
+    self%opt_init_bc = opt_init_bc
+    self%opt_source = opt_source
+    self%phifac_lin = phifac_lin
+    self%poisfac = poisfac
+    self%qparfac_lin = qparfac_lin
+    self%qprpfac_lin = qprpfac_lin
+    self%test = test
+    self%tparfac_lin = tparfac_lin
+    self%tpdriftknob = tpdriftknob
+    self%tprpfac_lin = tprpfac_lin
+    self%uparfac_lin = uparfac_lin
+    self%wfb = wfb
+    self%wfb_cmr = wfb_cmr
+    self%wfbbc_option = wfbbc_option
+    self%zero_forbid = zero_forbid
+
+    self%exist = exist
+  end subroutine read_dist_fn_config
+
+  !> Writes out a namelist representing the current state of the config object
+  subroutine write_dist_fn_config(self, unit)
+    implicit none
+    class(dist_fn_config_type), intent(in) :: self
+    integer, intent(in) , optional:: unit
+    integer :: unit_internal
+
+    unit_internal = 6 ! @todo -- get stdout from file_utils
+    if (present(unit)) then
+       unit_internal = unit
+    endif
+
+    call self%write_namelist_header(unit_internal)
+    call self%write_key_val("adiabatic_option", self%adiabatic_option, unit_internal)
+    call self%write_key_val("afilter", self%afilter, unit_internal)
+    call self%write_key_val("apfac", self%apfac, unit_internal)
+    call self%write_key_val("boundary_option", self%boundary_option, unit_internal)
+    call self%write_key_val("btor_slab", self%btor_slab, unit_internal)
+    call self%write_key_val("def_parity", self%def_parity, unit_internal)
+    call self%write_key_val("densfac_lin", self%densfac_lin, unit_internal)
+    call self%write_key_val("driftknob", self%driftknob, unit_internal)
+    call self%write_key_val("esv", self%esv, unit_internal)
+    call self%write_key_val("even", self%even, unit_internal)
+    call self%write_key_val("g_exb", self%g_exb, unit_internal)
+    call self%write_key_val("g_exb_error_limit", self%g_exb_error_limit, unit_internal)
+    call self%write_key_val("g_exb_start_time", self%g_exb_start_time, unit_internal)
+    call self%write_key_val("g_exb_start_timestep", self%g_exb_start_timestep, unit_internal)
+    call self%write_key_val("g_exbfac", self%g_exbfac, unit_internal)
+    call self%write_key_val("gf_lo_integrate", self%gf_lo_integrate, unit_internal)
+    call self%write_key_val("gridfac", self%gridfac, unit_internal)
+    call self%write_key_val("kfilter", self%kfilter, unit_internal)
+    call self%write_key_val("lf_decompose", self%lf_decompose, unit_internal)
+    call self%write_key_val("lf_default", self%lf_default, unit_internal)
+    call self%write_key_val("mach", self%mach, unit_internal)
+    call self%write_key_val("mult_imp", self%mult_imp, unit_internal)
+    call self%write_key_val("nonad_zero", self%nonad_zero, unit_internal)
+    call self%write_key_val("omprimfac", self%omprimfac, unit_internal)
+    call self%write_key_val("opt_init_bc", self%opt_init_bc, unit_internal)
+    call self%write_key_val("opt_source", self%opt_source, unit_internal)
+    call self%write_key_val("phifac_lin", self%phifac_lin, unit_internal)
+    call self%write_key_val("poisfac", self%poisfac, unit_internal)
+    call self%write_key_val("qparfac_lin", self%qparfac_lin, unit_internal)
+    call self%write_key_val("qprpfac_lin", self%qprpfac_lin, unit_internal)
+    call self%write_key_val("test", self%test, unit_internal)
+    call self%write_key_val("tparfac_lin", self%tparfac_lin, unit_internal)
+    call self%write_key_val("tpdriftknob", self%tpdriftknob, unit_internal)
+    call self%write_key_val("tprpfac_lin", self%tprpfac_lin, unit_internal)
+    call self%write_key_val("uparfac_lin", self%uparfac_lin, unit_internal)
+    call self%write_key_val("wfb", self%wfb, unit_internal)
+    call self%write_key_val("wfb_cmr", self%wfb_cmr, unit_internal)
+    call self%write_key_val("wfbbc_option", self%wfbbc_option, unit_internal)
+    call self%write_key_val("zero_forbid", self%zero_forbid, unit_internal)
+    call self%write_namelist_footer(unit_internal)
+  end subroutine write_dist_fn_config
+
+  !> Resets the config object to the initial empty state
+  subroutine reset_dist_fn_config(self)
+    class(dist_fn_config_type), intent(in out) :: self
+    type(dist_fn_config_type) :: empty
+    select type (self)
+    type is (dist_fn_config_type)
+       self = empty
+    end select
+  end subroutine reset_dist_fn_config
+
+  !> Broadcasts all config parameters so object is populated identically on
+  !! all processors
+  subroutine broadcast_dist_fn_config(self)
+    use mp, only: broadcast
+    implicit none
+    class(dist_fn_config_type), intent(in out) :: self
+    call broadcast(self%adiabatic_option)
+    call broadcast(self%afilter)
+    call broadcast(self%apfac)
+    call broadcast(self%boundary_option)
+    call broadcast(self%btor_slab)
+    call broadcast(self%def_parity)
+    call broadcast(self%densfac_lin)
+    call broadcast(self%driftknob)
+    call broadcast(self%esv)
+    call broadcast(self%even)
+    call broadcast(self%g_exb)
+    call broadcast(self%g_exb_error_limit)
+    call broadcast(self%g_exb_start_time)
+    call broadcast(self%g_exb_start_timestep)
+    call broadcast(self%g_exbfac)
+    call broadcast(self%gf_lo_integrate)
+    call broadcast(self%gridfac)
+    call broadcast(self%kfilter)
+    call broadcast(self%lf_decompose)
+    call broadcast(self%lf_default)
+    call broadcast(self%mach)
+    call broadcast(self%mult_imp)
+    call broadcast(self%nonad_zero)
+    call broadcast(self%omprimfac)
+    call broadcast(self%opt_init_bc)
+    call broadcast(self%opt_source)
+    call broadcast(self%phifac_lin)
+    call broadcast(self%poisfac)
+    call broadcast(self%qparfac_lin)
+    call broadcast(self%qprpfac_lin)
+    call broadcast(self%test)
+    call broadcast(self%tparfac_lin)
+    call broadcast(self%tpdriftknob)
+    call broadcast(self%tprpfac_lin)
+    call broadcast(self%uparfac_lin)
+    call broadcast(self%wfb)
+    call broadcast(self%wfb_cmr)
+    call broadcast(self%wfbbc_option)
+    call broadcast(self%zero_forbid)
+
+    call broadcast(self%exist)
+  end subroutine broadcast_dist_fn_config
+  !---------------------------------------
+  ! Following is for the source config_type
+  !---------------------------------------
+  
+  !> Reads in the source_knobs namelist and populates the member variables
+  subroutine read_source_config(self)
+    use file_utils, only: input_unit_exist, get_indexed_namelist_unit
+    use mp, only: proc0
+    implicit none
+    class(source_config_type), intent(in out) :: self
+    logical :: exist
+    integer :: in_file, iostat
+
+    ! Note: When this routine is in the module where these variables live
+    ! we shadow the module level variables here. This is intentional to provide
+    ! isolation and ensure we can move this routine to another module easily.    
+    real :: gamma0, omega0, phi_ext, source0, t0
+    character(len = 20) :: source_option
+
+    namelist /source_knobs/ gamma0, omega0, phi_ext, source0, source_option, t0
+
+    ! Only proc0 reads from file
+    if (.not. proc0) return
+
+    ! First set local variables from current values
+    gamma0 = self%gamma0
+    omega0 = self%omega0
+    phi_ext = self%phi_ext
+    source0 = self%source0
+    source_option = self%source_option
+    t0 = self%t0
+
+    ! Now read in the main namelist
+    if (self%requiresIndex) then
+       call get_indexed_namelist_unit(in_file, trim(self%name), self%index)
+       read(in_file, nml = source_knobs, iostat = iostat)
+       exist = .true.
+       if (iostat .ne.0) exist = .false.
+       close(unit = in_file, iostat = iostat)
+    else
+       in_file = input_unit_exist(self%name, exist)
+       if (exist) read(in_file, nml = source_knobs)
+    endif
+
+    ! Now copy from local variables into type members
+    self%gamma0 = gamma0
+    self%omega0 = omega0
+    self%phi_ext = phi_ext
+    self%source0 = source0
+    self%source_option = source_option
+    self%t0 = t0
+
+    self%exist = exist
+  end subroutine read_source_config
+
+  !> Writes out a namelist representing the current state of the config object
+  subroutine write_source_config(self, unit)
+    implicit none
+    class(source_config_type), intent(in) :: self
+    integer, intent(in) , optional:: unit
+    integer :: unit_internal
+
+    unit_internal = 6 ! @todo -- get stdout from file_utils
+    if (present(unit)) then
+       unit_internal = unit
+    endif
+
+    call self%write_namelist_header(unit_internal)
+    call self%write_key_val("gamma0", self%gamma0, unit_internal)
+    call self%write_key_val("omega0", self%omega0, unit_internal)
+    call self%write_key_val("phi_ext", self%phi_ext, unit_internal)
+    call self%write_key_val("source0", self%source0, unit_internal)
+    call self%write_key_val("source_option", self%source_option, unit_internal)
+    call self%write_key_val("t0", self%t0, unit_internal)
+    call self%write_namelist_footer(unit_internal)
+  end subroutine write_source_config
+
+  !> Resets the config object to the initial empty state
+  subroutine reset_source_config(self)
+    class(source_config_type), intent(in out) :: self
+    type(source_config_type) :: empty
+    select type (self)
+    type is (source_config_type)
+       self = empty
+    end select
+  end subroutine reset_source_config
+
+  !> Broadcasts all config parameters so object is populated identically on
+  !! all processors
+  subroutine broadcast_source_config(self)
+    use mp, only: broadcast
+    implicit none
+    class(source_config_type), intent(in out) :: self
+    call broadcast(self%gamma0)
+    call broadcast(self%omega0)
+    call broadcast(self%phi_ext)
+    call broadcast(self%source0)
+    call broadcast(self%source_option)
+    call broadcast(self%t0)
+
+    call broadcast(self%exist)
+  end subroutine broadcast_source_config
+
+  !---------------------------------------
+  ! Following is for the dist_fn_species config_type
+  !---------------------------------------
+  
+  !> Reads in the dist_fn_species_knobs namelist and populates the member variables
+  subroutine read_dist_fn_species_config(self)
+    use file_utils, only: input_unit_exist, get_indexed_namelist_unit
+    use mp, only: proc0
+    implicit none
+    class(dist_fn_species_config_type), intent(in out) :: self
+    logical :: exist
+    integer :: in_file, iostat
+
+    ! Note: When this routine is in the module where these variables live
+    ! we shadow the module level variables here. This is intentional to provide
+    ! isolation and ensure we can move this routine to another module easily.    
+    real :: bakdif, fexpi, fexpr
+    integer :: bd_exp
+
+    namelist /dist_fn_species_knobs/ bakdif, bd_exp, fexpi, fexpr
+
+    ! Only proc0 reads from file
+    if (.not. proc0) return
+
+    ! First set local variables from current values
+    bakdif = self%bakdif
+    bd_exp = self%bd_exp
+    fexpi = self%fexpi
+    fexpr = self%fexpr
+
+    ! Now read in the main namelist
+    if (self%requiresIndex) then
+       call get_indexed_namelist_unit(in_file, trim(self%name), self%index)
+       read(in_file, nml = dist_fn_species_knobs, iostat = iostat)
+       exist = .true.
+       if (iostat .ne.0) exist = .false.
+       close(unit = in_file, iostat = iostat)
+    else
+       in_file = input_unit_exist(self%name, exist)
+       if (exist) read(in_file, nml = dist_fn_species_knobs)
+    endif
+
+    ! Now copy from local variables into type members
+    self%bakdif = bakdif
+    self%bd_exp = bd_exp
+    self%fexpi = fexpi
+    self%fexpr = fexpr
+
+    self%exist = exist
+  end subroutine read_dist_fn_species_config
+
+  !> Writes out a namelist representing the current state of the config object
+  subroutine write_dist_fn_species_config(self, unit)
+    implicit none
+    class(dist_fn_species_config_type), intent(in) :: self
+    integer, intent(in) , optional:: unit
+    integer :: unit_internal
+
+    unit_internal = 6 ! @todo -- get stdout from file_utils
+    if (present(unit)) then
+       unit_internal = unit
+    endif
+
+    call self%write_namelist_header(unit_internal)
+    call self%write_key_val("bakdif", self%bakdif, unit_internal)
+    call self%write_key_val("bd_exp", self%bd_exp, unit_internal)
+    call self%write_key_val("fexpi", self%fexpi, unit_internal)
+    call self%write_key_val("fexpr", self%fexpr, unit_internal)
+    call self%write_namelist_footer(unit_internal)
+  end subroutine write_dist_fn_species_config
+
+  !> Resets the config object to the initial empty state
+  subroutine reset_dist_fn_species_config(self)
+    class(dist_fn_species_config_type), intent(in out) :: self
+    type(dist_fn_species_config_type) :: empty
+    select type (self)
+    type is (dist_fn_species_config_type)
+       self = empty
+    end select
+  end subroutine reset_dist_fn_species_config
+
+  !> Broadcasts all config parameters so object is populated identically on
+  !! all processors
+  subroutine broadcast_dist_fn_species_config(self)
+    use mp, only: broadcast
+    implicit none
+    class(dist_fn_species_config_type), intent(in out) :: self
+    call broadcast(self%bakdif)
+    call broadcast(self%bd_exp)
+    call broadcast(self%fexpi)
+    call broadcast(self%fexpr)
+
+    call broadcast(self%exist)
+  end subroutine broadcast_dist_fn_species_config
 end module dist_fn
