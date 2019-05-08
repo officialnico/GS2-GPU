@@ -142,6 +142,7 @@ contains
   !> FIXME : Add documentation  
   subroutine finish_ingen
     deallocate(sweet_spots)
+    call config_internal%reset()
   end subroutine finish_ingen
 
   !> FIXME : Add documentation  
