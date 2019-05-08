@@ -326,7 +326,7 @@ def constructFromFile(fileIn=None, verbose=False):
     startPattern = re.compile(r"""\s*type,\s*extends\s*\(abstract_config_type\)\s*::\s*(?P<moduleName>.*?)_config_type""", re.VERBOSE)
     endPattern = re.compile(r"""\s*end\s*type\s*(?P<moduleName>.*?)_config_type""", re.VERBOSE)
 
-    declPattern = re.compile(r"""\s*(?P<dtype>(double precision|real|logical|character|integer|type)+?)(?P<dtypeExtra>.*?)::\s*(?P<vname>[^\s=]*)\s*(=\s*(?P<default>.*))?""",re.VERBOSE)
+    declPattern = re.compile(r"""\s*(?P<dtype>(double precision|real|complex|logical|character|integer|type)+?)(?P<dtypeExtra>.*?)::\s*(?P<vname>[^\s=]*)\s*(=\s*(?P<default>.*))?""",re.VERBOSE)
     nmlPattern = re.compile(r"""\s*![^!>]\s*namelist\s*:\s*(?P<namelist>[^>\s]+)""", re.VERBOSE)
     
     result = None
