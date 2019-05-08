@@ -161,7 +161,7 @@ end module egrid
 
 !> FIXME : Add documentation
 module le_grids
-  
+  use abstract_config, only: abstract_config_type
   use redistribute, only: redist_type
   implicit none
 
@@ -278,7 +278,52 @@ module le_grids
 
   integer, dimension(:),allocatable :: recvcnts_intspec,displs_intspec
   integer :: sz_intspec, local_rank_intspec
+  
+  !> Used to represent the input configuration of le_grids
+  type, extends(abstract_config_type) :: le_grids_config_type
+     ! namelist : le_grids_knobs
+     !> FIXME: Add documentation
+     real :: bouncefuzz = 1e-5
+     !> FIXME: Add documentation
+     logical :: genquad = .false.
+     !> FIXME: Add documentation
+     integer :: negrid = -10
+     !> FIXME: Add documentation
+     integer :: nesub = 8
+     !> FIXME: Add documentation
+     integer :: nesuper = 2
+     !> FIXME: Add documentation
+     logical :: new_trap_int = .false.
+     !> FIXME: Add documentation
+     integer :: ngauss = 5
+     !> FIXME: Add documentation
+     integer :: nmax = 500
+     !> FIXME: Add documentation
+     integer :: nterp = 100
+     !> The default lambda grid is now gauss-radau, for passing particles up to
+     !> and including the passing-trapped boundary (wfb). The grid gives finite weight to
+     !> the class of particles which bounce at theta = +/- pi (wfb) in the passing integral
+     !> Note that the old gauss-legendre is used in the case that trapped_particles =.false.
+     !> @note In reference to above note - code doesn't seem to change radau_gauss_grid when
+     !> trapped_particles is false, should it?
+     logical :: radau_gauss_grid = .true. ! default lambda grid changed
+     !> FIXME: Add documentation
+     logical :: test = .false. !Seems quite specialist -- do we really want this as an input?
+     !> FIXME: Add documentation
+     logical :: trapped_particles = .true.
+     !> FIXME: Add documentation
+     real :: vcut = 2.5
+     !> FIXME: Add documentation
+     real :: wgt_fac = 10.0
+   contains
+     procedure, public :: read => read_le_grids_config
+     procedure, public :: write => write_le_grids_config
+     procedure, public :: reset => reset_le_grids_config
+     procedure, public :: broadcast => broadcast_le_grids_config
+  end type le_grids_config_type
 
+  type(le_grids_config_type) :: config_internal
+  
 contains
 
   !> FIXME : Add documentation  
@@ -296,7 +341,7 @@ contains
   end subroutine wnml_le_grids
 
   !> FIXME : Add documentation  
-  subroutine init_le_grids (accelerated_x, accelerated_v)
+  subroutine init_le_grids (accelerated_x, accelerated_v, config_in)
     use mp, only: proc0, finish_mp
     use species, only: init_species
     use theta_grid, only: init_theta_grid
@@ -305,6 +350,7 @@ contains
     use egrid, only: setvgrid
     implicit none
     logical, intent (out) :: accelerated_x, accelerated_v
+    type(le_grids_config_type), intent(in), optional :: config_in    
     integer :: il, ie
 
     if (initialized) return
@@ -315,10 +361,7 @@ contains
     call init_theta_grid
     call init_kt_grids
 
-    if (proc0) then
-       call read_parameters
-    end if
-    call broadcast_input
+    call read_parameters(config_in)
     call set_vgrid
     if (proc0) then
        call set_grids
@@ -359,36 +402,8 @@ contains
     end if
   end subroutine set_vgrid
 
-  !> FIXME : Add documentation  
-  subroutine broadcast_input
-    use mp, only: broadcast
-    implicit none
-    integer :: tsize
-
-    tsize = 2*nterp-1
-
-    call broadcast (ngauss)
-    call broadcast (negrid)
-    call broadcast (nesuper)
-    call broadcast (nesub)
-    call broadcast (vcut)
-    call broadcast (genquad)
-    call broadcast (bouncefuzz)
-    call broadcast (nxi)
-    call broadcast (nlambda)
-    call broadcast (ng2)
-    call broadcast (lmax)
-    call broadcast (test)
-    call broadcast (nmax)
-    call broadcast (trapped_particles)
-    call broadcast (radau_gauss_grid)
-    call broadcast (wgt_fac)
-    call broadcast (new_trap_int)
-    call broadcast (nterp)
- end subroutine broadcast_input
-
- !> FIXME : Add documentation 
- subroutine broadcast_results
+  !> FIXME : Add documentation 
+  subroutine broadcast_results
     use mp, only: proc0, broadcast
     use species, only: nspec
     use egrid, only: init_egrid, zeroes_maxw, x0_maxw
@@ -452,25 +467,32 @@ contains
   end subroutine broadcast_results
 
   !> FIXME : Add documentation  
-  subroutine read_parameters
-    use file_utils, only: input_unit_exist
+  subroutine read_parameters(config_in)
     implicit none
-    integer :: in_file
-    namelist /le_grids_knobs/ ngauss, negrid, bouncefuzz, &
-         nesuper, nesub, test, trapped_particles, &
-         nmax, wgt_fac, new_trap_int, nterp, vcut, genquad, &
-         radau_gauss_grid
+    type(le_grids_config_type), intent(in), optional :: config_in    
+    
+    if (present(config_in)) config_internal = config_in
 
-    nesub = 8
-    nesuper = 2
-    ngauss = 5
-    negrid = -10
-    vcut = 2.5
-    bouncefuzz = 1e-5
-    genquad = .false.
-    in_file=input_unit_exist("le_grids_knobs", exist)
-    if (exist) read (unit=in_file, nml=le_grids_knobs)
+    call config_internal%init(name = 'le_grids_knobs', requires_index = .false.)
 
+    ! Copy out internal values into module level parameters
+    bouncefuzz = config_internal%bouncefuzz
+    genquad = config_internal%genquad
+    negrid = config_internal%negrid
+    nesub = config_internal%nesub
+    nesuper = config_internal%nesuper
+    new_trap_int = config_internal%new_trap_int
+    ngauss = config_internal%ngauss
+    nmax = config_internal%nmax
+    nterp = config_internal%nterp
+    radau_gauss_grid = config_internal%radau_gauss_grid
+    test = config_internal%test
+    trapped_particles = config_internal%trapped_particles
+    vcut = config_internal%vcut
+    wgt_fac = config_internal%wgt_fac
+
+    exist = config_internal%exist
+    
 ! user can choose not to set negrid (preferred for old scheme)
     if (negrid == -10) then
        negrid = nesub + nesuper
@@ -4488,6 +4510,7 @@ contains
     einit = .false.
     initialized = .false.
 
+    call config_internal%reset()
   end subroutine finish_le_grids
 
   !> FIXME : Add documentation  
@@ -4496,6 +4519,142 @@ contains
     if (allocated(wlerr)) deallocate (wlerr)
     init_weights_init = .false.
   end subroutine finish_weights
+
+  !---------------------------------------
+  ! Following is for the config_type
+  !---------------------------------------
+  
+  !> Reads in the le_grids_knobs namelist and populates the member variables
+  subroutine read_le_grids_config(self)
+    use file_utils, only: input_unit_exist, get_indexed_namelist_unit
+    use mp, only: proc0
+    implicit none
+    class(le_grids_config_type), intent(in out) :: self
+    logical :: exist
+    integer :: in_file, iostat
+
+    ! Note: When this routine is in the module where these variables live
+    ! we shadow the module level variables here. This is intentional to provide
+    ! isolation and ensure we can move this routine to another module easily.    
+    real :: bouncefuzz, vcut, wgt_fac
+    logical :: genquad, new_trap_int, radau_gauss_grid, test, trapped_particles
+    integer :: negrid, nesub, nesuper, ngauss, nmax, nterp
+
+    namelist /le_grids_knobs/ bouncefuzz, genquad, negrid, nesub, nesuper, new_trap_int, ngauss, nmax, nterp, radau_gauss_grid, test, trapped_particles, vcut, wgt_fac
+
+    ! Only proc0 reads from file
+    if (.not. proc0) return
+
+    ! First set local variables from current values
+    bouncefuzz = self%bouncefuzz
+    genquad = self%genquad
+    negrid = self%negrid
+    nesub = self%nesub
+    nesuper = self%nesuper
+    new_trap_int = self%new_trap_int
+    ngauss = self%ngauss
+    nmax = self%nmax
+    nterp = self%nterp
+    radau_gauss_grid = self%radau_gauss_grid
+    test = self%test
+    trapped_particles = self%trapped_particles
+    vcut = self%vcut
+    wgt_fac = self%wgt_fac
+
+    ! Now read in the main namelist
+    if (self%requiresIndex) then
+       call get_indexed_namelist_unit(in_file, trim(self%name), self%index)
+       read(in_file, nml = le_grids_knobs, iostat = iostat)
+       exist = .true.
+       if (iostat .ne.0) exist = .false.
+       close(unit = in_file, iostat = iostat)
+    else
+       in_file = input_unit_exist(self%name, exist)
+       if (exist) read(in_file, nml = le_grids_knobs)
+    endif
+
+    ! Now copy from local variables into type members
+    self%bouncefuzz = bouncefuzz
+    self%genquad = genquad
+    self%negrid = negrid
+    self%nesub = nesub
+    self%nesuper = nesuper
+    self%new_trap_int = new_trap_int
+    self%ngauss = ngauss
+    self%nmax = nmax
+    self%nterp = nterp
+    self%radau_gauss_grid = radau_gauss_grid
+    self%test = test
+    self%trapped_particles = trapped_particles
+    self%vcut = vcut
+    self%wgt_fac = wgt_fac
+
+    self%exist = exist
+  end subroutine read_le_grids_config
+
+  !> Writes out a namelist representing the current state of the config object
+  subroutine write_le_grids_config(self, unit)
+    implicit none
+    class(le_grids_config_type), intent(in) :: self
+    integer, intent(in) , optional:: unit
+    integer :: unit_internal
+
+    unit_internal = 6 ! @todo -- get stdout from file_utils
+    if (present(unit)) then
+       unit_internal = unit
+    endif
+
+    call self%write_namelist_header(unit_internal)
+    call self%write_key_val("bouncefuzz", self%bouncefuzz, unit_internal)
+    call self%write_key_val("genquad", self%genquad, unit_internal)
+    call self%write_key_val("negrid", self%negrid, unit_internal)
+    call self%write_key_val("nesub", self%nesub, unit_internal)
+    call self%write_key_val("nesuper", self%nesuper, unit_internal)
+    call self%write_key_val("new_trap_int", self%new_trap_int, unit_internal)
+    call self%write_key_val("ngauss", self%ngauss, unit_internal)
+    call self%write_key_val("nmax", self%nmax, unit_internal)
+    call self%write_key_val("nterp", self%nterp, unit_internal)
+    call self%write_key_val("radau_gauss_grid", self%radau_gauss_grid, unit_internal)
+    call self%write_key_val("test", self%test, unit_internal)
+    call self%write_key_val("trapped_particles", self%trapped_particles, unit_internal)
+    call self%write_key_val("vcut", self%vcut, unit_internal)
+    call self%write_key_val("wgt_fac", self%wgt_fac, unit_internal)
+    call self%write_namelist_footer(unit_internal)
+  end subroutine write_le_grids_config
+
+  !> Resets the config object to the initial empty state
+  subroutine reset_le_grids_config(self)
+    class(le_grids_config_type), intent(in out) :: self
+    type(le_grids_config_type) :: empty
+    select type (self)
+    type is (le_grids_config_type)
+       self = empty
+    end select
+  end subroutine reset_le_grids_config
+
+  !> Broadcasts all config parameters so object is populated identically on
+  !! all processors
+  subroutine broadcast_le_grids_config(self)
+    use mp, only: broadcast
+    implicit none
+    class(le_grids_config_type), intent(in out) :: self
+    call broadcast(self%bouncefuzz)
+    call broadcast(self%genquad)
+    call broadcast(self%negrid)
+    call broadcast(self%nesub)
+    call broadcast(self%nesuper)
+    call broadcast(self%new_trap_int)
+    call broadcast(self%ngauss)
+    call broadcast(self%nmax)
+    call broadcast(self%nterp)
+    call broadcast(self%radau_gauss_grid)
+    call broadcast(self%test)
+    call broadcast(self%trapped_particles)
+    call broadcast(self%vcut)
+    call broadcast(self%wgt_fac)
+
+    call broadcast(self%exist)
+  end subroutine broadcast_le_grids_config
 end module le_grids
 
 
