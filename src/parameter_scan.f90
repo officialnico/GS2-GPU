@@ -404,22 +404,6 @@ contains
             text_option('delta_t', increment_condition_delta_t), &
             text_option('saturated', increment_condition_saturated) /)
     character(20) :: inc_con 
-    namelist /parameter_scan_knobs/ &
-            scan_type, &
-            scan_par, &
-            target_par,& 
-            par_start, &
-            par_end, &
-            par_inc, &
-            inc_con, &
-            nstep_init, &
-            nstep_inc, &
-            delta_t_init, &
-            delta_t_inc, &
-            scan_spec, &
-            scan_restarted, &
-            target_val
-
     integer :: ierr, in_file
     logical :: exist
 
