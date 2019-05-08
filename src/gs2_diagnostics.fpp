@@ -1,5 +1,6 @@
 !> A module for calculating and writing the main GS2 outputs.
 module gs2_diagnostics
+  use abstract_config, only: abstract_config_type
   use gs2_heating, only: heating_diagnostics
   use gs2_save, only: save_many
 
@@ -128,26 +129,145 @@ module gs2_diagnostics
   complex :: wtmp_old = 0.
   logical :: exist
 
-  namelist /gs2_diagnostics_knobs/ print_line, print_flux_line, &
-       write_line, write_flux_line, &
-       write_omega, write_omavg, write_ascii, write_kpar, &
-       write_gs, write_gyx, write_g, write_gg, write_hrate, write_lpoly, &
-       write_eigenfunc, write_fields, write_final_fields, write_final_antot, &
-       write_final_epar, write_moments, ob_midplane, write_final_moments, write_cerr, &
-       write_verr, write_max_verr, write_nl_flux, write_final_db, &
-       nwrite, nmovie, nsave, navg, omegatol, omegatinst, igomega, write_lorentzian, &
-       exit_when_converged, use_nonlin_convergence, write_avg_moments, &
-       write_full_moments_notgc, write_cross_phase, &
-       dump_check1, dump_check2, &
-       dump_fields_periodically, make_movie, &
-       save_for_restart, save_many, &
-       write_parity, write_symmetry, save_distfn, & !<DD> Added for saving distribution function
-       write_correlation_extend, nwrite_mult, write_correlation, &
-       write_phi_over_time, write_apar_over_time, write_bpar_over_time, &
-       write_pflux_sym, write_nl_flux_dist, write_pflux_tormom, file_safety_check, &
-       conv_nstep_av, conv_test_multiplier, conv_min_step, conv_max_step, conv_nsteps_converged
+  !> Used to represent the input configuration of gs2_diagnostics
+  type, extends(abstract_config_type) :: gs2_diagnostics_config_type
+     ! namelist : gs2_diagnostics_knobs
+     !> FIXME: Add documentation
+     integer :: conv_max_step = 80000
+     !> FIXME: Add documentation
+     integer :: conv_min_step = 4000
+     !> FIXME: Add documentation
+     integer :: conv_nstep_av = 4000
+     !> FIXME: Add documentation
+     integer :: conv_nsteps_converged = 10000
+     !> FIXME: Add documentation
+     real :: conv_test_multiplier = 4e-1
+     !> FIXME: Add documentation
+     logical :: dump_check1 = .false.
+     !> FIXME: Add documentation
+     logical :: dump_check2 = .false.
+     !> FIXME: Add documentation
+     logical :: dump_fields_periodically = .false.
+     !> FIXME: Add documentation
+     logical :: exit_when_converged = .true.
+     !> FIXME: Add documentation
+     logical :: file_safety_check = .true.
+     !> FIXME: Add documentation
+     integer :: igomega = 0
+     !> FIXME: Add documentation
+     logical :: make_movie = .false.
+     !> FIXME: Add documentation
+     integer :: navg = 100
+     !> FIXME: Add documentation
+     integer :: nmovie = 1000
+     !> FIXME: Add documentation
+     integer :: nsave = -1
+     !> FIXME: Add documentation
+     integer :: nwrite = 100
+     !> FIXME: Add documentation
+     integer :: nwrite_mult = 10
+     !> FIXME: Add documentation
+     logical :: ob_midplane = .true.
+     !> FIXME: Add documentation
+     real :: omegatinst = 1.0
+     !> FIXME: Add documentation
+     real :: omegatol = 1e-3
+     !> FIXME: Add documentation
+     logical :: print_flux_line = .false.
+     !> FIXME: Add documentation
+     logical :: print_line = .true.
+     !> FIXME: Add documentation
+     logical :: save_distfn = .false.
+     !> FIXME: Add documentation
+     logical :: save_for_restart = .false.
+     !> FIXME: Add documentation
+     logical :: save_many = .false.
+     !> FIXME: Add documentation
+     logical :: use_nonlin_convergence = .false.
+     !> FIXME: Add documentation
+     logical :: write_apar_over_time = .false.
+     !> FIXME: Add documentation
+     logical :: write_ascii = .true.
+     !> FIXME: Add documentation
+     logical :: write_avg_moments = .false.
+     !> FIXME: Add documentation
+     logical :: write_bpar_over_time = .false.
+     !> FIXME: Add documentation
+     logical :: write_cerr = .false.
+     !> FIXME: Add documentation
+     logical :: write_correlation = .false.
+     !> FIXME: Add documentation
+     logical :: write_correlation_extend = .false.
+     !> FIXME: Add documentation
+     logical :: write_cross_phase = .false.
+     !> FIXME: Add documentation
+     logical :: write_eigenfunc = .false.
+     !> FIXME: Add documentation
+     logical :: write_fields = .false.
+     !> FIXME: Add documentation
+     logical :: write_final_antot = .false.
+     !> FIXME: Add documentation
+     logical :: write_final_db = .false.
+     !> FIXME: Add documentation
+     logical :: write_final_epar = .false.
+     !> FIXME: Add documentation
+     logical :: write_final_fields = .false.
+     !> FIXME: Add documentation
+     logical :: write_final_moments = .false.
+     !> FIXME: Add documentation
+     logical :: write_flux_line = .true.
+     !> FIXME: Add documentation
+     logical :: write_full_moments_notgc = .false.
+     !> FIXME: Add documentation
+     logical :: write_g = .false.
+     !> FIXME: Add documentation
+     logical :: write_gg = .false.
+     !> FIXME: Add documentation
+     logical :: write_gs = .false.
+     !> FIXME: Add documentation
+     logical :: write_gyx = .false.
+     !> FIXME: Add documentation
+     logical :: write_hrate = .false.
+     !> FIXME: Add documentation
+     logical :: write_kpar = .false.
+     !> FIXME: Add documentation
+     logical :: write_line = .true.
+     !> FIXME: Add documentation
+     logical :: write_lorentzian = .false.
+     !> FIXME: Add documentation
+     logical :: write_lpoly = .false.
+     !> FIXME: Add documentation
+     logical :: write_max_verr = .false.
+     !> FIXME: Add documentation
+     logical :: write_moments = .false.
+     !> FIXME: Add documentation
+     logical :: write_nl_flux = .false.
+     !> FIXME: Add documentation
+     logical :: write_nl_flux_dist = .false.
+     !> FIXME: Add documentation
+     logical :: write_omavg = .false.
+     !> FIXME: Add documentation
+     logical :: write_omega = .false.
+     !> FIXME: Add documentation
+     logical :: write_parity = .false.
+     !> FIXME: Add documentation
+     logical :: write_pflux_sym = .false. 
+     !> FIXME: Add documentation
+     logical :: write_pflux_tormom = .false. 
+     !> FIXME: Add documentation
+     logical :: write_phi_over_time = .false.
+     !> FIXME: Add documentation
+     logical :: write_symmetry = .false.
+     !> FIXME: Add documentation
+     logical :: write_verr = .false.
+   contains
+     procedure, public :: read => read_gs2_diagnostics_config
+     procedure, public :: write => write_gs2_diagnostics_config
+     procedure, public :: reset => reset_gs2_diagnostics_config
+     procedure, public :: broadcast => broadcast_gs2_diagnostics_config
+  end type gs2_diagnostics_config_type
 
-
+  type(gs2_diagnostics_config_type) :: config_internal  
 contains
 
   !> Define NetCDF vars, call real_init, which calls read_parameters; broadcast all the different write flags. 
@@ -408,7 +528,7 @@ contains
   end subroutine check_gs2_diagnostics
 
   !> FIXME : Add documentation
-  subroutine init_gs2_diagnostics (list, nstep)
+  subroutine init_gs2_diagnostics (list, nstep, config_in)
     use theta_grid, only: init_theta_grid
     use kt_grids, only: init_kt_grids, ntheta0, naky
     use run_parameters, only: init_run_parameters
@@ -425,6 +545,7 @@ contains
     implicit none
     logical, intent (in) :: list
     integer, intent (in) :: nstep
+    type(gs2_diagnostics_config_type), intent(in), optional :: config_in    
     integer :: nmovie_tot, nwrite_big_tot
     logical :: writable
 
@@ -439,70 +560,7 @@ contains
     call init_init_g
     call init_dist_fn
 
-    call real_init (list)
-    call broadcast (navg)
-    call broadcast (nwrite)
-    call broadcast (print_flux_line)
-    call broadcast (write_flux_line)
-    call broadcast (write_ascii)
-    call broadcast (nmovie)
-    call broadcast (nwrite_mult)
-    call broadcast (nsave)
-    call broadcast (write_any)
-    call broadcast (write_any_fluxes)
-    call broadcast (write_cross_phase)
-    call broadcast (write_nl_flux)
-    call broadcast (write_omega)
-    call broadcast (dump_any)
-    call broadcast (dump_check1)
-    call broadcast (dump_check2)
-    call broadcast (write_fields)
-    call broadcast (write_moments)
-    call broadcast (ob_midplane)
-    call broadcast (dump_fields_periodically)
-    call broadcast (make_movie)
-    call broadcast (save_for_restart)
-    call broadcast (save_many)
-    call broadcast (save_distfn) !<DD> Added for saving distribution function
-    call broadcast (write_gs)
-    call broadcast (write_g)
-    call broadcast (write_gyx)
-    call broadcast (write_gg)
-    call broadcast (write_final_antot)
-    call broadcast (write_verr)
-    call broadcast (write_max_verr)
-    call broadcast (write_lpoly)
-    call broadcast (write_cerr)
-    call broadcast (ntg_out)
-    call broadcast (write_hrate)
-    call broadcast (write_lorentzian)
-    call broadcast (write_eigenfunc)
-
-    call broadcast (write_full_moments_notgc)
-    call broadcast (write_phi_over_time)
-    call broadcast (write_apar_over_time)
-    call broadcast (write_bpar_over_time)
-
-    call broadcast (write_pflux_tormom)
-
-    call broadcast (file_safety_check)
-
-    !<DD> Moved the following from loop/finish_diagnostics to init
-    call broadcast (write_symmetry)
-    call broadcast (write_pflux_sym) !JPL
-    call broadcast (write_nl_flux_dist)
-    call broadcast (write_correlation)
-    call broadcast (write_correlation_extend)
-    call broadcast (write_parity)
-    call broadcast (write_avg_moments)
-    call broadcast (write_final_moments)
-
-    !<DD> Adding broadcast of a few other variables
-    call broadcast (omegatol)
-    call broadcast (omegatinst)
-
-    !<HJL> Invokes the nonlinear_convergence check
-    call broadcast (use_nonlin_convergence)
+    call real_init (list, config_in)
 
     nmovie_tot = nstep/nmovie
     nwrite_big_tot = nstep/(nwrite*nwrite_mult)-nstep/4/(nwrite*nwrite_mult)
@@ -576,7 +634,7 @@ contains
   end subroutine init_gs2_diagnostics
 
   !> FIXME : Add documentation
-  subroutine real_init (list)
+  subroutine real_init(list, config_in)
     use run_parameters, only: fapar
     use file_utils, only: open_output_file, get_unused_unit
     use kt_grids, only: naky, ntheta0
@@ -584,10 +642,11 @@ contains
     use mp, only: proc0
     implicit none
     logical, intent (in) :: list
+    type(gs2_diagnostics_config_type), intent(in), optional :: config_in    
     character(20) :: datestamp, timestamp, zone
 
-    !<doc> Call read_parameters </doc>
-    call read_parameters (list)
+    call read_parameters(list, config_in)
+    
     !<doc> Open the various ascii output files (depending on the write flags) </doc>
     if (proc0) then
        if (write_ascii) then
@@ -681,7 +740,7 @@ contains
   end subroutine real_init
 
   !> FIXME : Add documentation  
-  subroutine read_parameters (list)
+  subroutine read_parameters (list, config_in)
     !CMR, 17/11/2009:   namelist gs2_diagnostics_knobs made public
     !                   so that ingen can just USE it instead of copying it!
     !
@@ -691,117 +750,119 @@ contains
     use run_parameters, only: fphi
     use mp, only: proc0
     implicit none
-    integer :: in_file
     logical, intent (in) :: list
-    !<doc> Set defaults for the gs2_diagnostics_knobs</doc>
-    if (proc0) then
-       !<wkdoc> Set defaults for the gs2_diagnostics_knobs</wkdoc>
-       print_line = .true.
+    type(gs2_diagnostics_config_type), intent(in), optional :: config_in
+    
+    if (present(config_in)) config_internal = config_in
+
+    call config_internal%init(name = 'gs2_diagnostics_knobs', requires_index = .false.)
+
+    ! Copy out internal values into module level parameters
+    conv_max_step = config_internal%conv_max_step
+    conv_min_step = config_internal%conv_min_step
+    conv_nstep_av = config_internal%conv_nstep_av
+    conv_nsteps_converged = config_internal%conv_nsteps_converged
+    conv_test_multiplier = config_internal%conv_test_multiplier
+    dump_check1 = config_internal%dump_check1
+    dump_check2 = config_internal%dump_check2
+    dump_fields_periodically = config_internal%dump_fields_periodically
+    exit_when_converged = config_internal%exit_when_converged
+    file_safety_check = config_internal%file_safety_check
+    igomega = config_internal%igomega
+    make_movie = config_internal%make_movie
+    navg = config_internal%navg
+    nmovie = config_internal%nmovie
+    nsave = config_internal%nsave
+    nwrite = config_internal%nwrite
+    nwrite_mult = config_internal%nwrite_mult
+    ob_midplane = config_internal%ob_midplane
+    omegatinst = config_internal%omegatinst
+    omegatol = config_internal%omegatol
+    print_flux_line = config_internal%print_flux_line
+    print_line = config_internal%print_line
+    save_distfn = config_internal%save_distfn
+    save_for_restart = config_internal%save_for_restart
+    save_many = config_internal%save_many
+    use_nonlin_convergence = config_internal%use_nonlin_convergence
+    write_apar_over_time = config_internal%write_apar_over_time
+    write_ascii = config_internal%write_ascii
+    write_avg_moments = config_internal%write_avg_moments
+    write_bpar_over_time = config_internal%write_bpar_over_time
+    write_cerr = config_internal%write_cerr
+    write_correlation = config_internal%write_correlation
+    write_correlation_extend = config_internal%write_correlation_extend
+    write_cross_phase = config_internal%write_cross_phase
+    write_eigenfunc = config_internal%write_eigenfunc
+    write_fields = config_internal%write_fields
+    write_final_antot = config_internal%write_final_antot
+    write_final_db = config_internal%write_final_db
+    write_final_epar = config_internal%write_final_epar
+    write_final_fields = config_internal%write_final_fields
+    write_final_moments = config_internal%write_final_moments
+    write_flux_line = config_internal%write_flux_line
+    write_full_moments_notgc = config_internal%write_full_moments_notgc
+    write_g = config_internal%write_g
+    write_gg = config_internal%write_gg
+    write_gs = config_internal%write_gs
+    write_gyx = config_internal%write_gyx
+    write_hrate = config_internal%write_hrate
+    write_kpar = config_internal%write_kpar
+    write_line = config_internal%write_line
+    write_lorentzian = config_internal%write_lorentzian
+    write_lpoly = config_internal%write_lpoly
+    write_max_verr = config_internal%write_max_verr
+    write_moments = config_internal%write_moments
+    write_nl_flux = config_internal%write_nl_flux
+    write_nl_flux_dist = config_internal%write_nl_flux_dist
+    write_omavg = config_internal%write_omavg
+    write_omega = config_internal%write_omega
+    write_parity = config_internal%write_parity
+    write_pflux_sym = config_internal%write_pflux_sym
+    write_pflux_tormom = config_internal%write_pflux_tormom
+    write_phi_over_time = config_internal%write_phi_over_time
+    write_symmetry = config_internal%write_symmetry
+    write_verr = config_internal%write_verr
+
+    exist = config_internal%exist
+
+    !
+    !CMR, 12/8/2014: 
+    ! Ensure write_full_moments_notgc=.false. if (write_moments .and. ob_midplane)
+    ! to avoid a conflict.  
+    if (write_moments .and. ob_midplane) write_full_moments_notgc=.false.
+
+    !Override flags
+    if (write_max_verr) write_verr = .true.
+
+    print_summary = (list .and. (print_line .or. print_flux_line)) 
+
+    if (list) then
+       print_line = .false.
        print_flux_line = .false.
-       write_line = .true.
-       write_flux_line = .true.
-       write_kpar = .false.
-       write_hrate = .false.
-       write_gs = .false.
-       write_g = .false.
-       write_gyx = .false.
-       write_lpoly = .false.
-       write_gg = .false.
-       write_lorentzian = .false.
-       write_omega = .false.
-       write_ascii = .true.
-       write_omavg = .false.
-       write_nl_flux = .false.
-       write_nl_flux_dist = .false.
-       write_eigenfunc = .false.
-       write_moments = .false.
-       ob_midplane = .true.
-       write_final_moments = .false.
-       write_avg_moments = .false.
-       write_parity = .false.
-       write_symmetry = .false.
-       write_pflux_tormom = .false. 
-       write_pflux_sym = .false. 
-       write_correlation_extend = .false.
-       write_correlation = .false.
-       write_fields = .false.
-       write_full_moments_notgc = .false.
-       write_final_fields = .false.
-       write_final_antot = .false.
-       write_final_epar = .false.
-       write_final_db = .false.
-       write_verr = .false.
-       write_max_verr = .false.
-       write_cerr = .false.
-       nwrite = 100
-       nmovie = 1000
-       nwrite_mult = 10
-       navg = 100
-       nsave = -1
-       conv_nstep_av = 4000
-       conv_test_multiplier = 4e-1
-       conv_min_step = 4000
-       conv_max_step = 80000
-       conv_nsteps_converged = 10000
-       omegatol = 1e-3
-       omegatinst = 1.0
-       igomega = 0
-       exit_when_converged = .true.
-       use_nonlin_convergence = .false.
-       dump_check1 = .false.
-       dump_check2 = .false.
-       dump_fields_periodically = .false.
-       make_movie = .false.
-       save_for_restart = .false.
-       save_many = .false.
-       save_distfn = .false. !<DD> Added for saving distribution function
-       write_phi_over_time = .false.
-       write_bpar_over_time = .false.
-       write_apar_over_time = .false.
-       file_safety_check=.true.
-       in_file = input_unit_exist ("gs2_diagnostics_knobs", exist)
-
-       !<doc> Read in parameters from the namelist gs2_diagnostics_knobs, if the namelist exists </doc>
-       if (exist) read (unit=in_file, nml=gs2_diagnostics_knobs)
-       !
-       !CMR, 12/8/2014: 
-       ! Ensure write_full_moments_notgc=.false. if (write_moments .and. ob_midplane)
-       ! to avoid a conflict.  
-       if (write_moments .and. ob_midplane) write_full_moments_notgc=.false.
-
-       !Override flags
-       if (write_max_verr) write_verr = .true.
-
-       print_summary = (list .and. (print_line .or. print_flux_line)) 
-
-       if (list) then
-          print_line = .false.
-          print_flux_line = .false.
-       end if
-
-       !These don't store any data if fphi=0 so don't bother
-       !calculating it.
-       if(fphi.eq.0) write_symmetry = .false.
-       if(fphi.eq.0) write_pflux_sym = .false.
-       if(fphi.eq.0) write_nl_flux_dist = .false.
-       if(fphi.eq.0) write_correlation = .false.
-       if(fphi.eq.0) write_correlation_extend = .false.
-
-       if (.not. save_for_restart) nsave = -1
-       ! changed temporarily for testing -- MAB
-       !       write_avg_moments = write_avg_moments .and. box
-       write_avg_moments = write_avg_moments
-
-       write_any = write_line .or. write_omega     .or. write_omavg &
-            .or. write_flux_line                   .or. write_nl_flux  &
-            .or. write_kpar   .or. write_hrate     .or. write_lorentzian  .or. write_gs
-       write_any_fluxes =  write_flux_line .or. print_flux_line .or. write_nl_flux 
-       dump_any = dump_check1  .or. dump_fields_periodically &
-            .or.  dump_check2 .or. make_movie .or. print_summary &
-            .or. write_full_moments_notgc
-
-       ntg_out = ntheta/2 + (nperiod-1)*ntheta
     end if
+
+    !These don't store any data if fphi=0 so don't bother
+    !calculating it.
+    if(fphi.eq.0) write_symmetry = .false.
+    if(fphi.eq.0) write_pflux_sym = .false.
+    if(fphi.eq.0) write_nl_flux_dist = .false.
+    if(fphi.eq.0) write_correlation = .false.
+    if(fphi.eq.0) write_correlation_extend = .false.
+
+    if (.not. save_for_restart) nsave = -1
+    ! changed temporarily for testing -- MAB
+    !       write_avg_moments = write_avg_moments .and. box
+    write_avg_moments = write_avg_moments
+
+    write_any = write_line .or. write_omega     .or. write_omavg &
+         .or. write_flux_line                   .or. write_nl_flux  &
+         .or. write_kpar   .or. write_hrate     .or. write_lorentzian  .or. write_gs
+    write_any_fluxes =  write_flux_line .or. print_flux_line .or. write_nl_flux 
+    dump_any = dump_check1  .or. dump_fields_periodically &
+         .or.  dump_check2 .or. make_movie .or. print_summary &
+         .or. write_full_moments_notgc
+
+    ntg_out = ntheta/2 + (nperiod-1)*ntheta
   end subroutine read_parameters
 
   !> FIXME : Add documentation  
@@ -887,6 +948,7 @@ contains
 
     wtmp_old = 0. ; nout = 1 ; nout_movie = 1 ; nout_big = 1
     initialized = .false.
+    call config_internal%reset()
   end subroutine finish_gs2_diagnostics
 
   !> FIXME : Add documentation
@@ -4076,4 +4138,340 @@ contains
     scale = 1./real(4*ntgrid**2)
     an2 = an2*scale
   end subroutine par_spectrum
+
+  !---------------------------------------
+  ! Following is for the config_type
+  !---------------------------------------
+  
+  !> Reads in the gs2_diagnostics_knobs namelist and populates the member variables
+  subroutine read_gs2_diagnostics_config(self)
+    use file_utils, only: input_unit_exist, get_indexed_namelist_unit
+    use mp, only: proc0
+    implicit none
+    class(gs2_diagnostics_config_type), intent(in out) :: self
+    logical :: exist
+    integer :: in_file, iostat
+
+    ! Note: When this routine is in the module where these variables live
+    ! we shadow the module level variables here. This is intentional to provide
+    ! isolation and ensure we can move this routine to another module easily.    
+    logical :: dump_check1, dump_check2, dump_fields_periodically, exit_when_converged, file_safety_check, make_movie, ob_midplane, print_flux_line, print_line, save_distfn, save_for_restart, save_many, use_nonlin_convergence, write_apar_over_time, write_ascii, write_avg_moments, write_bpar_over_time, write_cerr, write_correlation, write_correlation_extend, write_cross_phase, write_eigenfunc, write_fields, write_final_antot, write_final_db, write_final_epar, write_final_fields, write_final_moments, write_flux_line, write_full_moments_notgc, write_g, write_gg, write_gs, write_gyx, write_hrate, write_kpar, write_line, write_lorentzian, write_lpoly, write_max_verr, write_moments, write_nl_flux, write_nl_flux_dist, write_omavg, write_omega, write_parity, write_pflux_sym, write_pflux_tormom, write_phi_over_time, write_symmetry, write_verr
+    integer :: conv_max_step, conv_min_step, conv_nstep_av, conv_nsteps_converged, igomega, navg, nmovie, nsave, nwrite, nwrite_mult
+    real :: conv_test_multiplier, omegatinst, omegatol
+
+    namelist /gs2_diagnostics_knobs/ conv_max_step, conv_min_step, conv_nstep_av, conv_nsteps_converged, conv_test_multiplier, dump_check1, dump_check2, dump_fields_periodically, exit_when_converged, file_safety_check, igomega, make_movie, navg, nmovie, nsave, nwrite, nwrite_mult, ob_midplane, omegatinst, omegatol, print_flux_line, print_line, save_distfn, save_for_restart, save_many, use_nonlin_convergence, write_apar_over_time, write_ascii, write_avg_moments, write_bpar_over_time, write_cerr, write_correlation, write_correlation_extend, write_cross_phase, write_eigenfunc, write_fields, write_final_antot, write_final_db, write_final_epar, write_final_fields, write_final_moments, write_flux_line, write_full_moments_notgc, write_g, write_gg, write_gs, write_gyx, write_hrate, write_kpar, write_line, write_lorentzian, write_lpoly, write_max_verr, write_moments, write_nl_flux, write_nl_flux_dist, write_omavg, write_omega, write_parity, write_pflux_sym, write_pflux_tormom, write_phi_over_time, write_symmetry, write_verr
+
+    ! Only proc0 reads from file
+    if (.not. proc0) return
+
+    ! First set local variables from current values
+    conv_max_step = self%conv_max_step
+    conv_min_step = self%conv_min_step
+    conv_nstep_av = self%conv_nstep_av
+    conv_nsteps_converged = self%conv_nsteps_converged
+    conv_test_multiplier = self%conv_test_multiplier
+    dump_check1 = self%dump_check1
+    dump_check2 = self%dump_check2
+    dump_fields_periodically = self%dump_fields_periodically
+    exit_when_converged = self%exit_when_converged
+    file_safety_check = self%file_safety_check
+    igomega = self%igomega
+    make_movie = self%make_movie
+    navg = self%navg
+    nmovie = self%nmovie
+    nsave = self%nsave
+    nwrite = self%nwrite
+    nwrite_mult = self%nwrite_mult
+    ob_midplane = self%ob_midplane
+    omegatinst = self%omegatinst
+    omegatol = self%omegatol
+    print_flux_line = self%print_flux_line
+    print_line = self%print_line
+    save_distfn = self%save_distfn
+    save_for_restart = self%save_for_restart
+    save_many = self%save_many
+    use_nonlin_convergence = self%use_nonlin_convergence
+    write_apar_over_time = self%write_apar_over_time
+    write_ascii = self%write_ascii
+    write_avg_moments = self%write_avg_moments
+    write_bpar_over_time = self%write_bpar_over_time
+    write_cerr = self%write_cerr
+    write_correlation = self%write_correlation
+    write_correlation_extend = self%write_correlation_extend
+    write_cross_phase = self%write_cross_phase
+    write_eigenfunc = self%write_eigenfunc
+    write_fields = self%write_fields
+    write_final_antot = self%write_final_antot
+    write_final_db = self%write_final_db
+    write_final_epar = self%write_final_epar
+    write_final_fields = self%write_final_fields
+    write_final_moments = self%write_final_moments
+    write_flux_line = self%write_flux_line
+    write_full_moments_notgc = self%write_full_moments_notgc
+    write_g = self%write_g
+    write_gg = self%write_gg
+    write_gs = self%write_gs
+    write_gyx = self%write_gyx
+    write_hrate = self%write_hrate
+    write_kpar = self%write_kpar
+    write_line = self%write_line
+    write_lorentzian = self%write_lorentzian
+    write_lpoly = self%write_lpoly
+    write_max_verr = self%write_max_verr
+    write_moments = self%write_moments
+    write_nl_flux = self%write_nl_flux
+    write_nl_flux_dist = self%write_nl_flux_dist
+    write_omavg = self%write_omavg
+    write_omega = self%write_omega
+    write_parity = self%write_parity
+    write_pflux_sym = self%write_pflux_sym
+    write_pflux_tormom = self%write_pflux_tormom
+    write_phi_over_time = self%write_phi_over_time
+    write_symmetry = self%write_symmetry
+    write_verr = self%write_verr
+
+    ! Now read in the main namelist
+    if (self%requiresIndex) then
+       call get_indexed_namelist_unit(in_file, trim(self%name), self%index)
+       read(in_file, nml = gs2_diagnostics_knobs, iostat = iostat)
+       exist = .true.
+       if (iostat .ne.0) exist = .false.
+       close(unit = in_file, iostat = iostat)
+    else
+       in_file = input_unit_exist(self%name, exist)
+       if (exist) read(in_file, nml = gs2_diagnostics_knobs)
+    endif
+
+    ! Now copy from local variables into type members
+    self%conv_max_step = conv_max_step
+    self%conv_min_step = conv_min_step
+    self%conv_nstep_av = conv_nstep_av
+    self%conv_nsteps_converged = conv_nsteps_converged
+    self%conv_test_multiplier = conv_test_multiplier
+    self%dump_check1 = dump_check1
+    self%dump_check2 = dump_check2
+    self%dump_fields_periodically = dump_fields_periodically
+    self%exit_when_converged = exit_when_converged
+    self%file_safety_check = file_safety_check
+    self%igomega = igomega
+    self%make_movie = make_movie
+    self%navg = navg
+    self%nmovie = nmovie
+    self%nsave = nsave
+    self%nwrite = nwrite
+    self%nwrite_mult = nwrite_mult
+    self%ob_midplane = ob_midplane
+    self%omegatinst = omegatinst
+    self%omegatol = omegatol
+    self%print_flux_line = print_flux_line
+    self%print_line = print_line
+    self%save_distfn = save_distfn
+    self%save_for_restart = save_for_restart
+    self%save_many = save_many
+    self%use_nonlin_convergence = use_nonlin_convergence
+    self%write_apar_over_time = write_apar_over_time
+    self%write_ascii = write_ascii
+    self%write_avg_moments = write_avg_moments
+    self%write_bpar_over_time = write_bpar_over_time
+    self%write_cerr = write_cerr
+    self%write_correlation = write_correlation
+    self%write_correlation_extend = write_correlation_extend
+    self%write_cross_phase = write_cross_phase
+    self%write_eigenfunc = write_eigenfunc
+    self%write_fields = write_fields
+    self%write_final_antot = write_final_antot
+    self%write_final_db = write_final_db
+    self%write_final_epar = write_final_epar
+    self%write_final_fields = write_final_fields
+    self%write_final_moments = write_final_moments
+    self%write_flux_line = write_flux_line
+    self%write_full_moments_notgc = write_full_moments_notgc
+    self%write_g = write_g
+    self%write_gg = write_gg
+    self%write_gs = write_gs
+    self%write_gyx = write_gyx
+    self%write_hrate = write_hrate
+    self%write_kpar = write_kpar
+    self%write_line = write_line
+    self%write_lorentzian = write_lorentzian
+    self%write_lpoly = write_lpoly
+    self%write_max_verr = write_max_verr
+    self%write_moments = write_moments
+    self%write_nl_flux = write_nl_flux
+    self%write_nl_flux_dist = write_nl_flux_dist
+    self%write_omavg = write_omavg
+    self%write_omega = write_omega
+    self%write_parity = write_parity
+    self%write_pflux_sym = write_pflux_sym
+    self%write_pflux_tormom = write_pflux_tormom
+    self%write_phi_over_time = write_phi_over_time
+    self%write_symmetry = write_symmetry
+    self%write_verr = write_verr
+
+    self%exist = exist
+  end subroutine read_gs2_diagnostics_config
+
+  !> Writes out a namelist representing the current state of the config object
+  subroutine write_gs2_diagnostics_config(self, unit)
+    implicit none
+    class(gs2_diagnostics_config_type), intent(in) :: self
+    integer, intent(in) , optional:: unit
+    integer :: unit_internal
+
+    unit_internal = 6 ! @todo -- get stdout from file_utils
+    if (present(unit)) then
+       unit_internal = unit
+    endif
+
+    call self%write_namelist_header(unit_internal)
+    call self%write_key_val("conv_max_step", self%conv_max_step, unit_internal)
+    call self%write_key_val("conv_min_step", self%conv_min_step, unit_internal)
+    call self%write_key_val("conv_nstep_av", self%conv_nstep_av, unit_internal)
+    call self%write_key_val("conv_nsteps_converged", self%conv_nsteps_converged, unit_internal)
+    call self%write_key_val("conv_test_multiplier", self%conv_test_multiplier, unit_internal)
+    call self%write_key_val("dump_check1", self%dump_check1, unit_internal)
+    call self%write_key_val("dump_check2", self%dump_check2, unit_internal)
+    call self%write_key_val("dump_fields_periodically", self%dump_fields_periodically, unit_internal)
+    call self%write_key_val("exit_when_converged", self%exit_when_converged, unit_internal)
+    call self%write_key_val("file_safety_check", self%file_safety_check, unit_internal)
+    call self%write_key_val("igomega", self%igomega, unit_internal)
+    call self%write_key_val("make_movie", self%make_movie, unit_internal)
+    call self%write_key_val("navg", self%navg, unit_internal)
+    call self%write_key_val("nmovie", self%nmovie, unit_internal)
+    call self%write_key_val("nsave", self%nsave, unit_internal)
+    call self%write_key_val("nwrite", self%nwrite, unit_internal)
+    call self%write_key_val("nwrite_mult", self%nwrite_mult, unit_internal)
+    call self%write_key_val("ob_midplane", self%ob_midplane, unit_internal)
+    call self%write_key_val("omegatinst", self%omegatinst, unit_internal)
+    call self%write_key_val("omegatol", self%omegatol, unit_internal)
+    call self%write_key_val("print_flux_line", self%print_flux_line, unit_internal)
+    call self%write_key_val("print_line", self%print_line, unit_internal)
+    call self%write_key_val("save_distfn", self%save_distfn, unit_internal)
+    call self%write_key_val("save_for_restart", self%save_for_restart, unit_internal)
+    call self%write_key_val("save_many", self%save_many, unit_internal)
+    call self%write_key_val("use_nonlin_convergence", self%use_nonlin_convergence, unit_internal)
+    call self%write_key_val("write_apar_over_time", self%write_apar_over_time, unit_internal)
+    call self%write_key_val("write_ascii", self%write_ascii, unit_internal)
+    call self%write_key_val("write_avg_moments", self%write_avg_moments, unit_internal)
+    call self%write_key_val("write_bpar_over_time", self%write_bpar_over_time, unit_internal)
+    call self%write_key_val("write_cerr", self%write_cerr, unit_internal)
+    call self%write_key_val("write_correlation", self%write_correlation, unit_internal)
+    call self%write_key_val("write_correlation_extend", self%write_correlation_extend, unit_internal)
+    call self%write_key_val("write_cross_phase", self%write_cross_phase, unit_internal)
+    call self%write_key_val("write_eigenfunc", self%write_eigenfunc, unit_internal)
+    call self%write_key_val("write_fields", self%write_fields, unit_internal)
+    call self%write_key_val("write_final_antot", self%write_final_antot, unit_internal)
+    call self%write_key_val("write_final_db", self%write_final_db, unit_internal)
+    call self%write_key_val("write_final_epar", self%write_final_epar, unit_internal)
+    call self%write_key_val("write_final_fields", self%write_final_fields, unit_internal)
+    call self%write_key_val("write_final_moments", self%write_final_moments, unit_internal)
+    call self%write_key_val("write_flux_line", self%write_flux_line, unit_internal)
+    call self%write_key_val("write_full_moments_notgc", self%write_full_moments_notgc, unit_internal)
+    call self%write_key_val("write_g", self%write_g, unit_internal)
+    call self%write_key_val("write_gg", self%write_gg, unit_internal)
+    call self%write_key_val("write_gs", self%write_gs, unit_internal)
+    call self%write_key_val("write_gyx", self%write_gyx, unit_internal)
+    call self%write_key_val("write_hrate", self%write_hrate, unit_internal)
+    call self%write_key_val("write_kpar", self%write_kpar, unit_internal)
+    call self%write_key_val("write_line", self%write_line, unit_internal)
+    call self%write_key_val("write_lorentzian", self%write_lorentzian, unit_internal)
+    call self%write_key_val("write_lpoly", self%write_lpoly, unit_internal)
+    call self%write_key_val("write_max_verr", self%write_max_verr, unit_internal)
+    call self%write_key_val("write_moments", self%write_moments, unit_internal)
+    call self%write_key_val("write_nl_flux", self%write_nl_flux, unit_internal)
+    call self%write_key_val("write_nl_flux_dist", self%write_nl_flux_dist, unit_internal)
+    call self%write_key_val("write_omavg", self%write_omavg, unit_internal)
+    call self%write_key_val("write_omega", self%write_omega, unit_internal)
+    call self%write_key_val("write_parity", self%write_parity, unit_internal)
+    call self%write_key_val("write_pflux_sym", self%write_pflux_sym, unit_internal)
+    call self%write_key_val("write_pflux_tormom", self%write_pflux_tormom, unit_internal)
+    call self%write_key_val("write_phi_over_time", self%write_phi_over_time, unit_internal)
+    call self%write_key_val("write_symmetry", self%write_symmetry, unit_internal)
+    call self%write_key_val("write_verr", self%write_verr, unit_internal)
+    call self%write_namelist_footer(unit_internal)
+  end subroutine write_gs2_diagnostics_config
+
+  !> Resets the config object to the initial empty state
+  subroutine reset_gs2_diagnostics_config(self)
+    class(gs2_diagnostics_config_type), intent(in out) :: self
+    type(gs2_diagnostics_config_type) :: empty
+    select type (self)
+    type is (gs2_diagnostics_config_type)
+       self = empty
+    end select
+  end subroutine reset_gs2_diagnostics_config
+
+  !> Broadcasts all config parameters so object is populated identically on
+  !! all processors
+  subroutine broadcast_gs2_diagnostics_config(self)
+    use mp, only: broadcast
+    implicit none
+    class(gs2_diagnostics_config_type), intent(in out) :: self
+    call broadcast(self%conv_max_step)
+    call broadcast(self%conv_min_step)
+    call broadcast(self%conv_nstep_av)
+    call broadcast(self%conv_nsteps_converged)
+    call broadcast(self%conv_test_multiplier)
+    call broadcast(self%dump_check1)
+    call broadcast(self%dump_check2)
+    call broadcast(self%dump_fields_periodically)
+    call broadcast(self%exit_when_converged)
+    call broadcast(self%file_safety_check)
+    call broadcast(self%igomega)
+    call broadcast(self%make_movie)
+    call broadcast(self%navg)
+    call broadcast(self%nmovie)
+    call broadcast(self%nsave)
+    call broadcast(self%nwrite)
+    call broadcast(self%nwrite_mult)
+    call broadcast(self%ob_midplane)
+    call broadcast(self%omegatinst)
+    call broadcast(self%omegatol)
+    call broadcast(self%print_flux_line)
+    call broadcast(self%print_line)
+    call broadcast(self%save_distfn)
+    call broadcast(self%save_for_restart)
+    call broadcast(self%save_many)
+    call broadcast(self%use_nonlin_convergence)
+    call broadcast(self%write_apar_over_time)
+    call broadcast(self%write_ascii)
+    call broadcast(self%write_avg_moments)
+    call broadcast(self%write_bpar_over_time)
+    call broadcast(self%write_cerr)
+    call broadcast(self%write_correlation)
+    call broadcast(self%write_correlation_extend)
+    call broadcast(self%write_cross_phase)
+    call broadcast(self%write_eigenfunc)
+    call broadcast(self%write_fields)
+    call broadcast(self%write_final_antot)
+    call broadcast(self%write_final_db)
+    call broadcast(self%write_final_epar)
+    call broadcast(self%write_final_fields)
+    call broadcast(self%write_final_moments)
+    call broadcast(self%write_flux_line)
+    call broadcast(self%write_full_moments_notgc)
+    call broadcast(self%write_g)
+    call broadcast(self%write_gg)
+    call broadcast(self%write_gs)
+    call broadcast(self%write_gyx)
+    call broadcast(self%write_hrate)
+    call broadcast(self%write_kpar)
+    call broadcast(self%write_line)
+    call broadcast(self%write_lorentzian)
+    call broadcast(self%write_lpoly)
+    call broadcast(self%write_max_verr)
+    call broadcast(self%write_moments)
+    call broadcast(self%write_nl_flux)
+    call broadcast(self%write_nl_flux_dist)
+    call broadcast(self%write_omavg)
+    call broadcast(self%write_omega)
+    call broadcast(self%write_parity)
+    call broadcast(self%write_pflux_sym)
+    call broadcast(self%write_pflux_tormom)
+    call broadcast(self%write_phi_over_time)
+    call broadcast(self%write_symmetry)
+    call broadcast(self%write_verr)
+
+    call broadcast(self%exist)
+  end subroutine broadcast_gs2_diagnostics_config
 end module gs2_diagnostics
