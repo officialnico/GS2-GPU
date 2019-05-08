@@ -110,8 +110,10 @@ contains
     if (present(config_in)) config_internal = config_in
 
     !Smart defaults
-    config_internal%shat_min = shat
-    config_internal%shat_max = shat
+    if (.not.config_internal%is_initialised()) then    
+       config_internal%shat_min = shat
+       config_internal%shat_max = shat
+    end if
     
     call config_internal%init(name = 'ballstab_knobs', requires_index = .false.)
 

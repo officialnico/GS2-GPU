@@ -1008,7 +1008,9 @@ contains
     if (present(config_in)) config_internal = config_in
 
     ! Smart defaults
-    config_internal%restart_file = trim(run_name)//".nc"
+    if (.not.config_internal%is_initialised()) then    
+       config_internal%restart_file = trim(run_name)//".nc"
+    end if
     
     call config_internal%init(name = 'init_g_knobs', requires_index = .false.)
 

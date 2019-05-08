@@ -1745,10 +1745,12 @@ contains
     if (present(config_in)) config_internal = config_in
 
     ! Smart defaults
-    config_internal%alpha_input = alpmhd_in
-    config_internal%s_hat_input = shat_in
-    config_internal%beta_prime_input = betaprim_in
-
+    if (.not.config_internal%is_initialised()) then    
+       config_internal%alpha_input = alpmhd_in
+       config_internal%s_hat_input = shat_in
+       config_internal%beta_prime_input = betaprim_in
+    end if
+    
     call config_internal%init(name = 'theta_grid_eik_knobs', requires_index = .false.)
 
     ! Copy out internal values into module level parameters

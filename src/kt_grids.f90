@@ -1207,7 +1207,9 @@ contains
     if (present(config_in)) config_internal = config_in
 
     ! Set the smart defaults
-    config_internal%jtwist = max(int(2.0*pi*shat + 0.5),1)  ! default jtwist -- MAB
+    if (.not.config_internal%is_initialised()) then
+       config_internal%jtwist = max(int(2.0*pi*shat + 0.5),1)  ! default jtwist -- MAB
+    end if
 
     call config_internal%init(name = 'kt_grids_box_parameters', requires_index = .false.)
 

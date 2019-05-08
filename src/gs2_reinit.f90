@@ -268,7 +268,9 @@ contains
     if (present(config_in)) config_internal = config_in
 
     !Smart defaults
-    config_internal%dt0 = code_delt_max
+    if (.not.config_internal%is_initialised()) then    
+       config_internal%dt0 = code_delt_max
+    endif
     
     call config_internal%init(name = 'reinit_knobs', requires_index = .false.)
 
