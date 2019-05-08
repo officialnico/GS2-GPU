@@ -1,5 +1,7 @@
 !> FIXME : Add documentation
 module gs2_reinit
+  use abstract_config, only: abstract_config_type
+  
   implicit none
 
   private
@@ -39,6 +41,29 @@ module gs2_reinit
   logical :: first=.true.
   logical :: in_memory
 
+  !> Used to represent the input configuration of reinit
+  type, extends(abstract_config_type) :: reinit_config_type
+     ! namelist : reinit_knobs
+     !> FIXME: Add documentation
+     logical :: abort_rapid_time_step_change = .true.
+     !> FIXME: Add documentation
+     real :: delt_adj = 2.0
+     !> FIXME: Add documentation
+     real :: delt_cushion = 1.5
+     !> FIXME: Add documentation
+     real :: delt_minimum = 1.e-5
+     !> FIXME: Add documentation
+     real :: dt0 = 0.0 !This gets a smart default of code_delt_max
+     !> FIXME: Add documentation
+     logical :: in_memory = .false.
+   contains
+     procedure, public :: read => read_reinit_config
+     procedure, public :: write => write_reinit_config
+     procedure, public :: reset => reset_reinit_config
+     procedure, public :: broadcast => broadcast_reinit_config
+  end type reinit_config_type
+
+  type(reinit_config_type) :: config_internal  
 contains
 
   !> FIXME : Add documentation  
@@ -222,44 +247,149 @@ contains
   !> FIXME : Add documentation  
   subroutine finish_gs2_reinit
     first = .true.
+    call config_internal%reset()
   end subroutine finish_gs2_reinit
 
   !> FIXME : Add documentation  
-  subroutine init_reinit
+  subroutine init_reinit(config_in)
     use run_parameters, only: code_delt_max
     use mp, only: proc0, broadcast
     use file_utils, only: input_unit, input_unit_exist
     use gs2_time, only: save_dt_min
     use gs2_init, only: gs2_init_in_memory=>in_memory
     implicit none
+    type(reinit_config_type), intent(in), optional :: config_in    
     integer :: in_file
     logical :: exist
 
-    namelist /reinit_knobs/ delt_adj, delt_minimum, delt_cushion, &
-                            abort_rapid_time_step_change, in_memory
     if(.not.first)return
     first=.false.
 
-    if (proc0) then
-       dt0 = code_delt_max
-       delt_adj = 2.0
-       delt_minimum = 1.e-5
-       delt_cushion = 1.5
-       abort_rapid_time_step_change = .true.
-       in_memory=.false.
-       in_file = input_unit_exist("reinit_knobs",exist)
-       if(exist) read (unit=in_file, nml=reinit_knobs)
-    endif
+    if (present(config_in)) config_internal = config_in
 
-    call broadcast (dt0)
-    call broadcast (delt_adj)
-    call broadcast (delt_minimum)
-    call broadcast (delt_cushion)
-    call broadcast (abort_rapid_time_step_change)
-    call broadcast (in_memory)
+    !Smart defaults
+    config_internal%dt0 = code_delt_max
+    
+    call config_internal%init(name = 'reinit_knobs', requires_index = .false.)
+
+    ! Copy out internal values into module level parameters
+    abort_rapid_time_step_change = config_internal%abort_rapid_time_step_change
+    delt_adj = config_internal%delt_adj
+    delt_cushion = config_internal%delt_cushion
+    delt_minimum = config_internal%delt_minimum
+    dt0 = config_internal%dt0
+    in_memory = config_internal%in_memory
+    
+    exist = config_internal%exist
+    
     call save_dt_min (delt_minimum)
+    
     ! Override with the value from gs2 init
+    ! This is not transparent to the user - why do we do this?
     in_memory = gs2_init_in_memory
   end subroutine init_reinit
+
+  !---------------------------------------
+  ! Following is for the config_type
+  !---------------------------------------
+  
+  !> Reads in the reinit_knobs namelist and populates the member variables
+  subroutine read_reinit_config(self)
+    use file_utils, only: input_unit_exist, get_indexed_namelist_unit
+    use mp, only: proc0
+    implicit none
+    class(reinit_config_type), intent(in out) :: self
+    logical :: exist
+    integer :: in_file, iostat
+
+    ! Note: When this routine is in the module where these variables live
+    ! we shadow the module level variables here. This is intentional to provide
+    ! isolation and ensure we can move this routine to another module easily.    
+    logical :: abort_rapid_time_step_change, in_memory
+    real :: delt_adj, delt_cushion, delt_minimum, dt0
+
+    namelist /reinit_knobs/ abort_rapid_time_step_change, delt_adj, delt_cushion, delt_minimum, dt0, in_memory
+
+    ! Only proc0 reads from file
+    if (.not. proc0) return
+
+    ! First set local variables from current values
+    abort_rapid_time_step_change = self%abort_rapid_time_step_change
+    delt_adj = self%delt_adj
+    delt_cushion = self%delt_cushion
+    delt_minimum = self%delt_minimum
+    dt0 = self%dt0
+    in_memory = self%in_memory
+
+    ! Now read in the main namelist
+    if (self%requiresIndex) then
+       call get_indexed_namelist_unit(in_file, trim(self%name), self%index)
+       read(in_file, nml = reinit_knobs, iostat = iostat)
+       exist = .true.
+       if (iostat .ne.0) exist = .false.
+       close(unit = in_file, iostat = iostat)
+    else
+       in_file = input_unit_exist(self%name, exist)
+       if (exist) read(in_file, nml = reinit_knobs)
+    endif
+
+    ! Now copy from local variables into type members
+    self%abort_rapid_time_step_change = abort_rapid_time_step_change
+    self%delt_adj = delt_adj
+    self%delt_cushion = delt_cushion
+    self%delt_minimum = delt_minimum
+    self%dt0 = dt0
+    self%in_memory = in_memory
+
+    self%exist = exist
+  end subroutine read_reinit_config
+
+  !> Writes out a namelist representing the current state of the config object
+  subroutine write_reinit_config(self, unit)
+    implicit none
+    class(reinit_config_type), intent(in) :: self
+    integer, intent(in) , optional:: unit
+    integer :: unit_internal
+
+    unit_internal = 6 ! @todo -- get stdout from file_utils
+    if (present(unit)) then
+       unit_internal = unit
+    endif
+
+    call self%write_namelist_header(unit_internal)
+    call self%write_key_val("abort_rapid_time_step_change", self%abort_rapid_time_step_change, unit_internal)
+    call self%write_key_val("delt_adj", self%delt_adj, unit_internal)
+    call self%write_key_val("delt_cushion", self%delt_cushion, unit_internal)
+    call self%write_key_val("delt_minimum", self%delt_minimum, unit_internal)
+    call self%write_key_val("dt0", self%dt0, unit_internal)
+    call self%write_key_val("in_memory", self%in_memory, unit_internal)
+    call self%write_namelist_footer(unit_internal)
+  end subroutine write_reinit_config
+
+  !> Resets the config object to the initial empty state
+  subroutine reset_reinit_config(self)
+    class(reinit_config_type), intent(in out) :: self
+    type(reinit_config_type) :: empty
+    select type (self)
+    type is (reinit_config_type)
+       self = empty
+    end select
+  end subroutine reset_reinit_config
+
+  !> Broadcasts all config parameters so object is populated identically on
+  !! all processors
+  subroutine broadcast_reinit_config(self)
+    use mp, only: broadcast
+    implicit none
+    class(reinit_config_type), intent(in out) :: self
+    call broadcast(self%abort_rapid_time_step_change)
+    call broadcast(self%delt_adj)
+    call broadcast(self%delt_cushion)
+    call broadcast(self%delt_minimum)
+    call broadcast(self%dt0)
+    call broadcast(self%in_memory)
+
+    call broadcast(self%exist)
+  end subroutine broadcast_reinit_config
 end module gs2_reinit
 
