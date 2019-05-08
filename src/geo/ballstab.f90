@@ -2,6 +2,7 @@
 !! Based on the original ball program in geo/ball.f90 of GS2
 !! but tweaked to integrate closer to full GS2 runs etc.
 module ballstab
+  use abstract_config, only: abstract_config_type
   implicit none
 
   private
@@ -25,19 +26,46 @@ module ballstab
   logical :: initialised = .false. 
   character(len=14) :: namelist_name="ballstab_knobs"
 
+  !> Used to represent the input configuration of ballstab
+  type, extends(abstract_config_type) :: ballstab_config_type
+     ! namelist : ballstab_knobs
+     !> FIXME: Add documentation
+     real :: beta_div = 1.0
+     !> FIXME: Add documentation
+     real :: beta_mul = 1.0
+     !> FIXME: Add documentation
+     real :: diff = 0.0
+     !> FIXME: Add documentation
+     logical :: make_salpha = .false.
+     !> FIXME: Add documentation
+     integer :: n_beta = 1
+     !> FIXME: Add documentation
+     integer :: n_shat = 1
+     !> @note gets a smart default
+     real :: shat_max = 0.0
+     !> @note gets a smart default
+     real :: shat_min = 0.0
+   contains
+     procedure, public :: read => read_ballstab_config
+     procedure, public :: write => write_ballstab_config
+     procedure, public :: reset => reset_ballstab_config
+     procedure, public :: broadcast => broadcast_ballstab_config
+  end type ballstab_config_type
+
+  type(ballstab_config_type) :: config_internal
+  
 contains
   
   !> Initialise grids, other modules etc.
   subroutine init_ballstab
     use theta_grid, only: init_theta_grid
-    use mp, only: proc0
     implicit none
 
     !Other modules
     call init_theta_grid
 
-    !This module -- Note only proc0 will be allowed to do any work
-    if(proc0) call real_init_ballstab
+    !This module
+    call real_init_ballstab
   end subroutine init_ballstab
 
   !> Finalise this module
@@ -47,10 +75,12 @@ contains
     call dealloc_arrays
 
     initialised = .false.
+    call config_internal%reset()
   end subroutine finish_ballstab
 
   !> Initialise this module
   subroutine real_init_ballstab
+    use mp, only: proc0
     implicit none
 
     if(initialised) return
@@ -59,6 +89,9 @@ contains
     !Get settings
     call read_parameters
 
+    !Note only proc0 will be allowed to do any work
+    if (.not.proc0) return
+    
     !Verify parameters
     call verify_parameters
 
@@ -68,30 +101,31 @@ contains
   end subroutine real_init_ballstab
 
   !> Read parameters
-  subroutine read_parameters
-    use file_utils, only: input_unit, input_unit_exist
+  subroutine read_parameters(config_in)
     use theta_grid, only: shat
     implicit none
-    namelist/ballstab_knobs/make_salpha, n_shat, shat_min, shat_max, &
-         n_beta, beta_mul, beta_div, diff
-    integer :: in_file
+    type(ballstab_config_type), intent(in), optional :: config_in    
     logical :: exist
 
-    !Set defaults
-    make_salpha = .false.
-    n_shat = 1
-    shat_min = shat
-    shat_max = shat
-    n_beta = 1
-    beta_mul = 1.
-    beta_div = 1.
-    diff = 0.
+    if (present(config_in)) config_internal = config_in
 
-    !Check if namelist is present in input file
-    in_file = input_unit_exist (namelist_name, exist)
+    !Smart defaults
+    config_internal%shat_min = shat
+    config_internal%shat_max = shat
+    
+    call config_internal%init(name = 'ballstab_knobs', requires_index = .false.)
 
-    !If it is then read in parameters
-    if(exist) read(unit = in_file, nml = ballstab_knobs)
+    ! Copy out internal values into module level parameters
+    beta_div = config_internal%beta_div
+    beta_mul = config_internal%beta_mul
+    diff = config_internal%diff
+    make_salpha = config_internal%make_salpha
+    n_beta = config_internal%n_beta
+    n_shat = config_internal%n_shat
+    shat_max = config_internal%shat_max
+    shat_min = config_internal%shat_min
+
+    exist = config_internal%exist
   end subroutine read_parameters
 
   !> Check parameters are consistent etc.
@@ -486,4 +520,116 @@ contains
     !Clean up
     deallocate(g,c,g1,c1,g2,c2,gh,ch)
   end function is_unstable
+
+  !---------------------------------------
+  ! Following is for the config_type
+  !---------------------------------------
+  
+  !> Reads in the ballstab_knobs namelist and populates the member variables
+  subroutine read_ballstab_config(self)
+    use file_utils, only: input_unit_exist, get_indexed_namelist_unit
+    use mp, only: proc0
+    implicit none
+    class(ballstab_config_type), intent(in out) :: self
+    logical :: exist
+    integer :: in_file, iostat
+
+    ! Note: When this routine is in the module where these variables live
+    ! we shadow the module level variables here. This is intentional to provide
+    ! isolation and ensure we can move this routine to another module easily.    
+    integer :: n_beta, n_shat
+    logical :: make_salpha
+    real :: beta_div, beta_mul, diff, shat_max, shat_min
+
+    namelist /ballstab_knobs/ beta_div, beta_mul, diff, make_salpha, n_beta, n_shat, shat_max, shat_min
+
+    ! Only proc0 reads from file
+    if (.not. proc0) return
+
+    ! First set local variables from current values
+    beta_div = self%beta_div
+    beta_mul = self%beta_mul
+    diff = self%diff
+    make_salpha = self%make_salpha
+    n_beta = self%n_beta
+    n_shat = self%n_shat
+    shat_max = self%shat_max
+    shat_min = self%shat_min
+
+    ! Now read in the main namelist
+    if (self%requiresIndex) then
+       call get_indexed_namelist_unit(in_file, trim(self%name), self%index)
+       read(in_file, nml = ballstab_knobs, iostat = iostat)
+       exist = .true.
+       if (iostat .ne.0) exist = .false.
+       close(unit = in_file, iostat = iostat)
+    else
+       in_file = input_unit_exist(self%name, exist)
+       if (exist) read(in_file, nml = ballstab_knobs)
+    endif
+
+    ! Now copy from local variables into type members
+    self%beta_div = beta_div
+    self%beta_mul = beta_mul
+    self%diff = diff
+    self%make_salpha = make_salpha
+    self%n_beta = n_beta
+    self%n_shat = n_shat
+    self%shat_max = shat_max
+    self%shat_min = shat_min
+
+    self%exist = exist
+  end subroutine read_ballstab_config
+
+  !> Writes out a namelist representing the current state of the config object
+  subroutine write_ballstab_config(self, unit)
+    implicit none
+    class(ballstab_config_type), intent(in) :: self
+    integer, intent(in) , optional:: unit
+    integer :: unit_internal
+
+    unit_internal = 6 ! @todo -- get stdout from file_utils
+    if (present(unit)) then
+       unit_internal = unit
+    endif
+
+    call self%write_namelist_header(unit_internal)
+    call self%write_key_val("beta_div", self%beta_div, unit_internal)
+    call self%write_key_val("beta_mul", self%beta_mul, unit_internal)
+    call self%write_key_val("diff", self%diff, unit_internal)
+    call self%write_key_val("make_salpha", self%make_salpha, unit_internal)
+    call self%write_key_val("n_beta", self%n_beta, unit_internal)
+    call self%write_key_val("n_shat", self%n_shat, unit_internal)
+    call self%write_key_val("shat_max", self%shat_max, unit_internal)
+    call self%write_key_val("shat_min", self%shat_min, unit_internal)
+    call self%write_namelist_footer(unit_internal)
+  end subroutine write_ballstab_config
+
+  !> Resets the config object to the initial empty state
+  subroutine reset_ballstab_config(self)
+    class(ballstab_config_type), intent(in out) :: self
+    type(ballstab_config_type) :: empty
+    select type (self)
+    type is (ballstab_config_type)
+       self = empty
+    end select
+  end subroutine reset_ballstab_config
+
+  !> Broadcasts all config parameters so object is populated identically on
+  !! all processors
+  subroutine broadcast_ballstab_config(self)
+    use mp, only: broadcast
+    implicit none
+    class(ballstab_config_type), intent(in out) :: self
+    call broadcast(self%beta_div)
+    call broadcast(self%beta_mul)
+    call broadcast(self%diff)
+    call broadcast(self%make_salpha)
+    call broadcast(self%n_beta)
+    call broadcast(self%n_shat)
+    call broadcast(self%shat_max)
+    call broadcast(self%shat_min)
+
+    call broadcast(self%exist)
+  end subroutine broadcast_ballstab_config
 end module ballstab
