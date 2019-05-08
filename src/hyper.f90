@@ -2,7 +2,7 @@
 !!
 !! @note nexp has been changed in a rush.  Only known to be correct for nexp=2
 module hyper
-  
+  use abstract_config, only: abstract_config_type
   implicit none
 
   private
@@ -37,6 +37,41 @@ module hyper
 
   logical :: initialized = .false.
 
+
+  !> Used to represent the input configuration of hyper
+  type, extends(abstract_config_type) :: hyper_config_type
+     ! namelist : hyper_knobs
+     !> FIXME: Add documentation
+     logical :: const_amp = .false.
+     !> FIXME: Add documentation
+     real :: d_hyper = -10.0
+     !> FIXME: Add documentation
+     real :: d_hyperres = -10.0
+     !> FIXME: Add documentation
+     real :: d_hypervisc = -10.0
+     !> FIXME: Add documentation
+     logical :: damp_zonal_only = .false.
+     !> FIXME: Add documentation
+     logical :: gridnorm = .true.
+     !> FIXME: Add documentation
+     character(len = 9) :: hyper_option = 'default'
+     !> FIXME: Add documentation
+     logical :: include_kpar = .false.
+     !> FIXME: Add documentation
+     logical :: isotropic_shear = .true.
+     !> FIXME: Add documentation
+     integer :: nexp = 2
+     !> FIXME: Add documentation
+     real :: omega_osc = 0.4
+   contains
+     procedure, public :: read => read_hyper_config
+     procedure, public :: write => write_hyper_config
+     procedure, public :: reset => reset_hyper_config
+     procedure, public :: broadcast => broadcast_hyper_config
+  end type hyper_config_type
+
+  type(hyper_config_type) :: config_internal
+  
 contains
 
   !> FIXME : Add documentation  
@@ -295,138 +330,124 @@ contains
   end subroutine init_hyper
 
   !> FIXME : Add documentation
-  subroutine read_parameters
-    use file_utils, only: input_unit, error_unit, input_unit_exist
+  subroutine read_parameters(config_in)
+    use file_utils, only: input_unit, error_unit
     use text_options, only: text_option, get_option_value
-    use mp, only: proc0, broadcast
     implicit none
+    type(hyper_config_type), intent(in), optional :: config_in    
     type (text_option), dimension(5), parameter :: hyperopts = &
          (/ text_option('default', hyper_option_none), &
             text_option('none', hyper_option_none), &
             text_option('visc_only', hyper_option_visc), &
             text_option('res_only', hyper_option_res), &
             text_option('both', hyper_option_both) /)
-    integer :: ierr, in_file
+    integer :: ierr
     logical :: exist
+
+    if (present(config_in)) config_internal = config_in
+
+    call config_internal%init(name = 'hyper_knobs', requires_index = .false.)
+
+    ! Copy out internal values into module level parameters
+    const_amp = config_internal%const_amp
+    d_hyper = config_internal%d_hyper
+    d_hyperres = config_internal%d_hyperres
+    d_hypervisc = config_internal%d_hypervisc
+    damp_zonal_only = config_internal%damp_zonal_only
+    gridnorm = config_internal%gridnorm
+    hyper_option = config_internal%hyper_option
+    include_kpar = config_internal%include_kpar
+    isotropic_shear = config_internal%isotropic_shear
+    nexp = config_internal%nexp
+    omega_osc = config_internal%omega_osc
+
+    exist = config_internal%exist
     
-    namelist /hyper_knobs/ hyper_option, const_amp, include_kpar, &
-         isotropic_shear, D_hyperres, D_hypervisc, D_hyper, omega_osc, gridnorm,&
-         nexp, damp_zonal_only
+
+    ierr = error_unit()
     
-    if (proc0) then
-       const_amp = .false.
-       include_kpar = .false.
-       isotropic_shear = .true.
-       damp_zonal_only = .false.
+    call get_option_value &
+         (hyper_option, hyperopts, hyper_option_switch, &
+         ierr, "hyper_option in hyper_knobs",.true.)
+    
+    if (.not. isotropic_shear .and. nexp /=2) then
+       write (ierr, *) 'Forcing nexp = 2.  Higher values not implemented for anisotropic shear model.'
        nexp = 2
-       D_hyperres = -10.
-       D_hypervisc = -10.
-       D_hyper = -10.
-       hyper_option = 'default'
-       omega_osc = 0.4
-       gridnorm = .true.
-       in_file=input_unit_exist("hyper_knobs",exist)
-       if (exist) read (unit=input_unit("hyper_knobs"), nml=hyper_knobs)
+    end if
 
-       ierr = error_unit()
+    select case (hyper_option_switch)
+       
+    case (hyper_option_none)
+       if (D_hyperres > 0.) then
+          write(ierr, *) 'hyper_option = ',hyper_option, &
+               ' chooses no hyperresistivity.  D_hyperres ignored.'
+          D_hyperres = -10.
+       end if
+       if (D_hypervisc > 0.) then
+          write(ierr, *) 'hyper_option = ',hyper_option, &
+               ' chooses no hyperviscosity.  D_hypervisc ignored.'
+          D_hypervisc = -10.
+       endif
 
-       call get_option_value &
-            (hyper_option, hyperopts, hyper_option_switch, &
-            ierr, "hyper_option in hyper_knobs",.true.)
+    case (hyper_option_visc)
+       hyper_on = .true.
+       write (ierr, *) 'WARNING: It is inconsistent to set D_hypervisc different from ', &
+            'D_hyperres.  Recommend: Set them equal.'
+       if (D_hyperres > 0.) then
+          write(ierr, *) 'hyper_option = ',hyper_option, &
+               ' chooses no hyperresistivity.  D_hyperres ignored.'
+          D_hyperres = -10.
+       end if
+       if (D_hypervisc < 0.) then
+          write(ierr, *) 'hyper_option = ',hyper_option, &
+               ' chooses hyperviscosity but D_hypervisc < 0 is illegal.'
+          write(ierr, *) 'No hyperviscosity used.'
+          hyper_on = .false.
+       endif
+       
+    case (hyper_option_res)
+       hyper_on = .true.
+       write (ierr, *) 'WARNING: It is inconsistent to set D_hypervisc different from ', &
+            'D_hyperres.  Recommend: Set them equal.'
+       if (D_hyperres < 0.) then
+          write(ierr, *) 'hyper_option = ',hyper_option, &
+               ' chooses hyperresistivity but  D_hyperres < 0 is illegal.'
+          write(ierr, *) 'No hyperresistivity used.'
+          hyper_on = .false.
+       end if
+       if (D_hypervisc > 0.) then
+          write(ierr, *) 'hyper_option = ',hyper_option, &
+               ' chooses no hyperviscosity.  D_hypervisc ignored.'
+          D_hypervisc = -10.
+       endif
 
-       if (.not. isotropic_shear .and. nexp /=2) then
-          write (ierr, *) 'Forcing nexp = 2.  Higher values not implemented for anisotropic shear model.'
-          nexp = 2
+    case (hyper_option_both)
+       hyper_on = .true.
+
+       if (D_hyper < 0.) then
+          if (D_hyperres /= D_hyperres) then
+             write (ierr, *) 'WARNING: It is inconsistent to set D_hypervisc different from ', &
+                  'D_hyperres.  Recommend: Set them equal.'
+          end if
+       else
+          write (ierr, *) 'WARNING: Setting D_hypervisc = D_hyperres, each to value of D_hyper'
+          D_hyperres  = D_hyper
+          D_hypervisc = D_hyper
        end if
 
-       select case (hyper_option_switch)
+       if (D_hyperres < 0.) then
+          write(ierr, *) 'hyper_option = ',hyper_option, &
+               ' chooses hyperresistivity but  D_hyperres < 0 is illegal.'
+          write(ierr, *) 'No hyperresistivity used.'
+       end if
+       if (D_hypervisc < 0.) then
+          write(ierr, *) 'hyper_option = ',hyper_option, &
+               ' chooses hyperviscosity but D_hypervisc < 0 is illegal.'
+          write(ierr, *) 'No hyperviscosity used.'
+       endif
+       if (D_hypervisc < 0. .and. D_hyperres < 0.) hyper_on = .false.
 
-       case (hyper_option_none)
-          if (D_hyperres > 0.) then
-             write(ierr, *) 'hyper_option = ',hyper_option, &
-                  ' chooses no hyperresistivity.  D_hyperres ignored.'
-             D_hyperres = -10.
-          end if
-          if (D_hypervisc > 0.) then
-             write(ierr, *) 'hyper_option = ',hyper_option, &
-                  ' chooses no hyperviscosity.  D_hypervisc ignored.'
-             D_hypervisc = -10.
-          endif
-
-       case (hyper_option_visc)
-          hyper_on = .true.
-          write (ierr, *) 'WARNING: It is inconsistent to set D_hypervisc different from ', &
-               'D_hyperres.  Recommend: Set them equal.'
-          if (D_hyperres > 0.) then
-             write(ierr, *) 'hyper_option = ',hyper_option, &
-                  ' chooses no hyperresistivity.  D_hyperres ignored.'
-             D_hyperres = -10.
-          end if
-          if (D_hypervisc < 0.) then
-             write(ierr, *) 'hyper_option = ',hyper_option, &
-                  ' chooses hyperviscosity but D_hypervisc < 0 is illegal.'
-             write(ierr, *) 'No hyperviscosity used.'
-             hyper_on = .false.
-          endif
-
-       case (hyper_option_res)
-          hyper_on = .true.
-          write (ierr, *) 'WARNING: It is inconsistent to set D_hypervisc different from ', &
-               'D_hyperres.  Recommend: Set them equal.'
-          if (D_hyperres < 0.) then
-             write(ierr, *) 'hyper_option = ',hyper_option, &
-                  ' chooses hyperresistivity but  D_hyperres < 0 is illegal.'
-             write(ierr, *) 'No hyperresistivity used.'
-             hyper_on = .false.
-          end if
-          if (D_hypervisc > 0.) then
-             write(ierr, *) 'hyper_option = ',hyper_option, &
-                  ' chooses no hyperviscosity.  D_hypervisc ignored.'
-             D_hypervisc = -10.
-          endif
-
-       case (hyper_option_both)
-          hyper_on = .true.
-          
-          if (D_hyper < 0.) then
-             if (D_hyperres /= D_hyperres) then
-                write (ierr, *) 'WARNING: It is inconsistent to set D_hypervisc different from ', &
-                     'D_hyperres.  Recommend: Set them equal.'
-             end if
-          else
-             write (ierr, *) 'WARNING: Setting D_hypervisc = D_hyperres, each to value of D_hyper'
-             D_hyperres  = D_hyper
-             D_hypervisc = D_hyper
-          end if
-
-          if (D_hyperres < 0.) then
-             write(ierr, *) 'hyper_option = ',hyper_option, &
-                  ' chooses hyperresistivity but  D_hyperres < 0 is illegal.'
-             write(ierr, *) 'No hyperresistivity used.'
-          end if
-          if (D_hypervisc < 0.) then
-             write(ierr, *) 'hyper_option = ',hyper_option, &
-                  ' chooses hyperviscosity but D_hypervisc < 0 is illegal.'
-             write(ierr, *) 'No hyperviscosity used.'
-          endif
-          if (D_hypervisc < 0. .and. D_hyperres < 0.) hyper_on = .false.
-
-       end select
-    end if
-    
-    call broadcast (const_amp)
-    call broadcast (include_kpar)
-    call broadcast (isotropic_shear)
-    call broadcast (damp_zonal_only)
-    call broadcast (D_hyper)
-    call broadcast (D_hyperres)
-    call broadcast (D_hypervisc)
-    call broadcast (hyper_option_switch)
-    call broadcast (hyper_on)
-    call broadcast (omega_osc)
-    call broadcast (gridnorm)
-    call broadcast (nexp)
-
+    end select
   end subroutine read_parameters
 
   !> FIXME : Add documentation  
@@ -597,7 +618,131 @@ contains
     initialized = .false.
     if (allocated(D_res)) deallocate (D_res)
     if (allocated(hypervisc_filter)) deallocate (hypervisc_filter)
-
+    call config_internal%reset()
   end subroutine finish_hyper
 
+  !---------------------------------------
+  ! Following is for the config_type
+  !---------------------------------------
+  
+  !> Reads in the hyper_knobs namelist and populates the member variables
+  subroutine read_hyper_config(self)
+    use file_utils, only: input_unit_exist, get_indexed_namelist_unit
+    use mp, only: proc0
+    implicit none
+    class(hyper_config_type), intent(in out) :: self
+    logical :: exist
+    integer :: in_file, iostat
+
+    ! Note: When this routine is in the module where these variables live
+    ! we shadow the module level variables here. This is intentional to provide
+    ! isolation and ensure we can move this routine to another module easily.    
+    integer :: nexp
+    character(len = 9) :: hyper_option
+    logical :: const_amp, damp_zonal_only, gridnorm, include_kpar, isotropic_shear
+    real :: d_hyper, d_hyperres, d_hypervisc, omega_osc
+
+    namelist /hyper_knobs/ const_amp, d_hyper, d_hyperres, d_hypervisc, damp_zonal_only, gridnorm, hyper_option, include_kpar, isotropic_shear, nexp, omega_osc
+
+    ! Only proc0 reads from file
+    if (.not. proc0) return
+
+    ! First set local variables from current values
+    const_amp = self%const_amp
+    d_hyper = self%d_hyper
+    d_hyperres = self%d_hyperres
+    d_hypervisc = self%d_hypervisc
+    damp_zonal_only = self%damp_zonal_only
+    gridnorm = self%gridnorm
+    hyper_option = self%hyper_option
+    include_kpar = self%include_kpar
+    isotropic_shear = self%isotropic_shear
+    nexp = self%nexp
+    omega_osc = self%omega_osc
+
+    ! Now read in the main namelist
+    if (self%requiresIndex) then
+       call get_indexed_namelist_unit(in_file, trim(self%name), self%index)
+       read(in_file, nml = hyper_knobs, iostat = iostat)
+       exist = .true.
+       if (iostat .ne.0) exist = .false.
+       close(unit = in_file, iostat = iostat)
+    else
+       in_file = input_unit_exist(self%name, exist)
+       if (exist) read(in_file, nml = hyper_knobs)
+    endif
+
+    ! Now copy from local variables into type members
+    self%const_amp = const_amp
+    self%d_hyper = d_hyper
+    self%d_hyperres = d_hyperres
+    self%d_hypervisc = d_hypervisc
+    self%damp_zonal_only = damp_zonal_only
+    self%gridnorm = gridnorm
+    self%hyper_option = hyper_option
+    self%include_kpar = include_kpar
+    self%isotropic_shear = isotropic_shear
+    self%nexp = nexp
+    self%omega_osc = omega_osc
+
+    self%exist = exist
+  end subroutine read_hyper_config
+
+  !> Writes out a namelist representing the current state of the config object
+  subroutine write_hyper_config(self, unit)
+    implicit none
+    class(hyper_config_type), intent(in) :: self
+    integer, intent(in) , optional:: unit
+    integer :: unit_internal
+
+    unit_internal = 6 ! @todo -- get stdout from file_utils
+    if (present(unit)) then
+       unit_internal = unit
+    endif
+
+    call self%write_namelist_header(unit_internal)
+    call self%write_key_val("const_amp", self%const_amp, unit_internal)
+    call self%write_key_val("d_hyper", self%d_hyper, unit_internal)
+    call self%write_key_val("d_hyperres", self%d_hyperres, unit_internal)
+    call self%write_key_val("d_hypervisc", self%d_hypervisc, unit_internal)
+    call self%write_key_val("damp_zonal_only", self%damp_zonal_only, unit_internal)
+    call self%write_key_val("gridnorm", self%gridnorm, unit_internal)
+    call self%write_key_val("hyper_option", self%hyper_option, unit_internal)
+    call self%write_key_val("include_kpar", self%include_kpar, unit_internal)
+    call self%write_key_val("isotropic_shear", self%isotropic_shear, unit_internal)
+    call self%write_key_val("nexp", self%nexp, unit_internal)
+    call self%write_key_val("omega_osc", self%omega_osc, unit_internal)
+    call self%write_namelist_footer(unit_internal)
+  end subroutine write_hyper_config
+
+  !> Resets the config object to the initial empty state
+  subroutine reset_hyper_config(self)
+    class(hyper_config_type), intent(in out) :: self
+    type(hyper_config_type) :: empty
+    select type (self)
+    type is (hyper_config_type)
+       self = empty
+    end select
+  end subroutine reset_hyper_config
+
+  !> Broadcasts all config parameters so object is populated identically on
+  !! all processors
+  subroutine broadcast_hyper_config(self)
+    use mp, only: broadcast
+    implicit none
+    class(hyper_config_type), intent(in out) :: self
+    call broadcast(self%const_amp)
+    call broadcast(self%d_hyper)
+    call broadcast(self%d_hyperres)
+    call broadcast(self%d_hypervisc)
+    call broadcast(self%damp_zonal_only)
+    call broadcast(self%gridnorm)
+    call broadcast(self%hyper_option)
+    call broadcast(self%include_kpar)
+    call broadcast(self%isotropic_shear)
+    call broadcast(self%nexp)
+    call broadcast(self%omega_osc)
+
+    call broadcast(self%exist)
+  end subroutine broadcast_hyper_config
 end module hyper
