@@ -1,5 +1,7 @@
 !> FIXME : Add documentation
 module normalisations
+  use abstract_config, only: abstract_config_type
+  
   implicit none
   
   private
@@ -8,6 +10,8 @@ module normalisations
   public :: init_normalisations, finish_normalisations
   public :: check_normalisations, wnml_normalisations
 
+  real, parameter :: default_value = -999.0
+  
   !> Define a type to hold the set of normalisations, we
   !! could imagine extending this in the future to provide
   !! a normalise/denormalise routine which can be used to
@@ -15,7 +19,7 @@ module normalisations
   type norms_type
      private
      !Internal parameters
-     real :: def_val = -999.0 !Default value, used to check if parameter has been set.
+     real :: def_val = default_value !Default value, used to check if parameter has been set.
 
      !Note def_val is really a parameter, but not allowed to define params in derived type
      logical :: some_norms_set=.false.
@@ -50,6 +54,34 @@ module normalisations
   type(norms_type) :: norms !The normalisation object, there should only be one of these
   logical :: exist !Has this namelist been specified?
 
+
+  !> Used to represent the input configuration of normalisations
+  type, extends(abstract_config_type) :: normalisations_config_type
+     ! namelist : normalisations_knobs
+     !> FIXME: Add documentation
+     real :: aref = default_value
+     !> FIXME: Add documentation
+     real :: bref = default_value
+     !> FIXME: Add documentation
+     real :: mref = default_value
+     !> FIXME: Add documentation
+     real :: nref = default_value
+     !> FIXME: Add documentation
+     real :: rhoref = default_value
+     !> FIXME: Add documentation
+     real :: tref = default_value
+     !> FIXME: Add documentation
+     real :: vref = default_value
+     !> FIXME: Add documentation
+     real :: zref = default_value
+   contains
+     procedure, public :: read => read_normalisations_config
+     procedure, public :: write => write_normalisations_config
+     procedure, public :: reset => reset_normalisations_config
+     procedure, public :: broadcast => broadcast_normalisations_config
+  end type normalisations_config_type
+
+  type(normalisations_config_type) :: config_internal
 contains
   !/////////////////////////////
   !// TYPE BOUND PROCEDURES
@@ -132,39 +164,30 @@ contains
   end function norms_get_value
 
   !> FIXME : Add documentation  
-  subroutine norms_read_parameters(self)
+  subroutine norms_read_parameters(self, config_in)
     use file_utils, only: input_unit_exist
     use mp, only: proc0, broadcast
     implicit none
     class(norms_type), intent(in out) :: self
+    type(normalisations_config_type), intent(in), optional :: config_in
     real :: mref,zref,nref,tref,aref,vref,bref,rhoref
     integer :: in_file
-    namelist/normalisations/mref,zref,nref,tref,aref,vref,bref,rhoref
 
-    !Set defaults, check if namelist present and read
-    if(proc0) then
-       mref = self%def_val
-       zref = self%def_val
-       nref = self%def_val
-       tref = self%def_val
-       aref = self%def_val
-       vref = self%def_val
-       bref = self%def_val
-       rhoref = self%def_val
+    if (present(config_in)) config_internal = config_in
 
-       in_file = input_unit_exist("normalisations", exist)
-       if(exist) read(unit=in_file, nml=normalisations)
-    endif
+    call config_internal%init(name = 'normalisations_knobs', requires_index = .false.)
 
-    !Now broadcast values
-    call broadcast(mref)
-    call broadcast(zref)
-    call broadcast(nref)
-    call broadcast(tref)
-    call broadcast(aref)
-    call broadcast(vref)
-    call broadcast(bref)
-    call broadcast(rhoref)
+    ! Copy out internal values into module level parameters
+    aref = config_internal%aref
+    bref = config_internal%bref
+    mref = config_internal%mref
+    nref = config_internal%nref
+    rhoref = config_internal%rhoref
+    tref = config_internal%tref
+    vref = config_internal%vref
+    zref = config_internal%zref
+
+    exist = config_internal%exist
 
     !Now copy parameters into holder type
     call self%set_value("mref",mref)
@@ -301,6 +324,7 @@ contains
   subroutine finish_normalisations
     implicit none
     call norms%finish
+    call config_internal%reset()
   end subroutine finish_normalisations
 
   !> Reset normalisations object
@@ -308,4 +332,114 @@ contains
     implicit none
     call norms%reset
   end subroutine reset_normalisations
+
+  !---------------------------------------
+  ! Following is for the config_type
+  !---------------------------------------
+  
+  !> Reads in the normalisations_knobs namelist and populates the member variables
+  subroutine read_normalisations_config(self)
+    use file_utils, only: input_unit_exist, get_indexed_namelist_unit
+    use mp, only: proc0
+    implicit none
+    class(normalisations_config_type), intent(in out) :: self
+    logical :: exist
+    integer :: in_file, iostat
+
+    ! Note: When this routine is in the module where these variables live
+    ! we shadow the module level variables here. This is intentional to provide
+    ! isolation and ensure we can move this routine to another module easily.    
+    real :: aref, bref, mref, nref, rhoref, tref, vref, zref
+
+    namelist /normalisations_knobs/ aref, bref, mref, nref, rhoref, tref, vref, zref
+
+    ! Only proc0 reads from file
+    if (.not. proc0) return
+
+    ! First set local variables from current values
+    aref = self%aref
+    bref = self%bref
+    mref = self%mref
+    nref = self%nref
+    rhoref = self%rhoref
+    tref = self%tref
+    vref = self%vref
+    zref = self%zref
+
+    ! Now read in the main namelist
+    if (self%requiresIndex) then
+       call get_indexed_namelist_unit(in_file, trim(self%name), self%index)
+       read(in_file, nml = normalisations_knobs, iostat = iostat)
+       exist = .true.
+       if (iostat .ne.0) exist = .false.
+       close(unit = in_file, iostat = iostat)
+    else
+       in_file = input_unit_exist(self%name, exist)
+       if (exist) read(in_file, nml = normalisations_knobs)
+    endif
+
+    ! Now copy from local variables into type members
+    self%aref = aref
+    self%bref = bref
+    self%mref = mref
+    self%nref = nref
+    self%rhoref = rhoref
+    self%tref = tref
+    self%vref = vref
+    self%zref = zref
+
+    self%exist = exist
+  end subroutine read_normalisations_config
+
+  !> Writes out a namelist representing the current state of the config object
+  subroutine write_normalisations_config(self, unit)
+    implicit none
+    class(normalisations_config_type), intent(in) :: self
+    integer, intent(in) , optional:: unit
+    integer :: unit_internal
+
+    unit_internal = 6 ! @todo -- get stdout from file_utils
+    if (present(unit)) then
+       unit_internal = unit
+    endif
+
+    call self%write_namelist_header(unit_internal)
+    call self%write_key_val("aref", self%aref, unit_internal)
+    call self%write_key_val("bref", self%bref, unit_internal)
+    call self%write_key_val("mref", self%mref, unit_internal)
+    call self%write_key_val("nref", self%nref, unit_internal)
+    call self%write_key_val("rhoref", self%rhoref, unit_internal)
+    call self%write_key_val("tref", self%tref, unit_internal)
+    call self%write_key_val("vref", self%vref, unit_internal)
+    call self%write_key_val("zref", self%zref, unit_internal)
+    call self%write_namelist_footer(unit_internal)
+  end subroutine write_normalisations_config
+
+  !> Resets the config object to the initial empty state
+  subroutine reset_normalisations_config(self)
+    class(normalisations_config_type), intent(in out) :: self
+    type(normalisations_config_type) :: empty
+    select type (self)
+    type is (normalisations_config_type)
+       self = empty
+    end select
+  end subroutine reset_normalisations_config
+
+  !> Broadcasts all config parameters so object is populated identically on
+  !! all processors
+  subroutine broadcast_normalisations_config(self)
+    use mp, only: broadcast
+    implicit none
+    class(normalisations_config_type), intent(in out) :: self
+    call broadcast(self%aref)
+    call broadcast(self%bref)
+    call broadcast(self%mref)
+    call broadcast(self%nref)
+    call broadcast(self%rhoref)
+    call broadcast(self%tref)
+    call broadcast(self%vref)
+    call broadcast(self%zref)
+
+    call broadcast(self%exist)
+  end subroutine broadcast_normalisations_config
 end module normalisations
