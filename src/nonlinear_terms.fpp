@@ -3,6 +3,9 @@ module nonlinear_terms
   !
   ! missing factors of B_a/B(theta) in A_perp terms??
   !
+
+  use abstract_config, only: abstract_config_type
+  
   implicit none
 
   private
@@ -74,6 +77,38 @@ module nonlinear_terms
   logical :: accelerated = .false.
 
   logical :: exist = .false.
+
+  !> Used to represent the input configuration of nonlinear_terms
+  type, extends(abstract_config_type) :: nonlinear_terms_config_type
+     ! namelist : nonlinear_terms_knobs
+     !> FIXME: Add documentation
+     real :: cfl = 0.1
+     !> FIXME: Add documentation
+     real :: densfac = 1.           !GRYFX Only - should be moved elsewhere
+     !> FIXME: Add documentation
+     logical :: nl_forbid_force_zero = .true.
+     !> FIXME: Add documentation
+     character(len = 20) :: nonlinear_mode = 'default'
+     !> FIXME: Add documentation
+     real :: qparfac = 1./sqrt(8.)  !GRYFX Only - should be moved elsewhere
+     !> FIXME: Add documentation
+     real :: qprpfac = 1./sqrt(8.)  !GRYFX Only - should be moved elsewhere
+     !> FIXME: Add documentation
+     real :: tparfac = 1./2.        !GRYFX Only - should be moved elsewhere
+     !> FIXME: Add documentation
+     real :: tprpfac = 1./2.        !GRYFX Only - should be moved elsewhere
+     !> FIXME: Add documentation
+     real :: uparfac = 1./sqrt(2.)  !GRYFX Only - should be moved elsewhere
+     !> FIXME: Add documentation
+     logical :: zip = .false.
+   contains
+     procedure, public :: read => read_nonlinear_terms_config
+     procedure, public :: write => write_nonlinear_terms_config
+     procedure, public :: reset => reset_nonlinear_terms_config
+     procedure, public :: broadcast => broadcast_nonlinear_terms_config
+  end type nonlinear_terms_config_type
+
+  type(nonlinear_terms_config_type) :: config_internal
   
 contains
 
@@ -215,52 +250,42 @@ contains
   end subroutine init_nonlinear_terms
 
   !> FIXME : Add documentation  
-  subroutine read_parameters
+  subroutine read_parameters(config_in)
     use file_utils, only: input_unit_exist, error_unit
     use text_options, only: text_option, get_option_value
     use mp, only: proc0, broadcast
     implicit none
+    type(nonlinear_terms_config_type), intent(in), optional :: config_in
     type (text_option), dimension (4), parameter :: nonlinearopts = &
          (/ text_option('default', nonlinear_mode_none), &
             text_option('none', nonlinear_mode_none), &
             text_option('off', nonlinear_mode_none), &
             text_option('on', nonlinear_mode_on) /)
     character(20) :: nonlinear_mode
-    namelist /nonlinear_terms_knobs/ nonlinear_mode, cfl, &
-         zip, nl_forbid_force_zero, &
-         densfac, uparfac, tparfac, tprpfac, qparfac, qprpfac
-    integer :: ierr, in_file
+    integer :: ierr
 
-    if (proc0) then
-       nonlinear_mode = 'default'
-       cfl = 0.1
+    if (present(config_in)) config_internal = config_in
 
-       densfac = 1.
-       uparfac = 1./sqrt(2.)
-       tparfac = 1./2.
-       tprpfac = 1./2. 
-       qparfac = 1./sqrt(8.)
-       qprpfac = 1./sqrt(8.)
+    call config_internal%init(name = 'nonlinear_terms_knobs', requires_index = .false.)
 
-       in_file=input_unit_exist("nonlinear_terms_knobs",exist)
-       if(exist) read (unit=in_file,nml=nonlinear_terms_knobs)
+    ! Copy out internal values into module level parameters
+    cfl = config_internal%cfl
+    densfac = config_internal%densfac
+    nl_forbid_force_zero = config_internal%nl_forbid_force_zero
+    nonlinear_mode = config_internal%nonlinear_mode
+    qparfac = config_internal%qparfac
+    qprpfac = config_internal%qprpfac
+    tparfac = config_internal%tparfac
+    tprpfac = config_internal%tprpfac
+    uparfac = config_internal%uparfac
+    zip = config_internal%zip
 
-       ierr = error_unit()
-       call get_option_value &
-            (nonlinear_mode, nonlinearopts, nonlinear_mode_switch, &
-            ierr, "nonlinear_mode in nonlinear_terms_knobs",.true.)
-    end if
+    exist = config_internal%exist
 
-    call broadcast (nonlinear_mode_switch)
-    call broadcast (cfl)
-    call broadcast (nl_forbid_force_zero)
-    call broadcast (zip)
-    call broadcast (densfac)
-    call broadcast (uparfac)
-    call broadcast (tparfac)
-    call broadcast (tprpfac)
-    call broadcast (qparfac)
-    call broadcast (qprpfac)
+    ierr = error_unit()
+    call get_option_value &
+         (nonlinear_mode, nonlinearopts, nonlinear_mode_switch, &
+         ierr, "nonlinear_mode in nonlinear_terms_knobs",.true.)
 
     istep_last = 0
 
@@ -967,7 +992,129 @@ contains
 #ifndef SHMEM
     call finish_transforms
 #endif
+
+    call config_internal%reset()
   end subroutine finish_nonlinear_terms
+
+  !---------------------------------------
+  ! Following is for the config_type
+  !--------------------------------------- 
+  
+  !> Reads in the nonlinear_terms_knobs namelist and populates the member variables
+  subroutine read_nonlinear_terms_config(self)
+    use file_utils, only: input_unit_exist, get_indexed_namelist_unit
+    use mp, only: proc0
+    implicit none
+    class(nonlinear_terms_config_type), intent(in out) :: self
+    logical :: exist
+    integer :: in_file, iostat
+
+    ! Note: When this routine is in the module where these variables live
+    ! we shadow the module level variables here. This is intentional to provide
+    ! isolation and ensure we can move this routine to another module easily.    
+    logical :: nl_forbid_force_zero, zip
+    character(len = 20) :: nonlinear_mode
+    real :: cfl, densfac, qparfac, qprpfac, tparfac, tprpfac, uparfac
+
+    namelist /nonlinear_terms_knobs/ cfl, densfac, nl_forbid_force_zero, nonlinear_mode, qparfac, qprpfac, tparfac, tprpfac, uparfac, zip
+
+    ! Only proc0 reads from file
+    if (.not. proc0) return
+
+    ! First set local variables from current values
+    cfl = self%cfl
+    densfac = self%densfac
+    nl_forbid_force_zero = self%nl_forbid_force_zero
+    nonlinear_mode = self%nonlinear_mode
+    qparfac = self%qparfac
+    qprpfac = self%qprpfac
+    tparfac = self%tparfac
+    tprpfac = self%tprpfac
+    uparfac = self%uparfac
+    zip = self%zip
+
+    ! Now read in the main namelist
+    if (self%requiresIndex) then
+       call get_indexed_namelist_unit(in_file, trim(self%name), self%index)
+       read(in_file, nml = nonlinear_terms_knobs, iostat = iostat)
+       exist = .true.
+       if (iostat .ne.0) exist = .false.
+       close(unit = in_file, iostat = iostat)
+    else
+       in_file = input_unit_exist(self%name, exist)
+       if (exist) read(in_file, nml = nonlinear_terms_knobs)
+    endif
+
+    ! Now copy from local variables into type members
+    self%cfl = cfl
+    self%densfac = densfac
+    self%nl_forbid_force_zero = nl_forbid_force_zero
+    self%nonlinear_mode = nonlinear_mode
+    self%qparfac = qparfac
+    self%qprpfac = qprpfac
+    self%tparfac = tparfac
+    self%tprpfac = tprpfac
+    self%uparfac = uparfac
+    self%zip = zip
+
+    self%exist = exist
+  end subroutine read_nonlinear_terms_config
+
+  !> Writes out a namelist representing the current state of the config object
+  subroutine write_nonlinear_terms_config(self, unit)
+    implicit none
+    class(nonlinear_terms_config_type), intent(in) :: self
+    integer, intent(in) , optional:: unit
+    integer :: unit_internal
+
+    unit_internal = 6 ! @todo -- get stdout from file_utils
+    if (present(unit)) then
+       unit_internal = unit
+    endif
+
+    call self%write_namelist_header(unit_internal)
+    call self%write_key_val("cfl", self%cfl, unit_internal)
+    call self%write_key_val("densfac", self%densfac, unit_internal)
+    call self%write_key_val("nl_forbid_force_zero", self%nl_forbid_force_zero, unit_internal)
+    call self%write_key_val("nonlinear_mode", self%nonlinear_mode, unit_internal)
+    call self%write_key_val("qparfac", self%qparfac, unit_internal)
+    call self%write_key_val("qprpfac", self%qprpfac, unit_internal)
+    call self%write_key_val("tparfac", self%tparfac, unit_internal)
+    call self%write_key_val("tprpfac", self%tprpfac, unit_internal)
+    call self%write_key_val("uparfac", self%uparfac, unit_internal)
+    call self%write_key_val("zip", self%zip, unit_internal)
+    call self%write_namelist_footer(unit_internal)
+  end subroutine write_nonlinear_terms_config
+
+  !> Resets the config object to the initial empty state
+  subroutine reset_nonlinear_terms_config(self)
+    class(nonlinear_terms_config_type), intent(in out) :: self
+    type(nonlinear_terms_config_type) :: empty
+    select type (self)
+    type is (nonlinear_terms_config_type)
+       self = empty
+    end select
+  end subroutine reset_nonlinear_terms_config
+
+  !> Broadcasts all config parameters so object is populated identically on
+  !! all processors
+  subroutine broadcast_nonlinear_terms_config(self)
+    use mp, only: broadcast
+    implicit none
+    class(nonlinear_terms_config_type), intent(in out) :: self
+    call broadcast(self%cfl)
+    call broadcast(self%densfac)
+    call broadcast(self%nl_forbid_force_zero)
+    call broadcast(self%nonlinear_mode)
+    call broadcast(self%qparfac)
+    call broadcast(self%qprpfac)
+    call broadcast(self%tparfac)
+    call broadcast(self%tprpfac)
+    call broadcast(self%uparfac)
+    call broadcast(self%zip)
+
+    call broadcast(self%exist)
+  end subroutine broadcast_nonlinear_terms_config
 end module nonlinear_terms
 
 
