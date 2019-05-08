@@ -2,6 +2,7 @@
 !> A module for finding eigenvalues and eigenmodes
 !! Requires SLEPC and PETSC
 module eigval
+  use abstract_config, only: abstract_config_type
   use petscvec
   use petscmat
   use slepceps
@@ -142,6 +143,43 @@ module eigval
   character(len=12),parameter :: nml_name="eigval_knobs"
   real, save :: time_eigval(2)=0.
 
+
+  !> Used to represent the input configuration of eigval
+  type, extends(abstract_config_type) :: eigval_config_type
+     ! namelist : eigval_knobs
+     !> FIXME: Add documentation
+     character(len = 20) :: extraction_option = 'default'
+     !> FIXME: Add documentation
+     integer :: max_iter = PETSC_DECIDE
+     !> FIXME: Add documentation
+     integer :: n_eig = 1
+     !> FIXME: Add documentation
+     integer :: nadv = 1
+     !> FIXME: Add documentation
+     logical :: save_restarts = .false.
+     !> FIXME: Add documentation
+     character(len = 20) :: solver_option = 'default'
+     !> FIXME: Add documentation
+     real :: targ_im = 0.5
+     !> FIXME: Add documentation
+     real :: targ_re = 0.5
+     !> FIXME: Add documentation
+     real :: tolerance = 1.0d-6
+     !> FIXME: Add documentation
+     character(len = 20) :: transform_option = 'default'
+     !> FIXME: Add documentation
+     logical :: use_ginit = .false.
+     !> FIXME: Add documentation
+     character(len = 20) :: which_option = 'default'
+   contains
+     procedure, public :: read => read_eigval_config
+     procedure, public :: write => write_eigval_config
+     procedure, public :: reset => reset_eigval_config
+     procedure, public :: broadcast => broadcast_eigval_config
+  end type eigval_config_type
+
+  type(eigval_config_type) :: config_internal
+
 contains
 
   !> Returns true if GS2 was compiled with WITH_EIG defined
@@ -203,11 +241,11 @@ contains
   end subroutine finish_eigval
 
   !> Read the eigval_knobs namelist
-  subroutine read_parameters
-    use file_utils, only: input_unit, error_unit, input_unit_exist
+  subroutine read_parameters(config_in)
+    use file_utils, only: error_unit
     use text_options, only: text_option, get_option_value
-    use mp, only: broadcast, proc0
     implicit none
+    type(eigval_config_type), intent(in), optional :: config_in
 
     !NOTE: text_option is case sensitive (currently)
     type(text_option), dimension(18), parameter :: solver_type_opts = &
@@ -276,65 +314,48 @@ contains
 
     character(len=20) :: solver_option, extraction_option, which_option, transform_option
 
-    namelist /eigval_knobs/ n_eig, max_iter, tolerance, &
-         solver_option, extraction_option, which_option, transform_option,&
-         targ_re, targ_im, use_ginit, nadv, save_restarts
-    integer :: ierr, in_file
+    integer :: ierr
     logical :: exist
 
-    if(proc0)then
-       !Defaults
-       n_eig=1
-       max_iter=PETSC_DECIDE
-       tolerance=1.0d-6
-       targ_re=0.5
-       targ_im=0.5
-       solver_option='default'
-       extraction_option='default'
-       which_option='default'
-       transform_option='default'
-       use_ginit=.false.
-       nadv=1
-       save_restarts=.false.
+    if (present(config_in)) config_internal = config_in
 
-       !Check if name list exists and if so read it
-       in_file=input_unit_exist(nml_name,exist)
-       if(exist) read(unit=in_file,nml=eigval_knobs)
+    call config_internal%init(name = 'eigval_knobs', requires_index = .false.)
+
+    ! Copy out internal values into module level parameters
+    extraction_option = config_internal%extraction_option
+    max_iter = config_internal%max_iter
+    n_eig = config_internal%n_eig
+    nadv = config_internal%nadv
+    save_restarts = config_internal%save_restarts
+    solver_option = config_internal%solver_option
+    targ_im = config_internal%targ_im
+    targ_re = config_internal%targ_re
+    tolerance = config_internal%tolerance
+    transform_option = config_internal%transform_option
+    use_ginit = config_internal%use_ginit
+    which_option = config_internal%which_option
+
+    exist = config_internal%exist
+
+    !Get error unit for output
+    ierr = error_unit()
        
-       !Get error unit for output
-       ierr = error_unit()
-       
-       !Convert string options to integer flags
-       call get_option_value &
-            (solver_option,solver_type_opts,solver_option_switch,&
-            ierr,"solver_option in "//nml_name,.true.)
-       
-       call get_option_value &
-            (extraction_option,extraction_type_opts,extraction_option_switch,&
-            ierr,"extraction_option in "//nml_name,.true.)
-
-       call get_option_value &
-            (which_option,which_type_opts,which_option_switch,&
-            ierr,"which_option in "//nml_name,.true.)
-
-       call get_option_value &
-            (transform_option,transform_type_opts,transform_option_switch,&
-            ierr,"transform_option in "//nml_name,.true.)
-    endif
-
-    !Broadcasts
-    call broadcast(n_eig)
-    call broadcast(max_iter)
-    call broadcast(tolerance)
-    call broadcast(solver_option_switch)
-    call broadcast(extraction_option_switch)
-    call broadcast(which_option_switch)
-    call broadcast(transform_option_switch)
-    call broadcast(targ_re)
-    call broadcast(targ_im)
-    call broadcast(use_ginit)
-    call broadcast(nadv)
-    call broadcast(save_restarts)
+    !Convert string options to integer flags
+    call get_option_value &
+         (solver_option,solver_type_opts,solver_option_switch,&
+         ierr,"solver_option in "//nml_name,.true.)
+    
+    call get_option_value &
+         (extraction_option,extraction_type_opts,extraction_option_switch,&
+         ierr,"extraction_option in "//nml_name,.true.)
+    
+    call get_option_value &
+         (which_option,which_type_opts,which_option_switch,&
+         ierr,"which_option in "//nml_name,.true.)
+    
+    call get_option_value &
+         (transform_option,transform_type_opts,transform_option_switch,&
+         ierr,"transform_option in "//nml_name,.true.)
   end subroutine read_parameters
 
   !> Write the eigval_knobs namelist
@@ -1201,6 +1222,135 @@ contains
     nconv_prev=nconv
     iter_prev=iters
   end function SimpleMonitor
+
+  !---------------------------------------
+  ! Following is for the config_type
+  !--------------------------------------- 
+  
+  !> Reads in the eigval_knobs namelist and populates the member variables
+  subroutine read_eigval_config(self)
+    use file_utils, only: input_unit_exist, get_indexed_namelist_unit
+    use mp, only: proc0
+    implicit none
+    class(eigval_config_type), intent(in out) :: self
+    logical :: exist
+    integer :: in_file, iostat
+
+    ! Note: When this routine is in the module where these variables live
+    ! we shadow the module level variables here. This is intentional to provide
+    ! isolation and ensure we can move this routine to another module easily.    
+    logical :: save_restarts, use_ginit
+    real :: targ_im, targ_re, tolerance
+    character(len = 20) :: extraction_option, solver_option, transform_option, which_option
+    integer :: max_iter, n_eig, nadv
+
+    namelist /eigval_knobs/ extraction_option, max_iter, n_eig, nadv, save_restarts, solver_option, targ_im, targ_re, tolerance, transform_option, use_ginit, which_option
+
+    ! Only proc0 reads from file
+    if (.not. proc0) return
+
+    ! First set local variables from current values
+    extraction_option = self%extraction_option
+    max_iter = self%max_iter
+    n_eig = self%n_eig
+    nadv = self%nadv
+    save_restarts = self%save_restarts
+    solver_option = self%solver_option
+    targ_im = self%targ_im
+    targ_re = self%targ_re
+    tolerance = self%tolerance
+    transform_option = self%transform_option
+    use_ginit = self%use_ginit
+    which_option = self%which_option
+
+    ! Now read in the main namelist
+    if (self%requiresIndex) then
+       call get_indexed_namelist_unit(in_file, trim(self%name), self%index)
+       read(in_file, nml = eigval_knobs, iostat = iostat)
+       exist = .true.
+       if (iostat .ne.0) exist = .false.
+       close(unit = in_file, iostat = iostat)
+    else
+       in_file = input_unit_exist(self%name, exist)
+       if (exist) read(in_file, nml = eigval_knobs)
+    endif
+
+    ! Now copy from local variables into type members
+    self%extraction_option = extraction_option
+    self%max_iter = max_iter
+    self%n_eig = n_eig
+    self%nadv = nadv
+    self%save_restarts = save_restarts
+    self%solver_option = solver_option
+    self%targ_im = targ_im
+    self%targ_re = targ_re
+    self%tolerance = tolerance
+    self%transform_option = transform_option
+    self%use_ginit = use_ginit
+    self%which_option = which_option
+
+    self%exist = exist
+  end subroutine read_eigval_config
+
+  !> Writes out a namelist representing the current state of the config object
+  subroutine write_eigval_config(self, unit)
+    implicit none
+    class(eigval_config_type), intent(in) :: self
+    integer, intent(in) , optional:: unit
+    integer :: unit_internal
+
+    unit_internal = 6 ! @todo -- get stdout from file_utils
+    if (present(unit)) then
+       unit_internal = unit
+    endif
+
+    call self%write_namelist_header(unit_internal)
+    call self%write_key_val("extraction_option", self%extraction_option, unit_internal)
+    call self%write_key_val("max_iter", self%max_iter, unit_internal)
+    call self%write_key_val("n_eig", self%n_eig, unit_internal)
+    call self%write_key_val("nadv", self%nadv, unit_internal)
+    call self%write_key_val("save_restarts", self%save_restarts, unit_internal)
+    call self%write_key_val("solver_option", self%solver_option, unit_internal)
+    call self%write_key_val("targ_im", self%targ_im, unit_internal)
+    call self%write_key_val("targ_re", self%targ_re, unit_internal)
+    call self%write_key_val("tolerance", self%tolerance, unit_internal)
+    call self%write_key_val("transform_option", self%transform_option, unit_internal)
+    call self%write_key_val("use_ginit", self%use_ginit, unit_internal)
+    call self%write_key_val("which_option", self%which_option, unit_internal)
+    call self%write_namelist_footer(unit_internal)
+  end subroutine write_eigval_config
+
+  !> Resets the config object to the initial empty state
+  subroutine reset_eigval_config(self)
+    class(eigval_config_type), intent(in out) :: self
+    type(eigval_config_type) :: empty
+    select type (self)
+    type is (eigval_config_type)
+       self = empty
+    end select
+  end subroutine reset_eigval_config
+
+  !> Broadcasts all config parameters so object is populated identically on
+  !! all processors
+  subroutine broadcast_eigval_config(self)
+    use mp, only: broadcast
+    implicit none
+    class(eigval_config_type), intent(in out) :: self
+    call broadcast(self%extraction_option)
+    call broadcast(self%max_iter)
+    call broadcast(self%n_eig)
+    call broadcast(self%nadv)
+    call broadcast(self%save_restarts)
+    call broadcast(self%solver_option)
+    call broadcast(self%targ_im)
+    call broadcast(self%targ_re)
+    call broadcast(self%tolerance)
+    call broadcast(self%transform_option)
+    call broadcast(self%use_ginit)
+    call broadcast(self%which_option)
+
+    call broadcast(self%exist)
+  end subroutine broadcast_eigval_config
 end module eigval
 
 #else
