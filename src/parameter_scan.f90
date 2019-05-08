@@ -189,6 +189,7 @@ contains
     call deallocate_target_arrays
     call close_output_file(scan_output_file)
     initialized = .false.
+    call config_internal%reset()
   end subroutine finish_parameter_scan
 
   !> FIXME : Add documentation  
