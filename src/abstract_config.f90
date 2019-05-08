@@ -26,9 +26,13 @@ module abstract_config
      procedure, nopass :: write_namelist_footer
      procedure, private, nopass :: write_key_val_string
      procedure, private, nopass :: write_key_val_real
+     procedure, private :: write_key_val_real_array     
+     procedure, private, nopass :: write_key_val_complex
+     procedure, private :: write_key_val_complex_array     
      procedure, private, nopass :: write_key_val_integer
+     procedure, private :: write_key_val_integer_array
      procedure, private, nopass :: write_key_val_logical
-     generic :: write_key_val => write_key_val_string, write_key_val_real, write_key_val_integer, write_key_val_logical
+     generic :: write_key_val => write_key_val_string, write_key_val_real, write_key_val_complex, write_key_val_integer, write_key_val_logical, write_key_val_real_array, write_key_val_complex_array, write_key_val_integer_array
      procedure(read_interface), deferred :: read
      procedure(write_interface), deferred :: write
      procedure(reset_interface), deferred :: reset
@@ -136,6 +140,42 @@ contains
     write(unit,'("  ",A20," = ",e18.11)') key, val
   end subroutine write_key_val_real
 
+  !> Writes a {key,val} pair where the value is of type real array
+  subroutine write_key_val_real_array(self, key, val, unit)
+    class(abstract_config_type), intent(in) :: self
+    character(len = *), intent(in) :: key
+    real, dimension(:), intent(in) :: val
+    integer, intent(in) :: unit
+    integer :: i
+    character(len = 12) :: subscript
+    do i = 1, size(val)
+       write(subscript,'("(",I0,")")') i
+       call self%write_key_val(trim(key)//subscript, val(i), unit)
+    end do
+  end subroutine write_key_val_real_array
+  
+  !> Writes a {key,val} pair where the value is of type complex
+  subroutine write_key_val_complex(key, val, unit)
+    character(len=*), intent(in) :: key
+    complex, intent(in) :: val
+    integer, intent(in) :: unit
+    write(unit,'("  ",A20," = (",e18.11,", ",e18.11,")")') key, real(val), aimag(val)
+  end subroutine write_key_val_complex
+
+  !> Writes a {key,val} pair where the value is of type complex array
+  subroutine write_key_val_complex_array(self, key, val, unit)
+    class(abstract_config_type), intent(in) :: self
+    character(len = *), intent(in) :: key
+    complex, dimension(:), intent(in) :: val
+    integer, intent(in) :: unit
+    integer :: i
+    character(len = 12) :: subscript
+    do i = 1, size(val)
+       write(subscript,'("(",I0,")")') i
+       call self%write_key_val(trim(key)//subscript, val(i), unit)
+    end do
+  end subroutine write_key_val_complex_array
+  
   !> Writes a {key,val} pair where the value is of type integer
   subroutine write_key_val_integer(key, val, unit)
     character(len=*), intent(in) :: key
@@ -148,6 +188,20 @@ contains
     endif
   end subroutine write_key_val_integer
 
+  !> Writes a {key,val} pair where the value is of type integer array
+  subroutine write_key_val_integer_array(self, key, val, unit)
+    class(abstract_config_type), intent(in) :: self
+    character(len = *), intent(in) :: key
+    integer, dimension(:), intent(in) :: val
+    integer, intent(in) :: unit
+    integer :: i
+    character(len = 12) :: subscript
+    do i = 1, size(val)
+       write(subscript,'("(",I0,")")') i
+       call self%write_key_val(trim(key)//subscript, val(i), unit)
+    end do
+  end subroutine write_key_val_integer_array
+  
   !> Writes a {key,val} pair where the value is of type logical
   subroutine write_key_val_logical(key, val, unit)
     character(len=*), intent(in) :: key
