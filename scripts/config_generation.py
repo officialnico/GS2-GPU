@@ -5,6 +5,8 @@
 #Will produce one file for each detected config type in the source
 #with the boiler plate routines and canonical form of the type.
 
+from collections import OrderedDict
+
 typeIndent="   "
 indent="  "
 declString = "{typ} :: {name}"
@@ -215,7 +217,7 @@ class config():
         return indent+("\n"+indent).join(st)
     
     def declarationList(self):
-        perTypList = {}
+        perTypList = OrderedDict()
         #First get an empty list per type
         for var in self.varList:
             perTypList[var.typ] = []
@@ -343,9 +345,9 @@ def constructFromFile(fileIn=None, verbose=False):
     nmlPattern = re.compile(r"""\s*![^!>]\s*namelist\s*:\s*(?P<namelist>[^>\s]+)""", re.VERBOSE)
     
     result = None
-    theLines = {}
-    theVars = {}
-    theConfigs = {}
+    theLines = OrderedDict()
+    theVars = OrderedDict()
+    theConfigs = OrderedDict()
     
     with open(fileIn, 'r') as f:
         found = False
