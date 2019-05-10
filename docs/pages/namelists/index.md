@@ -1,7 +1,5 @@
 title: Namelists
 
-[TOC]
-
 {!pages/namelists/theta_grid_parameters_theta_grid_parameters.txt!}
 
 {!pages/namelists/kt_grids_box_kt_grids_box_parameters.txt!}
