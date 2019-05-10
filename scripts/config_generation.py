@@ -280,7 +280,22 @@ class config():
 
         with open(fileOut, 'w') as f:
             f.writelines(self.printAll())
-        
+
+    def toMarkdownTable(self, forFord = False):
+        st = []
+        if forFord:
+            st.append("title: {namelist}".format(namelist=self.namelistName))
+            st.append("")
+        st.append("#{namelist}".format(namelist=self.namelistName))
+        st.append("")
+        st.append("| Name | Type | Default | Description |")
+        st.append("|:-----|:----:|:-------:|:------------|")
+        varLine = "| {nm} | {ty} | {de} | {co} |"
+        for var in self.varList:
+            st.append(varLine.format(nm = var.name, ty = var.typ, de = var.default.split("!")[0], co = "|\n| | | |".join(var.comment)))
+
+        return st
+            
 def constructFromFile(fileIn=None, verbose=False):
     # Currently not able to get value of requires_index automatically.
 
@@ -419,4 +434,6 @@ if __name__ == "__main__":
         for k, v in tmp.items():
             print("Config '{k}' in file '{f}'".format(k=k,f=fil))
             v.dumpToFile()
-            
+            ff = "docs/pages/namelists/"+v.moduleName+"_"+v.namelistName+".md"
+            with open(ff, 'w') as f:
+                f.writelines("\n".join(v.toMarkdownTable(forFord=True)))
