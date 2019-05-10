@@ -2,9 +2,7 @@
 
 | Name | Type | Default | Description |
 |:-----|:----:|:-------:|:------------|
-| append_old | logical | .false.  | If true, and a copy of the .out.nc already exists,|
-| | | |open it and append to it. Obviously grid sizes must be|
-| | | |unchanged. |
+| append_old | logical | .false.  | If true, and a copy of the .out.nc already exists, open it and append to it. Obviously grid sizes must be unchanged. |
 | conv_max_step | integer | 80000 | FIXME: Add documentation |
 | conv_min_step | integer | 4000 | FIXME: Add documentation |
 | conv_nstep_av | integer | 4000 | FIXME: Add documentation |
@@ -13,13 +11,7 @@
 | dump_check1 | logical | .false. | FIXME: Add documentation |
 | dump_check2 | logical | .false. | FIXME: Add documentation |
 | dump_fields_periodically | logical | .false. | FIXME: Add documentation |
-| enable_parallel | logical | .false.  | If built with parallel IO capability|
-| | | |enable parallel IO. Currently disabled by|
-| | | |default because of problems on Helios:|
-| | | |parallel IO seems to work on 1 node but not|
-| | | |on >1. This problem does not affect parallel|
-| | | |IO for the single restart file because it only|
-| | | |affects output with infinite dimensions |
+| enable_parallel | logical | .false.  | If built with parallel IO capability enable parallel IO. Currently disabled by default because of problems on Helios: parallel IO seems to work on 1 node but not on >1. This problem does not affect parallel IO for the single restart file because it only affects output with infinite dimensions |
 | exit_when_converged | logical | .true. | FIXME: Add documentation |
 | file_safety_check | logical | .true. | FIXME: Add documentation |
 | igomega | integer | 0 | FIXME: Add documentation |

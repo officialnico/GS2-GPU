@@ -3,8 +3,7 @@
 | Name | Type | Default | Description |
 |:-----|:----:|:-------:|:------------|
 | gryfx | logical | .false. | FIXME: Add documentation |
-| jtwist | integer | 1  | FIXME: Add documentation|
-| | | |@note This gets a smart default |
+| jtwist | integer | 1  | FIXME: Add documentation @note This gets a smart default |
 | ly | real | 0.0 | FIXME: Add documentation |
 | n0 | integer | 0 | FIXME: Add documentation |
 | naky | integer | 0 | FIXME: Add documentation |

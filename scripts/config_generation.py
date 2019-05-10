@@ -289,7 +289,7 @@ class config():
         st.append("|:-----|:----:|:-------:|:------------|")
         varLine = "| {nm} | {ty} | {de} | {co} |"
         for var in self.varList:
-            st.append(varLine.format(nm = var.name, ty = var.typ, de = var.default.split("!")[0], co = "|\n| | | |".join(var.comment)))
+            st.append(varLine.format(nm = var.name, ty = var.typ, de = var.default.split("!")[0], co = " ".join(var.comment)))            
 
         st.append("")
         return st

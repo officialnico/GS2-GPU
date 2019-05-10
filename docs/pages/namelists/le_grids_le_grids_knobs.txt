@@ -11,12 +11,7 @@
 | ngauss | integer | 5 | FIXME: Add documentation |
 | nmax | integer | 500 | FIXME: Add documentation |
 | nterp | integer | 100 | FIXME: Add documentation |
-| radau_gauss_grid | logical | .true.  | The default lambda grid is now gauss-radau, for passing particles up to|
-| | | |and including the passing-trapped boundary (wfb). The grid gives finite weight to|
-| | | |the class of particles which bounce at theta = +/- pi (wfb) in the passing integral|
-| | | |Note that the old gauss-legendre is used in the case that trapped_particles =.false.|
-| | | |@note In reference to above note - code doesn't seem to change radau_gauss_grid when|
-| | | |trapped_particles is false, should it? |
+| radau_gauss_grid | logical | .true.  | The default lambda grid is now gauss-radau, for passing particles up to and including the passing-trapped boundary (wfb). The grid gives finite weight to the class of particles which bounce at theta = +/- pi (wfb) in the passing integral Note that the old gauss-legendre is used in the case that trapped_particles =.false. @note In reference to above note - code doesn't seem to change radau_gauss_grid when trapped_particles is false, should it? |
 | test | logical | .false.  | FIXME: Add documentation |
 | trapped_particles | logical | .true. | FIXME: Add documentation |
 | vcut | real | 2.5 | FIXME: Add documentation |
