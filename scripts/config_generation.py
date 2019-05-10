@@ -429,6 +429,8 @@ if __name__ == "__main__":
     with open("docs/pages/namelists/index.md", 'w') as ind:
         ind.write("title: Namelists\n")
         ind.write("\n")
+        ind.write('<html><div class="divNamelistTable"></html>')
+        ind.write("\n")        
         for fil in probablyFiles:
             tmp = constructFromFile(fileIn=fil)
             if tmp is None: continue
@@ -448,3 +450,4 @@ if __name__ == "__main__":
 
                 ind.write("{!"+ff+".txt"+"!}\n")
                 ind.write("\n")
+        ind.write('</div>')
