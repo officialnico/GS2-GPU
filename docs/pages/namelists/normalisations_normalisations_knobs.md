@@ -1,14 +1,3 @@
 title: normalisations_knobs
 
-#normalisations_knobs
-
-| Name | Type | Default | Description |
-|:-----|:----:|:-------:|:------------|
-| aref | real | default_value | FIXME: Add documentation |
-| bref | real | default_value | FIXME: Add documentation |
-| mref | real | default_value | FIXME: Add documentation |
-| nref | real | default_value | FIXME: Add documentation |
-| rhoref | real | default_value | FIXME: Add documentation |
-| tref | real | default_value | FIXME: Add documentation |
-| vref | real | default_value | FIXME: Add documentation |
-| zref | real | default_value | FIXME: Add documentation |
+{!pages/namelists/normalisations_normalisations_knobs.txt!}

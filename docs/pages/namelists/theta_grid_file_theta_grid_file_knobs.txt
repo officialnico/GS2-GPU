@@ -1,0 +1,8 @@
+##theta_grid_file_knobs
+
+Used to represent the input configuration of theta_grid
+
+| Name | Type | Default | Description |
+|:-----|:----:|:-------:|:------------|
+| gridout_file | character(len = 2000) | "grid.out" | Name of file with output from rungridgen. |
+| no_geo_info | logical | .false. | Unknown |

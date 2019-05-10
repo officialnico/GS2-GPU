@@ -281,19 +281,19 @@ class config():
         with open(fileOut, 'w') as f:
             f.writelines(self.printAll())
 
-    def toMarkdownTable(self, forFord = False):
+    def toMarkdownTable(self):
         st = []
-        if forFord:
-            st.append("title: {namelist}".format(namelist=self.namelistName))
-            st.append("")
-        st.append("#{namelist}".format(namelist=self.namelistName))
+        st.append("##{namelist}".format(namelist=self.namelistName))
         st.append("")
+        st.append("\n".join(self.comment))
+        st.append("")        
         st.append("| Name | Type | Default | Description |")
         st.append("|:-----|:----:|:-------:|:------------|")
         varLine = "| {nm} | {ty} | {de} | {co} |"
         for var in self.varList:
             st.append(varLine.format(nm = var.name, ty = var.typ, de = var.default.split("!")[0], co = "|\n| | | |".join(var.comment)))
 
+        st.append("")
         return st
             
 def constructFromFile(fileIn=None, verbose=False):
@@ -427,13 +427,26 @@ if __name__ == "__main__":
     import sys
 
     probablyFiles = sys.argv[1:]
+    
+    with open("docs/pages/namelists/index.md", 'w') as ind:
+        ind.write("title: Namelists\n")
+        ind.write("\n")
+        ind.write("[TOC]\n")
+        ind.write("\n")        
+        for fil in probablyFiles:
+            tmp = constructFromFile(fileIn=fil)
+            if tmp is None: continue
+            for k, v in tmp.items():
+                print("Config '{k}' in file '{f}'".format(k=k,f=fil))
+                v.dumpToFile()
+                ff = "pages/namelists/"+v.moduleName+"_"+v.namelistName
+                fullf = "docs/"+ff
+                with open(fullf+".txt", 'w') as f:
+                    f.writelines("\n".join(v.toMarkdownTable()))
+                with open(fullf+".md", 'w') as f:
+                    f.write("title: {namelist}\n".format(namelist=v.namelistName))
+                    f.write("\n")
+                    f.write("{!"+ff+".txt"+"!}\n")
 
-    for fil in probablyFiles:
-        tmp = constructFromFile(fileIn=fil)
-        if tmp is None: continue
-        for k, v in tmp.items():
-            print("Config '{k}' in file '{f}'".format(k=k,f=fil))
-            v.dumpToFile()
-            ff = "docs/pages/namelists/"+v.moduleName+"_"+v.namelistName+".md"
-            with open(ff, 'w') as f:
-                f.writelines("\n".join(v.toMarkdownTable(forFord=True)))
+                ind.write("{!"+ff+".txt"+"!}\n")
+                ind.write("\n")

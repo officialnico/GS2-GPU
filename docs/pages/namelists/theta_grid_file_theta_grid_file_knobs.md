@@ -1,8 +1,3 @@
 title: theta_grid_file_knobs
 
-#theta_grid_file_knobs
-
-| Name | Type | Default | Description |
-|:-----|:----:|:-------:|:------------|
-| gridout_file | character(len = 2000) | "grid.out" | Name of file with output from rungridgen. |
-| no_geo_info | logical | .false. | Unknown |
+{!pages/namelists/theta_grid_file_theta_grid_file_knobs.txt!}

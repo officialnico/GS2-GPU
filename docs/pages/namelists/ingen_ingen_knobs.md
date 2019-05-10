@@ -1,10 +1,3 @@
 title: ingen_knobs
 
-#ingen_knobs
-
-| Name | Type | Default | Description |
-|:-----|:----:|:-------:|:------------|
-| ncut | integer | 100000 | FIXME: Add documentation |
-| npmax | integer | 100000      | FIXME: Add documentation |
-| scan | logical | .false. | FIXME: Add documentation |
-| stdin | logical | .true. | FIXME: Add documentation |
+{!pages/namelists/ingen_ingen_knobs.txt!}

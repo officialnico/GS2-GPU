@@ -1,0 +1,15 @@
+##theta_grid_gridgen_knobs
+
+Used to represent the input configuration of theta_grid_gridgen
+
+| Name | Type | Default | Description |
+|:-----|:----:|:-------:|:------------|
+| alknob | real | 0.0 | Unknown |
+| bpknob | real | 1.e-8 | Unknown |
+| deltaw | real | 0.0 | Unknown |
+| epsknob | real | 1e-5 | Unknown |
+| extrknob | real | 0.0 | Unknown |
+| npadd | integer | 2 | Unknown |
+| tension | real | 1.0 | Unknown |
+| thetamax | real | 0.0 | Unknown |
+| widthw | real | 1.0 | Unknown |

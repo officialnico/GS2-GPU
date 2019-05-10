@@ -1,0 +1,10 @@
+##kt_grids_specified_element
+
+Used to represent the input configuration of a specific specified
+wavenumber pair
+
+| Name | Type | Default | Description |
+|:-----|:----:|:-------:|:------------|
+| akx | real | 0.0 | FIXME: Add documentation |
+| aky | real | 0.4 | FIXME: Add documentation |
+| theta0 | real | 0.0 | FIXME: Add documentation |

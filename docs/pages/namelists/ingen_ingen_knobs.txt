@@ -1,0 +1,10 @@
+##ingen_knobs
+
+Used to represent the input configuration of ingen
+
+| Name | Type | Default | Description |
+|:-----|:----:|:-------:|:------------|
+| ncut | integer | 100000 | FIXME: Add documentation |
+| npmax | integer | 100000      | FIXME: Add documentation |
+| scan | logical | .false. | FIXME: Add documentation |
+| stdin | logical | .true. | FIXME: Add documentation |

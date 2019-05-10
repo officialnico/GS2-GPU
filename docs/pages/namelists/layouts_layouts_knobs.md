@@ -1,26 +1,3 @@
 title: layouts_knobs
 
-#layouts_knobs
-
-| Name | Type | Default | Description |
-|:-----|:----:|:-------:|:------------|
-| fft_measure_plan | logical | .true. | False=>use heuristics rather than measure in fft plan create |
-| fft_use_wisdom | logical | .true.  | Try to load and save wisdom about fftw plans to fft_wisdom_file |
-| fft_wisdom_file | character(len = run_name_size) | 'default' | Location of fftw wisdom... if left as default, this is set to|
-| | | |run_name//'.fftw_wisdom', unless overriden by the environment|
-| | | |variable GK_FFTW3_WISDOM. If set to anything other default,|
-| | | |overrides GK_FFTW3_WISDOM |
-| gf_local_fields | logical | .false. | FIXME: Add documentation |
-| intmom_sub | logical | .false. | FIXME: Add documentation |
-| intspec_sub | logical | .false. | FIXME: Add documentation |
-| layout | character(len = 5) | 'lxyes' | FIXME: Add documentation |
-| local_field_solve | logical | .false. | FIXME: Add documentation |
-| max_unbalanced_xxf | real | 0.0 | FIXME: Add documentation |
-| opt_local_copy | logical | .false.  | FIXME: Add documentation |
-| opt_redist_init | logical | .false. | True=>Use optimised routines to init redist objects |
-| opt_redist_nbk | logical | .true. | True=>Use nonblocking redistributes |
-| opt_redist_persist | logical | .false. | True=>Use persistent communications in redistributes |
-| opt_redist_persist_overlap | logical | .false. | True=>Start comms before doing local copy |
-| simple_gf_decomposition | logical | .true. | FIXME: Add documentation |
-| unbalanced_xxf | logical | .false. | FIXME: Add documentation |
-| unbalanced_yxf | logical | .false. | FIXME: Add documentation |
+{!pages/namelists/layouts_layouts_knobs.txt!}
