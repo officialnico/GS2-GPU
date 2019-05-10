@@ -595,8 +595,8 @@ F90FROMFPP = $(addprefix $(GENERATED_SRC_DIR)/, $(patsubst %.F90,%.f90,$(patsubs
 .PHONY: depend tar tar_exec test_make diagnostics simpledataio
 .PHONY: help TAGS
 .PHONY: clean cleanlib cleanconfig clean_coverage distclean unlink
-.PHONY: doc docs/html docs/graphs cleandoc check_ford_install
-.PHONY: doxygen_doc clean_doxygendoc sync_doc check_coderunner_install sync_input_doc
+.PHONY: doc docs/html docs/graphs cleandoc check_ford_install namelist_doc
+.PHONY: doxygen_doc clean_doxygendoc sync_doc check_coderunner_install sync_input_doc 
 
 # comment this out to keep intermediate .f90 files
 ifdef KEEP_PROCESSED
@@ -997,8 +997,14 @@ check_ford_install:
 	$(call messageInfo,"Ford command $(FORD) not in path -- is it installed?\\n\\tConsider installing with 'pip install --user ford' and add ${HOME}/.local/bin to PATH") ; which $(FORD)
 endif
 
+namelist_doc: PATHS:=$(foreach dir, $(SRCDIR) $(SUBDIRS), --path ${dir})
+namelist_doc: FILES:=$(shell $(GK_HEAD_DIR)/scripts/get_all_matching_files.py --pattern "*.[fF]??" ${PATHS} --absolute)
+namelist_doc:
+	$(call messageInfo, "Generating namelist documentation")
+	@$(GK_HEAD_DIR)/scripts/generate_namelist_documentation.py ${FILES}
+
 docs/html:
-doc: docs/docs.config.md check_ford_install
+doc: docs/docs.config.md namelist_doc  check_ford_install
 	$(FORD) $(subst -D,--macro ,$(MACRO_DEFS)) $(INCLUDES) -r $(GIT_HASH) $<
 
 cleandoc: docs/html docs/graphs

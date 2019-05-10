@@ -23,8 +23,6 @@ title: Namelists
 
 {!pages/namelists/hyper_hyper_knobs.txt!}
 
-{!pages/namelists/ballstab_ballstab_knobs.txt!}
-
 {!pages/namelists/layouts_layouts_knobs.txt!}
 
 {!pages/namelists/le_grids_le_grids_knobs.txt!}
@@ -63,10 +61,6 @@ title: Namelists
 
 {!pages/namelists/fields_fields_knobs.txt!}
 
-{!pages/namelists/new_gs2_diagnostics_gs2_diagnostics_knobs.txt!}
-
-{!pages/namelists/init_init_knobs.txt!}
-
 {!pages/namelists/run_parameters_knobs.txt!}
 
 {!pages/namelists/theta_grid_gridgen_theta_grid_gridgen_knobs.txt!}
@@ -80,5 +74,15 @@ title: Namelists
 {!pages/namelists/theta_grid_theta_grid_knobs.txt!}
 
 {!pages/namelists/optimisation_optimisation_config.txt!}
+
+{!pages/namelists/ballstab_ballstab_knobs.txt!}
+
+{!pages/namelists/new_gs2_diagnostics_gs2_diagnostics_knobs.txt!}
+
+{!pages/namelists/init_init_knobs.txt!}
+
+{!pages/namelists/ballstab_ballstab_knobs.txt!}
+
+{!pages/namelists/new_gs2_diagnostics_gs2_diagnostics_knobs.txt!}
 
 </div>
