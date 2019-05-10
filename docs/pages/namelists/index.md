@@ -1,5 +1,9 @@
 title: Namelists
 
+
+[TOC]
+
+
 <html><div class="divNamelistTable"></html>
 {!pages/namelists/theta_grid_parameters_theta_grid_parameters.txt!}
 

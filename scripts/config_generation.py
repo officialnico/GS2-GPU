@@ -431,6 +431,7 @@ if __name__ == "__main__":
     with open("docs/pages/namelists/index.md", 'w') as ind:
         ind.write("title: Namelists\n")
         ind.write("\n")
+        ind.write("\n[TOC]\n\n\n")        
         ind.write('<html><div class="divNamelistTable"></html>')
         ind.write("\n")        
         for fil in probablyFiles:

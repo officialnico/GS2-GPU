@@ -26,6 +26,7 @@ page_dir: ./pages
 exclude_dir: ../src/templates
 media_dir: ./media
 favicon: ./media/favicon.ico
+md_extensions: markdown.extensions.toc
 fpp_extensions: fpp
 fpp_extensions: F90
 predocmark: >
