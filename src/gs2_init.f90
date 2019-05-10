@@ -28,6 +28,8 @@
 !! Written by:
 !!            Edmund Highcock (edmundhighcock@users.sourceforge.net)
 module gs2_init
+  use abstract_config, only: abstract_config_type
+
   use overrides, only: miller_geometry_overrides_type
   use overrides, only: profiles_overrides_type
   use overrides, only: kt_grids_overrides_type
@@ -170,7 +172,23 @@ module gs2_init
 
   !complex, dimension(:,:,:), allocatable :: phi_tmp, apar_tmp, bpar_tmp
   !logical :: fields_and_dist_fn_saved = .false.
-  logical :: in_memory = .false.  
+  logical :: in_memory = .false.
+
+  
+  !> Used to represent the input configuration of init
+  type, extends(abstract_config_type) :: init_config_type
+     ! namelist : init_knobs
+     !> FIXME: Add documentation
+     logical :: in_memory = .false.
+   contains
+     procedure, public :: read => read_init_config
+     procedure, public :: write => write_init_config
+     procedure, public :: reset => reset_init_config
+     procedure, public :: broadcast => broadcast_init_config
+  end type init_config_type
+
+  type(init_config_type) :: config_internal  
+  
 contains
   !> Initialize gs2 to the level of target_level.
   !! The init_type current contains info
@@ -798,140 +816,28 @@ contains
 
   end subroutine init
 
-  subroutine init_gs2_init(current)
-    use file_utils, only: input_unit, input_unit_exist
-    use mp, only: proc0, broadcast
-    namelist /init_knobs/ in_memory
+  subroutine init_gs2_init(current, config_in)
+    implicit none
     type(init_type), intent(inout) :: current
-    integer :: in_file
+    type(init_config_type), intent(in), optional :: config_in
+
     logical :: exist
 
-    in_memory = .false.
-    if (proc0) then
-       in_file = input_unit_exist("init_knobs",exist)
-       if(exist) read (unit=in_file, nml=init_knobs)
-    endif
+    if (present(config_in)) config_internal = config_in
 
-    call broadcast(in_memory)
+    call config_internal%init(name = 'init_knobs', requires_index = .false.)
+
+    ! Copy out internal values into module level parameters
+    in_memory = config_internal%in_memory
+
+    exist = config_internal%exist
   end subroutine init_gs2_init
 
   subroutine finish_gs2_init(current)
     type(init_type), intent(inout) :: current
-    !if (fields_and_dist_fn_saved .and. in_memory) then
-    !call deallocate_saved_arrays
-    !end if
+    call config_internal%reset()
   end subroutine finish_gs2_init
 
-  !subroutine save_fields_and_dist_fn
-    !use dist_fn_arrays, only: gnew, g_restart_tmp
-    !use gs2_save, only: gs2_save_for_restart
-    !use mp, only: proc0, broadcast, mp_abort
-    !use collisions, only: vnmult
-    !use gs2_layouts, only: g_lo
-    !use theta_grid, only: ntgrid
-    !use file_utils, only: error_unit
-    !use kt_grids, only: ntheta0, naky
-    !use run_parameters, only: fphi, fapar, fbpar
-    !use fields, only:  force_maxwell_reinit
-    !use fields_arrays, only: phinew, aparnew, bparnew
-    !use gs2_time, only: user_time, user_dt
-    !use antenna, only: dump_ant_amp
-    !implicit none
-    !integer :: iostat
-    !integer :: istatus
-
-    !!write (*,*) 'save_fields_and_dist_fn in_memory', in_memory
-
-    !if (fields_and_dist_fn_saved) then 
-      !call mp_abort("ERROR: In save_fields_and_dist_fn &
-        !& fields_and_dist_fn_saved is .true. This means that &
-        !& save_fields_and_dist_fn has been called twice without &
-        !& reinitalising.", .true.)
-    !end if
-
-
-
-    !!If we want to do restarts in memory then try to allocate storage
-    !if(in_memory)then
-      !!Try to allocate storage to hold g
-      !allocate(g_restart_tmp(-ntgrid:ntgrid,2,g_lo%llim_proc:g_lo%ulim_alloc),stat=iostat)
-
-      !!If allocate failed
-      !if(iostat.ne.0)then
-        !!Disable in_memory flag
-        !in_memory=.false.
-        !!Print error message
-        !if (proc0) write(error_unit(), *) "Couldn't allocate temporary storage for g --> Reverting to file based restart"
-      !else
-        !!Copy into temporary
-        !g_restart_tmp=gnew
-      !endif
-
-      !!!!!
-      !!! NOW WE MAKE COPIES OF THE FIELDS
-      !!! --> Don't bother if force_maxwell_reinit as we're going to recalculate
-      !!!!!
-
-      !!Try to allocate storage to hold phi
-      !if(fphi.gt.0.and.(.not.force_maxwell_reinit).and.in_memory)then
-        !allocate(phi_tmp(-ntgrid:ntgrid,ntheta0,naky),stat=iostat)
-
-        !!If allocate failed
-        !if(iostat.ne.0)then
-          !!Disable in_memory flag
-          !in_memory=.false.
-          !!Print error message
-          !if (proc0) write(error_unit(), *) "Couldn't allocate temporary storage for phi --> Reverting to file based restart"
-        !else
-          !!Copy into temporary
-          !phi_tmp=phinew
-        !endif
-      !endif
-
-      !!Try to allocate storage to hold apar
-      !if(fapar.gt.0.and.(.not.force_maxwell_reinit).and.in_memory)then
-        !allocate(apar_tmp(-ntgrid:ntgrid,ntheta0,naky),stat=iostat)
-
-        !!If allocate failed
-        !if(iostat.ne.0)then
-          !!Disable in_memory flag
-          !in_memory=.false.
-          !!Print error message
-          !if (proc0) write(error_unit(), *) "Couldn't allocate temporary storage for apar --> Reverting to file based restart"
-        !else
-          !!Copy into temporary
-          !apar_tmp=aparnew
-        !endif
-      !endif
-
-      !!Try to allocate storage to hold bpar
-      !if(fbpar.gt.0.and.(.not.force_maxwell_reinit).and.in_memory)then
-        !allocate(bpar_tmp(-ntgrid:ntgrid,ntheta0,naky),stat=iostat)
-
-        !!If allocate failed
-        !if(iostat.ne.0)then
-          !!Disable in_memory flag
-          !in_memory=.false.
-          !!Print error message
-          !if (proc0) write(error_unit(), *) "Couldn't allocate temporary storage for bpar --> Reverting to file based restart"
-        !else
-          !!Copy into temporary
-          !bpar_tmp=bparnew
-        !endif
-      !endif
-
-    !endif
-
-    !if(.not.in_memory)then
-      !!Should really do this with in_memory=.true. as well but
-      !!not sure that we really need to as we never read in the dumped data.
-      !if (proc0) call dump_ant_amp
-
-      !call gs2_save_for_restart (gnew, user_time, user_dt, vnmult, istatus, fphi, fapar, fbpar)
-    !endif
-    !fields_and_dist_fn_saved = .true.
-
-  !end subroutine save_fields_and_dist_fn
   subroutine set_initial_field_and_dist_fn_values(current)
     use dist_fn_arrays, only: g, gnew
     use fields_arrays, only: phinew, aparnew, bparnew, phi, apar, bpar
@@ -991,12 +897,87 @@ contains
        end if
     end if
   end subroutine set_initial_field_and_dist_fn_values
-  !subroutine deallocate_saved_arrays 
-    !use dist_fn_arrays, only: g_restart_tmp
-    !if(allocated(g_restart_tmp)) deallocate(g_restart_tmp)
-    !if(allocated(phi_tmp)) deallocate(phi_tmp)
-    !if(allocated(apar_tmp)) deallocate(apar_tmp)
-    !if(allocated(bpar_tmp)) deallocate(bpar_tmp)
-  !end subroutine deallocate_saved_arrays
+
+  !---------------------------------------
+  ! Following is for the config_type
+  !---------------------------------------
+  
+  !> Reads in the init_knobs namelist and populates the member variables
+  subroutine read_init_config(self)
+    use file_utils, only: input_unit_exist, get_indexed_namelist_unit
+    use mp, only: proc0
+    implicit none
+    class(init_config_type), intent(in out) :: self
+    logical :: exist
+    integer :: in_file, iostat
+
+    ! Note: When this routine is in the module where these variables live
+    ! we shadow the module level variables here. This is intentional to provide
+    ! isolation and ensure we can move this routine to another module easily.    
+    logical :: in_memory
+
+    namelist /init_knobs/ in_memory
+
+    ! Only proc0 reads from file
+    if (.not. proc0) return
+
+    ! First set local variables from current values
+    in_memory = self%in_memory
+
+    ! Now read in the main namelist
+    if (self%requiresIndex) then
+       call get_indexed_namelist_unit(in_file, trim(self%name), self%index)
+       read(in_file, nml = init_knobs, iostat = iostat)
+       exist = .true.
+       if (iostat .ne.0) exist = .false.
+       close(unit = in_file, iostat = iostat)
+    else
+       in_file = input_unit_exist(self%name, exist)
+       if (exist) read(in_file, nml = init_knobs)
+    endif
+
+    ! Now copy from local variables into type members
+    self%in_memory = in_memory
+
+    self%exist = exist
+  end subroutine read_init_config
+
+  !> Writes out a namelist representing the current state of the config object
+  subroutine write_init_config(self, unit)
+    implicit none
+    class(init_config_type), intent(in) :: self
+    integer, intent(in) , optional:: unit
+    integer :: unit_internal
+
+    unit_internal = 6 ! @todo -- get stdout from file_utils
+    if (present(unit)) then
+       unit_internal = unit
+    endif
+
+    call self%write_namelist_header(unit_internal)
+    call self%write_key_val("in_memory", self%in_memory, unit_internal)
+    call self%write_namelist_footer(unit_internal)
+  end subroutine write_init_config
+
+  !> Resets the config object to the initial empty state
+  subroutine reset_init_config(self)
+    class(init_config_type), intent(in out) :: self
+    type(init_config_type) :: empty
+    select type (self)
+    type is (init_config_type)
+       self = empty
+    end select
+  end subroutine reset_init_config
+
+  !> Broadcasts all config parameters so object is populated identically on
+  !! all processors
+  subroutine broadcast_init_config(self)
+    use mp, only: broadcast
+    implicit none
+    class(init_config_type), intent(in out) :: self
+    call broadcast(self%in_memory)
+
+    call broadcast(self%exist)
+  end subroutine broadcast_init_config
 end module gs2_init
 
