@@ -1,7 +1,5 @@
 ##kt_grids_knobs
 
-Used to represent the input configuration of kt_grids
-
 | Name | Type | Default | Description |
 |:-----|:----:|:-------:|:------------|
 | grid_option | character(len = 20) | "default" | FIXME: Add documentation |

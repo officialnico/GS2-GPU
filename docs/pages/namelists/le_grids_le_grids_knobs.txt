@@ -1,7 +1,5 @@
 ##le_grids_knobs
 
-Used to represent the input configuration of le_grids
-
 | Name | Type | Default | Description |
 |:-----|:----:|:-------:|:------------|
 | bouncefuzz | real | 1e-5 | FIXME: Add documentation |

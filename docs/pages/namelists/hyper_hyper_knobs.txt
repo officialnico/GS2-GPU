@@ -1,7 +1,5 @@
 ##hyper_knobs
 
-Used to represent the input configuration of hyper
-
 | Name | Type | Default | Description |
 |:-----|:----:|:-------:|:------------|
 | const_amp | logical | .false. | FIXME: Add documentation |

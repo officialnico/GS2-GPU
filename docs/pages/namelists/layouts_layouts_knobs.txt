@@ -1,7 +1,5 @@
 ##layouts_knobs
 
-Used to represent the input configuration of layouts
-
 | Name | Type | Default | Description |
 |:-----|:----:|:-------:|:------------|
 | fft_measure_plan | logical | .true. | False=>use heuristics rather than measure in fft plan create |

@@ -1,7 +1,5 @@
 ##dist_fn_knobs
 
-Used to represent the input configuration of dist_fn
-
 | Name | Type | Default | Description |
 |:-----|:----:|:-------:|:------------|
 | adiabatic_option | character(len = 30) | 'default' | FIXME: Add documentation |

@@ -1,7 +1,5 @@
 ##parameter_scan_knobs
 
-Used to represent the input configuration of parameter_scan
-
 | Name | Type | Default | Description |
 |:-----|:----:|:-------:|:------------|
 | delta_t_inc | real | 0.0 | FIXME: Add documentation |

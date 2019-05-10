@@ -1,7 +1,5 @@
 ##reinit_knobs
 
-Used to represent the input configuration of reinit
-
 | Name | Type | Default | Description |
 |:-----|:----:|:-------:|:------------|
 | abort_rapid_time_step_change | logical | .true. | FIXME: Add documentation |

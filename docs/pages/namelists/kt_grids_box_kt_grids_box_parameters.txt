@@ -1,7 +1,5 @@
 ##kt_grids_box_parameters
 
-Used to represent the input configuration of kt_grids_box
-
 | Name | Type | Default | Description |
 |:-----|:----:|:-------:|:------------|
 | gryfx | logical | .false. | FIXME: Add documentation |

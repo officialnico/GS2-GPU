@@ -1,7 +1,5 @@
 ##theta_grid_eik_knobs
 
-Used to represent the input configuration of theta_grid
-
 | Name | Type | Default | Description |
 |:-----|:----:|:-------:|:------------|
 | alpha_input | real | 0.0 | Used in calculation of `dp_new = -alpha_input/qval**2/rmaj*drhodpsi`|

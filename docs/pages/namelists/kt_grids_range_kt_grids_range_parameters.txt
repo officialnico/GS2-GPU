@@ -1,7 +1,5 @@
 ##kt_grids_range_parameters
 
-Used to represent the input configuration of kt_grids_range
-
 | Name | Type | Default | Description |
 |:-----|:----:|:-------:|:------------|
 | akx_max | real | 0.0 | Max kx for periodic finite kx ballooning space runs with|

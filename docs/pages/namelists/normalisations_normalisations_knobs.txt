@@ -1,7 +1,5 @@
 ##normalisations_knobs
 
-Used to represent the input configuration of normalisations
-
 | Name | Type | Default | Description |
 |:-----|:----:|:-------:|:------------|
 | aref | real | default_value | FIXME: Add documentation |

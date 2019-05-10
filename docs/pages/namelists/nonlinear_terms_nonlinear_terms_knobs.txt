@@ -1,7 +1,5 @@
 ##nonlinear_terms_knobs
 
-Used to represent the input configuration of nonlinear_terms
-
 | Name | Type | Default | Description |
 |:-----|:----:|:-------:|:------------|
 | cfl | real | 0.1 | FIXME: Add documentation |

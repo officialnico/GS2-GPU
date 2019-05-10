@@ -1,7 +1,5 @@
 ##fields_knobs
 
-Used to represent the input configuration of fields
-
 | Name | Type | Default | Description |
 |:-----|:----:|:-------:|:------------|
 | do_smart_update | logical | .false. | FIXME: Add documentation |

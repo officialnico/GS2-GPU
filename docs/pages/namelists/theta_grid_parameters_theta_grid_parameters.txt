@@ -1,7 +1,5 @@
 ##theta_grid_parameters
 
-Used to represent the input configuration of theta_grid
-
 | Name | Type | Default | Description |
 |:-----|:----:|:-------:|:------------|
 | akappa | real | 1.0 | The flux surface elongation (only used when `geoType=0`, which selects the Generalised Miller analytic geometry specification). |

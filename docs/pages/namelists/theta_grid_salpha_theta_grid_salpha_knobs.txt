@@ -1,7 +1,5 @@
 ##theta_grid_salpha_knobs
 
-Used to represent the input configuration of theta_grid_salpha
-
 | Name | Type | Default | Description |
 |:-----|:----:|:-------:|:------------|
 | alpha1 | real | 0.0 | Coefficient in model when `model_option='alpha1'` has been selected. |

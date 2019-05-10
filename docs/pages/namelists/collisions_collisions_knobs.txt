@@ -1,7 +1,5 @@
 ##collisions_knobs
 
-Used to represent the input configuration of collisions
-
 | Name | Type | Default | Description |
 |:-----|:----:|:-------:|:------------|
 | adjust | logical | .true. | FIXME: Add documentation |

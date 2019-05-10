@@ -1,7 +1,5 @@
 ##kt_grids_single_parameters
 
-Used to represent the input configuration of kt_grids_single
-
 | Name | Type | Default | Description |
 |:-----|:----:|:-------:|:------------|
 | akx | real | 0.0 | kx rho (but set theta_0 instead.) |

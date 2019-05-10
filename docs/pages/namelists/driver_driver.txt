@@ -1,7 +1,5 @@
 ##driver
 
-Used to represent the input configuration of driver
-
 | Name | Type | Default | Description |
 |:-----|:----:|:-------:|:------------|
 | amplitude | real | 0.0 | FIXME: Add documentation |

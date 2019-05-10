@@ -1,7 +1,5 @@
 ##species_knobs
 
-Used to represent the input configuration of species
-
 | Name | Type | Default | Description |
 |:-----|:----:|:-------:|:------------|
 | me | real | -1.0 | FIXME: Add documentation |

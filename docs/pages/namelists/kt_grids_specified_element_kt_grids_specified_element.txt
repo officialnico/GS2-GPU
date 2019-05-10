@@ -1,8 +1,5 @@
 ##kt_grids_specified_element
 
-Used to represent the input configuration of a specific specified
-wavenumber pair
-
 | Name | Type | Default | Description |
 |:-----|:----:|:-------:|:------------|
 | akx | real | 0.0 | FIXME: Add documentation |

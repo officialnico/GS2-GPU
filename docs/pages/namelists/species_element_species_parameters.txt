@@ -1,7 +1,5 @@
 ##species_parameters
 
-Used to represent the input configuration of species
-
 | Name | Type | Default | Description |
 |:-----|:----:|:-------:|:------------|
 | bess_fac | real | 1.0 | FIXME: Add documentation |

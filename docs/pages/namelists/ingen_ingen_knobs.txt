@@ -1,7 +1,5 @@
 ##ingen_knobs
 
-Used to represent the input configuration of ingen
-
 | Name | Type | Default | Description |
 |:-----|:----:|:-------:|:------------|
 | ncut | integer | 100000 | FIXME: Add documentation |

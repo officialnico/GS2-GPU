@@ -1,7 +1,5 @@
 ##theta_grid_gridgen_knobs
 
-Used to represent the input configuration of theta_grid_gridgen
-
 | Name | Type | Default | Description |
 |:-----|:----:|:-------:|:------------|
 | alknob | real | 0.0 | Unknown |

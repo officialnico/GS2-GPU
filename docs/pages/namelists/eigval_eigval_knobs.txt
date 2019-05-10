@@ -1,7 +1,5 @@
 ##eigval_knobs
 
-Used to represent the input configuration of eigval
-
 | Name | Type | Default | Description |
 |:-----|:----:|:-------:|:------------|
 | extraction_option | character(len = 20) | 'default' | FIXME: Add documentation |

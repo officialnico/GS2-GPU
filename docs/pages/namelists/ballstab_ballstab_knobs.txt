@@ -1,7 +1,5 @@
 ##ballstab_knobs
 
-Used to represent the input configuration of ballstab
-
 | Name | Type | Default | Description |
 |:-----|:----:|:-------:|:------------|
 | beta_div | real | 1.0 | FIXME: Add documentation |

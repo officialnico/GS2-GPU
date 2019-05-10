@@ -1,7 +1,5 @@
 ##dist_fn_species_knobs
 
-Used to represent the input configuration of dist_fn_species
-
 | Name | Type | Default | Description |
 |:-----|:----:|:-------:|:------------|
 | bakdif | real | 0.0 | FIXME: Add documentation |

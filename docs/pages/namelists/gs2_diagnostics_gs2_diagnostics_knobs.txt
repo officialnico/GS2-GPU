@@ -1,7 +1,5 @@
 ##gs2_diagnostics_knobs
 
-Used to represent the input configuration of gs2_diagnostics
-
 | Name | Type | Default | Description |
 |:-----|:----:|:-------:|:------------|
 | conv_max_step | integer | 80000 | FIXME: Add documentation |

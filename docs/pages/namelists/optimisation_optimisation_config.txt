@@ -1,7 +1,5 @@
 ##optimisation_config
 
-Used to represent the input configuration of optimisation
-
 | Name | Type | Default | Description |
 |:-----|:----:|:-------:|:------------|
 | auto | logical | .true. | FIXME: Add documentation |

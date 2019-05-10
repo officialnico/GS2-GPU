@@ -285,8 +285,6 @@ class config():
         st = []
         st.append("##{namelist}".format(namelist=self.namelistName))
         st.append("")
-        st.append("\n".join(self.comment))
-        st.append("")        
         st.append("| Name | Type | Default | Description |")
         st.append("|:-----|:----:|:-------:|:------------|")
         varLine = "| {nm} | {ty} | {de} | {co} |"
@@ -444,6 +442,8 @@ if __name__ == "__main__":
                 with open(fullf+".md", 'w') as f:
                     f.write("title: {namelist}\n".format(namelist=v.namelistName))
                     f.write("\n")
+                    f.write("\n".join(v.comment))
+                    f.write("\n\n")
                     f.write("{!"+ff+".txt"+"!}\n")
 
                 ind.write("{!"+ff+".txt"+"!}\n")

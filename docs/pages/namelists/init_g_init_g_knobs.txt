@@ -1,7 +1,5 @@
 ##init_g_knobs
 
-Used to represent the input configuration of init_g
-
 | Name | Type | Default | Description |
 |:-----|:----:|:-------:|:------------|
 | a0 | real | 0.0 | FIXME: Add documentation |
