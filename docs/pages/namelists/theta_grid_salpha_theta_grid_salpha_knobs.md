@@ -1,0 +1,19 @@
+title: theta_grid_salpha_knobs
+
+#theta_grid_salpha_knobs
+
+| Name | Type | Default | Description |
+|:-----|:----:|:-------:|:------------|
+| alpha1 | real | 0.0 | Coefficient in model when `model_option='alpha1'` has been selected. |
+| alpmhdfac | real | 0.0 | Used in conjunction with `alpmhd` of [[theta_grid_parameters]] to override `shift`, set as `shift=−alpmhd∗alpmhdfac`. |
+| model_option | character(len = 20) | "default" | Sets the particular model for the magnetic field and related drifts. NB: All options have gbdrift = cvdrift except where noted.|
+| | | |'s-alpha' - High aspect ratio toroidal equilibrium|
+| | | |'default' - Same as 's-alpha'|
+| | | |'alpha1' - Mainly same as 's-alpha' but with different definition of bmag and bset|
+| | | |'rogers' - (aka. model_eps) From ingen output: "This model differs from the normal s-alpha model only in the curv and grad_B drifts." Indeed, cvdrift and gbdrift have an extra term, -(epsl*eps), while cvdrift0 and gbdrift0 are the same as 's-alpha'|
+| | | |'b2' - From ingen output: "This model differs from the normal s-alpha model by an additional factor of 1/B(theta)**2 in the curv and grad_B drifts." Definition of bmag is also different.|
+| | | |'normal_only' - Different definition of cvdrift (shat and shift terms removed) and cvdrift0 set to zero. Presumably this means that only the component of the curvature drift normal to the flux surface is retained while the component on the surface is 0. Useful for picking apart the effect of parameters on drifts and the effects of drifts on other quantities such as stability.|
+| | | |NB: For the final two options here ('const-curv' and 'no-curvature')|
+| | | |'const-curv' - From ingen output: "Constant curvature is assumed. The grad-B and curvature drifts are both = epsl", i.e. shape = 'cylinder' NB: in contradiction to ingen output, gbdrift is not equal to cvdrift since cvdrift = epsl but gbdrift = cvdrift*(1.-shift). However, gbdrift0 = cvdrift0 = 0.|
+| | | |'no-curvature' - From ingen output "Zero curvature is assumed", i.e. shape = 'slab'. NB: cvdrift = cvdrift0 = gbdrift0 = 0 but gbdrift is not 0 (gbdrift = epsl). NB: This does not yield the same result as cvdriftknob=0 in 's-alpha' model with non-zero epsl|
+| | | |(See also ingen output and contents of [[theta_grid.f90]] for further details |

@@ -1,0 +1,15 @@
+title: optimisation_config
+
+#optimisation_config
+
+| Name | Type | Default | Description |
+|:-----|:----:|:-------:|:------------|
+| auto | logical | .true. | FIXME: Add documentation |
+| estimate_timing_error | logical | .true. | FIXME: Add documentation |
+| max_imbalance | real | -1.0 | FIXME: Add documentation |
+| max_unused_procs | integer | 0 | FIXME: Add documentation |
+| measure_all | logical | .false. | FIXME: Add documentation |
+| min_efficiency | real | -1.0 | FIXME: Add documentation |
+| nstep_measure | integer | 5 | FIXME: Add documentation |
+| on | logical | .false. | FIXME: Add documentation |
+| warm_up | logical | .false. | FIXME: Add documentation |

@@ -1,0 +1,9 @@
+title: species_knobs
+
+#species_knobs
+
+| Name | Type | Default | Description |
+|:-----|:----:|:-------:|:------------|
+| me | real | -1.0 | FIXME: Add documentation |
+| nspec | integer | 2 | Number of kinetic species to evolve. |
+| zi_fac | real | -1.0 | FIXME: Add documentation |

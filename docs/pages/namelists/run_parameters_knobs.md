@@ -1,0 +1,35 @@
+title: knobs
+
+#knobs
+
+| Name | Type | Default | Description |
+|:-----|:----:|:-------:|:------------|
+| avail_cpu_time | real | 1.0e10 | The maximum wall clock time available to GS2 |
+| beta | real | 0.0 | \(\beta\) is the ratio of the reference pressure to the reference magnetic energy density, \(\beta=2\mu_0n_{ref}T_{ref}/B^2_{ref}\). |
+| delt | real | 0.1 | Initial timestep |
+| delt_option | character(len = 20) | 'default' | Determines how initial timestep is set |
+| do_eigsolve | logical | .false. | If true then use eigensolver instead of initial value solver. |
+| eqzip | logical | .false. | Advanced option to freeze evolution of certain modes |
+| eqzip_option | character(len = 20) | 'none' | What types of modes are frozen with eqzip |
+| fapar | real | 0.0 | Multiplies \(A_\|\) throughout. |
+| faperp | real | 0.0 | Deprecated |
+| fbpar | real | -1.0 | Multiplies \(B_\|\) throughout. |
+| fphi | real | 1.0 | Multiplies \(\phi\) throughout. |
+| harris | logical | .false. | Advanced |
+| immediate_reset | logical | .true. | Determines the behaviour when the CFL condition is broken in the nonlinear term: |
+| k0 | real | 1.0 | Unknown, only uses in [[init_g]] -- should be moved to init_g namelist. |
+| margin | real | 0.05 | Not used anywhere -- to be removed. |
+| margin_cpu_time | real | 300.0 | How close to avail_cpu_time can we go before trying to stop the run cleanly |
+| neo_test | logical | .false. | Lowflow only. |
+| nstep | integer | 100 | Maximum number of steps to take |
+| rhostar | real | 3.0e-3 | Normalised gyro-radius, only used for low flow builds |
+| secondary | logical | .true. | Advanced |
+| tertiary | logical | .false. | Advanced |
+| teti | real | -100.0 | Deprecated |
+| tite | real | 1.0 | Ratio of ion to electron temperature, only used when there is an adiabatic species |
+| trinity_linear_fluxes | logical | .false. | If true and running linearly, return linear diffusive flux estimates to Trinity. |
+| trinity_ql_fluxes | logical | .false. | Unknown |
+| use_old_diagnostics | logical | .false. | If true use original diagnostics rather than new form |
+| user_comments | character(len = 100000) | '' | Custom description of run to be added to netcdf output (new diagnostics only) |
+| wstar_units | logical | .false. | If true makes timestep proportional to ky*rho. Only sensible for linear runs. |
+| zeff | real | 1.0 | Effective ionic charge appearing in electron collision frequency |

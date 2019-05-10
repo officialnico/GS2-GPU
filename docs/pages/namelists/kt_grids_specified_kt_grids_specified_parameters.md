@@ -1,0 +1,10 @@
+title: kt_grids_specified_parameters
+
+#kt_grids_specified_parameters
+
+| Name | Type | Default | Description |
+|:-----|:----:|:-------:|:------------|
+| naky | integer | 1 | FIXME: Add documentation |
+| ntheta0 | integer | 1 | FIXME: Add documentation |
+| nx | integer | 0 | FIXME: Add documentation |
+| ny | integer | 0      | FIXME: Add documentation |
