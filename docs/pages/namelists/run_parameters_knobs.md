@@ -7,4 +7,8 @@ This actually involves two namelists, "parameters" and "knobs".
 implemented here by adding the contents of "parameters" to "knobs".
 This should be documented clearly. Eventually we should remove parameters
 
+<html><div class="divNamelistTable"></html>
+
 {!pages/namelists/run_parameters_knobs.txt!}
+
+</div>

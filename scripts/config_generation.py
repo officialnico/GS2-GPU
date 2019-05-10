@@ -446,8 +446,12 @@ if __name__ == "__main__":
                     f.write("\n")
                     f.write("\n".join(v.comment))
                     f.write("\n\n")
+                    f.write('<html><div class="divNamelistTable"></html>')
+                    f.write("\n\n")        
                     f.write("{!"+ff+".txt"+"!}\n")
-
+                    f.write("\n")                            
+                    f.write('</div>')
+                    
                 ind.write("{!"+ff+".txt"+"!}\n")
                 ind.write("\n")
         ind.write('</div>')
