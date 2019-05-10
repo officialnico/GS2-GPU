@@ -428,33 +428,9 @@ if __name__ == "__main__":
 
     probablyFiles = sys.argv[1:]
     
-    with open("docs/pages/namelists/index.md", 'w') as ind:
-        ind.write("title: Namelists\n")
-        ind.write("\n")
-        ind.write("\n[TOC]\n\n\n")        
-        ind.write('<html><div class="divNamelistTable"></html>')
-        ind.write("\n")        
-        for fil in probablyFiles:
-            tmp = constructFromFile(fileIn=fil)
-            if tmp is None: continue
-            for k, v in tmp.items():
-                print("Config '{k}' in file '{f}'".format(k=k,f=fil))
-                v.dumpToFile()
-                ff = "pages/namelists/"+v.moduleName+"_"+v.namelistName
-                fullf = "docs/"+ff
-                with open(fullf+".txt", 'w') as f:
-                    f.writelines("\n".join(v.toMarkdownTable()))
-                with open(fullf+".md", 'w') as f:
-                    f.write("title: {namelist}\n".format(namelist=v.namelistName))
-                    f.write("\n")
-                    f.write("\n".join(v.comment))
-                    f.write("\n\n")
-                    f.write('<html><div class="divNamelistTable"></html>')
-                    f.write("\n\n")        
-                    f.write("{!"+ff+".txt"+"!}\n")
-                    f.write("\n")                            
-                    f.write('</div>')
-                    
-                ind.write("{!"+ff+".txt"+"!}\n")
-                ind.write("\n")
-        ind.write('</div>')
+    for fil in probablyFiles:
+        tmp = constructFromFile(fileIn=fil)
+        if tmp is None: continue
+        for k, v in tmp.items():
+            print("Config '{k}' in file '{f}'".format(k=k,f=fil))
+            v.dumpToFile()
