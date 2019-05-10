@@ -56,7 +56,8 @@ pages:
     - master
     - next
     - micro/landing-page
-
+    - experimental/type_for_run_configuration
+    
 success:
   stage: ci_status
   before_script:
