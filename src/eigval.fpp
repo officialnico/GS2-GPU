@@ -35,6 +35,8 @@ module eigval
   public :: read_parameters, wnml_eigval, check_eigval
   public :: time_eigval
 
+  public :: eigval_config_type
+  
   !//////////////////
   !Slepc related configuration parameters
   !//////////////////

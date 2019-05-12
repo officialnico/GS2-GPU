@@ -30,6 +30,8 @@ module ingen_mod
   use file_utils, only: close_output_file, input_unit_exist, init_file_utils
   use file_utils, only: run_name
   implicit none
+
+  public :: ingen_config_type
   
   character (100) :: pythonin
   integer :: interactive_record, interactive_input

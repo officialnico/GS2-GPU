@@ -12,6 +12,8 @@ module optimisation_config
   public :: optimisation_type
   public :: optimisation_results_type
 
+  public :: optimisation_config_type
+  
   type optimisation_results_type
     ! Configuration
 

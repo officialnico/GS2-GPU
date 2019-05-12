@@ -15,6 +15,8 @@ module ballstab
   !Vars
   public :: stability
 
+  public :: ballstab_config_type
+  
   logical :: make_salpha
   integer :: n_shat, n_beta
   real :: shat_min, shat_max

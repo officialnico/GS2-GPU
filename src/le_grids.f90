@@ -184,6 +184,8 @@ module le_grids
   public :: integrate_species_sub !<DD>
   public :: hermite_prob
 
+  public :: le_grids_config_type
+  
   interface integrate_moment
      module procedure integrate_moment_c34
      module procedure integrate_moment_lec

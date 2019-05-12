@@ -12,6 +12,8 @@ module hyper
   public :: D_v, D_eta, nexp
   public :: hypervisc_filter
 
+  public :: hyper_config_type
+  
 ! D_v, D_eta are hyper coefficients, normalized correctly 
 ! i.e., either by unity or by 1/k_perp**2*nexp
 

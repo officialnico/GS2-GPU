@@ -15,6 +15,8 @@ module theta_grid_params
   public :: btor_slab, betaprim, ntheta, nperiod
   public :: set_overrides
 
+  public :: theta_grid_parameters_config_type
+  
   real :: rhoc, rmaj, r_geo, eps, epsl
   real :: qinp, shat, alpmhd, pk
   integer :: geoType, mMode, nMode

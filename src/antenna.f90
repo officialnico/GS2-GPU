@@ -36,6 +36,9 @@ module antenna
   public :: init_antenna_level_1, init_antenna_level_2
   public :: finish_antenna_level_1, finish_antenna_level_2
 
+  public :: driver_config_type
+  public :: stir_config_type
+  
   complex :: w_antenna
   complex, dimension(:), allocatable :: w_stir
   complex, dimension(:,:,:), allocatable :: apar_new, apar_old

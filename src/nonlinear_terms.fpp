@@ -20,6 +20,8 @@ module nonlinear_terms
   public :: cfl_req_hand, nb_check_time_step_too_large
   public :: nonlinear_terms_testing
 
+  public :: nonlinear_terms_config_type
+  
   !> Public type allowing tests to access otherwise-private routines
   type :: nonlinear_terms_testing
     contains

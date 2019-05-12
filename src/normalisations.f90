@@ -9,7 +9,8 @@ module normalisations
   public :: norms
   public :: init_normalisations, finish_normalisations
   public :: check_normalisations, wnml_normalisations
-
+  public :: normalisations_config_type
+  
   real, parameter :: default_value = -999.0
   
   !> Define a type to hold the set of normalisations, we

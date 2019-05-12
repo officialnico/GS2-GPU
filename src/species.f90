@@ -20,6 +20,9 @@ module species
   public :: calculate_f0_arrays, set_current_f0_species, eval_f0
   public :: nonmaxw_corr, f0_values, dlnf0drho
 
+  public :: species_config_type
+  public :: species_element_config_type
+  
   !> FIXME : Add documentation 
   type :: specie
      real :: z

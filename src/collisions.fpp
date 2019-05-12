@@ -27,6 +27,8 @@ module collisions
   public :: collision_model_lorentz, collision_model_none
   public :: collision_model_lorentz_test, collision_model_full
   public :: split_collisions
+
+  public :: collisions_config_type
   
   interface solfp1
      module procedure solfp1_le_layout

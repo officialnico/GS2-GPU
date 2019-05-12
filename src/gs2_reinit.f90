@@ -33,6 +33,8 @@ module gs2_reinit
   !! you are doing.
   public :: gs2_reinit_unit_test_set_in_memory
 
+  public :: reinit_config_type
+  
   real :: delt_adj, dt0
   real :: delt_cushion
   real :: delt_minimum 

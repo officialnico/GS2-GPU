@@ -24,6 +24,8 @@ module gs2_diagnostics
   public :: diffusivity
   public :: get_omegaavg
 
+  public :: gs2_diagnostics_config_type
+  
   interface get_vol_average
      module procedure get_vol_average_one, get_vol_average_all
   end interface get_vol_average

@@ -35,8 +35,10 @@ module run_parameters
   !! the new diagnostics module!
   public :: use_old_diagnostics
 
-
   public :: set_overrides
+
+  public :: knobs_config_type
+  public :: parameters_config_type
   
   real :: beta, zeff, tite
   real :: fphi, fapar, fbpar, faperp

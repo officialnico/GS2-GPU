@@ -28,6 +28,8 @@ module parameter_scan
   public :: target_parameter_hflux_tot, target_parameter_momflux_tot, target_parameter_phi2_tot
   public :: scan_restarted
 
+  public :: parameter_scan_config_type
+  
   logical :: scan_restarted
 
   integer :: target_parameter_switch, &

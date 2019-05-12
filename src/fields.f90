@@ -26,6 +26,8 @@ module fields
   !> Made public for replay
   public :: allocate_arrays
 
+  public :: fields_config_type
+  
   !> FIXME : Add documentation
   interface fieldlineavgphi
      module procedure fieldlineavgphi_loc

@@ -10,6 +10,8 @@ module theta_grid_gridgen
   public :: gridgen_get_grids
   public :: wnml_theta_grid_gridgen
 
+  public :: theta_grid_gridgen_config_type
+  
   ! knobs
   integer :: npadd
   real :: alknob, epsknob, bpknob, extrknob, tension
@@ -360,6 +362,8 @@ module theta_grid_salpha
   public :: salpha_get_sizes
   public :: salpha_get_grids
 
+  public :: theta_grid_salpha_config_type
+  
   ! knobs
   real :: alpmhdfac, alpha1
 
@@ -944,6 +948,8 @@ module theta_grid_eik
   public :: init_theta_grid_eik, finish_theta_grid_eik, check_theta_grid_eik, wnml_theta_grid_eik
   public :: eik_get_sizes, eik_get_grids
 
+  public :: theta_grid_eik_config_type
+  
   logical :: exist, initialized = .false.
 
   !> Used to represent the input configuration of theta_grid
@@ -1978,6 +1984,8 @@ module theta_grid_file
   public :: file_get_sizes, file_get_grids
   public :: ntheta, nperiod, ntgrid, nbset
 
+  public :: theta_grid_file_config_type
+  
   character (2000) :: gridout_file
   real :: shat_input, drhodpsi_input, kxfac_input, qval_input
   logical :: no_geo_info = .false.
@@ -2355,6 +2363,8 @@ module theta_grid
   public :: shape, gb_to_cv
   public :: initialized
 
+  public :: theta_grid_config_type
+  
   real, dimension (:), allocatable :: theta, theta2, delthet, delthet2
   real, dimension (:), allocatable :: bset
   real, dimension (:), allocatable :: bmag, gradpar

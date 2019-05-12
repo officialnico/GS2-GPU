@@ -18,6 +18,8 @@ module init_g
   private :: single_initial_kx
   public :: restart_file
 
+  public :: init_g_config_type
+  
   ! knobs
   integer :: ginitopt_switch
   integer, parameter :: ginitopt_default = 1,  &

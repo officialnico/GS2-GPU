@@ -11,6 +11,8 @@ module kt_grids_single
   public :: init_parameters_single
   public :: finish_parameters_single
 
+  public :: kt_grids_single_config_type
+  
   real :: akx, aky, theta0, rhostar_single
   integer :: n0
   logical :: parameters_read = .false.
@@ -259,6 +261,8 @@ module kt_grids_range
   public :: init_parameters_range
   public :: finish_parameters_range
 
+  public :: kt_grids_range_config_type  
+  
   integer :: naky, ntheta0, nn0, n0_min, n0_max
   real :: aky_min, aky_max, theta0_min, theta0_max
   real :: akx_min, akx_max, rhostar_range
@@ -767,6 +771,9 @@ module kt_grids_specified
   public :: init_kt_grids_specified, specified_get_sizes, specified_get_grids
   public :: check_kt_grids_specified, wnml_kt_grids_specified, finish_parameters_specified
 
+  public :: kt_grids_specified_config_type  
+  public :: kt_grids_specified_element_config_type
+  
   integer :: naky, ntheta0, nx, ny
 
   !> Used to represent the input configuration of kt_grids_specified
@@ -1140,6 +1147,8 @@ module kt_grids_box
   public :: x0, y0, jtwist !RN> Caution: these are not broadcasted!
   public :: gryfx
 
+  public :: kt_grids_box_config_type
+  
   real :: ly, y0, x0, rtwist, rhostar_box
   integer :: naky_private, ntheta0_private, nx_private, ny_private
   integer :: nkpolar_private, n0
@@ -1654,6 +1663,8 @@ module kt_grids
   public :: kwork_filter, kperp2
   public :: gryfx
 
+  public :: kt_grids_config_type
+  
   logical, dimension(:,:), allocatable :: kwork_filter
   real, dimension (:,:,:), allocatable :: kperp2
   real, dimension (:,:), allocatable :: theta0

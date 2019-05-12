@@ -94,6 +94,8 @@ module gs2_layouts
 
   public :: simple_gf_decomposition, gf_local_fields
 
+  public :: layouts_config_type
+  
   logical :: initialized_x_transform = .false.
   logical :: initialized_y_transform = .false.
   logical :: initialized_layouts = .false.

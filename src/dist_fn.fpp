@@ -102,6 +102,10 @@ module dist_fn
   public :: check_getan
   public :: calculate_flux_surface_average
 
+  public :: dist_fn_config_type
+  public :: dist_fn_species_config_type
+  public :: source_config_type
+  
   ! knobs
   complex, dimension (:), allocatable :: fexp ! (nspec)
   real, dimension (:), allocatable :: bkdiff  ! (nspec)

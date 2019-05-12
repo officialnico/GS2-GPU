@@ -72,7 +72,8 @@ module gs2_init
 
   public :: in_memory
 
-
+  public :: init_config_type
+  
   !> A type for labelling the different init
   !! levels available in gs2.
   type init_level_list_type
