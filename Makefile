@@ -717,6 +717,7 @@ ifdef USE_FFT
     gs2_mod += $(OBJDIR)/fft_save_wisdom.o
     ingen_mod += $(OBJDIR)/fft_save_wisdom.o
     generate_fftw_wisdom_mod += $(OBJDIR)/fft_save_wisdom.o
+    write_default_input_file_mod += $(OBJDIR)/fft_save_wisdom.o
 endif
 
 ifdef USE_C_INDEX
