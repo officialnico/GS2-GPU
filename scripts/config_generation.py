@@ -185,6 +185,9 @@ class config():
         st = "!> "+"\n!> ".join(self.comment)+"\n"
         st += self.startTypeString.format(module = self.moduleName) + "\n"
         st += typeIndent+"! namelist : "+self.namelistName + "\n"
+        indexStr = "False"
+        if self.requiresIndex: indexStr = "True"
+        st += typeIndent+"! indexed : "+indexStr + "\n"        
         st += "\n".join([str(x) for x in self.varList])
         st += self.boundString.format(module = self.moduleName, indent = typeIndent)
         st += "\n"+self.endTypeString.format(module = self.moduleName)
@@ -343,6 +346,7 @@ def constructFromFile(fileIn=None, verbose=False):
 
     declPattern = re.compile(r"""\s*(?P<dtype>(double precision|real|complex|logical|character|integer|type)+?)(?P<dtypeExtra>.*?)::\s*(?P<vname>[^\s=]*)\s*(=\s*(?P<default>.*))?""",re.VERBOSE)
     nmlPattern = re.compile(r"""\s*![^!>]\s*namelist\s*:\s*(?P<namelist>[^>\s]+)""", re.VERBOSE)
+    indexedPattern = re.compile(r"""\s*![^!>]\s*indexed\s*:\s*(?P<indexed>[^>\s]+)""", re.VERBOSE)    
     
     result = None
     theLines = OrderedDict()
@@ -355,6 +359,7 @@ def constructFromFile(fileIn=None, verbose=False):
         otherLines = []
         namelistName = 'ERROR'
         theComments = None
+        requiresIndex = False
         
         for line in f.readlines():
             if found:
@@ -384,17 +389,19 @@ def constructFromFile(fileIn=None, verbose=False):
                 if name != currName:
                     raise ValueError("Mismatched type names {a} and {b}".format(a=name, b=currName))
 
-                theConfigs[currName] = config(varList = theVars[currName], moduleName = currName, namelistName = namelistName, comment = theComments)
+                theConfigs[currName] = config(varList = theVars[currName], moduleName = currName, namelistName = namelistName, comment = theComments, requiresIndex = requiresIndex)
                 
                 found = False
                 currName = 'ERROR'
                 namelistName = 'ERROR'
                 theComments = None
+                requiresIndex = False
                 
             elif found:
                 # Currently inside type so work out what sort of line we have
                 declMatch = declPattern.match(line)
                 nmlMatch = nmlPattern.match(line)
+                indexedMatch = indexedPattern.match(line)                
                 
                 if declMatch is not None:
                     varComments = getComments(theLines[currName][:-1], stripCom = True)
@@ -406,6 +413,8 @@ def constructFromFile(fileIn=None, verbose=False):
                     theVars[currName].append(vv)
                 elif nmlMatch is not None:
                     namelistName = nmlMatch.group('namelist')
+                elif indexedMatch is not None:
+                    requiresIndex = indexedMatch.group('indexed').lower() == 'true'
                     
     if(len(theLines.keys())>0):
         result = theConfigs
