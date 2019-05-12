@@ -77,6 +77,7 @@ module ingen_mod
   !> Used to represent the input configuration of ingen
   type, extends(abstract_config_type) :: ingen_config_type
      ! namelist : ingen_knobs
+     ! indexed : false     
      !> FIXME: Add documentation
      integer :: ncut = 100000
      !> FIXME: Add documentation

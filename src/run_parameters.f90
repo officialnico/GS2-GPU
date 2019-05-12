@@ -76,6 +76,7 @@ module run_parameters
   !> Used to represent the input configuration of run_parameters through "knobs"
   type, extends(abstract_config_type) :: knobs_config_type
      ! namelist : knobs
+     ! indexed : false     
      !> The maximum wall clock time available to GS2
      real :: avail_cpu_time = 1.0e10
      !> \(\beta\) is the ratio of the reference pressure to the reference magnetic energy density, \(\beta=2\mu_0n_{ref}T_{ref}/B^2_{ref}\).
@@ -156,6 +157,7 @@ module run_parameters
   !! This should be documented clearly and eventually we should remove parameters
   type, extends(abstract_config_type) :: parameters_config_type
      ! namelist : parameters
+     ! indexed : false     
      !> \(\beta\) is the ratio of the reference pressure to the reference magnetic energy density, \(\beta=2\mu_0n_{ref}T_{ref}/B^2_{ref}\).
      real :: beta = 0.0
      !> Unknown, only uses in [[init_g]] -- should be moved to init_g namelist.

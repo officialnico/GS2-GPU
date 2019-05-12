@@ -154,6 +154,7 @@ module collisions
   !> Used to represent the input configuration of collisions
   type, extends(abstract_config_type) :: collisions_config_type
      ! namelist : collisions_knobs
+     ! indexed : false     
      !> FIXME: Add documentation
      logical :: adjust = .true.
      !> @note Default changed to include classical diffusion April 18 2006

@@ -61,6 +61,7 @@ module parameter_scan
   !> Used to represent the input configuration of parameter_scan
   type, extends(abstract_config_type) :: parameter_scan_config_type
      ! namelist : parameter_scan_knobs
+     ! indexed : false     
      !> FIXME: Add documentation
      real :: delta_t_inc = 0.0
      !> FIXME: Add documentation

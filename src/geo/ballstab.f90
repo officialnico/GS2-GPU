@@ -31,6 +31,7 @@ module ballstab
   !> Used to represent the input configuration of ballstab
   type, extends(abstract_config_type) :: ballstab_config_type
      ! namelist : ballstab_knobs
+     ! indexed : false     
      !> FIXME: Add documentation
      real :: beta_div = 1.0
      !> FIXME: Add documentation

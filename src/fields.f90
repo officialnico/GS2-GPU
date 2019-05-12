@@ -56,6 +56,7 @@ module fields
   !> Used to represent the input configuration of fields
   type, extends(abstract_config_type) :: fields_config_type
      ! namelist : fields_knobs
+     ! indexed : false     
      !> FIXME: Add documentation
      logical :: do_smart_update = .false.
      !> FIXME: Add documentation

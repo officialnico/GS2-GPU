@@ -83,6 +83,7 @@ module nonlinear_terms
   !> Used to represent the input configuration of nonlinear_terms
   type, extends(abstract_config_type) :: nonlinear_terms_config_type
      ! namelist : nonlinear_terms_knobs
+     ! indexed : false     
      !> FIXME: Add documentation
      real :: cfl = 0.1
      !> FIXME: Add documentation

@@ -149,6 +149,7 @@ module eigval
   !> Used to represent the input configuration of eigval
   type, extends(abstract_config_type) :: eigval_config_type
      ! namelist : eigval_knobs
+     ! indexed : false
      !> FIXME: Add documentation
      character(len = 20) :: extraction_option = 'default'
      !> FIXME: Add documentation

@@ -46,6 +46,7 @@ module gs2_reinit
   !> Used to represent the input configuration of reinit
   type, extends(abstract_config_type) :: reinit_config_type
      ! namelist : reinit_knobs
+     ! indexed : false
      !> FIXME: Add documentation
      logical :: abort_rapid_time_step_change = .true.
      !> FIXME: Add documentation

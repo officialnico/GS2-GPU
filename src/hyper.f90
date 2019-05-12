@@ -43,6 +43,7 @@ module hyper
   !> Used to represent the input configuration of hyper
   type, extends(abstract_config_type) :: hyper_config_type
      ! namelist : hyper_knobs
+     ! indexed : false     
      !> FIXME: Add documentation
      logical :: const_amp = .false.
      !> FIXME: Add documentation

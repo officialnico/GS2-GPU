@@ -20,6 +20,7 @@ module kt_grids_single
   !> Used to represent the input configuration of kt_grids_single
   type, extends(abstract_config_type) :: kt_grids_single_config_type
      ! namelist : kt_grids_single_parameters
+     ! indexed : false     
      !> kx rho (but set theta_0 instead.)
      real :: akx = 0.0
      !> \(k_y \rho\) for the reference species.
@@ -277,6 +278,7 @@ module kt_grids_range
   !> Used to represent the input configuration of kt_grids_range
   type, extends(abstract_config_type) :: kt_grids_range_config_type
      ! namelist : kt_grids_range_parameters
+     ! indexed : false     
      !> Max kx for periodic finite kx ballooning space runs with
      !> \(\hat{s}=0\).
      real :: akx_max = 0.0
@@ -779,6 +781,7 @@ module kt_grids_specified
   !> Used to represent the input configuration of kt_grids_specified
   type, extends(abstract_config_type) :: kt_grids_specified_config_type
      ! namelist : kt_grids_specified_parameters
+     ! indexed : false     
      !> FIXME: Add documentation
      integer :: naky = 1
      !> FIXME: Add documentation
@@ -800,6 +803,7 @@ module kt_grids_specified
   !> wavenumber pair
   type, extends(abstract_config_type) :: kt_grids_specified_element_config_type
      ! namelist : kt_grids_specified_element
+     ! indexed : true     
      !> FIXME: Add documentation
      real :: aky = 0.4
      !> FIXME: Add documentation
@@ -1160,6 +1164,7 @@ module kt_grids_box
   !> Used to represent the input configuration of kt_grids_box
   type, extends(abstract_config_type) :: kt_grids_box_config_type
      ! namelist : kt_grids_box_parameters
+     ! indexed : false     
      !> FIXME: Add documentation
      logical :: gryfx = .false.
      !> FIXME: Add documentation
@@ -1687,6 +1692,7 @@ module kt_grids
   !> Used to represent the input configuration of kt_grids
   type, extends(abstract_config_type) :: kt_grids_config_type
      ! namelist : kt_grids_knobs
+     ! indexed : false     
      !> FIXME: Add documentation     
      character(len = 20) :: grid_option = "default"
    contains

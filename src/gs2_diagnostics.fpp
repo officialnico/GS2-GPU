@@ -134,6 +134,7 @@ module gs2_diagnostics
   !> Used to represent the input configuration of gs2_diagnostics
   type, extends(abstract_config_type) :: gs2_diagnostics_config_type
      ! namelist : gs2_diagnostics_knobs
+     ! indexed : false     
      !> FIXME: Add documentation
      integer :: conv_max_step = 80000
      !> FIXME: Add documentation

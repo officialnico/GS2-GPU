@@ -234,6 +234,7 @@ module gs2_layouts
   !> Used to represent the input configuration of layouts
   type, extends(abstract_config_type) :: layouts_config_type
      ! namelist : layouts_knobs
+     ! indexed : false     
      !> False=>use heuristics rather than measure in fft plan create
      logical :: fft_measure_plan = .true.
      !> Try to load and save wisdom about fftw plans to fft_wisdom_file

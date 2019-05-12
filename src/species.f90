@@ -73,6 +73,7 @@ module species
   !> Used to represent the input configuration of species
   type, extends(abstract_config_type) :: species_config_type
      ! namelist : species_knobs
+     ! indexed : false     
      !> FIXME: Add documentation
      real :: me = -1.0
      !> Number of kinetic species to evolve.
@@ -91,6 +92,7 @@ module species
   !> Used to represent the input configuration of species
   type, extends(abstract_config_type) :: species_element_config_type
      ! namelist : species_parameters
+     ! indexed : true     
      !> FIXME: Add documentation
      real :: bess_fac = 1.0
      !> FIXME: Add documentation

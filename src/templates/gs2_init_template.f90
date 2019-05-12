@@ -148,6 +148,7 @@ module gs2_init
   !> Used to represent the input configuration of init
   type, extends(abstract_config_type) :: init_config_type
      ! namelist : init_knobs
+     ! indexed : false    
      !> FIXME: Add documentation
      logical :: in_memory = .false.
    contains

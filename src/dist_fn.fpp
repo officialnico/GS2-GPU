@@ -287,6 +287,7 @@ module dist_fn
   !> Used to represent the input configuration of dist_fn
   type, extends(abstract_config_type) :: dist_fn_config_type
      ! namelist : dist_fn_knobs
+     ! indexed : false     
      !> FIXME: Add documentation
      character(len = 30) :: adiabatic_option = 'default'
      !> FIXME: Add documentation
@@ -377,6 +378,7 @@ module dist_fn
   !> Used to represent the input configuration of source
   type, extends(abstract_config_type) :: source_config_type
      ! namelist : source_knobs
+     ! indexed : false     
      !> FIXME: Add documentation
      real :: gamma0 = 0.0
      !> FIXME: Add documentation
@@ -401,6 +403,7 @@ module dist_fn
   !> Used to represent the input configuration of dist_fn_species
   type, extends(abstract_config_type) :: dist_fn_species_config_type
      ! namelist : dist_fn_species_knobs
+     ! indexed : true     
      !> FIXME: Add documentation
      real :: bakdif = 0.0
      !> FIXME: Add documentation
@@ -7120,7 +7123,9 @@ endif
 
   end subroutine eexchange
 
-  !> FIXME : Add documentation  
+  !> FIXME : Add documentation
+  !!
+  !! @Warning This routine may only make sense when compiling with LOWFLOW on?
   subroutine lf_flux (phi, vflx0, vflx1)
     use species, only: nspec
     use theta_grid, only: ntgrid, bmag, gradpar, delthet

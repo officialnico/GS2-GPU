@@ -95,6 +95,7 @@ module init_g
   !> Used to represent the input configuration of init_g
   type, extends(abstract_config_type) :: init_g_config_type
      ! namelist : init_g_knobs
+     ! indexed : false     
      !> FIXME: Add documentation
      real :: a0 = 0.0
      !> FIXME: Add documentation

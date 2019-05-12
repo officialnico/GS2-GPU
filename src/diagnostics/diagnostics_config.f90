@@ -180,6 +180,7 @@ module diagnostics_config
   !> have a single diagnostics config type.
   type, extends(abstract_config_type) :: new_gs2_diagnostics_config_type
      ! namelist : gs2_diagnostics_knobs
+     ! indexed : false     
      !> If true, and a copy of the .out.nc already exists,
      !> open it and append to it. Obviously grid sizes must be
      !> unchanged.

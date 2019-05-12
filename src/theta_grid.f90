@@ -21,6 +21,7 @@ module theta_grid_gridgen
   !> Used to represent the input configuration of theta_grid_gridgen
   type, extends(abstract_config_type) :: theta_grid_gridgen_config_type
      ! namelist : theta_grid_gridgen_knobs
+     ! indexed : false     
      !> Unknown
      integer :: npadd = 2
      !> Unknown
@@ -378,6 +379,7 @@ module theta_grid_salpha
   !> Used to represent the input configuration of theta_grid_salpha
   type, extends(abstract_config_type) :: theta_grid_salpha_config_type
      ! namelist : theta_grid_salpha_knobs
+     ! indexed : false     
      !> Used in conjunction with `alpmhd` of [[theta_grid_parameters]] to override `shift`, set as `shift=−alpmhd∗alpmhdfac`.
      real :: alpmhdfac = 0.0
      !> Coefficient in model when `model_option='alpha1'` has been selected.
@@ -955,6 +957,7 @@ module theta_grid_eik
   !> Used to represent the input configuration of theta_grid
   type, extends(abstract_config_type) :: theta_grid_eik_config_type
      ! namelist : theta_grid_eik_knobs
+     ! indexed : false     
      !> Used in calculation of `dp_new = -alpha_input/qval**2/rmaj*drhodpsi`
      !> @note This gets a "smart" default.
      real :: alpha_input = 0.0
@@ -1994,7 +1997,8 @@ module theta_grid_file
 
   !> Used to represent the input configuration of theta_grid
   type, extends(abstract_config_type) :: theta_grid_file_config_type
-     ! namelist : theta_grid_file_knobs
+     ! namelist : theta_grid_file_knobs 
+     ! indexed : false    
      !> Name of file with output from rungridgen.
      character(len = 2000) :: gridout_file = "grid.out"
      !> Unknown
@@ -2388,6 +2392,7 @@ module theta_grid
   !> Used to represent the input configuration of theta_grid
   type, extends(abstract_config_type) :: theta_grid_config_type
      ! namelist : theta_grid_knobs
+     ! indexed : false     
      !> The equilibrium_option variable controls which geometric assumptions are used in the run. Additional namelists determine the geometric parameters according to the choice made here. Allowed values are:
      !> 'eik' Use routines from the geometry module, controlled mainly by the subsidiary namelists theta_grid_parameters and theta_grid_eik_knob. This includes options for Miller as well as a range of different numerical equilibrium file formats.
      !> 'default' Same as 'eik'

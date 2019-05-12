@@ -57,6 +57,7 @@ module antenna
   !> Used to represent the input configuration of driver
   type, extends(abstract_config_type) :: driver_config_type
      ! namelist : driver
+     ! indexed : false
      !> FIXME: Add documentation
      real :: amplitude = 0.0
      !> FIXME: Add documentation
@@ -85,6 +86,7 @@ module antenna
   !> Used to represent the input configuration of stir
   type, extends(abstract_config_type) :: stir_config_type
      ! namelist : stir
+     ! indexed : true     
      !> FIXME: Add documentation
      real :: a = -1.0
      !> FIXME: Add documentation

@@ -53,6 +53,7 @@ module optimisation_config
   !> Used to represent the input configuration of optimisation
   type, extends(abstract_config_type) :: optimisation_config_type
      ! namelist : optimisation_config
+     ! indexed : false     
      !> FIXME: Add documentation
      logical :: auto = .true.
      !> FIXME: Add documentation
