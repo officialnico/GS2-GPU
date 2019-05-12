@@ -106,6 +106,15 @@ subroutine broadcast_{module}_config(self)
   call broadcast(self%exist)
 end subroutine broadcast_{module}_config"""
 
+constructorSubString = """
+!> Sets the name and requiresIndex paremeters as appropriate
+function {module}_config_constructor()
+  implicit none
+  type({module}_config_type) :: {module}_config_constructor
+  {module}_config_constructor%name = "{namelist}"
+  {module}_config_constructor%requiresIndex = {requires_index}
+end function {module}_config_constructor"""
+
 class var():
     assignInString = "{instanceName}%{name} = {name}"
     assignOutString = "{name} = {instanceName}%{name}"
@@ -161,6 +170,11 @@ class config():
 {indent}procedure, public :: broadcast => broadcast_{module}_config"""
 
     instanceString  = "type({module}_config_type) :: {instance_name}" 
+
+    interfaceString = """
+interface {module}_config_type
+   procedure :: {module}_config_constructor
+end interface {module}_config_type"""
 
     subComment = """
 !---------------------------------------
@@ -243,6 +257,9 @@ class config():
     def instance(self, instance_name = "config_internal"):
         return self.instanceString.format(module = self.moduleName, instance_name = instance_name)
 
+    def constructorInterface(self):
+        return self.interfaceString.format(module = self.moduleName)
+    
     def readParams(self, **kwargs):
         req = ".false."
         if self.requiresIndex:
@@ -265,11 +282,16 @@ class config():
 
         return broadcastSubString.format(module = self.moduleName, BROADCAST_LIST = self.broadcastList(**kwargs))
     
+    def constructorConfig(self, **kwargs):
+        requiresIndex = ".false."
+        if self.requiresIndex: requiresIndex = ".true."
+        return constructorSubString.format(module = self.moduleName, namelist = self.namelistName, requires_index = requiresIndex)
 
     
     def printAll(self,**kwargs):
         st = []
         st.append(self.decl(**kwargs))
+        st.append("\n"+self.constructorInterface(**kwargs))        
         st.append("\n"+self.instance(**kwargs))
         st.append(self.readParams())        
         st.append(self.subComment)
@@ -277,6 +299,7 @@ class config():
         st.append(self.writeConfig())
         st.append(self.resetConfig())
         st.append(self.broadcastConfig())
+        st.append(self.constructorConfig())        
         return "\n".join(st)
 
     def dumpToFile(self,fileOut=None):
