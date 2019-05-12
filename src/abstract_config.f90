@@ -109,7 +109,7 @@ contains
     class(abstract_config_type), intent(in) :: self
     integer, intent(in) :: unit
     !Decide if we should include the index or not
-    if(self%index.ne.0) then
+    if(self%requiresIndex) then
        write(unit,'("&",A,"_",I0)') trim(self%name), self%index
     else
        write(unit,'("&",A)') trim(self%name)
