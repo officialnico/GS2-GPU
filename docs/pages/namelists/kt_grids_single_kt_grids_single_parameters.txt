@@ -1,9 +1,0 @@
-##kt_grids_single_parameters
-
-| Name | Type | Default | Description |
-|:-----|:----:|:-------:|:------------|
-| akx | real | 0.0 | kx rho (but set theta_0 instead.) |
-| aky | real | 0.4 | \(k_y \rho\) for the reference species. |
-| n0 | integer | 0 | if `n0`>0 use toroidal mode number to override `aky` and set `aky=n0*drhodpsi*rhostar_single` |
-| rhostar_single | real | 1.0e-4 | Used in conjunction with `n0`: `aky=n0*drhodpsi*rhostar_single` (if `n0` is set). |
-| theta0 | real | 0.0 | \(\theta_0\) is the ballooning angle, sets the point in \(\theta\) where the radial wavenumber is zero |
