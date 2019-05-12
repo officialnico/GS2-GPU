@@ -179,7 +179,7 @@ module gs2_init
   !> Used to represent the input configuration of init
   type, extends(abstract_config_type) :: init_config_type
      ! namelist : init_knobs
-     ! indexed : false     
+     ! indexed : false    
      !> FIXME: Add documentation
      logical :: in_memory = .false.
    contains
@@ -189,6 +189,10 @@ module gs2_init
      procedure, public :: broadcast => broadcast_init_config
   end type init_config_type
 
+  interface init_config_type
+     procedure :: init_config_constructor
+  end interface init_config_type
+  
   type(init_config_type) :: config_internal  
   
 contains
@@ -981,5 +985,13 @@ contains
 
     call broadcast(self%exist)
   end subroutine broadcast_init_config
+
+  !> Sets the name and requiresIndex paremeters as appropriate
+  function init_config_constructor()
+    implicit none
+    type(init_config_type) :: init_config_constructor
+    init_config_constructor%name = "init_knobs"
+    init_config_constructor%requiresIndex = .false.
+  end function init_config_constructor
 end module gs2_init
 

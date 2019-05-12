@@ -181,6 +181,10 @@ module eigval
      procedure, public :: broadcast => broadcast_eigval_config
   end type eigval_config_type
 
+  interface eigval_config_type
+     procedure :: eigval_config_constructor
+  end interface eigval_config_type
+
   type(eigval_config_type) :: config_internal
 
 contains
@@ -1354,6 +1358,14 @@ contains
 
     call broadcast(self%exist)
   end subroutine broadcast_eigval_config
+
+  !> Sets the name and requiresIndex paremeters as appropriate
+  function eigval_config_constructor()
+    implicit none
+    type(eigval_config_type) :: eigval_config_constructor
+    eigval_config_constructor%name = "eigval_knobs"
+    eigval_config_constructor%requiresIndex = .false.
+  end function eigval_config_constructor
 end module eigval
 
 #else

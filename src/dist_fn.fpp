@@ -373,6 +373,10 @@ module dist_fn
      procedure, public :: broadcast => broadcast_dist_fn_config
   end type dist_fn_config_type
 
+  interface dist_fn_config_type
+     procedure :: dist_fn_config_constructor
+  end interface dist_fn_config_type
+  
   type(dist_fn_config_type) :: config_internal
   
   !> Used to represent the input configuration of source
@@ -397,6 +401,10 @@ module dist_fn
      procedure, public :: reset => reset_source_config
      procedure, public :: broadcast => broadcast_source_config
   end type source_config_type
+  
+  interface source_config_type
+     procedure :: source_config_constructor
+  end interface source_config_type
 
   type(source_config_type) :: config_source_internal
 
@@ -418,6 +426,10 @@ module dist_fn
      procedure, public :: reset => reset_dist_fn_species_config
      procedure, public :: broadcast => broadcast_dist_fn_species_config
   end type dist_fn_species_config_type
+
+  interface dist_fn_species_config_type
+     procedure :: dist_fn_species_config_constructor
+  end interface dist_fn_species_config_type
 
   type(dist_fn_species_config_type), dimension(:), allocatable :: config_dist_fn_species_internal
   
@@ -10175,6 +10187,15 @@ endif
 
     call broadcast(self%exist)
   end subroutine broadcast_dist_fn_config
+  
+  !> Sets the name and requiresIndex paremeters as appropriate
+  function dist_fn_config_constructor()
+    implicit none
+    type(dist_fn_config_type) :: dist_fn_config_constructor
+    dist_fn_config_constructor%name = "dist_fn_knobs"
+    dist_fn_config_constructor%requiresIndex = .false.
+  end function dist_fn_config_constructor
+  
   !---------------------------------------
   ! Following is for the source config_type
   !---------------------------------------
@@ -10278,6 +10299,14 @@ endif
     call broadcast(self%exist)
   end subroutine broadcast_source_config
 
+  !> Sets the name and requiresIndex paremeters as appropriate
+  function source_config_constructor()
+    implicit none
+    type(source_config_type) :: source_config_constructor
+    source_config_constructor%name = "source_knobs"
+    source_config_constructor%requiresIndex = .false.
+  end function source_config_constructor
+
   !---------------------------------------
   ! Following is for the dist_fn_species config_type
   !---------------------------------------
@@ -10372,4 +10401,12 @@ endif
 
     call broadcast(self%exist)
   end subroutine broadcast_dist_fn_species_config
+
+  !> Sets the name and requiresIndex paremeters as appropriate
+  function dist_fn_species_config_constructor()
+    implicit none
+    type(dist_fn_species_config_type) :: dist_fn_species_config_constructor
+    dist_fn_species_config_constructor%name = "dist_fn_species_knobs"
+    dist_fn_species_config_constructor%requiresIndex = .true.
+  end function dist_fn_species_config_constructor
 end module dist_fn

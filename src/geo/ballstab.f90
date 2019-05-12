@@ -55,6 +55,10 @@ module ballstab
      procedure, public :: broadcast => broadcast_ballstab_config
   end type ballstab_config_type
 
+  interface ballstab_config_type
+     procedure :: ballstab_config_constructor
+  end interface ballstab_config_type
+
   type(ballstab_config_type) :: config_internal
   
 contains
@@ -637,4 +641,12 @@ contains
 
     call broadcast(self%exist)
   end subroutine broadcast_ballstab_config
+  
+  !> Sets the name and requiresIndex paremeters as appropriate
+  function ballstab_config_constructor()
+    implicit none
+    type(ballstab_config_type) :: ballstab_config_constructor
+    ballstab_config_constructor%name = "ballstab_knobs"
+    ballstab_config_constructor%requiresIndex = .false.
+  end function ballstab_config_constructor
 end module ballstab

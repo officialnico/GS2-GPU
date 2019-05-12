@@ -66,6 +66,10 @@ module gs2_reinit
      procedure, public :: broadcast => broadcast_reinit_config
   end type reinit_config_type
 
+  interface reinit_config_type
+     procedure :: reinit_config_constructor
+  end interface reinit_config_type
+
   type(reinit_config_type) :: config_internal  
 contains
 
@@ -396,5 +400,13 @@ contains
 
     call broadcast(self%exist)
   end subroutine broadcast_reinit_config
+
+  !> Sets the name and requiresIndex paremeters as appropriate
+  function reinit_config_constructor()
+    implicit none
+    type(reinit_config_type) :: reinit_config_constructor
+    reinit_config_constructor%name = "reinit_knobs"
+    reinit_config_constructor%requiresIndex = .false.
+  end function reinit_config_constructor
 end module gs2_reinit
 

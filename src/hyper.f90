@@ -73,6 +73,10 @@ module hyper
      procedure, public :: broadcast => broadcast_hyper_config
   end type hyper_config_type
 
+  interface hyper_config_type
+     procedure :: hyper_config_constructor
+  end interface hyper_config_type
+
   type(hyper_config_type) :: config_internal
   
 contains
@@ -748,4 +752,12 @@ contains
 
     call broadcast(self%exist)
   end subroutine broadcast_hyper_config
+
+  !> Sets the name and requiresIndex paremeters as appropriate
+  function hyper_config_constructor()
+    implicit none
+    type(hyper_config_type) :: hyper_config_constructor
+    hyper_config_constructor%name = "hyper_knobs"
+    hyper_config_constructor%requiresIndex = .false.
+  end function hyper_config_constructor
 end module hyper

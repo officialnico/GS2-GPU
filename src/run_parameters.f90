@@ -147,6 +147,10 @@ module run_parameters
      procedure, public :: reset => reset_knobs_config
      procedure, public :: broadcast => broadcast_knobs_config
   end type knobs_config_type
+
+  interface knobs_config_type
+     procedure :: knobs_config_constructor
+  end interface knobs_config_type
   
   type(knobs_config_type) :: config_internal
 
@@ -179,6 +183,10 @@ module run_parameters
      procedure, public :: broadcast => broadcast_parameters_config
   end type parameters_config_type
 
+  interface parameters_config_type
+     procedure :: parameters_config_constructor
+  end interface parameters_config_type
+  
   type(parameters_config_type) :: config_parameters_internal
 
 contains
@@ -786,6 +794,14 @@ contains
     call broadcast(self%exist)
   end subroutine broadcast_knobs_config
 
+  !> Sets the name and requiresIndex paremeters as appropriate
+  function knobs_config_constructor()
+    implicit none
+    type(knobs_config_type) :: knobs_config_constructor
+    knobs_config_constructor%name = "knobs"
+    knobs_config_constructor%requiresIndex = .false.
+  end function knobs_config_constructor
+  
   !---------------------------------------
   ! Following is for the parameters config_type
   !---------------------------------------
@@ -892,4 +908,12 @@ contains
 
     call broadcast(self%exist)
   end subroutine broadcast_parameters_config
+  
+  !> Sets the name and requiresIndex paremeters as appropriate
+  function parameters_config_constructor()
+    implicit none
+    type(parameters_config_type) :: parameters_config_constructor
+    parameters_config_constructor%name = "parameters"
+    parameters_config_constructor%requiresIndex = .false.
+  end function parameters_config_constructor
 end module run_parameters

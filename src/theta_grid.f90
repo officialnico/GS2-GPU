@@ -47,6 +47,10 @@ module theta_grid_gridgen
      procedure, public :: broadcast => broadcast_theta_grid_gridgen_config
   end type theta_grid_gridgen_config_type
 
+  interface theta_grid_gridgen_config_type
+     procedure :: theta_grid_gridgen_config_constructor
+  end interface theta_grid_gridgen_config_type
+  
   type(theta_grid_gridgen_config_type) :: config_internal
 
 contains
@@ -348,6 +352,13 @@ if (debug) write(6,*) 'gridgen_get_grids: end'
     call broadcast(self%exist)
   end subroutine broadcast_theta_grid_gridgen_config
 
+  !> Sets the name and requiresIndex paremeters as appropriate
+  function theta_grid_gridgen_config_constructor()
+    implicit none
+    type(theta_grid_gridgen_config_type) :: theta_grid_gridgen_config_constructor
+    theta_grid_gridgen_config_constructor%name = "theta_grid_gridgen_knobs"
+    theta_grid_gridgen_config_constructor%requiresIndex = .false.
+  end function theta_grid_gridgen_config_constructor
 end module theta_grid_gridgen
 
 !> FIXME : Add documentation
@@ -403,6 +414,10 @@ module theta_grid_salpha
      procedure, public :: broadcast => broadcast_theta_grid_salpha_config
   end type theta_grid_salpha_config_type
 
+  interface theta_grid_salpha_config_type
+     procedure :: theta_grid_salpha_config_constructor
+  end interface theta_grid_salpha_config_type
+  
   type(theta_grid_salpha_config_type) :: config_internal
   
 contains
@@ -937,6 +952,14 @@ contains
 
     call broadcast(self%exist)
   end subroutine broadcast_theta_grid_salpha_config
+
+  !> Sets the name and requiresIndex paremeters as appropriate
+  function theta_grid_salpha_config_constructor()
+    implicit none
+    type(theta_grid_salpha_config_type) :: theta_grid_salpha_config_constructor
+    theta_grid_salpha_config_constructor%name = "theta_grid_salpha_knobs"
+    theta_grid_salpha_config_constructor%requiresIndex = .false.
+  end function theta_grid_salpha_config_constructor
 end module theta_grid_salpha
 
 !> FIXME : Add documentation
@@ -1050,6 +1073,10 @@ module theta_grid_eik
      procedure, public :: broadcast => broadcast_theta_grid_eik_config
   end type theta_grid_eik_config_type
 
+  interface theta_grid_eik_config_type
+     procedure :: theta_grid_eik_config_constructor
+  end interface theta_grid_eik_config_type
+  
   type(theta_grid_eik_config_type) :: config_internal
   
 contains
@@ -1972,6 +1999,14 @@ contains
 
     call broadcast(self%exist)
   end subroutine broadcast_theta_grid_eik_config
+  
+  !> Sets the name and requiresIndex paremeters as appropriate
+  function theta_grid_eik_config_constructor()
+    implicit none
+    type(theta_grid_eik_config_type) :: theta_grid_eik_config_constructor
+    theta_grid_eik_config_constructor%name = "theta_grid_eik_knobs"
+    theta_grid_eik_config_constructor%requiresIndex = .false.
+  end function theta_grid_eik_config_constructor
 end module theta_grid_eik
 
 !> FIXME : Add documentation
@@ -2010,6 +2045,10 @@ module theta_grid_file
      procedure, public :: broadcast => broadcast_theta_grid_file_config
   end type theta_grid_file_config_type
 
+  interface theta_grid_file_config_type
+     procedure :: theta_grid_file_config_constructor
+  end interface theta_grid_file_config_type
+  
   type(theta_grid_file_config_type) :: config_internal
   
 contains
@@ -2343,6 +2382,14 @@ contains
 
     call broadcast(self%exist)
   end subroutine broadcast_theta_grid_file_config
+
+  !> Sets the name and requiresIndex paremeters as appropriate
+  function theta_grid_file_config_constructor()
+    implicit none
+    type(theta_grid_file_config_type) :: theta_grid_file_config_constructor
+    theta_grid_file_config_constructor%name = "theta_grid_file_knobs"
+    theta_grid_file_config_constructor%requiresIndex = .false.
+  end function theta_grid_file_config_constructor
 end module theta_grid_file
 
 !> FIXME : Add documentation
@@ -2412,6 +2459,10 @@ module theta_grid
      procedure, public :: reset => reset_theta_grid_config
      procedure, public :: broadcast => broadcast_theta_grid_config
   end type theta_grid_config_type
+  
+  interface theta_grid_config_type
+     procedure :: theta_grid_config_constructor
+  end interface theta_grid_config_type
 
   type(theta_grid_config_type) :: config_internal
   
@@ -3032,6 +3083,14 @@ if (debug) write(6,*) 'get_grids: call file_get_grids'
 
     call broadcast(self%exist)
   end subroutine broadcast_theta_grid_config
+  
+  !> Sets the name and requiresIndex paremeters as appropriate
+  function theta_grid_config_constructor()
+    implicit none
+    type(theta_grid_config_type) :: theta_grid_config_constructor
+    theta_grid_config_constructor%name = "theta_grid_knobs"
+    theta_grid_config_constructor%requiresIndex = .false.
+  end function theta_grid_config_constructor
 end module theta_grid
 
 

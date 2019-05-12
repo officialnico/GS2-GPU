@@ -249,6 +249,10 @@ module collisions
      procedure, public :: broadcast => broadcast_collisions_config
   end type collisions_config_type
 
+  interface collisions_config_type
+     procedure :: collisions_config_constructor
+  end interface collisions_config_type
+
   type(collisions_config_type) :: config_internal  
 contains
   
@@ -4443,5 +4447,13 @@ contains
 
     call broadcast(self%exist)
   end subroutine broadcast_collisions_config
+
+  !> Sets the name and requiresIndex paremeters as appropriate
+  function collisions_config_constructor()
+    implicit none
+    type(collisions_config_type) :: collisions_config_constructor
+    collisions_config_constructor%name = "collisions_knobs"
+    collisions_config_constructor%requiresIndex = .false.
+  end function collisions_config_constructor
 end module collisions
 

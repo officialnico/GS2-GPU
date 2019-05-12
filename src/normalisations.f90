@@ -82,6 +82,10 @@ module normalisations
      procedure, public :: broadcast => broadcast_normalisations_config
   end type normalisations_config_type
 
+  interface normalisations_config_type
+     procedure :: normalisations_config_constructor
+  end interface normalisations_config_type
+  
   type(normalisations_config_type) :: config_internal
 contains
   !/////////////////////////////
@@ -443,4 +447,12 @@ contains
 
     call broadcast(self%exist)
   end subroutine broadcast_normalisations_config
+
+  !> Sets the name and requiresIndex paremeters as appropriate
+  function normalisations_config_constructor()
+    implicit none
+    type(normalisations_config_type) :: normalisations_config_constructor
+    normalisations_config_constructor%name = "normalisations_knobs"
+    normalisations_config_constructor%requiresIndex = .false.
+  end function normalisations_config_constructor
 end module normalisations

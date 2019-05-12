@@ -90,6 +90,10 @@ module fields
      procedure, public :: broadcast => broadcast_fields_config
   end type fields_config_type
 
+  interface fields_config_type
+     procedure :: fields_config_constructor
+  end interface fields_config_type
+  
   type(fields_config_type) :: config_internal  
 contains
 
@@ -863,4 +867,12 @@ contains
 
     call broadcast(self%exist)
   end subroutine broadcast_fields_config
+
+  !> Sets the name and requiresIndex paremeters as appropriate
+  function fields_config_constructor()
+    implicit none
+    type(fields_config_type) :: fields_config_constructor
+    fields_config_constructor%name = "fields_knobs"
+    fields_config_constructor%requiresIndex = .false.
+  end function fields_config_constructor
 end module fields

@@ -111,6 +111,10 @@ module nonlinear_terms
      procedure, public :: broadcast => broadcast_nonlinear_terms_config
   end type nonlinear_terms_config_type
 
+  interface nonlinear_terms_config_type
+     procedure :: nonlinear_terms_config_constructor
+  end interface nonlinear_terms_config_type
+
   type(nonlinear_terms_config_type) :: config_internal
   
 contains
@@ -1118,6 +1122,14 @@ contains
 
     call broadcast(self%exist)
   end subroutine broadcast_nonlinear_terms_config
+
+  !> Sets the name and requiresIndex paremeters as appropriate
+  function nonlinear_terms_config_constructor()
+    implicit none
+    type(nonlinear_terms_config_type) :: nonlinear_terms_config_constructor
+    nonlinear_terms_config_constructor%name = "nonlinear_terms_knobs"
+    nonlinear_terms_config_constructor%requiresIndex = .false.
+  end function nonlinear_terms_config_constructor
 end module nonlinear_terms
 
 

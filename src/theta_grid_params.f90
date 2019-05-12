@@ -276,6 +276,10 @@ module theta_grid_params
      procedure, public :: broadcast => broadcast_theta_grid_parameters_config
   end type theta_grid_parameters_config_type
 
+  interface theta_grid_parameters_config_type
+     procedure :: theta_grid_parameters_config_constructor
+  end interface theta_grid_parameters_config_type
+  
   type(theta_grid_parameters_config_type) :: config_internal
   
 contains
@@ -795,4 +799,12 @@ contains
 
     call broadcast(self%exist)
   end subroutine broadcast_theta_grid_parameters_config
+  
+  !> Sets the name and requiresIndex paremeters as appropriate
+  function theta_grid_parameters_config_constructor()
+    implicit none
+    type(theta_grid_parameters_config_type) :: theta_grid_parameters_config_constructor
+    theta_grid_parameters_config_constructor%name = "theta_grid_parameters"
+    theta_grid_parameters_config_constructor%requiresIndex = .false.
+  end function theta_grid_parameters_config_constructor
 end module theta_grid_params

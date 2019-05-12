@@ -41,6 +41,10 @@ module kt_grids_single
      procedure, public :: broadcast => broadcast_kt_grids_single_config
   end type kt_grids_single_config_type
 
+  interface kt_grids_single_config_type
+     procedure :: kt_grids_single_config_constructor
+  end interface kt_grids_single_config_type
+  
   type(kt_grids_single_config_type) :: config_internal
   
 contains
@@ -246,6 +250,14 @@ contains
 
     call broadcast(self%exist)
   end subroutine broadcast_kt_grids_single_config
+
+  !> Sets the name and requiresIndex paremeters as appropriate
+  function kt_grids_single_config_constructor()
+    implicit none
+    type(kt_grids_single_config_type) :: kt_grids_single_config_constructor
+    kt_grids_single_config_constructor%name = "kt_grids_single_parameters"
+    kt_grids_single_config_constructor%requiresIndex = .false.
+  end function kt_grids_single_config_constructor
 end module kt_grids_single
 
 !> Set up ranges of kx and ky for linear runs.
@@ -325,6 +337,10 @@ module kt_grids_range
      procedure, public :: broadcast => broadcast_kt_grids_range_config
   end type kt_grids_range_config_type
 
+  interface kt_grids_range_config_type
+     procedure :: kt_grids_range_config_constructor
+  end interface kt_grids_range_config_type
+  
   type(kt_grids_range_config_type) :: config_internal
   
 contains
@@ -760,6 +776,13 @@ contains
     call broadcast(self%exist)
   end subroutine broadcast_kt_grids_range_config
 
+  !> Sets the name and requiresIndex paremeters as appropriate
+  function kt_grids_range_config_constructor()
+    implicit none
+    type(kt_grids_range_config_type) :: kt_grids_range_config_constructor
+    kt_grids_range_config_constructor%name = "kt_grids_range_parameters"
+    kt_grids_range_config_constructor%requiresIndex = .false.
+  end function kt_grids_range_config_constructor
 end module kt_grids_range
 
 !> Set up sets of (kx, ky) values for linear runs.
@@ -797,6 +820,10 @@ module kt_grids_specified
      procedure, public :: broadcast => broadcast_kt_grids_specified_config
   end type kt_grids_specified_config_type
 
+  interface kt_grids_specified_config_type
+     procedure :: kt_grids_specified_config_constructor
+  end interface kt_grids_specified_config_type
+  
   type(kt_grids_specified_config_type) :: config_internal
 
   !> Used to represent the input configuration of a specific specified
@@ -817,6 +844,10 @@ module kt_grids_specified
      procedure, public :: broadcast => broadcast_kt_grids_specified_element_config
   end type kt_grids_specified_element_config_type
 
+  interface kt_grids_specified_element_config_type
+     procedure :: kt_grids_specified_element_config_constructor
+  end interface kt_grids_specified_element_config_type
+  
   type(kt_grids_specified_element_config_type), dimension(:), allocatable :: config_internal_elements
   
 contains
@@ -1043,7 +1074,15 @@ contains
 
     call broadcast(self%exist)
   end subroutine broadcast_kt_grids_specified_config
-
+  
+  !> Sets the name and requiresIndex paremeters as appropriate
+  function kt_grids_specified_config_constructor()
+    implicit none
+    type(kt_grids_specified_config_type) :: kt_grids_specified_config_constructor
+    kt_grids_specified_config_constructor%name = "kt_grids_specified_parameters"
+    kt_grids_specified_config_constructor%requiresIndex = .false.
+  end function kt_grids_specified_config_constructor
+  
   !---------------------------------------
   ! Following is for the config_type
   !---------------------------------------
@@ -1133,6 +1172,14 @@ contains
 
     call broadcast(self%exist)
   end subroutine broadcast_kt_grids_specified_element_config
+
+  !> Sets the name and requiresIndex paremeters as appropriate
+  function kt_grids_specified_element_config_constructor()
+    implicit none
+    type(kt_grids_specified_element_config_type) :: kt_grids_specified_element_config_constructor
+    kt_grids_specified_element_config_constructor%name = "kt_grids_specified_element"
+    kt_grids_specified_element_config_constructor%requiresIndex = .true.
+  end function kt_grids_specified_element_config_constructor
 end module kt_grids_specified
 
 !> Set the perpendicular box size and resolution for linear or nonlinear runs.
@@ -1199,6 +1246,10 @@ module kt_grids_box
      procedure, public :: broadcast => broadcast_kt_grids_box_config
   end type kt_grids_box_config_type
 
+  interface kt_grids_box_config_type
+     procedure :: kt_grids_box_config_constructor
+  end interface kt_grids_box_config_type
+  
   type(kt_grids_box_config_type) :: config_internal
   
 contains
@@ -1645,6 +1696,14 @@ contains
 
     call broadcast(self%exist)
   end subroutine broadcast_kt_grids_box_config
+
+  !> Sets the name and requiresIndex paremeters as appropriate
+  function kt_grids_box_config_constructor()
+    implicit none
+    type(kt_grids_box_config_type) :: kt_grids_box_config_constructor
+    kt_grids_box_config_constructor%name = "kt_grids_box_parameters"
+    kt_grids_box_config_constructor%requiresIndex = .false.
+  end function kt_grids_box_config_constructor  
 end module kt_grids_box
 
 !> Set up the perpendicular wavenumbers by calling the appropriate sub-modules. 
@@ -1702,6 +1761,10 @@ module kt_grids
      procedure, public :: broadcast => broadcast_kt_grids_config
   end type kt_grids_config_type
 
+  interface kt_grids_config_type
+     procedure :: kt_grids_config_constructor
+  end interface kt_grids_config_type
+  
   type(kt_grids_config_type) :: config_internal
   
 contains
@@ -2075,5 +2138,13 @@ contains
 
     call broadcast(self%exist)
   end subroutine broadcast_kt_grids_config
+
+  !> Sets the name and requiresIndex paremeters as appropriate
+  function kt_grids_config_constructor()
+    implicit none
+    type(kt_grids_config_type) :: kt_grids_config_constructor
+    kt_grids_config_constructor%name = "kt_grids_knobs"
+    kt_grids_config_constructor%requiresIndex = .false.
+  end function kt_grids_config_constructor
 end module kt_grids
 

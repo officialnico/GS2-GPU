@@ -97,6 +97,10 @@ module parameter_scan
      procedure, public :: broadcast => broadcast_parameter_scan_config
   end type parameter_scan_config_type
 
+  interface parameter_scan_config_type
+     procedure :: parameter_scan_config_constructor
+  end interface parameter_scan_config_type
+  
   type(parameter_scan_config_type) :: config_internal
   
 contains
@@ -587,5 +591,13 @@ contains
 
     call broadcast(self%exist)
   end subroutine broadcast_parameter_scan_config
+
+  !> Sets the name and requiresIndex paremeters as appropriate
+  function parameter_scan_config_constructor()
+    implicit none
+    type(parameter_scan_config_type) :: parameter_scan_config_constructor
+    parameter_scan_config_constructor%name = "parameter_scan_knobs"
+    parameter_scan_config_constructor%requiresIndex = .false.
+  end function parameter_scan_config_constructor
 end module parameter_scan
 

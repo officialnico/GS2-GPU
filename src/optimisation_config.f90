@@ -79,6 +79,10 @@ module optimisation_config
      procedure, public :: broadcast => broadcast_optimisation_config
   end type optimisation_config_type
 
+  interface optimisation_config_type
+     procedure :: optimisation_config_constructor
+  end interface optimisation_config_type
+  
   type(optimisation_config_type) :: config_internal  
   
 contains
@@ -235,5 +239,13 @@ contains
 
     call broadcast(self%exist)
   end subroutine broadcast_optimisation_config
+  
+  !> Sets the name and requiresIndex paremeters as appropriate
+  function optimisation_config_constructor()
+    implicit none
+    type(optimisation_config_type) :: optimisation_config_constructor
+    optimisation_config_constructor%name = "optimisation_config"
+    optimisation_config_constructor%requiresIndex = .false.
+  end function optimisation_config_constructor
 end module optimisation_config
 

@@ -279,6 +279,10 @@ module gs2_layouts
      procedure, public :: broadcast => broadcast_layouts_config
   end type layouts_config_type
 
+  interface layouts_config_type
+     procedure :: layouts_config_constructor
+  end interface layouts_config_type
+  
   type(layouts_config_type) :: config_internal
   
   interface ij_idx
@@ -6577,4 +6581,12 @@ contains
 
     call broadcast(self%exist)
   end subroutine broadcast_layouts_config
+
+  !> Sets the name and requiresIndex paremeters as appropriate
+  function layouts_config_constructor()
+    implicit none
+    type(layouts_config_type) :: layouts_config_constructor
+    layouts_config_constructor%name = "layouts_knobs"
+    layouts_config_constructor%requiresIndex = .false.
+  end function layouts_config_constructor
 end module gs2_layouts

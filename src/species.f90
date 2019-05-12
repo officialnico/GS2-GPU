@@ -87,6 +87,10 @@ module species
      procedure, public :: broadcast => broadcast_species_config
   end type species_config_type
 
+  interface species_config_type
+     procedure :: species_config_constructor
+  end interface species_config_type
+  
   type(species_config_type) :: config_internal
   
   !> Used to represent the input configuration of species
@@ -142,6 +146,10 @@ module species
      procedure, public :: broadcast => broadcast_species_element_config
   end type species_element_config_type
 
+  interface species_element_config_type
+     procedure :: species_element_config_constructor
+  end interface species_element_config_type
+  
   type(species_element_config_type), dimension(:), allocatable :: config_internal_elements
 
 contains
@@ -1142,6 +1150,14 @@ contains
 
     call broadcast(self%exist)
   end subroutine broadcast_species_config
+  
+  !> Sets the name and requiresIndex paremeters as appropriate
+  function species_config_constructor()
+    implicit none
+    type(species_config_type) :: species_config_constructor
+    species_config_constructor%name = "species_knobs"
+    species_config_constructor%requiresIndex = .false.
+  end function species_config_constructor
 
   !---------------------------------------
   ! Following is for the config_type
@@ -1304,5 +1320,13 @@ contains
     call broadcast(self%z)
 
     call broadcast(self%exist)
-  end subroutine broadcast_species_element_config
+  end subroutine broadcast_species_element_config 
+ 
+  !> Sets the name and requiresIndex paremeters as appropriate
+  function species_element_config_constructor()
+    implicit none
+    type(species_element_config_type) :: species_element_config_constructor
+    species_element_config_constructor%name = "species_parameters"
+    species_element_config_constructor%requiresIndex = .true.
+  end function species_element_config_constructor
 end module species

@@ -81,6 +81,10 @@ module antenna
      procedure, public :: broadcast => broadcast_driver_config
   end type driver_config_type
 
+  interface driver_config_type
+     procedure :: driver_config_constructor
+  end interface driver_config_type
+
   type(driver_config_type) :: config_internal
 
   !> Used to represent the input configuration of stir
@@ -106,6 +110,10 @@ module antenna
      procedure, public :: broadcast => broadcast_stir_config
   end type stir_config_type
 
+  interface stir_config_type
+     procedure :: stir_config_constructor
+  end interface stir_config_type
+  
   type(stir_config_type), dimension(:), allocatable :: config_stir_internal
   
 contains
@@ -660,6 +668,14 @@ contains
     call broadcast(self%exist)
   end subroutine broadcast_driver_config
 
+  !> Sets the name and requiresIndex paremeters as appropriate
+  function driver_config_constructor()
+    implicit none
+    type(driver_config_type) :: driver_config_constructor
+    driver_config_constructor%name = "driver"
+    driver_config_constructor%requiresIndex = .false.
+  end function driver_config_constructor
+  
   !---------------------------------------
   ! Following is for the stir config_type
   !---------------------------------------
@@ -763,5 +779,13 @@ contains
 
     call broadcast(self%exist)
   end subroutine broadcast_stir_config
+
+  !> Sets the name and requiresIndex paremeters as appropriate
+  function stir_config_constructor()
+    implicit none
+    type(stir_config_type) :: stir_config_constructor
+    stir_config_constructor%name = "stir"
+    stir_config_constructor%requiresIndex = .true.
+  end function stir_config_constructor
 end module antenna
 

@@ -217,6 +217,10 @@ module init_g
      procedure, public :: broadcast => broadcast_init_g_config
   end type init_g_config_type
 
+  interface init_g_config_type
+     procedure :: init_g_config_constructor
+  end interface init_g_config_type
+  
   type(init_g_config_type) :: config_internal
   
 contains
@@ -4328,5 +4332,11 @@ contains
 
     call broadcast(self%exist)
   end subroutine broadcast_init_g_config
-
+  
+  function init_g_config_constructor()
+    implicit none
+    type(init_g_config_type) :: init_g_config_constructor
+    init_g_config_constructor%name = "init_g_knobs"
+    init_g_config_constructor%requiresIndex = .false.
+  end function init_g_config_constructor
 end module init_g

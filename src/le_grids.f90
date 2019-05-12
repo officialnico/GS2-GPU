@@ -324,6 +324,10 @@ module le_grids
      procedure, public :: broadcast => broadcast_le_grids_config
   end type le_grids_config_type
 
+  interface le_grids_config_type
+     procedure :: le_grids_config_constructor
+  end interface le_grids_config_type
+  
   type(le_grids_config_type) :: config_internal
   
 contains
@@ -4657,6 +4661,14 @@ contains
 
     call broadcast(self%exist)
   end subroutine broadcast_le_grids_config
+
+  !> Sets the name and requiresIndex paremeters as appropriate
+  function le_grids_config_constructor()
+    implicit none
+    type(le_grids_config_type) :: le_grids_config_constructor
+    le_grids_config_constructor%name = "le_grids_knobs"
+    le_grids_config_constructor%requiresIndex = .false.
+  end function le_grids_config_constructor
 end module le_grids
 
 

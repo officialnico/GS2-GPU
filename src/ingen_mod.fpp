@@ -93,6 +93,10 @@ module ingen_mod
      procedure, public :: broadcast => broadcast_ingen_config
   end type ingen_config_type
 
+  interface ingen_config_type
+     procedure :: ingen_config_constructor
+  end interface ingen_config_type
+  
   type(ingen_config_type) :: config_internal
 
 contains
@@ -2470,4 +2474,12 @@ if (debug) write(6,*) 'get_namelists: returning'
 
     call broadcast(self%exist)
   end subroutine broadcast_ingen_config
+
+  !> Sets the name and requiresIndex paremeters as appropriate
+  function ingen_config_constructor()
+    implicit none
+    type(ingen_config_type) :: ingen_config_constructor
+    ingen_config_constructor%name = "ingen_knobs"
+    ingen_config_constructor%requiresIndex = .false.
+  end function ingen_config_constructor
 end module ingen_mod

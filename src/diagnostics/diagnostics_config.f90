@@ -358,6 +358,10 @@ module diagnostics_config
      procedure, public :: broadcast => broadcast_new_gs2_diagnostics_config
   end type new_gs2_diagnostics_config_type
 
+  interface new_gs2_diagnostics_config_type
+     procedure :: new_gs2_diagnostics_config_constructor
+  end interface new_gs2_diagnostics_config_type
+  
   type(new_gs2_diagnostics_config_type) :: config_internal  
   
 contains
@@ -934,5 +938,13 @@ contains
 
     call broadcast(self%exist)
   end subroutine broadcast_new_gs2_diagnostics_config
+
+  !> Sets the name and requiresIndex paremeters as appropriate
+  function new_gs2_diagnostics_config_constructor()
+    implicit none
+    type(new_gs2_diagnostics_config_type) :: new_gs2_diagnostics_config_constructor
+    new_gs2_diagnostics_config_constructor%name = "gs2_diagnostics_knobs"
+    new_gs2_diagnostics_config_constructor%requiresIndex = .false.
+  end function new_gs2_diagnostics_config_constructor
 end module diagnostics_config
 
