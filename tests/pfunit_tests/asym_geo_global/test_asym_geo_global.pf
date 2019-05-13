@@ -11,6 +11,7 @@ contains
   @test(npes=[1])
   subroutine test_asym_geo_global(this)
     use theta_grid, only: bmag, grho, gbdrift, cvdrift, gds2, gds21
+    use theta_grid_params, only: finish_theta_grid_params
     use file_utils, only: init_file_utils, finish_file_utils
     use theta_grid, only : init_theta_grid, finish_theta_grid, theta
     use mp, only : init_mp, proc0
@@ -103,7 +104,6 @@ contains
          2.22529479629277 , 2.48709418409192 , 2.67280432895371 , &
          2.9063077603848 , 3.08766802498129 , 3.14159265358979 ] 
     real, dimension(grid_size) :: new_bmag, new_grho, new_gbdrift, new_cvdrift, new_gds2, new_gds21
-    integer :: i
 
     call init_mp(this%getMpiCommunicator())
     if (proc0) then
@@ -123,16 +123,18 @@ contains
     if (proc0) call finish_file_utils
     call finish_theta_grid
 
-    do i = 1, grid_size
-      print*, new_grho(i), previous_grho(i)
-    end do
-    
-    @assertEqual(new_bmag, previous_Bmag, tolerance=3.e-1, message="Bmag")
-    @assertEqual(new_grho, previous_grho, tolerance=3.e-1, message="grho")
-    @assertEqual(new_gbdrift, previous_gbdrift, tolerance=3.e-1, message="gbdrift")
-    @assertEqual(new_cvdrift, previous_cvdrift, tolerance=3.e-1, message="cvdrift")
-    @assertEqual(new_gds2, previous_gds2, tolerance=3.e-1, message="gds2")
-    @assertEqual(new_gds21, previous_gds21, tolerance=3.e-1, message="gds21")
+    ! Need to explicitly call finish_theta_grid_params here because
+    ! finish_theta_grid _doesn't_ call it because "this is now handled
+    ! separately by gs2_init"
+    call finish_theta_grid_params
+
+    @assertEqual(new_bmag, previous_Bmag, tolerance=1.e-5, message="Bmag")
+    @assertEqual(new_grho, previous_grho, tolerance=1.e-5, message="grho")
+    @assertEqual(new_gbdrift, previous_gbdrift, tolerance=1.e-5, message="gbdrift")
+    @assertEqual(new_cvdrift, previous_cvdrift, tolerance=1.e-5, message="cvdrift")
+    @assertEqual(new_gds2, previous_gds2, tolerance=1.e-5, message="gds2")
+    @assertEqual(new_gds21, previous_gds21, tolerance=1.e-5, message="gds21")
+
   end subroutine test_asym_geo_global
 
   !> Interpolate `var` from `new_theta` onto `old_theta`

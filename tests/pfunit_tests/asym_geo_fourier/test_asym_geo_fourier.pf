@@ -12,6 +12,7 @@ contains
   subroutine test_asym_geo_fourier(this)
     use theta_grid, only: bmag, grho, gbdrift, cvdrift, gds2, gds21
     use file_utils, only: init_file_utils, finish_file_utils
+    use theta_grid_params, only: finish_theta_grid_params
     use theta_grid, only : init_theta_grid, finish_theta_grid, theta
     use mp, only : init_mp, proc0
 
@@ -124,13 +125,18 @@ contains
     if (proc0) call finish_file_utils
     call finish_theta_grid
 
-    @assertEqual(new_bmag, previous_Bmag, tolerance=3.e-1, message="Bmag")
-    @assertEqual(new_grho, previous_grho, tolerance=3.e-1, message="grho")
-    ! NOTE: tolerance is looser than original, because this is absolute tolerance.
-    ! Relative tolerance pfunit macros not consistently available?
-    @assertEqual(new_gbdrift, previous_gbdrift, tolerance=3.e-1, message="gbdrift")
-    @assertEqual(new_cvdrift, previous_cvdrift, tolerance=3.e-1, message="cvdrift")
-    ! gds2 and gds21 were not checked in the original test, and have very large deviations
+    ! Need to explicitly call finish_theta_grid_params here because
+    ! finish_theta_grid _doesn't_ call it because "this is now handled
+    ! separately by gs2_init"
+    call finish_theta_grid_params
+
+    @assertEqual(new_bmag, previous_Bmag, tolerance=1.e-8, message="Bmag")
+    @assertEqual(new_grho, previous_grho, tolerance=1.e-8, message="grho")
+    @assertEqual(new_gbdrift, previous_gbdrift, tolerance=1.e-8, message="gbdrift")
+    @assertEqual(new_cvdrift, previous_cvdrift, tolerance=1.e-8, message="cvdrift")
+    @assertEqual(new_gds2, previous_gds2, tolerance=1.e-8, message="gds2")
+    @assertEqual(new_gds21, previous_gds21, tolerance=1.e-8, message="gds21")
+
   end subroutine test_asym_geo_fourier
 
   !> Interpolate `var` from `new_theta` onto `old_theta`
