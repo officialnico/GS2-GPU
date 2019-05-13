@@ -6,15 +6,26 @@
 #Output can be found in docs_path+pages_path+namelists_path
 
 from config_generation import constructFromFile
-
+from get_all_matching_files import get_all_matching_files
 docs_path = "docs/"
 pages_path = "pages/"
 namelists_path = "namelists/"
 if __name__ == "__main__":
     import sys
+    import os
 
-    probablyFiles = sys.argv[1:]
+    # Handle case where no files passed as arguments
+    if len(sys.argv) < 2:
+        probablyFiles = get_all_matching_files(paths=["src/","externals/utils/"],
+                                               patterns=["*.[fF]??"])
+    else:
+        probablyFiles = sys.argv[1:]
 
+    # Check target directory exists
+    target_dir = docs_path+pages_path+namelists_path
+
+    if not os.path.exists(target_dir):
+        os.makedirs(target_dir)
     with open(docs_path+pages_path+namelists_path+"index.md", 'w') as ind:
         ind.write("title: Namelists\n")
         ind.write("\n")

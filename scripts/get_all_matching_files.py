@@ -38,7 +38,7 @@ def get_all_matching_files(paths = None, patterns = None, absolute = False):
         for filename in fnmatch.filter(filenames, patterns[0]):
             result.append(os.path.join(root, filename))
 
-    if args.absolute:
+    if absolute:
         result = [os.path.abspath(x) for x in result]
         
     return result
