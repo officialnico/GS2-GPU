@@ -703,9 +703,15 @@ endif
 all: $(.DEFAULT_GOAL)
 
 #TODO : Add a rule to automatically build the depend file when appropriate.
+ifneq ("$(MAKECMDGOALS)", "clean")
 ifneq ("$(MAKECMDGOALS)", "distclean")
 ifneq ("$(MAKECMDGOALS)", "depend")
+ifneq ("$(MAKECMDGOALS)", "doc")
+ifneq ("$(MAKECMDGOALS)", "namelist_doc")
 include $(DEPEND)
+endif
+endif
+endif
 endif
 endif
 
