@@ -1001,13 +1001,19 @@ endif
 namelist_doc: PATHS:=$(foreach dir, $(SRCDIR) $(SUBDIRS), --path ${dir})
 namelist_doc: FILES:=$(shell $(GK_HEAD_DIR)/scripts/get_all_matching_files.py --pattern "*.[fF]??" ${PATHS} --absolute)
 namelist_doc:
-	$(call messageInfo, "Generating namelist documentation")
+	$(call messageInfo,"Generating namelist documentation")
 	@$(GK_HEAD_DIR)/scripts/generate_namelist_documentation.py ${FILES}
+
+.PHONY: clean_namelist_doc
+clean_namelist_doc:
+	$(call messageRm,"Generated namelist documentation")
+	-$(QUIETSYM)rm -f docs/pages/namelist/auto_generated_* docs/pages/namelist/index.md
 
 docs/html:
 doc: docs/docs.config.md namelist_doc  check_ford_install
 	$(FORD) $(subst -D,--macro ,$(MACRO_DEFS)) $(INCLUDES) -r $(GIT_HASH) $<
 
+cleandoc: clean_namelist_doc
 cleandoc: docs/html docs/graphs
 	$(call messageRm,"FORD docs")	
 	-$(QUIETSYM)rm -rf $^

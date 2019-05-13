@@ -36,7 +36,7 @@ if __name__ == "__main__":
             tmp = constructFromFile(fileIn=fil)
             if tmp is None: continue
             for k, v in tmp.items():
-                ff = pages_path+namelists_path+v.moduleName+"_"+v.namelistName
+                ff = pages_path+namelists_path+"auto_generated_"+v.moduleName+"_"+v.namelistName
                 fullf = docs_path+ff
                 with open(fullf+".txt", 'w') as f:
                     f.writelines("\n".join(v.toMarkdownTable()))
