@@ -134,6 +134,8 @@ contains
 
   end subroutine test_derm_T
 
+  ! This basically converts derivatives of R, Z from polar coordinates
+  ! to cylindrical coordinates. R, Z are for a circle with radius 1
   @test
   subroutine test_eqdcart()
     use constants, only : pi
@@ -189,5 +191,52 @@ contains
     @assertEqual(Z_cylindrical_expected(2:,:,2), Z_cylindrical(2:,:,2), tolerance=1.e-8)
 
   end subroutine test_eqdcart
+
+  ! This basically converts derivatives of R, Z from cylindrical
+  ! coordinates to Bishop coordinates. R, Z are for a circle with
+  ! radius 1
+  @test
+  subroutine test_eqdbish()
+    use leq, only : leq_testing_type
+    type(leq_testing_type) :: leq_privates
+
+    integer, parameter :: nradius = 3
+    integer, parameter :: ntheta = 4
+
+    real, dimension(nradius, -ntheta:ntheta, 2) :: dpcart
+    real, dimension(nradius, -ntheta:ntheta, 2) :: R_cylindrical, Z_cylindrical
+    real, dimension(nradius, -ntheta:ntheta, 2) :: R_cylindrical_in, Z_cylindrical_in
+    real, dimension(nradius, -ntheta:ntheta, 2) :: R_cylindrical_expected, Z_cylindrical_expected
+
+    call leq_privates%set_ntnr(ntheta, nradius)
+    call leq_privates%alloc_arrays(nradius, ntheta)
+
+    dpcart(:,:,1) = 1.
+    dpcart(:,:,2) = 0.
+
+    R_cylindrical_in(:,:,1) = 1.
+    R_cylindrical_in(:,:,2) = 0.
+    Z_cylindrical_in(:,:,1) = 0.
+    Z_cylindrical_in(:,:,2) = 1.
+
+    R_cylindrical_expected(:,:,1) = 1.
+    R_cylindrical_expected(:,:,2) = 0.
+    Z_cylindrical_expected(:,:,1) = 0.
+    Z_cylindrical_expected(:,:,2) = 1.
+
+    call leq_privates%set_dpcart(dpcart)
+
+    call leq_privates%eqdbish(R_cylindrical_in, R_cylindrical)
+    call leq_privates%eqdbish(Z_cylindrical_in, Z_cylindrical)
+
+    call leq_privates%dealloc_arrays()
+
+    ! why is the output only divided by the denominator on the r-range 2,nr?
+    @assertEqual(R_cylindrical_expected(2:,:,1), R_cylindrical(2:,:,1), tolerance=1.e-8)
+    @assertEqual(R_cylindrical_expected(2:,:,2), R_cylindrical(2:,:,2), tolerance=1.e-8)
+    @assertEqual(Z_cylindrical_expected(2:,:,1), Z_cylindrical(2:,:,1), tolerance=1.e-8)
+    @assertEqual(Z_cylindrical_expected(2:,:,2), Z_cylindrical(2:,:,2), tolerance=1.e-8)
+
+  end subroutine test_eqdbish
 
 end module test_leq_mod

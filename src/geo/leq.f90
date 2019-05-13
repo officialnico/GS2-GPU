@@ -108,6 +108,7 @@ module leq
     procedure, nopass :: set_ntnr
     procedure, nopass :: set_drm
     procedure, nopass :: set_dzm
+    procedure, nopass :: set_dpcart
     procedure, nopass :: eqdcart
     procedure, nopass :: eqdbish
     procedure, nopass :: alloc_arrays, dealloc_arrays
@@ -140,6 +141,13 @@ contains
     dzm = dzm_in
   end subroutine set_dzm
 
+  !> Set module-level dpcart
+  !! PURELY FOR TESTING
+  !! FIXME: Remove when we have more control over module-level variables for testing
+  subroutine set_dpcart(dpcart_in)
+    real, dimension(nr,-nt:nt,2), intent(in) :: dpcart_in
+    dpcart = dpcart_in
+  end subroutine set_dpcart
   !> FIXME : Add documentation  
   subroutine leqin(geoType, Rmaj, Rgeo, r, dr, aSurf, sHorz, sVert, mMode, nMode, delm, deln, delmp, delnp, thm, thn, q, shat, nt_used, thShift)
     implicit none
@@ -484,6 +492,8 @@ contains
     dfcart(:,:,1) =   dfm(:,:,1)*dzm(:,:,2) - dzm(:,:,1)*dfm(:,:,2)
     dfcart(:,:,2) = - dfm(:,:,1)*drm(:,:,2) + drm(:,:,1)*dfm(:,:,2)
     
+    ! FIXME: document why this is only on the range [2,nr], or
+    ! simplify
     do j=-nt,nt
        do i=2,nr
           dfcart(i,j,:)=dfcart(i,j,:)/denom(i,j)
@@ -505,6 +515,8 @@ contains
     dbish(:,:,1) = dcart(:,:,1)*dpcart(:,:,1) + dcart(:,:,2)*dpcart(:,:,2)
     dbish(:,:,2) =-dcart(:,:,1)*dpcart(:,:,2) + dcart(:,:,2)*dpcart(:,:,1)
     
+    ! FIXME: document why this is only on the range [2,nr], or
+    ! simplify
     do j=-nt,nt
        do i=2,nr
           dbish(i,j,:) = dbish(i,j,:)/denom(i,j)
