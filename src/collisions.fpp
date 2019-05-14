@@ -253,7 +253,7 @@ module collisions
      procedure :: collisions_config_constructor
   end interface collisions_config_type
 
-  type(collisions_config_type) :: config_internal  
+  type(collisions_config_type) :: collisions_config
 contains
   
   !> FIXME : Add documentation
@@ -324,14 +324,14 @@ contains
   end subroutine init_collisions
 
   !> FIXME : Add documentation
-  subroutine read_parameters(config_in)
+  subroutine read_parameters(collisions_config_in)
     use file_utils, only: input_unit, error_unit, input_unit_exist
     use text_options, only: text_option, get_option_value
     use mp, only: proc0, broadcast
     use run_parameters, only: beta, fapar
     use species, only: nspec
     implicit none
-    type(collisions_config_type), intent(in), optional :: config_in
+    type(collisions_config_type), intent(in), optional :: collisions_config_in
     
     type (text_option), dimension (6), parameter :: modelopts = &
          (/ text_option('default', collision_model_full), &
@@ -349,41 +349,41 @@ contains
     character(20) :: collision_model, lorentz_scheme, ediff_scheme
     integer :: ierr, in_file
 
-    if (present(config_in)) config_internal = config_in
+    if (present(collisions_config_in)) collisions_config = collisions_config_in
 
-    call config_internal%init(name = 'collisions_knobs', requires_index = .false.)
+    call collisions_config%init(name = 'collisions_knobs', requires_index = .false.)
 
     ! Copy out internal values into module level parameters
-    adjust = config_internal%adjust
-    cfac = config_internal%cfac
-    collision_model = config_internal%collision_model
-    conservative = config_internal%conservative
-    conserve_forbid_zero = config_internal%conserve_forbid_zero
-    conserve_moments = config_internal%conserve_moments
-    const_v = config_internal%const_v
-    ediff_scheme = config_internal%ediff_scheme
-    ei_coll_only = config_internal%ei_coll_only
-    etol = config_internal%etol
-    etola = config_internal%etola
-    ewindow = config_internal%ewindow
-    ewindowa = config_internal%ewindowa
-    heating = config_internal%heating
-    hypermult = config_internal%hypermult
-    le_nxilim_fix = config_internal%le_nxilim_fix
-    lorentz_scheme = config_internal%lorentz_scheme
-    ncheck = config_internal%ncheck
-    resistivity = config_internal%resistivity
-    special_wfb_lorentz = config_internal%special_wfb_lorentz
-    split_collisions = config_internal%split_collisions
-    test = config_internal%test
-    timesteps_between_collisions = config_internal%timesteps_between_collisions
-    use_le_layout = config_internal%use_le_layout
-    vary_vnew = config_internal%vary_vnew
-    vnfac = config_internal%vnfac
-    vnslow = config_internal%vnslow
-    vpar_zero_mean = config_internal%vpar_zero_mean
+    adjust = collisions_config%adjust
+    cfac = collisions_config%cfac
+    collision_model = collisions_config%collision_model
+    conservative = collisions_config%conservative
+    conserve_forbid_zero = collisions_config%conserve_forbid_zero
+    conserve_moments = collisions_config%conserve_moments
+    const_v = collisions_config%const_v
+    ediff_scheme = collisions_config%ediff_scheme
+    ei_coll_only = collisions_config%ei_coll_only
+    etol = collisions_config%etol
+    etola = collisions_config%etola
+    ewindow = collisions_config%ewindow
+    ewindowa = collisions_config%ewindowa
+    heating = collisions_config%heating
+    hypermult = collisions_config%hypermult
+    le_nxilim_fix = collisions_config%le_nxilim_fix
+    lorentz_scheme = collisions_config%lorentz_scheme
+    ncheck = collisions_config%ncheck
+    resistivity = collisions_config%resistivity
+    special_wfb_lorentz = collisions_config%special_wfb_lorentz
+    split_collisions = collisions_config%split_collisions
+    test = collisions_config%test
+    timesteps_between_collisions = collisions_config%timesteps_between_collisions
+    use_le_layout = collisions_config%use_le_layout
+    vary_vnew = collisions_config%vary_vnew
+    vnfac = collisions_config%vnfac
+    vnslow = collisions_config%vnslow
+    vpar_zero_mean = collisions_config%vpar_zero_mean
 
-    exist = config_internal%exist
+    exist = collisions_config%exist
 
 
     ierr = error_unit()
@@ -4252,7 +4252,7 @@ contains
     if (allocated(vpdiff)) deallocate (vpdiff)
     if (allocated(dtot)) deallocate (dtot, fdf, fdb)
 
-    call config_internal%reset()
+    call collisions_config%reset()
   end subroutine finish_collisions
 
   !---------------------------------------

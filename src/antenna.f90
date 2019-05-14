@@ -85,7 +85,7 @@ module antenna
      procedure :: driver_config_constructor
   end interface driver_config_type
 
-  type(driver_config_type) :: config_internal
+  type(driver_config_type) :: driver_config
 
   !> Used to represent the input configuration of stir
   type, extends(abstract_config_type) :: stir_config_type
@@ -114,7 +114,7 @@ module antenna
      procedure :: stir_config_constructor
   end interface stir_config_type
   
-  type(stir_config_type), dimension(:), allocatable :: config_stir_internal
+  type(stir_config_type), dimension(:), allocatable :: stir_config
   
 contains
   !> FIXME : Add documentation
@@ -242,34 +242,34 @@ contains
   end subroutine init_antenna
 
   !> FIXME : Add documentation
-  subroutine read_parameters(config_in, config_stir_in)
+  subroutine read_parameters(driver_config_in, stir_config_in)
     use file_utils, only: input_unit_exist, get_indexed_namelist_unit, get_unused_unit
     use file_utils, only: open_output_file, input_unit
     use mp, only: proc0
     use antenna_data, only: init_antenna_data
     use gs2_save, only: init_ant_amp
     implicit none
-    type(driver_config_type), intent(in), optional :: config_in
-    type(stir_config_type), intent(in), dimension(:), optional :: config_stir_in
+    type(driver_config_type), intent(in), optional :: driver_config_in
+    type(stir_config_type), intent(in), dimension(:), optional :: stir_config_in
     complex :: a, b
     integer :: kx, ky, kz, i, in_file, ierr
     logical :: exist, travel
 
-    if (present(config_in)) config_internal = config_in
+    if (present(driver_config_in)) driver_config = driver_config_in
 
-    call config_internal%init(name = 'driver', requires_index = .false.)
+    call driver_config%init(name = 'driver', requires_index = .false.)
 
     ! Copy out internal values into module level parameters
-    amplitude = config_internal%amplitude
-    ant_off = config_internal%ant_off
-    nk_stir = config_internal%nk_stir
-    restarting = config_internal%restarting
-    t0 = config_internal%t0
-    w_antenna = config_internal%w_antenna
-    w_dot = config_internal%w_dot
-    write_antenna = config_internal%write_antenna
+    amplitude = driver_config%amplitude
+    ant_off = driver_config%ant_off
+    nk_stir = driver_config%nk_stir
+    restarting = driver_config%restarting
+    t0 = driver_config%t0
+    w_antenna = driver_config%w_antenna
+    w_dot = driver_config%w_dot
+    write_antenna = driver_config%write_antenna
 
-    exist = config_internal%exist
+    exist = driver_config%exist
 
     no_driver = (.not. exist) .or. ant_off
 
@@ -291,23 +291,23 @@ contains
        ierr = 1
        if (restarting) call init_ant_amp (a_ant, b_ant, nk_stir, ierr)
        
-       if (present(config_stir_in)) config_stir_internal = config_stir_in
+       if (present(stir_config_in)) stir_config = stir_config_in
        
-       if (.not.allocated(config_stir_internal)) allocate(config_stir_internal(nk_stir))
-       if (size(config_stir_internal) .ne. nk_stir) then
+       if (.not.allocated(stir_config)) allocate(stir_config(nk_stir))
+       if (size(stir_config) .ne. nk_stir) then
           if (proc0) print*,"Warning: inconsistent config size in antenna"
        endif
        
        do i=1,nk_stir
-          call config_stir_internal(i)%init(name = 'stir', requires_index = .true., index = i)
+          call stir_config(i)%init(name = 'stir', requires_index = .true., index = i)
           
           ! Copy out internal values into module level parameters
-          a = config_stir_internal(i)%a
-          b = config_stir_internal(i)%b
-          kx = config_stir_internal(i)%kx
-          ky = config_stir_internal(i)%ky
-          kz = config_stir_internal(i)%kz
-          travel = config_stir_internal(i)%travel
+          a = stir_config(i)%a
+          b = stir_config(i)%b
+          kx = stir_config(i)%kx
+          ky = stir_config(i)%ky
+          kz = stir_config(i)%kz
+          travel = stir_config(i)%travel
           
           kx_stir(i) = kx 
           ky_stir(i) = ky
@@ -350,8 +350,8 @@ contains
     if (allocated(apar_new)) deallocate (apar_new, apar_old)
     call close_output_file(out_unit)
     initialized = .false.
-    call config_internal%reset()
-    if (allocated(config_stir_internal)) deallocate(config_stir_internal)
+    call driver_config%reset()
+    if (allocated(stir_config)) deallocate(stir_config)
   end subroutine finish_antenna
 
   !> FIXME : Add documentation
@@ -552,7 +552,8 @@ contains
     ! used when interfacing GS2 with Trinity -- MAB
     implicit none
     initialized = .false.
-    call config_internal%reset()    
+    call driver_config%reset()
+    if(allocated(stir_config)) deallocate(stir_config)
   end subroutine reset_init
 
   !---------------------------------------

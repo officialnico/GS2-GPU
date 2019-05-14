@@ -101,7 +101,7 @@ module parameter_scan
      procedure :: parameter_scan_config_constructor
   end interface parameter_scan_config_type
   
-  type(parameter_scan_config_type) :: config_internal
+  type(parameter_scan_config_type) :: parameter_scan_config
   
 contains
 
@@ -196,7 +196,7 @@ contains
     call deallocate_target_arrays
     call close_output_file(scan_output_file)
     initialized = .false.
-    call config_internal%reset()
+    call parameter_scan_config%reset()
   end subroutine finish_parameter_scan
 
   !> FIXME : Add documentation  
@@ -384,12 +384,12 @@ contains
   end subroutine check_increment_condition_satisfied
 
   !> FIXME : Add documentation  
-  subroutine read_parameters(config_in)
+  subroutine read_parameters(parameter_scan_config_in)
     use file_utils, only: input_unit, error_unit, input_unit_exist
     use text_options, only: text_option, get_option_value
     use mp, only: proc0
     implicit none
-    type(parameter_scan_config_type), intent(in), optional :: config_in
+    type(parameter_scan_config_type), intent(in), optional :: parameter_scan_config_in
     
     type (text_option), dimension (2), parameter :: scan_parameter_opts = &
          (/ text_option('tprim', scan_parameter_tprim), &
@@ -414,27 +414,27 @@ contains
     integer :: ierr, in_file
     logical :: exist
 
-    if (present(config_in)) config_internal = config_in
+    if (present(parameter_scan_config_in)) parameter_scan_config = parameter_scan_config_in
 
-    call config_internal%init(name = 'parameter_scan_knobs', requires_index = .false.)
+    call parameter_scan_config%init(name = 'parameter_scan_knobs', requires_index = .false.)
 
     ! Copy out internal values into module level parameters
-    delta_t_inc = config_internal%delta_t_inc
-    delta_t_init = config_internal%delta_t_init
-    inc_con = config_internal%inc_con
-    nstep_inc = config_internal%nstep_inc
-    nstep_init = config_internal%nstep_init
-    par_end = config_internal%par_end
-    par_inc = config_internal%par_inc
-    par_start = config_internal%par_start
-    scan_par = config_internal%scan_par
-    scan_restarted = config_internal%scan_restarted
-    scan_spec = config_internal%scan_spec
-    scan_type = config_internal%scan_type
-    target_par = config_internal%target_par
-    target_val = config_internal%target_val
+    delta_t_inc = parameter_scan_config%delta_t_inc
+    delta_t_init = parameter_scan_config%delta_t_init
+    inc_con = parameter_scan_config%inc_con
+    nstep_inc = parameter_scan_config%nstep_inc
+    nstep_init = parameter_scan_config%nstep_init
+    par_end = parameter_scan_config%par_end
+    par_inc = parameter_scan_config%par_inc
+    par_start = parameter_scan_config%par_start
+    scan_par = parameter_scan_config%scan_par
+    scan_restarted = parameter_scan_config%scan_restarted
+    scan_spec = parameter_scan_config%scan_spec
+    scan_type = parameter_scan_config%scan_type
+    target_par = parameter_scan_config%target_par
+    target_val = parameter_scan_config%target_val
 
-    exist = config_internal%exist
+    exist = parameter_scan_config%exist
 
     ierr = error_unit()
     call get_option_value &

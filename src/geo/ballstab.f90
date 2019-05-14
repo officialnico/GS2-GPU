@@ -59,7 +59,7 @@ module ballstab
      procedure :: ballstab_config_constructor
   end interface ballstab_config_type
 
-  type(ballstab_config_type) :: config_internal
+  type(ballstab_config_type) :: ballstab_config
   
 contains
   
@@ -82,7 +82,7 @@ contains
     call dealloc_arrays
 
     initialised = .false.
-    call config_internal%reset()
+    call ballstab_config%reset()
   end subroutine finish_ballstab
 
   !> Initialise this module
@@ -108,33 +108,33 @@ contains
   end subroutine real_init_ballstab
 
   !> Read parameters
-  subroutine read_parameters(config_in)
+  subroutine read_parameters(ballstab_config_in)
     use theta_grid, only: shat
     implicit none
-    type(ballstab_config_type), intent(in), optional :: config_in    
+    type(ballstab_config_type), intent(in), optional :: ballstab_config_in    
     logical :: exist
 
-    if (present(config_in)) config_internal = config_in
+    if (present(ballstab_config_in)) ballstab_config = ballstab_config_in
 
     !Smart defaults
-    if (.not.config_internal%is_initialised()) then    
-       config_internal%shat_min = shat
-       config_internal%shat_max = shat
+    if (.not.ballstab_config%is_initialised()) then    
+       ballstab_config%shat_min = shat
+       ballstab_config%shat_max = shat
     end if
     
-    call config_internal%init(name = 'ballstab_knobs', requires_index = .false.)
+    call ballstab_config%init(name = 'ballstab_knobs', requires_index = .false.)
 
     ! Copy out internal values into module level parameters
-    beta_div = config_internal%beta_div
-    beta_mul = config_internal%beta_mul
-    diff = config_internal%diff
-    make_salpha = config_internal%make_salpha
-    n_beta = config_internal%n_beta
-    n_shat = config_internal%n_shat
-    shat_max = config_internal%shat_max
-    shat_min = config_internal%shat_min
+    beta_div = ballstab_config%beta_div
+    beta_mul = ballstab_config%beta_mul
+    diff = ballstab_config%diff
+    make_salpha = ballstab_config%make_salpha
+    n_beta = ballstab_config%n_beta
+    n_shat = ballstab_config%n_shat
+    shat_max = ballstab_config%shat_max
+    shat_min = ballstab_config%shat_min
 
-    exist = config_internal%exist
+    exist = ballstab_config%exist
   end subroutine read_parameters
 
   !> Check parameters are consistent etc.

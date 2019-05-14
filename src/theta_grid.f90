@@ -51,7 +51,7 @@ module theta_grid_gridgen
      procedure :: theta_grid_gridgen_config_constructor
   end interface theta_grid_gridgen_config_type
   
-  type(theta_grid_gridgen_config_type) :: config_internal
+  type(theta_grid_gridgen_config_type) :: theta_grid_gridgen_config
 
 contains
   
@@ -86,34 +86,34 @@ contains
   subroutine finish_theta_grid_gridgen
     implicit none
     initialized = .false.
-    call config_internal%reset()
+    call theta_grid_gridgen_config%reset()
   end subroutine finish_theta_grid_gridgen
 
   !> FIXME : Add documentation
-  subroutine read_parameters(config_in)
+  subroutine read_parameters(theta_grid_gridgen_config_in)
     use file_utils, only: input_unit, input_unit_exist
     implicit none
-    type(theta_grid_gridgen_config_type), intent(in), optional :: config_in
+    type(theta_grid_gridgen_config_type), intent(in), optional :: theta_grid_gridgen_config_in
     integer :: npadd
     real :: alknob, epsknob, bpknob, extrknob, tension
     real :: thetamax, deltaw, widthw
 
-    if (present(config_in)) config_internal = config_in
+    if (present(theta_grid_gridgen_config_in)) theta_grid_gridgen_config = theta_grid_gridgen_config_in
 
-    call config_internal%init(name = 'theta_grid_gridgen_knobs', requires_index = .false.)
+    call theta_grid_gridgen_config%init(name = 'theta_grid_gridgen_knobs', requires_index = .false.)
 
     ! Copy out internal values into module level parameters
-    npadd  = config_internal%npadd
-    alknob  = config_internal%alknob
-    epsknob  = config_internal%epsknob
-    bpknob  = config_internal%bpknob
-    extrknob  = config_internal%extrknob
-    tension  = config_internal%tension
-    thetamax  = config_internal%thetamax
-    deltaw  = config_internal%deltaw
-    widthw  = config_internal%widthw
+    npadd  = theta_grid_gridgen_config%npadd
+    alknob  = theta_grid_gridgen_config%alknob
+    epsknob  = theta_grid_gridgen_config%epsknob
+    bpknob  = theta_grid_gridgen_config%bpknob
+    extrknob  = theta_grid_gridgen_config%extrknob
+    tension  = theta_grid_gridgen_config%tension
+    thetamax  = theta_grid_gridgen_config%thetamax
+    deltaw  = theta_grid_gridgen_config%deltaw
+    widthw  = theta_grid_gridgen_config%widthw
 
-    exist = config_internal%exist
+    exist = theta_grid_gridgen_config%exist
   end subroutine read_parameters
 
   !> FIXME : Add documentation  
@@ -418,7 +418,7 @@ module theta_grid_salpha
      procedure :: theta_grid_salpha_config_constructor
   end interface theta_grid_salpha_config_type
   
-  type(theta_grid_salpha_config_type) :: config_internal
+  type(theta_grid_salpha_config_type) :: theta_grid_salpha_config
   
 contains
   !> FIXME : Add documentation  
@@ -632,16 +632,16 @@ contains
   subroutine finish_theta_grid_salpha
     implicit none
     initialized = .false.
-    call config_internal%reset()
+    call theta_grid_salpha_config%reset()
   end subroutine finish_theta_grid_salpha
 
   !> FIXME : Add documentation  
-  subroutine read_parameters(config_in)
+  subroutine read_parameters(theta_grid_salpha_config_in)
     use file_utils, only: input_unit, error_unit, input_unit_exist
     use theta_grid_params, only: shift_in => shift, alpmhd
     use text_options, only: text_option, get_option_value
     implicit none
-    type(theta_grid_salpha_config_type), intent(in), optional :: config_in
+    type(theta_grid_salpha_config_type), intent(in), optional :: theta_grid_salpha_config_in
     
     character(20) :: model_option
     type (text_option), dimension (8), parameter :: modelopts = &
@@ -656,16 +656,16 @@ contains
 
     integer :: ierr, in_file
 
-    if (present(config_in)) config_internal = config_in
+    if (present(theta_grid_salpha_config_in)) theta_grid_salpha_config = theta_grid_salpha_config_in
 
-    call config_internal%init(name = 'theta_grid_salpha_knobs', requires_index = .false.)
+    call theta_grid_salpha_config%init(name = 'theta_grid_salpha_knobs', requires_index = .false.)
 
     ! Copy out internal values into module level parameters
-    alpha1 = config_internal%alpha1
-    alpmhdfac = config_internal%alpmhdfac
-    model_option = config_internal%model_option
+    alpha1 = theta_grid_salpha_config%alpha1
+    alpmhdfac = theta_grid_salpha_config%alpmhdfac
+    model_option = theta_grid_salpha_config%model_option
 
-    exist = config_internal%exist
+    exist = theta_grid_salpha_config%exist
     
     ierr = error_unit()
     call get_option_value &
@@ -1077,7 +1077,7 @@ module theta_grid_eik
      procedure :: theta_grid_eik_config_constructor
   end interface theta_grid_eik_config_type
   
-  type(theta_grid_eik_config_type) :: config_internal
+  type(theta_grid_eik_config_type) :: theta_grid_eik_config
   
 contains
   !> FIXME : Add documentation
@@ -1595,7 +1595,7 @@ contains
 
     initialized = .false.
     call finish_geometry
-    call config_internal%reset()
+    call theta_grid_eik_config%reset()
   end subroutine finish_theta_grid_eik
 
   !> FIXME : Add documentation  
@@ -1726,7 +1726,7 @@ contains
   end subroutine eik_get_grids
 
   !> FIXME : Add documentation  
-  subroutine read_parameters(config_in)
+  subroutine read_parameters(theta_grid_eik_config_in)
     use file_utils, only: input_unit, input_unit_exist
     use geometry, only: nperiod
     use geometry, only: rhoc
@@ -1755,7 +1755,7 @@ contains
     use theta_grid_params, only: thetam_in => thetam, thetan_in => thetan
     use theta_grid_params, only: betaprim_in => betaprim
     implicit none
-    type(theta_grid_eik_config_type), intent(in), optional :: config_in
+    type(theta_grid_eik_config_type), intent(in), optional :: theta_grid_eik_config_in
 
     in_nt = .false.
     
@@ -1778,45 +1778,45 @@ contains
     thetan = thetan_in
     qinp = qinp_in
 
-    if (present(config_in)) config_internal = config_in
+    if (present(theta_grid_eik_config_in)) theta_grid_eik_config = theta_grid_eik_config_in
 
     ! Smart defaults
-    if (.not.config_internal%is_initialised()) then    
-       config_internal%alpha_input = alpmhd_in
-       config_internal%s_hat_input = shat_in
-       config_internal%beta_prime_input = betaprim_in
+    if (.not.theta_grid_eik_config%is_initialised()) then    
+       theta_grid_eik_config%alpha_input = alpmhd_in
+       theta_grid_eik_config%s_hat_input = shat_in
+       theta_grid_eik_config%beta_prime_input = betaprim_in
     end if
     
-    call config_internal%init(name = 'theta_grid_eik_knobs', requires_index = .false.)
+    call theta_grid_eik_config%init(name = 'theta_grid_eik_knobs', requires_index = .false.)
 
     ! Copy out internal values into module level parameters
-    alpha_input = config_internal%alpha_input
-    beta_prime_input = config_internal%beta_prime_input
-    bishop = config_internal%bishop
-    chs_eq = config_internal%chs_eq
-    delrho = config_internal%delrho
-    dfit_eq = config_internal%dfit_eq
-    dp_mult = config_internal%dp_mult
-    efit_eq = config_internal%efit_eq
-    eqfile = config_internal%eqfile
-    equal_arc = config_internal%equal_arc
-    gen_eq = config_internal%gen_eq
-    gs2d_eq = config_internal%gs2d_eq
-    idfit_eq = config_internal%idfit_eq
-    iflux = config_internal%iflux
-    invlp_input = config_internal%invlp_input
-    irho = config_internal%irho
-    isym = config_internal%isym
-    itor = config_internal%itor
-    local_eq = config_internal%local_eq
-    ppl_eq = config_internal%ppl_eq
-    rmax = config_internal%rmax
-    rmin = config_internal%rmin
-    s_hat_input = config_internal%s_hat_input
-    transp_eq = config_internal%transp_eq
-    writelots = config_internal%writelots
+    alpha_input = theta_grid_eik_config%alpha_input
+    beta_prime_input = theta_grid_eik_config%beta_prime_input
+    bishop = theta_grid_eik_config%bishop
+    chs_eq = theta_grid_eik_config%chs_eq
+    delrho = theta_grid_eik_config%delrho
+    dfit_eq = theta_grid_eik_config%dfit_eq
+    dp_mult = theta_grid_eik_config%dp_mult
+    efit_eq = theta_grid_eik_config%efit_eq
+    eqfile = theta_grid_eik_config%eqfile
+    equal_arc = theta_grid_eik_config%equal_arc
+    gen_eq = theta_grid_eik_config%gen_eq
+    gs2d_eq = theta_grid_eik_config%gs2d_eq
+    idfit_eq = theta_grid_eik_config%idfit_eq
+    iflux = theta_grid_eik_config%iflux
+    invlp_input = theta_grid_eik_config%invlp_input
+    irho = theta_grid_eik_config%irho
+    isym = theta_grid_eik_config%isym
+    itor = theta_grid_eik_config%itor
+    local_eq = theta_grid_eik_config%local_eq
+    ppl_eq = theta_grid_eik_config%ppl_eq
+    rmax = theta_grid_eik_config%rmax
+    rmin = theta_grid_eik_config%rmin
+    s_hat_input = theta_grid_eik_config%s_hat_input
+    transp_eq = theta_grid_eik_config%transp_eq
+    writelots = theta_grid_eik_config%writelots
 
-    exist = config_internal%exist
+    exist = theta_grid_eik_config%exist
   end subroutine read_parameters
 
   !---------------------------------------
@@ -2049,7 +2049,7 @@ module theta_grid_file
      procedure :: theta_grid_file_config_constructor
   end interface theta_grid_file_config_type
   
-  type(theta_grid_file_config_type) :: config_internal
+  type(theta_grid_file_config_type) :: theta_grid_file_config
   
 contains
 
@@ -2131,24 +2131,24 @@ contains
   subroutine finish_theta_grid_file
     implicit none
     initialized = .false.
-    call config_internal%reset()
+    call theta_grid_file_config%reset()
   end subroutine finish_theta_grid_file
 
   !> FIXME : Add documentation
-  subroutine read_parameters(config_in)
+  subroutine read_parameters(theta_grid_file_config_in)
     use file_utils, only: input_unit, input_unit_exist
     implicit none
-    type(theta_grid_file_config_type), intent(in), optional :: config_in
+    type(theta_grid_file_config_type), intent(in), optional :: theta_grid_file_config_in
     
-    if (present(config_in)) config_internal = config_in
+    if (present(theta_grid_file_config_in)) theta_grid_file_config = theta_grid_file_config_in
 
-    call config_internal%init(name = 'theta_grid_file_knobs', requires_index = .false.)
+    call theta_grid_file_config%init(name = 'theta_grid_file_knobs', requires_index = .false.)
     
     ! Copy out internal values into module level parameters
-    gridout_file = config_internal%gridout_file
-    no_geo_info = config_internal%no_geo_info
+    gridout_file = theta_grid_file_config%gridout_file
+    no_geo_info = theta_grid_file_config%no_geo_info
     
-    exist = config_internal%exist
+    exist = theta_grid_file_config%exist
   end subroutine read_parameters
 
   !> FIXME : Add documentation  
@@ -2464,7 +2464,7 @@ module theta_grid
      procedure :: theta_grid_config_constructor
   end interface theta_grid_config_type
 
-  type(theta_grid_config_type) :: config_internal
+  type(theta_grid_config_type) :: theta_grid_config
   
 contains
   
@@ -2575,7 +2575,7 @@ contains
     ! This is now handled separately by gs2_init
     !call finish_theta_grid_params
     call deallocate_arrays
-    call config_internal%reset()
+    call theta_grid_config%reset()
   end subroutine finish_theta_grid
 
   !> FIXME : Add documentation  
@@ -2648,11 +2648,11 @@ contains
   end subroutine broadcast_results
 
   !> FIXME : Add documentation  
-  subroutine read_parameters(config_in)
+  subroutine read_parameters(theta_grid_config_in)
     use file_utils, only: input_unit, error_unit
     use text_options, only: text_option, get_option_value
     implicit none
-    type(theta_grid_config_type), intent(in), optional :: config_in    
+    type(theta_grid_config_type), intent(in), optional :: theta_grid_config_in    
     type (text_option), dimension (5), parameter :: eqopts = &
          (/ text_option('default', eqopt_eik), &
             text_option('eik', eqopt_eik), &
@@ -2666,17 +2666,17 @@ contains
 
     integer :: ierr, in_file
     
-    if (present(config_in)) config_internal = config_in
+    if (present(theta_grid_config_in)) theta_grid_config = theta_grid_config_in
 
-    call config_internal%init(name = 'theta_grid_knobs', requires_index = .false.)
+    call theta_grid_config%init(name = 'theta_grid_knobs', requires_index = .false.)
 
     ! Copy out internal values into module level parameters
-    cvdriftknob = config_internal%cvdriftknob
-    equilibrium_option = config_internal%equilibrium_option
-    gb_to_cv = config_internal%gb_to_cv
-    gbdriftknob = config_internal%gbdriftknob
+    cvdriftknob = theta_grid_config%cvdriftknob
+    equilibrium_option = theta_grid_config%equilibrium_option
+    gb_to_cv = theta_grid_config%gb_to_cv
+    gbdriftknob = theta_grid_config%gbdriftknob
 
-    exist = config_internal%exist
+    exist = theta_grid_config%exist
 
     ierr = error_unit()
     call get_option_value &

@@ -94,7 +94,7 @@ module fields
      procedure :: fields_config_constructor
   end interface fields_config_type
   
-  type(fields_config_type) :: config_internal  
+  type(fields_config_type) :: fields_config  
 contains
 
   !> FIXME : Add documentation  
@@ -403,7 +403,7 @@ contains
   end subroutine set_init_fields
 
   !> FIXME : Add documentation  
-  subroutine read_parameters(config_in)
+  subroutine read_parameters(fields_config_in)
     use file_utils, only: input_unit, error_unit, input_unit_exist
     use text_options, only: text_option, get_option_value
     use mp, only: proc0, broadcast, mp_abort
@@ -414,32 +414,32 @@ contains
     use fields_arrays, only: response_file
     use file_utils, only: run_name
     implicit none
-    type(fields_config_type), intent(in), optional :: config_in    
+    type(fields_config_type), intent(in), optional :: fields_config_in    
     character(20) :: field_option
     character(len=256) :: response_dir
     integer :: ierr, in_file
 
 
-    if (present(config_in)) config_internal = config_in
+    if (present(fields_config_in)) fields_config = fields_config_in
 
-    call config_internal%init(name = 'fields_knobs', requires_index = .false.)
+    call fields_config%init(name = 'fields_knobs', requires_index = .false.)
 
     ! Copy out internal values into module level parameters
-    do_smart_update = config_internal%do_smart_update
-    dump_response = config_internal%dump_response
-    field_local_allreduce = config_internal%field_local_allreduce
-    field_local_allreduce_sub = config_internal%field_local_allreduce_sub
-    field_local_nonblocking_collectives = config_internal%field_local_nonblocking_collectives
-    field_local_tuneminnrow = config_internal%field_local_tuneminnrow
-    field_option = config_internal%field_option
-    field_subgath = config_internal%field_subgath
-    force_maxwell_reinit = config_internal%force_maxwell_reinit
-    minnrow = config_internal%minnrow
-    read_response = config_internal%read_response
-    remove_zonal_flows_switch = config_internal%remove_zonal_flows_switch
-    response_dir = config_internal%response_dir
+    do_smart_update = fields_config%do_smart_update
+    dump_response = fields_config%dump_response
+    field_local_allreduce = fields_config%field_local_allreduce
+    field_local_allreduce_sub = fields_config%field_local_allreduce_sub
+    field_local_nonblocking_collectives = fields_config%field_local_nonblocking_collectives
+    field_local_tuneminnrow = fields_config%field_local_tuneminnrow
+    field_option = fields_config%field_option
+    field_subgath = fields_config%field_subgath
+    force_maxwell_reinit = fields_config%force_maxwell_reinit
+    minnrow = fields_config%minnrow
+    read_response = fields_config%read_response
+    remove_zonal_flows_switch = fields_config%remove_zonal_flows_switch
+    response_dir = fields_config%response_dir
 
-    exist = config_internal%exist
+    exist = fields_config%exist
     ierr = error_unit()
     call get_option_value &
          (field_option, fieldopts, fieldopt_switch, &
@@ -732,7 +732,7 @@ contains
     call debug_message(verbosity, &
       'fields::finish_fields deallocated fields')
 
-    call config_internal%reset()
+    call fields_config%reset()
   end subroutine finish_fields
 
   !---------------------------------------

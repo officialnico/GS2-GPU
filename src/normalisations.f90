@@ -86,7 +86,7 @@ module normalisations
      procedure :: normalisations_config_constructor
   end interface normalisations_config_type
   
-  type(normalisations_config_type) :: config_internal
+  type(normalisations_config_type) :: normalisations_config
 contains
   !/////////////////////////////
   !// TYPE BOUND PROCEDURES
@@ -169,30 +169,30 @@ contains
   end function norms_get_value
 
   !> FIXME : Add documentation  
-  subroutine norms_read_parameters(self, config_in)
+  subroutine norms_read_parameters(self, normalisations_config_in)
     use file_utils, only: input_unit_exist
     use mp, only: proc0, broadcast
     implicit none
     class(norms_type), intent(in out) :: self
-    type(normalisations_config_type), intent(in), optional :: config_in
+    type(normalisations_config_type), intent(in), optional :: normalisations_config_in
     real :: mref,zref,nref,tref,aref,vref,bref,rhoref
     integer :: in_file
 
-    if (present(config_in)) config_internal = config_in
+    if (present(normalisations_config_in)) normalisations_config = normalisations_config_in
 
-    call config_internal%init(name = 'normalisations_knobs', requires_index = .false.)
+    call normalisations_config%init(name = 'normalisations_knobs', requires_index = .false.)
 
     ! Copy out internal values into module level parameters
-    aref = config_internal%aref
-    bref = config_internal%bref
-    mref = config_internal%mref
-    nref = config_internal%nref
-    rhoref = config_internal%rhoref
-    tref = config_internal%tref
-    vref = config_internal%vref
-    zref = config_internal%zref
+    aref = normalisations_config%aref
+    bref = normalisations_config%bref
+    mref = normalisations_config%mref
+    nref = normalisations_config%nref
+    rhoref = normalisations_config%rhoref
+    tref = normalisations_config%tref
+    vref = normalisations_config%vref
+    zref = normalisations_config%zref
 
-    exist = config_internal%exist
+    exist = normalisations_config%exist
 
     !Now copy parameters into holder type
     call self%set_value("mref",mref)
@@ -329,7 +329,7 @@ contains
   subroutine finish_normalisations
     implicit none
     call norms%finish
-    call config_internal%reset()
+    call normalisations_config%reset()
   end subroutine finish_normalisations
 
   !> Reset normalisations object

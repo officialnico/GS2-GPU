@@ -328,7 +328,7 @@ module le_grids
      procedure :: le_grids_config_constructor
   end interface le_grids_config_type
   
-  type(le_grids_config_type) :: config_internal
+  type(le_grids_config_type) :: le_grids_config
   
 contains
 
@@ -347,7 +347,7 @@ contains
   end subroutine wnml_le_grids
 
   !> FIXME : Add documentation  
-  subroutine init_le_grids (accelerated_x, accelerated_v, config_in)
+  subroutine init_le_grids (accelerated_x, accelerated_v, le_grid_config_in)
     use mp, only: proc0, finish_mp
     use species, only: init_species
     use theta_grid, only: init_theta_grid
@@ -356,7 +356,7 @@ contains
     use egrid, only: setvgrid
     implicit none
     logical, intent (out) :: accelerated_x, accelerated_v
-    type(le_grids_config_type), intent(in), optional :: config_in    
+    type(le_grids_config_type), intent(in), optional :: le_grid_config_in    
     integer :: il, ie
 
     if (initialized) return
@@ -367,7 +367,7 @@ contains
     call init_theta_grid
     call init_kt_grids
 
-    call read_parameters(config_in)
+    call read_parameters(le_grid_config_in)
     call set_vgrid
     if (proc0) then
        call set_grids
@@ -473,31 +473,31 @@ contains
   end subroutine broadcast_results
 
   !> FIXME : Add documentation  
-  subroutine read_parameters(config_in)
+  subroutine read_parameters(le_grid_config_in)
     implicit none
-    type(le_grids_config_type), intent(in), optional :: config_in    
+    type(le_grids_config_type), intent(in), optional :: le_grid_config_in    
     
-    if (present(config_in)) config_internal = config_in
+    if (present(le_grid_config_in)) le_grids_config = le_grid_config_in
 
-    call config_internal%init(name = 'le_grids_knobs', requires_index = .false.)
+    call le_grids_config%init(name = 'le_grids_knobs', requires_index = .false.)
 
     ! Copy out internal values into module level parameters
-    bouncefuzz = config_internal%bouncefuzz
-    genquad = config_internal%genquad
-    negrid = config_internal%negrid
-    nesub = config_internal%nesub
-    nesuper = config_internal%nesuper
-    new_trap_int = config_internal%new_trap_int
-    ngauss = config_internal%ngauss
-    nmax = config_internal%nmax
-    nterp = config_internal%nterp
-    radau_gauss_grid = config_internal%radau_gauss_grid
-    test = config_internal%test
-    trapped_particles = config_internal%trapped_particles
-    vcut = config_internal%vcut
-    wgt_fac = config_internal%wgt_fac
+    bouncefuzz = le_grids_config%bouncefuzz
+    genquad = le_grids_config%genquad
+    negrid = le_grids_config%negrid
+    nesub = le_grids_config%nesub
+    nesuper = le_grids_config%nesuper
+    new_trap_int = le_grids_config%new_trap_int
+    ngauss = le_grids_config%ngauss
+    nmax = le_grids_config%nmax
+    nterp = le_grids_config%nterp
+    radau_gauss_grid = le_grids_config%radau_gauss_grid
+    test = le_grids_config%test
+    trapped_particles = le_grids_config%trapped_particles
+    vcut = le_grids_config%vcut
+    wgt_fac = le_grids_config%wgt_fac
 
-    exist = config_internal%exist
+    exist = le_grids_config%exist
     
 ! user can choose not to set negrid (preferred for old scheme)
     if (negrid == -10) then
@@ -4516,7 +4516,7 @@ contains
     einit = .false.
     initialized = .false.
 
-    call config_internal%reset()
+    call le_grids_config%reset()
   end subroutine finish_le_grids
 
   !> FIXME : Add documentation  

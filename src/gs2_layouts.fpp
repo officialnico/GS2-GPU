@@ -283,7 +283,7 @@ module gs2_layouts
      procedure :: layouts_config_constructor
   end interface layouts_config_type
   
-  type(layouts_config_type) :: config_internal
+  type(layouts_config_type) :: layouts_config
   
   interface ij_idx
      module procedure ij_idx_f
@@ -479,38 +479,38 @@ contains
   end subroutine finish_gs2_layouts
 
   !> FIXME : Add documentation   
-  subroutine read_parameters(config_in)
+  subroutine read_parameters(layouts_config_in)
     use file_utils, only: input_unit, error_unit, input_unit_exist, error_unit
     use redistribute, only: opt_redist_nbk, opt_redist_persist, opt_redist_persist_overlap
     use mp, only: mp_abort, proc0, broadcast
     implicit none
-    type(layouts_config_type), intent(in), optional :: config_in    
+    type(layouts_config_type), intent(in), optional :: layouts_config_in    
     integer :: in_file
 
-    if (present(config_in)) config_internal = config_in
+    if (present(layouts_config_in)) layouts_config = layouts_config_in
 
-    call config_internal%init(name = 'layouts_knobs', requires_index = .false.)
+    call layouts_config%init(name = 'layouts_knobs', requires_index = .false.)
 
     ! Copy out internal values into module level parameters
-    fft_measure_plan = config_internal%fft_measure_plan
-    fft_use_wisdom = config_internal%fft_use_wisdom
-    fft_wisdom_file = config_internal%fft_wisdom_file
-    gf_local_fields = config_internal%gf_local_fields
-    intmom_sub = config_internal%intmom_sub
-    intspec_sub = config_internal%intspec_sub
-    layout = config_internal%layout
-    local_field_solve = config_internal%local_field_solve
-    max_unbalanced_xxf = config_internal%max_unbalanced_xxf
-    opt_local_copy = config_internal%opt_local_copy
-    opt_redist_init = config_internal%opt_redist_init
-    opt_redist_nbk = config_internal%opt_redist_nbk
-    opt_redist_persist = config_internal%opt_redist_persist
-    opt_redist_persist_overlap = config_internal%opt_redist_persist_overlap
-    simple_gf_decomposition = config_internal%simple_gf_decomposition
-    unbalanced_xxf = config_internal%unbalanced_xxf
-    unbalanced_yxf = config_internal%unbalanced_yxf
+    fft_measure_plan = layouts_config%fft_measure_plan
+    fft_use_wisdom = layouts_config%fft_use_wisdom
+    fft_wisdom_file = layouts_config%fft_wisdom_file
+    gf_local_fields = layouts_config%gf_local_fields
+    intmom_sub = layouts_config%intmom_sub
+    intspec_sub = layouts_config%intspec_sub
+    layout = layouts_config%layout
+    local_field_solve = layouts_config%local_field_solve
+    max_unbalanced_xxf = layouts_config%max_unbalanced_xxf
+    opt_local_copy = layouts_config%opt_local_copy
+    opt_redist_init = layouts_config%opt_redist_init
+    opt_redist_nbk = layouts_config%opt_redist_nbk
+    opt_redist_persist = layouts_config%opt_redist_persist
+    opt_redist_persist_overlap = layouts_config%opt_redist_persist_overlap
+    simple_gf_decomposition = layouts_config%simple_gf_decomposition
+    unbalanced_xxf = layouts_config%unbalanced_xxf
+    unbalanced_yxf = layouts_config%unbalanced_yxf
 
-    exist = config_internal%exist
+    exist = layouts_config%exist
     
     if (layout.ne.'yxels' .and. layout.ne.'yxles' .and. layout.ne.'lexys'&
     .and. layout.ne.'lxyes' .and. layout.ne.'lyxes' .and. layout.ne.'xyles') &
@@ -2310,7 +2310,7 @@ contains
     initialized_x_transform = .false.
     initialized_y_transform = .false.
 
-    call config_internal%reset()
+    call layouts_config%reset()
   end subroutine finish_layouts
 
   !> FIXME : Add documentation

@@ -377,7 +377,7 @@ module dist_fn
      procedure :: dist_fn_config_constructor
   end interface dist_fn_config_type
   
-  type(dist_fn_config_type) :: config_internal
+  type(dist_fn_config_type) :: dist_fn_config
   
   !> Used to represent the input configuration of source
   type, extends(abstract_config_type) :: source_config_type
@@ -406,7 +406,7 @@ module dist_fn
      procedure :: source_config_constructor
   end interface source_config_type
 
-  type(source_config_type) :: config_source_internal
+  type(source_config_type) :: source_config
 
   !> Used to represent the input configuration of dist_fn_species
   type, extends(abstract_config_type) :: dist_fn_species_config_type
@@ -431,7 +431,7 @@ module dist_fn
      procedure :: dist_fn_species_config_constructor
   end interface dist_fn_species_config_type
 
-  type(dist_fn_species_config_type), dimension(:), allocatable :: config_dist_fn_species_internal
+  type(dist_fn_species_config_type), dimension(:), allocatable :: dist_fn_species_config
   
 contains
 
@@ -1083,9 +1083,9 @@ contains
 !AJ
     if (allocated(vpa_gf)) deallocate(vpa_gf, vperp2_gf)
 
-    call config_internal%reset()
-    call config_source_internal%reset()
-    if(allocated(config_dist_fn_species_internal)) deallocate(config_dist_fn_species_internal)
+    call dist_fn_config%reset()
+    call source_config%reset()
+    if(allocated(dist_fn_species_config)) deallocate(dist_fn_species_config)
   end subroutine finish_dist_fn_level_3
 
   !> FIXME : Add documentation  
@@ -1106,7 +1106,7 @@ contains
   end subroutine set_optimisations_overrides
 
   !> FIXME : Add documentation  
-  subroutine read_parameters(config_in, config_source_in, config_elements_in)
+  subroutine read_parameters(dist_fn_config_in, source_config_in, dist_fn_species_config_in)
     use file_utils, only: input_unit, error_unit, input_unit_exist
     use theta_grid, only: shat
     use text_options, only: text_option, get_option_value
@@ -1114,9 +1114,9 @@ contains
     use mp, only: proc0, broadcast
     use theta_grid, only: itor_over_B
     implicit none
-    type(dist_fn_config_type), intent(in), optional :: config_in
-    type(source_config_type), intent(in), optional :: config_source_in
-    type(dist_fn_species_config_type), intent(in), dimension(:), optional :: config_elements_in
+    type(dist_fn_config_type), intent(in), optional :: dist_fn_config_in
+    type(source_config_type), intent(in), optional :: source_config_in
+    type(dist_fn_species_config_type), intent(in), dimension(:), optional :: dist_fn_species_config_in
     type (text_option), dimension (3), parameter :: sourceopts = &
          (/ text_option('default', source_option_full), &
             text_option('full', source_option_full), &
@@ -1160,67 +1160,67 @@ contains
 
 
     !Deal with source_knobs namelist
-    if (present(config_source_in)) config_source_internal = config_source_in
+    if (present(source_config_in)) source_config = source_config_in
 
-    call config_source_internal%init(name = 'source_knobs', requires_index = .false.)
+    call source_config%init(name = 'source_knobs', requires_index = .false.)
 
     ! Copy out internal values into module level parameters
-    gamma0 = config_source_internal%gamma0
-    omega0 = config_source_internal%omega0
-    phi_ext = config_source_internal%phi_ext
-    source0 = config_source_internal%source0
-    source_option = config_source_internal%source_option
-    t0 = config_source_internal%t0
+    gamma0 = source_config%gamma0
+    omega0 = source_config%omega0
+    phi_ext = source_config%phi_ext
+    source0 = source_config%source0
+    source_option = source_config%source_option
+    t0 = source_config%t0
 
-    skexist = config_source_internal%exist
+    skexist = source_config%exist
 
     !Deal with dist_fn_knobs namelist    
-    if (present(config_in)) config_internal = config_in
+    if (present(dist_fn_config_in)) dist_fn_config = dist_fn_config_in
 
-    call config_internal%init(name = 'dist_fn_knobs', requires_index = .false.)
+    call dist_fn_config%init(name = 'dist_fn_knobs', requires_index = .false.)
 
     ! Copy out internal values into module level parameters
-    adiabatic_option = config_internal%adiabatic_option
-    afilter = config_internal%afilter
-    apfac = config_internal%apfac
-    boundary_option = config_internal%boundary_option
-    btor_slab = config_internal%btor_slab
-    def_parity = config_internal%def_parity
-    densfac_lin = config_internal%densfac_lin
-    driftknob = config_internal%driftknob
-    esv = config_internal%esv
-    even = config_internal%even
-    g_exb = config_internal%g_exb
-    g_exb_error_limit = config_internal%g_exb_error_limit
-    g_exb_start_time = config_internal%g_exb_start_time
-    g_exb_start_timestep = config_internal%g_exb_start_timestep
-    g_exbfac = config_internal%g_exbfac
-    gf_lo_integrate = config_internal%gf_lo_integrate
-    gridfac = config_internal%gridfac
-    kfilter = config_internal%kfilter
-    lf_decompose = config_internal%lf_decompose
-    lf_default = config_internal%lf_default
-    mach = config_internal%mach
-    mult_imp = config_internal%mult_imp
-    nonad_zero = config_internal%nonad_zero
-    omprimfac = config_internal%omprimfac
-    opt_init_bc = config_internal%opt_init_bc
-    opt_source = config_internal%opt_source
-    phifac_lin = config_internal%phifac_lin
-    poisfac = config_internal%poisfac
-    qparfac_lin = config_internal%qparfac_lin
-    qprpfac_lin = config_internal%qprpfac_lin
-    test = config_internal%test
-    tparfac_lin = config_internal%tparfac_lin
-    tpdriftknob = config_internal%tpdriftknob
-    tprpfac_lin = config_internal%tprpfac_lin
-    uparfac_lin = config_internal%uparfac_lin
-    wfb = config_internal%wfb
-    wfb_cmr = config_internal%wfb_cmr
-    wfbbc_option = config_internal%wfbbc_option
-    zero_forbid = config_internal%zero_forbid
+    adiabatic_option = dist_fn_config%adiabatic_option
+    afilter = dist_fn_config%afilter
+    apfac = dist_fn_config%apfac
+    boundary_option = dist_fn_config%boundary_option
+    btor_slab = dist_fn_config%btor_slab
+    def_parity = dist_fn_config%def_parity
+    densfac_lin = dist_fn_config%densfac_lin
+    driftknob = dist_fn_config%driftknob
+    esv = dist_fn_config%esv
+    even = dist_fn_config%even
+    g_exb = dist_fn_config%g_exb
+    g_exb_error_limit = dist_fn_config%g_exb_error_limit
+    g_exb_start_time = dist_fn_config%g_exb_start_time
+    g_exb_start_timestep = dist_fn_config%g_exb_start_timestep
+    g_exbfac = dist_fn_config%g_exbfac
+    gf_lo_integrate = dist_fn_config%gf_lo_integrate
+    gridfac = dist_fn_config%gridfac
+    kfilter = dist_fn_config%kfilter
+    lf_decompose = dist_fn_config%lf_decompose
+    lf_default = dist_fn_config%lf_default
+    mach = dist_fn_config%mach
+    mult_imp = dist_fn_config%mult_imp
+    nonad_zero = dist_fn_config%nonad_zero
+    omprimfac = dist_fn_config%omprimfac
+    opt_init_bc = dist_fn_config%opt_init_bc
+    opt_source = dist_fn_config%opt_source
+    phifac_lin = dist_fn_config%phifac_lin
+    poisfac = dist_fn_config%poisfac
+    qparfac_lin = dist_fn_config%qparfac_lin
+    qprpfac_lin = dist_fn_config%qprpfac_lin
+    test = dist_fn_config%test
+    tparfac_lin = dist_fn_config%tparfac_lin
+    tpdriftknob = dist_fn_config%tpdriftknob
+    tprpfac_lin = dist_fn_config%tprpfac_lin
+    uparfac_lin = dist_fn_config%uparfac_lin
+    wfb = dist_fn_config%wfb
+    wfb_cmr = dist_fn_config%wfb_cmr
+    wfbbc_option = dist_fn_config%wfbbc_option
+    zero_forbid = dist_fn_config%zero_forbid
 
-    dfexist = config_internal%exist
+    dfexist = dist_fn_config%exist
     
     if (tpdriftknob == -9.9e9) tpdriftknob=driftknob
 
@@ -1260,7 +1260,7 @@ contains
        
     if (.not.allocated(fexp)) allocate (fexp(nspec), bkdiff(nspec), bd_exp(nspec))
 
-    call read_species_knobs(config_elements_in)
+    call read_species_knobs(dist_fn_species_config_in)
 
     call broadcast (fexp)
     call broadcast (bkdiff)
@@ -1317,32 +1317,32 @@ contains
   end subroutine read_parameters 
 
   !> FIXME : Add documentation  
-  subroutine read_species_knobs(config_in)
+  subroutine read_species_knobs(dist_fn_species_config_in)
     use species, only: nspec
     use mp, only: proc0
     use file_utils, only: get_indexed_namelist_unit
     implicit none
-    type(dist_fn_species_config_type), intent(in), dimension(:), optional :: config_in    
+    type(dist_fn_species_config_type), intent(in), dimension(:), optional :: dist_fn_species_config_in    
     integer :: is, unit
     logical :: exist
     real :: fexpr, fexpi
 
-    if(present(config_in)) config_dist_fn_species_internal = config_in
-    if(.not.allocated(config_dist_fn_species_internal)) allocate(config_dist_fn_species_internal(nspec))
-    if(size(config_dist_fn_species_internal).ne.nspec) then
+    if(present(dist_fn_species_config_in)) dist_fn_species_config = dist_fn_species_config_in
+    if(.not.allocated(dist_fn_species_config)) allocate(dist_fn_species_config(nspec))
+    if(size(dist_fn_species_config).ne.nspec) then
        if(proc0) print*,"Warning: inconsistent config size in read_species_knobs"
     endif
     
     do is = 1, nspec
-       call config_dist_fn_species_internal(is)%init(name = 'dist_fn_species_knobs', requires_index = .true., index = is)
+       call dist_fn_species_config(is)%init(name = 'dist_fn_species_knobs', requires_index = .true., index = is)
 
        ! Copy out internal values into module level parameters
-       bkdiff(is) = config_dist_fn_species_internal(is)%bakdif
-       bd_exp(is) = config_dist_fn_species_internal(is)%bd_exp
-       fexpi = config_dist_fn_species_internal(is)%fexpi
-       fexpr = config_dist_fn_species_internal(is)%fexpr
+       bkdiff(is) = dist_fn_species_config(is)%bakdif
+       bd_exp(is) = dist_fn_species_config(is)%bd_exp
+       fexpi = dist_fn_species_config(is)%fexpi
+       fexpr = dist_fn_species_config(is)%fexpr
        
-       exist = config_dist_fn_species_internal(is)%exist
+       exist = dist_fn_species_config(is)%exist
        
        fexp(is) = cmplx(fexpr,fexpi)
     end do

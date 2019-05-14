@@ -91,7 +91,7 @@ module species
      procedure :: species_config_constructor
   end interface species_config_type
   
-  type(species_config_type) :: config_internal
+  type(species_config_type) :: species_config
   
   !> Used to represent the input configuration of species
   type, extends(abstract_config_type) :: species_element_config_type
@@ -150,7 +150,7 @@ module species
      procedure :: species_element_config_constructor
   end interface species_element_config_type
   
-  type(species_element_config_type), dimension(:), allocatable :: config_internal_elements
+  type(species_element_config_type), dimension(:), allocatable :: species_element_config
 
 contains
   !> FIXME : Add documentation   
@@ -325,13 +325,13 @@ contains
   end subroutine init_species
 
   !> FIXME : Add documentation   
-  subroutine read_parameters(config_in, config_elements_in)
+  subroutine read_parameters(species_config_in, species_elements_config_in)
     use file_utils, only: input_unit, error_unit, get_indexed_namelist_unit, input_unit_exist
     use text_options, only: text_option, get_option_value
     use mp, only: proc0, broadcast, mp_abort
     implicit none
-    type(species_config_type), intent(in), optional :: config_in
-    type(species_element_config_type), intent(in), dimension(:), optional :: config_elements_in
+    type(species_config_type), intent(in), optional :: species_config_in
+    type(species_element_config_type), intent(in), dimension(:), optional :: species_elements_config_in
     real :: z, mass, dens, dens0, u0, temp, tprim, fprim, uprim, uprim2, vnewk, nustar, nu, nu_h
     real :: tperp0, tpar0, bess_fac, vcrit, vcprim
     real, dimension(:), allocatable :: tmp_bcast
@@ -352,16 +352,16 @@ contains
             text_option('tabulated', f0_tabulated), &
             text_option('sdanalytic', f0_sdanalytic) /)
 
-    if (present(config_in)) config_internal = config_in
+    if (present(species_config_in)) species_config = species_config_in
 
-    call config_internal%init(name = 'species_knobs', requires_index = .false.)
+    call species_config%init(name = 'species_knobs', requires_index = .false.)
 
     ! Copy out internal values into module level parameters
-    me = config_internal%me
-    nspec = config_internal%nspec
-    zi_fac = config_internal%zi_fac
+    me = species_config%me
+    nspec = species_config%nspec
+    zi_fac = species_config%zi_fac
 
-    exist = config_internal%exist
+    exist = species_config%exist
     
     if (proc0) then
        if (nspec < 1) then
@@ -374,39 +374,39 @@ contains
 
     allocate (spec(nspec))
 
-    if (present(config_elements_in)) config_internal_elements = config_elements_in
+    if (present(species_elements_config_in)) species_element_config = species_elements_config_in
 
-    if (.not.allocated(config_internal_elements)) allocate(config_internal_elements(nspec))
+    if (.not.allocated(species_element_config)) allocate(species_element_config(nspec))
 
-    if (size(config_internal_elements) .ne. nspec) then
+    if (size(species_element_config) .ne. nspec) then
        if (proc0) print*,"inconsistent number of config elements"
     endif
        
     do is = 1, nspec
-       call config_internal_elements(is)%init(name = 'species_parameters', requires_index = .true., index = is)
+       call species_element_config(is)%init(name = 'species_parameters', requires_index = .true., index = is)
 
        ! Copy out internal values into module level parameters
-       bess_fac = config_internal_elements(is)%bess_fac
-       dens = config_internal_elements(is)%dens
-       dens0 = config_internal_elements(is)%dens0
-       f0type = config_internal_elements(is)%f0type
-       fprim = config_internal_elements(is)%fprim
-       mass = config_internal_elements(is)%mass
-       nu = config_internal_elements(is)%nu
-       nu_h = config_internal_elements(is)%nu_h
-       nustar = config_internal_elements(is)%nustar
-       temp = config_internal_elements(is)%temp
-       tpar0 = config_internal_elements(is)%tpar0
-       tperp0 = config_internal_elements(is)%tperp0
-       tprim = config_internal_elements(is)%tprim
-       type = config_internal_elements(is)%type
-       u0 = config_internal_elements(is)%u0
-       uprim = config_internal_elements(is)%uprim
-       uprim2 = config_internal_elements(is)%uprim2
-       vcprim = config_internal_elements(is)%vcprim
-       vcrit = config_internal_elements(is)%vcrit
-       vnewk = config_internal_elements(is)%vnewk
-       z = config_internal_elements(is)%z
+       bess_fac = species_element_config(is)%bess_fac
+       dens = species_element_config(is)%dens
+       dens0 = species_element_config(is)%dens0
+       f0type = species_element_config(is)%f0type
+       fprim = species_element_config(is)%fprim
+       mass = species_element_config(is)%mass
+       nu = species_element_config(is)%nu
+       nu_h = species_element_config(is)%nu_h
+       nustar = species_element_config(is)%nustar
+       temp = species_element_config(is)%temp
+       tpar0 = species_element_config(is)%tpar0
+       tperp0 = species_element_config(is)%tperp0
+       tprim = species_element_config(is)%tprim
+       type = species_element_config(is)%type
+       u0 = species_element_config(is)%u0
+       uprim = species_element_config(is)%uprim
+       uprim2 = species_element_config(is)%uprim2
+       vcprim = species_element_config(is)%vcprim
+       vcrit = species_element_config(is)%vcrit
+       vnewk = species_element_config(is)%vnewk
+       z = species_element_config(is)%z
 
        spec(is)%z = z
        spec(is)%mass = mass
@@ -943,8 +943,8 @@ contains
     implicit none
     if(allocated(spec)) deallocate (spec)
     !    if(allocated(f0_values)) deallocate (f0_values,nonmaxw_corr,dlnf0drho)
-    call config_internal%reset()
-    if (allocated(config_internal_elements)) deallocate(config_internal_elements)
+    call species_config%reset()
+    if (allocated(species_element_config)) deallocate(species_element_config)
     initialized = .false.
   end subroutine finish_species
 

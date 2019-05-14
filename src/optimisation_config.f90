@@ -83,16 +83,16 @@ module optimisation_config
      procedure :: optimisation_config_constructor
   end interface optimisation_config_type
   
-  type(optimisation_config_type) :: config_internal  
+  type(optimisation_config_type) :: optimisation_config_config  
   
 contains
-  subroutine init_optimisation_config(optim, config_in)
+  subroutine init_optimisation_config(optim, optimisation_config_config_in)
     use file_utils, only: open_output_file
     use mp, only: nproc
     implicit none
     type(optimisation_type), intent(inout) :: optim
-    type(optimisation_config_type), intent(in), optional :: config_in
-    call read_parameters(optim, config_in)
+    type(optimisation_config_type), intent(in), optional :: optimisation_config_config_in
+    call read_parameters(optim, optimisation_config_config_in)
     call open_output_file(optim%outunit, '.optim')
     optim%nproc_max = nproc
   end subroutine init_optimisation_config
@@ -100,28 +100,28 @@ contains
   subroutine finish_optimisation_config(optim)
     implicit none
     type(optimisation_type), intent(inout) :: optim
-    call config_internal%reset()
+    call optimisation_config_config%reset()
   end subroutine finish_optimisation_config
 
-  subroutine read_parameters(optim, config_in)
+  subroutine read_parameters(optim, optimisation_config_config_in)
     implicit none
     type(optimisation_type), intent(inout) :: optim
-    type(optimisation_config_type), intent(in), optional :: config_in
+    type(optimisation_config_type), intent(in), optional :: optimisation_config_config_in
 
-    if (present(config_in)) config_internal = config_in
+    if (present(optimisation_config_config_in)) optimisation_config_config = optimisation_config_config_in
 
-    call config_internal%init(name = 'optimisation_config', requires_index = .false.)
+    call optimisation_config_config%init(name = 'optimisation_config', requires_index = .false.)
 
     ! Copy out internal values into module level parameters
-    optim%auto = config_internal%auto
-    optim%estimate_timing_error = config_internal%estimate_timing_error
-    optim%max_imbalance = config_internal%max_imbalance
-    optim%max_unused_procs = config_internal%max_unused_procs
-    optim%measure_all = config_internal%measure_all
-    optim%min_efficiency = config_internal%min_efficiency
-    optim%nstep_measure = config_internal%nstep_measure
-    optim%on = config_internal%on
-    optim%warm_up = config_internal%warm_up
+    optim%auto = optimisation_config_config%auto
+    optim%estimate_timing_error = optimisation_config_config%estimate_timing_error
+    optim%max_imbalance = optimisation_config_config%max_imbalance
+    optim%max_unused_procs = optimisation_config_config%max_unused_procs
+    optim%measure_all = optimisation_config_config%measure_all
+    optim%min_efficiency = optimisation_config_config%min_efficiency
+    optim%nstep_measure = optimisation_config_config%nstep_measure
+    optim%on = optimisation_config_config%on
+    optim%warm_up = optimisation_config_config%warm_up
   end subroutine read_parameters
 
   !---------------------------------------

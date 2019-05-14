@@ -162,7 +162,7 @@ module gs2_init
      procedure :: init_config_constructor
   end interface init_config_type
   
-  type(init_config_type) :: config_internal  
+  type(init_config_type) :: init_config  
   
 contains
   !> Initialize gs2 to the level of target_level.
@@ -200,26 +200,26 @@ contains
 
   end subroutine init
 
-  subroutine init_gs2_init(current, config_in)
+  subroutine init_gs2_init(current, init_config_in)
     implicit none
     type(init_type), intent(inout) :: current
-    type(init_config_type), intent(in), optional :: config_in
+    type(init_config_type), intent(in), optional :: init_config_in
 
     logical :: exist
 
-    if (present(config_in)) config_internal = config_in
+    if (present(init_config_in)) init_config = init_config_in
 
-    call config_internal%init(name = 'init_knobs', requires_index = .false.)
+    call init_config%init(name = 'init_knobs', requires_index = .false.)
 
     ! Copy out internal values into module level parameters
-    in_memory = config_internal%in_memory
+    in_memory = init_config%in_memory
 
-    exist = config_internal%exist
+    exist = init_config%exist
   end subroutine init_gs2_init
 
   subroutine finish_gs2_init(current)
     type(init_type), intent(inout) :: current
-    call config_internal%reset()
+    call init_config%reset()
   end subroutine finish_gs2_init
 
   subroutine set_initial_field_and_dist_fn_values(current)

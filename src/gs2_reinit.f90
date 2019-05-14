@@ -70,7 +70,7 @@ module gs2_reinit
      procedure :: reinit_config_constructor
   end interface reinit_config_type
 
-  type(reinit_config_type) :: config_internal  
+  type(reinit_config_type) :: reinit_config  
 contains
 
   !> FIXME : Add documentation  
@@ -254,42 +254,42 @@ contains
   !> FIXME : Add documentation  
   subroutine finish_gs2_reinit
     first = .true.
-    call config_internal%reset()
+    call reinit_config%reset()
   end subroutine finish_gs2_reinit
 
   !> FIXME : Add documentation  
-  subroutine init_reinit(config_in)
+  subroutine init_reinit(reinit_config_in)
     use run_parameters, only: code_delt_max
     use mp, only: proc0, broadcast
     use file_utils, only: input_unit, input_unit_exist
     use gs2_time, only: save_dt_min
     use gs2_init, only: gs2_init_in_memory=>in_memory
     implicit none
-    type(reinit_config_type), intent(in), optional :: config_in    
+    type(reinit_config_type), intent(in), optional :: reinit_config_in    
     integer :: in_file
     logical :: exist
 
     if(.not.first)return
     first=.false.
 
-    if (present(config_in)) config_internal = config_in
+    if (present(reinit_config_in)) reinit_config = reinit_config_in
 
     !Smart defaults
-    if (.not.config_internal%is_initialised()) then    
-       config_internal%dt0 = code_delt_max
+    if (.not.reinit_config%is_initialised()) then    
+       reinit_config%dt0 = code_delt_max
     endif
     
-    call config_internal%init(name = 'reinit_knobs', requires_index = .false.)
+    call reinit_config%init(name = 'reinit_knobs', requires_index = .false.)
 
     ! Copy out internal values into module level parameters
-    abort_rapid_time_step_change = config_internal%abort_rapid_time_step_change
-    delt_adj = config_internal%delt_adj
-    delt_cushion = config_internal%delt_cushion
-    delt_minimum = config_internal%delt_minimum
-    dt0 = config_internal%dt0
-    in_memory = config_internal%in_memory
+    abort_rapid_time_step_change = reinit_config%abort_rapid_time_step_change
+    delt_adj = reinit_config%delt_adj
+    delt_cushion = reinit_config%delt_cushion
+    delt_minimum = reinit_config%delt_minimum
+    dt0 = reinit_config%dt0
+    in_memory = reinit_config%in_memory
     
-    exist = config_internal%exist
+    exist = reinit_config%exist
     
     call save_dt_min (delt_minimum)
     

@@ -221,7 +221,7 @@ module init_g
      procedure :: init_g_config_constructor
   end interface init_g_config_type
   
-  type(init_g_config_type) :: config_internal
+  type(init_g_config_type) :: init_g_config
   
 contains
 
@@ -961,14 +961,14 @@ contains
   end subroutine ginit
 
   !> FIXME : Add documentation  
-  subroutine read_parameters(config_in)
+  subroutine read_parameters(init_g_config_in)
     use file_utils, only: input_unit, error_unit, run_name, input_unit_exist
     use text_options, only: text_option, get_option_value
     use gs2_save, only: read_many
     use job_manage, only: trin_restart
 
     implicit none
-    type(init_g_config_type), intent(in), optional :: config_in
+    type(init_g_config_type), intent(in), optional :: init_g_config_in
 
     type (text_option), dimension (36), parameter :: ginitopts = &
          (/ text_option('default', ginitopt_default), &
@@ -1012,75 +1012,75 @@ contains
 
     integer :: ierr
 
-    if (present(config_in)) config_internal = config_in
+    if (present(init_g_config_in)) init_g_config = init_g_config_in
 
     ! Smart defaults
-    if (.not.config_internal%is_initialised()) then    
-       config_internal%restart_file = trim(run_name)//".nc"
+    if (.not.init_g_config%is_initialised()) then    
+       init_g_config%restart_file = trim(run_name)//".nc"
     end if
     
-    call config_internal%init(name = 'init_g_knobs', requires_index = .false.)
+    call init_g_config%init(name = 'init_g_knobs', requires_index = .false.)
 
     ! Copy out internal values into module level parameters
-    a0 = config_internal%a0
-    adj_spec = config_internal%adj_spec
-    apar0 = config_internal%apar0
-    aparamp = config_internal%aparamp
-    b0 = config_internal%b0
-    chop_side = config_internal%chop_side
-    clean_init = config_internal%clean_init
-    constant_random_flag = config_internal%constant_random_flag
-    den0 = config_internal%den0
-    den1 = config_internal%den1
-    den2 = config_internal%den2
-    dphiinit = config_internal%dphiinit
-    eq_mode_n = config_internal%eq_mode_n
-    eq_mode_u = config_internal%eq_mode_u
-    eq_type = config_internal%eq_type
-    even = config_internal%even
-    ginit_option = config_internal%ginit_option
-    ikk = config_internal%ikk
-    ikkk = config_internal%ikkk
-    ikpar_init = config_internal%ikpar_init
-    ikx_init = config_internal%ikx_init
-    imfac = config_internal%imfac
-    input_check_recon = config_internal%input_check_recon
-    itt = config_internal%itt
-    ittt = config_internal%ittt
-    kpar_init = config_internal%kpar_init
-    left = config_internal%left
-    new_field_init = config_internal%new_field_init
-    nkxy_pt = config_internal%nkxy_pt
-    null_apar = config_internal%null_apar
-    null_bpar = config_internal%null_bpar
-    null_phi = config_internal%null_phi
-    phiamp = config_internal%phiamp
-    phifrac = config_internal%phifrac
-    phiinit = config_internal%phiinit
-    phiinit0 = config_internal%phiinit0
-    phiinit_rand = config_internal%phiinit_rand
-    prof_width = config_internal%prof_width
-    read_many = config_internal%read_many
-    refac = config_internal%refac
-    restart_dir = config_internal%restart_dir
-    restart_eig_id = config_internal%restart_eig_id
-    restart_file = config_internal%restart_file
-    scale = config_internal%scale
-    tpar0 = config_internal%tpar0
-    tpar1 = config_internal%tpar1
-    tpar2 = config_internal%tpar2
-    tperp0 = config_internal%tperp0
-    tperp1 = config_internal%tperp1
-    tperp2 = config_internal%tperp2
-    tstart = config_internal%tstart
-    ukxy_pt = config_internal%ukxy_pt
-    upar0 = config_internal%upar0
-    upar1 = config_internal%upar1
-    upar2 = config_internal%upar2
-    width0 = config_internal%width0
-    zf_init = config_internal%zf_init
+    a0 = init_g_config%a0
+    adj_spec = init_g_config%adj_spec
+    apar0 = init_g_config%apar0
+    aparamp = init_g_config%aparamp
+    b0 = init_g_config%b0
+    chop_side = init_g_config%chop_side
+    clean_init = init_g_config%clean_init
+    constant_random_flag = init_g_config%constant_random_flag
+    den0 = init_g_config%den0
+    den1 = init_g_config%den1
+    den2 = init_g_config%den2
+    dphiinit = init_g_config%dphiinit
+    eq_mode_n = init_g_config%eq_mode_n
+    eq_mode_u = init_g_config%eq_mode_u
+    eq_type = init_g_config%eq_type
+    even = init_g_config%even
+    ginit_option = init_g_config%ginit_option
+    ikk = init_g_config%ikk
+    ikkk = init_g_config%ikkk
+    ikpar_init = init_g_config%ikpar_init
+    ikx_init = init_g_config%ikx_init
+    imfac = init_g_config%imfac
+    input_check_recon = init_g_config%input_check_recon
+    itt = init_g_config%itt
+    ittt = init_g_config%ittt
+    kpar_init = init_g_config%kpar_init
+    left = init_g_config%left
+    new_field_init = init_g_config%new_field_init
+    nkxy_pt = init_g_config%nkxy_pt
+    null_apar = init_g_config%null_apar
+    null_bpar = init_g_config%null_bpar
+    null_phi = init_g_config%null_phi
+    phiamp = init_g_config%phiamp
+    phifrac = init_g_config%phifrac
+    phiinit = init_g_config%phiinit
+    phiinit0 = init_g_config%phiinit0
+    phiinit_rand = init_g_config%phiinit_rand
+    prof_width = init_g_config%prof_width
+    read_many = init_g_config%read_many
+    refac = init_g_config%refac
+    restart_dir = init_g_config%restart_dir
+    restart_eig_id = init_g_config%restart_eig_id
+    restart_file = init_g_config%restart_file
+    scale = init_g_config%scale
+    tpar0 = init_g_config%tpar0
+    tpar1 = init_g_config%tpar1
+    tpar2 = init_g_config%tpar2
+    tperp0 = init_g_config%tperp0
+    tperp1 = init_g_config%tperp1
+    tperp2 = init_g_config%tperp2
+    tstart = init_g_config%tstart
+    ukxy_pt = init_g_config%ukxy_pt
+    upar0 = init_g_config%upar0
+    upar1 = init_g_config%upar1
+    upar2 = init_g_config%upar2
+    width0 = init_g_config%width0
+    zf_init = init_g_config%zf_init
 
-    exist = config_internal%exist
+    exist = init_g_config%exist
     
     if(trin_restart) ginit_option='many'
     
@@ -4015,7 +4015,7 @@ contains
   subroutine finish_init_g
     implicit none
     initialized = .false.
-    call config_internal%reset()
+    call init_g_config%reset()
   end subroutine finish_init_g
 
   !---------------------------------------

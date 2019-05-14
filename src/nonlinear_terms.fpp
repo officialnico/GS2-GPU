@@ -115,7 +115,7 @@ module nonlinear_terms
      procedure :: nonlinear_terms_config_constructor
   end interface nonlinear_terms_config_type
 
-  type(nonlinear_terms_config_type) :: config_internal
+  type(nonlinear_terms_config_type) :: nonlinear_terms_config
   
 contains
 
@@ -257,12 +257,12 @@ contains
   end subroutine init_nonlinear_terms
 
   !> FIXME : Add documentation  
-  subroutine read_parameters(config_in)
+  subroutine read_parameters(nonlinear_terms_config_in)
     use file_utils, only: input_unit_exist, error_unit
     use text_options, only: text_option, get_option_value
     use mp, only: proc0, broadcast
     implicit none
-    type(nonlinear_terms_config_type), intent(in), optional :: config_in
+    type(nonlinear_terms_config_type), intent(in), optional :: nonlinear_terms_config_in
     type (text_option), dimension (4), parameter :: nonlinearopts = &
          (/ text_option('default', nonlinear_mode_none), &
             text_option('none', nonlinear_mode_none), &
@@ -271,23 +271,23 @@ contains
     character(20) :: nonlinear_mode
     integer :: ierr
 
-    if (present(config_in)) config_internal = config_in
+    if (present(nonlinear_terms_config_in)) nonlinear_terms_config = nonlinear_terms_config_in
 
-    call config_internal%init(name = 'nonlinear_terms_knobs', requires_index = .false.)
+    call nonlinear_terms_config%init(name = 'nonlinear_terms_knobs', requires_index = .false.)
 
     ! Copy out internal values into module level parameters
-    cfl = config_internal%cfl
-    densfac = config_internal%densfac
-    nl_forbid_force_zero = config_internal%nl_forbid_force_zero
-    nonlinear_mode = config_internal%nonlinear_mode
-    qparfac = config_internal%qparfac
-    qprpfac = config_internal%qprpfac
-    tparfac = config_internal%tparfac
-    tprpfac = config_internal%tprpfac
-    uparfac = config_internal%uparfac
-    zip = config_internal%zip
+    cfl = nonlinear_terms_config%cfl
+    densfac = nonlinear_terms_config%densfac
+    nl_forbid_force_zero = nonlinear_terms_config%nl_forbid_force_zero
+    nonlinear_mode = nonlinear_terms_config%nonlinear_mode
+    qparfac = nonlinear_terms_config%qparfac
+    qprpfac = nonlinear_terms_config%qprpfac
+    tparfac = nonlinear_terms_config%tparfac
+    tprpfac = nonlinear_terms_config%tprpfac
+    uparfac = nonlinear_terms_config%uparfac
+    zip = nonlinear_terms_config%zip
 
-    exist = config_internal%exist
+    exist = nonlinear_terms_config%exist
 
     ierr = error_unit()
     call get_option_value &
@@ -1000,7 +1000,7 @@ contains
     call finish_transforms
 #endif
 
-    call config_internal%reset()
+    call nonlinear_terms_config%reset()
   end subroutine finish_nonlinear_terms
 
   !---------------------------------------

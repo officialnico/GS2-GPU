@@ -152,7 +152,7 @@ module run_parameters
      procedure :: knobs_config_constructor
   end interface knobs_config_type
   
-  type(knobs_config_type) :: config_internal
+  type(knobs_config_type) :: knobs_config
 
   !> Used to represent the input configuration of run_parameters through "parameters"
   !!
@@ -187,7 +187,7 @@ module run_parameters
      procedure :: parameters_config_constructor
   end interface parameters_config_type
   
-  type(parameters_config_type) :: config_parameters_internal
+  type(parameters_config_type) :: parameters_config
 
 contains
 
@@ -337,7 +337,7 @@ contains
   end subroutine init_run_parameters
 
   !> FIXME : Add documentation    
-  subroutine read_parameters(config_in, config_parameters_in)
+  subroutine read_parameters(knobs_config_in, parameters_config_in)
     use file_utils, only: input_unit, error_unit, input_unit_exist
     use mp, only: proc0, broadcast
     use gs2_time, only: dt_not_set
@@ -345,8 +345,8 @@ contains
     use text_options, only: text_option, get_option_value
     use kt_grids, only: gryfx
     implicit none
-    type(knobs_config_type), intent(in), optional :: config_in
-    type(parameters_config_type), intent(in), optional :: config_parameters_in
+    type(knobs_config_type), intent(in), optional :: knobs_config_in
+    type(parameters_config_type), intent(in), optional :: parameters_config_in
     
     type (text_option), dimension (4), parameter :: eqzipopts = &
          (/ text_option('none', eqzip_option_none), &
@@ -366,68 +366,68 @@ contains
     real :: teti  ! for back-compatibility
 
 
-    if (present(config_parameters_in)) config_parameters_internal = config_parameters_in
+    if (present(parameters_config_in)) parameters_config = parameters_config_in
 
-    call config_parameters_internal%init(name = 'parameters', requires_index = .false.)
+    call parameters_config%init(name = 'parameters', requires_index = .false.)
 
     ! Copy out internal values into module level parameters
-    beta = config_parameters_internal%beta
-    k0 = config_parameters_internal%k0
-    rhostar = config_parameters_internal%rhostar
-    teti = config_parameters_internal%teti
-    tite = config_parameters_internal%tite
-    user_comments = config_parameters_internal%user_comments
-    zeff = config_parameters_internal%zeff
+    beta = parameters_config%beta
+    k0 = parameters_config%k0
+    rhostar = parameters_config%rhostar
+    teti = parameters_config%teti
+    tite = parameters_config%tite
+    user_comments = parameters_config%user_comments
+    zeff = parameters_config%zeff
 
-    rpexist = config_parameters_internal%exist
+    rpexist = parameters_config%exist
 
-    if (present(config_in)) config_internal = config_in
+    if (present(knobs_config_in)) knobs_config = knobs_config_in
 
     ! Set smart defaults
-    if (.not.config_internal%is_initialised()) then    
-       config_internal%beta = beta
-       config_internal%k0 = k0
-       config_internal%rhostar = rhostar
-       config_internal%teti = teti
-       config_internal%tite = tite
-       config_internal%user_comments = user_comments
-       config_internal%zeff = zeff       
+    if (.not.knobs_config%is_initialised()) then    
+       knobs_config%beta = beta
+       knobs_config%k0 = k0
+       knobs_config%rhostar = rhostar
+       knobs_config%teti = teti
+       knobs_config%tite = tite
+       knobs_config%user_comments = user_comments
+       knobs_config%zeff = zeff       
     end if
     
-    call config_internal%init(name = 'knobs', requires_index = .false.)
+    call knobs_config%init(name = 'knobs', requires_index = .false.)
 
     ! Copy out internal values into module level parameters
-    beta  = config_internal%beta 
-    zeff  = config_internal%zeff 
-    tite  = config_internal%tite 
-    teti  = config_internal%teti 
-    k0    = config_internal%k0   
-    rhostar  = config_internal%rhostar 
-    user_comments  = config_internal%user_comments 
-    fphi  = config_internal%fphi 
-    fapar  = config_internal%fapar 
-    fbpar  = config_internal%fbpar 
-    delt  = config_internal%delt 
-    nstep  = config_internal%nstep 
-    wstar_units  = config_internal%wstar_units 
-    eqzip  = config_internal%eqzip 
-    delt_option  = config_internal%delt_option 
-    margin = config_internal%margin
-    secondary  = config_internal%secondary 
-    tertiary  = config_internal%tertiary 
-    faperp  = config_internal%faperp 
-    harris  = config_internal%harris 
-    avail_cpu_time  = config_internal%avail_cpu_time 
-    margin_cpu_time  = config_internal%margin_cpu_time 
-    eqzip_option  = config_internal%eqzip_option 
-    neo_test  = config_internal%neo_test 
-    trinity_linear_fluxes  = config_internal%trinity_linear_fluxes 
-    do_eigsolve  = config_internal%do_eigsolve 
-    immediate_reset  = config_internal%immediate_reset 
-    use_old_diagnostics  = config_internal%use_old_diagnostics 
-    trinity_ql_fluxes  = config_internal%trinity_ql_fluxes 
+    beta  = knobs_config%beta 
+    zeff  = knobs_config%zeff 
+    tite  = knobs_config%tite 
+    teti  = knobs_config%teti 
+    k0    = knobs_config%k0   
+    rhostar  = knobs_config%rhostar 
+    user_comments  = knobs_config%user_comments 
+    fphi  = knobs_config%fphi 
+    fapar  = knobs_config%fapar 
+    fbpar  = knobs_config%fbpar 
+    delt  = knobs_config%delt 
+    nstep  = knobs_config%nstep 
+    wstar_units  = knobs_config%wstar_units 
+    eqzip  = knobs_config%eqzip 
+    delt_option  = knobs_config%delt_option 
+    margin = knobs_config%margin
+    secondary  = knobs_config%secondary 
+    tertiary  = knobs_config%tertiary 
+    faperp  = knobs_config%faperp 
+    harris  = knobs_config%harris 
+    avail_cpu_time  = knobs_config%avail_cpu_time 
+    margin_cpu_time  = knobs_config%margin_cpu_time 
+    eqzip_option  = knobs_config%eqzip_option 
+    neo_test  = knobs_config%neo_test 
+    trinity_linear_fluxes  = knobs_config%trinity_linear_fluxes 
+    do_eigsolve  = knobs_config%do_eigsolve 
+    immediate_reset  = knobs_config%immediate_reset 
+    use_old_diagnostics  = knobs_config%use_old_diagnostics 
+    trinity_ql_fluxes  = knobs_config%trinity_ql_fluxes 
   
-    knexist = config_internal%exist
+    knexist = knobs_config%exist
 
     ! Now handle inputs to calculate derived quantities
     
@@ -592,8 +592,8 @@ contains
     if (allocated(ieqzip)) deallocate (ieqzip)
 
     initialized = .false.
-    call config_internal%reset()
-    call config_parameters_internal%reset()    
+    call knobs_config%reset()
+    call parameters_config%reset()    
   end subroutine finish_run_parameters
 
   !---------------------------------------

@@ -280,7 +280,7 @@ module theta_grid_params
      procedure :: theta_grid_parameters_config_constructor
   end interface theta_grid_parameters_config_type
   
-  type(theta_grid_parameters_config_type) :: config_internal
+  type(theta_grid_parameters_config_type) :: theta_grid_parameters_config
   
 contains
 
@@ -310,62 +310,62 @@ contains
   end subroutine finish_theta_grid_params
 
   !> FIXME : Add documentation
-  subroutine read_parameters(config_in)
+  subroutine read_parameters(theta_grid_parameters_config_in)
     use file_utils, only: input_unit, input_unit_exist
     use unit_tests, only: debug_message
     implicit none
-    type(theta_grid_parameters_config_type), intent(in), optional :: config_in
+    type(theta_grid_parameters_config_type), intent(in), optional :: theta_grid_parameters_config_in
     integer, parameter :: verb=3
     
     call debug_message(verb, "theta_grid_params::read_parameters start")
     
     
-    if (present(config_in)) config_internal = config_in
+    if (present(theta_grid_parameters_config_in)) theta_grid_parameters_config = theta_grid_parameters_config_in
     
-    call config_internal%init(name = 'theta_grid_parameters', requires_index = .false.)
+    call theta_grid_parameters_config%init(name = 'theta_grid_parameters', requires_index = .false.)
 
     ! Copy out internal values into module level parameters
-    akappa = config_internal%akappa
-    akappri = config_internal%akappri
-    alpmhd = config_internal%alpmhd
-    asurf = config_internal%asurf
-    asym = config_internal%asym
-    asympri = config_internal%asympri
-    btor_slab = config_internal%btor_slab
-    delta2 = config_internal%delta2
-    delta3 = config_internal%delta3
-    deltam = config_internal%deltam
-    deltampri = config_internal%deltampri
-    deltan = config_internal%deltan
-    deltanpri = config_internal%deltanpri
-    eps = config_internal%eps
-    epsl = config_internal%epsl
-    geotype = config_internal%geotype
-    kp = config_internal%kp
-    mmode = config_internal%mmode
-    nmode = config_internal%nmode
-    nperiod = config_internal%nperiod
-    ntheta = config_internal%ntheta
-    pk = config_internal%pk
-    qinp = config_internal%qinp
-    r_geo = config_internal%r_geo
-    raxis = config_internal%raxis
-    rhoc = config_internal%rhoc
-    rmaj = config_internal%rmaj
-    shat = config_internal%shat
-    shift = config_internal%shift
-    shiftvert = config_internal%shiftvert
-    theta2 = config_internal%theta2
-    theta3 = config_internal%theta3
-    thetad = config_internal%thetad
-    thetak = config_internal%thetak
-    thetam = config_internal%thetam
-    thetan = config_internal%thetan
-    tri = config_internal%tri
-    tripri = config_internal%tripri
-    zaxis = config_internal%zaxis
+    akappa = theta_grid_parameters_config%akappa
+    akappri = theta_grid_parameters_config%akappri
+    alpmhd = theta_grid_parameters_config%alpmhd
+    asurf = theta_grid_parameters_config%asurf
+    asym = theta_grid_parameters_config%asym
+    asympri = theta_grid_parameters_config%asympri
+    btor_slab = theta_grid_parameters_config%btor_slab
+    delta2 = theta_grid_parameters_config%delta2
+    delta3 = theta_grid_parameters_config%delta3
+    deltam = theta_grid_parameters_config%deltam
+    deltampri = theta_grid_parameters_config%deltampri
+    deltan = theta_grid_parameters_config%deltan
+    deltanpri = theta_grid_parameters_config%deltanpri
+    eps = theta_grid_parameters_config%eps
+    epsl = theta_grid_parameters_config%epsl
+    geotype = theta_grid_parameters_config%geotype
+    kp = theta_grid_parameters_config%kp
+    mmode = theta_grid_parameters_config%mmode
+    nmode = theta_grid_parameters_config%nmode
+    nperiod = theta_grid_parameters_config%nperiod
+    ntheta = theta_grid_parameters_config%ntheta
+    pk = theta_grid_parameters_config%pk
+    qinp = theta_grid_parameters_config%qinp
+    r_geo = theta_grid_parameters_config%r_geo
+    raxis = theta_grid_parameters_config%raxis
+    rhoc = theta_grid_parameters_config%rhoc
+    rmaj = theta_grid_parameters_config%rmaj
+    shat = theta_grid_parameters_config%shat
+    shift = theta_grid_parameters_config%shift
+    shiftvert = theta_grid_parameters_config%shiftvert
+    theta2 = theta_grid_parameters_config%theta2
+    theta3 = theta_grid_parameters_config%theta3
+    thetad = theta_grid_parameters_config%thetad
+    thetak = theta_grid_parameters_config%thetak
+    thetam = theta_grid_parameters_config%thetam
+    thetan = theta_grid_parameters_config%thetan
+    tri = theta_grid_parameters_config%tri
+    tripri = theta_grid_parameters_config%tripri
+    zaxis = theta_grid_parameters_config%zaxis
 
-    exist = config_internal%exist
+    exist = theta_grid_parameters_config%exist
 
     if (kp > 0.) pk = 2.*kp
 

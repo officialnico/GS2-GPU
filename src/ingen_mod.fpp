@@ -97,7 +97,7 @@ module ingen_mod
      procedure :: ingen_config_constructor
   end interface ingen_config_type
   
-  type(ingen_config_type) :: config_internal
+  type(ingen_config_type) :: ingen_config
 
 contains
 
@@ -149,7 +149,7 @@ contains
   !> FIXME : Add documentation  
   subroutine finish_ingen
     deallocate(sweet_spots)
-    call config_internal%reset()
+    call ingen_config%reset()
   end subroutine finish_ingen
 
   !> FIXME : Add documentation  
@@ -708,7 +708,7 @@ contains
   end subroutine interactive
 
   !> FIXME : Add documentation
-  subroutine get_namelists(config_in)
+  subroutine get_namelists(ingen_config_in)
 !CMR, 17/11/2009: use gs2_diagnostics module to pick up public variables
 !                 and routines to reduces maintenance of ingen.
 !                 Should replicate this for other modules in future.
@@ -739,7 +739,7 @@ contains
     use le_grids, only: init_le_grids
     use theta_grid, only: init_theta_grid, ntgrid
     implicit none
-    type(ingen_config_type), intent(in), optional :: config_in
+    type(ingen_config_type), intent(in), optional :: ingen_config_in
     logical :: list, accelx=.false., accelv=.false.
     logical, parameter :: debug=.false.
     integer :: is
@@ -748,17 +748,17 @@ contains
 
     pythonin = "."//trim(run_name)//".pythonin"
 
-    if (present(config_in)) config_internal = config_in
+    if (present(ingen_config_in)) ingen_config = ingen_config_in
 
-    call config_internal%init(name = 'ingen_knobs', requires_index = .false.)
+    call ingen_config%init(name = 'ingen_knobs', requires_index = .false.)
 
     ! Copy out internal values into module level parameters
-    ncut = config_internal%ncut
-    npmax = config_internal%npmax
-    scan = config_internal%scan
-    stdin = config_internal%stdin
+    ncut = ingen_config%ncut
+    npmax = ingen_config%npmax
+    scan = ingen_config%scan
+    stdin = ingen_config%stdin
 
-    exist = config_internal%exist
+    exist = ingen_config%exist
 
     if (debug) write(6,*) 'get_namelists: if (scan), scan=',scan
     if (scan) then

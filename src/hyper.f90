@@ -77,7 +77,7 @@ module hyper
      procedure :: hyper_config_constructor
   end interface hyper_config_type
 
-  type(hyper_config_type) :: config_internal
+  type(hyper_config_type) :: hyper_config
   
 contains
 
@@ -337,11 +337,11 @@ contains
   end subroutine init_hyper
 
   !> FIXME : Add documentation
-  subroutine read_parameters(config_in)
+  subroutine read_parameters(hyper_config_in)
     use file_utils, only: input_unit, error_unit
     use text_options, only: text_option, get_option_value
     implicit none
-    type(hyper_config_type), intent(in), optional :: config_in    
+    type(hyper_config_type), intent(in), optional :: hyper_config_in    
     type (text_option), dimension(5), parameter :: hyperopts = &
          (/ text_option('default', hyper_option_none), &
             text_option('none', hyper_option_none), &
@@ -351,24 +351,24 @@ contains
     integer :: ierr
     logical :: exist
 
-    if (present(config_in)) config_internal = config_in
+    if (present(hyper_config_in)) hyper_config = hyper_config_in
 
-    call config_internal%init(name = 'hyper_knobs', requires_index = .false.)
+    call hyper_config%init(name = 'hyper_knobs', requires_index = .false.)
 
     ! Copy out internal values into module level parameters
-    const_amp = config_internal%const_amp
-    d_hyper = config_internal%d_hyper
-    d_hyperres = config_internal%d_hyperres
-    d_hypervisc = config_internal%d_hypervisc
-    damp_zonal_only = config_internal%damp_zonal_only
-    gridnorm = config_internal%gridnorm
-    hyper_option = config_internal%hyper_option
-    include_kpar = config_internal%include_kpar
-    isotropic_shear = config_internal%isotropic_shear
-    nexp = config_internal%nexp
-    omega_osc = config_internal%omega_osc
+    const_amp = hyper_config%const_amp
+    d_hyper = hyper_config%d_hyper
+    d_hyperres = hyper_config%d_hyperres
+    d_hypervisc = hyper_config%d_hypervisc
+    damp_zonal_only = hyper_config%damp_zonal_only
+    gridnorm = hyper_config%gridnorm
+    hyper_option = hyper_config%hyper_option
+    include_kpar = hyper_config%include_kpar
+    isotropic_shear = hyper_config%isotropic_shear
+    nexp = hyper_config%nexp
+    omega_osc = hyper_config%omega_osc
 
-    exist = config_internal%exist
+    exist = hyper_config%exist
     
 
     ierr = error_unit()
@@ -625,7 +625,7 @@ contains
     initialized = .false.
     if (allocated(D_res)) deallocate (D_res)
     if (allocated(hypervisc_filter)) deallocate (hypervisc_filter)
-    call config_internal%reset()
+    call hyper_config%reset()
   end subroutine finish_hyper
 
   !---------------------------------------

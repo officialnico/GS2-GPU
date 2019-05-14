@@ -185,7 +185,7 @@ module eigval
      procedure :: eigval_config_constructor
   end interface eigval_config_type
 
-  type(eigval_config_type) :: config_internal
+  type(eigval_config_type) :: eigval_config
 
 contains
 
@@ -248,11 +248,11 @@ contains
   end subroutine finish_eigval
 
   !> Read the eigval_knobs namelist
-  subroutine read_parameters(config_in)
+  subroutine read_parameters(eigval_config_in)
     use file_utils, only: error_unit
     use text_options, only: text_option, get_option_value
     implicit none
-    type(eigval_config_type), intent(in), optional :: config_in
+    type(eigval_config_type), intent(in), optional :: eigval_config_in
 
     !NOTE: text_option is case sensitive (currently)
     type(text_option), dimension(18), parameter :: solver_type_opts = &
@@ -324,25 +324,25 @@ contains
     integer :: ierr
     logical :: exist
 
-    if (present(config_in)) config_internal = config_in
+    if (present(eigval_config_in)) eigval_config = eigval_config_in
 
-    call config_internal%init(name = 'eigval_knobs', requires_index = .false.)
+    call eigval_config%init(name = 'eigval_knobs', requires_index = .false.)
 
     ! Copy out internal values into module level parameters
-    extraction_option = config_internal%extraction_option
-    max_iter = config_internal%max_iter
-    n_eig = config_internal%n_eig
-    nadv = config_internal%nadv
-    save_restarts = config_internal%save_restarts
-    solver_option = config_internal%solver_option
-    targ_im = config_internal%targ_im
-    targ_re = config_internal%targ_re
-    tolerance = config_internal%tolerance
-    transform_option = config_internal%transform_option
-    use_ginit = config_internal%use_ginit
-    which_option = config_internal%which_option
+    extraction_option = eigval_config%extraction_option
+    max_iter = eigval_config%max_iter
+    n_eig = eigval_config%n_eig
+    nadv = eigval_config%nadv
+    save_restarts = eigval_config%save_restarts
+    solver_option = eigval_config%solver_option
+    targ_im = eigval_config%targ_im
+    targ_re = eigval_config%targ_re
+    tolerance = eigval_config%tolerance
+    transform_option = eigval_config%transform_option
+    use_ginit = eigval_config%use_ginit
+    which_option = eigval_config%which_option
 
-    exist = config_internal%exist
+    exist = eigval_config%exist
 
     !Get error unit for output
     ierr = error_unit()

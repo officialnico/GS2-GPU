@@ -362,7 +362,7 @@ module diagnostics_config
      procedure :: new_gs2_diagnostics_config_constructor
   end interface new_gs2_diagnostics_config_type
   
-  type(new_gs2_diagnostics_config_type) :: config_internal  
+  type(new_gs2_diagnostics_config_type) :: new_gs2_diagnostics_config  
   
 contains
   subroutine init_diagnostics_config(gnostics)
@@ -381,7 +381,7 @@ contains
     implicit none
     type(diagnostics_type), intent(inout) :: gnostics
     call deallocate_current_results(gnostics)
-    call config_internal%reset()
+    call new_gs2_diagnostics_config%reset()
   end subroutine finish_diagnostics_config
 
   subroutine allocate_current_results(gnostics)
@@ -426,104 +426,104 @@ contains
     deallocate(gnostics%current_results%zonal_transfer)
   end subroutine deallocate_current_results
 
-  subroutine read_parameters(gnostics, config_in)
+  subroutine read_parameters(gnostics, new_gs2_diagnostics_config_in)
     use file_utils, only: input_unit, error_unit, input_unit_exist
     use text_options, only: text_option, get_option_value
     use mp, only: proc0, broadcast, nproc, iproc
     use unit_tests, only: debug_message
     implicit none
     type(diagnostics_type), intent(out) :: gnostics
-    type(new_gs2_diagnostics_config_type), intent(in), optional :: config_in
+    type(new_gs2_diagnostics_config_type), intent(in), optional :: new_gs2_diagnostics_config_in
     logical :: exist
 
-    if (present(config_in)) config_internal = config_in
+    if (present(new_gs2_diagnostics_config_in)) new_gs2_diagnostics_config = new_gs2_diagnostics_config_in
 
-    call config_internal%init(name = 'gs2_diagnostics_knobs', requires_index = .false.)
+    call new_gs2_diagnostics_config%init(name = 'gs2_diagnostics_knobs', requires_index = .false.)
 
     ! Copy out internal values into module level parameters
-    gnostics%append_old = config_internal%append_old
-    gnostics%conv_max_step = config_internal%conv_max_step
-    gnostics%conv_min_step = config_internal%conv_min_step
-    gnostics%conv_nstep_av = config_internal%conv_nstep_av
-    gnostics%conv_nsteps_converged = config_internal%conv_nsteps_converged
-    gnostics%conv_test_multiplier = config_internal%conv_test_multiplier
-    gnostics%dump_check1 = config_internal%dump_check1
-    gnostics%dump_check2 = config_internal%dump_check2
-    gnostics%dump_fields_periodically = config_internal%dump_fields_periodically
-    gnostics%enable_parallel = config_internal%enable_parallel
-    gnostics%exit_when_converged = config_internal%exit_when_converged
-    gnostics%file_safety_check = config_internal%file_safety_check
-    gnostics%igomega = config_internal%igomega
-    gnostics%make_movie = config_internal%make_movie
-    gnostics%navg = config_internal%navg
-    gnostics%ncheck = config_internal%ncheck
-    gnostics%nmovie = config_internal%nmovie
-    gnostics%nsave = config_internal%nsave
-    gnostics%nwrite = config_internal%nwrite
-    gnostics%nwrite_mult = config_internal%nwrite_mult
-    gnostics%ob_midplane = config_internal%ob_midplane
-    gnostics%omegatinst = config_internal%omegatinst
-    gnostics%omegatol = config_internal%omegatol
-    gnostics%print_flux_line = config_internal%print_flux_line
-    gnostics%print_line = config_internal%print_line
-    gnostics%save_distfn = config_internal%save_distfn
-    gnostics%save_for_restart = config_internal%save_for_restart
-    gnostics%save_glo_info_and_grids = config_internal%save_glo_info_and_grids
-    gnostics%save_many = config_internal%save_many
-    gnostics%save_velocities = config_internal%save_velocities
-    gnostics%serial_netcdf4 = config_internal%serial_netcdf4
-    gnostics%use_nonlin_convergence = config_internal%use_nonlin_convergence
-    gnostics%write_any = config_internal%write_any
-    gnostics%write_apar_over_time = config_internal%write_apar_over_time
-    gnostics%write_ascii = config_internal%write_ascii
-    gnostics%write_avg_moments = config_internal%write_avg_moments
-    gnostics%write_bpar_over_time = config_internal%write_bpar_over_time
-    gnostics%write_cerr = config_internal%write_cerr
-    gnostics%write_collisional = config_internal%write_collisional
-    gnostics%write_correlation = config_internal%write_correlation
-    gnostics%write_correlation_extend = config_internal%write_correlation_extend
-    gnostics%write_cross_phase = config_internal%write_cross_phase
-    gnostics%write_density_over_time = config_internal%write_density_over_time
-    gnostics%write_eigenfunc = config_internal%write_eigenfunc
-    gnostics%write_fields = config_internal%write_fields
-    gnostics%write_final_antot = config_internal%write_final_antot
-    gnostics%write_final_db = config_internal%write_final_db
-    gnostics%write_final_epar = config_internal%write_final_epar
-    gnostics%write_final_fields = config_internal%write_final_fields
-    gnostics%write_final_moments = config_internal%write_final_moments
-    gnostics%write_flux_line = config_internal%write_flux_line
-    gnostics%write_fluxes = config_internal%write_fluxes
-    gnostics%write_fluxes_by_mode = config_internal%write_fluxes_by_mode
-    gnostics%write_full_moments_notgc = config_internal%write_full_moments_notgc
-    gnostics%write_g = config_internal%write_g
-    gnostics%write_gg = config_internal%write_gg
-    gnostics%write_gs = config_internal%write_gs
-    gnostics%write_gyx = config_internal%write_gyx
-    gnostics%write_heating = config_internal%write_heating
-    gnostics%write_hrate = config_internal%write_hrate
-    gnostics%write_jext = config_internal%write_jext
-    gnostics%write_kpar = config_internal%write_kpar
-    gnostics%write_line = config_internal%write_line
-    gnostics%write_lorentzian = config_internal%write_lorentzian
-    gnostics%write_lpoly = config_internal%write_lpoly
-    gnostics%write_max_verr = config_internal%write_max_verr
-    gnostics%write_moments = config_internal%write_moments
-    gnostics%write_nl_flux = config_internal%write_nl_flux
-    gnostics%write_nl_flux_dist = config_internal%write_nl_flux_dist
-    gnostics%write_ntot_over_time = config_internal%write_ntot_over_time
-    gnostics%write_omavg = config_internal%write_omavg
-    gnostics%write_omega = config_internal%write_omega
-    gnostics%write_parity = config_internal%write_parity
-    gnostics%write_pflux_sym = config_internal%write_pflux_sym
-    gnostics%write_pflux_tormom = config_internal%write_pflux_tormom
-    gnostics%write_phi_over_time = config_internal%write_phi_over_time
-    gnostics%write_symmetry = config_internal%write_symmetry
-    gnostics%write_tperp_over_time = config_internal%write_tperp_over_time
-    gnostics%write_upar_over_time = config_internal%write_upar_over_time
-    gnostics%write_verr = config_internal%write_verr
-    gnostics%write_zonal_transfer = config_internal%write_zonal_transfer
+    gnostics%append_old = new_gs2_diagnostics_config%append_old
+    gnostics%conv_max_step = new_gs2_diagnostics_config%conv_max_step
+    gnostics%conv_min_step = new_gs2_diagnostics_config%conv_min_step
+    gnostics%conv_nstep_av = new_gs2_diagnostics_config%conv_nstep_av
+    gnostics%conv_nsteps_converged = new_gs2_diagnostics_config%conv_nsteps_converged
+    gnostics%conv_test_multiplier = new_gs2_diagnostics_config%conv_test_multiplier
+    gnostics%dump_check1 = new_gs2_diagnostics_config%dump_check1
+    gnostics%dump_check2 = new_gs2_diagnostics_config%dump_check2
+    gnostics%dump_fields_periodically = new_gs2_diagnostics_config%dump_fields_periodically
+    gnostics%enable_parallel = new_gs2_diagnostics_config%enable_parallel
+    gnostics%exit_when_converged = new_gs2_diagnostics_config%exit_when_converged
+    gnostics%file_safety_check = new_gs2_diagnostics_config%file_safety_check
+    gnostics%igomega = new_gs2_diagnostics_config%igomega
+    gnostics%make_movie = new_gs2_diagnostics_config%make_movie
+    gnostics%navg = new_gs2_diagnostics_config%navg
+    gnostics%ncheck = new_gs2_diagnostics_config%ncheck
+    gnostics%nmovie = new_gs2_diagnostics_config%nmovie
+    gnostics%nsave = new_gs2_diagnostics_config%nsave
+    gnostics%nwrite = new_gs2_diagnostics_config%nwrite
+    gnostics%nwrite_mult = new_gs2_diagnostics_config%nwrite_mult
+    gnostics%ob_midplane = new_gs2_diagnostics_config%ob_midplane
+    gnostics%omegatinst = new_gs2_diagnostics_config%omegatinst
+    gnostics%omegatol = new_gs2_diagnostics_config%omegatol
+    gnostics%print_flux_line = new_gs2_diagnostics_config%print_flux_line
+    gnostics%print_line = new_gs2_diagnostics_config%print_line
+    gnostics%save_distfn = new_gs2_diagnostics_config%save_distfn
+    gnostics%save_for_restart = new_gs2_diagnostics_config%save_for_restart
+    gnostics%save_glo_info_and_grids = new_gs2_diagnostics_config%save_glo_info_and_grids
+    gnostics%save_many = new_gs2_diagnostics_config%save_many
+    gnostics%save_velocities = new_gs2_diagnostics_config%save_velocities
+    gnostics%serial_netcdf4 = new_gs2_diagnostics_config%serial_netcdf4
+    gnostics%use_nonlin_convergence = new_gs2_diagnostics_config%use_nonlin_convergence
+    gnostics%write_any = new_gs2_diagnostics_config%write_any
+    gnostics%write_apar_over_time = new_gs2_diagnostics_config%write_apar_over_time
+    gnostics%write_ascii = new_gs2_diagnostics_config%write_ascii
+    gnostics%write_avg_moments = new_gs2_diagnostics_config%write_avg_moments
+    gnostics%write_bpar_over_time = new_gs2_diagnostics_config%write_bpar_over_time
+    gnostics%write_cerr = new_gs2_diagnostics_config%write_cerr
+    gnostics%write_collisional = new_gs2_diagnostics_config%write_collisional
+    gnostics%write_correlation = new_gs2_diagnostics_config%write_correlation
+    gnostics%write_correlation_extend = new_gs2_diagnostics_config%write_correlation_extend
+    gnostics%write_cross_phase = new_gs2_diagnostics_config%write_cross_phase
+    gnostics%write_density_over_time = new_gs2_diagnostics_config%write_density_over_time
+    gnostics%write_eigenfunc = new_gs2_diagnostics_config%write_eigenfunc
+    gnostics%write_fields = new_gs2_diagnostics_config%write_fields
+    gnostics%write_final_antot = new_gs2_diagnostics_config%write_final_antot
+    gnostics%write_final_db = new_gs2_diagnostics_config%write_final_db
+    gnostics%write_final_epar = new_gs2_diagnostics_config%write_final_epar
+    gnostics%write_final_fields = new_gs2_diagnostics_config%write_final_fields
+    gnostics%write_final_moments = new_gs2_diagnostics_config%write_final_moments
+    gnostics%write_flux_line = new_gs2_diagnostics_config%write_flux_line
+    gnostics%write_fluxes = new_gs2_diagnostics_config%write_fluxes
+    gnostics%write_fluxes_by_mode = new_gs2_diagnostics_config%write_fluxes_by_mode
+    gnostics%write_full_moments_notgc = new_gs2_diagnostics_config%write_full_moments_notgc
+    gnostics%write_g = new_gs2_diagnostics_config%write_g
+    gnostics%write_gg = new_gs2_diagnostics_config%write_gg
+    gnostics%write_gs = new_gs2_diagnostics_config%write_gs
+    gnostics%write_gyx = new_gs2_diagnostics_config%write_gyx
+    gnostics%write_heating = new_gs2_diagnostics_config%write_heating
+    gnostics%write_hrate = new_gs2_diagnostics_config%write_hrate
+    gnostics%write_jext = new_gs2_diagnostics_config%write_jext
+    gnostics%write_kpar = new_gs2_diagnostics_config%write_kpar
+    gnostics%write_line = new_gs2_diagnostics_config%write_line
+    gnostics%write_lorentzian = new_gs2_diagnostics_config%write_lorentzian
+    gnostics%write_lpoly = new_gs2_diagnostics_config%write_lpoly
+    gnostics%write_max_verr = new_gs2_diagnostics_config%write_max_verr
+    gnostics%write_moments = new_gs2_diagnostics_config%write_moments
+    gnostics%write_nl_flux = new_gs2_diagnostics_config%write_nl_flux
+    gnostics%write_nl_flux_dist = new_gs2_diagnostics_config%write_nl_flux_dist
+    gnostics%write_ntot_over_time = new_gs2_diagnostics_config%write_ntot_over_time
+    gnostics%write_omavg = new_gs2_diagnostics_config%write_omavg
+    gnostics%write_omega = new_gs2_diagnostics_config%write_omega
+    gnostics%write_parity = new_gs2_diagnostics_config%write_parity
+    gnostics%write_pflux_sym = new_gs2_diagnostics_config%write_pflux_sym
+    gnostics%write_pflux_tormom = new_gs2_diagnostics_config%write_pflux_tormom
+    gnostics%write_phi_over_time = new_gs2_diagnostics_config%write_phi_over_time
+    gnostics%write_symmetry = new_gs2_diagnostics_config%write_symmetry
+    gnostics%write_tperp_over_time = new_gs2_diagnostics_config%write_tperp_over_time
+    gnostics%write_upar_over_time = new_gs2_diagnostics_config%write_upar_over_time
+    gnostics%write_verr = new_gs2_diagnostics_config%write_verr
+    gnostics%write_zonal_transfer = new_gs2_diagnostics_config%write_zonal_transfer
 
-    exist = config_internal%exist
+    exist = new_gs2_diagnostics_config%exist
 
     if (.not.(gnostics%save_for_restart.or.gnostics%save_distfn)) then
        gnostics%nsave = -1

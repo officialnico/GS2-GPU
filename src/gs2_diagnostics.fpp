@@ -274,7 +274,7 @@ module gs2_diagnostics
      procedure :: gs2_diagnostics_config_constructor
   end interface gs2_diagnostics_config_type
 
-  type(gs2_diagnostics_config_type) :: config_internal  
+  type(gs2_diagnostics_config_type) :: gs2_diagnostics_config  
 contains
 
   !> Define NetCDF vars, call real_init, which calls read_parameters; broadcast all the different write flags. 
@@ -535,7 +535,7 @@ contains
   end subroutine check_gs2_diagnostics
 
   !> FIXME : Add documentation
-  subroutine init_gs2_diagnostics (list, nstep, config_in)
+  subroutine init_gs2_diagnostics (list, nstep, gs2_diagnostics_config_in)
     use theta_grid, only: init_theta_grid
     use kt_grids, only: init_kt_grids, ntheta0, naky
     use run_parameters, only: init_run_parameters
@@ -552,7 +552,7 @@ contains
     implicit none
     logical, intent (in) :: list
     integer, intent (in) :: nstep
-    type(gs2_diagnostics_config_type), intent(in), optional :: config_in    
+    type(gs2_diagnostics_config_type), intent(in), optional :: gs2_diagnostics_config_in    
     integer :: nmovie_tot, nwrite_big_tot
     logical :: writable
 
@@ -567,7 +567,7 @@ contains
     call init_init_g
     call init_dist_fn
 
-    call real_init (list, config_in)
+    call real_init (list, gs2_diagnostics_config_in)
 
     nmovie_tot = nstep/nmovie
     nwrite_big_tot = nstep/(nwrite*nwrite_mult)-nstep/4/(nwrite*nwrite_mult)
@@ -641,7 +641,7 @@ contains
   end subroutine init_gs2_diagnostics
 
   !> FIXME : Add documentation
-  subroutine real_init(list, config_in)
+  subroutine real_init(list, gs2_diagnostics_config_in)
     use run_parameters, only: fapar
     use file_utils, only: open_output_file, get_unused_unit
     use kt_grids, only: naky, ntheta0
@@ -649,10 +649,10 @@ contains
     use mp, only: proc0
     implicit none
     logical, intent (in) :: list
-    type(gs2_diagnostics_config_type), intent(in), optional :: config_in    
+    type(gs2_diagnostics_config_type), intent(in), optional :: gs2_diagnostics_config_in    
     character(20) :: datestamp, timestamp, zone
 
-    call read_parameters(list, config_in)
+    call read_parameters(list, gs2_diagnostics_config_in)
     
     !<doc> Open the various ascii output files (depending on the write flags) </doc>
     if (proc0) then
@@ -747,7 +747,7 @@ contains
   end subroutine real_init
 
   !> FIXME : Add documentation  
-  subroutine read_parameters (list, config_in)
+  subroutine read_parameters (list, gs2_diagnostics_config_in)
     !CMR, 17/11/2009:   namelist gs2_diagnostics_knobs made public
     !                   so that ingen can just USE it instead of copying it!
     !
@@ -758,79 +758,79 @@ contains
     use mp, only: proc0
     implicit none
     logical, intent (in) :: list
-    type(gs2_diagnostics_config_type), intent(in), optional :: config_in
+    type(gs2_diagnostics_config_type), intent(in), optional :: gs2_diagnostics_config_in
     
-    if (present(config_in)) config_internal = config_in
+    if (present(gs2_diagnostics_config_in)) gs2_diagnostics_config = gs2_diagnostics_config_in
 
-    call config_internal%init(name = 'gs2_diagnostics_knobs', requires_index = .false.)
+    call gs2_diagnostics_config%init(name = 'gs2_diagnostics_knobs', requires_index = .false.)
 
     ! Copy out internal values into module level parameters
-    conv_max_step = config_internal%conv_max_step
-    conv_min_step = config_internal%conv_min_step
-    conv_nstep_av = config_internal%conv_nstep_av
-    conv_nsteps_converged = config_internal%conv_nsteps_converged
-    conv_test_multiplier = config_internal%conv_test_multiplier
-    dump_check1 = config_internal%dump_check1
-    dump_check2 = config_internal%dump_check2
-    dump_fields_periodically = config_internal%dump_fields_periodically
-    exit_when_converged = config_internal%exit_when_converged
-    file_safety_check = config_internal%file_safety_check
-    igomega = config_internal%igomega
-    make_movie = config_internal%make_movie
-    navg = config_internal%navg
-    nmovie = config_internal%nmovie
-    nsave = config_internal%nsave
-    nwrite = config_internal%nwrite
-    nwrite_mult = config_internal%nwrite_mult
-    ob_midplane = config_internal%ob_midplane
-    omegatinst = config_internal%omegatinst
-    omegatol = config_internal%omegatol
-    print_flux_line = config_internal%print_flux_line
-    print_line = config_internal%print_line
-    save_distfn = config_internal%save_distfn
-    save_for_restart = config_internal%save_for_restart
-    save_many = config_internal%save_many
-    use_nonlin_convergence = config_internal%use_nonlin_convergence
-    write_apar_over_time = config_internal%write_apar_over_time
-    write_ascii = config_internal%write_ascii
-    write_avg_moments = config_internal%write_avg_moments
-    write_bpar_over_time = config_internal%write_bpar_over_time
-    write_cerr = config_internal%write_cerr
-    write_correlation = config_internal%write_correlation
-    write_correlation_extend = config_internal%write_correlation_extend
-    write_cross_phase = config_internal%write_cross_phase
-    write_eigenfunc = config_internal%write_eigenfunc
-    write_fields = config_internal%write_fields
-    write_final_antot = config_internal%write_final_antot
-    write_final_db = config_internal%write_final_db
-    write_final_epar = config_internal%write_final_epar
-    write_final_fields = config_internal%write_final_fields
-    write_final_moments = config_internal%write_final_moments
-    write_flux_line = config_internal%write_flux_line
-    write_full_moments_notgc = config_internal%write_full_moments_notgc
-    write_g = config_internal%write_g
-    write_gg = config_internal%write_gg
-    write_gs = config_internal%write_gs
-    write_gyx = config_internal%write_gyx
-    write_hrate = config_internal%write_hrate
-    write_kpar = config_internal%write_kpar
-    write_line = config_internal%write_line
-    write_lorentzian = config_internal%write_lorentzian
-    write_lpoly = config_internal%write_lpoly
-    write_max_verr = config_internal%write_max_verr
-    write_moments = config_internal%write_moments
-    write_nl_flux = config_internal%write_nl_flux
-    write_nl_flux_dist = config_internal%write_nl_flux_dist
-    write_omavg = config_internal%write_omavg
-    write_omega = config_internal%write_omega
-    write_parity = config_internal%write_parity
-    write_pflux_sym = config_internal%write_pflux_sym
-    write_pflux_tormom = config_internal%write_pflux_tormom
-    write_phi_over_time = config_internal%write_phi_over_time
-    write_symmetry = config_internal%write_symmetry
-    write_verr = config_internal%write_verr
+    conv_max_step = gs2_diagnostics_config%conv_max_step
+    conv_min_step = gs2_diagnostics_config%conv_min_step
+    conv_nstep_av = gs2_diagnostics_config%conv_nstep_av
+    conv_nsteps_converged = gs2_diagnostics_config%conv_nsteps_converged
+    conv_test_multiplier = gs2_diagnostics_config%conv_test_multiplier
+    dump_check1 = gs2_diagnostics_config%dump_check1
+    dump_check2 = gs2_diagnostics_config%dump_check2
+    dump_fields_periodically = gs2_diagnostics_config%dump_fields_periodically
+    exit_when_converged = gs2_diagnostics_config%exit_when_converged
+    file_safety_check = gs2_diagnostics_config%file_safety_check
+    igomega = gs2_diagnostics_config%igomega
+    make_movie = gs2_diagnostics_config%make_movie
+    navg = gs2_diagnostics_config%navg
+    nmovie = gs2_diagnostics_config%nmovie
+    nsave = gs2_diagnostics_config%nsave
+    nwrite = gs2_diagnostics_config%nwrite
+    nwrite_mult = gs2_diagnostics_config%nwrite_mult
+    ob_midplane = gs2_diagnostics_config%ob_midplane
+    omegatinst = gs2_diagnostics_config%omegatinst
+    omegatol = gs2_diagnostics_config%omegatol
+    print_flux_line = gs2_diagnostics_config%print_flux_line
+    print_line = gs2_diagnostics_config%print_line
+    save_distfn = gs2_diagnostics_config%save_distfn
+    save_for_restart = gs2_diagnostics_config%save_for_restart
+    save_many = gs2_diagnostics_config%save_many
+    use_nonlin_convergence = gs2_diagnostics_config%use_nonlin_convergence
+    write_apar_over_time = gs2_diagnostics_config%write_apar_over_time
+    write_ascii = gs2_diagnostics_config%write_ascii
+    write_avg_moments = gs2_diagnostics_config%write_avg_moments
+    write_bpar_over_time = gs2_diagnostics_config%write_bpar_over_time
+    write_cerr = gs2_diagnostics_config%write_cerr
+    write_correlation = gs2_diagnostics_config%write_correlation
+    write_correlation_extend = gs2_diagnostics_config%write_correlation_extend
+    write_cross_phase = gs2_diagnostics_config%write_cross_phase
+    write_eigenfunc = gs2_diagnostics_config%write_eigenfunc
+    write_fields = gs2_diagnostics_config%write_fields
+    write_final_antot = gs2_diagnostics_config%write_final_antot
+    write_final_db = gs2_diagnostics_config%write_final_db
+    write_final_epar = gs2_diagnostics_config%write_final_epar
+    write_final_fields = gs2_diagnostics_config%write_final_fields
+    write_final_moments = gs2_diagnostics_config%write_final_moments
+    write_flux_line = gs2_diagnostics_config%write_flux_line
+    write_full_moments_notgc = gs2_diagnostics_config%write_full_moments_notgc
+    write_g = gs2_diagnostics_config%write_g
+    write_gg = gs2_diagnostics_config%write_gg
+    write_gs = gs2_diagnostics_config%write_gs
+    write_gyx = gs2_diagnostics_config%write_gyx
+    write_hrate = gs2_diagnostics_config%write_hrate
+    write_kpar = gs2_diagnostics_config%write_kpar
+    write_line = gs2_diagnostics_config%write_line
+    write_lorentzian = gs2_diagnostics_config%write_lorentzian
+    write_lpoly = gs2_diagnostics_config%write_lpoly
+    write_max_verr = gs2_diagnostics_config%write_max_verr
+    write_moments = gs2_diagnostics_config%write_moments
+    write_nl_flux = gs2_diagnostics_config%write_nl_flux
+    write_nl_flux_dist = gs2_diagnostics_config%write_nl_flux_dist
+    write_omavg = gs2_diagnostics_config%write_omavg
+    write_omega = gs2_diagnostics_config%write_omega
+    write_parity = gs2_diagnostics_config%write_parity
+    write_pflux_sym = gs2_diagnostics_config%write_pflux_sym
+    write_pflux_tormom = gs2_diagnostics_config%write_pflux_tormom
+    write_phi_over_time = gs2_diagnostics_config%write_phi_over_time
+    write_symmetry = gs2_diagnostics_config%write_symmetry
+    write_verr = gs2_diagnostics_config%write_verr
 
-    exist = config_internal%exist
+    exist = gs2_diagnostics_config%exist
 
     !
     !CMR, 12/8/2014: 
@@ -955,7 +955,7 @@ contains
 
     wtmp_old = 0. ; nout = 1 ; nout_movie = 1 ; nout_big = 1
     initialized = .false.
-    call config_internal%reset()
+    call gs2_diagnostics_config%reset()
   end subroutine finish_gs2_diagnostics
 
   !> FIXME : Add documentation
