@@ -13,11 +13,11 @@ declString = "{typ} :: {name}"
 assignmentString = " = {value}"
 
 readParamsSubString = """
-type({module}_config_type),{att} intent(in), optional :: config_in
+type({module}_config_type),{att} intent(in), optional :: {config_in}
 
-if (present(config_in)) config_internal = config_in
+if (present(config_in)) {instance_name} = {config_in}
 
-call config_internal%init(name = '{namelist}', requires_index = {req})
+call {instance_name}%init(name = '{namelist}', requires_index = {req})
 
 ! Copy out internal values into module level parameters
 {COPYOUT_LIST}
@@ -255,7 +255,10 @@ end interface {module}_config_type"""
     def decl(self):
         return (str(self))
 
-    def instance(self, instance_name = "config_internal"):
+    def instance(self, instance_name = None):
+        if instance_name is None:
+            instance_name = self.moduleName+"_config"
+            
         theStr = self.instanceString
         if self.requiresIndex:
             theStr = self.instanceStringIndexed
@@ -264,14 +267,22 @@ end interface {module}_config_type"""
     def constructorInterface(self):
         return self.interfaceString.format(module = self.moduleName)
     
-    def readParams(self, **kwargs):
+    def readParams(self, instance_name = None, config_in = None, **kwargs):
         req = ".false."
         att = ""
         if self.requiresIndex:
             req = ".true."
             att = " dimension(:),"
-        
-        return readParamsSubString.format(module = self.moduleName, namelist = self.namelistName, COPYOUT_LIST = self.copyOutList(instanceName='config_internal', **kwargs), att = att, req=req)
+
+        if instance_name is None:
+            instance_name = self.moduleName+"_config"
+
+        if config_in is None:
+            config_in = self.moduleName+"_config_in"
+            
+        return readParamsSubString.format(module = self.moduleName, namelist = self.namelistName,
+                                          COPYOUT_LIST = self.copyOutList(instanceName=instance_name, **kwargs),
+                                          instance_name = instance_name, config_in = config_in, att = att, req=req)
     
     def readConfig(self, **kwargs):
         return readSubString.format(namelist = self.namelistName, module = self.moduleName,
@@ -464,8 +475,14 @@ def constructFromFile(fileIn=None, verbose=False):
 if __name__ == "__main__":
     import sys
 
-    probablyFiles = sys.argv[1:]
-    
+    # Handle case where no files passed as arguments    
+    if len(sys.argv) < 2:
+        from get_all_matching_files import get_all_matching_files
+        probablyFiles = get_all_matching_files(paths=["src/","externals/utils/"],
+                                               patterns=["*.[fF]??"])
+    else:
+        probablyFiles = sys.argv[1:]
+        
     for fil in probablyFiles:
         tmp = constructFromFile(fileIn=fil)
         if tmp is None: continue
