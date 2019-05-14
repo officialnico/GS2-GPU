@@ -8,27 +8,173 @@ module leq
   public :: invR, Rpos, Zpos, diameter, btori, dbtori, qfun, pfun
   public :: dpfun, betafun, psi, rcenter, dpdrhofun
 
-  integer :: nr, nt
+  public :: leq_testing_type
+
+  !> Number of radial grid points
+  !!
+  !! Unconditionally always set to 3?
+  integer :: nr
+  !> Number of theta grid points
+  integer :: nt
 
   real, allocatable, dimension (:)     :: eqpsi, fp, beta, pressure
   real, allocatable, dimension (:,:)   :: R_psi, Z_psi
-  real, allocatable, dimension (:,:,:) :: drm, dzm, dbtm, dpm, dtm
-  real, allocatable, dimension (:,:,:) :: dpcart, dtcart, dbtcart
-  real, allocatable, dimension (:,:,:) :: dpbish, dtbish, dbtbish
 
+  ! The following quantities represent changes between adjacent grid
+  ! points. The first two dimensions are minor radius and theta,
+  ! respectively. The last dimension is the difference along either
+  ! the (minor) radial or theta directions, respectively
+
+  !> Major radius differences on theta, minor radius grids
+  real, allocatable, dimension (:,:,:) :: drm
+  !> Vertical differences on theta, minor radius grids
+  real, allocatable, dimension (:,:,:) :: dzm
+  !> Magnetic field magnitude differences on theta, minor radius grids
+  real, allocatable, dimension (:,:,:) :: dbtm
+  !> Minor radius differences on theta, minor radius grids, note: `dpm(:,:,2) == 0.0`
+  real, allocatable, dimension (:,:,:) :: dpm
+  !> Theta differences on theta, minor radius grids, note: `dtm(:,:,1) == 0.0`
+  real, allocatable, dimension (:,:,:) :: dtm
+  !> Minor radius gradient in cylindrical coordinates $(\hat{e}_R, \hat{e}_Z, \hat{e}_\zeta)$
+  real, allocatable, dimension (:,:,:) :: dpcart
+  !> Theta gradient in cylindrical coordinates $(\hat{e}_R, \hat{e}_Z, \hat{e}_\zeta)$
+  real, allocatable, dimension (:,:,:) :: dtcart
+  !> Magnetic field magnitude gradient in cylindrical coordinates $(\hat{e}_R, \hat{e}_Z, \hat{e}_\zeta)$
+  real, allocatable, dimension (:,:,:) :: dbtcart
+  !> Minor radius gradient in Bishop coordinates $(\hat{e}_{r_\psi}, \hat{e}_l, \hat{e}_\zeta)$
+  real, allocatable, dimension (:,:,:) :: dpbish
+  !> Theta gradient in Bishop coordinates $(\hat{e}_{r_\psi}, \hat{e}_l, \hat{e}_\zeta)$
+  real, allocatable, dimension (:,:,:) :: dtbish
+  !> Magnetic field magnitude gradient in Bishop coordinates $(\hat{e}_{r_\psi}, \hat{e}_l, \hat{e}_\zeta)$
+  real, allocatable, dimension (:,:,:) :: dbtbish
+
+  !> FIXME : Add documentation
   real :: beta_0
+
+  !> Used to translate definition of the poloidal angle such that the location
+  !! of the maximium magnetic field is at pi (see section 3.2.3 of Ball MIT
+  !! Masters thesis or section 2.4 of "GS2 analytic geometry specification")
   real :: thetaShift
 
-  !> FIXME : Add documentation  
+  !> Private helper type to wrap up some module-level variables
   type :: flux_surface
-     real :: Rmaj, Rgeo, r, dr, aSurf, sHorz, sVert, delm, deln, delmp, delnp, thm, thn, q, shat
-     integer :: nt, geoType, mMode, nMode
+     !> Flux surface major radius, $R_{0N}$, input variable: `Rmaj`
+     real :: Rmaj
+     !> Location of reference magnetic field, $R_{geoN}$, input variable: `R_geo`
+     real :: Rgeo
+     !> Minor radius, $r_{\psi N}$, input variable: `rhoc`
+     real :: r
+     !> Step size for radial derivatives, $\Delta r_{\psi N}$, input variable: `delrho`
+     real :: dr
+     !> Minor radius of shaping surface, $a_{\psi N}$, input variable: `aSurf`
+     real :: aSurf
+     !> Horizontal Shafranov shift, $dR_{0N}/dr_{\psi N}$, input variable: `shift`, `Raxis`
+     real :: sHorz
+     !> Vertical Shafranov shift, $dZ_{0N}/dr_{\psi N}$, input variable: `shiftVert`, `Zaxis`
+     real :: sVert
+     !> First shaping mode strength, $\Delta_m$, input variable: `akappa`, `delta2`, `deltam`
+     real :: delm
+     !> Second shaping mode strength, $\Delta_n$, input variable: `tri`, `delta3`, `deltan`
+     real :: deln
+     !> First shaping mode derivative, $d\Delta_m/dr_{\psi N}$, input variable: `akappri`, `deltampri`
+     real :: delmp
+     !> Second shaping mode derivative, $d\Delta_n/dr_{\psi N}$, input variable: `tripri`, `deltanpri`
+     real :: delnp
+     !> First shaping mode tilt angle, $\theta_m$, input variable: `thetak`, `theta2`, `thetam`
+     real :: thm
+     !> Second shaping mode tilt angle, $\theta_n$, input variable: `thetad`, `theta2`, `thetan`
+     real :: thn
+     !> Safety factor, $q$, input variable: `qinp`
+     real :: q
+     !> Magnetic shear, $\hat{s}$, input variable: `s_hat_input`
+     real :: shat
+     !> Number of points in theta, input variable: `ntheta(nperiod - 1/2)`
+     integer :: nt
+     !> Geometry specification type, input variable: `geoType`
+     integer :: geoType
+     !> The first poloidal mode number, input variable: `mMode`
+     integer :: mMode
+     !> The second poloidal mode number, input variable: `nMode`
+     integer :: nMode
   end type flux_surface
 
   type (flux_surface) :: surf
 
+  !> Expose private routines for testing only!
+  type :: leq_testing_type
+  contains
+    procedure, nopass :: mod2pi
+    procedure, nopass :: derm
+    procedure, nopass :: set_ntnr
+    procedure, nopass :: set_drm
+    procedure, nopass :: set_dzm
+    procedure, nopass :: set_dpcart
+    procedure, nopass :: set_cart_arrays
+    procedure, nopass :: set_bish_arrays
+    procedure, nopass :: eqdcart
+    procedure, nopass :: eqdbish
+    procedure, nopass :: alloc_arrays, dealloc_arrays
+  end type leq_testing_type
+
 contains
   
+  !> Set module-level `nt`, `nr`
+  !! PURELY FOR TESTING
+  !! FIXME: Remove when we have more control over module-level variables for testing
+  subroutine set_ntnr(ntheta, nradius)
+    integer, intent(in) :: ntheta, nradius
+    nt = ntheta
+    nr = nradius
+  end subroutine set_ntnr
+
+  !> Set module-level `drm`
+  !! PURELY FOR TESTING
+  !! FIXME: Remove when we have more control over module-level variables for testing
+  subroutine set_drm(drm_in)
+    real, dimension(nr,-nt:nt,2), intent(in) :: drm_in
+    drm = drm_in
+  end subroutine set_drm
+
+  !> Set module-level `dzm`
+  !! PURELY FOR TESTING
+  !! FIXME: Remove when we have more control over module-level variables for testing
+  subroutine set_dzm(dzm_in)
+    real, dimension(nr,-nt:nt,2), intent(in) :: dzm_in
+    dzm = dzm_in
+  end subroutine set_dzm
+
+  !> Set module-level dpcart
+  !! PURELY FOR TESTING
+  !! FIXME: Remove when we have more control over module-level variables for testing
+  subroutine set_dpcart(dpcart_in)
+    real, dimension(nr,-nt:nt,2), intent(in) :: dpcart_in
+    dpcart = dpcart_in
+  end subroutine set_dpcart
+
+  !> Set module-level dpcart, dbtcart and dtcart
+  !! PURELY FOR TESTING
+  !! FIXME: Remove when we have more control over module-level variables for testing
+  subroutine set_cart_arrays(dpcart_in, dbtcart_in, dtcart_in)
+    real, dimension(nr,-nt:nt,2), intent(in) :: dpcart_in
+    real, dimension(nr,-nt:nt,2), intent(in) :: dbtcart_in
+    real, dimension(nr,-nt:nt,2), intent(in) :: dtcart_in
+    dpcart = dpcart_in
+    dbtcart = dbtcart_in
+    dtcart = dtcart_in
+  end subroutine set_cart_arrays
+
+  !> Set module-level dpbish, dbtbish and dtbish
+  !! PURELY FOR TESTING
+  !! FIXME: Remove when we have more control over module-level variables for testing
+  subroutine set_bish_arrays(dpbish_in, dbtbish_in, dtbish_in)
+    real, dimension(nr,-nt:nt,2), intent(in) :: dpbish_in
+    real, dimension(nr,-nt:nt,2), intent(in) :: dbtbish_in
+    real, dimension(nr,-nt:nt,2), intent(in) :: dtbish_in
+    dpbish = dpbish_in
+    dbtbish = dbtbish_in
+    dtbish = dtbish_in
+  end subroutine set_bish_arrays
+
   !> FIXME : Add documentation  
   subroutine leqin(geoType, Rmaj, Rgeo, r, dr, aSurf, sHorz, sVert, mMode, nMode, delm, deln, delmp, delnp, thm, thn, q, shat, nt_used, thShift)
     implicit none
@@ -66,7 +212,7 @@ contains
     call leq_init
   end subroutine leqin
 
-  !> FIXME : Add documentation  
+  !> Allocate internal module-level arrays
   subroutine alloc_arrays(nr, nt)
     implicit none
     integer, intent(in) :: nr, nt
@@ -80,7 +226,7 @@ contains
 
   end subroutine alloc_arrays
 
-  !> FIXME : Add documentation  
+  !> Deallocate internal module-level arrays
   subroutine dealloc_arrays
     implicit none
     if(allocated(eqpsi)) deallocate(eqpsi, fp, beta, pressure)
@@ -90,15 +236,15 @@ contains
     if(allocated(dpbish)) deallocate(dpbish,dtbish,dbtbish)
   end subroutine dealloc_arrays
 
-  !> FIXME : Add documentation  
+  !> Finalise leq module
   subroutine leq_finish
     implicit none
     call dealloc_arrays
   end subroutine leq_finish
 
-  !> FIXME : Add documentation  
+  !> Initialise leq module
   subroutine leq_init
-    use constants, only: pi=>pi
+    use constants, only: pi
     implicit none
     real, dimension(nr, -nt:nt) :: eqpsi1, eqth, eqbtor
     real :: dr(3)
@@ -111,7 +257,9 @@ contains
    
     ! All calculation must be extended over the full [-pi,pi] range in order to
     ! support up-down asymmetric geometries (see section 3.2.2 of Ball MIT
-    ! Masters thesis or section 2.2 of "GS2 analytic geometry specification") 
+    ! Masters thesis or section 2.2 of "GS2 analytic geometry specification")
+    !
+    ! NOTE: actual theta grid used here includes one extra point outside [-pi, pi]!
     do j=-nt,nt
        do i=1,nr
           r = surf%r + dr(i)
@@ -155,9 +303,16 @@ contains
 
   end subroutine leq_init
 
-  !> FIXME : Add documentation  
+  !> Index-space derivatives of `f` in each direction. Gradient in
+  !! first direction is in `dfm(:,:,1)`, second is in `dfm(:,:,2)`.
+  !! `char` controls the boundary conditions in the second direction.
+  !!
+  !! Acceptable values for `char`:
+  !!   - `E` means continuous and even at theta = +/- pi -- FIXME: confirm
+  !!   - `O` means continuous and odd at theta = +/- pi -- FIXME: confirm
+  !!   - `T` means a jump of 2 pi at theta = +/- pi
   subroutine derm(f, dfm, char)
-    use constants, only: pi=>pi
+    use constants, only: pi
     implicit none
     real, dimension(:,:), intent(in) :: f(:,-nt:)
     real, dimension(:,:,:), intent(out) :: dfm(:,-nt:,:)
@@ -220,9 +375,9 @@ contains
     case('P') 
        dcart = dpcart
     case('R') 
-       dcart = dpcart  ! dpcart is correct for 'R'
+       dcart = dpcart  ! dpcart is correct for 'R' -- never reached: other calculation done instead
     case('T')
-       dcart = dtcart
+       dcart = dtcart  ! Never reached: bgradient always used
     end select
     
     do i=-nth_used,-1
@@ -275,7 +430,7 @@ contains
     case('P') 
        dbish = dpbish
     case('R') 
-       dbish = dpbish  ! dpcart is correct for 'R'
+       dbish = dpbish  ! dpcart is correct for 'R' -- never reached: other calculation done instead
     case('T')
        dbish = dtbish
     end select
@@ -297,28 +452,36 @@ contains
     endif
   end subroutine bgradient
 
-  !> FIXME : Add documentation  
+  !> Calculates `fstar` which is `f` interpolated at the location `theta_in`
   subroutine eqitem(theta_in, f, fstar, char)
-    use constants, only: pi=>pi
+    use constants, only: pi
     implicit none
+    !> Desired theta location
     real, intent(in) :: theta_in
+    !> Array to interpolate
     real, dimension(:,-nt:), intent(in) :: f
+    !> Interpolation result
     real, intent(out) :: fstar
+    !> FIXME: Unused
     character(1), intent(in) :: char
-    integer :: j, istar, jstar
+    !> Internal loop variable
+    integer :: j
+    !> Found theta index
+    integer :: jstar
+    !> r index, always centre of grid
+    integer, parameter :: istar = 2
+    !> theta point in [-pi, pi]
     real :: tp
+    !> linear interpolation weights
     real :: st, dt
+    !> Internal theta grid
     real, dimension(-nt:nt) :: mtheta
-    ! find r on psi mesh
-    
-    istar = 2
-
-    ! Now do theta direction
 
     tp = mod2pi(theta_in)
 
     ! get thet on theta mesh
 
+    ! NOTE: actual theta grid used here includes one extra point outside [-pi, pi]!
     mtheta = (/ ( real(j)*pi/real(nt-1), j=-nt,nt) /)
   
     ! note that theta(1)=0 for local_eq theta 
@@ -350,12 +513,17 @@ contains
          /(mtheta(jstar+1)-mtheta(jstar))
   end subroutine eqitem
 
-  !> FIXME : Add documentation  
+  !> Convert `dfm` from index-space derivative to derivative on
+  !> cylindrical coordinates
+  !>
+  !> - Gradient in the first coordinate is in `(:,:,1)`
+  !> - Gradient in the second coordinate is in `(:,:,2)`
   subroutine eqdcart(dfm, dfcart)
-    implicit none
-    real, dimension (:,-nt:,:), intent(in)  :: dfm
-    real, dimension (:,-nt:,:), intent(out) :: dfcart
-    real, dimension (nr,-nt:nt) :: denom
+    !> Index-space derivative
+    real, dimension(nr,-nt:nt,2), intent(in)  :: dfm
+    !> Cylindrical coordinates derivative
+    real, dimension(nr,-nt:nt,2), intent(out) :: dfcart
+    real, dimension(nr,-nt:nt) :: denom
 
     integer :: i, j
       
@@ -366,6 +534,8 @@ contains
     dfcart(:,:,1) =   dfm(:,:,1)*dzm(:,:,2) - dzm(:,:,1)*dfm(:,:,2)
     dfcart(:,:,2) = - dfm(:,:,1)*drm(:,:,2) + drm(:,:,1)*dfm(:,:,2)
     
+    ! FIXME: document why this is only on the range [2,nr], or
+    ! simplify
     do j=-nt,nt
        do i=2,nr
           dfcart(i,j,:)=dfcart(i,j,:)/denom(i,j)
@@ -373,11 +543,16 @@ contains
     enddo
   end subroutine eqdcart
 
-  !> FIXME : Add documentation  
+  !> Convert `dcart` from cylindrical coordinates derivative to
+  !> derivative on Bishop coordinates
+  !>
+  !> - Gradient in the first coordinate is in `(:,:,1)`
+  !> - Gradient in the second coordinate is in `(:,:,2)`
   subroutine eqdbish(dcart, dbish)
-    implicit none
-    real, dimension(:,-nt:,:), intent (in) :: dcart
-    real, dimension(:,-nt:,:), intent(out) :: dbish
+    !> Cylindrical coordinates derivative
+    real, dimension(nr,-nt:nt,2), intent(in) :: dcart
+    !> Bishop coordinates derivative
+    real, dimension(nr,-nt:nt,2), intent(out) :: dbish
     real, dimension(nr,-nt:nt) :: denom
 
     integer :: i, j
@@ -387,6 +562,8 @@ contains
     dbish(:,:,1) = dcart(:,:,1)*dpcart(:,:,1) + dcart(:,:,2)*dpcart(:,:,2)
     dbish(:,:,2) =-dcart(:,:,1)*dpcart(:,:,2) + dcart(:,:,2)*dpcart(:,:,1)
     
+    ! FIXME: document why this is only on the range [2,nr], or
+    ! simplify
     do j=-nt,nt
        do i=2,nr
           dbish(i,j,:) = dbish(i,j,:)/denom(i,j)
@@ -622,37 +799,29 @@ contains
     psi = r - surf%r
   end function psi
 
-  !> FIXME : Add documentation  
+  !> Put `theta` into the range `[-pi, pi]`
+  !!
+  !! This version also sets `theta == +(-)pi +(-) theta_tol` to be
+  !! exactly `+(-)pi`, where `theta_tol == 1.e-6`
+  !!
+  !! General purpose, could be moved into utils? Could also drop the
+  !! tolerance?
   function mod2pi (theta)
-    use constants, only: pi=>pi
-    implicit none
+    use constants, only: pi
     real, intent(in) :: theta
-    real :: th, mod2pi
+    real :: mod2pi
     real, parameter :: theta_tol = 1.e-6
-    logical :: out
     if(theta <= pi .and. theta >= -pi) then
-       mod2pi = theta
-       return
+      mod2pi = theta
+      return
+    else if(theta - theta_tol <= pi .and. theta >= -pi) then
+      mod2pi = pi
+      return
+    else if(theta <= pi .and. theta + theta_tol >= -pi) then
+      mod2pi = -pi
+      return
     endif
-    
-    if(theta - theta_tol <= pi .and. theta >= -pi) then
-       mod2pi = pi
-       return
-    endif
-
-    if(theta <= pi .and. theta + theta_tol >= -pi) then
-       mod2pi = -pi
-       return
-    endif
-
-    th=theta
-    out=.true.
-    do while(out)
-       if(th > pi) th = th - 2.*pi
-       if(th <-pi) th = th + 2.*pi
-       if(th <= pi .and. th >= -pi) out=.false.
-    enddo
-    mod2pi=th
+    mod2pi = modulo(theta + pi, 2.*pi) - pi
   end function mod2pi
 
   !> FIXME : Add documentation  
