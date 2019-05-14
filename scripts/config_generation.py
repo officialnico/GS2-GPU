@@ -13,7 +13,7 @@ declString = "{typ} :: {name}"
 assignmentString = " = {value}"
 
 readParamsSubString = """
-type({module}_config_type), intent(in), optional :: config_in
+type({module}_config_type),{att} intent(in), optional :: config_in
 
 if (present(config_in)) config_internal = config_in
 
@@ -170,6 +170,7 @@ class config():
 {indent}procedure, public :: broadcast => broadcast_{module}_config"""
 
     instanceString  = "type({module}_config_type) :: {instance_name}" 
+    instanceStringIndexed  = "type({module}_config_type), dimension(:), allocatable :: {instance_name}" 
 
     interfaceString = """
 interface {module}_config_type
@@ -255,17 +256,22 @@ end interface {module}_config_type"""
         return (str(self))
 
     def instance(self, instance_name = "config_internal"):
-        return self.instanceString.format(module = self.moduleName, instance_name = instance_name)
+        theStr = self.instanceString
+        if self.requiresIndex:
+            theStr = self.instanceStringIndexed
+        return theStr.format(module = self.moduleName, instance_name = instance_name)
 
     def constructorInterface(self):
         return self.interfaceString.format(module = self.moduleName)
     
     def readParams(self, **kwargs):
         req = ".false."
+        att = ""
         if self.requiresIndex:
             req = ".true."
-            
-        return readParamsSubString.format(module = self.moduleName, namelist = self.namelistName, COPYOUT_LIST = self.copyOutList(instanceName='config_internal', **kwargs), req=req)
+            att = " dimension(:),"
+        
+        return readParamsSubString.format(module = self.moduleName, namelist = self.namelistName, COPYOUT_LIST = self.copyOutList(instanceName='config_internal', **kwargs), att = att, req=req)
     
     def readConfig(self, **kwargs):
         return readSubString.format(namelist = self.namelistName, module = self.moduleName,
