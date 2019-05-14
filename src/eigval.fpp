@@ -196,10 +196,11 @@ contains
   end function eigval_functional
   
   !> Initialise eigenvalue problem
-  subroutine init_eigval
+  subroutine init_eigval(eigval_config_in)
     use mp, only: mp_comm, proc0
     use file_utils, only: error_unit
     implicit none
+    type(eigval_config_type), intent(in), optional :: eigval_config_in    
     PetscErrorCode :: ierr
 #ifndef PETSC_USE_COMPLEX
     integer :: unit, ii
@@ -228,7 +229,7 @@ contains
 #endif
 
     !Get the input parameters
-    call read_parameters
+    call read_parameters(eigval_config_in)
     
     !Set PETSC_COMM_WORLD to be mp_comm so we can use whatever sub-comm
     !needed for list mode to work

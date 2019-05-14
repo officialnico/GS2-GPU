@@ -180,7 +180,7 @@ contains
 
   !> Calls all initialisations required for init_fields_implicit/local, 
   !! reads parameters and allocates field arrays
-  subroutine fields_pre_init
+  subroutine fields_pre_init(fields_config_in)
     use theta_grid, only: init_theta_grid
     use run_parameters, only: init_run_parameters
     use dist_fn, only: init_dist_fn, gf_lo_integrate
@@ -190,9 +190,10 @@ contains
     use kt_grids, only: naky, ntheta0
     use mp, only: nproc, proc0
     implicit none
+    type(fields_config_type), intent(in), optional :: fields_config_in    
     integer, parameter :: verb=3
     
-    call init_fields_parameters
+    call init_fields_parameters(fields_config_in)
 
     call debug_message(verb, "init_fields: init_theta_grid")
     call init_theta_grid
@@ -228,13 +229,14 @@ contains
   end subroutine fields_pre_init
 
   !> FIXME : Add documentation  
-  subroutine init_fields_parameters
+  subroutine init_fields_parameters(fields_config_in)
     use unit_tests, only: debug_message
     implicit none
+    type(fields_config_type), intent(in), optional :: fields_config_in    
     integer, parameter :: verb=3
     if (parameters_read) return
     call debug_message(verb, "init_fields: read_parameters")
-    call read_parameters
+    call read_parameters(fields_config_in)
     parameters_read = .true.
   end subroutine init_fields_parameters
 
@@ -298,7 +300,7 @@ contains
   end subroutine fields_init_response
 
   !> FIXME : Add documentation  
-  subroutine init_fields
+  subroutine init_fields(fields_config_in)
     !CMR,18/2/2011:
     ! add optional logical arg "noalloc" to avoid array allocations in ingen
     use theta_grid, only: init_theta_grid
@@ -309,13 +311,14 @@ contains
     use antenna, only: init_antenna
     use kt_grids, only: gridopt_switch, gridopt_box, kwork_filter
     implicit none
+    type(fields_config_type), intent(in), optional :: fields_config_in    
     logical :: restarted
     logical, parameter :: debug=.false.
 
     if (initialized) return
     initialized = .true.
     
-    call fields_pre_init
+    call fields_pre_init(fields_config_in)
 
     call fields_init_response
 

@@ -463,13 +463,14 @@ contains
   end subroutine wnml_gs2_layouts
 
   !> FIXME : Add documentation   
-  subroutine init_gs2_layouts
+  subroutine init_gs2_layouts(layouts_config_in)
     use mp, only: proc0
     implicit none
-
+    type(layouts_config_type), intent(in), optional :: layouts_config_in
+    
     if (initialized_layouts) return
     initialized_layouts = .true.
-    call read_parameters
+    call read_parameters(layouts_config_in)
   end subroutine init_gs2_layouts
 
   !> FIXME : Add documentation 

@@ -285,18 +285,19 @@ contains
   end subroutine wnml_hyper
 
   !> FIXME : Add documentation
-  subroutine init_hyper
+  subroutine init_hyper(hyper_config_in)
     use kt_grids, only: ntheta0, naky, akx, aky
     use gs2_time, only: code_dt
     use gs2_layouts, only: init_gs2_layouts
     implicit none
+    type(hyper_config_type), intent(in), optional :: hyper_config_in        
     integer :: ik, it
 
     if (initialized) return
     initialized = .true.
     
     call init_gs2_layouts
-    call read_parameters
+    call read_parameters(hyper_config_in)
     call allocate_arrays
 
 ! Define variables used in hyperviscosity and hyperresistivity models

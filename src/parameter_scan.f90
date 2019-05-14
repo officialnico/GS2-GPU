@@ -106,18 +106,18 @@ module parameter_scan
 contains
 
   !> FIXME : Add documentation
-  subroutine init_parameter_scan
+  subroutine init_parameter_scan(parameter_scan_config_in)
     use gs2_save, only: restore_current_scan_parameter_value 
     use init_g, only: init_init_g
     use file_utils, only: open_output_file
     implicit none
-    !write (*,*) "initializing parameter_scan"
+    type(parameter_scan_config_type), intent(in), optional :: parameter_scan_config_in
 
     if (initialized) return
     initialized = .true.
 
 
-    call read_parameters
+    call read_parameters(parameter_scan_config_in)
 
     select case (scan_type_switch) 
     case (scan_type_none)

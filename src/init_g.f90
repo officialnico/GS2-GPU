@@ -722,18 +722,19 @@ contains
   end subroutine check_init_g
 
   !> FIXME : Add documentation  
-  subroutine init_init_g
+  subroutine init_init_g(init_g_config_in)
     use gs2_save, only: set_restart_file, read_many
     use gs2_layouts, only: init_gs2_layouts
     use mp, only: proc0, broadcast, job
     implicit none
+    type(init_g_config_type), intent(in), optional :: init_g_config_in    
     integer :: ind_slash
 
     if (initialized) return
     initialized = .true.
     call init_gs2_layouts
 
-    call read_parameters
+    call read_parameters(init_g_config_in)
 
     ! prepend restart_dir to restart_file
     ! append trailing slash if not exists

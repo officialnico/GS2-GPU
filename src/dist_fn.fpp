@@ -767,12 +767,16 @@ contains
   end subroutine wnml_dist_fn_species
 
   !> FIXME : Add documentation  
-  subroutine init_dist_fn_parameters
+  subroutine init_dist_fn_parameters(dist_fn_config_in, source_config_in, dist_fn_species_config_in)
     use gs2_layouts, only: init_gs2_layouts
     use kt_grids, only: init_kt_grids
     use le_grids, only: init_le_grids
     use species, only: init_species
     use theta_grid, only: init_theta_grid
+    implicit none
+    type(dist_fn_config_type), intent(in), optional :: dist_fn_config_in
+    type(source_config_type), intent(in), optional :: source_config_in
+    type(dist_fn_species_config_type), intent(in), dimension(:), optional :: dist_fn_species_config_in
     logical,parameter:: debug=.false.
 
     if (initialized_dist_fn_parameters) return
@@ -794,7 +798,7 @@ contains
     call init_le_grids (accelerated_x, accelerated_v)
 
     if (debug) write(6,*) "init_dist_fn: read_parameters"
-    call read_parameters
+    call read_parameters(dist_fn_config_in, source_config_in, dist_fn_species_config_in)
 
   end subroutine init_dist_fn_parameters
 

@@ -204,11 +204,13 @@ contains
   end subroutine finish_antenna_level_2
 
   !> FIXME : Add documentation
-  subroutine init_antenna
+  subroutine init_antenna(driver_config_in, stir_config_in)
     use species, only: spec, nspec, init_species
     use run_parameters, only: beta
     use antenna_data, only: init_antenna_data
     implicit none
+    type(driver_config_type), intent(in), optional :: driver_config_in
+    type(stir_config_type), intent(in), dimension(:), optional :: stir_config_in    
     integer :: i
     
     if (initialized) return
@@ -217,7 +219,7 @@ contains
     if (.not. allocated(w_stir)) then
        !call init_species
        
-       !call read_parameters
+       call read_parameters(driver_config_in, stir_config_in)
        if (no_driver) then
           i = -1
           call init_antenna_data (i)

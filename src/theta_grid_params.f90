@@ -285,12 +285,11 @@ module theta_grid_params
 contains
 
   !> FIXME : Add documentation  
-  subroutine init_theta_grid_params
+  subroutine init_theta_grid_params(theta_grid_parameters_config_in)
     use unit_tests, only: debug_message
     implicit none
+    type(theta_grid_parameters_config_type), intent(in), optional :: theta_grid_parameters_config_in   
     integer, parameter :: verb=3
-!    logical, save :: initialized = .false.
-
     
     call debug_message(verb, "theta_grid_params::init_theta_grid_params start")
     if (initialized) return
@@ -298,7 +297,7 @@ contains
 
     call debug_message(verb, &
       "theta_grid_params::init_theta_grid_params call read_parameters")
-    call read_parameters
+    call read_parameters(theta_grid_parameters_config_in)
 
     call debug_message(verb, "theta_grid_params::init_theta_grid_params end")
   end subroutine init_theta_grid_params

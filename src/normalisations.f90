@@ -206,9 +206,10 @@ contains
   end subroutine norms_read_parameters
 
   !> Initialise the norms object
-  subroutine norms_init(self)
+  subroutine norms_init(self, normalisations_config_in)
     implicit none
     class(norms_type), intent(in out) :: self
+    type(normalisations_config_type), intent(in), optional :: normalisations_config_in
 
     !First setup allowed normalisations
     self%nnorm=8
@@ -225,7 +226,7 @@ contains
     if(self%initialised) return
     self%initialised = .true.
 
-    call self%read_parameters
+    call self%read_parameters(normalisations_config_in)
   end subroutine norms_init
 
   !> Reset the properties
@@ -320,9 +321,11 @@ contains
   end subroutine wnml_normalisations
 
   !> Read input file and populate the norms object
-  subroutine init_normalisations
+  subroutine init_normalisations(normalisations_config_in)
     implicit none
-    call norms%init
+    type(normalisations_config_type), intent(in), optional :: normalisations_config_in
+    
+    call norms%init(normalisations_config_in)
   end subroutine init_normalisations
 
   !> Free memory etc. associated with normalisations

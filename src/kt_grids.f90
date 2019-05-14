@@ -8,7 +8,7 @@ module kt_grids_single
 
   public :: init_kt_grids_single, single_get_sizes, single_get_grids
   public :: check_kt_grids_single, wnml_kt_grids_single 
-  public :: init_parameters_single
+  public :: read_parameters_single
   public :: finish_parameters_single
 
   public :: kt_grids_single_config_type
@@ -50,7 +50,7 @@ module kt_grids_single
 contains
 
   !> FIXME : Add documentation
-  subroutine init_parameters_single(kt_grids_single_config_in)
+  subroutine read_parameters_single(kt_grids_single_config_in)
     use file_utils, only: input_unit, input_unit_exist
     implicit none
     type(kt_grids_single_config_type), intent(in), optional :: kt_grids_single_config_in
@@ -72,7 +72,7 @@ contains
     theta0 = kt_grids_single_config%theta0
 
     exist = kt_grids_single_config%exist
-  end subroutine init_parameters_single
+  end subroutine read_parameters_single
 
   !> FIXME : Add documentation
   subroutine finish_parameters_single
@@ -82,14 +82,15 @@ contains
   end subroutine finish_parameters_single
 
   !> FIXME : Add documentation  
-  subroutine init_kt_grids_single
+  subroutine init_kt_grids_single(kt_grids_single_config_in)
 !CMR, 14/10/2013: 
 ! New namelist variables n0, rhostar_single to set aky using toroidal mode number.
 ! Toroidal modenumber used if n0> 0 prescribed in input file. 
     use theta_grid, only: drhodpsi
     implicit none
-
-    call init_parameters_single
+    type(kt_grids_single_config_type), intent(in), optional :: kt_grids_single_config_in
+    
+    call read_parameters_single(kt_grids_single_config_in)
 
     if (n0 .gt. 0) then
 !CMR if n0>0 then override aky inputs and use n0 to determine aky
@@ -271,7 +272,7 @@ module kt_grids_range
   public :: init_kt_grids_range, range_get_sizes, range_get_grids
   public :: check_kt_grids_range
   public :: wnml_kt_grids_range
-  public :: init_parameters_range
+  public :: read_parameters_range
   public :: finish_parameters_range
 
   public :: kt_grids_range_config_type  
@@ -346,7 +347,7 @@ module kt_grids_range
 contains
 
   !> FIXME : Add documentation
-  subroutine init_parameters_range(kt_grids_range_config_in)
+  subroutine read_parameters_range(kt_grids_range_config_in)
     use file_utils, only: input_unit, input_unit_exist, error_unit
     use text_options, only: text_option, get_option_value
     implicit none
@@ -387,7 +388,7 @@ contains
     ierr = error_unit()
     call get_option_value(kyspacing_option, kyspacingopts, kyspacingopt_switch,&
          ierr, "kyspacing_option in kt_grids_range_parameters",.true.)
-  end subroutine init_parameters_range
+  end subroutine read_parameters_range
 
   !> FIXME : Add documentation  
   subroutine finish_parameters_range
@@ -397,7 +398,7 @@ contains
   end subroutine finish_parameters_range
 
   !> FIXME : Add documentation  
-  subroutine init_kt_grids_range
+  subroutine init_kt_grids_range(kt_grids_range_config_in)
 !CMR, 14/10/2013: 
 ! New namelist variables nn0, n0_min, n0_max, rhostar_range to set ky grid 
 !                                             using toroidal mode numbers.
@@ -405,13 +406,14 @@ contains
     use theta_grid, only: drhodpsi
     use file_utils, only: error_unit
     implicit none
+    type(kt_grids_range_config_type), intent(in), optional :: kt_grids_range_config_in    
     integer :: ierr
     !! Temporary value of n0 as floating point
     real :: n0_tmp
     !! Temporary variable for swapping n0_{min,max}
     integer :: n0_swap
     
-    call init_parameters_range
+    call read_parameters_range(kt_grids_range_config_in)
 
     ierr = error_unit()
 
@@ -911,7 +913,9 @@ contains
 
  end subroutine specified_get_sizes
 
- !> FIXME : Add documentation  
+ !> FIXME : Add documentation
+ !>
+ !> @todo : Consider moving the content of this routine to init_kt_grids_specified
  subroutine specified_get_grids (aky, theta0, akx, kt_grids_specified_element_config_in)
    use mp, only: proc0
    implicit none
@@ -920,7 +924,8 @@ contains
    type(kt_grids_specified_element_config_type), intent(in), dimension(:), optional :: kt_grids_specified_element_config_in    
    real :: aky_dummy, theta0_dummy, akx_dummy
    integer :: i, naky, ntheta0, nmodes
-   
+
+   ! Note we shadow the module naky/ntheta variables here
    naky = size(aky)  ;  ntheta0 = size(akx)
    nmodes = max(naky,ntheta0)
    
@@ -1191,7 +1196,7 @@ module kt_grids_box
   private
 
   public :: init_kt_grids_box, box_get_sizes, box_get_grids
-  public :: init_parameters_box
+  public :: read_parameters_box
   public :: finish_parameters_box
   public :: box_set_overrides
   public :: check_kt_grids_box, wnml_kt_grids_box
@@ -1255,7 +1260,7 @@ module kt_grids_box
 contains
 
   !> FIXME : Add documentation
-  subroutine init_parameters_box(kt_grids_box_config_in)
+  subroutine read_parameters_box(kt_grids_box_config_in)
     use file_utils, only: input_unit, input_unit_exist
     use theta_grid, only: init_theta_grid, shat
     use constants, only: pi
@@ -1294,7 +1299,7 @@ contains
     y0 = kt_grids_box_config%y0
     
     exist = kt_grids_box_config%exist
-  end subroutine init_parameters_box
+  end subroutine read_parameters_box
 
   !> FIXME : Add documentation  
   subroutine finish_parameters_box
@@ -1304,7 +1309,7 @@ contains
   end subroutine finish_parameters_box
 
   !> FIXME : Add documentation  
-  subroutine init_kt_grids_box
+  subroutine init_kt_grids_box(kt_grids_box_config_in)
 !CMR, 14/10/2013: 
 ! New namelist variables: n0, rhostar_box. 
 ! If n0 and rhostar_box defined, set ky(1) using toroidal mode number.
@@ -1314,8 +1319,9 @@ contains
     use constants, only: pi
     use mp, only: mp_abort, proc0
     implicit none
-
-    call init_parameters_box
+    type(kt_grids_box_config_type), intent(in), optional :: kt_grids_box_config_in
+    
+    call read_parameters_box(kt_grids_box_config_in)
 
     if (ny==0 .and. naky==0) call mp_abort("ERROR: ny==0 .and. naky==0", .true.) 
     if (nx==0 .and. ntheta0==0) call mp_abort("ERROR: nx==0 .and. ntheta0==0", .true.) 
@@ -1567,7 +1573,6 @@ contains
   !---------------------------------------
   ! Following is for the config_type
   !---------------------------------------
- 
   
   !> Reads in the kt_grids_box_parameters namelist and populates the member variables
   subroutine read_kt_grids_box_config(self)
@@ -1771,24 +1776,28 @@ contains
   !> FIXME : Add documentation
   subroutine init_kt_grids_parameters(kt_grids_config_in)
     use theta_grid, only: init_theta_grid
-    use kt_grids_single, only: init_parameters_single
-    use kt_grids_range, only: init_parameters_range
-    use kt_grids_box, only: init_parameters_box
+    use kt_grids_single, only: read_parameters_single
+    use kt_grids_range, only: read_parameters_range
+    use kt_grids_box, only: read_parameters_box
     implicit none
     type(kt_grids_config_type), intent(in), optional :: kt_grids_config_in
     
     if (parameters_read) return
     parameters_read = .true.
+    
     call init_theta_grid
     nkpolar = 0   ! will be set to non-zero value only in box case; only used for an MHD diagnostic
+    
     call read_parameters_internal(kt_grids_config_in)
 
     ! Read all namelists in case grid_option is overriden
     ! kt_grids_specified parameters cannot be overriden at this time
     ! so kt_grids_specified parameters are read in get_sizes
-    call init_parameters_single
-    call init_parameters_range
-    call init_parameters_box
+    !
+    ! @note Should pass in optional configs here
+    call read_parameters_single
+    call read_parameters_range
+    call read_parameters_box
 
   end subroutine init_kt_grids_parameters
 
@@ -1838,6 +1847,8 @@ contains
   end function gryfx
 
   !> FIXME : Add documentation
+  !>
+  !> @todo : Provide pass-through of other kt_grid module configs
   subroutine init_kt_grids(kt_grids_config_in)
     use mp, only: proc0, broadcast
     implicit none
@@ -1847,7 +1858,6 @@ contains
     initialized = .true.
 
     call init_kt_grids_parameters(kt_grids_config_in)
-
 
     if (proc0) then
        call get_sizes

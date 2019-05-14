@@ -102,7 +102,7 @@ module ingen_mod
 contains
 
   !> FIXME : Add documentation  
-  subroutine run_ingen
+  subroutine run_ingen(ingen_config_in)
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -118,6 +118,8 @@ contains
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    implicit none
+    type(ingen_config_type), intent(in), optional :: ingen_config_in
     
     call init_mp
 
@@ -125,7 +127,7 @@ contains
  
     if (debug) write(6,*) 'ingen: call get_namelists'
     
-    call get_namelists
+    call get_namelists(ingen_config_in)
     if (debug) write(6,*) 'ingen: call report'
     call report
     if (debug) write(6,*) 'ingen: call write_namelists'

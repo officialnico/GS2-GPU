@@ -184,7 +184,7 @@ contains
   end subroutine wnml_nonlinear_terms
 
   !> FIXME : Add documentation  
-  subroutine init_nonlinear_terms 
+  subroutine init_nonlinear_terms(nonlinear_terms_config_in) 
     use theta_grid, only: init_theta_grid, ntgrid
     use kt_grids, only: init_kt_grids, naky, ntheta0, nx, ny, akx, aky
     use le_grids, only: init_le_grids, nlambda, negrid
@@ -197,6 +197,7 @@ contains
     use shm_mpi3, only : shm_alloc
 #endif
     implicit none
+    type(nonlinear_terms_config_type), intent(in), optional :: nonlinear_terms_config_in
     logical :: dum1, dum2
     logical, parameter :: debug=.false.
 
@@ -216,7 +217,7 @@ contains
     if (debug) write(6,*) "init_nonlinear_terms: init_dist_fn_layouts"
     call init_dist_fn_layouts (naky, ntheta0, nlambda, negrid, nspec)
     
-    call read_parameters
+    call read_parameters(nonlinear_terms_config_in)
 
     if (debug) write(6,*) "init_nonlinear_terms: init_transforms"
     if (nonlinear_mode_switch /= nonlinear_mode_none) then

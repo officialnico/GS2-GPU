@@ -75,11 +75,12 @@ contains
   end subroutine wnml_theta_grid_gridgen
 
   !> FIXME : Add documentation  
-  subroutine theta_grid_gridgen_init
+  subroutine theta_grid_gridgen_init(theta_grid_gridgen_config_in)
     implicit none
+    type(theta_grid_gridgen_config_type), intent(in), optional :: theta_grid_gridgen_config_in
     if (initialized) return
     initialized = .true.
-    call read_parameters
+    call read_parameters(theta_grid_gridgen_config_in)
   end subroutine theta_grid_gridgen_init
 
   !> FIXME : Add documentation  
@@ -606,11 +607,12 @@ contains
   end subroutine wnml_theta_grid_salpha
 
   !> FIXME : Add documentation  
-  subroutine init_theta_grid_salpha
+  subroutine init_theta_grid_salpha(theta_grid_salpha_config_in)
     use theta_grid_params, only: init_theta_grid_params, rhoc, eps, epsl
     use geometry, only: rhoc_geo=>rhoc, surfarea
     implicit none
-
+    type(theta_grid_salpha_config_type), intent(in), optional :: theta_grid_salpha_config_in
+    
     if (initialized) return
     initialized = .false.
 
@@ -625,7 +627,7 @@ contains
 
     ! Only required for trinity interface and not yet defined in s-alpha
     surfarea = -1.0
-    call read_parameters
+    call read_parameters(theta_grid_salpha_config_in)
   end subroutine init_theta_grid_salpha
 
   !> FIXME : Add documentation
@@ -1529,7 +1531,7 @@ contains
   end subroutine checklogic_theta_grid_eik
 
   !> FIXME : Add documentation  
-  subroutine init_theta_grid_eik
+  subroutine init_theta_grid_eik(theta_grid_eik_config_in)
     use geometry, only: init_theta, nperiod_geo => nperiod
     use geometry, only: eikcoefs, itor, delrho, rhoc
     use geometry, only: gen_eq, ppl_eq, transp_eq, chs_eq
@@ -1541,6 +1543,7 @@ contains
     use unit_tests, only: debug_message
     use mp, only: proc0
     implicit none
+    type(theta_grid_eik_config_type), intent(in), optional :: theta_grid_eik_config_in    
     real :: rhoc_save
 !CMR nov04: adding following debug switch
     logical :: debug=.true.
@@ -1567,7 +1570,7 @@ contains
 
     write(ntheta_char, "(I4)") ntheta
      call debug_message(verb, "init_theta_grid_eik: call read_parameters, ntheta="//ntheta_char)
-    call read_parameters
+    call read_parameters(theta_grid_eik_config_in)
 !CMR replace call init_theta(ntheta) with following condition 
 !    to avoid inappropriate calls to init_theta (as in geo/et.f90)
     if(.not. gen_eq .and. .not. ppl_eq .and. &
@@ -2116,15 +2119,16 @@ contains
   end subroutine check_theta_grid_file
 
   !> FIXME : Add documentation  
-  subroutine init_theta_grid_file
+  subroutine init_theta_grid_file(theta_grid_file_config_in)
     use theta_grid_params, only: init_theta_grid_params
     implicit none
-
+    type(theta_grid_file_config_type), intent(in), optional :: theta_grid_file_config_in
+    
     if (initialized) return
     initialized = .true.
 
     call init_theta_grid_params
-    call read_parameters
+    call read_parameters(theta_grid_file_config_in)
   end subroutine init_theta_grid_file
 
   !> FIXME : Add documentation  
@@ -2533,19 +2537,29 @@ contains
   end subroutine wnml_theta_grid
 
   !> FIXME : Add documentation
-  subroutine init_theta_grid
+  subroutine init_theta_grid(theta_grid_config_in, theta_grid_gridgen_config_in, &
+       &theta_grid_salpha_config_in, theta_grid_file_config_in, theta_grid_eik_config_in)
     use mp, only: proc0
     use unit_tests, only: debug_message
+    use theta_grid_gridgen, only: theta_grid_gridgen_config_type
+    use theta_grid_salpha, only: theta_grid_salpha_config_type
+    use theta_grid_file, only: theta_grid_file_config_type
+    use theta_grid_eik, only: theta_grid_eik_config_type
     implicit none
+    type(theta_grid_config_type), intent(in), optional :: theta_grid_config_in
+    type(theta_grid_gridgen_config_type), intent(in), optional :: theta_grid_gridgen_config_in
+    type(theta_grid_salpha_config_type), intent(in), optional :: theta_grid_salpha_config_in
+    type(theta_grid_file_config_type), intent(in), optional :: theta_grid_file_config_in
+    type(theta_grid_eik_config_type), intent(in), optional :: theta_grid_eik_config_in    
     integer, parameter :: verb=3
     if (initialized) return
     initialized = .true.
 
 
     call debug_message(verb, "init_theta_grid: call read_parameters")
-    call read_parameters
+    call read_parameters(theta_grid_config_in)
     call debug_message(verb, "init_theta_grid: call get_sizes")
-    call get_sizes
+    call get_sizes(theta_grid_gridgen_config_in, theta_grid_salpha_config_in, theta_grid_file_config_in, theta_grid_eik_config_in)
     if (proc0) then
        call debug_message(verb, "init_theta_grid: call allocate_arrays")
        call allocate_arrays
@@ -2880,30 +2894,35 @@ contains
   end subroutine finish_init
 
   !> FIXME : Add documentation
-  subroutine get_sizes
-    use theta_grid_eik, only: eik_get_sizes, init_theta_grid_eik
-    use theta_grid_salpha, only: salpha_get_sizes, init_theta_grid_salpha
-    use theta_grid_file, only: file_get_sizes, init_theta_grid_file
+  subroutine get_sizes(theta_grid_gridgen_config_in, theta_grid_salpha_config_in, theta_grid_file_config_in, theta_grid_eik_config_in)
+    use theta_grid_eik, only: eik_get_sizes, init_theta_grid_eik, theta_grid_eik_config_type
+    use theta_grid_salpha, only: salpha_get_sizes, init_theta_grid_salpha, theta_grid_salpha_config_type
+    use theta_grid_file, only: file_get_sizes, init_theta_grid_file, theta_grid_file_config_type
     use theta_grid_file, only: ntheta_file=>ntheta, nperiod_file=>nperiod
     use theta_grid_file, only: nbset_file=>nbset
-    use theta_grid_gridgen, only: theta_grid_gridgen_init
+    use theta_grid_gridgen, only: theta_grid_gridgen_init, theta_grid_gridgen_config_type
     implicit none
+    type(theta_grid_gridgen_config_type), intent(in), optional :: theta_grid_gridgen_config_in
+    type(theta_grid_salpha_config_type), intent(in), optional :: theta_grid_salpha_config_in
+    type(theta_grid_file_config_type), intent(in), optional :: theta_grid_file_config_in
+    type(theta_grid_eik_config_type), intent(in), optional :: theta_grid_eik_config_in    
+    
     logical, parameter :: debug=.false.
 if (debug) write(6,*) 'get_sizes: eqopt_switch=',eqopt_switch
     select case (eqopt_switch)
     case (eqopt_eik)
 if (debug) write(6,*) 'get_sizes: call init_theta_grid_eik'
-       call init_theta_grid_eik
+       call init_theta_grid_eik(theta_grid_eik_config_in)
 if (debug) write(6,*) 'get_sizes: call eik_get_sizes'
        call eik_get_sizes (ntheta, nperiod, nbset)
     case (eqopt_salpha)
 if (debug) write(6,*) 'get_sizes: call init_theta_grid_salpha'
-       call init_theta_grid_salpha
+       call init_theta_grid_salpha(theta_grid_salpha_config_in)
 if (debug) write(6,*) 'get_sizes: call salpha_get_sizes'
        call salpha_get_sizes (ntheta, nperiod, nbset)
     case (eqopt_file)
 if (debug) write(6,*) 'get_sizes: call init_theta_grid_file'
-       call init_theta_grid_file
+       call init_theta_grid_file(theta_grid_file_config_in)
 if (debug) write(6,*) 'get_sizes: call file_get_sizes'
        call file_get_sizes
        ntheta=ntheta_file
@@ -2913,7 +2932,7 @@ if (debug) write(6,*) 'get_sizes: call file_get_sizes'
     ntgrid = ntheta/2 + (nperiod-1)*ntheta
 
     ! Make sure gridgen is setup on all procs
-    call theta_grid_gridgen_init
+    call theta_grid_gridgen_init(theta_grid_gridgen_config_in)
 
 if (debug) write(6,*) 'get_sizes: done'
   end subroutine get_sizes

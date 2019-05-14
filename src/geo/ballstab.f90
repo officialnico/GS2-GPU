@@ -64,15 +64,16 @@ module ballstab
 contains
   
   !> Initialise grids, other modules etc.
-  subroutine init_ballstab
+  subroutine init_ballstab(ballstab_config_in)
     use theta_grid, only: init_theta_grid
     implicit none
-
+    type(ballstab_config_type), intent(in), optional :: ballstab_config_in
+    
     !Other modules
     call init_theta_grid
 
     !This module
-    call real_init_ballstab
+    call real_init_ballstab(ballstab_config_in)
   end subroutine init_ballstab
 
   !> Finalise this module
@@ -86,15 +87,16 @@ contains
   end subroutine finish_ballstab
 
   !> Initialise this module
-  subroutine real_init_ballstab
+  subroutine real_init_ballstab(ballstab_config_in)
     use mp, only: proc0
     implicit none
+    type(ballstab_config_type), intent(in), optional :: ballstab_config_in    
 
     if(initialised) return
     initialised = .true.
 
     !Get settings
-    call read_parameters
+    call read_parameters(ballstab_config_in)
 
     !Note only proc0 will be allowed to do any work
     if (.not.proc0) return

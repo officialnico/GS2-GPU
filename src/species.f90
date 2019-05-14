@@ -314,13 +314,15 @@ contains
   end subroutine wnml_species
 
   !> FIXME : Add documentation   
-  subroutine init_species
+  subroutine init_species(species_config_in, species_elements_config_in)
     implicit none
+    type(species_config_type), intent(in), optional :: species_config_in
+    type(species_element_config_type), intent(in), dimension(:), optional :: species_elements_config_in
 
     if (initialized) return
     initialized = .true.
 
-    call read_parameters
+    call read_parameters(species_config_in, species_elements_config_in)
 
   end subroutine init_species
 

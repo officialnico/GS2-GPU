@@ -365,13 +365,15 @@ module diagnostics_config
   type(new_gs2_diagnostics_config_type) :: new_gs2_diagnostics_config  
   
 contains
-  subroutine init_diagnostics_config(gnostics)
+  subroutine init_diagnostics_config(gnostics, new_gs2_diagnostics_config_in)
     use unit_tests, only: debug_message
     implicit none
     type(diagnostics_type), intent(inout) :: gnostics
+    type(new_gs2_diagnostics_config_type), intent(in), optional :: new_gs2_diagnostics_config_in
+
     call debug_message(3, 'diagnostics_config::init_diagnostics_config &
       & starting')
-    call read_parameters(gnostics)
+    call read_parameters(gnostics, new_gs2_diagnostics_config_in)
     call debug_message(3, 'diagnostics_config::init_diagnostics_config &
       & read_parameters')
     call allocate_current_results(gnostics)

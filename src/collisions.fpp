@@ -294,15 +294,15 @@ contains
   end subroutine wnml_collisions
 
   !> FIXME : Add documentation
-  subroutine init_collisions
+  subroutine init_collisions(collisions_config_in)
     use species, only: init_species, nspec, spec
     use theta_grid, only: init_theta_grid
     use kt_grids, only: init_kt_grids, naky, ntheta0
     use le_grids, only: init_le_grids, nlambda, negrid
     use run_parameters, only: init_run_parameters
     use gs2_layouts, only: init_dist_fn_layouts, init_gs2_layouts
-
     implicit none
+    type(collisions_config_type), intent(in), optional :: collisions_config_in
 
     if (initialized) return
     initialized = .true.
@@ -317,7 +317,7 @@ contains
     call init_le_grids (accelerated_x, accelerated_v)
     call init_run_parameters
     call init_dist_fn_layouts (naky, ntheta0, nlambda, negrid, nspec)
-    call read_parameters
+    call read_parameters(collisions_config_in)
 
     call init_arrays
 

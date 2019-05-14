@@ -299,15 +299,16 @@ contains
   end subroutine wnml_run_parameters
 
   !> FIXME : Add documentation  
-  subroutine init_run_parameters
+  subroutine init_run_parameters(knobs_config_in, parameters_config_in)
     use kt_grids, only: init_kt_grids, naky, nakx => ntheta0
     use gs2_time, only: init_delt, user2code
     implicit none
-
+    type(knobs_config_type), intent(in), optional :: knobs_config_in
+    type(parameters_config_type), intent(in), optional :: parameters_config_in    
     if (initialized) return
     initialized = .true.
 
-    call read_parameters
+    call read_parameters(knobs_config_in, parameters_config_in)
 
     call init_kt_grids
     call init_delt (delt, delt_prev1, delt_prev2)
