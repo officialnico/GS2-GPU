@@ -275,19 +275,19 @@ contains
          i=1, nradius)], j=-ntheta, ntheta)], total_size)
 
     call eqitem(theta_zero, array, actual, 'A')
-    @assertEqual(expected_zero, actual)
+    @assertEqual(expected_zero, actual, tolerance=1.e-8)
 
     call eqitem(theta_inside, array, actual, 'A')
-    @assertEqual(expected_inside, actual)
+    @assertEqual(expected_inside, actual, tolerance=1.e-8)
 
     call eqitem(theta_inside_negative, array, actual, 'A')
-    @assertEqual(expected_inside_negative, actual)
+    @assertEqual(expected_inside_negative, actual, tolerance=1.e-8)
 
     call eqitem(theta_outside, array, actual, 'A')
-    @assertEqual(expected_outside, actual)
+    @assertEqual(expected_outside, actual, tolerance=1.e-8)
 
     call eqitem(theta_outside_negative, array, actual, 'A')
-    @assertEqual(expected_outside_negative, actual)
+    @assertEqual(expected_outside_negative, actual, tolerance=1.e-8)
 
     call leq_privates%dealloc_arrays()
 
@@ -313,7 +313,7 @@ contains
     dpcart(:,:,1) = 4.
     dpcart(:,:,2) = 8.
 
-    expected = dpcart
+    expected = dpcart(2,:,:)
 
     call leq_privates%set_dpcart(dpcart)
 
@@ -323,7 +323,7 @@ contains
 
     call leq_privates%dealloc_arrays()
 
-    @assertEqual(expected, grad_result)
+    @assertEqual(expected, grad_result, tolerance=1.e-8)
 
   end subroutine test_gradient
 
@@ -351,8 +351,8 @@ contains
     dtbish(:,:,2) = 32.
     dbtbish = 0.
 
-    expected_T = dtbish
-    expected_P = dpbish
+    expected_T = dtbish(2,:,:)
+    expected_P = dpbish(2,:,:)
 
     call leq_privates%set_bish_arrays(dpbish, dbtbish, dtbish)
 
@@ -363,8 +363,8 @@ contains
 
     call leq_privates%dealloc_arrays()
 
-    @assertEqual(expected_P, grad_P_result)
-    @assertEqual(expected_T, grad_T_result)
+    @assertEqual(expected_P, grad_P_result, tolerance=1.e-8)
+    @assertEqual(expected_T, grad_T_result, tolerance=1.e-8)
 
   end subroutine test_bgradient
 
