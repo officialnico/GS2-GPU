@@ -293,4 +293,79 @@ contains
 
   end subroutine test_eqitem
 
+  @test
+  subroutine test_gradient()
+    use constants, only : pi
+    use leq, only : leq_testing_type, gradient
+    type(leq_testing_type) :: leq_privates
+
+    integer, parameter :: nradius = 3
+    integer, parameter :: ntheta = 4
+
+    real, dimension(nradius, -ntheta:ntheta, 2) :: dpcart
+    integer :: i
+    real, dimension(-ntheta:ntheta), parameter :: theta = [(real(i)*pi/real(ntheta-1), i=-ntheta,ntheta)]
+    real, dimension(-ntheta:ntheta, 2) :: expected, grad_result
+
+    call leq_privates%set_ntnr(ntheta, nradius)
+    call leq_privates%alloc_arrays(nradius, ntheta)
+
+    dpcart(:,:,1) = 4.
+    dpcart(:,:,2) = 8.
+
+    expected = dpcart
+
+    call leq_privates%set_dpcart(dpcart)
+
+    ! Note only need to test 'P' as other values for char don't make
+    ! sense for leq
+    call gradient(theta, grad_result, 'P', -1., ntheta, ntheta)
+
+    call leq_privates%dealloc_arrays()
+
+    @assertEqual(expected, grad_result)
+
+  end subroutine test_gradient
+
+  @test
+  subroutine test_bgradient()
+    use constants, only : pi
+    use leq, only : leq_testing_type, bgradient
+    type(leq_testing_type) :: leq_privates
+
+    integer, parameter :: nradius = 3
+    integer, parameter :: ntheta = 4
+
+    real, dimension(nradius, -ntheta:ntheta, 2) :: dpbish, dtbish, dbtbish
+    integer :: i
+    real, dimension(-ntheta:ntheta), parameter :: theta = [(real(i)*pi/real(ntheta-1), i=-ntheta,ntheta)]
+    real, dimension(-ntheta:ntheta, 2) :: expected_P, expected_T
+    real, dimension(-ntheta:ntheta, 2) :: grad_P_result, grad_T_result
+
+    call leq_privates%set_ntnr(ntheta, nradius)
+    call leq_privates%alloc_arrays(nradius, ntheta)
+
+    dpbish(:,:,1) = 4.
+    dpbish(:,:,2) = 8.
+    dtbish(:,:,1) = 16.
+    dtbish(:,:,2) = 32.
+    dbtbish = 0.
+
+    expected_T = dtbish
+    expected_P = dpbish
+
+    call leq_privates%set_bish_arrays(dpbish, dbtbish, dtbish)
+
+    ! Note only need to test 'P' and 'T' as other values for char
+    ! don't make sense for leq
+    call bgradient(theta, grad_P_result, 'P', -1., ntheta, ntheta)
+    call bgradient(theta, grad_T_result, 'T', -1., ntheta, ntheta)
+
+    call leq_privates%dealloc_arrays()
+
+    @assertEqual(expected_P, grad_P_result)
+    @assertEqual(expected_T, grad_T_result)
+
+  end subroutine test_bgradient
+
 end module test_leq_mod

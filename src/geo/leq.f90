@@ -109,6 +109,8 @@ module leq
     procedure, nopass :: set_drm
     procedure, nopass :: set_dzm
     procedure, nopass :: set_dpcart
+    procedure, nopass :: set_cart_arrays
+    procedure, nopass :: set_bish_arrays
     procedure, nopass :: eqdcart
     procedure, nopass :: eqdbish
     procedure, nopass :: alloc_arrays, dealloc_arrays
@@ -148,6 +150,31 @@ contains
     real, dimension(nr,-nt:nt,2), intent(in) :: dpcart_in
     dpcart = dpcart_in
   end subroutine set_dpcart
+
+  !> Set module-level dpcart, dbtcart and dtcart
+  !! PURELY FOR TESTING
+  !! FIXME: Remove when we have more control over module-level variables for testing
+  subroutine set_cart_arrays(dpcart_in, dbtcart_in, dtcart_in)
+    real, dimension(nr,-nt:nt,2), intent(in) :: dpcart_in
+    real, dimension(nr,-nt:nt,2), intent(in) :: dbtcart_in
+    real, dimension(nr,-nt:nt,2), intent(in) :: dtcart_in
+    dpcart = dpcart_in
+    dbtcart = dbtcart_in
+    dtcart = dtcart_in
+  end subroutine set_cart_arrays
+
+  !> Set module-level dpbish, dbtbish and dtbish
+  !! PURELY FOR TESTING
+  !! FIXME: Remove when we have more control over module-level variables for testing
+  subroutine set_bish_arrays(dpbish_in, dbtbish_in, dtbish_in)
+    real, dimension(nr,-nt:nt,2), intent(in) :: dpbish_in
+    real, dimension(nr,-nt:nt,2), intent(in) :: dbtbish_in
+    real, dimension(nr,-nt:nt,2), intent(in) :: dtbish_in
+    dpbish = dpbish_in
+    dbtbish = dbtbish_in
+    dtbish = dtbish_in
+  end subroutine set_bish_arrays
+
   !> FIXME : Add documentation  
   subroutine leqin(geoType, Rmaj, Rgeo, r, dr, aSurf, sHorz, sVert, mMode, nMode, delm, deln, delmp, delnp, thm, thn, q, shat, nt_used, thShift)
     implicit none
