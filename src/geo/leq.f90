@@ -244,7 +244,7 @@ contains
 
   !> FIXME : Add documentation  
   subroutine leq_init
-    use constants, only: pi=>pi
+    use constants, only: pi
     implicit none
     real, dimension(nr, -nt:nt) :: eqpsi1, eqth, eqbtor
     real :: dr(3)
@@ -257,7 +257,9 @@ contains
    
     ! All calculation must be extended over the full [-pi,pi] range in order to
     ! support up-down asymmetric geometries (see section 3.2.2 of Ball MIT
-    ! Masters thesis or section 2.2 of "GS2 analytic geometry specification") 
+    ! Masters thesis or section 2.2 of "GS2 analytic geometry specification")
+    !
+    ! NOTE: actual theta grid used here includes one extra point outside [-pi, pi]!
     do j=-nt,nt
        do i=1,nr
           r = surf%r + dr(i)
@@ -310,7 +312,7 @@ contains
   !!   - `O` means continuous and odd at theta = +/- pi -- FIXME: confirm
   !!   - `T` means a jump of 2 pi at theta = +/- pi
   subroutine derm(f, dfm, char)
-    use constants, only: pi=>pi
+    use constants, only: pi
     implicit none
     real, dimension(:,:), intent(in) :: f(:,-nt:)
     real, dimension(:,:,:), intent(out) :: dfm(:,-nt:,:)
@@ -373,9 +375,9 @@ contains
     case('P') 
        dcart = dpcart
     case('R') 
-       dcart = dpcart  ! dpcart is correct for 'R'
+       dcart = dpcart  ! dpcart is correct for 'R' -- never reached: other calculation done instead
     case('T')
-       dcart = dtcart
+       dcart = dtcart  ! Never reached: bgradient always used
     end select
     
     do i=-nth_used,-1
@@ -428,7 +430,7 @@ contains
     case('P') 
        dbish = dpbish
     case('R') 
-       dbish = dpbish  ! dpcart is correct for 'R'
+       dbish = dpbish  ! dpcart is correct for 'R' -- never reached: other calculation done instead
     case('T')
        dbish = dtbish
     end select
@@ -450,9 +452,9 @@ contains
     endif
   end subroutine bgradient
 
-  !> FIXME : Add documentation  
+  !> Calculates `fstar` which is `f` interpolated at the location `theta_in`
   subroutine eqitem(theta_in, f, fstar, char)
-    use constants, only: pi=>pi
+    use constants, only: pi
     implicit none
     real, intent(in) :: theta_in
     real, dimension(:,-nt:), intent(in) :: f
@@ -472,6 +474,7 @@ contains
 
     ! get thet on theta mesh
 
+    ! NOTE: actual theta grid used here includes one extra point outside [-pi, pi]!
     mtheta = (/ ( real(j)*pi/real(nt-1), j=-nt,nt) /)
   
     ! note that theta(1)=0 for local_eq theta 
