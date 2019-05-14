@@ -212,7 +212,7 @@ contains
     call leq_init
   end subroutine leqin
 
-  !> FIXME : Add documentation  
+  !> Allocate internal module-level arrays
   subroutine alloc_arrays(nr, nt)
     implicit none
     integer, intent(in) :: nr, nt
@@ -226,7 +226,7 @@ contains
 
   end subroutine alloc_arrays
 
-  !> FIXME : Add documentation  
+  !> Deallocate internal module-level arrays
   subroutine dealloc_arrays
     implicit none
     if(allocated(eqpsi)) deallocate(eqpsi, fp, beta, pressure)
@@ -236,13 +236,13 @@ contains
     if(allocated(dpbish)) deallocate(dpbish,dtbish,dbtbish)
   end subroutine dealloc_arrays
 
-  !> FIXME : Add documentation  
+  !> Finalise leq module
   subroutine leq_finish
     implicit none
     call dealloc_arrays
   end subroutine leq_finish
 
-  !> FIXME : Add documentation  
+  !> Initialise leq module
   subroutine leq_init
     use constants, only: pi
     implicit none
@@ -456,19 +456,26 @@ contains
   subroutine eqitem(theta_in, f, fstar, char)
     use constants, only: pi
     implicit none
+    !> Desired theta location
     real, intent(in) :: theta_in
+    !> Array to interpolate
     real, dimension(:,-nt:), intent(in) :: f
+    !> Interpolation result
     real, intent(out) :: fstar
+    !> FIXME: Unused
     character(1), intent(in) :: char
-    integer :: j, istar, jstar
+    !> Internal loop variable
+    integer :: j
+    !> Found theta index
+    integer :: jstar
+    !> r index, always centre of grid
+    integer, parameter :: istar = 2
+    !> theta point in [-pi, pi]
     real :: tp
+    !> linear interpolation weights
     real :: st, dt
+    !> Internal theta grid
     real, dimension(-nt:nt) :: mtheta
-    ! find r on psi mesh
-    
-    istar = 2
-
-    ! Now do theta direction
 
     tp = mod2pi(theta_in)
 
@@ -506,12 +513,17 @@ contains
          /(mtheta(jstar+1)-mtheta(jstar))
   end subroutine eqitem
 
-  !> FIXME : Add documentation  
+  !> Convert `dfm` from index-space derivative to derivative on
+  !> cylindrical coordinates
+  !>
+  !> - Gradient in the first coordinate is in `(:,:,1)`
+  !> - Gradient in the second coordinate is in `(:,:,2)`
   subroutine eqdcart(dfm, dfcart)
-    implicit none
-    real, dimension (:,-nt:,:), intent(in)  :: dfm
-    real, dimension (:,-nt:,:), intent(out) :: dfcart
-    real, dimension (nr,-nt:nt) :: denom
+    !> Index-space derivative
+    real, dimension(nr,-nt:nt,2), intent(in)  :: dfm
+    !> Cylindrical coordinates derivative
+    real, dimension(nr,-nt:nt,2), intent(out) :: dfcart
+    real, dimension(nr,-nt:nt) :: denom
 
     integer :: i, j
       
@@ -531,11 +543,16 @@ contains
     enddo
   end subroutine eqdcart
 
-  !> FIXME : Add documentation  
+  !> Convert `dcart` from cylindrical coordinates derivative to
+  !> derivative on Bishop coordinates
+  !>
+  !> - Gradient in the first coordinate is in `(:,:,1)`
+  !> - Gradient in the second coordinate is in `(:,:,2)`
   subroutine eqdbish(dcart, dbish)
-    implicit none
-    real, dimension(:,-nt:,:), intent (in) :: dcart
-    real, dimension(:,-nt:,:), intent(out) :: dbish
+    !> Cylindrical coordinates derivative
+    real, dimension(nr,-nt:nt,2), intent(in) :: dcart
+    !> Bishop coordinates derivative
+    real, dimension(nr,-nt:nt,2), intent(out) :: dbish
     real, dimension(nr,-nt:nt) :: denom
 
     integer :: i, j
