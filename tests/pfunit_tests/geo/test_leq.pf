@@ -239,4 +239,58 @@ contains
 
   end subroutine test_eqdbish
 
+  @test
+  subroutine test_eqitem()
+    use constants, only : pi
+    use leq, only : leq_testing_type, eqitem
+    type(leq_testing_type) :: leq_privates
+
+    integer, parameter :: nradius = 3
+    integer, parameter :: ntheta = 4
+    integer, parameter :: total_ntheta = 2*ntheta + 1
+    integer, parameter :: total_size(2) = [nradius, total_ntheta]
+
+    real, dimension(nradius, -ntheta:ntheta) :: array
+
+    real, parameter :: theta_zero = 0.0
+    real, parameter :: expected_zero = theta_zero
+    real, parameter :: theta_inside = 1.3
+    real, parameter :: expected_inside = theta_inside
+    real, parameter :: theta_inside_negative = -2.6
+    real, parameter :: expected_inside_negative = theta_inside_negative
+    real, parameter :: theta_outside = 1.3 + pi
+    real, parameter :: expected_outside = modulo(theta_outside + pi, 2.*pi) - pi
+    real, parameter :: theta_outside_negative = -(2.6 + pi)
+    real, parameter :: expected_outside_negative = modulo(theta_outside_negative + pi, 2.*pi) - pi
+
+    real :: actual
+
+    integer :: i, j
+
+    call leq_privates%set_ntnr(ntheta, nradius)
+
+    ! NOTE: actual theta grid used in leq includes one extra point
+    ! outside [-pi, pi]!
+    array = reshape([([(real(j) * pi / real(ntheta - 1), &
+         i=1, nradius)], j=-ntheta, ntheta)], total_size)
+
+    call eqitem(theta_zero, array, actual, 'A')
+    @assertEqual(expected_zero, actual)
+
+    call eqitem(theta_inside, array, actual, 'A')
+    @assertEqual(expected_inside, actual)
+
+    call eqitem(theta_inside_negative, array, actual, 'A')
+    @assertEqual(expected_inside_negative, actual)
+
+    call eqitem(theta_outside, array, actual, 'A')
+    @assertEqual(expected_outside, actual)
+
+    call eqitem(theta_outside_negative, array, actual, 'A')
+    @assertEqual(expected_outside_negative, actual)
+
+    call leq_privates%dealloc_arrays()
+
+  end subroutine test_eqitem
+
 end module test_leq_mod
