@@ -368,4 +368,566 @@ contains
 
   end subroutine test_bgradient
 
+  @test
+  subroutine test_Rpos_circle()
+    use constants, only : pi
+    use leq, only : leq_testing_type, Rpos, Zpos
+    type(leq_testing_type) :: leq_privates
+
+    real, parameter :: major_radius = 0.0
+    real, parameter :: minor_radius = 1.0
+
+    integer, parameter :: ntheta = 32
+    real, dimension(ntheta) :: R_answer
+
+    integer :: i
+    real, dimension(ntheta), parameter :: theta = [(real(i)*2*pi/real(ntheta-1), i=0,ntheta-1)]
+    real, dimension(ntheta), parameter :: R_expected = minor_radius * cos(theta) + major_radius
+    real, dimension(ntheta), parameter :: Z_expected = minor_radius * sin(theta)
+
+    call leq_privates%set_surf(geoType=0, &
+       Rmaj=major_radius, &
+       Rgeo=major_radius, &
+       r=minor_radius, &
+       dr=0.1, &
+       aSurf=major_radius, &
+       sHorz=0.0, &
+       sVert=0.0, &
+       delm=1.0, &
+       deln=0.0, &
+       delmp=0.0, &
+       delnp=0.0, &
+       thm=0.0, &
+       thn=0.0, &
+       q=0.0, &
+       shat=0.0, &
+       nt=16, &
+       mMode=0, &
+       nMode=0)
+
+    R_answer = [ (Rpos(minor_radius, theta(i)), i=1, ntheta) ]
+
+    @assertEqual(R_expected, R_answer, tolerance=1.e-12)
+
+  end subroutine test_Rpos_circle
+
+  @test
+  subroutine test_Zpos_circle()
+    use constants, only : pi
+    use leq, only : leq_testing_type, Rpos, Zpos
+    type(leq_testing_type) :: leq_privates
+
+    real, parameter :: major_radius = 0.0
+    real, parameter :: minor_radius = 1.0
+
+    integer, parameter :: ntheta = 32
+    real, dimension(ntheta) :: Z_answer
+
+    integer :: i
+    real, dimension(ntheta), parameter :: theta = [(real(i)*2*pi/real(ntheta-1), i=0,ntheta-1)]
+    real, dimension(ntheta), parameter :: R_expected = minor_radius * cos(theta) + major_radius
+    real, dimension(ntheta), parameter :: Z_expected = minor_radius * sin(theta)
+
+    call leq_privates%set_surf(geoType=0, &
+       Rmaj=major_radius, &
+       Rgeo=major_radius, &
+       r=minor_radius, &
+       dr=0.1, &
+       aSurf=major_radius, &
+       sHorz=0.0, &
+       sVert=0.0, &
+       delm=1.0, &
+       deln=0.0, &
+       delmp=0.0, &
+       delnp=0.0, &
+       thm=0.0, &
+       thn=0.0, &
+       q=0.0, &
+       shat=0.0, &
+       nt=16, &
+       mMode=0, &
+       nMode=0)
+
+    Z_answer = [ (Zpos(minor_radius, theta(i)), i=1, ntheta) ]
+
+    @assertEqual(Z_expected, Z_answer, tolerance=1.e-12)
+
+  end subroutine test_Zpos_circle
+
+  @test
+  subroutine test_Rpos_elongation()
+    use constants, only : pi
+    use leq, only : leq_testing_type, Rpos, Zpos
+    type(leq_testing_type) :: leq_privates
+
+    real, parameter :: major_radius = 0.0
+    real, parameter :: minor_radius = 1.0
+
+    integer, parameter :: ntheta = 32
+    real, dimension(ntheta) :: R_answer
+
+    real, parameter :: elongation = 2.0
+    real, parameter :: triangularity = 0.0
+
+    integer :: i
+    real, dimension(ntheta), parameter :: theta = [(real(i)*2*pi/real(ntheta-1), i=0,ntheta-1)]
+    real, dimension(ntheta), parameter :: R_expected = minor_radius * cos(theta + triangularity*sin(theta)) &
+         + major_radius
+    real, dimension(ntheta), parameter :: Z_expected = minor_radius * sin(theta) * elongation
+
+    call leq_privates%set_surf(geoType=0, &
+       Rmaj=major_radius, &
+       Rgeo=major_radius, &
+       r=minor_radius, &
+       dr=0.1, &
+       aSurf=major_radius, &
+       sHorz=0.0, &
+       sVert=0.0, &
+       delm=elongation, &
+       deln=triangularity, &
+       delmp=0.0, &
+       delnp=0.0, &
+       thm=0.0, &
+       thn=0.0, &
+       q=0.0, &
+       shat=0.0, &
+       nt=16, &
+       mMode=0, &
+       nMode=0)
+
+    R_answer = [ (Rpos(minor_radius, theta(i)), i=1, ntheta) ]
+
+    @assertEqual(R_expected, R_answer, tolerance=1.e-12)
+
+  end subroutine test_Rpos_elongation
+
+  @test
+  subroutine test_Zpos_elongation()
+    use constants, only : pi
+    use leq, only : leq_testing_type, Rpos, Zpos
+    type(leq_testing_type) :: leq_privates
+
+    real, parameter :: major_radius = 0.0
+    real, parameter :: minor_radius = 1.0
+
+    integer, parameter :: ntheta = 32
+    real, dimension(ntheta) :: Z_answer
+
+    real, parameter :: elongation = 2.0
+    real, parameter :: triangularity = 0.0
+
+    integer :: i
+    real, dimension(ntheta), parameter :: theta = [(real(i)*2*pi/real(ntheta-1), i=0,ntheta-1)]
+    real, dimension(ntheta), parameter :: R_expected = minor_radius * cos(theta + triangularity*sin(theta)) &
+         + major_radius
+    real, dimension(ntheta), parameter :: Z_expected = minor_radius * sin(theta) * elongation
+
+    call leq_privates%set_surf(geoType=0, &
+       Rmaj=major_radius, &
+       Rgeo=major_radius, &
+       r=minor_radius, &
+       dr=0.1, &
+       aSurf=major_radius, &
+       sHorz=0.0, &
+       sVert=0.0, &
+       delm=elongation, &
+       deln=triangularity, &
+       delmp=0.0, &
+       delnp=0.0, &
+       thm=0.0, &
+       thn=0.0, &
+       q=0.0, &
+       shat=0.0, &
+       nt=16, &
+       mMode=0, &
+       nMode=0)
+
+    Z_answer = [ (Zpos(minor_radius, theta(i)), i=1, ntheta) ]
+
+    @assertEqual(Z_expected, Z_answer, tolerance=1.e-12)
+
+  end subroutine test_Zpos_elongation
+
+  @test
+  subroutine test_Rpos_elongation_rotate_pi()
+    use constants, only : pi
+    use leq, only : leq_testing_type, Rpos, Zpos
+    type(leq_testing_type) :: leq_privates
+
+    real, parameter :: major_radius = 0.0
+    real, parameter :: minor_radius = 1.0
+
+    integer, parameter :: ntheta = 32
+    real, dimension(ntheta) :: R_answer
+
+    real, parameter :: elongation = 2.0
+    real, parameter :: triangularity = 0.0
+    real, parameter :: elongation_rotation = pi
+
+    integer :: i
+    real, dimension(ntheta), parameter :: theta = [(real(i)*2*pi/real(ntheta-1), i=0,ntheta-1)]
+    real, dimension(ntheta), parameter :: R_expected = minor_radius * cos(theta + triangularity*sin(theta)) &
+         + major_radius
+    real, dimension(ntheta), parameter :: Z_expected = minor_radius * sin(theta) * elongation
+
+    call leq_privates%set_surf(geoType=0, &
+       Rmaj=major_radius, &
+       Rgeo=major_radius, &
+       r=minor_radius, &
+       dr=0.1, &
+       aSurf=major_radius, &
+       sHorz=0.0, &
+       sVert=0.0, &
+       delm=elongation, &
+       deln=triangularity, &
+       delmp=0.0, &
+       delnp=0.0, &
+       thm=elongation_rotation, &
+       thn=0.0, &
+       q=0.0, &
+       shat=0.0, &
+       nt=16, &
+       mMode=0, &
+       nMode=0)
+
+    R_answer = [ (Rpos(minor_radius, theta(i)), i=1, ntheta) ]
+
+    @assertEqual(R_expected, R_answer, tolerance=1.e-12)
+
+  end subroutine test_Rpos_elongation_rotate_pi
+
+  @test
+  subroutine test_Zpos_elongation_rotate_pi()
+    use constants, only : pi
+    use leq, only : leq_testing_type, Rpos, Zpos
+    type(leq_testing_type) :: leq_privates
+
+    real, parameter :: major_radius = 0.0
+    real, parameter :: minor_radius = 1.0
+
+    integer, parameter :: ntheta = 32
+    real, dimension(ntheta) :: Z_answer
+
+    real, parameter :: elongation = 2.0
+    real, parameter :: triangularity = 0.0
+    real, parameter :: elongation_rotation = pi
+
+    integer :: i
+    real, dimension(ntheta), parameter :: theta = [(real(i)*2*pi/real(ntheta-1), i=0,ntheta-1)]
+    real, dimension(ntheta), parameter :: R_expected = minor_radius * cos(theta + triangularity*sin(theta)) &
+         + major_radius
+    real, dimension(ntheta), parameter :: Z_expected = minor_radius * sin(theta) * elongation
+
+    call leq_privates%set_surf(geoType=0, &
+       Rmaj=major_radius, &
+       Rgeo=major_radius, &
+       r=minor_radius, &
+       dr=0.1, &
+       aSurf=major_radius, &
+       sHorz=0.0, &
+       sVert=0.0, &
+       delm=elongation, &
+       deln=triangularity, &
+       delmp=0.0, &
+       delnp=0.0, &
+       thm=elongation_rotation, &
+       thn=0.0, &
+       q=0.0, &
+       shat=0.0, &
+       nt=16, &
+       mMode=0, &
+       nMode=0)
+
+    Z_answer = [ (Zpos(minor_radius, theta(i)), i=1, ntheta) ]
+
+    @assertEqual(Z_expected, Z_answer, tolerance=1.e-12)
+
+  end subroutine test_Zpos_elongation_rotate_pi
+
+  @test
+  subroutine test_Rpos_elongation_rotate_half_pi()
+    use constants, only : pi
+    use leq, only : leq_testing_type, Rpos, Zpos
+    type(leq_testing_type) :: leq_privates
+
+    real, parameter :: major_radius = 0.0
+    real, parameter :: minor_radius = 1.0
+
+    integer, parameter :: ntheta = 32
+    real, dimension(ntheta) :: R_answer
+
+    real, parameter :: elongation = 2.0
+    real, parameter :: triangularity = 0.0
+    real, parameter :: elongation_rotation = pi / 2.
+
+    integer :: i
+    real, dimension(ntheta), parameter :: theta = [(real(i)*2*pi/real(ntheta-1), i=0,ntheta-1)]
+    real, dimension(ntheta), parameter :: R_expected = minor_radius * cos(theta + triangularity*sin(theta)) &
+         * elongation &
+         + major_radius
+    real, dimension(ntheta), parameter :: Z_expected = minor_radius * sin(theta)
+
+    call leq_privates%set_surf(geoType=0, &
+       Rmaj=major_radius, &
+       Rgeo=major_radius, &
+       r=minor_radius, &
+       dr=0.1, &
+       aSurf=major_radius, &
+       sHorz=0.0, &
+       sVert=0.0, &
+       delm=elongation, &
+       deln=triangularity, &
+       delmp=0.0, &
+       delnp=0.0, &
+       thm=elongation_rotation, &
+       thn=0.0, &
+       q=0.0, &
+       shat=0.0, &
+       nt=16, &
+       mMode=0, &
+       nMode=0)
+
+    R_answer = [ (Rpos(minor_radius, theta(i)), i=1, ntheta) ]
+
+    @assertEqual(R_expected, R_answer, tolerance=1.e-12)
+
+  end subroutine test_Rpos_elongation_rotate_half_pi
+
+  @test
+  subroutine test_Zpos_elongation_rotate_half_pi()
+    use constants, only : pi
+    use leq, only : leq_testing_type, Rpos, Zpos
+    type(leq_testing_type) :: leq_privates
+
+    real, parameter :: major_radius = 0.0
+    real, parameter :: minor_radius = 1.0
+
+    integer, parameter :: ntheta = 32
+    real, dimension(ntheta) :: Z_answer
+
+    real, parameter :: elongation = 2.0
+    real, parameter :: triangularity = 0.0
+    real, parameter :: elongation_rotation = pi / 2.
+
+    integer :: i
+    real, dimension(ntheta), parameter :: theta = [(real(i)*2*pi/real(ntheta-1), i=0,ntheta-1)]
+    real, dimension(ntheta), parameter :: R_expected = minor_radius * cos(theta + triangularity*sin(theta)) &
+         * elongation &
+         + major_radius
+    real, dimension(ntheta), parameter :: Z_expected = minor_radius * sin(theta)
+
+    call leq_privates%set_surf(geoType=0, &
+       Rmaj=major_radius, &
+       Rgeo=major_radius, &
+       r=minor_radius, &
+       dr=0.1, &
+       aSurf=major_radius, &
+       sHorz=0.0, &
+       sVert=0.0, &
+       delm=elongation, &
+       deln=triangularity, &
+       delmp=0.0, &
+       delnp=0.0, &
+       thm=elongation_rotation, &
+       thn=0.0, &
+       q=0.0, &
+       shat=0.0, &
+       nt=16, &
+       mMode=0, &
+       nMode=0)
+
+    Z_answer = [ (Zpos(minor_radius, theta(i)), i=1, ntheta) ]
+
+    @assertEqual(Z_expected, Z_answer, tolerance=1.e-12)
+
+  end subroutine test_Zpos_elongation_rotate_half_pi
+
+  @test
+  subroutine test_Rpos_triangularity()
+    use constants, only : pi
+    use leq, only : leq_testing_type, Rpos, Zpos
+    type(leq_testing_type) :: leq_privates
+
+    real, parameter :: major_radius = 0.0
+    real, parameter :: minor_radius = 1.0
+
+    integer, parameter :: ntheta = 32
+    real, dimension(ntheta) :: R_answer
+
+    real, parameter :: elongation = 1.0
+    real, parameter :: triangularity = 1.0
+
+    integer :: i
+    real, dimension(ntheta), parameter :: theta = [(real(i)*2*pi/real(ntheta-1), i=0,ntheta-1)]
+    real, dimension(ntheta), parameter :: R_expected = minor_radius * cos(theta + triangularity*sin(theta)) &
+         + major_radius
+    real, dimension(ntheta), parameter :: Z_expected = minor_radius * sin(theta) * elongation
+
+    call leq_privates%set_surf(geoType=0, &
+       Rmaj=major_radius, &
+       Rgeo=major_radius, &
+       r=minor_radius, &
+       dr=0.1, &
+       aSurf=major_radius, &
+       sHorz=0.0, &
+       sVert=0.0, &
+       delm=elongation, &
+       deln=triangularity, &
+       delmp=0.0, &
+       delnp=0.0, &
+       thm=0.0, &
+       thn=0.0, &
+       q=0.0, &
+       shat=0.0, &
+       nt=16, &
+       mMode=0, &
+       nMode=0)
+
+    R_answer = [ (Rpos(minor_radius, theta(i)), i=1, ntheta) ]
+
+    @assertEqual(R_expected, R_answer, tolerance=1.e-12)
+
+  end subroutine test_Rpos_triangularity
+
+  @test
+  subroutine test_Zpos_triangularity()
+    use constants, only : pi
+    use leq, only : leq_testing_type, Rpos, Zpos
+    type(leq_testing_type) :: leq_privates
+
+    real, parameter :: major_radius = 0.0
+    real, parameter :: minor_radius = 1.0
+
+    integer, parameter :: ntheta = 32
+    real, dimension(ntheta) :: Z_answer
+
+    real, parameter :: elongation = 2.0
+    real, parameter :: triangularity = 1.0
+
+    integer :: i
+    real, dimension(ntheta), parameter :: theta = [(real(i)*2*pi/real(ntheta-1), i=0,ntheta-1)]
+    real, dimension(ntheta), parameter :: R_expected = minor_radius * cos(theta + triangularity*sin(theta)) &
+         + major_radius
+    real, dimension(ntheta), parameter :: Z_expected = minor_radius * sin(theta) * elongation
+
+    call leq_privates%set_surf(geoType=0, &
+       Rmaj=major_radius, &
+       Rgeo=major_radius, &
+       r=minor_radius, &
+       dr=0.1, &
+       aSurf=major_radius, &
+       sHorz=0.0, &
+       sVert=0.0, &
+       delm=elongation, &
+       deln=triangularity, &
+       delmp=0.0, &
+       delnp=0.0, &
+       thm=0.0, &
+       thn=0.0, &
+       q=0.0, &
+       shat=0.0, &
+       nt=16, &
+       mMode=0, &
+       nMode=0)
+
+    Z_answer = [ (Zpos(minor_radius, theta(i)), i=1, ntheta) ]
+
+    @assertEqual(Z_expected, Z_answer, tolerance=1.e-12)
+
+  end subroutine test_Zpos_triangularity
+
+  @test
+  subroutine test_Rpos_triangularity_and_elongation()
+    use constants, only : pi
+    use leq, only : leq_testing_type, Rpos, Zpos
+    type(leq_testing_type) :: leq_privates
+
+    real, parameter :: major_radius = 0.0
+    real, parameter :: minor_radius = 1.0
+
+    integer, parameter :: ntheta = 32
+    real, dimension(ntheta) :: R_answer
+
+    real, parameter :: elongation = 2.0
+    real, parameter :: triangularity = 1.0
+
+    integer :: i
+    real, dimension(ntheta), parameter :: theta = [(real(i)*2*pi/real(ntheta-1), i=0,ntheta-1)]
+    real, dimension(ntheta), parameter :: R_expected = minor_radius * cos(theta + triangularity*sin(theta)) &
+         + major_radius
+    real, dimension(ntheta), parameter :: Z_expected = minor_radius * sin(theta) * elongation
+
+    call leq_privates%set_surf(geoType=0, &
+       Rmaj=major_radius, &
+       Rgeo=major_radius, &
+       r=minor_radius, &
+       dr=0.1, &
+       aSurf=major_radius, &
+       sHorz=0.0, &
+       sVert=0.0, &
+       delm=elongation, &
+       deln=triangularity, &
+       delmp=0.0, &
+       delnp=0.0, &
+       thm=0.0, &
+       thn=0.0, &
+       q=0.0, &
+       shat=0.0, &
+       nt=16, &
+       mMode=0, &
+       nMode=0)
+
+    R_answer = [ (Rpos(minor_radius, theta(i)), i=1, ntheta) ]
+
+    @assertEqual(R_expected, R_answer, tolerance=1.e-12)
+
+  end subroutine test_Rpos_triangularity_and_elongation
+
+  @test
+  subroutine test_Zpos_triangularity_and_elongation()
+    use constants, only : pi
+    use leq, only : leq_testing_type, Rpos, Zpos
+    type(leq_testing_type) :: leq_privates
+
+    real, parameter :: major_radius = 0.0
+    real, parameter :: minor_radius = 1.0
+
+    integer, parameter :: ntheta = 32
+    real, dimension(ntheta) :: Z_answer
+
+    real, parameter :: elongation = 2.0
+    real, parameter :: triangularity = 1.0
+
+    integer :: i
+    real, dimension(ntheta), parameter :: theta = [(real(i)*2*pi/real(ntheta-1), i=0,ntheta-1)]
+    real, dimension(ntheta), parameter :: R_expected = minor_radius * cos(theta + triangularity*sin(theta)) &
+         + major_radius
+    real, dimension(ntheta), parameter :: Z_expected = minor_radius * sin(theta) * elongation
+
+    call leq_privates%set_surf(geoType=0, &
+       Rmaj=major_radius, &
+       Rgeo=major_radius, &
+       r=minor_radius, &
+       dr=0.1, &
+       aSurf=major_radius, &
+       sHorz=0.0, &
+       sVert=0.0, &
+       delm=elongation, &
+       deln=triangularity, &
+       delmp=0.0, &
+       delnp=0.0, &
+       thm=0.0, &
+       thn=0.0, &
+       q=0.0, &
+       shat=0.0, &
+       nt=16, &
+       mMode=0, &
+       nMode=0)
+
+    Z_answer = [ (Zpos(minor_radius, theta(i)), i=1, ntheta) ]
+
+    @assertEqual(Z_expected, Z_answer, tolerance=1.e-12)
+
+  end subroutine test_Zpos_triangularity_and_elongation
+
 end module test_leq_mod

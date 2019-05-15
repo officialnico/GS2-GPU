@@ -114,10 +114,24 @@ module leq
     procedure, nopass :: eqdcart
     procedure, nopass :: eqdbish
     procedure, nopass :: alloc_arrays, dealloc_arrays
+    procedure, nopass :: set_surf
   end type leq_testing_type
 
 contains
   
+  !> Set module-level `surf`
+  !! PURELY FOR TESTING
+  !! FIXME: Remove when we have more control over module-level variables for testing
+  subroutine set_surf(Rmaj, Rgeo, r, dr, aSurf, sHorz, sVert, &
+       delm, deln, delmp, delnp, thm, thn, q, shat, nt, geoType, mMode, nMode)
+     real, intent(in) :: Rmaj, Rgeo, r, dr, aSurf, sHorz, sVert,&
+          delm, deln, delmp, delnp, thm, thn, q, shat
+     integer, intent(in) :: nt, geoType, mMode, nMode
+
+     surf = flux_surface(Rmaj, Rgeo, r, dr, aSurf, sHorz, sVert, &
+       delm, deln, delmp, delnp, thm, thn, q, shat, nt, geoType, mMode, nMode)
+  end subroutine set_surf
+
   !> Set module-level `nt`, `nr`
   !! PURELY FOR TESTING
   !! FIXME: Remove when we have more control over module-level variables for testing
