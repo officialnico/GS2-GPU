@@ -306,6 +306,7 @@ contains
   subroutine finish_theta_grid_params
     implicit none
     initialized = .false.
+    call theta_grid_parameters_config%reset()
   end subroutine finish_theta_grid_params
 
   !> FIXME : Add documentation
