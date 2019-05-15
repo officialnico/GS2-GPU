@@ -95,9 +95,6 @@ contains
     use file_utils, only: input_unit, input_unit_exist
     implicit none
     type(theta_grid_gridgen_config_type), intent(in), optional :: theta_grid_gridgen_config_in
-    integer :: npadd
-    real :: alknob, epsknob, bpknob, extrknob, tension
-    real :: thetamax, deltaw, widthw
 
     if (present(theta_grid_gridgen_config_in)) theta_grid_gridgen_config = theta_grid_gridgen_config_in
 
@@ -257,6 +254,12 @@ if (debug) write(6,*) 'gridgen_get_grids: end'
     class(theta_grid_gridgen_config_type), intent(in out) :: self
     logical :: exist
     integer :: in_file
+    ! Note: When this routine is in the module where these variables live
+    ! we shadow the module level variables here. This is intentional to provide
+    ! isolation and ensure we can move this routine to another module easily.
+    integer :: npadd
+    real :: alknob, epsknob, bpknob, extrknob, tension
+    real :: thetamax, deltaw, widthw
 
     namelist /theta_grid_gridgen_knobs/ &
          npadd, alknob, epsknob, bpknob, extrknob, tension, thetamax, deltaw, widthw
