@@ -388,7 +388,7 @@ contains
   @test
   subroutine test_generalised_Miller_Rpos_circle()
     use constants, only : pi
-    use leq, only : leq_testing_type, Rpos, Zpos
+    use leq, only : leq_testing_type, Rpos
     type(leq_testing_type) :: leq_privates
 
     real, parameter :: major_radius = 0.0
@@ -400,27 +400,16 @@ contains
     integer :: i
     real, dimension(ntheta), parameter :: theta = [(real(i)*2*pi/real(ntheta-1), i=0,ntheta-1)]
     real, dimension(ntheta), parameter :: R_expected = minor_radius * cos(theta) + major_radius
-    real, dimension(ntheta), parameter :: Z_expected = minor_radius * sin(theta)
 
     call leq_privates%set_surf(geoType=0, &
-       Rmaj=major_radius, &
-       Rgeo=major_radius, &
-       r=minor_radius, &
-       dr=0.1, &
-       aSurf=minor_radius, &
-       sHorz=0.0, &
-       sVert=0.0, &
-       delm=1.0, &
-       deln=0.0, &
-       delmp=0.0, &
-       delnp=0.0, &
-       thm=0.0, &
-       thn=0.0, &
-       q=0.0, &
-       shat=0.0, &
-       nt=16, &
-       mMode=0, &
-       nMode=0)
+       Rmaj=major_radius, Rgeo=major_radius, &
+       r=minor_radius, dr=0.1, aSurf=minor_radius, &
+       sHorz=0.0, sVert=0.0, &
+       delm=1.0, deln=0.0, &
+       delmp=0.0, delnp=0.0, &
+       thm=0.0, thn=0.0, &
+       q=0.0, shat=0.0, nt=16, &
+       mMode=0, nMode=0)
 
     R_answer = [ (Rpos(minor_radius, theta(i)), i=1, ntheta) ]
 
@@ -431,7 +420,7 @@ contains
   @test
   subroutine test_generalised_Miller_Zpos_circle()
     use constants, only : pi
-    use leq, only : leq_testing_type, Rpos, Zpos
+    use leq, only : leq_testing_type, Zpos
     type(leq_testing_type) :: leq_privates
 
     real, parameter :: major_radius = 0.0
@@ -442,28 +431,17 @@ contains
 
     integer :: i
     real, dimension(ntheta), parameter :: theta = [(real(i)*2*pi/real(ntheta-1), i=0,ntheta-1)]
-    real, dimension(ntheta), parameter :: R_expected = minor_radius * cos(theta) + major_radius
     real, dimension(ntheta), parameter :: Z_expected = minor_radius * sin(theta)
 
     call leq_privates%set_surf(geoType=0, &
-       Rmaj=major_radius, &
-       Rgeo=major_radius, &
-       r=minor_radius, &
-       dr=0.1, &
-       aSurf=minor_radius, &
-       sHorz=0.0, &
-       sVert=0.0, &
-       delm=1.0, &
-       deln=0.0, &
-       delmp=0.0, &
-       delnp=0.0, &
-       thm=0.0, &
-       thn=0.0, &
-       q=0.0, &
-       shat=0.0, &
-       nt=16, &
-       mMode=0, &
-       nMode=0)
+       Rmaj=major_radius, Rgeo=major_radius, &
+       r=minor_radius, dr=0.1, aSurf=minor_radius, &
+       sHorz=0.0, sVert=0.0, &
+       delm=1.0, deln=0.0, &
+       delmp=0.0, delnp=0.0, &
+       thm=0.0, thn=0.0, &
+       q=0.0, shat=0.0, nt=16, &
+       mMode=0, nMode=0)
 
     Z_answer = [ (Zpos(minor_radius, theta(i)), i=1, ntheta) ]
 
@@ -474,7 +452,7 @@ contains
   @test
   subroutine test_generalised_Miller_Rpos_elongation()
     use constants, only : pi
-    use leq, only : leq_testing_type, Rpos, Zpos
+    use leq, only : leq_testing_type, Rpos
     type(leq_testing_type) :: leq_privates
 
     real, parameter :: major_radius = 0.0
@@ -490,27 +468,16 @@ contains
     real, dimension(ntheta), parameter :: theta = [(real(i)*2*pi/real(ntheta-1), i=0,ntheta-1)]
     real, dimension(ntheta), parameter :: R_expected = minor_radius * cos(theta + triangularity*sin(theta)) &
          + major_radius
-    real, dimension(ntheta), parameter :: Z_expected = minor_radius * sin(theta) * elongation
 
     call leq_privates%set_surf(geoType=0, &
-       Rmaj=major_radius, &
-       Rgeo=major_radius, &
-       r=minor_radius, &
-       dr=0.1, &
-       aSurf=minor_radius, &
-       sHorz=0.0, &
-       sVert=0.0, &
-       delm=elongation, &
-       deln=triangularity, &
-       delmp=0.0, &
-       delnp=0.0, &
-       thm=0.0, &
-       thn=0.0, &
-       q=0.0, &
-       shat=0.0, &
-       nt=16, &
-       mMode=0, &
-       nMode=0)
+       Rmaj=major_radius, Rgeo=major_radius, &
+       r=minor_radius, dr=0.1, aSurf=minor_radius, &
+       sHorz=0.0, sVert=0.0, &
+       delm=elongation, deln=triangularity, &
+       delmp=0.0, delnp=0.0, &
+       thm=0.0, thn=0.0, &
+       q=0.0, shat=0.0, nt=16, &
+       mMode=0, nMode=0)
 
     R_answer = [ (Rpos(minor_radius, theta(i)), i=1, ntheta) ]
 
@@ -521,7 +488,7 @@ contains
   @test
   subroutine test_generalised_Miller_Zpos_elongation()
     use constants, only : pi
-    use leq, only : leq_testing_type, Rpos, Zpos
+    use leq, only : leq_testing_type, Zpos
     type(leq_testing_type) :: leq_privates
 
     real, parameter :: major_radius = 0.0
@@ -535,29 +502,17 @@ contains
 
     integer :: i
     real, dimension(ntheta), parameter :: theta = [(real(i)*2*pi/real(ntheta-1), i=0,ntheta-1)]
-    real, dimension(ntheta), parameter :: R_expected = minor_radius * cos(theta + triangularity*sin(theta)) &
-         + major_radius
     real, dimension(ntheta), parameter :: Z_expected = minor_radius * sin(theta) * elongation
 
     call leq_privates%set_surf(geoType=0, &
-       Rmaj=major_radius, &
-       Rgeo=major_radius, &
-       r=minor_radius, &
-       dr=0.1, &
-       aSurf=minor_radius, &
-       sHorz=0.0, &
-       sVert=0.0, &
-       delm=elongation, &
-       deln=triangularity, &
-       delmp=0.0, &
-       delnp=0.0, &
-       thm=0.0, &
-       thn=0.0, &
-       q=0.0, &
-       shat=0.0, &
-       nt=16, &
-       mMode=0, &
-       nMode=0)
+       Rmaj=major_radius, Rgeo=major_radius, &
+       r=minor_radius, dr=0.1, aSurf=minor_radius, &
+       sHorz=0.0, sVert=0.0, &
+       delm=elongation, deln=triangularity, &
+       delmp=0.0, delnp=0.0, &
+       thm=0.0, thn=0.0, &
+       q=0.0, shat=0.0, nt=16, &
+       mMode=0, nMode=0)
 
     Z_answer = [ (Zpos(minor_radius, theta(i)), i=1, ntheta) ]
 
@@ -568,7 +523,7 @@ contains
   @test
   subroutine test_generalised_Miller_Rpos_elongation_rotate_pi()
     use constants, only : pi
-    use leq, only : leq_testing_type, Rpos, Zpos
+    use leq, only : leq_testing_type, Rpos
     type(leq_testing_type) :: leq_privates
 
     real, parameter :: major_radius = 0.0
@@ -585,27 +540,16 @@ contains
     real, dimension(ntheta), parameter :: theta = [(real(i)*2*pi/real(ntheta-1), i=0,ntheta-1)]
     real, dimension(ntheta), parameter :: R_expected = minor_radius * cos(theta + triangularity*sin(theta)) &
          + major_radius
-    real, dimension(ntheta), parameter :: Z_expected = minor_radius * sin(theta) * elongation
 
     call leq_privates%set_surf(geoType=0, &
-       Rmaj=major_radius, &
-       Rgeo=major_radius, &
-       r=minor_radius, &
-       dr=0.1, &
-       aSurf=minor_radius, &
-       sHorz=0.0, &
-       sVert=0.0, &
-       delm=elongation, &
-       deln=triangularity, &
-       delmp=0.0, &
-       delnp=0.0, &
-       thm=elongation_rotation, &
-       thn=0.0, &
-       q=0.0, &
-       shat=0.0, &
-       nt=16, &
-       mMode=0, &
-       nMode=0)
+       Rmaj=major_radius, Rgeo=major_radius, &
+       r=minor_radius, dr=0.1, aSurf=minor_radius, &
+       sHorz=0.0, sVert=0.0, &
+       delm=elongation, deln=triangularity, &
+       delmp=0.0, delnp=0.0, &
+       thm=elongation_rotation, thn=0.0, &
+       q=0.0, shat=0.0, nt=16, &
+       mMode=0, nMode=0)
 
     R_answer = [ (Rpos(minor_radius, theta(i)), i=1, ntheta) ]
 
@@ -616,7 +560,7 @@ contains
   @test
   subroutine test_generalised_Miller_Zpos_elongation_rotate_pi()
     use constants, only : pi
-    use leq, only : leq_testing_type, Rpos, Zpos
+    use leq, only : leq_testing_type, Zpos
     type(leq_testing_type) :: leq_privates
 
     real, parameter :: major_radius = 0.0
@@ -631,29 +575,17 @@ contains
 
     integer :: i
     real, dimension(ntheta), parameter :: theta = [(real(i)*2*pi/real(ntheta-1), i=0,ntheta-1)]
-    real, dimension(ntheta), parameter :: R_expected = minor_radius * cos(theta + triangularity*sin(theta)) &
-         + major_radius
     real, dimension(ntheta), parameter :: Z_expected = minor_radius * sin(theta) * elongation
 
     call leq_privates%set_surf(geoType=0, &
-       Rmaj=major_radius, &
-       Rgeo=major_radius, &
-       r=minor_radius, &
-       dr=0.1, &
-       aSurf=minor_radius, &
-       sHorz=0.0, &
-       sVert=0.0, &
-       delm=elongation, &
-       deln=triangularity, &
-       delmp=0.0, &
-       delnp=0.0, &
-       thm=elongation_rotation, &
-       thn=0.0, &
-       q=0.0, &
-       shat=0.0, &
-       nt=16, &
-       mMode=0, &
-       nMode=0)
+       Rmaj=major_radius, Rgeo=major_radius, &
+       r=minor_radius, dr=0.1, aSurf=minor_radius, &
+       sHorz=0.0, sVert=0.0, &
+       delm=elongation, deln=triangularity, &
+       delmp=0.0, delnp=0.0, &
+       thm=elongation_rotation, thn=0.0, &
+       q=0.0, shat=0.0, nt=16, &
+       mMode=0, nMode=0)
 
     Z_answer = [ (Zpos(minor_radius, theta(i)), i=1, ntheta) ]
 
@@ -664,7 +596,7 @@ contains
   @test
   subroutine test_generalised_Miller_Rpos_elongation_rotate_half_pi()
     use constants, only : pi
-    use leq, only : leq_testing_type, Rpos, Zpos
+    use leq, only : leq_testing_type, Rpos
     type(leq_testing_type) :: leq_privates
 
     real, parameter :: major_radius = 0.0
@@ -680,29 +612,17 @@ contains
     integer :: i
     real, dimension(ntheta), parameter :: theta = [(real(i)*2*pi/real(ntheta-1), i=0,ntheta-1)]
     real, dimension(ntheta), parameter :: R_expected = minor_radius * cos(theta + triangularity*sin(theta)) &
-         * elongation &
-         + major_radius
-    real, dimension(ntheta), parameter :: Z_expected = minor_radius * sin(theta)
+         * elongation + major_radius
 
     call leq_privates%set_surf(geoType=0, &
-       Rmaj=major_radius, &
-       Rgeo=major_radius, &
-       r=minor_radius, &
-       dr=0.1, &
-       aSurf=minor_radius, &
-       sHorz=0.0, &
-       sVert=0.0, &
-       delm=elongation, &
-       deln=triangularity, &
-       delmp=0.0, &
-       delnp=0.0, &
-       thm=elongation_rotation, &
-       thn=0.0, &
-       q=0.0, &
-       shat=0.0, &
-       nt=16, &
-       mMode=0, &
-       nMode=0)
+       Rmaj=major_radius, Rgeo=major_radius, &
+       r=minor_radius, dr=0.1, aSurf=minor_radius, &
+       sHorz=0.0, sVert=0.0, &
+       delm=elongation, deln=triangularity, &
+       delmp=0.0, delnp=0.0, &
+       thm=elongation_rotation, thn=0.0, &
+       q=0.0, shat=0.0, nt=16, &
+       mMode=0, nMode=0)
 
     R_answer = [ (Rpos(minor_radius, theta(i)), i=1, ntheta) ]
 
@@ -713,7 +633,7 @@ contains
   @test
   subroutine test_generalised_Miller_Zpos_elongation_rotate_half_pi()
     use constants, only : pi
-    use leq, only : leq_testing_type, Rpos, Zpos
+    use leq, only : leq_testing_type, Zpos
     type(leq_testing_type) :: leq_privates
 
     real, parameter :: major_radius = 0.0
@@ -728,30 +648,17 @@ contains
 
     integer :: i
     real, dimension(ntheta), parameter :: theta = [(real(i)*2*pi/real(ntheta-1), i=0,ntheta-1)]
-    real, dimension(ntheta), parameter :: R_expected = minor_radius * cos(theta + triangularity*sin(theta)) &
-         * elongation &
-         + major_radius
     real, dimension(ntheta), parameter :: Z_expected = minor_radius * sin(theta)
 
     call leq_privates%set_surf(geoType=0, &
-       Rmaj=major_radius, &
-       Rgeo=major_radius, &
-       r=minor_radius, &
-       dr=0.1, &
-       aSurf=minor_radius, &
-       sHorz=0.0, &
-       sVert=0.0, &
-       delm=elongation, &
-       deln=triangularity, &
-       delmp=0.0, &
-       delnp=0.0, &
-       thm=elongation_rotation, &
-       thn=0.0, &
-       q=0.0, &
-       shat=0.0, &
-       nt=16, &
-       mMode=0, &
-       nMode=0)
+       Rmaj=major_radius, Rgeo=major_radius, &
+       r=minor_radius, dr=0.1, aSurf=minor_radius, &
+       sHorz=0.0, sVert=0.0, &
+       delm=elongation, deln=triangularity, &
+       delmp=0.0, delnp=0.0, &
+       thm=elongation_rotation, thn=0.0, &
+       q=0.0, shat=0.0, nt=16, &
+       mMode=0, nMode=0)
 
     Z_answer = [ (Zpos(minor_radius, theta(i)), i=1, ntheta) ]
 
@@ -762,7 +669,7 @@ contains
   @test
   subroutine test_generalised_Miller_Rpos_triangularity()
     use constants, only : pi
-    use leq, only : leq_testing_type, Rpos, Zpos
+    use leq, only : leq_testing_type, Rpos
     type(leq_testing_type) :: leq_privates
 
     real, parameter :: major_radius = 0.0
@@ -778,27 +685,16 @@ contains
     real, dimension(ntheta), parameter :: theta = [(real(i)*2*pi/real(ntheta-1), i=0,ntheta-1)]
     real, dimension(ntheta), parameter :: R_expected = minor_radius * cos(theta + triangularity*sin(theta)) &
          + major_radius
-    real, dimension(ntheta), parameter :: Z_expected = minor_radius * sin(theta) * elongation
 
     call leq_privates%set_surf(geoType=0, &
-       Rmaj=major_radius, &
-       Rgeo=major_radius, &
-       r=minor_radius, &
-       dr=0.1, &
-       aSurf=minor_radius, &
-       sHorz=0.0, &
-       sVert=0.0, &
-       delm=elongation, &
-       deln=triangularity, &
-       delmp=0.0, &
-       delnp=0.0, &
-       thm=0.0, &
-       thn=0.0, &
-       q=0.0, &
-       shat=0.0, &
-       nt=16, &
-       mMode=0, &
-       nMode=0)
+       Rmaj=major_radius, Rgeo=major_radius, &
+       r=minor_radius, dr=0.1, aSurf=minor_radius, &
+       sHorz=0.0, sVert=0.0, &
+       delm=elongation, deln=triangularity, &
+       delmp=0.0, delnp=0.0, &
+       thm=0.0, thn=0.0, &
+       q=0.0, shat=0.0, nt=16, &
+       mMode=0, nMode=0)
 
     R_answer = [ (Rpos(minor_radius, theta(i)), i=1, ntheta) ]
 
@@ -809,7 +705,7 @@ contains
   @test
   subroutine test_generalised_Miller_Zpos_triangularity()
     use constants, only : pi
-    use leq, only : leq_testing_type, Rpos, Zpos
+    use leq, only : leq_testing_type, Zpos
     type(leq_testing_type) :: leq_privates
 
     real, parameter :: major_radius = 0.0
@@ -823,29 +719,17 @@ contains
 
     integer :: i
     real, dimension(ntheta), parameter :: theta = [(real(i)*2*pi/real(ntheta-1), i=0,ntheta-1)]
-    real, dimension(ntheta), parameter :: R_expected = minor_radius * cos(theta + triangularity*sin(theta)) &
-         + major_radius
     real, dimension(ntheta), parameter :: Z_expected = minor_radius * sin(theta) * elongation
 
     call leq_privates%set_surf(geoType=0, &
-       Rmaj=major_radius, &
-       Rgeo=major_radius, &
-       r=minor_radius, &
-       dr=0.1, &
-       aSurf=minor_radius, &
-       sHorz=0.0, &
-       sVert=0.0, &
-       delm=elongation, &
-       deln=triangularity, &
-       delmp=0.0, &
-       delnp=0.0, &
-       thm=0.0, &
-       thn=0.0, &
-       q=0.0, &
-       shat=0.0, &
-       nt=16, &
-       mMode=0, &
-       nMode=0)
+       Rmaj=major_radius, Rgeo=major_radius, &
+       r=minor_radius, dr=0.1, aSurf=minor_radius, &
+       sHorz=0.0, sVert=0.0, &
+       delm=elongation, deln=triangularity, &
+       delmp=0.0, delnp=0.0, &
+       thm=0.0, thn=0.0, &
+       q=0.0, shat=0.0, nt=16, &
+       mMode=0, nMode=0)
 
     Z_answer = [ (Zpos(minor_radius, theta(i)), i=1, ntheta) ]
 
@@ -856,7 +740,7 @@ contains
   @test
   subroutine test_generalised_Miller_Rpos_triangularity_rotate_pi()
     use constants, only : pi
-    use leq, only : leq_testing_type, Rpos, Zpos
+    use leq, only : leq_testing_type, Rpos
     type(leq_testing_type) :: leq_privates
 
     real, parameter :: major_radius = 0.0
@@ -874,28 +758,16 @@ contains
     real, dimension(ntheta), parameter :: R_expected = minor_radius &
          * cos(theta + triangularity*sin(theta) - triangularity_rotation) &
          + major_radius
-    real, dimension(ntheta), parameter :: Z_expected = minor_radius &
-         * sin(theta - triangularity_rotation) * elongation
 
     call leq_privates%set_surf(geoType=0, &
-       Rmaj=major_radius, &
-       Rgeo=major_radius, &
-       r=minor_radius, &
-       dr=0.1, &
-       aSurf=minor_radius, &
-       sHorz=0.0, &
-       sVert=0.0, &
-       delm=elongation, &
-       deln=triangularity, &
-       delmp=0.0, &
-       delnp=0.0, &
-       thm=0.0, &
-       thn=triangularity_rotation, &
-       q=0.0, &
-       shat=0.0, &
-       nt=16, &
-       mMode=0, &
-       nMode=0)
+       Rmaj=major_radius, Rgeo=major_radius, &
+       r=minor_radius, dr=0.1, aSurf=minor_radius, &
+       sHorz=0.0, sVert=0.0, &
+       delm=elongation, deln=triangularity, &
+       delmp=0.0, delnp=0.0, &
+       thm=0.0, thn=triangularity_rotation, &
+       q=0.0, shat=0.0, nt=16, &
+       mMode=0, nMode=0)
 
     R_answer = [ (Rpos(minor_radius, theta(i)), i=1, ntheta) ]
 
@@ -906,7 +778,7 @@ contains
   @test
   subroutine test_generalised_Miller_Zpos_triangularity_rotate_pi()
     use constants, only : pi
-    use leq, only : leq_testing_type, Rpos, Zpos
+    use leq, only : leq_testing_type, Zpos
     type(leq_testing_type) :: leq_privates
 
     real, parameter :: major_radius = 0.0
@@ -921,31 +793,18 @@ contains
 
     integer :: i
     real, dimension(ntheta), parameter :: theta = [(real(i)*2*pi/real(ntheta-1), i=0,ntheta-1)]
-    real, dimension(ntheta), parameter :: R_expected = minor_radius &
-         * cos(theta + triangularity*sin(theta) - triangularity_rotation) &
-         + major_radius
     real, dimension(ntheta), parameter :: Z_expected = minor_radius &
          * sin(theta - triangularity_rotation) * elongation
 
     call leq_privates%set_surf(geoType=0, &
-       Rmaj=major_radius, &
-       Rgeo=major_radius, &
-       r=minor_radius, &
-       dr=0.1, &
-       aSurf=minor_radius, &
-       sHorz=0.0, &
-       sVert=0.0, &
-       delm=elongation, &
-       deln=triangularity, &
-       delmp=0.0, &
-       delnp=0.0, &
-       thm=0.0, &
-       thn=triangularity_rotation, &
-       q=0.0, &
-       shat=0.0, &
-       nt=16, &
-       mMode=0, &
-       nMode=0)
+       Rmaj=major_radius, Rgeo=major_radius, &
+       r=minor_radius, dr=0.1, aSurf=minor_radius, &
+       sHorz=0.0, sVert=0.0, &
+       delm=elongation, deln=triangularity, &
+       delmp=0.0, delnp=0.0, &
+       thm=0.0, thn=triangularity_rotation, &
+       q=0.0, shat=0.0, nt=16, &
+       mMode=0, nMode=0)
 
     Z_answer = [ (Zpos(minor_radius, theta(i)), i=1, ntheta) ]
 
@@ -956,7 +815,7 @@ contains
   @test
   subroutine test_generalised_Miller_Rpos_triangularity_and_elongation()
     use constants, only : pi
-    use leq, only : leq_testing_type, Rpos, Zpos
+    use leq, only : leq_testing_type, Rpos
     type(leq_testing_type) :: leq_privates
 
     real, parameter :: major_radius = 0.0
@@ -972,27 +831,16 @@ contains
     real, dimension(ntheta), parameter :: theta = [(real(i)*2*pi/real(ntheta-1), i=0,ntheta-1)]
     real, dimension(ntheta), parameter :: R_expected = minor_radius * cos(theta + triangularity*sin(theta)) &
          + major_radius
-    real, dimension(ntheta), parameter :: Z_expected = minor_radius * sin(theta) * elongation
 
     call leq_privates%set_surf(geoType=0, &
-       Rmaj=major_radius, &
-       Rgeo=major_radius, &
-       r=minor_radius, &
-       dr=0.1, &
-       aSurf=minor_radius, &
-       sHorz=0.0, &
-       sVert=0.0, &
-       delm=elongation, &
-       deln=triangularity, &
-       delmp=0.0, &
-       delnp=0.0, &
-       thm=0.0, &
-       thn=0.0, &
-       q=0.0, &
-       shat=0.0, &
-       nt=16, &
-       mMode=0, &
-       nMode=0)
+       Rmaj=major_radius, Rgeo=major_radius, &
+       r=minor_radius, dr=0.1, aSurf=minor_radius, &
+       sHorz=0.0, sVert=0.0, &
+       delm=elongation, deln=triangularity, &
+       delmp=0.0, delnp=0.0, &
+       thm=0.0, thn=0.0, &
+       q=0.0, shat=0.0, nt=16, &
+       mMode=0, nMode=0)
 
     R_answer = [ (Rpos(minor_radius, theta(i)), i=1, ntheta) ]
 
@@ -1003,7 +851,7 @@ contains
   @test
   subroutine test_generalised_Miller_Zpos_triangularity_and_elongation()
     use constants, only : pi
-    use leq, only : leq_testing_type, Rpos, Zpos
+    use leq, only : leq_testing_type, Zpos
     type(leq_testing_type) :: leq_privates
 
     real, parameter :: major_radius = 0.0
@@ -1017,29 +865,17 @@ contains
 
     integer :: i
     real, dimension(ntheta), parameter :: theta = [(real(i)*2*pi/real(ntheta-1), i=0,ntheta-1)]
-    real, dimension(ntheta), parameter :: R_expected = minor_radius * cos(theta + triangularity*sin(theta)) &
-         + major_radius
     real, dimension(ntheta), parameter :: Z_expected = minor_radius * sin(theta) * elongation
 
     call leq_privates%set_surf(geoType=0, &
-       Rmaj=major_radius, &
-       Rgeo=major_radius, &
-       r=minor_radius, &
-       dr=0.1, &
-       aSurf=minor_radius, &
-       sHorz=0.0, &
-       sVert=0.0, &
-       delm=elongation, &
-       deln=triangularity, &
-       delmp=0.0, &
-       delnp=0.0, &
-       thm=0.0, &
-       thn=0.0, &
-       q=0.0, &
-       shat=0.0, &
-       nt=16, &
-       mMode=0, &
-       nMode=0)
+       Rmaj=major_radius, Rgeo=major_radius, &
+       r=minor_radius, dr=0.1, aSurf=minor_radius, &
+       sHorz=0.0, sVert=0.0, &
+       delm=elongation, deln=triangularity, &
+       delmp=0.0, delnp=0.0, &
+       thm=0.0, thn=0.0, &
+       q=0.0, shat=0.0, nt=16, &
+       mMode=0, nMode=0)
 
     Z_answer = [ (Zpos(minor_radius, theta(i)), i=1, ntheta) ]
 
@@ -1050,7 +886,7 @@ contains
   @test
   subroutine test_global_Rpos_circle()
     use constants, only : pi
-    use leq, only : leq_testing_type, Rpos, Zpos
+    use leq, only : leq_testing_type, Rpos
     type(leq_testing_type) :: leq_privates
 
     real, parameter :: major_radius = 10.0
@@ -1062,27 +898,16 @@ contains
     integer :: i
     real, dimension(ntheta), parameter :: theta = [(real(i)*2*pi/real(ntheta-1), i=0,ntheta-1)]
     real, dimension(ntheta), parameter :: R_expected = minor_radius * cos(theta) + major_radius
-    real, dimension(ntheta), parameter :: Z_expected = minor_radius * sin(theta)
 
     call leq_privates%set_surf(geoType=1, &
-       Rmaj=major_radius, &
-       Rgeo=major_radius, &
-       r=minor_radius, &
-       dr=0.1, &
-       aSurf=minor_radius, &
-       sHorz=0.0, &
-       sVert=0.0, &
-       delm=1.0, &
-       deln=1.0, &
-       delmp=0.0, &
-       delnp=0.0, &
-       thm=0.0, &
-       thn=0.0, &
-       q=0.0, &
-       shat=0.0, &
-       nt=16, &
-       mMode=0, &
-       nMode=0)
+       Rmaj=major_radius, Rgeo=major_radius, &
+       r=minor_radius, dr=0.1, aSurf=minor_radius, &
+       sHorz=0.0, sVert=0.0, &
+       delm=1.0, deln=1.0, &
+       delmp=0.0, delnp=0.0, &
+       thm=0.0, thn=0.0, &
+       q=0.0, shat=0.0, nt=16, &
+       mMode=0, nMode=0)
 
     R_answer = [ (Rpos(minor_radius, theta(i)), i=1, ntheta) ]
 
@@ -1093,7 +918,7 @@ contains
   @test
   subroutine test_global_Zpos_circle()
     use constants, only : pi
-    use leq, only : leq_testing_type, Rpos, Zpos
+    use leq, only : leq_testing_type, Zpos
     type(leq_testing_type) :: leq_privates
 
     real, parameter :: major_radius = 10.0
@@ -1104,28 +929,17 @@ contains
 
     integer :: i
     real, dimension(ntheta), parameter :: theta = [(real(i)*2*pi/real(ntheta-1), i=0,ntheta-1)]
-    real, dimension(ntheta), parameter :: R_expected = minor_radius * cos(theta) + major_radius
     real, dimension(ntheta), parameter :: Z_expected = minor_radius * sin(theta)
 
     call leq_privates%set_surf(geoType=1, &
-       Rmaj=major_radius, &
-       Rgeo=major_radius, &
-       r=minor_radius, &
-       dr=0.1, &
-       aSurf=minor_radius, &
-       sHorz=0.0, &
-       sVert=0.0, &
-       delm=1.0, &
-       deln=1.0, &
-       delmp=0.0, &
-       delnp=0.0, &
-       thm=0.0, &
-       thn=0.0, &
-       q=0.0, &
-       shat=0.0, &
-       nt=16, &
-       mMode=0, &
-       nMode=0)
+       Rmaj=major_radius, Rgeo=major_radius, &
+       r=minor_radius, dr=0.1, aSurf=minor_radius, &
+       sHorz=0.0, sVert=0.0, &
+       delm=1.0, deln=1.0, &
+       delmp=0.0, delnp=0.0, &
+       thm=0.0, thn=0.0, &
+       q=0.0, shat=0.0, nt=16, &
+       mMode=0, nMode=0)
 
     Z_answer = [ (Zpos(minor_radius, theta(i)), i=1, ntheta) ]
 
@@ -1136,7 +950,7 @@ contains
   @test
   subroutine test_global_Rpos_elongation()
     use constants, only : pi
-    use leq, only : leq_testing_type, Rpos, Zpos
+    use leq, only : leq_testing_type, Rpos
     type(leq_testing_type) :: leq_privates
 
     real, parameter :: major_radius = 10.0
@@ -1156,24 +970,14 @@ contains
          modulo(atan2(Z_expected, (R_expected - major_radius)), 2*pi)
 
     call leq_privates%set_surf(geoType=1, &
-       Rmaj=major_radius, &
-       Rgeo=major_radius, &
-       r=minor_radius, &
-       dr=0.1, &
-       aSurf=minor_radius, &
-       sHorz=0.0, &
-       sVert=0.0, &
-       delm=elongation, &
-       deln=triangularity, &
-       delmp=0.0, &
-       delnp=0.0, &
-       thm=0.0, &
-       thn=0.0, &
-       q=0.0, &
-       shat=0.0, &
-       nt=16, &
-       mMode=0, &
-       nMode=0)
+       Rmaj=major_radius, Rgeo=major_radius, &
+       r=minor_radius, dr=0.1, aSurf=minor_radius, &
+       sHorz=0.0, sVert=0.0, &
+       delm=elongation, deln=triangularity, &
+       delmp=0.0, delnp=0.0, &
+       thm=0.0, thn=0.0, &
+       q=0.0, shat=0.0, nt=16, &
+       mMode=0, nMode=0)
 
     R_answer = [ (Rpos(minor_radius, theta(i)), i=1, ntheta) ]
     R_answer_interpolated = interpolate(R_answer, theta_ellipse, theta)
@@ -1185,7 +989,7 @@ contains
   @test
   subroutine test_global_Zpos_elongation()
     use constants, only : pi
-    use leq, only : leq_testing_type, Rpos, Zpos
+    use leq, only : leq_testing_type, Zpos
     type(leq_testing_type) :: leq_privates
 
     real, parameter :: major_radius = 10.0
@@ -1205,24 +1009,14 @@ contains
          modulo(atan2(Z_expected, (R_expected - major_radius)), 2*pi)
 
     call leq_privates%set_surf(geoType=1, &
-       Rmaj=major_radius, &
-       Rgeo=major_radius, &
-       r=minor_radius, &
-       dr=0.1, &
-       aSurf=minor_radius, &
-       sHorz=0.0, &
-       sVert=0.0, &
-       delm=elongation, &
-       deln=triangularity, &
-       delmp=0.0, &
-       delnp=0.0, &
-       thm=0.0, &
-       thn=0.0, &
-       q=0.0, &
-       shat=0.0, &
-       nt=16, &
-       mMode=0, &
-       nMode=0)
+       Rmaj=major_radius, Rgeo=major_radius, &
+       r=minor_radius, dr=0.1, aSurf=minor_radius, &
+       sHorz=0.0, sVert=0.0, &
+       delm=elongation, deln=triangularity, &
+       delmp=0.0, delnp=0.0, &
+       thm=0.0, thn=0.0, &
+       q=0.0, shat=0.0, nt=16, &
+       mMode=0, nMode=0)
 
     Z_answer = [ (Zpos(minor_radius, theta(i)), i=1, ntheta) ]
     Z_answer_interpolated = interpolate(Z_answer, theta_ellipse, theta)
@@ -1234,7 +1028,7 @@ contains
   @test
   subroutine test_global_Rpos_elongation_rotate_pi()
     use constants, only : pi
-    use leq, only : leq_testing_type, Rpos, Zpos
+    use leq, only : leq_testing_type, Rpos
     type(leq_testing_type) :: leq_privates
 
     real, parameter :: major_radius = 10.0
@@ -1255,24 +1049,14 @@ contains
          modulo(atan2(Z_expected, (R_expected - major_radius)), 2*pi)
 
     call leq_privates%set_surf(geoType=1, &
-       Rmaj=major_radius, &
-       Rgeo=major_radius, &
-       r=minor_radius, &
-       dr=0.1, &
-       aSurf=minor_radius, &
-       sHorz=0.0, &
-       sVert=0.0, &
-       delm=elongation, &
-       deln=triangularity, &
-       delmp=0.0, &
-       delnp=0.0, &
-       thm=elongation_rotation, &
-       thn=0.0, &
-       q=0.0, &
-       shat=0.0, &
-       nt=16, &
-       mMode=0, &
-       nMode=0)
+       Rmaj=major_radius, Rgeo=major_radius, &
+       r=minor_radius, dr=0.1, aSurf=minor_radius, &
+       sHorz=0.0, sVert=0.0, &
+       delm=elongation, deln=triangularity, &
+       delmp=0.0, delnp=0.0, &
+       thm=elongation_rotation, thn=0.0, &
+       q=0.0, shat=0.0, nt=16, &
+       mMode=0, nMode=0)
 
     R_answer = [ (Rpos(minor_radius, theta(i)), i=1, ntheta) ]
     R_answer_interpolated = interpolate(R_answer, theta_ellipse, theta)
@@ -1284,7 +1068,7 @@ contains
   @test
   subroutine test_global_Zpos_elongation_rotate_pi()
     use constants, only : pi
-    use leq, only : leq_testing_type, Rpos, Zpos
+    use leq, only : leq_testing_type, Zpos
     type(leq_testing_type) :: leq_privates
 
     real, parameter :: major_radius = 10.0
@@ -1305,24 +1089,14 @@ contains
          modulo(atan2(Z_expected, (R_expected - major_radius)), 2*pi)
 
     call leq_privates%set_surf(geoType=1, &
-       Rmaj=major_radius, &
-       Rgeo=major_radius, &
-       r=minor_radius, &
-       dr=0.1, &
-       aSurf=minor_radius, &
-       sHorz=0.0, &
-       sVert=0.0, &
-       delm=elongation, &
-       deln=triangularity, &
-       delmp=0.0, &
-       delnp=0.0, &
-       thm=elongation_rotation, &
-       thn=0.0, &
-       q=0.0, &
-       shat=0.0, &
-       nt=16, &
-       mMode=0, &
-       nMode=0)
+       Rmaj=major_radius, Rgeo=major_radius, &
+       r=minor_radius, dr=0.1, aSurf=minor_radius, &
+       sHorz=0.0, sVert=0.0, &
+       delm=elongation, deln=triangularity, &
+       delmp=0.0, delnp=0.0, &
+       thm=elongation_rotation, thn=0.0, &
+       q=0.0, shat=0.0, nt=16, &
+       mMode=0, nMode=0)
 
     Z_answer = [ (Zpos(minor_radius, theta(i)), i=1, ntheta) ]
     Z_answer_interpolated = interpolate(Z_answer, theta_ellipse, theta)
@@ -1334,7 +1108,7 @@ contains
   @test
   subroutine test_global_Rpos_elongation_rotate_half_pi()
     use constants, only : pi
-    use leq, only : leq_testing_type, Rpos, Zpos
+    use leq, only : leq_testing_type, Rpos
     type(leq_testing_type) :: leq_privates
 
     real, parameter :: major_radius = 10.0
@@ -1356,24 +1130,14 @@ contains
          modulo(atan2(Z_expected, (R_expected - major_radius)), 2*pi)
 
     call leq_privates%set_surf(geoType=1, &
-       Rmaj=major_radius, &
-       Rgeo=major_radius, &
-       r=minor_radius, &
-       dr=0.1, &
-       aSurf=minor_radius, &
-       sHorz=0.0, &
-       sVert=0.0, &
-       delm=elongation, &
-       deln=triangularity, &
-       delmp=0.0, &
-       delnp=0.0, &
-       thm=elongation_rotation, &
-       thn=0.0, &
-       q=0.0, &
-       shat=0.0, &
-       nt=16, &
-       mMode=0, &
-       nMode=0)
+       Rmaj=major_radius, Rgeo=major_radius, &
+       r=minor_radius, dr=0.1, aSurf=minor_radius, &
+       sHorz=0.0, sVert=0.0, &
+       delm=elongation, deln=triangularity, &
+       delmp=0.0, delnp=0.0, &
+       thm=elongation_rotation, thn=0.0, &
+       q=0.0, shat=0.0, nt=16, &
+       mMode=0, nMode=0)
 
     R_answer = [ (Rpos(minor_radius, theta(i)), i=1, ntheta) ]
     R_answer_interpolated = interpolate(R_answer, theta_ellipse, theta)
@@ -1385,7 +1149,7 @@ contains
   @test
   subroutine test_global_Zpos_elongation_rotate_half_pi()
     use constants, only : pi
-    use leq, only : leq_testing_type, Rpos, Zpos
+    use leq, only : leq_testing_type, Zpos
     type(leq_testing_type) :: leq_privates
 
     real, parameter :: major_radius = 10.0
@@ -1407,24 +1171,14 @@ contains
          modulo(atan2(Z_expected, (R_expected - major_radius)), 2*pi)
 
     call leq_privates%set_surf(geoType=1, &
-       Rmaj=major_radius, &
-       Rgeo=major_radius, &
-       r=minor_radius, &
-       dr=0.1, &
-       aSurf=minor_radius, &
-       sHorz=0.0, &
-       sVert=0.0, &
-       delm=elongation, &
-       deln=triangularity, &
-       delmp=0.0, &
-       delnp=0.0, &
-       thm=elongation_rotation, &
-       thn=0.0, &
-       q=0.0, &
-       shat=0.0, &
-       nt=16, &
-       mMode=0, &
-       nMode=0)
+       Rmaj=major_radius, Rgeo=major_radius, &
+       r=minor_radius, dr=0.1, aSurf=minor_radius, &
+       sHorz=0.0, sVert=0.0, &
+       delm=elongation, deln=triangularity, &
+       delmp=0.0, delnp=0.0, &
+       thm=elongation_rotation, thn=0.0, &
+       q=0.0, shat=0.0, nt=16, &
+       mMode=0, nMode=0)
 
     Z_answer = [ (Zpos(minor_radius, theta(i)), i=1, ntheta) ]
     Z_answer_interpolated = interpolate(Z_answer, theta_ellipse, theta)
@@ -1436,7 +1190,7 @@ contains
   @test
   subroutine test_generalised_enlongation_Rpos_circle()
     use constants, only : pi
-    use leq, only : leq_testing_type, Rpos, Zpos
+    use leq, only : leq_testing_type, Rpos
     type(leq_testing_type) :: leq_privates
 
     real, parameter :: major_radius = 10.0
@@ -1451,24 +1205,14 @@ contains
     real, dimension(ntheta), parameter :: Z_expected = minor_radius * sin(theta)
 
     call leq_privates%set_surf(geoType=2, &
-       Rmaj=major_radius, &
-       Rgeo=major_radius, &
-       r=minor_radius, &
-       dr=0.1, &
-       aSurf=minor_radius, &
-       sHorz=0.0, &
-       sVert=0.0, &
-       delm=1.0, &
-       deln=1.0, &
-       delmp=0.0, &
-       delnp=0.0, &
-       thm=0.0, &
-       thn=0.0, &
-       q=0.0, &
-       shat=0.0, &
-       nt=16, &
-       mMode=2, &
-       nMode=0)
+       Rmaj=major_radius, Rgeo=major_radius, &
+       r=minor_radius, dr=0.1, aSurf=minor_radius, &
+       sHorz=0.0, sVert=0.0, &
+       delm=1.0, deln=1.0, &
+       delmp=0.0, delnp=0.0, &
+       thm=0.0, thn=0.0, &
+       q=0.0, shat=0.0, nt=16, &
+       mMode=2, nMode=0)
 
     R_answer = [ (Rpos(minor_radius, theta(i)), i=1, ntheta) ]
 
@@ -1479,7 +1223,7 @@ contains
   @test
   subroutine test_generalised_enlongation_Zpos_circle()
     use constants, only : pi
-    use leq, only : leq_testing_type, Rpos, Zpos
+    use leq, only : leq_testing_type, Zpos
     type(leq_testing_type) :: leq_privates
 
     real, parameter :: major_radius = 10.0
@@ -1494,24 +1238,14 @@ contains
     real, dimension(ntheta), parameter :: Z_expected = minor_radius * sin(theta)
 
     call leq_privates%set_surf(geoType=2, &
-       Rmaj=major_radius, &
-       Rgeo=major_radius, &
-       r=minor_radius, &
-       dr=0.1, &
-       aSurf=minor_radius, &
-       sHorz=0.0, &
-       sVert=0.0, &
-       delm=1.0, &
-       deln=1.0, &
-       delmp=0.0, &
-       delnp=0.0, &
-       thm=0.0, &
-       thn=0.0, &
-       q=0.0, &
-       shat=0.0, &
-       nt=16, &
-       mMode=2, &
-       nMode=0)
+       Rmaj=major_radius, Rgeo=major_radius, &
+       r=minor_radius, dr=0.1, aSurf=minor_radius, &
+       sHorz=0.0, sVert=0.0, &
+       delm=1.0, deln=1.0, &
+       delmp=0.0, delnp=0.0, &
+       thm=0.0, thn=0.0, &
+       q=0.0, shat=0.0, nt=16, &
+       mMode=2, nMode=0)
 
     Z_answer = [ (Zpos(minor_radius, theta(i)), i=1, ntheta) ]
 
@@ -1522,7 +1256,7 @@ contains
   @test
   subroutine test_generalised_enlongation_Rpos_first_mode()
     use constants, only : pi
-    use leq, only : leq_testing_type, Rpos, Zpos
+    use leq, only : leq_testing_type, Rpos
     type(leq_testing_type) :: leq_privates
 
     real, parameter :: major_radius = 10.0
@@ -1542,24 +1276,14 @@ contains
          modulo(atan2(Z_expected, (R_expected - major_radius)), 2*pi)
 
     call leq_privates%set_surf(geoType=2, &
-       Rmaj=major_radius, &
-       Rgeo=major_radius, &
-       r=minor_radius, &
-       dr=0.1, &
-       aSurf=minor_radius, &
-       sHorz=0.0, &
-       sVert=0.0, &
-       delm=elongation, &
-       deln=triangularity, &
-       delmp=0.0, &
-       delnp=0.0, &
-       thm=0.0, &
-       thn=0.0, &
-       q=0.0, &
-       shat=0.0, &
-       nt=16, &
-       mMode=2, &
-       nMode=0)
+       Rmaj=major_radius, Rgeo=major_radius, &
+       r=minor_radius, dr=0.1, aSurf=minor_radius, &
+       sHorz=0.0, sVert=0.0, &
+       delm=elongation, deln=triangularity, &
+       delmp=0.0, delnp=0.0, &
+       thm=0.0, thn=0.0, &
+       q=0.0, shat=0.0, nt=16, &
+       mMode=2, nMode=0)
 
     R_answer = [ (Rpos(minor_radius, theta(i)), i=1, ntheta) ]
     R_answer_interpolated = interpolate(R_answer, theta_ellipse, theta)
@@ -1571,7 +1295,7 @@ contains
   @test
   subroutine test_generalised_enlongation_Zpos_first_mode()
     use constants, only : pi
-    use leq, only : leq_testing_type, Rpos, Zpos
+    use leq, only : leq_testing_type, Zpos
     type(leq_testing_type) :: leq_privates
 
     real, parameter :: major_radius = 10.0
@@ -1591,24 +1315,14 @@ contains
          modulo(atan2(Z_expected, (R_expected - major_radius)), 2*pi)
 
     call leq_privates%set_surf(geoType=2, &
-       Rmaj=major_radius, &
-       Rgeo=major_radius, &
-       r=minor_radius, &
-       dr=0.1, &
-       aSurf=minor_radius, &
-       sHorz=0.0, &
-       sVert=0.0, &
-       delm=elongation, &
-       deln=triangularity, &
-       delmp=0.0, &
-       delnp=0.0, &
-       thm=0.0, &
-       thn=0.0, &
-       q=0.0, &
-       shat=0.0, &
-       nt=16, &
-       mMode=2, &
-       nMode=0)
+       Rmaj=major_radius, Rgeo=major_radius, &
+       r=minor_radius, dr=0.1, aSurf=minor_radius, &
+       sHorz=0.0, sVert=0.0, &
+       delm=elongation, deln=triangularity, &
+       delmp=0.0, delnp=0.0, &
+       thm=0.0, thn=0.0, &
+       q=0.0, shat=0.0, nt=16, &
+       mMode=2, nMode=0)
 
     Z_answer = [ (Zpos(minor_radius, theta(i)), i=1, ntheta) ]
     Z_answer_interpolated = interpolate(Z_answer, theta_ellipse, theta)
@@ -1620,7 +1334,7 @@ contains
   @test
   subroutine test_generalised_enlongation_Rpos_first_mode_rotate_pi()
     use constants, only : pi
-    use leq, only : leq_testing_type, Rpos, Zpos
+    use leq, only : leq_testing_type, Rpos
     type(leq_testing_type) :: leq_privates
 
     real, parameter :: major_radius = 10.0
@@ -1641,24 +1355,14 @@ contains
          modulo(atan2(Z_expected, (R_expected - major_radius)), 2*pi)
 
     call leq_privates%set_surf(geoType=2, &
-       Rmaj=major_radius, &
-       Rgeo=major_radius, &
-       r=minor_radius, &
-       dr=0.1, &
-       aSurf=minor_radius, &
-       sHorz=0.0, &
-       sVert=0.0, &
-       delm=elongation, &
-       deln=triangularity, &
-       delmp=0.0, &
-       delnp=0.0, &
-       thm=elongation_rotation, &
-       thn=0.0, &
-       q=0.0, &
-       shat=0.0, &
-       nt=16, &
-       mMode=2, &
-       nMode=0)
+       Rmaj=major_radius, Rgeo=major_radius, &
+       r=minor_radius, dr=0.1, aSurf=minor_radius, &
+       sHorz=0.0, sVert=0.0, &
+       delm=elongation, deln=triangularity, &
+       delmp=0.0, delnp=0.0, &
+       thm=elongation_rotation, thn=0.0, &
+       q=0.0, shat=0.0, nt=16, &
+       mMode=2, nMode=0)
 
     R_answer = [ (Rpos(minor_radius, theta(i)), i=1, ntheta) ]
     R_answer_interpolated = interpolate(R_answer, theta_ellipse, theta)
@@ -1670,7 +1374,7 @@ contains
   @test
   subroutine test_generalised_enlongation_Zpos_first_mode_rotate_pi()
     use constants, only : pi
-    use leq, only : leq_testing_type, Rpos, Zpos
+    use leq, only : leq_testing_type, Zpos
     type(leq_testing_type) :: leq_privates
 
     real, parameter :: major_radius = 10.0
@@ -1691,24 +1395,14 @@ contains
          modulo(atan2(Z_expected, (R_expected - major_radius)), 2*pi)
 
     call leq_privates%set_surf(geoType=2, &
-       Rmaj=major_radius, &
-       Rgeo=major_radius, &
-       r=minor_radius, &
-       dr=0.1, &
-       aSurf=minor_radius, &
-       sHorz=0.0, &
-       sVert=0.0, &
-       delm=elongation, &
-       deln=triangularity, &
-       delmp=0.0, &
-       delnp=0.0, &
-       thm=elongation_rotation, &
-       thn=0.0, &
-       q=0.0, &
-       shat=0.0, &
-       nt=16, &
-       mMode=2, &
-       nMode=0)
+       Rmaj=major_radius, Rgeo=major_radius, &
+       r=minor_radius, dr=0.1, aSurf=minor_radius, &
+       sHorz=0.0, sVert=0.0, &
+       delm=elongation, deln=triangularity, &
+       delmp=0.0, delnp=0.0, &
+       thm=elongation_rotation, thn=0.0, &
+       q=0.0, shat=0.0, nt=16, &
+       mMode=2, nMode=0)
 
     Z_answer = [ (Zpos(minor_radius, theta(i)), i=1, ntheta) ]
     Z_answer_interpolated = interpolate(Z_answer, theta_ellipse, theta)
@@ -1720,7 +1414,7 @@ contains
   @test
   subroutine test_generalised_enlongation_Rpos_first_mode_rotate_half_pi()
     use constants, only : pi
-    use leq, only : leq_testing_type, Rpos, Zpos
+    use leq, only : leq_testing_type, Rpos
     type(leq_testing_type) :: leq_privates
 
     real, parameter :: major_radius = 10.0
@@ -1742,24 +1436,14 @@ contains
          modulo(atan2(Z_expected, (R_expected - major_radius)), 2*pi)
 
     call leq_privates%set_surf(geoType=2, &
-       Rmaj=major_radius, &
-       Rgeo=major_radius, &
-       r=minor_radius, &
-       dr=0.1, &
-       aSurf=minor_radius, &
-       sHorz=0.0, &
-       sVert=0.0, &
-       delm=elongation, &
-       deln=triangularity, &
-       delmp=0.0, &
-       delnp=0.0, &
-       thm=elongation_rotation, &
-       thn=0.0, &
-       q=0.0, &
-       shat=0.0, &
-       nt=16, &
-       mMode=2, &
-       nMode=0)
+       Rmaj=major_radius, Rgeo=major_radius, &
+       r=minor_radius, dr=0.1, aSurf=minor_radius, &
+       sHorz=0.0, sVert=0.0, &
+       delm=elongation, deln=triangularity, &
+       delmp=0.0, delnp=0.0, &
+       thm=elongation_rotation, thn=0.0, &
+       q=0.0, shat=0.0, nt=16, &
+       mMode=2, nMode=0)
 
     R_answer = [ (Rpos(minor_radius, theta(i)), i=1, ntheta) ]
     R_answer_interpolated = interpolate(R_answer, theta_ellipse, theta)
@@ -1771,7 +1455,7 @@ contains
   @test
   subroutine test_generalised_enlongation_Zpos_first_mode_rotate_half_pi()
     use constants, only : pi
-    use leq, only : leq_testing_type, Rpos, Zpos
+    use leq, only : leq_testing_type, Zpos
     type(leq_testing_type) :: leq_privates
 
     real, parameter :: major_radius = 10.0
@@ -1793,24 +1477,14 @@ contains
          modulo(atan2(Z_expected, (R_expected - major_radius)), 2*pi)
 
     call leq_privates%set_surf(geoType=2, &
-       Rmaj=major_radius, &
-       Rgeo=major_radius, &
-       r=minor_radius, &
-       dr=0.1, &
-       aSurf=minor_radius, &
-       sHorz=0.0, &
-       sVert=0.0, &
-       delm=elongation, &
-       deln=triangularity, &
-       delmp=0.0, &
-       delnp=0.0, &
-       thm=elongation_rotation, &
-       thn=0.0, &
-       q=0.0, &
-       shat=0.0, &
-       nt=16, &
-       mMode=2, &
-       nMode=0)
+       Rmaj=major_radius, Rgeo=major_radius, &
+       r=minor_radius, dr=0.1, aSurf=minor_radius, &
+       sHorz=0.0, sVert=0.0, &
+       delm=elongation, deln=triangularity, &
+       delmp=0.0, delnp=0.0, &
+       thm=elongation_rotation, thn=0.0, &
+       q=0.0, shat=0.0, nt=16, &
+       mMode=2, nMode=0)
 
     Z_answer = [ (Zpos(minor_radius, theta(i)), i=1, ntheta) ]
     Z_answer_interpolated = interpolate(Z_answer, theta_ellipse, theta)
@@ -1940,7 +1614,7 @@ contains
   @test
   subroutine test_generalised_Miller_invR_circle()
     use constants, only : pi
-    use leq, only : leq_testing_type, invR, Zpos
+    use leq, only : leq_testing_type, invR
     type(leq_testing_type) :: leq_privates
 
     real, parameter :: major_radius = 2.0
@@ -1952,27 +1626,16 @@ contains
     integer :: i
     real, dimension(ntheta), parameter :: theta = [(real(i)*2*pi/real(ntheta-1), i=0,ntheta-1)]
     real, dimension(ntheta), parameter :: R_expected = minor_radius * cos(theta) + major_radius
-    real, dimension(ntheta), parameter :: Z_expected = minor_radius * sin(theta)
 
     call leq_privates%set_surf(geoType=0, &
-       Rmaj=major_radius, &
-       Rgeo=major_radius, &
-       r=minor_radius, &
-       dr=0.1, &
-       aSurf=minor_radius, &
-       sHorz=0.0, &
-       sVert=0.0, &
-       delm=1.0, &
-       deln=0.0, &
-       delmp=0.0, &
-       delnp=0.0, &
-       thm=0.0, &
-       thn=0.0, &
-       q=0.0, &
-       shat=0.0, &
-       nt=16, &
-       mMode=0, &
-       nMode=0)
+       Rmaj=major_radius, Rgeo=major_radius, &
+       r=minor_radius, dr=0.1, aSurf=minor_radius, &
+       sHorz=0.0, sVert=0.0, &
+       delm=1.0, deln=0.0, &
+       delmp=0.0, delnp=0.0, &
+       thm=0.0, thn=0.0, &
+       q=0.0, shat=0.0, nt=16, &
+       mMode=0, nMode=0)
 
     R_answer = [ (invR(minor_radius, theta(i)), i=1, ntheta) ]
 
@@ -1995,27 +1658,16 @@ contains
     integer :: i
     real, dimension(ntheta), parameter :: theta = [(real(i)*2*pi/real(ntheta-1), i=0,ntheta-1)]
     real, dimension(ntheta), parameter :: R_expected = minor_radius * cos(theta) + major_radius
-    real, dimension(ntheta), parameter :: Z_expected = minor_radius * sin(theta)
 
     call leq_privates%set_surf(geoType=1, &
-       Rmaj=major_radius, &
-       Rgeo=major_radius, &
-       r=minor_radius, &
-       dr=0.1, &
-       aSurf=minor_radius, &
-       sHorz=0.0, &
-       sVert=0.0, &
-       delm=1.0, &
-       deln=1.0, &
-       delmp=0.0, &
-       delnp=0.0, &
-       thm=0.0, &
-       thn=0.0, &
-       q=0.0, &
-       shat=0.0, &
-       nt=16, &
-       mMode=0, &
-       nMode=0)
+       Rmaj=major_radius, Rgeo=major_radius, &
+       r=minor_radius, dr=0.1, aSurf=minor_radius, &
+       sHorz=0.0, sVert=0.0, &
+       delm=1.0, deln=1.0, &
+       delmp=0.0, delnp=0.0, &
+       thm=0.0, thn=0.0, &
+       q=0.0, shat=0.0, nt=16, &
+       mMode=0, nMode=0)
 
     R_answer = [ (invR(minor_radius, theta(i)), i=1, ntheta) ]
 
