@@ -1433,4 +1433,90 @@ contains
 
   end subroutine test_global_Zpos_elongation_rotate_half_pi
 
+  @test
+  subroutine test_generalised_Miller_invR_circle()
+    use constants, only : pi
+    use leq, only : leq_testing_type, invR, Zpos
+    type(leq_testing_type) :: leq_privates
+
+    real, parameter :: major_radius = 2.0
+    real, parameter :: minor_radius = 1.0
+
+    integer, parameter :: ntheta = 32
+    real, dimension(ntheta) :: R_answer
+
+    integer :: i
+    real, dimension(ntheta), parameter :: theta = [(real(i)*2*pi/real(ntheta-1), i=0,ntheta-1)]
+    real, dimension(ntheta), parameter :: R_expected = minor_radius * cos(theta) + major_radius
+    real, dimension(ntheta), parameter :: Z_expected = minor_radius * sin(theta)
+
+    call leq_privates%set_surf(geoType=0, &
+       Rmaj=major_radius, &
+       Rgeo=major_radius, &
+       r=minor_radius, &
+       dr=0.1, &
+       aSurf=minor_radius, &
+       sHorz=0.0, &
+       sVert=0.0, &
+       delm=1.0, &
+       deln=0.0, &
+       delmp=0.0, &
+       delnp=0.0, &
+       thm=0.0, &
+       thn=0.0, &
+       q=0.0, &
+       shat=0.0, &
+       nt=16, &
+       mMode=0, &
+       nMode=0)
+
+    R_answer = [ (invR(minor_radius, theta(i)), i=1, ntheta) ]
+
+    @assertEqual(1./R_expected, R_answer, tolerance=1.e-12)
+
+  end subroutine test_generalised_Miller_invR_circle
+
+  @test
+  subroutine test_global_invR_circle()
+    use constants, only : pi
+    use leq, only : leq_testing_type, invR
+    type(leq_testing_type) :: leq_privates
+
+    real, parameter :: major_radius = 10.0
+    real, parameter :: minor_radius = 1.0
+
+    integer, parameter :: ntheta = 32
+    real, dimension(ntheta) :: R_answer
+
+    integer :: i
+    real, dimension(ntheta), parameter :: theta = [(real(i)*2*pi/real(ntheta-1), i=0,ntheta-1)]
+    real, dimension(ntheta), parameter :: R_expected = minor_radius * cos(theta) + major_radius
+    real, dimension(ntheta), parameter :: Z_expected = minor_radius * sin(theta)
+
+    call leq_privates%set_surf(geoType=1, &
+       Rmaj=major_radius, &
+       Rgeo=major_radius, &
+       r=minor_radius, &
+       dr=0.1, &
+       aSurf=minor_radius, &
+       sHorz=0.0, &
+       sVert=0.0, &
+       delm=1.0, &
+       deln=1.0, &
+       delmp=0.0, &
+       delnp=0.0, &
+       thm=0.0, &
+       thn=0.0, &
+       q=0.0, &
+       shat=0.0, &
+       nt=16, &
+       mMode=0, &
+       nMode=0)
+
+    R_answer = [ (invR(minor_radius, theta(i)), i=1, ntheta) ]
+
+    @assertEqual(1./R_expected, R_answer, tolerance=1.e-12)
+
+  end subroutine test_global_invR_circle
+
 end module test_leq_mod
