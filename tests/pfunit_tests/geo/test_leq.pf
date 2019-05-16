@@ -390,7 +390,7 @@ contains
        Rgeo=major_radius, &
        r=minor_radius, &
        dr=0.1, &
-       aSurf=major_radius, &
+       aSurf=minor_radius, &
        sHorz=0.0, &
        sVert=0.0, &
        delm=1.0, &
@@ -433,7 +433,7 @@ contains
        Rgeo=major_radius, &
        r=minor_radius, &
        dr=0.1, &
-       aSurf=major_radius, &
+       aSurf=minor_radius, &
        sHorz=0.0, &
        sVert=0.0, &
        delm=1.0, &
@@ -480,7 +480,7 @@ contains
        Rgeo=major_radius, &
        r=minor_radius, &
        dr=0.1, &
-       aSurf=major_radius, &
+       aSurf=minor_radius, &
        sHorz=0.0, &
        sVert=0.0, &
        delm=elongation, &
@@ -527,7 +527,7 @@ contains
        Rgeo=major_radius, &
        r=minor_radius, &
        dr=0.1, &
-       aSurf=major_radius, &
+       aSurf=minor_radius, &
        sHorz=0.0, &
        sVert=0.0, &
        delm=elongation, &
@@ -575,7 +575,7 @@ contains
        Rgeo=major_radius, &
        r=minor_radius, &
        dr=0.1, &
-       aSurf=major_radius, &
+       aSurf=minor_radius, &
        sHorz=0.0, &
        sVert=0.0, &
        delm=elongation, &
@@ -623,7 +623,7 @@ contains
        Rgeo=major_radius, &
        r=minor_radius, &
        dr=0.1, &
-       aSurf=major_radius, &
+       aSurf=minor_radius, &
        sHorz=0.0, &
        sVert=0.0, &
        delm=elongation, &
@@ -672,7 +672,7 @@ contains
        Rgeo=major_radius, &
        r=minor_radius, &
        dr=0.1, &
-       aSurf=major_radius, &
+       aSurf=minor_radius, &
        sHorz=0.0, &
        sVert=0.0, &
        delm=elongation, &
@@ -721,7 +721,7 @@ contains
        Rgeo=major_radius, &
        r=minor_radius, &
        dr=0.1, &
-       aSurf=major_radius, &
+       aSurf=minor_radius, &
        sHorz=0.0, &
        sVert=0.0, &
        delm=elongation, &
@@ -768,7 +768,7 @@ contains
        Rgeo=major_radius, &
        r=minor_radius, &
        dr=0.1, &
-       aSurf=major_radius, &
+       aSurf=minor_radius, &
        sHorz=0.0, &
        sVert=0.0, &
        delm=elongation, &
@@ -815,7 +815,7 @@ contains
        Rgeo=major_radius, &
        r=minor_radius, &
        dr=0.1, &
-       aSurf=major_radius, &
+       aSurf=minor_radius, &
        sHorz=0.0, &
        sVert=0.0, &
        delm=elongation, &
@@ -865,7 +865,7 @@ contains
        Rgeo=major_radius, &
        r=minor_radius, &
        dr=0.1, &
-       aSurf=major_radius, &
+       aSurf=minor_radius, &
        sHorz=0.0, &
        sVert=0.0, &
        delm=elongation, &
@@ -915,7 +915,7 @@ contains
        Rgeo=major_radius, &
        r=minor_radius, &
        dr=0.1, &
-       aSurf=major_radius, &
+       aSurf=minor_radius, &
        sHorz=0.0, &
        sVert=0.0, &
        delm=elongation, &
@@ -962,7 +962,7 @@ contains
        Rgeo=major_radius, &
        r=minor_radius, &
        dr=0.1, &
-       aSurf=major_radius, &
+       aSurf=minor_radius, &
        sHorz=0.0, &
        sVert=0.0, &
        delm=elongation, &
@@ -1009,7 +1009,7 @@ contains
        Rgeo=major_radius, &
        r=minor_radius, &
        dr=0.1, &
-       aSurf=major_radius, &
+       aSurf=minor_radius, &
        sHorz=0.0, &
        sVert=0.0, &
        delm=elongation, &
