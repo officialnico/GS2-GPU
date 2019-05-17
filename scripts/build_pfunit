@@ -5,10 +5,97 @@ set -e
 
 # Error codes
 error_cmake_not_available=1
+error_wrong_version_numer=2
+error_bad_arguments=3
+
+# Some default arguments
+
+# Should pFUnit use MPI
+pfunit_use_mpi="YES"
 
 # Which major version of pfunit are we using
 # Version 4+ needs very recent compilers
 pfunit_version_major=3
+
+# Number of make jobs to use (i.e. argument to `make -j N`)
+make_jobs=1
+
+# Locations of various things
+gs2_directory=$(pwd)
+externals_directory="${gs2_directory}/externals"
+pfunit_directory="${externals_directory}/pFUnit"
+pfunit_version_directory="${externals_directory}/pFUnit-${pfunit_version}"
+pfunit_build_directory="${externals_directory}/pFUnit_build"
+pfunit_install_directory="${externals_directory}/pFUnit_build/install"
+
+function usage {
+    echo "usage: ${0##*/} [-m] [-v ARG] [-b ARG] [-i ARG] [-j ARG] [-r] [-h|--help]"
+    echo "A helper script for building pFUnit for GS2"
+    echo ""
+    echo "Arguments:"
+    echo "  -m              Disable MPI"
+    echo "  -v 3|4          Set which major version of pFUnit to use"
+    echo "  -b BUILD_DIR    Directory to build pFUnit in"
+    echo "  -i INSTALL_DIR  Directory to install pFUnit in"
+    echo "  -j N            Number of make jobs to use (default: 1)"
+    echo "  -r              Remove the pFUnit installation directory"
+    echo "  -h, --help      Print this help and exit"
+}
+
+# These arguments need to be first
+if [[ "$1" == "--help" ]]; then
+    usage
+    exit 0
+fi
+
+while getopts ":mv:b:i:hrj:" OPT; do
+    case $OPT in
+        m )
+            echo "Disabling MPI"
+            echo "WARNING: currently some pFUnit tests require MPI and this might not work"
+            pfunit_use_mpi="NO"
+            ;;
+        v )
+            if [[ ! "$OPTARG" -eq 3 || "$OPTARG" -eq 4 ]]; then
+                echo "pFUnit major version number must be either '3' or '4'" 1>&2
+                exit $error_wrong_version_numer
+            fi
+            echo "Using pFUnit major version $OPTARG"
+            pfunit_version_major="$OPTARG"
+            ;;
+        b )
+            echo "Building pFUnit in $OPTARG"
+            pfunit_build_directory="$OPTARG"
+            ;;
+        i )
+            echo "Installing pFUnit in $OPTARG"
+            pfunit_install_directory="$OPTARG"
+            ;;
+        r )
+            remove_installation_directory=true
+            ;;
+        j )
+            make_jobs="$OPTARG"
+            ;;
+        h )
+            usage
+            exit 0
+            ;;
+        \* )
+           usage
+           exit $error_bad_arguments
+           ;;
+    esac
+done
+shift $(( OPTIND - 1 ))
+OPTIND=1
+
+if [[ -n $remove_installation_directory ]]; then
+    echo "Removing pFUnit installation directory $pfunit_install_directory"
+    rm -rf "$pfunit_install_directory"
+    exit 0
+fi
+
 if [[ ${pfunit_version_major} == 3 ]]; then
     pfunit_url="https://github.com/Goddard-Fortran-Ecosystem/pFUnit/archive/3.3.3.tar.gz"
     pfunit_version="3.3.3"
@@ -18,14 +105,6 @@ else
     pfunit_version="4.0.0"
     pfunit_openmp_flag="-DSKIP_OPENMP=YES"
 fi
-
-# Locations of various things
-gs2_directory=$(pwd)
-externals_directory="${gs2_directory}/externals"
-pfunit_directory="${externals_directory}/pFUnit"
-pfunit_version_directory="${externals_directory}/pFUnit-${pfunit_version}"
-pfunit_build_directory="${externals_directory}/pFUnit_build"
-pfunit_install_directory="${externals_directory}/pFUnit_build/install"
 
 # What to rename the tarball to
 pfunit_downloaded_file="pFUnit-${pfunit_version}.tar.gz"
@@ -69,10 +148,10 @@ mkdir -p ${pfunit_build_directory}
 
 cd ${pfunit_build_directory}
 echo "Building pFUnit version ${pfunit_version_major} from ${pfunit_directory}"
-cmake ${pfunit_directory} -DMPI=YES ${pfunit_openmp_flag} \
+cmake ${pfunit_directory} -DMPI=${pfunit_use_mpi} ${pfunit_openmp_flag} \
       -DCMAKE_INSTALL_PREFIX=${pfunit_install_directory} \
       -DMPIEXEC_EXECUTABLE=$(which mpiexec)
-make
+make -j "$make_jobs"
 echo "Install pFUnit to ${pfunit_install_directory}"
 make install
 
