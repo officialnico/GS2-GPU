@@ -47,7 +47,7 @@ nodeps_tests:
     CASENAME: "no_dependency"
   before_script:
     - BUILD_STATUS=running  BUILD_KEY=push ./.push_gitlab_build_status ${CASENAME}
-    - apt-get update -qq && apt-get install -y -qq gfortran cmake
+    - apt-get update -qq && apt-get install -y -qq gfortran
     - adduser theuser --disabled-password --gecos ""
   script:
     - su -c "whoami ; MAKEFLAGS=-IMakefiles GK_SYSTEM=bitbucket make USE_FFT= USE_NETCDF= USE_MPI= USE_NEW_DIAG= -j tests || (BUILD_STATUS=failed  BUILD_KEY=push ./.push_gitlab_build_status ${CASENAME}; exit 1)" theuser
