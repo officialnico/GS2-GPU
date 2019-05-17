@@ -41,6 +41,19 @@ PFUNIT_TEST_LIST = $(PFUNIT_TEST_DIR)/testSuites.inc
 .INTERMEDIATE: $(PFUNIT_INTERMEDIATES)
 
 .PHONY: pfunit_tests make_test run_test check_pfunit_install pfunit_coverage run_gcov pfunit_clean
+.PHONY: build_pfunit_library clean_pfunit_library
+
+build_pfunit_library:
+	$(call messageInfo,"Building pFUnit in default location: $(GK_HEAD_DIR)/externals/pFUnit_build/install")
+ifdef USE_MPI
+	@scripts/build_pfunit
+else
+	@scripts/build_pfunit -m
+endif
+
+clean_pfunit_library:
+	$(call messageInfo "Removing pFUnit library")
+	@scripts/build_pfunit -r
 
 make_test: $(PFUNIT_TEST_EXE)
 

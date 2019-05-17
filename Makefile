@@ -827,18 +827,6 @@ sinclude $(TEST_DIR)/Makefile.tests_and_benchmarks
 PFUNIT_TEST_DIR:=$(TEST_DIR)/pfunit_tests
 sinclude $(PFUNIT_TEST_DIR)/Makefile
 
-.PHONY: build_pfunit_library clean_pfunit_library
-build_pfunit_library:
-	@echo "Building pFUnit in default location ($(GK_HEAD_DIR)/externals/pFUnit_build/install)"
-ifdef USE_MPI
-	@scripts/build_pfunit
-else
-	@scripts/build_pfunit -m
-endif
-
-clean_pfunit_library:
-	@scripts/build_pfunit -r
-
 ############################################################# Introspection targets
 test_make:
 	$(call messageInfo,"Global settings:")
