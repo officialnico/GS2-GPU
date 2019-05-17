@@ -884,15 +884,13 @@ contains
     real, parameter :: theta_tol = 1.e-6
     if(theta <= pi .and. theta >= -pi) then
       mod2pi = theta
-      return
     else if(theta - theta_tol <= pi .and. theta >= -pi) then
       mod2pi = pi
-      return
     else if(theta <= pi .and. theta + theta_tol >= -pi) then
       mod2pi = -pi
-      return
+    else
+      mod2pi = modulo(theta + pi, 2.*pi) - pi
     endif
-    mod2pi = modulo(theta + pi, 2.*pi) - pi
   end function mod2pi
 
   !> FIXME : Add documentation  
