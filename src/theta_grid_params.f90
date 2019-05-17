@@ -262,7 +262,7 @@ module theta_grid_params
      real :: tri = 0.0
      !> The radial gradient of the flux surface triangularity (only
      !> used when `geoType`=0, which selects the Generalised Miller
-     !> analytic geometry specification). `tripri = dtri/dρ`
+     !> analytic geometry specification). `tripri = dtri/drho`
      real :: tripri = 0.0
      !> Axial location of the magnetic axis (only used when geoType=1,
      !> which selects the Global MHD analytic geometry
