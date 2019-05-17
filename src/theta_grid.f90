@@ -404,7 +404,7 @@ module theta_grid_salpha
   type, extends(abstract_config_type) :: theta_grid_salpha_config_type
      ! namelist : theta_grid_salpha_knobs
      ! indexed : false     
-     !> Used in conjunction with `alpmhd` of [[theta_grid_parameters]] to override `shift`, set as `shift=−alpmhd∗alpmhdfac`.
+     !> Used in conjunction with `alpmhd` of [[theta_grid_parameters]] to override `shift`, set as `shift=-alpmhd*alpmhdfac`.
      real :: alpmhdfac = 0.0
      !> Coefficient in model when `model_option='alpha1'` has been selected.
      real :: alpha1 = 0.0
