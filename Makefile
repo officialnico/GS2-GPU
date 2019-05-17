@@ -827,6 +827,10 @@ sinclude $(TEST_DIR)/Makefile.tests_and_benchmarks
 PFUNIT_TEST_DIR:=$(TEST_DIR)/pfunit_tests
 sinclude $(PFUNIT_TEST_DIR)/Makefile
 
+.PHONY: build_pfunit_library
+build_pfunit_library:
+	@scripts/build_pfunit
+
 ############################################################# Introspection targets
 test_make:
 	$(call messageInfo,"Global settings:")

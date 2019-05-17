@@ -2,7 +2,12 @@ PFUNIT_TEST_EXE=pfunit_test_suite
 PFUNIT_TEST_DIR=$(GK_HEAD_DIR)/tests/pfunit_tests
 PFUNIT_NPROC=4
 
+# Default major version of pFUnit
+# Versions 3 and 4 require different flags, etc.
 PFUNIT_VERSION_MAJOR ?= 3
+# Installation directory of pFUnit
+# Default is the directory where `scripts/build_pfunit` puts it
+PFUNIT_DIR ?= $(GK_HEAD_DIR)/externals/pFUnit_build/install
 
 MACRO_DEFS += -DPFUNIT_VERSION_MAJOR=$(PFUNIT_VERSION_MAJOR)
 
