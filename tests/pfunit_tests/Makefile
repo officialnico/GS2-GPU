@@ -27,12 +27,7 @@ endif
 
 MACRO_DEFS += -DPFUNIT_MOD=$(PFUNIT_MOD)
 
-ifeq ($(GK_SYSTEM),bitbucket)
-  PFUNIT_TEST_PATH=/opt/atlassian/pipelines/agent/build/pfunit_tests
-else
-  PFUNIT_TEST_PATH=.
-endif
-
+PFUNIT_TEST_PATH=.
 
 GS2_OBJS = $(filter-out $(OBJDIR)/gs2.o, $(gs2_mod))
 
