@@ -57,9 +57,9 @@ $(PFUNIT_TEST_EXE): $(GS2_OBJS) $(PFUNIT_DRIVER) $(PFUNIT_OBJS)
 	$(QUIETSYM)$(FC) -o $@ $^ -DUSE_MPI=YES $(PFUNIT_INC) $(PFUNIT_LIB) -I. $(SIMPLEDATAIO_LIB_ABS) $(LIBS) $(F90FLAGS) -I$(PFUNIT_TEST_DIR) -D_TEST_SUITES='"$(PFUNIT_TEST_LIST)"'
 
 run_test: make_test
-	-@$(RM) pfunit.log pfunit.error
+	-@rm -f pfunit.log pfunit.error
 	$(call messageOp,"Running ","\\t:","pFUnit tests")
-	$(QUIETSYM)(touch pfunit.log ; tail -f pfunit.log &  mpirun -np $(PFUNIT_NPROC) $(PFUNIT_TEST_PATH)/$(PFUNIT_TEST_EXE) -o pfunit.log > /dev/null 2> pfunit.error ) || (cat pfunit.error ; exit 1)
+	$(QUIETSYM)(touch pfunit.log ; tail -f pfunit.log &  mpirun -np $(PFUNIT_NPROC) $(PFUNIT_TEST_PATH)/$(PFUNIT_TEST_EXE) -o pfunit.log > /dev/null 2> pfunit.error ) || (cat pfunit.error; exit 1)
 
 run_gcov:
 	gcov *.f90
