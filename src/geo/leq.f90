@@ -1,8 +1,8 @@
 !> Analytic local equilibria via generalised forms of the Miller model
 !!
-!! Justin Ball's MIT Masters thesis and/or "GS2 analytic geometry
-!! specification" on the wiki provide a good overview of how this
-!! module works.
+!! Justin Ball's MIT Masters thesis and/or ["GS2 analytic geometry
+!! specification"](https://bitbucket.org/gyrokinetics/wikifiles/raw/master/JRB/GS2GeoDoc.pdf)
+!! provide a good overview of how this module works.
 !!
 !! There are four equilibrium models in this module:
 !!
