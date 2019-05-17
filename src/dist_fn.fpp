@@ -1900,9 +1900,9 @@ contains
     ! boundary conditions. delta j = (ik - 1) * jshift0 . EGH
 
     if (naky > 1 .and. ntheta0 > 1) then
-       jshift0 = int((theta(ng)-theta(-ng))/(theta0(2,2)-theta0(1,2)) + 0.01)
+       jshift0 = nint((theta(ng)-theta(-ng))/(theta0(2,2)-theta0(1,2)))
     else if (naky == 1 .and. ntheta0 > 1 .and. aky(1) /= 0.0) then
-       jshift0 = int((theta(ng)-theta(-ng))/(theta0(2,1)-theta0(1,1)) + 0.01)
+       jshift0 = nint((theta(ng)-theta(-ng))/(theta0(2,1)-theta0(1,1)))
     else
        jshift0 = 1
     end if
