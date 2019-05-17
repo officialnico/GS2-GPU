@@ -95,7 +95,9 @@ module gs2_layouts
   public :: simple_gf_decomposition, gf_local_fields
 
   public :: layouts_config_type
-  
+  public :: set_gs2_layouts_config
+
+  logical :: initialized = .false.
   logical :: initialized_x_transform = .false.
   logical :: initialized_y_transform = .false.
   logical :: initialized_layouts = .false.
@@ -470,12 +472,15 @@ contains
     
     if (initialized_layouts) return
     initialized_layouts = .true.
+    if (initialized) return
+    initialized = .true.
     call read_parameters(layouts_config_in)
   end subroutine init_gs2_layouts
 
   !> FIXME : Add documentation 
   subroutine finish_gs2_layouts
     call finish_layouts
+    initialized = .false.
     initialized_layouts = .false.
   end subroutine finish_gs2_layouts
 
@@ -2301,6 +2306,7 @@ contains
     call finish_fields_layouts
     call finish_jfields_layouts
 
+    initialized = .false.
     initialized_layouts = .false.
     initialized_le_layouts = .false.
     initialized_gf_layouts = .false.
@@ -6434,6 +6440,20 @@ contains
     div(j) = n
   end subroutine factors
 
+  !> Set the module level config type
+  !> Will abort if the module has already been initialised to avoid
+  !> inconsistencies.
+  subroutine set_gs2_layouts_config(gs2_layouts_config_in)
+    use mp, only: mp_abort
+    type(layouts_config_type), intent(in), optional :: gs2_layouts_config_in
+    if (initialized) then
+       call mp_abort("Trying to set gs2_layouts_config when already initialized.", to_screen = .true.)
+    end if
+    if (present(gs2_layouts_config_in)) then
+       layouts_config = gs2_layouts_config_in
+    end if
+  end subroutine set_gs2_layouts_config
+  
   !---------------------------------------
   ! Following is for the config_type
   !---------------------------------------

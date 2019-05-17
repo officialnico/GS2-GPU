@@ -105,6 +105,7 @@ module dist_fn
   public :: dist_fn_config_type
   public :: dist_fn_species_config_type
   public :: source_config_type
+  public :: set_dist_fn_config
   
   ! knobs
   complex, dimension (:), allocatable :: fexp ! (nspec)
@@ -9955,6 +9956,29 @@ endif
 
   end subroutine calculate_flux_surface_average
 
+  !> Set the module level config types
+  !> Will abort if the module has already been initialised to avoid
+  !> inconsistencies.
+  subroutine set_dist_fn_config(dist_fn_config_in, source_config_in, dist_fn_species_config_in)
+    use mp, only: mp_abort
+    type(dist_fn_config_type), intent(in), optional :: dist_fn_config_in
+    type(source_config_type), intent(in), optional :: source_config_in
+    type(dist_fn_species_config_type), intent(in), dimension(:), optional :: dist_fn_species_config_in
+ 
+    if (initialized) then
+       call mp_abort("Trying to set dist_fn_config when already initialized.", to_screen = .true.)
+    end if
+    if (present(dist_fn_config_in)) then
+       dist_fn_config = dist_fn_config_in
+    end if
+    if (present(source_config_in)) then
+       source_config = source_config_in
+    end if
+    if (present(dist_fn_species_config_in)) then
+       dist_fn_species_config = dist_fn_species_config_in
+    end if    
+  end subroutine set_dist_fn_config   
+  
   !---------------------------------------
   ! Following is for the dist_fn config_type
   !---------------------------------------

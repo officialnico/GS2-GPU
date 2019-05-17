@@ -13,6 +13,9 @@ module optimisation_config
   public :: optimisation_results_type
 
   public :: optimisation_config_type
+  public :: set_optimisation_config_config
+
+  logical :: initialized = .false.
   
   type optimisation_results_type
     ! Configuration
@@ -92,6 +95,8 @@ contains
     implicit none
     type(optimisation_type), intent(inout) :: optim
     type(optimisation_config_type), intent(in), optional :: optimisation_config_config_in
+    if(initialized) return
+    initialized = .true.
     call read_parameters(optim, optimisation_config_config_in)
     call open_output_file(optim%outunit, '.optim')
     optim%nproc_max = nproc
@@ -100,6 +105,7 @@ contains
   subroutine finish_optimisation_config(optim)
     implicit none
     type(optimisation_type), intent(inout) :: optim
+    initialized = .false.
     call optimisation_config_config%reset()
   end subroutine finish_optimisation_config
 
@@ -124,6 +130,20 @@ contains
     optim%warm_up = optimisation_config_config%warm_up
   end subroutine read_parameters
 
+  !> Set the module level config type
+  !> Will abort if the module has already been initialised to avoid
+  !> inconsistencies.
+  subroutine set_optimisation_config_config(optimisation_config_config_in)
+    use mp, only: mp_abort
+    type(optimisation_config_type), intent(in), optional :: optimisation_config_config_in
+    if (initialized) then
+       call mp_abort("Trying to set optimisation_config_config when already initialized.", to_screen = .true.)
+    end if
+    if (present(optimisation_config_config_in)) then
+       optimisation_config_config = optimisation_config_config_in
+    end if
+  end subroutine set_optimisation_config_config
+  
   !---------------------------------------
   ! Following is for the config_type
   !---------------------------------------

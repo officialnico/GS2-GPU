@@ -72,6 +72,7 @@ module gs2_init
   public :: in_memory
 
   public :: init_config_type
+  public :: set_gs2_init_config
   
   !> A type for labelling the different init
   !! levels available in gs2.
@@ -175,6 +176,7 @@ module gs2_init
   !logical :: fields_and_dist_fn_saved = .false.
   logical :: in_memory = .false.
 
+  logical :: initialized = .true.
   
   !> Used to represent the input configuration of init
   type, extends(abstract_config_type) :: init_config_type
@@ -828,7 +830,9 @@ contains
     type(init_config_type), intent(in), optional :: init_config_in
 
     logical :: exist
-
+    if (initialized) return
+    initialized = .true.
+    
     if (present(init_config_in)) init_config = init_config_in
 
     call init_config%init(name = 'init_knobs', requires_index = .false.)
@@ -842,6 +846,7 @@ contains
   subroutine finish_gs2_init(current)
     type(init_type), intent(inout) :: current
     call init_config%reset()
+    initialized = .false.
   end subroutine finish_gs2_init
 
   subroutine set_initial_field_and_dist_fn_values(current)
@@ -904,6 +909,20 @@ contains
     end if
   end subroutine set_initial_field_and_dist_fn_values
 
+  !> Set the module level config type
+  !> Will abort if the module has already been initialised to avoid
+  !> inconsistencies.
+  subroutine set_gs2_init_config(gs2_init_config_in)
+    use mp, only: mp_abort
+    type(init_config_type), intent(in), optional :: gs2_init_config_in
+    if (initialized) then
+       call mp_abort("Trying to set gs2_init_config when already initialized.", to_screen = .true.)
+    end if
+    if (present(gs2_init_config_in)) then
+       init_config = gs2_init_config_in
+    end if
+  end subroutine set_gs2_init_config
+  
   !---------------------------------------
   ! Following is for the config_type
   !---------------------------------------

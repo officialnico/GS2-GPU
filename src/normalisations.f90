@@ -9,7 +9,9 @@ module normalisations
   public :: norms
   public :: init_normalisations, finish_normalisations
   public :: check_normalisations, wnml_normalisations
+
   public :: normalisations_config_type
+  public :: set_normalisations_config
   
   real, parameter :: default_value = -999.0
   
@@ -54,7 +56,7 @@ module normalisations
 
   type(norms_type) :: norms !The normalisation object, there should only be one of these
   logical :: exist !Has this namelist been specified?
-
+  logical :: initialized = .false. !Have we setup the module yet?
 
   !> Used to represent the input configuration of normalisations
   type, extends(abstract_config_type) :: normalisations_config_type
@@ -86,7 +88,7 @@ module normalisations
      procedure :: normalisations_config_constructor
   end interface normalisations_config_type
   
-  type(normalisations_config_type) :: normalisations_config
+  type(normalisations_config_type) :: normalisations_config  
 contains
   !/////////////////////////////
   !// TYPE BOUND PROCEDURES
@@ -324,13 +326,15 @@ contains
   subroutine init_normalisations(normalisations_config_in)
     implicit none
     type(normalisations_config_type), intent(in), optional :: normalisations_config_in
-    
+    if(initialized) return
+    initialized = .true.
     call norms%init(normalisations_config_in)
   end subroutine init_normalisations
 
   !> Free memory etc. associated with normalisations
   subroutine finish_normalisations
     implicit none
+    initialized = .false.
     call norms%finish
     call normalisations_config%reset()
   end subroutine finish_normalisations
@@ -338,9 +342,23 @@ contains
   !> Reset normalisations object
   subroutine reset_normalisations
     implicit none
-    call norms%reset
+    call norms%reset    
   end subroutine reset_normalisations
 
+  !> Set the module level config type
+  !> Will abort if the module has already been initialised to avoid
+  !> inconsistencies.
+  subroutine set_normalisations_config(normalisations_config_in)
+    use mp, only: mp_abort
+    type(normalisations_config_type), intent(in), optional :: normalisations_config_in
+    if (initialized) then
+       call mp_abort("Trying to set normalisations_config when already initialized.", to_screen = .true.)
+    end if
+    if (present(normalisations_config_in)) then
+       normalisations_config = normalisations_config_in
+    end if
+  end subroutine set_normalisations_config
+  
   !---------------------------------------
   ! Following is for the config_type
   !---------------------------------------

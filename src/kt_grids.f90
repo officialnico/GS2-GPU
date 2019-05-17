@@ -12,11 +12,13 @@ module kt_grids_single
   public :: finish_parameters_single
 
   public :: kt_grids_single_config_type
+  public :: set_kt_grids_single_config
   
   real :: akx, aky, theta0, rhostar_single
   integer :: n0
   logical :: parameters_read = .false.
-
+  logical :: initialized = .false.
+  
   !> Used to represent the input configuration of kt_grids_single
   type, extends(abstract_config_type) :: kt_grids_single_config_type
      ! namelist : kt_grids_single_parameters
@@ -78,6 +80,7 @@ contains
   subroutine finish_parameters_single
     implicit none
     parameters_read = .false.
+    initialized = .false.
     call kt_grids_single_config%reset()
   end subroutine finish_parameters_single
 
@@ -89,6 +92,9 @@ contains
     use theta_grid, only: drhodpsi
     implicit none
     type(kt_grids_single_config_type), intent(in), optional :: kt_grids_single_config_in
+
+    if(initialized) return
+    initialized = .true.
     
     call read_parameters_single(kt_grids_single_config_in)
 
@@ -153,6 +159,20 @@ contains
     end if
   end subroutine check_kt_grids_single
 
+  !> Set the module level config type
+  !> Will abort if the module has already been initialised to avoid
+  !> inconsistencies.
+  subroutine set_kt_grids_single_config(kt_grids_single_config_in)
+    use mp, only: mp_abort
+    type(kt_grids_single_config_type), intent(in), optional :: kt_grids_single_config_in
+    if (initialized) then
+       call mp_abort("Trying to set kt_grids_single_config when already initialized.", to_screen = .true.)
+    end if
+    if (present(kt_grids_single_config_in)) then
+       kt_grids_single_config = kt_grids_single_config_in
+    end if
+  end subroutine set_kt_grids_single_config
+  
   !---------------------------------------
   ! Following is for the config_type
   !--------------------------------------- 
@@ -276,6 +296,7 @@ module kt_grids_range
   public :: finish_parameters_range
 
   public :: kt_grids_range_config_type  
+  public :: set_kt_grids_range_config
   
   integer :: naky, ntheta0, nn0, n0_min, n0_max
   real :: aky_min, aky_max, theta0_min, theta0_max
@@ -284,6 +305,8 @@ module kt_grids_range
   integer :: kyspacingopt_switch
 
   logical :: parameters_read = .false.
+  logical :: initialized = .false.
+  
   !Note if we ever want to offer different spacing for theta0 we could
   !reuse these flags (rename to spacingopt_...).
   integer, parameter :: kyspacingopt_linear=1, kyspacingopt_exp=2 
@@ -394,6 +417,7 @@ contains
   subroutine finish_parameters_range
     implicit none
     parameters_read = .false.
+    initialized = .false.
     call kt_grids_range_config%reset()
   end subroutine finish_parameters_range
 
@@ -412,6 +436,9 @@ contains
     real :: n0_tmp
     !! Temporary variable for swapping n0_{min,max}
     integer :: n0_swap
+
+    if (initialized) return
+    initialized = .false.
     
     call read_parameters_range(kt_grids_range_config_in)
 
@@ -644,11 +671,23 @@ contains
 
   end subroutine check_kt_grids_range
 
+  !> Set the module level config type
+  !> Will abort if the module has already been initialised to avoid
+  !> inconsistencies.
+  subroutine set_kt_grids_range_config(kt_grids_range_config_in)
+    use mp, only: mp_abort
+    type(kt_grids_range_config_type), intent(in), optional :: kt_grids_range_config_in
+    if (initialized) then
+       call mp_abort("Trying to set kt_grids_range_config when already initialized.", to_screen = .true.)
+    end if
+    if (present(kt_grids_range_config_in)) then
+       kt_grids_range_config = kt_grids_range_config_in
+    end if
+  end subroutine set_kt_grids_range_config   
   
   !---------------------------------------
   ! Following is for the config_type
   !---------------------------------------
-  
   
   !> Reads in the kt_grids_range_parameters namelist and populates the member variables
   subroutine read_kt_grids_range_config(self)
@@ -798,11 +837,13 @@ module kt_grids_specified
   public :: init_kt_grids_specified, specified_get_sizes, specified_get_grids
   public :: check_kt_grids_specified, wnml_kt_grids_specified, finish_parameters_specified
 
-  public :: kt_grids_specified_config_type  
+  public :: kt_grids_specified_config_type 
   public :: kt_grids_specified_element_config_type
+  public :: set_kt_grids_specified_config
   
   integer :: naky, ntheta0, nx, ny
-
+  logical :: initialized = .false.
+  
   !> Used to represent the input configuration of kt_grids_specified
   type, extends(abstract_config_type) :: kt_grids_specified_config_type
      ! namelist : kt_grids_specified_parameters
@@ -862,6 +903,9 @@ contains
     integer :: in_file
     logical :: exist
 
+    if (initialized) return
+    initialized = .true.
+    
     if (present(kt_grids_specified_config_in)) kt_grids_specified_config = kt_grids_specified_config_in
 
     call kt_grids_specified_config%init(name = 'kt_grids_specified_parameters', requires_index = .false.)
@@ -879,6 +923,7 @@ contains
   !> FIXME : Add documentation  
   subroutine finish_parameters_specified
     implicit none
+    initialized = .false.
     call kt_grids_specified_config%reset()
     if(allocated(kt_grids_specified_element_config)) deallocate(kt_grids_specified_element_config)
   end subroutine finish_parameters_specified
@@ -986,6 +1031,25 @@ contains
     end do
   end subroutine check_kt_grids_specified
 
+  !> Set the module level config types
+  !> Will abort if the module has already been initialised to avoid
+  !> inconsistencies.
+  subroutine set_kt_grids_specified_config(kt_grids_specified_config_in, kt_grids_specified_element_config_in)
+    use mp, only: mp_abort
+    type(kt_grids_specified_config_type), intent(in), optional :: kt_grids_specified_config_in
+    type(kt_grids_specified_element_config_type), intent(in), dimension(:), optional :: kt_grids_specified_element_config_in    
+
+    if (initialized) then
+       call mp_abort("Trying to set kt_grids_specified_config when already initialized.", to_screen = .true.)
+    end if
+    if (present(kt_grids_specified_config_in)) then
+       kt_grids_specified_config = kt_grids_specified_config_in
+    end if
+    if (present(kt_grids_specified_element_config_in)) then
+       kt_grids_specified_element_config = kt_grids_specified_element_config_in
+    end if    
+  end subroutine set_kt_grids_specified_config   
+  
   !---------------------------------------
   ! Following is for the config_type
   !--------------------------------------- 
@@ -1204,6 +1268,7 @@ module kt_grids_box
   public :: gryfx
 
   public :: kt_grids_box_config_type
+  public :: set_kt_grids_box_config
   
   real :: ly, y0, x0, rtwist, rhostar_box
   integer :: naky_private, ntheta0_private, nx_private, ny_private
@@ -1212,7 +1277,8 @@ module kt_grids_box
   integer :: naky, ntheta0, nx, ny, nkpolar
   logical :: gryfx
   logical :: parameters_read = .false.
-
+  logical :: initialized = .false.
+  
   !> Used to represent the input configuration of kt_grids_box
   type, extends(abstract_config_type) :: kt_grids_box_config_type
      ! namelist : kt_grids_box_parameters
@@ -1305,6 +1371,7 @@ contains
   subroutine finish_parameters_box
     implicit none
     parameters_read = .false.
+    initialized = .false.
     call kt_grids_box_config%reset()
   end subroutine finish_parameters_box
 
@@ -1320,6 +1387,9 @@ contains
     use mp, only: mp_abort, proc0
     implicit none
     type(kt_grids_box_config_type), intent(in), optional :: kt_grids_box_config_in
+
+    if (initialized) return
+    initialized = .true.
     
     call read_parameters_box(kt_grids_box_config_in)
 
@@ -1327,7 +1397,6 @@ contains
     if (nx==0 .and. ntheta0==0) call mp_abort("ERROR: nx==0 .and. ntheta0==0", .true.) 
 
     if (rhostar_box .gt. 0.0 .and. n0 .gt. 0) y0=1.0/(n0*rhostar_box*drhodpsi)
-
 
     if (gryfx) then
       !WHEN RUNNING IN GRYFX, ONLY EVOLVE ky=0 MODES.
@@ -1570,6 +1639,20 @@ contains
     write (report_unit, fmt="('The modes with ky < 0 are determined by the reality condition.')")
   end subroutine check_kt_grids_box
 
+  !> Set the module level config type
+  !> Will abort if the module has already been initialised to avoid
+  !> inconsistencies.
+  subroutine set_kt_grids_box_config(kt_grids_box_config_in)
+    use mp, only: mp_abort
+    type(kt_grids_box_config_type), intent(in), optional :: kt_grids_box_config_in
+    if (initialized) then
+       call mp_abort("Trying to set kt_grids_box_config when already initialized.", to_screen = .true.)
+    end if
+    if (present(kt_grids_box_config_in)) then
+       kt_grids_box_config = kt_grids_box_config_in
+    end if
+  end subroutine set_kt_grids_box_config
+  
   !---------------------------------------
   ! Following is for the config_type
   !---------------------------------------
@@ -1733,6 +1816,7 @@ module kt_grids
   public :: gryfx
 
   public :: kt_grids_config_type
+  public :: set_kt_grids_config
   
   logical, dimension(:,:), allocatable :: kwork_filter
   real, dimension (:,:,:), allocatable :: kperp2
@@ -1773,6 +1857,7 @@ module kt_grids
   type(kt_grids_config_type) :: kt_grids_config
   
 contains
+
   !> FIXME : Add documentation
   subroutine init_kt_grids_parameters(kt_grids_config_in)
     use theta_grid, only: init_theta_grid
@@ -1808,7 +1893,7 @@ contains
     use kt_grids_specified, only: finish_parameters_specified
     use kt_grids_box, only: finish_parameters_box
     implicit none
-    
+
     call finish_parameters_single
     call finish_parameters_specified    
     call finish_parameters_range
@@ -2066,10 +2151,23 @@ contains
     end select
   end subroutine check_kt_grids
 
+  !> Set the module level config type
+  !> Will abort if the module has already been initialised to avoid
+  !> inconsistencies.
+  subroutine set_kt_grids_config(kt_grids_config_in)
+    use mp, only: mp_abort
+    type(kt_grids_config_type), intent(in), optional :: kt_grids_config_in
+    if (initialized) then
+       call mp_abort("Trying to set kt_grids_config when already initialized.", to_screen = .true.)
+    end if
+    if (present(kt_grids_config_in)) then
+       kt_grids_config = kt_grids_config_in
+    end if
+  end subroutine set_kt_grids_config
+
   !---------------------------------------
   ! Following is for the config_type
-  !---------------------------------------
-  
+  !--------------------------------------- 
   
   !> Reads in the kt_grids_knobs namelist and populates the member variables
   subroutine read_kt_grids_config(self)

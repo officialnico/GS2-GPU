@@ -25,6 +25,7 @@ module gs2_diagnostics
   public :: get_omegaavg
 
   public :: gs2_diagnostics_config_type
+  public :: set_gs2_diagnostics_config
   
   interface get_vol_average
      module procedure get_vol_average_one, get_vol_average_all
@@ -4146,6 +4147,20 @@ contains
     an2 = an2*scale
   end subroutine par_spectrum
 
+  !> Set the module level config type
+  !> Will abort if the module has already been initialised to avoid
+  !> inconsistencies.
+  subroutine set_gs2_diagnostics_config(gs2_diagnostics_config_in)
+    use mp, only: mp_abort
+    type(gs2_diagnostics_config_type), intent(in), optional :: gs2_diagnostics_config_in
+    if (initialized) then
+       call mp_abort("Trying to set gs2_diagnostics_config when already initialized.", to_screen = .true.)
+    end if
+    if (present(gs2_diagnostics_config_in)) then
+       gs2_diagnostics_config = gs2_diagnostics_config_in
+    end if
+  end subroutine set_gs2_diagnostics_config
+  
   !---------------------------------------
   ! Following is for the config_type
   !---------------------------------------

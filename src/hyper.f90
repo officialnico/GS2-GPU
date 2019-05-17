@@ -13,6 +13,7 @@ module hyper
   public :: hypervisc_filter
 
   public :: hyper_config_type
+  public :: set_hyper_config
   
 ! D_v, D_eta are hyper coefficients, normalized correctly 
 ! i.e., either by unity or by 1/k_perp**2*nexp
@@ -629,6 +630,20 @@ contains
     call hyper_config%reset()
   end subroutine finish_hyper
 
+  !> Set the module level config type
+  !> Will abort if the module has already been initialised to avoid
+  !> inconsistencies.
+  subroutine set_hyper_config(hyper_config_in)
+    use mp, only: mp_abort
+    type(hyper_config_type), intent(in), optional :: hyper_config_in
+    if (initialized) then
+       call mp_abort("Trying to set hyper_config when already initialized.", to_screen = .true.)
+    end if
+    if (present(hyper_config_in)) then
+       hyper_config = hyper_config_in
+    end if
+  end subroutine set_hyper_config
+  
   !---------------------------------------
   ! Following is for the config_type
   !---------------------------------------

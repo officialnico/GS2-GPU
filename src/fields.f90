@@ -27,6 +27,7 @@ module fields
   public :: allocate_arrays
 
   public :: fields_config_type
+  public :: set_fields_config
   
   !> FIXME : Add documentation
   interface fieldlineavgphi
@@ -738,6 +739,20 @@ contains
     call fields_config%reset()
   end subroutine finish_fields
 
+  !> Set the module level config type
+  !> Will abort if the module has already been initialised to avoid
+  !> inconsistencies.
+  subroutine set_fields_config(fields_config_in)
+    use mp, only: mp_abort
+    type(fields_config_type), intent(in), optional :: fields_config_in
+    if (initialized) then
+       call mp_abort("Trying to set fields_config when already initialized.", to_screen = .true.)
+    end if
+    if (present(fields_config_in)) then
+       fields_config = fields_config_in
+    end if
+  end subroutine set_fields_config
+  
   !---------------------------------------
   ! Following is for the config_type
   !---------------------------------------

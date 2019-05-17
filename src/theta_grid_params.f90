@@ -16,6 +16,7 @@ module theta_grid_params
   public :: set_overrides
 
   public :: theta_grid_parameters_config_type
+  public :: set_theta_grid_params_config
   
   real :: rhoc, rmaj, r_geo, eps, epsl
   real :: qinp, shat, alpmhd, pk
@@ -563,11 +564,23 @@ contains
     if (mgeo_ov%override_betaprim) betaprim = mgeo_ov%betaprim
   end subroutine set_overrides
 
+  !> Set the module level config type
+  !> Will abort if the module has already been initialised to avoid
+  !> inconsistencies.
+  subroutine set_theta_grid_params_config(theta_grid_parameters_config_in)
+    use mp, only: mp_abort
+    type(theta_grid_parameters_config_type), intent(in), optional :: theta_grid_parameters_config_in
+    if (initialized) then
+       call mp_abort("Trying to set theta_grid_parameters_config when already initialized.", to_screen = .true.)
+    end if
+    if (present(theta_grid_parameters_config_in)) then
+       theta_grid_parameters_config = theta_grid_parameters_config_in
+    end if
+  end subroutine set_theta_grid_params_config
 
   !---------------------------------------
   ! Following is for the config_type
-  !---------------------------------------
-  
+  !--------------------------------------- 
   
   !> Reads in the theta_grid_parameters namelist and populates the member variables
   subroutine read_theta_grid_parameters_config(self)

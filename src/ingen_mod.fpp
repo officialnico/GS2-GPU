@@ -32,6 +32,7 @@ module ingen_mod
   implicit none
 
   public :: ingen_config_type
+  public :: set_ingen_mod_config
   
   character (100) :: pythonin
   integer :: interactive_record, interactive_input
@@ -39,7 +40,8 @@ module ingen_mod
   integer :: in_file, i, unit, is, report_unit, ncut, npmax
   logical :: exist, scan, stdin
   logical :: coll_on = .false.
-
+  logical :: initialized = .false.
+  
   !> FIXME : Add documentation
   type proc_layout_type
     integer :: nproc
@@ -118,16 +120,19 @@ contains
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    use file_utils, only: init_file_utils
     implicit none
     type(ingen_config_type), intent(in), optional :: ingen_config_in
+    logical :: list
     
     call init_mp
 
-    call init_ingen
+    call init_file_utils (list, name="template")
+    call init_ingen(ingen_config_in)
  
     if (debug) write(6,*) 'ingen: call get_namelists'
     
-    call get_namelists(ingen_config_in)
+    call get_namelists
     if (debug) write(6,*) 'ingen: call report'
     call report
     if (debug) write(6,*) 'ingen: call write_namelists'
@@ -142,16 +147,47 @@ contains
   end subroutine run_ingen
 
   !> FIXME : Add documentation  
-  subroutine init_ingen
+  subroutine init_ingen(ingen_config_in)
+    implicit none
+    type(ingen_config_type), intent(in), optional :: ingen_config_in
+    
+    if(initialized) return
+    initialized = .true.
+
+    pythonin = "."//trim(run_name)//".pythonin"
+
+    if (present(ingen_config_in)) ingen_config = ingen_config_in
+
+    call ingen_config%init(name = 'ingen_knobs', requires_index = .false.)
+
+    ! Copy out internal values into module level parameters
+    ncut = ingen_config%ncut
+    npmax = ingen_config%npmax
+    scan = ingen_config%scan
+    stdin = ingen_config%stdin
+
+    exist = ingen_config%exist
+
+    if (debug) write(6,*) 'get_namelists: if (scan), scan=',scan
+    if (scan) then
+       if (.not. stdin) then
+          if (pythonin == "") then
+             write (*,*) 'Need to specify pythonin in ingen_knobs.'
+          end if 
+       end if 
+    end if 
+    
     n_sweet_spots = 0
     npmax=100000
     allocate(sweet_spots(1))
+    
   end subroutine init_ingen
 
   !> FIXME : Add documentation  
   subroutine finish_ingen
-    deallocate(sweet_spots)
+    if(allocated(sweet_spots)) deallocate(sweet_spots)
     call ingen_config%reset()
+    initialized = .false.
   end subroutine finish_ingen
 
   !> FIXME : Add documentation  
@@ -710,7 +746,7 @@ contains
   end subroutine interactive
 
   !> FIXME : Add documentation
-  subroutine get_namelists(ingen_config_in)
+  subroutine get_namelists
 !CMR, 17/11/2009: use gs2_diagnostics module to pick up public variables
 !                 and routines to reduces maintenance of ingen.
 !                 Should replicate this for other modules in future.
@@ -741,35 +777,9 @@ contains
     use le_grids, only: init_le_grids
     use theta_grid, only: init_theta_grid, ntgrid
     implicit none
-    type(ingen_config_type), intent(in), optional :: ingen_config_in
-    logical :: list, accelx=.false., accelv=.false.
+    logical :: accelx=.false., accelv=.false.
     logical, parameter :: debug=.false.
     integer :: is
-    call init_file_utils (list, name="template")
-    if (debug) write(6,*) 'get_namelists: called init_file_utils'
-
-    pythonin = "."//trim(run_name)//".pythonin"
-
-    if (present(ingen_config_in)) ingen_config = ingen_config_in
-
-    call ingen_config%init(name = 'ingen_knobs', requires_index = .false.)
-
-    ! Copy out internal values into module level parameters
-    ncut = ingen_config%ncut
-    npmax = ingen_config%npmax
-    scan = ingen_config%scan
-    stdin = ingen_config%stdin
-
-    exist = ingen_config%exist
-
-    if (debug) write(6,*) 'get_namelists: if (scan), scan=',scan
-    if (scan) then
-       if (.not. stdin) then
-          if (pythonin == "") then
-             write (*,*) 'Need to specify pythonin in ingen_knobs.'
-          end if 
-       end if 
-    end if 
 
     if (debug) write(6,*) 'get_namelists: layouts'
     call init_gs2_layouts
@@ -2382,6 +2392,20 @@ if (debug) write(6,*) 'get_namelists: returning'
     end do
   end subroutine num_runs
 
+  !> Set the module level config type
+  !> Will abort if the module has already been initialised to avoid
+  !> inconsistencies.
+  subroutine set_ingen_mod_config(ingen_config_in)
+    use mp, only: mp_abort
+    type(ingen_config_type), intent(in), optional :: ingen_config_in
+    if (initialized) then
+       call mp_abort("Trying to set ingen_config when already initialized.", to_screen = .true.)
+    end if
+    if (present(ingen_config_in)) then
+       ingen_config = ingen_config_in
+    end if
+  end subroutine set_ingen_mod_config
+  
   !---------------------------------------
   ! Following is for the config_type
   !---------------------------------------

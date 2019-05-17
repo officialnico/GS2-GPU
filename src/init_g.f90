@@ -19,6 +19,7 @@ module init_g
   public :: restart_file
 
   public :: init_g_config_type
+  public :: set_init_g_config
   
   ! knobs
   integer :: ginitopt_switch
@@ -4019,6 +4020,20 @@ contains
     call init_g_config%reset()
   end subroutine finish_init_g
 
+  !> Set the module level config type
+  !> Will abort if the module has already been initialised to avoid
+  !> inconsistencies.
+  subroutine set_init_g_config(init_g_config_in)
+    use mp, only: mp_abort
+    type(init_g_config_type), intent(in), optional :: init_g_config_in
+    if (initialized) then
+       call mp_abort("Trying to set init_g_config when already initialized.", to_screen = .true.)
+    end if
+    if (present(init_g_config_in)) then
+       init_g_config = init_g_config_in
+    end if
+  end subroutine set_init_g_config
+  
   !---------------------------------------
   ! Following is for the config_type
   !---------------------------------------

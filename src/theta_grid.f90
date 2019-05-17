@@ -11,6 +11,7 @@ module theta_grid_gridgen
   public :: wnml_theta_grid_gridgen
 
   public :: theta_grid_gridgen_config_type
+  public :: set_theta_grid_gridgen_config
   
   ! knobs
   integer :: npadd
@@ -241,6 +242,19 @@ if (debug) write(6,*) 'gridgen_get_grids: end'
     call delete_spline (spl)
   end subroutine regrid
 
+  !> Set the module level config type
+  !> Will abort if the module has already been initialised to avoid
+  !> inconsistencies.
+  subroutine set_theta_grid_gridgen_config(theta_grid_gridgen_config_in)
+    use mp, only: mp_abort
+    type(theta_grid_gridgen_config_type), intent(in), optional :: theta_grid_gridgen_config_in
+    if (initialized) then
+       call mp_abort("Trying to set theta_grid_gridgen_config when already initialized.", to_screen = .true.)
+    end if
+    if (present(theta_grid_gridgen_config_in)) then
+       theta_grid_gridgen_config = theta_grid_gridgen_config_in
+    end if
+  end subroutine set_theta_grid_gridgen_config
 
   !---------------------------------------
   ! Following is for the config_type
@@ -373,6 +387,7 @@ module theta_grid_salpha
   public :: salpha_get_grids
 
   public :: theta_grid_salpha_config_type
+  public :: set_theta_grid_salpha_config
   
   ! knobs
   real :: alpmhdfac, alpha1
@@ -861,6 +876,20 @@ contains
     end if
   end subroutine salpha_get_grids
 
+  !> Set the module level config type
+  !> Will abort if the module has already been initialised to avoid
+  !> inconsistencies.
+  subroutine set_theta_grid_salpha_config(theta_grid_salpha_config_in)
+    use mp, only: mp_abort
+    type(theta_grid_salpha_config_type), intent(in), optional :: theta_grid_salpha_config_in
+    if (initialized) then
+       call mp_abort("Trying to set theta_grid_salpha_config when already initialized.", to_screen = .true.)
+    end if
+    if (present(theta_grid_salpha_config_in)) then
+       theta_grid_salpha_config = theta_grid_salpha_config_in
+    end if
+  end subroutine set_theta_grid_salpha_config
+  
   !---------------------------------------
   ! Following is for the config_type
   !--------------------------------------- 
@@ -973,6 +1002,7 @@ module theta_grid_eik
   public :: eik_get_sizes, eik_get_grids
 
   public :: theta_grid_eik_config_type
+  public :: set_theta_grid_eik_config
   
   logical :: exist, initialized = .false.
 
@@ -1819,6 +1849,20 @@ contains
     exist = theta_grid_eik_config%exist
   end subroutine read_parameters
 
+  !> Set the module level config type
+  !> Will abort if the module has already been initialised to avoid
+  !> inconsistencies.
+  subroutine set_theta_grid_eik_config(theta_grid_eik_config_in)
+    use mp, only: mp_abort
+    type(theta_grid_eik_config_type), intent(in), optional :: theta_grid_eik_config_in
+    if (initialized) then
+       call mp_abort("Trying to set theta_grid_eik_config when already initialized.", to_screen = .true.)
+    end if
+    if (present(theta_grid_eik_config_in)) then
+       theta_grid_eik_config = theta_grid_eik_config_in
+    end if
+  end subroutine set_theta_grid_eik_config
+  
   !---------------------------------------
   ! Following is for the config_type
   !---------------------------------------
@@ -2023,6 +2067,7 @@ module theta_grid_file
   public :: ntheta, nperiod, ntgrid, nbset
 
   public :: theta_grid_file_config_type
+  public :: set_theta_grid_file_config
   
   character (2000) :: gridout_file
   real :: shat_input, drhodpsi_input, kxfac_input, qval_input
@@ -2297,6 +2342,20 @@ contains
 
   end subroutine file_get_grids
 
+  !> Set the module level config type
+  !> Will abort if the module has already been initialised to avoid
+  !> inconsistencies.
+  subroutine set_theta_grid_file_config(theta_grid_file_config_in)
+    use mp, only: mp_abort
+    type(theta_grid_file_config_type), intent(in), optional :: theta_grid_file_config_in
+    if (initialized) then
+       call mp_abort("Trying to set theta_grid_file_config when already initialized.", to_screen = .true.)
+    end if
+    if (present(theta_grid_file_config_in)) then
+       theta_grid_file_config = theta_grid_file_config_in
+    end if
+  end subroutine set_theta_grid_file_config
+  
   !---------------------------------------
   ! Following is for the config_type
   !---------------------------------------
@@ -2416,6 +2475,7 @@ module theta_grid
   public :: initialized
 
   public :: theta_grid_config_type
+  public :: set_theta_grid_config
   
   real, dimension (:), allocatable :: theta, theta2, delthet, delthet2
   real, dimension (:), allocatable :: bset
@@ -3003,10 +3063,23 @@ if (debug) write(6,*) 'get_grids: call file_get_grids'
      endif
   end subroutine get_grids
 
+  !> Set the module level config type
+  !> Will abort if the module has already been initialised to avoid
+  !> inconsistencies.
+  subroutine set_theta_grid_config(theta_grid_config_in)
+    use mp, only: mp_abort
+    type(theta_grid_config_type), intent(in), optional :: theta_grid_config_in
+    if (initialized) then
+       call mp_abort("Trying to set theta_grid_config when already initialized.", to_screen = .true.)
+    end if
+    if (present(theta_grid_config_in)) then
+       theta_grid_config = theta_grid_config_in
+    end if
+  end subroutine set_theta_grid_config
+  
   !---------------------------------------
   ! Following is for the config_type
-  !---------------------------------------
-  
+  !--------------------------------------- 
   
   !> Reads in the theta_grid_knobs namelist and populates the member variables
   subroutine read_theta_grid_config(self)

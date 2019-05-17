@@ -36,6 +36,7 @@ module eigval
   public :: time_eigval
 
   public :: eigval_config_type
+  public :: set_eigval_config
   
   !//////////////////
   !Slepc related configuration parameters
@@ -1231,6 +1232,20 @@ contains
     iter_prev=iters
   end function SimpleMonitor
 
+  !> Set the module level config type
+  !> Will abort if the module has already been initialised to avoid
+  !> inconsistencies.
+  subroutine set_eigval_config(eigval_config_in)
+    use mp, only: mp_abort
+    type(eigval_config_type), intent(in), optional :: eigval_config_in
+    if (initialized) then
+       call mp_abort("Trying to set eigval_config when already initialized.", to_screen = .true.)
+    end if
+    if (present(eigval_config_in)) then
+       eigval_config = eigval_config_in
+    end if
+  end subroutine set_eigval_config
+  
   !---------------------------------------
   ! Following is for the config_type
   !--------------------------------------- 

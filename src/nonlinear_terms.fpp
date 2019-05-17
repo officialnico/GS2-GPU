@@ -21,6 +21,7 @@ module nonlinear_terms
   public :: nonlinear_terms_testing
 
   public :: nonlinear_terms_config_type
+  public :: set_nonlinear_terms_config
   
   !> Public type allowing tests to access otherwise-private routines
   type :: nonlinear_terms_testing
@@ -1004,6 +1005,20 @@ contains
     call nonlinear_terms_config%reset()
   end subroutine finish_nonlinear_terms
 
+  !> Set the module level config type
+  !> Will abort if the module has already been initialised to avoid
+  !> inconsistencies.
+  subroutine set_nonlinear_terms_config(nonlinear_terms_config_in)
+    use mp, only: mp_abort
+    type(nonlinear_terms_config_type), intent(in), optional :: nonlinear_terms_config_in
+    if (initialized) then
+       call mp_abort("Trying to set nonlinear_terms_config when already initialized.", to_screen = .true.)
+    end if
+    if (present(nonlinear_terms_config_in)) then
+       nonlinear_terms_config = nonlinear_terms_config_in
+    end if
+  end subroutine set_nonlinear_terms_config
+  
   !---------------------------------------
   ! Following is for the config_type
   !--------------------------------------- 
