@@ -9,6 +9,10 @@ variables:
 standard_tests:
   variables:
     CASENAME: "standard"
+  artifacts:
+    paths:
+      - pfunit.log
+      - pfunit.error
   before_script:
     - BUILD_STATUS=running BUILD_KEY=push ./.push_gitlab_build_status ${CASENAME}
     - apt-get update -qq && apt-get install -y -qq libfftw3-dev libnetcdf-dev libnetcdff-dev netcdf-bin openmpi-bin libopenmpi-dev gfortran cmake
@@ -23,6 +27,10 @@ standard_tests:
 standard_tests_onestep:
   variables:
     CASENAME: "standard_one_step_pp"
+  artifacts:
+    paths:
+      - pfunit.log
+      - pfunit.error
   before_script:
     - BUILD_STATUS=running BUILD_KEY=push ./.push_gitlab_build_status ${CASENAME}
     - apt-get update -qq && apt-get install -y -qq libfftw3-dev libnetcdf-dev libnetcdff-dev netcdf-bin openmpi-bin libopenmpi-dev gfortran cmake

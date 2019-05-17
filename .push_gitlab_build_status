@@ -51,7 +51,7 @@
     ;;
  pfunit_tests_failed)
     BITBUCKET_STATE="FAILED"
-    BITBUCKET_DESCRIPTION="The ${CASENAME} pFUnit tests failed. The output was:\n$(cat pfunit.log)"
+    BITBUCKET_DESCRIPTION="The ${CASENAME} pFUnit tests failed."
     ;;
  esac
 
