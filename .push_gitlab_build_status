@@ -45,6 +45,14 @@
     BITBUCKET_STATE="FAILED"
     BITBUCKET_DESCRIPTION="At least one test build failed."
     ;;
+ build_pfunit_library_failed)
+    BITBUCKET_STATE="FAILED"
+    BITBUCKET_DESCRIPTION="Building the pFUnit library failed."
+    ;;
+ pfunit_tests_failed)
+    BITBUCKET_STATE="FAILED"
+    BITBUCKET_DESCRIPTION="The ${CASENAME} pFUnit tests failed."
+    ;;
  esac
 
  echo "Pushing status to $BITBUCKET_STATUS_API..."
