@@ -238,10 +238,10 @@ type initial_values_overrides_type
   !! being taken from the input files).
   logical :: override = .false.
   logical :: force_maxwell_reinit = .true.
-  complex, dimension (:,:,:), pointer :: phi
-  complex, dimension (:,:,:), pointer :: apar
-  complex, dimension (:,:,:), pointer :: bpar
-  complex, dimension (:,:,:), pointer :: g
+  complex, dimension (:,:,:), allocatable :: phi
+  complex, dimension (:,:,:), allocatable :: apar
+  complex, dimension (:,:,:), allocatable :: bpar
+  complex, dimension (:,:,:), allocatable :: g
 end type initial_values_overrides_type
 
 contains
@@ -268,10 +268,6 @@ subroutine init_initial_values_overrides(overrides_obj, ntgrid, ntheta0, naky, g
   if (overrides_obj%init) return
   overrides_obj%init = .true.
   overrides_obj%override = .false.
-  !overrides_obj%override_phi = .false.
-  !overrides_obj%override_apar = .false.
-  !overrides_obj%override_bpar = .false.
-  !overrides_obj%override_g = .false.
   overrides_obj%force_maxwell_reinit = force_maxwell_reinit
   overrides_obj%in_memory = in_memory
 
@@ -280,7 +276,7 @@ subroutine init_initial_values_overrides(overrides_obj, ntgrid, ntheta0, naky, g
     & segmentation faults."
   if (overrides_obj%in_memory) then 
     allocate(overrides_obj%g(-ntgrid:ntgrid,2,g_llim:g_ulim), stat=iostat)
-    if (overrides_obj%force_maxwell_reinit) then 
+    if (.not.overrides_obj%force_maxwell_reinit) then 
       if (iostat.eq.0) allocate(overrides_obj%phi(-ntgrid:ntgrid,ntheta0,naky), stat=iostat)
       if (iostat.eq.0) allocate(overrides_obj%apar(-ntgrid:ntgrid,ntheta0,naky), stat=iostat)
       if (iostat.eq.0) allocate(overrides_obj%bpar(-ntgrid:ntgrid,ntheta0,naky), stat=iostat)
@@ -288,10 +284,10 @@ subroutine init_initial_values_overrides(overrides_obj, ntgrid, ntheta0, naky, g
     if (iostat.ne.0) then
       overrides_obj%in_memory = .false.
       write(error_unit(),*) "WARNING: could not allocate memory for initial_values_overrides. Only restart from file possible (manual setting of initial values not possible)"
-      if (associated(overrides_obj%g)) deallocate(overrides_obj%g)
-      if (associated(overrides_obj%phi)) deallocate(overrides_obj%phi)
-      if (associated(overrides_obj%apar)) deallocate(overrides_obj%apar)
-      if (associated(overrides_obj%bpar)) deallocate(overrides_obj%bpar)
+      if (allocated(overrides_obj%g)) deallocate(overrides_obj%g)
+      if (allocated(overrides_obj%phi)) deallocate(overrides_obj%phi)
+      if (allocated(overrides_obj%apar)) deallocate(overrides_obj%apar)
+      if (allocated(overrides_obj%bpar)) deallocate(overrides_obj%bpar)
     end if
   end if
 end subroutine init_initial_values_overrides
@@ -305,19 +301,11 @@ subroutine finish_initial_values_overrides(overrides_obj)
   end if
   overrides_obj%init = .false.
   overrides_obj%override = .false.
-  !overrides%override_phi = .false.
-  !overrides%override_apar = .false.
-  !overrides%override_bpar = .false.
-  !overrides%override_g = .false.
   overrides_obj%force_maxwell_reinit = .true.
-  if (overrides_obj%in_memory) then 
-    deallocate(overrides_obj%g)
-    if (overrides_obj%force_maxwell_reinit) then 
-      deallocate(overrides_obj%phi)
-      deallocate(overrides_obj%apar)
-      deallocate(overrides_obj%bpar)
-    end if
-  end if
+  if (allocated(overrides_obj%g)) deallocate(overrides_obj%g)
+  if (allocated(overrides_obj%phi)) deallocate(overrides_obj%phi)
+  if (allocated(overrides_obj%apar)) deallocate(overrides_obj%apar)
+  if (allocated(overrides_obj%bpar)) deallocate(overrides_obj%bpar)
 end subroutine finish_initial_values_overrides
 
 end module overrides
