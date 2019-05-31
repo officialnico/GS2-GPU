@@ -445,10 +445,6 @@ subroutine init_initial_values_overrides(overrides_obj, ntgrid, ntheta0, naky, g
   if (overrides_obj%init) return
   overrides_obj%init = .true.
   overrides_obj%override = .false.
-  !overrides_obj%override_phi = .false.
-  !overrides_obj%override_apar = .false.
-  !overrides_obj%override_bpar = .false.
-  !overrides_obj%override_g = .false.
   overrides_obj%force_maxwell_reinit = force_maxwell_reinit
   overrides_obj%in_memory = in_memory
 
@@ -483,10 +479,10 @@ subroutine finish_initial_values_overrides(overrides_obj)
   overrides_obj%init = .false.
   overrides_obj%override = .false.
   overrides_obj%force_maxwell_reinit = .true.
-  if(allocated(overrides_obj%g)) deallocate(overrides_obj%g)
-  if(allocated(overrides_obj%phi)) deallocate(overrides_obj%phi)
-  if(allocated(overrides_obj%apar)) deallocate(overrides_obj%apar)
-  if(allocated(overrides_obj%bpar)) deallocate(overrides_obj%bpar)     
+  if (allocated(overrides_obj%g)) deallocate(overrides_obj%g)
+  if (allocated(overrides_obj%phi)) deallocate(overrides_obj%phi)
+  if (allocated(overrides_obj%apar)) deallocate(overrides_obj%apar)
+  if (allocated(overrides_obj%bpar)) deallocate(overrides_obj%bpar)
 end subroutine finish_initial_values_overrides
 
 end module overrides
