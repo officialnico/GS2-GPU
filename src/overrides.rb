@@ -260,6 +260,7 @@ contains
 !! or overrides%in_memory after calling this function
 subroutine init_initial_values_overrides(overrides_obj, ntgrid, ntheta0, naky, g_llim, g_ulim, force_maxwell_reinit, in_memory)
   use file_utils, only: error_unit
+  use mp, only: proc0
   implicit none
   type(initial_values_overrides_type), intent(inout) :: overrides_obj
   integer, intent(in) :: ntgrid, ntheta0, naky, g_llim, g_ulim
@@ -271,7 +272,7 @@ subroutine init_initial_values_overrides(overrides_obj, ntgrid, ntheta0, naky, g
   overrides_obj%force_maxwell_reinit = force_maxwell_reinit
   overrides_obj%in_memory = in_memory
 
-  write (error_unit(), *) "INFO: changing force_maxwell_reinit or in_memory &
+  if (proc0) write (error_unit(), *) "INFO: changing force_maxwell_reinit or in_memory &
     & after calling initial_values_overrides_type will almost certainly cause &
     & segmentation faults."
   if (overrides_obj%in_memory) then 
@@ -283,7 +284,7 @@ subroutine init_initial_values_overrides(overrides_obj, ntgrid, ntheta0, naky, g
     end if
     if (iostat.ne.0) then
       overrides_obj%in_memory = .false.
-      write(error_unit(),*) "WARNING: could not allocate memory for initial_values_overrides. Only restart from file possible (manual setting of initial values not possible)"
+      if (proc0) write(error_unit(),*) "WARNING: could not allocate memory for initial_values_overrides. Only restart from file possible (manual setting of initial values not possible)"
       if (allocated(overrides_obj%g)) deallocate(overrides_obj%g)
       if (allocated(overrides_obj%phi)) deallocate(overrides_obj%phi)
       if (allocated(overrides_obj%apar)) deallocate(overrides_obj%apar)
@@ -293,10 +294,11 @@ subroutine init_initial_values_overrides(overrides_obj, ntgrid, ntheta0, naky, g
 end subroutine init_initial_values_overrides
 
 subroutine finish_initial_values_overrides(overrides_obj)
+  use mp, only: proc0
   implicit none
   type(initial_values_overrides_type), intent(inout) :: overrides_obj
   if (.not. overrides_obj%init) then
-    write (*,*) "WARNING: Called finish_initial_values_overrides on an uninitialized object"
+    if (proc0) write (*,*) "WARNING: Called finish_initial_values_overrides on an uninitialized object"
     return 
   end if
   overrides_obj%init = .false.
