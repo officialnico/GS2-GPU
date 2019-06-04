@@ -132,7 +132,8 @@ module leq
     procedure, nopass :: set_bish_arrays
     procedure, nopass :: eqdcart
     procedure, nopass :: eqdbish
-    procedure, nopass :: alloc_arrays, dealloc_arrays
+    procedure, nopass :: alloc_arrays
+    procedure, nopass :: dealloc_arrays    
     procedure, nopass :: set_surf
   end type leq_testing_type
 
