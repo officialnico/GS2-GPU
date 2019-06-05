@@ -24,7 +24,7 @@ program time_timestep
   ! Set up depenencies
   call init_mp
 
-  call announce_module_test('time_timestep')  
+  if (proc0) call announce_module_test('time_timestep')  
 
   state%mp_comm_external = .true.
   state%mp_comm = mp_comm
@@ -50,7 +50,7 @@ program time_timestep
   call init(state%init, init_level_list%basic)
   call finalize_gs2(state)
 
-  call close_module_test('time_timestep')
+  if (proc0) call close_module_test('time_timestep')
 
   call finish_mp
 
