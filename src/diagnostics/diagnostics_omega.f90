@@ -115,7 +115,14 @@ contains
     real :: fac
     integer :: j
 
-    if (debug) write(6,*) "get_omeaavg: start"
+    ! Avoid calculation of omega in nonlinear calculations.
+    ! Note we rely on omega_average and related arrays being
+    ! initialised elsewhere.
+    if (eqzip .or. (.not.nonlin)) then
+       if (debug) write(6,*) "get_omeaavg: start"
+    else
+       return
+    endif
     
     j = gnostics%igomega
     if(gnostics%omegatol.eq.0)then
