@@ -109,6 +109,8 @@ contains
     use gs2_time, only: code_dt
     use constants, only: zi
     use diagnostics_config, only: diagnostics_type
+    use run_parameters, only: eqzip
+    use nonlinear_terms, only: nonlin
     use mp, only: proc0
     implicit none
     type(diagnostics_type), intent(inout) :: gnostics
