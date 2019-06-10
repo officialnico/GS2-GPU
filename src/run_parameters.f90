@@ -244,7 +244,6 @@ contains
     namelist /parameters/ beta, zeff, tite, teti, k0, rhostar, user_comments
     namelist /knobs/ fphi, fapar, fbpar, delt, nstep, wstar_units, eqzip, &
          delt_option, margin, secondary, tertiary, faperp, harris, &
-!         avail_cpu_time, eqzip_option, include_lowflow, neo_test
          avail_cpu_time, margin_cpu_time, eqzip_option, neo_test, &
          trinity_linear_fluxes, do_eigsolve, immediate_reset, &
          use_old_diagnostics,  trinity_ql_fluxes
@@ -258,6 +257,8 @@ contains
        user_comments = ''
        k0 = 1.
 
+       fphi  =  1.0
+       fapar =  0.0
        fbpar = -1.0
        faperp = 0.0
 

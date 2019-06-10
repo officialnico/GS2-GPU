@@ -24,7 +24,7 @@ module deq
   real, allocatable, dimension (:) :: psi_bar, fp, qsf, pressure, beta, spsi_bar
   real, allocatable, dimension (:) :: dummy, dfit_R, dfit_Z, sdfit_R, sdfit_Z
   real, allocatable, dimension (:) :: rho_mid, psi_mid
-  real, allocatable, dimension (:,:) :: dfit_psi, sdfit_psi
+  real, allocatable, dimension (:,:) :: dfit_psi
   real, allocatable, dimension (:,:,:) :: dpm, dtm
   real, allocatable, dimension (:) :: rbbbs, zbbbs, thetab, r_bound !boundary of plasma
 
@@ -70,8 +70,6 @@ contains
     real :: rwid, zhei
     real :: bcentr
     real :: delta_R, delta_Z
-!    real :: fitp_surf2, ierr, rleft, zxy11, zxy1n, zxym1, zxymn
-!    real, dimension(:), allocatable :: temp, zp, zx1, zxm, zy1, zyn
     character(80) :: filename
     
     integer :: i, j, init, nhb, nwb
@@ -80,7 +78,7 @@ contains
     data init /1/
     save init
     
-! Need to generalize initialization condition if equilibrium changes
+    ! Need to generalize initialization condition if equilibrium changes
 
     if(initeq == 0) return
     init=0
@@ -89,12 +87,9 @@ contains
     filename = eqfile(1:i)
     open(unit=5,file=filename,status='old',form='formatted')
     
-! Read the data
+    ! Read the data
 
     read(5,*) nw, nh, nrho
-
-!    nwb = nw * big
-!    nhb = nh * big
 
     nwb = nw 
     nhb = nh 
@@ -104,11 +99,11 @@ contains
     read(5,2020) rwid, zhei
     read(5,2020) R_mag, Z_mag
     read(5,2020) psi_0, psi_a, bcentr
-!
-! pbar is defined by
-! pbar = (psi-psi_0)/(psi_a-psi_0)
-! fp and q are functions of pbar
-!
+    !
+    ! pbar is defined by
+    ! pbar = (psi-psi_0)/(psi_a-psi_0)
+    ! fp and q are functions of pbar
+    !
     do i=1,nw
        spsi_bar(i) = float(i) / float(nw)
        sdfit_R(i) = rwid * float(i) / float(nw)
@@ -130,23 +125,6 @@ contains
     read(5,2020) (dummy(j), j = 1, nw)  ! pressure read
     call inter_cspl(nw, spsi_bar, dummy, nwb, psi_bar, pressure)
     read(5,2020) ((dfit_psi(i,j) , i = 1, nw) , j = 1, nh)
-!    read(5,2020) ((sdfit_psi(i,j) , i = 1, nw) , j = 1, nh)
-
-!    allocate(zp(3*nw*nh), temp(nw+2*nh))
-!    allocate(zx1(nh), zxm(nh), zy1(nw), zyn(nw))
-
-!    call fitp_surf1(nw, nh, sdfit_R, sdfit_Z, sdfit_psi, &
-!         nw, zx1, zxm, zy1, zyn, zxy11, zxym1, zxy1n, zxymn, &
-!         255, zp, temp, 1., ierr)
-
-    do j = 1, nhb
-       do i = 1, nwb
-!          dfit_psi(i,j) = fitp_surf2(dfit_R(i), dfit_Z(j), nw, nh, &
-!               sdfit_R, sdfit_Z, sdfit_psi, nw, zp, 1.)
-       enddo
-    enddo
-      
-!    deallocate(zp, temp)
 
     read (5,2020) (rho_mid(i), i=1,nrho)
     read (5,2020) (psi_mid(i), i=1,nrho)
@@ -159,7 +137,7 @@ contains
 
     nbbbs = 2*(nw+nh)-5
 
-! stay away from edge of box
+    ! stay away from edge of box
     delta_R = 1.02 ; delta_Z = 1.02
     
     allocate(rbbbs(nbbbs), zbbbs(nbbbs), thetab(nbbbs), r_bound(nbbbs))
@@ -204,15 +182,13 @@ contains
        end if
     end do
 
-! get r_boundary(theta)
-
+    ! get r_boundary(theta)
     thetab = atan2 ((zbbbs-Z_mag), (rbbbs-R_mag))
     r_bound = sqrt( (rbbbs - R_mag)**2 + (zbbbs - Z_mag)**2 )
 
     call sort(thetab, r_bound, zbbbs, rbbbs)
 
-! Allow for duplicated points near +- pi:
-
+    ! Allow for duplicated points near +- pi:
     if(thetab(1) == thetab(2)) then
        thetab(1) = thetab(1) + twopi
        call sort(thetab, r_bound, zbbbs, rbbbs)
@@ -223,9 +199,8 @@ contains
        call sort(thetab, r_bound, zbbbs, rbbbs)
     endif
 
-! It isn't likely that a duplicate point would exist near theta = 0, 
-! so I am not allowing this possibility for now.
-
+    ! It isn't likely that a duplicate point would exist near theta = 0, 
+    ! so I am not allowing this possibility for now.
     do i=1,nbbbs-1
        if(thetab(i) == thetab(i+1)) then
           write(*,*) 'Duplicates near theta = 0 not allowed.'
@@ -245,14 +220,11 @@ contains
 
     R_mag = R_mag / aminor
     Z_mag = Z_mag / aminor
-!    rleft = rleft / aminor
-!    rwid = rwid / aminor
-!    zhei = zhei / aminor
+
     dfit_R = dfit_R / aminor
     dfit_Z = dfit_Z / aminor
     
-! should rmaj be R_mag? use R_mag for now.  
-
+    ! should rmaj be R_mag? use R_mag for now.  
     rmaj = R_mag
     B_T0 = abs(bcentr)
     B_T = B_T0
@@ -264,8 +236,7 @@ contains
 
     fp = fp / (B_T0*aminor)
 
-! MKS: beta = 2 mu_0 p / B**2
-
+    ! MKS: beta = 2 mu_0 p / B**2
     beta = 8. * pi * pressure * 1.e-7 / B_T0**2
     beta_0 = beta(1)
 
@@ -302,6 +273,8 @@ contains
   end subroutine dfit_init
 
   !> FIXME : Add documentation
+  !! DFIT grid is equally spaced in R, Z -- this routine uses that fact and 
+  !! is therefore not completely general.  It is fine for DFIT output.    
   subroutine tderm(f, dfm)
     use constants, only: pi
     implicit none
@@ -309,9 +282,6 @@ contains
     real, dimension(:,:,:), intent(out) :: dfm
     integer :: i, j
     
-! DFIT grid is equally spaced in R, Z -- this routine uses that fact and 
-! is therefore not completely general.  It is fine for DFIT output.    
-
     i=1
     dfm(i,:,1) = -0.5*(3*f(i,:)-4*f(i+1,:)+f(i+2,:))/dfit_dR
     
@@ -341,14 +311,13 @@ contains
   end subroutine tderm
 
   !> FIXME : Add documentation
+  !! DFIT grid is equally spaced in R, Z -- this routine uses that fact and 
+  !! is therefore not completely general.  It is fine for DFIT output.    
   subroutine derm(f, dfm)
     implicit none
     real, dimension(:,:), intent(in) :: f
     real, dimension(:,:,:), intent(out) :: dfm
     integer :: i, j
-    
-! DFIT grid is equally spaced in R, Z -- this routine uses that fact and 
-! is therefore not completely general.  It is fine for DFIT output.    
 
     i=1
     dfm(i,:,1) = -0.5*(3*f(i,:)-4*f(i+1,:)+f(i+2,:))/dfit_dR
@@ -390,7 +359,7 @@ contains
        call eqitem(rgrid(i), theta(i), dpm(:,:,2), grad(i,2))
     enddo
 
-!     to get grad(pressure), multiply grad(psi) by dpressure/dpsi
+    !     to get grad(pressure), multiply grad(psi) by dpressure/dpsi
 
     if(char == 'R') then
        rpt(1) = rp
@@ -436,7 +405,7 @@ contains
        grad(i,2)=tmp(2)
     enddo
 
-!     to get grad(pressure), multiply grad(psi) by dpressure/dpsi
+    !     to get grad(pressure), multiply grad(psi) by dpressure/dpsi
 
     if(char == 'R') then
        rpt(1) = rp
@@ -462,7 +431,7 @@ contains
     r_pos = Rpos(r, thetin)
     z_pos = Zpos(r, thetin)
 
-! find point on R mesh
+    ! find point on R mesh
 
     if(r_pos >= dfit_R(nw) .or. r_pos <= dfit_R(1)) then
        write(*,*) 'No evaluation of eqitem allowed outside'
@@ -471,7 +440,7 @@ contains
        call mp_abort('No evaluation of eqitem allowed outside or on edge of R domain')
     endif
 
-! ensure point is on Z mesh
+    ! ensure point is on Z mesh
 
     if(z_pos >= dfit_Z(nh) .or. z_pos <= dfit_Z(1)) then
        write(*,*) 'No evaluation of eqitem allowed outside'
@@ -490,7 +459,7 @@ contains
        endif
     enddo
       
-! Now do Z direction
+    ! Now do Z direction
 
     jstar=0
     do j=1,nh
@@ -502,7 +471,7 @@ contains
        endif
     enddo
       
-! use opposite area stencil to interpolate
+    ! use opposite area stencil to interpolate
 
     fstar=f(istar    , jstar    ) * sr * st &
          +f(istar + 1, jstar    ) * dr * st &
@@ -511,12 +480,6 @@ contains
     fstar = fstar &
          /abs(dfit_R(istar+1)-dfit_R(istar)) &
          /(dfit_Z(jstar+1)-dfit_Z(jstar))
-!     write(*,*) i, dr, dt, sr, st
-!     write(*,*) f(istar,jstar+1),f(istar+1,jstar+1)
-!     write(*,*) f(istar,jstar),f(istar+1,jstar)
-!     write(*,*) dfit_R(istar),dfit_R(istar+1)
-!     write(*,*) dfit_Z(jstar),dfit_Z(jstar+1)
-
   end subroutine eqitem
 
   !> FIXME : Add documentation  
@@ -767,7 +730,6 @@ contains
     allocate (psi_bar(np), fp(np), qsf(np), pressure(np), beta(np))
     allocate (dummy(nws), dfit_R(nw), dfit_Z(nh))
     allocate (spsi_bar(nws), sdfit_R(nws), sdfit_Z(nhs))
-!  allocate (dfit_psi(nw, nh), sdfit_psi(nws, nhs))
     allocate (dfit_psi(nw, nh))
     allocate (dpm(nw, nh, 2), dtm(nw, nh, 2))
 

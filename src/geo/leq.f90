@@ -1,4 +1,23 @@
-!> FIXME : Add documentation
+!> Analytic local equilibria via generalised forms of the Miller model
+!!
+!! Justin Ball's MIT Masters thesis and/or ["GS2 analytic geometry
+!! specification"](https://bitbucket.org/gyrokinetics/wikifiles/raw/master/JRB/GS2GeoDoc.pdf)
+!! provide a good overview of how this module works.
+!!
+!! There are four equilibrium models in this module:
+!!
+!! 1. generalised Miller
+!! 2. global MHD
+!! 3. generalised elongation
+!! 4. Fourier
+!!
+!! These can be chosen via the `geoType` input parameter (`0-4`,
+!! respectively)
+!!
+!! All of these models allow you to specify the amplitudes of two
+!! shaping modes, along with their phases and radial derivatives. The
+!! generalised elongation and Fourier models also allow you to specify
+!! the exact mode numbers.
 module leq
   implicit none
 
@@ -8,49 +27,201 @@ module leq
   public :: invR, Rpos, Zpos, diameter, btori, dbtori, qfun, pfun
   public :: dpfun, betafun, psi, rcenter, dpdrhofun
 
-  integer :: nr, nt
+  public :: leq_testing_type
+
+  !> Number of radial grid points
+  !!
+  !! Unconditionally always set to 3?
+  integer :: nr
+  !> Number of theta grid points
+  integer :: nt
 
   real, allocatable, dimension (:)     :: eqpsi, fp, beta, pressure
   real, allocatable, dimension (:,:)   :: R_psi, Z_psi
-  real, allocatable, dimension (:,:,:) :: drm, dzm, dbtm, dpm, dtm
-  real, allocatable, dimension (:,:,:) :: dpcart, dtcart, dbtcart
-  real, allocatable, dimension (:,:,:) :: dpbish, dtbish, dbtbish
 
+  ! The following quantities represent changes between adjacent grid
+  ! points. The first two dimensions are minor radius and theta,
+  ! respectively. The last dimension is the difference along either
+  ! the (minor) radial or theta directions, respectively
+
+  !> Major radius differences on theta, minor radius grids
+  real, allocatable, dimension (:,:,:) :: drm
+  !> Vertical differences on theta, minor radius grids
+  real, allocatable, dimension (:,:,:) :: dzm
+  !> Magnetic field magnitude differences on theta, minor radius grids
+  real, allocatable, dimension (:,:,:) :: dbtm
+  !> Minor radius differences on theta, minor radius grids, note: `dpm(:,:,2) == 0.0`
+  real, allocatable, dimension (:,:,:) :: dpm
+  !> Theta differences on theta, minor radius grids, note: `dtm(:,:,1) == 0.0`
+  real, allocatable, dimension (:,:,:) :: dtm
+  !> Minor radius gradient in cylindrical coordinates \((\hat{e}_R, \hat{e}_Z, \hat{e}_\zeta)\)
+  real, allocatable, dimension (:,:,:) :: dpcart
+  !> Theta gradient in cylindrical coordinates \((\hat{e}_R, \hat{e}_Z, \hat{e}_\zeta)\)
+  real, allocatable, dimension (:,:,:) :: dtcart
+  !> Magnetic field magnitude gradient in cylindrical coordinates \((\hat{e}_R, \hat{e}_Z, \hat{e}_\zeta)\)
+  real, allocatable, dimension (:,:,:) :: dbtcart
+  !> Minor radius gradient in Bishop coordinates \((\hat{e}_{r_\psi}, \hat{e}_l, \hat{e}_\zeta)\)
+  real, allocatable, dimension (:,:,:) :: dpbish
+  !> Theta gradient in Bishop coordinates \((\hat{e}_{r_\psi}, \hat{e}_l, \hat{e}_\zeta)\)
+  real, allocatable, dimension (:,:,:) :: dtbish
+  !> Magnetic field magnitude gradient in Bishop coordinates \((\hat{e}_{r_\psi}, \hat{e}_l, \hat{e}_\zeta)\)
+  real, allocatable, dimension (:,:,:) :: dbtbish
+
+  !> FIXME : Add documentation
   real :: beta_0
+
+  !> Used to translate definition of the poloidal angle such that the location
+  !> of the maximium magnetic field is at pi (see section 3.2.3 of Ball MIT
+  !> Masters thesis or section 2.4 of "GS2 analytic geometry specification")
   real :: thetaShift
 
-  !> FIXME : Add documentation  
+  !> Private helper type to wrap up some module-level variables
   type :: flux_surface
-     real :: Rmaj, Rgeo, r, dr, aSurf, sHorz, sVert, delm, deln, delmp, delnp, thm, thn, q, shat
-     integer :: nt, geoType, mMode, nMode
+     !> Flux surface major radius, \(R_{0N}\), input variable: `Rmaj`
+     real :: Rmaj
+     !> Location of reference magnetic field, \(R_{geoN}\), input variable: `R_geo`
+     real :: Rgeo
+     !> Minor radius, \(r_{\psi N}\), input variable: `rhoc`
+     real :: r
+     !> Step size for radial derivatives, \(\Delta r_{\psi N}\), input variable: `delrho`
+     real :: dr
+     !> Minor radius of shaping surface, \(a_{\psi N}\), input variable: `aSurf`
+     real :: aSurf
+     !> Horizontal Shafranov shift, \(dR_{0N}/dr_{\psi N}\), input variable: `shift`, `Raxis`
+     real :: sHorz
+     !> Vertical Shafranov shift, \(dZ_{0N}/dr_{\psi N}\), input variable: `shiftVert`, `Zaxis`
+     real :: sVert
+     !> First shaping mode strength, \(\Delta_m\), input variable: `akappa`, `delta2`, `deltam`
+     real :: delm
+     !> Second shaping mode strength, \(\Delta_n\), input variable: `tri`, `delta3`, `deltan`
+     real :: deln
+     !> First shaping mode derivative, \(d\Delta_m/dr_{\psi N}\), input variable: `akappri`, `deltampri`
+     real :: delmp
+     !> Second shaping mode derivative, \(d\Delta_n/dr_{\psi N}\), input variable: `tripri`, `deltanpri`
+     real :: delnp
+     !> First shaping mode tilt angle, \(\theta_m\), input variable: `thetak`, `theta2`, `thetam`
+     real :: thm
+     !> Second shaping mode tilt angle, \(\theta_n\), input variable: `thetad`, `theta2`, `thetan`
+     real :: thn
+     !> Safety factor, \(q\), input variable: `qinp`
+     real :: q
+     !> Magnetic shear, \(\hat{s}\), input variable: `s_hat_input`
+     real :: shat
+     !> Number of points in theta, input variable: `ntheta(nperiod - 1/2)`
+     integer :: nt
+     !> Geometry specification type, input variable: `geoType`
+     integer :: geoType
+     !> The first poloidal mode number, input variable: `mMode`
+     integer :: mMode
+     !> The second poloidal mode number, input variable: `nMode`
+     integer :: nMode
   end type flux_surface
 
   type (flux_surface) :: surf
 
+  !> Expose private routines for testing only!
+  type :: leq_testing_type
+  contains
+    procedure, nopass :: mod2pi
+    procedure, nopass :: derm
+    procedure, nopass :: set_ntnr
+    procedure, nopass :: set_drm
+    procedure, nopass :: set_dzm
+    procedure, nopass :: set_dpcart
+    procedure, nopass :: set_cart_arrays
+    procedure, nopass :: set_bish_arrays
+    procedure, nopass :: eqdcart
+    procedure, nopass :: eqdbish
+    procedure, nopass :: alloc_arrays
+    procedure, nopass :: dealloc_arrays    
+    procedure, nopass :: set_surf
+  end type leq_testing_type
+
 contains
   
-  !> FIXME : Add documentation  
-  subroutine leqin(geoType, Rmaj, Rgeo, r, dr, aSurf, sHorz, sVert, mMode, nMode, delm, deln, delmp, delnp, thm, thn, q, shat, nt_used, thShift)
+  !> Set module-level `surf`
+  !! PURELY FOR TESTING
+  !! FIXME: Remove when we have more control over module-level variables for testing
+  subroutine set_surf(Rmaj, Rgeo, r, dr, aSurf, sHorz, sVert, &
+       delm, deln, delmp, delnp, thm, thn, q, shat, nt, geoType, mMode, nMode)
+     real, intent(in) :: Rmaj, Rgeo, r, dr, aSurf, sHorz, sVert,&
+          delm, deln, delmp, delnp, thm, thn, q, shat
+     integer, intent(in) :: nt, geoType, mMode, nMode
+
+     surf = flux_surface(Rmaj, Rgeo, r, dr, aSurf, sHorz, sVert, &
+       delm, deln, delmp, delnp, thm, thn, q, shat, nt, geoType, mMode, nMode)
+  end subroutine set_surf
+
+  !> Set module-level `nt`, `nr`
+  !! PURELY FOR TESTING
+  !! FIXME: Remove when we have more control over module-level variables for testing
+  subroutine set_ntnr(ntheta, nradius)
+    integer, intent(in) :: ntheta, nradius
+    nt = ntheta
+    nr = nradius
+  end subroutine set_ntnr
+
+  !> Set module-level `drm`
+  !! PURELY FOR TESTING
+  !! FIXME: Remove when we have more control over module-level variables for testing
+  subroutine set_drm(drm_in)
+    real, dimension(nr,-nt:nt,2), intent(in) :: drm_in
+    drm = drm_in
+  end subroutine set_drm
+
+  !> Set module-level `dzm`
+  !! PURELY FOR TESTING
+  !! FIXME: Remove when we have more control over module-level variables for testing
+  subroutine set_dzm(dzm_in)
+    real, dimension(nr,-nt:nt,2), intent(in) :: dzm_in
+    dzm = dzm_in
+  end subroutine set_dzm
+
+  !> Set module-level dpcart
+  !! PURELY FOR TESTING
+  !! FIXME: Remove when we have more control over module-level variables for testing
+  subroutine set_dpcart(dpcart_in)
+    real, dimension(nr,-nt:nt,2), intent(in) :: dpcart_in
+    dpcart = dpcart_in
+  end subroutine set_dpcart
+
+  !> Set module-level dpcart, dbtcart and dtcart
+  !! PURELY FOR TESTING
+  !! FIXME: Remove when we have more control over module-level variables for testing
+  subroutine set_cart_arrays(dpcart_in, dbtcart_in, dtcart_in)
+    real, dimension(nr,-nt:nt,2), intent(in) :: dpcart_in
+    real, dimension(nr,-nt:nt,2), intent(in) :: dbtcart_in
+    real, dimension(nr,-nt:nt,2), intent(in) :: dtcart_in
+    dpcart = dpcart_in
+    dbtcart = dbtcart_in
+    dtcart = dtcart_in
+  end subroutine set_cart_arrays
+
+  !> Set module-level dpbish, dbtbish and dtbish
+  !! PURELY FOR TESTING
+  !! FIXME: Remove when we have more control over module-level variables for testing
+  subroutine set_bish_arrays(dpbish_in, dbtbish_in, dtbish_in)
+    real, dimension(nr,-nt:nt,2), intent(in) :: dpbish_in
+    real, dimension(nr,-nt:nt,2), intent(in) :: dbtbish_in
+    real, dimension(nr,-nt:nt,2), intent(in) :: dtbish_in
+    dpbish = dpbish_in
+    dbtbish = dbtbish_in
+    dtbish = dtbish_in
+  end subroutine set_bish_arrays
+
+  !> Set module-level parameters and initialise the leq module
+  !!
+  !! Note: in contrast to the other geometry modules, this also calls
+  !! `leq_init`, whereas others have separate `Xeqin` and `Xeq_init`
+  !! procedures
+  subroutine leqin(geoType, Rmaj, Rgeo, r, dr, aSurf, sHorz, sVert, mMode, nMode, &
+       delm, deln, delmp, delnp, thm, thn, q, shat, nt_used, thShift)
     implicit none
-    real, intent(in) :: Rmaj, Rgeo, r, dr, aSurf, sHorz, sVert, delm, deln, delmp, delnp, thm, thn, q, shat
+    real, intent(in) :: Rmaj, Rgeo, r, dr, aSurf, sHorz, sVert, delm, deln, &
+         delmp, delnp, thm, thn, q, shat
     real, intent(in) :: thShift
     integer, intent(in) :: nt_used, geoType, mMode, nMode
 
-!R0   3.1601153788426086        3.0818707511680938        1.3431053933541011
-!      0.10381317967192064        3.3317843820181277E-002   8.0267210436786265E-002
-!  0.37777777777777777        1.0000000000000000E-003  -4.6851042901036040E-002
-!   1.0642542534450539       0.32875578050587551        0.0000000000000000        0.0000000000000000                4
-!f R0   3.1601153788426086        3.0818707511680938        1.3431053933541011
-!        2.5126356633383937E-316   3.3317843820181277E-002   4.9406564584124654E-324
-!   2.5126356633383937E-316   1.0000000000000000E-003   9.1922790858218116E-317
-!   1.0642542534450539        2.3564531823208357E-310   0.0000000000000000        0.0000000000000000                4
-!f R0   3.1601153788426086        3.0818707511680938        1.3431053933541011
-!        2.2724233178454796E-316   3.3317843820181277E-002   4.9406564584124654E-324
-!   2.2724233178454796E-316   1.0000000000000000E-003   9.1922790858218116E-317   
-!   1.0642542534450539        2.3203788153401778E-310   0.0000000000000000        0.0000000000000000                4
-
-! kp, dp, r, s, qs
-    !write (*,*) 'leq inputs', R0,Ra, k, kp, d, dp, r, dr, s, qq, qs, a, ap, nt_used
     surf%geoType = geoType
     surf%Rmaj = Rmaj
     surf%Rgeo = Rgeo
@@ -81,10 +252,15 @@ contains
     call leq_init
   end subroutine leqin
 
-  !> FIXME : Add documentation  
+  !> Allocate internal module-level arrays
+  !!
+  !! Note that this doesn't use the module-level `nr`, `nt`
   subroutine alloc_arrays(nr, nt)
     implicit none
-    integer, intent(in) :: nr, nt
+    !> Number of radial points
+    integer, intent(in) :: nr
+    !> Number of points in theta
+    integer, intent(in) :: nt
 
     allocate(eqpsi(nr), fp(nr), beta(nr), pressure(nr))
     allocate(R_psi(nr, -nt:nt), Z_psi(nr, -nt:nt))
@@ -95,7 +271,7 @@ contains
 
   end subroutine alloc_arrays
 
-  !> FIXME : Add documentation  
+  !> Deallocate internal module-level arrays
   subroutine dealloc_arrays
     implicit none
     if(allocated(eqpsi)) deallocate(eqpsi, fp, beta, pressure)
@@ -105,15 +281,15 @@ contains
     if(allocated(dpbish)) deallocate(dpbish,dtbish,dbtbish)
   end subroutine dealloc_arrays
 
-  !> FIXME : Add documentation  
+  !> Finalise leq module
   subroutine leq_finish
     implicit none
     call dealloc_arrays
   end subroutine leq_finish
 
-  !> FIXME : Add documentation  
+  !> Initialise leq module
   subroutine leq_init
-    use constants, only: pi=>pi
+    use constants, only: pi
     implicit none
     real, dimension(nr, -nt:nt) :: eqpsi1, eqth, eqbtor
     real :: dr(3)
@@ -126,7 +302,9 @@ contains
    
     ! All calculation must be extended over the full [-pi,pi] range in order to
     ! support up-down asymmetric geometries (see section 3.2.2 of Ball MIT
-    ! Masters thesis or section 2.2 of "GS2 analytic geometry specification") 
+    ! Masters thesis or section 2.2 of "GS2 analytic geometry specification")
+    !
+    ! NOTE: actual theta grid used here includes one extra point outside [-pi, pi]!
     do j=-nt,nt
        do i=1,nr
           r = surf%r + dr(i)
@@ -150,44 +328,36 @@ contains
     call derm(Z_psi,  dzm,  'O')
     call derm(eqbtor, dbtm, 'E')
     call derm(eqpsi1, dpm,  'E')
-    
-! diagnostics
-!      do j=1,nt
-!         do i=1,nr
-!            write(*,*) i,j
-!            write(*,100) drm(i,j,1),drm(i,j,2),R_psi(i,j)
-!            write(*,101) dzm(i,j,1),dzm(i,j,2),Z_psi(i,j)
-!            write(*,102) dtm(i,j,1),dtm(i,j,2),eqth(i,j)
-!         enddo
-!      enddo
-! 100  format('(gr R)1 ',g10.4,' (gr R)2 ',g10.4,' R ',g10.4)
-! 101  format('(gr Z)1 ',g10.4,' (gr Z)2 ',g10.4,' Z ',g10.4)
-! 102  format('(gr t)1 ',g10.4,' (gr t)2 ',g10.4,' t ',g10.4)
-!      write(*,*) nr, nt
-!      stop
 
-! below is actually grad(rho) instead of grad(psi),
-! and 'cartesian' refers to (R,Z) coordinates -- MAB
-! grad(psi) in cartesian form 
+    ! below is actually grad(rho) instead of grad(psi),
+    ! and 'cartesian' refers to (R,Z) coordinates -- MAB
+    ! grad(psi) in cartesian form 
     call eqdcart(dpm, dpcart)
-! grad(psi) in Bishop form 
+    ! grad(psi) in Bishop form 
     call eqdbish(dpcart, dpbish)
 
-! grad(BT) in cartesian form
+    ! grad(BT) in cartesian form
     call eqdcart(dbtm, dbtcart)
-! grad(BT) in Bishop form
+    ! grad(BT) in Bishop form
     call eqdbish(dbtcart, dbtbish)
 
-! grad(theta) in cartesian form
+    ! grad(theta) in cartesian form
     call eqdcart(dtm, dtcart)
-! grad(theta) in Bishop form
+    ! grad(theta) in Bishop form
     call eqdbish(dtcart, dtbish)
 
   end subroutine leq_init
 
-  !> FIXME : Add documentation  
+  !> Index-space derivatives of `f` in each direction. Gradient in
+  !> first direction is in `dfm(:,:,1)`, second is in `dfm(:,:,2)`.
+  !> `char` controls the boundary conditions in the second direction.
+  !!
+  !! Acceptable values for `char`:
+  !!   - `E` means continuous and even at theta = +/- pi -- FIXME: confirm
+  !!   - `O` means continuous and odd at theta = +/- pi -- FIXME: confirm
+  !!   - `T` means a jump of 2 pi at theta = +/- pi
   subroutine derm(f, dfm, char)
-    use constants, only: pi=>pi
+    use constants, only: pi
     implicit none
     real, dimension(:,:), intent(in) :: f(:,-nt:)
     real, dimension(:,:,:), intent(out) :: dfm(:,-nt:,:)
@@ -231,14 +401,26 @@ contains
 
   end subroutine derm
 
-  !> FIXME : Add documentation  
+  !> Calculate the derivative of \(r_\psi\) w.r.t. R and Z
+  !!
+  !! \(r_\psi\) is the "minor radius flux function"
   subroutine gradient(theta, grad, char, rp, nth_used, ntm)
     use splines, only: inter_d_cspl
     implicit none
-    integer, intent(in) :: nth_used, ntm
+    !> Number of theta points
+    integer, intent(in) :: nth_used
+    !> Lower index of theta array is -ntm
+    integer, intent(in) :: ntm
+    !> If char = 'R', return the gradient of pressure instead.
+    !> Note that this is useless here!
     character(1), intent(in) :: char
+    !> Theta grid
     real, dimension(-ntm:), intent(in) :: theta
+    !> grad(:,1): derivative w.r.t. R as function of theta
+    !> grad(:,2): derivative w.r.t  Z as function of theta
     real, dimension(-ntm:,:), intent(out) :: grad
+    !> Value of psi/(a^2 B_a) on the flux surface where we want the gradient.
+    !> Note: never used!
     real, intent(in) :: rp
     real :: tmp(2), aa(1), daa(1), rpt(1)
     real, dimension(nr,-nt:nt,2) :: dcart
@@ -250,9 +432,9 @@ contains
     case('P') 
        dcart = dpcart
     case('R') 
-       dcart = dpcart  ! dpcart is correct for 'R'
+       dcart = dpcart  ! dpcart is correct for 'R' -- never reached: other calculation done instead
     case('T')
-       dcart = dtcart
+       dcart = dtcart  ! Never reached: bgradient always used
     end select
     
     do i=-nth_used,-1
@@ -286,14 +468,25 @@ contains
     endif
   end subroutine gradient
 
-  !> FIXME : Add documentation  
+  !> Calculate the derivative of \(r_\psi\) in the Bishop coordinate system.
+  !> If `char=='T'`, calculate the gradient of \(\theta\) instead
   subroutine bgradient(theta, grad, char, rp, nth_used, ntm)
     use splines, only: inter_d_cspl
     implicit none
-    integer, intent(in) :: nth_used, ntm
+    !> Number of theta points
+    integer, intent(in) :: nth_used
+    !> Lower index of theta array is -ntm
+    integer, intent(in) :: ntm
+    !> If char = 'R', return the gradient of pressure instead.
+    !> Note that this is useless here!
     character(1), intent(in) :: char
+    !> Theta grid
     real, dimension(-ntm:), intent(in) :: theta
+    !> grad(:,1): derivative w.r.t. R as function of theta
+    !> grad(:,2): derivative w.r.t  Z as function of theta
     real, dimension(-ntm:,:), intent(out) :: grad
+    !> Value of psi/(a^2 B_a) on the flux surface where we want the gradient.
+    !> Note: never used!
     real, intent(in) :: rp
     real :: aa(1), daa(1), rpt(1)
     real, dimension(nr,-nt:nt,2) ::  dbish
@@ -305,7 +498,7 @@ contains
     case('P') 
        dbish = dpbish
     case('R') 
-       dbish = dpbish  ! dpcart is correct for 'R'
+       dbish = dpbish  ! dpcart is correct for 'R' -- never reached: other calculation done instead
     case('T')
        dbish = dtbish
     end select
@@ -315,7 +508,7 @@ contains
        call eqitem(theta(i), dbish(:,:,2), grad(i,2), 'Z')
     enddo
 
-!     to get grad(pressure), multiply grad(psi) by dpressure/dpsi
+    !     to get grad(pressure), multiply grad(psi) by dpressure/dpsi
 
     if(char == 'R') then
        rpt(1) = rp
@@ -327,31 +520,39 @@ contains
     endif
   end subroutine bgradient
 
-  !> FIXME : Add documentation  
+  !> Calculates `fstar` which is `f` interpolated at the location `theta_in`
   subroutine eqitem(theta_in, f, fstar, char)
-    use constants, only: pi=>pi
+    use constants, only: pi
     implicit none
+    !> Desired theta location
     real, intent(in) :: theta_in
+    !> Array to interpolate
     real, dimension(:,-nt:), intent(in) :: f
+    !> Interpolation result
     real, intent(out) :: fstar
+    !> FIXME: Unused
     character(1), intent(in) :: char
-    integer :: j, istar, jstar
+    !> Internal loop variable
+    integer :: j
+    !> Found theta index
+    integer :: jstar
+    !> r index, always centre of grid
+    integer, parameter :: istar = 2
+    !> theta point in [-pi, pi]
     real :: tp
+    !> linear interpolation weights
     real :: st, dt
+    !> Internal theta grid
     real, dimension(-nt:nt) :: mtheta
-! find r on psi mesh
-    
-    istar = 2
-
-! Now do theta direction
 
     tp = mod2pi(theta_in)
 
-! get thet on theta mesh
+    ! get thet on theta mesh
 
+    ! NOTE: actual theta grid used here includes one extra point outside [-pi, pi]!
     mtheta = (/ ( real(j)*pi/real(nt-1), j=-nt,nt) /)
   
-! note that theta(1)=0 for local_eq theta 
+    ! note that theta(1)=0 for local_eq theta 
 
     jstar=-nt-1
     do j=-nt,nt
@@ -364,7 +565,7 @@ contains
        if(jstar /= -nt-1) write(*,*) 'exit error j'
     enddo
       
-! treat theta = pi separately
+    ! treat theta = pi separately
   
     if(jstar == -nt-1) then
        jstar=nt-1
@@ -372,25 +573,25 @@ contains
        st=0.
     endif
 
-! use opposite area stencil to interpolate
+    ! use opposite area stencil to interpolate
 
     fstar=f(istar    , jstar    )  * st &
          +f(istar    , jstar + 1)  * dt
     fstar=fstar &
          /(mtheta(jstar+1)-mtheta(jstar))
-!     write(*,*) i, dr, dt, sr, st
-!     write(*,*) f(istar,jstar+1),f(istar+1,jstar+1)
-!     write(*,*) f(istar,jstar),f(istar+1,jstar)
-!     write(*,*) eqpsi(istar),eqpsi(istar+1)
-!     write(*,*) mtheta(jstar),mtheta(jstar+1)
   end subroutine eqitem
 
-  !> FIXME : Add documentation  
+  !> Convert `dfm` from index-space derivative to derivative on
+  !> cylindrical coordinates
+  !!
+  !! - Gradient in the first coordinate is in `(:,:,1)`
+  !! - Gradient in the second coordinate is in `(:,:,2)`
   subroutine eqdcart(dfm, dfcart)
-    implicit none
-    real, dimension (:,-nt:,:), intent(in)  :: dfm
-    real, dimension (:,-nt:,:), intent(out) :: dfcart
-    real, dimension (nr,-nt:nt) :: denom
+    !> Index-space derivative
+    real, dimension(nr,-nt:nt,2), intent(in)  :: dfm
+    !> Cylindrical coordinates derivative
+    real, dimension(nr,-nt:nt,2), intent(out) :: dfcart
+    real, dimension(nr,-nt:nt) :: denom
 
     integer :: i, j
       
@@ -401,6 +602,8 @@ contains
     dfcart(:,:,1) =   dfm(:,:,1)*dzm(:,:,2) - dzm(:,:,1)*dfm(:,:,2)
     dfcart(:,:,2) = - dfm(:,:,1)*drm(:,:,2) + drm(:,:,1)*dfm(:,:,2)
     
+    ! FIXME: document why this is only on the range [2,nr], or
+    ! simplify
     do j=-nt,nt
        do i=2,nr
           dfcart(i,j,:)=dfcart(i,j,:)/denom(i,j)
@@ -408,11 +611,16 @@ contains
     enddo
   end subroutine eqdcart
 
-  !> FIXME : Add documentation  
+  !> Convert `dcart` from cylindrical coordinates derivative to
+  !> derivative on Bishop coordinates
+  !!
+  !! - Gradient in the first coordinate is in `(:,:,1)`
+  !! - Gradient in the second coordinate is in `(:,:,2)`
   subroutine eqdbish(dcart, dbish)
-    implicit none
-    real, dimension(:,-nt:,:), intent (in) :: dcart
-    real, dimension(:,-nt:,:), intent(out) :: dbish
+    !> Cylindrical coordinates derivative
+    real, dimension(nr,-nt:nt,2), intent(in) :: dcart
+    !> Bishop coordinates derivative
+    real, dimension(nr,-nt:nt,2), intent(out) :: dbish
     real, dimension(nr,-nt:nt) :: denom
 
     integer :: i, j
@@ -422,6 +630,8 @@ contains
     dbish(:,:,1) = dcart(:,:,1)*dpcart(:,:,1) + dcart(:,:,2)*dpcart(:,:,2)
     dbish(:,:,2) =-dcart(:,:,1)*dpcart(:,:,2) + dcart(:,:,2)*dpcart(:,:,1)
     
+    ! FIXME: document why this is only on the range [2,nr], or
+    ! simplify
     do j=-nt,nt
        do i=2,nr
           dbish(i,j,:) = dbish(i,j,:)/denom(i,j)
@@ -429,7 +639,7 @@ contains
     enddo
   end subroutine eqdbish
 
-  !> FIXME : Add documentation  
+  !> Return the inverse of the major radius at \((r, \theta)\)
   function invR (r, theta)
     implicit none
     real, intent (in) :: r, theta
@@ -438,7 +648,7 @@ contains
     invR=1./Rpos(r, theta)
   end function invR
 
-  !> FIXME : Add documentation  
+  !> Return the major radius of the centre of the flux surface
   function rcenter()
     implicit none
     real :: rcenter
@@ -453,59 +663,60 @@ contains
     end if
   end function rcenter
 
-  !> FIXME : Add documentation  
+  !> Return the major radius at \((r, \theta)\)
   function Rpos (r, theta)
     implicit none
     real, intent (in) :: r, theta
-    real :: Rpos, Zpos
+    real :: Rpos, dummy
 
     ! Choose one of four different analytic geometry specifications
     ! (see section 2.1 of "GS2 analytic geometry specification") ! JRB
     select case (surf%geoType)
        case (0)
-          call geo_Miller(r, theta, Rpos, Zpos)
+          call geo_Miller(r, theta, Rpos, dummy)
        case (1)
-          call geo_global(r, theta, Rpos, Zpos)
+          call geo_global(r, theta, Rpos, dummy)
        case (2)
-          call geo_generalizedEllipticity(r, theta, Rpos, Zpos)
+          call geo_generalizedEllipticity(r, theta, Rpos, dummy)
        case (3)
-          call geo_FourierSeries(r, theta, Rpos, Zpos)
+          call geo_FourierSeries(r, theta, Rpos, dummy)
        case default
           write (*,*) "ERROR: invalid analytic geometry specification"
     end select
   end function Rpos
 
-  !> FIXME : Add documentation  
+  !> Return the axial coordinate at \((r, \theta)\)
   function Zpos (r, theta)
     implicit none
     real, intent (in) :: r, theta
-    real :: Rpos, Zpos
+    real :: dummy, Zpos
 
     ! Choose one of four different analytic geometry specifications
     ! (see section 2.1 of "GS2 analytic geometry specification") ! JRB
     select case (surf%geoType)
        case (0)
-          call geo_Miller(r, theta, Rpos, Zpos)
+          call geo_Miller(r, theta, dummy, Zpos)
        case (1)
-          call geo_global(r, theta, Rpos, Zpos)
+          call geo_global(r, theta, dummy, Zpos)
        case (2)
-          call geo_generalizedEllipticity(r, theta, Rpos, Zpos)
+          call geo_generalizedEllipticity(r, theta, dummy, Zpos)
        case (3)
-          call geo_FourierSeries(r, theta, Rpos, Zpos)
+          call geo_FourierSeries(r, theta, dummy, Zpos)
        case default
           write (*,*) "ERROR: invalid analytic geometry specification"
     end select
   end function Zpos
 
-  !> FIXME : Add documentation
+  !> Calculate the cylindrical \((R, Z)$$ at $$(r, \theta)\) for the
+  !> generalised Miller model
   !!
-  !! see section 3.2.1 of Ball MIT Masters thesis or section 2.1.1 of
+  !! See section 3.2.1 of Ball MIT Masters thesis or section 2.1.1 of
   !! "GS2 analytic geometry specification"
   subroutine geo_Miller(r, theta, Rpos, Zpos)
     implicit none
-    real, intent (in) :: r, theta
-    real, intent (out) :: Rpos, Zpos
-    real :: dr, thAdj 
+    real, intent(in) :: r, theta
+    real, intent(out) :: Rpos, Zpos
+    real :: dr, thAdj
     real :: Rcirc, Rcircp, Relong, Relongp, RelongTilt, RelongTiltp, Rtri, Rtrip, RtriTilt, RtriTiltp, Rfinal, Rfinalp
     real :: Zcirc, Zcircp, Zelong, Zelongp, ZelongTilt, ZelongTiltp, Ztri, Ztrip, ZtriTilt, ZtriTiltp, Zfinal, Zfinalp
 
@@ -513,45 +724,46 @@ contains
 
     thAdj = theta + thetaShift
 
-    Rcirc=surf%r*cos(surf%thn-surf%thm-thAdj)
-    Zcirc=-surf%r*sin(surf%thn-surf%thm-thAdj)
-    Rcircp=cos(surf%thn-surf%thm-thAdj)
-    Zcircp=-sin(surf%thn-surf%thm-thAdj)
+    Rcirc = surf%r*cos(surf%thn - surf%thm - thAdj)
+    Zcirc = -surf%r*sin(surf%thn - surf%thm - thAdj)
+    Rcircp = cos(surf%thn - surf%thm - thAdj)
+    Zcircp = -sin(surf%thn - surf%thm - thAdj)
 
-    Relong=Rcirc
-    Zelong=-surf%r*(surf%delm-1)*sin(surf%thn-surf%thm-thAdj)+Zcirc
-    Relongp=Rcircp
-    Zelongp=-((surf%delm-1)+surf%r*surf%delmp)*sin(surf%thn-surf%thm-thAdj)+Zcircp
+    Relong = Rcirc
+    Zelong = -surf%r*(surf%delm - 1)*sin(surf%thn - surf%thm - thAdj) + Zcirc
+    Relongp = Rcircp
+    Zelongp = -((surf%delm - 1) + surf%r*surf%delmp)*sin(surf%thn - surf%thm - thAdj) + Zcircp
 
-    RelongTilt=cos(surf%thn-surf%thm)*Relong-sin(surf%thn-surf%thm)*Zelong
-    ZelongTilt=sin(surf%thn-surf%thm)*Relong+cos(surf%thn-surf%thm)*Zelong
-    RelongTiltp=cos(surf%thn-surf%thm)*Relongp-sin(surf%thn-surf%thm)*Zelongp
-    ZelongTiltp=sin(surf%thn-surf%thm)*Relongp+cos(surf%thn-surf%thm)*Zelongp
+    RelongTilt = cos(surf%thn - surf%thm)*Relong - sin(surf%thn - surf%thm)*Zelong
+    ZelongTilt = sin(surf%thn - surf%thm)*Relong + cos(surf%thn - surf%thm)*Zelong
+    RelongTiltp = cos(surf%thn - surf%thm)*Relongp - sin(surf%thn - surf%thm)*Zelongp
+    ZelongTiltp = sin(surf%thn - surf%thm)*Relongp + cos(surf%thn - surf%thm)*Zelongp
 
-    Rtri=-surf%r*cos(thAdj)+surf%r*cos(sin(thAdj)*surf%deln+thAdj)+RelongTilt
-    Ztri=ZelongTilt
-    Rtrip=-cos(thAdj)+cos(sin(thAdj)*surf%deln+thAdj)-surf%r*sin(sin(thAdj)*surf%deln+thAdj)*sin(thAdj)*surf%delnp+RelongTiltp
-    Ztrip=ZelongTiltp
+    Rtri = -surf%r*cos(thAdj) + surf%r*cos(sin(thAdj)*surf%deln + thAdj) + RelongTilt
+    Ztri = ZelongTilt
+    Rtrip = -cos(thAdj) + cos(sin(thAdj)*surf%deln + thAdj) &
+            - surf%r*sin(sin(thAdj)*surf%deln + thAdj)*sin(thAdj)*surf%delnp + RelongTiltp
+    Ztrip = ZelongTiltp
 
-    RtriTilt=cos(surf%thn)*Rtri+sin(surf%thn)*Ztri
-    ZtriTilt=-sin(surf%thn)*Rtri+cos(surf%thn)*Ztri
-    RtriTiltp=cos(surf%thn)*Rtrip+sin(surf%thn)*Ztrip
-    ZtriTiltp=-sin(surf%thn)*Rtrip+cos(surf%thn)*Ztrip
+    RtriTilt = cos(surf%thn)*Rtri + sin(surf%thn)*Ztri
+    ZtriTilt = -sin(surf%thn)*Rtri + cos(surf%thn)*Ztri
+    RtriTiltp = cos(surf%thn)*Rtrip + sin(surf%thn)*Ztrip
+    ZtriTiltp = -sin(surf%thn)*Rtrip + cos(surf%thn)*Ztrip
 
-    Rfinal=RtriTilt+surf%Rmaj
-    Zfinal=ZtriTilt
-    Rfinalp=RtriTiltp+surf%sHorz
-    Zfinalp=ZtriTiltp+surf%sVert
+    Rfinal = RtriTilt + surf%Rmaj
+    Zfinal = ZtriTilt
+    Rfinalp = RtriTiltp + surf%sHorz
+    Zfinalp = ZtriTiltp + surf%sVert
 
-    Rpos=Rfinal+dr*Rfinalp
-    Zpos=Zfinal+dr*Zfinalp
+    Rpos = Rfinal + dr*Rfinalp
+    Zpos = Zfinal + dr*Zfinalp
 
   end subroutine geo_Miller
 
-  !> FIXME : Add documentation  
+  !> Calculate the cylindrical \((R, Z)\) at \((r, \theta)\) for the
+  !> global MHD model
   !!
-  !! see section 2.1.2 of
-  !! "GS2 analytic geometry specification"
+  !! See section 2.1.2 of "GS2 analytic geometry specification"
   subroutine geo_global(r, theta, Rpos, Zpos)
     implicit none
     real, intent (in) :: r, theta
@@ -588,9 +800,10 @@ contains
 
   end subroutine geo_global
 
-  !> FIXME : Add documentation
+  !> Calculate the cylindrical \((R, Z)\) at \((r, \theta)\) for the
+  !> generalised elongation model
   !!
-  !! see section 5.1.2 of Ball Oxford PhD thesis or section 2.1.3 of
+  !! See section 5.1.2 of Ball Oxford PhD thesis or section 2.1.3 of
   !! "GS2 analytic geometry specification"
   subroutine geo_generalizedEllipticity(r, theta, Rpos, Zpos)
     implicit none
@@ -621,9 +834,10 @@ contains
 
   end subroutine geo_generalizedEllipticity
 
-  !> FIXME : Add documentation
+  !> Calculate the cylindrical \((R, Z)\) at \((r, \theta)\) for the
+  !> Fourier model
   !!
-  !! see section 5.1.1 of Ball Oxford PhD thesis or section 2.1.4 of
+  !! See section 5.1.1 of Ball Oxford PhD thesis or section 2.1.4 of
   !! "GS2 analytic geometry specification"
   subroutine geo_FourierSeries(r, theta, Rpos, Zpos)
     implicit none
@@ -657,37 +871,27 @@ contains
     psi = r - surf%r
   end function psi
 
-  !> FIXME : Add documentation  
+  !> Put `theta` into the range `[-pi, pi]`
+  !!
+  !! This version also sets `theta == +(-)pi +(-) theta_tol` to be
+  !! exactly `+(-)pi`, where `theta_tol == 1.e-6`
+  !!
+  !! General purpose, could be moved into utils? Could also drop the
+  !! tolerance?
   function mod2pi (theta)
-    use constants, only: pi=>pi
-    implicit none
+    use constants, only: pi
     real, intent(in) :: theta
-    real :: th, mod2pi
+    real :: mod2pi
     real, parameter :: theta_tol = 1.e-6
-    logical :: out
     if(theta <= pi .and. theta >= -pi) then
-       mod2pi = theta
-       return
+      mod2pi = theta
+    else if(theta - theta_tol <= pi .and. theta >= -pi) then
+      mod2pi = pi
+    else if(theta <= pi .and. theta + theta_tol >= -pi) then
+      mod2pi = -pi
+    else
+      mod2pi = modulo(theta + pi, 2.*pi) - pi
     endif
-    
-    if(theta - theta_tol <= pi .and. theta >= -pi) then
-       mod2pi = pi
-       return
-    endif
-
-    if(theta <= pi .and. theta + theta_tol >= -pi) then
-       mod2pi = -pi
-       return
-    endif
-
-    th=theta
-    out=.true.
-    do while(out)
-       if(th > pi) th = th - 2.*pi
-       if(th <-pi) th = th + 2.*pi
-       if(th <= pi .and. th >= -pi) out=.false.
-    enddo
-    mod2pi=th
   end function mod2pi
 
   !> FIXME : Add documentation  

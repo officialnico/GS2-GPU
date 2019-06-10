@@ -83,6 +83,7 @@ contains
     epsl = 0.3
     qinp = 1.5
     shat = 0.75
+    alpmhd = 0.0
     pk = 0.3
     geoType = 0 ! NB The default for this MUST be zero otherwise the Trinity interface will break
     aSurf = 1.0
@@ -108,11 +109,13 @@ contains
     thetad = 0.0
     theta2 = 0.0
     theta3 = 0.0
-    asym = 0.0
-    asympri = 0.0
-    btor_slab = 0.0
     ntheta = 24
     nperiod = 2
+    btor_slab = 0.0
+    asym = 0.0
+    asympri = 0.0
+    kp = -1.0
+    
     in_file = input_unit_exist("theta_grid_parameters", exist)
     if (exist) read (unit=in_file, nml=theta_grid_parameters)
 

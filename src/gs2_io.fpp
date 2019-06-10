@@ -1,5 +1,3 @@
-# include "define.inc"
-
 !> A module for writing to netcdf.
 module gs2_io
 

@@ -313,6 +313,8 @@ contains
     class(rowblock_type), intent(inout) :: self
     allocate(self%data(self%ncol,self%nrow))
     allocate(self%tmp_sum(self%nrow))
+    self%data = 0.
+    self%tmp_sum = 0.
   end subroutine rb_allocate
 
   !> Deallocate storage space

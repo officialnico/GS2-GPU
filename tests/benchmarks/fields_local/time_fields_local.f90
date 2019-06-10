@@ -47,7 +47,7 @@ program time_fields_local
   ! Set up depenencies
   call init_mp
 
-  call announce_module_test('time_fields_local')
+  if (proc0) call announce_module_test('time_fields_local')
 
   state%mp_comm_external = .true.
   state%mp_comm = mp_comm
@@ -58,13 +58,13 @@ program time_fields_local
   ! Run benchmark
   if (.not. fields_local_functional()) then
 
-    write (*,*) "WARNING: fields_local is non-functional in your build. &
+    if (proc0) write (*,*) "WARNING: fields_local is non-functional in your build. &
       & Skipping the fields_local unit test. &
       & If you are using the PGI compilers this is to be expected. "
 
   else 
 
-    call announce_test('advance')
+    if (proc0) call announce_test('advance')
 
     if (proc0) call time_message(.false., time_taken, "fields local time")
 
@@ -87,7 +87,7 @@ program time_fields_local
   call init(state%init, init_level_list%basic)
   call finalize_gs2(state)
 
-  call close_module_test('time_fields_local')
+  if (proc0) call close_module_test('time_fields_local')
 
   call finish_mp
 
