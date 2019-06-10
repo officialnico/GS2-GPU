@@ -25,7 +25,7 @@ program test_gs2_diagnostics
     use gs2_main, only: run_gs2, finish_gs2
     use unit_tests
     use file_utils, only: run_name, error_unit
-    use mp, only: init_mp, mp_comm, proc0, test_driver_flag, finish_mp, mp_abort
+    use mp, only: init_mp, mp_comm, test_driver_flag, finish_mp, mp_abort
     use gs2_diagnostics
 #ifdef NEW_DIAG
     use gs2_diagnostics_new, only: finish_gs2_diagnostics_new
@@ -48,9 +48,9 @@ program test_gs2_diagnostics
     call announce_test('diffusivity')
 
     if( trim(run_name) .eq. 'test_gs2_diagnostics' ) then
-      call process_test(diagnostics_unit_test_diffusivity(19.144575471638724, eps), 'diffusivity')
+      call process_test(test_diffusivity(19.144575471638724, eps), 'diffusivity')
     else if( trim(run_name) .eq. 'test_gs2_diagnostics_nspec_2' ) then
-      call process_test(diagnostics_unit_test_diffusivity(6.5580345754760385, eps), 'diffusivity')
+      call process_test(test_diffusivity(6.5580345754760385, eps), 'diffusivity')
     else
       call mp_abort('test_gs2_diagnostics calling invalid test name')
     end if
@@ -68,7 +68,18 @@ program test_gs2_diagnostics
 
     call finish_mp
 
-  
+  contains
 
+    !> Return true if calculated diffusivity is within tolerance
+    function test_diffusivity(results, eps)
+      use unit_tests, only: agrees_with
+      use mp,only: proc0
+      real, intent(in) :: results, eps
+      logical :: test_diffusivity
+      test_diffusivity = .true.
+      if (proc0) then
+         test_diffusivity = agrees_with(diffusivity(), results, eps)
+      end if
+    end function test_diffusivity
 
 end program test_gs2_diagnostics

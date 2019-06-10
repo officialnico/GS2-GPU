@@ -27,7 +27,6 @@ program test_gs2_reinit
     use gs2_reinit, only: gs2_reinit_unit_test_set_in_memory
     use gs2_main, only: run_gs2, finish_gs2
     use gs2_init, only:  init, init_level_list
-    use gs2_main, only: gs2_main_unit_test_reset_gs2
     use gs2_main, only: finalize_diagnostics, initialize_diagnostics
     use gs2_main, only: prepare_initial_values_overrides
     use gs2_main, only: set_initval_overrides_to_current_vals
@@ -37,14 +36,15 @@ program test_gs2_reinit
     use gs2_main, only: prepare_miller_geometry_overrides
     use gs2_main, only: initialize_gs2, initialize_equations, finalize_equations
     use gs2_main, only: initialize_diagnostics
+    use gs2_main, only: reset_gs2
     use fields, only: finish_fields_level_2, init_fields_level_2
     !use fields_local, only: init_fields_local, finish_fields_local
     use unit_tests
     use unit_tests, only: should_print
-    use mp, only: init_mp, mp_comm, proc0, test_driver_flag, finish_mp
+    use mp, only: init_mp, test_driver_flag, finish_mp
     use mp, only: broadcast, barrier, iproc
     use fields_arrays, only: phinew, aparnew, bparnew
-    use dist_fn_arrays, only: gnew, g
+    use dist_fn_arrays, only: gnew
     use gs2_diagnostics, only: finish_gs2_diagnostics
   use kt_grids, only: naky, ntheta0, init_kt_grids
   use theta_grid, only: ntgrid, init_theta_grid
@@ -53,20 +53,15 @@ program test_gs2_reinit
   use run_parameters, only: use_old_diagnostics
 #ifdef NEW_DIAG
     use gs2_diagnostics_new, only: finish_gs2_diagnostics_new
-    use gs2_diagnostics_new, only: gnostics
 #endif
     implicit none
-    integer :: n_vars, n_file_names
-    integer :: i, it, ik
     real :: eps
     complex, dimension (:,:,:), allocatable :: gbak 
     complex, dimension (:,:,:), allocatable :: phi_bak, apar_bak, bpar_bak
     complex, dimension (:,:), allocatable :: rowbloc
     character(len=29) :: message
-    logical :: test_result
     logical :: dummy
     integer :: supercell_idx
-    integer :: offset=400
 
 
 
@@ -212,7 +207,7 @@ program test_gs2_reinit
     call process_test(response_unchanged() ,&
       'Value of response matrix after restoring timestep')
 
-    dummy = gs2_main_unit_test_reset_gs2(1.0)
+    dummy = test_reset_gs2(1.0)
     call announce_test('Values of fields and dist fn after calling gs2_reset')
     call process_test(test_fields_and_dist(), 'Values of fields and dist fn after calling gs2_reset')
 
@@ -221,7 +216,7 @@ program test_gs2_reinit
       'Value of response matrix  after calling gs2_reset')
 
 
-    dummy = gs2_main_unit_test_reset_gs2(2.0)
+    dummy = test_reset_gs2(2.0)
     call announce_test('Values of fields and dist fn after calling gs2_reset with a factor')
     call process_test(test_fields_and_dist(), 'Values of fields and dist fn after calling gs2_reset with a factor')
 
@@ -229,7 +224,7 @@ program test_gs2_reinit
     call process_test(.not. response_unchanged() ,&
       'Value of response matrix should have changed after calling gs2_reset with a factor')
 
-    dummy = gs2_main_unit_test_reset_gs2(0.5)
+    dummy = test_reset_gs2(0.5)
     call announce_test('Values of fields and dist fn after calling gs2_reset to initial')
     call process_test(test_fields_and_dist(), 'Values of fields and dist fn after calling gs2_reset to _initial')
 
@@ -311,8 +306,9 @@ contains
       response_unchanged = .false.
     end if
   end function response_unchanged
+
   function test_fields_and_dist(fields_changed)
-    use theta_grid, only: ntheta
+
     use gs2_layouts, only: g_lo
     logical :: test_fields_and_dist
     logical :: test_result
@@ -353,5 +349,33 @@ contains
     test_fields_and_dist = test_result
   end function test_fields_and_dist
 
+  !> This function calls reset_gs2 using
+  !! all the default parameters, multiplied
+  !! by a factor. It is used
+  !! in the gs2_reinit unit test
+  function test_reset_gs2(fac)
+    use species, only: spec, nspec
+    use dist_fn, only: g_exb
+    use mp, only: mp_abort
+    logical :: test_reset_gs2
+    real, intent(in) :: fac
+
+    if (nspec.ne.2)  &
+      call mp_abort("test_reset_gs2 only works with 2 species", .true.)
+
+    call reset_gs2(nspec, &
+      ! Deliberately leave fac off the next 2 lines
+      ! so QN is unaffected
+      (/spec(1)%dens, spec(2)%dens/), &
+      (/spec(1)%temp, spec(2)%temp/), &
+      (/spec(1)%fprim, spec(2)%fprim/)*fac, &
+      (/spec(1)%tprim, spec(2)%tprim/)*fac, &
+      g_exb, 0.0, &
+      (/spec(1)%vnewk, spec(2)%vnewk/), &
+      1)
+
+    test_reset_gs2 = .true.
+
+  end function test_reset_gs2
 
 end program test_gs2_reinit

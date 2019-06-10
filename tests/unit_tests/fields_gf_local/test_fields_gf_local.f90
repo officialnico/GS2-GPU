@@ -9,9 +9,10 @@
 program test_fields_gf_local
   use unit_tests
   use init_g, only: ginit
-  use fields_gf_local, only: fields_gf_local_unit_test_init_fields_matrixlocal, fields_gf_local_functional
-  use fields_implicit, only: fields_implicit_unit_test_init_fields_implicit
-  use fields, only: fieldopt_switch,fieldopt_implicit,fieldopt_gf_local
+  use fields_gf_local, only: fields_gf_local_functional
+  use fields_gf_local, only: init_fields_gf_local, finish_fields_gf_local
+  use fields_implicit, only: init_fields_implicit
+  use fields, only: fieldopt_implicit,fieldopt_gf_local
   use fields, only: fields_pre_init
   use egrid
   use mp, only: init_mp, finish_mp, broadcast, mp_comm
@@ -25,7 +26,7 @@ program test_fields_gf_local
   use gs2_layouts, only: g_lo
   use gs2_main, only: initialize_gs2, gs2_program_state_type, initialize_equations, initialize_diagnostics
   use gs2_main, only: finalize_gs2, finalize_equations, finalize_diagnostics
-  use gs2_init, only: init, init_level_list
+  use gs2_init, only: init
   implicit none
   real :: eps
   type(gs2_program_state_type) :: state
@@ -79,7 +80,7 @@ program test_fields_gf_local
   if (fields_gf_local_functional()) then
 
     call announce_test('init_fields_matrixlocal')
-    call process_test(fields_gf_local_unit_test_init_fields_matrixlocal(), 'init_fields_matrixlocal')
+    call process_test(test_init_fields_local(), 'init_fields_matrixlocal')
     call test_local_advance(phi_loc,apar_loc,bpar_loc)
 
   else 
@@ -110,7 +111,7 @@ program test_fields_gf_local
   gnew = g
   
   call announce_test('init_fields_implicit')
-  call process_test(fields_implicit_unit_test_init_fields_implicit(), 'init_fields_implicit')
+  call process_test(test_init_fields_implicit(), 'init_fields_implicit')
 
   call test_implicit_advance(phi_imp,apar_imp,bpar_imp)
 
@@ -180,7 +181,7 @@ contains
    function check_results(eps,phi_imp,phi_loc,apar_imp,apar_loc,bpar_imp,bpar_loc)
 
     use kt_grids, only: kwork_filter
-    use mp, only: iproc,proc0
+    use mp, only: proc0
     use gs2_layouts, only: g_lo
     implicit none
 
@@ -226,5 +227,25 @@ contains
 
   end function check_results
 
+  !> Return true if fields_local can finish and initialize again without error
+  function test_init_fields_local()
+    logical :: test_init_fields_local
+
+    call init_fields_gf_local
+    call finish_fields_gf_local
+    call init_fields_gf_local
+
+    test_init_fields_local = .true.
+
+  end function test_init_fields_local
+
+  !> Initialize fields_implicit and return true if there is no error
+  function test_init_fields_implicit()
+    implicit none
+    logical :: test_init_fields_implicit
+
+    call init_fields_implicit
+    test_init_fields_implicit = .true.
+  end function test_init_fields_implicit
 
 end program test_fields_gf_local

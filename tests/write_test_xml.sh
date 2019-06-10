@@ -1,6 +1,6 @@
 #!/bin/sh
 
-FILE="../../../test-results/"$1".xml"
+FILE=$6/$1".xml"
 
 /bin/cat <<EOM >$FILE
 <?xml version="1.0" encoding="UTF-8"?>

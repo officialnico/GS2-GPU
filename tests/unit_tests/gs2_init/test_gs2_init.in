@@ -17,62 +17,6 @@
 !
 !==============================================================================
 
-
-&diagnostics_config
-!     These two are overriden to be true if the verbosity is high enough
-      print_line = .false.
-      print_flux_line = .false.
-
-      nwrite = 10
-      write_any = .true.
-      write_fields = .true.
-      write_phi_over_time = .false.
-      write_apar_over_time = .false.
-      write_bpar_over_time = .false.
-      write_fluxes = .true.
-      write_fluxes_by_mode = .true.
-
-      write_ntot_over_time = .true.
-
-      write_movie = .true.
-      write_heating = .true.
-
-      write_g = .false.
-      write_lpoly = .false.
-
-      omegatol = -0.001
-
-      use_nonlin_convergence = .true.
-
-      write_cross_phase = .true.
-
-      write_jext = .true.
-
-      write_symmetry = .true.
-
-      write_full_moments_notgc = .true.
-
-      write_correlation = .true.
-      write_correlation_extend = .true.
-
-      write_parity = .true.
-
-write_eigenfunc=.true.
-write_final_fields=.true.
-write_kpar=.true.
-write_final_epar=.true.
-write_final_db=.true.
-write_final_moments=.true.
-write_final_antot=.true.
-write_gs=.true.
-
-save_for_restart=.true.
-
-save_distfn=.true.
-
-enable_parallel = .true.
-/
-
 !==============================
 !GENERAL PARAMETERS  
 !==============================
@@ -194,7 +138,6 @@ enable_parallel = .true.
 !==============================
 &nonlinear_terms_knobs
  nonlinear_mode = "off" ! Include nonlinear terms? ('on','off')
- flow_mode = "off" 
  cfl = 0.5 ! The maximum delt < cfl * min(Delta_perp/v_perp)
 /
 
@@ -264,58 +207,6 @@ enable_parallel = .true.
 !==============================
 &gs2_diagnostics_knobs
  print_flux_line = .F. ! Instantaneous fluxes output to screen
- write_nl_flux = .true. ! Write nonlinear fluxes as a function of time.
- print_line = .false. ! Estimated frequencies and growth rates to the screen/stdout
- write_verr = .true. ! Write velocity space diagnostics to '.lpc' and '.verr' files
-  ! write_g not specified --- Write the distribution function to the '.dist' (NetCDF?)
- write_line = .false. ! If (write_ascii = T) write estimated frequencies and growth rates to the output file
-  ! write_gyx not specified --- Write dist fn at a given physical spacial point to a file
- write_hrate = .true. ! Write heating rate, collisonal entropy generation etc to '.heat'
-  ! write_final_epar not specified --- If (write_ascii = T) E_parallel(theta) written to runname.eigenfunc
- write_avg_moments = .true. ! Write flux surface averaged low-order moments of g to runname.out.nc and runname.moments (if write_ascii = T)
-  ! write_lorentzian not specified --- Frequency Sweep Data
- write_omega = .true. ! If (write_ascii = T) instantaneous omega to output file. Very heavy output
- write_omavg = .true. ! If (write_ascii = T) time-averaged growth rate and frequency to the output file.
- write_eigenfunc = .true. ! If (write_ascii = T) Normalized phi written to runname.eigenfunc
- write_final_fields = .true. ! If (write_ascii = T) Phi(theta) written to '.fields'
- write_final_moments = .true. ! write final n, T
- write_parity = .true. ! not specified --- Writes parities in dist fn and particle fluxes
- nsave = 100 ! Write restart files every nsave timesteps
- nwrite = 10 ! Output diagnostic data every nwrite
- navg = 10 ! Any time averages performed over navg
- omegatol = -0.001 ! The convergence has to be better than one part in 1/omegatol
- omegatinst = 500.0 ! Recommended value: 500.
- save_for_restart = .false. ! Write restart files.
-  ! write_flux_line not specified --- 
-  ! write_ascii not specified --- 
-  ! write_kpar not specified --- 
-  ! write_gs not specified --- 
-  ! write_gg not specified --- 
-  ! write_lpoly not specified --- 
-  ! write_fields not specified --- 
-  ! write_final_antot not specified --- 
-  ! write_cerr not specified --- 
-  ! write_max_verr not specified --- 
-  ! nmovie not specified --- 
-  ! igomega not specified --- 
-  ! exit_when_converged not specified --- 
-  ! write_full_moments_notgc not specified --- 
-  ! write_cross_phase not specified --- 
-      write_cross_phase = .true.
-  ! dump_check1 not specified --- 
-  ! dump_check2 not specified --- 
-  ! dump_fields_periodically not specified --- 
-  ! make_movie not specified --- 
- write_phi_over_time = .false. ! Write entire Phi field to NetCDF file every nwrite.
-  ! write_apar_over_time not specified --- Write entire A_parallel field to NetCDF file every nwrite.
-  ! write_bpar_over_time not specified --- Write entire B_parallel field to NetCDF file every nwrite.
-  ! write_symmetry not specified --- Test the symmetry properties of the GK eqn.
-  ! save_distfn not specified --- Save dist_fn with lots of detail.
-  ! write_correlation_extend not specified --- Extend domain of correlation function calculation.
-  ! nwrite_mult not specified --- Large datasets written every nwrite_mult * nwrite timesteps.
-  ! write_correlation not specified --- Write parallel correlation.
-  ! write_moments not specified --- 
-  ! write_final_db not specified --- Write final delta B.
 /
 
 !==============================

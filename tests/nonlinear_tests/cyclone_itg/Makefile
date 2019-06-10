@@ -3,6 +3,10 @@ sinclude ../Makefile.tests_common
 
 CLEANCOMMAND+= cyclone_itg_low_res
 
+ifdef TESTNORUN
+all: cyclone_itg_low_res
+	$(call SKIPCOMMAND,variable TESTNORUN is defined; unset TESTNORUN to run this test)
+else
 #Define this tests level
 MY_TEST_LEVEL=2
 VAL:= $(shell expr ${MY_TEST_LEVEL} \<= ${TEST_LEVEL})
@@ -18,9 +22,11 @@ all: cyclone_itg_low_res
 	$(call RUNCOMMAND,cyclone_itg_low_res,cyclone_itg_low_res.in)
 endif
 endif
+endif
 
 cyclone_itg_low_res.o:  ${TEST_MODS} 
 
 cyclone_itg_low_res: cyclone_itg_low_res.o $(TEST_MODS)
-	$(LD) $(LDFLAGS) -o $@ $^ $(LIBS)
+	$(call messageOp,"Linking ","\\t:",$^,"\\n\\t\-\-\-\-\-\-\>",$@)
+	$(QUIETSYM)$(LD) $(LDFLAGS) -o $@ $^ $(LIBS)
 

@@ -14,7 +14,7 @@ program time_ffts
   use kt_grids, only: naky, ntheta0
   use theta_grid, only: ntgrid
   use gs2_layouts, only: g_lo
-  use nonlinear_terms, only: nonlinear_terms_unit_test_time_add_nl
+  use nonlinear_terms, only: nonlinear_terms_testing
   use job_manage, only: time_message
   use benchmarks, only: benchmark_identifier
   use gs2_main, only: gs2_program_state_type, initialize_gs2, finalize_gs2
@@ -22,6 +22,7 @@ program time_ffts
   use run_parameters, only: nstep
   implicit none
   type(gs2_program_state_type) :: state
+  type(nonlinear_terms_testing) :: nonlinear_terms_tests
   real :: time_taken(2) = 0.0
   integer :: i
   integer :: timing_unit
@@ -42,7 +43,7 @@ program time_ffts
   ! Set up depenencies
   call init_mp
 
-  call announce_module_test('time_ffts')
+  if (proc0) call announce_module_test('time_ffts')
 
   state%mp_comm_external = .true.
   state%mp_comm = mp_comm
@@ -64,7 +65,7 @@ program time_ffts
   if (proc0) call time_message(.false., time_taken, "FFT time")
 
   do i = 1,nstep
-    call nonlinear_terms_unit_test_time_add_nl(g1, phi, apar, bpar)
+    call nonlinear_terms_tests%add_nl(g1, phi, apar, bpar)
   end do
 
   if (proc0) then
@@ -79,7 +80,7 @@ program time_ffts
   call init(state%init, init_level_list%basic)
   call finalize_gs2(state)
 
-  call close_module_test('time_ffts')
+  if (proc0) call close_module_test('time_ffts')
 
   call finish_mp
 
