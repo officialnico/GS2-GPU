@@ -326,7 +326,7 @@ MACRO_DEFS+=-DRUN_NAME_SIZE=$(RUN_NAME_SIZE)
 IS_RELEASE := $(shell git describe --tags --exact-match 2>/dev/null)
 MACRO_DEFS+=-DIS_RELEASE=$(IS_RELEASE)
 
-ifneq ($(IS_RELEASE),) # If the file is not empty
+ifneq ($(IS_RELEASE),) # If we're on a commit corresponding to a tag
 	RELEASE:=$(IS_RELEASE)
 else
 	RELEASE:=$(shell git describe --tags 2>/dev/null)
@@ -621,7 +621,7 @@ endif
 	$(QUIETSYM)$(call RUBY_GENERATE,$@,$<)
 
 $(OBJDIR)/%.o:%.f90 |$(MODDIR) $(OBJDIR)
-	$(call messageOp,"Compiling","\\t:",$<)
+	$(call messageOp,"Compiling","\\t:",$(notdir $<))
 	$(QUIETSYM) $(FC) $(F90FLAGS) -c $< -o $@
 	$(shell mv *.mod $(MODDIR) 2>/dev/null)
 
