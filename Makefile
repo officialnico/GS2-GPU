@@ -682,9 +682,9 @@ all: $(.DEFAULT_GOAL)
 # Here we list all targets for which we don't care if there's a dependency file or not
 # this can help us avoid the slow generation of the dependency file when not required
 DONT_INCLUDE_DEPEND_TARGETS := clean distclean depend test_make submodules docs
-# Here we find if our target actually matches any of the above
 # Note we really need to say do any of our targets not match the above as if we have multiple
 # targets and any of them require the dependency file then we have to build the dependency file
+# We achieve that using filter-out
 MUST_INCLUDE_DEPEND = $(filter-out $(DONT_INCLUDE_DEPEND_TARGETS),  $(MAKECMDGOALS))
 
 # If MUST_INCLUDE_DEPEND isn't empty then we better include the dependency file
