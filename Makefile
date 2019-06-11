@@ -9,26 +9,6 @@ GK_PROJECT := gs2
 #  Makefile written by Bill Dorland and Ryusuke Numata
 #  Modified by GS2 contributors
 #
-#
-# * Changelogs
-#	12/17/09: make it explicit that the codes are written in
-#		  Fortran 95 Standard
-#	10/12/09: share the Makefile with gsp gyrokinetic PIC code
-#	04/11/09: * share the Makefile with rmhdper reduced MHD code
-#		  * include progject specific target definitions
-#		    Makefile.target_$(GK_PROJECT)
-#	04/06/09: SYSTEM environment variable is replaced by GK_SYSTEM
-#	02/25/09: gs2 replaced by trinity (MAB)
-#	01/26/09: USE_C_INDEX is imported to gs2 by TT
-#       12/11/08: add support for NAGWare and Lahey compilers
-#       10/28/08: some non-standard macros respect environment variables
-#       10/27/08: default commands for MPI and HDF5 are defined
-#       09/26/08: hack for treating intermediate f90 files properly
-#	 	 (this is to keep all intermediate f90 files when 
-#		 .PRECIOUS is given)
-#	07/01/08: new switches USE_LOCAL_SPFUNC and USE_NAGLIB
-#	06/16/08: clean up unused statements related to PLATFORM_LINKS
-#
 # * Available Compilers (tested on limited hosts)
 #   (must be Fortran 95 Standard compliant)
 #
