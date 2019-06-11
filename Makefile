@@ -346,7 +346,6 @@ RELEASE_FILE = $(shell cat RELEASE)
 ifneq ($(RELEASE_FILE),) # If the file is not empty
 	RELEASE=$(RELEASE_FILE)
 	MACRO_DEFS+=-DRELEASE=$(RELEASE_FILE)
-	DOC_FOLDER=releases/$(RELEASE_FILE)/
 endif
 
 # Define GK_SYSTEM for runtime_tests so that we can get the system name
@@ -596,7 +595,7 @@ F90FROMFPP = $(addprefix $(GENERATED_SRC_DIR)/, $(patsubst %.F90,%.f90,$(patsubs
 .PHONY: help TAGS
 .PHONY: clean cleanlib cleanconfig clean_coverage distclean unlink
 .PHONY: doc docs/html docs/graphs cleandoc check_ford_install
-.PHONY: doxygen_doc clean_doxygendoc sync_doc check_coderunner_install sync_input_doc
+.PHONY: doxygen_doc clean_doxygendoc
 
 # comment this out to keep intermediate .f90 files
 ifdef KEEP_PROCESSED
@@ -1012,27 +1011,3 @@ clean_doxygendoc: #Doxygen documentation
 	$(call messageRm,"Doxygen documentation")
 	-$(QUIETSYM)rm -rf doc/
 
-#TODO: This will need updating when documentation has migrated to bitbucket
-sync_doc:
-	$(call messageInfo,"Warning: Target sync_doc out of date."
-	rsync -av --delete --exclude=releases doc/html/	${USER},gyrokinetics@web.sourceforge.net:htdocs/gs2_documentation/$(DOC_FOLDER)
-	$(MKDIR) doc/html/releases
-	echo "Options +Indexes" > doc/html/releases/.htaccess
-	rsync -av doc/html/releases/ ${USER},gyrokinetics@web.sourceforge.net:htdocs/gs2_documentation/releases/
-
-
-ifneq ("$(wildcard $(shell which $(coderunner) 2>/dev/null))","")
-check_coderunner_install:
-	$(call messageInfo,"Using coderunner at $(shell which coderunner)")
-else
-check_coderunner_install:
-	$(call messageInfo,"Coderunner command coderunner not in path -- is it installed?") ; which coderunner
-endif
-
-#This has an external dependency on coderunner
-sync_input_doc: |check_coderunner_install
-	$(call messageInfo,"Warning: Target sync_input_doc out of date."
-	coderunner cc synchronise_variables . -C gs2
-	curl 'http://sourceforge.net/apps/mediawiki/gyrokinetics/index.php?title=GS2_Input_Parameters&action=edit' | sed 's/&amp;/\&/g' | sed 's/&quot;/"/g' | sed 's/&gt;/>/g' | sed 's/&lt;/</g'  | sed 's/&nbsp;/ /g' > wiki_in.tmp
-	coderunner cc read_mediawiki_documentation wiki_in.tmp -C gs2
-	coderunner cc write_mediawiki_documentation > wiki_out.txt -C gs2
