@@ -319,13 +319,19 @@ MACRO_DEFS+=-DRUN_NAME_SIZE=$(RUN_NAME_SIZE)
 
 ############################################################################# Deal with user flags
 
-# Define RELEASE based on the contents of the RELEASE
-# file, which is empty unless we are in a release.
-RELEASE_FILE = $(shell cat RELEASE)
-ifneq ($(RELEASE_FILE),) # If the file is not empty
-	RELEASE=$(RELEASE_FILE)
-	MACRO_DEFS+=-DRELEASE=$(RELEASE_FILE)
+# Define IS_RELEASE based on if current commit exactly matches
+# a tagged version. If it does then we define RELEASE to reflect
+# this tag. If it doesn't then we define RELEASE from the "closest"
+# tag plus a modifier.
+IS_RELEASE := $(shell git describe --tags --exact-match 2>/dev/null)
+MACRO_DEFS+=-DIS_RELEASE=$(IS_RELEASE)
+
+ifneq ($(IS_RELEASE),) # If the file is not empty
+	RELEASE:=$(IS_RELEASE)
+else
+	RELEASE:=$(shell git describe --tags 2>/dev/null)
 endif
+MACRO_DEFS+=-DRELEASE='"$(RELEASE)"'
 
 # Define GK_SYSTEM for runtime_tests so that we can get the system name
 # at runtime
@@ -831,6 +837,8 @@ test_make:
 	$(call messageKeyVal, "GIT_STATE", $(GIT_STATE))
 	$(call messageKeyVal, "GIT_BRANCH", $(GIT_BRANCH))
 	$(call messageKeyVal, "PATCHFILE", $(PATHFILE))
+	$(call messageKeyVal, "IS_RELEASE", $(IS_RELEASE))
+	$(call messageKeyVal, "RELEASE", $(RELEASE))
 	@echo
 	$(call messageInfo,"Commands:")
 	$(call messageKeyVal, "COMPILER", $(COMPILER))
