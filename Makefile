@@ -11,7 +11,6 @@ GK_PROJECT := gs2
 #
 #
 # * Changelogs
-# 26/09/10: added targets doc_depend and doc to make doxygen documentation. EGH.
 #	12/17/09: make it explicit that the codes are written in
 #		  Fortran 95 Standard
 #	10/12/09: share the Makefile with gsp gyrokinetic PIC code
@@ -595,7 +594,6 @@ F90FROMFPP = $(addprefix $(GENERATED_SRC_DIR)/, $(patsubst %.F90,%.f90,$(patsubs
 .PHONY: help TAGS
 .PHONY: clean cleanlib cleanconfig clean_coverage distclean unlink
 .PHONY: doc docs/html docs/graphs cleandoc check_ford_install
-.PHONY: doxygen_doc clean_doxygendoc
 
 # comment this out to keep intermediate .f90 files
 ifdef KEEP_PROCESSED
@@ -787,7 +785,7 @@ clean_depend:
 	$(call messageRm,"Dependency file")	
 	-$(QUIETSYM)rm -f $(DEPEND)
 
-distclean: unlink clean cleanlib clean_tests clean_benchmarks distclean_simpledataio cleanconfig clean_doxygendoc cleandoc clean_depend pfunit_clean cleandirs
+distclean: unlink clean cleanlib clean_tests clean_benchmarks distclean_simpledataio cleanconfig cleandoc clean_depend pfunit_clean cleandirs
 
 unlink:
 	$(call messageRm,"Preprocessed files")	
@@ -1006,11 +1004,3 @@ doc: docs/docs.config.md check_ford_install
 cleandoc: docs/html docs/graphs
 	$(call messageRm,"FORD docs")	
 	-$(QUIETSYM)rm -rf $^
-
-doxygen_doc: $(F90FROMFPP) $(FORTFROMRUBY)
-	doxygen doxygen_config 
-
-clean_doxygendoc: #Doxygen documentation
-	$(call messageRm,"Doxygen documentation")
-	-$(QUIETSYM)rm -rf doc/
-
