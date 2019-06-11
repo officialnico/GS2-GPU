@@ -621,7 +621,7 @@ endif
 	$(QUIETSYM)$(call RUBY_GENERATE,$@,$<)
 
 $(OBJDIR)/%.o:%.f90 |$(MODDIR) $(OBJDIR)
-	$(call messageOp,"Compiling","\\t:",$(notdir $<))
+	$(call messageOp,"Compiling","\\t:",$<)
 	$(QUIETSYM) $(FC) $(F90FLAGS) -c $< -o $@
 	$(shell mv *.mod $(MODDIR) 2>/dev/null)
 
