@@ -722,9 +722,11 @@ ifdef USE_C_INDEX
     gs2_mod += $(OBJDIR)/layouts_indices.o
 endif
 
-$(OBJDIR)/layouts_indices.o: layouts_type.h
-layouts_type.h: layouts_type.f90
-	$(AWK) -f makehead.awk $^ > $@
+$(OBJDIR)/layouts_indices.o: $(MODDIR)/layouts_type.h
+layouts_type.h: $(MODDIR)/layouts_type.h
+$(MODDIR)/layouts_type.h: |$(MODDIR)
+$(MODDIR)/layouts_type.h: $(SRCDIR)/layouts_type.f90
+	$(AWK) -f scripts/makehead.awk $^ > $@
 
 # Make sure template dependencies are specified
 gs2_init.f90: $(SRCDIR)/templates/gs2_init_template.f90
@@ -736,6 +738,7 @@ gryfx_libs: utils.a geo.a $(SRCDIR)/geo/geometry_c_interface.o
 ############################################################# Get project specific targets
 Makefile.target_$(GK_PROJECT): ;
 include Makefile.target_$(GK_PROJECT)
+
 ############################################################# System config targets
 ifdef STANDARD_SYSTEM_CONFIGURATION
 system_config:
@@ -801,7 +804,7 @@ $(TARDIR):
 ### setting tar_exec local $(TARLIST*) variables
 # expand wildcards listed $(TARLIST_wild) in ( $(TARLIST_dir) + . )
 # directories and add them into TARLIST
-tar_exec: TARLIST = makehead.awk scripts/fortdep AstroGK.in
+tar_exec: TARLIST = scripts/makehead.awk scripts/fortdep AstroGK.in
 tar_exec: TARLIST_dir = Makefiles utils geo Aux
 tar_exec: TARLIST_wild = *.f90 *.fpp *.inc *.c Makefile Makefile.* README README.*
 tar_exec: TARLIST += $(foreach dir,. $(TARLIST_dir),$(wildcard $(addprefix $(dir)/,$(TARLIST_wild))))
