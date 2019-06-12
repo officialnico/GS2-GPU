@@ -16,6 +16,7 @@ module diagnostics_config
   public :: override_screen_printout_options
 
   public :: new_gs2_diagnostics_config_type
+  public :: set_diagnostics_config_config
   
   !> A type for storing the current results of the simulation
   type results_summary_type
@@ -173,7 +174,8 @@ module diagnostics_config
   !! and print_flux_line if set to true
   logical :: override_screen_printout_options = .false.
 
-
+  logical :: initialized = .false.
+  
   !> Used to represent the input configuration of new_gs2_diagnostics
   !> Very similar to original diagnostics config but with some new inputs
   !> and several different default values. Really would be good to just
@@ -370,7 +372,8 @@ contains
     implicit none
     type(diagnostics_type), intent(inout) :: gnostics
     type(new_gs2_diagnostics_config_type), intent(in), optional :: new_gs2_diagnostics_config_in
-
+    if(initialized) return
+    initialized = .true.
     call debug_message(3, 'diagnostics_config::init_diagnostics_config &
       & starting')
     call read_parameters(gnostics, new_gs2_diagnostics_config_in)
@@ -382,6 +385,7 @@ contains
   subroutine finish_diagnostics_config(gnostics)
     implicit none
     type(diagnostics_type), intent(inout) :: gnostics
+    initialized = .false.
     call deallocate_current_results(gnostics)
     call new_gs2_diagnostics_config%reset()
   end subroutine finish_diagnostics_config
@@ -537,6 +541,20 @@ contains
     end if
   end subroutine read_parameters
 
+  !> Set the module level config type
+  !> Will abort if the module has already been initialised to avoid
+  !> inconsistencies.
+  subroutine set_diagnostics_config_config(diagnostics_config_config_in)
+    use mp, only: mp_abort
+    type(new_gs2_diagnostics_config_type), intent(in), optional :: diagnostics_config_config_in
+    if (initialized) then
+       call mp_abort("Trying to set diagnostics_config config when already initialized.", to_screen = .true.)
+    end if
+    if (present(diagnostics_config_config_in)) then
+       new_gs2_diagnostics_config = diagnostics_config_config_in
+    end if
+  end subroutine set_diagnostics_config_config
+  
   !---------------------------------------
   ! Following is for the config_type
   !---------------------------------------

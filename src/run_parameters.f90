@@ -39,6 +39,7 @@ module run_parameters
 
   public :: knobs_config_type
   public :: parameters_config_type
+  public :: set_run_parameters_config
   
   real :: beta, zeff, tite
   real :: fphi, fapar, fbpar, faperp
@@ -597,6 +598,26 @@ contains
     call parameters_config%reset()    
   end subroutine finish_run_parameters
 
+
+  !> Set the module level config type
+  !> Will abort if the module has already been initialised to avoid
+  !> inconsistencies.
+  subroutine set_run_parameters_config(knobs_config_in, parameters_config_in)
+    use mp, only: mp_abort
+    type(knobs_config_type), intent(in), optional :: knobs_config_in
+    type(parameters_config_type), intent(in), optional :: parameters_config_in    
+    
+    if (initialized) then
+       call mp_abort("Trying to set run_parameters config when already initialized.", to_screen = .true.)
+    end if
+    if (present(knobs_config_in)) then
+       knobs_config = knobs_config_in
+    end if
+    if (present(parameters_config_in)) then
+       parameters_config = parameters_config_in
+    end if
+  end subroutine set_run_parameters_config
+  
   !---------------------------------------
   ! Following is for the knobs config_type
   !--------------------------------------- 

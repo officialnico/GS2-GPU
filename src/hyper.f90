@@ -13,6 +13,7 @@ module hyper
   public :: hypervisc_filter
 
   public :: hyper_config_type
+  public :: set_hyper_config
   
 ! D_v, D_eta are hyper coefficients, normalized correctly 
 ! i.e., either by unity or by 1/k_perp**2*nexp
@@ -341,6 +342,7 @@ contains
   subroutine read_parameters(hyper_config_in)
     use file_utils, only: input_unit, error_unit
     use text_options, only: text_option, get_option_value
+    use mp, only: proc0
     implicit none
     type(hyper_config_type), intent(in), optional :: hyper_config_in    
     type (text_option), dimension(5), parameter :: hyperopts = &
@@ -379,7 +381,7 @@ contains
          ierr, "hyper_option in hyper_knobs",.true.)
     
     if (.not. isotropic_shear .and. nexp /=2) then
-       write (ierr, *) 'Forcing nexp = 2.  Higher values not implemented for anisotropic shear model.'
+       if (proc0) write (ierr, *) 'Forcing nexp = 2.  Higher values not implemented for anisotropic shear model.'
        nexp = 2
     end if
 
@@ -387,44 +389,48 @@ contains
        
     case (hyper_option_none)
        if (D_hyperres > 0.) then
-          write(ierr, *) 'hyper_option = ',hyper_option, &
+          if (proc0) write(ierr, *) 'hyper_option = ',hyper_option, &
                ' chooses no hyperresistivity.  D_hyperres ignored.'
           D_hyperres = -10.
        end if
        if (D_hypervisc > 0.) then
-          write(ierr, *) 'hyper_option = ',hyper_option, &
+          if (proc0) write(ierr, *) 'hyper_option = ',hyper_option, &
                ' chooses no hyperviscosity.  D_hypervisc ignored.'
           D_hypervisc = -10.
        endif
 
     case (hyper_option_visc)
        hyper_on = .true.
-       write (ierr, *) 'WARNING: It is inconsistent to set D_hypervisc different from ', &
+       if (proc0) write (ierr, *) 'WARNING: It is inconsistent to set D_hypervisc different from ', &
             'D_hyperres.  Recommend: Set them equal.'
        if (D_hyperres > 0.) then
-          write(ierr, *) 'hyper_option = ',hyper_option, &
+          if (proc0) write(ierr, *) 'hyper_option = ',hyper_option, &
                ' chooses no hyperresistivity.  D_hyperres ignored.'
           D_hyperres = -10.
        end if
        if (D_hypervisc < 0.) then
-          write(ierr, *) 'hyper_option = ',hyper_option, &
-               ' chooses hyperviscosity but D_hypervisc < 0 is illegal.'
-          write(ierr, *) 'No hyperviscosity used.'
+          if (proc0) then
+             write(ierr, *) 'hyper_option = ',hyper_option, &
+                  ' chooses hyperviscosity but D_hypervisc < 0 is illegal.'
+             write(ierr, *) 'No hyperviscosity used.'
+          end if
           hyper_on = .false.
        endif
        
     case (hyper_option_res)
        hyper_on = .true.
-       write (ierr, *) 'WARNING: It is inconsistent to set D_hypervisc different from ', &
+       if (proc0) write (ierr, *) 'WARNING: It is inconsistent to set D_hypervisc different from ', &
             'D_hyperres.  Recommend: Set them equal.'
        if (D_hyperres < 0.) then
-          write(ierr, *) 'hyper_option = ',hyper_option, &
-               ' chooses hyperresistivity but  D_hyperres < 0 is illegal.'
-          write(ierr, *) 'No hyperresistivity used.'
+          if (proc0) then
+             write(ierr, *) 'hyper_option = ',hyper_option, &
+                  ' chooses hyperresistivity but  D_hyperres < 0 is illegal.'
+             write(ierr, *) 'No hyperresistivity used.'
+          end if
           hyper_on = .false.
        end if
        if (D_hypervisc > 0.) then
-          write(ierr, *) 'hyper_option = ',hyper_option, &
+          if (proc0) write(ierr, *) 'hyper_option = ',hyper_option, &
                ' chooses no hyperviscosity.  D_hypervisc ignored.'
           D_hypervisc = -10.
        endif
@@ -434,24 +440,28 @@ contains
 
        if (D_hyper < 0.) then
           if (D_hyperres /= D_hyperres) then
-             write (ierr, *) 'WARNING: It is inconsistent to set D_hypervisc different from ', &
+             if (proc0) write (ierr, *) 'WARNING: It is inconsistent to set D_hypervisc different from ', &
                   'D_hyperres.  Recommend: Set them equal.'
           end if
        else
-          write (ierr, *) 'WARNING: Setting D_hypervisc = D_hyperres, each to value of D_hyper'
+          if (proc0) write (ierr, *) 'WARNING: Setting D_hypervisc = D_hyperres, each to value of D_hyper'
           D_hyperres  = D_hyper
           D_hypervisc = D_hyper
        end if
 
        if (D_hyperres < 0.) then
-          write(ierr, *) 'hyper_option = ',hyper_option, &
-               ' chooses hyperresistivity but  D_hyperres < 0 is illegal.'
-          write(ierr, *) 'No hyperresistivity used.'
+          if (proc0) then
+             write(ierr, *) 'hyper_option = ',hyper_option, &
+                  ' chooses hyperresistivity but  D_hyperres < 0 is illegal.'
+             write(ierr, *) 'No hyperresistivity used.'
+          end if
        end if
        if (D_hypervisc < 0.) then
-          write(ierr, *) 'hyper_option = ',hyper_option, &
-               ' chooses hyperviscosity but D_hypervisc < 0 is illegal.'
-          write(ierr, *) 'No hyperviscosity used.'
+          if (proc0) then
+             write(ierr, *) 'hyper_option = ',hyper_option, &
+                  ' chooses hyperviscosity but D_hypervisc < 0 is illegal.'
+             write(ierr, *) 'No hyperviscosity used.'
+          end if
        endif
        if (D_hypervisc < 0. .and. D_hyperres < 0.) hyper_on = .false.
 
@@ -629,6 +639,20 @@ contains
     call hyper_config%reset()
   end subroutine finish_hyper
 
+  !> Set the module level config type
+  !> Will abort if the module has already been initialised to avoid
+  !> inconsistencies.
+  subroutine set_hyper_config(hyper_config_in)
+    use mp, only: mp_abort
+    type(hyper_config_type), intent(in), optional :: hyper_config_in
+    if (initialized) then
+       call mp_abort("Trying to set hyper_config when already initialized.", to_screen = .true.)
+    end if
+    if (present(hyper_config_in)) then
+       hyper_config = hyper_config_in
+    end if
+  end subroutine set_hyper_config
+  
   !---------------------------------------
   ! Following is for the config_type
   !---------------------------------------

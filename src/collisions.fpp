@@ -29,6 +29,7 @@ module collisions
   public :: split_collisions
 
   public :: collisions_config_type
+  public :: set_collisions_config
   
   interface solfp1
      module procedure solfp1_le_layout
@@ -4255,6 +4256,20 @@ contains
     call collisions_config%reset()
   end subroutine finish_collisions
 
+  !> Set the module level config type
+  !> Will abort if the module has already been initialised to avoid
+  !> inconsistencies.
+  subroutine set_collisions_config(collisions_config_in)
+    use mp, only: mp_abort
+    type(collisions_config_type), intent(in), optional :: collisions_config_in
+    if (initialized) then
+       call mp_abort("Trying to set collisions_config when already initialized.", to_screen = .true.)
+    end if
+    if (present(collisions_config_in)) then
+       collisions_config = collisions_config_in
+    end if
+  end subroutine set_collisions_config
+  
   !---------------------------------------
   ! Following is for the config_type
   !---------------------------------------

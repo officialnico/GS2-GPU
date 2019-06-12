@@ -394,6 +394,7 @@ def constructFromFile(fileIn=None, verbose=False):
     theConfigs = OrderedDict()
     
     with open(fileIn, 'r') as f:
+        print("Processing file '{f}'".format(f=fileIn))
         found = False
         currName = 'ERROR'
         otherLines = []

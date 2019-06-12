@@ -185,6 +185,7 @@ module le_grids
   public :: hermite_prob
 
   public :: le_grids_config_type
+  public :: set_le_grids_config
   
   interface integrate_moment
      module procedure integrate_moment_c34
@@ -4526,6 +4527,20 @@ contains
     init_weights_init = .false.
   end subroutine finish_weights
 
+  !> Set the module level config type
+  !> Will abort if the module has already been initialised to avoid
+  !> inconsistencies.
+  subroutine set_le_grids_config(le_grids_config_in)
+    use mp, only: mp_abort
+    type(le_grids_config_type), intent(in), optional :: le_grids_config_in
+    if (initialized) then
+       call mp_abort("Trying to set le_grids_config when already initialized.", to_screen = .true.)
+    end if
+    if (present(le_grids_config_in)) then
+       le_grids_config = le_grids_config_in
+    end if
+  end subroutine set_le_grids_config
+  
   !---------------------------------------
   ! Following is for the config_type
   !---------------------------------------

@@ -29,6 +29,7 @@ module parameter_scan
   public :: scan_restarted
 
   public :: parameter_scan_config_type
+  public :: set_parameter_scan_config
   
   logical :: scan_restarted
 
@@ -455,6 +456,20 @@ contains
 
   end subroutine read_parameters
 
+  !> Set the module level config type
+  !> Will abort if the module has already been initialised to avoid
+  !> inconsistencies.
+  subroutine set_parameter_scan_config(parameter_scan_config_in)
+    use mp, only: mp_abort
+    type(parameter_scan_config_type), intent(in), optional :: parameter_scan_config_in
+    if (initialized) then
+       call mp_abort("Trying to set parameter_scan_config when already initialized.", to_screen = .true.)
+    end if
+    if (present(parameter_scan_config_in)) then
+       parameter_scan_config = parameter_scan_config_in
+    end if
+  end subroutine set_parameter_scan_config
+  
   !---------------------------------------
   ! Following is for the config_type
   !---------------------------------------

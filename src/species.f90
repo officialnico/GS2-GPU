@@ -22,6 +22,7 @@ module species
 
   public :: species_config_type
   public :: species_element_config_type
+  public :: set_species_config
   
   !> FIXME : Add documentation 
   type :: specie
@@ -1062,6 +1063,25 @@ contains
     end do
   end subroutine write_trinity_parameters
 
+  !> Set the module level config types
+  !> Will abort if the module has already been initialised to avoid
+  !> inconsistencies.
+  subroutine set_species_config(species_config_in, species_element_config_in)
+    use mp, only: mp_abort
+    type(species_config_type), intent(in), optional :: species_config_in
+    type(species_element_config_type), intent(in), dimension(:), optional :: species_element_config_in
+
+    if (initialized) then
+       call mp_abort("Trying to set species_config when already initialized.", to_screen = .true.)
+    end if
+    if (present(species_config_in)) then
+       species_config = species_config_in
+    end if
+    if (present(species_element_config_in)) then
+       species_element_config = species_element_config_in
+    end if    
+  end subroutine set_species_config   
+  
   !---------------------------------------
   ! Following is for the config_type
   !---------------------------------------

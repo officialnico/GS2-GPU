@@ -16,6 +16,7 @@ module ballstab
   public :: stability
 
   public :: ballstab_config_type
+  public :: set_ballstab_config
   
   logical :: make_salpha
   integer :: n_shat, n_beta
@@ -532,6 +533,20 @@ contains
     deallocate(g,c,g1,c1,g2,c2,gh,ch)
   end function is_unstable
 
+  !> Set the module level config type
+  !> Will abort if the module has already been initialised to avoid
+  !> inconsistencies.
+  subroutine set_ballstab_config(ballstab_config_in)
+    use mp, only: mp_abort
+    type(ballstab_config_type), intent(in), optional :: ballstab_config_in
+    if (initialized) then
+       call mp_abort("Trying to set ballstab_config when already initialized.", to_screen = .true.)
+    end if
+    if (present(ballstab_config_in)) then
+       ballstab_config = ballstab_config_in
+    end if
+  end subroutine set_ballstab_config
+  
   !---------------------------------------
   ! Following is for the config_type
   !---------------------------------------

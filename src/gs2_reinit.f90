@@ -34,6 +34,7 @@ module gs2_reinit
   public :: gs2_reinit_unit_test_set_in_memory
 
   public :: reinit_config_type
+  public :: set_gs2_reinit_config
   
   real :: delt_adj, dt0
   real :: delt_cushion
@@ -42,7 +43,8 @@ module gs2_reinit
   logical :: abort_rapid_time_step_change
   logical :: first=.true.
   logical :: in_memory
-
+  logical :: initialized = .false.
+  
   !> Used to represent the input configuration of reinit
   type, extends(abstract_config_type) :: reinit_config_type
      ! namelist : reinit_knobs
@@ -254,6 +256,7 @@ contains
   !> FIXME : Add documentation  
   subroutine finish_gs2_reinit
     first = .true.
+    initialized = .false.
     call reinit_config%reset()
   end subroutine finish_gs2_reinit
 
@@ -269,6 +272,8 @@ contains
     integer :: in_file
     logical :: exist
 
+    if(initialized) return
+    initialized = .true.
     if(.not.first)return
     first=.false.
 
@@ -298,6 +303,20 @@ contains
     in_memory = gs2_init_in_memory
   end subroutine init_reinit
 
+  !> Set the module level config type
+  !> Will abort if the module has already been initialised to avoid
+  !> inconsistencies.
+  subroutine set_gs2_reinit_config(gs2_reinit_config_in)
+    use mp, only: mp_abort
+    type(reinit_config_type), intent(in), optional :: gs2_reinit_config_in
+    if (initialized) then
+       call mp_abort("Trying to set gs2_reinit_config when already initialized.", to_screen = .true.)
+    end if
+    if (present(gs2_reinit_config_in)) then
+       reinit_config = gs2_reinit_config_in
+    end if
+  end subroutine set_gs2_reinit_config
+  
   !---------------------------------------
   ! Following is for the config_type
   !---------------------------------------

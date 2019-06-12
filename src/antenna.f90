@@ -38,6 +38,7 @@ module antenna
 
   public :: driver_config_type
   public :: stir_config_type
+  public :: set_antenna_config
   
   complex :: w_antenna
   complex, dimension(:), allocatable :: w_stir
@@ -558,6 +559,25 @@ contains
     if(allocated(stir_config)) deallocate(stir_config)
   end subroutine reset_init
 
+  !> Set the module level config types
+  !> Will abort if the module has already been initialised to avoid
+  !> inconsistencies.
+  subroutine set_antenna_config(driver_config_in, stir_config_in)
+    use mp, only: mp_abort
+    type(driver_config_type), intent(in), optional :: driver_config_in
+    type(stir_config_type), intent(in), dimension(:), optional :: stir_config_in
+  
+    if (initialized) then
+       call mp_abort("Trying to set antenna config when already initialized.", to_screen = .true.)
+    end if
+    if (present(driver_config_in)) then
+       driver_config = driver_config_in
+    end if
+    if (present(stir_config_in)) then
+       stir_config = stir_config_in
+    end if    
+  end subroutine set_antenna_config   
+  
   !---------------------------------------
   ! Following is for the driver config_type
   !---------------------------------------
