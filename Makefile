@@ -698,8 +698,14 @@ all: $(.DEFAULT_GOAL)
 DONT_INCLUDE_DEPEND_TARGETS := clean distclean depend test_make submodules docs
 # Note we really need to say do any of our targets not match the above as if we have multiple
 # targets and any of them require the dependency file then we have to build the dependency file
-# We achieve that using filter-out
-MUST_INCLUDE_DEPEND = $(filter-out $(DONT_INCLUDE_DEPEND_TARGETS),  $(MAKECMDGOALS))
+# We achieve that using filter-out. Because we also want to be able to build when the user
+# doesn't specify the target (i.e. just make -j ) it's not enough to check that MAKECMDGOALS is
+# empty after filtering. We need to know if this was the case before hand.
+ifneq ($(strip $(MAKECMDGOALS)),)
+MUST_INCLUDE_DEPEND := $(filter-out $(DONT_INCLUDE_DEPEND_TARGETS),  $(MAKECMDGOALS))
+else
+MUST_INCLUDE_DEPEND := "YES"
+endif
 
 # If MUST_INCLUDE_DEPEND isn't empty then we better include the dependency file
 ifneq ($(strip $(MUST_INCLUDE_DEPEND)),)
