@@ -25,6 +25,7 @@ module abstract_config
      procedure :: setup => setup_generic
      procedure :: write_namelist_header
      procedure :: get_name => get_name_generic
+     procedure :: get_requires_index => get_requires_index_generic
      procedure, nopass :: write_namelist_footer
      procedure, private, nopass :: write_key_val_string
      procedure, private, nopass :: write_key_val_real
@@ -113,6 +114,15 @@ contains
     character(len = MAX_NAME_LEN) :: get_name_generic
     get_name_generic = self%name
   end function get_name_generic
+
+  !> Returns the requires_index value. Allows access whilst keeping
+  !> the variable private
+  function get_requires_index_generic(self)
+    implicit none
+    class(abstract_config_type), intent(in) :: self
+    logical :: get_requires_index_generic
+    get_requires_index_generic = self%requires_index
+  end function get_requires_index_generic
   
   !> Write the namelist header for this instance
   subroutine write_namelist_header(self, unit)
