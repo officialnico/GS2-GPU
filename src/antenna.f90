@@ -615,7 +615,7 @@ contains
     write_antenna = self%write_antenna
 
     ! Now read in the main namelist
-    if (self%requiresIndex) then
+    if (self%requires_index) then
        call get_indexed_namelist_unit(in_file, trim(self%name), self%index)
        read(in_file, nml = driver, iostat = iostat)
        exist = .true.
@@ -691,12 +691,12 @@ contains
     call broadcast(self%exist)
   end subroutine broadcast_driver_config
 
-  !> Sets the name and requiresIndex paremeters as appropriate
+  !> Sets the name and requires_index paremeters as appropriate
   function driver_config_constructor()
     implicit none
     type(driver_config_type) :: driver_config_constructor
     driver_config_constructor%name = "driver"
-    driver_config_constructor%requiresIndex = .false.
+    driver_config_constructor%requires_index = .false.
   end function driver_config_constructor
   
   !---------------------------------------
@@ -733,7 +733,7 @@ contains
     travel = self%travel
 
     ! Now read in the main namelist
-    if (self%requiresIndex) then
+    if (self%requires_index) then
        call get_indexed_namelist_unit(in_file, trim(self%name), self%index)
        read(in_file, nml = stir, iostat = iostat)
        exist = .true.
@@ -803,12 +803,12 @@ contains
     call broadcast(self%exist)
   end subroutine broadcast_stir_config
 
-  !> Sets the name and requiresIndex paremeters as appropriate
+  !> Sets the name and requires_index paremeters as appropriate
   function stir_config_constructor()
     implicit none
     type(stir_config_type) :: stir_config_constructor
     stir_config_constructor%name = "stir"
-    stir_config_constructor%requiresIndex = .true.
+    stir_config_constructor%requires_index = .true.
   end function stir_config_constructor
 end module antenna
 

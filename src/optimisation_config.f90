@@ -181,7 +181,7 @@ contains
     warm_up = self%warm_up
 
     ! Now read in the main namelist
-    if (self%requiresIndex) then
+    if (self%requires_index) then
        call get_indexed_namelist_unit(in_file, trim(self%name), self%index)
        read(in_file, nml = optimisation_config, iostat = iostat)
        exist = .true.
@@ -260,12 +260,12 @@ contains
     call broadcast(self%exist)
   end subroutine broadcast_optimisation_config
   
-  !> Sets the name and requiresIndex paremeters as appropriate
+  !> Sets the name and requires_index paremeters as appropriate
   function optimisation_config_constructor()
     implicit none
     type(optimisation_config_type) :: optimisation_config_constructor
     optimisation_config_constructor%name = "optimisation_config"
-    optimisation_config_constructor%requiresIndex = .false.
+    optimisation_config_constructor%requires_index = .false.
   end function optimisation_config_constructor
 end module optimisation_config
 

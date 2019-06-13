@@ -795,7 +795,7 @@ contains
     response_dir = self%response_dir
 
     ! Now read in the main namelist
-    if (self%requiresIndex) then
+    if (self%requires_index) then
        call get_indexed_namelist_unit(in_file, trim(self%name), self%index)
        read(in_file, nml = fields_knobs, iostat = iostat)
        exist = .true.
@@ -886,11 +886,11 @@ contains
     call broadcast(self%exist)
   end subroutine broadcast_fields_config
 
-  !> Sets the name and requiresIndex paremeters as appropriate
+  !> Sets the name and requires_index paremeters as appropriate
   function fields_config_constructor()
     implicit none
     type(fields_config_type) :: fields_config_constructor
     fields_config_constructor%name = "fields_knobs"
-    fields_config_constructor%requiresIndex = .false.
+    fields_config_constructor%requires_index = .false.
   end function fields_config_constructor
 end module fields

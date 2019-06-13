@@ -693,7 +693,7 @@ contains
     omega_osc = self%omega_osc
 
     ! Now read in the main namelist
-    if (self%requiresIndex) then
+    if (self%requires_index) then
        call get_indexed_namelist_unit(in_file, trim(self%name), self%index)
        read(in_file, nml = hyper_knobs, iostat = iostat)
        exist = .true.
@@ -778,11 +778,11 @@ contains
     call broadcast(self%exist)
   end subroutine broadcast_hyper_config
 
-  !> Sets the name and requiresIndex paremeters as appropriate
+  !> Sets the name and requires_index paremeters as appropriate
   function hyper_config_constructor()
     implicit none
     type(hyper_config_type) :: hyper_config_constructor
     hyper_config_constructor%name = "hyper_knobs"
-    hyper_config_constructor%requiresIndex = .false.
+    hyper_config_constructor%requires_index = .false.
   end function hyper_config_constructor
 end module hyper

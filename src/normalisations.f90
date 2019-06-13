@@ -393,7 +393,7 @@ contains
     zref = self%zref
 
     ! Now read in the main namelist
-    if (self%requiresIndex) then
+    if (self%requires_index) then
        call get_indexed_namelist_unit(in_file, trim(self%name), self%index)
        read(in_file, nml = normalisations_knobs, iostat = iostat)
        exist = .true.
@@ -469,11 +469,11 @@ contains
     call broadcast(self%exist)
   end subroutine broadcast_normalisations_config
 
-  !> Sets the name and requiresIndex paremeters as appropriate
+  !> Sets the name and requires_index paremeters as appropriate
   function normalisations_config_constructor()
     implicit none
     type(normalisations_config_type) :: normalisations_config_constructor
     normalisations_config_constructor%name = "normalisations_knobs"
-    normalisations_config_constructor%requiresIndex = .false.
+    normalisations_config_constructor%requires_index = .false.
   end function normalisations_config_constructor
 end module normalisations

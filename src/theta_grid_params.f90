@@ -644,7 +644,7 @@ contains
     zaxis = self%zaxis
 
     ! Now read in the main namelist
-    if (self%requiresIndex) then
+    if (self%requires_index) then
        call get_indexed_namelist_unit(in_file, trim(self%name), self%index)
        read(in_file, nml = theta_grid_parameters, iostat = iostat)
        exist = .true.
@@ -813,11 +813,11 @@ contains
     call broadcast(self%exist)
   end subroutine broadcast_theta_grid_parameters_config
   
-  !> Sets the name and requiresIndex paremeters as appropriate
+  !> Sets the name and requires_index paremeters as appropriate
   function theta_grid_parameters_config_constructor()
     implicit none
     type(theta_grid_parameters_config_type) :: theta_grid_parameters_config_constructor
     theta_grid_parameters_config_constructor%name = "theta_grid_parameters"
-    theta_grid_parameters_config_constructor%requiresIndex = .false.
+    theta_grid_parameters_config_constructor%requires_index = .false.
   end function theta_grid_parameters_config_constructor
 end module theta_grid_params

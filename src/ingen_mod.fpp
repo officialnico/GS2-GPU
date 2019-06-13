@@ -2437,7 +2437,7 @@ if (debug) write(6,*) 'get_namelists: returning'
     stdin = self%stdin
 
     ! Now read in the main namelist
-    if (self%requiresIndex) then
+    if (self%requires_index) then
        call get_indexed_namelist_unit(in_file, trim(self%name), self%index)
        read(in_file, nml = ingen_knobs, iostat = iostat)
        exist = .true.
@@ -2501,11 +2501,11 @@ if (debug) write(6,*) 'get_namelists: returning'
     call broadcast(self%exist)
   end subroutine broadcast_ingen_config
 
-  !> Sets the name and requiresIndex paremeters as appropriate
+  !> Sets the name and requires_index paremeters as appropriate
   function ingen_config_constructor()
     implicit none
     type(ingen_config_type) :: ingen_config_constructor
     ingen_config_constructor%name = "ingen_knobs"
-    ingen_config_constructor%requiresIndex = .false.
+    ingen_config_constructor%requires_index = .false.
   end function ingen_config_constructor
 end module ingen_mod

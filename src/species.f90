@@ -1112,7 +1112,7 @@ contains
     zi_fac = self%zi_fac
 
     ! Now read in the main namelist
-    if (self%requiresIndex) then
+    if (self%requires_index) then
        call get_indexed_namelist_unit(in_file, trim(self%name), self%index)
        read(in_file, nml = species_knobs, iostat = iostat)
        exist = .true.
@@ -1173,12 +1173,12 @@ contains
     call broadcast(self%exist)
   end subroutine broadcast_species_config
   
-  !> Sets the name and requiresIndex paremeters as appropriate
+  !> Sets the name and requires_index paremeters as appropriate
   function species_config_constructor()
     implicit none
     type(species_config_type) :: species_config_constructor
     species_config_constructor%name = "species_knobs"
-    species_config_constructor%requiresIndex = .false.
+    species_config_constructor%requires_index = .false.
   end function species_config_constructor
 
   !---------------------------------------
@@ -1229,7 +1229,7 @@ contains
     z = self%z
 
     ! Now read in the main namelist
-    if (self%requiresIndex) then
+    if (self%requires_index) then
        call get_indexed_namelist_unit(in_file, trim(self%name), self%index)
        read(in_file, nml = species_parameters, iostat = iostat)
        exist = .true.
@@ -1344,11 +1344,11 @@ contains
     call broadcast(self%exist)
   end subroutine broadcast_species_element_config 
  
-  !> Sets the name and requiresIndex paremeters as appropriate
+  !> Sets the name and requires_index paremeters as appropriate
   function species_element_config_constructor()
     implicit none
     type(species_element_config_type) :: species_element_config_constructor
     species_element_config_constructor%name = "species_parameters"
-    species_element_config_constructor%requiresIndex = .true.
+    species_element_config_constructor%requires_index = .true.
   end function species_element_config_constructor
 end module species

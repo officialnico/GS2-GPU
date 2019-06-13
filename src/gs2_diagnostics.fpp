@@ -4253,7 +4253,7 @@ contains
     write_verr = self%write_verr
 
     ! Now read in the main namelist
-    if (self%requiresIndex) then
+    if (self%requires_index) then
        call get_indexed_namelist_unit(in_file, trim(self%name), self%index)
        read(in_file, nml = gs2_diagnostics_knobs, iostat = iostat)
        exist = .true.
@@ -4497,11 +4497,11 @@ contains
     call broadcast(self%exist)
   end subroutine broadcast_gs2_diagnostics_config
 
-  !> Sets the name and requiresIndex paremeters as appropriate
+  !> Sets the name and requires_index paremeters as appropriate
   function gs2_diagnostics_config_constructor()
     implicit none
     type(gs2_diagnostics_config_type) :: gs2_diagnostics_config_constructor
     gs2_diagnostics_config_constructor%name = "gs2_diagnostics_knobs"
-    gs2_diagnostics_config_constructor%requiresIndex = .false.
+    gs2_diagnostics_config_constructor%requires_index = .false.
   end function gs2_diagnostics_config_constructor
 end module gs2_diagnostics

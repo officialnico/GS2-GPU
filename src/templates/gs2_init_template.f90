@@ -328,7 +328,7 @@ contains
     in_memory = self%in_memory
 
     ! Now read in the main namelist
-    if (self%requiresIndex) then
+    if (self%requires_index) then
        call get_indexed_namelist_unit(in_file, trim(self%name), self%index)
        read(in_file, nml = init_knobs, iostat = iostat)
        exist = .true.
@@ -383,12 +383,12 @@ contains
     call broadcast(self%exist)
   end subroutine broadcast_init_config
 
-  !> Sets the name and requiresIndex paremeters as appropriate
+  !> Sets the name and requires_index paremeters as appropriate
   function init_config_constructor()
     implicit none
     type(init_config_type) :: init_config_constructor
     init_config_constructor%name = "init_knobs"
-    init_config_constructor%requiresIndex = .false.
+    init_config_constructor%requires_index = .false.
   end function init_config_constructor
 end module gs2_init
 

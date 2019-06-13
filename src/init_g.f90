@@ -4126,7 +4126,7 @@ contains
     zf_init = self%zf_init
 
     ! Now read in the main namelist
-    if (self%requiresIndex) then
+    if (self%requires_index) then
        call get_indexed_namelist_unit(in_file, trim(self%name), self%index)
        read(in_file, nml = init_g_knobs, iostat = iostat)
        exist = .true.
@@ -4353,6 +4353,6 @@ contains
     implicit none
     type(init_g_config_type) :: init_g_config_constructor
     init_g_config_constructor%name = "init_g_knobs"
-    init_g_config_constructor%requiresIndex = .false.
+    init_g_config_constructor%requires_index = .false.
   end function init_g_config_constructor
 end module init_g

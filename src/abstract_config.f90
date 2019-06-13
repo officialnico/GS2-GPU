@@ -15,7 +15,7 @@ module abstract_config
   type, abstract :: abstract_config_type
      logical, private :: initialised = .false. !< Have we initialised the instance?
      logical :: exist = .false. !< Does the related namelist exist in the target input file?
-     logical :: requiresIndex = .false. !< Is this a numbered namelist with an index
+     logical :: requires_index = .false. !< Is this a numbered namelist with an index
      integer :: index = 0 !< Used to hold the specific index of numbered namelists
      character(len = MAX_NAME_LEN) :: name="Undefined name." !< The name of the namelist that we represent.
    contains
@@ -91,13 +91,13 @@ contains
     logical, intent(in), optional :: requires_index
     integer, intent(in), optional :: index
     if(present(name)) self%name = name
-    if(present(requires_index)) self%requiresIndex = requires_index
+    if(present(requires_index)) self%requires_index = requires_index
 
     !Set a default index number if required and not set (could abort)
     if(present(index)) then
        self%index = index
     else
-       if(self%requiresIndex) self%index = 1
+       if(self%requires_index) self%index = 1
     endif
 
     self%initialised = .true.
@@ -109,8 +109,8 @@ contains
     class(abstract_config_type), intent(in) :: self
     integer, intent(in) :: unit
     !Decide if we should include the index or not
-    if(self%requiresIndex) then
        write(unit,'("&",A,"_",I0)') trim(self%name), self%index
+    if(self%requires_index) then
     else
        write(unit,'("&",A)') trim(self%name)
     endif

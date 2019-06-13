@@ -1057,7 +1057,7 @@ contains
     zip = self%zip
 
     ! Now read in the main namelist
-    if (self%requiresIndex) then
+    if (self%requires_index) then
        call get_indexed_namelist_unit(in_file, trim(self%name), self%index)
        read(in_file, nml = nonlinear_terms_knobs, iostat = iostat)
        exist = .true.
@@ -1139,12 +1139,12 @@ contains
     call broadcast(self%exist)
   end subroutine broadcast_nonlinear_terms_config
 
-  !> Sets the name and requiresIndex paremeters as appropriate
+  !> Sets the name and requires_index paremeters as appropriate
   function nonlinear_terms_config_constructor()
     implicit none
     type(nonlinear_terms_config_type) :: nonlinear_terms_config_constructor
     nonlinear_terms_config_constructor%name = "nonlinear_terms_knobs"
-    nonlinear_terms_config_constructor%requiresIndex = .false.
+    nonlinear_terms_config_constructor%requires_index = .false.
   end function nonlinear_terms_config_constructor
 end module nonlinear_terms
 

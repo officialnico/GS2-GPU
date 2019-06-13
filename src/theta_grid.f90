@@ -364,12 +364,12 @@ if (debug) write(6,*) 'gridgen_get_grids: end'
     call broadcast(self%exist)
   end subroutine broadcast_theta_grid_gridgen_config
 
-  !> Sets the name and requiresIndex paremeters as appropriate
+  !> Sets the name and requires_index paremeters as appropriate
   function theta_grid_gridgen_config_constructor()
     implicit none
     type(theta_grid_gridgen_config_type) :: theta_grid_gridgen_config_constructor
     theta_grid_gridgen_config_constructor%name = "theta_grid_gridgen_knobs"
-    theta_grid_gridgen_config_constructor%requiresIndex = .false.
+    theta_grid_gridgen_config_constructor%requires_index = .false.
   end function theta_grid_gridgen_config_constructor
 end module theta_grid_gridgen
 
@@ -920,7 +920,7 @@ contains
     model_option = self%model_option
 
     ! Now read in the main namelist
-    if (self%requiresIndex) then
+    if (self%requires_index) then
        call get_indexed_namelist_unit(in_file, trim(self%name), self%index)
        read(in_file, nml = theta_grid_salpha_knobs, iostat = iostat)
        exist = .true.
@@ -981,12 +981,12 @@ contains
     call broadcast(self%exist)
   end subroutine broadcast_theta_grid_salpha_config
 
-  !> Sets the name and requiresIndex paremeters as appropriate
+  !> Sets the name and requires_index paremeters as appropriate
   function theta_grid_salpha_config_constructor()
     implicit none
     type(theta_grid_salpha_config_type) :: theta_grid_salpha_config_constructor
     theta_grid_salpha_config_constructor%name = "theta_grid_salpha_knobs"
-    theta_grid_salpha_config_constructor%requiresIndex = .false.
+    theta_grid_salpha_config_constructor%requires_index = .false.
   end function theta_grid_salpha_config_constructor
 end module theta_grid_salpha
 
@@ -1917,7 +1917,7 @@ contains
     writelots = self%writelots
 
     ! Now read in the main namelist
-    if (self%requiresIndex) then
+    if (self%requires_index) then
        call get_indexed_namelist_unit(in_file, trim(self%name), self%index)
        read(in_file, nml = theta_grid_eik_knobs, iostat = iostat)
        exist = .true.
@@ -2044,12 +2044,12 @@ contains
     call broadcast(self%exist)
   end subroutine broadcast_theta_grid_eik_config
   
-  !> Sets the name and requiresIndex paremeters as appropriate
+  !> Sets the name and requires_index paremeters as appropriate
   function theta_grid_eik_config_constructor()
     implicit none
     type(theta_grid_eik_config_type) :: theta_grid_eik_config_constructor
     theta_grid_eik_config_constructor%name = "theta_grid_eik_knobs"
-    theta_grid_eik_config_constructor%requiresIndex = .false.
+    theta_grid_eik_config_constructor%requires_index = .false.
   end function theta_grid_eik_config_constructor
 end module theta_grid_eik
 
@@ -2385,7 +2385,7 @@ contains
     no_geo_info = self%no_geo_info
 
     ! Now read in the main namelist
-    if (self%requiresIndex) then
+    if (self%requires_index) then
        call get_indexed_namelist_unit(in_file, trim(self%name), self%index)
        read(in_file, nml = theta_grid_file_knobs, iostat = iostat)
        exist = .true.
@@ -2443,12 +2443,12 @@ contains
     call broadcast(self%exist)
   end subroutine broadcast_theta_grid_file_config
 
-  !> Sets the name and requiresIndex paremeters as appropriate
+  !> Sets the name and requires_index paremeters as appropriate
   function theta_grid_file_config_constructor()
     implicit none
     type(theta_grid_file_config_type) :: theta_grid_file_config_constructor
     theta_grid_file_config_constructor%name = "theta_grid_file_knobs"
-    theta_grid_file_config_constructor%requiresIndex = .false.
+    theta_grid_file_config_constructor%requires_index = .false.
   end function theta_grid_file_config_constructor
 end module theta_grid_file
 
@@ -3109,7 +3109,7 @@ if (debug) write(6,*) 'get_grids: call file_get_grids'
     gbdriftknob = self%gbdriftknob
 
     ! Now read in the main namelist
-    if (self%requiresIndex) then
+    if (self%requires_index) then
        call get_indexed_namelist_unit(in_file, trim(self%name), self%index)
        read(in_file, nml = theta_grid_knobs, iostat = iostat)
        exist = .true.
@@ -3173,12 +3173,12 @@ if (debug) write(6,*) 'get_grids: call file_get_grids'
     call broadcast(self%exist)
   end subroutine broadcast_theta_grid_config
   
-  !> Sets the name and requiresIndex paremeters as appropriate
+  !> Sets the name and requires_index paremeters as appropriate
   function theta_grid_config_constructor()
     implicit none
     type(theta_grid_config_type) :: theta_grid_config_constructor
     theta_grid_config_constructor%name = "theta_grid_knobs"
-    theta_grid_config_constructor%requiresIndex = .false.
+    theta_grid_config_constructor%requires_index = .false.
   end function theta_grid_config_constructor
 end module theta_grid
 

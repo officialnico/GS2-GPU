@@ -48,7 +48,7 @@ subroutine read_{module}_config(self)
 {COPYOUT_LIST}
 
   ! Now read in the main namelist
-  if (self%requiresIndex) then
+  if (self%requires_index) then
     call get_indexed_namelist_unit(in_file, trim(self%name), self%index)
     read(in_file, nml = {namelist}, iostat = iostat)
     exist = .true.
@@ -107,12 +107,12 @@ subroutine broadcast_{module}_config(self)
 end subroutine broadcast_{module}_config"""
 
 constructorSubString = """
-!> Sets the name and requiresIndex paremeters as appropriate
+!> Sets the name and requires_index paremeters as appropriate
 function {module}_config_constructor()
   implicit none
   type({module}_config_type) :: {module}_config_constructor
   {module}_config_constructor%name = "{namelist}"
-  {module}_config_constructor%requiresIndex = {requires_index}
+  {module}_config_constructor%requires_index = {requires_index}
 end function {module}_config_constructor"""
 
 class var():
@@ -183,11 +183,11 @@ end interface {module}_config_type"""
 !---------------------------------------
 """
     
-    def __init__(self, varList = [], moduleName = None, namelistName = None, requiresIndex = False, comment = "FIXME: Add documentation"):
+    def __init__(self, varList = [], moduleName = None, namelistName = None, requires_index = False, comment = "FIXME: Add documentation"):
         self.varList = set(varList)
         self.moduleName = moduleName.lower()
         self.namelistName = namelistName.lower()
-        self.requiresIndex = requiresIndex
+        self.requires_index = requires_index
         if isinstance(comment, list):
             comment = "\n".join(comment)
         
@@ -201,7 +201,7 @@ end interface {module}_config_type"""
         st += self.startTypeString.format(module = self.moduleName) + "\n"
         st += typeIndent+"! namelist : "+self.namelistName + "\n"
         indexStr = "False"
-        if self.requiresIndex: indexStr = "True"
+        if self.requires_index: indexStr = "True"
         st += typeIndent+"! indexed : "+indexStr + "\n"        
         st += "\n".join([str(x) for x in self.varList])
         st += self.boundString.format(module = self.moduleName, indent = typeIndent)
@@ -260,7 +260,7 @@ end interface {module}_config_type"""
             instance_name = self.moduleName+"_config"
             
         theStr = self.instanceString
-        if self.requiresIndex:
+        if self.requires_index:
             theStr = self.instanceStringIndexed
         return theStr.format(module = self.moduleName, instance_name = instance_name)
 
@@ -270,7 +270,7 @@ end interface {module}_config_type"""
     def readParams(self, instance_name = None, config_in = None, **kwargs):
         req = ".false."
         att = ""
-        if self.requiresIndex:
+        if self.requires_index:
             req = ".true."
             att = " dimension(:),"
 
@@ -300,9 +300,9 @@ end interface {module}_config_type"""
         return broadcastSubString.format(module = self.moduleName, BROADCAST_LIST = self.broadcastList(**kwargs))
     
     def constructorConfig(self, **kwargs):
-        requiresIndex = ".false."
-        if self.requiresIndex: requiresIndex = ".true."
-        return constructorSubString.format(module = self.moduleName, namelist = self.namelistName, requires_index = requiresIndex)
+        requires_index = ".false."
+        if self.requires_index: requires_index = ".true."
+        return constructorSubString.format(module = self.moduleName, namelist = self.namelistName, requires_index = requires_index)
 
     
     def printAll(self,**kwargs):
@@ -400,7 +400,7 @@ def constructFromFile(fileIn=None, verbose=False):
         otherLines = []
         namelistName = 'ERROR'
         theComments = None
-        requiresIndex = False
+        requires_index = False
         
         for line in f.readlines():
             if found:
@@ -430,13 +430,13 @@ def constructFromFile(fileIn=None, verbose=False):
                 if name != currName:
                     raise ValueError("Mismatched type names {a} and {b}".format(a=name, b=currName))
 
-                theConfigs[currName] = config(varList = theVars[currName], moduleName = currName, namelistName = namelistName, comment = theComments, requiresIndex = requiresIndex)
+                theConfigs[currName] = config(varList = theVars[currName], moduleName = currName, namelistName = namelistName, comment = theComments, requires_index = requires_index)
                 
                 found = False
                 currName = 'ERROR'
                 namelistName = 'ERROR'
                 theComments = None
-                requiresIndex = False
+                requires_index = False
                 
             elif found:
                 # Currently inside type so work out what sort of line we have
@@ -455,7 +455,7 @@ def constructFromFile(fileIn=None, verbose=False):
                 elif nmlMatch is not None:
                     namelistName = nmlMatch.group('namelist')
                 elif indexedMatch is not None:
-                    requiresIndex = indexedMatch.group('indexed').lower() == 'true'
+                    requires_index = indexedMatch.group('indexed').lower() == 'true'
                     
     if(len(theLines.keys())>0):
         result = theConfigs

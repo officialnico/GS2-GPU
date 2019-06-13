@@ -1287,7 +1287,7 @@ contains
     which_option = self%which_option
 
     ! Now read in the main namelist
-    if (self%requiresIndex) then
+    if (self%requires_index) then
        call get_indexed_namelist_unit(in_file, trim(self%name), self%index)
        read(in_file, nml = eigval_knobs, iostat = iostat)
        exist = .true.
@@ -1375,12 +1375,12 @@ contains
     call broadcast(self%exist)
   end subroutine broadcast_eigval_config
 
-  !> Sets the name and requiresIndex paremeters as appropriate
+  !> Sets the name and requires_index paremeters as appropriate
   function eigval_config_constructor()
     implicit none
     type(eigval_config_type) :: eigval_config_constructor
     eigval_config_constructor%name = "eigval_knobs"
-    eigval_config_constructor%requiresIndex = .false.
+    eigval_config_constructor%requires_index = .false.
   end function eigval_config_constructor
 end module eigval
 

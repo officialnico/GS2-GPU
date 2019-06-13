@@ -205,7 +205,7 @@ contains
     theta0 = self%theta0
 
     ! Now read in the main namelist
-    if (self%requiresIndex) then
+    if (self%requires_index) then
        call get_indexed_namelist_unit(in_file, trim(self%name), self%index)
        read(in_file, nml = kt_grids_single_parameters, iostat = iostat)
        exist = .true.
@@ -272,12 +272,12 @@ contains
     call broadcast(self%exist)
   end subroutine broadcast_kt_grids_single_config
 
-  !> Sets the name and requiresIndex paremeters as appropriate
+  !> Sets the name and requires_index paremeters as appropriate
   function kt_grids_single_config_constructor()
     implicit none
     type(kt_grids_single_config_type) :: kt_grids_single_config_constructor
     kt_grids_single_config_constructor%name = "kt_grids_single_parameters"
-    kt_grids_single_config_constructor%requiresIndex = .false.
+    kt_grids_single_config_constructor%requires_index = .false.
   end function kt_grids_single_config_constructor
 end module kt_grids_single
 
@@ -726,7 +726,7 @@ contains
     theta0_min = self%theta0_min
 
     ! Now read in the main namelist
-    if (self%requiresIndex) then
+    if (self%requires_index) then
        call get_indexed_namelist_unit(in_file, trim(self%name), self%index)
        read(in_file, nml = kt_grids_range_parameters, iostat = iostat)
        exist = .true.
@@ -817,12 +817,12 @@ contains
     call broadcast(self%exist)
   end subroutine broadcast_kt_grids_range_config
 
-  !> Sets the name and requiresIndex paremeters as appropriate
+  !> Sets the name and requires_index paremeters as appropriate
   function kt_grids_range_config_constructor()
     implicit none
     type(kt_grids_range_config_type) :: kt_grids_range_config_constructor
     kt_grids_range_config_constructor%name = "kt_grids_range_parameters"
-    kt_grids_range_config_constructor%requiresIndex = .false.
+    kt_grids_range_config_constructor%requires_index = .false.
   end function kt_grids_range_config_constructor
 end module kt_grids_range
 
@@ -1080,7 +1080,7 @@ contains
     ny = self%ny
 
     ! Now read in the main namelist
-    if (self%requiresIndex) then
+    if (self%requires_index) then
        call get_indexed_namelist_unit(in_file, trim(self%name), self%index)
        read(in_file, nml = kt_grids_specified_parameters, iostat = iostat)
        exist = .true.
@@ -1144,12 +1144,12 @@ contains
     call broadcast(self%exist)
   end subroutine broadcast_kt_grids_specified_config
   
-  !> Sets the name and requiresIndex paremeters as appropriate
+  !> Sets the name and requires_index paremeters as appropriate
   function kt_grids_specified_config_constructor()
     implicit none
     type(kt_grids_specified_config_type) :: kt_grids_specified_config_constructor
     kt_grids_specified_config_constructor%name = "kt_grids_specified_parameters"
-    kt_grids_specified_config_constructor%requiresIndex = .false.
+    kt_grids_specified_config_constructor%requires_index = .false.
   end function kt_grids_specified_config_constructor
   
   !---------------------------------------
@@ -1181,7 +1181,7 @@ contains
     theta0 = self%theta0
 
     ! Now read in the main namelist
-    if (self%requiresIndex) then
+    if (self%requires_index) then
        call get_indexed_namelist_unit(in_file, trim(self%name), self%index)
        read(in_file, nml = kt_grids_specified_element, iostat = iostat)
        exist = .true.
@@ -1242,12 +1242,12 @@ contains
     call broadcast(self%exist)
   end subroutine broadcast_kt_grids_specified_element_config
 
-  !> Sets the name and requiresIndex paremeters as appropriate
+  !> Sets the name and requires_index paremeters as appropriate
   function kt_grids_specified_element_config_constructor()
     implicit none
     type(kt_grids_specified_element_config_type) :: kt_grids_specified_element_config_constructor
     kt_grids_specified_element_config_constructor%name = "kt_grids_specified_element"
-    kt_grids_specified_element_config_constructor%requiresIndex = .true.
+    kt_grids_specified_element_config_constructor%requires_index = .true.
   end function kt_grids_specified_element_config_constructor
 end module kt_grids_specified
 
@@ -1694,7 +1694,7 @@ contains
     y0 = self%y0
 
     ! Now read in the main namelist
-    if (self%requiresIndex) then
+    if (self%requires_index) then
        call get_indexed_namelist_unit(in_file, trim(self%name), self%index)
        read(in_file, nml = kt_grids_box_parameters, iostat = iostat)
        exist = .true.
@@ -1785,12 +1785,12 @@ contains
     call broadcast(self%exist)
   end subroutine broadcast_kt_grids_box_config
 
-  !> Sets the name and requiresIndex paremeters as appropriate
+  !> Sets the name and requires_index paremeters as appropriate
   function kt_grids_box_config_constructor()
     implicit none
     type(kt_grids_box_config_type) :: kt_grids_box_config_constructor
     kt_grids_box_config_constructor%name = "kt_grids_box_parameters"
-    kt_grids_box_config_constructor%requiresIndex = .false.
+    kt_grids_box_config_constructor%requires_index = .false.
   end function kt_grids_box_config_constructor  
 end module kt_grids_box
 
@@ -2192,7 +2192,7 @@ contains
     grid_option = self%grid_option
 
     ! Now read in the main namelist
-    if (self%requiresIndex) then
+    if (self%requires_index) then
        call get_indexed_namelist_unit(in_file, trim(self%name), self%index)
        read(in_file, nml = kt_grids_knobs, iostat = iostat)
        exist = .true.
@@ -2247,12 +2247,12 @@ contains
     call broadcast(self%exist)
   end subroutine broadcast_kt_grids_config
 
-  !> Sets the name and requiresIndex paremeters as appropriate
+  !> Sets the name and requires_index paremeters as appropriate
   function kt_grids_config_constructor()
     implicit none
     type(kt_grids_config_type) :: kt_grids_config_constructor
     kt_grids_config_constructor%name = "kt_grids_knobs"
-    kt_grids_config_constructor%requiresIndex = .false.
+    kt_grids_config_constructor%requires_index = .false.
   end function kt_grids_config_constructor
 end module kt_grids
 

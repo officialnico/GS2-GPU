@@ -677,7 +677,7 @@ contains
     zeff = self%zeff
 
     ! Now read in the main namelist
-    if (self%requiresIndex) then
+    if (self%requires_index) then
        call get_indexed_namelist_unit(in_file, trim(self%name), self%index)
        read(in_file, nml = knobs, iostat = iostat)
        exist = .true.
@@ -816,12 +816,12 @@ contains
     call broadcast(self%exist)
   end subroutine broadcast_knobs_config
 
-  !> Sets the name and requiresIndex paremeters as appropriate
+  !> Sets the name and requires_index paremeters as appropriate
   function knobs_config_constructor()
     implicit none
     type(knobs_config_type) :: knobs_config_constructor
     knobs_config_constructor%name = "knobs"
-    knobs_config_constructor%requiresIndex = .false.
+    knobs_config_constructor%requires_index = .false.
   end function knobs_config_constructor
   
   !---------------------------------------
@@ -858,7 +858,7 @@ contains
     zeff = self%zeff
 
     ! Now read in the main namelist
-    if (self%requiresIndex) then
+    if (self%requires_index) then
        call get_indexed_namelist_unit(in_file, trim(self%name), self%index)
        read(in_file, nml = parameters, iostat = iostat)
        exist = .true.
@@ -931,11 +931,11 @@ contains
     call broadcast(self%exist)
   end subroutine broadcast_parameters_config
   
-  !> Sets the name and requiresIndex paremeters as appropriate
+  !> Sets the name and requires_index paremeters as appropriate
   function parameters_config_constructor()
     implicit none
     type(parameters_config_type) :: parameters_config_constructor
     parameters_config_constructor%name = "parameters"
-    parameters_config_constructor%requiresIndex = .false.
+    parameters_config_constructor%requires_index = .false.
   end function parameters_config_constructor
 end module run_parameters

@@ -664,7 +664,7 @@ contains
     write_zonal_transfer = self%write_zonal_transfer
 
     ! Now read in the main namelist
-    if (self%requiresIndex) then
+    if (self%requires_index) then
        call get_indexed_namelist_unit(in_file, trim(self%name), self%index)
        read(in_file, nml = gs2_diagnostics_knobs, iostat = iostat)
        exist = .true.
@@ -959,12 +959,12 @@ contains
     call broadcast(self%exist)
   end subroutine broadcast_new_gs2_diagnostics_config
 
-  !> Sets the name and requiresIndex paremeters as appropriate
+  !> Sets the name and requires_index paremeters as appropriate
   function new_gs2_diagnostics_config_constructor()
     implicit none
     type(new_gs2_diagnostics_config_type) :: new_gs2_diagnostics_config_constructor
     new_gs2_diagnostics_config_constructor%name = "gs2_diagnostics_knobs"
-    new_gs2_diagnostics_config_constructor%requiresIndex = .false.
+    new_gs2_diagnostics_config_constructor%requires_index = .false.
   end function new_gs2_diagnostics_config_constructor
 end module diagnostics_config
 

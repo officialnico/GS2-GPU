@@ -10047,7 +10047,7 @@ endif
     zero_forbid = self%zero_forbid
 
     ! Now read in the main namelist
-    if (self%requiresIndex) then
+    if (self%requires_index) then
        call get_indexed_namelist_unit(in_file, trim(self%name), self%index)
        read(in_file, nml = dist_fn_knobs, iostat = iostat)
        exist = .true.
@@ -10216,12 +10216,12 @@ endif
     call broadcast(self%exist)
   end subroutine broadcast_dist_fn_config
   
-  !> Sets the name and requiresIndex paremeters as appropriate
+  !> Sets the name and requires_index paremeters as appropriate
   function dist_fn_config_constructor()
     implicit none
     type(dist_fn_config_type) :: dist_fn_config_constructor
     dist_fn_config_constructor%name = "dist_fn_knobs"
-    dist_fn_config_constructor%requiresIndex = .false.
+    dist_fn_config_constructor%requires_index = .false.
   end function dist_fn_config_constructor
   
   !---------------------------------------
@@ -10257,7 +10257,7 @@ endif
     t0 = self%t0
 
     ! Now read in the main namelist
-    if (self%requiresIndex) then
+    if (self%requires_index) then
        call get_indexed_namelist_unit(in_file, trim(self%name), self%index)
        read(in_file, nml = source_knobs, iostat = iostat)
        exist = .true.
@@ -10327,12 +10327,12 @@ endif
     call broadcast(self%exist)
   end subroutine broadcast_source_config
 
-  !> Sets the name and requiresIndex paremeters as appropriate
+  !> Sets the name and requires_index paremeters as appropriate
   function source_config_constructor()
     implicit none
     type(source_config_type) :: source_config_constructor
     source_config_constructor%name = "source_knobs"
-    source_config_constructor%requiresIndex = .false.
+    source_config_constructor%requires_index = .false.
   end function source_config_constructor
 
   !---------------------------------------
@@ -10366,7 +10366,7 @@ endif
     fexpr = self%fexpr
 
     ! Now read in the main namelist
-    if (self%requiresIndex) then
+    if (self%requires_index) then
        call get_indexed_namelist_unit(in_file, trim(self%name), self%index)
        read(in_file, nml = dist_fn_species_knobs, iostat = iostat)
        exist = .true.
@@ -10430,11 +10430,11 @@ endif
     call broadcast(self%exist)
   end subroutine broadcast_dist_fn_species_config
 
-  !> Sets the name and requiresIndex paremeters as appropriate
+  !> Sets the name and requires_index paremeters as appropriate
   function dist_fn_species_config_constructor()
     implicit none
     type(dist_fn_species_config_type) :: dist_fn_species_config_constructor
     dist_fn_species_config_constructor%name = "dist_fn_species_knobs"
-    dist_fn_species_config_constructor%requiresIndex = .true.
+    dist_fn_species_config_constructor%requires_index = .true.
   end function dist_fn_species_config_constructor
 end module dist_fn
