@@ -40,6 +40,8 @@ module abstract_config
      procedure(write_interface), deferred :: write
      procedure(reset_interface), deferred :: reset
      procedure(broadcast_interface), deferred :: broadcast
+     procedure(get_default_name_interface), deferred, nopass :: get_default_name
+     procedure(get_default_requires_index_interface), deferred, nopass :: get_default_requires_index    
   end type abstract_config_type
 
   interface
@@ -63,6 +65,15 @@ module abstract_config
        import
        class(abstract_config_type), intent(in out) :: self
      end subroutine broadcast_interface
+
+     function get_default_name_interface() result(default_name)
+       import
+       character(len = MAX_NAME_LEN) :: default_name
+     end function get_default_name_interface
+
+     function get_default_requires_index_interface() result(default_requires_index)
+       logical :: default_requires_index
+     end function get_default_requires_index_interface
   end interface
 contains
 
@@ -93,15 +104,26 @@ contains
     character(len = *), intent(in), optional :: name
     logical, intent(in), optional :: requires_index
     integer, intent(in), optional :: index
-    if(present(name)) self%name = name
-    if(present(requires_index)) self%requires_index = requires_index
+    if(present(name)) then
+       self%name = name
+    else
+       !Set the default name if not passed       
+       self%name = self%get_default_name()
+    end if
+    
+    if(present(requires_index)) then
+       self%requires_index = requires_index
+    else
+       !Set the default requires index if not passed
+       self%requires_index = self%get_default_requires_index()
+    end if
 
-    !Set a default index number if required and not set (could abort)
     if(present(index)) then
        self%index = index
     else
+       !Set a default index number if required and not set       
        if(self%get_requires_index()) self%index = 1
-    endif
+    end if
 
     self%initialised = .true.
   end subroutine setup_generic

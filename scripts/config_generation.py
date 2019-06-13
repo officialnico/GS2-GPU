@@ -115,6 +115,22 @@ function {module}_config_constructor()
   {module}_config_constructor%requires_index = {requires_index}
 end function {module}_config_constructor"""
 
+getDefaultNameSubString = """
+!> Gets the default name for this namelist
+function get_default_name_{module}_config()
+  implicit none
+  character(len = *) :: get_default_name_{module}_config
+  get_default_name_{module}_config = "{namelist}"
+end function get_default_name_{module}_config"""
+
+getDefaultRequiresIndexSubString = """
+!> Gets the default requires index for this namelist
+function get_default_requires_index_{module}_config()
+  implicit none
+  logical :: get_default_requires_index_{module}_config
+  get_default_requires_index_{module}_config = {requires_index}
+end function get_default_requires_index_{module}_config"""
+
 class var():
     assignInString = "{instanceName}%{name} = {name}"
     assignOutString = "{name} = {instanceName}%{name}"
@@ -167,15 +183,12 @@ class config():
 {indent}procedure, public :: read => read_{module}_config
 {indent}procedure, public :: write => write_{module}_config
 {indent}procedure, public :: reset => reset_{module}_config
-{indent}procedure, public :: broadcast => broadcast_{module}_config"""
+{indent}procedure, public :: broadcast => broadcast_{module}_config
+{indent}procedure, public :: get_default_name => get_default_name_{module}_config
+{indent}procedure, public :: get_default_requires_index => get_default_requires_index_{module}_config"""
 
     instanceString  = "type({module}_config_type) :: {instance_name}" 
     instanceStringIndexed  = "type({module}_config_type), dimension(:), allocatable :: {instance_name}" 
-
-    interfaceString = """
-interface {module}_config_type
-   procedure :: {module}_config_constructor
-end interface {module}_config_type"""
 
     subComment = """
 !---------------------------------------
@@ -264,9 +277,6 @@ end interface {module}_config_type"""
             theStr = self.instanceStringIndexed
         return theStr.format(module = self.moduleName, instance_name = instance_name)
 
-    def constructorInterface(self):
-        return self.interfaceString.format(module = self.moduleName)
-    
     def readParams(self, instance_name = None, config_in = None, **kwargs):
         req = ".false."
         att = ""
@@ -298,17 +308,19 @@ end interface {module}_config_type"""
     def broadcastConfig(self, **kwargs):
 
         return broadcastSubString.format(module = self.moduleName, BROADCAST_LIST = self.broadcastList(**kwargs))
+
+    def defaultNameConfig(self, **kwargs):
+        return getDefaultNameSubString.format(module = self.moduleName, namelist = self.namelistName)
     
-    def constructorConfig(self, **kwargs):
+    def defaultRequiresIndexConfig(self, **kwargs):
         requires_index = ".false."
         if self.requires_index: requires_index = ".true."
-        return constructorSubString.format(module = self.moduleName, namelist = self.namelistName, requires_index = requires_index)
+        return getDefaultRequiresIndexSubString.format(module = self.moduleName, requires_index = requires_index)
 
     
     def printAll(self,**kwargs):
         st = []
         st.append(self.decl(**kwargs))
-        st.append("\n"+self.constructorInterface(**kwargs))        
         st.append("\n"+self.instance(**kwargs))
         st.append(self.readParams())        
         st.append(self.subComment)
@@ -316,7 +328,8 @@ end interface {module}_config_type"""
         st.append(self.writeConfig())
         st.append(self.resetConfig())
         st.append(self.broadcastConfig())
-        st.append(self.constructorConfig())        
+        st.append(self.defaultNameConfig())
+        st.append(self.defaultRequiresIndexConfig())
         return "\n".join(st)
 
     def dumpToFile(self,fileOut=None):
