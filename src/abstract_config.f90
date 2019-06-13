@@ -87,11 +87,11 @@ contains
   subroutine setup_generic(self, name, requires_index, index)
     implicit none
     class(abstract_config_type), intent(inout) :: self
-    character(len = *), intent(in) :: name
-    logical, intent(in) :: requires_index
+    character(len = *), intent(in), optional :: name
+    logical, intent(in), optional :: requires_index
     integer, intent(in), optional :: index
-    self%name = name
-    self%requiresIndex = requires_index
+    if(present(name)) self%name = name
+    if(present(requires_index)) self%requiresIndex = requires_index
 
     !Set a default index number if required and not set (could abort)
     if(present(index)) then
