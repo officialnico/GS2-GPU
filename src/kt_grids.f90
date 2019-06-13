@@ -205,7 +205,7 @@ contains
     theta0 = self%theta0
 
     ! Now read in the main namelist
-    if (self%requires_index) then
+    if (self%get_requires_index()) then
        call get_indexed_namelist_unit(in_file, trim(self%get_name()), self%index)
        read(in_file, nml = kt_grids_single_parameters, iostat = iostat)
        exist = .true.
@@ -726,7 +726,7 @@ contains
     theta0_min = self%theta0_min
 
     ! Now read in the main namelist
-    if (self%requires_index) then
+    if (self%get_requires_index()) then
        call get_indexed_namelist_unit(in_file, trim(self%get_name()), self%index)
        read(in_file, nml = kt_grids_range_parameters, iostat = iostat)
        exist = .true.
@@ -1080,7 +1080,7 @@ contains
     ny = self%ny
 
     ! Now read in the main namelist
-    if (self%requires_index) then
+    if (self%get_requires_index()) then
        call get_indexed_namelist_unit(in_file, trim(self%get_name()), self%index)
        read(in_file, nml = kt_grids_specified_parameters, iostat = iostat)
        exist = .true.
@@ -1181,7 +1181,7 @@ contains
     theta0 = self%theta0
 
     ! Now read in the main namelist
-    if (self%requires_index) then
+    if (self%get_requires_index()) then
        call get_indexed_namelist_unit(in_file, trim(self%get_name()), self%index)
        read(in_file, nml = kt_grids_specified_element, iostat = iostat)
        exist = .true.
@@ -1694,7 +1694,7 @@ contains
     y0 = self%y0
 
     ! Now read in the main namelist
-    if (self%requires_index) then
+    if (self%get_requires_index()) then
        call get_indexed_namelist_unit(in_file, trim(self%get_name()), self%index)
        read(in_file, nml = kt_grids_box_parameters, iostat = iostat)
        exist = .true.
@@ -2192,7 +2192,7 @@ contains
     grid_option = self%grid_option
 
     ! Now read in the main namelist
-    if (self%requires_index) then
+    if (self%get_requires_index()) then
        call get_indexed_namelist_unit(in_file, trim(self%get_name()), self%index)
        read(in_file, nml = kt_grids_knobs, iostat = iostat)
        exist = .true.

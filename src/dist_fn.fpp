@@ -10047,7 +10047,7 @@ endif
     zero_forbid = self%zero_forbid
 
     ! Now read in the main namelist
-    if (self%requires_index) then
+    if (self%get_requires_index()) then
        call get_indexed_namelist_unit(in_file, trim(self%get_name()), self%index)
        read(in_file, nml = dist_fn_knobs, iostat = iostat)
        exist = .true.
@@ -10257,7 +10257,7 @@ endif
     t0 = self%t0
 
     ! Now read in the main namelist
-    if (self%requires_index) then
+    if (self%get_requires_index()) then
        call get_indexed_namelist_unit(in_file, trim(self%get_name()), self%index)
        read(in_file, nml = source_knobs, iostat = iostat)
        exist = .true.
@@ -10366,7 +10366,7 @@ endif
     fexpr = self%fexpr
 
     ! Now read in the main namelist
-    if (self%requires_index) then
+    if (self%get_requires_index()) then
        call get_indexed_namelist_unit(in_file, trim(self%get_name()), self%index)
        read(in_file, nml = dist_fn_species_knobs, iostat = iostat)
        exist = .true.

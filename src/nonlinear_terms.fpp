@@ -1057,7 +1057,7 @@ contains
     zip = self%zip
 
     ! Now read in the main namelist
-    if (self%requires_index) then
+    if (self%get_requires_index()) then
        call get_indexed_namelist_unit(in_file, trim(self%get_name()), self%index)
        read(in_file, nml = nonlinear_terms_knobs, iostat = iostat)
        exist = .true.

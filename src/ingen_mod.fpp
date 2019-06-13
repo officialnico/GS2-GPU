@@ -2437,7 +2437,7 @@ if (debug) write(6,*) 'get_namelists: returning'
     stdin = self%stdin
 
     ! Now read in the main namelist
-    if (self%requires_index) then
+    if (self%get_requires_index()) then
        call get_indexed_namelist_unit(in_file, trim(self%get_name()), self%index)
        read(in_file, nml = ingen_knobs, iostat = iostat)
        exist = .true.

@@ -100,7 +100,7 @@ contains
     if(present(index)) then
        self%index = index
     else
-       if(self%requires_index) self%index = 1
+       if(self%get_requires_index()) self%index = 1
     endif
 
     self%initialised = .true.
@@ -130,7 +130,7 @@ contains
     class(abstract_config_type), intent(in) :: self
     integer, intent(in) :: unit
     !Decide if we should include the index or not
-    if(self%requires_index) then
+    if(self%get_requires_index()) then
        write(unit,'("&",A,"_",I0)') trim(self%get_name()), self%index
     else
        write(unit,'("&",A)') trim(self%get_name())

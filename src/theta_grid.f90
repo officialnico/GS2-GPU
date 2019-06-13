@@ -920,7 +920,7 @@ contains
     model_option = self%model_option
 
     ! Now read in the main namelist
-    if (self%requires_index) then
+    if (self%get_requires_index()) then
        call get_indexed_namelist_unit(in_file, trim(self%get_name()), self%index)
        read(in_file, nml = theta_grid_salpha_knobs, iostat = iostat)
        exist = .true.
@@ -1917,7 +1917,7 @@ contains
     writelots = self%writelots
 
     ! Now read in the main namelist
-    if (self%requires_index) then
+    if (self%get_requires_index()) then
        call get_indexed_namelist_unit(in_file, trim(self%get_name()), self%index)
        read(in_file, nml = theta_grid_eik_knobs, iostat = iostat)
        exist = .true.
@@ -2385,7 +2385,7 @@ contains
     no_geo_info = self%no_geo_info
 
     ! Now read in the main namelist
-    if (self%requires_index) then
+    if (self%get_requires_index()) then
        call get_indexed_namelist_unit(in_file, trim(self%get_name()), self%index)
        read(in_file, nml = theta_grid_file_knobs, iostat = iostat)
        exist = .true.
@@ -3109,7 +3109,7 @@ if (debug) write(6,*) 'get_grids: call file_get_grids'
     gbdriftknob = self%gbdriftknob
 
     ! Now read in the main namelist
-    if (self%requires_index) then
+    if (self%get_requires_index()) then
        call get_indexed_namelist_unit(in_file, trim(self%get_name()), self%index)
        read(in_file, nml = theta_grid_knobs, iostat = iostat)
        exist = .true.
