@@ -539,8 +539,8 @@ contains
   subroutine set_ballstab_config(ballstab_config_in)
     use mp, only: mp_abort
     type(ballstab_config_type), intent(in), optional :: ballstab_config_in
-    if (initialized) then
-       call mp_abort("Trying to set ballstab_config when already initialized.", to_screen = .true.)
+    if (initialised) then
+       call mp_abort("Trying to set ballstab_config when already initialised.", to_screen = .true.)
     end if
     if (present(ballstab_config_in)) then
        ballstab_config = ballstab_config_in
