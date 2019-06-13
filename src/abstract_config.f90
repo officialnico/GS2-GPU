@@ -9,7 +9,8 @@ module abstract_config
   public :: abstract_config_type
 
   integer, parameter :: MAX_NAME_LEN = 64
-
+  character(len = MAX_NAME_LEN), parameter :: default_name = "Undefined name."
+  
   !> Define abstract type to represent the config type,
   !! allows common code to be moved here
   type, abstract :: abstract_config_type
@@ -17,7 +18,7 @@ module abstract_config
      logical :: exist = .false. !< Does the related namelist exist in the target input file?
      logical :: requires_index = .false. !< Is this a numbered namelist with an index
      integer :: index = 0 !< Used to hold the specific index of numbered namelists
-     character(len = MAX_NAME_LEN) :: name="Undefined name." !< The name of the namelist that we represent.
+     character(len = MAX_NAME_LEN) :: name = default_name !< The name of the namelist that we represent.
    contains
      procedure :: is_initialised => is_initialised_generic
      procedure :: init => init_generic
