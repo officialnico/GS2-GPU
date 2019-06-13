@@ -77,8 +77,8 @@ contains
   subroutine init_generic(self, name, requires_index, index)
     implicit none
     class(abstract_config_type), intent(inout) :: self
-    character(len = *), intent(in) :: name
-    logical, intent(in) :: requires_index
+    character(len = *), intent(in), optional :: name
+    logical, intent(in), optional :: requires_index
     integer, intent(in), optional :: index
     if (self%is_initialised()) return
     call self%setup(name, requires_index, index)
