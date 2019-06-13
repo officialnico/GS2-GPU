@@ -36,7 +36,7 @@ module abstract_config
      procedure(read_interface), deferred :: read
      procedure(write_interface), deferred :: write
      procedure(reset_interface), deferred :: reset
-     procedure(read_interface), deferred :: broadcast
+     procedure(broadcast_interface), deferred :: broadcast
   end type abstract_config_type
 
   interface
