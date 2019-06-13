@@ -514,13 +514,13 @@ contains
 
     ! Now read in the main namelist
     if (self%requires_index) then
-       call get_indexed_namelist_unit(in_file, trim(self%name), self%index)
+       call get_indexed_namelist_unit(in_file, trim(self%get_name()), self%index)
        read(in_file, nml = parameter_scan_knobs, iostat = iostat)
        exist = .true.
        if (iostat .ne.0) exist = .false.
        close(unit = in_file, iostat = iostat)
     else
-       in_file = input_unit_exist(self%name, exist)
+       in_file = input_unit_exist(self%get_name(), exist)
        if (exist) read(in_file, nml = parameter_scan_knobs)
     endif
 
