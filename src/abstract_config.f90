@@ -134,7 +134,11 @@ contains
     implicit none
     class(abstract_config_type), intent(in) :: self
     character(len = CONFIG_MAX_NAME_LEN) :: get_name_generic
-    get_name_generic = self%name
+    if (self%is_initialised()) then
+       get_name_generic = self%name
+    else
+       get_name_generic = self%get_default_name()
+    endif
   end function get_name_generic
 
   !> Returns the requires_index value. Allows access whilst keeping
@@ -143,7 +147,11 @@ contains
     implicit none
     class(abstract_config_type), intent(in) :: self
     logical :: get_requires_index_generic
-    get_requires_index_generic = self%requires_index
+    if (self%is_initialised()) then
+       get_requires_index_generic = self%requires_index
+    else
+       get_requires_index_generic = self%get_default_requires_index()
+    endif
   end function get_requires_index_generic
   
   !> Write the namelist header for this instance
@@ -152,21 +160,11 @@ contains
     class(abstract_config_type), intent(in) :: self
     integer, intent(in) :: unit
     
-    ! If we've not been setup then we'll want to use the defaults
-    if (.not.self%is_initialised()) then
-       !Decide if we should include the index or not
-       if(self%get_default_requires_index()) then
-          write(unit,'("&",A,"_",I0)') trim(self%get_default_name()), self%index
-       else
-          write(unit,'("&",A)') trim(self%get_default_name())
-       endif
+    !Decide if we should include the index or not
+    if(self%get_requires_index()) then
+       write(unit,'("&",A,"_",I0)') trim(self%get_name()), self%index
     else
-       !Decide if we should include the index or not
-       if(self%get_requires_index()) then
-          write(unit,'("&",A,"_",I0)') trim(self%get_name()), self%index
-       else
-          write(unit,'("&",A)') trim(self%get_name())
-       endif
+       write(unit,'("&",A)') trim(self%get_name())
     endif
   end subroutine write_namelist_header
 
