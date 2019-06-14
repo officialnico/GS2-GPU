@@ -23,7 +23,7 @@ module ingen_mod
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
-  use abstract_config, only: abstract_config_type
+  use abstract_config, only: abstract_config_type, CONFIG_MAX_NAME_LEN
   use mp, only: init_mp, finish_mp
   use text_options, only: text_option, get_option_value
   use file_utils, only: input_unit, get_unused_unit, open_output_file
@@ -93,11 +93,9 @@ module ingen_mod
      procedure, public :: write => write_ingen_config
      procedure, public :: reset => reset_ingen_config
      procedure, public :: broadcast => broadcast_ingen_config
+     procedure, public, nopass :: get_default_name => get_default_name_ingen_config
+     procedure, public, nopass :: get_default_requires_index => get_default_requires_index_ingen_config
   end type ingen_config_type
-
-  interface ingen_config_type
-     procedure :: ingen_config_constructor
-  end interface ingen_config_type
   
   type(ingen_config_type) :: ingen_config
 
@@ -2437,14 +2435,14 @@ if (debug) write(6,*) 'get_namelists: returning'
     stdin = self%stdin
 
     ! Now read in the main namelist
-    if (self%requiresIndex) then
-       call get_indexed_namelist_unit(in_file, trim(self%name), self%index)
+    if (self%get_requires_index()) then
+       call get_indexed_namelist_unit(in_file, trim(self%get_name()), self%index)
        read(in_file, nml = ingen_knobs, iostat = iostat)
        exist = .true.
        if (iostat .ne.0) exist = .false.
        close(unit = in_file, iostat = iostat)
     else
-       in_file = input_unit_exist(self%name, exist)
+       in_file = input_unit_exist(self%get_name(), exist)
        if (exist) read(in_file, nml = ingen_knobs)
     endif
 
@@ -2501,11 +2499,17 @@ if (debug) write(6,*) 'get_namelists: returning'
     call broadcast(self%exist)
   end subroutine broadcast_ingen_config
 
-  !> Sets the name and requiresIndex paremeters as appropriate
-  function ingen_config_constructor()
+  !> Gets the default name for this namelist
+  function get_default_name_ingen_config()
     implicit none
-    type(ingen_config_type) :: ingen_config_constructor
-    ingen_config_constructor%name = "ingen_knobs"
-    ingen_config_constructor%requiresIndex = .false.
-  end function ingen_config_constructor
+    character(len = CONFIG_MAX_NAME_LEN) :: get_default_name_ingen_config
+    get_default_name_ingen_config = "ingen_knobs"
+  end function get_default_name_ingen_config
+
+  !> Gets the default requires index for this namelist
+  function get_default_requires_index_ingen_config()
+    implicit none
+    logical :: get_default_requires_index_ingen_config
+    get_default_requires_index_ingen_config = .false.
+  end function get_default_requires_index_ingen_config
 end module ingen_mod

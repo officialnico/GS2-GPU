@@ -1,7 +1,7 @@
 !> This module is basically a store for the input parameters that are specified in the namelists \a knobs and \a parameters.
 !! In general, the names of the public variables in this module are the same as the name of the input parameter they correspond to.
 module run_parameters
-  use abstract_config, only: abstract_config_type
+  use abstract_config, only: abstract_config_type, CONFIG_MAX_NAME_LEN
   
   implicit none
 
@@ -147,11 +147,9 @@ module run_parameters
      procedure, public :: write => write_knobs_config
      procedure, public :: reset => reset_knobs_config
      procedure, public :: broadcast => broadcast_knobs_config
+     procedure, public, nopass :: get_default_name => get_default_name_knobs_config
+     procedure, public, nopass :: get_default_requires_index => get_default_requires_index_knobs_config
   end type knobs_config_type
-
-  interface knobs_config_type
-     procedure :: knobs_config_constructor
-  end interface knobs_config_type
   
   type(knobs_config_type) :: knobs_config
 
@@ -182,11 +180,9 @@ module run_parameters
      procedure, public :: write => write_parameters_config
      procedure, public :: reset => reset_parameters_config
      procedure, public :: broadcast => broadcast_parameters_config
+     procedure, public, nopass :: get_default_name => get_default_name_parameters_config
+     procedure, public, nopass :: get_default_requires_index => get_default_requires_index_parameters_config
   end type parameters_config_type
-
-  interface parameters_config_type
-     procedure :: parameters_config_constructor
-  end interface parameters_config_type
   
   type(parameters_config_type) :: parameters_config
 
@@ -677,14 +673,14 @@ contains
     zeff = self%zeff
 
     ! Now read in the main namelist
-    if (self%requiresIndex) then
-       call get_indexed_namelist_unit(in_file, trim(self%name), self%index)
+    if (self%get_requires_index()) then
+       call get_indexed_namelist_unit(in_file, trim(self%get_name()), self%index)
        read(in_file, nml = knobs, iostat = iostat)
        exist = .true.
        if (iostat .ne.0) exist = .false.
        close(unit = in_file, iostat = iostat)
     else
-       in_file = input_unit_exist(self%name, exist)
+       in_file = input_unit_exist(self%get_name(), exist)
        if (exist) read(in_file, nml = knobs)
     endif
 
@@ -816,13 +812,19 @@ contains
     call broadcast(self%exist)
   end subroutine broadcast_knobs_config
 
-  !> Sets the name and requiresIndex paremeters as appropriate
-  function knobs_config_constructor()
+  !> Gets the default name for this namelist
+  function get_default_name_knobs_config()
     implicit none
-    type(knobs_config_type) :: knobs_config_constructor
-    knobs_config_constructor%name = "knobs"
-    knobs_config_constructor%requiresIndex = .false.
-  end function knobs_config_constructor
+    character(len = CONFIG_MAX_NAME_LEN) :: get_default_name_knobs_config
+    get_default_name_knobs_config = "knobs"
+  end function get_default_name_knobs_config
+
+  !> Gets the default requires index for this namelist
+  function get_default_requires_index_knobs_config()
+    implicit none
+    logical :: get_default_requires_index_knobs_config
+    get_default_requires_index_knobs_config = .false.
+  end function get_default_requires_index_knobs_config
   
   !---------------------------------------
   ! Following is for the parameters config_type
@@ -858,14 +860,14 @@ contains
     zeff = self%zeff
 
     ! Now read in the main namelist
-    if (self%requiresIndex) then
-       call get_indexed_namelist_unit(in_file, trim(self%name), self%index)
+    if (self%get_requires_index()) then
+       call get_indexed_namelist_unit(in_file, trim(self%get_name()), self%index)
        read(in_file, nml = parameters, iostat = iostat)
        exist = .true.
        if (iostat .ne.0) exist = .false.
        close(unit = in_file, iostat = iostat)
     else
-       in_file = input_unit_exist(self%name, exist)
+       in_file = input_unit_exist(self%get_name(), exist)
        if (exist) read(in_file, nml = parameters)
     endif
 
@@ -931,11 +933,17 @@ contains
     call broadcast(self%exist)
   end subroutine broadcast_parameters_config
   
-  !> Sets the name and requiresIndex paremeters as appropriate
-  function parameters_config_constructor()
+  !> Gets the default name for this namelist
+  function get_default_name_parameters_config()
     implicit none
-    type(parameters_config_type) :: parameters_config_constructor
-    parameters_config_constructor%name = "parameters"
-    parameters_config_constructor%requiresIndex = .false.
-  end function parameters_config_constructor
+    character(len = CONFIG_MAX_NAME_LEN) :: get_default_name_parameters_config
+    get_default_name_parameters_config = "parameters"
+  end function get_default_name_parameters_config
+
+  !> Gets the default requires index for this namelist
+  function get_default_requires_index_parameters_config()
+    implicit none
+    logical :: get_default_requires_index_parameters_config
+    get_default_requires_index_parameters_config = .false.
+  end function get_default_requires_index_parameters_config
 end module run_parameters

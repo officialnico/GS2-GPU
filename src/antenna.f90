@@ -24,7 +24,7 @@
 !!    travel     : logical; choose false to make a standing wave
 !!               : default value is .true.
 module antenna
-  use abstract_config, only: abstract_config_type
+  use abstract_config, only: abstract_config_type, CONFIG_MAX_NAME_LEN
   use antenna_data, only: nk_stir, a_ant, b_ant
   implicit none
 
@@ -80,11 +80,9 @@ module antenna
      procedure, public :: write => write_driver_config
      procedure, public :: reset => reset_driver_config
      procedure, public :: broadcast => broadcast_driver_config
+     procedure, public, nopass :: get_default_name => get_default_name_driver_config
+     procedure, public, nopass :: get_default_requires_index => get_default_requires_index_driver_config
   end type driver_config_type
-
-  interface driver_config_type
-     procedure :: driver_config_constructor
-  end interface driver_config_type
 
   type(driver_config_type) :: driver_config
 
@@ -109,11 +107,9 @@ module antenna
      procedure, public :: write => write_stir_config
      procedure, public :: reset => reset_stir_config
      procedure, public :: broadcast => broadcast_stir_config
+     procedure, public, nopass :: get_default_name => get_default_name_stir_config
+     procedure, public, nopass :: get_default_requires_index => get_default_requires_index_stir_config
   end type stir_config_type
-
-  interface stir_config_type
-     procedure :: stir_config_constructor
-  end interface stir_config_type
   
   type(stir_config_type), dimension(:), allocatable :: stir_config
   
@@ -615,14 +611,14 @@ contains
     write_antenna = self%write_antenna
 
     ! Now read in the main namelist
-    if (self%requiresIndex) then
-       call get_indexed_namelist_unit(in_file, trim(self%name), self%index)
+    if (self%get_requires_index()) then
+       call get_indexed_namelist_unit(in_file, trim(self%get_name()), self%index)
        read(in_file, nml = driver, iostat = iostat)
        exist = .true.
        if (iostat .ne.0) exist = .false.
        close(unit = in_file, iostat = iostat)
     else
-       in_file = input_unit_exist(self%name, exist)
+       in_file = input_unit_exist(self%get_name(), exist)
        if (exist) read(in_file, nml = driver)
     endif
 
@@ -691,13 +687,19 @@ contains
     call broadcast(self%exist)
   end subroutine broadcast_driver_config
 
-  !> Sets the name and requiresIndex paremeters as appropriate
-  function driver_config_constructor()
+  !> Gets the default name for this namelist
+  function get_default_name_driver_config()
     implicit none
-    type(driver_config_type) :: driver_config_constructor
-    driver_config_constructor%name = "driver"
-    driver_config_constructor%requiresIndex = .false.
-  end function driver_config_constructor
+    character(len = CONFIG_MAX_NAME_LEN) :: get_default_name_driver_config
+    get_default_name_driver_config = "driver"
+  end function get_default_name_driver_config
+
+  !> Gets the default requires index for this namelist
+  function get_default_requires_index_driver_config()
+    implicit none
+    logical :: get_default_requires_index_driver_config
+    get_default_requires_index_driver_config = .false.
+  end function get_default_requires_index_driver_config
   
   !---------------------------------------
   ! Following is for the stir config_type
@@ -733,14 +735,14 @@ contains
     travel = self%travel
 
     ! Now read in the main namelist
-    if (self%requiresIndex) then
-       call get_indexed_namelist_unit(in_file, trim(self%name), self%index)
+    if (self%get_requires_index()) then
+       call get_indexed_namelist_unit(in_file, trim(self%get_name()), self%index)
        read(in_file, nml = stir, iostat = iostat)
        exist = .true.
        if (iostat .ne.0) exist = .false.
        close(unit = in_file, iostat = iostat)
     else
-       in_file = input_unit_exist(self%name, exist)
+       in_file = input_unit_exist(self%get_name(), exist)
        if (exist) read(in_file, nml = stir)
     endif
 
@@ -802,13 +804,19 @@ contains
 
     call broadcast(self%exist)
   end subroutine broadcast_stir_config
-
-  !> Sets the name and requiresIndex paremeters as appropriate
-  function stir_config_constructor()
+  
+  !> Gets the default name for this namelist
+  function get_default_name_stir_config()
     implicit none
-    type(stir_config_type) :: stir_config_constructor
-    stir_config_constructor%name = "stir"
-    stir_config_constructor%requiresIndex = .true.
-  end function stir_config_constructor
+    character(len = CONFIG_MAX_NAME_LEN) :: get_default_name_stir_config
+    get_default_name_stir_config = "stir"
+  end function get_default_name_stir_config
+
+  !> Gets the default requires index for this namelist
+  function get_default_requires_index_stir_config()
+    implicit none
+    logical :: get_default_requires_index_stir_config
+    get_default_requires_index_stir_config = .true.
+  end function get_default_requires_index_stir_config
 end module antenna
 

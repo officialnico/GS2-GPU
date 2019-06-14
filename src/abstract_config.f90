@@ -6,23 +6,26 @@ module abstract_config
   private
 
   !Types
-  public :: abstract_config_type
+  public :: abstract_config_type, CONFIG_MAX_NAME_LEN
 
-  integer, parameter :: MAX_NAME_LEN = 64
-
+  integer, parameter :: CONFIG_MAX_NAME_LEN = 64
+  character(len = CONFIG_MAX_NAME_LEN), parameter :: default_name = "Undefined name."
+  
   !> Define abstract type to represent the config type,
   !! allows common code to be moved here
   type, abstract :: abstract_config_type
      logical, private :: initialised = .false. !< Have we initialised the instance?
      logical :: exist = .false. !< Does the related namelist exist in the target input file?
-     logical :: requiresIndex = .false. !< Is this a numbered namelist with an index
+     logical, private :: requires_index = .false. !< Is this a numbered namelist with an index
      integer :: index = 0 !< Used to hold the specific index of numbered namelists
-     character(len = MAX_NAME_LEN) :: name="Undefined name." !< The name of the namelist that we represent.
+     character(len = CONFIG_MAX_NAME_LEN), private :: name = default_name !< The name of the namelist that we represent.
    contains
      procedure :: is_initialised => is_initialised_generic
      procedure :: init => init_generic
      procedure :: setup => setup_generic
      procedure :: write_namelist_header
+     procedure :: get_name => get_name_generic
+     procedure :: get_requires_index => get_requires_index_generic
      procedure, nopass :: write_namelist_footer
      procedure, private, nopass :: write_key_val_string
      procedure, private, nopass :: write_key_val_real
@@ -36,7 +39,9 @@ module abstract_config
      procedure(read_interface), deferred :: read
      procedure(write_interface), deferred :: write
      procedure(reset_interface), deferred :: reset
-     procedure(read_interface), deferred :: broadcast
+     procedure(broadcast_interface), deferred :: broadcast
+     procedure(get_default_name_interface), deferred, nopass :: get_default_name
+     procedure(get_default_requires_index_interface), deferred, nopass :: get_default_requires_index    
   end type abstract_config_type
 
   interface
@@ -60,6 +65,15 @@ module abstract_config
        import
        class(abstract_config_type), intent(in out) :: self
      end subroutine broadcast_interface
+
+     function get_default_name_interface() result(default_name)
+       import
+       character(len = CONFIG_MAX_NAME_LEN) :: default_name
+     end function get_default_name_interface
+
+     function get_default_requires_index_interface() result(default_requires_index)
+       logical :: default_requires_index
+     end function get_default_requires_index_interface
   end interface
 contains
 
@@ -74,8 +88,8 @@ contains
   subroutine init_generic(self, name, requires_index, index)
     implicit none
     class(abstract_config_type), intent(inout) :: self
-    character(len = *), intent(in) :: name
-    logical, intent(in) :: requires_index
+    character(len = *), intent(in), optional :: name
+    logical, intent(in), optional :: requires_index
     integer, intent(in), optional :: index
     if (self%is_initialised()) return
     call self%setup(name, requires_index, index)
@@ -87,32 +101,70 @@ contains
   subroutine setup_generic(self, name, requires_index, index)
     implicit none
     class(abstract_config_type), intent(inout) :: self
-    character(len = *), intent(in) :: name
-    logical, intent(in) :: requires_index
+    character(len = *), intent(in), optional :: name
+    logical, intent(in), optional :: requires_index
     integer, intent(in), optional :: index
-    self%name = name
-    self%requiresIndex = requires_index
+    if(present(name)) then
+       self%name = name
+    else
+       !Set the default name if not passed       
+       self%name = self%get_default_name()
+    end if
+    
+    if(present(requires_index)) then
+       self%requires_index = requires_index
+    else
+       !Set the default requires index if not passed
+       self%requires_index = self%get_default_requires_index()
+    end if
 
-    !Set a default index number if required and not set (could abort)
     if(present(index)) then
        self%index = index
     else
-       if(self%requiresIndex) self%index = 1
-    endif
+       !Set a default index number if required and not set       
+       if(self%get_requires_index()) self%index = 1
+    end if
 
     self%initialised = .true.
   end subroutine setup_generic
 
+  !> Returns the namelist name. Not very useful at the moment
+  !> but may want to do more interesting things in the future
+  function get_name_generic(self)
+    implicit none
+    class(abstract_config_type), intent(in) :: self
+    character(len = CONFIG_MAX_NAME_LEN) :: get_name_generic
+    if (self%is_initialised()) then
+       get_name_generic = self%name
+    else
+       get_name_generic = self%get_default_name()
+    endif
+  end function get_name_generic
+
+  !> Returns the requires_index value. Allows access whilst keeping
+  !> the variable private
+  function get_requires_index_generic(self)
+    implicit none
+    class(abstract_config_type), intent(in) :: self
+    logical :: get_requires_index_generic
+    if (self%is_initialised()) then
+       get_requires_index_generic = self%requires_index
+    else
+       get_requires_index_generic = self%get_default_requires_index()
+    endif
+  end function get_requires_index_generic
+  
   !> Write the namelist header for this instance
   subroutine write_namelist_header(self, unit)
     implicit none
     class(abstract_config_type), intent(in) :: self
     integer, intent(in) :: unit
+    
     !Decide if we should include the index or not
-    if(self%requiresIndex) then
-       write(unit,'("&",A,"_",I0)') trim(self%name), self%index
+    if(self%get_requires_index()) then
+       write(unit,'("&",A,"_",I0)') trim(self%get_name()), self%index
     else
-       write(unit,'("&",A)') trim(self%name)
+       write(unit,'("&",A)') trim(self%get_name())
     endif
   end subroutine write_namelist_header
 

@@ -4,7 +4,7 @@
 !! is necessary to prevent buildup of structure at fine scales in
 !! velocity space, while conserving energy and momentum.
 module collisions
-  use abstract_config, only: abstract_config_type
+  use abstract_config, only: abstract_config_type, CONFIG_MAX_NAME_LEN
   use redistribute, only: redist_type
 
   implicit none
@@ -248,11 +248,9 @@ module collisions
      procedure, public :: write => write_collisions_config
      procedure, public :: reset => reset_collisions_config
      procedure, public :: broadcast => broadcast_collisions_config
+     procedure, public, nopass :: get_default_name => get_default_name_collisions_config
+     procedure, public, nopass :: get_default_requires_index => get_default_requires_index_collisions_config
   end type collisions_config_type
-
-  interface collisions_config_type
-     procedure :: collisions_config_constructor
-  end interface collisions_config_type
 
   type(collisions_config_type) :: collisions_config
 contains
@@ -4327,14 +4325,14 @@ contains
     vpar_zero_mean = self%vpar_zero_mean
 
     ! Now read in the main namelist
-    if (self%requiresIndex) then
-       call get_indexed_namelist_unit(in_file, trim(self%name), self%index)
+    if (self%get_requires_index()) then
+       call get_indexed_namelist_unit(in_file, trim(self%get_name()), self%index)
        read(in_file, nml = collisions_knobs, iostat = iostat)
        exist = .true.
        if (iostat .ne.0) exist = .false.
        close(unit = in_file, iostat = iostat)
     else
-       in_file = input_unit_exist(self%name, exist)
+       in_file = input_unit_exist(self%get_name(), exist)
        if (exist) read(in_file, nml = collisions_knobs)
     endif
 
@@ -4462,13 +4460,19 @@ contains
 
     call broadcast(self%exist)
   end subroutine broadcast_collisions_config
-
-  !> Sets the name and requiresIndex paremeters as appropriate
-  function collisions_config_constructor()
+  
+  !> Gets the default name for this namelist
+  function get_default_name_collisions_config()
     implicit none
-    type(collisions_config_type) :: collisions_config_constructor
-    collisions_config_constructor%name = "collisions_knobs"
-    collisions_config_constructor%requiresIndex = .false.
-  end function collisions_config_constructor
+    character(len = CONFIG_MAX_NAME_LEN) :: get_default_name_collisions_config
+    get_default_name_collisions_config = "collisions_knobs"
+  end function get_default_name_collisions_config
+
+  !> Gets the default requires index for this namelist
+  function get_default_requires_index_collisions_config()
+    implicit none
+    logical :: get_default_requires_index_collisions_config
+    get_default_requires_index_collisions_config = .false.
+  end function get_default_requires_index_collisions_config
 end module collisions
 

@@ -2,7 +2,7 @@
 !! Based on the original ball program in geo/ball.f90 of GS2
 !! but tweaked to integrate closer to full GS2 runs etc.
 module ballstab
-  use abstract_config, only: abstract_config_type
+  use abstract_config, only: abstract_config_type, CONFIG_MAX_NAME_LEN
   implicit none
 
   private
@@ -54,11 +54,9 @@ module ballstab
      procedure, public :: write => write_ballstab_config
      procedure, public :: reset => reset_ballstab_config
      procedure, public :: broadcast => broadcast_ballstab_config
+     procedure, public, nopass :: get_default_name => get_default_name_ballstab_config
+     procedure, public, nopass :: get_default_requires_index => get_default_requires_index_ballstab_config
   end type ballstab_config_type
-
-  interface ballstab_config_type
-     procedure :: ballstab_config_constructor
-  end interface ballstab_config_type
 
   type(ballstab_config_type) :: ballstab_config
   
@@ -539,8 +537,8 @@ contains
   subroutine set_ballstab_config(ballstab_config_in)
     use mp, only: mp_abort
     type(ballstab_config_type), intent(in), optional :: ballstab_config_in
-    if (initialized) then
-       call mp_abort("Trying to set ballstab_config when already initialized.", to_screen = .true.)
+    if (initialised) then
+       call mp_abort("Trying to set ballstab_config when already initialised.", to_screen = .true.)
     end if
     if (present(ballstab_config_in)) then
        ballstab_config = ballstab_config_in
@@ -583,14 +581,14 @@ contains
     shat_min = self%shat_min
 
     ! Now read in the main namelist
-    if (self%requiresIndex) then
-       call get_indexed_namelist_unit(in_file, trim(self%name), self%index)
+    if (self%get_requires_index()) then
+       call get_indexed_namelist_unit(in_file, trim(self%get_name()), self%index)
        read(in_file, nml = ballstab_knobs, iostat = iostat)
        exist = .true.
        if (iostat .ne.0) exist = .false.
        close(unit = in_file, iostat = iostat)
     else
-       in_file = input_unit_exist(self%name, exist)
+       in_file = input_unit_exist(self%get_name(), exist)
        if (exist) read(in_file, nml = ballstab_knobs)
     endif
 
@@ -658,12 +656,18 @@ contains
 
     call broadcast(self%exist)
   end subroutine broadcast_ballstab_config
-  
-  !> Sets the name and requiresIndex paremeters as appropriate
-  function ballstab_config_constructor()
+
+  !> Gets the default name for this namelist
+  function get_default_name_ballstab_config()
     implicit none
-    type(ballstab_config_type) :: ballstab_config_constructor
-    ballstab_config_constructor%name = "ballstab_knobs"
-    ballstab_config_constructor%requiresIndex = .false.
-  end function ballstab_config_constructor
+    character(len = CONFIG_MAX_NAME_LEN) :: get_default_name_ballstab_config
+    get_default_name_ballstab_config = "ballstab_knobs"
+  end function get_default_name_ballstab_config
+
+  !> Gets the default requires index for this namelist
+  function get_default_requires_index_ballstab_config()
+    implicit none
+    logical :: get_default_requires_index_ballstab_config
+    get_default_requires_index_ballstab_config = .false.
+  end function get_default_requires_index_ballstab_config
 end module ballstab

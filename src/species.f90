@@ -1,6 +1,6 @@
 !> FIXME : Add documentation  
 module species
-  use abstract_config, only: abstract_config_type
+  use abstract_config, only: abstract_config_type, CONFIG_MAX_NAME_LEN
   
   implicit none
 
@@ -86,11 +86,9 @@ module species
      procedure, public :: write => write_species_config
      procedure, public :: reset => reset_species_config
      procedure, public :: broadcast => broadcast_species_config
+     procedure, public, nopass :: get_default_name => get_default_name_species_config
+     procedure, public, nopass :: get_default_requires_index => get_default_requires_index_species_config
   end type species_config_type
-
-  interface species_config_type
-     procedure :: species_config_constructor
-  end interface species_config_type
   
   type(species_config_type) :: species_config
   
@@ -145,11 +143,9 @@ module species
      procedure, public :: write => write_species_element_config
      procedure, public :: reset => reset_species_element_config
      procedure, public :: broadcast => broadcast_species_element_config
+     procedure, public, nopass :: get_default_name => get_default_name_species_element_config
+     procedure, public, nopass :: get_default_requires_index => get_default_requires_index_species_element_config
   end type species_element_config_type
-
-  interface species_element_config_type
-     procedure :: species_element_config_constructor
-  end interface species_element_config_type
   
   type(species_element_config_type), dimension(:), allocatable :: species_element_config
 
@@ -1112,14 +1108,14 @@ contains
     zi_fac = self%zi_fac
 
     ! Now read in the main namelist
-    if (self%requiresIndex) then
-       call get_indexed_namelist_unit(in_file, trim(self%name), self%index)
+    if (self%get_requires_index()) then
+       call get_indexed_namelist_unit(in_file, trim(self%get_name()), self%index)
        read(in_file, nml = species_knobs, iostat = iostat)
        exist = .true.
        if (iostat .ne.0) exist = .false.
        close(unit = in_file, iostat = iostat)
     else
-       in_file = input_unit_exist(self%name, exist)
+       in_file = input_unit_exist(self%get_name(), exist)
        if (exist) read(in_file, nml = species_knobs)
     endif
 
@@ -1172,15 +1168,21 @@ contains
 
     call broadcast(self%exist)
   end subroutine broadcast_species_config
-  
-  !> Sets the name and requiresIndex paremeters as appropriate
-  function species_config_constructor()
+    
+  !> Gets the default name for this namelist
+  function get_default_name_species_config()
     implicit none
-    type(species_config_type) :: species_config_constructor
-    species_config_constructor%name = "species_knobs"
-    species_config_constructor%requiresIndex = .false.
-  end function species_config_constructor
+    character(len = CONFIG_MAX_NAME_LEN) :: get_default_name_species_config
+    get_default_name_species_config = "species_knobs"
+  end function get_default_name_species_config
 
+  !> Gets the default requires index for this namelist
+  function get_default_requires_index_species_config()
+    implicit none
+    logical :: get_default_requires_index_species_config
+    get_default_requires_index_species_config = .false.
+  end function get_default_requires_index_species_config
+  
   !---------------------------------------
   ! Following is for the config_type
   !---------------------------------------
@@ -1229,14 +1231,14 @@ contains
     z = self%z
 
     ! Now read in the main namelist
-    if (self%requiresIndex) then
-       call get_indexed_namelist_unit(in_file, trim(self%name), self%index)
+    if (self%get_requires_index()) then
+       call get_indexed_namelist_unit(in_file, trim(self%get_name()), self%index)
        read(in_file, nml = species_parameters, iostat = iostat)
        exist = .true.
        if (iostat .ne.0) exist = .false.
        close(unit = in_file, iostat = iostat)
     else
-       in_file = input_unit_exist(self%name, exist)
+       in_file = input_unit_exist(self%get_name(), exist)
        if (exist) read(in_file, nml = species_parameters)
     endif
 
@@ -1343,12 +1345,18 @@ contains
 
     call broadcast(self%exist)
   end subroutine broadcast_species_element_config 
- 
-  !> Sets the name and requiresIndex paremeters as appropriate
-  function species_element_config_constructor()
+
+  !> Gets the default name for this namelist
+  function get_default_name_species_element_config()
     implicit none
-    type(species_element_config_type) :: species_element_config_constructor
-    species_element_config_constructor%name = "species_parameters"
-    species_element_config_constructor%requiresIndex = .true.
-  end function species_element_config_constructor
+    character(len = CONFIG_MAX_NAME_LEN) :: get_default_name_species_element_config
+    get_default_name_species_element_config = "species_parameters"
+  end function get_default_name_species_element_config
+
+  !> Gets the default requires index for this namelist
+  function get_default_requires_index_species_element_config()
+    implicit none
+    logical :: get_default_requires_index_species_element_config
+    get_default_requires_index_species_element_config = .true.
+  end function get_default_requires_index_species_element_config
 end module species

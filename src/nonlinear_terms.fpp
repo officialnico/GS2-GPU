@@ -4,7 +4,7 @@ module nonlinear_terms
   ! missing factors of B_a/B(theta) in A_perp terms??
   !
 
-  use abstract_config, only: abstract_config_type
+  use abstract_config, only: abstract_config_type, CONFIG_MAX_NAME_LEN
   
   implicit none
 
@@ -110,11 +110,9 @@ module nonlinear_terms
      procedure, public :: write => write_nonlinear_terms_config
      procedure, public :: reset => reset_nonlinear_terms_config
      procedure, public :: broadcast => broadcast_nonlinear_terms_config
+     procedure, public, nopass :: get_default_name => get_default_name_nonlinear_terms_config
+     procedure, public, nopass :: get_default_requires_index => get_default_requires_index_nonlinear_terms_config
   end type nonlinear_terms_config_type
-
-  interface nonlinear_terms_config_type
-     procedure :: nonlinear_terms_config_constructor
-  end interface nonlinear_terms_config_type
 
   type(nonlinear_terms_config_type) :: nonlinear_terms_config
   
@@ -1057,14 +1055,14 @@ contains
     zip = self%zip
 
     ! Now read in the main namelist
-    if (self%requiresIndex) then
-       call get_indexed_namelist_unit(in_file, trim(self%name), self%index)
+    if (self%get_requires_index()) then
+       call get_indexed_namelist_unit(in_file, trim(self%get_name()), self%index)
        read(in_file, nml = nonlinear_terms_knobs, iostat = iostat)
        exist = .true.
        if (iostat .ne.0) exist = .false.
        close(unit = in_file, iostat = iostat)
     else
-       in_file = input_unit_exist(self%name, exist)
+       in_file = input_unit_exist(self%get_name(), exist)
        if (exist) read(in_file, nml = nonlinear_terms_knobs)
     endif
 
@@ -1139,13 +1137,19 @@ contains
     call broadcast(self%exist)
   end subroutine broadcast_nonlinear_terms_config
 
-  !> Sets the name and requiresIndex paremeters as appropriate
-  function nonlinear_terms_config_constructor()
+  !> Gets the default name for this namelist
+  function get_default_name_nonlinear_terms_config()
     implicit none
-    type(nonlinear_terms_config_type) :: nonlinear_terms_config_constructor
-    nonlinear_terms_config_constructor%name = "nonlinear_terms_knobs"
-    nonlinear_terms_config_constructor%requiresIndex = .false.
-  end function nonlinear_terms_config_constructor
+    character(len = CONFIG_MAX_NAME_LEN) :: get_default_name_nonlinear_terms_config
+    get_default_name_nonlinear_terms_config = "nonlinear_terms_knobs"
+  end function get_default_name_nonlinear_terms_config
+
+  !> Gets the default requires index for this namelist
+  function get_default_requires_index_nonlinear_terms_config()
+    implicit none
+    logical :: get_default_requires_index_nonlinear_terms_config
+    get_default_requires_index_nonlinear_terms_config = .false.
+  end function get_default_requires_index_nonlinear_terms_config
 end module nonlinear_terms
 
 

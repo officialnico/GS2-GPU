@@ -1,6 +1,6 @@
 !> FIXME : Add documentation
 module gs2_reinit
-  use abstract_config, only: abstract_config_type
+  use abstract_config, only: abstract_config_type, CONFIG_MAX_NAME_LEN
   
   implicit none
 
@@ -66,11 +66,9 @@ module gs2_reinit
      procedure, public :: write => write_reinit_config
      procedure, public :: reset => reset_reinit_config
      procedure, public :: broadcast => broadcast_reinit_config
+     procedure, public, nopass :: get_default_name => get_default_name_reinit_config
+     procedure, public, nopass :: get_default_requires_index => get_default_requires_index_reinit_config
   end type reinit_config_type
-
-  interface reinit_config_type
-     procedure :: reinit_config_constructor
-  end interface reinit_config_type
 
   type(reinit_config_type) :: reinit_config  
 contains
@@ -350,14 +348,14 @@ contains
     in_memory = self%in_memory
 
     ! Now read in the main namelist
-    if (self%requiresIndex) then
-       call get_indexed_namelist_unit(in_file, trim(self%name), self%index)
+    if (self%get_requires_index()) then
+       call get_indexed_namelist_unit(in_file, trim(self%get_name()), self%index)
        read(in_file, nml = reinit_knobs, iostat = iostat)
        exist = .true.
        if (iostat .ne.0) exist = .false.
        close(unit = in_file, iostat = iostat)
     else
-       in_file = input_unit_exist(self%name, exist)
+       in_file = input_unit_exist(self%get_name(), exist)
        if (exist) read(in_file, nml = reinit_knobs)
     endif
 
@@ -420,12 +418,18 @@ contains
     call broadcast(self%exist)
   end subroutine broadcast_reinit_config
 
-  !> Sets the name and requiresIndex paremeters as appropriate
-  function reinit_config_constructor()
+  !> Gets the default name for this namelist
+  function get_default_name_reinit_config()
     implicit none
-    type(reinit_config_type) :: reinit_config_constructor
-    reinit_config_constructor%name = "reinit_knobs"
-    reinit_config_constructor%requiresIndex = .false.
-  end function reinit_config_constructor
+    character(len = CONFIG_MAX_NAME_LEN) :: get_default_name_reinit_config
+    get_default_name_reinit_config = "reinit_knobs"
+  end function get_default_name_reinit_config
+
+  !> Gets the default requires index for this namelist
+  function get_default_requires_index_reinit_config()
+    implicit none
+    logical :: get_default_requires_index_reinit_config
+    get_default_requires_index_reinit_config = .false.
+  end function get_default_requires_index_reinit_config
 end module gs2_reinit
 

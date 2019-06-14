@@ -1,7 +1,7 @@
 !> A module for handling the configuration of the optimisation
 !! module via the namelist optimisation_config.
 module optimisation_config
-  use abstract_config, only: abstract_config_type
+  use abstract_config, only: abstract_config_type, CONFIG_MAX_NAME_LEN
   use overrides, only: optimisations_overrides_type
   implicit none
 
@@ -80,11 +80,9 @@ module optimisation_config
      procedure, public :: write => write_optimisation_config
      procedure, public :: reset => reset_optimisation_config
      procedure, public :: broadcast => broadcast_optimisation_config
+     procedure, public, nopass :: get_default_name => get_default_name_optimisation_config
+     procedure, public, nopass :: get_default_requires_index => get_default_requires_index_optimisation_config
   end type optimisation_config_type
-
-  interface optimisation_config_type
-     procedure :: optimisation_config_constructor
-  end interface optimisation_config_type
   
   type(optimisation_config_type) :: optimisation_config_config  
   
@@ -181,14 +179,14 @@ contains
     warm_up = self%warm_up
 
     ! Now read in the main namelist
-    if (self%requiresIndex) then
-       call get_indexed_namelist_unit(in_file, trim(self%name), self%index)
+    if (self%get_requires_index()) then
+       call get_indexed_namelist_unit(in_file, trim(self%get_name()), self%index)
        read(in_file, nml = optimisation_config, iostat = iostat)
        exist = .true.
        if (iostat .ne.0) exist = .false.
        close(unit = in_file, iostat = iostat)
     else
-       in_file = input_unit_exist(self%name, exist)
+       in_file = input_unit_exist(self%get_name(), exist)
        if (exist) read(in_file, nml = optimisation_config)
     endif
 
@@ -260,12 +258,18 @@ contains
     call broadcast(self%exist)
   end subroutine broadcast_optimisation_config
   
-  !> Sets the name and requiresIndex paremeters as appropriate
-  function optimisation_config_constructor()
+  !> Gets the default name for this namelist
+  function get_default_name_optimisation_config()
     implicit none
-    type(optimisation_config_type) :: optimisation_config_constructor
-    optimisation_config_constructor%name = "optimisation_config"
-    optimisation_config_constructor%requiresIndex = .false.
-  end function optimisation_config_constructor
+    character(len = CONFIG_MAX_NAME_LEN) :: get_default_name_optimisation_config
+    get_default_name_optimisation_config = "optimisation_config"
+  end function get_default_name_optimisation_config
+
+  !> Gets the default requires index for this namelist
+  function get_default_requires_index_optimisation_config()
+    implicit none
+    logical :: get_default_requires_index_optimisation_config
+    get_default_requires_index_optimisation_config = .false.
+  end function get_default_requires_index_optimisation_config
 end module optimisation_config
 

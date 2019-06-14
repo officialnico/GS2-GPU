@@ -29,7 +29,7 @@
 !! Written by:
 !!            Edmund Highcock (edmundhighcock@users.sourceforge.net)
 module gs2_init
-  use abstract_config, only: abstract_config_type
+  use abstract_config, only: abstract_config_type, CONFIG_MAX_NAME_LEN
 
   use overrides, only: miller_geometry_overrides_type
   use overrides, only: profiles_overrides_type
@@ -158,11 +158,9 @@ module gs2_init
      procedure, public :: write => write_init_config
      procedure, public :: reset => reset_init_config
      procedure, public :: broadcast => broadcast_init_config
+     procedure, public, nopass :: get_default_name => get_default_name_init_config
+     procedure, public, nopass :: get_default_requires_index => get_default_requires_index_init_config
   end type init_config_type
-
-  interface init_config_type
-     procedure :: init_config_constructor
-  end interface init_config_type
   
   type(init_config_type) :: init_config  
   
@@ -328,14 +326,14 @@ contains
     in_memory = self%in_memory
 
     ! Now read in the main namelist
-    if (self%requiresIndex) then
-       call get_indexed_namelist_unit(in_file, trim(self%name), self%index)
+    if (self%get_requires_index()) then
+       call get_indexed_namelist_unit(in_file, trim(self%get_name()), self%index)
        read(in_file, nml = init_knobs, iostat = iostat)
        exist = .true.
        if (iostat .ne.0) exist = .false.
        close(unit = in_file, iostat = iostat)
     else
-       in_file = input_unit_exist(self%name, exist)
+       in_file = input_unit_exist(self%get_name(), exist)
        if (exist) read(in_file, nml = init_knobs)
     endif
 
@@ -382,13 +380,19 @@ contains
 
     call broadcast(self%exist)
   end subroutine broadcast_init_config
-
-  !> Sets the name and requiresIndex paremeters as appropriate
-  function init_config_constructor()
+  
+  !> Gets the default name for this namelist
+  function get_default_name_init_config()
     implicit none
-    type(init_config_type) :: init_config_constructor
-    init_config_constructor%name = "init_knobs"
-    init_config_constructor%requiresIndex = .false.
-  end function init_config_constructor
+    character(len = CONFIG_MAX_NAME_LEN) :: get_default_name_init_config
+    get_default_name_init_config = "init_knobs"
+  end function get_default_name_init_config
+
+  !> Gets the default requires index for this namelist
+  function get_default_requires_index_init_config()
+    implicit none
+    logical :: get_default_requires_index_init_config
+    get_default_requires_index_init_config = .false.
+  end function get_default_requires_index_init_config
 end module gs2_init
 
