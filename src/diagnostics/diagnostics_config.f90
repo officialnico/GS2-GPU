@@ -1,7 +1,7 @@
 !> A module for handling the configuration of the diagnostics
 !! module via the namelist diagnostics_config.
 module diagnostics_config
-  use abstract_config, only: abstract_config_type
+  use abstract_config, only: abstract_config_type, CONFIG_MAX_NAME_LEN
   use simpledataio, only: sdf=>sdatio_file
   use diagnostics_ascii, only: diagnostics_ascii_type
   use diagnostics_dimensions, only: diagnostics_dimension_list_type
@@ -358,11 +358,9 @@ module diagnostics_config
      procedure, public :: write => write_new_gs2_diagnostics_config
      procedure, public :: reset => reset_new_gs2_diagnostics_config
      procedure, public :: broadcast => broadcast_new_gs2_diagnostics_config
+     procedure, public, nopass :: get_default_name => get_default_name_new_gs2_diagnostics_config
+     procedure, public, nopass :: get_default_requires_index => get_default_requires_index_new_gs2_diagnostics_config
   end type new_gs2_diagnostics_config_type
-
-  interface new_gs2_diagnostics_config_type
-     procedure :: new_gs2_diagnostics_config_constructor
-  end interface new_gs2_diagnostics_config_type
   
   type(new_gs2_diagnostics_config_type) :: new_gs2_diagnostics_config  
   
@@ -959,12 +957,18 @@ contains
     call broadcast(self%exist)
   end subroutine broadcast_new_gs2_diagnostics_config
 
-  !> Sets the name and requires_index paremeters as appropriate
-  function new_gs2_diagnostics_config_constructor()
+  !> Gets the default name for this namelist
+  function get_default_name_new_gs2_diagnostics_config()
     implicit none
-    type(new_gs2_diagnostics_config_type) :: new_gs2_diagnostics_config_constructor
-    new_gs2_diagnostics_config_constructor%name = "gs2_diagnostics_knobs"
-    new_gs2_diagnostics_config_constructor%requires_index = .false.
-  end function new_gs2_diagnostics_config_constructor
+    character(len = CONFIG_MAX_NAME_LEN) :: get_default_name_new_gs2_diagnostics_config
+    get_default_name_new_gs2_diagnostics_config = "gs2_diagnostics_knobs"
+  end function get_default_name_new_gs2_diagnostics_config
+
+  !> Gets the default requires index for this namelist
+  function get_default_requires_index_new_gs2_diagnostics_config()
+    implicit none
+    logical :: get_default_requires_index_new_gs2_diagnostics_config
+    get_default_requires_index_new_gs2_diagnostics_config = .false.
+  end function get_default_requires_index_new_gs2_diagnostics_config
 end module diagnostics_config
 

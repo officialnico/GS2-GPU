@@ -4,7 +4,7 @@ module nonlinear_terms
   ! missing factors of B_a/B(theta) in A_perp terms??
   !
 
-  use abstract_config, only: abstract_config_type
+  use abstract_config, only: abstract_config_type, CONFIG_MAX_NAME_LEN
   
   implicit none
 
@@ -110,11 +110,9 @@ module nonlinear_terms
      procedure, public :: write => write_nonlinear_terms_config
      procedure, public :: reset => reset_nonlinear_terms_config
      procedure, public :: broadcast => broadcast_nonlinear_terms_config
+     procedure, public, nopass :: get_default_name => get_default_name_nonlinear_terms_config
+     procedure, public, nopass :: get_default_requires_index => get_default_requires_index_nonlinear_terms_config
   end type nonlinear_terms_config_type
-
-  interface nonlinear_terms_config_type
-     procedure :: nonlinear_terms_config_constructor
-  end interface nonlinear_terms_config_type
 
   type(nonlinear_terms_config_type) :: nonlinear_terms_config
   
@@ -1139,13 +1137,19 @@ contains
     call broadcast(self%exist)
   end subroutine broadcast_nonlinear_terms_config
 
-  !> Sets the name and requires_index paremeters as appropriate
-  function nonlinear_terms_config_constructor()
+  !> Gets the default name for this namelist
+  function get_default_name_nonlinear_terms_config()
     implicit none
-    type(nonlinear_terms_config_type) :: nonlinear_terms_config_constructor
-    nonlinear_terms_config_constructor%name = "nonlinear_terms_knobs"
-    nonlinear_terms_config_constructor%requires_index = .false.
-  end function nonlinear_terms_config_constructor
+    character(len = CONFIG_MAX_NAME_LEN) :: get_default_name_nonlinear_terms_config
+    get_default_name_nonlinear_terms_config = "nonlinear_terms_knobs"
+  end function get_default_name_nonlinear_terms_config
+
+  !> Gets the default requires index for this namelist
+  function get_default_requires_index_nonlinear_terms_config()
+    implicit none
+    logical :: get_default_requires_index_nonlinear_terms_config
+    get_default_requires_index_nonlinear_terms_config = .false.
+  end function get_default_requires_index_nonlinear_terms_config
 end module nonlinear_terms
 
 

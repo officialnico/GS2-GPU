@@ -1,6 +1,6 @@
 !> FIXME : Add documentation  
 module species
-  use abstract_config, only: abstract_config_type
+  use abstract_config, only: abstract_config_type, CONFIG_MAX_NAME_LEN
   
   implicit none
 
@@ -86,11 +86,9 @@ module species
      procedure, public :: write => write_species_config
      procedure, public :: reset => reset_species_config
      procedure, public :: broadcast => broadcast_species_config
+     procedure, public, nopass :: get_default_name => get_default_name_species_config
+     procedure, public, nopass :: get_default_requires_index => get_default_requires_index_species_config
   end type species_config_type
-
-  interface species_config_type
-     procedure :: species_config_constructor
-  end interface species_config_type
   
   type(species_config_type) :: species_config
   
@@ -145,11 +143,9 @@ module species
      procedure, public :: write => write_species_element_config
      procedure, public :: reset => reset_species_element_config
      procedure, public :: broadcast => broadcast_species_element_config
+     procedure, public, nopass :: get_default_name => get_default_name_species_element_config
+     procedure, public, nopass :: get_default_requires_index => get_default_requires_index_species_element_config
   end type species_element_config_type
-
-  interface species_element_config_type
-     procedure :: species_element_config_constructor
-  end interface species_element_config_type
   
   type(species_element_config_type), dimension(:), allocatable :: species_element_config
 
@@ -1172,15 +1168,21 @@ contains
 
     call broadcast(self%exist)
   end subroutine broadcast_species_config
-  
-  !> Sets the name and requires_index paremeters as appropriate
-  function species_config_constructor()
+    
+  !> Gets the default name for this namelist
+  function get_default_name_species_config()
     implicit none
-    type(species_config_type) :: species_config_constructor
-    species_config_constructor%name = "species_knobs"
-    species_config_constructor%requires_index = .false.
-  end function species_config_constructor
+    character(len = CONFIG_MAX_NAME_LEN) :: get_default_name_species_config
+    get_default_name_species_config = "species_knobs"
+  end function get_default_name_species_config
 
+  !> Gets the default requires index for this namelist
+  function get_default_requires_index_species_config()
+    implicit none
+    logical :: get_default_requires_index_species_config
+    get_default_requires_index_species_config = .false.
+  end function get_default_requires_index_species_config
+  
   !---------------------------------------
   ! Following is for the config_type
   !---------------------------------------
@@ -1343,12 +1345,18 @@ contains
 
     call broadcast(self%exist)
   end subroutine broadcast_species_element_config 
- 
-  !> Sets the name and requires_index paremeters as appropriate
-  function species_element_config_constructor()
+
+  !> Gets the default name for this namelist
+  function get_default_name_species_element_config()
     implicit none
-    type(species_element_config_type) :: species_element_config_constructor
-    species_element_config_constructor%name = "species_parameters"
-    species_element_config_constructor%requires_index = .true.
-  end function species_element_config_constructor
+    character(len = CONFIG_MAX_NAME_LEN) :: get_default_name_species_element_config
+    get_default_name_species_element_config = "species_parameters"
+  end function get_default_name_species_element_config
+
+  !> Gets the default requires index for this namelist
+  function get_default_requires_index_species_element_config()
+    implicit none
+    logical :: get_default_requires_index_species_element_config
+    get_default_requires_index_species_element_config = .true.
+  end function get_default_requires_index_species_element_config
 end module species

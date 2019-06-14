@@ -161,7 +161,7 @@ end module egrid
 
 !> FIXME : Add documentation
 module le_grids
-  use abstract_config, only: abstract_config_type
+  use abstract_config, only: abstract_config_type, CONFIG_MAX_NAME_LEN
   use redistribute, only: redist_type
   implicit none
 
@@ -323,11 +323,9 @@ module le_grids
      procedure, public :: write => write_le_grids_config
      procedure, public :: reset => reset_le_grids_config
      procedure, public :: broadcast => broadcast_le_grids_config
+     procedure, public, nopass :: get_default_name => get_default_name_le_grids_config
+     procedure, public, nopass :: get_default_requires_index => get_default_requires_index_le_grids_config
   end type le_grids_config_type
-
-  interface le_grids_config_type
-     procedure :: le_grids_config_constructor
-  end interface le_grids_config_type
   
   type(le_grids_config_type) :: le_grids_config
   
@@ -4677,13 +4675,19 @@ contains
     call broadcast(self%exist)
   end subroutine broadcast_le_grids_config
 
-  !> Sets the name and requires_index paremeters as appropriate
-  function le_grids_config_constructor()
+  !> Gets the default name for this namelist
+  function get_default_name_le_grids_config()
     implicit none
-    type(le_grids_config_type) :: le_grids_config_constructor
-    le_grids_config_constructor%name = "le_grids_knobs"
-    le_grids_config_constructor%requires_index = .false.
-  end function le_grids_config_constructor
+    character(len = CONFIG_MAX_NAME_LEN) :: get_default_name_le_grids_config
+    get_default_name_le_grids_config = "le_grids_knobs"
+  end function get_default_name_le_grids_config
+
+  !> Gets the default requires index for this namelist
+  function get_default_requires_index_le_grids_config()
+    implicit none
+    logical :: get_default_requires_index_le_grids_config
+    get_default_requires_index_le_grids_config = .false.
+  end function get_default_requires_index_le_grids_config
 end module le_grids
 
 

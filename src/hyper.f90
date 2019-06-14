@@ -2,7 +2,7 @@
 !!
 !! @note nexp has been changed in a rush.  Only known to be correct for nexp=2
 module hyper
-  use abstract_config, only: abstract_config_type
+  use abstract_config, only: abstract_config_type, CONFIG_MAX_NAME_LEN
   implicit none
 
   private
@@ -72,11 +72,9 @@ module hyper
      procedure, public :: write => write_hyper_config
      procedure, public :: reset => reset_hyper_config
      procedure, public :: broadcast => broadcast_hyper_config
+     procedure, public, nopass :: get_default_name => get_default_name_hyper_config
+     procedure, public, nopass :: get_default_requires_index => get_default_requires_index_hyper_config
   end type hyper_config_type
-
-  interface hyper_config_type
-     procedure :: hyper_config_constructor
-  end interface hyper_config_type
 
   type(hyper_config_type) :: hyper_config
   
@@ -778,11 +776,17 @@ contains
     call broadcast(self%exist)
   end subroutine broadcast_hyper_config
 
-  !> Sets the name and requires_index paremeters as appropriate
-  function hyper_config_constructor()
+  !> Gets the default name for this namelist
+  function get_default_name_hyper_config()
     implicit none
-    type(hyper_config_type) :: hyper_config_constructor
-    hyper_config_constructor%name = "hyper_knobs"
-    hyper_config_constructor%requires_index = .false.
-  end function hyper_config_constructor
+    character(len = CONFIG_MAX_NAME_LEN) :: get_default_name_hyper_config
+    get_default_name_hyper_config = "hyper_knobs"
+  end function get_default_name_hyper_config
+
+  !> Gets the default requires index for this namelist
+  function get_default_requires_index_hyper_config()
+    implicit none
+    logical :: get_default_requires_index_hyper_config
+    get_default_requires_index_hyper_config = .false.
+  end function get_default_requires_index_hyper_config
 end module hyper

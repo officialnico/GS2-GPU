@@ -1,6 +1,6 @@
 !> Set up values of kx and ky for linear runs that use a single k_perp mode.
 module kt_grids_single
-  use abstract_config, only: abstract_config_type
+  use abstract_config, only: abstract_config_type, CONFIG_MAX_NAME_LEN
   
   implicit none
 
@@ -41,11 +41,9 @@ module kt_grids_single
      procedure, public :: write => write_kt_grids_single_config
      procedure, public :: reset => reset_kt_grids_single_config
      procedure, public :: broadcast => broadcast_kt_grids_single_config
+     procedure, public, nopass :: get_default_name => get_default_name_kt_grids_single_config
+     procedure, public, nopass :: get_default_requires_index => get_default_requires_index_kt_grids_single_config
   end type kt_grids_single_config_type
-
-  interface kt_grids_single_config_type
-     procedure :: kt_grids_single_config_constructor
-  end interface kt_grids_single_config_type
   
   type(kt_grids_single_config_type) :: kt_grids_single_config
   
@@ -272,18 +270,24 @@ contains
     call broadcast(self%exist)
   end subroutine broadcast_kt_grids_single_config
 
-  !> Sets the name and requires_index paremeters as appropriate
-  function kt_grids_single_config_constructor()
+  !> Gets the default name for this namelist
+  function get_default_name_kt_grids_single_config()
     implicit none
-    type(kt_grids_single_config_type) :: kt_grids_single_config_constructor
-    kt_grids_single_config_constructor%name = "kt_grids_single_parameters"
-    kt_grids_single_config_constructor%requires_index = .false.
-  end function kt_grids_single_config_constructor
+    character(len = CONFIG_MAX_NAME_LEN) :: get_default_name_kt_grids_single_config
+    get_default_name_kt_grids_single_config = "kt_grids_single_parameters"
+  end function get_default_name_kt_grids_single_config
+
+  !> Gets the default requires index for this namelist
+  function get_default_requires_index_kt_grids_single_config()
+    implicit none
+    logical :: get_default_requires_index_kt_grids_single_config
+    get_default_requires_index_kt_grids_single_config = .false.
+  end function get_default_requires_index_kt_grids_single_config
 end module kt_grids_single
 
 !> Set up ranges of kx and ky for linear runs.
 module kt_grids_range
-  use abstract_config, only: abstract_config_type
+  use abstract_config, only: abstract_config_type, CONFIG_MAX_NAME_LEN
   
   implicit none
 
@@ -359,11 +363,9 @@ module kt_grids_range
      procedure, public :: write => write_kt_grids_range_config
      procedure, public :: reset => reset_kt_grids_range_config
      procedure, public :: broadcast => broadcast_kt_grids_range_config
+     procedure, public, nopass :: get_default_name => get_default_name_kt_grids_range_config
+     procedure, public, nopass :: get_default_requires_index => get_default_requires_index_kt_grids_range_config
   end type kt_grids_range_config_type
-
-  interface kt_grids_range_config_type
-     procedure :: kt_grids_range_config_constructor
-  end interface kt_grids_range_config_type
   
   type(kt_grids_range_config_type) :: kt_grids_range_config
   
@@ -817,18 +819,24 @@ contains
     call broadcast(self%exist)
   end subroutine broadcast_kt_grids_range_config
 
-  !> Sets the name and requires_index paremeters as appropriate
-  function kt_grids_range_config_constructor()
+  !> Gets the default name for this namelist
+  function get_default_name_kt_grids_range_config()
     implicit none
-    type(kt_grids_range_config_type) :: kt_grids_range_config_constructor
-    kt_grids_range_config_constructor%name = "kt_grids_range_parameters"
-    kt_grids_range_config_constructor%requires_index = .false.
-  end function kt_grids_range_config_constructor
+    character(len = CONFIG_MAX_NAME_LEN) :: get_default_name_kt_grids_range_config
+    get_default_name_kt_grids_range_config = "kt_grids_range_parameters"
+  end function get_default_name_kt_grids_range_config
+
+  !> Gets the default requires index for this namelist
+  function get_default_requires_index_kt_grids_range_config()
+    implicit none
+    logical :: get_default_requires_index_kt_grids_range_config
+    get_default_requires_index_kt_grids_range_config = .false.
+  end function get_default_requires_index_kt_grids_range_config
 end module kt_grids_range
 
 !> Set up sets of (kx, ky) values for linear runs.
 module kt_grids_specified
-  use abstract_config, only: abstract_config_type
+  use abstract_config, only: abstract_config_type, CONFIG_MAX_NAME_LEN
   
   implicit none
 
@@ -861,11 +869,9 @@ module kt_grids_specified
      procedure, public :: write => write_kt_grids_specified_config
      procedure, public :: reset => reset_kt_grids_specified_config
      procedure, public :: broadcast => broadcast_kt_grids_specified_config
+     procedure, public, nopass :: get_default_name => get_default_name_kt_grids_specified_config
+     procedure, public, nopass :: get_default_requires_index => get_default_requires_index_kt_grids_specified_config
   end type kt_grids_specified_config_type
-
-  interface kt_grids_specified_config_type
-     procedure :: kt_grids_specified_config_constructor
-  end interface kt_grids_specified_config_type
   
   type(kt_grids_specified_config_type) :: kt_grids_specified_config
 
@@ -885,11 +891,9 @@ module kt_grids_specified
      procedure, public :: write => write_kt_grids_specified_element_config
      procedure, public :: reset => reset_kt_grids_specified_element_config
      procedure, public :: broadcast => broadcast_kt_grids_specified_element_config
+     procedure, public, nopass :: get_default_name => get_default_name_kt_grids_specified_element_config
+     procedure, public, nopass :: get_default_requires_index => get_default_requires_index_kt_grids_specified_element_config
   end type kt_grids_specified_element_config_type
-
-  interface kt_grids_specified_element_config_type
-     procedure :: kt_grids_specified_element_config_constructor
-  end interface kt_grids_specified_element_config_type
   
   type(kt_grids_specified_element_config_type), dimension(:), allocatable :: kt_grids_specified_element_config
   
@@ -1144,13 +1148,19 @@ contains
     call broadcast(self%exist)
   end subroutine broadcast_kt_grids_specified_config
   
-  !> Sets the name and requires_index paremeters as appropriate
-  function kt_grids_specified_config_constructor()
+  !> Gets the default name for this namelist
+  function get_default_name_kt_grids_specified_config()
     implicit none
-    type(kt_grids_specified_config_type) :: kt_grids_specified_config_constructor
-    kt_grids_specified_config_constructor%name = "kt_grids_specified_parameters"
-    kt_grids_specified_config_constructor%requires_index = .false.
-  end function kt_grids_specified_config_constructor
+    character(len = CONFIG_MAX_NAME_LEN) :: get_default_name_kt_grids_specified_config
+    get_default_name_kt_grids_specified_config = "kt_grids_specified_parameters"
+  end function get_default_name_kt_grids_specified_config
+
+  !> Gets the default requires index for this namelist
+  function get_default_requires_index_kt_grids_specified_config()
+    implicit none
+    logical :: get_default_requires_index_kt_grids_specified_config
+    get_default_requires_index_kt_grids_specified_config = .false.
+  end function get_default_requires_index_kt_grids_specified_config
   
   !---------------------------------------
   ! Following is for the config_type
@@ -1242,18 +1252,24 @@ contains
     call broadcast(self%exist)
   end subroutine broadcast_kt_grids_specified_element_config
 
-  !> Sets the name and requires_index paremeters as appropriate
-  function kt_grids_specified_element_config_constructor()
+  !> Gets the default name for this namelist
+  function get_default_name_kt_grids_specified_element_config()
     implicit none
-    type(kt_grids_specified_element_config_type) :: kt_grids_specified_element_config_constructor
-    kt_grids_specified_element_config_constructor%name = "kt_grids_specified_element"
-    kt_grids_specified_element_config_constructor%requires_index = .true.
-  end function kt_grids_specified_element_config_constructor
+    character(len = CONFIG_MAX_NAME_LEN) :: get_default_name_kt_grids_specified_element_config
+    get_default_name_kt_grids_specified_element_config = "kt_grids_specified_element"
+  end function get_default_name_kt_grids_specified_element_config
+
+  !> Gets the default requires index for this namelist
+  function get_default_requires_index_kt_grids_specified_element_config()
+    implicit none
+    logical :: get_default_requires_index_kt_grids_specified_element_config
+    get_default_requires_index_kt_grids_specified_element_config = .true.
+  end function get_default_requires_index_kt_grids_specified_element_config
 end module kt_grids_specified
 
 !> Set the perpendicular box size and resolution for linear or nonlinear runs.
 module kt_grids_box
-  use abstract_config, only: abstract_config_type
+  use abstract_config, only: abstract_config_type, CONFIG_MAX_NAME_LEN
   
   implicit none
 
@@ -1315,11 +1331,9 @@ module kt_grids_box
      procedure, public :: write => write_kt_grids_box_config
      procedure, public :: reset => reset_kt_grids_box_config
      procedure, public :: broadcast => broadcast_kt_grids_box_config
+     procedure, public, nopass :: get_default_name => get_default_name_kt_grids_box_config
+     procedure, public, nopass :: get_default_requires_index => get_default_requires_index_kt_grids_box_config
   end type kt_grids_box_config_type
-
-  interface kt_grids_box_config_type
-     procedure :: kt_grids_box_config_constructor
-  end interface kt_grids_box_config_type
   
   type(kt_grids_box_config_type) :: kt_grids_box_config
   
@@ -1785,18 +1799,24 @@ contains
     call broadcast(self%exist)
   end subroutine broadcast_kt_grids_box_config
 
-  !> Sets the name and requires_index paremeters as appropriate
-  function kt_grids_box_config_constructor()
+  !> Gets the default name for this namelist
+  function get_default_name_kt_grids_box_config()
     implicit none
-    type(kt_grids_box_config_type) :: kt_grids_box_config_constructor
-    kt_grids_box_config_constructor%name = "kt_grids_box_parameters"
-    kt_grids_box_config_constructor%requires_index = .false.
-  end function kt_grids_box_config_constructor  
+    character(len = CONFIG_MAX_NAME_LEN) :: get_default_name_kt_grids_box_config
+    get_default_name_kt_grids_box_config = "kt_grids_box_parameters"
+  end function get_default_name_kt_grids_box_config
+
+  !> Gets the default requires index for this namelist
+  function get_default_requires_index_kt_grids_box_config()
+    implicit none
+    logical :: get_default_requires_index_kt_grids_box_config
+    get_default_requires_index_kt_grids_box_config = .false.
+  end function get_default_requires_index_kt_grids_box_config
 end module kt_grids_box
 
 !> Set up the perpendicular wavenumbers by calling the appropriate sub-modules. 
 module kt_grids
-  use abstract_config, only: abstract_config_type
+  use abstract_config, only: abstract_config_type, CONFIG_MAX_NAME_LEN
   use kt_grids_box, only: jtwist
   
   implicit none
@@ -1848,11 +1868,9 @@ module kt_grids
      procedure, public :: write => write_kt_grids_config
      procedure, public :: reset => reset_kt_grids_config
      procedure, public :: broadcast => broadcast_kt_grids_config
+     procedure, public, nopass :: get_default_name => get_default_name_kt_grids_config
+     procedure, public, nopass :: get_default_requires_index => get_default_requires_index_kt_grids_config
   end type kt_grids_config_type
-
-  interface kt_grids_config_type
-     procedure :: kt_grids_config_constructor
-  end interface kt_grids_config_type
   
   type(kt_grids_config_type) :: kt_grids_config
   
@@ -2247,12 +2265,18 @@ contains
     call broadcast(self%exist)
   end subroutine broadcast_kt_grids_config
 
-  !> Sets the name and requires_index paremeters as appropriate
-  function kt_grids_config_constructor()
+  !> Gets the default name for this namelist
+  function get_default_name_kt_grids_config()
     implicit none
-    type(kt_grids_config_type) :: kt_grids_config_constructor
-    kt_grids_config_constructor%name = "kt_grids_knobs"
-    kt_grids_config_constructor%requires_index = .false.
-  end function kt_grids_config_constructor
+    character(len = CONFIG_MAX_NAME_LEN) :: get_default_name_kt_grids_config
+    get_default_name_kt_grids_config = "kt_grids_knobs"
+  end function get_default_name_kt_grids_config
+
+  !> Gets the default requires index for this namelist
+  function get_default_requires_index_kt_grids_config()
+    implicit none
+    logical :: get_default_requires_index_kt_grids_config
+    get_default_requires_index_kt_grids_config = .false.
+  end function get_default_requires_index_kt_grids_config
 end module kt_grids
 

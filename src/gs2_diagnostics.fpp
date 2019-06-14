@@ -1,6 +1,6 @@
 !> A module for calculating and writing the main GS2 outputs.
 module gs2_diagnostics
-  use abstract_config, only: abstract_config_type
+  use abstract_config, only: abstract_config_type, CONFIG_MAX_NAME_LEN
   use gs2_heating, only: heating_diagnostics
   use gs2_save, only: save_many
 
@@ -269,11 +269,9 @@ module gs2_diagnostics
      procedure, public :: write => write_gs2_diagnostics_config
      procedure, public :: reset => reset_gs2_diagnostics_config
      procedure, public :: broadcast => broadcast_gs2_diagnostics_config
+     procedure, public, nopass :: get_default_name => get_default_name_gs2_diagnostics_config
+     procedure, public, nopass :: get_default_requires_index => get_default_requires_index_gs2_diagnostics_config
   end type gs2_diagnostics_config_type
-
-  interface gs2_diagnostics_config_type
-     procedure :: gs2_diagnostics_config_constructor
-  end interface gs2_diagnostics_config_type
 
   type(gs2_diagnostics_config_type) :: gs2_diagnostics_config  
 contains
@@ -4497,11 +4495,17 @@ contains
     call broadcast(self%exist)
   end subroutine broadcast_gs2_diagnostics_config
 
-  !> Sets the name and requires_index paremeters as appropriate
-  function gs2_diagnostics_config_constructor()
+  !> Gets the default name for this namelist
+  function get_default_name_gs2_diagnostics_config()
     implicit none
-    type(gs2_diagnostics_config_type) :: gs2_diagnostics_config_constructor
-    gs2_diagnostics_config_constructor%name = "gs2_diagnostics_knobs"
-    gs2_diagnostics_config_constructor%requires_index = .false.
-  end function gs2_diagnostics_config_constructor
+    character(len = CONFIG_MAX_NAME_LEN) :: get_default_name_gs2_diagnostics_config
+    get_default_name_gs2_diagnostics_config = "gs2_diagnostics_knobs"
+  end function get_default_name_gs2_diagnostics_config
+
+  !> Gets the default requires index for this namelist
+  function get_default_requires_index_gs2_diagnostics_config()
+    implicit none
+    logical :: get_default_requires_index_gs2_diagnostics_config
+    get_default_requires_index_gs2_diagnostics_config = .false.
+  end function get_default_requires_index_gs2_diagnostics_config
 end module gs2_diagnostics

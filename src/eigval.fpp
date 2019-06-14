@@ -2,7 +2,7 @@
 !> A module for finding eigenvalues and eigenmodes
 !! Requires SLEPC and PETSC
 module eigval
-  use abstract_config, only: abstract_config_type
+  use abstract_config, only: abstract_config_type, CONFIG_MAX_NAME_LEN
   use petscvec
   use petscmat
   use slepceps
@@ -180,11 +180,9 @@ module eigval
      procedure, public :: write => write_eigval_config
      procedure, public :: reset => reset_eigval_config
      procedure, public :: broadcast => broadcast_eigval_config
+     procedure, public, nopass :: get_default_name => get_default_name_eigval_config
+     procedure, public, nopass :: get_default_requires_index => get_default_requires_index_eigval_config
   end type eigval_config_type
-
-  interface eigval_config_type
-     procedure :: eigval_config_constructor
-  end interface eigval_config_type
 
   type(eigval_config_type) :: eigval_config
 
@@ -1374,14 +1372,20 @@ contains
 
     call broadcast(self%exist)
   end subroutine broadcast_eigval_config
-
-  !> Sets the name and requires_index paremeters as appropriate
-  function eigval_config_constructor()
+  
+  !> Gets the default name for this namelist
+  function get_default_name_eigval_config()
     implicit none
-    type(eigval_config_type) :: eigval_config_constructor
-    eigval_config_constructor%name = "eigval_knobs"
-    eigval_config_constructor%requires_index = .false.
-  end function eigval_config_constructor
+    character(len = CONFIG_MAX_NAME_LEN) :: get_default_name_eigval_config
+    get_default_name_eigval_config = "eigval_knobs"
+  end function get_default_name_eigval_config
+
+  !> Gets the default requires index for this namelist
+  function get_default_requires_index_eigval_config()
+    implicit none
+    logical :: get_default_requires_index_eigval_config
+    get_default_requires_index_eigval_config = .false.
+  end function get_default_requires_index_eigval_config
 end module eigval
 
 #else

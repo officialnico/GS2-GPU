@@ -1,7 +1,7 @@
 !> This module contains the subroutines which set the initial value of the
 !! fields and the distribution function.
 module init_g
-  use abstract_config, only: abstract_config_type
+  use abstract_config, only: abstract_config_type, CONFIG_MAX_NAME_LEN
   implicit none
 
   private
@@ -216,11 +216,9 @@ module init_g
      procedure, public :: write => write_init_g_config
      procedure, public :: reset => reset_init_g_config
      procedure, public :: broadcast => broadcast_init_g_config
+     procedure, public, nopass :: get_default_name => get_default_name_init_g_config
+     procedure, public, nopass :: get_default_requires_index => get_default_requires_index_init_g_config
   end type init_g_config_type
-
-  interface init_g_config_type
-     procedure :: init_g_config_constructor
-  end interface init_g_config_type
   
   type(init_g_config_type) :: init_g_config
   
@@ -4349,10 +4347,17 @@ contains
     call broadcast(self%exist)
   end subroutine broadcast_init_g_config
   
-  function init_g_config_constructor()
+  !> Gets the default name for this namelist
+  function get_default_name_init_g_config()
     implicit none
-    type(init_g_config_type) :: init_g_config_constructor
-    init_g_config_constructor%name = "init_g_knobs"
-    init_g_config_constructor%requires_index = .false.
-  end function init_g_config_constructor
+    character(len = CONFIG_MAX_NAME_LEN) :: get_default_name_init_g_config
+    get_default_name_init_g_config = "init_g_knobs"
+  end function get_default_name_init_g_config
+
+  !> Gets the default requires index for this namelist
+  function get_default_requires_index_init_g_config()
+    implicit none
+    logical :: get_default_requires_index_init_g_config
+    get_default_requires_index_init_g_config = .false.
+  end function get_default_requires_index_init_g_config
 end module init_g

@@ -1,6 +1,6 @@
 !> FIXME : Add documentation
 module theta_grid_params
-  use abstract_config, only: abstract_config_type
+  use abstract_config, only: abstract_config_type, CONFIG_MAX_NAME_LEN
 
   implicit none
 
@@ -275,11 +275,9 @@ module theta_grid_params
      procedure, public :: write => write_theta_grid_parameters_config
      procedure, public :: reset => reset_theta_grid_parameters_config
      procedure, public :: broadcast => broadcast_theta_grid_parameters_config
+     procedure, public, nopass :: get_default_name => get_default_name_theta_grid_parameters_config
+     procedure, public, nopass :: get_default_requires_index => get_default_requires_index_theta_grid_parameters_config
   end type theta_grid_parameters_config_type
-
-  interface theta_grid_parameters_config_type
-     procedure :: theta_grid_parameters_config_constructor
-  end interface theta_grid_parameters_config_type
   
   type(theta_grid_parameters_config_type) :: theta_grid_parameters_config
   
@@ -813,11 +811,17 @@ contains
     call broadcast(self%exist)
   end subroutine broadcast_theta_grid_parameters_config
   
-  !> Sets the name and requires_index paremeters as appropriate
-  function theta_grid_parameters_config_constructor()
+  !> Gets the default name for this namelist
+  function get_default_name_theta_grid_parameters_config()
     implicit none
-    type(theta_grid_parameters_config_type) :: theta_grid_parameters_config_constructor
-    theta_grid_parameters_config_constructor%name = "theta_grid_parameters"
-    theta_grid_parameters_config_constructor%requires_index = .false.
-  end function theta_grid_parameters_config_constructor
+    character(len = CONFIG_MAX_NAME_LEN) :: get_default_name_theta_grid_parameters_config
+    get_default_name_theta_grid_parameters_config = "theta_grid_parameters"
+  end function get_default_name_theta_grid_parameters_config
+
+  !> Gets the default requires index for this namelist
+  function get_default_requires_index_theta_grid_parameters_config()
+    implicit none
+    logical :: get_default_requires_index_theta_grid_parameters_config
+    get_default_requires_index_theta_grid_parameters_config = .false.
+  end function get_default_requires_index_theta_grid_parameters_config
 end module theta_grid_params

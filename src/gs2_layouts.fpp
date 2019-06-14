@@ -3,7 +3,7 @@
 ! on behalf of EPSRC for the HECToR project
 !> FIXME : Add documentation
 module gs2_layouts
-  use abstract_config, only: abstract_config_type
+  use abstract_config, only: abstract_config_type, CONFIG_MAX_NAME_LEN
   
 ! TT: What are gint_layout_type and geint_layout_type?
 
@@ -279,11 +279,9 @@ module gs2_layouts
      procedure, public :: write => write_layouts_config
      procedure, public :: reset => reset_layouts_config
      procedure, public :: broadcast => broadcast_layouts_config
+     procedure, public, nopass :: get_default_name => get_default_name_layouts_config
+     procedure, public, nopass :: get_default_requires_index => get_default_requires_index_layouts_config     
   end type layouts_config_type
-
-  interface layouts_config_type
-     procedure :: layouts_config_constructor
-  end interface layouts_config_type
   
   type(layouts_config_type) :: layouts_config
   
@@ -6603,11 +6601,17 @@ contains
     call broadcast(self%exist)
   end subroutine broadcast_layouts_config
 
-  !> Sets the name and requires_index paremeters as appropriate
-  function layouts_config_constructor()
+  !> Gets the default name for this namelist
+  function get_default_name_layouts_config()
     implicit none
-    type(layouts_config_type) :: layouts_config_constructor
-    layouts_config_constructor%name = "layouts_knobs"
-    layouts_config_constructor%requires_index = .false.
-  end function layouts_config_constructor
+    character(len = CONFIG_MAX_NAME_LEN) :: get_default_name_layouts_config
+    get_default_name_layouts_config = "layouts_knobs"
+  end function get_default_name_layouts_config
+
+  !> Gets the default requires index for this namelist
+  function get_default_requires_index_layouts_config()
+    implicit none
+    logical :: get_default_requires_index_layouts_config
+    get_default_requires_index_layouts_config = .false.
+  end function get_default_requires_index_layouts_config
 end module gs2_layouts

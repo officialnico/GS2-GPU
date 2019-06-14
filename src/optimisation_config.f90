@@ -1,7 +1,7 @@
 !> A module for handling the configuration of the optimisation
 !! module via the namelist optimisation_config.
 module optimisation_config
-  use abstract_config, only: abstract_config_type
+  use abstract_config, only: abstract_config_type, CONFIG_MAX_NAME_LEN
   use overrides, only: optimisations_overrides_type
   implicit none
 
@@ -80,11 +80,9 @@ module optimisation_config
      procedure, public :: write => write_optimisation_config
      procedure, public :: reset => reset_optimisation_config
      procedure, public :: broadcast => broadcast_optimisation_config
+     procedure, public, nopass :: get_default_name => get_default_name_optimisation_config
+     procedure, public, nopass :: get_default_requires_index => get_default_requires_index_optimisation_config
   end type optimisation_config_type
-
-  interface optimisation_config_type
-     procedure :: optimisation_config_constructor
-  end interface optimisation_config_type
   
   type(optimisation_config_type) :: optimisation_config_config  
   
@@ -260,12 +258,18 @@ contains
     call broadcast(self%exist)
   end subroutine broadcast_optimisation_config
   
-  !> Sets the name and requires_index paremeters as appropriate
-  function optimisation_config_constructor()
+  !> Gets the default name for this namelist
+  function get_default_name_optimisation_config()
     implicit none
-    type(optimisation_config_type) :: optimisation_config_constructor
-    optimisation_config_constructor%name = "optimisation_config"
-    optimisation_config_constructor%requires_index = .false.
-  end function optimisation_config_constructor
+    character(len = CONFIG_MAX_NAME_LEN) :: get_default_name_optimisation_config
+    get_default_name_optimisation_config = "optimisation_config"
+  end function get_default_name_optimisation_config
+
+  !> Gets the default requires index for this namelist
+  function get_default_requires_index_optimisation_config()
+    implicit none
+    logical :: get_default_requires_index_optimisation_config
+    get_default_requires_index_optimisation_config = .false.
+  end function get_default_requires_index_optimisation_config
 end module optimisation_config
 

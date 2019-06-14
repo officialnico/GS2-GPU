@@ -1,6 +1,6 @@
 !> FIXME : Add documentation
 module theta_grid_gridgen
-  use abstract_config, only: abstract_config_type
+  use abstract_config, only: abstract_config_type, CONFIG_MAX_NAME_LEN
 
   implicit none
 
@@ -46,12 +46,10 @@ module theta_grid_gridgen
      procedure, public :: write => write_theta_grid_gridgen_config
      procedure, public :: reset => reset_theta_grid_gridgen_config
      procedure, public :: broadcast => broadcast_theta_grid_gridgen_config
+     procedure, public, nopass :: get_default_name => get_default_name_theta_grid_gridgen_config
+     procedure, public, nopass :: get_default_requires_index => get_default_requires_index_theta_grid_gridgen_config
   end type theta_grid_gridgen_config_type
 
-  interface theta_grid_gridgen_config_type
-     procedure :: theta_grid_gridgen_config_constructor
-  end interface theta_grid_gridgen_config_type
-  
   type(theta_grid_gridgen_config_type) :: theta_grid_gridgen_config
 
 contains
@@ -364,18 +362,24 @@ if (debug) write(6,*) 'gridgen_get_grids: end'
     call broadcast(self%exist)
   end subroutine broadcast_theta_grid_gridgen_config
 
-  !> Sets the name and requires_index paremeters as appropriate
-  function theta_grid_gridgen_config_constructor()
+  !> Gets the default name for this namelist
+  function get_default_name_theta_grid_gridgen_config()
     implicit none
-    type(theta_grid_gridgen_config_type) :: theta_grid_gridgen_config_constructor
-    theta_grid_gridgen_config_constructor%name = "theta_grid_gridgen_knobs"
-    theta_grid_gridgen_config_constructor%requires_index = .false.
-  end function theta_grid_gridgen_config_constructor
+    character(len = CONFIG_MAX_NAME_LEN) :: get_default_name_theta_grid_gridgen_config
+    get_default_name_theta_grid_gridgen_config = "theta_grid_gridgen_knobs"
+  end function get_default_name_theta_grid_gridgen_config
+
+  !> Gets the default requires index for this namelist
+  function get_default_requires_index_theta_grid_gridgen_config()
+    implicit none
+    logical :: get_default_requires_index_theta_grid_gridgen_config
+    get_default_requires_index_theta_grid_gridgen_config = .false.
+  end function get_default_requires_index_theta_grid_gridgen_config
 end module theta_grid_gridgen
 
 !> FIXME : Add documentation
 module theta_grid_salpha
-  use abstract_config, only: abstract_config_type
+  use abstract_config, only: abstract_config_type, CONFIG_MAX_NAME_LEN
   
   implicit none
 
@@ -425,11 +429,9 @@ module theta_grid_salpha
      procedure, public :: write => write_theta_grid_salpha_config
      procedure, public :: reset => reset_theta_grid_salpha_config
      procedure, public :: broadcast => broadcast_theta_grid_salpha_config
+     procedure, public, nopass :: get_default_name => get_default_name_theta_grid_salpha_config
+     procedure, public, nopass :: get_default_requires_index => get_default_requires_index_theta_grid_salpha_config
   end type theta_grid_salpha_config_type
-
-  interface theta_grid_salpha_config_type
-     procedure :: theta_grid_salpha_config_constructor
-  end interface theta_grid_salpha_config_type
   
   type(theta_grid_salpha_config_type) :: theta_grid_salpha_config
   
@@ -981,18 +983,24 @@ contains
     call broadcast(self%exist)
   end subroutine broadcast_theta_grid_salpha_config
 
-  !> Sets the name and requires_index paremeters as appropriate
-  function theta_grid_salpha_config_constructor()
+  !> Gets the default name for this namelist
+  function get_default_name_theta_grid_salpha_config()
     implicit none
-    type(theta_grid_salpha_config_type) :: theta_grid_salpha_config_constructor
-    theta_grid_salpha_config_constructor%name = "theta_grid_salpha_knobs"
-    theta_grid_salpha_config_constructor%requires_index = .false.
-  end function theta_grid_salpha_config_constructor
+    character(len = CONFIG_MAX_NAME_LEN) :: get_default_name_theta_grid_salpha_config
+    get_default_name_theta_grid_salpha_config = "theta_grid_salpha_knobs"
+  end function get_default_name_theta_grid_salpha_config
+
+  !> Gets the default requires index for this namelist
+  function get_default_requires_index_theta_grid_salpha_config()
+    implicit none
+    logical :: get_default_requires_index_theta_grid_salpha_config
+    get_default_requires_index_theta_grid_salpha_config = .false.
+  end function get_default_requires_index_theta_grid_salpha_config
 end module theta_grid_salpha
 
 !> FIXME : Add documentation
 module theta_grid_eik
-  use abstract_config, only: abstract_config_type
+  use abstract_config, only: abstract_config_type, CONFIG_MAX_NAME_LEN
   
   implicit none
 
@@ -1100,11 +1108,9 @@ module theta_grid_eik
      procedure, public :: write => write_theta_grid_eik_config
      procedure, public :: reset => reset_theta_grid_eik_config
      procedure, public :: broadcast => broadcast_theta_grid_eik_config
+     procedure, public, nopass :: get_default_name => get_default_name_theta_grid_eik_config
+     procedure, public, nopass :: get_default_requires_index => get_default_requires_index_theta_grid_eik_config
   end type theta_grid_eik_config_type
-
-  interface theta_grid_eik_config_type
-     procedure :: theta_grid_eik_config_constructor
-  end interface theta_grid_eik_config_type
   
   type(theta_grid_eik_config_type) :: theta_grid_eik_config
   
@@ -2044,18 +2050,24 @@ contains
     call broadcast(self%exist)
   end subroutine broadcast_theta_grid_eik_config
   
-  !> Sets the name and requires_index paremeters as appropriate
-  function theta_grid_eik_config_constructor()
+  !> Gets the default name for this namelist
+  function get_default_name_theta_grid_eik_config()
     implicit none
-    type(theta_grid_eik_config_type) :: theta_grid_eik_config_constructor
-    theta_grid_eik_config_constructor%name = "theta_grid_eik_knobs"
-    theta_grid_eik_config_constructor%requires_index = .false.
-  end function theta_grid_eik_config_constructor
+    character(len = CONFIG_MAX_NAME_LEN) :: get_default_name_theta_grid_eik_config
+    get_default_name_theta_grid_eik_config = "theta_grid_eik_knobs"
+  end function get_default_name_theta_grid_eik_config
+
+  !> Gets the default requires index for this namelist
+  function get_default_requires_index_theta_grid_eik_config()
+    implicit none
+    logical :: get_default_requires_index_theta_grid_eik_config
+    get_default_requires_index_theta_grid_eik_config = .false.
+  end function get_default_requires_index_theta_grid_eik_config
 end module theta_grid_eik
 
 !> FIXME : Add documentation
 module theta_grid_file
-  use abstract_config, only: abstract_config_type
+  use abstract_config, only: abstract_config_type, CONFIG_MAX_NAME_LEN
   
   implicit none
 
@@ -2088,11 +2100,9 @@ module theta_grid_file
      procedure, public :: write => write_theta_grid_file_config
      procedure, public :: reset => reset_theta_grid_file_config
      procedure, public :: broadcast => broadcast_theta_grid_file_config
+     procedure, public, nopass :: get_default_name => get_default_name_theta_grid_file_config
+     procedure, public, nopass :: get_default_requires_index => get_default_requires_index_theta_grid_file_config
   end type theta_grid_file_config_type
-
-  interface theta_grid_file_config_type
-     procedure :: theta_grid_file_config_constructor
-  end interface theta_grid_file_config_type
   
   type(theta_grid_file_config_type) :: theta_grid_file_config
   
@@ -2443,18 +2453,24 @@ contains
     call broadcast(self%exist)
   end subroutine broadcast_theta_grid_file_config
 
-  !> Sets the name and requires_index paremeters as appropriate
-  function theta_grid_file_config_constructor()
+  !> Gets the default name for this namelist
+  function get_default_name_theta_grid_file_config()
     implicit none
-    type(theta_grid_file_config_type) :: theta_grid_file_config_constructor
-    theta_grid_file_config_constructor%name = "theta_grid_file_knobs"
-    theta_grid_file_config_constructor%requires_index = .false.
-  end function theta_grid_file_config_constructor
+    character(len = CONFIG_MAX_NAME_LEN) :: get_default_name_theta_grid_file_config
+    get_default_name_theta_grid_file_config = "theta_grid_file_knobs"
+  end function get_default_name_theta_grid_file_config
+
+  !> Gets the default requires index for this namelist
+  function get_default_requires_index_theta_grid_file_config()
+    implicit none
+    logical :: get_default_requires_index_theta_grid_file_config
+    get_default_requires_index_theta_grid_file_config = .false.
+  end function get_default_requires_index_theta_grid_file_config
 end module theta_grid_file
 
 !> FIXME : Add documentation
 module theta_grid
-  use abstract_config, only: abstract_config_type
+  use abstract_config, only: abstract_config_type, CONFIG_MAX_NAME_LEN
   
   implicit none
 
@@ -2519,11 +2535,9 @@ module theta_grid
      procedure, public :: write => write_theta_grid_config
      procedure, public :: reset => reset_theta_grid_config
      procedure, public :: broadcast => broadcast_theta_grid_config
+     procedure, public, nopass :: get_default_name => get_default_name_theta_grid_config
+     procedure, public, nopass :: get_default_requires_index => get_default_requires_index_theta_grid_config
   end type theta_grid_config_type
-  
-  interface theta_grid_config_type
-     procedure :: theta_grid_config_constructor
-  end interface theta_grid_config_type
 
   type(theta_grid_config_type) :: theta_grid_config
   
@@ -3173,13 +3187,19 @@ if (debug) write(6,*) 'get_grids: call file_get_grids'
     call broadcast(self%exist)
   end subroutine broadcast_theta_grid_config
   
-  !> Sets the name and requires_index paremeters as appropriate
-  function theta_grid_config_constructor()
+  !> Gets the default name for this namelist
+  function get_default_name_theta_grid_config()
     implicit none
-    type(theta_grid_config_type) :: theta_grid_config_constructor
-    theta_grid_config_constructor%name = "theta_grid_knobs"
-    theta_grid_config_constructor%requires_index = .false.
-  end function theta_grid_config_constructor
+    character(len = CONFIG_MAX_NAME_LEN) :: get_default_name_theta_grid_config
+    get_default_name_theta_grid_config = "theta_grid_knobs"
+  end function get_default_name_theta_grid_config
+
+  !> Gets the default requires index for this namelist
+  function get_default_requires_index_theta_grid_config()
+    implicit none
+    logical :: get_default_requires_index_theta_grid_config
+    get_default_requires_index_theta_grid_config = .false.
+  end function get_default_requires_index_theta_grid_config
 end module theta_grid
 
 

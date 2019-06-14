@@ -2,7 +2,7 @@
 !! Based on the original ball program in geo/ball.f90 of GS2
 !! but tweaked to integrate closer to full GS2 runs etc.
 module ballstab
-  use abstract_config, only: abstract_config_type
+  use abstract_config, only: abstract_config_type, CONFIG_MAX_NAME_LEN
   implicit none
 
   private
@@ -54,11 +54,9 @@ module ballstab
      procedure, public :: write => write_ballstab_config
      procedure, public :: reset => reset_ballstab_config
      procedure, public :: broadcast => broadcast_ballstab_config
+     procedure, public, nopass :: get_default_name => get_default_name_ballstab_config
+     procedure, public, nopass :: get_default_requires_index => get_default_requires_index_ballstab_config
   end type ballstab_config_type
-
-  interface ballstab_config_type
-     procedure :: ballstab_config_constructor
-  end interface ballstab_config_type
 
   type(ballstab_config_type) :: ballstab_config
   
@@ -658,12 +656,18 @@ contains
 
     call broadcast(self%exist)
   end subroutine broadcast_ballstab_config
-  
-  !> Sets the name and requires_index paremeters as appropriate
-  function ballstab_config_constructor()
+
+  !> Gets the default name for this namelist
+  function get_default_name_ballstab_config()
     implicit none
-    type(ballstab_config_type) :: ballstab_config_constructor
-    ballstab_config_constructor%name = "ballstab_knobs"
-    ballstab_config_constructor%requires_index = .false.
-  end function ballstab_config_constructor
+    character(len = CONFIG_MAX_NAME_LEN) :: get_default_name_ballstab_config
+    get_default_name_ballstab_config = "ballstab_knobs"
+  end function get_default_name_ballstab_config
+
+  !> Gets the default requires index for this namelist
+  function get_default_requires_index_ballstab_config()
+    implicit none
+    logical :: get_default_requires_index_ballstab_config
+    get_default_requires_index_ballstab_config = .false.
+  end function get_default_requires_index_ballstab_config
 end module ballstab

@@ -11,7 +11,7 @@
 !!velocity shear and calculating the right-hand side of the field 
 !!equation, as well as a host of other functions.
 module dist_fn
-  use abstract_config, only: abstract_config_type
+  use abstract_config, only: abstract_config_type, CONFIG_MAX_NAME_LEN
   use redistribute, only: redist_type
   implicit none
 
@@ -372,11 +372,9 @@ module dist_fn
      procedure, public :: write => write_dist_fn_config
      procedure, public :: reset => reset_dist_fn_config
      procedure, public :: broadcast => broadcast_dist_fn_config
+     procedure, public, nopass :: get_default_name => get_default_name_dist_fn_config
+     procedure, public, nopass :: get_default_requires_index => get_default_requires_index_dist_fn_config
   end type dist_fn_config_type
-
-  interface dist_fn_config_type
-     procedure :: dist_fn_config_constructor
-  end interface dist_fn_config_type
   
   type(dist_fn_config_type) :: dist_fn_config
   
@@ -401,11 +399,9 @@ module dist_fn
      procedure, public :: write => write_source_config
      procedure, public :: reset => reset_source_config
      procedure, public :: broadcast => broadcast_source_config
+     procedure, public, nopass :: get_default_name => get_default_name_source_config
+     procedure, public, nopass :: get_default_requires_index => get_default_requires_index_source_config
   end type source_config_type
-  
-  interface source_config_type
-     procedure :: source_config_constructor
-  end interface source_config_type
 
   type(source_config_type) :: source_config
 
@@ -426,11 +422,9 @@ module dist_fn
      procedure, public :: write => write_dist_fn_species_config
      procedure, public :: reset => reset_dist_fn_species_config
      procedure, public :: broadcast => broadcast_dist_fn_species_config
+     procedure, public, nopass :: get_default_name => get_default_name_dist_fn_species_config
+     procedure, public, nopass :: get_default_requires_index => get_default_requires_index_dist_fn_species_config
   end type dist_fn_species_config_type
-
-  interface dist_fn_species_config_type
-     procedure :: dist_fn_species_config_constructor
-  end interface dist_fn_species_config_type
 
   type(dist_fn_species_config_type), dimension(:), allocatable :: dist_fn_species_config
   
@@ -10216,13 +10210,19 @@ endif
     call broadcast(self%exist)
   end subroutine broadcast_dist_fn_config
   
-  !> Sets the name and requires_index paremeters as appropriate
-  function dist_fn_config_constructor()
+  !> Gets the default name for this namelist
+  function get_default_name_dist_fn_config()
     implicit none
-    type(dist_fn_config_type) :: dist_fn_config_constructor
-    dist_fn_config_constructor%name = "dist_fn_knobs"
-    dist_fn_config_constructor%requires_index = .false.
-  end function dist_fn_config_constructor
+    character(len = CONFIG_MAX_NAME_LEN) :: get_default_name_dist_fn_config
+    get_default_name_dist_fn_config = "dist_fn_knobs"
+  end function get_default_name_dist_fn_config
+
+  !> Gets the default requires index for this namelist
+  function get_default_requires_index_dist_fn_config()
+    implicit none
+    logical :: get_default_requires_index_dist_fn_config
+    get_default_requires_index_dist_fn_config = .false.
+  end function get_default_requires_index_dist_fn_config
   
   !---------------------------------------
   ! Following is for the source config_type
@@ -10327,13 +10327,19 @@ endif
     call broadcast(self%exist)
   end subroutine broadcast_source_config
 
-  !> Sets the name and requires_index paremeters as appropriate
-  function source_config_constructor()
+  !> Gets the default name for this namelist
+  function get_default_name_source_config()
     implicit none
-    type(source_config_type) :: source_config_constructor
-    source_config_constructor%name = "source_knobs"
-    source_config_constructor%requires_index = .false.
-  end function source_config_constructor
+    character(len = CONFIG_MAX_NAME_LEN) :: get_default_name_source_config
+    get_default_name_source_config = "source_knobs"
+  end function get_default_name_source_config
+
+  !> Gets the default requires index for this namelist
+  function get_default_requires_index_source_config()
+    implicit none
+    logical :: get_default_requires_index_source_config
+    get_default_requires_index_source_config = .false.
+  end function get_default_requires_index_source_config
 
   !---------------------------------------
   ! Following is for the dist_fn_species config_type
@@ -10430,11 +10436,17 @@ endif
     call broadcast(self%exist)
   end subroutine broadcast_dist_fn_species_config
 
-  !> Sets the name and requires_index paremeters as appropriate
-  function dist_fn_species_config_constructor()
+  !> Gets the default name for this namelist
+  function get_default_name_dist_fn_species_config()
     implicit none
-    type(dist_fn_species_config_type) :: dist_fn_species_config_constructor
-    dist_fn_species_config_constructor%name = "dist_fn_species_knobs"
-    dist_fn_species_config_constructor%requires_index = .true.
-  end function dist_fn_species_config_constructor
+    character(len = CONFIG_MAX_NAME_LEN) :: get_default_name_dist_fn_species_config
+    get_default_name_dist_fn_species_config = "dist_fn_species_knobs"
+  end function get_default_name_dist_fn_species_config
+
+  !> Gets the default requires index for this namelist
+  function get_default_requires_index_dist_fn_species_config()
+    implicit none
+    logical :: get_default_requires_index_dist_fn_species_config
+    get_default_requires_index_dist_fn_species_config = .true.
+  end function get_default_requires_index_dist_fn_species_config
 end module dist_fn

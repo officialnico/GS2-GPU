@@ -8,7 +8,7 @@
 !!
 !! In addition, the condition for changing the parameter may be changed from a simple number of time steps to, for example, reaching a saturated state.
 module parameter_scan
-  use abstract_config, only: abstract_config_type
+  use abstract_config, only: abstract_config_type, CONFIG_MAX_NAME_LEN
   
   !These should really be moved to specific routines where required
   use parameter_scan_arrays, only: current_scan_parameter_value, write_scan_parameter, run_scan
@@ -96,11 +96,9 @@ module parameter_scan
      procedure, public :: write => write_parameter_scan_config
      procedure, public :: reset => reset_parameter_scan_config
      procedure, public :: broadcast => broadcast_parameter_scan_config
+     procedure, public, nopass :: get_default_name => get_default_name_parameter_scan_config
+     procedure, public, nopass :: get_default_requires_index => get_default_requires_index_parameter_scan_config
   end type parameter_scan_config_type
-
-  interface parameter_scan_config_type
-     procedure :: parameter_scan_config_constructor
-  end interface parameter_scan_config_type
   
   type(parameter_scan_config_type) :: parameter_scan_config
   
@@ -606,13 +604,19 @@ contains
 
     call broadcast(self%exist)
   end subroutine broadcast_parameter_scan_config
-
-  !> Sets the name and requires_index paremeters as appropriate
-  function parameter_scan_config_constructor()
+  
+  !> Gets the default name for this namelist
+  function get_default_name_parameter_scan_config()
     implicit none
-    type(parameter_scan_config_type) :: parameter_scan_config_constructor
-    parameter_scan_config_constructor%name = "parameter_scan_knobs"
-    parameter_scan_config_constructor%requires_index = .false.
-  end function parameter_scan_config_constructor
+    character(len = CONFIG_MAX_NAME_LEN) :: get_default_name_parameter_scan_config
+    get_default_name_parameter_scan_config = "parameter_scan_knobs"
+  end function get_default_name_parameter_scan_config
+
+  !> Gets the default requires index for this namelist
+  function get_default_requires_index_parameter_scan_config()
+    implicit none
+    logical :: get_default_requires_index_parameter_scan_config
+    get_default_requires_index_parameter_scan_config = .false.
+  end function get_default_requires_index_parameter_scan_config
 end module parameter_scan
 

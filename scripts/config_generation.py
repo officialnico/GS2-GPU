@@ -119,7 +119,7 @@ getDefaultNameSubString = """
 !> Gets the default name for this namelist
 function get_default_name_{module}_config()
   implicit none
-  character(len = *) :: get_default_name_{module}_config
+  character(len = CONFIG_MAX_NAME_LEN) :: get_default_name_{module}_config
   get_default_name_{module}_config = "{namelist}"
 end function get_default_name_{module}_config"""
 

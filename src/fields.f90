@@ -1,6 +1,6 @@
 !> FIXME : Add documentation
 module fields
-  use abstract_config, only: abstract_config_type
+  use abstract_config, only: abstract_config_type, CONFIG_MAX_NAME_LEN
   use text_options, only: text_option
 
   implicit none
@@ -89,11 +89,9 @@ module fields
      procedure, public :: write => write_fields_config
      procedure, public :: reset => reset_fields_config
      procedure, public :: broadcast => broadcast_fields_config
+     procedure, public, nopass :: get_default_name => get_default_name_fields_config
+     procedure, public, nopass :: get_default_requires_index => get_default_requires_index_fields_config
   end type fields_config_type
-
-  interface fields_config_type
-     procedure :: fields_config_constructor
-  end interface fields_config_type
   
   type(fields_config_type) :: fields_config  
 contains
@@ -886,11 +884,17 @@ contains
     call broadcast(self%exist)
   end subroutine broadcast_fields_config
 
-  !> Sets the name and requires_index paremeters as appropriate
-  function fields_config_constructor()
+  !> Gets the default name for this namelist
+  function get_default_name_fields_config()
     implicit none
-    type(fields_config_type) :: fields_config_constructor
-    fields_config_constructor%name = "fields_knobs"
-    fields_config_constructor%requires_index = .false.
-  end function fields_config_constructor
+    character(len = CONFIG_MAX_NAME_LEN) :: get_default_name_fields_config
+    get_default_name_fields_config = "fields_knobs"
+  end function get_default_name_fields_config
+
+  !> Gets the default requires index for this namelist
+  function get_default_requires_index_fields_config()
+    implicit none
+    logical :: get_default_requires_index_fields_config
+    get_default_requires_index_fields_config = .false.
+  end function get_default_requires_index_fields_config
 end module fields

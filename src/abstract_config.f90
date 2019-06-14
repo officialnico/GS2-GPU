@@ -6,10 +6,10 @@ module abstract_config
   private
 
   !Types
-  public :: abstract_config_type
+  public :: abstract_config_type, CONFIG_MAX_NAME_LEN
 
-  integer, parameter :: MAX_NAME_LEN = 64
-  character(len = MAX_NAME_LEN), parameter :: default_name = "Undefined name."
+  integer, parameter :: CONFIG_MAX_NAME_LEN = 64
+  character(len = CONFIG_MAX_NAME_LEN), parameter :: default_name = "Undefined name."
   
   !> Define abstract type to represent the config type,
   !! allows common code to be moved here
@@ -18,7 +18,7 @@ module abstract_config
      logical :: exist = .false. !< Does the related namelist exist in the target input file?
      logical :: requires_index = .false. !< Is this a numbered namelist with an index
      integer :: index = 0 !< Used to hold the specific index of numbered namelists
-     character(len = MAX_NAME_LEN) :: name = default_name !< The name of the namelist that we represent.
+     character(len = CONFIG_MAX_NAME_LEN) :: name = default_name !< The name of the namelist that we represent.
    contains
      procedure :: is_initialised => is_initialised_generic
      procedure :: init => init_generic
@@ -68,7 +68,7 @@ module abstract_config
 
      function get_default_name_interface() result(default_name)
        import
-       character(len = MAX_NAME_LEN) :: default_name
+       character(len = CONFIG_MAX_NAME_LEN) :: default_name
      end function get_default_name_interface
 
      function get_default_requires_index_interface() result(default_requires_index)
@@ -133,7 +133,7 @@ contains
   function get_name_generic(self)
     implicit none
     class(abstract_config_type), intent(in) :: self
-    character(len = MAX_NAME_LEN) :: get_name_generic
+    character(len = CONFIG_MAX_NAME_LEN) :: get_name_generic
     get_name_generic = self%name
   end function get_name_generic
 
