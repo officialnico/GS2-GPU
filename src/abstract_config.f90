@@ -95,6 +95,7 @@ contains
     call self%setup(name, requires_index, index)
     call self%read()
     call self%broadcast()
+    self%initialised = .true.
   end subroutine init_generic
   
   !> Do some standard setup/checking
