@@ -1084,7 +1084,7 @@ contains
   !> Writes out a namelist representing the current state of the config object
   subroutine write_nonlinear_terms_config(self, unit)
     implicit none
-    class(nonlinear_terms_config_type), intent(in) :: self
+    class(nonlinear_terms_config_type), intent(in out) :: self
     integer, intent(in) , optional:: unit
     integer :: unit_internal
 

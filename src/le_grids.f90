@@ -4614,7 +4614,7 @@ contains
   !> Writes out a namelist representing the current state of the config object
   subroutine write_le_grids_config(self, unit)
     implicit none
-    class(le_grids_config_type), intent(in) :: self
+    class(le_grids_config_type), intent(in out) :: self
     integer, intent(in) , optional:: unit
     integer :: unit_internal
 

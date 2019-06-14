@@ -227,7 +227,7 @@ contains
   !> Writes out a namelist representing the current state of the config object
   subroutine write_kt_grids_single_config(self, unit)
     implicit none
-    class(kt_grids_single_config_type), intent(in) :: self
+    class(kt_grids_single_config_type), intent(in out) :: self
     integer, intent(in) , optional:: unit
     integer :: unit_internal
 
@@ -760,7 +760,7 @@ contains
   !> Writes out a namelist representing the current state of the config object
   subroutine write_kt_grids_range_config(self, unit)
     implicit none
-    class(kt_grids_range_config_type), intent(in) :: self
+    class(kt_grids_range_config_type), intent(in out) :: self
     integer, intent(in) , optional:: unit
     integer :: unit_internal
 
@@ -1107,7 +1107,7 @@ contains
   !> Writes out a namelist representing the current state of the config object
   subroutine write_kt_grids_specified_config(self, unit)
     implicit none
-    class(kt_grids_specified_config_type), intent(in) :: self
+    class(kt_grids_specified_config_type), intent(in out) :: self
     integer, intent(in) , optional:: unit
     integer :: unit_internal
 
@@ -1213,7 +1213,7 @@ contains
   !> Writes out a namelist representing the current state of the config object
   subroutine write_kt_grids_specified_element_config(self, unit)
     implicit none
-    class(kt_grids_specified_element_config_type), intent(in) :: self
+    class(kt_grids_specified_element_config_type), intent(in out) :: self
     integer, intent(in) , optional:: unit
     integer :: unit_internal
 
@@ -1740,7 +1740,7 @@ contains
   !> Writes out a namelist representing the current state of the config object
   subroutine write_kt_grids_box_config(self, unit)
     implicit none
-    class(kt_grids_box_config_type), intent(in) :: self
+    class(kt_grids_box_config_type), intent(in out) :: self
     integer, intent(in) , optional:: unit
     integer :: unit_internal
 
@@ -2230,7 +2230,7 @@ contains
   !> Writes out a namelist representing the current state of the config object
   subroutine write_kt_grids_config(self, unit)
     implicit none
-    class(kt_grids_config_type), intent(in) :: self
+    class(kt_grids_config_type), intent(in out) :: self
     integer, intent(in) , optional:: unit
     integer :: unit_internal
 

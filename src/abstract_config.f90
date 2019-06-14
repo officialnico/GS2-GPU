@@ -52,7 +52,7 @@ module abstract_config
 
      subroutine write_interface(self, unit)
        import
-       class(abstract_config_type), intent(in) :: self
+       class(abstract_config_type), intent(in out) :: self
        integer, intent(in), optional :: unit
      end subroutine write_interface
 
@@ -149,8 +149,15 @@ contains
   !> Write the namelist header for this instance
   subroutine write_namelist_header(self, unit)
     implicit none
-    class(abstract_config_type), intent(in) :: self
+    class(abstract_config_type), intent(in out) :: self
     integer, intent(in) :: unit
+
+    ! If we've not been setup then call setup with no arguments
+    ! this ensures we have appropriate default values for name etc.
+    if (.not.self%is_initialised()) then
+       call self%setup()
+    end if
+    
     !Decide if we should include the index or not
     if(self%get_requires_index()) then
        write(unit,'("&",A,"_",I0)') trim(self%get_name()), self%index

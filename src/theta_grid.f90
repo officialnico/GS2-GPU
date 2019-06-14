@@ -311,7 +311,7 @@ if (debug) write(6,*) 'gridgen_get_grids: end'
   !> Writes out a namelist representing the current state of the config object
   subroutine write_theta_grid_gridgen_config(self, unit)
     implicit none
-    class(theta_grid_gridgen_config_type), intent(in) :: self
+    class(theta_grid_gridgen_config_type), intent(in out) :: self
     integer, intent(in) , optional:: unit
     integer :: unit_internal
 
@@ -944,7 +944,7 @@ contains
   !> Writes out a namelist representing the current state of the config object
   subroutine write_theta_grid_salpha_config(self, unit)
     implicit none
-    class(theta_grid_salpha_config_type), intent(in) :: self
+    class(theta_grid_salpha_config_type), intent(in out) :: self
     integer, intent(in) , optional:: unit
     integer :: unit_internal
 
@@ -1967,7 +1967,7 @@ contains
   !> Writes out a namelist representing the current state of the config object
   subroutine write_theta_grid_eik_config(self, unit)
     implicit none
-    class(theta_grid_eik_config_type), intent(in) :: self
+    class(theta_grid_eik_config_type), intent(in out) :: self
     integer, intent(in) , optional:: unit
     integer :: unit_internal
 
@@ -2416,7 +2416,7 @@ contains
   !> Writes out a namelist representing the current state of the config object
   subroutine write_theta_grid_file_config(self, unit)
     implicit none
-    class(theta_grid_file_config_type), intent(in) :: self
+    class(theta_grid_file_config_type), intent(in out) :: self
     integer, intent(in) , optional:: unit
     integer :: unit_internal
 
@@ -3146,7 +3146,7 @@ if (debug) write(6,*) 'get_grids: call file_get_grids'
   !> Writes out a namelist representing the current state of the config object
   subroutine write_theta_grid_config(self, unit)
     implicit none
-    class(theta_grid_config_type), intent(in) :: self
+    class(theta_grid_config_type), intent(in out) :: self
     integer, intent(in) , optional:: unit
     integer :: unit_internal
 
