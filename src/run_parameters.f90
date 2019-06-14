@@ -721,7 +721,7 @@ contains
   !> Writes out a namelist representing the current state of the config object
   subroutine write_knobs_config(self, unit)
     implicit none
-    class(knobs_config_type), intent(in out) :: self
+    class(knobs_config_type), intent(in) :: self
     integer, intent(in) , optional:: unit
     integer :: unit_internal
 
@@ -886,7 +886,7 @@ contains
   !> Writes out a namelist representing the current state of the config object
   subroutine write_parameters_config(self, unit)
     implicit none
-    class(parameters_config_type), intent(in out) :: self
+    class(parameters_config_type), intent(in) :: self
     integer, intent(in) , optional:: unit
     integer :: unit_internal
 

@@ -6534,7 +6534,7 @@ contains
   !> Writes out a namelist representing the current state of the config object
   subroutine write_layouts_config(self, unit)
     implicit none
-    class(layouts_config_type), intent(in out) :: self
+    class(layouts_config_type), intent(in) :: self
     integer, intent(in) , optional:: unit
     integer :: unit_internal
 

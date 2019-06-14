@@ -10099,7 +10099,7 @@ endif
   !> Writes out a namelist representing the current state of the config object
   subroutine write_dist_fn_config(self, unit)
     implicit none
-    class(dist_fn_config_type), intent(in out) :: self
+    class(dist_fn_config_type), intent(in) :: self
     integer, intent(in) , optional:: unit
     integer :: unit_internal
 
@@ -10282,7 +10282,7 @@ endif
   !> Writes out a namelist representing the current state of the config object
   subroutine write_source_config(self, unit)
     implicit none
-    class(source_config_type), intent(in out) :: self
+    class(source_config_type), intent(in) :: self
     integer, intent(in) , optional:: unit
     integer :: unit_internal
 
@@ -10395,7 +10395,7 @@ endif
   !> Writes out a namelist representing the current state of the config object
   subroutine write_dist_fn_species_config(self, unit)
     implicit none
-    class(dist_fn_species_config_type), intent(in out) :: self
+    class(dist_fn_species_config_type), intent(in) :: self
     integer, intent(in) , optional:: unit
     integer :: unit_internal
 

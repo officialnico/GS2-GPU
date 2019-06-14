@@ -373,7 +373,7 @@ contains
   !> Writes out a namelist representing the current state of the config object
   subroutine write_reinit_config(self, unit)
     implicit none
-    class(reinit_config_type), intent(in out) :: self
+    class(reinit_config_type), intent(in) :: self
     integer, intent(in) , optional:: unit
     integer :: unit_internal
 

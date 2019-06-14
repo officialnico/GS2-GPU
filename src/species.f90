@@ -1130,7 +1130,7 @@ contains
   !> Writes out a namelist representing the current state of the config object
   subroutine write_species_config(self, unit)
     implicit none
-    class(species_config_type), intent(in out) :: self
+    class(species_config_type), intent(in) :: self
     integer, intent(in) , optional:: unit
     integer :: unit_internal
 
@@ -1271,7 +1271,7 @@ contains
   !> Writes out a namelist representing the current state of the config object
   subroutine write_species_element_config(self, unit)
     implicit none
-    class(species_element_config_type), intent(in out) :: self
+    class(species_element_config_type), intent(in) :: self
     integer, intent(in) , optional:: unit
     integer :: unit_internal
 

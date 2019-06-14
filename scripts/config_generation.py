@@ -69,7 +69,7 @@ writeSubString = """
 !> Writes out a namelist representing the current state of the config object
 subroutine write_{module}_config(self, unit)
   implicit none
-  class({module}_config_type), intent(in out) :: self
+  class({module}_config_type), intent(in) :: self
   integer, intent(in) , optional:: unit
   integer :: unit_internal
 

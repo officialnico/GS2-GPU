@@ -968,7 +968,7 @@ contains
   !> Writes out a namelist representing the current state of the config object
   subroutine write_init_config(self, unit)
     implicit none
-    class(init_config_type), intent(in out) :: self
+    class(init_config_type), intent(in) :: self
     integer, intent(in) , optional:: unit
     integer :: unit_internal
 

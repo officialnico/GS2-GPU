@@ -721,7 +721,7 @@ contains
   !> Writes out a namelist representing the current state of the config object
   subroutine write_hyper_config(self, unit)
     implicit none
-    class(hyper_config_type), intent(in out) :: self
+    class(hyper_config_type), intent(in) :: self
     integer, intent(in) , optional:: unit
     integer :: unit_internal
 

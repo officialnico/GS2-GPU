@@ -207,7 +207,7 @@ contains
   !> Writes out a namelist representing the current state of the config object
   subroutine write_optimisation_config(self, unit)
     implicit none
-    class(optimisation_config_type), intent(in out) :: self
+    class(optimisation_config_type), intent(in) :: self
     integer, intent(in) , optional:: unit
     integer :: unit_internal
 

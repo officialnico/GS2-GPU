@@ -700,7 +700,7 @@ contains
   !> Writes out a namelist representing the current state of the config object
   subroutine write_theta_grid_parameters_config(self, unit)
     implicit none
-    class(theta_grid_parameters_config_type), intent(in out) :: self
+    class(theta_grid_parameters_config_type), intent(in) :: self
     integer, intent(in) , optional:: unit
     integer :: unit_internal
 
