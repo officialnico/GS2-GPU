@@ -151,11 +151,22 @@ contains
     implicit none
     class(abstract_config_type), intent(in) :: self
     integer, intent(in) :: unit
-    !Decide if we should include the index or not
-    if(self%get_requires_index()) then
-       write(unit,'("&",A,"_",I0)') trim(self%get_name()), self%index
+    
+    ! If we've not been setup then we'll want to use the defaults
+    if (.not.self%is_initialised()) then
+       !Decide if we should include the index or not
+       if(self%get_default_requires_index()) then
+          write(unit,'("&",A,"_",I0)') trim(self%get_default_name()), self%index
+       else
+          write(unit,'("&",A)') trim(self%get_default_name())
+       endif
     else
-       write(unit,'("&",A)') trim(self%get_name())
+       !Decide if we should include the index or not
+       if(self%get_requires_index()) then
+          write(unit,'("&",A,"_",I0)') trim(self%get_name()), self%index
+       else
+          write(unit,'("&",A)') trim(self%get_name())
+       endif
     endif
   end subroutine write_namelist_header
 
