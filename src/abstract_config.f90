@@ -16,9 +16,9 @@ module abstract_config
   type, abstract :: abstract_config_type
      logical, private :: initialised = .false. !< Have we initialised the instance?
      logical :: exist = .false. !< Does the related namelist exist in the target input file?
-     logical :: requires_index = .false. !< Is this a numbered namelist with an index
+     logical, private :: requires_index = .false. !< Is this a numbered namelist with an index
      integer :: index = 0 !< Used to hold the specific index of numbered namelists
-     character(len = CONFIG_MAX_NAME_LEN) :: name = default_name !< The name of the namelist that we represent.
+     character(len = CONFIG_MAX_NAME_LEN), private :: name = default_name !< The name of the namelist that we represent.
    contains
      procedure :: is_initialised => is_initialised_generic
      procedure :: init => init_generic
