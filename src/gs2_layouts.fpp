@@ -451,7 +451,7 @@ contains
     opt_redist_persist = .false. !<DD>True=>Use persistent communications in redistributes
     opt_redist_persist_overlap = .false. !<DD>True=>Start comms before doing local copy
     opt_redist_init= .false. !<DD>True=>Use optimised routines to init redist objects
-    fft_measure_plan = .true. !<DD>False=>use heuristics rather than measure in fft plan create
+    fft_measure_plan = .false. !<DD>False=>use heuristics rather than measure in fft plan create
     fft_wisdom_file = 'default'  ! Location of fftw wisdom... if left as default, this is set to 
         ! run_name//'.fftw_wisdom', unless overriden by the environment variable
         ! GK_FFTW3_WISDOM. If set to anything other default, overrides  GK_FFTW3_WISDOM
