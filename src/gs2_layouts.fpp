@@ -238,7 +238,7 @@ module gs2_layouts
      ! namelist : layouts_knobs
      ! indexed : false     
      !> False=>use heuristics rather than measure in fft plan create
-     logical :: fft_measure_plan = .true.
+     logical :: fft_measure_plan = .false.
      !> Try to load and save wisdom about fftw plans to fft_wisdom_file
      logical :: fft_use_wisdom = .true. 
      !> Location of fftw wisdom... if left as default, this is set to
