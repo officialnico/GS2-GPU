@@ -9,27 +9,6 @@ GK_PROJECT := gs2
 #  Makefile written by Bill Dorland and Ryusuke Numata
 #  Modified by GS2 contributors
 #
-#
-# * Changelogs
-# 26/09/10: added targets doc_depend and doc to make doxygen documentation. EGH.
-#	12/17/09: make it explicit that the codes are written in
-#		  Fortran 95 Standard
-#	10/12/09: share the Makefile with gsp gyrokinetic PIC code
-#	04/11/09: * share the Makefile with rmhdper reduced MHD code
-#		  * include progject specific target definitions
-#		    Makefile.target_$(GK_PROJECT)
-#	04/06/09: SYSTEM environment variable is replaced by GK_SYSTEM
-#	02/25/09: gs2 replaced by trinity (MAB)
-#	01/26/09: USE_C_INDEX is imported to gs2 by TT
-#       12/11/08: add support for NAGWare and Lahey compilers
-#       10/28/08: some non-standard macros respect environment variables
-#       10/27/08: default commands for MPI and HDF5 are defined
-#       09/26/08: hack for treating intermediate f90 files properly
-#	 	 (this is to keep all intermediate f90 files when 
-#		 .PRECIOUS is given)
-#	07/01/08: new switches USE_LOCAL_SPFUNC and USE_NAGLIB
-#	06/16/08: clean up unused statements related to PLATFORM_LINKS
-#
 # * Available Compilers (tested on limited hosts)
 #   (must be Fortran 95 Standard compliant)
 #
@@ -286,9 +265,7 @@ UTILS_SENTINEL = $(UTILS)/mp.fpp
 .PRECIOUS: $(MAKEFILES_SENTINEL) $(UTILS_SENTINEL)
 
 # Make sure the submodules exist; they all currently share the same recipe
-$(UTILS_SENTINEL) : $(MAKEFILES_SENTINEL)
-
-$(MAKEFILES_SENTINEL) submodules:
+$(UTILS_SENTINEL) $(MAKEFILES_SENTINEL) submodules:
 	@echo "Downloading submodules"
 	git submodule update --init --recursive
 
@@ -303,6 +280,16 @@ $(MAKEFILES_SENTINEL) submodules:
 # after fetching the submodules
 Makefile.$(GK_SYSTEM): $(MAKEFILES_SENTINEL)
 	@$(MAKE) -f .Makefile.makefile_exists_helper --no-print-directory
+
+# Here we add dependency on the utils_sentinel for a somewhat arbitrary
+# file in utils that we will try to include. If $(UTILS)/define.inc is not
+# present this dependency will ensure the submodules recipe is run.
+$(UTILS)/define.inc: $(UTILS_SENTINEL)
+
+# Here we try to include this file from utils. We don't want (or get) any
+# information from including it, it is merely to trigger the submodules
+# recipe when utils hasn't been checked out
+include $(UTILS)/define.inc
 
 # include Makefile.local if exists
 sinclude Makefile.local
@@ -347,9 +334,8 @@ MACRO_DEFS+=-DRUN_NAME_SIZE=$(RUN_NAME_SIZE)
 IS_RELEASE := $(shell git describe --tags --exact-match 2>/dev/null)
 MACRO_DEFS+=-DIS_RELEASE=$(IS_RELEASE)
 
-ifneq ($(IS_RELEASE),) # If the file is not empty
+ifneq ($(IS_RELEASE),) # If we're on a commit corresponding to a tag
 	RELEASE:=$(IS_RELEASE)
-	DOC_FOLDER:=releases/$(IS_RELEASE)/
 else
 	RELEASE:=$(shell git describe --tags 2>/dev/null)
 endif
@@ -602,7 +588,6 @@ F90FROMFPP = $(addprefix $(GENERATED_SRC_DIR)/, $(patsubst %.F90,%.f90,$(patsubs
 .PHONY: help TAGS
 .PHONY: clean cleanlib cleanconfig clean_coverage distclean unlink
 .PHONY: doc docs/html docs/graphs cleandoc check_ford_install
-.PHONY: doxygen_doc clean_doxygendoc sync_doc check_coderunner_install sync_input_doc
 
 # comment this out to keep intermediate .f90 files
 ifdef KEEP_PROCESSED
@@ -686,7 +671,7 @@ ifdef ONE_STEP_PP
 KEEP_PROCESSED_FILES_FROM_DEPEND="no"
 endif
 
-depend: $(FORTFROMRUBY) $(UTILS_SENTINEL) Makefile.$(GK_SYSTEM) |$(GENERATED_SRC_DIR)
+depend: $(F90FROMFPP) $(FORTFROMRUBY) $(UTILS_SENTINEL) Makefile.$(GK_SYSTEM) |$(GENERATED_SRC_DIR)
 	$(call messageOp,"Generating dependency file","\\t:",$(DEPEND))
 # Note we force UTILS to be included in the paths that we pass to fortdep
 # We touch the dependency file first as fortdep will call make in order to try
@@ -708,11 +693,23 @@ endif
 
 all: $(.DEFAULT_GOAL)
 
-#TODO : Add a rule to automatically build the depend file when appropriate.
-ifneq ("$(MAKECMDGOALS)", "distclean")
-ifneq ("$(MAKECMDGOALS)", "depend")
-include $(DEPEND)
+# Here we list all targets for which we don't care if there's a dependency file or not
+# this can help us avoid the slow generation of the dependency file when not required
+DONT_INCLUDE_DEPEND_TARGETS := clean distclean depend test_make submodules docs
+# Note we really need to say do any of our targets not match the above as if we have multiple
+# targets and any of them require the dependency file then we have to build the dependency file
+# We achieve that using filter-out. Because we also want to be able to build when the user
+# doesn't specify the target (i.e. just make -j ) it's not enough to check that MAKECMDGOALS is
+# empty after filtering. We need to know if this was the case before hand.
+ifneq ($(strip $(MAKECMDGOALS)),)
+MUST_INCLUDE_DEPEND := $(filter-out $(DONT_INCLUDE_DEPEND_TARGETS),  $(MAKECMDGOALS))
+else
+MUST_INCLUDE_DEPEND := "YES"
 endif
+
+# If MUST_INCLUDE_DEPEND isn't empty then we better include the dependency file
+ifneq ($(strip $(MUST_INCLUDE_DEPEND)),)
+include $(DEPEND)
 endif
 
 #If we're using fft(w) then we want to link the fft_save_wisdom object file
@@ -729,9 +726,11 @@ ifdef USE_C_INDEX
     gs2_mod += $(OBJDIR)/layouts_indices.o
 endif
 
-$(OBJDIR)/layouts_indices.o: layouts_type.h
-layouts_type.h: layouts_type.f90
-	$(AWK) -f makehead.awk $^ > $@
+$(OBJDIR)/layouts_indices.o: $(MODDIR)/layouts_type.h
+layouts_type.h: $(MODDIR)/layouts_type.h
+$(MODDIR)/layouts_type.h: |$(MODDIR)
+$(MODDIR)/layouts_type.h: $(SRCDIR)/layouts_type.f90
+	$(AWK) -f scripts/makehead.awk $^ > $@
 
 # Make sure template dependencies are specified
 gs2_init.f90: $(SRCDIR)/templates/gs2_init_template.f90
@@ -743,6 +742,7 @@ gryfx_libs: utils.a geo.a $(SRCDIR)/geo/geometry_c_interface.o
 ############################################################# Get project specific targets
 Makefile.target_$(GK_PROJECT): ;
 include Makefile.target_$(GK_PROJECT)
+
 ############################################################# System config targets
 ifdef STANDARD_SYSTEM_CONFIGURATION
 system_config:
@@ -791,7 +791,7 @@ clean_depend:
 	$(call messageRm,"Dependency file")	
 	-$(QUIETSYM)rm -f $(DEPEND)
 
-distclean: unlink clean cleanlib clean_tests clean_benchmarks distclean_simpledataio cleanconfig clean_doxygendoc cleandoc clean_depend pfunit_clean cleandirs
+distclean: unlink clean cleanlib clean_tests clean_benchmarks distclean_simpledataio cleanconfig cleandoc clean_depend pfunit_clean cleandirs
 
 unlink:
 	$(call messageRm,"Preprocessed files")	
@@ -808,7 +808,7 @@ $(TARDIR):
 ### setting tar_exec local $(TARLIST*) variables
 # expand wildcards listed $(TARLIST_wild) in ( $(TARLIST_dir) + . )
 # directories and add them into TARLIST
-tar_exec: TARLIST = makehead.awk scripts/fortdep AstroGK.in
+tar_exec: TARLIST = scripts/makehead.awk scripts/fortdep AstroGK.in
 tar_exec: TARLIST_dir = Makefiles utils geo Aux
 tar_exec: TARLIST_wild = *.f90 *.fpp *.inc *.c Makefile Makefile.* README README.*
 tar_exec: TARLIST += $(foreach dir,. $(TARLIST_dir),$(wildcard $(addprefix $(dir)/,$(TARLIST_wild))))
@@ -1012,35 +1012,3 @@ doc: docs/docs.config.md check_ford_install
 cleandoc: docs/html docs/graphs
 	$(call messageRm,"FORD docs")	
 	-$(QUIETSYM)rm -rf $^
-
-doxygen_doc: $(F90FROMFPP) $(FORTFROMRUBY)
-	doxygen doxygen_config 
-
-clean_doxygendoc: #Doxygen documentation
-	$(call messageRm,"Doxygen documentation")
-	-$(QUIETSYM)rm -rf doc/
-
-#TODO: This will need updating when documentation has migrated to bitbucket
-sync_doc:
-	$(call messageInfo,"Warning: Target sync_doc out of date."
-	rsync -av --delete --exclude=releases doc/html/	${USER},gyrokinetics@web.sourceforge.net:htdocs/gs2_documentation/$(DOC_FOLDER)
-	$(MKDIR) doc/html/releases
-	echo "Options +Indexes" > doc/html/releases/.htaccess
-	rsync -av doc/html/releases/ ${USER},gyrokinetics@web.sourceforge.net:htdocs/gs2_documentation/releases/
-
-
-ifneq ("$(wildcard $(shell which $(coderunner) 2>/dev/null))","")
-check_coderunner_install:
-	$(call messageInfo,"Using coderunner at $(shell which coderunner)")
-else
-check_coderunner_install:
-	$(call messageInfo,"Coderunner command coderunner not in path -- is it installed?") ; which coderunner
-endif
-
-#This has an external dependency on coderunner
-sync_input_doc: |check_coderunner_install
-	$(call messageInfo,"Warning: Target sync_input_doc out of date."
-	coderunner cc synchronise_variables . -C gs2
-	curl 'http://sourceforge.net/apps/mediawiki/gyrokinetics/index.php?title=GS2_Input_Parameters&action=edit' | sed 's/&amp;/\&/g' | sed 's/&quot;/"/g' | sed 's/&gt;/>/g' | sed 's/&lt;/</g'  | sed 's/&nbsp;/ /g' > wiki_in.tmp
-	coderunner cc read_mediawiki_documentation wiki_in.tmp -C gs2
-	coderunner cc write_mediawiki_documentation > wiki_out.txt -C gs2
