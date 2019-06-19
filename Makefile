@@ -273,9 +273,7 @@ UTILS_SENTINEL = $(UTILS)/mp.fpp
 .PRECIOUS: $(MAKEFILES_SENTINEL) $(UTILS_SENTINEL)
 
 # Make sure the submodules exist; they all currently share the same recipe
-$(UTILS_SENTINEL) : $(MAKEFILES_SENTINEL)
-
-$(MAKEFILES_SENTINEL) submodules:
+$(UTILS_SENTINEL) $(MAKEFILES_SENTINEL) submodules:
 	@echo "Downloading submodules"
 	git submodule update --init --recursive
 
@@ -290,6 +288,16 @@ $(MAKEFILES_SENTINEL) submodules:
 # after fetching the submodules
 Makefile.$(GK_SYSTEM): $(MAKEFILES_SENTINEL)
 	@$(MAKE) -f .Makefile.makefile_exists_helper --no-print-directory
+
+# Here we add dependency on the utils_sentinel for a somewhat arbitrary
+# file in utils that we will try to include. If $(UTILS)/define.inc is not
+# present this dependency will ensure the submodules recipe is run.
+$(UTILS)/define.inc: $(UTILS_SENTINEL)
+
+# Here we try to include this file from utils. We don't want (or get) any
+# information from including it, it is merely to trigger the submodules
+# recipe when utils hasn't been checked out
+include $(UTILS)/define.inc
 
 # include Makefile.local if exists
 sinclude Makefile.local
