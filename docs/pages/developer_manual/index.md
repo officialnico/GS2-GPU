@@ -1,4 +1,4 @@
-title: Developed manual
+title: Developer manual
 
 Here we can put other markdown files providing a developer manual.
 
