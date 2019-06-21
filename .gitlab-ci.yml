@@ -67,7 +67,7 @@ pages:
   only:
     - master
     - next
-    - micro/landing-page
+    - feature/ford_manual_outline
 
 success:
   stage: ci_status
