@@ -168,7 +168,6 @@ module le_grids
   private
 
   public :: init_le_grids, finish_le_grids
-  public :: init_g2le_redistribute, init_lambda_redistribute, init_energy_redistribute
   public :: read_parameters, wnml_le_grids
   public :: integrate_species, write_mpdist, write_mpdist_le
   public :: energy, energy_maxw, speed_maxw, al, delal, jend, forbid, dele, wl, w, w_maxw
@@ -2789,7 +2788,6 @@ contains
   subroutine init_map (use_lz_layout, use_e_layout, use_le_layout, test)
     use mp, only: finish_mp, proc0
     use redistribute, only: report_map_property
-    use gs2_layouts, only: opt_redist_init
     implicit none
 
     logical, intent (in) :: use_lz_layout, use_e_layout, use_le_layout, test
@@ -2798,11 +2796,8 @@ contains
 
     if (use_lz_layout) then
        ! init_lambda_layout is called in redistribute
-       if(opt_redist_init)then
-          call init_lambda_redistribute_local
-       else
-          call init_lambda_redistribute
-       endif
+       call init_lambda_redistribute_local
+
        if (test) then
           if (proc0) print *, '=== Lambda map property ==='
           call report_map_property (lambda_map)
@@ -2811,11 +2806,8 @@ contains
 
     if (use_e_layout) then
        ! init_energy_layout is called in redistribute
-       if(opt_redist_init) then
-          call init_energy_redistribute_local
-       else
-          call init_energy_redistribute
-       endif
+       call init_energy_redistribute_local
+
        if (test) then
           if (proc0) print *, '=== Energy map property ==='
           call report_map_property (energy_map)
@@ -2823,11 +2815,7 @@ contains
     end if
 
     if (use_le_layout) then
-       if(opt_redist_init) then
-          call init_g2le_redistribute_local
-       else
-          call init_g2le_redistribute
-       endif
+       call init_g2le_redistribute_local
        if (test) call check_g2le
 
     end if
@@ -2852,133 +2840,8 @@ contains
 
   end subroutine init_g2gf
 
-  !> FIXME : Add documentation  
-  subroutine init_g2le_redistribute
-    use mp, only: nproc
-    use species, only: nspec
-    use theta_grid, only: ntgrid
-    use kt_grids, only: naky, ntheta0
-    use gs2_layouts, only: init_le_layouts
-    use gs2_layouts, only: g_lo, le_lo
-    use gs2_layouts, only: idx_local, proc_id
-    use gs2_layouts, only: ik_idx, it_idx, ie_idx, is_idx, il_idx, idx
-    use redistribute, only: index_list_type, init_redist, delete_list
-
-    implicit none
-
-    type (index_list_type), dimension(0:nproc-1) :: to_list, from_list
-    integer, dimension (0:nproc-1) :: nn_to, nn_from
-    integer, dimension (3) :: from_low, from_high
-    integer, dimension (3) :: to_low, to_high
-    integer :: ig, isign, iglo, il, ile
-    integer :: ik, it, ie, is
-    integer :: n, ip, je
-
-    if (leinit) return
-
-    call init_le_layouts (ntgrid, naky, ntheta0, nspec)
-
-    ! count number of elements to be redistributed to/from each processor
-    nn_to = 0
-    nn_from = 0
-    do iglo = g_lo%llim_world, g_lo%ulim_world
-       ik = ik_idx(g_lo,iglo)
-       it = it_idx(g_lo,iglo)
-       is = is_idx(g_lo,iglo)
-       do ig = -ntgrid, ntgrid
-          ile = idx (le_lo, ig, ik, it, is)
-          if (idx_local(g_lo,iglo)) nn_from(proc_id(le_lo,ile)) = nn_from(proc_id(le_lo,ile)) + 2
-          if (idx_local(le_lo,ile)) nn_to(proc_id(g_lo,iglo)) = nn_to(proc_id(g_lo,iglo)) + 2
-       end do
-    end do
-
-    do ip = 0, nproc-1
-       if (nn_from(ip) > 0) then
-          allocate (from_list(ip)%first (nn_from(ip)))
-          allocate (from_list(ip)%second(nn_from(ip)))
-          allocate (from_list(ip)%third (nn_from(ip)))
-       end if
-       if (nn_to(ip) > 0) then
-          allocate (to_list(ip)%first (nn_to(ip)))
-          allocate (to_list(ip)%second(nn_to(ip)))
-          allocate (to_list(ip)%third (nn_to(ip)))
-       end if
-    end do
-
-    ! get local indices of elements distributed to/from other processors
-    nn_to = 0
-    nn_from = 0
-    do iglo = g_lo%llim_world, g_lo%ulim_world
-       ik = ik_idx(g_lo,iglo)
-       it = it_idx(g_lo,iglo)
-       ie = ie_idx(g_lo,iglo)
-       is = is_idx(g_lo,iglo)
-       do isign = 1, 2
-          do ig = -ntgrid, ntgrid
-             il = il_idx(g_lo,iglo)
-             je = jend(ig)
-             if (je == 0) then
-                if (isign == 2) then
-                   il = 2*g_lo%nlambda+1 - il
-                end if
-             else
-                if (il == je) then
-                   if (isign == 1) il = 2*je  ! throw this info away
-                else if (il > je) then 
-                   if (isign == 1) il = il + je
-                   if (isign == 2) il = 2*g_lo%nlambda + 1 - il + je
-                else
-                   if (isign == 2) il = 2*je - il !+ 1
-                end if
-             end if
-             ile = idx (le_lo, ig, ik, it, is)
-             if (idx_local(g_lo,iglo)) then
-                ip = proc_id(le_lo,ile)
-                n = nn_from(ip) + 1
-                nn_from(ip) = n
-                from_list(ip)%first(n)  = ig
-                from_list(ip)%second(n) = isign
-                from_list(ip)%third(n)  = iglo
-             end if
-             if (idx_local(le_lo,ile)) then
-                ip = proc_id(g_lo,iglo)
-                n = nn_to(ip) + 1
-                nn_to(ip) = n
-                to_list(ip)%first(n)  = il
-                to_list(ip)%second(n) = ie
-                to_list(ip)%third(n)  = ile
-             end if
-          end do
-       end do
-    end do
-
-    from_low (1) = -ntgrid
-    from_low (2) = 1
-    from_low (3) = g_lo%llim_proc
-
-    from_high(1) = ntgrid
-    from_high(2) = 2
-    from_high(3) = g_lo%ulim_alloc
-
-    to_low(1) = 1
-    to_low(2) = 1
-    to_low(3) = le_lo%llim_proc
-
-    to_high(1) = max(2*nlambda, 2*ng2+1)
-    to_high(2) = negrid + 1  ! TT: just followed convention with +1.
-    ! TT: It may be good to avoid bank conflict.
-    to_high(3) = le_lo%ulim_alloc
-
-    call init_redist (g2le, 'c', to_low, to_high, to_list, from_low, from_high, from_list)
-
-    call delete_list (to_list)
-    call delete_list (from_list)
-
-    leinit = .true.
-
-  end subroutine init_g2le_redistribute
-
-  !> FIXME : Add documentation
+  !> Constructs the redistribute mapping from the g_lo data
+  !> decomposition to the le_lo decomposition.
   subroutine init_g2le_redistribute_local
     use mp, only: nproc
     use species, only: nspec
@@ -3009,11 +2872,6 @@ contains
     !Early exit if possible
     if (leinit) return
     leinit = .true.
-
-    !Warning message | NOTE: To test we should use the original routine to generate to_list and from_list
-    !and compare with those generated by this routine. They should be identical
-    !Testing is now complete?
-    !if(iproc.eq.0) write(6,*) "WARNING: init_g2le_redistribute_local has not been well tested, consider using opt_redist_init=.false."
 
     !Setup the le layout object (le_lo)
     call init_le_layouts (ntgrid, naky, ntheta0, nspec)
@@ -3060,24 +2918,8 @@ contains
        enddo
     endif
 
-    ! !ORIGINAL --> Testing
-    ! nn_from_old=0
-    ! nn_to_old=0
-    ! do iglo = g_lo%llim_world, g_lo%ulim_world
-    !    ik = ik_idx(g_lo,iglo)
-    !    it = it_idx(g_lo,iglo)
-    !    is = is_idx(g_lo,iglo)
-    !    do ig = -ntgrid, ntgrid
-    !       ile = idx (le_lo, ig, ik, it, is)
-    !       if (idx_local(g_lo,iglo)) nn_from_old(proc_id(le_lo,ile)) = nn_from_old(proc_id(le_lo,ile)) + 2
-    !       if (idx_local(le_lo,ile)) nn_to_old(proc_id(g_lo,iglo)) = nn_to_old(proc_id(g_lo,iglo)) + 2
-    !    end do
-    ! end do
-
     !Now allocate storage for index arrays
     do ip = 0, nproc-1
-       !Testing
-       !print*,iproc,ip,nn_to(ip),nn_to_old(ip),nn_from(ip),nn_from_old(ip)
        if (nn_from(ip) > 0) then
           allocate (from_list(ip)%first (nn_from(ip)))
           allocate (from_list(ip)%second(nn_from(ip)))
@@ -3089,10 +2931,6 @@ contains
           allocate (to_list(ip)%third (nn_to(ip)))
           !For sorting message order later
           allocate (sort_list(ip)%first(nn_to(ip)))
-          ! !For testing
-          ! allocate (old_list(ip)%first (nn_to_old(ip)))
-          ! allocate (old_list(ip)%second(nn_to_old(ip)))
-          ! allocate (old_list(ip)%third (nn_to_old(ip)))
        end if
     end do
 
@@ -3193,69 +3031,9 @@ contains
     do ip=0,nproc-1
        if(nn_to(ip)>0) then
           !Apply quicksort
-          CALL quicksort(nn_to(ip),sort_list(ip)%first,to_list(ip)%first,to_list(ip)%second,to_list(ip)%third)
+          call quicksort(nn_to(ip),sort_list(ip)%first,to_list(ip)%first,to_list(ip)%second,to_list(ip)%third)
        endif
     enddo
-
-    ! ! !ORIGINAL, modified for testing
-    ! nn_to_old=0.
-    ! do iglo = g_lo%llim_world, g_lo%ulim_world
-    !    ik = ik_idx(g_lo,iglo)
-    !    it = it_idx(g_lo,iglo)
-    !    ie = ie_idx(g_lo,iglo)
-    !    is = is_idx(g_lo,iglo)
-    !    do isign = 1, 2
-    !       do ig = -ntgrid, ntgrid
-    !          il = il_idx(g_lo,iglo)
-    !          je = jend(ig)
-    !          if (je == 0) then
-    !             if (isign == 2) then
-    !                il = 2*g_lo%nlambda+1 - il
-    !             end if
-    !          else
-    !             if (il == je) then
-    !                if (isign == 1) il = 2*je  ! throw this info away
-    !             else if (il > je) then 
-    !                if (isign == 1) il = il + je
-    !                if (isign == 2) il = 2*g_lo%nlambda + 1 - il + je
-    !             else
-    !                if (isign == 2) il = 2*je - il !+ 1
-    !             end if
-    !          end if
-    !          ile = idx (le_lo, ig, ik, it, is)
-    !          ! if (idx_local(g_lo,iglo)) then
-    !          !    ip = proc_id(le_lo,ile)
-    !          !    n = nn_from(ip) + 1
-    !          !    nn_from(ip) = n
-    !          !    from_list(ip)%first(n)  = ig
-    !          !    from_list(ip)%second(n) = isign
-    !          !    from_list(ip)%third(n)  = iglo
-    !          ! end if
-    !          if (idx_local(le_lo,ile)) then
-    !             ip = proc_id(g_lo,iglo)
-    !             n = nn_to_old(ip) + 1
-    !             nn_to_old(ip) = n
-    !             old_list(ip)%first(n)  = il
-    !             old_list(ip)%second(n) = ie
-    !             old_list(ip)%third(n)  = ile
-    !          end if
-    !       end do
-    !    end do
-    ! end do
-
-    ! !Testing
-    ! do ip=0,nproc-1
-    !    if (nn_to(ip)>0)then
-    !       if(sum(abs(to_list(ip)%first-old_list(ip)%first)).ne.0)print*,"Error in first: iproc,to",iproc,ip
-    !       if(sum(abs(to_list(ip)%second-old_list(ip)%second)).ne.0)print*,"Error in second: iproc,to",iproc,ip
-    !       if(sum(abs((to_list(ip)%third-le_lo%llim_proc)-(old_list(ip)%third-le_lo%llim_proc))).ne.0) then
-    !          print*,"Error in third: iproc,to",iproc,ip
-    !          do n=1,nn_to(ip)
-    !             print*,"N O M R",to_list(ip)%third(n),old_list(ip)%third(n),iproc,ip
-    !          enddo
-    !       endif
-    !    endif
-    ! enddo
 
     !Now setup array range values
     from_low (1) = -ntgrid
@@ -3280,14 +3058,10 @@ contains
     call delete_list (to_list)
     call delete_list (from_list)
     call delete_list (sort_list)
-    !Testing
-    !call delete_list (old_list)
-
   end subroutine init_g2le_redistribute_local
 
   !> FIXME : Add documentation
   subroutine check_g2le
-
     use file_utils, only: error_unit
     use mp, only: finish_mp, iproc, proc0
     use theta_grid, only: ntgrid
@@ -3657,133 +3431,8 @@ contains
     end function rule
   end subroutine check_g2gf
 
-  !> FIXME : Add documentation  
-  subroutine init_lambda_redistribute
-    use mp, only: nproc
-    use species, only: nspec
-    use theta_grid, only: ntgrid
-    use kt_grids, only: naky, ntheta0
-    use gs2_layouts, only: init_lambda_layouts
-    use gs2_layouts, only: g_lo, lz_lo
-    use gs2_layouts, only: idx_local, proc_id
-    use gs2_layouts, only: ik_idx, it_idx, ie_idx, is_idx, il_idx, idx
-    use redistribute, only: index_list_type, init_redist, delete_list
-
-    implicit none
-
-    type (index_list_type), dimension(0:nproc-1) :: to_list, from_list
-    integer, dimension(0:nproc-1) :: nn_to, nn_from
-    integer, dimension(3) :: from_low, from_high
-    integer, dimension(2) :: to_low, to_high
-    integer :: ig, isign, iglo, il, ilz
-    integer :: ik, it, ie, is, je
-    integer :: n, ip
-
-    if (lzinit) return
-
-    call init_lambda_layouts &
-         (ntgrid, naky, ntheta0, nlambda, negrid, nspec, ng2)
-
-    ! count number of elements to be redistributed to/from each processor
-    nn_to = 0
-    nn_from = 0
-    do iglo = g_lo%llim_world, g_lo%ulim_world
-       ik = ik_idx(g_lo,iglo)
-       it = it_idx(g_lo,iglo)
-       ie = ie_idx(g_lo,iglo)
-       is = is_idx(g_lo,iglo)
-       do isign = 1, 2
-          do ig = -ntgrid, ntgrid
-             ilz = idx(lz_lo, ig, ik, it, ie, is)
-             if (idx_local(g_lo,iglo)) &
-                  nn_from(proc_id(lz_lo,ilz)) = nn_from(proc_id(lz_lo,ilz)) + 1
-             if (idx_local(lz_lo,ilz)) &
-                  nn_to(proc_id(g_lo,iglo)) = nn_to(proc_id(g_lo,iglo)) + 1
-          end do
-       end do
-    end do
-
-    do ip = 0, nproc-1
-       if (nn_from(ip) > 0) then
-          allocate (from_list(ip)%first(nn_from(ip)))
-          allocate (from_list(ip)%second(nn_from(ip)))
-          allocate (from_list(ip)%third(nn_from(ip)))
-       end if
-       if (nn_to(ip) > 0) then
-          allocate (to_list(ip)%first(nn_to(ip)))
-          allocate (to_list(ip)%second(nn_to(ip)))
-       end if
-    end do
-
-    ! get local indices of elements distributed to/from other processors
-    nn_to = 0
-    nn_from = 0
-    do iglo = g_lo%llim_world, g_lo%ulim_world
-       ik = ik_idx(g_lo,iglo)
-       it = it_idx(g_lo,iglo)
-       ie = ie_idx(g_lo,iglo)
-       is = is_idx(g_lo,iglo)
-       do isign = 1, 2
-          do ig = -ntgrid, ntgrid
-             je = jend(ig)
-             il = il_idx(g_lo,iglo)
-             if (je == 0) then
-                if (isign == 2) then
-                   il = 2*g_lo%nlambda+1 - il
-                end if
-             else
-                if (il == je) then
-                   if (isign == 1) il = 2*je  ! throw this info away
-                else if (il > je) then 
-                   if (isign == 1) il = il + je
-                   if (isign == 2) il = 2*g_lo%nlambda + 1 - il + je
-                else
-                   if (isign == 2) il = 2*je - il !+ 1
-                end if
-             end if
-             ilz = idx(lz_lo, ig, ik, it, ie, is)
-             if (idx_local(g_lo,iglo)) then
-                ip = proc_id(lz_lo,ilz)
-                n = nn_from(ip) + 1
-                nn_from(ip) = n
-                from_list(ip)%first(n) = ig
-                from_list(ip)%second(n) = isign
-                from_list(ip)%third(n) = iglo
-             end if
-             if (idx_local(lz_lo,ilz)) then
-                ip = proc_id(g_lo,iglo)
-                n = nn_to(ip) + 1
-                nn_to(ip) = n
-                to_list(ip)%first(n) = il
-                to_list(ip)%second(n) = ilz
-             end if
-          end do
-       end do
-    end do
-
-    from_low (1) = -ntgrid
-    from_low (2) = 1
-    from_low (3) = g_lo%llim_proc
-
-    to_low(1) = 1
-    to_low(2) = lz_lo%llim_proc
-
-    to_high(1) = max(2*nlambda, 2*ng2+1)
-    to_high(2) = lz_lo%ulim_alloc
-
-    from_high(1) = ntgrid
-    from_high(2) = 2
-    from_high(3) = g_lo%ulim_alloc
-    call init_redist (lambda_map, 'c', to_low, to_high, to_list, &
-         from_low, from_high, from_list)
-    call delete_list (to_list)
-    call delete_list (from_list)
-
-    lzinit = .true.
-
-  end subroutine init_lambda_redistribute
-
-  !> FIXME : Add documentation
+  !> Computes the redistribute mapping from the g_lo data
+  !> decomposition to the lz_lo decomposition
   subroutine init_lambda_redistribute_local
     use mp, only: nproc, barrier
     use species, only: nspec
@@ -3964,7 +3613,7 @@ contains
        !Only worry about the cases where we're receiving data
        if(nn_to(ip)>0) then
           !Apply quicksort
-          CALL quicksort(nn_to(ip),sort_list(ip)%first,to_list(ip)%first,to_list(ip)%second)
+          call quicksort(nn_to(ip),sort_list(ip)%first,to_list(ip)%first,to_list(ip)%second)
        endif
     enddo
 
@@ -3993,127 +3642,8 @@ contains
 
   end subroutine init_lambda_redistribute_local
 
-  !> FIXME : Add documentation
-  subroutine init_energy_redistribute
-    use mp, only: nproc
-    use species, only: nspec
-    use theta_grid, only: ntgrid
-    use kt_grids, only: naky, ntheta0
-    use gs2_layouts, only: init_energy_layouts
-    use gs2_layouts, only: g_lo, e_lo, ie_idx, ik_idx, it_idx, il_idx, is_idx
-    use gs2_layouts, only: idx_local, proc_id, idx
-    use redistribute, only: index_list_type, init_redist, delete_list
-
-    implicit none
-
-    type (index_list_type), dimension(0:nproc-1) :: to_list, from_list
-    integer, dimension(0:nproc-1) :: nn_to, nn_from
-    integer, dimension(3) :: from_low, from_high
-    integer, dimension(2) :: to_low, to_high
-    integer :: ig, isign, iglo, ik, it, il, ie, is, ielo
-    integer :: n, ip
-
-    if (einit) return
-    
-!DD, March 2009: Nullify pointers on initialisation, so do not pass association
-!                test when not allocated. 
-!  Problem arose on Pascali compiler (York) with  to_list(ip)%third and fourth
-    do ip=0, (nproc-1)
-       nullify(to_list(ip)%first,from_list(ip)%first,to_list(ip)%second,from_list(ip)%second,to_list(ip)%third,from_list(ip)%third,to_list(ip)%fourth,from_list(ip)%fourth)
-    end do
-!<DD
-
-    call init_energy_layouts &
-         (ntgrid, naky, ntheta0, nlambda, nspec)
-
-    ! count number of elements to be redistributed to/from each processor
-    nn_to = 0
-    nn_from = 0
-    do iglo = g_lo%llim_world, g_lo%ulim_world
-       ik = ik_idx(g_lo,iglo)
-       it = it_idx(g_lo,iglo)
-       il = il_idx(g_lo,iglo)
-       is = is_idx(g_lo,iglo)
-       do isign = 1, 2
-          do ig = -ntgrid, ntgrid
-             ielo = idx(e_lo,ig,isign,ik,it,il,is)
-             if (idx_local(g_lo,iglo)) &
-                  nn_from(proc_id(e_lo,ielo)) = nn_from(proc_id(e_lo,ielo)) + 1
-             if (idx_local(e_lo,ielo)) &
-                  nn_to(proc_id(g_lo,iglo)) = nn_to(proc_id(g_lo,iglo)) + 1
-          end do
-       end do
-    end do
-
-    do ip = 0, nproc-1
-       if (nn_from(ip) > 0) then
-          allocate (from_list(ip)%first(nn_from(ip)))
-          allocate (from_list(ip)%second(nn_from(ip)))
-          allocate (from_list(ip)%third(nn_from(ip)))
-       end if
-       if (nn_to(ip) > 0) then
-          allocate (to_list(ip)%first(nn_to(ip)))
-          allocate (to_list(ip)%second(nn_to(ip)))
-       end if
-    end do
-
-    ! get local indices of elements distributed to/from other processors
-    nn_to = 0
-    nn_from = 0
-    do iglo = g_lo%llim_world, g_lo%ulim_world
-       ik = ik_idx(g_lo,iglo)
-       it = it_idx(g_lo,iglo)
-       il = il_idx(g_lo,iglo)
-       is = is_idx(g_lo,iglo)
-       ie = ie_idx(g_lo,iglo)
-       do isign = 1, 2
-          do ig = -ntgrid, ntgrid
-             ielo = idx(e_lo,ig,isign,ik,it,il,is)
-
-             if (idx_local(g_lo,iglo)) then
-                ip = proc_id(e_lo,ielo)
-                n = nn_from(ip) + 1
-                nn_from(ip) = n
-                from_list(ip)%first(n) = ig
-                from_list(ip)%second(n) = isign
-                from_list(ip)%third(n) = iglo
-             end if
-             if (idx_local(e_lo,ielo)) then
-                ip = proc_id(g_lo,iglo)
-                n = nn_to(ip) + 1
-                nn_to(ip) = n
-                to_list(ip)%first(n) = ie
-                to_list(ip)%second(n) = ielo
-             end if
-          end do
-       end do
-    end do
-
-    from_low (1) = -ntgrid
-    from_low (2) = 1
-    from_low (3) = g_lo%llim_proc
-
-    to_low(1) = 1
-    to_low(2) = e_lo%llim_proc
-
-    to_high(1) = negrid+1
-    to_high(2) = e_lo%ulim_alloc
-
-    from_high(1) = ntgrid
-    from_high(2) = 2
-    from_high(3) = g_lo%ulim_alloc
-
-    call init_redist (energy_map, 'c', to_low, to_high, to_list, &
-         from_low, from_high, from_list)
-
-    call delete_list (to_list)
-    call delete_list (from_list)
-
-    einit = .true.
-
-  end subroutine init_energy_redistribute
-
-  !> FIXME : Add documentation
+  !> Constructs the redistribute mapping from the g_lo data
+  !> decomposition to the e_lo decomposition
   subroutine init_energy_redistribute_local
     use mp, only: nproc
     use species, only: nspec
@@ -4138,14 +3668,6 @@ contains
     !Early exit if possible
     if (einit) return
     einit = .true.
-
-    !DD, March 2009: Nullify pointers on initialisation, so do not pass association
-    !                test when not allocated. 
-    !  Problem arose on Pascali compiler (York) with  to_list(ip)%third and fourth
-    do ip=0, (nproc-1)
-       nullify(to_list(ip)%first,from_list(ip)%first,to_list(ip)%second,from_list(ip)%second,to_list(ip)%third,from_list(ip)%third,to_list(ip)%fourth,from_list(ip)%fourth)
-    end do
-    !<DD>
 
     !Initialise e_lo layout object
     call init_energy_layouts &
@@ -4205,9 +3727,6 @@ contains
           allocate (sort_list(ip)%first(nn_to(ip)))
        end if
     end do
-
-    !<DD>Debug test, are we sending and receiving the same amount to ourselves? Remove when testing completed
-    !if(debug.and.nn_to(iproc).ne.nn_from(iproc)) print*,"ERROR: iproc ",iproc,"nn_from",nn_from(iproc),"nn_to",nn_to(iproc)  
 
     !Reinitialise counters to zero
     nn_to = 0
@@ -4278,7 +3797,7 @@ contains
        !Only worry about cases where we're receiving data
        if(nn_to(ip)>0) then
           !Sort based on quicksort
-          CALL quicksort(nn_to(ip),sort_list(ip)%first,to_list(ip)%first,to_list(ip)%second)
+          call quicksort(nn_to(ip),sort_list(ip)%first,to_list(ip)%first,to_list(ip)%second)
        endif
     enddo
 
