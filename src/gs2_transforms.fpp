@@ -619,8 +619,8 @@ contains
     integer :: n, ip
 
     !Early exit if possible
-    if (initialized) return
-    initialized = .true.
+    if (initialized_x_redist) return
+    initialized_x_redist = .true.
 
     !Setup the xxf_lo layout object
     call init_x_transform_layouts &
@@ -947,8 +947,8 @@ contains
     logical :: initialized = .false.
 
     !Early exit if possible
-    if (initialized) return
-    initialized = .true.
+    if (initialized_y_redist) return
+    initialized_y_redist = .true.
 
     !Setup g_lo-->xxf_lo redist object first
     call init_x_redist_local (ntgrid, naky, ntheta0, nlambda, negrid, nspec, nx)
