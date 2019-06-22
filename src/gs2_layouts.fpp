@@ -85,7 +85,6 @@ module gs2_layouts
   public :: idx, proc_id, idx_local
 
   public :: opt_local_copy
-  public :: opt_redist_init !Do we use optimised redist init routines?
   public :: intmom_sub !Do we use sub-communicators in velocity space?
   public :: intspec_sub !Do we use sub-communicators in integrate_species?
 
@@ -107,7 +106,6 @@ module gs2_layouts
   logical :: initialized_accel_transform_layouts = .false.
 
   logical :: opt_local_copy
-  logical :: opt_redist_init
   logical :: intmom_sub
   logical :: intspec_sub
   logical :: local_field_solve, accel_lxyes, lambda_local, unbalanced_xxf, unbalanced_yxf
@@ -436,7 +434,7 @@ contains
     integer :: in_file
     namelist /layouts_knobs/ layout, local_field_solve, unbalanced_xxf, &
          max_unbalanced_xxf, unbalanced_yxf, max_unbalanced_yxf, &
-         opt_local_copy, opt_redist_nbk, opt_redist_init, intmom_sub, &
+         opt_local_copy, opt_redist_nbk, intmom_sub, &
          intspec_sub, opt_redist_persist, opt_redist_persist_overlap, fft_measure_plan, &
          fft_use_wisdom, fft_wisdom_file, simple_gf_decomposition, gf_local_fields
 
@@ -450,7 +448,6 @@ contains
     opt_redist_nbk = .true. !<DD>True=>Use nonblocking redistributes
     opt_redist_persist = .false. !<DD>True=>Use persistent communications in redistributes
     opt_redist_persist_overlap = .false. !<DD>True=>Start comms before doing local copy
-    opt_redist_init= .false. !<DD>True=>Use optimised routines to init redist objects
     fft_measure_plan = .false. !<DD>False=>use heuristics rather than measure in fft plan create
     fft_wisdom_file = 'default'  ! Location of fftw wisdom... if left as default, this is set to 
         ! run_name//'.fftw_wisdom', unless overriden by the environment variable
@@ -554,7 +551,6 @@ contains
     use redistribute, only: opt_redist_nbk, opt_redist_persist, opt_redist_persist_overlap
     implicit none
 
-    call broadcast (opt_redist_init)
     call broadcast (opt_redist_nbk)
     call broadcast (opt_redist_persist)
     call broadcast (opt_redist_persist_overlap)
