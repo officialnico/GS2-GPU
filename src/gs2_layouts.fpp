@@ -66,8 +66,9 @@ module gs2_layouts
   public :: init_le_layouts
   public :: le_lo
 ! <MAB
-  !AJ new layouts for fields_gf_local and gf_lo integration
+  !> layout for fields_gf_local
   public :: init_gf_layouts
+  !> layout for gf_lo integration
   public :: gf_lo
 
   public :: init_x_transform_layouts, init_y_transform_layouts
@@ -137,7 +138,7 @@ module gs2_layouts
   type (gint_layout_type) :: gint_lo
   type (geint_layout_type) :: geint_lo
 ! TT>
-  type (le_layout_type) :: le_lo  ! new type
+  type (le_layout_type) :: le_lo
   type (gf_layout_type) :: gf_lo
 ! <TT
   type (p_layout_type) :: p_lo
@@ -412,8 +413,6 @@ contains
 
     if (initialized_layouts) return
     initialized_layouts = .true.
-
-    !write(*,*) 'INITGS2', initialized_x_transform
     
     if (proc0) call read_parameters
 
@@ -468,8 +467,6 @@ contains
        write(6,*) "gs2_layouts: read_parameters finds illegal layout=",layout," =>stop"
        call mp_abort("gs2_layouts: read_parameters finds illegal layout=")
     endif
-
-!    if(proc0) write(*,*) 'layout:',layout
 
 ! max_unbalanced_xxf and max_unbalanced_yxf have a maximum range of 0.0 - 1.0
 ! so check here whether the user has specified the range correctly and adjust if 
@@ -833,7 +830,10 @@ contains
     g_lo%ulim_proc = min(g_lo%ulim_world, g_lo%llim_proc + g_lo%blocksize - 1)
     g_lo%ulim_alloc = max(g_lo%llim_proc, g_lo%ulim_proc)
 
-    if(.not.allocated(g_lo%proc_map)) allocate(g_lo%proc_map(0:nproc-1))
+    ! Allow restart with different number of procs
+    if(allocated(g_lo%proc_map)) deallocate(g_lo%proc_map)
+    allocate(g_lo%proc_map(0:nproc-1))
+
     call allgather((/ g_lo%llim_proc /), 1, g_lo%proc_map, 1)  
 
     !write(0,*) 'g_lo', left_lim_nd, llim_nd, iproc, ind, g_lo%llim_proc, g_lo%ulim_proc, g_lo%llim_node, g_lo%ulim_node
@@ -853,11 +853,7 @@ contains
 !This allows the removal of the select case statements in the index routines
     select case (layout)
     case ('yxels')
-       g_lo%ie_ord=3
-       g_lo%il_ord=4
-       g_lo%it_ord=2
-       g_lo%ik_ord=1
-       g_lo%is_ord=5
+      call set_dimension_order(g_lo,2,1,4,3,5) !xyles
        g_lo%compound_count(1)=1
        g_lo%compound_count(2)=naky
        g_lo%compound_count(3)=naky*ntheta0
@@ -869,11 +865,7 @@ contains
        g_lo%dim_size(4)=nlambda
        g_lo%dim_size(5)=nspec
     case ('yxles')
-       g_lo%ie_ord=4
-       g_lo%il_ord=3
-       g_lo%it_ord=2
-       g_lo%ik_ord=1
-       g_lo%is_ord=5
+      call set_dimension_order(g_lo,2,1,3,4,5) !xyles
        g_lo%compound_count(1)=1
        g_lo%compound_count(2)=naky
        g_lo%compound_count(3)=naky*ntheta0
@@ -885,11 +877,7 @@ contains
        g_lo%dim_size(4)=negrid
        g_lo%dim_size(5)=nspec
     case ('lexys')
-       g_lo%ie_ord=2
-       g_lo%il_ord=1
-       g_lo%it_ord=3
-       g_lo%ik_ord=4
-       g_lo%is_ord=5
+      call set_dimension_order(g_lo,3,4,1,2,5) !xyles
        g_lo%compound_count(1)=1
        g_lo%compound_count(2)=nlambda
        g_lo%compound_count(3)=nlambda*negrid
@@ -901,11 +889,7 @@ contains
        g_lo%dim_size(4)=naky
        g_lo%dim_size(5)=nspec
     case ('lxyes')
-       g_lo%ie_ord=4
-       g_lo%il_ord=1
-       g_lo%it_ord=2
-       g_lo%ik_ord=3
-       g_lo%is_ord=5
+      call set_dimension_order(g_lo,2,3,1,4,5) !xyles
        g_lo%compound_count(1)=1
        g_lo%compound_count(2)=nlambda
        g_lo%compound_count(3)=nlambda*ntheta0
@@ -917,11 +901,7 @@ contains
        g_lo%dim_size(4)=negrid
        g_lo%dim_size(5)=nspec
     case ('lyxes')
-       g_lo%ie_ord=4
-       g_lo%il_ord=1
-       g_lo%it_ord=3
-       g_lo%ik_ord=2
-       g_lo%is_ord=5
+      call set_dimension_order(g_lo,3,2,1,4,5) !xyles
        g_lo%compound_count(1)=1
        g_lo%compound_count(2)=nlambda
        g_lo%compound_count(3)=nlambda*naky
@@ -933,11 +913,7 @@ contains
        g_lo%dim_size(4)=negrid
        g_lo%dim_size(5)=nspec
     case ('xyles')
-       g_lo%ie_ord=4
-       g_lo%il_ord=3
-       g_lo%it_ord=1
-       g_lo%ik_ord=2
-       g_lo%is_ord=5
+      call set_dimension_order(g_lo,1,2,3,4,5) !xyles
        g_lo%compound_count(1)=1
        g_lo%compound_count(2)=ntheta0
        g_lo%compound_count(3)=ntheta0*naky
@@ -6406,4 +6382,20 @@ contains
     end do
     div(j) = n
   end subroutine factors
+
+  !> Sets the order of x y l e s in g_lo
+  subroutine set_dimension_order(g_lo,it_ord,ik_ord,il_ord,ie_ord,is_ord)
+
+    implicit none
+    type (g_layout_type), intent(in out) :: g_lo
+    integer, intent(in) :: ie_ord, il_ord, it_ord, ik_ord, is_ord
+
+    g_lo%ie_ord=ie_ord
+    g_lo%il_ord=il_ord
+    g_lo%it_ord=it_ord
+    g_lo%ik_ord=ik_ord
+    g_lo%is_ord=is_ord
+
+  end subroutine set_dimension_order
+
 end module gs2_layouts
