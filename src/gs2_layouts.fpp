@@ -6297,17 +6297,18 @@ contains
 
   end subroutine pe_layout
 
-  !> FIXME : Add documentation  
+  !> Get the factors of an integer n
   subroutine factors (n, j, div)
-    !CMR, 3/10/13:
-    !    Find all the factors of n and return in div(j)
+    !> The number to factorize
     integer, intent (in) :: n
+    !> The number of factors
     integer, intent (out) :: j
+    !> Array containing the j factors of n
     integer, dimension (:), intent (out) :: div
     integer :: i, imax
 
     ! find: i = lowest factor of n
-    ! and therefore imax=n/1 is the HIGHEST factor of n
+    ! and therefore imax=n/i is the HIGHEST factor of n
     do i=2,n
        if (mod(n,i)==0) exit
     end do
