@@ -4123,12 +4123,7 @@ contains
 !<DD>See g_lo init
     select case (layout)
     case ('yxels')
-       xxf_lo%ig_ord=2
-       xxf_lo%isgn_ord=3
-       xxf_lo%il_ord=5
-       xxf_lo%ie_ord=4
-       xxf_lo%ik_ord=1
-       xxf_lo%is_ord=6
+       call set_dimension_order_xxf(xxf_lo,1,2,3,5,4,6) !y th sgn l e s
        xxf_lo%compound_count(1)=1
        xxf_lo%compound_count(2)=xxf_lo%naky
        xxf_lo%compound_count(3)=xxf_lo%compound_count(2)*ntgridtotal
@@ -4136,12 +4131,7 @@ contains
        xxf_lo%compound_count(5)=xxf_lo%compound_count(4)*negrid
        xxf_lo%compound_count(6)=xxf_lo%compound_count(5)*nlambda
     case ('yxles')
-       xxf_lo%ig_ord=2
-       xxf_lo%isgn_ord=3
-       xxf_lo%il_ord=4
-       xxf_lo%ie_ord=5
-       xxf_lo%ik_ord=1
-       xxf_lo%is_ord=6
+       call set_dimension_order_xxf(xxf_lo,1,2,3,4,5,6) !y th sgn l e s
        xxf_lo%compound_count(1)=1
        xxf_lo%compound_count(2)=xxf_lo%naky
        xxf_lo%compound_count(3)=xxf_lo%compound_count(2)*ntgridtotal
@@ -4149,12 +4139,7 @@ contains
        xxf_lo%compound_count(5)=xxf_lo%compound_count(4)*nlambda
        xxf_lo%compound_count(6)=xxf_lo%compound_count(5)*negrid
     case ('lexys')
-       xxf_lo%ig_ord=2
-       xxf_lo%isgn_ord=3
-       xxf_lo%il_ord=4
-       xxf_lo%ie_ord=5
-       xxf_lo%ik_ord=1
-       xxf_lo%is_ord=6
+       call set_dimension_order_xxf(xxf_lo,1,2,3,4,5,6) !y th sgn l e s
        xxf_lo%compound_count(1)=1
        xxf_lo%compound_count(2)=xxf_lo%naky
        xxf_lo%compound_count(3)=xxf_lo%compound_count(2)*ntgridtotal
@@ -4162,12 +4147,7 @@ contains
        xxf_lo%compound_count(5)=xxf_lo%compound_count(4)*nlambda
        xxf_lo%compound_count(6)=xxf_lo%compound_count(5)*negrid
     case ('lxyes')
-       xxf_lo%ig_ord=2
-       xxf_lo%isgn_ord=3
-       xxf_lo%il_ord=4
-       xxf_lo%ie_ord=5
-       xxf_lo%ik_ord=1
-       xxf_lo%is_ord=6
+       call set_dimension_order_xxf(xxf_lo,1,2,3,4,5,6) !y th sgn l e s
        xxf_lo%compound_count(1)=1
        xxf_lo%compound_count(2)=xxf_lo%naky
        xxf_lo%compound_count(3)=xxf_lo%compound_count(2)*ntgridtotal
@@ -4175,12 +4155,7 @@ contains
        xxf_lo%compound_count(5)=xxf_lo%compound_count(4)*nlambda
        xxf_lo%compound_count(6)=xxf_lo%compound_count(5)*negrid
     case ('lyxes')
-       xxf_lo%ig_ord=2
-       xxf_lo%isgn_ord=3
-       xxf_lo%il_ord=4
-       xxf_lo%ie_ord=5
-       xxf_lo%ik_ord=1
-       xxf_lo%is_ord=6
+       call set_dimension_order_xxf(xxf_lo,1,2,3,4,5,6) !y th sgn l e s
        xxf_lo%compound_count(1)=1
        xxf_lo%compound_count(2)=xxf_lo%naky
        xxf_lo%compound_count(3)=xxf_lo%compound_count(2)*ntgridtotal
@@ -4188,12 +4163,7 @@ contains
        xxf_lo%compound_count(5)=xxf_lo%compound_count(4)*nlambda
        xxf_lo%compound_count(6)=xxf_lo%compound_count(5)*negrid
     case ('xyles')
-       xxf_lo%ig_ord=2
-       xxf_lo%isgn_ord=3
-       xxf_lo%il_ord=4
-       xxf_lo%ie_ord=5
-       xxf_lo%ik_ord=1
-       xxf_lo%is_ord=6
+       call set_dimension_order_xxf(xxf_lo,1,2,3,4,5,6) !y th sgn l e s
        xxf_lo%compound_count(1)=1
        xxf_lo%compound_count(2)=xxf_lo%naky
        xxf_lo%compound_count(3)=xxf_lo%compound_count(2)*ntgridtotal
@@ -5259,12 +5229,7 @@ contains
 !<DD>Calculate compound index divisors
     select case (layout)
     case ('yxels')
-       yxf_lo%ig_ord=2
-       yxf_lo%isgn_ord=3
-       yxf_lo%il_ord=5
-       yxf_lo%ie_ord=4
-       yxf_lo%it_ord=1
-       yxf_lo%is_ord=6
+       call set_dimension_order_yxf(yxf_lo,1,2,3,5,4,6) !x th sgn l e s
        yxf_lo%compound_count(1)=1
        yxf_lo%compound_count(2)=yxf_lo%nx
        yxf_lo%compound_count(3)=yxf_lo%compound_count(2)*ntgridtotal
@@ -5272,12 +5237,7 @@ contains
        yxf_lo%compound_count(5)=yxf_lo%compound_count(4)*negrid
        yxf_lo%compound_count(6)=yxf_lo%compound_count(5)*nlambda
     case ('yxles')
-       yxf_lo%ig_ord=2
-       yxf_lo%isgn_ord=3
-       yxf_lo%il_ord=4
-       yxf_lo%ie_ord=5
-       yxf_lo%it_ord=1
-       yxf_lo%is_ord=6
+       call set_dimension_order_yxf(yxf_lo,1,2,3,4,5,6) !x th sgn l e s
        yxf_lo%compound_count(1)=1
        yxf_lo%compound_count(2)=yxf_lo%nx
        yxf_lo%compound_count(3)=yxf_lo%compound_count(2)*ntgridtotal
@@ -5285,12 +5245,7 @@ contains
        yxf_lo%compound_count(5)=yxf_lo%compound_count(4)*nlambda
        yxf_lo%compound_count(6)=yxf_lo%compound_count(5)*negrid
     case ('lexys')
-       yxf_lo%ig_ord=2
-       yxf_lo%isgn_ord=3
-       yxf_lo%il_ord=4
-       yxf_lo%ie_ord=5
-       yxf_lo%it_ord=1
-       yxf_lo%is_ord=6
+       call set_dimension_order_yxf(yxf_lo,1,2,3,4,5,6) !x th sgn l e s
        yxf_lo%compound_count(1)=1
        yxf_lo%compound_count(2)=yxf_lo%nx
        yxf_lo%compound_count(3)=yxf_lo%compound_count(2)*ntgridtotal
@@ -5298,12 +5253,7 @@ contains
        yxf_lo%compound_count(5)=yxf_lo%compound_count(4)*nlambda
        yxf_lo%compound_count(6)=yxf_lo%compound_count(5)*negrid
     case ('lxyes')
-       yxf_lo%ig_ord=2
-       yxf_lo%isgn_ord=3
-       yxf_lo%il_ord=4
-       yxf_lo%ie_ord=5
-       yxf_lo%it_ord=1
-       yxf_lo%is_ord=6
+       call set_dimension_order_yxf(yxf_lo,1,2,3,4,5,6) !x th sgn l e s
        yxf_lo%compound_count(1)=1
        yxf_lo%compound_count(2)=yxf_lo%nx
        yxf_lo%compound_count(3)=yxf_lo%compound_count(2)*ntgridtotal
@@ -5311,12 +5261,7 @@ contains
        yxf_lo%compound_count(5)=yxf_lo%compound_count(4)*nlambda
        yxf_lo%compound_count(6)=yxf_lo%compound_count(5)*negrid
     case ('lyxes')
-       yxf_lo%ig_ord=2
-       yxf_lo%isgn_ord=3
-       yxf_lo%il_ord=4
-       yxf_lo%ie_ord=5
-       yxf_lo%it_ord=1
-       yxf_lo%is_ord=6
+       call set_dimension_order_yxf(yxf_lo,1,2,3,4,5,6) !x th sgn l e s
        yxf_lo%compound_count(1)=1
        yxf_lo%compound_count(2)=yxf_lo%nx
        yxf_lo%compound_count(3)=yxf_lo%compound_count(2)*ntgridtotal
@@ -5324,12 +5269,7 @@ contains
        yxf_lo%compound_count(5)=yxf_lo%compound_count(4)*nlambda
        yxf_lo%compound_count(6)=yxf_lo%compound_count(5)*negrid
     case ('xyles')
-       yxf_lo%ig_ord=2
-       yxf_lo%isgn_ord=3
-       yxf_lo%il_ord=4
-       yxf_lo%ie_ord=5
-       yxf_lo%it_ord=1
-       yxf_lo%is_ord=6
+       call set_dimension_order_yxf(yxf_lo,1,2,3,4,5,6) !x th sgn l e s
        yxf_lo%compound_count(1)=1
        yxf_lo%compound_count(2)=yxf_lo%nx
        yxf_lo%compound_count(3)=yxf_lo%compound_count(2)*ntgridtotal
@@ -6397,5 +6337,41 @@ contains
     g_lo%is_ord=is_ord
 
   end subroutine set_dimension_order
+
+  !> Sets the order of y th sgn l e s in xxf_lo
+  !> Note: usually the order is y, theta, sign, then "les" in the order they appear in
+  !> the g_lo layout
+  subroutine set_dimension_order_xxf(xxf_lo,ik_ord,ig_ord,isgn_ord,il_ord,ie_ord,is_ord)
+
+    implicit none
+    type (xxf_layout_type), intent(in out) :: xxf_lo
+    integer, intent(in) :: ie_ord, il_ord, ig_ord, ik_ord, is_ord, isgn_ord
+
+    xxf_lo%ik_ord=ik_ord
+    xxf_lo%ig_ord=ig_ord
+    xxf_lo%isgn_ord=isgn_ord
+    xxf_lo%il_ord=il_ord
+    xxf_lo%ie_ord=ie_ord
+    xxf_lo%is_ord=is_ord
+
+  end subroutine set_dimension_order_xxf
+
+  !> Sets the order of x th sgn l e s in xxf_lo
+  !> Note: usually the order is x, theta, sign, then "les" in the order they appear in
+  !> the g_lo layout
+  subroutine set_dimension_order_yxf(yxf_lo,it_ord,ig_ord,isgn_ord,il_ord,ie_ord,is_ord)
+
+    implicit none
+    type (yxf_layout_type), intent(in out) :: yxf_lo
+    integer, intent(in) :: ie_ord, il_ord, ig_ord, it_ord, is_ord, isgn_ord
+
+    yxf_lo%it_ord=it_ord
+    yxf_lo%ig_ord=ig_ord
+    yxf_lo%isgn_ord=isgn_ord
+    yxf_lo%il_ord=il_ord
+    yxf_lo%ie_ord=ie_ord
+    yxf_lo%is_ord=is_ord
+
+  end subroutine set_dimension_order_yxf
 
 end module gs2_layouts
