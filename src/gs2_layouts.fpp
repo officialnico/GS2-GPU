@@ -853,7 +853,7 @@ contains
 !This allows the removal of the select case statements in the index routines
     select case (layout)
     case ('yxels')
-      call set_dimension_order(g_lo,2,1,4,3,5) !xyles
+      call set_dimension_order(g_lo,ik_ord=1,it_ord=2,ie_ord=3,il_ord=4,is_ord=5)
        g_lo%compound_count(1)=1
        g_lo%compound_count(2)=naky
        g_lo%compound_count(3)=naky*ntheta0
@@ -865,7 +865,7 @@ contains
        g_lo%dim_size(4)=nlambda
        g_lo%dim_size(5)=nspec
     case ('yxles')
-      call set_dimension_order(g_lo,2,1,3,4,5) !xyles
+      call set_dimension_order(g_lo,ik_ord=1,it_ord=2,il_ord=3,ie_ord=4,is_ord=5)
        g_lo%compound_count(1)=1
        g_lo%compound_count(2)=naky
        g_lo%compound_count(3)=naky*ntheta0
@@ -877,7 +877,7 @@ contains
        g_lo%dim_size(4)=negrid
        g_lo%dim_size(5)=nspec
     case ('lexys')
-      call set_dimension_order(g_lo,3,4,1,2,5) !xyles
+      call set_dimension_order(g_lo,il_ord=1,ie_ord=2,it_ord=3,ik_ord=4,is_ord=5)
        g_lo%compound_count(1)=1
        g_lo%compound_count(2)=nlambda
        g_lo%compound_count(3)=nlambda*negrid
@@ -889,7 +889,7 @@ contains
        g_lo%dim_size(4)=naky
        g_lo%dim_size(5)=nspec
     case ('lxyes')
-      call set_dimension_order(g_lo,2,3,1,4,5) !xyles
+      call set_dimension_order(g_lo,il_ord=1,it_ord=2,ik_ord=3,ie_ord=4,is_ord=5)
        g_lo%compound_count(1)=1
        g_lo%compound_count(2)=nlambda
        g_lo%compound_count(3)=nlambda*ntheta0
@@ -901,7 +901,7 @@ contains
        g_lo%dim_size(4)=negrid
        g_lo%dim_size(5)=nspec
     case ('lyxes')
-      call set_dimension_order(g_lo,3,2,1,4,5) !xyles
+      call set_dimension_order(g_lo,il_ord=1,ik_ord=2,it_ord=3,ie_ord=4,is_ord=5)
        g_lo%compound_count(1)=1
        g_lo%compound_count(2)=nlambda
        g_lo%compound_count(3)=nlambda*naky
@@ -913,7 +913,7 @@ contains
        g_lo%dim_size(4)=negrid
        g_lo%dim_size(5)=nspec
     case ('xyles')
-      call set_dimension_order(g_lo,1,2,3,4,5) !xyles
+      call set_dimension_order(g_lo,it_ord=1,ik_ord=2,il_ord=3,ie_ord=4,is_ord=5)
        g_lo%compound_count(1)=1
        g_lo%compound_count(2)=ntheta0
        g_lo%compound_count(3)=ntheta0*naky
