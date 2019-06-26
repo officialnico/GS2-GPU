@@ -66,9 +66,7 @@ module gs2_layouts
   public :: init_le_layouts
   public :: le_lo
 ! <MAB
-  !> layout for fields_gf_local
   public :: init_gf_layouts
-  !> layout for gf_lo integration
   public :: gf_lo
 
   public :: init_x_transform_layouts, init_y_transform_layouts
@@ -139,6 +137,7 @@ module gs2_layouts
   type (geint_layout_type) :: geint_lo
 ! TT>
   type (le_layout_type) :: le_lo
+  !> layout for fields_gf_local and gf_lo integration
   type (gf_layout_type) :: gf_lo
 ! <TT
   type (p_layout_type) :: p_lo
