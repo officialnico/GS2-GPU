@@ -6311,11 +6311,7 @@ contains
     integer, dimension(5) :: check
 
     ! Check input is the integers 1 to 5
-    check(1) = it_ord
-    check(2) = ik_ord
-    check(3) = il_ord
-    check(4) = ie_ord
-    check(5) = is_ord
+    check = [it_ord, ik_ord, il_ord, ie_ord, is_ord]
     call quicksort(5,check)
     if (any(check.ne.(/1,2,3,4,5/))) then
       call mp_abort('Input to set_dimension_order is not unique integers 1 to 5')
@@ -6343,12 +6339,7 @@ contains
     integer, dimension(6) :: check
 
     ! Check input is the integers 1 to 6
-    check(1) = ik_ord
-    check(2) = ig_ord
-    check(3) = isgn_ord
-    check(4) = il_ord
-    check(5) = ie_ord
-    check(6) = is_ord
+    check = [ik_ord, ig_ord, isgn_ord, il_ord, ie_ord, is_ord]
     call quicksort(6,check)
     if (any(check.ne.(/1,2,3,4,5,6/))) then
       call mp_abort('Input to set_dimension_order_xxf is not unique integers 1 to 6')
@@ -6377,12 +6368,7 @@ contains
     integer, dimension(6) :: check
 
     ! Check input is the integers 1 to 6
-    check(1) = it_ord
-    check(2) = ig_ord
-    check(3) = isgn_ord
-    check(4) = il_ord
-    check(5) = ie_ord
-    check(6) = is_ord
+    check = [it_ord, ig_ord, isgn_ord, il_ord, ie_ord, is_ord]
     call quicksort(6,check)
     if (any(check.ne.(/1,2,3,4,5,6/))) then
       call mp_abort('Input to set_dimension_order_yxf is not unique integers 1 to 6')
