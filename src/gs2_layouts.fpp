@@ -1635,19 +1635,16 @@ contains
   end subroutine is_kx_local
 
 ! TT>
+  !> Return the species index, given g-layout and a global index
 # ifdef USE_C_INDEX
-  !> FIXME : Add documentation 
   function is_idx_g (lo, i)
 # else
-  !> FIXME : Add documentation     
   elemental function is_idx_g (lo, i)
 # endif
-! <TT
     implicit none
     integer :: is_idx_g
     type (g_layout_type), intent (in) :: lo
     integer, intent (in) :: i
-! TT>
 # ifdef USE_C_INDEX
     interface
        function is_idx_g_c (lo,num)
@@ -1661,24 +1658,19 @@ contains
 # else
     is_idx_g=1+mod((i-lo%llim_world)/lo%is_comp,lo%nspec)
 # endif
-! <TT
 
   end function is_idx_g
 
-! TT>
+  !> Return the lambda index, given g-layout and a global index
 # ifdef USE_C_INDEX
-  !> FIXME : Add documentation   
   function il_idx_g (lo, i)
 # else
-  !> FIXME : Add documentation     
   elemental function il_idx_g (lo, i)
 # endif
-! <TT
     implicit none
     integer :: il_idx_g
     type (g_layout_type), intent (in) :: lo
     integer, intent (in) :: i
-! TT>
 # ifdef USE_C_INDEX
     interface
        function il_idx_g_c (lo,num)
@@ -1692,24 +1684,19 @@ contains
 # else
     il_idx_g=1+mod((i-lo%llim_world)/lo%il_comp,lo%nlambda)
 # endif
-! <TT
 
   end function il_idx_g
 
-! TT>
+  !> Return the energy index, given g-layout and a global index
 # ifdef USE_C_INDEX
-  !> FIXME : Add documentation   
   function ie_idx_g (lo, i)
 # else
-  !> FIXME : Add documentation     
   elemental function ie_idx_g (lo, i)
 # endif
-! <TT
     implicit none
     integer :: ie_idx_g
     type (g_layout_type), intent (in) :: lo
     integer, intent (in) :: i
-! TT>
 # ifdef USE_C_INDEX
     interface
        function ie_idx_g_c (lo,num)
@@ -1723,25 +1710,20 @@ contains
 # else
     ie_idx_g=1+mod((i-lo%llim_world)/lo%ie_comp,lo%negrid)
 # endif
-! <TT
 
   end function ie_idx_g
 
-! TT>
+  !> Return the kx index, given g-layout and a global index
 # ifdef USE_C_INDEX
-  !> FIXME : Add documentation 
   function it_idx_g (lo, i)
 # else
-  !> FIXME : Add documentation     
   elemental function it_idx_g (lo, i)
 # endif
-! <TT
     implicit none
     integer :: it_idx_g
     type (g_layout_type), intent (in) :: lo
     integer, intent (in) :: i
     
-! TT>
 # ifdef USE_C_INDEX
     interface
        function it_idx_g_c (lo,num)
@@ -1755,24 +1737,19 @@ contains
 # else
     it_idx_g=1+mod((i-lo%llim_world)/lo%it_comp,lo%ntheta0)
 # endif
-! <TT
 
   end function it_idx_g
 
-! TT>
+  !> Return the ky index, given g-layout and a global index
 # ifdef USE_C_INDEX
-  !> FIXME : Add documentation   
   function ik_idx_g (lo, i)
 # else
-  !> FIXME : Add documentation     
   elemental function ik_idx_g (lo, i)
 # endif
-! <TT
     implicit none
     integer :: ik_idx_g
     type (g_layout_type), intent (in) :: lo
     integer, intent (in) :: i
-! TT>
 # ifdef USE_C_INDEX
     interface
        function ik_idx_g_c (lo,num)
@@ -1786,7 +1763,6 @@ contains
 # else
     ik_idx_g=1+mod((i-lo%llim_world)/lo%ik_comp,lo%naky)
 # endif
-! <TT
 
   end function ik_idx_g
 
