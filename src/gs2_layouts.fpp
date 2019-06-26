@@ -6359,9 +6359,25 @@ contains
   !> the g_lo layout
   subroutine set_dimension_order_xxf(xxf_lo,ik_ord,ig_ord,isgn_ord,il_ord,ie_ord,is_ord)
 
+    use mp, only: proc0, mp_abort
+    use sorting, only: quicksort
+
     implicit none
     type (xxf_layout_type), intent(in out) :: xxf_lo
     integer, intent(in) :: ie_ord, il_ord, ig_ord, ik_ord, is_ord, isgn_ord
+    integer, dimension(6) :: check
+
+    ! Check input is the integers 1 to 6
+    check(1) = ik_ord
+    check(2) = ig_ord
+    check(3) = isgn_ord
+    check(4) = il_ord
+    check(5) = ie_ord
+    check(6) = is_ord
+    call quicksort(6,check)
+    if (any(check.ne.(/1,2,3,4,5,6/))) then
+      call mp_abort('Input to set_dimension_order_xxf is not unique integers 1 to 6')
+    end if
 
     xxf_lo%ik_ord=ik_ord
     xxf_lo%ig_ord=ig_ord
@@ -6377,9 +6393,25 @@ contains
   !> the g_lo layout
   subroutine set_dimension_order_yxf(yxf_lo,it_ord,ig_ord,isgn_ord,il_ord,ie_ord,is_ord)
 
+    use mp, only: proc0, mp_abort
+    use sorting, only: quicksort
+
     implicit none
     type (yxf_layout_type), intent(in out) :: yxf_lo
     integer, intent(in) :: ie_ord, il_ord, ig_ord, it_ord, is_ord, isgn_ord
+    integer, dimension(6) :: check
+
+    ! Check input is the integers 1 to 6
+    check(1) = it_ord
+    check(2) = ig_ord
+    check(3) = isgn_ord
+    check(4) = il_ord
+    check(5) = ie_ord
+    check(6) = is_ord
+    call quicksort(6,check)
+    if (any(check.ne.(/1,2,3,4,5,6/))) then
+      call mp_abort('Input to set_dimension_order_yxf is not unique integers 1 to 6')
+    end if
 
     yxf_lo%it_ord=it_ord
     yxf_lo%ig_ord=ig_ord
