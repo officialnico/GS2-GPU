@@ -6327,9 +6327,24 @@ contains
   !> Sets the order of x y l e s in g_lo
   subroutine set_dimension_order(g_lo,it_ord,ik_ord,il_ord,ie_ord,is_ord)
 
+    use mp, only: proc0, mp_abort
+    use sorting, only: quicksort
+
     implicit none
     type (g_layout_type), intent(in out) :: g_lo
     integer, intent(in) :: ie_ord, il_ord, it_ord, ik_ord, is_ord
+    integer, dimension(5) :: check
+
+    ! Check input is the integers 1 to 5
+    check(1) = it_ord
+    check(2) = ik_ord
+    check(3) = il_ord
+    check(4) = ie_ord
+    check(5) = is_ord
+    call quicksort(5,check)
+    if (any(check.ne.(/1,2,3,4,5/))) then
+      call mp_abort('Input to set_dimension_order is not unique integers 1 to 5')
+    end if
 
     g_lo%ie_ord=ie_ord
     g_lo%il_ord=il_ord
