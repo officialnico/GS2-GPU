@@ -6302,9 +6302,6 @@ contains
   !> Sets the order of x y l e s in g_lo
   subroutine set_dimension_order(g_lo,it_ord,ik_ord,il_ord,ie_ord,is_ord)
 
-    use mp, only: proc0, mp_abort
-    use sorting, only: quicksort
-
     implicit none
     type (g_layout_type), intent(in out) :: g_lo
     integer, intent(in) :: ie_ord, il_ord, it_ord, ik_ord, is_ord
@@ -6312,10 +6309,7 @@ contains
 
     ! Check input is the integers 1 to 5
     check = [it_ord, ik_ord, il_ord, ie_ord, is_ord]
-    call quicksort(5,check)
-    if (any(check.ne.(/1,2,3,4,5/))) then
-      call mp_abort('Input to set_dimension_order is not unique integers 1 to 5')
-    end if
+    call check_unique_integers(check,'Input to set_dimension_order is not unique integers 1 to 5')
 
     g_lo%ie_ord=ie_ord
     g_lo%il_ord=il_ord
@@ -6330,9 +6324,6 @@ contains
   !> the g_lo layout
   subroutine set_dimension_order_xxf(xxf_lo,ik_ord,ig_ord,isgn_ord,il_ord,ie_ord,is_ord)
 
-    use mp, only: proc0, mp_abort
-    use sorting, only: quicksort
-
     implicit none
     type (xxf_layout_type), intent(in out) :: xxf_lo
     integer, intent(in) :: ie_ord, il_ord, ig_ord, ik_ord, is_ord, isgn_ord
@@ -6340,10 +6331,7 @@ contains
 
     ! Check input is the integers 1 to 6
     check = [ik_ord, ig_ord, isgn_ord, il_ord, ie_ord, is_ord]
-    call quicksort(6,check)
-    if (any(check.ne.(/1,2,3,4,5,6/))) then
-      call mp_abort('Input to set_dimension_order_xxf is not unique integers 1 to 6')
-    end if
+    call check_unique_integers(check,'Input to set_dimension_order_xxf is not unique integers 1 to 6')
 
     xxf_lo%ik_ord=ik_ord
     xxf_lo%ig_ord=ig_ord
@@ -6359,9 +6347,6 @@ contains
   !> the g_lo layout
   subroutine set_dimension_order_yxf(yxf_lo,it_ord,ig_ord,isgn_ord,il_ord,ie_ord,is_ord)
 
-    use mp, only: proc0, mp_abort
-    use sorting, only: quicksort
-
     implicit none
     type (yxf_layout_type), intent(in out) :: yxf_lo
     integer, intent(in) :: ie_ord, il_ord, ig_ord, it_ord, is_ord, isgn_ord
@@ -6369,10 +6354,7 @@ contains
 
     ! Check input is the integers 1 to 6
     check = [it_ord, ig_ord, isgn_ord, il_ord, ie_ord, is_ord]
-    call quicksort(6,check)
-    if (any(check.ne.(/1,2,3,4,5,6/))) then
-      call mp_abort('Input to set_dimension_order_yxf is not unique integers 1 to 6')
-    end if
+    call check_unique_integers(check,'Input to set_dimension_order_yxf is not unique integers 1 to 6')
 
     yxf_lo%it_ord=it_ord
     yxf_lo%ig_ord=ig_ord
@@ -6382,5 +6364,35 @@ contains
     yxf_lo%is_ord=is_ord
 
   end subroutine set_dimension_order_yxf
+
+  !> Checks that the given array contains unique integers 1 to (array size) (in any order),
+  !> aborts if not.
+  subroutine check_unique_integers(array,message)
+
+    use mp, only: mp_abort
+    use sorting, only: quicksort
+
+    implicit none
+    !> Dimension of input 
+    integer, dimension(:), intent(inout) :: array
+    !> Error message
+    character(*), intent(in) :: message
+    integer, dimension(:), allocatable :: check
+    integer :: n
+    integer :: i
+
+    n = size(array)
+    allocate(check(n))
+    
+    do i = 1, n
+      check(i) = i
+    end do
+
+    call quicksort(n,array)
+    if (any(check.ne.array)) then
+      call mp_abort(message)
+    end if
+
+  end subroutine check_unique_integers
 
 end module gs2_layouts
