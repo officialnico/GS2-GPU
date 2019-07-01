@@ -839,13 +839,8 @@ contains
     g_lo%ulim_proc = min(g_lo%ulim_world, g_lo%llim_proc + g_lo%blocksize - 1)
     g_lo%ulim_alloc = max(g_lo%llim_proc, g_lo%ulim_proc)
 
-    ! Allow reinitialization with different number of procs
-    if(allocated(g_lo%proc_map)) deallocate(g_lo%proc_map)
     allocate(g_lo%proc_map(0:nproc-1))
-
     call allgather((/ g_lo%llim_proc /), 1, g_lo%proc_map, 1)  
-
-    !write(0,*) 'g_lo', left_lim_nd, llim_nd, iproc, ind, g_lo%llim_proc, g_lo%ulim_proc, g_lo%llim_node, g_lo%ulim_node
 
     ! report on shm details
     if (proc0) then 
@@ -2246,12 +2241,10 @@ contains
 
   !> FIXME : Add documentation
   subroutine finish_dist_fn_layouts
-    if (allocated(g_lo%les_kxky_range)) deallocate(g_lo%les_kxky_range)
+
+    call g_lo%deallocate
     initialized_dist_fn_layouts = .false.
-!AJ Note, we do not deallocate ikit_procs_assignment()%proc_list or ikit_procs_assignment()%sub_proc_list as in Fortran these 
-!AJ should automatically be deallocated when ikit_procs_assignment is deallocated.
-    if(allocated(g_lo%ikit_procs_assignment)) deallocate(g_lo%ikit_procs_assignment)
-    if(allocated(g_lo%local_ikit_points)) deallocate(g_lo%local_ikit_points)
+
   end subroutine finish_dist_fn_layouts
 
   !> FIXME : Add documentation
