@@ -179,8 +179,13 @@ module gs2_layouts
      integer :: small_block_size, block_multiple, large_block_size, num_small, num_large
      integer :: small_block_balance_factor, large_block_balance_factor
      !<DD>
+     !> Order of iX in the distributed index. e.g. ig_ord = 1 => theta is the fastest moving distributed index
      integer :: ig_ord, isgn_ord, ik_ord, il_ord, ie_ord, is_ord
+     !> `it_comp` is the product of the sizes of dimensions which are more
+     !> local than kx in the g_lo layout.
      integer :: ig_comp, isgn_comp, ik_comp, il_comp, ie_comp, is_comp
+     !> Work array that holds iX_comp in the order that they appear in the
+     !> layout.
      integer,dimension(6) :: compound_count
   end type xxf_layout_type
 
@@ -195,8 +200,13 @@ module gs2_layouts
      integer :: small_block_size, block_multiple, large_block_size, num_small, num_large
      integer :: small_block_balance_factor, large_block_balance_factor
      !<DD>
+     !> Order of iX in the distributed index. e.g. ig_ord = 1 => theta is the fastest moving distributed index
      integer :: ig_ord, isgn_ord, it_ord, il_ord, ie_ord, is_ord
+     !> `it_comp` is the product of the sizes of dimensions which are more
+     !> local than kx in the g_lo layout.
      integer :: ig_comp, isgn_comp, it_comp, il_comp, ie_comp, is_comp
+     !> Work array that holds iX_comp in the order that they appear in the
+     !> layout.
      integer,dimension(6) :: compound_count
   end type yxf_layout_type
 
@@ -1766,7 +1776,7 @@ contains
 
   end function ik_idx_g
 
-  !> FIXME : Add documentation   
+  !> Return the processor id that has the point i in the g_lo layout
   elemental function proc_id_g (lo, i)
 #ifdef SHMEM
     use mp, only : nproc
@@ -1792,12 +1802,10 @@ contains
 
   end function proc_id_g
 
-! TT>
+  !> Return the global index in the g_lo layout given the dimensional indices
 # ifdef USE_C_INDEX
-  !> FIXME : Add documentation   
   function idx_g (lo, ik, it, il, ie, is)
 # else
-  !> FIXME : Add documentation     
   elemental function idx_g (lo, ik, it, il, ie, is)
 # endif
 ! <TT
@@ -1836,12 +1844,10 @@ contains
 
   end function idx_g
 
-! TT>
+  !> Return whether a point is local to a processor given the dimensional indices
 # ifdef USE_C_INDEX
-  !> FIXME : Add documentation   
   function idx_local_g (lo, ik, it, il, ie, is)
 # else
-  !> FIXME : Add documentation     
   elemental function idx_local_g (lo, ik, it, il, ie, is)
 # endif
 ! <TT
@@ -1853,7 +1859,7 @@ contains
     idx_local_g = idx_local(lo, idx(lo, ik, it, il, ie, is))
   end function idx_local_g
 
-  !> FIXME : Add documentation   
+  !> Return whether a point is local to a processor given the global index
   elemental function ig_local_g (lo, ig)
     implicit none
     logical :: ig_local_g
@@ -4973,7 +4979,7 @@ contains
 
   end subroutine calculate_idle_processes
 
-  !> FIXME : Add documentation
+  !> Return the species index, given xxf-layout and a global index
   elemental function is_idx_xxf (lo, i)
     implicit none
     integer :: is_idx_xxf
@@ -4982,7 +4988,7 @@ contains
     is_idx_xxf = 1+mod((i-lo%llim_world)/lo%is_comp,lo%nspec)
   end function is_idx_xxf
 
-  !> FIXME : Add documentation  
+  !> Return the energy index, given xxf-layout and a global index
   elemental function ie_idx_xxf (lo, i)
     implicit none
     integer :: ie_idx_xxf
@@ -4991,7 +4997,7 @@ contains
     ie_idx_xxf=1+mod((i-lo%llim_world)/lo%ie_comp,lo%negrid)
   end function ie_idx_xxf
 
-  !> FIXME : Add documentation  
+  !> Return the lambda index, given xxf-layout and a global index
   elemental function il_idx_xxf (lo, i)
     implicit none
     integer :: il_idx_xxf
@@ -5000,7 +5006,7 @@ contains
     il_idx_xxf = 1+mod((i-lo%llim_world)/lo%il_comp,lo%nlambda)
   end function il_idx_xxf
 
-  !> FIXME : Add documentation  
+  !> Return the sign index, given xxf-layout and a global index
   elemental function isign_idx_xxf (lo, i)
     implicit none
     integer :: isign_idx_xxf
@@ -5009,7 +5015,7 @@ contains
     isign_idx_xxf = 1+mod((i-lo%llim_world)/lo%isgn_comp,lo%nsign)
   end function isign_idx_xxf
 
-  !> FIXME : Add documentation  
+  !> Return the theta index, given xxf-layout and a global index
   elemental function ig_idx_xxf (lo, i)
     implicit none
     integer :: ig_idx_xxf
@@ -5018,7 +5024,7 @@ contains
     ig_idx_xxf = -lo%ntgrid+mod((i-lo%llim_world)/lo%ig_comp,lo%ntgridtotal)
   end function ig_idx_xxf
 
-  !> FIXME : Add documentation
+  !> Return the ky index, given xxf-layout and a global index
   elemental function ik_idx_xxf (lo, i)
     implicit none
     integer :: ik_idx_xxf
@@ -5056,7 +5062,7 @@ contains
     end select
   end function idx_xxf
 
-  !> FIXME : Add documentation
+  !> Return the processor id that has the point i in the xxf_lo layout
   elemental function proc_id_xxf (lo, i)
     implicit none
     integer :: proc_id_xxf
@@ -5128,7 +5134,7 @@ contains
     end if
   end function proc_id_xxf
 
-  !> FIXME : Add documentation  
+  !> Return whether a point is local to a processor given the dimensional indices
   elemental function idx_local_xxf (lo, ig, isign, ik, il, ie, is)
     implicit none
     logical :: idx_local_xxf
@@ -5137,7 +5143,7 @@ contains
     idx_local_xxf = idx_local (lo, idx(lo, ig, isign, ik, il, ie, is))
   end function idx_local_xxf
 
-  !> FIXME : Add documentation  
+  !> Return whether a point is local to a processor given the global index
   elemental function ig_local_xxf (lo, i)
     implicit none
     logical ig_local_xxf
@@ -5519,7 +5525,7 @@ contains
 
   end subroutine calculate_unbalanced_y
 
-  !> FIXME : Add documentation
+  !> Return the species index, given yxf-layout and a global index
   elemental function is_idx_yxf (lo, i)
     implicit none
     integer :: is_idx_yxf
@@ -5528,7 +5534,7 @@ contains
     is_idx_yxf = 1+mod((i-lo%llim_world)/lo%is_comp,lo%nspec)
   end function is_idx_yxf
 
-  !> FIXME : Add documentation  
+  !> Return the energy index, given yxf-layout and a global index
   elemental function ie_idx_yxf (lo, i)
     implicit none
     integer :: ie_idx_yxf
@@ -5537,7 +5543,7 @@ contains
     ie_idx_yxf = 1+mod((i-lo%llim_world)/lo%ie_comp,lo%negrid)
   end function ie_idx_yxf
 
-  !> FIXME : Add documentation  
+  !> Return the lambda index, given yxf-layout and a global index
   elemental function il_idx_yxf (lo, i)
     implicit none
     integer :: il_idx_yxf
@@ -5546,7 +5552,7 @@ contains
     il_idx_yxf = 1+mod((i-lo%llim_world)/lo%il_comp,lo%nlambda)
   end function il_idx_yxf
 
-  !> FIXME : Add documentation
+  !> Return the sign index, given yxf-layout and a global index
   elemental function isign_idx_yxf (lo, i)
     implicit none
     integer :: isign_idx_yxf
@@ -5555,7 +5561,7 @@ contains
     isign_idx_yxf = 1+mod((i-lo%llim_world)/lo%isgn_comp,lo%nsign)
   end function isign_idx_yxf
  
-  !> FIXME : Add documentation
+  !> Return the theta index, given yxf-layout and a global index of a point on this proc
   elemental function ig_idx_yxf (lo, i)
     implicit none
     integer :: ig_idx_yxf
@@ -5564,7 +5570,7 @@ contains
     ig_idx_yxf = -lo%ntgrid+mod((i-lo%llim_world)/lo%ig_comp,lo%ntgridtotal)
   end function ig_idx_yxf
 
-  !> FIXME : Add documentation  
+  !> Return the kx index, given yxf-layout and a global index
   elemental function it_idx_yxf (lo, i)
     implicit none
     integer :: it_idx_yxf
@@ -5648,7 +5654,7 @@ contains
 
   end function proc_id_accelx
 
-  !> FIXME : Add documentation
+  !> Return the processor id that has the point i in the yxf_lo layout
   elemental function proc_id_yxf (lo, i)
     implicit none
     integer :: proc_id_yxf
@@ -5743,7 +5749,7 @@ contains
 #endif
   end function ig_local_accelx
 
-  !> FIXME : Add documentation
+  !> Return whether a point is local to a processor given the dimensional indices
   elemental function idx_local_yxf (lo, ig, isign, it, il, ie, is)
     implicit none
     logical :: idx_local_yxf
@@ -5752,7 +5758,7 @@ contains
     idx_local_yxf = idx_local (lo, idx(lo, ig, isign, it, il, ie, is))
   end function idx_local_yxf
 
-  !> FIXME : Add documentation
+  !> Return whether a point is local to a processor given the global index
   elemental function ig_local_yxf (lo, i)
     implicit none
     logical ig_local_yxf
