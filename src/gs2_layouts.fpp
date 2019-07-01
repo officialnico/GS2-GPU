@@ -6258,11 +6258,7 @@ contains
     integer :: i
 
     n = size(array)
-    allocate(check(n))
-    
-    do i = 1, n
-      check(i) = i
-    end do
+    check = [(i, i = 1, n)]
 
     call quicksort(n,array)
     if (any(check.ne.array)) then
