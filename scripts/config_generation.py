@@ -367,8 +367,13 @@ def constructFromFile(fileIn=None, verbose=False):
         comments = []
         commentMatchFound = True
         i = 1
+
         while commentMatchFound:
-            commentMatch = commentPattern.match(theList[-i])
+            if i > len(theList):
+                commentMatch = None
+            else:
+                commentMatch = commentPattern.match(theList[-i])
+            
             if commentMatch is not None:
                 txt = theList[-i]
                 if stripCom:
