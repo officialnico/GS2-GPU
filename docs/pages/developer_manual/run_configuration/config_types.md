@@ -45,6 +45,7 @@ configuration type. As such it is possible to generate all the
 "boilerplate" associated with the common tasks of reading and
 broadcasting the configuration variables. The process for doing this will be discussed shortly, but first the configuration type structure will be defined with the help of an example.
 
+    :::fortran
     !> Used to represent the input configuration of species
     type, extends(abstract_config_type) :: species_config_type
        ! namelist : species_knobs
@@ -102,6 +103,7 @@ and one real one, `unbalanced_fraction`, to the `performance` module
 . We would first add the following to `performance.f90` (in fact this
 could be in any temporary file for now).
 
+    :::fortran
     !> Used to represent the input configuration of species
     type, extends(abstract_config_type) :: performance_config_type
        ! namelist : performance_knobs
@@ -117,13 +119,15 @@ Note we have not provided a `contains` section and we have forgotten
 to document `write_perfomance`. Now we can run the code generation
 tool as follows
 
-    python scripts/config_generation.py /path/to/performance.f90
+    :::bash
+    scripts/config_generation.py /path/to/performance.f90
 
 This will then generate the file `performance_placeholders.f90` where
 you ran the script. This will contain several sections of code than
 can be copy-paste into `performance.f90` in order to provide all the
 boilerplate. The first entry in the file is a canonical form of the configuration type decaration, in this case it would read:
 
+    :::fortran
     !> FIXME: Add documentation
     type, extends(abstract_config_type) :: performance_config_type
        ! namelist : performance_knobs
@@ -162,6 +166,7 @@ generated code in a sub-module. Returning to the lines referred to as
 simply a declaration designed to be used to define the module level
 instance of this configuration type. In this case it reads
 
+    :::fortran
     type(performance_config_type) :: performance_config
 
 The remaining free lines are designed to be used with the module's
@@ -170,14 +175,17 @@ responsible for reading and coordinating the input parameters. To
 allow for users to override (or circumvent) the input file this
 routine should be able to take a configuration instance. In other words we should have
 
+    :::fortran
     subroutine read_parameters(performance_config_in)
 
 The next free line simply gives the declaration for this argument
 
+    :::fortran
     type(performance_config_type), intent(in), optional :: performance_config_in
 
 The remaining free lines should then typically be the first exectuable statements in the `read_parameters` routine. Here they read
 
+    :::fortran
     if (present(config_in)) performance_config = performance_config_in
 
     call performance_config%init(name = 'performance_knobs', requires_index = .false.)
