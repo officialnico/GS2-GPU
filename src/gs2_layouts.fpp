@@ -2197,7 +2197,9 @@ contains
   !> FIXME : Add documentation
   subroutine finish_dist_fn_layouts
 
-    call g_lo%deallocate
+    use layouts_type, only: deallocate_layout
+
+    call deallocate_layout(g_lo)
     initialized_dist_fn_layouts = .false.
 
   end subroutine finish_dist_fn_layouts

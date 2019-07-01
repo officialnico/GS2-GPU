@@ -10,6 +10,7 @@ module layouts_type
   public :: ikit, ikitprocs
   public :: g_layout_type, lz_layout_type, e_layout_type
   public :: le_layout_type, p_layout_type, gf_layout_type
+  public :: deallocate_layout
 
   !> FIXME : Add documentation  
   type :: ikit
@@ -29,6 +30,7 @@ module layouts_type
 
   !> FIXME : Add documentation  
   type :: g_layout_type
+     sequence
      integer :: iproc
      integer :: naky, ntheta0, nlambda, negrid, nspec
      integer :: llim_world, ulim_world, llim_proc, ulim_proc, ulim_alloc, blocksize
@@ -61,10 +63,6 @@ module layouts_type
 ! shm data
      integer :: ppn, nnd, bpn, ndbklsize, llim_node, ulim_node
      integer, allocatable :: proc_map(:) ! llimit on all ranks
-
-     contains
-       procedure :: deallocate => g_layout_deallocate 
-
   end type g_layout_type
 
   !> FIXME : Add documentation  
@@ -135,20 +133,24 @@ module layouts_type
      integer,dimension(4) :: compound_count
   end type p_layout_type
 
+  interface deallocate_layout
+     module procedure deallocate_g_layout
+  end interface
+
   contains
     !> Deallocate g_layout's arrays
-    subroutine g_layout_deallocate(self)
+    subroutine deallocate_g_layout(g_lo)
       implicit none
-      class(g_layout_type), intent(inout) :: self
+      type(g_layout_type), intent(inout) :: g_lo
 
-      if (allocated(self%les_kxky_range)) deallocate(self%les_kxky_range)
+      if (allocated(g_lo%les_kxky_range)) deallocate(g_lo%les_kxky_range)
       ! Note, we do not deallocate ikit_procs_assignment()%proc_list or ikit_procs_assignment()%sub_proc_list as in Fortran these 
       ! should automatically be deallocated when ikit_procs_assignment is deallocated.
-      if(allocated(self%ikit_procs_assignment)) deallocate(self%ikit_procs_assignment)
-      if(allocated(self%local_ikit_points)) deallocate(self%local_ikit_points)
+      if(allocated(g_lo%ikit_procs_assignment)) deallocate(g_lo%ikit_procs_assignment)
+      if(allocated(g_lo%local_ikit_points)) deallocate(g_lo%local_ikit_points)
 
-      if(allocated(self%proc_map)) deallocate(self%proc_map)
+      if(allocated(g_lo%proc_map)) deallocate(g_lo%proc_map)
 
-    end subroutine g_layout_deallocate
+    end subroutine deallocate_g_layout
 
 end module layouts_type
