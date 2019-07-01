@@ -829,7 +829,7 @@ contains
     g_lo%ulim_proc = min(g_lo%ulim_world, g_lo%llim_proc + g_lo%blocksize - 1)
     g_lo%ulim_alloc = max(g_lo%llim_proc, g_lo%ulim_proc)
 
-    ! Allow restart with different number of procs
+    ! Allow reinitialization with different number of procs
     if(allocated(g_lo%proc_map)) deallocate(g_lo%proc_map)
     allocate(g_lo%proc_map(0:nproc-1))
 
