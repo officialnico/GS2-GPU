@@ -67,7 +67,6 @@ pages:
   only:
     - master
     - next
-    - feature/ford_manual_outline
 
 success:
   stage: ci_status
