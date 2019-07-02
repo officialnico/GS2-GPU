@@ -241,3 +241,17 @@ generated code, i.e. beginning with
 
 to generate the code and then using copy-paste to _replace_ the
 existing generated code with that in the generated placeholders file.
+
+### Other features of the configuration type
+
+Currently the configuration types also have a `write` method which can
+be used to write the current state of the configuration instance in a
+namelist format. This can be useful for dumping the default
+configuation to a usable input file (there's an example program
+[[write_default_input_file]] that does this). This could (mostly?)
+replace the module level `write_parameters` routines.
+
+In the future it may also be sensible to move the module level
+`check_parameters` routine used (mostly by ingen) to check the
+consistency of the inputs, to be bound on the configuration type as
+well.
