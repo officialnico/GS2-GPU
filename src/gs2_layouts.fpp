@@ -1766,6 +1766,7 @@ contains
     integer :: idx_g
     type (g_layout_type), intent (in) :: lo
     integer, intent (in) :: ik, it, il, ie, is
+    integer, dimension(5) :: i
 # ifdef USE_C_INDEX
     interface
        function idx_g_c (lo,ik,it,il,ie,is)
@@ -1777,20 +1778,12 @@ contains
     end interface
     idx_g = idx_g_c (lo, ik, it, il, ie, is)
 # else
-    select case (layout)
-    case ('yxels')
-       idx_g = ik-1 + lo%naky*(it-1 + lo%ntheta0*(ie-1 + lo%negrid*(il-1 + lo%nlambda*(is-1))))
-    case ('yxles')
-       idx_g = ik-1 + lo%naky*(it-1 + lo%ntheta0*(il-1 + lo%nlambda*(ie-1 + lo%negrid*(is-1))))
-    case ('lexys')
-       idx_g = il-1 + lo%nlambda*(ie-1 + lo%negrid*(it-1 + lo%ntheta0*(ik-1 + lo%naky*(is-1))))
-    case ('lxyes')
-       idx_g = il-1 + lo%nlambda*(it-1 + lo%ntheta0*(ik-1 + lo%naky*(ie-1 + lo%negrid*(is-1))))
-    case ('lyxes')
-       idx_g = il-1 + lo%nlambda*(ik-1 + lo%naky*(it-1 + lo%ntheta0*(ie-1 + lo%negrid*(is-1))))
-    case ('xyles')
-       idx_g = it-1 + lo%ntheta0*(ik-1 + lo%naky*(il-1 + lo%nlambda*(ie-1 + lo%negrid*(is-1))))
-    end select
+    i(lo%ik_ord) = ik - 1
+    i(lo%it_ord) = it - 1
+    i(lo%il_ord) = il - 1
+    i(lo%ie_ord) = ie - 1
+    i(lo%is_ord) = is - 1
+    idx_g = i(1) + lo%dim_size(1)*(i(2) + lo%dim_size(2)*(i(3) + lo%dim_size(3)*(i(4) + lo%dim_size(4)*i(5))))
 # endif
 
   end function idx_g
