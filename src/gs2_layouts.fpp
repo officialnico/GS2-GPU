@@ -6,12 +6,10 @@ module gs2_layouts
 
 ! TT: What are gint_layout_type and geint_layout_type?
 
-! TT>
   use layouts_type, only: ikit, ikitprocs
   use layouts_type, only: g_layout_type, lz_layout_type, e_layout_type
   use layouts_type, only: le_layout_type, p_layout_type, gf_layout_type
   use constants, only: run_name_size
-! <TT
 
   implicit none
 
@@ -22,22 +20,17 @@ module gs2_layouts
   public :: is_kx_local
   
   public :: init_dist_fn_layouts, init_gs2_layouts
-  public :: finish_dist_fn_layouts !EGH
+  public :: finish_dist_fn_layouts
   public :: finish_gs2_layouts
   public :: wnml_gs2_layouts
-  public :: init_parity_layouts ! MAB
-! TT>
+  public :: init_parity_layouts
   public :: g_lo
-! <TT
   public :: gint_lo, gint_layout_type
   public :: geint_lo, geint_layout_type
   public :: p_lo
 
-! HJL>
   public :: finish_layouts
-! <HJL
 
-! EGH
   public :: set_overrides
 
   public :: finish_fields_layouts, finish_jfields_layouts
@@ -50,23 +43,16 @@ module gs2_layouts
   public :: mj, ij, dj
 
   public :: init_lambda_layouts
-! TT>
   public :: lz_lo
-! <TT
   public :: gidx2lzidx
   public :: gidx2gintidx, gintidx2geidx
 
   public :: init_energy_layouts
-! TT>
   public :: e_lo
-! <TT
 
-! MAB>
-! ported le_lo from agk
   public :: init_le_layouts
   public :: le_lo
-! <MAB
-  !AJ new layouts for fields_gf_local and gf_lo integration
+
   public :: init_gf_layouts
   public :: gf_lo
 
@@ -136,10 +122,9 @@ module gs2_layouts
   type (g_layout_type) :: g_lo
   type (gint_layout_type) :: gint_lo
   type (geint_layout_type) :: geint_lo
-! TT>
-  type (le_layout_type) :: le_lo  ! new type
+  type (le_layout_type) :: le_lo
+  !> layout for fields_gf_local and gf_lo integration
   type (gf_layout_type) :: gf_lo
-! <TT
   type (p_layout_type) :: p_lo
 
   !> FIXME : Add documentation  
@@ -178,9 +163,13 @@ module gs2_layouts
      integer :: llim_group, ulim_group, igroup, ngroup, nprocset, iset, nset, groupblocksize
      integer :: small_block_size, block_multiple, large_block_size, num_small, num_large
      integer :: small_block_balance_factor, large_block_balance_factor
-     !<DD>
+     !> Order of iX in the distributed index. e.g. ig_ord = 1 => theta is the fastest moving distributed index
      integer :: ig_ord, isgn_ord, ik_ord, il_ord, ie_ord, is_ord
+     !> `it_comp` is the product of the sizes of dimensions which are more
+     !> local than kx in the g_lo layout.
      integer :: ig_comp, isgn_comp, ik_comp, il_comp, ie_comp, is_comp
+     !> Work array that holds iX_comp in the order that they appear in the
+     !> layout.
      integer,dimension(6) :: compound_count
   end type xxf_layout_type
 
@@ -194,9 +183,13 @@ module gs2_layouts
      integer :: llim_group, ulim_group, igroup, ngroup, nprocset, iset, nset, groupblocksize
      integer :: small_block_size, block_multiple, large_block_size, num_small, num_large
      integer :: small_block_balance_factor, large_block_balance_factor
-     !<DD>
+     !> Order of iX in the distributed index. e.g. ig_ord = 1 => theta is the fastest moving distributed index
      integer :: ig_ord, isgn_ord, it_ord, il_ord, ie_ord, is_ord
+     !> `it_comp` is the product of the sizes of dimensions which are more
+     !> local than kx in the g_lo layout.
      integer :: ig_comp, isgn_comp, it_comp, il_comp, ie_comp, is_comp
+     !> Work array that holds iX_comp in the order that they appear in the
+     !> layout.
      integer,dimension(6) :: compound_count
   end type yxf_layout_type
 
@@ -243,7 +236,7 @@ module gs2_layouts
 
   interface ifield_idx
      module procedure ifield_idx_f
-     module procedure ifield_idx_jf !<DD> Added
+     module procedure ifield_idx_jf
   end interface
 
   interface if_idx
@@ -254,13 +247,11 @@ module gs2_layouts
   interface ig_idx
      module procedure ig_idx_lz
      module procedure ig_idx_e
-! TT>
      module procedure ig_idx_le
-! <TT
      module procedure ig_idx_xxf
      module procedure ig_idx_yxf
      module procedure ig_idx_f
-     module procedure ig_idx_jf !<DD> Added
+     module procedure ig_idx_jf
   end interface
 
   interface ik_idx
@@ -270,15 +261,13 @@ module gs2_layouts
      module procedure ik_idx_jf
      module procedure ik_idx_lz
      module procedure ik_idx_e
-! TT>
      module procedure ik_idx_le
      module procedure ik_idx_gf
-! <TT
      module procedure ik_idx_xxf
      module procedure ik_idx_accel
      module procedure ik_idx_accelx
      module procedure ik_idx_parity
-     module procedure ik_idx_f !<DD> Added
+     module procedure ik_idx_f
   end interface
 
   interface it_idx
@@ -288,14 +277,12 @@ module gs2_layouts
      module procedure it_idx_jf
      module procedure it_idx_lz
      module procedure it_idx_e
-! TT>
      module procedure it_idx_le
      module procedure it_idx_gf
-! <TT
      module procedure it_idx_yxf
      module procedure it_idx_accel
      module procedure it_idx_accelx
-     module procedure it_idx_f !<DD> Added
+     module procedure it_idx_f
   end interface
 
   interface il_idx
@@ -323,9 +310,7 @@ module gs2_layouts
      module procedure is_idx_geint
      module procedure is_idx_lz
      module procedure is_idx_e
-! TT>
      module procedure is_idx_le
-! <TT
      module procedure is_idx_xxf
      module procedure is_idx_yxf
      module procedure is_idx_accelx
@@ -346,10 +331,8 @@ module gs2_layouts
      module procedure proc_id_jf
      module procedure proc_id_lz
      module procedure proc_id_e
-! TT>
      module procedure proc_id_le
      module procedure proc_id_gf
-! <TT
      module procedure proc_id_xxf
      module procedure proc_id_yxf
      module procedure proc_id_accelx
@@ -364,10 +347,8 @@ module gs2_layouts
      module procedure idx_jf
      module procedure idx_lz
      module procedure idx_e
-! TT>
      module procedure idx_le
      module procedure idx_gf
-! <TT
      module procedure idx_xxf
      module procedure idx_yxf
      module procedure idx_accelx
@@ -382,10 +363,8 @@ module gs2_layouts
      module procedure idx_local_jf,     ig_local_jf
      module procedure idx_local_lz,     ig_local_lz
      module procedure idx_local_e,      ig_local_e
-! TT>
      module procedure idx_local_le,      ig_local_le
      module procedure idx_local_gf,      ig_local_gf
-! <TT
      module procedure idx_local_xxf,    ig_local_xxf
      module procedure idx_local_yxf,    ig_local_yxf
      module procedure idx_local_accelx, ig_local_accelx
@@ -412,8 +391,6 @@ contains
 
     if (initialized_layouts) return
     initialized_layouts = .true.
-
-    !write(*,*) 'INITGS2', initialized_x_transform
     
     if (proc0) call read_parameters
 
@@ -447,11 +424,11 @@ contains
     max_unbalanced_xxf = 0.0
     max_unbalanced_yxf = 0.0
     layout = 'lxyes'
-    opt_redist_nbk = .true. !<DD>True=>Use nonblocking redistributes
-    opt_redist_persist = .false. !<DD>True=>Use persistent communications in redistributes
-    opt_redist_persist_overlap = .false. !<DD>True=>Start comms before doing local copy
-    opt_redist_init= .false. !<DD>True=>Use optimised routines to init redist objects
-    fft_measure_plan = .false. !<DD>False=>use heuristics rather than measure in fft plan create
+    opt_redist_nbk = .true. ! True=>Use nonblocking redistributes
+    opt_redist_persist = .false. ! True=>Use persistent communications in redistributes
+    opt_redist_persist_overlap = .false. ! True=>Start comms before doing local copy
+    opt_redist_init= .false. ! True=>Use optimised routines to init redist objects
+    fft_measure_plan = .false. ! False=>use heuristics rather than measure in fft plan create
     fft_wisdom_file = 'default'  ! Location of fftw wisdom... if left as default, this is set to 
         ! run_name//'.fftw_wisdom', unless overriden by the environment variable
         ! GK_FFTW3_WISDOM. If set to anything other default, overrides  GK_FFTW3_WISDOM
@@ -468,8 +445,6 @@ contains
        write(6,*) "gs2_layouts: read_parameters finds illegal layout=",layout," =>stop"
        call mp_abort("gs2_layouts: read_parameters finds illegal layout=")
     endif
-
-!    if(proc0) write(*,*) 'layout:',layout
 
 ! max_unbalanced_xxf and max_unbalanced_yxf have a maximum range of 0.0 - 1.0
 ! so check here whether the user has specified the range correctly and adjust if 
@@ -749,16 +724,13 @@ contains
     use mp, only: iproc, nproc, proc0, comm_type, mp_abort
     use mp, only: split, free_comm, mp_comm, nproc_comm, rank_comm
     use mp, only: sum_allreduce_sub, sum_allreduce, sum_reduce, max_reduce
-! TT>
     use file_utils, only: error_unit
-! <TT
 #ifdef SHMEM
     use shm_mpi3, only: shm_info
     use mp, only: allgather
 #endif
     implicit none
     integer, intent (in) :: naky, ntheta0, nlambda, negrid, nspec
-!<DD>
     integer :: iglo,ik,it,il,ie,is,col,mycol
     integer :: ik_min,ik_max,it_min,it_max,il_min,il_max,ie_min,ie_max,is_min,is_max,ip
     integer :: nproc_subcomm, rank_subcomm
@@ -774,7 +746,6 @@ contains
     integer,dimension(nproc) :: tmp_proc_list
     integer :: colour
     type(comm_type) :: tmpcomm
-! TT>
 # ifdef USE_C_INDEX
     integer :: ierr
     interface
@@ -784,7 +755,6 @@ contains
        end function init_indices_glo_c
     end interface
 # endif
-! <TT
 
     if (initialized_dist_fn_layouts) return
     initialized_dist_fn_layouts = .true.
@@ -833,10 +803,8 @@ contains
     g_lo%ulim_proc = min(g_lo%ulim_world, g_lo%llim_proc + g_lo%blocksize - 1)
     g_lo%ulim_alloc = max(g_lo%llim_proc, g_lo%ulim_proc)
 
-    if(.not.allocated(g_lo%proc_map)) allocate(g_lo%proc_map(0:nproc-1))
+    allocate(g_lo%proc_map(0:nproc-1))
     call allgather((/ g_lo%llim_proc /), 1, g_lo%proc_map, 1)  
-
-    !write(0,*) 'g_lo', left_lim_nd, llim_nd, iproc, ind, g_lo%llim_proc, g_lo%ulim_proc, g_lo%llim_node, g_lo%ulim_node
 
     ! report on shm details
     if (proc0) then 
@@ -848,16 +816,12 @@ contains
     
 #endif
 
-!<DD>Calculate constants used in the index lookup routines
-!(rather than calculating them at each call as done previously)
-!This allows the removal of the select case statements in the index routines
+! Calculate constants used in the index lookup routines
+! (rather than calculating them at each call as done previously)
+! This allows the removal of the select case statements in the index routines
     select case (layout)
     case ('yxels')
-       g_lo%ie_ord=3
-       g_lo%il_ord=4
-       g_lo%it_ord=2
-       g_lo%ik_ord=1
-       g_lo%is_ord=5
+      call set_dimension_order(g_lo,ik_ord=1,it_ord=2,ie_ord=3,il_ord=4,is_ord=5)
        g_lo%compound_count(1)=1
        g_lo%compound_count(2)=naky
        g_lo%compound_count(3)=naky*ntheta0
@@ -869,11 +833,7 @@ contains
        g_lo%dim_size(4)=nlambda
        g_lo%dim_size(5)=nspec
     case ('yxles')
-       g_lo%ie_ord=4
-       g_lo%il_ord=3
-       g_lo%it_ord=2
-       g_lo%ik_ord=1
-       g_lo%is_ord=5
+      call set_dimension_order(g_lo,ik_ord=1,it_ord=2,il_ord=3,ie_ord=4,is_ord=5)
        g_lo%compound_count(1)=1
        g_lo%compound_count(2)=naky
        g_lo%compound_count(3)=naky*ntheta0
@@ -885,11 +845,7 @@ contains
        g_lo%dim_size(4)=negrid
        g_lo%dim_size(5)=nspec
     case ('lexys')
-       g_lo%ie_ord=2
-       g_lo%il_ord=1
-       g_lo%it_ord=3
-       g_lo%ik_ord=4
-       g_lo%is_ord=5
+      call set_dimension_order(g_lo,il_ord=1,ie_ord=2,it_ord=3,ik_ord=4,is_ord=5)
        g_lo%compound_count(1)=1
        g_lo%compound_count(2)=nlambda
        g_lo%compound_count(3)=nlambda*negrid
@@ -901,11 +857,7 @@ contains
        g_lo%dim_size(4)=naky
        g_lo%dim_size(5)=nspec
     case ('lxyes')
-       g_lo%ie_ord=4
-       g_lo%il_ord=1
-       g_lo%it_ord=2
-       g_lo%ik_ord=3
-       g_lo%is_ord=5
+      call set_dimension_order(g_lo,il_ord=1,it_ord=2,ik_ord=3,ie_ord=4,is_ord=5)
        g_lo%compound_count(1)=1
        g_lo%compound_count(2)=nlambda
        g_lo%compound_count(3)=nlambda*ntheta0
@@ -917,11 +869,7 @@ contains
        g_lo%dim_size(4)=negrid
        g_lo%dim_size(5)=nspec
     case ('lyxes')
-       g_lo%ie_ord=4
-       g_lo%il_ord=1
-       g_lo%it_ord=3
-       g_lo%ik_ord=2
-       g_lo%is_ord=5
+      call set_dimension_order(g_lo,il_ord=1,ik_ord=2,it_ord=3,ie_ord=4,is_ord=5)
        g_lo%compound_count(1)=1
        g_lo%compound_count(2)=nlambda
        g_lo%compound_count(3)=nlambda*naky
@@ -933,11 +881,7 @@ contains
        g_lo%dim_size(4)=negrid
        g_lo%dim_size(5)=nspec
     case ('xyles')
-       g_lo%ie_ord=4
-       g_lo%il_ord=3
-       g_lo%it_ord=1
-       g_lo%ik_ord=2
-       g_lo%is_ord=5
+      call set_dimension_order(g_lo,it_ord=1,ik_ord=2,il_ord=3,ie_ord=4,is_ord=5)
        g_lo%compound_count(1)=1
        g_lo%compound_count(2)=ntheta0
        g_lo%compound_count(3)=ntheta0*naky
@@ -955,12 +899,12 @@ contains
     g_lo%ie_comp=g_lo%compound_count(g_lo%ie_ord)
     g_lo%is_comp=g_lo%compound_count(g_lo%is_ord)
 
-    !<DD>Work out min and max of the five compound indices and the locality
-    !These are currently only used to slice the arrays used in the velocity space integrals
-    !but could well be useful in a number of places.
-    !<DD>NOTE: These are typically only useful if the dimensions are split nicely (i.e. we're using
-    !a sweet spot) otherwise our local ik section may look like, [naky-1,naky,1,2], so whilst the 
-    !min and max values (1,naky) are technically correct, we cannot assume we cover the range 1-naky
+    ! Work out min and max of the five compound indices and the locality
+    ! These are currently only used to slice the arrays used in the velocity space integrals
+    ! but could well be useful in a number of places.
+    ! NOTE: These are typically only useful if the dimensions are split nicely (i.e. we're using
+    ! a sweet spot) otherwise our local ik section may look like, [naky-1,naky,1,2], so whilst the 
+    ! min and max values (1,naky) are technically correct, we cannot assume we cover the range 1-naky
     ik_max=0
     ik_min=naky+1
     it_max=0
@@ -978,8 +922,8 @@ contains
     ie_local=.false.
     is_local=.false.
     g_lo%ikitrange = 0
-    !AJ g_lo%ikit_procs_assignment is used to record which ik,it points I have from the range of 
-    !AJ ik,it points.
+    ! g_lo%ikit_procs_assignment is used to record which ik,it points I have from the range of 
+    ! ik,it points.
     allocate(g_lo%ikit_procs_assignment(ntheta0,naky))
     g_lo%ikit_procs_assignment(:,:)%mine = .false.
     g_lo%ikit_procs_assignment(:,:)%num_procs = 0
@@ -1010,8 +954,8 @@ contains
        end if
     enddo
 
-    !AJ If the number of naky*ntheta0 points is less than the number of MPI
-    !AJ processes then disable gf_local_fields
+    ! If the number of naky*ntheta0 points is less than the number of MPI
+    ! processes then disable gf_local_fields
     if(nproc .lt. naky*ntheta0 .and. gf_local_fields) then
        if(proc0) then
           write(*,*) 'Disabling gf_local_fields in layouts because not enough MPI processes are being used'
@@ -1022,7 +966,7 @@ contains
        gf_local_fields = .false.
     end if                                                                                                                                                                                                 
 
-    !AJ Record the ik,it points this process have in a contigious array.
+    ! Record the ik,it points this process have in a contigious array.
     allocate(g_lo%local_ikit_points(g_lo%ikitrange))
     tmp = 1
     do ik=1,naky
@@ -1054,19 +998,19 @@ contains
              tmp_proc_list = 0
              if(g_lo%ikit_procs_assignment(it,ik)%mine) then
                 tmp = 1
-                !AJ +1 is required here to ensure that proc0 of the sub comm is also counted
+                ! +1 is required here to ensure that proc0 of the sub comm is also counted
                 tmp_proc_list(iproc+1) = g_lo%ikit_procs_assignment(it,ik)%comm%iproc+1
              end if
              call sum_allreduce(tmp)
              call sum_allreduce(tmp_proc_list)
-             !AJ proc_list is the array process ranks (of the processes that own this ik,it point) in the communicator used for g_lo
+             ! proc_list is the array process ranks (of the processes that own this ik,it point) in the communicator used for g_lo
              allocate(g_lo%ikit_procs_assignment(it,ik)%proc_list(tmp))
-             !AJ sub_proc_list is the array of process ranks (of the processes that own this ik,it point) in the sub-communicator used for the fields calculations
+             ! sub_proc_list is the array of process ranks (of the processes that own this ik,it point) in the sub-communicator used for the fields calculations
              allocate(g_lo%ikit_procs_assignment(it,ik)%sub_proc_list(tmp))
              g_lo%ikit_procs_assignment(it,ik)%num_procs = tmp
              g_lo%max_ikit_nprocs = max(tmp, g_lo%max_ikit_nprocs)
              tmp = 1
-             !AJ Iterate through all the processes and record if they are part of this ik,it point in g_lo
+             ! Iterate through all the processes and record if they are part of this ik,it point in g_lo
              do i=1,nproc
                 if(tmp_proc_list(i) .gt. 0) then
                    g_lo%ikit_procs_assignment(it,ik)%proc_list(tmp) = i-1
@@ -1103,7 +1047,7 @@ contains
     !places, so we may want to think about attaching it to the g_lo object
     deallocate(ik_local,it_local,il_local,ie_local,is_local)
 
-    !<DD>Now store min/max in appropriate dimension vars
+    !Now store min/max in appropriate dimension vars
     !This data isn't currently used but is useful to allow us to
     !replace loops over iglo with nested loops over the 5 generic dimensions
     !which are certain to be in optimised memory order.
@@ -1351,7 +1295,7 @@ contains
     !(if not then we'll get a program hang in the following splits).
     !The logic above **should** ensure everyone has the right answer anyway.
 
-    !<DD>Now work out which xy block we live in for velocity space comms
+    !Now work out which xy block we live in for velocity space comms
     !Set sub communicators to mp_comm if we want to keep collective comms global.
     !NOTE: We might want to consider using a communicator type so that we can attach
     !some useful information to the communicators such as number of procs in comm,
@@ -1376,7 +1320,7 @@ contains
           enddo
        enddo
 
-       !<DD>Now split the global communicator
+       !Now split the global communicator
        call split(mycol,g_lo%xyblock_comm)
        !This is for unique les blocks
        col=1
@@ -1402,7 +1346,7 @@ contains
     endif
 
     if(intmom_sub)then
-       !<DD>NOTE: A simple test that all blocks are equal would be:
+       !NOTE: A simple test that all blocks are equal would be:
        !tmp=it_max*ik_max
        !call max_allreduce(tmp,g_lo%xyblock_comm)
        !if(tmp.ne.(it_max*ik_max)) then
@@ -1411,9 +1355,8 @@ contains
        !   call mp_abort("Sub-comm creation error -- Consider changing the number of procs/number of xy gridpoints or setting intmom_sub=.false.")
        !endif
        !Similar tests can be done for all subcomms created here
-       !</DD>
 
-       !<DD>Now work out which xys block we live in for velocity space comms
+       !Now work out which xys block we live in for velocity space comms
        !This is for unique xys blocks
        col=1
        mycol=0
@@ -1430,7 +1373,7 @@ contains
           enddo
        enddo
 
-       !<DD>Now split the global communicator
+       !Now split the global communicator
        call split(mycol,g_lo%xysblock_comm)
     else
        g_lo%xysblock_comm=mp_comm
@@ -1493,7 +1436,6 @@ contains
        !Free memory
        deallocate(les_kxky_range)
     endif
-!</DD>
 
 !Note: gint_lo isn't used anywhere!
     gint_lo%iproc = iproc
@@ -1522,13 +1464,11 @@ contains
          = min(geint_lo%ulim_world, geint_lo%llim_proc + geint_lo%blocksize -1)
     geint_lo%ulim_alloc = max(geint_lo%llim_proc, geint_lo%ulim_proc)
 
-! TT>
 # ifdef USE_C_INDEX
     ierr = init_indices_glo_c (layout)
     if (ierr /= 0) &
          & write (error_unit(),*) 'ERROR: layout not found: ', trim(layout)
 # endif
-! <TT
 
   end subroutine init_dist_fn_layouts
 
@@ -1659,20 +1599,16 @@ contains
 
   end subroutine is_kx_local
 
-! TT>
+  !> Return the species index, given g-layout and a global index
 # ifdef USE_C_INDEX
-  !> FIXME : Add documentation 
   function is_idx_g (lo, i)
 # else
-  !> FIXME : Add documentation     
   elemental function is_idx_g (lo, i)
 # endif
-! <TT
     implicit none
     integer :: is_idx_g
     type (g_layout_type), intent (in) :: lo
     integer, intent (in) :: i
-! TT>
 # ifdef USE_C_INDEX
     interface
        function is_idx_g_c (lo,num)
@@ -1686,24 +1622,19 @@ contains
 # else
     is_idx_g=1+mod((i-lo%llim_world)/lo%is_comp,lo%nspec)
 # endif
-! <TT
 
   end function is_idx_g
 
-! TT>
+  !> Return the lambda index, given g-layout and a global index
 # ifdef USE_C_INDEX
-  !> FIXME : Add documentation   
   function il_idx_g (lo, i)
 # else
-  !> FIXME : Add documentation     
   elemental function il_idx_g (lo, i)
 # endif
-! <TT
     implicit none
     integer :: il_idx_g
     type (g_layout_type), intent (in) :: lo
     integer, intent (in) :: i
-! TT>
 # ifdef USE_C_INDEX
     interface
        function il_idx_g_c (lo,num)
@@ -1717,24 +1648,19 @@ contains
 # else
     il_idx_g=1+mod((i-lo%llim_world)/lo%il_comp,lo%nlambda)
 # endif
-! <TT
 
   end function il_idx_g
 
-! TT>
+  !> Return the energy index, given g-layout and a global index
 # ifdef USE_C_INDEX
-  !> FIXME : Add documentation   
   function ie_idx_g (lo, i)
 # else
-  !> FIXME : Add documentation     
   elemental function ie_idx_g (lo, i)
 # endif
-! <TT
     implicit none
     integer :: ie_idx_g
     type (g_layout_type), intent (in) :: lo
     integer, intent (in) :: i
-! TT>
 # ifdef USE_C_INDEX
     interface
        function ie_idx_g_c (lo,num)
@@ -1748,25 +1674,20 @@ contains
 # else
     ie_idx_g=1+mod((i-lo%llim_world)/lo%ie_comp,lo%negrid)
 # endif
-! <TT
 
   end function ie_idx_g
 
-! TT>
+  !> Return the kx index, given g-layout and a global index
 # ifdef USE_C_INDEX
-  !> FIXME : Add documentation 
   function it_idx_g (lo, i)
 # else
-  !> FIXME : Add documentation     
   elemental function it_idx_g (lo, i)
 # endif
-! <TT
     implicit none
     integer :: it_idx_g
     type (g_layout_type), intent (in) :: lo
     integer, intent (in) :: i
     
-! TT>
 # ifdef USE_C_INDEX
     interface
        function it_idx_g_c (lo,num)
@@ -1780,24 +1701,19 @@ contains
 # else
     it_idx_g=1+mod((i-lo%llim_world)/lo%it_comp,lo%ntheta0)
 # endif
-! <TT
 
   end function it_idx_g
 
-! TT>
+  !> Return the ky index, given g-layout and a global index
 # ifdef USE_C_INDEX
-  !> FIXME : Add documentation   
   function ik_idx_g (lo, i)
 # else
-  !> FIXME : Add documentation     
   elemental function ik_idx_g (lo, i)
 # endif
-! <TT
     implicit none
     integer :: ik_idx_g
     type (g_layout_type), intent (in) :: lo
     integer, intent (in) :: i
-! TT>
 # ifdef USE_C_INDEX
     interface
        function ik_idx_g_c (lo,num)
@@ -1811,11 +1727,10 @@ contains
 # else
     ik_idx_g=1+mod((i-lo%llim_world)/lo%ik_comp,lo%naky)
 # endif
-! <TT
 
   end function ik_idx_g
 
-  !> FIXME : Add documentation   
+  !> Return the processor id that has the point i in the g_lo layout
   elemental function proc_id_g (lo, i)
 #ifdef SHMEM
     use mp, only : nproc
@@ -1841,20 +1756,16 @@ contains
 
   end function proc_id_g
 
-! TT>
+  !> Return the global index in the g_lo layout given the dimensional indices
 # ifdef USE_C_INDEX
-  !> FIXME : Add documentation   
   function idx_g (lo, ik, it, il, ie, is)
 # else
-  !> FIXME : Add documentation     
   elemental function idx_g (lo, ik, it, il, ie, is)
 # endif
-! <TT
     implicit none
     integer :: idx_g
     type (g_layout_type), intent (in) :: lo
     integer, intent (in) :: ik, it, il, ie, is
-! TT>
 # ifdef USE_C_INDEX
     interface
        function idx_g_c (lo,ik,it,il,ie,is)
@@ -1881,19 +1792,15 @@ contains
        idx_g = it-1 + lo%ntheta0*(ik-1 + lo%naky*(il-1 + lo%nlambda*(ie-1 + lo%negrid*(is-1))))
     end select
 # endif
-! <TT
 
   end function idx_g
 
-! TT>
+  !> Return whether a point is local to a processor given the dimensional indices
 # ifdef USE_C_INDEX
-  !> FIXME : Add documentation   
   function idx_local_g (lo, ik, it, il, ie, is)
 # else
-  !> FIXME : Add documentation     
   elemental function idx_local_g (lo, ik, it, il, ie, is)
 # endif
-! <TT
     implicit none
     logical :: idx_local_g
     type (g_layout_type), intent (in) :: lo
@@ -1902,7 +1809,7 @@ contains
     idx_local_g = idx_local(lo, idx(lo, ik, it, il, ie, is))
   end function idx_local_g
 
-  !> FIXME : Add documentation   
+  !> Return whether a point is local to a processor given the global index
   elemental function ig_local_g (lo, ig)
     implicit none
     logical :: ig_local_g
@@ -2289,12 +2196,12 @@ contains
 
   !> FIXME : Add documentation
   subroutine finish_dist_fn_layouts
-    if (allocated(g_lo%les_kxky_range)) deallocate(g_lo%les_kxky_range)
+
+    use layouts_type, only: deallocate_layout
+
+    call deallocate_layout(g_lo)
     initialized_dist_fn_layouts = .false.
-!AJ Note, we do not deallocate ikit_procs_assignment()%proc_list or ikit_procs_assignment()%sub_proc_list as in Fortran these 
-!AJ should automatically be deallocated when ikit_procs_assignment is deallocated.
-    if(allocated(g_lo%ikit_procs_assignment)) deallocate(g_lo%ikit_procs_assignment)
-    if(allocated(g_lo%local_ikit_points)) deallocate(g_lo%local_ikit_points)
+
   end subroutine finish_dist_fn_layouts
 
   !> FIXME : Add documentation
@@ -2563,7 +2470,6 @@ contains
     ig_local_jf = lo%iproc == proc_id(lo, ig)
   end function ig_local_jf
 
-! TT>
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 ! Lambda-Energy layouts
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -2605,7 +2511,7 @@ contains
          = min(le_lo%ulim_world, le_lo%llim_proc + le_lo%blocksize - 1)
     le_lo%ulim_alloc = max(le_lo%llim_proc, le_lo%ulim_proc)
 
-!<DD>See g_lo init
+! See g_lo init
     select case (layout)
     case ('yxels')
        le_lo%ig_ord=1
@@ -2666,7 +2572,7 @@ contains
     le_lo%ik_comp=le_lo%compound_count(le_lo%ik_ord)
     le_lo%it_comp=le_lo%compound_count(le_lo%it_ord)
     le_lo%is_comp=le_lo%compound_count(le_lo%is_ord)
-    !<DD>Work out min and max of the five compound indices
+    !Work out min and max of the five compound indices
     !These are currently only used to slice the arrays used in the velocity space integrals
     !but could well be useful in a number of places.
     ik_max=0
@@ -2697,7 +2603,6 @@ contains
     le_lo%y_local=(ik_min.eq.1).and.(ik_max.eq.naky)
     le_lo%t_local=(ig_min.eq.-ntgrid).and.(ig_max.eq.ntgrid)
     le_lo%s_local=(is_min.eq.1).and.(is_max.eq.nspec)
-!</DD>
 
 # ifdef USE_C_INDEX
     ierr = init_indices_lelo_c (layout)
@@ -2856,7 +2761,6 @@ contains
 
     ig_local_le = lo%iproc == proc_id(lo, ig)
   end function ig_local_le
-! <TT
 
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -2900,33 +2804,33 @@ contains
     gf_lo%llim_world = 1
     gf_lo%blocksize = 1
     gf_lo%ulim_world = gf_lo%divisionblock * gf_lo%blocksize
-!AJ This logic has been setup to deal with all the possible cases when constructing the decomposition of
-!AJ gf_lo over processes, namely; having more gf_lo points than processes (i.e. each process has multiple gf_lo points),
-!AJ having the same number of gf_lo points and processes, and having less gf_lo points than processes (i.e. some processes 
-!AJ have 1 gf_lo point and some have none).  We have two ways of dealing with the final scenario (less points than processes), 
-!AJ the first (simple_gf_decomposition) just assigns the points to the first n processes (where n is the number of points) and leaves the 
-!AJ rest of the points empty.  The second way is to try and evenly distribute the points throughout the process space.
-!AJ As a consequence of dealing with both main scenarios (i.e. less or more points than processes) we use some of the
-!AJ gf_lo variables in different ways depending on the scenario presented.  More specifically, the two variables that 
-!AJ are used different in the different scenarios are largeregionlimit and largeblocklimit.  In the scenario where 
-!AJ we have more processes than points then largeregionlimit == process rank that is the last that has a large gap between
-!AJ it and the next point, and largeblocklimit == gf_lo point where that large gaps size stop; whereas in the scenario 
-!AJ where we have more blocks than processes, largeregionlimit == gf_lo point where large blocks stop and 
-!AJ largeblocklimit == process number which is the last to have large blocks.  It is not very clean to have to 
-!AJ confusion, so TODO: Consider refactoring this to make the meaning of the variables described above consistent, or
-!AJ have different variables for the different scenarios. 
-!AJ TODO: Currently the decompositions do not respect naky boundaries.  Because if the linked nature of supercells 
-!AJ in field calculations (i.e. a supercell is a single naky point for one or more ntheta points) if a process has more than 
-!AJ one gf_lo point it should make sure those points are still all within a single supercell (i.e. different ntheta for 
-!AJ the same naky).  This would make the supercell calculations more efficient in this case (processes would not be 
-!AJ involved in multiple sets of collective communications in the fields calcs).
+! This logic has been setup to deal with all the possible cases when constructing the decomposition of
+! gf_lo over processes, namely; having more gf_lo points than processes (i.e. each process has multiple gf_lo points),
+! having the same number of gf_lo points and processes, and having less gf_lo points than processes (i.e. some processes 
+! have 1 gf_lo point and some have none).  We have two ways of dealing with the final scenario (less points than processes), 
+! the first (simple_gf_decomposition) just assigns the points to the first n processes (where n is the number of points) and leaves the 
+! rest of the points empty.  The second way is to try and evenly distribute the points throughout the process space.
+! As a consequence of dealing with both main scenarios (i.e. less or more points than processes) we use some of the
+! gf_lo variables in different ways depending on the scenario presented.  More specifically, the two variables that 
+! are used different in the different scenarios are largeregionlimit and largeblocklimit.  In the scenario where 
+! we have more processes than points then largeregionlimit == process rank that is the last that has a large gap between
+! it and the next point, and largeblocklimit == gf_lo point where that large gaps size stop; whereas in the scenario 
+! where we have more blocks than processes, largeregionlimit == gf_lo point where large blocks stop and 
+! largeblocklimit == process number which is the last to have large blocks.  It is not very clean to have to 
+! confusion, so TODO: Consider refactoring this to make the meaning of the variables described above consistent, or
+! have different variables for the different scenarios. 
+! TODO: Currently the decompositions do not respect naky boundaries.  Because if the linked nature of supercells 
+! in field calculations (i.e. a supercell is a single naky point for one or more ntheta points) if a process has more than 
+! one gf_lo point it should make sure those points are still all within a single supercell (i.e. different ntheta for 
+! the same naky).  This would make the supercell calculations more efficient in this case (processes would not be 
+! involved in multiple sets of collective communications in the fields calcs).
     if((gf_lo%divisionblock / gf_lo%nproc) .eq. 0) then
-!AJ x == ntheta0 y == naky
-!AJ Here we have less xy points than processes so we will have one process assigned the xy point (the cell) and 
-!AJ that will be the cell head.  The other processes involved with that y point won't be assigned anything.  We aim 
-!AJ to choose cell head from the group of processes that are already have that x y data
-!AJ We are currently using a very simple (and stupid) way of mapping x y points to processes, just taking the 
-!AJ first N processes (where N is naky*ntheta0).
+! x == ntheta0 y == naky
+! Here we have less xy points than processes so we will have one process assigned the xy point (the cell) and 
+! that will be the cell head.  The other processes involved with that y point won't be assigned anything.  We aim 
+! to choose cell head from the group of processes that are already have that x y data
+! We are currently using a very simple (and stupid) way of mapping x y points to processes, just taking the 
+! first N processes (where N is naky*ntheta0).
        if(simple_gf_decomposition) then
           gf_lo%largeblocklimit = 0
           gf_lo%largeblocksize = 0
@@ -2943,12 +2847,12 @@ contains
              gf_lo%ulim_proc = 0
              gf_lo%xypoints = 0
           end if
-!AJ This variant if the situation where we have less blocks than processes attempts to spread the blocks out through 
-!AJ the range of processes we have.  As such there will be gaps in between each assigned block where processes have 
-!AJ no blocks assigned to them.  It is designed to spread out the blocks as evenly as possible, and can cope with the 
-!AJ situation where the number of processes does not exactly divide by the number of blocks.  In that scenario there 
-!AJ are bigger gaps between processes below a certain limit, and then smaller gaps above that limit (the largeblocklimit).
-!AJ In this context largeregionlimit is the process id of the top process in the region that has larger blocks.
+! This variant if the situation where we have less blocks than processes attempts to spread the blocks out through 
+! the range of processes we have.  As such there will be gaps in between each assigned block where processes have 
+! no blocks assigned to them.  It is designed to spread out the blocks as evenly as possible, and can cope with the 
+! situation where the number of processes does not exactly divide by the number of blocks.  In that scenario there 
+! are bigger gaps between processes below a certain limit, and then smaller gaps above that limit (the largeblocklimit).
+! In this context largeregionlimit is the process id of the top process in the region that has larger blocks.
        else
           gf_lo%smallblocksize = 1
           gf_lo%largeblocksize = 1
@@ -2979,8 +2883,8 @@ contains
          end if
       end if
     else if((gf_lo%divisionblock / gf_lo%nproc) .ge. 1 .and. mod(gf_lo%divisionblock, gf_lo%nproc) .eq. 0) then
-!AJ Here we have exactly the same number of xy points as processes so each get one, or the number of points divides 
-!AJ exactly between processes so each gets exactly the same amount. 
+! Here we have exactly the same number of xy points as processes so each get one, or the number of points divides 
+! exactly between processes so each gets exactly the same amount. 
        gf_lo%largeblocklimit = 0
        gf_lo%smallblocksize = ((gf_lo%divisionblock / gf_lo%nproc)) * gf_lo%blocksize
        gf_lo%largeblocksize = 0
@@ -2991,11 +2895,11 @@ contains
        gf_lo%smallgapsize = 0
        gf_lo%largegapsize = 0
     else
-!AJ Here we have more xy points than processes so some or all will have multiple xy points.  In this scenario
-!AJ the large region limit is the top of the igf domain where the large blocks finish and we go into small blocks,
-!AJ and the large block limit is the highest process number where the large block region finishes
-!AJ TODO: Make this respect supercell boundaries so each process only has a single y point but multiple x points 
-!AJ rather than multiple y points.  This would benefit fields calculations (see discussions in previous comment).
+! Here we have more xy points than processes so some or all will have multiple xy points.  In this scenario
+! the large region limit is the top of the igf domain where the large blocks finish and we go into small blocks,
+! and the large block limit is the highest process number where the large block region finishes
+! AJ TODO: Make this respect supercell boundaries so each process only has a single y point but multiple x points 
+! rather than multiple y points.  This would benefit fields calculations (see discussions in previous comment).
        gf_lo%largeblocklimit = mod(gf_lo%divisionblock,gf_lo%nproc)
        gf_lo%smallblocksize = (gf_lo%divisionblock/gf_lo%nproc) * gf_lo%blocksize
        gf_lo%largeblocksize = ((gf_lo%divisionblock/gf_lo%nproc)+1) * gf_lo%blocksize
@@ -3107,26 +3011,26 @@ contains
     type (gf_layout_type), intent (in) :: lo
     integer, intent (in) :: i
 
-!AJ For this scenario we have more blocks than processes so each process has multiple blocks, but the number of blocks
-!AJ does not exactly divide by the number of processes, so some have larger blocks than others.
+! For this scenario we have more blocks than processes so each process has multiple blocks, but the number of blocks
+! does not exactly divide by the number of processes, so some have larger blocks than others.
     if(lo%largeblocksize .gt. 1) then
        if(i .gt. lo%largeregionlimit) then
            proc_id_gf = (((i - (lo%largeblocksize * lo%largeblocklimit) - lo%llim_world)/lo%smallblocksize) + lo%largeblocklimit)
        else
            proc_id_gf = (i - lo%llim_world) / lo%largeblocksize
        end if
-!AJ For this scenario we have less blocks than processes so we try to spread the blocks between processes.
+! For this scenario we have less blocks than processes so we try to spread the blocks between processes.
     else if(lo%largeblocksize .eq. 1) then
        if(i .gt. lo%largeblocklimit) then
           proc_id_gf = lo%largeregionlimit + ((i - lo%largeblocklimit - lo%llim_world)*lo%smallgapsize)
        else
           proc_id_gf = (i - lo%llim_world) * lo%largegapsize
        end if
-!AJ For this scenario we either have exactly the same number of blocks as processes, or the number of blocks divides exactly
-!AJ by the number of processes so each process has the same size blocks of the domain.
-!AJ It is also used by the "simple_gf_decomposition" functionality for the scenario where we have less blocks than processes and we 
-!AJ are not trying to distributed those blocks through the whole process space, just assigning them to the first n processes 
-!AJ (where n is the number of xypoints we have in the gf_lo domain).
+! For this scenario we either have exactly the same number of blocks as processes, or the number of blocks divides exactly
+! by the number of processes so each process has the same size blocks of the domain.
+! It is also used by the "simple_gf_decomposition" functionality for the scenario where we have less blocks than processes and we 
+! are not trying to distributed those blocks through the whole process space, just assigning them to the first n processes 
+! (where n is the number of xypoints we have in the gf_lo domain).
     else
        proc_id_gf = (i - lo%llim_world) / lo%smallblocksize
     end if
@@ -3167,12 +3071,9 @@ contains
   subroutine init_energy_layouts &
        (ntgrid, naky, ntheta0, nlambda, nspec)
     use mp, only: iproc, nproc
-! TT>
     use file_utils, only: error_unit
-! <TT
     implicit none
     integer, intent (in) :: ntgrid, naky, ntheta0, nlambda, nspec
-! TT>
 # ifdef USE_C_INDEX
     integer :: ierr
     interface
@@ -3182,7 +3083,6 @@ contains
        end function init_indices_elo_c
     end interface
 # endif
-! <TT
 
     if (initialized_energy_layouts) return
     initialized_energy_layouts = .true.
@@ -3203,7 +3103,7 @@ contains
          = min(e_lo%ulim_world, e_lo%llim_proc + e_lo%blocksize - 1)
     e_lo%ulim_alloc = max(e_lo%llim_proc, e_lo%ulim_proc)
 
-!<DD>See g_lo init
+!See g_lo init
     select case (layout)
     case ('yxels')
        e_lo%ig_ord=1
@@ -3290,19 +3190,15 @@ contains
     e_lo%it_comp=e_lo%compound_count(e_lo%it_ord)
     e_lo%il_comp=e_lo%compound_count(e_lo%il_ord)
     e_lo%is_comp=e_lo%compound_count(e_lo%is_ord)
-!</DD>
 
-! TT>
 # ifdef USE_C_INDEX
     ierr = init_indices_elo_c (layout)
     if (ierr /= 0) &
          & write (error_unit(),*) 'ERROR: layout not found: ', trim(layout)
 # endif
-! <TT
 
   end subroutine init_energy_layouts
 
-! TT>
 # ifdef USE_C_INDEX
   !> FIXME : Add documentation  
   function is_idx_e (lo, i)
@@ -3310,12 +3206,10 @@ contains
   !> FIXME : Add documentation    
   elemental function is_idx_e (lo, i)
 # endif
-! <TT
     implicit none
     integer :: is_idx_e
     type (e_layout_type), intent (in) :: lo
     integer, intent (in) :: i
-! TT>
 # ifdef USE_C_INDEX
     interface
        function is_idx_e_c (lo,num)
@@ -3329,11 +3223,9 @@ contains
 # else
     is_idx_e = 1 + mod((i - lo%llim_world)/lo%is_comp, lo%nspec)
 # endif
-! <TT
 
   end function is_idx_e
 
-! TT>
 # ifdef USE_C_INDEX
   !> FIXME : Add documentation  
   function il_idx_e (lo, i)
@@ -3341,12 +3233,10 @@ contains
   !> FIXME : Add documentation    
   elemental function il_idx_e (lo, i)
 # endif
-! <TT
     implicit none
     integer :: il_idx_e
     type (e_layout_type), intent (in) :: lo
     integer, intent (in) :: i
-! TT>
 # ifdef USE_C_INDEX
     interface
        function il_idx_e_c (lo,num)
@@ -3360,7 +3250,6 @@ contains
 # else
     il_idx_e = 1 + mod((i - lo%llim_world)/lo%il_comp, lo%nlambda)
 # endif
-! <TT
 
   end function il_idx_e
 
@@ -3374,7 +3263,6 @@ contains
     isign_idx_e = 1 + mod((i - lo%llim_world)/(2*lo%ntgrid + 1),lo%nsign)
   end function isign_idx_e
 
-! TT>
 # ifdef USE_C_INDEX
   !> FIXME : Add documentation  
   function it_idx_e (lo, i)
@@ -3382,12 +3270,10 @@ contains
   !> FIXME : Add documentation    
   elemental function it_idx_e (lo, i)
 # endif
-! <TT
     implicit none
     integer :: it_idx_e
     type (e_layout_type), intent (in) :: lo
     integer, intent (in) :: i
-! TT>
 # ifdef USE_C_INDEX
     interface
        function it_idx_e_c (lo,num)
@@ -3401,11 +3287,9 @@ contains
 # else
     it_idx_e = 1 + mod((i - lo%llim_world)/lo%it_comp, lo%ntheta0)
 # endif
-! <TT
 
   end function it_idx_e
 
-! TT>
 # ifdef USE_C_INDEX
   !> FIXME : Add documentation  
   function ik_idx_e (lo, i)
@@ -3413,12 +3297,10 @@ contains
   !> FIXME : Add documentation    
   elemental function ik_idx_e (lo, i)
 # endif
-! <TT
     implicit none
     integer :: ik_idx_e
     type (e_layout_type), intent (in) :: lo
     integer, intent (in) :: i
-! TT>
 # ifdef USE_C_INDEX
     interface
        function ik_idx_e_c (lo,num)
@@ -3432,7 +3314,6 @@ contains
 # else
     ik_idx_e = 1 + mod((i - lo%llim_world)/lo%ik_comp, lo%naky)
 # endif
-! <TT
 
   end function ik_idx_e
 
@@ -3445,7 +3326,6 @@ contains
     ig_idx_e = -lo%ntgrid + mod((i - lo%llim_world)/lo%ig_comp, lo%ntgridtotal)
   end function ig_idx_e
 
-! TT>
 # ifdef USE_C_INDEX
   !> FIXME : Add documentation  
   function idx_e (lo, ig, isign, ik, it, il, is)
@@ -3453,12 +3333,10 @@ contains
   !> FIXME : Add documentation    
   elemental function idx_e (lo, ig, isign, ik, it, il, is)
 # endif
-! <TT
     implicit none
     integer :: idx_e
     type (e_layout_type), intent (in) :: lo
     integer, intent (in) :: ig, isign, ik, it, il, is
-! TT>
 # ifdef USE_C_INDEX
     interface
        function idx_e_c (lo,ig,isign,ik,it,il,is)
@@ -3491,7 +3369,6 @@ contains
             + lo%ntheta0*(ik-1 + lo%naky*(il-1 + lo%nlambda*(is-1)))))
     end select
 # endif
-! <TT
 
   end function idx_e
 
@@ -3506,7 +3383,6 @@ contains
 
   end function proc_id_e
 
-! TT>
 # ifdef USE_C_INDEX
   !> FIXME : Add documentation  
   function idx_local_e (lo, ig, isign, ik, it, il, is)
@@ -3514,7 +3390,6 @@ contains
   !> FIXME : Add documentation
   elemental function idx_local_e (lo, ig, isign, ik, it, il, is)
 # endif
-! <TT
     implicit none
     logical :: idx_local_e
     type (e_layout_type), intent (in) :: lo
@@ -3541,13 +3416,10 @@ contains
   subroutine init_lambda_layouts &
        (ntgrid, naky, ntheta0, nlambda, negrid, nspec, ng2)
     use mp, only: iproc, nproc
-! TT>
     use file_utils, only: error_unit
-! <TT
     implicit none
     integer, intent (in) :: ntgrid, naky, ntheta0, nlambda, negrid, nspec, ng2
     integer :: ngroup, nprocset
-! TT>
 # ifdef USE_C_INDEX
     integer :: ierr
     interface
@@ -3557,9 +3429,7 @@ contains
        end function init_indices_lzlo_c
     end interface
 # endif
-! <TT
 
-!    if(proc0) write(6,*) 'Initializing lambda layouts', initialized_lambda_layouts
     if (initialized_lambda_layouts) return
     initialized_lambda_layouts = .true.
 
@@ -3611,7 +3481,7 @@ contains
        lz_lo%ulim_alloc = max(lz_lo%llim_proc, lz_lo%ulim_proc)
     end if
 
-!<DD>See g_lo init
+!See g_lo init
     select case (layout)
     case ('yxels')
        lz_lo%ig_ord=1
@@ -3685,19 +3555,15 @@ contains
     lz_lo%it_comp=lz_lo%compound_count(lz_lo%it_ord)
     lz_lo%ie_comp=lz_lo%compound_count(lz_lo%ie_ord)
     lz_lo%is_comp=lz_lo%compound_count(lz_lo%is_ord)
-!</DD>
 
-! TT>
 # ifdef USE_C_INDEX
     ierr = init_indices_lzlo_c (layout)
     if (ierr /= 0) &
          & write (error_unit(),*) 'ERROR: layout not found: ', trim(layout)
 # endif
-! <TT
 
   end subroutine init_lambda_layouts
 
-! TT>
 # ifdef USE_C_INDEX
   !> FIXME : Add documentation  
   function is_idx_lz (lo, i)
@@ -3705,12 +3571,10 @@ contains
   !> FIXME : Add documentation    
   elemental function is_idx_lz (lo, i)
 # endif
-! <TT
     implicit none
     integer :: is_idx_lz
     type (lz_layout_type), intent (in) :: lo
     integer, intent (in) :: i
-! TT>
 # ifdef USE_C_INDEX
     interface
        function is_idx_lz_c (lo,num)
@@ -3724,11 +3588,9 @@ contains
 # else
     is_idx_lz = 1 + mod((i - lo%llim_world)/lo%is_comp, lo%nspec)
 # endif
-! <TT
 
   end function is_idx_lz
 
-! TT>
 # ifdef USE_C_INDEX
   !> FIXME : Add documentation  
   function ie_idx_lz (lo, i)
@@ -3736,13 +3598,11 @@ contains
   !> FIXME : Add documentation    
   elemental function ie_idx_lz (lo, i)
 # endif
-! <TT
     implicit none
     integer :: ie_idx_lz
     type (lz_layout_type), intent (in) :: lo
     integer, intent (in) :: i
 
-! TT>
 # ifdef USE_C_INDEX
     interface
        function ie_idx_lz_c (lo,num)
@@ -3756,11 +3616,9 @@ contains
 # else
     ie_idx_lz = 1 + mod((i - lo%llim_world)/lo%ie_comp, lo%negrid)
 # endif
-! <TT
 
   end function ie_idx_lz
 
-! TT>
 # ifdef USE_C_INDEX
   !> FIXME : Add documentation  
   function it_idx_lz (lo, i)
@@ -3768,12 +3626,10 @@ contains
   !> FIXME : Add documentation    
   elemental function it_idx_lz (lo, i)
 # endif
-! <TT
     implicit none
     integer :: it_idx_lz
     type (lz_layout_type), intent (in) :: lo
     integer, intent (in) :: i
-! TT>
 # ifdef USE_C_INDEX
     interface
        function it_idx_lz_c (lo,num)
@@ -3787,11 +3643,9 @@ contains
 # else
     it_idx_lz = 1 + mod((i - lo%llim_world)/lo%it_comp, lo%ntheta0)
 # endif
-! <TT
 
   end function it_idx_lz
 
-! TT>
 # ifdef USE_C_INDEX
   !> FIXME : Add documentation  
   function ik_idx_lz (lo, i)
@@ -3799,12 +3653,10 @@ contains
   !> FIXME : Add documentation    
   elemental function ik_idx_lz (lo, i)
 # endif
-! <TT
     implicit none
     integer :: ik_idx_lz
     type (lz_layout_type), intent (in) :: lo
     integer, intent (in) :: i
-! TT>
 # ifdef USE_C_INDEX
     interface
        function ik_idx_lz_c (lo,num)
@@ -3818,7 +3670,6 @@ contains
 # else
     ik_idx_lz = 1 + mod((i - lo%llim_world)/lo%ik_comp, lo%naky)
 # endif
-! <TT
 
   end function ik_idx_lz
 
@@ -3831,7 +3682,6 @@ contains
     ig_idx_lz = -lo%ntgrid + mod((i - lo%llim_world)/lo%ig_comp, lo%ntgridtotal)
   end function ig_idx_lz
 
-! TT>
 # ifdef USE_C_INDEX
   !> FIXME : Add documentation  
   function idx_lz (lo, ig, ik, it, ie, is)
@@ -3839,12 +3689,10 @@ contains
   !> FIXME : Add documentation    
   elemental function idx_lz (lo, ig, ik, it, ie, is)
 # endif
-! <TT
     implicit none
     integer :: idx_lz
     type (lz_layout_type), intent (in) :: lo
     integer, intent (in) :: ig, ik, it, ie, is
-! TT>
 # ifdef USE_C_INDEX
     interface
        function idx_lz_c (lo,ig,ik,it,ie,is)
@@ -3877,7 +3725,6 @@ contains
             + lo%naky*(ie-1 + lo%negrid*(is-1))))
     end select
 # endif
-! <TT
 
   end function idx_lz
 
@@ -3896,7 +3743,6 @@ contains
 
   end function proc_id_lz
 
-! TT>
 # ifdef USE_C_INDEX
   !> FIXME : Add documentation  
   function idx_local_lz (lo, ig, ik, it, ie, is)
@@ -3904,7 +3750,6 @@ contains
   !> FIXME : Add documentation    
   elemental function idx_local_lz (lo, ig, ik, it, ie, is)
 # endif
-! <TT
     implicit none
     logical :: idx_local_lz
     type (lz_layout_type), intent (in) :: lo
@@ -3948,7 +3793,7 @@ contains
     p_lo%llim_proc = p_lo%blocksize*iproc
     p_lo%ulim_proc = min(p_lo%ulim_world, p_lo%llim_proc + p_lo%blocksize - 1)
     p_lo%ulim_alloc = max(p_lo%llim_proc, p_lo%ulim_proc)
-!<DD>See g_lo init
+!See g_lo init
     select case (layout)
     case ('yxels')
        p_lo%ie_ord=2
@@ -4009,7 +3854,6 @@ contains
     p_lo%ik_comp=p_lo%compound_count(p_lo%ik_ord)
     p_lo%il_comp=p_lo%compound_count(p_lo%il_ord)
     p_lo%is_comp=p_lo%compound_count(p_lo%is_ord)
-!</DD>
 
   end subroutine init_parity_layouts
 
@@ -4118,7 +3962,6 @@ contains
     integer :: nprocset, ngroup, nblock, ntgridtotal, nsign
     real :: unbalanced_amount
 
-    !write (*,*) 'INIT_X_TR', initialized_x_transform
     if (initialized_x_transform) return
     initialized_x_transform = .true.
 
@@ -4142,17 +3985,10 @@ contains
     xxf_lo%llim_world = 0
     xxf_lo%ulim_world = naky*(2*ntgrid+1)*2*nlambda*negrid*nspec - 1
 
-    !write (*,*) 'XXF_LO%ulim_world', xxf_lo%ulim_world
-
-!<DD>See g_lo init
+!See g_lo init
     select case (layout)
     case ('yxels')
-       xxf_lo%ig_ord=2
-       xxf_lo%isgn_ord=3
-       xxf_lo%il_ord=5
-       xxf_lo%ie_ord=4
-       xxf_lo%ik_ord=1
-       xxf_lo%is_ord=6
+       call set_dimension_order_xxf(xxf_lo,ik_ord=1,ig_ord=2,isgn_ord=3,ie_ord=4,il_ord=5,is_ord=6)
        xxf_lo%compound_count(1)=1
        xxf_lo%compound_count(2)=xxf_lo%naky
        xxf_lo%compound_count(3)=xxf_lo%compound_count(2)*ntgridtotal
@@ -4160,12 +3996,7 @@ contains
        xxf_lo%compound_count(5)=xxf_lo%compound_count(4)*negrid
        xxf_lo%compound_count(6)=xxf_lo%compound_count(5)*nlambda
     case ('yxles')
-       xxf_lo%ig_ord=2
-       xxf_lo%isgn_ord=3
-       xxf_lo%il_ord=4
-       xxf_lo%ie_ord=5
-       xxf_lo%ik_ord=1
-       xxf_lo%is_ord=6
+       call set_dimension_order_xxf(xxf_lo,ik_ord=1,ig_ord=2,isgn_ord=3,il_ord=4,ie_ord=5,is_ord=6)
        xxf_lo%compound_count(1)=1
        xxf_lo%compound_count(2)=xxf_lo%naky
        xxf_lo%compound_count(3)=xxf_lo%compound_count(2)*ntgridtotal
@@ -4173,12 +4004,7 @@ contains
        xxf_lo%compound_count(5)=xxf_lo%compound_count(4)*nlambda
        xxf_lo%compound_count(6)=xxf_lo%compound_count(5)*negrid
     case ('lexys')
-       xxf_lo%ig_ord=2
-       xxf_lo%isgn_ord=3
-       xxf_lo%il_ord=4
-       xxf_lo%ie_ord=5
-       xxf_lo%ik_ord=1
-       xxf_lo%is_ord=6
+       call set_dimension_order_xxf(xxf_lo,ik_ord=1,ig_ord=2,isgn_ord=3,il_ord=4,ie_ord=5,is_ord=6)
        xxf_lo%compound_count(1)=1
        xxf_lo%compound_count(2)=xxf_lo%naky
        xxf_lo%compound_count(3)=xxf_lo%compound_count(2)*ntgridtotal
@@ -4186,12 +4012,7 @@ contains
        xxf_lo%compound_count(5)=xxf_lo%compound_count(4)*nlambda
        xxf_lo%compound_count(6)=xxf_lo%compound_count(5)*negrid
     case ('lxyes')
-       xxf_lo%ig_ord=2
-       xxf_lo%isgn_ord=3
-       xxf_lo%il_ord=4
-       xxf_lo%ie_ord=5
-       xxf_lo%ik_ord=1
-       xxf_lo%is_ord=6
+       call set_dimension_order_xxf(xxf_lo,ik_ord=1,ig_ord=2,isgn_ord=3,il_ord=4,ie_ord=5,is_ord=6)
        xxf_lo%compound_count(1)=1
        xxf_lo%compound_count(2)=xxf_lo%naky
        xxf_lo%compound_count(3)=xxf_lo%compound_count(2)*ntgridtotal
@@ -4199,12 +4020,7 @@ contains
        xxf_lo%compound_count(5)=xxf_lo%compound_count(4)*nlambda
        xxf_lo%compound_count(6)=xxf_lo%compound_count(5)*negrid
     case ('lyxes')
-       xxf_lo%ig_ord=2
-       xxf_lo%isgn_ord=3
-       xxf_lo%il_ord=4
-       xxf_lo%ie_ord=5
-       xxf_lo%ik_ord=1
-       xxf_lo%is_ord=6
+       call set_dimension_order_xxf(xxf_lo,ik_ord=1,ig_ord=2,isgn_ord=3,il_ord=4,ie_ord=5,is_ord=6)
        xxf_lo%compound_count(1)=1
        xxf_lo%compound_count(2)=xxf_lo%naky
        xxf_lo%compound_count(3)=xxf_lo%compound_count(2)*ntgridtotal
@@ -4212,12 +4028,7 @@ contains
        xxf_lo%compound_count(5)=xxf_lo%compound_count(4)*nlambda
        xxf_lo%compound_count(6)=xxf_lo%compound_count(5)*negrid
     case ('xyles')
-       xxf_lo%ig_ord=2
-       xxf_lo%isgn_ord=3
-       xxf_lo%il_ord=4
-       xxf_lo%ie_ord=5
-       xxf_lo%ik_ord=1
-       xxf_lo%is_ord=6
+       call set_dimension_order_xxf(xxf_lo,ik_ord=1,ig_ord=2,isgn_ord=3,il_ord=4,ie_ord=5,is_ord=6)
        xxf_lo%compound_count(1)=1
        xxf_lo%compound_count(2)=xxf_lo%naky
        xxf_lo%compound_count(3)=xxf_lo%compound_count(2)*ntgridtotal
@@ -4231,7 +4042,6 @@ contains
     xxf_lo%ie_comp=xxf_lo%compound_count(xxf_lo%ie_ord)
     xxf_lo%il_comp=xxf_lo%compound_count(xxf_lo%il_ord)
     xxf_lo%is_comp=xxf_lo%compound_count(xxf_lo%is_ord)
-!</DD>
 
     call check_accel (ntheta0, naky, nlambda, negrid, nspec, nblock)
     if (accel_lxyes) then  
@@ -4944,7 +4754,6 @@ contains
     llim = ((iproc / procfactors) * block_multiple)
     if(modproc .ne. 0) then
        if(modproc .lt. numsmall) then
-!AJ       llim = llim + smallblocksize * (modproc - 1)
           llim = llim + smallblocksize * (modproc)
        else
           llim = llim + (smallblocksize * numsmall) + (largeblocksize  * (modproc - numsmall))
@@ -5052,7 +4861,7 @@ contains
 
   end subroutine calculate_idle_processes
 
-  !> FIXME : Add documentation
+  !> Return the species index, given xxf-layout and a global index
   elemental function is_idx_xxf (lo, i)
     implicit none
     integer :: is_idx_xxf
@@ -5061,7 +4870,7 @@ contains
     is_idx_xxf = 1+mod((i-lo%llim_world)/lo%is_comp,lo%nspec)
   end function is_idx_xxf
 
-  !> FIXME : Add documentation  
+  !> Return the energy index, given xxf-layout and a global index
   elemental function ie_idx_xxf (lo, i)
     implicit none
     integer :: ie_idx_xxf
@@ -5070,7 +4879,7 @@ contains
     ie_idx_xxf=1+mod((i-lo%llim_world)/lo%ie_comp,lo%negrid)
   end function ie_idx_xxf
 
-  !> FIXME : Add documentation  
+  !> Return the lambda index, given xxf-layout and a global index
   elemental function il_idx_xxf (lo, i)
     implicit none
     integer :: il_idx_xxf
@@ -5079,7 +4888,7 @@ contains
     il_idx_xxf = 1+mod((i-lo%llim_world)/lo%il_comp,lo%nlambda)
   end function il_idx_xxf
 
-  !> FIXME : Add documentation  
+  !> Return the sign index, given xxf-layout and a global index
   elemental function isign_idx_xxf (lo, i)
     implicit none
     integer :: isign_idx_xxf
@@ -5088,7 +4897,7 @@ contains
     isign_idx_xxf = 1+mod((i-lo%llim_world)/lo%isgn_comp,lo%nsign)
   end function isign_idx_xxf
 
-  !> FIXME : Add documentation  
+  !> Return the theta index, given xxf-layout and a global index
   elemental function ig_idx_xxf (lo, i)
     implicit none
     integer :: ig_idx_xxf
@@ -5097,7 +4906,7 @@ contains
     ig_idx_xxf = -lo%ntgrid+mod((i-lo%llim_world)/lo%ig_comp,lo%ntgridtotal)
   end function ig_idx_xxf
 
-  !> FIXME : Add documentation
+  !> Return the ky index, given xxf-layout and a global index
   elemental function ik_idx_xxf (lo, i)
     implicit none
     integer :: ik_idx_xxf
@@ -5135,7 +4944,7 @@ contains
     end select
   end function idx_xxf
 
-  !> FIXME : Add documentation
+  !> Return the processor id that has the point i in the xxf_lo layout
   elemental function proc_id_xxf (lo, i)
     implicit none
     integer :: proc_id_xxf
@@ -5207,7 +5016,7 @@ contains
     end if
   end function proc_id_xxf
 
-  !> FIXME : Add documentation  
+  !> Return whether a point is local to a processor given the dimensional indices
   elemental function idx_local_xxf (lo, ig, isign, ik, il, ie, is)
     implicit none
     logical :: idx_local_xxf
@@ -5216,7 +5025,7 @@ contains
     idx_local_xxf = idx_local (lo, idx(lo, ig, isign, ik, il, ie, is))
   end function idx_local_xxf
 
-  !> FIXME : Add documentation  
+  !> Return whether a point is local to a processor given the global index
   elemental function ig_local_xxf (lo, i)
     implicit none
     logical ig_local_xxf
@@ -5280,15 +5089,10 @@ contains
     yxf_lo%llim_world = 0
     yxf_lo%ulim_world = nnx*(2*ntgrid+1)*2*nlambda*negrid*nspec - 1
 
-!<DD>Calculate compound index divisors
+!Calculate compound index divisors
     select case (layout)
     case ('yxels')
-       yxf_lo%ig_ord=2
-       yxf_lo%isgn_ord=3
-       yxf_lo%il_ord=5
-       yxf_lo%ie_ord=4
-       yxf_lo%it_ord=1
-       yxf_lo%is_ord=6
+       call set_dimension_order_yxf(yxf_lo,it_ord=1,ig_ord=2,isgn_ord=3,ie_ord=4,il_ord=5,is_ord=6)
        yxf_lo%compound_count(1)=1
        yxf_lo%compound_count(2)=yxf_lo%nx
        yxf_lo%compound_count(3)=yxf_lo%compound_count(2)*ntgridtotal
@@ -5296,12 +5100,7 @@ contains
        yxf_lo%compound_count(5)=yxf_lo%compound_count(4)*negrid
        yxf_lo%compound_count(6)=yxf_lo%compound_count(5)*nlambda
     case ('yxles')
-       yxf_lo%ig_ord=2
-       yxf_lo%isgn_ord=3
-       yxf_lo%il_ord=4
-       yxf_lo%ie_ord=5
-       yxf_lo%it_ord=1
-       yxf_lo%is_ord=6
+       call set_dimension_order_yxf(yxf_lo,it_ord=1,ig_ord=2,isgn_ord=3,il_ord=4,ie_ord=5,is_ord=6)
        yxf_lo%compound_count(1)=1
        yxf_lo%compound_count(2)=yxf_lo%nx
        yxf_lo%compound_count(3)=yxf_lo%compound_count(2)*ntgridtotal
@@ -5309,12 +5108,7 @@ contains
        yxf_lo%compound_count(5)=yxf_lo%compound_count(4)*nlambda
        yxf_lo%compound_count(6)=yxf_lo%compound_count(5)*negrid
     case ('lexys')
-       yxf_lo%ig_ord=2
-       yxf_lo%isgn_ord=3
-       yxf_lo%il_ord=4
-       yxf_lo%ie_ord=5
-       yxf_lo%it_ord=1
-       yxf_lo%is_ord=6
+       call set_dimension_order_yxf(yxf_lo,it_ord=1,ig_ord=2,isgn_ord=3,il_ord=4,ie_ord=5,is_ord=6)
        yxf_lo%compound_count(1)=1
        yxf_lo%compound_count(2)=yxf_lo%nx
        yxf_lo%compound_count(3)=yxf_lo%compound_count(2)*ntgridtotal
@@ -5322,12 +5116,7 @@ contains
        yxf_lo%compound_count(5)=yxf_lo%compound_count(4)*nlambda
        yxf_lo%compound_count(6)=yxf_lo%compound_count(5)*negrid
     case ('lxyes')
-       yxf_lo%ig_ord=2
-       yxf_lo%isgn_ord=3
-       yxf_lo%il_ord=4
-       yxf_lo%ie_ord=5
-       yxf_lo%it_ord=1
-       yxf_lo%is_ord=6
+       call set_dimension_order_yxf(yxf_lo,it_ord=1,ig_ord=2,isgn_ord=3,il_ord=4,ie_ord=5,is_ord=6)
        yxf_lo%compound_count(1)=1
        yxf_lo%compound_count(2)=yxf_lo%nx
        yxf_lo%compound_count(3)=yxf_lo%compound_count(2)*ntgridtotal
@@ -5335,12 +5124,7 @@ contains
        yxf_lo%compound_count(5)=yxf_lo%compound_count(4)*nlambda
        yxf_lo%compound_count(6)=yxf_lo%compound_count(5)*negrid
     case ('lyxes')
-       yxf_lo%ig_ord=2
-       yxf_lo%isgn_ord=3
-       yxf_lo%il_ord=4
-       yxf_lo%ie_ord=5
-       yxf_lo%it_ord=1
-       yxf_lo%is_ord=6
+       call set_dimension_order_yxf(yxf_lo,it_ord=1,ig_ord=2,isgn_ord=3,il_ord=4,ie_ord=5,is_ord=6)
        yxf_lo%compound_count(1)=1
        yxf_lo%compound_count(2)=yxf_lo%nx
        yxf_lo%compound_count(3)=yxf_lo%compound_count(2)*ntgridtotal
@@ -5348,12 +5132,7 @@ contains
        yxf_lo%compound_count(5)=yxf_lo%compound_count(4)*nlambda
        yxf_lo%compound_count(6)=yxf_lo%compound_count(5)*negrid
     case ('xyles')
-       yxf_lo%ig_ord=2
-       yxf_lo%isgn_ord=3
-       yxf_lo%il_ord=4
-       yxf_lo%ie_ord=5
-       yxf_lo%it_ord=1
-       yxf_lo%is_ord=6
+       call set_dimension_order_yxf(yxf_lo,it_ord=1,ig_ord=2,isgn_ord=3,il_ord=4,ie_ord=5,is_ord=6)
        yxf_lo%compound_count(1)=1
        yxf_lo%compound_count(2)=yxf_lo%nx
        yxf_lo%compound_count(3)=yxf_lo%compound_count(2)*ntgridtotal
@@ -5367,7 +5146,6 @@ contains
     yxf_lo%ie_comp=yxf_lo%compound_count(yxf_lo%ie_ord)
     yxf_lo%il_comp=yxf_lo%compound_count(yxf_lo%il_ord)
     yxf_lo%is_comp=yxf_lo%compound_count(yxf_lo%is_ord)
-!</DD>
 
     call check_accel (ntheta0, naky, nlambda, negrid, nspec, nblock)
 
@@ -5628,7 +5406,7 @@ contains
 
   end subroutine calculate_unbalanced_y
 
-  !> FIXME : Add documentation
+  !> Return the species index, given yxf-layout and a global index
   elemental function is_idx_yxf (lo, i)
     implicit none
     integer :: is_idx_yxf
@@ -5637,7 +5415,7 @@ contains
     is_idx_yxf = 1+mod((i-lo%llim_world)/lo%is_comp,lo%nspec)
   end function is_idx_yxf
 
-  !> FIXME : Add documentation  
+  !> Return the energy index, given yxf-layout and a global index
   elemental function ie_idx_yxf (lo, i)
     implicit none
     integer :: ie_idx_yxf
@@ -5646,7 +5424,7 @@ contains
     ie_idx_yxf = 1+mod((i-lo%llim_world)/lo%ie_comp,lo%negrid)
   end function ie_idx_yxf
 
-  !> FIXME : Add documentation  
+  !> Return the lambda index, given yxf-layout and a global index
   elemental function il_idx_yxf (lo, i)
     implicit none
     integer :: il_idx_yxf
@@ -5655,7 +5433,7 @@ contains
     il_idx_yxf = 1+mod((i-lo%llim_world)/lo%il_comp,lo%nlambda)
   end function il_idx_yxf
 
-  !> FIXME : Add documentation
+  !> Return the sign index, given yxf-layout and a global index
   elemental function isign_idx_yxf (lo, i)
     implicit none
     integer :: isign_idx_yxf
@@ -5664,7 +5442,7 @@ contains
     isign_idx_yxf = 1+mod((i-lo%llim_world)/lo%isgn_comp,lo%nsign)
   end function isign_idx_yxf
  
-  !> FIXME : Add documentation
+  !> Return the theta index, given yxf-layout and a global index of a point on this proc
   elemental function ig_idx_yxf (lo, i)
     implicit none
     integer :: ig_idx_yxf
@@ -5673,7 +5451,7 @@ contains
     ig_idx_yxf = -lo%ntgrid+mod((i-lo%llim_world)/lo%ig_comp,lo%ntgridtotal)
   end function ig_idx_yxf
 
-  !> FIXME : Add documentation  
+  !> Return the kx index, given yxf-layout and a global index
   elemental function it_idx_yxf (lo, i)
     implicit none
     integer :: it_idx_yxf
@@ -5757,7 +5535,7 @@ contains
 
   end function proc_id_accelx
 
-  !> FIXME : Add documentation
+  !> Return the processor id that has the point i in the yxf_lo layout
   elemental function proc_id_yxf (lo, i)
     implicit none
     integer :: proc_id_yxf
@@ -5852,7 +5630,7 @@ contains
 #endif
   end function ig_local_accelx
 
-  !> FIXME : Add documentation
+  !> Return whether a point is local to a processor given the dimensional indices
   elemental function idx_local_yxf (lo, ig, isign, it, il, ie, is)
     implicit none
     logical :: idx_local_yxf
@@ -5861,7 +5639,7 @@ contains
     idx_local_yxf = idx_local (lo, idx(lo, ig, isign, it, il, ie, is))
   end function idx_local_yxf
 
-  !> FIXME : Add documentation
+  !> Return whether a point is local to a processor given the global index
   elemental function ig_local_yxf (lo, i)
     implicit none
     logical ig_local_yxf
@@ -6179,8 +5957,6 @@ contains
 ! Transformation subroutines
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
-
-! TT>
 # ifdef USE_C_INDEX
   !> FIXME : Add documentation  
   subroutine gidx2lzidx (ig, isign, g_lo, iglo, lz_lo, ntgrid, jend, il, ilz)
@@ -6189,7 +5965,6 @@ contains
   pure subroutine gidx2lzidx (ig, isign, g_lo, iglo, lz_lo, ntgrid, jend, &
                               il, ilz)
 # endif
-! <TT
     implicit none
     integer, intent (in) :: ig, isign
     type (g_layout_type), intent (in) :: g_lo
@@ -6228,7 +6003,6 @@ contains
          ie_idx(g_lo,iglo), is_idx(g_lo,iglo))
   end subroutine gidx2lzidx
 
-! TT>
 # ifdef USE_C_INDEX
   !> FIXME : Add documentation
   subroutine gidx2gintidx (g_lo, iglo, gint_lo, il, igint)
@@ -6236,7 +6010,6 @@ contains
   !> FIXME : Add documentation    
   elemental subroutine gidx2gintidx (g_lo, iglo, gint_lo, il, igint)
 # endif
-! <TT
     implicit none
     type (g_layout_type), intent (in) :: g_lo
     integer, intent (in) :: iglo
@@ -6264,7 +6037,6 @@ contains
 
   end subroutine gintidx2geidx
 
-! TT>
 # ifdef USE_C_INDEX
   !> FIXME : Add documentation  
   subroutine gidx2xxfidx (ig, isign, iglo, g_lo, xxf_lo, it, ixxf)
@@ -6272,7 +6044,6 @@ contains
   !> FIXME : Add documentation    
   elemental subroutine gidx2xxfidx (ig, isign, iglo, g_lo, xxf_lo, it, ixxf)
 # endif
-! <TT
     implicit none
     integer, intent (in) :: ig, isign, iglo
     type (g_layout_type), intent (in) :: g_lo
@@ -6288,7 +6059,6 @@ contains
          ie_idx(g_lo,iglo), is_idx(g_lo,iglo))
   end subroutine gidx2xxfidx
 
-! TT>
 # ifdef USE_C_INDEX
   !> FIXME : Add documentation  
   subroutine xxfidx2gidx (it, ixxf, xxf_lo, g_lo, ig, isign, iglo)
@@ -6296,7 +6066,6 @@ contains
   !> FIXME : Add documentation    
   elemental subroutine xxfidx2gidx (it, ixxf, xxf_lo, g_lo, ig, isign, iglo)
 # endif
-! <TT
     implicit none
     integer, intent (in) :: it, ixxf
     type (xxf_layout_type), intent (in) :: xxf_lo
@@ -6381,17 +6150,18 @@ contains
 
   end subroutine pe_layout
 
-  !> FIXME : Add documentation  
+  !> Get the factors of an integer n
   subroutine factors (n, j, div)
-    !CMR, 3/10/13:
-    !    Find all the factors of n and return in div(j)
+    !> The number to factorize
     integer, intent (in) :: n
+    !> The number of factors
     integer, intent (out) :: j
+    !> Array containing the j factors of n
     integer, dimension (:), intent (out) :: div
     integer :: i, imax
 
     ! find: i = lowest factor of n
-    ! and therefore imax=n/1 is the HIGHEST factor of n
+    ! and therefore imax=n/i is the HIGHEST factor of n
     do i=2,n
        if (mod(n,i)==0) exit
     end do
@@ -6406,4 +6176,97 @@ contains
     end do
     div(j) = n
   end subroutine factors
+
+  !> Sets the order of x y l e s in g_lo
+  subroutine set_dimension_order(g_lo,it_ord,ik_ord,il_ord,ie_ord,is_ord)
+
+    implicit none
+    type (g_layout_type), intent(in out) :: g_lo
+    integer, intent(in) :: ie_ord, il_ord, it_ord, ik_ord, is_ord
+    integer, dimension(5) :: check
+
+    ! Check input is the integers 1 to 5
+    check = [it_ord, ik_ord, il_ord, ie_ord, is_ord]
+    call check_unique_integers(check,'Input to set_dimension_order is not unique integers 1 to 5')
+
+    g_lo%ie_ord=ie_ord
+    g_lo%il_ord=il_ord
+    g_lo%it_ord=it_ord
+    g_lo%ik_ord=ik_ord
+    g_lo%is_ord=is_ord
+
+  end subroutine set_dimension_order
+
+  !> Sets the order of y th sgn l e s in xxf_lo
+  !> Note: usually the order is y, theta, sign, then "les" in the order they appear in
+  !> the g_lo layout
+  subroutine set_dimension_order_xxf(xxf_lo,ik_ord,ig_ord,isgn_ord,il_ord,ie_ord,is_ord)
+
+    implicit none
+    type (xxf_layout_type), intent(in out) :: xxf_lo
+    integer, intent(in) :: ie_ord, il_ord, ig_ord, ik_ord, is_ord, isgn_ord
+    integer, dimension(6) :: check
+
+    ! Check input is the integers 1 to 6
+    check = [ik_ord, ig_ord, isgn_ord, il_ord, ie_ord, is_ord]
+    call check_unique_integers(check,'Input to set_dimension_order_xxf is not unique integers 1 to 6')
+
+    xxf_lo%ik_ord=ik_ord
+    xxf_lo%ig_ord=ig_ord
+    xxf_lo%isgn_ord=isgn_ord
+    xxf_lo%il_ord=il_ord
+    xxf_lo%ie_ord=ie_ord
+    xxf_lo%is_ord=is_ord
+
+  end subroutine set_dimension_order_xxf
+
+  !> Sets the order of x th sgn l e s in xxf_lo
+  !> Note: usually the order is x, theta, sign, then "les" in the order they appear in
+  !> the g_lo layout
+  subroutine set_dimension_order_yxf(yxf_lo,it_ord,ig_ord,isgn_ord,il_ord,ie_ord,is_ord)
+
+    implicit none
+    type (yxf_layout_type), intent(in out) :: yxf_lo
+    integer, intent(in) :: ie_ord, il_ord, ig_ord, it_ord, is_ord, isgn_ord
+    integer, dimension(6) :: check
+
+    ! Check input is the integers 1 to 6
+    check = [it_ord, ig_ord, isgn_ord, il_ord, ie_ord, is_ord]
+    call check_unique_integers(check,'Input to set_dimension_order_yxf is not unique integers 1 to 6')
+
+    yxf_lo%it_ord=it_ord
+    yxf_lo%ig_ord=ig_ord
+    yxf_lo%isgn_ord=isgn_ord
+    yxf_lo%il_ord=il_ord
+    yxf_lo%ie_ord=ie_ord
+    yxf_lo%is_ord=is_ord
+
+  end subroutine set_dimension_order_yxf
+
+  !> Checks that the given array contains unique integers 1 to (array size) (in any order),
+  !> aborts if not.
+  subroutine check_unique_integers(array,message)
+
+    use mp, only: mp_abort
+    use sorting, only: quicksort
+
+    implicit none
+    !> Dimension of input 
+    integer, dimension(:), intent(inout) :: array
+    !> Error message
+    character(*), intent(in) :: message
+    integer, dimension(:), allocatable :: check
+    integer :: n
+    integer :: i
+
+    n = size(array)
+    check = [(i, i = 1, n)]
+
+    call quicksort(n,array)
+    if (any(check.ne.array)) then
+      call mp_abort(message)
+    end if
+
+  end subroutine check_unique_integers
+
 end module gs2_layouts
