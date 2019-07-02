@@ -104,7 +104,6 @@ and one real one, `unbalanced_fraction`, to the `performance` module
 could be in any temporary file for now).
 
     :::fortran
-    !> Used to represent the input configuration of species
     type, extends(abstract_config_type) :: performance_config_type
        ! namelist : performance_knobs
        ! indexed : false
@@ -205,3 +204,40 @@ configuration values out of the configuration type and into the
 module/local scope variables. In the long run we may wish to use the
 configuration type memebers directly but for now we use this copying
 to avoid having to change the majority of the code.
+
+### Add or removing variables from an existing configuration object
+
+Following on from the above example, suppose we now wish to add a new
+logical input variable, `read_perfomance`, to the performance module.
+We would simply add the declaration and documentation to the existing configuration type:
+
+    :::fortran
+    !> FIXME: Add documentation
+    type, extends(abstract_config_type) :: performance_config_type
+       ! namelist : performance_knobs
+       ! indexed : False
+       !> Do we try to tune the performance
+       logical :: tune_performance = .false.
+       !> What is the unbalance we allow
+       real :: unbalanced_fraction = 0.5
+       !> FIXME: Add documentation
+       logical :: write_performance = .false.
+       !> This is a new input that means we read the existing performance data
+       logical :: read_performance = .false.
+     contains
+       procedure, public :: read => read_performance_config
+       procedure, public :: write => write_performance_config
+       procedure, public :: reset => reset_performance_config
+       procedure, public :: broadcast => broadcast_performance_config
+       procedure, public :: get_default_name => get_default_name_performance_config
+       procedure, public :: get_default_requires_index => get_default_requires_index_performance_config
+    end type performance_config_type
+
+and then follow the same steps as previously in order to produce the
+generated code, i.e. beginning with
+
+    :::bash
+    scripts/config_generation.py /path/to/performance.f90
+
+to generate the code and then using copy-paste to _replace_ the
+existing generated code with that in the generated placeholders file.
