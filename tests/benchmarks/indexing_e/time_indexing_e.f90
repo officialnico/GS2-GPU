@@ -48,13 +48,13 @@ program time_indexing_e
   call initialize_gs2(state)
 
   ! initialize up to le_grids terms level so indexing is initialized
-  call init(state%init, init_level_list%le_grids)
+  call init(state%init, init_level_list%collisions)
 
   ! Begin test
   if (proc0) call time_message(.false., time_taken, "indexing time")
 
   do j = 1,nstep
-    do ielo=e_lo%llim_world, g_lo%ulim_world
+    do ielo=e_lo%llim_world, e_lo%ulim_world
       it=it_idx(e_lo,ielo)
       ik=ik_idx(e_lo,ielo)
       il=il_idx(e_lo,ielo)

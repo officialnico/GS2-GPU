@@ -35,7 +35,7 @@
 /
 
 &knobs
- nstep = 10000
+ nstep = 5000
 /
 
 &species_knobs
