@@ -65,9 +65,6 @@ USE_NETCDF ?= on
 USE_PARALLEL_NETCDF ?= 
 # uses hdf5 library (bin)
 USE_HDF5 ?=  
-# Use function pointer in layouts_indices.c (bin)
-# see also README
-USE_C_INDEX ?= 
 # Use local random number generator (mt,undefined)
 # see also README
 USE_LOCAL_RAN ?=
@@ -424,10 +421,6 @@ ifdef USE_HDF5
 	MACRO_DEFS += -DHDF
 endif
 
-ifdef USE_C_INDEX
-	MACRO_DEFS += -DUSE_C_INDEX
-endif
-
 ifeq ($(USE_LOCAL_RAN),mt)
 	MACRO_DEFS += -DRANDOM=_RANMT_
 endif
@@ -722,10 +715,6 @@ ifdef USE_FFT
     generate_fftw_wisdom_mod += $(OBJDIR)/fft_save_wisdom.o
 endif
 
-ifdef USE_C_INDEX
-    gs2_mod += $(OBJDIR)/layouts_indices.o
-endif
-
 $(OBJDIR)/layouts_indices.o: $(MODDIR)/layouts_type.h
 layouts_type.h: $(MODDIR)/layouts_type.h
 $(MODDIR)/layouts_type.h: |$(MODDIR)
@@ -884,7 +873,6 @@ test_make:
 	$(call messageKeyVal, "USE_NETCDF", $(USE_NETCDF))
 	$(call messageKeyVal, "USE_HDF5", $(USE_HDF5))
 	$(call messageKeyVal, "WITH_EIG", $(WITH_EIG))
-	$(call messageKeyVal, "USE_C_INDEX", $(USE_C_INDEX))
 	$(call messageKeyVal, "USE_POSIX", $(USE_POSIX))
 	$(call messageKeyVal, "USE_LOCAL_RAN", $(USE_LOCAL_RN))
 	$(call messageKeyVal, "USE_SPFUNC", $(USE_SPFUNC))
