@@ -47,8 +47,7 @@ program time_indexing
 
   call initialize_gs2(state)
 
-  ! initialize up to nonlinear terms level so our loop
-  ! can copy the load_kx_bpar loop
+  ! initialize up to le_grids terms level so indexing is initialized
   call init(state%init, init_level_list%le_grids)
 
   ! Begin test
