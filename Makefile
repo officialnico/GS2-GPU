@@ -904,7 +904,7 @@ test_make:
 	$(call messageKeyVal, "MACRO_DEFS", $(MACRO_DEFS))
 	$(call messageKeyVal, "LD_LIBRARY_PATH", $(LD_LIBRARY_PATH))
 	$(call messageKeyVal, "LIBS", $(LIBS))
-	$(call messageKeyVal, "INCS", $(INCLUDES))
+	$(call messageKeyVal, "INCLUDES", $(INCLUDES))
 	@echo
 	$(call messageInfo,"Build info:")
 	$(call messageKeyVal, "SRCDIR ", $(SRCDIR))
