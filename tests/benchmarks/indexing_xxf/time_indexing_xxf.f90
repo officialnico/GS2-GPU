@@ -59,7 +59,7 @@ program time_indexing_xxf
       il=il_idx(xxf_lo,ixxf)
       ie=ie_idx(xxf_lo,ixxf)
       is=is_idx(xxf_lo,ixxf)
-      ig=is_idx(xxf_lo,ixxf)
+      ig=ig_idx(xxf_lo,ixxf)
       isgn=isign_idx(xxf_lo,ixxf)
       i=idx(xxf_lo,ig,isgn,ik,il,ie,is)
     end do
