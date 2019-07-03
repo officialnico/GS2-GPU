@@ -40,7 +40,6 @@ module gs2_layouts
 
   public :: init_lambda_layouts
   public :: lz_lo
-  public :: gidx2lzidx
 
   public :: init_energy_layouts
   public :: e_lo
@@ -54,7 +53,7 @@ module gs2_layouts
   public :: init_x_transform_layouts, init_y_transform_layouts
   public :: calculate_unbalanced_x, calculate_unbalanced_y, calculate_idle_processes
   public :: xxf_lo, xxf_layout_type, yxf_lo, yxf_layout_type
-  public :: gidx2xxfidx, xxfidx2yxfidx, yxfidx2xxfidx, xxfidx2gidx
+  public :: gidx2xxfidx, xxfidx2yxfidx
   public :: xxf_ky_is_zero
 
   public :: init_accel_transform_layouts
@@ -5614,56 +5613,9 @@ contains
     dealiasing = .false.
   end function dealiasing
 
-
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 ! Transformation subroutines
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-
-# ifdef USE_C_INDEX
-  !> FIXME : Add documentation  
-  subroutine gidx2lzidx (ig, isign, g_lo, iglo, lz_lo, ntgrid, jend, il, ilz)
-# else
-  !> FIXME : Add documentation    
-  pure subroutine gidx2lzidx (ig, isign, g_lo, iglo, lz_lo, ntgrid, jend, &
-                              il, ilz)
-# endif
-    implicit none
-    integer, intent (in) :: ig, isign
-    type (g_layout_type), intent (in) :: g_lo
-    integer, intent (in) :: iglo
-    type (lz_layout_type), intent (in) :: lz_lo
-    integer, intent (in) :: ntgrid
-    integer, dimension (-ntgrid:), intent (in) :: jend
-    integer, intent (out) :: il, ilz
-    integer :: je
-
-    je = jend(ig)
-    il = il_idx(g_lo,iglo)
-
-    if (je == 0) then
-       if (isign == 2) then
-          il = 2*g_lo%nlambda+1 - il
-       end if
-    else
-!       if (il > je) then
-!          il = 2*je + 1
-!       else if (isign == 2) then
-!          il = 2*je - il
-!       end if
-
-       if (il == je) then
-          if (isign == 1) il = 2*je  ! throw this info away
-       else if (il > je) then 
-          if (isign == 1) il = il + je
-          if (isign == 2) il = 2*g_lo%nlambda + 1 - il + je
-       else
-          if (isign == 2) il = 2*je - il !+ 1
-       end if
-          
-    end if
-    ilz = idx(lz_lo, ig, ik_idx(g_lo,iglo), it_idx(g_lo,iglo), &
-         ie_idx(g_lo,iglo), is_idx(g_lo,iglo))
-  end subroutine gidx2lzidx
 
 # ifdef USE_C_INDEX
   !> FIXME : Add documentation  
@@ -5686,38 +5638,7 @@ contains
     ixxf = idx(xxf_lo, ig, isign, ik_idx(g_lo,iglo), il_idx(g_lo,iglo), &
          ie_idx(g_lo,iglo), is_idx(g_lo,iglo))
   end subroutine gidx2xxfidx
-
-# ifdef USE_C_INDEX
-  !> FIXME : Add documentation  
-  subroutine xxfidx2gidx (it, ixxf, xxf_lo, g_lo, ig, isign, iglo)
-# else
-  !> FIXME : Add documentation    
-  elemental subroutine xxfidx2gidx (it, ixxf, xxf_lo, g_lo, ig, isign, iglo)
-# endif
-    implicit none
-    integer, intent (in) :: it, ixxf
-    type (xxf_layout_type), intent (in) :: xxf_lo
-    type (g_layout_type), intent (in) :: g_lo
-    integer, intent (out) :: ig, isign, iglo
-    integer :: it0
-
-    it0 = it
-    if (it0 > (xxf_lo%ntheta0+1)/2) then
-       it0 = it0 + xxf_lo%ntheta0 - xxf_lo%nx
-       if (it0 <= (xxf_lo%ntheta0+1)/2) then
-          ig = -999999
-          isign = -999999
-          iglo = -999999
-          return
-       end if
-    end if
-
-    ig = ig_idx(xxf_lo,ixxf)
-    isign = isign_idx(xxf_lo,ixxf)
-    iglo = idx(g_lo, ik_idx(xxf_lo,ixxf), it0, il_idx(xxf_lo,ixxf), &
-         ie_idx(xxf_lo,ixxf), is_idx(xxf_lo,ixxf))
-  end subroutine xxfidx2gidx
-
+  
   !> FIXME : Add documentation  
   elemental subroutine xxfidx2yxfidx (it, ixxf, xxf_lo, yxf_lo, ik, iyxf)
     implicit none
@@ -5730,27 +5651,6 @@ contains
     iyxf = idx(yxf_lo, ig_idx(xxf_lo,ixxf), isign_idx(xxf_lo,ixxf), &
          it, il_idx(xxf_lo,ixxf), ie_idx(xxf_lo,ixxf), is_idx(xxf_lo,ixxf))
   end subroutine xxfidx2yxfidx
-
-  !> FIXME : Add documentation  
-  elemental subroutine yxfidx2xxfidx (ik, iyxf, yxf_lo, xxf_lo, it, ixxf)
-    implicit none
-    integer, intent (in) :: ik, iyxf
-    type (yxf_layout_type), intent (in) :: yxf_lo
-    type (xxf_layout_type), intent (in) :: xxf_lo
-    integer, intent (out) :: it, ixxf
-    integer :: ik0
-
-    ik0 = ik
-    if (ik0 > xxf_lo%naky) then
-       it = -999999
-       ixxf = -999999
-       return
-    end if
-
-    it = it_idx(yxf_lo,iyxf)
-    ixxf = idx(xxf_lo, ig_idx(yxf_lo,iyxf), isign_idx(yxf_lo,iyxf), &
-         ik0, il_idx(yxf_lo,iyxf), ie_idx(yxf_lo,iyxf), is_idx(yxf_lo,iyxf))
-  end subroutine yxfidx2xxfidx
 
   !> FIXME : Add documentation  
   subroutine pe_layout (char)
