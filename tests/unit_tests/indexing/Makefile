@@ -16,8 +16,11 @@ all:
 else
 all: test_indexing
 	$(call RUNCOMMAND,test_indexing,test_indexing_lexys.in)
-	#$(call RUNCOMMAND,test_indexing,test_indexing_xyles.in)
-	#$(call RUNCOMMAND,test_indexing,test_indexing_yxles.in)
+	$(call RUNCOMMAND,test_indexing,test_indexing_xyles.in)
+	$(call RUNCOMMAND,test_indexing,test_indexing_yxles.in)
+	$(call RUNCOMMAND,test_indexing,test_indexing_lexys_lz.in)
+	$(call RUNCOMMAND,test_indexing,test_indexing_xyles_lz.in)
+	$(call RUNCOMMAND,test_indexing,test_indexing_yxles_lz.in)
 endif
 endif
 
