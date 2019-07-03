@@ -15,7 +15,6 @@ module gs2_layouts
 
   public :: factors
   public :: pe_layout, layout, local_field_solve
-  public :: is_kx_local
   
   public :: init_dist_fn_layouts, init_gs2_layouts
   public :: finish_dist_fn_layouts
@@ -54,7 +53,6 @@ module gs2_layouts
   public :: calculate_unbalanced_x, calculate_unbalanced_y, calculate_idle_processes
   public :: xxf_lo, xxf_layout_type, yxf_lo, yxf_layout_type
   public :: gidx2xxfidx, xxfidx2yxfidx
-  public :: xxf_ky_is_zero
 
   public :: init_accel_transform_layouts
   public :: accel_lo, accel_layout_type, dealiasing
@@ -1409,133 +1407,6 @@ contains
 # endif
 
   end subroutine init_dist_fn_layouts
-
-  !> FIXME : Add documentation 
-  subroutine is_kx_local(negrid, nspec, nlambda, naky, kx_local)  
-    use mp, only: nproc
-    implicit none
-    integer, intent (in) :: negrid, nspec, nlambda, naky
-    logical, intent (out) :: kx_local
-    integer, dimension(:,:), allocatable :: facs
-    integer :: nsfacs, nefacs, nyfacs, nlfacs
-    integer :: i
-
-    kx_local = .true.
-
-    allocate (facs(max(nspec,negrid,naky,nlambda)/2+1,4))
-
-    select case (layout)
-
-    case ('yxels')
-
-       call factors (nspec,   nsfacs, facs(:,1))
-       call factors (nlambda, nlfacs, facs(:,2))
-       call factors (negrid,  nefacs, facs(:,3))
-
-       do i=1,nsfacs-1
-          if (nproc == facs(i,1)) goto 100
-       end do
-       
-       do i=1,nlfacs-1
-          if (nproc == facs(i,2)*nspec) goto 100
-       end do
-
-       do i=1,nefacs-1
-          if (nproc == facs(i,3)*nlambda*nspec) goto 100
-       end do
-          
-    case ('yxles')
-
-       call factors (nspec,   nsfacs, facs(:,1))
-       call factors (negrid,  nefacs, facs(:,2))
-       call factors (nlambda, nlfacs, facs(:,3))
-
-       do i=1,nsfacs-1
-          if (nproc == facs(i,1)) goto 100
-       end do
-       
-       do i=1,nefacs-1
-          if (nproc == facs(i,2)*nspec) goto 100
-       end do
-
-       do i=1,nlfacs-1
-          if (nproc == facs(i,3)*negrid*nspec) goto 100
-       end do
-          
-    case ('lxyes')
-
-       call factors (nspec,   nsfacs, facs(:,1))
-       call factors (negrid,  nefacs, facs(:,2))
-       call factors (naky,    nyfacs, facs(:,3))
-
-       do i=1,nsfacs-1
-          if (nproc == facs(i,1)) goto 100
-       end do
-       
-       do i=1,nefacs-1
-          if (nproc == facs(i,2)*nspec) goto 100
-       end do
-
-       do i=1,nyfacs-1
-          if (nproc == facs(i,3)*negrid*nspec) goto 100
-       end do
-          
-    case ('lyxes')
-
-       call factors (nspec,   nsfacs, facs(:,1))
-       call factors (negrid,  nefacs, facs(:,2))
-
-       do i=1,nsfacs-1
-          if (nproc == facs(i,1)) goto 100
-       end do
-       
-       do i=1,nefacs-1
-          if (nproc == facs(i,2)*nspec) goto 100
-       end do
-
-    case ('lexys')
-
-       call factors (nspec,   nsfacs, facs(:,1))
-       call factors (naky,    nyfacs, facs(:,2))
-
-       do i=1,nsfacs-1
-          if (nproc == facs(i,1)) goto 100
-       end do
-       
-       do i=1,nyfacs-1
-          if (nproc == facs(i,2)*nspec) goto 100
-       end do
-
-    case ('xyles')
-
-       call factors (nspec,   nsfacs, facs(:,1))
-       call factors (negrid,  nefacs, facs(:,2))
-       call factors (nlambda, nlfacs, facs(:,3))
-       call factors (naky, nyfacs, facs(:,4))
-
-       do i=1,nsfacs-1
-          if (nproc == facs(i,1)) goto 100
-       end do
-       
-       do i=1,nefacs-1
-          if (nproc == facs(i,2)*nspec) goto 100
-       end do
-
-       do i=1,nlfacs-1
-          if (nproc == facs(i,3)*negrid*nspec) goto 100
-       end do
-          
-       do i=1,nyfacs-1
-          if (nproc == facs(i,4)*nlambda*negrid*nspec) goto 100
-       end do
-          
-    end select
-
-    kx_local = .false.    
-                       
-100 deallocate (facs)
-
-  end subroutine is_kx_local
 
   !> Return the species index, given g-layout and a global index
 # ifdef USE_C_INDEX
@@ -4694,17 +4565,6 @@ contains
     integer, intent (in) :: i
     ig_local_xxf = lo%iproc == proc_id(lo, i)
   end function ig_local_xxf
-
-  !> FIXME : Add documentation  
-  elemental function xxf_ky_is_zero (lo, i)
-    implicit none
-    logical xxf_ky_is_zero
-    type (xxf_layout_type), intent (in) :: lo
-    integer, intent (in) :: i
-
-    xxf_ky_is_zero = 0 == mod(i, lo%naky)
-
-  end function xxf_ky_is_zero
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 ! Y-space layouts
