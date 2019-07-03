@@ -4,8 +4,6 @@
 !> FIXME : Add documentation
 module gs2_layouts
 
-! TT: What are gint_layout_type and geint_layout_type?
-
   use layouts_type, only: ikit, ikitprocs
   use layouts_type, only: g_layout_type, lz_layout_type, e_layout_type
   use layouts_type, only: le_layout_type, p_layout_type, gf_layout_type
@@ -17,7 +15,6 @@ module gs2_layouts
 
   public :: factors
   public :: pe_layout, layout, local_field_solve
-  public :: is_kx_local
   
   public :: init_dist_fn_layouts, init_gs2_layouts
   public :: finish_dist_fn_layouts
@@ -25,8 +22,6 @@ module gs2_layouts
   public :: wnml_gs2_layouts
   public :: init_parity_layouts
   public :: g_lo
-  public :: gint_lo, gint_layout_type
-  public :: geint_lo, geint_layout_type
   public :: p_lo
 
   public :: finish_layouts
@@ -44,8 +39,6 @@ module gs2_layouts
 
   public :: init_lambda_layouts
   public :: lz_lo
-  public :: gidx2lzidx
-  public :: gidx2gintidx, gintidx2geidx
 
   public :: init_energy_layouts
   public :: e_lo
@@ -59,8 +52,7 @@ module gs2_layouts
   public :: init_x_transform_layouts, init_y_transform_layouts
   public :: calculate_unbalanced_x, calculate_unbalanced_y, calculate_idle_processes
   public :: xxf_lo, xxf_layout_type, yxf_lo, yxf_layout_type
-  public :: gidx2xxfidx, xxfidx2yxfidx, yxfidx2xxfidx, xxfidx2gidx
-  public :: xxf_ky_is_zero
+  public :: gidx2xxfidx, xxfidx2yxfidx
 
   public :: init_accel_transform_layouts
   public :: accel_lo, accel_layout_type, dealiasing
@@ -105,23 +97,7 @@ module gs2_layouts
   logical :: simple_gf_decomposition
   logical :: gf_local_fields
 
-  !> FIXME : Add documentation
-  type :: gint_layout_type
-     integer :: iproc
-     integer :: naky, ntheta0, negrid, nspec
-     integer :: llim_world, ulim_world, llim_proc, ulim_proc, ulim_alloc, blocksize
-  end type gint_layout_type
-
-  !> FIXME : Add documentation  
-  type :: geint_layout_type
-     integer :: iproc
-     integer :: naky, ntheta0, nspec
-     integer :: llim_world, ulim_world, llim_proc, ulim_proc, ulim_alloc, blocksize
-  end type geint_layout_type
-
   type (g_layout_type) :: g_lo
-  type (gint_layout_type) :: gint_lo
-  type (geint_layout_type) :: geint_lo
   type (le_layout_type) :: le_lo
   !> layout for fields_gf_local and gf_lo integration
   type (gf_layout_type) :: gf_lo
@@ -256,8 +232,6 @@ module gs2_layouts
 
   interface ik_idx
      module procedure ik_idx_g
-     module procedure ik_idx_gint
-     module procedure ik_idx_geint
      module procedure ik_idx_jf
      module procedure ik_idx_lz
      module procedure ik_idx_e
@@ -272,8 +246,6 @@ module gs2_layouts
 
   interface it_idx
      module procedure it_idx_g
-     module procedure it_idx_gint
-     module procedure it_idx_geint
      module procedure it_idx_jf
      module procedure it_idx_lz
      module procedure it_idx_e
@@ -296,7 +268,6 @@ module gs2_layouts
 
   interface ie_idx
      module procedure ie_idx_g
-     module procedure ie_idx_gint
      module procedure ie_idx_lz
      module procedure ie_idx_xxf
      module procedure ie_idx_yxf
@@ -306,8 +277,6 @@ module gs2_layouts
 
   interface is_idx
      module procedure is_idx_g
-     module procedure is_idx_gint
-     module procedure is_idx_geint
      module procedure is_idx_lz
      module procedure is_idx_e
      module procedure is_idx_le
@@ -325,8 +294,6 @@ module gs2_layouts
 
   interface proc_id
      module procedure proc_id_g
-     module procedure proc_id_gint
-     module procedure proc_id_geint
      module procedure proc_id_f
      module procedure proc_id_jf
      module procedure proc_id_lz
@@ -341,8 +308,6 @@ module gs2_layouts
 
   interface idx
      module procedure idx_g
-     module procedure idx_gint
-     module procedure idx_geint
      module procedure idx_f
      module procedure idx_jf
      module procedure idx_lz
@@ -357,8 +322,6 @@ module gs2_layouts
 
   interface idx_local
      module procedure idx_local_g,      ig_local_g
-     module procedure idx_local_gint,   ig_local_gint
-     module procedure idx_local_geint,  ig_local_geint
      module procedure idx_local_f,      ig_local_f
      module procedure idx_local_jf,     ig_local_jf
      module procedure idx_local_lz,     ig_local_lz
@@ -1437,33 +1400,6 @@ contains
        deallocate(les_kxky_range)
     endif
 
-!Note: gint_lo isn't used anywhere!
-    gint_lo%iproc = iproc
-    gint_lo%naky = naky
-    gint_lo%ntheta0 = ntheta0
-    gint_lo%negrid = negrid
-    gint_lo%nspec = nspec
-    gint_lo%llim_world = 0
-    gint_lo%ulim_world = naky*ntheta0*negrid*nspec - 1
-    gint_lo%blocksize = gint_lo%ulim_world/nproc + 1
-    gint_lo%llim_proc = gint_lo%blocksize*iproc
-    gint_lo%ulim_proc &
-         = min(gint_lo%ulim_world, gint_lo%llim_proc + gint_lo%blocksize - 1)
-    gint_lo%ulim_alloc = max(gint_lo%llim_proc, gint_lo%ulim_proc)
-    
-!Note: geint_lo isn't used anywhere!
-    geint_lo%iproc = iproc
-    geint_lo%naky = naky
-    geint_lo%ntheta0 = ntheta0
-    geint_lo%nspec = nspec
-    geint_lo%llim_world = 0
-    geint_lo%ulim_world = naky*ntheta0*nspec - 1
-    geint_lo%blocksize = geint_lo%ulim_world/nproc + 1
-    geint_lo%llim_proc = geint_lo%blocksize*iproc
-    geint_lo%ulim_proc &
-         = min(geint_lo%ulim_world, geint_lo%llim_proc + geint_lo%blocksize -1)
-    geint_lo%ulim_alloc = max(geint_lo%llim_proc, geint_lo%ulim_proc)
-
 # ifdef USE_C_INDEX
     ierr = init_indices_glo_c (layout)
     if (ierr /= 0) &
@@ -1471,133 +1407,6 @@ contains
 # endif
 
   end subroutine init_dist_fn_layouts
-
-  !> FIXME : Add documentation 
-  subroutine is_kx_local(negrid, nspec, nlambda, naky, kx_local)  
-    use mp, only: nproc
-    implicit none
-    integer, intent (in) :: negrid, nspec, nlambda, naky
-    logical, intent (out) :: kx_local
-    integer, dimension(:,:), allocatable :: facs
-    integer :: nsfacs, nefacs, nyfacs, nlfacs
-    integer :: i
-
-    kx_local = .true.
-
-    allocate (facs(max(nspec,negrid,naky,nlambda)/2+1,4))
-
-    select case (layout)
-
-    case ('yxels')
-
-       call factors (nspec,   nsfacs, facs(:,1))
-       call factors (nlambda, nlfacs, facs(:,2))
-       call factors (negrid,  nefacs, facs(:,3))
-
-       do i=1,nsfacs-1
-          if (nproc == facs(i,1)) goto 100
-       end do
-       
-       do i=1,nlfacs-1
-          if (nproc == facs(i,2)*nspec) goto 100
-       end do
-
-       do i=1,nefacs-1
-          if (nproc == facs(i,3)*nlambda*nspec) goto 100
-       end do
-          
-    case ('yxles')
-
-       call factors (nspec,   nsfacs, facs(:,1))
-       call factors (negrid,  nefacs, facs(:,2))
-       call factors (nlambda, nlfacs, facs(:,3))
-
-       do i=1,nsfacs-1
-          if (nproc == facs(i,1)) goto 100
-       end do
-       
-       do i=1,nefacs-1
-          if (nproc == facs(i,2)*nspec) goto 100
-       end do
-
-       do i=1,nlfacs-1
-          if (nproc == facs(i,3)*negrid*nspec) goto 100
-       end do
-          
-    case ('lxyes')
-
-       call factors (nspec,   nsfacs, facs(:,1))
-       call factors (negrid,  nefacs, facs(:,2))
-       call factors (naky,    nyfacs, facs(:,3))
-
-       do i=1,nsfacs-1
-          if (nproc == facs(i,1)) goto 100
-       end do
-       
-       do i=1,nefacs-1
-          if (nproc == facs(i,2)*nspec) goto 100
-       end do
-
-       do i=1,nyfacs-1
-          if (nproc == facs(i,3)*negrid*nspec) goto 100
-       end do
-          
-    case ('lyxes')
-
-       call factors (nspec,   nsfacs, facs(:,1))
-       call factors (negrid,  nefacs, facs(:,2))
-
-       do i=1,nsfacs-1
-          if (nproc == facs(i,1)) goto 100
-       end do
-       
-       do i=1,nefacs-1
-          if (nproc == facs(i,2)*nspec) goto 100
-       end do
-
-    case ('lexys')
-
-       call factors (nspec,   nsfacs, facs(:,1))
-       call factors (naky,    nyfacs, facs(:,2))
-
-       do i=1,nsfacs-1
-          if (nproc == facs(i,1)) goto 100
-       end do
-       
-       do i=1,nyfacs-1
-          if (nproc == facs(i,2)*nspec) goto 100
-       end do
-
-    case ('xyles')
-
-       call factors (nspec,   nsfacs, facs(:,1))
-       call factors (negrid,  nefacs, facs(:,2))
-       call factors (nlambda, nlfacs, facs(:,3))
-       call factors (naky, nyfacs, facs(:,4))
-
-       do i=1,nsfacs-1
-          if (nproc == facs(i,1)) goto 100
-       end do
-       
-       do i=1,nefacs-1
-          if (nproc == facs(i,2)*nspec) goto 100
-       end do
-
-       do i=1,nlfacs-1
-          if (nproc == facs(i,3)*negrid*nspec) goto 100
-       end do
-          
-       do i=1,nyfacs-1
-          if (nproc == facs(i,4)*nlambda*negrid*nspec) goto 100
-       end do
-          
-    end select
-
-    kx_local = .false.    
-                       
-100 deallocate (facs)
-
-  end subroutine is_kx_local
 
   !> Return the species index, given g-layout and a global index
 # ifdef USE_C_INDEX
@@ -1824,283 +1633,6 @@ contains
          ig_local_g = .true.
 #endif
   end function ig_local_g
-
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-! Once-integrated distribution function layouts
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-  
-  !> FIXME : Add documentation 
-  elemental function is_idx_gint (lo, i)
-    implicit none
-    integer :: is_idx_gint
-    type (gint_layout_type), intent (in) :: lo
-    integer, intent (in) :: i
-
-    select case (layout)
-    case ('yxels')
-       is_idx_gint = 1 + mod((i - lo%llim_world)/lo%naky/lo%ntheta0/lo%negrid, lo%nspec)
-    case ('yxles')
-       is_idx_gint = 1 + mod((i - lo%llim_world)/lo%naky/lo%ntheta0/lo%negrid, lo%nspec)
-    case ('lexys')
-       is_idx_gint = 1 + mod((i - lo%llim_world)/lo%negrid/lo%ntheta0/lo%naky, lo%nspec)
-    case ('lxyes')
-       is_idx_gint = 1 + mod((i - lo%llim_world)/lo%ntheta0/lo%naky/lo%negrid, lo%nspec)
-    case ('lyxes')
-       is_idx_gint = 1 + mod((i - lo%llim_world)/lo%naky/lo%ntheta0/lo%negrid, lo%nspec)
-    case ('xyles')
-       is_idx_gint = 1 + mod((i - lo%llim_world)/lo%ntheta0/lo%naky/lo%negrid, lo%nspec)
-    end select
-  end function is_idx_gint
-
-  !> FIXME : Add documentation   
-  elemental function ie_idx_gint (lo, i)
-    implicit none
-    integer :: ie_idx_gint
-    type (gint_layout_type), intent (in) :: lo
-    integer, intent (in) :: i
-
-    select case (layout)
-    case ('yxels')
-       ie_idx_gint = 1 + mod((i - lo%llim_world)/lo%naky/lo%ntheta0, lo%negrid)
-    case ('yxles')
-       ie_idx_gint = 1 + mod((i - lo%llim_world)/lo%naky/lo%ntheta0, lo%negrid)
-    case ('lexys')
-       ie_idx_gint = 1 + mod(i - lo%llim_world, lo%negrid)
-    case ('lxyes')
-       ie_idx_gint = 1 + mod((i - lo%llim_world)/lo%ntheta0/lo%naky, lo%negrid)
-    case ('lyxes')
-       ie_idx_gint = 1 + mod((i - lo%llim_world)/lo%naky/lo%ntheta0, lo%negrid)
-    case ('xyles')
-       ie_idx_gint = 1 + mod((i - lo%llim_world)/lo%ntheta0/lo%naky, lo%negrid)
-    end select
-
-  end function ie_idx_gint
-
-  !> FIXME : Add documentation   
-  elemental function it_idx_gint (lo, i)
-    implicit none
-    integer :: it_idx_gint
-    type (gint_layout_type), intent (in) :: lo
-    integer, intent (in) :: i
-
-    select case (layout)
-    case ('yxels')
-       it_idx_gint = 1 + mod((i - lo%llim_world)/lo%naky, lo%ntheta0)
-    case ('yxles')
-       it_idx_gint = 1 + mod((i - lo%llim_world)/lo%naky, lo%ntheta0)
-    case ('lexys')
-       it_idx_gint = 1 + mod((i - lo%llim_world)/lo%negrid, lo%ntheta0)
-    case ('lxyes')
-       it_idx_gint = 1 + mod((i - lo%llim_world), lo%ntheta0)
-    case ('lyxes')
-       it_idx_gint = 1 + mod((i - lo%llim_world)/lo%naky, lo%ntheta0)
-    case ('xyles')
-       it_idx_gint = 1 + mod((i - lo%llim_world), lo%ntheta0)
-    end select
-  end function it_idx_gint
-
-  !> FIXME : Add documentation 
-  elemental function ik_idx_gint (lo, i)
-    implicit none
-    integer :: ik_idx_gint
-    type (gint_layout_type), intent (in) :: lo
-    integer, intent (in) :: i
-
-    select case (layout)
-    case ('yxels')
-       ik_idx_gint = 1 + mod(i - lo%llim_world, lo%naky)
-    case ('yxles')
-       ik_idx_gint = 1 + mod(i - lo%llim_world, lo%naky)
-    case ('lexys')
-       ik_idx_gint = 1 + mod((i - lo%llim_world)/lo%negrid/lo%ntheta0, lo%naky)
-    case ('lxyes')
-       ik_idx_gint = 1 + mod((i - lo%llim_world)/lo%ntheta0, lo%naky)
-    case ('lyxes')
-       ik_idx_gint = 1 + mod((i - lo%llim_world), lo%naky)
-    case ('xyles')
-       ik_idx_gint = 1 + mod((i - lo%llim_world)/lo%ntheta0, lo%naky)
-    end select
-  end function ik_idx_gint
-
-  !> FIXME : Add documentation   
-  elemental function proc_id_gint (lo, i)
-    implicit none
-    integer :: proc_id_gint
-    type (gint_layout_type), intent (in) :: lo
-    integer, intent (in) :: i
-
-    proc_id_gint = i/lo%blocksize
-  end function proc_id_gint
-
-  !> FIXME : Add documentation 
-  elemental function idx_gint (lo, ik, it, ie, is)
-    implicit none
-    integer :: idx_gint
-    type (gint_layout_type), intent (in) :: lo
-    integer, intent (in) :: ik, it, ie, is
-
-    select case (layout)
-    case ('yxels')
-       idx_gint = ik-1 + lo%naky*(it-1 + lo%ntheta0*(ie-1 + lo%negrid*(is-1)))
-    case ('yxles')
-       idx_gint = ik-1 + lo%naky*(it-1 + lo%ntheta0*(ie-1 + lo%negrid*(is-1)))
-    case ('lexys')
-       idx_gint = ie-1 + lo%negrid*(it-1 + lo%ntheta0*(ik-1 + lo%naky*(is-1)))
-    case ('lxyes')
-       idx_gint = it-1 + lo%ntheta0*(ik-1 + lo%naky*(ie-1 + lo%negrid*(is-1)))
-    case ('lyxes')
-       idx_gint = ik-1 + lo%naky*(it-1 + lo%ntheta0*(ie-1 + lo%negrid*(is-1)))
-    case ('xyles')
-       idx_gint = it-1 + lo%ntheta0*(ik-1 + lo%naky*(ie-1 + lo%negrid*(is-1)))
-    end select
-  end function idx_gint
-
-  !> FIXME : Add documentation 
-  elemental function idx_local_gint (lo, ik, it, ie, is)
-    implicit none
-    logical :: idx_local_gint
-    type (gint_layout_type), intent (in) :: lo
-    integer, intent (in) :: ik, it, ie, is
-
-    idx_local_gint = idx_local(lo, idx(lo, ik, it, ie, is))
-  end function idx_local_gint
-
-  !> FIXME : Add documentation 
-  elemental function ig_local_gint (lo, ig)
-    implicit none
-    logical :: ig_local_gint
-    type (gint_layout_type), intent (in) :: lo
-    integer, intent (in) :: ig
-
-    ig_local_gint = lo%iproc == proc_id(lo, ig)
-  end function ig_local_gint
-
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-! Twice-integrated distribution function layouts
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-
-  !> FIXME : Add documentation 
-  elemental function is_idx_geint (lo, i)
-    implicit none
-    integer :: is_idx_geint
-    type (geint_layout_type), intent (in) :: lo
-    integer, intent (in) :: i
-
-    select case (layout)
-    case ('yxels')
-       is_idx_geint = 1 + mod((i - lo%llim_world)/lo%naky/lo%ntheta0, lo%nspec)
-    case ('yxles')
-       is_idx_geint = 1 + mod((i - lo%llim_world)/lo%naky/lo%ntheta0, lo%nspec)
-    case ('lexys')
-       is_idx_geint = 1 + mod((i - lo%llim_world)/lo%ntheta0/lo%naky, lo%nspec)
-    case ('lxyes')
-       is_idx_geint = 1 + mod((i - lo%llim_world)/lo%ntheta0/lo%naky, lo%nspec)
-    case ('lyxes')
-       is_idx_geint = 1 + mod((i - lo%llim_world)/lo%naky/lo%ntheta0, lo%nspec)
-    case ('xyles')
-       is_idx_geint = 1 + mod((i - lo%llim_world)/lo%ntheta0/lo%naky, lo%nspec)
-    end select
-
-  end function is_idx_geint
-
-  !> FIXME : Add documentation 
-  elemental function it_idx_geint (lo, i)
-    implicit none
-    integer :: it_idx_geint
-    type (geint_layout_type), intent (in) :: lo
-    integer, intent (in) :: i
-
-    select case (layout)
-    case ('yxels')
-       it_idx_geint = 1 + mod((i - lo%llim_world)/lo%naky, lo%ntheta0)
-    case ('yxles')
-       it_idx_geint = 1 + mod((i - lo%llim_world)/lo%naky, lo%ntheta0)
-    case ('lexys')
-       it_idx_geint = 1 + mod(i - lo%llim_world, lo%ntheta0)
-    case ('lxyes')
-       it_idx_geint = 1 + mod(i - lo%llim_world, lo%ntheta0)
-    case ('lyxes')
-       it_idx_geint = 1 + mod((i - lo%llim_world)/lo%naky, lo%ntheta0)
-    case ('xyles')
-       it_idx_geint = 1 + mod(i - lo%llim_world, lo%ntheta0)
-    end select
-  end function it_idx_geint
-  
-  !> FIXME : Add documentation 
-  elemental function ik_idx_geint (lo, i)
-    implicit none
-    integer :: ik_idx_geint
-    type (geint_layout_type), intent (in) :: lo
-    integer, intent (in) :: i
-
-    select case (layout)
-    case ('yxels')
-       ik_idx_geint = 1 + mod(i - lo%llim_world, lo%naky)
-    case ('yxles')
-       ik_idx_geint = 1 + mod(i - lo%llim_world, lo%naky)
-    case ('lexys')
-       ik_idx_geint = 1 + mod((i - lo%llim_world)/lo%ntheta0, lo%naky)
-    case ('lxyes')
-       ik_idx_geint = 1 + mod((i - lo%llim_world)/lo%ntheta0, lo%naky)
-    case ('lyxes')
-       ik_idx_geint = 1 + mod((i - lo%llim_world), lo%naky)
-    case ('xyles')
-       ik_idx_geint = 1 + mod((i - lo%llim_world)/lo%ntheta0, lo%naky)
-    end select
-  end function ik_idx_geint
-
-  !> FIXME : Add documentation   
-  elemental function proc_id_geint (lo, i)
-    implicit none
-    integer :: proc_id_geint
-    type (geint_layout_type), intent (in) :: lo
-    integer, intent (in) :: i
-
-    proc_id_geint = i/lo%blocksize
-  end function proc_id_geint
-
-  !> FIXME : Add documentation   
-  elemental function idx_geint (lo, ik, it, is)
-    implicit none
-    integer :: idx_geint
-    type (geint_layout_type), intent (in) :: lo
-    integer, intent (in) :: ik, it, is
-
-    select case (layout)
-    case ('yxels')
-       idx_geint = ik-1 + lo%naky*(it-1 + lo%ntheta0*(is-1))
-    case ('yxles')
-       idx_geint = ik-1 + lo%naky*(it-1 + lo%ntheta0*(is-1))
-    case ('lexys')
-       idx_geint = it-1 + lo%ntheta0*(ik-1 + lo%naky*(is-1))
-    case ('lxyes')
-       idx_geint = it-1 + lo%ntheta0*(ik-1 + lo%naky*(is-1))
-    case ('lyxes')
-       idx_geint = ik-1 + lo%naky*(it-1 + lo%ntheta0*(is-1))
-    case ('xyles')
-       idx_geint = it-1 + lo%ntheta0*(ik-1 + lo%naky*(is-1))
-    end select
-  end function idx_geint
-
-  !> FIXME : Add documentation 
-  elemental function idx_local_geint (lo, ik, it, is)
-    implicit none
-    logical :: idx_local_geint
-    type (geint_layout_type), intent (in) :: lo
-    integer, intent (in) :: ik, it, is
-
-    idx_local_geint = idx_local(lo, idx(lo, ik, it, is))
-  end function idx_local_geint
-
-  !> FIXME : Add documentation   
-  elemental function ig_local_geint (lo, ig)
-    implicit none
-    logical :: ig_local_geint
-    type (geint_layout_type), intent (in) :: lo
-    integer, intent (in) :: ig
-
-    ig_local_geint = lo%iproc == proc_id(lo, ig)
-  end function ig_local_geint
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 ! Field layouts
@@ -5034,17 +4566,6 @@ contains
     ig_local_xxf = lo%iproc == proc_id(lo, i)
   end function ig_local_xxf
 
-  !> FIXME : Add documentation  
-  elemental function xxf_ky_is_zero (lo, i)
-    implicit none
-    logical xxf_ky_is_zero
-    type (xxf_layout_type), intent (in) :: lo
-    integer, intent (in) :: i
-
-    xxf_ky_is_zero = 0 == mod(i, lo%naky)
-
-  end function xxf_ky_is_zero
-
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 ! Y-space layouts
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -5952,90 +5473,9 @@ contains
     dealiasing = .false.
   end function dealiasing
 
-
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 ! Transformation subroutines
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-
-# ifdef USE_C_INDEX
-  !> FIXME : Add documentation  
-  subroutine gidx2lzidx (ig, isign, g_lo, iglo, lz_lo, ntgrid, jend, il, ilz)
-# else
-  !> FIXME : Add documentation    
-  pure subroutine gidx2lzidx (ig, isign, g_lo, iglo, lz_lo, ntgrid, jend, &
-                              il, ilz)
-# endif
-    implicit none
-    integer, intent (in) :: ig, isign
-    type (g_layout_type), intent (in) :: g_lo
-    integer, intent (in) :: iglo
-    type (lz_layout_type), intent (in) :: lz_lo
-    integer, intent (in) :: ntgrid
-    integer, dimension (-ntgrid:), intent (in) :: jend
-    integer, intent (out) :: il, ilz
-    integer :: je
-
-    je = jend(ig)
-    il = il_idx(g_lo,iglo)
-
-    if (je == 0) then
-       if (isign == 2) then
-          il = 2*g_lo%nlambda+1 - il
-       end if
-    else
-!       if (il > je) then
-!          il = 2*je + 1
-!       else if (isign == 2) then
-!          il = 2*je - il
-!       end if
-
-       if (il == je) then
-          if (isign == 1) il = 2*je  ! throw this info away
-       else if (il > je) then 
-          if (isign == 1) il = il + je
-          if (isign == 2) il = 2*g_lo%nlambda + 1 - il + je
-       else
-          if (isign == 2) il = 2*je - il !+ 1
-       end if
-          
-    end if
-    ilz = idx(lz_lo, ig, ik_idx(g_lo,iglo), it_idx(g_lo,iglo), &
-         ie_idx(g_lo,iglo), is_idx(g_lo,iglo))
-  end subroutine gidx2lzidx
-
-# ifdef USE_C_INDEX
-  !> FIXME : Add documentation
-  subroutine gidx2gintidx (g_lo, iglo, gint_lo, il, igint)
-# else
-  !> FIXME : Add documentation    
-  elemental subroutine gidx2gintidx (g_lo, iglo, gint_lo, il, igint)
-# endif
-    implicit none
-    type (g_layout_type), intent (in) :: g_lo
-    integer, intent (in) :: iglo
-    type (gint_layout_type), intent (in) :: gint_lo
-    integer, intent (out) :: il, igint
-
-    il = il_idx(g_lo, iglo)
-
-    igint = idx(gint_lo, ik_idx(g_lo,iglo), it_idx(g_lo,iglo), &
-         ie_idx(g_lo,iglo), is_idx(g_lo,iglo))
-  end subroutine gidx2gintidx
-
-  !> FIXME : Add documentation
-  elemental subroutine gintidx2geidx (gint_lo, igint, ie, geint_lo, igeint)
-    implicit none
-    type (gint_layout_type), intent (in) :: gint_lo
-    integer, intent (in) :: igint
-    type (geint_layout_type), intent (in) :: geint_lo
-    integer, intent (out) :: ie, igeint
-
-    ie = ie_idx(gint_lo, igint)
-
-    igeint = idx(geint_lo, ik_idx(gint_lo, igint), it_idx(gint_lo, igint), &
-         is_idx(gint_lo, igint))
-
-  end subroutine gintidx2geidx
 
 # ifdef USE_C_INDEX
   !> FIXME : Add documentation  
@@ -6058,38 +5498,7 @@ contains
     ixxf = idx(xxf_lo, ig, isign, ik_idx(g_lo,iglo), il_idx(g_lo,iglo), &
          ie_idx(g_lo,iglo), is_idx(g_lo,iglo))
   end subroutine gidx2xxfidx
-
-# ifdef USE_C_INDEX
-  !> FIXME : Add documentation  
-  subroutine xxfidx2gidx (it, ixxf, xxf_lo, g_lo, ig, isign, iglo)
-# else
-  !> FIXME : Add documentation    
-  elemental subroutine xxfidx2gidx (it, ixxf, xxf_lo, g_lo, ig, isign, iglo)
-# endif
-    implicit none
-    integer, intent (in) :: it, ixxf
-    type (xxf_layout_type), intent (in) :: xxf_lo
-    type (g_layout_type), intent (in) :: g_lo
-    integer, intent (out) :: ig, isign, iglo
-    integer :: it0
-
-    it0 = it
-    if (it0 > (xxf_lo%ntheta0+1)/2) then
-       it0 = it0 + xxf_lo%ntheta0 - xxf_lo%nx
-       if (it0 <= (xxf_lo%ntheta0+1)/2) then
-          ig = -999999
-          isign = -999999
-          iglo = -999999
-          return
-       end if
-    end if
-
-    ig = ig_idx(xxf_lo,ixxf)
-    isign = isign_idx(xxf_lo,ixxf)
-    iglo = idx(g_lo, ik_idx(xxf_lo,ixxf), it0, il_idx(xxf_lo,ixxf), &
-         ie_idx(xxf_lo,ixxf), is_idx(xxf_lo,ixxf))
-  end subroutine xxfidx2gidx
-
+  
   !> FIXME : Add documentation  
   elemental subroutine xxfidx2yxfidx (it, ixxf, xxf_lo, yxf_lo, ik, iyxf)
     implicit none
@@ -6102,27 +5511,6 @@ contains
     iyxf = idx(yxf_lo, ig_idx(xxf_lo,ixxf), isign_idx(xxf_lo,ixxf), &
          it, il_idx(xxf_lo,ixxf), ie_idx(xxf_lo,ixxf), is_idx(xxf_lo,ixxf))
   end subroutine xxfidx2yxfidx
-
-  !> FIXME : Add documentation  
-  elemental subroutine yxfidx2xxfidx (ik, iyxf, yxf_lo, xxf_lo, it, ixxf)
-    implicit none
-    integer, intent (in) :: ik, iyxf
-    type (yxf_layout_type), intent (in) :: yxf_lo
-    type (xxf_layout_type), intent (in) :: xxf_lo
-    integer, intent (out) :: it, ixxf
-    integer :: ik0
-
-    ik0 = ik
-    if (ik0 > xxf_lo%naky) then
-       it = -999999
-       ixxf = -999999
-       return
-    end if
-
-    it = it_idx(yxf_lo,iyxf)
-    ixxf = idx(xxf_lo, ig_idx(yxf_lo,iyxf), isign_idx(yxf_lo,iyxf), &
-         ik0, il_idx(yxf_lo,iyxf), ie_idx(yxf_lo,iyxf), is_idx(yxf_lo,iyxf))
-  end subroutine yxfidx2xxfidx
 
   !> FIXME : Add documentation  
   subroutine pe_layout (char)
