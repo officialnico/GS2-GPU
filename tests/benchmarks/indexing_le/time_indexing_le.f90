@@ -21,7 +21,7 @@ program time_indexing_le
   use benchmarks, only: benchmark_identifier
   use file_utils, only: append_output_file, close_output_file
   use gs2_init, only: init, init_level_list
-  use gs2_layouts, only: le_lo, layout, is_idx, it_idx, ik_idx, il_idx, ie_idx, idx
+  use gs2_layouts, only: le_lo, layout, is_idx, it_idx, ik_idx, il_idx, ie_idx, ig_idx, idx
   use gs2_main, only: gs2_program_state_type, initialize_gs2, finalize_gs2
   use job_manage, only: time_message
   use mp, only: init_mp, finish_mp, proc0, nproc, mp_comm
