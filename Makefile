@@ -778,7 +778,7 @@ distclean: unlink clean cleanlib clean_tests clean_benchmarks distclean_simpleda
 
 unlink:
 	$(call messageRm,"Preprocessed files")	
-	-$(QUIETSYM)rm -f $(F90FROMFPP) layouts_type.h
+	-$(QUIETSYM)rm -f $(F90FROMFPP)
 
 ############################################################# Tar targets
 tar:
