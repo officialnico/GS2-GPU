@@ -170,7 +170,11 @@ module gs2_layouts
      integer :: ig_comp, isgn_comp, ik_comp, il_comp, ie_comp, is_comp
      !> Work array that holds iX_comp in the order that they appear in the
      !> layout.
-     integer,dimension(6) :: compound_count, dim_size
+     integer,dimension(6) :: compound_count
+     !> Array that holds the size of each dimension in the order that they
+     !> appear in the layout. This allows the removal of slow
+     !> 'select case(layout)' from indexing routines.
+     integer,dimension(6) :: dim_size
   end type xxf_layout_type
 
   type (xxf_layout_type) :: xxf_lo
@@ -191,6 +195,10 @@ module gs2_layouts
      !> Work array that holds iX_comp in the order that they appear in the
      !> layout.
      integer,dimension(6) :: compound_count
+     !> Array that holds the size of each dimension in the order that they
+     !> appear in the layout. This allows the removal of slow
+     !> 'select case(layout)' from indexing routines.
+     integer,dimension(6) :: dim_size
   end type yxf_layout_type
 
   type (yxf_layout_type) :: yxf_lo
@@ -4958,7 +4966,7 @@ contains
     i(lo%is_ord) = is - 1
     i(lo%ig_ord) = ig + lo%ntgrid
     i(lo%isgn_ord) = isign - 1
-    idx_xxf = i(1) + lo%dim_size(1)*(i(2) + lo%dim_size(2)*(i(3) + lo%dim_size(3)*(i(4) + lo%dim_size(4)*i(5))))
+    idx_xxf = i(1) + lo%dim_size(1)*(i(2) + lo%dim_size(2)*(i(3) + lo%dim_size(3)*(i(4) + lo%dim_size(4)*(i(5) + lo%dim_size(5)*i(6)))))
   end function idx_xxf
 
   !> Return the processor id that has the point i in the xxf_lo layout
@@ -5116,6 +5124,12 @@ contains
        yxf_lo%compound_count(4)=yxf_lo%compound_count(3)*nsign
        yxf_lo%compound_count(5)=yxf_lo%compound_count(4)*negrid
        yxf_lo%compound_count(6)=yxf_lo%compound_count(5)*nlambda
+       yxf_lo%dim_size(1)=nx
+       yxf_lo%dim_size(2)=ntgridtotal
+       yxf_lo%dim_size(3)=nsign
+       yxf_lo%dim_size(4)=negrid
+       yxf_lo%dim_size(5)=nlambda
+       yxf_lo%dim_size(6)=nspec
     case ('yxles')
        call set_dimension_order_yxf(yxf_lo,it_ord=1,ig_ord=2,isgn_ord=3,il_ord=4,ie_ord=5,is_ord=6)
        yxf_lo%compound_count(1)=1
@@ -5124,6 +5138,12 @@ contains
        yxf_lo%compound_count(4)=yxf_lo%compound_count(3)*nsign
        yxf_lo%compound_count(5)=yxf_lo%compound_count(4)*nlambda
        yxf_lo%compound_count(6)=yxf_lo%compound_count(5)*negrid
+       yxf_lo%dim_size(1)=nx
+       yxf_lo%dim_size(2)=ntgridtotal
+       yxf_lo%dim_size(3)=nsign
+       yxf_lo%dim_size(4)=nlambda
+       yxf_lo%dim_size(5)=negrid
+       yxf_lo%dim_size(6)=nspec
     case ('lexys')
        call set_dimension_order_yxf(yxf_lo,it_ord=1,ig_ord=2,isgn_ord=3,il_ord=4,ie_ord=5,is_ord=6)
        yxf_lo%compound_count(1)=1
@@ -5132,6 +5152,12 @@ contains
        yxf_lo%compound_count(4)=yxf_lo%compound_count(3)*nsign
        yxf_lo%compound_count(5)=yxf_lo%compound_count(4)*nlambda
        yxf_lo%compound_count(6)=yxf_lo%compound_count(5)*negrid
+       yxf_lo%dim_size(1)=nx
+       yxf_lo%dim_size(2)=ntgridtotal
+       yxf_lo%dim_size(3)=nsign
+       yxf_lo%dim_size(4)=nlambda
+       yxf_lo%dim_size(5)=negrid
+       yxf_lo%dim_size(6)=nspec
     case ('lxyes')
        call set_dimension_order_yxf(yxf_lo,it_ord=1,ig_ord=2,isgn_ord=3,il_ord=4,ie_ord=5,is_ord=6)
        yxf_lo%compound_count(1)=1
@@ -5140,6 +5166,12 @@ contains
        yxf_lo%compound_count(4)=yxf_lo%compound_count(3)*nsign
        yxf_lo%compound_count(5)=yxf_lo%compound_count(4)*nlambda
        yxf_lo%compound_count(6)=yxf_lo%compound_count(5)*negrid
+       yxf_lo%dim_size(1)=nx
+       yxf_lo%dim_size(2)=ntgridtotal
+       yxf_lo%dim_size(3)=nsign
+       yxf_lo%dim_size(4)=nlambda
+       yxf_lo%dim_size(5)=negrid
+       yxf_lo%dim_size(6)=nspec
     case ('lyxes')
        call set_dimension_order_yxf(yxf_lo,it_ord=1,ig_ord=2,isgn_ord=3,il_ord=4,ie_ord=5,is_ord=6)
        yxf_lo%compound_count(1)=1
@@ -5148,6 +5180,12 @@ contains
        yxf_lo%compound_count(4)=yxf_lo%compound_count(3)*nsign
        yxf_lo%compound_count(5)=yxf_lo%compound_count(4)*nlambda
        yxf_lo%compound_count(6)=yxf_lo%compound_count(5)*negrid
+       yxf_lo%dim_size(1)=nx
+       yxf_lo%dim_size(2)=ntgridtotal
+       yxf_lo%dim_size(3)=nsign
+       yxf_lo%dim_size(4)=nlambda
+       yxf_lo%dim_size(5)=negrid
+       yxf_lo%dim_size(6)=nspec
     case ('xyles')
        call set_dimension_order_yxf(yxf_lo,it_ord=1,ig_ord=2,isgn_ord=3,il_ord=4,ie_ord=5,is_ord=6)
        yxf_lo%compound_count(1)=1
@@ -5156,6 +5194,12 @@ contains
        yxf_lo%compound_count(4)=yxf_lo%compound_count(3)*nsign
        yxf_lo%compound_count(5)=yxf_lo%compound_count(4)*nlambda
        yxf_lo%compound_count(6)=yxf_lo%compound_count(5)*negrid
+       yxf_lo%dim_size(1)=nx
+       yxf_lo%dim_size(2)=ntgridtotal
+       yxf_lo%dim_size(3)=nsign
+       yxf_lo%dim_size(4)=nlambda
+       yxf_lo%dim_size(5)=negrid
+       yxf_lo%dim_size(6)=nspec
     end select
     yxf_lo%ig_comp=yxf_lo%compound_count(yxf_lo%ig_ord)
     yxf_lo%isgn_comp=yxf_lo%compound_count(yxf_lo%isgn_ord)
@@ -5498,33 +5542,21 @@ contains
     end select
   end function idx_accelx
 
-  !> FIXME : Add documentation  
+  !> Return the global index in the yxf_lo layout given the dimensional indices
   elemental function idx_yxf (lo, ig, isign, it, il, ie, is)
     implicit none
     integer :: idx_yxf
     type (yxf_layout_type), intent (in) :: lo
     integer, intent (in) :: ig, isign, it, il, ie, is
+    integer, dimension(6) :: i
 
-    select case (layout)
-    case ('yxels')
-       idx_yxf = it-1 + lo%nx*(ig+lo%ntgrid + (2*lo%ntgrid+1)*(isign-1 &
-            + lo%nsign*(ie-1 + lo%negrid*(il-1 + lo%nlambda*(is-1)))))
-    case ('yxles')
-       idx_yxf = it-1 + lo%nx*(ig+lo%ntgrid + (2*lo%ntgrid+1)*(isign-1 &
-            + lo%nsign*(il-1 + lo%nlambda*(ie-1 + lo%negrid*(is-1)))))
-    case ('lexys')
-       idx_yxf = it-1 + lo%nx*(ig+lo%ntgrid + (2*lo%ntgrid+1)*(isign-1 &
-            + lo%nsign*(il-1 + lo%nlambda*(ie-1 + lo%negrid*(is-1)))))
-    case ('lxyes')
-       idx_yxf = it-1 + lo%nx*(ig+lo%ntgrid + (2*lo%ntgrid+1)*(isign-1 &
-            + lo%nsign*(il-1 + lo%nlambda*(ie-1 + lo%negrid*(is-1)))))
-    case ('lyxes')
-       idx_yxf = it-1 + lo%nx*(ig+lo%ntgrid + (2*lo%ntgrid+1)*(isign-1 &
-            + lo%nsign*(il-1 + lo%nlambda*(ie-1 + lo%negrid*(is-1)))))
-    case ('xyles')
-       idx_yxf = it-1 + lo%nx*(ig+lo%ntgrid + (2*lo%ntgrid+1)*(isign-1 &
-            + lo%nsign*(il-1 + lo%nlambda*(ie-1 + lo%negrid*(is-1)))))
-    end select
+    i(lo%it_ord) = it - 1
+    i(lo%il_ord) = il - 1
+    i(lo%ie_ord) = ie - 1
+    i(lo%is_ord) = is - 1
+    i(lo%ig_ord) = ig + lo%ntgrid
+    i(lo%isgn_ord) = isign - 1
+    idx_yxf = i(1) + lo%dim_size(1)*(i(2) + lo%dim_size(2)*(i(3) + lo%dim_size(3)*(i(4) + lo%dim_size(4)*(i(5) + lo%dim_size(5)*i(6)))))
   end function idx_yxf
 
   elemental function proc_id_accelx (lo, i)
