@@ -107,6 +107,10 @@ module layouts_type
      integer :: ik_min, it_min, ig_min, is_min 
      integer :: ik_max, it_max, ig_max, is_max 
      logical :: x_local, y_local, t_local, s_local !Used to record if various dimensions are entirely local
+     !> Array that holds the size of each dimension in the order that they
+     !> appear in the layout. This allows the removal of slow
+     !> 'select case(layout)' from indexing routines.
+     integer,dimension(4) :: dim_size
   end type le_layout_type
 
   !> FIXME : Add documentation  
