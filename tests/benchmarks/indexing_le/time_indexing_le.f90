@@ -55,7 +55,7 @@ program time_indexing_le
 
   do j = 1,nstep
     do ile=le_lo%llim_world, le_lo%ulim_world
-      ig=it_idx(le_lo,ile)
+      ig=ig_idx(le_lo,ile)
       it=it_idx(le_lo,ile)
       ik=ik_idx(le_lo,ile)
       is=is_idx(le_lo,ile)
