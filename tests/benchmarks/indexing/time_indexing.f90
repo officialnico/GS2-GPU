@@ -34,7 +34,7 @@ program time_indexing
   type(gs2_program_state_type) :: state
   real :: time_taken(2) = 0.0
   real :: time_init(2) = 0.0
-  integer :: i, j, k, l, it, ik, il, ie, is, iglo, work
+  integer :: i, j, it, ik, il, ie, is, iglo, work
   integer :: timing_unit
 
   ! General config
