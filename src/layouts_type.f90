@@ -76,7 +76,11 @@ module layouts_type
 !    For branchless index lookup routines
      integer :: ig_ord, isgn_ord, ik_ord, it_ord, ie_ord, is_ord
      integer :: ig_comp, isgn_comp, ik_comp, it_comp, ie_comp, is_comp
-     integer,dimension(6) :: compound_count
+     integer,dimension(5) :: compound_count
+     !> Array that holds the size of each dimension in the order that they
+     !> appear in the layout. This allows the removal of slow
+     !> 'select case(layout)' from indexing routines.
+     integer,dimension(5) :: dim_size
 
   end type lz_layout_type
 
