@@ -35,7 +35,7 @@ program time_indexing_xxf
   type(gs2_program_state_type) :: state
   real :: time_taken(2) = 0.0
   real :: time_init(2) = 0.0
-  integer :: i, j, k, l, ik, il, ie, is, ig, isgn, ixxf
+  integer :: i, j, ik, il, ie, is, ig, isgn, ixxf
   integer :: timing_unit
 
   ! General config
