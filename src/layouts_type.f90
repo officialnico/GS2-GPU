@@ -78,8 +78,7 @@ module layouts_type
      integer :: ig_comp, isgn_comp, ik_comp, it_comp, ie_comp, is_comp
      integer,dimension(5) :: compound_count
      !> Array that holds the size of each dimension in the order that they
-     !> appear in the layout. This allows the removal of slow
-     !> 'select case(layout)' from indexing routines.
+     !> appear in the layout.
      integer,dimension(5) :: dim_size
 
   end type lz_layout_type
@@ -96,8 +95,7 @@ module layouts_type
      integer :: ig_comp, isgn_comp, ik_comp, it_comp, il_comp, is_comp
      integer,dimension(6) :: compound_count
      !> Array that holds the size of each dimension in the order that they
-     !> appear in the layout. This allows the removal of slow
-     !> 'select case(layout)' from indexing routines.
+     !> appear in the layout.
      integer,dimension(6) :: dim_size
   end type e_layout_type
 
@@ -116,8 +114,7 @@ module layouts_type
      integer :: ik_max, it_max, ig_max, is_max 
      logical :: x_local, y_local, t_local, s_local !Used to record if various dimensions are entirely local
      !> Array that holds the size of each dimension in the order that they
-     !> appear in the layout. This allows the removal of slow
-     !> 'select case(layout)' from indexing routines.
+     !> appear in the layout.
      integer,dimension(4) :: dim_size
   end type le_layout_type
 

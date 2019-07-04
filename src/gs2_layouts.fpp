@@ -148,8 +148,7 @@ module gs2_layouts
      !> layout.
      integer,dimension(6) :: compound_count
      !> Array that holds the size of each dimension in the order that they
-     !> appear in the layout. This allows the removal of slow
-     !> 'select case(layout)' from indexing routines.
+     !> appear in the layout.
      integer,dimension(6) :: dim_size
   end type xxf_layout_type
 
@@ -172,8 +171,7 @@ module gs2_layouts
      !> layout.
      integer,dimension(6) :: compound_count
      !> Array that holds the size of each dimension in the order that they
-     !> appear in the layout. This allows the removal of slow
-     !> 'select case(layout)' from indexing routines.
+     !> appear in the layout.
      integer,dimension(6) :: dim_size
   end type yxf_layout_type
 
