@@ -26,6 +26,9 @@ program time_indexing
   use job_manage, only: time_message
   use mp, only: init_mp, finish_mp, proc0, nproc, mp_comm
   use run_parameters, only: nstep
+  use le_grids, only: nlambda, negrid
+  use kt_grids, only: ntheta0, naky
+  use species, only: nspec
 
   implicit none
   type(gs2_program_state_type) :: state
@@ -60,15 +63,41 @@ program time_indexing
       il=il_idx(g_lo,iglo)
       ie=ie_idx(g_lo,iglo)
       is=is_idx(g_lo,iglo)
-      i=idx(g_lo,ik,it,il,ie,is)
     end do
   end do
 
   if (proc0) then
     call time_message(.false., time_taken, "indexing time")
-    write(*, '(" Time for ",I6," loops in layout ",A5," on ",I6," procs: ",F5.1," s")') nstep, layout, nproc, time_taken(1)
+    write(*, '(" Time for ",I6," global to local loops in layout ",A5," on ",I6," procs: ",F5.1," s")') nstep, layout, nproc, time_taken(1)
     call append_output_file(timing_unit, &
-      benchmark_identifier())
+      trim(benchmark_identifier())//'.global_to_local')
+    write(timing_unit, '(I6,"   ",F9.3)') nproc, time_taken(1)
+    call close_output_file(timing_unit)
+  end if
+
+  time_taken = 0.0
+  ! Begin test
+  if (proc0) call time_message(.false., time_taken, "indexing time")
+
+  do j = 1,nstep
+    do ik=1,naky
+      do it=1,ntheta0
+        do il=1,nlambda
+          do ie=1,negrid
+            do is=1,nspec
+              i=idx(g_lo,ik,it,il,ie,is)
+            end do
+          end do
+        end do
+      end do
+    end do
+  end do
+
+  if (proc0) then
+    call time_message(.false., time_taken, "indexing time")
+    write(*, '(" Time for ",I6," local to global loops in layout ",A5," on ",I6," procs: ",F5.1," s")') nstep, layout, nproc, time_taken(1)
+    call append_output_file(timing_unit, &
+      trim(benchmark_identifier())//'.local_to_global')
     write(timing_unit, '(I6,"   ",F9.3)') nproc, time_taken(1)
     call close_output_file(timing_unit)
   end if
