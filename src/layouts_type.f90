@@ -91,6 +91,10 @@ module layouts_type
      integer :: ig_ord, isgn_ord, ik_ord, it_ord, il_ord, is_ord
      integer :: ig_comp, isgn_comp, ik_comp, it_comp, il_comp, is_comp
      integer,dimension(6) :: compound_count
+     !> Array that holds the size of each dimension in the order that they
+     !> appear in the layout. This allows the removal of slow
+     !> 'select case(layout)' from indexing routines.
+     integer,dimension(6) :: dim_size
   end type e_layout_type
 
   !> FIXME : Add documentation

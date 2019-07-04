@@ -2661,6 +2661,12 @@ contains
        e_lo%compound_count(4)=e_lo%compound_count(3)*naky
        e_lo%compound_count(5)=e_lo%compound_count(4)*ntheta0
        e_lo%compound_count(6)=e_lo%compound_count(5)*nlambda
+       e_lo%dim_size(1)=e_lo%ntgridtotal
+       e_lo%dim_size(2)=2
+       e_lo%dim_size(3)=naky
+       e_lo%dim_size(4)=ntheta0
+       e_lo%dim_size(5)=nlambda
+       e_lo%dim_size(6)=nspec
     case ('yxles')
        e_lo%ig_ord=1
        e_lo%isgn_ord=2
@@ -2674,6 +2680,12 @@ contains
        e_lo%compound_count(4)=e_lo%compound_count(3)*naky
        e_lo%compound_count(5)=e_lo%compound_count(4)*ntheta0
        e_lo%compound_count(6)=e_lo%compound_count(5)*nlambda
+       e_lo%dim_size(1)=e_lo%ntgridtotal
+       e_lo%dim_size(2)=2
+       e_lo%dim_size(3)=naky
+       e_lo%dim_size(4)=ntheta0
+       e_lo%dim_size(5)=nlambda
+       e_lo%dim_size(6)=nspec
     case ('lexys')
        e_lo%ig_ord=1
        e_lo%isgn_ord=2
@@ -2687,6 +2699,12 @@ contains
        e_lo%compound_count(4)=e_lo%compound_count(3)*nlambda
        e_lo%compound_count(5)=e_lo%compound_count(4)*ntheta0
        e_lo%compound_count(6)=e_lo%compound_count(5)*naky
+       e_lo%dim_size(1)=e_lo%ntgridtotal
+       e_lo%dim_size(2)=2
+       e_lo%dim_size(3)=nlambda
+       e_lo%dim_size(4)=ntheta0
+       e_lo%dim_size(5)=naky
+       e_lo%dim_size(6)=nspec
     case ('lxyes')
        e_lo%ig_ord=1
        e_lo%isgn_ord=2
@@ -2700,6 +2718,12 @@ contains
        e_lo%compound_count(4)=e_lo%compound_count(3)*nlambda
        e_lo%compound_count(5)=e_lo%compound_count(4)*ntheta0
        e_lo%compound_count(6)=e_lo%compound_count(5)*naky
+       e_lo%dim_size(1)=e_lo%ntgridtotal
+       e_lo%dim_size(2)=2
+       e_lo%dim_size(3)=nlambda
+       e_lo%dim_size(4)=ntheta0
+       e_lo%dim_size(5)=naky
+       e_lo%dim_size(6)=nspec
     case ('lyxes')
        e_lo%ig_ord=1
        e_lo%isgn_ord=2
@@ -2713,6 +2737,12 @@ contains
        e_lo%compound_count(4)=e_lo%compound_count(3)*nlambda
        e_lo%compound_count(5)=e_lo%compound_count(4)*naky
        e_lo%compound_count(6)=e_lo%compound_count(5)*ntheta0
+       e_lo%dim_size(1)=e_lo%ntgridtotal
+       e_lo%dim_size(2)=2
+       e_lo%dim_size(3)=nlambda
+       e_lo%dim_size(4)=naky
+       e_lo%dim_size(5)=ntheta0
+       e_lo%dim_size(6)=nspec
     case ('xyles')
        e_lo%ig_ord=1
        e_lo%isgn_ord=2
@@ -2726,6 +2756,12 @@ contains
        e_lo%compound_count(4)=e_lo%compound_count(3)*ntheta0
        e_lo%compound_count(5)=e_lo%compound_count(4)*naky
        e_lo%compound_count(6)=e_lo%compound_count(5)*nlambda
+       e_lo%dim_size(1)=e_lo%ntgridtotal
+       e_lo%dim_size(2)=2
+       e_lo%dim_size(3)=ntheta0
+       e_lo%dim_size(4)=naky
+       e_lo%dim_size(5)=nlambda
+       e_lo%dim_size(6)=nspec
     end select
     e_lo%ig_comp=e_lo%compound_count(e_lo%ig_ord)
     e_lo%isgn_comp=e_lo%compound_count(e_lo%isgn_ord)
@@ -2880,6 +2916,7 @@ contains
     integer :: idx_e
     type (e_layout_type), intent (in) :: lo
     integer, intent (in) :: ig, isign, ik, it, il, is
+    integer, dimension(6) :: i
 # ifdef USE_C_INDEX
     interface
        function idx_e_c (lo,ig,isign,ik,it,il,is)
@@ -2891,26 +2928,13 @@ contains
     end interface
     idx_e = idx_e_c (lo, ig, isign, ik, it, il, is)
 # else
-    select case (layout)
-    case ('yxels')
-       idx_e = ig+lo%ntgrid + (2*lo%ntgrid+1)*(isign-1 + lo%nsign*(ik-1 &
-            + lo%naky*(it-1 + lo%ntheta0*(il-1 + lo%nlambda*(is-1)))))
-    case ('yxles')
-       idx_e = ig+lo%ntgrid + (2*lo%ntgrid+1)*(isign-1 + lo%nsign*(ik-1 &
-            + lo%naky*(it-1 + lo%ntheta0*(il-1 + lo%nlambda*(is-1)))))
-    case ('lexys')
-       idx_e = ig+lo%ntgrid + (2*lo%ntgrid+1)*(isign-1 + lo%nsign*(il-1 &
-            + lo%nlambda*(it-1 + lo%ntheta0*(ik-1 + lo%naky*(is-1)))))
-    case ('lxyes')
-       idx_e = ig+lo%ntgrid + (2*lo%ntgrid+1)*(isign-1 + lo%nsign*(il-1 &
-            + lo%nlambda*(it-1 + lo%ntheta0*(ik-1 + lo%naky*(is-1)))))
-    case ('lyxes')
-       idx_e = ig+lo%ntgrid + (2*lo%ntgrid+1)*(isign-1 + lo%nsign*(il-1 &
-            + lo%nlambda*(ik-1 + lo%naky*(it-1 + lo%ntheta0*(is-1)))))
-    case ('xyles')
-       idx_e = ig+lo%ntgrid + (2*lo%ntgrid+1)*(isign-1 + lo%nsign*(it-1 &
-            + lo%ntheta0*(ik-1 + lo%naky*(il-1 + lo%nlambda*(is-1)))))
-    end select
+    i(lo%ik_ord) = ik - 1
+    i(lo%it_ord) = it - 1
+    i(lo%is_ord) = is - 1
+    i(lo%il_ord) = il - 1
+    i(lo%isgn_ord) = isign - 1
+    i(lo%ig_ord) = ig + lo%ntgrid
+    idx_e = i(1) + lo%dim_size(1)*(i(2) + lo%dim_size(2)*(i(3) + lo%dim_size(3)*(i(4) + lo%dim_size(4)*(i(5) + lo%dim_size(5)*i(6)))))
 # endif
 
   end function idx_e
