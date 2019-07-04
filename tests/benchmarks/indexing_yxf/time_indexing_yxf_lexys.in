@@ -6,7 +6,6 @@
 &collisions_knobs
  collision_model = "default" ! Collision model used in the simulation. Options: 'default', 'none', 'lorentz', 'ediffuse'
  use_le_layout = .true.
- adjust = .false.
 /
 
 &species_parameters_1
@@ -36,7 +35,7 @@
 /
 
 &knobs
- nstep = 10000
+ nstep = 1000
 /
 
 &species_knobs

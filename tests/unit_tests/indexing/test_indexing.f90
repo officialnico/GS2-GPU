@@ -21,7 +21,7 @@ program test_indexing
   use benchmarks, only: benchmark_identifier
   use file_utils, only: append_output_file, close_output_file
   use gs2_init, only: init, init_level_list
-  use gs2_layouts, only: g_lo, xxf_lo, yxf_lo, le_lo, layout
+  use gs2_layouts, only: g_lo, xxf_lo, yxf_lo, le_lo, lz_lo, e_lo, layout
   use gs2_layouts, only: is_idx, it_idx, ik_idx, il_idx, ie_idx, ig_idx, isign_idx, idx
   use gs2_main, only: gs2_program_state_type, initialize_gs2, finalize_gs2
   use job_manage, only: time_message
@@ -68,7 +68,7 @@ program test_indexing
     function test_index(dummy)
 
       use unit_tests, only: announce_check, process_check, agrees_with
-      use species, only: nspec
+      use collisions, only: use_le_layout
       use mp, only: proc0
       logical, intent(in) :: dummy
       logical :: test_index
@@ -91,9 +91,19 @@ program test_indexing
       call check_yxf(check_result)
       call process_check(test_result, check_result, 'yxf layout')
 
-      call announce_check('le layout')
-      call check_le(check_result)
-      call process_check(test_result, check_result, 'le layout')
+      if(use_le_layout) then
+        call announce_check('le layout')
+        call check_le(check_result)
+        call process_check(test_result, check_result, 'le layout')
+      else
+        call announce_check('lz layout')
+        call check_lz(check_result)
+        call process_check(test_result, check_result, 'lz layout')
+
+        call announce_check('e layout')
+        call check_e(check_result)
+        call process_check(test_result, check_result, 'e layout')
+      end if
 
       test_index = test_result
 
@@ -187,5 +197,50 @@ program test_indexing
       end do
 
     end subroutine check_le
+
+    subroutine check_lz(check_result)
+      implicit none
+      logical, intent(out) :: check_result
+      integer :: i, it, ik, ie, is, ig, isgn, ilz
+
+      check_result = .true.
+
+      do ilz=lz_lo%llim_world, lz_lo%ulim_world
+        it=it_idx(lz_lo,ilz)
+        ik=ik_idx(lz_lo,ilz)
+        ie=ie_idx(lz_lo,ilz)
+        is=is_idx(lz_lo,ilz)
+        ig=ig_idx(lz_lo,ilz)
+        i=idx(lz_lo,ig,ik,it,ie,is)
+        if(i.ne.ilz) then
+          check_result = .false.
+          exit
+        end if
+      end do
+
+    end subroutine check_lz
+
+    subroutine check_e(check_result)
+      implicit none
+      logical, intent(out) :: check_result
+      integer :: i, ik, il, it, is, ig, isgn, ielo
+
+      check_result = .true.
+
+      do ielo=e_lo%llim_world, e_lo%ulim_world
+        ik=ik_idx(e_lo,ielo)
+        il=il_idx(e_lo,ielo)
+        it=it_idx(e_lo,ielo)
+        is=is_idx(e_lo,ielo)
+        ig=ig_idx(e_lo,ielo)
+        isgn=isign_idx(e_lo,ielo)
+        i=idx(e_lo,ig,isgn,ik,it,il,is)
+        if(i.ne.ielo) then
+          check_result = .false.
+          exit
+        end if
+      end do
+
+    end subroutine check_e
 
 end program test_indexing
