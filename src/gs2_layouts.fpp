@@ -743,15 +743,6 @@ contains
     integer,dimension(nproc) :: tmp_proc_list
     integer :: colour
     type(comm_type) :: tmpcomm
-# ifdef USE_C_INDEX
-    integer :: ierr
-    interface
-       function init_indices_glo_c (layout)
-         integer :: init_indices_glo_c
-         character(*) :: layout
-       end function init_indices_glo_c
-    end interface
-# endif
 
     if (initialized_dist_fn_layouts) return
     initialized_dist_fn_layouts = .true.
@@ -1434,143 +1425,51 @@ contains
        deallocate(les_kxky_range)
     endif
 
-# ifdef USE_C_INDEX
-    ierr = init_indices_glo_c (layout)
-    if (ierr /= 0) &
-         & write (error_unit(),*) 'ERROR: layout not found: ', trim(layout)
-# endif
-
   end subroutine init_dist_fn_layouts
 
   !> Return the species index, given g-layout and a global index
-# ifdef USE_C_INDEX
-  function is_idx_g (lo, i)
-# else
   elemental function is_idx_g (lo, i)
-# endif
     implicit none
     integer :: is_idx_g
     type (g_layout_type), intent (in) :: lo
     integer, intent (in) :: i
-# ifdef USE_C_INDEX
-    interface
-       function is_idx_g_c (lo,num)
-         use layouts_type, only: g_layout_type
-         integer :: is_idx_g_c
-         type (g_layout_type) :: lo
-         integer :: num
-       end function is_idx_g_c
-    end interface
-    is_idx_g = is_idx_g_c (lo,i)
-# else
     is_idx_g=1+mod((i-lo%llim_world)/lo%is_comp,lo%nspec)
-# endif
-
   end function is_idx_g
 
   !> Return the lambda index, given g-layout and a global index
-# ifdef USE_C_INDEX
-  function il_idx_g (lo, i)
-# else
   elemental function il_idx_g (lo, i)
-# endif
     implicit none
     integer :: il_idx_g
     type (g_layout_type), intent (in) :: lo
     integer, intent (in) :: i
-# ifdef USE_C_INDEX
-    interface
-       function il_idx_g_c (lo,num)
-         use layouts_type, only: g_layout_type
-         integer :: il_idx_g_c
-         type (g_layout_type) :: lo
-         integer :: num
-       end function il_idx_g_c
-    end interface
-    il_idx_g = il_idx_g_c (lo,i)
-# else
     il_idx_g=1+mod((i-lo%llim_world)/lo%il_comp,lo%nlambda)
-# endif
-
   end function il_idx_g
 
   !> Return the energy index, given g-layout and a global index
-# ifdef USE_C_INDEX
-  function ie_idx_g (lo, i)
-# else
   elemental function ie_idx_g (lo, i)
-# endif
     implicit none
     integer :: ie_idx_g
     type (g_layout_type), intent (in) :: lo
     integer, intent (in) :: i
-# ifdef USE_C_INDEX
-    interface
-       function ie_idx_g_c (lo,num)
-         use layouts_type, only: g_layout_type
-         integer :: ie_idx_g_c
-         type (g_layout_type) :: lo
-         integer :: num
-       end function ie_idx_g_c
-    end interface
-    ie_idx_g = ie_idx_g_c (lo,i)
-# else
     ie_idx_g=1+mod((i-lo%llim_world)/lo%ie_comp,lo%negrid)
-# endif
-
   end function ie_idx_g
 
   !> Return the kx index, given g-layout and a global index
-# ifdef USE_C_INDEX
-  function it_idx_g (lo, i)
-# else
   elemental function it_idx_g (lo, i)
-# endif
     implicit none
     integer :: it_idx_g
     type (g_layout_type), intent (in) :: lo
     integer, intent (in) :: i
-    
-# ifdef USE_C_INDEX
-    interface
-       function it_idx_g_c (lo,num)
-         use layouts_type, only: g_layout_type
-         integer :: it_idx_g_c
-         type (g_layout_type) :: lo
-         integer :: num
-       end function it_idx_g_c
-    end interface
-    it_idx_g = it_idx_g_c (lo,i)
-# else
     it_idx_g=1+mod((i-lo%llim_world)/lo%it_comp,lo%ntheta0)
-# endif
-
   end function it_idx_g
 
   !> Return the ky index, given g-layout and a global index
-# ifdef USE_C_INDEX
-  function ik_idx_g (lo, i)
-# else
   elemental function ik_idx_g (lo, i)
-# endif
     implicit none
     integer :: ik_idx_g
     type (g_layout_type), intent (in) :: lo
     integer, intent (in) :: i
-# ifdef USE_C_INDEX
-    interface
-       function ik_idx_g_c (lo,num)
-         use layouts_type, only: g_layout_type
-         integer :: ik_idx_g_c
-         type (g_layout_type) :: lo
-         integer :: num
-       end function ik_idx_g_c
-    end interface
-    ik_idx_g = ik_idx_g_c (lo,i)
-# else
     ik_idx_g=1+mod((i-lo%llim_world)/lo%ik_comp,lo%naky)
-# endif
-
   end function ik_idx_g
 
   !> Return the processor id that has the point i in the g_lo layout
@@ -1600,26 +1499,11 @@ contains
   end function proc_id_g
 
   !> Return the global index in the g_lo layout given the dimensional indices
-# ifdef USE_C_INDEX
-  function idx_g (lo, ik, it, il, ie, is)
-# else
   elemental function idx_g (lo, ik, it, il, ie, is)
-# endif
     implicit none
     integer :: idx_g
     type (g_layout_type), intent (in) :: lo
     integer, intent (in) :: ik, it, il, ie, is
-# ifdef USE_C_INDEX
-    interface
-       function idx_g_c (lo,ik,it,il,ie,is)
-         use layouts_type, only: g_layout_type
-         integer :: idx_g_c
-         type (g_layout_type) :: lo
-         integer :: ik,it,il,ie,is
-       end function idx_g_c
-    end interface
-    idx_g = idx_g_c (lo, ik, it, il, ie, is)
-# else
     select case (layout)
     case ('yxels')
        idx_g = ik-1 + lo%naky*(it-1 + lo%ntheta0*(ie-1 + lo%negrid*(il-1 + lo%nlambda*(is-1))))
@@ -1634,21 +1518,14 @@ contains
     case ('xyles')
        idx_g = it-1 + lo%ntheta0*(ik-1 + lo%naky*(il-1 + lo%nlambda*(ie-1 + lo%negrid*(is-1))))
     end select
-# endif
-
   end function idx_g
 
   !> Return whether a point is local to a processor given the dimensional indices
-# ifdef USE_C_INDEX
-  function idx_local_g (lo, ik, it, il, ie, is)
-# else
   elemental function idx_local_g (lo, ik, it, il, ie, is)
-# endif
     implicit none
     logical :: idx_local_g
     type (g_layout_type), intent (in) :: lo
     integer, intent (in) :: ik, it, il, ie, is
-
     idx_local_g = idx_local(lo, idx(lo, ik, it, il, ie, is))
   end function idx_local_g
 
@@ -2052,16 +1929,6 @@ contains
     integer :: ik_max, it_max, ig_max, is_max
     integer :: ik, it, ig, is, ile
 
-# ifdef USE_C_INDEX
-    integer :: ierr
-    interface
-       function init_indices_lelo_c (layout)
-         integer :: init_indices_lelo_c
-         character(*) :: layout
-       end function init_indices_lelo_c
-    end interface
-# endif
-
     if (initialized_le_layouts) return
     initialized_le_layouts = .true.
     
@@ -2172,11 +2039,6 @@ contains
     le_lo%t_local=(ig_min.eq.-ntgrid).and.(ig_max.eq.ntgrid)
     le_lo%s_local=(is_min.eq.1).and.(is_max.eq.nspec)
 
-# ifdef USE_C_INDEX
-    ierr = init_indices_lelo_c (layout)
-    if (ierr /= 0) &
-         & write (error_unit(),*) 'ERROR: layout not found: ', trim(layout)
-# endif
   end subroutine init_le_layouts
 
   !> FIXME : Add documentation  
@@ -2188,56 +2050,22 @@ contains
     is_idx_le = 1 + mod((i - lo%llim_world)/lo%is_comp, lo%nspec)
   end function is_idx_le
 
-# ifdef USE_C_INDEX
-  !> FIXME : Add documentation  
-  function it_idx_le (lo, i)
-# else
   !> FIXME : Add documentation    
   elemental function it_idx_le (lo, i)
-# endif
     implicit none
     integer :: it_idx_le
     type (le_layout_type), intent (in) :: lo
     integer, intent (in) :: i
-# ifdef USE_C_INDEX
-    interface
-       function it_idx_le_c (lo,num)
-         use layouts_type, only: le_layout_type
-         integer :: it_idx_le_c
-         type (le_layout_type) :: lo
-         integer :: num
-       end function it_idx_le_c
-    end interface
-    it_idx_le = it_idx_le_c (lo,i)
-# else
     it_idx_le = 1 + mod((i - lo%llim_world)/lo%it_comp, lo%ntheta0)
-# endif
   end function it_idx_le
 
-# ifdef USE_C_INDEX
-  !> FIXME : Add documentation
-  function ik_idx_le (lo, i)
-# else
   !> FIXME : Add documentation    
   elemental function ik_idx_le (lo, i)
-# endif
     implicit none
     integer :: ik_idx_le
     type (le_layout_type), intent (in) :: lo
     integer, intent (in) :: i
-# ifdef USE_C_INDEX
-    interface
-       function ik_idx_le_c (lo,num)
-         use layouts_type, only: le_layout_type
-         integer :: ik_idx_le_c
-         type (le_layout_type) :: lo
-         integer :: num
-       end function ik_idx_le_c
-    end interface
-    ik_idx_le = ik_idx_le_c (lo,i)
-# else
     ik_idx_le = 1 + mod((i - lo%llim_world)/lo%ik_comp, lo%naky)
-# endif
   end function ik_idx_le
 
   !> FIXME : Add documentation  
@@ -2249,28 +2077,12 @@ contains
     ig_idx_le = -lo%ntgrid + mod((i - lo%llim_world)/lo%ig_comp, lo%ntgridtotal)
   end function ig_idx_le
 
-# ifdef USE_C_INDEX
-  !> FIXME : Add documentation  
-  function idx_le (lo, ig, ik, it, is)
-# else
   !> FIXME : Add documentation    
   elemental function idx_le (lo, ig, ik, it, is)
-# endif
     implicit none
     integer :: idx_le
     type (le_layout_type), intent (in) :: lo
     integer, intent (in) :: ig, ik, it, is
-# ifdef USE_C_INDEX
-    interface
-       function idx_le_c (lo, ig, ik, it, is)
-         use layouts_type, only: le_layout_type
-         integer :: idx_le_c
-         type (le_layout_type) :: lo
-         integer :: ig, ik, it, is
-       end function idx_le_c
-    end interface
-    idx_le = idx_le_c (lo, ig, ik, it, is)
-# else
     select case (layout)
     case ('yxels')
        idx_le = ig+lo%ntgrid + (2*lo%ntgrid+1)*(ik-1 &
@@ -2291,7 +2103,6 @@ contains
        idx_le = ig+lo%ntgrid + (2*lo%ntgrid+1)*(it-1 &
             + lo%ntheta0*(ik-1 + lo%naky*(is-1)))
     end select
-# endif
   end function idx_le
 
   !> FIXME : Add documentation  
@@ -2305,18 +2116,12 @@ contains
 
   end function proc_id_le
 
-# ifdef USE_C_INDEX
-  !> FIXME : Add documentation  
-  function idx_local_le (lo, ig, ik, it, is)
-# else
   !> FIXME : Add documentation    
   elemental function idx_local_le (lo, ig, ik, it, is)
-# endif
     implicit none
     logical :: idx_local_le
     type (le_layout_type), intent (in) :: lo
     integer, intent (in) :: ig, ik, it, is
-
     idx_local_le = idx_local(lo, idx(lo, ig, ik, it, is))
   end function idx_local_le
 
@@ -2326,10 +2131,8 @@ contains
     logical :: ig_local_le
     type (le_layout_type), intent (in) :: lo
     integer, intent (in) :: ig
-
     ig_local_le = lo%iproc == proc_id(lo, ig)
   end function ig_local_le
-
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 ! Fields Local layout:  This is used to calculate velocity space integration
@@ -2346,15 +2149,6 @@ contains
     use layouts_type, only: ikit
     implicit none
     integer, intent (in) :: ntgrid, naky, ntheta0, negrid, nlambda, nspec
-# ifdef USE_C_INDEX
-    integer :: ierr
-    interface
-       function init_indices_gflo_c (layout)
-         integer :: init_indices_gflo_c
-         character(*) :: layout
-       end function init_indices_gflo_c
-    end interface
-# endif
 
     if (initialized_gf_layouts) return
     initialized_gf_layouts = .true.
@@ -2487,89 +2281,33 @@ contains
         
     gf_lo%ulim_alloc = gf_lo%ulim_proc
 
-# ifdef USE_C_INDEX
-    ierr = init_indices_gflo_c (layout)
-    if (ierr /= 0) &
-         & write (error_unit(),*) 'ERROR: layout not found: ', trim(layout)
-# endif
   end subroutine init_gf_layouts
 
-# ifdef USE_C_INDEX
-  !> FIXME : Add documentation  
-  function it_idx_gf (lo, i)
-# else
   !> FIXME : Add documentation    
   elemental function it_idx_gf (lo, i)
-# endif
     implicit none
     integer :: it_idx_gf
     type (gf_layout_type), intent (in) :: lo
     integer, intent (in) :: i
-# ifdef USE_C_INDEX
-    interface
-       function it_idx_gf_c (lo,num)
-         use layouts_type, only: gf_layout_type
-         integer :: it_idx_gf_c
-         type (gf_layout_type) :: lo
-         integer :: num
-       end function it_idx_gf_c
-    end interface
-    it_idx_gf = it_idx_gf_c (lo,i)
-# else
     it_idx_gf = 1 + mod((i - lo%llim_world), lo%ntheta0)
-# endif
   end function it_idx_gf
 
-# ifdef USE_C_INDEX
-  !> FIXME : Add documentation  
-  function ik_idx_gf (lo, i)
-# else
   !> FIXME : Add documentation    
   elemental function ik_idx_gf (lo, i)
-# endif
     implicit none
     integer :: ik_idx_gf
     type (gf_layout_type), intent (in) :: lo
     integer, intent (in) :: i
-# ifdef USE_C_INDEX
-    interface
-       function ik_idx_gf_c (lo,num)
-         use layouts_type, only: gf_layout_type
-         integer :: ik_idx_gf_c
-         type (gf_layout_type) :: lo
-         integer :: num
-       end function ik_idx_gf_c
-    end interface
-    ik_idx_gf = ik_idx_gf_c (lo,i)
-# else
     ik_idx_gf = 1 + ((i - lo%llim_world)/lo%ntheta0)
-# endif
   end function ik_idx_gf
 
-# ifdef USE_C_INDEX
-  !> FIXME : Add documentation  
-  function idx_gf (lo, ik, it)
-# else
   !> FIXME : Add documentation    
   elemental function idx_gf (lo, ik, it)
-# endif
     implicit none
     integer :: idx_gf
     type (gf_layout_type), intent (in) :: lo
     integer, intent (in) :: ik, it
-# ifdef USE_C_INDEX
-    interface
-       function idx_gf_c (lo, ik, it)
-         use layouts_type, only: gf_layout_type
-         integer :: idx_gf_c
-         type (gf_layout_type) :: lo
-         integer :: ik, it
-       end function idx_gf_c
-    end interface
-    idx_gf = idx_gf_c (lo, ik, it)
-# else
     idx_gf = (ik-1)*lo%ntheta0 + it
-# endif
   end function idx_gf
 
   !> FIXME : Add documentation  
@@ -2605,18 +2343,12 @@ contains
 
   end function proc_id_gf
 
-# ifdef USE_C_INDEX
-  !> FIXME : Add documentation  
-  function idx_local_gf (lo, ik, it)
-# else
   !> FIXME : Add documentation    
   elemental function idx_local_gf (lo, ik, it)
-# endif
     implicit none
     logical :: idx_local_gf
     type (gf_layout_type), intent (in) :: lo
     integer, intent (in) :: ik, it
-
     idx_local_gf = idx_local(lo, idx(lo, ik, it))
   end function idx_local_gf
 
@@ -2626,10 +2358,8 @@ contains
     logical :: ig_local_gf
     type (gf_layout_type), intent (in) :: lo
     integer, intent (in) :: ig
-
     ig_local_gf = lo%iproc == proc_id(lo, ig)
   end function ig_local_gf
-
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 ! Energy layouts
@@ -2642,15 +2372,6 @@ contains
     use file_utils, only: error_unit
     implicit none
     integer, intent (in) :: ntgrid, naky, ntheta0, nlambda, nspec
-# ifdef USE_C_INDEX
-    integer :: ierr
-    interface
-       function init_indices_elo_c (layout)
-         integer :: init_indices_elo_c
-         character(*) :: layout
-       end function init_indices_elo_c
-    end interface
-# endif
 
     if (initialized_energy_layouts) return
     initialized_energy_layouts = .true.
@@ -2759,66 +2480,24 @@ contains
     e_lo%il_comp=e_lo%compound_count(e_lo%il_ord)
     e_lo%is_comp=e_lo%compound_count(e_lo%is_ord)
 
-# ifdef USE_C_INDEX
-    ierr = init_indices_elo_c (layout)
-    if (ierr /= 0) &
-         & write (error_unit(),*) 'ERROR: layout not found: ', trim(layout)
-# endif
-
   end subroutine init_energy_layouts
 
-# ifdef USE_C_INDEX
-  !> FIXME : Add documentation  
-  function is_idx_e (lo, i)
-# else
   !> FIXME : Add documentation    
   elemental function is_idx_e (lo, i)
-# endif
     implicit none
     integer :: is_idx_e
     type (e_layout_type), intent (in) :: lo
     integer, intent (in) :: i
-# ifdef USE_C_INDEX
-    interface
-       function is_idx_e_c (lo,num)
-         use layouts_type, only: e_layout_type
-         integer :: is_idx_e_c
-         type (e_layout_type) :: lo
-         integer :: num
-       end function is_idx_e_c
-    end interface
-    is_idx_e = is_idx_e_c (lo,i)
-# else
     is_idx_e = 1 + mod((i - lo%llim_world)/lo%is_comp, lo%nspec)
-# endif
-
   end function is_idx_e
 
-# ifdef USE_C_INDEX
-  !> FIXME : Add documentation  
-  function il_idx_e (lo, i)
-# else
   !> FIXME : Add documentation    
   elemental function il_idx_e (lo, i)
-# endif
     implicit none
     integer :: il_idx_e
     type (e_layout_type), intent (in) :: lo
     integer, intent (in) :: i
-# ifdef USE_C_INDEX
-    interface
-       function il_idx_e_c (lo,num)
-         use layouts_type, only: e_layout_type
-         integer :: il_idx_e_c
-         type (e_layout_type) :: lo
-         integer :: num
-       end function il_idx_e_c
-    end interface
-    il_idx_e = il_idx_e_c (lo,i)
-# else
     il_idx_e = 1 + mod((i - lo%llim_world)/lo%il_comp, lo%nlambda)
-# endif
-
   end function il_idx_e
 
   !> FIXME : Add documentation
@@ -2831,58 +2510,22 @@ contains
     isign_idx_e = 1 + mod((i - lo%llim_world)/(2*lo%ntgrid + 1),lo%nsign)
   end function isign_idx_e
 
-# ifdef USE_C_INDEX
-  !> FIXME : Add documentation  
-  function it_idx_e (lo, i)
-# else
   !> FIXME : Add documentation    
   elemental function it_idx_e (lo, i)
-# endif
     implicit none
     integer :: it_idx_e
     type (e_layout_type), intent (in) :: lo
     integer, intent (in) :: i
-# ifdef USE_C_INDEX
-    interface
-       function it_idx_e_c (lo,num)
-         use layouts_type, only: e_layout_type
-         integer :: it_idx_e_c
-         type (e_layout_type) :: lo
-         integer :: num
-       end function it_idx_e_c
-    end interface
-    it_idx_e = it_idx_e_c (lo,i)
-# else
     it_idx_e = 1 + mod((i - lo%llim_world)/lo%it_comp, lo%ntheta0)
-# endif
-
   end function it_idx_e
 
-# ifdef USE_C_INDEX
-  !> FIXME : Add documentation  
-  function ik_idx_e (lo, i)
-# else
   !> FIXME : Add documentation    
   elemental function ik_idx_e (lo, i)
-# endif
     implicit none
     integer :: ik_idx_e
     type (e_layout_type), intent (in) :: lo
     integer, intent (in) :: i
-# ifdef USE_C_INDEX
-    interface
-       function ik_idx_e_c (lo,num)
-         use layouts_type, only: e_layout_type
-         integer :: ik_idx_e_c
-         type (e_layout_type) :: lo
-         integer :: num
-       end function ik_idx_e_c
-    end interface
-    ik_idx_e = ik_idx_e_c (lo,i)
-# else
     ik_idx_e = 1 + mod((i - lo%llim_world)/lo%ik_comp, lo%naky)
-# endif
-
   end function ik_idx_e
 
   !> FIXME : Add documentation
@@ -2894,28 +2537,13 @@ contains
     ig_idx_e = -lo%ntgrid + mod((i - lo%llim_world)/lo%ig_comp, lo%ntgridtotal)
   end function ig_idx_e
 
-# ifdef USE_C_INDEX
-  !> FIXME : Add documentation  
-  function idx_e (lo, ig, isign, ik, it, il, is)
-# else
   !> FIXME : Add documentation    
   elemental function idx_e (lo, ig, isign, ik, it, il, is)
-# endif
     implicit none
     integer :: idx_e
     type (e_layout_type), intent (in) :: lo
     integer, intent (in) :: ig, isign, ik, it, il, is
-# ifdef USE_C_INDEX
-    interface
-       function idx_e_c (lo,ig,isign,ik,it,il,is)
-         use layouts_type, only: e_layout_type
-         integer :: idx_e_c
-         type (e_layout_type) :: lo
-         integer :: ig,isign,ik,it,il,is
-       end function idx_e_c
-    end interface
-    idx_e = idx_e_c (lo, ig, isign, ik, it, il, is)
-# else
+
     select case (layout)
     case ('yxels')
        idx_e = ig+lo%ntgrid + (2*lo%ntgrid+1)*(isign-1 + lo%nsign*(ik-1 &
@@ -2936,8 +2564,6 @@ contains
        idx_e = ig+lo%ntgrid + (2*lo%ntgrid+1)*(isign-1 + lo%nsign*(it-1 &
             + lo%ntheta0*(ik-1 + lo%naky*(il-1 + lo%nlambda*(is-1)))))
     end select
-# endif
-
   end function idx_e
 
   !> FIXME : Add documentation  
@@ -2951,18 +2577,12 @@ contains
 
   end function proc_id_e
 
-# ifdef USE_C_INDEX
-  !> FIXME : Add documentation  
-  function idx_local_e (lo, ig, isign, ik, it, il, is)
-# else
   !> FIXME : Add documentation
   elemental function idx_local_e (lo, ig, isign, ik, it, il, is)
-# endif
     implicit none
     logical :: idx_local_e
     type (e_layout_type), intent (in) :: lo
     integer, intent (in) :: ig, isign, ik, it, il, is
-
     idx_local_e = idx_local(lo, idx(lo, ig, isign, ik, it, il, is))
   end function idx_local_e
 
@@ -2972,7 +2592,6 @@ contains
     logical :: ig_local_e
     type (e_layout_type), intent (in) :: lo
     integer, intent (in) :: ig
-
     ig_local_e = lo%iproc == proc_id(lo, ig)
   end function ig_local_e
 
@@ -2988,15 +2607,6 @@ contains
     implicit none
     integer, intent (in) :: ntgrid, naky, ntheta0, nlambda, negrid, nspec, ng2
     integer :: ngroup, nprocset
-# ifdef USE_C_INDEX
-    integer :: ierr
-    interface
-       function init_indices_lzlo_c (layout)
-         integer :: init_indices_lzlo_c
-         character(*) :: layout
-       end function init_indices_lzlo_c
-    end interface
-# endif
 
     if (initialized_lambda_layouts) return
     initialized_lambda_layouts = .true.
@@ -3123,122 +2733,42 @@ contains
     lz_lo%it_comp=lz_lo%compound_count(lz_lo%it_ord)
     lz_lo%ie_comp=lz_lo%compound_count(lz_lo%ie_ord)
     lz_lo%is_comp=lz_lo%compound_count(lz_lo%is_ord)
-
-# ifdef USE_C_INDEX
-    ierr = init_indices_lzlo_c (layout)
-    if (ierr /= 0) &
-         & write (error_unit(),*) 'ERROR: layout not found: ', trim(layout)
-# endif
-
   end subroutine init_lambda_layouts
 
-# ifdef USE_C_INDEX
-  !> FIXME : Add documentation  
-  function is_idx_lz (lo, i)
-# else
   !> FIXME : Add documentation    
   elemental function is_idx_lz (lo, i)
-# endif
     implicit none
     integer :: is_idx_lz
     type (lz_layout_type), intent (in) :: lo
     integer, intent (in) :: i
-# ifdef USE_C_INDEX
-    interface
-       function is_idx_lz_c (lo,num)
-         use layouts_type, only: lz_layout_type
-         integer :: is_idx_lz_c
-         type (lz_layout_type) :: lo
-         integer :: num
-       end function is_idx_lz_c
-    end interface
-    is_idx_lz = is_idx_lz_c (lo, i)
-# else
     is_idx_lz = 1 + mod((i - lo%llim_world)/lo%is_comp, lo%nspec)
-# endif
-
   end function is_idx_lz
 
-# ifdef USE_C_INDEX
-  !> FIXME : Add documentation  
-  function ie_idx_lz (lo, i)
-# else
   !> FIXME : Add documentation    
   elemental function ie_idx_lz (lo, i)
-# endif
     implicit none
     integer :: ie_idx_lz
     type (lz_layout_type), intent (in) :: lo
     integer, intent (in) :: i
-
-# ifdef USE_C_INDEX
-    interface
-       function ie_idx_lz_c (lo,num)
-         use layouts_type, only: lz_layout_type
-         integer :: ie_idx_lz_c
-         type (lz_layout_type) :: lo
-         integer :: num
-       end function ie_idx_lz_c
-    end interface
-    ie_idx_lz = ie_idx_lz_c (lo, i)
-# else
     ie_idx_lz = 1 + mod((i - lo%llim_world)/lo%ie_comp, lo%negrid)
-# endif
-
   end function ie_idx_lz
 
-# ifdef USE_C_INDEX
-  !> FIXME : Add documentation  
-  function it_idx_lz (lo, i)
-# else
   !> FIXME : Add documentation    
   elemental function it_idx_lz (lo, i)
-# endif
     implicit none
     integer :: it_idx_lz
     type (lz_layout_type), intent (in) :: lo
     integer, intent (in) :: i
-# ifdef USE_C_INDEX
-    interface
-       function it_idx_lz_c (lo,num)
-         use layouts_type, only: lz_layout_type
-         integer :: it_idx_lz_c
-         type (lz_layout_type) :: lo
-         integer :: num
-       end function it_idx_lz_c
-    end interface
-    it_idx_lz = it_idx_lz_c (lo, i)
-# else
     it_idx_lz = 1 + mod((i - lo%llim_world)/lo%it_comp, lo%ntheta0)
-# endif
-
   end function it_idx_lz
 
-# ifdef USE_C_INDEX
-  !> FIXME : Add documentation  
-  function ik_idx_lz (lo, i)
-# else
   !> FIXME : Add documentation    
   elemental function ik_idx_lz (lo, i)
-# endif
     implicit none
     integer :: ik_idx_lz
     type (lz_layout_type), intent (in) :: lo
     integer, intent (in) :: i
-# ifdef USE_C_INDEX
-    interface
-       function ik_idx_lz_c (lo,num)
-         use layouts_type, only: lz_layout_type
-         integer :: ik_idx_lz_c
-         type (lz_layout_type) :: lo
-         integer :: num
-       end function ik_idx_lz_c
-    end interface
-    ik_idx_lz = ik_idx_lz_c (lo, i)
-# else
     ik_idx_lz = 1 + mod((i - lo%llim_world)/lo%ik_comp, lo%naky)
-# endif
-
   end function ik_idx_lz
 
   !> FIXME : Add documentation  
@@ -3250,28 +2780,12 @@ contains
     ig_idx_lz = -lo%ntgrid + mod((i - lo%llim_world)/lo%ig_comp, lo%ntgridtotal)
   end function ig_idx_lz
 
-# ifdef USE_C_INDEX
-  !> FIXME : Add documentation  
-  function idx_lz (lo, ig, ik, it, ie, is)
-# else
   !> FIXME : Add documentation    
   elemental function idx_lz (lo, ig, ik, it, ie, is)
-# endif
     implicit none
     integer :: idx_lz
     type (lz_layout_type), intent (in) :: lo
     integer, intent (in) :: ig, ik, it, ie, is
-# ifdef USE_C_INDEX
-    interface
-       function idx_lz_c (lo,ig,ik,it,ie,is)
-         use layouts_type, only: lz_layout_type
-         integer :: idx_lz_c
-         type (lz_layout_type) :: lo
-         integer :: ig,ik,it,ie,is
-       end function idx_lz_c
-    end interface
-    idx_lz = idx_lz_c (lo, ig, ik, it, ie, is)
-# else
     select case (layout)
     case ('yxels')
        idx_lz = ig+lo%ntgrid + (2*lo%ntgrid+1)*(ik-1 + lo%naky*(it-1 &
@@ -3292,8 +2806,6 @@ contains
        idx_lz = ig+lo%ntgrid + (2*lo%ntgrid+1)*(it-1 + lo%ntheta0*(ik-1 &
             + lo%naky*(ie-1 + lo%negrid*(is-1))))
     end select
-# endif
-
   end function idx_lz
 
   !> FIXME : Add documentation  
@@ -3311,18 +2823,12 @@ contains
 
   end function proc_id_lz
 
-# ifdef USE_C_INDEX
-  !> FIXME : Add documentation  
-  function idx_local_lz (lo, ig, ik, it, ie, is)
-# else
   !> FIXME : Add documentation    
   elemental function idx_local_lz (lo, ig, ik, it, ie, is)
-# endif
     implicit none
     logical :: idx_local_lz
     type (lz_layout_type), intent (in) :: lo
     integer, intent (in) :: ig, ik, it, ie, is
-
     idx_local_lz = idx_local(lo, idx(lo, ig, ik, it, ie, is))
   end function idx_local_lz
 
@@ -3332,7 +2838,6 @@ contains
     logical :: ig_local_lz
     type (lz_layout_type), intent (in) :: lo
     integer, intent (in) :: ig
-
     ig_local_lz = lo%iproc == proc_id(lo, ig)
   end function ig_local_lz
 
@@ -5513,13 +5018,8 @@ contains
 ! Transformation subroutines
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
-# ifdef USE_C_INDEX
-  !> FIXME : Add documentation  
-  subroutine gidx2xxfidx (ig, isign, iglo, g_lo, xxf_lo, it, ixxf)
-# else
   !> FIXME : Add documentation    
   elemental subroutine gidx2xxfidx (ig, isign, iglo, g_lo, xxf_lo, it, ixxf)
-# endif
     implicit none
     integer, intent (in) :: ig, isign, iglo
     type (g_layout_type), intent (in) :: g_lo

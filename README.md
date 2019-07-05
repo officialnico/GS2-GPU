@@ -181,7 +181,6 @@ The following is the full list of switches the possible options in
  - `USE_NETCDF` (defined [defined]): uses NETCDF library or no
  - `USE_HDF5` (defined [undefined]): uses HDF5 library or no
  - `USE_MDSPLUS` (defined [undefind]): uses MDSplus for geo (gs2 only)
- - `USE_C_INDEX` (defined [undefined]): uses function pointer
  - `USE_POSIX` (defined [undefined]): uses posix routines for argument processing
  - `USE_LOCAL_RAN` (mt [undefined]): uses local random number generator
  - `USE_LOCAL_SPFUNC` (defined [undefined]): use local special functions
@@ -256,14 +255,6 @@ might expect).
 |                 |               | function, one can use hard-wired fortran         |
 |                 |               | implementation of size_of function instead       |
 |                 |               | by specifying -DNO_SIZEOF.                       |
-|                 |               |                                                  |
-| `USE_C_INDEX`   | `_NONE_`      | When invoked, function pointers in layouts_      |
-|                 |               | indices.c is used.  A little bit of performance  |
-|                 |               | upgrade.  For layouts_indices.c, there is        |
-|                 |               | another CFLAG '-DNO_UNDERSCORE' for the          |
-|                 |               | resolution of Fortran-C linking problem.         |
-|                 |               | The CFLAG '-DUNDERSCORE=2' can also be used      |
-|                 |               | when 2 underscores are needed.                   |
 |                 |               |                                                  |
 | `RANDOM`        | `_NONE_`      | Uses compiler's intrinsic random                 |
 |                 | `_RANMT_`     | Uses Mersenne Twister 19937 random               |
