@@ -3269,31 +3269,6 @@ contains
   !!
   !! AJ, November 2011: New code from DCSE project  
   subroutine calculate_unbalanced_x(nproc, iproc, unbalanced_amount)
-  !====================================================================
-  ! AJ, November 2011: New code from DCSE project
-  ! This subroutine (calculate_unbalanced_x) wraps up all the 
-  ! functionality required to calculate the xxf blocksizes and 
-  ! work out if and unbalanced decomposition should be used, and if so 
-  ! the size of the unbalanced blocks.
-  !
-  ! This routine takes the number of processes to be used and the rank 
-  ! of the calling process and returns the amount of unbalance in the 
-  ! calculate decomposition (in a real variable with a range between 
-  ! 0.0 and 1.0 where 1.0 is a 100% difference between the small and 
-  ! large block size and 0.0 is no difference between the small and 
-  ! large block sizes).
-  !
-  ! This routine can be called from routines within the gs2_layouts
-  ! module (specifically init_x_transform_layouts) or from outside 
-  ! this module (specifically it is currently called from ingen to 
-  ! provide suggestions for unbalanced decompositions and process 
-  ! counts).  However, this routine relies on init_x_transform_layouts 
-  ! having been called to initialise some of the values it used 
-  ! (those in xxf_lo%) which is why there is a check whether the 
-  ! initialize_x_transform variable has been set to true.  If not this 
-  ! routine will not run and will notify the user of the problem.
-  !====================================================================
-
     implicit none
     integer, intent (in) :: nproc, iproc
     real, intent (out) :: unbalanced_amount
@@ -3605,35 +3580,6 @@ contains
   !!
   !! AJ, November 2011: New code from DCSE project  
   subroutine calculate_block_breakdown (k, i, m, j, level_proc_num)
-  !====================================================================
-  ! AJ, November 2011: New code from DCSE project
-  ! This subroutine (calculate_block_breakdown) is used in the code
-  ! to create unbalanced xxf and yxf layouts to address MPI
-  ! communication overheads in the redistribution of data for the
-  ! FFTs used in the nonlinear calculations to move from Fourier
-  ! space to real space and back again.
-  !
-  ! The routine calculates the factor k divided by a provided number
-  ! of processors/cores and returns it in integer j.  As j is an
-  ! integer the number returned will be more than zero if k is larger
-  ! than level_proc_num and zero if k is smaller than level_proc_num.
-  !
-  ! The integer i that is returned is the remained when k is divided
-  ! by level_proc_num.  This is used in the unbalanced decomposition
-  ! code to work out whether the factor divides exactly by the number
-  ! of procs  (in level_proc_num).  If it does then it is not an
-  ! unbalanced decomposition (so the original decomposition can be
-  ! used.
-  !
-  ! The integer m which is returned by this subroutine is the remainder
-  ! of level_proc_num divided by k.  This is used in the unbalanced
-  ! decomposition code to work out if the factor k exactly divides
-  ! the number of processors/cores in level_proc_num.  If it does
-  ! (i.e. m is zero) then the decomposition code can perform this
-  ! division and move on to the next factor.  If it does not then
-  ! the code keeps the factor k and multiplies it by the next factor
-  ! and checks that one (and so on).
-  !====================================================================
     implicit none
    
     integer, intent(in) :: k, level_proc_num
@@ -3681,42 +3627,6 @@ contains
   !!
   !! AJ, November 2011: New code from DCSE project
   subroutine calculate_unbalanced_decomposition(k, j, i, numsmall, numlarge, localprocs)
-  !====================================================================
-  ! AJ, November 2011: New code from DCSE project
-  ! This subroutine (calculate_unbalanced_decomposition) is used in the code
-  ! to create unbalanced xxf and yxf layouts to address MPI
-  ! communication overheads in the redistribution of data for the
-  ! FFTs used in the nonlinear calculations to move from Fourier
-  ! space to real space and back again.
-  !
-  ! k is an integer input which is the factor that needs to be decomposed
-  ! across the number of processes (the input integer localprocs)
-  ! that we have at this point in the decomposition.
-  !
-  ! When this subroutine is called k is larger than
-  ! localprocs (this is enforced through the if and else statements
-  ! in the code that calls this routine).  It is also only called when
-  ! localprocs does not completely/equally divide k (so k/localprocs
-  ! will not given a round number).
-  !
-  ! The subroutine returns four integers; i, j, numlarge, and numsmall
-  !
-  ! j is calculated as the integer division of k/localprocs.  As this
-  ! is an integer division the result is rounded down (remembering
-  ! that k/localprocs will not be an equal division).  j is used by the
-  ! small block factor (the relative size of the small block).
-  !
-  ! i is the large block factor.  As j is the rounded down division,
-  ! i = j + 1.  This gives two different block sizes (when these are
-  ! later calculated).
-  !
-  ! numlarge is used to work out how many processes will use the large
-  ! block size in the decomposition.
-  !
-  ! numsmall is used to work out how many processes will use the small
-  ! block size in the decomposition.
-  !
-  !====================================================================
     implicit none
 
     integer, intent(in) :: k, localprocs
@@ -3789,55 +3699,6 @@ contains
   !!
   !! AJ, November 2011: New code from DCSE project
   subroutine calculate_block_size(iproc, numsmall, numlarge, smalldecomp, largedecomp, sizeblock, blocksize, smallblocksize, largeblocksize, block_multiple, llim, ulim, ulim_alloc)
-  !====================================================================
-  ! AJ, November 2011: New code from DCSE project
-  ! This subroutine (calculate_block_size) is used in the code
-  ! to create unbalanced xxf and yxf layouts to address MPI
-  ! communication overheads in the redistribution of data for the
-  ! FFTs used in the nonlinear calculations to move from Fourier
-  ! space to real space and back again.
-  !
-  ! Input iproc is this processes MPI id.
-  !
-  ! Input numsmall is the number of processes that will use the small
-  ! block size (calculated in subroutine
-  ! calculate_unbalanced_decomposition).
-  !
-  ! Input numlarge is the number of processes that will use the large
-  ! block size (calculated in suboutine
-  ! calcuate_unbalanced_decomposition).
-  !
-  ! Input smalldecomp is the small_block_balance_factor of the
-  ! decomposition (calculated in subroutine
-  ! calculate_unbalanced_decomposition where it is referred to as j.
-  !
-  ! Input largedecomp is the large_block_balance_factor of the
-  ! decomposition (calculated in subroutine
-  ! calculate_unbalanced_decomposition where it is referred to as i.
-  !
-  ! Input sizeblock is the factor that needs to be split over the
-  ! cores/processors we have (i.e. everything that has not yet been
-  ! decomposed).
-  !
-  ! Output blocksize is the blocksize assigned to this actual process
-  ! (to be used throughout the code of the decompositions).
-  !
-  ! Output smallblocksize is the small block size.
-  !
-  ! Output largeblocksize is the large block size.
-  !
-  ! Output block_multiple is the size of the small block and large block
-  ! added together.  This is used to calculate which process owns a particular
-  ! data point at later points in the code (particular in the subroutine 
-  ! proc_id).
-  ! 
-  ! Output llim is the lower limit of the data block for this process.
-  !
-  ! Output ulim is the upper limit of the data block for this process.
-  !
-  ! Output ulim_alloc is the upper allocation limit for this processes block.
-  !
-  !====================================================================
     implicit none
 
     integer, intent(in) :: iproc, numsmall, numlarge, smalldecomp, largedecomp, sizeblock
@@ -3917,21 +3778,6 @@ contains
   !!
   !! AJ, November 2011: New code from DCSE project
   subroutine calculate_idle_processes(nprocs, idle_percentage)
-  !====================================================================
-  ! AJ, November 2011: New code from DCSE project
-  ! This subroutine (calculate_idle_processes) is used to calculate the 
-  ! difference between the number of processes used in the xxf and yxf
-  ! data layouts.  This is important as it can affect the amount of 
-  ! communication that the code has to undertake when moving between 
-  ! linear and non-linear calculations.  
-  !
-  ! This routine is used by ingen when it is suggesting optimal process
-  ! counts for users to flag up when suggested process counts will 
-  ! results in there being a significant difference in the processes 
-  ! used in the two layouts, and therefore a significant communication 
-  ! overhead moving between the two layouts.
-  !====================================================================
-
     implicit none
 
     integer, intent(in) :: nprocs
