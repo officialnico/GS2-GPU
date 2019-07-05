@@ -1,6 +1,7 @@
 ! Modifications for unbalanced decomposition functionality:
 ! (c) The Numerical Algorithms Group (NAG) Ltd, 2012
 ! on behalf of EPSRC for the HECToR project
+
 !> FIXME : Add documentation
 module gs2_layouts
   use abstract_config, only: abstract_config_type, CONFIG_MAX_NAME_LEN
@@ -397,6 +398,15 @@ module gs2_layouts
      module procedure idx_local_parity, ig_local_parity
   end interface
 
+  interface set_dimension_order
+     module procedure set_dimension_order_g
+     module procedure set_dimension_order_le
+     module procedure set_dimension_order_lz
+     module procedure set_dimension_order_e
+     module procedure set_dimension_order_xxf
+     module procedure set_dimension_order_yxf
+  end interface set_dimension_order
+  
 contains 
   !> FIXME : Add documentation 
   subroutine wnml_gs2_layouts(unit)
@@ -810,83 +820,36 @@ contains
     
 #endif
 
-! Calculate constants used in the index lookup routines
-! (rather than calculating them at each call as done previously)
-! This allows the removal of the select case statements in the index routines
+    ! Calculate constants used in the index lookup routines
+    ! (rather than calculating them at each call as done previously)
+    ! This allows the removal of the select case statements in the index routines
     select case (layout)
     case ('yxels')
-      call set_dimension_order(g_lo,ik_ord=1,it_ord=2,ie_ord=3,il_ord=4,is_ord=5)
-       g_lo%compound_count(1)=1
-       g_lo%compound_count(2)=naky
-       g_lo%compound_count(3)=naky*ntheta0
-       g_lo%compound_count(4)=naky*ntheta0*negrid
-       g_lo%compound_count(5)=naky*ntheta0*negrid*nlambda
-       g_lo%dim_size(1)=naky
-       g_lo%dim_size(2)=ntheta0
-       g_lo%dim_size(3)=negrid
-       g_lo%dim_size(4)=nlambda
-       g_lo%dim_size(5)=nspec
+       call set_dimension_order(g_lo,ik_ord=1,it_ord=2,ie_ord=3,il_ord=4,is_ord=5)
     case ('yxles')
-      call set_dimension_order(g_lo,ik_ord=1,it_ord=2,il_ord=3,ie_ord=4,is_ord=5)
-       g_lo%compound_count(1)=1
-       g_lo%compound_count(2)=naky
-       g_lo%compound_count(3)=naky*ntheta0
-       g_lo%compound_count(4)=naky*ntheta0*nlambda
-       g_lo%compound_count(5)=naky*ntheta0*nlambda*negrid
-       g_lo%dim_size(1)=naky
-       g_lo%dim_size(2)=ntheta0
-       g_lo%dim_size(3)=nlambda
-       g_lo%dim_size(4)=negrid
-       g_lo%dim_size(5)=nspec
+       call set_dimension_order(g_lo,ik_ord=1,it_ord=2,il_ord=3,ie_ord=4,is_ord=5)
     case ('lexys')
-      call set_dimension_order(g_lo,il_ord=1,ie_ord=2,it_ord=3,ik_ord=4,is_ord=5)
-       g_lo%compound_count(1)=1
-       g_lo%compound_count(2)=nlambda
-       g_lo%compound_count(3)=nlambda*negrid
-       g_lo%compound_count(4)=nlambda*negrid*ntheta0
-       g_lo%compound_count(5)=nlambda*negrid*ntheta0*naky
-       g_lo%dim_size(1)=nlambda
-       g_lo%dim_size(2)=negrid
-       g_lo%dim_size(3)=ntheta0
-       g_lo%dim_size(4)=naky
-       g_lo%dim_size(5)=nspec
+       call set_dimension_order(g_lo,il_ord=1,ie_ord=2,it_ord=3,ik_ord=4,is_ord=5)
     case ('lxyes')
-      call set_dimension_order(g_lo,il_ord=1,it_ord=2,ik_ord=3,ie_ord=4,is_ord=5)
-       g_lo%compound_count(1)=1
-       g_lo%compound_count(2)=nlambda
-       g_lo%compound_count(3)=nlambda*ntheta0
-       g_lo%compound_count(4)=nlambda*ntheta0*naky
-       g_lo%compound_count(5)=nlambda*ntheta0*naky*negrid
-       g_lo%dim_size(1)=nlambda
-       g_lo%dim_size(2)=ntheta0
-       g_lo%dim_size(3)=naky
-       g_lo%dim_size(4)=negrid
-       g_lo%dim_size(5)=nspec
+       call set_dimension_order(g_lo,il_ord=1,it_ord=2,ik_ord=3,ie_ord=4,is_ord=5)
     case ('lyxes')
-      call set_dimension_order(g_lo,il_ord=1,ik_ord=2,it_ord=3,ie_ord=4,is_ord=5)
-       g_lo%compound_count(1)=1
-       g_lo%compound_count(2)=nlambda
-       g_lo%compound_count(3)=nlambda*naky
-       g_lo%compound_count(4)=nlambda*naky*ntheta0
-       g_lo%compound_count(5)=nlambda*naky*ntheta0*negrid
-       g_lo%dim_size(1)=nlambda
-       g_lo%dim_size(2)=naky
-       g_lo%dim_size(3)=ntheta0
-       g_lo%dim_size(4)=negrid
-       g_lo%dim_size(5)=nspec
+       call set_dimension_order(g_lo,il_ord=1,ik_ord=2,it_ord=3,ie_ord=4,is_ord=5)
     case ('xyles')
-      call set_dimension_order(g_lo,it_ord=1,ik_ord=2,il_ord=3,ie_ord=4,is_ord=5)
-       g_lo%compound_count(1)=1
-       g_lo%compound_count(2)=ntheta0
-       g_lo%compound_count(3)=ntheta0*naky
-       g_lo%compound_count(4)=ntheta0*naky*nlambda
-       g_lo%compound_count(5)=ntheta0*naky*nlambda*negrid
-       g_lo%dim_size(1)=ntheta0
-       g_lo%dim_size(2)=naky
-       g_lo%dim_size(3)=nlambda
-       g_lo%dim_size(4)=negrid
-       g_lo%dim_size(5)=nspec
+       call set_dimension_order(g_lo,it_ord=1,ik_ord=2,il_ord=3,ie_ord=4,is_ord=5)
     end select
+
+    g_lo%dim_size(g_lo%it_ord)=ntheta0
+    g_lo%dim_size(g_lo%ik_ord)=naky
+    g_lo%dim_size(g_lo%il_ord)=nlambda
+    g_lo%dim_size(g_lo%ie_ord)=negrid
+    g_lo%dim_size(g_lo%is_ord)=nspec
+    
+    g_lo%compound_count(1)=1
+    g_lo%compound_count(2)=g_lo%compound_count(1)*g_lo%dim_size(1)
+    g_lo%compound_count(3)=g_lo%compound_count(2)*g_lo%dim_size(2)
+    g_lo%compound_count(4)=g_lo%compound_count(3)*g_lo%dim_size(3)
+    g_lo%compound_count(5)=g_lo%compound_count(4)*g_lo%dim_size(4)
+
     g_lo%ik_comp=g_lo%compound_count(g_lo%ik_ord)
     g_lo%it_comp=g_lo%compound_count(g_lo%it_ord)
     g_lo%il_comp=g_lo%compound_count(g_lo%il_ord)
@@ -1380,7 +1343,8 @@ contains
     if (allocated(g_lo%les_kxky_range)) then
        call mp_abort("g_lo%les_kxky_range should never be allocated&
        &at this point", .true.)
-     end if
+    end if
+    
     if(intspec_sub) then
        !->Kx-Ky range for procs in lesblock_comm sub comm
        !Get number of procs in sub-comm
@@ -1946,91 +1910,37 @@ contains
          = min(le_lo%ulim_world, le_lo%llim_proc + le_lo%blocksize - 1)
     le_lo%ulim_alloc = max(le_lo%llim_proc, le_lo%ulim_proc)
 
-! See g_lo init
+    ! See g_lo init
     select case (layout)
     case ('yxels')
-       le_lo%ig_ord=1
-       le_lo%it_ord=3
-       le_lo%ik_ord=2
-       le_lo%is_ord=4
-       le_lo%compound_count(1)=1
-       le_lo%compound_count(2)=le_lo%ntgridtotal
-       le_lo%compound_count(3)=le_lo%compound_count(2)*naky
-       le_lo%compound_count(4)=le_lo%compound_count(3)*ntheta0
-       le_lo%dim_size(1)=le_lo%ntgridtotal
-       le_lo%dim_size(2)=naky
-       le_lo%dim_size(3)=ntheta0
-       le_lo%dim_size(4)=nspec
+       call set_dimension_order(le_lo,ig_ord=1,it_ord=3,ik_ord=2,is_ord=4)
     case ('yxles')
-       le_lo%ig_ord=1
-       le_lo%it_ord=3
-       le_lo%ik_ord=2
-       le_lo%is_ord=4
-       le_lo%compound_count(1)=1
-       le_lo%compound_count(2)=le_lo%ntgridtotal
-       le_lo%compound_count(3)=le_lo%compound_count(2)*naky
-       le_lo%compound_count(4)=le_lo%compound_count(3)*ntheta0
-       le_lo%dim_size(1)=le_lo%ntgridtotal
-       le_lo%dim_size(2)=naky
-       le_lo%dim_size(3)=ntheta0
-       le_lo%dim_size(4)=nspec
+       call set_dimension_order(le_lo,ig_ord=1,it_ord=3,ik_ord=2,is_ord=4)
     case ('lexys')
-       le_lo%ig_ord=1
-       le_lo%it_ord=2
-       le_lo%ik_ord=3
-       le_lo%is_ord=4
-       le_lo%compound_count(1)=1
-       le_lo%compound_count(2)=le_lo%ntgridtotal
-       le_lo%compound_count(3)=le_lo%compound_count(2)*ntheta0
-       le_lo%compound_count(4)=le_lo%compound_count(3)*naky
-       le_lo%dim_size(1)=le_lo%ntgridtotal
-       le_lo%dim_size(2)=ntheta0
-       le_lo%dim_size(3)=naky
-       le_lo%dim_size(4)=nspec
+       call set_dimension_order(le_lo,ig_ord=1,it_ord=2,ik_ord=3,is_ord=4)
     case ('lxyes')
-       le_lo%ig_ord=1
-       le_lo%it_ord=2
-       le_lo%ik_ord=3
-       le_lo%is_ord=4
-       le_lo%compound_count(1)=1
-       le_lo%compound_count(2)=le_lo%ntgridtotal
-       le_lo%compound_count(3)=le_lo%compound_count(2)*ntheta0
-       le_lo%compound_count(4)=le_lo%compound_count(3)*naky
-       le_lo%dim_size(1)=le_lo%ntgridtotal
-       le_lo%dim_size(2)=ntheta0
-       le_lo%dim_size(3)=naky
-       le_lo%dim_size(4)=nspec
+       call set_dimension_order(le_lo,ig_ord=1,it_ord=2,ik_ord=3,is_ord=4)
     case ('lyxes')
-       le_lo%ig_ord=1
-       le_lo%it_ord=3
-       le_lo%ik_ord=2
-       le_lo%is_ord=4
-       le_lo%compound_count(1)=1
-       le_lo%compound_count(2)=le_lo%ntgridtotal
-       le_lo%compound_count(3)=le_lo%compound_count(2)*naky
-       le_lo%compound_count(4)=le_lo%compound_count(3)*ntheta0
-       le_lo%dim_size(1)=le_lo%ntgridtotal
-       le_lo%dim_size(2)=naky
-       le_lo%dim_size(3)=ntheta0
-       le_lo%dim_size(4)=nspec
+       call set_dimension_order(le_lo,ig_ord=1,it_ord=3,ik_ord=2,is_ord=4)
     case ('xyles')
-       le_lo%ig_ord=1
-       le_lo%it_ord=2
-       le_lo%ik_ord=3
-       le_lo%is_ord=4
-       le_lo%compound_count(1)=1
-       le_lo%compound_count(2)=le_lo%ntgridtotal
-       le_lo%compound_count(3)=le_lo%compound_count(2)*ntheta0
-       le_lo%compound_count(4)=le_lo%compound_count(3)*naky
-       le_lo%dim_size(1)=le_lo%ntgridtotal
-       le_lo%dim_size(2)=ntheta0
-       le_lo%dim_size(3)=naky
-       le_lo%dim_size(4)=nspec
+       call set_dimension_order(le_lo,ig_ord=1,it_ord=2,ik_ord=3,is_ord=4)
     end select
+    
+    le_lo%dim_size(le_lo%ig_ord)=le_lo%ntgridtotal
+    le_lo%dim_size(le_lo%it_ord)=ntheta0
+    le_lo%dim_size(le_lo%ik_ord)=naky
+    le_lo%dim_size(le_lo%is_ord)=nspec
+
+    le_lo%compound_count(1)=1
+    le_lo%compound_count(2)=le_lo%compound_count(1)*le_lo%dim_size(1)
+    le_lo%compound_count(3)=le_lo%compound_count(2)*le_lo%dim_size(2)
+    le_lo%compound_count(4)=le_lo%compound_count(3)*le_lo%dim_size(3)
+
     le_lo%ig_comp=le_lo%compound_count(le_lo%ig_ord)
     le_lo%ik_comp=le_lo%compound_count(le_lo%ik_ord)
     le_lo%it_comp=le_lo%compound_count(le_lo%it_ord)
     le_lo%is_comp=le_lo%compound_count(le_lo%is_ord)
+    
     !Work out min and max of the five compound indices
     !These are currently only used to slice the arrays used in the velocity space integrals
     !but could well be useful in a number of places.
@@ -2402,123 +2312,36 @@ contains
          = min(e_lo%ulim_world, e_lo%llim_proc + e_lo%blocksize - 1)
     e_lo%ulim_alloc = max(e_lo%llim_proc, e_lo%ulim_proc)
 
-!See g_lo init
+    !See g_lo init
     select case (layout)
     case ('yxels')
-       e_lo%ig_ord=1
-       e_lo%isgn_ord=2
-       e_lo%il_ord=5
-       e_lo%it_ord=4
-       e_lo%ik_ord=3
-       e_lo%is_ord=6
-       e_lo%compound_count(1)=1
-       e_lo%compound_count(2)=e_lo%ntgridtotal
-       e_lo%compound_count(3)=e_lo%compound_count(2)*2
-       e_lo%compound_count(4)=e_lo%compound_count(3)*naky
-       e_lo%compound_count(5)=e_lo%compound_count(4)*ntheta0
-       e_lo%compound_count(6)=e_lo%compound_count(5)*nlambda
-       e_lo%dim_size(1)=e_lo%ntgridtotal
-       e_lo%dim_size(2)=2
-       e_lo%dim_size(3)=naky
-       e_lo%dim_size(4)=ntheta0
-       e_lo%dim_size(5)=nlambda
-       e_lo%dim_size(6)=nspec
+       call set_dimension_order(e_lo,ig_ord=1,isgn_ord=2,it_ord=4,ik_ord=3,il_ord=5,is_ord=6)
     case ('yxles')
-       e_lo%ig_ord=1
-       e_lo%isgn_ord=2
-       e_lo%il_ord=5
-       e_lo%it_ord=4
-       e_lo%ik_ord=3
-       e_lo%is_ord=6
-       e_lo%compound_count(1)=1
-       e_lo%compound_count(2)=e_lo%ntgridtotal
-       e_lo%compound_count(3)=e_lo%compound_count(2)*2
-       e_lo%compound_count(4)=e_lo%compound_count(3)*naky
-       e_lo%compound_count(5)=e_lo%compound_count(4)*ntheta0
-       e_lo%compound_count(6)=e_lo%compound_count(5)*nlambda
-       e_lo%dim_size(1)=e_lo%ntgridtotal
-       e_lo%dim_size(2)=2
-       e_lo%dim_size(3)=naky
-       e_lo%dim_size(4)=ntheta0
-       e_lo%dim_size(5)=nlambda
-       e_lo%dim_size(6)=nspec
+       call set_dimension_order(e_lo,ig_ord=1,isgn_ord=2,it_ord=4,ik_ord=3,il_ord=5,is_ord=6)
     case ('lexys')
-       e_lo%ig_ord=1
-       e_lo%isgn_ord=2
-       e_lo%il_ord=3
-       e_lo%it_ord=4
-       e_lo%ik_ord=5
-       e_lo%is_ord=6
-       e_lo%compound_count(1)=1
-       e_lo%compound_count(2)=e_lo%ntgridtotal
-       e_lo%compound_count(3)=e_lo%compound_count(2)*2
-       e_lo%compound_count(4)=e_lo%compound_count(3)*nlambda
-       e_lo%compound_count(5)=e_lo%compound_count(4)*ntheta0
-       e_lo%compound_count(6)=e_lo%compound_count(5)*naky
-       e_lo%dim_size(1)=e_lo%ntgridtotal
-       e_lo%dim_size(2)=2
-       e_lo%dim_size(3)=nlambda
-       e_lo%dim_size(4)=ntheta0
-       e_lo%dim_size(5)=naky
-       e_lo%dim_size(6)=nspec
+       call set_dimension_order(e_lo,ig_ord=1,isgn_ord=2,it_ord=4,ik_ord=5,il_ord=3,is_ord=6)
     case ('lxyes')
-       e_lo%ig_ord=1
-       e_lo%isgn_ord=2
-       e_lo%il_ord=3
-       e_lo%it_ord=4
-       e_lo%ik_ord=5
-       e_lo%is_ord=6
-       e_lo%compound_count(1)=1
-       e_lo%compound_count(2)=e_lo%ntgridtotal
-       e_lo%compound_count(3)=e_lo%compound_count(2)*2
-       e_lo%compound_count(4)=e_lo%compound_count(3)*nlambda
-       e_lo%compound_count(5)=e_lo%compound_count(4)*ntheta0
-       e_lo%compound_count(6)=e_lo%compound_count(5)*naky
-       e_lo%dim_size(1)=e_lo%ntgridtotal
-       e_lo%dim_size(2)=2
-       e_lo%dim_size(3)=nlambda
-       e_lo%dim_size(4)=ntheta0
-       e_lo%dim_size(5)=naky
-       e_lo%dim_size(6)=nspec
+       call set_dimension_order(e_lo,ig_ord=1,isgn_ord=2,it_ord=4,ik_ord=5,il_ord=3,is_ord=6)
     case ('lyxes')
-       e_lo%ig_ord=1
-       e_lo%isgn_ord=2
-       e_lo%il_ord=3
-       e_lo%it_ord=5
-       e_lo%ik_ord=4
-       e_lo%is_ord=6
-       e_lo%compound_count(1)=1
-       e_lo%compound_count(2)=e_lo%ntgridtotal
-       e_lo%compound_count(3)=e_lo%compound_count(2)*2
-       e_lo%compound_count(4)=e_lo%compound_count(3)*nlambda
-       e_lo%compound_count(5)=e_lo%compound_count(4)*naky
-       e_lo%compound_count(6)=e_lo%compound_count(5)*ntheta0
-       e_lo%dim_size(1)=e_lo%ntgridtotal
-       e_lo%dim_size(2)=2
-       e_lo%dim_size(3)=nlambda
-       e_lo%dim_size(4)=naky
-       e_lo%dim_size(5)=ntheta0
-       e_lo%dim_size(6)=nspec
+       call set_dimension_order(e_lo,ig_ord=1,isgn_ord=2,it_ord=5,ik_ord=4,il_ord=3,is_ord=6)
     case ('xyles')
-       e_lo%ig_ord=1
-       e_lo%isgn_ord=2
-       e_lo%il_ord=5
-       e_lo%it_ord=3
-       e_lo%ik_ord=4
-       e_lo%is_ord=6
-       e_lo%compound_count(1)=1
-       e_lo%compound_count(2)=e_lo%ntgridtotal
-       e_lo%compound_count(3)=e_lo%compound_count(2)*2
-       e_lo%compound_count(4)=e_lo%compound_count(3)*ntheta0
-       e_lo%compound_count(5)=e_lo%compound_count(4)*naky
-       e_lo%compound_count(6)=e_lo%compound_count(5)*nlambda
-       e_lo%dim_size(1)=e_lo%ntgridtotal
-       e_lo%dim_size(2)=2
-       e_lo%dim_size(3)=ntheta0
-       e_lo%dim_size(4)=naky
-       e_lo%dim_size(5)=nlambda
-       e_lo%dim_size(6)=nspec
+       call set_dimension_order(e_lo,ig_ord=1,isgn_ord=2,it_ord=3,ik_ord=4,il_ord=5,is_ord=6)
     end select
+
+    e_lo%dim_size(e_lo%ig_ord)=e_lo%ntgridtotal
+    e_lo%dim_size(e_lo%isgn_ord)=2
+    e_lo%dim_size(e_lo%it_ord)=ntheta0
+    e_lo%dim_size(e_lo%ik_ord)=naky
+    e_lo%dim_size(e_lo%il_ord)=nlambda
+    e_lo%dim_size(e_lo%is_ord)=nspec
+    
+    e_lo%compound_count(1)=1
+    e_lo%compound_count(2)=e_lo%compound_count(1)*e_lo%dim_size(1)
+    e_lo%compound_count(3)=e_lo%compound_count(2)*e_lo%dim_size(2)
+    e_lo%compound_count(4)=e_lo%compound_count(3)*e_lo%dim_size(3)
+    e_lo%compound_count(5)=e_lo%compound_count(4)*e_lo%dim_size(4)
+    e_lo%compound_count(6)=e_lo%compound_count(5)*e_lo%dim_size(5)    
+
     e_lo%ig_comp=e_lo%compound_count(e_lo%ig_ord)
     e_lo%isgn_comp=e_lo%compound_count(e_lo%isgn_ord)
     e_lo%ik_comp=e_lo%compound_count(e_lo%ik_ord)
@@ -2692,105 +2515,34 @@ contains
        lz_lo%ulim_alloc = max(lz_lo%llim_proc, lz_lo%ulim_proc)
     end if
 
-!See g_lo init
+    !See g_lo init
     select case (layout)
     case ('yxels')
-       lz_lo%ig_ord=1
-       lz_lo%ie_ord=4
-       lz_lo%it_ord=3
-       lz_lo%ik_ord=2
-       lz_lo%is_ord=5
-       lz_lo%compound_count(1)=1
-       lz_lo%compound_count(2)=lz_lo%ntgridtotal
-       lz_lo%compound_count(3)=lz_lo%compound_count(2)*naky
-       lz_lo%compound_count(4)=lz_lo%compound_count(3)*ntheta0
-       lz_lo%compound_count(5)=lz_lo%compound_count(4)*negrid
-       lz_lo%dim_size(1)=lz_lo%ntgridtotal
-       lz_lo%dim_size(2)=naky
-       lz_lo%dim_size(3)=ntheta0
-       lz_lo%dim_size(4)=negrid
-       lz_lo%dim_size(5)=nspec
+       call set_dimension_order(lz_lo,ig_ord=1,it_ord=3,ik_ord=2,ie_ord=4,is_ord=5)
     case ('yxles')
-       lz_lo%ig_ord=1
-       lz_lo%ie_ord=4
-       lz_lo%it_ord=3
-       lz_lo%ik_ord=2
-       lz_lo%is_ord=5
-       lz_lo%compound_count(1)=1
-       lz_lo%compound_count(2)=lz_lo%ntgridtotal
-       lz_lo%compound_count(3)=lz_lo%compound_count(2)*naky
-       lz_lo%compound_count(4)=lz_lo%compound_count(3)*ntheta0
-       lz_lo%compound_count(5)=lz_lo%compound_count(4)*negrid
-       lz_lo%dim_size(1)=lz_lo%ntgridtotal
-       lz_lo%dim_size(2)=naky
-       lz_lo%dim_size(3)=ntheta0
-       lz_lo%dim_size(4)=negrid
-       lz_lo%dim_size(5)=nspec
+       call set_dimension_order(lz_lo,ig_ord=1,it_ord=3,ik_ord=2,ie_ord=4,is_ord=5)
     case ('lexys')
-       lz_lo%ig_ord=1
-       lz_lo%ie_ord=2
-       lz_lo%it_ord=3
-       lz_lo%ik_ord=4
-       lz_lo%is_ord=5
-       lz_lo%compound_count(1)=1
-       lz_lo%compound_count(2)=lz_lo%ntgridtotal
-       lz_lo%compound_count(3)=lz_lo%compound_count(2)*negrid
-       lz_lo%compound_count(4)=lz_lo%compound_count(3)*ntheta0
-       lz_lo%compound_count(5)=lz_lo%compound_count(4)*naky
-       lz_lo%dim_size(1)=lz_lo%ntgridtotal
-       lz_lo%dim_size(2)=negrid
-       lz_lo%dim_size(3)=ntheta0
-       lz_lo%dim_size(4)=naky
-       lz_lo%dim_size(5)=nspec
+       call set_dimension_order(lz_lo,ig_ord=1,it_ord=3,ik_ord=4,ie_ord=2,is_ord=5)
     case ('lxyes')
-       lz_lo%ig_ord=1
-       lz_lo%ie_ord=4
-       lz_lo%it_ord=2
-       lz_lo%ik_ord=3
-       lz_lo%is_ord=5
-       lz_lo%compound_count(1)=1
-       lz_lo%compound_count(2)=lz_lo%ntgridtotal
-       lz_lo%compound_count(3)=lz_lo%compound_count(2)*ntheta0
-       lz_lo%compound_count(4)=lz_lo%compound_count(3)*naky
-       lz_lo%compound_count(5)=lz_lo%compound_count(4)*negrid
-       lz_lo%dim_size(1)=lz_lo%ntgridtotal
-       lz_lo%dim_size(2)=ntheta0
-       lz_lo%dim_size(3)=naky
-       lz_lo%dim_size(4)=negrid
-       lz_lo%dim_size(5)=nspec
+       call set_dimension_order(lz_lo,ig_ord=1,it_ord=2,ik_ord=3,ie_ord=4,is_ord=5)
     case ('lyxes')
-       lz_lo%ig_ord=1
-       lz_lo%ie_ord=4
-       lz_lo%it_ord=3
-       lz_lo%ik_ord=2
-       lz_lo%is_ord=5
-       lz_lo%compound_count(1)=1
-       lz_lo%compound_count(2)=lz_lo%ntgridtotal
-       lz_lo%compound_count(3)=lz_lo%compound_count(2)*naky
-       lz_lo%compound_count(4)=lz_lo%compound_count(3)*ntheta0
-       lz_lo%compound_count(5)=lz_lo%compound_count(4)*negrid
-       lz_lo%dim_size(1)=lz_lo%ntgridtotal
-       lz_lo%dim_size(2)=naky
-       lz_lo%dim_size(3)=ntheta0
-       lz_lo%dim_size(4)=negrid
-       lz_lo%dim_size(5)=nspec
+       call set_dimension_order(lz_lo,ig_ord=1,it_ord=3,ik_ord=2,ie_ord=4,is_ord=5)
     case ('xyles')
-       lz_lo%ig_ord=1
-       lz_lo%ie_ord=4
-       lz_lo%it_ord=2
-       lz_lo%ik_ord=3
-       lz_lo%is_ord=5
-       lz_lo%compound_count(1)=1
-       lz_lo%compound_count(2)=lz_lo%ntgridtotal
-       lz_lo%compound_count(3)=lz_lo%compound_count(2)*ntheta0
-       lz_lo%compound_count(4)=lz_lo%compound_count(3)*naky
-       lz_lo%compound_count(5)=lz_lo%compound_count(4)*negrid
-       lz_lo%dim_size(1)=lz_lo%ntgridtotal
-       lz_lo%dim_size(2)=ntheta0
-       lz_lo%dim_size(3)=naky
-       lz_lo%dim_size(4)=negrid
-       lz_lo%dim_size(5)=nspec
+       call set_dimension_order(lz_lo,ig_ord=1,it_ord=2,ik_ord=3,ie_ord=4,is_ord=5)
     end select
+
+    lz_lo%dim_size(lz_lo%ig_ord)=lz_lo%ntgridtotal
+    lz_lo%dim_size(lz_lo%it_ord)=ntheta0
+    lz_lo%dim_size(lz_lo%ik_ord)=naky
+    lz_lo%dim_size(lz_lo%ie_ord)=negrid
+    lz_lo%dim_size(lz_lo%is_ord)=nspec
+    
+    lz_lo%compound_count(1)=1
+    lz_lo%compound_count(2)=lz_lo%compound_count(1)*lz_lo%dim_size(1)
+    lz_lo%compound_count(3)=lz_lo%compound_count(2)*lz_lo%dim_size(2)
+    lz_lo%compound_count(4)=lz_lo%compound_count(3)*lz_lo%dim_size(3)
+    lz_lo%compound_count(5)=lz_lo%compound_count(4)*lz_lo%dim_size(4)
+    
     lz_lo%ig_comp=lz_lo%compound_count(lz_lo%ig_ord)
     lz_lo%ik_comp=lz_lo%compound_count(lz_lo%ik_ord)
     lz_lo%it_comp=lz_lo%compound_count(lz_lo%it_ord)
@@ -2916,7 +2668,8 @@ contains
     p_lo%llim_proc = p_lo%blocksize*iproc
     p_lo%ulim_proc = min(p_lo%ulim_world, p_lo%llim_proc + p_lo%blocksize - 1)
     p_lo%ulim_alloc = max(p_lo%llim_proc, p_lo%ulim_proc)
-!See g_lo init
+
+    !See g_lo init
     select case (layout)
     case ('yxels')
        p_lo%ie_ord=2
@@ -3108,93 +2861,36 @@ contains
     xxf_lo%llim_world = 0
     xxf_lo%ulim_world = naky*(2*ntgrid+1)*2*nlambda*negrid*nspec - 1
 
-!See g_lo init
+    !See g_lo init
     select case (layout)
     case ('yxels')
-       call set_dimension_order_xxf(xxf_lo,ik_ord=1,ig_ord=2,isgn_ord=3,ie_ord=4,il_ord=5,is_ord=6)
-       xxf_lo%compound_count(1)=1
-       xxf_lo%compound_count(2)=xxf_lo%naky
-       xxf_lo%compound_count(3)=xxf_lo%compound_count(2)*ntgridtotal
-       xxf_lo%compound_count(4)=xxf_lo%compound_count(3)*nsign
-       xxf_lo%compound_count(5)=xxf_lo%compound_count(4)*negrid
-       xxf_lo%compound_count(6)=xxf_lo%compound_count(5)*nlambda
-       xxf_lo%dim_size(1)=naky
-       xxf_lo%dim_size(2)=ntgridtotal
-       xxf_lo%dim_size(3)=nsign
-       xxf_lo%dim_size(4)=negrid
-       xxf_lo%dim_size(5)=nlambda
-       xxf_lo%dim_size(6)=nspec
+       call set_dimension_order(xxf_lo,ik_ord=1,ig_ord=2,isgn_ord=3,ie_ord=4,il_ord=5,is_ord=6)
     case ('yxles')
-       call set_dimension_order_xxf(xxf_lo,ik_ord=1,ig_ord=2,isgn_ord=3,il_ord=4,ie_ord=5,is_ord=6)
-       xxf_lo%compound_count(1)=1
-       xxf_lo%compound_count(2)=xxf_lo%naky
-       xxf_lo%compound_count(3)=xxf_lo%compound_count(2)*ntgridtotal
-       xxf_lo%compound_count(4)=xxf_lo%compound_count(3)*nsign
-       xxf_lo%compound_count(5)=xxf_lo%compound_count(4)*nlambda
-       xxf_lo%compound_count(6)=xxf_lo%compound_count(5)*negrid
-       xxf_lo%dim_size(1)=naky
-       xxf_lo%dim_size(2)=ntgridtotal
-       xxf_lo%dim_size(3)=nsign
-       xxf_lo%dim_size(4)=nlambda
-       xxf_lo%dim_size(5)=negrid
-       xxf_lo%dim_size(6)=nspec
+       call set_dimension_order(xxf_lo,ik_ord=1,ig_ord=2,isgn_ord=3,il_ord=4,ie_ord=5,is_ord=6)
     case ('lexys')
-       call set_dimension_order_xxf(xxf_lo,ik_ord=1,ig_ord=2,isgn_ord=3,il_ord=4,ie_ord=5,is_ord=6)
-       xxf_lo%compound_count(1)=1
-       xxf_lo%compound_count(2)=xxf_lo%naky
-       xxf_lo%compound_count(3)=xxf_lo%compound_count(2)*ntgridtotal
-       xxf_lo%compound_count(4)=xxf_lo%compound_count(3)*nsign
-       xxf_lo%compound_count(5)=xxf_lo%compound_count(4)*nlambda
-       xxf_lo%compound_count(6)=xxf_lo%compound_count(5)*negrid
-       xxf_lo%dim_size(1)=naky
-       xxf_lo%dim_size(2)=ntgridtotal
-       xxf_lo%dim_size(3)=nsign
-       xxf_lo%dim_size(4)=nlambda
-       xxf_lo%dim_size(5)=negrid
-       xxf_lo%dim_size(6)=nspec
+       call set_dimension_order(xxf_lo,ik_ord=1,ig_ord=2,isgn_ord=3,il_ord=4,ie_ord=5,is_ord=6)
     case ('lxyes')
-       call set_dimension_order_xxf(xxf_lo,ik_ord=1,ig_ord=2,isgn_ord=3,il_ord=4,ie_ord=5,is_ord=6)
-       xxf_lo%compound_count(1)=1
-       xxf_lo%compound_count(2)=xxf_lo%naky
-       xxf_lo%compound_count(3)=xxf_lo%compound_count(2)*ntgridtotal
-       xxf_lo%compound_count(4)=xxf_lo%compound_count(3)*nsign
-       xxf_lo%compound_count(5)=xxf_lo%compound_count(4)*nlambda
-       xxf_lo%compound_count(6)=xxf_lo%compound_count(5)*negrid
-       xxf_lo%dim_size(1)=naky
-       xxf_lo%dim_size(2)=ntgridtotal
-       xxf_lo%dim_size(3)=nsign
-       xxf_lo%dim_size(4)=nlambda
-       xxf_lo%dim_size(5)=negrid
-       xxf_lo%dim_size(6)=nspec
+       call set_dimension_order(xxf_lo,ik_ord=1,ig_ord=2,isgn_ord=3,il_ord=4,ie_ord=5,is_ord=6)
     case ('lyxes')
-       call set_dimension_order_xxf(xxf_lo,ik_ord=1,ig_ord=2,isgn_ord=3,il_ord=4,ie_ord=5,is_ord=6)
-       xxf_lo%compound_count(1)=1
-       xxf_lo%compound_count(2)=xxf_lo%naky
-       xxf_lo%compound_count(3)=xxf_lo%compound_count(2)*ntgridtotal
-       xxf_lo%compound_count(4)=xxf_lo%compound_count(3)*nsign
-       xxf_lo%compound_count(5)=xxf_lo%compound_count(4)*nlambda
-       xxf_lo%compound_count(6)=xxf_lo%compound_count(5)*negrid
-       xxf_lo%dim_size(1)=naky
-       xxf_lo%dim_size(2)=ntgridtotal
-       xxf_lo%dim_size(3)=nsign
-       xxf_lo%dim_size(4)=nlambda
-       xxf_lo%dim_size(5)=negrid
-       xxf_lo%dim_size(6)=nspec
+       call set_dimension_order(xxf_lo,ik_ord=1,ig_ord=2,isgn_ord=3,il_ord=4,ie_ord=5,is_ord=6)
     case ('xyles')
-       call set_dimension_order_xxf(xxf_lo,ik_ord=1,ig_ord=2,isgn_ord=3,il_ord=4,ie_ord=5,is_ord=6)
-       xxf_lo%compound_count(1)=1
-       xxf_lo%compound_count(2)=xxf_lo%naky
-       xxf_lo%compound_count(3)=xxf_lo%compound_count(2)*ntgridtotal
-       xxf_lo%compound_count(4)=xxf_lo%compound_count(3)*nsign
-       xxf_lo%compound_count(5)=xxf_lo%compound_count(4)*nlambda
-       xxf_lo%compound_count(6)=xxf_lo%compound_count(5)*negrid
-       xxf_lo%dim_size(1)=naky
-       xxf_lo%dim_size(2)=ntgridtotal
-       xxf_lo%dim_size(3)=nsign
-       xxf_lo%dim_size(4)=nlambda
-       xxf_lo%dim_size(5)=negrid
-       xxf_lo%dim_size(6)=nspec
+       call set_dimension_order(xxf_lo,ik_ord=1,ig_ord=2,isgn_ord=3,il_ord=4,ie_ord=5,is_ord=6)
     end select
+
+    xxf_lo%dim_size(xxf_lo%ik_ord)=naky
+    xxf_lo%dim_size(xxf_lo%ig_ord)=ntgridtotal
+    xxf_lo%dim_size(xxf_lo%isgn_ord)=nsign
+    xxf_lo%dim_size(xxf_lo%il_ord)=nlambda
+    xxf_lo%dim_size(xxf_lo%ie_ord)=negrid
+    xxf_lo%dim_size(xxf_lo%is_ord)=nspec
+    
+    xxf_lo%compound_count(1)=1
+    xxf_lo%compound_count(2)=xxf_lo%compound_count(1)*xxf_lo%dim_size(1)
+    xxf_lo%compound_count(3)=xxf_lo%compound_count(2)*xxf_lo%dim_size(2)
+    xxf_lo%compound_count(4)=xxf_lo%compound_count(3)*xxf_lo%dim_size(3)
+    xxf_lo%compound_count(5)=xxf_lo%compound_count(4)*xxf_lo%dim_size(4)
+    xxf_lo%compound_count(6)=xxf_lo%compound_count(5)*xxf_lo%dim_size(5)    
+
     xxf_lo%ig_comp=xxf_lo%compound_count(xxf_lo%ig_ord)
     xxf_lo%isgn_comp=xxf_lo%compound_count(xxf_lo%isgn_ord)
     xxf_lo%ik_comp=xxf_lo%compound_count(xxf_lo%ik_ord)
@@ -3295,31 +2991,6 @@ contains
   !!
   !! AJ, November 2011: New code from DCSE project  
   subroutine calculate_unbalanced_x(nproc, iproc, unbalanced_amount)
-  !====================================================================
-  ! AJ, November 2011: New code from DCSE project
-  ! This subroutine (calculate_unbalanced_x) wraps up all the 
-  ! functionality required to calculate the xxf blocksizes and 
-  ! work out if and unbalanced decomposition should be used, and if so 
-  ! the size of the unbalanced blocks.
-  !
-  ! This routine takes the number of processes to be used and the rank 
-  ! of the calling process and returns the amount of unbalance in the 
-  ! calculate decomposition (in a real variable with a range between 
-  ! 0.0 and 1.0 where 1.0 is a 100% difference between the small and 
-  ! large block size and 0.0 is no difference between the small and 
-  ! large block sizes).
-  !
-  ! This routine can be called from routines within the gs2_layouts
-  ! module (specifically init_x_transform_layouts) or from outside 
-  ! this module (specifically it is currently called from ingen to 
-  ! provide suggestions for unbalanced decompositions and process 
-  ! counts).  However, this routine relies on init_x_transform_layouts 
-  ! having been called to initialise some of the values it used 
-  ! (those in xxf_lo%) which is why there is a check whether the 
-  ! initialize_x_transform variable has been set to true.  If not this 
-  ! routine will not run and will notify the user of the problem.
-  !====================================================================
-
     implicit none
     integer, intent (in) :: nproc, iproc
     real, intent (out) :: unbalanced_amount
@@ -3631,35 +3302,6 @@ contains
   !!
   !! AJ, November 2011: New code from DCSE project  
   subroutine calculate_block_breakdown (k, i, m, j, level_proc_num)
-  !====================================================================
-  ! AJ, November 2011: New code from DCSE project
-  ! This subroutine (calculate_block_breakdown) is used in the code
-  ! to create unbalanced xxf and yxf layouts to address MPI
-  ! communication overheads in the redistribution of data for the
-  ! FFTs used in the nonlinear calculations to move from Fourier
-  ! space to real space and back again.
-  !
-  ! The routine calculates the factor k divided by a provided number
-  ! of processors/cores and returns it in integer j.  As j is an
-  ! integer the number returned will be more than zero if k is larger
-  ! than level_proc_num and zero if k is smaller than level_proc_num.
-  !
-  ! The integer i that is returned is the remained when k is divided
-  ! by level_proc_num.  This is used in the unbalanced decomposition
-  ! code to work out whether the factor divides exactly by the number
-  ! of procs  (in level_proc_num).  If it does then it is not an
-  ! unbalanced decomposition (so the original decomposition can be
-  ! used.
-  !
-  ! The integer m which is returned by this subroutine is the remainder
-  ! of level_proc_num divided by k.  This is used in the unbalanced
-  ! decomposition code to work out if the factor k exactly divides
-  ! the number of processors/cores in level_proc_num.  If it does
-  ! (i.e. m is zero) then the decomposition code can perform this
-  ! division and move on to the next factor.  If it does not then
-  ! the code keeps the factor k and multiplies it by the next factor
-  ! and checks that one (and so on).
-  !====================================================================
     implicit none
    
     integer, intent(in) :: k, level_proc_num
@@ -3707,42 +3349,6 @@ contains
   !!
   !! AJ, November 2011: New code from DCSE project
   subroutine calculate_unbalanced_decomposition(k, j, i, numsmall, numlarge, localprocs)
-  !====================================================================
-  ! AJ, November 2011: New code from DCSE project
-  ! This subroutine (calculate_unbalanced_decomposition) is used in the code
-  ! to create unbalanced xxf and yxf layouts to address MPI
-  ! communication overheads in the redistribution of data for the
-  ! FFTs used in the nonlinear calculations to move from Fourier
-  ! space to real space and back again.
-  !
-  ! k is an integer input which is the factor that needs to be decomposed
-  ! across the number of processes (the input integer localprocs)
-  ! that we have at this point in the decomposition.
-  !
-  ! When this subroutine is called k is larger than
-  ! localprocs (this is enforced through the if and else statements
-  ! in the code that calls this routine).  It is also only called when
-  ! localprocs does not completely/equally divide k (so k/localprocs
-  ! will not given a round number).
-  !
-  ! The subroutine returns four integers; i, j, numlarge, and numsmall
-  !
-  ! j is calculated as the integer division of k/localprocs.  As this
-  ! is an integer division the result is rounded down (remembering
-  ! that k/localprocs will not be an equal division).  j is used by the
-  ! small block factor (the relative size of the small block).
-  !
-  ! i is the large block factor.  As j is the rounded down division,
-  ! i = j + 1.  This gives two different block sizes (when these are
-  ! later calculated).
-  !
-  ! numlarge is used to work out how many processes will use the large
-  ! block size in the decomposition.
-  !
-  ! numsmall is used to work out how many processes will use the small
-  ! block size in the decomposition.
-  !
-  !====================================================================
     implicit none
 
     integer, intent(in) :: k, localprocs
@@ -3815,55 +3421,6 @@ contains
   !!
   !! AJ, November 2011: New code from DCSE project
   subroutine calculate_block_size(iproc, numsmall, numlarge, smalldecomp, largedecomp, sizeblock, blocksize, smallblocksize, largeblocksize, block_multiple, llim, ulim, ulim_alloc)
-  !====================================================================
-  ! AJ, November 2011: New code from DCSE project
-  ! This subroutine (calculate_block_size) is used in the code
-  ! to create unbalanced xxf and yxf layouts to address MPI
-  ! communication overheads in the redistribution of data for the
-  ! FFTs used in the nonlinear calculations to move from Fourier
-  ! space to real space and back again.
-  !
-  ! Input iproc is this processes MPI id.
-  !
-  ! Input numsmall is the number of processes that will use the small
-  ! block size (calculated in subroutine
-  ! calculate_unbalanced_decomposition).
-  !
-  ! Input numlarge is the number of processes that will use the large
-  ! block size (calculated in suboutine
-  ! calcuate_unbalanced_decomposition).
-  !
-  ! Input smalldecomp is the small_block_balance_factor of the
-  ! decomposition (calculated in subroutine
-  ! calculate_unbalanced_decomposition where it is referred to as j.
-  !
-  ! Input largedecomp is the large_block_balance_factor of the
-  ! decomposition (calculated in subroutine
-  ! calculate_unbalanced_decomposition where it is referred to as i.
-  !
-  ! Input sizeblock is the factor that needs to be split over the
-  ! cores/processors we have (i.e. everything that has not yet been
-  ! decomposed).
-  !
-  ! Output blocksize is the blocksize assigned to this actual process
-  ! (to be used throughout the code of the decompositions).
-  !
-  ! Output smallblocksize is the small block size.
-  !
-  ! Output largeblocksize is the large block size.
-  !
-  ! Output block_multiple is the size of the small block and large block
-  ! added together.  This is used to calculate which process owns a particular
-  ! data point at later points in the code (particular in the subroutine 
-  ! proc_id).
-  ! 
-  ! Output llim is the lower limit of the data block for this process.
-  !
-  ! Output ulim is the upper limit of the data block for this process.
-  !
-  ! Output ulim_alloc is the upper allocation limit for this processes block.
-  !
-  !====================================================================
     implicit none
 
     integer, intent(in) :: iproc, numsmall, numlarge, smalldecomp, largedecomp, sizeblock
@@ -3943,21 +3500,6 @@ contains
   !!
   !! AJ, November 2011: New code from DCSE project
   subroutine calculate_idle_processes(nprocs, idle_percentage)
-  !====================================================================
-  ! AJ, November 2011: New code from DCSE project
-  ! This subroutine (calculate_idle_processes) is used to calculate the 
-  ! difference between the number of processes used in the xxf and yxf
-  ! data layouts.  This is important as it can affect the amount of 
-  ! communication that the code has to undertake when moving between 
-  ! linear and non-linear calculations.  
-  !
-  ! This routine is used by ingen when it is suggesting optimal process
-  ! counts for users to flag up when suggested process counts will 
-  ! results in there being a significant difference in the processes 
-  ! used in the two layouts, and therefore a significant communication 
-  ! overhead moving between the two layouts.
-  !====================================================================
-
     implicit none
 
     integer, intent(in) :: nprocs
@@ -4225,93 +3767,36 @@ contains
     yxf_lo%llim_world = 0
     yxf_lo%ulim_world = nnx*(2*ntgrid+1)*2*nlambda*negrid*nspec - 1
 
-!Calculate compound index divisors
+    ! Calculate compound index divisors
     select case (layout)
     case ('yxels')
-       call set_dimension_order_yxf(yxf_lo,it_ord=1,ig_ord=2,isgn_ord=3,ie_ord=4,il_ord=5,is_ord=6)
-       yxf_lo%compound_count(1)=1
-       yxf_lo%compound_count(2)=yxf_lo%nx
-       yxf_lo%compound_count(3)=yxf_lo%compound_count(2)*ntgridtotal
-       yxf_lo%compound_count(4)=yxf_lo%compound_count(3)*nsign
-       yxf_lo%compound_count(5)=yxf_lo%compound_count(4)*negrid
-       yxf_lo%compound_count(6)=yxf_lo%compound_count(5)*nlambda
-       yxf_lo%dim_size(1)=nx
-       yxf_lo%dim_size(2)=ntgridtotal
-       yxf_lo%dim_size(3)=nsign
-       yxf_lo%dim_size(4)=negrid
-       yxf_lo%dim_size(5)=nlambda
-       yxf_lo%dim_size(6)=nspec
+       call set_dimension_order(yxf_lo,it_ord=1,ig_ord=2,isgn_ord=3,ie_ord=4,il_ord=5,is_ord=6)
     case ('yxles')
-       call set_dimension_order_yxf(yxf_lo,it_ord=1,ig_ord=2,isgn_ord=3,il_ord=4,ie_ord=5,is_ord=6)
-       yxf_lo%compound_count(1)=1
-       yxf_lo%compound_count(2)=yxf_lo%nx
-       yxf_lo%compound_count(3)=yxf_lo%compound_count(2)*ntgridtotal
-       yxf_lo%compound_count(4)=yxf_lo%compound_count(3)*nsign
-       yxf_lo%compound_count(5)=yxf_lo%compound_count(4)*nlambda
-       yxf_lo%compound_count(6)=yxf_lo%compound_count(5)*negrid
-       yxf_lo%dim_size(1)=nx
-       yxf_lo%dim_size(2)=ntgridtotal
-       yxf_lo%dim_size(3)=nsign
-       yxf_lo%dim_size(4)=nlambda
-       yxf_lo%dim_size(5)=negrid
-       yxf_lo%dim_size(6)=nspec
+       call set_dimension_order(yxf_lo,it_ord=1,ig_ord=2,isgn_ord=3,il_ord=4,ie_ord=5,is_ord=6)
     case ('lexys')
-       call set_dimension_order_yxf(yxf_lo,it_ord=1,ig_ord=2,isgn_ord=3,il_ord=4,ie_ord=5,is_ord=6)
-       yxf_lo%compound_count(1)=1
-       yxf_lo%compound_count(2)=yxf_lo%nx
-       yxf_lo%compound_count(3)=yxf_lo%compound_count(2)*ntgridtotal
-       yxf_lo%compound_count(4)=yxf_lo%compound_count(3)*nsign
-       yxf_lo%compound_count(5)=yxf_lo%compound_count(4)*nlambda
-       yxf_lo%compound_count(6)=yxf_lo%compound_count(5)*negrid
-       yxf_lo%dim_size(1)=nx
-       yxf_lo%dim_size(2)=ntgridtotal
-       yxf_lo%dim_size(3)=nsign
-       yxf_lo%dim_size(4)=nlambda
-       yxf_lo%dim_size(5)=negrid
-       yxf_lo%dim_size(6)=nspec
+       call set_dimension_order(yxf_lo,it_ord=1,ig_ord=2,isgn_ord=3,il_ord=4,ie_ord=5,is_ord=6)
     case ('lxyes')
-       call set_dimension_order_yxf(yxf_lo,it_ord=1,ig_ord=2,isgn_ord=3,il_ord=4,ie_ord=5,is_ord=6)
-       yxf_lo%compound_count(1)=1
-       yxf_lo%compound_count(2)=yxf_lo%nx
-       yxf_lo%compound_count(3)=yxf_lo%compound_count(2)*ntgridtotal
-       yxf_lo%compound_count(4)=yxf_lo%compound_count(3)*nsign
-       yxf_lo%compound_count(5)=yxf_lo%compound_count(4)*nlambda
-       yxf_lo%compound_count(6)=yxf_lo%compound_count(5)*negrid
-       yxf_lo%dim_size(1)=nx
-       yxf_lo%dim_size(2)=ntgridtotal
-       yxf_lo%dim_size(3)=nsign
-       yxf_lo%dim_size(4)=nlambda
-       yxf_lo%dim_size(5)=negrid
-       yxf_lo%dim_size(6)=nspec
+       call set_dimension_order(yxf_lo,it_ord=1,ig_ord=2,isgn_ord=3,il_ord=4,ie_ord=5,is_ord=6)
     case ('lyxes')
-       call set_dimension_order_yxf(yxf_lo,it_ord=1,ig_ord=2,isgn_ord=3,il_ord=4,ie_ord=5,is_ord=6)
-       yxf_lo%compound_count(1)=1
-       yxf_lo%compound_count(2)=yxf_lo%nx
-       yxf_lo%compound_count(3)=yxf_lo%compound_count(2)*ntgridtotal
-       yxf_lo%compound_count(4)=yxf_lo%compound_count(3)*nsign
-       yxf_lo%compound_count(5)=yxf_lo%compound_count(4)*nlambda
-       yxf_lo%compound_count(6)=yxf_lo%compound_count(5)*negrid
-       yxf_lo%dim_size(1)=nx
-       yxf_lo%dim_size(2)=ntgridtotal
-       yxf_lo%dim_size(3)=nsign
-       yxf_lo%dim_size(4)=nlambda
-       yxf_lo%dim_size(5)=negrid
-       yxf_lo%dim_size(6)=nspec
+       call set_dimension_order(yxf_lo,it_ord=1,ig_ord=2,isgn_ord=3,il_ord=4,ie_ord=5,is_ord=6)
     case ('xyles')
-       call set_dimension_order_yxf(yxf_lo,it_ord=1,ig_ord=2,isgn_ord=3,il_ord=4,ie_ord=5,is_ord=6)
-       yxf_lo%compound_count(1)=1
-       yxf_lo%compound_count(2)=yxf_lo%nx
-       yxf_lo%compound_count(3)=yxf_lo%compound_count(2)*ntgridtotal
-       yxf_lo%compound_count(4)=yxf_lo%compound_count(3)*nsign
-       yxf_lo%compound_count(5)=yxf_lo%compound_count(4)*nlambda
-       yxf_lo%compound_count(6)=yxf_lo%compound_count(5)*negrid
-       yxf_lo%dim_size(1)=nx
-       yxf_lo%dim_size(2)=ntgridtotal
-       yxf_lo%dim_size(3)=nsign
-       yxf_lo%dim_size(4)=nlambda
-       yxf_lo%dim_size(5)=negrid
-       yxf_lo%dim_size(6)=nspec
+       call set_dimension_order(yxf_lo,it_ord=1,ig_ord=2,isgn_ord=3,il_ord=4,ie_ord=5,is_ord=6)
     end select
+
+    yxf_lo%dim_size(yxf_lo%it_ord)=nx
+    yxf_lo%dim_size(yxf_lo%ig_ord)=ntgridtotal
+    yxf_lo%dim_size(yxf_lo%isgn_ord)=nsign
+    yxf_lo%dim_size(yxf_lo%il_ord)=nlambda
+    yxf_lo%dim_size(yxf_lo%ie_ord)=negrid
+    yxf_lo%dim_size(yxf_lo%is_ord)=nspec
+    
+    yxf_lo%compound_count(1)=1
+    yxf_lo%compound_count(2)=yxf_lo%compound_count(1)*yxf_lo%dim_size(1)
+    yxf_lo%compound_count(3)=yxf_lo%compound_count(2)*yxf_lo%dim_size(2)
+    yxf_lo%compound_count(4)=yxf_lo%compound_count(3)*yxf_lo%dim_size(3)
+    yxf_lo%compound_count(5)=yxf_lo%compound_count(4)*yxf_lo%dim_size(4)
+    yxf_lo%compound_count(6)=yxf_lo%compound_count(5)*yxf_lo%dim_size(5)    
+
     yxf_lo%ig_comp=yxf_lo%compound_count(yxf_lo%ig_ord)
     yxf_lo%isgn_comp=yxf_lo%compound_count(yxf_lo%isgn_ord)
     yxf_lo%it_comp=yxf_lo%compound_count(yxf_lo%it_ord)
@@ -4344,7 +3829,6 @@ contains
        yxf_lo%ulim_proc = min(yxf_lo%ulim_group+yxf_lo%igroup*yxf_lo%gsize, &
             yxf_lo%llim_proc + yxf_lo%nset - 1)
        yxf_lo%ulim_alloc = max(yxf_lo%llim_proc, yxf_lo%ulim_proc)
-
 
     else
        ! AJ November 2011
@@ -5200,38 +4684,89 @@ contains
   end subroutine factors
 
   !> Sets the order of x y l e s in g_lo
-  subroutine set_dimension_order(g_lo,it_ord,ik_ord,il_ord,ie_ord,is_ord)
-
+  subroutine set_dimension_order_g(lo, it_ord, ik_ord, il_ord, ie_ord, is_ord)
     implicit none
-    type (g_layout_type), intent(in out) :: g_lo
+    type (g_layout_type), intent(in out) :: lo
     integer, intent(in) :: ie_ord, il_ord, it_ord, ik_ord, is_ord
     integer, dimension(5) :: check
 
     ! Check input is the integers 1 to 5
     check = [it_ord, ik_ord, il_ord, ie_ord, is_ord]
-    call check_unique_integers(check,'Input to set_dimension_order is not unique integers 1 to 5')
+    call check_unique_integers(check,'Input to set_dimension_order (g_lo) is not unique integers 1 to 5')
 
-    g_lo%ie_ord=ie_ord
-    g_lo%il_ord=il_ord
-    g_lo%it_ord=it_ord
-    g_lo%ik_ord=ik_ord
-    g_lo%is_ord=is_ord
+    lo%ie_ord=ie_ord
+    lo%il_ord=il_ord
+    lo%it_ord=it_ord
+    lo%ik_ord=ik_ord
+    lo%is_ord=is_ord
+  end subroutine set_dimension_order_g
 
-  end subroutine set_dimension_order
+  !> Sets the order of x y th s in le_lo
+  subroutine set_dimension_order_le(lo, ig_ord, it_ord, ik_ord, is_ord)
+    implicit none
+    type (le_layout_type), intent(in out) :: lo
+    integer, intent(in) :: ig_ord, it_ord, ik_ord, is_ord
+    integer, dimension(4) :: check
 
+    ! Check input is the integers 1 to N
+    check = [ig_ord, it_ord, ik_ord, is_ord]
+    call check_unique_integers(check,'Input to set_dimension_order (le_lo) is not unique integers 1 to 4')
+
+    lo%ig_ord=ig_ord
+    lo%it_ord=it_ord
+    lo%ik_ord=ik_ord
+    lo%is_ord=is_ord
+  end subroutine set_dimension_order_le
+
+  !> Sets the order of x y e th s in lz_lo
+  subroutine set_dimension_order_lz(lo, ig_ord, it_ord, ik_ord, ie_ord, is_ord)
+    implicit none
+    type (lz_layout_type), intent(in out) :: lo
+    integer, intent(in) :: ig_ord, it_ord, ik_ord, ie_ord, is_ord
+    integer, dimension(5) :: check
+
+    ! Check input is the integers 1 to N
+    check = [ig_ord, it_ord, ik_ord, ie_ord, is_ord]
+    call check_unique_integers(check,'Input to set_dimension_order (lz_lo) is not unique integers 1 to 5')
+
+    lo%ig_ord=ig_ord
+    lo%it_ord=it_ord
+    lo%ik_ord=ik_ord
+    lo%ie_ord=ie_ord    
+    lo%is_ord=is_ord
+  end subroutine set_dimension_order_lz
+
+  !> Sets the order of th sgn x y l s in e_lo
+  subroutine set_dimension_order_e(lo, ig_ord, isgn_ord, it_ord, ik_ord, il_ord, is_ord)
+    implicit none
+    type (e_layout_type), intent(in out) :: lo
+    integer, intent(in) :: ig_ord, isgn_ord, it_ord, ik_ord, il_ord, is_ord
+    integer, dimension(6) :: check
+
+    ! Check input is the integers 1 to N
+    check = [ig_ord, isgn_ord, it_ord, ik_ord, il_ord, is_ord]
+    call check_unique_integers(check,'Input to set_dimension_order (e_lo) is not unique integers 1 to 5')
+
+    lo%ig_ord=ig_ord
+    lo%isgn_ord=isgn_ord    
+    lo%it_ord=it_ord
+    lo%ik_ord=ik_ord
+    lo%il_ord=il_ord    
+    lo%is_ord=is_ord
+  end subroutine set_dimension_order_e
+  
   !> Sets the order of y th sgn l e s in xxf_lo
   !> Note: usually the order is y, theta, sign, then "les" in the order they appear in
   !> the g_lo layout
-  subroutine set_dimension_order_xxf(xxf_lo,ik_ord,ig_ord,isgn_ord,il_ord,ie_ord,is_ord)
-
+  subroutine set_dimension_order_xxf(lo,ik_ord,ig_ord,isgn_ord,il_ord,ie_ord,is_ord)
     implicit none
-    type (xxf_layout_type), intent(in out) :: xxf_lo
+    type (xxf_layout_type), intent(in out) :: lo
     integer, intent(in) :: ie_ord, il_ord, ig_ord, ik_ord, is_ord, isgn_ord
     integer, dimension(6) :: check
 
-    ! Check input is the integers 1 to 6
+    ! Check input is the integers 1 to N
     check = [ik_ord, ig_ord, isgn_ord, il_ord, ie_ord, is_ord]
-    call check_unique_integers(check,'Input to set_dimension_order_xxf is not unique integers 1 to 6')
+    call check_unique_integers(check,'Input to set_dimension_order (xxf_lo) is not unique integers 1 to 6')
 
     xxf_lo%ik_ord=ik_ord
     xxf_lo%ig_ord=ig_ord
@@ -5239,22 +4774,20 @@ contains
     xxf_lo%il_ord=il_ord
     xxf_lo%ie_ord=ie_ord
     xxf_lo%is_ord=is_ord
-
   end subroutine set_dimension_order_xxf
 
   !> Sets the order of x th sgn l e s in xxf_lo
   !> Note: usually the order is x, theta, sign, then "les" in the order they appear in
   !> the g_lo layout
-  subroutine set_dimension_order_yxf(yxf_lo,it_ord,ig_ord,isgn_ord,il_ord,ie_ord,is_ord)
-
+  subroutine set_dimension_order_yxf(lo,it_ord,ig_ord,isgn_ord,il_ord,ie_ord,is_ord)
     implicit none
-    type (yxf_layout_type), intent(in out) :: yxf_lo
+    type (yxf_layout_type), intent(in out) :: lo
     integer, intent(in) :: ie_ord, il_ord, ig_ord, it_ord, is_ord, isgn_ord
     integer, dimension(6) :: check
 
-    ! Check input is the integers 1 to 6
+    ! Check input is the integers 1 to N
     check = [it_ord, ig_ord, isgn_ord, il_ord, ie_ord, is_ord]
-    call check_unique_integers(check,'Input to set_dimension_order_yxf is not unique integers 1 to 6')
+    call check_unique_integers(check,'Input to set_dimension_order (yxf_lo) is not unique integers 1 to 6')
 
     yxf_lo%it_ord=it_ord
     yxf_lo%ig_ord=ig_ord
@@ -5262,7 +4795,6 @@ contains
     yxf_lo%il_ord=il_ord
     yxf_lo%ie_ord=ie_ord
     yxf_lo%is_ord=is_ord
-
   end subroutine set_dimension_order_yxf
 
   !> Checks that the given array contains unique integers 1 to (array size) (in any order),
