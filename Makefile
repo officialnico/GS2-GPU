@@ -65,9 +65,6 @@ USE_NETCDF ?= on
 USE_PARALLEL_NETCDF ?= 
 # uses hdf5 library (bin)
 USE_HDF5 ?=  
-# Use function pointer in layouts_indices.c (bin)
-# see also README
-USE_C_INDEX ?= 
 # Use local random number generator (mt,undefined)
 # see also README
 USE_LOCAL_RAN ?=
@@ -424,10 +421,6 @@ ifdef USE_HDF5
 	MACRO_DEFS += -DHDF
 endif
 
-ifdef USE_C_INDEX
-	MACRO_DEFS += -DUSE_C_INDEX
-endif
-
 ifeq ($(USE_LOCAL_RAN),mt)
 	MACRO_DEFS += -DRANDOM=_RANMT_
 endif
@@ -722,16 +715,6 @@ ifdef USE_FFT
     generate_fftw_wisdom_mod += $(OBJDIR)/fft_save_wisdom.o
 endif
 
-ifdef USE_C_INDEX
-    gs2_mod += $(OBJDIR)/layouts_indices.o
-endif
-
-$(OBJDIR)/layouts_indices.o: $(MODDIR)/layouts_type.h
-layouts_type.h: $(MODDIR)/layouts_type.h
-$(MODDIR)/layouts_type.h: |$(MODDIR)
-$(MODDIR)/layouts_type.h: $(SRCDIR)/layouts_type.f90
-	$(AWK) -f scripts/makehead.awk $^ > $@
-
 # Make sure template dependencies are specified
 gs2_init.f90: $(SRCDIR)/templates/gs2_init_template.f90
 
@@ -795,7 +778,7 @@ distclean: unlink clean cleanlib clean_tests clean_benchmarks distclean_simpleda
 
 unlink:
 	$(call messageRm,"Preprocessed files")	
-	-$(QUIETSYM)rm -f $(F90FROMFPP) layouts_type.h
+	-$(QUIETSYM)rm -f $(F90FROMFPP)
 
 ############################################################# Tar targets
 tar:
@@ -808,7 +791,7 @@ $(TARDIR):
 ### setting tar_exec local $(TARLIST*) variables
 # expand wildcards listed $(TARLIST_wild) in ( $(TARLIST_dir) + . )
 # directories and add them into TARLIST
-tar_exec: TARLIST = scripts/makehead.awk scripts/fortdep AstroGK.in
+tar_exec: TARLIST = scripts/fortdep
 tar_exec: TARLIST_dir = Makefiles utils geo Aux
 tar_exec: TARLIST_wild = *.f90 *.fpp *.inc *.c Makefile Makefile.* README README.*
 tar_exec: TARLIST += $(foreach dir,. $(TARLIST_dir),$(wildcard $(addprefix $(dir)/,$(TARLIST_wild))))
@@ -884,7 +867,6 @@ test_make:
 	$(call messageKeyVal, "USE_NETCDF", $(USE_NETCDF))
 	$(call messageKeyVal, "USE_HDF5", $(USE_HDF5))
 	$(call messageKeyVal, "WITH_EIG", $(WITH_EIG))
-	$(call messageKeyVal, "USE_C_INDEX", $(USE_C_INDEX))
 	$(call messageKeyVal, "USE_POSIX", $(USE_POSIX))
 	$(call messageKeyVal, "USE_LOCAL_RAN", $(USE_LOCAL_RN))
 	$(call messageKeyVal, "USE_SPFUNC", $(USE_SPFUNC))

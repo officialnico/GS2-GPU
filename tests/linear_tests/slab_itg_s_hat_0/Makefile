@@ -1,7 +1,7 @@
 
 sinclude ../Makefile.tests_common
 
-CLEANCOMMAND+= slab_itg_s_hat_0_low_res
+CLEANCOMMAND+= slab_itg_s_hat_0_low_res gs2_slab_itg
 
 COPY=cp ../../../bin/gs2 gs2_slab_itg
 
