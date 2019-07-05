@@ -76,7 +76,10 @@ module layouts_type
 !    For branchless index lookup routines
      integer :: ig_ord, isgn_ord, ik_ord, it_ord, ie_ord, is_ord
      integer :: ig_comp, isgn_comp, ik_comp, it_comp, ie_comp, is_comp
-     integer,dimension(6) :: compound_count
+     integer,dimension(5) :: compound_count
+     !> Array that holds the size of each dimension in the order that they
+     !> appear in the layout.
+     integer,dimension(5) :: dim_size
 
   end type lz_layout_type
 
@@ -91,6 +94,9 @@ module layouts_type
      integer :: ig_ord, isgn_ord, ik_ord, it_ord, il_ord, is_ord
      integer :: ig_comp, isgn_comp, ik_comp, it_comp, il_comp, is_comp
      integer,dimension(6) :: compound_count
+     !> Array that holds the size of each dimension in the order that they
+     !> appear in the layout.
+     integer,dimension(6) :: dim_size
   end type e_layout_type
 
   !> FIXME : Add documentation
@@ -107,6 +113,9 @@ module layouts_type
      integer :: ik_min, it_min, ig_min, is_min 
      integer :: ik_max, it_max, ig_max, is_max 
      logical :: x_local, y_local, t_local, s_local !Used to record if various dimensions are entirely local
+     !> Array that holds the size of each dimension in the order that they
+     !> appear in the layout.
+     integer,dimension(4) :: dim_size
   end type le_layout_type
 
   !> FIXME : Add documentation  
