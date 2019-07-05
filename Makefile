@@ -611,10 +611,12 @@ ifdef ONE_STEP_PP
 $(OBJDIR)/%.o: %.fpp |$(MODDIR) $(OBJDIR)
 	$(call messageOp,"Compiling and preprocessing","\\t:",$<)
 	$(QUIETSYM)$(FC) $(MACRO_DEFS) $(F90FLAGS) -c $< -o $@
+	$(QUIETSYM)mv *.mod $(MODDIR) 2>/dev/null
 
 $(OBJDIR)/%.o: %.F90 |$(MODDIR) $(OBJDIR)
 	$(call messageOp,"Compiling and preprocessing","\\t:",$<)
 	$(QUIETSYM)$(FC) $(MACRO_DEFS) $(F90FLAGS) -c $< -o $@
+	$(QUIETSYM)mv *.mod $(MODDIR) 2>/dev/null
 endif
 
 %.f90: %.rb
