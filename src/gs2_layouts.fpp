@@ -1,6 +1,7 @@
 ! Modifications for unbalanced decomposition functionality:
 ! (c) The Numerical Algorithms Group (NAG) Ltd, 2012
 ! on behalf of EPSRC for the HECToR project
+
 !> FIXME : Add documentation
 module gs2_layouts
 
@@ -340,6 +341,15 @@ module gs2_layouts
      module procedure idx_local_parity, ig_local_parity
   end interface
 
+  interface set_dimension_order
+     module procedure set_dimension_order_g
+     module procedure set_dimension_order_le
+     module procedure set_dimension_order_lz
+     module procedure set_dimension_order_e
+     module procedure set_dimension_order_xxf
+     module procedure set_dimension_order_yxf
+  end interface set_dimension_order
+  
 contains 
   !> FIXME : Add documentation 
   subroutine wnml_gs2_layouts(unit)
@@ -4309,7 +4319,6 @@ contains
             yxf_lo%llim_proc + yxf_lo%nset - 1)
        yxf_lo%ulim_alloc = max(yxf_lo%llim_proc, yxf_lo%ulim_proc)
 
-
     else
        ! AJ November 2011
        ! unbalanced_yxf is a variable initialised in the input file
@@ -5164,38 +5173,89 @@ contains
   end subroutine factors
 
   !> Sets the order of x y l e s in g_lo
-  subroutine set_dimension_order(g_lo,it_ord,ik_ord,il_ord,ie_ord,is_ord)
-
+  subroutine set_dimension_order_g(lo, it_ord, ik_ord, il_ord, ie_ord, is_ord)
     implicit none
-    type (g_layout_type), intent(in out) :: g_lo
+    type (g_layout_type), intent(in out) :: lo
     integer, intent(in) :: ie_ord, il_ord, it_ord, ik_ord, is_ord
     integer, dimension(5) :: check
 
     ! Check input is the integers 1 to 5
     check = [it_ord, ik_ord, il_ord, ie_ord, is_ord]
-    call check_unique_integers(check,'Input to set_dimension_order is not unique integers 1 to 5')
+    call check_unique_integers(check,'Input to set_dimension_order (g_lo) is not unique integers 1 to 5')
 
-    g_lo%ie_ord=ie_ord
-    g_lo%il_ord=il_ord
-    g_lo%it_ord=it_ord
-    g_lo%ik_ord=ik_ord
-    g_lo%is_ord=is_ord
+    lo%ie_ord=ie_ord
+    lo%il_ord=il_ord
+    lo%it_ord=it_ord
+    lo%ik_ord=ik_ord
+    lo%is_ord=is_ord
+  end subroutine set_dimension_order_g
 
-  end subroutine set_dimension_order
+  !> Sets the order of x y th s in le_lo
+  subroutine set_dimension_order_le(lo, ig_ord, it_ord, ik_ord, is_ord)
+    implicit none
+    type (le_layout_type), intent(in out) :: lo
+    integer, intent(in) :: ig_ord, it_ord, ik_ord, is_ord
+    integer, dimension(4) :: check
 
+    ! Check input is the integers 1 to N
+    check = [ig_ord, it_ord, ik_ord, is_ord]
+    call check_unique_integers(check,'Input to set_dimension_order (le_lo) is not unique integers 1 to 4')
+
+    lo%ig_ord=ig_ord
+    lo%it_ord=it_ord
+    lo%ik_ord=ik_ord
+    lo%is_ord=is_ord
+  end subroutine set_dimension_order_le
+
+  !> Sets the order of x y e th s in lz_lo
+  subroutine set_dimension_order_lz(lo, ig_ord, it_ord, ik_ord, ie_ord, is_ord)
+    implicit none
+    type (lz_layout_type), intent(in out) :: lo
+    integer, intent(in) :: ig_ord, it_ord, ik_ord, ie_ord, is_ord
+    integer, dimension(5) :: check
+
+    ! Check input is the integers 1 to N
+    check = [ig_ord, it_ord, ik_ord, ie_ord, is_ord]
+    call check_unique_integers(check,'Input to set_dimension_order (lz_lo) is not unique integers 1 to 5')
+
+    lo%ig_ord=ig_ord
+    lo%it_ord=it_ord
+    lo%ik_ord=ik_ord
+    lo%ie_ord=ie_ord    
+    lo%is_ord=is_ord
+  end subroutine set_dimension_order_lz
+
+  !> Sets the order of th sgn x y l s in e_lo
+  subroutine set_dimension_order_e(lo, ig_ord, isgn_ord, it_ord, ik_ord, il_ord, is_ord)
+    implicit none
+    type (e_layout_type), intent(in out) :: lo
+    integer, intent(in) :: ig_ord, isgn_ord, it_ord, ik_ord, il_ord, is_ord
+    integer, dimension(6) :: check
+
+    ! Check input is the integers 1 to N
+    check = [ig_ord, isgn_ord, it_ord, ik_ord, il_ord, is_ord]
+    call check_unique_integers(check,'Input to set_dimension_order (e_lo) is not unique integers 1 to 5')
+
+    lo%ig_ord=ig_ord
+    lo%isgn_ord=isgn_ord    
+    lo%it_ord=it_ord
+    lo%ik_ord=ik_ord
+    lo%il_ord=il_ord    
+    lo%is_ord=is_ord
+  end subroutine set_dimension_order_e
+  
   !> Sets the order of y th sgn l e s in xxf_lo
   !> Note: usually the order is y, theta, sign, then "les" in the order they appear in
   !> the g_lo layout
-  subroutine set_dimension_order_xxf(xxf_lo,ik_ord,ig_ord,isgn_ord,il_ord,ie_ord,is_ord)
-
+  subroutine set_dimension_order_xxf(lo,ik_ord,ig_ord,isgn_ord,il_ord,ie_ord,is_ord)
     implicit none
-    type (xxf_layout_type), intent(in out) :: xxf_lo
+    type (xxf_layout_type), intent(in out) :: lo
     integer, intent(in) :: ie_ord, il_ord, ig_ord, ik_ord, is_ord, isgn_ord
     integer, dimension(6) :: check
 
-    ! Check input is the integers 1 to 6
+    ! Check input is the integers 1 to N
     check = [ik_ord, ig_ord, isgn_ord, il_ord, ie_ord, is_ord]
-    call check_unique_integers(check,'Input to set_dimension_order_xxf is not unique integers 1 to 6')
+    call check_unique_integers(check,'Input to set_dimension_order (xxf_lo) is not unique integers 1 to 6')
 
     xxf_lo%ik_ord=ik_ord
     xxf_lo%ig_ord=ig_ord
@@ -5203,22 +5263,20 @@ contains
     xxf_lo%il_ord=il_ord
     xxf_lo%ie_ord=ie_ord
     xxf_lo%is_ord=is_ord
-
   end subroutine set_dimension_order_xxf
 
   !> Sets the order of x th sgn l e s in xxf_lo
   !> Note: usually the order is x, theta, sign, then "les" in the order they appear in
   !> the g_lo layout
-  subroutine set_dimension_order_yxf(yxf_lo,it_ord,ig_ord,isgn_ord,il_ord,ie_ord,is_ord)
-
+  subroutine set_dimension_order_yxf(lo,it_ord,ig_ord,isgn_ord,il_ord,ie_ord,is_ord)
     implicit none
-    type (yxf_layout_type), intent(in out) :: yxf_lo
+    type (yxf_layout_type), intent(in out) :: lo
     integer, intent(in) :: ie_ord, il_ord, ig_ord, it_ord, is_ord, isgn_ord
     integer, dimension(6) :: check
 
-    ! Check input is the integers 1 to 6
+    ! Check input is the integers 1 to N
     check = [it_ord, ig_ord, isgn_ord, il_ord, ie_ord, is_ord]
-    call check_unique_integers(check,'Input to set_dimension_order_yxf is not unique integers 1 to 6')
+    call check_unique_integers(check,'Input to set_dimension_order (yxf_lo) is not unique integers 1 to 6')
 
     yxf_lo%it_ord=it_ord
     yxf_lo%ig_ord=ig_ord
@@ -5226,7 +5284,6 @@ contains
     yxf_lo%il_ord=il_ord
     yxf_lo%ie_ord=ie_ord
     yxf_lo%is_ord=is_ord
-
   end subroutine set_dimension_order_yxf
 
   !> Checks that the given array contains unique integers 1 to (array size) (in any order),
