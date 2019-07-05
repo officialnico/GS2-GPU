@@ -640,7 +640,7 @@ $(GENERATED_SRC_DIR)/%.f90: %.F90 |$(GENERATED_SRC_DIR)
 
 $(OBJDIR)/%.o: %.c |$(OBJDIR)
 	$(call messageOp,"Compiling C","\\t:",$<)
-	$(QUIETSYM)$(CC) $(CFLAGS) $(subst -traditional,,$(subst -C,,$(subst -P,,$(CPPFLAGS)))) $(MACRO_DEFS) -c $< -o $@
+	$(QUIETSYM)$(CC) $(CFLAGS) $(INCLUDES) $(subst -traditional,,$(subst -C,,$(subst -P,,$(CPPFLAGS)))) $(MACRO_DEFS) -c $< -o $@
 
 # This prevents error messages like m2c: Command not found
 # This is from a implicit makefile rule that we're overriding
@@ -888,7 +888,7 @@ test_make:
 	$(call messageKeyVal, "MACRO_DEFS", $(MACRO_DEFS))
 	$(call messageKeyVal, "LD_LIBRARY_PATH", $(LD_LIBRARY_PATH))
 	$(call messageKeyVal, "LIBS", $(LIBS))
-	$(call messageKeyVal, "INCS", $(INCLUDES))
+	$(call messageKeyVal, "INCLUDES", $(INCLUDES))
 	@echo
 	$(call messageInfo,"Build info:")
 	$(call messageKeyVal, "SRCDIR ", $(SRCDIR))
