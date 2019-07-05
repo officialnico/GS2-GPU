@@ -624,7 +624,7 @@ endif
 $(OBJDIR)/%.o:%.f90 |$(MODDIR) $(OBJDIR)
 	$(call messageOp,"Compiling","\\t:",$<)
 	$(QUIETSYM) $(FC) $(F90FLAGS) -c $< -o $@
-	$(shell mv *.mod $(MODDIR) 2>/dev/null)
+	$(QUIETSYM)mv *.mod $(MODDIR) 2>/dev/null
 
 # The depend command needs the preprocessed source files. 
 # This is a little clunky, and maybe could be fixed in the future.
