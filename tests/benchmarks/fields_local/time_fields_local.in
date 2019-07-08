@@ -29,6 +29,10 @@
  negrid = 12 ! Total number of energy grid points
 /
 
+&fields_knobs
+ field_option = "local" ! Controls which time-advance algorithm is used for the linear terms.
+/
+
 &knobs
  fphi = 1.0 ! Multiplies Phi (electrostatic potential).
  fapar = 1.0 ! Multiplies A_par. Use 1 for finite beta (electromagnetic), 0 otherwise (electrostatic)
