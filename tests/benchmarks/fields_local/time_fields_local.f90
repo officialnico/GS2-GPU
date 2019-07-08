@@ -53,7 +53,7 @@ program time_fields_local
   state%mp_comm = mp_comm
 
   call initialize_gs2(state)
-  call init(state%init, init_level_list%fields_level_2 - 1)
+  call init(state%init, init_level_list%fields_level_2)
 
   ! Run benchmark
   if (.not. fields_local_functional()) then
