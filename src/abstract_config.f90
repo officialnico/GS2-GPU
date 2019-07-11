@@ -19,6 +19,8 @@ module abstract_config
      logical, private :: requires_index = .false. !< Is this a numbered namelist with an index
      integer :: index = 0 !< Used to hold the specific index of numbered namelists
      character(len = CONFIG_MAX_NAME_LEN), private :: name = default_name !< The name of the namelist that we represent.
+     logical :: skip_read = .false. !< Do we want to skip the read step in init?
+     logical :: skip_broadcast = .false. !< Do we want to skip the broadcast step in init?
    contains
      procedure :: is_initialised => is_initialised_generic
      procedure :: init => init_generic
@@ -93,8 +95,9 @@ contains
     integer, intent(in), optional :: index
     if (self%is_initialised()) return
     call self%setup(name, requires_index, index)
-    call self%read()
-    call self%broadcast()
+    if (.not.self%skip_read) call self%read()
+    if (.not.self%skip_broadcast) call self%broadcast()
+    self%initialised = .true.
   end subroutine init_generic
   
   !> Do some standard setup/checking
