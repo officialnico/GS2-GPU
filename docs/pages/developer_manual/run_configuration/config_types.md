@@ -242,6 +242,69 @@ generated code, i.e. beginning with
 to generate the code and then using copy-paste to _replace_ the
 existing generated code with that in the generated placeholders file.
 
+### Giving variables a smart default
+
+There are occassions where we want the default value of an input flag
+to be set depending on other runtime conditions. For example we may
+wish to enable a different set of diagnostics by default depending on
+the value of `nonlin` (i.e. for linear and nonlinear runs). The
+default value specified in the type declaration can be considered a
+"default default" which we may want to override in certain places,
+these are referred to as "smart defaults".
+
+Consider the previous example of the `performance_config_type` and
+suppose we only want to default to tuning performance if the number of
+processors is greater than or equal to 1024. The current convention is
+to add `!> @note gets a smart default` to the documentation of any
+variable that may have it's default changed from the default-default.
+
+    :::fortran
+    !> FIXME: Add documentation
+    type, extends(abstract_config_type) :: performance_config_type
+       ! namelist : performance_knobs
+       ! indexed : False
+       !> Do we try to tune the performance
+       !> @note gets a smart default
+       !> If the number of processors is less than 1024
+       !> this will default to `.false.`
+       logical :: tune_performance = .true.
+       !> What is the unbalance we allow
+       real :: unbalanced_fraction = 0.5
+       !> FIXME: Add documentation
+       logical :: write_performance = .false.
+       !> This is a new input that means we read the existing performance data
+       logical :: read_performance = .false.
+     contains
+       procedure, public :: read => read_performance_config
+       procedure, public :: write => write_performance_config
+       procedure, public :: reset => reset_performance_config
+       procedure, public :: broadcast => broadcast_performance_config
+       procedure, public :: get_default_name => get_default_name_performance_config
+       procedure, public :: get_default_requires_index => get_default_requires_index_performance_config
+    end type performance_config_type
+
+The smart defaults should be set immediately before we call the `init`
+method of the config type (i.e. before we try to read from the input
+file) which should happen in `read_parameters. This is demonstrated below.
+
+    :::fortran
+    !> FIXME : Add documentation  
+    subroutine read_parameters(performance_config_in)
+      use mp, only: nproc
+      implicit none
+      type(performance_config_type), intent(in), optional :: performance_config_in
+      ! Check if we've passed a config instance
+      if (present(performance_config_in)) performance_config = performance_config_in
+      !
+      ! Smart defaults
+      if (.not.performance_config%is_initialised()) then    
+         if(nproc < 1024) performance_config%tune_performance = .false.
+      end if
+      ! Now try to actually initialise the config from the input file.
+      call performance_config%init(name = 'performance', requires_index = .false.)
+      
+
+
 ### Other features of the configuration type
 
 Currently the configuration types also have a `write` method which can
