@@ -301,7 +301,7 @@ file) which should happen in `read_parameters. This is demonstrated below.
          if(nproc < 1024) performance_config%tune_performance = .false.
       end if
       ! Now try to actually initialise the config from the input file.
-      call performance_config%init(name = 'performance', requires_index = .false.)
+      call performance_config%init(name = 'performance_knobs', requires_index = .false.)
       
 
 
