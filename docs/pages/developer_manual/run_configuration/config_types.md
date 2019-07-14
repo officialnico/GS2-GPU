@@ -255,7 +255,7 @@ these are referred to as "smart defaults".
 Consider the previous example of the `performance_config_type` and
 suppose we only want to default to tuning performance if the number of
 processors is greater than or equal to 1024. The current convention is
-to add `!> @note gets a smart default` to the documentation of any
+to add `!> This gets a smart default` to the documentation of any
 variable that may have it's default changed from the default-default.
 
     :::fortran
@@ -264,7 +264,7 @@ variable that may have it's default changed from the default-default.
        ! namelist : performance_knobs
        ! indexed : False
        !> Do we try to tune the performance
-       !> @note gets a smart default
+       !> This gets a smart default
        !> If the number of processors is less than 1024
        !> this will default to `.false.`
        logical :: tune_performance = .true.
