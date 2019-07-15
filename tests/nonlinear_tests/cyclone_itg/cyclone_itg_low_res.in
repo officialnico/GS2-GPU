@@ -172,43 +172,6 @@
  ginit_option = "default" ! Sets the way that the distribution function is initialized.
 /
 
-&diagnostic_config
- print_line = .false.
- print_flux_line = .false.
- nwrite = 100000000
- write_any = .false.
- write_fields = .false.
- write_phi_over_time = .false.
- write_apar_over_time = .false.
- write_bpar_over_time = .false.
- write_fluxes = .false.
- write_fluxes_by_mode = .false.
- write_ntot_over_time = .false.
- write_movie = .false.
- write_heating = .false.
- write_g = .false.
- write_lpoly = .false.
- omegatol = -0.001
- use_nonlin_convergence = .false.
- write_cross_phase = .false.
- write_jext = .false.
- write_symmetry = .false.
- write_full_moments_notgc = .false.
- write_correlation = .false.
- write_correlation_extend = .false.
- write_parity = .false.
- write_eigenfunc=.false.
- write_final_fields=.false.
- write_kpar=.false.
- write_final_epar=.false.
- write_final_db=.false.
- write_final_moments=.false.
- write_final_antot=.false.
- write_gs=.false.
- save_for_restart=.false.
- save_distfn=.false.
- enable_parallel = .false.
-/
 !==============================
 !DIAGNOSTICS  
 !==============================

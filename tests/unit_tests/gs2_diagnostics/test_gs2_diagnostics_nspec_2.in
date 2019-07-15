@@ -16,23 +16,6 @@
 !
 !=================================================================
 
-&diagnostics_config
-      nwrite = 10
-      write_any = .true.
-      write_fields = .true.
-      write_phi_over_time = .false.
-      write_apar_over_time = .false.
-      write_bpar_over_time = .false.
-      write_fluxes = .true.
-      write_fluxes_by_mode = .true.
-      ! If you set this to true, file_safety_check will 
-      ! cause an error to be raised as the restart_dir does
-      ! not exists
-      save_for_restart = .false.
-
-      omegatol = -0.001
-/
-
 !==============================
 !GENERAL PARAMETERS  
 !==============================
