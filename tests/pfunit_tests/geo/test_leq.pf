@@ -3,6 +3,7 @@ module test_leq_mod
   implicit none
 
   real, parameter :: derivative_tolerance = 5.e-3
+  real, parameter :: value_tolerance = 5.e-12
 
 contains
 
@@ -29,15 +30,15 @@ contains
     use leq, only : leq_testing_type
     type(leq_testing_type) :: leq_privates
 
-    @assertEqual(0.0, leq_privates%mod2pi(0.0))
-    @assertEqual(1.0, leq_privates%mod2pi(1.0))
-    @assertEqual(-1.0, leq_privates%mod2pi(-1.0))
-    @assertEqual(pi, leq_privates%mod2pi(pi))
-    @assertEqual(-pi, leq_privates%mod2pi(-pi))
-    @assertEqual(0.0, leq_privates%mod2pi(2. * pi))
-    @assertEqual(0.0, leq_privates%mod2pi(-2. * pi))
-    @assertEqual(pi / 2., leq_privates%mod2pi(2. * pi + (pi/2.)))
-    @assertEqual(-pi / 2., leq_privates%mod2pi(pi + (pi/2.)))
+    @assertEqual(0.0, leq_privates%mod2pi(0.0), tolerance=value_tolerance)
+    @assertEqual(1.0, leq_privates%mod2pi(1.0), tolerance=value_tolerance)
+    @assertEqual(-1.0, leq_privates%mod2pi(-1.0), tolerance=value_tolerance)
+    @assertEqual(pi, leq_privates%mod2pi(pi), tolerance=value_tolerance)
+    @assertEqual(-pi, leq_privates%mod2pi(-pi), tolerance=value_tolerance)
+    @assertEqual(0.0, leq_privates%mod2pi(2. * pi), tolerance=value_tolerance)
+    @assertEqual(0.0, leq_privates%mod2pi(-2. * pi), tolerance=value_tolerance)
+    @assertEqual(pi / 2., leq_privates%mod2pi(2. * pi + (pi/2.)), tolerance=value_tolerance)
+    @assertEqual(-pi / 2., leq_privates%mod2pi(pi + (pi/2.)), tolerance=value_tolerance)
   end subroutine test_mod2pi
 
   @test
@@ -45,9 +46,9 @@ contains
     use constants, only : pi
     use leq, only : diameter
 
-    @assertEqual(0.0, diameter(0.0))
-    @assertEqual(2.0, diameter(1.0))
-    @assertEqual(2.0 * pi, diameter(pi))
+    @assertEqual(0.0, diameter(0.0), tolerance=value_tolerance)
+    @assertEqual(2.0, diameter(1.0), tolerance=value_tolerance)
+    @assertEqual(2.0 * pi, diameter(pi), tolerance=value_tolerance)
   end subroutine test_diameter
 
   @test
@@ -202,10 +203,10 @@ contains
     Z_cylindrical_expected(:,:,2) = 1.
 
     ! why is the output only divided by the denominator on the r-range 2,nr?
-    @assertEqual(R_cylindrical_expected(2:,:,1), R_cylindrical(2:,:,1), tolerance=1.e-8)
-    @assertEqual(R_cylindrical_expected(2:,:,2), R_cylindrical(2:,:,2), tolerance=1.e-8)
-    @assertEqual(Z_cylindrical_expected(2:,:,1), Z_cylindrical(2:,:,1), tolerance=1.e-8)
-    @assertEqual(Z_cylindrical_expected(2:,:,2), Z_cylindrical(2:,:,2), tolerance=1.e-8)
+    @assertEqual(R_cylindrical_expected(2:,:,1), R_cylindrical(2:,:,1), tolerance=value_tolerance)
+    @assertEqual(R_cylindrical_expected(2:,:,2), R_cylindrical(2:,:,2), tolerance=value_tolerance)
+    @assertEqual(Z_cylindrical_expected(2:,:,1), Z_cylindrical(2:,:,1), tolerance=value_tolerance)
+    @assertEqual(Z_cylindrical_expected(2:,:,2), Z_cylindrical(2:,:,2), tolerance=value_tolerance)
 
   end subroutine test_eqdcart
 
@@ -249,10 +250,10 @@ contains
     call leq_privates%dealloc_arrays()
 
     ! why is the output only divided by the denominator on the r-range 2,nr?
-    @assertEqual(R_cylindrical_expected(2:,:,1), R_cylindrical(2:,:,1), tolerance=1.e-8)
-    @assertEqual(R_cylindrical_expected(2:,:,2), R_cylindrical(2:,:,2), tolerance=1.e-8)
-    @assertEqual(Z_cylindrical_expected(2:,:,1), Z_cylindrical(2:,:,1), tolerance=1.e-8)
-    @assertEqual(Z_cylindrical_expected(2:,:,2), Z_cylindrical(2:,:,2), tolerance=1.e-8)
+    @assertEqual(R_cylindrical_expected(2:,:,1), R_cylindrical(2:,:,1), tolerance=value_tolerance)
+    @assertEqual(R_cylindrical_expected(2:,:,2), R_cylindrical(2:,:,2), tolerance=value_tolerance)
+    @assertEqual(Z_cylindrical_expected(2:,:,1), Z_cylindrical(2:,:,1), tolerance=value_tolerance)
+    @assertEqual(Z_cylindrical_expected(2:,:,2), Z_cylindrical(2:,:,2), tolerance=value_tolerance)
 
   end subroutine test_eqdbish
 
@@ -292,19 +293,19 @@ contains
          i=1, nradius)], j=-ntheta, ntheta)], total_size)
 
     call eqitem(theta_zero, array, actual, 'A')
-    @assertEqual(expected_zero, actual, tolerance=1.e-8)
+    @assertEqual(expected_zero, actual, tolerance=value_tolerance)
 
     call eqitem(theta_inside, array, actual, 'A')
-    @assertEqual(expected_inside, actual, tolerance=1.e-8)
+    @assertEqual(expected_inside, actual, tolerance=value_tolerance)
 
     call eqitem(theta_inside_negative, array, actual, 'A')
-    @assertEqual(expected_inside_negative, actual, tolerance=1.e-8)
+    @assertEqual(expected_inside_negative, actual, tolerance=value_tolerance)
 
     call eqitem(theta_outside, array, actual, 'A')
-    @assertEqual(expected_outside, actual, tolerance=1.e-8)
+    @assertEqual(expected_outside, actual, tolerance=value_tolerance)
 
     call eqitem(theta_outside_negative, array, actual, 'A')
-    @assertEqual(expected_outside_negative, actual, tolerance=1.e-8)
+    @assertEqual(expected_outside_negative, actual, tolerance=value_tolerance)
 
     call leq_privates%dealloc_arrays()
 
@@ -340,7 +341,7 @@ contains
 
     call leq_privates%dealloc_arrays()
 
-    @assertEqual(expected, grad_result, tolerance=1.e-8)
+    @assertEqual(expected, grad_result, tolerance=value_tolerance)
 
   end subroutine test_gradient
 
@@ -380,8 +381,8 @@ contains
 
     call leq_privates%dealloc_arrays()
 
-    @assertEqual(expected_P, grad_P_result, tolerance=1.e-8)
-    @assertEqual(expected_T, grad_T_result, tolerance=1.e-8)
+    @assertEqual(expected_P, grad_P_result, tolerance=value_tolerance)
+    @assertEqual(expected_T, grad_T_result, tolerance=value_tolerance)
 
   end subroutine test_bgradient
 
@@ -1547,8 +1548,8 @@ contains
     R_second = [ (Rpos(minor_radius_evaluation, theta(i)), i=1, ntheta) ]
     Z_second = [ (Zpos(minor_radius_evaluation, theta(i)), i=1, ntheta) ]
 
-    @assertEqual(R_first, R_second)
-    @assertEqual(Z_first, Z_second)
+    @assertEqual(R_first, R_second, tolerance=value_tolerance)
+    @assertEqual(Z_first, Z_second, tolerance=value_tolerance)
 
   end subroutine test_generalised_enlongation_two_modes_are_symmetric
 
