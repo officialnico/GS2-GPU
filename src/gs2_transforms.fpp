@@ -121,7 +121,7 @@ contains
   subroutine init_transforms &
        (ntgrid, naky, ntheta0, nlambda, negrid, nspec, nx, ny, accelerated)
     use mp, only: nproc, proc0
-    use gs2_layouts, only: init_gs2_layouts, opt_redist_init
+    use gs2_layouts, only: init_gs2_layouts
     use gs2_layouts, only: pe_layout, init_accel_transform_layouts
     use gs2_layouts, only: init_y_transform_layouts
     use gs2_layouts, only: init_x_transform_layouts
@@ -160,13 +160,8 @@ contains
     else
        !Recommended for p+log(p)>log(N) where p is number of processors and N is total number of mesh points
        !Could automate selection, though above condition is only fairly rough
-       if (opt_redist_init) then
-          if (debug) write (*,*) 'init_transforms: init_y_redist_local'
-          call init_y_redist_local (ntgrid, naky, ntheta0, nlambda, negrid, nspec, nx, ny)
-       else
-          if (debug) write (*,*) 'init_transforms: init_y_redist'
-          call init_y_redist (ntgrid, naky, ntheta0, nlambda, negrid, nspec, nx, ny)
-       endif
+       if (debug) write (*,*) 'init_transforms: init_y_redist_local'
+       call init_y_redist_local (ntgrid, naky, ntheta0, nlambda, negrid, nspec, nx, ny)
     end if
 
     ! need these for movies
@@ -219,7 +214,7 @@ contains
 #endif
        accel = .true.
     else
-       call init_x_redist (ntgrid, naky, ntheta0, nlambda, negrid, nspec, nx)
+       call init_x_redist_local (ntgrid, naky, ntheta0, nlambda, negrid, nspec, nx)
 
 # if FFT == _FFTW_
        
@@ -486,117 +481,8 @@ contains
 
   end subroutine init_y_fft
 
-  !> FIXME : Add documentation  
-  subroutine init_x_redist (ntgrid, naky, ntheta0, nlambda, negrid, nspec, nx)
-    use gs2_layouts, only: init_x_transform_layouts
-    use gs2_layouts, only: g_lo, xxf_lo, gidx2xxfidx, proc_id, idx_local
-    use gs2_layouts, only: opt_local_copy, layout
-
-    use mp, only: nproc
-    use redistribute, only: index_list_type, init_redist, delete_list
-    use redistribute, only: set_redist_character_type, set_xxf_optimised_variables
-    implicit none
-    type (index_list_type), dimension(0:nproc-1) :: to_list, from_list
-    integer, dimension(0:nproc-1) :: nn_to, nn_from
-    integer, dimension (3) :: from_low, from_high
-    integer, dimension (2) :: to_high
-    integer :: to_low
-    integer, intent (in) :: ntgrid, naky, ntheta0, nlambda, negrid, nspec, nx
-
-    integer :: iglo, isign, ig, it, ixxf
-    integer :: n, ip
-
-    if (initialized_x_redist) return
-    initialized_x_redist = .true.
-
-    !<DD>This routine can probably be optimised somewhat.
-    !in particular the large number of calls to the index lookup routines
-    !and idx_local can be reduced significantly by exploiting knowledge of
-    !the xxf layout and similar.
-    !For most cases init_x_redist_local is faster
-
-    call init_x_transform_layouts &
-         (ntgrid, naky, ntheta0, nlambda, negrid, nspec, nx)
-
-    ! count number of elements to be redistributed to/from each processor
-    nn_to = 0
-    nn_from = 0
-    do iglo = g_lo%llim_world, g_lo%ulim_world
-       do isign = 1, 2
-          do ig = -ntgrid, ntgrid
-             call gidx2xxfidx (ig, isign, iglo, g_lo, xxf_lo, it, ixxf)
-             if (idx_local(g_lo,iglo)) &
-                  nn_from(proc_id(xxf_lo,ixxf)) = nn_from(proc_id(xxf_lo,ixxf)) + 1
-             if (idx_local(xxf_lo,ixxf)) &
-                  nn_to(proc_id(g_lo,iglo)) = nn_to(proc_id(g_lo,iglo)) + 1
-          end do
-       end do
-    end do
-
-    do ip = 0, nproc-1
-       if (nn_from(ip) > 0) then
-          allocate (from_list(ip)%first(nn_from(ip)))
-          allocate (from_list(ip)%second(nn_from(ip)))
-          allocate (from_list(ip)%third(nn_from(ip)))
-       end if
-       if (nn_to(ip) > 0) then
-          allocate (to_list(ip)%first(nn_to(ip)))
-          allocate (to_list(ip)%second(nn_to(ip)))
-       end if
-    end do
-
-
-    ! get local indices of elements distributed to/from other processors
-    nn_to = 0
-    nn_from = 0
-    do iglo = g_lo%llim_world, g_lo%ulim_world
-       do isign = 1, 2
-          do ig = -ntgrid, ntgrid
-             call gidx2xxfidx (ig, isign, iglo, g_lo, xxf_lo, it, ixxf)
-             if (idx_local(g_lo,iglo)) then
-                ip = proc_id(xxf_lo,ixxf)
-                n = nn_from(ip) + 1
-                nn_from(ip) = n
-                from_list(ip)%first(n) = ig
-                from_list(ip)%second(n) = isign
-                from_list(ip)%third(n) = iglo
-             end if
-             if (idx_local(xxf_lo,ixxf)) then
-                ip = proc_id(g_lo,iglo)
-                n = nn_to(ip) + 1
-                nn_to(ip) = n
-                to_list(ip)%first(n) = it
-                to_list(ip)%second(n) = ixxf
-             end if
-          end do
-       end do
-    end do
-
-    from_low (1) = -ntgrid
-    from_low (2) = 1
-    from_low (3) = g_lo%llim_proc
-
-    to_low = xxf_lo%llim_proc
-
-    to_high(1) = xxf_lo%nx
-    to_high(2) = xxf_lo%ulim_alloc
-
-    from_high(1) = ntgrid
-    from_high(2) = 2
-    from_high(3) = g_lo%ulim_alloc
-
-    call set_redist_character_type(g2x, 'g2x')
-    call set_xxf_optimised_variables(opt_local_copy, naky, ntgrid, ntheta0, &
-         nlambda, negrid, nx, xxf_lo%ulim_proc, g_lo%blocksize, layout)
-    call init_redist (g2x, 'c', to_low, to_high, to_list, &
-         from_low, from_high, from_list)
-
-    call delete_list (to_list)
-    call delete_list (from_list)
-
-  end subroutine init_x_redist
-
-  !> FIXME : Add documentation
+  !> Constructs the redistribute mapping from the g_lo data
+  !> decomposition to the xxf_lo decomposition.
   subroutine init_x_redist_local (ntgrid, naky, ntheta0, nlambda, negrid, nspec, nx)
     use gs2_layouts, only: init_x_transform_layouts
     use gs2_layouts, only: g_lo, xxf_lo, gidx2xxfidx, proc_id, idx_local
@@ -619,8 +505,8 @@ contains
     integer :: n, ip
 
     !Early exit if possible
-    if (initialized) return
-    initialized = .true.
+    if (initialized_x_redist) return
+    initialized_x_redist = .true.
 
     !Setup the xxf_lo layout object
     call init_x_transform_layouts &
@@ -682,9 +568,6 @@ contains
           enddo
        enddo
     endif
-
-    !<DD>Debug test, are we sending and receiving the same amount to ourselves? Remove when testing completed
-    !if(debug.and.nn_to(iproc).ne.nn_from(iproc)) print*,"ERROR: iproc ",iproc,"nn_from",nn_from(iproc),"nn_to",nn_to(iproc)
 
     !Now allocate storage for data mapping indices
     do ip = 0, nproc-1
@@ -780,7 +663,7 @@ contains
        !Only need to worry about procs which we are receiving from
        if(nn_to(ip)>0) then
           !Sort using quicksort
-          CALL QUICKSORT(nn_to(ip),sort_list(ip)%first,to_list(ip)%first,to_list(ip)%second)
+          call quicksort(nn_to(ip),sort_list(ip)%first,to_list(ip)%first,to_list(ip)%second)
        endif
     enddo
 
@@ -813,118 +696,10 @@ contains
 
   end subroutine init_x_redist_local
 
-  !> FIXME : Add documentation
-  subroutine init_y_redist (ntgrid, naky, ntheta0, nlambda, negrid, nspec, nx, ny)
-    use gs2_layouts, only: init_y_transform_layouts
-    use gs2_layouts, only: xxf_lo, yxf_lo, xxfidx2yxfidx, proc_id, idx_local
-    use mp, only: nproc
-    use redistribute, only: index_list_type, init_redist, delete_list
-    use redistribute, only: set_yxf_optimised_variables, set_redist_character_type
-    implicit none
-    type (index_list_type), dimension(0:nproc-1) :: to_list, from_list
-    integer, dimension(0:nproc-1) :: nn_to, nn_from
-    integer, dimension (2) :: from_low, from_high, to_high
-    integer :: to_low
-    integer, intent (in) :: ntgrid, naky, ntheta0, nlambda, negrid, nspec
-    integer, intent (in) :: nx, ny
-
-    integer :: it, ixxf, ik, iyxf
-    integer :: n, ip
-    !<DD>This routine can probably be optimised somewhat.
-    !in particular the large number of calls to the index lookup routines
-    !and idx_local can be reduced significantly by exploiting knowledge of
-    !the xxf layout and similar.
-    !For most cases init_y_redist_local is faster
-
-    if (initialized_y_redist) return
-    initialized_y_redist = .true.
-
-    call init_x_redist (ntgrid, naky, ntheta0, nlambda, negrid, nspec, nx)
-    call init_y_transform_layouts &
-         (ntgrid, naky, ntheta0, nlambda, negrid, nspec, nx, ny)
-
-    ! count number of elements to be redistributed to/from each processor
-    nn_to = 0
-    nn_from = 0
-    do ixxf = xxf_lo%llim_world, xxf_lo%ulim_world
-       do it = 1, yxf_lo%nx
-          call xxfidx2yxfidx (it, ixxf, xxf_lo, yxf_lo, ik, iyxf)
-          if (idx_local(xxf_lo,ixxf)) &
-               nn_from(proc_id(yxf_lo,iyxf)) = nn_from(proc_id(yxf_lo,iyxf)) + 1
-          if (idx_local(yxf_lo,iyxf)) &
-               nn_to(proc_id(xxf_lo,ixxf)) = nn_to(proc_id(xxf_lo,ixxf)) + 1
-       end do
-    end do
-
-    do ip = 0, nproc-1
-       if (nn_from(ip) > 0) then
-          allocate (from_list(ip)%first(nn_from(ip)))
-          allocate (from_list(ip)%second(nn_from(ip)))
-       end if
-       if (nn_to(ip) > 0) then
-          allocate (to_list(ip)%first(nn_to(ip)))
-          allocate (to_list(ip)%second(nn_to(ip)))
-       end if
-    end do
-
-    ! get local indices of elements distributed to/from other processors
-    nn_to = 0
-    nn_from = 0
-    !
-    !CMR: loop over all xxf indices, find corresponding yxf indices
-    !
-    do ixxf = xxf_lo%llim_world, xxf_lo%ulim_world
-       do it = 1, yxf_lo%nx
-          !
-          !CMR obtain corresponding yxf indices
-          !
-          call xxfidx2yxfidx (it, ixxf, xxf_lo, yxf_lo, ik, iyxf)
-          if (idx_local(xxf_lo,ixxf)) then
-             !CMR: if xxf index local, set:
-             !         ip = corresponding yxf processor
-             !        from_list%first,second arrays = it,ixxf  (ie xxf indices)
-             !     later will send from_list to proc ip
-             ip = proc_id(yxf_lo,iyxf)
-             n = nn_from(ip) + 1
-             nn_from(ip) = n
-             from_list(ip)%first(n) = it
-             from_list(ip)%second(n) = ixxf
-          end if
-          if (idx_local(yxf_lo,iyxf)) then
-             !CMR: if yxf index local, set ip to corresponding xxf processor
-             !     set to_list%first,second arrays = ik,iyxf  (ie yxf indices)
-             !     will receive to_list from ip
-             ip = proc_id(xxf_lo,ixxf)
-             n = nn_to(ip) + 1
-             nn_to(ip) = n
-             to_list(ip)%first(n) = ik
-             to_list(ip)%second(n) = iyxf
-          end if
-       end do
-    end do
-
-    from_low(1) = 1
-    from_low(2) = xxf_lo%llim_proc
-
-    to_low = yxf_lo%llim_proc
-
-    to_high(1) = yxf_lo%ny/2+1
-    to_high(2) = yxf_lo%ulim_alloc
-
-    from_high(1) = xxf_lo%nx
-    from_high(2) = xxf_lo%ulim_alloc
-
-    call set_redist_character_type(x2y, 'x2y')
-    call set_yxf_optimised_variables(yxf_lo%ulim_proc)
-
-    call init_redist (x2y, 'c', to_low, to_high, to_list, &
-         from_low, from_high, from_list)
-    call delete_list (to_list)
-    call delete_list (from_list)
-
-  end subroutine init_y_redist
-
-  !> FIXME : Add documentation  
+  !> Constructs the redistribute mapping from the g_lo data
+  !> decomposition to the yxf_lo decomposition. Note this also
+  !> calls [[init_x_redist_local]] in order to setup the
+  !> mapping for g_lo to xxf_lo as well.
   subroutine init_y_redist_local (ntgrid, naky, ntheta0, nlambda, negrid, nspec, nx, ny)
     use gs2_layouts, only: init_y_transform_layouts
     use gs2_layouts, only: xxf_lo, yxf_lo, xxfidx2yxfidx, proc_id, idx_local
@@ -947,8 +722,8 @@ contains
     logical :: initialized = .false.
 
     !Early exit if possible
-    if (initialized) return
-    initialized = .true.
+    if (initialized_y_redist) return
+    initialized_y_redist = .true.
 
     !Setup g_lo-->xxf_lo redist object first
     call init_x_redist_local (ntgrid, naky, ntheta0, nlambda, negrid, nspec, nx)
@@ -998,9 +773,6 @@ contains
           enddo
        enddo
     endif
-
-    !<DD>Debug test, are we sending and receiving the same amount to ourselves? Remove when testing completed
-    !if(debug.and.nn_to(iproc).ne.nn_from(iproc)) print*,"ERROR: iproc ",iproc,"nn_from",nn_from(iproc),"nn_to",nn_to(iproc)
 
     !Now allocate storage for data mapping structures
     do ip = 0, nproc-1
@@ -1087,7 +859,7 @@ contains
        !Only need to worry about procs which we are receiving from
        if(nn_to(ip)>0) then
           !Use quicksort based on compound index
-          CALL quicksort(nn_to(ip),sort_list(ip)%first,to_list(ip)%first,to_list(ip)%second)
+          call quicksort(nn_to(ip),sort_list(ip)%first,to_list(ip)%first,to_list(ip)%second)
        endif
     enddo
 
