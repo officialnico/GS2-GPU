@@ -347,8 +347,8 @@ contains
     !
     ! N.B. When `immediate_reset = .false.`, the timestep is completed even though the
     ! CFL condition is broken. `delt` and the response matrix are changed at the end of
-    ! the end of the timestep; the following timestep is "normal", and the nonlinear
-    ! term is calculated.
+    ! the timestep; the following timestep is "normal", and the nonlinear term is
+    ! calculated.
     if (istep /= istep_last) then
 
        istep_last = istep
