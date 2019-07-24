@@ -338,10 +338,17 @@ contains
 
     call debug_message(verb, 'nonlinear_terms::add_explicit copying old terms')
 
-    ! This ensures that the nonlinear term is calculated only once per timestep.
-    ! It guards against calculating the nonlinear term in two cases:
-    !   1. the second call to timeadv in a usual timestep
-    !   2. both calls to timeadv after the CFL condition check has triggered a restart
+    ! The following if statement ensures that the nonlinear term is calculated only once
+    ! per timestep. It guards against calculating the nonlinear term in two cases:
+    !   1. the second call to `timeadv` in a usual timestep
+    !   2. both calls to `timeadv` after the CFL condition check has triggered a reset
+    !      of this timestep (when `immediate_reset = .true.`). As the nonlinear term is
+    !      independent of `delt`, it does not need to be calculated again.
+    !
+    ! N.B. When `immediate_reset = .false.`, the timestep is completed even though the
+    ! CFL condition is broken. `delt` and the response matrix are changed at the end of
+    ! the end of the timestep; the following timestep is "normal", and the nonlinear
+    ! term is calculated.
     if (istep /= istep_last) then
 
        istep_last = istep
