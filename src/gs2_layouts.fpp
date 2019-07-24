@@ -1,8 +1,10 @@
 ! Modifications for unbalanced decomposition functionality:
 ! (c) The Numerical Algorithms Group (NAG) Ltd, 2012
 ! on behalf of EPSRC for the HECToR project
+
 !> FIXME : Add documentation
 module gs2_layouts
+  use abstract_config, only: abstract_config_type, CONFIG_MAX_NAME_LEN
 
   use layouts_type, only: ikit, ikitprocs
   use layouts_type, only: g_layout_type, lz_layout_type, e_layout_type
@@ -70,6 +72,10 @@ module gs2_layouts
 
   public :: simple_gf_decomposition, gf_local_fields
 
+  public :: layouts_config_type
+  public :: set_gs2_layouts_config
+
+  logical :: initialized = .false.
   logical :: initialized_x_transform = .false.
   logical :: initialized_y_transform = .false.
   logical :: initialized_layouts = .false.
@@ -145,6 +151,9 @@ module gs2_layouts
      !> Work array that holds iX_comp in the order that they appear in the
      !> layout.
      integer,dimension(6) :: compound_count
+     !> Array that holds the size of each dimension in the order that they
+     !> appear in the layout.
+     integer,dimension(6) :: dim_size
   end type xxf_layout_type
 
   type (xxf_layout_type) :: xxf_lo
@@ -165,6 +174,9 @@ module gs2_layouts
      !> Work array that holds iX_comp in the order that they appear in the
      !> layout.
      integer,dimension(6) :: compound_count
+     !> Array that holds the size of each dimension in the order that they
+     !> appear in the layout.
+     integer,dimension(6) :: dim_size
   end type yxf_layout_type
 
   type (yxf_layout_type) :: yxf_lo
@@ -194,7 +206,57 @@ module gs2_layouts
   end type accelx_layout_type
 
   type (accelx_layout_type) :: accelx_lo
-
+  
+  !> Used to represent the input configuration of layouts
+  type, extends(abstract_config_type) :: layouts_config_type
+     ! namelist : layouts_knobs
+     ! indexed : false     
+     !> False=>use heuristics rather than measure in fft plan create
+     logical :: fft_measure_plan = .false.
+     !> Try to load and save wisdom about fftw plans to fft_wisdom_file
+     logical :: fft_use_wisdom = .true. 
+     !> Location of fftw wisdom... if left as default, this is set to
+     !> run_name//'.fftw_wisdom', unless overriden by the environment
+     !> variable GK_FFTW3_WISDOM. If set to anything other default,
+     !> overrides GK_FFTW3_WISDOM
+     character(len = run_name_size) :: fft_wisdom_file = 'default'
+     !> FIXME: Add documentation
+     logical :: gf_local_fields = .false.
+     !> FIXME: Add documentation
+     logical :: intmom_sub = .false.
+     !> FIXME: Add documentation
+     logical :: intspec_sub = .false.
+     !> FIXME: Add documentation
+     character(len = 5) :: layout = 'lxyes'
+     !> FIXME: Add documentation
+     logical :: local_field_solve = .false.
+     !> FIXME: Add documentation
+     real :: max_unbalanced_xxf = 0.0
+     !> FIXME: Add documentation
+     logical :: opt_local_copy = .false. 
+     !> True=>Use nonblocking redistributes
+     logical :: opt_redist_nbk = .true.
+     !> True=>Use persistent communications in redistributes
+     logical :: opt_redist_persist = .false.
+     !> True=>Start comms before doing local copy
+     logical :: opt_redist_persist_overlap = .false.
+     !> FIXME: Add documentation
+     logical :: simple_gf_decomposition = .true.
+     !> FIXME: Add documentation
+     logical :: unbalanced_xxf = .false.
+     !> FIXME: Add documentation
+     logical :: unbalanced_yxf = .false.
+   contains
+     procedure, public :: read => read_layouts_config
+     procedure, public :: write => write_layouts_config
+     procedure, public :: reset => reset_layouts_config
+     procedure, public :: broadcast => broadcast_layouts_config
+     procedure, public, nopass :: get_default_name => get_default_name_layouts_config
+     procedure, public, nopass :: get_default_requires_index => get_default_requires_index_layouts_config     
+  end type layouts_config_type
+  
+  type(layouts_config_type) :: layouts_config
+  
   interface ij_idx
      module procedure ij_idx_f
      module procedure ij_idx_jf
@@ -332,6 +394,15 @@ module gs2_layouts
      module procedure idx_local_parity, ig_local_parity
   end interface
 
+  interface set_dimension_order
+     module procedure set_dimension_order_g
+     module procedure set_dimension_order_le
+     module procedure set_dimension_order_lz
+     module procedure set_dimension_order_e
+     module procedure set_dimension_order_xxf
+     module procedure set_dimension_order_yxf
+  end interface set_dimension_order
+  
 contains 
   !> FIXME : Add documentation 
   subroutine wnml_gs2_layouts(unit)
@@ -346,59 +417,59 @@ contains
   end subroutine wnml_gs2_layouts
 
   !> FIXME : Add documentation   
-  subroutine init_gs2_layouts
+  subroutine init_gs2_layouts(layouts_config_in)
     use mp, only: proc0
     implicit none
-
+    type(layouts_config_type), intent(in), optional :: layouts_config_in
+    
     if (initialized_layouts) return
     initialized_layouts = .true.
-    
-    if (proc0) call read_parameters
 
-    call broadcast_results
-
+    if (initialized) return
+    initialized = .true.
+    call read_parameters(layouts_config_in)
   end subroutine init_gs2_layouts
 
   !> FIXME : Add documentation 
   subroutine finish_gs2_layouts
     call finish_layouts
+    initialized = .false.
     initialized_layouts = .false.
   end subroutine finish_gs2_layouts
 
   !> FIXME : Add documentation   
-  subroutine read_parameters
+  subroutine read_parameters(layouts_config_in)
     use file_utils, only: input_unit, error_unit, input_unit_exist, error_unit
     use redistribute, only: opt_redist_nbk, opt_redist_persist, opt_redist_persist_overlap
-    use mp, only: mp_abort, proc0
+    use mp, only: mp_abort, proc0, broadcast
     implicit none
+    type(layouts_config_type), intent(in), optional :: layouts_config_in    
     integer :: in_file
-    namelist /layouts_knobs/ layout, local_field_solve, unbalanced_xxf, &
-         max_unbalanced_xxf, unbalanced_yxf, max_unbalanced_yxf, &
-         opt_local_copy, opt_redist_nbk, intmom_sub, &
-         intspec_sub, opt_redist_persist, opt_redist_persist_overlap, fft_measure_plan, &
-         fft_use_wisdom, fft_wisdom_file, simple_gf_decomposition, gf_local_fields
 
-    local_field_solve = .false.
-    unbalanced_xxf = .false.
-    unbalanced_yxf = .false.
-    opt_local_copy = .false. 
-    max_unbalanced_xxf = 0.0
-    max_unbalanced_yxf = 0.0
-    layout = 'lxyes'
-    opt_redist_nbk = .true. ! True=>Use nonblocking redistributes
-    opt_redist_persist = .false. ! True=>Use persistent communications in redistributes
-    opt_redist_persist_overlap = .false. ! True=>Start comms before doing local copy
-    fft_measure_plan = .false. ! False=>use heuristics rather than measure in fft plan create
-    fft_wisdom_file = 'default'  ! Location of fftw wisdom... if left as default, this is set to 
-        ! run_name//'.fftw_wisdom', unless overriden by the environment variable
-        ! GK_FFTW3_WISDOM. If set to anything other default, overrides  GK_FFTW3_WISDOM
-    fft_use_wisdom = .true. ! Try to load and save wisdom about fftw plans to fft_wisdom_file
-    intmom_sub=.false.
-    intspec_sub=.false.
-    simple_gf_decomposition=.true.
-    gf_local_fields = .false.
-    in_file=input_unit_exist("layouts_knobs", exist)
-    if (exist) read (unit=input_unit("layouts_knobs"), nml=layouts_knobs)
+    if (present(layouts_config_in)) layouts_config = layouts_config_in
+
+    call layouts_config%init(name = 'layouts_knobs', requires_index = .false.)
+
+    ! Copy out internal values into module level parameters
+    fft_measure_plan = layouts_config%fft_measure_plan
+    fft_use_wisdom = layouts_config%fft_use_wisdom
+    fft_wisdom_file = layouts_config%fft_wisdom_file
+    gf_local_fields = layouts_config%gf_local_fields
+    intmom_sub = layouts_config%intmom_sub
+    intspec_sub = layouts_config%intspec_sub
+    layout = layouts_config%layout
+    local_field_solve = layouts_config%local_field_solve
+    max_unbalanced_xxf = layouts_config%max_unbalanced_xxf
+    opt_local_copy = layouts_config%opt_local_copy
+    opt_redist_nbk = layouts_config%opt_redist_nbk
+    opt_redist_persist = layouts_config%opt_redist_persist
+    opt_redist_persist_overlap = layouts_config%opt_redist_persist_overlap
+    simple_gf_decomposition = layouts_config%simple_gf_decomposition
+    unbalanced_xxf = layouts_config%unbalanced_xxf
+    unbalanced_yxf = layouts_config%unbalanced_yxf
+
+    exist = layouts_config%exist
+    
     if (layout.ne.'yxels' .and. layout.ne.'yxles' .and. layout.ne.'lexys'&
     .and. layout.ne.'lxyes' .and. layout.ne.'lyxes' .and. layout.ne.'xyles') &
     then
@@ -406,9 +477,9 @@ contains
        call mp_abort("gs2_layouts: read_parameters finds illegal layout=")
     endif
 
-! max_unbalanced_xxf and max_unbalanced_yxf have a maximum range of 0.0 - 1.0
-! so check here whether the user has specified the range correctly and adjust if 
-! they have not.
+    ! max_unbalanced_xxf and max_unbalanced_yxf have a maximum range of 0.0 - 1.0
+    ! so check here whether the user has specified the range correctly and adjust if 
+    ! they have not.
     if(max_unbalanced_xxf .gt. 1.0) then
        max_unbalanced_xxf = 1.0
        write(*,*) 'max_unbalanced_xxf too large, setting to 1.0'
@@ -425,7 +496,10 @@ contains
     end if
 
     call ensure_redist_persist_consistency(opt_redist_nbk, opt_redist_persist, opt_redist_persist_overlap)
-    call get_wisdom_file(fft_wisdom_file)
+
+    ! For now only proc0 does this as we can't promise that all procs know the run_name
+    if(proc0) call get_wisdom_file(fft_wisdom_file)
+    call broadcast(fft_wisdom_file)
 
   end subroutine read_parameters
 
@@ -482,31 +556,6 @@ contains
       end if
     end if
   end subroutine get_wisdom_file
-
-  !> FIXME : Add documentation   
-  subroutine broadcast_results
-    use mp, only: broadcast
-    use redistribute, only: opt_redist_nbk, opt_redist_persist, opt_redist_persist_overlap
-    implicit none
-
-    call broadcast (opt_redist_nbk)
-    call broadcast (opt_redist_persist)
-    call broadcast (opt_redist_persist_overlap)
-    call broadcast (intmom_sub)
-    call broadcast (intspec_sub)
-    call broadcast (layout)
-    call broadcast (local_field_solve)
-    call broadcast (unbalanced_xxf)
-    call broadcast (unbalanced_yxf)
-    call broadcast (max_unbalanced_xxf)
-    call broadcast (max_unbalanced_yxf)
-    call broadcast (opt_local_copy)
-    call broadcast (fft_measure_plan)
-    call broadcast (fft_use_wisdom)
-    call broadcast (fft_wisdom_file)
-    call broadcast (simple_gf_decomposition)
-    call broadcast (gf_local_fields)
-  end subroutine broadcast_results
 
   !> FIXME : Add documentation   
   subroutine check_accel (ntheta0, naky, nlambda, negrid, nspec, nblock)
@@ -705,15 +754,6 @@ contains
     integer,dimension(nproc) :: tmp_proc_list
     integer :: colour
     type(comm_type) :: tmpcomm
-# ifdef USE_C_INDEX
-    integer :: ierr
-    interface
-       function init_indices_glo_c (layout)
-         integer :: init_indices_glo_c
-         character(*) :: layout
-       end function init_indices_glo_c
-    end interface
-# endif
 
     if (initialized_dist_fn_layouts) return
     initialized_dist_fn_layouts = .true.
@@ -775,83 +815,36 @@ contains
     
 #endif
 
-! Calculate constants used in the index lookup routines
-! (rather than calculating them at each call as done previously)
-! This allows the removal of the select case statements in the index routines
+    ! Calculate constants used in the index lookup routines
+    ! (rather than calculating them at each call as done previously)
+    ! This allows the removal of the select case statements in the index routines
     select case (layout)
     case ('yxels')
-      call set_dimension_order(g_lo,ik_ord=1,it_ord=2,ie_ord=3,il_ord=4,is_ord=5)
-       g_lo%compound_count(1)=1
-       g_lo%compound_count(2)=naky
-       g_lo%compound_count(3)=naky*ntheta0
-       g_lo%compound_count(4)=naky*ntheta0*negrid
-       g_lo%compound_count(5)=naky*ntheta0*negrid*nlambda
-       g_lo%dim_size(1)=naky
-       g_lo%dim_size(2)=ntheta0
-       g_lo%dim_size(3)=negrid
-       g_lo%dim_size(4)=nlambda
-       g_lo%dim_size(5)=nspec
+       call set_dimension_order(g_lo,ik_ord=1,it_ord=2,ie_ord=3,il_ord=4,is_ord=5)
     case ('yxles')
-      call set_dimension_order(g_lo,ik_ord=1,it_ord=2,il_ord=3,ie_ord=4,is_ord=5)
-       g_lo%compound_count(1)=1
-       g_lo%compound_count(2)=naky
-       g_lo%compound_count(3)=naky*ntheta0
-       g_lo%compound_count(4)=naky*ntheta0*nlambda
-       g_lo%compound_count(5)=naky*ntheta0*nlambda*negrid
-       g_lo%dim_size(1)=naky
-       g_lo%dim_size(2)=ntheta0
-       g_lo%dim_size(3)=nlambda
-       g_lo%dim_size(4)=negrid
-       g_lo%dim_size(5)=nspec
+       call set_dimension_order(g_lo,ik_ord=1,it_ord=2,il_ord=3,ie_ord=4,is_ord=5)
     case ('lexys')
-      call set_dimension_order(g_lo,il_ord=1,ie_ord=2,it_ord=3,ik_ord=4,is_ord=5)
-       g_lo%compound_count(1)=1
-       g_lo%compound_count(2)=nlambda
-       g_lo%compound_count(3)=nlambda*negrid
-       g_lo%compound_count(4)=nlambda*negrid*ntheta0
-       g_lo%compound_count(5)=nlambda*negrid*ntheta0*naky
-       g_lo%dim_size(1)=nlambda
-       g_lo%dim_size(2)=negrid
-       g_lo%dim_size(3)=ntheta0
-       g_lo%dim_size(4)=naky
-       g_lo%dim_size(5)=nspec
+       call set_dimension_order(g_lo,il_ord=1,ie_ord=2,it_ord=3,ik_ord=4,is_ord=5)
     case ('lxyes')
-      call set_dimension_order(g_lo,il_ord=1,it_ord=2,ik_ord=3,ie_ord=4,is_ord=5)
-       g_lo%compound_count(1)=1
-       g_lo%compound_count(2)=nlambda
-       g_lo%compound_count(3)=nlambda*ntheta0
-       g_lo%compound_count(4)=nlambda*ntheta0*naky
-       g_lo%compound_count(5)=nlambda*ntheta0*naky*negrid
-       g_lo%dim_size(1)=nlambda
-       g_lo%dim_size(2)=ntheta0
-       g_lo%dim_size(3)=naky
-       g_lo%dim_size(4)=negrid
-       g_lo%dim_size(5)=nspec
+       call set_dimension_order(g_lo,il_ord=1,it_ord=2,ik_ord=3,ie_ord=4,is_ord=5)
     case ('lyxes')
-      call set_dimension_order(g_lo,il_ord=1,ik_ord=2,it_ord=3,ie_ord=4,is_ord=5)
-       g_lo%compound_count(1)=1
-       g_lo%compound_count(2)=nlambda
-       g_lo%compound_count(3)=nlambda*naky
-       g_lo%compound_count(4)=nlambda*naky*ntheta0
-       g_lo%compound_count(5)=nlambda*naky*ntheta0*negrid
-       g_lo%dim_size(1)=nlambda
-       g_lo%dim_size(2)=naky
-       g_lo%dim_size(3)=ntheta0
-       g_lo%dim_size(4)=negrid
-       g_lo%dim_size(5)=nspec
+       call set_dimension_order(g_lo,il_ord=1,ik_ord=2,it_ord=3,ie_ord=4,is_ord=5)
     case ('xyles')
-      call set_dimension_order(g_lo,it_ord=1,ik_ord=2,il_ord=3,ie_ord=4,is_ord=5)
-       g_lo%compound_count(1)=1
-       g_lo%compound_count(2)=ntheta0
-       g_lo%compound_count(3)=ntheta0*naky
-       g_lo%compound_count(4)=ntheta0*naky*nlambda
-       g_lo%compound_count(5)=ntheta0*naky*nlambda*negrid
-       g_lo%dim_size(1)=ntheta0
-       g_lo%dim_size(2)=naky
-       g_lo%dim_size(3)=nlambda
-       g_lo%dim_size(4)=negrid
-       g_lo%dim_size(5)=nspec
+       call set_dimension_order(g_lo,it_ord=1,ik_ord=2,il_ord=3,ie_ord=4,is_ord=5)
     end select
+
+    g_lo%dim_size(g_lo%it_ord)=ntheta0
+    g_lo%dim_size(g_lo%ik_ord)=naky
+    g_lo%dim_size(g_lo%il_ord)=nlambda
+    g_lo%dim_size(g_lo%ie_ord)=negrid
+    g_lo%dim_size(g_lo%is_ord)=nspec
+    
+    g_lo%compound_count(1)=1
+    g_lo%compound_count(2)=g_lo%compound_count(1)*g_lo%dim_size(1)
+    g_lo%compound_count(3)=g_lo%compound_count(2)*g_lo%dim_size(2)
+    g_lo%compound_count(4)=g_lo%compound_count(3)*g_lo%dim_size(3)
+    g_lo%compound_count(5)=g_lo%compound_count(4)*g_lo%dim_size(4)
+
     g_lo%ik_comp=g_lo%compound_count(g_lo%ik_ord)
     g_lo%it_comp=g_lo%compound_count(g_lo%it_ord)
     g_lo%il_comp=g_lo%compound_count(g_lo%il_ord)
@@ -1345,7 +1338,8 @@ contains
     if (allocated(g_lo%les_kxky_range)) then
        call mp_abort("g_lo%les_kxky_range should never be allocated&
        &at this point", .true.)
-     end if
+    end if
+    
     if(intspec_sub) then
        !->Kx-Ky range for procs in lesblock_comm sub comm
        !Get number of procs in sub-comm
@@ -1396,143 +1390,51 @@ contains
        deallocate(les_kxky_range)
     endif
 
-# ifdef USE_C_INDEX
-    ierr = init_indices_glo_c (layout)
-    if (ierr /= 0) &
-         & write (error_unit(),*) 'ERROR: layout not found: ', trim(layout)
-# endif
-
   end subroutine init_dist_fn_layouts
 
   !> Return the species index, given g-layout and a global index
-# ifdef USE_C_INDEX
-  function is_idx_g (lo, i)
-# else
   elemental function is_idx_g (lo, i)
-# endif
     implicit none
     integer :: is_idx_g
     type (g_layout_type), intent (in) :: lo
     integer, intent (in) :: i
-# ifdef USE_C_INDEX
-    interface
-       function is_idx_g_c (lo,num)
-         use layouts_type, only: g_layout_type
-         integer :: is_idx_g_c
-         type (g_layout_type) :: lo
-         integer :: num
-       end function is_idx_g_c
-    end interface
-    is_idx_g = is_idx_g_c (lo,i)
-# else
     is_idx_g=1+mod((i-lo%llim_world)/lo%is_comp,lo%nspec)
-# endif
-
   end function is_idx_g
 
   !> Return the lambda index, given g-layout and a global index
-# ifdef USE_C_INDEX
-  function il_idx_g (lo, i)
-# else
   elemental function il_idx_g (lo, i)
-# endif
     implicit none
     integer :: il_idx_g
     type (g_layout_type), intent (in) :: lo
     integer, intent (in) :: i
-# ifdef USE_C_INDEX
-    interface
-       function il_idx_g_c (lo,num)
-         use layouts_type, only: g_layout_type
-         integer :: il_idx_g_c
-         type (g_layout_type) :: lo
-         integer :: num
-       end function il_idx_g_c
-    end interface
-    il_idx_g = il_idx_g_c (lo,i)
-# else
     il_idx_g=1+mod((i-lo%llim_world)/lo%il_comp,lo%nlambda)
-# endif
-
   end function il_idx_g
 
   !> Return the energy index, given g-layout and a global index
-# ifdef USE_C_INDEX
-  function ie_idx_g (lo, i)
-# else
   elemental function ie_idx_g (lo, i)
-# endif
     implicit none
     integer :: ie_idx_g
     type (g_layout_type), intent (in) :: lo
     integer, intent (in) :: i
-# ifdef USE_C_INDEX
-    interface
-       function ie_idx_g_c (lo,num)
-         use layouts_type, only: g_layout_type
-         integer :: ie_idx_g_c
-         type (g_layout_type) :: lo
-         integer :: num
-       end function ie_idx_g_c
-    end interface
-    ie_idx_g = ie_idx_g_c (lo,i)
-# else
     ie_idx_g=1+mod((i-lo%llim_world)/lo%ie_comp,lo%negrid)
-# endif
-
   end function ie_idx_g
 
   !> Return the kx index, given g-layout and a global index
-# ifdef USE_C_INDEX
-  function it_idx_g (lo, i)
-# else
   elemental function it_idx_g (lo, i)
-# endif
     implicit none
     integer :: it_idx_g
     type (g_layout_type), intent (in) :: lo
     integer, intent (in) :: i
-    
-# ifdef USE_C_INDEX
-    interface
-       function it_idx_g_c (lo,num)
-         use layouts_type, only: g_layout_type
-         integer :: it_idx_g_c
-         type (g_layout_type) :: lo
-         integer :: num
-       end function it_idx_g_c
-    end interface
-    it_idx_g = it_idx_g_c (lo,i)
-# else
     it_idx_g=1+mod((i-lo%llim_world)/lo%it_comp,lo%ntheta0)
-# endif
-
   end function it_idx_g
 
   !> Return the ky index, given g-layout and a global index
-# ifdef USE_C_INDEX
-  function ik_idx_g (lo, i)
-# else
   elemental function ik_idx_g (lo, i)
-# endif
     implicit none
     integer :: ik_idx_g
     type (g_layout_type), intent (in) :: lo
     integer, intent (in) :: i
-# ifdef USE_C_INDEX
-    interface
-       function ik_idx_g_c (lo,num)
-         use layouts_type, only: g_layout_type
-         integer :: ik_idx_g_c
-         type (g_layout_type) :: lo
-         integer :: num
-       end function ik_idx_g_c
-    end interface
-    ik_idx_g = ik_idx_g_c (lo,i)
-# else
     ik_idx_g=1+mod((i-lo%llim_world)/lo%ik_comp,lo%naky)
-# endif
-
   end function ik_idx_g
 
   !> Return the processor id that has the point i in the g_lo layout
@@ -1562,55 +1464,27 @@ contains
   end function proc_id_g
 
   !> Return the global index in the g_lo layout given the dimensional indices
-# ifdef USE_C_INDEX
-  function idx_g (lo, ik, it, il, ie, is)
-# else
   elemental function idx_g (lo, ik, it, il, ie, is)
-# endif
     implicit none
     integer :: idx_g
     type (g_layout_type), intent (in) :: lo
     integer, intent (in) :: ik, it, il, ie, is
-# ifdef USE_C_INDEX
-    interface
-       function idx_g_c (lo,ik,it,il,ie,is)
-         use layouts_type, only: g_layout_type
-         integer :: idx_g_c
-         type (g_layout_type) :: lo
-         integer :: ik,it,il,ie,is
-       end function idx_g_c
-    end interface
-    idx_g = idx_g_c (lo, ik, it, il, ie, is)
-# else
-    select case (layout)
-    case ('yxels')
-       idx_g = ik-1 + lo%naky*(it-1 + lo%ntheta0*(ie-1 + lo%negrid*(il-1 + lo%nlambda*(is-1))))
-    case ('yxles')
-       idx_g = ik-1 + lo%naky*(it-1 + lo%ntheta0*(il-1 + lo%nlambda*(ie-1 + lo%negrid*(is-1))))
-    case ('lexys')
-       idx_g = il-1 + lo%nlambda*(ie-1 + lo%negrid*(it-1 + lo%ntheta0*(ik-1 + lo%naky*(is-1))))
-    case ('lxyes')
-       idx_g = il-1 + lo%nlambda*(it-1 + lo%ntheta0*(ik-1 + lo%naky*(ie-1 + lo%negrid*(is-1))))
-    case ('lyxes')
-       idx_g = il-1 + lo%nlambda*(ik-1 + lo%naky*(it-1 + lo%ntheta0*(ie-1 + lo%negrid*(is-1))))
-    case ('xyles')
-       idx_g = it-1 + lo%ntheta0*(ik-1 + lo%naky*(il-1 + lo%nlambda*(ie-1 + lo%negrid*(is-1))))
-    end select
-# endif
+    integer, dimension(5) :: i
+    i(lo%ik_ord) = ik - 1
+    i(lo%it_ord) = it - 1
+    i(lo%il_ord) = il - 1
+    i(lo%ie_ord) = ie - 1
+    i(lo%is_ord) = is - 1
+    idx_g = i(1) + lo%dim_size(1)*(i(2) + lo%dim_size(2)*(i(3) + lo%dim_size(3)*(i(4) + lo%dim_size(4)*i(5))))
 
   end function idx_g
 
   !> Return whether a point is local to a processor given the dimensional indices
-# ifdef USE_C_INDEX
-  function idx_local_g (lo, ik, it, il, ie, is)
-# else
   elemental function idx_local_g (lo, ik, it, il, ie, is)
-# endif
     implicit none
     logical :: idx_local_g
     type (g_layout_type), intent (in) :: lo
     integer, intent (in) :: ik, it, il, ie, is
-
     idx_local_g = idx_local(lo, idx(lo, ik, it, il, ie, is))
   end function idx_local_g
 
@@ -1710,6 +1584,7 @@ contains
     call finish_fields_layouts
     call finish_jfields_layouts
 
+    initialized = .false.
     initialized_layouts = .false.
     initialized_le_layouts = .false.
     initialized_gf_layouts = .false.
@@ -1720,6 +1595,7 @@ contains
     initialized_x_transform = .false.
     initialized_y_transform = .false.
 
+    call layouts_config%reset()
   end subroutine finish_layouts
 
   !> FIXME : Add documentation
@@ -2012,16 +1888,6 @@ contains
     integer :: ik_max, it_max, ig_max, is_max
     integer :: ik, it, ig, is, ile
 
-# ifdef USE_C_INDEX
-    integer :: ierr
-    interface
-       function init_indices_lelo_c (layout)
-         integer :: init_indices_lelo_c
-         character(*) :: layout
-       end function init_indices_lelo_c
-    end interface
-# endif
-
     if (initialized_le_layouts) return
     initialized_le_layouts = .true.
     
@@ -2039,67 +1905,37 @@ contains
          = min(le_lo%ulim_world, le_lo%llim_proc + le_lo%blocksize - 1)
     le_lo%ulim_alloc = max(le_lo%llim_proc, le_lo%ulim_proc)
 
-! See g_lo init
+    ! See g_lo init
     select case (layout)
     case ('yxels')
-       le_lo%ig_ord=1
-       le_lo%it_ord=3
-       le_lo%ik_ord=2
-       le_lo%is_ord=4
-       le_lo%compound_count(1)=1
-       le_lo%compound_count(2)=le_lo%ntgridtotal
-       le_lo%compound_count(3)=le_lo%compound_count(2)*naky
-       le_lo%compound_count(4)=le_lo%compound_count(3)*ntheta0
+       call set_dimension_order(le_lo,ig_ord=1,it_ord=3,ik_ord=2,is_ord=4)
     case ('yxles')
-       le_lo%ig_ord=1
-       le_lo%it_ord=3
-       le_lo%ik_ord=2
-       le_lo%is_ord=4
-       le_lo%compound_count(1)=1
-       le_lo%compound_count(2)=le_lo%ntgridtotal
-       le_lo%compound_count(3)=le_lo%compound_count(2)*naky
-       le_lo%compound_count(4)=le_lo%compound_count(3)*ntheta0
+       call set_dimension_order(le_lo,ig_ord=1,it_ord=3,ik_ord=2,is_ord=4)
     case ('lexys')
-       le_lo%ig_ord=1
-       le_lo%it_ord=2
-       le_lo%ik_ord=3
-       le_lo%is_ord=4
-       le_lo%compound_count(1)=1
-       le_lo%compound_count(2)=le_lo%ntgridtotal
-       le_lo%compound_count(3)=le_lo%compound_count(2)*ntheta0
-       le_lo%compound_count(4)=le_lo%compound_count(3)*naky
+       call set_dimension_order(le_lo,ig_ord=1,it_ord=2,ik_ord=3,is_ord=4)
     case ('lxyes')
-       le_lo%ig_ord=1
-       le_lo%it_ord=2
-       le_lo%ik_ord=3
-       le_lo%is_ord=4
-       le_lo%compound_count(1)=1
-       le_lo%compound_count(2)=le_lo%ntgridtotal
-       le_lo%compound_count(3)=le_lo%compound_count(2)*ntheta0
-       le_lo%compound_count(4)=le_lo%compound_count(3)*naky
+       call set_dimension_order(le_lo,ig_ord=1,it_ord=2,ik_ord=3,is_ord=4)
     case ('lyxes')
-       le_lo%ig_ord=1
-       le_lo%it_ord=3
-       le_lo%ik_ord=2
-       le_lo%is_ord=4
-       le_lo%compound_count(1)=1
-       le_lo%compound_count(2)=le_lo%ntgridtotal
-       le_lo%compound_count(3)=le_lo%compound_count(2)*naky
-       le_lo%compound_count(4)=le_lo%compound_count(3)*ntheta0
+       call set_dimension_order(le_lo,ig_ord=1,it_ord=3,ik_ord=2,is_ord=4)
     case ('xyles')
-       le_lo%ig_ord=1
-       le_lo%it_ord=2
-       le_lo%ik_ord=3
-       le_lo%is_ord=4
-       le_lo%compound_count(1)=1
-       le_lo%compound_count(2)=le_lo%ntgridtotal
-       le_lo%compound_count(3)=le_lo%compound_count(2)*ntheta0
-       le_lo%compound_count(4)=le_lo%compound_count(3)*naky
+       call set_dimension_order(le_lo,ig_ord=1,it_ord=2,ik_ord=3,is_ord=4)
     end select
+    
+    le_lo%dim_size(le_lo%ig_ord)=le_lo%ntgridtotal
+    le_lo%dim_size(le_lo%it_ord)=ntheta0
+    le_lo%dim_size(le_lo%ik_ord)=naky
+    le_lo%dim_size(le_lo%is_ord)=nspec
+
+    le_lo%compound_count(1)=1
+    le_lo%compound_count(2)=le_lo%compound_count(1)*le_lo%dim_size(1)
+    le_lo%compound_count(3)=le_lo%compound_count(2)*le_lo%dim_size(2)
+    le_lo%compound_count(4)=le_lo%compound_count(3)*le_lo%dim_size(3)
+
     le_lo%ig_comp=le_lo%compound_count(le_lo%ig_ord)
     le_lo%ik_comp=le_lo%compound_count(le_lo%ik_ord)
     le_lo%it_comp=le_lo%compound_count(le_lo%it_ord)
     le_lo%is_comp=le_lo%compound_count(le_lo%is_ord)
+    
     !Work out min and max of the five compound indices
     !These are currently only used to slice the arrays used in the velocity space integrals
     !but could well be useful in a number of places.
@@ -2132,11 +1968,6 @@ contains
     le_lo%t_local=(ig_min.eq.-ntgrid).and.(ig_max.eq.ntgrid)
     le_lo%s_local=(is_min.eq.1).and.(is_max.eq.nspec)
 
-# ifdef USE_C_INDEX
-    ierr = init_indices_lelo_c (layout)
-    if (ierr /= 0) &
-         & write (error_unit(),*) 'ERROR: layout not found: ', trim(layout)
-# endif
   end subroutine init_le_layouts
 
   !> FIXME : Add documentation  
@@ -2148,56 +1979,22 @@ contains
     is_idx_le = 1 + mod((i - lo%llim_world)/lo%is_comp, lo%nspec)
   end function is_idx_le
 
-# ifdef USE_C_INDEX
-  !> FIXME : Add documentation  
-  function it_idx_le (lo, i)
-# else
   !> FIXME : Add documentation    
   elemental function it_idx_le (lo, i)
-# endif
     implicit none
     integer :: it_idx_le
     type (le_layout_type), intent (in) :: lo
     integer, intent (in) :: i
-# ifdef USE_C_INDEX
-    interface
-       function it_idx_le_c (lo,num)
-         use layouts_type, only: le_layout_type
-         integer :: it_idx_le_c
-         type (le_layout_type) :: lo
-         integer :: num
-       end function it_idx_le_c
-    end interface
-    it_idx_le = it_idx_le_c (lo,i)
-# else
     it_idx_le = 1 + mod((i - lo%llim_world)/lo%it_comp, lo%ntheta0)
-# endif
   end function it_idx_le
 
-# ifdef USE_C_INDEX
-  !> FIXME : Add documentation
-  function ik_idx_le (lo, i)
-# else
   !> FIXME : Add documentation    
   elemental function ik_idx_le (lo, i)
-# endif
     implicit none
     integer :: ik_idx_le
     type (le_layout_type), intent (in) :: lo
     integer, intent (in) :: i
-# ifdef USE_C_INDEX
-    interface
-       function ik_idx_le_c (lo,num)
-         use layouts_type, only: le_layout_type
-         integer :: ik_idx_le_c
-         type (le_layout_type) :: lo
-         integer :: num
-       end function ik_idx_le_c
-    end interface
-    ik_idx_le = ik_idx_le_c (lo,i)
-# else
     ik_idx_le = 1 + mod((i - lo%llim_world)/lo%ik_comp, lo%naky)
-# endif
   end function ik_idx_le
 
   !> FIXME : Add documentation  
@@ -2209,49 +2006,18 @@ contains
     ig_idx_le = -lo%ntgrid + mod((i - lo%llim_world)/lo%ig_comp, lo%ntgridtotal)
   end function ig_idx_le
 
-# ifdef USE_C_INDEX
-  !> FIXME : Add documentation  
-  function idx_le (lo, ig, ik, it, is)
-# else
   !> FIXME : Add documentation    
   elemental function idx_le (lo, ig, ik, it, is)
-# endif
     implicit none
     integer :: idx_le
     type (le_layout_type), intent (in) :: lo
     integer, intent (in) :: ig, ik, it, is
-# ifdef USE_C_INDEX
-    interface
-       function idx_le_c (lo, ig, ik, it, is)
-         use layouts_type, only: le_layout_type
-         integer :: idx_le_c
-         type (le_layout_type) :: lo
-         integer :: ig, ik, it, is
-       end function idx_le_c
-    end interface
-    idx_le = idx_le_c (lo, ig, ik, it, is)
-# else
-    select case (layout)
-    case ('yxels')
-       idx_le = ig+lo%ntgrid + (2*lo%ntgrid+1)*(ik-1 &
-            + lo%naky*(it-1 + lo%ntheta0*(is-1)))
-    case ('yxles')
-       idx_le = ig+lo%ntgrid + (2*lo%ntgrid+1)*(ik-1 &
-            + lo%naky*(it-1 + lo%ntheta0*(is-1)))
-    case ('lexys')
-       idx_le = ig+lo%ntgrid + (2*lo%ntgrid+1)*(it-1 &
-            + lo%ntheta0*(ik-1 + lo%naky*(is-1)))
-    case ('lxyes')
-       idx_le = ig+lo%ntgrid + (2*lo%ntgrid+1)*(it-1 &
-            + lo%ntheta0*(ik-1 + lo%naky*(is-1)))
-    case ('lyxes')
-       idx_le = ig+lo%ntgrid + (2*lo%ntgrid+1)*(ik-1 &
-            + lo%naky*(it-1 + lo%ntheta0*(is-1)))
-    case ('xyles')
-       idx_le = ig+lo%ntgrid + (2*lo%ntgrid+1)*(it-1 &
-            + lo%ntheta0*(ik-1 + lo%naky*(is-1)))
-    end select
-# endif
+    integer, dimension(4) :: i
+    i(lo%ik_ord) = ik - 1
+    i(lo%it_ord) = it - 1
+    i(lo%is_ord) = is - 1
+    i(lo%ig_ord) = ig + lo%ntgrid
+    idx_le = i(1) + lo%dim_size(1)*(i(2) + lo%dim_size(2)*(i(3) + lo%dim_size(3)*i(4)))
   end function idx_le
 
   !> FIXME : Add documentation  
@@ -2265,18 +2031,12 @@ contains
 
   end function proc_id_le
 
-# ifdef USE_C_INDEX
-  !> FIXME : Add documentation  
-  function idx_local_le (lo, ig, ik, it, is)
-# else
   !> FIXME : Add documentation    
   elemental function idx_local_le (lo, ig, ik, it, is)
-# endif
     implicit none
     logical :: idx_local_le
     type (le_layout_type), intent (in) :: lo
     integer, intent (in) :: ig, ik, it, is
-
     idx_local_le = idx_local(lo, idx(lo, ig, ik, it, is))
   end function idx_local_le
 
@@ -2286,10 +2046,8 @@ contains
     logical :: ig_local_le
     type (le_layout_type), intent (in) :: lo
     integer, intent (in) :: ig
-
     ig_local_le = lo%iproc == proc_id(lo, ig)
   end function ig_local_le
-
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 ! Fields Local layout:  This is used to calculate velocity space integration
@@ -2306,15 +2064,6 @@ contains
     use layouts_type, only: ikit
     implicit none
     integer, intent (in) :: ntgrid, naky, ntheta0, negrid, nlambda, nspec
-# ifdef USE_C_INDEX
-    integer :: ierr
-    interface
-       function init_indices_gflo_c (layout)
-         integer :: init_indices_gflo_c
-         character(*) :: layout
-       end function init_indices_gflo_c
-    end interface
-# endif
 
     if (initialized_gf_layouts) return
     initialized_gf_layouts = .true.
@@ -2447,89 +2196,33 @@ contains
         
     gf_lo%ulim_alloc = gf_lo%ulim_proc
 
-# ifdef USE_C_INDEX
-    ierr = init_indices_gflo_c (layout)
-    if (ierr /= 0) &
-         & write (error_unit(),*) 'ERROR: layout not found: ', trim(layout)
-# endif
   end subroutine init_gf_layouts
 
-# ifdef USE_C_INDEX
-  !> FIXME : Add documentation  
-  function it_idx_gf (lo, i)
-# else
   !> FIXME : Add documentation    
   elemental function it_idx_gf (lo, i)
-# endif
     implicit none
     integer :: it_idx_gf
     type (gf_layout_type), intent (in) :: lo
     integer, intent (in) :: i
-# ifdef USE_C_INDEX
-    interface
-       function it_idx_gf_c (lo,num)
-         use layouts_type, only: gf_layout_type
-         integer :: it_idx_gf_c
-         type (gf_layout_type) :: lo
-         integer :: num
-       end function it_idx_gf_c
-    end interface
-    it_idx_gf = it_idx_gf_c (lo,i)
-# else
     it_idx_gf = 1 + mod((i - lo%llim_world), lo%ntheta0)
-# endif
   end function it_idx_gf
 
-# ifdef USE_C_INDEX
-  !> FIXME : Add documentation  
-  function ik_idx_gf (lo, i)
-# else
   !> FIXME : Add documentation    
   elemental function ik_idx_gf (lo, i)
-# endif
     implicit none
     integer :: ik_idx_gf
     type (gf_layout_type), intent (in) :: lo
     integer, intent (in) :: i
-# ifdef USE_C_INDEX
-    interface
-       function ik_idx_gf_c (lo,num)
-         use layouts_type, only: gf_layout_type
-         integer :: ik_idx_gf_c
-         type (gf_layout_type) :: lo
-         integer :: num
-       end function ik_idx_gf_c
-    end interface
-    ik_idx_gf = ik_idx_gf_c (lo,i)
-# else
     ik_idx_gf = 1 + ((i - lo%llim_world)/lo%ntheta0)
-# endif
   end function ik_idx_gf
 
-# ifdef USE_C_INDEX
-  !> FIXME : Add documentation  
-  function idx_gf (lo, ik, it)
-# else
   !> FIXME : Add documentation    
   elemental function idx_gf (lo, ik, it)
-# endif
     implicit none
     integer :: idx_gf
     type (gf_layout_type), intent (in) :: lo
     integer, intent (in) :: ik, it
-# ifdef USE_C_INDEX
-    interface
-       function idx_gf_c (lo, ik, it)
-         use layouts_type, only: gf_layout_type
-         integer :: idx_gf_c
-         type (gf_layout_type) :: lo
-         integer :: ik, it
-       end function idx_gf_c
-    end interface
-    idx_gf = idx_gf_c (lo, ik, it)
-# else
     idx_gf = (ik-1)*lo%ntheta0 + it
-# endif
   end function idx_gf
 
   !> FIXME : Add documentation  
@@ -2565,18 +2258,12 @@ contains
 
   end function proc_id_gf
 
-# ifdef USE_C_INDEX
-  !> FIXME : Add documentation  
-  function idx_local_gf (lo, ik, it)
-# else
   !> FIXME : Add documentation    
   elemental function idx_local_gf (lo, ik, it)
-# endif
     implicit none
     logical :: idx_local_gf
     type (gf_layout_type), intent (in) :: lo
     integer, intent (in) :: ik, it
-
     idx_local_gf = idx_local(lo, idx(lo, ik, it))
   end function idx_local_gf
 
@@ -2586,10 +2273,8 @@ contains
     logical :: ig_local_gf
     type (gf_layout_type), intent (in) :: lo
     integer, intent (in) :: ig
-
     ig_local_gf = lo%iproc == proc_id(lo, ig)
   end function ig_local_gf
-
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 ! Energy layouts
@@ -2602,15 +2287,6 @@ contains
     use file_utils, only: error_unit
     implicit none
     integer, intent (in) :: ntgrid, naky, ntheta0, nlambda, nspec
-# ifdef USE_C_INDEX
-    integer :: ierr
-    interface
-       function init_indices_elo_c (layout)
-         integer :: init_indices_elo_c
-         character(*) :: layout
-       end function init_indices_elo_c
-    end interface
-# endif
 
     if (initialized_energy_layouts) return
     initialized_energy_layouts = .true.
@@ -2631,87 +2307,36 @@ contains
          = min(e_lo%ulim_world, e_lo%llim_proc + e_lo%blocksize - 1)
     e_lo%ulim_alloc = max(e_lo%llim_proc, e_lo%ulim_proc)
 
-!See g_lo init
+    !See g_lo init
     select case (layout)
     case ('yxels')
-       e_lo%ig_ord=1
-       e_lo%isgn_ord=2
-       e_lo%il_ord=5
-       e_lo%it_ord=4
-       e_lo%ik_ord=3
-       e_lo%is_ord=6
-       e_lo%compound_count(1)=1
-       e_lo%compound_count(2)=e_lo%ntgridtotal
-       e_lo%compound_count(3)=e_lo%compound_count(2)*2
-       e_lo%compound_count(4)=e_lo%compound_count(3)*naky
-       e_lo%compound_count(5)=e_lo%compound_count(4)*ntheta0
-       e_lo%compound_count(6)=e_lo%compound_count(5)*nlambda
+       call set_dimension_order(e_lo,ig_ord=1,isgn_ord=2,it_ord=4,ik_ord=3,il_ord=5,is_ord=6)
     case ('yxles')
-       e_lo%ig_ord=1
-       e_lo%isgn_ord=2
-       e_lo%il_ord=5
-       e_lo%it_ord=4
-       e_lo%ik_ord=3
-       e_lo%is_ord=6
-       e_lo%compound_count(1)=1
-       e_lo%compound_count(2)=e_lo%ntgridtotal
-       e_lo%compound_count(3)=e_lo%compound_count(2)*2
-       e_lo%compound_count(4)=e_lo%compound_count(3)*naky
-       e_lo%compound_count(5)=e_lo%compound_count(4)*ntheta0
-       e_lo%compound_count(6)=e_lo%compound_count(5)*nlambda
+       call set_dimension_order(e_lo,ig_ord=1,isgn_ord=2,it_ord=4,ik_ord=3,il_ord=5,is_ord=6)
     case ('lexys')
-       e_lo%ig_ord=1
-       e_lo%isgn_ord=2
-       e_lo%il_ord=3
-       e_lo%it_ord=4
-       e_lo%ik_ord=5
-       e_lo%is_ord=6
-       e_lo%compound_count(1)=1
-       e_lo%compound_count(2)=e_lo%ntgridtotal
-       e_lo%compound_count(3)=e_lo%compound_count(2)*2
-       e_lo%compound_count(4)=e_lo%compound_count(3)*nlambda
-       e_lo%compound_count(5)=e_lo%compound_count(4)*ntheta0
-       e_lo%compound_count(6)=e_lo%compound_count(5)*naky
+       call set_dimension_order(e_lo,ig_ord=1,isgn_ord=2,it_ord=4,ik_ord=5,il_ord=3,is_ord=6)
     case ('lxyes')
-       e_lo%ig_ord=1
-       e_lo%isgn_ord=2
-       e_lo%il_ord=3
-       e_lo%it_ord=4
-       e_lo%ik_ord=5
-       e_lo%is_ord=6
-       e_lo%compound_count(1)=1
-       e_lo%compound_count(2)=e_lo%ntgridtotal
-       e_lo%compound_count(3)=e_lo%compound_count(2)*2
-       e_lo%compound_count(4)=e_lo%compound_count(3)*nlambda
-       e_lo%compound_count(5)=e_lo%compound_count(4)*ntheta0
-       e_lo%compound_count(6)=e_lo%compound_count(5)*naky
+       call set_dimension_order(e_lo,ig_ord=1,isgn_ord=2,it_ord=4,ik_ord=5,il_ord=3,is_ord=6)
     case ('lyxes')
-       e_lo%ig_ord=1
-       e_lo%isgn_ord=2
-       e_lo%il_ord=3
-       e_lo%it_ord=5
-       e_lo%ik_ord=4
-       e_lo%is_ord=6
-       e_lo%compound_count(1)=1
-       e_lo%compound_count(2)=e_lo%ntgridtotal
-       e_lo%compound_count(3)=e_lo%compound_count(2)*2
-       e_lo%compound_count(4)=e_lo%compound_count(3)*nlambda
-       e_lo%compound_count(5)=e_lo%compound_count(4)*naky
-       e_lo%compound_count(6)=e_lo%compound_count(5)*ntheta0
+       call set_dimension_order(e_lo,ig_ord=1,isgn_ord=2,it_ord=5,ik_ord=4,il_ord=3,is_ord=6)
     case ('xyles')
-       e_lo%ig_ord=1
-       e_lo%isgn_ord=2
-       e_lo%il_ord=5
-       e_lo%it_ord=3
-       e_lo%ik_ord=4
-       e_lo%is_ord=6
-       e_lo%compound_count(1)=1
-       e_lo%compound_count(2)=e_lo%ntgridtotal
-       e_lo%compound_count(3)=e_lo%compound_count(2)*2
-       e_lo%compound_count(4)=e_lo%compound_count(3)*ntheta0
-       e_lo%compound_count(5)=e_lo%compound_count(4)*naky
-       e_lo%compound_count(6)=e_lo%compound_count(5)*nlambda
+       call set_dimension_order(e_lo,ig_ord=1,isgn_ord=2,it_ord=3,ik_ord=4,il_ord=5,is_ord=6)
     end select
+
+    e_lo%dim_size(e_lo%ig_ord)=e_lo%ntgridtotal
+    e_lo%dim_size(e_lo%isgn_ord)=2
+    e_lo%dim_size(e_lo%it_ord)=ntheta0
+    e_lo%dim_size(e_lo%ik_ord)=naky
+    e_lo%dim_size(e_lo%il_ord)=nlambda
+    e_lo%dim_size(e_lo%is_ord)=nspec
+    
+    e_lo%compound_count(1)=1
+    e_lo%compound_count(2)=e_lo%compound_count(1)*e_lo%dim_size(1)
+    e_lo%compound_count(3)=e_lo%compound_count(2)*e_lo%dim_size(2)
+    e_lo%compound_count(4)=e_lo%compound_count(3)*e_lo%dim_size(3)
+    e_lo%compound_count(5)=e_lo%compound_count(4)*e_lo%dim_size(4)
+    e_lo%compound_count(6)=e_lo%compound_count(5)*e_lo%dim_size(5)    
+
     e_lo%ig_comp=e_lo%compound_count(e_lo%ig_ord)
     e_lo%isgn_comp=e_lo%compound_count(e_lo%isgn_ord)
     e_lo%ik_comp=e_lo%compound_count(e_lo%ik_ord)
@@ -2719,66 +2344,24 @@ contains
     e_lo%il_comp=e_lo%compound_count(e_lo%il_ord)
     e_lo%is_comp=e_lo%compound_count(e_lo%is_ord)
 
-# ifdef USE_C_INDEX
-    ierr = init_indices_elo_c (layout)
-    if (ierr /= 0) &
-         & write (error_unit(),*) 'ERROR: layout not found: ', trim(layout)
-# endif
-
   end subroutine init_energy_layouts
 
-# ifdef USE_C_INDEX
-  !> FIXME : Add documentation  
-  function is_idx_e (lo, i)
-# else
   !> FIXME : Add documentation    
   elemental function is_idx_e (lo, i)
-# endif
     implicit none
     integer :: is_idx_e
     type (e_layout_type), intent (in) :: lo
     integer, intent (in) :: i
-# ifdef USE_C_INDEX
-    interface
-       function is_idx_e_c (lo,num)
-         use layouts_type, only: e_layout_type
-         integer :: is_idx_e_c
-         type (e_layout_type) :: lo
-         integer :: num
-       end function is_idx_e_c
-    end interface
-    is_idx_e = is_idx_e_c (lo,i)
-# else
     is_idx_e = 1 + mod((i - lo%llim_world)/lo%is_comp, lo%nspec)
-# endif
-
   end function is_idx_e
 
-# ifdef USE_C_INDEX
-  !> FIXME : Add documentation  
-  function il_idx_e (lo, i)
-# else
   !> FIXME : Add documentation    
   elemental function il_idx_e (lo, i)
-# endif
     implicit none
     integer :: il_idx_e
     type (e_layout_type), intent (in) :: lo
     integer, intent (in) :: i
-# ifdef USE_C_INDEX
-    interface
-       function il_idx_e_c (lo,num)
-         use layouts_type, only: e_layout_type
-         integer :: il_idx_e_c
-         type (e_layout_type) :: lo
-         integer :: num
-       end function il_idx_e_c
-    end interface
-    il_idx_e = il_idx_e_c (lo,i)
-# else
     il_idx_e = 1 + mod((i - lo%llim_world)/lo%il_comp, lo%nlambda)
-# endif
-
   end function il_idx_e
 
   !> FIXME : Add documentation
@@ -2791,58 +2374,22 @@ contains
     isign_idx_e = 1 + mod((i - lo%llim_world)/(2*lo%ntgrid + 1),lo%nsign)
   end function isign_idx_e
 
-# ifdef USE_C_INDEX
-  !> FIXME : Add documentation  
-  function it_idx_e (lo, i)
-# else
   !> FIXME : Add documentation    
   elemental function it_idx_e (lo, i)
-# endif
     implicit none
     integer :: it_idx_e
     type (e_layout_type), intent (in) :: lo
     integer, intent (in) :: i
-# ifdef USE_C_INDEX
-    interface
-       function it_idx_e_c (lo,num)
-         use layouts_type, only: e_layout_type
-         integer :: it_idx_e_c
-         type (e_layout_type) :: lo
-         integer :: num
-       end function it_idx_e_c
-    end interface
-    it_idx_e = it_idx_e_c (lo,i)
-# else
     it_idx_e = 1 + mod((i - lo%llim_world)/lo%it_comp, lo%ntheta0)
-# endif
-
   end function it_idx_e
 
-# ifdef USE_C_INDEX
-  !> FIXME : Add documentation  
-  function ik_idx_e (lo, i)
-# else
   !> FIXME : Add documentation    
   elemental function ik_idx_e (lo, i)
-# endif
     implicit none
     integer :: ik_idx_e
     type (e_layout_type), intent (in) :: lo
     integer, intent (in) :: i
-# ifdef USE_C_INDEX
-    interface
-       function ik_idx_e_c (lo,num)
-         use layouts_type, only: e_layout_type
-         integer :: ik_idx_e_c
-         type (e_layout_type) :: lo
-         integer :: num
-       end function ik_idx_e_c
-    end interface
-    ik_idx_e = ik_idx_e_c (lo,i)
-# else
     ik_idx_e = 1 + mod((i - lo%llim_world)/lo%ik_comp, lo%naky)
-# endif
-
   end function ik_idx_e
 
   !> FIXME : Add documentation
@@ -2854,50 +2401,20 @@ contains
     ig_idx_e = -lo%ntgrid + mod((i - lo%llim_world)/lo%ig_comp, lo%ntgridtotal)
   end function ig_idx_e
 
-# ifdef USE_C_INDEX
-  !> FIXME : Add documentation  
-  function idx_e (lo, ig, isign, ik, it, il, is)
-# else
   !> FIXME : Add documentation    
   elemental function idx_e (lo, ig, isign, ik, it, il, is)
-# endif
     implicit none
     integer :: idx_e
     type (e_layout_type), intent (in) :: lo
     integer, intent (in) :: ig, isign, ik, it, il, is
-# ifdef USE_C_INDEX
-    interface
-       function idx_e_c (lo,ig,isign,ik,it,il,is)
-         use layouts_type, only: e_layout_type
-         integer :: idx_e_c
-         type (e_layout_type) :: lo
-         integer :: ig,isign,ik,it,il,is
-       end function idx_e_c
-    end interface
-    idx_e = idx_e_c (lo, ig, isign, ik, it, il, is)
-# else
-    select case (layout)
-    case ('yxels')
-       idx_e = ig+lo%ntgrid + (2*lo%ntgrid+1)*(isign-1 + lo%nsign*(ik-1 &
-            + lo%naky*(it-1 + lo%ntheta0*(il-1 + lo%nlambda*(is-1)))))
-    case ('yxles')
-       idx_e = ig+lo%ntgrid + (2*lo%ntgrid+1)*(isign-1 + lo%nsign*(ik-1 &
-            + lo%naky*(it-1 + lo%ntheta0*(il-1 + lo%nlambda*(is-1)))))
-    case ('lexys')
-       idx_e = ig+lo%ntgrid + (2*lo%ntgrid+1)*(isign-1 + lo%nsign*(il-1 &
-            + lo%nlambda*(it-1 + lo%ntheta0*(ik-1 + lo%naky*(is-1)))))
-    case ('lxyes')
-       idx_e = ig+lo%ntgrid + (2*lo%ntgrid+1)*(isign-1 + lo%nsign*(il-1 &
-            + lo%nlambda*(it-1 + lo%ntheta0*(ik-1 + lo%naky*(is-1)))))
-    case ('lyxes')
-       idx_e = ig+lo%ntgrid + (2*lo%ntgrid+1)*(isign-1 + lo%nsign*(il-1 &
-            + lo%nlambda*(ik-1 + lo%naky*(it-1 + lo%ntheta0*(is-1)))))
-    case ('xyles')
-       idx_e = ig+lo%ntgrid + (2*lo%ntgrid+1)*(isign-1 + lo%nsign*(it-1 &
-            + lo%ntheta0*(ik-1 + lo%naky*(il-1 + lo%nlambda*(is-1)))))
-    end select
-# endif
-
+    integer, dimension(6) :: i
+    i(lo%ik_ord) = ik - 1
+    i(lo%it_ord) = it - 1
+    i(lo%is_ord) = is - 1
+    i(lo%il_ord) = il - 1
+    i(lo%isgn_ord) = isign - 1
+    i(lo%ig_ord) = ig + lo%ntgrid
+    idx_e = i(1) + lo%dim_size(1)*(i(2) + lo%dim_size(2)*(i(3) + lo%dim_size(3)*(i(4) + lo%dim_size(4)*(i(5) + lo%dim_size(5)*i(6)))))
   end function idx_e
 
   !> FIXME : Add documentation  
@@ -2911,18 +2428,12 @@ contains
 
   end function proc_id_e
 
-# ifdef USE_C_INDEX
-  !> FIXME : Add documentation  
-  function idx_local_e (lo, ig, isign, ik, it, il, is)
-# else
   !> FIXME : Add documentation
   elemental function idx_local_e (lo, ig, isign, ik, it, il, is)
-# endif
     implicit none
     logical :: idx_local_e
     type (e_layout_type), intent (in) :: lo
     integer, intent (in) :: ig, isign, ik, it, il, is
-
     idx_local_e = idx_local(lo, idx(lo, ig, isign, ik, it, il, is))
   end function idx_local_e
 
@@ -2932,7 +2443,6 @@ contains
     logical :: ig_local_e
     type (e_layout_type), intent (in) :: lo
     integer, intent (in) :: ig
-
     ig_local_e = lo%iproc == proc_id(lo, ig)
   end function ig_local_e
 
@@ -2948,15 +2458,6 @@ contains
     implicit none
     integer, intent (in) :: ntgrid, naky, ntheta0, nlambda, negrid, nspec, ng2
     integer :: ngroup, nprocset
-# ifdef USE_C_INDEX
-    integer :: ierr
-    interface
-       function init_indices_lzlo_c (layout)
-         integer :: init_indices_lzlo_c
-         character(*) :: layout
-       end function init_indices_lzlo_c
-    end interface
-# endif
 
     if (initialized_lambda_layouts) return
     initialized_lambda_layouts = .true.
@@ -3009,196 +2510,75 @@ contains
        lz_lo%ulim_alloc = max(lz_lo%llim_proc, lz_lo%ulim_proc)
     end if
 
-!See g_lo init
+    !See g_lo init
     select case (layout)
     case ('yxels')
-       lz_lo%ig_ord=1
-       lz_lo%ie_ord=4
-       lz_lo%it_ord=3
-       lz_lo%ik_ord=2
-       lz_lo%is_ord=5
-       lz_lo%compound_count(1)=1
-       lz_lo%compound_count(2)=lz_lo%ntgridtotal
-       lz_lo%compound_count(3)=lz_lo%compound_count(2)*naky
-       lz_lo%compound_count(4)=lz_lo%compound_count(3)*ntheta0
-       lz_lo%compound_count(5)=lz_lo%compound_count(4)*negrid
+       call set_dimension_order(lz_lo,ig_ord=1,it_ord=3,ik_ord=2,ie_ord=4,is_ord=5)
     case ('yxles')
-       lz_lo%ig_ord=1
-       lz_lo%ie_ord=4
-       lz_lo%it_ord=3
-       lz_lo%ik_ord=2
-       lz_lo%is_ord=5
-       lz_lo%compound_count(1)=1
-       lz_lo%compound_count(2)=lz_lo%ntgridtotal
-       lz_lo%compound_count(3)=lz_lo%compound_count(2)*naky
-       lz_lo%compound_count(4)=lz_lo%compound_count(3)*ntheta0
-       lz_lo%compound_count(5)=lz_lo%compound_count(4)*negrid
+       call set_dimension_order(lz_lo,ig_ord=1,it_ord=3,ik_ord=2,ie_ord=4,is_ord=5)
     case ('lexys')
-       lz_lo%ig_ord=1
-       lz_lo%ie_ord=2
-       lz_lo%it_ord=3
-       lz_lo%ik_ord=4
-       lz_lo%is_ord=5
-       lz_lo%compound_count(1)=1
-       lz_lo%compound_count(2)=lz_lo%ntgridtotal
-       lz_lo%compound_count(3)=lz_lo%compound_count(2)*negrid
-       lz_lo%compound_count(4)=lz_lo%compound_count(3)*ntheta0
-       lz_lo%compound_count(5)=lz_lo%compound_count(4)*naky
+       call set_dimension_order(lz_lo,ig_ord=1,it_ord=3,ik_ord=4,ie_ord=2,is_ord=5)
     case ('lxyes')
-       lz_lo%ig_ord=1
-       lz_lo%ie_ord=4
-       lz_lo%it_ord=2
-       lz_lo%ik_ord=3
-       lz_lo%is_ord=5
-       lz_lo%compound_count(1)=1
-       lz_lo%compound_count(2)=lz_lo%ntgridtotal
-       lz_lo%compound_count(3)=lz_lo%compound_count(2)*ntheta0
-       lz_lo%compound_count(4)=lz_lo%compound_count(3)*naky
-       lz_lo%compound_count(5)=lz_lo%compound_count(4)*negrid
+       call set_dimension_order(lz_lo,ig_ord=1,it_ord=2,ik_ord=3,ie_ord=4,is_ord=5)
     case ('lyxes')
-       lz_lo%ig_ord=1
-       lz_lo%ie_ord=4
-       lz_lo%it_ord=3
-       lz_lo%ik_ord=2
-       lz_lo%is_ord=5
-       lz_lo%compound_count(1)=1
-       lz_lo%compound_count(2)=lz_lo%ntgridtotal
-       lz_lo%compound_count(3)=lz_lo%compound_count(2)*naky
-       lz_lo%compound_count(4)=lz_lo%compound_count(3)*ntheta0
-       lz_lo%compound_count(5)=lz_lo%compound_count(4)*negrid
+       call set_dimension_order(lz_lo,ig_ord=1,it_ord=3,ik_ord=2,ie_ord=4,is_ord=5)
     case ('xyles')
-       lz_lo%ig_ord=1
-       lz_lo%ie_ord=4
-       lz_lo%it_ord=2
-       lz_lo%ik_ord=3
-       lz_lo%is_ord=5
-       lz_lo%compound_count(1)=1
-       lz_lo%compound_count(2)=lz_lo%ntgridtotal
-       lz_lo%compound_count(3)=lz_lo%compound_count(2)*ntheta0
-       lz_lo%compound_count(4)=lz_lo%compound_count(3)*naky
-       lz_lo%compound_count(5)=lz_lo%compound_count(4)*negrid
+       call set_dimension_order(lz_lo,ig_ord=1,it_ord=2,ik_ord=3,ie_ord=4,is_ord=5)
     end select
+
+    lz_lo%dim_size(lz_lo%ig_ord)=lz_lo%ntgridtotal
+    lz_lo%dim_size(lz_lo%it_ord)=ntheta0
+    lz_lo%dim_size(lz_lo%ik_ord)=naky
+    lz_lo%dim_size(lz_lo%ie_ord)=negrid
+    lz_lo%dim_size(lz_lo%is_ord)=nspec
+    
+    lz_lo%compound_count(1)=1
+    lz_lo%compound_count(2)=lz_lo%compound_count(1)*lz_lo%dim_size(1)
+    lz_lo%compound_count(3)=lz_lo%compound_count(2)*lz_lo%dim_size(2)
+    lz_lo%compound_count(4)=lz_lo%compound_count(3)*lz_lo%dim_size(3)
+    lz_lo%compound_count(5)=lz_lo%compound_count(4)*lz_lo%dim_size(4)
+    
     lz_lo%ig_comp=lz_lo%compound_count(lz_lo%ig_ord)
     lz_lo%ik_comp=lz_lo%compound_count(lz_lo%ik_ord)
     lz_lo%it_comp=lz_lo%compound_count(lz_lo%it_ord)
     lz_lo%ie_comp=lz_lo%compound_count(lz_lo%ie_ord)
     lz_lo%is_comp=lz_lo%compound_count(lz_lo%is_ord)
-
-# ifdef USE_C_INDEX
-    ierr = init_indices_lzlo_c (layout)
-    if (ierr /= 0) &
-         & write (error_unit(),*) 'ERROR: layout not found: ', trim(layout)
-# endif
-
   end subroutine init_lambda_layouts
 
-# ifdef USE_C_INDEX
-  !> FIXME : Add documentation  
-  function is_idx_lz (lo, i)
-# else
   !> FIXME : Add documentation    
   elemental function is_idx_lz (lo, i)
-# endif
     implicit none
     integer :: is_idx_lz
     type (lz_layout_type), intent (in) :: lo
     integer, intent (in) :: i
-# ifdef USE_C_INDEX
-    interface
-       function is_idx_lz_c (lo,num)
-         use layouts_type, only: lz_layout_type
-         integer :: is_idx_lz_c
-         type (lz_layout_type) :: lo
-         integer :: num
-       end function is_idx_lz_c
-    end interface
-    is_idx_lz = is_idx_lz_c (lo, i)
-# else
     is_idx_lz = 1 + mod((i - lo%llim_world)/lo%is_comp, lo%nspec)
-# endif
-
   end function is_idx_lz
 
-# ifdef USE_C_INDEX
-  !> FIXME : Add documentation  
-  function ie_idx_lz (lo, i)
-# else
   !> FIXME : Add documentation    
   elemental function ie_idx_lz (lo, i)
-# endif
     implicit none
     integer :: ie_idx_lz
     type (lz_layout_type), intent (in) :: lo
     integer, intent (in) :: i
-
-# ifdef USE_C_INDEX
-    interface
-       function ie_idx_lz_c (lo,num)
-         use layouts_type, only: lz_layout_type
-         integer :: ie_idx_lz_c
-         type (lz_layout_type) :: lo
-         integer :: num
-       end function ie_idx_lz_c
-    end interface
-    ie_idx_lz = ie_idx_lz_c (lo, i)
-# else
     ie_idx_lz = 1 + mod((i - lo%llim_world)/lo%ie_comp, lo%negrid)
-# endif
-
   end function ie_idx_lz
 
-# ifdef USE_C_INDEX
-  !> FIXME : Add documentation  
-  function it_idx_lz (lo, i)
-# else
   !> FIXME : Add documentation    
   elemental function it_idx_lz (lo, i)
-# endif
     implicit none
     integer :: it_idx_lz
     type (lz_layout_type), intent (in) :: lo
     integer, intent (in) :: i
-# ifdef USE_C_INDEX
-    interface
-       function it_idx_lz_c (lo,num)
-         use layouts_type, only: lz_layout_type
-         integer :: it_idx_lz_c
-         type (lz_layout_type) :: lo
-         integer :: num
-       end function it_idx_lz_c
-    end interface
-    it_idx_lz = it_idx_lz_c (lo, i)
-# else
     it_idx_lz = 1 + mod((i - lo%llim_world)/lo%it_comp, lo%ntheta0)
-# endif
-
   end function it_idx_lz
 
-# ifdef USE_C_INDEX
-  !> FIXME : Add documentation  
-  function ik_idx_lz (lo, i)
-# else
   !> FIXME : Add documentation    
   elemental function ik_idx_lz (lo, i)
-# endif
     implicit none
     integer :: ik_idx_lz
     type (lz_layout_type), intent (in) :: lo
     integer, intent (in) :: i
-# ifdef USE_C_INDEX
-    interface
-       function ik_idx_lz_c (lo,num)
-         use layouts_type, only: lz_layout_type
-         integer :: ik_idx_lz_c
-         type (lz_layout_type) :: lo
-         integer :: num
-       end function ik_idx_lz_c
-    end interface
-    ik_idx_lz = ik_idx_lz_c (lo, i)
-# else
     ik_idx_lz = 1 + mod((i - lo%llim_world)/lo%ik_comp, lo%naky)
-# endif
-
   end function ik_idx_lz
 
   !> FIXME : Add documentation  
@@ -3210,50 +2590,19 @@ contains
     ig_idx_lz = -lo%ntgrid + mod((i - lo%llim_world)/lo%ig_comp, lo%ntgridtotal)
   end function ig_idx_lz
 
-# ifdef USE_C_INDEX
-  !> FIXME : Add documentation  
-  function idx_lz (lo, ig, ik, it, ie, is)
-# else
   !> FIXME : Add documentation    
   elemental function idx_lz (lo, ig, ik, it, ie, is)
-# endif
     implicit none
     integer :: idx_lz
     type (lz_layout_type), intent (in) :: lo
     integer, intent (in) :: ig, ik, it, ie, is
-# ifdef USE_C_INDEX
-    interface
-       function idx_lz_c (lo,ig,ik,it,ie,is)
-         use layouts_type, only: lz_layout_type
-         integer :: idx_lz_c
-         type (lz_layout_type) :: lo
-         integer :: ig,ik,it,ie,is
-       end function idx_lz_c
-    end interface
-    idx_lz = idx_lz_c (lo, ig, ik, it, ie, is)
-# else
-    select case (layout)
-    case ('yxels')
-       idx_lz = ig+lo%ntgrid + (2*lo%ntgrid+1)*(ik-1 + lo%naky*(it-1 &
-            + lo%ntheta0*(ie-1 + lo%negrid*(is-1))))
-    case ('yxles')
-       idx_lz = ig+lo%ntgrid + (2*lo%ntgrid+1)*(ik-1 + lo%naky*(it-1 &
-            + lo%ntheta0*(ie-1 + lo%negrid*(is-1))))
-    case ('lexys')
-       idx_lz = ig+lo%ntgrid + (2*lo%ntgrid+1)*(ie-1 + lo%negrid*(it-1 &
-            + lo%ntheta0*(ik-1 + lo%naky*(is-1))))
-    case ('lxyes')
-       idx_lz = ig+lo%ntgrid + (2*lo%ntgrid+1)*(it-1 + lo%ntheta0*(ik-1 &
-            + lo%naky*(ie-1 + lo%negrid*(is-1))))
-    case ('lyxes')
-       idx_lz = ig+lo%ntgrid + (2*lo%ntgrid+1)*(ik-1 + lo%naky*(it-1 &
-            + lo%ntheta0*(ie-1 + lo%negrid*(is-1))))
-    case ('xyles')
-       idx_lz = ig+lo%ntgrid + (2*lo%ntgrid+1)*(it-1 + lo%ntheta0*(ik-1 &
-            + lo%naky*(ie-1 + lo%negrid*(is-1))))
-    end select
-# endif
-
+    integer, dimension(5) :: i
+    i(lo%ik_ord) = ik - 1
+    i(lo%it_ord) = it - 1
+    i(lo%ie_ord) = ie - 1
+    i(lo%is_ord) = is - 1
+    i(lo%ig_ord) = ig + lo%ntgrid
+    idx_lz = i(1) + lo%dim_size(1)*(i(2) + lo%dim_size(2)*(i(3) + lo%dim_size(3)*(i(4) + lo%dim_size(4)*i(5))))
   end function idx_lz
 
   !> FIXME : Add documentation  
@@ -3271,18 +2620,12 @@ contains
 
   end function proc_id_lz
 
-# ifdef USE_C_INDEX
-  !> FIXME : Add documentation  
-  function idx_local_lz (lo, ig, ik, it, ie, is)
-# else
   !> FIXME : Add documentation    
   elemental function idx_local_lz (lo, ig, ik, it, ie, is)
-# endif
     implicit none
     logical :: idx_local_lz
     type (lz_layout_type), intent (in) :: lo
     integer, intent (in) :: ig, ik, it, ie, is
-
     idx_local_lz = idx_local(lo, idx(lo, ig, ik, it, ie, is))
   end function idx_local_lz
 
@@ -3292,7 +2635,6 @@ contains
     logical :: ig_local_lz
     type (lz_layout_type), intent (in) :: lo
     integer, intent (in) :: ig
-
     ig_local_lz = lo%iproc == proc_id(lo, ig)
   end function ig_local_lz
 
@@ -3321,7 +2663,8 @@ contains
     p_lo%llim_proc = p_lo%blocksize*iproc
     p_lo%ulim_proc = min(p_lo%ulim_world, p_lo%llim_proc + p_lo%blocksize - 1)
     p_lo%ulim_alloc = max(p_lo%llim_proc, p_lo%ulim_proc)
-!See g_lo init
+
+    !See g_lo init
     select case (layout)
     case ('yxels')
        p_lo%ie_ord=2
@@ -3513,57 +2856,36 @@ contains
     xxf_lo%llim_world = 0
     xxf_lo%ulim_world = naky*(2*ntgrid+1)*2*nlambda*negrid*nspec - 1
 
-!See g_lo init
+    !See g_lo init
     select case (layout)
     case ('yxels')
-       call set_dimension_order_xxf(xxf_lo,ik_ord=1,ig_ord=2,isgn_ord=3,ie_ord=4,il_ord=5,is_ord=6)
-       xxf_lo%compound_count(1)=1
-       xxf_lo%compound_count(2)=xxf_lo%naky
-       xxf_lo%compound_count(3)=xxf_lo%compound_count(2)*ntgridtotal
-       xxf_lo%compound_count(4)=xxf_lo%compound_count(3)*nsign
-       xxf_lo%compound_count(5)=xxf_lo%compound_count(4)*negrid
-       xxf_lo%compound_count(6)=xxf_lo%compound_count(5)*nlambda
+       call set_dimension_order(xxf_lo,ik_ord=1,ig_ord=2,isgn_ord=3,ie_ord=4,il_ord=5,is_ord=6)
     case ('yxles')
-       call set_dimension_order_xxf(xxf_lo,ik_ord=1,ig_ord=2,isgn_ord=3,il_ord=4,ie_ord=5,is_ord=6)
-       xxf_lo%compound_count(1)=1
-       xxf_lo%compound_count(2)=xxf_lo%naky
-       xxf_lo%compound_count(3)=xxf_lo%compound_count(2)*ntgridtotal
-       xxf_lo%compound_count(4)=xxf_lo%compound_count(3)*nsign
-       xxf_lo%compound_count(5)=xxf_lo%compound_count(4)*nlambda
-       xxf_lo%compound_count(6)=xxf_lo%compound_count(5)*negrid
+       call set_dimension_order(xxf_lo,ik_ord=1,ig_ord=2,isgn_ord=3,il_ord=4,ie_ord=5,is_ord=6)
     case ('lexys')
-       call set_dimension_order_xxf(xxf_lo,ik_ord=1,ig_ord=2,isgn_ord=3,il_ord=4,ie_ord=5,is_ord=6)
-       xxf_lo%compound_count(1)=1
-       xxf_lo%compound_count(2)=xxf_lo%naky
-       xxf_lo%compound_count(3)=xxf_lo%compound_count(2)*ntgridtotal
-       xxf_lo%compound_count(4)=xxf_lo%compound_count(3)*nsign
-       xxf_lo%compound_count(5)=xxf_lo%compound_count(4)*nlambda
-       xxf_lo%compound_count(6)=xxf_lo%compound_count(5)*negrid
+       call set_dimension_order(xxf_lo,ik_ord=1,ig_ord=2,isgn_ord=3,il_ord=4,ie_ord=5,is_ord=6)
     case ('lxyes')
-       call set_dimension_order_xxf(xxf_lo,ik_ord=1,ig_ord=2,isgn_ord=3,il_ord=4,ie_ord=5,is_ord=6)
-       xxf_lo%compound_count(1)=1
-       xxf_lo%compound_count(2)=xxf_lo%naky
-       xxf_lo%compound_count(3)=xxf_lo%compound_count(2)*ntgridtotal
-       xxf_lo%compound_count(4)=xxf_lo%compound_count(3)*nsign
-       xxf_lo%compound_count(5)=xxf_lo%compound_count(4)*nlambda
-       xxf_lo%compound_count(6)=xxf_lo%compound_count(5)*negrid
+       call set_dimension_order(xxf_lo,ik_ord=1,ig_ord=2,isgn_ord=3,il_ord=4,ie_ord=5,is_ord=6)
     case ('lyxes')
-       call set_dimension_order_xxf(xxf_lo,ik_ord=1,ig_ord=2,isgn_ord=3,il_ord=4,ie_ord=5,is_ord=6)
-       xxf_lo%compound_count(1)=1
-       xxf_lo%compound_count(2)=xxf_lo%naky
-       xxf_lo%compound_count(3)=xxf_lo%compound_count(2)*ntgridtotal
-       xxf_lo%compound_count(4)=xxf_lo%compound_count(3)*nsign
-       xxf_lo%compound_count(5)=xxf_lo%compound_count(4)*nlambda
-       xxf_lo%compound_count(6)=xxf_lo%compound_count(5)*negrid
+       call set_dimension_order(xxf_lo,ik_ord=1,ig_ord=2,isgn_ord=3,il_ord=4,ie_ord=5,is_ord=6)
     case ('xyles')
-       call set_dimension_order_xxf(xxf_lo,ik_ord=1,ig_ord=2,isgn_ord=3,il_ord=4,ie_ord=5,is_ord=6)
-       xxf_lo%compound_count(1)=1
-       xxf_lo%compound_count(2)=xxf_lo%naky
-       xxf_lo%compound_count(3)=xxf_lo%compound_count(2)*ntgridtotal
-       xxf_lo%compound_count(4)=xxf_lo%compound_count(3)*nsign
-       xxf_lo%compound_count(5)=xxf_lo%compound_count(4)*nlambda
-       xxf_lo%compound_count(6)=xxf_lo%compound_count(5)*negrid
+       call set_dimension_order(xxf_lo,ik_ord=1,ig_ord=2,isgn_ord=3,il_ord=4,ie_ord=5,is_ord=6)
     end select
+
+    xxf_lo%dim_size(xxf_lo%ik_ord)=naky
+    xxf_lo%dim_size(xxf_lo%ig_ord)=ntgridtotal
+    xxf_lo%dim_size(xxf_lo%isgn_ord)=nsign
+    xxf_lo%dim_size(xxf_lo%il_ord)=nlambda
+    xxf_lo%dim_size(xxf_lo%ie_ord)=negrid
+    xxf_lo%dim_size(xxf_lo%is_ord)=nspec
+    
+    xxf_lo%compound_count(1)=1
+    xxf_lo%compound_count(2)=xxf_lo%compound_count(1)*xxf_lo%dim_size(1)
+    xxf_lo%compound_count(3)=xxf_lo%compound_count(2)*xxf_lo%dim_size(2)
+    xxf_lo%compound_count(4)=xxf_lo%compound_count(3)*xxf_lo%dim_size(3)
+    xxf_lo%compound_count(5)=xxf_lo%compound_count(4)*xxf_lo%dim_size(4)
+    xxf_lo%compound_count(6)=xxf_lo%compound_count(5)*xxf_lo%dim_size(5)    
+
     xxf_lo%ig_comp=xxf_lo%compound_count(xxf_lo%ig_ord)
     xxf_lo%isgn_comp=xxf_lo%compound_count(xxf_lo%isgn_ord)
     xxf_lo%ik_comp=xxf_lo%compound_count(xxf_lo%ik_ord)
@@ -3664,31 +2986,6 @@ contains
   !!
   !! AJ, November 2011: New code from DCSE project  
   subroutine calculate_unbalanced_x(nproc, iproc, unbalanced_amount)
-  !====================================================================
-  ! AJ, November 2011: New code from DCSE project
-  ! This subroutine (calculate_unbalanced_x) wraps up all the 
-  ! functionality required to calculate the xxf blocksizes and 
-  ! work out if and unbalanced decomposition should be used, and if so 
-  ! the size of the unbalanced blocks.
-  !
-  ! This routine takes the number of processes to be used and the rank 
-  ! of the calling process and returns the amount of unbalance in the 
-  ! calculate decomposition (in a real variable with a range between 
-  ! 0.0 and 1.0 where 1.0 is a 100% difference between the small and 
-  ! large block size and 0.0 is no difference between the small and 
-  ! large block sizes).
-  !
-  ! This routine can be called from routines within the gs2_layouts
-  ! module (specifically init_x_transform_layouts) or from outside 
-  ! this module (specifically it is currently called from ingen to 
-  ! provide suggestions for unbalanced decompositions and process 
-  ! counts).  However, this routine relies on init_x_transform_layouts 
-  ! having been called to initialise some of the values it used 
-  ! (those in xxf_lo%) which is why there is a check whether the 
-  ! initialize_x_transform variable has been set to true.  If not this 
-  ! routine will not run and will notify the user of the problem.
-  !====================================================================
-
     implicit none
     integer, intent (in) :: nproc, iproc
     real, intent (out) :: unbalanced_amount
@@ -4000,35 +3297,6 @@ contains
   !!
   !! AJ, November 2011: New code from DCSE project  
   subroutine calculate_block_breakdown (k, i, m, j, level_proc_num)
-  !====================================================================
-  ! AJ, November 2011: New code from DCSE project
-  ! This subroutine (calculate_block_breakdown) is used in the code
-  ! to create unbalanced xxf and yxf layouts to address MPI
-  ! communication overheads in the redistribution of data for the
-  ! FFTs used in the nonlinear calculations to move from Fourier
-  ! space to real space and back again.
-  !
-  ! The routine calculates the factor k divided by a provided number
-  ! of processors/cores and returns it in integer j.  As j is an
-  ! integer the number returned will be more than zero if k is larger
-  ! than level_proc_num and zero if k is smaller than level_proc_num.
-  !
-  ! The integer i that is returned is the remained when k is divided
-  ! by level_proc_num.  This is used in the unbalanced decomposition
-  ! code to work out whether the factor divides exactly by the number
-  ! of procs  (in level_proc_num).  If it does then it is not an
-  ! unbalanced decomposition (so the original decomposition can be
-  ! used.
-  !
-  ! The integer m which is returned by this subroutine is the remainder
-  ! of level_proc_num divided by k.  This is used in the unbalanced
-  ! decomposition code to work out if the factor k exactly divides
-  ! the number of processors/cores in level_proc_num.  If it does
-  ! (i.e. m is zero) then the decomposition code can perform this
-  ! division and move on to the next factor.  If it does not then
-  ! the code keeps the factor k and multiplies it by the next factor
-  ! and checks that one (and so on).
-  !====================================================================
     implicit none
    
     integer, intent(in) :: k, level_proc_num
@@ -4076,42 +3344,6 @@ contains
   !!
   !! AJ, November 2011: New code from DCSE project
   subroutine calculate_unbalanced_decomposition(k, j, i, numsmall, numlarge, localprocs)
-  !====================================================================
-  ! AJ, November 2011: New code from DCSE project
-  ! This subroutine (calculate_unbalanced_decomposition) is used in the code
-  ! to create unbalanced xxf and yxf layouts to address MPI
-  ! communication overheads in the redistribution of data for the
-  ! FFTs used in the nonlinear calculations to move from Fourier
-  ! space to real space and back again.
-  !
-  ! k is an integer input which is the factor that needs to be decomposed
-  ! across the number of processes (the input integer localprocs)
-  ! that we have at this point in the decomposition.
-  !
-  ! When this subroutine is called k is larger than
-  ! localprocs (this is enforced through the if and else statements
-  ! in the code that calls this routine).  It is also only called when
-  ! localprocs does not completely/equally divide k (so k/localprocs
-  ! will not given a round number).
-  !
-  ! The subroutine returns four integers; i, j, numlarge, and numsmall
-  !
-  ! j is calculated as the integer division of k/localprocs.  As this
-  ! is an integer division the result is rounded down (remembering
-  ! that k/localprocs will not be an equal division).  j is used by the
-  ! small block factor (the relative size of the small block).
-  !
-  ! i is the large block factor.  As j is the rounded down division,
-  ! i = j + 1.  This gives two different block sizes (when these are
-  ! later calculated).
-  !
-  ! numlarge is used to work out how many processes will use the large
-  ! block size in the decomposition.
-  !
-  ! numsmall is used to work out how many processes will use the small
-  ! block size in the decomposition.
-  !
-  !====================================================================
     implicit none
 
     integer, intent(in) :: k, localprocs
@@ -4184,55 +3416,6 @@ contains
   !!
   !! AJ, November 2011: New code from DCSE project
   subroutine calculate_block_size(iproc, numsmall, numlarge, smalldecomp, largedecomp, sizeblock, blocksize, smallblocksize, largeblocksize, block_multiple, llim, ulim, ulim_alloc)
-  !====================================================================
-  ! AJ, November 2011: New code from DCSE project
-  ! This subroutine (calculate_block_size) is used in the code
-  ! to create unbalanced xxf and yxf layouts to address MPI
-  ! communication overheads in the redistribution of data for the
-  ! FFTs used in the nonlinear calculations to move from Fourier
-  ! space to real space and back again.
-  !
-  ! Input iproc is this processes MPI id.
-  !
-  ! Input numsmall is the number of processes that will use the small
-  ! block size (calculated in subroutine
-  ! calculate_unbalanced_decomposition).
-  !
-  ! Input numlarge is the number of processes that will use the large
-  ! block size (calculated in suboutine
-  ! calcuate_unbalanced_decomposition).
-  !
-  ! Input smalldecomp is the small_block_balance_factor of the
-  ! decomposition (calculated in subroutine
-  ! calculate_unbalanced_decomposition where it is referred to as j.
-  !
-  ! Input largedecomp is the large_block_balance_factor of the
-  ! decomposition (calculated in subroutine
-  ! calculate_unbalanced_decomposition where it is referred to as i.
-  !
-  ! Input sizeblock is the factor that needs to be split over the
-  ! cores/processors we have (i.e. everything that has not yet been
-  ! decomposed).
-  !
-  ! Output blocksize is the blocksize assigned to this actual process
-  ! (to be used throughout the code of the decompositions).
-  !
-  ! Output smallblocksize is the small block size.
-  !
-  ! Output largeblocksize is the large block size.
-  !
-  ! Output block_multiple is the size of the small block and large block
-  ! added together.  This is used to calculate which process owns a particular
-  ! data point at later points in the code (particular in the subroutine 
-  ! proc_id).
-  ! 
-  ! Output llim is the lower limit of the data block for this process.
-  !
-  ! Output ulim is the upper limit of the data block for this process.
-  !
-  ! Output ulim_alloc is the upper allocation limit for this processes block.
-  !
-  !====================================================================
     implicit none
 
     integer, intent(in) :: iproc, numsmall, numlarge, smalldecomp, largedecomp, sizeblock
@@ -4312,21 +3495,6 @@ contains
   !!
   !! AJ, November 2011: New code from DCSE project
   subroutine calculate_idle_processes(nprocs, idle_percentage)
-  !====================================================================
-  ! AJ, November 2011: New code from DCSE project
-  ! This subroutine (calculate_idle_processes) is used to calculate the 
-  ! difference between the number of processes used in the xxf and yxf
-  ! data layouts.  This is important as it can affect the amount of 
-  ! communication that the code has to undertake when moving between 
-  ! linear and non-linear calculations.  
-  !
-  ! This routine is used by ingen when it is suggesting optimal process
-  ! counts for users to flag up when suggested process counts will 
-  ! results in there being a significant difference in the processes 
-  ! used in the two layouts, and therefore a significant communication 
-  ! overhead moving between the two layouts.
-  !====================================================================
-
     implicit none
 
     integer, intent(in) :: nprocs
@@ -4443,33 +3611,21 @@ contains
     ik_idx_xxf = 1+mod((i-lo%llim_world)/lo%ik_comp,lo%naky)
   end function ik_idx_xxf
 
-  !> FIXME : Add documentation  
+  !> Return the global index in the xxf_lo layout given the dimensional indices
   elemental function idx_xxf (lo, ig, isign, ik, il, ie, is)
     implicit none
     integer :: idx_xxf
     type (xxf_layout_type), intent (in) :: lo
     integer, intent (in) :: ig, isign, ik, il, ie, is
+    integer, dimension(6) :: i
 
-    select case (layout)
-    case ('yxels')
-       idx_xxf = ik-1 + lo%naky*(ig+lo%ntgrid + (2*lo%ntgrid+1)*(isign-1 &
-            + lo%nsign*(ie-1 + lo%negrid*(il-1 + lo%nlambda*(is-1)))))
-    case ('yxles')
-       idx_xxf = ik-1 + lo%naky*(ig+lo%ntgrid + (2*lo%ntgrid+1)*(isign-1 &
-            + lo%nsign*(il-1 + lo%nlambda*(ie-1 + lo%negrid*(is-1)))))
-    case ('lexys')
-       idx_xxf = ik-1 + lo%naky*(ig+lo%ntgrid + (2*lo%ntgrid+1)*(isign-1 &
-            + lo%nsign*(il-1 + lo%nlambda*(ie-1 + lo%negrid*(is-1)))))
-    case ('lxyes')
-       idx_xxf = ik-1 + lo%naky*(ig+lo%ntgrid + (2*lo%ntgrid+1)*(isign-1 &
-            + lo%nsign*(il-1 + lo%nlambda*(ie-1 + lo%negrid*(is-1)))))
-    case ('lyxes')
-       idx_xxf = ik-1 + lo%naky*(ig+lo%ntgrid + (2*lo%ntgrid+1)*(isign-1 &
-            + lo%nsign*(il-1 + lo%nlambda*(ie-1 + lo%negrid*(is-1)))))
-    case ('xyles')
-       idx_xxf = ik-1 + lo%naky*(ig+lo%ntgrid + (2*lo%ntgrid+1)*(isign-1 &
-            + lo%nsign*(il-1 + lo%nlambda*(ie-1 + lo%negrid*(is-1)))))
-    end select
+    i(lo%ik_ord) = ik - 1
+    i(lo%il_ord) = il - 1
+    i(lo%ie_ord) = ie - 1
+    i(lo%is_ord) = is - 1
+    i(lo%ig_ord) = ig + lo%ntgrid
+    i(lo%isgn_ord) = isign - 1
+    idx_xxf = i(1) + lo%dim_size(1)*(i(2) + lo%dim_size(2)*(i(3) + lo%dim_size(3)*(i(4) + lo%dim_size(4)*(i(5) + lo%dim_size(5)*i(6)))))
   end function idx_xxf
 
   !> Return the processor id that has the point i in the xxf_lo layout
@@ -4606,57 +3762,36 @@ contains
     yxf_lo%llim_world = 0
     yxf_lo%ulim_world = nnx*(2*ntgrid+1)*2*nlambda*negrid*nspec - 1
 
-!Calculate compound index divisors
+    ! Calculate compound index divisors
     select case (layout)
     case ('yxels')
-       call set_dimension_order_yxf(yxf_lo,it_ord=1,ig_ord=2,isgn_ord=3,ie_ord=4,il_ord=5,is_ord=6)
-       yxf_lo%compound_count(1)=1
-       yxf_lo%compound_count(2)=yxf_lo%nx
-       yxf_lo%compound_count(3)=yxf_lo%compound_count(2)*ntgridtotal
-       yxf_lo%compound_count(4)=yxf_lo%compound_count(3)*nsign
-       yxf_lo%compound_count(5)=yxf_lo%compound_count(4)*negrid
-       yxf_lo%compound_count(6)=yxf_lo%compound_count(5)*nlambda
+       call set_dimension_order(yxf_lo,it_ord=1,ig_ord=2,isgn_ord=3,ie_ord=4,il_ord=5,is_ord=6)
     case ('yxles')
-       call set_dimension_order_yxf(yxf_lo,it_ord=1,ig_ord=2,isgn_ord=3,il_ord=4,ie_ord=5,is_ord=6)
-       yxf_lo%compound_count(1)=1
-       yxf_lo%compound_count(2)=yxf_lo%nx
-       yxf_lo%compound_count(3)=yxf_lo%compound_count(2)*ntgridtotal
-       yxf_lo%compound_count(4)=yxf_lo%compound_count(3)*nsign
-       yxf_lo%compound_count(5)=yxf_lo%compound_count(4)*nlambda
-       yxf_lo%compound_count(6)=yxf_lo%compound_count(5)*negrid
+       call set_dimension_order(yxf_lo,it_ord=1,ig_ord=2,isgn_ord=3,il_ord=4,ie_ord=5,is_ord=6)
     case ('lexys')
-       call set_dimension_order_yxf(yxf_lo,it_ord=1,ig_ord=2,isgn_ord=3,il_ord=4,ie_ord=5,is_ord=6)
-       yxf_lo%compound_count(1)=1
-       yxf_lo%compound_count(2)=yxf_lo%nx
-       yxf_lo%compound_count(3)=yxf_lo%compound_count(2)*ntgridtotal
-       yxf_lo%compound_count(4)=yxf_lo%compound_count(3)*nsign
-       yxf_lo%compound_count(5)=yxf_lo%compound_count(4)*nlambda
-       yxf_lo%compound_count(6)=yxf_lo%compound_count(5)*negrid
+       call set_dimension_order(yxf_lo,it_ord=1,ig_ord=2,isgn_ord=3,il_ord=4,ie_ord=5,is_ord=6)
     case ('lxyes')
-       call set_dimension_order_yxf(yxf_lo,it_ord=1,ig_ord=2,isgn_ord=3,il_ord=4,ie_ord=5,is_ord=6)
-       yxf_lo%compound_count(1)=1
-       yxf_lo%compound_count(2)=yxf_lo%nx
-       yxf_lo%compound_count(3)=yxf_lo%compound_count(2)*ntgridtotal
-       yxf_lo%compound_count(4)=yxf_lo%compound_count(3)*nsign
-       yxf_lo%compound_count(5)=yxf_lo%compound_count(4)*nlambda
-       yxf_lo%compound_count(6)=yxf_lo%compound_count(5)*negrid
+       call set_dimension_order(yxf_lo,it_ord=1,ig_ord=2,isgn_ord=3,il_ord=4,ie_ord=5,is_ord=6)
     case ('lyxes')
-       call set_dimension_order_yxf(yxf_lo,it_ord=1,ig_ord=2,isgn_ord=3,il_ord=4,ie_ord=5,is_ord=6)
-       yxf_lo%compound_count(1)=1
-       yxf_lo%compound_count(2)=yxf_lo%nx
-       yxf_lo%compound_count(3)=yxf_lo%compound_count(2)*ntgridtotal
-       yxf_lo%compound_count(4)=yxf_lo%compound_count(3)*nsign
-       yxf_lo%compound_count(5)=yxf_lo%compound_count(4)*nlambda
-       yxf_lo%compound_count(6)=yxf_lo%compound_count(5)*negrid
+       call set_dimension_order(yxf_lo,it_ord=1,ig_ord=2,isgn_ord=3,il_ord=4,ie_ord=5,is_ord=6)
     case ('xyles')
-       call set_dimension_order_yxf(yxf_lo,it_ord=1,ig_ord=2,isgn_ord=3,il_ord=4,ie_ord=5,is_ord=6)
-       yxf_lo%compound_count(1)=1
-       yxf_lo%compound_count(2)=yxf_lo%nx
-       yxf_lo%compound_count(3)=yxf_lo%compound_count(2)*ntgridtotal
-       yxf_lo%compound_count(4)=yxf_lo%compound_count(3)*nsign
-       yxf_lo%compound_count(5)=yxf_lo%compound_count(4)*nlambda
-       yxf_lo%compound_count(6)=yxf_lo%compound_count(5)*negrid
+       call set_dimension_order(yxf_lo,it_ord=1,ig_ord=2,isgn_ord=3,il_ord=4,ie_ord=5,is_ord=6)
     end select
+
+    yxf_lo%dim_size(yxf_lo%it_ord)=nx
+    yxf_lo%dim_size(yxf_lo%ig_ord)=ntgridtotal
+    yxf_lo%dim_size(yxf_lo%isgn_ord)=nsign
+    yxf_lo%dim_size(yxf_lo%il_ord)=nlambda
+    yxf_lo%dim_size(yxf_lo%ie_ord)=negrid
+    yxf_lo%dim_size(yxf_lo%is_ord)=nspec
+    
+    yxf_lo%compound_count(1)=1
+    yxf_lo%compound_count(2)=yxf_lo%compound_count(1)*yxf_lo%dim_size(1)
+    yxf_lo%compound_count(3)=yxf_lo%compound_count(2)*yxf_lo%dim_size(2)
+    yxf_lo%compound_count(4)=yxf_lo%compound_count(3)*yxf_lo%dim_size(3)
+    yxf_lo%compound_count(5)=yxf_lo%compound_count(4)*yxf_lo%dim_size(4)
+    yxf_lo%compound_count(6)=yxf_lo%compound_count(5)*yxf_lo%dim_size(5)    
+
     yxf_lo%ig_comp=yxf_lo%compound_count(yxf_lo%ig_ord)
     yxf_lo%isgn_comp=yxf_lo%compound_count(yxf_lo%isgn_ord)
     yxf_lo%it_comp=yxf_lo%compound_count(yxf_lo%it_ord)
@@ -4689,7 +3824,6 @@ contains
        yxf_lo%ulim_proc = min(yxf_lo%ulim_group+yxf_lo%igroup*yxf_lo%gsize, &
             yxf_lo%llim_proc + yxf_lo%nset - 1)
        yxf_lo%ulim_alloc = max(yxf_lo%llim_proc, yxf_lo%ulim_proc)
-
 
     else
        ! AJ November 2011
@@ -4998,33 +4132,21 @@ contains
     end select
   end function idx_accelx
 
-  !> FIXME : Add documentation  
+  !> Return the global index in the yxf_lo layout given the dimensional indices
   elemental function idx_yxf (lo, ig, isign, it, il, ie, is)
     implicit none
     integer :: idx_yxf
     type (yxf_layout_type), intent (in) :: lo
     integer, intent (in) :: ig, isign, it, il, ie, is
+    integer, dimension(6) :: i
 
-    select case (layout)
-    case ('yxels')
-       idx_yxf = it-1 + lo%nx*(ig+lo%ntgrid + (2*lo%ntgrid+1)*(isign-1 &
-            + lo%nsign*(ie-1 + lo%negrid*(il-1 + lo%nlambda*(is-1)))))
-    case ('yxles')
-       idx_yxf = it-1 + lo%nx*(ig+lo%ntgrid + (2*lo%ntgrid+1)*(isign-1 &
-            + lo%nsign*(il-1 + lo%nlambda*(ie-1 + lo%negrid*(is-1)))))
-    case ('lexys')
-       idx_yxf = it-1 + lo%nx*(ig+lo%ntgrid + (2*lo%ntgrid+1)*(isign-1 &
-            + lo%nsign*(il-1 + lo%nlambda*(ie-1 + lo%negrid*(is-1)))))
-    case ('lxyes')
-       idx_yxf = it-1 + lo%nx*(ig+lo%ntgrid + (2*lo%ntgrid+1)*(isign-1 &
-            + lo%nsign*(il-1 + lo%nlambda*(ie-1 + lo%negrid*(is-1)))))
-    case ('lyxes')
-       idx_yxf = it-1 + lo%nx*(ig+lo%ntgrid + (2*lo%ntgrid+1)*(isign-1 &
-            + lo%nsign*(il-1 + lo%nlambda*(ie-1 + lo%negrid*(is-1)))))
-    case ('xyles')
-       idx_yxf = it-1 + lo%nx*(ig+lo%ntgrid + (2*lo%ntgrid+1)*(isign-1 &
-            + lo%nsign*(il-1 + lo%nlambda*(ie-1 + lo%negrid*(is-1)))))
-    end select
+    i(lo%it_ord) = it - 1
+    i(lo%il_ord) = il - 1
+    i(lo%ie_ord) = ie - 1
+    i(lo%is_ord) = is - 1
+    i(lo%ig_ord) = ig + lo%ntgrid
+    i(lo%isgn_ord) = isign - 1
+    idx_yxf = i(1) + lo%dim_size(1)*(i(2) + lo%dim_size(2)*(i(3) + lo%dim_size(3)*(i(4) + lo%dim_size(4)*(i(5) + lo%dim_size(5)*i(6)))))
   end function idx_yxf
 
   elemental function proc_id_accelx (lo, i)
@@ -5473,13 +4595,8 @@ contains
 ! Transformation subroutines
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
-# ifdef USE_C_INDEX
-  !> FIXME : Add documentation  
-  subroutine gidx2xxfidx (ig, isign, iglo, g_lo, xxf_lo, it, ixxf)
-# else
   !> FIXME : Add documentation    
   elemental subroutine gidx2xxfidx (ig, isign, iglo, g_lo, xxf_lo, it, ixxf)
-# endif
     implicit none
     integer, intent (in) :: ig, isign, iglo
     type (g_layout_type), intent (in) :: g_lo
@@ -5562,38 +4679,89 @@ contains
   end subroutine factors
 
   !> Sets the order of x y l e s in g_lo
-  subroutine set_dimension_order(g_lo,it_ord,ik_ord,il_ord,ie_ord,is_ord)
-
+  subroutine set_dimension_order_g(lo, it_ord, ik_ord, il_ord, ie_ord, is_ord)
     implicit none
-    type (g_layout_type), intent(in out) :: g_lo
+    type (g_layout_type), intent(in out) :: lo
     integer, intent(in) :: ie_ord, il_ord, it_ord, ik_ord, is_ord
     integer, dimension(5) :: check
 
     ! Check input is the integers 1 to 5
     check = [it_ord, ik_ord, il_ord, ie_ord, is_ord]
-    call check_unique_integers(check,'Input to set_dimension_order is not unique integers 1 to 5')
+    call check_unique_integers(check,'Input to set_dimension_order (g_lo) is not unique integers 1 to 5')
 
-    g_lo%ie_ord=ie_ord
-    g_lo%il_ord=il_ord
-    g_lo%it_ord=it_ord
-    g_lo%ik_ord=ik_ord
-    g_lo%is_ord=is_ord
+    lo%ie_ord=ie_ord
+    lo%il_ord=il_ord
+    lo%it_ord=it_ord
+    lo%ik_ord=ik_ord
+    lo%is_ord=is_ord
+  end subroutine set_dimension_order_g
 
-  end subroutine set_dimension_order
+  !> Sets the order of x y th s in le_lo
+  subroutine set_dimension_order_le(lo, ig_ord, it_ord, ik_ord, is_ord)
+    implicit none
+    type (le_layout_type), intent(in out) :: lo
+    integer, intent(in) :: ig_ord, it_ord, ik_ord, is_ord
+    integer, dimension(4) :: check
 
+    ! Check input is the integers 1 to N
+    check = [ig_ord, it_ord, ik_ord, is_ord]
+    call check_unique_integers(check,'Input to set_dimension_order (le_lo) is not unique integers 1 to 4')
+
+    lo%ig_ord=ig_ord
+    lo%it_ord=it_ord
+    lo%ik_ord=ik_ord
+    lo%is_ord=is_ord
+  end subroutine set_dimension_order_le
+
+  !> Sets the order of x y e th s in lz_lo
+  subroutine set_dimension_order_lz(lo, ig_ord, it_ord, ik_ord, ie_ord, is_ord)
+    implicit none
+    type (lz_layout_type), intent(in out) :: lo
+    integer, intent(in) :: ig_ord, it_ord, ik_ord, ie_ord, is_ord
+    integer, dimension(5) :: check
+
+    ! Check input is the integers 1 to N
+    check = [ig_ord, it_ord, ik_ord, ie_ord, is_ord]
+    call check_unique_integers(check,'Input to set_dimension_order (lz_lo) is not unique integers 1 to 5')
+
+    lo%ig_ord=ig_ord
+    lo%it_ord=it_ord
+    lo%ik_ord=ik_ord
+    lo%ie_ord=ie_ord    
+    lo%is_ord=is_ord
+  end subroutine set_dimension_order_lz
+
+  !> Sets the order of th sgn x y l s in e_lo
+  subroutine set_dimension_order_e(lo, ig_ord, isgn_ord, it_ord, ik_ord, il_ord, is_ord)
+    implicit none
+    type (e_layout_type), intent(in out) :: lo
+    integer, intent(in) :: ig_ord, isgn_ord, it_ord, ik_ord, il_ord, is_ord
+    integer, dimension(6) :: check
+
+    ! Check input is the integers 1 to N
+    check = [ig_ord, isgn_ord, it_ord, ik_ord, il_ord, is_ord]
+    call check_unique_integers(check,'Input to set_dimension_order (e_lo) is not unique integers 1 to 5')
+
+    lo%ig_ord=ig_ord
+    lo%isgn_ord=isgn_ord    
+    lo%it_ord=it_ord
+    lo%ik_ord=ik_ord
+    lo%il_ord=il_ord    
+    lo%is_ord=is_ord
+  end subroutine set_dimension_order_e
+  
   !> Sets the order of y th sgn l e s in xxf_lo
   !> Note: usually the order is y, theta, sign, then "les" in the order they appear in
   !> the g_lo layout
-  subroutine set_dimension_order_xxf(xxf_lo,ik_ord,ig_ord,isgn_ord,il_ord,ie_ord,is_ord)
-
+  subroutine set_dimension_order_xxf(lo,ik_ord,ig_ord,isgn_ord,il_ord,ie_ord,is_ord)
     implicit none
-    type (xxf_layout_type), intent(in out) :: xxf_lo
+    type (xxf_layout_type), intent(in out) :: lo
     integer, intent(in) :: ie_ord, il_ord, ig_ord, ik_ord, is_ord, isgn_ord
     integer, dimension(6) :: check
 
-    ! Check input is the integers 1 to 6
+    ! Check input is the integers 1 to N
     check = [ik_ord, ig_ord, isgn_ord, il_ord, ie_ord, is_ord]
-    call check_unique_integers(check,'Input to set_dimension_order_xxf is not unique integers 1 to 6')
+    call check_unique_integers(check,'Input to set_dimension_order (xxf_lo) is not unique integers 1 to 6')
 
     xxf_lo%ik_ord=ik_ord
     xxf_lo%ig_ord=ig_ord
@@ -5601,22 +4769,20 @@ contains
     xxf_lo%il_ord=il_ord
     xxf_lo%ie_ord=ie_ord
     xxf_lo%is_ord=is_ord
-
   end subroutine set_dimension_order_xxf
 
   !> Sets the order of x th sgn l e s in xxf_lo
   !> Note: usually the order is x, theta, sign, then "les" in the order they appear in
   !> the g_lo layout
-  subroutine set_dimension_order_yxf(yxf_lo,it_ord,ig_ord,isgn_ord,il_ord,ie_ord,is_ord)
-
+  subroutine set_dimension_order_yxf(lo,it_ord,ig_ord,isgn_ord,il_ord,ie_ord,is_ord)
     implicit none
-    type (yxf_layout_type), intent(in out) :: yxf_lo
+    type (yxf_layout_type), intent(in out) :: lo
     integer, intent(in) :: ie_ord, il_ord, ig_ord, it_ord, is_ord, isgn_ord
     integer, dimension(6) :: check
 
-    ! Check input is the integers 1 to 6
+    ! Check input is the integers 1 to N
     check = [it_ord, ig_ord, isgn_ord, il_ord, ie_ord, is_ord]
-    call check_unique_integers(check,'Input to set_dimension_order_yxf is not unique integers 1 to 6')
+    call check_unique_integers(check,'Input to set_dimension_order (yxf_lo) is not unique integers 1 to 6')
 
     yxf_lo%it_ord=it_ord
     yxf_lo%ig_ord=ig_ord
@@ -5624,7 +4790,6 @@ contains
     yxf_lo%il_ord=il_ord
     yxf_lo%ie_ord=ie_ord
     yxf_lo%is_ord=is_ord
-
   end subroutine set_dimension_order_yxf
 
   !> Checks that the given array contains unique integers 1 to (array size) (in any order),
@@ -5653,4 +4818,176 @@ contains
 
   end subroutine check_unique_integers
 
+  !> Set the module level config type
+  !> Will abort if the module has already been initialised to avoid
+  !> inconsistencies.
+  subroutine set_gs2_layouts_config(gs2_layouts_config_in)
+    use mp, only: mp_abort
+    type(layouts_config_type), intent(in), optional :: gs2_layouts_config_in
+    if (initialized) then
+       call mp_abort("Trying to set gs2_layouts_config when already initialized.", to_screen = .true.)
+    end if
+    if (present(gs2_layouts_config_in)) then
+       layouts_config = gs2_layouts_config_in
+    end if
+  end subroutine set_gs2_layouts_config
+  
+  !---------------------------------------
+  ! Following is for the config_type
+  !---------------------------------------
+  
+  !> Reads in the layouts_knobs namelist and populates the member variables
+  subroutine read_layouts_config(self)
+    use file_utils, only: input_unit_exist, get_indexed_namelist_unit
+    use mp, only: proc0
+    implicit none
+    class(layouts_config_type), intent(in out) :: self
+    logical :: exist
+    integer :: in_file, iostat
+
+    ! Note: When this routine is in the module where these variables live
+    ! we shadow the module level variables here. This is intentional to provide
+    ! isolation and ensure we can move this routine to another module easily.    
+    logical :: fft_measure_plan, fft_use_wisdom, gf_local_fields, intmom_sub, intspec_sub, local_field_solve, opt_local_copy, opt_redist_nbk, opt_redist_persist, opt_redist_persist_overlap, simple_gf_decomposition, unbalanced_xxf, unbalanced_yxf
+    real :: max_unbalanced_xxf
+    character(len = 5) :: layout
+    character(len = run_name_size) :: fft_wisdom_file
+
+    namelist /layouts_knobs/ fft_measure_plan, fft_use_wisdom, fft_wisdom_file, gf_local_fields, intmom_sub, intspec_sub, layout, local_field_solve, max_unbalanced_xxf, opt_local_copy, opt_redist_nbk, opt_redist_persist, opt_redist_persist_overlap, simple_gf_decomposition, unbalanced_xxf, unbalanced_yxf
+
+    ! Only proc0 reads from file
+    if (.not. proc0) return
+
+    ! First set local variables from current values
+    fft_measure_plan = self%fft_measure_plan
+    fft_use_wisdom = self%fft_use_wisdom
+    fft_wisdom_file = self%fft_wisdom_file
+    gf_local_fields = self%gf_local_fields
+    intmom_sub = self%intmom_sub
+    intspec_sub = self%intspec_sub
+    layout = self%layout
+    local_field_solve = self%local_field_solve
+    max_unbalanced_xxf = self%max_unbalanced_xxf
+    opt_local_copy = self%opt_local_copy
+    opt_redist_nbk = self%opt_redist_nbk
+    opt_redist_persist = self%opt_redist_persist
+    opt_redist_persist_overlap = self%opt_redist_persist_overlap
+    simple_gf_decomposition = self%simple_gf_decomposition
+    unbalanced_xxf = self%unbalanced_xxf
+    unbalanced_yxf = self%unbalanced_yxf
+
+    ! Now read in the main namelist
+    if (self%get_requires_index()) then
+       call get_indexed_namelist_unit(in_file, trim(self%get_name()), self%index)
+       read(in_file, nml = layouts_knobs, iostat = iostat)
+       exist = .true.
+       if (iostat .ne.0) exist = .false.
+       close(unit = in_file, iostat = iostat)
+    else
+       in_file = input_unit_exist(self%get_name(), exist)
+       if (exist) read(in_file, nml = layouts_knobs)
+    endif
+
+    ! Now copy from local variables into type members
+    self%fft_measure_plan = fft_measure_plan
+    self%fft_use_wisdom = fft_use_wisdom
+    self%fft_wisdom_file = fft_wisdom_file
+    self%gf_local_fields = gf_local_fields
+    self%intmom_sub = intmom_sub
+    self%intspec_sub = intspec_sub
+    self%layout = layout
+    self%local_field_solve = local_field_solve
+    self%max_unbalanced_xxf = max_unbalanced_xxf
+    self%opt_local_copy = opt_local_copy
+    self%opt_redist_nbk = opt_redist_nbk
+    self%opt_redist_persist = opt_redist_persist
+    self%opt_redist_persist_overlap = opt_redist_persist_overlap
+    self%simple_gf_decomposition = simple_gf_decomposition
+    self%unbalanced_xxf = unbalanced_xxf
+    self%unbalanced_yxf = unbalanced_yxf
+
+    self%exist = exist
+  end subroutine read_layouts_config
+
+  !> Writes out a namelist representing the current state of the config object
+  subroutine write_layouts_config(self, unit)
+    implicit none
+    class(layouts_config_type), intent(in) :: self
+    integer, intent(in) , optional:: unit
+    integer :: unit_internal
+
+    unit_internal = 6 ! @todo -- get stdout from file_utils
+    if (present(unit)) then
+       unit_internal = unit
+    endif
+
+    call self%write_namelist_header(unit_internal)
+    call self%write_key_val("fft_measure_plan", self%fft_measure_plan, unit_internal)
+    call self%write_key_val("fft_use_wisdom", self%fft_use_wisdom, unit_internal)
+    call self%write_key_val("fft_wisdom_file", self%fft_wisdom_file, unit_internal)
+    call self%write_key_val("gf_local_fields", self%gf_local_fields, unit_internal)
+    call self%write_key_val("intmom_sub", self%intmom_sub, unit_internal)
+    call self%write_key_val("intspec_sub", self%intspec_sub, unit_internal)
+    call self%write_key_val("layout", self%layout, unit_internal)
+    call self%write_key_val("local_field_solve", self%local_field_solve, unit_internal)
+    call self%write_key_val("max_unbalanced_xxf", self%max_unbalanced_xxf, unit_internal)
+    call self%write_key_val("opt_local_copy", self%opt_local_copy, unit_internal)
+    call self%write_key_val("opt_redist_nbk", self%opt_redist_nbk, unit_internal)
+    call self%write_key_val("opt_redist_persist", self%opt_redist_persist, unit_internal)
+    call self%write_key_val("opt_redist_persist_overlap", self%opt_redist_persist_overlap, unit_internal)
+    call self%write_key_val("simple_gf_decomposition", self%simple_gf_decomposition, unit_internal)
+    call self%write_key_val("unbalanced_xxf", self%unbalanced_xxf, unit_internal)
+    call self%write_key_val("unbalanced_yxf", self%unbalanced_yxf, unit_internal)
+    call self%write_namelist_footer(unit_internal)
+  end subroutine write_layouts_config
+
+  !> Resets the config object to the initial empty state
+  subroutine reset_layouts_config(self)
+    class(layouts_config_type), intent(in out) :: self
+    type(layouts_config_type) :: empty
+    select type (self)
+    type is (layouts_config_type)
+       self = empty
+    end select
+  end subroutine reset_layouts_config
+
+  !> Broadcasts all config parameters so object is populated identically on
+  !! all processors
+  subroutine broadcast_layouts_config(self)
+    use mp, only: broadcast
+    implicit none
+    class(layouts_config_type), intent(in out) :: self
+    call broadcast(self%fft_measure_plan)
+    call broadcast(self%fft_use_wisdom)
+    call broadcast(self%fft_wisdom_file)
+    call broadcast(self%gf_local_fields)
+    call broadcast(self%intmom_sub)
+    call broadcast(self%intspec_sub)
+    call broadcast(self%layout)
+    call broadcast(self%local_field_solve)
+    call broadcast(self%max_unbalanced_xxf)
+    call broadcast(self%opt_local_copy)
+    call broadcast(self%opt_redist_nbk)
+    call broadcast(self%opt_redist_persist)
+    call broadcast(self%opt_redist_persist_overlap)
+    call broadcast(self%simple_gf_decomposition)
+    call broadcast(self%unbalanced_xxf)
+    call broadcast(self%unbalanced_yxf)
+
+    call broadcast(self%exist)
+  end subroutine broadcast_layouts_config
+
+  !> Gets the default name for this namelist
+  function get_default_name_layouts_config()
+    implicit none
+    character(len = CONFIG_MAX_NAME_LEN) :: get_default_name_layouts_config
+    get_default_name_layouts_config = "layouts_knobs"
+  end function get_default_name_layouts_config
+
+  !> Gets the default requires index for this namelist
+  function get_default_requires_index_layouts_config()
+    implicit none
+    logical :: get_default_requires_index_layouts_config
+    get_default_requires_index_layouts_config = .false.
+  end function get_default_requires_index_layouts_config
 end module gs2_layouts

@@ -1,0 +1,9 @@
+.divNamelistTable table, .divNamelistTable td, .divNamelistTable th, .divNamelistTable tr
+{
+    /* border-collapse: collapse; */
+    /* border: 1px solid black; */
+    padding:10px;
+}
+
+.divNamelistTable th {background-color: #c7ddef;}
+.divNamelistTable tr:nth-child(even) {background-color: #d9edf7;}

@@ -52,7 +52,7 @@ dump_grids: $(BINDIR)/dump_grids
 #Calculates the ideal ballooning stability (optionally over a scan in shat/beta_prime)
 $(BINDIR)/ideal_ball: $(ideal_ball_mod)
 	$(call messageOp,"Linking ","\\t:",$^,"\\n\\t\-\-\-\-\-\-\>",$@)
-	$(LD) $(LDFLAGS) -o $@ $^ $(LIBS) 
+	$(QUIETSYM)$(LD) $(LDFLAGS) -o $@ $^ $(LIBS) 
 
 .PHONY: ideal_ball
 ideal_ball: $(BINDIR)/ideal_ball
@@ -97,6 +97,13 @@ $(BINDIR)/eiktest: $(eiktest_mod)
 .PHONY: eiktest
 eiktest: $(BINDIR)/eiktest
 
+#Writes an instance of each namelist with default values
+$(BINDIR)/write_default_input_file: $(write_default_input_file_mod) $(SIMPLEDATAIO_LIB) | $(BINDIR)
+	$(call messageOp,"Linking ","\\t:",$^,"\\n\\t\-\-\-\-\-\-\>",$@)
+	$(QUIETSYM)$(LD) $(LDFLAGS) -o $@ $^ $(LIBS) 
+
+.PHONY: write_default_input_file
+write_default_input_file: $(BINDIR)/write_default_input_file
 
 ############################################################################# LIBRARIES
 .PHONY: modules utils_all geo_all libgs2_all
