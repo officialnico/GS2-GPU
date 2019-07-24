@@ -184,8 +184,8 @@ class config():
 {indent}procedure, public :: write => write_{module}_config
 {indent}procedure, public :: reset => reset_{module}_config
 {indent}procedure, public :: broadcast => broadcast_{module}_config
-{indent}procedure, public :: get_default_name => get_default_name_{module}_config
-{indent}procedure, public :: get_default_requires_index => get_default_requires_index_{module}_config"""
+{indent}procedure, public, nopass :: get_default_name => get_default_name_{module}_config
+{indent}procedure, public, nopass :: get_default_requires_index => get_default_requires_index_{module}_config"""
 
     instanceString  = "type({module}_config_type) :: {instance_name}" 
     instanceStringIndexed  = "type({module}_config_type), dimension(:), allocatable :: {instance_name}" 
