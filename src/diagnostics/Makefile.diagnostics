@@ -72,9 +72,6 @@ $(SRCDIR)/diagnostics/simpledataio/src/simpledataio_read.F90: diagnostics/simple
 $(SRCDIR)/diagnostics/diagnostics_create_and_write.f90: diagnostics/generate_diagnostics_create_and_write.rb
 	$(call messageOp,"Generating from ruby","\\t:",$<)
 	$(QUIETSYM)$(call RUBY_GENERATE,$@,$<)
-$(SRCDIR)/diagnostics/diagnostics_config.f90: diagnostics/generate_diagnostics_config.rb
-	$(call messageOp,"Generating from ruby","\\t:",$<)
-	$(QUIETSYM)$(call RUBY_GENERATE,$@,$<)
 $(SRCDIR)/diagnostics/diagnostics_ascii.f90: diagnostics/generate_diagnostics_ascii.rb
 	$(call messageOp,"Generating from ruby","\\t:",$<)
 	$(QUIETSYM)$(call RUBY_GENERATE,$@,$<)

@@ -580,7 +580,7 @@ F90FROMFPP = $(addprefix $(GENERATED_SRC_DIR)/, $(patsubst %.F90,%.f90,$(patsubs
 .PHONY: depend tar tar_exec test_make diagnostics simpledataio
 .PHONY: help TAGS
 .PHONY: clean cleanlib cleanconfig clean_coverage distclean unlink
-.PHONY: doc docs/html docs/graphs cleandoc check_ford_install
+.PHONY: doc docs/html docs/graphs cleandoc check_ford_install namelist_doc
 
 # comment this out to keep intermediate .f90 files
 ifdef KEEP_PROCESSED
@@ -690,7 +690,7 @@ all: $(.DEFAULT_GOAL)
 
 # Here we list all targets for which we don't care if there's a dependency file or not
 # this can help us avoid the slow generation of the dependency file when not required
-DONT_INCLUDE_DEPEND_TARGETS := clean distclean depend test_make submodules docs
+DONT_INCLUDE_DEPEND_TARGETS := clean distclean depend test_make submodules doc namelist_doc
 # Note we really need to say do any of our targets not match the above as if we have multiple
 # targets and any of them require the dependency file then we have to build the dependency file
 # We achieve that using filter-out. Because we also want to be able to build when the user
@@ -715,6 +715,7 @@ ifdef USE_FFT
     gs2_mod += $(OBJDIR)/fft_save_wisdom.o
     ingen_mod += $(OBJDIR)/fft_save_wisdom.o
     generate_fftw_wisdom_mod += $(OBJDIR)/fft_save_wisdom.o
+    write_default_input_file_mod += $(OBJDIR)/fft_save_wisdom.o
 endif
 
 # Make sure template dependencies are specified
@@ -989,10 +990,22 @@ check_ford_install:
 	$(call messageInfo,"Ford command $(FORD) not in path -- is it installed?\\n\\tConsider installing with 'pip install --user ford' and add ${HOME}/.local/bin to PATH") ; which $(FORD)
 endif
 
+namelist_doc: PATHS:=$(foreach dir, $(SRCDIR) $(SUBDIRS), --path ${dir})
+namelist_doc: FILES:=$(shell $(GK_HEAD_DIR)/scripts/get_all_matching_files.py --pattern "*.[fF]??" ${PATHS} --absolute)
+namelist_doc:
+	$(call messageInfo,"Generating namelist documentation")
+	@$(GK_HEAD_DIR)/scripts/generate_namelist_documentation.py ${FILES}
+
+.PHONY: clean_namelist_doc
+clean_namelist_doc:
+	$(call messageRm,"Generated namelist documentation")
+	-$(QUIETSYM)rm -f docs/pages/namelist/auto_generated_* docs/pages/namelist/index.md
+
 docs/html:
-doc: docs/docs.config.md check_ford_install
+doc: docs/docs.config.md namelist_doc  check_ford_install
 	$(FORD) $(subst -D,--macro ,$(MACRO_DEFS)) $(INCLUDES) -r $(GIT_HASH) $<
 
+cleandoc: clean_namelist_doc
 cleandoc: docs/html docs/graphs
 	$(call messageRm,"FORD docs")	
 	-$(QUIETSYM)rm -rf $^
