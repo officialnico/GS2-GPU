@@ -51,6 +51,7 @@ program time_redists
 
   if( get_redistname(g2x)=='' ) then
     if(proc0) then
+      write(*, '(" In testing redist from g_lo::",A5," to xxf_lo on ",I6," procs:")') layout, nproc
       write(*,*) "g2x has not been initialized. This probably means that the"
       write(*,*) "input file for this test uses accelx_lo rather than xxf_lo."
       write(*,*) "Now exiting, producing no results."
