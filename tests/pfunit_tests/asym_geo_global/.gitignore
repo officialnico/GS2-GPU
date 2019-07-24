@@ -1,3 +1,4 @@
 .local.in
 test_asym_geo_global
 test_asym_geo_global.F90
+test_asym_geo_global.f90
