@@ -59,9 +59,9 @@ module nonlinear_terms
 
 ! CFL coefficients
   real :: cfl, cflx, cfly
-  !< Maximum velocity of the nonlinear term, the reciprocal of the maximum timestep that
-  !< satisfies the CFL condition. This currently has to be module level due to potential
-  !< non-blocking reduction.
+  !> Maximum velocity of the nonlinear term, the reciprocal of the maximum timestep that
+  !> satisfies the CFL condition. This currently has to be module level due to potential
+  !> non-blocking reduction.
   real :: max_vel
   integer :: cfl_req_hand
 
