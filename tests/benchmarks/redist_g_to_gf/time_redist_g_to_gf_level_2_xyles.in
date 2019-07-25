@@ -1,0 +1,94 @@
+!=================================================================
+!                        GS2 INPUT FILE
+!=================================================================
+!
+!  GS2 is a gyrokinetic flux tube initial value turbulence code
+!  which can be used for fusion or astrophysical plasmas.
+!
+!  Website:
+!            https://gyrokinetics.gitlab.io/gs2/
+!  Repo:
+!            https://bitbucket.org/gyrokinetics/gs2/
+!  Citation:
+!            https://zenodo.org/record/2551066
+!  doi:
+!            10.5281/zenodo.2551066
+!
+!=================================================================
+
+&layouts_knobs
+ layout = 'xyles'
+/
+
+&collisions_knobs
+ collision_model = "default" ! Collision model used in the simulation. Options: 'default', 'none', 'lorentz', 'ediffuse'
+ use_le_layout = .true.
+ adjust = .false.
+/
+
+&species_parameters_1
+  type = 'ion'
+  z = 1.0
+  temp = 1.0
+  dens = 0.5
+  mass = 1.0
+  tprim = 4.0
+  fprim = 3.0
+  vnewk = 0.01 ! collisionality parameter
+/
+
+&species_parameters_2
+  type = 'electron'
+  z = -1.0
+  temp = 0.8
+  dens = 1.0
+  tprim = 6.0
+  fprim = 3.0
+  mass = 0.0005446623093681918
+/
+
+&le_grids_knobs
+  negrid = 8
+  ngauss = 5
+/
+
+&knobs
+ nstep = 10
+/
+
+&species_knobs
+  nspec = 2
+/
+
+&theta_grid_parameters
+  nperiod = 1
+  ntheta = 10
+/
+
+&dist_fn_species_knobs_1
+/
+&dist_fn_species_knobs_2
+/
+&dist_fn_species_knobs_3
+/
+
+
+&kt_grids_knobs
+grid_option="box"
+/
+
+&kt_grids_box_parameters
+ny = 15
+nx = 16
+y0=10.0
+x0=10.0
+jtwist = 6
+/
+
+&nonlinear_terms_knobs
+nonlinear_mode = "on"
+/
+
+&fields_knobs
+ field_option = "test" 
+/
