@@ -17,7 +17,7 @@
 !=================================================================
 
 &layouts_knobs
- layout = 'xyles'
+ layout = 'yxles'
 /
 
 &collisions_knobs
@@ -53,7 +53,7 @@
 /
 
 &knobs
- nstep = 10
+ nstep = 1000
 /
 
 &species_knobs
