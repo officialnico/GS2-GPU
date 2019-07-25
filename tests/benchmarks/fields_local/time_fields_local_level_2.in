@@ -46,7 +46,7 @@
  fphi = 1.0 ! Multiplies Phi (electrostatic potential).
  fapar = 1.0 ! Multiplies A_par. Use 1 for finite beta (electromagnetic), 0 otherwise (electrostatic)
  fbpar = 1.0
- nstep = 20000 ! Maximum number of timesteps
+ nstep = 2000 ! Maximum number of timesteps
 /
 
 &layouts_knobs
