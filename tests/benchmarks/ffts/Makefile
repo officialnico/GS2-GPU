@@ -1,20 +1,20 @@
 
 sinclude ../Makefile.tests_common
-all: time_ffts 
+
+INPUTFILE=time_ffts_level_1.in
+ifeq "$(BENCHMARK_LEVEL)" "2"
+INPUTFILE=time_ffts_level_2.in
+endif
+
+all: time_ffts
 	for d in $(NTESTPROCS); \
 	do \
-	  $(call BENCHMARKCOMMAND,$$d,time_ffts,time_ffts.in) ; \
+	  $(call BENCHMARKCOMMAND,$$d,time_ffts,$(INPUTFILE)) ; \
 	done
-	#$(TESTCOMMAND) time_ffts time_ffts.in
 
 TIMINGFILES=$(wildcard *.timing.*)
 
 UPLOADCOMMAND = $(call UPLOAD_BENCHMARKS,$(TIMINGFILES))
-
-
-# For building unit tests - to get rid of too much dependency
-#TEST_MODS = ../../unit_tests.o ../../general_f0.o ../../species.o ../../file_utils.o ../../spl.o ../../command_line.o ../../mp.o ../../text_options.o ../../constants.o ../../analytical_falpha.o
-
 
 time_ffts.o:  ${TEST_MODS} 
 
