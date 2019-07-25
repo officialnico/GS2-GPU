@@ -64,7 +64,7 @@ layout = 'xyles'
 /
 
 &knobs
- nstep = 100
+ nstep = 200
 /
 
 &species_knobs
