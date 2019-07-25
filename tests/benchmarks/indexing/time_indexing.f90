@@ -102,7 +102,8 @@ program time_indexing
     call close_output_file(timing_unit)
   end if
 
-  ! Without this write statement, the compiler will optimize away all the work in the loop...
+  write(*,*) " "
+  write(*,*) "NOTE: the following write prevents the compiler optimizing away the work in the loop"
   write(*,*) it, ik, il, ie, is, i
 
   ! uninitialize

@@ -1,12 +1,10 @@
 
 sinclude ../Makefile.tests_common
 all: time_indexing
-	for d in $(NTESTPROCS); \
-	do \
-	  $(call BENCHMARKCOMMAND,$$d,time_indexing,time_indexing_lexys.in) ; \
-	  $(call BENCHMARKCOMMAND,$$d,time_indexing,time_indexing_xyles.in) ; \
-	  $(call BENCHMARKCOMMAND,$$d,time_indexing,time_indexing_yxles.in) ; \
-	done
+	  echo "NOTE: indexing benchmark is independent of processor count and always runs on one processor." ; \
+	  $(call BENCHMARKCOMMAND,1,time_indexing,time_indexing_lexys.in) ; \
+	  $(call BENCHMARKCOMMAND,1,time_indexing,time_indexing_xyles.in) ; \
+	  $(call BENCHMARKCOMMAND,1,time_indexing,time_indexing_yxles.in) ; \
 
 TIMINGFILES=$(wildcard *.timing.*)
 
