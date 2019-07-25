@@ -64,7 +64,7 @@ layout = 'xyles'
 /
 
 &knobs
- nstep = 10
+ nstep = 100
 /
 
 &species_knobs
@@ -89,8 +89,8 @@ grid_option="box"
 /
 
 &kt_grids_box_parameters
-ny = 24
-nx = 16
+ny = 128
+nx = 96
 y0=10.0
 x0=10.0
 jtwist = 6
