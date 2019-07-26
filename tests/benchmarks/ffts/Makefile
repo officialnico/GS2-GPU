@@ -1,23 +1,28 @@
 
 sinclude ../Makefile.tests_common
 
-INPUTFILE=time_ffts_level_1.in
+EXENAME=time_ffts
+INPUTFILE_BASE=time_ffts_level_
 ifeq "$(BENCHMARK_LEVEL)" "2"
-INPUTFILE=time_ffts_level_2.in
+INPUTFILE=${INPUTFILE_BASE}2
+else
+INPUTFILE=${INPUTFILE_BASE}1
 endif
 
-all: time_ffts
+all: $(EXENAME)
 	for d in $(NTESTPROCS); \
 	do \
-	  $(call BENCHMARKCOMMAND,$$d,time_ffts,$(INPUTFILE)) ; \
+	  $(call BENCHMARKCOMMAND,$$d,$(EXENAME),$(INPUTFILE)_xyles.in) ; \
+	  $(call BENCHMARKCOMMAND,$$d,$(EXENAME),$(INPUTFILE)_yxles.in) ; \
+	  $(call BENCHMARKCOMMAND,$$d,$(EXENAME),$(INPUTFILE)_lexys.in) ; \
 	done
 
 TIMINGFILES=$(wildcard *.timing.*)
 
 UPLOADCOMMAND = $(call UPLOAD_BENCHMARKS,$(TIMINGFILES))
 
-time_ffts.o:  ${TEST_MODS} 
+$(EXENAME).o:  ${TEST_MODS} 
 
-time_ffts: time_ffts.o $(TEST_MODS)
+$(EXENAME): $(EXENAME).o $(TEST_MODS)
 	$(LD) $(LDFLAGS) -o $@ $^ $(LIBS)
 

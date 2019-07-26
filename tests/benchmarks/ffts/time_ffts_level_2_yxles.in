@@ -17,7 +17,7 @@
 !=================================================================
 
 &layouts_knobs
-layout = 'xyles'
+layout = 'yxles'
 /
 
 &species_parameters_1
@@ -41,7 +41,7 @@ layout = 'xyles'
 /
 
 &le_grids_knobs
-  negrid = 8
+  negrid = 4
   ngauss = 5
 /
 
