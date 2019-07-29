@@ -31,7 +31,7 @@ properties([[
 // Declare variables
 String slackURL
 // Whether to post test results to Slack
-String messageSlack = false
+boolean messageSlack = false
 String startMessage
 String channel
 String payload
