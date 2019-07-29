@@ -4,6 +4,7 @@
 
 !> FIXME : Add documentation
 module gs2_layouts
+  use abstract_config, only: abstract_config_type, CONFIG_MAX_NAME_LEN
 
   use layouts_type, only: ikit, ikitprocs
   use layouts_type, only: g_layout_type, lz_layout_type, e_layout_type
@@ -64,7 +65,6 @@ module gs2_layouts
   public :: idx, proc_id, idx_local
 
   public :: opt_local_copy
-  public :: opt_redist_init !Do we use optimised redist init routines?
   public :: intmom_sub !Do we use sub-communicators in velocity space?
   public :: intspec_sub !Do we use sub-communicators in integrate_species?
 
@@ -72,6 +72,10 @@ module gs2_layouts
 
   public :: simple_gf_decomposition, gf_local_fields
 
+  public :: layouts_config_type
+  public :: set_gs2_layouts_config
+
+  logical :: initialized = .false.
   logical :: initialized_x_transform = .false.
   logical :: initialized_y_transform = .false.
   logical :: initialized_layouts = .false.
@@ -86,7 +90,6 @@ module gs2_layouts
   logical :: initialized_accel_transform_layouts = .false.
 
   logical :: opt_local_copy
-  logical :: opt_redist_init
   logical :: intmom_sub
   logical :: intspec_sub
   logical :: local_field_solve, accel_lxyes, lambda_local, unbalanced_xxf, unbalanced_yxf
@@ -203,7 +206,57 @@ module gs2_layouts
   end type accelx_layout_type
 
   type (accelx_layout_type) :: accelx_lo
-
+  
+  !> Used to represent the input configuration of layouts
+  type, extends(abstract_config_type) :: layouts_config_type
+     ! namelist : layouts_knobs
+     ! indexed : false     
+     !> False=>use heuristics rather than measure in fft plan create
+     logical :: fft_measure_plan = .false.
+     !> Try to load and save wisdom about fftw plans to fft_wisdom_file
+     logical :: fft_use_wisdom = .true. 
+     !> Location of fftw wisdom... if left as default, this is set to
+     !> run_name//'.fftw_wisdom', unless overriden by the environment
+     !> variable GK_FFTW3_WISDOM. If set to anything other default,
+     !> overrides GK_FFTW3_WISDOM
+     character(len = run_name_size) :: fft_wisdom_file = 'default'
+     !> FIXME: Add documentation
+     logical :: gf_local_fields = .false.
+     !> FIXME: Add documentation
+     logical :: intmom_sub = .false.
+     !> FIXME: Add documentation
+     logical :: intspec_sub = .false.
+     !> FIXME: Add documentation
+     character(len = 5) :: layout = 'lxyes'
+     !> FIXME: Add documentation
+     logical :: local_field_solve = .false.
+     !> FIXME: Add documentation
+     real :: max_unbalanced_xxf = 0.0
+     !> FIXME: Add documentation
+     logical :: opt_local_copy = .false. 
+     !> True=>Use nonblocking redistributes
+     logical :: opt_redist_nbk = .true.
+     !> True=>Use persistent communications in redistributes
+     logical :: opt_redist_persist = .false.
+     !> True=>Start comms before doing local copy
+     logical :: opt_redist_persist_overlap = .false.
+     !> FIXME: Add documentation
+     logical :: simple_gf_decomposition = .true.
+     !> FIXME: Add documentation
+     logical :: unbalanced_xxf = .false.
+     !> FIXME: Add documentation
+     logical :: unbalanced_yxf = .false.
+   contains
+     procedure, public :: read => read_layouts_config
+     procedure, public :: write => write_layouts_config
+     procedure, public :: reset => reset_layouts_config
+     procedure, public :: broadcast => broadcast_layouts_config
+     procedure, public, nopass :: get_default_name => get_default_name_layouts_config
+     procedure, public, nopass :: get_default_requires_index => get_default_requires_index_layouts_config     
+  end type layouts_config_type
+  
+  type(layouts_config_type) :: layouts_config
+  
   interface ij_idx
      module procedure ij_idx_f
      module procedure ij_idx_jf
@@ -364,60 +417,59 @@ contains
   end subroutine wnml_gs2_layouts
 
   !> FIXME : Add documentation   
-  subroutine init_gs2_layouts
+  subroutine init_gs2_layouts(layouts_config_in)
     use mp, only: proc0
     implicit none
-
+    type(layouts_config_type), intent(in), optional :: layouts_config_in
+    
     if (initialized_layouts) return
     initialized_layouts = .true.
-    
-    if (proc0) call read_parameters
 
-    call broadcast_results
-
+    if (initialized) return
+    initialized = .true.
+    call read_parameters(layouts_config_in)
   end subroutine init_gs2_layouts
 
   !> FIXME : Add documentation 
   subroutine finish_gs2_layouts
     call finish_layouts
+    initialized = .false.
     initialized_layouts = .false.
   end subroutine finish_gs2_layouts
 
   !> FIXME : Add documentation   
-  subroutine read_parameters
+  subroutine read_parameters(layouts_config_in)
     use file_utils, only: input_unit, error_unit, input_unit_exist, error_unit
     use redistribute, only: opt_redist_nbk, opt_redist_persist, opt_redist_persist_overlap
-    use mp, only: mp_abort, proc0
+    use mp, only: mp_abort, proc0, broadcast
     implicit none
+    type(layouts_config_type), intent(in), optional :: layouts_config_in    
     integer :: in_file
-    namelist /layouts_knobs/ layout, local_field_solve, unbalanced_xxf, &
-         max_unbalanced_xxf, unbalanced_yxf, max_unbalanced_yxf, &
-         opt_local_copy, opt_redist_nbk, opt_redist_init, intmom_sub, &
-         intspec_sub, opt_redist_persist, opt_redist_persist_overlap, fft_measure_plan, &
-         fft_use_wisdom, fft_wisdom_file, simple_gf_decomposition, gf_local_fields
 
-    local_field_solve = .false.
-    unbalanced_xxf = .false.
-    unbalanced_yxf = .false.
-    opt_local_copy = .false. 
-    max_unbalanced_xxf = 0.0
-    max_unbalanced_yxf = 0.0
-    layout = 'lxyes'
-    opt_redist_nbk = .true. ! True=>Use nonblocking redistributes
-    opt_redist_persist = .false. ! True=>Use persistent communications in redistributes
-    opt_redist_persist_overlap = .false. ! True=>Start comms before doing local copy
-    opt_redist_init= .false. ! True=>Use optimised routines to init redist objects
-    fft_measure_plan = .false. ! False=>use heuristics rather than measure in fft plan create
-    fft_wisdom_file = 'default'  ! Location of fftw wisdom... if left as default, this is set to 
-        ! run_name//'.fftw_wisdom', unless overriden by the environment variable
-        ! GK_FFTW3_WISDOM. If set to anything other default, overrides  GK_FFTW3_WISDOM
-    fft_use_wisdom = .true. ! Try to load and save wisdom about fftw plans to fft_wisdom_file
-    intmom_sub=.false.
-    intspec_sub=.false.
-    simple_gf_decomposition=.true.
-    gf_local_fields = .false.
-    in_file=input_unit_exist("layouts_knobs", exist)
-    if (exist) read (unit=input_unit("layouts_knobs"), nml=layouts_knobs)
+    if (present(layouts_config_in)) layouts_config = layouts_config_in
+
+    call layouts_config%init(name = 'layouts_knobs', requires_index = .false.)
+
+    ! Copy out internal values into module level parameters
+    fft_measure_plan = layouts_config%fft_measure_plan
+    fft_use_wisdom = layouts_config%fft_use_wisdom
+    fft_wisdom_file = layouts_config%fft_wisdom_file
+    gf_local_fields = layouts_config%gf_local_fields
+    intmom_sub = layouts_config%intmom_sub
+    intspec_sub = layouts_config%intspec_sub
+    layout = layouts_config%layout
+    local_field_solve = layouts_config%local_field_solve
+    max_unbalanced_xxf = layouts_config%max_unbalanced_xxf
+    opt_local_copy = layouts_config%opt_local_copy
+    opt_redist_nbk = layouts_config%opt_redist_nbk
+    opt_redist_persist = layouts_config%opt_redist_persist
+    opt_redist_persist_overlap = layouts_config%opt_redist_persist_overlap
+    simple_gf_decomposition = layouts_config%simple_gf_decomposition
+    unbalanced_xxf = layouts_config%unbalanced_xxf
+    unbalanced_yxf = layouts_config%unbalanced_yxf
+
+    exist = layouts_config%exist
+    
     if (layout.ne.'yxels' .and. layout.ne.'yxles' .and. layout.ne.'lexys'&
     .and. layout.ne.'lxyes' .and. layout.ne.'lyxes' .and. layout.ne.'xyles') &
     then
@@ -425,9 +477,9 @@ contains
        call mp_abort("gs2_layouts: read_parameters finds illegal layout=")
     endif
 
-! max_unbalanced_xxf and max_unbalanced_yxf have a maximum range of 0.0 - 1.0
-! so check here whether the user has specified the range correctly and adjust if 
-! they have not.
+    ! max_unbalanced_xxf and max_unbalanced_yxf have a maximum range of 0.0 - 1.0
+    ! so check here whether the user has specified the range correctly and adjust if 
+    ! they have not.
     if(max_unbalanced_xxf .gt. 1.0) then
        max_unbalanced_xxf = 1.0
        write(*,*) 'max_unbalanced_xxf too large, setting to 1.0'
@@ -444,7 +496,10 @@ contains
     end if
 
     call ensure_redist_persist_consistency(opt_redist_nbk, opt_redist_persist, opt_redist_persist_overlap)
-    call get_wisdom_file(fft_wisdom_file)
+
+    ! For now only proc0 does this as we can't promise that all procs know the run_name
+    if(proc0) call get_wisdom_file(fft_wisdom_file)
+    call broadcast(fft_wisdom_file)
 
   end subroutine read_parameters
 
@@ -501,32 +556,6 @@ contains
       end if
     end if
   end subroutine get_wisdom_file
-
-  !> FIXME : Add documentation   
-  subroutine broadcast_results
-    use mp, only: broadcast
-    use redistribute, only: opt_redist_nbk, opt_redist_persist, opt_redist_persist_overlap
-    implicit none
-
-    call broadcast (opt_redist_init)
-    call broadcast (opt_redist_nbk)
-    call broadcast (opt_redist_persist)
-    call broadcast (opt_redist_persist_overlap)
-    call broadcast (intmom_sub)
-    call broadcast (intspec_sub)
-    call broadcast (layout)
-    call broadcast (local_field_solve)
-    call broadcast (unbalanced_xxf)
-    call broadcast (unbalanced_yxf)
-    call broadcast (max_unbalanced_xxf)
-    call broadcast (max_unbalanced_yxf)
-    call broadcast (opt_local_copy)
-    call broadcast (fft_measure_plan)
-    call broadcast (fft_use_wisdom)
-    call broadcast (fft_wisdom_file)
-    call broadcast (simple_gf_decomposition)
-    call broadcast (gf_local_fields)
-  end subroutine broadcast_results
 
   !> FIXME : Add documentation   
   subroutine check_accel (ntheta0, naky, nlambda, negrid, nspec, nblock)
@@ -1555,6 +1584,7 @@ contains
     call finish_fields_layouts
     call finish_jfields_layouts
 
+    initialized = .false.
     initialized_layouts = .false.
     initialized_le_layouts = .false.
     initialized_gf_layouts = .false.
@@ -1565,6 +1595,7 @@ contains
     initialized_x_transform = .false.
     initialized_y_transform = .false.
 
+    call layouts_config%reset()
   end subroutine finish_layouts
 
   !> FIXME : Add documentation
@@ -4787,4 +4818,176 @@ contains
 
   end subroutine check_unique_integers
 
+  !> Set the module level config type
+  !> Will abort if the module has already been initialised to avoid
+  !> inconsistencies.
+  subroutine set_gs2_layouts_config(gs2_layouts_config_in)
+    use mp, only: mp_abort
+    type(layouts_config_type), intent(in), optional :: gs2_layouts_config_in
+    if (initialized) then
+       call mp_abort("Trying to set gs2_layouts_config when already initialized.", to_screen = .true.)
+    end if
+    if (present(gs2_layouts_config_in)) then
+       layouts_config = gs2_layouts_config_in
+    end if
+  end subroutine set_gs2_layouts_config
+  
+  !---------------------------------------
+  ! Following is for the config_type
+  !---------------------------------------
+  
+  !> Reads in the layouts_knobs namelist and populates the member variables
+  subroutine read_layouts_config(self)
+    use file_utils, only: input_unit_exist, get_indexed_namelist_unit
+    use mp, only: proc0
+    implicit none
+    class(layouts_config_type), intent(in out) :: self
+    logical :: exist
+    integer :: in_file, iostat
+
+    ! Note: When this routine is in the module where these variables live
+    ! we shadow the module level variables here. This is intentional to provide
+    ! isolation and ensure we can move this routine to another module easily.    
+    logical :: fft_measure_plan, fft_use_wisdom, gf_local_fields, intmom_sub, intspec_sub, local_field_solve, opt_local_copy, opt_redist_nbk, opt_redist_persist, opt_redist_persist_overlap, simple_gf_decomposition, unbalanced_xxf, unbalanced_yxf
+    real :: max_unbalanced_xxf
+    character(len = 5) :: layout
+    character(len = run_name_size) :: fft_wisdom_file
+
+    namelist /layouts_knobs/ fft_measure_plan, fft_use_wisdom, fft_wisdom_file, gf_local_fields, intmom_sub, intspec_sub, layout, local_field_solve, max_unbalanced_xxf, opt_local_copy, opt_redist_nbk, opt_redist_persist, opt_redist_persist_overlap, simple_gf_decomposition, unbalanced_xxf, unbalanced_yxf
+
+    ! Only proc0 reads from file
+    if (.not. proc0) return
+
+    ! First set local variables from current values
+    fft_measure_plan = self%fft_measure_plan
+    fft_use_wisdom = self%fft_use_wisdom
+    fft_wisdom_file = self%fft_wisdom_file
+    gf_local_fields = self%gf_local_fields
+    intmom_sub = self%intmom_sub
+    intspec_sub = self%intspec_sub
+    layout = self%layout
+    local_field_solve = self%local_field_solve
+    max_unbalanced_xxf = self%max_unbalanced_xxf
+    opt_local_copy = self%opt_local_copy
+    opt_redist_nbk = self%opt_redist_nbk
+    opt_redist_persist = self%opt_redist_persist
+    opt_redist_persist_overlap = self%opt_redist_persist_overlap
+    simple_gf_decomposition = self%simple_gf_decomposition
+    unbalanced_xxf = self%unbalanced_xxf
+    unbalanced_yxf = self%unbalanced_yxf
+
+    ! Now read in the main namelist
+    if (self%get_requires_index()) then
+       call get_indexed_namelist_unit(in_file, trim(self%get_name()), self%index)
+       read(in_file, nml = layouts_knobs, iostat = iostat)
+       exist = .true.
+       if (iostat .ne.0) exist = .false.
+       close(unit = in_file, iostat = iostat)
+    else
+       in_file = input_unit_exist(self%get_name(), exist)
+       if (exist) read(in_file, nml = layouts_knobs)
+    endif
+
+    ! Now copy from local variables into type members
+    self%fft_measure_plan = fft_measure_plan
+    self%fft_use_wisdom = fft_use_wisdom
+    self%fft_wisdom_file = fft_wisdom_file
+    self%gf_local_fields = gf_local_fields
+    self%intmom_sub = intmom_sub
+    self%intspec_sub = intspec_sub
+    self%layout = layout
+    self%local_field_solve = local_field_solve
+    self%max_unbalanced_xxf = max_unbalanced_xxf
+    self%opt_local_copy = opt_local_copy
+    self%opt_redist_nbk = opt_redist_nbk
+    self%opt_redist_persist = opt_redist_persist
+    self%opt_redist_persist_overlap = opt_redist_persist_overlap
+    self%simple_gf_decomposition = simple_gf_decomposition
+    self%unbalanced_xxf = unbalanced_xxf
+    self%unbalanced_yxf = unbalanced_yxf
+
+    self%exist = exist
+  end subroutine read_layouts_config
+
+  !> Writes out a namelist representing the current state of the config object
+  subroutine write_layouts_config(self, unit)
+    implicit none
+    class(layouts_config_type), intent(in) :: self
+    integer, intent(in) , optional:: unit
+    integer :: unit_internal
+
+    unit_internal = 6 ! @todo -- get stdout from file_utils
+    if (present(unit)) then
+       unit_internal = unit
+    endif
+
+    call self%write_namelist_header(unit_internal)
+    call self%write_key_val("fft_measure_plan", self%fft_measure_plan, unit_internal)
+    call self%write_key_val("fft_use_wisdom", self%fft_use_wisdom, unit_internal)
+    call self%write_key_val("fft_wisdom_file", self%fft_wisdom_file, unit_internal)
+    call self%write_key_val("gf_local_fields", self%gf_local_fields, unit_internal)
+    call self%write_key_val("intmom_sub", self%intmom_sub, unit_internal)
+    call self%write_key_val("intspec_sub", self%intspec_sub, unit_internal)
+    call self%write_key_val("layout", self%layout, unit_internal)
+    call self%write_key_val("local_field_solve", self%local_field_solve, unit_internal)
+    call self%write_key_val("max_unbalanced_xxf", self%max_unbalanced_xxf, unit_internal)
+    call self%write_key_val("opt_local_copy", self%opt_local_copy, unit_internal)
+    call self%write_key_val("opt_redist_nbk", self%opt_redist_nbk, unit_internal)
+    call self%write_key_val("opt_redist_persist", self%opt_redist_persist, unit_internal)
+    call self%write_key_val("opt_redist_persist_overlap", self%opt_redist_persist_overlap, unit_internal)
+    call self%write_key_val("simple_gf_decomposition", self%simple_gf_decomposition, unit_internal)
+    call self%write_key_val("unbalanced_xxf", self%unbalanced_xxf, unit_internal)
+    call self%write_key_val("unbalanced_yxf", self%unbalanced_yxf, unit_internal)
+    call self%write_namelist_footer(unit_internal)
+  end subroutine write_layouts_config
+
+  !> Resets the config object to the initial empty state
+  subroutine reset_layouts_config(self)
+    class(layouts_config_type), intent(in out) :: self
+    type(layouts_config_type) :: empty
+    select type (self)
+    type is (layouts_config_type)
+       self = empty
+    end select
+  end subroutine reset_layouts_config
+
+  !> Broadcasts all config parameters so object is populated identically on
+  !! all processors
+  subroutine broadcast_layouts_config(self)
+    use mp, only: broadcast
+    implicit none
+    class(layouts_config_type), intent(in out) :: self
+    call broadcast(self%fft_measure_plan)
+    call broadcast(self%fft_use_wisdom)
+    call broadcast(self%fft_wisdom_file)
+    call broadcast(self%gf_local_fields)
+    call broadcast(self%intmom_sub)
+    call broadcast(self%intspec_sub)
+    call broadcast(self%layout)
+    call broadcast(self%local_field_solve)
+    call broadcast(self%max_unbalanced_xxf)
+    call broadcast(self%opt_local_copy)
+    call broadcast(self%opt_redist_nbk)
+    call broadcast(self%opt_redist_persist)
+    call broadcast(self%opt_redist_persist_overlap)
+    call broadcast(self%simple_gf_decomposition)
+    call broadcast(self%unbalanced_xxf)
+    call broadcast(self%unbalanced_yxf)
+
+    call broadcast(self%exist)
+  end subroutine broadcast_layouts_config
+
+  !> Gets the default name for this namelist
+  function get_default_name_layouts_config()
+    implicit none
+    character(len = CONFIG_MAX_NAME_LEN) :: get_default_name_layouts_config
+    get_default_name_layouts_config = "layouts_knobs"
+  end function get_default_name_layouts_config
+
+  !> Gets the default requires index for this namelist
+  function get_default_requires_index_layouts_config()
+    implicit none
+    logical :: get_default_requires_index_layouts_config
+    get_default_requires_index_layouts_config = .false.
+  end function get_default_requires_index_layouts_config
 end module gs2_layouts

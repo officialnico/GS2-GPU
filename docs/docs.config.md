@@ -18,6 +18,7 @@ author_description:
     For a complete list, please see <https://doi.org/10.5281/zenodo.2551066>
 parallel: 16
 src_dir: ../src
+css: user.css
 src_dir: ../externals/utils
 output_dir: ./html
 graph_dir: ./graphs
@@ -25,6 +26,7 @@ page_dir: ./pages
 exclude_dir: ../src/templates
 media_dir: ./media
 favicon: ./media/favicon.ico
+md_extensions: markdown.extensions.toc
 fpp_extensions: fpp
 fpp_extensions: F90
 predocmark: >
