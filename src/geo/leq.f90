@@ -304,12 +304,14 @@ contains
     ! support up-down asymmetric geometries (see section 3.2.2 of Ball MIT
     ! Masters thesis or section 2.2 of "GS2 analytic geometry specification")
     !
-    ! NOTE: actual theta grid used here includes one extra point outside [-pi, pi]!
+!CMR, 1/8/19: 
+! leq changed to work with all local theta grid points inside [-pi:pi]
+! Minor (but important) associated changes also made in derm and eqitem
+!CMRend
     do j=-nt,nt
        do i=1,nr
           r = surf%r + dr(i)
-          t = (j)*pi/real(nt)
-!          t = (j)*pi/real(nt-1)
+          t = (j)*pi/real(nt)  !CMR: ends of grid now at -pi,+pi
           R_psi(i,j) = Rpos(r, t) 
           Z_psi(i,j) = Zpos(r, t)
           eqth(i,j) = t
@@ -325,6 +327,7 @@ contains
     eqpsi(:) = eqpsi1(:,1)
 
     call derm(eqth,   dtm,  'T')
+!CMR, 1/8/19:  char argument is now redundant in following calls to derm.
     call derm(R_psi,  drm,  'E')
     call derm(Z_psi,  dzm,  'O')
     call derm(eqbtor, dbtm, 'E')
@@ -358,6 +361,27 @@ contains
   !!   - `O` means continuous and odd at theta = +/- pi -- FIXME: confirm
   !!   - `T` means a jump of 2 pi at theta = +/- pi
   subroutine derm(f, dfm, char)
+!CMR, 1/8/19: 
+!  DERM computes derivatives of a single valued function in theta and in radius
+!  INPUTS: 
+!    f(nr,-nt:nt) :      real     : 2D array to be differentiated, indices radius, theta
+!                                   NB grid ends in theta ASSUMED TO BE -pi,pi
+!    char         : character     : to apply symmetry constraint at end of grid
+!                                  "O" is odd in theta at +-pi, 
+!                                  "E" is even in theta at +-pi
+!                                  "T" denotes theta which trivially increases in theta at +-pi
+!  OUTPUT: 
+!    dfm(nr,-nt:nt,2) : real :  dfm(nr,-nt:nt,1) = df/dr
+!                               dfm(nr,-nt:nt,2) = df/dtheta
+! Modifications:
+!CMR, 1/8/19:  
+! Removed most of the need for symmetry character "char" (EXCEPT for "T"), which was redundant.
+!  df/dtheta can be evaluated directly from f(-pi+dtheta)-f(pi-dtheta), which is more general.
+!  NB this also handles JB's tilted equilibria, without local theta extending beyond [-pi:pi] 
+! Recommendation: char could be entirely removed by specifying that DERM differentiates ONLY
+! single valued periodic functions in theta. theta is NOT such a function.  Trivial special 
+! treatment for theta could very easily be handled after call DERM.
+!CMRend 
     use constants, only: pi
     implicit none
     real, dimension(:,:), intent(in) :: f(:,-nt:)
@@ -371,6 +395,8 @@ contains
     i=nr
     dfm(i,:,1) = 0.5*(3*f(i,:)-4*f(i-1,:)+f(i-2,:))
 
+!CMR,1/8/19: 
+! removed following redundant code which assumed symmetries at +-pi
 !    select case (char)
 !    case ('E')
 !       j=-nt
@@ -391,16 +417,27 @@ contains
 !       j=nt
 !       dfm(:,j,2) = pi - f(:,j-1)
 !    end select
+!CMRend
 
-    do i=2,nr-1
+!CMR, 1/81/9:  compute df/dr
+    do i=2,nr-1   
        dfm(i,:,1)=0.5*(f(i+1,:)-f(i-1,:))
     enddo
 
-    do j=-nt+1,nt-1
+!CMR, 1/8/19: compute df/dtheta (except endpoints at -pi,pi)
+    do j=-nt+1,nt-1 
        dfm(:,j,2)=0.5*(f(:,j+1)-f(:,j-1))
     enddo
+
+!CMR, 1/8/19: 
+! compute df/dtheta at -pi,+pi assuming (i) periodicity in theta, 
+!  (ii) endpoints at -pi,+pi (iii) equispaced grid in theta, and 
+!  (iv) -nt and +nt correspond to -pi, +pi and are at the SAME PLACE!
     dfm(:,-nt,2)=0.5*(f(:,-nt+1)-f(:,nt-1))
     dfm(:,nt,2)=dfm(:,-nt,2)
+
+!CMR, 1/8/19: retain 'T' flag to denote trivial derivative when f=theta, 
+!             where care is needed at end points.
     if (char .eq. 'T') then
        dfm(:,-nt,2) = f(:,-nt+1) + pi
        dfm(:,nt,2) = pi - f(:,nt-1)
@@ -554,10 +591,10 @@ contains
 
     tp = mod2pi(theta_in)
 
-    ! get thet on theta mesh
+    ! get theta points on the local theta mesh
 
-    ! NOTE: actual theta grid used here includes one extra point outside [-pi, pi]!
-!    mtheta = (/ ( real(j)*pi/real(nt-1), j=-nt,nt) /)
+!CMR, 1/8/19: mtheta reconstructs local theta mesh set in leq_init
+!             and this has been modified to have endpoints at -pi, pi.
     mtheta = (/ ( real(j)*pi/real(nt), j=-nt,nt) /)
   
     ! note that theta(1)=0 for local_eq theta 
