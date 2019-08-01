@@ -308,7 +308,8 @@ contains
     do j=-nt,nt
        do i=1,nr
           r = surf%r + dr(i)
-          t = (j)*pi/real(nt-1)
+          t = (j)*pi/real(nt)
+!          t = (j)*pi/real(nt-1)
           R_psi(i,j) = Rpos(r, t) 
           Z_psi(i,j) = Zpos(r, t)
           eqth(i,j) = t
@@ -370,26 +371,26 @@ contains
     i=nr
     dfm(i,:,1) = 0.5*(3*f(i,:)-4*f(i-1,:)+f(i-2,:))
 
-    select case (char)
-    case ('E')
-       j=-nt
-       dfm(:,j,2) = 0.5*(f(:,j+1)-f(:,j+1))
+!    select case (char)
+!    case ('E')
+!       j=-nt
+!       dfm(:,j,2) = 0.5*(f(:,j+1)-f(:,j+1))
 
-       j=nt
-       dfm(:,j,2) = -0.5*(f(:,j-1)-f(:,j-1))
-    case ('O')
-       j=-nt
-       dfm(:,j,2) = 0.5*(f(:,j+1)+f(:,j+1))
-
-       j=nt
-       dfm(:,j,2) = -0.5*(f(:,j-1)+f(:,j-1))
-    case ('T')
-       j=-nt
-       dfm(:,j,2) = f(:,j+1) + pi
-
-       j=nt
-       dfm(:,j,2) = pi - f(:,j-1)
-    end select
+!       j=nt
+!       dfm(:,j,2) = -0.5*(f(:,j-1)-f(:,j-1))
+!    case ('O')
+!       j=-nt
+!       dfm(:,j,2) = 0.5*(f(:,j+1)+f(:,j+1))
+!
+!       j=nt
+!       dfm(:,j,2) = -0.5*(f(:,j-1)+f(:,j-1))
+!    case ('T')
+!       j=-nt
+!       dfm(:,j,2) = f(:,j+1) + pi
+!
+!       j=nt
+!       dfm(:,j,2) = pi - f(:,j-1)
+!    end select
 
     do i=2,nr-1
        dfm(i,:,1)=0.5*(f(i+1,:)-f(i-1,:))
@@ -398,6 +399,12 @@ contains
     do j=-nt+1,nt-1
        dfm(:,j,2)=0.5*(f(:,j+1)-f(:,j-1))
     enddo
+    dfm(:,-nt,2)=0.5*(f(:,-nt+1)-f(:,nt-1))
+    dfm(:,nt,2)=dfm(:,-nt,2)
+    if (char .eq. 'T') then
+       dfm(:,-nt,2) = f(:,-nt+1) + pi
+       dfm(:,nt,2) = pi - f(:,nt-1)
+    endif
 
   end subroutine derm
 
@@ -550,7 +557,8 @@ contains
     ! get thet on theta mesh
 
     ! NOTE: actual theta grid used here includes one extra point outside [-pi, pi]!
-    mtheta = (/ ( real(j)*pi/real(nt-1), j=-nt,nt) /)
+!    mtheta = (/ ( real(j)*pi/real(nt-1), j=-nt,nt) /)
+    mtheta = (/ ( real(j)*pi/real(nt), j=-nt,nt) /)
   
     ! note that theta(1)=0 for local_eq theta 
 
