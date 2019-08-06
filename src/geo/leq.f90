@@ -323,7 +323,8 @@ contains
     eqpsi(:) = eqpsi1(:,1)
 
     call derm(eqth,   dtm,  'T')
-!CMR, 1/8/19:  char argument is now redundant in following calls to derm.
+    ! char arguments E and O are redundant, but are retained so that `derm` interface
+    ! is the same in all geometry modules.
     call derm(R_psi,  drm,  'E')
     call derm(Z_psi,  dzm,  'O')
     call derm(eqbtor, dbtm, 'E')
