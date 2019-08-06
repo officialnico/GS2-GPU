@@ -304,14 +304,10 @@ contains
     ! support up-down asymmetric geometries (see section 3.2.2 of Ball MIT
     ! Masters thesis or section 2.2 of "GS2 analytic geometry specification")
     !
-!CMR, 1/8/19: 
-! leq changed to work with all local theta grid points inside [-pi:pi]
-! Minor (but important) associated changes also made in derm and eqitem
-!CMRend
     do j=-nt,nt
        do i=1,nr
           r = surf%r + dr(i)
-          t = (j)*pi/real(nt)  !CMR: ends of grid now at -pi,+pi
+          t = (j)*pi/real(nt)
           R_psi(i,j) = Rpos(r, t) 
           Z_psi(i,j) = Zpos(r, t)
           eqth(i,j) = t
