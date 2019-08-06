@@ -566,8 +566,7 @@ contains
 
     ! get theta points on the local theta mesh
 
-!CMR, 1/8/19: mtheta reconstructs local theta mesh set in leq_init
-!             and this has been modified to have endpoints at -pi, pi.
+    ! Note: mtheta must be the same points as the `t` variable in leq_init
     mtheta = (/ ( real(j)*pi/real(nt), j=-nt,nt) /)
   
     ! note that theta(1)=0 for local_eq theta 
