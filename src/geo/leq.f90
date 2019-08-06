@@ -348,43 +348,26 @@ contains
 
   end subroutine leq_init
 
-  !> Index-space derivatives of `f` in each direction. Gradient in
-  !> first direction is in `dfm(:,:,1)`, second is in `dfm(:,:,2)`.
-  !> `char` controls the boundary conditions in the second direction.
-  !!
-  !! Acceptable values for `char`:
-  !!   - `E` means continuous and even at theta = +/- pi -- FIXME: confirm
-  !!   - `O` means continuous and odd at theta = +/- pi -- FIXME: confirm
-  !!   - `T` means a jump of 2 pi at theta = +/- pi
+  !> `derm` computes the index-space derivatives of `f` in radius and theta directions,
+  !> assuming periodicity in theta, `f(:,-nt) = f(:,nt)`.
   subroutine derm(f, dfm, char)
-!CMR, 1/8/19: 
-!  DERM computes derivatives of a single valued function in theta and in radius
-!  INPUTS: 
-!    f(nr,-nt:nt) :      real     : 2D array to be differentiated, indices radius, theta
-!                                   NB grid ends in theta ASSUMED TO BE -pi,pi
-!    char         : character     : to apply symmetry constraint at end of grid
-!                                  "O" is odd in theta at +-pi, 
-!                                  "E" is even in theta at +-pi
-!                                  "T" denotes theta which trivially increases in theta at +-pi
-!  OUTPUT: 
-!    dfm(nr,-nt:nt,2) : real :  dfm(nr,-nt:nt,1) = df/dr
-!                               dfm(nr,-nt:nt,2) = df/dtheta
-! Modifications:
-!CMR, 1/8/19:  
-! Removed most of the need for symmetry character "char" (EXCEPT for "T"), which was redundant.
-!  df/dtheta can be evaluated directly from f(-pi+dtheta)-f(pi-dtheta), which is more general.
-!  NB this also handles JB's tilted equilibria, without local theta extending beyond [-pi:pi] 
-! Recommendation: char could be entirely removed by specifying that DERM differentiates ONLY
-! single valued periodic functions in theta. theta is NOT such a function.  Trivial special 
-! treatment for theta could very easily be handled after call DERM.
-!CMRend 
     use constants, only: pi
     implicit none
+    !> 2D array to be differentiated, indices radius, theta
+    !> @note Grid ends in theta assumed to be exactly \[\pm \pi\]
     real, dimension(:,:), intent(in) :: f(:,-nt:)
+    !> Derivatives of f:
+    !>   dfm(nr,-nt:nt,1) = df/dr
+    !>   dfm(nr,-nt:nt,2) = df/dtheta
     real, dimension(:,:,:), intent(out) :: dfm(:,-nt:,:)
+    !> Specifies symmetry constraint at end of grid
+    !>   "O" is odd in theta at \(\pm \pi\) (deprecated)
+    !>   "E" is even in theta at \(\pm \pi\) (deprecated)
+    !>   "T" denotes theta which trivially increases in theta at \(\pm \pi\)
     character(1), intent(in) :: char
     integer :: i, j
     
+    ! Use second-order uncentred finite-differences for extreme radial points.
     i=1
     dfm(i,:,1) = -0.5*(3*f(i,:)-4*f(i+1,:)+f(i+2,:))         
     
@@ -409,8 +392,8 @@ contains
     dfm(:,-nt,2)=0.5*(f(:,-nt+1)-f(:,nt-1))
     dfm(:,nt,2)=dfm(:,-nt,2)
 
-!CMR, 1/8/19: retain 'T' flag to denote trivial derivative when f=theta, 
-!             where care is needed at end points.
+    ! `T` flag to denotes trivial derivative when f=theta,
+    ! where care is needed at end points.
     if (char .eq. 'T') then
        dfm(:,-nt,2) = f(:,-nt+1) + pi
        dfm(:,nt,2) = pi - f(:,nt-1)
