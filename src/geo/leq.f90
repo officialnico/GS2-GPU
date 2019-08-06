@@ -376,12 +376,12 @@ contains
     dfm(i,:,1) = 0.5*(3*f(i,:)-4*f(i-1,:)+f(i-2,:))
 
     ! Compute df/dr
-    do i=2,nr-1   
+    do i=2,nr-1
        dfm(i,:,1)=0.5*(f(i+1,:)-f(i-1,:))
     enddo
 
     ! Compute df/dtheta (except at endpoints -pi,pi)
-    do j=-nt+1,nt-1 
+    do j=-nt+1,nt-1
        dfm(:,j,2)=0.5*(f(:,j+1)-f(:,j-1))
     enddo
 
