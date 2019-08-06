@@ -125,12 +125,12 @@ contains
     ! separately by gs2_init"
     call finish_theta_grid_params
 
-    @assertEqual(new_bmag, previous_Bmag, tolerance=1.e-8, message="Bmag")
-    @assertEqual(new_grho, previous_grho, tolerance=1.e-8, message="grho")
-    @assertEqual(new_gbdrift, previous_gbdrift, tolerance=1.e-8, message="gbdrift")
-    @assertEqual(new_cvdrift, previous_cvdrift, tolerance=1.e-8, message="cvdrift")
-    @assertEqual(new_gds2, previous_gds2, tolerance=1.e-8, message="gds2")
-    @assertEqual(new_gds21, previous_gds21, tolerance=1.e-8, message="gds21")
+    @assertEqual(previous_bmag, new_Bmag, tolerance=1.e-8, message="Bmag")
+    @assertEqual(previous_grho, new_grho, tolerance=1.e-8, message="grho")
+    @assertEqual(previous_gbdrift, new_gbdrift, tolerance=1.e-8, message="gbdrift")
+    @assertEqual(previous_cvdrift, new_cvdrift, tolerance=1.e-8, message="cvdrift")
+    @assertEqual(previous_gds2, new_gds2, tolerance=1.e-8, message="gds2")
+    @assertEqual(previous_gds21, new_gds21, tolerance=1.e-8, message="gds21")
 
   end subroutine test_asym_geo_genElong
 
