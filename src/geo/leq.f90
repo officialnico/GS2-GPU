@@ -415,20 +415,21 @@ contains
 !    end select
 !CMRend
 
-!CMR, 1/81/9:  compute df/dr
+    ! Compute df/dr
     do i=2,nr-1   
        dfm(i,:,1)=0.5*(f(i+1,:)-f(i-1,:))
     enddo
 
-!CMR, 1/8/19: compute df/dtheta (except endpoints at -pi,pi)
+    ! Compute df/dtheta (except at endpoints -pi,pi)
     do j=-nt+1,nt-1 
        dfm(:,j,2)=0.5*(f(:,j+1)-f(:,j-1))
     enddo
 
-!CMR, 1/8/19: 
-! compute df/dtheta at -pi,+pi assuming (i) periodicity in theta, 
-!  (ii) endpoints at -pi,+pi (iii) equispaced grid in theta, and 
-!  (iv) -nt and +nt correspond to -pi, +pi and are at the SAME PLACE!
+    ! Compute df/dtheta at -pi,+pi assuming
+    !   (i) periodicity in theta, 
+    !  (ii) endpoints at -pi,+pi 
+    ! (iii) equispaced grid in theta, and 
+    !  (iv) -nt and +nt correspond to -pi, +pi and are at the same place
     dfm(:,-nt,2)=0.5*(f(:,-nt+1)-f(:,nt-1))
     dfm(:,nt,2)=dfm(:,-nt,2)
 
