@@ -391,30 +391,6 @@ contains
     i=nr
     dfm(i,:,1) = 0.5*(3*f(i,:)-4*f(i-1,:)+f(i-2,:))
 
-!CMR,1/8/19: 
-! removed following redundant code which assumed symmetries at +-pi
-!    select case (char)
-!    case ('E')
-!       j=-nt
-!       dfm(:,j,2) = 0.5*(f(:,j+1)-f(:,j+1))
-
-!       j=nt
-!       dfm(:,j,2) = -0.5*(f(:,j-1)-f(:,j-1))
-!    case ('O')
-!       j=-nt
-!       dfm(:,j,2) = 0.5*(f(:,j+1)+f(:,j+1))
-!
-!       j=nt
-!       dfm(:,j,2) = -0.5*(f(:,j-1)+f(:,j-1))
-!    case ('T')
-!       j=-nt
-!       dfm(:,j,2) = f(:,j+1) + pi
-!
-!       j=nt
-!       dfm(:,j,2) = pi - f(:,j-1)
-!    end select
-!CMRend
-
     ! Compute df/dr
     do i=2,nr-1   
        dfm(i,:,1)=0.5*(f(i+1,:)-f(i-1,:))
