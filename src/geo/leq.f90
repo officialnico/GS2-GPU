@@ -368,7 +368,7 @@ contains
     character(1), intent(in) :: char
     integer :: i, j
     
-    ! Use second-order uncentred finite-differences for extreme radial points.
+    ! Use second-order one-sided finite-differences for extreme radial points.
     i=1
     dfm(i,:,1) = -0.5*(3*f(i,:)-4*f(i+1,:)+f(i+2,:))         
     
