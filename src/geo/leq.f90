@@ -355,7 +355,7 @@ contains
     use constants, only: pi
     implicit none
     !> 2D array to be differentiated, indices radius, theta
-    !> @note Grid ends in theta assumed to be exactly \[\pm \pi\]
+    !> @note Theta grid end points assumed to be \[\pm \pi\]
     real, dimension(:,:), intent(in) :: f(:,-nt:)
     !> Derivatives of f:
     !>   dfm(nr,-nt:nt,1) = df/dr
