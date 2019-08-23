@@ -4763,15 +4763,15 @@ contains
     check = [ik_ord, ig_ord, isgn_ord, il_ord, ie_ord, is_ord]
     call check_unique_integers(check,'Input to set_dimension_order (xxf_lo) is not unique integers 1 to 6')
 
-    xxf_lo%ik_ord=ik_ord
-    xxf_lo%ig_ord=ig_ord
-    xxf_lo%isgn_ord=isgn_ord
-    xxf_lo%il_ord=il_ord
-    xxf_lo%ie_ord=ie_ord
-    xxf_lo%is_ord=is_ord
+    lo%ik_ord=ik_ord
+    lo%ig_ord=ig_ord
+    lo%isgn_ord=isgn_ord
+    lo%il_ord=il_ord
+    lo%ie_ord=ie_ord
+    lo%is_ord=is_ord
   end subroutine set_dimension_order_xxf
 
-  !> Sets the order of x th sgn l e s in xxf_lo
+  !> Sets the order of x th sgn l e s in yxf_lo
   !> Note: usually the order is x, theta, sign, then "les" in the order they appear in
   !> the g_lo layout
   subroutine set_dimension_order_yxf(lo,it_ord,ig_ord,isgn_ord,il_ord,ie_ord,is_ord)
@@ -4784,12 +4784,12 @@ contains
     check = [it_ord, ig_ord, isgn_ord, il_ord, ie_ord, is_ord]
     call check_unique_integers(check,'Input to set_dimension_order (yxf_lo) is not unique integers 1 to 6')
 
-    yxf_lo%it_ord=it_ord
-    yxf_lo%ig_ord=ig_ord
-    yxf_lo%isgn_ord=isgn_ord
-    yxf_lo%il_ord=il_ord
-    yxf_lo%ie_ord=ie_ord
-    yxf_lo%is_ord=is_ord
+    lo%it_ord=it_ord
+    lo%ig_ord=ig_ord
+    lo%isgn_ord=isgn_ord
+    lo%il_ord=il_ord
+    lo%ie_ord=ie_ord
+    lo%is_ord=is_ord
   end subroutine set_dimension_order_yxf
 
   !> Checks that the given array contains unique integers 1 to (array size) (in any order),
