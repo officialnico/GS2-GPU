@@ -999,7 +999,7 @@ namelist_doc:
 .PHONY: clean_namelist_doc
 clean_namelist_doc:
 	$(call messageRm,"Generated namelist documentation")
-	-$(QUIETSYM)rm -f docs/pages/namelist/auto_generated_* docs/pages/namelist/index.md
+	-$(QUIETSYM)rm -f docs/pages/namelists/auto_generated_* docs/pages/namelists/index.md
 
 docs/html:
 doc: docs/docs.config.md namelist_doc  check_ford_install
