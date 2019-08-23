@@ -287,9 +287,7 @@ contains
 
     call leq_privates%set_ntnr(ntheta, nradius)
 
-    ! NOTE: actual theta grid used in leq includes one extra point
-    ! outside [-pi, pi]!
-    array = reshape([([(real(j) * pi / real(ntheta - 1), &
+    array = reshape([([(real(j) * pi / real(ntheta), &
          i=1, nradius)], j=-ntheta, ntheta)], total_size)
 
     call eqitem(theta_zero, array, actual, 'A')
