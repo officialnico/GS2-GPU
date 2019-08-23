@@ -316,7 +316,7 @@ module dist_fn
      !> FIXME: Add documentation
      real :: g_exb_start_time = -1
      !> FIXME: Add documentation
-     real :: g_exb_start_timestep = -1
+     integer :: g_exb_start_timestep = -1
      !> FIXME: Add documentation
      real :: g_exbfac = 1.0
      !> FIXME: Add documentation
@@ -9990,10 +9990,11 @@ endif
     ! we shadow the module level variables here. This is intentional to provide
     ! isolation and ensure we can move this routine to another module easily.    
     character(len = 30) :: adiabatic_option
-    real :: afilter, apfac, btor_slab, densfac_lin, driftknob, g_exb, g_exb_error_limit, g_exb_start_time, g_exb_start_timestep, g_exbfac, gridfac, kfilter, mach, omprimfac, phifac_lin, poisfac, qparfac_lin, qprpfac_lin, tparfac_lin, tpdriftknob, tprpfac_lin, uparfac_lin, wfb
+    real :: afilter, apfac, btor_slab, densfac_lin, driftknob, g_exb, g_exb_error_limit, g_exb_start_time, g_exbfac, gridfac, kfilter, mach, omprimfac, phifac_lin, poisfac, qparfac_lin, qprpfac_lin, tparfac_lin, tpdriftknob, tprpfac_lin, uparfac_lin, wfb
     character(len = 20) :: boundary_option, wfbbc_option
     logical :: def_parity, esv, even, gf_lo_integrate, lf_decompose, lf_default, mult_imp, nonad_zero, opt_init_bc, opt_source, test, wfb_cmr, zero_forbid
-
+    integer :: g_exb_start_timestep
+    
     namelist /dist_fn_knobs/ adiabatic_option, afilter, apfac, boundary_option, btor_slab, def_parity, densfac_lin, driftknob, esv, even, g_exb, g_exb_error_limit, g_exb_start_time, g_exb_start_timestep, g_exbfac, gf_lo_integrate, gridfac, kfilter, lf_decompose, lf_default, mach, mult_imp, nonad_zero, omprimfac, opt_init_bc, opt_source, phifac_lin, poisfac, qparfac_lin, qprpfac_lin, test, tparfac_lin, tpdriftknob, tprpfac_lin, uparfac_lin, wfb, wfb_cmr, wfbbc_option, zero_forbid
 
     ! Only proc0 reads from file
