@@ -65,7 +65,10 @@ module nonlinear_terms
 
 ! CFL coefficients
   real :: cfl, cflx, cfly
-  real :: max_vel !< This currently has to be module level due to potential non-blocking reduction
+  !> Maximum velocity of the nonlinear term, the reciprocal of the maximum timestep that
+  !> satisfies the CFL condition. This currently has to be module level due to potential
+  !> non-blocking reduction.
+  real :: max_vel
   integer :: cfl_req_hand
 
 ! for gryfx
@@ -367,6 +370,17 @@ contains
 
     call debug_message(verb, 'nonlinear_terms::add_explicit copying old terms')
 
+    ! The following if statement ensures that the nonlinear term is calculated only once
+    ! per timestep. It guards against calculating the nonlinear term in two cases:
+    !   1. the second call to `timeadv` in a usual timestep
+    !   2. both calls to `timeadv` after the CFL condition check has triggered a reset
+    !      of this timestep (when `immediate_reset = .true.`). As the nonlinear term is
+    !      independent of `delt`, it does not need to be calculated again.
+    !
+    ! N.B. When `immediate_reset = .false.`, the timestep is completed even though the
+    ! CFL condition is broken. `delt` and the response matrix are changed at the end of
+    ! the timestep; the following timestep is "normal", and the nonlinear term is
+    ! calculated.
     if (istep /= istep_last) then
 
        istep_last = istep
@@ -502,7 +516,7 @@ contains
     end do
   end subroutine nl_center
 
-  !> FIXME : Add documentation  
+  !> Calculate the nonlinear term and corresponding CFL condition
   subroutine add_nl (g1, phi, apar, bpar)
     use mp, only: max_allreduce, nb_max_allreduce
     use theta_grid, only: ntgrid
