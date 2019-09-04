@@ -1958,49 +1958,42 @@ contains
   !> solution `g_h` if the timestep changes.
   subroutine init_homogenous_g(g_h)
     use theta_grid, only: ntgrid
-    use gs2_layouts, only: g_lo, it_idx, ik_idx, il_idx, ie_idx, is_idx
+    use gs2_layouts, only: g_lo, ik_idx, il_idx
     use kt_grids, only: aky
     use le_grids, only: nlambda, ng2, lmax, forbid
     implicit none
     complex, dimension(-ntgrid:, :, g_lo%llim_proc:), intent(in out) :: g_h
     complex, dimension(-ntgrid:ntgrid, 2) :: g2
-    integer :: ig, iglo, isgn
-    integer :: it, ik, il, ie, is
+    integer :: ig, iglo
+    integer :: ik, il
     integer :: ilmin
-    logical :: speriod_flag, use_pass_homog
+    logical :: use_pass_homog
 
     g_h = 0.
+
+    select case (boundary_option_switch)
+    case (boundary_option_self_periodic)
+       use_pass_homog = .true.
+    case (boundary_option_linked)
+       use_pass_homog = .true.
+    case default
+       use_pass_homog = .false.
+    end select
+
     do iglo = g_lo%llim_proc, g_lo%ulim_proc
-       it = it_idx(g_lo, iglo)
        ik = ik_idx(g_lo, iglo)
        il = il_idx(g_lo,iglo)
-       ie = ie_idx(g_lo,iglo)
-       is = is_idx(g_lo,iglo)
 
-       select case (boundary_option_switch)
-       case (boundary_option_self_periodic)
-          use_pass_homog = .true.
-       case (boundary_option_linked)
-          use_pass_homog = .true.
-          speriod_flag = aky(ik) == 0.0
-       case default
-          use_pass_homog = .false.
-       end select
-
-       use_pass_homog = use_pass_homog .or. aky(ik) == 0.0
-
-       if (use_pass_homog) then
+       if (use_pass_homog .or. aky(ik) == 0.0) then
           ilmin = 1
-       else
-          ilmin = ng2 + 1
-       end if
 
-       ! ng2+1 is WFB
-       if (use_pass_homog) then
+          ! ng2+1 is WFB
           if (il < ng2+1) then
              g_h(-ntgrid, 1, iglo) = 1.0
              g_h( ntgrid, 2, iglo) = 1.0
           end if
+       else
+          ilmin = ng2 + 1
        end if
 
        if (il == ng2+1 .and. (.not. trapped_wfb) .and. (.not. passing_wfb) ) then
@@ -2041,7 +2034,7 @@ contains
        ! time advance vpar < 0 homogeneous part: g1
        !CMR, 17/4/2012: computes homogeneous solutions for il >= ilmin
        !                il >= ilmin includes trapped particles, wfb
-       !                AND passing particles IF use_pass_homog = T
+       !                AND passing particles IF (use_pass_homog .or.aky(ik)==0) = T
 
        if (il >= ilmin) then
           do ig = ntgrid-1, -ntgrid, -1
@@ -4742,8 +4735,6 @@ contains
     integer :: ntgl, ntgr
     integer :: nstep_available
 
-!    call prof_entering ("invert_rhs_1", "dist_fn")
-
     ik = ik_idx(g_lo,iglo)
     it = it_idx(g_lo,iglo)
 
@@ -4981,7 +4972,6 @@ contains
           gnew(:,2,iglo) = 0.0
        end where
     endif
-!    call prof_leaving ("invert_rhs_1", "dist_fn")
 
   contains
     !> FIXME : Add documentation
