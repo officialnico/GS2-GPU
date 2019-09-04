@@ -4734,6 +4734,7 @@ contains
     integer, intent (in) :: iglo
     complex, intent (in) :: sourcefac
 
+    complex, dimension (-ntgrid:ntgrid-1,2) :: source
     integer :: ig, ik, it, il, ie, isgn, is
     complex :: beta1
     complex :: adjleft, adjright
