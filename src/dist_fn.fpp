@@ -4841,16 +4841,21 @@ contains
 ! time advance vpar < 0  !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!
 
-! inhomogeneous part: gnew
-! r=ainv=0 if forbid(ig,il) or forbid(ig+1,il), so gnew=0 in forbidden
-! region and at upper bounce point
+    ! inhomogeneous part: gnew
+    ! r=ainv=0 if forbid(ig,il) or forbid(ig+1,il), so gnew=0 in forbidden
+    ! region and at upper bounce point
     do ig = ntgrid-1, -ntgrid, -1
        gnew(ig,2,iglo) = -gnew(ig+1,2,iglo)*r(ig,2,iglo) + ainv(ig,2,iglo)*source(ig,2)
     end do
 
+    ! For the ttp we are almost done, perhaps we should just finish off the ttp here
+    ! and then cycle in that case. This would help avoid the `il <= lmax` that appears
+    ! several times below
+
 !!!!!!!!!!!!!!!!!!!!!!!!!!!
 ! time advance vpar > 0   !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!
+
     ! First set BCs for trapped particles at lower bounce point
     ! Note that il <= lmax excludes the ttp.
     if (nlambda > ng2  .and. il <= lmax) then
@@ -4887,6 +4892,7 @@ contains
 
     ! BD: Are there ever totally trapped particles at ig = ntgrid?
     ! balancing totally trapped particles
+    ! This is the remaining work that we might need to do for the ttp
     do ig = -ntgrid, ntgrid
        if (il >= ittp(ig)) then
           if (forbid(ig,il)) then
