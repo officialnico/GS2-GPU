@@ -1947,16 +1947,16 @@ contains
        end do
     end do
 
-    call init_homogenous_g(g_h)
+    call init_homogeneous_g(g_h)
   end subroutine init_invert_rhs
 
-  !> Calculates the homogenous solution `g_h` used as a part of the
+  !> Calculates the homogeneous solution `g_h` used as a part of the
   !> trapped particle and linked boundary condition solve in
   !> [[invert_rhs]]. This solution only depends on `r` so can be
   !> calculated during initialisation. Note that `r` depends on
   !> physics terms that contain `dt` so we must recalculate the
   !> solution `g_h` if the timestep changes.
-  subroutine init_homogenous_g(g_h)
+  subroutine init_homogeneous_g(g_h)
     use theta_grid, only: ntgrid
     use gs2_layouts, only: g_lo, ik_idx, il_idx
     use kt_grids, only: aky
@@ -2072,7 +2072,7 @@ contains
 
     end do
 
-  end subroutine init_homogenous_g
+  end subroutine init_homogeneous_g
 
   !> FIXME : Add documentation  
   subroutine init_bc
@@ -3305,9 +3305,9 @@ contains
   end subroutine allocate_arrays
 
   !> This function calculates the distribution function at the next timestep. 
-  !! It calculates both the inhomogenous part, gnew, due to the sources
+  !! It calculates both the inhomogeneous part, gnew, due to the sources
   !! (principly the drive terms and the nonlinear term)
-  !! and the homogenous part, g1. The actual evolution of the dist func
+  !! and the homogeneous part, g1. The actual evolution of the dist func
   !! is done in the subroutine invert_rhs. 
   !!
   !! After solving for the new dist funcs, this routine calls hyper_diff, which
@@ -4776,7 +4776,7 @@ contains
 !     OR          boundary_option_linked
 !     OR          aky=0
 !  if use_pass_homog = T, compute homogeneous solution (g1) for passing.
-!        otherwise ONLY compute inhomogenous solution for passing particles.
+!        otherwise ONLY compute inhomogeneous solution for passing particles.
 !
 !  speriod_flag = T  iff boundary_option_linked AND aky=0
 !  if speriod_flag = T, apply self-periodic bcs for passing and wfb.
