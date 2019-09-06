@@ -48,13 +48,9 @@ program test_job_manage
      function get_exit_code()
        implicit none
        integer get_exit_code
-       character(len=100) :: string
 
        open (unit=15, file="test_job_manage.exit_reason")
-       !read (15, '(A12, I2.1, A)') string, get_exit_code
-       read (15, '(A)') string
-       write(*,*) string
-       get_exit_code = 0
+       read (15, '(I3.1)') get_exit_code
 
      end function get_exit_code
 
