@@ -4891,10 +4891,18 @@ contains
     end if
 
     ! BD: Are there ever totally trapped particles at ig = ntgrid?
+    ! In answer to the above, no. At the ends of the grid ittp is exactly
+    ! nlambda + 1 always
     ! balancing totally trapped particles
-    ! This is the remaining work that we might need to do for the ttp
+    ! This is the remaining work that we might need to do for the ttp, of which
+    ! there may be more than one.
     do ig = -ntgrid, ntgrid
+       ! The below is checking if this pitch angle is totally trapped
+       ! at this theta _or_ if it is entirely forbidden.
        if (il >= ittp(ig)) then
+          ! For the forbidden pitch angles ensure the solution
+          ! is zero here. Otherwise (i.e. if totally trapped)
+          ! ensure that gnew is independent of sigma.
           if (forbid(ig,il)) then
              gnew(ig,1,iglo) = 0.0
           else
@@ -4950,10 +4958,20 @@ contains
     !Revert to looping from il>= ng2+2, i.e. exclude wfb as:
     !          (1) wfb bc is already handled above
     !          (2) forbid never true for wfb, so including ng2+1 in loop is pointless.
+    ! This is very similar to the work that's done in [[self_periodic]]
     if (il > ng2+1 .and. il <= lmax) then
        beta1 = 0.0
+       ! Whilst we sweep from right to left here we may instead be
+       ! able to go from left to right. This might give better
+       ! memory accesses, but this is likely a small effect.
        do ig = ntgr-1, ntgl, -1
           if (ittp(ig) <= il) cycle
+          ! Note we're sweeping from right to left. When in the forbidden region we
+          ! force beta to 0 and skip any further work. When we reach the upper bounce
+          ! point we then calculate beta and use this to adjust `gnew` using the `g_h`
+          ! homogeneous solution. This continues (with exactly the same beta) until we
+          ! enter the next forbidden region at which point we reset beta to 0 and start
+          ! skipping work again.
           if (forbid(ig,il)) then
              beta1 = 0.0
              cycle !CMR: to avoid pointless arithmetic later in loop
