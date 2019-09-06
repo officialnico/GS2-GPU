@@ -51,7 +51,7 @@ program test_job_manage
        character(len=12) :: string
 
        open (unit=15, file="test_job_manage.exit_reason")
-       read (15, '(A12, I2.1, A)') string, get_exit_code
+       read (15, '(A, I2.1, A)') string, get_exit_code
 
      end function get_exit_code
 
