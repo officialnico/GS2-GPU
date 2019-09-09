@@ -8,9 +8,8 @@ program test_job_manage
    use unit_tests
    use mp, only: init_mp, mp_comm, proc0, finish_mp
    use job_manage, only: timer_local
+   use exit_codes, only: EXIT_STOP_FILE
    implicit none
-   real :: start_time
-   real :: avail_time = 2.0
 
    ! Initialize
    call init_mp
@@ -23,15 +22,13 @@ program test_job_manage
    ! Run test:
    ! 1. Create stop file
    ! 2. Run gs2
-   ! 3. Check gs2 exits before the available cpu time expires
+   ! 3. Read gs2's exit_reason log to check that a stop file was detected
    if (proc0) call system("touch test_job_manage.stop")
    call announce_test("that gs2 doesn't run without limit when run_name.stop is present")
-   start_time = timer_local()
    call run_gs2(mp_comm)
 
-   ! If gs2 was aborted by the stop file, the elapsed time (timer_local - start_time)
-   ! will be less than avail_time.
-   call process_test((timer_local() - start_time < avail_time), &
+   ! The reason for stopping should be given in "test_job_manage.exit_reason".
+   call process_test((get_exit_code() == EXIT_STOP_FILE%code), &
      "gs2 doesn't run without limit when run_name.stop is present")
 
    ! Finalize gs2
@@ -45,5 +42,21 @@ program test_job_manage
    ! Delete stop file
    if (proc0) call system("rm test_job_manage.stop")
 
+   contains
+
+     ! Read error code from the file "run_name.exit_reason"
+     function get_exit_code()
+       use file_utils, only: get_unused_unit
+       implicit none
+       integer get_exit_code
+       integer unit
+
+       call get_unused_unit(unit)
+
+       open (unit=unit, file="test_job_manage.exit_reason")
+       read (unit, '(I3.1)') get_exit_code
+       close (unit)
+
+     end function get_exit_code
 
 end program test_job_manage
