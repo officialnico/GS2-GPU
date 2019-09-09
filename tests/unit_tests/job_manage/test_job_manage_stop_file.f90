@@ -46,11 +46,16 @@ program test_job_manage
 
      ! Read error code from the file "run_name.exit_reason"
      function get_exit_code()
+       use file_utils, only: get_unused_unit
        implicit none
        integer get_exit_code
+       integer unit
 
-       open (unit=15, file="test_job_manage.exit_reason")
-       read (15, '(I3.1)') get_exit_code
+       call get_unused_unit(unit)
+
+       open (unit=unit, file="test_job_manage.exit_reason")
+       read (unit, '(I3.1)') get_exit_code
+       close (unit)
 
      end function get_exit_code
 
