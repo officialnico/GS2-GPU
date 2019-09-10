@@ -300,10 +300,10 @@ include Makefile.utils
 GIT_HASH=$(shell git rev-parse HEAD)
 MACRO_DEFS+=-DGIT_HASH='"$(GIT_HASH)"'
 
-GIT_HASH_MAKEFILES=$(shell git submodule status Makefiles | cut -d ' ' -f2)
+GIT_HASH_MAKEFILES:=$(shell git submodule status Makefiles | cut -d ' ' -f2)
 MACRO_DEFS+=-DGIT_HASH_MAKEFILES='"$(GIT_HASH_MAKEFILES)"'
 
-GIT_HASH_UTILS=$(shell git submodule status $(UTILS) | cut -d ' ' -f2)
+GIT_HASH_UTILS:=$(shell git submodule status $(UTILS) | cut -d ' ' -f2)
 MACRO_DEFS+=-DGIT_HASH_UTILS='"$(GIT_HASH_UTILS)"'
 
 #The magic sed esacpes either ( or ) by replacing with \( or \)
