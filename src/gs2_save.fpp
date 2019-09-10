@@ -35,7 +35,7 @@ module gs2_save
   public :: read_many, save_many, gs2_save_response, gs2_restore_response
   public :: restore_current_scan_parameter_value
   public :: init_gs2_save, init_dt, init_tstart, init_ant_amp
-  public :: set_restart_file
+  public :: set_restart_file, include_explicit_source_in_restart
   public :: init_vnm, restart_writable, EigNetcdfID
   public :: init_eigenfunc_file, finish_eigenfunc_file, add_eigenpair_to_file
 
@@ -52,6 +52,10 @@ module gs2_save
   end type EigNetcdfID
 
   logical :: read_many, save_many ! Read and write single or multiple restart files
+
+  !> Do we want to include the explicit source terms and
+  !> related timesteps when saving/restoring from the restart file.
+  logical :: include_explicit_source_in_restart = .true.
   
   character (run_name_size) :: restart_file
 
@@ -94,6 +98,7 @@ module gs2_save
   logical, parameter :: abort_on_restart_fail = .true.
   
 # endif
+
 
 contains
 
@@ -503,59 +508,61 @@ contains
              goto 1
           end if
 
-          if(allocated(gexp_1)) then
-             istatus = nf90_def_var (ncid, "gexp_1_r", netcdf_real, &
-                  (/ thetaid, signid, gloid /), gexp_1_r_id)
-             if (istatus /= NF90_NOERR) then
-                ierr = error_unit()
-                write(ierr,*) "nf90_def_var gexp_1_r error: ", nf90_strerror(istatus)
-                goto 1
-             end if
+          if(include_explicit_source_in_restart) then
+             if(allocated(gexp_1)) then
+                istatus = nf90_def_var (ncid, "gexp_1_r", netcdf_real, &
+                     (/ thetaid, signid, gloid /), gexp_1_r_id)
+                if (istatus /= NF90_NOERR) then
+                   ierr = error_unit()
+                   write(ierr,*) "nf90_def_var gexp_1_r error: ", nf90_strerror(istatus)
+                   goto 1
+                end if
 
-             istatus = nf90_def_var (ncid, "gexp_1_i", netcdf_real, &
-                  (/ thetaid, signid, gloid /), gexp_1_i_id)
-             if (istatus /= NF90_NOERR) then
-                ierr = error_unit()
-                write(ierr,*) "nf90_def_var gexp_1_i error: ", nf90_strerror(istatus)
-                goto 1
-             end if
-          endif
-          
-          if(allocated(gexp_2)) then
-             istatus = nf90_def_var (ncid, "gexp_2_r", netcdf_real, &
-                  (/ thetaid, signid, gloid /), gexp_2_r_id)
-             if (istatus /= NF90_NOERR) then
-                ierr = error_unit()
-                write(ierr,*) "nf90_def_var gexp_2_r error: ", nf90_strerror(istatus)
-                goto 1
-             end if
+                istatus = nf90_def_var (ncid, "gexp_1_i", netcdf_real, &
+                     (/ thetaid, signid, gloid /), gexp_1_i_id)
+                if (istatus /= NF90_NOERR) then
+                   ierr = error_unit()
+                   write(ierr,*) "nf90_def_var gexp_1_i error: ", nf90_strerror(istatus)
+                   goto 1
+                end if
+             endif
 
-             istatus = nf90_def_var (ncid, "gexp_2_i", netcdf_real, &
-                  (/ thetaid, signid, gloid /), gexp_2_i_id)
-             if (istatus /= NF90_NOERR) then
-                ierr = error_unit()
-                write(ierr,*) "nf90_def_var gexp_2_i error: ", nf90_strerror(istatus)
-                goto 1
-             end if
-          endif
+             if(allocated(gexp_2)) then
+                istatus = nf90_def_var (ncid, "gexp_2_r", netcdf_real, &
+                     (/ thetaid, signid, gloid /), gexp_2_r_id)
+                if (istatus /= NF90_NOERR) then
+                   ierr = error_unit()
+                   write(ierr,*) "nf90_def_var gexp_2_r error: ", nf90_strerror(istatus)
+                   goto 1
+                end if
 
-          if(allocated(gexp_3)) then
-             istatus = nf90_def_var (ncid, "gexp_3_r", netcdf_real, &
-                  (/ thetaid, signid, gloid /), gexp_3_r_id)
-             if (istatus /= NF90_NOERR) then
-                ierr = error_unit()
-                write(ierr,*) "nf90_def_var gexp_3_r error: ", nf90_strerror(istatus)
-                goto 1
-             end if
+                istatus = nf90_def_var (ncid, "gexp_2_i", netcdf_real, &
+                     (/ thetaid, signid, gloid /), gexp_2_i_id)
+                if (istatus /= NF90_NOERR) then
+                   ierr = error_unit()
+                   write(ierr,*) "nf90_def_var gexp_2_i error: ", nf90_strerror(istatus)
+                   goto 1
+                end if
+             endif
 
-             istatus = nf90_def_var (ncid, "gexp_3_i", netcdf_real, &
-                  (/ thetaid, signid, gloid /), gexp_3_i_id)
-             if (istatus /= NF90_NOERR) then
-                ierr = error_unit()
-                write(ierr,*) "nf90_def_var gexp_3_i error: ", nf90_strerror(istatus)
-                goto 1
-             end if
-          endif
+             if(allocated(gexp_3)) then
+                istatus = nf90_def_var (ncid, "gexp_3_r", netcdf_real, &
+                     (/ thetaid, signid, gloid /), gexp_3_r_id)
+                if (istatus /= NF90_NOERR) then
+                   ierr = error_unit()
+                   write(ierr,*) "nf90_def_var gexp_3_r error: ", nf90_strerror(istatus)
+                   goto 1
+                end if
+
+                istatus = nf90_def_var (ncid, "gexp_3_i", netcdf_real, &
+                     (/ thetaid, signid, gloid /), gexp_3_i_id)
+                if (istatus /= NF90_NOERR) then
+                   ierr = error_unit()
+                   write(ierr,*) "nf90_def_var gexp_3_i error: ", nf90_strerror(istatus)
+                   goto 1
+                end if
+             endif
+          end if
           
           if (fphi > epsilon(0.)) then
              istatus = nf90_def_var (ncid, "phi_r", netcdf_real, &
@@ -941,118 +948,119 @@ contains
        if (istatus /= NF90_NOERR) call netcdf_error (istatus, ncid, gi_id, &
          var = 'gi put')
 
-
-
-       !Explicit source term gexp_1
-       if(allocated(gexp_1)) then
-          tmpr = real(gexp_1)       
-# ifdef NETCDF_PARALLEL
-          if(save_many) then
-# endif
-             istatus = nf90_put_var (ncid, gexp_1_r_id, tmpr)
-#ifdef NETCDF_PARALLEL
-          else
-             istatus = nf90_var_par_access(ncid, gexp_1_r_id, NF90_COLLECTIVE)
-             istatus = nf90_var_par_access(ncid, gexp_1_i_id, NF90_COLLECTIVE)
-
-             start_pos = (/1,1,g_lo%llim_proc+1/)
-             counts = (/2*ntgrid+1, 2, n_elements/)
-
-             istatus = nf90_put_var (ncid, gexp_1_r_id, tmpr, start=start_pos, count=counts)
-          endif
-# endif     
        
-          if (istatus /= NF90_NOERR) call netcdf_error (istatus, ncid, gexp_1_r_id, &
-               var='gexp_1_r put')
-       
-          tmpr = aimag(gexp_1)
+       if (include_explicit_source_in_restart) then
+          !Explicit source term gexp_1
+          if(allocated(gexp_1)) then
+             tmpr = real(gexp_1)
 # ifdef NETCDF_PARALLEL
-          if(save_many) then
+             if(save_many) then
 # endif
-             istatus = nf90_put_var (ncid, gexp_1_i_id, tmpr)
+                istatus = nf90_put_var (ncid, gexp_1_r_id, tmpr)
 #ifdef NETCDF_PARALLEL
-          else
-             istatus = nf90_put_var (ncid, gexp_1_i_id, tmpr, start=start_pos, count=counts)
-          endif
-# endif     
+             else
+                istatus = nf90_var_par_access(ncid, gexp_1_r_id, NF90_COLLECTIVE)
+                istatus = nf90_var_par_access(ncid, gexp_1_i_id, NF90_COLLECTIVE)
 
-          if (istatus /= NF90_NOERR) call netcdf_error (istatus, ncid, gexp_1_i_id, &
-               var = 'gexp_1_i put')
-       endif
+                start_pos = (/1,1,g_lo%llim_proc+1/)
+                counts = (/2*ntgrid+1, 2, n_elements/)
 
-       !Explicit source term gexp_2
-       if(allocated(gexp_2)) then
-          tmpr = real(gexp_2)       
+                istatus = nf90_put_var (ncid, gexp_1_r_id, tmpr, start=start_pos, count=counts)
+             endif
+# endif
+
+             if (istatus /= NF90_NOERR) call netcdf_error (istatus, ncid, gexp_1_r_id, &
+                  var='gexp_1_r put')
+
+             tmpr = aimag(gexp_1)
 # ifdef NETCDF_PARALLEL
-          if(save_many) then
+             if(save_many) then
 # endif
-             istatus = nf90_put_var (ncid, gexp_2_r_id, tmpr)
+                istatus = nf90_put_var (ncid, gexp_1_i_id, tmpr)
 #ifdef NETCDF_PARALLEL
-          else
-             istatus = nf90_var_par_access(ncid, gexp_2_r_id, NF90_COLLECTIVE)
-             istatus = nf90_var_par_access(ncid, gexp_2_i_id, NF90_COLLECTIVE)
+             else
+                istatus = nf90_put_var (ncid, gexp_1_i_id, tmpr, start=start_pos, count=counts)
+             endif
+# endif
 
-             start_pos = (/1,1,g_lo%llim_proc+1/)
-             counts = (/2*ntgrid+1, 2, n_elements/)
-
-             istatus = nf90_put_var (ncid, gexp_2_r_id, tmpr, start=start_pos, count=counts)
+             if (istatus /= NF90_NOERR) call netcdf_error (istatus, ncid, gexp_1_i_id, &
+                  var = 'gexp_1_i put')
           endif
-# endif     
-       
-          if (istatus /= NF90_NOERR) call netcdf_error (istatus, ncid, gexp_2_r_id, &
-               var='gexp_2_r put')
-       
-          tmpr = aimag(gexp_2)
+
+          !Explicit source term gexp_2
+          if(allocated(gexp_2)) then
+             tmpr = real(gexp_2)
 # ifdef NETCDF_PARALLEL
-          if(save_many) then
+             if(save_many) then
 # endif
-             istatus = nf90_put_var (ncid, gexp_2_i_id, tmpr)
+                istatus = nf90_put_var (ncid, gexp_2_r_id, tmpr)
 #ifdef NETCDF_PARALLEL
-          else
-             istatus = nf90_put_var (ncid, gexp_2_i_id, tmpr, start=start_pos, count=counts)
-          endif
-# endif     
+             else
+                istatus = nf90_var_par_access(ncid, gexp_2_r_id, NF90_COLLECTIVE)
+                istatus = nf90_var_par_access(ncid, gexp_2_i_id, NF90_COLLECTIVE)
 
-          if (istatus /= NF90_NOERR) call netcdf_error (istatus, ncid, gexp_2_i_id, &
-               var = 'gexp_2_i put')
-       endif
+                start_pos = (/1,1,g_lo%llim_proc+1/)
+                counts = (/2*ntgrid+1, 2, n_elements/)
 
-       !Explicit source term gexp_3
-       if(allocated(gexp_3)) then
-          tmpr = real(gexp_3)       
+                istatus = nf90_put_var (ncid, gexp_2_r_id, tmpr, start=start_pos, count=counts)
+             endif
+# endif
+
+             if (istatus /= NF90_NOERR) call netcdf_error (istatus, ncid, gexp_2_r_id, &
+                  var='gexp_2_r put')
+
+             tmpr = aimag(gexp_2)
 # ifdef NETCDF_PARALLEL
-          if(save_many) then
+             if(save_many) then
 # endif
-             istatus = nf90_put_var (ncid, gexp_3_r_id, tmpr)
+                istatus = nf90_put_var (ncid, gexp_2_i_id, tmpr)
 #ifdef NETCDF_PARALLEL
-          else
-             istatus = nf90_var_par_access(ncid, gexp_3_r_id, NF90_COLLECTIVE)
-             istatus = nf90_var_par_access(ncid, gexp_3_i_id, NF90_COLLECTIVE)
+             else
+                istatus = nf90_put_var (ncid, gexp_2_i_id, tmpr, start=start_pos, count=counts)
+             endif
+# endif
 
-             start_pos = (/1,1,g_lo%llim_proc+1/)
-             counts = (/2*ntgrid+1, 2, n_elements/)
-
-             istatus = nf90_put_var (ncid, gexp_3_r_id, tmpr, start=start_pos, count=counts)
+             if (istatus /= NF90_NOERR) call netcdf_error (istatus, ncid, gexp_2_i_id, &
+                  var = 'gexp_2_i put')
           endif
-# endif     
-       
-          if (istatus /= NF90_NOERR) call netcdf_error (istatus, ncid, gexp_3_r_id, &
-               var='gexp_3_r put')
-       
-          tmpr = aimag(gexp_3)
+
+          !Explicit source term gexp_3
+          if(allocated(gexp_3)) then
+             tmpr = real(gexp_3)
 # ifdef NETCDF_PARALLEL
-          if(save_many) then
+             if(save_many) then
 # endif
-             istatus = nf90_put_var (ncid, gexp_3_i_id, tmpr)
+                istatus = nf90_put_var (ncid, gexp_3_r_id, tmpr)
 #ifdef NETCDF_PARALLEL
-          else
-             istatus = nf90_put_var (ncid, gexp_3_i_id, tmpr, start=start_pos, count=counts)
-          endif
-# endif     
+             else
+                istatus = nf90_var_par_access(ncid, gexp_3_r_id, NF90_COLLECTIVE)
+                istatus = nf90_var_par_access(ncid, gexp_3_i_id, NF90_COLLECTIVE)
 
-          if (istatus /= NF90_NOERR) call netcdf_error (istatus, ncid, gexp_3_i_id, &
-               var = 'gexp_3_i put')
-       endif
+                start_pos = (/1,1,g_lo%llim_proc+1/)
+                counts = (/2*ntgrid+1, 2, n_elements/)
+
+                istatus = nf90_put_var (ncid, gexp_3_r_id, tmpr, start=start_pos, count=counts)
+             endif
+# endif
+
+             if (istatus /= NF90_NOERR) call netcdf_error (istatus, ncid, gexp_3_r_id, &
+                  var='gexp_3_r put')
+
+             tmpr = aimag(gexp_3)
+# ifdef NETCDF_PARALLEL
+             if(save_many) then
+# endif
+                istatus = nf90_put_var (ncid, gexp_3_i_id, tmpr)
+#ifdef NETCDF_PARALLEL
+             else
+                istatus = nf90_put_var (ncid, gexp_3_i_id, tmpr, start=start_pos, count=counts)
+             endif
+# endif
+
+             if (istatus /= NF90_NOERR) call netcdf_error (istatus, ncid, gexp_3_i_id, &
+                  var = 'gexp_3_i put')
+          endif
+       end if
        
        ! For saving distribution function
        IF (save_glo_info_and_grids_local) THEN
@@ -1360,30 +1368,32 @@ contains
           if (istatus /= NF90_NOERR) call netcdf_error (istatus, var='kx_shift')
        endif   ! MR end
 
-       if (allocated(gexp_1)) then
-          istatus = nf90_inq_varid (ncid, "gexp_1_r", gexp_1_r_id)
-          if (istatus /= NF90_NOERR) call netcdf_error (istatus, var='gexp_1_r')
+       if (include_explicit_source_in_restart) then
+          if (allocated(gexp_1)) then
+             istatus = nf90_inq_varid (ncid, "gexp_1_r", gexp_1_r_id)
+             if (istatus /= NF90_NOERR) call netcdf_error (istatus, var='gexp_1_r')
 
-          istatus = nf90_inq_varid (ncid, "gexp_1_i", gexp_1_i_id)
-          if (istatus /= NF90_NOERR) call netcdf_error (istatus, var='gexp_1_i')
-       endif
+             istatus = nf90_inq_varid (ncid, "gexp_1_i", gexp_1_i_id)
+             if (istatus /= NF90_NOERR) call netcdf_error (istatus, var='gexp_1_i')
+          endif
 
-       if (allocated(gexp_2)) then
-          istatus = nf90_inq_varid (ncid, "gexp_2_r", gexp_2_r_id)
-          if (istatus /= NF90_NOERR) call netcdf_error (istatus, var='gexp_2_r')
+          if (allocated(gexp_2)) then
+             istatus = nf90_inq_varid (ncid, "gexp_2_r", gexp_2_r_id)
+             if (istatus /= NF90_NOERR) call netcdf_error (istatus, var='gexp_2_r')
 
-          istatus = nf90_inq_varid (ncid, "gexp_2_i", gexp_2_i_id)
-          if (istatus /= NF90_NOERR) call netcdf_error (istatus, var='gexp_2_i')
-       endif
+             istatus = nf90_inq_varid (ncid, "gexp_2_i", gexp_2_i_id)
+             if (istatus /= NF90_NOERR) call netcdf_error (istatus, var='gexp_2_i')
+          endif
 
-       if (allocated(gexp_3)) then
-          istatus = nf90_inq_varid (ncid, "gexp_3_r", gexp_3_r_id)
-          if (istatus /= NF90_NOERR) call netcdf_error (istatus, var='gexp_3_r')
+          if (allocated(gexp_3)) then
+             istatus = nf90_inq_varid (ncid, "gexp_3_r", gexp_3_r_id)
+             if (istatus /= NF90_NOERR) call netcdf_error (istatus, var='gexp_3_r')
 
-          istatus = nf90_inq_varid (ncid, "gexp_3_i", gexp_3_i_id)
-          if (istatus /= NF90_NOERR) call netcdf_error (istatus, var='gexp_3_i')
-       endif
-       
+             istatus = nf90_inq_varid (ncid, "gexp_3_i", gexp_3_i_id)
+             if (istatus /= NF90_NOERR) call netcdf_error (istatus, var='gexp_3_i')
+          endif
+       end if
+
        istatus = nf90_inq_varid (ncid, "gr", gr_id)
        if (istatus /= NF90_NOERR) call netcdf_error (istatus, var='gr',&
          abort=abort_on_restart_fail)
@@ -1432,109 +1442,110 @@ contains
     g = cmplx(tmpr, tmpi)
 
 
-    ! Explicit source term
-    if(allocated(gexp_1)) then
+    if (include_explicit_source_in_restart) then
+       ! Explicit source term
+       if(allocated(gexp_1)) then
 # ifdef NETCDF_PARALLEL
-       if(read_many) then
+          if(read_many) then
 # endif
-          istatus = nf90_get_var (ncid, gexp_1_r_id, tmpr)
+             istatus = nf90_get_var (ncid, gexp_1_r_id, tmpr)
 #ifdef NETCDF_PARALLEL
-       else
-          start_pos = (/1,1,g_lo%llim_proc+1/)
-          counts = (/2*ntgrid+1, 2, n_elements/)         
-          istatus = nf90_get_var (ncid, gexp_1_r_id, tmpr, start=start_pos, count=counts)
-       end if
+          else
+             start_pos = (/1,1,g_lo%llim_proc+1/)
+             counts = (/2*ntgrid+1, 2, n_elements/)
+             istatus = nf90_get_var (ncid, gexp_1_r_id, tmpr, start=start_pos, count=counts)
+          end if
 # endif
 
-       if (istatus /= NF90_NOERR) call netcdf_error (istatus, ncid, gexp_1_r_id,&
-            var='gexp_1_r')
-
-# ifdef NETCDF_PARALLEL
-       if(read_many) then
-# endif
-          istatus = nf90_get_var (ncid, gexp_1_i_id, tmpi)
-#ifdef NETCDF_PARALLEL
-       else
-          istatus = nf90_get_var (ncid, gexp_1_i_id, tmpi, start=start_pos, count=counts)
-       end if
-# endif
-
-       if (istatus /= NF90_NOERR) call netcdf_error (istatus, ncid, gexp_1_i_id,&
-            var='gexp_1_i')
-
-       gexp_1 = cmplx(tmpr, tmpi)
-
-    endif
-
-    ! Explicit source term
-    if(allocated(gexp_2)) then
-# ifdef NETCDF_PARALLEL
-       if(read_many) then
-# endif
-          istatus = nf90_get_var (ncid, gexp_2_r_id, tmpr)
-#ifdef NETCDF_PARALLEL
-       else
-          start_pos = (/1,1,g_lo%llim_proc+1/)
-          counts = (/2*ntgrid+1, 2, n_elements/)          
-          istatus = nf90_get_var (ncid, gexp_2_r_id, tmpr, start=start_pos, count=counts)
-       end if
-# endif
-
-       if (istatus /= NF90_NOERR) call netcdf_error (istatus, ncid, gexp_2_r_id,&
-            var='gexp_2_r')
+          if (istatus /= NF90_NOERR) call netcdf_error (istatus, ncid, gexp_1_r_id,&
+               var='gexp_1_r')
 
 # ifdef NETCDF_PARALLEL
-       if(read_many) then
+          if(read_many) then
 # endif
-          istatus = nf90_get_var (ncid, gexp_2_i_id, tmpi)
+             istatus = nf90_get_var (ncid, gexp_1_i_id, tmpi)
 #ifdef NETCDF_PARALLEL
-       else
-          istatus = nf90_get_var (ncid, gexp_2_i_id, tmpi, start=start_pos, count=counts)
-       end if
+          else
+             istatus = nf90_get_var (ncid, gexp_1_i_id, tmpi, start=start_pos, count=counts)
+          end if
 # endif
 
-       if (istatus /= NF90_NOERR) call netcdf_error (istatus, ncid, gexp_2_i_id,&
-            var='gexp_2_i')
+          if (istatus /= NF90_NOERR) call netcdf_error (istatus, ncid, gexp_1_i_id,&
+               var='gexp_1_i')
 
-       gexp_2 = cmplx(tmpr, tmpi)
+          gexp_1 = cmplx(tmpr, tmpi)
 
-    endif
+       endif
 
-    ! Explicit source term
-    if(allocated(gexp_3)) then
+       ! Explicit source term
+       if(allocated(gexp_2)) then
 # ifdef NETCDF_PARALLEL
-       if(read_many) then
+          if(read_many) then
 # endif
-          istatus = nf90_get_var (ncid, gexp_3_r_id, tmpr)
+             istatus = nf90_get_var (ncid, gexp_2_r_id, tmpr)
 #ifdef NETCDF_PARALLEL
-       else
-          start_pos = (/1,1,g_lo%llim_proc+1/)
-          counts = (/2*ntgrid+1, 2, n_elements/)
-          istatus = nf90_get_var (ncid, gexp_3_r_id, tmpr, start=start_pos, count=counts)
-       end if
+          else
+             start_pos = (/1,1,g_lo%llim_proc+1/)
+             counts = (/2*ntgrid+1, 2, n_elements/)
+             istatus = nf90_get_var (ncid, gexp_2_r_id, tmpr, start=start_pos, count=counts)
+          end if
 # endif
 
-       if (istatus /= NF90_NOERR) call netcdf_error (istatus, ncid, gexp_3_r_id,&
-            var='gexp_3_r')
+          if (istatus /= NF90_NOERR) call netcdf_error (istatus, ncid, gexp_2_r_id,&
+               var='gexp_2_r')
 
 # ifdef NETCDF_PARALLEL
-       if(read_many) then
+          if(read_many) then
 # endif
-          istatus = nf90_get_var (ncid, gexp_3_i_id, tmpi)
+             istatus = nf90_get_var (ncid, gexp_2_i_id, tmpi)
 #ifdef NETCDF_PARALLEL
-       else
-          istatus = nf90_get_var (ncid, gexp_3_i_id, tmpi, start=start_pos, count=counts)
-       end if
+          else
+             istatus = nf90_get_var (ncid, gexp_2_i_id, tmpi, start=start_pos, count=counts)
+          end if
 # endif
 
-       if (istatus /= NF90_NOERR) call netcdf_error (istatus, ncid, gexp_3_i_id,&
-            var='gexp_3_i')
+          if (istatus /= NF90_NOERR) call netcdf_error (istatus, ncid, gexp_2_i_id,&
+               var='gexp_2_i')
 
-       gexp_3 = cmplx(tmpr, tmpi)
+          gexp_2 = cmplx(tmpr, tmpi)
 
-    endif
-    
-    
+       endif
+
+       ! Explicit source term
+       if(allocated(gexp_3)) then
+# ifdef NETCDF_PARALLEL
+          if(read_many) then
+# endif
+             istatus = nf90_get_var (ncid, gexp_3_r_id, tmpr)
+#ifdef NETCDF_PARALLEL
+          else
+             start_pos = (/1,1,g_lo%llim_proc+1/)
+             counts = (/2*ntgrid+1, 2, n_elements/)
+             istatus = nf90_get_var (ncid, gexp_3_r_id, tmpr, start=start_pos, count=counts)
+          end if
+# endif
+
+          if (istatus /= NF90_NOERR) call netcdf_error (istatus, ncid, gexp_3_r_id,&
+               var='gexp_3_r')
+
+# ifdef NETCDF_PARALLEL
+          if(read_many) then
+# endif
+             istatus = nf90_get_var (ncid, gexp_3_i_id, tmpi)
+#ifdef NETCDF_PARALLEL
+          else
+             istatus = nf90_get_var (ncid, gexp_3_i_id, tmpi, start=start_pos, count=counts)
+          end if
+# endif
+
+          if (istatus /= NF90_NOERR) call netcdf_error (istatus, ncid, gexp_3_i_id,&
+               var='gexp_3_i')
+
+          gexp_3 = cmplx(tmpr, tmpi)
+
+       endif
+    end if
+
     if (.not. allocated(ftmpr)) allocate (ftmpr(2*ntgrid+1,ntheta0,naky))
     if (.not. allocated(ftmpi)) allocate (ftmpi(2*ntgrid+1,ntheta0,naky))
 

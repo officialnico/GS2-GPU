@@ -141,6 +141,9 @@ module init_g
      integer :: ikx_init = -1
      !> FIXME: Add documentation
      real :: imfac = 0.0
+     !> Do we want to include the explicit source terms and
+     !> related timesteps when saving/restoring from the restart file.
+     logical :: include_explicit_source_in_restart = .true.
      !> FIXME: Add documentation
      logical :: input_check_recon = .false.
      !> FIXME: Add documentation
@@ -964,7 +967,7 @@ contains
   subroutine read_parameters(init_g_config_in)
     use file_utils, only: input_unit, error_unit, run_name, input_unit_exist
     use text_options, only: text_option, get_option_value
-    use gs2_save, only: read_many
+    use gs2_save, only: read_many, include_explicit_source_in_restart
     use job_manage, only: trin_restart
 
     implicit none
@@ -1044,6 +1047,7 @@ contains
     ikpar_init = init_g_config%ikpar_init
     ikx_init = init_g_config%ikx_init
     imfac = init_g_config%imfac
+    include_explicit_source_in_restart = init_g_config%include_explicit_source_in_restart
     input_check_recon = init_g_config%input_check_recon
     itt = init_g_config%itt
     ittt = init_g_config%ittt
@@ -4055,11 +4059,11 @@ contains
     character(len = 150) :: restart_dir
     character(len = 2000) :: restart_file
     integer, dimension(2) :: ikk, itt
-    logical :: chop_side, clean_init, constant_random_flag, even, input_check_recon, left, new_field_init, null_apar, null_bpar, null_phi, read_many
+    logical :: chop_side, clean_init, constant_random_flag, even, include_explicit_source_in_restart, input_check_recon, left, new_field_init, null_apar, null_bpar, null_phi, read_many
     complex, dimension(6) :: aparamp, phiamp
     complex, dimension(3) :: nkxy_pt, ukxy_pt
 
-    namelist /init_g_knobs/ a0, adj_spec, apar0, aparamp, b0, chop_side, clean_init, constant_random_flag, den0, den1, den2, dphiinit, eq_mode_n, eq_mode_u, eq_type, even, ginit_option, ikk, ikkk, ikpar_init, ikx_init, imfac, input_check_recon, itt, ittt, kpar_init, left, new_field_init, nkxy_pt, null_apar, null_bpar, null_phi, phiamp, phifrac, phiinit, phiinit0, phiinit_rand, prof_width, read_many, refac, restart_dir, restart_eig_id, restart_file, scale, tpar0, tpar1, tpar2, tperp0, tperp1, tperp2, tstart, ukxy_pt, upar0, upar1, upar2, width0, zf_init
+    namelist /init_g_knobs/ a0, adj_spec, apar0, aparamp, b0, chop_side, clean_init, constant_random_flag, den0, den1, den2, dphiinit, eq_mode_n, eq_mode_u, eq_type, even, ginit_option, ikk, ikkk, ikpar_init, ikx_init, imfac, include_explicit_source_in_restart, input_check_recon, itt, ittt, kpar_init, left, new_field_init, nkxy_pt, null_apar, null_bpar, null_phi, phiamp, phifrac, phiinit, phiinit0, phiinit_rand, prof_width, read_many, refac, restart_dir, restart_eig_id, restart_file, scale, tpar0, tpar1, tpar2, tperp0, tperp1, tperp2, tstart, ukxy_pt, upar0, upar1, upar2, width0, zf_init
 
     ! Only proc0 reads from file
     if (.not. proc0) return
@@ -4087,6 +4091,7 @@ contains
     ikpar_init = self%ikpar_init
     ikx_init = self%ikx_init
     imfac = self%imfac
+    include_explicit_source_in_restart = self%include_explicit_source_in_restart
     input_check_recon = self%input_check_recon
     itt = self%itt
     ittt = self%ittt
@@ -4158,6 +4163,7 @@ contains
     self%ikpar_init = ikpar_init
     self%ikx_init = ikx_init
     self%imfac = imfac
+    self%include_explicit_source_in_restart = include_explicit_source_in_restart
     self%input_check_recon = input_check_recon
     self%itt = itt
     self%ittt = ittt
@@ -4232,6 +4238,7 @@ contains
     call self%write_key_val("ikpar_init", self%ikpar_init, unit_internal)
     call self%write_key_val("ikx_init", self%ikx_init, unit_internal)
     call self%write_key_val("imfac", self%imfac, unit_internal)
+    call self%write_key_val("include_explicit_source_in_restart", self%include_explicit_source_in_restart, unit_internal)    
     call self%write_key_val("input_check_recon", self%input_check_recon, unit_internal)
     call self%write_key_val("itt", self%itt, unit_internal)
     call self%write_key_val("ittt", self%ittt, unit_internal)
@@ -4308,6 +4315,7 @@ contains
     call broadcast(self%ikpar_init)
     call broadcast(self%ikx_init)
     call broadcast(self%imfac)
+    call broadcast(self%include_explicit_source_in_restart)
     call broadcast(self%input_check_recon)
     call broadcast(self%itt)
     call broadcast(self%ittt)
