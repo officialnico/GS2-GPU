@@ -65,9 +65,6 @@ USE_NETCDF ?= on
 USE_PARALLEL_NETCDF ?= 
 # uses hdf5 library (bin)
 USE_HDF5 ?=  
-# Use function pointer in layouts_indices.c (bin)
-# see also README
-USE_C_INDEX ?= 
 # Use local random number generator (mt,undefined)
 # see also README
 USE_LOCAL_RAN ?=
@@ -432,10 +429,6 @@ ifdef USE_HDF5
 	MACRO_DEFS += -DHDF
 endif
 
-ifdef USE_C_INDEX
-	MACRO_DEFS += -DUSE_C_INDEX
-endif
-
 ifeq ($(USE_LOCAL_RAN),mt)
 	MACRO_DEFS += -DRANDOM=_RANMT_
 endif
@@ -595,7 +588,7 @@ F90FROMFPP = $(addprefix $(GENERATED_SRC_DIR)/, $(patsubst %.F90,%.f90,$(patsubs
 .PHONY: depend tar tar_exec test_make diagnostics simpledataio
 .PHONY: help TAGS
 .PHONY: clean cleanlib cleanconfig clean_coverage distclean unlink
-.PHONY: doc docs/html docs/graphs cleandoc check_ford_install
+.PHONY: doc docs/html docs/graphs cleandoc check_ford_install namelist_doc
 
 # comment this out to keep intermediate .f90 files
 ifdef KEEP_PROCESSED
@@ -626,10 +619,12 @@ ifdef ONE_STEP_PP
 $(OBJDIR)/%.o: %.fpp |$(MODDIR) $(OBJDIR)
 	$(call messageOp,"Compiling and preprocessing","\\t:",$(call processName, $<))
 	$(QUIETSYM)$(FC) $(MACRO_DEFS) $(F90FLAGS) -c $< -o $@
+	$(shell mv *.mod $(MODDIR) 2>/dev/null)
 
 $(OBJDIR)/%.o: %.F90 |$(MODDIR) $(OBJDIR)
 	$(call messageOp,"Compiling and preprocessing","\\t:",$(call processName, $<))
 	$(QUIETSYM)$(FC) $(MACRO_DEFS) $(F90FLAGS) -c $< -o $@
+	$(shell mv *.mod $(MODDIR) 2>/dev/null)
 endif
 
 %.f90: %.rb
@@ -653,7 +648,7 @@ $(GENERATED_SRC_DIR)/%.f90: %.F90 |$(GENERATED_SRC_DIR)
 
 $(OBJDIR)/%.o: %.c |$(OBJDIR)
 	$(call messageOp,"Compiling C","\\t:",$(call processName, $<))
-	$(QUIETSYM)$(CC) $(CFLAGS) $(subst -traditional,,$(subst -C,,$(subst -P,,$(CPPFLAGS)))) $(MACRO_DEFS) -c $< -o $@
+	$(QUIETSYM)$(CC) $(CFLAGS) $(INCLUDES) $(subst -traditional,,$(subst -C,,$(subst -P,,$(CPPFLAGS)))) $(MACRO_DEFS) -c $< -o $@
 
 # This prevents error messages like m2c: Command not found
 # This is from a implicit makefile rule that we're overriding
@@ -703,7 +698,7 @@ all: $(.DEFAULT_GOAL)
 
 # Here we list all targets for which we don't care if there's a dependency file or not
 # this can help us avoid the slow generation of the dependency file when not required
-DONT_INCLUDE_DEPEND_TARGETS := clean distclean depend test_make submodules docs
+DONT_INCLUDE_DEPEND_TARGETS := clean distclean depend test_make submodules doc namelist_doc
 # Note we really need to say do any of our targets not match the above as if we have multiple
 # targets and any of them require the dependency file then we have to build the dependency file
 # We achieve that using filter-out. Because we also want to be able to build when the user
@@ -728,17 +723,8 @@ ifdef USE_FFT
     gs2_mod += $(OBJDIR)/fft_save_wisdom.o
     ingen_mod += $(OBJDIR)/fft_save_wisdom.o
     generate_fftw_wisdom_mod += $(OBJDIR)/fft_save_wisdom.o
+    write_default_input_file_mod += $(OBJDIR)/fft_save_wisdom.o
 endif
-
-ifdef USE_C_INDEX
-    gs2_mod += $(OBJDIR)/layouts_indices.o
-endif
-
-$(OBJDIR)/layouts_indices.o: $(MODDIR)/layouts_type.h
-layouts_type.h: $(MODDIR)/layouts_type.h
-$(MODDIR)/layouts_type.h: |$(MODDIR)
-$(MODDIR)/layouts_type.h: $(SRCDIR)/layouts_type.f90
-	$(AWK) -f scripts/makehead.awk $^ > $@
 
 # Make sure template dependencies are specified
 gs2_init.f90: $(SRCDIR)/templates/gs2_init_template.f90
@@ -803,7 +789,7 @@ distclean: unlink clean cleanlib clean_tests clean_benchmarks distclean_simpleda
 
 unlink:
 	$(call messageRm,"Preprocessed files")	
-	-$(QUIETSYM)rm -f $(F90FROMFPP) layouts_type.h
+	-$(QUIETSYM)rm -f $(F90FROMFPP)
 
 ############################################################# Tar targets
 tar:
@@ -816,7 +802,7 @@ $(TARDIR):
 ### setting tar_exec local $(TARLIST*) variables
 # expand wildcards listed $(TARLIST_wild) in ( $(TARLIST_dir) + . )
 # directories and add them into TARLIST
-tar_exec: TARLIST = scripts/makehead.awk scripts/fortdep AstroGK.in
+tar_exec: TARLIST = scripts/fortdep
 tar_exec: TARLIST_dir = Makefiles utils geo Aux
 tar_exec: TARLIST_wild = *.f90 *.fpp *.inc *.c Makefile Makefile.* README README.*
 tar_exec: TARLIST += $(foreach dir,. $(TARLIST_dir),$(wildcard $(addprefix $(dir)/,$(TARLIST_wild))))
@@ -892,7 +878,6 @@ test_make:
 	$(call messageKeyVal, "USE_NETCDF", $(USE_NETCDF))
 	$(call messageKeyVal, "USE_HDF5", $(USE_HDF5))
 	$(call messageKeyVal, "WITH_EIG", $(WITH_EIG))
-	$(call messageKeyVal, "USE_C_INDEX", $(USE_C_INDEX))
 	$(call messageKeyVal, "USE_POSIX", $(USE_POSIX))
 	$(call messageKeyVal, "USE_LOCAL_RAN", $(USE_LOCAL_RN))
 	$(call messageKeyVal, "USE_SPFUNC", $(USE_SPFUNC))
@@ -912,7 +897,7 @@ test_make:
 	$(call messageKeyVal, "MACRO_DEFS", $(MACRO_DEFS))
 	$(call messageKeyVal, "LD_LIBRARY_PATH", $(LD_LIBRARY_PATH))
 	$(call messageKeyVal, "LIBS", $(LIBS))
-	$(call messageKeyVal, "INCS", $(INCLUDES))
+	$(call messageKeyVal, "INCLUDES", $(INCLUDES))
 	@echo
 	$(call messageInfo,"Build info:")
 	$(call messageKeyVal, "SRCDIR ", $(SRCDIR))
@@ -1013,10 +998,22 @@ check_ford_install:
 	$(call messageInfo,"Ford command $(FORD) not in path -- is it installed?\\n\\tConsider installing with 'pip install --user ford' and add ${HOME}/.local/bin to PATH") ; which $(FORD)
 endif
 
+namelist_doc: PATHS:=$(foreach dir, $(SRCDIR) $(SUBDIRS), --path ${dir})
+namelist_doc: FILES:=$(shell $(GK_HEAD_DIR)/scripts/get_all_matching_files.py --pattern "*.[fF]??" ${PATHS} --absolute)
+namelist_doc:
+	$(call messageInfo,"Generating namelist documentation")
+	@$(GK_HEAD_DIR)/scripts/generate_namelist_documentation.py ${FILES}
+
+.PHONY: clean_namelist_doc
+clean_namelist_doc:
+	$(call messageRm,"Generated namelist documentation")
+	-$(QUIETSYM)rm -f docs/pages/namelists/auto_generated_* docs/pages/namelists/index.md
+
 docs/html:
-doc: docs/docs.config.md check_ford_install
+doc: docs/docs.config.md namelist_doc  check_ford_install
 	$(FORD) $(subst -D,--macro ,$(MACRO_DEFS)) $(INCLUDES) -r $(GIT_HASH) $<
 
+cleandoc: clean_namelist_doc
 cleandoc: docs/html docs/graphs
 	$(call messageRm,"FORD docs")	
 	-$(QUIETSYM)rm -rf $^

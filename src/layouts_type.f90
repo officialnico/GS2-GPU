@@ -10,6 +10,7 @@ module layouts_type
   public :: ikit, ikitprocs
   public :: g_layout_type, lz_layout_type, e_layout_type
   public :: le_layout_type, p_layout_type, gf_layout_type
+  public :: deallocate_layout
 
   !> FIXME : Add documentation  
   type :: ikit
@@ -75,7 +76,10 @@ module layouts_type
 !    For branchless index lookup routines
      integer :: ig_ord, isgn_ord, ik_ord, it_ord, ie_ord, is_ord
      integer :: ig_comp, isgn_comp, ik_comp, it_comp, ie_comp, is_comp
-     integer,dimension(6) :: compound_count
+     integer,dimension(5) :: compound_count
+     !> Array that holds the size of each dimension in the order that they
+     !> appear in the layout.
+     integer,dimension(5) :: dim_size
 
   end type lz_layout_type
 
@@ -90,6 +94,9 @@ module layouts_type
      integer :: ig_ord, isgn_ord, ik_ord, it_ord, il_ord, is_ord
      integer :: ig_comp, isgn_comp, ik_comp, it_comp, il_comp, is_comp
      integer,dimension(6) :: compound_count
+     !> Array that holds the size of each dimension in the order that they
+     !> appear in the layout.
+     integer,dimension(6) :: dim_size
   end type e_layout_type
 
   !> FIXME : Add documentation
@@ -106,6 +113,9 @@ module layouts_type
      integer :: ik_min, it_min, ig_min, is_min 
      integer :: ik_max, it_max, ig_max, is_max 
      logical :: x_local, y_local, t_local, s_local !Used to record if various dimensions are entirely local
+     !> Array that holds the size of each dimension in the order that they
+     !> appear in the layout.
+     integer,dimension(4) :: dim_size
   end type le_layout_type
 
   !> FIXME : Add documentation  
@@ -131,5 +141,25 @@ module layouts_type
      integer :: ik_comp, il_comp, ie_comp, is_comp
      integer,dimension(4) :: compound_count
   end type p_layout_type
+
+  interface deallocate_layout
+     module procedure deallocate_g_layout
+  end interface
+
+  contains
+    !> Deallocate g_layout's arrays
+    subroutine deallocate_g_layout(g_lo)
+      implicit none
+      type(g_layout_type), intent(inout) :: g_lo
+
+      if (allocated(g_lo%les_kxky_range)) deallocate(g_lo%les_kxky_range)
+      ! Note, we do not deallocate ikit_procs_assignment()%proc_list or ikit_procs_assignment()%sub_proc_list as in Fortran these 
+      ! should automatically be deallocated when ikit_procs_assignment is deallocated.
+      if(allocated(g_lo%ikit_procs_assignment)) deallocate(g_lo%ikit_procs_assignment)
+      if(allocated(g_lo%local_ikit_points)) deallocate(g_lo%local_ikit_points)
+
+      if(allocated(g_lo%proc_map)) deallocate(g_lo%proc_map)
+
+    end subroutine deallocate_g_layout
 
 end module layouts_type

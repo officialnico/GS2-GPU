@@ -5,6 +5,7 @@ stages:
 
 variables:
   GIT_SUBMODULE_STRATEGY: recursive
+  OMPI_MCA_rmaps_base_oversubscribe: "yes"
 
 standard_tests:
   variables:
@@ -67,7 +68,6 @@ pages:
   only:
     - master
     - next
-    - micro/landing-page
 
 success:
   stage: ci_status

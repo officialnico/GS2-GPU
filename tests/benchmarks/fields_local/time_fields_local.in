@@ -1,11 +1,20 @@
-!==============================================================================
+!=================================================================
+!                        GS2 INPUT FILE
+!=================================================================
 !
-!  GS2 is a gyrokinetic flux tube initial value turbulence code 
+!  GS2 is a gyrokinetic flux tube initial value turbulence code
 !  which can be used for fusion or astrophysical plasmas.
-!  
-!  	See http://bitbucket.org/gyrokinetics/gs2
 !
-!==============================================================================
+!  Website:
+!            https://gyrokinetics.gitlab.io/gs2/
+!  Repo:
+!            https://bitbucket.org/gyrokinetics/gs2/
+!  Citation:
+!            https://zenodo.org/record/2551066
+!  doi:
+!            10.5281/zenodo.2551066
+!
+!=================================================================
 
 &parameters
  beta = 0.01 ! Ratio of particle to magnetic pressure (reference Beta, not total beta):  beta=n_0 T_0 /( B^2 / (8 pi))
@@ -27,6 +36,10 @@
 &le_grids_knobs
  ngauss = 3 ! Number of untrapped pitch-angles moving in one direction along field line.
  negrid = 12 ! Total number of energy grid points
+/
+
+&fields_knobs
+ field_option = "local" ! Controls which time-advance algorithm is used for the linear terms.
 /
 
 &knobs

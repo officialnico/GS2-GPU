@@ -1,7 +1,7 @@
 # GS2 Test Suites 
 
 There are two test suites in GS2 - a legacy test suite and a pfunit test
-suite.
+suite. In addition there is a suite of performance benchmarks.
 
 ## Legacy test suite
 
@@ -24,6 +24,34 @@ Multiple tests can be run using a space-separated string, e.g.
 $ make tests TESTS="le_grids theta_grid"
 ```
 Tests can also be _excluded_ by setting the `EXCLUDE_TESTS` variable.
+
+### Performance benchmarks
+
+The performance benchmarks are in the folder `benchmarks`.
+
+To run these, do
+```
+$ make benchmarks
+```
+Particular benchmarks can be selected or ignored by setting the `TESTS` and
+`EXCLUDE_TESTS` variables, as with the test suite above.
+
+Benchmarks can be run for a range of processor counts by specifying a string in
+`NTESTPROCS`, e.g.
+```
+$ make benchmarks NTESTPROCS='1 2 4'
+```
+Note: for this to work, the variable `TESTEXEC` must be set so that it can accept a
+variable number of processors, e.g. the system makefile should define
+```
+TESTEXEC=mpirun -np $$(1)
+```
+or the command line should contain the definition
+```
+make benchmarks -I Makefiles/  NTESTPROCS='1 2 4' TESTEXEC='mpirun -np $1'
+```
+Some benchmarks only make sense for a single processor and will ignore `NTESTPROCS`.
+
 
 ## pFUnit tests
 

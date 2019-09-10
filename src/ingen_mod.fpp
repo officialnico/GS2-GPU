@@ -23,12 +23,16 @@ module ingen_mod
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
+  use abstract_config, only: abstract_config_type, CONFIG_MAX_NAME_LEN
   use mp, only: init_mp, finish_mp
   use text_options, only: text_option, get_option_value
   use file_utils, only: input_unit, get_unused_unit, open_output_file
   use file_utils, only: close_output_file, input_unit_exist, init_file_utils
   use file_utils, only: run_name
   implicit none
+
+  public :: ingen_config_type
+  public :: set_ingen_mod_config
   
   character (100) :: pythonin
   integer :: interactive_record, interactive_input
@@ -36,7 +40,8 @@ module ingen_mod
   integer :: in_file, i, unit, is, report_unit, ncut, npmax
   logical :: exist, scan, stdin
   logical :: coll_on = .false.
-
+  logical :: initialized = .false.
+  
   !> FIXME : Add documentation
   type proc_layout_type
     integer :: nproc
@@ -67,16 +72,37 @@ module ingen_mod
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
-  namelist /ingen_knobs/ ncut, scan, stdin, npmax
-
 !CMR
   logical, parameter :: debug=.false.
 
 
+  !> Used to represent the input configuration of ingen
+  type, extends(abstract_config_type) :: ingen_config_type
+     ! namelist : ingen_knobs
+     ! indexed : false     
+     !> FIXME: Add documentation
+     integer :: ncut = 100000
+     !> FIXME: Add documentation
+     integer :: npmax = 100000     
+     !> FIXME: Add documentation
+     logical :: scan = .false.
+     !> FIXME: Add documentation
+     logical :: stdin = .true.
+   contains
+     procedure, public :: read => read_ingen_config
+     procedure, public :: write => write_ingen_config
+     procedure, public :: reset => reset_ingen_config
+     procedure, public :: broadcast => broadcast_ingen_config
+     procedure, public, nopass :: get_default_name => get_default_name_ingen_config
+     procedure, public, nopass :: get_default_requires_index => get_default_requires_index_ingen_config
+  end type ingen_config_type
+  
+  type(ingen_config_type) :: ingen_config
+
 contains
 
   !> FIXME : Add documentation  
-  subroutine run_ingen
+  subroutine run_ingen(ingen_config_in)
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -92,10 +118,15 @@ contains
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    use file_utils, only: init_file_utils
+    implicit none
+    type(ingen_config_type), intent(in), optional :: ingen_config_in
+    logical :: list
     
     call init_mp
 
-    call init_ingen
+    call init_file_utils (list, name="template")
+    call init_ingen(ingen_config_in)
  
     if (debug) write(6,*) 'ingen: call get_namelists'
     
@@ -114,15 +145,47 @@ contains
   end subroutine run_ingen
 
   !> FIXME : Add documentation  
-  subroutine init_ingen
+  subroutine init_ingen(ingen_config_in)
+    implicit none
+    type(ingen_config_type), intent(in), optional :: ingen_config_in
+    
+    if(initialized) return
+    initialized = .true.
+
+    pythonin = "."//trim(run_name)//".pythonin"
+
+    if (present(ingen_config_in)) ingen_config = ingen_config_in
+
+    call ingen_config%init(name = 'ingen_knobs', requires_index = .false.)
+
+    ! Copy out internal values into module level parameters
+    ncut = ingen_config%ncut
+    npmax = ingen_config%npmax
+    scan = ingen_config%scan
+    stdin = ingen_config%stdin
+
+    exist = ingen_config%exist
+
+    if (debug) write(6,*) 'get_namelists: if (scan), scan=',scan
+    if (scan) then
+       if (.not. stdin) then
+          if (pythonin == "") then
+             write (*,*) 'Need to specify pythonin in ingen_knobs.'
+          end if 
+       end if 
+    end if 
+    
     n_sweet_spots = 0
     npmax=100000
     allocate(sweet_spots(1))
+    
   end subroutine init_ingen
 
   !> FIXME : Add documentation  
   subroutine finish_ingen
-    deallocate(sweet_spots)
+    if(allocated(sweet_spots)) deallocate(sweet_spots)
+    call ingen_config%reset()
+    initialized = .false.
   end subroutine finish_ingen
 
   !> FIXME : Add documentation  
@@ -712,28 +775,11 @@ contains
     use le_grids, only: init_le_grids
     use theta_grid, only: init_theta_grid, ntgrid
     implicit none
-    logical :: list, accelx=.false., accelv=.false.
+    logical :: accelx=.false., accelv=.false.
     logical, parameter :: debug=.false.
     integer :: is
-    call init_file_utils (list, name="template")
-if (debug) write(6,*) 'get_namelists: called init_file_utils'
-    ncut= 100000
-    scan = .false.
-    stdin = .true.
-    pythonin = "."//trim(run_name)//".pythonin"
-    in_file=input_unit_exist("ingen_knobs", exist)
-    if (exist) read(unit=input_unit("ingen_knobs"), nml=ingen_knobs)
 
-if (debug) write(6,*) 'get_namelists: if (scan), scan=',scan
-    if (scan) then
-       if (.not. stdin) then
-          if (pythonin == "") then
-             write (*,*) 'Need to specify pythonin in ingen_knobs.'
-          end if 
-       end if 
-    end if 
-
-if (debug) write(6,*) 'get_namelists: layouts'
+    if (debug) write(6,*) 'get_namelists: layouts'
     call init_gs2_layouts
     call init_antenna
 
@@ -2344,4 +2390,126 @@ if (debug) write(6,*) 'get_namelists: returning'
     end do
   end subroutine num_runs
 
+  !> Set the module level config type
+  !> Will abort if the module has already been initialised to avoid
+  !> inconsistencies.
+  subroutine set_ingen_mod_config(ingen_config_in)
+    use mp, only: mp_abort
+    type(ingen_config_type), intent(in), optional :: ingen_config_in
+    if (initialized) then
+       call mp_abort("Trying to set ingen_config when already initialized.", to_screen = .true.)
+    end if
+    if (present(ingen_config_in)) then
+       ingen_config = ingen_config_in
+    end if
+  end subroutine set_ingen_mod_config
+  
+  !---------------------------------------
+  ! Following is for the config_type
+  !---------------------------------------
+  
+  !> Reads in the ingen_knobs namelist and populates the member variables
+  subroutine read_ingen_config(self)
+    use file_utils, only: input_unit_exist, get_indexed_namelist_unit
+    use mp, only: proc0
+    implicit none
+    class(ingen_config_type), intent(in out) :: self
+    logical :: exist
+    integer :: in_file, iostat
+
+    ! Note: When this routine is in the module where these variables live
+    ! we shadow the module level variables here. This is intentional to provide
+    ! isolation and ensure we can move this routine to another module easily.    
+    logical :: scan, stdin
+    integer :: ncut, npmax
+
+    namelist /ingen_knobs/ ncut, npmax, scan, stdin
+
+    ! Only proc0 reads from file
+    if (.not. proc0) return
+
+    ! First set local variables from current values
+    ncut = self%ncut
+    npmax = self%npmax
+    scan = self%scan
+    stdin = self%stdin
+
+    ! Now read in the main namelist
+    if (self%get_requires_index()) then
+       call get_indexed_namelist_unit(in_file, trim(self%get_name()), self%index)
+       read(in_file, nml = ingen_knobs, iostat = iostat)
+       exist = .true.
+       if (iostat .ne.0) exist = .false.
+       close(unit = in_file, iostat = iostat)
+    else
+       in_file = input_unit_exist(self%get_name(), exist)
+       if (exist) read(in_file, nml = ingen_knobs)
+    endif
+
+    ! Now copy from local variables into type members
+    self%ncut = ncut
+    self%npmax = npmax
+    self%scan = scan
+    self%stdin = stdin
+
+    self%exist = exist
+  end subroutine read_ingen_config
+
+  !> Writes out a namelist representing the current state of the config object
+  subroutine write_ingen_config(self, unit)
+    implicit none
+    class(ingen_config_type), intent(in) :: self
+    integer, intent(in) , optional:: unit
+    integer :: unit_internal
+
+    unit_internal = 6 ! @todo -- get stdout from file_utils
+    if (present(unit)) then
+       unit_internal = unit
+    endif
+
+    call self%write_namelist_header(unit_internal)
+    call self%write_key_val("ncut", self%ncut, unit_internal)
+    call self%write_key_val("npmax", self%npmax, unit_internal)
+    call self%write_key_val("scan", self%scan, unit_internal)
+    call self%write_key_val("stdin", self%stdin, unit_internal)
+    call self%write_namelist_footer(unit_internal)
+  end subroutine write_ingen_config
+
+  !> Resets the config object to the initial empty state
+  subroutine reset_ingen_config(self)
+    class(ingen_config_type), intent(in out) :: self
+    type(ingen_config_type) :: empty
+    select type (self)
+    type is (ingen_config_type)
+       self = empty
+    end select
+  end subroutine reset_ingen_config
+
+  !> Broadcasts all config parameters so object is populated identically on
+  !! all processors
+  subroutine broadcast_ingen_config(self)
+    use mp, only: broadcast
+    implicit none
+    class(ingen_config_type), intent(in out) :: self
+    call broadcast(self%ncut)
+    call broadcast(self%npmax)
+    call broadcast(self%scan)
+    call broadcast(self%stdin)
+
+    call broadcast(self%exist)
+  end subroutine broadcast_ingen_config
+
+  !> Gets the default name for this namelist
+  function get_default_name_ingen_config()
+    implicit none
+    character(len = CONFIG_MAX_NAME_LEN) :: get_default_name_ingen_config
+    get_default_name_ingen_config = "ingen_knobs"
+  end function get_default_name_ingen_config
+
+  !> Gets the default requires index for this namelist
+  function get_default_requires_index_ingen_config()
+    implicit none
+    logical :: get_default_requires_index_ingen_config
+    get_default_requires_index_ingen_config = .false.
+  end function get_default_requires_index_ingen_config
 end module ingen_mod

@@ -1,5 +1,7 @@
 !> FIXME : Add documentation  
 module species
+  use abstract_config, only: abstract_config_type, CONFIG_MAX_NAME_LEN
+  
   implicit none
 
   private
@@ -18,6 +20,10 @@ module species
   public :: calculate_f0_arrays, set_current_f0_species, eval_f0
   public :: nonmaxw_corr, f0_values, dlnf0drho
 
+  public :: species_config_type
+  public :: species_element_config_type
+  public :: set_species_config
+  
   !> FIXME : Add documentation 
   type :: specie
      real :: z
@@ -64,6 +70,84 @@ module species
 
   logical :: initialized = .false.
   logical :: exist
+
+  !> Used to represent the input configuration of species
+  type, extends(abstract_config_type) :: species_config_type
+     ! namelist : species_knobs
+     ! indexed : false     
+     !> FIXME: Add documentation
+     real :: me = -1.0
+     !> Number of kinetic species to evolve.
+     integer :: nspec = 2
+     !> FIXME: Add documentation
+     real :: zi_fac = -1.0
+   contains
+     procedure, public :: read => read_species_config
+     procedure, public :: write => write_species_config
+     procedure, public :: reset => reset_species_config
+     procedure, public :: broadcast => broadcast_species_config
+     procedure, public, nopass :: get_default_name => get_default_name_species_config
+     procedure, public, nopass :: get_default_requires_index => get_default_requires_index_species_config
+  end type species_config_type
+  
+  type(species_config_type) :: species_config
+  
+  !> Used to represent the input configuration of species
+  type, extends(abstract_config_type) :: species_element_config_type
+     ! namelist : species_parameters
+     ! indexed : true     
+     !> FIXME: Add documentation
+     real :: bess_fac = 1.0
+     !> FIXME: Add documentation
+     real :: dens = 1.0
+     !> FIXME: Add documentation
+     real :: dens0 = 1.0
+     !> FIXME: Add documentation
+     character(len = 20) :: f0type = "maxwellian"
+     !> FIXME: Add documentation
+     real :: fprim = 2.2
+     !> FIXME: Add documentation
+     real :: mass = 1.0
+     !> FIXME: Add documentation
+     real :: nu = -1.0
+     !> FIXME: Add documentation
+     real :: nu_h = 0.0
+     !> FIXME: Add documentation
+     real :: nustar = -1.0
+     !> FIXME: Add documentation
+     real :: temp = 1.0
+     !> FIXME: Add documentation
+     real :: tpar0 = 0.
+     !> FIXME: Add documentation
+     real :: tperp0 = 0.
+     !> FIXME: Add documentation
+     real :: tprim = 6.9
+     !> FIXME: Add documentation
+     character(len = 20) :: type = "default"
+     !> FIXME: Add documentation
+     real :: u0 = 1.0
+     !> FIXME: Add documentation
+     real :: uprim = 0.0
+     !> FIXME: Add documentation
+     real :: uprim2 = 0.0
+     !> FIXME: Add documentation
+     real :: vcprim = -999.9
+     !> FIXME: Add documentation
+     real :: vcrit = -1.0
+     !> FIXME: Add documentation
+     real :: vnewk = 0.0
+     !> FIXME: Add documentation
+     real :: z = 1.0
+   contains
+     procedure, public :: read => read_species_element_config
+     procedure, public :: write => write_species_element_config
+     procedure, public :: reset => reset_species_element_config
+     procedure, public :: broadcast => broadcast_species_element_config
+     procedure, public, nopass :: get_default_name => get_default_name_species_element_config
+     procedure, public, nopass :: get_default_requires_index => get_default_requires_index_species_element_config
+  end type species_element_config_type
+  
+  type(species_element_config_type), dimension(:), allocatable :: species_element_config
 
 contains
   !> FIXME : Add documentation   
@@ -227,32 +311,32 @@ contains
   end subroutine wnml_species
 
   !> FIXME : Add documentation   
-  subroutine init_species
+  subroutine init_species(species_config_in, species_elements_config_in)
     implicit none
+    type(species_config_type), intent(in), optional :: species_config_in
+    type(species_element_config_type), intent(in), dimension(:), optional :: species_elements_config_in
 
     if (initialized) return
     initialized = .true.
 
-    call read_parameters
+    call read_parameters(species_config_in, species_elements_config_in)
 
   end subroutine init_species
 
   !> FIXME : Add documentation   
-  subroutine read_parameters
+  subroutine read_parameters(species_config_in, species_elements_config_in)
     use file_utils, only: input_unit, error_unit, get_indexed_namelist_unit, input_unit_exist
     use text_options, only: text_option, get_option_value
     use mp, only: proc0, broadcast, mp_abort
     implicit none
+    type(species_config_type), intent(in), optional :: species_config_in
+    type(species_element_config_type), intent(in), dimension(:), optional :: species_elements_config_in
     real :: z, mass, dens, dens0, u0, temp, tprim, fprim, uprim, uprim2, vnewk, nustar, nu, nu_h
     real :: tperp0, tpar0, bess_fac, vcrit, vcprim
     real, dimension(:), allocatable :: tmp_bcast
     character(20) :: type, f0type
     integer :: unit
     integer :: is, iostat
-    namelist /species_knobs/ nspec, ZI_fac, me
-    namelist /species_parameters/ z, mass, dens, dens0, u0, temp, &
-         tprim, fprim, uprim, uprim2, vnewk, nustar, type, nu, nu_h, &
-         tperp0, tpar0, bess_fac, f0type, vcrit, vcprim
     integer :: ierr, in_file
 
     type (text_option), dimension (5), parameter :: typeopts = &
@@ -267,17 +351,18 @@ contains
             text_option('tabulated', f0_tabulated), &
             text_option('sdanalytic', f0_sdanalytic) /)
 
+    if (present(species_config_in)) species_config = species_config_in
+
+    call species_config%init(name = 'species_knobs', requires_index = .false.)
+
+    ! Copy out internal values into module level parameters
+    me = species_config%me
+    nspec = species_config%nspec
+    zi_fac = species_config%zi_fac
+
+    exist = species_config%exist
+    
     if (proc0) then
-       nspec = 2
-       ZI_fac = -1.0
-       me = -1.0
-       in_file = input_unit_exist("species_knobs", exist)
-!       if (exist) read (unit=input_unit("species_knobs"), nml=species_knobs)
-       if (exist) then
-          read (unit=in_file, nml=species_knobs)
-       else 
-          write(6,*) 'Error: species_knobs namelist file does not exist'
-       endif
        if (nspec < 1) then
           ierr = error_unit()
           write (unit=ierr, &
@@ -286,73 +371,73 @@ contains
        end if
     end if
 
-    call broadcast (nspec)
-    call broadcast (ZI_fac)
-    call broadcast (me)
     allocate (spec(nspec))
 
-    if (proc0) then
-       do is = 1, nspec
-          call get_indexed_namelist_unit (unit, "species_parameters", is)
-          z = 1
-          mass = 1.0
-          dens = 1.0
-          dens0 = 1.0
-          u0 = 1.0
-          tperp0 = 0.
-          tpar0 = 0.
-          temp = 1.0
-          tprim = 6.9
-          fprim = 2.2
-          uprim = 0.0
-          uprim2 = 0.0
-          nustar = -1.0
-          vnewk = 0.0
-          nu = -1.0
-          nu_h = 0.0
-          bess_fac=1.0
-          vcrit = -1.0
-          vcprim = -999.9
-          type = "default"
-          f0type = "maxwellian"
-          read (unit=unit, nml=species_parameters, iostat=iostat)
-          if(iostat /= 0) write(6,*) 'Error ',iostat,'reading species parameters'
-          close (unit=unit, iostat=iostat)
-          if(iostat /= 0) write(6,*) 'Error ',iostat,'closing species parameters namelist'
-          !write (*,*) 'type is ', type
-          spec(is)%z = z
-          spec(is)%mass = mass
-          spec(is)%dens = dens
-          spec(is)%dens0 = dens0
-          spec(is)%u0 = u0
-          spec(is)%tperp0 = tperp0
-          spec(is)%tpar0 = tpar0
-          spec(is)%temp = temp
-          spec(is)%tprim = tprim
-          spec(is)%fprim = fprim
-          spec(is)%uprim = uprim
-          spec(is)%uprim2 = uprim2
-          spec(is)%vnewk = vnewk
-          spec(is)%nustar = nustar
-          spec(is)%nu = nu
-          spec(is)%nu_h = nu_h
+    if (present(species_elements_config_in)) species_element_config = species_elements_config_in
 
-          spec(is)%stm = sqrt(temp/mass)
-          spec(is)%zstm = z/sqrt(temp*mass)
-          spec(is)%tz = temp/z
-          spec(is)%zt = z/temp
-          spec(is)%smz = abs(sqrt(temp*mass)/z)
+    if (.not.allocated(species_element_config)) allocate(species_element_config(nspec))
 
-          spec(is)%bess_fac=bess_fac
-          spec(is)%vcrit=vcrit
-          spec(is)%vcprim=vcprim
+    if (size(species_element_config) .ne. nspec) then
+       if (proc0) print*,"inconsistent number of config elements"
+    endif
+       
+    do is = 1, nspec
+       call species_element_config(is)%init(name = 'species_parameters', requires_index = .true., index = is)
 
-          ierr = error_unit()
-          call get_option_value (type, typeopts, spec(is)%type, ierr, "type in species_parameters_x",.true.)
-          call get_option_value (f0type, f0_opts, spec(is)%f0type, ierr, "f0type in species_parameters_x",.true.)
-       end do
+       ! Copy out internal values into module level parameters
+       bess_fac = species_element_config(is)%bess_fac
+       dens = species_element_config(is)%dens
+       dens0 = species_element_config(is)%dens0
+       f0type = species_element_config(is)%f0type
+       fprim = species_element_config(is)%fprim
+       mass = species_element_config(is)%mass
+       nu = species_element_config(is)%nu
+       nu_h = species_element_config(is)%nu_h
+       nustar = species_element_config(is)%nustar
+       temp = species_element_config(is)%temp
+       tpar0 = species_element_config(is)%tpar0
+       tperp0 = species_element_config(is)%tperp0
+       tprim = species_element_config(is)%tprim
+       type = species_element_config(is)%type
+       u0 = species_element_config(is)%u0
+       uprim = species_element_config(is)%uprim
+       uprim2 = species_element_config(is)%uprim2
+       vcprim = species_element_config(is)%vcprim
+       vcrit = species_element_config(is)%vcrit
+       vnewk = species_element_config(is)%vnewk
+       z = species_element_config(is)%z
 
-    end if
+       spec(is)%z = z
+       spec(is)%mass = mass
+       spec(is)%dens = dens
+       spec(is)%dens0 = dens0
+       spec(is)%u0 = u0
+       spec(is)%tperp0 = tperp0
+       spec(is)%tpar0 = tpar0
+       spec(is)%temp = temp
+       spec(is)%tprim = tprim
+       spec(is)%fprim = fprim
+       spec(is)%uprim = uprim
+       spec(is)%uprim2 = uprim2
+       spec(is)%vnewk = vnewk
+       spec(is)%nustar = nustar
+       spec(is)%nu = nu
+       spec(is)%nu_h = nu_h
+
+       spec(is)%stm = sqrt(temp/mass)
+       spec(is)%zstm = z/sqrt(temp*mass)
+       spec(is)%tz = temp/z
+       spec(is)%zt = z/temp
+       spec(is)%smz = abs(sqrt(temp*mass)/z)
+
+       spec(is)%bess_fac=bess_fac
+       spec(is)%vcrit=vcrit
+       spec(is)%vcprim=vcprim
+
+       ierr = error_unit()
+       call get_option_value (type, typeopts, spec(is)%type, ierr, "type in species_parameters_x",.true.)
+       call get_option_value (f0type, f0_opts, spec(is)%f0type, ierr, "f0type in species_parameters_x",.true.)
+    end do
 
     !We use a temporary array here to allow us to broadcast all species data at once
     !May be possible to avoid this by simply calling broadcast(spec%z) etc.
@@ -856,7 +941,9 @@ contains
   subroutine finish_species
     implicit none
     if(allocated(spec)) deallocate (spec)
-!    if(allocated(f0_values)) deallocate (f0_values,nonmaxw_corr,dlnf0drho)
+    !    if(allocated(f0_values)) deallocate (f0_values,nonmaxw_corr,dlnf0drho)
+    call species_config%reset()
+    if (allocated(species_element_config)) deallocate(species_element_config)
     initialized = .false.
   end subroutine finish_species
 
@@ -972,4 +1059,304 @@ contains
     end do
   end subroutine write_trinity_parameters
 
+  !> Set the module level config types
+  !> Will abort if the module has already been initialised to avoid
+  !> inconsistencies.
+  subroutine set_species_config(species_config_in, species_element_config_in)
+    use mp, only: mp_abort
+    type(species_config_type), intent(in), optional :: species_config_in
+    type(species_element_config_type), intent(in), dimension(:), optional :: species_element_config_in
+
+    if (initialized) then
+       call mp_abort("Trying to set species_config when already initialized.", to_screen = .true.)
+    end if
+    if (present(species_config_in)) then
+       species_config = species_config_in
+    end if
+    if (present(species_element_config_in)) then
+       species_element_config = species_element_config_in
+    end if    
+  end subroutine set_species_config   
+  
+  !---------------------------------------
+  ! Following is for the config_type
+  !---------------------------------------
+  
+  !> Reads in the species_knobs namelist and populates the member variables
+  subroutine read_species_config(self)
+    use file_utils, only: input_unit_exist, get_indexed_namelist_unit
+    use mp, only: proc0
+    implicit none
+    class(species_config_type), intent(in out) :: self
+    logical :: exist
+    integer :: in_file, iostat
+
+    ! Note: When this routine is in the module where these variables live
+    ! we shadow the module level variables here. This is intentional to provide
+    ! isolation and ensure we can move this routine to another module easily.    
+    real :: me, zi_fac
+    integer :: nspec
+
+    namelist /species_knobs/ me, nspec, zi_fac
+
+    ! Only proc0 reads from file
+    if (.not. proc0) return
+
+    ! First set local variables from current values
+    me = self%me
+    nspec = self%nspec
+    zi_fac = self%zi_fac
+
+    ! Now read in the main namelist
+    if (self%get_requires_index()) then
+       call get_indexed_namelist_unit(in_file, trim(self%get_name()), self%index)
+       read(in_file, nml = species_knobs, iostat = iostat)
+       exist = .true.
+       if (iostat .ne.0) exist = .false.
+       close(unit = in_file, iostat = iostat)
+    else
+       in_file = input_unit_exist(self%get_name(), exist)
+       if (exist) read(in_file, nml = species_knobs)
+    endif
+
+    ! Now copy from local variables into type members
+    self%me = me
+    self%nspec = nspec
+    self%zi_fac = zi_fac
+
+    self%exist = exist
+  end subroutine read_species_config
+
+  !> Writes out a namelist representing the current state of the config object
+  subroutine write_species_config(self, unit)
+    implicit none
+    class(species_config_type), intent(in) :: self
+    integer, intent(in) , optional:: unit
+    integer :: unit_internal
+
+    unit_internal = 6 ! @todo -- get stdout from file_utils
+    if (present(unit)) then
+       unit_internal = unit
+    endif
+
+    call self%write_namelist_header(unit_internal)
+    call self%write_key_val("me", self%me, unit_internal)
+    call self%write_key_val("nspec", self%nspec, unit_internal)
+    call self%write_key_val("zi_fac", self%zi_fac, unit_internal)
+    call self%write_namelist_footer(unit_internal)
+  end subroutine write_species_config
+
+  !> Resets the config object to the initial empty state
+  subroutine reset_species_config(self)
+    class(species_config_type), intent(in out) :: self
+    type(species_config_type) :: empty
+    select type (self)
+    type is (species_config_type)
+       self = empty
+    end select
+  end subroutine reset_species_config
+
+  !> Broadcasts all config parameters so object is populated identically on
+  !! all processors
+  subroutine broadcast_species_config(self)
+    use mp, only: broadcast
+    implicit none
+    class(species_config_type), intent(in out) :: self
+    call broadcast(self%me)
+    call broadcast(self%nspec)
+    call broadcast(self%zi_fac)
+
+    call broadcast(self%exist)
+  end subroutine broadcast_species_config
+    
+  !> Gets the default name for this namelist
+  function get_default_name_species_config()
+    implicit none
+    character(len = CONFIG_MAX_NAME_LEN) :: get_default_name_species_config
+    get_default_name_species_config = "species_knobs"
+  end function get_default_name_species_config
+
+  !> Gets the default requires index for this namelist
+  function get_default_requires_index_species_config()
+    implicit none
+    logical :: get_default_requires_index_species_config
+    get_default_requires_index_species_config = .false.
+  end function get_default_requires_index_species_config
+  
+  !---------------------------------------
+  ! Following is for the config_type
+  !---------------------------------------
+  
+  !> Reads in the species_parameters namelist and populates the member variables
+  subroutine read_species_element_config(self)
+    use file_utils, only: input_unit_exist, get_indexed_namelist_unit
+    use mp, only: proc0
+    implicit none
+    class(species_element_config_type), intent(in out) :: self
+    logical :: exist
+    integer :: in_file, iostat
+
+    ! Note: When this routine is in the module where these variables live
+    ! we shadow the module level variables here. This is intentional to provide
+    ! isolation and ensure we can move this routine to another module easily.    
+    character(len = 20) :: f0type, type
+    real :: bess_fac, dens, dens0, fprim, mass, nu, nu_h, nustar, temp, tpar0, tperp0, tprim, u0, uprim, uprim2, vcprim, vcrit, vnewk, z
+
+    namelist /species_parameters/ bess_fac, dens, dens0, f0type, fprim, mass, nu, nu_h, nustar, temp, tpar0, tperp0, tprim, type, u0, uprim, uprim2, vcprim, vcrit, vnewk, z
+
+    ! Only proc0 reads from file
+    if (.not. proc0) return
+
+    ! First set local variables from current values
+    bess_fac = self%bess_fac
+    dens = self%dens
+    dens0 = self%dens0
+    f0type = self%f0type
+    fprim = self%fprim
+    mass = self%mass
+    nu = self%nu
+    nu_h = self%nu_h
+    nustar = self%nustar
+    temp = self%temp
+    tpar0 = self%tpar0
+    tperp0 = self%tperp0
+    tprim = self%tprim
+    type = self%type
+    u0 = self%u0
+    uprim = self%uprim
+    uprim2 = self%uprim2
+    vcprim = self%vcprim
+    vcrit = self%vcrit
+    vnewk = self%vnewk
+    z = self%z
+
+    ! Now read in the main namelist
+    if (self%get_requires_index()) then
+       call get_indexed_namelist_unit(in_file, trim(self%get_name()), self%index)
+       read(in_file, nml = species_parameters, iostat = iostat)
+       exist = .true.
+       if (iostat .ne.0) exist = .false.
+       close(unit = in_file, iostat = iostat)
+    else
+       in_file = input_unit_exist(self%get_name(), exist)
+       if (exist) read(in_file, nml = species_parameters)
+    endif
+
+    ! Now copy from local variables into type members
+    self%bess_fac = bess_fac
+    self%dens = dens
+    self%dens0 = dens0
+    self%f0type = f0type
+    self%fprim = fprim
+    self%mass = mass
+    self%nu = nu
+    self%nu_h = nu_h
+    self%nustar = nustar
+    self%temp = temp
+    self%tpar0 = tpar0
+    self%tperp0 = tperp0
+    self%tprim = tprim
+    self%type = type
+    self%u0 = u0
+    self%uprim = uprim
+    self%uprim2 = uprim2
+    self%vcprim = vcprim
+    self%vcrit = vcrit
+    self%vnewk = vnewk
+    self%z = z
+
+    self%exist = exist
+  end subroutine read_species_element_config
+
+  !> Writes out a namelist representing the current state of the config object
+  subroutine write_species_element_config(self, unit)
+    implicit none
+    class(species_element_config_type), intent(in) :: self
+    integer, intent(in) , optional:: unit
+    integer :: unit_internal
+
+    unit_internal = 6 ! @todo -- get stdout from file_utils
+    if (present(unit)) then
+       unit_internal = unit
+    endif
+
+    call self%write_namelist_header(unit_internal)
+    call self%write_key_val("bess_fac", self%bess_fac, unit_internal)
+    call self%write_key_val("dens", self%dens, unit_internal)
+    call self%write_key_val("dens0", self%dens0, unit_internal)
+    call self%write_key_val("f0type", self%f0type, unit_internal)
+    call self%write_key_val("fprim", self%fprim, unit_internal)
+    call self%write_key_val("mass", self%mass, unit_internal)
+    call self%write_key_val("nu", self%nu, unit_internal)
+    call self%write_key_val("nu_h", self%nu_h, unit_internal)
+    call self%write_key_val("nustar", self%nustar, unit_internal)
+    call self%write_key_val("temp", self%temp, unit_internal)
+    call self%write_key_val("tpar0", self%tpar0, unit_internal)
+    call self%write_key_val("tperp0", self%tperp0, unit_internal)
+    call self%write_key_val("tprim", self%tprim, unit_internal)
+    call self%write_key_val("type", self%type, unit_internal)
+    call self%write_key_val("u0", self%u0, unit_internal)
+    call self%write_key_val("uprim", self%uprim, unit_internal)
+    call self%write_key_val("uprim2", self%uprim2, unit_internal)
+    call self%write_key_val("vcprim", self%vcprim, unit_internal)
+    call self%write_key_val("vcrit", self%vcrit, unit_internal)
+    call self%write_key_val("vnewk", self%vnewk, unit_internal)
+    call self%write_key_val("z", self%z, unit_internal)
+    call self%write_namelist_footer(unit_internal)
+  end subroutine write_species_element_config
+
+  !> Resets the config object to the initial empty state
+  subroutine reset_species_element_config(self)
+    class(species_element_config_type), intent(in out) :: self
+    type(species_element_config_type) :: empty
+    select type (self)
+    type is (species_element_config_type)
+       self = empty
+    end select
+  end subroutine reset_species_element_config
+
+  !> Broadcasts all config parameters so object is populated identically on
+  !! all processors
+  subroutine broadcast_species_element_config(self)
+    use mp, only: broadcast
+    implicit none
+    class(species_element_config_type), intent(in out) :: self
+    call broadcast(self%bess_fac)
+    call broadcast(self%dens)
+    call broadcast(self%dens0)
+    call broadcast(self%f0type)
+    call broadcast(self%fprim)
+    call broadcast(self%mass)
+    call broadcast(self%nu)
+    call broadcast(self%nu_h)
+    call broadcast(self%nustar)
+    call broadcast(self%temp)
+    call broadcast(self%tpar0)
+    call broadcast(self%tperp0)
+    call broadcast(self%tprim)
+    call broadcast(self%type)
+    call broadcast(self%u0)
+    call broadcast(self%uprim)
+    call broadcast(self%uprim2)
+    call broadcast(self%vcprim)
+    call broadcast(self%vcrit)
+    call broadcast(self%vnewk)
+    call broadcast(self%z)
+
+    call broadcast(self%exist)
+  end subroutine broadcast_species_element_config 
+
+  !> Gets the default name for this namelist
+  function get_default_name_species_element_config()
+    implicit none
+    character(len = CONFIG_MAX_NAME_LEN) :: get_default_name_species_element_config
+    get_default_name_species_element_config = "species_parameters"
+  end function get_default_name_species_element_config
+
+  !> Gets the default requires index for this namelist
+  function get_default_requires_index_species_element_config()
+    implicit none
+    logical :: get_default_requires_index_species_element_config
+    get_default_requires_index_species_element_config = .true.
+  end function get_default_requires_index_species_element_config
 end module species
