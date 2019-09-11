@@ -308,6 +308,12 @@ include Makefile.utils
 GIT_HASH=$(shell git rev-parse HEAD)
 MACRO_DEFS+=-DGIT_HASH='"$(GIT_HASH)"'
 
+GIT_HASH_MAKEFILES:=$(shell git submodule status Makefiles | cut -d ' ' -f2)
+MACRO_DEFS+=-DGIT_HASH_MAKEFILES='"$(GIT_HASH_MAKEFILES)"'
+
+GIT_HASH_UTILS:=$(shell git submodule status $(UTILS) | cut -d ' ' -f2)
+MACRO_DEFS+=-DGIT_HASH_UTILS='"$(GIT_HASH_UTILS)"'
+
 #The magic sed esacpes either ( or ) by replacing with \( or \)
 GIT_BRANCH=$(shell git branch | grep \* | cut -d ' ' -f2- | sed 's|\([()]\)|\\\1|g')
 MACRO_DEFS+=-DGIT_BRANCH='"$(GIT_BRANCH)"'
@@ -842,6 +848,8 @@ test_make:
 	$(call messageKeyVal, "QUIET", $(QUIET))
 	$(call messageKeyVal, "WITH_COLOUR", $(WITH_COLOUR))
 	$(call messageKeyVal, "GIT_HASH", $(GIT_HASH))
+	$(call messageKeyVal, "GIT_HASH_MAKEFILES", $(GIT_HASH_MAKEFILES))
+	$(call messageKeyVal, "GIT_HASH_UTILS", $(GIT_HASH_UTILS))
 	$(call messageKeyVal, "GIT_STATE", $(GIT_STATE))
 	$(call messageKeyVal, "GIT_BRANCH", $(GIT_BRANCH))
 	$(call messageKeyVal, "PATCHFILE", $(PATHFILE))
