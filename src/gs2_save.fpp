@@ -13,7 +13,7 @@ module gs2_save
   use netcdf, only: nf90_put_att, NF90_GLOBAL, nf90_get_att
   use netcdf, only: nf90_create_par
 # endif
-  use netcdf, only: NF90_NOWRITE, NF90_CLOBBER, NF90_NOERR, NF90_UNLIMITED
+  use netcdf, only: NF90_NOWRITE, NF90_CLOBBER, NF90_NOERR, NF90_UNLIMITED, NF90_CHAR
   use netcdf, only: nf90_create, nf90_open, nf90_sync, nf90_close
   use netcdf, only: nf90_def_dim, nf90_def_var, nf90_enddef
   use netcdf, only: nf90_put_var, nf90_get_var, nf90_strerror
@@ -68,6 +68,7 @@ module gs2_save
   integer (kind_nf) :: gexp_1_r_id, gexp_1_i_id
   integer (kind_nf) :: gexp_2_r_id, gexp_2_i_id
   integer (kind_nf) :: gexp_3_r_id, gexp_3_i_id
+  integer (kind_nf) :: layout_id, char5_dim
   integer (kind_nf) :: current_scan_parameter_value_id
   integer (kind_nf) :: a_antr_id, b_antr_id, a_anti_id, b_anti_id
 !<DD> Added for saving distribution function
@@ -125,7 +126,7 @@ contains
 ! gs2_diagnostics.f90 (which uses this module) with the Compaq F90 compiler:
 ! TT>
 !    use gs2_layouts, only: g_lo, g_layout_type
-    use gs2_layouts, only: g_lo
+    use gs2_layouts, only: g_lo, layout
     use gs2_layouts, only: proc_id,ik_idx,it_idx,is_idx,ie_idx,il_idx ! MRH layout information for plotting
 # ifdef NETCDF_PARALLEL
     use gs2_layouts, only: layout
@@ -393,13 +394,28 @@ contains
 
        call debug_message(verb, 'gs2_save::gs2_save_for_restart defining variables')
 
+
+       istatus = nf90_def_dim (ncid, "char5", 5, char5_dim)
+       if (istatus /= NF90_NOERR) then
+          ierr = error_unit()
+          write(ierr,*) "nf90_def_dim char5 error: ", nf90_strerror(istatus)
+          goto 1
+       end if
+
+       istatus = nf90_def_var (ncid, "layout", nf90_char, char5_dim, layout_id)
+       if (istatus /= NF90_NOERR) then
+          ierr = error_unit()
+          write(ierr,*) "nf90_def_var layout error: ", nf90_strerror(istatus)
+          goto 1
+       end if
+
        istatus = nf90_def_var (ncid, "t0", netcdf_real, t0id)
        if (istatus /= NF90_NOERR) then
           ierr = error_unit()
           write(ierr,*) "nf90_def_var t0 error: ", nf90_strerror(istatus)
           goto 1
        end if
-       
+
        istatus = nf90_def_var (ncid, "delt0", netcdf_real, delt0id)
        if (istatus /= NF90_NOERR) then
           ierr = error_unit()
@@ -823,6 +839,13 @@ contains
           goto 1
        end if
 
+       istatus = nf90_put_var (ncid, layout_id, layout)
+       if (istatus /= NF90_NOERR) then
+          ierr = error_unit()
+          write (ierr,*) "nf90_put_var layout error: ", nf90_strerror(istatus)
+          goto 1
+       end if
+
        if (include_parameter_scan) then
           ! <EGH see parameter_scan.f90
           istatus = nf90_put_var (ncid, &
@@ -1224,12 +1247,13 @@ contains
   subroutine gs2_restore_many (g, scale, istatus, fphi, fapar, fbpar, fileopt)
 !MR, 2007: restore kx_shift array if already allocated
 # ifdef NETCDF
-    use mp, only: iproc
+    use mp, only: iproc, mp_abort
     use fields_arrays, only: phinew, aparnew, bparnew
     use fields_arrays, only: phi, apar, bpar
     use dist_fn_arrays, only: kx_shift   ! MR
     use dist_fn_arrays, only: gexp_1, gexp_2, gexp_3
     use kt_grids, only: naky, ntheta0
+    use gs2_layouts, only: layout
 # endif
     use theta_grid, only: ntgrid
     use gs2_layouts, only: g_lo
@@ -1246,6 +1270,7 @@ contains
 # endif
     character (run_name_size) :: file_proc
     character (10) :: suffix
+    character (len = 5) :: restart_layout
     integer :: i, n_elements, ierr
     real :: fac
     
@@ -1330,6 +1355,7 @@ contains
        if (istatus /= NF90_NOERR) call netcdf_error (istatus, ncid, dimid=kxid,&
          abort=abort_on_restart_fail)
        if (i /= ntheta0) write(*,*) 'Restart error: ntheta0=? ',i,' : ',ntheta0,' : ',iproc
+
        
        if (fphi > epsilon(0.)) then
           istatus = nf90_inq_varid (ncid, "phi_r", phir_id)
@@ -1392,7 +1418,23 @@ contains
        if (istatus /= NF90_NOERR) call netcdf_error (istatus, var='gi',&
          abort=abort_on_restart_fail)
     end if
-    
+
+    istatus = nf90_inq_varid (ncid, "layout", layout_id)
+    if (istatus /= NF90_NOERR) call netcdf_error (istatus, var='layout_r')
+
+    istatus = nf90_get_var (ncid, layout_id, restart_layout)
+
+    if (istatus /= NF90_NOERR) then
+       call netcdf_error (istatus, ncid, layout_id, message=' in gs2_restore_many')
+       restart_layout = layout
+    endif
+
+    ! Abort if the layouts don't match
+    if(restart_layout /= layout) then
+       call mp_abort("Incompatible layouts in restart file ("//restart_layout//") and simulation ("//layout//")",.true.)
+    end if
+
+
     if (.not. allocated(tmpr)) &
          allocate (tmpr(2*ntgrid+1,2,g_lo%llim_proc:g_lo%ulim_alloc))
     if (.not. allocated(tmpi)) &
