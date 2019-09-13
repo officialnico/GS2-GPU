@@ -60,7 +60,7 @@ module gs2_save
   real, allocatable, dimension(:) :: stmp  ! MR: tmp var for kx_shift
   real, allocatable, dimension(:) :: atmp
 !  integer, parameter :: kind_nf = kind (NF90_NOERR)
-  integer (kind_nf) :: ncid, thetaid, signid, gloid, kyid, kxid, nk_stir_dim
+  integer (kind_nf) :: ncid, thetaid, signid, gloid, kyid, kxid, nk_stir_dim, char5_dim
   integer (kind_nf) :: phir_id, phii_id, aparr_id, apari_id, bparr_id, bpari_id
   integer (kind_nf) :: kx_shift_id   ! MR: added to save kx_shift variable
   integer (kind_nf) :: t0id, gr_id, gi_id, vnm1id, vnm2id
@@ -68,7 +68,7 @@ module gs2_save
   integer (kind_nf) :: gexp_1_r_id, gexp_1_i_id
   integer (kind_nf) :: gexp_2_r_id, gexp_2_i_id
   integer (kind_nf) :: gexp_3_r_id, gexp_3_i_id
-  integer (kind_nf) :: layout_id, char5_dim
+  integer (kind_nf) :: layout_id, ntheta0_id, naky_id, nlambda_id, negrid_id, nspec_id
   integer (kind_nf) :: current_scan_parameter_value_id
   integer (kind_nf) :: a_antr_id, b_antr_id, a_anti_id, b_anti_id
 !<DD> Added for saving distribution function
@@ -406,6 +406,41 @@ contains
        if (istatus /= NF90_NOERR) then
           ierr = error_unit()
           write(ierr,*) "nf90_def_var layout error: ", nf90_strerror(istatus)
+          goto 1
+       end if
+
+       istatus = nf90_def_var (ncid, "ntheta0", netcdf_int, ntheta0_id)
+       if (istatus /= NF90_NOERR) then
+          ierr = error_unit()
+          write(ierr,*) "nf90_def_var ntheta0 error: ", nf90_strerror(istatus)
+          goto 1
+       end if
+
+       istatus = nf90_def_var (ncid, "naky", netcdf_int, naky_id)
+       if (istatus /= NF90_NOERR) then
+          ierr = error_unit()
+          write(ierr,*) "nf90_def_var naky error: ", nf90_strerror(istatus)
+          goto 1
+       end if
+
+       istatus = nf90_def_var (ncid, "nlambda", netcdf_int, nlambda_id)
+       if (istatus /= NF90_NOERR) then
+          ierr = error_unit()
+          write(ierr,*) "nf90_def_var nlambda error: ", nf90_strerror(istatus)
+          goto 1
+       end if
+
+       istatus = nf90_def_var (ncid, "negrid", netcdf_int, negrid_id)
+       if (istatus /= NF90_NOERR) then
+          ierr = error_unit()
+          write(ierr,*) "nf90_def_var negrid error: ", nf90_strerror(istatus)
+          goto 1
+       end if
+
+       istatus = nf90_def_var (ncid, "nspec", netcdf_int, nspec_id)
+       if (istatus /= NF90_NOERR) then
+          ierr = error_unit()
+          write(ierr,*) "nf90_def_var nspec error: ", nf90_strerror(istatus)
           goto 1
        end if
 
@@ -843,6 +878,41 @@ contains
        if (istatus /= NF90_NOERR) then
           ierr = error_unit()
           write (ierr,*) "nf90_put_var layout error: ", nf90_strerror(istatus)
+          goto 1
+       end if
+
+       istatus = nf90_put_var (ncid, ntheta0_id, ntheta0)
+       if (istatus /= NF90_NOERR) then
+          ierr = error_unit()
+          write (ierr,*) "nf90_put_var ntheta0 error: ", nf90_strerror(istatus)
+          goto 1
+       end if
+
+       istatus = nf90_put_var (ncid, naky_id, naky)
+       if (istatus /= NF90_NOERR) then
+          ierr = error_unit()
+          write (ierr,*) "nf90_put_var naky error: ", nf90_strerror(istatus)
+          goto 1
+       end if
+
+       istatus = nf90_put_var (ncid, nlambda_id, nlambda)
+       if (istatus /= NF90_NOERR) then
+          ierr = error_unit()
+          write (ierr,*) "nf90_put_var nlambda error: ", nf90_strerror(istatus)
+          goto 1
+       end if
+
+       istatus = nf90_put_var (ncid, negrid_id, negrid)
+       if (istatus /= NF90_NOERR) then
+          ierr = error_unit()
+          write (ierr,*) "nf90_put_var negrid error: ", nf90_strerror(istatus)
+          goto 1
+       end if
+
+       istatus = nf90_put_var (ncid, nspec_id, nspec)
+       if (istatus /= NF90_NOERR) then
+          ierr = error_unit()
+          write (ierr,*) "nf90_put_var nspec error: ", nf90_strerror(istatus)
           goto 1
        end if
 
