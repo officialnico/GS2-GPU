@@ -16,6 +16,9 @@ module eigval
 #if PETSC_VERSION_LT(3,6,0)
 #include <finclude/petscvecdef.h>
 #include <finclude/petscmatdef.h>
+#elif PETSC_VERSION_GE(3,8,0)
+#include <petsc/finclude/petscvec.h>
+#include <petsc/finclude/petscmat.h>
 #else
 #include <petsc/finclude/petscvecdef.h>
 #include <petsc/finclude/petscmatdef.h>
@@ -23,6 +26,8 @@ module eigval
 
 #if SLEPC_VERSION_LT(3,6,0)
 #include <finclude/slepcepsdef.h>
+#elif SLEPC_VERSION_GE(3,8,0)
+#include <slepc/finclude/slepceps.h>
 #else
 #include <slepc/finclude/slepcepsdef.h>
 #endif
@@ -544,7 +549,7 @@ contains
     call EPSCreate(PETSC_COMM_WORLD,eps_solver,ierr)
 
     !Set the matrix operator we want to find eigenvalues of
-    call EPSSetOperators(eps_solver,mat_operator,PETSC_NULL_OBJECT,ierr)
+    call EPSSetOperators(eps_solver,mat_operator,PETSC_NULL_MAT,ierr)
 
     !Set the type of eigenproblem -->Always non-hermittian for us
     call EPSSetProblemType(eps_solver,EPS_NHEP,ierr)
@@ -559,9 +564,9 @@ contains
 
        !Setup vector
 #if PETSC_VERSION_LT(3,6,0)
-       call MatGetVecs(mat_operator,PETSC_NULL_OBJECT,init_vec,ierr)
+       call MatGetVecs(mat_operator,PETSC_NULL_VEC,init_vec,ierr)
 #else
-       call MatCreateVecs(mat_operator,PETSC_NULL_OBJECT,init_vec,ierr)
+       call MatCreateVecs(mat_operator,PETSC_NULL_VEC,init_vec,ierr)
 #endif
        call GnewToVec(init_vec)
 
@@ -926,11 +931,11 @@ contains
     if(n_converged.gt.0)then
        !Initialise the eigenvector arrays
 #if PETSC_VERSION_LT(3,6,0)
-       call MatGetVecs(my_operator,PETSC_NULL_OBJECT,eig_vec_r,ierr)
-       call MatGetVecs(my_operator,PETSC_NULL_OBJECT,eig_vec_i,ierr)
+       call MatGetVecs(my_operator,PETSC_NULL_VEC,eig_vec_r,ierr)
+       call MatGetVecs(my_operator,PETSC_NULL_VEC,eig_vec_i,ierr)
 #else
-       call MatCreateVecs(my_operator,PETSC_NULL_OBJECT,eig_vec_r,ierr)
-       call MatCreateVecs(my_operator,PETSC_NULL_OBJECT,eig_vec_i,ierr)
+       call MatCreateVecs(my_operator,PETSC_NULL_VEC,eig_vec_r,ierr)
+       call MatCreateVecs(my_operator,PETSC_NULL_VEC,eig_vec_i,ierr)
 #endif
        if(proc0)call init_eigenfunc_file(trim(run_name)//"_eig.out.nc",fphi,fapar,fbpar,io_ids)
 
