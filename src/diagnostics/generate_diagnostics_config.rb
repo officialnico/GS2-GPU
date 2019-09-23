@@ -63,6 +63,9 @@ input_variables_for_diagnostics_config = [
 
 
   # Parameters for writing out fluxes
+  # write_fluxes and write_fluxes_by_mode must be included here, but their
+  # defaults are ignored. They both default to false for linear runs and
+  # true for nonlinear runs.
   ['logical', 'write_fluxes', '.false.'],
   ['logical', 'write_fluxes_by_mode', '.false.'],
   ['logical', 'write_symmetry', '.false.'],
@@ -379,6 +382,7 @@ contains
     use file_utils, only: input_unit, error_unit, input_unit_exist
     use text_options, only: text_option, get_option_value
     use mp, only: proc0, broadcast, nproc, iproc
+    use nonlinear_terms, only: nonlin
     use unit_tests, only: debug_message
     implicit none
     type(diagnostics_type), intent(out) :: gnostics
@@ -391,6 +395,17 @@ contains
 
     if (proc0) then
        #{generators.map{|g| g.set_default}.join("\n       ")}
+
+       ! Smart default
+       ! This is a temporary solution to work around the ruby generation of
+       ! diagnostics_config, which will be deprecated in the next release.
+       if(nonlin) then
+          write_fluxes = .true.
+          write_fluxes_by_mode = .true.
+       else
+          write_fluxes = .false.
+          write_fluxes_by_mode = .false.
+       end if
 
        in_file = input_unit_exist ("gs2_diagnostics_knobs", exist)
        if (exist) read (unit=in_file, nml=gs2_diagnostics_knobs)
