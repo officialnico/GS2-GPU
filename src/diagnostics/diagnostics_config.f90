@@ -294,9 +294,11 @@ module diagnostics_config
      !> FIXME: Add documentation
      logical :: write_flux_line = .true.
      !> Write fluxes over time
+     !> This gets a smart default
      !> If run is nonlinear, this defaults to true
      logical :: write_fluxes = .false. ! Only in new diagnostics
      !> Write fluxes over time as a function of Fourier mode
+     !> This gets a smart default
      !> If run is nonlinear, this defaults to true
      logical :: write_fluxes_by_mode = .false. ! Only in new diagnostics
      !> FIXME: Add documentation
