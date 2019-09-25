@@ -861,14 +861,22 @@ module kt_grids_specified
   type, extends(abstract_config_type) :: kt_grids_specified_config_type
      ! namelist : kt_grids_specified_parameters
      ! indexed : false     
-     !> FIXME: Add documentation
+     !> The number of `ky` values evolved. The total number of modes evolved is given by
+     !> the maximum of `naky` and `ntheta0`. One must also set up the appropriate number of
+     !> [[kt_grids_specified_element]]`_<i>` namelists.
      integer :: naky = 1
-     !> FIXME: Add documentation
+     !> The number of `theta0` values evolved. The total number of modes evolved is given by
+     !> the maximum of `naky` and `ntheta0`. One must also set up the appropriate number of
+     !> [[kt_grids_specified_element]]`_<i>` namelists.
      integer :: ntheta0 = 1
-     !> FIXME: Add documentation
+     !> Mostly ignored. Does not set the number of modes used.
+     !>
+     !> @todo Consider removing
      integer :: nx = 0
-     !> FIXME: Add documentation
-     integer :: ny = 0     
+     !> Mostly ignored. Does not set the number of modes used.
+     !>
+     !> @todo Consider removing
+     integer :: ny = 0
    contains
      procedure, public :: read => read_kt_grids_specified_config
      procedure, public :: write => write_kt_grids_specified_config
@@ -885,11 +893,11 @@ module kt_grids_specified
   type, extends(abstract_config_type) :: kt_grids_specified_element_config_type
      ! namelist : kt_grids_specified_element
      ! indexed : true     
-     !> FIXME: Add documentation
+     !> Sets the \(k_y \rho\) value for this wavenumber element.
      real :: aky = 0.4
-     !> FIXME: Add documentation
+     !> Sets the \(k_x \rho\) value for this wavenumber element (but should set `theta0` instead).
      real :: akx = 0.0
-     !> FIXME: Add documentation
+     !> Sets the \(\theta_0\) value for this wavenumber element.
      real :: theta0 = 0.0
    contains
      procedure, public :: read => read_kt_grids_specified_element_config
