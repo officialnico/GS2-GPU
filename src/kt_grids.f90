@@ -1311,33 +1311,87 @@ module kt_grids_box
   !> Used to represent the input configuration of kt_grids_box
   type, extends(abstract_config_type) :: kt_grids_box_config_type
      ! namelist : kt_grids_box_parameters
-     ! indexed : false     
+     ! indexed : false
      !> FIXME: Add documentation
+     !>
+     !> @note We should probably remove/move this flag to some gryfx
+     !> specific location.
      logical :: gryfx = .false.
-     !> FIXME: Add documentation
-     !> @note This gets a smart default
-     integer :: jtwist = 1 
-     !> FIXME: Add documentation
+     !> For finite magnetic shear determines the box size in the x
+     !> direction according to \(L_x = L_y
+     !> \textrm{jtwist}/2\pi\hat{s}\).  This also affects the number
+     !> of connections at each `ky` when linked boundary conditions
+     !> are selected in the [[dist_fn_knobs]] namelist.
+     !>
+     !> This gets a smart default Initialised to `jtwist =
+     !> max(int(2*pi*shat+0.5,1))` so that \(L_x\approx L_y\). If the
+     !> magnetic shear is less than around 0.16 then `jtwist` will
+     !> default to the minimum allowed value of 1.
+     integer :: jtwist = 1
+     !> Sets the box size in the y direction. If set to 0 (the default) then
+     !> we set `ly=2*pi*y0`.
      real :: ly = 0.0
-     !> FIXME: Add documentation
+     !> If set greater than zero (the default) then this sets the
+     !> toroidal mode number of the first non-zero `ky` by overriding
+     !> the value given for `y0` through `y0 =
+     !> 1.0/(n0*rhostar_box*drhodpsi)` where `drhodpsi` is determined
+     !> during geometry setup.
      integer :: n0 = 0
-     !> FIXME: Add documentation
+     !> The actual number of ky modes. For nonlinear runs it is
+     !> recommended to use `ny` instead. If set to 0 (the default)
+     !> this will be automatically set to `1 + (ny-1)/3`.
      integer :: naky = 0
      !> FIXME: Add documentation
+     !>
+     !> Not used anywhere so should be removed.
+     !> If set to 0 (the default) then will be set to `int(real(naky-1.)*sqrt(2.))`
      integer :: nkpolar = 0
-     !> FIXME: Add documentation
+     !> The actual number of theta0 modes. For nonlinear runs it is
+     !> recommended to use `nx` instead. If set to 0 (the default)
+     !> this will be automatically set to `1 + 2*(nx-1)/3`.
      integer :: ntheta0 = 0
-     !> FIXME: Add documentation
+     !> The number of kx points in inputs to the fft routines, and
+     !> hence the number of radial points used in real space
+     !> calculations. This differs from the actual number of kx points
+     !> simulated in the rest of the code due to the need to prevent
+     !> aliasing. The number of kx modes actually simulated
+     !> (`ntheta0`) is, by default, equal to `1 + 2*(nx - 1)/3`.
      integer :: nx = 0
-     !> FIXME: Add documentation
-     integer :: ny = 0      
-     !> FIXME: Add documentation
+     !> The number of ky points in inputs to the fft routines, and
+     !> hence the number of binormal points used in real space
+     !> calculations. This differs from the actual number of ky points
+     !> simulated in the rest of the code due to the need to prevent
+     !> aliasing. The number of ky modes actually simulated
+     !> (`naky`) is, by default, equal to `1 + (ny - 1)/3`.
+     integer :: ny = 0
+     !> The rhostar (`rhoref/Lref`) to use. Only used if `n0` also set
+     !> greater than zero.  If `rhostar_box` and `n0` are greater than
+     !> zero then `y0=1.0/(n0*rhostar_box*drhodpsi)`, which
+     !> effectively sets the minimum non-zero `ky` used in the
+     !> simulation.
      real :: rhostar_box = 0.0
-     !> FIXME: Add documentation
+     !> Expert usage only -- more documentation required.
+     !>
+     !> Used to control the kx spacing in simulations with effectively
+     !> zero shear (\(\< 10^{-5}\)) where linked boundaries are not
+     !> appropriate so periodic boundaries are used. Also only used if
+     !> `x0` has been set to zero (the default). If `rtwist` is set to
+     !> 0.0 (the default) then it is set to the value of
+     !> `jtwist`. Effectively ends up setting the box size in the x
+     !> direction, as \(L_x = L_y \textrm{rtwist}\) if `rtwist > 0 `
+     !> and \(L_x = L_y / \textrm{rtwist}\) if `rtwist < 0`. See
+     !> [[x0]] for an alternative.
      real :: rtwist = 0.0
-     !> FIXME: Add documentation
+     !> Controls the box length in the x direction (measured in
+     !> the reference Larmour radius) if the magnetic shear is small
+     !> (\(\< 10^{-5}\)). The box size in the x direction is
+     !> given by \(L_x = 2\pi x_0\). See [[rtwist]] for an alternative.
      real :: x0 = 0.
-     !> FIXME: Add documentation
+     !> Controls the box length in the y direction (measured in the
+     !> reference Larmour radius). The box size in the y direction is
+     !> given by \(L_y = 2\pi y_0\). Note if `y0` is set negative
+     !> then, it is replaced with `-1/y0` and Effectively sets the
+     !> minimum wavelength captured by the box.
      real :: y0 = 2.0
    contains
      procedure, public :: read => read_kt_grids_box_config
