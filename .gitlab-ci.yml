@@ -68,7 +68,8 @@ pages:
   only:
     - master
     - next
-
+    - feature/expand_namelist_documentation
+    
 success:
   stage: ci_status
   before_script:
