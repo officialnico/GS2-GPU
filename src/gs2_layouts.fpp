@@ -295,11 +295,11 @@ module gs2_layouts
      !>
      !> @todo Consider changing the default to either `xyles` or `lexys`.
      character(len = 5) :: layout = 'lxyes'
-     !> FIXME: Add documentation Can strongly affect initialization
-     !> time on some parallel computers.  Recommendation: Set true on
-     !> computers with slow communication networks.  It's probably
-     !> worth trying changing this on your favourite machine to see
-     !> how much difference it makes for you.
+     !> Can strongly affect initialization time on some parallel
+     !> computers.  Recommendation: Set true on computers with slow
+     !> communication networks.  It's probably worth trying changing
+     !> this on your favourite machine to see how much difference it
+     !> makes for you.
      !>
      !> *Note* This only impacts simulations with a `field_option` of
      !> *`implicit`.
