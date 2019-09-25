@@ -1928,7 +1928,22 @@ module kt_grids
   type, extends(abstract_config_type) :: kt_grids_config_type
      ! namelist : kt_grids_knobs
      ! indexed : false     
-     !> FIXME: Add documentation     
+     !> Controls the type of perpendicular wavenumber grid to use.
+     !> Can be one of
+     !> <ul>
+     !> <li> 'single' Evolve a single Fourier mode. Set up
+     !> with [[kt_grids_single_parameters]].
+     !> <li> 'default' Same as 'single'
+     !> <li> 'range' Evolve a range of equally spaced Fourier
+     !> modes. Set up with [[kt_grids_range_parameters]].
+     !> <li> 'specified' Evolve an arbitrary set of Fourier modes. Set
+     !> up with [[kt_grids_specified_parameters]] and corresponding
+     !> [[kt_grids_specified_elements]].
+     !> <li> 'box' Simulation domain is logically rectangular. Set up with
+     !> [[kt_grids_box_parameters]]. Required for nonlinear simulations.
+     !> <li> 'nonlinear' Same as 'box.'
+     !> <li> 'xbox' Experimental.
+     !> </ul>
      character(len = 20) :: grid_option = "default"
    contains
      procedure, public :: read => read_kt_grids_config
