@@ -210,41 +210,176 @@ module gs2_layouts
   !> Used to represent the input configuration of layouts
   type, extends(abstract_config_type) :: layouts_config_type
      ! namelist : layouts_knobs
-     ! indexed : false     
-     !> False=>use heuristics rather than measure in fft plan create
+     ! indexed : false
+     !> If false then fftw will use heuristics to determine the best
+     !> fft plan. If true then timing measurements will be made to
+     !> determine an optimal plan. When true it can take somewhat
+     !> longer to initialise the fft plans. *Warning* if true then
+     !> results will not be exactly reproducible as the choice of the
+     !> optimal plan can vary from run to run when timing different
+     !> approaches. This is the main reason why the default if false
+     !> here.
      logical :: fft_measure_plan = .false.
-     !> Try to load and save wisdom about fftw plans to fft_wisdom_file
-     logical :: fft_use_wisdom = .true. 
-     !> Location of fftw wisdom... if left as default, this is set to
+     !> Try to load and save wisdom about fftw plans to
+     !> fft_wisdom_file this can speed up the fft initialisation when
+     !> running new cases with the same grid sizes as previous runs.
+     logical :: fft_use_wisdom = .true.
+     !> Location of fftw wisdom file, if left as default, this is set to
      !> run_name//'.fftw_wisdom', unless overriden by the environment
-     !> variable GK_FFTW3_WISDOM. If set to anything other default,
-     !> overrides GK_FFTW3_WISDOM
+     !> variable `GK_FFTW3_WISDOM`. If set to anything other than default,
+     !> overrides `GK_FFTW3_WISDOM`.
      character(len = run_name_size) :: fft_wisdom_file = 'default'
-     !> FIXME: Add documentation
+     !> If true then perform initial decomposition setup related to
+     !> the `gf_local` field approach, setting up the `gf_lo`
+     !> decomposition. This is forced to false if the number of
+     !> processors is less than `naky * ntheta0`. See also the
+     !> `field_option` input of [[fields_knobs]].
      logical :: gf_local_fields = .false.
-     !> FIXME: Add documentation
+     !> When set to true use sub-communicators in the velocity space
+     !> integration routines associated with taking moments of the
+     !> distribution function. The sub-communicator involves all
+     !> processors with a given `xys` part of the domain (i.e. the
+     !> same range in theta0, ky and species dimensions). As such this
+     !> is forced to false if one or more of these three dimensions
+     !> are not split "nicely" (typically meaning if we're not using
+     !> an appropriate sweetspot). Can provide a small performance
+     !> improvement when true in certain cases.
+     !>
+     !> *Note* These sub-communicators effect calls to
+     !> [[integrate_moment]] with complex variables. By default there
+     !> is no gather of data from other procs so the integration
+     !> result may only be known for the local `xys` block. This could
+     !> cause a problem for diagnostics which want to write the full
+     !> array.  The optional argument `full_arr` can override this,
+     !> forcing the full array to be known. This is only a concern if
+     !> they option argument `all` is also passed.
      logical :: intmom_sub = .false.
-     !> FIXME: Add documentation
+     !> When set to true use sub-communicators in the velocity space
+     !> integration routines associated with taking species summed
+     !> moments of the distribution function. The sub-communicator
+     !> involves all processors with a given `xy` part of the domain
+     !> (i.e. the same range in theta0 and ky dimensions). As such
+     !> this is forced to false if one or more of these two dimensions
+     !> are not split "nicely" (typically meaning if we're not using
+     !> an appropriate sweetspot). Can provide a small performance
+     !> improvement when true in certain cases.
      logical :: intspec_sub = .false.
-     !> FIXME: Add documentation
+     !> This string determines how the distributed dimensions (k)`x`,
+     !> (k)`y`, `l`(ambda), `e`(nergy) and `s`(pecies) are laid out in
+     !> (global) memory. The rightmost dimensions are parallelised
+     !> first, with the leftmost dimension being most local. This can
+     !> strongly impact performance and the sweetspots suggested by
+     !> [[ingen]].
+     !>
+     !> Valid options are:
+     !> <ul>
+     !> <li> 'lxyes'
+     !> <li> 'xyles'
+     !> <li> 'yxles'
+     !> <li> 'lexys'
+     !> <li> 'lyxes'
+     !> </ul>
+     !>
+     !> The optimal choice depends on the type of simulation being
+     !> run.  It is typically expensive to parallelise `x` in
+     !> simulations using the `box` kt_grids type with linked boundary
+     !> conditions, including all nonlinear simulations, so `xyles` is
+     !> a good choice for these cases.  Furthermore for nonlinear
+     !> cases we must Fourier transform in `x` and `y`, so again
+     !> `xyles` of `yxles` are good options. For collisional cases,
+     !> especially those using the `le_lo` layout, can benefit from
+     !> using `lexys`. Collisional nonlinear simulations therefore
+     !> have two/three competing choices and it is advisable to test both
+     !> (remembering that the most suitable number of processors may
+     !> also change when the layout is changed).
+     !>
+     !> @todo Consider changing the default to either `xyles` or `lexys`.
      character(len = 5) :: layout = 'lxyes'
-     !> FIXME: Add documentation
+     !> FIXME: Add documentation Can strongly affect initialization
+     !> time on some parallel computers.  Recommendation: Set true on
+     !> computers with slow communication networks.  It's probably
+     !> worth trying changing this on your favourite machine to see
+     !> how much difference it makes for you.
+     !>
+     !> *Note* This only impacts simulations with a `field_option` of
+     !> *`implicit`.
+     !>
+     !> @todo investigate if this setting is still helpful on current
+     !> machines and if we can determine heuristics for when to enable
+     !> it.
      logical :: local_field_solve = .false.
-     !> FIXME: Add documentation
+     !> Sets maximum allowable fractional imbalance between the two
+     !> different blocksizes used in the `xxf_lo` decomposition used
+     !> in the nonlinear term calculation if `unbalanced_xxf` is true.
+     !> See [Adrian Jackson's DCSE
+     !> report](https://bitbucket.org/gyrokinetics/wikifiles/raw/HEAD/CMR/GS2_Final_report_NAG_Version_v1.0.pdf)
+     !> for more details.
      real :: max_unbalanced_xxf = 0.0
-     !> FIXME: Add documentation
-     logical :: opt_local_copy = .false. 
-     !> True=>Use nonblocking redistributes
+     !> Setting to true enables optimising redistribute code, used in
+     !> FFTs for evaluating nonlinear terms, that avoids indirect
+     !> addressing. This can introduces worthwhile savings in
+     !> nonlinear GS2 simulations at lower core counts.  See [Adrian
+     !> Jackson's DCSE
+     !> report](https://bitbucket.org/gyrokinetics/wikifiles/raw/HEAD/CMR/GS2_Final_report_NAG_Version_v1.0.pdf)
+     !> for more details.
+     logical :: opt_local_copy = .false.
+     !> Set to true to use non-blocking communications in the
+     !> redistribute routines. This is generally more performant but
+     !> has been observed to be slower in one or two rare cases.
      logical :: opt_redist_nbk = .true.
-     !> True=>Use persistent communications in redistributes
+     !> Set to true to use persistent (non-blocking) communications in
+     !> the redistribute routines. Requires `opt_redist_nbk` to be
+     !> true. Can help improve scaling efficiency at large core
+     !> counts.
      logical :: opt_redist_persist = .false.
-     !> True=>Start comms before doing local copy
+     !> Set to true to try to overlap the mpi and local parts of the
+     !> gather/scatter routines.  Should only be used with
+     !> `opt_redist_persist`. This is typically not seen to have any
+     !> impact on performance.  See [optimising your
+     !> runs](https://bitbucket.org/gyrokinetics/gs2/wiki/Optimising_your_runs)
+     !> for more details.
      logical :: opt_redist_persist_overlap = .false.
      !> FIXME: Add documentation
      logical :: simple_gf_decomposition = .true.
-     !> FIXME: Add documentation
+     !> Setting to true allows GS2 to adopt a more flexible domain
+     !> decomposition of the xxf data decomposition (used in nonlinear
+     !> FFTs).  By default GS2 allocates each MPI task with the same
+     !> uniform blocksize in `xxf_lo`, one task may have a smaller
+     !> block of data, and other tasks may be empty. There is no
+     !> attempt to keep both x and y as local as possible, and
+     !> sometimes large MPI data transfers are required to map from
+     !> xxf to yxf and vice-versa during FFTs.  With `unbalanced_xxf =
+     !> .true.`, two slightly different blocksizes are chosen in order
+     !> to keep both x and y as local as possible, and avoid this
+     !> potentially large MPI communication overhead. The level of
+     !> imbalance is limited by `max_unbalanced_xxf`.
+     !>
+     !> Note [[ingen]] can provide data on the imbalance and
+     !> communication required.
+     !>
+     !> See [Adrian Jackson's DCSE
+     !> report](https://bitbucket.org/gyrokinetics/wikifiles/raw/HEAD/CMR/GS2_Final_report_NAG_Version_v1.0.pdf)
+     !> for more details.
      logical :: unbalanced_xxf = .false.
-     !> FIXME: Add documentation
+     !> Setting to true allows GS2 to adopt a more flexible domain
+     !> decomposition of the yxf data decomposition (used in nonlinear
+     !> FFTs).  By default GS2 allocates each MPI task with the same
+     !> uniform blocksize in yxf_lo, one task may have a smaller block
+     !> of data, and other tasks may be empty. There is no attempt to
+     !> keep both x and y as local as possible, and sometimes large
+     !> MPI data transfers are required to map from xxf to yxf and
+     !> vice-versa during FFTs.  With `unbalanced_yxf = .true.`, two
+     !> slightly different blocksizes are chosen in order to keep both
+     !> x and y as local as possible, and avoid this potentially large
+     !> MPI communication overhead. The level of imbalance is limited
+     !> by `max_unbalanced_yxf`.
+     !>
+     !> Note [[ingen]] can provide data on the imbalance and
+     !> communication required.
+     !>
+     !> See [Adrian Jackson's DCSE
+     !> report](https://bitbucket.org/gyrokinetics/wikifiles/raw/HEAD/CMR/GS2_Final_report_NAG_Version_v1.0.pdf)
+     !> for more details.
      logical :: unbalanced_yxf = .false.
    contains
      procedure, public :: read => read_layouts_config
