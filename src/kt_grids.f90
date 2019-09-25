@@ -23,15 +23,17 @@ module kt_grids_single
   type, extends(abstract_config_type) :: kt_grids_single_config_type
      ! namelist : kt_grids_single_parameters
      ! indexed : false     
-     !> kx rho (but set theta_0 instead.)
+     !> \(k_x \rho\) for the reference species (but recommended to set `theta0` instead).
      real :: akx = 0.0
      !> \(k_y \rho\) for the reference species.
      real :: aky = 0.4
      !> if `n0`>0 use toroidal mode number to override `aky` and set
-     !> `aky=n0*drhodpsi*rhostar_single`
+     !> `aky=n0*drhodpsi*rhostar_single` where `drhodpsi` is calculated
+     !> as a part of the geometry setup.
      integer :: n0 = 0
      !> Used in conjunction with `n0`:
-     !> `aky=n0*drhodpsi*rhostar_single` (if `n0` is set).
+     !> `aky=n0*drhodpsi*rhostar_single` (if `n0` is set) where
+     !> `drhodpsi` is calculated as a part of the geometry setup.
      real :: rhostar_single = 1.0e-4
      !> \(\theta_0\) is the ballooning angle, sets the point in
      !> \(\theta\) where the radial wavenumber is zero
