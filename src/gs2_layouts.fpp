@@ -315,6 +315,13 @@ module gs2_layouts
      !> report](https://bitbucket.org/gyrokinetics/wikifiles/raw/HEAD/CMR/GS2_Final_report_NAG_Version_v1.0.pdf)
      !> for more details.
      real :: max_unbalanced_xxf = 0.0
+     !> Sets maximum allowable fractional imbalance between the two
+     !> different blocksizes used in the `yxf_lo` decomposition used
+     !> in the nonlinear term calculation if `unbalanced_yxf` is true.
+     !> See [Adrian Jackson's DCSE
+     !> report](https://bitbucket.org/gyrokinetics/wikifiles/raw/HEAD/CMR/GS2_Final_report_NAG_Version_v1.0.pdf)
+     !> for more details.
+     real :: max_unbalanced_yxf = 0.0
      !> Setting to true enables optimising redistribute code, used in
      !> FFTs for evaluating nonlinear terms, that avoids indirect
      !> addressing. This can introduces worthwhile savings in
@@ -595,6 +602,7 @@ contains
     layout = layouts_config%layout
     local_field_solve = layouts_config%local_field_solve
     max_unbalanced_xxf = layouts_config%max_unbalanced_xxf
+    max_unbalanced_yxf = layouts_config%max_unbalanced_yxf
     opt_local_copy = layouts_config%opt_local_copy
     opt_redist_nbk = layouts_config%opt_redist_nbk
     opt_redist_persist = layouts_config%opt_redist_persist
@@ -4984,11 +4992,11 @@ contains
     ! we shadow the module level variables here. This is intentional to provide
     ! isolation and ensure we can move this routine to another module easily.    
     logical :: fft_measure_plan, fft_use_wisdom, gf_local_fields, intmom_sub, intspec_sub, local_field_solve, opt_local_copy, opt_redist_nbk, opt_redist_persist, opt_redist_persist_overlap, simple_gf_decomposition, unbalanced_xxf, unbalanced_yxf
-    real :: max_unbalanced_xxf
+    real :: max_unbalanced_xxf, max_unbalanced_yxf
     character(len = 5) :: layout
     character(len = run_name_size) :: fft_wisdom_file
 
-    namelist /layouts_knobs/ fft_measure_plan, fft_use_wisdom, fft_wisdom_file, gf_local_fields, intmom_sub, intspec_sub, layout, local_field_solve, max_unbalanced_xxf, opt_local_copy, opt_redist_nbk, opt_redist_persist, opt_redist_persist_overlap, simple_gf_decomposition, unbalanced_xxf, unbalanced_yxf
+    namelist /layouts_knobs/ fft_measure_plan, fft_use_wisdom, fft_wisdom_file, gf_local_fields, intmom_sub, intspec_sub, layout, local_field_solve, max_unbalanced_xxf, max_unbalanced_yxf, opt_local_copy, opt_redist_nbk, opt_redist_persist, opt_redist_persist_overlap, simple_gf_decomposition, unbalanced_xxf, unbalanced_yxf
 
     ! Only proc0 reads from file
     if (.not. proc0) return
@@ -5003,6 +5011,7 @@ contains
     layout = self%layout
     local_field_solve = self%local_field_solve
     max_unbalanced_xxf = self%max_unbalanced_xxf
+    max_unbalanced_yxf = self%max_unbalanced_yxf
     opt_local_copy = self%opt_local_copy
     opt_redist_nbk = self%opt_redist_nbk
     opt_redist_persist = self%opt_redist_persist
@@ -5033,6 +5042,7 @@ contains
     self%layout = layout
     self%local_field_solve = local_field_solve
     self%max_unbalanced_xxf = max_unbalanced_xxf
+    self%max_unbalanced_yxf = max_unbalanced_yxf
     self%opt_local_copy = opt_local_copy
     self%opt_redist_nbk = opt_redist_nbk
     self%opt_redist_persist = opt_redist_persist
@@ -5066,6 +5076,7 @@ contains
     call self%write_key_val("layout", self%layout, unit_internal)
     call self%write_key_val("local_field_solve", self%local_field_solve, unit_internal)
     call self%write_key_val("max_unbalanced_xxf", self%max_unbalanced_xxf, unit_internal)
+    call self%write_key_val("max_unbalanced_yxf", self%max_unbalanced_yxf, unit_internal)
     call self%write_key_val("opt_local_copy", self%opt_local_copy, unit_internal)
     call self%write_key_val("opt_redist_nbk", self%opt_redist_nbk, unit_internal)
     call self%write_key_val("opt_redist_persist", self%opt_redist_persist, unit_internal)
@@ -5101,6 +5112,7 @@ contains
     call broadcast(self%layout)
     call broadcast(self%local_field_solve)
     call broadcast(self%max_unbalanced_xxf)
+    call broadcast(self%max_unbalanced_yxf)
     call broadcast(self%opt_local_copy)
     call broadcast(self%opt_redist_nbk)
     call broadcast(self%opt_redist_persist)
