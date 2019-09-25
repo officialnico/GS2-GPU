@@ -334,13 +334,15 @@ module kt_grids_range
      !> something other than zero.
      real :: aky_min = 0.0
      !> Sets the type of spacing between ky grid points, available options are :
-     !> -  'default' : Same as 'linear'
-     !> -  'exponential' : Evenly spaced in log(ky).
-     !> -  'linear' : Evenly spaced in ky.   
+     !> <ul>
+     !> <li>  'default' : Same as 'linear'
+     !> <li>  'exponential' : Evenly spaced in log(ky).
+     !> <li>  'linear' : Evenly spaced in ky.
+     !> </ul>
      character(len = 20) :: kyspacing_option = 'default'
-     !> Maximum toroidal mode number. Use instead of `aky_max`.
+     !> Maximum toroidal mode number. Can use instead of `aky_max`.
      integer :: n0_max = 0
-     !> Minimum toroidal mode number. Use instead of `aky_min`.
+     !> Minimum toroidal mode number. Can use instead of `aky_min`.
      integer :: n0_min = 0
      !> The number of 'actual' ky modes.
      integer :: naky = 1
@@ -354,7 +356,8 @@ module kt_grids_range
      !> Used to convert `n0_min`, `n0_max` range into `aky_min`,
      !> `aky_max`, if `n0_min`>0. If `n0_min` is set,
      !> `aky_min=n0_min*drhodpsi*rhostar_range` and
-     !> `aky_max=n0_max*drhodpsi*rhostar_range`
+     !> `aky_max=n0_max*drhodpsi*rhostar_range` where `drhodpsi` is
+     !> calculated as a part of the geometry setup.
      real :: rhostar_range = 1.0e-4
      !> Upper limit of `theta_0` range
      real :: theta0_max = 0.0
