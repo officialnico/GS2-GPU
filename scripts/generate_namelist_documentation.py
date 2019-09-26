@@ -36,7 +36,6 @@ if __name__ == "__main__":
         ind.write("title: Namelists\n")
         ind.write("\n")
         ind.write("\n[TOC]\n\n\n")        
-        ind.write('<html><div class="divNamelistTable"></html>')
         ind.write("\n")        
         for fil in probablyFiles:
             tmp = constructFromFile(fileIn=fil)
@@ -45,7 +44,7 @@ if __name__ == "__main__":
                 ff = pages_path+namelists_path+"auto_generated_"+v.moduleName+"_"+v.namelistName
                 fullf = docs_path+ff
                 with open(fullf+".txt", 'w') as f:
-                    f.writelines("\n".join(v.toMarkdownTable()))
+                    f.writelines("\n".join(v.toHTMLTable()))
 
                 if one_page_per_namelist:
                     with open(fullf+".md", 'w') as f:
@@ -53,13 +52,10 @@ if __name__ == "__main__":
                         f.write("\n")
                         f.write("\n".join(v.comment))
                         f.write("\n\n")
-                        f.write('<html><div class="divNamelistTable"></html>')
                         f.write("\n\n")
                         f.write("{!"+ff+".txt"+"!}\n")
                         f.write("\n")
-                        f.write('</div>')
                     
                 ind.write("{!"+ff+".txt"+"!}\n")
                 ind.write("\n")
-        ind.write('</div>')
 
