@@ -290,15 +290,14 @@ module dist_fn
      ! namelist : dist_fn_knobs
      ! indexed : false
      !> The form of the adiabatic response (if a species is being modeled as adiabatic). Ignored if there are electrons in the species list.
-     !><ul>
-     !> <li> 'no-field-line-average-term'  Adiabatic species has n = Phi.  Appropriate for single-species ETG simulations.
-     !> <li> 'default'  Same as 'no-field-line-average-term'
-     !> <li> 'iphi00=0' Same as 'no-field-line-average-term'
-     !> <li> 'iphi00=1' Same as 'no-field-line-average-term'
-     !> <li> 'field-line-average-term'  Adiabatic species has n=Phi-< Phi >.  Appropriate for single-species ITG simulations.
-     !> <li> 'iphi00=2' Same as field-line-average-term'
-     !> <li> 'iphi00=3' Adiabatic species has n=Phi-< Phi >_y.  Incorrect implementation of field-line-average-term.
-     !></ul>
+     !>
+     !> - 'no-field-line-average-term'  Adiabatic species has n = Phi.  Appropriate for single-species ETG simulations.
+     !> - 'default'  Same as 'no-field-line-average-term'
+     !> - 'iphi00=0' Same as 'no-field-line-average-term'
+     !> - 'iphi00=1' Same as 'no-field-line-average-term'
+     !> - 'field-line-average-term'  Adiabatic species has n=Phi-< Phi >.  Appropriate for single-species ITG simulations.
+     !> - 'iphi00=2' Same as field-line-average-term'
+     !> - 'iphi00=3' Adiabatic species has n=Phi-< Phi >_y.  Incorrect implementation of field-line-average-term.
      !>
      !> @todo Remove 'iphi00=3'
      character(len = 30) :: adiabatic_option = 'default'
@@ -314,12 +313,12 @@ module dist_fn
      !> boundary conditions at \(\theta = \pm \pi\) in flux-tube
      !> simulations or \(\theta = \pm (2*\textrm{nperiod}-1)*\pi\) in
      !> ballooning space). Possible values are:
-     !> <ul>
-     !> <li> 'zero', 'default', 'unconnected' - Use Kotschenreuther boundary condition at endpoints of theta grid
-     !> <li> 'self-periodic', 'periodic', 'kperiod=1' - Each mode is periodic in theta with itself
-     !> <li> 'linked' - Twist and shift boundary conditions (used for kt_grids:grid_option='box')
-     !> <li> 'alternate-zero' - Ignored
-     !> </ul>
+     !>
+     !> - 'zero', 'default', 'unconnected' - Use Kotschenreuther boundary condition at endpoints of theta grid
+     !> - 'self-periodic', 'periodic', 'kperiod=1' - Each mode is periodic in theta with itself
+     !> - 'linked' - Twist and shift boundary conditions (used for kt_grids:grid_option='box')
+     !> - 'alternate-zero' - Ignored
+     !>
      !> See also [[nonad_zero]]
      character(len = 20) :: boundary_option = 'default'
      !> Overrides the [[itor_over_B]] internal parameter, meant only for

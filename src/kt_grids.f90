@@ -334,11 +334,11 @@ module kt_grids_range
      !> something other than zero.
      real :: aky_min = 0.0
      !> Sets the type of spacing between ky grid points, available options are :
-     !> <ul>
-     !> <li>  'default' : Same as 'linear'
-     !> <li>  'exponential' : Evenly spaced in log(ky).
-     !> <li>  'linear' : Evenly spaced in ky.
-     !> </ul>
+     !>
+     !> -  'default' : Same as 'linear'
+     !> -  'exponential' : Evenly spaced in log(ky).
+     !> -  'linear' : Evenly spaced in ky.
+     !>
      character(len = 20) :: kyspacing_option = 'default'
      !> Maximum toroidal mode number. Can use instead of `aky_max`.
      integer :: n0_max = 0
@@ -1930,20 +1930,20 @@ module kt_grids
      ! indexed : false     
      !> Controls the type of perpendicular wavenumber grid to use.
      !> Can be one of
-     !> <ul>
-     !> <li> 'single' Evolve a single Fourier mode. Set up
+     !>
+     !> - 'single' Evolve a single Fourier mode. Set up
      !> with [[kt_grids_single_parameters]].
-     !> <li> 'default' Same as 'single'
-     !> <li> 'range' Evolve a range of equally spaced Fourier
+     !> - 'default' Same as 'single'
+     !> - 'range' Evolve a range of equally spaced Fourier
      !> modes. Set up with [[kt_grids_range_parameters]].
-     !> <li> 'specified' Evolve an arbitrary set of Fourier modes. Set
+     !> - 'specified' Evolve an arbitrary set of Fourier modes. Set
      !> up with [[kt_grids_specified_parameters]] and corresponding
      !> [[kt_grids_specified_elements]].
-     !> <li> 'box' Simulation domain is logically rectangular. Set up with
+     !> - 'box' Simulation domain is logically rectangular. Set up with
      !> [[kt_grids_box_parameters]]. Required for nonlinear simulations.
-     !> <li> 'nonlinear' Same as 'box.'
-     !> <li> 'xbox' Experimental.
-     !> </ul>
+     !> - 'nonlinear' Same as 'box.'
+     !> - 'xbox' Experimental.
+     !>
      character(len = 20) :: grid_option = "default"
    contains
      procedure, public :: read => read_kt_grids_config

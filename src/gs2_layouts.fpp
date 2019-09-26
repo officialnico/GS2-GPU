@@ -275,13 +275,12 @@ module gs2_layouts
      !> [[ingen]].
      !>
      !> Valid options are:
-     !> <ul>
-     !> <li> 'lxyes'
-     !> <li> 'xyles'
-     !> <li> 'yxles'
-     !> <li> 'lexys'
-     !> <li> 'lyxes'
-     !> </ul>
+     !>
+     !> - 'lxyes'
+     !> - 'xyles'
+     !> - 'yxles'
+     !> - 'lexys'
+     !> - 'lyxes'
      !>
      !> The optimal choice depends on the type of simulation being
      !> run.  It is typically expensive to parallelise `x` in
@@ -304,8 +303,8 @@ module gs2_layouts
      !> this on your favourite machine to see how much difference it
      !> makes for you.
      !>
-     !> *Note* This only impacts simulations with a `field_option` of
-     !> *`implicit`.
+     !> @note This only impacts simulations with a `field_option` of
+     !> `implicit`.
      !>
      !> @todo investigate if this setting is still helpful on current
      !> machines and if we can determine heuristics for when to enable
