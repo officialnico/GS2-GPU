@@ -214,15 +214,18 @@ module gs2_layouts
      !> If false then fftw will use heuristics to determine the best
      !> fft plan. If true then timing measurements will be made to
      !> determine an optimal plan. When true it can take somewhat
-     !> longer to initialise the fft plans. *Warning* if true then
+     !> longer to initialise the fft plans.
+     !>
+     !> @warning *Warning* if true then
      !> results will not be exactly reproducible as the choice of the
      !> optimal plan can vary from run to run when timing different
      !> approaches. This is the main reason why the default if false
      !> here.
      logical :: fft_measure_plan = .false.
      !> Try to load and save wisdom about fftw plans to
-     !> fft_wisdom_file this can speed up the fft initialisation when
-     !> running new cases with the same grid sizes as previous runs.
+     !> `fft_wisdom_file`. This can speed up the fft initialisation
+     !> when running new cases with the same grid sizes as previous
+     !> runs.
      logical :: fft_use_wisdom = .true.
      !> Location of fftw wisdom file, if left as default, this is set to
      !> run_name//'.fftw_wisdom', unless overriden by the environment
@@ -245,7 +248,7 @@ module gs2_layouts
      !> an appropriate sweetspot). Can provide a small performance
      !> improvement when true in certain cases.
      !>
-     !> *Note* These sub-communicators effect calls to
+     !> @note *Note* These sub-communicators affect calls to
      !> [[integrate_moment]] with complex variables. By default there
      !> is no gather of data from other procs so the integration
      !> result may only be known for the local `xys` block. This could
