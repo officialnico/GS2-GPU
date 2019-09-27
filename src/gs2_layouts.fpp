@@ -216,11 +216,10 @@ module gs2_layouts
      !> determine an optimal plan. When true it can take somewhat
      !> longer to initialise the fft plans.
      !>
-     !> @warning *Warning* if true then
-     !> results will not be exactly reproducible as the choice of the
-     !> optimal plan can vary from run to run when timing different
-     !> approaches. This is the main reason why the default if false
-     !> here.
+     !> @warning If true then results will not be exactly reproducible
+     !> as the choice of the optimal plan can vary from run to run
+     !> when timing different approaches. This is the main reason why
+     !> the default if false here.
      logical :: fft_measure_plan = .false.
      !> Try to load and save wisdom about fftw plans to
      !> `fft_wisdom_file`. This can speed up the fft initialisation
@@ -248,7 +247,7 @@ module gs2_layouts
      !> an appropriate sweetspot). Can provide a small performance
      !> improvement when true in certain cases.
      !>
-     !> @note *Note* These sub-communicators affect calls to
+     !> @note These sub-communicators affect calls to
      !> [[integrate_moment]] with complex variables. By default there
      !> is no gather of data from other procs so the integration
      !> result may only be known for the local `xys` block. This could
