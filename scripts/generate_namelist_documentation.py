@@ -46,9 +46,11 @@ if __name__ == "__main__":
         # Add one at a time to enable us to avoid overwriting existing
         # entries
         for k, v in tmp.items():
-            while k in theLists.keys():
-                k += " "
-            theLists[k] = v
+            # Use the namelist name as the key for sorting
+            theKey = v.namelistName
+            while theKey in theLists.keys():
+                theKey += "_"
+            theLists[theKey] = v
 
     sortedKeys = sorted(theLists.keys())
 
