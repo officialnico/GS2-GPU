@@ -33,6 +33,9 @@ if __name__ == "__main__":
     if not os.path.exists(target_dir):
         os.makedirs(target_dir)
 
+    # Make the file list unique
+    probablyFiles = list(set(probablyFiles))
+
     theLists = {}
 
     # First get all the namelist objects so we can sort and write out
