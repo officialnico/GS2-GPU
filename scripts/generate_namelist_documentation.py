@@ -32,30 +32,43 @@ if __name__ == "__main__":
 
     if not os.path.exists(target_dir):
         os.makedirs(target_dir)
+
+    theLists = {}
+
+    # First get all the namelist objects so we can sort and write out
+    # in order. Note this assumes there are no duplicated namelist
+    # names.  If this assumption doesn't hold then we will silently
+    # ignore all but the last encountered.
+    for fil in probablyFiles:
+        tmp = constructFromFile(fileIn=fil)
+        if tmp is None: continue
+        theLists.update(tmp)
+
+    sortedKeys = sorted(theLists.keys())
+
     with open(docs_path+pages_path+namelists_path+"index.md", 'w') as ind:
         ind.write("title: Namelists\n")
         ind.write("\n")
-        ind.write("\n[TOC]\n\n\n")        
-        ind.write("\n")        
-        for fil in probablyFiles:
-            tmp = constructFromFile(fileIn=fil)
-            if tmp is None: continue
-            for k, v in tmp.items():
-                ff = pages_path+namelists_path+"auto_generated_"+v.moduleName+"_"+v.namelistName
-                fullf = docs_path+ff
-                with open(fullf+".txt", 'w') as f:
-                    f.writelines("\n".join(v.toHTMLTable()))
+        ind.write("\n[TOC]\n\n\n")
+        ind.write("\n")
 
-                if one_page_per_namelist:
-                    with open(fullf+".md", 'w') as f:
-                        f.write("title: {namelist}\n".format(namelist=v.namelistName))
-                        f.write("\n")
-                        f.write("\n".join(v.comment))
-                        f.write("\n\n")
-                        f.write("\n\n")
-                        f.write("{!"+ff+".txt"+"!}\n")
-                        f.write("\n")
-                    
-                ind.write("{!"+ff+".txt"+"!}\n")
-                ind.write("\n")
+        for k in sortedKeys:
+            v = theLists[k]
+            ff = pages_path+namelists_path+"auto_generated_"+v.moduleName+"_"+v.namelistName
+            fullf = docs_path+ff
+            with open(fullf+".txt", 'w') as f:
+                f.writelines("\n".join(v.toHTMLTable()))
+
+            if one_page_per_namelist:
+                with open(fullf+".md", 'w') as f:
+                    f.write("title: {namelist}\n".format(namelist=v.namelistName))
+                    f.write("\n")
+                    f.write("\n".join(v.comment))
+                    f.write("\n\n")
+                    f.write("\n\n")
+                    f.write("{!"+ff+".txt"+"!}\n")
+                    f.write("\n")
+
+            ind.write("{!"+ff+".txt"+"!}\n")
+            ind.write("\n")
 
