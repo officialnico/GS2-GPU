@@ -36,13 +36,16 @@ if __name__ == "__main__":
     theLists = {}
 
     # First get all the namelist objects so we can sort and write out
-    # in order. Note this assumes there are no duplicated namelist
-    # names.  If this assumption doesn't hold then we will silently
-    # ignore all but the last encountered.
+    # in order.
     for fil in probablyFiles:
         tmp = constructFromFile(fileIn=fil)
         if tmp is None: continue
-        theLists.update(tmp)
+        # Add one at a time to enable us to avoid overwriting existing
+        # entries
+        for k, v in tmp.items():
+            while k in theLists.keys():
+                k += " "
+            theLists[k] = v
 
     sortedKeys = sorted(theLists.keys())
 
