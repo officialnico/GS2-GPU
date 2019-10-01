@@ -65,6 +65,9 @@ if __name__ == "__main__":
             ff = pages_path+namelists_path+"auto_generated_"+v.moduleName+"_"+v.namelistName
             fullf = docs_path+ff
             with open(fullf+".txt", 'w') as f:
+                # First write the namelist documentation
+                f.writelines("\n".join(v.comment))
+                f.writelines("")
                 f.writelines("\n".join(v.toHTMLTable()))
 
             if one_page_per_namelist:
