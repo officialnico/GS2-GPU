@@ -344,6 +344,10 @@ class config():
         st.append("##{namelist}".format(namelist=self.namelistName))
         st.append("")
 
+        # First write the namelist documentation
+        st.append("\n".join(self.comment))
+        st.append("")
+
         # Table header
         st.append("<html>")
         st.append('<table class="divNamelistTable">')
@@ -378,6 +382,9 @@ class config():
     def toMarkdownTable(self):
         st = []
         st.append("##{namelist}".format(namelist=self.namelistName))
+        st.append("")
+        # First write the namelist documentation
+        st.append("\n".join(self.comment))
         st.append("")
         st.append("| Name | Type | Default | Description |")
         st.append("|:-----|:----:|:-------:|:------------|")
