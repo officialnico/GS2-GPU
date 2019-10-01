@@ -1,6 +1,23 @@
+!=================================================================
+!                        GS2 INPUT FILE
+!=================================================================
+!
+!  GS2 is a gyrokinetic flux tube initial value turbulence code
+!  which can be used for fusion or astrophysical plasmas.
+!
+!  Website:
+!            https://gyrokinetics.gitlab.io/gs2/
+!  Repo:
+!            https://bitbucket.org/gyrokinetics/gs2/
+!  Citation:
+!            https://zenodo.org/record/2551066
+!  doi:
+!            10.5281/zenodo.2551066
+!
+!=================================================================
+
 &layouts_knobs
 layout = 'xyles'
-opt_redist_init = .true.
 !fft_wisdom_file = 'mywisfile'
 /
 

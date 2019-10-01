@@ -65,7 +65,6 @@ module gs2_layouts
   public :: idx, proc_id, idx_local
 
   public :: opt_local_copy
-  public :: opt_redist_init !Do we use optimised redist init routines?
   public :: intmom_sub !Do we use sub-communicators in velocity space?
   public :: intspec_sub !Do we use sub-communicators in integrate_species?
 
@@ -91,7 +90,6 @@ module gs2_layouts
   logical :: initialized_accel_transform_layouts = .false.
 
   logical :: opt_local_copy
-  logical :: opt_redist_init
   logical :: intmom_sub
   logical :: intspec_sub
   logical :: local_field_solve, accel_lxyes, lambda_local, unbalanced_xxf, unbalanced_yxf
@@ -235,9 +233,9 @@ module gs2_layouts
      !> FIXME: Add documentation
      real :: max_unbalanced_xxf = 0.0
      !> FIXME: Add documentation
+     real :: max_unbalanced_yxf = 0.0
+     !> FIXME: Add documentation
      logical :: opt_local_copy = .false. 
-     !> True=>Use optimised routines to init redist objects
-     logical :: opt_redist_init = .false.
      !> True=>Use nonblocking redistributes
      logical :: opt_redist_nbk = .true.
      !> True=>Use persistent communications in redistributes
@@ -464,8 +462,8 @@ contains
     layout = layouts_config%layout
     local_field_solve = layouts_config%local_field_solve
     max_unbalanced_xxf = layouts_config%max_unbalanced_xxf
+    max_unbalanced_yxf = layouts_config%max_unbalanced_yxf
     opt_local_copy = layouts_config%opt_local_copy
-    opt_redist_init = layouts_config%opt_redist_init
     opt_redist_nbk = layouts_config%opt_redist_nbk
     opt_redist_persist = layouts_config%opt_redist_persist
     opt_redist_persist_overlap = layouts_config%opt_redist_persist_overlap
@@ -4768,15 +4766,15 @@ contains
     check = [ik_ord, ig_ord, isgn_ord, il_ord, ie_ord, is_ord]
     call check_unique_integers(check,'Input to set_dimension_order (xxf_lo) is not unique integers 1 to 6')
 
-    xxf_lo%ik_ord=ik_ord
-    xxf_lo%ig_ord=ig_ord
-    xxf_lo%isgn_ord=isgn_ord
-    xxf_lo%il_ord=il_ord
-    xxf_lo%ie_ord=ie_ord
-    xxf_lo%is_ord=is_ord
+    lo%ik_ord=ik_ord
+    lo%ig_ord=ig_ord
+    lo%isgn_ord=isgn_ord
+    lo%il_ord=il_ord
+    lo%ie_ord=ie_ord
+    lo%is_ord=is_ord
   end subroutine set_dimension_order_xxf
 
-  !> Sets the order of x th sgn l e s in xxf_lo
+  !> Sets the order of x th sgn l e s in yxf_lo
   !> Note: usually the order is x, theta, sign, then "les" in the order they appear in
   !> the g_lo layout
   subroutine set_dimension_order_yxf(lo,it_ord,ig_ord,isgn_ord,il_ord,ie_ord,is_ord)
@@ -4789,12 +4787,12 @@ contains
     check = [it_ord, ig_ord, isgn_ord, il_ord, ie_ord, is_ord]
     call check_unique_integers(check,'Input to set_dimension_order (yxf_lo) is not unique integers 1 to 6')
 
-    yxf_lo%it_ord=it_ord
-    yxf_lo%ig_ord=ig_ord
-    yxf_lo%isgn_ord=isgn_ord
-    yxf_lo%il_ord=il_ord
-    yxf_lo%ie_ord=ie_ord
-    yxf_lo%is_ord=is_ord
+    lo%it_ord=it_ord
+    lo%ig_ord=ig_ord
+    lo%isgn_ord=isgn_ord
+    lo%il_ord=il_ord
+    lo%ie_ord=ie_ord
+    lo%is_ord=is_ord
   end subroutine set_dimension_order_yxf
 
   !> Checks that the given array contains unique integers 1 to (array size) (in any order),
@@ -4853,12 +4851,12 @@ contains
     ! Note: When this routine is in the module where these variables live
     ! we shadow the module level variables here. This is intentional to provide
     ! isolation and ensure we can move this routine to another module easily.    
-    logical :: fft_measure_plan, fft_use_wisdom, gf_local_fields, intmom_sub, intspec_sub, local_field_solve, opt_local_copy, opt_redist_init, opt_redist_nbk, opt_redist_persist, opt_redist_persist_overlap, simple_gf_decomposition, unbalanced_xxf, unbalanced_yxf
-    real :: max_unbalanced_xxf
+    logical :: fft_measure_plan, fft_use_wisdom, gf_local_fields, intmom_sub, intspec_sub, local_field_solve, opt_local_copy, opt_redist_nbk, opt_redist_persist, opt_redist_persist_overlap, simple_gf_decomposition, unbalanced_xxf, unbalanced_yxf
+    real :: max_unbalanced_xxf, max_unbalanced_yxf
     character(len = 5) :: layout
     character(len = run_name_size) :: fft_wisdom_file
 
-    namelist /layouts_knobs/ fft_measure_plan, fft_use_wisdom, fft_wisdom_file, gf_local_fields, intmom_sub, intspec_sub, layout, local_field_solve, max_unbalanced_xxf, opt_local_copy, opt_redist_init, opt_redist_nbk, opt_redist_persist, opt_redist_persist_overlap, simple_gf_decomposition, unbalanced_xxf, unbalanced_yxf
+    namelist /layouts_knobs/ fft_measure_plan, fft_use_wisdom, fft_wisdom_file, gf_local_fields, intmom_sub, intspec_sub, layout, local_field_solve, max_unbalanced_xxf, max_unbalanced_yxf, opt_local_copy, opt_redist_nbk, opt_redist_persist, opt_redist_persist_overlap, simple_gf_decomposition, unbalanced_xxf, unbalanced_yxf
 
     ! Only proc0 reads from file
     if (.not. proc0) return
@@ -4873,8 +4871,8 @@ contains
     layout = self%layout
     local_field_solve = self%local_field_solve
     max_unbalanced_xxf = self%max_unbalanced_xxf
+    max_unbalanced_yxf = self%max_unbalanced_yxf
     opt_local_copy = self%opt_local_copy
-    opt_redist_init = self%opt_redist_init
     opt_redist_nbk = self%opt_redist_nbk
     opt_redist_persist = self%opt_redist_persist
     opt_redist_persist_overlap = self%opt_redist_persist_overlap
@@ -4904,8 +4902,8 @@ contains
     self%layout = layout
     self%local_field_solve = local_field_solve
     self%max_unbalanced_xxf = max_unbalanced_xxf
+    self%max_unbalanced_yxf = max_unbalanced_yxf
     self%opt_local_copy = opt_local_copy
-    self%opt_redist_init = opt_redist_init
     self%opt_redist_nbk = opt_redist_nbk
     self%opt_redist_persist = opt_redist_persist
     self%opt_redist_persist_overlap = opt_redist_persist_overlap
@@ -4938,8 +4936,8 @@ contains
     call self%write_key_val("layout", self%layout, unit_internal)
     call self%write_key_val("local_field_solve", self%local_field_solve, unit_internal)
     call self%write_key_val("max_unbalanced_xxf", self%max_unbalanced_xxf, unit_internal)
+    call self%write_key_val("max_unbalanced_yxf", self%max_unbalanced_yxf, unit_internal)
     call self%write_key_val("opt_local_copy", self%opt_local_copy, unit_internal)
-    call self%write_key_val("opt_redist_init", self%opt_redist_init, unit_internal)
     call self%write_key_val("opt_redist_nbk", self%opt_redist_nbk, unit_internal)
     call self%write_key_val("opt_redist_persist", self%opt_redist_persist, unit_internal)
     call self%write_key_val("opt_redist_persist_overlap", self%opt_redist_persist_overlap, unit_internal)
@@ -4974,8 +4972,8 @@ contains
     call broadcast(self%layout)
     call broadcast(self%local_field_solve)
     call broadcast(self%max_unbalanced_xxf)
+    call broadcast(self%max_unbalanced_yxf)
     call broadcast(self%opt_local_copy)
-    call broadcast(self%opt_redist_init)
     call broadcast(self%opt_redist_nbk)
     call broadcast(self%opt_redist_persist)
     call broadcast(self%opt_redist_persist_overlap)

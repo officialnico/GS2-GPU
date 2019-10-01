@@ -10,6 +10,12 @@ from get_all_matching_files import get_all_matching_files
 docs_path = "docs/"
 pages_path = "pages/"
 namelists_path = "namelists/"
+# If the following is set to true then we also generate
+# a separate page per namelist along with the overview page.
+# This can significantly clutter up the side bar so default
+# to False here
+one_page_per_namelist = False
+
 if __name__ == "__main__":
     import sys
     import os
@@ -40,17 +46,18 @@ if __name__ == "__main__":
                 fullf = docs_path+ff
                 with open(fullf+".txt", 'w') as f:
                     f.writelines("\n".join(v.toMarkdownTable()))
-                    
-                with open(fullf+".md", 'w') as f:
-                    f.write("title: {namelist}\n".format(namelist=v.namelistName))
-                    f.write("\n")
-                    f.write("\n".join(v.comment))
-                    f.write("\n\n")
-                    f.write('<html><div class="divNamelistTable"></html>')
-                    f.write("\n\n")        
-                    f.write("{!"+ff+".txt"+"!}\n")
-                    f.write("\n")                            
-                    f.write('</div>')
+
+                if one_page_per_namelist:
+                    with open(fullf+".md", 'w') as f:
+                        f.write("title: {namelist}\n".format(namelist=v.namelistName))
+                        f.write("\n")
+                        f.write("\n".join(v.comment))
+                        f.write("\n\n")
+                        f.write('<html><div class="divNamelistTable"></html>')
+                        f.write("\n\n")
+                        f.write("{!"+ff+".txt"+"!}\n")
+                        f.write("\n")
+                        f.write('</div>')
                     
                 ind.write("{!"+ff+".txt"+"!}\n")
                 ind.write("\n")
