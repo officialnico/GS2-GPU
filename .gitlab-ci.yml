@@ -27,6 +27,8 @@ standard_tests:
     - echo "The error state is "$?    
     - pipeline_test_scripts/didTestsFail.sh ${PWD}/tests results_of_test.txt  || (BUILD_STATUS=failed  BUILD_KEY=push ./.push_gitlab_build_status ${CASENAME}; exit 1)
     - echo "The error state is "$?    
+    - if [[ $(grep "FAILURES" pfunit.log | wc -l) -ge 1 ]] ; then BUILD_STATUS=failed  BUILD_KEY=push ./.push_gitlab_build_status ${CASENAME}; exit 1 ; fi
+    - echo "The error state is "$?    
     - BUILD_STATUS=passed  BUILD_KEY=push ./.push_gitlab_build_status ${CASENAME}
     - echo "The error state is "$?
     
