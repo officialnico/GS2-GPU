@@ -19,12 +19,17 @@ standard_tests:
     - apt-get update -qq && apt-get install -y -qq libfftw3-dev libnetcdf-dev libnetcdff-dev netcdf-bin openmpi-bin libopenmpi-dev gfortran cmake
     - adduser theuser --disabled-password --gecos ""
   script:
-    - su -c "whoami ; MAKEFLAGS=-IMakefiles GK_SYSTEM=bitbucket make USE_NEW_DIAG= build_pfunit_library || (BUILD_STATUS=build_pfunit_library_failed  BUILD_KEY=push ./.push_gitlab_build_status ${CASENAME}; exit 1)" theuser
-    - su -c "whoami ; MAKEFLAGS=-IMakefiles GK_SYSTEM=bitbucket make USE_NEW_DIAG= -j tests || (BUILD_STATUS=failed  BUILD_KEY=push ./.push_gitlab_build_status ${CASENAME}; exit 1)" theuser
-    - su -c "whoami ; MAKEFLAGS=-IMakefiles GK_SYSTEM=bitbucket make USE_NEW_DIAG= -j pfunit_tests || (cat pfunit.log; BUILD_STATUS=pfunit_tests_failed  BUILD_KEY=push ./.push_gitlab_build_status ${CASENAME}; exit 1)" theuser
+    - su -c "whoami ; MAKEFLAGS=-IMakefiles GK_SYSTEM=bitbucket make USE_NEW_DIAG= build_pfunit_library || (echo 'pfunit_tests target failed.'; BUILD_STATUS=build_pfunit_library_failed  BUILD_KEY=push ./.push_gitlab_build_status ${CASENAME}; exit 1)" theuser
+    - echo "The error state is "$?
+    - su -c "whoami ; MAKEFLAGS=-IMakefiles GK_SYSTEM=bitbucket make USE_NEW_DIAG= -j tests || (echo 'tests target failed.' ; BUILD_STATUS=failed  BUILD_KEY=push ./.push_gitlab_build_status ${CASENAME}; exit 1)" theuser
+    - echo "The error state is "$?
+    - su -c "whoami ; MAKEFLAGS=-IMakefiles GK_SYSTEM=bitbucket make USE_NEW_DIAG= -j pfunit_tests || (echo 'pfunit_tests target failed.' ; cat pfunit.log; BUILD_STATUS=pfunit_tests_failed  BUILD_KEY=push ./.push_gitlab_build_status ${CASENAME}; exit 1)" theuser
+    - echo "The error state is "$?    
     - pipeline_test_scripts/didTestsFail.sh ${PWD}/tests results_of_test.txt  || (BUILD_STATUS=failed  BUILD_KEY=push ./.push_gitlab_build_status ${CASENAME}; exit 1)
+    - echo "The error state is "$?    
     - BUILD_STATUS=passed  BUILD_KEY=push ./.push_gitlab_build_status ${CASENAME}
-
+    - echo "The error state is "$?
+    
 standard_tests_onestep:
   variables:
     CASENAME: "standard_one_step_pp"
