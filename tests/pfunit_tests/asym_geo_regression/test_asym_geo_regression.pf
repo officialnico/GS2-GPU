@@ -3,7 +3,7 @@ module test_asym_geo_regression_mod
   implicit none
 
   integer, parameter :: grid_size = 33 !! Theta-grid size
-
+  real, parameter :: tolerance = 1.0e-11
 contains
 
   @before
@@ -186,12 +186,12 @@ contains
     new_gds2 = interpolate(gds2, previous_theta, theta)
     new_gds21 = interpolate(gds21, previous_theta, theta)
 
-    @assertEqual(new_bmag, previous_Bmag, tolerance=1.e-8, message="Bmag")
-    @assertEqual(new_grho, previous_grho, tolerance=1.e-8, message="grho")
-    @assertEqual(new_gbdrift, previous_gbdrift, tolerance=1.e-8, message="gbdrift")
-    @assertEqual(new_cvdrift, previous_cvdrift, tolerance=1.e-8, message="cvdrift")
-    @assertEqual(new_gds2, previous_gds2, tolerance=1.e-8, message="gds2")
-    @assertEqual(new_gds21, previous_gds21, tolerance=1.e-8, message="gds21")
+    @assertEqual(new_bmag, previous_Bmag, tolerance=tolerance, message="Bmag")
+    @assertEqual(new_grho, previous_grho, tolerance=tolerance, message="grho")
+    @assertEqual(new_gbdrift, previous_gbdrift, tolerance=tolerance, message="gbdrift")
+    @assertEqual(new_cvdrift, previous_cvdrift, tolerance=tolerance, message="cvdrift")
+    @assertEqual(new_gds2, previous_gds2, tolerance=tolerance, message="gds2")
+    @assertEqual(new_gds21, previous_gds21, tolerance=tolerance, message="gds21")
 
   end subroutine test_asym_geo_miller
 
@@ -321,12 +321,12 @@ contains
     new_gds2 = interpolate(gds2, previous_theta, theta)
     new_gds21 = interpolate(gds21, previous_theta, theta)
 
-    @assertEqual(new_bmag, previous_Bmag, tolerance=1.e-8, message="Bmag")
-    @assertEqual(new_grho, previous_grho, tolerance=1.e-8, message="grho")
-    @assertEqual(new_gbdrift, previous_gbdrift, tolerance=1.e-8, message="gbdrift")
-    @assertEqual(new_cvdrift, previous_cvdrift, tolerance=1.e-8, message="cvdrift")
-    @assertEqual(new_gds2, previous_gds2, tolerance=1.e-8, message="gds2")
-    @assertEqual(new_gds21, previous_gds21, tolerance=1.e-8, message="gds21")
+    @assertEqual(new_bmag, previous_Bmag, tolerance=tolerance, message="Bmag")
+    @assertEqual(new_grho, previous_grho, tolerance=tolerance, message="grho")
+    @assertEqual(new_gbdrift, previous_gbdrift, tolerance=tolerance, message="gbdrift")
+    @assertEqual(new_cvdrift, previous_cvdrift, tolerance=tolerance, message="cvdrift")
+    @assertEqual(new_gds2, previous_gds2, tolerance=tolerance, message="gds2")
+    @assertEqual(new_gds21, previous_gds21, tolerance=tolerance, message="gds21")
 
   end subroutine test_asym_geo_fourier
 
@@ -458,12 +458,12 @@ contains
     new_gds2 = interpolate(gds2, previous_theta, theta)
     new_gds21 = interpolate(gds21, previous_theta, theta)
 
-    @assertEqual(new_bmag, previous_Bmag, tolerance=1.e-8, message="Bmag")
-    @assertEqual(new_grho, previous_grho, tolerance=1.e-8, message="grho")
-    @assertEqual(new_gbdrift, previous_gbdrift, tolerance=1.e-8, message="gbdrift")
-    @assertEqual(new_cvdrift, previous_cvdrift, tolerance=1.e-8, message="cvdrift")
-    @assertEqual(new_gds2, previous_gds2, tolerance=1.e-8, message="gds2")
-    @assertEqual(new_gds21, previous_gds21, tolerance=1.e-8, message="gds21")
+    @assertEqual(new_bmag, previous_Bmag, tolerance=tolerance, message="Bmag")
+    @assertEqual(new_grho, previous_grho, tolerance=tolerance, message="grho")
+    @assertEqual(new_gbdrift, previous_gbdrift, tolerance=tolerance, message="gbdrift")
+    @assertEqual(new_cvdrift, previous_cvdrift, tolerance=tolerance, message="cvdrift")
+    @assertEqual(new_gds2, previous_gds2, tolerance=tolerance, message="gds2")
+    @assertEqual(new_gds21, previous_gds21, tolerance=tolerance, message="gds21")
 
   end subroutine test_asym_geo_genElong
 
@@ -590,12 +590,12 @@ contains
     new_gds2 = interpolate(gds2, previous_theta, theta)
     new_gds21 = interpolate(gds21, previous_theta, theta)
 
-    @assertEqual(new_bmag, previous_Bmag, tolerance=1.e-8, message="Bmag")
-    @assertEqual(new_grho, previous_grho, tolerance=1.e-8, message="grho")
-    @assertEqual(new_gbdrift, previous_gbdrift, tolerance=1.e-8, message="gbdrift")
-    @assertEqual(new_cvdrift, previous_cvdrift, tolerance=1.e-8, message="cvdrift")
-    @assertEqual(new_gds2, previous_gds2, tolerance=1.e-8, message="gds2")
-    @assertEqual(new_gds21, previous_gds21, tolerance=1.e-8, message="gds21")
+    @assertEqual(new_bmag, previous_Bmag, tolerance=tolerance, message="Bmag")
+    @assertEqual(new_grho, previous_grho, tolerance=tolerance, message="grho")
+    @assertEqual(new_gbdrift, previous_gbdrift, tolerance=tolerance, message="gbdrift")
+    @assertEqual(new_cvdrift, previous_cvdrift, tolerance=tolerance, message="cvdrift")
+    @assertEqual(new_gds2, previous_gds2, tolerance=tolerance, message="gds2")
+    @assertEqual(new_gds21, previous_gds21, tolerance=tolerance, message="gds21")
 
   end subroutine test_asym_geo_global
 
