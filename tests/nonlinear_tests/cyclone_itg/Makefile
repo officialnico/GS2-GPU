@@ -27,6 +27,6 @@ endif
 cyclone_itg_low_res.o:  ${TEST_MODS} 
 
 cyclone_itg_low_res: cyclone_itg_low_res.o $(TEST_MODS)
-	$(call messageOp,"Linking ","\\t:",$^,"\\n\\t\-\-\-\-\-\-\>",$@)
+	$(call messageOp,"Linking ","\\t:",$(call processName, $^),"\\n\\t\-\-\-\-\-\-\>",$(call processName, $@))
 	$(QUIETSYM)$(LD) $(LDFLAGS) -o $@ $^ $(LIBS)
 

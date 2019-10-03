@@ -3,7 +3,7 @@ gs2_all: diagnostics modules gs2 ingen rungridgen generate_fftw_wisdom
 
 #Main code
 $(BINDIR)/gs2: $(gs2_mod) $(SIMPLEDATAIO_LIB) | $(BINDIR)
-	$(call messageOp,"Linking ","\\t:",$^,"\\n\\t\-\-\-\-\-\-\>",$@)
+	$(call messageOp,"Linking ","\\t:",$(call processName, $^),"\\n\\t\-\-\-\-\-\-\>",$(call processName, $@))
 	$(QUIETSYM)$(LD) $(LDFLAGS) -o $@ $^ $(LIBS) 
 
 .PHONY: gs2
@@ -11,7 +11,7 @@ gs2: $(BINDIR)/gs2
 
 #Main code, may not work as missing SIMPLEDATAIO_LIB dependency
 $(BINDIR)/gs2.x: $(gs2_mod) | $(BINDIR)
-	$(call messageOp,"Linking ","\\t:",$^,"\\n\\t\-\-\-\-\-\-\>",$@)
+	$(call messageOp,"Linking ","\\t:",$(call processName, $^),"\\n\\t\-\-\-\-\-\-\>",$(call processName, $@))
 	$(QUIETSYM)$(LD) $(LDFLAGS) -o $@ $^ $(LIBS)
 
 .PHONY: gs2.x
@@ -19,7 +19,7 @@ gs2.x: $(BINDIR)/gs2.x
 
 #Input file checker
 $(BINDIR)/ingen: $(ingen_mod) $(SIMPLEDATAIO_LIB) | $(BINDIR)
-	$(call messageOp,"Linking ","\\t:",$^,"\\n\\t\-\-\-\-\-\-\>",$@)
+	$(call messageOp,"Linking ","\\t:",$(call processName, $^),"\\n\\t\-\-\-\-\-\-\>",$(call processName, $@))
 	$(QUIETSYM)$(LD) $(LDFLAGS) -o $@ $^ $(LIBS) 
 
 .PHONY: ingen
@@ -27,7 +27,7 @@ ingen: $(BINDIR)/ingen
 
 #Utility to produce fftw wisdom files for given problem size
 $(BINDIR)/generate_fftw_wisdom: $(generate_fftw_wisdom_mod) $(SIMPLEDATAIO_LIB)
-	$(call messageOp,"Linking ","\\t:",$^,"\\n\\t\-\-\-\-\-\-\>",$@)
+	$(call messageOp,"Linking ","\\t:",$(call processName, $^),"\\n\\t\-\-\-\-\-\-\>",$(call processName, $@))
 	$(QUIETSYM)$(LD) $(LDFLAGS) -o $@ $^ $(LIBS) 
 
 .PHONY: generate_fftw_wisdom
@@ -35,7 +35,7 @@ generate_fftw_wisdom: $(BINDIR)/generate_fftw_wisdom
 
 #Calculates the field response matrix for current input file and writes to file
 $(BINDIR)/dump_response: $(dump_response_mod)
-	$(call messageOp,"Linking ","\\t:",$^,"\\n\\t\-\-\-\-\-\-\>",$@)
+	$(call messageOp,"Linking ","\\t:",$(call processName, $^),"\\n\\t\-\-\-\-\-\-\>",$(call processName, $@))
 	$(QUIETSYM)$(LD) $(LDFLAGS) -o $@ $^ $(LIBS) 
 
 .PHONY: dump_response
@@ -43,7 +43,7 @@ dump_response: $(BINDIR)/dump_response
 
 #Initialises theta, kx, ky, lambda and energy grids and writes to file
 $(BINDIR)/dump_grids: $(dump_grids_mod)
-	$(call messageOp,"Linking ","\\t:",$^,"\\n\\t\-\-\-\-\-\-\>",$@)
+	$(call messageOp,"Linking ","\\t:",$(call processName, $^),"\\n\\t\-\-\-\-\-\-\>",$(call processName, $@))
 	$(QUIETSYM)$(LD) $(LDFLAGS) -o $@ $^ $(LIBS) 
 
 .PHONY: dump_grids
@@ -51,7 +51,7 @@ dump_grids: $(BINDIR)/dump_grids
 
 #Calculates the ideal ballooning stability (optionally over a scan in shat/beta_prime)
 $(BINDIR)/ideal_ball: $(ideal_ball_mod)
-	$(call messageOp,"Linking ","\\t:",$^,"\\n\\t\-\-\-\-\-\-\>",$@)
+	$(call messageOp,"Linking ","\\t:",$(call processName, $^),"\\n\\t\-\-\-\-\-\-\>",$(call processName, $@))
 	$(QUIETSYM)$(LD) $(LDFLAGS) -o $@ $^ $(LIBS) 
 
 .PHONY: ideal_ball
@@ -59,7 +59,7 @@ ideal_ball: $(BINDIR)/ideal_ball
 
 #Driver program for gridgen?
 $(BINDIR)/rungridgen: $(rungridgen_mod)
-	$(call messageOp,"Linking ","\\t:",$^,"\\n\\t\-\-\-\-\-\-\>",$@)
+	$(call messageOp,"Linking ","\\t:",$(call processName, $^),"\\n\\t\-\-\-\-\-\-\>",$(call processName, $@))
 	$(QUIETSYM)$(LD) $(LDFLAGS) -o $@ $^ $(LIBS)
 
 .PHONY: rungridgen
@@ -67,7 +67,7 @@ rungridgen: $(BINDIR)/rungridgen
 
 #A simple program to test linear regression on random data || Not at all gs2 specific!
 $(BINDIR)/regress: $(drive_mod)
-	$(call messageOp,"Linking ","\\t:",$^,"\\n\\t\-\-\-\-\-\-\>",$@)
+	$(call messageOp,"Linking ","\\t:",$(call processName, $^),"\\n\\t\-\-\-\-\-\-\>",$(call processName, $@))
 	$(QUIETSYM)$(LD) $(LDFLAGS) -o $@ $^ $(LIBS)
 
 .PHONY: regress
@@ -75,7 +75,7 @@ regress: $(BINDIR)/regress
 
 #A program which test the fft transforms used in GS2
 $(BINDIR)/ffttester: $(ffttester_mod)
-	$(call messageOp,"Linking ","\\t:",$^,"\\n\\t\-\-\-\-\-\-\>",$@)
+	$(call messageOp,"Linking ","\\t:",$(call processName, $^),"\\n\\t\-\-\-\-\-\-\>",$(call processName, $@))
 	$(QUIETSYM)$(LD) $(LDFLAGS) -o $@ $^ $(LIBS)
 
 .PHONY: ffttester
@@ -83,7 +83,7 @@ ffttester: $(BINDIR)/ffttester
 
 #Program to calculate ideal MHD ballooning stability
 $(BINDIR)/ball: $(ball_mod)
-	$(call messageOp,"Linking ","\\t:",$^,"\\n\\t\-\-\-\-\-\-\>",$@)
+	$(call messageOp,"Linking ","\\t:",$(call processName, $^),"\\n\\t\-\-\-\-\-\-\>",$(call processName, $@))
 	$(QUIETSYM)$(LD) $(LDFLAGS) -o $@ $^ $(LIBS)
 
 .PHONY: ball
@@ -91,7 +91,7 @@ ball: $(BINDIR)/ball
 
 #Program to calculate eikcoeffs (geometry coefficients etc.) and write to file
 $(BINDIR)/eiktest: $(eiktest_mod)
-	$(call messageOp,"Linking ","\\t:",$^,"\\n\\t\-\-\-\-\-\-\>",$@)
+	$(call messageOp,"Linking ","\\t:",$(call processName, $^),"\\n\\t\-\-\-\-\-\-\>",$(call processName, $@))
 	$(QUIETSYM)$(LD) $(LDFLAGS) -o $@ $^ $(LIBS)
 
 .PHONY: eiktest
@@ -121,7 +121,7 @@ UTIL_OBJ_LIST := spl.o constants.o file_utils.o netcdf_utils.o command_line.o ru
 UTIL_OBJ = $(addprefix $(OBJDIR)/, $(UTIL_OBJ_LIST))
 $(LIBDIR)/utils.a: | $(UTILS_SENTINEL)
 $(LIBDIR)/utils.a: $(UTIL_OBJ) |$(LIBDIR)
-	$(call messageOp,"Linking ","\\t:",$^,"\\n\\t\-\-\-\-\-\-\>",$@)
+	$(call messageOp,"Linking ","\\t:",$(call processName, $^),"\\n\\t\-\-\-\-\-\-\>",$(call processName, $@))
 	$(QUIETSYM)$(ARCH) $(ARCHFLAGS) $@ $^
 	$(QUIETSYM)$(RANLIB) $@
 
@@ -135,7 +135,7 @@ GEO_OBJ_LIST := geometry.o geq.o eeq.o peq.o leq.o deq.o ideq.o ceq.o read_cheas
 GEO_OBJ = $(addprefix $(OBJDIR)/, $(GEO_OBJ_LIST))
 
 $(LIBDIR)/geo.a: $(GEO_OBJ) |$(LIBDIR)
-	$(call messageOp,"Linking ","\\t:",$^,"\\n\\t\-\-\-\-\-\-\>",$@)
+	$(call messageOp,"Linking ","\\t:",$(call processName, $^),"\\n\\t\-\-\-\-\-\-\>",$(call processName, $@))
 	$(QUIETSYM)$(ARCH) $(ARCHFLAGS) $@ $^
 	$(QUIETSYM)$(RANLIB) $@
 
@@ -153,7 +153,7 @@ geo_c.a: geometry_c_interface.o ../geo.a ../utils.a
 libgs2_all: $(LIBDIR)/libgs2.a
 
 $(LIBDIR)/libgs2.a: $(filter-out $(OBJDIR)/gs2.o $(OBJDIR)/simpledataiof.o $(OBJDIR)/simpledataio_write.o, $(gs2_mod)) $(OBJDIR)/gs2_gryfx_zonal.o |$(LIBDIR)
-	$(call messageOp,"Linking ","\\t:",$^,"\\n\\t\-\-\-\-\-\-\>",$@)
+	$(call messageOp,"Linking ","\\t:",$(call processName, $^),"\\n\\t\-\-\-\-\-\-\>",$(call processName, $@))
 	$(QUIETSYM)$(ARCH) $(ARCHFLAGS) $@ $^
 	$(QUIETSYM)$(RANLIB) $@
 

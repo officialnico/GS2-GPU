@@ -25,6 +25,6 @@ ogyropsi.dat EQDSK:
 test_theta_grid.o:  ${TEST_MODS} 
 
 test_theta_grid: test_theta_grid.o $(TEST_MODS)
-	$(call messageOp,"Linking ","\\t:",$^,"\\n\\t\-\-\-\-\-\-\>",$@)
+	$(call messageOp,"Linking ","\\t:",$(call processName, $^),"\\n\\t\-\-\-\-\-\-\>",$(call processName, $@))
 	$(QUIETSYM)$(LD) $(LDFLAGS) -o $@ $^ $(LIBS)
 
