@@ -590,9 +590,9 @@ contains
     ! Note: When this routine is in the module where these variables live
     ! we shadow the module level variables here. This is intentional to provide
     ! isolation and ensure we can move this routine to another module easily.    
-    logical :: ant_off, restarting, write_antenna
-    integer :: nk_stir
     complex :: w_antenna
+    integer :: nk_stir
+    logical :: ant_off, restarting, write_antenna
     real :: amplitude, t0, w_dot
 
     namelist /driver/ amplitude, ant_off, nk_stir, restarting, t0, w_antenna, w_dot, write_antenna
@@ -716,10 +716,10 @@ contains
 
     ! Note: When this routine is in the module where these variables live
     ! we shadow the module level variables here. This is intentional to provide
-    ! isolation and ensure we can move this routine to another module easily.    
+    ! isolation and ensure we can move this routine to another module easily.
+    integer :: kx, ky, kz
     logical :: travel
     real :: a, b
-    integer :: kx, ky, kz
 
     namelist /stir/ a, b, kx, ky, kz, travel
 

@@ -4283,13 +4283,15 @@ contains
 
     ! Note: When this routine is in the module where these variables live
     ! we shadow the module level variables here. This is intentional to provide
-    ! isolation and ensure we can move this routine to another module easily.    
+    ! isolation and ensure we can move this routine to another module easily.
     character(len = 20) :: collision_model, ediff_scheme, lorentz_scheme
-    logical :: adjust, conservative, conserve_forbid_zero, conserve_moments, const_v, ei_coll_only, heating, hypermult, le_nxilim_fix, resistivity, special_wfb_lorentz, split_collisions, test, use_le_layout, vary_vnew, vpar_zero_mean
     integer :: ncheck, timesteps_between_collisions
+    logical :: adjust, conservative, conserve_forbid_zero, conserve_moments, const_v, ei_coll_only, heating, hypermult, le_nxilim_fix, resistivity, special_wfb_lorentz, split_collisions, test, use_le_layout
+    logical :: vary_vnew, vpar_zero_mean
     real :: cfac, etol, etola, ewindow, ewindowa, vnfac, vnslow
-
-    namelist /collisions_knobs/ adjust, cfac, collision_model, conservative, conserve_forbid_zero, conserve_moments, const_v, ediff_scheme, ei_coll_only, etol, etola, ewindow, ewindowa, heating, hypermult, le_nxilim_fix, lorentz_scheme, ncheck, resistivity, special_wfb_lorentz, split_collisions, test, timesteps_between_collisions, use_le_layout, vary_vnew, vnfac, vnslow, vpar_zero_mean
+    
+    namelist /collisions_knobs/ adjust, cfac, collision_model, conservative, conserve_forbid_zero, conserve_moments, const_v, ediff_scheme, ei_coll_only, etol, etola, ewindow, ewindowa, heating, hypermult, le_nxilim_fix, &
+         lorentz_scheme, ncheck, resistivity, special_wfb_lorentz, split_collisions, test, timesteps_between_collisions, use_le_layout, vary_vnew, vnfac, vnslow, vpar_zero_mean
 
     ! Only proc0 reads from file
     if (.not. proc0) return

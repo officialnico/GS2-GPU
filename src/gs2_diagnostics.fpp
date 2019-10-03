@@ -4174,12 +4174,21 @@ contains
 
     ! Note: When this routine is in the module where these variables live
     ! we shadow the module level variables here. This is intentional to provide
-    ! isolation and ensure we can move this routine to another module easily.    
-    logical :: dump_check1, dump_check2, dump_fields_periodically, exit_when_converged, file_safety_check, make_movie, ob_midplane, print_flux_line, print_line, save_distfn, save_for_restart, save_many, use_nonlin_convergence, write_apar_over_time, write_ascii, write_avg_moments, write_bpar_over_time, write_cerr, write_correlation, write_correlation_extend, write_cross_phase, write_eigenfunc, write_fields, write_final_antot, write_final_db, write_final_epar, write_final_fields, write_final_moments, write_flux_line, write_full_moments_notgc, write_g, write_gg, write_gs, write_gyx, write_hrate, write_kpar, write_line, write_lorentzian, write_lpoly, write_max_verr, write_moments, write_nl_flux, write_nl_flux_dist, write_omavg, write_omega, write_parity, write_pflux_sym, write_pflux_tormom, write_phi_over_time, write_symmetry, write_verr
+    ! isolation and ensure we can move this routine to another module easily.
     integer :: conv_max_step, conv_min_step, conv_nstep_av, conv_nsteps_converged, igomega, navg, nmovie, nsave, nwrite, nwrite_mult
+    logical :: dump_check1, dump_check2, dump_fields_periodically, exit_when_converged, file_safety_check, make_movie, ob_midplane, print_flux_line, print_line, save_distfn, save_for_restart, save_many
+    logical :: use_nonlin_convergence, write_apar_over_time, write_ascii, write_avg_moments, write_bpar_over_time, write_cerr, write_correlation, write_correlation_extend, write_cross_phase, write_eigenfunc
+    logical :: write_fields, write_final_antot, write_final_db, write_final_epar, write_final_fields, write_final_moments, write_flux_line, write_full_moments_notgc, write_g, write_gg, write_gs, write_gyx
+    logical :: write_hrate, write_kpar, write_line, write_lorentzian, write_lpoly, write_max_verr, write_moments, write_nl_flux, write_nl_flux_dist, write_omavg, write_omega, write_parity, write_pflux_sym
+    logical :: write_pflux_tormom, write_phi_over_time, write_symmetry, write_verr
     real :: conv_test_multiplier, omegatinst, omegatol
 
-    namelist /gs2_diagnostics_knobs/ conv_max_step, conv_min_step, conv_nstep_av, conv_nsteps_converged, conv_test_multiplier, dump_check1, dump_check2, dump_fields_periodically, exit_when_converged, file_safety_check, igomega, make_movie, navg, nmovie, nsave, nwrite, nwrite_mult, ob_midplane, omegatinst, omegatol, print_flux_line, print_line, save_distfn, save_for_restart, save_many, use_nonlin_convergence, write_apar_over_time, write_ascii, write_avg_moments, write_bpar_over_time, write_cerr, write_correlation, write_correlation_extend, write_cross_phase, write_eigenfunc, write_fields, write_final_antot, write_final_db, write_final_epar, write_final_fields, write_final_moments, write_flux_line, write_full_moments_notgc, write_g, write_gg, write_gs, write_gyx, write_hrate, write_kpar, write_line, write_lorentzian, write_lpoly, write_max_verr, write_moments, write_nl_flux, write_nl_flux_dist, write_omavg, write_omega, write_parity, write_pflux_sym, write_pflux_tormom, write_phi_over_time, write_symmetry, write_verr
+    namelist /gs2_diagnostics_knobs/ conv_max_step, conv_min_step, conv_nstep_av, conv_nsteps_converged, conv_test_multiplier, dump_check1, dump_check2, dump_fields_periodically, exit_when_converged, file_safety_check, igomega, &
+         make_movie, navg, nmovie, nsave, nwrite, nwrite_mult, ob_midplane, omegatinst, omegatol, print_flux_line, print_line, save_distfn, save_for_restart, save_many, use_nonlin_convergence, &
+         write_apar_over_time, write_ascii, write_avg_moments, write_bpar_over_time, write_cerr, write_correlation, write_correlation_extend, write_cross_phase, write_eigenfunc, write_fields, &
+         write_final_antot, write_final_db, write_final_epar, write_final_fields, write_final_moments, write_flux_line, write_full_moments_notgc, write_g, write_gg, write_gs, write_gyx, write_hrate, &
+         write_kpar, write_line, write_lorentzian, write_lpoly, write_max_verr, write_moments, write_nl_flux, write_nl_flux_dist, write_omavg, write_omega, write_parity, write_pflux_sym, &
+         write_pflux_tormom, write_phi_over_time, write_symmetry, write_verr
 
     ! Only proc0 reads from file
     if (.not. proc0) return

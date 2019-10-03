@@ -591,11 +591,13 @@ contains
 
     ! Note: When this routine is in the module where these variables live
     ! we shadow the module level variables here. This is intentional to provide
-    ! isolation and ensure we can move this routine to another module easily.    
+    ! isolation and ensure we can move this routine to another module easily.
     integer :: geotype, mmode, nmode, nperiod, ntheta
-    real :: akappa, akappri, alpmhd, asurf, asym, asympri, btor_slab, delta2, delta3, deltam, deltampri, deltan, deltanpri, eps, epsl, kp, pk, qinp, r_geo, raxis, rhoc, rmaj, shat, shift, shiftvert, theta2, theta3, thetad, thetak, thetam, thetan, tri, tripri, zaxis
+    real :: akappa, akappri, alpmhd, asurf, asym, asympri, btor_slab, delta2, delta3, deltam, deltampri, deltan, deltanpri, eps, epsl, kp, pk, qinp, r_geo, raxis, rhoc, rmaj, shat, shift, shiftvert, theta2
+    real :: theta3, thetad, thetak, thetam, thetan, tri, tripri, zaxis
 
-    namelist /theta_grid_parameters/ akappa, akappri, alpmhd, asurf, asym, asympri, btor_slab, delta2, delta3, deltam, deltampri, deltan, deltanpri, eps, epsl, geotype, kp, mmode, nmode, nperiod, ntheta, pk, qinp, r_geo, raxis, rhoc, rmaj, shat, shift, shiftvert, theta2, theta3, thetad, thetak, thetam, thetan, tri, tripri, zaxis
+    namelist /theta_grid_parameters/ akappa, akappri, alpmhd, asurf, asym, asympri, btor_slab, delta2, delta3, deltam, deltampri, deltan, deltanpri, eps, epsl, geotype, kp, mmode, nmode, nperiod, ntheta, pk, qinp, r_geo, raxis, rhoc, &
+         rmaj, shat, shift, shiftvert, theta2, theta3, thetad, thetak, thetam, thetan, tri, tripri, zaxis
 
     ! Only proc0 reads from file
     if (.not. proc0) return

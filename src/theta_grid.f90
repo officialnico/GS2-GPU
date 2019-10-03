@@ -270,11 +270,9 @@ if (debug) write(6,*) 'gridgen_get_grids: end'
     ! we shadow the module level variables here. This is intentional to provide
     ! isolation and ensure we can move this routine to another module easily.
     integer :: npadd
-    real :: alknob, epsknob, bpknob, extrknob, tension
-    real :: thetamax, deltaw, widthw
+    real :: alknob, bpknob, deltaw, epsknob, extrknob, tension, thetamax, widthw
 
-    namelist /theta_grid_gridgen_knobs/ &
-         npadd, alknob, epsknob, bpknob, extrknob, tension, thetamax, deltaw, widthw
+    namelist /theta_grid_gridgen_knobs/ alknob, bpknob, deltaw, epsknob, extrknob, npadd, tension, thetamax, widthw
 
     ! Only proc0 reads from file
     if (.not. proc0) return
@@ -908,8 +906,8 @@ contains
     ! Note: When this routine is in the module where these variables live
     ! we shadow the module level variables here. This is intentional to provide
     ! isolation and ensure we can move this routine to another module easily.    
-    real :: alpha1, alpmhdfac
     character(len = 20) :: model_option
+    real :: alpha1, alpmhdfac
 
     namelist /theta_grid_salpha_knobs/ alpha1, alpmhdfac, model_option
 
@@ -1884,13 +1882,14 @@ contains
 
     ! Note: When this routine is in the module where these variables live
     ! we shadow the module level variables here. This is intentional to provide
-    ! isolation and ensure we can move this routine to another module easily.    
+    ! isolation and ensure we can move this routine to another module easily.
+    character(len = 800) :: eqfile
     integer :: bishop, iflux, irho, isym, itor
     logical :: chs_eq, dfit_eq, efit_eq, equal_arc, gen_eq, gs2d_eq, idfit_eq, local_eq, ppl_eq, transp_eq, writelots
-    character(len = 800) :: eqfile
     real :: alpha_input, beta_prime_input, delrho, dp_mult, invlp_input, rmax, rmin, s_hat_input
 
-    namelist /theta_grid_eik_knobs/ alpha_input, beta_prime_input, bishop, chs_eq, delrho, dfit_eq, dp_mult, efit_eq, eqfile, equal_arc, gen_eq, gs2d_eq, idfit_eq, iflux, invlp_input, irho, isym, itor, local_eq, ppl_eq, rmax, rmin, s_hat_input, transp_eq, writelots
+    namelist /theta_grid_eik_knobs/ alpha_input, beta_prime_input, bishop, chs_eq, delrho, dfit_eq, dp_mult, efit_eq, eqfile, equal_arc, gen_eq, gs2d_eq, idfit_eq, iflux, invlp_input, irho, isym, itor, local_eq, ppl_eq, rmax, rmin, &
+         s_hat_input, transp_eq, writelots
 
     ! Only proc0 reads from file
     if (.not. proc0) return
@@ -3107,9 +3106,9 @@ if (debug) write(6,*) 'get_grids: call file_get_grids'
     ! Note: When this routine is in the module where these variables live
     ! we shadow the module level variables here. This is intentional to provide
     ! isolation and ensure we can move this routine to another module easily.    
-    real :: cvdriftknob, gbdriftknob
-    logical :: gb_to_cv
     character(len = 20) :: equilibrium_option
+    logical :: gb_to_cv
+    real :: cvdriftknob, gbdriftknob
 
     namelist /theta_grid_knobs/ cvdriftknob, equilibrium_option, gb_to_cv, gbdriftknob
 

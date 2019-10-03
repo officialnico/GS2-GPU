@@ -187,8 +187,8 @@ contains
     ! Note: When this routine is in the module where these variables live
     ! we shadow the module level variables here. This is intentional to provide
     ! isolation and ensure we can move this routine to another module easily.    
-    real :: akx, aky, rhostar_single, theta0
     integer :: n0
+    real :: akx, aky, rhostar_single, theta0
 
     namelist /kt_grids_single_parameters/ akx, aky, n0, rhostar_single, theta0
 
@@ -702,10 +702,10 @@ contains
 
     ! Note: When this routine is in the module where these variables live
     ! we shadow the module level variables here. This is intentional to provide
-    ! isolation and ensure we can move this routine to another module easily.    
+    ! isolation and ensure we can move this routine to another module easily.
     character(len = 20) :: kyspacing_option
-    real :: akx_max, akx_min, aky_max, aky_min, rhostar_range, theta0_max, theta0_min
     integer :: n0_max, n0_min, naky, nn0, ntheta0
+    real :: akx_max, akx_min, aky_max, aky_min, rhostar_range, theta0_max, theta0_min
 
     namelist /kt_grids_range_parameters/ akx_max, akx_min, aky_max, aky_min, kyspacing_option, n0_max, n0_min, naky, nn0, ntheta0, rhostar_range, theta0_max, theta0_min
 
@@ -1682,10 +1682,10 @@ contains
 
     ! Note: When this routine is in the module where these variables live
     ! we shadow the module level variables here. This is intentional to provide
-    ! isolation and ensure we can move this routine to another module easily.    
-    real :: ly, rhostar_box, rtwist, x0, y0
-    logical :: gryfx
+    ! isolation and ensure we can move this routine to another module easily.
     integer :: jtwist, n0, naky, nkpolar, ntheta0, nx, ny
+    logical :: gryfx
+    real :: ly, rhostar_box, rtwist, x0, y0
 
     namelist /kt_grids_box_parameters/ gryfx, jtwist, ly, n0, naky, nkpolar, ntheta0, nx, ny, rhostar_box, rtwist, x0, y0
 

@@ -1259,11 +1259,11 @@ contains
 
     ! Note: When this routine is in the module where these variables live
     ! we shadow the module level variables here. This is intentional to provide
-    ! isolation and ensure we can move this routine to another module easily.    
-    logical :: save_restarts, use_ginit
-    real :: targ_im, targ_re, tolerance
+    ! isolation and ensure we can move this routine to another module easily.
     character(len = 20) :: extraction_option, solver_option, transform_option, which_option
     integer :: max_iter, n_eig, nadv
+    logical :: save_restarts, use_ginit
+    real :: targ_im, targ_re, tolerance
 
     namelist /eigval_knobs/ extraction_option, max_iter, n_eig, nadv, save_restarts, solver_option, targ_im, targ_re, tolerance, transform_option, use_ginit, which_option
 
