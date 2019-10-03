@@ -7,6 +7,15 @@ variables:
   GIT_SUBMODULE_STRATEGY: recursive
   OMPI_MCA_rmaps_base_oversubscribe: "yes"
 
+formattting_tests:
+  variables:
+    CASENAME: "formatting"
+  before_script:
+    - BUILD_STATUS=running BUILD_KEY=push ./.push_gitlab_build_status ${CASENAME}
+  script:
+    - scripts/test_maximum_line_length $(scripts/get_all_matching_files.py --path=src --path=externals/utils --pattern="*.[Ff]??") || (BUILD_STATUS=failed  BUILD_KEY=push ./.push_gitlab_build_status ${CASENAME}; exit 1)
+    - BUILD_STATUS=passed  BUILD_KEY=push ./.push_gitlab_build_status ${CASENAME}
+  
 standard_tests:
   variables:
     CASENAME: "standard"
