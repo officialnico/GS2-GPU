@@ -275,6 +275,10 @@ class config():
         #First get an empty list per type
         for var in self.varList:
             perTypList[var.typ] = []
+
+        # Reorder the dictionary so it is in alphabetical order
+        for key in sorted(perTypList.keys()):
+            perTypList[key] = perTypList.pop(key)
             
         #Now add each var to the appropriate list
         for var in self.varList:
