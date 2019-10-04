@@ -158,7 +158,7 @@ module collisions
      ! indexed : false
      !> If true (default) then transform from the gyro-averaged
      !> distribution function \(g\) evolved by GS2 to the
-     !> non-Boltzmann part of \(\delta f\), \(h\), when applying the
+     !> non-Boltzmann part of \(\delta f\), (\(h\)), when applying the
      !> collision operator. This is the physically appropriate choice,
      !> this parameter is primarily for numerical testing.
      logical :: adjust = .true.
@@ -182,7 +182,7 @@ module collisions
      !> - `'ediffusion'` : Only energy diffusion.
      !> - `'krook'` : "Home made" Krook operator (this is not recommended).
      !>
-     !> If no species have a non-zero collision frequency `vnewk` then
+     !> If no species have a non-zero collision frequency, `vnewk`, then
      !> the collision operator is also automatically disabled.
      character(len = 20) :: collision_model = 'default'
      !> If true (default) then guarantee exact conservation
@@ -276,9 +276,9 @@ module collisions
      !> kperp2 * kperp2` (where `kperp2` here is normalised to the
      !> maximum `kperp2`).
      logical :: hypermult = .false.
-     !> This flag controls the limit of ixi loops in the le_layout.
-     !> When true (default) the limit is set to `nxi + 1`, which has
-     !> been observed to remove numerical instabilities.
+     !> This flag controls the limit of ixi loops in the le_layout
+     !> decomposition.  When true (default) the limit is set to `nxi +
+     !> 1`, which has been observed to remove numerical instabilities.
      !>
      !> @note The "old" behavior was a limit of `nxi`, which is
      !> incorrect. With this limit and trapped particles, there are
@@ -290,7 +290,7 @@ module collisions
      !> duplicate `vpar=0` point which must be included For velocity
      !> integration to give the correct value.
      !>
-     !> @todo Consider removing this flag and just used the correct
+     !> @todo Consider removing this flag and just use the correct
      !> limit.  The motivation for retaining this flag is to allow old
      !> results to be reproduced.
      logical :: le_nxilim_fix = .true.
@@ -308,9 +308,10 @@ module collisions
      !> expensive so it is recommended to avoid small values of
      !> `ncheck`.
      !>
-     !> @warning The new diagnostics module ignores this value and
-     !> instead uses its own input variable named `ncheck` (which has
-     !> a different default).
+     !> @warning The new diagnostics module currently ignores this
+     !> value and instead uses its own input variable named `ncheck`
+     !> (which has a different default). See [this
+     !> bug](https://bitbucket.org/gyrokinetics/gs2/issues/88).
      integer :: ncheck = 100
      !> If true (default) then potentially include the drag term in
      !> the pitch angle scattering operator. This is a necessary but
