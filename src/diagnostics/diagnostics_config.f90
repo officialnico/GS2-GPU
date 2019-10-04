@@ -222,6 +222,9 @@ module diagnostics_config
      !> FIXME: Add documentation
      integer :: navg = 10
      !> FIXME: Add documentation
+     !>
+     !> @warning This value "shadows" the `ncheck` input of the
+     !> collisions namelist.
      integer :: ncheck = 10 ! Only in new diagnostics
      !> FIXME: Add documentation
      integer :: nmovie = -1
