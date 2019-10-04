@@ -226,14 +226,15 @@ module theta_grid_params
      !>shift), but this input variable has **different physical
      !>definitions** in s-alpha and other analytic equilbrium models:
      !>
-     !> - In s-alpha (i.e. equilibrium_option='s-alpha'), shift\
-     !> \(\propto\) p' is a parameter for local \(J_{\phi}\) (and
-     !> *NOT* \(B_{\theta}\) which is constant): \(shift =
-     !> \frac{2\textrm{epsl}}{\textrm{pk}^2}\frac{d\beta}{d\rho}=-\frac{q^2R}{L_{ref}}\frac{d\beta}{d\rho}
-     !> > 0\) - In other analytic specifications
+     !> - In s-alpha (i.e. equilibrium_option='s-alpha'), shift
+     !> \(\propto p^\prime\) is a parameter for local \(J_{\phi}\)
+     !> (and not \(B_{\theta}\) which is constant): \(\textrm{shift} =
+     !> \frac{2\textrm{epsl}}{\textrm{pk}^2}\frac{d\beta}{d\rho} =
+     !> -\frac{q^2R}{L_\textrm{ref}}\frac{d\beta}{d\rho} > 0\)
+     !>- In other analytic specifications
      !> (i.e. equilibrium_option='eik' and `geoType`=0, 2, or 3),
      !> shift is a parameter for local \(B_{\theta}\) (and NOT for
-     !> \(J_{\phi}\)): \(shift = \frac{1}{L_{ref}} \frac{dR}{d\rho} <
+     !> \(J_{\phi}\)): \(\textrm{shift} = \frac{1}{L_{ref}} \frac{dR}{d\rho} <
      !> 0\)
      !>
      !> NB in Miller shift contains the *1st* radial derivative of the
