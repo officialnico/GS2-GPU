@@ -143,8 +143,8 @@ module theta_grid_params
      !> - always use `kp` instead of `pk` in slab geometry (if `kp > 0`
      !> then gs2 sets `pk = 2*kp`)
      !> - in slab limit \(\textrm{shat} = \frac{L_z}{2 \pi L_s} =
-     !> \frac{L_\textrm{ref}}{k_p L_s}\) : nb if `kp = 1`, \(shat =
-     !> \frac{L_\textrm{ref}}{L_s}), where \(L_s\) is the magnetic shear
+     !> \frac{L_\textrm{ref}}{k_p L_s}\) : nb if `kp = 1`, \(\textrm{shat} =
+     !> \frac{L_\textrm{ref}}{L_s}\), where \(L_s\) is the magnetic shear
      !> scale length.
      !>
      real :: kp = -1.0
@@ -180,10 +180,10 @@ module theta_grid_params
      !> - `ntheta` is ignored for some numerical equilibria
      !>
      integer :: ntheta = 24
-     !> \(p_k = \frac{\textrm{epsl}}{q} = \frac{2 L_{ref}}{ q R}\)
+     !> \(p_k = \frac{\textrm{epsl}}{q} = \frac{2 L_\textrm{ref}}{ q R}\)
      !> Sets \(q\), the magnetic safety factor, and therefore also
      !> sets the connection length, i.e. the length of the box in the
-     !> parallel direction, in terms of \(L_{ref}\). Used only in high
+     !> parallel direction, in terms of \(L_\textrm{ref}\). Used only in high
      !> aspect ratio \(\hat{s}-\alpha\) equilibrium model.
      real :: pk = 0.3
      !> Sets value of the safety factor when using local toroidal
@@ -214,9 +214,9 @@ module theta_grid_params
      !> - When `irho` = 3, `rhoc` = poloidal flux/(poloidal flux of LCFS)
      !>
      real :: rhoc = 0.5
-     !> When `iflux = 1`: Position of magnetic axis (normalized to \(L_{ref}\)).
+     !> When `iflux = 1`: Position of magnetic axis (normalized to \(L_\textrm{ref}\)).
      !> When `iflux /= 1`: Major radius of the centre of the
-     !> flux surface of interest (normalized to \(L_{ref}\))
+     !> flux surface of interest (normalized to \(L_\textrm{ref}\))
      real :: rmaj = 3.0
      !> Sets value of magnetic shear in simple geometric models.
      !> Over-ridden by `s_hat_input` in [[theta_grid_eik_knobs]] for most values of `bishop`.
@@ -234,7 +234,7 @@ module theta_grid_params
      !>- In other analytic specifications
      !> (i.e. equilibrium_option='eik' and `geoType`=0, 2, or 3),
      !> shift is a parameter for local \(B_{\theta}\) (and NOT for
-     !> \(J_{\phi}\)): \(\textrm{shift} = \frac{1}{L_{ref}} \frac{dR}{d\rho} <
+     !> \(J_{\phi}\)): \(\textrm{shift} = \frac{1}{L_\textrm{ref}} \frac{dR}{d\rho} <
      !> 0\)
      !>
      !> NB in Miller shift contains the *1st* radial derivative of the
