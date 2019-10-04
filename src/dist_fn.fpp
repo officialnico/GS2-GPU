@@ -494,17 +494,52 @@ module dist_fn
 
   type(source_config_type) :: source_config
 
-  !> Used to represent the input configuration of dist_fn_species
+  !> Used to represent the input configuration of
+  !> dist_fn_species. There should be one of this namelist for each
+  !> species simulated.
   type, extends(abstract_config_type) :: dist_fn_species_config_type
      ! namelist : dist_fn_species_knobs
-     ! indexed : true     
-     !> FIXME: Add documentation
+     ! indexed : true
+     !> Spatial implicitness parameter. Any value greater than 0 adds
+     !> numerical dissipation which is often necessary to avoid grid
+     !> scale oscillations. When `bakdif = 0.0` (default) we use a
+     !> \(2^\textrm{nd}\) order grid centered approach in the parallel
+     !> direction. When `bakdif = 1.0` this becomes a fully upwinded
+     !> method. Recommended value is 0.05 for electrostatic
+     !> simulations and 0.0 for electromagnetic.
+     !>
+     !>
+     !> @warning It is possible to have different values for the
+     !> different species simulated, but in a number of places we only
+     !> use the value given by the first species. It is strongly
+     !> recommended to use the same value for all species.
+     !>
+     !> @todo Clarify the motivation for the electromagnetic
+     !> recommendation.
+     !>
+     !> @todo Consider forcing this to be constant across all species.
+     !>
+     !> @todo Consider changing the default to the recommended value.     
      real :: bakdif = 0.0
-     !> FIXME: Add documentation
-     integer :: bd_exp = 0 ! Not used for anything - should be removed
-     !> FIXME: Add documentation
+     !> Not used for anything.
+     !>
+     !> @todo Remove this variable.
+     integer :: bd_exp = 0
+     !> Sets the imaginary part of the temporal implicitness
+     !> parameter. It is considered an error for this to be non-zero.
+     !>
+     !> @todo Consider removing this variable as it should always be
+     !> zero. Is this used for numerical testing?
      real :: fexpi = 0.0
-     !> FIXME: Add documentation
+     !> Sets the real part of the temporal implicitness parameter. Any
+     !> value smaller than 0.5 adds numerical dissipation. When `fexpr
+     !> = 0.5` we have a \(2^\textrm{nd}\) order time centered
+     !> approach. If `fexpr = 0.0` this reduces to a fully implicit
+     !> backward Euler method. When `fexpr = 1.0` this instead becomes
+     !> a fully explicit forward Euler method (not recommended). The
+     !> recommended value is 0.48.
+     !>
+     !> @todo Consider changing the default to the recommended value.
      real :: fexpr = 0.4
    contains
      procedure, public :: read => read_dist_fn_species_config
