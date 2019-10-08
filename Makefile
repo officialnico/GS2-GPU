@@ -494,9 +494,13 @@ ifdef WITH_EIG
 	ifdef PETSC_ARCH
 		EIG_LIB += -L$(PETSC_DIR)/$(PETSC_ARCH)/lib
 		EIG_INC += -I$(PETSC_DIR)/$(PETSC_ARCH)/include
+		EIG_LIB += -L$(SLEPC_DIR)/$(PETSC_ARCH)/lib
+		EIG_INC += -I$(SLEPC_DIR)/$(PETSC_ARCH)/include
 	else
 		EIG_LIB += -L$(PETSC_DIR)/lib
 	endif
+#SLEPC_ARCH is non-standard and is unlikely to be set, it should
+#really be PETSC_ARCH (as used above)
 	ifdef SLEPC_ARCH
 		EIG_LIB += -L$(SLEPC_DIR)/$(SLEPC_ARCH)/lib
 		EIG_INC += -I$(SLEPC_DIR)/$(SLEPC_ARCH)/include
