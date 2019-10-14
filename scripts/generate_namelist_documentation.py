@@ -44,10 +44,13 @@ if __name__ == "__main__":
         tmp = constructFromFile(fileIn=fil)
         if tmp is None: continue
         # Add one at a time to enable us to avoid overwriting existing
-        # entries
+        # entries.
         for k, v in tmp.items():
             # Use the namelist name as the key for sorting
             theKey = v.namelistName
+            # Here we add an underscore to the current key if it
+            # is already present in the list. This ensures we keep
+            # separate items identified by a duplicated name.
             while theKey in theLists.keys():
                 theKey += "_"
             theLists[theKey] = v
