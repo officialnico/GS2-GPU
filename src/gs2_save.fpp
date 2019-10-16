@@ -1397,7 +1397,8 @@ contains
 
           if ((.not. explicit_warning_given).and. proc0 .and. .not.has_explicit_source_terms) then
              write(*, '("Warning: At least one explicit source term absent in restart file.")')
-             write(*, '("  Will not load these terms. This warning will not be repeated.")')
+             write(*, '("  Will not load these terms. This is probably OK unless you expect the restart file to contain these terms.")')
+             write(*, '("  This warning will not be repeated.")')
 
              ! Update this flag to ensure we don't give this warning again
              explicit_warning_given = .true.
