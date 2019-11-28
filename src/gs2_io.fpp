@@ -92,6 +92,7 @@ module gs2_io
   integer :: cdrift_id, cdrift0_id
   integer :: cvdrift_id, cvdrift0_id, gds2_id, gds21_id, gds22_id
   integer :: grho_id, jacob_id, shat_id, eps_id, drhodpsi_id, q_id, surfarea_id
+  integer :: rplot_id, zplot_id, aplot_id, rprime_id, zprime_id, aprime_id, bpol_id
   integer :: beta_id
   integer :: code_id
   integer :: h_energy_id, h_energy_dot_id, h_antenna_id
@@ -973,8 +974,25 @@ contains
     if (status /= NF90_NOERR) call netcdf_error (status, var='grho')
     status = nf90_def_var (ncid, 'jacob', netcdf_real, nttot_dim, jacob_id)
     if (status /= NF90_NOERR) call netcdf_error (status, var='jacob')
-!    status = nf90_def_var (ncid, 'surfarea', netcdf_real, nttot_dim, surfarea_id)
-!    if (status /= NF90_NOERR) call netcdf_error (status, var='surfarea')
+
+    status = nf90_def_var (ncid, 'rplot', netcdf_real, nttot_dim, rplot_id)
+    if (status /= NF90_NOERR) call netcdf_error (status, var='rplot')
+    status = nf90_def_var (ncid, 'zplot', netcdf_real, nttot_dim, zplot_id)
+    if (status /= NF90_NOERR) call netcdf_error (status, var='zplot')
+    status = nf90_def_var (ncid, 'aplot', netcdf_real, nttot_dim, aplot_id)
+    if (status /= NF90_NOERR) call netcdf_error (status, var='aplot')
+    status = nf90_def_var (ncid, 'rprime', netcdf_real, nttot_dim, rprime_id)
+    if (status /= NF90_NOERR) call netcdf_error (status, var='rprime')
+    status = nf90_def_var (ncid, 'zprime', netcdf_real, nttot_dim, zprime_id)
+    if (status /= NF90_NOERR) call netcdf_error (status, var='zprime')
+    status = nf90_def_var (ncid, 'aprime', netcdf_real, nttot_dim, aprime_id)
+    if (status /= NF90_NOERR) call netcdf_error (status, var='aprime')
+
+    status = nf90_def_var (ncid, 'bpol', netcdf_real, nttot_dim, bpol_id)
+    if (status /= NF90_NOERR) call netcdf_error (status, var='bpol')
+
+    !    status = nf90_def_var (ncid, 'surfarea', netcdf_real, nttot_dim, surfarea_id)
+    !    if (status /= NF90_NOERR) call netcdf_error (status, var='surfarea')
 
     status = nf90_def_var (ncid, 'q', netcdf_real, q_id)
     if (status /= NF90_NOERR) call netcdf_error (status, var='q')
@@ -3170,7 +3188,8 @@ contains
 # ifdef NETCDF
     use theta_grid, only: bmag, gradpar, gbdrift, gbdrift0, &
          cvdrift, cvdrift0, gds2, gds21, gds22, grho, jacob, &
-         shat, drhodpsi, eps, cdrift, cdrift0, qval !, surfarea
+         shat, drhodpsi, eps, cdrift, cdrift0, qval, rplot, &
+         zplot, aplot, rprime, zprime, aprime, bpol !, surfarea
 !CMR add qval and beta here too, as they are both useful
     use run_parameters, only: beta
     use netcdf, only: nf90_put_var
@@ -3203,8 +3222,25 @@ contains
     if (status /= NF90_NOERR) call netcdf_error (status, ncid, grho_id)
     status = nf90_put_var (ncid, jacob_id, jacob)
     if (status /= NF90_NOERR) call netcdf_error (status, ncid, jacob_id)
-!    status = nf90_put_var (ncid, surfarea_id, surfarea)
-!    if (status /= NF90_NOERR) call netcdf_error (status, ncid, surfarea_id)
+
+    status = nf90_put_var (ncid, rplot_id, rplot)
+    if (status /= NF90_NOERR) call netcdf_error (status, ncid, rplot_id)
+    status = nf90_put_var (ncid, zplot_id, zplot)
+    if (status /= NF90_NOERR) call netcdf_error (status, ncid, zplot_id)
+    status = nf90_put_var (ncid, aplot_id, aplot)
+    if (status /= NF90_NOERR) call netcdf_error (status, ncid, aplot_id)
+    status = nf90_put_var (ncid, rprime_id, rprime)
+    if (status /= NF90_NOERR) call netcdf_error (status, ncid, rprime_id)
+    status = nf90_put_var (ncid, zprime_id, zprime)
+    if (status /= NF90_NOERR) call netcdf_error (status, ncid, zprime_id)
+    status = nf90_put_var (ncid, aprime_id, aprime)
+    if (status /= NF90_NOERR) call netcdf_error (status, ncid, aprime_id)
+
+    status = nf90_put_var (ncid, bpol_id, bpol)
+    if (status /= NF90_NOERR) call netcdf_error (status, ncid, bpol_id)
+
+    !    status = nf90_put_var (ncid, surfarea_id, surfarea)
+    !    if (status /= NF90_NOERR) call netcdf_error (status, ncid, surfarea_id)
 
     status = nf90_put_var (ncid, beta_id, beta)
     if (status /= NF90_NOERR) call netcdf_error (status, ncid, beta_id)
