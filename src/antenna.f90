@@ -183,7 +183,7 @@ contains
 
   !> FIXME : Add documentation
   subroutine init_antenna_level_1
-     call read_parameters
+     call init_antenna
   end subroutine init_antenna_level_1
 
   !> FIXME : Add documentation
