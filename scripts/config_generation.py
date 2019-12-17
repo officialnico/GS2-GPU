@@ -22,7 +22,7 @@ call {instance_name}%init(name = '{namelist}', requires_index = {req})
 ! Copy out internal values into module level parameters
 {COPYOUT_LIST}
 
-exist = config_internal%exist"""
+exist = {instance_name}%exist"""
 
 readSubString = """        
 !> Reads in the {namelist} namelist and populates the member variables
