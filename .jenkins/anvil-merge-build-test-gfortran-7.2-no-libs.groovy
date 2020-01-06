@@ -124,12 +124,8 @@ command = "set +x; curl -X POST -H 'Content-Type: application/json' -d '${payloa
         	// Old directory is kept
         	sh "rm -rf gs2"
 
-		checkout([$class: 'GitSCM',  
-     			branches: [[name: "${env.PULL_REQUEST_FROM_HASH}" ]],  
-     			doGenerateSubmoduleConfigurations: false,  
-             		submoduleCfg: [],  
-			userRemoteConfigs: [[url: 'https://bitbucket.org/gyrokinetics/gs2']]]
-		)
+		checkout scm
+
         	sh '''
 			git config --global user.email "joseph.parker@stfc.ac.uk"
 			git config --global user.name "Joseph Parker"
