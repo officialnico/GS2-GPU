@@ -809,10 +809,10 @@ contains
           goto 1
        end if
 
-       istatus = nf90_put_var (ncid, delt1id, code_dt_prev2)
+       istatus = nf90_put_var (ncid, delt2id, code_dt_prev2)
        if (istatus /= NF90_NOERR) then
           ierr = error_unit()
-          write (ierr,*) "nf90_put_var delt1 error: ", nf90_strerror(istatus)
+          write (ierr,*) "nf90_put_var delt2 error: ", nf90_strerror(istatus)
           goto 1
        end if
        
@@ -2104,7 +2104,7 @@ contains
        istatus = nf90_inq_varid (ncid, "delt2", delt2id)
        if (istatus /= NF90_NOERR) call netcdf_error (istatus, var='delt2')
        
-       istatus = nf90_get_var (ncid, delt2id, delt1)
+       istatus = nf90_get_var (ncid, delt2id, delt2)
 
        if (istatus /= NF90_NOERR) then
           call netcdf_error (istatus, ncid, delt2id, message=' in init_dt')

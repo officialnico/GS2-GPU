@@ -1218,7 +1218,13 @@ contains
     call prof_leaving ("loop_diagnostics-1")
     if (debug) write(6,*) "loop_diagnostics: -1"
 
-    if (.not. (write_any .or. dump_any)) return
+    if (.not. (write_any .or. dump_any)) then
+       ! We have to increment the number of outputs written to file
+       ! before leaving. Usually we do this at the end of the routine
+       ! so we must make sure we do this here before leaving early.
+       nout = nout + 1
+       return
+    end if
 
     if (debug) write(6,*) "loop_diagnostics: -2"
     call prof_entering ("loop_diagnostics-2")
