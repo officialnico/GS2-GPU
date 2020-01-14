@@ -6,10 +6,11 @@ program dump_response
   use job_manage, only: job_fork
   use mp, only: init_mp, proc0, nproc, broadcast
   use file_utils, only: init_file_utils, run_name, input_unit_exist
+  use constants, only: run_name_size
   implicit none
   logical :: list, exist, jnk_exit
   logical, parameter :: quiet=.false.
-  character (500), target :: cbuff
+  character (run_name_size), target :: cbuff
   integer :: istep, n_time_steps, in_file
   namelist /dump_response_knobs/n_time_steps
 
