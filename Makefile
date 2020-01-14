@@ -724,6 +724,7 @@ ifdef USE_FFT
     utils_mod += $(OBJDIR)/fft_save_wisdom.o
     gs2_mod += $(OBJDIR)/fft_save_wisdom.o
     ingen_mod += $(OBJDIR)/fft_save_wisdom.o
+    dump_response_mod += $(OBJDIR)/fft_save_wisdom.o
     generate_fftw_wisdom_mod += $(OBJDIR)/fft_save_wisdom.o
 endif
 
