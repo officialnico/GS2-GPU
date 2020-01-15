@@ -870,7 +870,7 @@ contains
             end if
           end if ! if (.not. state%replay)
 
-          if ((mod(istep,5) == 0).and.(.not.state%exit)) call checkstop(state%exit)
+          if ((mod(istep,5) == 0).and.(.not.state%exit)) call checkstop(state%exit,state%exit_reason)
           if (state%exit) call debug_message(state%verb+1, &
             'gs2_main::evolve_equations exit true after checkstop')
           if (.not.state%exit) call checktime(avail_cpu_time,state%exit,margin_cpu_time)
@@ -1548,7 +1548,7 @@ contains
     else
       call evolve_equations(old_iface_state, old_iface_state%nstep)
     endif
-    call old_iface_state%exit_reason%write_exit_file('.exit_reason')
+    if(proc0) call old_iface_state%exit_reason%write_exit_file('.exit_reason')
 
     if (present(converged)) converged = old_iface_state%converged
 

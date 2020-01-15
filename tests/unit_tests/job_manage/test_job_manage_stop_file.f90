@@ -28,7 +28,7 @@ program test_job_manage
    call run_gs2(mp_comm)
 
    ! The reason for stopping should be given in "test_job_manage.exit_reason".
-   call process_test((get_exit_code() == EXIT_STOP_FILE%code), &
+   if(proc0) call process_test((get_exit_code() == EXIT_STOP_FILE%code), &
      "gs2 doesn't run without limit when run_name.stop is present")
 
    ! Finalize gs2
