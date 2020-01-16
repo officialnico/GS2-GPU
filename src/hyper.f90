@@ -666,9 +666,9 @@ contains
 
     ! Note: When this routine is in the module where these variables live
     ! we shadow the module level variables here. This is intentional to provide
-    ! isolation and ensure we can move this routine to another module easily.    
-    integer :: nexp
+    ! isolation and ensure we can move this routine to another module easily.
     character(len = 9) :: hyper_option
+    integer :: nexp
     logical :: const_amp, damp_zonal_only, gridnorm, include_kpar, isotropic_shear
     real :: d_hyper, d_hyperres, d_hypervisc, omega_osc
 

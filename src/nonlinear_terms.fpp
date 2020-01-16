@@ -1046,9 +1046,9 @@ contains
 
     ! Note: When this routine is in the module where these variables live
     ! we shadow the module level variables here. This is intentional to provide
-    ! isolation and ensure we can move this routine to another module easily.    
-    logical :: nl_forbid_force_zero, zip
+    ! isolation and ensure we can move this routine to another module easily.
     character(len = 20) :: nonlinear_mode
+    logical :: nl_forbid_force_zero, zip
     real :: cfl, densfac, qparfac, qprpfac, tparfac, tprpfac, uparfac
 
     namelist /nonlinear_terms_knobs/ cfl, densfac, nl_forbid_force_zero, nonlinear_mode, qparfac, qprpfac, tparfac, tprpfac, uparfac, zip

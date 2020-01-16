@@ -10112,14 +10112,17 @@ endif
 
     ! Note: When this routine is in the module where these variables live
     ! we shadow the module level variables here. This is intentional to provide
-    ! isolation and ensure we can move this routine to another module easily.    
-    character(len = 30) :: adiabatic_option
-    real :: afilter, apfac, btor_slab, densfac_lin, driftknob, g_exb, g_exb_error_limit, g_exb_start_time, g_exbfac, gridfac, kfilter, mach, omprimfac, phifac_lin, poisfac, qparfac_lin, qprpfac_lin, tparfac_lin, tpdriftknob, tprpfac_lin, uparfac_lin, wfb
+    ! isolation and ensure we can move this routine to another module easily.
     character(len = 20) :: boundary_option, wfbbc_option
-    logical :: def_parity, esv, even, gf_lo_integrate, lf_decompose, lf_default, mult_imp, nonad_zero, opt_init_bc, opt_source, test, wfb_cmr, zero_forbid
+    character(len = 30) :: adiabatic_option
     integer :: g_exb_start_timestep
-    
-    namelist /dist_fn_knobs/ adiabatic_option, afilter, apfac, boundary_option, btor_slab, def_parity, densfac_lin, driftknob, esv, even, g_exb, g_exb_error_limit, g_exb_start_time, g_exb_start_timestep, g_exbfac, gf_lo_integrate, gridfac, kfilter, lf_decompose, lf_default, mach, mult_imp, nonad_zero, omprimfac, opt_init_bc, opt_source, phifac_lin, poisfac, qparfac_lin, qprpfac_lin, test, tparfac_lin, tpdriftknob, tprpfac_lin, uparfac_lin, wfb, wfb_cmr, wfbbc_option, zero_forbid
+    logical :: def_parity, esv, even, gf_lo_integrate, lf_decompose, lf_default, mult_imp, nonad_zero, opt_init_bc, opt_source, test, wfb_cmr, zero_forbid
+    real :: afilter, apfac, btor_slab, densfac_lin, driftknob, g_exb, g_exb_error_limit, g_exb_start_time, g_exbfac, gridfac, kfilter, mach, omprimfac, phifac_lin, poisfac, qparfac_lin, qprpfac_lin, tparfac_lin
+    real :: tpdriftknob, tprpfac_lin, uparfac_lin, wfb
+
+    namelist /dist_fn_knobs/ adiabatic_option, afilter, apfac, boundary_option, btor_slab, def_parity, densfac_lin, driftknob, esv, even, g_exb, g_exb_error_limit, g_exb_start_time, g_exb_start_timestep, g_exbfac, &
+         gf_lo_integrate, gridfac, kfilter, lf_decompose, lf_default, mach, mult_imp, nonad_zero, omprimfac, opt_init_bc, opt_source, phifac_lin, poisfac, qparfac_lin, qprpfac_lin, test, tparfac_lin, &
+         tpdriftknob, tprpfac_lin, uparfac_lin, wfb, wfb_cmr, wfbbc_option, zero_forbid
 
     ! Only proc0 reads from file
     if (.not. proc0) return
@@ -10365,8 +10368,8 @@ endif
     ! Note: When this routine is in the module where these variables live
     ! we shadow the module level variables here. This is intentional to provide
     ! isolation and ensure we can move this routine to another module easily.    
-    real :: gamma0, omega0, phi_ext, source0, t0
     character(len = 20) :: source_option
+    real :: gamma0, omega0, phi_ext, source0, t0
 
     namelist /source_knobs/ gamma0, omega0, phi_ext, source0, source_option, t0
 
@@ -10481,9 +10484,9 @@ endif
 
     ! Note: When this routine is in the module where these variables live
     ! we shadow the module level variables here. This is intentional to provide
-    ! isolation and ensure we can move this routine to another module easily.    
-    real :: bakdif, fexpi, fexpr
+    ! isolation and ensure we can move this routine to another module easily.
     integer :: bd_exp
+    real :: bakdif, fexpi, fexpr
 
     namelist /dist_fn_species_knobs/ bakdif, bd_exp, fexpi, fexpr
 

@@ -7,6 +7,11 @@
 
 from collections import OrderedDict
 
+# The maximum line length allowed by the Cray compiler is 256
+# Set the allowed limit a bit below this to allow for indentation, variable type,
+# double colons etc.
+maxLineLen = 200
+
 typeIndent="   "
 indent="  "
 declString = "{typ} :: {name}"
@@ -227,9 +232,27 @@ class config():
 
     def sortVars(self):
         self.varList = sorted(self.varList, key = lambda x: x.name)
-        
+
     def namelistList(self):
-        return ", ".join([x.name for x in self.varList])
+        name = ""
+        sep = ", "
+        names = []
+        for var in self.varList:
+            val =var.name
+            if len(name) + len(sep) + len(val) >= maxLineLen:
+                name += sep+"&"
+                # Store current line and start a new one
+                names.append(name)
+                name = 2*indent + val
+            else:
+                # Add to the existing name
+                if len(name) is not 0:
+                    name += sep + val
+                else:
+                    name = val
+        names.append(name)
+
+        return "\n".join(names)
 
     def copyInList(self, **kwargs):
         st = [v.assignIn(**kwargs) for v in self.varList]
@@ -252,6 +275,10 @@ class config():
         #First get an empty list per type
         for var in self.varList:
             perTypList[var.typ] = []
+
+        # Reorder the dictionary so it is in alphabetical order
+        for key in sorted(perTypList.keys()):
+            perTypList[key] = perTypList.pop(key)
             
         #Now add each var to the appropriate list
         for var in self.varList:
@@ -259,8 +286,26 @@ class config():
 
         #Now convert to comma separated list
         st = []
+
         for k, v in perTypList.items():
-            st.append(declString.format(typ = k, name = ", ".join(v)))
+            name = ""
+            sep  = ", "
+            for val in v:
+                # If adding the variable would make the list too long then just
+                # store what we already have and then start a new name variable
+                if len(name) + len(sep) + len(val) >= maxLineLen:
+                    st.append(declString.format(typ = k, name = name))
+                    # Start a new name
+                    name = val
+                else:
+                    # Add to the existing name
+                    if len(name) is not 0:
+                        name += sep + val
+                    else:
+                        name = val
+
+            # Now write whatever we have left
+            st.append(declString.format(typ = k, name = name))
 
         return indent+("\n"+indent).join(st)
         
