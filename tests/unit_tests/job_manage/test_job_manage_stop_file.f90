@@ -48,8 +48,8 @@ program test_job_manage
      function get_exit_code()
        use file_utils, only: get_unused_unit
        implicit none
-       integer get_exit_code
-       integer unit
+       integer :: get_exit_code
+       integer :: unit
 
        call get_unused_unit(unit)
 
