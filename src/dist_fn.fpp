@@ -1022,7 +1022,7 @@ contains
     if (debug) write(6,*) "init_dist_fn: init_source_term"
     call init_source_term
 
-    call init_g2gf(debug)
+    if (gf_lo_integrate) call init_g2gf(debug)
 
   end subroutine init_dist_fn_level_3
 
