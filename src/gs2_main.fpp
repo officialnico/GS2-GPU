@@ -81,7 +81,7 @@ module gs2_main
   use gs2_init, only: init_type, init_level_list
   use optimisation_config, only: optimisation_type
   use constants, only: run_name_size
-  use exit_codes, only: exit_code, EXIT_NO_REASON
+  use exit_codes, only: exit_code, EXIT_NOT_REQUESTED
   implicit none
   public :: run_gs2, finish_gs2, reset_gs2, trin_finish_gs2
 
@@ -287,7 +287,7 @@ module gs2_main
     type(optimisation_type) :: optim
 
     !> Reason for end of simulation
-    type(exit_code) :: exit_reason = EXIT_NO_REASON
+    type(exit_code) :: exit_reason = EXIT_NOT_REQUESTED
    
   end type gs2_program_state_type
 
