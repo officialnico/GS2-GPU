@@ -1345,6 +1345,8 @@ module kt_grids_box
      !>
      !> Not used anywhere so should be removed.
      !> If set to 0 (the default) then will be set to `int(real(naky-1.)*sqrt(2.))`
+     !>
+     !> @todo Consider for removal.
      integer :: nkpolar = 0
      !> The actual number of theta0 modes. For nonlinear runs it is
      !> recommended to use `nx` instead. If set to 0 (the default)
