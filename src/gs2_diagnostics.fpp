@@ -132,7 +132,9 @@ module gs2_diagnostics
   complex :: wtmp_old = 0.
   logical :: exist
 
-  !> Used to represent the input configuration of gs2_diagnostics
+  !> Used to represent the input configuration of
+  !> gs2_diagnostics. This is the version used by the original
+  !> diagnostics module.
   type, extends(abstract_config_type) :: gs2_diagnostics_config_type
      ! namelist : gs2_diagnostics_knobs
      ! indexed : false     

@@ -123,6 +123,9 @@ module eigval
   !If true then save restart files for each eigenmode
   logical :: save_restarts
 
+  !Initialisation state
+  logical :: initialized = .false.
+
   !> A custom type to make it easy to encapsulate specific settings
   type EpsSettings
      logical :: use_ginit
@@ -211,6 +214,9 @@ contains
        return
     endif
 
+    if (initialized) return
+    initialized = .true.
+
     !If petsc has not been compiled with complex support then display
     !a warning that the results are most likely incorrect.
 #ifndef PETSC_USE_COMPLEX
@@ -242,7 +248,7 @@ contains
   subroutine finish_eigval
     implicit none
     PetscErrorCode :: ierr
-
+    initialized = .false.
     !Finish up slepc
     call SlepcFinalize(ierr)
   end subroutine finish_eigval

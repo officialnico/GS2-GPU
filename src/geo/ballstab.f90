@@ -32,22 +32,34 @@ module ballstab
   !> Used to represent the input configuration of ballstab
   type, extends(abstract_config_type) :: ballstab_config_type
      ! namelist : ballstab_knobs
-     ! indexed : false     
-     !> FIXME: Add documentation
+     ! indexed : false
+     !> The minimum \(\beta^\prime\) in scans is
+     !> `beta_prime_equilibrium/beta_div`
      real :: beta_div = 1.0
-     !> FIXME: Add documentation
+     !> The maximum \(\beta^\prime\) in scans is
+     !> `beta_prime_equilibrium*beta_mul`
      real :: beta_mul = 1.0
-     !> FIXME: Add documentation
+     !> Controls decentring used in the numerical integration used for
+     !> solving the ballooning equation. Recommended values are either
+     !> 0 (default) or 1/3.
      real :: diff = 0.0
-     !> FIXME: Add documentation
+     !> Not currently used for anything.
+     !>
+     !> @todo Consider removing this variable
      logical :: make_salpha = .false.
-     !> FIXME: Add documentation
+     !> How many \(\beta^\prime\) values should be used in s-alpha
+     !> type scans.
      integer :: n_beta = 1
-     !> FIXME: Add documentation
+     !> How many \(\hat{s}\) values should be used in s-alpha type
+     !> scans.
      integer :: n_shat = 1
-     !> @note gets a smart default
+     !> The maximum value of \(\hat{s}\) to use in s-alpha type scans.
+     !>
+     !> @note This gets a smart default of the equilibrium value of \(\hat{s}\)
      real :: shat_max = 0.0
-     !> @note gets a smart default
+     !> The minimum value of \(\hat{s}\) to use in s-alpha type scans.
+     !>
+     !> @note This gets a smart default of the equilibrium value of \(\hat{s}\)
      real :: shat_min = 0.0
    contains
      procedure, public :: read => read_ballstab_config
