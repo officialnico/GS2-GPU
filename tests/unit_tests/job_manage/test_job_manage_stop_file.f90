@@ -44,7 +44,7 @@ program test_job_manage
 
    contains
 
-     ! Read error code from the file "run_name.exit_reason"
+     !> Read error code from the file "run_name.exit_reason"
      function get_exit_code()
        use file_utils, only: get_unused_unit
        implicit none
