@@ -412,16 +412,42 @@ module theta_grid_salpha
      real :: alpmhdfac = 0.0
      !> Coefficient in model when `model_option='alpha1'` has been selected.
      real :: alpha1 = 0.0
-     !> Sets the particular model for the magnetic field and related drifts. NB: All options have gbdrift = cvdrift except where noted.
-     !> 's-alpha' - High aspect ratio toroidal equilibrium
-     !> 'default' - Same as 's-alpha'
-     !> 'alpha1' - Mainly same as 's-alpha' but with different definition of bmag and bset
-     !> 'rogers' - (aka. model_eps) From ingen output: "This model differs from the normal s-alpha model only in the curv and grad_B drifts." Indeed, cvdrift and gbdrift have an extra term, -(epsl*eps), while cvdrift0 and gbdrift0 are the same as 's-alpha'
-     !> 'b2' - From ingen output: "This model differs from the normal s-alpha model by an additional factor of 1/B(theta)**2 in the curv and grad_B drifts." Definition of bmag is also different.
-     !> 'normal_only' - Different definition of cvdrift (shat and shift terms removed) and cvdrift0 set to zero. Presumably this means that only the component of the curvature drift normal to the flux surface is retained while the component on the surface is 0. Useful for picking apart the effect of parameters on drifts and the effects of drifts on other quantities such as stability.
+     !> Sets the particular model for the magnetic field and related
+     !> drifts. NB: All options have gbdrift = cvdrift except where
+     !> noted. Can be one of
+     !>
+     !> - 's-alpha' - High aspect ratio toroidal equilibrium
+     !> - 'default' - Same as 's-alpha'
+     !> - 'alpha1' - Mainly same as 's-alpha' but with different
+     !> definition of bmag and bset
+     !> - 'rogers' - (aka. model_eps) From ingen output: "This model
+     !> differs from the normal s-alpha model only in the curv and
+     !> grad_B drifts." Indeed, cvdrift and gbdrift have an extra
+     !> term, -(epsl*eps), while cvdrift0 and gbdrift0 are the same
+     !> as 's-alpha'
+     !> - 'b2' - From ingen output: "This model differs from the normal
+     !> s-alpha model by an additional factor of 1/B(theta)**2 in the
+     !> curv and grad_B drifts." Definition of bmag is also different.
+     !> - 'normal_only' - Different definition of cvdrift (shat and
+     !> shift terms removed) and cvdrift0 set to zero. Presumably this
+     !> means that only the component of the curvature drift normal to
+     !> the flux surface is retained while the component on the
+     !> surface is 0. Useful for picking apart the effect of
+     !> parameters on drifts and the effects of drifts on other
+     !> quantities such as stability.
+     !> - 'const-curv' - From ingen output: "Constant curvature is
+     !> assumed. The grad-B and curvature drifts are both = epsl",
+     !> i.e. shape = 'cylinder' NB: in contradiction to ingen output,
+     !> gbdrift is not equal to cvdrift since cvdrift = epsl but
+     !> gbdrift = cvdrift*(1.-shift). However, gbdrift0 = cvdrift0 =
+     !> 0.
+     !> - 'no-curvature' - From ingen output "Zero curvature is
+     !> assumed", i.e. shape = 'slab'. NB: cvdrift = cvdrift0 =
+     !> gbdrift0 = 0 but gbdrift is not 0 (gbdrift = epsl). NB: This
+     !> does not yield the same result as cvdriftknob=0 in 's-alpha'
+     !> model with non-zero epsl
+     !>
      !> NB: For the final two options here ('const-curv' and 'no-curvature')
-     !> 'const-curv' - From ingen output: "Constant curvature is assumed. The grad-B and curvature drifts are both = epsl", i.e. shape = 'cylinder' NB: in contradiction to ingen output, gbdrift is not equal to cvdrift since cvdrift = epsl but gbdrift = cvdrift*(1.-shift). However, gbdrift0 = cvdrift0 = 0.
-     !> 'no-curvature' - From ingen output "Zero curvature is assumed", i.e. shape = 'slab'. NB: cvdrift = cvdrift0 = gbdrift0 = 0 but gbdrift is not 0 (gbdrift = epsl). NB: This does not yield the same result as cvdriftknob=0 in 's-alpha' model with non-zero epsl
      !> (See also ingen output and contents of [[theta_grid.f90]] for further details
      character(len = 20) :: model_option = "default"
    contains
@@ -1029,6 +1055,7 @@ module theta_grid_eik
      !> @note This gets a "smart" default.
      real :: beta_prime_input = 0.0
      !> Use Bishop relations to generate metric coefficients.
+     !>
      !> -  0: Use high-aspect ratio coefficients (only for debugging)
      !> -  1: Use actual equilibrium values of shat, p' recommended
      !> -  2: Use numerical equilibrium + s_hat_input and p_prime_input
@@ -1040,6 +1067,7 @@ module theta_grid_eik
      !> -  8: Use numerical equilibrium + s_hat_input and multiply pressure gradient by dp_mult
      !> -  9: Use numerical equilibrium + s_hat_input and beta_prime_input
      !> -  Otherwise: Use magnetic shear and pressure gradient as set elsewhere.
+     !>
      integer :: bishop = 5
      !> Use equilbrium data from the CHEASE file ogyropsi.dat
      logical :: chs_eq = .false.
@@ -1065,22 +1093,29 @@ module theta_grid_eik
      !> FIXME: Add documentation
      logical :: idfit_eq = .false.
      !> Choose mode of operation:
+     !>
      !> -  0: Use analytic parameterization of local toroidal MHD equilibrium (Miller).
      !> -  1: Read equilibrium data from output of MHD Grad Shafranov solver
      !> -  2: Running inside a transport code without numerical equilibrium
+     !>
      integer :: iflux = 0
      !> FIXME: Add documentation
      real :: invlp_input = 0.
      !> Choose definition of flux surface coordinate
+     !>
      !> -  1: rho == sqrt(toroidal flux)/sqrt(toroidal flux of LCFS)
      !> -  2: rho == midplane diameter/LCFS diameter - Recommended
      !> -  3: rho == poloidal flux/poloidal flux of LCFS
+     !>
      !> NB For consistency fprim, tprim, shat, uprim, g_exb etc
      !>  *must be computed using same radial variable*,
      !>  i.e. *depend on choice of irho*!
      integer :: irho = 2
-     !> 0: Recommended
-     !> 1: Force up-down symmetry.
+     !> One of
+     !>
+     !> - 0: Recommended
+     !> - 1: Force up-down symmetry.
+     !>
      !> @todo Consider changing type to logical
      integer :: isym = 0
      !> Do not change
@@ -2516,19 +2551,34 @@ module theta_grid
   !> Used to represent the input configuration of theta_grid
   type, extends(abstract_config_type) :: theta_grid_config_type
      ! namelist : theta_grid_knobs
-     ! indexed : false     
-     !> The equilibrium_option variable controls which geometric assumptions are used in the run. Additional namelists determine the geometric parameters according to the choice made here. Allowed values are:
-     !> 'eik' Use routines from the geometry module, controlled mainly by the subsidiary namelists theta_grid_parameters and theta_grid_eik_knob. This includes options for Miller as well as a range of different numerical equilibrium file formats.
-     !> 'default' Same as 'eik'
-     !> 's-alpha' Use high aspect-ratio toroidal equilbrium (which can be simplified to slab or cylinder), controlled by the subsidiary namelist theta_grid_parameters and theta_grid_salpha_knob
-     !> 'file' Use output from rungridgen code directly. Controlled by theta_grid_file_knobs. Note: in this case, the variables nperiod and ntheta (from the theta_grid_parameters namelist) are ignored.
-     !> 'grid.out' Same as 'file'
+     ! indexed : false
+     !> The equilibrium_option variable controls which geometric
+     !> assumptions are used in the run. Additional namelists
+     !> determine the geometric parameters according to the choice
+     !> made here. Allowed values are:
+     !>
+     !> - 'eik' Use routines from the geometry module, controlled mainly
+     !> by the subsidiary namelists theta_grid_parameters and
+     !> theta_grid_eik_knob. This includes options for Miller as well
+     !> as a range of different numerical equilibrium file formats.
+     !> - 'default' Same as 'eik'
+     !> - 's-alpha' Use high aspect-ratio toroidal equilbrium (which can
+     !> be simplified to slab or cylinder), controlled by the
+     !> subsidiary namelist theta_grid_parameters and
+     !> theta_grid_salpha_knob
+     !> - 'file' Use output from rungridgen code directly. Controlled by
+     !> theta_grid_file_knobs. Note: in this case, the variables
+     !> nperiod and ntheta (from the theta_grid_parameters namelist)
+     !> are ignored.
+     !> - 'grid.out' Same as 'file'
+     !>
      character(len = 20) :: equilibrium_option = "default"
      !> Scales the grad-B drift.
      real :: gbdriftknob = 1.0
      !> Scales the curvature drift.
      real :: cvdriftknob = 1.0
-     !> If true then force grad-B drift to be equal to curvature drift. This is not recommended when `fbpar` is not 0.
+     !> If true then force grad-B drift to be equal to curvature
+     !> drift. This is not recommended when `fbpar` is not 0.
      logical :: gb_to_cv = .false.
    contains
      procedure, public :: read => read_theta_grid_config

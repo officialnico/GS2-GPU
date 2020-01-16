@@ -339,9 +339,52 @@ class config():
         with open(fileOut, 'w') as f:
             f.writelines(self.printAll())
 
+    def toHTMLTable(self):
+        st = []
+        st.append("##{namelist}".format(namelist=self.namelistName))
+        st.append("")
+
+        # First write the namelist documentation
+        st.append("\n".join(self.comment))
+        st.append("")
+
+        # Table header
+        st.append("<html>")
+        st.append('<table class="divNamelistTable">')
+        st.append("<thead><tr>")
+        header_cell = "<th> {val} </th>"
+        st.append(header_cell.format(val = "Name"))
+        st.append(header_cell.format(val = "Type"))
+        st.append(header_cell.format(val = "Default"))
+        st.append(header_cell.format(val = "Description"))
+        st.append("</tr></thead>")
+
+        # Table body
+        st.append("<tbody>")
+        # Note the double new lines in the following are very important as it ensures the markdown content
+        # is treated as a separate paragraph, which ensures that any generated div elements and similar are
+        # correctly closed here. This avoids strange issues with div tag mismatches in the generated html
+        row_cell = "<td>\n\n{val}\n\n</td>"
+        full_row = "\n".join([row_cell.format(val="{nm}"), row_cell.format(val="{ty}"), row_cell.format(val="{de}"), row_cell.format(val="{co}")])
+
+        for var in self.varList:
+            st.append("<tr>")
+            st.append(full_row.format(nm = var.name, ty = var.typ, de = var.default.split("!")[0], co = "\n".join(var.comment)))
+            st.append("</tr>")
+
+        st.append("</tbody>")
+
+        st.append("</table>")
+        st.append("</html>")
+        st.append("")
+        return st
+
     def toMarkdownTable(self):
         st = []
         st.append("##{namelist}".format(namelist=self.namelistName))
+        st.append("")
+        # First write the namelist documentation
+        st.append("\n".join(self.comment))
         st.append("")
         st.append("| Name | Type | Default | Description |")
         st.append("|:-----|:----:|:-------:|:------------|")
@@ -351,7 +394,7 @@ class config():
 
         st.append("")
         return st
-            
+    
 def constructFromFile(fileIn=None, verbose=False):
     # Currently not able to get value of requires_index automatically.
 

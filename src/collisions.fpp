@@ -155,93 +155,243 @@ module collisions
   !> Used to represent the input configuration of collisions
   type, extends(abstract_config_type) :: collisions_config_type
      ! namelist : collisions_knobs
-     ! indexed : false     
-     !> FIXME: Add documentation
+     ! indexed : false
+     !> If true (default) then transform from the gyro-averaged
+     !> distribution function \(g\) evolved by GS2 to the
+     !> non-Boltzmann part of \(\delta f\), (\(h\)), when applying the
+     !> collision operator. This is the physically appropriate choice,
+     !> this parameter is primarily for numerical testing.
      logical :: adjust = .true.
-     !> @note Default changed to include classical diffusion April 18 2006
+     !> Factor multipyling the finite Larmor radius terms in the
+     !> collision operator. This term is essentially just classical
+     !> diffusion. Set `cfac` to 0 to turn off this diffusion.
+     !>
+     !> @note Default changed to 1.0 in order to include classical
+     !> diffusion April 18 2006
      real :: cfac = 1.0
-     !> FIXME: Add documentation
+     !> Selects the collision model used in the simulation. Can be one
+     !> of
+     !>
+     !> - `'default'` : Include both pitch angle scattering and energy
+     !> diffusion.
+     !> - `'collisionless'` : Disable the collision operator.
+     !> - `'none'` : Equivalent to `'collisionless'`.
+     !> - `'lorentz'` : Only pitch angle scattering.
+     !> - `'lorentz-test'` : Only pitch angle scattering. For testing,
+     !> disables some components of the operator.
+     !> - `'ediffusion'` : Only energy diffusion.
+     !> - `'krook'` : "Home made" Krook operator (this is not recommended).
+     !>
+     !> If no species have a non-zero collision frequency, `vnewk`, then
+     !> the collision operator is also automatically disabled.
      character(len = 20) :: collision_model = 'default'
-     !> FIXME: Add documentation
+     !> If true (default) then guarantee exact conservation
+     !> properties.
      logical :: conservative = .true.
-     !> @note MRH conserve_forbid_zero note
-     !> the conserving terms calculated as part of the field
-     !> particle collision operator should respect the forbidden
-     !> of the distribution function for trapped particles.
-     !> This is a cosmetic change, but has the result
-     !> that plots of the distribution function for trapped particles
-     !> makes sense.
-     !> Note that terms involving vpa do not need to be modified
-     !> Because vpa = 0 in the forbidden region
-     !> Because of this explicit forbid statements have not been added
-     !> To the  drag term involving apar
+     !> If true (default) then forces conservation corrections to zero
+     !> in the forbidden region to avoid introducing unphysical
+     !> non-zero values for the distribution function in the forbidden
+     !> region of trapped particles.
+     !>
+     !> @todo Confirm above documentation is accurate.
+     !>
+     !> @note The conserving terms calculated as part of the field
+     !> particle collision operator should respect the forbidden of
+     !> the distribution function for trapped particles. This is a
+     !> cosmetic change, but has the result that plots of the
+     !> distribution function for trapped particles makes sense. Note
+     !> that terms involving vpa do not need to be modified Because
+     !> vpa = 0 in the forbidden region because of this explicit
+     !> forbid statements have not been added to the drag term
+     !> involving apar.
      logical :: conserve_forbid_zero = .true.
+     !> If true (default) then guarantee collision operator conserves
+     !> momentum and energy.
+     !>
+     !> @todo Clarify the difference with [[conservative]].
+     !>
      !> @note Default changed to reflect improved momentum and energy
      !> conversation 07/08
      logical :: conserve_moments = .true.  
-     !> FIXME: Add documentation
+     !> If true (not the default) then use the thermal velocity to
+     !> evaluate the collision frequencies to be used. This results in
+     !> an energy independent collision frequency being used for all
+     !> species.
      logical :: const_v = .false.
-     !> FIXME: Add documentation
+     !> Controls how the coefficients in the matrix representing the
+     !> energy diffusion operator are obtained. Can be one of
+     !>
+     !> - `'default'` : Use a conservative scheme.
+     !> - `'old'` : Use the original non-conservative scheme.
+     !>
+     !> @todo Consider deprecating/removing the `'old'` option.
      character(len = 20) :: ediff_scheme = 'default'
-     !> FIXME: Add documentation
+     !> If true (not the default) then force the collision frequency
+     !> used for all non-electron species to zero and force all
+     !> electron-electron terms to zero.
      logical :: ei_coll_only = .false.
-     !> Only used with adaptive collisionality
+     !> Only used in [[get_verr]] as a part of the adaptive
+     !> collisionality algorithm. Sets the maximum relative error
+     !> allowed, above which the collision frequency must be
+     !> increased.
+     !>
+     !> @todo Confirm this is really to set the relative error limit.
      real :: etol = 2.e-2
-     !> Only used with adaptive collisionality
+     !> Only used in [[get_verr]] as a part of the adaptive
+     !> collisionality algorithm. Sets the maximum absolute error
+     !> allowed, above which the collision frequency must be
+     !> increased.
+     !>
+     !> @todo Confirm this is really to set the absolute error limit.     
      real :: etola = 2.e-2
-     !> Only used with adaptive collisionality
+     !> Only used in [[get_verr]] as a part of the adaptive
+     !> collisionality algorithm. Sets an offset to apply to the
+     !> relative error limit set by [[etol]]. This is used to provide
+     !> hysteresis is the adaptive collisionality algorithm so to
+     !> avoid adjusting the collision frequency up and down every step
+     !> (similar to the [[delt_cushion]] option in [[reinit_knobs]]).
+     !>
+     !> @todo Confirm the above description.
      real :: ewindow = 1.e-2
-     !> Only used with adaptive collisionality
+     !> Only used in [[get_verr]] as a part of the adaptive
+     !> collisionality algorithm. Sets an offset to apply to the
+     !> absolute error limit set by [[etola]]. This is used to provide
+     !> hysteresis is the adaptive collisionality algorithm so to
+     !> avoid adjusting the collision frequency up and down every step
+     !> (similar to the [[delt_cushion]] option in [[reinit_knobs]]).
+     !>
+     !> @todo Confirm the above description.     
      real :: ewindowa = 1.e-2
-     !> FIXME: Add documentation
+     !> If true (not the default) then calculate collisional heating
+     !> when applying the collion operator. This is purely a
+     !> diagnostic calculation. It should not change the evolution.
+     !>
+     !> @todo : Verify this does not influence the evolution.
      logical :: heating = .false.
-     !> FIXME: Add documentation
+     !> If true (not the default) then multiply the hyper collision
+     !> frequency by the species' collision frequency 
+     !> [[species_parameters::nu_h]]. This only impacts the pitch 
+     !> angle scattering operator.
+     !>
+     !> @note The hyper collision frequency is only non-zero if any
+     !> species have a non-zero `nu_h` value set in the input. If any
+     !> are set then the hyper collision frequency is simply `nu_h *
+     !> kperp2 * kperp2` (where `kperp2` here is normalised to the
+     !> maximum `kperp2`).
      logical :: hypermult = .false.
-     !> @note MRH le_nxilim_fix is a flag which controls
-     !> the limit of ixi loops in the le_layout.
-     !> When the limit is nxi,
-     !> which is incorrect when there are trapped particles,
-     !> There are numerical instabilities caused by missing
-     !> terms for totally trapped particles
-     !> By changing the limit to nxi +1, when this flag is true,
-     !> These numerical instabilities are removed and
-     !> le_layout gives the same result as the standard layout
-     !> nxi +1 must be included because it is the ixi index
-     !> for the duplicate vpar=0 point which must be included
-     !> For velocity integration to give the correct value
-     logical :: le_nxilim_fix = .true. ! .false. for old behaviour
-     !> FIXME: Add documentation
+     !> This flag controls the limit of ixi loops in the le_layout
+     !> decomposition.  When true (default) the limit is set to `nxi +
+     !> 1`, which has been observed to remove numerical instabilities.
+     !>
+     !> @note The "old" behavior was a limit of `nxi`, which is
+     !> incorrect. With this limit and trapped particles, there are
+     !> numerical instabilities caused by missing terms for totally
+     !> trapped particles. By changing the limit to `nxi + 1` these
+     !> numerical instabilities are removed and the le_layout gives
+     !> the same result as the standard layout. The limit `nxi + 1`
+     !> should used as we then include the `ixi` index for the
+     !> duplicate `vpar=0` point which must be included For velocity
+     !> integration to give the correct value.
+     !>
+     !> @todo Consider removing this flag and just use the correct
+     !> limit.  The motivation for retaining this flag is to allow old
+     !> results to be reproduced.
+     logical :: le_nxilim_fix = .true.
+     !> Controls how the coefficients in the matrix representing the
+     !> pitch angle scattering operator are obtained. Can be one of
+     !>
+     !> - `'default'` : Use a conservative scheme.
+     !> - `'old'` : Use the original non-conservative scheme.
+     !>
+     !> @todo Consider deprecating/removing the `'old'` option.
      character(len = 20) :: lorentz_scheme = 'default'
-     !> Only used with adaptive collisionality
+     !> Used as a part of the adaptive collisionality algorithm. When
+     !> active we check the velocity space error with [[get_verr]]
+     !> every `ncheck` time steps. This check can be relatively
+     !> expensive so it is recommended to avoid small values of
+     !> `ncheck`.
+     !>
+     !> @warning The new diagnostics module currently ignores this
+     !> value and instead uses its own input variable named `ncheck`
+     !> (which has a different default). See [this
+     !> bug](https://bitbucket.org/gyrokinetics/gs2/issues/88).
      integer :: ncheck = 100
-     !> FIXME: Add documentation
+     !> If true (default) then potentially include the drag term in
+     !> the pitch angle scattering operator. This is a necessary but
+     !> not sufficient criteria. For the drag term to be included we
+     !> also require \(\beta\neq 0\), more than one simulated species
+     !> and finite \(A_\|\) perturbations included in the simulation
+     !> (i.e. `fapar /= 0`).
      logical :: resistivity = .true.
-     !> @note MRH changed default 16/08/2018
+     !> If true (not the default) then use special handling for the
+     !> wfb particle in the pitch angle scattering operator.
+     !>
+     !> @note MRH changed default 16/08/2018. Previous default of true
+     !> seemed to cause a numerical issue in flux tube simulations for
+     !> the zonal modes at large \(k_x\).
+     !>
+     !> @todo Improve this documentation
      logical :: special_wfb_lorentz = .false.
-     !> FIXME: Add documentation
+     !> If true (not the default) then remove the collision operator
+     !> from the usual time advance algorithm. Instead the collision
+     !> operator is only applied every
+     !> [[timesteps_between_collisions]] timesteps. This can
+     !> potentially substantially speed up collisional simulations,
+     !> both in the initialisation and advance phases.
+     !>
+     !> @warning Currently the input [[timesteps_between_collisions]]
+     !> is ignored so collisions are applied every time step. The
+     !> primary result of `split_collision = .true.` currently is that
+     !> collisions are not applied in the first linear solve used as a
+     !> part of a single time step. Hence the cost of collisions in
+     !> advance are roughly halved. The full saving in the
+     !> initialisation phase is still realised.
      logical :: split_collisions = .false.
-     !> FIXME: Add documentation
+     !> If true (not the default) then performs some additional checks
+     !> of the data redistribution routines associated with
+     !> transforming being the standard and collisional data
+     !> decompositions.
      logical :: test = .false.
-     !> FIXME: Add documentation
+     !> Should set the number of timesteps between application of the
+     !>collision operator if [[split_collisions]] is true. Currently
+     !>this is ignored.
+     !>
+     !> @warning This value is currently ignored.
      integer :: timesteps_between_collisions = 1
-     !> FIXME: Add documentation
+     !> If true (default) then use a data decomposition for collisions
+     !> that brings both pitch angle and energy local to a
+     !> processor. This is typically the most efficient option,
+     !> however for collisional simulations that only use part of the
+     !> collision operator (either energy diffusion or pitch angle
+     !> scattering) then it may be beneficial to set this flag to
+     !> false such that we use a decomposition that only brings either
+     !> energy or pitch angle local.
      logical :: use_le_layout = .true.
-     !> Only used with adaptive collisionality
+     !> Set to true (not the default) to activate the adaptive
+     !> collisionality algorithm.
+     !>
+     !> @todo Provide more documentation on the adaptive
+     !> collisionality algorithm.
      logical :: vary_vnew = .false.
-     !> Only used with adaptive collisionality
+     !> If the collisionality is to be increased as a part of the
+     !> adaptive collisionality algorithm then increase it by this
+     !> factor.
      real :: vnfac = 1.1
-     !> Only used with adaptive collisionality
+     !> If the collisionality is to be decreased as a part of the
+     !> adaptive collisionality algorithm then decrease it by this
+     !> factor.
      real :: vnslow = 0.9
-     !> @note MRH vpar_zero_mean:
-     !> a flag to control how the duplicate vpar = 0 point is handled
-     !> when vpar_zero_mean = .true. the average of
-     !> g(vpar = 0) points at, (isgn=1,2) is used in the
-     !> collision operator instead of just g(vpar = 0) at isgn=2
-     !> This is necessary to suppress a numerical instability when
-     !> special_wfb_lorentz =.false. With these defaults pitch angle
-     !> scattering at theta =+/- pi is now being handled physically
-     !> i.e. vpar = 0 at this theta location is no longer being skipped
-     !> @note MRH changed default
+     !> Controls how the duplicate `vpar = 0` point is handled.  When
+     !> `vpar_zero_mean = .true.` (the default) the average of `g(vpar
+     !> = 0)` for both signs of the parallel velcoity (`isgn`) is used
+     !> in the collision operator instead of just `g(vpar = 0)` at
+     !> `isgn=2`.  This is seen to suppress a numerical instability
+     !> when `special_wfb_lorentz =.false.`. With these defaults pitch
+     !> angle scattering at \(\theta = \pm \pi \) is now being handled
+     !> physically i.e. `vpar = 0` at this theta location is no longer
+     !> being skipped.
+     !>
+     !> @todo Consider removing this option.
      logical :: vpar_zero_mean = .true.
    contains
      procedure, public :: read => read_collisions_config
