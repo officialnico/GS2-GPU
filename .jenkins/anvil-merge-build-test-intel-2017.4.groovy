@@ -204,9 +204,9 @@ String libpath="/opt/software/intel/compilers_and_libraries_2017.4.196/linux/mpi
               rm -rf ${MY_NETCDFF_DIR}
 
               mkdir -p ${MY_NETCDF_DIR}
-              wget ftp://ftp.unidata.ucar.edu/pub/netcdf/netcdf-${NETCDF_VERSION}.tar.gz
-              tar xvf netcdf-${NETCDF_VERSION}.tar.gz
-              cd netcdf-${NETCDF_VERSION}
+              wget https://github.com/Unidata/netcdf-c/archive/v${NETCDF_VERSION}.tar.gz
+              tar xvf v${NETCDF_VERSION}.tar.gz
+              cd netcdf-c-${NETCDF_VERSION}
               ./configure --prefix=${MY_NETCDF_DIR}
               make
               make install
@@ -216,8 +216,8 @@ String libpath="/opt/software/intel/compilers_and_libraries_2017.4.196/linux/mpi
               cd ..
 
               mkdir -p ${MY_NETCDFF_DIR}
-              wget ftp://ftp.unidata.ucar.edu/pub/netcdf/netcdf-fortran-${NETCDFF_VERSION}.tar.gz
-              tar xvf netcdf-fortran-${NETCDFF_VERSION}.tar.gz
+              wget https://github.com/Unidata/netcdf-fortran/archive/v${NETCDFF_VERSION}.tar.gz
+              tar xvf v${NETCDFF_VERSION}.tar.gz
               cd netcdf-fortran-${NETCDFF_VERSION}
               ./configure --prefix=${MY_NETCDFF_DIR}
               make
