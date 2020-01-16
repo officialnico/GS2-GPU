@@ -219,7 +219,7 @@ module gs2_layouts
      !> @warning If true then results will not be exactly reproducible
      !> as the choice of the optimal plan can vary from run to run
      !> when timing different approaches. This is the main reason why
-     !> the default if false here.
+     !> the default is false here.
      logical :: fft_measure_plan = .false.
      !> Try to load and save wisdom about fftw plans to
      !> `fft_wisdom_file`. This can speed up the fft initialisation
@@ -254,7 +254,7 @@ module gs2_layouts
      !> cause a problem for diagnostics which want to write the full
      !> array.  The optional argument `full_arr` can override this,
      !> forcing the full array to be known. This is only a concern if
-     !> they option argument `all` is also passed.
+     !> the optional argument `all` is also passed.
      logical :: intmom_sub = .false.
      !> When set to true use sub-communicators in the velocity space
      !> integration routines associated with taking species summed
@@ -341,9 +341,9 @@ module gs2_layouts
      !> counts.
      logical :: opt_redist_persist = .false.
      !> Set to true to try to overlap the mpi and local parts of the
-     !> gather/scatter routines.  Should only be used with
+     !> gather/scatter routines. Should only be used with
      !> `opt_redist_persist`. This is typically not seen to have any
-     !> impact on performance.  See [optimising your
+     !> impact on performance. See [optimising your
      !> runs](https://bitbucket.org/gyrokinetics/gs2/wiki/Optimising_your_runs)
      !> for more details.
      logical :: opt_redist_persist_overlap = .false.
@@ -351,12 +351,12 @@ module gs2_layouts
      logical :: simple_gf_decomposition = .true.
      !> Setting to true allows GS2 to adopt a more flexible domain
      !> decomposition of the xxf data decomposition (used in nonlinear
-     !> FFTs).  By default GS2 allocates each MPI task with the same
+     !> FFTs). By default GS2 allocates each MPI task with the same
      !> uniform blocksize in `xxf_lo`, one task may have a smaller
      !> block of data, and other tasks may be empty. There is no
      !> attempt to keep both x and y as local as possible, and
      !> sometimes large MPI data transfers are required to map from
-     !> xxf to yxf and vice-versa during FFTs.  With `unbalanced_xxf =
+     !> xxf to yxf and vice-versa during FFTs. With `unbalanced_xxf =
      !> .true.`, two slightly different blocksizes are chosen in order
      !> to keep both x and y as local as possible, and avoid this
      !> potentially large MPI communication overhead. The level of
@@ -371,12 +371,12 @@ module gs2_layouts
      logical :: unbalanced_xxf = .false.
      !> Setting to true allows GS2 to adopt a more flexible domain
      !> decomposition of the yxf data decomposition (used in nonlinear
-     !> FFTs).  By default GS2 allocates each MPI task with the same
+     !> FFTs). By default GS2 allocates each MPI task with the same
      !> uniform blocksize in yxf_lo, one task may have a smaller block
      !> of data, and other tasks may be empty. There is no attempt to
      !> keep both x and y as local as possible, and sometimes large
      !> MPI data transfers are required to map from xxf to yxf and
-     !> vice-versa during FFTs.  With `unbalanced_yxf = .true.`, two
+     !> vice-versa during FFTs. With `unbalanced_yxf = .true.`, two
      !> slightly different blocksizes are chosen in order to keep both
      !> x and y as local as possible, and avoid this potentially large
      !> MPI communication overhead. The level of imbalance is limited
