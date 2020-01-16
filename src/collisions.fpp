@@ -205,7 +205,7 @@ module collisions
      !> forbid statements have not been added to the drag term
      !> involving apar.
      logical :: conserve_forbid_zero = .true.
-     !> If true (default) the guarantee collision operator conserves
+     !> If true (default) then guarantee collision operator conserves
      !> momentum and energy.
      !>
      !> @todo Clarify the difference with [[conservative]].
@@ -265,10 +265,13 @@ module collisions
      !> If true (not the default) then calculate collisional heating
      !> when applying the collion operator. This is purely a
      !> diagnostic calculation. It should not change the evolution.
+     !>
+     !> @todo : Verify this does not influence the evolution.
      logical :: heating = .false.
      !> If true (not the default) then multiply the hyper collision
-     !> frequency by the species' collision frequency. This only
-     !> impacts the pitch angle scattering operator.
+     !> frequency by the species' collision frequency 
+     !> [[species_parameters::nu_h]]. This only impacts the pitch 
+     !> angle scattering operator.
      !>
      !> @note The hyper collision frequency is only non-zero if any
      !> species have a non-zero `nu_h` value set in the input. If any
