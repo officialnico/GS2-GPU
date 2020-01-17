@@ -69,6 +69,7 @@ module diagnostics_config
      !! which corresponds to a gs2 real
      integer :: rtype
      integer :: itype
+     integer :: ctype
      integer :: istep
      integer :: verbosity = 3
      logical :: create
@@ -222,6 +223,9 @@ module diagnostics_config
      !> FIXME: Add documentation
      integer :: navg = 10
      !> FIXME: Add documentation
+     !>
+     !> @warning This value "shadows" the `ncheck` input of the
+     !> collisions namelist.
      integer :: ncheck = 10 ! Only in new diagnostics
      !> FIXME: Add documentation
      integer :: nmovie = -1
@@ -569,11 +573,22 @@ contains
     ! Note: When this routine is in the module where these variables live
     ! we shadow the module level variables here. This is intentional to provide
     ! isolation and ensure we can move this routine to another module easily.    
-    logical :: append_old, dump_check1, dump_check2, dump_fields_periodically, enable_parallel, exit_when_converged, file_safety_check, make_movie, ob_midplane, print_flux_line, print_line, save_distfn, save_for_restart, save_glo_info_and_grids, save_many, save_velocities, serial_netcdf4, use_nonlin_convergence, write_any, write_apar_over_time, write_ascii, write_avg_moments, write_bpar_over_time, write_cerr, write_collisional, write_correlation, write_correlation_extend, write_cross_phase, write_density_over_time, write_eigenfunc, write_fields, write_final_antot, write_final_db, write_final_epar, write_final_fields, write_final_moments, write_flux_line, write_fluxes, write_fluxes_by_mode, write_full_moments_notgc, write_g, write_gg, write_gs, write_gyx, write_heating, write_hrate, write_jext, write_kpar, write_line, write_lorentzian, write_lpoly, write_max_verr, write_moments, write_nl_flux, write_nl_flux_dist, write_ntot_over_time, write_omavg, write_omega, write_parity, write_pflux_sym, write_pflux_tormom, write_phi_over_time, write_symmetry, write_tperp_over_time, write_upar_over_time, write_verr, write_zonal_transfer
-    real :: conv_test_multiplier, omegatinst, omegatol
     integer :: conv_max_step, conv_min_step, conv_nstep_av, conv_nsteps_converged, igomega, navg, ncheck, nmovie, nsave, nwrite, nwrite_mult
+    logical :: append_old, dump_check1, dump_check2, dump_fields_periodically, enable_parallel, exit_when_converged, file_safety_check, make_movie, ob_midplane, print_flux_line, print_line, save_distfn
+    logical :: save_for_restart, save_glo_info_and_grids, save_many, save_velocities, serial_netcdf4, use_nonlin_convergence, write_any, write_apar_over_time, write_ascii, write_avg_moments, write_bpar_over_time
+    logical :: write_cerr, write_collisional, write_correlation, write_correlation_extend, write_cross_phase, write_density_over_time, write_eigenfunc, write_fields, write_final_antot, write_final_db
+    logical :: write_final_epar, write_final_fields, write_final_moments, write_flux_line, write_fluxes, write_fluxes_by_mode, write_full_moments_notgc, write_g, write_gg, write_gs, write_gyx, write_heating
+    logical :: write_hrate, write_jext, write_kpar, write_line, write_lorentzian, write_lpoly, write_max_verr, write_moments, write_nl_flux, write_nl_flux_dist, write_ntot_over_time, write_omavg, write_omega
+    logical :: write_parity, write_pflux_sym, write_pflux_tormom, write_phi_over_time, write_symmetry, write_tperp_over_time, write_upar_over_time, write_verr, write_zonal_transfer
+    real :: conv_test_multiplier, omegatinst, omegatol
 
-    namelist /gs2_diagnostics_knobs/ append_old, conv_max_step, conv_min_step, conv_nstep_av, conv_nsteps_converged, conv_test_multiplier, dump_check1, dump_check2, dump_fields_periodically, enable_parallel, exit_when_converged, file_safety_check, igomega, make_movie, navg, ncheck, nmovie, nsave, nwrite, nwrite_mult, ob_midplane, omegatinst, omegatol, print_flux_line, print_line, save_distfn, save_for_restart, save_glo_info_and_grids, save_many, save_velocities, serial_netcdf4, use_nonlin_convergence, write_any, write_apar_over_time, write_ascii, write_avg_moments, write_bpar_over_time, write_cerr, write_collisional, write_correlation, write_correlation_extend, write_cross_phase, write_density_over_time, write_eigenfunc, write_fields, write_final_antot, write_final_db, write_final_epar, write_final_fields, write_final_moments, write_flux_line, write_fluxes, write_fluxes_by_mode, write_full_moments_notgc, write_g, write_gg, write_gs, write_gyx, write_heating, write_hrate, write_jext, write_kpar, write_line, write_lorentzian, write_lpoly, write_max_verr, write_moments, write_nl_flux, write_nl_flux_dist, write_ntot_over_time, write_omavg, write_omega, write_parity, write_pflux_sym, write_pflux_tormom, write_phi_over_time, write_symmetry, write_tperp_over_time, write_upar_over_time, write_verr, write_zonal_transfer
+    namelist /gs2_diagnostics_knobs/ append_old, conv_max_step, conv_min_step, conv_nstep_av, conv_nsteps_converged, conv_test_multiplier, dump_check1, dump_check2, dump_fields_periodically, enable_parallel, exit_when_converged, &
+         file_safety_check, igomega, make_movie, navg, ncheck, nmovie, nsave, nwrite, nwrite_mult, ob_midplane, omegatinst, omegatol, print_flux_line, print_line, save_distfn, save_for_restart, &
+         save_glo_info_and_grids, save_many, save_velocities, serial_netcdf4, use_nonlin_convergence, write_any, write_apar_over_time, write_ascii, write_avg_moments, write_bpar_over_time, write_cerr, &
+         write_collisional, write_correlation, write_correlation_extend, write_cross_phase, write_density_over_time, write_eigenfunc, write_fields, write_final_antot, write_final_db, write_final_epar, &
+         write_final_fields, write_final_moments, write_flux_line, write_fluxes, write_fluxes_by_mode, write_full_moments_notgc, write_g, write_gg, write_gs, write_gyx, write_heating, write_hrate, &
+         write_jext, write_kpar, write_line, write_lorentzian, write_lpoly, write_max_verr, write_moments, write_nl_flux, write_nl_flux_dist, write_ntot_over_time, write_omavg, write_omega, write_parity, &
+         write_pflux_sym, write_pflux_tormom, write_phi_over_time, write_symmetry, write_tperp_over_time, write_upar_over_time, write_verr, write_zonal_transfer
 
     ! Only proc0 reads from file
     if (.not. proc0) return

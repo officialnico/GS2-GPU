@@ -24,7 +24,7 @@ module gs2_io
   logical :: proc_write
   integer (kind_nf) :: ncid
   integer (kind_nf) :: naky_dim, nakx_dim, nttot_dim, negrid_dim, nlambda_dim, nspec_dim, ncoord_dim, ncoordt_dim
-  integer (kind_nf) :: nsign_dim, time_dim, char10_dim, char200_dim, ri_dim, nlines_dim, nheat_dim, vpa_dim
+  integer (kind_nf) :: nsign_dim, time_dim, char5_dim, char10_dim, char200_dim, ri_dim, nlines_dim, nheat_dim, vpa_dim
   integer (kind_nf) :: nttotext_dim, time_big_dim
   integer (kind_nf) :: aref_id, zref_id, nref_id, tref_id, lref_id, vref_id, bref_id, rhoref_id
 
@@ -94,7 +94,7 @@ module gs2_io
   integer :: grho_id, jacob_id, shat_id, eps_id, drhodpsi_id, q_id, surfarea_id
   integer :: rplot_id, zplot_id, aplot_id, rprime_id, zprime_id, aprime_id, bpol_id
   integer :: beta_id
-  integer :: code_id
+  integer :: code_id, layout_id
   integer :: h_energy_id, h_energy_dot_id, h_antenna_id
   integer :: h_eapar_id, h_ebpar_id
   integer :: h_delfs2_id, h_hs2_id, h_phis2_id
@@ -281,6 +281,8 @@ contains
     if (status /= NF90_NOERR) call netcdf_error (status, dim='sign')
     status = nf90_def_dim (ncid, 't', NF90_UNLIMITED, time_dim)
     if (status /= NF90_NOERR) call netcdf_error (status, dim='t')
+    status = nf90_def_dim (ncid, 'char5', 5, char5_dim)
+    if (status /= NF90_NOERR) call netcdf_error (status, dim='char5')
     status = nf90_def_dim (ncid, 'char10', 10, char10_dim)
     if (status /= NF90_NOERR) call netcdf_error (status, dim='char10')
     status = nf90_def_dim (ncid, 'char200', 200, char200_dim)
@@ -346,11 +348,15 @@ contains
     use le_grids, only: negrid, nlambda, energy, al
     use nonlinear_terms, only: nonlin
     use netcdf, only: nf90_put_var
+    use gs2_layouts, only: layout
 # endif    
     implicit none
 # ifdef NETCDF
     integer :: status
     real :: nmesh
+
+    status = nf90_put_var (ncid, layout_id, layout)
+    if (status /= NF90_NOERR) call netcdf_error (status, ncid, layout_id)
 
     !<doc> Store the size of the grid dimensions (as defined in def_dims), in the NetCDF file </doc>
     status = nf90_put_var (ncid, nttot_id, 2*ntgrid+1)
@@ -806,6 +812,10 @@ contains
     !# NOW HANDLE DATA ABOUT GRID SIZES
     !<doc> Write lots of input variables (e.g. nproc, nkx, nky)
     ! into the NetCDF file </doc>
+
+    status = nf90_def_var (ncid, 'layout', NF90_CHAR, char5_dim, layout_id)
+    if (status /= NF90_NOERR) call netcdf_error (status, var='layout')
+
     status = nf90_def_var (ncid, 'nproc', NF90_INT, nproc_id)
     if (status /= NF90_NOERR) call netcdf_error (status, var='nproc')
     status = nf90_put_att (ncid, nproc_id, 'long_name', 'Number of processors')
