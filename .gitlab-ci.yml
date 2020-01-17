@@ -7,6 +7,15 @@ variables:
   GIT_SUBMODULE_STRATEGY: recursive
   OMPI_MCA_rmaps_base_oversubscribe: "yes"
 
+formattting_tests:
+  variables:
+    CASENAME: "formatting"
+  before_script:
+    - BUILD_STATUS=running BUILD_KEY=push ./.push_gitlab_build_status ${CASENAME}
+  script:
+    - scripts/test_maximum_line_length $(scripts/get_all_matching_files.py --path=src --path=externals/utils --pattern="*.[Ff]??") || (BUILD_STATUS=failed  BUILD_KEY=push ./.push_gitlab_build_status ${CASENAME}; exit 1)
+    - BUILD_STATUS=passed  BUILD_KEY=push ./.push_gitlab_build_status ${CASENAME}
+  
 standard_tests:
   variables:
     CASENAME: "standard"
@@ -19,12 +28,13 @@ standard_tests:
     - apt-get update -qq && apt-get install -y -qq libfftw3-dev libnetcdf-dev libnetcdff-dev netcdf-bin openmpi-bin libopenmpi-dev gfortran cmake
     - adduser theuser --disabled-password --gecos ""
   script:
-    - su -c "whoami ; MAKEFLAGS=-IMakefiles GK_SYSTEM=bitbucket make USE_NEW_DIAG= build_pfunit_library || (BUILD_STATUS=build_pfunit_library_failed  BUILD_KEY=push ./.push_gitlab_build_status ${CASENAME}; exit 1)" theuser
-    - su -c "whoami ; MAKEFLAGS=-IMakefiles GK_SYSTEM=bitbucket make USE_NEW_DIAG= -j tests || (BUILD_STATUS=failed  BUILD_KEY=push ./.push_gitlab_build_status ${CASENAME}; exit 1)" theuser
-    - su -c "whoami ; MAKEFLAGS=-IMakefiles GK_SYSTEM=bitbucket make USE_NEW_DIAG= -j pfunit_tests || (cat pfunit.log; BUILD_STATUS=pfunit_tests_failed  BUILD_KEY=push ./.push_gitlab_build_status ${CASENAME}; exit 1)" theuser
+    - su -c "whoami ; MAKEFLAGS=-IMakefiles GK_SYSTEM=bitbucket make USE_NEW_DIAG= build_pfunit_library || (echo 'build_pfunit_library target failed.'; BUILD_STATUS=build_pfunit_library_failed  BUILD_KEY=push ./.push_gitlab_build_status ${CASENAME}; exit 1)" theuser
+    - su -c "whoami ; MAKEFLAGS=-IMakefiles GK_SYSTEM=bitbucket make USE_NEW_DIAG= -j tests || (echo 'tests target failed.' ; BUILD_STATUS=failed  BUILD_KEY=push ./.push_gitlab_build_status ${CASENAME}; exit 1)" theuser
+    - su -c "whoami ; MAKEFLAGS=-IMakefiles GK_SYSTEM=bitbucket make USE_NEW_DIAG= -j pfunit_tests || (echo 'pfunit_tests target failed.' ; cat pfunit.log; BUILD_STATUS=pfunit_tests_failed  BUILD_KEY=push ./.push_gitlab_build_status ${CASENAME}; exit 1)" theuser
     - pipeline_test_scripts/didTestsFail.sh ${PWD}/tests results_of_test.txt  || (BUILD_STATUS=failed  BUILD_KEY=push ./.push_gitlab_build_status ${CASENAME}; exit 1)
+    - if [[ $(grep "FAILURES" pfunit.log | wc -l) -ge 1 ]] ; then BUILD_STATUS=failed  BUILD_KEY=push ./.push_gitlab_build_status ${CASENAME}; exit 1 ; fi
     - BUILD_STATUS=passed  BUILD_KEY=push ./.push_gitlab_build_status ${CASENAME}
-
+    
 standard_tests_onestep:
   variables:
     CASENAME: "standard_one_step_pp"
@@ -37,10 +47,11 @@ standard_tests_onestep:
     - apt-get update -qq && apt-get install -y -qq libfftw3-dev libnetcdf-dev libnetcdff-dev netcdf-bin openmpi-bin libopenmpi-dev gfortran cmake
     - adduser theuser --disabled-password --gecos ""
   script:
-    - su -c "whoami ; MAKEFLAGS=-IMakefiles GK_SYSTEM=bitbucket make USE_NEW_DIAG= ONE_STEP_PP=on build_pfunit_library || (BUILD_STATUS=build_pfunit_library_failed  BUILD_KEY=push ./.push_gitlab_build_status ${CASENAME}; exit 1)" theuser
-    - su -c "whoami ; echo 'F90FLAGS += -ffree-form' > Makefile.local ; MAKEFLAGS=-IMakefiles GK_SYSTEM=bitbucket make USE_NEW_DIAG= -j tests ONE_STEP_PP=on || (BUILD_STATUS=failed  BUILD_KEY=push ./.push_gitlab_build_status ${CASENAME}; exit 1)" theuser
-    - su -c "whoami ; MAKEFLAGS=-IMakefiles GK_SYSTEM=bitbucket make USE_NEW_DIAG= -j pfunit_tests ONE_STEP_PP=on || (cat pfunit.log; BUILD_STATUS=pfunit_tests_failed  BUILD_KEY=push ./.push_gitlab_build_status ${CASENAME}; exit 1)" theuser
+    - su -c "whoami ; MAKEFLAGS=-IMakefiles GK_SYSTEM=bitbucket make USE_NEW_DIAG= ONE_STEP_PP=on build_pfunit_library || (echo 'build_pfunit_library target failed.'; BUILD_STATUS=build_pfunit_library_failed  BUILD_KEY=push ./.push_gitlab_build_status ${CASENAME}; exit 1)" theuser
+    - su -c "whoami ; echo 'F90FLAGS += -ffree-form' > Makefile.local ; MAKEFLAGS=-IMakefiles GK_SYSTEM=bitbucket make USE_NEW_DIAG= -j tests ONE_STEP_PP=on || (echo 'tests target failed.' ; BUILD_STATUS=failed  BUILD_KEY=push ./.push_gitlab_build_status ${CASENAME}; exit 1)" theuser
+    - su -c "whoami ; MAKEFLAGS=-IMakefiles GK_SYSTEM=bitbucket make USE_NEW_DIAG= -j pfunit_tests ONE_STEP_PP=on || (echo 'pfunit_tests target failed.' ; cat pfunit.log; BUILD_STATUS=pfunit_tests_failed  BUILD_KEY=push ./.push_gitlab_build_status ${CASENAME}; exit 1)" theuser
     - pipeline_test_scripts/didTestsFail.sh ${PWD}/tests results_of_test.txt  || (BUILD_STATUS=failed  BUILD_KEY=push ./.push_gitlab_build_status ${CASENAME}; exit 1)
+    - if [[ $(grep "FAILURES" pfunit.log | wc -l) -ge 1 ]] ; then BUILD_STATUS=failed  BUILD_KEY=push ./.push_gitlab_build_status ${CASENAME}; exit 1 ; fi
     - BUILD_STATUS=passed  BUILD_KEY=push ./.push_gitlab_build_status ${CASENAME}
     
 nodeps_tests:
@@ -51,7 +62,7 @@ nodeps_tests:
     - apt-get update -qq && apt-get install -y -qq gfortran
     - adduser theuser --disabled-password --gecos ""
   script:
-    - su -c "whoami ; MAKEFLAGS=-IMakefiles GK_SYSTEM=bitbucket make USE_FFT= USE_NETCDF= USE_MPI= USE_NEW_DIAG= -j tests || (BUILD_STATUS=failed  BUILD_KEY=push ./.push_gitlab_build_status ${CASENAME}; exit 1)" theuser
+    - su -c "whoami ; MAKEFLAGS=-IMakefiles GK_SYSTEM=bitbucket make USE_FFT= USE_NETCDF= USE_MPI= USE_NEW_DIAG= -j tests || (echo 'tests target failed.' ; BUILD_STATUS=failed  BUILD_KEY=push ./.push_gitlab_build_status ${CASENAME}; exit 1)" theuser
     - pipeline_test_scripts/didTestsFail.sh ${PWD}/tests results_of_test.txt || (BUILD_STATUS=failed  BUILD_KEY=push ./.push_gitlab_build_status ${CASENAME}; exit 1)
     - BUILD_STATUS=passed  BUILD_KEY=push ./.push_gitlab_build_status ${CASENAME}
 
@@ -68,7 +79,8 @@ pages:
   only:
     - master
     - next
-
+    - feature/expand_namelist_documentation
+    
 success:
   stage: ci_status
   before_script:

@@ -158,9 +158,9 @@ contains
     ! Note: When this routine is in the module where these variables live
     ! we shadow the module level variables here. This is intentional to provide
     ! isolation and ensure we can move this routine to another module easily.    
-    real :: max_imbalance, min_efficiency
-    logical :: auto, estimate_timing_error, measure_all, on, warm_up
     integer :: max_unused_procs, nstep_measure
+    logical :: auto, estimate_timing_error, measure_all, on, warm_up
+    real :: max_imbalance, min_efficiency
 
     namelist /optimisation_config/ auto, estimate_timing_error, max_imbalance, max_unused_procs, measure_all, min_efficiency, nstep_measure, on, warm_up
 

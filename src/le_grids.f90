@@ -4073,10 +4073,10 @@ contains
 
     ! Note: When this routine is in the module where these variables live
     ! we shadow the module level variables here. This is intentional to provide
-    ! isolation and ensure we can move this routine to another module easily.    
-    real :: bouncefuzz, vcut, wgt_fac
-    logical :: genquad, new_trap_int, radau_gauss_grid, test, trapped_particles
+    ! isolation and ensure we can move this routine to another module easily.
     integer :: negrid, nesub, nesuper, ngauss, nmax, nterp
+    logical :: genquad, new_trap_int, radau_gauss_grid, test, trapped_particles
+    real :: bouncefuzz, vcut, wgt_fac
 
     namelist /le_grids_knobs/ bouncefuzz, genquad, negrid, nesub, nesuper, new_trap_int, ngauss, nmax, nterp, radau_gauss_grid, test, trapped_particles, vcut, wgt_fac
 
