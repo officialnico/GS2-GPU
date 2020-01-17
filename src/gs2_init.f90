@@ -97,7 +97,7 @@ module gs2_init
     integer :: species = 16
     integer :: override_profiles = 17
     integer :: le_grids = 18
-    integer :: antenna_level_1 = 19
+    integer :: antenna = 19
     integer :: fields_level_1 = 20
     integer :: dist_fn_parameters = 21
     integer :: dist_fn_layouts = 22
@@ -232,7 +232,7 @@ contains
         if (up() .and. current%level == init_level_list%species-1) call species_subroutine
         if (up() .and. current%level == init_level_list%override_profiles-1) call override_profiles_subroutine
         if (up() .and. current%level == init_level_list%le_grids-1) call le_grids_subroutine
-        if (up() .and. current%level == init_level_list%antenna_level_1-1) call antenna_level_1_subroutine
+        if (up() .and. current%level == init_level_list%antenna-1) call antenna_subroutine
         if (up() .and. current%level == init_level_list%fields_level_1-1) call fields_level_1_subroutine
         if (up() .and. current%level == init_level_list%dist_fn_parameters-1) call dist_fn_parameters_subroutine
         if (up() .and. current%level == init_level_list%dist_fn_layouts-1) call dist_fn_layouts_subroutine
@@ -262,7 +262,7 @@ contains
         if (down () .and. current%level == init_level_list%dist_fn_layouts) call dist_fn_layouts_subroutine
         if (down () .and. current%level == init_level_list%dist_fn_parameters) call dist_fn_parameters_subroutine
         if (down () .and. current%level == init_level_list%fields_level_1) call fields_level_1_subroutine
-        if (down () .and. current%level == init_level_list%antenna_level_1) call antenna_level_1_subroutine
+        if (down () .and. current%level == init_level_list%antenna) call antenna_subroutine
         if (down () .and. current%level == init_level_list%le_grids) call le_grids_subroutine
         if (down () .and. current%level == init_level_list%override_profiles) call override_profiles_subroutine
         if (down () .and. current%level == init_level_list%species) call species_subroutine
@@ -566,21 +566,21 @@ contains
         end if
       end subroutine le_grids_subroutine
 
-      subroutine antenna_level_1_subroutine
+      subroutine antenna_subroutine
         use unit_tests, only: debug_message
-        use antenna, only: init_antenna_level_1
-        use antenna, only: finish_antenna_level_1
-        if (up()) call init_antenna_level_1
-        if (down()) call finish_antenna_level_1
+        use antenna, only: init_antenna
+        use antenna, only: finish_antenna
+        if (up()) call init_antenna
+        if (down()) call finish_antenna
        
         if (up()) then
-          call debug_message(1, 'gs2_init::init reached init level... antenna_level_1   ')
+          call debug_message(1, 'gs2_init::init reached init level... antenna   ')
           current%level = 19
         else if (down()) then  ! (down)
-          call debug_message(1, 'gs2_init::init left init level... antenna_level_1   ')
+          call debug_message(1, 'gs2_init::init left init level... antenna   ')
           current%level = 19 - 1
         end if
-      end subroutine antenna_level_1_subroutine
+      end subroutine antenna_subroutine
 
       subroutine fields_level_1_subroutine
         use unit_tests, only: debug_message
