@@ -42,7 +42,7 @@ class GenerateInit
     # initialiation (excluding diagnostics, which are not handled
     # by this module)
     ['full', ['set_initial_values', 'normalisations']],
-    ['fields_level_2' , ['collisions', 'antenna_level_2', 'dist_fn_level_3', 'fields_level_1']],
+    ['fields_level_2' , ['collisions', 'antenna_level_1', 'dist_fn_level_3', 'fields_level_1']],
     ['dist_fn_level_3' , ['dist_fn_level_2', 'hyper', 'override_timestep']],
     ['dist_fn_level_1' , ['dist_fn_arrays']], 
     ['fields_level_1' , ['kt_grids', 'antenna_level_1', 'gs2_layouts', 'fields_parameters']],
@@ -56,7 +56,7 @@ class GenerateInit
     ['set_initial_values', ['fields_level_2', 'init_g', 'override_initial_values']],
     ['le_grids' ,
       ['species', 'kt_grids', 'gs2_layouts', 'theta_grid','override_profiles']],
-    ['antenna_level_2' , ['species', 'le_grids', 'run_parameters', 'override_profiles']],
+    ['antenna_level_1' , ['species', 'le_grids', 'run_parameters', 'override_profiles']],
     ['theta_grid' , ['theta_grid_params', 'override_miller_geometry']],
     ['normalisations', []],
     ['theta_grid_params' , []],
@@ -77,7 +77,6 @@ class GenerateInit
       ['species', 'le_grids', 'kt_grids', 'gs2_layouts', 'theta_grid']],
 
     ['dist_fn_level_2' , ['dist_fn_level_1', 'override_profiles', 'le_grids']], 
-    ['antenna_level_1', ['species','le_grids']],
     ['override_kt_grids' , ['kt_grids_parameters']],
     ['override_optimisations' , ['gs2_layouts', 'fields_parameters']],
     ['override_miller_geometry' , ['theta_grid_params']],
@@ -137,7 +136,7 @@ class GenerateInit
                      'dist_fn'
                    when /^fields_level_[12]/
                      'fields'
-                   when /^antenna_level_[12]/
+                   when /^antenna_level_[1]/
                      'antenna'
                    when /^kt_grids*/
                      'kt_grids'

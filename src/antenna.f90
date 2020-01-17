@@ -33,8 +33,8 @@ module antenna
   public :: wnml_antenna, check_antenna, no_driver
   public :: antenna_w, antenna_apar, antenna_amplitudes, a_ext_data
 
-  public :: init_antenna_level_1, init_antenna_level_2
-  public :: finish_antenna_level_1, finish_antenna_level_2
+  public :: init_antenna_level_1
+  public :: finish_antenna_level_1
 
   public :: driver_config_type
   public :: stir_config_type
@@ -188,17 +188,8 @@ contains
 
   !> FIXME : Add documentation
   subroutine finish_antenna_level_1
-  end subroutine finish_antenna_level_1
-
-  !> FIXME : Add documentation
-  subroutine init_antenna_level_2
-    call init_antenna
-  end subroutine init_antenna_level_2
-
-  !> FIXME : Add documentation
-  subroutine finish_antenna_level_2
     call finish_antenna
-  end subroutine finish_antenna_level_2
+  end subroutine finish_antenna_level_1
 
   !> FIXME : Add documentation
   subroutine init_antenna(driver_config_in, stir_config_in)
