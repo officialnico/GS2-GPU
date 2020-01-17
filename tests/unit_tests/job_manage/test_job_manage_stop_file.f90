@@ -23,24 +23,24 @@ program test_job_manage
    ! 1. Create stop file
    ! 2. Run gs2
    ! 3. Read gs2's exit_reason log to check that a stop file was detected
-   if (proc0) call system("touch test_job_manage.stop")
+   if (proc0) call execute_command_line("touch test_job_manage.stop")
    call announce_test("that gs2 doesn't run without limit when run_name.stop is present")
    call run_gs2(mp_comm)
-
-   ! The reason for stopping should be given in "test_job_manage.exit_reason".
-   if(proc0) call process_test((get_exit_code() == EXIT_STOP_FILE%code), &
-     "gs2 doesn't run without limit when run_name.stop is present")
 
    ! Finalize gs2
    call finalize_equations(old_iface_state)
    call finalize_gs2(old_iface_state)
+
+   ! The reason for stopping should be given in "test_job_manage.exit_reason".
+   if(proc0) call process_test((get_exit_code() == EXIT_STOP_FILE%code), &
+     "gs2 doesn't run without limit when run_name.stop is present")
 
    call close_module_test("job_manage")
 
    call finish_mp
 
    ! Delete stop file
-   if (proc0) call system("rm test_job_manage.stop")
+   if (proc0) call execute_command_line("rm test_job_manage.stop")
 
    contains
 
