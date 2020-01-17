@@ -297,10 +297,18 @@ module diagnostics_config
      logical :: write_final_moments = .false.
      !> FIXME: Add documentation
      logical :: write_flux_line = .true.
-     !> FIXME: Add documentation
-     logical :: write_fluxes = .false. ! Only in new diagnostics
-     !> FIXME: Add documentation
-     logical :: write_fluxes_by_mode = .false. ! Only in new diagnostics
+     !> Write fluxes over time
+     !> This gets a smart default
+     !> If run is nonlinear, this defaults to true
+     !> NB: In the old diagnostics, this is combined with write_fluxes_by_mode
+     !> and called write_nl_flux.
+     logical :: write_fluxes = .false.
+     !> Write fluxes over time as a function of Fourier mode
+     !> This gets a smart default
+     !> If run is nonlinear, this defaults to true
+     !> NB: In the old diagnostics, this is combined with write_fluxes
+     !> and called write_nl_flux.
+     logical :: write_fluxes_by_mode = .false.
      !> FIXME: Add documentation
      logical :: write_full_moments_notgc = .false.
      !> FIXME: Add documentation
@@ -438,6 +446,7 @@ contains
     use file_utils, only: input_unit, error_unit, input_unit_exist
     use text_options, only: text_option, get_option_value
     use mp, only: proc0, broadcast, nproc, iproc
+    use nonlinear_terms, only: nonlin
     use unit_tests, only: debug_message
     implicit none
     type(diagnostics_type), intent(out) :: gnostics
@@ -445,6 +454,14 @@ contains
     logical :: exist
 
     if (present(new_gs2_diagnostics_config_in)) new_gs2_diagnostics_config = new_gs2_diagnostics_config_in
+
+    ! Smart defaults
+    if (.not.new_gs2_diagnostics_config%is_initialised()) then
+       if(nonlin) then
+          new_gs2_diagnostics_config%write_fluxes = .true.
+          new_gs2_diagnostics_config%write_fluxes_by_mode = .true.
+       end if
+    end if
 
     call new_gs2_diagnostics_config%init(name = 'gs2_diagnostics_knobs', requires_index = .false.)
 
