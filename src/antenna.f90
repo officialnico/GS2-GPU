@@ -33,9 +33,6 @@ module antenna
   public :: wnml_antenna, check_antenna, no_driver
   public :: antenna_w, antenna_apar, antenna_amplitudes, a_ext_data
 
-  public :: init_antenna_level_1, init_antenna_level_2
-  public :: finish_antenna_level_1, finish_antenna_level_2
-
   public :: driver_config_type
   public :: stir_config_type
   public :: set_antenna_config
@@ -180,25 +177,6 @@ contains
        write(unit, fmt="(' b = (',e20.13,',',e20.13,') /')") b_ant(i)
     end do
   end subroutine wnml_antenna
-
-  !> FIXME : Add documentation
-  subroutine init_antenna_level_1
-     call read_parameters
-  end subroutine init_antenna_level_1
-
-  !> FIXME : Add documentation
-  subroutine finish_antenna_level_1
-  end subroutine finish_antenna_level_1
-
-  !> FIXME : Add documentation
-  subroutine init_antenna_level_2
-    call init_antenna
-  end subroutine init_antenna_level_2
-
-  !> FIXME : Add documentation
-  subroutine finish_antenna_level_2
-    call finish_antenna
-  end subroutine finish_antenna_level_2
 
   !> FIXME : Add documentation
   subroutine init_antenna(driver_config_in, stir_config_in)
