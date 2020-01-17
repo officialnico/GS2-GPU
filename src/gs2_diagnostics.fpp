@@ -768,7 +768,6 @@ contains
     if (.not.gs2_diagnostics_config%is_initialised()) then
        if(nonlin) then
           gs2_diagnostics_config%write_nl_flux = .true.
-          gs2_diagnostics_config%write_nl_flux_dist = .true.
        end if
     end if
 
