@@ -27,13 +27,13 @@ program test_job_manage
    call announce_test("that gs2 doesn't run without limit when run_name.stop is present")
    call run_gs2(mp_comm)
 
-   ! The reason for stopping should be given in "test_job_manage.exit_reason".
-   if(proc0) call process_test((get_exit_code() == EXIT_STOP_FILE%code), &
-     "gs2 doesn't run without limit when run_name.stop is present")
-
    ! Finalize gs2
    call finalize_equations(old_iface_state)
    call finalize_gs2(old_iface_state)
+
+   ! The reason for stopping should be given in "test_job_manage.exit_reason".
+   if(proc0) call process_test((get_exit_code() == EXIT_STOP_FILE%code), &
+     "gs2 doesn't run without limit when run_name.stop is present")
 
    call close_module_test("job_manage")
 
