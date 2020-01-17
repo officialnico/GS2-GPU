@@ -300,11 +300,15 @@ module diagnostics_config
      !> Write fluxes over time
      !> This gets a smart default
      !> If run is nonlinear, this defaults to true
-     logical :: write_fluxes = .false. ! Only in new diagnostics
+     !> NB: In the old diagnostics, this is combined with write_fluxes_by_mode
+     !> and called write_nl_flux.
+     logical :: write_fluxes = .false.
      !> Write fluxes over time as a function of Fourier mode
      !> This gets a smart default
      !> If run is nonlinear, this defaults to true
-     logical :: write_fluxes_by_mode = .false. ! Only in new diagnostics
+     !> NB: In the old diagnostics, this is combined with write_fluxes
+     !> and called write_nl_flux.
+     logical :: write_fluxes_by_mode = .false.
      !> FIXME: Add documentation
      logical :: write_full_moments_notgc = .false.
      !> FIXME: Add documentation
