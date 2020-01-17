@@ -69,6 +69,7 @@ module diagnostics_config
      !! which corresponds to a gs2 real
      integer :: rtype
      integer :: itype
+     integer :: ctype
      integer :: istep
      integer :: verbosity = 3
      logical :: create
