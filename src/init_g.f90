@@ -4048,18 +4048,21 @@ contains
     ! Note: When this routine is in the module where these variables live
     ! we shadow the module level variables here. This is intentional to provide
     ! isolation and ensure we can move this routine to another module easily.    
-    real :: a0, apar0, b0, den0, den1, den2, dphiinit, imfac, kpar_init, phifrac, phiinit, phiinit0, phiinit_rand, prof_width, refac, scale, tpar0, tpar1, tpar2, tperp0, tperp1, tperp2, tstart, upar0, upar1, upar2, width0, zf_init
-    integer, dimension(3) :: ikkk, ittt
-    character(len = 20) :: eq_type, ginit_option
-    integer :: adj_spec, eq_mode_n, eq_mode_u, ikpar_init, ikx_init, restart_eig_id
     character(len = 150) :: restart_dir
+    character(len = 20) :: eq_type, ginit_option
     character(len = 2000) :: restart_file
-    integer, dimension(2) :: ikk, itt
-    logical :: chop_side, clean_init, constant_random_flag, even, input_check_recon, left, new_field_init, null_apar, null_bpar, null_phi, read_many
-    complex, dimension(6) :: aparamp, phiamp
     complex, dimension(3) :: nkxy_pt, ukxy_pt
+    complex, dimension(6) :: aparamp, phiamp
+    integer :: adj_spec, eq_mode_n, eq_mode_u, ikpar_init, ikx_init, restart_eig_id
+    integer, dimension(2) :: ikk, itt
+    integer, dimension(3) :: ikkk, ittt
+    logical :: chop_side, clean_init, constant_random_flag, even, input_check_recon, left, new_field_init, null_apar, null_bpar, null_phi, read_many
+    real :: a0, apar0, b0, den0, den1, den2, dphiinit, imfac, kpar_init, phifrac, phiinit, phiinit0, phiinit_rand, prof_width, refac, scale, tpar0, tpar1, tpar2, tperp0, tperp1, tperp2, tstart, upar0, upar1
+    real :: upar2, width0, zf_init
 
-    namelist /init_g_knobs/ a0, adj_spec, apar0, aparamp, b0, chop_side, clean_init, constant_random_flag, den0, den1, den2, dphiinit, eq_mode_n, eq_mode_u, eq_type, even, ginit_option, ikk, ikkk, ikpar_init, ikx_init, imfac, input_check_recon, itt, ittt, kpar_init, left, new_field_init, nkxy_pt, null_apar, null_bpar, null_phi, phiamp, phifrac, phiinit, phiinit0, phiinit_rand, prof_width, read_many, refac, restart_dir, restart_eig_id, restart_file, scale, tpar0, tpar1, tpar2, tperp0, tperp1, tperp2, tstart, ukxy_pt, upar0, upar1, upar2, width0, zf_init
+    namelist /init_g_knobs/ a0, adj_spec, apar0, aparamp, b0, chop_side, clean_init, constant_random_flag, den0, den1, den2, dphiinit, eq_mode_n, eq_mode_u, eq_type, even, ginit_option, ikk, ikkk, ikpar_init, ikx_init, imfac, &
+         input_check_recon, itt, ittt, kpar_init, left, new_field_init, nkxy_pt, null_apar, null_bpar, null_phi, phiamp, phifrac, phiinit, phiinit0, phiinit_rand, prof_width, read_many, refac, restart_dir, &
+         restart_eig_id, restart_file, scale, tpar0, tpar1, tpar2, tperp0, tperp1, tperp2, tstart, ukxy_pt, upar0, upar1, upar2, width0, zf_init
 
     ! Only proc0 reads from file
     if (.not. proc0) return

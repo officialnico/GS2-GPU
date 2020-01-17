@@ -766,13 +766,15 @@ contains
 
     ! Note: When this routine is in the module where these variables live
     ! we shadow the module level variables here. This is intentional to provide
-    ! isolation and ensure we can move this routine to another module easily.    
+    ! isolation and ensure we can move this routine to another module easily.
+    character(len = 20) :: field_option
     character(len = 256) :: response_dir
     integer :: minnrow
-    character(len = 20) :: field_option
-    logical :: do_smart_update, dump_response, field_local_allreduce, field_local_allreduce_sub, field_local_nonblocking_collectives, field_local_tuneminnrow, field_subgath, force_maxwell_reinit, read_response, remove_zonal_flows_switch
+    logical :: do_smart_update, dump_response, field_local_allreduce, field_local_allreduce_sub, field_local_nonblocking_collectives, field_local_tuneminnrow, field_subgath, force_maxwell_reinit, read_response
+    logical :: remove_zonal_flows_switch
 
-    namelist /fields_knobs/ do_smart_update, dump_response, field_local_allreduce, field_local_allreduce_sub, field_local_nonblocking_collectives, field_local_tuneminnrow, field_option, field_subgath, force_maxwell_reinit, minnrow, read_response, remove_zonal_flows_switch, response_dir
+    namelist /fields_knobs/ do_smart_update, dump_response, field_local_allreduce, field_local_allreduce_sub, field_local_nonblocking_collectives, field_local_tuneminnrow, field_option, field_subgath, force_maxwell_reinit, &
+         minnrow, read_response, remove_zonal_flows_switch, response_dir
 
     ! Only proc0 reads from file
     if (.not. proc0) return

@@ -184,7 +184,7 @@ contains
     character(len=*), intent(in) :: key
     character(len=*), intent(in) :: val
     integer, intent(in) :: unit
-    write(unit,'("  ",A20," = "," ",A)') key, '"'//trim(val)//'"'
+    write(unit,'("  ",A40," = "," ",A)') trim(key), '"'//trim(val)//'"'
   end subroutine write_key_val_string
 
   !> Writes a {key,val} pair where the value is of type real
@@ -192,7 +192,7 @@ contains
     character(len=*), intent(in) :: key
     real, intent(in) :: val
     integer, intent(in) :: unit
-    write(unit,'("  ",A20," = ",e18.11)') key, val
+    write(unit,'("  ",A40," = ",e18.11)') trim(key), val
   end subroutine write_key_val_real
 
   !> Writes a {key,val} pair where the value is of type real array
@@ -214,7 +214,7 @@ contains
     character(len=*), intent(in) :: key
     complex, intent(in) :: val
     integer, intent(in) :: unit
-    write(unit,'("  ",A20," = (",e18.11,", ",e18.11,")")') key, real(val), aimag(val)
+    write(unit,'("  ",A40," = (",e18.11,", ",e18.11,")")') trim(key), real(val), aimag(val)
   end subroutine write_key_val_complex
 
   !> Writes a {key,val} pair where the value is of type complex array
@@ -237,9 +237,9 @@ contains
     integer, intent(in) :: val
     integer, intent(in) :: unit
     if (val.lt.0) then
-       write(unit,'("  ",A20," = ",I0)') key, val
+       write(unit,'("  ",A40," = ",I0)') trim(key), val
     else
-       write(unit,'("  ",A20," = "," ",I0)') key, val
+       write(unit,'("  ",A40," = "," ",I0)') trim(key), val
     endif
   end subroutine write_key_val_integer
 
@@ -262,6 +262,6 @@ contains
     character(len=*), intent(in) :: key
     logical, intent(in) :: val
     integer, intent(in) :: unit
-    write(unit,'("  ",A20," = "," ",L1)') key, val
+    write(unit,'("  ",A40," = "," ",L1)') trim(key), val
   end subroutine write_key_val_logical
 end module abstract_config
