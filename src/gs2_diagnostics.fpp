@@ -757,11 +757,20 @@ contains
     !    use kt_grids, only: box
     use run_parameters, only: fphi
     use mp, only: proc0
+    use nonlinear_terms, only: nonlin
     implicit none
     logical, intent (in) :: list
     type(gs2_diagnostics_config_type), intent(in), optional :: gs2_diagnostics_config_in
     
     if (present(gs2_diagnostics_config_in)) gs2_diagnostics_config = gs2_diagnostics_config_in
+
+    ! Smart defaults
+    if (.not.gs2_diagnostics_config%is_initialised()) then
+       if(nonlin) then
+          gs2_diagnostics_config%write_nl_flux = .true.
+          gs2_diagnostics_config%write_nl_flux_dist = .true.
+       end if
+    end if
 
     call gs2_diagnostics_config%init(name = 'gs2_diagnostics_knobs', requires_index = .false.)
 
