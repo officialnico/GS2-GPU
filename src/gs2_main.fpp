@@ -1550,7 +1550,7 @@ contains
       call evolve_equations(old_iface_state, old_iface_state%nstep)
       call set_exit_reason_nstep(old_iface_state%exit_reason)
     endif
-    if(proc0) call old_iface_state%exit_reason%write_exit_file('.exit_reason')
+    if(proc0) call old_iface_state%exit_reason%write_exit_file()
 
     if (present(converged)) converged = old_iface_state%converged
 
