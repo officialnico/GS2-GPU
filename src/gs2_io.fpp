@@ -982,7 +982,7 @@ contains
     if (status /= NF90_NOERR) call netcdf_error (status, ncid, q_id, att='long_name')
     status = nf90_def_var (ncid, 'eps_trapped', netcdf_real, eps_id)
     if (status /= NF90_NOERR) call netcdf_error (status, var='eps_trapped')
-    status = nf90_put_att (ncid, eps_id, 'long_name', 'Trapped fraction 1 - bmin/bmax')
+    status = nf90_put_att (ncid, eps_id, 'long_name', 'Trapped fraction 1 - sqrt(bmin/bmax)')
     if (status /= NF90_NOERR) call netcdf_error (status, ncid, eps_id, att='long_name')
     status = nf90_def_var (ncid, 'beta', netcdf_real, beta_id)
     if (status /= NF90_NOERR) call netcdf_error (status, var='beta')
