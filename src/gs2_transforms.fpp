@@ -141,11 +141,11 @@ contains
     if (initialized) return
     initialized = .true.
 
-    measure_plan = fft_measure_plan
-    if (fft_use_wisdom) call load_wisdom(trim(fft_wisdom_file))
-
     if (debug) write (*,*) 'init_transforms: init_gs2_layouts'
     call init_gs2_layouts
+
+    measure_plan = fft_measure_plan
+    if (fft_use_wisdom) call load_wisdom(trim(fft_wisdom_file))
 
     call pe_layout (char)
 
