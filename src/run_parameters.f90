@@ -155,8 +155,8 @@ module run_parameters
 
   !> Used to represent the input configuration of run_parameters through "parameters"
   !!
-  !! @todo This should probably be merged with parameters. This is actually
-  !! implemented here by adding the contents of "parameters" to "parameters".
+  !! @todo This should probably be merged with knobs. This is actually
+  !! implemented here by adding the contents of "parameters" to "knobs".
   !! This should be documented clearly and eventually we should remove parameters
   type, extends(abstract_config_type) :: parameters_config_type
      ! namelist : parameters
