@@ -717,7 +717,7 @@ contains
     self%nstep = nstep
     self%rhostar = rhostar
     self%secondary = secondary
-    self%seed = seed    
+    self%seed = seed
     self%tertiary = tertiary
     self%teti = teti
     self%tite = tite
@@ -764,7 +764,7 @@ contains
     call self%write_key_val("nstep", self%nstep, unit_internal)
     call self%write_key_val("rhostar", self%rhostar, unit_internal)
     call self%write_key_val("secondary", self%secondary, unit_internal)
-    call self%write_key_val("seed", self%seed, unit_internal)    
+    call self%write_key_val("seed", self%seed, unit_internal)
     call self%write_key_val("tertiary", self%tertiary, unit_internal)
     call self%write_key_val("teti", self%teti, unit_internal)
     call self%write_key_val("tite", self%tite, unit_internal)
@@ -813,7 +813,7 @@ contains
     call broadcast(self%nstep)
     call broadcast(self%rhostar)
     call broadcast(self%secondary)
-    call broadcast(self%seed)    
+    call broadcast(self%seed)
     call broadcast(self%tertiary)
     call broadcast(self%teti)
     call broadcast(self%tite)
