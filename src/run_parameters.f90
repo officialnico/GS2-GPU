@@ -258,7 +258,15 @@ contains
     else
        write (report_unit, fmt="('The time step will be reset just before the next time step after cfl violation detected.')") 
     endif
-    write (report_unit, *) 
+
+    write (report_unit, *)
+    if(seed .ne. 0)then
+       write (report_unit, fmt="('The random number generator will use a seed derived from use input, ',I0,'.')") seed
+    else
+       write (report_unit, fmt="('The random number generator will use the default seed.')")
+    endif
+    write (report_unit, *)
+
   end subroutine check_run_parameters
 
   !> FIXME : Add documentation    
