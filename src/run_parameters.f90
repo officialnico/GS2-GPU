@@ -529,6 +529,8 @@ contains
           delt_prev2 = delt2
        endif
     endif
+
+    if (seed .ne. 0 ) call set_seed_from_single_integer(seed)
   end subroutine read_parameters
 
   !> FIXME : Add documentation    
