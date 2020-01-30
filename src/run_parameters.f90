@@ -48,7 +48,7 @@ module run_parameters
   real, dimension (:), allocatable :: wunits, woutunits, tunits
   real, dimension (2) :: vnm_init
   real :: avail_cpu_time, margin_cpu_time
-  integer :: nstep
+  integer :: nstep, seed
   logical :: reset=.false.
   logical :: immediate_reset
   logical :: wstar_units, eqzip
@@ -121,6 +121,11 @@ module run_parameters
      real :: rhostar = 3.0e-3
      !> Advanced
      logical :: secondary = .true.
+     !> Used to set the random seed used in the random number
+     !> generators provided by [[ran]]. If this inpud is 0 (the
+     !> default) then we don't set the seed and use the system default
+     !> instead.
+     integer :: seed = 0
      !> Advanced
      logical :: tertiary = .false.
      !> Deprecated
@@ -301,7 +306,8 @@ contains
     use gs2_time, only: init_delt, user2code
     implicit none
     type(knobs_config_type), intent(in), optional :: knobs_config_in
-    type(parameters_config_type), intent(in), optional :: parameters_config_in    
+    type(parameters_config_type), intent(in), optional :: parameters_config_in
+
     if (initialized) return
     initialized = .true.
 
@@ -342,6 +348,7 @@ contains
     use gs2_save, only: init_dt, init_vnm
     use text_options, only: text_option, get_option_value
     use kt_grids, only: gryfx
+    use ran, only: set_seed_from_single_integer
     implicit none
     type(knobs_config_type), intent(in), optional :: knobs_config_in
     type(parameters_config_type), intent(in), optional :: parameters_config_in
@@ -411,7 +418,8 @@ contains
     eqzip  = knobs_config%eqzip 
     delt_option  = knobs_config%delt_option 
     margin = knobs_config%margin
-    secondary  = knobs_config%secondary 
+    secondary  = knobs_config%secondary
+    seed  = knobs_config%seed
     tertiary  = knobs_config%tertiary 
     faperp  = knobs_config%faperp 
     harris  = knobs_config%harris 
@@ -632,11 +640,11 @@ contains
     ! isolation and ensure we can move this routine to another module easily.
     character(len = 100000) :: user_comments
     character(len = 20) :: delt_option, eqzip_option
-    integer :: nstep
+    integer :: nstep, seed
     logical :: do_eigsolve, eqzip, harris, immediate_reset, neo_test, secondary, tertiary, trinity_linear_fluxes, trinity_ql_fluxes, use_old_diagnostics, wstar_units
     real :: avail_cpu_time, beta, delt, fapar, faperp, fbpar, fphi, k0, margin, margin_cpu_time, rhostar, teti, tite, zeff
 
-    namelist /knobs/ avail_cpu_time, beta, delt, delt_option, do_eigsolve, eqzip, eqzip_option, fapar, faperp, fbpar, fphi, harris, immediate_reset, k0, margin, margin_cpu_time, neo_test, nstep, rhostar, secondary, &
+    namelist /knobs/ avail_cpu_time, beta, delt, delt_option, do_eigsolve, eqzip, eqzip_option, fapar, faperp, fbpar, fphi, harris, immediate_reset, k0, margin, margin_cpu_time, neo_test, nstep, rhostar, secondary, seed, &
          tertiary, teti, tite, trinity_linear_fluxes, trinity_ql_fluxes, use_old_diagnostics, user_comments, wstar_units, zeff
 
     ! Only proc0 reads from file
@@ -663,6 +671,7 @@ contains
     nstep = self%nstep
     rhostar = self%rhostar
     secondary = self%secondary
+    seed = self%seed
     tertiary = self%tertiary
     teti = self%teti
     tite = self%tite
@@ -706,6 +715,7 @@ contains
     self%nstep = nstep
     self%rhostar = rhostar
     self%secondary = secondary
+    self%seed = seed    
     self%tertiary = tertiary
     self%teti = teti
     self%tite = tite
@@ -752,6 +762,7 @@ contains
     call self%write_key_val("nstep", self%nstep, unit_internal)
     call self%write_key_val("rhostar", self%rhostar, unit_internal)
     call self%write_key_val("secondary", self%secondary, unit_internal)
+    call self%write_key_val("seed", self%seed, unit_internal)    
     call self%write_key_val("tertiary", self%tertiary, unit_internal)
     call self%write_key_val("teti", self%teti, unit_internal)
     call self%write_key_val("tite", self%tite, unit_internal)
@@ -800,6 +811,7 @@ contains
     call broadcast(self%nstep)
     call broadcast(self%rhostar)
     call broadcast(self%secondary)
+    call broadcast(self%seed)    
     call broadcast(self%tertiary)
     call broadcast(self%teti)
     call broadcast(self%tite)
