@@ -1,5 +1,7 @@
-!> This module is basically a store for the input parameters that are specified in the namelists \a knobs and \a parameters.
-!! In general, the names of the public variables in this module are the same as the name of the input parameter they correspond to.
+!> This module is basically a store for the input parameters that are
+!> specified in the namelists knobs and parameters.
+!> In general, the names of the public variables in this module are
+!> the same as the name of the input parameter they correspond to.
 module run_parameters
   use abstract_config, only: abstract_config_type, CONFIG_MAX_NAME_LEN
   
