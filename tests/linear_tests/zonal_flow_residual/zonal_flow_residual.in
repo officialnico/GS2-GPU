@@ -67,11 +67,6 @@
  collision_model = "none"
 /
 
-&nonlinear_terms_knobs
- nonlinear_mode = "off"
- cfl = 0.5
-/
-
 &species_knobs
  nspec = 1
 /
