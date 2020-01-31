@@ -17,7 +17,7 @@ all: zonal_flow_residual
 endif
 endif
 
-zonal_flow_residual.o .o:  ${TEST_MODS}
+zonal_flow_residual.o:  ${TEST_MODS}
 
 zonal_flow_residual: zonal_flow_residual.o $(TEST_MODS)
 	$(call messageOp,"Linking ","\\t:",$(call processName, $^),"\\n\\t\-\-\-\-\-\-\>",$(call processName, $@))
