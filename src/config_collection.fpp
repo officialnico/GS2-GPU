@@ -94,10 +94,13 @@ module config_collection
      type(theta_grid_parameters_config_type) :: theta_grid_parameters_config
      type(theta_grid_salpha_config_type) :: theta_grid_salpha_config
    contains
+     !> See [[write_to_unit]] for details.
      procedure :: write_to_unit
   end type config_collection_type
 contains
 
+  !> Writes out the current configuration state to an optionally provided unit.
+  !> If no unit is provided then we write to `output_unit`.
   subroutine write_to_unit(self, unit)
     use iso_fortran_env, only: output_unit
     implicit none
@@ -115,6 +118,7 @@ contains
     the_unit = output_unit
     if (present(unit)) the_unit = unit
 
+    ! Take care of writing
     call self%ballstab_config%write(the_unit)
     call self%collisions_config%write(the_unit)
     call self%dist_fn_config%write(the_unit)
