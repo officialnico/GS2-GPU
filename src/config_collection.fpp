@@ -54,7 +54,7 @@ module config_collection
      type(ballstab_config_type) :: ballstab_config
      type(collisions_config_type) :: collisions_config
      type(dist_fn_config_type) :: dist_fn_config
-     type(dist_fn_species_config_type) :: dist_fn_species_config
+     type(dist_fn_species_config_type), dimension(:), allocatable :: dist_fn_species_config
      type(driver_config_type) :: driver_config
 #ifdef WITH_EIG
      type(eigval_config_type) :: eigval_config
@@ -71,7 +71,7 @@ module config_collection
      type(kt_grids_range_config_type) :: kt_grids_range_config
      type(kt_grids_single_config_type) :: kt_grids_single_config
      type(kt_grids_specified_config_type) :: kt_grids_specified_config
-     type(kt_grids_specified_element_config_type) :: kt_grids_specified_element_config
+     type(kt_grids_specified_element_config_type), dimension(:), allocatable :: kt_grids_specified_element_config
      type(layouts_config_type) :: layouts_config
      type(le_grids_config_type) :: le_grids_config
 #ifdef NEW_DIAG
@@ -85,8 +85,8 @@ module config_collection
      type(reinit_config_type) :: reinit_config
      type(source_config_type) :: source_config
      type(species_config_type) :: species_config
-     type(species_element_config_type) :: species_element_config
-     type(stir_config_type) :: stir_config
+     type(species_element_config_type), dimension(:), allocatable :: species_element_config
+     type(stir_config_type), dimension(:), allocatable :: stir_config
      type(theta_grid_config_type) :: theta_grid_config
      type(theta_grid_eik_config_type) :: theta_grid_eik_config
      type(theta_grid_file_config_type) :: theta_grid_file_config

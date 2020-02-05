@@ -9,6 +9,7 @@ program write_default_input_file
 
   logical :: list
   integer :: output_unit
+  integer :: i
 
   call init_mp
 
@@ -18,7 +19,15 @@ program write_default_input_file
      call the_config%ballstab_config%write(output_unit)
      call the_config%collisions_config%write(output_unit)
      call the_config%dist_fn_config%write(output_unit)
-     call the_config%dist_fn_species_config%write(output_unit)
+     if (allocated(the_config%dist_fn_species_config)) then
+        do i = 1, size(the_config%dist_fn_species_config)
+           call the_config%dist_fn_species_config(i)%write(output_unit)
+        end do
+     else
+        allocate(the_config%dist_fn_species_config(1))
+        call the_config%dist_fn_species_config(1)%write(output_unit)
+        deallocate(the_config%dist_fn_species_config)
+     end if
      call the_config%driver_config%write(output_unit)
 #ifdef WITH_EIG
      call the_config%eigval_config%write(output_unit)
@@ -35,7 +44,15 @@ program write_default_input_file
      call the_config%kt_grids_range_config%write(output_unit)
      call the_config%kt_grids_single_config%write(output_unit)
      call the_config%kt_grids_specified_config%write(output_unit)
-     call the_config%kt_grids_specified_element_config%write(output_unit)
+     if (allocated(the_config%kt_grids_specified_element_config)) then
+        do i = 1, size(the_config%kt_grids_specified_element_config)
+           call the_config%kt_grids_specified_element_config(i)%write(output_unit)
+        end do
+     else
+        allocate(the_config%kt_grids_specified_element_config(1))
+        call the_config%kt_grids_specified_element_config(1)%write(output_unit)
+        deallocate(the_config%kt_grids_specified_element_config)
+     end if
      call the_config%layouts_config%write(output_unit)
      call the_config%le_grids_config%write(output_unit)
 #ifdef NEW_DIAG
@@ -45,7 +62,7 @@ program write_default_input_file
      ! ideally there would only be one diagnostics config shared between the two
      ! approaches.
      call the_config%new_gs2_diagnostics_config%write(output_unit)
-#endif     
+#endif
      call the_config%nonlinear_terms_config%write(output_unit)
      call the_config%normalisations_config%write(output_unit)
      call the_config%optimisation_config%write(output_unit)
@@ -54,8 +71,24 @@ program write_default_input_file
      call the_config%reinit_config%write(output_unit)
      call the_config%source_config%write(output_unit)
      call the_config%species_config%write(output_unit)
-     call the_config%species_element_config%write(output_unit)
-     call the_config%stir_config%write(output_unit)
+     if (allocated(the_config%species_element_config)) then
+        do i = 1, size(the_config%species_element_config)
+           call the_config%species_element_config(i)%write(output_unit)
+        end do
+     else
+        allocate(the_config%species_element_config(1))
+        call the_config%species_element_config(1)%write(output_unit)
+        deallocate(the_config%species_element_config)
+     end if
+     if (allocated(the_config%stir_config)) then
+        do i = 1, size(the_config%stir_config)
+           call the_config%stir_config(i)%write(output_unit)
+        end do
+     else
+        allocate(the_config%stir_config(1))
+        call the_config%stir_config(1)%write(output_unit)
+        deallocate(the_config%stir_config)
+     end if
      call the_config%theta_grid_config%write(output_unit)
      call the_config%theta_grid_eik_config%write(output_unit)
      call the_config%theta_grid_file_config%write(output_unit)
