@@ -93,5 +93,106 @@ module config_collection
      type(theta_grid_gridgen_config_type) :: theta_grid_gridgen_config
      type(theta_grid_parameters_config_type) :: theta_grid_parameters_config
      type(theta_grid_salpha_config_type) :: theta_grid_salpha_config
+   contains
+     procedure :: write_to_unit
   end type config_collection_type
+contains
+
+  subroutine write_to_unit(self, unit)
+    use iso_fortran_env, only: output_unit
+    implicit none
+    ! Note we have to make this intent out as we may want/need to allocate
+    ! some components that have not been allocated. If so we do deallocate
+    ! so self should be unchanged on exit.
+    class(config_collection_type), intent(in out) :: self
+    ! The unit to write to, if not given then will use output_unit. Note we
+    ! assume this unit has been opened ready for writing.
+    integer, intent(in), optional :: unit
+    integer :: the_unit, i
+
+    ! Handle optional argument
+    the_unit = output_unit
+    if (present(unit)) the_unit = unit
+
+     call self%ballstab_config%write(the_unit)
+     call self%collisions_config%write(the_unit)
+     call self%dist_fn_config%write(the_unit)
+     if (allocated(self%dist_fn_species_config)) then
+        do i = 1, size(self%dist_fn_species_config)
+           call self%dist_fn_species_config(i)%write(the_unit)
+        end do
+     else
+        allocate(self%dist_fn_species_config(1))
+        call self%dist_fn_species_config(1)%write(the_unit)
+        deallocate(self%dist_fn_species_config)
+     end if
+     call self%driver_config%write(the_unit)
+#ifdef WITH_EIG
+     call self%eigval_config%write(the_unit)
+#endif
+     call self%fields_config%write(the_unit)
+     call self%gs2_diagnostics_config%write(the_unit)
+     call self%hyper_config%write(the_unit)
+     call self%ingen_config%write(the_unit)
+     call self%init_config%write(the_unit)
+     call self%init_g_config%write(the_unit)
+     call self%knobs_config%write(the_unit)
+     call self%kt_grids_config%write(the_unit)
+     call self%kt_grids_box_config%write(the_unit)
+     call self%kt_grids_range_config%write(the_unit)
+     call self%kt_grids_single_config%write(the_unit)
+     call self%kt_grids_specified_config%write(the_unit)
+     if (allocated(self%kt_grids_specified_element_config)) then
+        do i = 1, size(self%kt_grids_specified_element_config)
+           call self%kt_grids_specified_element_config(i)%write(the_unit)
+        end do
+     else
+        allocate(self%kt_grids_specified_element_config(1))
+        call self%kt_grids_specified_element_config(1)%write(the_unit)
+        deallocate(self%kt_grids_specified_element_config)
+     end if
+     call self%layouts_config%write(the_unit)
+     call self%le_grids_config%write(the_unit)
+#ifdef NEW_DIAG
+     ! Note if we have new diagnostics then we currently write out both
+     ! versions of the namelist -- we probably/may want to check the choice
+     ! of `use_old_diagnostics` and then write the appropriate one based on that
+     ! ideally there would only be one diagnostics config shared between the two
+     ! approaches.
+     call self%new_gs2_diagnostics_config%write(the_unit)
+#endif
+     call self%nonlinear_terms_config%write(the_unit)
+     call self%normalisations_config%write(the_unit)
+     call self%optimisation_config%write(the_unit)
+     call self%parameters_config%write(the_unit)
+     call self%parameter_scan_config%write(the_unit)
+     call self%reinit_config%write(the_unit)
+     call self%source_config%write(the_unit)
+     call self%species_config%write(the_unit)
+     if (allocated(self%species_element_config)) then
+        do i = 1, size(self%species_element_config)
+           call self%species_element_config(i)%write(the_unit)
+        end do
+     else
+        allocate(self%species_element_config(1))
+        call self%species_element_config(1)%write(the_unit)
+        deallocate(self%species_element_config)
+     end if
+     if (allocated(self%stir_config)) then
+        do i = 1, size(self%stir_config)
+           call self%stir_config(i)%write(the_unit)
+        end do
+     else
+        allocate(self%stir_config(1))
+        call self%stir_config(1)%write(the_unit)
+        deallocate(self%stir_config)
+     end if
+     call self%theta_grid_config%write(the_unit)
+     call self%theta_grid_eik_config%write(the_unit)
+     call self%theta_grid_file_config%write(the_unit)
+     call self%theta_grid_gridgen_config%write(the_unit)
+     call self%theta_grid_parameters_config%write(the_unit)
+     call self%theta_grid_salpha_config%write(the_unit)
+
+  end subroutine write_to_unit
 end module config_collection
