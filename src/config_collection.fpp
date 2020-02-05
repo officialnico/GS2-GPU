@@ -109,6 +109,7 @@ contains
     ! assume this unit has been opened ready for writing.
     integer, intent(in), optional :: unit
     integer :: the_unit, i
+    logical :: allocated_flag
 
     ! Handle optional argument
     the_unit = output_unit
@@ -117,15 +118,14 @@ contains
      call self%ballstab_config%write(the_unit)
      call self%collisions_config%write(the_unit)
      call self%dist_fn_config%write(the_unit)
-     if (allocated(self%dist_fn_species_config)) then
-        do i = 1, size(self%dist_fn_species_config)
-           call self%dist_fn_species_config(i)%write(the_unit)
-        end do
-     else
-        allocate(self%dist_fn_species_config(1))
-        call self%dist_fn_species_config(1)%write(the_unit)
-        deallocate(self%dist_fn_species_config)
-     end if
+
+     allocated_flag = allocated(self%dist_fn_species_config)
+     if (.not.allocated_flag) allocate(self%dist_fn_species_config(1))
+     do i = 1, size(self%dist_fn_species_config)
+        call self%dist_fn_species_config(i)%write(the_unit)
+     end do
+     if (.not.allocated_flag) deallocate(self%dist_fn_species_config)
+
      call self%driver_config%write(the_unit)
 #ifdef WITH_EIG
      call self%eigval_config%write(the_unit)
@@ -142,15 +142,14 @@ contains
      call self%kt_grids_range_config%write(the_unit)
      call self%kt_grids_single_config%write(the_unit)
      call self%kt_grids_specified_config%write(the_unit)
-     if (allocated(self%kt_grids_specified_element_config)) then
-        do i = 1, size(self%kt_grids_specified_element_config)
-           call self%kt_grids_specified_element_config(i)%write(the_unit)
-        end do
-     else
-        allocate(self%kt_grids_specified_element_config(1))
-        call self%kt_grids_specified_element_config(1)%write(the_unit)
-        deallocate(self%kt_grids_specified_element_config)
-     end if
+
+     allocated_flag = allocated(self%kt_grids_specified_element_config)
+     if (.not.allocated_flag) allocate(self%kt_grids_specified_element_config(1))
+     do i = 1, size(self%kt_grids_specified_element_config)
+        call self%kt_grids_specified_element_config(i)%write(the_unit)
+     end do
+     if (.not.allocated_flag) deallocate(self%kt_grids_specified_element_config)
+
      call self%layouts_config%write(the_unit)
      call self%le_grids_config%write(the_unit)
 #ifdef NEW_DIAG
@@ -169,24 +168,21 @@ contains
      call self%reinit_config%write(the_unit)
      call self%source_config%write(the_unit)
      call self%species_config%write(the_unit)
-     if (allocated(self%species_element_config)) then
-        do i = 1, size(self%species_element_config)
-           call self%species_element_config(i)%write(the_unit)
-        end do
-     else
-        allocate(self%species_element_config(1))
-        call self%species_element_config(1)%write(the_unit)
-        deallocate(self%species_element_config)
-     end if
-     if (allocated(self%stir_config)) then
-        do i = 1, size(self%stir_config)
-           call self%stir_config(i)%write(the_unit)
-        end do
-     else
-        allocate(self%stir_config(1))
-        call self%stir_config(1)%write(the_unit)
-        deallocate(self%stir_config)
-     end if
+
+     allocated_flag = allocated(self%species_element_config)
+     if (.not.allocated_flag) allocate(self%species_element_config(1))
+     do i = 1, size(self%species_element_config)
+        call self%species_element_config(i)%write(the_unit)
+     end do
+     if (.not.allocated_flag) deallocate(self%species_element_config)
+
+     allocated_flag = allocated(self%stir_config)
+     if (.not.allocated_flag) allocate(self%stir_config(1))
+     do i = 1, size(self%stir_config)
+        call self%stir_config(i)%write(the_unit)
+     end do
+     if (.not.allocated_flag) deallocate(self%stir_config)
+
      call self%theta_grid_config%write(the_unit)
      call self%theta_grid_eik_config%write(the_unit)
      call self%theta_grid_file_config%write(the_unit)
