@@ -293,7 +293,6 @@ module gs2_main
 
   private
 
-
   integer :: densrefspec
   integer, dimension(:), allocatable :: gs2spec_from_trin
 
@@ -1478,7 +1477,7 @@ contains
     use unit_tests, only: functional_test_flag
     use mp, only: proc0
     use old_interface_store, only: override_profiles, override_miller_geometry
-    use exit_codes, only: set_exit_reason_nstep
+    use exit_codes, only: EXIT_NSTEP
     implicit none
 
     integer, intent (in), optional :: mpi_comm, job_id, nensembles
@@ -1545,10 +1544,10 @@ contains
 
 
     if(old_iface_state%do_eigsolve)then
-      call run_eigensolver(old_iface_state)
+       call run_eigensolver(old_iface_state)
     else
-      call evolve_equations(old_iface_state, old_iface_state%nstep)
-      call set_exit_reason_nstep(old_iface_state%exit_reason)
+       call evolve_equations(old_iface_state, old_iface_state%nstep)
+       if (old_iface_state%exit_reason%is_identical(EXIT_NOT_REQUESTED)) old_iface_state%exit_reason = EXIT_NSTEP
     endif
     if(proc0) call old_iface_state%exit_reason%write_exit_file()
 
