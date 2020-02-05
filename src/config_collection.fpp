@@ -120,7 +120,7 @@ contains
     call self%dist_fn_config%write(the_unit)
 
     allocated_flag = allocated(self%dist_fn_species_config)
-    if (.not.allocated_flag) allocate(self%dist_fn_species_config(1))
+    if (.not.allocated_flag) allocate(self%dist_fn_species_config(self%species_config%nspec))
     do i = 1, size(self%dist_fn_species_config)
        call self%dist_fn_species_config(i)%write(the_unit)
     end do
@@ -144,7 +144,7 @@ contains
     call self%kt_grids_specified_config%write(the_unit)
 
     allocated_flag = allocated(self%kt_grids_specified_element_config)
-    if (.not.allocated_flag) allocate(self%kt_grids_specified_element_config(1))
+    if (.not.allocated_flag) allocate(self%kt_grids_specified_element_config(max(self%kt_grids_specified_config%naky,self%kt_grids_specified_config%ntheta0)))
     do i = 1, size(self%kt_grids_specified_element_config)
        call self%kt_grids_specified_element_config(i)%write(the_unit)
     end do
@@ -170,14 +170,14 @@ contains
     call self%species_config%write(the_unit)
 
     allocated_flag = allocated(self%species_element_config)
-    if (.not.allocated_flag) allocate(self%species_element_config(1))
+    if (.not.allocated_flag) allocate(self%species_element_config(self%species_config%nspec))
     do i = 1, size(self%species_element_config)
        call self%species_element_config(i)%write(the_unit)
     end do
     if (.not.allocated_flag) deallocate(self%species_element_config)
 
     allocated_flag = allocated(self%stir_config)
-    if (.not.allocated_flag) allocate(self%stir_config(1))
+    if (.not.allocated_flag) allocate(self%stir_config(self%driver_config%nk_stir))
     do i = 1, size(self%stir_config)
        call self%stir_config(i)%write(the_unit)
     end do
