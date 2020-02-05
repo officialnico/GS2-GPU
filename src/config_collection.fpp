@@ -135,7 +135,15 @@ contains
     call self%eigval_config%write(the_unit)
 #endif
     call self%fields_config%write(the_unit)
+#ifdef NEW_DIAG
+    if (self%knobs_config%use_old_diagnostics) then
+       call self%gs2_diagnostics_config%write(the_unit)
+    else
+       call self%new_gs2_diagnostics_config%write(the_unit)
+    end if
+#else
     call self%gs2_diagnostics_config%write(the_unit)
+#endif
     call self%hyper_config%write(the_unit)
     call self%ingen_config%write(the_unit)
     call self%init_config%write(the_unit)
@@ -156,14 +164,6 @@ contains
 
     call self%layouts_config%write(the_unit)
     call self%le_grids_config%write(the_unit)
-#ifdef NEW_DIAG
-    ! Note if we have new diagnostics then we currently write out both
-    ! versions of the namelist -- we probably/may want to check the choice
-    ! of `use_old_diagnostics` and then write the appropriate one based on that
-    ! ideally there would only be one diagnostics config shared between the two
-    ! approaches.
-    call self%new_gs2_diagnostics_config%write(the_unit)
-#endif
     call self%nonlinear_terms_config%write(the_unit)
     call self%normalisations_config%write(the_unit)
     call self%optimisation_config%write(the_unit)
