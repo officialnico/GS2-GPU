@@ -112,7 +112,7 @@ contains
   !> FIXME : Add documentation  
   subroutine reset_time_step (current_init, istep, my_exit, job_id)
     use run_parameters, only: reset
-    use gs2_time, only: code_dt, user_dt, code_dt_cfl, save_dt
+    use gs2_time, only: code_dt, user_dt, code_dt_cfl, save_dt, user_time
     use dist_fn_arrays, only: gnew
     use gs2_time, only: code_dt_min
     use gs2_init, only: init_type, init
@@ -191,7 +191,7 @@ contains
     
     call save_dt (code_dt)
 
-    if (proc0 .and. .not. present(job_id)) write(*,*) 'Changing time step to ', user_dt, ' from ', original_time_step, ' on step number ', istep
+    if (proc0 .and. .not. present(job_id)) write(*,*) 'Changing time step to ', user_dt, ' from ', original_time_step, ' on step number ', istep, ' i.e. time = ', user_time
 
     ! Don't reset antenna here because species parameters
     ! have not changed so resetting antenna would cause
