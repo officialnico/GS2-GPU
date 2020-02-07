@@ -81,6 +81,7 @@ module gs2_main
   use gs2_init, only: init_type, init_level_list
   use optimisation_config, only: optimisation_type
   use constants, only: run_name_size
+  use exit_codes, only: exit_code, EXIT_NOT_REQUESTED
   implicit none
   public :: run_gs2, finish_gs2, reset_gs2, trin_finish_gs2
 
@@ -285,11 +286,12 @@ module gs2_main
     ! Optimisation configuration
     type(optimisation_type) :: optim
 
+    !> Reason for end of simulation
+    type(exit_code) :: exit_reason = EXIT_NOT_REQUESTED
    
   end type gs2_program_state_type
 
   private
-
 
   integer :: densrefspec
   integer, dimension(:), allocatable :: gs2spec_from_trin
@@ -867,7 +869,7 @@ contains
             end if
           end if ! if (.not. state%replay)
 
-          if ((mod(istep,5) == 0).and.(.not.state%exit)) call checkstop(state%exit)
+          if ((mod(istep,5) == 0).and.(.not.state%exit)) call checkstop(state%exit,state%exit_reason)
           if (state%exit) call debug_message(state%verb+1, &
             'gs2_main::evolve_equations exit true after checkstop')
           if (.not.state%exit) call checktime(avail_cpu_time,state%exit,margin_cpu_time)
@@ -1475,6 +1477,7 @@ contains
     use unit_tests, only: functional_test_flag
     use mp, only: proc0
     use old_interface_store, only: override_profiles, override_miller_geometry
+    use exit_codes, only: EXIT_NSTEP
     implicit none
 
     integer, intent (in), optional :: mpi_comm, job_id, nensembles
@@ -1541,10 +1544,12 @@ contains
 
 
     if(old_iface_state%do_eigsolve)then
-      call run_eigensolver(old_iface_state)
+       call run_eigensolver(old_iface_state)
     else
-      call evolve_equations(old_iface_state, old_iface_state%nstep)
+       call evolve_equations(old_iface_state, old_iface_state%nstep)
+       if (old_iface_state%exit_reason%is_identical(EXIT_NOT_REQUESTED)) old_iface_state%exit_reason = EXIT_NSTEP
     endif
+    if(proc0) call old_iface_state%exit_reason%write_exit_file()
 
     if (present(converged)) converged = old_iface_state%converged
 
