@@ -690,6 +690,7 @@ contains
     !    use kt_grids, only: box
     use run_parameters, only: fphi
     use mp, only: proc0
+    use nonlinear_terms, only: nonlin
     implicit none
     integer :: in_file
     logical, intent (in) :: list
@@ -711,7 +712,12 @@ contains
        write_omega = .false.
        write_ascii = .true.
        write_omavg = .false.
-       write_nl_flux = .false.
+       ! Smart defaults
+       if(nonlin) then
+         write_nl_flux = .true.
+       else
+         write_nl_flux = .false.
+       end if
        write_nl_flux_dist = .false.
        write_eigenfunc = .false.
        write_moments = .false.

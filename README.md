@@ -337,5 +337,5 @@ CITATION.cff file into a Bibtex file as follows:
 Please acknowledge grants which support the development of GS2:
 
 > "This work made use of computational support by CoSeC, the Computational
-> Science Centre for Research Communities, through CPP Plasma ([EP/M022463/1](https://gow.epsrc.ukri.org/NGBOViewGrant.aspx?GrantRef=EP/M022463/1))
+> Science Centre for Research Communities, through CCP Plasma ([EP/M022463/1](https://gow.epsrc.ukri.org/NGBOViewGrant.aspx?GrantRef=EP/M022463/1))
 > and HEC Plasma ([EP/R029148/1](https://gow.epsrc.ukri.org/NGBOViewGrant.aspx?GrantRef=EP/R029148/1))."
