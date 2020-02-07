@@ -1,5 +1,6 @@
 ## 8.0.3 (2020-02-07)
 
+* 8.0.3 Release [PR #229 | David Dickinson](https://bitbucket.org/gyrokinetics/gs2/pull-requests/229)
 * Update 8.0.3-RC latest versions of utils and Makefiles [PR #250 | Joseph Parker](https://bitbucket.org/gyrokinetics/gs2/pull-requests/250)
 * Update code exit information [PR #237 | Joseph Parker](https://bitbucket.org/gyrokinetics/gs2/pull-requests/237)
 * Rename theta_grid:eps to theta_grid:eps_trapped to distinguish this from the related theta_grid_params:eps used by the s-alpha model [PR #242 | David Dickinson](https://bitbucket.org/gyrokinetics/gs2/pull-requests/242)
