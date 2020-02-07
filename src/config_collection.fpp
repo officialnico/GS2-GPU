@@ -97,6 +97,7 @@ module config_collection
      !> See [[write_to_unit]] for details.
      procedure :: write_to_unit
   end type config_collection_type
+
 contains
 
   !> Writes out the current configuration state to an optionally provided unit.
@@ -111,88 +112,88 @@ contains
     ! The unit to write to, if not given then will use output_unit. Note we
     ! assume this unit has been opened ready for writing.
     integer, intent(in), optional :: unit
-    integer :: the_unit, i
+    integer :: local_output_unit, i
     logical :: allocated_flag
 
     ! Handle optional argument
-    the_unit = output_unit
-    if (present(unit)) the_unit = unit
+    local_output_unit = output_unit
+    if (present(unit)) local_output_unit = unit
 
     ! Take care of writing
-    call self%ballstab_config%write(the_unit)
-    call self%collisions_config%write(the_unit)
-    call self%dist_fn_config%write(the_unit)
+    call self%ballstab_config%write(local_output_unit)
+    call self%collisions_config%write(local_output_unit)
+    call self%dist_fn_config%write(local_output_unit)
 
     allocated_flag = allocated(self%dist_fn_species_config)
     if (.not.allocated_flag) allocate(self%dist_fn_species_config(self%species_config%nspec))
     do i = 1, size(self%dist_fn_species_config)
-       call self%dist_fn_species_config(i)%write(the_unit)
+       call self%dist_fn_species_config(i)%write(local_output_unit)
     end do
     if (.not.allocated_flag) deallocate(self%dist_fn_species_config)
 
-    call self%driver_config%write(the_unit)
+    call self%driver_config%write(local_output_unit)
 #ifdef WITH_EIG
-    call self%eigval_config%write(the_unit)
+    call self%eigval_config%write(local_output_unit)
 #endif
-    call self%fields_config%write(the_unit)
+    call self%fields_config%write(local_output_unit)
 #ifdef NEW_DIAG
     if (self%knobs_config%use_old_diagnostics) then
-       call self%gs2_diagnostics_config%write(the_unit)
+       call self%gs2_diagnostics_config%write(local_output_unit)
     else
-       call self%new_gs2_diagnostics_config%write(the_unit)
+       call self%new_gs2_diagnostics_config%write(local_output_unit)
     end if
 #else
-    call self%gs2_diagnostics_config%write(the_unit)
+    call self%gs2_diagnostics_config%write(local_output_unit)
 #endif
-    call self%hyper_config%write(the_unit)
-    call self%ingen_config%write(the_unit)
-    call self%init_config%write(the_unit)
-    call self%init_g_config%write(the_unit)
-    call self%knobs_config%write(the_unit)
-    call self%kt_grids_config%write(the_unit)
-    call self%kt_grids_box_config%write(the_unit)
-    call self%kt_grids_range_config%write(the_unit)
-    call self%kt_grids_single_config%write(the_unit)
-    call self%kt_grids_specified_config%write(the_unit)
+    call self%hyper_config%write(local_output_unit)
+    call self%ingen_config%write(local_output_unit)
+    call self%init_config%write(local_output_unit)
+    call self%init_g_config%write(local_output_unit)
+    call self%knobs_config%write(local_output_unit)
+    call self%kt_grids_config%write(local_output_unit)
+    call self%kt_grids_box_config%write(local_output_unit)
+    call self%kt_grids_range_config%write(local_output_unit)
+    call self%kt_grids_single_config%write(local_output_unit)
+    call self%kt_grids_specified_config%write(local_output_unit)
 
     allocated_flag = allocated(self%kt_grids_specified_element_config)
     if (.not.allocated_flag) allocate(self%kt_grids_specified_element_config(max(self%kt_grids_specified_config%naky,self%kt_grids_specified_config%ntheta0)))
     do i = 1, size(self%kt_grids_specified_element_config)
-       call self%kt_grids_specified_element_config(i)%write(the_unit)
+       call self%kt_grids_specified_element_config(i)%write(local_output_unit)
     end do
     if (.not.allocated_flag) deallocate(self%kt_grids_specified_element_config)
 
-    call self%layouts_config%write(the_unit)
-    call self%le_grids_config%write(the_unit)
-    call self%nonlinear_terms_config%write(the_unit)
-    call self%normalisations_config%write(the_unit)
-    call self%optimisation_config%write(the_unit)
-    call self%parameters_config%write(the_unit)
-    call self%parameter_scan_config%write(the_unit)
-    call self%reinit_config%write(the_unit)
-    call self%source_config%write(the_unit)
-    call self%species_config%write(the_unit)
+    call self%layouts_config%write(local_output_unit)
+    call self%le_grids_config%write(local_output_unit)
+    call self%nonlinear_terms_config%write(local_output_unit)
+    call self%normalisations_config%write(local_output_unit)
+    call self%optimisation_config%write(local_output_unit)
+    call self%parameters_config%write(local_output_unit)
+    call self%parameter_scan_config%write(local_output_unit)
+    call self%reinit_config%write(local_output_unit)
+    call self%source_config%write(local_output_unit)
+    call self%species_config%write(local_output_unit)
 
     allocated_flag = allocated(self%species_element_config)
     if (.not.allocated_flag) allocate(self%species_element_config(self%species_config%nspec))
     do i = 1, size(self%species_element_config)
-       call self%species_element_config(i)%write(the_unit)
+       call self%species_element_config(i)%write(local_output_unit)
     end do
     if (.not.allocated_flag) deallocate(self%species_element_config)
 
     allocated_flag = allocated(self%stir_config)
     if (.not.allocated_flag) allocate(self%stir_config(self%driver_config%nk_stir))
     do i = 1, size(self%stir_config)
-       call self%stir_config(i)%write(the_unit)
+       call self%stir_config(i)%write(local_output_unit)
     end do
     if (.not.allocated_flag) deallocate(self%stir_config)
 
-    call self%theta_grid_config%write(the_unit)
-    call self%theta_grid_eik_config%write(the_unit)
-    call self%theta_grid_file_config%write(the_unit)
-    call self%theta_grid_gridgen_config%write(the_unit)
-    call self%theta_grid_parameters_config%write(the_unit)
-    call self%theta_grid_salpha_config%write(the_unit)
+    call self%theta_grid_config%write(local_output_unit)
+    call self%theta_grid_eik_config%write(local_output_unit)
+    call self%theta_grid_file_config%write(local_output_unit)
+    call self%theta_grid_gridgen_config%write(local_output_unit)
+    call self%theta_grid_parameters_config%write(local_output_unit)
+    call self%theta_grid_salpha_config%write(local_output_unit)
 
   end subroutine write_to_unit
 end module config_collection
