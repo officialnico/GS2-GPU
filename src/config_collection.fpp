@@ -48,9 +48,9 @@ module config_collection
   implicit none
   private
 
-  public :: config_collection_type
+  public :: gs2_config_type
 
-  type :: config_collection_type
+  type :: gs2_config_type
      type(ballstab_config_type) :: ballstab_config
      type(collisions_config_type) :: collisions_config
      type(dist_fn_config_type) :: dist_fn_config
@@ -96,7 +96,7 @@ module config_collection
    contains
      !> See [[write_to_unit]] for details.
      procedure :: write_to_unit
-  end type config_collection_type
+  end type gs2_config_type
 
 contains
 
@@ -108,7 +108,7 @@ contains
     ! Note we have to make this intent out as we may want/need to allocate
     ! some components that have not been allocated. If so we do deallocate
     ! so self should be unchanged on exit.
-    class(config_collection_type), intent(in out) :: self
+    class(gs2_config_type), intent(in out) :: self
     ! The unit to write to, if not given then will use output_unit. Note we
     ! assume this unit has been opened ready for writing.
     integer, intent(in), optional :: unit
