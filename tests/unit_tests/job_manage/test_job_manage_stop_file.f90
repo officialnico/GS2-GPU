@@ -32,7 +32,7 @@ program test_job_manage
    call finalize_gs2(old_iface_state)
 
    ! The reason for stopping should be given in "test_job_manage.exit_reason".
-   if(proc0) call process_test((get_exit_code() == EXIT_STOP_FILE%code), &
+   if(proc0) call process_test(EXIT_STOP_FILE%code_matches(get_exit_code()) , &
      "gs2 doesn't run without limit when run_name.stop is present")
 
    call close_module_test("job_manage")
