@@ -24,7 +24,7 @@ module gs2_io
   logical :: proc_write
   integer (kind_nf) :: ncid
   integer (kind_nf) :: naky_dim, nakx_dim, nttot_dim, negrid_dim, nlambda_dim, nspec_dim, ncoord_dim, ncoordt_dim
-  integer (kind_nf) :: nsign_dim, time_dim, char10_dim, char200_dim, ri_dim, nlines_dim, nheat_dim, vpa_dim
+  integer (kind_nf) :: nsign_dim, time_dim, char5_dim, char10_dim, char200_dim, ri_dim, nlines_dim, nheat_dim, vpa_dim
   integer (kind_nf) :: nttotext_dim, time_big_dim
   integer (kind_nf) :: aref_id, zref_id, nref_id, tref_id, lref_id, vref_id, bref_id, rhoref_id
 
@@ -92,8 +92,9 @@ module gs2_io
   integer :: cdrift_id, cdrift0_id
   integer :: cvdrift_id, cvdrift0_id, gds2_id, gds21_id, gds22_id
   integer :: grho_id, jacob_id, shat_id, eps_id, drhodpsi_id, q_id, surfarea_id
+  integer :: rplot_id, zplot_id, aplot_id, rprime_id, zprime_id, aprime_id, bpol_id
   integer :: beta_id
-  integer :: code_id
+  integer :: code_id, layout_id
   integer :: h_energy_id, h_energy_dot_id, h_antenna_id
   integer :: h_eapar_id, h_ebpar_id
   integer :: h_delfs2_id, h_hs2_id, h_phis2_id
@@ -280,6 +281,8 @@ contains
     if (status /= NF90_NOERR) call netcdf_error (status, dim='sign')
     status = nf90_def_dim (ncid, 't', NF90_UNLIMITED, time_dim)
     if (status /= NF90_NOERR) call netcdf_error (status, dim='t')
+    status = nf90_def_dim (ncid, 'char5', 5, char5_dim)
+    if (status /= NF90_NOERR) call netcdf_error (status, dim='char5')
     status = nf90_def_dim (ncid, 'char10', 10, char10_dim)
     if (status /= NF90_NOERR) call netcdf_error (status, dim='char10')
     status = nf90_def_dim (ncid, 'char200', 200, char200_dim)
@@ -345,11 +348,15 @@ contains
     use le_grids, only: negrid, nlambda, energy, al
     use nonlinear_terms, only: nonlin
     use netcdf, only: nf90_put_var
+    use gs2_layouts, only: layout
 # endif    
     implicit none
 # ifdef NETCDF
     integer :: status
     real :: nmesh
+
+    status = nf90_put_var (ncid, layout_id, layout)
+    if (status /= NF90_NOERR) call netcdf_error (status, ncid, layout_id)
 
     !<doc> Store the size of the grid dimensions (as defined in def_dims), in the NetCDF file </doc>
     status = nf90_put_var (ncid, nttot_id, 2*ntgrid+1)
@@ -805,6 +812,10 @@ contains
     !# NOW HANDLE DATA ABOUT GRID SIZES
     !<doc> Write lots of input variables (e.g. nproc, nkx, nky)
     ! into the NetCDF file </doc>
+
+    status = nf90_def_var (ncid, 'layout', NF90_CHAR, char5_dim, layout_id)
+    if (status /= NF90_NOERR) call netcdf_error (status, var='layout')
+
     status = nf90_def_var (ncid, 'nproc', NF90_INT, nproc_id)
     if (status /= NF90_NOERR) call netcdf_error (status, var='nproc')
     status = nf90_put_att (ncid, nproc_id, 'long_name', 'Number of processors')
@@ -973,15 +984,34 @@ contains
     if (status /= NF90_NOERR) call netcdf_error (status, var='grho')
     status = nf90_def_var (ncid, 'jacob', netcdf_real, nttot_dim, jacob_id)
     if (status /= NF90_NOERR) call netcdf_error (status, var='jacob')
-!    status = nf90_def_var (ncid, 'surfarea', netcdf_real, nttot_dim, surfarea_id)
-!    if (status /= NF90_NOERR) call netcdf_error (status, var='surfarea')
+
+    status = nf90_def_var (ncid, 'rplot', netcdf_real, nttot_dim, rplot_id)
+    if (status /= NF90_NOERR) call netcdf_error (status, var='rplot')
+    status = nf90_def_var (ncid, 'zplot', netcdf_real, nttot_dim, zplot_id)
+    if (status /= NF90_NOERR) call netcdf_error (status, var='zplot')
+    status = nf90_def_var (ncid, 'aplot', netcdf_real, nttot_dim, aplot_id)
+    if (status /= NF90_NOERR) call netcdf_error (status, var='aplot')
+    status = nf90_def_var (ncid, 'rprime', netcdf_real, nttot_dim, rprime_id)
+    if (status /= NF90_NOERR) call netcdf_error (status, var='rprime')
+    status = nf90_def_var (ncid, 'zprime', netcdf_real, nttot_dim, zprime_id)
+    if (status /= NF90_NOERR) call netcdf_error (status, var='zprime')
+    status = nf90_def_var (ncid, 'aprime', netcdf_real, nttot_dim, aprime_id)
+    if (status /= NF90_NOERR) call netcdf_error (status, var='aprime')
+
+    status = nf90_def_var (ncid, 'bpol', netcdf_real, nttot_dim, bpol_id)
+    if (status /= NF90_NOERR) call netcdf_error (status, var='bpol')
+
+    !    status = nf90_def_var (ncid, 'surfarea', netcdf_real, nttot_dim, surfarea_id)
+    !    if (status /= NF90_NOERR) call netcdf_error (status, var='surfarea')
 
     status = nf90_def_var (ncid, 'q', netcdf_real, q_id)
     if (status /= NF90_NOERR) call netcdf_error (status, var='q')
     status = nf90_put_att (ncid, q_id, 'long_name', 'local safety factor')
     if (status /= NF90_NOERR) call netcdf_error (status, ncid, q_id, att='long_name')
-    status = nf90_def_var (ncid, 'eps', netcdf_real, eps_id)
-    if (status /= NF90_NOERR) call netcdf_error (status, var='eps')
+    status = nf90_def_var (ncid, 'eps_trapped', netcdf_real, eps_id)
+    if (status /= NF90_NOERR) call netcdf_error (status, var='eps_trapped')
+    status = nf90_put_att (ncid, eps_id, 'long_name', 'Trapped fraction 1 - sqrt(bmin/bmax)')
+    if (status /= NF90_NOERR) call netcdf_error (status, ncid, eps_id, att='long_name')
     status = nf90_def_var (ncid, 'beta', netcdf_real, beta_id)
     if (status /= NF90_NOERR) call netcdf_error (status, var='beta')
     status = nf90_put_att (ncid, beta_id, 'long_name', 'reference beta')
@@ -3170,7 +3200,8 @@ contains
 # ifdef NETCDF
     use theta_grid, only: bmag, gradpar, gbdrift, gbdrift0, &
          cvdrift, cvdrift0, gds2, gds21, gds22, grho, jacob, &
-         shat, drhodpsi, eps, cdrift, cdrift0, qval !, surfarea
+         shat, drhodpsi, eps_trapped, cdrift, cdrift0, qval, rplot, &
+         zplot, aplot, rprime, zprime, aprime, bpol !, surfarea
 !CMR add qval and beta here too, as they are both useful
     use run_parameters, only: beta
     use netcdf, only: nf90_put_var
@@ -3203,8 +3234,25 @@ contains
     if (status /= NF90_NOERR) call netcdf_error (status, ncid, grho_id)
     status = nf90_put_var (ncid, jacob_id, jacob)
     if (status /= NF90_NOERR) call netcdf_error (status, ncid, jacob_id)
-!    status = nf90_put_var (ncid, surfarea_id, surfarea)
-!    if (status /= NF90_NOERR) call netcdf_error (status, ncid, surfarea_id)
+
+    status = nf90_put_var (ncid, rplot_id, rplot)
+    if (status /= NF90_NOERR) call netcdf_error (status, ncid, rplot_id)
+    status = nf90_put_var (ncid, zplot_id, zplot)
+    if (status /= NF90_NOERR) call netcdf_error (status, ncid, zplot_id)
+    status = nf90_put_var (ncid, aplot_id, aplot)
+    if (status /= NF90_NOERR) call netcdf_error (status, ncid, aplot_id)
+    status = nf90_put_var (ncid, rprime_id, rprime)
+    if (status /= NF90_NOERR) call netcdf_error (status, ncid, rprime_id)
+    status = nf90_put_var (ncid, zprime_id, zprime)
+    if (status /= NF90_NOERR) call netcdf_error (status, ncid, zprime_id)
+    status = nf90_put_var (ncid, aprime_id, aprime)
+    if (status /= NF90_NOERR) call netcdf_error (status, ncid, aprime_id)
+
+    status = nf90_put_var (ncid, bpol_id, bpol)
+    if (status /= NF90_NOERR) call netcdf_error (status, ncid, bpol_id)
+
+    !    status = nf90_put_var (ncid, surfarea_id, surfarea)
+    !    if (status /= NF90_NOERR) call netcdf_error (status, ncid, surfarea_id)
 
     status = nf90_put_var (ncid, beta_id, beta)
     if (status /= NF90_NOERR) call netcdf_error (status, ncid, beta_id)
@@ -3212,7 +3260,7 @@ contains
     if (status /= NF90_NOERR) call netcdf_error (status, ncid, q_id)
     status = nf90_put_var (ncid, shat_id, shat)
     if (status /= NF90_NOERR) call netcdf_error (status, ncid, shat_id)
-    status = nf90_put_var (ncid, eps_id, eps)
+    status = nf90_put_var (ncid, eps_id, eps_trapped)
     if (status /= NF90_NOERR) call netcdf_error (status, ncid, eps_id)
     status = nf90_put_var (ncid, drhodpsi_id, drhodpsi)   
     if (status /= NF90_NOERR) call netcdf_error (status, ncid, drhodpsi_id)

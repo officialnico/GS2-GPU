@@ -2044,7 +2044,7 @@ contains
     use species, only: init_species
     use egrid, only: setvgrid, x0, x0_maxw, zeroes, zeroes_maxw
     use species, only: nspec, spec, f0_maxwellian
-    use theta_grid, only: init_theta_grid, ntgrid, nbset, bset, eps
+    use theta_grid, only: init_theta_grid, ntgrid, nbset, bset, eps_trapped
     implicit none
 
     integer :: tsize,is
@@ -2083,8 +2083,8 @@ contains
     dele(2:,:) = energy(2:,:)-energy(:negrid-1,:)
 
     ng2 = 2*ngauss
-!    if (eps > epsilon(0.0)) then
-    if (trapped_particles .and. eps > epsilon(0.0)) then
+
+    if (trapped_particles .and. eps_trapped > epsilon(0.0)) then
        nlambda = ng2+nbset
        lmax = nlambda-1
     else
@@ -2108,7 +2108,7 @@ contains
 
   !> FIXME : Add documentation  
   subroutine lgridset
-    use theta_grid, only: ntgrid, bmag, bmax, eps
+    use theta_grid, only: ntgrid, bmag, bmax, eps_trapped
     use gauss_quad, only: get_legendre_grids_from_cheb, get_radau_gauss_grids
     use file_utils, only: open_output_file, close_output_file
     implicit none
@@ -2169,8 +2169,7 @@ contains
     jend = 0
     forbid = .false.
 
-!    if (eps <= epsilon(0.0)) return
-    if (.not. trapped_particles .or. eps <= epsilon(0.0)) then
+    if (.not. trapped_particles .or. eps_trapped <= epsilon(0.0)) then
        call xigridset
        return
     end if
@@ -4073,10 +4072,10 @@ contains
 
     ! Note: When this routine is in the module where these variables live
     ! we shadow the module level variables here. This is intentional to provide
-    ! isolation and ensure we can move this routine to another module easily.    
-    real :: bouncefuzz, vcut, wgt_fac
-    logical :: genquad, new_trap_int, radau_gauss_grid, test, trapped_particles
+    ! isolation and ensure we can move this routine to another module easily.
     integer :: negrid, nesub, nesuper, ngauss, nmax, nterp
+    logical :: genquad, new_trap_int, radau_gauss_grid, test, trapped_particles
+    real :: bouncefuzz, vcut, wgt_fac
 
     namelist /le_grids_knobs/ bouncefuzz, genquad, negrid, nesub, nesuper, new_trap_int, ngauss, nmax, nterp, radau_gauss_grid, test, trapped_particles, vcut, wgt_fac
 

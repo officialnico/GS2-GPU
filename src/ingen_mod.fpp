@@ -2420,8 +2420,8 @@ if (debug) write(6,*) 'get_namelists: returning'
     ! Note: When this routine is in the module where these variables live
     ! we shadow the module level variables here. This is intentional to provide
     ! isolation and ensure we can move this routine to another module easily.    
-    logical :: scan, stdin
     integer :: ncut, npmax
+    logical :: scan, stdin
 
     namelist /ingen_knobs/ ncut, npmax, scan, stdin
 
