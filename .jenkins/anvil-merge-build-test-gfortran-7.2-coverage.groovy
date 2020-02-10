@@ -136,12 +136,8 @@ String libpath="${MY_NETCDF_LIB}:${MY_NETCDFF_LIB}:/opt/software/gcc-7.2.0/openm
         	// Old directory is kept
         	sh "rm -rf gs2"
 
-		checkout([$class: 'GitSCM',  
-     			branches: [[name: "${env.PULL_REQUEST_FROM_HASH}" ]],  
-     			doGenerateSubmoduleConfigurations: false,  
-             		submoduleCfg: [],  
-			userRemoteConfigs: [[url: 'https://bitbucket.org/gyrokinetics/gs2']]]
-		)
+		checkout scm
+
         	sh '''
 			git config --global user.email "joseph.parker@stfc.ac.uk"
 			git config --global user.name "Joseph Parker"
@@ -169,9 +165,9 @@ String libpath="${MY_NETCDF_LIB}:${MY_NETCDFF_LIB}:/opt/software/gcc-7.2.0/openm
               rm -rf ${MY_NETCDFF_DIR}
 
               mkdir -p ${MY_NETCDF_DIR}
-              wget ftp://ftp.unidata.ucar.edu/pub/netcdf/netcdf-${NETCDF_VERSION}.tar.gz
-              tar xvf netcdf-${NETCDF_VERSION}.tar.gz
-              cd netcdf-${NETCDF_VERSION}
+              wget https://github.com/Unidata/netcdf-c/archive/v${NETCDF_VERSION}.tar.gz
+              tar xvf v${NETCDF_VERSION}.tar.gz
+              cd netcdf-c-${NETCDF_VERSION}
               ./configure --prefix=${MY_NETCDF_DIR}
               make
               make install
@@ -181,8 +177,8 @@ String libpath="${MY_NETCDF_LIB}:${MY_NETCDFF_LIB}:/opt/software/gcc-7.2.0/openm
               cd ..
 
               mkdir -p ${MY_NETCDFF_DIR}
-              wget ftp://ftp.unidata.ucar.edu/pub/netcdf/netcdf-fortran-${NETCDFF_VERSION}.tar.gz
-              tar xvf netcdf-fortran-${NETCDFF_VERSION}.tar.gz
+              wget https://github.com/Unidata/netcdf-fortran/archive/v${NETCDFF_VERSION}.tar.gz
+              tar xvf v${NETCDFF_VERSION}.tar.gz
               cd netcdf-fortran-${NETCDFF_VERSION}
               ./configure --prefix=${MY_NETCDFF_DIR}
               make
