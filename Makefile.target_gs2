@@ -26,7 +26,7 @@ $(BINDIR)/ingen: $(ingen_mod) $(SIMPLEDATAIO_LIB) | $(BINDIR)
 ingen: $(BINDIR)/ingen
 
 #Utility to produce fftw wisdom files for given problem size
-$(BINDIR)/generate_fftw_wisdom: $(generate_fftw_wisdom_mod) $(SIMPLEDATAIO_LIB)
+$(BINDIR)/generate_fftw_wisdom: $(generate_fftw_wisdom_mod) $(SIMPLEDATAIO_LIB) | $(BINDIR)
 	$(call messageOp,"Linking ","\\t:",$(call processName, $^),"\\n\\t\-\-\-\-\-\-\>",$(call processName, $@))
 	$(QUIETSYM)$(LD) $(LDFLAGS) -o $@ $^ $(LIBS) 
 
@@ -34,7 +34,7 @@ $(BINDIR)/generate_fftw_wisdom: $(generate_fftw_wisdom_mod) $(SIMPLEDATAIO_LIB)
 generate_fftw_wisdom: $(BINDIR)/generate_fftw_wisdom
 
 #Calculates the field response matrix for current input file and writes to file
-$(BINDIR)/dump_response: $(dump_response_mod)
+$(BINDIR)/dump_response: $(dump_response_mod) | $(BINDIR)
 	$(call messageOp,"Linking ","\\t:",$(call processName, $^),"\\n\\t\-\-\-\-\-\-\>",$(call processName, $@))
 	$(QUIETSYM)$(LD) $(LDFLAGS) -o $@ $^ $(LIBS) 
 
@@ -42,7 +42,7 @@ $(BINDIR)/dump_response: $(dump_response_mod)
 dump_response: $(BINDIR)/dump_response
 
 #Initialises theta, kx, ky, lambda and energy grids and writes to file
-$(BINDIR)/dump_grids: $(dump_grids_mod)
+$(BINDIR)/dump_grids: $(dump_grids_mod) | $(BINDIR)
 	$(call messageOp,"Linking ","\\t:",$(call processName, $^),"\\n\\t\-\-\-\-\-\-\>",$(call processName, $@))
 	$(QUIETSYM)$(LD) $(LDFLAGS) -o $@ $^ $(LIBS) 
 
@@ -50,7 +50,7 @@ $(BINDIR)/dump_grids: $(dump_grids_mod)
 dump_grids: $(BINDIR)/dump_grids
 
 #Calculates the ideal ballooning stability (optionally over a scan in shat/beta_prime)
-$(BINDIR)/ideal_ball: $(ideal_ball_mod)
+$(BINDIR)/ideal_ball: $(ideal_ball_mod) | $(BINDIR)
 	$(call messageOp,"Linking ","\\t:",$(call processName, $^),"\\n\\t\-\-\-\-\-\-\>",$(call processName, $@))
 	$(QUIETSYM)$(LD) $(LDFLAGS) -o $@ $^ $(LIBS) 
 
@@ -58,7 +58,7 @@ $(BINDIR)/ideal_ball: $(ideal_ball_mod)
 ideal_ball: $(BINDIR)/ideal_ball
 
 #Driver program for gridgen?
-$(BINDIR)/rungridgen: $(rungridgen_mod)
+$(BINDIR)/rungridgen: $(rungridgen_mod) | $(BINDIR)
 	$(call messageOp,"Linking ","\\t:",$(call processName, $^),"\\n\\t\-\-\-\-\-\-\>",$(call processName, $@))
 	$(QUIETSYM)$(LD) $(LDFLAGS) -o $@ $^ $(LIBS)
 
@@ -66,7 +66,7 @@ $(BINDIR)/rungridgen: $(rungridgen_mod)
 rungridgen: $(BINDIR)/rungridgen
 
 #A simple program to test linear regression on random data || Not at all gs2 specific!
-$(BINDIR)/regress: $(drive_mod)
+$(BINDIR)/regress: $(drive_mod) | $(BINDIR)
 	$(call messageOp,"Linking ","\\t:",$(call processName, $^),"\\n\\t\-\-\-\-\-\-\>",$(call processName, $@))
 	$(QUIETSYM)$(LD) $(LDFLAGS) -o $@ $^ $(LIBS)
 
@@ -74,7 +74,7 @@ $(BINDIR)/regress: $(drive_mod)
 regress: $(BINDIR)/regress
 
 #A program which test the fft transforms used in GS2
-$(BINDIR)/ffttester: $(ffttester_mod)
+$(BINDIR)/ffttester: $(ffttester_mod) | $(BINDIR)
 	$(call messageOp,"Linking ","\\t:",$(call processName, $^),"\\n\\t\-\-\-\-\-\-\>",$(call processName, $@))
 	$(QUIETSYM)$(LD) $(LDFLAGS) -o $@ $^ $(LIBS)
 
@@ -82,7 +82,7 @@ $(BINDIR)/ffttester: $(ffttester_mod)
 ffttester: $(BINDIR)/ffttester
 
 #Program to calculate ideal MHD ballooning stability
-$(BINDIR)/ball: $(ball_mod)
+$(BINDIR)/ball: $(ball_mod) | $(BINDIR)
 	$(call messageOp,"Linking ","\\t:",$(call processName, $^),"\\n\\t\-\-\-\-\-\-\>",$(call processName, $@))
 	$(QUIETSYM)$(LD) $(LDFLAGS) -o $@ $^ $(LIBS)
 
@@ -90,7 +90,7 @@ $(BINDIR)/ball: $(ball_mod)
 ball: $(BINDIR)/ball
 
 #Program to calculate eikcoeffs (geometry coefficients etc.) and write to file
-$(BINDIR)/eiktest: $(eiktest_mod)
+$(BINDIR)/eiktest: $(eiktest_mod) | $(BINDIR)
 	$(call messageOp,"Linking ","\\t:",$(call processName, $^),"\\n\\t\-\-\-\-\-\-\>",$(call processName, $@))
 	$(QUIETSYM)$(LD) $(LDFLAGS) -o $@ $^ $(LIBS)
 
