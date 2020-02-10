@@ -239,6 +239,7 @@ sub get_fileinfo{
 
 	    # skip interface block
 	    $flag_interface++ if( $line =~ /^[\t\n ]*[Ii][Nn][Tt][Ee][Rr][Ff][Aa][Cc][Ee][\t\n ]*/ );
+	    $flag_interface++ if( $line =~ /^[\t\n ]*[Aa][Bb][Ss][Tt][Rr][Aa][Cc][Tt][\t\n ]*[Ii][Nn][Tt][Ee][Rr][Ff][Aa][Cc][Ee][\t\n ]*/ );            
 	    $flag_interface-- if( $line =~ /^[\t\n ]*[Ee][Nn][Dd] [Ii][Nn][Tt][Ee][Rr][Ff][Aa][Cc][Ee][\t\n ]*/ );
 	    next SEARCH if($flag_interface);
 	    

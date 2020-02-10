@@ -1008,8 +1008,10 @@ contains
     if (status /= NF90_NOERR) call netcdf_error (status, var='q')
     status = nf90_put_att (ncid, q_id, 'long_name', 'local safety factor')
     if (status /= NF90_NOERR) call netcdf_error (status, ncid, q_id, att='long_name')
-    status = nf90_def_var (ncid, 'eps', netcdf_real, eps_id)
-    if (status /= NF90_NOERR) call netcdf_error (status, var='eps')
+    status = nf90_def_var (ncid, 'eps_trapped', netcdf_real, eps_id)
+    if (status /= NF90_NOERR) call netcdf_error (status, var='eps_trapped')
+    status = nf90_put_att (ncid, eps_id, 'long_name', 'Trapped fraction 1 - sqrt(bmin/bmax)')
+    if (status /= NF90_NOERR) call netcdf_error (status, ncid, eps_id, att='long_name')
     status = nf90_def_var (ncid, 'beta', netcdf_real, beta_id)
     if (status /= NF90_NOERR) call netcdf_error (status, var='beta')
     status = nf90_put_att (ncid, beta_id, 'long_name', 'reference beta')
@@ -3198,7 +3200,7 @@ contains
 # ifdef NETCDF
     use theta_grid, only: bmag, gradpar, gbdrift, gbdrift0, &
          cvdrift, cvdrift0, gds2, gds21, gds22, grho, jacob, &
-         shat, drhodpsi, eps, cdrift, cdrift0, qval, rplot, &
+         shat, drhodpsi, eps_trapped, cdrift, cdrift0, qval, rplot, &
          zplot, aplot, rprime, zprime, aprime, bpol !, surfarea
 !CMR add qval and beta here too, as they are both useful
     use run_parameters, only: beta
@@ -3258,7 +3260,7 @@ contains
     if (status /= NF90_NOERR) call netcdf_error (status, ncid, q_id)
     status = nf90_put_var (ncid, shat_id, shat)
     if (status /= NF90_NOERR) call netcdf_error (status, ncid, shat_id)
-    status = nf90_put_var (ncid, eps_id, eps)
+    status = nf90_put_var (ncid, eps_id, eps_trapped)
     if (status /= NF90_NOERR) call netcdf_error (status, ncid, eps_id)
     status = nf90_put_var (ncid, drhodpsi_id, drhodpsi)   
     if (status /= NF90_NOERR) call netcdf_error (status, ncid, drhodpsi_id)
