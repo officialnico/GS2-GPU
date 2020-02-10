@@ -2018,7 +2018,7 @@ contains
     use species, only: init_species
     use egrid, only: setvgrid, x0, x0_maxw, zeroes, zeroes_maxw
     use species, only: nspec, spec, f0_maxwellian
-    use theta_grid, only: init_theta_grid, ntgrid, nbset, bset, eps
+    use theta_grid, only: init_theta_grid, ntgrid, nbset, bset, eps_trapped
     implicit none
 
     integer :: tsize,is
@@ -2057,8 +2057,8 @@ contains
     dele(2:,:) = energy(2:,:)-energy(:negrid-1,:)
 
     ng2 = 2*ngauss
-!    if (eps > epsilon(0.0)) then
-    if (trapped_particles .and. eps > epsilon(0.0)) then
+
+    if (trapped_particles .and. eps_trapped > epsilon(0.0)) then
        nlambda = ng2+nbset
        lmax = nlambda-1
     else
@@ -2082,7 +2082,7 @@ contains
 
   !> FIXME : Add documentation  
   subroutine lgridset
-    use theta_grid, only: ntgrid, bmag, bmax, eps
+    use theta_grid, only: ntgrid, bmag, bmax, eps_trapped
     use gauss_quad, only: get_legendre_grids_from_cheb, get_radau_gauss_grids
     use file_utils, only: open_output_file, close_output_file
     implicit none
@@ -2143,8 +2143,7 @@ contains
     jend = 0
     forbid = .false.
 
-!    if (eps <= epsilon(0.0)) return
-    if (.not. trapped_particles .or. eps <= epsilon(0.0)) then
+    if (.not. trapped_particles .or. eps_trapped <= epsilon(0.0)) then
        call xigridset
        return
     end if

@@ -690,6 +690,7 @@ contains
     !    use kt_grids, only: box
     use run_parameters, only: fphi
     use mp, only: proc0
+    use nonlinear_terms, only: nonlin
     implicit none
     integer :: in_file
     logical, intent (in) :: list
@@ -711,7 +712,12 @@ contains
        write_omega = .false.
        write_ascii = .true.
        write_omavg = .false.
-       write_nl_flux = .false.
+       ! Smart defaults
+       if(nonlin) then
+         write_nl_flux = .true.
+       else
+         write_nl_flux = .false.
+       end if
        write_nl_flux_dist = .false.
        write_eigenfunc = .false.
        write_moments = .false.
@@ -1218,7 +1224,13 @@ contains
     call prof_leaving ("loop_diagnostics-1")
     if (debug) write(6,*) "loop_diagnostics: -1"
 
-    if (.not. (write_any .or. dump_any)) return
+    if (.not. (write_any .or. dump_any)) then
+       ! We have to increment the number of outputs written to file
+       ! before leaving. Usually we do this at the end of the routine
+       ! so we must make sure we do this here before leaving early.
+       nout = nout + 1
+       return
+    end if
 
     if (debug) write(6,*) "loop_diagnostics: -2"
     call prof_entering ("loop_diagnostics-2")

@@ -344,8 +344,8 @@ MACRO_DEFS+=-DRUN_NAME_SIZE=$(RUN_NAME_SIZE)
 # file, which is empty unless we are in a release.
 RELEASE_FILE = $(shell cat RELEASE)
 ifneq ($(RELEASE_FILE),) # If the file is not empty
-	RELEASE=$(RELEASE_FILE)
-	MACRO_DEFS+=-DRELEASE=$(RELEASE_FILE)
+	RELEASE='"$(RELEASE_FILE)"'
+	MACRO_DEFS+=-DRELEASE='"$(RELEASE_FILE)"'
 	DOC_FOLDER=releases/$(RELEASE_FILE)/
 endif
 
@@ -494,9 +494,13 @@ ifdef WITH_EIG
 	ifdef PETSC_ARCH
 		EIG_LIB += -L$(PETSC_DIR)/$(PETSC_ARCH)/lib
 		EIG_INC += -I$(PETSC_DIR)/$(PETSC_ARCH)/include
+		EIG_LIB += -L$(SLEPC_DIR)/$(PETSC_ARCH)/lib
+		EIG_INC += -I$(SLEPC_DIR)/$(PETSC_ARCH)/include
 	else
 		EIG_LIB += -L$(PETSC_DIR)/lib
 	endif
+#SLEPC_ARCH is non-standard and is unlikely to be set, it should
+#really be PETSC_ARCH (as used above)
 	ifdef SLEPC_ARCH
 		EIG_LIB += -L$(SLEPC_DIR)/$(SLEPC_ARCH)/lib
 		EIG_INC += -I$(SLEPC_DIR)/$(SLEPC_ARCH)/include
@@ -586,7 +590,6 @@ FPPFILES = $(wildcard $(addsuffix /*.fpp, $(SRCDIR) $(PROGDIR) $(SUBDIRS)))
 FPPFILES += $(wildcard $(addsuffix /*.F90, $(SRCDIR) $(PROGDIR) $(SUBDIRS)))
 F90FROMFPP = $(addprefix $(GENERATED_SRC_DIR)/, $(patsubst %.F90,%.f90,$(patsubst %.fpp,%.f90,$(notdir $(FPPFILES)))))
 
-
 ####################################################################### RULES
 
 .SUFFIXES:
@@ -636,6 +639,11 @@ endif
 %.f90: %.rb
 	$(call messageOp,"Generating from ruby","\\t:",$<)
 	$(QUIETSYM)$(call RUBY_GENERATE,$@,$<)
+
+$(OBJDIR)/%.o:$(GENERATED_SRC_DIR)/%.f90 |$(MODDIR) $(OBJDIR)
+	$(call messageOp,"Compiling","\\t:",$<)
+	$(QUIETSYM) $(FC) $(F90FLAGS) -c $< -o $@
+	$(shell mv *.mod $(MODDIR) 2>/dev/null)
 
 $(OBJDIR)/%.o:%.f90 |$(MODDIR) $(OBJDIR)
 	$(call messageOp,"Compiling","\\t:",$<)
@@ -716,6 +724,7 @@ ifdef USE_FFT
     utils_mod += $(OBJDIR)/fft_save_wisdom.o
     gs2_mod += $(OBJDIR)/fft_save_wisdom.o
     ingen_mod += $(OBJDIR)/fft_save_wisdom.o
+    dump_response_mod += $(OBJDIR)/fft_save_wisdom.o
     generate_fftw_wisdom_mod += $(OBJDIR)/fft_save_wisdom.o
 endif
 
