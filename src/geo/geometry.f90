@@ -1149,6 +1149,19 @@ if (debug) write(6,*) "eikcoefs: end gradients"
 
     if(isym == 1) call sym(gradpar, 0, ntgrid)
      
+
+    ! MAB, CMR, 6/5/2009:
+    ! remove unnecessary restriction to calling plotdata for nperiod=1
+    ! so that Rplot, Zplot etc can be made available elsewhere in GS2
+    ! Note : We should call this before we potentially redefine the theta grid
+    ! due to equal_arc below as some specific equilibrium types rely on theta
+    ! having a consistent definition with that used to calculate rgrid initially.
+    ! In particular this is important for Efit and GS2D equilibria (in eeq). Other
+    ! equilibrium types use interpolation so shouldn't depend on the specific theta grid
+    ! (although it's possible there could still be some interaction, given that one of the
+    ! outputs of the below 'aplot' is given by `seik` which is evaluated on the original
+    ! grid rather than the "new" one defined below).
+    call plotdata (rgrid, seik, grads, dpsidrho)
     
     ! EGH added this for GRYFX
     bi_out = btori(rgrid(0),theta(0))
@@ -1274,11 +1287,6 @@ if (debug) write(6,*) "eikcoefs: end gradients"
     qsf = qval
     dum=qfun(0.5)
     if(eqinit >= 1) eqinit=0
-! MAB, CMR, 6/5/2009:
-! remove unnecessary restriction to calling plotdata for nperiod=1
-! so that Rplot, Zplot etc can be made available elsewhere in GS2
-!    if (nperiod ==1) call plotdata (rgrid, seik, grads, dpsidrho)
-    call plotdata (rgrid, seik, grads, dpsidrho)
 
     !write (*,*) 'gbdrift is ', gbdrift
 

@@ -114,6 +114,9 @@ QUIET           ?= yes
 # If defined then use escape commands to colourise some output
 # Note hack to support both spellings
 WITH_COLOUR     ?= $(WITH_COLOR)
+# If defined then show the full path in compilation statements etc.
+SHOW_ABS_PATH ?= yes
+
 #
 # * Targets:
 #
@@ -221,6 +224,11 @@ COVERAGE_DIR:= $(GK_HEAD_DIR)/coverage
 #Patch file
 PATCHFILE:= .patch.make
 
+ifdef SHOW_ABS_PATH
+processName  = $1
+else
+processName = $(subst $(GK_HEAD_DIR)/,, $1)
+endif
 ################################################### SET COMPILE MODE SWITCHES
 
 # It makes no sense to set USE_PARALLEL_NETCDF without
@@ -299,6 +307,12 @@ include Makefile.utils
 
 GIT_HASH=$(shell git rev-parse HEAD)
 MACRO_DEFS+=-DGIT_HASH='"$(GIT_HASH)"'
+
+GIT_HASH_MAKEFILES:=$(shell git submodule status Makefiles | cut -d ' ' -f2)
+MACRO_DEFS+=-DGIT_HASH_MAKEFILES='"$(GIT_HASH_MAKEFILES)"'
+
+GIT_HASH_UTILS:=$(shell git submodule status $(UTILS) | cut -d ' ' -f2)
+MACRO_DEFS+=-DGIT_HASH_UTILS='"$(GIT_HASH_UTILS)"'
 
 #The magic sed esacpes either ( or ) by replacing with \( or \)
 GIT_BRANCH=$(shell git branch | grep \* | cut -d ' ' -f2- | sed 's|\([()]\)|\\\1|g')
@@ -479,9 +493,13 @@ ifdef WITH_EIG
 	ifdef PETSC_ARCH
 		EIG_LIB += -L$(PETSC_DIR)/$(PETSC_ARCH)/lib
 		EIG_INC += -I$(PETSC_DIR)/$(PETSC_ARCH)/include
+		EIG_LIB += -L$(SLEPC_DIR)/$(PETSC_ARCH)/lib
+		EIG_INC += -I$(SLEPC_DIR)/$(PETSC_ARCH)/include
 	else
 		EIG_LIB += -L$(PETSC_DIR)/lib
 	endif
+#SLEPC_ARCH is non-standard and is unlikely to be set, it should
+#really be PETSC_ARCH (as used above)
 	ifdef SLEPC_ARCH
 		EIG_LIB += -L$(SLEPC_DIR)/$(SLEPC_ARCH)/lib
 		EIG_INC += -I$(SLEPC_DIR)/$(SLEPC_ARCH)/include
@@ -571,7 +589,6 @@ FPPFILES = $(wildcard $(addsuffix /*.fpp, $(SRCDIR) $(PROGDIR) $(SUBDIRS)))
 FPPFILES += $(wildcard $(addsuffix /*.F90, $(SRCDIR) $(PROGDIR) $(SUBDIRS)))
 F90FROMFPP = $(addprefix $(GENERATED_SRC_DIR)/, $(patsubst %.F90,%.f90,$(patsubst %.fpp,%.f90,$(notdir $(FPPFILES)))))
 
-
 ####################################################################### RULES
 
 .SUFFIXES:
@@ -609,37 +626,42 @@ endif
 # and you HAVE to preprocess and compile in one step.
 ifdef ONE_STEP_PP
 $(OBJDIR)/%.o: %.fpp |$(MODDIR) $(OBJDIR)
-	$(call messageOp,"Compiling and preprocessing","\\t:",$<)
+	$(call messageOp,"Compiling and preprocessing","\\t:",$(call processName, $<))
 	$(QUIETSYM)$(FC) $(MACRO_DEFS) $(F90FLAGS) -c $< -o $@
 	$(shell mv *.mod $(MODDIR) 2>/dev/null)
 
 $(OBJDIR)/%.o: %.F90 |$(MODDIR) $(OBJDIR)
-	$(call messageOp,"Compiling and preprocessing","\\t:",$<)
+	$(call messageOp,"Compiling and preprocessing","\\t:",$(call processName, $<))
 	$(QUIETSYM)$(FC) $(MACRO_DEFS) $(F90FLAGS) -c $< -o $@
 	$(shell mv *.mod $(MODDIR) 2>/dev/null)
 endif
 
 %.f90: %.rb
-	$(call messageOp,"Generating from ruby","\\t:",$<)
+	$(call messageOp,"Generating from ruby","\\t:",$(call processName, $<))
 	$(QUIETSYM)$(call RUBY_GENERATE,$@,$<)
 
-$(OBJDIR)/%.o:%.f90 |$(MODDIR) $(OBJDIR)
+$(OBJDIR)/%.o:$(GENERATED_SRC_DIR)/%.f90 |$(MODDIR) $(OBJDIR)
 	$(call messageOp,"Compiling","\\t:",$<)
+	$(QUIETSYM) $(FC) $(F90FLAGS) -c $< -o $@
+	$(shell mv *.mod $(MODDIR) 2>/dev/null)
+
+$(OBJDIR)/%.o:%.f90 |$(MODDIR) $(OBJDIR)
+	$(call messageOp,"Compiling","\\t:",$(call processName, $<))
 	$(QUIETSYM) $(FC) $(F90FLAGS) -c $< -o $@
 	$(shell mv *.mod $(MODDIR) 2>/dev/null)
 
 # The depend command needs the preprocessed source files. 
 # This is a little clunky, and maybe could be fixed in the future.
 $(GENERATED_SRC_DIR)/%.f90: %.fpp |$(GENERATED_SRC_DIR)
-	$(call messageOp,"Preprocessing","\\t:",$<)
+	$(call messageOp,"Preprocessing","\\t:",$(call processName, $<))
 	$(QUIETSYM)$(CPP) $(FPPFLAGS) $(CPPFLAGS) $(MACRO_DEFS) $< -o $@
 
 $(GENERATED_SRC_DIR)/%.f90: %.F90 |$(GENERATED_SRC_DIR)
-	$(call messageOp,"Preprocessing","\\t:",$<)
+	$(call messageOp,"Preprocessing","\\t:",$(call processName, $<))
 	$(QUIETSYM)$(CPP) $(FPPFLAGS) $(CPPFLAGS) $(MACRO_DEFS) $< -o $@
 
 $(OBJDIR)/%.o: %.c |$(OBJDIR)
-	$(call messageOp,"Compiling C","\\t:",$<)
+	$(call messageOp,"Compiling C","\\t:",$(call processName, $<))
 	$(QUIETSYM)$(CC) $(CFLAGS) $(INCLUDES) $(subst -traditional,,$(subst -C,,$(subst -P,,$(CPPFLAGS)))) $(MACRO_DEFS) -c $< -o $@
 
 # This prevents error messages like m2c: Command not found
@@ -667,14 +689,14 @@ KEEP_PROCESSED_FILES_FROM_DEPEND="no"
 endif
 
 depend: $(F90FROMFPP) $(FORTFROMRUBY) $(UTILS_SENTINEL) Makefile.$(GK_SYSTEM) |$(GENERATED_SRC_DIR)
-	$(call messageOp,"Generating dependency file","\\t:",$(DEPEND))
+	$(call messageOp,"Generating dependency file","\\t:",$(call processName, $(DEPEND)))
 # Note we force UTILS to be included in the paths that we pass to fortdep
 # We touch the dependency file first as fortdep will call make in order to try
 # and preprocess files, so we need this to avoid recursion
 	$(QUIETSYM)touch $(DEPEND) && $(DEPEND_CMD) -m "$(MAKE) --no-print-directory" -1 -o -v=1\
 		--keep=$(KEEP_PROCESSED_FILES_FROM_DEPEND) $(VPATH):$(UTILS) \
 		--generated_src_dir=$(GENERATED_SRC_DIR) || rm $(DEPEND)
-	$(call messageOp,"Dependency file created at","\\t:",$(DEPEND))
+	$(call messageOp,"Dependency file created at","\\t:",$(call processName, $(DEPEND)))
 ##################################################################### Main TARGETS
 # .DEFAULT_GOAL works for GNU make 3.81 (or higher)
 # For 3.80 or less, see all target
@@ -714,6 +736,7 @@ ifdef USE_FFT
     utils_mod += $(OBJDIR)/fft_save_wisdom.o
     gs2_mod += $(OBJDIR)/fft_save_wisdom.o
     ingen_mod += $(OBJDIR)/fft_save_wisdom.o
+    dump_response_mod += $(OBJDIR)/fft_save_wisdom.o
     generate_fftw_wisdom_mod += $(OBJDIR)/fft_save_wisdom.o
     write_default_input_file_mod += $(OBJDIR)/fft_save_wisdom.o
 endif
@@ -834,6 +857,8 @@ test_make:
 	$(call messageKeyVal, "QUIET", $(QUIET))
 	$(call messageKeyVal, "WITH_COLOUR", $(WITH_COLOUR))
 	$(call messageKeyVal, "GIT_HASH", $(GIT_HASH))
+	$(call messageKeyVal, "GIT_HASH_MAKEFILES", $(GIT_HASH_MAKEFILES))
+	$(call messageKeyVal, "GIT_HASH_UTILS", $(GIT_HASH_UTILS))
 	$(call messageKeyVal, "GIT_STATE", $(GIT_STATE))
 	$(call messageKeyVal, "GIT_BRANCH", $(GIT_BRANCH))
 	$(call messageKeyVal, "PATCHFILE", $(PATHFILE))
@@ -999,7 +1024,7 @@ namelist_doc:
 .PHONY: clean_namelist_doc
 clean_namelist_doc:
 	$(call messageRm,"Generated namelist documentation")
-	-$(QUIETSYM)rm -f docs/pages/namelist/auto_generated_* docs/pages/namelist/index.md
+	-$(QUIETSYM)rm -f docs/pages/namelists/auto_generated_* docs/pages/namelists/index.md
 
 docs/html:
 doc: docs/docs.config.md namelist_doc  check_ford_install

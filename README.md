@@ -316,7 +316,8 @@ If you use GS2 in your work, please cite GS2 and acknowledge the grants that
 support its development.
 
 ### Citation
-GS2's DOI is [10.5281/zenodo.2551067](https://doi.org/10.5281/zenodo.2551067).
+GS2's DOI is [10.5281/zenodo.2551066](https://doi.org/10.5281/zenodo.2551066).
+The DOI for the current stable version 8.0.3 is [10.5281/zenodo.3656334](https://doi.org/10.5281/zenodo.3656334).
 The full citation for GS2 may be also found in CITATION.cff. You can convert the
 CITATION.cff file into a Bibtex file as follows:
 
@@ -328,5 +329,5 @@ CITATION.cff file into a Bibtex file as follows:
 Please acknowledge grants which support the development of GS2:
 
 > "This work made use of computational support by CoSeC, the Computational
-> Science Centre for Research Communities, through CPP Plasma ([EP/M022463/1](https://gow.epsrc.ukri.org/NGBOViewGrant.aspx?GrantRef=EP/M022463/1))
+> Science Centre for Research Communities, through CCP Plasma ([EP/M022463/1](https://gow.epsrc.ukri.org/NGBOViewGrant.aspx?GrantRef=EP/M022463/1))
 > and HEC Plasma ([EP/R029148/1](https://gow.epsrc.ukri.org/NGBOViewGrant.aspx?GrantRef=EP/R029148/1))."

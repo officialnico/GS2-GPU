@@ -288,84 +288,173 @@ module dist_fn
   !> Used to represent the input configuration of dist_fn
   type, extends(abstract_config_type) :: dist_fn_config_type
      ! namelist : dist_fn_knobs
-     ! indexed : false     
-     !> FIXME: Add documentation
+     ! indexed : false
+     !> The form of the adiabatic response (if a species is being modeled as adiabatic). Ignored if there are electrons in the species list.
+     !>
+     !> - 'no-field-line-average-term'  Adiabatic species has n = Phi.  Appropriate for single-species ETG simulations.
+     !> - 'default'  Same as 'no-field-line-average-term'
+     !> - 'iphi00=0' Same as 'no-field-line-average-term'
+     !> - 'iphi00=1' Same as 'no-field-line-average-term'
+     !> - 'field-line-average-term'  Adiabatic species has n=Phi-< Phi >.  Appropriate for single-species ITG simulations.
+     !> - 'iphi00=2' Same as field-line-average-term'
+     !> - 'iphi00=3' Adiabatic species has n=Phi-< Phi >_y.  Incorrect implementation of field-line-average-term.
+     !>
+     !> @todo Remove 'iphi00=3'
      character(len = 30) :: adiabatic_option = 'default'
-     !> FIXME: Add documentation
+     !> For debugging only.
+     !>
+     !> @todo Improve documentation
      real :: afilter = 0.0
-     !> FIXME: Add documentation
+     !> Leave as unity.  For debugging.
+     !>
+     !> @todo Improve documentation
      real :: apfac = 1.0
-     !> FIXME: Add documentation
+     !> Sets the boundary condition along the field line (i.e. the
+     !> boundary conditions at \(\theta = \pm \pi\) in flux-tube
+     !> simulations or \(\theta = \pm (2*\textrm{nperiod}-1)*\pi\) in
+     !> ballooning space). Possible values are:
+     !>
+     !> - 'zero', 'default', 'unconnected' - Use Kotschenreuther boundary condition at endpoints of theta grid
+     !> - 'self-periodic', 'periodic', 'kperiod=1' - Each mode is periodic in theta with itself
+     !> - 'linked' - Twist and shift boundary conditions (used for kt_grids:grid_option='box')
+     !> - 'alternate-zero' - Ignored
+     !>
+     !> See also [[nonad_zero]]
      character(len = 20) :: boundary_option = 'default'
-     !> FIXME: Add documentation
+     !> Overrides the [[itor_over_B]] internal parameter, meant only for
+     !> slab runs where it sets the angle between the magnetic field
+     !> and the toroidal flow.
      real :: btor_slab = 0.0
-     !> FIXME: Add documentation
+     !> True only allows solutions of single parity as determined by the input [[even]].
      logical :: def_parity = .false.
      !> FIXME: Add documentation
-     real :: densfac_lin = sqrt(2.)     ! GRYFX - should be moved elsewhere - ~ rho_i
-     !> FIXME: Add documentation
+     !>
+     !> Used for GRYFX - should probably be moved elsewhere - ~ rho_i
+     real :: densfac_lin = sqrt(2.)
+     !> Leave as unity for physical runs can be used for debugging. Multiplies the passing
+     !> particle drifts (also see [[tpdriftknob]]).
      real :: driftknob = 1.0
-     !> FIXME: Add documentation
+     !> If `esv=.true.` and `boundary_option='linked'` (i.e. flux tube
+     !> simulation) then at every time step we ensure the fields are
+     !> exactly single valued by replacing the field at one of the
+     !> repeated boundary points with the value at the other boundary
+     !> (i.e. of the two array locations which should be storing the
+     !> field at the same point in space we pick one and set the other
+     !> equal to the one we picked). This can be important in
+     !> correctly tracking the amplitude of damped modes to very small
+     !> values. Also see [[clean_init]].
      logical :: esv = .false.
-     !> FIXME: Add documentation
+     !> If `def_parity` is true, determines allowed parity.
      logical :: even = .true.
-     !> FIXME: Add documentation
+     !> \(\frac{\rho}{q} \frac{d\Omega^{\rm GS2}}{d\rho_n}\) where
+     !> \(\Omega^{\rm GS2}\) is toroidal angular velocity normalised
+     !> to the reference frequency \(v_{t}^{\rm ref}/a\) and
+     !> \(\rho_n\) is the normalised flux label which has value
+     !> \(\rho\) on the local surface.
      real :: g_exb = 0.0
-     !> FIXME: Add documentation
+     !> With flow shear in single mode, constrains relative error in `phi^2`.
+     !>
+     !> @todo Add more documentation
      real :: g_exb_error_limit = 0.0
-     !> FIXME: Add documentation
+     !> Flow shear switched on when simulation time exceeds this time.
      real :: g_exb_start_time = -1
-     !> FIXME: Add documentation
-     real :: g_exb_start_timestep = -1
-     !> FIXME: Add documentation
+     !> Flow shear switched on when simulation timestep exceeds this timestep.
+     integer :: g_exb_start_timestep = -1
+     !> Multiplies `g_exb` in the perpendicular shearing term *but
+     !> not* in the parallel drive term. Can be used to construct simulations with
+     !> purely parallel flow.
      real :: g_exbfac = 1.0
-     !> FIXME: Add documentation
-     logical :: gf_lo_integrate = .false. !Should this be a field input?
-     !> FIXME: Add documentation
-     real :: gridfac = 1.0  ! used to be 5.e4
-     !> FIXME: Add documentation
+     !> Perform velocity space integration using `gf_lo`, rather than
+     !> `g_lo`, data decomposition if true.  If used without
+     !> `field_option = 'gf_local'` in [[fields_knobs]] it is likely to give
+     !> poor performance. If `field_option = 'gf_local'` in
+     !> [[fields_knobs]] then this needs to be present and set to `.true.`.
+     !>
+     !> @todo Consider if this should be a field input.
+     logical :: gf_lo_integrate = .false.
+     !> Affects boundary condition at end of theta grid.   Recommended value: 1.
+     !>_
+     !> @note This used to default to 5.e4
+     !> @todo Improve documentation
+     real :: gridfac = 1.0
+     !> For debugging only.
+     !>_
+     !> @todo Improve documentation
      real :: kfilter = 0.0
      !> FIXME: Add documentation
      logical :: lf_decompose = .false.
      !> FIXME: Add documentation
      logical :: lf_default = .true.
-     !> FIXME: Add documentation
+     !> Number multiplying the coriolis drift.
+     !>
+     !> @todo Expand documentation
      real :: mach = 0.0
-     !> FIXME: Add documentation
+     !> Allow different species to have different values of `bakdif` and
+     !> `fexpr`.  Not allowed for nonlinear runs.
+     !>
+     !> @note The restriction to `.false.` for nonlinear runs isn't actually enforced.
      logical :: mult_imp = .false.
-     !> FIXME: Add documentation
-     logical :: nonad_zero = .true.  ! BD: Default value changed to TRUE  8.15.13
-     !> FIXME: Add documentation
+     !> If true switches on "new" parallel boundary condition where h=0 at incoming boundary instead of g=0.
+     !> This is considered the correct boundary condition but old behaviour retained for experimentation.
+     logical :: nonad_zero = .true.
+     !> Factor multiplying the parallel shearing drive term when
+     !> running with non-zero [[g_exb]]
      real :: omprimfac = 1.0
-     !> FIXME: Add documentation
-     logical :: opt_init_bc = .false. !Deprecated
-     !> FIXME: Add documentation
+     !> Deprecated and due for removal
+     logical :: opt_init_bc = .false.
+     !>  If true then use an optimised linear source calculation which
+     !>  uses pre-calculated coefficients, calculates both sigma
+     !>  together and skips work associated with empty fields. Can
+     !>  contribute at least 10-25% savings for linear electrostatic
+     !>  collisionless simulations. For more complicated runs the
+     !>  savings may be less. If enabled memory usage will
+     !>  increase due to using an additional array of size 2-4 times
+     !>  `gnew`.
      logical :: opt_source = .false.
      !> FIXME: Add documentation
-     real :: phifac_lin = sqrt(2.)      ! GRYFX - should be moved elsewhere - ~ rho_i
-     !> FIXME: Add documentation
+     !>
+     !> Used for GRYFX - should probably be moved elsewhere - ~ rho_i
+     real :: phifac_lin = sqrt(2.)
+     !> If non-zero, quasineutrality is not enforced,
+     !> `poisfac`=  \((\lambda_\textrm{Debye}/\rho)^2\)
      real :: poisfac = 0.0
      !> FIXME: Add documentation
-     real :: qparfac_lin = 4.           ! GRYFX - should be moved elsewhere - ~ rho_i vti^3
+     !>
+     !> Used for GRYFX - should probably be moved elsewhere - ~ rho_i vti^3
+     real :: qparfac_lin = 4.
      !> FIXME: Add documentation
-     real :: qprpfac_lin = 4.           ! GRYFX - should be moved elsewhere - ~ rho_i vti^3
-     !> FIXME: Add documentation
+     !>
+     !> Used for GRYFX - should probably be moved elsewhere - ~ rho_i vti^3
+     real :: qprpfac_lin = 4.
+     !> For debugging only. If set then run will print various grid sizes and then stop.
      logical :: test = .false.
      !> FIXME: Add documentation
-     real :: tparfac_lin = 2.*sqrt(2.)  ! GRYFX - should be moved elsewhere - ~ rho_i vti^2
-     !> FIXME: Add documentation
+     !>
+     !> Used for GRYFX - should probably be moved elsewhere - ~ rho_i vti^2
+     real :: tparfac_lin = 2.*sqrt(2.)
+     !> For debugging only. Multiplies the trapped particle drifts
+     !> (also see [[driftknob]]).
      real :: tpdriftknob = -9.9e9
      !> FIXME: Add documentation
-     real :: tprpfac_lin = 2.*sqrt(2.)  ! GRYFX - should be moved elsewhere - ~ rho_i vti^2
+     !>
+     !> Used for GRYFX - should probably be moved elsewhere - ~ rho_i vti^2
+     real :: tprpfac_lin = 2.*sqrt(2.)
      !> FIXME: Add documentation
-     real :: uparfac_lin = 2.           ! GRYFX - should be moved elsewhere - ~ rho_i vti
-     !> FIXME: Add documentation
+     !>
+     !> Used for GRYFX - should probably be moved elsewhere - ~ rho_i vti
+     real :: uparfac_lin = 2.
+     !> For debugging only. Sets the boundary value for the barely trapped/passing particle.
      real :: wfb = 1.0
      !> FIXME: Add documentation
      logical :: wfb_cmr = .false.
      !> FIXME: Add documentation
      character(len = 20) :: wfbbc_option = 'default'
-     !> FIXME: Add documentation
+     !> If true then force `gnew=0` in the forbidden region at the end
+     !> of [[invert_rhs_1]] (this is the original behaviour).
+     !> Nothing should depend on the forbidden region so `g` should be 0 here
+     !> and if it is not for some reason then it shouldn't impact on
+     !> results. If the results of your simulation depend upon this
+     !> flag then something has likely gone wrong somewhere.
      logical :: zero_forbid = .false.
    contains
      procedure, public :: read => read_dist_fn_config
@@ -405,17 +494,52 @@ module dist_fn
 
   type(source_config_type) :: source_config
 
-  !> Used to represent the input configuration of dist_fn_species
+  !> Used to represent the input configuration of
+  !> dist_fn_species. There should be one of this namelist for each
+  !> species simulated.
   type, extends(abstract_config_type) :: dist_fn_species_config_type
      ! namelist : dist_fn_species_knobs
-     ! indexed : true     
-     !> FIXME: Add documentation
+     ! indexed : true
+     !> Spatial implicitness parameter. Any value greater than 0 adds
+     !> numerical dissipation which is often necessary to avoid grid
+     !> scale oscillations. When `bakdif = 0.0` (default) we use a
+     !> \(2^\textrm{nd}\) order grid centered approach in the parallel
+     !> direction. When `bakdif = 1.0` this becomes a fully upwinded
+     !> method. Recommended value is 0.05 for electrostatic
+     !> simulations and 0.0 for electromagnetic.
+     !>
+     !>
+     !> @warning It is possible to have different values for the
+     !> different species simulated, but in a number of places we only
+     !> use the value given by the first species. It is strongly
+     !> recommended to use the same value for all species.
+     !>
+     !> @todo Clarify the motivation for the electromagnetic
+     !> recommendation.
+     !>
+     !> @todo Consider forcing this to be constant across all species.
+     !>
+     !> @todo Consider changing the default to the recommended value.     
      real :: bakdif = 0.0
-     !> FIXME: Add documentation
-     integer :: bd_exp = 0 ! Not used for anything - should be removed
-     !> FIXME: Add documentation
+     !> Not used for anything.
+     !>
+     !> @todo Remove this variable.
+     integer :: bd_exp = 0
+     !> Sets the imaginary part of the temporal implicitness
+     !> parameter. It is considered an error for this to be non-zero.
+     !>
+     !> @todo Consider removing this variable as it should always be
+     !> zero. Is this used for numerical testing?
      real :: fexpi = 0.0
-     !> FIXME: Add documentation
+     !> Sets the real part of the temporal implicitness parameter. Any
+     !> value smaller than 0.5 adds numerical dissipation. When `fexpr
+     !> = 0.5` we have a \(2^\textrm{nd}\) order time centered
+     !> approach. If `fexpr = 0.0` this reduces to a fully implicit
+     !> backward Euler method. When `fexpr = 1.0` this instead becomes
+     !> a fully explicit forward Euler method (not recommended). The
+     !> recommended value is 0.48.
+     !>
+     !> @todo Consider changing the default to the recommended value.
      real :: fexpr = 0.4
    contains
      procedure, public :: read => read_dist_fn_species_config
@@ -932,7 +1056,7 @@ contains
     if (debug) write(6,*) "init_dist_fn: init_source_term"
     call init_source_term
 
-    call init_g2gf(debug)
+    if (gf_lo_integrate) call init_g2gf(debug)
 
   end subroutine init_dist_fn_level_3
 
@@ -9988,13 +10112,17 @@ endif
 
     ! Note: When this routine is in the module where these variables live
     ! we shadow the module level variables here. This is intentional to provide
-    ! isolation and ensure we can move this routine to another module easily.    
-    character(len = 30) :: adiabatic_option
-    real :: afilter, apfac, btor_slab, densfac_lin, driftknob, g_exb, g_exb_error_limit, g_exb_start_time, g_exb_start_timestep, g_exbfac, gridfac, kfilter, mach, omprimfac, phifac_lin, poisfac, qparfac_lin, qprpfac_lin, tparfac_lin, tpdriftknob, tprpfac_lin, uparfac_lin, wfb
+    ! isolation and ensure we can move this routine to another module easily.
     character(len = 20) :: boundary_option, wfbbc_option
+    character(len = 30) :: adiabatic_option
+    integer :: g_exb_start_timestep
     logical :: def_parity, esv, even, gf_lo_integrate, lf_decompose, lf_default, mult_imp, nonad_zero, opt_init_bc, opt_source, test, wfb_cmr, zero_forbid
+    real :: afilter, apfac, btor_slab, densfac_lin, driftknob, g_exb, g_exb_error_limit, g_exb_start_time, g_exbfac, gridfac, kfilter, mach, omprimfac, phifac_lin, poisfac, qparfac_lin, qprpfac_lin, tparfac_lin
+    real :: tpdriftknob, tprpfac_lin, uparfac_lin, wfb
 
-    namelist /dist_fn_knobs/ adiabatic_option, afilter, apfac, boundary_option, btor_slab, def_parity, densfac_lin, driftknob, esv, even, g_exb, g_exb_error_limit, g_exb_start_time, g_exb_start_timestep, g_exbfac, gf_lo_integrate, gridfac, kfilter, lf_decompose, lf_default, mach, mult_imp, nonad_zero, omprimfac, opt_init_bc, opt_source, phifac_lin, poisfac, qparfac_lin, qprpfac_lin, test, tparfac_lin, tpdriftknob, tprpfac_lin, uparfac_lin, wfb, wfb_cmr, wfbbc_option, zero_forbid
+    namelist /dist_fn_knobs/ adiabatic_option, afilter, apfac, boundary_option, btor_slab, def_parity, densfac_lin, driftknob, esv, even, g_exb, g_exb_error_limit, g_exb_start_time, g_exb_start_timestep, g_exbfac, &
+         gf_lo_integrate, gridfac, kfilter, lf_decompose, lf_default, mach, mult_imp, nonad_zero, omprimfac, opt_init_bc, opt_source, phifac_lin, poisfac, qparfac_lin, qprpfac_lin, test, tparfac_lin, &
+         tpdriftknob, tprpfac_lin, uparfac_lin, wfb, wfb_cmr, wfbbc_option, zero_forbid
 
     ! Only proc0 reads from file
     if (.not. proc0) return
@@ -10240,8 +10368,8 @@ endif
     ! Note: When this routine is in the module where these variables live
     ! we shadow the module level variables here. This is intentional to provide
     ! isolation and ensure we can move this routine to another module easily.    
-    real :: gamma0, omega0, phi_ext, source0, t0
     character(len = 20) :: source_option
+    real :: gamma0, omega0, phi_ext, source0, t0
 
     namelist /source_knobs/ gamma0, omega0, phi_ext, source0, source_option, t0
 
@@ -10356,9 +10484,9 @@ endif
 
     ! Note: When this routine is in the module where these variables live
     ! we shadow the module level variables here. This is intentional to provide
-    ! isolation and ensure we can move this routine to another module easily.    
-    real :: bakdif, fexpi, fexpr
+    ! isolation and ensure we can move this routine to another module easily.
     integer :: bd_exp
+    real :: bakdif, fexpi, fexpr
 
     namelist /dist_fn_species_knobs/ bakdif, bd_exp, fexpi, fexpr
 

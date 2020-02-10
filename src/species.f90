@@ -1094,8 +1094,8 @@ contains
     ! Note: When this routine is in the module where these variables live
     ! we shadow the module level variables here. This is intentional to provide
     ! isolation and ensure we can move this routine to another module easily.    
-    real :: me, zi_fac
     integer :: nspec
+    real :: me, zi_fac
 
     namelist /species_knobs/ me, nspec, zi_fac
 

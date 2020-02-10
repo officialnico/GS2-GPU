@@ -10,6 +10,12 @@ from get_all_matching_files import get_all_matching_files
 docs_path = "docs/"
 pages_path = "pages/"
 namelists_path = "namelists/"
+# If the following is set to true then we also generate
+# a separate page per namelist along with the overview page.
+# This can significantly clutter up the side bar so default
+# to False here
+one_page_per_namelist = False
+
 if __name__ == "__main__":
     import sys
     import os
@@ -26,33 +32,54 @@ if __name__ == "__main__":
 
     if not os.path.exists(target_dir):
         os.makedirs(target_dir)
+
+    # Make the file list unique
+    probablyFiles = list(set(probablyFiles))
+
+    theLists = {}
+
+    # First get all the namelist objects so we can sort and write out
+    # in order.
+    for fil in probablyFiles:
+        tmp = constructFromFile(fileIn=fil)
+        if tmp is None: continue
+        # Add one at a time to enable us to avoid overwriting existing
+        # entries.
+        for k, v in tmp.items():
+            # Use the namelist name as the key for sorting
+            theKey = v.namelistName
+            # Here we add an underscore to the current key if it
+            # is already present in the list. This ensures we keep
+            # separate items identified by a duplicated name.
+            while theKey in theLists.keys():
+                theKey += "_"
+            theLists[theKey] = v
+
+    sortedKeys = sorted(theLists.keys())
+
     with open(docs_path+pages_path+namelists_path+"index.md", 'w') as ind:
         ind.write("title: Namelists\n")
         ind.write("\n")
-        ind.write("\n[TOC]\n\n\n")        
-        ind.write('<html><div class="divNamelistTable"></html>')
-        ind.write("\n")        
-        for fil in probablyFiles:
-            tmp = constructFromFile(fileIn=fil)
-            if tmp is None: continue
-            for k, v in tmp.items():
-                ff = pages_path+namelists_path+"auto_generated_"+v.moduleName+"_"+v.namelistName
-                fullf = docs_path+ff
-                with open(fullf+".txt", 'w') as f:
-                    f.writelines("\n".join(v.toMarkdownTable()))
-                    
+        ind.write("\n[TOC]\n\n\n")
+        ind.write("\n")
+
+        for k in sortedKeys:
+            v = theLists[k]
+            ff = pages_path+namelists_path+"auto_generated_"+v.moduleName+"_"+v.namelistName
+            fullf = docs_path+ff
+            with open(fullf+".txt", 'w') as f:
+                f.writelines("\n".join(v.toHTMLTable()))
+
+            if one_page_per_namelist:
                 with open(fullf+".md", 'w') as f:
                     f.write("title: {namelist}\n".format(namelist=v.namelistName))
                     f.write("\n")
                     f.write("\n".join(v.comment))
                     f.write("\n\n")
-                    f.write('<html><div class="divNamelistTable"></html>')
-                    f.write("\n\n")        
+                    f.write("\n\n")
                     f.write("{!"+ff+".txt"+"!}\n")
-                    f.write("\n")                            
-                    f.write('</div>')
-                    
-                ind.write("{!"+ff+".txt"+"!}\n")
-                ind.write("\n")
-        ind.write('</div>')
+                    f.write("\n")
+
+            ind.write("{!"+ff+".txt"+"!}\n")
+            ind.write("\n")
 
