@@ -123,6 +123,9 @@ module eigval
   !If true then save restart files for each eigenmode
   logical :: save_restarts
 
+  !Initialisation state
+  logical :: initialized = .false.
+
   !> A custom type to make it easy to encapsulate specific settings
   type EpsSettings
      logical :: use_ginit
@@ -211,6 +214,9 @@ contains
        return
     endif
 
+    if (initialized) return
+    initialized = .true.
+
     !If petsc has not been compiled with complex support then display
     !a warning that the results are most likely incorrect.
 #ifndef PETSC_USE_COMPLEX
@@ -242,7 +248,7 @@ contains
   subroutine finish_eigval
     implicit none
     PetscErrorCode :: ierr
-
+    initialized = .false.
     !Finish up slepc
     call SlepcFinalize(ierr)
   end subroutine finish_eigval
@@ -1098,7 +1104,7 @@ contains
     d3_size_global=(1+g_lo%ulim_world-g_lo%llim_world) !Size of global distributed domain
 
     !Get a pointer to the data
-    call VecGetArrayF90(VecIn,VecInArr,ierr)
+    call VecGetArrayReadF90(VecIn,VecInArr,ierr)
 
     !Extract
     do iglo=g_lo%llim_proc,g_lo%ulim_alloc
@@ -1113,7 +1119,7 @@ contains
     enddo
 
     !Get rid of pointer
-    call VecRestoreArrayF90(VecIn,VecInArr,ierr)
+    call VecRestoreArrayReadF90(VecIn,VecInArr,ierr)
   end subroutine VecToGnew
 
 #ifndef PETSC_USE_COMPLEX
@@ -1138,8 +1144,8 @@ contains
     d3_size_global=(1+g_lo%ulim_world-g_lo%llim_world) !Size of global distributed domain
 
     !Get a pointer to the data
-    call VecGetArrayF90(VecIn,VecInArr,ierr)
-    call VecGetArrayF90(VecInI,VecInIArr,ierr)
+    call VecGetArrayReadF90(VecIn,VecInArr,ierr)
+    call VecGetArrayReadF90(VecInI,VecInIArr,ierr)
 
     !Extract
     do iglo=g_lo%llim_proc,g_lo%ulim_alloc
@@ -1154,8 +1160,8 @@ contains
     enddo
 
     !Get rid of pointer
-    call VecRestoreArrayF90(VecIn,VecInArr,ierr)
-    call VecRestoreArrayF90(VecInI,VecInIArr,ierr)
+    call VecRestoreArrayReadF90(VecIn,VecInArr,ierr)
+    call VecRestoreArrayReadF90(VecInI,VecInIArr,ierr)
   end subroutine VecToGnew2
 #endif
 
@@ -1259,11 +1265,11 @@ contains
 
     ! Note: When this routine is in the module where these variables live
     ! we shadow the module level variables here. This is intentional to provide
-    ! isolation and ensure we can move this routine to another module easily.    
-    logical :: save_restarts, use_ginit
-    real :: targ_im, targ_re, tolerance
+    ! isolation and ensure we can move this routine to another module easily.
     character(len = 20) :: extraction_option, solver_option, transform_option, which_option
     integer :: max_iter, n_eig, nadv
+    logical :: save_restarts, use_ginit
+    real :: targ_im, targ_re, tolerance
 
     namelist /eigval_knobs/ extraction_option, max_iter, n_eig, nadv, save_restarts, solver_option, targ_im, targ_re, tolerance, transform_option, use_ginit, which_option
 
