@@ -483,11 +483,11 @@ contains
 
     ! Note: When this routine is in the module where these variables live
     ! we shadow the module level variables here. This is intentional to provide
-    ! isolation and ensure we can move this routine to another module easily.    
-    integer :: nstep_inc, nstep_init, scan_spec
-    real :: delta_t_inc, delta_t_init, par_end, par_inc, par_start, target_val
-    logical :: scan_restarted
+    ! isolation and ensure we can move this routine to another module easily.
     character(len = 20) :: inc_con, scan_par, scan_type, target_par
+    integer :: nstep_inc, nstep_init, scan_spec
+    logical :: scan_restarted
+    real :: delta_t_inc, delta_t_init, par_end, par_inc, par_start, target_val
 
     namelist /parameter_scan_knobs/ delta_t_inc, delta_t_init, inc_con, nstep_inc, nstep_init, par_end, par_inc, par_start, scan_par, scan_restarted, scan_spec, scan_type, target_par, target_val
 

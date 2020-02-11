@@ -635,14 +635,15 @@ contains
 
     ! Note: When this routine is in the module where these variables live
     ! we shadow the module level variables here. This is intentional to provide
-    ! isolation and ensure we can move this routine to another module easily.    
-    real :: avail_cpu_time, beta, delt, fapar, faperp, fbpar, fphi, k0, margin, margin_cpu_time, rhostar, teti, tite, zeff
-    character(len = 20) :: delt_option, eqzip_option
-    logical :: do_eigsolve, eqzip, harris, immediate_reset, neo_test, secondary, tertiary, trinity_linear_fluxes, trinity_ql_fluxes, use_old_diagnostics, wstar_units
-    integer :: nstep
+    ! isolation and ensure we can move this routine to another module easily.
     character(len = 100000) :: user_comments
+    character(len = 20) :: delt_option, eqzip_option
+    integer :: nstep
+    logical :: do_eigsolve, eqzip, harris, immediate_reset, neo_test, secondary, tertiary, trinity_linear_fluxes, trinity_ql_fluxes, use_old_diagnostics, wstar_units
+    real :: avail_cpu_time, beta, delt, fapar, faperp, fbpar, fphi, k0, margin, margin_cpu_time, rhostar, teti, tite, zeff
 
-    namelist /knobs/ avail_cpu_time, beta, delt, delt_option, do_eigsolve, eqzip, eqzip_option, fapar, faperp, fbpar, fphi, harris, immediate_reset, k0, margin, margin_cpu_time, neo_test, nstep, rhostar, secondary, tertiary, teti, tite, trinity_linear_fluxes, trinity_ql_fluxes, use_old_diagnostics, user_comments, wstar_units, zeff
+    namelist /knobs/ avail_cpu_time, beta, delt, delt_option, do_eigsolve, eqzip, eqzip_option, fapar, faperp, fbpar, fphi, harris, immediate_reset, k0, margin, margin_cpu_time, neo_test, nstep, rhostar, secondary, &
+         tertiary, teti, tite, trinity_linear_fluxes, trinity_ql_fluxes, use_old_diagnostics, user_comments, wstar_units, zeff
 
     ! Only proc0 reads from file
     if (.not. proc0) return
@@ -847,9 +848,9 @@ contains
 
     ! Note: When this routine is in the module where these variables live
     ! we shadow the module level variables here. This is intentional to provide
-    ! isolation and ensure we can move this routine to another module easily.    
-    real :: beta, k0, rhostar, teti, tite, zeff
+    ! isolation and ensure we can move this routine to another module easily.
     character(len = 100000) :: user_comments
+    real :: beta, k0, rhostar, teti, tite, zeff
 
     namelist /parameters/ beta, k0, rhostar, teti, tite, user_comments, zeff
 
