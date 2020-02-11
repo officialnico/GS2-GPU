@@ -2518,7 +2518,7 @@ module theta_grid
   public :: gbdrift_th, cvdrift_th, gds2, gds21, gds22, kxfac, qval
   public :: gds23, gds24, gds24_noq
   public :: grho
-  public :: bmin, bmax, eps, shat, drhodpsi, jacob
+  public :: bmin, bmax, eps_trapped, shat, drhodpsi, jacob
   public :: ntheta, ntgrid, nperiod, nbset
   public :: Rplot, Zplot, aplot, Rprime, Zprime, aprime, Bpol
   public :: shape, gb_to_cv
@@ -2536,7 +2536,7 @@ module theta_grid
   real, dimension (:), allocatable :: grho, jacob
   real, dimension (:), allocatable :: Rplot, Zplot, aplot, Bpol
   real, dimension (:), allocatable :: Rprime, Zprime, aprime
-  real :: bmin, bmax, eps, shat, drhodpsi, kxfac, qval
+  real :: bmin, bmax, eps_trapped, shat, drhodpsi, kxfac, qval
   real :: cvdriftknob, gbdriftknob
   integer :: ntheta, ntgrid, nperiod, nbset
   logical :: gb_to_cv
@@ -2724,7 +2724,7 @@ contains
     call debug_message(verb, "theta_grid::broadcast_results scalars")
     call broadcast (bmin)
     call broadcast (bmax)
-    call broadcast (eps)
+    call broadcast (eps_trapped)
     call broadcast (kxfac)
     call broadcast (rhoc)
     call broadcast (qval)
@@ -2995,11 +2995,11 @@ contains
 
     bmax = maxval(bmag)
     bmin = minval(bmag)
-! ?? check Krook collision operator coding which is only place eps is used
-! the line with bmin/bmax was the original coding.  Changed in 2002-2004 time 
-! frame, now changed back (8.19.04) BD
-    eps = 1.0 - sqrt(bmin/bmax)
-!    eps = 1.0 - 1.0/bmax
+    ! ?? check Krook collision operator coding which is only place eps is used
+    ! the line with bmin/bmax was the original coding.  Changed in 2002-2004 time 
+    ! frame to 1.0 - 1.0/bmax , now changed back (8.19.04) BD
+    ! Now only used in le_grids to check if we have any trapped particles
+    eps_trapped = 1.0 - sqrt(bmin/bmax)
 
     if (.not. allocated(theta2)) allocate (theta2(-ntgrid:ntgrid))
     if (.not. allocated(delthet)) allocate (delthet(-ntgrid:ntgrid))

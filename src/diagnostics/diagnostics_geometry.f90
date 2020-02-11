@@ -10,7 +10,7 @@ contains
   subroutine write_geometry(gnostics)
     use theta_grid, only: bmag, gradpar, gbdrift, gbdrift0, &
          cvdrift, cvdrift0, gds2, gds21, gds22, grho, jacob, &
-         shat, drhodpsi, eps, cdrift, cdrift0, qval, shape, theta, ntgrid, Bpol
+         shat, drhodpsi, eps_trapped, cdrift, cdrift0, qval, shape, theta, ntgrid, Bpol
     use theta_grid, only: Rplot, Zplot, aplot, Rprime, Zprime, aprime, drhodpsi
     use diagnostics_create_and_write, only: create_and_write_variable
     use diagnostics_dimensions, only: dim_string
@@ -61,8 +61,8 @@ contains
          "Values of shat, the magnetic shear", "TBC", shat)
     call create_and_write_variable(gnostics, gnostics%rtype, "drhodpsi", "", &
          "Values of drhodpsi, ", "TBC", drhodpsi)
-    call create_and_write_variable(gnostics, gnostics%rtype, "eps", "", &
-         "Values of eps, ", "TBC", eps)
+    call create_and_write_variable(gnostics, gnostics%rtype, "eps_trapped", "", &
+         "Values of eps, ", "TBC", eps_trapped)
     call create_and_write_variable(gnostics, gnostics%rtype, "cdrift", &
          dim_string([gnostics%dims%theta]), &
          "Values of cdrift, ", "TBC", cdrift)

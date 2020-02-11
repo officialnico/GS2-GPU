@@ -1104,7 +1104,7 @@ contains
     d3_size_global=(1+g_lo%ulim_world-g_lo%llim_world) !Size of global distributed domain
 
     !Get a pointer to the data
-    call VecGetArrayF90(VecIn,VecInArr,ierr)
+    call VecGetArrayReadF90(VecIn,VecInArr,ierr)
 
     !Extract
     do iglo=g_lo%llim_proc,g_lo%ulim_alloc
@@ -1119,7 +1119,7 @@ contains
     enddo
 
     !Get rid of pointer
-    call VecRestoreArrayF90(VecIn,VecInArr,ierr)
+    call VecRestoreArrayReadF90(VecIn,VecInArr,ierr)
   end subroutine VecToGnew
 
 #ifndef PETSC_USE_COMPLEX
@@ -1144,8 +1144,8 @@ contains
     d3_size_global=(1+g_lo%ulim_world-g_lo%llim_world) !Size of global distributed domain
 
     !Get a pointer to the data
-    call VecGetArrayF90(VecIn,VecInArr,ierr)
-    call VecGetArrayF90(VecInI,VecInIArr,ierr)
+    call VecGetArrayReadF90(VecIn,VecInArr,ierr)
+    call VecGetArrayReadF90(VecInI,VecInIArr,ierr)
 
     !Extract
     do iglo=g_lo%llim_proc,g_lo%ulim_alloc
@@ -1160,8 +1160,8 @@ contains
     enddo
 
     !Get rid of pointer
-    call VecRestoreArrayF90(VecIn,VecInArr,ierr)
-    call VecRestoreArrayF90(VecInI,VecInIArr,ierr)
+    call VecRestoreArrayReadF90(VecIn,VecInArr,ierr)
+    call VecRestoreArrayReadF90(VecInI,VecInIArr,ierr)
   end subroutine VecToGnew2
 #endif
 
