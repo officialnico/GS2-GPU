@@ -8,16 +8,15 @@ program write_default_input_file
   type(gs2_config_type) :: the_config
 
   logical :: list
-  integer :: output_unit
-  integer :: i
+  integer :: local_output_unit
 
   call init_mp
 
   if (proc0) then
-     call get_unused_unit(output_unit)
-     open(unit = output_unit, action = "write", file = "defaults.in")
-     call the_config%write_to_unit(output_unit)
-     call close_output_file(output_unit)
+     call get_unused_unit(local_output_unit)
+     open(unit = local_output_unit, action = "write", file = "defaults.in")
+     call the_config%write_to_unit(local_output_unit)
+     call close_output_file(local_output_unit)
   end if
 
   call finish_mp
