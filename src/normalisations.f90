@@ -99,8 +99,8 @@ contains
   end subroutine norms_set_value
 
   !> FIXME : Add documentation  
-  elemental function norms_get_value(self, val_name)
-    !use mp, only: mp_abort
+  function norms_get_value(self, val_name)
+    use mp, only: mp_abort
     implicit none
     class(norms_type), intent(in) :: self
     character(len=*), intent(in) :: val_name
@@ -126,8 +126,8 @@ contains
        norms_get_value=self%bref
     case("rhoref")
        norms_get_value=self%rhoref
-    !case default
-    !   call mp_abort("Invalid normalisation requested")
+    case default
+      call mp_abort("Invalid normalisation requested")
     end select
   end function norms_get_value
 
@@ -225,7 +225,7 @@ contains
   end subroutine norms_finish
 
   !> Decide if a given normalisation has been set
-  elemental function norms_check_if_set(self,val_name)
+  function norms_check_if_set(self,val_name)
     implicit none
     class(norms_type), intent(in) :: self
     character(len=*), intent(in) :: val_name
