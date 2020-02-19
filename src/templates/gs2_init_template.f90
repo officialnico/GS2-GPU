@@ -341,10 +341,13 @@ contains
 
     ! Do not use the value from state%init%initval_ov%force_maxwell_reinit = current%initval_ov%force_maxwell_reinit as follows:
     !     if (current%initval_ov%force_maxwell_reinit)then
-    ! as was done previously because this part of the overrides system has not been initialised with the value from the input file
-    ! yet. Unfortunately, because of the way the state object and the overrides system is set up, it is not possible to have this
-    ! value correctly initialised from the input file by this point. Therefore, use the input file value directly to ensure we
-    ! respect the value in the input file.
+    ! as was done previously because, when restarting a run, this part of the overrides system has not been initialised with the
+    ! value from the input file yet. As a result, the above condition is always true, even if the restart file has
+    ! force_maxwell_reinit = .false.! (For a reinitialisation due to a timestep change, this part of the override system would be
+    ! set up correctly and the above condition would respect the value in the input file.) Unfortunately, because of the way the
+    ! state object and the overrides system is set up, it is not possible to have this value correctly initialised from the input
+    ! file by this point in a restarted run. Therefore, use the input file value directly to ensure we respect the value in the
+    ! input file at the start of restarted runs.
     if (force_maxwell_reinit)then
       call set_init_fields
       !if (.not. proc0) write (*,*) 'field value jjjj kkkk', phinew(-5, 3, 2), job_id
