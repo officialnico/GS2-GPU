@@ -549,7 +549,11 @@ contains
     call EPSCreate(PETSC_COMM_WORLD,eps_solver,ierr)
 
     !Set the matrix operator we want to find eigenvalues of
+#if PETSC_VERSION_LT(3,6,0)
+    call EPSSetOperators(eps_solver,mat_operator,PETSC_NULL_OBJECT,ierr)
+#else
     call EPSSetOperators(eps_solver,mat_operator,PETSC_NULL_MAT,ierr)
+#endif
 
     !Set the type of eigenproblem -->Always non-hermittian for us
     call EPSSetProblemType(eps_solver,EPS_NHEP,ierr)
@@ -564,7 +568,7 @@ contains
 
        !Setup vector
 #if PETSC_VERSION_LT(3,6,0)
-       call MatGetVecs(mat_operator,PETSC_NULL_VEC,init_vec,ierr)
+       call MatGetVecs(mat_operator,PETSC_NULL_OBJECT,init_vec,ierr)
 #else
        call MatCreateVecs(mat_operator,PETSC_NULL_VEC,init_vec,ierr)
 #endif
@@ -931,8 +935,8 @@ contains
     if(n_converged.gt.0)then
        !Initialise the eigenvector arrays
 #if PETSC_VERSION_LT(3,6,0)
-       call MatGetVecs(my_operator,PETSC_NULL_VEC,eig_vec_r,ierr)
-       call MatGetVecs(my_operator,PETSC_NULL_VEC,eig_vec_i,ierr)
+       call MatGetVecs(my_operator,PETSC_NULL_OBJECT,eig_vec_r,ierr)
+       call MatGetVecs(my_operator,PETSC_NULL_OBJECT,eig_vec_i,ierr)
 #else
        call MatCreateVecs(my_operator,PETSC_NULL_VEC,eig_vec_r,ierr)
        call MatCreateVecs(my_operator,PETSC_NULL_VEC,eig_vec_i,ierr)
