@@ -225,9 +225,9 @@ COVERAGE_DIR:= $(GK_HEAD_DIR)/coverage
 PATCHFILE:= .patch.make
 
 ifdef SHOW_ABS_PATH
-processName  = $1
+processName=$1
 else
-processName = $(subst $(GK_HEAD_DIR)/,, $1)
+processName=$(subst $(GK_HEAD_DIR)/,,$1)
 endif
 ################################################### SET COMPILE MODE SWITCHES
 
@@ -626,42 +626,42 @@ endif
 # and you HAVE to preprocess and compile in one step.
 ifdef ONE_STEP_PP
 $(OBJDIR)/%.o: %.fpp |$(MODDIR) $(OBJDIR)
-	$(call messageOp,"Compiling and preprocessing","\\t:",$(call processName, $<))
+	$(call messageOp,"Compiling and preprocessing","\\t:",$(call processName,$<))
 	$(QUIETSYM)$(FC) $(MACRO_DEFS) $(F90FLAGS) -c $< -o $@
 	$(shell mv *.mod $(MODDIR) 2>/dev/null)
 
 $(OBJDIR)/%.o: %.F90 |$(MODDIR) $(OBJDIR)
-	$(call messageOp,"Compiling and preprocessing","\\t:",$(call processName, $<))
+	$(call messageOp,"Compiling and preprocessing","\\t:",$(call processName,$<))
 	$(QUIETSYM)$(FC) $(MACRO_DEFS) $(F90FLAGS) -c $< -o $@
 	$(shell mv *.mod $(MODDIR) 2>/dev/null)
 endif
 
 %.f90: %.rb
-	$(call messageOp,"Generating from ruby","\\t:",$(call processName, $<))
+	$(call messageOp,"Generating from ruby","\\t:",$(call processName,$<))
 	$(QUIETSYM)$(call RUBY_GENERATE,$@,$<)
 
 $(OBJDIR)/%.o:$(GENERATED_SRC_DIR)/%.f90 |$(MODDIR) $(OBJDIR)
-	$(call messageOp,"Compiling","\\t:",$<)
+	$(call messageOp,"Compiling","\\t:",$(call processName,$<))
 	$(QUIETSYM) $(FC) $(F90FLAGS) -c $< -o $@
 	$(shell mv *.mod $(MODDIR) 2>/dev/null)
 
 $(OBJDIR)/%.o:%.f90 |$(MODDIR) $(OBJDIR)
-	$(call messageOp,"Compiling","\\t:",$(call processName, $<))
+	$(call messageOp,"Compiling","\\t:",$(call processName,$<))
 	$(QUIETSYM) $(FC) $(F90FLAGS) -c $< -o $@
 	$(shell mv *.mod $(MODDIR) 2>/dev/null)
 
 # The depend command needs the preprocessed source files. 
 # This is a little clunky, and maybe could be fixed in the future.
 $(GENERATED_SRC_DIR)/%.f90: %.fpp |$(GENERATED_SRC_DIR)
-	$(call messageOp,"Preprocessing","\\t:",$(call processName, $<))
+	$(call messageOp,"Preprocessing","\\t:",$(call processName,$<))
 	$(QUIETSYM)$(CPP) $(FPPFLAGS) $(CPPFLAGS) $(MACRO_DEFS) $< -o $@
 
 $(GENERATED_SRC_DIR)/%.f90: %.F90 |$(GENERATED_SRC_DIR)
-	$(call messageOp,"Preprocessing","\\t:",$(call processName, $<))
+	$(call messageOp,"Preprocessing","\\t:",$(call processName,$<))
 	$(QUIETSYM)$(CPP) $(FPPFLAGS) $(CPPFLAGS) $(MACRO_DEFS) $< -o $@
 
 $(OBJDIR)/%.o: %.c |$(OBJDIR)
-	$(call messageOp,"Compiling C","\\t:",$(call processName, $<))
+	$(call messageOp,"Compiling C","\\t:",$(call processName,$<))
 	$(QUIETSYM)$(CC) $(CFLAGS) $(INCLUDES) $(subst -traditional,,$(subst -C,,$(subst -P,,$(CPPFLAGS)))) $(MACRO_DEFS) -c $< -o $@
 
 # This prevents error messages like m2c: Command not found
@@ -689,14 +689,14 @@ KEEP_PROCESSED_FILES_FROM_DEPEND="no"
 endif
 
 depend: $(F90FROMFPP) $(FORTFROMRUBY) $(UTILS_SENTINEL) Makefile.$(GK_SYSTEM) |$(GENERATED_SRC_DIR)
-	$(call messageOp,"Generating dependency file","\\t:",$(call processName, $(DEPEND)))
+	$(call messageOp,"Generating dependency file","\\t:",$(call processName,$(DEPEND)))
 # Note we force UTILS to be included in the paths that we pass to fortdep
 # We touch the dependency file first as fortdep will call make in order to try
 # and preprocess files, so we need this to avoid recursion
 	$(QUIETSYM)touch $(DEPEND) && $(DEPEND_CMD) -m "$(MAKE) --no-print-directory" -1 -o -v=1\
 		--keep=$(KEEP_PROCESSED_FILES_FROM_DEPEND) $(VPATH):$(UTILS) \
 		--generated_src_dir=$(GENERATED_SRC_DIR) || rm $(DEPEND)
-	$(call messageOp,"Dependency file created at","\\t:",$(call processName, $(DEPEND)))
+	$(call messageOp,"Dependency file created at","\\t:",$(call processName,$(DEPEND)))
 ##################################################################### Main TARGETS
 # .DEFAULT_GOAL works for GNU make 3.81 (or higher)
 # For 3.80 or less, see all target
