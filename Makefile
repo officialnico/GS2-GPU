@@ -746,7 +746,7 @@ gs2_init.f90: $(SRCDIR)/templates/gs2_init_template.f90
 
 geometry_c_interface.o: geometry_c_interface.h
 
-gryfx_libs: utils.a geo.a $(SRCDIR)/geo/geometry_c_interface.o
+gryfx_libs: utils.a geo.a $(OBJDIR)/geometry_c_interface.o
 
 ############################################################# Get project specific targets
 Makefile.target_$(GK_PROJECT): ;
