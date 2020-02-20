@@ -225,9 +225,9 @@ COVERAGE_DIR:= $(GK_HEAD_DIR)/coverage
 PATCHFILE:= .patch.make
 
 ifdef SHOW_ABS_PATH
-processName=$1
+processName = $1
 else
-processName=$(subst $(GK_HEAD_DIR)/,,$1)
+processName = $(subst $(GK_HEAD_DIR)/,,$1)
 endif
 ################################################### SET COMPILE MODE SWITCHES
 
