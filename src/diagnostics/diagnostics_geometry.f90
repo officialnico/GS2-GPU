@@ -72,19 +72,19 @@ contains
     call create_and_write_variable(gnostics, gnostics%rtype, "qval", "", &
          "Values of qval, ", "TBC", qval)
 
-    call create_and_write_variable(gnostics, gnostics%rtype, "Rplot", &
+    call create_and_write_variable(gnostics, gnostics%rtype, "rplot", &
          dim_string([gnostics%dims%theta]), &
          "The major radius at the centre of the flux tube ", "a", Rplot)
-    call create_and_write_variable(gnostics, gnostics%rtype, "Zplot", &
+    call create_and_write_variable(gnostics, gnostics%rtype, "zplot", &
          dim_string([gnostics%dims%theta]), &
          "The height above the midplane at the centre of the flux tube ", "a", Zplot)
     call create_and_write_variable(gnostics, gnostics%rtype, "aplot", &
          dim_string([gnostics%dims%theta]), &
          "The toroidal angle at the centre of the flux tube ", "rad", aplot)
-    call create_and_write_variable(gnostics, gnostics%rtype, "Rprime", &
+    call create_and_write_variable(gnostics, gnostics%rtype, "rprime", &
          dim_string([gnostics%dims%theta]), &
          "d/dx of the major radius at the centre of the flux tube ", "a/rho_r", Rprime)
-    call create_and_write_variable(gnostics, gnostics%rtype, "Zprime", &
+    call create_and_write_variable(gnostics, gnostics%rtype, "zprime", &
          dim_string([gnostics%dims%theta]), &
          "d/dx of the height above the midplane at the centre of the flux tube ", "a/rho_r", Zprime)
     call create_and_write_variable(gnostics, gnostics%rtype, "aprime", &
