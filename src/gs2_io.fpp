@@ -19,9 +19,7 @@ module gs2_io
   public :: nc_loop_fullmom, nc_loop_dist, nc_loop_sym, nc_loop_corr, nc_loop_corr_extend
   public :: nc_loop_partsym_tormom, nc_sync
 
-  logical, parameter :: serial_io = .true.
 # ifdef NETCDF
-  logical :: proc_write
   integer (kind_nf) :: ncid
   integer (kind_nf) :: naky_dim, nakx_dim, nttot_dim, negrid_dim, nlambda_dim, nspec_dim, ncoord_dim, ncoordt_dim
   integer (kind_nf) :: nsign_dim, time_dim, char5_dim, char10_dim, char200_dim, ri_dim, nlines_dim, nheat_dim, vpa_dim
@@ -175,27 +173,17 @@ contains
 
     zero = epsilon(0.0)
 
-    call netcdf_init (serial_io)
     if (netcdf_real == 0) netcdf_real = get_netcdf_code_precision()
 
     status = NF90_NOERR
 
     !Create file
     filename = trim(trim(run_name)//'.out.nc')
-    if (serial_io) then
-       ! only proc0 opens the file:
-       if (proc0) then
-          status = nf90_create (trim(filename), NF90_CLOBBER, ncid) 
-          if (status /= NF90_NOERR) call netcdf_error (status, file=filename)
-       end if
-    else
-       ! all processors open the file
-       call barrier
-       ! TT: do we want NF90_SHARE?
-       status = nf90_create (trim(filename), NF90_CLOBBER, ncid) ! overwrites old
-       if (proc0 .and. status /= NF90_NOERR) call netcdf_error (status, file=filename)
-       call barrier
-    endif
+    ! only proc0 opens the file:
+    if (proc0) then
+       status = nf90_create (trim(filename), NF90_CLOBBER, ncid)
+       if (status /= NF90_NOERR) call netcdf_error (status, file=filename)
+    end if
 
     !Create the movie file
     if (my_make_movie) then
@@ -203,21 +191,12 @@ contains
        !    call init_y_transform_layouts  
        call init_transforms(ntgrid, naky, ntheta0, nlambda, negrid, nspec, nx, ny, accelerated)
        filename_movie = trim(trim(run_name)//'.movie.nc')
-       if (serial_io) then
-          ! only proc0 opens the file:
-          if (proc0) then 
-             status = nf90_create (trim(filename_movie), NF90_CLOBBER, ncid_movie) 
-             if (status /= NF90_NOERR) &
-                  call netcdf_error (status, file=filename_movie)
-          end if
-       else
-          ! all processors open the file
-          call barrier
-          status = nf90_create (trim(filename_movie), NF90_CLOBBER, ncid_movie) ! overwrites old
-          if (proc0 .and. status /= NF90_NOERR) &
+       ! only proc0 opens the file:
+       if (proc0) then
+          status = nf90_create (trim(filename_movie), NF90_CLOBBER, ncid_movie)
+          if (status /= NF90_NOERR) &
                call netcdf_error (status, file=filename_movie)
-          call barrier
-       endif
+       end if
     endif
 
 # endif
@@ -469,18 +448,6 @@ contains
     endif
 # endif
   end subroutine nc_grids_mymovie
-
-  !> FIXME : Add documentation  
-  subroutine netcdf_init (serial_io2)
-# ifdef NETCDF
-    use mp, only: proc0
-# endif
-    implicit none
-    logical, intent(in) :: serial_io2
-# ifdef NETCDF
-    proc_write = proc0 .or. (.not.serial_io2)
-# endif
-  end subroutine netcdf_init
 
   !> FIXME : Add documentation  
   subroutine nc_finish
