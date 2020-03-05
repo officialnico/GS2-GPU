@@ -1,0 +1,17 @@
+&fields_knobs
+  force_maxwell_reinit = .false.
+/
+
+&gs2_diagnostics_knobs
+  save_for_restart = .true.
+  nsave = 100
+/
+
+&init_g_knobs
+  ginit_option = "default"  ! default
+/
+
+&knobs
+  nstep = 100  ! default
+/
+
