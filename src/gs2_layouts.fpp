@@ -2608,13 +2608,14 @@ contains
 
   !> FIXME : Add documentation  
   subroutine init_le_layouts (ntgrid, naky, ntheta0, nspec)
-    use mp, only: iproc, nproc
+    use mp, only: iproc, nproc, min_allreduce
     use file_utils, only: error_unit
     implicit none
     integer, intent (in) :: ntgrid, naky, ntheta0, nspec
     integer :: ik_min, it_min, ig_min, is_min
     integer :: ik_max, it_max, ig_max, is_max
     integer :: ik, it, ig, is, ile
+    integer :: tmp_flag
 
 # ifdef USE_C_INDEX
     integer :: ierr
@@ -2730,12 +2731,35 @@ contains
        is_min=MIN(is,is_min)
     enddo
 
-    !Store dimension locality
+    !Store dimension locality -- WARNING these flags may not be
+    !globally correct, see g_lo comments for more details. Fixed here
+    !using the min_allreduce calls below.
     le_lo%x_local=(it_min.eq.1).and.(it_max.eq.ntheta0)
     le_lo%y_local=(ik_min.eq.1).and.(ik_max.eq.naky)
     le_lo%t_local=(ig_min.eq.-ntgrid).and.(ig_max.eq.ntgrid)
     le_lo%s_local=(is_min.eq.1).and.(is_max.eq.nspec)
-!</DD>
+
+    tmp_flag = 0
+    if(le_lo%x_local) tmp_flag = 1
+    call min_allreduce(tmp_flag)
+    if(tmp_flag == 0) le_lo%x_local = .false.
+
+    tmp_flag = 0
+    if(le_lo%y_local) tmp_flag = 1
+    call min_allreduce(tmp_flag)
+    if(tmp_flag == 0) le_lo%y_local = .false.
+
+    tmp_flag = 0
+    if(le_lo%g_local) tmp_flag = 1
+    call min_allreduce(tmp_flag)
+    if(tmp_flag == 0) le_lo%t_local = .false.
+
+    tmp_flag = 0
+    if(le_lo%s_local) tmp_flag = 1
+    call min_allreduce(tmp_flag)
+    if(tmp_flag == 0) le_lo%s_local = .false.
+
+    !</DD>
 
 # ifdef USE_C_INDEX
     ierr = init_indices_lelo_c (layout)
