@@ -17,7 +17,7 @@ standard_tests:
   before_script:
     - BUILD_STATUS=running BUILD_KEY=push ./.push_gitlab_build_status ${CASENAME}
     - apt-get update -qq && apt-get install -y -qq libfftw3-dev libnetcdf-dev libnetcdff-dev netcdf-bin openmpi-bin libopenmpi-dev gfortran cmake python python-pip
-    - pip install -r requirements
+    - pip install -r requirements.txt
     - adduser theuser --disabled-password --gecos ""
   script:
     - su -c "whoami ; MAKEFLAGS=-IMakefiles GK_SYSTEM=bitbucket make USE_NEW_DIAG= build_pfunit_library || (BUILD_STATUS=build_pfunit_library_failed  BUILD_KEY=push ./.push_gitlab_build_status ${CASENAME}; exit 1)" theuser
@@ -36,7 +36,7 @@ standard_tests_onestep:
   before_script:
     - BUILD_STATUS=running BUILD_KEY=push ./.push_gitlab_build_status ${CASENAME}
     - apt-get update -qq && apt-get install -y -qq libfftw3-dev libnetcdf-dev libnetcdff-dev netcdf-bin openmpi-bin libopenmpi-dev gfortran cmake python python-pip
-    - pip install -r requirements
+    - pip install -r requirements.txt
     - adduser theuser --disabled-password --gecos ""
   script:
     - su -c "whoami ; MAKEFLAGS=-IMakefiles GK_SYSTEM=bitbucket make USE_NEW_DIAG= ONE_STEP_PP=on build_pfunit_library || (BUILD_STATUS=build_pfunit_library_failed  BUILD_KEY=push ./.push_gitlab_build_status ${CASENAME}; exit 1)" theuser
@@ -61,7 +61,7 @@ pages:
   stage: test
   script:
     - apt-get update -qq && apt-get install -y -qq libfftw3-dev libnetcdf-dev libnetcdff-dev netcdf-bin openmpi-bin libopenmpi-dev python python-pip gfortran
-    - pip install -r requirements
+    - pip install -r requirements.txt
     - MAKEFLAGS=-IMakefiles GK_SYSTEM=bitbucket make USE_NEW_DIAG= doc
     - mv docs/html ./public
   artifacts:
