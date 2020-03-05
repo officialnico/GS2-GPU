@@ -26,8 +26,8 @@ all:
 else
 
 all: test_force_maxwell_reinit 
-	@$(TESTCOMMAND)../../../bin/gs2 $(BLUEGENEARGS) initial.in > OUTPUT 
-	@$(TESTCOMMAND)../../../bin/gs2 $(BLUEGENEARGS) restart.in > OUTPUT 
+	@$(TESTCOMMAND)../../../bin/gs2 initial.in > OUTPUT
+	@$(TESTCOMMAND)../../../bin/gs2 restart.in > OUTPUT
 	@$(PYTHONCOMPARE) ; rc=$$? ; if test "$$rc" != 0; then $(LOCALFAILCOMMAND) ; else $(LOCALPASSCOMMAND) ;  fi
 endif
 endif
