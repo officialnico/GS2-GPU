@@ -1273,9 +1273,10 @@ contains
     !Now work out how the compound dimension splits amongst processors
     nproc_tmp=nproc
     !/Initialise
-    nproc_dim=-1
-    dim_divides=.false. .or. (g_lo%dim_size == 1)
-    dim_local=.false.
+    nproc_dim = -1
+    dim_divides = .false. .or. (g_lo%dim_size == 1)
+    dim_local = dim_divides
+
     do idim=5,1,-1
 
        !If we are down to 1 proc then everything else is local
