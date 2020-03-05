@@ -769,7 +769,7 @@ contains
 #endif
     integer,dimension(5) :: nproc_dim
     integer,dimension(:),allocatable :: les_kxky_range
-    logical,dimension(5) :: dim_divides,dim_local
+    logical,dimension(5) :: dim_divides,dim_local, split_nicely
     logical,dimension(:),allocatable :: it_local, ik_local, il_local, ie_local, is_local
     integer,dimension(nproc) :: tmp_proc_list
     integer :: colour
@@ -1309,6 +1309,14 @@ contains
        nproc_tmp=nproc_dim(idim)
     enddo
 
+    ! Now set a flag to say if this dimension is split nicely based on
+    ! dim_divides. We also say that any dimension with size exactly 1
+    ! is split nicely, as it must be.
+    split_nicely = .false.
+    do idim = 1, 5
+       split_nicely(idim) = all(dim_divides(1:idim)) .or. (g_lo%dim_size(idim) == 1)
+    end do
+
     !Now print some stuff for debugging
 !     if (proc0) then
 !        write(6,'("Idim | Divides | Nproc_per_block | Size | Local")')
@@ -1324,19 +1332,19 @@ contains
 
     !Now use the dimension splitting to work out if the various subcommunicators are
     !allowed.
-    if(.not.(dim_divides(g_lo%is_ord).and.dim_divides(g_lo%it_ord).and.dim_divides(g_lo%ik_ord))) then
-       if(intmom_sub.and.proc0) write(error_unit(),'("Disabling intmom_sub -- is,it,ik split nicely ? ",3(L1," "))') dim_divides(g_lo%is_ord),dim_divides(g_lo%it_ord),dim_divides(g_lo%ik_ord)
+    if(.not.(split_nicely(g_lo%is_ord).and.split_nicely(g_lo%it_ord).and.split_nicely(g_lo%ik_ord))) then
+       if(intmom_sub.and.proc0) write(error_unit(),'("Disabling intmom_sub -- is,it,ik split nicely ? ",3(L1," "))') split_nicely(g_lo%is_ord),split_nicely(g_lo%it_ord),split_nicely(g_lo%ik_ord)
        intmom_sub=.false.
     endif
-    if(.not.(dim_divides(g_lo%it_ord).and.dim_divides(g_lo%ik_ord))) then
-       if(intspec_sub.and.proc0) write(error_unit(),'("Disabling intspec_sub -- it,ik split nicely ? ",2(L1," "))') dim_divides(g_lo%it_ord),dim_divides(g_lo%ik_ord)
+    if(.not.(split_nicely(g_lo%it_ord).and.split_nicely(g_lo%ik_ord))) then
+       if(intspec_sub.and.proc0) write(error_unit(),'("Disabling intspec_sub -- it,ik split nicely ? ",2(L1," "))') split_nicely(g_lo%it_ord),split_nicely(g_lo%ik_ord)
        intspec_sub=.false.
     endif
     !Note that because we currently need to gather amongst LES blocks at the end of
     !integrate_species we need to make sure that LES blocks are also sensible
     !This could be removed if we don't want to gather in integrate_species
-    if(.not.(dim_divides(g_lo%il_ord).and.dim_divides(g_lo%ie_ord).and.dim_divides(g_lo%is_ord))) then
-       if(intspec_sub.and.proc0) write(error_unit(),'("Disabling intspec_sub -- il,ie,is split nicely ? ",3(L1," "))') dim_divides(g_lo%il_ord),dim_divides(g_lo%ie_ord),dim_divides(g_lo%is_ord)
+    if(.not.(split_nicely(g_lo%il_ord).and.split_nicely(g_lo%ie_ord).and.split_nicely(g_lo%is_ord))) then
+       if(intspec_sub.and.proc0) write(error_unit(),'("Disabling intspec_sub -- il,ie,is split nicely ? ",3(L1," "))') split_nicely(g_lo%il_ord),split_nicely(g_lo%ie_ord),split_nicely(g_lo%is_ord)
        intspec_sub=.false.
     endif
 
