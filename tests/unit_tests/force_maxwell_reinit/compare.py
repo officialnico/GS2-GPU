@@ -23,10 +23,7 @@ def main():
     var1 = np.array(d1.variables[args.var1])
     var2 = np.array(d2.variables[args.var2])
 
-    err = abs(var1-var2)
-
-    eps = 1.e-8
-    if (err > eps).any():
+    if not np.allclose(var1, var2, atol=1e-15):
             exit(1)
     else:
             exit(0)
