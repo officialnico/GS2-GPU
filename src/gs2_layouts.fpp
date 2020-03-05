@@ -2615,7 +2615,8 @@ contains
     integer :: ik_min, it_min, ig_min, is_min
     integer :: ik_max, it_max, ig_max, is_max
     integer :: ik, it, ig, is, ile
-    integer :: tmp_flag
+    !> A temporary integer to represent, the ?_local logicals. Integer so we can use min_allreduce.
+    integer :: is_dim_local
 
 # ifdef USE_C_INDEX
     integer :: ierr
@@ -2739,25 +2740,25 @@ contains
     le_lo%t_local=(ig_min.eq.-ntgrid).and.(ig_max.eq.ntgrid)
     le_lo%s_local=(is_min.eq.1).and.(is_max.eq.nspec)
 
-    tmp_flag = 0
-    if(le_lo%x_local) tmp_flag = 1
-    call min_allreduce(tmp_flag)
-    if(tmp_flag == 0) le_lo%x_local = .false.
+    is_dim_local = 0
+    if(le_lo%x_local) is_dim_local = 1
+    call min_allreduce(is_dim_local)
+    if(is_dim_local == 0) le_lo%x_local = .false.
 
-    tmp_flag = 0
-    if(le_lo%y_local) tmp_flag = 1
-    call min_allreduce(tmp_flag)
-    if(tmp_flag == 0) le_lo%y_local = .false.
+    is_dim_local = 0
+    if(le_lo%y_local) is_dim_local = 1
+    call min_allreduce(is_dim_local)
+    if(is_dim_local == 0) le_lo%y_local = .false.
 
-    tmp_flag = 0
-    if(le_lo%t_local) tmp_flag = 1
-    call min_allreduce(tmp_flag)
-    if(tmp_flag == 0) le_lo%t_local = .false.
+    is_dim_local = 0
+    if(le_lo%t_local) is_dim_local = 1
+    call min_allreduce(is_dim_local)
+    if(is_dim_local == 0) le_lo%t_local = .false.
 
-    tmp_flag = 0
-    if(le_lo%s_local) tmp_flag = 1
-    call min_allreduce(tmp_flag)
-    if(tmp_flag == 0) le_lo%s_local = .false.
+    is_dim_local = 0
+    if(le_lo%s_local) is_dim_local = 1
+    call min_allreduce(is_dim_local)
+    if(is_dim_local == 0) le_lo%s_local = .false.
 
     !</DD>
 
