@@ -261,7 +261,7 @@ String libpath="${MY_NETCDF_LIB}:${MY_NETCDFF_LIB}:/opt/software/gcc-7.2.0/fftw/
                                 export USE_MPI=
 				export TESTEXEC="${params.testexec}"
 				export MAKEFLAGS=-IMakefiles DEBUG=on
-				pip install --user netCDF4
+				source .jenkins/set_python_env.sh
 				make tests
 				cd ../
 				rm -rf gs2
