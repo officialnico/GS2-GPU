@@ -18,7 +18,7 @@ standard_tests:
   before_script:
     - touch ${DID_I_FAIL}
     - BUILD_STATUS=running BUILD_KEY=push ./.push_gitlab_build_status ${CASENAME}
-    - apt-get update -qq && apt-get install -y -qq libfftw3-dev libnetcdf-dev libnetcdff-dev netcdf-bin openmpi-bin libopenmpi-dev gfortran cmake
+    - apt-get update -qq && apt-get install -y -qq libfftw3-dev libnetcdf-dev libnetcdff-dev netcdf-bin openmpi-bin libopenmpi-dev gfortran cmake python python-pip
     - pip install -r requirements.txt
     - adduser theuser --disabled-password --gecos ""
   script:
