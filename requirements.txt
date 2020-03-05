@@ -1,2 +1,2 @@
-numpy==1.11.0
-netCDF4==1.5.3
+numpy>=1.11.0
+netCDF4>=1.5.3
