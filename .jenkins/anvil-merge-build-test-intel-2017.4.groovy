@@ -239,6 +239,7 @@ String libpath="/opt/software/intel/compilers_and_libraries_2017.4.196/linux/mpi
 				module load ${params.modules}
 				export GK_SYSTEM=${params.GK_SYSTEM}
     				export LD_LIBRARY_PATH=${libpath}
+				.jenkins/set_python_env.sh
 				.jenkins/build.sh
 			"""
 		} catch(buildError) {
