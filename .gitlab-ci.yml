@@ -6,7 +6,11 @@ stages:
 variables:
   GIT_SUBMODULE_STRATEGY: recursive
   OMPI_MCA_rmaps_base_oversubscribe: "yes"
-
+  # The following required to avoid lots of "Read -1, expected _, errno = 38" issues
+  # Fix discussed at https://github.com/open-mpi/ompi/issues/4948, suggests newer mpi
+  # and docker may avoid this issue
+  OMPI_MCA_btl_vader_single_copy_mechanism: "none"
+  
 standard_tests:
   variables:
     CASENAME: "standard"
