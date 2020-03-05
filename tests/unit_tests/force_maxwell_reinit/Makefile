@@ -17,6 +17,10 @@ ifdef TESTNORUN
 all: test_force_maxwell_reinit 
 	$(call SKIPCOMMAND,variable TESTNORUN is defined; unset TESTNORUN to run this test)
 else
+ifndef USE_NETCDF
+all:
+	$(call SKIPCOMMAND,compiled without NetCDF library; compile with USE_NETCDF=on to run this test)
+else
 #Define this tests level
 MY_TEST_LEVEL=1
 VAL:= $(shell expr ${MY_TEST_LEVEL} \<= ${TEST_LEVEL})
@@ -29,6 +33,7 @@ all: test_force_maxwell_reinit
 	@$(TESTCOMMAND)../../../bin/gs2 initial.in > OUTPUT
 	@$(TESTCOMMAND)../../../bin/gs2 restart.in > OUTPUT
 	@$(PYTHONCOMPARE) ; rc=$$? ; if test "$$rc" != 0; then $(LOCALFAILCOMMAND) ; else $(LOCALPASSCOMMAND) ;  fi
+endif
 endif
 endif
 
