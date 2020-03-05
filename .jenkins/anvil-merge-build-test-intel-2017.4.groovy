@@ -238,7 +238,7 @@ String libpath="/opt/software/intel/compilers_and_libraries_2017.4.196/linux/mpi
 			sh """
 				module load ${params.modules}
 				export GK_SYSTEM=${params.GK_SYSTEM}
-    				export LD_LIBRARY_PATH=${libpath}
+				export LD_LIBRARY_PATH=\$LD_LIBRARY_PATH:${libpath}
 				.jenkins/build.sh
 			"""
 		} catch(buildError) {
@@ -257,7 +257,7 @@ String libpath="/opt/software/intel/compilers_and_libraries_2017.4.196/linux/mpi
 				export TESTEXEC="${params.testexec}"
 				module load ${params.modules}
 				export GK_SYSTEM=${params.GK_SYSTEM}
-    				export LD_LIBRARY_PATH=${libpath}
+				export LD_LIBRARY_PATH=\$LD_LIBRARY_PATH:${libpath}
 				source .jenkins/set_python_env.sh
 				.jenkins/test.sh
 			"""
