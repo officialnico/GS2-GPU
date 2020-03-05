@@ -1094,7 +1094,7 @@ contains
     end if
 
     !Store dimension locality -- WARNING these are only local
-    !properties currently, in paritcular if any dimensions don't split
+    !properties currently, in particular if any dimensions don't split
     !nicely we may find that we have different values for these flags
     !on different processors. There are two solutions to this. 1) we
     !can do a logical reduction on these variables, if this is false
