@@ -334,6 +334,12 @@ $(shell git diff -w -- .  > $(PATCHFILE))
 endif
 MACRO_DEFS+=-DGIT_PATCH_FILE='"$(PATCHFILE)"'
 
+######## PYTHON ###############################################################
+
+PYTHON_EXE=$(shell which python3)
+PYTHON_VERSION=$(shell python3 --version)
+
+###############################################################################
 
 # Define RUN_NAME_SIZE
 MACRO_DEFS+=-DRUN_NAME_SIZE=$(RUN_NAME_SIZE) 
@@ -921,6 +927,10 @@ test_make:
 	$(call messageKeyVal, "FPPFILES", $(FPPFILES))
 	$(call messageKeyVal, "F90FROMFPP", $(F90FROMFPP))
 	$(call messageKeyVal, "FORTFROMRUBY", $(FORTFROMRUBY))
+	@echo
+	$(call messageInfo,"PYTHON:")
+	$(call messageKeyVal, "PYTHON_EXE", $(PYTHON_EXE))
+	$(call messageKeyVal, "PYTHON_VERSION", $(PYTHON_VERSION))
 	@echo
 	$(call messageInfo,"PFUNIT:")
 	$(call messageKeyVal, "PFUNIT_VERSION_MAJOR", $(PFUNIT_VERSION_MAJOR))
