@@ -1264,7 +1264,7 @@ contains
     nproc_tmp=nproc
     !/Initialise
     nproc_dim=-1
-    dim_divides=.false.
+    dim_divides=.false. .or. (g_lo%dim_size == 1)
     dim_local=.false.
     do idim=5,1,-1
 
