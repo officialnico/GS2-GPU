@@ -1294,8 +1294,19 @@ contains
 
        !If this dimension doesn't divide perfectly then we exit
        !loop and leave other dims as "un-initialised"
+       !This is probably not ideal as it leaves dimensions as not dividing, even
+       !if we don't try to split them. We should probably work out _if_ there
+       !will be any attempts to split the next dimension, if not then we can say
+       !those to the left will divide nicely.
        if(.not.dim_divides(idim)) then
           nproc_dim(idim)=int(tmp_r-int(tmp_r))
+          !If we're not going to split the dimensions to the left
+          !we can set their properties correctly.
+          if (nproc_tmp .lt. g_lo%dim_size(idim)) then
+             dim_divides(1:idim-1) = .true.
+             dim_local(1:idim-1) = .true.
+             nproc_dim(1:idim-1) = 1
+          end if
           exit
        endif
 
