@@ -2750,7 +2750,7 @@ contains
     if(tmp_flag == 0) le_lo%y_local = .false.
 
     tmp_flag = 0
-    if(le_lo%g_local) tmp_flag = 1
+    if(le_lo%t_local) tmp_flag = 1
     call min_allreduce(tmp_flag)
     if(tmp_flag == 0) le_lo%t_local = .false.
 
