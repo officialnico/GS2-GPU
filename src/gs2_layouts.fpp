@@ -1092,7 +1092,17 @@ contains
        end if
 #endif
     end if
-    !Store dimension locality
+
+    !Store dimension locality -- WARNING these are only local
+    !properties currently, in paritcular if any dimensions don't split
+    !nicely we may find that we have different values for these flags
+    !on different processors. There are two solutions to this. 1) we
+    !can do a logical reduction on these variables, if this is false
+    !on any processor it must be false for all. 2) Use the dim_divides
+    !calculation to determine the locality directly from the
+    !breakdown.  We opt for approach 2 as it avoids communication, but
+    !leave this here for now as the MPI approach, whilst brute force,
+    !should always be correct so gives a good test case.
     g_lo%y_local=all(ik_local)
     g_lo%x_local=all(it_local)
     g_lo%l_local=all(il_local)
@@ -1319,6 +1329,15 @@ contains
        !Update the available processor count
        nproc_tmp=nproc_dim(idim)
     enddo
+
+    ! Update the ?_local flags to use this more appropriate calculation.
+    ! This avoids the earlier issue that these values could be set differently
+    ! on different processors when a dimension isn't split nicely.
+    g_lo%y_local=dim_local(g_lo%ik_ord)
+    g_lo%x_local=dim_local(g_lo%it_ord)
+    g_lo%l_local=dim_local(g_lo%il_ord)
+    g_lo%e_local=dim_local(g_lo%ie_ord)
+    g_lo%s_local=dim_local(g_lo%is_ord)
 
     ! Now set a flag to say if this dimension is split nicely based on
     ! dim_divides. We also say that any dimension with size exactly 1
