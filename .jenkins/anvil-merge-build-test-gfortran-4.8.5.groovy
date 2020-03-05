@@ -264,6 +264,7 @@ String libpath="${MY_NETCDF_LIB}:${MY_NETCDFF_LIB}:/opt/software/gcc-7.2.0/openm
 				export GK_SYSTEM=${params.GK_SYSTEM}
     				export LD_LIBRARY_PATH=${libpath}
                               	export MAKEFLAGS=-IMakefiles
+				ls /opt/software/python/3.6.0/lib
 				source .jenkins/set_python_env.sh
 				make tests TEST_LEVEL=2
 				cd ../
