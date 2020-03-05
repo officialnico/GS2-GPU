@@ -30,6 +30,7 @@ standard_tests:
     - rm ${DID_I_FAIL}
   after_script:
     - if [ -r ${DID_I_FAIL} ] ; then BUILD_STATUS=failed  BUILD_KEY=push ./.push_gitlab_build_status ${CASENAME}; fi
+  interruptible: true
 
 standard_tests_onestep:
   variables:
@@ -49,6 +50,7 @@ standard_tests_onestep:
     - su -c "whoami ; MAKEFLAGS=-IMakefiles GK_SYSTEM=bitbucket make USE_NEW_DIAG= -j pfunit_tests ONE_STEP_PP=on || (cat pfunit.log; BUILD_STATUS=pfunit_tests_failed  BUILD_KEY=push ./.push_gitlab_build_status ${CASENAME}; exit 1)" theuser
     - pipeline_test_scripts/didTestsFail.sh ${PWD}/tests results_of_test.txt  || (BUILD_STATUS=failed  BUILD_KEY=push ./.push_gitlab_build_status ${CASENAME}; exit 1)
     - BUILD_STATUS=passed  BUILD_KEY=push ./.push_gitlab_build_status ${CASENAME}
+  interruptible: true
 
 nodeps_tests:
   variables:
@@ -61,6 +63,7 @@ nodeps_tests:
     - su -c "whoami ; MAKEFLAGS=-IMakefiles GK_SYSTEM=bitbucket make USE_FFT= USE_NETCDF= USE_MPI= USE_NEW_DIAG= -j tests || (BUILD_STATUS=failed  BUILD_KEY=push ./.push_gitlab_build_status ${CASENAME}; exit 1)" theuser
     - pipeline_test_scripts/didTestsFail.sh ${PWD}/tests results_of_test.txt || (BUILD_STATUS=failed  BUILD_KEY=push ./.push_gitlab_build_status ${CASENAME}; exit 1)
     - BUILD_STATUS=passed  BUILD_KEY=push ./.push_gitlab_build_status ${CASENAME}
+  interruptible: true
 
 pages:
   stage: test
