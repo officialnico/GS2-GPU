@@ -15,3 +15,17 @@
   nstep = 100  ! default
 /
 
+&species_knobs
+/
+
+&species_parameters_1
+/
+
+&species_parameters_2
+/
+
+&dist_fn_species_knobs_1
+/
+
+&dist_fn_species_knobs_2
+/
