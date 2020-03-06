@@ -341,7 +341,7 @@ MACRO_DEFS+=-DGIT_PATCH_FILE='"$(PATCHFILE)"'
 PYTHON_EXE:=$(shell which $(GS2_PYTHON_NAME))
 GS2_HAS_PYTHON:=$(if $(PYTHON_EXE),yes,no)
 ifeq ($(GS2_HAS_PYTHON),yes)
-PYTHON_VERSION:=$(shell $(PYTHON_EXE) --version)
+PYTHON_VERSION:=$(shell $(PYTHON_EXE) --version 2>&1)
 endif
 
 ###############################################################################
