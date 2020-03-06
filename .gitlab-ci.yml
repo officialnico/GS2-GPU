@@ -22,8 +22,8 @@ standard_tests:
   before_script:
     - echo "before_script" > ${JOB_STATUS_FILE}
     - BUILD_STATUS=running BUILD_KEY=push ./.push_gitlab_build_status ${CASENAME}
-    - apt-get update -qq && apt-get install -y -qq libfftw3-dev libnetcdf-dev libnetcdff-dev netcdf-bin openmpi-bin libopenmpi-dev gfortran cmake python python-pip
-    - pip install -r requirements.txt
+    - apt-get update -qq && apt-get install -y -qq libfftw3-dev libnetcdf-dev libnetcdff-dev netcdf-bin openmpi-bin libopenmpi-dev gfortran cmake python3 python3-pip
+    - pip3 install -r requirements.txt
     - adduser theuser --disabled-password --gecos ""
   script:
     - su -c "whoami ; MAKEFLAGS=-IMakefiles GK_SYSTEM=bitbucket make USE_NEW_DIAG= build_pfunit_library || (echo 'build_pfunit_library_failed' > ${JOB_STATUS_FILE}; exit 1)" theuser
@@ -46,8 +46,8 @@ standard_tests_onestep:
   before_script:
     - echo "before_script" > ${JOB_STATUS_FILE}
     - BUILD_STATUS=running BUILD_KEY=push ./.push_gitlab_build_status ${CASENAME}
-    - apt-get update -qq && apt-get install -y -qq libfftw3-dev libnetcdf-dev libnetcdff-dev netcdf-bin openmpi-bin libopenmpi-dev gfortran cmake python python-pip
-    - pip install -r requirements.txt
+    - apt-get update -qq && apt-get install -y -qq libfftw3-dev libnetcdf-dev libnetcdff-dev netcdf-bin openmpi-bin libopenmpi-dev gfortran cmake python3 python3-pip
+    - pip3 install -r requirements.txt
     - adduser theuser --disabled-password --gecos ""
   script:
     - su -c "whoami ; MAKEFLAGS=-IMakefiles GK_SYSTEM=bitbucket make USE_NEW_DIAG= ONE_STEP_PP=on build_pfunit_library || (echo 'build_pfunit_library_failed' > ${JOB_STATUS_FILE}; exit 1)" theuser
@@ -79,8 +79,8 @@ nodeps_tests:
 pages:
   stage: test
   script:
-    - apt-get update -qq && apt-get install -y -qq libfftw3-dev libnetcdf-dev libnetcdff-dev netcdf-bin openmpi-bin libopenmpi-dev python python-pip gfortran
-    - pip install -r requirements.txt
+    - apt-get update -qq && apt-get install -y -qq libfftw3-dev libnetcdf-dev libnetcdff-dev netcdf-bin openmpi-bin libopenmpi-dev python3 python3-pip gfortran
+    - pip3 install -r requirements.txt
     - MAKEFLAGS=-IMakefiles GK_SYSTEM=bitbucket make USE_NEW_DIAG= doc
     - mv docs/html ./public
   artifacts:
