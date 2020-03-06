@@ -41,6 +41,7 @@ optional ones:
 - FFTW
 - LAPACK
 - NAG
+- python (for tests and documentation)
 
 ## Developing GS2
 
