@@ -113,6 +113,8 @@ GENQUAD ?=
 # Compile with gcov flags to check for code coverage
 USE_GCOV ?=
 HAS_GCOV=$(USE_GCOV)
+# Name of python exe
+GS2_PYTHON_NAME ?= python3
 
 # Compile with the new simplified diagnostics module (bin)
 USE_NEW_DIAG ?=on
@@ -336,8 +338,11 @@ MACRO_DEFS+=-DGIT_PATCH_FILE='"$(PATCHFILE)"'
 
 ######## PYTHON ###############################################################
 
-PYTHON_EXE=$(shell which python3)
-PYTHON_VERSION=$(shell python3 --version)
+PYTHON_EXE:=$(shell which $(GS2_PYTHON_NAME))
+GS2_HAS_PYTHON:=$(if $(PYTHON_EXE),yes,no)
+ifeq ($(GS2_HAS_PYTHON),yes)
+PYTHON_VERSION:=$(shell $(PYTHON_EXE) --version)
+endif
 
 ###############################################################################
 
@@ -929,6 +934,7 @@ test_make:
 	$(call messageKeyVal, "FORTFROMRUBY", $(FORTFROMRUBY))
 	@echo
 	$(call messageInfo,"PYTHON:")
+	$(call messageKeyVal, "GS2_HAS_PYTHON", $(GS2_HAS_PYTHON))
 	$(call messageKeyVal, "PYTHON_EXE", $(PYTHON_EXE))
 	$(call messageKeyVal, "PYTHON_VERSION", $(PYTHON_VERSION))
 	@echo
