@@ -935,6 +935,7 @@ test_make:
 	@echo
 	$(call messageInfo,"PYTHON:")
 	$(call messageKeyVal, "GS2_HAS_PYTHON", $(GS2_HAS_PYTHON))
+	$(call messageKeyVal, "GS2_PYTHON_NAME", $(GS2_PYTHON_NAME))
 	$(call messageKeyVal, "PYTHON_EXE", $(PYTHON_EXE))
 	$(call messageKeyVal, "PYTHON_VERSION", $(PYTHON_VERSION))
 	@echo
