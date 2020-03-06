@@ -139,7 +139,7 @@ test_script: test_script.sh
 
 test_script.sh: unit_tests_no_message linear_tests_no_message
 	echo "" > test_script.sh
-	find $(PWD)/$(TEST_DIR)/unit_tests -executable | grep '$(TEST_DIR)/unit_tests/.*/' | sed -e 's/^\(.\+\)$$/\1 $(BLUEGENEARGS) \1.in \&\&/' | sed -e 's/^/$(TESTEXEC) /'  >> test_script.sh
+	find $(PWD)/$(TEST_DIR)/unit_tests -executable | grep '$(TEST_DIR)/unit_tests/.*/' | sed -e 's/^\(.\+\)$$/\1 \1.in \&\&/' | sed -e 's/^/$(TESTEXEC) /'  >> test_script.sh
 	find $(PWD)/$(TEST_DIR)/linear_tests -executable | grep '$(TEST_DIR)/linear_tests/.*/' | sed -e 's/^\(.\+\)$$/\1 \1.in \&\&/' | sed -e 's/^/$(TESTEXEC) /'  >> test_script.sh
 	find $(PWD)/$(TEST_DIR)/nonlinear_tests -executable | grep '$(TEST_DIR)/nonlinear_tests/.*/' | sed -e 's/^\(.\+\)$$/\1 \1.in \&\&/' | sed -e 's/^/$(TESTEXEC) /'  >> test_script.sh
 	echo "echo \"Tests Successful\"" >> test_script.sh
