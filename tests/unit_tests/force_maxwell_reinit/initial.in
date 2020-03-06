@@ -5,6 +5,7 @@
 &gs2_diagnostics_knobs
   save_for_restart = .true.
   nsave = 100
+  write_fields = .true.
 /
 
 &init_g_knobs
