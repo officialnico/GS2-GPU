@@ -350,8 +350,6 @@ contains
     ! input file at the start of restarted runs.
     if (force_maxwell_reinit)then
       call set_init_fields
-      !if (.not. proc0) write (*,*) 'field value jjjj kkkk', phinew(-5, 3, 2), job_id
-      !if (.not. proc0) write (*,*) 'field value sum jjjj kkkk', sum(real(conjg(phinew)*phinew)), job_id
     else
 
        if(current%initval_ov%override .and. current%initval_ov%in_memory) then
