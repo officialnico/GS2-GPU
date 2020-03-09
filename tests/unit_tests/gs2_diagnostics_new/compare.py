@@ -17,11 +17,8 @@ d2 = Dataset(args.file2)
 var1 = np.array(d1.variables[args.var1])
 var2 = np.array(d2.variables[args.var2])
 
-err = abs(var1-var2)
-
-eps = 1.e-8
 text_file = open("tmpdata.dat", "w")
-if (err > eps).any():
+if not (var1 == var2).all():
 	text_file.write("F")
 else:
 	text_file.write("T")
