@@ -291,7 +291,6 @@ contains
     gnostics%ascii_files%write_to_jext   = gnostics%write_jext    .and.  gnostics%write_ascii
     gnostics%ascii_files%write_to_parity = gnostics%write_parity  .and.  gnostics%write_ascii
     gnostics%ascii_files%write_to_eigenfunc = gnostics%write_eigenfunc .and.  gnostics%write_ascii
-    !write (*,*) 'gnostics%ascii_files%write_to_heat2', gnostics%ascii_files%write_to_heat2
   end subroutine set_ascii_file_switches
 
   !> Close the output file and deallocate arrays
