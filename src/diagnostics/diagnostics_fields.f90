@@ -245,7 +245,7 @@ contains
     complex, dimension (ntheta0, naky) :: phi0
     complex, dimension (-ntgrid:ntgrid, ntheta0, naky) :: tmp
     integer :: it, ik, ig, ntg_out
-    real :: zero
+    real, parameter :: zero = epsilon(0.0)
     
     if(.not.proc0 .or. gnostics%replay) return
     
@@ -290,7 +290,6 @@ contains
          dim_string([gnostics%dims%ri,gnostics%dims%kx,gnostics%dims%ky]),&
          "Normalizing phase", "", phi0)
 
-    zero = epsilon(0.0)
     if(fphi > zero) then
       do ig = -ntgrid, ntgrid
          tmp(ig,:,:) = phi(ig,:,:)/phi0(:,:)
