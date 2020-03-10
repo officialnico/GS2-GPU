@@ -320,7 +320,6 @@ contains
      & else echo ""F"" > tmpdata.dat; fi"
     if (should_print(3)) write(*,*) trim(command)
     call execute_command_line(command)
-    !test_= .true.
     open(120349, file='tmpdata.dat')
     read(120349, '(L)') test_file
     close(120349)
