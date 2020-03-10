@@ -294,8 +294,8 @@ contains
      end if
     
     if (should_print(3)) write(*,*) trim(command)
-    call system(" echo ""F"" > tmpdata.dat")
-    call system(command)
+    call execute_command_line(" echo ""F"" > tmpdata.dat")
+    call execute_command_line(command)
     test_variable = .true.
     open(120349, file='tmpdata.dat')
     read(120349, '(L)') test_variable
@@ -319,7 +319,7 @@ contains
      & then echo ""T"" > tmpdata.dat; &
      & else echo ""F"" > tmpdata.dat; fi"
     if (should_print(3)) write(*,*) trim(command)
-    call system(command)
+    call execute_command_line(command)
     !test_= .true.
     open(120349, file='tmpdata.dat')
     read(120349, '(L)') test_file
