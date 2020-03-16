@@ -213,7 +213,7 @@ contains
        !Important to only do the following check and fix if nn0 > 0 as the second argument of `mod`
        !must be non-zero. Failing to guard against this can lead to different outcomes with different
        !compilers
-       if(nn0 .gt. 1) then
+       if(nn0 > 1) then
 
           !If toroidal mode number range would lead to non-integer mode numbers then
           !we adjust the range to try to fix this.
