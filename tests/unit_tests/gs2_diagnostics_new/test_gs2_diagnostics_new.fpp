@@ -56,6 +56,8 @@ program test_gs2_diagnostics_new
 
   if (precision(eps).lt. 11) eps = eps * 100.0
 
+    ! n_lines - number of lines at the end of file "run_name.variables(i)" to
+    !           compare as part of test
     variables(1) = 'lambda'
     n_lines(1) = '4'
     variables(2) = 'phi'
@@ -66,7 +68,7 @@ program test_gs2_diagnostics_new
     n_lines(4) = '10'
     variables(5) = 't'
     n_lines(5) = '5'
-    variables(6) = 'phi2_by_ky -p 6,9'
+    variables(6) = 'phi2_by_ky'
     n_lines(6) = '12'
     variables(7) = 'phi2_by_kx'
     n_lines(7) = '12'
@@ -95,8 +97,8 @@ program test_gs2_diagnostics_new
     new_variables(15) = 'omega_average'
     n_lines(15) = '4'
     
-    variables(16) = 'ntot00  -p 4,8'
-    new_variables(16) = 'ntot_flxsurf_avg  -p 4,8'
+    variables(16) = 'ntot00'
+    new_variables(16) = 'ntot_flxsurf_avg'
     n_lines(16) = '20'
 
     variables(17) = 'phi0'
@@ -107,7 +109,23 @@ program test_gs2_diagnostics_new
     new_variables(18) = 'apar_heat_flux_by_mode'
     n_lines(18) = '20'
 
-    n_vars = 18
+    variables(19) = 'phase'
+    new_variables(19) = 'phase'
+    n_lines(19) = '20'
+
+    variables(20) = 'phi_norm'
+    new_variables(20) = 'phi_norm'
+    n_lines(20) = '20'
+
+    variables(21) = 'apar_norm'
+    new_variables(21) = 'apar_norm'
+    n_lines(21) = '20'
+
+    variables(22) = 'bpar_norm'
+    new_variables(22) = 'bpar_norm'
+    n_lines(22) = '20'
+
+    n_vars = 22
 
 
       ! Note that heat and heat2 no longer pass because the comparison
@@ -129,8 +147,10 @@ program test_gs2_diagnostics_new
     n_lines_files(6) = '0'
     file_names(7) = 'parity'
     n_lines_files(7) = '34'
+    file_names(8) = 'eigenfunc'
+    n_lines_files(8) = '34'
 
-    n_file_names = 7
+    n_file_names = 8
 
     call init_mp
 
@@ -246,7 +266,7 @@ program test_gs2_diagnostics_new
 
    call close_module_test("gs2_diagnostics_new")
 
-    call finish_mp
+   call finish_mp
 
 contains
   
@@ -259,28 +279,18 @@ contains
     logical :: test_variable
     character(1000) ::  command 
     
-    test_variable=.true.
 #ifdef NEW_DIAG
-!    command = "if [ ""`ncdump -v "//var_name//" test_gs2_diagnostics_new.out.nc  | tail -n "//n_lines//"`"" = &
-!     &  ""`ncdump -v "//new_var_name//" test_gs2_diagnostics_new.cdf | tail -n "//n_lines//" `"" ]; &
-!     & then echo ""T"" > tmpdata.dat; fi"
-!    write(command,'("if [ ",A,"$(./getncdat ",A," ",A,")",A," &
-!      & = ",A,"$(./getncdat ",A," ",A,")",A," ] ; &
-!      & then echo ",A," > tmpdata.dat ; fi")') &
-!         '"',"test_gs2_diagnostics_new.out.nc",var_name,'"',&
-!         '"',"test_gs2_diagnostics_new.cdf",new_var_name,'"',"'T'"
-    
     command = ''
     if (gnostics%append_old) then 
       ! Here we are comparing the new diagnostics 200 step run with 
       ! a 100-step run with an appended 100 step run.
-      write(command,'("./compare ",A,A," ",A,A," ",A,A," ",A,A," ",A,A)') &
-         '"',"test_gs2_diagnostics_new.out.nc",var_name,'"',&
-         '"',"test_gs2_diagnostics_new_append.out.nc",new_var_name,'"'
+      write(command,'("./compare.py ",A," ",A," ",A," ",A," ",A," ",A," ",A," ",A," ",A," ",A)') &
+         "test_gs2_diagnostics_new.out.nc",var_name,&
+         "test_gs2_diagnostics_new_append.out.nc",new_var_name
     else 
-      write(command,'("./compare ",A,A," ",A,A," ",A,A," ",A,A," ",A,A)') &
-         '"',"old_diagnostics/test_gs2_diagnostics_new.out.nc",var_name,'"',&
-         '"',"test_gs2_diagnostics_new.out.nc",new_var_name,'"'
+      write(command,'("./compare.py ",A," ",A," ",A," ",A," ",A," ",A," ",A," ",A," ",A," ",A)') &
+         "old_diagnostics/test_gs2_diagnostics_new.out.nc",var_name,&
+         "test_gs2_diagnostics_new.out.nc",new_var_name
      end if
     
     if (should_print(3)) write(*,*) trim(command)
@@ -292,6 +302,7 @@ contains
     close(120349)
 #endif
   end function test_variable
+
   function test_file(file_name, n_lines)
     use unit_tests, only: should_print
     character(*), intent(in) :: file_name, n_lines
@@ -300,15 +311,15 @@ contains
     
     test_file=.true.
 #ifdef NEW_DIAG
+    ! bash command that compares the old and new diagnostics results for the last
+    ! n_lines lines of a file, and writes T to tmpdata.dat if they agree
     command = "if [ ""`cat old_diagnostics/test_gs2_diagnostics_new."//file_name//"  &
      & | tail -n "//n_lines//"`"" = &
      &  ""`cat test_gs2_diagnostics_new."//file_name//"   | tail -n "//n_lines//"`"" ]; &
-     & then echo ""T"" > tmpdata.dat; fi"
-    
+     & then echo ""T"" > tmpdata.dat; &
+     & else echo ""F"" > tmpdata.dat; fi"
     if (should_print(3)) write(*,*) trim(command)
-    call execute_command_line(" echo ""F"" > tmpdata.dat")
     call execute_command_line(command)
-    !test_= .true.
     open(120349, file='tmpdata.dat')
     read(120349, '(L)') test_file
     close(120349)
