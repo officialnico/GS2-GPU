@@ -1,0 +1,33 @@
+&fields_knobs
+  force_maxwell_reinit = .false.
+/
+
+&gs2_diagnostics_knobs
+  save_for_restart = .true.
+  write_fields = .true.
+/
+
+&init_g_knobs
+  ginit_option = "many"
+  restart_file="initial.nc"
+  restart_dir="."
+/
+
+&knobs
+  nstep = 0
+/
+
+&species_knobs
+/
+
+&species_parameters_1
+/
+
+&species_parameters_2
+/
+
+&dist_fn_species_knobs_1
+/
+
+&dist_fn_species_knobs_2
+/

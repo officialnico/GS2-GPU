@@ -17,15 +17,20 @@ module eigval
 #if PETSC_VERSION_LT(3,6,0)
 #include <finclude/petscvecdef.h>
 #include <finclude/petscmatdef.h>
-#else
+#elif PETSC_VERSION_LT(3,8,0)
 #include <petsc/finclude/petscvecdef.h>
 #include <petsc/finclude/petscmatdef.h>
+#else
+#include <petsc/finclude/petscvec.h>
+#include <petsc/finclude/petscmat.h>
 #endif
 
 #if SLEPC_VERSION_LT(3,6,0)
 #include <finclude/slepcepsdef.h>
-#else
+#elif SLEPC_VERSION_LT(3,8,0)
 #include <slepc/finclude/slepcepsdef.h>
+#else
+#include <slepc/finclude/slepceps.h>
 #endif
   
   private
@@ -578,7 +583,11 @@ contains
     call EPSCreate(PETSC_COMM_WORLD,eps_solver,ierr)
 
     !Set the matrix operator we want to find eigenvalues of
+#if PETSC_VERSION_LT(3,8,0)
     call EPSSetOperators(eps_solver,mat_operator,PETSC_NULL_OBJECT,ierr)
+#else
+    call EPSSetOperators(eps_solver,mat_operator,PETSC_NULL_MAT,ierr)
+#endif
 
     !Set the type of eigenproblem -->Always non-hermittian for us
     call EPSSetProblemType(eps_solver,EPS_NHEP,ierr)
@@ -594,8 +603,10 @@ contains
        !Setup vector
 #if PETSC_VERSION_LT(3,6,0)
        call MatGetVecs(mat_operator,PETSC_NULL_OBJECT,init_vec,ierr)
-#else
+#elif PETSC_VERSION_LT(3,8,0)
        call MatCreateVecs(mat_operator,PETSC_NULL_OBJECT,init_vec,ierr)
+#else
+       call MatCreateVecs(mat_operator,PETSC_NULL_VEC,init_vec,ierr)
 #endif
        call GnewToVec(init_vec)
 
@@ -962,9 +973,12 @@ contains
 #if PETSC_VERSION_LT(3,6,0)
        call MatGetVecs(my_operator,PETSC_NULL_OBJECT,eig_vec_r,ierr)
        call MatGetVecs(my_operator,PETSC_NULL_OBJECT,eig_vec_i,ierr)
-#else
+#elif PETSC_VERSION_LT(3,8,0)
        call MatCreateVecs(my_operator,PETSC_NULL_OBJECT,eig_vec_r,ierr)
        call MatCreateVecs(my_operator,PETSC_NULL_OBJECT,eig_vec_i,ierr)
+#else
+       call MatCreateVecs(my_operator,PETSC_NULL_VEC,eig_vec_r,ierr)
+       call MatCreateVecs(my_operator,PETSC_NULL_VEC,eig_vec_i,ierr)
 #endif
        if(proc0)call init_eigenfunc_file(trim(run_name)//"_eig.out.nc",fphi,fapar,fbpar,io_ids)
 
