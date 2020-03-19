@@ -769,7 +769,7 @@ contains
 #endif
     integer,dimension(5) :: nproc_dim
     integer,dimension(:),allocatable :: les_kxky_range
-    logical,dimension(5) :: dim_divides,dim_local
+    logical,dimension(5) :: dim_divides,dim_local, split_nicely
     logical,dimension(:),allocatable :: it_local, ik_local, il_local, ie_local, is_local
     integer,dimension(nproc) :: tmp_proc_list
     integer :: colour
@@ -1092,7 +1092,17 @@ contains
        end if
 #endif
     end if
-    !Store dimension locality
+
+    !Store dimension locality -- WARNING these are only local
+    !properties currently, in particular if any dimensions don't split
+    !nicely we may find that we have different values for these flags
+    !on different processors. There are two solutions to this. 1) we
+    !can do a logical reduction on these variables, if this is false
+    !on any processor it must be false for all. 2) Use the dim_divides
+    !calculation to determine the locality directly from the
+    !breakdown.  We opt for approach 2 as it avoids communication, but
+    !leave this here for now as the MPI approach, whilst brute force,
+    !should always be correct so gives a good test case.
     g_lo%y_local=all(ik_local)
     g_lo%x_local=all(it_local)
     g_lo%l_local=all(il_local)
@@ -1263,9 +1273,10 @@ contains
     !Now work out how the compound dimension splits amongst processors
     nproc_tmp=nproc
     !/Initialise
-    nproc_dim=-1
-    dim_divides=.false.
-    dim_local=.false.
+    nproc_dim = -1
+    dim_divides = .false. .or. (g_lo%dim_size == 1)
+    dim_local = dim_divides
+
     do idim=5,1,-1
 
        !If we are down to 1 proc then everything else is local
@@ -1294,8 +1305,19 @@ contains
 
        !If this dimension doesn't divide perfectly then we exit
        !loop and leave other dims as "un-initialised"
+       !This is probably not ideal as it leaves dimensions as not dividing, even
+       !if we don't try to split them. We should probably work out _if_ there
+       !will be any attempts to split the next dimension, if not then we can say
+       !those to the left will divide nicely.
        if(.not.dim_divides(idim)) then
           nproc_dim(idim)=int(tmp_r-int(tmp_r))
+          !If we're not going to split the dimensions to the left
+          !we can set their properties correctly.
+          if (nproc_tmp .lt. g_lo%dim_size(idim)) then
+             dim_divides(1:idim-1) = .true.
+             dim_local(1:idim-1) = .true.
+             nproc_dim(1:idim-1) = 1
+          end if
           exit
        endif
 
@@ -1308,6 +1330,23 @@ contains
        !Update the available processor count
        nproc_tmp=nproc_dim(idim)
     enddo
+
+    ! Update the ?_local flags to use this more appropriate calculation.
+    ! This avoids the earlier issue that these values could be set differently
+    ! on different processors when a dimension isn't split nicely.
+    g_lo%y_local=dim_local(g_lo%ik_ord)
+    g_lo%x_local=dim_local(g_lo%it_ord)
+    g_lo%l_local=dim_local(g_lo%il_ord)
+    g_lo%e_local=dim_local(g_lo%ie_ord)
+    g_lo%s_local=dim_local(g_lo%is_ord)
+
+    ! Now set a flag to say if this dimension is split nicely based on
+    ! dim_divides. We also say that any dimension with size exactly 1
+    ! is split nicely, as it must be.
+    split_nicely = .false.
+    do idim = 1, 5
+       split_nicely(idim) = all(dim_divides(1:idim)) .or. (g_lo%dim_size(idim) == 1)
+    end do
 
     !Now print some stuff for debugging
 !     if (proc0) then
@@ -1324,19 +1363,19 @@ contains
 
     !Now use the dimension splitting to work out if the various subcommunicators are
     !allowed.
-    if(.not.(dim_divides(g_lo%is_ord).and.dim_divides(g_lo%it_ord).and.dim_divides(g_lo%ik_ord))) then
-       if(intmom_sub.and.proc0) write(error_unit(),'("Disabling intmom_sub -- is,it,ik split nicely ? ",3(L1," "))') dim_divides(g_lo%is_ord),dim_divides(g_lo%it_ord),dim_divides(g_lo%ik_ord)
+    if(.not.(split_nicely(g_lo%is_ord).and.split_nicely(g_lo%it_ord).and.split_nicely(g_lo%ik_ord))) then
+       if(intmom_sub.and.proc0) write(error_unit(),'("Disabling intmom_sub -- is,it,ik split nicely ? ",3(L1," "))') split_nicely(g_lo%is_ord),split_nicely(g_lo%it_ord),split_nicely(g_lo%ik_ord)
        intmom_sub=.false.
     endif
-    if(.not.(dim_divides(g_lo%it_ord).and.dim_divides(g_lo%ik_ord))) then
-       if(intspec_sub.and.proc0) write(error_unit(),'("Disabling intspec_sub -- it,ik split nicely ? ",2(L1," "))') dim_divides(g_lo%it_ord),dim_divides(g_lo%ik_ord)
+    if(.not.(split_nicely(g_lo%it_ord).and.split_nicely(g_lo%ik_ord))) then
+       if(intspec_sub.and.proc0) write(error_unit(),'("Disabling intspec_sub -- it,ik split nicely ? ",2(L1," "))') split_nicely(g_lo%it_ord),split_nicely(g_lo%ik_ord)
        intspec_sub=.false.
     endif
     !Note that because we currently need to gather amongst LES blocks at the end of
     !integrate_species we need to make sure that LES blocks are also sensible
     !This could be removed if we don't want to gather in integrate_species
-    if(.not.(dim_divides(g_lo%il_ord).and.dim_divides(g_lo%ie_ord).and.dim_divides(g_lo%is_ord))) then
-       if(intspec_sub.and.proc0) write(error_unit(),'("Disabling intspec_sub -- il,ie,is split nicely ? ",3(L1," "))') dim_divides(g_lo%il_ord),dim_divides(g_lo%ie_ord),dim_divides(g_lo%is_ord)
+    if(.not.(split_nicely(g_lo%il_ord).and.split_nicely(g_lo%ie_ord).and.split_nicely(g_lo%is_ord))) then
+       if(intspec_sub.and.proc0) write(error_unit(),'("Disabling intspec_sub -- il,ie,is split nicely ? ",3(L1," "))') split_nicely(g_lo%il_ord),split_nicely(g_lo%ie_ord),split_nicely(g_lo%is_ord)
        intspec_sub=.false.
     endif
 
@@ -2570,13 +2609,15 @@ contains
 
   !> FIXME : Add documentation  
   subroutine init_le_layouts (ntgrid, naky, ntheta0, nspec)
-    use mp, only: iproc, nproc
+    use mp, only: iproc, nproc, min_allreduce
     use file_utils, only: error_unit
     implicit none
     integer, intent (in) :: ntgrid, naky, ntheta0, nspec
     integer :: ik_min, it_min, ig_min, is_min
     integer :: ik_max, it_max, ig_max, is_max
     integer :: ik, it, ig, is, ile
+    !> A temporary integer to represent, the ?_local logicals. Integer so we can use min_allreduce.
+    integer :: is_dim_local
 
 # ifdef USE_C_INDEX
     integer :: ierr
@@ -2692,12 +2733,35 @@ contains
        is_min=MIN(is,is_min)
     enddo
 
-    !Store dimension locality
+    !Store dimension locality -- WARNING these flags may not be
+    !globally correct, see g_lo comments for more details. Fixed here
+    !using the min_allreduce calls below.
     le_lo%x_local=(it_min.eq.1).and.(it_max.eq.ntheta0)
     le_lo%y_local=(ik_min.eq.1).and.(ik_max.eq.naky)
     le_lo%t_local=(ig_min.eq.-ntgrid).and.(ig_max.eq.ntgrid)
     le_lo%s_local=(is_min.eq.1).and.(is_max.eq.nspec)
-!</DD>
+
+    is_dim_local = 0
+    if(le_lo%x_local) is_dim_local = 1
+    call min_allreduce(is_dim_local)
+    if(is_dim_local == 0) le_lo%x_local = .false.
+
+    is_dim_local = 0
+    if(le_lo%y_local) is_dim_local = 1
+    call min_allreduce(is_dim_local)
+    if(is_dim_local == 0) le_lo%y_local = .false.
+
+    is_dim_local = 0
+    if(le_lo%t_local) is_dim_local = 1
+    call min_allreduce(is_dim_local)
+    if(is_dim_local == 0) le_lo%t_local = .false.
+
+    is_dim_local = 0
+    if(le_lo%s_local) is_dim_local = 1
+    call min_allreduce(is_dim_local)
+    if(is_dim_local == 0) le_lo%s_local = .false.
+
+    !</DD>
 
 # ifdef USE_C_INDEX
     ierr = init_indices_lelo_c (layout)

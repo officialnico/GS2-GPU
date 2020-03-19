@@ -1235,7 +1235,18 @@ contains
 
     if(initval_ov%in_memory)then
       initval_ov%g=gnew
-      if (.not. initval_ov%force_maxwell_reinit) then
+
+      ! Do not use the value from [old_iface_]state%init%initval_ov%force_maxwell_reinit = initval_ov%force_maxwell_reinit as
+      ! follows:
+      !     if (.not. initval_ov%force_maxwell_reinit) then
+      ! as was done previously. This is because this causes problems in gs2_init so we use the value from
+      ! fields::force_maxwell_reinit directly (see comments in gs2_init for details). To use here the value from
+      ! initval_ov%force_maxwell_reinit could result in inconsistent values being used in different parts of the code. Therefore, we
+      ! now use the value from fields::force_maxwell_reinit directly here too.  Now that the reference to
+      ! initval_ov%force_maxwell_reinit here has also been removed, this component is no longer referenced anywhere in the codebase.
+      ! Therefore, the force_maxwell_reinit component has been completely removed from the initial_values_overrides_type derived
+      ! type to avoid confusion in the future.
+      if (.not. force_maxwell_reinit) then
         if(fphi.gt.0) then
           initval_ov%phi=phinew
         end if
