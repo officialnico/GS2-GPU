@@ -24,7 +24,7 @@ module gs2_io
   integer (kind_nf) :: naky_dim, nakx_dim, nttot_dim, negrid_dim, nlambda_dim, nspec_dim, ncoord_dim, ncoordt_dim
   integer (kind_nf) :: nsign_dim, time_dim, char5_dim, char10_dim, char200_dim, ri_dim, nlines_dim, nheat_dim, vpa_dim
   integer (kind_nf) :: nttotext_dim, time_big_dim
-  integer (kind_nf) :: aref_id, zref_id, nref_id, tref_id, lref_id, vref_id, bref_id, rhoref_id
+  integer (kind_nf) :: aref_id, zref_id, nref_id, tref_id, mref_id, vref_id, bref_id, rhoref_id
 
   integer, dimension (6) :: lp_dim, mom_t_dim
   integer, dimension (5) :: field_dim, final_mom_dim, heatk_dim, err_dim
@@ -394,8 +394,8 @@ contains
     if (status /= NF90_NOERR) call netcdf_error (status, ncid, nref_id)
     status = nf90_put_var (ncid, tref_id, norms%get_value("tref"))
     if (status /= NF90_NOERR) call netcdf_error (status, ncid, tref_id)
-    status = nf90_put_var (ncid, lref_id, norms%get_value("lref"))
-    if (status /= NF90_NOERR) call netcdf_error (status, ncid, lref_id)
+    status = nf90_put_var (ncid, mref_id, norms%get_value("mref"))
+    if (status /= NF90_NOERR) call netcdf_error (status, ncid, mref_id)
     status = nf90_put_var (ncid, vref_id, norms%get_value("vref"))
     if (status /= NF90_NOERR) call netcdf_error (status, ncid, vref_id)
     status = nf90_put_var (ncid, bref_id, norms%get_value("bref"))
@@ -817,8 +817,8 @@ contains
     if (status /= NF90_NOERR) call netcdf_error (status, var='nref')
     status = nf90_def_var (ncid, 'tref', netcdf_real, tref_id)
     if (status /= NF90_NOERR) call netcdf_error (status, var='tref')
-    status = nf90_def_var (ncid, 'lref', netcdf_real, lref_id)
-    if (status /= NF90_NOERR) call netcdf_error (status, var='lref')
+    status = nf90_def_var (ncid, 'mref', netcdf_real, mref_id)
+    if (status /= NF90_NOERR) call netcdf_error (status, var='mref')
     status = nf90_def_var (ncid, 'vref', netcdf_real, vref_id)
     if (status /= NF90_NOERR) call netcdf_error (status, var='vref')
     status = nf90_def_var (ncid, 'bref', netcdf_real, bref_id)

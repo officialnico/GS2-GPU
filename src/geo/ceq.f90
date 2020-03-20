@@ -83,7 +83,16 @@ contains
     character (len=80) :: filename
     real :: f_N, psi_N
 
-    if(initeq == 0) return
+    ! Exit early if already initialised
+    if(initeq == 0) then
+      ! Ensure `nthg` gets set if exiting early or it may be uninitialised in
+      ! the calling procedure. The value it gets set to must be consistent
+      ! with the value set at the end of this subroutine when not exiting
+      ! early or the calling procedure may end up with inconsistently sized
+      ! arrays.
+      nthg = nt
+      return
+    endif
     
     if (.not.in_nt) then
        

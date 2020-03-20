@@ -4268,8 +4268,8 @@ contains
          phi_m = phigavg(ig+1)-phigavg(ig)
          ! RN> bdfac factors seem missing for apar_p
          apar_p = bdfac_p*apargavg(ig+1)+bdfac_m*apargavg(ig)
-         apar_m = bdfac_p*aparnew(ig+1,it,ik)+bdfac_m*aparnew(ig,it,ik) & 
-              -bdfac_p*apar(ig+1,it,ik)-bdfac_m*apar(ig,it,ik)
+         apar_m = bdfac_p * (aparnew(ig+1,it,ik) - apar(ig+1,it,ik)) + &
+              bdfac_m * (aparnew(ig,it,ik) - apar(ig,it,ik))
 
 !MAB, 6/5/2009:
 ! added the omprimfac source term arising with equilibrium flow shear  
@@ -4558,9 +4558,9 @@ contains
             phi_m = phigavg(ig+1)-phigavg(ig)
             ! RN> bdfac factors seem missing for apar_p
             apar_p = apargavg(ig+1)+apargavg(ig)
-            apar_m = aparnew(ig+1,it,ik)+aparnew(ig,it,ik) & 
-                 -apar(ig+1,it,ik)-apar(ig,it,ik)
-            
+            apar_m = (aparnew(ig+1,it,ik) - apar(ig+1,it,ik)) + &
+                 (aparnew(ig,it,ik) - apar(ig,it,ik))
+
             source(ig,isgn)=phi_m*source_coeffs(1,ig,isgn,iglo)+&
                  phi_p*source_coeffs(2,ig,isgn,iglo)+&
                  apar_m*source_coeffs(3,ig,isgn,iglo)+&

@@ -89,6 +89,8 @@ GENQUAD ?=
 # Compile with gcov flags to check for code coverage
 USE_GCOV ?=
 HAS_GCOV=$(USE_GCOV)
+# Name of python exe
+GS2_PYTHON_NAME ?= python3
 
 # Compile with the new simplified diagnostics module (bin)
 USE_NEW_DIAG ?=on
@@ -332,6 +334,15 @@ $(shell git diff -w -- .  > $(PATCHFILE))
 endif
 MACRO_DEFS+=-DGIT_PATCH_FILE='"$(PATCHFILE)"'
 
+######## PYTHON ###############################################################
+
+PYTHON_EXE:=$(shell which $(GS2_PYTHON_NAME))
+GS2_HAS_PYTHON:=$(if $(PYTHON_EXE),yes,no)
+ifeq ($(GS2_HAS_PYTHON),yes)
+PYTHON_VERSION:=$(shell $(PYTHON_EXE) --version 2>&1)
+endif
+
+###############################################################################
 
 # Define RUN_NAME_SIZE
 MACRO_DEFS+=-DRUN_NAME_SIZE=$(RUN_NAME_SIZE) 
@@ -930,6 +941,12 @@ test_make:
 	$(call messageKeyVal, "FPPFILES", $(FPPFILES))
 	$(call messageKeyVal, "F90FROMFPP", $(F90FROMFPP))
 	$(call messageKeyVal, "FORTFROMRUBY", $(FORTFROMRUBY))
+	@echo
+	$(call messageInfo,"PYTHON:")
+	$(call messageKeyVal, "GS2_HAS_PYTHON", $(GS2_HAS_PYTHON))
+	$(call messageKeyVal, "GS2_PYTHON_NAME", $(GS2_PYTHON_NAME))
+	$(call messageKeyVal, "PYTHON_EXE", $(PYTHON_EXE))
+	$(call messageKeyVal, "PYTHON_VERSION", $(PYTHON_VERSION))
 	@echo
 	$(call messageInfo,"PFUNIT:")
 	$(call messageKeyVal, "PFUNIT_VERSION_MAJOR", $(PFUNIT_VERSION_MAJOR))
