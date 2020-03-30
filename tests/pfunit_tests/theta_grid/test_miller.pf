@@ -1,0 +1,201 @@
+module test_theta_grid_miller_mod
+  use PFUNIT_MOD
+  implicit none
+
+  real, parameter :: tolerance = 1.0e-11
+
+contains
+
+  @before
+  subroutine setup(this)
+    use file_utils, only : initialized, run_name
+    use constants, only : run_name_size
+    use mp, only : init_mp
+
+    class (MpiTestMethod), intent(inout) :: this
+
+    call init_mp(this%getMpiCommunicator())
+
+    allocate(character(len=run_name_size)::run_name)
+    run_name = "test_theta_grid_miller"
+    initialized = .true.
+  end subroutine setup
+
+  @after
+  subroutine teardown(this)
+    use file_utils, only : initialized, run_name
+    use theta_grid, only : finish_theta_grid
+    use theta_grid_params, only : finish_theta_grid_params
+
+    class (MpiTestMethod), intent(inout) :: this
+
+    call finish_theta_grid
+    ! Need to explicitly call finish_theta_grid_params here because
+    ! finish_theta_grid _doesn't_ call it because "this is now handled
+    ! separately by gs2_init"
+    call finish_theta_grid_params
+
+    if (allocated(run_name)) deallocate(run_name)
+    initialized = .false.
+  end subroutine teardown
+
+  @test(npes=[1])
+  subroutine test_miller_eikcoefs(this)
+    use theta_grid_eik, only : theta_grid_eik_config_type, set_theta_grid_eik_config
+    use theta_grid_params, only : theta_grid_parameters_config_type, set_theta_grid_params_config
+    use theta_grid, only: bmag, grho, gbdrift, cvdrift, gds2, gds21, theta, theta_grid_config_type, set_theta_grid_config, init_theta_grid
+
+    implicit none
+
+    class(MPITestMethod), intent(inout) :: this
+
+    type(theta_grid_parameters_config_type) :: theta_grid_params_config
+    type(theta_grid_config_type) :: theta_grid_config
+    type(theta_grid_eik_config_type) :: theta_grid_eik_config
+
+    integer, parameter :: grid_size = 33
+
+    real, parameter :: expected_bmag(grid_size) = [ &
+         0.990894104566828, 0.990230629474429, 0.988289540740952, &
+         0.985100674218816, 0.980756384123103, 0.975351567198393, &
+         0.968967947082702, 0.961876871776874, 0.954114958294577, &
+         0.93734366136929, 0.919933653576351, 0.903392317922455, &
+         0.888524549211204, 0.87620532470962, 0.867104363900617, &
+         0.861492615953639, 0.859597143030485, 0.861492615953639, &
+         0.867104363900617, 0.87620532470962, 0.888524549211204, &
+         0.903392317922455, 0.919933653576351, 0.93734366136929, &
+         0.954114958294577, 0.961876871776874, 0.968967947082702, &
+         0.975351567198393, 0.980756384123103, 0.985100674218816, &
+         0.988289540740952, 0.990230629474429, 0.990894104566828 &
+         ]
+    real, parameter :: expected_grho(grid_size) = [ &
+         0.781943648575045, 0.780220596004828, 0.776014770429850, &
+         0.768748270605451, 0.759233386885267, 0.748042391277348, &
+         0.735946250614388, 0.724484226863444, 0.715182272410294, &
+         0.712665719710369, 0.750320156259619, 0.841972908689019, &
+         0.979948892394762, 1.134030022532600, 1.267561369300460, &
+         1.356063294319460, 1.386702010361190, 1.356063294319460, &
+         1.267561369300460, 1.134030022532600, 0.979948892394760, &
+         0.841972908689019, 0.750320156259619, 0.712665719710369, &
+         0.715182272410294, 0.724484226863444, 0.735946250614388, &
+         0.748042391277347, 0.759233386885267, 0.768748270605451, &
+         0.776014770429850, 0.780220596004828, 0.781943648575045 &
+         ]
+    real, parameter :: expected_gbdrift(grid_size) = [ &
+         -0.747708252680297, -0.706371081300484, -0.664795100033688, &
+         -0.622501288563042, -0.579323980561703, -0.534128406327253, &
+         -0.486008290350662, -0.435345858240023, -0.380878108274565, &
+         -0.262297552364679, -0.140138184037810, -0.0358748918526121, &
+         0.0488639928750531, 0.123089717758417, 0.185508107133491, &
+         0.228140113337704, 0.243297948051216, 0.228140113337704, &
+         0.18550810713349, 0.123089717758417, 0.048863992875052, &
+         -0.0358748918526117, -0.14013818403781, -0.262297552364679, &
+         -0.380878108274564, -0.435345858240023, -0.486008290350662, &
+         -0.534128406327251, -0.579323980561703, -0.622501288563042, &
+         -0.664795100033691, -0.706371081300489, -0.747708252680297 &
+         ]
+    real, parameter :: expected_cvdrift(grid_size) = [ &
+         -0.673036466796932, -0.631588446606282, -0.589736714506845, &
+         -0.546956675636816, -0.503115854789239, -0.457086814279026, &
+         -0.407967673072361, -0.356178260156541, -0.300454560238858, &
+         -0.179049058381449, -0.0536813324086593, 0.053997808035211, &
+         0.142047789205761, 0.219086341003571, 0.283581066041592, &
+         0.327483912708784, 0.343068685451976, 0.327483912708784, &
+         0.283581066041591, 0.219086341003571, 0.14204778920576, &
+         0.0539978080352114, -0.0536813324086592, -0.179049058381449, &
+         -0.300454560238857, -0.356178260156542, -0.407967673072361, &
+         -0.457086814279024, -0.503115854789239, -0.546956675636816, &
+         -0.589736714506848, -0.631588446606287, -0.673036466796932 &
+         ]
+    real, parameter :: expected_gds2(grid_size) = [ &
+         2.29008065199946, 2.22942331101754, 2.17329759898412, &
+         2.12243750433447, 2.07575083944781, 2.03066732241664, &
+         1.98427619082273, 1.93382433897332, 1.87440433662686, &
+         1.71594328315711, 1.49687624300548, 1.25252362054053, &
+         1.0182051580772, 0.795171227114309, 0.590999602469358, &
+         0.440107537273544, 0.383997407012626, 0.440107537273546, &
+         0.59099960246936, 0.795171227114309, 1.0182051580772, &
+         1.25252362054053, 1.49687624300548, 1.71594328315711, &
+         1.87440433662686, 1.93382433897332, 1.98427619082273, &
+         2.03066732241664, 2.07575083944781, 2.12243750433447, &
+         2.17329759898412, 2.22942331101755, 2.29008065199947 &
+         ]
+    real, parameter :: expected_gds21(grid_size) = [ &
+         0.223719396038408, 0.212584647182999, 0.199986955006285, &
+         0.185460874109635, 0.169330198130758, 0.151352258125506, &
+         0.13122490348833, 0.109157167850341, 0.0846311406848634, &
+         0.028926919772887, -0.0335943556555319, -0.0967948099520018, &
+         -0.149551630676875, -0.172617273633045, -0.151761700834844, &
+         -0.0885667800428974, 0.0, 0.0885667800428985, &
+         0.151761700834845, 0.172617273633045, 0.149551630676875, &
+         0.0967948099520021, 0.0335943556555319, -0.028926919772887, &
+         -0.0846311406848633, -0.109157167850341, -0.13122490348833, &
+         -0.151352258125505, -0.169330198130759, -0.185460874109636, &
+         -0.199986955006287, -0.212584647183001, -0.223719396038409 &
+         ]
+    real, parameter :: expected_theta(grid_size) = [ &
+         -3.14159265358979, -2.96909691483081, -2.79753624140583, &
+         -2.62691063331481, -2.45995122460437, -2.29564390653795, &
+         -2.13398867911553, -1.97902030603011, -1.82790760022706, &
+         -1.54168052849789, -1.27627882252284, -1.03444601532502, &
+         -0.809104557779855, -0.596535696876655, -0.393953292215471, &
+         -0.19590929198706, -4.44089209850063e-16, 0.195909291987062, &
+         0.393953292215472, 0.596535696876654, 0.809104557779858, &
+         1.03444601532502, 1.27627882252284, 1.54168052849789, 1.82790760022705, &
+         1.97902030603012, 2.13398867911553, 2.29564390653794, 2.45995122460437, &
+         2.62691063331481, 2.79753624140584, 2.96909691483083, 3.14159265358979 &
+         ]
+
+    theta_grid_params_config = theta_grid_parameters_config_type( &
+         rhoc = 0.28877366171282209, &
+         qinp = 2.1141399689990714, &
+         shat = 0.28528707850004253, &
+         rmaj = 4.0290413411315864, &
+         r_geo = 3.7037019408376142, &
+         akappa = 1.4251250154536228, &
+         akappri = -0.31983736119476358, &
+         tri = 1.6569129718903225E-003, &
+         tripri = 8.4063006762328751E-002, &
+         shift = -0.27886453432060698, &
+         nperiod = 1, &
+         ntheta = 32 &
+         )
+    call theta_grid_params_config%setup("theta_grid_params", requires_index=.false.)
+    call set_theta_grid_params_config(theta_grid_params_config)
+
+    theta_grid_config = theta_grid_config_type(equilibrium_option = "eik")
+    call theta_grid_config%setup("theta_grid", requires_index=.false.)
+    call set_theta_grid_config(theta_grid_config)
+
+    theta_grid_eik_config  = theta_grid_eik_config_type( &
+         itor = 1, &
+         iflux = 0, &
+         irho = 2, &
+         local_eq = .true., &
+         bishop = 4, &
+         delrho = 0.001, &
+         isym = 0, &
+         ppl_eq = .false., &
+         gen_eq = .false., &
+         efit_eq = .false., &
+         equal_arc = .true., &
+         writelots = .false., &
+         beta_prime_input = -7.3746392639128452E-002, &
+         s_hat_input = 0.26742081952674540 &
+         )
+    call theta_grid_eik_config%setup("eik_knobs", requires_index=.false.)
+    call set_theta_grid_eik_config(theta_grid_eik_config)
+
+    call init_theta_grid
+
+    @assertEqual(theta, expected_theta, tolerance=tolerance, message="theta")
+    @assertEqual(bmag, expected_bmag, tolerance=tolerance, message="Bmag")
+    @assertEqual(grho, expected_grho, tolerance=tolerance, message="grho")
+    @assertEqual(gbdrift, expected_gbdrift, tolerance=tolerance, message="gbdrift")
+    @assertEqual(cvdrift, expected_cvdrift, tolerance=tolerance, message="cvdrift")
+    @assertEqual(gds2, expected_gds2, tolerance=tolerance, message="gds2")
+    @assertEqual(gds21, expected_gds21, tolerance=tolerance, message="gds21")
+
+  end subroutine test_miller_eikcoefs
+
+end module test_theta_grid_miller_mod
