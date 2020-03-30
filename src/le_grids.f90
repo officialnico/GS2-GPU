@@ -4007,10 +4007,9 @@ contains
     if (allocated(recvcnts_intspec)) deallocate (recvcnts_intspec)
     if (allocated(displs_intspec)) deallocate (displs_intspec)
 
-    deallocate(nonmaxw_corr)
-    deallocate(f0_values)
-    deallocate(dlnf0drho)
-
+    if (allocated(nonmaxw_corr)) deallocate(nonmaxw_corr)
+    if (allocated(f0_values)) deallocate(f0_values)
+    if (allocated(dlnf0drho)) deallocate(dlnf0drho)
 
     !Deallocate redistribute maps
     call delete_redist(lambda_map)

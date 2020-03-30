@@ -179,6 +179,12 @@ contains
 ! Need to generalize initialization condition if equilibrium changes
 
 if (debug) write(6,*) "gs2din: initeq=",initeq
+    ! WARNING: Exiting early without setting `nthg` may result in `nthg`
+    ! being uninitialised in the calling procedure. The value it gets set to
+    ! must be consistent with the value set at the end of this subroutine
+    ! when not exiting early or the calling procedure may end up with
+    ! inconsistently sized arrays. This is expected to affect `ideal_ball`
+    ! (unconfirmed) but not `gs2` (also unconfirmed).
     if(initeq == 0) return
     init=0
     
@@ -384,6 +390,12 @@ if (debug) write(6,*) "gs2din: B_T0, aminor, psi_0, psi_a=", B_T0, aminor, psi_0
 ! Need to generalize initialization condition if equilibrium changes
 
     if (verbosity>2) write (*,*) 'Starting efitin'
+    ! WARNING: Exiting early without setting `nthg` may result in `nthg`
+    ! being uninitialised in the calling procedure. The value it gets set to
+    ! must be consistent with the value set at the end of this subroutine
+    ! when not exiting early or the calling procedure may end up with
+    ! inconsistently sized arrays. This is expected to affect `ideal_ball`
+    ! (unconfirmed) but not `gs2` (also unconfirmed).
     if(initeq == 0) return
     init=0
     
