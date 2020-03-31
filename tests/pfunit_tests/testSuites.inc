@@ -1,4 +1,4 @@
 ADD_TEST_SUITE(test_antenna_data_mod_suite)
 ADD_TEST_SUITE(test_leq_mod_suite)
 ADD_TEST_SUITE(test_asym_geo_regression_mod_suite)
-ADD_TEST_SUITE(test_theta_grid_miller_mod_suite)
+ADD_TEST_SUITE(test_theta_grid_mod_suite)
