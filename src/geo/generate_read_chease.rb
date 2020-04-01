@@ -45,6 +45,7 @@ module read_chease
   private
 
   public :: read_infile
+  public :: finish
 
   public :: npsi_chease, nchi_chease 
   public :: psi_chease, chi_chease
@@ -76,7 +77,7 @@ contains
     write(*, *) nchi_chease, "<---nchi_chease"
 
     #{zero_dim_vars.map{ |v| "read(infile, *)
-    read(infile, *) #{v}"}.join("\n    ")}
+    read(infile, *) #{v}"}.join("\n\n    ")}
 
     allocate(psi_chease(npsi_chease))
     read(infile, *)
@@ -88,11 +89,11 @@ contains
 
     #{one_dim_vars.map{|v| "allocate(#{v}(npsi_chease))
     read(infile, *)
-    read(infile, *) #{v}
+    read(infile, *) #{v}"}.join("\n\n    ")}
 
     #{two_dim_vars.map{|v| "allocate(#{v}(npsi_chease,nchi_chease))
     read(infile, *)
-    read(infile, *) #{v}
+    read(infile, *) #{v}"}.join("\n\n    ")}
   end subroutine read_infile
 
   subroutine finish

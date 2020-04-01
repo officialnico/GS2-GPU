@@ -5,6 +5,7 @@
 !! Written by Edmund Highcock
 !! edmundhighcock@sourceforge.net
 !!
+!! This is free software released under the MIT Licence
 !!
 !! Available quantities are:
 !! 
@@ -164,6 +165,7 @@ contains
 
     read(infile, *)
     read(infile, *) r0exp_chease
+
     read(infile, *)
     read(infile, *) b0exp_chease
 
@@ -298,15 +300,15 @@ contains
     allocate(signeo_chease(npsi_chease))
     read(infile, *)
     read(infile, *) signeo_chease
-        
+
     allocate(jbsbav_chease(npsi_chease))
     read(infile, *)
     read(infile, *) jbsbav_chease
-    
+
     allocate(g11_chease(npsi_chease,nchi_chease))
     read(infile, *)
     read(infile, *) g11_chease
-    
+
     allocate(g12_chease(npsi_chease,nchi_chease))
     read(infile, *)
     read(infile, *) g12_chease
