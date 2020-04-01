@@ -2,6 +2,8 @@ module test_ceq_mod
   use PFUNIT_MOD
   implicit none
 
+  real, parameter :: value_tolerance = 5.e-12
+
 contains
 
   @before
@@ -81,5 +83,145 @@ contains
     @assertEqual(-1.5, avgrmid, message="avgrmid")
     @assertEqual(3, ntheta, message="ntheta")
   end subroutine test_ceqin
+
+  @test
+  subroutine test_mod2pi()
+    use constants, only : pi
+    use ceq, only : ceq_testing_type
+    type(ceq_testing_type) :: ceq_privates
+
+    @assertEqual(0.0, ceq_privates%mod2pi(0.0), tolerance=value_tolerance)
+    @assertEqual(1.0, ceq_privates%mod2pi(1.0), tolerance=value_tolerance)
+    @assertEqual(-1.0, ceq_privates%mod2pi(-1.0), tolerance=value_tolerance)
+    @assertEqual(pi, ceq_privates%mod2pi(pi), tolerance=value_tolerance)
+    @assertEqual(-pi, ceq_privates%mod2pi(-pi), tolerance=value_tolerance)
+    @assertEqual(0.0, ceq_privates%mod2pi(2. * pi), tolerance=value_tolerance)
+    @assertEqual(0.0, ceq_privates%mod2pi(-2. * pi), tolerance=value_tolerance)
+    @assertEqual(pi / 2., ceq_privates%mod2pi(2. * pi + (pi/2.)), tolerance=value_tolerance)
+    @assertEqual(-pi / 2., ceq_privates%mod2pi(pi + (pi/2.)), tolerance=value_tolerance)
+  end subroutine test_mod2pi
+
+  @test
+  subroutine test_initialize_invR
+    use ceq, only : initialize_invR
+    @assertEqual(1, initialize_invR(0))
+    @assertEqual(1, initialize_invR(1))
+  end subroutine test_initialize_invR
+
+  @test
+  subroutine test_invR
+    use ceq, only : invR
+  end subroutine test_invR
+
+  @test
+  subroutine test_initialize_rcenter
+    use ceq, only : initialize_rcenter
+    @assertEqual(1, initialize_rcenter(0))
+    @assertEqual(1, initialize_rcenter(1))
+  end subroutine test_initialize_rcenter
+
+  @test
+  subroutine test_rcenter
+    use ceq, only : rcenter
+  end subroutine test_rcenter
+
+  @test
+  subroutine test_initialize_diameter
+    use ceq, only : initialize_diameter
+    @assertEqual(1, initialize_diameter(0))
+    @assertEqual(1, initialize_diameter(1))
+  end subroutine test_initialize_diameter
+
+  @test
+  subroutine test_diameter
+    use ceq, only : diameter
+  end subroutine test_diameter
+
+  @test
+  subroutine test_initialize_btori
+    use ceq, only : initialize_btori
+    @assertEqual(1, initialize_btori(0))
+    @assertEqual(1, initialize_btori(1))
+  end subroutine test_initialize_btori
+
+  @test
+  subroutine test_btori
+    use ceq, only : btori
+  end subroutine test_btori
+
+  @test
+  subroutine test_initialize_dbtori
+    use ceq, only : initialize_dbtori
+    @assertEqual(1, initialize_dbtori(0))
+    @assertEqual(1, initialize_dbtori(1))
+  end subroutine test_initialize_dbtori
+
+  @test
+  subroutine test_dbtori
+    use ceq, only : dbtori
+  end subroutine test_dbtori
+
+  @test
+  subroutine test_initialize_q
+    use ceq, only : initialize_q
+    @assertEqual(1, initialize_q(0))
+    @assertEqual(1, initialize_q(1))
+  end subroutine test_initialize_q
+
+  @test
+  subroutine test_qfun
+    use ceq, only : qfun
+  end subroutine test_qfun
+
+  @test
+  subroutine test_initialize_pressure
+    use ceq, only : initialize_pressure
+    @assertEqual(1, initialize_pressure(0))
+    @assertEqual(1, initialize_pressure(1))
+  end subroutine test_initialize_pressure
+
+  @test
+  subroutine test_pfun
+    use ceq, only : pfun
+  end subroutine test_pfun
+
+  @test
+  subroutine test_initialize_dpressure
+    use ceq, only : initialize_dpressure
+    @assertEqual(1, initialize_dpressure(0))
+    @assertEqual(1, initialize_dpressure(1))
+  end subroutine test_initialize_dpressure
+
+  @test
+  subroutine test_dpfun
+    use ceq, only : dpfun
+  end subroutine test_dpfun
+
+  @test
+  subroutine test_initialize_beta
+    use ceq, only : initialize_beta
+    @assertEqual(1, initialize_beta(0))
+    @assertEqual(1, initialize_beta(1))
+  end subroutine test_initialize_beta
+
+  @test
+  subroutine test_betafun
+    use ceq, only : betafun
+  end subroutine test_betafun
+
+  @test
+  subroutine test_initialize_psi
+    use ceq, only : initialize_psi
+    @assertEqual(1, initialize_psi(0))
+    @assertEqual(1, initialize_psi(1))
+  end subroutine test_initialize_psi
+
+  @test
+  subroutine test_psi
+    use ceq, only : psi
+    @assertEqual(-1., psi(-1.))
+    @assertEqual(0., psi(0.))
+    @assertEqual(1.5, psi(1.5))
+  end subroutine test_psi
 
 end module test_ceq_mod

@@ -57,6 +57,7 @@ module ceq
     procedure, nopass :: dealloc_arrays
     procedure, nopass :: set_ntnr
     procedure, nopass :: set_ceq_from_chease
+    procedure, nopass :: mod2pi
   end type ceq_testing_type
 
 contains
