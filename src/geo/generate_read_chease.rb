@@ -97,9 +97,9 @@ contains
   end subroutine read_infile
 
   subroutine finish
-    deallocate(psi_chease)
-    deallocate(chi_chease)
-    #{(one_dim_vars + two_dim_vars).map{|v| "deallocate(#{v})"}.join("\n    ")}
+    if (allocated(psi_chease)) deallocate(psi_chease)
+    if (allocated(chi_chease)) deallocate(chi_chease)
+    #{(one_dim_vars + two_dim_vars).map{|v| "if (allocated(#{v})) deallocate(#{v})"}.join("\n    ")}
   end subroutine finish
 end module read_chease
 
