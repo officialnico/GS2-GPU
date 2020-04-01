@@ -56,6 +56,7 @@ module ceq
     procedure, nopass :: alloc_arrays
     procedure, nopass :: dealloc_arrays
     procedure, nopass :: set_ntnr
+    procedure, nopass :: set_ceq_from_chease
   end type ceq_testing_type
 
 contains
@@ -89,18 +90,13 @@ contains
   !> FIXME : Add documentation  
   subroutine ceqin(eqfile, psi_0_out, psi_a_out, rmaj, B_T0, &
        avgrmid, initeq, in_nt, nthg) 
-    use constants, only: pi
-    use read_chease, only: read_infile, npsi_chease, nchi_chease, b0exp_chease
-    use read_chease, only: psi_chease, f_chease, q_chease, p_chease
-    use read_chease, only: r_chease, z_chease
+    use read_chease, only: read_infile
     implicit none
     character(len=*), intent(in) :: eqfile
     real, intent(out) :: psi_0_out, psi_a_out, rmaj, B_T0, avgrmid
     integer, intent(in) :: initeq
     logical, intent(in) :: in_nt 
     integer, intent(out) :: nthg
-    real :: d, R_geo
-    integer :: i,j
     real :: f_N, psi_N
 
     ! Exit early if already initialised
@@ -119,66 +115,8 @@ contains
        write (*,*)  'Reading CHEASE input file: ', trim(eqfile)
        !    Read the data
        call read_infile(trim(eqfile))
-       !     nr == number of actual grid points in radial array
-       nr = npsi_chease
-       
-       !     nt == number of theta grid points in theta eq grid
-       nt = nchi_chease + 1
-       B_norm_chease = b0exp_chease
 
-       call alloc_arrays(nr, nt)
-
-       !     eqpsi(1:nr) == values of psi on the radial grid
-       eqpsi = psi_chease
-
-
-       !     fp(1:nr) == the function that satisfies 
-       !              B = fp grad zeta + grad zeta x grad psi
-       fp = f_chease
-
-       qsf = q_chease
-       
-       !     pressure(1:nr) == pressure profile on the radial grid,
-       !     normalized to the value at the magnetic axis.     
-       pressure = p_chease
-
-
-       !     psi_0 == value of psi at the magnetic axis
-       !     psi_a == value of psi at the boundary of the plasma
-       psi_0 = eqpsi(1)
-       psi_a = eqpsi(nr)
-       psi_bar = (eqpsi-psi_0)/(psi_a-psi_0)
-
-       do j=1,nt
-          do i=1,nr
-             R_psi(i,j) = r_chease(i,chease_chi_index(nchi_chease, j))
-          enddo
-       enddo
-
-       do j=1,nt
-          do i=1,nr
-             Z_psi(i,j) = z_chease(i,chease_chi_index(nchi_chease, j)) 
-          enddo
-       enddo
-
-       !     aminor    == half diameter of last flux surface at elevation of Z_mag
-       d = R_psi(nr,nt/2+1) - R_psi(nr,1)
-       R_geo = (R_psi(nr,nt/2+1) + R_psi(nr, 1))/2.
-       aminor = d/2.
-       
-       B_T = fp(nr)/R_geo
-
-       R_psi = R_psi / aminor
-       Z_psi = Z_psi / aminor
-
-       !     R_mag == R position of magnetic axis
-       !     Z_mag == Z position of magnetic axis
-       R_mag = R_psi(1,1)
-       Z_mag = Z_psi(1,1)
-
-       beta = 8. * pi * 1.e-7 * pressure / b0exp_chease**2  ! not correct definition yet
-       beta_0 = beta(1)
-       pressure = pressure/pressure(1)
+       call set_ceq_from_chease
     endif
                        
     !
@@ -217,6 +155,80 @@ contains
        write (*,*) 'beta', beta_0
     end if
   end subroutine ceqin
+
+  !> Set the ceq module-level variables from the read_chease module
+  !> variables.
+  !>
+  !> This involves changing the theta grid from 0 to 2pi => -pi to pi,
+  !> adding a point at theta == 0, and some normalisations
+  subroutine set_ceq_from_chease
+    use constants, only: pi
+    use read_chease, only: npsi_chease, nchi_chease, b0exp_chease
+    use read_chease, only: psi_chease, f_chease, q_chease, p_chease
+    use read_chease, only: r_chease, z_chease
+
+    real :: d, R_geo
+    integer :: i, j
+
+    !     nr == number of actual grid points in radial array
+    nr = npsi_chease
+
+    !     nt == number of theta grid points in theta eq grid
+    nt = nchi_chease + 1
+    B_norm_chease = b0exp_chease
+
+    call alloc_arrays(nr, nt)
+
+    !     eqpsi(1:nr) == values of psi on the radial grid
+    eqpsi = psi_chease
+
+    !     fp(1:nr) == the function that satisfies
+    !              B = fp grad zeta + grad zeta x grad psi
+    fp = f_chease
+
+    qsf = q_chease
+
+    !     pressure(1:nr) == pressure profile on the radial grid,
+    !     normalized to the value at the magnetic axis.
+    pressure = p_chease
+
+    !     psi_0 == value of psi at the magnetic axis
+    !     psi_a == value of psi at the boundary of the plasma
+    psi_0 = eqpsi(1)
+    psi_a = eqpsi(nr)
+    psi_bar = (eqpsi-psi_0)/(psi_a-psi_0)
+
+    do j=1,nt
+      do i=1,nr
+        R_psi(i,j) = r_chease(i,chease_chi_index(nchi_chease, j))
+      enddo
+    enddo
+
+    do j=1,nt
+      do i=1,nr
+        Z_psi(i,j) = z_chease(i,chease_chi_index(nchi_chease, j))
+      enddo
+    enddo
+
+    !     aminor    == half diameter of last flux surface at elevation of Z_mag
+    d = R_psi(nr,nt/2+1) - R_psi(nr,1)
+    R_geo = (R_psi(nr,nt/2+1) + R_psi(nr, 1))/2.
+    aminor = d/2.
+
+    B_T = fp(nr)/R_geo
+
+    R_psi = R_psi / aminor
+    Z_psi = Z_psi / aminor
+
+    !     R_mag == R position of magnetic axis
+    !     Z_mag == Z position of magnetic axis
+    R_mag = R_psi(1,1)
+    Z_mag = Z_psi(1,1)
+
+    beta = 8. * pi * 1.e-7 * pressure / b0exp_chease**2  ! not correct definition yet
+    beta_0 = beta(1)
+    pressure = pressure/pressure(1)
+  end subroutine set_ceq_from_chease
 
   !> FIXME : Add documentation
   subroutine alloc_arrays(nr, nt)
