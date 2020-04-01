@@ -35,11 +35,10 @@ contains
   subroutine test_ceqin
     use ceq, only : ceqin
 
-    character(len=80), parameter :: eqfile = "tests/pfunit_tests/theta_grid/ogyropsi.dat"
     real :: psi_0_out, psi_a_out, rmaj, B_T0, avgrmid
     integer :: ntheta
 
-    call ceqin(eqfile, &
+    call ceqin("tests/pfunit_tests/theta_grid/ogyropsi.dat", &
          psi_0_out, psi_a_out, rmaj, B_T0, avgrmid, &
          initeq=1, in_nt=.false., nthg=ntheta)
 

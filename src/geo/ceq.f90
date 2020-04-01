@@ -94,15 +94,13 @@ contains
     use read_chease, only: psi_chease, f_chease, q_chease, p_chease
     use read_chease, only: r_chease, z_chease
     implicit none
-    character(len=80), intent(in) :: eqfile
+    character(len=*), intent(in) :: eqfile
     real, intent(out) :: psi_0_out, psi_a_out, rmaj, B_T0, avgrmid
     integer, intent(in) :: initeq
     logical, intent(in) :: in_nt 
     integer, intent(out) :: nthg
     real :: d, R_geo
     integer :: i,j
-    integer :: nchar
-    character (len=80) :: filename
     real :: f_N, psi_N
 
     ! Exit early if already initialised
@@ -118,11 +116,9 @@ contains
     
     if (.not.in_nt) then
        
-       nchar=index(eqfile,' ')-1
-       filename=eqfile(1:nchar)
-       write (*,*)  'Reading CHEASE input file: ', eqfile
+       write (*,*)  'Reading CHEASE input file: ', trim(eqfile)
        !    Read the data
-       call read_infile(filename)
+       call read_infile(trim(eqfile))
        !     nr == number of actual grid points in radial array
        nr = npsi_chease
        
