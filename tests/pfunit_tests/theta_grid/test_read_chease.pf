@@ -1,0 +1,81 @@
+module test_read_chease_mod
+  use PFUNIT_MOD
+  implicit none
+
+contains
+  @before
+  subroutine setup(this)
+    use read_chease, only : finish
+    class (MpiTestMethod), intent(inout) :: this
+    call finish
+  end subroutine setup
+
+  @after
+  subroutine teardown(this)
+    use read_chease, only : finish
+    class (MpiTestMethod), intent(inout) :: this
+    call finish
+  end subroutine teardown
+
+  @test(npes=[1])
+  subroutine test_read_chease(this)
+    use read_chease
+    class (MpiTestMethod), intent(inout) :: this
+    call read_infile("tests/pfunit_tests/theta_grid/chease_data.fake")
+
+    @assertEqual(1, psi_chease, message="psi_chease")
+    @assertEqual(2, chi_chease, message="chi_chease")
+    @assertEqual(3, npsi_chease, message="npsi_chease")
+    @assertEqual(4, r0exp_chease, message="r0exp_chease")
+    @assertEqual(5, nchi_chease, message="nchi_chease")
+    @assertEqual(6, b0exp_chease, message="b0exp_chease")
+    @assertEqual(7, rgeom_chease, message="rgeom_chease")
+    @assertEqual(8, ageom_chease, message="ageom_chease")
+    @assertEqual(9, q_chease, message="q_chease")
+    @assertEqual(10, dqdpsi_chease, message="dqdpsi_chease")
+    @assertEqual(11, d2qdpsi2_chease, message="d2qdpsi2_chease")
+    @assertEqual(12, p_chease, message="p_chease")
+    @assertEqual(13, dpdpsi_chease, message="dpdpsi_chease")
+    @assertEqual(14, f_chease, message="f_chease")
+    @assertEqual(15, fdfdpsi_chease, message="fdfdpsi_chease")
+    @assertEqual(16, v_chease, message="v_chease")
+    @assertEqual(17, rho_t_chease, message="t_chease")
+    @assertEqual(18, shear_chease, message="shear_chease")
+    @assertEqual(19, dsheardpsi_chease, message="dsheardpsi_chease")
+    @assertEqual(20, kappa_chease, message="kappa_chease")
+    @assertEqual(21, delta_lower_chease, message="lower_chease")
+    @assertEqual(22, delta_upper_chease, message="upper_chease")
+    @assertEqual(23, dvdpsi_chease, message="dvdpsi_chease")
+    @assertEqual(24, dpsidrhotor_chease, message="dpsidrhotor_chease")
+    @assertEqual(25, gdpsi_av_chease, message="av_chease")
+    @assertEqual(26, radius_av_chease, message="av_chease")
+    @assertEqual(27, r_av_chease, message="av_chease")
+    @assertEqual(28, te_chease, message="te_chease")
+    @assertEqual(29, dtedpsi_chease, message="dtedpsi_chease")
+    @assertEqual(30, ne_chease, message="ne_chease")
+    @assertEqual(31, dnedpsi_chease, message="dnedpsi_chease")
+    @assertEqual(32, ti_chease, message="ti_chease")
+    @assertEqual(33, dtidpsi_chease, message="dtidpsi_chease")
+    @assertEqual(34, ni_chease, message="ni_chease")
+    @assertEqual(35, dnidpsi_chease, message="dnidpsi_chease")
+    @assertEqual(36, zeff_chease, message="zeff_chease")
+    @assertEqual(37, signeo_chease, message="signeo_chease")
+    @assertEqual(38, jbsbav_chease, message="jbsbav_chease")
+    @assertEqual(39, g11_chease, message="g11_chease")
+    @assertEqual(40, g12_chease, message="g12_chease")
+    @assertEqual(41, g22_chease, message="g22_chease")
+    @assertEqual(42, g33_chease, message="g33_chease")
+    @assertEqual(43, b_chease, message="b_chease")
+    @assertEqual(44, dbdpsi_chease, message="dbdpsi_chease")
+    @assertEqual(45, dbdchi_chease, message="dbdchi_chease")
+    @assertEqual(46, dpsidr_chease, message="dpsidr_chease")
+    @assertEqual(47, dpsidz_chease, message="dpsidz_chease")
+    @assertEqual(48, dchidr_chease, message="dchidr_chease")
+    @assertEqual(49, dchidz_chease, message="dchidz_chease")
+    @assertEqual(50, jacobian_chease, message="jacobian_chease")
+    @assertEqual(51, r_chease, message="r_chease")
+    @assertEqual(52, z_chease, message="z_chease")
+
+  end subroutine test_read_chease
+
+end module test_read_chease_mod
