@@ -98,7 +98,6 @@ module read_chease
   integer :: npsi_chease, nchi_chease 
   real, dimension (:), allocatable :: psi_chease,chi_chease  
   integer :: infile=1212
-  integer, parameter :: ncols = 5
 
   real :: r0exp_chease
   real :: b0exp_chease

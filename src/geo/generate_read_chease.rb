@@ -56,7 +56,6 @@ module read_chease
   integer :: npsi_chease, nchi_chease 
   real, dimension (:), allocatable :: psi_chease,chi_chease  
   integer :: infile=1212
-  integer, parameter :: ncols = 5
 
   #{zero_dim_vars.map{|v| "real :: #{v}"}.join("\n  ")}
   #{one_dim_vars.map{|v| "real, dimension(:), allocatable :: #{v}"}.join("\n  ")}
