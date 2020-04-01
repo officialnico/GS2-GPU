@@ -29,25 +29,57 @@ contains
     @assertEqual(2, ceq_privates%chease_chi_index(nchi, 6))
     @assertEqual(3, ceq_privates%chease_chi_index(nchi, 7))
     @assertEqual(4, ceq_privates%chease_chi_index(nchi, 8))
+    @assertEqual(5, ceq_privates%chease_chi_index(nchi, 9))
   end subroutine test_chease_chi_index
 
   @test
   subroutine test_ceqin
+    use ceq, only : ceq_testing_type
     use ceq, only : ceqin
+    use read_chease, only: npsi_chease, nchi_chease, b0exp_chease, &
+         psi_chease, f_chease, q_chease, p_chease, &
+         r_chease, z_chease
 
     real :: psi_0_out, psi_a_out, rmaj, B_T0, avgrmid
     integer :: ntheta
 
-    call ceqin("tests/pfunit_tests/theta_grid/ogyropsi.dat", &
-         psi_0_out, psi_a_out, rmaj, B_T0, avgrmid, &
-         initeq=1, in_nt=.false., nthg=ntheta)
+    type(ceq_testing_type) :: ceq_privates
 
-    @assertEqual(0, psi_0_out, message="psi_0_out")       
-    @assertEqual(0.17011372120713303, psi_a_out, message="psi_a_out")
-    @assertEqual(4.0632397500000002, rmaj, message="rmaj")
-    @assertEqual(1., B_T0, message="B_T0")
-    @assertEqual(0.27, avgrmid, message="avgrmid")
-    @assertEqual(201, ntheta, message="ntheta")
+    npsi_chease = 3
+    nchi_chease = 2
+
+    b0exp_chease = 1
+
+    allocate(psi_chease(npsi_chease))
+    allocate(f_chease(npsi_chease))
+    allocate(q_chease(npsi_chease))
+    allocate(p_chease(npsi_chease))
+    allocate(r_chease(npsi_chease, nchi_chease))
+    allocate(z_chease(npsi_chease, nchi_chease))
+
+    psi_chease = [1., 2., 3.]
+    f_chease = [0.5, 0., -0.5]
+    q_chease = [4., 9., 16.]
+    p_chease = [3., 5., 7.]
+    r_chease = reshape([0., 1., 2., &
+                        3., 4., 5.], &
+                        shape=shape(r_chease))
+    z_chease = reshape([10., 21., 32., &
+                        43., 54., 65.], &
+                        shape=shape(z_chease))
+
+    call ceq_privates%set_ceq_from_chease
+
+    call ceqin("this won't be read", &
+         psi_0_out, psi_a_out, rmaj, B_T0, avgrmid, &
+         initeq=1, in_nt=.true., nthg=ntheta)
+
+    @assertEqual(3.1111111, psi_0_out, tolerance=1e-5, message="psi_0_out")
+    @assertEqual(9.3333333, psi_a_out, tolerance=1e-5, message="psi_a_out")
+    @assertEqual(-2., rmaj, message="rmaj")
+    @assertEqual(0.5/3.5, B_T0, message="B_T0")
+    @assertEqual(-1.5, avgrmid, message="avgrmid")
+    @assertEqual(3, ntheta, message="ntheta")
   end subroutine test_ceqin
-  
+
 end module test_ceq_mod
