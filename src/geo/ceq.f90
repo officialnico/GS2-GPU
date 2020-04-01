@@ -230,10 +230,13 @@ contains
     pressure = pressure/pressure(1)
   end subroutine set_ceq_from_chease
 
-  !> FIXME : Add documentation
+  !> Allocate module-level arrays
   subroutine alloc_arrays(nr, nt)
     implicit none
-    integer, intent(in) :: nr, nt
+    !> Number of points in radial direction
+    integer, intent(in) :: nr
+    !> Number of points in theta direction
+    integer, intent(in) :: nt
 
     allocate(rho_d(nr), eqpsi(nr), psi_bar(nr), fp(nr), beta(nr), pressure(nr), &
          rc(nr), diam(nr), qsf(nr), rho_b(nr))
@@ -252,7 +255,7 @@ contains
 
   end subroutine alloc_arrays
 
-  !> FIXME : Add documentation  
+  !> Deallocate module-level arrays
   subroutine dealloc_arrays
     implicit none
     if(allocated(rho_d)) deallocate(rho_d,eqpsi,psi_bar,fp,beta,pressure,rc,diam,qsf,rho_b)
