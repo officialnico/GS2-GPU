@@ -262,10 +262,12 @@ contains
     if(allocated(dpbish)) deallocate(dpbish,dtbish,dbtbish)
   end subroutine dealloc_arrays
 
-  !> FIXME : Add documentation  
+  !> Finish this module; deallocate arrays
   subroutine ceq_finish
+    use read_chease, only : finish
     implicit none
     call dealloc_arrays
+    call finish
   end subroutine ceq_finish
 
   !> FIXME : Add documentation  
