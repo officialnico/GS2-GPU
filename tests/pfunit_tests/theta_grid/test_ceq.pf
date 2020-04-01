@@ -85,6 +85,25 @@ contains
   end subroutine test_ceqin
 
   @test
+  subroutine test_ceqin_non_init
+    use ceq, only : ceq_testing_type
+    use ceq, only : ceqin
+    type(ceq_testing_type) :: ceq_privates
+
+    real :: psi_0_out, psi_a_out, rmaj, B_T0, avgrmid
+    integer :: ntheta
+
+    integer, parameter :: expected_ntheta = 3
+
+    call ceq_privates%set_ntnr(expected_ntheta, 4)
+    call ceqin("this won't be read", &
+         psi_0_out, psi_a_out, rmaj, B_T0, avgrmid, &
+         initeq=0, in_nt=.true., nthg=ntheta)
+
+    @assertEqual(expected_ntheta, ntheta)
+  end subroutine test_ceqin_non_init
+
+  @test
   subroutine test_mod2pi()
     use constants, only : pi
     use ceq, only : ceq_testing_type
