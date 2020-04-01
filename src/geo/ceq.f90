@@ -624,15 +624,15 @@ contains
 
   end subroutine eqdbish
 
-  !> FIXME : Add documentation
+  !> If \p init == 1, set flag to initialize invR spline when
+  !> `invR` is called
+  ! FIXME: this _always_ returns 1, change to subroutine
   function initialize_invR (init) 
     implicit none
     integer :: init, initialize_invR
     
-    init_invR = .false.
-    if(init == 1) init_invR = .true.
+    init_invR = (init == 1)
     initialize_invR = 1
-
   end function initialize_invR
 
   !> FIXME : Add documentation  
@@ -677,16 +677,16 @@ contains
     
   end function Zpos
 
-  !> FIXME : Add documentation
+  !> If \p init == 1, set flag to initialize psi spline when
+  !> `psi` is called
+  ! FIXME: this _always_ returns 1, change to subroutine
   function initialize_psi (init) 
     implicit none
     integer, intent(in) :: init
     integer :: initialize_psi
     
-    init_psi = .false.
-    if(init == 1) init_psi = .true.
+    init_psi = (init == 1)
     initialize_psi = 1
-
   end function initialize_psi
 
   !> FIXME : Add documentation  
@@ -722,14 +722,15 @@ contains
     mod2pi=th
   end function mod2pi
 
-  !> FIXME : Add documentation
+  !> If \p init == 1, set flag to initialize diameter spline when
+  !> `diameter` is called
+  ! FIXME: this _always_ returns 1, change to subroutine
   function initialize_diameter (init)
     implicit none
     integer, intent(in) :: init
     integer :: initialize_diameter
-    
-    init_diameter = .false.
-    if(init == 1) init_diameter = .true.
+
+    init_diameter = (init == 1)
     initialize_diameter = 1
 
   end function initialize_diameter
@@ -752,16 +753,16 @@ contains
 
   end function diameter
 
-  !> FIXME : Add documentation
+  !> If \p init == 1, set flag to initialize rcenter spline when
+  !> `rcenter` is called
+  ! FIXME: this _always_ returns 1, change to subroutine
   function initialize_rcenter (init)
     implicit none
     integer, intent(in) :: init
     integer :: initialize_rcenter
-    
-    init_rcenter = .false.
-    if(init == 1) init_rcenter = .true.
-    initialize_rcenter = 1
 
+    init_rcenter = (init == 1)
+    initialize_rcenter = 1
   end function initialize_rcenter
 
   !> FIXME : Add documentation  
@@ -782,16 +783,16 @@ contains
 
   end function rcenter
 
-  !> FIXME : Add documentation
+  !> If \p init == 1, set flag to initialize dbtori spline when
+  !> `dbtori` is called
+  ! FIXME: this _always_ returns 1, change to subroutine
   function initialize_dbtori (init) 
     implicit none
     integer, intent(in) :: init
     integer :: initialize_dbtori
-    
-    init_dbtori = .false.
-    if(init == 1) init_dbtori = .true.
-    initialize_dbtori = 1
 
+    init_dbtori = (init == 1)
+    initialize_dbtori = 1
   end function initialize_dbtori
 
   !> FIXME : Add documentation
@@ -809,14 +810,15 @@ contains
 
   end function dbtori
 
-  !> FIXME : Add documentation  
+  !> If \p init == 1, set flag to initialize btori spline when
+  !> `btori` is called
+  ! FIXME: this _always_ returns 1, change to subroutine
   function initialize_btori (init)
     implicit none
     integer, intent(in) :: init
     integer :: initialize_btori
-    
-    init_btori = .false.
-    if(init == 1) init_btori = .true.
+
+    init_btori = (init == 1)
     initialize_btori = 1
   end function initialize_btori
   
@@ -834,16 +836,16 @@ contains
     btori = splint(pbar, spl)
   end function btori
 
-  !> FIXME : Add documentation  
+  !> If \p init == 1, set flag to initialize q spline when
+  !> `qfun` is called
+  ! FIXME: this _always_ returns 1, change to subroutine
   function initialize_q (init) 
     implicit none
     integer, intent(in) :: init
     integer :: initialize_q
-    
-    init_q = .false.
-    if(init == 1) init_q = .true.
-    initialize_q = 1
 
+    init_q = (init == 1)
+    initialize_q = 1
   end function initialize_q
 
   !> FIXME : Add documentation
@@ -861,16 +863,16 @@ contains
 
   end function qfun
 
-  !> FIXME : Add documentation
+  !> If \p init == 1, set flag to initialize pressure spline when
+  !> `pfun` is called
+  ! FIXME: this _always_ returns 1, change to subroutine
   function initialize_pressure (init) 
     implicit none
     integer, intent(in) :: init
     integer :: initialize_pressure
-    
-    init_pressure = .false.
-    if(init == 1) init_pressure = .true.
-    initialize_pressure = 1
 
+    init_pressure = (init == 1)
+    initialize_pressure = 1
   end function initialize_pressure
 
   !> FIXME : Add documentation
@@ -890,16 +892,16 @@ contains
 
   end function pfun
 
-  !> FIXME : Add documentation  
+  !> If \p init == 1, set flag to initialize dpressure spline when
+  !> `dpfun` is called
+  ! FIXME: this _always_ returns 1, change to subroutine
   function initialize_dpressure (init) 
     implicit none
     integer, intent(in) :: init
     integer :: initialize_dpressure
-    
-    init_dpressure = .false.
-    if(init == 1) init_dpressure = .true.
-    initialize_dpressure = 1
 
+    init_dpressure = (init == 1)
+    initialize_dpressure = 1
   end function initialize_dpressure
 
   !> FIXME : Add documentation  
@@ -921,16 +923,16 @@ contains
 
   end function dpfun
 
-  !> FIXME : Add documentation  
-  function initialize_beta (init) 
+  !> If \p init == 1, set flag to initialize beta spline when
+  !> `betafun` is called
+  ! FIXME: this _always_ returns 1, change to subroutine
+  function initialize_beta (init)
     implicit none
     integer, intent(in) :: init
     integer :: initialize_beta
-    
-    init_beta = .false.
-    if(init == 1) init_beta = .true.
-    initialize_beta = 1
 
+    init_beta = (init == 1)
+    initialize_beta = 1
   end function initialize_beta
 
   !> FIXME : Add documentation  
