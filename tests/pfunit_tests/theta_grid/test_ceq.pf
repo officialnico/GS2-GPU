@@ -1,0 +1,54 @@
+module test_ceq_mod
+  use PFUNIT_MOD
+  implicit none
+
+contains
+
+  @before
+  subroutine setup
+    ! DANGER: Empty setup to workaround bug in pfunit
+  end subroutine setup
+
+  @after
+  subroutine teardown
+    use ceq, only : ceq_finish
+    call ceq_finish
+  end subroutine teardown
+
+  @test
+  subroutine test_chease_chi_index
+    use ceq, only : ceq_testing_type
+    type(ceq_testing_type) :: ceq_privates
+    integer, parameter :: nchi = 8
+
+    @assertEqual(5, ceq_privates%chease_chi_index(nchi, 1))
+    @assertEqual(6, ceq_privates%chease_chi_index(nchi, 2))
+    @assertEqual(7, ceq_privates%chease_chi_index(nchi, 3))
+    @assertEqual(8, ceq_privates%chease_chi_index(nchi, 4))
+    @assertEqual(1, ceq_privates%chease_chi_index(nchi, 5))
+    @assertEqual(2, ceq_privates%chease_chi_index(nchi, 6))
+    @assertEqual(3, ceq_privates%chease_chi_index(nchi, 7))
+    @assertEqual(4, ceq_privates%chease_chi_index(nchi, 8))
+  end subroutine test_chease_chi_index
+
+  @test
+  subroutine test_ceqin
+    use ceq, only : ceqin
+
+    character(len=80), parameter :: eqfile = "tests/pfunit_tests/theta_grid/ogyropsi.dat"
+    real :: psi_0_out, psi_a_out, rmaj, B_T0, avgrmid
+    integer :: ntheta
+
+    call ceqin(eqfile, &
+         psi_0_out, psi_a_out, rmaj, B_T0, avgrmid, &
+         initeq=1, in_nt=.false., nthg=ntheta)
+
+    @assertEqual(0, psi_0_out, message="psi_0_out")       
+    @assertEqual(0.17011372120713303, psi_a_out, message="psi_a_out")
+    @assertEqual(4.0632397500000002, rmaj, message="rmaj")
+    @assertEqual(1., B_T0, message="B_T0")
+    @assertEqual(0.27, avgrmid, message="avgrmid")
+    @assertEqual(201, ntheta, message="ntheta")
+  end subroutine test_ceqin
+  
+end module test_ceq_mod

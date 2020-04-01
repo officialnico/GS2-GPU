@@ -20,6 +20,8 @@ module ceq
   public :: psi,      initialize_psi
   public :: eqdbish
 
+  public :: ceq_testing_type
+
   private
 
   integer :: nr, nt
@@ -47,9 +49,29 @@ module ceq
 
   logical, parameter :: debug = .true.
 
+  !> Expose private routines for testing only!
+  type :: ceq_testing_type
+  contains
+    procedure, nopass :: chease_chi_index
+    procedure, nopass :: alloc_arrays
+    procedure, nopass :: dealloc_arrays
+    procedure, nopass :: set_ntnr
+  end type ceq_testing_type
+
 contains
-  
-  !> FIXME : Add documentation  
+
+  !> Set module-level `nt`, `nr`
+  !! PURELY FOR TESTING
+  !! FIXME: Remove when we have more control over module-level variables for testing
+  subroutine set_ntnr(ntheta, nradius)
+    integer, intent(in) :: ntheta, nradius
+    nt = ntheta
+    nr = nradius
+  end subroutine set_ntnr
+
+  !> Convert from theta-index which is -pi to pi, to chi-index, which
+  !> is 0 to 2*pi.
+  !> Assumes nchi is even?
   function chease_chi_index(nchi,itheta)
     integer, intent(in) :: nchi, itheta
     integer :: chease_chi_index
