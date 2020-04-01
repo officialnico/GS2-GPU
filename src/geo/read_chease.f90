@@ -149,6 +149,8 @@ module read_chease
   real, dimension(:,:), allocatable :: r_chease
   real, dimension(:,:), allocatable :: z_chease
 
+  logical, parameter :: debug = .true.
+
 contains
   subroutine read_infile(filename)
     implicit none
@@ -157,11 +159,11 @@ contains
 
     read(infile, *)
     read(infile, *) npsi_chease
-    write(*, *) npsi_chease, "<---npsi_chease"
+    if (debug) write(*, *) npsi_chease, "<---npsi_chease"
 
     read(infile, *)
     read(infile, *) nchi_chease
-    write(*, *) nchi_chease, "<---nchi_chease"
+    if (debug) write(*, *) nchi_chease, "<---nchi_chease"
 
     read(infile, *)
     read(infile, *) r0exp_chease

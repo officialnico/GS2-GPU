@@ -62,6 +62,8 @@ module read_chease
   #{one_dim_vars.map{|v| "real, dimension(:), allocatable :: #{v}"}.join("\n  ")}
   #{two_dim_vars.map{|v| "real, dimension(:,:), allocatable :: #{v}"}.join("\n  ")}
 
+  logical, parameter :: debug = .true.
+
 contains
   subroutine read_infile(filename)
     implicit none
@@ -70,11 +72,11 @@ contains
 
     read(infile, *)
     read(infile, *) npsi_chease
-    write(*, *) npsi_chease, "<---npsi_chease"
+    if (debug) write(*, *) npsi_chease, "<---npsi_chease"
 
     read(infile, *)
     read(infile, *) nchi_chease
-    write(*, *) nchi_chease, "<---nchi_chease"
+    if (debug) write(*, *) nchi_chease, "<---nchi_chease"
 
     #{zero_dim_vars.map{ |v| "read(infile, *)
     read(infile, *) #{v}"}.join("\n\n    ")}
