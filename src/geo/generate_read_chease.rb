@@ -66,7 +66,7 @@ module read_chease
 contains
   subroutine read_infile(filename)
     implicit none
-    character(len=80), intent(in) :: filename
+    character(len=*), intent(in) :: filename
     open(infile,file= filename)
 
     read(infile, *)
