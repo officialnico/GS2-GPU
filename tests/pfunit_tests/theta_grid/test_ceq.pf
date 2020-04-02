@@ -381,8 +381,99 @@ contains
 
   @test
   subroutine test_invR
-    use ceq, only : invR
+    use constants, only : pi
+    use ceq, only : invR, ceq_testing_type
+
+    type(ceq_testing_type) :: ceq_privates
+
+    integer, parameter :: nradius = 3
+    integer, parameter :: ntheta = 5
+    integer, parameter :: total_size(2) = [nradius, ntheta]
+    real, parameter :: theta_grid_spacing = 2 * pi / (ntheta - 1)
+
+    real, dimension(nradius, ntheta) :: R_psi
+
+    integer :: i, j
+
+    R_psi = reshape([([(i*i*cos(j * theta_grid_spacing - pi), &
+         i=1, nradius)], j=0, ntheta-1)], total_size)
+
+    call ceq_privates%set_nrnt(nradius, ntheta)
+    call ceq_privates%alloc_arrays(nradius, ntheta)
+
+    call ceq_privates%set_eqpsi([1., 2., 3.])
+    call ceq_privates%set_R_psi(R_psi)
+
+    @assertEqual(0.25, invR(2., 0.), tolerance=value_tolerance)
+    @assertEqual(-0.25, invR(2., pi), tolerance=value_tolerance)
+
   end subroutine test_invR
+
+  @test
+  subroutine test_Rpos
+    use constants, only : pi
+    use ceq, only : Rpos, ceq_testing_type
+
+    type(ceq_testing_type) :: ceq_privates
+
+    integer, parameter :: nradius = 3
+    integer, parameter :: ntheta = 5
+    integer, parameter :: total_size(2) = [nradius, ntheta]
+    real, parameter :: theta_grid_spacing = 2 * pi / (ntheta - 1)
+
+    real, dimension(nradius, ntheta) :: R_psi
+
+    integer :: i, j
+
+    R_psi = reshape([([(i*i*cos(j * theta_grid_spacing - pi), &
+         i=1, nradius)], j=0, ntheta-1)], total_size)
+
+    call ceq_privates%set_nrnt(nradius, ntheta)
+    call ceq_privates%alloc_arrays(nradius, ntheta)
+
+    call ceq_privates%set_eqpsi([1., 2., 3.])
+    call ceq_privates%set_R_psi(R_psi)
+
+    @assertEqual(4.0, Rpos(2., 0.), tolerance=value_tolerance)
+    @assertEqual(-4.0, Rpos(2., pi), tolerance=value_tolerance)
+    @assertEqual(4.0, Rpos(2., 2*pi), tolerance=value_tolerance)
+    @assertEqual(0.0, Rpos(2., pi/2), tolerance=value_tolerance)
+    @assertEqual(0.0, Rpos(2., -pi/2), tolerance=value_tolerance)
+
+  end subroutine test_Rpos
+
+  @test
+  subroutine test_Zpos
+    use constants, only : pi
+    use ceq, only : Zpos, ceq_testing_type
+
+    type(ceq_testing_type) :: ceq_privates
+
+    integer, parameter :: nradius = 3
+    integer, parameter :: ntheta = 5
+    integer, parameter :: total_size(2) = [nradius, ntheta]
+    real, parameter :: theta_grid_spacing = 2 * pi / (ntheta - 1)
+
+    real, dimension(nradius, ntheta) :: Z_psi
+
+    integer :: i, j
+
+    Z_psi = reshape([([(i*i*sin(j * theta_grid_spacing - pi), &
+         i=1, nradius)], j=0, ntheta-1)], total_size)
+
+    call ceq_privates%set_nrnt(nradius, ntheta)
+    call ceq_privates%alloc_arrays(nradius, ntheta)
+
+    call ceq_privates%set_eqpsi([1., 2., 3.])
+    call ceq_privates%set_Z_psi(Z_psi)
+
+    @assertEqual(0.0, Zpos(2., 0.), tolerance=value_tolerance)
+    @assertEqual(0.0, Zpos(2., pi), tolerance=value_tolerance)
+    @assertEqual(0.0, Zpos(2., 2*pi), tolerance=value_tolerance)
+    @assertEqual(4.0, Zpos(2., pi/2), tolerance=value_tolerance)
+    @assertEqual(-4.0, Zpos(2., -pi/2), tolerance=value_tolerance)
+
+  end subroutine test_Zpos
 
   @test
   subroutine test_initialize_rcenter

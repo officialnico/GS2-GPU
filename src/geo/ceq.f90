@@ -65,6 +65,8 @@ module ceq
     procedure, nopass :: set_dzm
     procedure, nopass :: set_eqpsi
     procedure, nopass :: set_nrnt
+    procedure, nopass :: set_R_psi
+    procedure, nopass :: set_Z_psi
   end type ceq_testing_type
 
 contains
@@ -109,6 +111,22 @@ contains
     real, dimension(nr), intent(in) :: eqpsi_in
     eqpsi = eqpsi_in
   end subroutine set_eqpsi
+
+  !> Set module-level R_psi
+  !! PURELY FOR TESTING
+  !! FIXME: Remove when we have more control over module-level variables for testing
+  subroutine set_R_psi(R_psi_in)
+    real, dimension(nr, nt), intent(in) :: R_psi_in
+    R_psi = R_psi_in
+  end subroutine set_R_psi
+
+  !> Set module-level Z_psi
+  !! PURELY FOR TESTING
+  !! FIXME: Remove when we have more control over module-level variables for testing
+  subroutine set_Z_psi(Z_psi_in)
+    real, dimension(nr, nt), intent(in) :: Z_psi_in
+    Z_psi = Z_psi_in
+  end subroutine set_Z_psi
 
   !> Convert from theta-index which is -pi to pi, to chi-index, which
   !> is 0 to 2*pi.
