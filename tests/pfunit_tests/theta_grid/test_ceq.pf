@@ -9,7 +9,8 @@ contains
 
   @before
   subroutine setup
-    ! DANGER: Empty setup to workaround bug in pfunit
+    use ceq, only : ceq_finish
+    call ceq_finish
   end subroutine setup
 
   @after
@@ -244,8 +245,6 @@ contains
     call ceq_privates%eqdcart(drm, R_cylindrical)
     call ceq_privates%eqdcart(dzm, Z_cylindrical)
 
-    call ceq_privates%dealloc_arrays()
-
     R_cylindrical_expected(:,:,1) = 1.
     R_cylindrical_expected(:,:,2) = 0.
     Z_cylindrical_expected(:,:,1) = 0.
@@ -296,8 +295,6 @@ contains
     call ceq_privates%eqdbish(R_cylindrical_in, R_cylindrical)
     call ceq_privates%eqdbish(Z_cylindrical_in, Z_cylindrical)
 
-    call ceq_privates%dealloc_arrays()
-
     ! why is the output only divided by the denominator on the r-range 2,nr?
     @assertEqual(R_cylindrical_expected(2:,:,1), R_cylindrical(2:,:,1), tolerance=value_tolerance)
     @assertEqual(R_cylindrical_expected(2:,:,2), R_cylindrical(2:,:,2), tolerance=value_tolerance)
@@ -335,6 +332,7 @@ contains
     integer :: i, j
 
     call ceq_privates%set_nrnt(nradius, ntheta)
+    call ceq_privates%alloc_arrays(nradius, ntheta)
     call ceq_privates%set_eqpsi([0., 1., 2.])
 
     array = reshape([([(real(j) * 2 * pi / real(ntheta - 1) - pi, &
@@ -354,8 +352,6 @@ contains
 
     call eqitem(psi, theta_outside_negative, array, actual)
     @assertEqual(expected_outside_negative, actual, tolerance=value_tolerance)
-
-    call ceq_privates%dealloc_arrays()
 
   end subroutine test_eqitem
 
