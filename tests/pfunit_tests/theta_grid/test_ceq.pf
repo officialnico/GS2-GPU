@@ -202,6 +202,164 @@ contains
 
   end subroutine test_derm_T
 
+  ! This basically converts derivatives of R, Z from polar coordinates
+  ! to cylindrical coordinates. R, Z are for a circle with radius 1
+  @test
+  subroutine test_eqdcart()
+    use constants, only : pi
+    use ceq, only : ceq_testing_type
+    type(ceq_testing_type) :: ceq_privates
+
+    integer, parameter :: nradius = 3
+    integer, parameter :: ntheta = 4
+    integer, parameter :: total_size(2) = [nradius, ntheta]
+    real, parameter :: theta_grid_spacing = 2 * pi / (ntheta - 1)
+    real, dimension(nradius, ntheta, 2) :: drm, dzm
+    real, dimension(nradius, ntheta, 2) :: R_cylindrical, Z_cylindrical
+    real, dimension(nradius, ntheta, 2) :: R_cylindrical_expected, Z_cylindrical_expected
+
+    integer :: i, j
+
+    ! Index-space derivatives of R
+    drm(:, :, 1) = reshape( &
+         [([(cos(j * theta_grid_spacing), &
+         i=1, nradius)], j=0, ntheta-1)], total_size)
+    drm(:, :, 2) = reshape( &
+         [([(-sin(j * theta_grid_spacing) * theta_grid_spacing, &
+         i=1, nradius)], j=0, ntheta-1)], total_size)
+
+    ! Index-space derivatives of Z
+    dzm(:, :, 1) = reshape( &
+         [([(sin(j * theta_grid_spacing), &
+         i=1, nradius)], j=0, ntheta-1)], total_size)
+    dzm(:, :, 2) = reshape( &
+         [([(cos(j * theta_grid_spacing) * theta_grid_spacing, &
+         i=1, nradius)], j=0, ntheta-1)], total_size)
+
+    call ceq_privates%set_ntnr(ntheta, nradius)
+    call ceq_privates%alloc_arrays(nradius, ntheta)
+    call ceq_privates%set_drm(drm)
+    call ceq_privates%set_dzm(dzm)
+
+    call ceq_privates%eqdcart(drm, R_cylindrical)
+    call ceq_privates%eqdcart(dzm, Z_cylindrical)
+
+    call ceq_privates%dealloc_arrays()
+
+    R_cylindrical_expected(:,:,1) = 1.
+    R_cylindrical_expected(:,:,2) = 0.
+    Z_cylindrical_expected(:,:,1) = 0.
+    Z_cylindrical_expected(:,:,2) = 1.
+
+    ! why is the output only divided by the denominator on the r-range 2,nr?
+    @assertEqual(R_cylindrical_expected(2:,:,1), R_cylindrical(2:,:,1), tolerance=value_tolerance)
+    @assertEqual(R_cylindrical_expected(2:,:,2), R_cylindrical(2:,:,2), tolerance=value_tolerance)
+    @assertEqual(Z_cylindrical_expected(2:,:,1), Z_cylindrical(2:,:,1), tolerance=value_tolerance)
+    @assertEqual(Z_cylindrical_expected(2:,:,2), Z_cylindrical(2:,:,2), tolerance=value_tolerance)
+
+  end subroutine test_eqdcart
+
+  ! This basically converts derivatives of R, Z from cylindrical
+  ! coordinates to Bishop coordinates. R, Z are for a circle with
+  ! radius 1
+  @test
+  subroutine test_eqdbish()
+    use ceq, only : ceq_testing_type
+    type(ceq_testing_type) :: ceq_privates
+
+    integer, parameter :: nradius = 3
+    integer, parameter :: ntheta = 4
+
+    real, dimension(nradius, ntheta, 2) :: dpcart
+    real, dimension(nradius, ntheta, 2) :: R_cylindrical, Z_cylindrical
+    real, dimension(nradius, ntheta, 2) :: R_cylindrical_in, Z_cylindrical_in
+    real, dimension(nradius, ntheta, 2) :: R_cylindrical_expected, Z_cylindrical_expected
+
+    call ceq_privates%set_ntnr(ntheta, nradius)
+    call ceq_privates%alloc_arrays(nradius, ntheta)
+
+    dpcart(:,:,1) = 1.
+    dpcart(:,:,2) = 0.
+
+    R_cylindrical_in(:,:,1) = 1.
+    R_cylindrical_in(:,:,2) = 0.
+    Z_cylindrical_in(:,:,1) = 0.
+    Z_cylindrical_in(:,:,2) = 1.
+
+    R_cylindrical_expected(:,:,1) = 1.
+    R_cylindrical_expected(:,:,2) = 0.
+    Z_cylindrical_expected(:,:,1) = 0.
+    Z_cylindrical_expected(:,:,2) = 1.
+
+    call ceq_privates%set_dpcart(dpcart)
+
+    call ceq_privates%eqdbish(R_cylindrical_in, R_cylindrical)
+    call ceq_privates%eqdbish(Z_cylindrical_in, Z_cylindrical)
+
+    call ceq_privates%dealloc_arrays()
+
+    ! why is the output only divided by the denominator on the r-range 2,nr?
+    @assertEqual(R_cylindrical_expected(2:,:,1), R_cylindrical(2:,:,1), tolerance=value_tolerance)
+    @assertEqual(R_cylindrical_expected(2:,:,2), R_cylindrical(2:,:,2), tolerance=value_tolerance)
+    @assertEqual(Z_cylindrical_expected(2:,:,1), Z_cylindrical(2:,:,1), tolerance=value_tolerance)
+    @assertEqual(Z_cylindrical_expected(2:,:,2), Z_cylindrical(2:,:,2), tolerance=value_tolerance)
+
+  end subroutine test_eqdbish
+
+  @test
+  subroutine test_eqitem()
+    use constants, only : pi
+    use ceq, only : ceq_testing_type, eqitem
+    type(ceq_testing_type) :: ceq_privates
+
+    integer, parameter :: nradius = 3
+    integer, parameter :: ntheta = 5
+    integer, parameter :: total_size(2) = [nradius, ntheta]
+
+    real, dimension(nradius, ntheta) :: array
+
+    real, parameter :: theta_zero = 0.0
+    real, parameter :: expected_zero = theta_zero
+    real, parameter :: theta_inside = 1.3
+    real, parameter :: expected_inside = theta_inside
+    real, parameter :: theta_inside_negative = -2.6
+    real, parameter :: expected_inside_negative = theta_inside_negative
+    real, parameter :: theta_outside = 1.3 + pi
+    real, parameter :: expected_outside = modulo(theta_outside + pi, 2.*pi) - pi
+    real, parameter :: theta_outside_negative = -(2.6 + pi)
+    real, parameter :: expected_outside_negative = modulo(theta_outside_negative + pi, 2.*pi) - pi
+    real, parameter :: psi = 1.
+
+    real :: actual
+
+    integer :: i, j
+
+    call ceq_privates%set_ntnr(ntheta, nradius)
+
+    call ceq_privates%set_eqpsi([0., 1., 2.])
+
+    array = reshape([([(real(j) * 2 * pi / real(ntheta - 1) - pi, &
+         i=1, nradius)], j=0, ntheta-1)], total_size)
+
+    call eqitem(psi, theta_zero, array, actual)
+    @assertEqual(expected_zero, actual, tolerance=value_tolerance)
+
+    call eqitem(psi, theta_inside, array, actual)
+    @assertEqual(expected_inside, actual, tolerance=value_tolerance)
+
+    call eqitem(psi, theta_inside_negative, array, actual)
+    @assertEqual(expected_inside_negative, actual, tolerance=value_tolerance)
+
+    call eqitem(psi, theta_outside, array, actual)
+    @assertEqual(expected_outside, actual, tolerance=value_tolerance)
+
+    call eqitem(psi, theta_outside_negative, array, actual)
+    @assertEqual(expected_outside_negative, actual, tolerance=value_tolerance)
+
+    call ceq_privates%dealloc_arrays()
+
+  end subroutine test_eqitem
+
   @test
   subroutine test_mod2pi()
     use constants, only : pi

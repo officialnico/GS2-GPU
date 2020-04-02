@@ -52,13 +52,19 @@ module ceq
   !> Expose private routines for testing only!
   type :: ceq_testing_type
   contains
-    procedure, nopass :: chease_chi_index
     procedure, nopass :: alloc_arrays
+    procedure, nopass :: chease_chi_index
     procedure, nopass :: dealloc_arrays
-    procedure, nopass :: set_ntnr
-    procedure, nopass :: set_ceq_from_chease
-    procedure, nopass :: mod2pi
     procedure, nopass :: derm
+    procedure, nopass :: eqdbish
+    procedure, nopass :: eqdcart
+    procedure, nopass :: mod2pi
+    procedure, nopass :: set_ceq_from_chease
+    procedure, nopass :: set_dpcart
+    procedure, nopass :: set_drm
+    procedure, nopass :: set_dzm
+    procedure, nopass :: set_eqpsi
+    procedure, nopass :: set_ntnr
   end type ceq_testing_type
 
 contains
@@ -71,6 +77,38 @@ contains
     nt = ntheta
     nr = nradius
   end subroutine set_ntnr
+
+  !> Set module-level `drm`
+  !! PURELY FOR TESTING
+  !! FIXME: Remove when we have more control over module-level variables for testing
+  subroutine set_drm(drm_in)
+    real, dimension(nr,nt,2), intent(in) :: drm_in
+    drm = drm_in
+  end subroutine set_drm
+
+  !> Set module-level `dzm`
+  !! PURELY FOR TESTING
+  !! FIXME: Remove when we have more control over module-level variables for testing
+  subroutine set_dzm(dzm_in)
+    real, dimension(nr,nt,2), intent(in) :: dzm_in
+    dzm = dzm_in
+  end subroutine set_dzm
+
+  !> Set module-level dpcart
+  !! PURELY FOR TESTING
+  !! FIXME: Remove when we have more control over module-level variables for testing
+  subroutine set_dpcart(dpcart_in)
+    real, dimension(nr,nt,2), intent(in) :: dpcart_in
+    dpcart = dpcart_in
+  end subroutine set_dpcart
+
+  !> Set module-level eqpsi
+  !! PURELY FOR TESTING
+  !! FIXME: Remove when we have more control over module-level variables for testing
+  subroutine set_eqpsi(eqpsi_in)
+    real, dimension(nr), intent(in) :: eqpsi_in
+    eqpsi = eqpsi_in
+  end subroutine set_eqpsi
 
   !> Convert from theta-index which is -pi to pi, to chi-index, which
   !> is 0 to 2*pi.
