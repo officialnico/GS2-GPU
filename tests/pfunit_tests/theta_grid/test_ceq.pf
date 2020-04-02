@@ -96,7 +96,7 @@ contains
 
     integer, parameter :: expected_ntheta = 3
 
-    call ceq_privates%set_ntnr(expected_ntheta, 4)
+    call ceq_privates%set_nrnt(-1, expected_ntheta)
     call ceqin("this won't be read", &
          psi_0_out, psi_a_out, rmaj, B_T0, avgrmid, &
          initeq=0, in_nt=.true., nthg=ntheta)
@@ -120,7 +120,7 @@ contains
 
     integer :: i, j
 
-    call ceq_privates%set_ntnr(ntheta, nradius)
+    call ceq_privates%set_nrnt(nradius, ntheta)
 
     f_input = reshape([([(i*i*cos(j * theta_grid_spacing), &
          i=0, nradius-1)], j=0, ntheta-1)], total_size)
@@ -154,7 +154,7 @@ contains
 
     integer :: i, j
 
-    call ceq_privates%set_ntnr(ntheta, nradius)
+    call ceq_privates%set_nrnt(nradius, ntheta)
 
     f_input = reshape([([(i*i * sin(j * theta_grid_spacing), &
          i=0, nradius-1)], j=0, ntheta-1)], total_size)
@@ -188,7 +188,7 @@ contains
 
     integer :: i, j
 
-    call ceq_privates%set_ntnr(ntheta, nradius)
+    call ceq_privates%set_nrnt(nradius, ntheta)
 
     f_input = reshape([([(j*theta_grid_spacing, i=1, nradius)], j=0, ntheta-1)], total_size)
 
@@ -236,7 +236,7 @@ contains
          [([(cos(j * theta_grid_spacing) * theta_grid_spacing, &
          i=1, nradius)], j=0, ntheta-1)], total_size)
 
-    call ceq_privates%set_ntnr(ntheta, nradius)
+    call ceq_privates%set_nrnt(nradius, ntheta)
     call ceq_privates%alloc_arrays(nradius, ntheta)
     call ceq_privates%set_drm(drm)
     call ceq_privates%set_dzm(dzm)
@@ -275,7 +275,7 @@ contains
     real, dimension(nradius, ntheta, 2) :: R_cylindrical_in, Z_cylindrical_in
     real, dimension(nradius, ntheta, 2) :: R_cylindrical_expected, Z_cylindrical_expected
 
-    call ceq_privates%set_ntnr(ntheta, nradius)
+    call ceq_privates%set_nrnt(nradius, ntheta)
     call ceq_privates%alloc_arrays(nradius, ntheta)
 
     dpcart(:,:,1) = 1.
@@ -334,8 +334,7 @@ contains
 
     integer :: i, j
 
-    call ceq_privates%set_ntnr(ntheta, nradius)
-
+    call ceq_privates%set_nrnt(nradius, ntheta)
     call ceq_privates%set_eqpsi([0., 1., 2.])
 
     array = reshape([([(real(j) * 2 * pi / real(ntheta - 1) - pi, &

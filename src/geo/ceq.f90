@@ -64,7 +64,7 @@ module ceq
     procedure, nopass :: set_drm
     procedure, nopass :: set_dzm
     procedure, nopass :: set_eqpsi
-    procedure, nopass :: set_ntnr
+    procedure, nopass :: set_nrnt
   end type ceq_testing_type
 
 contains
@@ -72,11 +72,11 @@ contains
   !> Set module-level `nt`, `nr`
   !! PURELY FOR TESTING
   !! FIXME: Remove when we have more control over module-level variables for testing
-  subroutine set_ntnr(ntheta, nradius)
-    integer, intent(in) :: ntheta, nradius
-    nt = ntheta
+  subroutine set_nrnt(nradius, ntheta)
+    integer, intent(in) :: nradius, ntheta
     nr = nradius
-  end subroutine set_ntnr
+    nt = ntheta
+  end subroutine set_nrnt
 
   !> Set module-level `drm`
   !! PURELY FOR TESTING
