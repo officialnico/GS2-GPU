@@ -2,6 +2,7 @@ module test_ceq_mod
   use PFUNIT_MOD
   implicit none
 
+  real, parameter :: derivative_tolerance = 5.e-3
   real, parameter :: value_tolerance = 5.e-12
 
 contains
@@ -102,6 +103,104 @@ contains
 
     @assertEqual(expected_ntheta, ntheta)
   end subroutine test_ceqin_non_init
+
+  @test
+  subroutine test_derm_even_function()
+    use constants, only : pi
+    use ceq, only : ceq_testing_type
+    type(ceq_testing_type) :: ceq_privates
+
+    integer, parameter :: nradius = 3
+    integer, parameter :: ntheta = 128
+    integer, parameter :: total_size(2) = [nradius, ntheta]
+    real, parameter :: theta_grid_spacing = 2 * pi / (ntheta - 1)
+    real, dimension(nradius, ntheta) :: f_input
+    real, dimension(nradius, ntheta, 2) :: df_result
+    real, dimension(nradius, ntheta, 2) :: df_expected
+
+    integer :: i, j
+
+    call ceq_privates%set_ntnr(ntheta, nradius)
+
+    f_input = reshape([([(i*i*cos(j * theta_grid_spacing), &
+         i=0, nradius-1)], j=0, ntheta-1)], total_size)
+
+    df_expected(:, :, 1) = reshape( &
+         [([0., 2., 4.]*cos(j * theta_grid_spacing), &
+         j=0, ntheta-1)], total_size)
+    df_expected(:, :, 2) = reshape( &
+         [([(-i*i*sin(j * theta_grid_spacing) * theta_grid_spacing, &
+         i=0, nradius-1)], j=0, ntheta-1)], total_size)
+
+    call ceq_privates%derm(f_input, df_result, 'E')
+
+    @assertEqual(df_expected(:,:,1), df_result(:,:,1), tolerance=derivative_tolerance, message="Radial derivative")
+    @assertEqual(df_expected(:,:,2), df_result(:,:,2), tolerance=derivative_tolerance, message="Theta derivative")
+  end subroutine test_derm_even_function
+
+  @test
+  subroutine test_derm_odd_function()
+    use constants, only : pi
+    use ceq, only : ceq_testing_type
+    type(ceq_testing_type) :: ceq_privates
+
+    integer, parameter :: nradius = 3
+    integer, parameter :: ntheta = 128
+    integer, parameter :: total_size(2) = [nradius, ntheta]
+    real, parameter :: theta_grid_spacing = 2 * pi / (ntheta - 1)
+    real, dimension(nradius, ntheta) :: f_input
+    real, dimension(nradius, ntheta, 2) :: df_result
+    real, dimension(nradius, ntheta, 2) :: df_expected
+
+    integer :: i, j
+
+    call ceq_privates%set_ntnr(ntheta, nradius)
+
+    f_input = reshape([([(i*i * sin(j * theta_grid_spacing), &
+         i=0, nradius-1)], j=0, ntheta-1)], total_size)
+
+    df_expected(:, :, 1) = reshape( &
+         [([0., 2., 4.] * sin(j * theta_grid_spacing), &
+         j=0, ntheta-1)], total_size)
+    df_expected(:, :, 2) = reshape( &
+         [([(i*i*cos(j * theta_grid_spacing) * theta_grid_spacing, &
+         i=0, nradius-1)], j=0, ntheta-1)], total_size)
+
+    call ceq_privates%derm(f_input, df_result, 'O')
+
+    @assertEqual(df_expected(:, :, 1), df_result(:, :, 1), tolerance=derivative_tolerance, message="Radial derivative")
+    @assertEqual(df_expected(:, :, 2), df_result(:, :, 2), tolerance=derivative_tolerance, message="Theta derivative")
+  end subroutine test_derm_odd_function
+
+  @test
+  subroutine test_derm_T()
+    use constants, only : pi
+    use ceq, only : ceq_testing_type
+    type(ceq_testing_type) :: ceq_privates
+
+    integer, parameter :: nradius = 3
+    integer, parameter :: ntheta = 4
+    integer, parameter :: total_size(2) = [nradius, ntheta]
+    real, parameter :: theta_grid_spacing = 2 * pi / (ntheta - 1)
+    real, dimension(nradius, ntheta) :: f_input
+    real, dimension(nradius, ntheta, 2) :: df_result
+    real, dimension(nradius, ntheta, 2) :: df_expected
+
+    integer :: i, j
+
+    call ceq_privates%set_ntnr(ntheta, nradius)
+
+    f_input = reshape([([(j*theta_grid_spacing, i=1, nradius)], j=0, ntheta-1)], total_size)
+
+    df_expected(:, :, 1) = 0.
+    df_expected(:, :, 2) = theta_grid_spacing
+
+    call ceq_privates%derm(f_input, df_result, 'T')
+
+    @assertEqual(df_expected(:, :, 1), df_result(:, :, 1), tolerance=1.e-14)
+    @assertEqual(df_expected(:, :, 2), df_result(:, :, 2), tolerance=1.e-14)
+
+  end subroutine test_derm_T
 
   @test
   subroutine test_mod2pi()
