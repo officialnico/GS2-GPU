@@ -33,7 +33,7 @@ module ceq
   real, allocatable, dimension (:,:,:) :: dpcart, dbcart, dtcart, dbtcart
   real, allocatable, dimension (:,:,:) :: dpbish, dtbish, dbtbish
 
-  real :: psi_0, psi_a, B_T, beta_0, B_norm_chease
+  real :: psi_0, psi_a, B_T, beta_0
   real :: R_mag, Z_mag, aminor
   
   logical :: init_rcenter = .true.
@@ -233,7 +233,6 @@ contains
 
     !     nt == number of theta grid points in theta eq grid
     nt = nchi_chease + 1
-    B_norm_chease = b0exp_chease
 
     call alloc_arrays(nr, nt)
 
