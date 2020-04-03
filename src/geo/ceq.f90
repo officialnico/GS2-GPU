@@ -692,7 +692,7 @@ contains
     initialize_invR = 1
   end function initialize_invR
 
-  !> FIXME : Add documentation  
+  !> Return the inverse of the major radius at \((r, \theta)\)
   function invR (r, theta)
     implicit none
     real, intent (in) :: r, theta
@@ -706,7 +706,7 @@ contains
 
   end function invR
 
-  !> FIXME : Add documentation
+  !> Return the major radius at \((r, \theta)\)
   function Rpos (r, theta)
     implicit none
     real, intent (in) :: r, theta
@@ -720,7 +720,7 @@ contains
     
   end function Rpos
 
-  !> FIXME : Add documentation  
+  !> Return the axial coordinate at \((r, \theta)\)
   function Zpos (r, theta)
     implicit none
     real, intent (in) :: r, theta
@@ -753,10 +753,10 @@ contains
     real :: psi
 
     psi = r
-    
+
   end function psi
 
-  !> FIXME : Add documentation  
+  !> Put \p theta into the range \([-\pi, \pi]\)
   function mod2pi (theta)
     use constants, only: pi
     implicit none
@@ -792,7 +792,7 @@ contains
 
   end function initialize_diameter
 
-  !> FIXME : Add documentation  
+  !> Return the diameter of the flux surface at a given major radius
   function diameter (rp)
     use splines, only: new_spline, splint, spline
     implicit none
@@ -822,7 +822,8 @@ contains
     initialize_rcenter = 1
   end function initialize_rcenter
 
-  !> FIXME : Add documentation  
+  !> Return the major radius of the centre of the flux surface at a
+  !> given major radius
   function rcenter (rp)
     use splines, only: new_spline, splint, spline
     implicit none
@@ -852,7 +853,7 @@ contains
     initialize_dbtori = 1
   end function initialize_dbtori
 
-  !> FIXME : Add documentation
+  !> \(\frac{dI}{d\psi}\) at the given normalised \(\psi\)
   function dbtori (pbar)
     use splines, only: new_spline, dsplint, spline
     implicit none
