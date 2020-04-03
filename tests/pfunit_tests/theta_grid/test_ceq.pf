@@ -4,6 +4,7 @@ module test_ceq_mod
 
   real, parameter :: derivative_tolerance = 5.e-3
   real, parameter :: value_tolerance = 5.e-12
+  real, parameter :: spline_tolerance = 5.e-2
 
 contains
 
@@ -36,23 +37,20 @@ contains
     @assertEqual(5, ceq_privates%chease_chi_index(nchi, 9))
   end subroutine test_chease_chi_index
 
-  @test
-  subroutine test_ceqin
+  !> A common set of test data for the test cases here
+  subroutine set_ceq_test_data
+    use constants, only : pi
     use ceq, only : ceq_testing_type
-    use ceq, only : ceqin
     use read_chease, only: npsi_chease, nchi_chease, b0exp_chease, &
-         psi_chease, f_chease, q_chease, p_chease, &
-         r_chease, z_chease
-
-    real :: psi_0_out, psi_a_out, rmaj, B_T0, avgrmid
-    integer :: ntheta
+                           psi_chease, f_chease, q_chease, p_chease, &
+                           r_chease, z_chease
 
     type(ceq_testing_type) :: ceq_privates
 
     npsi_chease = 3
     nchi_chease = 2
 
-    b0exp_chease = 1
+    b0exp_chease = sqrt(8. * pi * 1.e-7)
 
     allocate(psi_chease(npsi_chease))
     allocate(f_chease(npsi_chease))
@@ -64,7 +62,7 @@ contains
     psi_chease = [1., 2., 3.]
     f_chease = [0.5, 0., -0.5]
     q_chease = [4., 9., 16.]
-    p_chease = [3., 5., 7.]
+    p_chease = [3., 6., 9.]
     r_chease = reshape([0., 1., 2., &
                         3., 4., 5.], &
                         shape=shape(r_chease))
@@ -73,6 +71,28 @@ contains
                         shape=shape(z_chease))
 
     call ceq_privates%set_ceq_from_chease
+  end subroutine set_ceq_test_data
+
+  subroutine initialise_ceq_with_test_data
+    use ceq, only : ceqin
+    real :: psi_0_out, psi_a_out, rmaj, B_T0, avgrmid
+    integer :: ntheta
+
+    call set_ceq_test_data()
+
+    call ceqin("this won't be read", &
+         psi_0_out, psi_a_out, rmaj, B_T0, avgrmid, &
+         initeq=1, in_nt=.true., nthg=ntheta)
+  end subroutine initialise_ceq_with_test_data
+
+  @test
+  subroutine test_ceqin
+    use ceq, only : ceqin
+
+    real :: psi_0_out, psi_a_out, rmaj, B_T0, avgrmid
+    integer :: ntheta
+
+    call set_ceq_test_data()
 
     call ceqin("this won't be read", &
          psi_0_out, psi_a_out, rmaj, B_T0, avgrmid, &
@@ -303,6 +323,8 @@ contains
 
   end subroutine test_eqdbish
 
+  ! Currently only checks interpolation in theta
+  ! Also, how to check failures? Robust runner?
   @test
   subroutine test_eqitem()
     use constants, only : pi
@@ -631,6 +653,12 @@ contains
   @test
   subroutine test_btori
     use ceq, only : btori
+
+    call initialise_ceq_with_test_data()
+
+    @assertEqual(-1.1666666666666667, btori(0.25))
+    @assertEqual(1.1666666666666667, btori(0.75))
+
   end subroutine test_btori
 
   @test
@@ -643,6 +671,12 @@ contains
   @test
   subroutine test_dbtori
     use ceq, only : dbtori
+
+    call initialise_ceq_with_test_data()
+
+    @assertEqual(0.75, dbtori(0.25))
+    @assertEqual(0.75, dbtori(0.75))
+
   end subroutine test_dbtori
 
   @test
@@ -655,6 +689,11 @@ contains
   @test
   subroutine test_qfun
     use ceq, only : qfun
+
+    call initialise_ceq_with_test_data()
+
+    @assertEqual(6.25, qfun(0.25), tolerance=spline_tolerance)
+    @assertEqual(12.25, qfun(0.75), tolerance=spline_tolerance)
   end subroutine test_qfun
 
   @test
@@ -667,6 +706,11 @@ contains
   @test
   subroutine test_pfun
     use ceq, only : pfun
+
+    call initialise_ceq_with_test_data()
+
+    @assertEqual(2.25, pfun(0.25), tolerance=spline_tolerance)
+    @assertEqual(3.75, pfun(0.75), tolerance=spline_tolerance)
   end subroutine test_pfun
 
   @test
@@ -691,6 +735,11 @@ contains
   @test
   subroutine test_betafun
     use ceq, only : betafun
+
+    call initialise_ceq_with_test_data()
+
+    @assertEqual(4.5, betafun(0.25), tolerance=spline_tolerance)
+    @assertEqual(7.5, betafun(0.75), tolerance=spline_tolerance)
   end subroutine test_betafun
 
   @test
