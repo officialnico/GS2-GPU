@@ -801,7 +801,7 @@ contains
     type (spline), save :: spl
 
     if(init_diameter) then
-       diam(:) = abs(R_psi(:,nt/2) - R_psi(:,1))
+       diam(:) = abs(R_psi(:,nt/2 + 1) - R_psi(:,1))
        call new_spline(nr, eqpsi, diam, spl)
        init_diameter = .false.
     endif
@@ -831,7 +831,7 @@ contains
     type (spline), save :: spl
 
     if(init_rcenter) then
-       rc(:) = 0.5*(R_psi(:,1) + R_psi(:,nt/2))
+       rc(:) = 0.5*(R_psi(:,1) + R_psi(:,nt/2 + 1))
        call new_spline(nr, eqpsi, rc, spl)
        init_rcenter = .false.
     endif
