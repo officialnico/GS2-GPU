@@ -6,6 +6,10 @@ module test_ceq_mod
   real, parameter :: value_tolerance = 5.e-12
   real, parameter :: spline_tolerance = 5.e-2
 
+  integer, parameter :: npsi_test = 3
+  integer, parameter :: nchi_test = 4
+  integer, parameter :: ntheta_test = nchi_test + 1
+
 contains
 
   @before
@@ -45,10 +49,14 @@ contains
                            psi_chease, f_chease, q_chease, p_chease, &
                            r_chease, z_chease
 
+    real, parameter :: theta_grid_spacing = 2 * pi / nchi_test
+
+    integer :: i, j
+
     type(ceq_testing_type) :: ceq_privates
 
-    npsi_chease = 3
-    nchi_chease = 2
+    npsi_chease = npsi_test
+    nchi_chease = nchi_test
 
     b0exp_chease = sqrt(8. * pi * 1.e-7)
 
@@ -63,11 +71,11 @@ contains
     f_chease = [0.5, 0., -0.5]
     q_chease = [4., 9., 16.]
     p_chease = [3., 6., 9.]
-    r_chease = reshape([0., 1., 2., &
-                        3., 4., 5.], &
+    r_chease = reshape([([(i*i*cos(j * theta_grid_spacing) + 10, &
+                       i=0, npsi_chease-1)], j=0, nchi_chease-1)], &
                         shape=shape(r_chease))
-    z_chease = reshape([10., 21., 32., &
-                        43., 54., 65.], &
+    z_chease = reshape([([(i*i*sin(j * theta_grid_spacing) - 1e-3, &
+                       i=0, npsi_chease-1)], j=0, nchi_chease-1)], &
                         shape=shape(z_chease))
 
     call ceq_privates%set_ceq_from_chease
@@ -98,12 +106,12 @@ contains
          psi_0_out, psi_a_out, rmaj, B_T0, avgrmid, &
          initeq=1, in_nt=.true., nthg=ntheta)
 
-    @assertEqual(3.1111111, psi_0_out, tolerance=1e-5, message="psi_0_out")
-    @assertEqual(9.3333333, psi_a_out, tolerance=1e-5, message="psi_a_out")
-    @assertEqual(-2., rmaj, message="rmaj")
-    @assertEqual(0.5/3.5, B_T0, message="B_T0")
-    @assertEqual(-1.5, avgrmid, message="avgrmid")
-    @assertEqual(3, ntheta, message="ntheta")
+    @assertEqual(1.25, psi_0_out, tolerance=1e-5, message="psi_0_out")
+    @assertEqual(3.75, psi_a_out, tolerance=1e-5, message="psi_a_out")
+    @assertEqual(2.5, rmaj, message="rmaj")
+    @assertEqual(0.05, B_T0, message="B_T0")
+    @assertEqual(4, avgrmid, message="avgrmid")
+    @assertEqual(ntheta_test, ntheta, message="ntheta")
   end subroutine test_ceqin
 
   @test
@@ -656,8 +664,8 @@ contains
 
     call initialise_ceq_with_test_data()
 
-    @assertEqual(-1.1666666666666667, btori(0.25))
-    @assertEqual(1.1666666666666667, btori(0.75))
+    @assertEqual(1.25, btori(0.25))
+    @assertEqual(-1.25, btori(0.75))
 
   end subroutine test_btori
 
@@ -674,8 +682,8 @@ contains
 
     call initialise_ceq_with_test_data()
 
-    @assertEqual(0.75, dbtori(0.25))
-    @assertEqual(0.75, dbtori(0.75))
+    @assertEqual(-2., dbtori(0.25))
+    @assertEqual(-2., dbtori(0.75))
 
   end subroutine test_dbtori
 
@@ -723,6 +731,11 @@ contains
   @test
   subroutine test_dpfun
     use ceq, only : dpfun
+
+    call initialise_ceq_with_test_data()
+
+    @assertEqual(1.2, dpfun(0.25), tolerance=spline_tolerance)
+    @assertEqual(1.2, dpfun(0.75), tolerance=spline_tolerance)
   end subroutine test_dpfun
 
   @test
