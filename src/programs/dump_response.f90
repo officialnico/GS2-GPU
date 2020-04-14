@@ -1,7 +1,7 @@
 !> A program to generate response matrix data for a given input file 
-!! and dump the resulting arrays to file to be used by subsequent runs
-!!
-!! Written by : David Dickinson (ddickinson@users.sourceforge.net)
+!> and dump the resulting arrays to file to be used by subsequent runs
+!>
+!> Written by : David Dickinson (ddickinson@users.sourceforge.net)
 program dump_response
   use job_manage, only: job_fork
   use mp, only: init_mp, proc0, nproc, broadcast
@@ -62,7 +62,7 @@ program dump_response
   call finish_dump_response
 
 contains
-  !> FIXME : Add documentation  
+  !> Changes to the next time step in the sequence
   subroutine next_time_step
     use gs2_time, only: code_dt, save_dt
     use gs2_reinit, only: reduce_time_step
@@ -83,7 +83,7 @@ contains
     call f_reset
   end subroutine next_time_step
 
-  !> FIXME : Add documentation  
+  !> Initialise the response matrices and write to file
   subroutine init_and_dump(quiet)
     use fields, only: fields_pre_init, fields_init_response, set_dump_and_read_response, dump_response_to_file
     use job_manage, only: time_message
@@ -95,6 +95,7 @@ contains
     character (len=64) :: suffix, str_code_dt
 
     if(.not.quiet) write(*,'("")')
+    time_measure = 0.
 
     !Prepare to initialise the fields
     if(proc0.and.(.not.quiet)) then 
@@ -104,7 +105,7 @@ contains
     call fields_pre_init
     if(proc0.and.(.not.quiet)) then
        call time_message(.false.,time_measure,'Pre-init')
-       write(*,'("  --> Done in : ",F12.6," seconds")') time_measure(1)
+       write(*,'("  --> Done in : ",ES14.6E3," seconds")') time_measure(1)
     endif
     time_measure=0.
 
@@ -120,7 +121,7 @@ contains
     call fields_init_response
     if(proc0.and.(.not.quiet)) then
        call time_message(.false.,time_measure,'Init')
-       write(*,'("  --> Done in : ",F12.6," seconds")') time_measure(1)
+       write(*,'("  --> Done in : ",ES14.6E3," seconds")') time_measure(1)
     endif
     time_measure=0.
 
@@ -136,7 +137,7 @@ contains
     call dump_response_to_file(suffix)
     if(proc0.and.(.not.quiet)) then
        call time_message(.false.,time_measure,'Dump')
-       write(*,'("  --> Done in : ",F12.6," seconds")') time_measure(1)
+       write(*,'("  --> Done in : ",ES14.6E3," seconds")') time_measure(1)
     endif
     time_measure=0.
   end subroutine init_and_dump
