@@ -4199,17 +4199,11 @@ contains
   !! by the head of the supercell.
   subroutine dump_response_to_file_local(suffix)
     use gs2_save, only: gs2_save_response
-    use fields_arrays, only: response_file
+    use fields_arrays, only: get_specific_response_file_name
     implicit none
     character(len=*), optional, intent(in) :: suffix !If passed then use as part of file suffix
-    character(len=64) :: suffix_local, suffix_default='.response'
-    character(len=256) :: file_name
     complex, dimension(:,:), allocatable :: tmp_arr
     integer :: ik, is
-
-    !Set file suffix
-    suffix_local=suffix_default
-    if(present(suffix)) suffix_local=suffix
 
     !First we have to pull data so that head of each supercell has full data
     !Currently we are lazy and just ensure all procs in supercell has full data
@@ -4222,20 +4216,16 @@ contains
           !If is isn't local than cycle
           if(.not.fieldmat%kyb(ik)%supercells(is)%is_local) cycle
 
-          !Now allocate array
+          !Now allocate array -- for big problems this might be an issue
           allocate(tmp_arr(fieldmat%kyb(ik)%supercells(is)%nrow,fieldmat%kyb(ik)%supercells(is)%ncol))
 
           !First have to pull all row level data
           call fieldmat%kyb(ik)%supercells(is)%pull_rows_to_arr(tmp_arr)
           
-          !Now save if on head proc
+          !Now save if on head proc -- could probably only allocate tmp_arr and call
+          !pull_rows_to_arr on this head proc as well, at least for now.
           if(fieldmat%kyb(ik)%supercells(is)%is_head)then
-             !Really we should do this with netcdf but for now we will
-             !simply dump a binary file.
-
-             !First make file name
-             write(file_name,'(A,"_ik_",I0,"_is_",I0,A)') trim(response_file),ik,is,trim(suffix_local)
-             call gs2_save_response(tmp_arr,file_name)
+             call gs2_save_response(tmp_arr, get_specific_response_file_name(ik, is, suffix))
           endif
 
           !Deallocate
@@ -4252,17 +4242,11 @@ contains
   subroutine read_response_from_file_local(suffix)
     use gs2_save, only: gs2_restore_response
     use mp, only: sum_allreduce_sub
-    use fields_arrays, only: response_file
+    use fields_arrays, only: get_specific_response_file_name
     implicit none
     character(len=*), optional, intent(in) :: suffix !If passed then use as part of file suffix
-    character(len=64) :: suffix_local, suffix_default='.response'
-    character(len=256) :: file_name
     complex, dimension(:,:), allocatable :: tmp_arr
     integer :: ik, is
-
-    !Set file suffix
-    suffix_local=suffix_default
-    if(present(suffix)) suffix_local=suffix
 
     !First we have to pull data so that head of each supercell has full data
     !Currently we are lazy and just ensure all procs in supercell has full data
@@ -4275,18 +4259,13 @@ contains
           !If is isn't local than cycle
           if(.not.fieldmat%kyb(ik)%supercells(is)%is_local) cycle
 
-          !Now allocate array
+          !Now allocate array -- for big problems this might be an issue
           allocate(tmp_arr(fieldmat%kyb(ik)%supercells(is)%nrow,fieldmat%kyb(ik)%supercells(is)%ncol))
           tmp_arr=0.
 
           !Now if on head proc read
           if(fieldmat%kyb(ik)%supercells(is)%is_head)then
-             !Really we should do this with netcdf but for now we will
-             !simply dump a binary file.
-
-             !First make file name
-             write(file_name,'(A,"_ik_",I0,"_is_",I0,A)') trim(response_file),ik,is,trim(suffix_local)
-             call gs2_restore_response(tmp_arr,file_name)
+             call gs2_restore_response(tmp_arr, get_specific_response_file_name(ik, is, suffix))
           endif
 
           !Now we need to broadcast the data to everyone with supercell.

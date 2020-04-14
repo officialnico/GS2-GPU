@@ -1196,7 +1196,7 @@ contains
 
   !> A routine to dump the current response matrix to file
   subroutine dump_response_to_file_imp(suffix)
-    use fields_arrays, only: response_file
+    use fields_arrays, only: get_specific_response_file_name
     use theta_grid, only: ntgrid
     use kt_grids, only: naky, ntheta0
     use dist_fn, only: i_class, N_class, M_class, get_leftmost_it, itright
@@ -1205,8 +1205,6 @@ contains
     use gs2_save, only: gs2_save_response
     implicit none
     character(len=*), optional, intent(in) :: suffix !If passed then use as part of file suffix
-    character(len=64) :: suffix_local, suffix_default='.response'
-    character(len=256) :: file_name
     complex, dimension(:,:), allocatable :: tmp_arr, tmp_arr_full
     complex, dimension(:), allocatable :: tmp_vec_full, tmp_vec
     integer :: ic, im, ik, it, itmin, supercell_length, supercell_length_bound, in, ifld, ig, is_tmp
@@ -1214,9 +1212,6 @@ contains
     integer, dimension(:,:), allocatable :: it_to_is, leftmost_it
     integer, dimension(:), allocatable :: tmp_ints
     logical :: is_local
-    !Set file suffix
-    suffix_local=suffix_default
-    if(present(suffix)) suffix_local=suffix
 
     !Make a lookup array to convert itmin (the leftmost it in a connected domain)
     !to the supercell index "is" used in the local fields. This will be used to 
@@ -1412,8 +1407,7 @@ contains
 
           !Now make file name
           if(proc0)then
-             write(file_name,'(A,"_ik_",I0,"_is_",I0,A)') trim(response_file),ik,it_to_is(itmin,ik),trim(suffix_local)
-             call gs2_save_response(tmp_arr_full,file_name)
+             call gs2_save_response(tmp_arr_full, get_specific_response_file_name(ik, it_to_is(itmin, ik), suffix))
           endif
        end do
           
@@ -1428,7 +1422,7 @@ contains
   !> A routine to read the response matrix from file and populate the implicit
   !! response storage, note we also allocate the response storage objects
   subroutine read_response_from_file_imp(suffix)
-    use fields_arrays, only: response_file
+    use fields_arrays, only: get_specific_response_file_name
     use theta_grid, only: ntgrid
     use kt_grids, only: naky, ntheta0
     use dist_fn, only: i_class, N_class, M_class, get_leftmost_it, itright
@@ -1437,8 +1431,6 @@ contains
     use gs2_save, only: gs2_restore_response
     implicit none
     character(len=*), optional, intent(in) :: suffix !If passed then use as part of file suffix
-    character(len=64) :: suffix_local, suffix_default='.response'
-    character(len=256) :: file_name
     complex, dimension(:,:), allocatable :: tmp_arr, tmp_arr_full
     complex, dimension(:), allocatable :: tmp_vec_full, tmp_vec
     integer :: ic, im, ik, it, itmin, supercell_length, supercell_length_bound, in, ifld, ig, is_tmp
@@ -1447,9 +1439,6 @@ contains
     integer, dimension(:,:), allocatable :: it_to_is, leftmost_it
     integer, dimension(:), allocatable :: tmp_ints
     logical :: is_local, is_local_dup
-    !Set file suffix
-    suffix_local=suffix_default
-    if(present(suffix)) suffix_local=suffix
 
     !First allocate the matrix storage
     call alloc_response_objects
@@ -1547,8 +1536,7 @@ contains
 
           !Now make file name
           if(proc0)then
-             write(file_name,'(A,"_ik_",I0,"_is_",I0,A)') trim(response_file),ik,it_to_is(itmin,ik),trim(suffix_local)
-             call gs2_restore_response(tmp_arr_full,file_name)
+             call gs2_restore_response(tmp_arr_full, get_specific_response_file_name(ik, it_to_is(itmin, ik), suffix))
           endif
 
           !Initialise counter
