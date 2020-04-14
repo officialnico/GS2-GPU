@@ -1375,8 +1375,13 @@ contains
                             enddo
                          enddo
 
-                         !Increment it
-                         it_tmp=itright(ik,it_tmp)
+                         !If we're not at the last cell then increment it_tmp.
+                         !This check is needed to avoid trying to access itright
+                         !in non-box simulations where this array is not allocated.
+                         if(in_tmp < N_class(ic)) then
+                            it_tmp=itright(ik, it_tmp)
+                         end if
+
                       enddo
 
                       !No comms needed if on proc0
@@ -1397,8 +1402,12 @@ contains
                 enddo
              enddo
 
-             !Increment it
-             it=itright(ik,it)
+             !If we're not at the last cell then increment it.
+             !This check is needed to avoid trying to access itright
+             !in non-box simulations where this array is not allocated.
+             if(in < N_class(ic)) then
+                it=itright(ik, it)
+             end if
           enddo
 
           !Now make file name
@@ -1638,8 +1647,13 @@ contains
                          !Store section
                          aminv(ic)%dcell(dc)%supercell(nl:nr)=tmp_vec
 
-                         !Increment it
-                         it_tmp=itright(ik,it_tmp)
+                         !If we're not at the last cell then increment it_tmp.
+                         !This check is needed to avoid trying to access itright
+                         !in non-box simulations where this array is not allocated.
+                         if(in_tmp < N_class(ic)) then
+                            it_tmp=itright(ik, it_tmp)
+                         end if
+
                       enddo
                    else
                       !Only proc0 should get here but test anyway
@@ -1648,8 +1662,12 @@ contains
                 enddo
              enddo
 
-             !Increment it
-             it=itright(ik,it)
+             !If we're not at the last cell then increment it.
+             !This check is needed to avoid trying to access itright
+             !in non-box simulations where this array is not allocated.
+             if(in < N_class(ic)) then
+                it=itright(ik, it)
+             end if
           enddo
 
           !Now we need to fill in the repeated boundary points
@@ -1685,7 +1703,9 @@ contains
                 endif
              enddo
 
-             !Increment it
+             !Increment it -- note we don't need to guard against access to itright
+             !here as for non-box runs we won't enter the outer in=1,N_class(ic)-1
+             !loop as N_class(ic) == 1
              it=itright(ik,it)
           enddo
        end do
