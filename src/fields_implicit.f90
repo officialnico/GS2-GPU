@@ -1197,6 +1197,7 @@ contains
   !> A routine to dump the current response matrix to file
   subroutine dump_response_to_file_imp(suffix)
     use fields_arrays, only: get_specific_response_file_name
+    use gs2_time, only: code_dt
     use theta_grid, only: ntgrid
     use kt_grids, only: naky, ntheta0
     use dist_fn, only: i_class, N_class, M_class, get_leftmost_it, itright
@@ -1407,7 +1408,7 @@ contains
 
           !Now make file name
           if(proc0)then
-             call gs2_save_response(tmp_arr_full, get_specific_response_file_name(ik, it_to_is(itmin, ik), suffix))
+             call gs2_save_response(tmp_arr_full, get_specific_response_file_name(ik, it_to_is(itmin, ik), code_dt, suffix))
           endif
        end do
           
@@ -1423,6 +1424,7 @@ contains
   !! response storage, note we also allocate the response storage objects
   subroutine read_response_from_file_imp(suffix)
     use fields_arrays, only: get_specific_response_file_name
+    use gs2_time, only: code_dt
     use theta_grid, only: ntgrid
     use kt_grids, only: naky, ntheta0
     use dist_fn, only: i_class, N_class, M_class, get_leftmost_it, itright
@@ -1536,7 +1538,7 @@ contains
 
           !Now make file name
           if(proc0)then
-             call gs2_restore_response(tmp_arr_full, get_specific_response_file_name(ik, it_to_is(itmin, ik), suffix))
+             call gs2_restore_response(tmp_arr_full, get_specific_response_file_name(ik, it_to_is(itmin, ik), code_dt, suffix))
           endif
 
           !Initialise counter

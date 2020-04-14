@@ -4200,6 +4200,7 @@ contains
   subroutine dump_response_to_file_local(suffix)
     use gs2_save, only: gs2_save_response
     use fields_arrays, only: get_specific_response_file_name
+    use gs2_time, only: code_dt
     implicit none
     character(len=*), optional, intent(in) :: suffix !If passed then use as part of file suffix
     complex, dimension(:,:), allocatable :: tmp_arr
@@ -4225,7 +4226,7 @@ contains
           !Now save if on head proc -- could probably only allocate tmp_arr and call
           !pull_rows_to_arr on this head proc as well, at least for now.
           if(fieldmat%kyb(ik)%supercells(is)%is_head)then
-             call gs2_save_response(tmp_arr, get_specific_response_file_name(ik, is, suffix))
+             call gs2_save_response(tmp_arr, get_specific_response_file_name(ik, is, code_dt, suffix))
           endif
 
           !Deallocate
@@ -4243,6 +4244,7 @@ contains
     use gs2_save, only: gs2_restore_response
     use mp, only: sum_allreduce_sub
     use fields_arrays, only: get_specific_response_file_name
+    use gs2_time, only: code_dt
     implicit none
     character(len=*), optional, intent(in) :: suffix !If passed then use as part of file suffix
     complex, dimension(:,:), allocatable :: tmp_arr
@@ -4265,7 +4267,7 @@ contains
 
           !Now if on head proc read
           if(fieldmat%kyb(ik)%supercells(is)%is_head)then
-             call gs2_restore_response(tmp_arr, get_specific_response_file_name(ik, is, suffix))
+             call gs2_restore_response(tmp_arr, get_specific_response_file_name(ik, is, code_dt, suffix))
           endif
 
           !Now we need to broadcast the data to everyone with supercell.
