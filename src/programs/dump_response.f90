@@ -92,7 +92,7 @@ contains
     implicit none
     logical, intent(in) :: quiet
     real :: time_measure(2)
-    character (len=64) :: suffix, str_code_dt
+    character (len=64) :: str_code_dt
 
     if(.not.quiet) write(*,'("")')
     time_measure = 0.
@@ -125,16 +125,15 @@ contains
     endif
     time_measure=0.
 
-    !Now we make the file suffix
-    write(str_code_dt,'(F12.10)') code_dt
-    write(suffix,'(".dt_",A,".response")') trim(adjustl(str_code_dt))
+    !Now we make the dt string
+    write(str_code_dt,'(ES14.6E3)') code_dt
 
     !Now write response to files
     if(proc0.and.(.not.quiet)) then
-       write(*,'("Dumping to file with suffix ",A,A,A)',advance='no') "'",trim(suffix),"'"
+       write(*,'("Dumping to file for timestep ",A,A,A)',advance='no') "'",trim(adjustl(str_code_dt)),"'"
        call time_message(.false.,time_measure,'Dump')
     endif
-    call dump_response_to_file(suffix)
+    call dump_response_to_file()
     if(proc0.and.(.not.quiet)) then
        call time_message(.false.,time_measure,'Dump')
        write(*,'("  --> Done in : ",ES14.6E3," seconds")') time_measure(1)
