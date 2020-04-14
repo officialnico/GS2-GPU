@@ -492,7 +492,7 @@ contains
     integer :: ig, ifield, it, ik, i, m, n
     complex, dimension(:,:), allocatable :: am
     logical :: endpoint
-
+    logical :: response_was_read
     call prof_entering ("init_response_matrix", "fields_implicit")
 
     nfield = 0
@@ -505,9 +505,11 @@ contains
     call init_jfields_layouts (nfield, nidx, naky, ntheta0, i_class)
     call finish_fields_layouts
 
+    response_was_read = .false.
+
     !Either read the reponse
     if(read_response) then
-        call read_response_from_file_imp
+        call read_response_from_file_imp(could_read = response_was_read)
       !elseif(skip_initialisation) then
        !do i = i_class, 1, -1
           !!Pretty sure this barrier is not needed
@@ -527,15 +529,17 @@ contains
           !!Free memory
           !deallocate (am)
        !end do
-    else
-    !or calculate it
+     end if
 
+
+     !or calculate it
+     if (.not. response_was_read) then
 !
 ! keep storage cost down by doing one class at a time
-! Note: could define a superclass (of all classes), a structure containing all am, 
-! then do this all at once.  This would be faster, especially for large runs in a 
-! sheared domain, and could be triggered by local_field_solve 
-! 
+! Note: could define a superclass (of all classes), a structure containing all am,
+! then do this all at once.  This would be faster, especially for large runs in a
+! sheared domain, and could be triggered by local_field_solve
+!
 
 !<DD> Comments
 !A class refers to a class of connected domain.
@@ -1421,8 +1425,8 @@ contains
   end subroutine dump_response_to_file_imp
 
   !> A routine to read the response matrix from file and populate the implicit
-  !! response storage, note we also allocate the response storage objects
-  subroutine read_response_from_file_imp(suffix)
+  !> response storage, note we also allocate the response storage objects
+  subroutine read_response_from_file_imp(could_read, suffix)
     use fields_arrays, only: get_specific_response_file_name
     use gs2_time, only: code_dt
     use theta_grid, only: ntgrid
@@ -1431,7 +1435,9 @@ contains
     use gs2_layouts, only: f_lo, jf_lo, ij_idx, idx_local, idx, proc_id,idx_local,dj
     use mp, only: proc0, send, receive
     use gs2_save, only: gs2_restore_response
+    use file_utils, only: error_unit
     implicit none
+    logical, intent(out) :: could_read
     character(len=*), optional, intent(in) :: suffix !If passed then use as part of file suffix
     complex, dimension(:,:), allocatable :: tmp_arr, tmp_arr_full
     complex, dimension(:), allocatable :: tmp_vec_full, tmp_vec
@@ -1441,6 +1447,10 @@ contains
     integer, dimension(:,:), allocatable :: it_to_is, leftmost_it
     integer, dimension(:), allocatable :: tmp_ints
     logical :: is_local, is_local_dup
+    character(len = 256) :: file_name
+    logical :: file_found
+
+    could_read = .true.
 
     !First allocate the matrix storage
     call alloc_response_objects
@@ -1536,9 +1546,20 @@ contains
           !First initialise "it"
           it=itmin
 
+          file_name = adjustl(get_specific_response_file_name(ik, it_to_is(itmin, ik), code_dt, suffix))
+
+          ! First check if the expected file exists, if not then exit
+          inquire( file = trim(file_name), exist = file_found)
+          if (.not. file_found) then
+             if(proc0) write(error_unit(), &
+                  '("Could not find response file ",A,", reverting to calculation.")') file_name
+             could_read = .false.
+             return
+          end if
+
           !Now make file name
           if(proc0)then
-             call gs2_restore_response(tmp_arr_full, get_specific_response_file_name(ik, it_to_is(itmin, ik), code_dt, suffix))
+             call gs2_restore_response(tmp_arr_full, file_name)
           endif
 
           !Initialise counter
