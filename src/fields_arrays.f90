@@ -23,5 +23,5 @@ module fields_arrays
   real :: time_field(2)=0.
   
   !For response data
-  character(run_name_size) :: response_file
+  character(run_name_size) :: response_file = 'NOT_SET'
 end module fields_arrays
