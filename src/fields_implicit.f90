@@ -1552,7 +1552,7 @@ contains
           inquire( file = trim(file_name), exist = file_found)
           if (.not. file_found) then
              if(proc0) write(error_unit(), &
-                  '("Could not find response file ",A,", reverting to calculation.")') file_name
+                  '("Could not find response file ",A,", reverting to calculation.")') trim(file_name)
              could_read = .false.
              return
           end if
