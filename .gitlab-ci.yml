@@ -17,7 +17,7 @@ stages:
   
 .init_test_job: &init_test_job
   - echo "running" > ${JOB_STATUS_FILE}
-  - *push_status
+  - BUILD_STATUS=$(cat ${JOB_STATUS_FILE})  BUILD_KEY=push ./.push_gitlab_build_status ${CASENAME}
   - echo "before_script" > ${JOB_STATUS_FILE}
 
 .install_main_packages: &install_main_packages
