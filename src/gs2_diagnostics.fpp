@@ -66,7 +66,7 @@ module gs2_diagnostics
   logical, public :: write_pflux_sym, write_nl_flux_dist, write_pflux_tormom
   logical :: file_safety_check
   integer, public :: nwrite, igomega, nmovie
-  integer, public :: navg, nsave, nwrite_mult
+  integer, public :: navg, nsave, nwrite_mult, nc_sync_freq
 
   logical, public :: write_phi_over_time, write_apar_over_time, write_bpar_over_time !EGH
   !>GGH
@@ -164,6 +164,10 @@ module gs2_diagnostics
      logical :: make_movie = .false.
      !> FIXME: Add documentation
      integer :: navg = 100
+     !> Sets the number of output steps between syncing the netcdf file.
+     !> Higher values may reduce disk overheads but increase the risk of
+     !> data loss on unclean exit.
+     integer :: nc_sync_freq = 10
      !> FIXME: Add documentation
      integer :: nmovie = 1000
      !> FIXME: Add documentation
@@ -787,6 +791,7 @@ contains
     igomega = gs2_diagnostics_config%igomega
     make_movie = gs2_diagnostics_config%make_movie
     navg = gs2_diagnostics_config%navg
+    nc_sync_freq = gs2_diagnostics_config%nc_sync_freq
     nmovie = gs2_diagnostics_config%nmovie
     nsave = gs2_diagnostics_config%nsave
     nwrite = gs2_diagnostics_config%nwrite
@@ -1466,7 +1471,7 @@ contains
     scan_nout = nout
 
     !Now sync the data to file (note doesn't actually sync every call)
-    if (proc0) call nc_sync(nout,nout_movie)
+    if (proc0) call nc_sync(nout, nout_movie, nc_sync_freq)
 
     !Increment loop counter
     nout = nout + 1
@@ -4191,7 +4196,7 @@ contains
     ! Note: When this routine is in the module where these variables live
     ! we shadow the module level variables here. This is intentional to provide
     ! isolation and ensure we can move this routine to another module easily.
-    integer :: conv_max_step, conv_min_step, conv_nstep_av, conv_nsteps_converged, igomega, navg, nmovie, nsave, nwrite, nwrite_mult
+    integer :: conv_max_step, conv_min_step, conv_nstep_av, conv_nsteps_converged, igomega, navg, nc_sync_freq, nmovie, nsave, nwrite, nwrite_mult
     logical :: dump_check1, dump_check2, dump_fields_periodically, exit_when_converged, file_safety_check, make_movie, ob_midplane, print_flux_line, print_line, save_distfn, save_for_restart, save_many
     logical :: use_nonlin_convergence, write_apar_over_time, write_ascii, write_avg_moments, write_bpar_over_time, write_cerr, write_correlation, write_correlation_extend, write_cross_phase, write_eigenfunc
     logical :: write_fields, write_final_antot, write_final_db, write_final_epar, write_final_fields, write_final_moments, write_flux_line, write_full_moments_notgc, write_g, write_gg, write_gs, write_gyx
@@ -4200,7 +4205,7 @@ contains
     real :: conv_test_multiplier, omegatinst, omegatol
 
     namelist /gs2_diagnostics_knobs/ conv_max_step, conv_min_step, conv_nstep_av, conv_nsteps_converged, conv_test_multiplier, dump_check1, dump_check2, dump_fields_periodically, exit_when_converged, file_safety_check, igomega, &
-         make_movie, navg, nmovie, nsave, nwrite, nwrite_mult, ob_midplane, omegatinst, omegatol, print_flux_line, print_line, save_distfn, save_for_restart, save_many, use_nonlin_convergence, &
+         make_movie, navg, nc_sync_freq, nmovie, nsave, nwrite, nwrite_mult, ob_midplane, omegatinst, omegatol, print_flux_line, print_line, save_distfn, save_for_restart, save_many, use_nonlin_convergence, &
          write_apar_over_time, write_ascii, write_avg_moments, write_bpar_over_time, write_cerr, write_correlation, write_correlation_extend, write_cross_phase, write_eigenfunc, write_fields, &
          write_final_antot, write_final_db, write_final_epar, write_final_fields, write_final_moments, write_flux_line, write_full_moments_notgc, write_g, write_gg, write_gs, write_gyx, write_hrate, &
          write_kpar, write_line, write_lorentzian, write_lpoly, write_max_verr, write_moments, write_nl_flux, write_nl_flux_dist, write_omavg, write_omega, write_parity, write_pflux_sym, &
@@ -4223,6 +4228,7 @@ contains
     igomega = self%igomega
     make_movie = self%make_movie
     navg = self%navg
+    nc_sync_freq = self%nc_sync_freq
     nmovie = self%nmovie
     nsave = self%nsave
     nwrite = self%nwrite
@@ -4301,6 +4307,7 @@ contains
     self%igomega = igomega
     self%make_movie = make_movie
     self%navg = navg
+    self%nc_sync_freq = nc_sync_freq
     self%nmovie = nmovie
     self%nsave = nsave
     self%nwrite = nwrite
@@ -4382,6 +4389,7 @@ contains
     call self%write_key_val("igomega", self%igomega, unit_internal)
     call self%write_key_val("make_movie", self%make_movie, unit_internal)
     call self%write_key_val("navg", self%navg, unit_internal)
+    call self%write_key_val("nc_sync_freq", self%nc_sync_freq, unit_internal)
     call self%write_key_val("nmovie", self%nmovie, unit_internal)
     call self%write_key_val("nsave", self%nsave, unit_internal)
     call self%write_key_val("nwrite", self%nwrite, unit_internal)
@@ -4465,6 +4473,7 @@ contains
     call broadcast(self%igomega)
     call broadcast(self%make_movie)
     call broadcast(self%navg)
+    call broadcast(self%nc_sync_freq)
     call broadcast(self%nmovie)
     call broadcast(self%nsave)
     call broadcast(self%nwrite)
