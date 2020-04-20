@@ -1,4 +1,4 @@
-#!/usr/bin/env bash
+#!/usr/bin/env bash -x
 
  # Push GitLab CI/CD build status to Bitbucket Cloud
 
