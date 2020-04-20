@@ -57,6 +57,10 @@
     BITBUCKET_STATE="FAILED"
     BITBUCKET_DESCRIPTION="The ${CASENAME} pFUnit tests failed."
     ;;
+ *)
+    BITBUCKET_STATE="FAILED"
+    BITBUCKET_DESCRIPTION="The ${CASENAME} status check failed with ${BUILD_STATUS}."
+    ;;
  esac
 
  echo "Pushing status to $BITBUCKET_STATUS_API..."

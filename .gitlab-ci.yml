@@ -28,6 +28,7 @@ standard_tests:
     paths:
       - pfunit.log
       - pfunit.error
+      - ${JOB_STATUS_FILE}      
   before_script:
     - echo "before_script" > ${JOB_STATUS_FILE}
     - BUILD_STATUS=running BUILD_KEY=push ./.push_gitlab_build_status ${CASENAME}
@@ -54,6 +55,7 @@ standard_tests_onestep:
     paths:
       - pfunit.log
       - pfunit.error
+      - ${JOB_STATUS_FILE}
   before_script:
     - echo "before_script" > ${JOB_STATUS_FILE}
     - BUILD_STATUS=running BUILD_KEY=push ./.push_gitlab_build_status ${CASENAME}
