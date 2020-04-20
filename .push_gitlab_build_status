@@ -1,5 +1,5 @@
-#!/usr/bin/env bash -x
-
+#!/usr/bin/env bash
+set -x
  # Push GitLab CI/CD build status to Bitbucket Cloud
 
  if [ -z "$BITBUCKET_ACCESS_TOKEN" ]; then
