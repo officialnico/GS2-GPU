@@ -87,7 +87,6 @@ nodeps_tests:
     - *init_test_job
     - apt-get update -qq && apt-get install -y -qq gfortran    
     - adduser theuser --disabled-password --gecos ""
-    - adduser theuser --disabled-password --gecos ""
     - chmod gou+rw ${JOB_STATUS_FILE}
   script:
     - su -c "whoami ; make ${EXTRA_FLAGS} -j tests || (echo 'failed' > ${JOB_STATUS_FILE}; exit 1)" theuser
