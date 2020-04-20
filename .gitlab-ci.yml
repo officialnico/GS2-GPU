@@ -10,6 +10,18 @@ variables:
   # Fix discussed at https://github.com/open-mpi/ompi/issues/4948, suggests newer mpi
   # and docker may avoid this issue
   OMPI_MCA_btl_vader_single_copy_mechanism: "none"
+
+formattting_tests:
+  variables:
+    CASENAME: "formatting"
+  before_script:
+    - BUILD_STATUS=running BUILD_KEY=push ./.push_gitlab_build_status ${CASENAME}
+  script:
+    - scripts/test_maximum_line_length $(scripts/get_all_matching_files.py --path=src --path=externals/utils --pattern="*.[Ff]??") || (BUILD_STATUS=failed  BUILD_KEY=push ./.push_gitlab_build_status ${CASENAME}; exit 1)
+    - BUILD_STATUS=passed  BUILD_KEY=push ./.push_gitlab_build_status ${CASENAME}
+  after_script:
+    - echo "In the after script bit"
+    - ls
   
 standard_tests:
   variables:
