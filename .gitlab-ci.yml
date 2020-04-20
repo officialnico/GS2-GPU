@@ -28,12 +28,11 @@ default:
     - pipeline_test_scripts/didTestsFail.sh ${PWD}/tests results_of_test.txt  || (echo "failed" > ${JOB_STATUS_FILE}; exit 1)
     - if [[ $(grep "FAILURES" pfunit.log | wc -l) -ge 1 ]] ; then echo "failed" > ${JOB_STATUS_FILE} ; exit 1 ; fi
     - echo "passed" > ${JOB_STATUS_FILE}
-SENAME}
   after_script:
     - echo "In the after script bit"
     - ls
     - echo $(cat ${JOB_STATUS_FILE})
-    - BUILD_STATUS=$(cat ${JOB_STATUS_FILE})  BUILD_KEY=push ./.push_gitlab_build_status ${CA
+    - BUILD_STATUS=$(cat ${JOB_STATUS_FILE})  BUILD_KEY=push ./.push_gitlab_build_status ${CASENAME}
   interruptible: true
     
 formattting_tests:
