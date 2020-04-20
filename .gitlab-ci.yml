@@ -4,7 +4,7 @@ stages:
   - deploy
 
 .typical_test_script: &typical_test_script
-  - make ${EXTRA_FLAGS} test_make
+  - su -c "make ${EXTRA_FLAGS} test_make" theuser
   - su -c "whoami ; make ${EXTRA_FLAGS} build_pfunit_library || (echo 'build_pfunit_library_failed' > ${JOB_STATUS_FILE}; exit 1)" theuser
   - su -c "whoami ; make ${EXTRA_FLAGS} -j tests || (echo 'failed' > ${JOB_STATUS_FILE}; exit 1)" theuser
   - su -c "whoami ; make ${EXTRA_FLAGS} -j pfunit_tests || (cat pfunit.log; echo 'pfunit_tests_failed' > ${JOB_STATUS_FILE}; exit 1)" theuser
