@@ -3103,7 +3103,7 @@ contains
   subroutine nc_sync(nout, nout_movie, nsync_freq)
 # ifdef NETCDF
     use netcdf, only: nf90_sync
-# endife
+# endif
     implicit none
     integer, intent(in) :: nout, nout_movie
     integer, intent(in), optional :: nsync_freq
