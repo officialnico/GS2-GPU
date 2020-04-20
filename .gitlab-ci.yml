@@ -19,6 +19,9 @@ formattting_tests:
   script:
     - scripts/test_maximum_line_length $(scripts/get_all_matching_files.py --path=src --path=externals/utils --pattern="*.[Ff]??") || (BUILD_STATUS=failed  BUILD_KEY=push ./.push_gitlab_build_status ${CASENAME}; exit 1)
     - BUILD_STATUS=passed  BUILD_KEY=push ./.push_gitlab_build_status ${CASENAME}
+  after_script:
+    - echo "In the after script bit"
+    - ls
   
 standard_tests:
   variables:
