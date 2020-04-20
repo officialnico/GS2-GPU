@@ -28,10 +28,11 @@ standard_tests:
     - adduser theuser --disabled-password --gecos ""
     - chmod gou+rw ${JOB_STATUS_FILE}
   script:
-    - su -c "whoami ; MAKEFLAGS=-IMakefiles GK_SYSTEM=bitbucket make USE_NEW_DIAG= build_pfunit_library || (echo 'build_pfunit_library_failed' > ${JOB_STATUS_FILE}; exit 1)" theuser
-    - su -c "whoami ; MAKEFLAGS=-IMakefiles GK_SYSTEM=bitbucket make USE_NEW_DIAG= -j tests || (echo 'failed' > ${JOB_STATUS_FILE}; exit 1)" theuser
-    - su -c "whoami ; MAKEFLAGS=-IMakefiles GK_SYSTEM=bitbucket make USE_NEW_DIAG= -j pfunit_tests || (cat pfunit.log; echo 'pfunit_tests_failed' > ${JOB_STATUS_FILE}; exit 1)" theuser
-    - pipeline_test_scripts/didTestsFail.sh ${PWD}/tests results_of_test.txt  || (echo "failed" > ${JOB_STATUS_FILE}; exit 1)
+    - su -c "whoami ; MAKEFLAGS=-IMakefiles GK_SYSTEM=bitbucket make USE_NEW_DIAG= build_pfunit_library || (echo 'build_pfunit_library_failed' > ${JOB_STATUS_FILE}; exit 0)" theuser
+    - su -c "whoami ; MAKEFLAGS=-IMakefiles GK_SYSTEM=bitbucket make USE_NEW_DIAG= -j tests || (echo 'failed' > ${JOB_STATUS_FILE}; exit 0)" theuser
+    - su -c "whoami ; MAKEFLAGS=-IMakefiles GK_SYSTEM=bitbucket make USE_NEW_DIAG= -j pfunit_tests || (cat pfunit.log; echo 'pfunit_tests_failed' > ${JOB_STATUS_FILE}; exit 0)" theuser
+    - pipeline_test_scripts/didTestsFail.sh ${PWD}/tests results_of_test.txt  || (echo "failed" > ${JOB_STATUS_FILE}; exit 0)
+    - if [[ $(grep "FAILURES" pfunit.log | wc -l) -ge 1 ]] ; then echo "failed" > ${JOB_STATUS_FILE} ; exit 0 ; fi
     - echo "passed" > ${JOB_STATUS_FILE}
   after_script:
     - echo "In the after script bit"
