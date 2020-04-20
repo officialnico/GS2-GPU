@@ -34,6 +34,7 @@ standard_tests:
     - pipeline_test_scripts/didTestsFail.sh ${PWD}/tests results_of_test.txt  || (echo "failed" > ${JOB_STATUS_FILE}; exit 1)
     - echo "passed" > ${JOB_STATUS_FILE}
   after_script:
+    - echo "In the after script bit"
     - BUILD_STATUS=$(cat ${JOB_STATUS_FILE})  BUILD_KEY=push ./.push_gitlab_build_status ${CASENAME}
   interruptible: true
 
