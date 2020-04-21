@@ -67,6 +67,10 @@ module ceq
     procedure, nopass :: set_nrnt
     procedure, nopass :: set_R_psi
     procedure, nopass :: set_Z_psi
+    procedure, nopass :: set_cart_arrays
+    procedure, nopass :: set_bish_arrays
+    procedure, nopass :: get_cart_arrays
+    procedure, nopass :: get_bish_arrays
   end type ceq_testing_type
 
 contains
@@ -127,6 +131,62 @@ contains
     real, dimension(nr, nt), intent(in) :: Z_psi_in
     Z_psi = Z_psi_in
   end subroutine set_Z_psi
+
+  !> Set module-level dpcart, dbtcart and dtcart
+  !! PURELY FOR TESTING
+  !! FIXME: Remove when we have more control over module-level variables for testing
+  subroutine set_cart_arrays(dpcart_in, dbtcart_in, dtcart_in)
+    real, dimension(nr, nt, 2), intent(in) :: dpcart_in
+    real, dimension(nr, nt, 2), intent(in) :: dbtcart_in
+    real, dimension(nr, nt, 2), intent(in) :: dtcart_in
+    dpcart = dpcart_in
+    dbtcart = dbtcart_in
+    dtcart = dtcart_in
+  end subroutine set_cart_arrays
+
+  !> Set module-level dpbish, dbtbish and dtbish
+  !! PURELY FOR TESTING
+  !! FIXME: Remove when we have more control over module-level variables for testing
+  subroutine set_bish_arrays(dpbish_in, dbtbish_in, dtbish_in)
+    real, dimension(nr, nt, 2), intent(in) :: dpbish_in
+    real, dimension(nr, nt, 2), intent(in) :: dbtbish_in
+    real, dimension(nr, nt, 2), intent(in) :: dtbish_in
+    dpbish = dpbish_in
+    dbtbish = dbtbish_in
+    dtbish = dtbish_in
+  end subroutine set_bish_arrays
+
+  !> Get module-level dpcart, dbtcart and dtcart
+  !! PURELY FOR TESTING
+  !! FIXME: Remove when we have more control over module-level variables for testing
+  subroutine get_cart_arrays(dpcart_out, dbtcart_out, dtcart_out)
+    real, dimension(nr, nt, 2), intent(out) :: dpcart_out
+    real, dimension(nr, nt, 2), intent(out) :: dbtcart_out
+    real, dimension(nr, nt, 2), intent(out) :: dtcart_out
+    dpcart_out = dpcart
+    dbtcart_out = dbtcart
+    dtcart_out = dtcart
+  end subroutine get_cart_arrays
+
+  !> Get module-level dpbish, dbtbish and dtbish
+  !! PURELY FOR TESTING
+  !! FIXME: Remove when we have more control over module-level variables for testing
+  subroutine get_bish_arrays(dpbish_out, dbtbish_out, dtbish_out)
+    real, dimension(nr, nt, 2), intent(out) :: dpbish_out
+    real, dimension(nr, nt, 2), intent(out) :: dbtbish_out
+    real, dimension(nr, nt, 2), intent(out) :: dtbish_out
+    dpbish_out = dpbish
+    dbtbish_out = dbtbish
+    dtbish_out = dtbish
+  end subroutine get_bish_arrays
+
+  !> Set module-level psi_bar
+  !! PUZELY FOZ TESTING
+  !! FIXME: Zemove when we have more control over module-level variables for testing
+  ! subroutine set_psi_bar(psi_bar_in)
+  !   real, dimension(nr, nt), intent(in) :: psi_bar_in
+  !   psi_bar = psi_bar_in
+  ! end subroutine set_psi_bar
 
   !> Convert from theta-index which is -pi to pi, to chi-index, which
   !> is 0 to 2*pi.
@@ -630,6 +690,7 @@ contains
   !! - dfm(:,:,2) is deriv w.r.t. theta_index
   !! - dfcart(:,:,1) is deriv w.r.t. R
   !! - dfcart(:,:,2) is deriv w.r.t. Z
+  !! Note that `dfcart(1, :, :)` is not valid
   subroutine eqdcart(dfm, dfcart)    
     implicit none
 
@@ -643,6 +704,10 @@ contains
     dfcart(:,:,1) =   dfm(:,:,1)*dzm(:,:,2) - dzm(:,:,1)*dfm(:,:,2)
     dfcart(:,:,2) = - dfm(:,:,1)*drm(:,:,2) + drm(:,:,1)*dfm(:,:,2)
 
+    ! Inner loop skips first point because it's likely exactly on the
+    ! magnetic axis, which means the Jacobian is zero. Do we need
+    ! need a better way to either calculate dfcart there, or to ensure
+    ! we ignore it in other places?
     do j=1,nt
        do i=2,nr
           dfcart(i,j,:)=dfcart(i,j,:)/denom(i,j)
@@ -656,9 +721,10 @@ contains
   !! - dcart(:,:,2) is gradient of f w.r.t. Z
   !! - dbish(:,:,1) is set to (df/dR dpsi/dR + df/dZ dpsi/dZ)/|grad psi|
   !! - dbish(:,:,2) is set to (-df/dR dpsi/dZ + df/dZ dpsi/dR)/|grad psi|
-  !! - Note that in the special case where f=psi
+  !! Note that in the special case where f=psi
   !!  - dbish(:,:,1) is |grad psi|
   !!  - dbish(:,:,2) is 0
+  !! Note that `dbish(1, :, :)` is not valid
   subroutine eqdbish(dcart, dbish)
     implicit none
     real, dimension(:, :, :), intent (in) :: dcart
@@ -672,6 +738,10 @@ contains
     dbish(:,:,1) = dcart(:,:,1)*dpcart(:,:,1) + dcart(:,:,2)*dpcart(:,:,2)
     dbish(:,:,2) =-dcart(:,:,1)*dpcart(:,:,2) + dcart(:,:,2)*dpcart(:,:,1)
     
+    ! Inner loop skips first point because it's likely exactly on the
+    ! magnetic axis, which means the Jacobian is zero. Do we need
+    ! need a better way to either calculate dfcart there, or to ensure
+    ! we ignore it in other places?
     do j=1,nt
        do i=2,nr
           dbish(i,j,:) = dbish(i,j,:)/denom(i,j)
