@@ -3,6 +3,9 @@ stages:
   - ci_status
   - deploy
 
+.report_pass: &report_pass
+  - su -c "echo passed > ${JOB_STATUS_FILE}"
+
 .typical_test_script: &typical_test_script
   - su -c "make ${EXTRA_FLAGS} test_make" theuser
   - su -c "whoami ; make ${EXTRA_FLAGS} build_pfunit_library || (echo 'build_pfunit_library_failed' > ${JOB_STATUS_FILE}; exit 1)" theuser
@@ -10,7 +13,7 @@ stages:
   - su -c "whoami ; make ${EXTRA_FLAGS} -j pfunit_tests || (cat pfunit.log; echo 'pfunit_tests_failed' > ${JOB_STATUS_FILE}; exit 1)" theuser
   - pipeline_test_scripts/didTestsFail.sh ${PWD}/tests results_of_test.txt  || (echo "failed" > ${JOB_STATUS_FILE}; exit 1)
   - if [[ $(grep "FAILURES" pfunit.log | wc -l) -ge 1 ]] ; then echo "failed" > ${JOB_STATUS_FILE} ; exit 1 ; fi
-  - echo "passed" > ${JOB_STATUS_FILE}
+  - *report_pass
 
 .push_status: &push_status
   - BUILD_STATUS=$(cat ${JOB_STATUS_FILE})  BUILD_KEY=push ./.push_gitlab_build_status ${CASENAME}
@@ -55,7 +58,7 @@ formattting_tests:
     - *init_test_job
   script:
     - scripts/test_maximum_line_length $(scripts/get_all_matching_files.py --path=src --path=externals/utils --pattern="*.[Ff]??") || (echo "failed" > ${JOB_STATUS_FILE} ; exit 1)
-    - echo "passed" > ${JOB_STATUS_FILE}
+    - *report_pass
     
 standard_tests:
   variables:
@@ -94,7 +97,7 @@ nodeps_tests:
   script:
     - su -c "whoami ; make ${EXTRA_FLAGS} -j tests || (echo 'failed' > ${JOB_STATUS_FILE}; exit 1)" theuser
     - pipeline_test_scripts/didTestsFail.sh ${PWD}/tests results_of_test.txt || (echo 'failed' > ${JOB_STATUS_FILE}; exit 1)
-    - echo "passed" > ${JOB_STATUS_FILE}
+    - *report_pass
   interruptible: true
 
 pages:
