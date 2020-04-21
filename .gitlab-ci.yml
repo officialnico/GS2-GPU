@@ -27,8 +27,11 @@ stages:
   - echo "before_script" > ${JOB_STATUS_FILE}
 
 .install_main_packages: &install_main_packages
-    - apt-get update -qq && apt-get install -y -qq libfftw3-dev libnetcdf-dev libnetcdff-dev netcdf-bin openmpi-bin libopenmpi-dev gfortran cmake python3 python3-pip
-    - pip3 install -r requirements.txt
+  - apt-get update -qq && apt-get install -y -qq libfftw3-dev libnetcdf-dev libnetcdff-dev netcdf-bin openmpi-bin libopenmpi-dev gfortran cmake python3 python3-pip
+  - pip3 install -r requirements.txt
+
+.create_user: &create_user
+  - adduser theuser --disabled-password --gecos ""
   
 variables:
   GIT_SUBMODULE_STRATEGY: recursive
@@ -45,7 +48,7 @@ default:
   before_script:
     - *init_test_job
     - *install_main_packages
-    - adduser theuser --disabled-password --gecos ""
+    - *create_user
     - chmod gou+rw ${JOB_STATUS_FILE}
   after_script:
     - *push_status 
@@ -92,7 +95,7 @@ nodeps_tests:
   before_script:
     - *init_test_job
     - apt-get update -qq && apt-get install -y -qq gfortran    
-    - adduser theuser --disabled-password --gecos ""
+    - *create_user
     - chmod gou+rw ${JOB_STATUS_FILE}
   script:
     - su -c "whoami ; make ${EXTRA_FLAGS} -j tests || (echo 'failed' > ${JOB_STATUS_FILE}; exit 1)" theuser
