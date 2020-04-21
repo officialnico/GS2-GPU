@@ -45,6 +45,7 @@ stages:
 
 .create_user: &create_user
   - adduser theuser --disabled-password --gecos ""
+  - chmod gou+rw ${JOB_STATUS_FILE}
   
 variables:
   GIT_SUBMODULE_STRATEGY: recursive
@@ -60,11 +61,15 @@ variables:
   WITH_PYTHON: "yes"
   
 default:
+  artifacts:
+    paths:
+      - pfunit.log
+      - pfunit.error
+      - ${JOB_STATUS_FILE}
   before_script:
     - *init_test_job
     - *install_main_packages
     - *create_user
-    - chmod gou+rw ${JOB_STATUS_FILE}
   after_script:
     - *push_status 
   interruptible: true
@@ -94,11 +99,6 @@ standard_tests_onestep:
   variables:
     CASENAME: "standard_one_step_pp"
     EXTRA_FLAGS: "USE_NEW_DIAG= ONE_STEP_PP=on"
-  artifacts:
-    paths:
-      - pfunit.log
-      - pfunit.error
-      - ${JOB_STATUS_FILE}
   script:
     - su -c "whoami ; echo 'F90FLAGS += -ffree-form' > Makefile.local" theuser
     - *typical_test_script
@@ -109,11 +109,11 @@ nodeps_tests:
     EXTRA_FLAGS: "USE_FFT= USE_NETCDF= USE_MPI= USE_NEW_DIAG= "
     GS2_PACKAGES: "gfortran"
     WITH_PYTHON: "no"
+  artifacts:
   before_script:
     - *init_test_job
     - *install_main_packages
     - *create_user
-    - chmod gou+rw ${JOB_STATUS_FILE}
   script:
     - *build_gs2
     - *gs2_tests
