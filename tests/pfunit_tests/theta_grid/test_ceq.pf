@@ -449,6 +449,104 @@ contains
   end subroutine test_ceq_init
 
   @test
+  subroutine test_gradient()
+    use constants, only : pi
+    use ceq, only : ceq_testing_type, gradient
+    type(ceq_testing_type) :: ceq_privates
+
+    integer, parameter :: nradius = 3
+    integer, parameter :: ntheta = 2
+
+    real, dimension(npsi_test, ntheta_test, 2) :: dpcart, dbtcart, dtcart
+    integer :: i
+    real, dimension(-ntheta:ntheta), parameter :: psi = 1.
+    real, dimension(-ntheta:ntheta), parameter :: theta = [(real(i)*pi/(2*real(ntheta-1)), i=-ntheta,ntheta)]
+    real, dimension(-ntheta:ntheta, 2) :: expected, grad_result
+
+    call set_ceq_test_data()
+
+    dpcart(:, :, 1) = reshape([&
+           0., -2., -1.,&
+           0., 0., 0., &
+           0., 2., 1., &
+           0., 0., 0., &
+           0., -2., -1.], shape=[npsi_test, ntheta_test])
+    dpcart(:, :, 2) = reshape([&
+           0., 0., 0.,&
+           0., -2., -1., &
+           0., 0., 0., &
+           0., 2., 1., &
+           0., 0., 0.], shape=[npsi_test, ntheta_test])
+    dbtcart = 0.
+    dtcart = 0.
+
+    call ceq_privates%set_cart_arrays(dpcart, dbtcart, dtcart)
+    call ceq_privates%set_eqpsi([0., 1., 2.])
+
+    expected(:, 1) = [-2., 0., 2., 0., -2.]
+    expected(:, 2) = [0., -2., 0., 2., 0.]
+    call gradient(psi, theta, grad_result, 'P', 0.5, ntheta, ntheta)
+    @assertEqual(expected, grad_result, tolerance=value_tolerance)
+
+    expected(:, 1) = [-3., 0., 3., 0., -3.]
+    expected(:, 2) = [0., -3., 0., 3., 0.]
+    call gradient(psi, theta, grad_result, 'R', 0.5, ntheta, ntheta)
+    ! 'R' is derivative of pressure, and involves a separate
+    ! interpolation, hence reduced tolerance
+    @assertEqual(expected, grad_result, tolerance=derivative_tolerance)
+
+  end subroutine test_gradient
+
+  @test
+  subroutine test_bgradient()
+    use constants, only : pi
+    use ceq, only : ceq_testing_type, bgradient
+    type(ceq_testing_type) :: ceq_privates
+
+    integer, parameter :: nradius = 3
+    integer, parameter :: ntheta = 2
+
+    real, dimension(npsi_test, ntheta_test, 2) :: dpbish, dbtbish, dtbish
+    integer :: i
+    real, dimension(-ntheta:ntheta), parameter :: psi = 1.
+    real, dimension(-ntheta:ntheta), parameter :: theta = [(real(i)*pi/(2*real(ntheta-1)), i=-ntheta,ntheta)]
+    real, dimension(-ntheta:ntheta, 2) :: expected, grad_result
+
+    call set_ceq_test_data()
+
+    dpbish(:, :, 1) = reshape([&
+           0., -2., -1.,&
+           0., 0., 0., &
+           0., 2., 1., &
+           0., 0., 0., &
+           0., -2., -1.], shape=[npsi_test, ntheta_test])
+    dpbish(:, :, 2) = reshape([&
+           0., 0., 0.,&
+           0., -2., -1., &
+           0., 0., 0., &
+           0., 2., 1., &
+           0., 0., 0.], shape=[npsi_test, ntheta_test])
+    dbtbish = 0.
+    dtbish = 0.
+
+    call ceq_privates%set_bish_arrays(dpbish, dbtbish, dtbish)
+    call ceq_privates%set_eqpsi([0., 1., 2.])
+
+    expected(:, 1) = [-2., 0., 2., 0., -2.]
+    expected(:, 2) = [0., -2., 0., 2., 0.]
+    call bgradient(psi, theta, grad_result, 'P', 0.5, ntheta, ntheta)
+    @assertEqual(expected, grad_result, tolerance=value_tolerance)
+
+    expected(:, 1) = [-3., 0., 3., 0., -3.]
+    expected(:, 2) = [0., -3., 0., 3., 0.]
+    call bgradient(psi, theta, grad_result, 'R', 0.5, ntheta, ntheta)
+    ! 'R' is derivative of pressure, and involves a separate
+    ! interpolation, hence reduced tolerance
+    @assertEqual(expected, grad_result, tolerance=derivative_tolerance)
+
+  end subroutine test_bgradient
+
+  @test
   subroutine test_mod2pi()
     use constants, only : pi
     use ceq, only : ceq_testing_type
