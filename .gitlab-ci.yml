@@ -12,21 +12,15 @@ stages:
 .typical_test_script: &typical_test_script
   - su -c "make ${EXTRA_FLAGS} test_make" theuser
   - su -c "make ${EXTRA_FLAGS} -j gs2 || (echo 'build_gs2_failed' > ${JOB_STATUS_FILE}; exit 1)" theuser
-  - su -c "whoami ; make ${EXTRA_FLAGS} build_pfunit_library || (echo 'build_pfunit_library_failed' > ${JOB_STATUS_FILE}; exit 1)" theuser
-  - su -c "whoami ; make ${EXTRA_FLAGS} -j pfunit_tests || (cat pfunit.log; echo 'pfunit_tests_failed' > ${JOB_STATUS_FILE}; exit 1)" theuser
-  - if [[ $(grep "FAILURES" pfunit.log | wc -l) -ge 1 ]] ; then echo "failed" > ${JOB_STATUS_FILE} ; exit 1 ; fi
-  - su -c "whoami ; make ${EXTRA_FLAGS} -j tests || (echo 'failed' > ${JOB_STATUS_FILE}; exit 1)" theuser
-  - pipeline_test_scripts/didTestsFail.sh ${PWD}/tests results_of_test.txt  || (echo "failed" > ${JOB_STATUS_FILE}; exit 1)
+  - if [ x${WITH_PFUNIT_TESTS} == "xyes" ] ; then su -c "whoami ; make ${EXTRA_FLAGS} build_pfunit_library || (echo 'build_pfunit_library_failed' > ${JOB_STATUS_FILE}; exit 1) ; make ${EXTRA_FLAGS} -j pfunit_tests || (cat pfunit.log; echo 'pfunit_tests_failed' > ${JOB_STATUS_FILE}; exit 1) ; if [[ $(grep 'FAILURES' pfunit.log | wc -l) -ge 1 ]] ; then echo 'failed' > ${JOB_STATUS_FILE} ; exit 1 ; fi "  theuser ; fi
+  - if [ x${WITH_GS2_TESTS} == "xyes" ] ; then su -c "whoami ; make ${EXTRA_FLAGS} -j tests || (echo 'failed' > ${JOB_STATUS_FILE}; exit 1) ; pipeline_test_scripts/didTestsFail.sh ${PWD}/tests results_of_test.txt  || (echo 'failed' > ${JOB_STATUS_FILE}; exit 1)" theuser ; fi
   - su -c "echo passed > ${JOB_STATUS_FILE}"
 
 .pfunit_tests: &pfunit_tests
-  - su -c "whoami ; make ${EXTRA_FLAGS} build_pfunit_library || (echo 'build_pfunit_library_failed' > ${JOB_STATUS_FILE}; exit 1)" theuser
-  - su -c "whoami ; make ${EXTRA_FLAGS} -j pfunit_tests || (cat pfunit.log; echo 'pfunit_tests_failed' > ${JOB_STATUS_FILE}; exit 1)" theuser
-  - if [[ $(grep "FAILURES" pfunit.log | wc -l) -ge 1 ]] ; then echo "failed" > ${JOB_STATUS_FILE} ; exit 1 ; fi
+  - if [ x${WITH_PFUNIT_TESTS} == "xyes" ] ; then su -c "whoami ; make ${EXTRA_FLAGS} build_pfunit_library || (echo 'build_pfunit_library_failed' > ${JOB_STATUS_FILE}; exit 1) ; make ${EXTRA_FLAGS} -j pfunit_tests || (cat pfunit.log; echo 'pfunit_tests_failed' > ${JOB_STATUS_FILE}; exit 1) ; if [[ $(grep 'FAILURES' pfunit.log | wc -l) -ge 1 ]] ; then echo 'failed' > ${JOB_STATUS_FILE} ; exit 1 ; fi "  theuser ; fi
 
 .gs2_tests: &gs2_tests
-  - su -c "whoami ; make ${EXTRA_FLAGS} -j tests || (echo 'failed' > ${JOB_STATUS_FILE}; exit 1)" theuser
-  - pipeline_test_scripts/didTestsFail.sh ${PWD}/tests results_of_test.txt  || (echo "failed" > ${JOB_STATUS_FILE}; exit 1)
+  - if [ x${WITH_GS2_TESTS} == "xyes" ] ; then su -c "whoami ; make ${EXTRA_FLAGS} -j tests || (echo 'failed' > ${JOB_STATUS_FILE}; exit 1) ; pipeline_test_scripts/didTestsFail.sh ${PWD}/tests results_of_test.txt  || (echo 'failed' > ${JOB_STATUS_FILE}; exit 1)" theuser ; fi
 
 .push_status: &push_status
   - BUILD_STATUS=$(cat ${JOB_STATUS_FILE})  BUILD_KEY=push ./.push_gitlab_build_status ${CASENAME}
@@ -59,6 +53,8 @@ variables:
   GK_SYSTEM: "bitbucket"
   GS2_PACKAGES: "libfftw3-dev libnetcdf-dev libnetcdff-dev netcdf-bin openmpi-bin libopenmpi-dev gfortran cmake python3 python3-pip"
   WITH_PYTHON: "yes"
+  WITH_PFUNIT_TESTS: "yes"
+  WITH_GS2_TESTS: "yes"
   
 default:
   artifacts:
@@ -87,11 +83,6 @@ standard_tests:
   variables:
     CASENAME: "standard"
     EXTRA_FLAGS: "USE_NEW_DIAG= "
-  artifacts:
-    paths:
-      - pfunit.log
-      - pfunit.error
-      - ${JOB_STATUS_FILE}      
   script:
     - *typical_test_script
     
@@ -109,15 +100,10 @@ nodeps_tests:
     EXTRA_FLAGS: "USE_FFT= USE_NETCDF= USE_MPI= USE_NEW_DIAG= "
     GS2_PACKAGES: "gfortran"
     WITH_PYTHON: "no"
-  artifacts:
-  before_script:
-    - *init_test_job
-    - *install_main_packages
-    - *create_user
+    WITH_PFUNIT_TESTS: "no"
+    WITH_GS2_TESTS: "yes"
   script:
-    - *build_gs2
-    - *gs2_tests
-    - *report_pass
+    - *typical_test_script
 
 pages:
   stage: test
