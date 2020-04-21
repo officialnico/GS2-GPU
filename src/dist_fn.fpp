@@ -6691,6 +6691,65 @@ endif
 
   end subroutine get_init_field
 
+  !> Routine to dump the current source term used in [[invert_rhs]].
+  !>
+  !> This might be relatively expensive so care should be taken in
+  !> calling this.  It makes use of the existing code for saving
+  !> restart files and as such produces either one file per processor
+  !> or a single file depending on if the build uses parallel i/o or
+  !> not. These files are automatically overwritten so calling it
+  !> repeatedly within a single run might not be useful.
+  subroutine dump_current_source_term(istep, phi, apar, bpar, phinew, aparnew, bparnew)
+    use gs2_save, only: gs2_save_for_restart
+    use gs2_layouts, only: g_lo, ik_idx, it_idx, il_idx, ie_idx, is_idx
+    use theta_grid, only: ntgrid
+    use run_parameters, only: fphi, fapar, fbpar
+    use gs2_time, only: user_time, user_dt, time_history_available
+    use collisions, only: vnmult
+    implicit none
+    integer, intent(in) :: istep
+    complex, dimension (-ntgrid:,:,:), intent (in) :: phi,    apar,    bpar
+    complex, dimension (-ntgrid:,:,:), intent (in) :: phinew, aparnew, bparnew
+    complex, dimension(:, :, :), allocatable :: gtmp
+    complex, dimension (-ntgrid:ntgrid-1,2) :: source
+    character(len = 20), parameter :: extension = '.source'
+    integer :: nstep_available, istatus
+    integer :: iglo, ik, it, il, ie, is, isgn
+    complex, parameter :: sourcefac = 0.0
+
+    allocate(gtmp(-ntgrid:ntgrid, 2, g_lo%llim_proc:g_lo%ulim_alloc))
+    gtmp = 0.
+
+    if (istep .eq. 0) then
+       nstep_available = 0
+    else
+       nstep_available = time_history_available()
+    endif
+
+    do iglo = g_lo%llim_proc, g_lo%ulim_proc
+       ik = ik_idx(g_lo, iglo)
+       it = it_idx(g_lo, iglo)
+       il = il_idx(g_lo, iglo)
+       ie = ie_idx(g_lo, iglo)
+       is = is_idx(g_lo, iglo)
+
+       if(opt_source)then
+          call get_source_term_opt (phi, apar, bpar, phinew, aparnew, bparnew, &
+               nstep_available, iglo,ik,it,il,ie,is, sourcefac, source)
+       else
+          do isgn = 1, 2
+             call get_source_term (phi, apar, bpar, phinew, aparnew, bparnew, &
+                  nstep_available, isgn, iglo,ik,it,il,ie,is, sourcefac, source(:,isgn))
+          end do
+       endif
+
+       gtmp(:ntgrid-1, :, iglo) = source
+    end do
+
+    call gs2_save_for_restart (gtmp, user_time, user_dt, vnmult, istatus, &
+         fphi, fapar, fbpar, fileopt = extension)
+  end subroutine dump_current_source_term
+
   !> FIXME : Add documentation
   subroutine flux (phi, apar, bpar, &
        pflux,  qflux,  vflux, vflux_par, vflux_perp, &
