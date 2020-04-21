@@ -6691,7 +6691,7 @@ endif
 
   end subroutine get_init_field
 
-  !> Routine to dump the current source term using in [[invert_rhs]]
+  !> Routine to dump the current source term used in [[invert_rhs]].
   !>
   !> This might be relatively expensive so care should be taken in
   !> calling this.  It makes use of the existing code for saving
