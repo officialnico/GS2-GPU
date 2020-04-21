@@ -11,6 +11,7 @@ stages:
 
 .typical_test_script: &typical_test_script
   - su -c "make ${EXTRA_FLAGS} test_make" theuser
+  - su -c "make ${EXTRA_FLAGS} -j gs2 || (echo 'build_gs2_failed' > ${JOB_STATUS_FILE}; exit 1)" theuser
   - su -c "whoami ; make ${EXTRA_FLAGS} build_pfunit_library || (echo 'build_pfunit_library_failed' > ${JOB_STATUS_FILE}; exit 1)" theuser
   - su -c "whoami ; make ${EXTRA_FLAGS} -j pfunit_tests || (cat pfunit.log; echo 'pfunit_tests_failed' > ${JOB_STATUS_FILE}; exit 1)" theuser
   - if [[ $(grep "FAILURES" pfunit.log | wc -l) -ge 1 ]] ; then echo "failed" > ${JOB_STATUS_FILE} ; exit 1 ; fi
@@ -38,6 +39,9 @@ stages:
 .install_main_packages: &install_main_packages
   - apt-get update -qq && apt-get install -y -qq libfftw3-dev libnetcdf-dev libnetcdff-dev netcdf-bin openmpi-bin libopenmpi-dev gfortran cmake python3 python3-pip
   - pip3 install -r requirements.txt
+
+.build_gs2: &build_gs2
+  - su -c "make ${EXTRA_FLAGS} -j gs2 || (echo 'build_gs2_failed' > ${JOB_STATUS_FILE}; exit 1)" theuser
 
 .create_user: &create_user
   - adduser theuser --disabled-password --gecos ""
@@ -107,6 +111,7 @@ nodeps_tests:
     - *create_user
     - chmod gou+rw ${JOB_STATUS_FILE}
   script:
+    - *build_gs2
     - *gs2_tests
     - *report_pass
 

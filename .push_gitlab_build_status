@@ -49,6 +49,10 @@ set -x
     BITBUCKET_STATE="FAILED"
     BITBUCKET_DESCRIPTION="Building the pFUnit library failed."
     ;;
+ build_gs2_failed)
+    BITBUCKET_STATE="FAILED"
+    BITBUCKET_DESCRIPTION="Building GS2 failed."
+    ;;
  before_script)
     BITBUCKET_STATE="FAILED"
     BITBUCKET_DESCRIPTION="Setting up the system failed."
