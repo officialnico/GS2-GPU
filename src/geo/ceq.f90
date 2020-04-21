@@ -488,14 +488,28 @@ contains
 
   end subroutine derm
 
-  !> FIXME : Add documentation
+  !> Calculate the derivative of a selected field w.r.t. R and Z
   subroutine gradient(rgrid, theta, grad, char, rp, nth_used, ntm)
     use splines, only: inter_d_cspl
     implicit none
-    integer, intent(in) :: nth_used, ntm
+    !> Number of theta points
+    integer, intent(in) :: nth_used
+    !> Lower index of theta array
+    integer, intent(in) :: ntm
+    !> Select field to take gradient of:
+    !>   - 'D': Bt
+    !>   - 'P': psi
+    !>   - 'R': pressure
+    !>   - 'T': theta
     character(1), intent(in) :: char
-    real, intent(in) :: rgrid(-ntm:), theta(-ntm:)
+    !> Minor radius grid of flux surface (?)
+    real, intent(in) :: rgrid(-ntm:)
+    !> Theta grid
+    real, intent(in) :: theta(-ntm:)
+    !> grad(:,1): derivative w.r.t. R as function of theta
+    !> grad(:,2): derivative w.r.t  Z as function of theta
     real, intent(out) :: grad(-ntm:,:)
+    !> Radius for taking pressure derivative (?)
     real, intent(in) :: rp
     real :: tmp(2), aa(1), daa(1), rpt(1)
     real, dimension(nr,nt,2) :: dcart
@@ -545,16 +559,30 @@ contains
 
   end subroutine gradient
 
-  !> FIXME : Add documentation
+  !> Calculate the derivative of a selected field w.r.t. the Bishop
+  !> coordinate system
   subroutine bgradient(rgrid, theta, grad, char, rp, nth_used, ntm)
     use mp, only: mp_abort
     use splines, only: inter_d_cspl
     implicit none
-    
-    integer, intent(in) :: nth_used, ntm
+    !> Number of theta points
+    integer, intent(in) :: nth_used
+    !> Lower index of theta array
+    integer, intent(in) :: ntm
+    !> Select field to take gradient of:
+    !>   - 'D': Bt
+    !>   - 'P': psi
+    !>   - 'R': pressure
+    !>   - 'T': theta
     character(1), intent(in) :: char
-    real, intent(in) :: rgrid(-ntm:), theta(-ntm:), rp
+    !> Minor radius grid of flux surface (?)
+    real, intent(in) :: rgrid(-ntm:)
+    !> Theta grid
+    real, intent(in) :: theta(-ntm:)
+    !> Computed derivative, second dimension is the Bishop coordinate
     real, intent(out) :: grad(-ntm:,:)
+    !> Radius for taking pressure derivative (?)
+    real, intent(in) :: rp
     real :: aa(1), daa(1), rpt(1)
     real, dimension(nr,nt,2) ::  dbish
     integer :: i
