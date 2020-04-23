@@ -941,7 +941,6 @@ contains
   !!
   !! Joseph Parker, STFC
   subroutine nb_check_time_step_too_large
-    use mp, only: iproc
     use run_parameters, only: reset, immediate_reset
     use gs2_time, only: save_dt_cfl, check_time_step_too_large
     use mp, only: wait
@@ -952,9 +951,7 @@ contains
     !If immediate_reset, this check has already been done during the timestep.
     if(immediate_reset) return
 
-    !write (*,*) 'Receiving max_iallreduce', iproc, immediate_reset, max_vel
     call wait(cfl_req_hand)    
-    !write (*,*) 'Received max_iallreduce', iproc, immediate_reset, max_vel
     dt_cfl = 1./max_vel
     call save_dt_cfl (dt_cfl)
 

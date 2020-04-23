@@ -285,7 +285,7 @@ contains
     use gs2_main, only: prepare_kt_grids_overrides
     use theta_grid, only: ntgrid
     use nonlinear_terms, only: gryfx_zonal
-    use mp, only: proc0, mp_abort, broadcast
+    use mp, only: mp_abort, broadcast
     use unit_tests, only: debug_message
     use geometry, only: equal_arc
     use gs2_save, only: init_dt
@@ -314,9 +314,7 @@ contains
 
     gryfx_zonal%on = .true.
 
-
     call initialize_gs2(state)
-    !if(proc0) write(*,*) 'initialize_gs2 complete. gs2 thinks run_name is ', run_name
     !set overrides of naky, x0, y0, dt, vnewk here. 
     !currently this is hard-coded in kt_grids.f90 and run_parameters.f90
     !just search for "GRYFX"
@@ -427,7 +425,6 @@ contains
     !> FIXME : Add documentation    
     subroutine set_profiles_overrides
       use species, only: nspec
-      !write (*,*) 'SET_PROFILES_OVERRIDES'
       integer :: is, isg
       do is = 1,nspec
          isg = is
