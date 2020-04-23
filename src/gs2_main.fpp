@@ -1198,7 +1198,6 @@ contains
     use gs2_layouts, only: g_lo
     use kt_grids, only: naky, ntheta0
     use theta_grid, only: ntgrid
-    use species, only: nspec
     implicit none
     type(gs2_program_state_type), intent(inout) :: state
     if (.not. state%included) return
@@ -1822,7 +1821,7 @@ contains
 
   !> FIXME : Add documentation  
   subroutine determine_gs2spec_from_trin(ntspec, trin_multispec_in)
-    use species, only: determine_species_order, nspec, impurity, ions
+    use species, only: determine_species_order, impurity, ions
     use species, only: electrons
     use mp, only: mp_abort
     integer, intent(in) :: ntspec
@@ -1939,9 +1938,7 @@ contains
        deltam, deltan, deltampri, deltanpri, thetam, thetan, &
        betaprim, ntspec, dens, temp, fprim, tprim, gexb, mach, nu, use_gs2_geo)
 
-    use dist_fn, only: dist_fn_g_exb => g_exb
     use old_interface_store
-    !use mp, only: broadcast
 
     implicit none
 

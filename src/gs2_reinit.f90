@@ -261,13 +261,11 @@ contains
   !> FIXME : Add documentation  
   subroutine init_reinit(reinit_config_in)
     use run_parameters, only: code_delt_max
-    use mp, only: proc0, broadcast
     use file_utils, only: input_unit, input_unit_exist
     use gs2_time, only: save_dt_min
     use gs2_init, only: gs2_init_in_memory=>in_memory
     implicit none
     type(reinit_config_type), intent(in), optional :: reinit_config_in    
-    integer :: in_file
     logical :: exist
 
     if(initialized) return

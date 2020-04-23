@@ -408,7 +408,6 @@ contains
   subroutine read_parameters(fields_config_in)
     use file_utils, only: input_unit, error_unit, input_unit_exist
     use text_options, only: text_option, get_option_value
-    use mp, only: proc0, broadcast, mp_abort
     use fields_implicit, only: field_subgath
     use fields_local, only: minNRow
     use fields_local, only: do_smart_update, field_local_allreduce, field_local_allreduce_sub
@@ -419,7 +418,7 @@ contains
     type(fields_config_type), intent(in), optional :: fields_config_in    
     character(20) :: field_option
     character(len=256) :: response_dir
-    integer :: ierr, in_file
+    integer :: ierr
 
 
     if (present(fields_config_in)) fields_config = fields_config_in

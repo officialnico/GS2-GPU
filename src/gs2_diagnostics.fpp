@@ -760,7 +760,6 @@ contains
     use theta_grid, only: nperiod, ntheta
     !    use kt_grids, only: box
     use run_parameters, only: fphi
-    use mp, only: proc0
     use nonlinear_terms, only: nonlin
     implicit none
     logical, intent (in) :: list
@@ -1043,7 +1042,6 @@ contains
     use prof, only: prof_entering, prof_leaving
     use gs2_time, only: user_time
     use gs2_io, only: nc_qflux, nc_vflux, nc_pflux, nc_pflux_tormom, nc_exchange, nc_final_fields, nc_sync
-    use le_grids, only: negrid
     use nonlinear_terms, only: nonlin
     use antenna, only: antenna_w
     use parameter_scan_arrays, only: scan_hflux => hflux_tot, scan_momflux => momflux_tot 
@@ -2674,7 +2672,6 @@ contains
   subroutine do_write_nl_flux_dist
     use dist_fn, only: flux_dist
     use theta_grid, only: ntgrid
-    use le_grids, only: negrid
     use species, only: nspec, spec
     use mp, only: proc0
     use gs2_io, only: nc_loop_dist
