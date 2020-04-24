@@ -573,7 +573,7 @@ contains
   @test
   subroutine test_invR
     use constants, only : pi
-    use ceq, only : invR, ceq_testing_type
+    use ceq, only : initialize_invR, invR, ceq_testing_type
 
     type(ceq_testing_type) :: ceq_privates
 
@@ -595,6 +595,7 @@ contains
     call ceq_privates%set_eqpsi([1., 2., 3.])
     call ceq_privates%set_R_psi(R_psi)
 
+    i = initialize_invR(1)
     @assertEqual(0.25, invR(2., 0.), tolerance=value_tolerance)
     @assertEqual(-0.25, invR(2., pi), tolerance=value_tolerance)
 
@@ -669,7 +670,7 @@ contains
   @test
   subroutine test_rcenter
     use constants, only : pi
-    use ceq, only : rcenter, ceq_testing_type
+    use ceq, only : rcenter, ceq_testing_type, initialize_rcenter
 
     type(ceq_testing_type) :: ceq_privates
 
@@ -691,6 +692,7 @@ contains
     call ceq_privates%set_eqpsi([1., 2., 3.])
     call ceq_privates%set_R_psi(R_psi)
 
+    i = initialize_rcenter(1)
     @assertEqual(1., rcenter(1.))
     @assertEqual(4., rcenter(2.))
 
@@ -742,7 +744,7 @@ contains
   @test
   subroutine test_diameter
     use constants, only : pi
-    use ceq, only : diameter, ceq_testing_type
+    use ceq, only : initialize_diameter, diameter, ceq_testing_type
 
     type(ceq_testing_type) :: ceq_privates
 
@@ -764,6 +766,7 @@ contains
     call ceq_privates%set_eqpsi([1., 2., 3.])
     call ceq_privates%set_R_psi(R_psi)
 
+    i = initialize_diameter(1)
     @assertEqual(2., diameter(1.))
     @assertEqual(8., diameter(2.))
 
@@ -821,10 +824,12 @@ contains
 
   @test
   subroutine test_btori
-    use ceq, only : btori
+    use ceq, only : initialize_btori, btori
+    integer :: i
 
     call initialise_ceq_with_test_data()
 
+    i = initialize_btori(1)
     @assertEqual(1.25, btori(0.25))
     @assertEqual(-1.25, btori(0.75))
 
@@ -839,10 +844,12 @@ contains
 
   @test
   subroutine test_dbtori
-    use ceq, only : dbtori
+    use ceq, only : initialize_dbtori, dbtori
+    integer :: i
 
     call initialise_ceq_with_test_data()
 
+    i = initialize_dbtori(1)
     @assertEqual(-2., dbtori(0.25))
     @assertEqual(-2., dbtori(0.75))
 
@@ -857,10 +864,12 @@ contains
 
   @test
   subroutine test_qfun
-    use ceq, only : qfun
+    use ceq, only : initialize_q, qfun
+    integer :: i
 
     call initialise_ceq_with_test_data()
 
+    i = initialize_q(1)
     @assertEqual(6.25, qfun(0.25), tolerance=spline_tolerance)
     @assertEqual(12.25, qfun(0.75), tolerance=spline_tolerance)
   end subroutine test_qfun
@@ -874,10 +883,12 @@ contains
 
   @test
   subroutine test_pfun
-    use ceq, only : pfun
+    use ceq, only : initialize_pressure, pfun
+    integer :: i
 
     call initialise_ceq_with_test_data()
 
+    i = initialize_pressure(1)
     @assertEqual(2.25, pfun(0.25), tolerance=spline_tolerance)
     @assertEqual(3.75, pfun(0.75), tolerance=spline_tolerance)
   end subroutine test_pfun
@@ -891,10 +902,12 @@ contains
 
   @test
   subroutine test_dpfun
-    use ceq, only : dpfun
+    use ceq, only : initialize_dpressure, dpfun
+    integer :: i
 
     call initialise_ceq_with_test_data()
 
+    i = initialize_dpressure(1)
     @assertEqual(1.2, dpfun(0.25), tolerance=spline_tolerance)
     @assertEqual(1.2, dpfun(0.75), tolerance=spline_tolerance)
   end subroutine test_dpfun
@@ -908,10 +921,12 @@ contains
 
   @test
   subroutine test_betafun
-    use ceq, only : betafun
+    use ceq, only : initialize_beta, betafun
+    integer :: i
 
     call initialise_ceq_with_test_data()
 
+    i = initialize_beta(1)
     @assertEqual(4.5, betafun(0.25), tolerance=spline_tolerance)
     @assertEqual(7.5, betafun(0.75), tolerance=spline_tolerance)
   end subroutine test_betafun
@@ -925,7 +940,10 @@ contains
 
   @test
   subroutine test_psi
-    use ceq, only : psi
+    use ceq, only : initialize_psi, psi
+    integer :: i
+
+    i = initialize_psi(1)
     @assertEqual(-1., psi(-1.))
     @assertEqual(0., psi(0.))
     @assertEqual(1.5, psi(1.5))
