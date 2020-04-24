@@ -304,7 +304,7 @@ contains
          local_eq = .false., &
          chs_eq = .true., &
          equal_arc = .true., &
-         eqfile = "tests/pfunit_tests/theta_grid/ogyropsi.dat" &
+         eqfile = "tests/pfunit_tests/geo/ogyropsi.dat" &
          )
     call theta_grid_eik_config%setup("eik_knobs", requires_index=.false.)
     call set_theta_grid_eik_config(theta_grid_eik_config)
@@ -433,7 +433,7 @@ contains
          local_eq = .false., &
          efit_eq = .true., &
          equal_arc = .true., &
-         eqfile = "tests/pfunit_tests/theta_grid/EQDSK", &
+         eqfile = "tests/pfunit_tests/geo/EQDSK", &
          beta_prime_input = -7.3746392639128452E-002, &
          s_hat_input = 0.26742081952674540 &
          )

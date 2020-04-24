@@ -21,7 +21,7 @@ contains
   subroutine test_read_chease(this)
     use read_chease
     class (MpiTestMethod), intent(inout) :: this
-    call read_infile("tests/pfunit_tests/theta_grid/chease_data.fake")
+    call read_infile("tests/pfunit_tests/geo/chease_data.fake")
 
     @assertEqual(1, psi_chease, message="psi_chease")
     @assertEqual(2, chi_chease, message="chi_chease")
