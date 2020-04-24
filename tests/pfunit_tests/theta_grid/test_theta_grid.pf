@@ -3,7 +3,7 @@ module test_theta_grid_mod
   implicit none
 
   integer, parameter :: grid_size = 33
-  real, parameter :: tolerance = 5.0e-3
+  real, parameter :: tolerance = 1.0e-9
 
 contains
 
