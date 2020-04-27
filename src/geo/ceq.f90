@@ -100,7 +100,7 @@ contains
     dzm = dzm_in
   end subroutine set_dzm
 
-  !> Set module-level dpcart
+  !> Set module-level `dpcart`
   !! PURELY FOR TESTING
   !! FIXME: Remove when we have more control over module-level variables for testing
   subroutine set_dpcart(dpcart_in)
@@ -108,7 +108,7 @@ contains
     dpcart = dpcart_in
   end subroutine set_dpcart
 
-  !> Set module-level eqpsi
+  !> Set module-level `eqpsi`
   !! PURELY FOR TESTING
   !! FIXME: Remove when we have more control over module-level variables for testing
   subroutine set_eqpsi(eqpsi_in)
@@ -116,7 +116,7 @@ contains
     eqpsi = eqpsi_in
   end subroutine set_eqpsi
 
-  !> Set module-level R_psi
+  !> Set module-level `R_psi`
   !! PURELY FOR TESTING
   !! FIXME: Remove when we have more control over module-level variables for testing
   subroutine set_R_psi(R_psi_in)
@@ -124,7 +124,7 @@ contains
     R_psi = R_psi_in
   end subroutine set_R_psi
 
-  !> Set module-level Z_psi
+  !> Set module-level `Z_psi`
   !! PURELY FOR TESTING
   !! FIXME: Remove when we have more control over module-level variables for testing
   subroutine set_Z_psi(Z_psi_in)
@@ -132,7 +132,7 @@ contains
     Z_psi = Z_psi_in
   end subroutine set_Z_psi
 
-  !> Set module-level dpcart, dbtcart and dtcart
+  !> Set module-level `dpcart`, `dbtcart` and `dtcart`
   !! PURELY FOR TESTING
   !! FIXME: Remove when we have more control over module-level variables for testing
   subroutine set_cart_arrays(dpcart_in, dbtcart_in, dtcart_in)
@@ -144,7 +144,7 @@ contains
     dtcart = dtcart_in
   end subroutine set_cart_arrays
 
-  !> Set module-level dpbish, dbtbish and dtbish
+  !> Set module-level `dpbish`, `dbtbish` and `dtbish`
   !! PURELY FOR TESTING
   !! FIXME: Remove when we have more control over module-level variables for testing
   subroutine set_bish_arrays(dpbish_in, dbtbish_in, dtbish_in)
@@ -156,7 +156,7 @@ contains
     dtbish = dtbish_in
   end subroutine set_bish_arrays
 
-  !> Get module-level dpcart, dbtcart and dtcart
+  !> Get module-level `dpcart`, `dbtcart` and `dtcart`
   !! PURELY FOR TESTING
   !! FIXME: Remove when we have more control over module-level variables for testing
   subroutine get_cart_arrays(dpcart_out, dbtcart_out, dtcart_out)
@@ -168,7 +168,7 @@ contains
     dtcart_out = dtcart
   end subroutine get_cart_arrays
 
-  !> Get module-level dpbish, dbtbish and dtbish
+  !> Get module-level `dpbish`, `dbtbish` and `dtbish`
   !! PURELY FOR TESTING
   !! FIXME: Remove when we have more control over module-level variables for testing
   subroutine get_bish_arrays(dpbish_out, dbtbish_out, dtbish_out)
@@ -180,17 +180,9 @@ contains
     dtbish_out = dtbish
   end subroutine get_bish_arrays
 
-  !> Set module-level psi_bar
-  !! PUZELY FOZ TESTING
-  !! FIXME: Zemove when we have more control over module-level variables for testing
-  ! subroutine set_psi_bar(psi_bar_in)
-  !   real, dimension(nr, nt), intent(in) :: psi_bar_in
-  !   psi_bar = psi_bar_in
-  ! end subroutine set_psi_bar
-
-  !> Convert from theta-index which is -pi to pi, to chi-index, which
-  !> is 0 to 2*pi.
-  !> Assumes nchi is even?
+  !> Convert from theta-index which is `-pi` to `pi`, to chi-index, which
+  !> is `0` to `2*pi.`
+  !> Assumes `nchi` is even?
   function chease_chi_index(nchi,itheta)
     integer, intent(in) :: nchi, itheta
     integer :: chease_chi_index
@@ -390,7 +382,9 @@ contains
     call finish
   end subroutine ceq_finish
 
-  !> FIXME : Add documentation  
+  !> Initialise CHEASE equilibrium module
+  !!
+  !! Assumes data has already been read in
   subroutine ceq_init
     use constants, only: pi
     implicit none
@@ -501,6 +495,7 @@ contains
     !>   - 'P': psi
     !>   - 'R': pressure
     !>   - 'T': theta
+    !>   - 'B': for debugging with `bishop==0` only
     character(1), intent(in) :: char
     !> Minor radius grid of flux surface (?)
     real, intent(in) :: rgrid(-ntm:)
@@ -509,7 +504,7 @@ contains
     !> grad(:,1): derivative w.r.t. R as function of theta
     !> grad(:,2): derivative w.r.t  Z as function of theta
     real, intent(out) :: grad(-ntm:,:)
-    !> Radius for taking pressure derivative (?)
+    !> Radius for taking pressure derivative (FIXME: double-check)
     real, intent(in) :: rp
     real :: tmp(2), aa(1), daa(1), rpt(1)
     real, dimension(nr,nt,2) :: dcart
@@ -574,6 +569,7 @@ contains
     !>   - 'P': psi
     !>   - 'R': pressure
     !>   - 'T': theta
+    !>   - 'B': for debugging with `bishop==0` only
     character(1), intent(in) :: char
     !> Minor radius grid of flux surface (?)
     real, intent(in) :: rgrid(-ntm:)
@@ -714,15 +710,14 @@ contains
 
   !> Converts derivatives w.r.t. (psi_index,theta_index) to derivatives
   !! w.r.t. (R,Z).
-  !! - dfm(:,:,1) is deriv w.r.t. psi_index (i.e. (df/dpsi)_theta * delta psi)
-  !! - dfm(:,:,2) is deriv w.r.t. theta_index
-  !! - dfcart(:,:,1) is deriv w.r.t. R
-  !! - dfcart(:,:,2) is deriv w.r.t. Z
   !! Note that `dfcart(1, :, :)` is not valid
   subroutine eqdcart(dfm, dfcart)    
     implicit none
-
+    !> dfm(:,:,1) is deriv w.r.t. psi_index (i.e. (df/dpsi)_theta * delta psi);
+    !> dfm(:,:,2) is deriv w.r.t. theta_index
     real, dimension (:,:,:), intent(in)  :: dfm
+    !> dfcart(:,:,1) is deriv w.r.t. R;
+    !> dfcart(:,:,2) is deriv w.r.t. Z
     real, dimension (:,:,:), intent(out) :: dfcart
     real, dimension (size(dfm,1),size(dfm,2)) :: denom
     integer :: i, j
@@ -745,17 +740,17 @@ contains
   end subroutine eqdcart
 
   !> Convert gradients of a function f w.r.t. R,Z into bishop form
-  !! - dcart(:,:,1) is gradient of f w.r.t. R
-  !! - dcart(:,:,2) is gradient of f w.r.t. Z
-  !! - dbish(:,:,1) is set to (df/dR dpsi/dR + df/dZ dpsi/dZ)/|grad psi|
-  !! - dbish(:,:,2) is set to (-df/dR dpsi/dZ + df/dZ dpsi/dR)/|grad psi|
-  !! Note that in the special case where f=psi
-  !!  - dbish(:,:,1) is |grad psi|
-  !!  - dbish(:,:,2) is 0
   !! Note that `dbish(1, :, :)` is not valid
   subroutine eqdbish(dcart, dbish)
     implicit none
+    !> dcart(:,:,1) is gradient of f w.r.t. R;
+    !> dcart(:,:,2) is gradient of f w.r.t. Z
     real, dimension(:, :, :), intent (in) :: dcart
+    !> dbish(:,:,1) is set to (df/dR dpsi/dR + df/dZ dpsi/dZ)/|grad psi|;
+    !> dbish(:,:,2) is set to (-df/dR dpsi/dZ + df/dZ dpsi/dR)/|grad psi|.
+    !> Note that in the special case where f=psi:
+    !> dbish(:,:,1) is |grad psi|;
+    !> dbish(:,:,2) is 0
     real, dimension(:, :, :), intent(out) :: dbish
     real, dimension(size(dcart,1),size(dcart,2)) :: denom
     integer :: i, j
@@ -778,9 +773,9 @@ contains
 
   end subroutine eqdbish
 
-  !> If \p init == 1, set flag to initialize invR spline when
+  !> If `init == 1`, set flag to initialize invR spline when
   !> `invR` is called
-  ! FIXME: this _always_ returns 1, change to subroutine
+  !! FIXME: this _always_ returns 1, change to subroutine
   function initialize_invR (init) 
     implicit none
     integer :: init, initialize_invR
@@ -817,7 +812,7 @@ contains
     
   end function Rpos
 
-  !> Return the axial coordinate at \((r, \theta)\)
+  !> Return the vertical coordinate at \((r, \theta)\)
   function Zpos (r, theta)
     implicit none
     real, intent (in) :: r, theta
@@ -831,9 +826,9 @@ contains
     
   end function Zpos
 
-  !> If \p init == 1, set flag to initialize psi spline when
+  !> If `init == 1`, set flag to initialize psi spline when
   !> `psi` is called
-  ! FIXME: this _always_ returns 1, change to subroutine
+  !! FIXME: this _always_ returns 1, change to subroutine
   function initialize_psi (init) 
     implicit none
     integer, intent(in) :: init
@@ -843,7 +838,7 @@ contains
     initialize_psi = 1
   end function initialize_psi
 
-  !> FIXME : Add documentation  
+  !> Return the flux surface label `psi`
   function psi (r)
     implicit none
     real, intent (in) :: r
@@ -853,7 +848,7 @@ contains
 
   end function psi
 
-  !> Put \p theta into the range \([-\pi, \pi]\)
+  !> Put `theta` into the range \([-\pi, \pi]\)
   function mod2pi (theta)
     use constants, only: pi
     implicit none
@@ -876,9 +871,9 @@ contains
     mod2pi=th
   end function mod2pi
 
-  !> If \p init == 1, set flag to initialize diameter spline when
+  !> If `init == 1`, set flag to initialize diameter spline when
   !> `diameter` is called
-  ! FIXME: this _always_ returns 1, change to subroutine
+  !! FIXME: this _always_ returns 1, change to subroutine
   function initialize_diameter (init)
     implicit none
     integer, intent(in) :: init
@@ -907,9 +902,9 @@ contains
 
   end function diameter
 
-  !> If \p init == 1, set flag to initialize rcenter spline when
+  !> If `init == 1`, set flag to initialize rcenter spline when
   !> `rcenter` is called
-  ! FIXME: this _always_ returns 1, change to subroutine
+  !! FIXME: this _always_ returns 1, change to subroutine
   function initialize_rcenter (init)
     implicit none
     integer, intent(in) :: init
@@ -919,8 +914,7 @@ contains
     initialize_rcenter = 1
   end function initialize_rcenter
 
-  !> Return the major radius of the centre of the flux surface at a
-  !> given major radius
+  !> Return the major radius of the centre of a given flux surface
   function rcenter (rp)
     use splines, only: new_spline, splint, spline
     implicit none
@@ -938,9 +932,9 @@ contains
 
   end function rcenter
 
-  !> If \p init == 1, set flag to initialize dbtori spline when
+  !> If `init == 1`, set flag to initialize dbtori spline when
   !> `dbtori` is called
-  ! FIXME: this _always_ returns 1, change to subroutine
+  !! FIXME: this _always_ returns 1, change to subroutine
   function initialize_dbtori (init) 
     implicit none
     integer, intent(in) :: init
@@ -965,9 +959,9 @@ contains
 
   end function dbtori
 
-  !> If \p init == 1, set flag to initialize btori spline when
+  !> If `init == 1`, set flag to initialize btori spline when
   !> `btori` is called
-  ! FIXME: this _always_ returns 1, change to subroutine
+  !! FIXME: this _always_ returns 1, change to subroutine
   function initialize_btori (init)
     implicit none
     integer, intent(in) :: init
@@ -991,9 +985,9 @@ contains
     btori = splint(pbar, spl)
   end function btori
 
-  !> If \p init == 1, set flag to initialize q spline when
+  !> If `init == 1`, set flag to initialize `q` spline when
   !> `qfun` is called
-  ! FIXME: this _always_ returns 1, change to subroutine
+  !! FIXME: this _always_ returns 1, change to subroutine
   function initialize_q (init) 
     implicit none
     integer, intent(in) :: init
@@ -1018,9 +1012,9 @@ contains
 
   end function qfun
 
-  !> If \p init == 1, set flag to initialize pressure spline when
+  !> If `init == 1`, set flag to initialize pressure spline when
   !> `pfun` is called
-  ! FIXME: this _always_ returns 1, change to subroutine
+  !! FIXME: this _always_ returns 1, change to subroutine
   function initialize_pressure (init) 
     implicit none
     integer, intent(in) :: init
@@ -1047,9 +1041,9 @@ contains
 
   end function pfun
 
-  !> If \p init == 1, set flag to initialize dpressure spline when
+  !> If `init == 1`, set flag to initialize dpressure spline when
   !> `dpfun` is called
-  ! FIXME: this _always_ returns 1, change to subroutine
+  !! FIXME: this _always_ returns 1, change to subroutine
   function initialize_dpressure (init) 
     implicit none
     integer, intent(in) :: init
@@ -1078,9 +1072,9 @@ contains
 
   end function dpfun
 
-  !> If \p init == 1, set flag to initialize beta spline when
+  !> If `init == 1`, set flag to initialize beta spline when
   !> `betafun` is called
-  ! FIXME: this _always_ returns 1, change to subroutine
+  !! FIXME: this _always_ returns 1, change to subroutine
   function initialize_beta (init)
     implicit none
     integer, intent(in) :: init
