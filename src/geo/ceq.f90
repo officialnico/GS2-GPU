@@ -506,9 +506,8 @@ contains
     real, intent(out) :: grad(-ntm:,:)
     !> Radius for taking pressure derivative (FIXME: double-check)
     real, intent(in) :: rp
-    real :: tmp(2), aa(1), daa(1), rpt(1)
+    real :: aa(1), daa(1), rpt(1)
     real, dimension(nr,nt,2) :: dcart
-    real, dimension(nr,nt) :: f
     integer :: i
     
     select case(char)
@@ -524,22 +523,9 @@ contains
        dcart = dtcart
     end select
     
-    do i=-nth_used,-1
-       f(:,:) = dcart(:,:,1)
-       call eqitem(rgrid(i), theta(i), f, tmp(1))
-       f(:,:) = dcart(:,:,2)
-       call eqitem(rgrid(i), theta(i), f, tmp(2))
-       grad(i,1)=tmp(1)
-       grad(i,2)=tmp(2)
-    enddo
-
-    do i=0,nth_used
-       f(:,:) = dcart(:,:,1)
-       call eqitem(rgrid(i),theta(i),f,tmp(1))
-       f(:,:) = dcart(:,:,2)
-       call eqitem(rgrid(i),theta(i),f,tmp(2))
-       grad(i,1)=tmp(1)
-       grad(i,2)=tmp(2)
+    do i=-nth_used,nth_used
+       call eqitem(rgrid(i), theta(i), dcart(:,:,1), grad(i,1))
+       call eqitem(rgrid(i), theta(i), dcart(:,:,2), grad(i,2))
     enddo
 
     !     to get grad(pressure), multiply grad(psi) by dpressure/dpsi
@@ -788,13 +774,9 @@ contains
   function invR (r, theta)
     implicit none
     real, intent (in) :: r, theta
-    real :: f, invR
-    real :: th
+    real :: invR
     
-    th = mod2pi( theta)
-    
-    call eqitem(r, th, R_psi, f)
-    invR=1./f
+    invR = 1./Rpos(r, theta)
 
   end function invR
 
