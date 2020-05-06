@@ -399,7 +399,7 @@ contains
     enddo
     
     do j=1,nt
-       eqth(:,j) = (j-1)*2.*pi/float(nt-1)-pi
+       eqth(:,j) = (j-1)*2.*pi/real(nt-1)-pi
     enddo
 
     call derm(eqth,   dtm,  'T')
@@ -662,7 +662,7 @@ contains
 
     ! get thet on theta mesh
     do j=1,nt
-       mtheta(j)=(j-1)*2.*pi/float(nt-1)-pi
+       mtheta(j)=(j-1)*2.*pi/real(nt-1)-pi
     enddo
        
     ! note that theta(1)=0 for gen_eq theta 
