@@ -1,5 +1,15 @@
 !> A program to generate response matrix data for a given input file 
-!> and dump the resulting arrays to file to be used by subsequent runs
+!> and dump the resulting arrays to file to be used by subsequent runs.
+!>
+!> By default this will produce a single set of response matrix files
+!> for the time step in the provided input file. The input file can
+!> contain a `dump_response_knobs` namelist which specifies
+!> `n_time_steps`. If this is greater than one then the program will
+!> produce response matrix files for `n_time_steps`
+!> timesteps. Specifically, it will produce these files for time steps
+!> {delt/delt_adj^N, N=0, n_time_steps-1}. This may be useful for
+!> precomputing the response matrices required for a nonlinear run
+!> where the timestep is allowed to vary and take values from this sequence.
 !>
 !> Written by : David Dickinson (ddickinson@users.sourceforge.net)
 program dump_response
