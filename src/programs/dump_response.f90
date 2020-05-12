@@ -24,10 +24,9 @@ program dump_response
   integer :: istep, n_time_steps, in_file
   namelist /dump_response_knobs/n_time_steps
 
-  ! <doc> Initialize message passing </doc>
   call init_mp
   
-  ! <doc> Report # of processors being used </doc>
+  ! Report # of processors being used
   if (proc0) then
      if(.not.quiet)then
         if (nproc == 1) then
@@ -37,14 +36,14 @@ program dump_response
         end if
      endif
 
-     ! <doc> Call init_file_utils, ie. initialize the inputs and outputs, checking 
-     !  whether we are doing a run or a list of runs. </doc>
+     ! Call init_file_utils, ie. initialize the inputs and outputs, checking
+     ! whether we are doing a run or a list of runs.
      call init_file_utils (list, name="gs")
   end if
 
   call broadcast (list)
   
-  ! <doc> If given a list of jobs, fork </doc>
+  ! If given a list of jobs, fork
   if (list) call job_fork
   
   if (proc0) cbuff = trim(run_name)
@@ -58,8 +57,10 @@ program dump_response
   endif
   call broadcast(n_time_steps)
 
-  !This routine initialises the response matrix and dumps it to file.
+  ! This routine initialises the response matrix and dumps it to file.
+  ! This call will use the time step as specified in the input file.
   call init_and_dump(quiet)
+  ! Now we deal with the other time steps in the sequence if n_time_steps > 1
   do istep=2,n_time_steps
      !Reduce the time step
      call next_time_step
@@ -72,7 +73,9 @@ program dump_response
   call finish_dump_response
 
 contains
-  !> Changes to the next time step in the sequence
+
+  !> Changes to the next time step in the sequence as determined by the usual
+  !> rules to reduce the timestep in a nonlinear simulation.
   subroutine next_time_step
     use gs2_time, only: code_dt, save_dt
     use gs2_reinit, only: reduce_time_step
@@ -151,7 +154,7 @@ contains
     time_measure=0.
   end subroutine init_and_dump
 
-  !> FIXME : Add documentation
+  !> Call the finialise routines for any module we have initialised.
   subroutine finish_dump_response
     use antenna, only: finish_antenna
     use collisions, only: finish_collisions
