@@ -150,7 +150,15 @@ optional ones:
 
 ## Building and running GS2
 
-Please see the [README][readme] for details on building and running GS2.
+GS2 has been built on a variety of existing systems. To build on one of the
+existing supported systems, set `GK_SYSTEM`, and provide the path to the
+directory containing the makefiles. For example, to build GS2 on the UK national
+supercomputer, ARCHER, run:
+
+    make -I Makefiles GK_SYSTEM=archer
+
+For further details on building GS2, including how to build it on a new system,
+see the documentation in the [user manual](page/user_manual)
 
 ## Citing GS2
 
