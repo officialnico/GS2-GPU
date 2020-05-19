@@ -1,6 +1,6 @@
 #ifdef WITH_EIG
 !> A module for finding eigenvalues and eigenmodes
-!! Requires SLEPC and PETSC
+!> Requires SLEPC and PETSC
 module eigval
   use abstract_config, only: abstract_config_type, CONFIG_MAX_NAME_LEN
   use petscvec
@@ -9,8 +9,8 @@ module eigval
 
   implicit none
 
-!Allows us to user SLEPC_VERSION_MAJOR etc. to automatically
-!disable unsupportted features
+!Allows us to use SLEPC_VERSION_MAJOR etc. to automatically
+!disable unsupported features
 #include <slepcversion.h>
 #include <petscversion.h>
 
@@ -154,34 +154,126 @@ module eigval
   character(len=12),parameter :: nml_name="eigval_knobs"
   real, save :: time_eigval(2)=0.
 
-
-  !> Used to represent the input configuration of eigval
+  !> Used to represent the input configuration of eigval. Several of
+  !> these options are controlling SLEPc settings, which can also be
+  !> set using the SLEPc command line flags.
   type, extends(abstract_config_type) :: eigval_config_type
      ! namelist : eigval_knobs
      ! indexed : false
-     !> FIXME: Add documentation
+     !> Sets the extraction technique, must be one of:
+     !>
+     !> - 'default' (use SLEPC default)
+     !> - 'slepc_default' (use SLEPC default)
+     !> - 'ritz'
+     !> - 'harmonic'
+     !> - 'harmonic_relative'
+     !> - 'harmonic_right'
+     !> - 'harmonic_largest'
+     !> - 'refined'
+     !> - 'refined_harmonic'
+     !>
      character(len = 20) :: extraction_option = 'default'
-     !> FIXME: Add documentation
+     !> Sets the maximum number of SLEPC iterations used.  If not set
+     !> (recommended) then let SLEPC decide what to use (varies with
+     !> different options).
      integer :: max_iter = PETSC_DECIDE
-     !> FIXME: Add documentation
+     !> The number of eigenmodes to search for. The actual number of
+     !> modes found may be larger than this.
      integer :: n_eig = 1
-     !> FIXME: Add documentation
+     !> How many GS2 timesteps to take each time SLEPc wants to
+     !> advance the distribution function. Useful to separate closely
+     !> spaced eigenvalues without changing [[delt]].
      integer :: nadv = 1
-     !> FIXME: Add documentation
+     !> If `true` then we save a set of restart files for each eigenmode
+     !> found. These are named as the standard restart file
+     !> (i.e. influenced by the restart_file input), but have `eig_<id>`
+     !> appended near the end, where `<id>` is an integer representing the
+     !> eigenmode id. If `save_distfn` of [[gs2_diagnostics_knobs]] is true
+     !> then will also save the distribution function files.
      logical :: save_restarts = .false.
-     !> FIXME: Add documentation
+     !> Sets the type of solver to use, must be one of:
+     !>
+     !> - 'default' (Krylov-Schur)
+     !> - 'slepc_default' (Krylov-Schur)
+     !> - 'power'
+     !> - 'subspace'
+     !> - 'arnoldi'
+     !> - 'lanczos'
+     !> - 'krylov'
+     !> - 'GD'
+     !> - 'JD'
+     !> - 'RQCG'
+     !> - 'CISS'
+     !> - 'lapack'
+     !> - 'arpack'
+     !> - 'blzpack'
+     !> - 'trlan'
+     !> - 'blopex'
+     !> - 'primme'
+     !> - 'feast'
+     !>
+     !> Not all solver types are compatible with other eigenvalue options,
+     !> some options may not be supported in older SLEPC versions and some
+     !> may require certain flags to be set when SLEPC is compiled.
      character(len = 20) :: solver_option = 'default'
-     !> FIXME: Add documentation
+     !> Imaginary part of the eigenvalue target. Often beneficial to
+     !> set this fairly large (e.g. 10) when looking for unstable
+     !> modes.  Used with the `target_*` [[which_option]] mode.
      real :: targ_im = 0.5
-     !> FIXME: Add documentation
+     !> Real part of the eigenvalue target. Often beneficial to set
+     !> this fairly small (e.g. ~0).  Used with the `target_*`
+     !> [[which_option]] mode.
      real :: targ_re = 0.5
-     !> FIXME: Add documentation
+     !> Sets tolerance on SLEPC eigenmode search. Used to determine
+     !> when an eigenmode has been found. Note this is the tolerance
+     !> based on the SLEPc eigenvalue, which is the time advance
+     !> eigenvalue
+     !> \(\exp{\left(-i\Omega\textrm{`nadv`}\textrm{`delt`}\right)}\)
+     !> rather than the GS2 eigenvalue, \(\Omeag\).
      real :: tolerance = 1.0d-6
-     !> FIXME: Add documentation
+     !> Sets the type of spectral transform to be used. This can help
+     !> extract interior eigenvalues. Must be one of
+     !>
+     !> - 'default' (let SLEPC decide)
+     !> - 'slepc_default' (let SLEPC decide)
+     !> - 'shell'
+     !> - 'shift'
+     !> - 'invert'
+     !> - 'cayley'
+     !> - 'fold'
+     !> - 'precond' (not implemented)
+     !>
+     !> Not all options are available in all versions of the library.
      character(len = 20) :: transform_option = 'default'
-     !> FIXME: Add documentation
+     !> FIXME: Add documentation If `true` then provide an initial
+     !> guess for the eigenmode based on using [[init_g]] routines to
+     !> initialise `g`. Can be helpful in accelerating initial phase
+     !> of eigensolver. Can also be quite useful with
+     !> `ginit_option='many'` (etc.)  to start an eigenvalue search
+     !> from a previously obtained solution, allowing both eigenmode
+     !> refinement and sub-dominant mode detection.
      logical :: use_ginit = .false.
-     !> FIXME: Add documentation
+     !> Sets SLEPC mode of operation (i.e. what sort of eigenvalues it
+     !>looks for). Note that this refers to the SLEPc eigenvalue,
+     !>i.e. the time advance eigenvalue
+     !>\(\exp{\left(-i\Omega\textrm{`nadv`}\textrm{`delt`}\right)}\). In
+     !>other words one should select `'largest_real'` to search for
+     !>modes with the largest growth rate. Must be one of
+     !>
+     !> - 'default' (equivalent to 'target_magnitude')
+     !> - 'slepc_default' (let SLEPC decide)
+     !> - 'largest_magnitude'
+     !> - 'smallest_magnitude'
+     !> - 'largest_real'
+     !> - 'smallest_real'
+     !> - 'largest_imaginary'
+     !> - 'smallest_imaginary'
+     !> - 'target_magnitude' (complex eigenvalue magnitude closest to magnitude of target)
+     !> - 'target_real'
+     !> - 'target_imaginary'
+     !> - 'all' (only some solver types, e.g. lapack) -- not supported
+     !> - 'user' (will use a user specified function to pick between eigenmodes, note not currently implemented)
+     !>
      character(len = 20) :: which_option = 'default'
    contains
      procedure, public :: read => read_eigval_config
