@@ -1,28 +1,28 @@
 !> Provides random forcing for Alfven wave problem
-!! Originally by Hammett, Dorland and Quataert, Dec. 5, 2001
-!!
-!! init_antenna should be called once per run
-!! antenna_amplitudes provides the necessary info per time step
-!!
-!! added terms needed to calculate heating by antenna (apar_new)
-!!
-!! two kinds of namelists should be added to the input file:
-!! 
-!! driver:
-!!       
-!!    amplitude : RMS amplitude of | apar_antenna |
-!!    w_antenna : frequency of driving, normalized to kpar v_Alfven
-!!                Note: the imaginary part is the decorrelation rate
-!!    nk_stir   : Number of k modes that should be driven
-!!    write_antenna: .true. for direct antenna output to runname.antenna
-!!                   default is .false.
-!!
-!! stir: (stir_1, stir_2, stir_3, etc., one for each k we want to drive)
-!!
-!!    kx, ky, kz : each of size nk_stir (not larger!)
-!!               : list of k components that are to be driven; integers
-!!    travel     : logical; choose false to make a standing wave
-!!               : default value is .true.
+!> Originally by Hammett, Dorland and Quataert, Dec. 5, 2001
+!>
+!> init_antenna should be called once per run
+!> antenna_amplitudes provides the necessary info per time step
+!>
+!> added terms needed to calculate heating by antenna (apar_new)
+!>
+!> two kinds of namelists should be added to the input file:
+!>
+!> driver:
+!>
+!>    amplitude : RMS amplitude of | apar_antenna |
+!>    w_antenna : frequency of driving, normalized to kpar v_Alfven
+!>                Note: the imaginary part is the decorrelation rate
+!>    nk_stir   : Number of k modes that should be driven
+!>    write_antenna: .true. for direct antenna output to runname.antenna
+!>                   default is .false.
+!>
+!> stir: (stir_1, stir_2, stir_3, etc., one for each k we want to drive)
+!>
+!>    kx, ky, kz : each of size nk_stir (not larger!)
+!>               : list of k components that are to be driven; integers
+!>    travel     : logical; choose false to make a standing wave
+!>               : default value is .true.
 module antenna
   use abstract_config, only: abstract_config_type, CONFIG_MAX_NAME_LEN
   use antenna_data, only: nk_stir, a_ant, b_ant
@@ -52,25 +52,32 @@ module antenna
   complex :: wtmp
   logical :: initialized = .false.
 
-  !> Used to represent the input configuration of driver
+  !> Used to represent the input configuration of driver. See the
+  !> documentation of the [[antenna]] module for more details.
   type, extends(abstract_config_type) :: driver_config_type
      ! namelist : driver
      ! indexed : false
-     !> FIXME: Add documentation
+     !> Amplitude of Langevin antenna.
      real :: amplitude = 0.0
-     !> FIXME: Add documentation
+     !> Overrides all other options and turns off antenna if `true`.
      logical :: ant_off = .false.
-     !> FIXME: Add documentation
+     !> Number of independent Fourier modes driven by antenna.
      integer :: nk_stir = 1
-     !> FIXME: Add documentation
+     !> If `true` then try to get initial antenna amplitudes from the
+     !> restart file. If not found in restart file then will be set to
+     !> 0.
      logical :: restarting = .false.
-     !> FIXME: Add documentation
+     !> Sets the time at which the antenna frequency changes from
+     !> constant [[w_antenna]] to linearly varying, with linear piece
+     !> proprtional to [[w_dot]] multiplied by `time - t0`.
      real :: t0 = -1.0
-     !> FIXME: Add documentation
+     !> Frequency of Langevin antenna. Sets the constant part of the
+     !> complex antenna frequency.
      complex :: w_antenna = (1.0, 0.0)
-     !> FIXME: Add documentation
+     !> Sets the coefficient in front of the time varying antenna
+     !> frequency (real) component activated when `time > t0`.
      real :: w_dot = 0.0
-     !> FIXME: Add documentation
+     !> Write antenna amplitudes to ASCII file for debugging.
      logical :: write_antenna = .false.
    contains
      procedure, public :: read => read_driver_config
@@ -83,21 +90,29 @@ module antenna
 
   type(driver_config_type) :: driver_config
 
-  !> Used to represent the input configuration of stir
+  !> Used to represent the input configuration of stir. See the
+  !> documentation of the [[antenna]] module for more details.
   type, extends(abstract_config_type) :: stir_config_type
      ! namelist : stir
-     ! indexed : true     
-     !> FIXME: Add documentation
+     ! indexed : true
+     !> Initial amplitude of right-moving component. It is not
+     !> necessary to set [[a]] and [[b]] unless you are doing
+     !> restarts, which are rather clunky at the moment with the
+     !> antenna included.
      real :: a = -1.0
-     !> FIXME: Add documentation
+     !> Initial amplitude of left-moving component. It is not
+     !> necessary to set [[a]] and [[b]] unless you are doing
+     !> restarts, which are rather clunky at the moment with the
+     !> antenna included.
      real :: b = -1.0
-     !> FIXME: Add documentation
+     !> Mode number for stirring.
      integer :: kx = 1
-     !> FIXME: Add documentation
+     !> Mode number for stirring.
      integer :: ky = 1
-     !> FIXME: Add documentation
+     !> Mode number for stirring.
      integer :: kz = 1
-     !> FIXME: Add documentation
+     !> Launches traveling wave if `true` (default) or standing wave
+     !> if `false`.
      logical :: travel = .true.
    contains
      procedure, public :: read => read_stir_config
