@@ -28,11 +28,15 @@ Downloading GS2
 
 To download the source run:
 
-    git clone --recurse-submodules https://bitbucket.org/gyrokinetics/gs2.git
+``` shell
+git clone --recurse-submodules https://bitbucket.org/gyrokinetics/gs2.git
+```
 
 or for git < v2.13:
 
-    git clone --recursive https://bitbucket.org/gyrokinetics/gs2.git
+```shell
+git clone --recursive https://bitbucket.org/gyrokinetics/gs2.git
+```
 
 Alternatively, tarballs are available for the
 [latest release](https://bitbucket.org/gyrokinetics/gs2/get/master.tar.gz)
@@ -76,17 +80,23 @@ The level of difficulty of compiling depends on how much your system is supporte
 
 To use the automated build system try:
 
-    ./build_gs2 -o ls
+``` shell
+./build_gs2 -o ls
+```
 
 This will print a list of systems that are supported by the automated build system. This
 configures your environment and then executes `make` automatically. If your system is
 supported you can simply execute:
 
-    ./build_gs2 -s <system>
+``` shell
+./build_gs2 -s <system>
+```
 
 Where your `<system>` is replaced by your system name. If your system is not supported try
 
-    ./build_gs2 -o update
+``` shell
+./build_gs2 -o update
+```
 
 which will try and update the build system. Then try the previous instructions again.
 
@@ -250,7 +260,9 @@ case difference of the file names, such as Windows or Mac OS. If you use Emacs, 
 add the following line to your `.emacs` file to make it recognize the `.fpp` extension as
 F90 source code:
 
-    (setq auto-mode-alist (append '(("\\.fpp$" . f90-mode)) auto-mode-alist))
+``` emacs-lisp
+(setq auto-mode-alist (append '(("\\.fpp$" . f90-mode)) auto-mode-alist))
+```
 
 ### Porting
 
@@ -259,8 +271,10 @@ whatever you like, but we recommend to use the hostname of the machine. At its s
 you just need to set your compiler and to include your compiler's setting as written in
 [Makefile.simple][simple_makefile]:
 
-    COMPILER = intel
-    include Makefile.$(COMPILER)
+``` makefile
+COMPILER = intel
+include Makefile.$(COMPILER)
+```
 
 In order to build the parallelised version of GS2, you will need to override the `FC`
 variable with the appropriate MPI wrapper for your system, for example `mpif90`. Do this
@@ -341,8 +355,8 @@ need to consult their own manuals.
 Analysing the Results
 ---------------------
 
-GS2 outputs a myriad collection of data and files. These are all dealt with on this page:
-[GS2 Results and Diagnostics](GS2_Results_and_Diagnostics).
+GS2 outputs a myriad collection of data and files. These are all dealt with in [Results
+and Diagnostics][results_diagnostics].
 
 A Warning
 ---------
@@ -356,13 +370,13 @@ There are 1001 tweaks and adjustments that can be made to the resolution, the ge
 the physical parameters and the diagnostics which may affect the final result. Like
 Charles Babbage's adding machine, if you put wrong numbers in, if the resolution is
 insufficient, you will not get right answers out. A rough guide to checking whether you
-have sufficient resolution is provided on this page: [GS2 Results and
-Diagnostics](GS2_Results_and_Diagnostics). Please note that, unlike typical explicit
-algorithms, the implicit algorithm can return results which look reasonable even when the
-time step is too large. As such it is important to also check convergence in time step
-(usually only a linear problem).
+have sufficient resolution is provided in [Results and Diagnostics
+page][results_diagnostics]. Please note that, unlike typical explicit algorithms, the
+implicit algorithm can return results which look reasonable even when the time step is too
+large. As such it is important to also check convergence in time step (usually only a
+linear problem).
 
-There is also a program, `ingen`, which is built with GS2, which will check your input
+There is also a program, [[ingen]], which is built with GS2, which will check your input
 file for inconsistencies. Although documentation for this is currently sparse, try running
 
     $ ingen run_name.in
@@ -375,4 +389,10 @@ Good luck!
 [newissue]: https://bitbucket.org/gyrokinetics/gs2/issues?status=new&status=open
 [readme]: https://bitbucket.org/gyrokinetics/gs2/src/6fbd2a6bc6ac5e5be0e0737f1860a0e0f78026ed/README.md?at=master&fileviewer=file-view-default
 [simple_makefile]: https://bitbucket.org/gyrokinetics/makefiles/src/master/Makefile.simple
-[test_readme]: https://bitbucket.org/gyrokinetics/gs2/src/master/tests/README.md
+[tests_readme]: https://bitbucket.org/gyrokinetics/gs2/src/master/tests/README.md
+[results_diagnostics]: |url|/page/user_manual/results_diagnostics.html
+
+<!-- Local Variables: -->
+<!-- mode: gfm -->
+<!-- fill-column: 90 -->
+<!-- End: -->
