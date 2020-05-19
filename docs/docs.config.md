@@ -22,7 +22,7 @@ css: user.css
 src_dir: ../externals/utils
 output_dir: ./html
 graph_dir: ./graphs
-page_dir: ./pages
+page_dir: ./page
 exclude_dir: ../src/templates
 media_dir: ./media
 favicon: ./media/favicon.ico
