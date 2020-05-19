@@ -87,26 +87,42 @@ module nonlinear_terms
   !> Used to represent the input configuration of nonlinear_terms
   type, extends(abstract_config_type) :: nonlinear_terms_config_type
      ! namelist : nonlinear_terms_knobs
-     ! indexed : false     
-     !> FIXME: Add documentation
+     ! indexed : false
+     !> Scales the estimate CFL limit used to determine when the
+     !> timestep should be changed. The maximum allowed timestep
+     !> satisfies `delt < cfl * min(Delta_perp/v_perp)` where `v_perp
+     !> * delt` is the maximum distance travelled in a single
+     !> timestep.
      real :: cfl = 0.1
-     !> FIXME: Add documentation
-     real :: densfac = 1.           !GRYFX Only - should be moved elsewhere
-     !> FIXME: Add documentation
+     !> GRYFX only. No documentation available
+     real :: densfac = 1.
+     !> If `true` (default) then forces the nonlinear source term to
+     !> zero in the forbidden region.
      logical :: nl_forbid_force_zero = .true.
-     !> FIXME: Add documentation
+     !> Determines if the nonlinear terms should be calculated. Must
+     !> be one of:
+     !>
+     !> - 'none' - Do not include nonlinear terms, i.e. run a linear calculation.
+     !> - 'default' - The same as 'none'
+     !> - 'off' - The same as 'none'
+     !> - 'on' - Include nonlinear terms.
+     !>
+     !> Could consider changing this to a logical.
      character(len = 20) :: nonlinear_mode = 'default'
-     !> FIXME: Add documentation
-     real :: qparfac = 1./sqrt(8.)  !GRYFX Only - should be moved elsewhere
-     !> FIXME: Add documentation
-     real :: qprpfac = 1./sqrt(8.)  !GRYFX Only - should be moved elsewhere
-     !> FIXME: Add documentation
-     real :: tparfac = 1./2.        !GRYFX Only - should be moved elsewhere
-     !> FIXME: Add documentation
-     real :: tprpfac = 1./2.        !GRYFX Only - should be moved elsewhere
-     !> FIXME: Add documentation
-     real :: uparfac = 1./sqrt(2.)  !GRYFX Only - should be moved elsewhere
-     !> FIXME: Add documentation
+     !> GRYFX only. No documentation available
+     real :: qparfac = 1./sqrt(8.)
+     !> GRYFX only. No documentation available
+     real :: qprpfac = 1./sqrt(8.)
+     !> GRYFX only. No documentation available
+     real :: tparfac = 1./2.
+     !> GRYFX only. No documentation available
+     real :: tprpfac = 1./2.
+     !> GRYFX only. No documentation available
+     real :: uparfac = 1./sqrt(2.)
+     !> Not currently used, should consider removing.  Original
+     !> documentation was "Experts only (for secondary/tertiary
+     !> calculations)."  which suggests a close relation to the
+     !> `eqzip` option of [[knobs]].
      logical :: zip = .false.
    contains
      procedure, public :: read => read_nonlinear_terms_config
