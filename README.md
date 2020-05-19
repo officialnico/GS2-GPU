@@ -50,10 +50,8 @@ and guidelines on contributing to GS2.
 
 ## Help and Documentation
 
-Auto-generated source code documentation is currently available at
+Documentation, include auto-generated source code documentation is currently available at
 [https://gyrokinetics.gitlab.io/gs2/](https://gyrokinetics.gitlab.io/gs2/).
-Further details are available on the
-[wiki](https://bitbucket.org/gyrokinetics/gs2/wiki/).
 
 Please report any bugs by 
 [raising an issue on Bitbucket](https://bitbucket.org/gyrokinetics/gs2/issues?status=open).

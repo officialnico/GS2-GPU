@@ -70,6 +70,8 @@ such as in astrophysical and magnetospheric systems.
 - highly optimised and designed to scale to use as many cores
   as possible
 
+Getting started: [read the user manual](page/user_manual).
+
 @note This documentation is currently a work in progress -- if you
 find any errors please raise an
 [issue][issues]
