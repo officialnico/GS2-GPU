@@ -1,0 +1,952 @@
+module test_ceq_mod
+  use PFUNIT_MOD
+  implicit none
+
+  real, parameter :: derivative_tolerance = 5.e-3
+  real, parameter :: value_tolerance = 5.e-12
+  real, parameter :: spline_tolerance = 5.e-2
+
+  integer, parameter :: npsi_test = 3
+  integer, parameter :: nchi_test = 4
+  integer, parameter :: ntheta_test = nchi_test + 1
+
+contains
+
+  @before
+  subroutine setup
+    use ceq, only : ceq_finish
+    call ceq_finish
+  end subroutine setup
+
+  @after
+  subroutine teardown
+    use ceq, only : ceq_finish
+    call ceq_finish
+  end subroutine teardown
+
+  @test
+  subroutine test_chease_chi_index
+    use ceq, only : ceq_testing_type
+    type(ceq_testing_type) :: ceq_privates
+    integer, parameter :: nchi = 8
+
+    @assertEqual(5, ceq_privates%chease_chi_index(nchi, 1))
+    @assertEqual(6, ceq_privates%chease_chi_index(nchi, 2))
+    @assertEqual(7, ceq_privates%chease_chi_index(nchi, 3))
+    @assertEqual(8, ceq_privates%chease_chi_index(nchi, 4))
+    @assertEqual(1, ceq_privates%chease_chi_index(nchi, 5))
+    @assertEqual(2, ceq_privates%chease_chi_index(nchi, 6))
+    @assertEqual(3, ceq_privates%chease_chi_index(nchi, 7))
+    @assertEqual(4, ceq_privates%chease_chi_index(nchi, 8))
+    @assertEqual(5, ceq_privates%chease_chi_index(nchi, 9))
+  end subroutine test_chease_chi_index
+
+  !> A common set of test data for the test cases here
+  subroutine set_ceq_test_data
+    use constants, only : pi
+    use ceq, only : ceq_testing_type
+    use read_chease, only: npsi_chease, nchi_chease, b0exp_chease, &
+                           psi_chease, f_chease, q_chease, p_chease, &
+                           r_chease, z_chease
+
+    real, parameter :: theta_grid_spacing = 2 * pi / nchi_test
+
+    integer :: i, j
+
+    type(ceq_testing_type) :: ceq_privates
+
+    npsi_chease = npsi_test
+    nchi_chease = nchi_test
+
+    b0exp_chease = sqrt(8. * pi * 1.e-7)
+
+    allocate(psi_chease(npsi_chease))
+    allocate(f_chease(npsi_chease))
+    allocate(q_chease(npsi_chease))
+    allocate(p_chease(npsi_chease))
+    allocate(r_chease(npsi_chease, nchi_chease))
+    allocate(z_chease(npsi_chease, nchi_chease))
+
+    psi_chease = [1., 2., 3.]
+    f_chease = [0.5, 0., -0.5]
+    q_chease = [4., 9., 16.]
+    p_chease = [3., 6., 9.]
+    r_chease = reshape([([(i*i*cos(j * theta_grid_spacing) + 10, &
+                       i=0, npsi_chease-1)], j=0, nchi_chease-1)], &
+                        shape=shape(r_chease))
+    z_chease = reshape([([(i*i*sin(j * theta_grid_spacing) - 1e-3, &
+                       i=0, npsi_chease-1)], j=0, nchi_chease-1)], &
+                        shape=shape(z_chease))
+
+    call ceq_privates%set_ceq_from_chease
+  end subroutine set_ceq_test_data
+
+  subroutine initialise_ceq_with_test_data
+    use ceq, only : ceqin
+    real :: psi_0_out, psi_a_out, rmaj, B_T0, avgrmid
+    integer :: ntheta
+
+    call set_ceq_test_data()
+
+    call ceqin("this won't be read", &
+         psi_0_out, psi_a_out, rmaj, B_T0, avgrmid, &
+         initeq=1, in_nt=.true., nthg=ntheta)
+  end subroutine initialise_ceq_with_test_data
+
+  @test
+  subroutine test_ceqin
+    use ceq, only : ceqin
+
+    real :: psi_0_out, psi_a_out, rmaj, B_T0, avgrmid
+    integer :: ntheta
+
+    call set_ceq_test_data()
+
+    call ceqin("this won't be read", &
+         psi_0_out, psi_a_out, rmaj, B_T0, avgrmid, &
+         initeq=1, in_nt=.true., nthg=ntheta)
+
+    @assertEqual(1.25, psi_0_out, tolerance=1e-5, message="psi_0_out")
+    @assertEqual(3.75, psi_a_out, tolerance=1e-5, message="psi_a_out")
+    @assertEqual(2.5, rmaj, message="rmaj")
+    @assertEqual(0.05, B_T0, message="B_T0")
+    @assertEqual(4, avgrmid, message="avgrmid")
+    @assertEqual(ntheta_test, ntheta, message="ntheta")
+  end subroutine test_ceqin
+
+  @test
+  subroutine test_ceqin_non_init
+    use ceq, only : ceq_testing_type
+    use ceq, only : ceqin
+    type(ceq_testing_type) :: ceq_privates
+
+    real :: psi_0_out, psi_a_out, rmaj, B_T0, avgrmid
+    integer :: ntheta
+
+    integer, parameter :: expected_ntheta = 3
+
+    call ceq_privates%set_nrnt(-1, expected_ntheta)
+    call ceqin("this won't be read", &
+         psi_0_out, psi_a_out, rmaj, B_T0, avgrmid, &
+         initeq=0, in_nt=.true., nthg=ntheta)
+
+    @assertEqual(expected_ntheta, ntheta)
+  end subroutine test_ceqin_non_init
+
+  @test
+  subroutine test_derm_even_function()
+    use constants, only : pi
+    use ceq, only : ceq_testing_type
+    type(ceq_testing_type) :: ceq_privates
+
+    integer, parameter :: nradius = 3
+    integer, parameter :: ntheta = 128
+    integer, parameter :: total_size(2) = [nradius, ntheta]
+    real, parameter :: theta_grid_spacing = 2 * pi / (ntheta - 1)
+    real, dimension(nradius, ntheta) :: f_input
+    real, dimension(nradius, ntheta, 2) :: df_result
+    real, dimension(nradius, ntheta, 2) :: df_expected
+
+    integer :: i, j
+
+    call ceq_privates%set_nrnt(nradius, ntheta)
+
+    f_input = reshape([([(i*i*cos(j * theta_grid_spacing), &
+         i=0, nradius-1)], j=0, ntheta-1)], total_size)
+
+    df_expected(:, :, 1) = reshape( &
+         [([0., 2., 4.]*cos(j * theta_grid_spacing), &
+         j=0, ntheta-1)], total_size)
+    df_expected(:, :, 2) = reshape( &
+         [([(-i*i*sin(j * theta_grid_spacing) * theta_grid_spacing, &
+         i=0, nradius-1)], j=0, ntheta-1)], total_size)
+
+    call ceq_privates%derm(f_input, df_result, 'E')
+
+    @assertEqual(df_expected(:,:,1), df_result(:,:,1), tolerance=derivative_tolerance, message="Radial derivative")
+    @assertEqual(df_expected(:,:,2), df_result(:,:,2), tolerance=derivative_tolerance, message="Theta derivative")
+  end subroutine test_derm_even_function
+
+  @test
+  subroutine test_derm_odd_function()
+    use constants, only : pi
+    use ceq, only : ceq_testing_type
+    type(ceq_testing_type) :: ceq_privates
+
+    integer, parameter :: nradius = 3
+    integer, parameter :: ntheta = 128
+    integer, parameter :: total_size(2) = [nradius, ntheta]
+    real, parameter :: theta_grid_spacing = 2 * pi / (ntheta - 1)
+    real, dimension(nradius, ntheta) :: f_input
+    real, dimension(nradius, ntheta, 2) :: df_result
+    real, dimension(nradius, ntheta, 2) :: df_expected
+
+    integer :: i, j
+
+    call ceq_privates%set_nrnt(nradius, ntheta)
+
+    f_input = reshape([([(i*i * sin(j * theta_grid_spacing), &
+         i=0, nradius-1)], j=0, ntheta-1)], total_size)
+
+    df_expected(:, :, 1) = reshape( &
+         [([0., 2., 4.] * sin(j * theta_grid_spacing), &
+         j=0, ntheta-1)], total_size)
+    df_expected(:, :, 2) = reshape( &
+         [([(i*i*cos(j * theta_grid_spacing) * theta_grid_spacing, &
+         i=0, nradius-1)], j=0, ntheta-1)], total_size)
+
+    call ceq_privates%derm(f_input, df_result, 'O')
+
+    @assertEqual(df_expected(:, :, 1), df_result(:, :, 1), tolerance=derivative_tolerance, message="Radial derivative")
+    @assertEqual(df_expected(:, :, 2), df_result(:, :, 2), tolerance=derivative_tolerance, message="Theta derivative")
+  end subroutine test_derm_odd_function
+
+  @test
+  subroutine test_derm_T()
+    use constants, only : pi
+    use ceq, only : ceq_testing_type
+    type(ceq_testing_type) :: ceq_privates
+
+    integer, parameter :: nradius = 3
+    integer, parameter :: ntheta = 4
+    integer, parameter :: total_size(2) = [nradius, ntheta]
+    real, parameter :: theta_grid_spacing = 2 * pi / (ntheta - 1)
+    real, dimension(nradius, ntheta) :: f_input
+    real, dimension(nradius, ntheta, 2) :: df_result
+    real, dimension(nradius, ntheta, 2) :: df_expected
+
+    integer :: i, j
+
+    call ceq_privates%set_nrnt(nradius, ntheta)
+
+    f_input = reshape([([(j*theta_grid_spacing, i=1, nradius)], j=0, ntheta-1)], total_size)
+
+    df_expected(:, :, 1) = 0.
+    df_expected(:, :, 2) = theta_grid_spacing
+
+    call ceq_privates%derm(f_input, df_result, 'T')
+
+    @assertEqual(df_expected(:, :, 1), df_result(:, :, 1), tolerance=1.e-14)
+    @assertEqual(df_expected(:, :, 2), df_result(:, :, 2), tolerance=1.e-14)
+
+  end subroutine test_derm_T
+
+  ! This basically converts derivatives of R, Z from polar coordinates
+  ! to cylindrical coordinates. R, Z are for a circle with radius 1
+  @test
+  subroutine test_eqdcart()
+    use constants, only : pi
+    use ceq, only : ceq_testing_type
+    type(ceq_testing_type) :: ceq_privates
+
+    integer, parameter :: nradius = 3
+    integer, parameter :: ntheta = 4
+    integer, parameter :: total_size(2) = [nradius, ntheta]
+    real, parameter :: theta_grid_spacing = 2 * pi / (ntheta - 1)
+    real, dimension(nradius, ntheta, 2) :: drm, dzm
+    real, dimension(nradius, ntheta, 2) :: R_cylindrical, Z_cylindrical
+    real, dimension(nradius, ntheta, 2) :: R_cylindrical_expected, Z_cylindrical_expected
+
+    integer :: i, j
+
+    ! Index-space derivatives of R
+    drm(:, :, 1) = reshape( &
+         [([(cos(j * theta_grid_spacing), &
+         i=1, nradius)], j=0, ntheta-1)], total_size)
+    drm(:, :, 2) = reshape( &
+         [([(-sin(j * theta_grid_spacing) * theta_grid_spacing, &
+         i=1, nradius)], j=0, ntheta-1)], total_size)
+
+    ! Index-space derivatives of Z
+    dzm(:, :, 1) = reshape( &
+         [([(sin(j * theta_grid_spacing), &
+         i=1, nradius)], j=0, ntheta-1)], total_size)
+    dzm(:, :, 2) = reshape( &
+         [([(cos(j * theta_grid_spacing) * theta_grid_spacing, &
+         i=1, nradius)], j=0, ntheta-1)], total_size)
+
+    call ceq_privates%set_nrnt(nradius, ntheta)
+    call ceq_privates%alloc_arrays(nradius, ntheta)
+    call ceq_privates%set_drm(drm)
+    call ceq_privates%set_dzm(dzm)
+
+    call ceq_privates%eqdcart(drm, R_cylindrical)
+    call ceq_privates%eqdcart(dzm, Z_cylindrical)
+
+    R_cylindrical_expected(:,:,1) = 1.
+    R_cylindrical_expected(:,:,2) = 0.
+    Z_cylindrical_expected(:,:,1) = 0.
+    Z_cylindrical_expected(:,:,2) = 1.
+
+    ! why is the output only divided by the denominator on the r-range 2,nr?
+    @assertEqual(R_cylindrical_expected(2:,:,1), R_cylindrical(2:,:,1), tolerance=value_tolerance)
+    @assertEqual(R_cylindrical_expected(2:,:,2), R_cylindrical(2:,:,2), tolerance=value_tolerance)
+    @assertEqual(Z_cylindrical_expected(2:,:,1), Z_cylindrical(2:,:,1), tolerance=value_tolerance)
+    @assertEqual(Z_cylindrical_expected(2:,:,2), Z_cylindrical(2:,:,2), tolerance=value_tolerance)
+
+  end subroutine test_eqdcart
+
+  ! This basically converts derivatives of R, Z from cylindrical
+  ! coordinates to Bishop coordinates. R, Z are for a circle with
+  ! radius 1
+  @test
+  subroutine test_eqdbish()
+    use ceq, only : ceq_testing_type
+    type(ceq_testing_type) :: ceq_privates
+
+    integer, parameter :: nradius = 3
+    integer, parameter :: ntheta = 4
+
+    real, dimension(nradius, ntheta, 2) :: dpcart
+    real, dimension(nradius, ntheta, 2) :: R_cylindrical, Z_cylindrical
+    real, dimension(nradius, ntheta, 2) :: R_cylindrical_in, Z_cylindrical_in
+    real, dimension(nradius, ntheta, 2) :: R_cylindrical_expected, Z_cylindrical_expected
+
+    call ceq_privates%set_nrnt(nradius, ntheta)
+    call ceq_privates%alloc_arrays(nradius, ntheta)
+
+    dpcart(:,:,1) = 1.
+    dpcart(:,:,2) = 0.
+
+    R_cylindrical_in(:,:,1) = 1.
+    R_cylindrical_in(:,:,2) = 0.
+    Z_cylindrical_in(:,:,1) = 0.
+    Z_cylindrical_in(:,:,2) = 1.
+
+    R_cylindrical_expected(:,:,1) = 1.
+    R_cylindrical_expected(:,:,2) = 0.
+    Z_cylindrical_expected(:,:,1) = 0.
+    Z_cylindrical_expected(:,:,2) = 1.
+
+    call ceq_privates%set_dpcart(dpcart)
+
+    call ceq_privates%eqdbish(R_cylindrical_in, R_cylindrical)
+    call ceq_privates%eqdbish(Z_cylindrical_in, Z_cylindrical)
+
+    ! why is the output only divided by the denominator on the r-range 2,nr?
+    @assertEqual(R_cylindrical_expected(2:,:,1), R_cylindrical(2:,:,1), tolerance=value_tolerance)
+    @assertEqual(R_cylindrical_expected(2:,:,2), R_cylindrical(2:,:,2), tolerance=value_tolerance)
+    @assertEqual(Z_cylindrical_expected(2:,:,1), Z_cylindrical(2:,:,1), tolerance=value_tolerance)
+    @assertEqual(Z_cylindrical_expected(2:,:,2), Z_cylindrical(2:,:,2), tolerance=value_tolerance)
+
+  end subroutine test_eqdbish
+
+  ! Currently only checks interpolation in theta
+  ! Also, how to check failures? Robust runner?
+  @test
+  subroutine test_eqitem()
+    use constants, only : pi
+    use ceq, only : ceq_testing_type, eqitem
+    type(ceq_testing_type) :: ceq_privates
+
+    integer, parameter :: nradius = 3
+    integer, parameter :: ntheta = 5
+    integer, parameter :: total_size(2) = [nradius, ntheta]
+
+    real, dimension(nradius, ntheta) :: array
+
+    real, parameter :: theta_zero = 0.0
+    real, parameter :: expected_zero = theta_zero
+    real, parameter :: theta_inside = 1.3
+    real, parameter :: expected_inside = theta_inside
+    real, parameter :: theta_inside_negative = -2.6
+    real, parameter :: expected_inside_negative = theta_inside_negative
+    real, parameter :: theta_outside = 1.3 + pi
+    real, parameter :: expected_outside = modulo(theta_outside + pi, 2.*pi) - pi
+    real, parameter :: theta_outside_negative = -(2.6 + pi)
+    real, parameter :: expected_outside_negative = modulo(theta_outside_negative + pi, 2.*pi) - pi
+    real, parameter :: psi = 1.
+
+    real :: actual
+
+    integer :: i, j
+
+    call ceq_privates%set_nrnt(nradius, ntheta)
+    call ceq_privates%alloc_arrays(nradius, ntheta)
+    call ceq_privates%set_eqpsi([0., 1., 2.])
+
+    array = reshape([([(real(j) * 2 * pi / real(ntheta - 1) - pi, &
+         i=1, nradius)], j=0, ntheta-1)], total_size)
+
+    call eqitem(psi, theta_zero, array, actual)
+    @assertEqual(expected_zero, actual, tolerance=value_tolerance)
+
+    call eqitem(psi, theta_inside, array, actual)
+    @assertEqual(expected_inside, actual, tolerance=value_tolerance)
+
+    call eqitem(psi, theta_inside_negative, array, actual)
+    @assertEqual(expected_inside_negative, actual, tolerance=value_tolerance)
+
+    call eqitem(psi, theta_outside, array, actual)
+    @assertEqual(expected_outside, actual, tolerance=value_tolerance)
+
+    call eqitem(psi, theta_outside_negative, array, actual)
+    @assertEqual(expected_outside_negative, actual, tolerance=value_tolerance)
+
+  end subroutine test_eqitem
+
+  @test
+  subroutine test_ceq_init
+    use constants, only : pi
+    use ceq, only : ceq_testing_type, ceq_init
+    type(ceq_testing_type) :: ceq_privates
+
+    real, dimension(npsi_test, ntheta_test, 2) :: dpcart
+    real, dimension(npsi_test, ntheta_test, 2) :: dbtcart
+    real, dimension(npsi_test, ntheta_test, 2) :: dtcart
+
+    real, dimension(npsi_test, ntheta_test, 2) :: dpcart_expected
+    real, dimension(npsi_test, ntheta_test, 2) :: dbtcart_expected
+    real, dimension(npsi_test, ntheta_test, 2) :: dtcart_expected
+
+    dpcart_expected(:, :, 1) = reshape([&
+           0., -2., -1.,&
+           0., 0., 0., &
+           0., 2., 1., &
+           0., 0., 0., &
+           0., -2., -1.], shape=[npsi_test, ntheta_test])
+    dpcart_expected(:, :, 2) = reshape([&
+           0., 0., 0.,&
+           0., -2., -1., &
+           0., 0., 0., &
+           0., 2., 1., &
+           0., 0., 0.], shape=[npsi_test, ntheta_test])
+    dbtcart_expected(:, :, 1) = reshape([&
+           0.,  0.53333,  0.40000,&
+           0.,  0.00000,  0.09524,&
+           0., -0.34286, -0.11429,&
+           0., -0.00000,  0.09524,&
+           0.,  0.53333,  0.40000], shape=[npsi_test, ntheta_test])
+    dbtcart_expected(:, :, 2) = reshape([&
+           0.,  0.0,  0.0,&
+           0.,  0.4,  0.2,&
+           0.,  0.0,  0.0,&
+           0., -0.4, -0.2,&
+           0.,  0.0,  0.0], shape=[npsi_test, ntheta_test])
+    dtcart_expected(:, :, 1) = reshape([&
+           0.,  0.00000, -0.00000,&
+           0.,  6.28319,  1.57080,&
+           0.,  0.00000,  0.00000,&
+           0., -6.28319, -1.57080,&
+           0., -0.00000, -0.00000], shape=[npsi_test, ntheta_test])
+    dtcart_expected(:, :, 2) = reshape([&
+           0., -6.28319, -1.57080,&
+           0.,  0.00000,  0.00000,&
+           0.,  6.28319,  1.57080,&
+           0.,  0.00000,  0.00000,&
+           0., -6.28319, -1.57080], shape=[npsi_test, ntheta_test])
+
+    call set_ceq_test_data()
+
+    call ceq_init()
+
+    call ceq_privates%get_cart_arrays(dpcart, dbtcart, dtcart)
+
+    @assertEqual(dpcart_expected(2:, :, :), dpcart(2:, :, :), tolerance=derivative_tolerance, message="dpcart")
+    @assertEqual(dbtcart_expected(2:, :, :), dbtcart(2:, :, :), tolerance=derivative_tolerance, message="dpcart")
+    @assertEqual(dtcart_expected(2:, :, :), dtcart(2:, :, :), tolerance=derivative_tolerance, message="dpcart")
+
+  end subroutine test_ceq_init
+
+  @test
+  subroutine test_gradient()
+    use constants, only : pi
+    use ceq, only : ceq_testing_type, gradient
+    type(ceq_testing_type) :: ceq_privates
+
+    integer, parameter :: nradius = 3
+    integer, parameter :: ntheta = 2
+
+    real, dimension(npsi_test, ntheta_test, 2) :: dpcart, dbtcart, dtcart
+    integer :: i
+    real, dimension(-ntheta:ntheta), parameter :: psi = 1.
+    real, dimension(-ntheta:ntheta), parameter :: theta = [(real(i)*pi/(2*real(ntheta-1)), i=-ntheta,ntheta)]
+    real, dimension(-ntheta:ntheta, 2) :: expected, grad_result
+
+    call set_ceq_test_data()
+
+    dpcart(:, :, 1) = reshape([&
+           0., -2., -1.,&
+           0., 0., 0., &
+           0., 2., 1., &
+           0., 0., 0., &
+           0., -2., -1.], shape=[npsi_test, ntheta_test])
+    dpcart(:, :, 2) = reshape([&
+           0., 0., 0.,&
+           0., -2., -1., &
+           0., 0., 0., &
+           0., 2., 1., &
+           0., 0., 0.], shape=[npsi_test, ntheta_test])
+    dbtcart = 0.
+    dtcart = 0.
+
+    call ceq_privates%set_cart_arrays(dpcart, dbtcart, dtcart)
+    call ceq_privates%set_eqpsi([0., 1., 2.])
+
+    expected(:, 1) = [-2., 0., 2., 0., -2.]
+    expected(:, 2) = [0., -2., 0., 2., 0.]
+    call gradient(psi, theta, grad_result, 'P', 0.5, ntheta, ntheta)
+    @assertEqual(expected, grad_result, tolerance=value_tolerance)
+
+    expected(:, 1) = [-3., 0., 3., 0., -3.]
+    expected(:, 2) = [0., -3., 0., 3., 0.]
+    call gradient(psi, theta, grad_result, 'R', 0.5, ntheta, ntheta)
+    ! 'R' is derivative of pressure, and involves a separate
+    ! interpolation, hence reduced tolerance
+    @assertEqual(expected, grad_result, tolerance=derivative_tolerance)
+
+  end subroutine test_gradient
+
+  @test
+  subroutine test_bgradient()
+    use constants, only : pi
+    use ceq, only : ceq_testing_type, bgradient
+    type(ceq_testing_type) :: ceq_privates
+
+    integer, parameter :: nradius = 3
+    integer, parameter :: ntheta = 2
+
+    real, dimension(npsi_test, ntheta_test, 2) :: dpbish, dbtbish, dtbish
+    integer :: i
+    real, dimension(-ntheta:ntheta), parameter :: psi = 1.
+    real, dimension(-ntheta:ntheta), parameter :: theta = [(real(i)*pi/(2*real(ntheta-1)), i=-ntheta,ntheta)]
+    real, dimension(-ntheta:ntheta, 2) :: expected, grad_result
+
+    call set_ceq_test_data()
+
+    dpbish(:, :, 1) = reshape([&
+           0., -2., -1.,&
+           0., 0., 0., &
+           0., 2., 1., &
+           0., 0., 0., &
+           0., -2., -1.], shape=[npsi_test, ntheta_test])
+    dpbish(:, :, 2) = reshape([&
+           0., 0., 0.,&
+           0., -2., -1., &
+           0., 0., 0., &
+           0., 2., 1., &
+           0., 0., 0.], shape=[npsi_test, ntheta_test])
+    dbtbish = 0.
+    dtbish = 0.
+
+    call ceq_privates%set_bish_arrays(dpbish, dbtbish, dtbish)
+    call ceq_privates%set_eqpsi([0., 1., 2.])
+
+    expected(:, 1) = [-2., 0., 2., 0., -2.]
+    expected(:, 2) = [0., -2., 0., 2., 0.]
+    call bgradient(psi, theta, grad_result, 'P', 0.5, ntheta, ntheta)
+    @assertEqual(expected, grad_result, tolerance=value_tolerance)
+
+    expected(:, 1) = [-3., 0., 3., 0., -3.]
+    expected(:, 2) = [0., -3., 0., 3., 0.]
+    call bgradient(psi, theta, grad_result, 'R', 0.5, ntheta, ntheta)
+    ! 'R' is derivative of pressure, and involves a separate
+    ! interpolation, hence reduced tolerance
+    @assertEqual(expected, grad_result, tolerance=derivative_tolerance)
+
+  end subroutine test_bgradient
+
+  @test
+  subroutine test_mod2pi()
+    use constants, only : pi
+    use ceq, only : ceq_testing_type
+    type(ceq_testing_type) :: ceq_privates
+
+    @assertEqual(0.0, ceq_privates%mod2pi(0.0), tolerance=value_tolerance)
+    @assertEqual(1.0, ceq_privates%mod2pi(1.0), tolerance=value_tolerance)
+    @assertEqual(-1.0, ceq_privates%mod2pi(-1.0), tolerance=value_tolerance)
+    @assertEqual(pi, ceq_privates%mod2pi(pi), tolerance=value_tolerance)
+    @assertEqual(-pi, ceq_privates%mod2pi(-pi), tolerance=value_tolerance)
+    @assertEqual(0.0, ceq_privates%mod2pi(2. * pi), tolerance=value_tolerance)
+    @assertEqual(0.0, ceq_privates%mod2pi(-2. * pi), tolerance=value_tolerance)
+    @assertEqual(pi / 2., ceq_privates%mod2pi(2. * pi + (pi/2.)), tolerance=value_tolerance)
+    @assertEqual(-pi / 2., ceq_privates%mod2pi(pi + (pi/2.)), tolerance=value_tolerance)
+  end subroutine test_mod2pi
+
+  @test
+  subroutine test_initialize_invR
+    use ceq, only : initialize_invR
+    @assertEqual(1, initialize_invR(0))
+    @assertEqual(1, initialize_invR(1))
+  end subroutine test_initialize_invR
+
+  @test
+  subroutine test_invR
+    use constants, only : pi
+    use ceq, only : initialize_invR, invR, ceq_testing_type
+
+    type(ceq_testing_type) :: ceq_privates
+
+    integer, parameter :: nradius = 3
+    integer, parameter :: ntheta = 5
+    integer, parameter :: total_size(2) = [nradius, ntheta]
+    real, parameter :: theta_grid_spacing = 2 * pi / (ntheta - 1)
+
+    real, dimension(nradius, ntheta) :: R_psi
+
+    integer :: i, j
+
+    R_psi = reshape([([(i*i*cos(j * theta_grid_spacing - pi), &
+         i=1, nradius)], j=0, ntheta-1)], total_size)
+
+    call ceq_privates%set_nrnt(nradius, ntheta)
+    call ceq_privates%alloc_arrays(nradius, ntheta)
+
+    call ceq_privates%set_eqpsi([1., 2., 3.])
+    call ceq_privates%set_R_psi(R_psi)
+
+    i = initialize_invR(1)
+    @assertEqual(0.25, invR(2., 0.), tolerance=value_tolerance)
+    @assertEqual(-0.25, invR(2., pi), tolerance=value_tolerance)
+
+  end subroutine test_invR
+
+  @test
+  subroutine test_Rpos
+    use constants, only : pi
+    use ceq, only : Rpos, ceq_testing_type
+
+    type(ceq_testing_type) :: ceq_privates
+
+    integer, parameter :: nradius = 3
+    integer, parameter :: ntheta = 5
+    integer, parameter :: total_size(2) = [nradius, ntheta]
+    real, parameter :: theta_grid_spacing = 2 * pi / (ntheta - 1)
+
+    real, dimension(nradius, ntheta) :: R_psi
+
+    integer :: i, j
+
+    R_psi = reshape([([(i*i*cos(j * theta_grid_spacing - pi), &
+         i=1, nradius)], j=0, ntheta-1)], total_size)
+
+    call ceq_privates%set_nrnt(nradius, ntheta)
+    call ceq_privates%alloc_arrays(nradius, ntheta)
+
+    call ceq_privates%set_eqpsi([1., 2., 3.])
+    call ceq_privates%set_R_psi(R_psi)
+
+    @assertEqual(4.0, Rpos(2., 0.), tolerance=value_tolerance)
+    @assertEqual(-4.0, Rpos(2., pi), tolerance=value_tolerance)
+    @assertEqual(4.0, Rpos(2., 2*pi), tolerance=value_tolerance)
+    @assertEqual(0.0, Rpos(2., pi/2), tolerance=value_tolerance)
+    @assertEqual(0.0, Rpos(2., -pi/2), tolerance=value_tolerance)
+
+  end subroutine test_Rpos
+
+  @test
+  subroutine test_Zpos
+    use constants, only : pi
+    use ceq, only : Zpos, ceq_testing_type
+
+    type(ceq_testing_type) :: ceq_privates
+
+    integer, parameter :: nradius = 3
+    integer, parameter :: ntheta = 5
+    integer, parameter :: total_size(2) = [nradius, ntheta]
+    real, parameter :: theta_grid_spacing = 2 * pi / (ntheta - 1)
+
+    real, dimension(nradius, ntheta) :: Z_psi
+
+    integer :: i, j
+
+    Z_psi = reshape([([(i*i*sin(j * theta_grid_spacing - pi), &
+         i=1, nradius)], j=0, ntheta-1)], total_size)
+
+    call ceq_privates%set_nrnt(nradius, ntheta)
+    call ceq_privates%alloc_arrays(nradius, ntheta)
+
+    call ceq_privates%set_eqpsi([1., 2., 3.])
+    call ceq_privates%set_Z_psi(Z_psi)
+
+    @assertEqual(0.0, Zpos(2., 0.), tolerance=value_tolerance)
+    @assertEqual(0.0, Zpos(2., pi), tolerance=value_tolerance)
+    @assertEqual(0.0, Zpos(2., 2*pi), tolerance=value_tolerance)
+    @assertEqual(4.0, Zpos(2., pi/2), tolerance=value_tolerance)
+    @assertEqual(-4.0, Zpos(2., -pi/2), tolerance=value_tolerance)
+
+  end subroutine test_Zpos
+
+  @test
+  subroutine test_rcenter
+    use constants, only : pi
+    use ceq, only : rcenter, ceq_testing_type, initialize_rcenter
+
+    type(ceq_testing_type) :: ceq_privates
+
+    integer, parameter :: nradius = 3
+    integer, parameter :: ntheta = 5
+    integer, parameter :: total_size(2) = [nradius, ntheta]
+    real, parameter :: theta_grid_spacing = 2 * pi / (ntheta - 1)
+
+    real, dimension(nradius, ntheta) :: R_psi
+
+    integer :: i, j
+
+    R_psi = reshape([([(i*i*cos(j * theta_grid_spacing - pi) + i*i, &
+         i=1, nradius)], j=0, ntheta-1)], total_size)
+
+    call ceq_privates%set_nrnt(nradius, ntheta)
+    call ceq_privates%alloc_arrays(nradius, ntheta)
+
+    call ceq_privates%set_eqpsi([1., 2., 3.])
+    call ceq_privates%set_R_psi(R_psi)
+
+    i = initialize_rcenter(1)
+    @assertEqual(1., rcenter(1.))
+    @assertEqual(4., rcenter(2.))
+
+  end subroutine test_rcenter
+
+  @test
+  subroutine test_initialize_rcenter
+    use constants, only : pi
+    use ceq, only : initialize_rcenter, rcenter, ceq_testing_type
+
+    type(ceq_testing_type) :: ceq_privates
+
+    integer, parameter :: nradius = 3
+    integer, parameter :: ntheta = 5
+    integer, parameter :: total_size(2) = [nradius, ntheta]
+    real, parameter :: theta_grid_spacing = 2 * pi / (ntheta - 1)
+
+    real, dimension(nradius, ntheta) :: R_psi
+
+    integer :: i, j
+
+    R_psi = reshape([([(i*i*cos(j * theta_grid_spacing - pi) + i*i, &
+         i=1, nradius)], j=0, ntheta-1)], total_size)
+
+    call ceq_privates%set_nrnt(nradius, ntheta)
+    call ceq_privates%alloc_arrays(nradius, ntheta)
+
+    call ceq_privates%set_eqpsi([1., 2., 3.])
+    call ceq_privates%set_R_psi(R_psi)
+
+    @assertEqual(4., rcenter(2.))
+    @assertEqual(1, initialize_rcenter(0))
+    @assertEqual(4., rcenter(2.))
+    @assertEqual(1, initialize_rcenter(1))
+    @assertEqual(4., rcenter(2.))
+
+    R_psi = reshape([([(i*i*cos(j * theta_grid_spacing - pi) + 2*i*i, &
+         i=1, nradius)], j=0, ntheta-1)], total_size)
+    call ceq_privates%set_R_psi(R_psi)
+
+    @assertEqual(4., rcenter(2.))
+    @assertEqual(1, initialize_rcenter(0))
+    @assertEqual(4., rcenter(2.))
+    @assertEqual(1, initialize_rcenter(1))
+    @assertEqual(8., rcenter(2.))
+
+  end subroutine test_initialize_rcenter
+
+  @test
+  subroutine test_diameter
+    use constants, only : pi
+    use ceq, only : initialize_diameter, diameter, ceq_testing_type
+
+    type(ceq_testing_type) :: ceq_privates
+
+    integer, parameter :: nradius = 3
+    integer, parameter :: ntheta = 5
+    integer, parameter :: total_size(2) = [nradius, ntheta]
+    real, parameter :: theta_grid_spacing = 2 * pi / (ntheta - 1)
+
+    real, dimension(nradius, ntheta) :: R_psi
+
+    integer :: i, j
+
+    R_psi = reshape([([(i*i*cos(j * theta_grid_spacing - pi) + i*i, &
+         i=1, nradius)], j=0, ntheta-1)], total_size)
+
+    call ceq_privates%set_nrnt(nradius, ntheta)
+    call ceq_privates%alloc_arrays(nradius, ntheta)
+
+    call ceq_privates%set_eqpsi([1., 2., 3.])
+    call ceq_privates%set_R_psi(R_psi)
+
+    i = initialize_diameter(1)
+    @assertEqual(2., diameter(1.))
+    @assertEqual(8., diameter(2.))
+
+  end subroutine test_diameter
+
+  @test
+  subroutine test_initialize_diameter
+    use constants, only : pi
+    use ceq, only : initialize_diameter, diameter, ceq_testing_type
+
+    type(ceq_testing_type) :: ceq_privates
+
+    integer, parameter :: nradius = 3
+    integer, parameter :: ntheta = 5
+    integer, parameter :: total_size(2) = [nradius, ntheta]
+    real, parameter :: theta_grid_spacing = 2 * pi / (ntheta - 1)
+
+    real, dimension(nradius, ntheta) :: R_psi
+
+    integer :: i, j
+
+    R_psi = reshape([([(i*i*cos(j * theta_grid_spacing - pi) + i*i, &
+         i=1, nradius)], j=0, ntheta-1)], total_size)
+
+    call ceq_privates%set_nrnt(nradius, ntheta)
+    call ceq_privates%alloc_arrays(nradius, ntheta)
+
+    call ceq_privates%set_eqpsi([1., 2., 3.])
+    call ceq_privates%set_R_psi(R_psi)
+
+    @assertEqual(2., diameter(1.))
+    @assertEqual(1, initialize_diameter(0))
+    @assertEqual(2., diameter(1.))
+    @assertEqual(1, initialize_diameter(1))
+    @assertEqual(2., diameter(1.))
+
+    R_psi = reshape([([(2*i*i*cos(j * theta_grid_spacing - pi) + i*i, &
+         i=1, nradius)], j=0, ntheta-1)], total_size)
+    call ceq_privates%set_R_psi(R_psi)
+
+    @assertEqual(2., diameter(1.))
+    @assertEqual(1, initialize_diameter(0))
+    @assertEqual(2., diameter(1.))
+    @assertEqual(1, initialize_diameter(1))
+    @assertEqual(4., diameter(1.))
+
+  end subroutine test_initialize_diameter
+
+  @test
+  subroutine test_initialize_btori
+    use ceq, only : initialize_btori
+    @assertEqual(1, initialize_btori(0))
+    @assertEqual(1, initialize_btori(1))
+  end subroutine test_initialize_btori
+
+  @test
+  subroutine test_btori
+    use ceq, only : initialize_btori, btori
+    integer :: i
+
+    call initialise_ceq_with_test_data()
+
+    i = initialize_btori(1)
+    @assertEqual(1.25, btori(0.25))
+    @assertEqual(-1.25, btori(0.75))
+
+  end subroutine test_btori
+
+  @test
+  subroutine test_initialize_dbtori
+    use ceq, only : initialize_dbtori
+    @assertEqual(1, initialize_dbtori(0))
+    @assertEqual(1, initialize_dbtori(1))
+  end subroutine test_initialize_dbtori
+
+  @test
+  subroutine test_dbtori
+    use ceq, only : initialize_dbtori, dbtori
+    integer :: i
+
+    call initialise_ceq_with_test_data()
+
+    i = initialize_dbtori(1)
+    @assertEqual(-2., dbtori(0.25))
+    @assertEqual(-2., dbtori(0.75))
+
+  end subroutine test_dbtori
+
+  @test
+  subroutine test_initialize_q
+    use ceq, only : initialize_q
+    @assertEqual(1, initialize_q(0))
+    @assertEqual(1, initialize_q(1))
+  end subroutine test_initialize_q
+
+  @test
+  subroutine test_qfun
+    use ceq, only : initialize_q, qfun
+    integer :: i
+
+    call initialise_ceq_with_test_data()
+
+    i = initialize_q(1)
+    @assertEqual(6.25, qfun(0.25), tolerance=spline_tolerance)
+    @assertEqual(12.25, qfun(0.75), tolerance=spline_tolerance)
+  end subroutine test_qfun
+
+  @test
+  subroutine test_initialize_pressure
+    use ceq, only : initialize_pressure
+    @assertEqual(1, initialize_pressure(0))
+    @assertEqual(1, initialize_pressure(1))
+  end subroutine test_initialize_pressure
+
+  @test
+  subroutine test_pfun
+    use ceq, only : initialize_pressure, pfun
+    integer :: i
+
+    call initialise_ceq_with_test_data()
+
+    i = initialize_pressure(1)
+    @assertEqual(2.25, pfun(0.25), tolerance=spline_tolerance)
+    @assertEqual(3.75, pfun(0.75), tolerance=spline_tolerance)
+  end subroutine test_pfun
+
+  @test
+  subroutine test_initialize_dpressure
+    use ceq, only : initialize_dpressure
+    @assertEqual(1, initialize_dpressure(0))
+    @assertEqual(1, initialize_dpressure(1))
+  end subroutine test_initialize_dpressure
+
+  @test
+  subroutine test_dpfun
+    use ceq, only : initialize_dpressure, dpfun
+    integer :: i
+
+    call initialise_ceq_with_test_data()
+
+    i = initialize_dpressure(1)
+    @assertEqual(1.2, dpfun(0.25), tolerance=spline_tolerance)
+    @assertEqual(1.2, dpfun(0.75), tolerance=spline_tolerance)
+  end subroutine test_dpfun
+
+  @test
+  subroutine test_initialize_beta
+    use ceq, only : initialize_beta
+    @assertEqual(1, initialize_beta(0))
+    @assertEqual(1, initialize_beta(1))
+  end subroutine test_initialize_beta
+
+  @test
+  subroutine test_betafun
+    use ceq, only : initialize_beta, betafun
+    integer :: i
+
+    call initialise_ceq_with_test_data()
+
+    i = initialize_beta(1)
+    @assertEqual(4.5, betafun(0.25), tolerance=spline_tolerance)
+    @assertEqual(7.5, betafun(0.75), tolerance=spline_tolerance)
+  end subroutine test_betafun
+
+  @test
+  subroutine test_initialize_psi
+    use ceq, only : initialize_psi
+    @assertEqual(1, initialize_psi(0))
+    @assertEqual(1, initialize_psi(1))
+  end subroutine test_initialize_psi
+
+  @test
+  subroutine test_psi
+    use ceq, only : initialize_psi, psi
+    integer :: i
+
+    i = initialize_psi(1)
+    @assertEqual(-1., psi(-1.))
+    @assertEqual(0., psi(0.))
+    @assertEqual(1.5, psi(1.5))
+  end subroutine test_psi
+
+end module test_ceq_mod
