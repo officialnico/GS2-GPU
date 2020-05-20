@@ -97,10 +97,16 @@ pages:
   artifacts:
     paths:
       - public
-  only:
-    - master
-    - next
-    - feature/expand_namelist_documentation
+
+  rules:
+    # Always build the website if the source branch name is master or next
+    - if: '$CI_MERGE_REQUEST_SOURCE_BRANCH_NAME == "master" || $CI_MERGE_REQUEST_SOURCE_BRANCH_NAME == "next"'
+      when: always
+    # Always build the website if the commit message contains build-website      
+    - if: '$CI_COMMIT_MESSAGE =~ /build-website/'
+      when: always
+    # Otherwise it's a manual action
+    - when: manual
     
 success:
   stage: ci_status
