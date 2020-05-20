@@ -124,7 +124,7 @@ pages:
     # Always build the website if the commit message contains build-website      
     - if: '$CI_COMMIT_MESSAGE =~ /build-website/'
       when: always
-    # Otherwise it's a manual action
+    # Otherwise it's a manual action that can be triggered by an authenticated user on gitlab
     - when: manual
     
 success:
