@@ -228,8 +228,8 @@ module eigval
      !> when an eigenmode has been found. Note this is the tolerance
      !> based on the SLEPc eigenvalue, which is the time advance
      !> eigenvalue
-     !> \(\exp{\left(-i\Omega\textrm{`nadv`}\textrm{`delt`}\right)}\)
-     !> rather than the GS2 eigenvalue, \(\Omeag\).
+     !> \(\exp{\left(-i\Omega\textrm{nadv delt}\right)}\)
+     !> rather than the GS2 eigenvalue, \(\Omega\).
      real :: tolerance = 1.0d-6
      !> Sets the type of spectral transform to be used. This can help
      !> extract interior eigenvalues. Must be one of

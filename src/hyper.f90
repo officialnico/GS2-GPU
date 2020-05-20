@@ -58,8 +58,9 @@ module hyper
      !> Sets hyperresistivity parameter multiplying damping term.
      real :: d_hyperres = -10.0
      !> Sets hyperviscosity parameter multiplying damping term. See
-     !> [https://citeseerx.ist.psu.edu/viewdoc/download;jsessionid=50BFD54A8F8D72FC225D025FDEDFFFA5?doi=10.1.1.706.9568&rep=rep1&type=pdf](E. Belli
-     !> (2006) thesis) for more information.
+     !> [E. Belli (2006)
+     !> thesis](https://citeseerx.ist.psu.edu/viewdoc/download;jsessionid=50BFD54A8F8D72FC225D025FDEDFFFA5?doi=10.1.1.706.9568&rep=rep1&type=pdf)
+     !> for more information.
      real :: d_hypervisc = -10.0
      !> If `true` then hyperdissipation only applied to the zonal
      !> mode.
