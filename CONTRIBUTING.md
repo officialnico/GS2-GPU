@@ -325,8 +325,7 @@ $ make doc
 ```
 
 which builds the HTML pages under `docs/html`. Open
-`docs/htmml/index.html` in a browser to get the front page of the
-site.
+`docs/html/index.html` in a browser to get the front page of the site.
 
 ## Moving uncommitted changes from an subversion checkout to git
 
