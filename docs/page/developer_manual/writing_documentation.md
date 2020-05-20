@@ -52,8 +52,8 @@ For a real example, see [[leq]] and its source file [[leq.f90]].
 As well as the code documentation, we also have some extra documentation. The source for
 these pages in still kept in the GS2 git repository, and are built into the website at the
 same time. These extra pages are written in [Markdown][markdown-guide], with some
-extensions (see [the Python markdown implementation][python-markdown], see the [cheat
-sheet](#cheat-sheet).
+extensions (see [the Python markdown implementation][python-markdown]). There's a short
+[cheat sheet](#cheat-sheet) at the bottom of this page.
 
 ## Add a new page
 
