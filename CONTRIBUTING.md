@@ -305,33 +305,28 @@ https://git-scm.com/book/en/v2/Git-Tools-Submodules
 
 ## Adding documentation
 
-GS2 has three main ways of providing documentation currently
+GS2 uses [FORD][ford] to automatically build the online
+documentation. There are two sorts of documentation that get built:
+in-source and out-of-source.
 
-1. The [wiki](bitbucket.org/gyrokinetics/gs2/wiki) -- this is a useful
-place for discussion and documentation of broad topics and can be
-updated without changes to the repository. 
+1. Out-of-source documentation is in markdown files under `docs/page`
+   and they will be added to the generated html (under "Manual").
 
-2. In markdown files as a part of the
-[ford](https://github.com/cmacmackin/ford/) documentation. Place
-these additional files in `docs/pages` and they will be added to the
-generated html (under "Notes"). This is probably best used for more
-conceptual/discussive documentation.
+2. In-source comments of the form `!>` are processed by [FORD][ford]
 
-3. In code comments -- these are processed by
-[ford](https://github.com/cmacmackin/ford/) by running `make doc` from
-the cloned GS2 repository. This generates a html site that can be
-accessed by opening `docs/html/index.html` in your preferred
-browser. To add to this documentation you must use certain comment
-structures. In particular adding `!>` _before_ something you want to
-document or `!<` _after_ something you want to document will be
-recognised as a valid documentation comment. The `!!` and `!#` comment
-structures can be used to represent the start and end of large
-documentation comment blocks. Note: please avoid using these inline with
-code e.g. of the two lines below the first is allowed but the second is not.
-```fortran    
-      integer :: i !< This comment is ok and describes this an integer
-      integer :: i !! This comment will cause documentation problems.
+Please see the [Writing Documentation][writing-docs] guide on the
+website for a detailed guide on how to contribute to the GS2
+documentation.
+
+You can build the documentation locally by running
+
+```shell
+$ make doc
 ```
+
+which builds the HTML pages under `docs/html`. Open
+`docs/htmml/index.html` in a browser to get the front page of the
+site.
 
 ## Moving uncommitted changes from an subversion checkout to git
 
@@ -397,3 +392,6 @@ on Slack if you get stuck in this process!
       the keyword 'addesses' rather than 'fixes' or 'resolves' etc. as
       the former keeps the issue open until the pull request is merged
       but the latter automatically sets the issue to resolved.
+
+[ford]: https://github.com/Fortran-FOSS-Programmers/ford
+[writing-docs]: https://gyrokinetics.gitlab.io/gs2/page/developer_manual/writing_documentation.html

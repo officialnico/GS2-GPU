@@ -6,7 +6,9 @@ title: Writing Documentation
 
 GS2 uses [FORD][ford] to automatically build this online documentation. There are two
 sorts of documentation that get built: in-source and out-of-source. This page describes
-how to write both sorts.
+how to write both sorts. All the documentation is kept in the git repository, so to share
+any changes you make, please follow the [contributing guide][contributing]. The website
+will get built automatically when your pull request gets merged.
 
 # In-source documentation
 
@@ -44,6 +46,10 @@ contains
 
 end module my_module
 ```
+
+The [FORD wiki][ford_wiki] has more documentation on how to write these docstrings. Please
+note that while FORD accepts `!<` comments _after_ or in-line with the thing to be
+documented, the GS2 style is to stick to `!>` _before_ and on a separate line.
 
 For a real example, see [[leq]] and its source file [[leq.f90]].
 
@@ -244,7 +250,9 @@ Here's a quick little cheat sheet:
 | Image           | `![alt text](image.jpg)`   |
 
 
+[contributing]: https://bitbucket.org/gyrokinetics/gs2/src/master/CONTRIBUTING.md
 [ford]: https://github.com/Fortran-FOSS-Programmers/ford
+[ford_wiki]: https://github.com/Fortran-FOSS-Programmers/ford/wiki
 [ford_pages]: https://github.com/Fortran-FOSS-Programmers/ford/wiki/Writing-Pages
 [markdown-guide]: https://www.markdownguide.org
 [pandoc]: https://pandoc.org/
