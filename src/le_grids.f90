@@ -37,14 +37,13 @@ contains
     use constants, only: pi => dpi
     use gauss_quad, only: get_legendre_grids_from_cheb, get_laguerre_grids
     use species, only: nspec, spec, f0_sdanalytic, f0_maxwellian, calculate_f0_arrays, f0_values
-    use mp, only: proc0
 
     implicit none
     integer, intent (in) :: negrid
     real, intent (in) :: vcut_in
     integer, intent (in) :: nesub_in
     real, dimension(:,:), intent (out) :: epts, wgts
-    integer:: nesub, is, ie
+    integer:: nesub, is
     real:: vcut
 
     call init_egrid (negrid)
@@ -94,17 +93,10 @@ contains
     zeroes(:,:) = sqrt(epts(:negrid-1,:))
     x0(:) = sqrt(epts(negrid,:))
 
-    !do is = 1,nspec
-    !do ie = 1,negrid
-    !if (proc0) write(*,*) is, ie, epts(ie,is),wgts(ie,is),f0_values(ie,is)
-    !end do
-    !end do
-
   end subroutine setvgrid
 
   !> FIXME : Add documentation  
   subroutine setvgrid_genquad (negrid, epts, wgts, nesub)
-    use mp, only: proc0, mp_abort, iproc
     use genquad, only: get_quadrature_rule
     use constants, only: pi => dpi
     use gauss_quad, only: get_legendre_grids_from_cheb, get_laguerre_grids
@@ -146,12 +138,6 @@ contains
 
     call calculate_f0_arrays(epts)
 
-    !do is = 1,nspec
-    !do ie = 1,negrid
-    !if (proc0) write(*,*) is, ie, epts(ie,is),wgts(ie,is),f0_values(ie,is)
-    !end do
-    !end do
-    
     zeroes(:,:) = sqrt(epts(:negrid-1,:))
     x0(:) = sqrt(epts(negrid,:))
 
@@ -4007,10 +3993,9 @@ contains
     if (allocated(recvcnts_intspec)) deallocate (recvcnts_intspec)
     if (allocated(displs_intspec)) deallocate (displs_intspec)
 
-    deallocate(nonmaxw_corr)
-    deallocate(f0_values)
-    deallocate(dlnf0drho)
-
+    if (allocated(nonmaxw_corr)) deallocate(nonmaxw_corr)
+    if (allocated(f0_values)) deallocate(f0_values)
+    if (allocated(dlnf0drho)) deallocate(dlnf0drho)
 
     !Deallocate redistribute maps
     call delete_redist(lambda_map)

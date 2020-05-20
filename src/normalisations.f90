@@ -16,9 +16,9 @@ module normalisations
   real, parameter :: default_value = -999.0
   
   !> Define a type to hold the set of normalisations, we
-  !! could imagine extending this in the future to provide
-  !! a normalise/denormalise routine which can be used to
-  !! automatically convert quantities
+  !> could imagine extending this in the future to provide
+  !> a normalise/denormalise routine which can be used to
+  !> automatically convert quantities
   type norms_type
      private
      !Internal parameters
@@ -34,14 +34,14 @@ module normalisations
      character(len=6), dimension(:), allocatable, public :: names
 
      !The normalisations
-     real :: mref !Reference mass in atomic mass units
-     real :: zref !Reference charge in units of the elementary charge
-     real :: nref !Reference density in m^3
-     real :: tref !Reference temperature in eV
-     real :: aref !Reference length in m
-     real :: vref !Reference (thermal) velocity in m/s
-     real :: bref !Reference magnetic field in Tesla
-     real :: rhoref !Reference Larmor radius in m
+     real :: mref !< Reference mass in atomic mass units
+     real :: zref !< Reference charge in units of the elementary charge
+     real :: nref !< Reference density in $m^3$
+     real :: tref !< Reference temperature in $eV$
+     real :: aref !< Reference length in $m$
+     real :: vref !< Reference (thermal) velocity in $m/s$
+     real :: bref !< Reference magnetic field in Tesla, $T$
+     real :: rhoref !< Reference Larmor radius in $m$
    contains
      private
      procedure, public :: init => norms_init
@@ -92,7 +92,9 @@ contains
   !// TYPE BOUND PROCEDURES
   !/////////////////////////////
 
-  !> FIXME : Add documentation  
+  !> Sets the value of a particular normalisation, determined by the
+  !> passed `val_name` string. Unknown `val_name` values result in a
+  !> warning message on `proc0`.
   subroutine norms_set_value(self, val_name, val)
     use runtime_tests, only: verbosity
     use mp, only: proc0
@@ -135,9 +137,10 @@ contains
     end select
   end subroutine norms_set_value
 
-  !> FIXME : Add documentation  
-  elemental function norms_get_value(self, val_name)
-    !use mp, only: mp_abort
+  !> Get the value of the normalisation associated with `val_name`.
+  !> Unknown values of `val_name` result in a call to `mp_abort`.
+  function norms_get_value(self, val_name)
+    use mp, only: mp_abort
     implicit none
     class(norms_type), intent(in) :: self
     character(len=*), intent(in) :: val_name
@@ -163,20 +166,18 @@ contains
        norms_get_value=self%bref
     case("rhoref")
        norms_get_value=self%rhoref
-    !case default
-    !   call mp_abort("Invalid normalisation requested")
+    case default
+      call mp_abort("Invalid normalisation requested")
     end select
   end function norms_get_value
 
   !> FIXME : Add documentation  
   subroutine norms_read_parameters(self, normalisations_config_in)
     use file_utils, only: input_unit_exist
-    use mp, only: proc0, broadcast
     implicit none
     class(norms_type), intent(in out) :: self
     type(normalisations_config_type), intent(in), optional :: normalisations_config_in
     real :: mref,zref,nref,tref,aref,vref,bref,rhoref
-    integer :: in_file
 
     if (present(normalisations_config_in)) normalisations_config = normalisations_config_in
 
@@ -254,7 +255,7 @@ contains
   end subroutine norms_finish
 
   !> Decide if a given normalisation has been set
-  elemental function norms_check_if_set(self,val_name)
+  function norms_check_if_set(self,val_name)
     implicit none
     class(norms_type), intent(in) :: self
     character(len=*), intent(in) :: val_name

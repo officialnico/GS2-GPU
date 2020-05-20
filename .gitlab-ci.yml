@@ -6,6 +6,10 @@ stages:
 variables:
   GIT_SUBMODULE_STRATEGY: recursive
   OMPI_MCA_rmaps_base_oversubscribe: "yes"
+  # The following required to avoid lots of "Read -1, expected _, errno = 38" issues
+  # Fix discussed at https://github.com/open-mpi/ompi/issues/4948, suggests newer mpi
+  # and docker may avoid this issue
+  OMPI_MCA_btl_vader_single_copy_mechanism: "none"
 
 formattting_tests:
   variables:
@@ -19,67 +23,94 @@ formattting_tests:
 standard_tests:
   variables:
     CASENAME: "standard"
+    JOB_STATUS_FILE: "special_file_to_indicate_job_status"
   artifacts:
     paths:
       - pfunit.log
       - pfunit.error
   before_script:
+    - echo "before_script" > ${JOB_STATUS_FILE}
     - BUILD_STATUS=running BUILD_KEY=push ./.push_gitlab_build_status ${CASENAME}
-    - apt-get update -qq && apt-get install -y -qq libfftw3-dev libnetcdf-dev libnetcdff-dev netcdf-bin openmpi-bin libopenmpi-dev gfortran cmake
+    - apt-get update -qq && apt-get install -y -qq libfftw3-dev libnetcdf-dev libnetcdff-dev netcdf-bin openmpi-bin libopenmpi-dev gfortran cmake python3 python3-pip
+    - pip3 install -r requirements.txt
     - adduser theuser --disabled-password --gecos ""
   script:
-    - su -c "whoami ; MAKEFLAGS=-IMakefiles GK_SYSTEM=bitbucket make USE_NEW_DIAG= build_pfunit_library || (echo 'build_pfunit_library target failed.'; BUILD_STATUS=build_pfunit_library_failed  BUILD_KEY=push ./.push_gitlab_build_status ${CASENAME}; exit 1)" theuser
-    - su -c "whoami ; MAKEFLAGS=-IMakefiles GK_SYSTEM=bitbucket make USE_NEW_DIAG= -j tests || (echo 'tests target failed.' ; BUILD_STATUS=failed  BUILD_KEY=push ./.push_gitlab_build_status ${CASENAME}; exit 1)" theuser
-    - su -c "whoami ; MAKEFLAGS=-IMakefiles GK_SYSTEM=bitbucket make USE_NEW_DIAG= -j pfunit_tests || (echo 'pfunit_tests target failed.' ; cat pfunit.log; BUILD_STATUS=pfunit_tests_failed  BUILD_KEY=push ./.push_gitlab_build_status ${CASENAME}; exit 1)" theuser
-    - pipeline_test_scripts/didTestsFail.sh ${PWD}/tests results_of_test.txt  || (BUILD_STATUS=failed  BUILD_KEY=push ./.push_gitlab_build_status ${CASENAME}; exit 1)
-    - if [[ $(grep "FAILURES" pfunit.log | wc -l) -ge 1 ]] ; then BUILD_STATUS=failed  BUILD_KEY=push ./.push_gitlab_build_status ${CASENAME}; exit 1 ; fi
-    - BUILD_STATUS=passed  BUILD_KEY=push ./.push_gitlab_build_status ${CASENAME}
-    
+    - su -c "whoami ; MAKEFLAGS=-IMakefiles GK_SYSTEM=bitbucket make USE_NEW_DIAG= build_pfunit_library || (echo 'build_pfunit_library_failed' > ${JOB_STATUS_FILE}; exit 1)" theuser
+    - su -c "whoami ; MAKEFLAGS=-IMakefiles GK_SYSTEM=bitbucket make USE_NEW_DIAG= -j tests || (echo 'failed' > ${JOB_STATUS_FILE}; exit 1)" theuser
+    - su -c "whoami ; MAKEFLAGS=-IMakefiles GK_SYSTEM=bitbucket make USE_NEW_DIAG= -j pfunit_tests || (cat pfunit.log; echo 'pfunit_tests_failed' > ${JOB_STATUS_FILE}; exit 1)" theuser
+    - pipeline_test_scripts/didTestsFail.sh ${PWD}/tests results_of_test.txt  || (echo "failed" > ${JOB_STATUS_FILE}; exit 1)
+    - if [[ $(grep "FAILURES" pfunit.log | wc -l) -ge 1 ]] ; then echo "failed" > ${JOB_STATUS_FILE} ; exit 1 ; fi
+    - echo "passed" > ${JOB_STATUS_FILE}
+  after_script:
+    - BUILD_STATUS=$(cat ${JOB_STATUS_FILE})  BUILD_KEY=push ./.push_gitlab_build_status ${CASENAME}
+  interruptible: true
+
 standard_tests_onestep:
   variables:
     CASENAME: "standard_one_step_pp"
+    JOB_STATUS_FILE: "special_file_to_indicate_job_status"
   artifacts:
     paths:
       - pfunit.log
       - pfunit.error
   before_script:
+    - echo "before_script" > ${JOB_STATUS_FILE}
     - BUILD_STATUS=running BUILD_KEY=push ./.push_gitlab_build_status ${CASENAME}
-    - apt-get update -qq && apt-get install -y -qq libfftw3-dev libnetcdf-dev libnetcdff-dev netcdf-bin openmpi-bin libopenmpi-dev gfortran cmake
+    - apt-get update -qq && apt-get install -y -qq libfftw3-dev libnetcdf-dev libnetcdff-dev netcdf-bin openmpi-bin libopenmpi-dev gfortran cmake python3 python3-pip
+    - pip3 install -r requirements.txt
     - adduser theuser --disabled-password --gecos ""
   script:
-    - su -c "whoami ; MAKEFLAGS=-IMakefiles GK_SYSTEM=bitbucket make USE_NEW_DIAG= ONE_STEP_PP=on build_pfunit_library || (echo 'build_pfunit_library target failed.'; BUILD_STATUS=build_pfunit_library_failed  BUILD_KEY=push ./.push_gitlab_build_status ${CASENAME}; exit 1)" theuser
-    - su -c "whoami ; echo 'F90FLAGS += -ffree-form' > Makefile.local ; MAKEFLAGS=-IMakefiles GK_SYSTEM=bitbucket make USE_NEW_DIAG= -j tests ONE_STEP_PP=on || (echo 'tests target failed.' ; BUILD_STATUS=failed  BUILD_KEY=push ./.push_gitlab_build_status ${CASENAME}; exit 1)" theuser
-    - su -c "whoami ; MAKEFLAGS=-IMakefiles GK_SYSTEM=bitbucket make USE_NEW_DIAG= -j pfunit_tests ONE_STEP_PP=on || (echo 'pfunit_tests target failed.' ; cat pfunit.log; BUILD_STATUS=pfunit_tests_failed  BUILD_KEY=push ./.push_gitlab_build_status ${CASENAME}; exit 1)" theuser
-    - pipeline_test_scripts/didTestsFail.sh ${PWD}/tests results_of_test.txt  || (BUILD_STATUS=failed  BUILD_KEY=push ./.push_gitlab_build_status ${CASENAME}; exit 1)
-    - if [[ $(grep "FAILURES" pfunit.log | wc -l) -ge 1 ]] ; then BUILD_STATUS=failed  BUILD_KEY=push ./.push_gitlab_build_status ${CASENAME}; exit 1 ; fi
-    - BUILD_STATUS=passed  BUILD_KEY=push ./.push_gitlab_build_status ${CASENAME}
-    
+    - su -c "whoami ; MAKEFLAGS=-IMakefiles GK_SYSTEM=bitbucket make USE_NEW_DIAG= ONE_STEP_PP=on build_pfunit_library || (echo 'build_pfunit_library_failed' > ${JOB_STATUS_FILE}; exit 1)" theuser
+    - su -c "whoami ; echo 'F90FLAGS += -ffree-form' > Makefile.local ; MAKEFLAGS=-IMakefiles GK_SYSTEM=bitbucket make USE_NEW_DIAG= -j tests ONE_STEP_PP=on || (echo 'failed' > ${JOB_STATUS_FILE}; exit 1)" theuser
+    - su -c "whoami ; MAKEFLAGS=-IMakefiles GK_SYSTEM=bitbucket make USE_NEW_DIAG= -j pfunit_tests ONE_STEP_PP=on || (cat pfunit.log; echo 'pfunit_tests_failed' > ${JOB_STATUS_FILE}; exit 1)" theuser
+    - pipeline_test_scripts/didTestsFail.sh ${PWD}/tests results_of_test.txt  || (echo 'failed' > ${JOB_STATUS_FILE}; exit 1)
+    - if [[ $(grep "FAILURES" pfunit.log | wc -l) -ge 1 ]] ; then echo "failed" > ${JOB_STATUS_FILE} ; exit 1 ; fi
+    - echo "passed" > ${JOB_STATUS_FILE}
+  after_script:
+    - BUILD_STATUS=$(cat ${JOB_STATUS_FILE})  BUILD_KEY=push ./.push_gitlab_build_status ${CASENAME}
+  interruptible: true
+
 nodeps_tests:
   variables:
     CASENAME: "no_dependency"
+    JOB_STATUS_FILE: "special_file_to_indicate_job_status"
   before_script:
+    - echo "before_script" > ${JOB_STATUS_FILE}
     - BUILD_STATUS=running  BUILD_KEY=push ./.push_gitlab_build_status ${CASENAME}
     - apt-get update -qq && apt-get install -y -qq gfortran
     - adduser theuser --disabled-password --gecos ""
   script:
-    - su -c "whoami ; MAKEFLAGS=-IMakefiles GK_SYSTEM=bitbucket make USE_FFT= USE_NETCDF= USE_MPI= USE_NEW_DIAG= -j tests || (echo 'tests target failed.' ; BUILD_STATUS=failed  BUILD_KEY=push ./.push_gitlab_build_status ${CASENAME}; exit 1)" theuser
-    - pipeline_test_scripts/didTestsFail.sh ${PWD}/tests results_of_test.txt || (BUILD_STATUS=failed  BUILD_KEY=push ./.push_gitlab_build_status ${CASENAME}; exit 1)
-    - BUILD_STATUS=passed  BUILD_KEY=push ./.push_gitlab_build_status ${CASENAME}
+    - su -c "whoami ; MAKEFLAGS=-IMakefiles GK_SYSTEM=bitbucket make USE_FFT= USE_NETCDF= USE_MPI= USE_NEW_DIAG= -j tests || (echo 'failed' > ${JOB_STATUS_FILE}; exit 1)" theuser
+    - pipeline_test_scripts/didTestsFail.sh ${PWD}/tests results_of_test.txt || (echo 'failed' > ${JOB_STATUS_FILE}; exit 1)
+    - echo "passed" > ${JOB_STATUS_FILE}
+  after_script:
+    - BUILD_STATUS=$(cat ${JOB_STATUS_FILE})  BUILD_KEY=push ./.push_gitlab_build_status ${CASENAME}
+  interruptible: true
 
 pages:
   stage: test
+  variables:
+    CASENAME: "website"
   script:
-    - apt-get update -qq && apt-get install -y -qq libfftw3-dev libnetcdf-dev libnetcdff-dev netcdf-bin openmpi-bin libopenmpi-dev python python-pip gfortran
-    - pip install ford
+    - BUILD_STATUS=running  BUILD_KEY=push ./.push_gitlab_build_status ${CASENAME}
+    - apt-get update -qq && apt-get install -y -qq libfftw3-dev libnetcdf-dev libnetcdff-dev netcdf-bin openmpi-bin libopenmpi-dev python3 python3-pip gfortran
+    - pip3 install -r requirements.txt
     - MAKEFLAGS=-IMakefiles GK_SYSTEM=bitbucket make USE_NEW_DIAG= doc
     - mv docs/html ./public
+    - BUILD_STATUS=passed  BUILD_KEY=push ./.push_gitlab_build_status ${CASENAME}
   artifacts:
     paths:
       - public
-  only:
-    - master
-    - next
-    - feature/expand_namelist_documentation
+
+  rules:
+    # Always build the website if the source branch name is master or next
+    - if: '$CI_COMMIT_BRANCH == "master" || $CI_COMMIT_BRANCH == "next"'
+      when: always
+    # Always build the website if the commit message contains build-website      
+    - if: '$CI_COMMIT_MESSAGE =~ /build-website/'
+      when: always
+    # Otherwise it's a manual action that can be triggered by an authenticated user on gitlab
+    - when: manual
     
 success:
   stage: ci_status
@@ -100,5 +131,3 @@ failure:
   script:
     - echo "At least one test failed."
   when: on_failure
-
-

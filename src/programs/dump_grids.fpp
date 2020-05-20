@@ -6,6 +6,7 @@ program dump_grids
   use kt_grids, only: init_kt_grids
   use theta_grid, only: init_theta_grid
   use le_grids, only: init_le_grids
+  use species, only: init_species
 
   implicit none
   logical :: list
@@ -66,6 +67,17 @@ program dump_grids
      write(*,'("  --> Done in : ",F12.6," seconds")') time_measure(1)
   endif
   time_measure=0.
+  !/SPECIES
+  if(proc0.and.(.not.quiet)) then
+     write(*,'("Init species   ")',advance='no')
+     call time_message(.false.,time_measure,'init-species')
+  endif
+  call init_species
+  if(proc0.and.(.not.quiet)) then
+     call time_message(.false.,time_measure,'init-species')
+     write(*,'("  --> Done in : ",F12.6," seconds")') time_measure(1)
+  endif
+  time_measure=0.
   !/LE
   if(proc0.and.(.not.quiet)) then 
      write(*,'("Init le_grids   ")',advance='no') 
@@ -108,12 +120,13 @@ contains
 
     use kt_grids, only: aky, akx, theta0
     use theta_grid, only: theta
-    use le_grids, only: al, energy
+    use le_grids, only: al, energy, negrid
+    use species, only: nspec
 
     implicit none
     character(len=*), intent(in) :: fname
     integer :: ncid, ierr
-    integer :: ky_dimid, kx_dimid, theta_dimid, al_dimid, energy_dimid
+    integer :: ky_dimid, kx_dimid, theta_dimid, al_dimid, energy_dimid, species_dimid
     integer :: ky_varid, kx_varid, theta_varid, al_varid, energy_varid, theta0_varid
 
     !First get precisions
@@ -127,15 +140,16 @@ contains
     ierr=nf90_def_dim(ncid,'akx',size(akx),kx_dimid)
     ierr=nf90_def_dim(ncid,'theta',size(theta),theta_dimid)
     ierr=nf90_def_dim(ncid,'lambda',size(al),al_dimid)
-    ierr=nf90_def_dim(ncid,'energy',size(energy),energy_dimid)
+    ierr=nf90_def_dim(ncid,'energy',negrid,energy_dimid)
+    ierr=nf90_def_dim(ncid,'species',nspec,species_dimid)
 
     !Define variables
-    ierr=nf90_def_var(ncid,'ky',netcdf_real,(/ky_dimid/),ky_varid)
-    ierr=nf90_def_var(ncid,'kx',netcdf_real,(/kx_dimid/),kx_varid)
-    ierr=nf90_def_var(ncid,'theta0',netcdf_real,(/kx_dimid,ky_dimid/),theta0_varid)
-    ierr=nf90_def_var(ncid,'theta',netcdf_real,(/theta_dimid/),theta_varid)
-    ierr=nf90_def_var(ncid,'lambda',netcdf_real,(/al_dimid/),al_varid)
-    ierr=nf90_def_var(ncid,'energy',netcdf_real,(/energy_dimid/),energy_varid)
+    ierr=nf90_def_var(ncid,'ky',netcdf_real,[ky_dimid],ky_varid)
+    ierr=nf90_def_var(ncid,'kx',netcdf_real,[kx_dimid],kx_varid)
+    ierr=nf90_def_var(ncid,'theta0',netcdf_real,[kx_dimid,ky_dimid],theta0_varid)
+    ierr=nf90_def_var(ncid,'theta',netcdf_real,[theta_dimid],theta_varid)
+    ierr=nf90_def_var(ncid,'lambda',netcdf_real,[al_dimid],al_varid)
+    ierr=nf90_def_var(ncid,'energy',netcdf_real,[energy_dimid, species_dimid],energy_varid)
 
     !End definitions
     ierr=nf90_enddef(ncid)

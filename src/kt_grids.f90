@@ -56,7 +56,6 @@ contains
     use file_utils, only: input_unit, input_unit_exist
     implicit none
     type(kt_grids_single_config_type), intent(in), optional :: kt_grids_single_config_in
-    integer :: in_file
     logical :: exist
 
     if (parameters_read) return
@@ -383,7 +382,6 @@ contains
     implicit none
     type(kt_grids_range_config_type), intent(in), optional :: kt_grids_range_config_in
     integer :: ierr
-    integer :: in_file
     logical :: exist
     type (text_option), dimension(3), parameter :: kyspacingopts = &
          (/ text_option('default', kyspacingopt_linear), &
@@ -464,34 +462,40 @@ contains
     if (n0_min .gt. 0) then
 !CMR if n0_min>0 then override aky inputs and use nn0, n0_min, n0_max to determine aky range
 
-       !If toroidal mode number range would lead to non-integer mode numbers then
-       !we adjust the range to try to fix this.
-       if(mod(n0_max-n0_min,nn0-1).ne.0) then
-          !Give a warning message that we're changing things
-          write(ierr,'("Warning: toroidal mode number range setup would lead to non-integer")')
-          write(ierr,'("         mode numbers --> Attempting to adjust range slightly.")')
-          
-          !n0_max should be n0_min + I*(nn0-1) or n0_min + (I+1)*(nn0-1)
-          !where I is int(n0_max-n0_min/(nn0-1)) and we add 1 if the
-          !remainder (n0_max-n0_min)/(nn0-1) - I is > 0.5
-          !Note it's nn0-1 rather than nn0 as this is number of intervals
+       !Important to only do the following check and fix if nn0 > 0 as the second argument of `mod`
+       !must be non-zero. Failing to guard against this can lead to different outcomes with different
+       !compilers
+       if(nn0 > 1) then
 
-          !First calculate the floating step size
-          n0_tmp = (n0_max-n0_min*1.0)/(nn0-1)
-
-          !Now construct the new upper limit, int(n0_tmp) = I
-          !nint(n0_tmp-int(n0_tmp)) should be either 0 or 1 depending
-          !on if the remainder is < or > 0.5
-          n0_max = n0_min + (int(n0_tmp)+nint(n0_tmp-int(n0_tmp)))*(nn0-1)
-          
-          !Double check it's all OK now, should always be fine but just
-          !putting this here in case of logic error or strange cases.
+          !If toroidal mode number range would lead to non-integer mode numbers then
+          !we adjust the range to try to fix this.
           if(mod(n0_max-n0_min,nn0-1).ne.0) then
-             write(ierr,'("Error: Attempt to fix toroidal mode number range failed. Forcing nn0=1")')
-             nn0=1
-             n0_max = n0_min
+             !Give a warning message that we're changing things
+             write(ierr,'("Warning: toroidal mode number range setup would lead to non-integer")')
+             write(ierr,'("         mode numbers --> Attempting to adjust range slightly.")')
+
+             !n0_max should be n0_min + I*(nn0-1) or n0_min + (I+1)*(nn0-1)
+             !where I is int(n0_max-n0_min/(nn0-1)) and we add 1 if the
+             !remainder (n0_max-n0_min)/(nn0-1) - I is > 0.5
+             !Note it's nn0-1 rather than nn0 as this is number of intervals
+
+             !First calculate the floating step size
+             n0_tmp = (n0_max-n0_min*1.0)/(nn0-1)
+
+             !Now construct the new upper limit, int(n0_tmp) = I
+             !nint(n0_tmp-int(n0_tmp)) should be either 0 or 1 depending
+             !on if the remainder is < or > 0.5
+             n0_max = n0_min + (int(n0_tmp)+nint(n0_tmp-int(n0_tmp)))*(nn0-1)
+
+             !Double check it's all OK now, should always be fine but just
+             !putting this here in case of logic error or strange cases.
+             if(mod(n0_max-n0_min,nn0-1).ne.0) then
+                write(ierr,'("Error: Attempt to fix toroidal mode number range failed. Forcing nn0=1")')
+                nn0=1
+                n0_max = n0_min
+             endif
           endif
-       endif
+       end if
 
        !If n0_min>n0_max swap values
        if(n0_min.gt.n0_max) then
@@ -917,7 +921,6 @@ contains
     use file_utils, only: input_unit, input_unit_exist
     implicit none
     type(kt_grids_specified_config_type), intent(in), optional :: kt_grids_specified_config_in
-    integer :: in_file
     logical :: exist
 
     if (initialized) return
@@ -2085,7 +2088,7 @@ contains
             text_option('specified', gridopt_specified), &
             text_option('box', gridopt_box), &
             text_option('nonlinear', gridopt_box) /)
-    integer :: ierr, in_file
+    integer :: ierr
 
     if (present(kt_grids_config_in)) kt_grids_config = kt_grids_config_in
 
