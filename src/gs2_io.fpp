@@ -2471,7 +2471,6 @@ contains
 
     use species, only: nspec
     use run_parameters, only: fphi
-    use le_grids, only: negrid
     use theta_grid, only: ntgrid
 # ifdef NETCDF
     use netcdf, only: nf90_put_var
@@ -3100,15 +3099,19 @@ contains
   end subroutine nc_loop_movie
 
   !> Sync the files every nsync writes
-  subroutine nc_sync(nout, nout_movie)
+  subroutine nc_sync(nout, nout_movie, nsync_freq)
 # ifdef NETCDF
     use netcdf, only: nf90_sync
 # endif
     implicit none
     integer, intent(in) :: nout, nout_movie
+    integer, intent(in), optional :: nsync_freq
 # ifdef NETCDF
-    integer, parameter :: nsync=10
-    integer :: status
+    integer, parameter :: nsync_default = 10
+    integer :: status, nsync
+
+    nsync = nsync_default
+    if (present(nsync_freq)) nsync = nsync_freq
 
     !Main file
     if(mod(nout,nsync) == 0) then

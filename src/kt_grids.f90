@@ -56,7 +56,6 @@ contains
     use file_utils, only: input_unit, input_unit_exist
     implicit none
     type(kt_grids_single_config_type), intent(in), optional :: kt_grids_single_config_in
-    integer :: in_file
     logical :: exist
 
     if (parameters_read) return
@@ -383,7 +382,6 @@ contains
     implicit none
     type(kt_grids_range_config_type), intent(in), optional :: kt_grids_range_config_in
     integer :: ierr
-    integer :: in_file
     logical :: exist
     type (text_option), dimension(3), parameter :: kyspacingopts = &
          (/ text_option('default', kyspacingopt_linear), &
@@ -923,7 +921,6 @@ contains
     use file_utils, only: input_unit, input_unit_exist
     implicit none
     type(kt_grids_specified_config_type), intent(in), optional :: kt_grids_specified_config_in
-    integer :: in_file
     logical :: exist
 
     if (initialized) return
@@ -2091,7 +2088,7 @@ contains
             text_option('specified', gridopt_specified), &
             text_option('box', gridopt_box), &
             text_option('nonlinear', gridopt_box) /)
-    integer :: ierr, in_file
+    integer :: ierr
 
     if (present(kt_grids_config_in)) kt_grids_config = kt_grids_config_in
 

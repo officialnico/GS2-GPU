@@ -476,7 +476,6 @@ contains
   subroutine read_parameters(collisions_config_in)
     use file_utils, only: input_unit, error_unit, input_unit_exist
     use text_options, only: text_option, get_option_value
-    use mp, only: proc0, broadcast
     use run_parameters, only: beta, fapar
     use species, only: nspec
     implicit none
@@ -496,7 +495,7 @@ contains
          (/ text_option('default', ediff_scheme_default), &
             text_option('old', ediff_scheme_old) /)
     character(20) :: collision_model, lorentz_scheme, ediff_scheme
-    integer :: ierr, in_file
+    integer :: ierr
 
     if (present(collisions_config_in)) collisions_config = collisions_config_in
 
