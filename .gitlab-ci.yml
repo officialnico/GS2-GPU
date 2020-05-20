@@ -108,11 +108,14 @@ nodeps_tests:
 pages:
   stage: test
   variables:
-    EXTRA_BUILD_FLAGS: "USE_NEW_DIAG= "
+    CASENAME: "website"
   script:
-    - *install_main_packages
-    - make ${EXTRA_BUILD_FLAGS} doc
+    - BUILD_STATUS=running  BUILD_KEY=push ./.push_gitlab_build_status ${CASENAME}
+    - apt-get update -qq && apt-get install -y -qq libfftw3-dev libnetcdf-dev libnetcdff-dev netcdf-bin openmpi-bin libopenmpi-dev python3 python3-pip gfortran
+    - pip3 install -r requirements.txt
+    - MAKEFLAGS=-IMakefiles GK_SYSTEM=bitbucket make USE_NEW_DIAG= doc
     - mv docs/html ./public
+    - BUILD_STATUS=passed  BUILD_KEY=push ./.push_gitlab_build_status ${CASENAME}
   artifacts:
     paths:
       - public
