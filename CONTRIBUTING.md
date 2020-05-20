@@ -327,6 +327,12 @@ $ make doc
 which builds the HTML pages under `docs/html`. Open
 `docs/html/index.html` in a browser to get the front page of the site.
 
+The website is automatically built on the [Gitlab][gitlab] mirror on
+merges into the `master` or `next` branches. A build of the
+website can also be triggered on other branches by including the
+phrase `build-website` in the commit message. Developers with write
+access to the gitlab mirror can also trigger a build manually.
+
 ## Moving uncommitted changes from an subversion checkout to git
 
 If you have uncommitted changes in your local working copy of the
@@ -392,5 +398,6 @@ on Slack if you get stuck in this process!
       the former keeps the issue open until the pull request is merged
       but the latter automatically sets the issue to resolved.
 
+[gitlab]: https://gitlab.com/gyrokinetics/gs2
 [ford]: https://github.com/Fortran-FOSS-Programmers/ford
 [writing-docs]: https://gyrokinetics.gitlab.io/gs2/page/developer_manual/writing_documentation.html
