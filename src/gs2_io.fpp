@@ -2471,7 +2471,6 @@ contains
 
     use species, only: nspec
     use run_parameters, only: fphi
-    use le_grids, only: negrid
     use theta_grid, only: ntgrid
 # ifdef NETCDF
     use netcdf, only: nf90_put_var
