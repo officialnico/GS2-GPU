@@ -58,24 +58,26 @@ module normalisations
   logical :: exist !Has this namelist been specified?
   logical :: initialized = .false. !Have we setup the module yet?
 
-  !> Used to represent the input configuration of normalisations
+  !> Used to represent the input configuration of
+  !> normalisations. These values are not used for anything but will
+  !> be written to the output file to aid post processing etc.
   type, extends(abstract_config_type) :: normalisations_config_type
      ! namelist : normalisations_knobs
-     !> FIXME: Add documentation
+     !> Reference length in \(m\)
      real :: aref = default_value
-     !> FIXME: Add documentation
+     !> Reference magnetic field in \(T\)
      real :: bref = default_value
-     !> FIXME: Add documentation
+     !> Reference mass in atomic mass units
      real :: mref = default_value
-     !> FIXME: Add documentation
+     !> Reference density in \(m^{-3}\)
      real :: nref = default_value
-     !> FIXME: Add documentation
+     !> Reference Larmor radius in $m$
      real :: rhoref = default_value
-     !> FIXME: Add documentation
+     !> Reference temperature in \(eV\)
      real :: tref = default_value
-     !> FIXME: Add documentation
+     !> Reference (thermal) velocity in \(m/s\)
      real :: vref = default_value
-     !> FIXME: Add documentation
+     !> Reference charge in units of the elementary charge
      real :: zref = default_value
    contains
      procedure, public :: read => read_normalisations_config
