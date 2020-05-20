@@ -362,8 +362,6 @@ contains
 
   !> FIXME : Add documentation  
   subroutine init_fields(fields_config_in)
-    !CMR,18/2/2011:
-    ! add optional logical arg "noalloc" to avoid array allocations in ingen
     use theta_grid, only: init_theta_grid
     use run_parameters, only: init_run_parameters
     use dist_fn, only: init_dist_fn
@@ -373,7 +371,6 @@ contains
     use kt_grids, only: gridopt_switch, gridopt_box, kwork_filter
     implicit none
     type(fields_config_type), intent(in), optional :: fields_config_in    
-    logical :: restarted
     logical, parameter :: debug=.false.
 
     if (initialized) return
@@ -383,21 +380,9 @@ contains
 
     call fields_init_response
 
-! Turn on nonlinear terms.
+    ! Turn on nonlinear terms.
     if (debug) write(6,*) "init_fields: nl_finish_init"
     call nl_finish_init
-
-    ! EGH Commented out the following lines as they are now
-    ! handled by gs2_init
-
-    !if (debug) write(6,*) "init_fields: ginit"
-    !call ginit (restarted)
-    !if (restarted .and. .not. force_maxwell_reinit) return
-    !if (debug) write(6,*) "init_fields: init_antenna"
-    !call init_antenna
-
-    !!Set the initial fields
-    !call set_init_fields
 
     !If running in flux tube disable evolution of ky=kx=0 mode
     if(gridopt_switch.eq.gridopt_box) kwork_filter(1,1)=.true.
@@ -470,7 +455,6 @@ contains
   subroutine read_parameters(fields_config_in)
     use file_utils, only: input_unit, error_unit, input_unit_exist
     use text_options, only: text_option, get_option_value
-    use mp, only: proc0, broadcast, mp_abort
     use fields_implicit, only: field_subgath
     use fields_local, only: minNRow
     use fields_local, only: do_smart_update, field_local_allreduce, field_local_allreduce_sub
@@ -481,7 +465,7 @@ contains
     type(fields_config_type), intent(in), optional :: fields_config_in    
     character(20) :: field_option
     character(len=256) :: response_dir
-    integer :: ierr, in_file
+    integer :: ierr
 
 
     if (present(fields_config_in)) fields_config = fields_config_in

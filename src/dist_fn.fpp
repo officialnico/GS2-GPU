@@ -1019,7 +1019,7 @@ contains
   !> FIXME : Add documentation  
   subroutine init_dist_fn_level_3
     use mp, only: finish_mp, mp_abort
-    use species, only: init_species, nspec
+    use species, only: init_species
     use collisions, only: init_collisions!, vnmult
     use hyper, only: init_hyper
     use le_grids, only: init_g2gf
@@ -1285,7 +1285,7 @@ contains
             text_option('mixed', wfbbc_option_mixed)/)
     character(20) :: wfbbc_option
 
-    integer :: ierr, is, in_file
+    integer :: ierr, is
     real :: bd
 
     if (readinit) return
@@ -1456,7 +1456,7 @@ contains
     use file_utils, only: get_indexed_namelist_unit
     implicit none
     type(dist_fn_species_config_type), intent(in), dimension(:), optional :: dist_fn_species_config_in    
-    integer :: is, unit
+    integer :: is
     logical :: exist
     real :: fexpr, fexpi
 
@@ -1903,9 +1903,9 @@ contains
   !> FIXME : Add documentation  
   subroutine init_invert_rhs
     use dist_fn_arrays, only: vpar, ittp
-    use species, only: spec, nspec
+    use species, only: spec
     use theta_grid, only: ntgrid
-    use le_grids, only: nlambda, ng2, forbid, negrid
+    use le_grids, only: nlambda, ng2, forbid
     use constants, only: zi
     use gs2_layouts, only: g_lo, ik_idx, it_idx, il_idx, ie_idx, is_idx
     implicit none
@@ -4017,8 +4017,8 @@ contains
     use dist_fn_arrays, only: gexp_1, gexp_2, gexp_3
     use theta_grid, only: ntgrid
     use kt_grids, only: aky
-    use le_grids, only: nlambda, ng2, lmax, negrid
-    use species, only: spec, nspec, nonmaxw_corr
+    use le_grids, only: nlambda, ng2, lmax
+    use species, only: spec, nonmaxw_corr
     use run_parameters, only: fphi, fapar, fbpar, wunits
     use gs2_time, only: code_dt
     use gs2_time, only: dt0 => code_dt, dt1 => code_dt_prev1, dt2 => code_dt_prev2
@@ -5554,7 +5554,6 @@ endif
     use theta_grid, only: ntgrid
     use le_grids, only: integrate_moment
     use prof, only: prof_entering, prof_leaving
-    use run_parameters, only: fphi, fbpar
     use fields_arrays, only: phinew
     use kt_grids, only: ntheta0, naky
     use mp, only: proc0
@@ -6069,8 +6068,7 @@ endif
        fieldeq, fieldeqa, fieldeqp)
     use theta_grid, only: ntgrid, bmag
     use kt_grids, only: naky, ntheta0, kperp2
-    use run_parameters, only: fphi, fapar, fbpar
-    use run_parameters, only: beta, tite
+    use run_parameters, only: fphi, fapar, fbpar, beta
     use species, only: spec, has_electron_species
     implicit none
     complex, dimension (-ntgrid:,:,:), intent (in) :: phi, apar, bpar
@@ -6175,8 +6173,7 @@ endif
        fieldeq, fieldeqa, fieldeqp)
     use theta_grid, only: ntgrid, bmag
     use kt_grids, only: naky, ntheta0, kperp2
-    use run_parameters, only: fphi, fapar, fbpar
-    use run_parameters, only: beta, tite
+    use run_parameters, only: fphi, fapar, fbpar, beta
     use kt_grids, only: kwork_filter
     use species, only: spec, has_electron_species
     implicit none
@@ -6229,9 +6226,7 @@ endif
   !> FIXME : Add documentation    
   subroutine check_getan (antot, antota, antotp, tempantot, tempantota, tempantotp)
     use mp, only : iproc
-    use species, only: nspec
     use theta_grid, only: ntgrid
-    use le_grids, only: negrid
     use run_parameters, only: fphi, fapar, fbpar
     use kt_grids, only: naky, ntheta0, kwork_filter
     use gs2_layouts, only: g_lo, it_idx, ik_idx, gf_lo, idx, proc_id
@@ -7568,11 +7563,10 @@ endif
     use le_grids, only: energy
     use dist_fn_arrays, only: gnew, aj0, vpac, aj1, vperp2
     use gs2_layouts, only: g_lo, ie_idx, is_idx, it_idx, ik_idx
-    use run_parameters, only: woutunits, fphi, fapar, fbpar
+    use run_parameters, only: woutunits, fphi
     use constants, only: zi
     use geometry, only: rhoc
     use theta_grid, only: Rplot, Bpol
-    use species, only: nspec
     implicit none
     complex, dimension (-ntgrid:,:,:), intent (in) :: phi
     real, dimension (-ntgrid:,:,:,:), intent (out) :: pflux_dist, vflux_par_dist, vflux_perp_dist, qflux_dist
