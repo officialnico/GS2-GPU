@@ -100,7 +100,7 @@ pages:
 
   rules:
     # Always build the website if the source branch name is master or next
-    - if: '$CI_COMMIT_BRANCH == "master" || $CI_COMMIT_BRANCH == "next" || $CI_COMMIT_BRANCH == "micro/docs_auto_rebuild_website_branches"'
+    - if: '$CI_COMMIT_BRANCH == "master" || $CI_COMMIT_BRANCH == "next"'
       when: always
     # Always build the website if the commit message contains build-website      
     - if: '$CI_COMMIT_MESSAGE =~ /build-website/'
