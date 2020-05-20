@@ -174,12 +174,10 @@ contains
   !> FIXME : Add documentation  
   subroutine norms_read_parameters(self, normalisations_config_in)
     use file_utils, only: input_unit_exist
-    use mp, only: proc0, broadcast
     implicit none
     class(norms_type), intent(in out) :: self
     type(normalisations_config_type), intent(in), optional :: normalisations_config_in
     real :: mref,zref,nref,tref,aref,vref,bref,rhoref
-    integer :: in_file
 
     if (present(normalisations_config_in)) normalisations_config = normalisations_config_in
 

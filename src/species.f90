@@ -335,9 +335,8 @@ contains
     real :: tperp0, tpar0, bess_fac, vcrit, vcprim
     real, dimension(:), allocatable :: tmp_bcast
     character(20) :: type, f0type
-    integer :: unit
-    integer :: is, iostat
-    integer :: ierr, in_file
+    integer :: is
+    integer :: ierr
 
     type (text_option), dimension (5), parameter :: typeopts = &
          (/ text_option('default', ion_species), &
