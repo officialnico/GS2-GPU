@@ -74,12 +74,15 @@ module species
   !> Used to represent the input configuration of species
   type, extends(abstract_config_type) :: species_config_type
      ! namelist : species_knobs
-     ! indexed : false     
-     !> FIXME: Add documentation
+     ! indexed : false
+     !> Specifies the electron mass used in calculating the slowing
+     !> down parameters in simulations without kinetic electrons.
      real :: me = -1.0
      !> Number of kinetic species to evolve.
      integer :: nspec = 2
-     !> FIXME: Add documentation
+     !> Specify the ion charge factor used in calculating the slowing
+     !> down parameters. If not specified that will attempt to
+     !> calculate from the kinetic ion species.
      real :: zi_fac = -1.0
    contains
      procedure, public :: read => read_species_config
