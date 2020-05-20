@@ -561,7 +561,6 @@ contains
 
   !> FIXME : Add documentation   
   subroutine init_gs2_layouts(layouts_config_in)
-    use mp, only: proc0
     implicit none
     type(layouts_config_type), intent(in), optional :: layouts_config_in
     
@@ -587,7 +586,6 @@ contains
     use mp, only: mp_abort, proc0, broadcast
     implicit none
     type(layouts_config_type), intent(in), optional :: layouts_config_in    
-    integer :: in_file
 
     if (present(layouts_config_in)) layouts_config = layouts_config_in
 

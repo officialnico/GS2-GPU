@@ -84,7 +84,6 @@ module gs2_save
 !  integer (kind_nf) :: netcdf_real=0
 
   logical :: initialized = .false.
-  logical :: test = .false.
   logical :: include_parameter_scan = .true.
   !> This parameter controls whether or not gs2
   !! aborts if it cannot read the restart file (and
