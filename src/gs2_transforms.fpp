@@ -499,7 +499,6 @@ contains
     integer, dimension (2) :: to_high
     integer :: to_low
     integer, intent (in) :: ntgrid, naky, ntheta0, nlambda, negrid, nspec, nx
-    logical :: initialized = .false.
 
     integer :: iglo, isign, ig, it, ixxf, it0
     integer :: n, ip
@@ -719,7 +718,6 @@ contains
     integer :: it, ixxf, ik, iyxf
     integer :: ixxf_start, iyxf_start
     integer :: n, ip
-    logical :: initialized = .false.
 
     !Early exit if possible
     if (initialized_y_redist) return

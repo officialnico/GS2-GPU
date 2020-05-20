@@ -97,10 +97,16 @@ pages:
   artifacts:
     paths:
       - public
-  only:
-    - master
-    - next
-    - feature/expand_namelist_documentation
+
+  rules:
+    # Always build the website if the source branch name is master or next
+    - if: '$CI_COMMIT_BRANCH == "master" || $CI_COMMIT_BRANCH == "next"'
+      when: always
+    # Always build the website if the commit message contains build-website      
+    - if: '$CI_COMMIT_MESSAGE =~ /build-website/'
+      when: always
+    # Otherwise it's a manual action that can be triggered by an authenticated user on gitlab
+    - when: manual
     
 success:
   stage: ci_status
