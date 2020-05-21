@@ -1,10 +1,12 @@
 #!/usr/bin/env python
 
-def get_all_matching_files(paths = None, patterns = None, absolute = False):
+def get_all_matching_files(paths = None, patterns = None, absolute = False, exclude=None):
     if paths is None:
         paths = ['./']
     if patterns is None:
         patterns = ['*']
+    if exclude is None:
+        exclude = []
         
     if not isinstance(paths, list):
         paths = [paths]
@@ -16,15 +18,15 @@ def get_all_matching_files(paths = None, patterns = None, absolute = False):
     if len(patterns) <= 0:
         return []
     elif len(patterns) > 1:
-        result = get_all_matching_files(paths, patterns[0])
-        result.extend(get_all_matching_files(paths, patterns[1:]))
+        result = get_all_matching_files(paths, patterns[0], absolute, exclude)
+        result.extend(get_all_matching_files(paths, patterns[1:], absolute, exclude))
         return result
     else:
         if len(paths) <= 0:
             return []
         elif len(paths) > 1:
-            result = get_all_matching_files(paths[0], patterns[0])
-            result.extend(get_all_matching_files(paths[1:], patterns[0]))
+            result = get_all_matching_files(paths[0], patterns[0], absolute, exclude)
+            result.extend(get_all_matching_files(paths[1:], patterns[0], absolute, exclude))
             return result
 
     # Here we deal with the case when we have exactly one path
@@ -34,7 +36,8 @@ def get_all_matching_files(paths = None, patterns = None, absolute = False):
     import fnmatch
 
     result = []
-    for root, dirname, filenames in os.walk(paths[0]):
+    for root, dirname, filenames in os.walk(paths[0], topdown=True):
+        dirname[:] = [d for d in dirname if os.path.join(root, d) not in exclude]
         for filename in fnmatch.filter(filenames, patterns[0]):
             result.append(os.path.join(root, filename))
 
