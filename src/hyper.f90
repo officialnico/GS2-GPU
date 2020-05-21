@@ -84,7 +84,7 @@ module hyper
      logical :: include_kpar = .false.
      !> If `true` then use isotropic shear model.
      logical :: isotropic_shear = .true.
-     !> Sets the power to which `kperp^2` is raised in the dissipation filter.
+     !> Sets the power to which \(k_\bot^2\) is raised in the dissipation filter.
      integer :: nexp = 2
      !> Sets a parameter in the anisotropic shearing rate calculation.
      real :: omega_osc = 0.4

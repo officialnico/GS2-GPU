@@ -119,8 +119,9 @@ module species
      !> See [G. Wilkie
      !> thesis](https://drum.lib.umd.edu/handle/1903/17302).
      character(len = 20) :: f0type = "maxwellian"
-     !> Normalised inverse density gradient: −1/n(dn/d rho_N) (Note
-     !> here rho_N is the normalised radius rho/Lref).
+     !> Normalised inverse density gradient: \(-\frac{1}{n}\frac{dn}{d
+     !> \rho_N}\) (Note here \(\rho_N\) is the normalised radius
+     !> \(\frac{\rho}{L_\textrm{ref}}\).
      real :: fprim = 2.2
      !> Normalised mass of this species
      real :: mass = 1.0
@@ -146,8 +147,9 @@ module species
      !>
      !> @todo Consider moving this parameter to [[init_g_knobs]].
      real :: tperp0 = 0.
-     !> Normalised inverse density gradient: −1/T(dT/d rho_N) (Note
-     !> here rho_N is the normalised radius rho/Lref).
+     !> Normalised inverse density gradient: \(-\frac{1}{n}\frac{dn}{d
+     !> \rho_N}\) (Note here \(\rho_N\) is the normalised radius
+     !> \(\frac{\rho}{L_\textrm{ref}}\).
      real :: tprim = 6.9
      !> Sets the characterisation of the species. Should be one of
      !>
@@ -175,9 +177,11 @@ module species
      !> @note Documentation needs improving, looks like it's an early
      !> attempt at adding in the parallel flow shear drive term
      real :: uprim2 = 0.0
-     !> Part of the `sdanalytic` slowing down model.
+     !> Part of the `sdanalytic` slowing down model. See [G. Wilkie
+     !> thesis](https://drum.lib.umd.edu/handle/1903/17302).
      real :: vcprim = -999.9
-     !> Part of the `sdanalytic` slowing down model.
+     !> Part of the `sdanalytic` slowing down model. See [G. Wilkie
+     !> thesis](https://drum.lib.umd.edu/handle/1903/17302).
      real :: vcrit = -1.0
      !> Sets the normalised species-species collisionality
      !> frequency. For species s, `vnewk = nu_ss Lref/vref` where Lref

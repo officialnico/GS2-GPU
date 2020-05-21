@@ -126,14 +126,14 @@ module fields
      !> Used with `field_option='local'` to set the minimum block size
      !> (in a single supercell) assigned to a single processor. Tuning
      !> this parameter changes the balance between work
-     !> parallelisation and communication. The lower this is set the
-     !> more communication has to be done but the fewer processors
-     !> don't get assigned work (i.e. helps reduce computation
-     !> time). The optimal value is likely to depend upon the size of
-     !> the problem and the number of processors being
-     !> used. Furthermore it will effect intialisation and advance in
-     !> different ways. Can be automatically tuned using
-     !> [[field_local_tuneminnrow]].
+     !> parallelisation and communication. As this value is lowered,
+     !> more communication needs to be done, but more processors get
+     !> assigned work. This may reduce the time spent in computation
+     !> at the cost of time spent in communication. The optimal value
+     !> is likely to depend upon the size of the problem and the
+     !> number of processors being used. Furthermore it will affect
+     !> intialisation and advance in different ways. Can be
+     !> automatically tuned using [[field_local_tuneminnrow]].
      integer :: minnrow = 16
      !> Reads files containing the field response matrix and uses to
      !> initialise GS2s response matrix rather than using the usual

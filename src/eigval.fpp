@@ -245,21 +245,21 @@ module eigval
      !>
      !> Not all options are available in all versions of the library.
      character(len = 20) :: transform_option = 'default'
-     !> FIXME: Add documentation If `true` then provide an initial
-     !> guess for the eigenmode based on using [[init_g]] routines to
-     !> initialise `g`. Can be helpful in accelerating initial phase
-     !> of eigensolver. Can also be quite useful with
-     !> `ginit_option='many'` (etc.)  to start an eigenvalue search
-     !> from a previously obtained solution, allowing both eigenmode
-     !> refinement and sub-dominant mode detection.
+     !> If `true` then provide an initial guess for the eigenmode
+     !> based on using [[init_g]] routines to initialise `g`. Can be
+     !> helpful in accelerating initial phase of eigensolver. Can also
+     !> be quite useful with `ginit_option='many'` (etc.)  to start an
+     !> eigenvalue search from a previously obtained solution,
+     !> allowing both eigenmode refinement and sub-dominant mode
+     !> detection.
      logical :: use_ginit = .false.
      !> Sets SLEPC mode of operation (i.e. what sort of eigenvalues it
      !>looks for). Note that this refers to the SLEPc eigenvalue,
      !>i.e. the time advance eigenvalue
-     !>\(\exp{\left(-i\Omega\textrm{`nadv`}\textrm{`delt`}\right)}\). In
-     !>other words one should select `'largest_real'` to search for
-     !>modes with the largest growth rate. Must be one of
-     !>
+     !>\(\exp{\left(-i\Omega\textrm{nadv delt}\right)}\). In other
+     !>words one should select `'largest_real'` to search for modes
+     !>with the largest growth rate. Must be one of
+     !>     
      !> - 'default' (equivalent to 'target_magnitude')
      !> - 'slepc_default' (let SLEPC decide)
      !> - 'largest_magnitude'

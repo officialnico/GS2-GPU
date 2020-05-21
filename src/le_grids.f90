@@ -285,7 +285,7 @@ module le_grids
      logical :: genquad = .false.
      !> Sets the number of energy grid points to use. If specified
      !> then overrides values of `nesuper = min(negrid/10 + 1,
-     !> 4)``nesub = negrid - nesuper` and . If not set then the total
+     !> 4)` and `nesub = negrid - nesuper`. If not set then the total
      !> number of energy grid points is just `negrid = nesub +
      !> nesuper`. The energy grid is split into two regions at a point
      !> controlled by `vcut`.
@@ -316,7 +316,9 @@ module le_grids
      !> (wfb). The grid gives finite weight to the class of particles
      !> which bounce at theta = +/- pi (wfb) in the passing integral
      !> Note that the old gauss-legendre is used in the case that
-     !> trapped_particles =.false.  @note In reference to above note -
+     !> trapped_particles =.false.
+     !>
+     !> @note In reference to above comment -
      !> code doesn't seem to change radau_gauss_grid when
      !> trapped_particles is false, should it?
      logical :: radau_gauss_grid = .true.

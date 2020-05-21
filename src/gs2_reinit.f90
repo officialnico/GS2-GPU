@@ -73,7 +73,7 @@ module gs2_reinit
      real :: delt_minimum = 1.e-5
      !> Sets the maximum value the time step can take.
      !>
-     !> @note This gets a smart default of `delt`.
+     !> @note This gets a smart default of [[delt]].
      real :: dt0 = 0.0
      !> If `true` then attempts to create temporary copies of the
      !> distribution fn and fields in memory to be restored after the
