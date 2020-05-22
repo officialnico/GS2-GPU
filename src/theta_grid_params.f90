@@ -169,16 +169,16 @@ module theta_grid_params
      !>
      !> @todo Document when this is ignored
      integer :: nperiod = 2
-     !> Rough number of grid points along equilibrium magnetic field between \(\theta=(-\pi,\pi)\).
+     !> Rough number of grid points along equilibrium magnetic field between \(\theta=[-\pi,\pi]\).
      !> Actual number of grid points determined as follows:
      !>
      !> - number of points in GS2 theta grid always odd because grid
-     !> must contain both bounce points of trapped particles and
-     !> one grid point at \(\theta=0\)
+     !>   must contain both bounce points of trapped particles and one
+     !>   grid point at \(\theta=0\). For even values, an extra point
+     !>   is added
      !> - theta grid in code runs from `-ntgrid:ntgrid`, with
-     !> `ntgrid=int(ntheta/2)` for `nperiod=1`.
-     !> - `ntheta` is ignored for some numerical equilibria
-     !>
+     !>   `ntgrid=int(ntheta/2)` for `nperiod=1`.
+     !> - `ntheta` is used for EFIT and ignored for all other numerical equilibria
      integer :: ntheta = 24
      !> \(p_k = \frac{\textrm{epsl}}{q} = \frac{2 L_\textrm{ref}}{ q R}\)
      !> Sets \(q\), the magnetic safety factor, and therefore also
