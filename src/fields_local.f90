@@ -3676,13 +3676,18 @@ contains
   !> Cells are decomposed based on proc || Decomp_type=3
   subroutine pc_decomp_owncells_simplempi(self)
     use mp, only: split, comm_type, free_comm, mp_undefined
+    use mp, only: sum_allreduce_sub, iproc
+    use sorting, only: quicksort
     implicit none
     class(pc_type), intent(inout) :: self
     integer :: ik, is, ic, ifq, it, ip, llim, ulim
     integer :: nrow_tmp, nrow_loc, remainder,np
     integer :: colour, key
+    integer :: np_expect, ip_expect, counter
+    integer, dimension(:), allocatable :: nwork, iproc_work
     type(comm_type) :: tmp
-
+    np_expect = -1
+    ip_expect = -1
     !/Don't need to change pc%is_local as this is already correct
 
     !Make sure we do the invert locally as mpi based version not implemented!
@@ -3732,6 +3737,44 @@ contains
                 !  (even if freed) can cause problems for some mpi
                 !  implementations.
                 call split(colour,key,tmp,fieldmat%kyb(ik)%supercells(is)%cells(ic)%parent_sub%id)
+
+                ! Alternative approach to finding the properties of the above communicator
+
+                ! Nproc
+                np_expect = colour
+                if (.not. fieldmat%kyb(ik)%supercells(is)%cells(ic)%is_local) &
+                     np_expect = 0
+
+                call sum_allreduce_sub(np_expect, fieldmat%kyb(ik)%supercells(is)%cells(ic)%parent_sub%id)
+
+                ! Iproc
+                allocate(nwork(0:fieldmat%kyb(ik)%supercells(is)%cells(ic)%parent_sub%nproc-1))
+                nwork = 0
+                nwork(fieldmat%kyb(ik)%supercells(is)%cells(ic)%parent_sub%iproc) = self%current_nresp()
+                if (.not. fieldmat%kyb(ik)%supercells(is)%cells(ic)%is_local) &
+                     nwork(fieldmat%kyb(ik)%supercells(is)%cells(ic)%parent_sub%iproc) = -1
+
+                ! Now all procs in parent communicator knows how much work each proc has
+                ! except those which aren't local and hence can't take part
+                call sum_allreduce_sub(nwork, fieldmat%kyb(ik)%supercells(is)%cells(ic)%parent_sub%id)
+                iproc_work = [(ip, ip=0, fieldmat%kyb(ik)%supercells(is)%cells(ic)%parent_sub%nproc-1)]
+
+                ! Now sort iproc_work based on nwork
+                call quicksort(fieldmat%kyb(ik)%supercells(is)%cells(ic)%parent_sub%nproc, nwork, iproc_work)
+
+                if (fieldmat%kyb(ik)%supercells(is)%cells(ic)%is_local) then
+                   ! With 2008 standard can just do:
+                   ! ip_expect = findloc(iproc_work,fieldmat%kyb(ik)%supercells(is)%cells(ic)%parent_sub%iproc)
+                   do ip = 1, size(iproc_work)
+                      if(iproc_work(ip) == fieldmat%kyb(ik)%supercells(is)%cells(ic)%parent_sub%iproc) then
+                         ip_expect = ip - 1
+                         exit
+                      end if
+                   end do
+                   
+                   ip_expect = ip_expect - count(nwork == -1)
+                end if
+                deallocate(nwork, iproc_work)
              endif
              !NOTE: By sorting the procs as done above we end up with lots of different procs
              !which are proc0 for at least one supercell. This means that later when we assign
@@ -3748,7 +3791,14 @@ contains
                 !Store info about subcom
                 np=tmp%nproc 
                 ip=tmp%iproc
-               
+                if(np /= np_expect) then
+                   print*,"ERROR, NP DISAGREE",np,np_expect,iproc
+                end if
+
+                if(ip /= ip_expect) then
+                   print*,"ERROR, IP DISAGREE",ip,ip_expect,iproc
+                end if
+                
                 !Calculate row limits based on cell size, nprocs and
                 !proc rank
                 !/Simple block size
