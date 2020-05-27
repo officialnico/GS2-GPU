@@ -3681,13 +3681,12 @@ contains
     implicit none
     class(pc_type), intent(inout) :: self
     integer :: ik, is, ic, ifq, it, ip, llim, ulim
-    integer :: nrow_tmp, nrow_loc, remainder,np
-    integer :: colour, key
-    integer :: np_expect, ip_expect, counter
+    integer :: nrow_tmp, nrow_loc, remainder, np
+    integer :: counter
     integer, dimension(:), allocatable :: nwork, iproc_work
-    type(comm_type) :: tmp
-    np_expect = -1
-    ip_expect = -1
+    type(comm_type) :: supercell_comm
+    logical :: cell_is_local
+
     !/Don't need to change pc%is_local as this is already correct
 
     !Make sure we do the invert locally as mpi based version not implemented!
@@ -3708,74 +3707,66 @@ contains
        do is=1,fieldmat%kyb(ik)%nsupercell
           nrow_tmp=fieldmat%kyb(ik)%supercells(is)%nrow
           do ic=1,fieldmat%kyb(ik)%supercells(is)%ncell
-             !Make subcommunicator if we have this supercell
-             !<DD>TAGGED: By passing a key to split we can arrange for the procs to
-             !be arranged in any particular order. This allows some form of load balancing.
+             ! If we have this supercell then determine which processors have
+             ! this cell and decide which processors get which work. We attempt
+             ! to distribute work to those processors with the least amount of
+             ! work already allocated.
              if(fieldmat%kyb(ik)%supercells(is)%is_local)then
-                colour = mp_undefined
-                key=self%current_nresp()
-                if(fieldmat%kyb(ik)%supercells(is)%cells(ic)%is_local) colour = 1
+                ! Copy out a couple of values to make the code more readable
+                supercell_comm = fieldmat%kyb(ik)%supercells(is)%cells(ic)%parent_sub
+                cell_is_local = fieldmat%kyb(ik)%supercells(is)%cells(ic)%is_local
 
-                ! Note here we effectively end up creating a
-                ! subcommunicator for every unique cell (one at a
-                ! time), only to then destroy it later. All we need to
-                ! know if the number of processors which would be in
-                ! this cell and the rank. We could find the number of
-                ! processors by just using a sum_allreduce_sub on
-                ! colour.  The remaining task would be to work out the
-                ! effective rank.  This is more challenging to do
-                ! simply as we currently try to use this reordering in
-                ! order to load balance, putting the processors with
-                ! the least amount of work first in line to claim more
-                ! work below. We could perhaps do something like
-                ! gather the amount of work each processor has (stored
-                ! in key here) and then use this to sort the proc id
-                ! and then relabel processors based on the sorted order.
-                ! This would be more work and code but would have two benefits;
-                !  1. performance -- creating communicators can be slow
-                !  2. capability -- creating too many communicators
-                !  (even if freed) can cause problems for some mpi
-                !  implementations.
-                call split(colour,key,tmp,fieldmat%kyb(ik)%supercells(is)%cells(ic)%parent_sub%id)
+                ! First determine how many processors in the supercell communicator
+                ! have this cell
+                np = 0
+                if (cell_is_local) np = 1
 
-                ! Alternative approach to finding the properties of the above communicator
+                call sum_allreduce_sub(np, supercell_comm%id)
 
-                ! Nproc
-                np_expect = colour
-                if (.not. fieldmat%kyb(ik)%supercells(is)%cells(ic)%is_local) &
-                     np_expect = 0
+                ! Now we can determine what the effective processor rank should be for distributing work.
+                ! Essentially we just want to number the processors with this cell from 0 to np in order of
+                ! how little work they currently have.
 
-                call sum_allreduce_sub(np_expect, fieldmat%kyb(ik)%supercells(is)%cells(ic)%parent_sub%id)
-
-                ! Iproc
-                allocate(nwork(0:fieldmat%kyb(ik)%supercells(is)%cells(ic)%parent_sub%nproc-1))
+                ! First record how much work each processors has, forcing those without this cell to report -ve work
+                allocate(nwork(0:supercell_comm%nproc-1))
                 nwork = 0
-                nwork(fieldmat%kyb(ik)%supercells(is)%cells(ic)%parent_sub%iproc) = self%current_nresp()
-                if (.not. fieldmat%kyb(ik)%supercells(is)%cells(ic)%is_local) &
-                     nwork(fieldmat%kyb(ik)%supercells(is)%cells(ic)%parent_sub%iproc) = -1
 
-                ! Now all procs in parent communicator knows how much work each proc has
-                ! except those which aren't local and hence can't take part
-                call sum_allreduce_sub(nwork, fieldmat%kyb(ik)%supercells(is)%cells(ic)%parent_sub%id)
-                iproc_work = [(ip, ip=0, fieldmat%kyb(ik)%supercells(is)%cells(ic)%parent_sub%nproc-1)]
+                if (cell_is_local) then
+                   nwork(supercell_comm%iproc) = self%current_nresp()
+                else
+                   nwork(supercell_comm%iproc) = -1
+                end if
+
+                ! Now all processors in supercell communicator know how much work each processor has
+                ! except those which aren't local and hence can't take part.
+                call sum_allreduce_sub(nwork, supercell_comm%id)
+
+                ! Now we have to label the processors in sorted order. To do this we first create an array
+                ! of sequential processor ids and we then sort this based on the amount of work, as stored in nwork
+                allocate(iproc_work(0:supercell_comm%nproc-1))
+                iproc_work(:) = [(ip, ip=0, supercell_comm%nproc-1)]
 
                 ! Now sort iproc_work based on nwork
-                call quicksort(fieldmat%kyb(ik)%supercells(is)%cells(ic)%parent_sub%nproc, nwork, iproc_work)
+                call quicksort(supercell_comm%nproc, nwork, iproc_work)
 
-                if (fieldmat%kyb(ik)%supercells(is)%cells(ic)%is_local) then
+                if (cell_is_local) then
                    ! With 2008 standard can just do:
-                   ! ip_expect = findloc(iproc_work,fieldmat%kyb(ik)%supercells(is)%cells(ic)%parent_sub%iproc)
-                   do ip = 1, size(iproc_work)
-                      if(iproc_work(ip) == fieldmat%kyb(ik)%supercells(is)%cells(ic)%parent_sub%iproc) then
-                         ip_expect = ip - 1
-                         exit
-                      end if
+                   ! ip_expect = findloc(iproc_work, supercell_comm%iproc)
+                   ! instead of this loop
+                   ! Search the processor list to find where the processor's id is found
+                   do ip = 0, supercell_comm%nproc-1
+                      if(iproc_work(ip) == supercell_comm%iproc) exit
                    end do
-                   
-                   ip_expect = ip_expect - count(nwork == -1)
+
+                   ! Here we have to remove any offset in ip arising
+                   ! from the processors without this cell. As they
+                   ! are assigned -1 work they come at the start of
+                   ! the array.
+                   ip = ip - count(nwork == -1)
                 end if
                 deallocate(nwork, iproc_work)
              endif
+
              !NOTE: By sorting the procs as done above we end up with lots of different procs
              !which are proc0 for at least one supercell. This means that later when we assign
              !the supercell heads we have lots of members, whilst if we try to minimise the number
@@ -3787,18 +3778,7 @@ contains
 
              !If local work out limits, if not just set to 0.
              if(fieldmat%kyb(ik)%supercells(is)%cells(ic)%is_local)then
-                
-                !Store info about subcom
-                np=tmp%nproc 
-                ip=tmp%iproc
-                if(np /= np_expect) then
-                   print*,"ERROR, NP DISAGREE",np,np_expect,iproc
-                end if
 
-                if(ip /= ip_expect) then
-                   print*,"ERROR, IP DISAGREE",ip,ip_expect,iproc
-                end if
-                
                 !Calculate row limits based on cell size, nprocs and
                 !proc rank
                 !/Simple block size
@@ -3835,8 +3815,6 @@ contains
                    call fieldmat%kyb(ik)%supercells(is)%cells(ic)%rb(ifq)%set_nrow
                 enddo
 
-                !Now free subcommunicator if we have this supercell
-                call free_comm(tmp)
              else
                 do ifq=1,fieldmat%kyb(ik)%supercells(is)%cells(ic)%nrb
                    fieldmat%kyb(ik)%supercells(is)%cells(ic)%rb(ifq)%row_llim=0
