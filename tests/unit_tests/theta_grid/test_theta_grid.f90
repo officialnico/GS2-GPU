@@ -91,7 +91,7 @@ program test_theta_grid
   ! Miller
 
   call process_test( &
-    test_results(rslt(:,1,:), rslt(:,2,:), 4.0e-1, 1.0e-2), &
+    test_results(rslt(:,1,:), rslt(:,2,:), 4.0e-1, 1.1e-2), &
     ' that Miller and CHEASE give the same result')
 
   call announce_test(' that CHEASE and EFIT give the same result')
@@ -99,7 +99,7 @@ program test_theta_grid
   ! Miller
 
   call process_test( &
-    test_results(rslt(:,2,:), rslt(:,3,:), 15.0e-2, 1.0e-1), &
+    test_results(rslt(:,2,:), rslt(:,3,:), 27.0e-2, 1.0e-1), &
     ' that CHEASE and EFIT give the same result')
 
   call close_module_test('theta_grid')

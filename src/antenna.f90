@@ -229,7 +229,7 @@ contains
     type(driver_config_type), intent(in), optional :: driver_config_in
     type(stir_config_type), intent(in), dimension(:), optional :: stir_config_in
     complex :: a, b
-    integer :: kx, ky, kz, i, in_file, ierr
+    integer :: kx, ky, kz, i, ierr
     logical :: exist, travel
 
     if (present(driver_config_in)) driver_config = driver_config_in

@@ -5,6 +5,7 @@
 !! Written by Edmund Highcock
 !! edmundhighcock@sourceforge.net
 !!
+!! This is free software released under the MIT Licence
 !!
 !! Available quantities are:
 !! 
@@ -97,7 +98,6 @@ module read_chease
   integer :: npsi_chease, nchi_chease 
   real, dimension (:), allocatable :: psi_chease,chi_chease  
   integer :: infile=1212
-  integer, parameter :: ncols = 5
 
   real :: r0exp_chease
   real :: b0exp_chease
@@ -148,22 +148,25 @@ module read_chease
   real, dimension(:,:), allocatable :: r_chease
   real, dimension(:,:), allocatable :: z_chease
 
+  logical, parameter :: debug = .true.
+
 contains
   subroutine read_infile(filename)
     implicit none
-    character(len=80), intent(in) :: filename
+    character(len=*), intent(in) :: filename
     open(infile,file= filename)
 
     read(infile, *)
     read(infile, *) npsi_chease
-    write(*, *) npsi_chease, "<---npsi_chease"
+    if (debug) write(*, *) npsi_chease, "<---npsi_chease"
 
     read(infile, *)
     read(infile, *) nchi_chease
-    write(*, *) nchi_chease, "<---nchi_chease"
+    if (debug) write(*, *) nchi_chease, "<---nchi_chease"
 
     read(infile, *)
     read(infile, *) r0exp_chease
+
     read(infile, *)
     read(infile, *) b0exp_chease
 
@@ -298,15 +301,15 @@ contains
     allocate(signeo_chease(npsi_chease))
     read(infile, *)
     read(infile, *) signeo_chease
-        
+
     allocate(jbsbav_chease(npsi_chease))
     read(infile, *)
     read(infile, *) jbsbav_chease
-    
+
     allocate(g11_chease(npsi_chease,nchi_chease))
     read(infile, *)
     read(infile, *) g11_chease
-    
+
     allocate(g12_chease(npsi_chease,nchi_chease))
     read(infile, *)
     read(infile, *) g12_chease
@@ -361,54 +364,54 @@ contains
   end subroutine read_infile
 
   subroutine finish
-    deallocate(psi_chease)
-    deallocate(chi_chease)
-    deallocate(rgeom_chease)
-    deallocate(ageom_chease)
-    deallocate(q_chease)
-    deallocate(dqdpsi_chease)
-    deallocate(d2qdpsi2_chease)
-    deallocate(p_chease)
-    deallocate(dpdpsi_chease)
-    deallocate(f_chease)
-    deallocate(fdfdpsi_chease)
-    deallocate(v_chease)
-    deallocate(rho_t_chease)
-    deallocate(shear_chease)
-    deallocate(dsheardpsi_chease)
-    deallocate(kappa_chease)
-    deallocate(delta_lower_chease)
-    deallocate(delta_upper_chease)
-    deallocate(dvdpsi_chease)
-    deallocate(dpsidrhotor_chease)
-    deallocate(gdpsi_av_chease)
-    deallocate(radius_av_chease)
-    deallocate(r_av_chease)
-    deallocate(te_chease)
-    deallocate(dtedpsi_chease)
-    deallocate(ne_chease)
-    deallocate(dnedpsi_chease)
-    deallocate(ti_chease)
-    deallocate(dtidpsi_chease)
-    deallocate(ni_chease)
-    deallocate(dnidpsi_chease)
-    deallocate(zeff_chease)
-    deallocate(signeo_chease)
-    deallocate(jbsbav_chease)
-    deallocate(g11_chease)
-    deallocate(g12_chease)
-    deallocate(g22_chease)
-    deallocate(g33_chease)
-    deallocate(b_chease)
-    deallocate(dbdpsi_chease)
-    deallocate(dbdchi_chease)
-    deallocate(dpsidr_chease)
-    deallocate(dpsidz_chease)
-    deallocate(dchidr_chease)
-    deallocate(dchidz_chease)
-    deallocate(jacobian_chease)
-    deallocate(r_chease)
-    deallocate(z_chease)
+    if (allocated(psi_chease)) deallocate(psi_chease)
+    if (allocated(chi_chease)) deallocate(chi_chease)
+    if (allocated(rgeom_chease)) deallocate(rgeom_chease)
+    if (allocated(ageom_chease)) deallocate(ageom_chease)
+    if (allocated(q_chease)) deallocate(q_chease)
+    if (allocated(dqdpsi_chease)) deallocate(dqdpsi_chease)
+    if (allocated(d2qdpsi2_chease)) deallocate(d2qdpsi2_chease)
+    if (allocated(p_chease)) deallocate(p_chease)
+    if (allocated(dpdpsi_chease)) deallocate(dpdpsi_chease)
+    if (allocated(f_chease)) deallocate(f_chease)
+    if (allocated(fdfdpsi_chease)) deallocate(fdfdpsi_chease)
+    if (allocated(v_chease)) deallocate(v_chease)
+    if (allocated(rho_t_chease)) deallocate(rho_t_chease)
+    if (allocated(shear_chease)) deallocate(shear_chease)
+    if (allocated(dsheardpsi_chease)) deallocate(dsheardpsi_chease)
+    if (allocated(kappa_chease)) deallocate(kappa_chease)
+    if (allocated(delta_lower_chease)) deallocate(delta_lower_chease)
+    if (allocated(delta_upper_chease)) deallocate(delta_upper_chease)
+    if (allocated(dvdpsi_chease)) deallocate(dvdpsi_chease)
+    if (allocated(dpsidrhotor_chease)) deallocate(dpsidrhotor_chease)
+    if (allocated(gdpsi_av_chease)) deallocate(gdpsi_av_chease)
+    if (allocated(radius_av_chease)) deallocate(radius_av_chease)
+    if (allocated(r_av_chease)) deallocate(r_av_chease)
+    if (allocated(te_chease)) deallocate(te_chease)
+    if (allocated(dtedpsi_chease)) deallocate(dtedpsi_chease)
+    if (allocated(ne_chease)) deallocate(ne_chease)
+    if (allocated(dnedpsi_chease)) deallocate(dnedpsi_chease)
+    if (allocated(ti_chease)) deallocate(ti_chease)
+    if (allocated(dtidpsi_chease)) deallocate(dtidpsi_chease)
+    if (allocated(ni_chease)) deallocate(ni_chease)
+    if (allocated(dnidpsi_chease)) deallocate(dnidpsi_chease)
+    if (allocated(zeff_chease)) deallocate(zeff_chease)
+    if (allocated(signeo_chease)) deallocate(signeo_chease)
+    if (allocated(jbsbav_chease)) deallocate(jbsbav_chease)
+    if (allocated(g11_chease)) deallocate(g11_chease)
+    if (allocated(g12_chease)) deallocate(g12_chease)
+    if (allocated(g22_chease)) deallocate(g22_chease)
+    if (allocated(g33_chease)) deallocate(g33_chease)
+    if (allocated(b_chease)) deallocate(b_chease)
+    if (allocated(dbdpsi_chease)) deallocate(dbdpsi_chease)
+    if (allocated(dbdchi_chease)) deallocate(dbdchi_chease)
+    if (allocated(dpsidr_chease)) deallocate(dpsidr_chease)
+    if (allocated(dpsidz_chease)) deallocate(dpsidz_chease)
+    if (allocated(dchidr_chease)) deallocate(dchidr_chease)
+    if (allocated(dchidz_chease)) deallocate(dchidz_chease)
+    if (allocated(jacobian_chease)) deallocate(jacobian_chease)
+    if (allocated(r_chease)) deallocate(r_chease)
+    if (allocated(z_chease)) deallocate(z_chease)
   end subroutine finish
 end module read_chease
 

@@ -87,7 +87,7 @@
  iflux = 1 
  irho = 2 ! Chooses definition of flux surface coordinate.
  local_eq = F
- eqfile = "EQDSK" 
+ eqfile = "../../common_geometry_files/EQDSK"
  bishop = 4
  delrho = 0.001 
  isym = 0 

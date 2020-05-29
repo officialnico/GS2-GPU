@@ -263,7 +263,6 @@ contains
   subroutine read_parameters(nonlinear_terms_config_in)
     use file_utils, only: input_unit_exist, error_unit
     use text_options, only: text_option, get_option_value
-    use mp, only: proc0, broadcast
     implicit none
     type(nonlinear_terms_config_type), intent(in), optional :: nonlinear_terms_config_in
     type (text_option), dimension (4), parameter :: nonlinearopts = &
@@ -350,7 +349,7 @@ contains
     logical, intent (in), optional :: nl
     integer, parameter :: verb = 4
     real, parameter :: zero = epsilon(0.0)
-    integer :: iglo, ik, it
+    integer :: iglo, ik
     real :: dt_cfl
 
     call debug_message(verb, 'nonlinear_terms::add_explicit starting')
@@ -522,9 +521,8 @@ contains
     use theta_grid, only: ntgrid
     use gs2_layouts, only: g_lo, ik_idx, it_idx
     use dist_fn_arrays, only: g, g_adjust
-    use species, only: spec
     use gs2_transforms, only: transform2, inverse2
-    use run_parameters, only: fapar, fbpar, fphi, reset, immediate_reset
+    use run_parameters, only: fbpar, fphi, reset, immediate_reset
     use kt_grids, only: aky, akx
     use gs2_time, only: save_dt_cfl, check_time_step_too_large
     use constants, only: zi
@@ -532,11 +530,10 @@ contains
     implicit none
     complex, dimension (-ntgrid:,:,g_lo%llim_proc:), intent (out) :: g1
     complex, dimension (-ntgrid:,:,:), intent (in) :: phi, apar, bpar
-    integer :: i, j, k
     real :: dt_cfl
     integer, parameter :: verb = 4
 
-    integer :: iglo, ik, it, is, ig, ia
+    integer :: iglo, ik, it, ia
     
     call debug_message(verb, 'nonlinear_terms::add_nl starting')
 
@@ -885,7 +882,6 @@ contains
     use gs2_layouts, only: g_lo, ik_idx, it_idx, is_idx
     use dist_fn_arrays, only: g_adjust, vpa, vperp2
     use gs2_transforms, only: transform2, inverse2
-    use run_parameters, only: fapar, fbpar, fphi, immediate_reset
     use gs2_time, only: save_dt_cfl, check_time_step_too_large
     use mp, only: broadcast
     implicit none
@@ -945,7 +941,6 @@ contains
   !!
   !! Joseph Parker, STFC
   subroutine nb_check_time_step_too_large
-    use mp, only: iproc
     use run_parameters, only: reset, immediate_reset
     use gs2_time, only: save_dt_cfl, check_time_step_too_large
     use mp, only: wait
@@ -956,9 +951,7 @@ contains
     !If immediate_reset, this check has already been done during the timestep.
     if(immediate_reset) return
 
-    !write (*,*) 'Receiving max_iallreduce', iproc, immediate_reset, max_vel
     call wait(cfl_req_hand)    
-    !write (*,*) 'Received max_iallreduce', iproc, immediate_reset, max_vel
     dt_cfl = 1./max_vel
     call save_dt_cfl (dt_cfl)
 
