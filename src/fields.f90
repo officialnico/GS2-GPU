@@ -90,8 +90,8 @@ module fields
      !> [[fields_local]] field calculation. This may or may not
      !> improve performance.
      logical :: field_local_nonblocking_collectives = .false.
-     !> Set to `true` when using `field_option='local'` to set the
-     !> automatically tune, and select the best performing, minimum
+     !> Set to `true` when using `field_option='local'` to
+     !> automatically tune and select the best performing minimum
      !> block size (in a single supercell) assigned to a single
      !> processor. This can improve performance, but is not guaranteed
      !> to.
