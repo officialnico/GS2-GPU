@@ -1226,11 +1226,17 @@ if (debug) write(6,*) "gs2din: B_T0, aminor, psi_0, psi_a=", B_T0, aminor, psi_0
        rtmp(i) = r(index)
        ztmp(i) = z(index)
        if ( i.gt.1 ) then
+          ! If we find a duplicate point then we increase the
+          ! duplicate point counter in k, used to offset index and
+          ! store the next value instead Note, here we assume we can't
+          ! get three duplicate values. A better approach may be to
+          ! instead use a while loop where we keep going until we've
+          ! found enough points.
           if ((rtmp(i)-rtmp(i-1))**2+(ztmp(i)-ztmp(i-1))**2 .lt. 1.0e-7) then
              k=k+1
              if (debug) write(6,fmt='("a_minor: duplicate pt, set k=",i2)') k
-             rtmp(i) = r(index)
-             ztmp(i) = z(index)
+             rtmp(i) = r(index + 1)
+             ztmp(i) = z(index + 1)
           endif
        endif
     enddo
