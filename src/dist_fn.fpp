@@ -470,18 +470,28 @@ module dist_fn
   !> Used to represent the input configuration of source
   type, extends(abstract_config_type) :: source_config_type
      ! namelist : source_knobs
-     ! indexed : false     
-     !> FIXME: Add documentation
+     ! indexed : false
+     !> Growth rate of non-standard source used with `source_option = 'phiext_full'`.
      real :: gamma0 = 0.0
-     !> FIXME: Add documentation
+     !> Frequency of non-standard source used with `source_option = 'phiext_full'`.
      real :: omega0 = 0.0
-     !> FIXME: Add documentation
+     !> Amplitude of external phi added as source term with
+     !> `source_option = 'phiext_full'`. If zero (default) then no
+     !> extra term included in the source.
      real :: phi_ext = 0.0
-     !> FIXME: Add documentation
+     !> Amplitude of non-standard source used with `source_option =
+     !> 'phiext_full'` when time >= t0.
      real :: source0 = 1.0
-     !> FIXME: Add documentation
+     !> Controls the source term used in the time advance. Should be
+     !> one of:
+     !>
+     !> - 'source_option_full' : Solve GK equation in standard form (with no artificial sources)
+     !> - 'default' : Same as 'source_option_full'
+     !> - 'phiext_full' : Solve GK equation with additional source
+     !>   proportional to `phi_ext*F_0`.
      character(len = 20) :: source_option = 'default'
-     !> FIXME: Add documentation
+     !> Turn on any artificial sources after time = t0. Only used with
+     !> `source_option = 'phiext_full'`.
      real :: t0 = 100.0
    contains
      procedure, public :: read => read_source_config

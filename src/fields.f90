@@ -57,32 +57,94 @@ module fields
   !> Used to represent the input configuration of fields
   type, extends(abstract_config_type) :: fields_config_type
      ! namelist : fields_knobs
-     ! indexed : false     
-     !> FIXME: Add documentation
+     ! indexed : false
+     !> Used with `field_option='local'`. If `true` and x/y are
+     !> distributed then in time advance only update local part of
+     !> field in operations like `phinew=phinew+phi` etc.
      logical :: do_smart_update = .false.
-     !> FIXME: Add documentation
+     !> Writes files containing the field response matrix after
+     !> initialisation. This currently works for
+     !> `field_option='implicit'` or `'local'`.  We write to netcdf
+     !> files by default but fall back to fortran unformatted (binary)
+     !> files (which are not really portable) in the absence of
+     !> netcdf.
      logical :: dump_response = .false.
-     !> FIXME: Add documentation
+     !> Set to true to use an allreduce (on `mp_comm`) in field
+     !> calculation (`field_option='local'` only) rather than a
+     !> reduction on a sub-communicator followed by a global
+     !> broadcast. Typically a little faster than default performance
+     !> but may depend on MPI implementation.
      logical :: field_local_allreduce = .false.
-     !> FIXME: Add documentation
+     !> Set to `true`, along with [[field_local_allreduce]] and
+     !> [[intspec_sub]] (layout_knobs), to replace the allreduce used
+     !> in the field calculation with an allreduce on a
+     !> sub-communicator followed by a reduction on a "perpendicular"
+     !> communicator.  Typically a bit faster than default and scales
+     !> slightly more efficiently.  Note if this option is active only
+     !> `proc0` has knowledge of the full field arrays. Other
+     !> processors know the full field for any supercell (connected
+     !> x-y domains) for which it has any of the xy indices local in
+     !> the `g_lo` layout.
      logical :: field_local_allreduce_sub = .false.
-     !> FIXME: Add documentation
+     !> If `true` then use nonblocking collective operations in the
+     !> [[fields_local]] field calculation. This may or may not
+     !> improve performance.
      logical :: field_local_nonblocking_collectives = .false.
-     !> FIXME: Add documentation
+     !> Set to `true` when using `field_option='local'` to
+     !> automatically tune and select the best performing minimum
+     !> block size (in a single supercell) assigned to a single
+     !> processor. This can improve performance, but is not guaranteed
+     !> to.
      logical :: field_local_tuneminnrow = .false.
-     !> FIXME: Add documentation
+     !> The `field_option` variable controls which time-advance
+     !> algorithm is used for the linear terms. Allowed values are:
+     !>
+     !> - 'implicit' Advance linear terms with Kotschenreuther's implicit algorithm.
+     !> - 'default' Same as 'implicit'.
+     !> - 'implicit_local' the same as 'local'.
+     !> - 'local' Same implicit algorithm as 'implicit' but with
+     !>   different data decomposition (typically much faster for flux
+     !>   tube runs).
+     !> - 'gf_local' Same as `'local'` but with `gf_lo` field
+     !>   decomposition. To use this you also need to set
+     !>   `gf_lo_integrate= .true.` in [[dist_fn_knobs]] and
+     !>   `gf_local_fields = .true.` in [[layout_knobs]].
+     !> - 'test' Use for debugging.     
      character(len = 20) :: field_option = 'default'
-     !> FIXME: Add documentation
+     !> Set to true to use allgatherv to fetch parts of the field update
+     !> vector calculated on other procs. When false uses a sum_allreduce
+     !> instead. This doesn't rely on sub-communicators so should work for
+     !> any layout and processor count.  Note: This only impacts
+     !> `field_option='implicit'`
      logical :: field_subgath = .false.
-     !> FIXME: Add documentation
-     logical :: force_maxwell_reinit = .true. !Should this go into the reinit namelist?
-     !> FIXME: Add documentation
+     !> If `true` then recalculate the fields from the distribution
+     !> function using [[get_init_field]] when restarting a
+     !> simulation rather than using the values in the restart file.
+     !>
+     !> @todo Consider if this should this go into the reinit namelist.
+     logical :: force_maxwell_reinit = .true. 
+     !> Used with `field_option='local'` to set the minimum block size
+     !> (in a single supercell) assigned to a single processor. Tuning
+     !> this parameter changes the balance between work
+     !> parallelisation and communication. As this value is lowered,
+     !> more communication needs to be done, but more processors get
+     !> assigned work. This may reduce the time spent in computation
+     !> at the cost of time spent in communication. The optimal value
+     !> is likely to depend upon the size of the problem and the
+     !> number of processors being used. Furthermore it will affect
+     !> intialisation and advance in different ways. Can be
+     !> automatically tuned using [[field_local_tuneminnrow]].
      integer :: minnrow = 16
-     !> FIXME: Add documentation
+     !> Reads files containing the field response matrix and uses to
+     !> initialise GS2s response matrix rather than using the usual
+     !> initialisation process.
      logical :: read_response = .false.
-     !> FIXME: Add documentation
+     !> Delete zonal flows at every timestep.
      logical :: remove_zonal_flows_switch = .false.
-     !> FIXME: Add documentation
+     !> Sets location in which to store/look for response dump files.
+     !> We don't currently check that this location exists before
+     !> attempting to use it, which could cause problems. The default
+     !> is to save them in the working directory.
      character(len = 256) :: response_dir = ''
    contains
      procedure, public :: read => read_fields_config

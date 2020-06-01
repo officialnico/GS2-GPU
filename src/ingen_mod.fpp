@@ -79,14 +79,26 @@ module ingen_mod
   !> Used to represent the input configuration of ingen
   type, extends(abstract_config_type) :: ingen_config_type
      ! namelist : ingen_knobs
-     ! indexed : false     
-     !> FIXME: Add documentation
+     ! indexed : false
+     !> This sets the minimum number of local elements for which
+     !> processor recommendations will be given. In other words, if
+     !> the total number of elements is `nmesh =
+     !> (2*ntgrid+1)*2*nlambda*negrid*ntheta0*naky*nspec`, then the
+     !> largest processor count that ingen will recommend would be
+     !> `nmesh/ncut`.
      integer :: ncut = 100000
-     !> FIXME: Add documentation
+     !> Sets the maximum processor count considered when calculating
+     !> sweetspots. Currently this value is read in but always
+     !> overriden to 100000.
      integer :: npmax = 100000     
-     !> FIXME: Add documentation
+     !> If `true` then alongside standard [[ingen]] report allows the
+     !> creation of various types of scans. This will involve user
+     !> interaction if `stdin` is `true`.
      logical :: scan = .false.
-     !> FIXME: Add documentation
+     !> If `true` (default) then ask for input from stdin when using
+     !> ingen to produce parameters for scans (`scan = .true.`). If
+     !> `false` then will look in file named `.<run_name>.pythonin`
+     !> instead.
      logical :: stdin = .true.
    contains
      procedure, public :: read => read_ingen_config

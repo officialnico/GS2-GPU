@@ -44,28 +44,49 @@ module hyper
   !> Used to represent the input configuration of hyper
   type, extends(abstract_config_type) :: hyper_config_type
      ! namelist : hyper_knobs
-     ! indexed : false     
-     !> FIXME: Add documentation
+     ! indexed : false
+     !> Determines whether hyperviscosity includes time dependent amplitude
+     !> factor when calculating damping rate. Recommend `true` for
+     !> linear runs and `false` for nolinear runs, since amplutide of
+     !> turbulence grows linearly with time in linear run.
      logical :: const_amp = .false.
-     !> FIXME: Add documentation
+     !> If `hyper_option = 'both'` is used then this sets both the
+     !> hyperresistivity and hyperviscosity damping coefficients. Can
+     !> override the individual coefficients with [[D_hyperres]] and
+     !> [[D_hypervisc]].
      real :: d_hyper = -10.0
-     !> FIXME: Add documentation
+     !> Sets hyperresistivity parameter multiplying damping term.
      real :: d_hyperres = -10.0
-     !> FIXME: Add documentation
+     !> Sets hyperviscosity parameter multiplying damping term. See
+     !> [E. Belli (2006)
+     !> thesis](https://citeseerx.ist.psu.edu/viewdoc/download;jsessionid=50BFD54A8F8D72FC225D025FDEDFFFA5?doi=10.1.1.706.9568&rep=rep1&type=pdf)
+     !> for more information.
      real :: d_hypervisc = -10.0
-     !> FIXME: Add documentation
+     !> If `true` then hyperdissipation only applied to the zonal
+     !> mode.
      logical :: damp_zonal_only = .false.
-     !> FIXME: Add documentation
+     !> If `true` (default) then set wavenumber parameters entering
+     !> the models based on the maximum `ky` and `kx` included in the
+     !> current simulation. If `false` then these values are set to 1.
      logical :: gridnorm = .true.
-     !> FIXME: Add documentation
+     !> Selects the type of hyper terms included. Should be one of
+     !>
+     !> - 'default' -- no hyper terms included.
+     !> - 'none' -- the same as default.
+     !> - 'visc_only' -- only hyperviscosity included.
+     !> - 'res_only' -- only hyperresistivity included.
+     !> - 'both' -- both viscosity and resistivity included.
+     !>
      character(len = 9) :: hyper_option = 'default'
-     !> FIXME: Add documentation
+     !> Not used.
+     !>
+     !> @todo Remove this variable.
      logical :: include_kpar = .false.
-     !> FIXME: Add documentation
+     !> If `true` then use isotropic shear model.
      logical :: isotropic_shear = .true.
-     !> FIXME: Add documentation
+     !> Sets the power to which \(k_\bot^2\) is raised in the dissipation filter.
      integer :: nexp = 2
-     !> FIXME: Add documentation
+     !> Sets a parameter in the anisotropic shearing rate calculation.
      real :: omega_osc = 0.4
    contains
      procedure, public :: read => read_hyper_config
