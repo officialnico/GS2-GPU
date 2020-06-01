@@ -1154,9 +1154,10 @@ if (debug) write(6,*) "gs2din: B_T0, aminor, psi_0, psi_a=", B_T0, aminor, psi_0
     type (spline) :: spl
 !CMR, 28/10/08: add code to avoid duplicate points in 5 point spline 
 !               to determine r2 on inboard mid-plane
-    integer :: k = 0 
+    integer :: k
     logical, parameter :: debug=.false.
 
+    k = 0
     n = size(r)
 
     if (debug) write(6,*) "aminor:"
