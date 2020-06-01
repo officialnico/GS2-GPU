@@ -3,6 +3,15 @@
 There are two test suites in GS2 - a legacy test suite and a pfunit test
 suite. In addition there is a suite of performance benchmarks.
 
+Please note that some of the tests unfortunately have hard-coded paths
+to other files, for example input files or equilibrium files. This
+means that test executables can generally only be run from the
+location where they get built. If you use a machine that uses
+cross-compilation, where executables built on the front-end can only
+be run on the back-end (for example, MARCONI), the easiest thing to do
+is to copy the whole GS2 directory to the work partition in your job
+script, and run the tests as part of the job.
+
 ## Legacy test suite
 
 The legacy test suite performs unit tests and integrated tests. These are found

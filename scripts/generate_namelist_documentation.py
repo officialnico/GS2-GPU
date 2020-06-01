@@ -8,7 +8,7 @@
 from config_generation import constructFromFile
 from get_all_matching_files import get_all_matching_files
 docs_path = "docs/"
-pages_path = "pages/"
+pages_path = "page/"
 namelists_path = "namelists/"
 # If the following is set to true then we also generate
 # a separate page per namelist along with the overview page.
