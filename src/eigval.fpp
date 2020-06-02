@@ -182,7 +182,7 @@ module eigval
      integer :: n_eig = 1
      !> How many GS2 timesteps to take each time SLEPc wants to
      !> advance the distribution function. Useful to separate closely
-     !> spaced eigenvalues without changing [[delt]].
+     !> spaced eigenvalues without changing [[knobs:delt]].
      integer :: nadv = 1
      !> If `true` then we save a set of restart files for each eigenmode
      !> found. These are named as the standard restart file
@@ -218,11 +218,12 @@ module eigval
      character(len = 20) :: solver_option = 'default'
      !> Imaginary part of the eigenvalue target. Often beneficial to
      !> set this fairly large (e.g. 10) when looking for unstable
-     !> modes.  Used with the `target_*` [[which_option]] mode.
+     !> modes. Used with the `target_*` [[eigval_knobs:which_option]]
+     !> mode.
      real :: targ_im = 0.5
      !> Real part of the eigenvalue target. Often beneficial to set
-     !> this fairly small (e.g. ~0).  Used with the `target_*`
-     !> [[which_option]] mode.
+     !> this fairly small (e.g. ~0). Used with the `target_*`
+     !> [[eigval_knobs:which_option]] mode.
      real :: targ_re = 0.5
      !> Sets tolerance on SLEPC eigenmode search. Used to determine
      !> when an eigenmode has been found. Note this is the tolerance

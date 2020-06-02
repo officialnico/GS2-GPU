@@ -68,8 +68,8 @@ module antenna
      !> 0.
      logical :: restarting = .false.
      !> Sets the time at which the antenna frequency changes from
-     !> constant [[w_antenna]] to linearly varying, with linear piece
-     !> proprtional to [[w_dot]] multiplied by `time - t0`.
+     !> constant [[driver:w_antenna]] to linearly varying, with linear piece
+     !> proprtional to [[driver:w_dot]] multiplied by `time - t0`.
      real :: t0 = -1.0
      !> Frequency of Langevin antenna. Sets the constant part of the
      !> complex antenna frequency.
@@ -96,13 +96,13 @@ module antenna
      ! namelist : stir
      ! indexed : true
      !> Initial amplitude of right-moving component. It is not
-     !> necessary to set [[a]] and [[b]] unless you are doing
-     !> restarts, which are rather clunky at the moment with the
+     !> necessary to set [[stir:a]] and [[stir:b]] unless you are
+     !> doing restarts, which are rather clunky at the moment with the
      !> antenna included.
      real :: a = -1.0
      !> Initial amplitude of left-moving component. It is not
-     !> necessary to set [[a]] and [[b]] unless you are doing
-     !> restarts, which are rather clunky at the moment with the
+     !> necessary to set [[stir:a]] and [[stir:b]] unless you are
+     !> doing restarts, which are rather clunky at the moment with the
      !> antenna included.
      real :: b = -1.0
      !> Mode number for stirring.
