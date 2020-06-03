@@ -1385,12 +1385,13 @@ module kt_grids_box
      !> `jtwist`. Effectively ends up setting the box size in the x
      !> direction, as \(L_x = L_y \textrm{rtwist}\) if `rtwist > 0 `
      !> and \(L_x = L_y / \textrm{rtwist}\) if `rtwist < 0`. See
-     !> [[x0]] for an alternative.
+     !> [[kt_grids_box_parameters:x0]] for an alternative.
      real :: rtwist = 0.0
-     !> Controls the box length in the x direction (measured in
-     !> the reference Larmour radius) if the magnetic shear is small
-     !> (\(\< 10^{-5}\)). The box size in the x direction is
-     !> given by \(L_x = 2\pi x_0\). See [[rtwist]] for an alternative.
+     !> Controls the box length in the x direction (measured in the
+     !> reference Larmour radius) if the magnetic shear is small (\(\<
+     !> 10^{-5}\)). The box size in the x direction is given by \(L_x
+     !> = 2\pi x_0\). See [[kt_grids_box_parameters:rtwist]] for an
+     !> alternative.
      real :: x0 = 0.
      !> Controls the box length in the y direction (measured in the
      !> reference Larmour radius). The box size in the y direction is
@@ -1943,7 +1944,7 @@ module kt_grids
      !> modes. Set up with [[kt_grids_range_parameters]].
      !> - 'specified' Evolve an arbitrary set of Fourier modes. Set
      !> up with [[kt_grids_specified_parameters]] and corresponding
-     !> [[kt_grids_specified_elements]].
+     !> [[kt_grids_specified_element]].
      !> - 'box' Simulation domain is logically rectangular. Set up with
      !> [[kt_grids_box_parameters]]. Required for nonlinear simulations.
      !> - 'nonlinear' Same as 'box.'

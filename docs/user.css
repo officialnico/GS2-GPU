@@ -7,3 +7,10 @@
 
 .divNamelistTable th {background-color: #c7ddef;}
 .divNamelistTable tr:nth-child(even) {background-color: #d9ddd7;}
+
+:target:before {
+    display: none;
+}
+html {
+    scroll-padding-top: 60px;
+}

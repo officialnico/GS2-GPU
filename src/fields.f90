@@ -76,7 +76,7 @@ module fields
      !> but may depend on MPI implementation.
      logical :: field_local_allreduce = .false.
      !> Set to `true`, along with [[field_local_allreduce]] and
-     !> [[intspec_sub]] (layout_knobs), to replace the allreduce used
+     !> [[layouts_knobs:intspec_sub]] , to replace the allreduce used
      !> in the field calculation with an allreduce on a
      !> sub-communicator followed by a reduction on a "perpendicular"
      !> communicator.  Typically a bit faster than default and scales
@@ -108,7 +108,7 @@ module fields
      !> - 'gf_local' Same as `'local'` but with `gf_lo` field
      !>   decomposition. To use this you also need to set
      !>   `gf_lo_integrate= .true.` in [[dist_fn_knobs]] and
-     !>   `gf_local_fields = .true.` in [[layout_knobs]].
+     !>   `gf_local_fields = .true.` in [[layouts_knobs]].
      !> - 'test' Use for debugging.     
      character(len = 20) :: field_option = 'default'
      !> Set to true to use allgatherv to fetch parts of the field update
@@ -133,7 +133,7 @@ module fields
      !> is likely to depend upon the size of the problem and the
      !> number of processors being used. Furthermore it will affect
      !> intialisation and advance in different ways. Can be
-     !> automatically tuned using [[field_local_tuneminnrow]].
+     !> automatically tuned using [[fields_knobs:field_local_tuneminnrow]].
      integer :: minnrow = 16
      !> Reads files containing the field response matrix and uses to
      !> initialise GS2s response matrix rather than using the usual
@@ -440,7 +440,7 @@ contains
              write(*,*) 'gf local fields cannot be used by gf_lo_integrate'
              write(*,*) 'defaulting to local fields'
              write(*,*) 'if you want to use gf local fields then set gf_lo_integrate to true in dist_fn_knobs'
-             write(*,*) 'and gf_local_fields to true in layout_knobs and make sure you are running on more MPI'
+             write(*,*) 'and gf_local_fields to true in layouts_knobs and make sure you are running on more MPI'
              write(*,*) 'mpi processes than naky*ntheta0.  For this simulation that is: ',naky*ntheta0
           end if
           fieldopt_switch = fieldopt_local
