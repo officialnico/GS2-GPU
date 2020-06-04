@@ -150,8 +150,16 @@ module gs2_init
   !> Used to represent the input configuration of init
   type, extends(abstract_config_type) :: init_config_type
      ! namelist : init_knobs
-     ! indexed : false    
-     !> FIXME: Add documentation
+     ! indexed : false
+     !> If `true` then when changing the timestep attempt to keep a
+     !> copy of the current fields and distribution function in memory
+     !> rather than dumping to disk. This should fall back to a disk
+     !> based method if there is insufficient memory. Currently both
+     !> this value and the value of `in_memory` in [[reinit_knobs]]
+     !> must be set to `true` in order to enable this feature.
+     !>
+     !> @todo Consider if this can be removed and just the
+     !> [[reinit_knobs]] version controls the feature.
      logical :: in_memory = .false.
    contains
      procedure, public :: read => read_init_config
