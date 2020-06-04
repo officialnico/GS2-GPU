@@ -221,7 +221,7 @@ module geometry
   !> The single-period theta domain "half-grid" size. That is, the number of points in
   !> \((0, \pi]\). `theta(-nth:nth)` is the single central period \([-\pi, \pi]\).  For
   !> EFIT and local equilbria, this is set from
-  !> [[theta_grid_parameters_config_type:ntheta]]; for all other numerical equilbria, it
+  !> [[theta_grid_parameters:ntheta]]; for all other numerical equilbria, it
   !> is determined by the data file. Always even.
   integer :: nth
   !> The full theta domain "half-grid" size. That is, the total size of the
