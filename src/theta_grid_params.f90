@@ -178,7 +178,8 @@ module theta_grid_params
      !>   is added
      !> - theta grid in code runs from `-ntgrid:ntgrid`, with
      !>   `ntgrid=int(ntheta/2)` for `nperiod=1`.
-     !> - `ntheta` is used for EFIT and ignored for all other numerical equilibria
+     !> - `ntheta` is used for local equilibria, s-alpha, and EFIT,
+     !>   and ignored for all other numerical equilibria
      integer :: ntheta = 24
      !> \(p_k = \frac{\textrm{epsl}}{q} = \frac{2 L_\textrm{ref}}{ q R}\)
      !> Sets \(q\), the magnetic safety factor, and therefore also
