@@ -1218,7 +1218,7 @@ contains
 
   !> Create primary (top level) sub communicators
   subroutine sc_make_subcom_1(self)
-    use mp, only: comm_type, split, free_comm
+    use mp, only: comm_type, split, free_comm, mp_undefined
     implicit none
     class(supercell_type), intent(inout) :: self
     integer :: ic, colour
@@ -1226,8 +1226,8 @@ contains
 
     !/First make a subcommunicator involving any procs
     !which can see this supercell
-    colour=0
-    if(self%is_local)colour=1
+    colour = mp_undefined
+    if(self%is_local) colour = 1
     call split(colour,tmp,self%parent_sub%id)
     !Note we only store the subcom for those procs which will use it
     !this ensures an error will occur if we try to use the subcom in
@@ -1243,9 +1243,7 @@ contains
        endif
     else
        !If we can't see any of this object then 
-       !Destroy communicator
-       call free_comm(tmp)
-       !and return
+       !return
        return
     endif
 
@@ -1259,7 +1257,7 @@ contains
 
   !> Create the secondary (intraobject) subcommunicators
   subroutine sc_make_subcom_2(self)
-    use mp, only: comm_type, split, free_comm, sum_allreduce_sub, proc0
+    use mp, only: comm_type, split, free_comm, sum_allreduce_sub, proc0, mp_undefined
     implicit none
     class(supercell_type), intent(inout) :: self
     integer :: colour, key, cc
@@ -1292,13 +1290,10 @@ contains
     !/Now make a subcommunicator involving all procs
     !which have part of the supercell data range (but not all of it)
     if(some_pd)then
-       colour=0
+       colour = mp_undefined
        if((.not.(self%is_empty.or.self%is_all_local))) colour=1
        call split(colour,tmp,self%sc_sub_all%id)
-       if(colour.eq.0)then
-          !/Destroy communicator
-          call free_comm(tmp)
-       else
+       if(colour /= mp_undefined) then
           !/Store communicator
           self%sc_sub_pd=tmp
        endif
@@ -1312,7 +1307,7 @@ contains
     !which has data as it means we don't need to send this supercell to anyone.
     if(some_all)then
        !Here we make a temporary communicator for the all_local procs
-       cc=0
+       cc = mp_undefined
        if(self%is_all_local) cc=1
        !/Note we don't destroy this until later
        call split(cc,tmp,self%sc_sub_all%id)
@@ -1334,12 +1329,14 @@ contains
           !Here we decide which proc should be in charge of
           !informing the empty procs of the result
           head_notfull=(min(1,tmp%nproc-1).eq.tmp%iproc)
+
+          !Free the communicator
+          call free_comm(tmp)
+
        else
           head_notfull=.false.
        endif
 
-       !Free the communicator
-       call free_comm(tmp)
     else
        if(self%sc_sub_pd%nproc.gt.0)then
           cc=0
@@ -1373,7 +1370,7 @@ contains
     !head pd proc
     if(some_empty)then
        !/Default values
-       colour=0
+       colour = mp_undefined
        key=2
 
        !/Join if we're empty and NOT proc0
@@ -1417,10 +1414,7 @@ contains
 
        !Here we use key to make sure the proc with data is proc0
        call split(colour,key,tmp,self%sc_sub_all%id)
-       if(colour.eq.0)then
-          !/Free communicator
-          call free_comm(tmp)
-       else
+       if(colour /= mp_undefined)then
           if(tmp%nproc.gt.1)then
              !/Store communicator
              self%sc_sub_not_full=tmp
@@ -1600,7 +1594,7 @@ contains
 
   !> Create the primary subcommunicators
   subroutine ky_make_subcom_1(self)
-    use mp, only: comm_type, split, free_comm
+    use mp, only: comm_type, split, free_comm, mp_undefined
     implicit none
     class(ky_type), intent(inout) :: self
     integer :: is, colour
@@ -1608,8 +1602,8 @@ contains
 
     !/First make a subcommunicator involving any procs
     !which can see this ky block
-    colour=0
-    if(self%is_local)colour=1
+    colour = mp_undefined
+    if(self%is_local) colour = 1
     call split(colour,tmp,self%parent_sub%id)
     !Note we only store the subcom for those procs which will use it
     !this ensures an error will occur if we try to use the subcom in
@@ -1623,9 +1617,7 @@ contains
        endif
     else
        !If we can't see any of this object then
-       !/Destroy communicator
-       call free_comm(tmp)
-       !and return
+       !return
        return
     endif
 
@@ -2467,7 +2459,7 @@ contains
 
   !> Create all the necessary subcommunicators
   subroutine fm_make_subcom_1(self)
-    use mp, only: iproc, nproc, mp_comm, comm_type, split, free_comm, proc0
+    use mp, only: iproc, nproc, mp_comm, proc0
     implicit none
     class(fieldmat_type), intent(inout) :: self
     integer :: ik
@@ -2501,7 +2493,7 @@ contains
 
   !> Create the secondary subcommunicators
   subroutine fm_make_subcom_2(self)
-    use mp, only: split, free_comm
+    use mp, only: split, free_comm, mp_undefined
     implicit none
     class(fieldmat_type), intent(inout) :: self
     integer :: ik, colour
@@ -2521,7 +2513,7 @@ contains
        has_head_sc=has_head_sc.or.any(self%kyb(ik)%supercells%is_head)
     enddo
     !/Now split to make a subcom
-    colour=0
+    colour = mp_undefined
     !NOTE: Here we assume that the supercell head will always
     !have the data we want *but* currently in ky_get_field we don't
     !store anything on the procs for which the supercell is local but 
@@ -2530,12 +2522,9 @@ contains
     !advancing g etc.
     if(has_head_sc.or.self%fm_sub_all%proc0) colour=1
     call split(colour,tmp,self%fm_sub_all%id)
-    if(has_head_sc.or.self%fm_sub_all%proc0) then
+    if(colour /= mp_undefined) then
        !/Store subcom
        self%fm_sub_headsc_p0=tmp
-    else
-       !/Destroy subcom
-       call free_comm(tmp)
     endif
 
   end subroutine fm_make_subcom_2
@@ -3686,13 +3675,16 @@ contains
 
   !> Cells are decomposed based on proc || Decomp_type=3
   subroutine pc_decomp_owncells_simplempi(self)
-    use mp, only: split, comm_type, free_comm
+    use mp, only: comm_type, sum_allreduce_sub, iproc
+    use sorting, only: quicksort
     implicit none
     class(pc_type), intent(inout) :: self
     integer :: ik, is, ic, ifq, it, ip, llim, ulim
-    integer :: nrow_tmp, nrow_loc, remainder,np
-    integer :: colour, key
-    type(comm_type) :: tmp
+    integer :: nrow_tmp, nrow_loc, remainder, np
+    integer :: counter
+    integer, dimension(:), allocatable :: nwork, iproc_work
+    type(comm_type) :: supercell_comm
+    logical :: cell_is_local
 
     !/Don't need to change pc%is_local as this is already correct
 
@@ -3714,15 +3706,66 @@ contains
        do is=1,fieldmat%kyb(ik)%nsupercell
           nrow_tmp=fieldmat%kyb(ik)%supercells(is)%nrow
           do ic=1,fieldmat%kyb(ik)%supercells(is)%ncell
-             !Make subcommunicator if we have this supercell
-             !<DD>TAGGED: By passing a key to split we can arrange for the procs to
-             !be arranged in any particular order. This allows some form of load balancing.
+             ! If we have this supercell then determine which processors have
+             ! this cell and decide which processors get which work. We attempt
+             ! to distribute work to those processors with the least amount of
+             ! work already allocated.
              if(fieldmat%kyb(ik)%supercells(is)%is_local)then
-                colour=0
-                key=self%current_nresp()
-                if(fieldmat%kyb(ik)%supercells(is)%cells(ic)%is_local) colour=1
-                call split(colour,key,tmp,fieldmat%kyb(ik)%supercells(is)%cells(ic)%parent_sub%id)
+                ! Copy out a couple of values to make the code more readable
+                supercell_comm = fieldmat%kyb(ik)%supercells(is)%cells(ic)%parent_sub
+                cell_is_local = fieldmat%kyb(ik)%supercells(is)%cells(ic)%is_local
+
+                ! First determine how many processors in the supercell communicator
+                ! have this cell
+                np = 0
+                if (cell_is_local) np = 1
+
+                call sum_allreduce_sub(np, supercell_comm%id)
+
+                ! Now we can determine what the effective processor rank should be for distributing work.
+                ! Essentially we just want to number the processors with this cell from 0 to np in order of
+                ! how little work they currently have.
+
+                ! First record how much work each processors has, forcing those without this cell to report -ve work
+                allocate(nwork(0:supercell_comm%nproc-1))
+                nwork = 0
+
+                if (cell_is_local) then
+                   nwork(supercell_comm%iproc) = self%current_nresp()
+                else
+                   nwork(supercell_comm%iproc) = -1
+                end if
+
+                ! Now all processors in supercell communicator know how much work each processor has
+                ! except those which aren't local and hence can't take part.
+                call sum_allreduce_sub(nwork, supercell_comm%id)
+
+                ! Now we have to label the processors in sorted order. To do this we first create an array
+                ! of sequential processor ids and we then sort this based on the amount of work, as stored in nwork
+                allocate(iproc_work(0:supercell_comm%nproc-1))
+                iproc_work(:) = [(ip, ip=0, supercell_comm%nproc-1)]
+
+                ! Now sort iproc_work based on nwork
+                call quicksort(supercell_comm%nproc, nwork, iproc_work)
+
+                if (cell_is_local) then
+                   ! With 2008 standard can just do:
+                   ! ip_expect = findloc(iproc_work, supercell_comm%iproc)
+                   ! instead of this loop
+                   ! Search the processor list to find where the processor's id is found
+                   do ip = 0, supercell_comm%nproc-1
+                      if(iproc_work(ip) == supercell_comm%iproc) exit
+                   end do
+
+                   ! Here we have to remove any offset in ip arising
+                   ! from the processors without this cell. As they
+                   ! are assigned -1 work they come at the start of
+                   ! the array.
+                   ip = ip - count(nwork == -1)
+                end if
+                deallocate(nwork, iproc_work)
              endif
+
              !NOTE: By sorting the procs as done above we end up with lots of different procs
              !which are proc0 for at least one supercell. This means that later when we assign
              !the supercell heads we have lots of members, whilst if we try to minimise the number
@@ -3732,13 +3775,9 @@ contains
              !Store it index
              it=fieldmat%kyb(ik)%supercells(is)%cells(ic)%it_ind
 
-             !If local work out limits, if not just set to 0
+             !If local work out limits, if not just set to 0.
              if(fieldmat%kyb(ik)%supercells(is)%cells(ic)%is_local)then
-                
-                !Store info about subcom
-                np=tmp%nproc 
-                ip=tmp%iproc
-               
+
                 !Calculate row limits based on cell size, nprocs and
                 !proc rank
                 !/Simple block size
@@ -3774,6 +3813,7 @@ contains
                    fieldmat%kyb(ik)%supercells(is)%cells(ic)%rb(ifq)%row_ulim=ulim
                    call fieldmat%kyb(ik)%supercells(is)%cells(ic)%rb(ifq)%set_nrow
                 enddo
+
              else
                 do ifq=1,fieldmat%kyb(ik)%supercells(is)%cells(ic)%nrb
                    fieldmat%kyb(ik)%supercells(is)%cells(ic)%rb(ifq)%row_llim=0
@@ -3781,9 +3821,6 @@ contains
                    call fieldmat%kyb(ik)%supercells(is)%cells(ic)%rb(ifq)%set_nrow
                 enddo
              endif
-
-             !Now free subcommunicator if we have this supercell
-             if(fieldmat%kyb(ik)%supercells(is)%is_local) call free_comm(tmp)
 
              !Record the number of responsible rows, note we assume all rb have same size
              if(size(fieldmat%kyb(ik)%supercells(is)%cells(ic)%rb).gt.0)then
