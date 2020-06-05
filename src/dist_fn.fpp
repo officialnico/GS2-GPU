@@ -319,20 +319,22 @@ module dist_fn
      !> - 'linked' - Twist and shift boundary conditions (used for kt_grids:grid_option='box')
      !> - 'alternate-zero' - Ignored
      !>
-     !> See also [[nonad_zero]]
+     !> See also [[dist_fn_knobs:nonad_zero]]
      character(len = 20) :: boundary_option = 'default'
-     !> Overrides the [[itor_over_B]] internal parameter, meant only for
-     !> slab runs where it sets the angle between the magnetic field
-     !> and the toroidal flow.
+     !> Overrides the [[theta_grid:itor_over_B]] internal parameter,
+     !> meant only for slab runs where it sets the angle between the
+     !> magnetic field and the toroidal flow.
      real :: btor_slab = 0.0
-     !> True only allows solutions of single parity as determined by the input [[even]].
+     !> True only allows solutions of single parity as determined by
+     !> the input [[dist_fn_knobs:even]].
      logical :: def_parity = .false.
      !> FIXME: Add documentation
      !>
      !> Used for GRYFX - should probably be moved elsewhere - ~ rho_i
      real :: densfac_lin = sqrt(2.)
-     !> Leave as unity for physical runs can be used for debugging. Multiplies the passing
-     !> particle drifts (also see [[tpdriftknob]]).
+     !> Leave as unity for physical runs can be used for
+     !> debugging. Multiplies the passing particle drifts (also see
+     !> [[dist_fn_knobs:tpdriftknob]]).
      real :: driftknob = 1.0
      !> If `esv=.true.` and `boundary_option='linked'` (i.e. flux tube
      !> simulation) then at every time step we ensure the fields are
@@ -342,7 +344,7 @@ module dist_fn
      !> field at the same point in space we pick one and set the other
      !> equal to the one we picked). This can be important in
      !> correctly tracking the amplitude of damped modes to very small
-     !> values. Also see [[clean_init]].
+     !> values. Also see [[init_g_knobs:clean_init]].
      logical :: esv = .false.
      !> If `def_parity` is true, determines allowed parity.
      logical :: even = .true.
@@ -398,7 +400,7 @@ module dist_fn
      !> This is considered the correct boundary condition but old behaviour retained for experimentation.
      logical :: nonad_zero = .true.
      !> Factor multiplying the parallel shearing drive term when
-     !> running with non-zero [[g_exb]]
+     !> running with non-zero [[dist_fn_knobs:g_exb]]
      real :: omprimfac = 1.0
      !> Deprecated and due for removal
      logical :: opt_init_bc = .false.
@@ -433,7 +435,7 @@ module dist_fn
      !> Used for GRYFX - should probably be moved elsewhere - ~ rho_i vti^2
      real :: tparfac_lin = 2.*sqrt(2.)
      !> For debugging only. Multiplies the trapped particle drifts
-     !> (also see [[driftknob]]).
+     !> (also see [[dist_fn_knobs:driftknob]]).
      real :: tpdriftknob = -9.9e9
      !> FIXME: Add documentation
      !>
@@ -470,18 +472,28 @@ module dist_fn
   !> Used to represent the input configuration of source
   type, extends(abstract_config_type) :: source_config_type
      ! namelist : source_knobs
-     ! indexed : false     
-     !> FIXME: Add documentation
+     ! indexed : false
+     !> Growth rate of non-standard source used with `source_option = 'phiext_full'`.
      real :: gamma0 = 0.0
-     !> FIXME: Add documentation
+     !> Frequency of non-standard source used with `source_option = 'phiext_full'`.
      real :: omega0 = 0.0
-     !> FIXME: Add documentation
+     !> Amplitude of external phi added as source term with
+     !> `source_option = 'phiext_full'`. If zero (default) then no
+     !> extra term included in the source.
      real :: phi_ext = 0.0
-     !> FIXME: Add documentation
+     !> Amplitude of non-standard source used with `source_option =
+     !> 'phiext_full'` when time >= t0.
      real :: source0 = 1.0
-     !> FIXME: Add documentation
+     !> Controls the source term used in the time advance. Should be
+     !> one of:
+     !>
+     !> - 'source_option_full' : Solve GK equation in standard form (with no artificial sources)
+     !> - 'default' : Same as 'source_option_full'
+     !> - 'phiext_full' : Solve GK equation with additional source
+     !>   proportional to `phi_ext*F_0`.
      character(len = 20) :: source_option = 'default'
-     !> FIXME: Add documentation
+     !> Turn on any artificial sources after time = t0. Only used with
+     !> `source_option = 'phiext_full'`.
      real :: t0 = 100.0
    contains
      procedure, public :: read => read_source_config
@@ -1009,7 +1021,7 @@ contains
   !> FIXME : Add documentation  
   subroutine init_dist_fn_level_3
     use mp, only: finish_mp, mp_abort
-    use species, only: init_species, nspec
+    use species, only: init_species
     use collisions, only: init_collisions!, vnmult
     use hyper, only: init_hyper
     use le_grids, only: init_g2gf
@@ -1275,7 +1287,7 @@ contains
             text_option('mixed', wfbbc_option_mixed)/)
     character(20) :: wfbbc_option
 
-    integer :: ierr, is, in_file
+    integer :: ierr, is
     real :: bd
 
     if (readinit) return
@@ -1446,7 +1458,7 @@ contains
     use file_utils, only: get_indexed_namelist_unit
     implicit none
     type(dist_fn_species_config_type), intent(in), dimension(:), optional :: dist_fn_species_config_in    
-    integer :: is, unit
+    integer :: is
     logical :: exist
     real :: fexpr, fexpi
 
@@ -1893,9 +1905,9 @@ contains
   !> FIXME : Add documentation  
   subroutine init_invert_rhs
     use dist_fn_arrays, only: vpar, ittp
-    use species, only: spec, nspec
+    use species, only: spec
     use theta_grid, only: ntgrid
-    use le_grids, only: nlambda, ng2, forbid, negrid
+    use le_grids, only: nlambda, ng2, forbid
     use constants, only: zi
     use gs2_layouts, only: g_lo, ik_idx, it_idx, il_idx, ie_idx, is_idx
     implicit none
@@ -4007,8 +4019,8 @@ contains
     use dist_fn_arrays, only: gexp_1, gexp_2, gexp_3
     use theta_grid, only: ntgrid
     use kt_grids, only: aky
-    use le_grids, only: nlambda, ng2, lmax, negrid
-    use species, only: spec, nspec, nonmaxw_corr
+    use le_grids, only: nlambda, ng2, lmax
+    use species, only: spec, nonmaxw_corr
     use run_parameters, only: fphi, fapar, fbpar, wunits
     use gs2_time, only: code_dt
     use gs2_time, only: dt0 => code_dt, dt1 => code_dt_prev1, dt2 => code_dt_prev2
@@ -5544,7 +5556,6 @@ endif
     use theta_grid, only: ntgrid
     use le_grids, only: integrate_moment
     use prof, only: prof_entering, prof_leaving
-    use run_parameters, only: fphi, fbpar
     use fields_arrays, only: phinew
     use kt_grids, only: ntheta0, naky
     use mp, only: proc0
@@ -6059,8 +6070,7 @@ endif
        fieldeq, fieldeqa, fieldeqp)
     use theta_grid, only: ntgrid, bmag
     use kt_grids, only: naky, ntheta0, kperp2
-    use run_parameters, only: fphi, fapar, fbpar
-    use run_parameters, only: beta, tite
+    use run_parameters, only: fphi, fapar, fbpar, beta
     use species, only: spec, has_electron_species
     implicit none
     complex, dimension (-ntgrid:,:,:), intent (in) :: phi, apar, bpar
@@ -6165,8 +6175,7 @@ endif
        fieldeq, fieldeqa, fieldeqp)
     use theta_grid, only: ntgrid, bmag
     use kt_grids, only: naky, ntheta0, kperp2
-    use run_parameters, only: fphi, fapar, fbpar
-    use run_parameters, only: beta, tite
+    use run_parameters, only: fphi, fapar, fbpar, beta
     use kt_grids, only: kwork_filter
     use species, only: spec, has_electron_species
     implicit none
@@ -6219,9 +6228,7 @@ endif
   !> FIXME : Add documentation    
   subroutine check_getan (antot, antota, antotp, tempantot, tempantota, tempantotp)
     use mp, only : iproc
-    use species, only: nspec
     use theta_grid, only: ntgrid
-    use le_grids, only: negrid
     use run_parameters, only: fphi, fapar, fbpar
     use kt_grids, only: naky, ntheta0, kwork_filter
     use gs2_layouts, only: g_lo, it_idx, ik_idx, gf_lo, idx, proc_id
@@ -7558,11 +7565,10 @@ endif
     use le_grids, only: energy
     use dist_fn_arrays, only: gnew, aj0, vpac, aj1, vperp2
     use gs2_layouts, only: g_lo, ie_idx, is_idx, it_idx, ik_idx
-    use run_parameters, only: woutunits, fphi, fapar, fbpar
+    use run_parameters, only: woutunits, fphi
     use constants, only: zi
     use geometry, only: rhoc
     use theta_grid, only: Rplot, Bpol
-    use species, only: nspec
     implicit none
     complex, dimension (-ntgrid:,:,:), intent (in) :: phi
     real, dimension (-ntgrid:,:,:,:), intent (out) :: pflux_dist, vflux_par_dist, vflux_perp_dist, qflux_dist

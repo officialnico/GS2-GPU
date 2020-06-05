@@ -56,7 +56,6 @@ contains
     use file_utils, only: input_unit, input_unit_exist
     implicit none
     type(kt_grids_single_config_type), intent(in), optional :: kt_grids_single_config_in
-    integer :: in_file
     logical :: exist
 
     if (parameters_read) return
@@ -383,7 +382,6 @@ contains
     implicit none
     type(kt_grids_range_config_type), intent(in), optional :: kt_grids_range_config_in
     integer :: ierr
-    integer :: in_file
     logical :: exist
     type (text_option), dimension(3), parameter :: kyspacingopts = &
          (/ text_option('default', kyspacingopt_linear), &
@@ -923,7 +921,6 @@ contains
     use file_utils, only: input_unit, input_unit_exist
     implicit none
     type(kt_grids_specified_config_type), intent(in), optional :: kt_grids_specified_config_in
-    integer :: in_file
     logical :: exist
 
     if (initialized) return
@@ -1388,12 +1385,13 @@ module kt_grids_box
      !> `jtwist`. Effectively ends up setting the box size in the x
      !> direction, as \(L_x = L_y \textrm{rtwist}\) if `rtwist > 0 `
      !> and \(L_x = L_y / \textrm{rtwist}\) if `rtwist < 0`. See
-     !> [[x0]] for an alternative.
+     !> [[kt_grids_box_parameters:x0]] for an alternative.
      real :: rtwist = 0.0
-     !> Controls the box length in the x direction (measured in
-     !> the reference Larmour radius) if the magnetic shear is small
-     !> (\(\< 10^{-5}\)). The box size in the x direction is
-     !> given by \(L_x = 2\pi x_0\). See [[rtwist]] for an alternative.
+     !> Controls the box length in the x direction (measured in the
+     !> reference Larmour radius) if the magnetic shear is small (\(\<
+     !> 10^{-5}\)). The box size in the x direction is given by \(L_x
+     !> = 2\pi x_0\). See [[kt_grids_box_parameters:rtwist]] for an
+     !> alternative.
      real :: x0 = 0.
      !> Controls the box length in the y direction (measured in the
      !> reference Larmour radius). The box size in the y direction is
@@ -1946,7 +1944,7 @@ module kt_grids
      !> modes. Set up with [[kt_grids_range_parameters]].
      !> - 'specified' Evolve an arbitrary set of Fourier modes. Set
      !> up with [[kt_grids_specified_parameters]] and corresponding
-     !> [[kt_grids_specified_elements]].
+     !> [[kt_grids_specified_element]].
      !> - 'box' Simulation domain is logically rectangular. Set up with
      !> [[kt_grids_box_parameters]]. Required for nonlinear simulations.
      !> - 'nonlinear' Same as 'box.'
@@ -2091,7 +2089,7 @@ contains
             text_option('specified', gridopt_specified), &
             text_option('box', gridopt_box), &
             text_option('nonlinear', gridopt_box) /)
-    integer :: ierr, in_file
+    integer :: ierr
 
     if (present(kt_grids_config_in)) kt_grids_config = kt_grids_config_in
 

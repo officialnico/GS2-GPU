@@ -386,7 +386,6 @@ contains
   subroutine read_parameters(parameter_scan_config_in)
     use file_utils, only: input_unit, error_unit, input_unit_exist
     use text_options, only: text_option, get_option_value
-    use mp, only: proc0
     implicit none
     type(parameter_scan_config_type), intent(in), optional :: parameter_scan_config_in
     
@@ -410,7 +409,7 @@ contains
             text_option('delta_t', increment_condition_delta_t), &
             text_option('saturated', increment_condition_saturated) /)
     character(20) :: inc_con 
-    integer :: ierr, in_file
+    integer :: ierr
     logical :: exist
 
     if (present(parameter_scan_config_in)) parameter_scan_config = parameter_scan_config_in

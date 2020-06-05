@@ -374,7 +374,7 @@ contains
             text_option('set_by_hand', delt_option_hand), &
             text_option('check_restart', delt_option_auto) /)
     character(20) :: delt_option
-    integer :: ierr, istatus, in_file
+    integer :: ierr, istatus
     real :: delt0, delt1, delt2
     real, dimension (2) :: vnm_saved
 

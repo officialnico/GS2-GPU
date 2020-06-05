@@ -3557,8 +3557,7 @@ contains
     use gs2_layouts, only: ik_idx, it_idx
     use theta_grid, only: ntgrid, bmag
     use kt_grids, only: naky, ntheta0, kperp2, kwork_filter
-    use run_parameters, only: fphi, fapar, fbpar
-    use run_parameters, only: beta, tite
+    use run_parameters, only: fphi, fapar, fbpar, beta
     use species, only: spec, has_electron_species
     use dist_fn, only: gamtot, gamtot1, gamtot2, fl_avg, gridfac1, apfac
     use dist_fn, only: adiabatic_option_switch, adiabatic_option_fieldlineavg, calculate_flux_surface_average
