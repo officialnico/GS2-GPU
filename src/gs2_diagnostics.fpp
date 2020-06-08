@@ -531,7 +531,10 @@ contains
     end if
 
     !GGH Allocate density and velocity perturbation diagnostic structures
-    if (write_jext) allocate (j_ext_hist(ntheta0, naky,0:navg-1)) 
+    if (write_jext) then
+       allocate (j_ext_hist(ntheta0, naky,0:navg-1))
+       j_ext_hist = 0
+    end if
 
     call init_gs2_io (write_nl_flux, write_omega, &
          write_hrate, write_final_antot, &
@@ -3477,6 +3480,7 @@ contains
     if (proc0) then
        !Save variable to history
        if (navg > 1) then
+          ! This looks a little odd as we ignore the first step
           if (istep > 1) &
                j_ext_hist(:,:,mod(istep,navg))= j_ext(:,:)
 
