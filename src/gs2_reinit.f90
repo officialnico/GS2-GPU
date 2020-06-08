@@ -49,17 +49,40 @@ module gs2_reinit
   type, extends(abstract_config_type) :: reinit_config_type
      ! namelist : reinit_knobs
      ! indexed : false
-     !> FIXME: Add documentation
+     !> If `true` (default), exit if time step changes rapidly, that
+     !> is, if the time step changes at four consecutive time steps.
      logical :: abort_rapid_time_step_change = .true.
-     !> FIXME: Add documentation
+     !> When the time step needs to be changed it is adjusted by this
+     !> factor, i.e `dt --> dt/delt_adj` or `dt --> dt*delt_adj` when
+     !> reducing/increasing the timestep. For non-linear runs
+     !> good choice of `delt_adj` can make a moderate difference to
+     !> efficiency. Need to balance time taken to reinitialise against
+     !> frequency of time step adjustments (i.e. if your run takes a long
+     !> time to initialise you probably want to set `delt_adj` to be
+     !> reasonably large).
      real :: delt_adj = 2.0
-     !> FIXME: Add documentation
+     !> Used in deciding when to increase the time step to help
+     !> prevent oscillations in time step around some value. We only
+     !> increase the time step when it is less than the scaled cfl
+     !> estimate divided by `delt_adj*delt_cushion` whilst we decrease
+     !> it as soon as the time step is larger than the scaled cfl
+     !> estimate.
      real :: delt_cushion = 1.5
-     !> FIXME: Add documentation
+     !> The minimum time step allowed is delt_minimum. If the code
+     !> wants to drop below this value then the run will end.
      real :: delt_minimum = 1.e-5
-     !> FIXME: Add documentation
-     real :: dt0 = 0.0 !This gets a smart default of code_delt_max
-     !> FIXME: Add documentation
+     !> Sets the maximum value the time step can take.
+     !>
+     !> @note This gets a smart default of [[knobs:delt]].
+     real :: dt0 = 0.0
+     !> If `true` then attempts to create temporary copies of the
+     !> distribution fn and fields in memory to be restored after the
+     !> time step reset rather than dumping to fields.  This could be
+     !> faster on machines with slow file systems. If the required
+     !> memory allocation fails then we set `in_memory=.false.` and
+     !> fall back to the traditional file based approach. Note must
+     !> also set the `in_memory` switch in [[init_knobs]] to `true` to
+     !> enable.
      logical :: in_memory = .false.
    contains
      procedure, public :: read => read_reinit_config

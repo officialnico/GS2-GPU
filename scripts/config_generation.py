@@ -413,7 +413,7 @@ class config():
         full_row = "\n".join([row_cell.format(val="{nm}"), row_cell.format(val="{ty}"), row_cell.format(val="{de}"), row_cell.format(val="{co}")])
 
         for var in self.varList:
-            st.append("<tr>")
+            st.append('<tr id="{}-{}">'.format(self.namelistName, var.name))
             st.append(full_row.format(nm = var.name, ty = var.typ, de = var.default.split("!")[0], co = "\n".join(var.comment)))
             st.append("</tr>")
 
