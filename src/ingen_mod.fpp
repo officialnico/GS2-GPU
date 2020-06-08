@@ -79,14 +79,26 @@ module ingen_mod
   !> Used to represent the input configuration of ingen
   type, extends(abstract_config_type) :: ingen_config_type
      ! namelist : ingen_knobs
-     ! indexed : false     
-     !> FIXME: Add documentation
+     ! indexed : false
+     !> This sets the minimum number of local elements for which
+     !> processor recommendations will be given. In other words, if
+     !> the total number of elements is `nmesh =
+     !> (2*ntgrid+1)*2*nlambda*negrid*ntheta0*naky*nspec`, then the
+     !> largest processor count that ingen will recommend would be
+     !> `nmesh/ncut`.
      integer :: ncut = 100000
-     !> FIXME: Add documentation
+     !> Sets the maximum processor count considered when calculating
+     !> sweetspots. Currently this value is read in but always
+     !> overriden to 100000.
      integer :: npmax = 100000     
-     !> FIXME: Add documentation
+     !> If `true` then alongside standard [[ingen]] report allows the
+     !> creation of various types of scans. This will involve user
+     !> interaction if `stdin` is `true`.
      logical :: scan = .false.
-     !> FIXME: Add documentation
+     !> If `true` (default) then ask for input from stdin when using
+     !> ingen to produce parameters for scans (`scan = .true.`). If
+     !> `false` then will look in file named `.<run_name>.pythonin`
+     !> instead.
      logical :: stdin = .true.
    contains
      procedure, public :: read => read_ingen_config
@@ -852,7 +864,7 @@ if (debug) write(6,*) 'get_namelists: returning'
     use le_grids, only: wnml_le_grids
     use nonlinear_terms, only: nonlin, wnml_nonlinear_terms
     use run_parameters, only: wnml_run_parameters
-    use species, only: wnml_species, nspec, spec, has_electron_species
+    use species, only: wnml_species, spec, has_electron_species
     use theta_grid, only: wnml_theta_grid
     use theta_grid_params, only: wnml_theta_grid_params
 
@@ -961,24 +973,18 @@ if (debug) write(6,*) 'get_namelists: returning'
     use gs2_diagnostics, only: check_gs2_diagnostics
     use gs2_diagnostics, only: dump_fields_periodically, save_for_restart
     use gs2_diagnostics, only: nsave, make_movie, nmovie, exit_when_converged, nwrite, omegatol
-    use run_parameters, only: use_old_diagnostics
     use gs2_reinit, only: delt_adj
     use gs2_time, only: code_dt, user_dt
     use hyper, only: check_hyper
     use init_g, only: check_init_g
-    use kt_grids, only: check_kt_grids, grid_option, gridopt_switch
+    use kt_grids, only: check_kt_grids, gridopt_switch
     use kt_grids, only: gridopt_box, naky, ntheta0, nx, ny
-    !     use le_grids, only: leok_le_grids, check_le_grids
     use le_grids, only: negrid, nlambda
-    use nonlinear_terms, only: nonlin, cfl, check_nonlinear_terms
-    use run_parameters, only: check_run_parameters
-    use run_parameters, only: beta, tite, margin
-    use run_parameters, only: nstep, wstar_units
+    use nonlinear_terms, only: nonlin, check_nonlinear_terms
+    use run_parameters, only: use_old_diagnostics, check_run_parameters
+    use run_parameters, only: beta, tite, nstep, wstar_units
     use species, only: check_species, nspec, has_electron_species
-    use theta_grid, only: check_theta_grid
-    use theta_grid, only: gb_to_cv, ntgrid
-    use theta_grid_params, only: nperiod, ntheta, eps, epsl, rmaj, r_geo
-    use theta_grid_params, only: pk, qinp, rhoc, shift, shat
+    use theta_grid, only: check_theta_grid, ntgrid
     use collisions, only: collision_model_switch
     use collisions, only: collision_model_full, collision_model_ediffuse
     use collisions, only: collision_model_lorentz, collision_model_lorentz_test
