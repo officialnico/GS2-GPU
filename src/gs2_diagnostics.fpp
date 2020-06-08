@@ -422,6 +422,7 @@ contains
     use le_grids, only: init_weights
     use gs2_save, only: restart_writable
     use normalisations, only: init_normalisations
+    use gs2_time, only: user_time
     implicit none
     logical, intent (in) :: list
     integer, intent (in) :: nstep
@@ -541,8 +542,10 @@ contains
          write_correlation, nwrite_big_tot, write_correlation_extend, &
          write_phi_over_time, write_apar_over_time, write_bpar_over_time, &
          write_avg_moments, write_final_moments, write_final_epar, &
-         ob_midplane=ob_midplane)
+         nout, ob_midplane=ob_midplane)
 
+    call broadcast (nout)
+    call broadcast (user_time)
     if (write_cerr) then
        if (collision_model_switch == 1 .or. collision_model_switch == 5) then
           call init_lorentz_error
