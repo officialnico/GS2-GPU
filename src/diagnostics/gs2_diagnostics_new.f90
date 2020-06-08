@@ -641,6 +641,7 @@ contains
     use diagnostics_final_routines,only: do_write_gs
     use diagnostics_final_routines,only: init_par_filter
     use diagnostics_final_routines,only: ntg_out
+    use diagnostics_fields, only: get_phi0
     use nonlinear_terms, only: nonlin
     use antenna, only: dump_ant_amp
     use mp, only: proc0
@@ -671,8 +672,8 @@ contains
          & calling do_write_final_db')
        if (gnostics%write_final_db) call do_write_final_db(gnostics)
     end if
-    !Note pass in phase factor phi0 which may not be initialised
-    !this is ok as phi0 will be set in routine if not already set
+
+    phi0 = get_phi0()
     if (gnostics%write_final_moments) call do_write_final_moments(gnostics,phi0)
     call debug_message(verb, 'gs2_diagnostics_new::run_old_final_routines &
       & calling do_write_final_antot')
