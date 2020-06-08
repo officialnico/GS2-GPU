@@ -87,7 +87,7 @@
  iflux = 1 
  irho = 2 ! Chooses definition of flux surface coordinate.
  local_eq = F
- eqfile = "ogyropsi.dat" 
+ eqfile = "../../common_geometry_files/ogyropsi.dat"
  bishop = 1 
  delrho = 0.001 
  isym = 0 

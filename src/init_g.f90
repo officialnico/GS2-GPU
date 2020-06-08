@@ -1277,11 +1277,9 @@ contains
     use dist_fn, only: pass_right, init_pass_ends
     use redistribute, only: fill, delete_redist
     use ran, only: ranf
-    use mp, only: proc0
     use constant_random, only: init_constant_random
     use constant_random, only: finish_constant_random
     use constant_random, only: constant_ranf=>ranf
-    use unit_tests, only: job_id
     implicit none
     complex, dimension (-ntgrid:ntgrid,ntheta0,naky) :: phi, phit
     real :: a, b
@@ -1432,14 +1430,6 @@ contains
        gnew = g
     endif
 
-    ! EGH Leave below until bug #36 is closed.
-    !iglo = (g_lo%ulim_proc - g_lo%llim_proc)/4 + g_lo%llim_proc
-    !if (.not. proc0) write (*,*) 'iglo jjj', iglo
-    !if (.not. proc0) write (*,*) 'it, ik jjj', it_idx(g_lo, iglo), ik_idx(g_lo, iglo)
-!
-    !if (.not. proc0) write (*,*) 'gvalue in init jjjj 2', g(-5,1,iglo), job_id
-    !if (.not. proc0) write (*,*) 'gnewvalue in init jjjj 2', gnew(-5,1,iglo), job_id
-    !if (.not. proc0) write (*,*) 'gnewvalue sum kkkk', sum(real(conjg(gnew)*gnew)), job_id
   end subroutine ginit_noise
 
   !> Initialize with a single parallel mode. Only makes sense in a linear 
@@ -3643,15 +3633,13 @@ contains
     use dist_fn_arrays, only: g, gnew
     use fields_arrays, only: phi, apar, bpar, phinew, aparnew, bparnew
     use gs2_save, only: gs2_restore
-    use mp, only: proc0, job
+    use mp, only: proc0
     use file_utils, only: error_unit
     use run_parameters, only: fphi, fapar, fbpar
     implicit none
     integer :: istatus, ierr
 
     call gs2_restore (g, scale, istatus, fphi, fapar, fbpar)
-
-    !write (*,*) 'RESTARTING ON JOB', job
 
     if (istatus /= 0) then
        ierr = error_unit()

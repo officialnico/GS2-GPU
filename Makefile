@@ -89,6 +89,8 @@ GENQUAD ?=
 # Compile with gcov flags to check for code coverage
 USE_GCOV ?=
 HAS_GCOV=$(USE_GCOV)
+# Name of python exe
+GS2_PYTHON_NAME ?= python3
 
 # Compile with the new simplified diagnostics module (bin)
 USE_NEW_DIAG ?=on
@@ -157,7 +159,7 @@ ARCHFLAGS 	= cr
 RANLIB		= ranlib
 AWK 		= awk
 PERL		= perl
-FORD           ?= ford
+FORD           ?= $(GK_HEAD_DIR)/scripts/ford_interceptor.py
 MKDIR           = mkdir -p
 
 MPI_INC	?=
@@ -225,9 +227,9 @@ COVERAGE_DIR:= $(GK_HEAD_DIR)/coverage
 PATCHFILE:= .patch.make
 
 ifdef SHOW_ABS_PATH
-processName  = $1
+processName = $1
 else
-processName = $(subst $(GK_HEAD_DIR)/,, $1)
+processName = $(subst $(GK_HEAD_DIR)/,,$1)
 endif
 ################################################### SET COMPILE MODE SWITCHES
 
@@ -332,6 +334,15 @@ $(shell git diff -w -- .  > $(PATCHFILE))
 endif
 MACRO_DEFS+=-DGIT_PATCH_FILE='"$(PATCHFILE)"'
 
+######## PYTHON ###############################################################
+
+PYTHON_EXE:=$(shell which $(GS2_PYTHON_NAME))
+GS2_HAS_PYTHON:=$(if $(PYTHON_EXE),yes,no)
+ifeq ($(GS2_HAS_PYTHON),yes)
+PYTHON_VERSION:=$(shell $(PYTHON_EXE) --version 2>&1)
+endif
+
+###############################################################################
 
 # Define RUN_NAME_SIZE
 MACRO_DEFS+=-DRUN_NAME_SIZE=$(RUN_NAME_SIZE) 
@@ -626,42 +637,42 @@ endif
 # and you HAVE to preprocess and compile in one step.
 ifdef ONE_STEP_PP
 $(OBJDIR)/%.o: %.fpp |$(MODDIR) $(OBJDIR)
-	$(call messageOp,"Compiling and preprocessing","\\t:",$(call processName, $<))
+	$(call messageOp,"Compiling and preprocessing","\\t:",$(call processName,$<))
 	$(QUIETSYM)$(FC) $(MACRO_DEFS) $(F90FLAGS) -c $< -o $@
 	$(shell mv *.mod $(MODDIR) 2>/dev/null)
 
 $(OBJDIR)/%.o: %.F90 |$(MODDIR) $(OBJDIR)
-	$(call messageOp,"Compiling and preprocessing","\\t:",$(call processName, $<))
+	$(call messageOp,"Compiling and preprocessing","\\t:",$(call processName,$<))
 	$(QUIETSYM)$(FC) $(MACRO_DEFS) $(F90FLAGS) -c $< -o $@
 	$(shell mv *.mod $(MODDIR) 2>/dev/null)
 endif
 
 %.f90: %.rb
-	$(call messageOp,"Generating from ruby","\\t:",$(call processName, $<))
+	$(call messageOp,"Generating from ruby","\\t:",$(call processName,$<))
 	$(QUIETSYM)$(call RUBY_GENERATE,$@,$<)
 
 $(OBJDIR)/%.o:$(GENERATED_SRC_DIR)/%.f90 |$(MODDIR) $(OBJDIR)
-	$(call messageOp,"Compiling","\\t:",$<)
+	$(call messageOp,"Compiling","\\t:",$(call processName,$<))
 	$(QUIETSYM) $(FC) $(F90FLAGS) -c $< -o $@
 	$(shell mv *.mod $(MODDIR) 2>/dev/null)
 
 $(OBJDIR)/%.o:%.f90 |$(MODDIR) $(OBJDIR)
-	$(call messageOp,"Compiling","\\t:",$(call processName, $<))
+	$(call messageOp,"Compiling","\\t:",$(call processName,$<))
 	$(QUIETSYM) $(FC) $(F90FLAGS) -c $< -o $@
 	$(shell mv *.mod $(MODDIR) 2>/dev/null)
 
 # The depend command needs the preprocessed source files. 
 # This is a little clunky, and maybe could be fixed in the future.
 $(GENERATED_SRC_DIR)/%.f90: %.fpp |$(GENERATED_SRC_DIR)
-	$(call messageOp,"Preprocessing","\\t:",$(call processName, $<))
+	$(call messageOp,"Preprocessing","\\t:",$(call processName,$<))
 	$(QUIETSYM)$(CPP) $(FPPFLAGS) $(CPPFLAGS) $(MACRO_DEFS) $< -o $@
 
 $(GENERATED_SRC_DIR)/%.f90: %.F90 |$(GENERATED_SRC_DIR)
-	$(call messageOp,"Preprocessing","\\t:",$(call processName, $<))
+	$(call messageOp,"Preprocessing","\\t:",$(call processName,$<))
 	$(QUIETSYM)$(CPP) $(FPPFLAGS) $(CPPFLAGS) $(MACRO_DEFS) $< -o $@
 
 $(OBJDIR)/%.o: %.c |$(OBJDIR)
-	$(call messageOp,"Compiling C","\\t:",$(call processName, $<))
+	$(call messageOp,"Compiling C","\\t:",$(call processName,$<))
 	$(QUIETSYM)$(CC) $(CFLAGS) $(INCLUDES) $(subst -traditional,,$(subst -C,,$(subst -P,,$(CPPFLAGS)))) $(MACRO_DEFS) -c $< -o $@
 
 # This prevents error messages like m2c: Command not found
@@ -689,14 +700,14 @@ KEEP_PROCESSED_FILES_FROM_DEPEND="no"
 endif
 
 depend: $(F90FROMFPP) $(FORTFROMRUBY) $(UTILS_SENTINEL) Makefile.$(GK_SYSTEM) |$(GENERATED_SRC_DIR)
-	$(call messageOp,"Generating dependency file","\\t:",$(call processName, $(DEPEND)))
+	$(call messageOp,"Generating dependency file","\\t:",$(call processName,$(DEPEND)))
 # Note we force UTILS to be included in the paths that we pass to fortdep
 # We touch the dependency file first as fortdep will call make in order to try
 # and preprocess files, so we need this to avoid recursion
 	$(QUIETSYM)touch $(DEPEND) && $(DEPEND_CMD) -m "$(MAKE) --no-print-directory" -1 -o -v=1\
 		--keep=$(KEEP_PROCESSED_FILES_FROM_DEPEND) $(VPATH):$(UTILS) \
 		--generated_src_dir=$(GENERATED_SRC_DIR) || rm $(DEPEND)
-	$(call messageOp,"Dependency file created at","\\t:",$(call processName, $(DEPEND)))
+	$(call messageOp,"Dependency file created at","\\t:",$(call processName,$(DEPEND)))
 ##################################################################### Main TARGETS
 # .DEFAULT_GOAL works for GNU make 3.81 (or higher)
 # For 3.80 or less, see all target
@@ -746,7 +757,7 @@ gs2_init.f90: $(SRCDIR)/templates/gs2_init_template.f90
 
 geometry_c_interface.o: geometry_c_interface.h
 
-gryfx_libs: utils.a geo.a $(SRCDIR)/geo/geometry_c_interface.o
+gryfx_libs: utils.a geo.a $(OBJDIR)/geometry_c_interface.o
 
 ############################################################# Get project specific targets
 Makefile.target_$(GK_PROJECT): ;
@@ -931,6 +942,12 @@ test_make:
 	$(call messageKeyVal, "F90FROMFPP", $(F90FROMFPP))
 	$(call messageKeyVal, "FORTFROMRUBY", $(FORTFROMRUBY))
 	@echo
+	$(call messageInfo,"PYTHON:")
+	$(call messageKeyVal, "GS2_HAS_PYTHON", $(GS2_HAS_PYTHON))
+	$(call messageKeyVal, "GS2_PYTHON_NAME", $(GS2_PYTHON_NAME))
+	$(call messageKeyVal, "PYTHON_EXE", $(PYTHON_EXE))
+	$(call messageKeyVal, "PYTHON_VERSION", $(PYTHON_VERSION))
+	@echo
 	$(call messageInfo,"PFUNIT:")
 	$(call messageKeyVal, "PFUNIT_VERSION_MAJOR", $(PFUNIT_VERSION_MAJOR))
 	$(call messageKeyVal, "PFUNIT_PREPROCESSOR", $(PFUNIT_PREPROCESSOR))
@@ -1017,7 +1034,10 @@ endif
 
 namelist_doc: PATHS:=$(foreach dir, $(SRCDIR) $(SUBDIRS), --path ${dir})
 namelist_doc: FILES:=$(shell $(GK_HEAD_DIR)/scripts/get_all_matching_files.py --pattern "*.[fF]??" ${PATHS} --absolute)
-namelist_doc:
+# for the `doc` target, `check_ford_install` must be before `namelist_doc` to ensure visibility of the error message
+# in the case where Ford is not installed and `make` is run with the `-j` option. The most robust way to do this is
+# to have `namelist_doc` to depend explicitly on `check_ford_install` as below
+namelist_doc: check_ford_install
 	$(call messageInfo,"Generating namelist documentation")
 	@$(GK_HEAD_DIR)/scripts/generate_namelist_documentation.py ${FILES}
 

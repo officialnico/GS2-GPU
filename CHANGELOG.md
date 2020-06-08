@@ -1,3 +1,25 @@
+## 8.0.4 (2020-03-19)
+
+* Update utils to 8.0.4 [PR #284 | Peter Hill](https://bitbucket.org/gyrokinetics/gs2/pull-requests/284)
+* Update DOI for 8.0.4 [PR #283 | Joseph Parker](https://bitbucket.org/gyrokinetics/gs2/pull-requests/283)
+* Fix multiple calls to `eikcoefs` when using CHEASE equilibrium [PR #271 | Stephen Biggs-Fox](https://bitbucket.org/gyrokinetics/gs2/pull-requests/271)
+* Guard against a `mod` call with a potential second argument of 0 [PR #282 | David Dickinson](https://bitbucket.org/gyrokinetics/gs2/pull-requests/282)
+* Implement `write_eigenfunc` in new diagnostics [PR #281 | Joseph Parker](https://bitbucket.org/gyrokinetics/gs2/pull-requests/281)
+* Respect `force_maxwell_reinit` input file value [PR #255 | Stephen Biggs-Fox](https://bitbucket.org/gyrokinetics/gs2/pull-requests/255)
+* Introduce python for use in testing [PR #278 | Joseph Parker](https://bitbucket.org/gyrokinetics/gs2/pull-requests/278)
+* Slightly reorder operations in calculation of `apar_m` to improve cancellation [PR #280 | David Dickinson](https://bitbucket.org/gyrokinetics/gs2/pull-requests/280)
+* Report GitLab test runner failures [PR #279 | David Dickinson](https://bitbucket.org/gyrokinetics/gs2/pull-requests/279)
+* Remove unused `BLUEGENEARGS` makeflag [PR #277 | Joseph Parker](https://bitbucket.org/gyrokinetics/gs2/pull-requests/277)
+* Fix dim divides logic [PR #275 | David Dickinson](https://bitbucket.org/gyrokinetics/gs2/pull-requests/275)
+* Make sure that we always write the exit reason to file even if not built [PR #274 | David Dickinson](https://bitbucket.org/gyrokinetics/gs2/pull-requests/274)
+* Ensure skip message is written out during tests [PR #273 | Joseph Parker](https://bitbucket.org/gyrokinetics/gs2/pull-requests/273)
+* Fix wrong energy grid dimensions in `dump_grids` [PR #258 | David Dickinson](https://bitbucket.org/gyrokinetics/gs2/pull-requests/258)
+* Fix PETSc, SLEPc interfaces for >=3.8.0 [PR #261 | Stephen Biggs-Fox](https://bitbucket.org/gyrokinetics/gs2/pull-requests/261)
+* Fix normalisations output [PR #260 | David Dickinson](https://bitbucket.org/gyrokinetics/gs2/pull-requests/260)
+* Bug fix: Guard against repeated deallocations [PR #259 | David Dickinson](https://bitbucket.org/gyrokinetics/gs2/pull-requests/259)
+* Try to ignore temporary files when searching for pfunit tests [PR #257 | David Dickinson](https://bitbucket.org/gyrokinetics/gs2/pull-requests/257)
+
+
 ## 8.0.3 (2020-02-07)
 
 * 8.0.3 Release [PR #229 | David Dickinson](https://bitbucket.org/gyrokinetics/gs2/pull-requests/229)

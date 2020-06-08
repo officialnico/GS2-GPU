@@ -8,7 +8,6 @@ module diagnostics_final_routines
   public :: ntg_out, init_par_filter, do_write_gs
   public :: do_write_final_antot, do_write_final_moments, do_write_final_db
   public :: do_write_final_epar, do_write_kpar, do_write_final_fields
-  public :: do_write_eigenfunc
 
   integer :: ntg_out
 
@@ -39,65 +38,6 @@ contains
     scale = 1./real(4*ntgrid**2)
     an2 = an2*scale
   end subroutine par_spectrum
-
-  !> FIXME : Add documentation  
-  subroutine do_write_eigenfunc(gnostics, phi0)
-    use mp, only: proc0
-    use file_utils, only: open_output_file, close_output_file
-    use fields_arrays, only: phi, apar, bpar
-    use kt_grids, only: ntheta0, naky, theta0, aky
-    use theta_grid, only: theta
-    use gs2_io, only: nc_eigenfunc
-    use dist_fn, only: def_parity, even
-    use run_parameters, only: fapar
-    use diagnostics_config, only: diagnostics_type
-    implicit none
-    type(diagnostics_type), intent(in) :: gnostics
-    complex, dimension (:,:), intent(inout) :: phi0
-    integer :: it, ik, ig, unit
-    
-    if(.not.proc0) return
-    
-    !Should this actually use igomega instead of 0?
-    !What if fphi==0? --> See where statements below
-    phi0 = phi(0,:,:)
-
-    !This looks like a hack for the case where we know we've forced phi(theta=0) to be 0
-    !this could probably be better addressed by the use of igomega above
-    if (def_parity .and. fapar > 0 .and. (.not. even)) phi0 = apar(0, :, :)
-    
-    !Address locations where phi0=0 by using next point
-    where (abs(phi0) < 10.0*epsilon(0.0)) 
-       phi0 = phi(1,:,:)/(theta(1)-theta(0))
-    end where
-    
-    !Check again if any locations are 0, this could be true if fphi (or fapar)
-    !is zero.
-    where (abs(phi0) < 10.0*epsilon(0.0)) 
-       phi0 = 1.0
-    end where
-    
-    !Do ascii output
-    if (gnostics%write_ascii) then
-       call open_output_file (unit, ".eigenfunc")
-       do ik = 1, naky
-          do it = 1, ntheta0
-             do ig = -ntg_out, ntg_out
-                write (unit, "(9(1x,e12.5))") &
-                     theta(ig), theta0(it,ik), aky(ik), &
-                     phi(ig,it,ik)/phi0(it,ik), &
-                     apar(ig,it,ik)/phi0(it,ik), &
-                     bpar(ig,it,ik)/phi0(it,ik)
-             end do
-             write (unit, "()")
-          end do
-       end do
-       call close_output_file (unit)
-    end if
-    
-    !Do netcdf output
-    call nc_eigenfunc (phi0)
-  end subroutine do_write_eigenfunc
 
   !> FIXME : Add documentation  
   subroutine do_write_final_fields(gnostics)
