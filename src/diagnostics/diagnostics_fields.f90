@@ -166,7 +166,6 @@ contains
     use theta_grid, only: ntgrid
     use run_parameters, only: fphi, fapar, fbpar
     use gs2_transforms, only: transform2
-    use gs2_io, only: nc_loop_movie
     use fields_arrays, only: phinew, aparnew, bparnew
     use mp, only: proc0, mp_abort
     use diagnostics_create_and_write, only: create_and_write_variable
@@ -266,7 +265,6 @@ contains
     use fields_arrays, only: phi, apar, bpar
     use kt_grids, only: ntheta0, naky, theta0, aky
     use theta_grid, only: theta, nperiod, ntheta, ntgrid
-    use gs2_io, only: nc_eigenfunc
     use run_parameters, only: fphi, fapar, fbpar
     use diagnostics_config, only: diagnostics_type
     use diagnostics_dimensions, only: dim_string
