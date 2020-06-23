@@ -152,7 +152,7 @@ contains
     use theta_grid, only: theta, ntgrid
     use dist_fn, only: get_epar
     use fields_arrays, only: phi, apar, phinew, aparnew
-    use gs2_io, only: nc_final_epar
+    ! use gs2_io, only: nc_final_epar
     use diagnostics_config, only: diagnostics_type
     implicit none
     type(diagnostics_type), intent(in) :: gnostics
@@ -184,8 +184,12 @@ contains
     end if
     
     !Do netcdf output
-    call nc_final_epar (epar)
-    
+    ! Commented out as this attempts to use the _old_ i/o routines to
+    ! save the data to netcdf, but this won't be initialised when
+    ! using the new diagnostics. Not deleted as we need to implement
+    ! this in the new diagnostics.
+    !    call nc_final_epar (epar)
+
     deallocate (epar)
   end subroutine do_write_final_epar
 
@@ -247,7 +251,7 @@ contains
     use file_utils, only: open_output_file, close_output_file
     use mp, only: proc0
     use fields_arrays, only: phinew, bparnew
-    use gs2_io, only: nc_final_moments
+    ! use gs2_io, only: nc_final_moments
     use diagnostics_config, only: diagnostics_type
     use volume_averages, only: average_theta
     implicit none
@@ -353,7 +357,11 @@ contains
        end if
        
        !Do the netcdf output -- Note we don't have the phi0 phase factor here
-       call nc_final_moments (ntot, density, upar, tpar, tperp, qparflux, pperpj1, qpperpj1)
+       ! Commented out as this attempts to use the _old_ i/o routines to
+       ! save the data to netcdf, but this won't be initialised when
+       ! using the new diagnostics. Not deleted as we need to implement
+       ! this in the new diagnostics.
+       ! call nc_final_moments (ntot, density, upar, tpar, tperp, qparflux, pperpj1, qpperpj1)
     end if
     
     deallocate (ntot, density, upar, tpar, tperp, qparflux, pperpj1, qpperpj1)
@@ -365,7 +373,7 @@ contains
     use mp, only: proc0
     use kt_grids, only: ntheta0, naky, theta0, aky
     use theta_grid, only: theta, ntgrid
-    use gs2_io, only: nc_final_an
+    ! use gs2_io, only: nc_final_an
     use dist_fn, only: getan
     use diagnostics_config, only: diagnostics_type
     implicit none
@@ -399,9 +407,13 @@ contains
        end if
        
        !Do netcdf output
-       call nc_final_an (antot, antota, antotp)
+       ! Commented out as this attempts to use the _old_ i/o routines to
+       ! save the data to netcdf, but this won't be initialised when
+       ! using the new diagnostics. Not deleted as we need to implement
+       ! this in the new diagnostics.
+       ! call nc_final_an (antot, antota, antotp)
     end if
-    
+
     deallocate (antot, antota, antotp)
   end subroutine do_write_final_antot
 
