@@ -52,8 +52,8 @@ module hyper
      logical :: const_amp = .false.
      !> If `hyper_option = 'both'` is used then this sets both the
      !> hyperresistivity and hyperviscosity damping coefficients. Can
-     !> override the individual coefficients with [[D_hyperres]] and
-     !> [[D_hypervisc]].
+     !> override the individual coefficients with
+     !> [[hyper_knobs:D_hyperres]] and [[hyper_knobs:D_hypervisc]].
      real :: d_hyper = -10.0
      !> Sets hyperresistivity parameter multiplying damping term.
      real :: d_hyperres = -10.0

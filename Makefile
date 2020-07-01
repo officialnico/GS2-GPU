@@ -159,7 +159,7 @@ ARCHFLAGS 	= cr
 RANLIB		= ranlib
 AWK 		= awk
 PERL		= perl
-FORD           ?= ford
+FORD           ?= $(GK_HEAD_DIR)/scripts/ford_interceptor.py
 MKDIR           = mkdir -p
 
 MPI_INC	?=
@@ -1042,7 +1042,7 @@ namelist_doc: check_ford_install
 .PHONY: clean_namelist_doc
 clean_namelist_doc:
 	$(call messageRm,"Generated namelist documentation")
-	-$(QUIETSYM)rm -f docs/pages/namelists/auto_generated_* docs/pages/namelists/index.md
+	-$(QUIETSYM)rm -f docs/page/namelists/auto_generated_* docs/page/namelists/index.md
 
 docs/html:
 doc: docs/docs.config.md namelist_doc  check_ford_install
