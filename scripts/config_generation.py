@@ -412,11 +412,11 @@ class config():
         row_cell = "<td>\n\n{val}\n\n</td>"
         full_row = "\n".join([row_cell.format(val="{nm}"), row_cell.format(val="{ty}"), row_cell.format(val="{de}"), row_cell.format(val="{co}")])
 
-        name_link = "[{nm}](./index.html#{nml}-{nm})"
+        name_link = "[{name}](./index.html#{namelist}-{name})"
         for var in self.varList:
             st.append('<tr id="{}-{}">'.format(self.namelistName, var.name))
             st.append(full_row.format(nm =
-                                      name_link.format(nml = self.namelistName, nm = var.name),
+                                      name_link.format(namelist = self.namelistName, name = var.name),
                                       ty = var.typ, de = var.default.split("!")[0], co = "\n".join(var.comment)))
             st.append("</tr>")
 
