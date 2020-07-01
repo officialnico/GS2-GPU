@@ -150,8 +150,16 @@ module gs2_init
   !> Used to represent the input configuration of init
   type, extends(abstract_config_type) :: init_config_type
      ! namelist : init_knobs
-     ! indexed : false    
-     !> FIXME: Add documentation
+     ! indexed : false
+     !> If `true` then when changing the timestep attempt to keep a
+     !> copy of the current fields and distribution function in memory
+     !> rather than dumping to disk. This should fall back to a disk
+     !> based method if there is insufficient memory. Currently both
+     !> this value and the value of `in_memory` in [[reinit_knobs]]
+     !> must be set to `true` in order to enable this feature.
+     !>
+     !> @todo Consider if this can be removed and just the
+     !> [[reinit_knobs]] version controls the feature.
      logical :: in_memory = .false.
    contains
      procedure, public :: read => read_init_config
@@ -254,10 +262,17 @@ contains
       end if
     end if
 
-    if (current%initval_ov%force_maxwell_reinit)then
+    ! Do not use the value from state%init%initval_ov%force_maxwell_reinit = current%initval_ov%force_maxwell_reinit as follows:
+    !     if (current%initval_ov%force_maxwell_reinit)then
+    ! as was done previously because, when restarting a run, this part of the overrides system has not been initialised with the
+    ! value from the input file yet. As a result, the above condition is always true, even if the restart file has
+    ! force_maxwell_reinit = .false.! (For a reinitialisation due to a timestep change, this part of the override system would be
+    ! set up correctly and the above condition would respect the value in the input file.) Unfortunately, because of the way the
+    ! state object and the overrides system is set up, it is not possible to have this value correctly initialised from the input
+    ! file by this point in a restarted run. Therefore, use the input file value directly to ensure we respect the value in the
+    ! input file at the start of restarted runs.
+    if (force_maxwell_reinit)then
       call set_init_fields
-      !if (.not. proc0) write (*,*) 'field value jjjj kkkk', phinew(-5, 3, 2), job_id
-      !if (.not. proc0) write (*,*) 'field value sum jjjj kkkk', sum(real(conjg(phinew)*phinew)), job_id
     else
 
        if(current%initval_ov%override .and. current%initval_ov%in_memory) then

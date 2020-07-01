@@ -37,14 +37,13 @@ contains
     use constants, only: pi => dpi
     use gauss_quad, only: get_legendre_grids_from_cheb, get_laguerre_grids
     use species, only: nspec, spec, f0_sdanalytic, f0_maxwellian, calculate_f0_arrays, f0_values
-    use mp, only: proc0
 
     implicit none
     integer, intent (in) :: negrid
     real, intent (in) :: vcut_in
     integer, intent (in) :: nesub_in
     real, dimension(:,:), intent (out) :: epts, wgts
-    integer:: nesub, is, ie
+    integer:: nesub, is
     real:: vcut
 
     call init_egrid (negrid)
@@ -94,17 +93,10 @@ contains
     zeroes(:,:) = sqrt(epts(:negrid-1,:))
     x0(:) = sqrt(epts(negrid,:))
 
-    !do is = 1,nspec
-    !do ie = 1,negrid
-    !if (proc0) write(*,*) is, ie, epts(ie,is),wgts(ie,is),f0_values(ie,is)
-    !end do
-    !end do
-
   end subroutine setvgrid
 
   !> FIXME : Add documentation  
   subroutine setvgrid_genquad (negrid, epts, wgts, nesub)
-    use mp, only: proc0, mp_abort, iproc
     use genquad, only: get_quadrature_rule
     use constants, only: pi => dpi
     use gauss_quad, only: get_legendre_grids_from_cheb, get_laguerre_grids
@@ -146,12 +138,6 @@ contains
 
     call calculate_f0_arrays(epts)
 
-    !do is = 1,nspec
-    !do ie = 1,negrid
-    !if (proc0) write(*,*) is, ie, epts(ie,is),wgts(ie,is),f0_values(ie,is)
-    !end do
-    !end do
-    
     zeroes(:,:) = sqrt(epts(:negrid-1,:))
     x0(:) = sqrt(epts(negrid,:))
 
@@ -284,38 +270,77 @@ module le_grids
   !> Used to represent the input configuration of le_grids
   type, extends(abstract_config_type) :: le_grids_config_type
      ! namelist : le_grids_knobs
-     !> FIXME: Add documentation
+     ! indexed : false
+     !> Acts as a small tolerance in deciding if a particular pitch
+     !> angle is forbidden at a particular theta grid point. Rather
+     !> than considering particles to be forbidden if `1.0 - lambda *
+     !> B(theta) < 0` we treat them as forbidden if `1.0 - lambda *
+     !> B(theta) < -bouncefuzz`. This provides a small "buffer" to
+     !> account for floating round off in the calculation of `lambda`
+     !> and `B`.
      real :: bouncefuzz = 1e-5
-     !> FIXME: Add documentation
+     !> If true use generalised quadrature scheme for velocity
+     !> integrals and energy grid. See [G. Wilkie
+     !> thesis](https://drum.lib.umd.edu/handle/1903/17302).
      logical :: genquad = .false.
-     !> FIXME: Add documentation
+     !> Sets the number of energy grid points to use. If specified
+     !> then overrides values of `nesuper = min(negrid/10 + 1,
+     !> 4)` and `nesub = negrid - nesuper`. If not set then the total
+     !> number of energy grid points is just `negrid = nesub +
+     !> nesuper`. The energy grid is split into two regions at a point
+     !> controlled by `vcut`.
      integer :: negrid = -10
-     !> FIXME: Add documentation
+     !> Sets the number of energy grid points below the cutoff.
      integer :: nesub = 8
-     !> FIXME: Add documentation
+     !> Sets the number of energy grid points above the cutoff.
      integer :: nesuper = 2
-     !> FIXME: Add documentation
+     !> If `true` then use a more accurate integration method for the
+     !> trapped pitch angle contribution to velocity integrals. The
+     !> default uses a simple, but potentially less accurate, finite
+     !> difference method.
      logical :: new_trap_int = .false.
-     !> FIXME: Add documentation
+     !> The number of untrapped pitch-angles moving in one direction
+     !> along field line is `2*ngauss`. Note that the number of
+     !> trapped pitch angles is directly related to the number of
+     !> theta grid points (per \(2\pi\)) and is `ntheta/2 + 1`.
      integer :: ngauss = 5
-     !> FIXME: Add documentation
+     !> Influences the minimum number of grid points in an integration
+     !> subinterval used in calculating the integration grid weights.
      integer :: nmax = 500
-     !> FIXME: Add documentation
+     !> The number of nodes used in calculating lagrange coefficients
+     !> is `2*nterp-1`.  This code isn't currently used in GS2 so this
+     !> input should not influence anything significant.
      integer :: nterp = 100
-     !> The default lambda grid is now gauss-radau, for passing particles up to
-     !> and including the passing-trapped boundary (wfb). The grid gives finite weight to
-     !> the class of particles which bounce at theta = +/- pi (wfb) in the passing integral
-     !> Note that the old gauss-legendre is used in the case that trapped_particles =.false.
-     !> @note In reference to above note - code doesn't seem to change radau_gauss_grid when
+     !> The default lambda grid is now gauss-radau, for passing
+     !> particles up to and including the passing-trapped boundary
+     !> (wfb). The grid gives finite weight to the class of particles
+     !> which bounce at theta = +/- pi (wfb) in the passing integral
+     !> Note that the old gauss-legendre is used in the case that
+     !> trapped_particles =.false.
+     !>
+     !> @note In reference to above comment -
+     !> code doesn't seem to change radau_gauss_grid when
      !> trapped_particles is false, should it?
-     logical :: radau_gauss_grid = .true. ! default lambda grid changed
-     !> FIXME: Add documentation
-     logical :: test = .false. !Seems quite specialist -- do we really want this as an input?
-     !> FIXME: Add documentation
+     logical :: radau_gauss_grid = .true.
+     !> If `true` then just does a few tests and writes pitch angle
+     !> and energy grids to screen before aborting the simulation.
+     logical :: test = .false.
+     !> If set to `false` then the lambda grid weighting `wl` is set
+     !> to zero for trapped pitch angles. This means that integrals
+     !> over velocity space do not include a contribution from trapped
+     !> particles which is equivalent to the situation where
+     !> `eps<=0.0`.  Trapped particle drifts are not set to zero so
+     !> "trapped" particles still enter the source term through
+     !> `wdfac`. At least for s-alpha the drifts are the main
+     !> difference (*please correct if not true*) between the
+     !> `eps<=0.0` and the `trapped_particles = .false.` cases as
+     !> `Bmag` is not a function of theta in the `eps<=0.0` case
+     !> whilst it is in the `trapped_particles = .false.` case.
      logical :: trapped_particles = .true.
-     !> FIXME: Add documentation
+     !> No. of standard deviations from the standard Maxwellian beyond
+     !> which the distribution function will be set to 0.
      real :: vcut = 2.5
-     !> FIXME: Add documentation
+     !> Influences the maximum integration weight allowed.
      real :: wgt_fac = 10.0
    contains
      procedure, public :: read => read_le_grids_config
@@ -4007,10 +4032,9 @@ contains
     if (allocated(recvcnts_intspec)) deallocate (recvcnts_intspec)
     if (allocated(displs_intspec)) deallocate (displs_intspec)
 
-    deallocate(nonmaxw_corr)
-    deallocate(f0_values)
-    deallocate(dlnf0drho)
-
+    if (allocated(nonmaxw_corr)) deallocate(nonmaxw_corr)
+    if (allocated(f0_values)) deallocate(f0_values)
+    if (allocated(dlnf0drho)) deallocate(dlnf0drho)
 
     !Deallocate redistribute maps
     call delete_redist(lambda_map)
