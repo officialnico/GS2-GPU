@@ -1341,8 +1341,13 @@ module kt_grids_box
      !> during geometry setup.
      integer :: n0 = 0
      !> The actual number of ky modes. For nonlinear runs it is
-     !> recommended to use `ny` instead. If set to 0 (the default)
-     !> this will be automatically set to `1 + (ny-1)/3`.
+     !> generally recommended to use `ny` instead. If set to 0 (the
+     !> default) this will be automatically set to `1 + (ny-1)/3`.  If
+     !> both `ny` and `naky` are set then GS2 will check that `ny`
+     !> is sufficiently high to ensure de-aliasing. It can be larger
+     !> than this minimum value. Setting both values can be useful to
+     !> allow values to be selected which are performant for the FFTs
+     !> and provide a good range of sweetspots.
      integer :: naky = 0
      !> FIXME: Add documentation
      !>
@@ -1352,8 +1357,13 @@ module kt_grids_box
      !> @todo Consider for removal.
      integer :: nkpolar = 0
      !> The actual number of theta0 modes. For nonlinear runs it is
-     !> recommended to use `nx` instead. If set to 0 (the default)
-     !> this will be automatically set to `1 + 2*(nx-1)/3`.
+     !> generally recommended to use `nx` instead. If set to 0 (the
+     !> default) this will be automatically set to `1 + 2*(nx-1)/3`.
+     !> If both `nx` and `ntheta0` are set then GS2 will check that
+     !> `nx` is sufficiently high to ensure de-aliasing. It can be
+     !> larger than this minimum value. Setting both values can be
+     !> useful to allow values to be selected which are performant for
+     !> the FFTs and provide a good range of sweetspots.
      integer :: ntheta0 = 0
      !> The number of kx points in inputs to the fft routines, and
      !> hence the number of radial points used in real space
