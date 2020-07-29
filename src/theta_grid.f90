@@ -1158,7 +1158,8 @@ contains
 
     write(ntheta_char, "(I4)") ntheta
      call debug_message(verb, "init_theta_grid_eik: call read_parameters, ntheta="//ntheta_char)
-    call read_parameters
+
+     call read_parameters
 !CMR replace call init_theta(ntheta) with following condition 
 !    to avoid inappropriate calls to init_theta (as in geo/et.f90)
     if(.not. gen_eq .and. .not. ppl_eq .and. &
@@ -1168,6 +1169,7 @@ contains
        call init_theta (ntheta)
     endif
 !CMRend
+
     nperiod_geo = nperiod 
     rhoc_save = rhoc
     if (itor == 0) rhoc = 1.5*delrho
