@@ -420,7 +420,7 @@ contains
     real :: s_hat, dp, di, pressure, tmp, rbar
 
     character(1) :: char
-    integer :: i, j, k, itot, nthg, n
+    integer :: i, j, k, itot, n
     integer :: fort25_unit !For outputting geom values
     integer :: fort78_unit !For outputting geom values
     integer :: fort99_unit !For outputting geom values
@@ -497,25 +497,23 @@ if (debug) write(6,*) "eikcoefs: iflux=",iflux, 'chs_eq=', chs_eq, 'jid=',job_id
        case (1, 10)
           if (gs2d_eq) efit_eq = .true.
           if(gen_eq) then
-             call eqin(eqfile, psi_0, psi_a, rmaj, B_T0, avgrmid, eqinit, in_nt, nthg)
+             call eqin(eqfile, psi_0, psi_a, rmaj, B_T0, avgrmid, eqinit, in_nt, ntheta_input)
           else if(transp_eq) then
 if (debug) write(6,fmt='("eikcoefs: transp_eq, eqfile=",a)') eqfile, 'jid=',job_id
 
              ppl_eq = .true.
-             call teqin(eqfile, psi_0, psi_a, rmaj, B_T0, avgrmid, eqinit, in_nt, nthg)
+             call teqin(eqfile, psi_0, psi_a, rmaj, B_T0, avgrmid, eqinit, in_nt, ntheta_input)
 if (debug) write(6,*) 'eikcoefs: transp_eq, called teqin'
-if (debug) write(6,fmt='("eikcoefs: teqin returns",1p,5e10.2,i6,l2,i6)') psi_0, psi_a, rmaj, B_T0, avgrmid, eqinit, in_nt, nthg
+if (debug) write(6,fmt='("eikcoefs: teqin returns",1p,5e10.2,i6,l2,i6)') psi_0, psi_a, rmaj, B_T0, avgrmid, eqinit, in_nt, ntheta_input
 if (debug) write(6,*) 'eikcoefs: transp_eq, called tdef'
 !CMRend
           else if(ppl_eq) then
-             call peqin(eqfile, psi_0, psi_a, rmaj, B_T0, avgrmid, eqinit, in_nt, nthg)
+             call peqin(eqfile, psi_0, psi_a, rmaj, B_T0, avgrmid, eqinit, in_nt, ntheta_input)
           else if(chs_eq) then
-             call ceqin(eqfile, psi_0, psi_a, rmaj, B_T0, avgrmid, eqinit, in_nt, nthg)
+             call ceqin(eqfile, psi_0, psi_a, rmaj, B_T0, avgrmid, eqinit, in_nt, ntheta_input)
    !if (debug) write (*,*) 
           else if(efit_eq) then
              if(big <= 0) big = 8
-
-             call init_uniform_theta_grid(ntheta_input)
 
              if(gs2d_eq) then
 if (debug) write(6,*) "eikcoefs: call gs2din eqfile=",eqfile
@@ -536,10 +534,7 @@ if (debug) write(6,*) "eikcoefs: call efitin eqfile=",eqfile, "eqinit =", eqinit
 if (debug) write(6,*) 'eikcoefs: iflux=',iflux
           if(iflux == 10) return
 
-          if (.not. efit_eq) then
-            call init_uniform_theta_grid(nthg)
-            ntheta_input = ntheta
-          end if
+          call init_uniform_theta_grid(ntheta_input)
 
 if (debug) write(6,*) 'eikcoefs: alloc_module_arrays, ntgrid=',ntgrid
           if(.not.allocated(gds22)) call alloc_module_arrays(ntgrid)
@@ -3012,15 +3007,18 @@ if (debug) write(6,*) "eikcoefs: end gradients"
   !> points. Also set [[geometry:nth]], [[geometry:ntheta]] and [[geometry::ntgrid]]
   !> consistently; importantly [[geometry:nth]] is forced to be even. If `nt` is odd, then
   !> `nth == nt - 1`.
+  !>
+  !> `nt` is set equal to [[geometry:ntheta]] on exit
   subroutine init_uniform_theta_grid(nt)
     use constants, only: pi
     implicit none
-    integer, intent(in) :: nt
+    integer, intent(inout) :: nt
     integer :: i
 
     nth = nt / 2
     ! Make sure ntheta is even
     ntheta = nth * 2
+    nt = ntheta
     ntgrid = (2*nperiod - 1)*nth
 
     if (verb>3) write(6,*) "init_theta: allocated(theta),ntgrid,nt,nperiod=",&
