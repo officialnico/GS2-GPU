@@ -1533,7 +1533,7 @@ contains
           if (proc0) write (error_unit(), '("INFO: ny (",I0,") and naky (",I0,") set with excess padding (",I0,".)")') ny, naky, ny - ((naky - 1)*  3 + 1)
        else if (naky > (ny-1)/3 + 1) then ! Insufficient padding
           if (proc0) write (error_unit(), '("ERROR: ny (",I0,") and naky (",I0,") set with insufficient padding (",I0,").")') ny, naky, ny - ((naky - 1)*  3 + 1)
-          call mp_abort("ERROR: naky and ny both set resulting in insufficient padding.")
+          call mp_abort("ERROR: naky and ny both set resulting in insufficient padding.", .true.)
        end if
     end if
 
@@ -1548,7 +1548,7 @@ contains
           if (proc0) write (error_unit(), '("INFO: nx (",I0,") and ntheta0 (",I0,") set with excess padding (",I0,".)")') nx, ntheta0, nx - (((ntheta0 - 1) /  2) * 3 + 1)
        else if (ntheta0 > 2*((nx-1)/3) + 1) then ! Insufficient padding
           if (proc0) write (error_unit(), '("ERROR: nx (",I0,") and ntheta0 (",I0,") set with insufficient padding (",I0,").")') nx, ntheta0, nx - (((ntheta0 - 1) /  2) * 3 + 1)
-          call mp_abort("ERROR: ntheta0 and nx both set resulting in insufficient padding.")
+          call mp_abort("ERROR: ntheta0 and nx both set resulting in insufficient padding.", .true.)
        end if
     end if
 
