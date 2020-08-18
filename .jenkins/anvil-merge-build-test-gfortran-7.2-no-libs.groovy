@@ -131,7 +131,7 @@ command = "set +x; curl -X POST -H 'Content-Type: application/json' -d '${payloa
         	sh '''
 			git config --global user.email "joseph.parker@stfc.ac.uk"
 			git config --global user.name "Joseph Parker"
-           		git submodule update --init --recursive --remote
+           		git submodule update --init --recursive
 		'''
     	}
 
