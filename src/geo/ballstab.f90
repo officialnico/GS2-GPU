@@ -414,6 +414,7 @@ contains
   !> Test if given shat/beta is unstable
   subroutine check_stability(shat_in, beta_prime_in, ib, iunstable, restore)
     !Note iunstable>0 means unstable - Could use a logical but size may be interesting
+    use theta_grid_params, only: ntheta
     use geometry, only: dbetadrho, eikcoefs
     implicit none
     real, intent(in) :: shat_in, beta_prime_in
@@ -432,7 +433,7 @@ contains
     !physical parameter dbetadrho should really be the relevant parameter.
     call set_beta_prime(beta_prime_in)
     call set_shat(shat_in)
-    call eikcoefs !Recalculate geometry terms
+    call eikcoefs(ntheta) !Recalculate geometry terms
 
     !Here we store the value of dbetadrho, this should be bishop value independent
     dbdrho_arr(ib)=dbetadrho
@@ -445,7 +446,7 @@ contains
        if(restore) then
           call set_beta_prime(beta_prime_bak)
           call set_shat(shat_bak)
-          call eikcoefs
+          call eikcoefs(ntheta)
        endif
     endif
   end subroutine check_stability

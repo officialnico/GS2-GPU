@@ -1598,7 +1598,7 @@ contains
 
   !> FIXME : Add documentation  
   subroutine init_theta_grid_eik(theta_grid_eik_config_in)
-    use geometry, only: init_theta, nperiod_geo => nperiod
+    use geometry, only: nperiod_geo => nperiod
     use geometry, only: eikcoefs, itor, delrho, rhoc
     use geometry, only: gen_eq, ppl_eq, transp_eq, chs_eq
     use geometry, only: debug_geo => debug, verb_geo => verb
@@ -1637,15 +1637,7 @@ contains
     write(ntheta_char, "(I4)") ntheta
      call debug_message(verb, "init_theta_grid_eik: call read_parameters, ntheta="//ntheta_char)
     call read_parameters(theta_grid_eik_config_in)
-!CMR replace call init_theta(ntheta) with following condition 
-!    to avoid inappropriate calls to init_theta (as in geo/et.f90)
-    if(.not. gen_eq .and. .not. ppl_eq .and. &
-       .not. transp_eq .and. .not. chs_eq) then 
-    write(ntheta_char, "(I4)") ntheta
-     call debug_message(verb, "init_theta_grid_eik: call init_theta, ntheta="//ntheta_char)
-       call init_theta (ntheta)
-    endif
-!CMRend
+
     nperiod_geo = nperiod 
     rhoc_save = rhoc
     if (itor == 0) rhoc = 1.5*delrho

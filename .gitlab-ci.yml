@@ -116,6 +116,8 @@ pages:
     - make ${EXTRA_BUILD_FLAGS} doc
     - mv docs/html ./public
     - BUILD_STATUS=passed  BUILD_KEY=push ./.push_gitlab_build_status ${CASENAME}
+  after_script:
+    - echo "Website created and pushed, it may take a while before the changes are reflected."
   artifacts:
     paths:
       - public
