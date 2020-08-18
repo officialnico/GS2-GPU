@@ -24,7 +24,7 @@ subroutine geometry_set_inputs(equilibrium_type,&
                                bishop_in, &
                                nperiod_in, &
                                ntheta)
-  use geometry, only: rhoc, nperiod, eqfile, irho, iflux, local_eq, gen_eq, init_theta
+  use geometry, only: rhoc, nperiod, eqfile, irho, iflux, local_eq, gen_eq
   use geometry, only: ppl_eq, transp_eq, chs_eq, efit_eq, equal_arc, bishop
   use geometry, only: dp_mult, delrho, rmin, rmax, isym, in_nt, writelots, itor
   use geometry, only: verb
@@ -74,7 +74,6 @@ subroutine geometry_set_inputs(equilibrium_type,&
     local_eq = .true.
     iflux = 0
     bishop = 4
-    call init_theta(ntheta)
   case (2)  ! EFIT
     efit_eq = .true.
   case (3)  ! CHEASE
@@ -233,16 +232,16 @@ end subroutine geometry_vary_s_alpha
 
 !> FIXME : Add documentation
 subroutine geometry_calculate_coefficients(grid_size)
+  use theta_grid_params, only: ntheta
   use geometry, only: eikcoefs, nperiod, equal_arc
   implicit none
   integer, intent(out) :: grid_size
-  integer :: ntheta_out
   ! We calculate the equal_arc grids manually,
   ! and override equal_arc = .false.
   equal_arc = .false.
-  call eikcoefs(ntheta_out)
-  write (*,*) 'ntheta out is ', ntheta_out
-  grid_size = (2*nperiod - 1)*ntheta_out + 1 ! = 2*ntgrid + 1
+  call eikcoefs(ntheta)
+  write (*,*) 'ntheta out is ', ntheta
+  grid_size = (2*nperiod - 1)*ntheta + 1 ! = 2*ntgrid + 1
   write (*,*) 'grid_size out is ', grid_size
 end subroutine geometry_calculate_coefficients
 
