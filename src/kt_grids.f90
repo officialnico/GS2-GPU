@@ -1551,7 +1551,7 @@ contains
           if (proc0) then
              write (error_unit(), '("ERROR: ny (",I0,") and naky (",I0,") have been set by the user.")') ny, naky
              write (error_unit(), '("       but these values lead to insufficient padding (",I0,") for the FFTS.")') ny - ((naky - 1)*  3 + 1)
-             write (error_unit(), '("       The zero-padding must satisfy the two thirds rule, which requires naky <= (ny-1)/3 + 1.")')
+             write (error_unit(), '("       The zero-padding must satisfy the one thirds rule to avoid aliasing, which requires naky <= (ny-1)/3 + 1.")')
              write (error_unit(), '("  Please do one of the following:")')
              write (error_unit(), '("       1. Increase ny or decrease naky to ensure naky <= (ny-1)/3 + 1")')
              write (error_unit(), '("       2. Set just one of ny and naky, GS2 will then set the other appropriately.")')
@@ -1580,7 +1580,7 @@ contains
           if (proc0) then
              write (error_unit(), '("ERROR: nx (",I0,") and ntheta0 (",I0,") have been set by the user.")') nx, ntheta0
              write (error_unit(), '("       but these values lead to insufficient padding (",I0,") for the FFTS.")') nx - (((ntheta0 - 1) /  2) * 3 + 1)
-             write (error_unit(), '("       The zero-padding must satisfy the two thirds rule, which requires ntheta0 <= 2*((nx-1)/3)+1.")')
+             write (error_unit(), '("       The zero-padding must satisfy the two thirds rule to avoid aliasing, which requires ntheta0 <= 2*((nx-1)/3)+1.")')
              write (error_unit(), '("  Please do one of the following:")')
              write (error_unit(), '("       1. Increase nx or decrease ntheta0 to ensure ntheta0 <= 2*((nx-1)/3)+1")')
              write (error_unit(), '("       2. Set just one of nx and ntheta0, GS2 will then set the other appropriately.")')
