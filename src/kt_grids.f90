@@ -1540,10 +1540,24 @@ contains
        ! If both naky and ny are set then check that the resulting padding is at least
        ! as much as required for dealiasing
        if (naky < (ny-1)/3 + 1) then ! Excess padding
-          if (proc0) write (error_unit(), '("INFO: ny (",I0,") and naky (",I0,") set with excess padding (",I0,".)")') ny, naky, ny - ((naky - 1)*  3 + 1)
+          if (proc0) then
+             write (error_unit(), '("INFO: Both ny (",I0,") and naky (",I0,") have been set by the user.")') ny, naky
+             write (error_unit(), '("      these values lead to excess padding (",I0,".) for the FFTs.")') ny - ((naky - 1)*  3 + 1)
+             write (error_unit(), '("      This may be desirable if the values chosen increase the number of parallelization sweetspots,")')
+             write (error_unit(), '("      but this also makes the resolution in ny larger than is strictly necessary.")')
+          end if
+
        else if (naky > (ny-1)/3 + 1) then ! Insufficient padding
-          if (proc0) write (error_unit(), '("ERROR: ny (",I0,") and naky (",I0,") set with insufficient padding (",I0,").")') ny, naky, ny - ((naky - 1)*  3 + 1)
-          call mp_abort("ERROR: naky and ny both set resulting in insufficient padding.", .true.)
+          if (proc0) then
+             write (error_unit(), '("ERROR: ny (",I0,") and naky (",I0,") have been set by the user.")') ny, naky
+             write (error_unit(), '("       but these values lead to insufficient padding (",I0,") for the FFTS.")') ny - ((naky - 1)*  3 + 1)
+             write (error_unit(), '("       The zero-padding must satisfy the two thirds rule, which requires naky <= (ny-1)/3 + 1.")')
+             write (error_unit(), '("  Please do one of the following:")')
+             write (error_unit(), '("       1. Increase ny or decrease naky to ensure naky <= (ny-1)/3 + 1")')
+             write (error_unit(), '("       2. Set just one of ny and naky, GS2 will then set the other appropriately.")')
+          end if
+
+          call mp_abort("ERROR: naky and ny both set resulting in insufficient padding. See error file for more details.", .true.)
        end if
     end if
 
@@ -1555,10 +1569,24 @@ contains
        ! If both ntheta0 and nx are set then check that the resulting padding is at least
        ! as much as required for dealiasing
        if (ntheta0 < 2*((nx-1)/3) + 1) then ! Excess padding
-          if (proc0) write (error_unit(), '("INFO: nx (",I0,") and ntheta0 (",I0,") set with excess padding (",I0,".)")') nx, ntheta0, nx - (((ntheta0 - 1) /  2) * 3 + 1)
+          if (proc0) then
+             write (error_unit(), '("INFO: Both nx (",I0,") and ntheta0 (",I0,") have been set by the user.")') nx, ntheta0
+             write (error_unit(), '("      these values lead to excess padding (",I0,".) for the FFTs.")') nx - (((ntheta0 - 1) /  2) * 3 + 1)
+             write (error_unit(), '("      This may be desirable if the values chosen increase the number of parallelization sweetspots,")')
+             write (error_unit(), '("      but this also makes the resolution in ny larger than is strictly necessary.")')
+          end if
+
        else if (ntheta0 > 2*((nx-1)/3) + 1) then ! Insufficient padding
-          if (proc0) write (error_unit(), '("ERROR: nx (",I0,") and ntheta0 (",I0,") set with insufficient padding (",I0,").")') nx, ntheta0, nx - (((ntheta0 - 1) /  2) * 3 + 1)
-          call mp_abort("ERROR: ntheta0 and nx both set resulting in insufficient padding.", .true.)
+          if (proc0) then
+             write (error_unit(), '("ERROR: nx (",I0,") and ntheta0 (",I0,") have been set by the user.")') nx, ntheta0
+             write (error_unit(), '("       but these values lead to insufficient padding (",I0,") for the FFTS.")') nx - (((ntheta0 - 1) /  2) * 3 + 1)
+             write (error_unit(), '("       The zero-padding must satisfy the two thirds rule, which requires ntheta0 <= 2*((nx-1)/3)+1.")')
+             write (error_unit(), '("  Please do one of the following:")')
+             write (error_unit(), '("       1. Increase nx or decrease ntheta0 to ensure ntheta0 <= 2*((nx-1)/3)+1")')
+             write (error_unit(), '("       2. Set just one of nx and ntheta0, GS2 will then set the other appropriately.")')
+          end if
+
+          call mp_abort("ERROR: ntheta0 and nx both set resulting in insufficient padding. See error file for more details.", .true.)
        end if
     end if
 
