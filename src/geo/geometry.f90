@@ -132,9 +132,6 @@
 !!  Use: 
 !! Include this module, set input variables appropriately and call eikcoefs.  
 !!
-!! NOTE: If gen_eq and ppl_eq are false, you should call init_theta
-!!       before eikcoefs to set the number of theta gridpoints per 2 pi.
-!!
 !! I do not recommend calling other routines, but a few are available for 
 !! diagnostic purposes.  
 !!  
@@ -145,7 +142,7 @@ module geometry
   private
 
   public :: beta_a_fun, eikcoefs, geofax, iofrho, pbarofrho, bi_out
-  public :: qfun, rpofrho, rcenter, init_theta, nth_get, f_trap  !procedures
+  public :: qfun, rpofrho, rcenter, nth_get, f_trap  !procedures
   public :: psi, cvdrift, theta, dvdrhon, surfarea
   public :: nperiod, eqfile, irho, iflux, local_eq, gen_eq
   public :: ppl_eq, transp_eq, chs_eq, efit_eq, equal_arc, bishop
@@ -169,7 +166,11 @@ module geometry
   public :: qinp, s_hat_input
   public :: Rpos
 
-  real, allocatable, dimension(:) :: grho, theta, bmag, gradpar, &
+  !> The theta grid of the results. The final grid has
+  !> $$\pi - 2 \pi \mathrm{nperiod} \leq \theta \leq 2 \pi \mathrm{nperiod} - \pi$$
+  real, allocatable, dimension(:) :: theta
+
+  real, allocatable, dimension(:) :: grho, bmag, gradpar, &
        cvdrift, cvdrift0, gbdrift, gbdrift0, gds2, gds21, gds22, jacob, &
        Rplot, Zplot, Rprime, Zprime, aplot, aprime, Uk1, Uk2, &
        cdrift, cdrift0, gds23, gds24, gds24_noq, gbdrift_th, cvdrift_th, Bpol ! MAB
@@ -217,7 +218,19 @@ module geometry
 
   integer :: bishop
 
-  integer :: ntgrid, nth, ntheta
+  !> The single-period theta domain "half-grid" size. That is, the number of points in
+  !> \((0, \pi]\). `theta(-nth:nth)` is the single central period \([-\pi, \pi]\).  For
+  !> EFIT and local equilbria, this is set from
+  !> [[theta_grid_parameters_config_type:ntheta]]; for all other numerical equilbria, it
+  !> is determined by the data file. Always even.
+  integer :: nth
+  !> The full theta domain "half-grid" size. That is, the total size of the
+  !> [[geometry:theta]] grid is `(2 * ntgrid) + 1`, with array bounds
+  !> `theta(-ntgrid:ntgrid)`. Equal to `(2*nperiod - 1)*nth`
+  integer :: ntgrid
+  !> Equal to `2 * nth`
+  !> FIXME: Remove and replace uses with calls to [[periodic_copy]]
+  integer :: ntheta
 
   integer :: verb = 2 ! Verbosity of print statements | Should we use runtime_tests:verbosity?
   ! EGH debug now set by verb, which (in GS2) is set in theta_grid
@@ -351,7 +364,7 @@ module geometry
 contains
   
   !> FIXME : Add documentation    
-  subroutine eikcoefs (ntheta_returned)
+  subroutine eikcoefs (ntheta_input)
     use  geq, only: eqin, geq_init
     ! CHEASE EQUILIBRIUM  EGH
     use  ceq, only: ceqin, ceq_init 
@@ -366,7 +379,12 @@ contains
     use file_utils, only: futils_initialized => initialized, init_file_utils
     use file_utils, only: finish_file_utils
     implicit none
-    integer, optional, intent (out) :: ntheta_returned
+    !> For most numerical equilibria, **returns** the value of [[geometry:nth]];
+    !> for EFIT and local equilibria, instead **sets** [[geometry:nth]].
+    !>
+    !> If setting [[geometry:nth]], then even values are used directly, while odd values
+    !> set `nth = ntheta_input - 1`
+    integer, intent (inout) :: ntheta_input
     logical :: start_file_utils, dummy
 
 ! Local variables:
@@ -402,7 +420,7 @@ contains
     real :: s_hat, dp, di, pressure, tmp, rbar
 
     character(1) :: char
-    integer :: i, j, k, itot, nthg, n
+    integer :: i, j, k, itot, n
     integer :: fort25_unit !For outputting geom values
     integer :: fort78_unit !For outputting geom values
     integer :: fort99_unit !For outputting geom values
@@ -455,32 +473,19 @@ if (debug) write(6,*) "eikcoefs: call check", 'jid=',job_id
     call check(gen_eq, efit_eq, ppl_eq, &
          local_eq, dfit_eq, idfit_eq, chs_eq) 
 
-if (debug) write(6,*) "eikcoefs: allocated(theta)", allocated(theta), 'jid=',job_id
-
-    if(.not. gen_eq .and. .not. ppl_eq &
-    .and. .not. transp_eq .and. .not. chs_eq &
-         .and. .not. allocated(theta)) then
-       write(*,*) 'You should call init_theta to specify the '
-       write(*,*) 'number of theta grid points per 2 pi '
-       write(*,*) 'before calling eikcoefs.'
-       write(*,*) 
-       write(*,*) 'Proceeding with ntheta = 32.'
-       ntheta = 32
-       call init_theta(ntheta)
-    endif
-
 thetaShift = 0.0
 bMaxShift = .true. ! limits the initialization routine to run no more than twice
 do while (bMaxShift)
 
     if(iflux /= 1 .and. iflux /= 10) then
 
+      call init_uniform_theta_grid(ntheta_input)
+
        if (verb>3) write (*,*) 'Starting leqin, ntheta = ', ntheta, ntgrid
 
        call leqin(geoType, rmaj, R_geo, rhoc, delrho, aSurf, shift, shiftVert, mMode, nMode, deltam, deltan, deltampri, deltanpri, &
             thetam, thetan, qinp, s_hat_input, ntgrid, thetaShift)
        if(.not.allocated(gds22)) call alloc_module_arrays(ntgrid)
-       if(present(ntheta_returned)) ntheta_returned = ntheta
        if(.not.allocated(smodel)) call alloc_local_arrays(ntgrid)
     endif
 
@@ -492,41 +497,20 @@ if (debug) write(6,*) "eikcoefs: iflux=",iflux, 'chs_eq=', chs_eq, 'jid=',job_id
        case (1, 10)
           if (gs2d_eq) efit_eq = .true.
           if(gen_eq) then
-             call eqin(eqfile, psi_0, psi_a, rmaj, B_T0, avgrmid, eqinit, in_nt, nthg)
-             if(present(ntheta_returned)) then
-                call tdef(nthg, ntheta_returned)
-             else
-                call tdef(nthg)
-             endif
-!CMR+SSAAR: moved following if clause ahead of ppl_eq to avoid ball problems 
+             call eqin(eqfile, psi_0, psi_a, rmaj, B_T0, avgrmid, eqinit, in_nt, ntheta_input)
           else if(transp_eq) then
 if (debug) write(6,fmt='("eikcoefs: transp_eq, eqfile=",a)') eqfile, 'jid=',job_id
 
              ppl_eq = .true.
-             call teqin(eqfile, psi_0, psi_a, rmaj, B_T0, avgrmid, eqinit, in_nt, nthg)
+             call teqin(eqfile, psi_0, psi_a, rmaj, B_T0, avgrmid, eqinit, in_nt, ntheta_input)
 if (debug) write(6,*) 'eikcoefs: transp_eq, called teqin'
-if (debug) write(6,fmt='("eikcoefs: teqin returns",1p,5e10.2,i6,l2,i6)') psi_0, psi_a, rmaj, B_T0, avgrmid, eqinit, in_nt, nthg
-             if(present(ntheta_returned)) then
-                call tdef(nthg, ntheta_returned)
-             else
-                call tdef(nthg)
-             endif
+if (debug) write(6,fmt='("eikcoefs: teqin returns",1p,5e10.2,i6,l2,i6)') psi_0, psi_a, rmaj, B_T0, avgrmid, eqinit, in_nt, ntheta_input
 if (debug) write(6,*) 'eikcoefs: transp_eq, called tdef'
 !CMRend
           else if(ppl_eq) then
-             call peqin(eqfile, psi_0, psi_a, rmaj, B_T0, avgrmid, eqinit, in_nt, nthg)
-             if(present(ntheta_returned)) then
-                call tdef(nthg,ntheta_returned)
-             else
-                call tdef(nthg)
-             endif
+             call peqin(eqfile, psi_0, psi_a, rmaj, B_T0, avgrmid, eqinit, in_nt, ntheta_input)
           else if(chs_eq) then
-             call ceqin(eqfile, psi_0, psi_a, rmaj, B_T0, avgrmid, eqinit, in_nt, nthg)
-             if(present(ntheta_returned)) then
-                call tdef(nthg,ntheta_returned)
-             else
-                call tdef(nthg)
-             endif
+             call ceqin(eqfile, psi_0, psi_a, rmaj, B_T0, avgrmid, eqinit, in_nt, ntheta_input)
    !if (debug) write (*,*) 
           else if(efit_eq) then
              if(big <= 0) big = 8
@@ -546,14 +530,12 @@ if (debug) write(6,*) "eikcoefs: call efitin eqfile=",eqfile, "eqinit =", eqinit
              !<DD>WARNING : ON EXIT AVGRMID WILL BE UNDEFINED AS IDFITIN DOESN'T GIVE IT A VALUE
              !THIS SHOULD BE FIXED BUT SHOULD BE OK AS AVGRMID NOT USED ANYWHERE (AT THE MOMENT)?
              call idfitin(eqfile, theta, psi_0, psi_a, rmaj, B_T0, avgrmid, eqinit) 
-             if(present(ntheta_returned)) then
-                call tdef(nthg, ntheta_returned)
-             else
-                call tdef(nthg)
-             endif
           endif
 if (debug) write(6,*) 'eikcoefs: iflux=',iflux
           if(iflux == 10) return
+
+          call init_uniform_theta_grid(ntheta_input)
+
 if (debug) write(6,*) 'eikcoefs: alloc_module_arrays, ntgrid=',ntgrid
           if(.not.allocated(gds22)) call alloc_module_arrays(ntgrid)
 if (debug) write(6,*) 'eikcoefs: alloc_local_arrays'
@@ -561,6 +543,7 @@ if (debug) write(6,*) 'eikcoefs: alloc_local_arrays'
        case (2) 
           continue
     end select
+
 if (debug) writelots=.true.
 if (debug) write(6,*) "eikcoefs: if (writelots)"
     if(writelots) then
@@ -2918,43 +2901,6 @@ if (debug) write(6,*) "eikcoefs: end gradients"
   end subroutine R_pol
 
   !> FIXME : Add documentation    
-  subroutine tdef(nthg, ntheta_returned)
-    use constants, only: pi
-    implicit none
-!RN>
-    integer, intent(in) :: nthg
-    integer, intent(out), optional :: ntheta_returned
-    integer :: i
-!<RN
-
-!    nthsave=nth
-    nth=nthg/2   ! correct, at least for geq
-    if (debug) write(6,*) "tdef: nthg,nth=",nthg,nth
-!    write(*,*) 'old nth: ',nthsave,' new nth: ',nth
-!RN>
-!    ntheta_returned=2*nth  ! guarantees even
-!    ntheta = ntheta_returned
-    ntheta=2*nth  ! guarantees even
-    if(present(ntheta_returned)) ntheta_returned = ntheta
-!<RN
-    ntgrid=(2*nperiod-1)*nth
-    
-    !     redefine theta grid used by the rest of the code.
-    !     note that the gen_eq theta grid has theta(1)=0.
-    !     problems avoided by mtheta grid in eqitem.  
-    
-    if (debug) write(6,*) "tdef: allocated(theta)=",allocated(theta)
-    if (debug .and. allocated(theta)) write(6,*) "tdef: size(theta)=",size(theta)
-    if(.not.allocated(theta)) allocate(theta(-ntgrid:ntgrid))
-    if (debug) write(6,*) "tdef: ntgrid=",ntgrid
-    theta(0)=0.
-    do i=1,nth
-       theta(i)=i*pi/float(nth)
-       theta(-i)=-theta(i)
-    enddo
-  end subroutine tdef
-
-  !> FIXME : Add documentation    
   subroutine alloc_module_arrays(n)
     implicit none
     integer, intent(in) :: n
@@ -3057,27 +3003,33 @@ if (debug) write(6,*) "eikcoefs: end gradients"
     if(local_eq) call  leq_finish
   end subroutine finish_geometry
 
-  !> FIXME : Add documentation    
-  subroutine init_theta(nt)
+  !> Initialse [[geometry:theta]] to a uniform grid with `2*((2*nperiod - 1)*(nt/2)) + 1`
+  !> points. Also set [[geometry:nth]], [[geometry:ntheta]] and [[geometry::ntgrid]]
+  !> consistently; importantly [[geometry:nth]] is forced to be even. If `nt` is odd, then
+  !> `nth == nt - 1`.
+  !>
+  !> `nt` is set equal to [[geometry:ntheta]] on exit
+  subroutine init_uniform_theta_grid(nt)
     use constants, only: pi
     implicit none
-    integer, intent(in) :: nt
+    integer, intent(inout) :: nt
     integer :: i
 
-    logical :: first_local = .true.
-
-    ntheta=nt
     nth = nt / 2
-    ntgrid = (2*nperiod - 1)*nth       
+    ! Make sure ntheta is even
+    ntheta = nth * 2
+    nt = ntheta
+    ntgrid = (2*nperiod - 1)*nth
+
     if (verb>3) write(6,*) "init_theta: allocated(theta),ntgrid,nt,nperiod=",&
       allocated(theta),ntgrid,nt,nperiod
-    if (.not. first_local .and. allocated(theta)) deallocate (theta)
+
+    if (allocated(theta)) deallocate (theta)
     allocate(theta(-ntgrid:ntgrid))
-    first_local = .false.
 
-    theta = (/ (i*pi/real(nth), i=-ntgrid, ntgrid ) /) 
+    theta = [ (i*pi/real(nth), i=-ntgrid, ntgrid) ]
 
-  end subroutine init_theta
+  end subroutine init_uniform_theta_grid
 
   !> FIXME : Add documentation    
   subroutine periodic_copy(a, ext)

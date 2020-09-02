@@ -1345,8 +1345,8 @@ contains
           status = nf90_def_var &
                (ncid, 'qpperpj10', netcdf_real, mom_dim, qpperpj10_id)
           if (status /= NF90_NOERR) call netcdf_error (status, var='qpperpj1')
-          status = nf90_put_att (ncid, qpperpj1_id, 'long_name', 'Qpperpj1 (theta=0) over time')
-          if (status /= NF90_NOERR) call netcdf_error (status, ncid, qpperpj1_id, att='long_name')
+          status = nf90_put_att (ncid, qpperpj10_id, 'long_name', 'Qpperpj1 (theta=0) over time')
+          if (status /= NF90_NOERR) call netcdf_error (status, ncid, qpperpj10_id, att='long_name')
        !Along flux_surface
        else
           status = nf90_def_var &

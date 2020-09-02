@@ -124,14 +124,12 @@ contains
   subroutine create_interp_matrices(gryfx_theta)
     use theta_grid, only: ntgrid, theta
     use splines, only: inter_cspl
-    real*8, intent(in), dimension(1:2*ntgrid) :: gryfx_theta
+    real, intent(in), dimension(1:2*ntgrid) :: gryfx_theta
     real, dimension(1:2*ntgrid) :: delta_array, gryfx_theta_real
     integer ::iz
 
     ! NB Gryfx grid has one less theta point
     gryfx_theta_real = gryfx_theta
-
-    !write (*,*) 'theta', theta, 'gryfx_theta_real', gryfx_theta_real
 
     do iz = 1,2*ntgrid
        delta_array = 0.
@@ -262,8 +260,7 @@ contains
     real(c_float), intent(in), dimension(nz) :: gryfx_theta
     type(gryfx_parameters_type), intent(in) :: gryfx_parameters
     integer(c_int), intent(in) :: nz
-    real*8, dimension(nz) :: gryfx_theta_real
-
+    real, dimension(nz) :: gryfx_theta_real
 
     gryfx_theta_real = gryfx_theta
     !call broadcast(gryfx_theta_real)
@@ -296,7 +293,7 @@ contains
     integer, intent(in) :: strlen
     character (len=strlen), intent (in) :: file_name
     integer, intent(in) :: mp_comm
-    real*8, intent(inout), dimension(2*ntgrid) :: gryfx_theta
+    real, intent(inout), dimension(2*ntgrid) :: gryfx_theta
     type(gryfx_parameters_type), intent(in) :: gryfx_parameters
     integer :: istatus
     real :: delt, delt1, delt2
