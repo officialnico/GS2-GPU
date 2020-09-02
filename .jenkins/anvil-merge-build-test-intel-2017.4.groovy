@@ -139,7 +139,7 @@ String libpath="/opt/software/intel/compilers_and_libraries_2017.4.196/linux/mpi
         	sh '''
 			git config --global user.email "joseph.parker@stfc.ac.uk"
 			git config --global user.name "Joseph Parker"
-           		git submodule update --init --recursive --remote
+           		git submodule update --init --recursive
 		'''
     	}
 
