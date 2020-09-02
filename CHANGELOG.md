@@ -1,3 +1,11 @@
+## 8.0.5 (2020-09-02)
+
+* Bugfix/fix some valgrind warnings testsuite 8 0 5 [PR #311 | David Dickinson](https://bitbucket.org/gyrokinetics/gs2/pull-requests/311)
+* Bugfix/fix efit aminor duplicate point skip [PR #308 | David Dickinson](https://bitbucket.org/gyrokinetics/gs2/pull-requests/308)
+* Fix calculation of the extended domain length for cases with more than one field [PR #299 | David Dickinson](https://bitbucket.org/gyrokinetics/gs2/pull-requests/299)
+* Fix single precision build [PR #288 | Joseph Parker](https://bitbucket.org/gyrokinetics/gs2/pull-requests/288)
+
+
 ## 8.0.4 (2020-03-19)
 
 * Update utils to 8.0.4 [PR #284 | Peter Hill](https://bitbucket.org/gyrokinetics/gs2/pull-requests/284)
