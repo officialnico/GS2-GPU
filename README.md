@@ -327,7 +327,7 @@ support its development.
 
 ### Citation
 GS2's DOI is [10.5281/zenodo.2551066](https://doi.org/10.5281/zenodo.2551066).
-The DOI for the current stable version 8.0.4 is [10.5281/zenodo.3716018](https://doi.org/10.5281/zenodo.3716018).
+The DOI for the current stable version 8.0.5 is [10.5281/zenodo.4012004](https://doi.org/10.5281/zenodo.4012004).
 The full citation for GS2 may be also found in CITATION.cff. You can convert the
 CITATION.cff file into a Bibtex file as follows:
 
