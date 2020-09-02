@@ -1,5 +1,6 @@
 ## 8.0.5 (2020-09-02)
 
+* Fix Jenkins trying to fetch more than required from submodules [PR #324 | Peter Hill](https://bitbucket.org/gyrokinetics/gs2/pull-requests/324)
 * Update utils and makefiles for 8.0.5 [PR #323 | Joseph Parker](https://bitbucket.org/gyrokinetics/gs2/pull-requests/323)
 * Bugfix/fix some valgrind warnings testsuite 8 0 5 [PR #311 | David Dickinson](https://bitbucket.org/gyrokinetics/gs2/pull-requests/311)
 * Bugfix/fix efit aminor duplicate point skip [PR #308 | David Dickinson](https://bitbucket.org/gyrokinetics/gs2/pull-requests/308)
