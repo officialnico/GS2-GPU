@@ -47,7 +47,6 @@ contains
 
   !> FIXME : Add documentation  
   subroutine write_full_moments_notgc(gnostics)
-    use gs2_io, only: nc_write_moments
     use theta_grid, only: ntgrid
     use kt_grids, only: naky, ntheta0
     use species, only: nspec

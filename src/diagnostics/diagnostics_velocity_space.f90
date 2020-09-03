@@ -64,10 +64,15 @@ contains
     real, dimension (:,:), allocatable :: errest
     integer, dimension (:,:), allocatable :: erridx
     real :: geavg, glavg, gtavg
-    
+
     allocate(errest(5,2), erridx(5,3))
     errest = 0.0; erridx = 0
-    
+    geavg = 0.0 ; glavg = 0.0 ; gtavg = 0.0
+
+    ! It's not clear why we don't call the following when we're in
+    ! "replay" mode.  We still try to write out the result of these
+    ! diagnostics, so currently these will just be zero in replay
+    ! mode.
     if (.not. gnostics%replay) then
       ! error estimate obtained by comparing standard integral with less-accurate integral
       call get_verr (errest, erridx, phinew, bparnew)
