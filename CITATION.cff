@@ -29,7 +29,7 @@ authors:
   - family-names: Parker
     given-names: Joseph Thomas
     orcid: https://orcid.org/0000-0002-5573-6475
-    affiliation: Science and Technology Facilities Council
+    affiliation: United Kingdom Atomic Energy Authority
 
   - family-names: Roach
     given-names: Colin Malcolm
@@ -98,9 +98,9 @@ authors:
   - family-names: Van Wyk
     given-names: Ferdinand
 
-version: 8.0.3
-date-released: 2020-02-10
+version: 8.0.5
+date-released: 2020-09-02
 repository-code: https://bitbucket.org/gyrokinetics/gs2/
 url: https://gyrokinetics.gitlab.io/gs2/
-doi: 10.5281/zenodo.3656334
+doi: 10.5281/zenodo.4012004
 license: 'MIT'

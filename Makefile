@@ -89,6 +89,8 @@ GENQUAD ?=
 # Compile with gcov flags to check for code coverage
 USE_GCOV ?=
 HAS_GCOV=$(USE_GCOV)
+# Name of python exe
+GS2_PYTHON_NAME ?= python3
 
 # Compile with the new simplified diagnostics module (bin)
 USE_NEW_DIAG ?=on
@@ -157,7 +159,7 @@ ARCHFLAGS 	= cr
 RANLIB		= ranlib
 AWK 		= awk
 PERL		= perl
-FORD           ?= ford
+FORD           ?= $(GK_HEAD_DIR)/scripts/ford_interceptor.py
 MKDIR           = mkdir -p
 
 MPI_INC	?=
@@ -332,6 +334,15 @@ $(shell git diff -w -- .  > $(PATCHFILE))
 endif
 MACRO_DEFS+=-DGIT_PATCH_FILE='"$(PATCHFILE)"'
 
+######## PYTHON ###############################################################
+
+PYTHON_EXE:=$(shell which $(GS2_PYTHON_NAME))
+GS2_HAS_PYTHON:=$(if $(PYTHON_EXE),yes,no)
+ifeq ($(GS2_HAS_PYTHON),yes)
+PYTHON_VERSION:=$(shell $(PYTHON_EXE) --version 2>&1)
+endif
+
+###############################################################################
 
 # Define RUN_NAME_SIZE
 MACRO_DEFS+=-DRUN_NAME_SIZE=$(RUN_NAME_SIZE) 
@@ -931,6 +942,12 @@ test_make:
 	$(call messageKeyVal, "F90FROMFPP", $(F90FROMFPP))
 	$(call messageKeyVal, "FORTFROMRUBY", $(FORTFROMRUBY))
 	@echo
+	$(call messageInfo,"PYTHON:")
+	$(call messageKeyVal, "GS2_HAS_PYTHON", $(GS2_HAS_PYTHON))
+	$(call messageKeyVal, "GS2_PYTHON_NAME", $(GS2_PYTHON_NAME))
+	$(call messageKeyVal, "PYTHON_EXE", $(PYTHON_EXE))
+	$(call messageKeyVal, "PYTHON_VERSION", $(PYTHON_VERSION))
+	@echo
 	$(call messageInfo,"PFUNIT:")
 	$(call messageKeyVal, "PFUNIT_VERSION_MAJOR", $(PFUNIT_VERSION_MAJOR))
 	$(call messageKeyVal, "PFUNIT_PREPROCESSOR", $(PFUNIT_PREPROCESSOR))
@@ -1027,7 +1044,7 @@ namelist_doc: check_ford_install
 .PHONY: clean_namelist_doc
 clean_namelist_doc:
 	$(call messageRm,"Generated namelist documentation")
-	-$(QUIETSYM)rm -f docs/pages/namelists/auto_generated_* docs/pages/namelists/index.md
+	-$(QUIETSYM)rm -f docs/page/namelists/auto_generated_* docs/page/namelists/index.md
 
 docs/html:
 doc: docs/docs.config.md namelist_doc  check_ford_install

@@ -131,7 +131,7 @@ command = "set +x; curl -X POST -H 'Content-Type: application/json' -d '${payloa
         	sh '''
 			git config --global user.email "joseph.parker@stfc.ac.uk"
 			git config --global user.name "Joseph Parker"
-           		git submodule update --init --recursive --remote
+           		git submodule update --init --recursive
 		'''
     	}
 
@@ -185,6 +185,7 @@ command = "set +x; curl -X POST -H 'Content-Type: application/json' -d '${payloa
 				module load ${params.modules}
 				export GK_SYSTEM=${params.GK_SYSTEM}
                               	export MAKEFLAGS=-IMakefiles USE_NETCDF= USE_FFT= USE_NEW_DIAG=
+				export LD_LIBRARY_PATH=\$LD_LIBRARY_PATH:${libpath}
                               	export TESTEXEC='mpirun -np 6'
 
 				make depend
@@ -208,7 +209,8 @@ command = "set +x; curl -X POST -H 'Content-Type: application/json' -d '${payloa
 				module load ${params.modules}
 				export GK_SYSTEM=${params.GK_SYSTEM}
                               	export MAKEFLAGS=-IMakefiles USE_NETCDF= USE_FFT= USE_NEW_DIAG=
-				pip install --user netCDF4
+				export LD_LIBRARY_PATH=\$LD_LIBRARY_PATH:${libpath}
+				source .jenkins/set_python_env.sh
 				make tests
 				cd ../
 				rm -rf gs2

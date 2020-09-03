@@ -208,7 +208,7 @@ module collisions
      !> If true (default) then guarantee collision operator conserves
      !> momentum and energy.
      !>
-     !> @todo Clarify the difference with [[conservative]].
+     !> @todo Clarify the difference with [[collisions_knobs:conservative]].
      !>
      !> @note Default changed to reflect improved momentum and energy
      !> conversation 07/08
@@ -246,19 +246,19 @@ module collisions
      real :: etola = 2.e-2
      !> Only used in [[get_verr]] as a part of the adaptive
      !> collisionality algorithm. Sets an offset to apply to the
-     !> relative error limit set by [[etol]]. This is used to provide
+     !> relative error limit set by [[collisions_knobs:etol]]. This is used to provide
      !> hysteresis is the adaptive collisionality algorithm so to
      !> avoid adjusting the collision frequency up and down every step
-     !> (similar to the [[delt_cushion]] option in [[reinit_knobs]]).
+     !> (similar to [[reinit_knobs:delt_cushion]]).
      !>
      !> @todo Confirm the above description.
      real :: ewindow = 1.e-2
      !> Only used in [[get_verr]] as a part of the adaptive
      !> collisionality algorithm. Sets an offset to apply to the
-     !> absolute error limit set by [[etola]]. This is used to provide
+     !> absolute error limit set by [[collisions_knobs:etola]]. This is used to provide
      !> hysteresis is the adaptive collisionality algorithm so to
      !> avoid adjusting the collision frequency up and down every step
-     !> (similar to the [[delt_cushion]] option in [[reinit_knobs]]).
+     !> (similar to the [[reinit_knobs:delt_cushion]]).
      !>
      !> @todo Confirm the above description.     
      real :: ewindowa = 1.e-2
@@ -335,17 +335,19 @@ module collisions
      !> If true (not the default) then remove the collision operator
      !> from the usual time advance algorithm. Instead the collision
      !> operator is only applied every
-     !> [[timesteps_between_collisions]] timesteps. This can
-     !> potentially substantially speed up collisional simulations,
-     !> both in the initialisation and advance phases.
+     !> [[collisions_knobs:timesteps_between_collisions]]
+     !> timesteps. This can potentially substantially speed up
+     !> collisional simulations, both in the initialisation and
+     !> advance phases.
      !>
-     !> @warning Currently the input [[timesteps_between_collisions]]
-     !> is ignored so collisions are applied every time step. The
-     !> primary result of `split_collision = .true.` currently is that
-     !> collisions are not applied in the first linear solve used as a
-     !> part of a single time step. Hence the cost of collisions in
-     !> advance are roughly halved. The full saving in the
-     !> initialisation phase is still realised.
+     !> @warning Currently the input
+     !> [[collisions_knobs:timesteps_between_collisions]] is ignored
+     !> so collisions are applied every time step. The primary result
+     !> of `split_collision = .true.` currently is that collisions are
+     !> not applied in the first linear solve used as a part of a
+     !> single time step. Hence the cost of collisions in advance are
+     !> roughly halved. The full saving in the initialisation phase is
+     !> still realised.
      logical :: split_collisions = .false.
      !> If true (not the default) then performs some additional checks
      !> of the data redistribution routines associated with
@@ -353,8 +355,8 @@ module collisions
      !> decompositions.
      logical :: test = .false.
      !> Should set the number of timesteps between application of the
-     !>collision operator if [[split_collisions]] is true. Currently
-     !>this is ignored.
+     !> collision operator if [[collisions_knobs:split_collisions]] is
+     !> true. Currently this is ignored.
      !>
      !> @warning This value is currently ignored.
      integer :: timesteps_between_collisions = 1
@@ -476,7 +478,6 @@ contains
   subroutine read_parameters(collisions_config_in)
     use file_utils, only: input_unit, error_unit, input_unit_exist
     use text_options, only: text_option, get_option_value
-    use mp, only: proc0, broadcast
     use run_parameters, only: beta, fapar
     use species, only: nspec
     implicit none
@@ -496,7 +497,7 @@ contains
          (/ text_option('default', ediff_scheme_default), &
             text_option('old', ediff_scheme_old) /)
     character(20) :: collision_model, lorentz_scheme, ediff_scheme
-    integer :: ierr, in_file
+    integer :: ierr
 
     if (present(collisions_config_in)) collisions_config = collisions_config_in
 

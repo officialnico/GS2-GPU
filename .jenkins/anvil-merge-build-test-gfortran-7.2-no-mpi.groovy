@@ -141,7 +141,7 @@ String libpath="${MY_NETCDF_LIB}:${MY_NETCDFF_LIB}:/opt/software/gcc-7.2.0/fftw/
         	sh '''
 			git config --global user.email "joseph.parker@stfc.ac.uk"
 			git config --global user.name "Joseph Parker"
-           		git submodule update --init --recursive --remote
+           		git submodule update --init --recursive
 		'''
     	}
 
@@ -259,11 +259,11 @@ String libpath="${MY_NETCDF_LIB}:${MY_NETCDFF_LIB}:/opt/software/gcc-7.2.0/fftw/
 			sh """
 				module load ${params.modules}
 				export GK_SYSTEM=${params.GK_SYSTEM}
-    				export LD_LIBRARY_PATH=${libpath}
+				export LD_LIBRARY_PATH=\$LD_LIBRARY_PATH:${libpath}
                                 export USE_MPI=
 				export TESTEXEC="${params.testexec}"
 				export MAKEFLAGS=-IMakefiles DEBUG=on
-				pip install --user netCDF4
+				source .jenkins/set_python_env.sh
 				make tests
 				cd ../
 				rm -rf gs2

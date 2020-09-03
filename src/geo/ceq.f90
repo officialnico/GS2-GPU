@@ -20,6 +20,8 @@ module ceq
   public :: psi,      initialize_psi
   public :: eqdbish
 
+  public :: ceq_testing_type
+
   private
 
   integer :: nr, nt
@@ -31,7 +33,7 @@ module ceq
   real, allocatable, dimension (:,:,:) :: dpcart, dbcart, dtcart, dbtcart
   real, allocatable, dimension (:,:,:) :: dpbish, dtbish, dbtbish
 
-  real :: psi_0, psi_a, B_T, beta_0, B_norm_chease
+  real :: psi_0, psi_a, B_T, beta_0
   real :: R_mag, Z_mag, aminor
   
   logical :: init_rcenter = .true.
@@ -47,9 +49,140 @@ module ceq
 
   logical, parameter :: debug = .true.
 
+  !> Expose private routines for testing only!
+  type :: ceq_testing_type
+  contains
+    procedure, nopass :: alloc_arrays
+    procedure, nopass :: chease_chi_index
+    procedure, nopass :: dealloc_arrays
+    procedure, nopass :: derm
+    procedure, nopass :: eqdbish
+    procedure, nopass :: eqdcart
+    procedure, nopass :: mod2pi
+    procedure, nopass :: set_ceq_from_chease
+    procedure, nopass :: set_dpcart
+    procedure, nopass :: set_drm
+    procedure, nopass :: set_dzm
+    procedure, nopass :: set_eqpsi
+    procedure, nopass :: set_nrnt
+    procedure, nopass :: set_R_psi
+    procedure, nopass :: set_Z_psi
+    procedure, nopass :: set_cart_arrays
+    procedure, nopass :: set_bish_arrays
+    procedure, nopass :: get_cart_arrays
+    procedure, nopass :: get_bish_arrays
+  end type ceq_testing_type
+
 contains
-  
-  !> FIXME : Add documentation  
+
+  !> Set module-level `nt`, `nr`
+  !! PURELY FOR TESTING
+  !! FIXME: Remove when we have more control over module-level variables for testing
+  subroutine set_nrnt(nradius, ntheta)
+    integer, intent(in) :: nradius, ntheta
+    nr = nradius
+    nt = ntheta
+  end subroutine set_nrnt
+
+  !> Set module-level `drm`
+  !! PURELY FOR TESTING
+  !! FIXME: Remove when we have more control over module-level variables for testing
+  subroutine set_drm(drm_in)
+    real, dimension(nr,nt,2), intent(in) :: drm_in
+    drm = drm_in
+  end subroutine set_drm
+
+  !> Set module-level `dzm`
+  !! PURELY FOR TESTING
+  !! FIXME: Remove when we have more control over module-level variables for testing
+  subroutine set_dzm(dzm_in)
+    real, dimension(nr,nt,2), intent(in) :: dzm_in
+    dzm = dzm_in
+  end subroutine set_dzm
+
+  !> Set module-level `dpcart`
+  !! PURELY FOR TESTING
+  !! FIXME: Remove when we have more control over module-level variables for testing
+  subroutine set_dpcart(dpcart_in)
+    real, dimension(nr,nt,2), intent(in) :: dpcart_in
+    dpcart = dpcart_in
+  end subroutine set_dpcart
+
+  !> Set module-level `eqpsi`
+  !! PURELY FOR TESTING
+  !! FIXME: Remove when we have more control over module-level variables for testing
+  subroutine set_eqpsi(eqpsi_in)
+    real, dimension(nr), intent(in) :: eqpsi_in
+    eqpsi = eqpsi_in
+  end subroutine set_eqpsi
+
+  !> Set module-level `R_psi`
+  !! PURELY FOR TESTING
+  !! FIXME: Remove when we have more control over module-level variables for testing
+  subroutine set_R_psi(R_psi_in)
+    real, dimension(nr, nt), intent(in) :: R_psi_in
+    R_psi = R_psi_in
+  end subroutine set_R_psi
+
+  !> Set module-level `Z_psi`
+  !! PURELY FOR TESTING
+  !! FIXME: Remove when we have more control over module-level variables for testing
+  subroutine set_Z_psi(Z_psi_in)
+    real, dimension(nr, nt), intent(in) :: Z_psi_in
+    Z_psi = Z_psi_in
+  end subroutine set_Z_psi
+
+  !> Set module-level `dpcart`, `dbtcart` and `dtcart`
+  !! PURELY FOR TESTING
+  !! FIXME: Remove when we have more control over module-level variables for testing
+  subroutine set_cart_arrays(dpcart_in, dbtcart_in, dtcart_in)
+    real, dimension(nr, nt, 2), intent(in) :: dpcart_in
+    real, dimension(nr, nt, 2), intent(in) :: dbtcart_in
+    real, dimension(nr, nt, 2), intent(in) :: dtcart_in
+    dpcart = dpcart_in
+    dbtcart = dbtcart_in
+    dtcart = dtcart_in
+  end subroutine set_cart_arrays
+
+  !> Set module-level `dpbish`, `dbtbish` and `dtbish`
+  !! PURELY FOR TESTING
+  !! FIXME: Remove when we have more control over module-level variables for testing
+  subroutine set_bish_arrays(dpbish_in, dbtbish_in, dtbish_in)
+    real, dimension(nr, nt, 2), intent(in) :: dpbish_in
+    real, dimension(nr, nt, 2), intent(in) :: dbtbish_in
+    real, dimension(nr, nt, 2), intent(in) :: dtbish_in
+    dpbish = dpbish_in
+    dbtbish = dbtbish_in
+    dtbish = dtbish_in
+  end subroutine set_bish_arrays
+
+  !> Get module-level `dpcart`, `dbtcart` and `dtcart`
+  !! PURELY FOR TESTING
+  !! FIXME: Remove when we have more control over module-level variables for testing
+  subroutine get_cart_arrays(dpcart_out, dbtcart_out, dtcart_out)
+    real, dimension(nr, nt, 2), intent(out) :: dpcart_out
+    real, dimension(nr, nt, 2), intent(out) :: dbtcart_out
+    real, dimension(nr, nt, 2), intent(out) :: dtcart_out
+    dpcart_out = dpcart
+    dbtcart_out = dbtcart
+    dtcart_out = dtcart
+  end subroutine get_cart_arrays
+
+  !> Get module-level `dpbish`, `dbtbish` and `dtbish`
+  !! PURELY FOR TESTING
+  !! FIXME: Remove when we have more control over module-level variables for testing
+  subroutine get_bish_arrays(dpbish_out, dbtbish_out, dtbish_out)
+    real, dimension(nr, nt, 2), intent(out) :: dpbish_out
+    real, dimension(nr, nt, 2), intent(out) :: dbtbish_out
+    real, dimension(nr, nt, 2), intent(out) :: dtbish_out
+    dpbish_out = dpbish
+    dbtbish_out = dbtbish
+    dtbish_out = dtbish
+  end subroutine get_bish_arrays
+
+  !> Convert from theta-index which is `-pi` to `pi`, to chi-index, which
+  !> is `0` to `2*pi.`
+  !> Assumes `nchi` is even?
   function chease_chi_index(nchi,itheta)
     integer, intent(in) :: nchi, itheta
     integer :: chease_chi_index
@@ -67,91 +200,33 @@ contains
   !> FIXME : Add documentation  
   subroutine ceqin(eqfile, psi_0_out, psi_a_out, rmaj, B_T0, &
        avgrmid, initeq, in_nt, nthg) 
-    use constants, only: pi
-    use read_chease, only: read_infile, npsi_chease, nchi_chease, b0exp_chease
-    use read_chease, only: psi_chease, f_chease, q_chease, p_chease
-    use read_chease, only: r_chease, z_chease
+    use read_chease, only: read_infile
     implicit none
-    character(len=80), intent(in) :: eqfile
+    character(len=*), intent(in) :: eqfile
     real, intent(out) :: psi_0_out, psi_a_out, rmaj, B_T0, avgrmid
     integer, intent(in) :: initeq
     logical, intent(in) :: in_nt 
     integer, intent(out) :: nthg
-    real :: d, R_geo
-    integer :: i,j
-    integer :: nchar
-    character (len=80) :: filename
     real :: f_N, psi_N
 
-    if(initeq == 0) return
+    ! Exit early if already initialised
+    if(initeq == 0) then
+      ! Ensure `nthg` gets set if exiting early or it may be uninitialised in
+      ! the calling procedure. The value it gets set to must be consistent
+      ! with the value set at the end of this subroutine when not exiting
+      ! early or the calling procedure may end up with inconsistently sized
+      ! arrays.
+      nthg = nt
+      return
+    endif
     
     if (.not.in_nt) then
        
-       nchar=index(eqfile,' ')-1
-       filename=eqfile(1:nchar)
-       write (*,*)  'Reading CHEASE input file: ', eqfile
+       write (*,*)  'Reading CHEASE input file: ', trim(eqfile)
        !    Read the data
-       call read_infile(filename)
-       !     nr == number of actual grid points in radial array
-       nr = npsi_chease
-       
-       !     nt == number of theta grid points in theta eq grid
-       nt = nchi_chease + 1
-       B_norm_chease = b0exp_chease
+       call read_infile(trim(eqfile))
 
-       call alloc_arrays(nr, nt)
-
-       !     eqpsi(1:nr) == values of psi on the radial grid
-       eqpsi = psi_chease
-
-
-       !     fp(1:nr) == the function that satisfies 
-       !              B = fp grad zeta + grad zeta x grad psi
-       fp = f_chease
-
-       qsf = q_chease
-       
-       !     pressure(1:nr) == pressure profile on the radial grid,
-       !     normalized to the value at the magnetic axis.     
-       pressure = p_chease
-
-
-       !     psi_0 == value of psi at the magnetic axis
-       !     psi_a == value of psi at the boundary of the plasma
-       psi_0 = eqpsi(1)
-       psi_a = eqpsi(nr)
-       psi_bar = (eqpsi-psi_0)/(psi_a-psi_0)
-
-       do j=1,nt
-          do i=1,nr
-             R_psi(i,j) = r_chease(i,chease_chi_index(nchi_chease, j))
-          enddo
-       enddo
-
-       do j=1,nt
-          do i=1,nr
-             Z_psi(i,j) = z_chease(i,chease_chi_index(nchi_chease, j)) 
-          enddo
-       enddo
-
-       !     aminor    == half diameter of last flux surface at elevation of Z_mag
-       d = R_psi(nr,nt/2+1) - R_psi(nr,1)
-       R_geo = (R_psi(nr,nt/2+1) + R_psi(nr, 1))/2.
-       aminor = d/2.
-       
-       B_T = fp(nr)/R_geo
-
-       R_psi = R_psi / aminor
-       Z_psi = Z_psi / aminor
-
-       !     R_mag == R position of magnetic axis
-       !     Z_mag == Z position of magnetic axis
-       R_mag = R_psi(1,1)
-       Z_mag = Z_psi(1,1)
-
-       beta = 8. * pi * 1.e-7 * pressure / b0exp_chease**2  ! not correct definition yet
-       beta_0 = beta(1)
-       pressure = pressure/pressure(1)
+       call set_ceq_from_chease
     endif
                        
     !
@@ -191,10 +266,86 @@ contains
     end if
   end subroutine ceqin
 
-  !> FIXME : Add documentation
+  !> Set the ceq module-level variables from the read_chease module
+  !> variables.
+  !>
+  !> This involves changing the theta grid from 0 to 2pi => -pi to pi,
+  !> adding a point at theta == 0, and some normalisations
+  subroutine set_ceq_from_chease
+    use constants, only: pi
+    use read_chease, only: npsi_chease, nchi_chease, b0exp_chease
+    use read_chease, only: psi_chease, f_chease, q_chease, p_chease
+    use read_chease, only: r_chease, z_chease
+
+    real :: d, R_geo
+    integer :: i, j
+
+    !     nr == number of actual grid points in radial array
+    nr = npsi_chease
+
+    !     nt == number of theta grid points in theta eq grid
+    nt = nchi_chease + 1
+
+    call alloc_arrays(nr, nt)
+
+    !     eqpsi(1:nr) == values of psi on the radial grid
+    eqpsi = psi_chease
+
+    !     fp(1:nr) == the function that satisfies
+    !              B = fp grad zeta + grad zeta x grad psi
+    fp = f_chease
+
+    qsf = q_chease
+
+    !     pressure(1:nr) == pressure profile on the radial grid,
+    !     normalized to the value at the magnetic axis.
+    pressure = p_chease
+
+    !     psi_0 == value of psi at the magnetic axis
+    !     psi_a == value of psi at the boundary of the plasma
+    psi_0 = eqpsi(1)
+    psi_a = eqpsi(nr)
+    psi_bar = (eqpsi-psi_0)/(psi_a-psi_0)
+
+    do j=1,nt
+      do i=1,nr
+        R_psi(i,j) = r_chease(i,chease_chi_index(nchi_chease, j))
+      enddo
+    enddo
+
+    do j=1,nt
+      do i=1,nr
+        Z_psi(i,j) = z_chease(i,chease_chi_index(nchi_chease, j))
+      enddo
+    enddo
+
+    !     aminor    == half diameter of last flux surface at elevation of Z_mag
+    d = R_psi(nr,nt/2+1) - R_psi(nr,1)
+    R_geo = (R_psi(nr,nt/2+1) + R_psi(nr, 1))/2.
+    aminor = d/2.
+
+    B_T = fp(nr)/R_geo
+
+    R_psi = R_psi / aminor
+    Z_psi = Z_psi / aminor
+
+    !     R_mag == R position of magnetic axis
+    !     Z_mag == Z position of magnetic axis
+    R_mag = R_psi(1,1)
+    Z_mag = Z_psi(1,1)
+
+    beta = 8. * pi * 1.e-7 * pressure / b0exp_chease**2  ! not correct definition yet
+    beta_0 = beta(1)
+    pressure = pressure/pressure(1)
+  end subroutine set_ceq_from_chease
+
+  !> Allocate module-level arrays
   subroutine alloc_arrays(nr, nt)
     implicit none
-    integer, intent(in) :: nr, nt
+    !> Number of points in radial direction
+    integer, intent(in) :: nr
+    !> Number of points in theta direction
+    integer, intent(in) :: nt
 
     allocate(rho_d(nr), eqpsi(nr), psi_bar(nr), fp(nr), beta(nr), pressure(nr), &
          rc(nr), diam(nr), qsf(nr), rho_b(nr))
@@ -213,7 +364,7 @@ contains
 
   end subroutine alloc_arrays
 
-  !> FIXME : Add documentation  
+  !> Deallocate module-level arrays
   subroutine dealloc_arrays
     implicit none
     if(allocated(rho_d)) deallocate(rho_d,eqpsi,psi_bar,fp,beta,pressure,rc,diam,qsf,rho_b)
@@ -223,13 +374,17 @@ contains
     if(allocated(dpbish)) deallocate(dpbish,dtbish,dbtbish)
   end subroutine dealloc_arrays
 
-  !> FIXME : Add documentation  
+  !> Finish this module; deallocate arrays
   subroutine ceq_finish
+    use read_chease, only : finish
     implicit none
     call dealloc_arrays
+    call finish
   end subroutine ceq_finish
 
-  !> FIXME : Add documentation  
+  !> Initialise CHEASE equilibrium module
+  !!
+  !! Assumes data has already been read in
   subroutine ceq_init
     use constants, only: pi
     implicit none
@@ -244,7 +399,7 @@ contains
     enddo
     
     do j=1,nt
-       eqth(:,j) = (j-1)*2.*pi/float(nt-1)-pi
+       eqth(:,j) = (j-1)*2.*pi/real(nt-1)-pi
     enddo
 
     call derm(eqth,   dtm,  'T')
@@ -327,18 +482,32 @@ contains
 
   end subroutine derm
 
-  !> FIXME : Add documentation
+  !> Calculate the derivative of a selected field w.r.t. R and Z
   subroutine gradient(rgrid, theta, grad, char, rp, nth_used, ntm)
     use splines, only: inter_d_cspl
     implicit none
-    integer, intent(in) :: nth_used, ntm
+    !> Number of theta points
+    integer, intent(in) :: nth_used
+    !> Lower index of theta array
+    integer, intent(in) :: ntm
+    !> Select field to take gradient of:
+    !>   - 'D': Bt
+    !>   - 'P': psi
+    !>   - 'R': pressure
+    !>   - 'T': theta
+    !>   - 'B': for debugging with `bishop==0` only
     character(1), intent(in) :: char
-    real, intent(in) :: rgrid(-ntm:), theta(-ntm:)
+    !> Minor radius grid of flux surface (?)
+    real, intent(in) :: rgrid(-ntm:)
+    !> Theta grid
+    real, intent(in) :: theta(-ntm:)
+    !> grad(:,1): derivative w.r.t. R as function of theta
+    !> grad(:,2): derivative w.r.t  Z as function of theta
     real, intent(out) :: grad(-ntm:,:)
+    !> Radius for taking pressure derivative (FIXME: double-check)
     real, intent(in) :: rp
-    real :: tmp(2), aa(1), daa(1), rpt(1)
+    real :: aa(1), daa(1), rpt(1)
     real, dimension(nr,nt,2) :: dcart
-    real, dimension(nr,nt) :: f
     integer :: i
     
     select case(char)
@@ -354,22 +523,9 @@ contains
        dcart = dtcart
     end select
     
-    do i=-nth_used,-1
-       f(:,:) = dcart(:,:,1)
-       call eqitem(rgrid(i), theta(i), f, tmp(1))
-       f(:,:) = dcart(:,:,2)
-       call eqitem(rgrid(i), theta(i), f, tmp(2))
-       grad(i,1)=tmp(1)
-       grad(i,2)=tmp(2)
-    enddo
-
-    do i=0,nth_used
-       f(:,:) = dcart(:,:,1)
-       call eqitem(rgrid(i),theta(i),f,tmp(1))
-       f(:,:) = dcart(:,:,2)
-       call eqitem(rgrid(i),theta(i),f,tmp(2))
-       grad(i,1)=tmp(1)
-       grad(i,2)=tmp(2)
+    do i=-nth_used,nth_used
+       call eqitem(rgrid(i), theta(i), dcart(:,:,1), grad(i,1))
+       call eqitem(rgrid(i), theta(i), dcart(:,:,2), grad(i,2))
     enddo
 
     !     to get grad(pressure), multiply grad(psi) by dpressure/dpsi
@@ -384,16 +540,31 @@ contains
 
   end subroutine gradient
 
-  !> FIXME : Add documentation
+  !> Calculate the derivative of a selected field w.r.t. the Bishop
+  !> coordinate system
   subroutine bgradient(rgrid, theta, grad, char, rp, nth_used, ntm)
     use mp, only: mp_abort
     use splines, only: inter_d_cspl
     implicit none
-    
-    integer, intent(in) :: nth_used, ntm
+    !> Number of theta points
+    integer, intent(in) :: nth_used
+    !> Lower index of theta array
+    integer, intent(in) :: ntm
+    !> Select field to take gradient of:
+    !>   - 'D': Bt
+    !>   - 'P': psi
+    !>   - 'R': pressure
+    !>   - 'T': theta
+    !>   - 'B': for debugging with `bishop==0` only
     character(1), intent(in) :: char
-    real, intent(in) :: rgrid(-ntm:), theta(-ntm:), rp
+    !> Minor radius grid of flux surface (?)
+    real, intent(in) :: rgrid(-ntm:)
+    !> Theta grid
+    real, intent(in) :: theta(-ntm:)
+    !> Computed derivative, second dimension is the Bishop coordinate
     real, intent(out) :: grad(-ntm:,:)
+    !> Radius for taking pressure derivative (?)
+    real, intent(in) :: rp
     real :: aa(1), daa(1), rpt(1)
     real, dimension(nr,nt,2) ::  dbish
     integer :: i
@@ -491,7 +662,7 @@ contains
 
     ! get thet on theta mesh
     do j=1,nt
-       mtheta(j)=(j-1)*2.*pi/float(nt-1)-pi
+       mtheta(j)=(j-1)*2.*pi/real(nt-1)-pi
     enddo
        
     ! note that theta(1)=0 for gen_eq theta 
@@ -525,14 +696,14 @@ contains
 
   !> Converts derivatives w.r.t. (psi_index,theta_index) to derivatives
   !! w.r.t. (R,Z).
-  !! - dfm(:,:,1) is deriv w.r.t. psi_index (i.e. (df/dpsi)_theta * delta psi)
-  !! - dfm(:,:,2) is deriv w.r.t. theta_index
-  !! - dfcart(:,:,1) is deriv w.r.t. R
-  !! - dfcart(:,:,2) is deriv w.r.t. Z
+  !! Note that `dfcart(1, :, :)` is not valid
   subroutine eqdcart(dfm, dfcart)    
     implicit none
-
+    !> dfm(:,:,1) is deriv w.r.t. psi_index (i.e. (df/dpsi)_theta * delta psi);
+    !> dfm(:,:,2) is deriv w.r.t. theta_index
     real, dimension (:,:,:), intent(in)  :: dfm
+    !> dfcart(:,:,1) is deriv w.r.t. R;
+    !> dfcart(:,:,2) is deriv w.r.t. Z
     real, dimension (:,:,:), intent(out) :: dfcart
     real, dimension (size(dfm,1),size(dfm,2)) :: denom
     integer :: i, j
@@ -542,6 +713,10 @@ contains
     dfcart(:,:,1) =   dfm(:,:,1)*dzm(:,:,2) - dzm(:,:,1)*dfm(:,:,2)
     dfcart(:,:,2) = - dfm(:,:,1)*drm(:,:,2) + drm(:,:,1)*dfm(:,:,2)
 
+    ! Inner loop skips first point because it's likely exactly on the
+    ! magnetic axis, which means the Jacobian is zero. Do we need
+    ! need a better way to either calculate dfcart there, or to ensure
+    ! we ignore it in other places?
     do j=1,nt
        do i=2,nr
           dfcart(i,j,:)=dfcart(i,j,:)/denom(i,j)
@@ -551,16 +726,17 @@ contains
   end subroutine eqdcart
 
   !> Convert gradients of a function f w.r.t. R,Z into bishop form
-  !! - dcart(:,:,1) is gradient of f w.r.t. R
-  !! - dcart(:,:,2) is gradient of f w.r.t. Z
-  !! - dbish(:,:,1) is set to (df/dR dpsi/dR + df/dZ dpsi/dZ)/|grad psi|
-  !! - dbish(:,:,2) is set to (-df/dR dpsi/dZ + df/dZ dpsi/dR)/|grad psi|
-  !! - Note that in the special case where f=psi
-  !!  - dbish(:,:,1) is |grad psi|
-  !!  - dbish(:,:,2) is 0
+  !! Note that `dbish(1, :, :)` is not valid
   subroutine eqdbish(dcart, dbish)
     implicit none
+    !> dcart(:,:,1) is gradient of f w.r.t. R;
+    !> dcart(:,:,2) is gradient of f w.r.t. Z
     real, dimension(:, :, :), intent (in) :: dcart
+    !> dbish(:,:,1) is set to (df/dR dpsi/dR + df/dZ dpsi/dZ)/|grad psi|;
+    !> dbish(:,:,2) is set to (-df/dR dpsi/dZ + df/dZ dpsi/dR)/|grad psi|.
+    !> Note that in the special case where f=psi:
+    !> dbish(:,:,1) is |grad psi|;
+    !> dbish(:,:,2) is 0
     real, dimension(:, :, :), intent(out) :: dbish
     real, dimension(size(dcart,1),size(dcart,2)) :: denom
     integer :: i, j
@@ -571,6 +747,10 @@ contains
     dbish(:,:,1) = dcart(:,:,1)*dpcart(:,:,1) + dcart(:,:,2)*dpcart(:,:,2)
     dbish(:,:,2) =-dcart(:,:,1)*dpcart(:,:,2) + dcart(:,:,2)*dpcart(:,:,1)
     
+    ! Inner loop skips first point because it's likely exactly on the
+    ! magnetic axis, which means the Jacobian is zero. Do we need
+    ! need a better way to either calculate dfcart there, or to ensure
+    ! we ignore it in other places?
     do j=1,nt
        do i=2,nr
           dbish(i,j,:) = dbish(i,j,:)/denom(i,j)
@@ -579,32 +759,28 @@ contains
 
   end subroutine eqdbish
 
-  !> FIXME : Add documentation
+  !> If `init == 1`, set flag to initialize invR spline when
+  !> `invR` is called
+  !! FIXME: this _always_ returns 1, change to subroutine
   function initialize_invR (init) 
     implicit none
     integer :: init, initialize_invR
     
-    init_invR = .false.
-    if(init == 1) init_invR = .true.
+    init_invR = (init == 1)
     initialize_invR = 1
-
   end function initialize_invR
 
-  !> FIXME : Add documentation  
+  !> Return the inverse of the major radius at \((r, \theta)\)
   function invR (r, theta)
     implicit none
     real, intent (in) :: r, theta
-    real :: f, invR
-    real :: th
+    real :: invR
     
-    th = mod2pi( theta)
-    
-    call eqitem(r, th, R_psi, f)
-    invR=1./f
+    invR = 1./Rpos(r, theta)
 
   end function invR
 
-  !> FIXME : Add documentation
+  !> Return the major radius at \((r, \theta)\)
   function Rpos (r, theta)
     implicit none
     real, intent (in) :: r, theta
@@ -618,7 +794,7 @@ contains
     
   end function Rpos
 
-  !> FIXME : Add documentation  
+  !> Return the vertical coordinate at \((r, \theta)\)
   function Zpos (r, theta)
     implicit none
     real, intent (in) :: r, theta
@@ -632,29 +808,29 @@ contains
     
   end function Zpos
 
-  !> FIXME : Add documentation
+  !> If `init == 1`, set flag to initialize psi spline when
+  !> `psi` is called
+  !! FIXME: this _always_ returns 1, change to subroutine
   function initialize_psi (init) 
     implicit none
     integer, intent(in) :: init
     integer :: initialize_psi
     
-    init_psi = .false.
-    if(init == 1) init_psi = .true.
+    init_psi = (init == 1)
     initialize_psi = 1
-
   end function initialize_psi
 
-  !> FIXME : Add documentation  
+  !> Return the flux surface label `psi`
   function psi (r)
     implicit none
     real, intent (in) :: r
     real :: psi
 
     psi = r
-    
+
   end function psi
 
-  !> FIXME : Add documentation  
+  !> Put `theta` into the range \([-\pi, \pi]\)
   function mod2pi (theta)
     use constants, only: pi
     implicit none
@@ -677,19 +853,20 @@ contains
     mod2pi=th
   end function mod2pi
 
-  !> FIXME : Add documentation
+  !> If `init == 1`, set flag to initialize diameter spline when
+  !> `diameter` is called
+  !! FIXME: this _always_ returns 1, change to subroutine
   function initialize_diameter (init)
     implicit none
     integer, intent(in) :: init
     integer :: initialize_diameter
-    
-    init_diameter = .false.
-    if(init == 1) init_diameter = .true.
+
+    init_diameter = (init == 1)
     initialize_diameter = 1
 
   end function initialize_diameter
 
-  !> FIXME : Add documentation  
+  !> Return the diameter of the flux surface at a given major radius
   function diameter (rp)
     use splines, only: new_spline, splint, spline
     implicit none
@@ -698,7 +875,7 @@ contains
     type (spline), save :: spl
 
     if(init_diameter) then
-       diam(:) = abs(R_psi(:,nt/2) - R_psi(:,1))
+       diam(:) = abs(R_psi(:,nt/2 + 1) - R_psi(:,1))
        call new_spline(nr, eqpsi, diam, spl)
        init_diameter = .false.
     endif
@@ -707,19 +884,19 @@ contains
 
   end function diameter
 
-  !> FIXME : Add documentation
+  !> If `init == 1`, set flag to initialize rcenter spline when
+  !> `rcenter` is called
+  !! FIXME: this _always_ returns 1, change to subroutine
   function initialize_rcenter (init)
     implicit none
     integer, intent(in) :: init
     integer :: initialize_rcenter
-    
-    init_rcenter = .false.
-    if(init == 1) init_rcenter = .true.
-    initialize_rcenter = 1
 
+    init_rcenter = (init == 1)
+    initialize_rcenter = 1
   end function initialize_rcenter
 
-  !> FIXME : Add documentation  
+  !> Return the major radius of the centre of a given flux surface
   function rcenter (rp)
     use splines, only: new_spline, splint, spline
     implicit none
@@ -728,7 +905,7 @@ contains
     type (spline), save :: spl
 
     if(init_rcenter) then
-       rc(:) = 0.5*(R_psi(:,1) + R_psi(:,nt/2))
+       rc(:) = 0.5*(R_psi(:,1) + R_psi(:,nt/2 + 1))
        call new_spline(nr, eqpsi, rc, spl)
        init_rcenter = .false.
     endif
@@ -737,19 +914,19 @@ contains
 
   end function rcenter
 
-  !> FIXME : Add documentation
+  !> If `init == 1`, set flag to initialize dbtori spline when
+  !> `dbtori` is called
+  !! FIXME: this _always_ returns 1, change to subroutine
   function initialize_dbtori (init) 
     implicit none
     integer, intent(in) :: init
     integer :: initialize_dbtori
-    
-    init_dbtori = .false.
-    if(init == 1) init_dbtori = .true.
-    initialize_dbtori = 1
 
+    init_dbtori = (init == 1)
+    initialize_dbtori = 1
   end function initialize_dbtori
 
-  !> FIXME : Add documentation
+  !> \(\frac{dI}{d\psi}\) at the given normalised \(\psi\)
   function dbtori (pbar)
     use splines, only: new_spline, dsplint, spline
     implicit none
@@ -764,14 +941,15 @@ contains
 
   end function dbtori
 
-  !> FIXME : Add documentation  
+  !> If `init == 1`, set flag to initialize btori spline when
+  !> `btori` is called
+  !! FIXME: this _always_ returns 1, change to subroutine
   function initialize_btori (init)
     implicit none
     integer, intent(in) :: init
     integer :: initialize_btori
-    
-    init_btori = .false.
-    if(init == 1) init_btori = .true.
+
+    init_btori = (init == 1)
     initialize_btori = 1
   end function initialize_btori
   
@@ -789,16 +967,16 @@ contains
     btori = splint(pbar, spl)
   end function btori
 
-  !> FIXME : Add documentation  
+  !> If `init == 1`, set flag to initialize `q` spline when
+  !> `qfun` is called
+  !! FIXME: this _always_ returns 1, change to subroutine
   function initialize_q (init) 
     implicit none
     integer, intent(in) :: init
     integer :: initialize_q
-    
-    init_q = .false.
-    if(init == 1) init_q = .true.
-    initialize_q = 1
 
+    init_q = (init == 1)
+    initialize_q = 1
   end function initialize_q
 
   !> FIXME : Add documentation
@@ -816,16 +994,16 @@ contains
 
   end function qfun
 
-  !> FIXME : Add documentation
+  !> If `init == 1`, set flag to initialize pressure spline when
+  !> `pfun` is called
+  !! FIXME: this _always_ returns 1, change to subroutine
   function initialize_pressure (init) 
     implicit none
     integer, intent(in) :: init
     integer :: initialize_pressure
-    
-    init_pressure = .false.
-    if(init == 1) init_pressure = .true.
-    initialize_pressure = 1
 
+    init_pressure = (init == 1)
+    initialize_pressure = 1
   end function initialize_pressure
 
   !> FIXME : Add documentation
@@ -845,16 +1023,16 @@ contains
 
   end function pfun
 
-  !> FIXME : Add documentation  
+  !> If `init == 1`, set flag to initialize dpressure spline when
+  !> `dpfun` is called
+  !! FIXME: this _always_ returns 1, change to subroutine
   function initialize_dpressure (init) 
     implicit none
     integer, intent(in) :: init
     integer :: initialize_dpressure
-    
-    init_dpressure = .false.
-    if(init == 1) init_dpressure = .true.
-    initialize_dpressure = 1
 
+    init_dpressure = (init == 1)
+    initialize_dpressure = 1
   end function initialize_dpressure
 
   !> FIXME : Add documentation  
@@ -876,16 +1054,16 @@ contains
 
   end function dpfun
 
-  !> FIXME : Add documentation  
-  function initialize_beta (init) 
+  !> If `init == 1`, set flag to initialize beta spline when
+  !> `betafun` is called
+  !! FIXME: this _always_ returns 1, change to subroutine
+  function initialize_beta (init)
     implicit none
     integer, intent(in) :: init
     integer :: initialize_beta
-    
-    init_beta = .false.
-    if(init == 1) init_beta = .true.
-    initialize_beta = 1
 
+    init_beta = (init == 1)
+    initialize_beta = 1
   end function initialize_beta
 
   !> FIXME : Add documentation  

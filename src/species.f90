@@ -74,12 +74,15 @@ module species
   !> Used to represent the input configuration of species
   type, extends(abstract_config_type) :: species_config_type
      ! namelist : species_knobs
-     ! indexed : false     
-     !> FIXME: Add documentation
+     ! indexed : false
+     !> Specifies the electron mass used in calculating the slowing
+     !> down parameters in simulations without kinetic electrons.
      real :: me = -1.0
      !> Number of kinetic species to evolve.
      integer :: nspec = 2
-     !> FIXME: Add documentation
+     !> Specify the ion charge factor used in calculating the slowing
+     !> down parameters. If not specified that will attempt to
+     !> calculate from the kinetic ion species.
      real :: zi_fac = -1.0
    contains
      procedure, public :: read => read_species_config
@@ -91,52 +94,109 @@ module species
   end type species_config_type
   
   type(species_config_type) :: species_config
-  
+
   !> Used to represent the input configuration of species
   type, extends(abstract_config_type) :: species_element_config_type
      ! namelist : species_parameters
-     ! indexed : true     
-     !> FIXME: Add documentation
+     ! indexed : true
+     !> Multiplies the argument of the Bessel function for this
+     !> species. Useful for exploring the effect of the Bessel
+     !> functions.
      real :: bess_fac = 1.0
-     !> FIXME: Add documentation
+     !> Set the normalised density for this species
      real :: dens = 1.0
-     !> FIXME: Add documentation
+     !> Parameter used for a few specific initial condition types.
+     !>
+     !> @todo Consider moving this parameter to [[init_g_knobs]].
      real :: dens0 = 1.0
-     !> FIXME: Add documentation
+     !> Select which type of background distribution should be assumed
+     !> for this species. Must be one of:
+     !>
+     !> - 'maxwellian' : Standard maxwellian
+     !> - 'tabulated' : A general tabulated form
+     !> - 'sdanalytic' : A analytic slowing down form.
+     !>
+     !> See [G. Wilkie
+     !> thesis](https://drum.lib.umd.edu/handle/1903/17302).
      character(len = 20) :: f0type = "maxwellian"
-     !> FIXME: Add documentation
+     !> Normalised inverse density gradient: \(-\frac{1}{n}\frac{dn}{d
+     !> \rho_N}\) (Note here \(\rho_N\) is the normalised radius
+     !> \(\frac{\rho}{L_\textrm{ref}}\).
      real :: fprim = 2.2
-     !> FIXME: Add documentation
+     !> Normalised mass of this species
      real :: mass = 1.0
-     !> FIXME: Add documentation
+     !> Not used.
+     !>
+     !> @todo remove
      real :: nu = -1.0
-     !> FIXME: Add documentation
+     !> Set the species hyper collision frequency used in the pitch
+     !> angle scattering collision operator if
+     !> [[collision_knobs::hypermult]] is `true`.
      real :: nu_h = 0.0
-     !> FIXME: Add documentation
+     !> Not used.
+     !>
+     !> @todo remove
      real :: nustar = -1.0
-     !> FIXME: Add documentation
+     !> Set the normalised species temperature
      real :: temp = 1.0
-     !> FIXME: Add documentation
+     !> Parameter used for a few specific initial condition types.
+     !>
+     !> @todo Consider moving this parameter to [[init_g_knobs]].
      real :: tpar0 = 0.
-     !> FIXME: Add documentation
+     !> Parameter used for a few specific initial condition types.
+     !>
+     !> @todo Consider moving this parameter to [[init_g_knobs]].
      real :: tperp0 = 0.
-     !> FIXME: Add documentation
+     !> Normalised inverse density gradient: \(-\frac{1}{T}\frac{dT}{d
+     !> \rho_N}\) (Note here \(\rho_N\) is the normalised radius
+     !> \(\frac{\rho}{L_\textrm{ref}}\).
      real :: tprim = 6.9
-     !> FIXME: Add documentation
+     !> Sets the characterisation of the species. Should be one of
+     !>
+     !> - 'ion' : Thermal ion species
+     !> - 'default' :  Same as 'ion'
+     !> - 'electron' : Thermal electron species
+     !> - 'e' : Same as 'electron'
+     !> - 'trace' : Tracer species
+     !>
+     !> This primarily controls the treatment in the collision
+     !> operator, the detection of adiabatic species. Tracer species
+     !> do not contribute to velocity space integrals.
      character(len = 20) :: type = "default"
-     !> FIXME: Add documentation
+     !> Parameter used for a few specific initial condition types.
+     !>
+     !> @todo Consider moving this parameter to [[init_g_knobs]].
      real :: u0 = 1.0
-     !> FIXME: Add documentation
+     !> Controls an energy independent part of a source term.
+     !>
+     !> @note Documentation needs improving, looks like it's an early
+     !> attempt at adding in the parallel flow shear drive term
      real :: uprim = 0.0
-     !> FIXME: Add documentation
+     !> Controls an energy dependent part of a source term.
+     !>
+     !> @note Documentation needs improving, looks like it's an early
+     !> attempt at adding in the parallel flow shear drive term
      real :: uprim2 = 0.0
-     !> FIXME: Add documentation
+     !> Part of the `sdanalytic` slowing down model. See [G. Wilkie
+     !> thesis](https://drum.lib.umd.edu/handle/1903/17302).
      real :: vcprim = -999.9
-     !> FIXME: Add documentation
+     !> Part of the `sdanalytic` slowing down model. See [G. Wilkie
+     !> thesis](https://drum.lib.umd.edu/handle/1903/17302).
      real :: vcrit = -1.0
-     !> FIXME: Add documentation
+     !> Sets the normalised species-species collisionality
+     !> frequency. For species s, `vnewk = nu_ss Lref/vref` where Lref
+     !> is the reference length, `vref` is the reference thermal speed
+     !> (not the thermal speed of species s!), \(\nu_{ss}=\sqrt{2}\pi
+     !> n_s Z_s^4 e^4 \log(\lambda)/\sqrt{m_s}T^{3/2}_s\) is a
+     !> dimensional collision frequency, e is the proton charge,
+     !> \(\log(\lambda)\) is the Coloumb logarithm, and
+     !> \(Z_s,T_s,n_s,m_s\) are the (charge, temperature, density,
+     !> mass) of species s. (The dimensional collision frequency given
+     !> here is in Gaussian units. For SI units, include an extra
+     !> factor \((4\pi\epsilon_0)^2\) in the denominator of the
+     !> definition of \(\nu_{ss}\).
      real :: vnewk = 0.0
-     !> FIXME: Add documentation
+     !> Normalised species charge
      real :: z = 1.0
    contains
      procedure, public :: read => read_species_element_config
@@ -335,9 +395,8 @@ contains
     real :: tperp0, tpar0, bess_fac, vcrit, vcprim
     real, dimension(:), allocatable :: tmp_bcast
     character(20) :: type, f0type
-    integer :: unit
-    integer :: is, iostat
-    integer :: ierr, in_file
+    integer :: is
+    integer :: ierr
 
     type (text_option), dimension (5), parameter :: typeopts = &
          (/ text_option('default', ion_species), &

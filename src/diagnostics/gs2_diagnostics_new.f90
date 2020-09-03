@@ -291,7 +291,7 @@ contains
     gnostics%ascii_files%write_to_phase  = gnostics%write_cross_phase .and.  gnostics%write_ascii
     gnostics%ascii_files%write_to_jext   = gnostics%write_jext    .and.  gnostics%write_ascii
     gnostics%ascii_files%write_to_parity = gnostics%write_parity  .and.  gnostics%write_ascii
-    !write (*,*) 'gnostics%ascii_files%write_to_heat2', gnostics%ascii_files%write_to_heat2
+    gnostics%ascii_files%write_to_eigenfunc = gnostics%write_eigenfunc .and.  gnostics%write_ascii
   end subroutine set_ascii_file_switches
 
   !> Close the output file and deallocate arrays
@@ -425,6 +425,7 @@ contains
     use diagnostics_fluxes, only: write_parity, write_nl_flux_dist
     use diagnostics_fields, only: write_fields, write_movie
     use diagnostics_fields, only: dump_fields_periodically
+    use diagnostics_fields, only: write_eigenfunc
     use diagnostics_moments, only: write_moments, write_full_moments_notgc
     use diagnostics_omega, only: calculate_omega, write_omega
     use diagnostics_velocity_space, only: write_velocity_space_checks
@@ -557,6 +558,7 @@ contains
        if (gnostics%write_correlation) call write_correlation(gnostics)
        if (gnostics%write_correlation_extend) call write_correlation_extend(gnostics)
        if (gnostics%write_lorentzian) call write_lorentzian(gnostics)
+       if (gnostics%write_eigenfunc) call write_eigenfunc(gnostics)
        
        if (gnostics%print_line) call print_line(gnostics)
        if (gnostics%write_line) call write_line(gnostics)
@@ -631,7 +633,6 @@ contains
 
   !> FIXME : Add documentation  
   subroutine run_old_final_routines
-    use diagnostics_final_routines,only: do_write_eigenfunc
     use diagnostics_final_routines,only: do_write_final_fields
     use diagnostics_final_routines,only: do_write_kpar
     use diagnostics_final_routines,only: do_write_final_epar
@@ -641,6 +642,7 @@ contains
     use diagnostics_final_routines,only: do_write_gs
     use diagnostics_final_routines,only: init_par_filter
     use diagnostics_final_routines,only: ntg_out
+    use diagnostics_fields, only: get_phi0
     use nonlinear_terms, only: nonlin
     use antenna, only: dump_ant_amp
     use mp, only: proc0
@@ -657,9 +659,6 @@ contains
     ntg_out = ntgrid
     if (proc0) then
        call debug_message(verb, 'gs2_diagnostics_new::run_old_final_routines &
-         & calling do_write_eigenfunc')
-       if (gnostics%write_eigenfunc) call do_write_eigenfunc(gnostics,phi0)
-       call debug_message(verb, 'gs2_diagnostics_new::run_old_final_routines &
          & calling do_write_final_fields')
        if (gnostics%write_final_fields) call do_write_final_fields(gnostics)
        call debug_message(verb, 'gs2_diagnostics_new::run_old_final_routines &
@@ -674,8 +673,8 @@ contains
          & calling do_write_final_db')
        if (gnostics%write_final_db) call do_write_final_db(gnostics)
     end if
-    !Note pass in phase factor phi0 which may not be initialised
-    !this is ok as phi0 will be set in routine if not already set
+
+    phi0 = get_phi0()
     if (gnostics%write_final_moments) call do_write_final_moments(gnostics,phi0)
     call debug_message(verb, 'gs2_diagnostics_new::run_old_final_routines &
       & calling do_write_final_antot')

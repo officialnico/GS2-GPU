@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
- # Push GitLab CI/CD build status to Bitbucket Cloud
+# Push GitLab CI/CD build status to Bitbucket Cloud
 
  if [ -z "$BITBUCKET_ACCESS_TOKEN" ]; then
     echo "ERROR: BITBUCKET_ACCESS_TOKEN is not set"
@@ -49,9 +49,21 @@
     BITBUCKET_STATE="FAILED"
     BITBUCKET_DESCRIPTION="Building the pFUnit library failed."
     ;;
+ build_gs2_failed)
+    BITBUCKET_STATE="FAILED"
+    BITBUCKET_DESCRIPTION="Building GS2 failed."
+    ;;
+ before_script)
+    BITBUCKET_STATE="FAILED"
+    BITBUCKET_DESCRIPTION="Setting up the system failed."
+    ;;
  pfunit_tests_failed)
     BITBUCKET_STATE="FAILED"
     BITBUCKET_DESCRIPTION="The ${CASENAME} pFUnit tests failed."
+    ;;
+ *)
+    BITBUCKET_STATE="FAILED"
+    BITBUCKET_DESCRIPTION="The ${CASENAME} status check failed with ${BUILD_STATUS}."
     ;;
  esac
 
