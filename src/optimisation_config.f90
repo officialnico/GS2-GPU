@@ -53,11 +53,16 @@ module optimisation_config
      real :: min_efficiency
   end type optimisation_type
 
-  !> Used to represent the input configuration of optimisation
+  !> Used to represent the input configuration for GS2's optimisation
+  !> procedure. When turned on, GS2 performs a scan for the given input file,
+  !> varying different optimisation flags. Results of this scan are reported
+  !> in <runname>.optim. The optimal parameters are stored, allowing a user to
+  !> run the same input file with optimised parameters in the same execution.
   type, extends(abstract_config_type) :: optimisation_config_type
      ! namelist : optimisation_config
      ! indexed : false     
-     !> FIXME: Add documentation
+     !> When true, automatically continues GS2 to run the input file with the
+     !> optimised parameters.
      logical :: auto = .true.
      !> FIXME: Add documentation
      logical :: estimate_timing_error = .true.
@@ -71,7 +76,7 @@ module optimisation_config
      real :: min_efficiency = -1.0
      !> FIXME: Add documentation
      integer :: nstep_measure = 5
-     !> FIXME: Add documentation
+     !> Set true to turn on optimisation procedure
      logical :: on = .false.
      !> FIXME: Add documentation
      logical :: warm_up = .false.
