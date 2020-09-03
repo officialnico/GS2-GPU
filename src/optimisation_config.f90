@@ -101,7 +101,9 @@ contains
     if(initialized) return
     initialized = .true.
     call read_parameters(optim, optimisation_config_config_in)
-    call open_output_file(optim%outunit, '.optim')
+    if(optim%on) then
+      call open_output_file(optim%outunit, '.optim')
+    end if
     optim%nproc_max = nproc
   end subroutine init_optimisation_config
 
