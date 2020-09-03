@@ -14,7 +14,6 @@ contains
   subroutine write_correlation(gnostics)
     use theta_grid, only: ntgrid
     use kt_grids, only: naky
-    use gs2_io, only: nc_loop_corr
     use diagnostics_config, only: diagnostics_type
     use diagnostics_create_and_write, only: create_and_write_variable
     use diagnostics_dimensions, only: dim_string
@@ -27,7 +26,6 @@ contains
          dim_string([gnostics%dims%ri,gnostics%dims%theta,gnostics%dims%ky,gnostics%dims%time]), &
          "2 point correlation function calculated from the electric potential &
          & as a function of ky and parallel sep", "1", phi_corr_2pi)
-    !if (proc0) call nc_loop_corr (nout,phi_corr_2pi)
     deallocate (phi_corr_2pi)
   end subroutine write_correlation
 
@@ -61,7 +59,6 @@ contains
   subroutine write_correlation_extend(gnostics)
     use theta_grid, only: ntgrid
     use kt_grids, only: jtwist_out, ntheta0, naky
-    use gs2_io, only: nc_loop_corr_extend
     use diagnostics_config, only: diagnostics_type
     use diagnostics_create_and_write, only: create_and_write_variable
     use diagnostics_create_and_write, only: create_and_write_variable_noread
@@ -99,10 +96,6 @@ contains
          "2 point correlation function calculated from the electric potential &
          & as a function of ky and parallel sep... time averaged and &
          & calculated along the extended domain. ", "1", phicorr_sum/(t-tcorr0))
-    !if (proc0 .and. mod(istep,nwrite_mult*nwrite)==0) then
-       !call nc_loop_corr_extend (nout_big, phicorr_sum/(t-tcorr0), phiextend_sum/(t-tcorr0))
-       !nout_big = nout_big + 1
-    !end if
     deallocate (phi_corr, phi2_extend)
   end subroutine write_correlation_extend
 

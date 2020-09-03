@@ -20,7 +20,7 @@ ifdef ONE_STEP_PP
 else
 .fpp.f90:
 	$(call messageOp,"Preprocessing","\\t:",$<)
-	$(QUIETSYM)$(CPP) $(CPPFLAGS) -I$(GK_HEAD_DIR) $< $@ 
+	$(QUIETSYM)$(CPP) $(FPPFLAGS) $(CPPFLAGS) -I$(GK_HEAD_DIR) $< $@
 endif
 
 # This prevents error messages like m2c: Command not found
