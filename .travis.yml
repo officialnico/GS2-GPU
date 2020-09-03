@@ -32,6 +32,7 @@ jobs:
     script:
     - pip3 install --upgrade pip setuptools
     - pip3 install -r requirements.txt
+    - make test_make
     - make -j gs2
     - make build_pfunit_library
     - make -j pfunit_tests
