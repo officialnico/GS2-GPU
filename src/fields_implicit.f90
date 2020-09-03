@@ -1277,11 +1277,11 @@ contains
 
     !Loop over classes (supercell length)
     do ic=1,i_class
-       !Work out how long the supercell is
-       supercell_length=1+(2*ntgrid)*nfield*N_class(ic) !Without boundary points
-       supercell_length_bound=(1+2*ntgrid)*nfield*N_class(ic) !With boundary points
        !Extended domain length
        ext_dom_length=1+(2*ntgrid)*N_class(ic)
+       !Work out how long the supercell is
+       supercell_length=nfield*ext_dom_length !Without boundary points
+       supercell_length_bound=(1+2*ntgrid)*nfield*N_class(ic) !With boundary points
 
        !Make storage
        allocate(tmp_arr_full(supercell_length,supercell_length))
@@ -1504,11 +1504,11 @@ contains
 
     !Loop over classes (supercell length)
     do ic=1,i_class
-       !Work out how long the supercell is
-       supercell_length=1+(2*ntgrid)*nfield*N_class(ic) !Without boundary points
-       supercell_length_bound=(1+2*ntgrid)*nfield*N_class(ic) !With boundary points
        !Extended domain length
        ext_dom_length=1+(2*ntgrid)*N_class(ic)
+       !Work out how long the supercell is
+       supercell_length=nfield*ext_dom_length !Without boundary points
+       supercell_length_bound=(1+2*ntgrid)*nfield*N_class(ic) !With boundary points
 
        !Make storage
        allocate(tmp_arr_full(supercell_length,supercell_length))
