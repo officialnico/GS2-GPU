@@ -17,17 +17,19 @@ module diagnostics_config
 
   public :: new_gs2_diagnostics_config_type
   public :: set_diagnostics_config_config
+
+  real, parameter :: initial_value = -1.0
   
   !> A type for storing the current results of the simulation
   type results_summary_type
-     real :: phi2
-     real :: apar2
-     real :: bpar2
-     real :: total_heat_flux
-     real :: total_momentum_flux
-     real :: total_particle_flux
-     real :: max_growth_rate
-     real :: diffusivity
+     real :: phi2 = initial_value
+     real :: apar2 = initial_value
+     real :: bpar2 = initial_value
+     real :: total_heat_flux = initial_value
+     real :: total_momentum_flux = initial_value
+     real :: total_particle_flux = initial_value
+     real :: max_growth_rate = initial_value
+     real :: diffusivity = initial_value
 
      ! Individual heat fluxes
      real, dimension(:), pointer :: species_es_heat_flux
