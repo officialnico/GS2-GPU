@@ -30,4 +30,9 @@ jobs:
   include:
   - name: "Default"
     script:
+    - pip3 install --upgrade pip setuptools
     - pip3 install -r requirements.txt
+    - make -j gs2
+    - make build_pfunit_library
+    - make -j pfunit_tests
+    - make tests
