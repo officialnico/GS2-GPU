@@ -530,7 +530,6 @@ contains
     use theta_grid, only: ntgrid
     use le_grids, only: nlambda, negrid
     use species, only: nspec
-    use gs2_io, only: nc_loop_sym
     use fields_arrays, only: phinew
     use diagnostics_create_and_write, only: create_and_write_variable
     use diagnostics_dimensions, only: dim_string
@@ -546,7 +545,6 @@ contains
          dim_string([gnostics%dims%theta,gnostics%dims%vpar,gnostics%dims%species,gnostics%dims%time]), &
          "Particle flux density as a function theta and vspace, used for looking at the effect of asymmetry, &
          & see Parra et al POP 18 062501 2011 and ask Jung-Pyo Lee", "See ref", pflux_sym)
-    !if (proc0) call nc_loop_partsym_tormom (nout, pflux_sym)
     deallocate (pflux_sym)
 
     allocate (vflx_sym(-ntgrid:ntgrid,nlambda*negrid,nspec))
@@ -555,7 +553,6 @@ contains
          dim_string([gnostics%dims%theta,gnostics%dims%vpar,gnostics%dims%species,gnostics%dims%time]), &
          "Momentum flux density as a function theta and vspace, used for looking at the effect of asymmetry, &
          & see Parra et al POP 18 062501 2011", "See ref", vflx_sym)
-    !if (proc0) call nc_loop_sym (nout, vflx_sym)
     deallocate (vflx_sym)
   end subroutine write_symmetry
 
@@ -1005,7 +1002,6 @@ contains
     use le_grids, only: negrid
     use species, only: nspec, spec
     use mp, only: proc0
-    use gs2_io, only: nc_loop_dist
     use kt_grids, only: naky, ntheta0
     use fields_arrays, only: phinew, bparnew
     use dist_fn_arrays, only: gnew, g_adjust
