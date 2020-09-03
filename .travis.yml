@@ -28,12 +28,15 @@ jobs:
   fast_finish: true
   include:
   - name: "Default"
-    script:
-    - pip3 install --upgrade pip setuptools
-    - pip3 install -r requirements.txt
-    - make test_make
-    - make -j gs2
-    - make build_pfunit_library
-    - make -j pfunit_tests
-    - make tests
-    - pipeline_test_scripts/didTestsFail.sh ${PWD}/tests results_of_test.txt
+
+before_install:
+  - pip3 install --upgrade pip setuptools
+  - pip3 install -r requirements.txt
+
+script:
+  - make test_make
+  - make -j gs2
+  - make build_pfunit_library
+  - make -j pfunit_tests
+  - make tests
+  - pipeline_test_scripts/didTestsFail.sh ${PWD}/tests results_of_test.txt
