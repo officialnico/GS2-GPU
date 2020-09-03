@@ -15,9 +15,10 @@ env:
   WITH_PFUNIT_TESTS: "yes"
   WITH_GS2_TESTS: "yes"
 
-.install_main_packages: &install_main_packages
-  - apt-get update -qq && apt-get install -y -qq ${GS2_PACKAGES}
-  - if [ "x"${WITH_PYTHON} == "xyes" ]; then pip3 install -r requirements.txt; fi
+.aliases:
+  - &install_main_packages
+    - apt-get update -qq && apt-get install -y -qq ${GS2_PACKAGES}
+    - if [ "x"${WITH_PYTHON} == "xyes" ]; then pip3 install -r requirements.txt; fi
 
 before_install:
   - *install_main_packages
