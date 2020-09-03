@@ -79,9 +79,8 @@ module optimisation_config
      !> When false, use the "timestep" timer.
      logical :: measure_all = .false.
      !> The minimum efficiency (relative to the optimal parameters)
-     !> considered when looking for a constrained set of
-     !> parameters. A negative values implies on the optimal
-     !> parameters are considered.
+     !> considered when looking for a constrained set of parameters.
+     !> A negative value implies only the optimal parameters are considered.
      real :: min_efficiency = -1.0
      !> The number of timestep to use in the timing experiments
      integer :: nstep_measure = 5
