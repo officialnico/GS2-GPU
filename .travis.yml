@@ -27,5 +27,7 @@ env:
 
 jobs:
   fast_finish: true
+  include:
   - name: "Default"
+    script:
     - pip3 install -r requirements.txt
