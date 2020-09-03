@@ -21,7 +21,6 @@ env:
   # Fix discussed at https://github.com/open-mpi/ompi/issues/4948, suggests newer mpi
   # and docker may avoid this issue
   OMPI_MCA_btl_vader_single_copy_mechanism: "none"
-  JOB_STATUS_FILE: "special_file_to_indicate_job_status"
   MAKEFLAGS: "-IMakefiles"
   GK_SYSTEM: "bitbucket"
 
