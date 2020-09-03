@@ -141,7 +141,7 @@ String libpath="/opt/software/intel/compilers_and_libraries_2017.4.196/linux/mpi
         	sh '''
 			git config --global user.email "joseph.parker@stfc.ac.uk"
 			git config --global user.name "Joseph Parker"
-           		git submodule update --init --recursive --remote
+           		git submodule update --init --recursive
 		'''
     	}
 
@@ -240,7 +240,7 @@ String libpath="/opt/software/intel/compilers_and_libraries_2017.4.196/linux/mpi
 			sh """
 				module load ${params.modules}
 				export GK_SYSTEM=${params.GK_SYSTEM}
-    				export LD_LIBRARY_PATH=${libpath}
+				export LD_LIBRARY_PATH=\$LD_LIBRARY_PATH:${libpath}
 				.jenkins/build.sh
 			"""
 		} catch(buildError) {
@@ -259,8 +259,8 @@ String libpath="/opt/software/intel/compilers_and_libraries_2017.4.196/linux/mpi
 				export TESTEXEC="${params.testexec}"
 				module load ${params.modules}
 				export GK_SYSTEM=${params.GK_SYSTEM}
-    				export LD_LIBRARY_PATH=${libpath}
-				pip install --user netCDF4
+				export LD_LIBRARY_PATH=\$LD_LIBRARY_PATH:${libpath}
+				source .jenkins/set_python_env.sh
 				.jenkins/test.sh
 			"""
 		} catch(testError) {

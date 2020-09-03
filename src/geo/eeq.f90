@@ -179,6 +179,12 @@ contains
 ! Need to generalize initialization condition if equilibrium changes
 
 if (debug) write(6,*) "gs2din: initeq=",initeq
+    ! WARNING: Exiting early without setting `nthg` may result in `nthg`
+    ! being uninitialised in the calling procedure. The value it gets set to
+    ! must be consistent with the value set at the end of this subroutine
+    ! when not exiting early or the calling procedure may end up with
+    ! inconsistently sized arrays. This is expected to affect `ideal_ball`
+    ! (unconfirmed) but not `gs2` (also unconfirmed).
     if(initeq == 0) return
     init=0
     
@@ -384,6 +390,12 @@ if (debug) write(6,*) "gs2din: B_T0, aminor, psi_0, psi_a=", B_T0, aminor, psi_0
 ! Need to generalize initialization condition if equilibrium changes
 
     if (verbosity>2) write (*,*) 'Starting efitin'
+    ! WARNING: Exiting early without setting `nthg` may result in `nthg`
+    ! being uninitialised in the calling procedure. The value it gets set to
+    ! must be consistent with the value set at the end of this subroutine
+    ! when not exiting early or the calling procedure may end up with
+    ! inconsistently sized arrays. This is expected to affect `ideal_ball`
+    ! (unconfirmed) but not `gs2` (also unconfirmed).
     if(initeq == 0) return
     init=0
     
@@ -1142,9 +1154,10 @@ if (debug) write(6,*) "gs2din: B_T0, aminor, psi_0, psi_a=", B_T0, aminor, psi_0
     type (spline) :: spl
 !CMR, 28/10/08: add code to avoid duplicate points in 5 point spline 
 !               to determine r2 on inboard mid-plane
-    integer :: k = 0 
+    integer :: k
     logical, parameter :: debug=.false.
 
+    k = 0
     n = size(r)
 
     if (debug) write(6,*) "aminor:"
@@ -1213,11 +1226,17 @@ if (debug) write(6,*) "gs2din: B_T0, aminor, psi_0, psi_a=", B_T0, aminor, psi_0
        rtmp(i) = r(index)
        ztmp(i) = z(index)
        if ( i.gt.1 ) then
+          ! If we find a duplicate point then we increase the
+          ! duplicate point counter in k, used to offset index and
+          ! store the next value instead Note, here we assume we can't
+          ! get three duplicate values. A better approach may be to
+          ! instead use a while loop where we keep going until we've
+          ! found enough points.
           if ((rtmp(i)-rtmp(i-1))**2+(ztmp(i)-ztmp(i-1))**2 .lt. 1.0e-7) then
              k=k+1
              if (debug) write(6,fmt='("a_minor: duplicate pt, set k=",i2)') k
-             rtmp(i) = r(index)
-             ztmp(i) = z(index)
+             rtmp(i) = r(index + 1)
+             ztmp(i) = z(index + 1)
           endif
        endif
     enddo

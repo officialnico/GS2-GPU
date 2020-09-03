@@ -20,7 +20,7 @@ ifdef ONE_STEP_PP
 else
 .fpp.f90:
 	$(call messageOp,"Preprocessing","\\t:",$<)
-	$(QUIETSYM)$(CPP) $(CPPFLAGS) -I$(GK_HEAD_DIR) $< $@ 
+	$(QUIETSYM)$(CPP) $(FPPFLAGS) $(CPPFLAGS) -I$(GK_HEAD_DIR) $< $@
 endif
 
 # This prevents error messages like m2c: Command not found
@@ -57,7 +57,7 @@ endif
 
 define RUNCOMMAND
 $(call messageOp,"Running ","\\t:",$(1))
-@$(TESTCOMMAND)$(1) $(BLUEGENEARGS) $(2) $(3) > OUTPUT ; if test "$$?" != 0; then $(FAILCOMMAND) ; else $(PASSCOMMAND) ;  fi
+@$(TESTCOMMAND)$(1) $(2) $(3) > OUTPUT ; if test "$$?" != 0; then $(FAILCOMMAND) ; else $(PASSCOMMAND) ;  fi
 endef
 
 define FAILCOMMAND
@@ -72,7 +72,7 @@ define SKIPCOMMAND
 @echo "skipped: `basename $$PWD` ($(1))" >> results_of_test.txt ; $(TEST_DIR)/write_test_xml.sh `basename $$PWD` 1 0 0 1 $(TEST_RESULT_DIR)
 endef
 
-BENCHMARKEXEC=$(call TESTEXEC,$(1)) ./$(2) $(BLUEGENEARGS)  $(3)
+BENCHMARKEXEC=$(call TESTEXEC,$(1)) ./$(2) $(3)
 
 BENCHMARKCOMMAND= $(call BENCHMARKEXEC,$(1),$(2),$(3)); if test "$$?" != 0; then  echo "FAILED: `basename $$PWD` ($(call BENCHMARKEXEC,$(1),$(2),$(3)))" >> results_of_test.txt; else echo "passed: `basename $$PWD` ($(call BENCHMARKEXEC,$(1),$(2),$(3)))" >> results_of_test.txt;  fi
 

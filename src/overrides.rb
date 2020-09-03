@@ -237,7 +237,7 @@ type initial_values_overrides_type
   !! (note that of course, this can result in initial values
   !! being taken from the input files).
   logical :: override = .false.
-  logical :: force_maxwell_reinit = .true.
+  ! The force_maxwell_reinit component has been removed to avoid problems in gs2_init. See comments there and in gs2_main for details.
   complex, dimension (:,:,:), allocatable :: phi
   complex, dimension (:,:,:), allocatable :: apar
   complex, dimension (:,:,:), allocatable :: bpar
@@ -256,8 +256,8 @@ contains
 #{Generator.generate_initialize('timestep', parameter_list_timestep)}
 #{Generator.generate_finish('timestep', parameter_list_timestep)}
 
-!> Warning: You can't change the value of overrides%force_maxwell_reinit 
-!! or overrides%in_memory after calling this function
+!> Warning: You can't change the value of
+!! overrides%in_memory after calling this function
 subroutine init_initial_values_overrides(overrides_obj, ntgrid, ntheta0, naky, g_llim, g_ulim, force_maxwell_reinit, in_memory)
   use file_utils, only: error_unit
   use mp, only: proc0
@@ -269,15 +269,14 @@ subroutine init_initial_values_overrides(overrides_obj, ntgrid, ntheta0, naky, g
   if (overrides_obj%init) return
   overrides_obj%init = .true.
   overrides_obj%override = .false.
-  overrides_obj%force_maxwell_reinit = force_maxwell_reinit
   overrides_obj%in_memory = in_memory
 
-  if (proc0) write (error_unit(), *) "INFO: changing force_maxwell_reinit or in_memory &
+  if (proc0) write (error_unit(), *) "INFO: changing in_memory &
     & after calling initial_values_overrides_type will almost certainly cause &
     & segmentation faults."
   if (overrides_obj%in_memory) then 
     allocate(overrides_obj%g(-ntgrid:ntgrid,2,g_llim:g_ulim), stat=iostat)
-    if (.not.overrides_obj%force_maxwell_reinit) then 
+    if (.not. force_maxwell_reinit) then
       if (iostat.eq.0) allocate(overrides_obj%phi(-ntgrid:ntgrid,ntheta0,naky), stat=iostat)
       if (iostat.eq.0) allocate(overrides_obj%apar(-ntgrid:ntgrid,ntheta0,naky), stat=iostat)
       if (iostat.eq.0) allocate(overrides_obj%bpar(-ntgrid:ntgrid,ntheta0,naky), stat=iostat)
@@ -303,7 +302,6 @@ subroutine finish_initial_values_overrides(overrides_obj)
   end if
   overrides_obj%init = .false.
   overrides_obj%override = .false.
-  overrides_obj%force_maxwell_reinit = .true.
   if (allocated(overrides_obj%g)) deallocate(overrides_obj%g)
   if (allocated(overrides_obj%phi)) deallocate(overrides_obj%phi)
   if (allocated(overrides_obj%apar)) deallocate(overrides_obj%apar)

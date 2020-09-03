@@ -63,10 +63,10 @@ program gs2
   use gs2_main, only: finalize_diagnostics
   use gs2_main, only: finalize_equations
   use gs2_main, only: finalize_gs2
-
+  use exit_codes, only: EXIT_NSTEP, EXIT_NOT_REQUESTED
+  use mp, only: proc0
   implicit none
   type(gs2_program_state_type) :: state
-  !type(optimisation_type) :: optim
   call initialize_gs2_optimisation(state)
   call initialize_wall_clock_timer
 
@@ -81,8 +81,10 @@ program gs2
     if (state%do_eigsolve) then 
       call run_eigensolver(state)
     else
-      call evolve_equations(state, state%nstep)
+       call evolve_equations(state, state%nstep)
+       if (state%exit_reason%is_identical(EXIT_NOT_REQUESTED)) state%exit_reason = EXIT_NSTEP
     end if
+    if(proc0) call state%exit_reason%write_exit_file()
     call finalize_diagnostics(state)
     call finalize_equations(state)
     state%print_times = .true.

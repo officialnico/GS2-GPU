@@ -19,14 +19,12 @@ module gs2_io
   public :: nc_loop_fullmom, nc_loop_dist, nc_loop_sym, nc_loop_corr, nc_loop_corr_extend
   public :: nc_loop_partsym_tormom, nc_sync
 
-  logical, parameter :: serial_io = .true.
 # ifdef NETCDF
-  logical :: proc_write
   integer (kind_nf) :: ncid
   integer (kind_nf) :: naky_dim, nakx_dim, nttot_dim, negrid_dim, nlambda_dim, nspec_dim, ncoord_dim, ncoordt_dim
   integer (kind_nf) :: nsign_dim, time_dim, char5_dim, char10_dim, char200_dim, ri_dim, nlines_dim, nheat_dim, vpa_dim
   integer (kind_nf) :: nttotext_dim, time_big_dim
-  integer (kind_nf) :: aref_id, zref_id, nref_id, tref_id, lref_id, vref_id, bref_id, rhoref_id
+  integer (kind_nf) :: aref_id, zref_id, nref_id, tref_id, mref_id, vref_id, bref_id, rhoref_id
 
   integer, dimension (6) :: lp_dim, mom_t_dim
   integer, dimension (5) :: field_dim, final_mom_dim, heatk_dim, err_dim
@@ -175,27 +173,17 @@ contains
 
     zero = epsilon(0.0)
 
-    call netcdf_init (serial_io)
     if (netcdf_real == 0) netcdf_real = get_netcdf_code_precision()
 
     status = NF90_NOERR
 
     !Create file
     filename = trim(trim(run_name)//'.out.nc')
-    if (serial_io) then
-       ! only proc0 opens the file:
-       if (proc0) then
-          status = nf90_create (trim(filename), NF90_CLOBBER, ncid) 
-          if (status /= NF90_NOERR) call netcdf_error (status, file=filename)
-       end if
-    else
-       ! all processors open the file
-       call barrier
-       ! TT: do we want NF90_SHARE?
-       status = nf90_create (trim(filename), NF90_CLOBBER, ncid) ! overwrites old
-       if (proc0 .and. status /= NF90_NOERR) call netcdf_error (status, file=filename)
-       call barrier
-    endif
+    ! only proc0 opens the file:
+    if (proc0) then
+       status = nf90_create (trim(filename), NF90_CLOBBER, ncid)
+       if (status /= NF90_NOERR) call netcdf_error (status, file=filename)
+    end if
 
     !Create the movie file
     if (my_make_movie) then
@@ -203,21 +191,12 @@ contains
        !    call init_y_transform_layouts  
        call init_transforms(ntgrid, naky, ntheta0, nlambda, negrid, nspec, nx, ny, accelerated)
        filename_movie = trim(trim(run_name)//'.movie.nc')
-       if (serial_io) then
-          ! only proc0 opens the file:
-          if (proc0) then 
-             status = nf90_create (trim(filename_movie), NF90_CLOBBER, ncid_movie) 
-             if (status /= NF90_NOERR) &
-                  call netcdf_error (status, file=filename_movie)
-          end if
-       else
-          ! all processors open the file
-          call barrier
-          status = nf90_create (trim(filename_movie), NF90_CLOBBER, ncid_movie) ! overwrites old
-          if (proc0 .and. status /= NF90_NOERR) &
+       ! only proc0 opens the file:
+       if (proc0) then
+          status = nf90_create (trim(filename_movie), NF90_CLOBBER, ncid_movie)
+          if (status /= NF90_NOERR) &
                call netcdf_error (status, file=filename_movie)
-          call barrier
-       endif
+       end if
     endif
 
 # endif
@@ -415,8 +394,8 @@ contains
     if (status /= NF90_NOERR) call netcdf_error (status, ncid, nref_id)
     status = nf90_put_var (ncid, tref_id, norms%get_value("tref"))
     if (status /= NF90_NOERR) call netcdf_error (status, ncid, tref_id)
-    status = nf90_put_var (ncid, lref_id, norms%get_value("lref"))
-    if (status /= NF90_NOERR) call netcdf_error (status, ncid, lref_id)
+    status = nf90_put_var (ncid, mref_id, norms%get_value("mref"))
+    if (status /= NF90_NOERR) call netcdf_error (status, ncid, mref_id)
     status = nf90_put_var (ncid, vref_id, norms%get_value("vref"))
     if (status /= NF90_NOERR) call netcdf_error (status, ncid, vref_id)
     status = nf90_put_var (ncid, bref_id, norms%get_value("bref"))
@@ -469,18 +448,6 @@ contains
     endif
 # endif
   end subroutine nc_grids_mymovie
-
-  !> FIXME : Add documentation  
-  subroutine netcdf_init (serial_io2)
-# ifdef NETCDF
-    use mp, only: proc0
-# endif
-    implicit none
-    logical, intent(in) :: serial_io2
-# ifdef NETCDF
-    proc_write = proc0 .or. (.not.serial_io2)
-# endif
-  end subroutine netcdf_init
 
   !> FIXME : Add documentation  
   subroutine nc_finish
@@ -850,8 +817,8 @@ contains
     if (status /= NF90_NOERR) call netcdf_error (status, var='nref')
     status = nf90_def_var (ncid, 'tref', netcdf_real, tref_id)
     if (status /= NF90_NOERR) call netcdf_error (status, var='tref')
-    status = nf90_def_var (ncid, 'lref', netcdf_real, lref_id)
-    if (status /= NF90_NOERR) call netcdf_error (status, var='lref')
+    status = nf90_def_var (ncid, 'mref', netcdf_real, mref_id)
+    if (status /= NF90_NOERR) call netcdf_error (status, var='mref')
     status = nf90_def_var (ncid, 'vref', netcdf_real, vref_id)
     if (status /= NF90_NOERR) call netcdf_error (status, var='vref')
     status = nf90_def_var (ncid, 'bref', netcdf_real, bref_id)
@@ -1373,8 +1340,8 @@ contains
           status = nf90_def_var &
                (ncid, 'qpperpj10', netcdf_real, mom_dim, qpperpj10_id)
           if (status /= NF90_NOERR) call netcdf_error (status, var='qpperpj1')
-          status = nf90_put_att (ncid, qpperpj1_id, 'long_name', 'Qpperpj1 (theta=0) over time')
-          if (status /= NF90_NOERR) call netcdf_error (status, ncid, qpperpj1_id, att='long_name')
+          status = nf90_put_att (ncid, qpperpj10_id, 'long_name', 'Qpperpj1 (theta=0) over time')
+          if (status /= NF90_NOERR) call netcdf_error (status, ncid, qpperpj10_id, att='long_name')
        !Along flux_surface
        else
           status = nf90_def_var &
@@ -2504,7 +2471,6 @@ contains
 
     use species, only: nspec
     use run_parameters, only: fphi
-    use le_grids, only: negrid
     use theta_grid, only: ntgrid
 # ifdef NETCDF
     use netcdf, only: nf90_put_var
@@ -3133,15 +3099,19 @@ contains
   end subroutine nc_loop_movie
 
   !> Sync the files every nsync writes
-  subroutine nc_sync(nout, nout_movie)
+  subroutine nc_sync(nout, nout_movie, nsync_freq)
 # ifdef NETCDF
     use netcdf, only: nf90_sync
 # endif
     implicit none
     integer, intent(in) :: nout, nout_movie
+    integer, intent(in), optional :: nsync_freq
 # ifdef NETCDF
-    integer, parameter :: nsync=10
-    integer :: status
+    integer, parameter :: nsync_default = 10
+    integer :: status, nsync
+
+    nsync = nsync_default
+    if (present(nsync_freq)) nsync = nsync_freq
 
     !Main file
     if(mod(nout,nsync) == 0) then
