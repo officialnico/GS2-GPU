@@ -36,3 +36,4 @@ jobs:
     - make build_pfunit_library
     - make -j pfunit_tests
     - make tests
+    - pipeline_test_scripts/didTestsFail.sh ${PWD}/tests results_of_test.txt
