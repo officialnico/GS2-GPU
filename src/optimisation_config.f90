@@ -116,10 +116,17 @@ contains
   end subroutine init_optimisation_config
 
   subroutine finish_optimisation_config(optim)
+    use file_utils, only: close_output_file
     implicit none
     type(optimisation_type), intent(inout) :: optim
     initialized = .false.
+
+    if(optim%on) then
+      call close_output_file(optim%outunit)
+    end if
+
     call optimisation_config_config%reset()
+
   end subroutine finish_optimisation_config
 
   subroutine read_parameters(optim, optimisation_config_config_in)
