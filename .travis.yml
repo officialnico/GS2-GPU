@@ -1,5 +1,7 @@
 language: generic
 
+notifications: false
+
 addons:
   apt:
     packages: &gs2_packages
