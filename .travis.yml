@@ -30,13 +30,13 @@ env: &default_env
 .aliases:
   - &build_gs2
   - make test_make ${EXTRA_MAKE_FLAGS}
-  - make -j gs2 ${EXTRA_MAKE_FLAGS}
+    make -j gs2 ${EXTRA_MAKE_FLAGS}
   - &make_and_run_pfunit_tests
   - make build_pfunit_library ${EXTRA_MAKE_FLAGS}
-  - make -j pfunit_tests ${EXTRA_MAKE_FLAGS}
+    make -j pfunit_tests ${EXTRA_MAKE_FLAGS}
   - &make_and_run_integrated_tests
   - make tests ${EXTRA_MAKE_FLAGS}
-  - pipeline_test_scripts/didTestsFail.sh ${PWD}/tests results_of_test.txt
+    pipeline_test_scripts/didTestsFail.sh ${PWD}/tests results_of_test.txt
 
 jobs:
   fast_finish: true
