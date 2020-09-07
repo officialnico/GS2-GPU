@@ -46,7 +46,8 @@ jobs:
       - GK_TRAVIS_INTEGRATED=""
     addons:
       apt:
-        - gfortran
+        packages:
+          - gfortran
   - name: "Default + debug"
     env :
       - *default_env
