@@ -43,7 +43,7 @@ jobs:
     env :
       - *default_env
       - EXTRA_MAKE_FLAGS="USE_MPI= USE_FFT= USE_NETCDF= "
-      - GK_TRAVIS_INTEGRATED=""
+      - GK_TRAVIS_PFUNIT=""
     addons:
       apt:
         packages:
