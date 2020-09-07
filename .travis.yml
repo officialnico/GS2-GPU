@@ -13,6 +13,8 @@ addons:
       - cmake
       - python3
       - python3-pip
+os: linux
+dist: xenial
 
 env: &default_env
   GIT_SUBMODULE_STRATEGY: recursive
@@ -41,6 +43,10 @@ jobs:
     env :
       - *default_env
       - EXTRA_MAKE_FLAGS="DEBUG=on"
+  - name: "Default bionic (gfortran 7.5)"
+    dist: bionic
+  - name: "Default focal (gfortran 9.3)"
+    dist: focal
 
 before_install:
   - pip3 install --upgrade pip setuptools
