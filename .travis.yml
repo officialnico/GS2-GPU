@@ -42,7 +42,7 @@ jobs:
   - name: "No dependency build"
     env :
       - *default_env
-      - EXTRA_MAKE_FLAGS="USE_MPI= USE_FFT= USE_NETCDF= "
+      - EXTRA_MAKE_FLAGS="USE_MPI= USE_FFT= USE_NETCDF= USE_NEW_DIAG= "
       - GK_TRAVIS_PFUNIT=""
     addons:
       apt:
