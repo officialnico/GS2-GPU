@@ -39,6 +39,14 @@ jobs:
   fast_finish: true
   include:
   - name: "Default"
+  - name: "No dependency build"
+    env :
+      - *default_env
+      - EXTRA_MAKE_FLAGS="USE_MPI= USE_FFT= USE_NETCDF= "
+      - GK_TRAVIS_INTEGRATED=""
+    addons:
+      apt:
+        - gfortran
   - name: "Default + debug"
     env :
       - *default_env
