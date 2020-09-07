@@ -18,17 +18,17 @@ make_and_run_integrated_tests() {
 }
 
 
-if [[ "x${GK_TRAVIS_BUILD}" -ne "x" ]]
+if [[ "x${GK_TRAVIS_BUILD}" != "x" ]]
 then
     time build_gs2
 fi
 
-if [[ "x${GK_TRAVIS_PFUNIT}" -ne "x" ]]
+if [[ "x${GK_TRAVIS_PFUNIT}" != "x" ]]
 then
     time make_and_run_pfunit_tests
 fi
 
-if [[ "x${GK_TRAVIS_INTEGRATED}" -ne "x" ]]
+if [[ "x${GK_TRAVIS_INTEGRATED}" != "x" ]]
 then
     time make_and_run_integrated_tests
 fi
