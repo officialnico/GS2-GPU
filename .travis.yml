@@ -23,20 +23,15 @@ env: &default_env
   OMPI_MCA_btl_vader_single_copy_mechanism: "none"
   MAKEFLAGS: "-IMakefiles"
   GK_SYSTEM: "bitbucket"
+  # The following control what aspects of the test script are run
+  GK_TRAVIS_BUILD: "ON"
+  GK_TRAVIS_PFUNIT: "ON"
+  GK_TRAVIS_INTEGRATED: "ON"
   # The following control some of the job setup and behaviour and can be
   # customised on a per job basis.
-  EXTRA_MAKE_FLAGS : ""
+  EXTRA_MAKE_FLAGS: ""
 
 .aliases:
-  - &build_gs2
-  - make test_make ${EXTRA_MAKE_FLAGS}
-    make -j gs2 ${EXTRA_MAKE_FLAGS}
-  - &make_and_run_pfunit_tests
-  - make build_pfunit_library ${EXTRA_MAKE_FLAGS}
-    make -j pfunit_tests ${EXTRA_MAKE_FLAGS}
-  - &make_and_run_integrated_tests
-  - make tests ${EXTRA_MAKE_FLAGS}
-    pipeline_test_scripts/didTestsFail.sh ${PWD}/tests results_of_test.txt
 
 jobs:
   fast_finish: true
@@ -52,6 +47,4 @@ before_install:
   - pip3 install -r requirements.txt
 
 script:
-  - *build_gs2
-  - *make_and_run_pfunit_tests
-  - *make_and_run_integrated_tests
+  - ./pipeline_test_scripts/travis_build.sh
