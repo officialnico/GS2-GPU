@@ -33,7 +33,6 @@ env: &default_env
   # customised on a per job basis.
   EXTRA_MAKE_FLAGS: ""
 
-.aliases:
 
 jobs:
   fast_finish: true
