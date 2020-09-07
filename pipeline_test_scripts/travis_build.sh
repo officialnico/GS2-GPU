@@ -13,7 +13,7 @@ make_and_run_pfunit_tests() {
 }
 
 make_and_run_integrated_tests() {
-    make tests ${EXTRA_MAKE_FLAGS}
+    make tests ${EXTRA_MAKE_FLAGS} ${EXTRA_TEST_FLAGS}
     pipeline_test_scripts/didTestsFail.sh ${PWD}/tests results_of_test.txt
 }
 

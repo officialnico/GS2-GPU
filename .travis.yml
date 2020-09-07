@@ -32,12 +32,15 @@ env: &default_env
   # The following control some of the job setup and behaviour and can be
   # customised on a per job basis.
   EXTRA_MAKE_FLAGS: ""
-
+  EXTRA_TEST_FLAGS: ""
 
 jobs:
   fast_finish: true
   include:
   - name: "Default"
+    env:
+      - *default_env
+      - EXTRA_TEST_FLAGS: "TEST_LEVEL=2 NTESTPROCS=6"
   - name: "No dependency build"
     env :
       - *default_env
