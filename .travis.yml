@@ -40,7 +40,7 @@ jobs:
   - name: "Default"
     env:
       - *default_env
-      - EXTRA_TEST_FLAGS: "TEST_LEVEL=2 NTESTPROCS=6"
+      - EXTRA_TEST_FLAGS="TEST_LEVEL=2 NTESTPROCS=6"
   - name: "No dependency build"
     env :
       - *default_env
