@@ -29,8 +29,8 @@ env: &default_env
 
 .aliases:
   - &build_gs2
-    - make test_make ${EXTRA_MAKE_FLAGS}
-    - make -j gs2 ${EXTRA_MAKE_FLAGS}
+    make test_make ${EXTRA_MAKE_FLAGS}
+    make -j gs2 ${EXTRA_MAKE_FLAGS}
   - &make_and_run_pfunit_tests
     - make build_pfunit_library ${EXTRA_MAKE_FLAGS}
     - make -j pfunit_tests ${EXTRA_MAKE_FLAGS}
