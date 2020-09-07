@@ -14,7 +14,7 @@ addons:
       - python3
       - python3-pip
 
-env:
+env: &default_env
   GIT_SUBMODULE_STRATEGY: recursive
   OMPI_MCA_rmaps_base_oversubscribe: "yes"
   # The following required to avoid lots of "Read -1, expected _, errno = 38" issues
@@ -33,7 +33,9 @@ jobs:
   - name: "Default"
   - name: "Default + debug"
     env :
+      - *default_env
       - EXTRA_MAKE_FLAGS="DEBUG=on"
+
 before_install:
   - pip3 install --upgrade pip setuptools
   - pip3 install -r requirements.txt
