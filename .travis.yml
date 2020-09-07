@@ -48,6 +48,7 @@ jobs:
       apt:
         packages:
           - gfortran
+    before_install:
   - name: "Default + debug"
     env :
       - *default_env
