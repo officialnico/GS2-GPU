@@ -62,10 +62,8 @@ jobs:
   - name: "Intel - no dependencies"
     env:
       - *default_env
-      - EXTRA_MAKE_FLAGS="QUIET= COMPILER=intel USE_MPI= USE_FFT= USE_NETCDF= USE_NEW_DIAG= "
+      - EXTRA_MAKE_FLAGS="COMPILER=intel USE_MPI= USE_FFT= USE_NETCDF= USE_NEW_DIAG= "
       - GK_TRAVIS_PFUNIT=""
-    install:
-    - source /opt/intel/oneapi/compiler/latest/env/vars.sh
     addons:
       apt:
         sources:
@@ -80,7 +78,6 @@ jobs:
     script:
       - source /opt/intel/oneapi/compiler/latest/env/vars.sh
       - . /opt/intel/oneapi/setvars.sh intel64
-      - locate libimf.so
       - ./pipeline_test_scripts/travis_build.sh
 
 before_install:
