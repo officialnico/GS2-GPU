@@ -62,7 +62,7 @@ jobs:
   - name: "Intel - no dependencies"
     env:
       - *default_env
-      - EXTRA_MAKE_FLAGS="COMPILER=intel DBLESIZEOPT='-double-size 128' USE_MPI= USE_FFT= USE_NETCDF= USE_NEW_DIAG= "
+      - EXTRA_MAKE_FLAGS="COMPILER=intel DBLESIZEOPT=\"-double-size 128\" USE_MPI= USE_FFT= USE_NETCDF= USE_NEW_DIAG= "
       - GK_TRAVIS_PFUNIT=""
     addons:
       apt:
