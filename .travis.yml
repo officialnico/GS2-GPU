@@ -75,7 +75,6 @@ jobs:
           - python3
           - python3-pip
           - intel-oneapi-ifort
-          - intel-basekit
           - intel-hpckit
 
     script:
