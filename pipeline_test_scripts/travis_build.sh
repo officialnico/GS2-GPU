@@ -19,7 +19,7 @@ build_gs2() {
 make_and_run_pfunit_tests() {
     header "Build and run pfunit tests"
     make build_pfunit_library ${EXTRA_MAKE_FLAGS}
-    if [[ "x${GK_TRAVIS_PFUNIT_COVERAGE" == "x" ]]
+    if [[ "x${GK_TRAVIS_PFUNIT_COVERAGE}" == "x" ]]
     then
         make -j pfunit_tests ${EXTRA_MAKE_FLAGS}
     else
