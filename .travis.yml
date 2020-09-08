@@ -60,6 +60,9 @@ jobs:
   - name: "Default focal (gfortran 9.3)"
     dist: focal
   - name: "Intel"
+    env:
+      - *default_env
+      - EXTRA_MAKE_FLAGS="COMPILER=intel"
     install:
     - source /opt/intel/oneapi/compiler/latest/env/vars.sh
     addons:
