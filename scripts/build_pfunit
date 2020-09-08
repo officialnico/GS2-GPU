@@ -56,7 +56,7 @@ while getopts ":mv:b:i:hrj:" OPT; do
             pfunit_use_mpi="NO"
             ;;
         v )
-            if [[ ! "$OPTARG" -eq 3 || "$OPTARG" -eq 4 ]]; then
+            if [[ ! "$OPTARG" -eq 3 && ! "$OPTARG" -eq 4 ]]; then
                 echo "pFUnit major version number must be either '3' or '4'" 1>&2
                 exit $error_wrong_version_numer
             fi
