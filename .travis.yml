@@ -62,7 +62,7 @@ jobs:
   - name: "Coverage"
     env:
       - *default_env
-      - EXTRA_MAKE_FLAGS="USE_GCOV=on"
+      - EXTRA_MAKE_FLAGS="USE_GCOV=on DEBUG=on"
       - GK_TRAVIS_INTEGRATED=""
       - GK_TRAVIS_PFUNIT_COVERAGE="ON"
     after_success:
