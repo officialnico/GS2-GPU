@@ -95,7 +95,7 @@ coverage_gcov_fail:
 else
 pfunit_coverage: gs2 make_test run_test run_gcov
 	mkdir -p coverage-pfunit
-	mv *.gcov coverage-pfunit/.
+	mv *.gcov coverage-pfunit/. || echo "Couldn't move generated gcov files to coverage-pfunit. This is likely because gcov files not found in ${GK_HEAD_DIR}."
 endif
 
 pfunit_clean:
