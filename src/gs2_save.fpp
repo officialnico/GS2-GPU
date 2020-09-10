@@ -164,6 +164,7 @@ contains
     logical :: exit
     logical :: local_init !<DD> Added for saving distribution function
     logical :: save_glo_info_and_grids_local, save_velocities_info  ! MRH added to control if layout and diagnostic information is saved
+    logical :: should_define_single_entry_variables
     integer, parameter :: verb = 3
     integer :: iglo
 
@@ -352,8 +353,19 @@ contains
           end if
        end if
        
+
+       ! Decide if this processor should take part in defining items
+       ! which should only appear once in outputs.
+# ifdef NETCDF_PARALLEL
+       should_define_single_entry_variables = ((.not.save_many).or.(save_many.and.proc0))
+# else
+       should_define_single_entry_variables = proc0
+# endif
+
        !For saving distribution function
-       IF (save_glo_info_and_grids_local .and. proc0) THEN ! only need these dimensions on proc0
+       IF (save_glo_info_and_grids_local.and.should_define_single_entry_variables) THEN
+        ! only need these dimensions on proc0
+
           !Define energy and lambda dimensions
 
           !Define negrid dimension (number of energy grid points)
@@ -613,7 +625,8 @@ contains
 
           !For saving distribution function
           IF (save_glo_info_and_grids_local) THEN
-             if(proc0) then ! only store layout information on processor 0
+             if (should_define_single_entry_variables) then
+                ! only store layout information on processor 0
                  ! allocate layout information arrays for plotting
                  if(.not. allocated(iglo_kykxsel)) allocate(iglo_kykxsel(naky,ntheta0,nspec,negrid,nlambda))
                  if(.not. allocated(procid_kykxsel)) allocate(procid_kykxsel(naky,ntheta0,nspec,negrid,nlambda))
@@ -656,9 +669,9 @@ contains
                 WRITE(ierr,*) "nf90_def_var iglo_llim_proc error: ", nf90_strerror(istatus)
                 GOTO 1
              END IF
-             
-             if(proc0) then ! only save grids on proc0
-                 !Define jtwist variable 
+
+             if(should_define_single_entry_variables) then ! only store layout information on processor 0
+                 !Define jtwist variable
                  istatus = nf90_def_var (ncid, "jtwist", netcdf_int, jtwist_id)
                  
                  !Check variable created successfully
