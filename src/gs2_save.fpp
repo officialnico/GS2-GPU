@@ -781,8 +781,9 @@ contains
     !      write (*,*) "List restart files"
     !      call system("echo 'defs' >> filelist.txt; ls nc/* >> filelist.txt;  ")
 !    end if
-       
+       call debug_message(verb, 'gs2_save::gs2_save_for_restart nf90_enddef')
        istatus = nf90_enddef (ncid)
+
        if (istatus /= NF90_NOERR) then
           ierr = error_unit()
           write (ierr,*) "nf90_enddef error: ", nf90_strerror(istatus)
@@ -856,6 +857,7 @@ contains
 1   continue
 
     if (istatus /= NF90_NOERR) then
+       call debug_message(verb, 'gs2_save::gs2_save_for_restart closing file at the continue point')
        i = nf90_close (ncid)
        initialized = .false.
        return
