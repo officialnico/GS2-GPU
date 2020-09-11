@@ -342,7 +342,7 @@ contains
               
             do ik = 2, naky ! Non-zonal modes
               do it = 1, ntheta0
-                 hypervisc_filter(:,it,ik) = exp(- ( D_hyper3D * &
+                 hypervisc_filter(:,it,ik) = exp(- ( D_hyper3D * code_dt * &
                ( kperp2(:,it,ik)/kperp2_max )**(P_hyper3D/2.0)) ) 
               end do
             end do
