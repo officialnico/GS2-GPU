@@ -37,14 +37,13 @@ contains
     use constants, only: pi => dpi
     use gauss_quad, only: get_legendre_grids_from_cheb, get_laguerre_grids
     use species, only: nspec, spec, f0_sdanalytic, f0_maxwellian, calculate_f0_arrays, f0_values
-    use mp, only: proc0
 
     implicit none
     integer, intent (in) :: negrid
     real, intent (in) :: vcut_in
     integer, intent (in) :: nesub_in
     real, dimension(:,:), intent (out) :: epts, wgts
-    integer:: nesub, is, ie
+    integer:: nesub, is
     real:: vcut
 
     call init_egrid (negrid)
@@ -94,17 +93,10 @@ contains
     zeroes(:,:) = sqrt(epts(:negrid-1,:))
     x0(:) = sqrt(epts(negrid,:))
 
-    !do is = 1,nspec
-    !do ie = 1,negrid
-    !if (proc0) write(*,*) is, ie, epts(ie,is),wgts(ie,is),f0_values(ie,is)
-    !end do
-    !end do
-
   end subroutine setvgrid
 
   !> FIXME : Add documentation  
   subroutine setvgrid_genquad (negrid, epts, wgts, nesub)
-    use mp, only: proc0, mp_abort, iproc
     use genquad, only: get_quadrature_rule
     use constants, only: pi => dpi
     use gauss_quad, only: get_legendre_grids_from_cheb, get_laguerre_grids
@@ -146,12 +138,6 @@ contains
 
     call calculate_f0_arrays(epts)
 
-    !do is = 1,nspec
-    !do ie = 1,negrid
-    !if (proc0) write(*,*) is, ie, epts(ie,is),wgts(ie,is),f0_values(ie,is)
-    !end do
-    !end do
-    
     zeroes(:,:) = sqrt(epts(:negrid-1,:))
     x0(:) = sqrt(epts(negrid,:))
 
@@ -161,14 +147,13 @@ end module egrid
 
 !> FIXME : Add documentation
 module le_grids
-  
+  use abstract_config, only: abstract_config_type, CONFIG_MAX_NAME_LEN
   use redistribute, only: redist_type
   implicit none
 
   private
 
   public :: init_le_grids, finish_le_grids
-  public :: init_g2le_redistribute, init_lambda_redistribute, init_energy_redistribute
   public :: read_parameters, wnml_le_grids
   public :: integrate_species, write_mpdist, write_mpdist_le
   public :: energy, energy_maxw, speed_maxw, al, delal, jend, forbid, dele, wl, w, w_maxw
@@ -184,6 +169,9 @@ module le_grids
   public :: integrate_species_sub !<DD>
   public :: hermite_prob
 
+  public :: le_grids_config_type
+  public :: set_le_grids_config
+  
   interface integrate_moment
      module procedure integrate_moment_c34
      module procedure integrate_moment_lec
@@ -278,7 +266,93 @@ module le_grids
 
   integer, dimension(:),allocatable :: recvcnts_intspec,displs_intspec
   integer :: sz_intspec, local_rank_intspec
-
+  
+  !> Used to represent the input configuration of le_grids
+  type, extends(abstract_config_type) :: le_grids_config_type
+     ! namelist : le_grids_knobs
+     ! indexed : false
+     !> Acts as a small tolerance in deciding if a particular pitch
+     !> angle is forbidden at a particular theta grid point. Rather
+     !> than considering particles to be forbidden if `1.0 - lambda *
+     !> B(theta) < 0` we treat them as forbidden if `1.0 - lambda *
+     !> B(theta) < -bouncefuzz`. This provides a small "buffer" to
+     !> account for floating round off in the calculation of `lambda`
+     !> and `B`.
+     real :: bouncefuzz = 1e-5
+     !> If true use generalised quadrature scheme for velocity
+     !> integrals and energy grid. See [G. Wilkie
+     !> thesis](https://drum.lib.umd.edu/handle/1903/17302).
+     logical :: genquad = .false.
+     !> Sets the number of energy grid points to use. If specified
+     !> then overrides values of `nesuper = min(negrid/10 + 1,
+     !> 4)` and `nesub = negrid - nesuper`. If not set then the total
+     !> number of energy grid points is just `negrid = nesub +
+     !> nesuper`. The energy grid is split into two regions at a point
+     !> controlled by `vcut`.
+     integer :: negrid = -10
+     !> Sets the number of energy grid points below the cutoff.
+     integer :: nesub = 8
+     !> Sets the number of energy grid points above the cutoff.
+     integer :: nesuper = 2
+     !> If `true` then use a more accurate integration method for the
+     !> trapped pitch angle contribution to velocity integrals. The
+     !> default uses a simple, but potentially less accurate, finite
+     !> difference method.
+     logical :: new_trap_int = .false.
+     !> The number of untrapped pitch-angles moving in one direction
+     !> along field line is `2*ngauss`. Note that the number of
+     !> trapped pitch angles is directly related to the number of
+     !> theta grid points (per \(2\pi\)) and is `ntheta/2 + 1`.
+     integer :: ngauss = 5
+     !> Influences the minimum number of grid points in an integration
+     !> subinterval used in calculating the integration grid weights.
+     integer :: nmax = 500
+     !> The number of nodes used in calculating lagrange coefficients
+     !> is `2*nterp-1`.  This code isn't currently used in GS2 so this
+     !> input should not influence anything significant.
+     integer :: nterp = 100
+     !> The default lambda grid is now gauss-radau, for passing
+     !> particles up to and including the passing-trapped boundary
+     !> (wfb). The grid gives finite weight to the class of particles
+     !> which bounce at theta = +/- pi (wfb) in the passing integral
+     !> Note that the old gauss-legendre is used in the case that
+     !> trapped_particles =.false.
+     !>
+     !> @note In reference to above comment -
+     !> code doesn't seem to change radau_gauss_grid when
+     !> trapped_particles is false, should it?
+     logical :: radau_gauss_grid = .true.
+     !> If `true` then just does a few tests and writes pitch angle
+     !> and energy grids to screen before aborting the simulation.
+     logical :: test = .false.
+     !> If set to `false` then the lambda grid weighting `wl` is set
+     !> to zero for trapped pitch angles. This means that integrals
+     !> over velocity space do not include a contribution from trapped
+     !> particles which is equivalent to the situation where
+     !> `eps<=0.0`.  Trapped particle drifts are not set to zero so
+     !> "trapped" particles still enter the source term through
+     !> `wdfac`. At least for s-alpha the drifts are the main
+     !> difference (*please correct if not true*) between the
+     !> `eps<=0.0` and the `trapped_particles = .false.` cases as
+     !> `Bmag` is not a function of theta in the `eps<=0.0` case
+     !> whilst it is in the `trapped_particles = .false.` case.
+     logical :: trapped_particles = .true.
+     !> No. of standard deviations from the standard Maxwellian beyond
+     !> which the distribution function will be set to 0.
+     real :: vcut = 2.5
+     !> Influences the maximum integration weight allowed.
+     real :: wgt_fac = 10.0
+   contains
+     procedure, public :: read => read_le_grids_config
+     procedure, public :: write => write_le_grids_config
+     procedure, public :: reset => reset_le_grids_config
+     procedure, public :: broadcast => broadcast_le_grids_config
+     procedure, public, nopass :: get_default_name => get_default_name_le_grids_config
+     procedure, public, nopass :: get_default_requires_index => get_default_requires_index_le_grids_config
+  end type le_grids_config_type
+  
+  type(le_grids_config_type) :: le_grids_config
+  
 contains
 
   !> FIXME : Add documentation  
@@ -296,7 +370,7 @@ contains
   end subroutine wnml_le_grids
 
   !> FIXME : Add documentation  
-  subroutine init_le_grids (accelerated_x, accelerated_v)
+  subroutine init_le_grids (accelerated_x, accelerated_v, le_grid_config_in)
     use mp, only: proc0, finish_mp
     use species, only: init_species
     use theta_grid, only: init_theta_grid
@@ -305,6 +379,7 @@ contains
     use egrid, only: setvgrid
     implicit none
     logical, intent (out) :: accelerated_x, accelerated_v
+    type(le_grids_config_type), intent(in), optional :: le_grid_config_in    
     integer :: il, ie
 
     if (initialized) return
@@ -315,10 +390,7 @@ contains
     call init_theta_grid
     call init_kt_grids
 
-    if (proc0) then
-       call read_parameters
-    end if
-    call broadcast_input
+    call read_parameters(le_grid_config_in)
     call set_vgrid
     if (proc0) then
        call set_grids
@@ -359,36 +431,8 @@ contains
     end if
   end subroutine set_vgrid
 
-  !> FIXME : Add documentation  
-  subroutine broadcast_input
-    use mp, only: broadcast
-    implicit none
-    integer :: tsize
-
-    tsize = 2*nterp-1
-
-    call broadcast (ngauss)
-    call broadcast (negrid)
-    call broadcast (nesuper)
-    call broadcast (nesub)
-    call broadcast (vcut)
-    call broadcast (genquad)
-    call broadcast (bouncefuzz)
-    call broadcast (nxi)
-    call broadcast (nlambda)
-    call broadcast (ng2)
-    call broadcast (lmax)
-    call broadcast (test)
-    call broadcast (nmax)
-    call broadcast (trapped_particles)
-    call broadcast (radau_gauss_grid)
-    call broadcast (wgt_fac)
-    call broadcast (new_trap_int)
-    call broadcast (nterp)
- end subroutine broadcast_input
-
- !> FIXME : Add documentation 
- subroutine broadcast_results
+  !> FIXME : Add documentation 
+  subroutine broadcast_results
     use mp, only: proc0, broadcast
     use species, only: nspec
     use egrid, only: init_egrid, zeroes_maxw, x0_maxw
@@ -452,25 +496,32 @@ contains
   end subroutine broadcast_results
 
   !> FIXME : Add documentation  
-  subroutine read_parameters
-    use file_utils, only: input_unit_exist
+  subroutine read_parameters(le_grid_config_in)
     implicit none
-    integer :: in_file
-    namelist /le_grids_knobs/ ngauss, negrid, bouncefuzz, &
-         nesuper, nesub, test, trapped_particles, &
-         nmax, wgt_fac, new_trap_int, nterp, vcut, genquad, &
-         radau_gauss_grid
+    type(le_grids_config_type), intent(in), optional :: le_grid_config_in    
+    
+    if (present(le_grid_config_in)) le_grids_config = le_grid_config_in
 
-    nesub = 8
-    nesuper = 2
-    ngauss = 5
-    negrid = -10
-    vcut = 2.5
-    bouncefuzz = 1e-5
-    genquad = .false.
-    in_file=input_unit_exist("le_grids_knobs", exist)
-    if (exist) read (unit=in_file, nml=le_grids_knobs)
+    call le_grids_config%init(name = 'le_grids_knobs', requires_index = .false.)
 
+    ! Copy out internal values into module level parameters
+    bouncefuzz = le_grids_config%bouncefuzz
+    genquad = le_grids_config%genquad
+    negrid = le_grids_config%negrid
+    nesub = le_grids_config%nesub
+    nesuper = le_grids_config%nesuper
+    new_trap_int = le_grids_config%new_trap_int
+    ngauss = le_grids_config%ngauss
+    nmax = le_grids_config%nmax
+    nterp = le_grids_config%nterp
+    radau_gauss_grid = le_grids_config%radau_gauss_grid
+    test = le_grids_config%test
+    trapped_particles = le_grids_config%trapped_particles
+    vcut = le_grids_config%vcut
+    wgt_fac = le_grids_config%wgt_fac
+
+    exist = le_grids_config%exist
+    
 ! user can choose not to set negrid (preferred for old scheme)
     if (negrid == -10) then
        negrid = nesub + nesuper
@@ -2788,7 +2839,6 @@ contains
   subroutine init_map (use_lz_layout, use_e_layout, use_le_layout, test)
     use mp, only: finish_mp, proc0
     use redistribute, only: report_map_property
-    use gs2_layouts, only: opt_redist_init
     implicit none
 
     logical, intent (in) :: use_lz_layout, use_e_layout, use_le_layout, test
@@ -2797,11 +2847,8 @@ contains
 
     if (use_lz_layout) then
        ! init_lambda_layout is called in redistribute
-       if(opt_redist_init)then
-          call init_lambda_redistribute_local
-       else
-          call init_lambda_redistribute
-       endif
+       call init_lambda_redistribute_local
+
        if (test) then
           if (proc0) print *, '=== Lambda map property ==='
           call report_map_property (lambda_map)
@@ -2810,11 +2857,8 @@ contains
 
     if (use_e_layout) then
        ! init_energy_layout is called in redistribute
-       if(opt_redist_init) then
-          call init_energy_redistribute_local
-       else
-          call init_energy_redistribute
-       endif
+       call init_energy_redistribute_local
+
        if (test) then
           if (proc0) print *, '=== Energy map property ==='
           call report_map_property (energy_map)
@@ -2822,11 +2866,7 @@ contains
     end if
 
     if (use_le_layout) then
-       if(opt_redist_init) then
-          call init_g2le_redistribute_local
-       else
-          call init_g2le_redistribute
-       endif
+       call init_g2le_redistribute_local
        if (test) call check_g2le
 
     end if
@@ -2851,133 +2891,8 @@ contains
 
   end subroutine init_g2gf
 
-  !> FIXME : Add documentation  
-  subroutine init_g2le_redistribute
-    use mp, only: nproc
-    use species, only: nspec
-    use theta_grid, only: ntgrid
-    use kt_grids, only: naky, ntheta0
-    use gs2_layouts, only: init_le_layouts
-    use gs2_layouts, only: g_lo, le_lo
-    use gs2_layouts, only: idx_local, proc_id
-    use gs2_layouts, only: ik_idx, it_idx, ie_idx, is_idx, il_idx, idx
-    use redistribute, only: index_list_type, init_redist, delete_list
-
-    implicit none
-
-    type (index_list_type), dimension(0:nproc-1) :: to_list, from_list
-    integer, dimension (0:nproc-1) :: nn_to, nn_from
-    integer, dimension (3) :: from_low, from_high
-    integer, dimension (3) :: to_low, to_high
-    integer :: ig, isign, iglo, il, ile
-    integer :: ik, it, ie, is
-    integer :: n, ip, je
-
-    if (leinit) return
-
-    call init_le_layouts (ntgrid, naky, ntheta0, nspec)
-
-    ! count number of elements to be redistributed to/from each processor
-    nn_to = 0
-    nn_from = 0
-    do iglo = g_lo%llim_world, g_lo%ulim_world
-       ik = ik_idx(g_lo,iglo)
-       it = it_idx(g_lo,iglo)
-       is = is_idx(g_lo,iglo)
-       do ig = -ntgrid, ntgrid
-          ile = idx (le_lo, ig, ik, it, is)
-          if (idx_local(g_lo,iglo)) nn_from(proc_id(le_lo,ile)) = nn_from(proc_id(le_lo,ile)) + 2
-          if (idx_local(le_lo,ile)) nn_to(proc_id(g_lo,iglo)) = nn_to(proc_id(g_lo,iglo)) + 2
-       end do
-    end do
-
-    do ip = 0, nproc-1
-       if (nn_from(ip) > 0) then
-          allocate (from_list(ip)%first (nn_from(ip)))
-          allocate (from_list(ip)%second(nn_from(ip)))
-          allocate (from_list(ip)%third (nn_from(ip)))
-       end if
-       if (nn_to(ip) > 0) then
-          allocate (to_list(ip)%first (nn_to(ip)))
-          allocate (to_list(ip)%second(nn_to(ip)))
-          allocate (to_list(ip)%third (nn_to(ip)))
-       end if
-    end do
-
-    ! get local indices of elements distributed to/from other processors
-    nn_to = 0
-    nn_from = 0
-    do iglo = g_lo%llim_world, g_lo%ulim_world
-       ik = ik_idx(g_lo,iglo)
-       it = it_idx(g_lo,iglo)
-       ie = ie_idx(g_lo,iglo)
-       is = is_idx(g_lo,iglo)
-       do isign = 1, 2
-          do ig = -ntgrid, ntgrid
-             il = il_idx(g_lo,iglo)
-             je = jend(ig)
-             if (je == 0) then
-                if (isign == 2) then
-                   il = 2*g_lo%nlambda+1 - il
-                end if
-             else
-                if (il == je) then
-                   if (isign == 1) il = 2*je  ! throw this info away
-                else if (il > je) then 
-                   if (isign == 1) il = il + je
-                   if (isign == 2) il = 2*g_lo%nlambda + 1 - il + je
-                else
-                   if (isign == 2) il = 2*je - il !+ 1
-                end if
-             end if
-             ile = idx (le_lo, ig, ik, it, is)
-             if (idx_local(g_lo,iglo)) then
-                ip = proc_id(le_lo,ile)
-                n = nn_from(ip) + 1
-                nn_from(ip) = n
-                from_list(ip)%first(n)  = ig
-                from_list(ip)%second(n) = isign
-                from_list(ip)%third(n)  = iglo
-             end if
-             if (idx_local(le_lo,ile)) then
-                ip = proc_id(g_lo,iglo)
-                n = nn_to(ip) + 1
-                nn_to(ip) = n
-                to_list(ip)%first(n)  = il
-                to_list(ip)%second(n) = ie
-                to_list(ip)%third(n)  = ile
-             end if
-          end do
-       end do
-    end do
-
-    from_low (1) = -ntgrid
-    from_low (2) = 1
-    from_low (3) = g_lo%llim_proc
-
-    from_high(1) = ntgrid
-    from_high(2) = 2
-    from_high(3) = g_lo%ulim_alloc
-
-    to_low(1) = 1
-    to_low(2) = 1
-    to_low(3) = le_lo%llim_proc
-
-    to_high(1) = max(2*nlambda, 2*ng2+1)
-    to_high(2) = negrid + 1  ! TT: just followed convention with +1.
-    ! TT: It may be good to avoid bank conflict.
-    to_high(3) = le_lo%ulim_alloc
-
-    call init_redist (g2le, 'c', to_low, to_high, to_list, from_low, from_high, from_list)
-
-    call delete_list (to_list)
-    call delete_list (from_list)
-
-    leinit = .true.
-
-  end subroutine init_g2le_redistribute
-
-  !> FIXME : Add documentation
+  !> Constructs the redistribute mapping from the g_lo data
+  !> decomposition to the le_lo decomposition.
   subroutine init_g2le_redistribute_local
     use mp, only: nproc
     use species, only: nspec
@@ -3008,11 +2923,6 @@ contains
     !Early exit if possible
     if (leinit) return
     leinit = .true.
-
-    !Warning message | NOTE: To test we should use the original routine to generate to_list and from_list
-    !and compare with those generated by this routine. They should be identical
-    !Testing is now complete?
-    !if(iproc.eq.0) write(6,*) "WARNING: init_g2le_redistribute_local has not been well tested, consider using opt_redist_init=.false."
 
     !Setup the le layout object (le_lo)
     call init_le_layouts (ntgrid, naky, ntheta0, nspec)
@@ -3059,24 +2969,8 @@ contains
        enddo
     endif
 
-    ! !ORIGINAL --> Testing
-    ! nn_from_old=0
-    ! nn_to_old=0
-    ! do iglo = g_lo%llim_world, g_lo%ulim_world
-    !    ik = ik_idx(g_lo,iglo)
-    !    it = it_idx(g_lo,iglo)
-    !    is = is_idx(g_lo,iglo)
-    !    do ig = -ntgrid, ntgrid
-    !       ile = idx (le_lo, ig, ik, it, is)
-    !       if (idx_local(g_lo,iglo)) nn_from_old(proc_id(le_lo,ile)) = nn_from_old(proc_id(le_lo,ile)) + 2
-    !       if (idx_local(le_lo,ile)) nn_to_old(proc_id(g_lo,iglo)) = nn_to_old(proc_id(g_lo,iglo)) + 2
-    !    end do
-    ! end do
-
     !Now allocate storage for index arrays
     do ip = 0, nproc-1
-       !Testing
-       !print*,iproc,ip,nn_to(ip),nn_to_old(ip),nn_from(ip),nn_from_old(ip)
        if (nn_from(ip) > 0) then
           allocate (from_list(ip)%first (nn_from(ip)))
           allocate (from_list(ip)%second(nn_from(ip)))
@@ -3088,10 +2982,6 @@ contains
           allocate (to_list(ip)%third (nn_to(ip)))
           !For sorting message order later
           allocate (sort_list(ip)%first(nn_to(ip)))
-          ! !For testing
-          ! allocate (old_list(ip)%first (nn_to_old(ip)))
-          ! allocate (old_list(ip)%second(nn_to_old(ip)))
-          ! allocate (old_list(ip)%third (nn_to_old(ip)))
        end if
     end do
 
@@ -3192,69 +3082,9 @@ contains
     do ip=0,nproc-1
        if(nn_to(ip)>0) then
           !Apply quicksort
-          CALL quicksort(nn_to(ip),sort_list(ip)%first,to_list(ip)%first,to_list(ip)%second,to_list(ip)%third)
+          call quicksort(nn_to(ip),sort_list(ip)%first,to_list(ip)%first,to_list(ip)%second,to_list(ip)%third)
        endif
     enddo
-
-    ! ! !ORIGINAL, modified for testing
-    ! nn_to_old=0.
-    ! do iglo = g_lo%llim_world, g_lo%ulim_world
-    !    ik = ik_idx(g_lo,iglo)
-    !    it = it_idx(g_lo,iglo)
-    !    ie = ie_idx(g_lo,iglo)
-    !    is = is_idx(g_lo,iglo)
-    !    do isign = 1, 2
-    !       do ig = -ntgrid, ntgrid
-    !          il = il_idx(g_lo,iglo)
-    !          je = jend(ig)
-    !          if (je == 0) then
-    !             if (isign == 2) then
-    !                il = 2*g_lo%nlambda+1 - il
-    !             end if
-    !          else
-    !             if (il == je) then
-    !                if (isign == 1) il = 2*je  ! throw this info away
-    !             else if (il > je) then 
-    !                if (isign == 1) il = il + je
-    !                if (isign == 2) il = 2*g_lo%nlambda + 1 - il + je
-    !             else
-    !                if (isign == 2) il = 2*je - il !+ 1
-    !             end if
-    !          end if
-    !          ile = idx (le_lo, ig, ik, it, is)
-    !          ! if (idx_local(g_lo,iglo)) then
-    !          !    ip = proc_id(le_lo,ile)
-    !          !    n = nn_from(ip) + 1
-    !          !    nn_from(ip) = n
-    !          !    from_list(ip)%first(n)  = ig
-    !          !    from_list(ip)%second(n) = isign
-    !          !    from_list(ip)%third(n)  = iglo
-    !          ! end if
-    !          if (idx_local(le_lo,ile)) then
-    !             ip = proc_id(g_lo,iglo)
-    !             n = nn_to_old(ip) + 1
-    !             nn_to_old(ip) = n
-    !             old_list(ip)%first(n)  = il
-    !             old_list(ip)%second(n) = ie
-    !             old_list(ip)%third(n)  = ile
-    !          end if
-    !       end do
-    !    end do
-    ! end do
-
-    ! !Testing
-    ! do ip=0,nproc-1
-    !    if (nn_to(ip)>0)then
-    !       if(sum(abs(to_list(ip)%first-old_list(ip)%first)).ne.0)print*,"Error in first: iproc,to",iproc,ip
-    !       if(sum(abs(to_list(ip)%second-old_list(ip)%second)).ne.0)print*,"Error in second: iproc,to",iproc,ip
-    !       if(sum(abs((to_list(ip)%third-le_lo%llim_proc)-(old_list(ip)%third-le_lo%llim_proc))).ne.0) then
-    !          print*,"Error in third: iproc,to",iproc,ip
-    !          do n=1,nn_to(ip)
-    !             print*,"N O M R",to_list(ip)%third(n),old_list(ip)%third(n),iproc,ip
-    !          enddo
-    !       endif
-    !    endif
-    ! enddo
 
     !Now setup array range values
     from_low (1) = -ntgrid
@@ -3279,14 +3109,10 @@ contains
     call delete_list (to_list)
     call delete_list (from_list)
     call delete_list (sort_list)
-    !Testing
-    !call delete_list (old_list)
-
   end subroutine init_g2le_redistribute_local
 
   !> FIXME : Add documentation
   subroutine check_g2le
-
     use file_utils, only: error_unit
     use mp, only: finish_mp, iproc, proc0
     use theta_grid, only: ntgrid
@@ -3656,133 +3482,8 @@ contains
     end function rule
   end subroutine check_g2gf
 
-  !> FIXME : Add documentation  
-  subroutine init_lambda_redistribute
-    use mp, only: nproc
-    use species, only: nspec
-    use theta_grid, only: ntgrid
-    use kt_grids, only: naky, ntheta0
-    use gs2_layouts, only: init_lambda_layouts
-    use gs2_layouts, only: g_lo, lz_lo
-    use gs2_layouts, only: idx_local, proc_id
-    use gs2_layouts, only: ik_idx, it_idx, ie_idx, is_idx, il_idx, idx
-    use redistribute, only: index_list_type, init_redist, delete_list
-
-    implicit none
-
-    type (index_list_type), dimension(0:nproc-1) :: to_list, from_list
-    integer, dimension(0:nproc-1) :: nn_to, nn_from
-    integer, dimension(3) :: from_low, from_high
-    integer, dimension(2) :: to_low, to_high
-    integer :: ig, isign, iglo, il, ilz
-    integer :: ik, it, ie, is, je
-    integer :: n, ip
-
-    if (lzinit) return
-
-    call init_lambda_layouts &
-         (ntgrid, naky, ntheta0, nlambda, negrid, nspec, ng2)
-
-    ! count number of elements to be redistributed to/from each processor
-    nn_to = 0
-    nn_from = 0
-    do iglo = g_lo%llim_world, g_lo%ulim_world
-       ik = ik_idx(g_lo,iglo)
-       it = it_idx(g_lo,iglo)
-       ie = ie_idx(g_lo,iglo)
-       is = is_idx(g_lo,iglo)
-       do isign = 1, 2
-          do ig = -ntgrid, ntgrid
-             ilz = idx(lz_lo, ig, ik, it, ie, is)
-             if (idx_local(g_lo,iglo)) &
-                  nn_from(proc_id(lz_lo,ilz)) = nn_from(proc_id(lz_lo,ilz)) + 1
-             if (idx_local(lz_lo,ilz)) &
-                  nn_to(proc_id(g_lo,iglo)) = nn_to(proc_id(g_lo,iglo)) + 1
-          end do
-       end do
-    end do
-
-    do ip = 0, nproc-1
-       if (nn_from(ip) > 0) then
-          allocate (from_list(ip)%first(nn_from(ip)))
-          allocate (from_list(ip)%second(nn_from(ip)))
-          allocate (from_list(ip)%third(nn_from(ip)))
-       end if
-       if (nn_to(ip) > 0) then
-          allocate (to_list(ip)%first(nn_to(ip)))
-          allocate (to_list(ip)%second(nn_to(ip)))
-       end if
-    end do
-
-    ! get local indices of elements distributed to/from other processors
-    nn_to = 0
-    nn_from = 0
-    do iglo = g_lo%llim_world, g_lo%ulim_world
-       ik = ik_idx(g_lo,iglo)
-       it = it_idx(g_lo,iglo)
-       ie = ie_idx(g_lo,iglo)
-       is = is_idx(g_lo,iglo)
-       do isign = 1, 2
-          do ig = -ntgrid, ntgrid
-             je = jend(ig)
-             il = il_idx(g_lo,iglo)
-             if (je == 0) then
-                if (isign == 2) then
-                   il = 2*g_lo%nlambda+1 - il
-                end if
-             else
-                if (il == je) then
-                   if (isign == 1) il = 2*je  ! throw this info away
-                else if (il > je) then 
-                   if (isign == 1) il = il + je
-                   if (isign == 2) il = 2*g_lo%nlambda + 1 - il + je
-                else
-                   if (isign == 2) il = 2*je - il !+ 1
-                end if
-             end if
-             ilz = idx(lz_lo, ig, ik, it, ie, is)
-             if (idx_local(g_lo,iglo)) then
-                ip = proc_id(lz_lo,ilz)
-                n = nn_from(ip) + 1
-                nn_from(ip) = n
-                from_list(ip)%first(n) = ig
-                from_list(ip)%second(n) = isign
-                from_list(ip)%third(n) = iglo
-             end if
-             if (idx_local(lz_lo,ilz)) then
-                ip = proc_id(g_lo,iglo)
-                n = nn_to(ip) + 1
-                nn_to(ip) = n
-                to_list(ip)%first(n) = il
-                to_list(ip)%second(n) = ilz
-             end if
-          end do
-       end do
-    end do
-
-    from_low (1) = -ntgrid
-    from_low (2) = 1
-    from_low (3) = g_lo%llim_proc
-
-    to_low(1) = 1
-    to_low(2) = lz_lo%llim_proc
-
-    to_high(1) = max(2*nlambda, 2*ng2+1)
-    to_high(2) = lz_lo%ulim_alloc
-
-    from_high(1) = ntgrid
-    from_high(2) = 2
-    from_high(3) = g_lo%ulim_alloc
-    call init_redist (lambda_map, 'c', to_low, to_high, to_list, &
-         from_low, from_high, from_list)
-    call delete_list (to_list)
-    call delete_list (from_list)
-
-    lzinit = .true.
-
-  end subroutine init_lambda_redistribute
-
-  !> FIXME : Add documentation
+  !> Computes the redistribute mapping from the g_lo data
+  !> decomposition to the lz_lo decomposition
   subroutine init_lambda_redistribute_local
     use mp, only: nproc, barrier
     use species, only: nspec
@@ -3963,7 +3664,7 @@ contains
        !Only worry about the cases where we're receiving data
        if(nn_to(ip)>0) then
           !Apply quicksort
-          CALL quicksort(nn_to(ip),sort_list(ip)%first,to_list(ip)%first,to_list(ip)%second)
+          call quicksort(nn_to(ip),sort_list(ip)%first,to_list(ip)%first,to_list(ip)%second)
        endif
     enddo
 
@@ -3992,127 +3693,8 @@ contains
 
   end subroutine init_lambda_redistribute_local
 
-  !> FIXME : Add documentation
-  subroutine init_energy_redistribute
-    use mp, only: nproc
-    use species, only: nspec
-    use theta_grid, only: ntgrid
-    use kt_grids, only: naky, ntheta0
-    use gs2_layouts, only: init_energy_layouts
-    use gs2_layouts, only: g_lo, e_lo, ie_idx, ik_idx, it_idx, il_idx, is_idx
-    use gs2_layouts, only: idx_local, proc_id, idx
-    use redistribute, only: index_list_type, init_redist, delete_list
-
-    implicit none
-
-    type (index_list_type), dimension(0:nproc-1) :: to_list, from_list
-    integer, dimension(0:nproc-1) :: nn_to, nn_from
-    integer, dimension(3) :: from_low, from_high
-    integer, dimension(2) :: to_low, to_high
-    integer :: ig, isign, iglo, ik, it, il, ie, is, ielo
-    integer :: n, ip
-
-    if (einit) return
-    
-!DD, March 2009: Nullify pointers on initialisation, so do not pass association
-!                test when not allocated. 
-!  Problem arose on Pascali compiler (York) with  to_list(ip)%third and fourth
-    do ip=0, (nproc-1)
-       nullify(to_list(ip)%first,from_list(ip)%first,to_list(ip)%second,from_list(ip)%second,to_list(ip)%third,from_list(ip)%third,to_list(ip)%fourth,from_list(ip)%fourth)
-    end do
-!<DD
-
-    call init_energy_layouts &
-         (ntgrid, naky, ntheta0, nlambda, nspec)
-
-    ! count number of elements to be redistributed to/from each processor
-    nn_to = 0
-    nn_from = 0
-    do iglo = g_lo%llim_world, g_lo%ulim_world
-       ik = ik_idx(g_lo,iglo)
-       it = it_idx(g_lo,iglo)
-       il = il_idx(g_lo,iglo)
-       is = is_idx(g_lo,iglo)
-       do isign = 1, 2
-          do ig = -ntgrid, ntgrid
-             ielo = idx(e_lo,ig,isign,ik,it,il,is)
-             if (idx_local(g_lo,iglo)) &
-                  nn_from(proc_id(e_lo,ielo)) = nn_from(proc_id(e_lo,ielo)) + 1
-             if (idx_local(e_lo,ielo)) &
-                  nn_to(proc_id(g_lo,iglo)) = nn_to(proc_id(g_lo,iglo)) + 1
-          end do
-       end do
-    end do
-
-    do ip = 0, nproc-1
-       if (nn_from(ip) > 0) then
-          allocate (from_list(ip)%first(nn_from(ip)))
-          allocate (from_list(ip)%second(nn_from(ip)))
-          allocate (from_list(ip)%third(nn_from(ip)))
-       end if
-       if (nn_to(ip) > 0) then
-          allocate (to_list(ip)%first(nn_to(ip)))
-          allocate (to_list(ip)%second(nn_to(ip)))
-       end if
-    end do
-
-    ! get local indices of elements distributed to/from other processors
-    nn_to = 0
-    nn_from = 0
-    do iglo = g_lo%llim_world, g_lo%ulim_world
-       ik = ik_idx(g_lo,iglo)
-       it = it_idx(g_lo,iglo)
-       il = il_idx(g_lo,iglo)
-       is = is_idx(g_lo,iglo)
-       ie = ie_idx(g_lo,iglo)
-       do isign = 1, 2
-          do ig = -ntgrid, ntgrid
-             ielo = idx(e_lo,ig,isign,ik,it,il,is)
-
-             if (idx_local(g_lo,iglo)) then
-                ip = proc_id(e_lo,ielo)
-                n = nn_from(ip) + 1
-                nn_from(ip) = n
-                from_list(ip)%first(n) = ig
-                from_list(ip)%second(n) = isign
-                from_list(ip)%third(n) = iglo
-             end if
-             if (idx_local(e_lo,ielo)) then
-                ip = proc_id(g_lo,iglo)
-                n = nn_to(ip) + 1
-                nn_to(ip) = n
-                to_list(ip)%first(n) = ie
-                to_list(ip)%second(n) = ielo
-             end if
-          end do
-       end do
-    end do
-
-    from_low (1) = -ntgrid
-    from_low (2) = 1
-    from_low (3) = g_lo%llim_proc
-
-    to_low(1) = 1
-    to_low(2) = e_lo%llim_proc
-
-    to_high(1) = negrid+1
-    to_high(2) = e_lo%ulim_alloc
-
-    from_high(1) = ntgrid
-    from_high(2) = 2
-    from_high(3) = g_lo%ulim_alloc
-
-    call init_redist (energy_map, 'c', to_low, to_high, to_list, &
-         from_low, from_high, from_list)
-
-    call delete_list (to_list)
-    call delete_list (from_list)
-
-    einit = .true.
-
-  end subroutine init_energy_redistribute
-
-  !> FIXME : Add documentation
+  !> Constructs the redistribute mapping from the g_lo data
+  !> decomposition to the e_lo decomposition
   subroutine init_energy_redistribute_local
     use mp, only: nproc
     use species, only: nspec
@@ -4137,14 +3719,6 @@ contains
     !Early exit if possible
     if (einit) return
     einit = .true.
-
-    !DD, March 2009: Nullify pointers on initialisation, so do not pass association
-    !                test when not allocated. 
-    !  Problem arose on Pascali compiler (York) with  to_list(ip)%third and fourth
-    do ip=0, (nproc-1)
-       nullify(to_list(ip)%first,from_list(ip)%first,to_list(ip)%second,from_list(ip)%second,to_list(ip)%third,from_list(ip)%third,to_list(ip)%fourth,from_list(ip)%fourth)
-    end do
-    !<DD>
 
     !Initialise e_lo layout object
     call init_energy_layouts &
@@ -4204,9 +3778,6 @@ contains
           allocate (sort_list(ip)%first(nn_to(ip)))
        end if
     end do
-
-    !<DD>Debug test, are we sending and receiving the same amount to ourselves? Remove when testing completed
-    !if(debug.and.nn_to(iproc).ne.nn_from(iproc)) print*,"ERROR: iproc ",iproc,"nn_from",nn_from(iproc),"nn_to",nn_to(iproc)  
 
     !Reinitialise counters to zero
     nn_to = 0
@@ -4277,7 +3848,7 @@ contains
        !Only worry about cases where we're receiving data
        if(nn_to(ip)>0) then
           !Sort based on quicksort
-          CALL quicksort(nn_to(ip),sort_list(ip)%first,to_list(ip)%first,to_list(ip)%second)
+          call quicksort(nn_to(ip),sort_list(ip)%first,to_list(ip)%first,to_list(ip)%second)
        endif
     enddo
 
@@ -4486,6 +4057,7 @@ contains
     einit = .false.
     initialized = .false.
 
+    call le_grids_config%reset()
   end subroutine finish_le_grids
 
   !> FIXME : Add documentation  
@@ -4494,6 +4066,170 @@ contains
     if (allocated(wlerr)) deallocate (wlerr)
     init_weights_init = .false.
   end subroutine finish_weights
+
+  !> Set the module level config type
+  !> Will abort if the module has already been initialised to avoid
+  !> inconsistencies.
+  subroutine set_le_grids_config(le_grids_config_in)
+    use mp, only: mp_abort
+    type(le_grids_config_type), intent(in), optional :: le_grids_config_in
+    if (initialized) then
+       call mp_abort("Trying to set le_grids_config when already initialized.", to_screen = .true.)
+    end if
+    if (present(le_grids_config_in)) then
+       le_grids_config = le_grids_config_in
+    end if
+  end subroutine set_le_grids_config
+  
+  !---------------------------------------
+  ! Following is for the config_type
+  !---------------------------------------
+  
+  !> Reads in the le_grids_knobs namelist and populates the member variables
+  subroutine read_le_grids_config(self)
+    use file_utils, only: input_unit_exist, get_indexed_namelist_unit
+    use mp, only: proc0
+    implicit none
+    class(le_grids_config_type), intent(in out) :: self
+    logical :: exist
+    integer :: in_file, iostat
+
+    ! Note: When this routine is in the module where these variables live
+    ! we shadow the module level variables here. This is intentional to provide
+    ! isolation and ensure we can move this routine to another module easily.
+    integer :: negrid, nesub, nesuper, ngauss, nmax, nterp
+    logical :: genquad, new_trap_int, radau_gauss_grid, test, trapped_particles
+    real :: bouncefuzz, vcut, wgt_fac
+
+    namelist /le_grids_knobs/ bouncefuzz, genquad, negrid, nesub, nesuper, new_trap_int, ngauss, nmax, nterp, radau_gauss_grid, test, trapped_particles, vcut, wgt_fac
+
+    ! Only proc0 reads from file
+    if (.not. proc0) return
+
+    ! First set local variables from current values
+    bouncefuzz = self%bouncefuzz
+    genquad = self%genquad
+    negrid = self%negrid
+    nesub = self%nesub
+    nesuper = self%nesuper
+    new_trap_int = self%new_trap_int
+    ngauss = self%ngauss
+    nmax = self%nmax
+    nterp = self%nterp
+    radau_gauss_grid = self%radau_gauss_grid
+    test = self%test
+    trapped_particles = self%trapped_particles
+    vcut = self%vcut
+    wgt_fac = self%wgt_fac
+
+    ! Now read in the main namelist
+    if (self%get_requires_index()) then
+       call get_indexed_namelist_unit(in_file, trim(self%get_name()), self%index)
+       read(in_file, nml = le_grids_knobs, iostat = iostat)
+       exist = .true.
+       if (iostat .ne.0) exist = .false.
+       close(unit = in_file, iostat = iostat)
+    else
+       in_file = input_unit_exist(self%get_name(), exist)
+       if (exist) read(in_file, nml = le_grids_knobs)
+    endif
+
+    ! Now copy from local variables into type members
+    self%bouncefuzz = bouncefuzz
+    self%genquad = genquad
+    self%negrid = negrid
+    self%nesub = nesub
+    self%nesuper = nesuper
+    self%new_trap_int = new_trap_int
+    self%ngauss = ngauss
+    self%nmax = nmax
+    self%nterp = nterp
+    self%radau_gauss_grid = radau_gauss_grid
+    self%test = test
+    self%trapped_particles = trapped_particles
+    self%vcut = vcut
+    self%wgt_fac = wgt_fac
+
+    self%exist = exist
+  end subroutine read_le_grids_config
+
+  !> Writes out a namelist representing the current state of the config object
+  subroutine write_le_grids_config(self, unit)
+    implicit none
+    class(le_grids_config_type), intent(in) :: self
+    integer, intent(in) , optional:: unit
+    integer :: unit_internal
+
+    unit_internal = 6 ! @todo -- get stdout from file_utils
+    if (present(unit)) then
+       unit_internal = unit
+    endif
+
+    call self%write_namelist_header(unit_internal)
+    call self%write_key_val("bouncefuzz", self%bouncefuzz, unit_internal)
+    call self%write_key_val("genquad", self%genquad, unit_internal)
+    call self%write_key_val("negrid", self%negrid, unit_internal)
+    call self%write_key_val("nesub", self%nesub, unit_internal)
+    call self%write_key_val("nesuper", self%nesuper, unit_internal)
+    call self%write_key_val("new_trap_int", self%new_trap_int, unit_internal)
+    call self%write_key_val("ngauss", self%ngauss, unit_internal)
+    call self%write_key_val("nmax", self%nmax, unit_internal)
+    call self%write_key_val("nterp", self%nterp, unit_internal)
+    call self%write_key_val("radau_gauss_grid", self%radau_gauss_grid, unit_internal)
+    call self%write_key_val("test", self%test, unit_internal)
+    call self%write_key_val("trapped_particles", self%trapped_particles, unit_internal)
+    call self%write_key_val("vcut", self%vcut, unit_internal)
+    call self%write_key_val("wgt_fac", self%wgt_fac, unit_internal)
+    call self%write_namelist_footer(unit_internal)
+  end subroutine write_le_grids_config
+
+  !> Resets the config object to the initial empty state
+  subroutine reset_le_grids_config(self)
+    class(le_grids_config_type), intent(in out) :: self
+    type(le_grids_config_type) :: empty
+    select type (self)
+    type is (le_grids_config_type)
+       self = empty
+    end select
+  end subroutine reset_le_grids_config
+
+  !> Broadcasts all config parameters so object is populated identically on
+  !! all processors
+  subroutine broadcast_le_grids_config(self)
+    use mp, only: broadcast
+    implicit none
+    class(le_grids_config_type), intent(in out) :: self
+    call broadcast(self%bouncefuzz)
+    call broadcast(self%genquad)
+    call broadcast(self%negrid)
+    call broadcast(self%nesub)
+    call broadcast(self%nesuper)
+    call broadcast(self%new_trap_int)
+    call broadcast(self%ngauss)
+    call broadcast(self%nmax)
+    call broadcast(self%nterp)
+    call broadcast(self%radau_gauss_grid)
+    call broadcast(self%test)
+    call broadcast(self%trapped_particles)
+    call broadcast(self%vcut)
+    call broadcast(self%wgt_fac)
+
+    call broadcast(self%exist)
+  end subroutine broadcast_le_grids_config
+
+  !> Gets the default name for this namelist
+  function get_default_name_le_grids_config()
+    implicit none
+    character(len = CONFIG_MAX_NAME_LEN) :: get_default_name_le_grids_config
+    get_default_name_le_grids_config = "le_grids_knobs"
+  end function get_default_name_le_grids_config
+
+  !> Gets the default requires index for this namelist
+  function get_default_requires_index_le_grids_config()
+    implicit none
+    logical :: get_default_requires_index_le_grids_config
+    get_default_requires_index_le_grids_config = .false.
+  end function get_default_requires_index_le_grids_config
 end module le_grids
 
 

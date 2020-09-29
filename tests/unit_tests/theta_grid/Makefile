@@ -1,10 +1,10 @@
 
 sinclude ../Makefile.tests_common
 
-CLEANCOMMAND+= test_theta_grid ogyropsi.dat EQDSK
+CLEANCOMMAND+= test_theta_grid
 
 ifdef TESTNORUN
-all: test_theta_grid ogyropsi.dat EQDSK
+all: test_theta_grid
 	$(call SKIPCOMMAND,variable TESTNORUN is defined; unset TESTNORUN to run this test)
 else
 #Define this tests level
@@ -14,17 +14,14 @@ ifeq "$(VAL)" "0"
 all:
 	$(call SKIPCOMMAND,current TEST_LEVEL=${TEST_LEVEL}; set TEST_LEVEL>=${MY_TEST_LEVEL} to run this test)
 else
-all: test_theta_grid ogyropsi.dat EQDSK
+all: test_theta_grid
 	$(call RUNCOMMAND,test_theta_grid,)
 endif
 endif
 
-ogyropsi.dat EQDSK:
-	tar -xjf data.tar.bz2
-
 test_theta_grid.o:  ${TEST_MODS} 
 
 test_theta_grid: test_theta_grid.o $(TEST_MODS)
-	$(call messageOp,"Linking ","\\t:",$^,"\\n\\t\-\-\-\-\-\-\>",$@)
+	$(call messageOp,"Linking ","\\t:",$(call processName, $^),"\\n\\t\-\-\-\-\-\-\>",$(call processName, $@))
 	$(QUIETSYM)$(LD) $(LDFLAGS) -o $@ $^ $(LIBS)
 

@@ -304,11 +304,10 @@ contains
     ! support up-down asymmetric geometries (see section 3.2.2 of Ball MIT
     ! Masters thesis or section 2.2 of "GS2 analytic geometry specification")
     !
-    ! NOTE: actual theta grid used here includes one extra point outside [-pi, pi]!
     do j=-nt,nt
        do i=1,nr
           r = surf%r + dr(i)
-          t = (j)*pi/real(nt-1)
+          t = (j)*pi/real(nt)
           R_psi(i,j) = Rpos(r, t) 
           Z_psi(i,j) = Zpos(r, t)
           eqth(i,j) = t
@@ -324,6 +323,8 @@ contains
     eqpsi(:) = eqpsi1(:,1)
 
     call derm(eqth,   dtm,  'T')
+    ! char arguments E and O are redundant, but are retained so that `derm` interface
+    ! is the same in all geometry modules.
     call derm(R_psi,  drm,  'E')
     call derm(Z_psi,  dzm,  'O')
     call derm(eqbtor, dbtm, 'E')
@@ -348,56 +349,56 @@ contains
 
   end subroutine leq_init
 
-  !> Index-space derivatives of `f` in each direction. Gradient in
-  !> first direction is in `dfm(:,:,1)`, second is in `dfm(:,:,2)`.
-  !> `char` controls the boundary conditions in the second direction.
-  !!
-  !! Acceptable values for `char`:
-  !!   - `E` means continuous and even at theta = +/- pi -- FIXME: confirm
-  !!   - `O` means continuous and odd at theta = +/- pi -- FIXME: confirm
-  !!   - `T` means a jump of 2 pi at theta = +/- pi
+  !> `derm` computes the index-space derivatives of `f` in radius and theta directions,
+  !> assuming periodicity in theta, `f(:,-nt) = f(:,nt)`.
   subroutine derm(f, dfm, char)
     use constants, only: pi
     implicit none
+    !> 2D array to be differentiated, indices radius, theta
+    !> @note Theta grid end points assumed to be \[\pm \pi\]
     real, dimension(:,:), intent(in) :: f(:,-nt:)
+    !> Derivatives of f:
+    !>   dfm(nr,-nt:nt,1) = df/dr
+    !>   dfm(nr,-nt:nt,2) = df/dtheta
     real, dimension(:,:,:), intent(out) :: dfm(:,-nt:,:)
+    !> Specifies symmetry constraint at end of grid
+    !>   "O" is odd in theta at \(\pm \pi\) (deprecated)
+    !>   "E" is even in theta at \(\pm \pi\) (deprecated)
+    !>   "T" denotes theta which trivially increases in theta at \(\pm \pi\)
     character(1), intent(in) :: char
     integer :: i, j
     
+    ! Use second-order one-sided finite-differences for extreme radial points.
     i=1
     dfm(i,:,1) = -0.5*(3*f(i,:)-4*f(i+1,:)+f(i+2,:))         
     
     i=nr
     dfm(i,:,1) = 0.5*(3*f(i,:)-4*f(i-1,:)+f(i-2,:))
 
-    select case (char)
-    case ('E')
-       j=-nt
-       dfm(:,j,2) = 0.5*(f(:,j+1)-f(:,j+1))
-
-       j=nt
-       dfm(:,j,2) = -0.5*(f(:,j-1)-f(:,j-1))
-    case ('O')
-       j=-nt
-       dfm(:,j,2) = 0.5*(f(:,j+1)+f(:,j+1))
-
-       j=nt
-       dfm(:,j,2) = -0.5*(f(:,j-1)+f(:,j-1))
-    case ('T')
-       j=-nt
-       dfm(:,j,2) = f(:,j+1) + pi
-
-       j=nt
-       dfm(:,j,2) = pi - f(:,j-1)
-    end select
-
+    ! Compute df/dr
     do i=2,nr-1
        dfm(i,:,1)=0.5*(f(i+1,:)-f(i-1,:))
     enddo
 
+    ! Compute df/dtheta (except at endpoints -pi,pi)
     do j=-nt+1,nt-1
        dfm(:,j,2)=0.5*(f(:,j+1)-f(:,j-1))
     enddo
+
+    ! Compute df/dtheta at -pi,+pi assuming
+    !   (i) periodicity in theta, 
+    !  (ii) endpoints at -pi,+pi 
+    ! (iii) equispaced grid in theta, and 
+    !  (iv) -nt and +nt correspond to -pi, +pi and are at the same place
+    dfm(:,-nt,2)=0.5*(f(:,-nt+1)-f(:,nt-1))
+    dfm(:,nt,2)=dfm(:,-nt,2)
+
+    ! `T` flag to denotes trivial derivative when f=theta,
+    ! where care is needed at end points.
+    if (char .eq. 'T') then
+       dfm(:,-nt,2) = f(:,-nt+1) + pi
+       dfm(:,nt,2) = pi - f(:,nt-1)
+    endif
 
   end subroutine derm
 
@@ -547,10 +548,10 @@ contains
 
     tp = mod2pi(theta_in)
 
-    ! get thet on theta mesh
+    ! get theta points on the local theta mesh
 
-    ! NOTE: actual theta grid used here includes one extra point outside [-pi, pi]!
-    mtheta = (/ ( real(j)*pi/real(nt-1), j=-nt,nt) /)
+    ! Note: mtheta must be the same points as the `t` variable in leq_init
+    mtheta = (/ ( real(j)*pi/real(nt), j=-nt,nt) /)
   
     ! note that theta(1)=0 for local_eq theta 
 

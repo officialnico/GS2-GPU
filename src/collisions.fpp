@@ -4,7 +4,7 @@
 !! is necessary to prevent buildup of structure at fine scales in
 !! velocity space, while conserving energy and momentum.
 module collisions
-  
+  use abstract_config, only: abstract_config_type, CONFIG_MAX_NAME_LEN
   use redistribute, only: redist_type
 
   implicit none
@@ -27,6 +27,9 @@ module collisions
   public :: collision_model_lorentz, collision_model_none
   public :: collision_model_lorentz_test, collision_model_full
   public :: split_collisions
+
+  public :: collisions_config_type
+  public :: set_collisions_config
   
   interface solfp1
      module procedure solfp1_le_layout
@@ -149,6 +152,259 @@ module collisions
   logical :: accelerated_v = .false.
   logical :: exist
 
+  !> Used to represent the input configuration of collisions
+  type, extends(abstract_config_type) :: collisions_config_type
+     ! namelist : collisions_knobs
+     ! indexed : false
+     !> If true (default) then transform from the gyro-averaged
+     !> distribution function \(g\) evolved by GS2 to the
+     !> non-Boltzmann part of \(\delta f\), (\(h\)), when applying the
+     !> collision operator. This is the physically appropriate choice,
+     !> this parameter is primarily for numerical testing.
+     logical :: adjust = .true.
+     !> Factor multipyling the finite Larmor radius terms in the
+     !> collision operator. This term is essentially just classical
+     !> diffusion. Set `cfac` to 0 to turn off this diffusion.
+     !>
+     !> @note Default changed to 1.0 in order to include classical
+     !> diffusion April 18 2006
+     real :: cfac = 1.0
+     !> Selects the collision model used in the simulation. Can be one
+     !> of
+     !>
+     !> - `'default'` : Include both pitch angle scattering and energy
+     !> diffusion.
+     !> - `'collisionless'` : Disable the collision operator.
+     !> - `'none'` : Equivalent to `'collisionless'`.
+     !> - `'lorentz'` : Only pitch angle scattering.
+     !> - `'lorentz-test'` : Only pitch angle scattering. For testing,
+     !> disables some components of the operator.
+     !> - `'ediffusion'` : Only energy diffusion.
+     !> - `'krook'` : "Home made" Krook operator (this is not recommended).
+     !>
+     !> If no species have a non-zero collision frequency, `vnewk`, then
+     !> the collision operator is also automatically disabled.
+     character(len = 20) :: collision_model = 'default'
+     !> If true (default) then guarantee exact conservation
+     !> properties.
+     logical :: conservative = .true.
+     !> If true (default) then forces conservation corrections to zero
+     !> in the forbidden region to avoid introducing unphysical
+     !> non-zero values for the distribution function in the forbidden
+     !> region of trapped particles.
+     !>
+     !> @todo Confirm above documentation is accurate.
+     !>
+     !> @note The conserving terms calculated as part of the field
+     !> particle collision operator should respect the forbidden of
+     !> the distribution function for trapped particles. This is a
+     !> cosmetic change, but has the result that plots of the
+     !> distribution function for trapped particles makes sense. Note
+     !> that terms involving vpa do not need to be modified Because
+     !> vpa = 0 in the forbidden region because of this explicit
+     !> forbid statements have not been added to the drag term
+     !> involving apar.
+     logical :: conserve_forbid_zero = .true.
+     !> If true (default) then guarantee collision operator conserves
+     !> momentum and energy.
+     !>
+     !> @todo Clarify the difference with [[collisions_knobs:conservative]].
+     !>
+     !> @note Default changed to reflect improved momentum and energy
+     !> conversation 07/08
+     logical :: conserve_moments = .true.  
+     !> If true (not the default) then use the thermal velocity to
+     !> evaluate the collision frequencies to be used. This results in
+     !> an energy independent collision frequency being used for all
+     !> species.
+     logical :: const_v = .false.
+     !> Controls how the coefficients in the matrix representing the
+     !> energy diffusion operator are obtained. Can be one of
+     !>
+     !> - `'default'` : Use a conservative scheme.
+     !> - `'old'` : Use the original non-conservative scheme.
+     !>
+     !> @todo Consider deprecating/removing the `'old'` option.
+     character(len = 20) :: ediff_scheme = 'default'
+     !> If true (not the default) then force the collision frequency
+     !> used for all non-electron species to zero and force all
+     !> electron-electron terms to zero.
+     logical :: ei_coll_only = .false.
+     !> Only used in [[get_verr]] as a part of the adaptive
+     !> collisionality algorithm. Sets the maximum relative error
+     !> allowed, above which the collision frequency must be
+     !> increased.
+     !>
+     !> @todo Confirm this is really to set the relative error limit.
+     real :: etol = 2.e-2
+     !> Only used in [[get_verr]] as a part of the adaptive
+     !> collisionality algorithm. Sets the maximum absolute error
+     !> allowed, above which the collision frequency must be
+     !> increased.
+     !>
+     !> @todo Confirm this is really to set the absolute error limit.     
+     real :: etola = 2.e-2
+     !> Only used in [[get_verr]] as a part of the adaptive
+     !> collisionality algorithm. Sets an offset to apply to the
+     !> relative error limit set by [[collisions_knobs:etol]]. This is used to provide
+     !> hysteresis is the adaptive collisionality algorithm so to
+     !> avoid adjusting the collision frequency up and down every step
+     !> (similar to [[reinit_knobs:delt_cushion]]).
+     !>
+     !> @todo Confirm the above description.
+     real :: ewindow = 1.e-2
+     !> Only used in [[get_verr]] as a part of the adaptive
+     !> collisionality algorithm. Sets an offset to apply to the
+     !> absolute error limit set by [[collisions_knobs:etola]]. This is used to provide
+     !> hysteresis is the adaptive collisionality algorithm so to
+     !> avoid adjusting the collision frequency up and down every step
+     !> (similar to the [[reinit_knobs:delt_cushion]]).
+     !>
+     !> @todo Confirm the above description.     
+     real :: ewindowa = 1.e-2
+     !> If true (not the default) then calculate collisional heating
+     !> when applying the collion operator. This is purely a
+     !> diagnostic calculation. It should not change the evolution.
+     !>
+     !> @todo : Verify this does not influence the evolution.
+     logical :: heating = .false.
+     !> If true (not the default) then multiply the hyper collision
+     !> frequency by the species' collision frequency 
+     !> [[species_parameters::nu_h]]. This only impacts the pitch 
+     !> angle scattering operator.
+     !>
+     !> @note The hyper collision frequency is only non-zero if any
+     !> species have a non-zero `nu_h` value set in the input. If any
+     !> are set then the hyper collision frequency is simply `nu_h *
+     !> kperp2 * kperp2` (where `kperp2` here is normalised to the
+     !> maximum `kperp2`).
+     logical :: hypermult = .false.
+     !> This flag controls the limit of ixi loops in the le_layout
+     !> decomposition.  When true (default) the limit is set to `nxi +
+     !> 1`, which has been observed to remove numerical instabilities.
+     !>
+     !> @note The "old" behavior was a limit of `nxi`, which is
+     !> incorrect. With this limit and trapped particles, there are
+     !> numerical instabilities caused by missing terms for totally
+     !> trapped particles. By changing the limit to `nxi + 1` these
+     !> numerical instabilities are removed and the le_layout gives
+     !> the same result as the standard layout. The limit `nxi + 1`
+     !> should used as we then include the `ixi` index for the
+     !> duplicate `vpar=0` point which must be included For velocity
+     !> integration to give the correct value.
+     !>
+     !> @todo Consider removing this flag and just use the correct
+     !> limit.  The motivation for retaining this flag is to allow old
+     !> results to be reproduced.
+     logical :: le_nxilim_fix = .true.
+     !> Controls how the coefficients in the matrix representing the
+     !> pitch angle scattering operator are obtained. Can be one of
+     !>
+     !> - `'default'` : Use a conservative scheme.
+     !> - `'old'` : Use the original non-conservative scheme.
+     !>
+     !> @todo Consider deprecating/removing the `'old'` option.
+     character(len = 20) :: lorentz_scheme = 'default'
+     !> Used as a part of the adaptive collisionality algorithm. When
+     !> active we check the velocity space error with [[get_verr]]
+     !> every `ncheck` time steps. This check can be relatively
+     !> expensive so it is recommended to avoid small values of
+     !> `ncheck`.
+     !>
+     !> @warning The new diagnostics module currently ignores this
+     !> value and instead uses its own input variable named `ncheck`
+     !> (which has a different default). See [this
+     !> bug](https://bitbucket.org/gyrokinetics/gs2/issues/88).
+     integer :: ncheck = 100
+     !> If true (default) then potentially include the drag term in
+     !> the pitch angle scattering operator. This is a necessary but
+     !> not sufficient criteria. For the drag term to be included we
+     !> also require \(\beta\neq 0\), more than one simulated species
+     !> and finite \(A_\|\) perturbations included in the simulation
+     !> (i.e. `fapar /= 0`).
+     logical :: resistivity = .true.
+     !> If true (not the default) then use special handling for the
+     !> wfb particle in the pitch angle scattering operator.
+     !>
+     !> @note MRH changed default 16/08/2018. Previous default of true
+     !> seemed to cause a numerical issue in flux tube simulations for
+     !> the zonal modes at large \(k_x\).
+     !>
+     !> @todo Improve this documentation
+     logical :: special_wfb_lorentz = .false.
+     !> If true (not the default) then remove the collision operator
+     !> from the usual time advance algorithm. Instead the collision
+     !> operator is only applied every
+     !> [[collisions_knobs:timesteps_between_collisions]]
+     !> timesteps. This can potentially substantially speed up
+     !> collisional simulations, both in the initialisation and
+     !> advance phases.
+     !>
+     !> @warning Currently the input
+     !> [[collisions_knobs:timesteps_between_collisions]] is ignored
+     !> so collisions are applied every time step. The primary result
+     !> of `split_collision = .true.` currently is that collisions are
+     !> not applied in the first linear solve used as a part of a
+     !> single time step. Hence the cost of collisions in advance are
+     !> roughly halved. The full saving in the initialisation phase is
+     !> still realised.
+     logical :: split_collisions = .false.
+     !> If true (not the default) then performs some additional checks
+     !> of the data redistribution routines associated with
+     !> transforming being the standard and collisional data
+     !> decompositions.
+     logical :: test = .false.
+     !> Should set the number of timesteps between application of the
+     !> collision operator if [[collisions_knobs:split_collisions]] is
+     !> true. Currently this is ignored.
+     !>
+     !> @warning This value is currently ignored.
+     integer :: timesteps_between_collisions = 1
+     !> If true (default) then use a data decomposition for collisions
+     !> that brings both pitch angle and energy local to a
+     !> processor. This is typically the most efficient option,
+     !> however for collisional simulations that only use part of the
+     !> collision operator (either energy diffusion or pitch angle
+     !> scattering) then it may be beneficial to set this flag to
+     !> false such that we use a decomposition that only brings either
+     !> energy or pitch angle local.
+     logical :: use_le_layout = .true.
+     !> Set to true (not the default) to activate the adaptive
+     !> collisionality algorithm.
+     !>
+     !> @todo Provide more documentation on the adaptive
+     !> collisionality algorithm.
+     logical :: vary_vnew = .false.
+     !> If the collisionality is to be increased as a part of the
+     !> adaptive collisionality algorithm then increase it by this
+     !> factor.
+     real :: vnfac = 1.1
+     !> If the collisionality is to be decreased as a part of the
+     !> adaptive collisionality algorithm then decrease it by this
+     !> factor.
+     real :: vnslow = 0.9
+     !> Controls how the duplicate `vpar = 0` point is handled.  When
+     !> `vpar_zero_mean = .true.` (the default) the average of `g(vpar
+     !> = 0)` for both signs of the parallel velcoity (`isgn`) is used
+     !> in the collision operator instead of just `g(vpar = 0)` at
+     !> `isgn=2`.  This is seen to suppress a numerical instability
+     !> when `special_wfb_lorentz =.false.`. With these defaults pitch
+     !> angle scattering at \(\theta = \pm \pi \) is now being handled
+     !> physically i.e. `vpar = 0` at this theta location is no longer
+     !> being skipped.
+     !>
+     !> @todo Consider removing this option.
+     logical :: vpar_zero_mean = .true.
+   contains
+     procedure, public :: read => read_collisions_config
+     procedure, public :: write => write_collisions_config
+     procedure, public :: reset => reset_collisions_config
+     procedure, public :: broadcast => broadcast_collisions_config
+     procedure, public, nopass :: get_default_name => get_default_name_collisions_config
+     procedure, public, nopass :: get_default_requires_index => get_default_requires_index_collisions_config
+  end type collisions_config_type
+
+  type(collisions_config_type) :: collisions_config
 contains
   
   !> FIXME : Add documentation
@@ -189,15 +445,15 @@ contains
   end subroutine wnml_collisions
 
   !> FIXME : Add documentation
-  subroutine init_collisions
+  subroutine init_collisions(collisions_config_in)
     use species, only: init_species, nspec, spec
     use theta_grid, only: init_theta_grid
     use kt_grids, only: init_kt_grids, naky, ntheta0
     use le_grids, only: init_le_grids, nlambda, negrid
     use run_parameters, only: init_run_parameters
     use gs2_layouts, only: init_dist_fn_layouts, init_gs2_layouts
-
     implicit none
+    type(collisions_config_type), intent(in), optional :: collisions_config_in
 
     if (initialized) return
     initialized = .true.
@@ -212,20 +468,21 @@ contains
     call init_le_grids (accelerated_x, accelerated_v)
     call init_run_parameters
     call init_dist_fn_layouts (naky, ntheta0, nlambda, negrid, nspec)
-    call read_parameters
+    call read_parameters(collisions_config_in)
 
     call init_arrays
 
   end subroutine init_collisions
 
   !> FIXME : Add documentation
-  subroutine read_parameters
+  subroutine read_parameters(collisions_config_in)
     use file_utils, only: input_unit, error_unit, input_unit_exist
     use text_options, only: text_option, get_option_value
-    use mp, only: proc0, broadcast
     use run_parameters, only: beta, fapar
     use species, only: nspec
     implicit none
+    type(collisions_config_type), intent(in), optional :: collisions_config_in
+    
     type (text_option), dimension (6), parameter :: modelopts = &
          (/ text_option('default', collision_model_full), &
             text_option('lorentz', collision_model_lorentz), &
@@ -240,131 +497,57 @@ contains
          (/ text_option('default', ediff_scheme_default), &
             text_option('old', ediff_scheme_old) /)
     character(20) :: collision_model, lorentz_scheme, ediff_scheme
-    namelist /collisions_knobs/ collision_model, conserve_moments, &
-         heating, adjust, const_v, cfac, hypermult, ei_coll_only, &
-         lorentz_scheme, ediff_scheme, resistivity, conservative, test, &
-         timesteps_between_collisions, &
-! following only needed for adaptive collisionality
-         vnfac, etol, ewindow, ncheck, vnslow, vary_vnew, etola, ewindowa, &
-         use_le_layout, special_wfb_lorentz, &
-         split_collisions, vpar_zero_mean, &
-         conserve_forbid_zero, le_nxilim_fix
-    integer :: ierr, in_file
+    integer :: ierr
 
-    if (proc0) then
-       collision_model = 'default'
-       conserve_moments = .true.  ! DEFAULT CHANGED TO REFLECT IMPROVED MOMENTUM AND ENERGY CONSERVATION 7/08
-       hypermult = .false.
-       cfac = 1.   ! DEFAULT CHANGED TO INCLUDE CLASSICAL DIFFUSION: APRIL 18, 2006
-       timesteps_between_collisions = 1
-!> following only used with adaptive collisionality
-       vary_vnew = .false.
-       vnfac = 1.1
-       vnslow = 0.9
-       etol = 2.e-2
-       ewindow = 1.e-2
-       etola = 2.e-2
-       ewindowa = 1.e-2
-       ncheck = 100
-!<
-       adjust = .true.
-       lorentz_scheme = 'default'
-       ediff_scheme = 'default'
-       conservative = .true.
-       resistivity = .true.
-       const_v = .false.
-       heating = .false.
-       test = .false.
-       ei_coll_only = .false.
-       special_wfb_lorentz=.false. ! MRH changed default 16/08/2018
-       vpar_zero_mean=.true. ! MRH changed default
-! MRH vpar_zero_mean:
-! a flag to control how the duplicate vpar = 0 point is handled
-! when vpar_zero_mean = .true. the average of
-! g(vpar = 0) points at, (isgn=1,2) is used in the 
-! collision operator instead of just g(vpar = 0) at isgn=2
-! This is necessary to suppress a numerical instability when
-! special_wfb_lorentz =.false. With these defaults pitch angle
-! scattering at theta =+/- pi is now being handled physically
-! i.e. vpar = 0 at this theta location is no longer being skipped  
-        conserve_forbid_zero = .true.
-! MRH conserve_forbid_zero note
-! the conserving terms calculated as part of the field
-! particle collision operator should respect the forbidden
-! of the distribution function for trapped particles.
-! This is a cosmetic change, but has the result
-! that plots of the distribution function for trapped particles
-! makes sense.
-! Note that terms involving vpa do not need to be modified
-! Because vpa = 0 in the forbidden region
-! Because of this explicit forbid statements have not been added
-! To the  drag term involving apar
-        le_nxilim_fix = .true.! .false. for old behaviour
-! MRH le_nxilim_fix is a flag which controls
-! the limit of ixi loops in the le_layout.
-! When the limit is nxi,
-! which is incorrect when there are trapped particles,
-! There are numerical instabilities caused by missing
-! terms for totally trapped particles
-! By changing the limit to nxi +1, when this flag is true,
-! These numerical instabilities are removed and
-! le_layout gives the same result as the standard layout
-! nxi +1 must be included because it is the ixi index
-! for the duplicate vpar=0 point which must be included
-! For velocity integration to give the correct value      
-       split_collisions=.false.
-       !use_le_layout default set at module level
-       !Note: If we want to move default here then we need to note
-       !      that if LOWFLOW then we want default to be .true.
-       in_file = input_unit_exist ("collisions_knobs", exist)
-!       if (exist) read (unit=input_unit("collisions_knobs"), nml=collisions_knobs)
-       if (exist) read (unit=in_file, nml=collisions_knobs)
+    if (present(collisions_config_in)) collisions_config = collisions_config_in
 
-       ierr = error_unit()
-       call get_option_value &
-            (collision_model, modelopts, collision_model_switch, &
-            ierr, "collision_model in collisions_knobs",.true.)
+    call collisions_config%init(name = 'collisions_knobs', requires_index = .false.)
 
-       call get_option_value &
-            (lorentz_scheme, schemeopts, lorentz_switch, &
-            ierr, "lorentz_scheme in collisions_knobs",.true.)
+    ! Copy out internal values into module level parameters
+    adjust = collisions_config%adjust
+    cfac = collisions_config%cfac
+    collision_model = collisions_config%collision_model
+    conservative = collisions_config%conservative
+    conserve_forbid_zero = collisions_config%conserve_forbid_zero
+    conserve_moments = collisions_config%conserve_moments
+    const_v = collisions_config%const_v
+    ediff_scheme = collisions_config%ediff_scheme
+    ei_coll_only = collisions_config%ei_coll_only
+    etol = collisions_config%etol
+    etola = collisions_config%etola
+    ewindow = collisions_config%ewindow
+    ewindowa = collisions_config%ewindowa
+    heating = collisions_config%heating
+    hypermult = collisions_config%hypermult
+    le_nxilim_fix = collisions_config%le_nxilim_fix
+    lorentz_scheme = collisions_config%lorentz_scheme
+    ncheck = collisions_config%ncheck
+    resistivity = collisions_config%resistivity
+    special_wfb_lorentz = collisions_config%special_wfb_lorentz
+    split_collisions = collisions_config%split_collisions
+    test = collisions_config%test
+    timesteps_between_collisions = collisions_config%timesteps_between_collisions
+    use_le_layout = collisions_config%use_le_layout
+    vary_vnew = collisions_config%vary_vnew
+    vnfac = collisions_config%vnfac
+    vnslow = collisions_config%vnslow
+    vpar_zero_mean = collisions_config%vpar_zero_mean
 
-       call get_option_value &
-            (ediff_scheme, eschemeopts, ediff_switch, &
-            ierr, "ediff_scheme in collisions_knobs",.true.)
-    end if
+    exist = collisions_config%exist
 
 
-    call broadcast (hypermult)
-    call broadcast (cfac)
-!> only need for adaptive collisionality
-    call broadcast (vnfac)
-    call broadcast (vnslow)
-    call broadcast (vary_vnew)
-    call broadcast (etol)
-    call broadcast (ewindow)
-    call broadcast (etola)
-    call broadcast (ewindowa)
-    call broadcast (ncheck)
-!<
-    call broadcast (timesteps_between_collisions)
-    call broadcast (conservative)
-    call broadcast (conserve_moments)
-    call broadcast (resistivity)
-    call broadcast (const_v)
-    call broadcast (collision_model_switch)
-    call broadcast (lorentz_switch)
-    call broadcast (ediff_switch)
-    call broadcast (heating)
-    call broadcast (test)
-    call broadcast (adjust)
-    call broadcast (ei_coll_only)
-    call broadcast (use_le_layout)
-    call broadcast (special_wfb_lorentz)
-    call broadcast (split_collisions)
-    call broadcast (vpar_zero_mean)
-    call broadcast (conserve_forbid_zero)
-    call broadcast (le_nxilim_fix)
+    ierr = error_unit()
+    call get_option_value &
+         (collision_model, modelopts, collision_model_switch, &
+         ierr, "collision_model in collisions_knobs",.true.)
+
+    call get_option_value &
+         (lorentz_scheme, schemeopts, lorentz_switch, &
+         ierr, "lorentz_scheme in collisions_knobs",.true.)
+    
+    call get_option_value &
+         (ediff_scheme, eschemeopts, ediff_switch, &
+         ierr, "ediff_scheme in collisions_knobs",.true.)
     
     drag = resistivity .and. (beta > epsilon(0.0)) .and. (nspec > 1) .and. (fapar.gt.0)
   end subroutine read_parameters
@@ -4219,7 +4402,230 @@ contains
     if (allocated(vpdiff)) deallocate (vpdiff)
     if (allocated(dtot)) deallocate (dtot, fdf, fdb)
 
+    call collisions_config%reset()
   end subroutine finish_collisions
 
+  !> Set the module level config type
+  !> Will abort if the module has already been initialised to avoid
+  !> inconsistencies.
+  subroutine set_collisions_config(collisions_config_in)
+    use mp, only: mp_abort
+    type(collisions_config_type), intent(in), optional :: collisions_config_in
+    if (initialized) then
+       call mp_abort("Trying to set collisions_config when already initialized.", to_screen = .true.)
+    end if
+    if (present(collisions_config_in)) then
+       collisions_config = collisions_config_in
+    end if
+  end subroutine set_collisions_config
+  
+  !---------------------------------------
+  ! Following is for the config_type
+  !---------------------------------------
+  
+  !> Reads in the collisions_knobs namelist and populates the member variables
+  subroutine read_collisions_config(self)
+    use file_utils, only: input_unit_exist, get_indexed_namelist_unit
+    use mp, only: proc0
+    implicit none
+    class(collisions_config_type), intent(in out) :: self
+    logical :: exist
+    integer :: in_file, iostat
+
+    ! Note: When this routine is in the module where these variables live
+    ! we shadow the module level variables here. This is intentional to provide
+    ! isolation and ensure we can move this routine to another module easily.
+    character(len = 20) :: collision_model, ediff_scheme, lorentz_scheme
+    integer :: ncheck, timesteps_between_collisions
+    logical :: adjust, conservative, conserve_forbid_zero, conserve_moments, const_v, ei_coll_only, heating, hypermult, le_nxilim_fix, resistivity, special_wfb_lorentz, split_collisions, test, use_le_layout
+    logical :: vary_vnew, vpar_zero_mean
+    real :: cfac, etol, etola, ewindow, ewindowa, vnfac, vnslow
+    
+    namelist /collisions_knobs/ adjust, cfac, collision_model, conservative, conserve_forbid_zero, conserve_moments, const_v, ediff_scheme, ei_coll_only, etol, etola, ewindow, ewindowa, heating, hypermult, le_nxilim_fix, &
+         lorentz_scheme, ncheck, resistivity, special_wfb_lorentz, split_collisions, test, timesteps_between_collisions, use_le_layout, vary_vnew, vnfac, vnslow, vpar_zero_mean
+
+    ! Only proc0 reads from file
+    if (.not. proc0) return
+
+    ! First set local variables from current values
+    adjust = self%adjust
+    cfac = self%cfac
+    collision_model = self%collision_model
+    conservative = self%conservative
+    conserve_forbid_zero = self%conserve_forbid_zero
+    conserve_moments = self%conserve_moments
+    const_v = self%const_v
+    ediff_scheme = self%ediff_scheme
+    ei_coll_only = self%ei_coll_only
+    etol = self%etol
+    etola = self%etola
+    ewindow = self%ewindow
+    ewindowa = self%ewindowa
+    heating = self%heating
+    hypermult = self%hypermult
+    le_nxilim_fix = self%le_nxilim_fix
+    lorentz_scheme = self%lorentz_scheme
+    ncheck = self%ncheck
+    resistivity = self%resistivity
+    special_wfb_lorentz = self%special_wfb_lorentz
+    split_collisions = self%split_collisions
+    test = self%test
+    timesteps_between_collisions = self%timesteps_between_collisions
+    use_le_layout = self%use_le_layout
+    vary_vnew = self%vary_vnew
+    vnfac = self%vnfac
+    vnslow = self%vnslow
+    vpar_zero_mean = self%vpar_zero_mean
+
+    ! Now read in the main namelist
+    if (self%get_requires_index()) then
+       call get_indexed_namelist_unit(in_file, trim(self%get_name()), self%index)
+       read(in_file, nml = collisions_knobs, iostat = iostat)
+       exist = .true.
+       if (iostat .ne.0) exist = .false.
+       close(unit = in_file, iostat = iostat)
+    else
+       in_file = input_unit_exist(self%get_name(), exist)
+       if (exist) read(in_file, nml = collisions_knobs)
+    endif
+
+    ! Now copy from local variables into type members
+    self%adjust = adjust
+    self%cfac = cfac
+    self%collision_model = collision_model
+    self%conservative = conservative
+    self%conserve_forbid_zero = conserve_forbid_zero
+    self%conserve_moments = conserve_moments
+    self%const_v = const_v
+    self%ediff_scheme = ediff_scheme
+    self%ei_coll_only = ei_coll_only
+    self%etol = etol
+    self%etola = etola
+    self%ewindow = ewindow
+    self%ewindowa = ewindowa
+    self%heating = heating
+    self%hypermult = hypermult
+    self%le_nxilim_fix = le_nxilim_fix
+    self%lorentz_scheme = lorentz_scheme
+    self%ncheck = ncheck
+    self%resistivity = resistivity
+    self%special_wfb_lorentz = special_wfb_lorentz
+    self%split_collisions = split_collisions
+    self%test = test
+    self%timesteps_between_collisions = timesteps_between_collisions
+    self%use_le_layout = use_le_layout
+    self%vary_vnew = vary_vnew
+    self%vnfac = vnfac
+    self%vnslow = vnslow
+    self%vpar_zero_mean = vpar_zero_mean
+
+    self%exist = exist
+  end subroutine read_collisions_config
+
+  !> Writes out a namelist representing the current state of the config object
+  subroutine write_collisions_config(self, unit)
+    implicit none
+    class(collisions_config_type), intent(in) :: self
+    integer, intent(in) , optional:: unit
+    integer :: unit_internal
+
+    unit_internal = 6 ! @todo -- get stdout from file_utils
+    if (present(unit)) then
+       unit_internal = unit
+    endif
+
+    call self%write_namelist_header(unit_internal)
+    call self%write_key_val("adjust", self%adjust, unit_internal)
+    call self%write_key_val("cfac", self%cfac, unit_internal)
+    call self%write_key_val("collision_model", self%collision_model, unit_internal)
+    call self%write_key_val("conservative", self%conservative, unit_internal)
+    call self%write_key_val("conserve_forbid_zero", self%conserve_forbid_zero, unit_internal)
+    call self%write_key_val("conserve_moments", self%conserve_moments, unit_internal)
+    call self%write_key_val("const_v", self%const_v, unit_internal)
+    call self%write_key_val("ediff_scheme", self%ediff_scheme, unit_internal)
+    call self%write_key_val("ei_coll_only", self%ei_coll_only, unit_internal)
+    call self%write_key_val("etol", self%etol, unit_internal)
+    call self%write_key_val("etola", self%etola, unit_internal)
+    call self%write_key_val("ewindow", self%ewindow, unit_internal)
+    call self%write_key_val("ewindowa", self%ewindowa, unit_internal)
+    call self%write_key_val("heating", self%heating, unit_internal)
+    call self%write_key_val("hypermult", self%hypermult, unit_internal)
+    call self%write_key_val("le_nxilim_fix", self%le_nxilim_fix, unit_internal)
+    call self%write_key_val("lorentz_scheme", self%lorentz_scheme, unit_internal)
+    call self%write_key_val("ncheck", self%ncheck, unit_internal)
+    call self%write_key_val("resistivity", self%resistivity, unit_internal)
+    call self%write_key_val("special_wfb_lorentz", self%special_wfb_lorentz, unit_internal)
+    call self%write_key_val("split_collisions", self%split_collisions, unit_internal)
+    call self%write_key_val("test", self%test, unit_internal)
+    call self%write_key_val("timesteps_between_collisions", self%timesteps_between_collisions, unit_internal)
+    call self%write_key_val("use_le_layout", self%use_le_layout, unit_internal)
+    call self%write_key_val("vary_vnew", self%vary_vnew, unit_internal)
+    call self%write_key_val("vnfac", self%vnfac, unit_internal)
+    call self%write_key_val("vnslow", self%vnslow, unit_internal)
+    call self%write_key_val("vpar_zero_mean", self%vpar_zero_mean, unit_internal)
+    call self%write_namelist_footer(unit_internal)
+  end subroutine write_collisions_config
+
+  !> Resets the config object to the initial empty state
+  subroutine reset_collisions_config(self)
+    class(collisions_config_type), intent(in out) :: self
+    type(collisions_config_type) :: empty
+    select type (self)
+    type is (collisions_config_type)
+       self = empty
+    end select
+  end subroutine reset_collisions_config
+
+  !> Broadcasts all config parameters so object is populated identically on
+  !! all processors
+  subroutine broadcast_collisions_config(self)
+    use mp, only: broadcast
+    implicit none
+    class(collisions_config_type), intent(in out) :: self
+    call broadcast(self%adjust)
+    call broadcast(self%cfac)
+    call broadcast(self%collision_model)
+    call broadcast(self%conservative)
+    call broadcast(self%conserve_forbid_zero)
+    call broadcast(self%conserve_moments)
+    call broadcast(self%const_v)
+    call broadcast(self%ediff_scheme)
+    call broadcast(self%ei_coll_only)
+    call broadcast(self%etol)
+    call broadcast(self%etola)
+    call broadcast(self%ewindow)
+    call broadcast(self%ewindowa)
+    call broadcast(self%heating)
+    call broadcast(self%hypermult)
+    call broadcast(self%le_nxilim_fix)
+    call broadcast(self%lorentz_scheme)
+    call broadcast(self%ncheck)
+    call broadcast(self%resistivity)
+    call broadcast(self%special_wfb_lorentz)
+    call broadcast(self%split_collisions)
+    call broadcast(self%test)
+    call broadcast(self%timesteps_between_collisions)
+    call broadcast(self%use_le_layout)
+    call broadcast(self%vary_vnew)
+    call broadcast(self%vnfac)
+    call broadcast(self%vnslow)
+    call broadcast(self%vpar_zero_mean)
+
+    call broadcast(self%exist)
+  end subroutine broadcast_collisions_config
+  
+  !> Gets the default name for this namelist
+  function get_default_name_collisions_config()
+    implicit none
+    character(len = CONFIG_MAX_NAME_LEN) :: get_default_name_collisions_config
+    get_default_name_collisions_config = "collisions_knobs"
+  end function get_default_name_collisions_config
+
+  !> Gets the default requires index for this namelist
+  function get_default_requires_index_collisions_config()
+    implicit none
+    logical :: get_default_requires_index_collisions_config
+    get_default_requires_index_collisions_config = .false.
+  end function get_default_requires_index_collisions_config
 end module collisions
 

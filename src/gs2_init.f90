@@ -28,6 +28,8 @@
 !! Written by:
 !!            Edmund Highcock (edmundhighcock@users.sourceforge.net)
 module gs2_init
+  use abstract_config, only: abstract_config_type, CONFIG_MAX_NAME_LEN
+
   use overrides, only: miller_geometry_overrides_type
   use overrides, only: profiles_overrides_type
   use overrides, only: kt_grids_overrides_type
@@ -69,7 +71,9 @@ module gs2_init
 
   public :: in_memory
 
-
+  public :: init_config_type
+  public :: set_gs2_init_config
+  
   !> A type for labelling the different init
   !! levels available in gs2.
   type init_level_list_type
@@ -93,22 +97,21 @@ module gs2_init
     integer :: species = 16
     integer :: override_profiles = 17
     integer :: le_grids = 18
-    integer :: antenna_level_2 = 19
-    integer :: dist_fn_parameters = 20
-    integer :: dist_fn_layouts = 21
-    integer :: nonlinear_terms = 22
-    integer :: dist_fn_arrays = 23
-    integer :: dist_fn_level_1 = 24
-    integer :: dist_fn_level_2 = 25
-    integer :: antenna_level_1 = 26
-    integer :: fields_level_1 = 27
-    integer :: override_timestep = 28
-    integer :: dist_fn_level_3 = 29
-    integer :: collisions = 30
-    integer :: fields_level_2 = 31
-    integer :: override_initial_values = 32
-    integer :: set_initial_values = 33
-    integer :: full = 34
+    integer :: antenna = 19
+    integer :: fields_level_1 = 20
+    integer :: dist_fn_parameters = 21
+    integer :: dist_fn_layouts = 22
+    integer :: nonlinear_terms = 23
+    integer :: dist_fn_arrays = 24
+    integer :: dist_fn_level_1 = 25
+    integer :: dist_fn_level_2 = 26
+    integer :: override_timestep = 27
+    integer :: dist_fn_level_3 = 28
+    integer :: collisions = 29
+    integer :: fields_level_2 = 30
+    integer :: override_initial_values = 31
+    integer :: set_initial_values = 32
+    integer :: full = 33
   end type init_level_list_type
 
   type(init_level_list_type) :: init_level_list
@@ -170,7 +173,35 @@ module gs2_init
 
   !complex, dimension(:,:,:), allocatable :: phi_tmp, apar_tmp, bpar_tmp
   !logical :: fields_and_dist_fn_saved = .false.
-  logical :: in_memory = .false.  
+  logical :: in_memory = .false.
+
+  logical :: initialized = .true.
+  
+  !> Used to represent the input configuration of init
+  type, extends(abstract_config_type) :: init_config_type
+     ! namelist : init_knobs
+     ! indexed : false
+     !> If `true` then when changing the timestep attempt to keep a
+     !> copy of the current fields and distribution function in memory
+     !> rather than dumping to disk. This should fall back to a disk
+     !> based method if there is insufficient memory. Currently both
+     !> this value and the value of `in_memory` in [[reinit_knobs]]
+     !> must be set to `true` in order to enable this feature.
+     !>
+     !> @todo Consider if this can be removed and just the
+     !> [[reinit_knobs]] version controls the feature.
+     logical :: in_memory = .false.
+   contains
+     procedure, public :: read => read_init_config
+     procedure, public :: write => write_init_config
+     procedure, public :: reset => reset_init_config
+     procedure, public :: broadcast => broadcast_init_config
+     procedure, public, nopass :: get_default_name => get_default_name_init_config
+     procedure, public, nopass :: get_default_requires_index => get_default_requires_index_init_config
+  end type init_config_type
+  
+  type(init_config_type) :: init_config  
+  
 contains
   !> Initialize gs2 to the level of target_level.
   !! The init_type current contains info
@@ -209,15 +240,14 @@ contains
         if (up() .and. current%level == init_level_list%species-1) call species_subroutine
         if (up() .and. current%level == init_level_list%override_profiles-1) call override_profiles_subroutine
         if (up() .and. current%level == init_level_list%le_grids-1) call le_grids_subroutine
-        if (up() .and. current%level == init_level_list%antenna_level_2-1) call antenna_level_2_subroutine
+        if (up() .and. current%level == init_level_list%antenna-1) call antenna_subroutine
+        if (up() .and. current%level == init_level_list%fields_level_1-1) call fields_level_1_subroutine
         if (up() .and. current%level == init_level_list%dist_fn_parameters-1) call dist_fn_parameters_subroutine
         if (up() .and. current%level == init_level_list%dist_fn_layouts-1) call dist_fn_layouts_subroutine
         if (up() .and. current%level == init_level_list%nonlinear_terms-1) call nonlinear_terms_subroutine
         if (up() .and. current%level == init_level_list%dist_fn_arrays-1) call dist_fn_arrays_subroutine
         if (up() .and. current%level == init_level_list%dist_fn_level_1-1) call dist_fn_level_1_subroutine
         if (up() .and. current%level == init_level_list%dist_fn_level_2-1) call dist_fn_level_2_subroutine
-        if (up() .and. current%level == init_level_list%antenna_level_1-1) call antenna_level_1_subroutine
-        if (up() .and. current%level == init_level_list%fields_level_1-1) call fields_level_1_subroutine
         if (up() .and. current%level == init_level_list%override_timestep-1) call override_timestep_subroutine
         if (up() .and. current%level == init_level_list%dist_fn_level_3-1) call dist_fn_level_3_subroutine
         if (up() .and. current%level == init_level_list%collisions-1) call collisions_subroutine
@@ -233,15 +263,14 @@ contains
         if (down () .and. current%level == init_level_list%collisions) call collisions_subroutine
         if (down () .and. current%level == init_level_list%dist_fn_level_3) call dist_fn_level_3_subroutine
         if (down () .and. current%level == init_level_list%override_timestep) call override_timestep_subroutine
-        if (down () .and. current%level == init_level_list%fields_level_1) call fields_level_1_subroutine
-        if (down () .and. current%level == init_level_list%antenna_level_1) call antenna_level_1_subroutine
         if (down () .and. current%level == init_level_list%dist_fn_level_2) call dist_fn_level_2_subroutine
         if (down () .and. current%level == init_level_list%dist_fn_level_1) call dist_fn_level_1_subroutine
         if (down () .and. current%level == init_level_list%dist_fn_arrays) call dist_fn_arrays_subroutine
         if (down () .and. current%level == init_level_list%nonlinear_terms) call nonlinear_terms_subroutine
         if (down () .and. current%level == init_level_list%dist_fn_layouts) call dist_fn_layouts_subroutine
         if (down () .and. current%level == init_level_list%dist_fn_parameters) call dist_fn_parameters_subroutine
-        if (down () .and. current%level == init_level_list%antenna_level_2) call antenna_level_2_subroutine
+        if (down () .and. current%level == init_level_list%fields_level_1) call fields_level_1_subroutine
+        if (down () .and. current%level == init_level_list%antenna) call antenna_subroutine
         if (down () .and. current%level == init_level_list%le_grids) call le_grids_subroutine
         if (down () .and. current%level == init_level_list%override_profiles) call override_profiles_subroutine
         if (down () .and. current%level == init_level_list%species) call species_subroutine
@@ -545,21 +574,37 @@ contains
         end if
       end subroutine le_grids_subroutine
 
-      subroutine antenna_level_2_subroutine
+      subroutine antenna_subroutine
         use unit_tests, only: debug_message
-        use antenna, only: init_antenna_level_2
-        use antenna, only: finish_antenna_level_2
-        if (up()) call init_antenna_level_2
-        if (down()) call finish_antenna_level_2
+        use antenna, only: init_antenna
+        use antenna, only: finish_antenna
+        if (up()) call init_antenna
+        if (down()) call finish_antenna
        
         if (up()) then
-          call debug_message(1, 'gs2_init::init reached init level... antenna_level_2   ')
+          call debug_message(1, 'gs2_init::init reached init level... antenna   ')
           current%level = 19
         else if (down()) then  ! (down)
-          call debug_message(1, 'gs2_init::init left init level... antenna_level_2   ')
+          call debug_message(1, 'gs2_init::init left init level... antenna   ')
           current%level = 19 - 1
         end if
-      end subroutine antenna_level_2_subroutine
+      end subroutine antenna_subroutine
+
+      subroutine fields_level_1_subroutine
+        use unit_tests, only: debug_message
+        use fields, only: init_fields_level_1
+        use fields, only: finish_fields_level_1
+        if (up()) call init_fields_level_1
+        if (down()) call finish_fields_level_1
+       
+        if (up()) then
+          call debug_message(1, 'gs2_init::init reached init level... fields_level_1   ')
+          current%level = 20
+        else if (down()) then  ! (down)
+          call debug_message(1, 'gs2_init::init left init level... fields_level_1   ')
+          current%level = 20 - 1
+        end if
+      end subroutine fields_level_1_subroutine
 
       subroutine dist_fn_parameters_subroutine
         use unit_tests, only: debug_message
@@ -570,10 +615,10 @@ contains
        
         if (up()) then
           call debug_message(1, 'gs2_init::init reached init level... dist_fn_parameters   ')
-          current%level = 20
+          current%level = 21
         else if (down()) then  ! (down)
           call debug_message(1, 'gs2_init::init left init level... dist_fn_parameters   ')
-          current%level = 20 - 1
+          current%level = 21 - 1
         end if
       end subroutine dist_fn_parameters_subroutine
 
@@ -589,10 +634,10 @@ contains
        
         if (up()) then
           call debug_message(1, 'gs2_init::init reached init level... dist_fn_layouts   ')
-          current%level = 21
+          current%level = 22
         else if (down()) then  ! (down)
           call debug_message(1, 'gs2_init::init left init level... dist_fn_layouts   ')
-          current%level = 21 - 1
+          current%level = 22 - 1
         end if
       end subroutine dist_fn_layouts_subroutine
 
@@ -605,10 +650,10 @@ contains
        
         if (up()) then
           call debug_message(1, 'gs2_init::init reached init level... nonlinear_terms   ')
-          current%level = 22
+          current%level = 23
         else if (down()) then  ! (down)
           call debug_message(1, 'gs2_init::init left init level... nonlinear_terms   ')
-          current%level = 22 - 1
+          current%level = 23 - 1
         end if
       end subroutine nonlinear_terms_subroutine
 
@@ -621,10 +666,10 @@ contains
        
         if (up()) then
           call debug_message(1, 'gs2_init::init reached init level... dist_fn_arrays   ')
-          current%level = 23
+          current%level = 24
         else if (down()) then  ! (down)
           call debug_message(1, 'gs2_init::init left init level... dist_fn_arrays   ')
-          current%level = 23 - 1
+          current%level = 24 - 1
         end if
       end subroutine dist_fn_arrays_subroutine
 
@@ -637,10 +682,10 @@ contains
        
         if (up()) then
           call debug_message(1, 'gs2_init::init reached init level... dist_fn_level_1   ')
-          current%level = 24
+          current%level = 25
         else if (down()) then  ! (down)
           call debug_message(1, 'gs2_init::init left init level... dist_fn_level_1   ')
-          current%level = 24 - 1
+          current%level = 25 - 1
         end if
       end subroutine dist_fn_level_1_subroutine
 
@@ -653,44 +698,12 @@ contains
        
         if (up()) then
           call debug_message(1, 'gs2_init::init reached init level... dist_fn_level_2   ')
-          current%level = 25
-        else if (down()) then  ! (down)
-          call debug_message(1, 'gs2_init::init left init level... dist_fn_level_2   ')
-          current%level = 25 - 1
-        end if
-      end subroutine dist_fn_level_2_subroutine
-
-      subroutine antenna_level_1_subroutine
-        use unit_tests, only: debug_message
-        use antenna, only: init_antenna_level_1
-        use antenna, only: finish_antenna_level_1
-        if (up()) call init_antenna_level_1
-        if (down()) call finish_antenna_level_1
-       
-        if (up()) then
-          call debug_message(1, 'gs2_init::init reached init level... antenna_level_1   ')
           current%level = 26
         else if (down()) then  ! (down)
-          call debug_message(1, 'gs2_init::init left init level... antenna_level_1   ')
+          call debug_message(1, 'gs2_init::init left init level... dist_fn_level_2   ')
           current%level = 26 - 1
         end if
-      end subroutine antenna_level_1_subroutine
-
-      subroutine fields_level_1_subroutine
-        use unit_tests, only: debug_message
-        use fields, only: init_fields_level_1
-        use fields, only: finish_fields_level_1
-        if (up()) call init_fields_level_1
-        if (down()) call finish_fields_level_1
-       
-        if (up()) then
-          call debug_message(1, 'gs2_init::init reached init level... fields_level_1   ')
-          current%level = 27
-        else if (down()) then  ! (down)
-          call debug_message(1, 'gs2_init::init left init level... fields_level_1   ')
-          current%level = 27 - 1
-        end if
-      end subroutine fields_level_1_subroutine
+      end subroutine dist_fn_level_2_subroutine
 
       subroutine override_timestep_subroutine
         use unit_tests, only: debug_message
@@ -700,10 +713,10 @@ contains
        
         if (up()) then
           call debug_message(1, 'gs2_init::init reached init level... override_timestep   ')
-          current%level = 28
+          current%level = 27
         else if (down()) then  ! (down)
           call debug_message(1, 'gs2_init::init left init level... override_timestep   ')
-          current%level = 28 - 1
+          current%level = 27 - 1
         end if
       end subroutine override_timestep_subroutine
 
@@ -716,10 +729,10 @@ contains
        
         if (up()) then
           call debug_message(1, 'gs2_init::init reached init level... dist_fn_level_3   ')
-          current%level = 29
+          current%level = 28
         else if (down()) then  ! (down)
           call debug_message(1, 'gs2_init::init left init level... dist_fn_level_3   ')
-          current%level = 29 - 1
+          current%level = 28 - 1
         end if
       end subroutine dist_fn_level_3_subroutine
 
@@ -732,10 +745,10 @@ contains
        
         if (up()) then
           call debug_message(1, 'gs2_init::init reached init level... collisions   ')
-          current%level = 30
+          current%level = 29
         else if (down()) then  ! (down)
           call debug_message(1, 'gs2_init::init left init level... collisions   ')
-          current%level = 30 - 1
+          current%level = 29 - 1
         end if
       end subroutine collisions_subroutine
 
@@ -748,10 +761,10 @@ contains
        
         if (up()) then
           call debug_message(1, 'gs2_init::init reached init level... fields_level_2   ')
-          current%level = 31
+          current%level = 30
         else if (down()) then  ! (down)
           call debug_message(1, 'gs2_init::init left init level... fields_level_2   ')
-          current%level = 31 - 1
+          current%level = 30 - 1
         end if
       end subroutine fields_level_2_subroutine
 
@@ -761,10 +774,10 @@ contains
        
         if (up()) then
           call debug_message(1, 'gs2_init::init reached init level... override_initial_values   ')
-          current%level = 32
+          current%level = 31
         else if (down()) then  ! (down)
           call debug_message(1, 'gs2_init::init left init level... override_initial_values   ')
-          current%level = 32 - 1
+          current%level = 31 - 1
         end if
       end subroutine override_initial_values_subroutine
 
@@ -774,10 +787,10 @@ contains
        
         if (up()) then
           call debug_message(1, 'gs2_init::init reached init level... set_initial_values   ')
-          current%level = 33
+          current%level = 32
         else if (down()) then  ! (down)
           call debug_message(1, 'gs2_init::init left init level... set_initial_values   ')
-          current%level = 33 - 1
+          current%level = 32 - 1
         end if
       end subroutine set_initial_values_subroutine
 
@@ -787,10 +800,10 @@ contains
        
         if (up()) then
           call debug_message(1, 'gs2_init::init reached init level... full   ')
-          current%level = 34
+          current%level = 33
         else if (down()) then  ! (down)
           call debug_message(1, 'gs2_init::init left init level... full   ')
-          current%level = 34 - 1
+          current%level = 33 - 1
         end if
       end subroutine full_subroutine
 
@@ -798,140 +811,31 @@ contains
 
   end subroutine init
 
-  subroutine init_gs2_init(current)
-    use file_utils, only: input_unit, input_unit_exist
-    use mp, only: proc0, broadcast
-    namelist /init_knobs/ in_memory
+  subroutine init_gs2_init(current, init_config_in)
+    implicit none
     type(init_type), intent(inout) :: current
-    integer :: in_file
+    type(init_config_type), intent(in), optional :: init_config_in
+
     logical :: exist
+    if (initialized) return
+    initialized = .true.
+    
+    if (present(init_config_in)) init_config = init_config_in
 
-    in_memory = .false.
-    if (proc0) then
-       in_file = input_unit_exist("init_knobs",exist)
-       if(exist) read (unit=in_file, nml=init_knobs)
-    endif
+    call init_config%init(name = 'init_knobs', requires_index = .false.)
 
-    call broadcast(in_memory)
+    ! Copy out internal values into module level parameters
+    in_memory = init_config%in_memory
+
+    exist = init_config%exist
   end subroutine init_gs2_init
 
   subroutine finish_gs2_init(current)
     type(init_type), intent(inout) :: current
-    !if (fields_and_dist_fn_saved .and. in_memory) then
-    !call deallocate_saved_arrays
-    !end if
+    call init_config%reset()
+    initialized = .false.
   end subroutine finish_gs2_init
 
-  !subroutine save_fields_and_dist_fn
-    !use dist_fn_arrays, only: gnew, g_restart_tmp
-    !use gs2_save, only: gs2_save_for_restart
-    !use mp, only: proc0, broadcast, mp_abort
-    !use collisions, only: vnmult
-    !use gs2_layouts, only: g_lo
-    !use theta_grid, only: ntgrid
-    !use file_utils, only: error_unit
-    !use kt_grids, only: ntheta0, naky
-    !use run_parameters, only: fphi, fapar, fbpar
-    !use fields, only:  force_maxwell_reinit
-    !use fields_arrays, only: phinew, aparnew, bparnew
-    !use gs2_time, only: user_time, user_dt
-    !use antenna, only: dump_ant_amp
-    !implicit none
-    !integer :: iostat
-    !integer :: istatus
-
-    !!write (*,*) 'save_fields_and_dist_fn in_memory', in_memory
-
-    !if (fields_and_dist_fn_saved) then 
-      !call mp_abort("ERROR: In save_fields_and_dist_fn &
-        !& fields_and_dist_fn_saved is .true. This means that &
-        !& save_fields_and_dist_fn has been called twice without &
-        !& reinitalising.", .true.)
-    !end if
-
-
-
-    !!If we want to do restarts in memory then try to allocate storage
-    !if(in_memory)then
-      !!Try to allocate storage to hold g
-      !allocate(g_restart_tmp(-ntgrid:ntgrid,2,g_lo%llim_proc:g_lo%ulim_alloc),stat=iostat)
-
-      !!If allocate failed
-      !if(iostat.ne.0)then
-        !!Disable in_memory flag
-        !in_memory=.false.
-        !!Print error message
-        !if (proc0) write(error_unit(), *) "Couldn't allocate temporary storage for g --> Reverting to file based restart"
-      !else
-        !!Copy into temporary
-        !g_restart_tmp=gnew
-      !endif
-
-      !!!!!
-      !!! NOW WE MAKE COPIES OF THE FIELDS
-      !!! --> Don't bother if force_maxwell_reinit as we're going to recalculate
-      !!!!!
-
-      !!Try to allocate storage to hold phi
-      !if(fphi.gt.0.and.(.not.force_maxwell_reinit).and.in_memory)then
-        !allocate(phi_tmp(-ntgrid:ntgrid,ntheta0,naky),stat=iostat)
-
-        !!If allocate failed
-        !if(iostat.ne.0)then
-          !!Disable in_memory flag
-          !in_memory=.false.
-          !!Print error message
-          !if (proc0) write(error_unit(), *) "Couldn't allocate temporary storage for phi --> Reverting to file based restart"
-        !else
-          !!Copy into temporary
-          !phi_tmp=phinew
-        !endif
-      !endif
-
-      !!Try to allocate storage to hold apar
-      !if(fapar.gt.0.and.(.not.force_maxwell_reinit).and.in_memory)then
-        !allocate(apar_tmp(-ntgrid:ntgrid,ntheta0,naky),stat=iostat)
-
-        !!If allocate failed
-        !if(iostat.ne.0)then
-          !!Disable in_memory flag
-          !in_memory=.false.
-          !!Print error message
-          !if (proc0) write(error_unit(), *) "Couldn't allocate temporary storage for apar --> Reverting to file based restart"
-        !else
-          !!Copy into temporary
-          !apar_tmp=aparnew
-        !endif
-      !endif
-
-      !!Try to allocate storage to hold bpar
-      !if(fbpar.gt.0.and.(.not.force_maxwell_reinit).and.in_memory)then
-        !allocate(bpar_tmp(-ntgrid:ntgrid,ntheta0,naky),stat=iostat)
-
-        !!If allocate failed
-        !if(iostat.ne.0)then
-          !!Disable in_memory flag
-          !in_memory=.false.
-          !!Print error message
-          !if (proc0) write(error_unit(), *) "Couldn't allocate temporary storage for bpar --> Reverting to file based restart"
-        !else
-          !!Copy into temporary
-          !bpar_tmp=bparnew
-        !endif
-      !endif
-
-    !endif
-
-    !if(.not.in_memory)then
-      !!Should really do this with in_memory=.true. as well but
-      !!not sure that we really need to as we never read in the dumped data.
-      !if (proc0) call dump_ant_amp
-
-      !call gs2_save_for_restart (gnew, user_time, user_dt, vnmult, istatus, fphi, fapar, fbpar)
-    !endif
-    !fields_and_dist_fn_saved = .true.
-
-  !end subroutine save_fields_and_dist_fn
   subroutine set_initial_field_and_dist_fn_values(current)
     use dist_fn_arrays, only: g, gnew
     use fields_arrays, only: phinew, aparnew, bparnew, phi, apar, bpar
@@ -941,8 +845,6 @@ contains
     use init_g, only: ginit
     use init_g, only: ginitopt_restart_many
     use run_parameters, only: fphi, fapar, fbpar
-    use mp, only: proc0
-    use unit_tests, only: job_id
     implicit none
     type (init_type), intent(in) :: current
     logical :: restarted
@@ -998,12 +900,115 @@ contains
        end if
     end if
   end subroutine set_initial_field_and_dist_fn_values
-  !subroutine deallocate_saved_arrays 
-    !use dist_fn_arrays, only: g_restart_tmp
-    !if(allocated(g_restart_tmp)) deallocate(g_restart_tmp)
-    !if(allocated(phi_tmp)) deallocate(phi_tmp)
-    !if(allocated(apar_tmp)) deallocate(apar_tmp)
-    !if(allocated(bpar_tmp)) deallocate(bpar_tmp)
-  !end subroutine deallocate_saved_arrays
+
+  !> Set the module level config type
+  !> Will abort if the module has already been initialised to avoid
+  !> inconsistencies.
+  subroutine set_gs2_init_config(gs2_init_config_in)
+    use mp, only: mp_abort
+    type(init_config_type), intent(in), optional :: gs2_init_config_in
+    if (initialized) then
+       call mp_abort("Trying to set gs2_init_config when already initialized.", to_screen = .true.)
+    end if
+    if (present(gs2_init_config_in)) then
+       init_config = gs2_init_config_in
+    end if
+  end subroutine set_gs2_init_config
+  
+  !---------------------------------------
+  ! Following is for the config_type
+  !---------------------------------------
+  
+  !> Reads in the init_knobs namelist and populates the member variables
+  subroutine read_init_config(self)
+    use file_utils, only: input_unit_exist, get_indexed_namelist_unit
+    use mp, only: proc0
+    implicit none
+    class(init_config_type), intent(in out) :: self
+    logical :: exist
+    integer :: in_file, iostat
+
+    ! Note: When this routine is in the module where these variables live
+    ! we shadow the module level variables here. This is intentional to provide
+    ! isolation and ensure we can move this routine to another module easily.    
+    logical :: in_memory
+
+    namelist /init_knobs/ in_memory
+
+    ! Only proc0 reads from file
+    if (.not. proc0) return
+
+    ! First set local variables from current values
+    in_memory = self%in_memory
+
+    ! Now read in the main namelist
+    if (self%get_requires_index()) then
+       call get_indexed_namelist_unit(in_file, trim(self%get_name()), self%index)
+       read(in_file, nml = init_knobs, iostat = iostat)
+       exist = .true.
+       if (iostat .ne.0) exist = .false.
+       close(unit = in_file, iostat = iostat)
+    else
+       in_file = input_unit_exist(self%get_name(), exist)
+       if (exist) read(in_file, nml = init_knobs)
+    endif
+
+    ! Now copy from local variables into type members
+    self%in_memory = in_memory
+
+    self%exist = exist
+  end subroutine read_init_config
+
+  !> Writes out a namelist representing the current state of the config object
+  subroutine write_init_config(self, unit)
+    implicit none
+    class(init_config_type), intent(in) :: self
+    integer, intent(in) , optional:: unit
+    integer :: unit_internal
+
+    unit_internal = 6 ! @todo -- get stdout from file_utils
+    if (present(unit)) then
+       unit_internal = unit
+    endif
+
+    call self%write_namelist_header(unit_internal)
+    call self%write_key_val("in_memory", self%in_memory, unit_internal)
+    call self%write_namelist_footer(unit_internal)
+  end subroutine write_init_config
+
+  !> Resets the config object to the initial empty state
+  subroutine reset_init_config(self)
+    class(init_config_type), intent(in out) :: self
+    type(init_config_type) :: empty
+    select type (self)
+    type is (init_config_type)
+       self = empty
+    end select
+  end subroutine reset_init_config
+
+  !> Broadcasts all config parameters so object is populated identically on
+  !! all processors
+  subroutine broadcast_init_config(self)
+    use mp, only: broadcast
+    implicit none
+    class(init_config_type), intent(in out) :: self
+    call broadcast(self%in_memory)
+
+    call broadcast(self%exist)
+  end subroutine broadcast_init_config
+  
+  !> Gets the default name for this namelist
+  function get_default_name_init_config()
+    implicit none
+    character(len = CONFIG_MAX_NAME_LEN) :: get_default_name_init_config
+    get_default_name_init_config = "init_knobs"
+  end function get_default_name_init_config
+
+  !> Gets the default requires index for this namelist
+  function get_default_requires_index_init_config()
+    implicit none
+    logical :: get_default_requires_index_init_config
+    get_default_requires_index_init_config = .false.
+  end function get_default_requires_index_init_config
 end module gs2_init
 

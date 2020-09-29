@@ -30,6 +30,8 @@ properties([[
 
 // Declare variables
 String slackURL
+// Whether to post test results to Slack
+boolean messageSlack = false
 String startMessage
 String channel
 String payload
@@ -139,8 +141,6 @@ String libpath="${MY_NETCDF_LIB}:${MY_NETCDFF_LIB}:/opt/software/gcc-7.2.0/openm
         	sh '''
 			git config --global user.email "joseph.parker@stfc.ac.uk"
 			git config --global user.name "Joseph Parker"
-           		git submodule update --init --recursive --remote
-			git branch
 		'''
     	}
 
@@ -286,27 +286,29 @@ String libpath="${MY_NETCDF_LIB}:${MY_NETCDFF_LIB}:/opt/software/gcc-7.2.0/openm
 		println "Something is wrong with our counting"
   	}
 
-  	attachment = [text: resultMessage,
-		pretext: endMessage,
-		fallback: fallback,
-		color: colourCode,
-		mrkdwn_in: mrkdwn]
-  	attachments = [ attachment ]
-  	load = [ channel: channel, attachments: attachments ]
-  	try {
-    		endJson = new JsonBuilder(load)
-    		payload = endJson.toString()
-    		endJson = null // Need to nullify the Json object as it is not "serializable" by Java
-  	} catch (jsonError) {
-    		echo "Error contructing final Slack message - likely a library permissions issue"
-    		payload = "{\"channel\":\"#jenkins\",\"attachments\":[{\"Job Ended\",\"text\":\"${resultMessage}\",\"fallback\":\"Job Ended\",\"color\":\"${colourCode}\",\"mrkdwn_in\":[\"pretext\",\"text\",\"fields\"]}]}"
-  	}
-  	command = "set +x; curl -X POST -H 'Content-Type: application/json' -d '${payload}' ${slackURL}"
-	try {
-		sh command
-	} catch (slackError) {
-		echo "Error posting to Slack"
-	}
+        if (messageSlack) {
+	  attachment = [text: resultMessage,
+		  pretext: endMessage,
+		  fallback: fallback,
+		  color: colourCode,
+		  mrkdwn_in: mrkdwn]
+	  attachments = [ attachment ]
+	  load = [ channel: channel, attachments: attachments ]
+	  try {
+		  endJson = new JsonBuilder(load)
+		  payload = endJson.toString()
+		  endJson = null // Need to nullify the Json object as it is not "serializable" by Java
+	  } catch (jsonError) {
+		  echo "Error contructing final Slack message - likely a library permissions issue"
+		  payload = "{\"channel\":\"#jenkins\",\"attachments\":[{\"Job Ended\",\"text\":\"${resultMessage}\",\"fallback\":\"Job Ended\",\"color\":\"${colourCode}\",\"mrkdwn_in\":[\"pretext\",\"text\",\"fields\"]}]}"
+	  }
+	  command = "set +x; curl -X POST -H 'Content-Type: application/json' -d '${payload}' ${slackURL}"
+	  try {
+		  sh command
+	  } catch (slackError) {
+		  echo "Error posting to Slack"
+	  }
+        }
 
 	// Now everything is finished, set the name back to a useful hyperlink:
 	currentBuild.description = PRname

@@ -65,7 +65,9 @@ module hyper
      !> override the individual coefficients with
      !> [[hyper_knobs:D_hyperres]] and [[hyper_knobs:D_hypervisc]].
      real :: d_hyper = -10.0
-     !> FIXME: Add documentation
+     !> Used with the simple3D hyperviscosity model of the form
+     !> D_hyper3D * (|kperp|/ max |kperp|)^P_hyper3D 
+     !> and ky_cut, kx_cut set max |kperp|
      real :: d_hyper3d = -10.
      !> Sets hyperresistivity parameter multiplying damping term.
      real :: d_hyperres = -10.0
@@ -94,19 +96,25 @@ module hyper
      !>
      !> @todo Remove this variable.
      logical :: include_kpar = .false.
-     !> If true zonal modes are treated identically to non-zonal modes
+     !> if true damp zonal and drift waves with same dissipation formula
      logical :: isotropic_model = .true.
      !> If `true` then use isotropic shear model.
      logical :: isotropic_shear = .true.
-     !> FIXME: Add documentation
+     !> Used with the simple3D hyperviscosity model of the form
+     !> D_hyper3D * (|kperp|/ max |kperp|)^P_hyper3D 
+     !> and ky_cut, kx_cut set max |kperp|
      real :: kx_cut = -10.
-     !> FIXME: Add documentation
+     !> Used with the simple3D hyperviscosity model of the form
+     !> D_hyper3D * (|kperp|/ max |kperp|)^P_hyper3D 
+     !> and ky_cut, kx_cut set max |kperp|
      real :: ky_cut = -10.
      !> Sets the power to which \(k_\bot^2\) is raised in the dissipation filter.
      integer :: nexp = 2
      !> Sets a parameter in the anisotropic shearing rate calculation.
      real :: omega_osc = 0.4
-     !> FIXME: Add documentation
+     !> Used with the simple3D hyperviscosity model of the form
+     !> D_hyper3D * (|kperp|/ max |kperp|)^P_hyper3D 
+     !> and ky_cut, kx_cut set max |kperp|
      real :: p_hyper3d = 4.
    contains
      procedure, public :: read => read_hyper_config
@@ -438,7 +446,7 @@ contains
             text_option('none', hyper_option_none), &
             text_option('visc_only', hyper_option_visc), &
             text_option('res_only', hyper_option_res), &
-            text_option('both', hyper_option_both), &
+            text_option('both', hyper_option_both), &            
             text_option('simple3D', hyper_option_simple3D) /)
     integer :: ierr
     logical :: exist
@@ -477,6 +485,7 @@ contains
        if (proc0) write (ierr, *) 'Forcing nexp = 2.  Higher values not implemented for anisotropic shear model.'
        nexp = 2
     end if
+
     
     select case (hyper_option_switch)
 
@@ -918,14 +927,12 @@ contains
     call broadcast(self%gridnorm)
     call broadcast(self%hyper_option)
     call broadcast(self%include_kpar)
-    call broadcast(self%isotropic_model)
     call broadcast(self%isotropic_shear)
     call broadcast(self%kx_cut)
     call broadcast(self%ky_cut)
     call broadcast(self%nexp)
     call broadcast(self%omega_osc)
     call broadcast(self%p_hyper3d)
-
     call broadcast(self%exist)
   end subroutine broadcast_hyper_config
 
