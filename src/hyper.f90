@@ -1,6 +1,6 @@
-! nexp has been changed in a rush.  Only known to be correct for nexp=2
-!
-!
+!> FIXME : Add documentation
+!!
+!! @note nexp has been changed in a rush.  Only known to be correct for nexp=2
 module hyper
   use abstract_config, only: abstract_config_type, CONFIG_MAX_NAME_LEN
   implicit none
@@ -129,6 +129,7 @@ module hyper
   
 contains
 
+  !> FIXME : Add documentation
   subroutine check_hyper(report_unit)
     implicit none
     integer, intent(in) :: report_unit
@@ -292,6 +293,7 @@ contains
     end if
   end subroutine check_hyper
 
+  !> FIXME : Add documentation
   subroutine wnml_hyper(unit)
     implicit none
     integer, intent(in) :: unit          
@@ -586,6 +588,7 @@ contains
     end select
   end subroutine read_parameters
 
+  !> FIXME : Add documentation
   subroutine allocate_arrays
     use theta_grid, only: ntgrid
     use kt_grids, only: ntheta0, naky
@@ -601,6 +604,7 @@ contains
     
   end subroutine allocate_arrays
 
+  !> FIXME : Add documentation
   subroutine hyper_diff (g0, phi)
 
     use gs2_layouts, only: ik_idx, it_idx, is_idx
@@ -653,7 +657,7 @@ contains
     end select    
 
   contains
-  
+    !> FIXME : Add documentation
     subroutine simple3Dfilter
     
         implicit none
@@ -667,8 +671,9 @@ contains
         end do
       
     end subroutine simple3Dfilter
-    
-    subroutine aniso_shear 
+
+    !> FIXME : Add documentation
+    subroutine aniso_shear
 
       real, dimension(naky) :: fac
       
@@ -732,6 +737,7 @@ contains
     
     end subroutine aniso_shear
 
+    !> FIXME : Add documentation
     subroutine iso_shear
 
       real, dimension(naky) :: fac
@@ -767,6 +773,7 @@ contains
 
   end subroutine hyper_diff
 
+  !> FIXME : Add documentation
   subroutine finish_hyper
 
     implicit none
