@@ -1,6 +1,6 @@
-!> FIXME : Add documentation
-!!
-!! @note nexp has been changed in a rush.  Only known to be correct for nexp=2
+! nexp has been changed in a rush.  Only known to be correct for nexp=2
+!
+!
 module hyper
   use abstract_config, only: abstract_config_type, CONFIG_MAX_NAME_LEN
   implicit none
@@ -26,7 +26,9 @@ module hyper
   integer, parameter :: hyper_option_none = 1, &
        hyper_option_visc = 2, &
        hyper_option_res  = 3, &
-       hyper_option_both = 4
+       hyper_option_both = 4, &
+       hyper_option_simple3D = 5 ! MRH
+       
   character(9) :: hyper_option
   logical :: const_amp, include_kpar, isotropic_shear, damp_zonal_only
   logical :: hyper_on = .false.
@@ -37,6 +39,14 @@ module hyper
 
   real, dimension (:,:,:), allocatable :: hypervisc_filter
   ! (-ntgrid:ntgrid, ntheta0, naky)
+
+  ! ! MRH Coefficients for simple3D hyperviscous model
+  real :: kperp2_max, kperp2_max_zonal 
+  ! the maximum k_perp ^ 2 including geometric coefficients for non-zonal and zonal modes
+  real :: D_hyper3D, P_hyper3D, ky_cut, kx_cut
+  ! Hyperviscous coefficient, hyperviscous power, ky cut-off, kx cut-off
+  logical :: isotropic_model
+  ! Controls if zonal modes are treated identically to non-zonal modes
 
   logical :: initialized = .false.
 
@@ -88,6 +98,15 @@ module hyper
      integer :: nexp = 2
      !> Sets a parameter in the anisotropic shearing rate calculation.
      real :: omega_osc = 0.4
+     !> the following options are used to apply hyperviscosity of the form
+     !> D_hyper3D * (|kperp|/ max |kperp|)^P_hyper3D 
+     !> and ky_cut, kx_cut set max |kperp|
+     real :: D_hyper3D = -10. ! MRH
+     real :: P_hyper3D = 4. ! MRH
+     real :: ky_cut = -10. ! MRH
+     real :: kx_cut = -10. ! MRH
+     !> if true damp zonal and drift waves with same dissipation formula
+     logical :: isotropic_model =.true. ! MRH
    contains
      procedure, public :: read => read_hyper_config
      procedure, public :: write => write_hyper_config
@@ -101,7 +120,6 @@ module hyper
   
 contains
 
-  !> FIXME : Add documentation  
   subroutine check_hyper(report_unit)
     implicit none
     integer, intent(in) :: report_unit
@@ -265,7 +283,6 @@ contains
     end if
   end subroutine check_hyper
 
-  !> FIXME : Add documentation
   subroutine wnml_hyper(unit)
     implicit none
     integer, intent(in) :: unit          
@@ -293,6 +310,9 @@ contains
        end if
     end select
 
+    select case (hyper_option_switch)
+    
+    case (hyper_option_visc, hyper_option_res, hyper_option_both)
 !    write (unit, fmt="(' include_kpar = ',L1)") include_kpar
     
     write (unit, fmt="(' const_amp = ',L1)") const_amp
@@ -302,11 +322,25 @@ contains
 
     write (unit, fmt="(' gridnorm = ',L1)") gridnorm
     write (unit, fmt="(' /')")
+    
+    case (hyper_option_simple3D)
+    write (unit, fmt="(' hyper_option = ',a)") '"simple3D"'
+    write (unit, fmt="(' D_hyper3D = ',e17.10)") D_hyper3D
+    write (unit, fmt="(' P_hyper3D = ',e17.10)") P_hyper3D
+    if (ky_cut > 0.) &
+         write (unit, fmt="(' ky_cut = ',e17.10)") ky_cut
+    if (kx_cut > 0.) &
+         write (unit, fmt="(' kx_cut = ',e17.10)") kx_cut
+    write (unit, fmt="(' isotropic_model = ',L1)") isotropic_model
+    write (unit, fmt="(' /')")
+        
+    end select
   end subroutine wnml_hyper
 
-  !> FIXME : Add documentation
   subroutine init_hyper(hyper_config_in)
     use kt_grids, only: ntheta0, naky, akx, aky
+    use kt_grids, only: kperp2 ! MRH
+    use theta_grid, only: ntgrid, gds2, gds21, gds22, shat ! MRH
     use gs2_time, only: code_dt
     use gs2_layouts, only: init_gs2_layouts
     implicit none
@@ -320,40 +354,73 @@ contains
     call read_parameters(hyper_config_in)
     call allocate_arrays
 
-! Define variables used in hyperviscosity and hyperresistivity models
+    select case (hyper_option_switch)
+        case(hyper_option_both, hyper_option_res, hyper_option_visc)
+    
+        ! Define variables used in hyperviscosity and hyperresistivity models
 
-    if (gridnorm) then
-       akx4_max    = akx(ntheta0/2 + 1) ** (2*nexp)
-       aky_max     = aky(naky)
-       aky4_max     = aky(naky) ** (2*nexp)
-       akperp4_max = ( akx(ntheta0/2 + 1) ** 2  +  aky(naky) ** 2) ** (nexp)
-    else
-       akx4_max = 1.
-       aky_max = 1.
-       aky4_max = 1.
-       akperp4_max = 1.
-    end if
+            if (gridnorm) then
+               akx4_max    = akx(ntheta0/2 + 1) ** (2*nexp)
+               aky_max     = aky(naky)
+               aky4_max     = aky(naky) ** (2*nexp)
+               akperp4_max = ( akx(ntheta0/2 + 1) ** 2  +  aky(naky) ** 2) ** (nexp)
+            else
+               akx4_max = 1.
+               aky_max = 1.
+               aky4_max = 1.
+               akperp4_max = 1.
+            end if
 
-! Get D_res set up if needed
+        ! Get D_res set up if needed
 
-    if (D_hyperres > 0.) then
-       do ik = 1, naky
-          do it = 1, ntheta0
-             D_res(it, ik) = D_hyperres*code_dt &
-                  * (aky(ik)**2 + akx(it)**2)**nexp/akperp4_max
-          end do
-       end do
-       D_eta = D_hyperres/akperp4_max
-    else
-       D_res = 0.
-       D_eta = 0.
-    end if
+            if (D_hyperres > 0.) then
+               do ik = 1, naky
+                  do it = 1, ntheta0
+                     D_res(it, ik) = D_hyperres*code_dt &
+                          * (aky(ik)**2 + akx(it)**2)**nexp/akperp4_max
+                  end do
+               end do
+               D_eta = D_hyperres/akperp4_max
+            else
+               D_res = 0.
+               D_eta = 0.
+            end if
 
-    if (D_hypervisc > 0.) then
-       D_v = D_hypervisc/akperp4_max
-    else
-       D_v = 0.
-    end if
+            if (D_hypervisc > 0.) then
+               D_v = D_hypervisc/akperp4_max
+            else
+               D_v = 0.
+            end if
+            
+        case(hyper_option_simple3D)  ! MRH
+            ! Make the default cut-offs the grid scale
+            if(.not. ky_cut > 0.) ky_cut = aky(naky)
+            if(.not. kx_cut > 0.) kx_cut = akx((ntheta0+1)/2)
+            
+            kperp2_max = maxval(ky_cut*ky_cut*gds2(:) + &
+                              2.0*ky_cut*kx_cut*gds21(:)/shat + &
+                              kx_cut*kx_cut*gds22/(shat*shat))
+            if (isotropic_model) then 
+                kperp2_max_zonal = kperp2_max
+            else 
+                kperp2_max_zonal = maxval(kx_cut*kx_cut*gds22/(shat*shat))
+            endif
+            ! Calculate the filter
+            ik =1  ! Zonal modes
+            do it = 1, ntheta0
+                 hypervisc_filter(:,it,ik) = exp(- ( D_hyper3D * code_dt * &
+               ( kperp2(:,it,ik)/kperp2_max_zonal )**(P_hyper3D/2.0)) ) 
+            end do
+              
+            do ik = 2, naky ! Non-zonal modes
+              do it = 1, ntheta0
+                 hypervisc_filter(:,it,ik) = exp(- ( D_hyper3D * code_dt * &
+               ( kperp2(:,it,ik)/kperp2_max )**(P_hyper3D/2.0)) ) 
+              end do
+            end do
+
+                    
+    end select
 
   end subroutine init_hyper
 
@@ -369,7 +436,7 @@ contains
             text_option('none', hyper_option_none), &
             text_option('visc_only', hyper_option_visc), &
             text_option('res_only', hyper_option_res), &
-            text_option('both', hyper_option_both) /)
+            text_option('simple3D', hyper_option_simple3D) /)
     integer :: ierr
     logical :: exist
 
@@ -389,10 +456,13 @@ contains
     isotropic_shear = hyper_config%isotropic_shear
     nexp = hyper_config%nexp
     omega_osc = hyper_config%omega_osc
+    D_hyper3D = hyper_config%D_hyper3D ! MRH
+    P_hyper3D = hyper_config%P_hyper3D ! MRH
+    ky_cut = hyper_config%ky_cut ! MRH
+    kx_cut = hyper_config%kx_cut ! MRH
+    isotropic_model = hyper_config%isotropic_model ! MRH
 
     exist = hyper_config%exist
-    
-
     ierr = error_unit()
     
     call get_option_value &
@@ -483,11 +553,27 @@ contains
           end if
        endif
        if (D_hypervisc < 0. .and. D_hyperres < 0.) hyper_on = .false.
-
+       
+    case (hyper_option_simple3D) ! MRH
+          hyper_on = .true.
+          
+          if (P_hyper3D < 4.) then
+            hyper_on = .false.
+            write(ierr, *) 'hyper_option = ',hyper_option, &
+                  ' chooses a simple hyperviscous filter but  P_hyper3D < 4. is illegal.'
+            write(ierr, *) 'No hyperviscosity used.'
+          endif
+          
+          if (D_hyper3D < 0.) then
+            hyper_on = .false.
+            write(ierr, *) 'hyper_option = ',hyper_option, &
+                  ' chooses a simple hyperviscous filter but  D_hyper3D < 0 is illegal.'
+            write(ierr, *) 'No hyperviscosity used.'
+          endif
+    
     end select
   end subroutine read_parameters
 
-  !> FIXME : Add documentation  
   subroutine allocate_arrays
     use theta_grid, only: ntgrid
     use kt_grids, only: ntheta0, naky
@@ -500,16 +586,17 @@ contains
        allocate (hypervisc_filter(-ntgrid:ntgrid,ntheta0,naky)) ; hypervisc_filter = 1.0
     end if
     D_res = 0.
-
+    
   end subroutine allocate_arrays
 
-  !> FIXME : Add documentation  
   subroutine hyper_diff (g0, phi)
+
     use gs2_layouts, only: ik_idx, it_idx, is_idx
     use theta_grid, only: ntgrid
     use gs2_time, only: code_dt
     use gs2_layouts, only: g_lo
     use kt_grids, only: aky, akx, naky, ntheta0
+
     implicit none
     complex, dimension (-ntgrid:,:,g_lo%llim_proc:), intent (in out) :: g0
     complex, dimension (-ntgrid:,:,:), intent (in) :: phi
@@ -535,17 +622,40 @@ contains
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
     if (.not. hyper_on) return
-    if (D_hypervisc < 0.) return
+    
+    select case (hyper_option_switch)
+        case(hyper_option_both, hyper_option_res, hyper_option_visc)
+            
+            if (D_hypervisc < 0.) return
 
-    if(isotropic_shear) then
-       call iso_shear
-    else
-       call aniso_shear
-    end if
+            if(isotropic_shear) then
+               call iso_shear
+            else
+               call aniso_shear
+            end if
+            
+        case(hyper_option_simple3D) ! MRH
+            
+            call simple3Dfilter
+            
+    end select    
 
   contains
-
-    !> FIXME : Add documentation
+  
+    subroutine simple3Dfilter
+    
+        implicit none
+        
+        do iglo = g_lo%llim_proc, g_lo%ulim_alloc
+         ik = ik_idx(g_lo, iglo)
+         it = it_idx(g_lo, iglo)
+                  
+         g0(:,1,iglo) = g0(:,1,iglo) * hypervisc_filter(:,it,ik)
+         g0(:,2,iglo) = g0(:,2,iglo) * hypervisc_filter(:,it,ik)
+        end do
+      
+    end subroutine simple3Dfilter
+    
     subroutine aniso_shear 
 
       real, dimension(naky) :: fac
@@ -610,7 +720,6 @@ contains
     
     end subroutine aniso_shear
 
-    !> FIXME : Add documentation    
     subroutine iso_shear
 
       real, dimension(naky) :: fac
@@ -646,7 +755,6 @@ contains
 
   end subroutine hyper_diff
 
-  !> FIXME : Add documentation  
   subroutine finish_hyper
 
     implicit none
@@ -692,8 +800,11 @@ contains
     integer :: nexp
     logical :: const_amp, damp_zonal_only, gridnorm, include_kpar, isotropic_shear
     real :: d_hyper, d_hyperres, d_hypervisc, omega_osc
-
-    namelist /hyper_knobs/ const_amp, d_hyper, d_hyperres, d_hypervisc, damp_zonal_only, gridnorm, hyper_option, include_kpar, isotropic_shear, nexp, omega_osc
+    real :: D_hyper3D, P_hyper3D, ky_cut, kx_cut
+    logical :: isotropic_model 
+    
+    namelist /hyper_knobs/ const_amp, d_hyper, d_hyperres, d_hypervisc, damp_zonal_only, gridnorm, hyper_option, include_kpar, isotropic_shear, nexp, omega_osc, & 
+     D_hyper3D, P_hyper3D, ky_cut, kx_cut, isotropic_model
 
     ! Only proc0 reads from file
     if (.not. proc0) return
@@ -710,7 +821,13 @@ contains
     isotropic_shear = self%isotropic_shear
     nexp = self%nexp
     omega_osc = self%omega_osc
-
+    
+    D_hyper3D = self%D_hyper3D
+    P_hyper3D = self%P_hyper3D
+    ky_cut = self%ky_cut
+    kx_cut = self%kx_cut
+    isotropic_model = self%isotropic_model
+    
     ! Now read in the main namelist
     if (self%get_requires_index()) then
        call get_indexed_namelist_unit(in_file, trim(self%get_name()), self%index)
@@ -735,6 +852,13 @@ contains
     self%isotropic_shear = isotropic_shear
     self%nexp = nexp
     self%omega_osc = omega_osc
+
+    self%D_hyper3D = D_hyper3D
+    self%P_hyper3D = P_hyper3D
+    self%ky_cut = ky_cut 
+    self%kx_cut = kx_cut 
+    self%isotropic_model = isotropic_model
+    
 
     self%exist = exist
   end subroutine read_hyper_config
@@ -763,6 +887,13 @@ contains
     call self%write_key_val("isotropic_shear", self%isotropic_shear, unit_internal)
     call self%write_key_val("nexp", self%nexp, unit_internal)
     call self%write_key_val("omega_osc", self%omega_osc, unit_internal)
+    
+    call self%write_key_val("D_hyper3D", self%D_hyper3D, unit_internal)
+    call self%write_key_val("P_hyper3D", self%P_hyper3D, unit_internal)
+    call self%write_key_val("ky_cut", self%ky_cut, unit_internal)
+    call self%write_key_val("kx_cut", self%kx_cut, unit_internal)
+    call self%write_key_val("isotropic_model", self%isotropic_model, unit_internal)
+    
     call self%write_namelist_footer(unit_internal)
   end subroutine write_hyper_config
 
@@ -793,6 +924,12 @@ contains
     call broadcast(self%isotropic_shear)
     call broadcast(self%nexp)
     call broadcast(self%omega_osc)
+
+    call broadcast (self%D_hyper3D) ! MRH
+    call broadcast (self%P_hyper3D) ! MRH
+    call broadcast (self%ky_cut) ! MRH
+    call broadcast (self%kx_cut) ! MRH
+    call broadcast (self%isotropic_model) ! MRH
 
     call broadcast(self%exist)
   end subroutine broadcast_hyper_config
