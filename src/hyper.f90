@@ -41,7 +41,7 @@ module hyper
   ! (-ntgrid:ntgrid, ntheta0, naky)
 
   ! ! MRH Coefficients for simple3D hyperviscous model
-  real :: kperp2_max, kperp2_max_zonal 
+  real :: kperp2_max, kperp2_max_zonal
   ! the maximum k_perp ^ 2 including geometric coefficients for non-zonal and zonal modes
   real :: D_hyper3D, P_hyper3D, ky_cut, kx_cut
   ! Hyperviscous coefficient, hyperviscous power, ky cut-off, kx cut-off
@@ -65,6 +65,10 @@ module hyper
      !> override the individual coefficients with
      !> [[hyper_knobs:D_hyperres]] and [[hyper_knobs:D_hypervisc]].
      real :: d_hyper = -10.0
+     !> Used with the simple3D hyperviscosity model of the form
+     !> D_hyper3D * (|kperp|/ max |kperp|)^P_hyper3D 
+     !> and ky_cut, kx_cut set max |kperp|
+     real :: d_hyper3d = -10.
      !> Sets hyperresistivity parameter multiplying damping term.
      real :: d_hyperres = -10.0
      !> Sets hyperviscosity parameter multiplying damping term. See
@@ -92,21 +96,26 @@ module hyper
      !>
      !> @todo Remove this variable.
      logical :: include_kpar = .false.
+     !> if true damp zonal and drift waves with same dissipation formula
+     logical :: isotropic_model = .true.
      !> If `true` then use isotropic shear model.
      logical :: isotropic_shear = .true.
+     !> Used with the simple3D hyperviscosity model of the form
+     !> D_hyper3D * (|kperp|/ max |kperp|)^P_hyper3D 
+     !> and ky_cut, kx_cut set max |kperp|
+     real :: kx_cut = -10.
+     !> Used with the simple3D hyperviscosity model of the form
+     !> D_hyper3D * (|kperp|/ max |kperp|)^P_hyper3D 
+     !> and ky_cut, kx_cut set max |kperp|
+     real :: ky_cut = -10.
      !> Sets the power to which \(k_\bot^2\) is raised in the dissipation filter.
      integer :: nexp = 2
      !> Sets a parameter in the anisotropic shearing rate calculation.
      real :: omega_osc = 0.4
-     !> the following options are used to apply hyperviscosity of the form
+     !> Used with the simple3D hyperviscosity model of the form
      !> D_hyper3D * (|kperp|/ max |kperp|)^P_hyper3D 
      !> and ky_cut, kx_cut set max |kperp|
-     real :: D_hyper3D = -10. ! MRH
-     real :: P_hyper3D = 4. ! MRH
-     real :: ky_cut = -10. ! MRH
-     real :: kx_cut = -10. ! MRH
-     !> if true damp zonal and drift waves with same dissipation formula
-     logical :: isotropic_model =.true. ! MRH
+     real :: p_hyper3d = 4.
    contains
      procedure, public :: read => read_hyper_config
      procedure, public :: write => write_hyper_config
@@ -337,6 +346,7 @@ contains
     end select
   end subroutine wnml_hyper
 
+  !> FIXME : Add documentation
   subroutine init_hyper(hyper_config_in)
     use kt_grids, only: ntheta0, naky, akx, aky
     use kt_grids, only: kperp2 ! MRH
@@ -431,11 +441,12 @@ contains
     use mp, only: proc0
     implicit none
     type(hyper_config_type), intent(in), optional :: hyper_config_in    
-    type (text_option), dimension(5), parameter :: hyperopts = &
+    type (text_option), dimension(6), parameter :: hyperopts = &
          (/ text_option('default', hyper_option_none), &
             text_option('none', hyper_option_none), &
             text_option('visc_only', hyper_option_visc), &
             text_option('res_only', hyper_option_res), &
+            text_option('both', hyper_option_both), &            
             text_option('simple3D', hyper_option_simple3D) /)
     integer :: ierr
     logical :: exist
@@ -447,22 +458,23 @@ contains
     ! Copy out internal values into module level parameters
     const_amp = hyper_config%const_amp
     d_hyper = hyper_config%d_hyper
+    d_hyper3d = hyper_config%d_hyper3d
     d_hyperres = hyper_config%d_hyperres
     d_hypervisc = hyper_config%d_hypervisc
     damp_zonal_only = hyper_config%damp_zonal_only
     gridnorm = hyper_config%gridnorm
     hyper_option = hyper_config%hyper_option
     include_kpar = hyper_config%include_kpar
+    isotropic_model = hyper_config%isotropic_model
     isotropic_shear = hyper_config%isotropic_shear
+    kx_cut = hyper_config%kx_cut
+    ky_cut = hyper_config%ky_cut
     nexp = hyper_config%nexp
     omega_osc = hyper_config%omega_osc
-    D_hyper3D = hyper_config%D_hyper3D ! MRH
-    P_hyper3D = hyper_config%P_hyper3D ! MRH
-    ky_cut = hyper_config%ky_cut ! MRH
-    kx_cut = hyper_config%kx_cut ! MRH
-    isotropic_model = hyper_config%isotropic_model ! MRH
+    p_hyper3d = hyper_config%p_hyper3d
 
     exist = hyper_config%exist
+    
     ierr = error_unit()
     
     call get_option_value &
@@ -474,8 +486,9 @@ contains
        nexp = 2
     end if
 
+    
     select case (hyper_option_switch)
-       
+
     case (hyper_option_none)
        if (D_hyperres > 0.) then
           if (proc0) write(ierr, *) 'hyper_option = ',hyper_option, &
@@ -505,7 +518,7 @@ contains
           end if
           hyper_on = .false.
        endif
-       
+
     case (hyper_option_res)
        hyper_on = .true.
        if (proc0) write (ierr, *) 'WARNING: It is inconsistent to set D_hypervisc different from ', &
@@ -553,24 +566,23 @@ contains
           end if
        endif
        if (D_hypervisc < 0. .and. D_hyperres < 0.) hyper_on = .false.
-       
+
     case (hyper_option_simple3D) ! MRH
-          hyper_on = .true.
-          
-          if (P_hyper3D < 4.) then
-            hyper_on = .false.
-            write(ierr, *) 'hyper_option = ',hyper_option, &
-                  ' chooses a simple hyperviscous filter but  P_hyper3D < 4. is illegal.'
-            write(ierr, *) 'No hyperviscosity used.'
-          endif
-          
-          if (D_hyper3D < 0.) then
-            hyper_on = .false.
-            write(ierr, *) 'hyper_option = ',hyper_option, &
-                  ' chooses a simple hyperviscous filter but  D_hyper3D < 0 is illegal.'
-            write(ierr, *) 'No hyperviscosity used.'
-          endif
-    
+       hyper_on = .true.
+
+       if (P_hyper3D < 4.) then
+          hyper_on = .false.
+          if(proc0) write(ierr, *) 'hyper_option = ',hyper_option, &
+               ' chooses a simple hyperviscous filter but  P_hyper3D < 4. is illegal.'
+          if(proc0) write(ierr, *) 'No hyperviscosity used.'
+       endif
+
+       if (D_hyper3D < 0.) then
+          hyper_on = .false.
+          if(proc0) write(ierr, *) 'hyper_option = ',hyper_option, &
+               ' chooses a simple hyperviscous filter but  D_hyper3D < 0 is illegal.'
+          if(proc0) write(ierr, *) 'No hyperviscosity used.'
+       endif
     end select
   end subroutine read_parameters
 
@@ -763,6 +775,7 @@ contains
     initialized = .false.
     if (allocated(D_res)) deallocate (D_res)
     if (allocated(hypervisc_filter)) deallocate (hypervisc_filter)
+
     call hyper_config%reset()
   end subroutine finish_hyper
 
@@ -798,13 +811,10 @@ contains
     ! isolation and ensure we can move this routine to another module easily.
     character(len = 9) :: hyper_option
     integer :: nexp
-    logical :: const_amp, damp_zonal_only, gridnorm, include_kpar, isotropic_shear
-    real :: d_hyper, d_hyperres, d_hypervisc, omega_osc
-    real :: D_hyper3D, P_hyper3D, ky_cut, kx_cut
-    logical :: isotropic_model 
-    
-    namelist /hyper_knobs/ const_amp, d_hyper, d_hyperres, d_hypervisc, damp_zonal_only, gridnorm, hyper_option, include_kpar, isotropic_shear, nexp, omega_osc, & 
-     D_hyper3D, P_hyper3D, ky_cut, kx_cut, isotropic_model
+    logical :: const_amp, damp_zonal_only, gridnorm, include_kpar, isotropic_model, isotropic_shear
+    real :: d_hyper, d_hyper3d, d_hyperres, d_hypervisc, kx_cut, ky_cut, omega_osc, p_hyper3d
+
+    namelist /hyper_knobs/ const_amp, d_hyper, d_hyper3d, d_hyperres, d_hypervisc, damp_zonal_only, gridnorm, hyper_option, include_kpar, isotropic_model, isotropic_shear, kx_cut, ky_cut, nexp, omega_osc, p_hyper3d
 
     ! Only proc0 reads from file
     if (.not. proc0) return
@@ -812,22 +822,21 @@ contains
     ! First set local variables from current values
     const_amp = self%const_amp
     d_hyper = self%d_hyper
+    d_hyper3d = self%d_hyper3d
     d_hyperres = self%d_hyperres
     d_hypervisc = self%d_hypervisc
     damp_zonal_only = self%damp_zonal_only
     gridnorm = self%gridnorm
     hyper_option = self%hyper_option
     include_kpar = self%include_kpar
+    isotropic_model = self%isotropic_model
     isotropic_shear = self%isotropic_shear
+    kx_cut = self%kx_cut
+    ky_cut = self%ky_cut
     nexp = self%nexp
     omega_osc = self%omega_osc
-    
-    D_hyper3D = self%D_hyper3D
-    P_hyper3D = self%P_hyper3D
-    ky_cut = self%ky_cut
-    kx_cut = self%kx_cut
-    isotropic_model = self%isotropic_model
-    
+    p_hyper3d = self%p_hyper3d
+
     ! Now read in the main namelist
     if (self%get_requires_index()) then
        call get_indexed_namelist_unit(in_file, trim(self%get_name()), self%index)
@@ -843,22 +852,20 @@ contains
     ! Now copy from local variables into type members
     self%const_amp = const_amp
     self%d_hyper = d_hyper
+    self%d_hyper3d = d_hyper3d
     self%d_hyperres = d_hyperres
     self%d_hypervisc = d_hypervisc
     self%damp_zonal_only = damp_zonal_only
     self%gridnorm = gridnorm
     self%hyper_option = hyper_option
     self%include_kpar = include_kpar
+    self%isotropic_model = isotropic_model
     self%isotropic_shear = isotropic_shear
+    self%kx_cut = kx_cut
+    self%ky_cut = ky_cut
     self%nexp = nexp
     self%omega_osc = omega_osc
-
-    self%D_hyper3D = D_hyper3D
-    self%P_hyper3D = P_hyper3D
-    self%ky_cut = ky_cut 
-    self%kx_cut = kx_cut 
-    self%isotropic_model = isotropic_model
-    
+    self%p_hyper3d = p_hyper3d
 
     self%exist = exist
   end subroutine read_hyper_config
@@ -878,22 +885,20 @@ contains
     call self%write_namelist_header(unit_internal)
     call self%write_key_val("const_amp", self%const_amp, unit_internal)
     call self%write_key_val("d_hyper", self%d_hyper, unit_internal)
+    call self%write_key_val("d_hyper3d", self%d_hyper3d, unit_internal)
     call self%write_key_val("d_hyperres", self%d_hyperres, unit_internal)
     call self%write_key_val("d_hypervisc", self%d_hypervisc, unit_internal)
     call self%write_key_val("damp_zonal_only", self%damp_zonal_only, unit_internal)
     call self%write_key_val("gridnorm", self%gridnorm, unit_internal)
     call self%write_key_val("hyper_option", self%hyper_option, unit_internal)
     call self%write_key_val("include_kpar", self%include_kpar, unit_internal)
+    call self%write_key_val("isotropic_model", self%isotropic_model, unit_internal)
     call self%write_key_val("isotropic_shear", self%isotropic_shear, unit_internal)
+    call self%write_key_val("kx_cut", self%kx_cut, unit_internal)
+    call self%write_key_val("ky_cut", self%ky_cut, unit_internal)
     call self%write_key_val("nexp", self%nexp, unit_internal)
     call self%write_key_val("omega_osc", self%omega_osc, unit_internal)
-    
-    call self%write_key_val("D_hyper3D", self%D_hyper3D, unit_internal)
-    call self%write_key_val("P_hyper3D", self%P_hyper3D, unit_internal)
-    call self%write_key_val("ky_cut", self%ky_cut, unit_internal)
-    call self%write_key_val("kx_cut", self%kx_cut, unit_internal)
-    call self%write_key_val("isotropic_model", self%isotropic_model, unit_internal)
-    
+    call self%write_key_val("p_hyper3d", self%p_hyper3d, unit_internal)
     call self%write_namelist_footer(unit_internal)
   end subroutine write_hyper_config
 
@@ -915,6 +920,7 @@ contains
     class(hyper_config_type), intent(in out) :: self
     call broadcast(self%const_amp)
     call broadcast(self%d_hyper)
+    call broadcast(self%d_hyper3d)
     call broadcast(self%d_hyperres)
     call broadcast(self%d_hypervisc)
     call broadcast(self%damp_zonal_only)
@@ -922,15 +928,11 @@ contains
     call broadcast(self%hyper_option)
     call broadcast(self%include_kpar)
     call broadcast(self%isotropic_shear)
+    call broadcast(self%kx_cut)
+    call broadcast(self%ky_cut)
     call broadcast(self%nexp)
     call broadcast(self%omega_osc)
-
-    call broadcast (self%D_hyper3D) ! MRH
-    call broadcast (self%P_hyper3D) ! MRH
-    call broadcast (self%ky_cut) ! MRH
-    call broadcast (self%kx_cut) ! MRH
-    call broadcast (self%isotropic_model) ! MRH
-
+    call broadcast(self%p_hyper3d)
     call broadcast(self%exist)
   end subroutine broadcast_hyper_config
 
