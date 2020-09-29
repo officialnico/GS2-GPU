@@ -90,6 +90,12 @@ module hyper
      !> - 'visc_only' -- only hyperviscosity included.
      !> - 'res_only' -- only hyperresistivity included.
      !> - 'both' -- both viscosity and resistivity included.
+     !> - 'simple3D' -- simple hyperviscous dissipation rate of the
+     !>    form D_hyper3D * (|kperp|/ max |kperp|)^P_hyper3D Described
+     !>    in described in [“Multiscale turbulence in magnetic
+     !>    confinement fusion devices”, M. Hardman, DPhil Thesis,
+     !>    appendix
+     !>    B.4](https://ora.ox.ac.uk/objects/uuid:233a22cb-3c8b-4fe0-a689-4a37d8fe0314)
      !>
      character(len = 9) :: hyper_option = 'default'
      !> Not used.
