@@ -138,7 +138,7 @@ Makefile: ;
 SHELL           = bash
 MAKE		= make
 CPP		= cpp
-CPPFLAGS        = 
+CPPFLAGS	=
 FPPFLAGS	= -P -traditional
 FC		= f90
 MPIFC		?= mpif90
@@ -419,7 +419,6 @@ endif
 
 ifeq ($(USE_FFT),fftw3)
 	MACRO_DEFS += -DFFT=_FFTW3_
-        CPPFLAGS += $(FFT_INC)
 	FFT_LIB ?= -lfftw -lrfftw
 endif
 
@@ -520,7 +519,6 @@ ifdef WITH_EIG
 	EIG_LIB += -lslepc -lpetsc
 
 	MACRO_DEFS += -DWITH_EIG
-	CPPFLAGS += $(EIG_INC)
 	CFLAGS += -DWITH_EIG 
 endif 
 
@@ -558,6 +556,8 @@ F90FLAGS+= $(F90OPTFLAGS) $(INCLUDES)
 CFLAGS += $(COPTFLAGS) \
 	   $(DEFAULT_INC) $(MPI_INC) $(NETCDF_INC) $(HDF5_INC) $(FFT_INC)
 
+CPPFLAGS += $(MACRO_DEFS)
+FPPFLAGS += $(MACRO_DEFS)
 
 DATE=$(shell date +%y%m%d)
 TARDIR=$(GK_PROJECT)_$(DATE)
@@ -622,9 +622,9 @@ $(BINDIR) $(LIBDIR) $(OBJDIR) $(MODDIR) $(GENERATED_SRC_DIR):
 %.o : %.pf
 	$(PFUNIT_PREPROCESSOR) $< $(basename $<).F90
 ifdef ONE_STEP_PP
-	$(QUIETSYM)$(FC) $(MACRO_DEFS) $(F90FLAGS) -c $(basename $<).F90 $(PFUNIT_INC) -I$(GK_HEAD_DIR) -o $@
+	$(QUIETSYM)$(FC) $(FPPFLAGS) $(F90FLAGS) -c $(basename $<).F90 $(PFUNIT_INC) -I$(GK_HEAD_DIR) -o $@
 else
-	$(QUIETSYM)$(CPP) $(FPPFLAGS) $(CPPFLAGS) $(MACRO_DEFS) $(basename $<).F90 -o $(basename $<).f90
+	$(QUIETSYM)$(CPP) $(FPPFLAGS) $(basename $<).F90 -o $(basename $<).f90
 	$(QUIETSYM)$(FC) $(F90FLAGS) -c $(basename $<).f90 $(PFUNIT_INC) -I$(GK_HEAD_DIR) -o $@
 endif
 
@@ -638,12 +638,12 @@ endif
 ifdef ONE_STEP_PP
 $(OBJDIR)/%.o: %.fpp |$(MODDIR) $(OBJDIR)
 	$(call messageOp,"Compiling and preprocessing","\\t:",$(call processName,$<))
-	$(QUIETSYM)$(FC) $(MACRO_DEFS) $(F90FLAGS) -c $< -o $@
+	$(QUIETSYM)$(FC) $(FPPFLAGS) $(F90FLAGS) -c $< -o $@
 	$(shell mv *.mod $(MODDIR) 2>/dev/null)
 
 $(OBJDIR)/%.o: %.F90 |$(MODDIR) $(OBJDIR)
 	$(call messageOp,"Compiling and preprocessing","\\t:",$(call processName,$<))
-	$(QUIETSYM)$(FC) $(MACRO_DEFS) $(F90FLAGS) -c $< -o $@
+	$(QUIETSYM)$(FC) $(FPPFLAGS) $(F90FLAGS) -c $< -o $@
 	$(shell mv *.mod $(MODDIR) 2>/dev/null)
 endif
 
@@ -665,15 +665,15 @@ $(OBJDIR)/%.o:%.f90 |$(MODDIR) $(OBJDIR)
 # This is a little clunky, and maybe could be fixed in the future.
 $(GENERATED_SRC_DIR)/%.f90: %.fpp |$(GENERATED_SRC_DIR)
 	$(call messageOp,"Preprocessing","\\t:",$(call processName,$<))
-	$(QUIETSYM)$(CPP) $(FPPFLAGS) $(CPPFLAGS) $(MACRO_DEFS) $< -o $@
+	$(QUIETSYM)$(CPP) $(FPPFLAGS) $< -o $@
 
 $(GENERATED_SRC_DIR)/%.f90: %.F90 |$(GENERATED_SRC_DIR)
 	$(call messageOp,"Preprocessing","\\t:",$(call processName,$<))
-	$(QUIETSYM)$(CPP) $(FPPFLAGS) $(CPPFLAGS) $(MACRO_DEFS) $< -o $@
+	$(QUIETSYM)$(CPP) $(FPPFLAGS) $< -o $@
 
 $(OBJDIR)/%.o: %.c |$(OBJDIR)
 	$(call messageOp,"Compiling C","\\t:",$(call processName,$<))
-	$(QUIETSYM)$(CC) $(CFLAGS) $(INCLUDES) $(subst -traditional,,$(subst -C,,$(subst -P,,$(CPPFLAGS)))) $(MACRO_DEFS) -c $< -o $@
+	$(QUIETSYM)$(CC) $(CFLAGS) $(INCLUDES) $(CPPFLAGS) -c $< -o $@
 
 # This prevents error messages like m2c: Command not found
 # This is from a implicit makefile rule that we're overriding
