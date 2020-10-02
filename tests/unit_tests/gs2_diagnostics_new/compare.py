@@ -19,7 +19,7 @@ var1 = np.array(d1.variables[args.var1])
 var2 = np.array(d2.variables[args.var2])
 
 text_file = open("tmpdata.dat", "w")
-if not (var1 == var2).all():
+if not np.allclose(var1, var2):
 	text_file.write("F")
 else:
 	text_file.write("T")
