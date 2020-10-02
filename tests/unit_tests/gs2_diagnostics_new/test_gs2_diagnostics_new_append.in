@@ -91,7 +91,7 @@
 !==============================
 &fields_knobs
  field_option = "implicit" ! Controls which time-advance algorithm is used for the linear terms.
- force_maxwell_reinit = .false. !If true then recalculate the fields from the distribution function using get_init_field when restarting a simulation rather than using the values in the restart file.
+ force_maxwell_reinit = .false. !If true then recalculate the fields from the distribution function using get_init_field when restarting a simulation rather than using the values in the restart file. Set false for this test to ensure exact reproducibility.
 /
 
 !==============================
