@@ -59,6 +59,14 @@ jobs:
     dist: bionic
   - name: "Default focal (gfortran 9.3)"
     dist: focal
+  - name: "Coverage"
+    env:
+      - *default_env
+      - EXTRA_MAKE_FLAGS="USE_GCOV=on DEBUG=on"
+      - GK_TRAVIS_INTEGRATED=""
+      - GK_TRAVIS_PFUNIT_COVERAGE="ON"
+    after_success:
+      - bash <(curl -s https://codecov.io/bash) -t ${CODECOV_TOKEN}
 
 before_install:
   - pip3 install --upgrade pip setuptools
