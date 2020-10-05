@@ -357,13 +357,13 @@ contains
        ! Decide if this processor should take part in defining items
        ! which should only appear once in outputs.
 # ifdef NETCDF_PARALLEL
-       should_define_single_entry_variables = ((.not.save_many).or.(save_many.and.proc0))
+       should_define_single_entry_variables = ((.not. save_many) .or. (save_many .and. proc0))
 # else
        should_define_single_entry_variables = proc0
 # endif
 
        !For saving distribution function
-       IF (save_glo_info_and_grids_local.and.should_define_single_entry_variables) THEN
+       IF (save_glo_info_and_grids_local .and. should_define_single_entry_variables) THEN
         ! only need these dimensions on proc0
 
           !Define energy and lambda dimensions
