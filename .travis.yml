@@ -13,6 +13,13 @@ addons:
       - cmake
       - python3
       - python3-pip
+  homebrew:
+    packages:
+      - cmake
+      - netcdf
+      - fftw
+      - open-mpi
+
 os: linux
 dist: xenial
 
@@ -33,6 +40,7 @@ env: &default_env
   # customised on a per job basis.
   EXTRA_MAKE_FLAGS: ""
   EXTRA_TEST_FLAGS: ""
+  EXTRA_PFUNIT_FLAGS: ""
 
 jobs:
   fast_finish: true
@@ -59,6 +67,13 @@ jobs:
     dist: bionic
   - name: "Default focal (gfortran 9.3)"
     dist: focal
+  - name: "Mac"
+    os: osx
+    osx_image: xcode12
+    env :
+      - *default_env
+      - GK_SYSTEM="macosx-homebrew"
+      - GK_TRAVIS_PFUNIT=""
   - name: "Coverage"
     env:
       - *default_env
