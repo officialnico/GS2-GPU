@@ -18,8 +18,14 @@ build_gs2() {
 
 make_and_run_pfunit_tests() {
     header "Build and run pfunit tests"
-    make build_pfunit_library ${EXTRA_MAKE_FLAGS}
-    make -j pfunit_tests ${EXTRA_MAKE_FLAGS}
+    make build_pfunit_library ${EXTRA_MAKE_FLAGS} ${EXTRA_PFUNIT_FLAGS}
+    if [[ "x${GK_TRAVIS_PFUNIT_COVERAGE}" == "x" ]]
+    then
+        make -j pfunit_tests ${EXTRA_MAKE_FLAGS} ${EXTRA_PFUNIT_FLAGS}
+    else
+        make -j pfunit_coverage ${EXTRA_MAKE_FLAGS} ${EXTRA_PFUNIT_FLAGS}
+    fi
+
 }
 
 make_and_run_integrated_tests() {
