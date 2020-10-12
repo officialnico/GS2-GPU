@@ -12,15 +12,21 @@ stages:
 .typical_test_script: &typical_test_script
   - su -c "make ${EXTRA_BUILD_FLAGS} test_make" theuser
   - su -c "make ${EXTRA_BUILD_FLAGS} -j gs2 || (echo 'build_gs2_failed' > ${JOB_STATUS_FILE}; exit 1)" theuser
-  - if [ x${WITH_PFUNIT_TESTS} == "xyes" ] ; then su -c "whoami ; make ${EXTRA_BUILD_FLAGS} build_pfunit_library || (echo 'build_pfunit_library_failed' > ${JOB_STATUS_FILE}; exit 1) ; make ${EXTRA_BUILD_FLAGS} -j pfunit_tests || (cat pfunit.log; echo 'pfunit_tests_failed' > ${JOB_STATUS_FILE}; exit 1) ; if [[ $(grep 'FAILURES' pfunit.log | wc -l) -ge 1 ]] ; then echo 'failed' > ${JOB_STATUS_FILE} ; exit 1 ; fi "  theuser ; fi
-  - if [ x${WITH_GS2_TESTS} == "xyes" ] ; then su -c "whoami ; make ${EXTRA_BUILD_FLAGS} -j tests || (echo 'failed' > ${JOB_STATUS_FILE}; exit 1) ; pipeline_test_scripts/didTestsFail.sh ${PWD}/tests results_of_test.txt  || (echo 'failed' > ${JOB_STATUS_FILE}; exit 1)" theuser ; fi
+  - su -c "echo CHECKING ; cat ${JOB_STATUS_FILE} " theuser
+  - if [ x${WITH_PFUNIT_TESTS} == "xyes" ] ; then su -c "whoami ; make ${EXTRA_BUILD_FLAGS} build_pfunit_library || (echo 'build_pfunit_library_failed' > ${JOB_STATUS_FILE}; exit 1) ; make ${EXTRA_BUILD_FLAGS} -j pfunit_tests || (cat pfunit.log; echo 'pfunit_tests_failed' > ${JOB_STATUS_FILE}; exit 1)"  theuser ; fi
+  - su -c "echo CHECKING ; cat ${JOB_STATUS_FILE} " theuser
+  - if [ x${WITH_GS2_TESTS} == "xyes" ] ; then su -c "whoami ; make ${EXTRA_BUILD_FLAGS} -j tests || (echo 'failed' > ${JOB_STATUS_FILE}; exit 1) ; pipeline_test_scripts/didTestsFail.sh ${PWD}/tests results_of_test.txt  || (echo 'failed' > ${JOB_STATUS_FILE}; exit 1) ; cat ${JOB_STATUS_FILE}" theuser ; fi
+  - su -c "echo CHECKING ; cat ${JOB_STATUS_FILE} " theuser
   - su -c "echo passed > ${JOB_STATUS_FILE}" theuser
+  - su -c "echo CHECKING ; cat ${JOB_STATUS_FILE} " theuser
 
 .pfunit_tests: &pfunit_tests
-  - if [ x${WITH_PFUNIT_TESTS} == "xyes" ] ; then su -c "whoami ; make ${EXTRA_BUILD_FLAGS} build_pfunit_library || (echo 'build_pfunit_library_failed' > ${JOB_STATUS_FILE}; exit 1) ; make ${EXTRA_BUILD_FLAGS} -j pfunit_tests || (cat pfunit.log; echo 'pfunit_tests_failed' > ${JOB_STATUS_FILE}; exit 1) ; if [[ $(grep 'FAILURES' pfunit.log | wc -l) -ge 1 ]] ; then echo 'failed' > ${JOB_STATUS_FILE} ; exit 1 ; fi "  theuser ; fi
+  - if [ x${WITH_PFUNIT_TESTS} == "xyes" ] ; then su -c "whoami ; make ${EXTRA_BUILD_FLAGS} build_pfunit_library || (echo 'build_pfunit_library_failed' > ${JOB_STATUS_FILE}; exit 1) ; make ${EXTRA_BUILD_FLAGS} -j pfunit_tests || (cat pfunit.log; echo 'pfunit_tests_failed' > ${JOB_STATUS_FILE}; exit 1) "  theuser ; fi
+    - su -c "echo CHECKING ; cat ${JOB_STATUS_FILE} " theuser
 
 .gs2_tests: &gs2_tests
   - if [ x${WITH_GS2_TESTS} == "xyes" ] ; then su -c "whoami ; make ${EXTRA_BUILD_FLAGS} -j tests || (echo 'failed' > ${JOB_STATUS_FILE}; exit 1) ; pipeline_test_scripts/didTestsFail.sh ${PWD}/tests results_of_test.txt  || (echo 'failed' > ${JOB_STATUS_FILE}; exit 1)" theuser ; fi
+    - su -c "echo CHECKING ; cat ${JOB_STATUS_FILE} " theuser
 
 .push_status: &push_status
   - BUILD_STATUS=$(cat ${JOB_STATUS_FILE})  BUILD_KEY=push ./.push_gitlab_build_status ${CASENAME}

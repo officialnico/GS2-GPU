@@ -1,0 +1,42 @@
+language: generic
+
+addons:
+  apt:
+    packages: &gs2_packages
+      - libfftw3-dev
+      - libnetcdf-dev
+      - libnetcdff-dev
+      - netcdf-bin
+      - openmpi-bin
+      - libopenmpi-dev
+      - gfortran
+      - cmake
+      - python3
+      - python3-pip
+
+env:
+  GIT_SUBMODULE_STRATEGY: recursive
+  OMPI_MCA_rmaps_base_oversubscribe: "yes"
+  # The following required to avoid lots of "Read -1, expected _, errno = 38" issues
+  # Fix discussed at https://github.com/open-mpi/ompi/issues/4948, suggests newer mpi
+  # and docker may avoid this issue
+  OMPI_MCA_btl_vader_single_copy_mechanism: "none"
+  MAKEFLAGS: "-IMakefiles"
+  GK_SYSTEM: "bitbucket"
+
+jobs:
+  fast_finish: true
+  include:
+  - name: "Default"
+
+before_install:
+  - pip3 install --upgrade pip setuptools
+  - pip3 install -r requirements.txt
+
+script:
+  - make test_make
+  - make -j gs2
+  - make build_pfunit_library
+  - make -j pfunit_tests
+  - make tests
+  - pipeline_test_scripts/didTestsFail.sh ${PWD}/tests results_of_test.txt
