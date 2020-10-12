@@ -368,6 +368,7 @@ contains
     integer :: iglo, ik
     real :: dt_cfl
 
+    real :: error
     !> Set the error threshold used to determine when the timestep should change
     !> This should probably be an input parameter
     real, parameter :: error_target = 0.025
