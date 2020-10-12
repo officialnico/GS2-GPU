@@ -186,187 +186,497 @@ module diagnostics_config
   type, extends(abstract_config_type) :: new_gs2_diagnostics_config_type
      ! namelist : gs2_diagnostics_knobs
      ! indexed : false     
+
      !> If true, and a copy of the .out.nc already exists,
      !> open it and append to it. Obviously grid sizes must be
      !> unchanged.
-     logical :: append_old = .false. ! Only in new diagnostics
-     !> FIXME: Add documentation
+     !>
+     !> @warning Only present in new diagnostics
+     logical :: append_old = .false.
+     !> The maximum number of steps allowed before declaring convergence with a warning
      integer :: conv_max_step = 80000
-     !> FIXME: Add documentation
+     !> The minimum number of steps before the convergence condition will be met
      integer :: conv_min_step = 4000
-     !> FIXME: Add documentation
+     !> The number of timesteps the convergence condition averages over
      integer :: conv_nstep_av = 4000
-     !> FIXME: Add documentation
+     !> The number of steps where convergence is true before convergence is accepted
      integer :: conv_nsteps_converged = 10000
-     !> FIXME: Add documentation
+     !> Multiplier for the cumulative average of the heat flux when testing
+     !> convergence with [[gs2_diagnostics_knobs:use_nonlin_convergence]]
      real :: conv_test_multiplier = 4e-1
-     !> FIXME: Add documentation
+     !> Write out the field-line average of \(\phi\) to `dump.check1`. This option
+     !> is usually used for Rosenbluth-Hinton calculations.
+     !>
+     !> @warning You probably don't want this?
+     !>
+     !> @warning Non-functional in new diagnostics
      logical :: dump_check1 = .false.
-     !> FIXME: Add documentation
+     !> Write out \(A_\parallel(k_x, k_y)\) at `igomega` to `<run name>.dc2`.
+     !>
+     !> @warning You probably don't want this?
+     !>
+     !> @warning Non-functional in new diagnostics
      logical :: dump_check2 = .false.
-     !> FIXME: Add documentation
+     !> Write out \(\phi, A_\parallel, B_\parallel\) to `dump.fields.t=(time)`
+     !> every `10 * nwrite` timesteps.
+     !>
+     !> @warning You probably don't want this?  Expensive.
      logical :: dump_fields_periodically = .false.
-     !> If built with parallel IO capability
-     !> enable parallel IO. Currently disabled by
-     !> default because of problems on Helios:
-     !> parallel IO seems to work on 1 node but not
-     !> on >1. This problem does not affect parallel
-     !> IO for the single restart file because it only
-     !> affects output with infinite dimensions
-     logical :: enable_parallel = .false. ! Only in new diagnostics
-     !> FIXME: Add documentation
+     !> If built with parallel IO capability enable parallel IO. Currently
+     !> disabled by default because of problems on Helios: parallel IO seems to
+     !> work on 1 node but not on >1. This problem does not affect parallel IO
+     !> for the single restart file because it only affects output with infinite
+     !> dimensions
+     !>
+     !> @warning Only in new diagnostics
+     logical :: enable_parallel = .false.
+     !> Exit when the run has reached convergence
      logical :: exit_when_converged = .true.
-     !> FIXME: Add documentation
+     !> Verify that the restart file(s) can be written before starting the
+     !> run.
+     !>
+     !> @warning Currently non-functional in new diagnostics
      logical :: file_safety_check = .true.
-     !> FIXME: Add documentation
+     !> Index in \(\theta\) to measure various diagnostics at
      integer :: igomega = 0
-     !> FIXME: Add documentation
+     !> Write some fields out in real space over time, suitable for creating
+     !> animations. Timestep period is controlled with
+     !> [[gs2_diagnostics_knobs:nmovie]]
+     !>
+     !>
+     !> @warning This option can write a lot of data! Consider doing the Fourier
+     !> transforms of the fields in post-processing instead.
+     !>
+     !> @warning In new diagnostics, the timestep period is controlled with
+     !> [[gs2_diagnostics_knobs:nwrite]]
      logical :: make_movie = .false.
-     !> FIXME: Add documentation
+     !> Number of timesteps to average over for time-averaged diagnostics
      integer :: navg = 10
-     !> FIXME: Add documentation
+     !> FIXME: Timestep period of which to check velocity space resolution and
+     !> correction by varying collisionality. But doesn't happen on timesteps
+     !> when diagnostics are written.
      !>
      !> @warning This value "shadows" the `ncheck` input of the
      !> collisions namelist.
      integer :: ncheck = 10 ! Only in new diagnostics
-     !> FIXME: Add documentation
+     !> Sets the number of output steps between syncing the netcdf file.
+     !> Higher values may reduce disk overheads but increase the risk of
+     !> data loss on unclean exit.
+     !>
+     !> @warning Not present in new diagnostics
+     ! integer :: nc_sync_freq = 10
+
+     !> Timestep period to write real space fields \(\phi, A_\parallel,
+     !> B_\parallel\)
+     !>
+     !> @warning Non-functional in new diagnostics. Instead use
+     !> [[gs2_diagnostics_knobs:nwrite]]
      integer :: nmovie = -1
-     !> FIXME: Add documentation
+     !> Timestep period for writing restart data if
+     !> [[gs2_diagnostics_knobs:save_for_restart]] is `.true.`
      integer :: nsave = -1
-     !> FIXME: Add documentation
+     !> Timestep period for writing outputs
+     !>
+     !> @warning Default value differs between old (`== 100`) and new (`== 10`)
+     !> diagnostics!
      integer :: nwrite = 10
-     !> FIXME: Add documentation
+     !> Timestep period multiplier for certain "large" diagnostics, which are
+     !> written every `nwrite_mult * nwrite` timesteps.
+     !>
+     !> FIXME: What datasets? `phicorr_sum`, `phiextend_sum` in old diagnostics,
+     !> `f` and `fyx` in new diagnostics?
+     !>
+     !> @warning Controls different diagnostics in new diagnostics
      integer :: nwrite_mult = 10
-     !> FIXME: Add documentation
+     !> If `.true.`, write moments at the outboard midplane only, as opposed to
+     !> along the entire flux surface
+     !>
+     !> @warning Non-functional in new diagnostics
+     !>
+     !> @warning Default value differs between old (.true.) and new (.false.) diagnostics
      logical :: ob_midplane = .false.
-     !> FIXME: Add documentation
+     !> Threshold frequency (\(\omega\)) for detecting a numerical
+     !> instability. If \(\omega\) averaged over [[gs2_diagnostics_knobs:navg]]
+     !> timesteps is greater than `omegatinst`, abort the run
+     !>
+     !> @warning Default value differs between old (1.0) and new (1.0e6)
+     !> diagnostics
      real :: omegatinst = 1.0e6
-     !> FIXME: Add documentation
+     !> Frequency (\(\omega\)) convergence tolerance. Consider the simulation
+     !> converged and finish the run if \(\omega\) has changed by less than
+     !> `omegatol` over the last [[gs2_diagnostics_knobs:navg]] timesteps.
+     !>
+     !> More explicitly, the convergence criterion is:
+     !>
+     !> $$\sqrt{\sum_t^{n_{avg}} |\bar{\omega} - \omega|^2} < \min{\bar{\omega}, 1.0}\cdot\omega_{tol}$$
+     !>
+     !> where \(\bar{\omega}\) is \(\omega\) averaged over the last `navg`
+     !> timesteps.
      real :: omegatol = 1e-3
-     !> FIXME: Add documentation
+     !> Print the instantaneous fluxes to screen/stdout every
+     !> [[gs2_diagnostics_knobs:nwrite]] timesteps
      logical :: print_flux_line = .false.
-     !> FIXME: Add documentation
+     !> Print estimated frequencies and growth rates to screen/stdout every
+     !> [[gs2_diagnostics_knobs:nwrite]] timesteps
      logical :: print_line = .false.
-     !> FIXME: Add documentation
+     !> Write the distribution function to `<rootname>.nc.dfn.<processor>`
+     !> files. Only written at end of simulation
      logical :: save_distfn = .false.
-     !> FIXME: Add documentation
+     !> Write restart files every [[gs2_diagnostics_knobs:nwrite]] timesteps and
+     !> at end of simulation
      logical :: save_for_restart = .false.
-     !> FIXME: Add documentation
-     logical :: save_glo_info_and_grids = .false. ! Only in new diagnostics
-     !> FIXME: Add documentation
+     !> Save some layout and distribution information in restart files
+     !>
+     !> @warning Only in new diagnostics
+     logical :: save_glo_info_and_grids = .false.
+     !> If `.true.`, write multiple restart files. Requires `gs2` to have been
+     !> built with parallel netCDF
      logical :: save_many = .false.
-     !> FIXME: Add documentation
-     logical :: save_velocities = .false. ! Only in new diagnostics
-     !> FIXME: Add documentation
-     logical :: serial_netcdf4 = .false. ! Only in new diagnostics
-     !> FIXME: Add documentation
+     !> Save parallel and perpendicular velocities in final restart and/or
+     !> distribution function files
+     !>
+     !> @warning Only in new diagnostics
+     logical :: save_velocities = .false.
+     !> @warning Not used
+     !>
+     !> @warning Only in new diagnostics
+     logical :: serial_netcdf4 = .false.
+     !> For nonlinear runs, stop the run when the averaged differential of the
+     !> summed averaged heat flux drops below a threshold, controlled by
+     !> [[gs2_diagnostics_knobs:conv_test_multiplier]]
      logical :: use_nonlin_convergence = .false.
-     !> FIXME: Add documentation
-     logical :: write_any = .true. ! Only in new diagnostics
-     !> FIXME: Add documentation
+     !> If `.false.`, skip writing any diagnostics
+     !>
+     !> @warning Only in new diagnostics
+     logical :: write_any = .true.
+     !> Write the entire \(A_\parallel\) field every
+     !> [gs2_diagnostics_knobs:nwrite]] timesteps
+     !>
+     !> @warning New diagnostics requires
+     !> [[gs2_diagnostics_knobs:write_fields]] to also be `.true.`
+     !> (the default) to enable this
      logical :: write_apar_over_time = .false.
-     !> FIXME: Add documentation
+     !> Write diagnostics to text files. Generally this creates a different text
+     !> file for each diagnostic. Note that this independent of whether or not
+     !> netCDF files are used.
+     !>
+     !> FIXME: Verify old and new diagnostics write these files in same format
      logical :: write_ascii = .true.
-     !> FIXME: Add documentation
+     !> Write flux surface averaged low-order moments of \(g\) every
+     !> [[gs2_diagnostics_knobs:nwrite]] timesteps
+     !>
+     !> @warning Prints a warning that this is ignored unless
+     !> `grid_option==box`, but this doesn't appear to be the case?
      logical :: write_avg_moments = .false.
-     !> FIXME: Add documentation
+     !> Write the entire \(B_\parallel\) field every
+     !> [[gs2_diagnostics_knobs:nwrite]] timesteps
+     !>
+     !> @warning New diagnostics requires
+     !> [[gs2_diagnostics_knobs:write_fields]] to also be `.true.`
+     !> (the default) to enable this
      logical :: write_bpar_over_time = .false.
-     !> FIXME: Add documentation
+     !> Write the collision error every [[gs2_diagnostics_knobs:nwrite]]
+     !> timesteps
+     !>
+     !> FIXME: What does this mean?
+     !>
+     !> @warning In new diagnostics, only writes to ascii
      logical :: write_cerr = .false.
-     !> FIXME: Add documentation
-     logical :: write_collisional = .false. ! Only in new diagnostics     
-     !> FIXME: Add documentation
+     !> Write collisional heating (collisional and hyper viscous rate of loss of
+     !> free energy for each mode) every [[gs2_diagnostics_knobs:nwrite]]
+     !> timesteps
+     !>
+     !> @warning Only in new diagnostics
+     logical :: write_collisional = .false.
+     !> Write two point parallel correlation function calculated from the
+     !> electric potential as a function of \(k_y\) and parallel separation
+     !> every [[gs2_diagnostics_knobs:nwrite]] timesteps
      logical :: write_correlation = .true.
-     !> FIXME: Add documentation
+     !> Write two point parallel correlation function calculated from the
+     !> electric potential as a function of \(k_y\) and parallel separation,
+     !> time averaged and calculated along the extended domain every
+     !> [[gs2_diagnostics_knobs:nwrite]] timesteps
      logical :: write_correlation_extend = .false.
-     !> FIXME: Add documentation
+     !> Write the cross phase between electron density and perpendicular
+     !> electron temperature every [[gs2_diagnostics_knobs:nwrite]]
+     !> timesteps. Calculated at both the outboard midplane, averaged across
+     !> \(x\) and \(y\); and averaged across all space
+     !>
+     !> @warning In old diagnostics, only written to text files
      logical :: write_cross_phase = .false.
-     !> FIXME: Add documentation
-     logical :: write_density_over_time = .false. ! Only in new diagnostics
-     !> FIXME: Add documentation
+     !> Write the whole non-adiabatic part of the density moment every
+     !> [[gs2_diagnostics_knobs:nwrite]] timesteps
+     !>
+     !> @warning Requires [[gs2_diagnostics_knobs:write_moments]] to also be
+     !> `.true.`
+     !>
+     !> @warning Only in new diagnostics
+     logical :: write_density_over_time = .false.
+     !> Write \(\phi\) normalised to its value at the outboard midplane every
+     !> [[gs2_diagnostics_knobs:nwrite]] timesteps
+     !>
+     !> @warning In old diagnostics, this is only done on exit, not every
+     !> `nwrite` timesteps!
+     !>
+     !> @warning In new diagnostics, this also writes \(A_\parallel\) and
+     !> \(B_\parallel\), both normalised to \(\phi\) at the outboard midplane
      logical :: write_eigenfunc = .false.
-     !> FIXME: Add documentation
+     !> Enable writing \(\phi, A_\parallel, B_\parallel\) every
+     !> [[gs2_diagnostics_knobs:nwrite]] timesteps
+     !>
+     !> @warning In old diagnostics, this only writes them on exit and
+     !> [[gs2_diagnostics_knobs:write_phi_over_time]],
+     !> [[gs2_diagnostics_knobs:write_apar_over_time]] and
+     !> [[gs2_diagnostics_knobs:write_bpar_over_time]] instead control writing
+     !> the fields over time, respectively. In new diagnostics, this will disable
+     !> writing all three fields if set to `.false.`
+     !>
+     !> @warning Default value differs between old (`.false.`) and new
+     !> (`.true.`) diagnostics
      logical :: write_fields = .true.
-     !> FIXME: Add documentation
+     !> Write the right-hand sides of the field equations at the final
+     !> timestep. If [[gs2_diagnostics_knobs:write_ascii]] is enabled, the file
+     !> suffix is `.antot`
+     !>
+     !> @warning In new diagnostics, this is not written to netCDF!
      logical :: write_final_antot = .false.
-     !> FIXME: Add documentation
+     !> Write \(\delta B\) at the final timestep. If
+     !> [[gs2_diagnostics_knobs:write_ascii]] is enabled, the file suffix is
+     !> `.db`
+     !>
+     !> @warning In new diagnostics, this is not written to netCDF!
      logical :: write_final_db = .false.
-     !> FIXME: Add documentation
+     !> Write \(E_\parallel\) at the final timestep. If
+     !> [[gs2_diagnostics_knobs:write_ascii]] is enabled, the file suffix is
+     !> `.epar`
+     !>
+     !> @warning In new diagnostics, this is not written to netCDF!
      logical :: write_final_epar = .false.
-     !> FIXME: Add documentation
+     !> Write \(\phi, A_\parallel, B_\parallel\) at the final timestep. If
+     !> [[gs2_diagnostics_knobs:write_ascii]] is enabled, the file suffix is
+     !> `.fields`
+     !>
+     !> @warning In new diagnostics, this is not written to netCDF!
      logical :: write_final_fields = .false.
-     !> FIXME: Add documentation
+     !> Write various moments (densities, parallel and perpendicular velocities
+     !> and temperatures, and heat and momentum fluxes) at the final
+     !> timestep. If [[gs2_diagnostics_knobs:write_ascii]] is enabled, the file
+     !> suffix is `.fields`
+     !>
+     !> @warning In new diagnostics, this is not written to netCDF!
      logical :: write_final_moments = .false.
-     !> FIXME: Add documentation
+     !> Write instantaneous fluxes to output file every
+     !> [[gs2_diagnostics_knobs:nwrite]] timesteps
+     !>
+     !> @warning Output formats and quantities differ between old and new
+     !> diagnostics
      logical :: write_flux_line = .true.
-     !> Write fluxes over time
-     !> This gets a smart default
+     !> Write fluxes (heat, momentum and particle; total and per-species) every
+     !> [[gs2_diagnostics_knobs:nwrite]] timesteps.
+     !>
      !> If run is nonlinear, this defaults to true
-     !> NB: In the old diagnostics, this is combined with write_fluxes_by_mode
-     !> and called write_nl_flux.
+     !>
+     !> @warning Only in new diagnostics. In old diagnostics, this is combined
+     !> with write_fluxes_by_mode and called write_nl_flux.
      logical :: write_fluxes = .false.
-     !> Write fluxes over time as a function of Fourier mode
-     !> This gets a smart default
+     !> Write fluxes (heat, momentum and particle; total and per-species) as a
+     !> function of Fourier mode every [[gs2_diagnostics_knobs:nwrite]]
+     !> timesteps.
+     !>
      !> If run is nonlinear, this defaults to true
-     !> NB: In the old diagnostics, this is combined with write_fluxes
-     !> and called write_nl_flux.
+     !>
+     !> @warning Only in new diagnostics. In old diagnostics, this is combined
+     !> with write_fluxes and called write_nl_flux.
      logical :: write_fluxes_by_mode = .false.
-     !> FIXME: Add documentation
+     !> Write moments (density, parallel flow, and parallel and perpendicular
+     !> temperatures) in non-guiding centre coordinates every
+     !> [[gs2_diagnostics_knobs:nwrite]] timesteps
      logical :: write_full_moments_notgc = .false.
-     !> FIXME: Add documentation
+     !> FIXME: Write either \(g\) or \(f\)? every
+     !> [[gs2_diagnostics_knobs:nwrite]] timesteps
+     !>
+     !> @warning Only to text files
      logical :: write_g = .false.
-     !> FIXME: Add documentation
+     !> @warning Unused
      logical :: write_gg = .false.
      !> FIXME: Add documentation
+     !>
+     !> @warning Only outputs to text files
      logical :: write_gs = .false.
      !> FIXME: Add documentation
+     !>
+     !> @warning Only outputs to text files
      logical :: write_gyx = .false.
-     !> FIXME: Add documentation
-     logical :: write_heating = .false. ! Only in new diagnostics
-     !> FIXME: Add documentation
+     !> Write out various heating, free energy and energy injection
+     !> diagnostics. Text file extension is `.heat`
+     !>
+     !> @warning Only in new diagnostics. Equivalent to
+     !> [[gs2_diagnostics_knobs:write_hrate]] in old diagnostics
+     logical :: write_heating = .false.
+     !> Write out various heating, free energy and energy injection
+     !> diagnostics. Text file extension is `.heat`
+     !>
+     !> @warning Non-functional in new diagnostics. Equivalent to
+     !> [[gs2_diagnostics_knobs:write_heating]] in new diagnostics
+     !>
+     !> @warning Old diagnostics only writes to text files
      logical :: write_hrate = .false.
-     !> FIXME: Add documentation
-     logical :: write_jext = .false. ! Only in new diagnostics
-     !> FIXME: Add documentation
+     !> Write time averaged external current in the antenna,
+     !> \(\operatorname{Re}(k_\perp^2 A_\mathrm{antenna})\), as a function of
+     !> \(k_x, k_y\). File suffix is `.jext`
+     !>
+     !> @warning Only in new diagnostics
+     logical :: write_jext = .false.
+     !> Write the parallel spectrum of \(\phi, A_\parallel,
+     !> B_\parallel\) at final timestep
+     !>
+     !> @warning Output only to text files
      logical :: write_kpar = .false.
-     !> FIXME: Add documentation
+     !> Print estimated frequencies and growth rates to text file every
+     !> [[gs2_diagnostics_knobs:nwrite]] timesteps
      logical :: write_line = .true.
-     !> FIXME: Add documentation
+     !> Write `antenna_w` every [[gs2_diagnostics_knobs:nwrite]]
+     !> timesteps
+     !>
+     !> FIXME: Define `antenna_w`
+     !>
+     !> @warning Old diagnostics only writes to text files
+     !>
+     !> @warning New diagnostics only writes to netCDF
      logical :: write_lorentzian = .false.
-     !> FIXME: Add documentation
+     !> Write Lagrange interpolating function value at interpolating
+     !> points specified by `xloc` to text file with suffix `.interp`
+     !>
+     !> FIXME: Define `xloc`
      logical :: write_lpoly = .false.
-     !> FIXME: Add documentation
+     !> Write the estimated maximum error from velocity space
+     !> integrals for various quantities
+     !>
+     !> @warning Old diagnostics only outputs to text file
      logical :: write_max_verr = .false.
-     !> FIXME: Add documentation
+     !> Write various moments (total and non-adiabatic part of perturbed species
+     !> density, perturbed parallel flow, perturbed parallel and perpendicular
+     !> temperatures, parallel heat flux, particule flux and heat flux) every
+     !> [[gs2_diagnostics_knobs:nwrite]] timesteps
+     !>
+     !> @warning Only outputs to netCDF files
+     !>
+     !> @warning New diagnostics writes various averages of the moments. To get
+     !> the same output as old diagnostics, **also** set
+     !> [[gs2_diagnostics_knobs:write_ntot_over_time]],
+     !> [[gs2_diagnostics_knobs:write_density_over_time]],
+     !> [[gs2_diagnostics_knobs:write_upar_over_time]],
+     !> [[gs2_diagnostics_knobs:write_tperp_over_time]] to `.true.`
      logical :: write_moments = .true.
-     !> FIXME: Add documentation
-     logical :: write_nl_flux = .true.
-     !> FIXME: Add documentation
+     !> Write various fluxes every [[gs2_diagnostics_knobs:nwrite]]
+     !> timesteps
+     !>
+     !> @warning Non-functional in new diagnostics
+     logical :: write_nl_flux = .false.
+     !> Write the poloidal distributions of the fluxes of particles,
+     !> parallel momentum, perpendicular momentum, and energy every
+     !> [[gs2_diagnostics_knobs:nwrite]] timesteps.
+     !>
+     !> See section 3.1 and appendix A of Ball et al. PPCF 58 (2016) 045023 as well
+     !> as section 5 of "GS2 analytic geometry specification"
      logical :: write_nl_flux_dist = .false.
-     !> FIXME: Add documentation
-     logical :: write_ntot_over_time = .false. ! Only in new diagnostics
-     !> FIXME: Add documentation
+     !> Write the whole total density moment every
+     !> [[gs2_diagnostics_knobs:nwrite]] timesteps
+     !>
+     !> @warning Requires [[gs2_diagnostics_knobs:write_moments]] to also be
+     !> `.true.`
+     !>
+     !> @warning Only in new diagnostics
+     logical :: write_ntot_over_time = .false.
+     !> Write time-averaged growth rate and frequency to the output text file
+     !> every [[gs2_diagnostics_knobs:nwrite]] timesteps. Time average is
+     !> rolling window over the previous [[gs2_diagnostics_knobs:navg]]
+     !> timesteps
+     !>
+     !> @warning Non-functional in new diagnostics, time-average is also written
+     !> with [[gs2_diagnostics_knobs:write_omega]] instead
      logical :: write_omavg = .true.
-     !> FIXME: Add documentation
+     !> Write instantaneous growth rate and frequency every
+     !> [[gs2_diagnostics_knobs:nwrite]] timesteps
+     !>
+     !> @warning Old diagnostics only writes to output text file
+     !>
+     !> @warning New diagnostics only writes to netCDF file
+     !>
+     !> @warning New diagnostics also writes time-average with this
+     !> option. Output is the complex frequency, rather than separate growth
+     !> rate and real frequency
      logical :: write_omega = .true.
-     !> FIXME: Add documentation
+     !> Write parities in distribution and particle fluxes to text file with the
+     !> suffix `.parity`
+     !>
+     !> FIXME: Clarify what this means
      logical :: write_parity = .false.
-     !> FIXME: Add documentation
+     !> Write particle flux density as a function of \(\theta\) and velocity
+     !> space every [[gs2_diagnostics_knobs:nwrite]] timesteps. Used for looking
+     !> at the effect of asymmetry. See Parra et al POP 18 062501 2011 and ask
+     !> Jung-Pyo Lee
+     !>
+     !> @warning Only outputs to netCDF
+     !>
+     !> @warning Non-functional in new diagnostics, use
+     !> [[gs2_diagnostics_knobs:write_symmetry]] instead
      logical :: write_pflux_sym = .false. 
-     !> FIXME: Add documentation
+     !> Write toroidal angular momentum flux carried by particle flux every
+     !> [[gs2_diagnostics_knobs:nwrite]] timesteps. Only calculated if `gs2` is
+     !> built with `LOWFLOW` on.
+     !>
+     !> @warning Only outputs to netCDF
+     !>
+     !> @warning Non-functional in new diagnostics
      logical :: write_pflux_tormom = .false. 
-     !> FIXME: Add documentation
+     !> Write the entire \(\phi\) field every [gs2_diagnostics_knobs:nwrite]]
+     !> timesteps
+     !>
+     !> @warning New diagnostics requires
+     !> [[gs2_diagnostics_knobs:write_fields]] to also be `.true.`
+     !> (the default) to enable this
      logical :: write_phi_over_time = .false.
-     !> FIXME: Add documentation
+     !> Write the particle and momentum flux as a function of \(\theta\) and
+     !> velocity space. See [[gs2_diagnostics_knobs:write_pflux_sym]] and
+     !> [[gs2_diagnostics_knobs:write_pflux_tormom]]
+     !>
+     !> @warning Only outputs to netCDF
+     !>
+     !> @warning Old diagnostics does not write the particle flux, use
+     !> [[gs2_diagnostics_knobs:write_pflux_sym]] instead
      logical :: write_symmetry = .false.
-     !> FIXME: Add documentation
-     logical :: write_tperp_over_time = .false. ! Only in new diagnostics
-     !> FIXME: Add documentation
-     logical :: write_upar_over_time = .false. ! Only in new diagnostics
-     !> FIXME: Add documentation
+     !> Write the whole perturbed perpendicular temperature moment every
+     !> [[gs2_diagnostics_knobs:nwrite]] timesteps
+     !>
+     !> @warning Requires [[gs2_diagnostics_knobs:write_moments]] to also be
+     !> `.true.`
+     !>
+     !> @warning Only in new diagnostics
+     logical :: write_tperp_over_time = .false.
+     !> Write the whole perturbed parallel velocity moment every
+     !> [[gs2_diagnostics_knobs:nwrite]] timesteps
+     !>
+     !> @warning Requires [[gs2_diagnostics_knobs:write_moments]] to also be
+     !> `.true.`
+     !>
+     !> @warning Only in new diagnostics
+     logical :: write_upar_over_time = .false.
+     !> Write estimates of error resulting from velocity space integrals in the
+     !> calculation of various quantities every [[gs2_diagnostics_knobs:nwrite]]
+     !> timesteps.
+     !>
+     !> @warning Output only to text file
+     !>
+     !> @warning New diagnostics also writes to netCDF every
+     !> [[gs2_diagnostics_knobs:ncheck]] timesteps, along with some other
+     !> quantities such as collisionality
      logical :: write_verr = .false.
-     !> FIXME: Add documentation
-     logical :: write_zonal_transfer = .false. ! Only in new diagnostics
+     !> Write the transfer of free energy, \(\tau\), as a function of \((k_x,
+     !> k_y)\) every [[gs2_diagnostics_knobs:nwrite]] timesteps
+     !>
+     !> @warning Only in new diagnostics
+     logical :: write_zonal_transfer = .false.
    contains
      procedure, public :: read => read_new_gs2_diagnostics_config
      procedure, public :: write => write_new_gs2_diagnostics_config
