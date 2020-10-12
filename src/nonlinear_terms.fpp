@@ -452,7 +452,41 @@ contains
 
     istep_last = istep
   end subroutine add_explicit
- 
+
+  !> Get an estimate of the error on the NL source term by comparing
+  !> 2nd and 3rd order calculations of the source term.
+  real function estimate_error(g1, g2, g3) result(error)
+    use mp, only: max_allreduce
+    implicit none
+    complex, dimension(:, :, :), intent(in) :: g1, g2, g3
+    complex, dimension(:, :, :), allocatable :: source_order_3, source_order_2
+    real, dimension(2) :: intermediate_error
+    ! Note that the coefficients used here are only correct for uniform
+    ! time step. As such these source term calculations are not correct
+    ! for the first few timesteps after changing changing the time step
+    source_order_3 = (23./12.0)*g1 - (4.0/3.0)*g2 + (5.0/12.0)*g3
+    source_order_2 = (1.5*g1 - 0.5 * g2)
+
+    ! Here we find the maximum absolute error
+    intermediate_error(1) = maxval(abs(source_order_3 - source_order_2))
+
+    ! Now we find the maximum of source_order_2 to scale the absolute
+    ! error with.  Note we use this rather than source_order_3 as the
+    ! higher order method has a smaller region of stability so is
+    ! perhaps more likely to blow up.
+    intermediate_error(2) = maxval(abs(source_order_2))
+
+    ! Reduce over all processors
+    call max_allreduce(intermediate_error)
+
+    ! Now we form a crude relative error by dividing by the maximum
+    ! source value. We do this rather than forming the true relative
+    ! error (i.e. dividing the entire absolute difference by the source)
+    ! to avoid issues with dividing by small numbers. This will tend to
+    ! underestimate the real relative error.
+    error = intermediate_error(1) / intermediate_error(2)
+  end function estimate_error
+
   !> Takes input array evaluated at theta grid points
   !! and overwrites it with array evaluated at cell centers
   !! note that there is an extra factor of 2 in output array
