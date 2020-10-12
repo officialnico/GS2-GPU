@@ -354,7 +354,7 @@ contains
     use theta_grid, only: ntgrid
     use gs2_layouts, only: g_lo, ik_idx, it_idx, il_idx, is_idx
     use dist_fn_arrays, only: g
-    use gs2_time, only: save_dt_cfl
+    use gs2_time, only: save_dt_cfl, code_dt
     use run_parameters, only: reset
     use unit_tests, only: debug_message
     implicit none
@@ -367,6 +367,13 @@ contains
     real, parameter :: zero = epsilon(0.0)
     integer :: iglo, ik
     real :: dt_cfl
+
+    !> Set the error threshold used to determine when the timestep should change
+    !> This should probably be an input parameter
+    real, parameter :: error_target = 0.025
+    !> Set the first timestep for which the order based error checks are made
+    !> This should probably be an input parameter
+    integer, parameter :: istep_error_start = 30
 
     call debug_message(verb, 'nonlinear_terms::add_explicit starting')
 
@@ -424,6 +431,13 @@ contains
 
           call nl_center (g1, bd)
 
+          error = estimate_error(g1, g2, g3)
+          if( (istep > istep_error_start) .and. (error > error_target) ) then
+             ! Force the stored cfl to be smaller such that we trigger a
+             ! timestep reduction.
+             call save_dt_cfl(code_dt*0.9)
+             reset = .true.
+          end if
           if(reset) then
              return !Return if resetting
           endif
