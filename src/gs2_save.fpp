@@ -2181,6 +2181,7 @@ contains
 # ifdef NETCDF
     use mp, only: proc0, broadcast
     use file_utils, only: error_unit
+    use gs2_time, only: dt_not_set
 # endif
     implicit none
     real, intent (in out) :: delt0, delt1, delt2, delt_max
@@ -2213,7 +2214,7 @@ contains
 
        if (istatus /= NF90_NOERR) then
           call netcdf_error (istatus, ncid, delt0id, message=' in init_dt')
-          delt0 = -1.
+          delt0 = dt_not_set
        endif           
 
        istatus = nf90_inq_varid (ncid, "delt1", delt1id)
@@ -2223,7 +2224,7 @@ contains
 
        if (istatus /= NF90_NOERR) then
           call netcdf_error (istatus, ncid, delt1id, message=' in init_dt')
-          delt1 = -1.
+          delt1 = dt_not_set
        endif           
 
        istatus = nf90_inq_varid (ncid, "delt2", delt2id)
@@ -2233,7 +2234,7 @@ contains
 
        if (istatus /= NF90_NOERR) then
           call netcdf_error (istatus, ncid, delt2id, message=' in init_dt')
-          delt2 = -1.
+          delt2 = dt_not_set
        endif           
 
        istatus = nf90_inq_varid (ncid, "delt_max", delt_max_id)
@@ -2243,7 +2244,7 @@ contains
 
        if (istatus /= NF90_NOERR) then
           call netcdf_error (istatus, ncid, delt_max_id, message=' in init_dt')
-          delt_max = -1.
+          delt_max = dt_not_set
        endif
 
        if (.not.initialized) istatus = nf90_close (ncid)
