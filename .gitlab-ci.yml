@@ -137,6 +137,10 @@ pages:
       when: always
     # Otherwise it's a manual action that can be triggered by an authenticated user on gitlab
     - when: manual
+      # Since gitlab 9 manual actions became blocking, which means that
+      # the entire pipeline cannot complete until the manual action is triggered.
+      # We need allow_failure true here to avoid this blocking the pipeline.
+      allow_failure: true
 
 success:
   stage: ci_status
