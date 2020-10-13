@@ -533,12 +533,10 @@ contains
        call init_vnm (vnm_saved, istatus)
        if (istatus == 0) vnm_init = vnm_saved
        call init_dt (delt0, delt1, delt2, delt_max, istatus)
-       if (istatus == 0) then
-          delt  = delt0
-          delt_prev1 = delt1
-          delt_prev2 = delt2
-          user_delt_max = delt_max
-       endif
+       if (delt0 /= dt_not_set) delt = delt0
+       if (delt1 /= dt_not_set) delt_prev1 = delt1
+       if (delt2 /= dt_not_set) delt_prev2 = delt2
+       if (delt_max /= dt_not_set) user_delt_max = delt_max
     endif
 
     if (seed .ne. 0 ) call set_seed_from_single_integer(seed)
