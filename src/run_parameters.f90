@@ -375,7 +375,7 @@ contains
             text_option('check_restart', delt_option_auto) /)
     character(20) :: delt_option
     integer :: ierr, istatus
-    real :: delt0, delt1, delt2
+    real :: delt0, delt1, delt2, delt_max
     real, dimension (2) :: vnm_saved
 
     real :: teti  ! for back-compatibility
@@ -532,11 +532,12 @@ contains
        vnm_init = 1.0
        call init_vnm (vnm_saved, istatus)
        if (istatus == 0) vnm_init = vnm_saved
-       call init_dt (delt0, delt1, delt2, istatus)
+       call init_dt (delt0, delt1, delt2, delt_max, istatus)
        if (istatus == 0) then
           delt  = delt0
           delt_prev1 = delt1
           delt_prev2 = delt2
+          user_delt_max = delt_max
        endif
     endif
 

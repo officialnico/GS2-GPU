@@ -2177,13 +2177,13 @@ contains
   end subroutine restore_current_scan_parameter_value
 
   !> FIXME : Add documentation  
-  subroutine init_dt (delt0, delt1, delt2, istatus)
+  subroutine init_dt (delt0, delt1, delt2, delt_max, istatus)
 # ifdef NETCDF
     use mp, only: proc0, broadcast
     use file_utils, only: error_unit
 # endif
     implicit none
-    real, intent (in out) :: delt0, delt1, delt2
+    real, intent (in out) :: delt0, delt1, delt2, delt_max
     integer, intent (out) :: istatus
 # ifdef NETCDF
     character (run_name_size) :: file_proc        
@@ -2235,14 +2235,25 @@ contains
           call netcdf_error (istatus, ncid, delt2id, message=' in init_dt')
           delt2 = -1.
        endif           
-       
+
+       istatus = nf90_inq_varid (ncid, "delt_max", delt_max_id)
+       if (istatus /= NF90_NOERR) call netcdf_error (istatus, var='delt_max')
+
+       istatus = nf90_get_var (ncid, delt_max_id, delt_max)
+
+       if (istatus /= NF90_NOERR) then
+          call netcdf_error (istatus, ncid, delt_max_id, message=' in init_dt')
+          delt_max = -1.
+       endif
+
        if (.not.initialized) istatus = nf90_close (ncid)
     endif
 
     call broadcast (istatus)
     call broadcast (delt0)
     call broadcast (delt1)
-    call broadcast (delt2)        
+    call broadcast (delt2)
+    call broadcast (delt_max)
 
 # endif
 
