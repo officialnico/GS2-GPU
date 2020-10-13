@@ -88,9 +88,9 @@ module gs2_diagnostics
   ! HJL < moved here so that it can be deallocated
   complex, allocatable, dimension (:,:,:) :: domega
   ! > HJL
-  !<EGH moved here to make available for diffusivity function
+
+  !> Complex frequency, and time-averaged complex frequency
   complex, dimension (:, :), allocatable :: omega, omegaavg
-  !EGH>
 
   integer :: out_unit, kp_unit, heat_unit, heat_unit2, lpc_unit
   integer :: jext_unit   !GGH Additions
@@ -104,9 +104,14 @@ module gs2_diagnostics
 
   complex, dimension (:,:,:), allocatable :: omegahist
   ! (navg,ntheta0,naky)
+
+  !> Heating diagnostics summed over space at the current timestep
   type (heating_diagnostics) :: h
+  !> Heating diagnostics summed over space over the last [[navg]] timesteps
   type (heating_diagnostics), dimension(:), save, allocatable :: h_hist
+  !> Heating diagnostics as a function of \((\theta, k_y)\) at the current timestep
   type (heating_diagnostics), dimension(:,:), save, allocatable :: hk
+  !> Heating diagnostics as a function of \((\theta, k_y)\) over the last [[navg]] timesteps
   type (heating_diagnostics), dimension(:,:,:), save, allocatable :: hk_hist
   !GGH J_external
   real, dimension(:,:,:), allocatable ::  j_ext_hist
@@ -1405,7 +1410,9 @@ contains
 
   end subroutine close_files
 
-  !> FIXME : Add documentation  
+  !> Calculate and write the various diagnostic quantities.
+  !>
+  !> This is the main routine for the "old" diagnostics.
   subroutine loop_diagnostics (istep, exit, debopt)
     use species, only: nspec, spec, has_electron_species
     use kt_grids, only: naky, ntheta0
@@ -1461,13 +1468,10 @@ contains
 
     exit = .false.
 
-    ! DONE
     call do_get_omega(istep,debug,exit)
 
-    ! DONE
     if (write_hrate) call heating (istep, h, hk)
 
-    ! DONE
     if (make_movie .and. mod(istep,nmovie)==0) call do_write_movie(t) 
 
     ! DONE
@@ -1480,7 +1484,6 @@ contains
        write_mod = mod(istep,nwrite)
     end if
 
-    ! DONE
     if (write_verr .and. write_mod == 0) call do_write_verr
 
     call prof_leaving ("loop_diagnostics")
@@ -1863,18 +1866,23 @@ contains
     if (debug) write(6,*) "loop_diagnostics: done"
   end subroutine loop_diagnostics
 
-  !> FIXME : Add documentation  
+  !> Calculate [[omegaavg]] for linear simulations or if [[eqzip]] is
+  !> on; otherwise set [[omega]] and [[omegaavg]] to zero
   subroutine do_get_omega(istep,debug,exit)
     use mp, only: proc0, broadcast
     use nonlinear_terms, only: nonlin
     use run_parameters, only: eqzip
     implicit none
+    !> The current timestep
     integer, intent(in) :: istep
+    !> Turn on some debug messages
     logical, intent(in) :: debug
+    !> Returns true if the simulation has converged (see
+    !> [[gs2_diagnostics_knobs:omegatol]]) or if a numerical instability has
+    !> occurred (see [[gs2_diagnostics_knobs:omegainst]]).
     logical, intent(inout) :: exit
 
     if (eqzip .or. .not. nonlin) then
-       ! MR, 10/3/2009: avoid calling get_omegaavg in nonlinear calculations
        if (proc0) then
           if (debug) write(6,*) "loop_diagnostics: proc0 call get_omegaavg"
           call get_omegaavg (istep, exit, omegaavg, debug)
@@ -2700,7 +2708,7 @@ contains
 1000 format(20(1x,1pg18.11))
   end subroutine do_write_geom
 
-  !> FIXME : Add documentation  
+  !> Transform \(\phi, A_\parallel, B_\parallel\) to real space, then write to netCDF
   subroutine do_write_movie(t)
     use gs2_layouts, only: yxf_lo
     use theta_grid, only: ntgrid
@@ -2710,6 +2718,7 @@ contains
     use fields_arrays, only: phinew, aparnew, bparnew
     use mp, only: proc0
     implicit none
+    !> Current simulation time
     real, intent(in) :: t
     integer :: nnx, nny
     real, dimension(:,:,:), allocatable :: yxphi, yxapar, yxbpar
@@ -2865,7 +2874,13 @@ contains
          omegaavg(it,ik)/tunits(ik), omegaavg(it,ik)*woutunits(ik)               
   end subroutine do_write_omavg
 
-  !> FIXME : Add documentation  
+  !> Write some error estimates.
+  !>
+  !> Error estimates are calculated by:
+  !> - comparing standard integral with less-accurate integral
+  !> - monitoring amplitudes of legendre polynomial coefficients
+  !>
+  !> Only writes to text file, requires [[lpc_unit]] to be `open`
   subroutine do_write_verr
     use dist_fn, only: get_verr, get_gtran
     use mp, only: proc0
@@ -3844,7 +3859,7 @@ contains
 
   end subroutine check_nonlin_convergence
 
-  !> FIXME : Add documentation  
+  !> Calculate some heating diagnostics, and update their time history
   subroutine heating (istep, h, hk)
     use mp, only: proc0
     use dist_fn, only: get_heat
@@ -3856,7 +3871,9 @@ contains
     use gs2_heating, only: heating_diagnostics, avg_h, avg_hk, zero_htype
     implicit none
     integer, intent (in) :: istep
+    !> Heating diagnostics summed over space at the current timestep
     type (heating_diagnostics), intent(in out) :: h
+    !> Heating diagnostics as a function of \((\theta, k_y)\) at the current timestep
     type (heating_diagnostics), dimension(:,:), intent(in out) :: hk
 
     real, dimension(-ntgrid:ntgrid) :: wgt
@@ -3970,16 +3987,24 @@ contains
 
   end function diffusivity
 
-  !> FIXME : Add documentation  
+  !> Calculate the time-averaged complex frequency, check convergence
+  !> criterion, and numerical instability criterion.
+  !>
+  !> Time average is over previous [[navg]] timesteps
   subroutine get_omegaavg (istep, exit, omegaavg, debopt)
     use kt_grids, only: naky, ntheta0
     use fields_arrays, only: phi, apar, bpar, phinew, aparnew, bparnew
     use gs2_time, only: code_dt
     use constants, only: zi
     implicit none
+    !> The current timestep
     integer, intent (in) :: istep
+    !> Should the simulation exit?
+    !> FIXME: This could be `intent(out)` only
     logical, intent (in out) :: exit
+    !> The time-averaged complex frequency
     complex, dimension (:,:), intent (out) :: omegaavg
+    !> If true, write some debug messages
     logical, intent (in), optional :: debopt
     real :: fac
     !CMR, 7/11/2008: save here crucial to avoid crippling memory leak with mpixl!

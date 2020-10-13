@@ -3052,9 +3052,7 @@ contains
 # endif
   end subroutine nc_loop_fullmom
 
-  !> FIXME : Add documentation
-  !!
-  !! @note added by EAB on 03/05/04
+  !> Write \(\phi, A_\parallel, B_\parallel\) as functions of real space
   subroutine nc_loop_movie (nout_movie, time, yxphi, yxapar, yxbpar)
 # ifdef NETCDF
     use gs2_layouts, only: yxf_lo

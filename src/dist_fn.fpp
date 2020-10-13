@@ -5327,7 +5327,14 @@ endif
     !    call broadcast(arr)
   end subroutine ensure_single_val_fields_pass_r
 
-  !> FIXME : Add documentation  
+  !> Compute velocity space integrals over \(h_s\):
+  !> $$\mathrm{antot} = n_s q_s \int d^3 v f_0 J_0(Z_s) h_s$$
+  !> $$\mathrm{antota} = 2 \beta n_s q_s \sqrt{\tfrac{T_s}{m_s}} \int d^3 v f_0 J_0(Z_s) h_s$$
+  !> $$\mathrm{antotp} = n_s T_s \int d^3 v f_0 \frac{v_\perp^2 J_1(Z_s)}{Z_s} h_s$$
+  !>
+  !> See Colin's field equation notes for more details
+  !>
+  !> FIXME: Get these notes on the website
   subroutine getan (antot, antota, antotp)
     use dist_fn_arrays, only: vpa, vperp2, aj0, aj1, gnew
     use kt_grids, only: kperp2
@@ -5345,7 +5352,6 @@ endif
 
     call prof_entering ("getan", "dist_fn")
 
-!<DD>
 !Don't do this as integrate_species will fill in all values
 !    antot=0. ; antota=0. ; antotp=0.
 !Need to set individual arrays to zero if not using integrate_species for
@@ -7681,7 +7687,14 @@ endif
     
   end subroutine get_jext
 
-  !> FIXME : Add documentation
+  !> Calculate some heating quantities:
+  !> - ion/electron heating
+  !> - antenna power and B-field contributions to E and E_dot
+  !> - gradient contributions to heating
+  !> - hyperviscosity
+  !> - hyperresistivity
+  !>
+  !> FIXME: This is too large and does too much, split into smaller routines
   subroutine get_heat (h, hk, phi, apar, bpar, phinew, aparnew, bparnew)
     use mp, only: proc0
     use constants, only: zi
@@ -8383,8 +8396,13 @@ endif
     call init_wstar
   end subroutine reset_physics
 
-  !> FIXME : Add documentation    
-  subroutine get_verr (errest, erridx, phi, bpar)    
+  !> Error estimate obtained by comparing standard integral with less-accurate integral
+  !>
+  !> Estimate of the (1) absolute and (2) relative errors resulting from velocity space
+  !> integrals in the calculation of the following quantities in the given dimensions: (1)
+  !> k phi, energy (2) k phi, untrapped pitch angles (3) k phi, trapped pitch angles, (4)
+  !> k apar, energy, (5) k apar, untrapped angles. Relative errors should be < 0.1.
+  subroutine get_verr (errest, erridx, phi, bpar)
     use mp, only: broadcast
     use le_grids, only: integrate_species
     use le_grids, only: eint_error, trap_error, lint_error, wdim
@@ -8399,17 +8417,17 @@ endif
     use collisions, only: etol, ewindow, etola, ewindowa
     use collisions, only: vnmult, vary_vnew
 
-    ! TEMP FOR TESTING -- MAB
-!    use gs2_layouts, only: il_idx
-!    use theta_grid, only: bmag, bmax
-!    use le_grids, only: al
-
     implicit none
 
     integer :: ig, it, ik, iglo, isgn, ntrap
 
+    !> Indices of maximum error.
+    !> FIXME: Make this fixed size
     integer, dimension (:,:), intent (out) :: erridx
+    !> Estimated error.
+    !> FIXME: Make this fixed size.
     real, dimension (:,:), intent (out) :: errest
+    !> Electrostatic potential and parallel magnetic field
     complex, dimension (-ntgrid:,:,:), intent (in) :: phi, bpar
 
     complex, dimension (:,:,:), allocatable :: phi_app, apar_app
@@ -8685,7 +8703,9 @@ endif
 
   end subroutine estimate_error
 
-  !> FIXME : Add documentation  
+  !> Error estimate based on monitoring amplitudes of legendre polynomial coefficients.
+  !>
+  !> FIXME: finish documentation
   subroutine get_gtran (geavg, glavg, gtavg, phi, bpar)
     use le_grids, only: legendre_transform, nlambda, ng2, nesub, jend
     use theta_grid, only: ntgrid

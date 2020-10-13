@@ -403,12 +403,14 @@ contains
 
   end subroutine del_htype_3
 
-  !> FIXME : Add documentation
+  !> Calculate the average of various heating quantities
   subroutine avg_h (h, h_hist, istep, navg)
     use mp, only: proc0
     use species, only: nspec
     implicit none
+    !> The heating diagnostics at the current timestep
     type (heating_diagnostics), intent(in out) :: h
+    !> The last [[gs2_diagnostics:navg]] timesteps of heating diagnostics
     type (heating_diagnostics), dimension (0:), intent(in out) :: h_hist
     integer, intent (in) :: istep, navg
     integer :: is, i
@@ -462,13 +464,15 @@ contains
 
   end subroutine avg_h
 
-  !> FIXME : Add documentation
+  !> Calculate the average of various heating quantities as a function of \((\theta, k_y)\)
   subroutine avg_hk (hk, hk_hist, istep, navg)
     use mp, only: proc0
     use species, only: nspec
-    implicit none    
+    implicit none
+    !> Heating diagnostics as a function of \((\theta, k_y)\) at the current timestep
     type (heating_diagnostics), dimension(:,:), intent(in out) :: hk
-    type (heating_diagnostics), dimension (:,:,0:), intent(in out) :: hk_hist
+    !> Heating diagnostics as a function of \((\theta, k_y)\) over the last [[gs2_diagnostics:navg]] timesteps
+    type (heating_diagnostics), dimension(:,:,0:), intent(in out) :: hk_hist
     integer, intent (in) :: istep, navg
     integer :: is, i, m, n, mmax, nmax
 
