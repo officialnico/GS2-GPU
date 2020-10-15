@@ -354,7 +354,7 @@ contains
     use theta_grid, only: ntgrid
     use gs2_layouts, only: g_lo, ik_idx, it_idx, il_idx, is_idx
     use dist_fn_arrays, only: g
-    use gs2_time, only: save_dt_cfl, code_dt
+    use gs2_time, only: save_dt_cfl, code_dt, code_dt_prev1, code_dt_prev2
     use run_parameters, only: reset
     use unit_tests, only: debug_message
     implicit none
@@ -369,6 +369,7 @@ contains
     real :: dt_cfl
 
     real :: error
+    real :: target_dt
     !> Set the error threshold used to determine when the timestep should change
     !> This should probably be an input parameter
     real, parameter :: error_target = 0.025
@@ -432,12 +433,11 @@ contains
 
           call nl_center (g1, bd)
 
-          error = estimate_error(g1, g2, g3)
-          if( (istep > istep_error_start) .and. (error > error_target) ) then
-             ! Force the stored cfl to be smaller such that we trigger a
-             ! timestep reduction.
-             call save_dt_cfl(code_dt*0.9)
-             reset = .true.
+          ! If the CFL condition hasn't triggered then look at the
+          ! order based error
+          if (.not. reset) then
+             error = estimate_error(g1, g2, g3, code_dt, code_dt_prev1, code_dt_prev2)
+             target_dt =code_dt*sqrt(error_target/(error))
           end if
           if(reset) then
              return !Return if resetting
@@ -470,17 +470,35 @@ contains
 
   !> Get an estimate of the error on the NL source term by comparing
   !> 2nd and 3rd order calculations of the source term.
-  real function estimate_error(g1, g2, g3) result(error)
+  !>
+  !> Here we're calculating g at t+dt0 using g(t) = g1, g(t-dt1) = g2
+  !> and g(t-dt2) = g3 using 2nd and 3rd order methods and comparing
+  !> the difference to estimate the error.
+  real function estimate_error(g1, g2, g3, dt0, dt1, dt2) result(error)
     use mp, only: max_allreduce
     implicit none
     complex, dimension(:, :, :), intent(in) :: g1, g2, g3
+    real, intent(in) :: dt0, dt1, dt2
     complex, dimension(:, :, :), allocatable :: source_order_3, source_order_2
     real, dimension(2) :: intermediate_error
+    real :: coeff_3rd_g1, coeff_3rd_g2, coeff_3rd_g3
+    real :: coeff_2nd_g1, coeff_2nd_g2
+
+    ! Calculate the coefficients required for variable time step schemes
+    coeff_3rd_g1 = (1. / (dt1 + dt2)) * ( &
+         ((dt0 + dt1)**2./dt1)*( (dt0+dt1)/3. + dt2/2. ) &
+         - dt1*(dt1/3. + dt2/2.) )
+    coeff_3rd_g2 = - dt0**2. * ( dt0/3. + (dt1+dt2)/2. ) / (dt1*dt2)
+    coeff_3rd_g3 = dt0**2. * ( dt0/3. + dt1/2. ) / ( dt2*(dt1+dt2) )
+
+    coeff_2nd_g1 = (0.5*dt0**2 + dt0*dt1)/dt1
+    coeff_2nd_g2 = -0.5*dt0**2/dt1
+
     ! Note that the coefficients used here are only correct for uniform
     ! time step. As such these source term calculations are not correct
     ! for the first few timesteps after changing changing the time step
-    source_order_3 = (23./12.0)*g1 - (4.0/3.0)*g2 + (5.0/12.0)*g3
-    source_order_2 = (1.5*g1 - 0.5 * g2)
+    source_order_3 = coeff_3rd_g1 * g1 + coeff_3rd_g2 * g2 + coeff_3rd_g3 * g3
+    source_order_2 = coeff_2nd_g1 * g1 + coeff_2nd_g2 * g2
 
     ! Here we find the maximum absolute error
     intermediate_error(1) = maxval(abs(source_order_3 - source_order_2))
