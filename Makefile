@@ -320,9 +320,6 @@ MACRO_DEFS+=-DGIT_HASH_UTILS='"$(GIT_HASH_UTILS)"'
 GIT_BRANCH=$(shell git branch | grep \* | cut -d ' ' -f2- | sed 's|\([()]\)|\\\1|g')
 MACRO_DEFS+=-DGIT_BRANCH='"$(GIT_BRANCH)"'
 
-GIT_VERSION = $(shell git describe)
-MACRO_DEFS += -DGIT_VERSION='"$(GIT_VERSION)"'
-
 # Find if there are any modified tracked files (except Makefile.depend)
 ifeq ($(shell git status --short -uno -- . | wc -l), 0)
 	GIT_STATE="clean"
