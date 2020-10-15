@@ -84,6 +84,7 @@ module gs2_main
   use exit_codes, only: exit_code, EXIT_NOT_REQUESTED
   implicit none
   public :: run_gs2, finish_gs2, reset_gs2, trin_finish_gs2
+  public :: parse_command_line
 
   public :: gs2_program_state_type
 
@@ -303,6 +304,40 @@ module gs2_main
  
 contains
 # endif
+
+  !> Parse some basic command line arguments. Currently just 'version' and 'help'.
+  !>
+  !> This should be called before anything else, but especially before initialising MPI.
+  subroutine parse_command_line()
+    use runtime_tests, only: runtime_info
+    integer :: arg_count, arg_n
+    integer :: arg_length
+    character(len=:), allocatable :: argument
+    character(len=*), parameter :: nl = new_line('a')
+
+    arg_count = command_argument_count()
+
+    do arg_n = 0, arg_count
+      call get_command_argument(1, length=arg_length)
+      if (allocated(argument)) deallocate(argument)
+      allocate(character(len=arg_length)::argument)
+      call get_command_argument(1, argument)
+
+      if ((argument == "--version") .or. (argument == "-v")) then
+        write(*, '("GS2 version ", a)') runtime_info%release()
+        stop
+      else if ((argument == "--help") .or. (argument == "-h")) then
+        write(*, '(a)') "gs2 [--version|-v] [--help|-h] [input file]" // nl // nl // &
+             "GS2: A fast, flexible physicist's toolkit for gyrokinetics" // nl // &
+             "For more help, see the documentation at https://gyrokinetics.gitlab.io/gs2/" // nl // &
+             "or create an issue https://bitbucket.org/gyrokinetics/gs2/issues?status=open" // nl // &
+             nl // &
+             "  -h, --help     Print this message" // nl // &
+             "  -v, --version  Print the GS2 version"
+        stop
+      end if
+    end do
+  end subroutine parse_command_line
 
   !> Starts the global wall clock timer
   !! used by check time. This is useful
@@ -1473,6 +1508,8 @@ contains
     logical, intent (out), optional :: converged
 
     logical, save :: first_time = .true.
+
+    call parse_command_line()
 
     ! HJL tests on Trinity optionals for load balancing
     old_iface_state%external_job_id = -1

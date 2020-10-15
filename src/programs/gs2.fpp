@@ -63,39 +63,13 @@ program gs2
   use gs2_main, only: finalize_diagnostics
   use gs2_main, only: finalize_equations
   use gs2_main, only: finalize_gs2
+  use gs2_main, only: parse_command_line
   use exit_codes, only: EXIT_NSTEP, EXIT_NOT_REQUESTED
   use mp, only: proc0
-  use runtime_tests, only: runtime_info
   implicit none
   type(gs2_program_state_type) :: state
-  integer :: arg_count, arg_n
 
-  arg_count = command_argument_count()
-
-  do arg_n = 0, arg_count
-    block
-      integer :: arg_length
-      character(len=:), allocatable :: argument
-
-      call get_command_argument(1, length=arg_length)
-      allocate(character(len=arg_length)::argument)
-      call get_command_argument(1, argument)
-
-      if ((argument == "--version") .or. (argument == "-V")) then
-        write(*, '("GS2 version ", a)') runtime_info%get_git_version()
-        stop
-      else if ((argument == "--help") .or. (argument == "-h")) then
-        write(*, *) "gs2 [--version|-v] [--help|-h] [input file]" // new_line('a')
-        write(*, *) "GS2: A fast, flexible physicist's toolkit for gyrokinetics"
-        write(*, *) "For more help, see the documentation at https://gyrokinetics.gitlab.io/gs2/"
-        write(*, *) "or create an issue https://bitbucket.org/gyrokinetics/gs2/issues?status=open"
-        write(*, *)
-        write(*, *) "  -h, --help     Print this message"
-        write(*, *) "  -v, --version  Print the GS2 version"
-        stop
-      end if
-    end block
-  end do
+  call parse_command_line()
 
   call initialize_gs2_optimisation(state)
   call initialize_wall_clock_timer
