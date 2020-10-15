@@ -347,11 +347,9 @@ module gs2_diagnostics
      !> (the default) to enable this
      logical :: write_bpar_over_time = .false.
      !> Write the collision error every [[gs2_diagnostics_knobs:nwrite]]
-     !> timesteps
+     !> timesteps to text file with suffix `.cres`
      !>
      !> FIXME: What does this mean?
-     !>
-     !> @warning In new diagnostics, only writes to ascii
      logical :: write_cerr = .false.
 
      !> Write collisional heating (collisional and hyper viscous rate of loss of
@@ -465,8 +463,8 @@ module gs2_diagnostics
      !> temperatures) in non-guiding centre coordinates every
      !> [[gs2_diagnostics_knobs:nwrite]] timesteps
      logical :: write_full_moments_notgc = .false.
-     !> FIXME: Write either \(g\) or \(f\)? every
-     !> [[gs2_diagnostics_knobs:nwrite]] timesteps
+     !> Write \(g(v_\parallel,v_\perp)\) at `ik=it=is=1, ig=0` to text file
+     !> `<runname>.dist`
      !>
      !> @warning Only to text files
      logical :: write_g = .false.
@@ -476,9 +474,11 @@ module gs2_diagnostics
      !>
      !> @warning Only outputs to text files
      logical :: write_gs = .false.
-     !> FIXME: Add documentation
+     !> Write \(g\) as a function of real space every
+     !> [[gs2_diagnostics_knobs:nmovie]] timesteps to text file
+     !> "<runname>.yxdist"
      !>
-     !> @warning Only outputs to text files
+     !> @warning Only to text files
      logical :: write_gyx = .false.
 
      !> Write out various heating, free energy and energy injection
@@ -1433,8 +1433,11 @@ contains
     use parameter_scan, only: scan_type_switch, scan_type_none
 
     implicit none
+    !> Current timestep
     integer, intent (in) :: istep
+    !> If true, simulation should stop (for example, because it has converged)
     logical, intent (out) :: exit
+    !> If true, turn on some debug prints
     logical, intent (in), optional:: debopt
 
     real, dimension (ntheta0, naky) :: phitot
@@ -1460,7 +1463,7 @@ contains
     logical :: last = .false.
     logical:: debug=.false.
 
-    if (present(debopt)) debug=debopt
+    if (present(debopt)) debug = debopt
     call prof_entering ("loop_diagnostics")
 
     !Set the current time
@@ -1472,12 +1475,10 @@ contains
 
     if (write_hrate) call heating (istep, h, hk)
 
-    if (make_movie .and. mod(istep,nmovie)==0) call do_write_movie(t) 
+    if (make_movie .and. mod(istep,nmovie) == 0) call do_write_movie(t)
 
-    ! DONE
     if (write_gyx .and. mod(istep,nmovie) == 0) call write_fyx (phinew,bparnew,last)
 
-    ! DONE
     if (vary_vnew) then
        write_mod = mod(istep,ncheck)
     else
@@ -1494,17 +1495,13 @@ contains
     !########################################################
     if (mod(istep,nwrite) /= 0 .and. .not. exit) return
 
-    !DONE
     if (write_g) call write_f (last)
 
-    ! DONE
     if (write_lpoly) call write_poly (phinew, bparnew, last, istep)
 
-    !Note this also returns phi2, apar2, bpar2 and phitot for other diagnostics
-    ! DONE
-    if (proc0) call do_write_ncloop(t,istep,phi2,apar2,bpar2,phitot)
+    ! Note this also returns phi2, apar2, bpar2 and phitot for other diagnostics
+    if (proc0) call do_write_ncloop(t, istep, phi2, apar2, bpar2, phitot)
 
-    ! DONE
     if (print_line) call do_print_line(phitot)
 
     !This wants to write the fields vs time arrays --> Remove as we now have
@@ -1512,14 +1509,12 @@ contains
     !if (write_fields) call nc_write_fields (nout, phinew, aparnew, bparnew)  !MR
     !Instead replace with a call to nc_final_fields to keep the phi, apar and bpar
     !output arrays up to date.
-    ! DONE
-    if(write_fields.and.proc0) call nc_final_fields
 
-    ! DONE
-    if (write_moments) call do_write_moments !CMR
+    if (write_fields .and. proc0) call nc_final_fields
 
-    ! DONE
-    if (write_cross_phase .and. has_electron_species(spec) .and. write_ascii ) call do_write_crossphase(t)
+    if (write_moments) call do_write_moments
+
+    if (write_cross_phase .and. has_electron_species(spec) .and. write_ascii) call do_write_crossphase(t)
 
     !###########################
     !<DD> The following large section could do with being moved to separate routines but
@@ -1546,8 +1541,10 @@ contains
        call lf_flux (phinew, vflux0, vflux1)
 #endif
        call g_adjust (gnew, phinew, bparnew, -fphi, -fbpar)
-       if((fphi.gt.epsilon(0.0)).and.(write_nl_flux.or.print_flux_line.or.&
-            (write_flux_line.and.write_ascii))) call eexchange (phinew, phi, exchange1, exchange)
+       if (fphi > epsilon(0.0) .and. &
+            (write_nl_flux .or. print_flux_line .or. (write_flux_line .and. write_ascii))) then
+         call eexchange (phinew, phi, exchange1, exchange)
+       end if
 
        if (proc0) then
           if (fphi > epsilon(0.0)) then
@@ -1673,8 +1670,7 @@ contains
     ! DONE UP TO HERE
 
     ! Check for convergence
-    ! DONE
-    if(nonlin .and. use_nonlin_convergence) call check_nonlin_convergence(istep, heat_fluxes(1), exit)
+    if (nonlin .and. use_nonlin_convergence) call check_nonlin_convergence(istep, heat_fluxes(1), exit)
 
     call prof_leaving ("loop_diagnostics-1")
     if (debug) write(6,*) "loop_diagnostics: -1"
@@ -1694,11 +1690,8 @@ contains
        if (write_ascii) write (unit=out_unit, fmt=*) 'time=', t
        if (write_ascii .and. write_hrate) call do_write_hrate(t)
 
-       !>GGH
-       !Write out data for j_external
-       ! DONE
        if (write_ascii .and. write_jext) call do_write_jext(t,istep)
-       !<GGH
+
        ! DONE
        if (write_flux_line) then
           hflux_tot = 0.
@@ -1806,43 +1799,29 @@ contains
        end if
     endif
 
-    if(scan_type_switch.ne.scan_type_none) call bcast_scan_parameter(scan_hflux,scan_momflux,scan_phi2_tot)
+    if (scan_type_switch /= scan_type_none) call bcast_scan_parameter(scan_hflux, scan_momflux, scan_phi2_tot)
 
-    ! DONE
-    if (write_cerr) call collision_error(phinew,bparnew,last)
+    if (write_cerr) call collision_error(phinew, bparnew, last)
 
-    ! DONE
     if (write_symmetry) call do_write_symmetry
 
-    ! DONE
     if (write_nl_flux_dist) call do_write_nl_flux_dist
 
-    ! DONE
     if (write_pflux_sym) call do_write_pflux_sym
 
-    ! DONE
     if (write_correlation) call do_write_correlation
 
-    ! DONE
-    if (write_correlation_extend .and. istep > nstep/4) call do_write_correlation_extend(t,t_old,istep)
+    if (write_correlation_extend .and. istep > nstep/4) call do_write_correlation_extend(t, t_old, istep)
 
-    ! DONE
     if (write_parity) call do_write_parity(t)
 
-    ! DONE
     if (write_avg_moments) call do_write_avg_moments
 
-    ! RN> output not guiding center moments in x-y plane
-    ! DONE
     if (write_full_moments_notgc) call do_write_full_moments_notgc(t)
 
-    !
-    ! I have not checked the units in this section. BD
-    !       
     if (dump_check1) call do_write_dump_1(t)
     if (dump_check2) call do_write_dump_2(t)
 
-    ! DONE
     if (dump_fields_periodically .and. mod(istep,10*nwrite) == 0) call do_dump_fields_periodically(t)
 
     ! Update the counter in parameter_scan_arrays
@@ -1854,8 +1833,6 @@ contains
     !Increment loop counter
     nout = nout + 1
 
-    !Flush files
-    ! DONE
     if (write_ascii .and. mod(nout, 10) == 0 .and. proc0) call flush_files
 
     !Update time
@@ -1897,17 +1874,22 @@ contains
     endif
   end subroutine do_get_omega
 
-  !> FIXME : Add documentation
-  subroutine do_write_ncloop(t,istep,phi2,apar2,bpar2,phitot)
+  !> Compute volume averages of the fields and write the fields, field averages,
+  !> heating and frequency to the netCDF files
+  subroutine do_write_ncloop(time, istep, phi2, apar2, bpar2, phitot)
     use fields_arrays, only: phinew, aparnew, bparnew
     use run_parameters, only: fphi, fapar, fbpar, woutunits
     use kt_grids, only: naky, ntheta0
     use gs2_io, only: nc_loop
     use mp, only: proc0
     implicit none
-    real, intent(in) :: t
+    !> Simulation time
+    real, intent(in) :: time
+    !> Current timestep
     integer, intent(in) :: istep
+    !> Fields squared
     real, intent(out) :: phi2, apar2, bpar2
+    !> FIXME: add documentation. Needs [[phinorm]] documenting
     real, dimension (:, :), intent(out) :: phitot
     real, dimension (naky) :: fluxfac
     real, dimension (ntheta0, naky) :: phi2_by_mode, apar2_by_mode, bpar2_by_mode
@@ -1930,9 +1912,7 @@ contains
     !    I think this should be if(aky(1)==0.0) fluxfac(1)=1.0 but I may be wrong
     fluxfac(1) = 1.0
 
-    !This was previously guarded by a "if (write_flux_line) then" 
-    !statement for some reason
-    if(proc0) call nc_loop (nout, t, fluxfac, &
+    if(proc0) call nc_loop (nout, time, fluxfac, &
          phinew(igomega,:,:), phi2, phi2_by_mode, &
          aparnew(igomega,:,:), apar2, apar2_by_mode, &
          bparnew(igomega,:,:), bpar2, bpar2_by_mode, &
@@ -1940,7 +1920,8 @@ contains
 
   end subroutine do_write_ncloop
 
-  subroutine bcast_scan_parameter(scan_hflux,scan_momflux,scan_phi2)
+  !> Broadcast one of the input parameters according to [[parameter_scan:target_parameter_switch]]
+  subroutine bcast_scan_parameter(scan_hflux, scan_momflux, scan_phi2)
     use mp, only: broadcast
     use parameter_scan, only: target_parameter_switch,target_parameter_hflux_tot
     use parameter_scan, only: target_parameter_momflux_tot,target_parameter_phi2_tot
@@ -2709,7 +2690,7 @@ contains
   end subroutine do_write_geom
 
   !> Transform \(\phi, A_\parallel, B_\parallel\) to real space, then write to netCDF
-  subroutine do_write_movie(t)
+  subroutine do_write_movie(time)
     use gs2_layouts, only: yxf_lo
     use theta_grid, only: ntgrid
     use run_parameters, only: fphi, fapar, fbpar
@@ -2719,16 +2700,12 @@ contains
     use mp, only: proc0
     implicit none
     !> Current simulation time
-    real, intent(in) :: t
+    real, intent(in) :: time
     integer :: nnx, nny
     real, dimension(:,:,:), allocatable :: yxphi, yxapar, yxbpar
 
-    ! EAB 09/17/03 -- modify dump_fields_periodically to print out inverse fft of fields in x,y
     nnx = yxf_lo%nx
     nny = yxf_lo%ny
-
-    !<DD>Commented as removed writing of ntot in favour of apar for consistency
-    !call getmoms (phinew, bparnew, ntot, density, upar, tpar, tperp, qparflux, pperpj1, qpperpj1)
 
     if (fphi > epsilon(0.0)) then
        allocate (yxphi(nnx,nny,-ntgrid:ntgrid))
@@ -2746,7 +2723,7 @@ contains
     end if
 
     if (proc0) then
-       call nc_loop_movie(nout_movie, t, yxphi, yxapar, yxbpar)
+       call nc_loop_movie(nout_movie, time, yxphi, yxapar, yxbpar)
     end if
 
     if (fphi > epsilon(0.0)) deallocate (yxphi)
@@ -2755,12 +2732,13 @@ contains
     nout_movie = nout_movie + 1
   end subroutine do_write_movie
 
-  !> FIXME : Add documentation  
+  !> Print estimated frequencies and growth rates to screen/stdout
   subroutine do_print_line(phitot)
     use mp, only: proc0
     use kt_grids, only: naky, ntheta0, aky, akx, theta0
     use run_parameters, only: woutunits
     implicit none
+    !> Total magnitude of all the fields
     real, dimension (:, :), intent(in) :: phitot
     integer :: ik, it
 
@@ -2781,32 +2759,33 @@ contains
     write (*,*) 
   end subroutine do_print_line
 
-  !> FIXME : Add documentation  
-  subroutine do_write_jext(t,istep)
+  !> Calculate and write the time-averaged antenna current to [[jext_unit]]
+  subroutine do_write_jext(time, istep)
     use kt_grids, only: ntheta0, naky
     use mp, only: proc0
     implicit none
-    real, intent(in) :: t
+    !> Current simulation time
+    real, intent(in) :: time
+    !> Current timestep
     integer, intent(in) :: istep
     integer :: ik, it
-    !GGH J_external
     real, dimension(:,:), allocatable ::  j_ext
 
     if (.not.proc0) return
     allocate (j_ext(ntheta0, naky)); j_ext=0.
-    call calc_jext(istep,j_ext)
+    call calc_jext(istep, j_ext)
     do ik=1,naky
        do it = 1, ntheta0
           if (j_ext(it,ik) .ne. 0.) then
              write (unit=jext_unit, fmt="(es12.4,i4,i4,es12.4)")  &
-                  t,it,ik,j_ext(it,ik)
+                  time,it,ik,j_ext(it,ik)
           endif
        enddo
     enddo
     deallocate(j_ext)
   end subroutine do_write_jext
 
-  !> FIXME : Add documentation  
+  !> Write various moments to netCDF
   subroutine do_write_moments
     use gs2_io, only: nc_write_moments
     use theta_grid, only: ntgrid
@@ -2820,31 +2799,36 @@ contains
          upar, tpar, tperp, qparflux, pperpj1, qpperpj1
 
     call getmoms (phinew, bparnew, ntot, density, upar, tpar, tperp, qparflux, pperpj1, qpperpj1)
-    if(proc0) call nc_write_moments(nout, ntot, density, upar, tpar, tperp,qparflux, pperpj1, qpperpj1,ob_midplane=ob_midplane) 
+    if(proc0) call nc_write_moments(nout, ntot, density, upar, tpar, tperp,qparflux, &
+         pperpj1, qpperpj1, ob_midplane=ob_midplane)
   end subroutine do_write_moments
 
-  !> FIXME : Add documentation  
-  subroutine do_write_crossphase(t)
+  !> Calculate the cross-phase (see [[get_cross_phase]]) and write to the
+  !> [[phase_unit]] file
+  subroutine do_write_crossphase(time)
     use mp, only: proc0
     implicit none
-    real, intent(in) :: t
+    !> Current simulation time
+    real, intent(in) :: time
     real :: phase_tot, phase_theta
 
     call get_cross_phase (phase_tot, phase_theta)
     if (proc0) write (unit=phase_unit, fmt="('t= ',e17.10,' phase_tot= ',e11.4,' phase_theta= ',e11.4)") &
-         & t, phase_tot, phase_theta
+         & time, phase_tot, phase_theta
   end subroutine do_write_crossphase
 
-  !> FIXME : Add documentation  
-  subroutine do_write_line(t,it,ik,phitot)
+  !> Write estimated frequency and growth rates to [[out_unit]] for an individual \((k_y, \theta)\) point
+  subroutine do_write_line(time,it,ik,phitot)
     use kt_grids, only: aky, akx, theta0
     use run_parameters, only: woutunits
     implicit none
-    real, intent(in) :: t, phitot
+    !> Simulation time
+    real, intent(in) :: time, phitot
+    !> \(k_y\)- and \(\theta\)-indices
     integer, intent(in) :: ik, it
     write (out_unit, "('t= ',e17.10,' aky= ',1p,e12.4, ' akx= ',1p,e12.4, &
          &' om= ',1p,2e12.4,' omav= ', 1p,2e12.4,' phtot= ',1p,e12.4,' theta0= ',1p,e12.4)") &
-         t, aky(ik), akx(it), &
+         time, aky(ik), akx(it), &
          real( omega(it,ik)*woutunits(ik)), &
          aimag(omega(it,ik)*woutunits(ik)), &
          real( omegaavg(it,ik)*woutunits(ik)), &
@@ -2852,10 +2836,11 @@ contains
          phitot,theta0(it,ik)
   end subroutine do_write_line
 
-  !> FIXME : Add documentation  
+  !> Write instantaneous growth rate and frequency to [[out_unit]] for an individual \((k_y, \theta)\) point
   subroutine do_write_omega(it,ik)
     use run_parameters, only: tunits, woutunits
     implicit none
+    !> \(k_y\)- and \(\theta\)-indices
     integer, intent(in) :: it, ik
 
     write (out_unit,&
@@ -2863,7 +2848,7 @@ contains
          omega(it,ik)/tunits(ik), omega(it,ik)*woutunits(ik)
   end subroutine do_write_omega
 
-  !> FIXME : Add documentation  
+  !> Write time-averaged growth rate and frequency to [[out_unit]] for an individual \((k_y, \theta)\) point
   subroutine do_write_omavg(it,ik)
     use run_parameters, only: tunits, woutunits
     implicit none
@@ -2929,7 +2914,7 @@ contains
     deallocate(errest,erridx)
   end subroutine do_write_verr
 
-  !> FIXME : Add documentation  
+  !> Write the (total) heating diagnostics to [[heat_unit]] and [[heat_unit2]] (per-species)
   subroutine do_write_hrate(t)
     use species, only: nspec
     use file_utils, only: flush_output_file
@@ -3039,7 +3024,8 @@ contains
     end if
   end subroutine do_write_hrate
 
-  !> FIXME : Add documentation  
+  !> Calculate the momentum flux as a function of \((v_\parallel, \theta, t)\)
+  !> and write to netCDF
   subroutine do_write_symmetry
     use dist_fn, only: flux_vs_theta_vs_vpa
     use theta_grid, only: ntgrid
@@ -3052,15 +3038,15 @@ contains
     real, dimension(:,:,:), allocatable :: vflx_sym
 
     allocate (vflx_sym(-ntgrid:ntgrid,nlambda*negrid,nspec))
-    call flux_vs_theta_vs_vpa (phinew,vflx_sym)
+    call flux_vs_theta_vs_vpa (phinew, vflx_sym)
     if (proc0) call nc_loop_sym (nout, vflx_sym)
     deallocate (vflx_sym)
   end subroutine do_write_symmetry
 
   !> Calculate the poloidal distributions of the fluxes of particles, parallel
-  !! momentum, perpendicular momentum, and energy
-  !! (see section 3.1 and appendix A of Ball et al. PPCF 58 (2016) 045023 as well
-  !! as section 5 of "GS2 analytic geometry specification")
+  !> momentum, perpendicular momentum, and energy
+  !> (see section 3.1 and appendix A of Ball et al. PPCF 58 (2016) 045023 as well
+  !> as section 5 of "GS2 analytic geometry specification")
   subroutine do_write_nl_flux_dist
     use dist_fn, only: flux_dist
     use theta_grid, only: ntgrid
@@ -3125,7 +3111,7 @@ contains
     deallocate (phi_byMode_dist)
   end subroutine do_write_nl_flux_dist
 
-  !> FIXME : Add documentation  
+  !> Calculate the particle flux contribution to toroidal momentum flux and write to netCDF
   subroutine do_write_pflux_sym
     use dist_fn, only: pflux_vs_theta_vs_vpa
     use theta_grid, only: ntgrid
@@ -3142,7 +3128,7 @@ contains
     deallocate (pflux_sym)
   end subroutine do_write_pflux_sym
 
-  !> FIXME : Add documentation  
+  !> Calculate the correlation function over the physical domain and write to netCDF
   subroutine do_write_correlation
     use theta_grid, only: ntgrid
     use kt_grids, only: naky
@@ -3156,14 +3142,19 @@ contains
     deallocate (phi_corr_2pi)
   end subroutine do_write_correlation
 
-  !> FIXME : Add documentation  
-  subroutine do_write_correlation_extend(t,t_old,istep)
+  !> Calculate the correlation function over the extended domain and write to netCDF
+  !>
+  !> This does the calculation every time it is called, but only writes every
+  !> `nwrite_mult * nwrite` timesteps
+  subroutine do_write_correlation_extend(time, time_old, istep)
     use theta_grid, only: ntgrid
     use kt_grids, only: jtwist_out, ntheta0, naky
     use mp, only: proc0
     use gs2_io, only: nc_loop_corr_extend
     implicit none
-    real, intent(in) :: t,t_old
+    !> Current and previous simulation times
+    real, intent(in) :: time, time_old
+    !> Current timestep
     integer, intent(in) :: istep
     complex, dimension (:,:,:), allocatable, save:: phicorr_sum
     real, dimension (:,:,:), allocatable, save :: phiextend_sum
@@ -3176,22 +3167,23 @@ contains
        nth0_extend = min(ntheta0,jtwist_out*(naky-1))
        allocate (phicorr_sum(ntg_extend,ntheta0,naky)) ; phicorr_sum = 0.0
        allocate (phiextend_sum(ntg_extend,ntheta0,naky)) ; phiextend_sum = 0.0
-       tcorr0 = t_old
+       tcorr0 = time_old
     end if
 
     allocate (phi_corr(ntg_extend,ntheta0,naky))
     allocate (phi2_extend(ntg_extend,ntheta0,naky))
     call correlation_extend (phi_corr, phi2_extend)
-    phicorr_sum = phicorr_sum + phi_corr*(t-t_old)
-    phiextend_sum = phiextend_sum + phi2_extend*(t-t_old)
+    phicorr_sum = phicorr_sum + phi_corr*(time-time_old)
+    phiextend_sum = phiextend_sum + phi2_extend*(time-time_old)
     if (proc0 .and. mod(istep,nwrite_mult*nwrite)==0) then
-       call nc_loop_corr_extend (nout_big, phicorr_sum/(t-tcorr0), phiextend_sum/(t-tcorr0))
+       call nc_loop_corr_extend (nout_big, phicorr_sum/(time-tcorr0), phiextend_sum/(time-tcorr0))
        nout_big = nout_big + 1
     end if
     deallocate (phi_corr, phi2_extend)
   end subroutine do_write_correlation_extend
 
-  !> FIXME : Add documentation  
+  !> Calculate average parity of distribution function under \((\theta, k_x,
+  !> v_\parallel) \to (-\theta, -k_x, -v_\parallel)\), and write to [[parity_unit]]
   subroutine do_write_parity(t)
     use theta_grid, only: ntgrid
     use kt_grids, only: naky, ntheta0
@@ -3621,7 +3613,7 @@ contains
     deallocate (phim)
   end subroutine do_write_parity
 
-  !> FIXME : Add documentation  
+  !> Calculate flux surfgace averaged low-order moments of \(g\) and write to netCDF
   subroutine do_write_avg_moments
     use dist_fn, only: getmoms
     use mp, only: proc0
@@ -3680,7 +3672,8 @@ contains
     end if
   end subroutine do_write_avg_moments
 
-  !> FIXME : Add documentation  
+  !> Calculate moments (density, parallel flow, and parallel and perpendicular
+  !> temperatures) in non-guiding centre coordinates and write to netCDF
   subroutine do_write_full_moments_notgc(t)
     use dist_fn, only: getmoms_notgc
     use theta_grid, only: ntgrid
@@ -3702,7 +3695,7 @@ contains
     endif
   end subroutine do_write_full_moments_notgc
 
-  !> FIXME : Add documentation  
+  !> Calculate the field-line average of \(\phi\) and write to [[dump_check1_unit]]
   subroutine do_write_dump_1(t)
     use mp, only: proc0
     use kt_grids, only: naky, ntheta0, aky, akx
@@ -3736,7 +3729,7 @@ contains
     end do
   end subroutine do_write_dump_1
 
-  !> FIXME : Add documentation  
+  !> Calculate \(A_\parallel(k_x, k_y)\) at `igomega` and write to [[dump_check2_unit]]
   subroutine do_write_dump_2(t)
     use mp, only: proc0
     use kt_grids, only: naky, ntheta0, aky, akx
@@ -3754,7 +3747,7 @@ contains
     end do
   end subroutine do_write_dump_2
 
-  !> FIXME : Add documentation  
+  !> Write out \(\phi, A_\parallel, B_\parallel\) to text file
   subroutine do_dump_fields_periodically(t)
     use file_utils, only: get_unused_unit
     use kt_grids, only: naky, ntheta0, aky, theta0, akx
@@ -3783,7 +3776,8 @@ contains
     close (unit=unit)
   end subroutine do_dump_fields_periodically
 
-  !> FIXME : Add documentation
+  !> Flush text files (only [[out_unit]], [[res_unit]], [[lpc_unit]], and
+  !> [[parity_unit]])
   subroutine flush_files
     use file_utils, only: flush_output_file
     implicit none
@@ -3806,7 +3800,6 @@ contains
     integer, intent(in) :: istep
     real, intent(in) :: heat_flux
 
-    ! Variables for convergence condition (HJL)
     real :: heat_av_new, heat_av_diff
     integer :: place, iwrite, nwrite_av
     logical :: debug = .false.
@@ -3924,22 +3917,19 @@ contains
 
   end subroutine heating
 
-  !> FIXME : Add documentation
-  !!
-  !! @note is this duplicated in dist_fn and if so why?
+  !> Calculate the time-averaged antenna current \(j_{ext} = k_\perp^2 A_{antenna}\)
   subroutine calc_jext (istep, j_ext)
     use mp, only: proc0
     use dist_fn, only: get_jext
     implicit none
-    !Passed
+    !> Current simulation timestep
     integer, intent (in) :: istep
     !Shouldn't really need intent in here but it's beacuse we zero it before calling calc_jext
     real, dimension(:,:), intent(in out) ::  j_ext
-    !Local 
+
     integer :: i
 
-    !Call routine to calculate density and velocity perturbations
-    call get_jext(j_ext)    
+    call get_jext(j_ext)
 
     !Do averages with a history variable
     if (proc0) then
@@ -4065,7 +4055,7 @@ contains
     if (debug) write(6,*) "get_omegaavg: done"
   end subroutine get_omegaavg
 
-  !> FIXME : Add documentation  
+  !> Summed magnitude of all the fields
   subroutine phinorm (phitot)
     use fields_arrays, only: phinew, aparnew, bparnew
     use theta_grid, only: delthet
@@ -4394,8 +4384,8 @@ contains
 
   end subroutine get_volume_int
 
-  !> FIXME : Add documentation    
-  subroutine correlation_extend (cfnc,phi2extend)
+  !> Calculate the correlation function over the extended domain
+  subroutine correlation_extend (cfnc, phi2extend)
     !    use constants, only: pi
     use fields_arrays, only: phinew
     use theta_grid, only: ntgrid, jacob, delthet
@@ -4500,7 +4490,7 @@ contains
 
   end subroutine correlation_extend
 
-  !> FIXME : Add documentation  
+  !> Calculate the correlation function on the physical domain
   subroutine correlation (cfnc_2pi)
     use kt_grids, only: naky, ntheta0
     use theta_grid, only: ntgrid
