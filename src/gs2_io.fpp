@@ -1753,58 +1753,6 @@ contains
 # endif
   end subroutine nc_eigenfunc
 
-!<DD> Commenting out the following routine as should use
-!     write_phi_over_time, write_apar_over_time etc. to
-!     indicate that we want to write various fields vs time.
-! !MR begin
-!   subroutine nc_write_fields (nout, phinew, aparnew, bparnew)
-!     use convert, only: c2r
-!     use run_parameters, only: fphi, fapar, fbpar
-!     use theta_grid, only: ntgrid
-!     use kt_grids, only: naky, ntheta0
-! # ifdef NETCDF
-!     use netcdf, only: nf90_put_var
-! # endif
-!     complex, dimension (:,:,:), intent (in) :: phinew, aparnew, bparnew
-!     integer, intent (in) :: nout
-! !    real, dimension (2, 2*ntgrid+1, ntheta0, naky, 1) :: ri4
-!     real, dimension (2, 2*ntgrid+1, ntheta0, naky) :: ri3
-!     integer, dimension (5) :: start5, count5
-!     integer :: status
-! # ifdef NETCDF
-!     start5(1) = 1
-!     start5(2) = 1
-!     start5(3) = 1
-!     start5(4) = 1
-!     start5(5) = nout
-    
-!     count5(1) = 2
-!     count5(2) = 2*ntgrid+1
-!     count5(3) = ntheta0
-!     count5(4) = naky
-!     count5(5) = 1
-
-!     if (fphi > zero) then
-!        call c2r (phinew, ri3)
-!        status = nf90_put_var(ncid, phi_t_id, ri3, start=start5, count=count5)
-!        if (status /= NF90_NOERR) call netcdf_error (status, ncid, phi_t_id)
-!     end if
-
-!     if (fapar > zero) then
-!        call c2r (aparnew, ri3)
-!        status = nf90_put_var(ncid, apar_t_id, ri3, start=start5, count=count5)
-!        if (status /= NF90_NOERR) call netcdf_error (status, ncid, apar_t_id)
-!     end if
-
-!     if (fbpar > zero) then
-!        call c2r (bparnew, ri3)
-!        status = nf90_put_var(ncid, bpar_t_id, ri3, start=start5, count=count5)
-!        if (status /= NF90_NOERR) call netcdf_error (status, ncid, bpar_t_id)
-!     end if
-! # endif
-!   end subroutine nc_write_fields
-! !MR end
-
   !> Write various moments to netcdf
   subroutine nc_write_moments (nout, ntot, density, upar, tpar, tperp, qparflux, pperpj1, qpperpj1, ob_midplane) 
     use theta_grid, only: ntgrid
