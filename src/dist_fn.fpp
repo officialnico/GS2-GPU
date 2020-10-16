@@ -5372,7 +5372,7 @@ endif
 
 !    if (kfilter > epsilon(0.0)) call par_filter(antot)
        if (afilter > epsilon(0.0)) antot = antot * exp(-afilter**4*kperp2**2/4.)
-       if(esv) call ensure_single_val_fields_pass(antot) !<DD>
+       if(esv) call ensure_single_val_fields_pass(antot)
     else
        antot=0.
     end if
@@ -5389,7 +5389,7 @@ endif
        wgt = 2.0*beta*spec%z*spec%dens*sqrt(spec%temp/spec%mass)
        call integrate_species (g0, wgt, antota)
 !    if (kfilter > epsilon(0.0)) call par_filter(antota)
-       if(esv) call ensure_single_val_fields_pass(antota) !<DD>
+       if(esv) call ensure_single_val_fields_pass(antota)
     else
        antota=0.
     end if
@@ -5405,7 +5405,7 @@ endif
        wgt = spec%temp*spec%dens
        call integrate_species (g0, wgt, antotp)
 !    if (kfilter > epsilon(0.0)) call par_filter(antotp)
-       if(esv) call ensure_single_val_fields_pass(antotp) !<DD>
+       if(esv) call ensure_single_val_fields_pass(antotp)
     else
        antotp=0.
     end if

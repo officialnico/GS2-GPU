@@ -13,9 +13,7 @@ module gs2_io
   public :: init_gs2_io, nc_eigenfunc, nc_final_fields, nc_final_epar
   public :: nc_final_moments, nc_final_an, nc_finish
   public :: nc_qflux, nc_vflux, nc_pflux, nc_pflux_tormom, nc_loop, nc_loop_moments
-!  public :: nc_loop_vres
   public :: nc_loop_movie, nc_write_moments, nc_exchange
-!<DD>  public :: nc_write_fields
   public :: nc_loop_fullmom, nc_loop_dist, nc_loop_sym, nc_loop_corr, nc_loop_corr_extend
   public :: nc_loop_partsym_tormom, nc_sync
 
@@ -127,9 +125,6 @@ contains
       write_phi_over_time, write_apar_over_time, write_bpar_over_time, &
       write_avg_moments, write_final_moments, write_final_epar, &
       ob_midplane) 
-    !write_fields_over_time added by EGH 08/2009
-!David has made some changes to this subroutine (may 2005) now should 
-!be able to do movies for linear box runs as well as nonlinear box runs.
     use mp, only: proc0
 # ifdef NETCDF
     use mp, only: barrier
@@ -166,12 +161,10 @@ contains
     !################
     !# Update internal flags
 
-    !EGH
     write_phi_t = write_phi_over_time
     write_apar_t = write_apar_over_time
     write_bpar_t = write_bpar_over_time
 
-    ! added by EAB 03/2004 for making movie netcdf files
     my_make_movie = make_movie
     io_write_corr_extend = write_correlation_extend
 
@@ -3181,7 +3174,6 @@ contains
     use species, only: spec
     use netcdf, only: nf90_put_var
     implicit none
-!    real :: betatot
     integer :: status
 
     status = nf90_put_var (ncid, charge_id, spec%z)
@@ -3205,9 +3197,6 @@ contains
     status = nf90_put_var (ncid, spec_type_id, spec%type)
     if (status /= NF90_NOERR) call netcdf_error (status, ncid, spec_type_id)
 
-!    betatot = beta * ...
-!    status = nf90_put_var (ncid, betatot_id, betatot)
-!    if (status /= NF90_NOERR) call netcdf_error (status, ncid_movie, betatot_id)
 # endif
   end subroutine nc_species
   

@@ -40,9 +40,6 @@ module gs2_diagnostics
      module procedure get_fldline_avg_r, get_fldline_avg_c
   end interface get_fldline_avg
 
-  !CMR, 17/11/2009:   read_parameters now public so ingen can USE instead of copy
-  !
-  ! Why are these variables public?  This is not good.
   real, public :: omegatol, omegatinst
   logical, public :: print_line, print_flux_line
   logical, public :: print_summary, write_line, write_flux_line
@@ -62,7 +59,7 @@ module gs2_diagnostics
   logical, public :: dump_check1, dump_check2
   logical, public :: dump_fields_periodically, make_movie
   logical, public :: save_for_restart
-  logical, public :: save_distfn !<DD> Added for saving distribution function
+  logical, public :: save_distfn
   logical, public :: write_symmetry, write_correlation_extend, write_correlation
   logical, public :: write_pflux_sym, write_nl_flux_dist, write_pflux_tormom
   logical :: file_safety_check
@@ -70,9 +67,8 @@ module gs2_diagnostics
   integer, public :: navg, nsave, nwrite_mult, nc_sync_freq
 
   logical, public :: write_phi_over_time, write_apar_over_time, write_bpar_over_time !EGH
-  !>GGH
+
   logical :: write_jext=.true.
-  !<GGH
 
   !> Variables for convergence condition testing
   integer :: trin_istep = 0
@@ -86,15 +82,13 @@ module gs2_diagnostics
   ! _check_ if any outputs are enabled
   logical :: write_any, write_any_fluxes, dump_any
   logical, private :: initialized = .false.
-  ! HJL < moved here so that it can be deallocated
   complex, allocatable, dimension (:,:,:) :: domega
-  ! > HJL
 
   !> Complex frequency, and time-averaged complex frequency
   complex, dimension (:, :), allocatable :: omega, omegaavg
 
-  integer :: out_unit, kp_unit, heat_unit, heat_unit2, lpc_unit
-  integer :: jext_unit   !GGH Additions
+  integer :: out_unit, heat_unit, heat_unit2, lpc_unit
+  integer :: jext_unit
   integer :: phase_unit
   integer :: dump_check1_unit, dump_check2_unit
   integer :: res_unit, res_unit2, parity_unit
@@ -1084,7 +1078,6 @@ contains
     if (proc0) then
        if (write_ascii) then
           call open_output_file (out_unit, ".out")          
-          !          if (write_kpar) call open_output_file (kp_unit, ".kp")
        end if
 
        if (write_cross_phase .and. write_ascii) then
@@ -1267,7 +1260,6 @@ contains
 
     exist = gs2_diagnostics_config%exist
 
-    !
     !CMR, 12/8/2014: 
     ! Ensure write_full_moments_notgc=.false. if (write_moments .and. ob_midplane)
     ! to avoid a conflict.  
@@ -1292,8 +1284,6 @@ contains
     if(fphi.eq.0) write_correlation_extend = .false.
 
     if (.not. save_for_restart) nsave = -1
-    ! changed temporarily for testing -- MAB
-    !       write_avg_moments = write_avg_moments .and. box
     write_avg_moments = write_avg_moments
 
     write_any = write_line .or. write_omega     .or. write_omavg &
@@ -1340,7 +1330,7 @@ contains
     if (write_cerr) call collision_error (phinew, bparnew, last)
     if (write_verr .and. proc0) call finish_weights
 
-    !Close some of the open ascii output files
+    ! Close some of the open ascii output files
     call close_files
 
     if (proc0) then
@@ -1364,19 +1354,17 @@ contains
             fphi, fapar, fbpar, exit_in=.true.)
     end if
 
-    !<DD> Added for saving distribution function
     if (save_distfn) then
        !Convert h to distribution function
        call g_adjust(gnew,phinew,bparnew,fphi,fbpar)
 
        !Save dfn, fields and velocity grids to file
        call gs2_save_for_restart (gnew, user_time, user_dt, vnmult, istatus, &
-            fphi, fapar, fbpar, exit_in=.true.,distfn=.true.)
+            fphi, fapar, fbpar, exit_in=.true., distfn=.true.)
 
        !Convert distribution function back to h
        call g_adjust(gnew,phinew,bparnew,-fphi,-fbpar)
     end if
-    !</DD> Added for saving distribution function
 
     !Finalise the netcdf file
     call nc_finish
@@ -1411,22 +1399,17 @@ contains
 
     if (allocated(h_hist)) deallocate (h_hist, hk_hist, hk)
     if (allocated(j_ext_hist)) deallocate (j_ext_hist)
-    ! EGH only proc0 knows omegahist
     if (proc0 .and. allocated(omegahist)) deallocate (omegahist)
     if (allocated(pflux)) deallocate (pflux, qheat, vflux, vflux_par, vflux_perp, pmflux, qmheat, vmflux, &
          pbflux, qbheat, vbflux, vflux0, vflux1, exchange1, exchange)
     if (allocated(pflux_tormom)) deallocate (pflux_tormom) 
-
 
     if (.not. trin_restart .and. allocated(pflux_avg)) deallocate (pflux_avg, qflux_avg, heat_avg, vflux_avg) ! check, restart always true?
     if (.not. trin_restart .and. allocated(omega)) deallocate(omega, omegaavg)
 
     if (proc0 .and. trin_reset .and. allocated(conv_heat)) deallocate (conv_heat)
 
-    ! HJL <    
-    ! EGH only proc0 has domega
     if (proc0 .and. allocated(domega)) deallocate(domega)
-    ! > HJL
   end subroutine deallocate_arrays
 
   !> Close various text output files
@@ -1559,7 +1542,7 @@ contains
     if (write_cross_phase .and. has_electron_species(spec) .and. write_ascii) call do_write_crossphase(t)
 
     !###########################
-    !<DD> The following large section could do with being moved to separate routines but
+    ! The following large section could do with being moved to separate routines but
     !     at the moment its all quite interlinked which makes this hard.
     !###########################
 
@@ -1675,17 +1658,15 @@ contains
           !          t_old = t
        end if
 
-       !<DD>These are for trinity -- can we detect if this is a trinity run
+       !These are for trinity -- can we detect if this is a trinity run
        !and avoid these broadcasts when not trinity?
        call broadcast (pflux_avg)
        call broadcast (qflux_avg)
        call broadcast (vflux_avg)
-       !</DD>
 
        if (write_hrate) call broadcast (heat_avg)
     end if
 
-    ! DONE
     if (proc0) then
        if (print_flux_line) then
           if (fphi > epsilon(0.0)) then
@@ -1708,8 +1689,6 @@ contains
           end if
        end if
     end if
-
-    ! DONE UP TO HERE
 
     ! Check for convergence
     if (nonlin .and. use_nonlin_convergence) call check_nonlin_convergence(istep, heat_fluxes(1), exit)
@@ -1806,7 +1785,7 @@ contains
                   heat_fluxes, mheat_fluxes, bheat_fluxes, x_qmflux, hflux_tot)
              call nc_exchange (nout, exchange, energy_exchange)
              ! Update the target array in parameter_scan_arrays
-             !<DD>Do you really want the scan parameter to rely on a diagnostic flag?
+             !Do you really want the scan parameter to rely on a diagnostic flag?
              ! below line gives out-of-bounds array for runs inside trinity
              !                  scan_hflux(nout) = hflux_tot
              scan_hflux(mod(nout-1,nstep/nwrite+1)+1) = hflux_tot
@@ -1815,7 +1794,7 @@ contains
                   mom_fluxes, mmom_fluxes, bmom_fluxes, vflux_tot, &
                   vflux_par, vflux_perp, vflux0, vflux1)
              ! Update the target array in parameter_scan_arrays
-             !<DD>Do you really want the scan parameter to rely on a diagnostic flag?
+             !Do you really want the scan parameter to rely on a diagnostic flag?
              ! below line gives out-of-bounds array for runs inside trinity
              !                  scan_momflux(nout) = vflux_tot
              scan_momflux(mod(nout-1,nstep/nwrite+1)+1) = vflux_tot
@@ -1952,7 +1931,7 @@ contains
     end if
 
     fluxfac = 0.5
-    !<DD>This is only correct if running in box mode surely?
+    !This is only correct if running in box mode surely?
     !    I think this should be if(aky(1)==0.0) fluxfac(1)=1.0 but I may be wrong
     fluxfac(1) = 1.0
 
@@ -2025,7 +2004,6 @@ contains
        phi0 = 1.0
     end where
 
-    !Do ascii output
     if (write_ascii) then
        call open_output_file (unit, ".eigenfunc")
        do ik = 1, naky
@@ -2043,7 +2021,6 @@ contains
        call close_output_file (unit)
     end if
 
-    !Do netcdf output
     call nc_eigenfunc (phi0)
   end subroutine do_write_eigenfunc
 
@@ -2060,7 +2037,6 @@ contains
 
     if(.not.proc0) return
 
-    !Do ascii output
     if (write_ascii) then
        call open_output_file (unit, ".fields")
        do ik = 1, naky
@@ -2121,7 +2097,6 @@ contains
        bpar2=0.
     endif
 
-    !Do ascii output
     if(write_ascii)then
        call open_output_file (unit, ".kpar")
        do ig = 1, ntgrid
@@ -2150,8 +2125,6 @@ contains
        call close_output_file (unit)
     endif
 
-    !Currently no netcdf output for this diagnostic.
-
     deallocate (phi2, apar2, bpar2)
   end subroutine do_write_kpar
 
@@ -2172,10 +2145,8 @@ contains
 
     allocate (epar(-ntgrid:ntgrid,ntheta0,naky))
 
-    !Calculate
     call get_epar (phi, apar, phinew, aparnew, epar)
 
-    !Write to ascii
     if (write_ascii) then
        call open_output_file (unit, ".epar")
        do ik = 1, naky
@@ -2192,7 +2163,6 @@ contains
        call close_output_file (unit)
     end if
 
-    !Do netcdf output
     call nc_final_epar (epar)
 
     deallocate (epar)
@@ -2213,9 +2183,9 @@ contains
     complex, dimension (ntheta0, naky) :: dbfac
     integer :: ik, it, ig, unit
 
-    if(.not.proc0) return
-    !Only write to ascii for now so if not write_ascii return
-    if(.not.write_ascii) return
+    if (.not.proc0) return
+
+    if (.not.write_ascii) return
 
     !Calculate db
     do ik = 1, naky
@@ -2244,7 +2214,6 @@ contains
        call close_output_file (unit)
     end if
 
-    !No netcdf output for this diagnostic yet
   end subroutine do_write_final_db
 
   !> Calculate and write the various low-order moments, overwriting existing values
@@ -2392,7 +2361,6 @@ contains
     call getan (antot, antota, antotp)
 
     if (proc0) then
-       !Do ascii output
        if (write_ascii) then
           call open_output_file (unit, ".antot")
           do ik = 1, naky
@@ -2411,7 +2379,6 @@ contains
           call close_output_file (unit)
        end if
 
-       !Do netcdf output
        call nc_final_an (antot, antota, antotp)
     end if
 
@@ -3590,7 +3557,7 @@ contains
     deallocate (gparity) ; allocate (gparity(-ntgrid:ntgrid,ntheta0,naky,nspec))
     ! obtain normalization factor = int over phase space of |g|**2
     call g_adjust (gnew, phinew, bparnew, fphi, fbpar)
-    !<DD>Do all processors need to know the full result here? Only proc0 seems to do any writing.
+    !Do all processors need to know the full result here? Only proc0 seems to do any writing.
     !If not then remove the last two arguments in the following call.
     call integrate_moment (spread(aj0,2,2)*spread(aj0,2,2)*gnew*conjg(gnew), gparity, .true., full_arr=.true.)
     call g_adjust (gnew, phinew, bparnew, -fphi, -fbpar)
@@ -3686,7 +3653,6 @@ contains
     use theta_grid, only: ntgrid
     implicit none
     integer :: it, is
-    !<DD>Should look into making these arrays module level
     complex, dimension (-ntgrid:ntgrid,ntheta0,naky,nspec) :: ntot, density, &
          upar, tpar, tperp, qparflux, pperpj1, qpperpj1
     complex, dimension (ntheta0, nspec) :: ntot00, density00, upar00, tpar00, tperp00
@@ -3695,7 +3661,7 @@ contains
     real, dimension (ntheta0, naky, nspec) :: ntot2_by_mode, ntot20_by_mode
     real, dimension (ntheta0, naky, nspec) :: tpar2_by_mode, tperp2_by_mode
 
-    !<DD>We seem to call this routine a lot in one loop
+    ! We seem to call this routine a lot in one loop
     call getmoms (phinew, bparnew, ntot, density, upar, tpar, tperp, qparflux, pperpj1, qpperpj1)
 
     if (proc0) then
@@ -4012,8 +3978,6 @@ contains
     end if
 
   end subroutine calc_jext
-  !=============================================================================
-  !<GGH
 
   !> A linear estimate of the diffusivity, used for Trinity testing
   function diffusivity()
@@ -4071,7 +4035,7 @@ contains
     if (present(debopt)) debug=debopt
     if (debug) write(6,*) "get_omeaavg: start"
     j = igomega
-    !<DD>The logic below was originally
+    !The logic below was originally
     !    where (abs(phinew(j,:,:)+aparnew(j,:,:)+bparnew(j,:,:)) < epsilon(0.0) &
     !           .or. abs(phi(j,:,:)+apar(j,:,:)+bpar(j,:,:)) < epsilon(0.0))
     !This results in not calculating the frequency whenever the fields drop below epsilon(0.0) [~1d-16 for DP]
