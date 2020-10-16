@@ -412,14 +412,27 @@ module diagnostics_config
      !>
      !> @warning Only in new diagnostics
      logical :: write_density_over_time = .false.
-     !> Write \(\phi\) normalised to its value at the outboard midplane every
-     !> [[gs2_diagnostics_knobs:nwrite]] timesteps
+     !> Write \(\phi, A_\parallel, B_\parallel\) normalised to the value of
+     !> \(\phi\) at the outboard midplane every [[gs2_diagnostics_knobs:nwrite]]
+     !> timesteps.
+     !>
+     !> If [[gs2_diagnostics_knobs:write_ascii]] is enabled, the text file is
+     !> `<runname>.eigenfunc`.
+     !>
+     !> @note The normalising factor for a given \((\theta, k_y)\) point may not
+     !> be exactly \(\phi\) at the outboard midplane if this value is zero
+     !> there. If the adjacent point in \(\theta\) is also zero, then the fields
+     !> will be unnormalised at that \((\theta, k_y)\).
+     !>
+     !> @warning If this option is turned on, the same normalising factor will
+     !> also be used for the text output in
+     !> [[gs2_diagnostics_knobs:write_final_moments]]
      !>
      !> @warning In old diagnostics, this is only done on exit, not every
      !> `nwrite` timesteps!
      !>
-     !> @warning In new diagnostics, this also writes \(A_\parallel\) and
-     !> \(B_\parallel\), both normalised to \(\phi\) at the outboard midplane
+     !> @warning The text output is normalised (see note above), but the netCDF
+     !> output is not
      logical :: write_eigenfunc = .false.
      !> Enable writing \(\phi, A_\parallel, B_\parallel\) every
      !> [[gs2_diagnostics_knobs:nwrite]] timesteps
@@ -458,12 +471,21 @@ module diagnostics_config
      !>
      !> @warning In new diagnostics, this is not written to netCDF!
      logical :: write_final_fields = .false.
-     !> Write various moments (densities, parallel and perpendicular velocities
-     !> and temperatures, and heat and momentum fluxes) at the final
-     !> timestep. If [[gs2_diagnostics_knobs:write_ascii]] is enabled, the file
-     !> suffix is `.fields`
+     !> Write various moments (densities, parallel and perpendicular
+     !> velocities and temperatures, and heat and momentum fluxes) at
+     !> the final timestep. If [[gs2_diagnostics_knobs:write_ascii]]
+     !> is enabled, the file suffix is `.fields` and contains the
+     !> moments, their magnitudes, and field-line averages. The netCDF
+     !> output has only the values.
+     !>
+     !> @warning If [[gs2_diagnostics_knobs:write_eigenfunc]] is
+     !> enabled, then the same normalising factor is used for the
+     !> final moments. Otherwise, the moments are unnormalised.
      !>
      !> @warning In new diagnostics, this is not written to netCDF!
+     !>
+     !> @warning The text output is normalised (see note above), but
+     !> the netCDF output is not
      logical :: write_final_moments = .false.
      !> Write instantaneous fluxes to output file every
      !> [[gs2_diagnostics_knobs:nwrite]] timesteps

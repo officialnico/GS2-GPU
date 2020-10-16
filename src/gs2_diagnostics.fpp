@@ -35,6 +35,7 @@ module gs2_diagnostics
      module procedure get_vol_int_one, get_vol_int_all
   end interface get_vol_int
 
+  !> Calculate the field-line average
   interface get_fldline_avg
      module procedure get_fldline_avg_r, get_fldline_avg_c
   end interface get_fldline_avg
@@ -73,7 +74,7 @@ module gs2_diagnostics
   logical :: write_jext=.true.
   !<GGH
 
-  ! HJL <  Variables for convergence condition testing
+  !> Variables for convergence condition testing
   integer :: trin_istep = 0
   integer :: conv_isteps_converged = 0
   real, allocatable, dimension(:) :: conv_heat
@@ -102,16 +103,16 @@ module gs2_diagnostics
   integer :: conv_max_step
   integer :: conv_nsteps_converged
 
+  !> Frequency time history, size `(navg, ntheta0, naky)`
   complex, dimension (:,:,:), allocatable :: omegahist
-  ! (navg,ntheta0,naky)
 
   !> Heating diagnostics summed over space at the current timestep
   type (heating_diagnostics) :: h
-  !> Heating diagnostics summed over space over the last [[navg]] timesteps
+  !> Heating diagnostics summed over space over the last [[gs2_diagnostics_knobs:navg]] timesteps
   type (heating_diagnostics), dimension(:), save, allocatable :: h_hist
   !> Heating diagnostics as a function of \((\theta, k_y)\) at the current timestep
   type (heating_diagnostics), dimension(:,:), save, allocatable :: hk
-  !> Heating diagnostics as a function of \((\theta, k_y)\) over the last [[navg]] timesteps
+  !> Heating diagnostics as a function of \((\theta, k_y)\) over the last [[gs2_diagnostics_knobs:navg]] timesteps
   type (heating_diagnostics), dimension(:,:,:), save, allocatable :: hk_hist
   !GGH J_external
   real, dimension(:,:,:), allocatable ::  j_ext_hist
@@ -121,7 +122,8 @@ module gs2_diagnostics
 
   real, dimension (:,:,:), allocatable ::  pflux,  vflux, vflux_par, vflux_perp
   real, dimension (:,:,:), allocatable ::  pflux_tormom
-  real, dimension (:,:,:), allocatable :: vflux0, vflux1  ! low flow correction to turbulent momentum flux
+  !> Low-flow correction to turbulent momentum flux
+  real, dimension (:,:,:), allocatable :: vflux0, vflux1
   real, dimension (:,:,:), allocatable :: pmflux, vmflux
   real, dimension (:,:,:), allocatable :: pbflux, vbflux
   real, dimension (:,:,:), allocatable :: exchange1, exchange
@@ -137,6 +139,7 @@ module gs2_diagnostics
   integer :: nout_movie = 1
   integer :: nout_big = 1
   complex :: wtmp_old = 0.
+  !> Does the `gs2_diagnostics_knobs` namelist exist in the input file?
   logical :: exist
 
   !> Used to represent the input configuration of
@@ -381,14 +384,27 @@ module gs2_diagnostics
      !> @warning Only in new diagnostics
      ! logical :: write_density_over_time = .false.
 
-     !> Write \(\phi\) normalised to its value at the outboard midplane every
-     !> [[gs2_diagnostics_knobs:nwrite]] timesteps
+     !> Write \(\phi, A_\parallel, B_\parallel\) normalised to the value of
+     !> \(\phi\) at the outboard midplane every [[gs2_diagnostics_knobs:nwrite]]
+     !> timesteps.
+     !>
+     !> If [[gs2_diagnostics_knobs:write_ascii]] is enabled, the text file is
+     !> `<runname>.eigenfunc`.
+     !>
+     !> @note The normalising factor for a given \((\theta, k_y)\) point may not
+     !> be exactly \(\phi\) at the outboard midplane if this value is zero
+     !> there. If the adjacent point in \(\theta\) is also zero, then the fields
+     !> will be unnormalised at that \((\theta, k_y)\).
+     !>
+     !> @warning If this option is turned on, the same normalising factor will
+     !> also be used for the text output in
+     !> [[gs2_diagnostics_knobs:write_final_moments]]
      !>
      !> @warning In old diagnostics, this is only done on exit, not every
      !> `nwrite` timesteps!
      !>
-     !> @warning In new diagnostics, this also writes \(A_\parallel\) and
-     !> \(B_\parallel\), both normalised to \(\phi\) at the outboard midplane
+     !> @warning The text output is normalised (see note above), but the netCDF
+     !> output is not
      logical :: write_eigenfunc = .false.
      !> Enable writing \(\phi, A_\parallel, B_\parallel\) every
      !> [[gs2_diagnostics_knobs:nwrite]] timesteps
@@ -427,12 +443,21 @@ module gs2_diagnostics
      !>
      !> @warning In new diagnostics, this is not written to netCDF!
      logical :: write_final_fields = .false.
-     !> Write various moments (densities, parallel and perpendicular velocities
-     !> and temperatures, and heat and momentum fluxes) at the final
-     !> timestep. If [[gs2_diagnostics_knobs:write_ascii]] is enabled, the file
-     !> suffix is `.fields`
+     !> Write various moments (densities, parallel and perpendicular
+     !> velocities and temperatures, and heat and momentum fluxes) at
+     !> the final timestep. If [[gs2_diagnostics_knobs:write_ascii]]
+     !> is enabled, the file suffix is `.fields` and contains the
+     !> moments, their magnitudes, and field-line averages. The netCDF
+     !> output has only the values.
+     !>
+     !> @warning If [[gs2_diagnostics_knobs:write_eigenfunc]] is
+     !> enabled, then the same normalising factor is used for the
+     !> final moments. Otherwise, the moments are unnormalised.
      !>
      !> @warning In new diagnostics, this is not written to netCDF!
+     !>
+     !> @warning The text output is normalised (see note above), but
+     !> the netCDF output is not
      logical :: write_final_moments = .false.
      !> Write instantaneous fluxes to output file every
      !> [[gs2_diagnostics_knobs:nwrite]] timesteps
@@ -661,9 +686,10 @@ module gs2_diagnostics
   type(gs2_diagnostics_config_type) :: gs2_diagnostics_config  
 contains
 
-  !> Define NetCDF vars, call real_init, which calls read_parameters; broadcast all the different write flags. 
+  !> Write the diagnostics namelist to file
   subroutine wnml_gs2_diagnostics(unit)
     implicit none
+    !> Unit of an open file to write to
     integer, intent(in) :: unit
     if (.not.exist) return
     write (unit, *)
@@ -713,7 +739,7 @@ contains
     write (unit, fmt="(' /')")       
   end subroutine wnml_gs2_diagnostics
 
-  !> FIXME : Add documentation
+  !> Perform some basic checking of the diagnostic input parameters, and write the results to file
   subroutine check_gs2_diagnostics(report_unit)
     use file_utils, only: run_name
     use nonlinear_terms, only: nonlinear_mode_switch, nonlinear_mode_on
@@ -722,6 +748,7 @@ contains
     use init_g, only : restart_file
     use gs2_save, only: restart_writable
     implicit none
+    !> Unit of an open file to write to
     integer, intent(in) :: report_unit
     logical :: writable
     write (report_unit, *) 
@@ -918,7 +945,9 @@ contains
 
   end subroutine check_gs2_diagnostics
 
-  !> FIXME : Add documentation
+  !> Initialise this module and all its dependencies, including defining NetCDF
+  !> vars, call real_init, which calls read_parameters; broadcast all the
+  !> different write flags.
   subroutine init_gs2_diagnostics (list, nstep, gs2_diagnostics_config_in)
     use theta_grid, only: init_theta_grid
     use kt_grids, only: init_kt_grids, ntheta0, naky
@@ -934,8 +963,13 @@ contains
     use gs2_save, only: restart_writable
     use normalisations, only: init_normalisations
     implicit none
+    !> If true, this is a "list-mode run" and so turn off
+    !> [[gs2_diagnostics_knobs:print_flux_line]] and
+    !> [[gs2_diagnostics_knobs:print_line]] if set
     logical, intent (in) :: list
+    !> Maximum number of steps to take
     integer, intent (in) :: nstep
+    !> Input parameters for this module
     type(gs2_diagnostics_config_type), intent(in), optional :: gs2_diagnostics_config_in    
     integer :: nmovie_tot, nwrite_big_tot
     logical :: writable
@@ -1027,21 +1061,26 @@ contains
     if(write_kpar.or.write_gs) call init_par_filter
   end subroutine init_gs2_diagnostics
 
-  !> FIXME : Add documentation
-  subroutine real_init(list, gs2_diagnostics_config_in)
+  !> Read the input parameters; open the various text output files according to
+  !> the relevant input flags; allocate and zero the module-level flux arrays,
+  !> [[gs2_diagnostics_knobs:omega]] and [[gs2_diagnostics_knobs:omegaavg]]
+  subroutine real_init(is_list_run, gs2_diagnostics_config_in)
     use run_parameters, only: fapar
     use file_utils, only: open_output_file, get_unused_unit
     use kt_grids, only: naky, ntheta0
     use species, only: nspec
     use mp, only: proc0
     implicit none
-    logical, intent (in) :: list
+    !> If true, this is a "list-mode run" and so turn off
+    !> [[gs2_diagnostics_knobs:print_flux_line]] and
+    !> [[gs2_diagnostics_knobs:print_line]] if set
+    logical, intent (in) :: is_list_run
+    !> Input parameters for this module
     type(gs2_diagnostics_config_type), intent(in), optional :: gs2_diagnostics_config_in    
     character(20) :: datestamp, timestamp, zone
 
-    call read_parameters(list, gs2_diagnostics_config_in)
-    
-    !<doc> Open the various ascii output files (depending on the write flags) </doc>
+    call read_parameters(is_list_run, gs2_diagnostics_config_in)
+
     if (proc0) then
        if (write_ascii) then
           call open_output_file (out_unit, ".out")          
@@ -1133,25 +1172,26 @@ contains
 
   end subroutine real_init
 
-  !> FIXME : Add documentation  
-  subroutine read_parameters (list, gs2_diagnostics_config_in)
-    !CMR, 17/11/2009:   namelist gs2_diagnostics_knobs made public
-    !                   so that ingen can just USE it instead of copying it!
-    !
+  !> Read the input parameters for the diagnostics module
+  subroutine read_parameters (is_list_run, gs2_diagnostics_config_in)
     use file_utils, only: input_unit, input_unit_exist
     use theta_grid, only: nperiod, ntheta
-    !    use kt_grids, only: box
     use run_parameters, only: fphi
     use nonlinear_terms, only: nonlin
     implicit none
-    logical, intent (in) :: list
+    !> If true, this is a "list-mode run" and so turn off
+    !> [[gs2_diagnostics_knobs:print_flux_line]] and
+    !> [[gs2_diagnostics_knobs:print_line]] if set
+    logical, intent (in) :: is_list_run
+    !> Configuration for this module, can be used to set new default values or
+    !> avoid reading the input file
     type(gs2_diagnostics_config_type), intent(in), optional :: gs2_diagnostics_config_in
     
     if (present(gs2_diagnostics_config_in)) gs2_diagnostics_config = gs2_diagnostics_config_in
 
     ! Smart defaults
-    if (.not.gs2_diagnostics_config%is_initialised()) then
-       if(nonlin) then
+    if (.not. gs2_diagnostics_config%is_initialised()) then
+       if (nonlin) then
           gs2_diagnostics_config%write_nl_flux = .true.
        end if
     end if
@@ -1236,9 +1276,9 @@ contains
     !Override flags
     if (write_max_verr) write_verr = .true.
 
-    print_summary = (list .and. (print_line .or. print_flux_line)) 
+    print_summary = (is_list_run .and. (print_line .or. print_flux_line))
 
-    if (list) then
+    if (is_list_run) then
        print_line = .false.
        print_flux_line = .false.
     end if
@@ -1267,7 +1307,8 @@ contains
     ntg_out = ntheta/2 + (nperiod-1)*ntheta
   end subroutine read_parameters
 
-  !> FIXME : Add documentation  
+  !> Finalise the diagnostics module, writing final timestep diagnostics and
+  !> closing any open files
   subroutine finish_gs2_diagnostics (istep)
     use mp, only: proc0
     use run_parameters, only: fphi, fapar, fbpar
@@ -1284,6 +1325,7 @@ contains
     use unit_tests, only: debug_message
 
     implicit none
+    !> The current (final) timestep
     integer, intent (in) :: istep
     integer :: istatus
     complex, dimension (ntheta0, naky) :: phi0
@@ -1353,7 +1395,7 @@ contains
     call gs2_diagnostics_config%reset()
   end subroutine finish_gs2_diagnostics
 
-  !> FIXME : Add documentation
+  !> Deallocate the [[gs2_diagnostics]] module-level arrays
   subroutine deallocate_arrays
     use mp, only: proc0
     use job_manage, only: trin_reset, trin_restart
@@ -1387,7 +1429,7 @@ contains
     ! > HJL
   end subroutine deallocate_arrays
 
-  !> FIXME : Add documentation  
+  !> Close various text output files
   subroutine close_files
     use file_utils, only: close_output_file
     use mp, only: proc0
@@ -1843,8 +1885,10 @@ contains
     if (debug) write(6,*) "loop_diagnostics: done"
   end subroutine loop_diagnostics
 
-  !> Calculate [[omegaavg]] for linear simulations or if [[eqzip]] is
-  !> on; otherwise set [[omega]] and [[omegaavg]] to zero
+  !> Calculate [[gs2_diagnostics_knobs:omegaavg]] for linear simulations or if
+  !> [[run_parameters_knobs:eqzip]] is on; otherwise set
+  !> [[gs2_diagnostics_knobs:omega]] and [[gs2_diagnostics_knobs:omegaavg]] to
+  !> zero
   subroutine do_get_omega(istep,debug,exit)
     use mp, only: proc0, broadcast
     use nonlinear_terms, only: nonlin
@@ -1941,7 +1985,10 @@ contains
 
   end subroutine bcast_scan_parameter
 
-  !> FIXME : Add documentation
+  !> Write \(\phi, A_\parallel, B_\parallel\) normalised to the value of
+  !> \(\phi\) at the outboard midplane
+  !>
+  !> Writes to text file `<runname>.eigenfunc` and/or netCDF
   subroutine do_write_eigenfunc(phi0)
     use mp, only: proc0
     use file_utils, only: open_output_file, close_output_file
@@ -1952,6 +1999,8 @@ contains
     use dist_fn, only: def_parity, even
     use run_parameters, only: fapar
     implicit none
+    !> The normalising factor for the fields that is actually used. See
+    !> [[gs2_diagnostics_knobs:write_eigenfunc]] for more details
     complex, dimension (:,:), intent(inout) :: phi0
     integer :: it, ik, ig, unit
 
@@ -1998,7 +2047,7 @@ contains
     call nc_eigenfunc (phi0)
   end subroutine do_write_eigenfunc
 
-  !> FIXME : Add documentation  
+  !> Write \(\phi, A_\parallel, B_\parallel\), overwriting existing values
   subroutine do_write_final_fields
     use mp, only: proc0
     use file_utils, only: open_output_file, close_output_file
@@ -2035,7 +2084,9 @@ contains
     call nc_final_fields
   end subroutine do_write_final_fields
 
-  !> FIXME : Add documentation  
+  !> Write the parallel spectrum of \(\phi, A_\parallel, B_\parallel\), overwriting existing values
+  !>
+  !> @note No netCDF output
   subroutine do_write_kpar
     use mp, only: proc0
     use file_utils, only: open_output_file, close_output_file
@@ -2104,7 +2155,7 @@ contains
     deallocate (phi2, apar2, bpar2)
   end subroutine do_write_kpar
 
-  !> FIXME : Add documentation  
+  !> Calculate and write \(E_\parallel\), overwriting existing values
   subroutine do_write_final_epar
     use mp, only: proc0
     use file_utils, only: open_output_file, close_output_file
@@ -2147,7 +2198,9 @@ contains
     deallocate (epar)
   end subroutine do_write_final_epar
 
-  !> FIXME : Add documentation  
+  !> Calculate and write \(\delta B\), overwriting existing values
+  !>
+  !> @note No netCDF output
   subroutine do_write_final_db
     use file_utils, only: open_output_file, close_output_file
     use mp, only: proc0
@@ -2194,7 +2247,13 @@ contains
     !No netcdf output for this diagnostic yet
   end subroutine do_write_final_db
 
-  !> FIXME : Add documentation
+  !> Calculate and write the various low-order moments, overwriting existing values
+  !>
+  !> Text files contain moments normalised by phase factor (see
+  !> [[gs2_diagnostics_knobs:write_eigenfunc]] for details), the magnitudes, and
+  !> field-line averages.
+  !>
+  !> NetCDF files contain just the full values
   subroutine do_write_final_moments(phi0_in)
     use theta_grid, only: ntgrid, theta
     use kt_grids, only: ntheta0, naky, aky, akx, theta0
@@ -2205,10 +2264,12 @@ contains
     use fields_arrays, only: phinew, bparnew
     use gs2_io, only: nc_final_moments
     implicit none
+    !> Pre-calculated normalising phase factor
+    complex, dimension (:, :), intent(in) :: phi0_in
+
+    complex, dimension (:,:), allocatable :: phi0
     complex, dimension (:,:,:,:), allocatable :: ntot, density, upar, tpar, tperp
     complex, dimension (:,:,:,:), allocatable :: qparflux, pperpj1, qpperpj1
-    complex, dimension (:, :), intent(in) :: phi0_in !Phase calculated
-    complex, dimension (:,:), allocatable :: phi0
     complex :: phi_tmp, ntot_tmp, density_tmp, upar_tmp, tpar_tmp, tperp_tmp
     real, dimension (:, :), allocatable :: phi02
     integer :: is, ik, it, ig, unit
@@ -2312,7 +2373,8 @@ contains
     deallocate (ntot, density, upar, tpar, tperp, qparflux, pperpj1, qpperpj1)
   end subroutine do_write_final_moments
 
-  !> FIXME : Add documentation  
+  !> Write the right-hand sides of the field equations, overwriting existing
+  !> values
   subroutine do_write_final_antot
     use file_utils, only: open_output_file, close_output_file
     use mp, only: proc0
@@ -2664,7 +2726,7 @@ contains
     deallocate (vx, vy, rvx, rvy)
   end subroutine do_write_gs
 
-  !> FIXME : Add documentation
+  !> Write some geometry information to text file `<runname>.g`
   subroutine do_write_geom
     use mp, only: proc0
     use file_utils, only: open_output_file, close_output_file
@@ -3980,7 +4042,7 @@ contains
   !> Calculate the time-averaged complex frequency, check convergence
   !> criterion, and numerical instability criterion.
   !>
-  !> Time average is over previous [[navg]] timesteps
+  !> Time average is over previous [[gs2_diagnostics_knobs:navg]] timesteps
   subroutine get_omegaavg (istep, exit, omegaavg, debopt)
     use kt_grids, only: naky, ntheta0
     use fields_arrays, only: phi, apar, bpar, phinew, aparnew, bparnew
@@ -4231,7 +4293,7 @@ contains
     end if
   end subroutine ensemble_average
 
-  !> FIXME : Add documentation  
+  !> Calculate the field-line average (real values)
   subroutine get_fldline_avg_r (fld_in, fld_out)
     use theta_grid, only: delthet, jacob
     implicit none
@@ -4250,7 +4312,7 @@ contains
 
   end subroutine get_fldline_avg_r
 
-  !> FIXME : Add documentation  
+  !> Calculate the field-line average (complex values)
   subroutine get_fldline_avg_c (fld_in, fld_out)
     use theta_grid, only: delthet, jacob
     implicit none
@@ -4529,7 +4591,7 @@ contains
 
   end subroutine reorder_kx
 
-  !> FIXME : Add documentation    
+  !> Setup the FFTs for calculating the parallel spectrum
   subroutine init_par_filter
     use theta_grid, only: ntgrid
     use gs2_transforms, only: init_zf
@@ -4543,7 +4605,7 @@ contains
 
   end subroutine init_par_filter
 
-  !> FIXME : Add documentation    
+  !> Calculate the parallel spectrum
   subroutine par_spectrum(an, an2)
     use gs2_transforms, only: kz_spectrum
     use theta_grid, only: ntgrid

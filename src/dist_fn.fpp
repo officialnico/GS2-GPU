@@ -5441,8 +5441,10 @@ endif
     complex, dimension (-ntgrid:,:,:,:), intent (out) :: pperpj1
     !> Pressure part of the heat flux. Normalised to \(\frac{n_s T_s^2}{q_s} \frac{n_{ref} T_{ref}^2}{q_{ref}}\)
     complex, dimension (-ntgrid:,:,:,:), intent (out) :: qpperpj1
-    !> Electrostatic potential and parallel magnetic field
-    complex, dimension (-ntgrid:,:,:), intent(in) :: phinew, bparnew
+    !> Electrostatic potential, \(\phi\)
+    complex, dimension (-ntgrid:,:,:), intent(in) :: phinew
+    !> Parallel magnetic field, \(B_\parallel\)
+    complex, dimension (-ntgrid:,:,:), intent(in) :: bparnew
 
     integer :: ik, it, isgn, ie, is, iglo
 
@@ -9415,9 +9417,11 @@ endif
     linked = boundary_option_switch == boundary_option_linked
   end subroutine boundary
 
-  !> FIXME : Add documentation
-  !!
-  !! @note This subroutine only returns epar correctly for linear runs.
+  !> Calculate \(E_\parallel\)
+  !>
+  !> @note This subroutine only returns epar correctly for linear runs.
+  !>
+  !> FIXME: Add equation
   subroutine get_epar (phi, apar, phinew, aparnew, epar)
 
     use theta_grid, only: ntgrid, delthet, gradpar

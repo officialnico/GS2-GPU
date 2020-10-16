@@ -8,11 +8,13 @@ module gs2_heating
   public :: init_htype, zero_htype, del_htype
   public :: avg_h, avg_hk
   public :: hk_repack
-  !GGH Density-velocity perturbations
   public :: dens_vel_diagnostics
   public :: init_dvtype, zero_dvtype, del_dvtype
   public :: avg_dv, avg_dvk
    
+  !> Allocate the array components of [[heating_diagnostics]]
+  !>
+  !> FIXME: Could be replaced with `elemental` constructor
   interface init_htype
      module procedure init_htype_0, init_htype_1, init_htype_2, init_htype_3
   end interface
@@ -60,15 +62,14 @@ module gs2_heating
      real, dimension(:), pointer :: heating    => null()
   end type heating_diagnostics
 
-  !GGH>
-  !> FIXME : Add documentation  
+  !> Density-velocity perturbations
   type :: dens_vel_diagnostics
      !GGH NOTE: Dimension here is for species
      real, dimension(:), pointer :: dvpar  => null()
      real, dimension(:), pointer :: dvperp   => null()
      real, dimension(:), pointer :: dn => null()
   end type dens_vel_diagnostics
-!<GGH
+
 contains
 
   !> FIXME : Add documentation  

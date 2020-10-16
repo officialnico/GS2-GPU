@@ -97,7 +97,7 @@ module gs2_save
 
 contains
 
-  !> FIXME : Add documentation  
+  !> Create and fill the restart files
   subroutine gs2_save_for_restart &
        (g, t0, delt0, vnm, istatus, fphi, fapar, fbpar, exit_in, distfn, fileopt, &
         save_glo_info_and_grids, save_velocities)
@@ -142,16 +142,33 @@ contains
     use unit_tests, only: debug_message
     use gs2_time, only: code_dt, code_dt_prev1, code_dt_prev2
     implicit none
+    !> The distribution function \(g\)
     complex, dimension (-ntgrid:,:,g_lo%llim_proc:), intent (in) :: g
-    real, intent (in) :: t0, delt0
+    !> FIXME: Current simulation time?
+    real, intent (in) :: t0
+    !> FIXME: Current timestep size?
+    real, intent (in) :: delt0
+    !> FIXME: Collisionality multiplier?
     real, dimension (2), intent (in) :: vnm
-    real, intent (in) :: fphi, fapar, fbpar
+    !> Electrostatic potential, \(\phi\)
+    real, intent (in) :: fphi
+    !> Vector potential, \(A_\parallel\)
+    real, intent (in) :: fapar
+    !> Parallel magnetic field, \(B_\parallel\)
+    real, intent (in) :: fbpar
+    !> Last netCDF status: zero on success, non-zero on failure
     integer, intent (out) :: istatus
+    !> FIXME: unused
     logical, intent (in), optional :: exit_in
-    LOGICAL, INTENT (in), optional :: distfn !<DD> Added for saving distribution function
-    character (20), INTENT (in), optional :: fileopt
-    logical, intent (in), optional :: save_glo_info_and_grids ! MRH added to control if layout and diagnostic information is saved
-    logical, intent (in), optional :: save_velocities ! MRH added to control if vpa, vperp information is saved
+    !> If present then will save to "rootname.nc.dfn.proc" and will
+    !> include extra information including velocity and energy grids
+    logical, intent (in), optional :: distfn
+    !> Optional extra filename infix
+    character (20), intent (in), optional :: fileopt
+    !> Control if layout and diagnostic information is saved
+    logical, intent (in), optional :: save_glo_info_and_grids
+    !> Control if \(v_\parallel, v_\perp\) information is saved
+    logical, intent (in), optional :: save_velocities
 # ifdef NETCDF
     character (run_name_size) :: file_proc
     character (10) :: suffix
