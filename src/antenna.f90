@@ -519,6 +519,9 @@ contains
   end function antenna_w
 
   !> Write antenna amplitudes to [[out_unit]]
+  !>
+  !> @warning This writes if [[driver:write_antenna]] is `.false.`
+  !> while [[antenna_amplitudes]] writes if it is `.true.`!
   subroutine dump_ant_amp
     use gs2_time, only: user_time
     use mp, only: proc0
