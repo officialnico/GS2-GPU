@@ -478,7 +478,7 @@ contains
 
   !> FIXME : Add documentation  
   subroutine init_response_matrix
-    use mp, only: barrier
+    use mp, only: barrier, land_allreduce
     use fields_arrays, only: phi, apar, bpar, phinew, aparnew, bparnew
     use theta_grid, only: ntgrid
     use kt_grids, only: naky, ntheta0
@@ -510,6 +510,11 @@ contains
     !Either read the reponse
     if(read_response) then
         call read_response_from_file_imp(could_read = response_was_read)
+
+        ! Ensure we reduce response_was_read across all processors so if _any_
+        ! processors couldn't read the matrices we recalculate on all processors.
+        call land_allreduce(response_was_read)
+
       !elseif(skip_initialisation) then
        !do i = i_class, 1, -1
           !!Pretty sure this barrier is not needed

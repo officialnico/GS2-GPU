@@ -3884,7 +3884,7 @@ contains
 
   !> Routine use to initialise field matrix data
   subroutine init_fields_matrixlocal(tuning_in)
-    use mp, only: proc0, mp_abort
+    use mp, only: proc0, mp_abort, land_allreduce
     implicit none
     logical, optional :: tuning_in
     logical :: tuning
@@ -4021,6 +4021,10 @@ contains
              call cpu_time(te)
              write(dlun,'("--Done in ",F12.4," units")') te-ts
           endif
+
+          ! Ensure we reduce response_was_read across all processors so if _any_
+          ! processors couldn't read the matrices we recalculate on all processors.
+          call land_allreduce(response_was_read)
        end if
 
        !If we weren't able to read the response file, or didn't try to,
