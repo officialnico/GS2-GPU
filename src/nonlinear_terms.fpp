@@ -71,6 +71,11 @@ module nonlinear_terms
   real :: max_vel
   integer :: cfl_req_hand
 
+  !> Variables related to the order based error estimate -- see config documentation
+  real :: error_target
+  integer :: istep_error_start
+  logical :: use_order_based_error
+
 ! for gryfx
   real :: densfac, uparfac, tparfac, tprpfac, qparfac, qprpfac
 
@@ -96,6 +101,12 @@ module nonlinear_terms
      real :: cfl = 0.1
      !> GRYFX only. No documentation available
      real :: densfac = 1.
+     !> Set the error threshold used to determine when the timestep should change if
+     !> [[nonlinear_terms_knobs::use_order_based_error]] is true.
+     real :: error_target = 0.1
+     !> Set the first timestep for which the order based error checks are made if
+     !> [[nonlinear_terms_knobs::use_order_based_error]] is true.
+     integer :: istep_error_start = 30
      !> If `true` (default) then forces the nonlinear source term to
      !> zero in the forbidden region.
      logical :: nl_forbid_force_zero = .true.
@@ -119,6 +130,10 @@ module nonlinear_terms
      real :: tprpfac = 1./2.
      !> GRYFX only. No documentation available
      real :: uparfac = 1./sqrt(2.)
+     !> If true then use an error estimate from comparing the nonlinear source
+     !> calculated using 2nd and 3rd order Adams-Bashforth schemes to control
+     !> the timestep in use. This does not disable the CFL estimate.
+     logical :: use_order_based_error = .false.
      !> Not currently used, should consider removing.  Original
      !> documentation was "Experts only (for secondary/tertiary
      !> calculations)."  which suggests a close relation to the
@@ -296,6 +311,8 @@ contains
     ! Copy out internal values into module level parameters
     cfl = nonlinear_terms_config%cfl
     densfac = nonlinear_terms_config%densfac
+    error_target = nonlinear_terms_config%error_target
+    istep_error_start = nonlinear_terms_config%istep_error_start
     nl_forbid_force_zero = nonlinear_terms_config%nl_forbid_force_zero
     nonlinear_mode = nonlinear_terms_config%nonlinear_mode
     qparfac = nonlinear_terms_config%qparfac
@@ -303,6 +320,7 @@ contains
     tparfac = nonlinear_terms_config%tparfac
     tprpfac = nonlinear_terms_config%tprpfac
     uparfac = nonlinear_terms_config%uparfac
+    use_order_based_error = nonlinear_terms_config%use_order_based_error
     zip = nonlinear_terms_config%zip
 
     exist = nonlinear_terms_config%exist
@@ -370,12 +388,6 @@ contains
 
     real :: error
     real :: target_dt
-    !> Set the error threshold used to determine when the timestep should change
-    !> This should probably be an input parameter
-    real, parameter :: error_target = 0.025
-    !> Set the first timestep for which the order based error checks are made
-    !> This should probably be an input parameter
-    integer, parameter :: istep_error_start = 30
 
     call debug_message(verb, 'nonlinear_terms::add_explicit starting')
 
@@ -435,7 +447,7 @@ contains
 
           ! If the CFL condition hasn't triggered then look at the
           ! order based error
-          if ((.not. reset) .and. (istep > istep_error_start)) then
+          if (use_order_based_error .and. (.not. reset) .and. (istep > istep_error_start)) then
              ! Get the current order based error estimate
              error = estimate_error(g1, g2, g3, code_dt, code_dt_prev1, code_dt_prev2)
              ! Based on the current error estimate and the expected error scaling
@@ -1138,10 +1150,11 @@ contains
     ! we shadow the module level variables here. This is intentional to provide
     ! isolation and ensure we can move this routine to another module easily.
     character(len = 20) :: nonlinear_mode
-    logical :: nl_forbid_force_zero, zip
-    real :: cfl, densfac, qparfac, qprpfac, tparfac, tprpfac, uparfac
+    integer :: istep_error_start
+    logical :: nl_forbid_force_zero, use_order_based_error, zip
+    real :: cfl, densfac, error_target, qparfac, qprpfac, tparfac, tprpfac, uparfac
 
-    namelist /nonlinear_terms_knobs/ cfl, densfac, nl_forbid_force_zero, nonlinear_mode, qparfac, qprpfac, tparfac, tprpfac, uparfac, zip
+    namelist /nonlinear_terms_knobs/ cfl, densfac, error_target, istep_error_start, nl_forbid_force_zero, nonlinear_mode, qparfac, qprpfac, tparfac, tprpfac, uparfac, use_order_based_error, zip
 
     ! Only proc0 reads from file
     if (.not. proc0) return
@@ -1149,6 +1162,8 @@ contains
     ! First set local variables from current values
     cfl = self%cfl
     densfac = self%densfac
+    error_target = self%error_target
+    istep_error_start = self%istep_error_start
     nl_forbid_force_zero = self%nl_forbid_force_zero
     nonlinear_mode = self%nonlinear_mode
     qparfac = self%qparfac
@@ -1156,6 +1171,7 @@ contains
     tparfac = self%tparfac
     tprpfac = self%tprpfac
     uparfac = self%uparfac
+    use_order_based_error = self%use_order_based_error
     zip = self%zip
 
     ! Now read in the main namelist
@@ -1173,6 +1189,8 @@ contains
     ! Now copy from local variables into type members
     self%cfl = cfl
     self%densfac = densfac
+    self%error_target = error_target
+    self%istep_error_start = istep_error_start
     self%nl_forbid_force_zero = nl_forbid_force_zero
     self%nonlinear_mode = nonlinear_mode
     self%qparfac = qparfac
@@ -1180,6 +1198,7 @@ contains
     self%tparfac = tparfac
     self%tprpfac = tprpfac
     self%uparfac = uparfac
+    self%use_order_based_error = use_order_based_error
     self%zip = zip
 
     self%exist = exist
@@ -1200,6 +1219,8 @@ contains
     call self%write_namelist_header(unit_internal)
     call self%write_key_val("cfl", self%cfl, unit_internal)
     call self%write_key_val("densfac", self%densfac, unit_internal)
+    call self%write_key_val("error_target", self%error_target, unit_internal)
+    call self%write_key_val("istep_error_start", self%istep_error_start, unit_internal)
     call self%write_key_val("nl_forbid_force_zero", self%nl_forbid_force_zero, unit_internal)
     call self%write_key_val("nonlinear_mode", self%nonlinear_mode, unit_internal)
     call self%write_key_val("qparfac", self%qparfac, unit_internal)
@@ -1207,6 +1228,7 @@ contains
     call self%write_key_val("tparfac", self%tparfac, unit_internal)
     call self%write_key_val("tprpfac", self%tprpfac, unit_internal)
     call self%write_key_val("uparfac", self%uparfac, unit_internal)
+    call self%write_key_val("use_order_based_error", self%use_order_based_error, unit_internal)
     call self%write_key_val("zip", self%zip, unit_internal)
     call self%write_namelist_footer(unit_internal)
   end subroutine write_nonlinear_terms_config
@@ -1229,6 +1251,8 @@ contains
     class(nonlinear_terms_config_type), intent(in out) :: self
     call broadcast(self%cfl)
     call broadcast(self%densfac)
+    call broadcast(self%error_target)
+    call broadcast(self%istep_error_start)
     call broadcast(self%nl_forbid_force_zero)
     call broadcast(self%nonlinear_mode)
     call broadcast(self%qparfac)
@@ -1236,6 +1260,7 @@ contains
     call broadcast(self%tparfac)
     call broadcast(self%tprpfac)
     call broadcast(self%uparfac)
+    call broadcast(self%use_order_based_error)
     call broadcast(self%zip)
 
     call broadcast(self%exist)
