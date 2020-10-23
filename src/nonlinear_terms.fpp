@@ -436,8 +436,22 @@ contains
           ! If the CFL condition hasn't triggered then look at the
           ! order based error
           if ((.not. reset) .and. (istep > istep_error_start)) then
+             ! Get the current order based error estimate
              error = estimate_error(g1, g2, g3, code_dt, code_dt_prev1, code_dt_prev2)
-             target_dt =code_dt*sqrt(error_target/(error))
+             ! Based on the current error estimate and the expected error scaling
+             ! work out what time step we expect to give us the target error.
+             target_dt =code_dt*sqrt(error_target/(error))*cfl
+
+             ! Update the current "CFL" limit -- really this is the largest timestep
+             ! we think we can take. If we've reached this part of the code then we
+             ! know we're not CFL limited currently. Note, however, the target_dt
+             ! here could exceed our estimate of the cfl limit. We might want to
+             ! consider doing call save_dt_cfl(min(target_dt, code_dt_cfl)).
+             call save_dt_cfl(target_dt)
+
+             ! If our timestep is bigger than our target then we need to flag that
+             ! we want to change the timestep by setting reset.
+             reset = code_dt > target_dt
           end if
           if(reset) then
              return !Return if resetting
