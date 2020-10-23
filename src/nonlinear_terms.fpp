@@ -435,7 +435,7 @@ contains
 
           ! If the CFL condition hasn't triggered then look at the
           ! order based error
-          if (.not. reset) then
+          if ((.not. reset) .and. (istep > istep_error_start)) then
              error = estimate_error(g1, g2, g3, code_dt, code_dt_prev1, code_dt_prev2)
              target_dt =code_dt*sqrt(error_target/(error))
           end if
