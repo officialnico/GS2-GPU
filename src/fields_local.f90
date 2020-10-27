@@ -150,6 +150,7 @@ module fields_local
      procedure :: gfu_finish_send => sc_gfu_finish_send
      procedure :: gfu_finish_recv => sc_gfu_finish_recv
      procedure :: dump_to_file => sc_dump_to_file
+     procedure :: read_from_file => sc_read_from_file
   end type supercell_type
 
   !> This is the next level up of data and represents the ky type.
@@ -1010,6 +1011,63 @@ contains
     deallocate(tmp_arr)
 
   end subroutine sc_dump_to_file
+
+  !> Routine to read the response matrix for this supercell from netcdf file.
+  subroutine sc_read_from_file(self, could_read, suffix)
+    use gs2_save, only: gs2_restore_response
+    use mp, only: sum_allreduce_sub, proc0
+    use fields_arrays, only: get_specific_response_file_name
+    use gs2_time, only: code_dt
+    use file_utils, only: error_unit
+    implicit none
+    !> The instance of the supercell class
+    class(supercell_type), intent(in out) :: self
+    !> Flag to indicate if the file was successfully read
+    logical, intent(out) :: could_read
+    !> If passed then use as part of file suffix
+    character(len=*), optional, intent(in) :: suffix
+
+    complex, dimension(:,:), allocatable :: tmp_arr
+    character(len = 256) :: file_name
+    logical :: file_found
+
+    ! Initialise reading state.
+    could_read = .true.
+
+    ! Construct the expected file name
+    file_name = adjustl(get_specific_response_file_name(self%ik_ind, self%is_ind, code_dt, suffix))
+
+    ! First check if the expected file exists, if not then exit
+    inquire( file = trim(file_name), exist = file_found)
+    if (.not. file_found) then
+       if(proc0) write(error_unit(), &
+            '("Could not find response file ",A,", reverting to calculation.")') trim(file_name)
+       could_read = .false.
+       return
+    end if
+
+    !Now allocate array -- for big problems this might be an issue
+    allocate(tmp_arr(self%nrow,self%ncol))
+    tmp_arr=0.
+
+    !Now if on head proc read
+    if (self%is_head) then
+       call gs2_restore_response(tmp_arr, file_name)
+    end if
+
+    !Now we need to broadcast the data to everyone with supercell.
+    !NOTE: Really we would want a supercell bound method which will do
+    !this so that this module level routine is insensitive to communicators etc.
+    !Furthermore we are lazy and use a sum_allreduce_sub to send data to everyone
+    call sum_allreduce_sub(tmp_arr,self%sc_sub_all%id)
+
+    !Now push array to local storage
+    call self%push_arr_to_rows(tmp_arr)
+
+    !Deallocate
+    deallocate(tmp_arr)
+
+  end subroutine sc_read_from_file
 
   !> Store the field equations at row level
   subroutine sc_store_fq(self,fq,fqa,fqp,ifl_in,it_in,ig_in)
@@ -4304,18 +4362,12 @@ contains
   !> by the head of the supercell.
   !> NOTE: Have to have setup communicators etc.
   subroutine read_response_from_file_local(could_read, suffix)
-    use gs2_save, only: gs2_restore_response
-    use mp, only: sum_allreduce_sub, proc0
-    use fields_arrays, only: get_specific_response_file_name
-    use gs2_time, only: code_dt
-    use file_utils, only: error_unit
     implicit none
+    !> Flag to indicate if all files successfully read
     logical, intent(out) :: could_read
-    character(len=*), optional, intent(in) :: suffix !If passed then use as part of file suffix
-    complex, dimension(:,:), allocatable :: tmp_arr
+    !> If passed then use as part of file suffix
+    character(len=*), optional, intent(in) :: suffix
     integer :: ik, is
-    character(len = 256) :: file_name
-    logical :: file_found
 
     could_read = .true.
 
@@ -4330,37 +4382,9 @@ contains
           !If is isn't local than cycle
           if (.not.fieldmat%kyb(ik)%supercells(is)%is_local) cycle
 
-          file_name = adjustl(get_specific_response_file_name(ik, is, code_dt, suffix))
-
-          ! First check if the expected file exists, if not then exit
-          inquire( file = trim(file_name), exist = file_found)
-          if (.not. file_found) then
-             if(proc0) write(error_unit(), &
-                  '("Could not find response file ",A,", reverting to calculation.")') trim(file_name)
-             could_read = .false.
-             return
-          end if
-
-          !Now allocate array -- for big problems this might be an issue
-          allocate(tmp_arr(fieldmat%kyb(ik)%supercells(is)%nrow,fieldmat%kyb(ik)%supercells(is)%ncol))
-          tmp_arr=0.
-
-          !Now if on head proc read
-          if (fieldmat%kyb(ik)%supercells(is)%is_head) then
-             call gs2_restore_response(tmp_arr, file_name)
-          end if
-
-          !Now we need to broadcast the data to everyone with supercell.
-          !NOTE: Really we would want a supercell bound method which will do
-          !this so that this module level routine is insensitive to communicators etc.
-          !Furthermore we are lazy and use a sum_allreduce_sub to send data to everyone
-          call sum_allreduce_sub(tmp_arr,fieldmat%kyb(ik)%supercells(is)%sc_sub_all%id)
-
-          !Now push array to local storage
-          call fieldmat%kyb(ik)%supercells(is)%push_arr_to_rows(tmp_arr)
-
-          !Deallocate
-          deallocate(tmp_arr)
+          call fieldmat%kyb(ik)%supercells(is)%read_from_file(could_read = could_read, suffix = suffix)
+          ! If we failed to read this file then leave immediately
+          if (.not. could_read) return
        end do
     end do
 
