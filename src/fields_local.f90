@@ -1007,7 +1007,6 @@ contains
        call gs2_save_response(tmp_arr, get_specific_response_file_name(self%ik_ind, self%is_ind, code_dt, suffix))
     endif
 
-    !Deallocate
     deallocate(tmp_arr)
 
   end subroutine sc_dump_to_file
@@ -1064,7 +1063,6 @@ contains
     !Now push array to local storage
     call self%push_arr_to_rows(tmp_arr)
 
-    !Deallocate
     deallocate(tmp_arr)
 
   end subroutine sc_read_from_file
