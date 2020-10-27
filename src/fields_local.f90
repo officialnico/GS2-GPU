@@ -149,6 +149,7 @@ module fields_local
      procedure :: gfu_finish_comms => sc_gfu_finish_comms
      procedure :: gfu_finish_send => sc_gfu_finish_send
      procedure :: gfu_finish_recv => sc_gfu_finish_recv
+     procedure :: dump_to_file => sc_dump_to_file
   end type supercell_type
 
   !> This is the next level up of data and represents the ky type.
@@ -980,6 +981,35 @@ contains
     !Free memory
     deallocate(tmp)
   end subroutine sc_dump
+
+  !> Routine to write the response matrix for this supercell to netcdf file.
+  subroutine sc_dump_to_file(self, suffix)
+    use gs2_save, only: gs2_save_response
+    use fields_arrays, only: get_specific_response_file_name
+    use gs2_time, only: code_dt
+    implicit none
+    !> The instance of the supercell class
+    class(supercell_type), intent(in out) :: self
+    !> If passed then use as part of file suffix
+    character(len=*), optional, intent(in) :: suffix
+    complex, dimension(:,:), allocatable :: tmp_arr
+
+    !Allocate array -- for big problems this might be an issue
+    allocate(tmp_arr(self%nrow,self%ncol))
+
+    !First have to pull all row level data
+    call self%pull_rows_to_arr(tmp_arr)
+
+    !Now save if on head proc -- could probably only allocate tmp_arr and call
+    !pull_rows_to_arr on this head proc as well, at least for now.
+    if(self%is_head)then
+       call gs2_save_response(tmp_arr, get_specific_response_file_name(self%ik_ind, self%is_ind, code_dt, suffix))
+    endif
+
+    !Deallocate
+    deallocate(tmp_arr)
+
+  end subroutine sc_dump_to_file
 
   !> Store the field equations at row level
   subroutine sc_store_fq(self,fq,fqa,fqp,ifl_in,it_in,ig_in)
@@ -4246,12 +4276,9 @@ contains
   !! to file. One file per connected domain. Each written
   !! by the head of the supercell.
   subroutine dump_response_to_file_local(suffix)
-    use gs2_save, only: gs2_save_response
-    use fields_arrays, only: get_specific_response_file_name
-    use gs2_time, only: code_dt
     implicit none
-    character(len=*), optional, intent(in) :: suffix !If passed then use as part of file suffix
-    complex, dimension(:,:), allocatable :: tmp_arr
+    !> If passed then use as part of file suffix
+    character(len=*), optional, intent(in) :: suffix
     integer :: ik, is
 
     !First we have to pull data so that head of each supercell has full data
@@ -4265,20 +4292,8 @@ contains
           !If is isn't local than cycle
           if(.not.fieldmat%kyb(ik)%supercells(is)%is_local) cycle
 
-          !Now allocate array -- for big problems this might be an issue
-          allocate(tmp_arr(fieldmat%kyb(ik)%supercells(is)%nrow,fieldmat%kyb(ik)%supercells(is)%ncol))
-
-          !First have to pull all row level data
-          call fieldmat%kyb(ik)%supercells(is)%pull_rows_to_arr(tmp_arr)
-          
-          !Now save if on head proc -- could probably only allocate tmp_arr and call
-          !pull_rows_to_arr on this head proc as well, at least for now.
-          if(fieldmat%kyb(ik)%supercells(is)%is_head)then
-             call gs2_save_response(tmp_arr, get_specific_response_file_name(ik, is, code_dt, suffix))
-          endif
-
-          !Deallocate
-          deallocate(tmp_arr)
+          !Call supercell bound method to dump response
+          call fieldmat%kyb(ik)%supercells(is)%dump_to_file(suffix)
        enddo
     enddo
 
