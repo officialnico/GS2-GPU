@@ -141,14 +141,6 @@ module fields_local
      procedure :: dump => sc_dump
      procedure :: make_subcom_1 => sc_make_subcom_1
      procedure :: make_subcom_2 => sc_make_subcom_2
-     procedure :: gfu_post_recv => sc_gfu_post_recv
-     procedure :: gfu_post_send => sc_gfu_post_send
-     procedure :: gfu_test_comms => sc_gfu_test_comms
-     procedure :: gfu_test_send => sc_gfu_test_send
-     procedure :: gfu_test_recv => sc_gfu_test_recv
-     procedure :: gfu_finish_comms => sc_gfu_finish_comms
-     procedure :: gfu_finish_send => sc_gfu_finish_send
-     procedure :: gfu_finish_recv => sc_gfu_finish_recv
   end type supercell_type
 
   !> This is the next level up of data and represents the ky type.
@@ -620,163 +612,7 @@ contains
     end if
     !<DD> At this point the head of the supercell has the field update stored in self%tmp_sum
     !all other procs have partial/no data
-
-    !This can be used to populate the empty procs, but is not needed at the moment as we broadcast
-    !the result at the end of getfield_local currently, which turns out to be a lot faster (>~factor 2).
-!    if(self%sc_sub_not_full%nproc.gt.1)call broadcast_sub(self%tmp_sum,0,self%sc_sub_not_full%id)
   end subroutine sc_reduce_tmpsum
-
-  !> Post any non-blocking receives associated with filling the
-  !! empty procs supercells
-  subroutine sc_gfu_post_recv(self)
-    use mp, only: nbrecv
-    implicit none
-    class(supercell_type), intent(inout) :: self
-
-    !Exit if we're not a member of the empty plus head comm
-    if(.not.self%is_local)return
-    if(self%sc_sub_not_full%nproc.le.0) return
-
-    !If we're not proc0 then we should expect to receive
-    !some data, so proc0 should leave
-    if(self%sc_sub_not_full%proc0) return
-
-    !Now we know that we're going to receive one message
-    !from proc0 and store it in self%tmp_sum
-    !Note, we don't tag the message but probably should
-    !(say with is_ind)
-    call nbrecv(self%tmp_sum,0,self%is_ind,self%sc_sub_not_full,self%nb_req_hand(1))
-  end subroutine sc_gfu_post_recv
-
-  !> Post any non-blocking receives associated with filling the
-  !! empty procs supercells
-  subroutine sc_gfu_post_send(self)
-    use mp, only: nbsend
-    implicit none
-    class(supercell_type), intent(inout) :: self
-    integer :: ip
-
-    !Exit if we're not a member of the empty plus head comm
-    if(.not.self%is_local)return
-    if(self%sc_sub_not_full%nproc.le.0) return
-
-    !If we're not proc0 then we don't have anything to send
-    if(.not.self%sc_sub_not_full%proc0) return
-
-    !Now send to all the empty procs
-    do ip=1,self%sc_sub_not_full%nproc-1
-       call nbsend(self%tmp_sum,ip,self%is_ind,self%sc_sub_not_full,self%nb_req_hand(ip))
-    enddo
-  end subroutine sc_gfu_post_send
-
-  !> Check if the non-blocking communications have
-  !! finished and wait until they have
-  subroutine sc_gfu_finish_comms(self)
-    use mp, only: waitall
-    implicit none
-    class(supercell_type), intent(inout) :: self
-
-    !Exit if we're not a member of the empty plus head comm
-    if(.not.self%is_local)return
-    if(self%sc_sub_not_full%nproc.le.0) return
-
-    !Wait
-    if(self%sc_sub_not_full%proc0) then
-       call waitall(self%sc_sub_not_full%nproc-1,self%nb_req_hand)
-    else
-       call waitall(1,self%nb_req_hand)
-    endif
-  end subroutine sc_gfu_finish_comms
-
-  !> Check if the non-blocking recv have
-  !! finished and wait until they have
-  subroutine sc_gfu_finish_recv(self)
-    use mp, only: waitall
-    implicit none
-    class(supercell_type), intent(inout) :: self
-
-    !Exit if we're not a member of the empty plus head comm
-    if(.not.self%is_local)return
-    if(self%sc_sub_not_full%nproc.le.0) return
-
-    !Wait
-    if(.not.self%sc_sub_not_full%proc0) then
-       call waitall(1,self%nb_req_hand)
-    endif
-  end subroutine sc_gfu_finish_recv
-
-  !> Check if the non-blocking send have
-  !! finished and wait until they have
-  subroutine sc_gfu_finish_send(self)
-    use mp, only: waitall
-    implicit none
-    class(supercell_type), intent(inout) :: self
-
-    !Exit if we're not a member of the empty plus head comm
-    if(.not.self%is_local)return
-    if(self%sc_sub_not_full%nproc.le.0) return
-
-    !Wait
-    if(self%sc_sub_not_full%proc0) then
-       call waitall(self%sc_sub_not_full%nproc-1,self%nb_req_hand)
-    endif
-  end subroutine sc_gfu_finish_send
-
-  !> Check if the non-blocking communications have
-  !! finished, if not then exit
-  subroutine sc_gfu_test_comms(self)
-    use mp, only: testall
-    implicit none
-    class(supercell_type), intent(inout) :: self
-    logical :: flag
-
-    !Exit if we're not a member of the empty plus head comm
-    if(.not.self%is_local)return
-    if(self%sc_sub_not_full%nproc.le.0) return
-
-    !Wait
-    if(self%sc_sub_not_full%proc0) then
-       call testall(self%sc_sub_not_full%nproc-1,self%nb_req_hand,flag)
-    else
-       call testall(1,self%nb_req_hand,flag)
-    endif
-  end subroutine sc_gfu_test_comms
-
-  !> Check if the non-blocking recv have
-  !! finished, if not then exit
-  subroutine sc_gfu_test_recv(self)
-    use mp, only: testall
-    implicit none
-    class(supercell_type), intent(inout) :: self
-    logical :: flag
-
-    !Exit if we're not a member of the empty plus head comm
-    if(.not.self%is_local)return
-    if(self%sc_sub_not_full%nproc.le.0) return
-
-    !Test
-    if(.not.self%sc_sub_not_full%proc0) then
-       call testall(1,self%nb_req_hand,flag)
-    endif
-  end subroutine sc_gfu_test_recv
-
-  !> Check if the non-blocking send have
-  !! finished, if not then exit
-  subroutine sc_gfu_test_send(self)
-    use mp, only: testall
-    implicit none
-    class(supercell_type), intent(inout) :: self
-    logical :: flag
-
-    !Exit if we're not a member of the empty plus head comm
-    if(.not.self%is_local)return
-    if(self%sc_sub_not_full%nproc.le.0) return
-
-    !Test
-    if(self%sc_sub_not_full%proc0) then
-       call testall(self%sc_sub_not_full%nproc-1,self%nb_req_hand,flag)
-    endif
-  end subroutine sc_gfu_test_send
     
   !> Convert the extended domain index to ig, it and ifl
   !!
@@ -1480,9 +1316,6 @@ contains
     do is=1,self%nsupercell
        !/Calculate the field update
        call self%supercells(is)%get_field_update(fq,fqa,fqp)
-       !/Now post the non-blocking sends
-!       call self%supercells(is)%gfu_post_send
-!       call self%supercells(is)%gfu_test_recv
     enddo
   end subroutine ky_get_field_update
 
@@ -2252,13 +2085,6 @@ contains
        do is=1,self%kyb(ik)%nsupercell
           if(.not.self%kyb(ik)%supercells(is)%is_local) cycle
           self%kyb(ik)%supercells(is)%tmp_sum=0.0
-!If we wanted to do non-blocking comms then we could pre post receives here
-!for empty procs (i.e. ones not involved in field computation)
-!          if(self%kyb(ik)%supercells(is)%is_empty)then
-!             call self%kyb(ik)%supercells(is)%gfu_post_recv
-!          else
-!             !Do nothing
-!          endif
        enddo
     enddo
 
@@ -2318,9 +2144,6 @@ contains
           if(.not.self%kyb(ik)%is_local) cycle
           do is=1,self%kyb(ik)%nsupercell
              if(.not.self%kyb(ik)%supercells(is)%is_local) cycle
-             
-             !Finalise the receives
-!             call self%kyb(ik)%supercells(is)%gfu_finish_recv
              
              iex=0
              ifl=0
@@ -2392,16 +2215,6 @@ contains
           enddo
        enddo
     endif
-
-!     !Deallocates for the nb send
-!     do ik=1,self%naky
-!        if(.not.self%kyb(ik)%is_local) cycle
-!        do is=1,self%kyb(ik)%nsupercell
-!           if(.not.self%kyb(ik)%supercells(is)%is_local) cycle
-!           call self%kyb(ik)%supercells(is)%gfu_finish_send
-!        enddo
-!     enddo
-
   end subroutine fm_unpack_to_field
 
   !> A routine to reset the object
