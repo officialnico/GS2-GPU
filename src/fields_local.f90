@@ -105,7 +105,6 @@ module fields_local
      complex, dimension(:),allocatable :: tmp_sum !< Work space for field update
      type(comm_type) :: sc_sub_all !< Sub communicator involving all processors with this supercell
      type(comm_type) :: sc_sub_pd !< Sub communicator for all procs with some data but not all of it
-     type(comm_type) :: sc_sub_not_full !< Sub communicator involving all processors with this supercell
      type(comm_type) :: parent_sub !< Sub communicator involving all processors in parent
      integer, dimension(:),allocatable :: nb_req_hand !< For non-blocking broadcast request handle storage
      logical :: initdone !< Have we finished initialising this block?
@@ -716,10 +715,7 @@ contains
        call self%cells(ic)%reset
     enddo
 
-!AJ Free up communicators created for this supercell
-    if(self%sc_sub_not_full%nproc.gt.0) then
-       call free_comm(self%sc_sub_not_full)
-    end if
+    ! Free up communicators created for this supercell
     if(self%sc_sub_all%nproc.gt.0 .and. self%sc_sub_all%id.ne.self%parent_sub%id) then
        call free_comm(self%sc_sub_all)
     end if
@@ -1201,76 +1197,6 @@ contains
     self%head_iproc_pd=0
     if(self%is_head) self%head_iproc_pd=self%sc_sub_pd%iproc
     call sum_allreduce_sub(self%head_iproc_pd,self%sc_sub_all%id)
-
-    !/Now make a subcommunicator involving all empty procs and
-    !head pd proc
-    if(some_empty)then
-       !/Default values
-       colour = mp_undefined
-       key=2
-
-       !/Join if we're empty and NOT proc0
-       !This is done as we handle the filling of proc0
-       !separately and by actively excluding it we aim to
-       !prevent stalls waiting for proc0 to catch up
-       if(self%is_empty.and.(.not.proc0)) colour=1
-
-!        !/Now add in a head proc which actually has data
-!        !We prefer all_local procs over pd procs
-!        if(some_all)then
-!           !NOTE: In the case where there are no partial procs we need
-!           !a way to add in a all_local proc as head instead. This involves
-!           !two steps: 1)Work out if there are no partial procs, 2)Work out
-!           !which is the head all_local proc.
-!           !The easiest way is to make a subcom for all_local procs and just
-!           !force the head to join this not_full_subcom
-!           if(self%is_all_local.and.tmp%proc0)then
-!              colour=1
-!              !/Note we prefer all_local procs to be head
-!              !as these are more likely to be able to send
-!              !early (maybe?)
-!              key=0
-!           endif
-!           !Free the all_local communicator
-!           call free_comm(tmp)
-!        else 
-!           !If there are partial data procs then
-!           !also include the head of that in the subcomm
-!           if(self%sc_sub_pd%proc0)then 
-!              colour=1
-!              key=1
-!           endif
-!        endif
-
-!       if(self%is_head) then
-       if(head_notfull) then
-          colour=1
-          key=0
-       endif
-
-       !Here we use key to make sure the proc with data is proc0
-       call split(colour,key,tmp,self%sc_sub_all%id)
-       if(colour /= mp_undefined)then
-          if(tmp%nproc.gt.1)then
-             !/Store communicator
-             self%sc_sub_not_full=tmp
-             
-             !/Allocate array used to store non blocking
-             !comm handles
-             if(tmp%proc0) then
-                allocate(self%nb_req_hand(tmp%nproc-1))
-             else
-                allocate(self%nb_req_hand(1))
-             endif
-          else
-             call free_comm(tmp)
-          endif
-       endif
-    else
-!       !Free the all_local communicator
-!       if(some_all) call free_comm(tmp)
-    endif
-
   end subroutine sc_make_subcom_2
 
 !------------------------------------------------------------------------
@@ -2568,18 +2494,6 @@ contains
        if(fapar.gt.0) call broadcast(ap)
        if(fbpar.gt.0) call broadcast(bp)
     endif
-
-!     !This is where we deallocate the send part of the non-blocking comms
-!     !for filling the empties
-!     do ik=1,self%naky
-!        if(.not.self%kyb(ik)%is_local) cycle
-!        do is=1,self%kyb(ik)%nsupercell
-!           if(self%kyb(ik)%supercells(is)%sc_sub_not_full%nproc.gt.1)&
-!                call broadcast_sub(self%kyb(ik)%supercells(is)%tmp_sum,0,&
-!                self%kyb(ik)%supercells(is)%sc_sub_not_full%id)
-!        enddo
-!     enddo
-
   end subroutine fm_gather_fields
 
   !> Update the fields using calculated update
@@ -2778,18 +2692,6 @@ contains
                self%kyb(ik)%supercells(is)%sc_sub_pd%proc0,&
                np,ip
 
-          if(self%kyb(ik)%supercells(is)%sc_sub_not_full%nproc.gt.0)then
-             call nproc_comm(self%kyb(ik)%supercells(is)%sc_sub_not_full%id,np)
-             call rank_comm(self%kyb(ik)%supercells(is)%sc_sub_not_full%id,ip)
-          else
-             np=-1
-             ip=-1
-          endif
-          write(unit,'("        ",(" ",A8),2(I8," "),1(L8," "),2(I8," "))') "nfull",&
-               self%kyb(ik)%supercells(is)%sc_sub_not_full%nproc,&
-               self%kyb(ik)%supercells(is)%sc_sub_not_full%iproc,&
-               self%kyb(ik)%supercells(is)%sc_sub_not_full%proc0,&
-               np,ip
           write(unit,'("        ",6(" ",8("-")))')
           write(unit,'()')
        enddo
