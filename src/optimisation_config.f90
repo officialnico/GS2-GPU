@@ -53,27 +53,40 @@ module optimisation_config
      real :: min_efficiency
   end type optimisation_type
 
-  !> Used to represent the input configuration of optimisation
+  !> Used to represent the input configuration for GS2's optimisation
+  !> procedure. When turned on, GS2 performs a scan for the given input file,
+  !> varying different optimisation flags. Results of this scan are reported
+  !> in <runname>.optim. The optimal parameters are stored, allowing a user to
+  !> run the same input file with optimised parameters in the same execution.
+  !> A user can also choose to continue with a less-than-optimal set of
+  !> parameters which satisfy other constraints.
   type, extends(abstract_config_type) :: optimisation_config_type
      ! namelist : optimisation_config
      ! indexed : false     
-     !> FIXME: Add documentation
+     !> When true, automatically continues GS2 to run the input file with the
+     !> optimised parameters.
      logical :: auto = .true.
-     !> FIXME: Add documentation
+     !> Estimate the absolute and relative errors in timing data
+     !> FIXME: Why would we want this to be false? On small core counts it
+     !> doesn't seem like a big overhead.
      logical :: estimate_timing_error = .true.
-     !> FIXME: Add documentation
+     !> The maximum fraction of unused procs to allow in the optimisation
+     !> scan.
      real :: max_imbalance = -1.0
-     !> FIXME: Add documentation
+     !> The maximum number of unused procs to allow in the optimisation scan.
      integer :: max_unused_procs = 0
-     !> FIXME: Add documentation
+     !> When true, use the "advance" timer.
+     !> When false, use the "timestep" timer.
      logical :: measure_all = .false.
-     !> FIXME: Add documentation
+     !> The minimum efficiency (relative to the optimal parameters)
+     !> considered when looking for a constrained set of parameters.
+     !> A negative value implies only the optimal parameters are considered.
      real :: min_efficiency = -1.0
-     !> FIXME: Add documentation
+     !> The number of timestep to use in the timing experiments
      integer :: nstep_measure = 5
-     !> FIXME: Add documentation
+     !> Set true to turn on optimisation procedure
      logical :: on = .false.
-     !> FIXME: Add documentation
+     !> When true, perform a few runs before beginning the timing experiment
      logical :: warm_up = .false.
    contains
      procedure, public :: read => read_optimisation_config
@@ -96,15 +109,24 @@ contains
     if(initialized) return
     initialized = .true.
     call read_parameters(optim, optimisation_config_config_in)
-    call open_output_file(optim%outunit, '.optim')
+    if(optim%on) then
+      call open_output_file(optim%outunit, '.optim')
+    end if
     optim%nproc_max = nproc
   end subroutine init_optimisation_config
 
   subroutine finish_optimisation_config(optim)
+    use file_utils, only: close_output_file
     implicit none
     type(optimisation_type), intent(inout) :: optim
     initialized = .false.
+
+    if(optim%on) then
+      call close_output_file(optim%outunit)
+    end if
+
     call optimisation_config_config%reset()
+
   end subroutine finish_optimisation_config
 
   subroutine read_parameters(optim, optimisation_config_config_in)
