@@ -4320,9 +4320,8 @@ contains
           allocate(tmp_arr(fieldmat%kyb(ik)%supercells(is)%nrow,fieldmat%kyb(ik)%supercells(is)%ncol))
           tmp_arr=0.
 
-          !Now if on head proc read
+          !Now if on head proc read from file
           if(fieldmat%kyb(ik)%supercells(is)%is_head)then
-             !Really we should do this with netcdf but for now we will
              call gs2_restore_response(tmp_arr, file_name)
           endif
 

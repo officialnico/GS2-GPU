@@ -1551,6 +1551,7 @@ contains
           !First initialise "it"
           it=itmin
 
+          !Now make file name
           file_name = adjustl(get_specific_response_file_name(ik, it_to_is(itmin, ik), code_dt, suffix))
 
           ! First check if the expected file exists, if not then exit
@@ -1562,7 +1563,6 @@ contains
              return
           end if
 
-          !Now make file name
           if(proc0)then
              call gs2_restore_response(tmp_arr_full, file_name)
           endif
