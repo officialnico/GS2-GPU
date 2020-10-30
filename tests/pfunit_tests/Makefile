@@ -46,9 +46,9 @@ PFUNIT_TEST_LIST = $(PFUNIT_TEST_DIR)/testSuites.inc
 build_pfunit_library:
 	$(call messageInfo,"Building pFUnit in default location: $(GK_HEAD_DIR)/externals/pFUnit_build/install")
 ifdef USE_MPI
-	@scripts/build_pfunit
+	@scripts/build_pfunit -v ${PFUNIT_VERSION_MAJOR}
 else
-	@scripts/build_pfunit -m
+	@scripts/build_pfunit -v ${PFUNIT_VERSION_MAJOR} -m
 endif
 
 clean_pfunit_library:
