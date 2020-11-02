@@ -890,6 +890,10 @@ contains
     !NOTE: Really we would want a supercell bound method which will do
     !this so that this module level routine is insensitive to communicators etc.
     !Furthermore we are lazy and use a sum_allreduce_sub to send data to everyone
+    !NOTE: The processors which consider this to supercell to be empty (i.e. which
+    !don't have any associated work) shouldn't need to take part in this communication.
+    !If we can promise that only non-empty processors could be the head that should
+    !work fine, provided we have a suitable communicator (sc_sub_pd?).
     call sum_allreduce_sub(tmp_arr,self%sc_sub_all%id)
 
     !Now push array to local storage
