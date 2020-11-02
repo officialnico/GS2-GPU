@@ -885,7 +885,12 @@ contains
     if (.not. file_found) then
        if(proc0) write(error_unit(), &
             '("Could not find response file ",A,", reverting to calculation.")') trim(file_name)
-       could_read = .false.
+       ! Set the flag indicating if we could read the file. Note if this processor
+       ! doesn't require this data (i.e. it considers this empty) then we ignore
+       ! the presence of the file as we don't care. This is mostly important for
+       ! the ky=kx=0 file which may not be present but also isn't required for any
+       ! processor.
+       could_read = .false. .or. self%is_empty
        return
     end if
 
