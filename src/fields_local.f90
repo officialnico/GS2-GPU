@@ -816,6 +816,15 @@ contains
   end subroutine sc_dump
 
   !> Routine to write the response matrix for this supercell to netcdf file.
+  !>
+  !> @note Only the head processor actually writes to file. However, in current
+  !> use we only call this routine on processors which have this supercell local
+  !> and which don't consider it empty. This is usually ok, but for box runs the
+  !> mode with ky=kx=0 (super)cell is forced to be considered empty which means 
+  !> that, as it stands, this supercell won't be dumped here (although it is for
+  !> the fields_implicit approach). This could cause issues for restoring these
+  !> response matrices as we end up recalculating these if we can't load any
+  !> expected file. As such we have to be careful how we deal with this matrix.
   subroutine sc_dump_to_file(self, suffix)
     use gs2_save, only: gs2_save_response
     use fields_arrays, only: get_specific_response_file_name
