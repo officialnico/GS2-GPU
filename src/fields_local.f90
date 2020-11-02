@@ -836,6 +836,9 @@ contains
     character(len=*), optional, intent(in) :: suffix
     complex, dimension(:,:), allocatable :: tmp_arr
 
+    ! Exit early if we're not involved in this supercell
+    if(.not.self%is_local) return
+
     !Allocate array -- for big problems this might be an issue
     allocate(tmp_arr(self%nrow,self%ncol))
 
