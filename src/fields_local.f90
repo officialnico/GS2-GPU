@@ -3889,6 +3889,19 @@ contains
           endif
        endif
        
+       !Dump response to file
+       if(dump_response)then
+          if(proc0.and.debug)then
+             write(dlun,'("Dumping to file.")')
+             call cpu_time(ts)
+          endif
+          call dump_response_to_file_local
+          if(proc0.and.debug) then
+             call cpu_time(te)
+             write(dlun,'("--Done in ",F12.4," units")') te-ts
+          endif
+       endif
+
     endif
     !Now write debug data
 !    call fieldmat%write_debug_data
