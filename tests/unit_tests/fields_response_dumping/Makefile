@@ -27,6 +27,10 @@ $(call messageOp,"Checking ","\\t:",$(1))
 @grep "Could not find response file" $(1).error ; if test "$$?" == 0; then $(FAILCOMMAND) ; else $(PASSCOMMAND) ;  fi
 endef
 
+ifndef USE_NETCDF
+all:
+	$(call SKIPCOMMAND,compiled without NetCDF library; compile with USE_NETCDF=on to run this test)
+else
 all: ${BINDIR}/gs2
 	@$(MKDIR) local
 	@$(MKDIR) implicit
@@ -53,5 +57,6 @@ all: ${BINDIR}/gs2
 	$(call TEST_FIELDS_RESPONSE_DUMPING_TEST,test_fields_response_dumping,test_fields_response_dumping_implicit_dump.out.nc,test_fields_response_dumping_local_read_from_implicit.out.nc)
 	$(call TEST_FIELDS_RESPONSE_CHECK_READ,test_fields_response_dumping_local_read_from_implicit)
 	@-rm -rf local/ implicit/
+endif
 endif
 endif
