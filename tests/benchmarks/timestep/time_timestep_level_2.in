@@ -59,7 +59,7 @@ layout = 'xyles'
 !/
 
 &le_grids_knobs
-  negrid = 8
+  negrid = 16
   ngauss = 5
 /
 
@@ -73,7 +73,7 @@ layout = 'xyles'
 
 &theta_grid_parameters
   nperiod = 1
-  ntheta = 10
+  ntheta = 170
 /
 
 &dist_fn_species_knobs_1
@@ -89,8 +89,8 @@ grid_option="box"
 /
 
 &kt_grids_box_parameters
-ny = 128
-nx = 96
+ny = 192
+nx = 204
 y0=10.0
 x0=10.0
 jtwist = 6
@@ -119,4 +119,9 @@ nonlinear_mode = "on"
  faperp = 0.0 ! Multiplies A_perp. Use 1 for high beta, 0 otherwise. Deprecated: use fbpar instead
  !delt = 0.05 ! Time step
  !nstep = 600 ! Maximum number of timesteps
+/
+
+&ingen_knobs
+ ncut = 500000
+ npmax = 500000
 /
