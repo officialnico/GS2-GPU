@@ -488,6 +488,7 @@ contains
     use gs2_layouts, only: init_fields_layouts, f_lo
     use gs2_layouts, only: init_jfields_layouts
     use prof, only: prof_entering, prof_leaving
+    use file_utils, only: error_unit
     implicit none
     integer :: ig, ifield, it, ik, i, m, n
     complex, dimension(:,:), allocatable :: am
@@ -514,6 +515,8 @@ contains
         ! Ensure we reduce response_was_read across all processors so if _any_
         ! processors couldn't read the matrices we recalculate on all processors.
         call land_allreduce(response_was_read)
+        if((.not. response_was_read) .and. proc0) write(error_unit(), &
+             '("Could not find response file so reverting to calculation.")')
 
       !elseif(skip_initialisation) then
        !do i = i_class, 1, -1
