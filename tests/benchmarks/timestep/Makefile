@@ -5,6 +5,9 @@ INPUTFILE=time_timestep_level_1.in
 ifeq "$(BENCHMARK_LEVEL)" "2"
 INPUTFILE=time_timestep_level_2.in
 endif
+ifeq "$(BENCHMARK_LEVEL)" "3"
+INPUTFILE=time_timestep_level_3.in
+endif
 
 all: time_timestep 
 	for d in $(NTESTPROCS); \
