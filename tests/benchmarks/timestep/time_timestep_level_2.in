@@ -73,7 +73,7 @@ layout = 'xyles'
 
 &theta_grid_parameters
   nperiod = 1
-  ntheta = 10
+  ntheta = 42
 /
 
 &dist_fn_species_knobs_1
@@ -89,7 +89,7 @@ grid_option="box"
 /
 
 &kt_grids_box_parameters
-ny = 128
+ny = 72
 nx = 96
 y0=10.0
 x0=10.0
