@@ -10,6 +10,8 @@ The executable separately measures the time taken for
 The timings are stored in `timing` files whose roots are `time_initialization`
 and `time_advance` respectively.
 
+**Note.** To benchmark the initialization time only, set `nstep=0`.
+
 These benchmarks are run using a single executable for efficiency. We cannot
 measure the time for complete gs2 timesteps without first initializing the
 code. This initialization can be costly for larger benchmarks, so it makes
