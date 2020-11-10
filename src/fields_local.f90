@@ -1050,7 +1050,7 @@ contains
 
   !> Create primary (top level) sub communicators
   subroutine sc_make_subcom_1(self)
-    use mp, only: comm_type, split, free_comm, mp_undefined
+    use mp, only: comm_type, split, free_comm, mp_undefined, sum_allreduce_sub
     implicit none
     class(supercell_type), intent(inout) :: self
     integer :: ic, colour
@@ -1058,25 +1058,29 @@ contains
 
     !/First make a subcommunicator involving any procs
     !which can see this supercell
-    colour = mp_undefined
+    colour = 0
     if(self%is_local) colour = 1
-    call split(colour,tmp,self%parent_sub%id)
-    !Note we only store the subcom for those procs which will use it
-    !this ensures an error will occur if we try to use the subcom in
-    !the wrong place
-    if(self%is_local)then
-       !Here we check if the new subcom has same number of members as
-       !parent, if so we can carry on using the parent instead
-       if(tmp%nproc.eq.self%parent_sub%nproc) then
-          self%sc_sub_all=self%parent_sub
-          call free_comm(tmp)
-       else
-          self%sc_sub_all=tmp
-       endif
+    !Here we check if the new subcom has same number of members as
+    !parent, if so we can carry on using the parent instead
+    call sum_allreduce_sub(colour, self%parent_sub%id)
+
+    if (colour .eq. self%parent_sub%nproc) then
+       self%sc_sub_all=self%parent_sub
     else
-       !If we can't see any of this object then 
-       !return
-       return
+       colour = mp_undefined
+       if(self%is_local) colour = 1
+
+       call split(colour,tmp,self%parent_sub%id)
+       !Note we only store the subcom for those procs which will use it
+       !this ensures an error will occur if we try to use the subcom in
+       !the wrong place
+       if(self%is_local)then
+          self%sc_sub_all=tmp
+       else
+          !If we can't see any of this object then
+          !return
+          return
+       endif
     endif
 
     !Now make the supercell sub communicators
@@ -1353,31 +1357,32 @@ contains
 
   !> Create the primary subcommunicators
   subroutine ky_make_subcom_1(self)
-    use mp, only: comm_type, split, free_comm, mp_undefined
+    use mp, only: comm_type, split, free_comm, mp_undefined, sum_allreduce_sub
     implicit none
     class(ky_type), intent(inout) :: self
     integer :: is, colour
     type(comm_type) :: tmp
-
     !/First make a subcommunicator involving any procs
     !which can see this ky block
-    colour = mp_undefined
+    colour = 0
     if(self%is_local) colour = 1
-    call split(colour,tmp,self%parent_sub%id)
-    !Note we only store the subcom for those procs which will use it
-    !this ensures an error will occur if we try to use the subcom in
-    !the wrong place
-    if(self%is_local)then
-       if(tmp%nproc.eq.self%parent_sub%nproc) then
+    call sum_allreduce_sub(colour, self%parent_sub%id)
+
+    if ( colour .eq. self%parent_sub%nproc) then
           self%ky_sub_all=self%parent_sub
-          call free_comm(tmp)
-       else
-          self%ky_sub_all=tmp
-       endif
     else
-       !If we can't see any of this object then
-       !return
-       return
+       colour = mp_undefined
+       if(self%is_local) colour = 1
+       call split(colour,tmp,self%parent_sub%id)
+
+       !Note we only store the subcom for those procs which will use it
+       !this ensures an error will occur if we try to use the subcom in
+       !the wrong place
+       if(self%is_local)then
+          self%ky_sub_all=tmp
+       else
+          return
+       endif
     endif
 
     !Now make the supercell sub communicators
