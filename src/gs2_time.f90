@@ -146,7 +146,7 @@ contains
   !> available up to a maximum of 3rd order. The coefficients
   !> are generalised for variable timestep.
   function get_adams_bashforth_coefficients() result(coefficients)
-    use ieee_arithmetic, only: ieee_quiet_nan
+    use ieee_arithmetic, only: ieee_quiet_nan, ieee_value
     implicit none
     !> The result contains up to three coefficients. The first entry
     !> corresponds to the coefficient for the latest source term, the
@@ -160,7 +160,7 @@ contains
     ! without checking the current order. This might tidy up
     ! later code, but would come at the expense of unnecessary
     ! computation so we don't opt for that currently.
-    coefficients = ieee_quiet_nan
+    coefficients = ieee_value(coefficients, ieee_quiet_nan)
 
     select case (time_history_available())
     case (3) !Most common case - 3rd order coefficients
