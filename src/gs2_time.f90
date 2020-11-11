@@ -136,7 +136,7 @@ contains
        time_history_available =  3
     else if (code_dt_prev1 .ne. dt_not_set) then
        time_history_available =  2
-    else
+    else !Note here we assume code_dt is always set
        time_history_available =  1
     endif
   end function time_history_available
@@ -167,7 +167,7 @@ contains
        ! see Tatsuno & Dorland, Physics of Plasmas 13, 092107 (2006)
        ! http://www.cscamm.umd.edu/publications/TatsunoDorland-PoP06_CS-06-11.pdf
        ! if code_dt = code_dt_prev1 = code_dt_prev2, this reduces to usual AB3
-       ! coefficients 23/12, 4/3 and 5/12.
+       ! coefficients 23/12, -4/3 and 5/12.
        coefficients(1) = (((code_dt + &
             code_dt_prev1)**2/code_dt_prev1)*( &
             (code_dt+code_dt_prev1)/3. + code_dt_prev2/2. )  - &
