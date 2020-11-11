@@ -4031,7 +4031,7 @@ contains
     complex, dimension (-ntgrid:,:,:), intent (in) :: phi,    apar,    bpar
     complex, dimension (-ntgrid:,:,:), intent (in) :: phinew, aparnew, bparnew
     integer, intent (in) :: nstep_available
-    real, dimension(3), intent(in) :: ab_coefficients
+    real, dimension(:), intent(in) :: ab_coefficients
     integer, intent (in) :: isgn, iglo, ik, it, il, ie, is
     complex, intent (in) :: sourcefac
     complex, dimension (-ntgrid:), intent (out) :: source
@@ -4329,7 +4329,7 @@ contains
     complex, dimension (-ntgrid:,:,:), intent (in) :: phi,    apar,    bpar
     complex, dimension (-ntgrid:,:,:), intent (in) :: phinew, aparnew, bparnew
     integer, intent (in) :: nstep_available
-    real, dimension(3), intent(in) :: ab_coefficients
+    real, dimension(:), intent(in) :: ab_coefficients
     integer, intent (in) :: iglo, ik, it, il, ie, is
     complex, intent (in) :: sourcefac
     complex, dimension (-ntgrid:,:), intent (out) :: source
@@ -4549,7 +4549,7 @@ contains
     integer, intent (in) :: istep
     integer, intent (in) :: iglo
     complex, intent (in) :: sourcefac
-    real, dimension(3) :: ab_coefficients
+    real, dimension(:), allocatable :: ab_coefficients
     integer :: ig, ik, it, il, ie, isgn, is
     integer :: ilmin
     complex :: beta1
@@ -6628,7 +6628,7 @@ endif
     character(len = 20), parameter :: extension = '.source'
     integer :: nstep_available, istatus
     integer :: iglo, ik, it, il, ie, is, isgn
-    real, dimension(3) :: ab_coefficients
+    real, dimension(:), allocatable :: ab_coefficients
     complex, parameter :: sourcefac = 0.0
 
     allocate(gtmp(-ntgrid:ntgrid, 2, g_lo%llim_proc:g_lo%ulim_alloc))

@@ -146,21 +146,15 @@ contains
   !> available up to a maximum of 3rd order. The coefficients
   !> are generalised for variable timestep.
   function get_adams_bashforth_coefficients() result(coefficients)
-    use ieee_arithmetic, only: ieee_quiet_nan, ieee_value
     implicit none
     !> The result contains up to three coefficients. The first entry
     !> corresponds to the coefficient for the latest source term, the
     !> second entry corresponds to the coefficient for the previous source
     !> term and the last entry is for the oldest source term.
-    real, dimension(3) :: coefficients
+    real, dimension(:), allocatable :: coefficients
 
-    ! Default coefficients to ieee_quiet_nan so it is clear
-    ! if we use an unset value. Another option would be 0
-    ! so that later code can just use all three coefficients
-    ! without checking the current order. This might tidy up
-    ! later code, but would come at the expense of unnecessary
-    ! computation so we don't opt for that currently.
-    coefficients = ieee_value(coefficients, ieee_quiet_nan)
+    ! We have one coefficient for each point of history we keep
+    allocate(coefficients(time_history_available()))
 
     select case (time_history_available())
     case (3) !Most common case - 3rd order coefficients
