@@ -12,6 +12,7 @@ module gs2_time
   public :: save_dt_min, save_dt, save_dt_cfl, write_dt
   public :: init_tstart, init_delt
   public :: code_dt_cfl, code_dt_min, user2code
+  public :: get_adams_bashforth_coefficients
 
   real, parameter :: dt_not_set = -1.0
   real :: user_dt, code_dt 
@@ -125,9 +126,9 @@ contains
   end subroutine user2code
 
   !> Reports how many previous time steps are available
-  !! by checking if the previous code_dt values have been
-  !! set to anything. Note we assume that if a time step is
-  !! set then all more recent values have also been set.
+  !> by checking if the previous code_dt values have been
+  !> set to anything. Note we assume that if a time step is
+  !> set then all more recent values have also been set.
   function time_history_available()
     implicit none
     integer :: time_history_available
@@ -139,4 +140,58 @@ contains
        time_history_available =  1
     endif
   end function time_history_available
+
+  !> Returns the current set of Adams Bashforth coefficients.
+  !> The order is determined by how much time history we have
+  !> available up to a maximum of 3rd order. The coefficients
+  !> are generalised for variable timestep.
+  function get_adams_bashforth_coefficients() result(coefficients)
+    use ieee_arithmetic, only: ieee_quiet_nan
+    implicit none
+    !> The result contains up to three coefficients. The first entry
+    !> corresponds to the coefficient for the latest source term, the
+    !> second entry corresponds to the coefficient for the previous source
+    !> term and the last entry is for the oldest source term.
+    real, dimension(3) :: coefficients
+
+    ! Default coefficients to ieee_quiet_nan so it is clear
+    ! if we use an unset value. Another option would be 0
+    ! so that later code can just use all three coefficients
+    ! without checking the current order. This might tidy up
+    ! later code, but would come at the expense of unnecessary
+    ! computation so we don't opt for that currently.
+    coefficients = ieee_quiet_nan
+
+    select case (time_history_available())
+    case (3) !Most common case - 3rd order coefficients
+       ! see Tatsuno & Dorland, Physics of Plasmas 13, 092107 (2006)
+       ! http://www.cscamm.umd.edu/publications/TatsunoDorland-PoP06_CS-06-11.pdf
+       ! if code_dt = code_dt_prev1 = code_dt_prev2, this reduces to usual AB3
+       ! coefficients 23/12, 4/3 and 5/12.
+       coefficients(1) = (((code_dt + &
+            code_dt_prev1)**2/code_dt_prev1)*( &
+            (code_dt+code_dt_prev1)/3. + code_dt_prev2/2. )  - &
+            code_dt_prev1*(code_dt_prev1/3. + code_dt_prev2/2.) ) / &
+            (code_dt*(code_dt_prev1 + code_dt_prev2))
+
+       coefficients(2) = - code_dt * ( code_dt/3. + &
+            (code_dt_prev1+code_dt_prev2)/2. ) / &
+            (code_dt_prev1*code_dt_prev2)
+
+       coefficients(3) = code_dt * ( code_dt/3. + &
+            code_dt_prev1/2. ) / ( &
+            code_dt_prev2*(code_dt_prev1+code_dt_prev2) )
+
+    case (2) !2nd order coefficients
+
+       coefficients(1) = (0.5*code_dt + code_dt_prev1) / code_dt_prev1
+
+       coefficients(2) = -0.5*code_dt / code_dt_prev1
+
+    case (1) !1st order coefficients - this is just explicit Euler
+
+       coefficients(1) = 1.0
+    end select
+
+  end function get_adams_bashforth_coefficients
 end module gs2_time
