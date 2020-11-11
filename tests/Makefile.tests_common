@@ -11,16 +11,16 @@ include $(GK_HEAD_DIR)/Makefile.utils
 
 .c.o:
 	$(call messageOp,"Compiling C","\\t:",$<)
-	$(QUIETSYM)$(CC) $(CFLAGS) -I$(GK_HEAD_DIR) -c $< 
+	$(QUIETSYM)$(CC) $(CFLAGS) $(CPPFLAGS) -I$(GK_HEAD_DIR) -c $< 
 
 ifdef ONE_STEP_PP
 .fpp.o:
 	$(call messageOp,"Compiling and preprocessing","\\t:",$<)
-	$(QUIETSYM)$(FC) $(CPPFLAGS) $(F90FLAGS) -I$(GK_HEAD_DIR) -c $< 
+	$(QUIETSYM)$(FC) $(FPPFLAGS) $(F90FLAGS) -I$(GK_HEAD_DIR) -c $< 
 else
 .fpp.f90:
 	$(call messageOp,"Preprocessing","\\t:",$<)
-	$(QUIETSYM)$(CPP) $(FPPFLAGS) $(CPPFLAGS) -I$(GK_HEAD_DIR) $< $@
+	$(QUIETSYM)$(CPP) $(FPPFLAGS) -I$(GK_HEAD_DIR) $< $@ 
 endif
 
 # This prevents error messages like m2c: Command not found
