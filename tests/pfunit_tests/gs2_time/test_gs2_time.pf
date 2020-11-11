@@ -39,10 +39,9 @@ contains
   subroutine test_get_adams_bashforth_coefficients(this)
     !< Tests the Adams Bashforth coefficients for constant time step
     use gs2_time, only: get_adams_bashforth_coefficients, update_time, save_dt
-    use ieee_arithmetic, only: ieee_is_nan
     implicit none
     class(MPITestMethod), intent(inout) :: this
-    real, dimension(3) :: ab_coefficients
+    real, dimension(:), allocatable :: ab_coefficients
     !First reset the module state
     call reset_gs2_time
 
@@ -51,25 +50,24 @@ contains
 
     !Get 1st order coefficients
     ab_coefficients = get_adams_bashforth_coefficients()
-
+    @assertEqual(size(ab_coefficients), 1, message="1st Order Coefficient size")
     @assertEqual(ab_coefficients(1), 1.0, tolerance=tolerance, message="1st Order 1st Coefficient")
-    @assertTrue(ieee_is_nan(ab_coefficients(2)), message="1st Order 2nd Coefficient")
-    @assertTrue(ieee_is_nan(ab_coefficients(3)), message="1st Order 3rd Coefficient")
 
     !Now set another timestep
     call update_time
 
     !Get 2nd order coefficients
     ab_coefficients = get_adams_bashforth_coefficients()
+    @assertEqual(size(ab_coefficients), 2, message="2nd Order Coefficient size")
     @assertEqual(ab_coefficients(1), 1.5, tolerance=tolerance, message="2nd Order 1st Coefficient")
     @assertEqual(ab_coefficients(2), -0.5, tolerance=tolerance, message="2nd Order 2nd Coefficient")
-    @assertTrue(ieee_is_nan(ab_coefficients(3)), message="2nd Order 3rd Coefficient")
 
     !Now set another timestep
     call update_time
 
     !Get 3rd order coefficients
     ab_coefficients = get_adams_bashforth_coefficients()
+    @assertEqual(size(ab_coefficients), 3, message="3rd Order Coefficient size")
     @assertEqual(ab_coefficients(1), 23./12., tolerance=tolerance, message="3rd Order 1st Coefficient")
     @assertEqual(ab_coefficients(2), -4./3., tolerance=tolerance, message="3rd Order 2nd Coefficient")
     @assertEqual(ab_coefficients(3), 5./12., tolerance=tolerance, message="3rd Order 3rd Coefficient")
