@@ -4010,7 +4010,7 @@ contains
 
   !> FIXME : Add documentation
   subroutine get_source_term &
-       (phi, apar, bpar, phinew, aparnew, bparnew, nstep_available, &
+       (phi, apar, bpar, phinew, aparnew, bparnew, include_explicit, &
         ab_coefficients, isgn, iglo,ik,it,il,ie,is, sourcefac, source)
 #ifdef LOWFLOW
     use dist_fn_arrays, only: hneoc, vparterm, wdfac, wstarfac, wdttpfac
@@ -4030,7 +4030,7 @@ contains
     implicit none
     complex, dimension (-ntgrid:,:,:), intent (in) :: phi,    apar,    bpar
     complex, dimension (-ntgrid:,:,:), intent (in) :: phinew, aparnew, bparnew
-    integer, intent (in) :: nstep_available
+    logical, intent (in) :: include_explicit
     real, dimension(:), intent(in) :: ab_coefficients
     integer, intent (in) :: isgn, iglo, ik, it, il, ie, is
     complex, intent (in) :: sourcefac
@@ -4140,13 +4140,12 @@ contains
              end do
           endif
 
+          if (include_explicit) then
 #ifndef LOWFLOW
           ! add in nonlinear terms
           if (nonlin) then
 #endif
-             select case (nstep_available)
-             case (0)
-                ! nothing
+             select case (size(ab_coefficients))
              case (1)
                 do ig = -ntgrid, ntgrid-1
                    if (il < ittp(ig)) cycle
@@ -4160,7 +4159,7 @@ contains
                         ab_coefficients(1)*gexp_1(ig,isgn,iglo) + &
                         ab_coefficients(2)*gexp_2(ig,isgn,iglo))
                 end do
-             case default
+             case (3)
                 do ig = -ntgrid, ntgrid-1
                    if (il < ittp(ig)) cycle
                    source(ig) = source(ig) + 0.5*code_dt*( &
@@ -4172,6 +4171,7 @@ contains
 #ifndef LOWFLOW
           end if
 #endif
+          end if
        end if
     end if
 
@@ -4271,14 +4271,12 @@ contains
 #endif
       end do
 
-
+      if (include_explicit) then
 #ifndef LOWFLOW
           ! add in nonlinear terms
           if (nonlin) then
 #endif
-             select case (nstep_available)
-             case (0)
-                ! nothing
+             select case (size(ab_coefficients))
              case (1)
                 do ig = -ntgrid, ntgrid-1
                    source(ig) = source(ig) + 0.5*code_dt*(&
@@ -4290,7 +4288,7 @@ contains
                         ab_coefficients(1)*gexp_1(ig,isgn,iglo) + &
                         ab_coefficients(2)*gexp_2(ig,isgn,iglo))
                 end do
-             case default
+             case (3)
                 do ig = -ntgrid, ntgrid-1
                    source(ig) = source(ig) + 0.5*code_dt*( &
                         ab_coefficients(1)*gexp_1(ig,isgn,iglo) + &
@@ -4301,6 +4299,7 @@ contains
 #ifndef LOWFLOW
           end if
 #endif
+       end if
     end subroutine set_source
 
   end subroutine get_source_term
@@ -4309,7 +4308,7 @@ contains
   !! and uses precalculated constant terms. Leads to more memory usage than 
   !! original version but can be significantly faster (~50%)
   subroutine get_source_term_opt &
-       (phi, apar, bpar, phinew, aparnew, bparnew, nstep_available, &
+       (phi, apar, bpar, phinew, aparnew, bparnew, include_explicit, &
         ab_coefficients, iglo,ik,it,il,ie,is, sourcefac, source)
 #ifdef LOWFLOW
     use dist_fn_arrays, only: hneoc, vparterm, wdfac, wstarfac, wdttpfac
@@ -4328,7 +4327,7 @@ contains
     implicit none
     complex, dimension (-ntgrid:,:,:), intent (in) :: phi,    apar,    bpar
     complex, dimension (-ntgrid:,:,:), intent (in) :: phinew, aparnew, bparnew
-    integer, intent (in) :: nstep_available
+    logical, intent (in) :: include_explicit
     real, dimension(:), intent(in) :: ab_coefficients
     integer, intent (in) :: iglo, ik, it, il, ie, is
     complex, intent (in) :: sourcefac
@@ -4431,10 +4430,8 @@ contains
           endif
 
           ! add in nonlinear terms 
-          if (nonlin) then
-             select case (nstep_available)
-             case (0)
-                ! nothing
+          if (nonlin .and. include_explicit) then
+             select case (size(ab_coefficients))
              case (1)
                 do ig = -ntgrid, ntgrid-1
                    if (il < ittp(ig)) cycle
@@ -4448,7 +4445,7 @@ contains
                         ab_coefficients(1)*gexp_1(ig,isgn,iglo) + &
                         ab_coefficients(2)*gexp_2(ig,isgn,iglo))
                 end do
-             case default
+             case (3)
                 do ig = -ntgrid, ntgrid-1
                    if (il < ittp(ig)) cycle
                    source(ig, isgn) = source(ig, isgn) + 0.5*code_dt*( &
@@ -4499,10 +4496,8 @@ contains
       endif
 
       ! add in nonlinear terms
-      if (nonlin) then
-         select case (nstep_available)
-         case (0)
-            ! nothing
+      if (nonlin .and. include_explicit) then
+         select case (size(ab_coefficients))
          case (1)
             do ig = -ntgrid, ntgrid-1
                source(ig, isgn) = source(ig, isgn) + 0.5*code_dt*(&
@@ -4514,7 +4509,7 @@ contains
                     ab_coefficients(1)*gexp_1(ig,isgn,iglo) + &
                     ab_coefficients(2)*gexp_2(ig,isgn,iglo))
             end do
-         case default
+         case (3)
             do ig = -ntgrid, ntgrid-1
                source(ig, isgn) = source(ig, isgn) + 0.5*code_dt*( &
                     ab_coefficients(1)*gexp_1(ig,isgn,iglo) + &
@@ -4542,7 +4537,7 @@ contains
     use kt_grids, only: kwork_filter
     use species, only: spec, nonmaxw_corr
     use mp, only: mp_abort
-    use gs2_time, only: time_history_available, get_adams_bashforth_coefficients
+    use gs2_time, only: get_adams_bashforth_coefficients
     implicit none
     complex, dimension (-ntgrid:,:,:), intent (in) :: phi,    apar,    bpar
     complex, dimension (-ntgrid:,:,:), intent (in) :: phinew, aparnew, bparnew
@@ -4558,7 +4553,7 @@ contains
     complex :: adjleft, adjright
     logical :: use_pass_homog, speriod_flag
     integer :: ntgl, ntgr
-    integer :: nstep_available
+    logical :: include_explicit
 
 !    call prof_entering ("invert_rhs_1", "dist_fn")
 
@@ -4582,19 +4577,19 @@ contains
     is = is_idx(g_lo,iglo)
 
     if (istep .eq. 0) then
-       nstep_available = 0
+       include_explicit = .false.
     else
-       nstep_available = time_history_available()
+       include_explicit = .true.
     endif
     ab_coefficients = get_adams_bashforth_coefficients()
     
     if(opt_source)then
        call get_source_term_opt (phi, apar, bpar, phinew, aparnew, bparnew, &
-            nstep_available, ab_coefficients, iglo,ik,it,il,ie,is, sourcefac, source)
+            include_explicit, ab_coefficients, iglo,ik,it,il,ie,is, sourcefac, source)
     else
        do isgn = 1, 2
           call get_source_term (phi, apar, bpar, phinew, aparnew, bparnew, &
-               nstep_available, ab_coefficients, isgn, iglo,ik,it,il,ie,is, sourcefac, source(:,isgn))
+               include_explicit, ab_coefficients, isgn, iglo,ik,it,il,ie,is, sourcefac, source(:,isgn))
        end do
     endif
 
@@ -6617,7 +6612,7 @@ endif
     use gs2_layouts, only: g_lo, ik_idx, it_idx, il_idx, ie_idx, is_idx
     use theta_grid, only: ntgrid
     use run_parameters, only: fphi, fapar, fbpar
-    use gs2_time, only: user_time, user_dt, time_history_available, get_adams_bashforth_coefficients
+    use gs2_time, only: user_time, user_dt, get_adams_bashforth_coefficients
     use collisions, only: vnmult
     implicit none
     integer, intent(in) :: istep
@@ -6626,7 +6621,8 @@ endif
     complex, dimension(:, :, :), allocatable :: gtmp
     complex, dimension (-ntgrid:ntgrid-1,2) :: source
     character(len = 20), parameter :: extension = '.source'
-    integer :: nstep_available, istatus
+    integer :: istatus
+    logical :: include_explicit
     integer :: iglo, ik, it, il, ie, is, isgn
     real, dimension(:), allocatable :: ab_coefficients
     complex, parameter :: sourcefac = 0.0
@@ -6635,9 +6631,9 @@ endif
     gtmp = 0.
 
     if (istep .eq. 0) then
-       nstep_available = 0
+       include_explicit = .false.
     else
-       nstep_available = time_history_available()
+       include_explicit = .true.
     endif
 
     ab_coefficients = get_adams_bashforth_coefficients()
@@ -6651,11 +6647,11 @@ endif
 
        if(opt_source)then
           call get_source_term_opt (phi, apar, bpar, phinew, aparnew, bparnew, &
-               nstep_available, ab_coefficients, iglo,ik,it,il,ie,is, sourcefac, source)
+               include_explicit, ab_coefficients, iglo,ik,it,il,ie,is, sourcefac, source)
        else
           do isgn = 1, 2
              call get_source_term (phi, apar, bpar, phinew, aparnew, bparnew, &
-                  nstep_available, ab_coefficients, isgn, iglo,ik,it,il,ie,is, sourcefac, source(:,isgn))
+                  include_explicit, ab_coefficients, isgn, iglo,ik,it,il,ie,is, sourcefac, source(:,isgn))
           end do
        endif
 
