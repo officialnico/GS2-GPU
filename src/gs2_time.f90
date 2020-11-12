@@ -145,18 +145,30 @@ contains
   !> The order is determined by how much time history we have
   !> available up to a maximum of 3rd order. The coefficients
   !> are generalised for variable timestep.
-  function get_adams_bashforth_coefficients() result(coefficients)
+  function get_adams_bashforth_coefficients(maximum_order) result(coefficients)
     implicit none
+    !> If present then sets the maxmimum method order to use
+    !> when calculating the coefficients
+    integer, intent(in), optional :: maximum_order
     !> The result contains up to three coefficients. The first entry
     !> corresponds to the coefficient for the latest source term, the
     !> second entry corresponds to the coefficient for the previous source
     !> term and the last entry is for the oldest source term.
     real, dimension(:), allocatable :: coefficients
+    integer :: order
 
-    ! We have one coefficient for each point of history we keep
-    allocate(coefficients(time_history_available()))
+    order = time_history_available()
+    if (present(maximum_order)) then
+       ! Limit order in use if passed maximum_order is less
+       ! than order set by available history
+       order = min(order, maximum_order)
+    end if
 
-    select case (time_history_available())
+    ! We have one coefficient for each point of history we keep at
+    ! this order
+    allocate(coefficients(order))
+
+    select case (order)
     case (3) !Most common case - 3rd order coefficients
        ! see Tatsuno & Dorland, Physics of Plasmas 13, 092107 (2006)
        ! http://www.cscamm.umd.edu/publications/TatsunoDorland-PoP06_CS-06-11.pdf
