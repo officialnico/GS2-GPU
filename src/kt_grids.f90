@@ -769,7 +769,7 @@ contains
 
     else
        if (jtwist /= 0) then
-          dkx = dky * 2.0*pi*abs(shat)/real((2*nperiod-1)*jtwist) ! JFP Nov 12 2020
+          dkx = dky * 2.0*pi*(2*nperiod-1)*abs(shat)/real(jtwist) ! JFP Nov 12 2020
        else
           dkx = dky
        end if
