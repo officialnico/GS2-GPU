@@ -1,1 +1,0 @@
-Changed dkx expression to allow for nperiod > 1.
