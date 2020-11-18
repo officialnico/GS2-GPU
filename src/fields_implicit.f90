@@ -1317,10 +1317,17 @@ contains
           !Initialise counter
           icount=1
 
-          !Loop over the different it (2Pi domains)
-          do in=1,N_class(ic)
-             !Loop over the fields
-             do ifld=1,nfield
+          !The order of the field, cell and theta loops below is chosen
+          !in order to match the data layout of the fields local matrix
+
+          !Loop over the fields
+          do ifld=1,nfield
+
+             !Reinitialise "it" back to the start of the supercell chain
+             it=itmin
+
+             !Loop over the different it (2Pi domains)
+             do in=1,N_class(ic)
                 !Loop over theta
                 do ig=-ntgrid,ntgrid
                    !Skip the duplicate boundary points
@@ -1408,14 +1415,14 @@ contains
                    !Increment counter
                    icount=icount+1
                 enddo
-             enddo
 
-             !If we're not at the last cell then increment it.
-             !This check is needed to avoid trying to access itright
-             !in non-box simulations where this array is not allocated.
-             if(in < N_class(ic)) then
-                it=itright(ik, it)
-             end if
+                !If we're not at the last cell then increment it.
+                !This check is needed to avoid trying to access itright
+                !in non-box simulations where this array is not allocated.
+                if(in < N_class(ic)) then
+                   it=itright(ik, it)
+                end if
+             enddo
           enddo
 
           !Now make file name
@@ -1550,10 +1557,6 @@ contains
           !"itmin" there).
           itmin=leftmost_it(f_lo(ic)%it(im,1),ik)
           
-          !Now we have the basic properties we want to loop over the elements
-          !First initialise "it"
-          it=itmin
-
           !Now make file name
           file_name = adjustl(get_specific_response_file_name(ik, it_to_is(itmin, ik), code_dt, suffix))
 
@@ -1573,10 +1576,13 @@ contains
           !Initialise counter
           icount=1
 
-          !Loop over the different it (2Pi domains)
-          do in=1,N_class(ic)
-             !Loop over the fields
-             do ifld=1,nfield
+          !Loop over the fields
+          do ifld=1,nfield
+             !Reinitialise "it" back to the start of the supercell chain
+             it=itmin
+
+             !Loop over the different it (2Pi domains)
+             do in=1,N_class(ic)
                 !Loop over theta
                 do ig=-ntgrid,ntgrid
                    !Skip the duplicate boundary points -- This is no good here. !<DD>
@@ -1679,14 +1685,14 @@ contains
                       if(proc0) call send(tmp_vec_full,proc_id(jf_lo,jflo))
                    endif
                 enddo
-             enddo
 
-             !If we're not at the last cell then increment it.
-             !This check is needed to avoid trying to access itright
-             !in non-box simulations where this array is not allocated.
-             if(in < N_class(ic)) then
-                it=itright(ik, it)
-             end if
+                !If we're not at the last cell then increment it.
+                !This check is needed to avoid trying to access itright
+                !in non-box simulations where this array is not allocated.
+                if(in < N_class(ic)) then
+                   it=itright(ik, it)
+                end if
+             enddo
           enddo
 
           !Now we need to fill in the repeated boundary points
