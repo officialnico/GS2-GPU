@@ -26,6 +26,10 @@ v2 = [(data2[i], ik2[i], is2[i], f2[i]) for i in range(len(data2))]
 
 results_match = True
 for d1, d2 in zip(v1, v2):
+    #Skip the ik=1, is=1 matrix as we don't solve for this in local
+    if d1[1] == 1 and d1[2] == 1:
+        print("Skipping : {a}, {b}".format(a=d1[-1], b=d2[-1]))
+        continue
     this_case = np.allclose(d1[0], d2[0])
     if not this_case:
         print("Fail : {a}, {b}".format(a=d1[-1], b=d2[-1]))
