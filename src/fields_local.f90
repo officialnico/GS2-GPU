@@ -4146,4 +4146,36 @@ contains
     fields_local_functional = (.not. compiler_pgi())
   end function fields_local_functional
 
+  !> Calculate the L2/Frobenius/Euclidiean-norm of a 2D complex array
+  real function l2norm(matrix)
+    !> The matrix to calculate the norm of
+    complex, dimension(:, :), intent(in) :: matrix
+    !> The shape of the matrix
+    integer, dimension(2) :: matrix_shape
+    !> Indicies for indexing the matrix
+    integer :: i, j
+    l2norm = 0.
+    matrix_shape = shape(matrix)
+    do j = 1, matrix_shape(2)
+       do i = 1, matrix_shape(1)
+          l2norm = l2norm + matrix(i,j)*matrix(i,j)
+       end do
+    end do
+    l2norm = sqrt(l2norm)
+
+    ! We could write all of the above as
+    !    l2norm = sqrt(sum(matrix*matrix))
+    ! but this could run over the matrix twice
+    ! and require a matrix sized temporary. Our
+    ! approach avoids this. We could have an intermediate
+    ! approach of
+    !  do j = 1, matrix_shape(1)
+    !     l2norm = l2norm + sum(matrix(:,j)*matrix(:,j))
+    !  end do
+    !  l2norm = sqrt(l2norm)
+    ! hich might offer a bit of a middle ground
+    ! Also note that a norm2 method was introduced in fortran 2008
+    ! but that only accepts real valued arguments.
+  end function l2norm
+
 end module fields_local
