@@ -1050,6 +1050,7 @@ contains
     implicit none
     class(supercell_type), intent(inout) :: self
     complex, dimension(:,:), allocatable :: tmp_arr
+    real :: condition_number
 
     !Exit early if possible
     if(self%is_empty) return
@@ -1061,9 +1062,18 @@ contains
     !First have to pull all row level data
     call self%pull_rows_to_arr(tmp_arr)
 
+    if (debug .and. self%is_head) then
+       condition_number = l2norm(tmp_arr)
+    end if
+
     !Now invert in place
     call inverse_gj(tmp_arr,self%nrow)
     tmp_arr=transpose(tmp_arr)
+
+    if (debug .and. self%is_head) then
+       condition_number = condition_number * l2norm(tmp_arr)
+       write(*,'("Condition number for response with ik = ",I0,", is = ",I0," is ",E14.6E3)') self%ik_ind, self%is_ind, condition_number
+    end if
 
     !Now push back to row level
     call self%push_arr_to_rows(tmp_arr)
