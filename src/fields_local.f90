@@ -1061,10 +1061,14 @@ contains
   !> important in most cases.
   subroutine sc_invert_local(self)
     use mat_inv, only: inverse_gj
+    use file_utils, only: error_unit
+    use gs2_time, only: code_dt
     implicit none
     class(supercell_type), intent(inout) :: self
     complex, dimension(:,:), allocatable :: tmp_arr
     real :: condition_number
+    real, parameter :: condition_number_warning_limit = sqrt(1.0/epsilon(condition_number))
+    character(len = 100) :: condition_number_message
 
     !Exit early if possible
     if(self%is_empty) return
@@ -1088,7 +1092,11 @@ contains
 
     if (debug .and. self%is_head) then
        condition_number = condition_number * l2norm(tmp_arr)
-       write(*,'("Condition number for response with ik = ",I0,", is = ",I0," is ",E14.6E3)') self%ik_ind, self%is_ind, condition_number
+       write(condition_number_message,'("Condition number for response with ik = ",I0,", is = ",I0," and dt = ",E14.6E3," is ",E14.6E3)') self%ik_ind, self%is_ind, code_dt, condition_number
+       write(*,'(A)') trim(condition_number_message)
+       if (condition_number > condition_number_warning_limit) then
+          write(error_unit(), '("Warning: ",A)') trim(condition_number_message)
+       end if
     end if
 
     !Now push back to row level
