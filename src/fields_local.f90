@@ -1045,6 +1045,20 @@ contains
   end subroutine sc_invert
 
   !> A routine to invert the field matrix locally
+  !>
+  !> @note Currently every processor which is responsible for a chunk
+  !> of the response matrix at the solve stage will do this inversion.
+  !> This is obviously duplicated work but allows us to skip any
+  !> communication in the push_arr_to_rows method. If only one
+  !> processor did the inversion then we would need to communicate the
+  !> result back. We are unlikely to want to do this in a non-blocking
+  !> manner as it would require that we hold onto the tmp_arr for each
+  !> response matrix, only freeing this memory after the non-blocking
+  !> communications have completed. As these matrices are large we
+  !> don't want them hanging around longer than required. In the typical
+  !> use case where we have large minnrow, we would expect most matrices
+  !> to belong to just one or a few processors so this point may not be
+  !> important in most cases.
   subroutine sc_invert_local(self)
     use mat_inv, only: inverse_gj
     implicit none
