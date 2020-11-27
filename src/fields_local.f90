@@ -1082,7 +1082,7 @@ contains
 
     !It may be better to hook into the GK_VERBOSITY level system
     !rather than relying on the debug flag.
-    if (debug .and. self%is_head) then
+    if (self%is_head) then
        condition_number = l2norm(tmp_arr)
     end if
 
@@ -1090,12 +1090,16 @@ contains
     call inverse_gj(tmp_arr,self%nrow)
     tmp_arr=transpose(tmp_arr)
 
-    if (debug .and. self%is_head) then
+    if (self%is_head) then
        condition_number = condition_number * l2norm(tmp_arr)
        write(condition_number_message,'("Condition number for response with ik = ",I0,", is = ",I0," and dt = ",E14.6E3," is ",E14.6E3)') self%ik_ind, self%is_ind, code_dt, condition_number
-       write(*,'(A)') trim(condition_number_message)
        if (condition_number > condition_number_warning_limit) then
           write(error_unit(), '("Warning: ",A)') trim(condition_number_message)
+       end if
+
+       !In debug mode always display the condition number message to screen
+       if (debug) then
+          write(*,'(A)') trim(condition_number_message)
        end if
     end if
 
