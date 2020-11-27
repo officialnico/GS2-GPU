@@ -1062,6 +1062,8 @@ contains
     !First have to pull all row level data
     call self%pull_rows_to_arr(tmp_arr)
 
+    !It may be better to hook into the GK_VERBOSITY level system
+    !rather than relying on the debug flag.
     if (debug .and. self%is_head) then
        condition_number = l2norm(tmp_arr)
     end if
