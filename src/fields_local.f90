@@ -4199,7 +4199,7 @@ contains
     !     l2norm = l2norm + sum(matrix(:,j)*matrix(:,j))
     !  end do
     !  l2norm = sqrt(l2norm)
-    ! hich might offer a bit of a middle ground
+    ! which might offer a bit of a middle ground
     ! Also note that a norm2 method was introduced in fortran 2008
     ! but that only accepts real valued arguments.
   end function l2norm
