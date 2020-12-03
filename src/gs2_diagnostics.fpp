@@ -3317,10 +3317,11 @@ contains
   subroutine do_write_dump_1(t)
     use mp, only: proc0
     use kt_grids, only: naky, ntheta0, aky, akx
-    use theta_grid, only: delthet, jacob
+    use theta_grid, only: theta, jacob
     use fields_arrays, only: phinew
     use dist_fn, only: omega0, gamma0
     use constants, only: zi
+    use integration, only: trapezoidal_integration
     implicit none
     real, intent(in) :: t
     complex :: tmp, sourcefac
@@ -3335,12 +3336,10 @@ contains
     !This looks like a fieldline average, do we not have a standard routine
     !to calculate it? --> get_fldline_avg should do this but includes the last
     !theta grid point which we don't seem to want here
+    denom=1.0/trapezoidal_integration(theta, jacob)
     do ik = 1, naky
        do it = 1, ntheta0
-          denom=sum(delthet(-ntg_out:ntg_out-1)*jacob(-ntg_out:ntg_out-1))
-          tmp=sum(phinew(-ntg_out:ntg_out-1,it,ik) &
-               *delthet(-ntg_out:ntg_out-1) &
-               *jacob(-ntg_out:ntg_out-1))/denom
+          tmp=trapezoidal_integration(theta, phinew(:,it,ik)*jacob)*denom
           write (dump_check1_unit, "(20(1x,e12.5))") &
                t, aky(ik), akx(it), tmp, tmp/sourcefac
        end do
@@ -3689,8 +3688,9 @@ contains
   !!
   !! @note Here we calculate the correction factors for each possible kperp
   subroutine get_vol_average_all (a, b, axb, axb_by_mode)
-    use theta_grid, only: ntgrid, delthet, jacob
+    use theta_grid, only: ntgrid, theta, jacob
     use kt_grids, only: naky, ntheta0
+    use integration, only: trapezoidal_integration
     implicit none
     complex, dimension (-ntgrid:,:,:), intent (in) :: a, b
     real, intent (out) :: axb
@@ -3702,13 +3702,12 @@ contains
     real :: anorm
 
     ng = ntg_out
-    wgt = delthet(-ng:ng)*jacob(-ng:ng)
-    anorm = sum(wgt)
+    anorm = 1.0/trapezoidal_integration(theta, jacob)
 
     do ik = 1, naky
        do it = 1, ntheta0
           axb_by_mode(it,ik) &
-               = sum(real(conjg(a(-ng:ng,it,ik))*b(-ng:ng,it,ik))*wgt)/anorm
+               = trapezoidal_integration(theta, real(conjg(a(-ng:ng,it,ik))*b(-ng:ng,it,ik))*jacob)*anorm
        end do
     end do
 
@@ -3844,40 +3843,26 @@ contains
 
   !> FIXME : Add documentation  
   subroutine get_fldline_avg_r (fld_in, fld_out)
-    use theta_grid, only: delthet, jacob
+    use theta_grid, only: theta, jacob
+    use integration, only: trapezoidal_integration
     implicit none
-    real, dimension (:), allocatable :: dl_over_b
     real, dimension (-ntg_out:), intent (in) :: fld_in
     real, intent (out) :: fld_out
-
-    allocate (dl_over_b(-ntg_out:ntg_out))
-
-    dl_over_b = delthet(-ntg_out:ntg_out)*jacob(-ntg_out:ntg_out)
-    dl_over_b = dl_over_b / sum(dl_over_b)
-
-    fld_out = sum(fld_in*dl_over_b)
-
-    deallocate (dl_over_b)
-
+    real :: average_weight
+    average_weight = 1.0/trapezoidal_integration(theta, jacob)
+    fld_out = trapezoidal_integration(theta, jacob) * average_weight
   end subroutine get_fldline_avg_r
 
   !> FIXME : Add documentation  
   subroutine get_fldline_avg_c (fld_in, fld_out)
-    use theta_grid, only: delthet, jacob
+    use theta_grid, only: theta, jacob
+    use integration, only: trapezoidal_integration
     implicit none
-    real, dimension (:), allocatable :: dl_over_b
     complex, dimension (-ntg_out:), intent (in) :: fld_in
     complex, intent (out) :: fld_out
-
-    allocate (dl_over_b(-ntg_out:ntg_out))
-
-    dl_over_b = delthet(-ntg_out:ntg_out)*jacob(-ntg_out:ntg_out)
-    dl_over_b = dl_over_b / sum(dl_over_b)
-
-    fld_out = sum(fld_in*dl_over_b)
-
-    deallocate (dl_over_b)
-
+    real :: average_weight
+    average_weight = 1.0/trapezoidal_integration(theta, jacob)
+    fld_out = trapezoidal_integration(theta, jacob) * average_weight
   end subroutine get_fldline_avg_c
 
   !> This is a highly simplified synthetic diagnostic which 
@@ -3929,25 +3914,24 @@ contains
 
   !> FIXME : Add documentation
   subroutine get_vol_int_all (a, b, axb, axb_by_mode)
-    use theta_grid, only: ntgrid, delthet, jacob
+    use theta_grid, only: ntgrid, theta, jacob
     use kt_grids, only: naky, ntheta0
+    use integration, only: trapezoidal_integration
     implicit none
     complex, dimension (-ntgrid:,:,:), intent (in) :: a, b
     complex, intent (out) :: axb
     complex, dimension (:,:), intent (out) :: axb_by_mode
     integer :: ik, it
     integer :: ng
-    real, dimension (-ntg_out:ntg_out) :: wgt
     real :: anorm
 
     ng = ntg_out
-    wgt = delthet(-ng:ng)*jacob(-ng:ng)
-    anorm = sum(wgt)
+    anorm = 1.0/trapezoidal_integration(theta, jacob)
 
     do ik = 1, naky
        do it = 1, ntheta0
           axb_by_mode(it,ik) &
-               = sum((conjg(a(-ng:ng,it,ik))*b(-ng:ng,it,ik))*wgt)/anorm
+               = trapezoidal_integration(theta, (conjg(a(-ng:ng,it,ik))*b(-ng:ng,it,ik))*jacob(-ng:ng))*anorm
        end do
     end do
 
