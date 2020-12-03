@@ -240,20 +240,13 @@ contains
 
   !> Average over theta
   subroutine average_theta(a, axb)
-    use theta_grid, only: ntgrid, delthet, jacob       
+    use theta_grid, only: ntgrid, theta, jacob       
     implicit none
-    
     complex, dimension (-ntgrid:), intent (in) :: a
     complex, intent (out) :: axb
-    
-    real, dimension (-ntgrid:ntgrid) :: wgt
     real :: anorm
-    
-    wgt = delthet(-ntgrid:ntgrid)*jacob(-ntgrid:ntgrid)
-    anorm = sum(wgt)
-    
-    axb = sum(a(-ntgrid:ntgrid)*wgt)/anorm
-    
+    anorm = 1.0/trapezoidal_integration(theta, jacob)
+    axb = sum(a*jacob)*anorm
   end subroutine average_theta
 
   !> Returns tau, the transfer of free energy as a function of (kx,ky)
