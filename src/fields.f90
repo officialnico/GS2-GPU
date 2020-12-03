@@ -656,8 +656,8 @@ contains
          trapezium_integration(theta(-ntgrid_output:ntgrid_output), &
          phi(-ntgrid_output:ntgrid_output,it,ik)* &
          *jacob(-ntgrid_output:ntgrid_output)) &
-         /trapezium_integration(theta(-ntgrid_output:ntgrid_output) &
-         *jacob(-ntgrid_output:ntgrid_output))
+         /trapezium_integration(theta(-ntgrid_output:ntgrid_output), &
+         jacob(-ntgrid_output:ntgrid_output))
 
   end subroutine fieldlineavgphi_loc
 
