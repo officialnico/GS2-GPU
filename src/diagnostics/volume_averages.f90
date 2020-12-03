@@ -179,22 +179,21 @@ contains
 
   !> FIXME : Add documentation  
   subroutine average_theta_txys (a, b, axb_by_mode, distributed)
-    use theta_grid, only: ntgrid, delthet, jacob
+    use theta_grid, only: ntgrid, theta, jacob
     use kt_grids, only: naky, ntheta0
     use fields_parallelization, only: field_k_local
     use species, only: nspec
+    use integration, only: trapezoidal_integration
     implicit none
     complex, dimension (-ntgrid:,:,:,:), intent (in) :: a, b
     real, dimension (:,:,:), intent (out) :: axb_by_mode
     logical,intent(in) :: distributed
     integer :: ik, it, is
     integer :: ng
-    real, dimension (-ntg_out:ntg_out) :: wgt
     real :: anorm
 
     ng = ntg_out
-    wgt = delthet(-ng:ng)*jacob(-ng:ng)
-    anorm = sum(wgt)
+    anorm = 1.0/trapezoidal_integration(theta, jacob)
     axb_by_mode = 0
 
     do is = 1,nspec
@@ -202,7 +201,8 @@ contains
           do it = 1, ntheta0
              if (.not. distributed .or. field_k_local(it,ik)) then
                 axb_by_mode(it,ik,is) &
-                     = sum(real(conjg(a(-ng:ng,it,ik,is))*b(-ng:ng,it,ik,is))*wgt)/anorm
+                     = trapezoidal_integration(theta, real(conjg(&
+                     a(-ng:ng,it,ik,is))*b(-ng:ng,it,ik,is))*jacob)*anorm
              end if
           end do
        end do
@@ -211,21 +211,20 @@ contains
 
   !> FIXME : Add documentation  
   subroutine average_theta_1_real_txy (a, axb_by_mode, distributed)
-    use theta_grid, only: ntgrid, delthet, jacob
+    use theta_grid, only: ntgrid, theta, jacob
     use kt_grids, only: naky, ntheta0
     use fields_parallelization, only: field_k_local
+    use integration, only: trapezoidal_integration    
     implicit none
     real, dimension (-ntgrid:,:,:), intent (in) :: a
     real, dimension (:,:), intent (out) :: axb_by_mode
     logical,intent(in) :: distributed
     integer :: ik, it
     integer :: ng
-    real, dimension (-ntg_out:ntg_out) :: wgt
     real :: anorm
 
     ng = ntg_out
-    wgt = delthet(-ng:ng)*jacob(-ng:ng)
-    anorm = sum(wgt)
+    anorm = 1.0/trapezoidal_integration(theta, jacob)
 
     axb_by_mode = 0
 
@@ -233,7 +232,7 @@ contains
        do it = 1, ntheta0
           if (.not. distributed .or. field_k_local(it,ik)) then
              axb_by_mode(it,ik) &
-                  = sum((a(-ng:ng,it,ik))*wgt)/anorm
+                  = trapezoidal_integration(theta, a(-ng:ng,it,ik)*jacob)*anorm
           end if
        end do
     end do
@@ -241,53 +240,44 @@ contains
 
   !> FIXME : Add documentation
   subroutine average_theta_real_real_t (a, axb)
-    use theta_grid, only: ntgrid, delthet, jacob
+    use theta_grid, only: ntgrid, theta, jacob
+    use integration, only: trapezoidal_integration
     implicit none
     real, dimension (-ntgrid:), intent (in) :: a
     real, intent (out) :: axb
     integer :: ng
-    real, dimension (-ntg_out:ntg_out) :: wgt
     real :: anorm
-
     ng = ntg_out
-    wgt = delthet(-ng:ng)*jacob(-ng:ng)
-    anorm = sum(wgt)
-
-    axb = sum(a*wgt)/anorm
+    anorm = 1.0/trapezoidal_integration(theta, jacob)
+    axb = trapezoidal_integration(theta, a*jacob)*anorm
   end subroutine average_theta_real_real_t
 
   !> FIXME : Add documentation  
   subroutine average_theta_complex_complex_complex_t (a, b, axb)
-    use theta_grid, only: ntgrid, delthet, jacob
+    use theta_grid, only: ntgrid, theta, jacob
+    use integration, only: trapezoidal_integration    
     implicit none
     complex, dimension (-ntgrid:), intent (in) :: a, b
     complex, intent (out) :: axb
     integer :: ng
-    real, dimension (-ntg_out:ntg_out) :: wgt
     real :: anorm
-
     ng = ntg_out
-    wgt = delthet(-ng:ng)*jacob(-ng:ng)
-    anorm = sum(wgt)
-
-    axb = sum(conjg(a(-ng:ng))*b(-ng:ng)*wgt)/anorm
+    anorm = 1.0/trapezoidal_integration(theta, jacob)
+    axb = trapezoidal_integration(theta, conjg(a(-ng:ng))*b(-ng:ng)*jacob)*anorm
   end subroutine average_theta_complex_complex_complex_t
 
   !> FIXME : Add documentation  
   subroutine average_theta_complex_complex_t (a, axb)
-    use theta_grid, only: ntgrid, delthet, jacob
+    use theta_grid, only: ntgrid, theta, jacob
+    use integration, only: trapezoidal_integration
     implicit none
     complex, dimension (-ntgrid:), intent (in) :: a
     complex, intent (out) :: axb
     integer :: ng
-    real, dimension (-ntg_out:ntg_out) :: wgt
     real :: anorm
-
     ng = ntg_out
-    wgt = delthet(-ng:ng)*jacob(-ng:ng)
-    anorm = sum(wgt)
-
-    axb = sum(a(-ng:ng)*wgt)/anorm
+    anorm = 1.0/trapezoidal_integration(theta, jacob)
+    axb = trapezoidal_integration(theta, a(-ng:ng)*jacob)*anorm
   end subroutine average_theta_complex_complex_t
 
   !> FIXME : Add documentation  
@@ -304,21 +294,20 @@ contains
 
   !> FIXME : Add documentation  
   subroutine average_theta_txy (a, b, axb_by_mode, distributed)
-    use theta_grid, only: ntgrid, delthet, jacob
+    use theta_grid, only: ntgrid, theta, jacob
     use kt_grids, only: naky, ntheta0
     use fields_parallelization, only: field_k_local
+    use integration, only: trapezoidal_integration        
     implicit none
     complex, dimension (-ntgrid:,:,:), intent (in) :: a, b
     real, dimension (:,:), intent (out) :: axb_by_mode
     logical,intent(in) :: distributed
     integer :: ik, it
     integer :: ng
-    real, dimension (-ntg_out:ntg_out) :: wgt
     real :: anorm
 
     ng = ntg_out
-    wgt = delthet(-ng:ng)*jacob(-ng:ng)
-    anorm = sum(wgt)
+    anorm = 1.0/trapezoidal_integration(theta, jacob)
 
     axb_by_mode = 0
 
@@ -326,7 +315,7 @@ contains
        do it = 1, ntheta0
           if (.not. distributed .or. field_k_local(it,ik)) then
              axb_by_mode(it,ik) &
-                  = sum(real(conjg(a(-ng:ng,it,ik))*b(-ng:ng,it,ik))*wgt)/anorm
+                  = trapezoidal_integration(theta, real(conjg(a(-ng:ng,it,ik))*b(-ng:ng,it,ik))*jacob)*anorm
           end if
        end do
     end do
@@ -334,21 +323,20 @@ contains
 
   !> FIXME : Add documentation  
   subroutine average_theta_2_complex_txy (a, b, axb_by_mode, distributed)
-    use theta_grid, only: ntgrid, delthet, jacob
+    use theta_grid, only: ntgrid, theta, jacob
     use kt_grids, only: naky, ntheta0
     use fields_parallelization, only: field_k_local
+    use integration, only: trapezoidal_integration    
     implicit none
     complex, dimension (-ntgrid:,:,:), intent (in) :: a, b
     complex, dimension (:,:), intent (out) :: axb_by_mode
     logical,intent(in) :: distributed
     integer :: ik, it
     integer :: ng
-    real, dimension (-ntg_out:ntg_out) :: wgt
     real :: anorm
 
     ng = ntg_out
-    wgt = delthet(-ng:ng)*jacob(-ng:ng)
-    anorm = sum(wgt)
+    anorm = 1.0/trapezoidal_integration(theta, jacob)
 
     axb_by_mode = 0
 
@@ -356,7 +344,7 @@ contains
        do it = 1, ntheta0
           if (.not. distributed .or. field_k_local(it,ik)) then
              axb_by_mode(it,ik) &
-                  = sum(conjg(a(-ng:ng,it,ik))*b(-ng:ng,it,ik)*wgt)/anorm
+                  = trapezoidal_integration(theta, conjg(a(-ng:ng,it,ik))*b(-ng:ng,it,ik)*jacob)*anorm
           end if
        end do
     end do
