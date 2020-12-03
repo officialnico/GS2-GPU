@@ -607,13 +607,14 @@ contains
   end subroutine advance
 
   !> FIXME : Add documentation
-  !!
-  !! @note This routine has a potentially misleading name and isn't used anywhere
+  !>
+  !> @note This routine has a potentially misleading name and isn't used anywhere
   subroutine kperp (ntgrid_output, akperp)
-    use theta_grid, only: delthet
+    use theta_grid, only: theta
     use kt_grids, only: naky, aky, ntheta0, kperp2
     use run_parameters, only: fphi, fapar, fbpar
     use fields_arrays, only: phinew, aparnew, bparnew
+    use integration, only: trapezium_integration
     implicit none
     integer, intent (in) :: ntgrid_output
     real, dimension (:,:), intent (out) :: akperp
@@ -622,19 +623,19 @@ contains
 
     do ik = 1, naky
        do it = 1, ntheta0
-          anorm = sum(abs(phinew(-ntgrid_output:ntgrid_output,it,ik)*fphi &
+          anorm = trapezium_integration(theta, abs(phinew(-ntgrid_output:ntgrid_output,it,ik)*fphi &
                          + aparnew(-ntgrid_output:ntgrid_output,it,ik)*fapar &
                          + bparnew(-ntgrid_output:ntgrid_output,it,ik)*fbpar)**2 &
-                      *delthet(-ntgrid_output:ntgrid_output))
+                      )
           if (anorm < 2.0*epsilon(0.0) .or. aky(ik) == 0.0) then
              akperp(it,ik) = 0.0
           else
              akperp(it,ik) &
-                  = sqrt(sum(kperp2(-ntgrid_output:ntgrid_output,it,ik) &
+                  = sqrt(trapezium_integration(theta, kperp2(-ntgrid_output:ntgrid_output,it,ik) &
                      *abs(phinew(-ntgrid_output:ntgrid_output,it,ik)*fphi &
                           + aparnew(-ntgrid_output:ntgrid_output,it,ik)*fapar &
                           + bparnew(-ntgrid_output:ntgrid_output,it,ik)*fbpar)**2 &
-                     *delthet(-ntgrid_output:ntgrid_output))/anorm)
+                          )/anorm)
           end if
        end do
     end do
