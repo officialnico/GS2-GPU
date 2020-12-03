@@ -154,7 +154,8 @@ contains
     type(init_type), intent(inout) :: current_init
     real :: original_time_step
     real :: fac = 1.0
-
+    integer :: timestep_change_attempts
+    integer, parameter :: timestep_change_attempts_limit = 10
     if (first) call init_reinit
     first = .false.
 
@@ -203,14 +204,31 @@ contains
     endif
 
     original_time_step = code_dt
-    
-! If timestep is too big, make it smaller
-    if (code_dt*fac > code_dt_cfl) then
-       call reduce_time_step
-! If timestep is too small, make it bigger
-    else if (code_dt*fac < min(dt0, code_dt_cfl/delt_adj/delt_cushion)) then
-       call increase_time_step
-    endif
+
+    timestep_change_attempts = 0
+
+    ! Keep adjusting the timestep until it satisfies the required conditions
+    do while (timestep_change_attempts < timestep_change_attempts_limit)
+       ! If timestep is too big, make it smaller
+       if (code_dt*fac > code_dt_cfl) then
+          call reduce_time_step
+          ! If timestep is too small, make it bigger
+       else if (code_dt*fac < min(dt0, code_dt_cfl/delt_adj/delt_cushion)) then
+          call increase_time_step
+       else
+          exit
+       endif
+       timestep_change_attempts = timestep_change_attempts + 1
+    end do
+
+    ! Handle the case where it took too many iterations for the time step
+    ! to satisfy the required conditions.
+    if(timestep_change_attempts == timestep_change_attempts_limit) then
+       if (proc0) write(error_unit(), '("Attempting to change the timestep too much in one go")')
+       reset = reset_in
+       my_exit = .true.
+       return
+    end if
     
     call save_dt (code_dt)
 
