@@ -614,7 +614,7 @@ contains
     use kt_grids, only: naky, aky, ntheta0, kperp2
     use run_parameters, only: fphi, fapar, fbpar
     use fields_arrays, only: phinew, aparnew, bparnew
-    use integration, only: trapezium_integration
+    use integration, only: trapezoidal_integration
     implicit none
     integer, intent (in) :: ntgrid_output
     real, dimension (:,:), intent (out) :: akperp
@@ -623,7 +623,7 @@ contains
 
     do ik = 1, naky
        do it = 1, ntheta0
-          anorm = trapezium_integration(theta, abs(phinew(-ntgrid_output:ntgrid_output,it,ik)*fphi &
+          anorm = trapezoidal_integration(theta, abs(phinew(-ntgrid_output:ntgrid_output,it,ik)*fphi &
                          + aparnew(-ntgrid_output:ntgrid_output,it,ik)*fapar &
                          + bparnew(-ntgrid_output:ntgrid_output,it,ik)*fbpar)**2 &
                       )
@@ -631,7 +631,7 @@ contains
              akperp(it,ik) = 0.0
           else
              akperp(it,ik) &
-                  = sqrt(trapezium_integration(theta, kperp2(-ntgrid_output:ntgrid_output,it,ik) &
+                  = sqrt(trapezoidal_integration(theta, kperp2(-ntgrid_output:ntgrid_output,it,ik) &
                      *abs(phinew(-ntgrid_output:ntgrid_output,it,ik)*fphi &
                           + aparnew(-ntgrid_output:ntgrid_output,it,ik)*fapar &
                           + bparnew(-ntgrid_output:ntgrid_output,it,ik)*fbpar)**2 &
@@ -647,16 +647,16 @@ contains
   subroutine fieldlineavgphi_loc (ntgrid_output, it, ik, phiavg)
     use theta_grid, only: ntgrid, jacob, theta
     use fields_arrays, only: phi
-    use integration, only: trapezium_integration
+    use integration, only: trapezoidal_integration
     implicit none
     integer, intent (in) :: ntgrid_output, ik, it
     complex, intent (out) :: phiavg
 
     phiavg = &
-         trapezium_integration(theta(-ntgrid_output:ntgrid_output), &
-         phi(-ntgrid_output:ntgrid_output,it,ik)* &
+         trapezoidal_integration(theta(-ntgrid_output:ntgrid_output), &
+         phi(-ntgrid_output:ntgrid_output,it,ik) &
          *jacob(-ntgrid_output:ntgrid_output)) &
-         /trapezium_integration(theta(-ntgrid_output:ntgrid_output), &
+         /trapezoidal_integration(theta(-ntgrid_output:ntgrid_output), &
          jacob(-ntgrid_output:ntgrid_output))
 
   end subroutine fieldlineavgphi_loc

@@ -10013,7 +10013,7 @@ endif
     use kt_grids, only: naky, ntheta0, aky, kwork_filter
     use run_parameters, only: tite
     use theta_grid, only: ntgrid, theta, jacob
-    use integration, only: trapezium_integration
+    use integration, only: trapezoidal_integration
     implicit none
     complex, dimension (ntheta0, naky), intent (out) :: fl_avg
     complex, dimension (-ntgrid:ntgrid,ntheta0,naky), intent (in) :: antot
@@ -10028,7 +10028,7 @@ endif
           if (aky(ik) > epsilon(0.0)) cycle
           do it = 1, ntheta0
              if(kwork_filter(it,ik)) cycle
-             awgt(it,ik) = 1.0/trapezium_integration(theta, jacob*gamtot3(:,it,ik))
+             awgt(it,ik) = 1.0/trapezoidal_integration(theta, jacob*gamtot3(:,it,ik))
           end do
        end do
     endif
@@ -10036,7 +10036,7 @@ endif
     do ik = 1, naky
        do it = 1, ntheta0
           if(kwork_filter(it,ik)) cycle
-          fl_avg(it,ik) = tite*trapezium_integration(theta, jacob*antot(:,it,ik)/gamtot(:,it,ik))*awgt(it,ik)
+          fl_avg(it,ik) = tite*trapezoidal_integration(theta, jacob*antot(:,it,ik)/gamtot(:,it,ik))*awgt(it,ik)
        end do
     end do
 

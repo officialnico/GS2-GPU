@@ -420,7 +420,7 @@ contains
   subroutine fieldline_average_phi (phi_in, phi_average, ik_only)
     use theta_grid, only: ntgrid, jacob, theta
     use kt_grids, only: ntheta0, naky
-    use integration, only: trapezium_integration
+    use integration, only: trapezoidal_integration
     implicit none
     complex, dimension (-ntgrid:,:,:), intent (in) :: phi_in
     complex, dimension (-ntgrid:,:,:), intent (out) :: phi_average
@@ -432,16 +432,16 @@ contains
     ik_only_actual = -1
     if (present(ik_only)) ik_only_actual = ik_only
 
-    average_weight = 1.0 / trapezium_integration(theta, jacob)
+    average_weight = 1.0 / trapezoidal_integration(theta, jacob)
     if (ik_only_actual .gt. 0) then
        do it = 1,ntheta0
-          phi_avg_line = trapezium_integration(theta, phi_in(:,it,ik_only_actual)*jacob) * average_weight
+          phi_avg_line = trapezoidal_integration(theta, phi_in(:,it,ik_only_actual)*jacob) * average_weight
           phi_average(:, it, ik_only_actual) = phi_avg_line
        end do
     else
        do it = 1,ntheta0
           do ik = 1,naky
-             phi_average(:, it, ik) = trapezium_integration(phi_in(:, it, ik)*jacob) * average_weight
+             phi_average(:, it, ik) = trapezoidal_integration(theta, phi_in(:, it, ik)*jacob) * average_weight
           end do
        end do
     end if
