@@ -660,46 +660,16 @@ contains
          *jacob(-ntgrid_output:ntgrid_output))
 
   end subroutine fieldlineavgphi_loc
+
   !> FIXME : Add documentation
-  !!
-  !! @note This doesn't look like a useful routine and isn't used anywhere
+  !>
+  !> @note This doesn't look like a useful routine and isn't used anywhere
   subroutine fieldlineavgphi_tot (phiavg)
-    use theta_grid, only: ntgrid, drhodpsi, gradpar, bmag
-!    use theta_grid, only: delthet
     implicit none
     complex, dimension (:,:), intent (out) :: phiavg
-    real, dimension (-ntgrid:ntgrid) :: jac
-!    integer :: ntg
-
-!    ntg = ntgrid
-    jac = 1.0/abs(drhodpsi*gradpar*bmag)
-!    phiavg = sum(phi(-ntg:ntg,:,:)*jac(-ntg:ntg)*delthet(-ntg:ntg)) &
-!         /sum(delthet(-ntg:ntg)*jac(-ntg:ntg))
     phiavg = 0.
     write(*,*) 'error in fields'
   end subroutine fieldlineavgphi_tot
-
-
-  !!> This generates a flux surface average of phi. 
-
-  !subroutine flux_surface_average_phi (phi_in, phi_average)
-    !use theta_grid, only: ntgrid, drhodpsi, gradpar, bmag, delthet
-    !use kt_grids, only: ntheta0, naky
-
-    !implicit none
-    !complex, intent (in) :: phi_in
-    !complex, intent (out) :: phi_average
-    !complex, dimension(-ntgrid:ntgrid,1:ntheta0,1:naky) :: phi_fieldline_avg
-    !integer it, ig
-
-    !call fieldline_average_phi(phi_in, phi_fieldline_avg)
-    !do it = 1,ntheta0
-      !do ig = -ntgrid,ntgrid
-        !phi_average(ig, it, :) = sum(phi_fieldline_avg(ig, it, :))/real(naky)
-      !end do
-    !end do
-
-  !end subroutine fieldline_average_phi
 
   !> FIXME : Add documentation  
   subroutine reset_init
