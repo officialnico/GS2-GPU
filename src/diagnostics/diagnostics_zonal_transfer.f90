@@ -240,7 +240,8 @@ contains
 
   !> Average over theta
   subroutine average_theta(a, axb)
-    use theta_grid, only: ntgrid, theta, jacob       
+    use theta_grid, only: ntgrid, theta, jacob
+    use integration, only: trapezoidal_integration
     implicit none
     complex, dimension (-ntgrid:), intent (in) :: a
     complex, intent (out) :: axb
