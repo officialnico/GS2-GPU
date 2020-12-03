@@ -641,25 +641,25 @@ contains
     end do
   end subroutine kperp
 
-  !> FIXME : Add documentation  
-  !!
-  !! @note This routine isn't used anywhere
+  !> FIXME : Add documentation
+  !>
+  !> @note This routine isn't used anywhere
   subroutine fieldlineavgphi_loc (ntgrid_output, it, ik, phiavg)
-    use theta_grid, only: ntgrid, drhodpsi, gradpar, bmag, delthet
+    use theta_grid, only: ntgrid, jacob, theta
     use fields_arrays, only: phi
+    use integration, only: trapezium_integration
     implicit none
     integer, intent (in) :: ntgrid_output, ik, it
     complex, intent (out) :: phiavg
-    real, dimension (-ntgrid:ntgrid) :: jac
 
-    jac = 1.0/abs(drhodpsi*gradpar*bmag)
-    phiavg = sum(phi(-ntgrid_output:ntgrid_output,it,ik) &
-                 *jac(-ntgrid_output:ntgrid_output) &
-                 *delthet(-ntgrid_output:ntgrid_output)) &
-            /sum(delthet(-ntgrid_output:ntgrid_output) &
-                 *jac(-ntgrid_output:ntgrid_output))
+    phiavg = &
+         trapezium_integration(theta(-ntgrid_output:ntgrid_output), &
+         phi(-ntgrid_output:ntgrid_output,it,ik)* &
+         *jacob(-ntgrid_output:ntgrid_output)) &
+         /trapezium_integration(theta(-ntgrid_output:ntgrid_output) &
+         *jacob(-ntgrid_output:ntgrid_output))
+
   end subroutine fieldlineavgphi_loc
-
   !> FIXME : Add documentation
   !!
   !! @note This doesn't look like a useful routine and isn't used anywhere
