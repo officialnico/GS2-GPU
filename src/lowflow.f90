@@ -43,7 +43,7 @@ contains
     use file_utils, only: open_output_file, close_output_file, get_unused_unit
     use geometry, only: rmaj
     use species, only: spec
-
+    use integration, only: trapezium_integration
     implicit none
     
     real, dimension (:), intent (in) :: theta, bmag
@@ -73,6 +73,7 @@ contains
     integer :: ntheta, nlambda, nenergy, nxi
     integer, save :: neo_unit, neot_unit
 
+    real :: average_weight
 !    logical, save :: initialized = .false.
     logical, dimension (:,:), allocatable :: forbid
     
@@ -177,8 +178,10 @@ contains
     end do
 
     ! calculate and write to file some useful quantities like Upar and Qpar
+    ! Note dl_over_b may benefit from using midpoint jacob. Only used for rgeo2.
     dl_over_b = delthet*jacob
     dl_over_b = dl_over_b/sum(dl_over_b)
+    average_weight = 1.0 / trapezium_integration(theta, jacob)
 
     if (.not. allocated(pflx)) allocate (pflx(nr,ns), qflx(nr,ns), vflx(nr,ns), upar1(nr,ns))  
     if (.not. allocated(upar)) then
@@ -251,12 +254,12 @@ contains
 
        do is = 1, ns
           do ir = 1, nr
-             uparB(ir,is) = sum(upar(ir,is,:)*dl_over_b*bmag)
-             qparB(ir,is) = sum(qpar(ir,is,:)*dl_over_b*bmag)
-             upar_over_B(ir,is) = sum(upar(ir,is,:)*dl_over_b/bmag)
-             upar2(ir,is) = sum(upar(ir,is,:)**2*dl_over_b)
-             qpar2(ir,is) = sum(qpar(ir,is,:)**2*dl_over_b)
-             phineo2(ir) = sum(phineo(ir,:)**2*dl_over_b)
+             uparB(ir,is) = trapezium_integration(theta, upar(ir,is,:)*jacob*bmag)*average_weight
+             qparB(ir,is) = trapezium_integration(theta, qpar(ir,is,:)*jacob*bmag)*average_weight
+             upar_over_B(ir,is) = trapezium_integration(theta, upar(ir,is,:)*jacob/bmag)*average_weight
+             upar2(ir,is) = trapezium_integration(theta, upar(ir,is,:)**2*jacob)*average_weight
+             qpar2(ir,is) = trapezium_integration(theta, qpar(ir,is,:)**2*jacob)*average_weight
+             phineo2(ir) = trapezium_integration(phineo(ir,:)**2*jacob)*average_weight
           end do
        end do
 
@@ -362,8 +365,8 @@ contains
        
        do is = 1, ns
           do ir = 1, nr
-             upar2(ir,is) = sum(upar(ir,is,:)**2*dl_over_b)
-             qpar2(ir,is) = sum(qpar(ir,is,:)**2*dl_over_b)
+             upar2(ir,is) = trapezium_integration(theta, upar(ir,is,:)**2*jacob)*average_weight
+             qpar2(ir,is) = trapezium_integration(qpar(ir,is,:)**2*jacob)*average_weight
           end do
        end do
 
