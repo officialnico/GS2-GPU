@@ -227,10 +227,22 @@ contains
        if (proc0) write(error_unit(), '("Attempting to change the timestep too much in one go")')
        reset = reset_in
        my_exit = .true.
+       ! Note here we leave with our init level less than full. We expect to be
+       ! aborting the run here, so that's probably fine but something to be aware of.
        return
     end if
-    
+
     call save_dt (code_dt)
+
+    ! Check we still aren't below the minimum step
+    if (code_dt <= code_dt_min) then
+       code_dt = code_dt_min  ! set it so restart is ok
+       my_exit = .true.
+       if (proc0) write(error_unit(), *) 'Time step wants to fall below delt_min.  Abort run.'
+       ! Note here we leave with our init level less than full. We expect to be
+       ! aborting the run here, so that's probably fine but something to be aware of.
+       return
+    end if
 
     if (proc0 .and. .not. present(job_id)) write(*,*) 'Changing time step to ', user_dt, ' from ', original_time_step, ' on step number ', istep, ' i.e. time = ', user_time
 
