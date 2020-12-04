@@ -3850,7 +3850,7 @@ contains
     real, intent (out) :: fld_out
     real :: average_weight
     average_weight = 1.0/trapezoidal_integration(theta, jacob)
-    fld_out = trapezoidal_integration(theta, jacob) * average_weight
+    fld_out = trapezoidal_integration(theta, fld_in*jacob) * average_weight
   end subroutine get_fldline_avg_r
 
   !> FIXME : Add documentation  
@@ -3862,7 +3862,7 @@ contains
     complex, intent (out) :: fld_out
     real :: average_weight
     average_weight = 1.0/trapezoidal_integration(theta, jacob)
-    fld_out = trapezoidal_integration(theta, jacob) * average_weight
+    fld_out = trapezoidal_integration(theta, fld_in*jacob) * average_weight
   end subroutine get_fldline_avg_c
 
   !> This is a highly simplified synthetic diagnostic which 
