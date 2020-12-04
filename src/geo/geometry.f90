@@ -3500,6 +3500,11 @@ if (debug) write(6,*) "eikcoefs: end gradients"
     delth(-nth) = 0.5*(theta(-nth+1)-theta(-nth))
     delth(nth) = 0.5*(theta(nth)-theta(nth-1))
 
+    ! We might want to write this to use trapezoidal_integration instead
+    ! of this sum form. Currently only used in [[f_trap]], which itself
+    ! is only used here for one piece of information written to screen.
+    ! As it doesn't get into the simulated system we probably don't mind
+    ! too much beyond readability concerns.
     fluxavg = sum(f*jacob(-nth:nth)*delth)/sum(jacob(-nth:nth)*delth)
   end function fluxavg
 
