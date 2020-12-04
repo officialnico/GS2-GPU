@@ -90,7 +90,6 @@ formattting_tests:
 standard_tests:
   variables:
     CASENAME: "standard"
-    EXTRA_BUILD_FLAGS: "USE_NEW_DIAG= "
   script:
     - *typical_test_script
 
