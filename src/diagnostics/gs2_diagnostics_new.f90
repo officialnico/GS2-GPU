@@ -412,7 +412,7 @@ contains
   !! istep=-1 --> Create all netcdf variables
   !! istep=0 --> Write constant arrays/parameters (e.g. aky) and initial values
   !! istep>0 --> Write variables
-  subroutine run_diagnostics(istep, exit, read_existing)
+  subroutine run_diagnostics(istep_in, exit, read_existing)
     use gs2_time, only: user_time
     use mp, only: proc0
     use simpledataio, only: print_dimensions
@@ -447,10 +447,11 @@ contains
     use unit_tests, only: debug_message
     use mp,  only: broadcast
     implicit none
-    integer, intent(in) :: istep
+    integer, intent(in) :: istep_in
     logical, intent(inout) :: exit
     logical, intent(in) :: read_existing
     integer, parameter :: verb=3
+    integer :: istep
     
     if (.not. gnostics%write_any) return
     
@@ -458,7 +459,6 @@ contains
 
     call debug_message(verb, 'gs2_diagnostics_new::run_diagnostics starting')
     
-    gnostics%istep = istep
     gnostics%exit = exit
     
     ! If parallel, then everybody writes to netcdf,
@@ -468,11 +468,11 @@ contains
       if (read_existing ) then
        gnostics%create = .false.
        gnostics%wryte = .false.
-       gnostics%reed = (istep>-1)
+       gnostics%reed = (istep_in>-1)
      else
        gnostics%reed = .false.
-       gnostics%create = (istep==-1).and..not.gnostics%appending
-       gnostics%wryte = (istep>-1) .and. .not. gnostics%replay
+       gnostics%create = (istep_in==-1).and..not.gnostics%appending
+       gnostics%wryte = (istep_in>-1) .and. .not. gnostics%replay
      end if
     else
        gnostics%reed = .false.
@@ -480,6 +480,11 @@ contains
        gnostics%wryte=.false.
     end if
 
+    ! Now that we've used istep to work out what operations we want
+    ! to do, ensure the istep value is valid.
+    istep = istep_in
+    if(istep_in == -1) istep = 0
+    gnostics%istep = istep
     
     !gnostics%wryte = .false.
     
@@ -523,7 +528,7 @@ contains
       !call save_restart_dist_fn
     !end if
 
-    if (istep==-1.or.mod(istep, gnostics%nwrite).eq.0.or.gnostics%exit) then
+    if (mod(istep, gnostics%nwrite).eq.0.or.gnostics%exit) then
        ! Finally, write time value and update time index
        call create_and_write_variable(gnostics, gnostics%rtype, "t", &
             trim(dim_string(gnostics%dims%time)), &
