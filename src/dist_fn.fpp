@@ -6688,11 +6688,8 @@ endif
     real, dimension (:,:,:), intent (out) :: pflux, pmflux, pbflux, pflux_tormom
     real, dimension (:,:,:), intent (out) :: vflux, vmflux, vbflux, vflux_par, vflux_perp
     real, dimension (:,:,:,:), intent (out) :: qflux, qmflux, qbflux
-    real, dimension (:,:,:), allocatable :: dnorm
     integer :: it, ik, is, isgn, ig
     integer :: iglo
-
-    allocate (dnorm (-ntgrid:ntgrid,ntheta0,naky))
 
     ! EGH for new parallel I/O everyone
     ! calculates fluxes
@@ -6702,12 +6699,6 @@ endif
        pbflux = 0.0;  qbflux = 0.0;  vbflux = 0.0
        pflux_tormom = 0.0 
     !end if
-
-    do ik = 1, naky
-       do it = 1, ntheta0
-          dnorm(:,it,ik) = delthet/bmag/gradpar*woutunits(ik)
-       end do
-    end do
 
     if (fphi > epsilon(0.0)) then
        do isgn = 1, 2
@@ -6856,8 +6847,6 @@ endif
        qbflux = 0.
        vbflux = 0.
     end if
-
-    deallocate (dnorm)
   end subroutine flux
 
   !> FIXME : Add documentation  
@@ -6872,21 +6861,12 @@ endif
     implicit none
     complex, dimension (-ntgrid:,:,:), intent (in) :: phi, apar, bpar
     real, dimension (:,:), intent (inout) :: pflux, pmflux, pbflux
-    real, dimension (:,:,:), allocatable :: dnorm
     integer :: it, ik, is, isgn
     integer :: iglo
-
-    allocate (dnorm (-ntgrid:ntgrid,ntheta0,naky))
 
     if (proc0) then
         pflux = 0.0;   pmflux = 0.0; pbflux = 0.0 ; 
     end if
-
-    do ik = 1, naky
-       do it = 1, ntheta0
-          dnorm(:,it,ik) = delthet/bmag/gradpar*woutunits(ik)
-       end do
-    end do
 
     if (fphi > epsilon(0.0)) then
        do isgn = 1, 2
@@ -6925,7 +6905,6 @@ endif
        pbflux = 0.
     end if
 
-    deallocate (dnorm)
   end subroutine flux_vs_e
 
   !> FIXME : Add documentation  
@@ -7136,10 +7115,8 @@ endif
     integer :: ig, il, ie, it, ik, is, iglo, isgn
     real :: wgt
     complex :: dgdt_hypervisc
-    real, dimension (:,:,:), allocatable :: dnorm
     complex, dimension (:,:,:,:), allocatable :: total, total2
 
-    allocate (dnorm(-ntgrid:ntgrid, ntheta0, naky)) ; dnorm = 0.0
     allocate (total(-ntgrid:ntgrid, ntheta0, naky, nspec)) ; total = 0.0
     allocate (total2(-ntgrid:ntgrid, ntheta0, naky, nspec)) ; total2 = 0.0
 
@@ -7147,11 +7124,6 @@ endif
        exchange1 = 0.0 ; exchange2 = 0.0
     end if
 
-    do ik = 1, naky
-       do it = 1, ntheta0
-          dnorm(:ntgrid-1,it,ik) = delthet(:ntgrid-1)*(jacob(-ntgrid+1:)+jacob(:ntgrid-1))*0.5
-       end do
-    end do
     wgt = 1.0/trapezoidal_integration(theta, jacob)
 
     if (fphi > epsilon(0.0)) then
@@ -7238,7 +7210,7 @@ endif
 
     end if
 
-    deallocate (dnorm, total, total2)
+    deallocate (total, total2)
 
   end subroutine eexchange
 
@@ -7260,24 +7232,16 @@ endif
     complex, dimension (-ntgrid:,:,:), intent (in) :: phi
     real, dimension (:,:,:), intent (out) :: vflx0, vflx1
     real, dimension (:,:), allocatable :: dum
-    real, dimension (:,:,:), allocatable :: dnorm
     complex, dimension (:,:,:), allocatable :: dphi
     integer :: it, ik, isgn, ig
     integer :: iglo
 
-    allocate (dnorm (-ntgrid:ntgrid,ntheta0,naky))
     allocate (dum (-ntgrid:ntgrid,nspec))
     allocate (dphi (-ntgrid:ntgrid,ntheta0,naky))
 
     if (proc0) then
        vflx0 = 0.0 ; vflx1 = 0.0 ; dum = 0.0
     end if
-
-    do ik = 1, naky
-       do it = 1, ntheta0
-          dnorm(:,it,ik) = delthet/bmag/gradpar*woutunits(ik)
-       end do
-    end do
 
     do ig = -ntgrid, ntgrid-1
        dphi(ig,:,:) = (phi(ig+1,:,:)-phi(ig,:,:))/delthet(ig)
@@ -7318,7 +7282,7 @@ endif
        vflx0 = 0. ; vflx1 = 0.
     end if
 
-    deallocate (dnorm,dum,dphi)
+    deallocate (dum,dphi)
   end subroutine lf_flux
 
   !> FIXME : Add documentation  
@@ -7491,23 +7455,14 @@ endif
     implicit none
     complex, dimension (-ntgrid:,:,:), intent (in) :: phi
     real, dimension (-ntgrid:,:,:,:), intent (out) :: pflux_dist, vflux_par_dist, vflux_perp_dist, qflux_dist
-    real, dimension (:,:,:), allocatable :: dnorm
     integer :: it, ik, is, isgn, ig
     integer :: iglo
-
-    allocate (dnorm (-ntgrid:ntgrid,ntheta0,naky))
 
     ! EGH for new parallel I/O everyone
     ! calculates fluxes
     !if (proc0) then
        pflux_dist = 0.0; vflux_par_dist = 0.0; vflux_perp_dist = 0.0; qflux_dist= 0.0; 
     !end if
-
-    do ik = 1, naky
-       do it = 1, ntheta0
-          dnorm(:,it,ik) = delthet/bmag/gradpar*woutunits(ik)
-       end do
-    end do
 
     if (fphi > epsilon(0.0)) then
        do isgn = 1, 2
@@ -7542,8 +7497,6 @@ endif
        vflux_perp_dist = 0.
        qflux_dist = 0.
     end if
-
-    deallocate (dnorm)
 
  end subroutine flux_dist
 
