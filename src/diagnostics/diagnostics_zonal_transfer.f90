@@ -240,14 +240,11 @@ contains
 
   !> Average over theta
   subroutine average_theta(a, axb)
-    use theta_grid, only: ntgrid, theta, jacob
-    use integration, only: trapezoidal_integration
+    use theta_grid, only: ntgrid, field_line_average
     implicit none
     complex, dimension (-ntgrid:), intent (in) :: a
     complex, intent (out) :: axb
-    real :: anorm
-    anorm = 1.0/trapezoidal_integration(theta, jacob)
-    axb = sum(a*jacob)*anorm
+    axb = field_line_average(a)
   end subroutine average_theta
 
   !> Returns tau, the transfer of free energy as a function of (kx,ky)
