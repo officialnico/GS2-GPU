@@ -2,13 +2,23 @@
 !! at low resolution and check the growth rate
 
 module checks_mod
-  use functional_tests
+  use functional_tests, only: check_growth_rate
+  use kt_grids, only: gridopt_switch, gridopt_single, gridopt_box
   public checks
   contains
     function checks()
       logical :: checks
       ! We only expect this low res test to get the growth rate to 3%
-      checks =  check_growth_rate((/0.1687/), 0.03)
+      real, parameter :: tolerance = 0.03
+
+      if(gridopt_switch==gridopt_single) then
+        checks =  check_growth_rate((/0.1687/), tolerance)
+      elseif(gridopt_switch==gridopt_box) then
+        ! Assuming naky = 2, ny = 4
+        checks =  check_growth_rate((/0.0000, 0.1687/), tolerance)
+      else
+        checks = .false.
+      end if
     end function checks
 end module checks_mod
 
