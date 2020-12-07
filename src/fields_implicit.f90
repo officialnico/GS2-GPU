@@ -418,30 +418,27 @@ contains
   !> @note This calculation is fairly generic so should perhaps be moved out into
   !> a more accessible module to allow reuse (or replaced with such a method).
   subroutine fieldline_average_phi (phi_in, phi_average, ik_only)
-    use theta_grid, only: ntgrid, jacob, theta
+    use theta_grid, only: ntgrid, jacob, theta, field_line_average
     use kt_grids, only: ntheta0, naky
-    use integration, only: trapezoidal_integration
     implicit none
     complex, dimension (-ntgrid:,:,:), intent (in) :: phi_in
     complex, dimension (-ntgrid:,:,:), intent (out) :: phi_average
     integer, intent (in), optional :: ik_only
-    real, dimension (-ntgrid:ntgrid) :: jac
     complex :: phi_avg_line
     integer it, ik, ik_only_actual
-    real :: average_weight
+
     ik_only_actual = -1
     if (present(ik_only)) ik_only_actual = ik_only
 
-    average_weight = 1.0 / trapezoidal_integration(theta, jacob)
     if (ik_only_actual .gt. 0) then
        do it = 1,ntheta0
-          phi_avg_line = trapezoidal_integration(theta, phi_in(:,it,ik_only_actual)*jacob) * average_weight
+          phi_avg_line = field_line_average(phi_in(:,it,ik_only_actual))
           phi_average(:, it, ik_only_actual) = phi_avg_line
        end do
     else
        do it = 1,ntheta0
           do ik = 1,naky
-             phi_average(:, it, ik) = trapezoidal_integration(theta, phi_in(:, it, ik)*jacob) * average_weight
+             phi_average(:, it, ik) = field_line_average(phi_in(:, it, ik))
           end do
        end do
     end if
