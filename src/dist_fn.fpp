@@ -9959,21 +9959,27 @@ endif
       endif
   end subroutine init_pass_wfb
   
-  !> Calculate the flux surface average term for the adiabatic response. 
-  !!
-  !! If using adiabatic electrons and the option
-  !! dist_fn_knobs
-  !!   adiabatic_option = "iphi00=2"
-  !! /
-  !! the field solve should subtract the flux surface average 
-  !! from the perturbed electron distribution function,
-  !! i.e. include the term <phi> in
-  !!
-  !!   f1e = q( phi - <phi>) f0e / Te
-  !!
-  !! This function calculates <phi> and returns it as fl_avg.
-  !!
-  !! Joseph Parker, STFC  
+  !> Calculate the flux surface average term for the adiabatic response.
+  !>
+  !> If using adiabatic electrons and the option
+  !> dist_fn_knobs
+  !>   adiabatic_option = "iphi00=2"
+  !> /
+  !> the field solve should subtract the flux surface average
+  !> from the perturbed electron distribution function,
+  !> i.e. include the term <phi> in
+  !>
+  !>   f1e = q( phi - <phi>) f0e / Te
+  !>
+  !> This function calculates <phi> and returns it as fl_avg.
+  !>
+  !> Joseph Parker, STFC
+  !>
+  !> @note This expression is appropriate for zero beta but we would
+  !> expect this to be modified for beta /= 0. We would not usually
+  !> expect to be calculating the adiabatic electron response when
+  !> beta /= 0 but this is something we should still flag and could
+  !> rectify with a little effort.
   subroutine calculate_flux_surface_average (fl_avg,antot)
     use kt_grids, only: naky, ntheta0, aky, kwork_filter
     use run_parameters, only: tite
