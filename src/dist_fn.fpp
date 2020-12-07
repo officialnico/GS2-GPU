@@ -7098,14 +7098,13 @@ endif
     use gs2_layouts, only: g_lo, il_idx, ie_idx, it_idx, ik_idx, is_idx
     use gs2_time, only: code_dt
     use dist_fn_arrays, only: gnew, aj0, vpac, g
-    use theta_grid, only: ntgrid, gradpar, delthet, jacob, theta
+    use theta_grid, only: ntgrid, gradpar, delthet, jacob, theta, field_line_average
     use kt_grids, only: ntheta0, naky
     use le_grids, only: integrate_moment
     use run_parameters, only: fphi
     use species, only: spec, nspec
     use nonlinear_terms, only: nonlin
     use hyper, only: hypervisc_filter
-    use integration, only: trapezoidal_integration
 
     implicit none
 
@@ -7113,7 +7112,6 @@ endif
     real, dimension (:,:,:), intent (out) :: exchange1, exchange2
 
     integer :: ig, il, ie, it, ik, is, iglo, isgn
-    real :: wgt
     complex :: dgdt_hypervisc
     complex, dimension (:,:,:,:), allocatable :: total, total2
 
@@ -7123,8 +7121,6 @@ endif
     if (proc0) then
        exchange1 = 0.0 ; exchange2 = 0.0
     end if
-
-    wgt = 1.0/trapezoidal_integration(theta, jacob)
 
     if (fphi > epsilon(0.0)) then
        g0 = 0.
@@ -7169,9 +7165,8 @@ endif
              do ik = 1, naky
                 do it = 1, ntheta0
                    if (nonlin .and. it==1 .and. ik==1) cycle
-                   exchange1(it,ik,is) = trapezoidal_integration(theta, &
-                        real(total(:,it,ik,is)*conjg(phinew(:,it,ik))) &
-                        *jacob)*wgt
+                   exchange1(it,ik,is) = field_line_average( &
+                        real(total(:,it,ik,is)*conjg(phinew(:,it,ik))))
                 end do
              end do
           end do
@@ -7198,11 +7193,11 @@ endif
              do ik = 1, naky
                 do it = 1, ntheta0
                    if (nonlin .and. it==1 .and. ik==1) cycle
-                   exchange2(it,ik,is) = trapezoidal_integration(theta, &
+                   exchange2(it,ik,is) = field_line_average( &
                         real(total(:,it,ik,is) &
                         *conjg(phinew(:,it,ik)-phi(:,it,ik)) &
                         - (phinew(:,it,ik)+phi(:,it,ik))*conjg(total2(:,it,ik,is))) &
-                        *jacob)*wgt/code_dt
+                        )/code_dt
                 end do
              end do
           end do

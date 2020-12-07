@@ -645,20 +645,14 @@ contains
   !>
   !> @note This routine isn't used anywhere
   subroutine fieldlineavgphi_loc (ntgrid_output, it, ik, phiavg)
-    use theta_grid, only: ntgrid, jacob, theta
+    use theta_grid, only: ntgrid, field_line_average
     use fields_arrays, only: phi
-    use integration, only: trapezoidal_integration
     implicit none
     integer, intent (in) :: ntgrid_output, ik, it
     complex, intent (out) :: phiavg
 
     phiavg = &
-         trapezoidal_integration(theta(-ntgrid_output:ntgrid_output), &
-         phi(-ntgrid_output:ntgrid_output,it,ik) &
-         *jacob(-ntgrid_output:ntgrid_output)) &
-         /trapezoidal_integration(theta(-ntgrid_output:ntgrid_output), &
-         jacob(-ntgrid_output:ntgrid_output))
-
+         field_line_average(phi(:,it,ik))
   end subroutine fieldlineavgphi_loc
 
   !> FIXME : Add documentation

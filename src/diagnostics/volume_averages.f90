@@ -179,21 +179,18 @@ contains
 
   !> FIXME : Add documentation  
   subroutine average_theta_txys (a, b, axb_by_mode, distributed)
-    use theta_grid, only: ntgrid, theta, jacob
+    use theta_grid, only: ntgrid, field_line_average
     use kt_grids, only: naky, ntheta0
     use fields_parallelization, only: field_k_local
     use species, only: nspec
-    use integration, only: trapezoidal_integration
     implicit none
     complex, dimension (-ntgrid:,:,:,:), intent (in) :: a, b
     real, dimension (:,:,:), intent (out) :: axb_by_mode
     logical,intent(in) :: distributed
     integer :: ik, it, is
     integer :: ng
-    real :: anorm
 
     ng = ntg_out
-    anorm = 1.0/trapezoidal_integration(theta, jacob)
     axb_by_mode = 0
 
     do is = 1,nspec
@@ -201,8 +198,8 @@ contains
           do it = 1, ntheta0
              if (.not. distributed .or. field_k_local(it,ik)) then
                 axb_by_mode(it,ik,is) &
-                     = trapezoidal_integration(theta, real(conjg(&
-                     a(-ng:ng,it,ik,is))*b(-ng:ng,it,ik,is))*jacob)*anorm
+                     = field_line_average(real(conjg(&
+                     a(-ng:ng,it,ik,is))*b(-ng:ng,it,ik,is)))
              end if
           end do
        end do
@@ -211,20 +208,17 @@ contains
 
   !> FIXME : Add documentation  
   subroutine average_theta_1_real_txy (a, axb_by_mode, distributed)
-    use theta_grid, only: ntgrid, theta, jacob
+    use theta_grid, only: ntgrid, field_line_average
     use kt_grids, only: naky, ntheta0
     use fields_parallelization, only: field_k_local
-    use integration, only: trapezoidal_integration    
     implicit none
     real, dimension (-ntgrid:,:,:), intent (in) :: a
     real, dimension (:,:), intent (out) :: axb_by_mode
     logical,intent(in) :: distributed
     integer :: ik, it
     integer :: ng
-    real :: anorm
 
     ng = ntg_out
-    anorm = 1.0/trapezoidal_integration(theta, jacob)
 
     axb_by_mode = 0
 
@@ -232,7 +226,7 @@ contains
        do it = 1, ntheta0
           if (.not. distributed .or. field_k_local(it,ik)) then
              axb_by_mode(it,ik) &
-                  = trapezoidal_integration(theta, a(-ng:ng,it,ik)*jacob)*anorm
+                  = field_line_average(a(-ng:ng,it,ik))
           end if
        end do
     end do
@@ -240,44 +234,35 @@ contains
 
   !> FIXME : Add documentation
   subroutine average_theta_real_real_t (a, axb)
-    use theta_grid, only: ntgrid, theta, jacob
-    use integration, only: trapezoidal_integration
+    use theta_grid, only: ntgrid, field_line_average
     implicit none
     real, dimension (-ntgrid:), intent (in) :: a
     real, intent (out) :: axb
     integer :: ng
-    real :: anorm
     ng = ntg_out
-    anorm = 1.0/trapezoidal_integration(theta, jacob)
-    axb = trapezoidal_integration(theta, a*jacob)*anorm
+    axb = field_line_average(a)
   end subroutine average_theta_real_real_t
 
   !> FIXME : Add documentation  
   subroutine average_theta_complex_complex_complex_t (a, b, axb)
-    use theta_grid, only: ntgrid, theta, jacob
-    use integration, only: trapezoidal_integration    
+    use theta_grid, only: ntgrid, field_line_average
     implicit none
     complex, dimension (-ntgrid:), intent (in) :: a, b
     complex, intent (out) :: axb
     integer :: ng
-    real :: anorm
     ng = ntg_out
-    anorm = 1.0/trapezoidal_integration(theta, jacob)
-    axb = trapezoidal_integration(theta, conjg(a(-ng:ng))*b(-ng:ng)*jacob)*anorm
+    axb = field_line_average(conjg(a(-ng:ng))*b(-ng:ng))
   end subroutine average_theta_complex_complex_complex_t
 
   !> FIXME : Add documentation  
   subroutine average_theta_complex_complex_t (a, axb)
-    use theta_grid, only: ntgrid, theta, jacob
-    use integration, only: trapezoidal_integration
+    use theta_grid, only: ntgrid, field_line_average
     implicit none
     complex, dimension (-ntgrid:), intent (in) :: a
     complex, intent (out) :: axb
     integer :: ng
-    real :: anorm
     ng = ntg_out
-    anorm = 1.0/trapezoidal_integration(theta, jacob)
-    axb = trapezoidal_integration(theta, a(-ng:ng)*jacob)*anorm
+    axb = field_line_average(a(-ng:ng))
   end subroutine average_theta_complex_complex_t
 
   !> FIXME : Add documentation  
@@ -294,28 +279,24 @@ contains
 
   !> FIXME : Add documentation  
   subroutine average_theta_txy (a, b, axb_by_mode, distributed)
-    use theta_grid, only: ntgrid, theta, jacob
+    use theta_grid, only: ntgrid, field_line_average
     use kt_grids, only: naky, ntheta0
     use fields_parallelization, only: field_k_local
-    use integration, only: trapezoidal_integration        
     implicit none
     complex, dimension (-ntgrid:,:,:), intent (in) :: a, b
     real, dimension (:,:), intent (out) :: axb_by_mode
     logical,intent(in) :: distributed
     integer :: ik, it
     integer :: ng
-    real :: anorm
 
     ng = ntg_out
-    anorm = 1.0/trapezoidal_integration(theta, jacob)
-
     axb_by_mode = 0
 
     do ik = 1, naky
        do it = 1, ntheta0
           if (.not. distributed .or. field_k_local(it,ik)) then
              axb_by_mode(it,ik) &
-                  = trapezoidal_integration(theta, real(conjg(a(-ng:ng,it,ik))*b(-ng:ng,it,ik))*jacob)*anorm
+                  = field_line_average(real(conjg(a(-ng:ng,it,ik))*b(-ng:ng,it,ik)))
           end if
        end do
     end do
@@ -323,28 +304,24 @@ contains
 
   !> FIXME : Add documentation  
   subroutine average_theta_2_complex_txy (a, b, axb_by_mode, distributed)
-    use theta_grid, only: ntgrid, theta, jacob
+    use theta_grid, only: ntgrid, field_line_average
     use kt_grids, only: naky, ntheta0
     use fields_parallelization, only: field_k_local
-    use integration, only: trapezoidal_integration    
     implicit none
     complex, dimension (-ntgrid:,:,:), intent (in) :: a, b
     complex, dimension (:,:), intent (out) :: axb_by_mode
     logical,intent(in) :: distributed
     integer :: ik, it
     integer :: ng
-    real :: anorm
 
     ng = ntg_out
-    anorm = 1.0/trapezoidal_integration(theta, jacob)
-
     axb_by_mode = 0
 
     do ik = 1, naky
        do it = 1, ntheta0
           if (.not. distributed .or. field_k_local(it,ik)) then
              axb_by_mode(it,ik) &
-                  = trapezoidal_integration(theta, conjg(a(-ng:ng,it,ik))*b(-ng:ng,it,ik)*jacob)*anorm
+                  = field_line_average(conjg(a(-ng:ng,it,ik))*b(-ng:ng,it,ik))
           end if
        end do
     end do
