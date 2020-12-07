@@ -73,18 +73,18 @@ contains
     !> FIXME : Add documentation    
       subroutine phinorm (phitot)
         use fields_arrays, only: phinew, aparnew, bparnew
-        use theta_grid, only: delthet
+        use theta_grid, only: theta
         use kt_grids, only: naky, ntheta0
         use constants, only: pi
+        use integration, only: trapezoidal_integration
         implicit none
         real, dimension (:,:), intent (out) :: phitot
         integer :: ik, it
         do ik = 1, naky
            do it = 1, ntheta0
               phitot(it,ik) =0.5/pi &
-               *(sum((abs(phinew(:,it,ik))**2 + abs(aparnew(:,it,ik))**2 &
-                      + abs(bparnew(:,it,ik))**2) &
-                     *delthet(:)))
+               *(trapezoidal_integration(theta, (abs(phinew(:,it,ik))**2 + abs(aparnew(:,it,ik))**2 &
+                      + abs(bparnew(:,it,ik))**2)))
            end do
         end do
       end subroutine phinorm
