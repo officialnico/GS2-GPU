@@ -3317,15 +3317,13 @@ contains
   subroutine do_write_dump_1(t)
     use mp, only: proc0
     use kt_grids, only: naky, ntheta0, aky, akx
-    use theta_grid, only: theta, jacob
+    use theta_grid, only: field_line_average
     use fields_arrays, only: phinew
     use dist_fn, only: omega0, gamma0
     use constants, only: zi
-    use integration, only: trapezoidal_integration
     implicit none
     real, intent(in) :: t
     complex :: tmp, sourcefac
-    real :: denom
     integer :: ik, it
 
     if(.not.proc0) return
@@ -3333,13 +3331,9 @@ contains
     !Should we not actually use the sourcefac calculated in dist_fn for consistency?
     sourcefac = exp(-zi*omega0*t+gamma0*t)
 
-    !This looks like a fieldline average, do we not have a standard routine
-    !to calculate it? --> get_fldline_avg should do this but includes the last
-    !theta grid point which we don't seem to want here
-    denom=1.0/trapezoidal_integration(theta, jacob)
     do ik = 1, naky
        do it = 1, ntheta0
-          tmp=trapezoidal_integration(theta, phinew(:,it,ik)*jacob)*denom
+          tmp=field_line_average(phinew(:,it,ik))
           write (dump_check1_unit, "(20(1x,e12.5))") &
                t, aky(ik), akx(it), tmp, tmp/sourcefac
        end do
@@ -3689,9 +3683,8 @@ contains
   !!
   !! @note Here we calculate the correction factors for each possible kperp
   subroutine get_vol_average_all (a, b, axb, axb_by_mode)
-    use theta_grid, only: ntgrid, theta, jacob
+    use theta_grid, only: ntgrid, field_line_average
     use kt_grids, only: naky, ntheta0
-    use integration, only: trapezoidal_integration
     implicit none
     complex, dimension (-ntgrid:,:,:), intent (in) :: a, b
     real, intent (out) :: axb
@@ -3699,16 +3692,13 @@ contains
 
     integer :: ik, it
     integer :: ng
-    real, dimension (-ntg_out:ntg_out) :: wgt
-    real :: anorm
 
     ng = ntg_out
-    anorm = 1.0/trapezoidal_integration(theta, jacob)
 
     do ik = 1, naky
        do it = 1, ntheta0
           axb_by_mode(it,ik) &
-               = trapezoidal_integration(theta, real(conjg(a(-ng:ng,it,ik))*b(-ng:ng,it,ik))*jacob)*anorm
+               = field_line_average(real(conjg(a(-ng:ng,it,ik))*b(-ng:ng,it,ik)))
        end do
     end do
 
@@ -3844,26 +3834,20 @@ contains
 
   !> FIXME : Add documentation  
   subroutine get_fldline_avg_r (fld_in, fld_out)
-    use theta_grid, only: theta, jacob
-    use integration, only: trapezoidal_integration
+    use theta_grid, only: field_line_average
     implicit none
     real, dimension (-ntg_out:), intent (in) :: fld_in
     real, intent (out) :: fld_out
-    real :: average_weight
-    average_weight = 1.0/trapezoidal_integration(theta, jacob)
-    fld_out = trapezoidal_integration(theta, fld_in*jacob) * average_weight
+    fld_out = field_line_average(fld_in)
   end subroutine get_fldline_avg_r
 
   !> FIXME : Add documentation  
   subroutine get_fldline_avg_c (fld_in, fld_out)
-    use theta_grid, only: theta, jacob
-    use integration, only: trapezoidal_integration
+    use theta_grid, only: field_line_average
     implicit none
     complex, dimension (-ntg_out:), intent (in) :: fld_in
     complex, intent (out) :: fld_out
-    real :: average_weight
-    average_weight = 1.0/trapezoidal_integration(theta, jacob)
-    fld_out = trapezoidal_integration(theta, fld_in*jacob) * average_weight
+    fld_out = field_line_average(fld_in)
   end subroutine get_fldline_avg_c
 
   !> This is a highly simplified synthetic diagnostic which 
@@ -3915,24 +3899,21 @@ contains
 
   !> FIXME : Add documentation
   subroutine get_vol_int_all (a, b, axb, axb_by_mode)
-    use theta_grid, only: ntgrid, theta, jacob
+    use theta_grid, only: ntgrid, field_line_average
     use kt_grids, only: naky, ntheta0
-    use integration, only: trapezoidal_integration
     implicit none
     complex, dimension (-ntgrid:,:,:), intent (in) :: a, b
     complex, intent (out) :: axb
     complex, dimension (:,:), intent (out) :: axb_by_mode
     integer :: ik, it
     integer :: ng
-    real :: anorm
 
     ng = ntg_out
-    anorm = 1.0/trapezoidal_integration(theta, jacob)
 
     do ik = 1, naky
        do it = 1, ntheta0
           axb_by_mode(it,ik) &
-               = trapezoidal_integration(theta, (conjg(a(-ng:ng,it,ik))*b(-ng:ng,it,ik))*jacob(-ng:ng))*anorm
+               = field_line_average(conjg(a(-ng:ng,it,ik))*b(-ng:ng,it,ik))
        end do
     end do
 
