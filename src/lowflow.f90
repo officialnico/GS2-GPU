@@ -254,6 +254,12 @@ contains
 
        do is = 1, ns
           do ir = 1, nr
+             ! Note we could use field_line_average from theta grid if
+             ! we knew that theta and jacob are always provided by
+             ! theta_grid. As we pass in theta here we better not
+             ! assume it comes from theta_grid.  Note however we
+             ! always use jacob from theta_grid, so if we do pass in a
+             ! different theta this may be inconsistent.
              uparB(ir,is) = trapezoidal_integration(theta, upar(ir,is,:)*jacob*bmag)*average_weight
              qparB(ir,is) = trapezoidal_integration(theta, qpar(ir,is,:)*jacob*bmag)*average_weight
              upar_over_B(ir,is) = trapezoidal_integration(theta, upar(ir,is,:)*jacob/bmag)*average_weight
