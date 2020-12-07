@@ -90,6 +90,7 @@
 !ALGORITHMIC CHOICES  
 !==============================
 &fields_knobs
+ field_option = "implicit" ! Controls which time-advance algorithm is used for the linear terms.
 /
 
 !==============================
