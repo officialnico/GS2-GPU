@@ -2539,6 +2539,7 @@ module theta_grid
   integer, parameter :: eqopt_eik = 1, eqopt_salpha = 2, eqopt_file = 3
   character (8) :: shape
   logical :: exist, initialized = .false.
+  real :: field_line_average_weight
 
   interface field_line_average
      module procedure field_line_average_real
@@ -2891,6 +2892,7 @@ contains
 
   !> FIXME : Add documentation
   subroutine finish_init
+    use integration, only: trapezoidal_integration
     implicit none
     real, dimension (nbset) :: bset_save
     real, dimension (-ntgrid:ntgrid) :: eik_save
@@ -3008,7 +3010,13 @@ contains
     delthet(ntgrid) = 0.!delthet(-ntgrid)
     delthet2 = delthet*delthet
 
+    ! Note here we redefine jacob despite the handling in the above if block
+    ! suggesting this has been defined.
     jacob = 1.0/(drhodpsi*gradpar*bmag)
+
+    ! Calculate the weight used in the field line average routine to save
+    ! repeated calculation of this constant
+    field_line_average_weight = 1.0/trapezoidal_integration(theta, jacob)
   end subroutine finish_init
 
   !> FIXME : Add documentation
@@ -3129,7 +3137,7 @@ if (debug) write(6,*) 'get_grids: call file_get_grids'
     use integration, only: trapezoidal_integration
     implicit none
     real, dimension(:), intent(in) :: quantity
-    integral = trapezoidal_integration(theta, quantity*jacob) / trapezoidal_integration(theta, jacob)
+    integral = trapezoidal_integration(theta, quantity*jacob) * field_line_average_weight
   end function field_line_average_real
 
   !> Calculates the field line / theta average of a passed quantity
@@ -3137,7 +3145,7 @@ if (debug) write(6,*) 'get_grids: call file_get_grids'
     use integration, only: trapezoidal_integration
     implicit none
     complex, dimension(:), intent(in) :: quantity
-    integral = trapezoidal_integration(theta, quantity*jacob) / trapezoidal_integration(theta, jacob)
+    integral = trapezoidal_integration(theta, quantity*jacob) * field_line_average_weight
   end function field_line_average_complex
 
   !> Set the module level config type
