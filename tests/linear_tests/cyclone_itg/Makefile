@@ -19,6 +19,7 @@ else
 all: cyclone_itg_low_res cyclone_itg_replay
 	$(call RUNCOMMAND,cyclone_itg_low_res,cyclone_itg_low_res.in,implicit)
 	$(call RUNCOMMAND,cyclone_itg_low_res,cyclone_itg_low_res_fields_local.in,local)
+	$(call RUNCOMMAND,cyclone_itg_low_res,cyclone_itg_low_res_fields_local_range.in,local)
 	$(call RUNCOMMAND,cyclone_itg_low_res,cyclone_itg_low_res_fields_local_box.in,local)
 ifeq ($(shell expr ${NTESTPROCS} \< 6; echo $?),1)
 	$(call SKIPCOMMAND,current NTESTPROCS=${NTESTPROCS}; set NTESTPROCS>=6 to run this test)

@@ -3,7 +3,7 @@
 
 module checks_mod
   use functional_tests, only: check_growth_rate
-  use kt_grids, only: gridopt_switch, gridopt_single, gridopt_box
+  use kt_grids, only: gridopt_switch, gridopt_single, gridopt_range, gridopt_box
   public checks
   contains
     function checks()
@@ -13,8 +13,11 @@ module checks_mod
 
       if(gridopt_switch==gridopt_single) then
         checks =  check_growth_rate((/0.1687/), tolerance)
+      elseif(gridopt_switch==gridopt_range) then
+        ! Assuming ky = (0.0, 0.5), kx = 0.0
+        checks =  check_growth_rate((/0.0000, 0.1687/), tolerance)
       elseif(gridopt_switch==gridopt_box) then
-        ! Assuming naky = 2, ny = 4
+        ! Assuming ky = (0.0, 0.5), kx = (0.0, 1.0)
         checks =  check_growth_rate((/0.0000, 0.1687/), tolerance)
       else
         checks = .false.
