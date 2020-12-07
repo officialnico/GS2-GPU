@@ -2516,6 +2516,7 @@ module theta_grid
   public :: shape, gb_to_cv
   public :: initialized
 
+  public :: field_line_average
   public :: theta_grid_config_type
   public :: set_theta_grid_config
   
@@ -2538,6 +2539,11 @@ module theta_grid
   integer, parameter :: eqopt_eik = 1, eqopt_salpha = 2, eqopt_file = 3
   character (8) :: shape
   logical :: exist, initialized = .false.
+
+  interface field_line_average
+     module procedure field_line_average_real
+     module procedure field_line_average_complex
+  end interface field_line_average
 
   !> Used to represent the input configuration of theta_grid
   type, extends(abstract_config_type) :: theta_grid_config_type
@@ -3117,6 +3123,22 @@ if (debug) write(6,*) 'get_grids: call file_get_grids'
        if (rhoc /= 0.) itor_over_B = qval / rhoc * IoB
      endif
   end subroutine get_grids
+
+  !> Calculates the field line / theta average of a passed quantity
+  real function field_line_average_real(quantity) result(integral)
+    use integration, only: trapezoidal_integration
+    implicit none
+    real, dimension(:), intent(in) :: quantity
+    integral = trapezoidal_integration(theta, quantity*jacob) / trapezoidal_integration(theta, jacob)
+  end function field_line_average_real
+
+  !> Calculates the field line / theta average of a passed quantity
+  complex function field_line_average_complex(quantity) result(integral)
+    use integration, only: trapezoidal_integration
+    implicit none
+    complex, dimension(:), intent(in) :: quantity
+    integral = trapezoidal_integration(theta, quantity*jacob) / trapezoidal_integration(theta, jacob)
+  end function field_line_average_complex
 
   !> Set the module level config type
   !> Will abort if the module has already been initialised to avoid
