@@ -493,7 +493,6 @@ contains
   !> FIXME : Add documentation
   subroutine average_kx_xys (f, favg, distributed)
     use species, only: nspec
-    use mp, only: sum_allreduce
     implicit none
     real, dimension (:,:,:), intent (in) :: f
     real, dimension (:,:), intent (out) :: favg
