@@ -38,6 +38,12 @@
 !BOUNDARY CONDITIONS  
 !==============================
 &dist_fn_knobs
+ gridfac = 1.0 ! Affects boundary condition at end of theta grid.
+ omprimfac = 1.0 
+ boundary_option = "linked" ! Sets the boundary condition along the field line (i.e. the boundary conditions at theta = +- pi).
+ adiabatic_option = "iphi00=2" ! The form of the adiabatic response (if a species is being modeled as adiabatic).
+ g_exb = 0.0 
+ nonad_zero = .true. ! If true switches on new parallel boundary condition where h=0 at incoming boundary instead of g=0.
  gf_lo_integrate = .false.
 /
 
@@ -49,6 +55,7 @@
 /
 
 &layouts_knobs
+ layout = "lexys" ! 'yxles', 'lxyes', 'lyxes', 'lexys' Determines the way the grids are laid out in memory.
 /
 
 !Include the shared parameters
