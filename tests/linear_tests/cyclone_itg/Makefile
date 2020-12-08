@@ -17,18 +17,18 @@ all:
 	$(call SKIPCOMMAND,current TEST_LEVEL=${TEST_LEVEL}; set TEST_LEVEL>=${MY_TEST_LEVEL} to run this test)
 else
 all: cyclone_itg_low_res cyclone_itg_replay
-	$(call RUNCOMMAND,cyclone_itg_low_res,cyclone_itg_low_res.in,implicit)
-	$(call RUNCOMMAND,cyclone_itg_low_res,cyclone_itg_low_res_fields_local.in,local)
-	$(call RUNCOMMAND,cyclone_itg_low_res,cyclone_itg_low_res_fields_local_range.in,local)
-	$(call RUNCOMMAND,cyclone_itg_low_res,cyclone_itg_low_res_fields_local_box.in,local)
+	$(call RUNCOMMAND,cyclone_itg_low_res,cyclone_itg_low_res.in)
+	$(call RUNCOMMAND,cyclone_itg_low_res,cyclone_itg_low_res_fields_local.in)
+	$(call RUNCOMMAND,cyclone_itg_low_res,cyclone_itg_low_res_fields_local_range.in)
+	$(call RUNCOMMAND,cyclone_itg_low_res,cyclone_itg_low_res_fields_local_box.in)
 ifeq ($(shell expr ${NTESTPROCS} \< 6; echo $?),1)
 	$(call SKIPCOMMAND,current NTESTPROCS=${NTESTPROCS}; set NTESTPROCS>=6 to run this test)
 else
-	$(call RUNCOMMAND,cyclone_itg_low_res,cyclone_itg_low_res_fields_gf_local.in,gf_local)
+	$(call RUNCOMMAND,cyclone_itg_low_res,cyclone_itg_low_res_fields_gf_local.in)
 endif
 ifdef USE_NEW_DIAG
 	$(call COPY)
-	$(call RUNCOMMAND,cyclone_itg_replay,cyclone_itg_replay.in,)
+	$(call RUNCOMMAND,cyclone_itg_replay,cyclone_itg_replay.in)
 else
 	$(call SKIPCOMMAND,compiled without new diagnostics; compile with USE_NEW_DIAG=on to run this test)
 endif
