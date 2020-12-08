@@ -16,7 +16,7 @@ stages:
   - if [ x${WITH_PFUNIT_TESTS} == "xyes" ] ; then su -c "whoami ; make ${EXTRA_BUILD_FLAGS} build_pfunit_library || (echo 'build_pfunit_library_failed' > ${JOB_STATUS_FILE}; exit 1)"  theuser ; fi
   - if [ x${WITH_PFUNIT_TESTS} == "xyes" ] ; then su -c "whoami ; make ${EXTRA_BUILD_FLAGS} -j pfunit_tests || (cat pfunit.log; echo 'pfunit_tests_failed' > ${JOB_STATUS_FILE}; exit 1)"  theuser ; fi  
   - su -c "echo CHECKING ; cat ${JOB_STATUS_FILE} " theuser
-  - if [ x${WITH_GS2_TESTS} == "xyes" ] ; then su -c "whoami ; make ${EXTRA_BUILD_FLAGS} -j tests || (echo 'failed' > ${JOB_STATUS_FILE}; exit 1) ; pipeline_test_scripts/didTestsFail.sh ${PWD}/tests results_of_test.txt  || (echo 'failed' > ${JOB_STATUS_FILE}; exit 1)" theuser ; fi
+  - if [ x${WITH_GS2_TESTS} == "xyes" ] ; then su -c "whoami ; make ${EXTRA_BUILD_FLAGS} tests || (echo 'failed' > ${JOB_STATUS_FILE}; exit 1) ; pipeline_test_scripts/didTestsFail.sh ${PWD}/tests results_of_test.txt  || (echo 'failed' > ${JOB_STATUS_FILE}; exit 1)" theuser ; fi
   - su -c "echo CHECKING ; cat ${JOB_STATUS_FILE} " theuser
   - su -c "echo passed > ${JOB_STATUS_FILE}" theuser
   - su -c "echo CHECKING ; cat ${JOB_STATUS_FILE} " theuser
@@ -27,7 +27,7 @@ stages:
     - su -c "echo CHECKING ; cat ${JOB_STATUS_FILE} " theuser
 
 .gs2_tests: &gs2_tests
-  - if [ x${WITH_GS2_TESTS} == "xyes" ] ; then su -c "whoami ; make ${EXTRA_BUILD_FLAGS} -j tests || (echo 'failed' > ${JOB_STATUS_FILE}; exit 1) ; pipeline_test_scripts/didTestsFail.sh ${PWD}/tests results_of_test.txt  || (echo 'failed' > ${JOB_STATUS_FILE}; exit 1)" theuser ; fi
+  - if [ x${WITH_GS2_TESTS} == "xyes" ] ; then su -c "whoami ; make ${EXTRA_BUILD_FLAGS} tests || (echo 'failed' > ${JOB_STATUS_FILE}; exit 1) ; pipeline_test_scripts/didTestsFail.sh ${PWD}/tests results_of_test.txt  || (echo 'failed' > ${JOB_STATUS_FILE}; exit 1)" theuser ; fi
     - su -c "echo CHECKING ; cat ${JOB_STATUS_FILE} " theuser
 
 .push_status: &push_status
@@ -90,7 +90,6 @@ formattting_tests:
 standard_tests:
   variables:
     CASENAME: "standard"
-    EXTRA_BUILD_FLAGS: "USE_NEW_DIAG= "
   script:
     - *typical_test_script
     
