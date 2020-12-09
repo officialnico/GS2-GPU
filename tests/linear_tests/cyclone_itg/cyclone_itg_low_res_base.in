@@ -191,12 +191,3 @@
   ! write_moments not specified --- 
   ! write_final_db not specified --- Write final delta B.
 /
-
-!==============================
-!  
-!==============================
-&general_f0_parameters
- alpha_f0 = "analytic" ! Form of the alpha equilibrium distribution function: "maxwellian", "analytic" or "external"
- energy_0 = 0.01 ! Lower limit of F_alpha for : F_alpha(energy_0)=0.
-/
-
