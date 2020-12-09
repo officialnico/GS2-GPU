@@ -195,23 +195,3 @@ pages:
       # the entire pipeline cannot complete until the manual action is triggered.
       # We need allow_failure true here to avoid this blocking the pipeline.
       allow_failure: true
-
-success:
-  stage: ci_status
-  before_script:
-    - ""
-  after_script:
-    - ""
-  script:
-    - echo "All tests passed."
-  when: on_success
-
-failure:
-  stage: ci_status
-  before_script:
-    - ""
-  after_script:
-    - ""
-  script:
-    - echo "At least one test failed."
-  when: on_failure
