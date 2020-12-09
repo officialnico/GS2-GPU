@@ -111,7 +111,7 @@ utils_all: | $(UTILS_SENTINEL)
 utils_all: utils.a
 
 UTIL_OBJ_LIST := spl.o constants.o file_utils.o netcdf_utils.o command_line.o runtime_tests.o constant_random.o
-UTIL_OBJ = $(addprefix $(OBJDIR)/, $(UTIL_OBJ_LIST))
+UTIL_OBJ := $(addprefix $(OBJDIR)/, $(UTIL_OBJ_LIST))
 $(LIBDIR)/utils.a: | $(UTILS_SENTINEL)
 $(LIBDIR)/utils.a: $(UTIL_OBJ) |$(LIBDIR)
 	$(call messageOp,"Linking ","\\t:",$^,"\\n\\t\-\-\-\-\-\-\>",$@)

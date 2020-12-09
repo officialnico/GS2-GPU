@@ -27,16 +27,16 @@ endif
 
 MACRO_DEFS += -DPFUNIT_MOD=$(PFUNIT_MOD)
 
-PFUNIT_TEST_PATH=.
+PFUNIT_TEST_PATH :=.
 
-GS2_OBJS = $(filter-out $(OBJDIR)/gs2.o, $(gs2_mod))
+GS2_OBJS := $(filter-out $(OBJDIR)/gs2.o, $(gs2_mod))
 
-PFUNIT_TESTS= $(shell find $(PFUNIT_TEST_DIR) -name '[^.\#]*.pf')
+PFUNIT_TESTS:= $(shell find $(PFUNIT_TEST_DIR) -name '[^.\#]*.pf')
 
-PFUNIT_OBJS = $(PFUNIT_TESTS:.pf=.o)
-PFUNIT_INTERMEDIATES = $(PFUNIT_TESTS:.pf=.F90)
-PFUNIT_DRIVER = $(PFUNIT_DIR)/include/driver.F90
-PFUNIT_TEST_LIST = $(PFUNIT_TEST_DIR)/testSuites.inc
+PFUNIT_OBJS := $(PFUNIT_TESTS:.pf=.o)
+PFUNIT_INTERMEDIATES := $(PFUNIT_TESTS:.pf=.F90)
+PFUNIT_DRIVER := $(PFUNIT_DIR)/include/driver.F90
+PFUNIT_TEST_LIST := $(PFUNIT_TEST_DIR)/testSuites.inc
 
 .INTERMEDIATE: $(PFUNIT_INTERMEDIATES)
 

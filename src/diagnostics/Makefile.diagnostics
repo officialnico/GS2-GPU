@@ -11,16 +11,16 @@ endif
 
 CFLAGS+= -I$(SRCDIR)/diagnostics/simpledataio
 
-SIMPLEDATAIO_LIB_DIR_ABS=$(LIBDIR)
-SIMPLEDATAIO_LIB=$(LIBDIR)/libsimpledataio.a
-SIMPLEDATAIO_LIB_ABS=$(SIMPLEDATAIO_LIB_DIR_ABS)/libsimpledataio.a
+SIMPLEDATAIO_LIB_DIR_ABS:=$(LIBDIR)
+SIMPLEDATAIO_LIB:=$(LIBDIR)/libsimpledataio.a
+SIMPLEDATAIO_LIB_ABS:=$(SIMPLEDATAIO_LIB_DIR_ABS)/libsimpledataio.a
 
 
 distclean_simpledataio:
 clean_simpledataio:
 simpledataio:
 
-SIMPLEDATAIO_VPATH=:diagnostics/simpledataio/src/:../diagnostics/simpledataio/src/:diagnostics/simpledataio/include/:../diagnostics/simpledataio/include/
+SIMPLEDATAIO_VPATH:=:diagnostics/simpledataio/src/:../diagnostics/simpledataio/src/:diagnostics/simpledataio/include/:../diagnostics/simpledataio/include/
 
 diagnostics: $(LIBDIR)/libsimpledataio.a
 
