@@ -111,7 +111,12 @@ gfortran6_standard_tests:
   image: fedora:24
   variables:
     CASENAME: "gfortran_6"
-  script: *default_script
+    WITH_PYTHON: ""
+  script:
+    - pip3 install --upgrade pip
+    - pip3 install numpy==1.15 netCDF4
+    - su -c "./pipeline_test_scripts/ci_build_and_run.sh" theuser
+    - *report_pass
 
 intel_tests:
   stage: test
