@@ -151,7 +151,7 @@ coverage_standard_tests:
   after_script:
     - *push_status
     - pip3 install cpp-coveralls
-    - coveralls
+    - coveralls --verbose
 
 onestep_standard_tests:
   stage: test
