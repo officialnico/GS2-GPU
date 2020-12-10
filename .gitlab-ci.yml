@@ -166,6 +166,7 @@ nodeps_tests:
 
 pages:
   stage: test
+  image: fedora:31
   variables:
     CASENAME: "website"
   script:
