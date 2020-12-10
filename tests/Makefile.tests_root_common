@@ -2,20 +2,20 @@ export
 include $(GK_HEAD_DIR)/Makefile.utils
 
 # Specify any required modules that are not in libgs2.a
-TEST_MODS= $(OBJDIR)/functional_tests.o $(OBJDIR)/benchmarks.o
+TEST_MODS:= $(OBJDIR)/functional_tests.o $(OBJDIR)/benchmarks.o
 
 # Run the tests in all subfolders unless otherwise specified
 # by setting the variable TESTS
 ifdef TESTS
-TESTS_TMP = $(filter $(wildcard */.),$(patsubst %,%/.,$(TESTS)))
+TESTS_TMP := $(filter $(wildcard */.),$(patsubst %,%/.,$(TESTS)))
 else
-TESTS_TMP = $(wildcard */.)
+TESTS_TMP := $(wildcard */.)
 endif
 
 ifdef EXCLUDE_TESTS
-TESTS_ACTUAL = $(filter-out $(patsubst %,%/.,$(EXCLUDE_TESTS)),$(TESTS_TMP))
+TESTS_ACTUAL := $(filter-out $(patsubst %,%/.,$(EXCLUDE_TESTS)),$(TESTS_TMP))
 else
-TESTS_ACTUAL = $(TESTS_TMP)
+TESTS_ACTUAL := $(TESTS_TMP)
 endif
 
 .PHONY: all $(TESTS_ACTUAL) clean upload
