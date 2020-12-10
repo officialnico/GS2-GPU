@@ -113,6 +113,7 @@ gfortran5_standard_tests:
     CASENAME: "gfortran_5"
     WITH_PYTHON: ""
     GK_CI_PFUNIT: ""
+    GK_CI_INTEGRATED: ""
   script: *default_script
 
 intel_tests:
