@@ -113,7 +113,7 @@ gfortran5_standard_tests:
     CASENAME: "gfortran_5"
     WITH_PYTHON: ""
   script:
-    - pip3 install --upgrade pip
+#    - pip3 install --upgrade pip
     - pip3 install numpy==1.15 #netCDF4==1.4.1
     - su -c "./pipeline_test_scripts/ci_build_and_run.sh" theuser
     - *report_pass
