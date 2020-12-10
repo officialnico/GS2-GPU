@@ -147,6 +147,7 @@ coverage_standard_tests:
     GK_CI_PFUNIT_COVERAGE: "ON"
     EXTRA_MAKE_FLAGS: "USE_GCOV=on DEBUG=on ONE_STEP_PP=on"
     GK_MAKEFILE_LOCAL_EXTRA_FLAGS: "F90FLAGS += -ffree-form"
+    COVERALLS_SERVICE_NAME: "gitlab-ci"
   script: *default_script
   after_script:
     - *push_status
