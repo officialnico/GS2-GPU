@@ -106,6 +106,16 @@ gfortran10_standard_tests:
     GK_CI_PFUNIT: ""
   script: *default_script
 
+gfortran5_standard_tests:
+  stage: test
+  image: fedora:23
+  variables:
+    CASENAME: "gfortran_5"
+    WITH_PYTHON: ""
+    GK_CI_PFUNIT: ""
+    GK_CI_INTEGRATED: ""
+  script: *default_script
+
 intel_tests:
   stage: test
   image: fedora:31
