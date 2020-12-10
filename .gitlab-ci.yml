@@ -159,8 +159,9 @@ nodeps_tests:
     CASENAME: "no_dependency"
     EXTRA_MAKE_FLAGS: "USE_FFT= USE_NETCDF= USE_MPI= USE_NEW_DIAG= "
     GS2_PACKAGES: "gfortran"
-    WITH_PYTHON: "yes"
+    WITH_PYTHON: "no"
     WITH_MPI: "no"
+    GK_CI_PFUNIT: ""
   script: *default_script
 
 pages:
