@@ -101,9 +101,8 @@ gfortran10_standard_tests:
   stage: test
   image: fedora:33
   variables:
-    CASENAME: "standard gfortran 10"
-    GK_MAKEFILE_LOCAL_EXTRA_FLAGS: "F90FLAGS += -fallow-argument-mismatch"
-#Disable pfunit tests for now as we can't pass the above flag through so it fails to build.
+    CASENAME: "gfortran_10"
+#Disable pfunit tests for now as v3 doesn't support gfortran 10 so it fails to build.
     GK_CI_PFUNIT: ""
   script: *default_script
 
@@ -112,7 +111,7 @@ intel_tests:
   image: fedora:31
   artifacts:
   variables:
-    CASENAME: "standard"
+    CASENAME: "intel"
     EXTRA_MAKE_FLAGS: "COMPILER=intel USE_FFT= USE_NETCDF= USE_MPI= USE_NEW_DIAG= "
     GK_MAKEFILE_LOCAL_EXTRA_FLAGS: "DBLESIZEOPT=-double_size 128"
     GS2_PACKAGES: "cpp gcc"
@@ -160,10 +159,8 @@ nodeps_tests:
     CASENAME: "no_dependency"
     EXTRA_MAKE_FLAGS: "USE_FFT= USE_NETCDF= USE_MPI= USE_NEW_DIAG= "
     GS2_PACKAGES: "gfortran"
-    WITH_PYTHON: "no"
+    WITH_PYTHON: "yes"
     WITH_MPI: "no"
-    GK_CI_PFUNIT: ""
-    GK_CI_INTEGRATED: "yes"
   script: *default_script
 
 pages:
