@@ -150,7 +150,7 @@ coverage_standard_tests:
   script: *default_script
   after_script:
     - *push_status
-    - pip3 install cpp-coveralls
+    - pip3 install git+https://github.com/d7919/cpp-coveralls.git
     - coveralls --verbose
 
 onestep_standard_tests:
