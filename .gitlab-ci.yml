@@ -152,7 +152,7 @@ coverage_standard_tests:
   after_script:
     - *push_status
     - pip3 install git+https://github.com/d7919/cpp-coveralls.git
-    - coveralls
+    - coveralls --exclude tests --exclude externals/pFUnit_build
 
 onestep_standard_tests:
   stage: test
