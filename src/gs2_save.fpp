@@ -1324,7 +1324,7 @@ contains
   subroutine gs2_restore_many (g, scale, istatus, fphi, fapar, fbpar, fileopt)
 !MR, 2007: restore kx_shift array if already allocated
 # ifdef NETCDF
-    use mp, only: iproc, mp_abort
+    use mp, only: iproc, mp_abort, proc0
     use fields_arrays, only: phinew, aparnew, bparnew
     use fields_arrays, only: phi, apar, bpar
     use dist_fn_arrays, only: kx_shift   ! MR
@@ -1350,7 +1350,8 @@ contains
     character (len = 5) :: restart_layout
     integer :: i, n_elements, ierr
     real :: fac
-    
+    logical :: has_explicit_source_terms
+    logical, save :: explicit_warning_given = .false.
     n_elements = g_lo%ulim_proc-g_lo%llim_proc+1
     if (n_elements <= 0) return
     
@@ -1464,29 +1465,44 @@ contains
        endif   ! MR end
 
        if (include_explicit_source_in_restart) then
+          has_explicit_source_terms = .true.
           if (allocated(gexp_1)) then
              istatus = nf90_inq_varid (ncid, "gexp_1_r", gexp_1_r_id)
-             if (istatus /= NF90_NOERR) call netcdf_error (istatus, var='gexp_1_r')
+             if (istatus /= NF90_NOERR) has_explicit_source_terms = .false.
 
              istatus = nf90_inq_varid (ncid, "gexp_1_i", gexp_1_i_id)
-             if (istatus /= NF90_NOERR) call netcdf_error (istatus, var='gexp_1_i')
+             if (istatus /= NF90_NOERR) has_explicit_source_terms = .false.
           endif
 
           if (allocated(gexp_2)) then
              istatus = nf90_inq_varid (ncid, "gexp_2_r", gexp_2_r_id)
-             if (istatus /= NF90_NOERR) call netcdf_error (istatus, var='gexp_2_r')
+             if (istatus /= NF90_NOERR) has_explicit_source_terms = .false.
 
              istatus = nf90_inq_varid (ncid, "gexp_2_i", gexp_2_i_id)
-             if (istatus /= NF90_NOERR) call netcdf_error (istatus, var='gexp_2_i')
+             if (istatus /= NF90_NOERR) has_explicit_source_terms = .false.
           endif
 
           if (allocated(gexp_3)) then
              istatus = nf90_inq_varid (ncid, "gexp_3_r", gexp_3_r_id)
-             if (istatus /= NF90_NOERR) call netcdf_error (istatus, var='gexp_3_r')
+             if (istatus /= NF90_NOERR) has_explicit_source_terms = .false.
 
              istatus = nf90_inq_varid (ncid, "gexp_3_i", gexp_3_i_id)
-             if (istatus /= NF90_NOERR) call netcdf_error (istatus, var='gexp_3_i')
+             if (istatus /= NF90_NOERR) has_explicit_source_terms = .false.
           endif
+
+          if ((.not. explicit_warning_given).and. proc0 .and. .not.has_explicit_source_terms) then
+             write(*, '("Warning: At least one explicit source term absent in restart file.")')
+             write(*, '("  Will not load these terms. This is probably OK unless you expect the restart file to contain these terms.")')
+             write(*, '("  This warning will not be repeated.")')
+
+             ! Update this flag to ensure we don't give this warning again
+             explicit_warning_given = .true.
+          end if
+
+       else
+          ! Always skip trying to get the explicit source terms if we're not
+          ! including them
+          has_explicit_source_terms = .false.
        end if
 
        istatus = nf90_inq_varid (ncid, "gr", gr_id)
@@ -1553,7 +1569,7 @@ contains
     g = cmplx(tmpr, tmpi)
 
 
-    if (include_explicit_source_in_restart) then
+    if (include_explicit_source_in_restart .and. has_explicit_source_terms) then
        ! Explicit source term
        if(allocated(gexp_1)) then
 # ifdef NETCDF_PARALLEL
@@ -2174,7 +2190,7 @@ contains
   end subroutine restore_current_scan_parameter_value
 
   !> FIXME : Add documentation  
-  subroutine init_dt (delt0, delt1, delt2, istatus)
+  subroutine init_dt (delt0, delt1, delt2, istatus, not_set_value)
 # ifdef NETCDF
     use mp, only: proc0, broadcast
     use file_utils, only: error_unit
@@ -2182,8 +2198,10 @@ contains
     implicit none
     real, intent (in out) :: delt0, delt1, delt2
     integer, intent (out) :: istatus
+    real, intent(in), optional :: not_set_value
 # ifdef NETCDF
-    character (run_name_size) :: file_proc        
+    character (run_name_size) :: file_proc
+    real :: not_set_value_to_use
 
     if (proc0) then
 
@@ -2203,6 +2221,19 @@ contains
           if (istatus /= NF90_NOERR) call netcdf_error (istatus,file=file_proc)
        end if
 
+       if(present(not_set_value)) then
+          not_set_value_to_use = not_set_value
+       else
+          not_set_value_to_use = -1.0
+       end if
+
+       ! Note unlike the explicit source terms all three time steps should always
+       ! be available in the restart file so we don't silence the error messages here.
+       ! The only situation we are likely to come across where the delt1 and delt2
+       ! values aren't available is where we are trying to read an old restart file.
+       ! This will then lead to the error/warning being displayed but the code should
+       ! carry on as intended and the missing steps will be set to a special value to
+       ! indicate they have not been set yet.
        istatus = nf90_inq_varid (ncid, "delt0", delt0id)
        if (istatus /= NF90_NOERR) call netcdf_error (istatus, var='delt0')
        
@@ -2210,7 +2241,7 @@ contains
 
        if (istatus /= NF90_NOERR) then
           call netcdf_error (istatus, ncid, delt0id, message=' in init_dt')
-          delt0 = -1.
+          delt0 = not_set_value_to_use
        endif           
 
        istatus = nf90_inq_varid (ncid, "delt1", delt1id)
@@ -2220,7 +2251,7 @@ contains
 
        if (istatus /= NF90_NOERR) then
           call netcdf_error (istatus, ncid, delt1id, message=' in init_dt')
-          delt1 = -1.
+          delt1 = not_set_value_to_use
        endif           
 
        istatus = nf90_inq_varid (ncid, "delt2", delt2id)
@@ -2230,7 +2261,7 @@ contains
 
        if (istatus /= NF90_NOERR) then
           call netcdf_error (istatus, ncid, delt2id, message=' in init_dt')
-          delt2 = -1.
+          delt2 = not_set_value_to_use
        endif           
        
        if (.not.initialized) istatus = nf90_close (ncid)
