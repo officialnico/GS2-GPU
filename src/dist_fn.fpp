@@ -3266,9 +3266,15 @@ contains
         'dist_fn::timeadv calculated rhs')
 
     !Add hyper terms (damping)
-    call hyper_diff (gnew, phinew)
-    call debug_message(verb, &
-        'dist_fn::timeadv calculated hypviscosity')
+    if (istep > 0) then
+       !Note we exclude the hyper terms when we calculate the response
+       !data (indicated by istep==0) as these terms are typically not
+       !linearly independent.
+       call hyper_diff (gnew, phinew)
+       call debug_message(verb, &
+            'dist_fn::timeadv calculated hypviscosity')
+    end if
+
     !Add collisions
     if( .not. split_collisions) then
       call vspace_derivatives (gnew, g, g0, phi, bpar, phinew, bparnew, modep)
