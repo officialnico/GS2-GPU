@@ -4010,8 +4010,8 @@ contains
 
   !> FIXME : Add documentation
   subroutine get_source_term &
-       (phi, apar, bpar, phinew, aparnew, bparnew, nstep_available, &
-        isgn, iglo,ik,it,il,ie,is, sourcefac, source)
+       (phi, apar, bpar, phinew, aparnew, bparnew, include_explicit, &
+        ab_coefficients, isgn, iglo,ik,it,il,ie,is, sourcefac, source)
 #ifdef LOWFLOW
     use dist_fn_arrays, only: hneoc, vparterm, wdfac, wstarfac, wdttpfac
 #endif
@@ -4030,26 +4030,14 @@ contains
     implicit none
     complex, dimension (-ntgrid:,:,:), intent (in) :: phi,    apar,    bpar
     complex, dimension (-ntgrid:,:,:), intent (in) :: phinew, aparnew, bparnew
-    integer, intent (in) :: nstep_available
+    logical, intent (in) :: include_explicit
+    real, dimension(:), intent(in) :: ab_coefficients
     integer, intent (in) :: isgn, iglo, ik, it, il, ie, is
     complex, intent (in) :: sourcefac
     complex, dimension (-ntgrid:), intent (out) :: source
 
     integer :: ig
     complex, dimension (-ntgrid:ntgrid) :: phigavg, apargavg
-    real :: c0, c1, c2
-
-
-    ! NRM, 3/18/2015 
-    ! calculate AB3 coefficients generalized to changing timestep
-    ! see Tatsuno & Dorland, Physics of Plasmas 13, 092107 (2006)
-    ! http://www.cscamm.umd.edu/publications/TatsunoDorland-PoP06_CS-06-11.pdf
-    ! if dt0 = dt1 = dt2, this reduces to usual AB3 coefficients
-    c0 = (1. / (dt1 + dt2)) * ( &
-         ((dt0 + dt1)**2./dt1)*( (dt0+dt1)/3. + dt2/2. ) &
-         - dt1*(dt1/3. + dt2/2.) )
-    c1 = - dt0**2. * ( dt0/3. + (dt1+dt2)/2. ) / (dt1*dt2)
-    c2 = dt0**2. * ( dt0/3. + dt1/2. ) / ( dt2*(dt1+dt2) )
 
 !CMR, 4/8/2011
 ! apargavg and phigavg combine to give the GK EM potential chi. 
@@ -4152,71 +4140,31 @@ contains
              end do
           endif
 
-#ifdef LOWFLOW
-          select case (nstep_available)
-          case (0)
-             ! nothing
-          case (1)
-             do ig = -ntgrid, ntgrid-1
-                if (il < ittp(ig)) cycle
-                source(ig) = source(ig) + 0.5*code_dt*gexp_1(ig,isgn,iglo)
-             end do
-          case (2) 
-             do ig = -ntgrid, ntgrid-1
-                if (il < ittp(ig)) cycle
-                source(ig) = source(ig) + 0.5*code_dt*( &
-                     1.5*gexp_1(ig,isgn,iglo) - 0.5*gexp_2(ig,isgn,iglo))
-             end do
-          case default
-             do ig = -ntgrid, ntgrid-1
-                if (il < ittp(ig)) cycle
-             !   source(ig) = source(ig) + 0.5*code_dt*( &
-             !        (23./12.)*gexp_1(ig,isgn,iglo) &
-             !        - (4./3.)  *gexp_2(ig,isgn,iglo) &
-             !        + (5./12.) *gexp_3(ig,isgn,iglo))
-    ! NRM, 3/18/2015 
-    ! use AB3 generalized to changing timestep
-                 source(ig) = source(ig) + 0.5*( &
-                          c0*gexp_1(ig,isgn,iglo) &
-                        + c1*gexp_2(ig,isgn,iglo) &
-                        + c2*gexp_3(ig,isgn,iglo))
-             end do
-          end select
-#else
-! add in nonlinear terms 
-          if (nonlin) then         
-             select case (nstep_available)
-             case (0)
-                ! nothing
+          if (include_explicit) then
+             select case (size(ab_coefficients))
              case (1)
                 do ig = -ntgrid, ntgrid-1
                    if (il < ittp(ig)) cycle
-                   source(ig) = source(ig) + 0.5*code_dt*gexp_1(ig,isgn,iglo)
+                   source(ig) = source(ig) + 0.5*code_dt*(&
+                        ab_coefficients(1)*gexp_1(ig,isgn,iglo))
                 end do
-             case (2) 
+             case (2)
                 do ig = -ntgrid, ntgrid-1
                    if (il < ittp(ig)) cycle
                    source(ig) = source(ig) + 0.5*code_dt*( &
-                        1.5*gexp_1(ig,isgn,iglo) - 0.5*gexp_2(ig,isgn,iglo))
-                end do                   
-             case default
+                        ab_coefficients(1)*gexp_1(ig,isgn,iglo) + &
+                        ab_coefficients(2)*gexp_2(ig,isgn,iglo))
+                end do
+             case (3)
                 do ig = -ntgrid, ntgrid-1
                    if (il < ittp(ig)) cycle
-              !    source(ig) = source(ig) + 0.5*code_dt*( &
-              !           (23./12.)*gexp_1(ig,isgn,iglo) &
-              !         - (4./3.)  *gexp_2(ig,isgn,iglo) &
-              !         + (5./12.) *gexp_3(ig,isgn,iglo))
-    ! NRM, 3/18/2015 
-    ! use AB3 generalized to changing timestep
-                 source(ig) = source(ig) + 0.5*( &
-                          c0*gexp_1(ig,isgn,iglo) &
-                        + c1*gexp_2(ig,isgn,iglo) &
-                        + c2*gexp_3(ig,isgn,iglo))
+                   source(ig) = source(ig) + 0.5*code_dt*( &
+                        ab_coefficients(1)*gexp_1(ig,isgn,iglo) + &
+                        ab_coefficients(2)*gexp_2(ig,isgn,iglo) + &
+                        ab_coefficients(3)*gexp_3(ig,isgn,iglo))
                 end do
              end select
           end if
-#endif
-
        end if
     end if
 
@@ -4316,65 +4264,28 @@ contains
 #endif
       end do
 
-#ifdef LOWFLOW
-      select case (nstep_available)
-      case (0)
-         ! nothing
-      case (1)
-         do ig = -ntgrid, ntgrid-1
-            source(ig) = source(ig) + 0.5*code_dt*gexp_1(ig,isgn,iglo)
-         end do
-      case (2) 
-         do ig = -ntgrid, ntgrid-1
-            source(ig) = source(ig) + 0.5*code_dt*( &
-                 1.5*gexp_1(ig,isgn,iglo) - 0.5*gexp_2(ig,isgn,iglo))
-         end do
-      case default
-         do ig = -ntgrid, ntgrid-1
-          !  source(ig) = source(ig) + 0.5*code_dt*( &
-          !       (23./12.)*gexp_1(ig,isgn,iglo) &
-          !       - (4./3.)  *gexp_2(ig,isgn,iglo) &
-          !       + (5./12.) *gexp_3(ig,isgn,iglo))
-    ! NRM, 3/18/2015 
-    ! use AB3 generalized to changing timestep
-                 source(ig) = source(ig) + 0.5*( &
-                          c0*gexp_1(ig,isgn,iglo) &
-                        + c1*gexp_2(ig,isgn,iglo) &
-                        + c2*gexp_3(ig,isgn,iglo))
-         end do
-      end select
-#else
-! add in nonlinear terms 
-      if (nonlin) then         
-         select case (nstep_available)
-         case (0)
-            ! nothing
+      if (include_explicit) then
+         select case (size(ab_coefficients))
          case (1)
             do ig = -ntgrid, ntgrid-1
-               source(ig) = source(ig) + 0.5*code_dt*gexp_1(ig,isgn,iglo)
+               source(ig) = source(ig) + 0.5*code_dt*(&
+                    ab_coefficients(1)*gexp_1(ig,isgn,iglo))
             end do
-         case (2) 
+         case (2)
             do ig = -ntgrid, ntgrid-1
                source(ig) = source(ig) + 0.5*code_dt*( &
-                    1.5*gexp_1(ig,isgn,iglo) - 0.5*gexp_2(ig,isgn,iglo))
+                    ab_coefficients(1)*gexp_1(ig,isgn,iglo) + &
+                    ab_coefficients(2)*gexp_2(ig,isgn,iglo))
             end do
-         case default
+         case (3)
             do ig = -ntgrid, ntgrid-1
-             !  source(ig) = source(ig) + 0.5*code_dt*( &
-             !         (23./12.)*gexp_1(ig,isgn,iglo) &
-             !       - (4./3.)  *gexp_2(ig,isgn,iglo) &
-             !       + (5./12.) *gexp_3(ig,isgn,iglo))
-    ! NRM, 3/18/2015 
-    ! use AB3 generalized to changing timestep
-                 source(ig) = source(ig) + 0.5*( &
-                          c0*gexp_1(ig,isgn,iglo) &
-                        + c1*gexp_2(ig,isgn,iglo) &
-                        + c2*gexp_3(ig,isgn,iglo))
+               source(ig) = source(ig) + 0.5*code_dt*( &
+                    ab_coefficients(1)*gexp_1(ig,isgn,iglo) + &
+                    ab_coefficients(2)*gexp_2(ig,isgn,iglo) + &
+                    ab_coefficients(3)*gexp_3(ig,isgn,iglo))
             end do
          end select
       end if
-#endif
-
     end subroutine set_source
 
   end subroutine get_source_term
@@ -4383,8 +4294,8 @@ contains
   !! and uses precalculated constant terms. Leads to more memory usage than 
   !! original version but can be significantly faster (~50%)
   subroutine get_source_term_opt &
-       (phi, apar, bpar, phinew, aparnew, bparnew, nstep_available, &
-        iglo,ik,it,il,ie,is, sourcefac, source)
+       (phi, apar, bpar, phinew, aparnew, bparnew, include_explicit, &
+        ab_coefficients, iglo,ik,it,il,ie,is, sourcefac, source)
 #ifdef LOWFLOW
     use dist_fn_arrays, only: hneoc, vparterm, wdfac, wstarfac, wdttpfac
 #endif
@@ -4402,25 +4313,13 @@ contains
     implicit none
     complex, dimension (-ntgrid:,:,:), intent (in) :: phi,    apar,    bpar
     complex, dimension (-ntgrid:,:,:), intent (in) :: phinew, aparnew, bparnew
-    integer, intent (in) :: nstep_available
+    logical, intent (in) :: include_explicit
+    real, dimension(:), intent(in) :: ab_coefficients
     integer, intent (in) :: iglo, ik, it, il, ie, is
     complex, intent (in) :: sourcefac
     complex, dimension (-ntgrid:,:), intent (out) :: source
     integer :: ig, isgn
     complex, dimension (-ntgrid:ntgrid) :: phigavg, apargavg
-
-    real :: c0, c1, c2
-
-    ! NRM, 3/18/2015 
-    ! calculate AB3 coefficients generalized to changing timestep
-    ! see Tatsuno & Dorland, Physics of Plasmas 13, 092107 (2006)
-    ! http://www.cscamm.umd.edu/publications/TatsunoDorland-PoP06_CS-06-11.pdf
-    ! if dt0 = dt1 = dt2, this reduces to usual AB3 coefficients
-    c0 = (1. / (dt1 + dt2)) * ( &
-         ((dt0 + dt1)**2./dt1)*( (dt0+dt1)/3. + dt2/2. ) &
-         - dt1*(dt1/3. + dt2/2.) )
-    c1 = - dt0**2. * ( dt0/3. + (dt1+dt2)/2. ) / (dt1*dt2)
-    c2 = dt0**2. * ( dt0/3. + dt1/2. ) / ( dt2*(dt1+dt2) )
 
 
     !Temporally weighted fields
@@ -4516,35 +4415,29 @@ contains
              end do
           endif
 
-          ! add in nonlinear terms 
-          if (nonlin) then         
-             select case (nstep_available)
-             case (0)
-                ! nothing
+          ! add in explicit terms
+          if (include_explicit) then
+             select case (size(ab_coefficients))
              case (1)
                 do ig = -ntgrid, ntgrid-1
                    if (il < ittp(ig)) cycle
-                   source(ig,isgn) = source(ig,isgn) + 0.5*code_dt*gexp_1(ig,isgn,iglo)
+                   source(ig, isgn) = source(ig, isgn) + 0.5*code_dt*(&
+                        ab_coefficients(1)*gexp_1(ig,isgn,iglo))
                 end do
-             case (2) 
+             case (2)
                 do ig = -ntgrid, ntgrid-1
                    if (il < ittp(ig)) cycle
-                   source(ig,isgn) = source(ig,isgn) + 0.5*code_dt*( &
-                        1.5*gexp_1(ig,isgn,iglo) - 0.5*gexp_2(ig,isgn,iglo))
+                   source(ig, isgn) = source(ig, isgn) + 0.5*code_dt*( &
+                        ab_coefficients(1)*gexp_1(ig,isgn,iglo) + &
+                        ab_coefficients(2)*gexp_2(ig,isgn,iglo))
                 end do
-             case default
+             case (3)
                 do ig = -ntgrid, ntgrid-1
                    if (il < ittp(ig)) cycle
-                !   source(ig,isgn) = source(ig,isgn) + 0.5*code_dt*( &
-                !        (23./12.)*gexp_1(ig,isgn,iglo) &
-                !        - (4./3.)  *gexp_2(ig,isgn,iglo) &
-                !        + (5./12.) *gexp_3(ig,isgn,iglo))
-    ! NRM, 3/18/2015 
-    ! use AB3 generalized to changing timestep
-                 source(ig,isgn) = source(ig,isgn) + 0.5*( &
-                          c0*gexp_1(ig,isgn,iglo) &
-                        + c1*gexp_2(ig,isgn,iglo) &
-                        + c2*gexp_3(ig,isgn,iglo))
+                   source(ig, isgn) = source(ig, isgn) + 0.5*code_dt*( &
+                        ab_coefficients(1)*gexp_1(ig,isgn,iglo) + &
+                        ab_coefficients(2)*gexp_2(ig,isgn,iglo) + &
+                        ab_coefficients(3)*gexp_3(ig,isgn,iglo))
                 end do
              end select
           end if
@@ -4588,36 +4481,29 @@ contains
          end do
       endif
 
-! add in nonlinear terms 
-      if (nonlin) then         
-         select case (nstep_available)
-         case (0)
-            ! nothing
+      ! add in explicit terms
+      if (include_explicit) then
+         select case (size(ab_coefficients))
          case (1)
             do ig = -ntgrid, ntgrid-1
-               source(ig,isgn) = source(ig,isgn) + 0.5*code_dt*gexp_1(ig,isgn,iglo)
+               source(ig, isgn) = source(ig, isgn) + 0.5*code_dt*(&
+                    ab_coefficients(1)*gexp_1(ig,isgn,iglo))
             end do
-         case (2) 
+         case (2)
             do ig = -ntgrid, ntgrid-1
-               source(ig,isgn) = source(ig,isgn) + 0.5*code_dt*( &
-                    1.5*gexp_1(ig,isgn,iglo) - 0.5*gexp_2(ig,isgn,iglo))
+               source(ig, isgn) = source(ig, isgn) + 0.5*code_dt*( &
+                    ab_coefficients(1)*gexp_1(ig,isgn,iglo) + &
+                    ab_coefficients(2)*gexp_2(ig,isgn,iglo))
             end do
-         case default
+         case (3)
             do ig = -ntgrid, ntgrid-1
-            !   source(ig,isgn) = source(ig,isgn) + 0.5*code_dt*( &
-            !          (23./12.)*gexp_1(ig,isgn,iglo) &
-            !        - (4./3.)  *gexp_2(ig,isgn,iglo) &
-            !        + (5./12.) *gexp_3(ig,isgn,iglo))
-    ! NRM, 3/18/2015 
-    ! use AB3 generalized to changing timestep
-                 source(ig,isgn) = source(ig,isgn) + 0.5*( &
-                          c0*gexp_1(ig,isgn,iglo) &
-                        + c1*gexp_2(ig,isgn,iglo) &
-                        + c2*gexp_3(ig,isgn,iglo))
+               source(ig, isgn) = source(ig, isgn) + 0.5*code_dt*( &
+                    ab_coefficients(1)*gexp_1(ig,isgn,iglo) + &
+                    ab_coefficients(2)*gexp_2(ig,isgn,iglo) + &
+                    ab_coefficients(3)*gexp_3(ig,isgn,iglo))
             end do
          end select
       end if
-
     end subroutine set_source_opt
 
   end subroutine get_source_term_opt
@@ -4637,14 +4523,15 @@ contains
     use kt_grids, only: kwork_filter
     use species, only: spec, nonmaxw_corr
     use mp, only: mp_abort
-    use gs2_time, only: time_history_available
+    use gs2_time, only: get_adams_bashforth_coefficients
+    use nonlinear_terms, only: nonlin
     implicit none
     complex, dimension (-ntgrid:,:,:), intent (in) :: phi,    apar,    bpar
     complex, dimension (-ntgrid:,:,:), intent (in) :: phinew, aparnew, bparnew
     integer, intent (in) :: istep
     integer, intent (in) :: iglo
     complex, intent (in) :: sourcefac
-
+    real, dimension(:), allocatable :: ab_coefficients
     integer :: ig, ik, it, il, ie, isgn, is
     integer :: ilmin
     complex :: beta1
@@ -4653,7 +4540,7 @@ contains
     complex :: adjleft, adjright
     logical :: use_pass_homog, speriod_flag
     integer :: ntgl, ntgr
-    integer :: nstep_available
+    logical :: include_explicit
 
 !    call prof_entering ("invert_rhs_1", "dist_fn")
 
@@ -4677,18 +4564,24 @@ contains
     is = is_idx(g_lo,iglo)
 
     if (istep .eq. 0) then
-       nstep_available = 0
+       include_explicit = .false.
     else
-       nstep_available = time_history_available()
+       include_explicit = .true.
     endif
-    
+
+#ifndef LOWFLOW
+    include_explicit = include_explicit .and. nonlin
+#endif
+
+    ab_coefficients = get_adams_bashforth_coefficients()
+
     if(opt_source)then
        call get_source_term_opt (phi, apar, bpar, phinew, aparnew, bparnew, &
-            nstep_available, iglo,ik,it,il,ie,is, sourcefac, source)
+            include_explicit, ab_coefficients, iglo,ik,it,il,ie,is, sourcefac, source)
     else
        do isgn = 1, 2
           call get_source_term (phi, apar, bpar, phinew, aparnew, bparnew, &
-               nstep_available, isgn, iglo,ik,it,il,ie,is, sourcefac, source(:,isgn))
+               include_explicit, ab_coefficients, isgn, iglo,ik,it,il,ie,is, sourcefac, source(:,isgn))
        end do
     endif
 
@@ -6711,8 +6604,9 @@ endif
     use gs2_layouts, only: g_lo, ik_idx, it_idx, il_idx, ie_idx, is_idx
     use theta_grid, only: ntgrid
     use run_parameters, only: fphi, fapar, fbpar
-    use gs2_time, only: user_time, user_dt, time_history_available
+    use gs2_time, only: user_time, user_dt, get_adams_bashforth_coefficients
     use collisions, only: vnmult
+    use nonlinear_terms, only: nonlin
     implicit none
     integer, intent(in) :: istep
     complex, dimension (-ntgrid:,:,:), intent (in) :: phi,    apar,    bpar
@@ -6720,18 +6614,26 @@ endif
     complex, dimension(:, :, :), allocatable :: gtmp
     complex, dimension (-ntgrid:ntgrid-1,2) :: source
     character(len = 20), parameter :: extension = '.source'
-    integer :: nstep_available, istatus
+    integer :: istatus
+    logical :: include_explicit
     integer :: iglo, ik, it, il, ie, is, isgn
+    real, dimension(:), allocatable :: ab_coefficients
     complex, parameter :: sourcefac = 0.0
 
     allocate(gtmp(-ntgrid:ntgrid, 2, g_lo%llim_proc:g_lo%ulim_alloc))
     gtmp = 0.
 
     if (istep .eq. 0) then
-       nstep_available = 0
+       include_explicit = .false.
     else
-       nstep_available = time_history_available()
+       include_explicit = .true.
     endif
+
+#ifndef LOWFLOW
+    include_explicit = include_explicit .and. nonlin
+#endif
+
+    ab_coefficients = get_adams_bashforth_coefficients()
 
     do iglo = g_lo%llim_proc, g_lo%ulim_proc
        ik = ik_idx(g_lo, iglo)
@@ -6742,11 +6644,11 @@ endif
 
        if(opt_source)then
           call get_source_term_opt (phi, apar, bpar, phinew, aparnew, bparnew, &
-               nstep_available, iglo,ik,it,il,ie,is, sourcefac, source)
+               include_explicit, ab_coefficients, iglo,ik,it,il,ie,is, sourcefac, source)
        else
           do isgn = 1, 2
              call get_source_term (phi, apar, bpar, phinew, aparnew, bparnew, &
-                  nstep_available, isgn, iglo,ik,it,il,ie,is, sourcefac, source(:,isgn))
+                  include_explicit, ab_coefficients, isgn, iglo,ik,it,il,ie,is, sourcefac, source(:,isgn))
           end do
        endif
 

@@ -1,0 +1,78 @@
+module test_gs2_time_mod
+  use PFUNIT_MOD
+  implicit none
+  real, parameter :: tolerance = 1.0e-9
+
+  !# WARNING: There is currently no easy clean way to reset the
+  !# gs2_time module to its initial state so care has to be taken
+  !# to clean up after tests once we have tests which could interact.
+  !# We add a hard coded reset routine here to assist with this but
+  !# it would be better to migrate this to the gs2_time module to make
+  !# it easier to keep in sync with code changes.
+contains
+
+  @before
+  subroutine setup(this)
+    use mp, only : init_mp
+    class (MpiTestMethod), intent(inout) :: this
+
+    call init_mp(this%getMpiCommunicator())
+  end subroutine setup
+
+  @after
+  subroutine teardown(this)
+    class (MpiTestMethod), intent(inout) :: this
+  end subroutine teardown
+
+  !> Reset the gs2_time module to close to the initial state.
+  !> Note we end up setting code_dt = dt_not_set here. Currently
+  !> in real use code_dt starts out not initialized, so this is a
+  !> slight inconsistency, but hopefully ok.
+  subroutine reset_gs2_time
+    use gs2_time, only: dt_not_set, init_delt, init_tstart
+    implicit none
+    call init_tstart(0.)
+    call init_delt(dt_not_set, dt_not_set, dt_not_set)
+  end subroutine reset_gs2_time
+
+  @test(npes=[1])
+  subroutine test_get_adams_bashforth_coefficients(this)
+    !< Tests the Adams Bashforth coefficients for constant time step
+    use gs2_time, only: get_adams_bashforth_coefficients, update_time, save_dt
+    implicit none
+    class(MPITestMethod), intent(inout) :: this
+    real, dimension(:), allocatable :: ab_coefficients
+    !First reset the module state
+    call reset_gs2_time
+
+    !Set the initial timestep
+    call save_dt(1.0)
+
+    !Get 1st order coefficients
+    ab_coefficients = get_adams_bashforth_coefficients()
+    @assertEqual(size(ab_coefficients), 1, message="1st Order Coefficient size")
+    @assertEqual(ab_coefficients(1), 1.0, tolerance=tolerance, message="1st Order 1st Coefficient")
+
+    !Now set another timestep
+    call update_time
+
+    !Get 2nd order coefficients
+    ab_coefficients = get_adams_bashforth_coefficients()
+    @assertEqual(size(ab_coefficients), 2, message="2nd Order Coefficient size")
+    @assertEqual(ab_coefficients(1), 1.5, tolerance=tolerance, message="2nd Order 1st Coefficient")
+    @assertEqual(ab_coefficients(2), -0.5, tolerance=tolerance, message="2nd Order 2nd Coefficient")
+
+    !Now set another timestep
+    call update_time
+
+    !Get 3rd order coefficients
+    ab_coefficients = get_adams_bashforth_coefficients()
+    @assertEqual(size(ab_coefficients), 3, message="3rd Order Coefficient size")
+    @assertEqual(ab_coefficients(1), 23./12., tolerance=tolerance, message="3rd Order 1st Coefficient")
+    @assertEqual(ab_coefficients(2), -4./3., tolerance=tolerance, message="3rd Order 2nd Coefficient")
+    @assertEqual(ab_coefficients(3), 5./12., tolerance=tolerance, message="3rd Order 3rd Coefficient")
+
+    !Reset the module state again
+    call reset_gs2_time
+  end subroutine test_get_adams_bashforth_coefficients
+end module test_gs2_time_mod
