@@ -19,7 +19,11 @@ contains
     use mp, only: proc0
     implicit none
     type(diagnostics_type), intent(in) :: gnostics
-    if (gnostics%write_jext) allocate (j_ext_hist(ntheta0, naky,0:gnostics%navg-1)) 
+    if (gnostics%write_jext) then
+       allocate (j_ext_hist(ntheta0, naky,0:gnostics%navg-1))
+       j_ext_hist = 0.
+    end if
+
     if (proc0.and.gnostics%write_jext.and.gnostics%write_ascii) &
       write (gnostics%ascii_files%jext, *) &
       "Warning: the contents of this file differ &
@@ -126,6 +130,7 @@ contains
     if (proc0) then
        !Save variable to history
        if (gnostics%navg > 1) then
+          ! This looks a little odd as we ignore the first step
           if (istep > 1) j_ext_hist(:,:,mod(istep,gnostics%navg)) = j_ext(:,:)
           
           !Use average of history
