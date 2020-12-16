@@ -8,9 +8,14 @@
 !> 7. Int(Poly(vperp2))
 !> 8. Int(Poly(lambda))
 !> 9. Int(Poly(vpar))?
+!>
+!> In GS2 the integral over energy of a quantity f is given by
+!> Integral(f*v^2*exp(-v^2) dv, {v,0,infinity})/Integral(v^2*exp(-v^2) dv, {v,0,infinity})
+!> i.e.
+!> Integral(f*v^2*exp(-v^2) dv, {v,0,infinity})*4/sqrt(pi)
 program test_le_grids_integrate
   use unit_tests
-  use le_grids, only: integrate_moment, w, wl, nlambda, jend, ng2, negrid, energy
+  use le_grids, only: integrate_moment, energy, al, forbid
   use dist_fn, only: init_dist_fn
   use dist_fn_arrays, only: gnew
   use mp, only: init_mp, finish_mp, proc0, broadcast, iproc
@@ -18,15 +23,14 @@ program test_le_grids_integrate
   use species, only: nspec
   use kt_grids, only: naky, ntheta0
   use theta_grid, only: ntgrid
-  use gs2_layouts, only: g_lo, ie_idx, il_idx
+  use gs2_layouts, only: g_lo, ie_idx, il_idx, is_idx
   use constants, only: pi
 
   implicit none
   logical :: dummy
   complex, dimension (:,:,:,:), allocatable :: integrate_results
   real, dimension(:, :,:), allocatable :: test_sum
-  integer :: ig, il, ie, iglo
-  real :: ee
+  integer :: ig, il, ie, is, iglo
   real :: tolerance = 1.0e-8
   logical :: agrees
   integer :: in_file
@@ -50,7 +54,9 @@ program test_le_grids_integrate
   global_pass = .true.
 
   agrees = integrate_zero_test()
+  agrees = integrate_zero_forbid_test()
   agrees = integrate_one_test()
+  agrees = integrate_one_forbid_test()
   agrees = integrate_sqrt_e_test()
   agrees = integrate_e_test()
 
@@ -103,8 +109,8 @@ contains
     gnew = 0.0d0
     do iglo = g_lo%llim_proc, g_lo%ulim_proc
        ie = ie_idx(g_lo, iglo)
-       ee = energy(ie, 1)
-       gnew(:,:,iglo) = sqrt(ee)
+       is = is_idx(g_lo, iglo)
+       gnew(:,:,iglo) = sqrt(energy(ie, is))
     end do
     agrees = integrate_and_test(name, expected_value)
   end function integrate_sqrt_e_test
@@ -116,9 +122,40 @@ contains
     gnew = 0.0d0
     do iglo = g_lo%llim_proc, g_lo%ulim_proc
        ie = ie_idx(g_lo, iglo)
-       ee = energy(ie, 1)
-       gnew(:,:,iglo) = ee
+       is = is_idx(g_lo, iglo)
+       gnew(:,:,iglo) = energy(ie,is)
     end do
     agrees = integrate_and_test(name, expected_value)
   end function integrate_e_test
+
+  logical function integrate_zero_forbid_test() result(agrees)
+    implicit none
+    real, parameter :: expected_value = 0.0
+    character(len=*), parameter :: name = '0 only in allowed'
+    gnew = 1.0d0
+    do iglo = g_lo%llim_proc, g_lo%ulim_proc
+       il = il_idx(g_lo, iglo)
+       do ig = -ntgrid, ntgrid
+          if(forbid(ig, il)) cycle
+          gnew(ig,:,iglo) = 0.0
+       end do
+    end do
+    agrees = integrate_and_test(name, expected_value)
+  end function integrate_zero_forbid_test
+
+  logical function integrate_one_forbid_test() result(agrees)
+    implicit none
+    real, parameter :: expected_value = 1.0
+    character(len=*), parameter :: name = '1 only in allowed'
+    gnew = 0.0d0
+    do iglo = g_lo%llim_proc, g_lo%ulim_proc
+       il = il_idx(g_lo, iglo)
+       do ig = -ntgrid, ntgrid
+          if(forbid(ig, il)) cycle
+          gnew(ig,:,iglo) = 1.0
+       end do
+    end do
+    agrees = integrate_and_test(name, expected_value)
+  end function integrate_one_forbid_test
+
 end program test_le_grids_integrate
