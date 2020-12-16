@@ -18,7 +18,7 @@ program test_le_grids_integrate
   use le_grids, only: integrate_moment, energy, al, forbid
   use dist_fn, only: init_dist_fn
   use dist_fn_arrays, only: gnew
-  use mp, only: init_mp, finish_mp, proc0, broadcast, iproc
+  use mp, only: init_mp, finish_mp, proc0, broadcast
   use file_utils, only: init_file_utils, input_unit_exist
   use species, only: nspec
   use kt_grids, only: naky, ntheta0
@@ -36,6 +36,7 @@ program test_le_grids_integrate
   integer :: in_file
   logical :: exist
   logical :: global_pass
+  logical :: reduce_via_mean = .false.
   namelist /le_grids_integrate/ tolerance
 
   ! Set up depenencies
@@ -73,6 +74,16 @@ contains
     mean = sum(array)/size(array)
   end function mean
 
+  complex function reduce_to_single_value(array) result(val)
+    implicit none
+    complex, dimension(-ntgrid:,:,:,:), intent(in) :: array
+    if(reduce_via_mean) then
+       val = mean(array)
+    else
+       val = array(0,1,1,1)
+    end if
+  end function reduce_to_single_value
+
   logical function integrate_and_test(name, expected_value) result(agrees)
     implicit none
     character(len=*), intent(in) :: name
@@ -81,9 +92,9 @@ contains
     call announce_test('le_grids_integrate :: '//name)
     integrate_results = 0.0
     call integrate_moment(gnew, integrate_results, all = .true.)
-    integral = mean(integrate_results)
+    integral = reduce_to_single_value(integrate_results)
     agrees = abs(integral - expected_value) <= tolerance
-    if(.not. agrees) print*,"Failure : ",name," : Got ",integral," but expected ",expected_value," on ",iproc
+    if(.not. agrees .and. proc0) print*,"Failure : ",name," : Got ",integral," but expected ",expected_value
     call process_check(global_pass,agrees,"TEST CASE "//name)
   end function integrate_and_test
 
