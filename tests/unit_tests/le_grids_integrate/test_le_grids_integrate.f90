@@ -37,6 +37,7 @@ program test_le_grids_integrate
   logical :: exist
   logical :: global_pass
   logical :: reduce_via_mean = .false.
+  logical :: check_all_values = .false.
   namelist /le_grids_integrate/ tolerance
 
   ! Set up depenencies
@@ -98,9 +99,19 @@ contains
     call announce_test('le_grids_integrate :: '//name)
     integrate_results = 0.0
     call integrate_moment(gnew, integrate_results, all = .true.)
-    integral = reduce_to_single_value(integrate_results)
-    agrees = abs(integral - expected_value) <= tolerance
-    if(.not. agrees .and. proc0) print*,"Failure : ",name," : Got ",integral," but expected ",expected_value
+
+    if (check_all_values) then
+       agrees = all(abs(integrate_results-expected_value) <= tolerance)
+       ! Hacky representation of reduced integral result
+       integral = maxval(abs(integrate_results-expected_value)) + expected_value
+       if(.not. agrees .and. proc0) print*,"Failure : ",name," : Got ",integral," but expected ",expected_value,"(disagreement ~ ",abs(integral-expected_value),"). Note the quoted obtained value is not accurate here."
+
+    else
+       integral = reduce_to_single_value(integrate_results)
+       agrees = abs(integral - expected_value) <= tolerance
+       if(.not. agrees .and. proc0) print*,"Failure : ",name," : Got ",integral," but expected ",expected_value,"(disagreement ~ ",abs(integral-expected_value),")"
+    end if
+
     call process_check(global_pass,agrees,"TEST CASE "//name)
   end function integrate_and_test
 
