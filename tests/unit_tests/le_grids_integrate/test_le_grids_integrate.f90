@@ -58,9 +58,15 @@ program test_le_grids_integrate
   agrees = integrate_zero_forbid_test()
   agrees = integrate_one_test()
   agrees = integrate_one_forbid_test()
+  agrees = integrate_one_signed_test()
   agrees = integrate_sqrt_e_test()
   agrees = integrate_e_test()
   agrees = integrate_pitch_angle_test()
+  !The following test is surprisingly hard to get converged to
+  !a reasonable degree. It does not appear to converge unless
+  !new_trap_int = T and even then it only converges within 1e-6 if
+  !ngauss >= 30. We might need to explore why this is the case.
+  !agrees = integrate_pitch_angle_squared_test()
 
   call process_test(global_pass,'le_grids_integrate')
 
@@ -116,6 +122,17 @@ contains
     agrees = integrate_and_test(name, expected_value)
   end function integrate_one_test
 
+  logical function integrate_one_signed_test() result(agrees)
+    implicit none
+    ! Sum_sigma{ sigma *Integral[1 * v^2 exp[-v^2],{v,0,infty}]}/
+    ! Sum_sigma{Integral[v^2 exp[-v^2],{v,0,infty}]}
+    real, parameter :: expected_value = 0.0
+    character(len=*), parameter :: name = '1 signed'
+    gnew(:,1,:) = 1.0
+    gnew(:,2,:) = -1.0
+    agrees = integrate_and_test(name, expected_value)
+  end function integrate_one_signed_test
+
   logical function integrate_sqrt_e_test() result(agrees)
     implicit none
     ! Integral[v v^2 exp[-v^2],{v,0,infty}]/Integral[v^2 exp[-v^2],{v,0,infty}]
@@ -144,22 +161,6 @@ contains
     agrees = integrate_and_test(name, expected_value)
   end function integrate_e_test
 
-  logical function integrate_zero_forbid_test() result(agrees)
-    implicit none
-    ! Integral[0 * v^2 exp[-v^2],{v,0,infty}]/Integral[v^2 exp[-v^2],{v,0,infty}]
-    real, parameter :: expected_value = 0.0
-    character(len=*), parameter :: name = '0 only in allowed'
-    gnew = 1.0d0
-    do iglo = g_lo%llim_proc, g_lo%ulim_proc
-       il = il_idx(g_lo, iglo)
-       do ig = -ntgrid, ntgrid
-          if(forbid(ig, il)) cycle
-          gnew(ig,:,iglo) = 0.0
-       end do
-    end do
-    agrees = integrate_and_test(name, expected_value)
-  end function integrate_zero_forbid_test
-
   logical function integrate_one_forbid_test() result(agrees)
     implicit none
     ! Integral[1 * v^2 exp[-v^2],{v,0,infty}]/Integral[v^2 exp[-v^2],{v,0,infty}]
@@ -176,13 +177,29 @@ contains
     agrees = integrate_and_test(name, expected_value)
   end function integrate_one_forbid_test
 
+  logical function integrate_zero_forbid_test() result(agrees)
+    implicit none
+    ! Integral[0 * v^2 exp[-v^2],{v,0,infty}]/Integral[v^2 exp[-v^2],{v,0,infty}]
+    real, parameter :: expected_value = 0.0
+    character(len=*), parameter :: name = '0 only in allowed'
+    gnew = 1.0d0
+    do iglo = g_lo%llim_proc, g_lo%ulim_proc
+       il = il_idx(g_lo, iglo)
+       do ig = -ntgrid, ntgrid
+          if(forbid(ig, il)) cycle
+          gnew(ig,:,iglo) = 0.0
+       end do
+    end do
+    agrees = integrate_and_test(name, expected_value)
+  end function integrate_zero_forbid_test
+
   logical function integrate_pitch_angle_test() result(agrees)
     implicit none
     ! Integral[alpha*sin[alpha],{alpha,0,pi}]/Integral[sin[alpha],{alpha,0,pi}]
     real, parameter :: expected_value = pi / 2.0
     character(len=*), parameter :: name = 'pitch angle'
     real :: pitch_angle
-    gnew = 1.0d0
+    gnew = 0.0d0
     do iglo = g_lo%llim_proc, g_lo%ulim_proc
        il = il_idx(g_lo, iglo)
        do ig = -ntgrid, ntgrid
@@ -194,5 +211,24 @@ contains
     end do
     agrees = integrate_and_test(name, expected_value)
   end function integrate_pitch_angle_test
+
+  logical function integrate_pitch_angle_squared_test() result(agrees)
+    implicit none
+    ! Integral[alpha^2*sin[alpha],{alpha,0,pi}]/Integral[sin[alpha],{alpha,0,pi}]
+    real, parameter :: expected_value = (pi**2 - 4.0)/2.0
+    character(len=*), parameter :: name = 'pitch angle squared'
+    real :: pitch_angle
+    gnew = 0.0d0
+    do iglo = g_lo%llim_proc, g_lo%ulim_proc
+       il = il_idx(g_lo, iglo)
+       do ig = -ntgrid, ntgrid
+          if(forbid(ig, il)) cycle
+          pitch_angle = asin(sqrt(al(il)*bmag(ig)))
+          gnew(ig,1,iglo) = pitch_angle**2
+          gnew(ig,2,iglo) = (pi-pitch_angle)**2
+       end do
+    end do
+    agrees = integrate_and_test(name, expected_value)
+  end function integrate_pitch_angle_squared_test
 
 end program test_le_grids_integrate
