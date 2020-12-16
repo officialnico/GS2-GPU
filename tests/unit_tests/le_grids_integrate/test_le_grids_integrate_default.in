@@ -1,4 +1,5 @@
 &le_grids_knobs
+  negrid = 16
 /
 
 &theta_grid_parameters
