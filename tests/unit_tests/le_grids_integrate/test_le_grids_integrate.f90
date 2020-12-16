@@ -89,6 +89,7 @@ contains
 
   logical function integrate_zero_test() result(agrees)
     implicit none
+    ! Integral[0 * v^2 exp[-v^2],{v,0,infty}]/Integral[v^2 exp[-v^2],{v,0,infty}]
     real, parameter :: expected_value = 0.0
     character(len=*), parameter :: name = '0'
     gnew = 0.0
@@ -97,6 +98,7 @@ contains
 
   logical function integrate_one_test() result(agrees)
     implicit none
+    ! Integral[1 * v^2 exp[-v^2],{v,0,infty}]/Integral[v^2 exp[-v^2],{v,0,infty}]
     real, parameter :: expected_value = 1.0
     character(len=*), parameter :: name = '1'
     gnew = 1.0
@@ -105,6 +107,7 @@ contains
 
   logical function integrate_sqrt_e_test() result(agrees)
     implicit none
+    ! Integral[v v^2 exp[-v^2],{v,0,infty}]/Integral[v^2 exp[-v^2],{v,0,infty}]
     real, parameter :: expected_value = 2.0/sqrt(pi)
     character(len=*), parameter :: name = 'sqrt(energy)'
     gnew = 0.0d0
@@ -118,6 +121,7 @@ contains
 
   logical function integrate_e_test() result(agrees)
     implicit none
+    ! Integral[v^2 v^2 exp[-v^2],{v,0,infty}]/Integral[v^2 exp[-v^2],{v,0,infty}]
     real, parameter :: expected_value = 3.0/2.0
     character(len=*), parameter :: name = 'energy'
     gnew = 0.0d0
@@ -131,6 +135,7 @@ contains
 
   logical function integrate_zero_forbid_test() result(agrees)
     implicit none
+    ! Integral[0 * v^2 exp[-v^2],{v,0,infty}]/Integral[v^2 exp[-v^2],{v,0,infty}]
     real, parameter :: expected_value = 0.0
     character(len=*), parameter :: name = '0 only in allowed'
     gnew = 1.0d0
@@ -146,6 +151,7 @@ contains
 
   logical function integrate_one_forbid_test() result(agrees)
     implicit none
+    ! Integral[1 * v^2 exp[-v^2],{v,0,infty}]/Integral[v^2 exp[-v^2],{v,0,infty}]
     real, parameter :: expected_value = 1.0
     character(len=*), parameter :: name = '1 only in allowed'
     gnew = 0.0d0
@@ -161,6 +167,7 @@ contains
 
   logical function integrate_pitch_angle_test() result(agrees)
     implicit none
+    ! Integral[alpha*sin[alpha],{alpha,0,pi}]/Integral[sin[alpha],{alpha,0,pi}]
     real, parameter :: expected_value = pi / 2.0
     character(len=*), parameter :: name = 'pitch angle'
     real :: pitch_angle
