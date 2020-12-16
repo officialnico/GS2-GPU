@@ -68,6 +68,7 @@ program test_le_grids_integrate
   !new_trap_int = T and even then it only converges within 1e-6 if
   !ngauss >= 30. We might need to explore why this is the case.
   !agrees = integrate_pitch_angle_squared_test()
+  agrees = integrate_pitch_angle_v_test()
 
   call process_test(global_pass,'le_grids_integrate')
 
@@ -242,4 +243,26 @@ contains
     agrees = integrate_and_test(name, expected_value)
   end function integrate_pitch_angle_squared_test
 
+  logical function integrate_pitch_angle_v_test() result(agrees)
+    implicit none
+    ! Integral[alpha*sin[alpha]*v^3*exp[-v^2],{alpha,0,pi},{v,0,infty}]/
+    ! Integral[sin[alpha]*v^2*exp(-v^2),{alpha,0,pi}{v,0,infty}]
+    real, parameter :: expected_value = sqrt(pi)
+    character(len=*), parameter :: name = 'pitch angle times v'
+    real :: pitch_angle
+    gnew = 0.0d0
+    do iglo = g_lo%llim_proc, g_lo%ulim_proc
+       il = il_idx(g_lo, iglo)
+       ie = ie_idx(g_lo, iglo)
+       is = is_idx(g_lo, iglo)
+       do ig = -ntgrid, ntgrid
+          if(forbid(ig, il)) cycle
+          pitch_angle = asin(sqrt(al(il)*bmag(ig)))
+          gnew(ig,1,iglo) = pitch_angle
+          gnew(ig,2,iglo) = (pi-pitch_angle)
+       end do
+       gnew(:, :, iglo) = gnew(:, :, iglo)*sqrt(energy(ie,is))
+    end do
+    agrees = integrate_and_test(name, expected_value)
+  end function integrate_pitch_angle_v_test
 end program test_le_grids_integrate
