@@ -147,11 +147,12 @@ coverage_standard_tests:
     GK_CI_PFUNIT_COVERAGE: "ON"
     EXTRA_MAKE_FLAGS: "USE_GCOV=on DEBUG=on ONE_STEP_PP=on"
     GK_MAKEFILE_LOCAL_EXTRA_FLAGS: "F90FLAGS += -ffree-form"
+    COVERALLS_SERVICE_NAME: "gitlab-ci"
   script: *default_script
   after_script:
     - *push_status
-    - pip3 install cpp-coveralls
-    - coveralls
+    - pip3 install git+https://github.com/d7919/cpp-coveralls.git
+    - coveralls --exclude tests --exclude externals/pFUnit_build
 
 onestep_standard_tests:
   stage: test
