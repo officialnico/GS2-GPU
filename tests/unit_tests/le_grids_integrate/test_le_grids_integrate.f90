@@ -22,7 +22,7 @@ program test_le_grids_integrate
   use file_utils, only: init_file_utils, input_unit_exist
   use species, only: nspec
   use kt_grids, only: naky, ntheta0
-  use theta_grid, only: ntgrid
+  use theta_grid, only: ntgrid, bmag
   use gs2_layouts, only: g_lo, ie_idx, il_idx, is_idx
   use constants, only: pi
 
@@ -59,6 +59,7 @@ program test_le_grids_integrate
   agrees = integrate_one_forbid_test()
   agrees = integrate_sqrt_e_test()
   agrees = integrate_e_test()
+  agrees = integrate_pitch_angle_test()
 
   call process_test(global_pass,'le_grids_integrate')
 
@@ -157,5 +158,23 @@ contains
     end do
     agrees = integrate_and_test(name, expected_value)
   end function integrate_one_forbid_test
+
+  logical function integrate_pitch_angle_test() result(agrees)
+    implicit none
+    real, parameter :: expected_value = pi / 2.0
+    character(len=*), parameter :: name = 'pitch angle'
+    real :: pitch_angle
+    gnew = 1.0d0
+    do iglo = g_lo%llim_proc, g_lo%ulim_proc
+       il = il_idx(g_lo, iglo)
+       do ig = -ntgrid, ntgrid
+          if(forbid(ig, il)) cycle
+          pitch_angle = asin(sqrt(al(il)*bmag(ig)))
+          gnew(ig,1,iglo) = pitch_angle
+          gnew(ig,2,iglo) = pi-pitch_angle
+       end do
+    end do
+    agrees = integrate_and_test(name, expected_value)
+  end function integrate_pitch_angle_test
 
 end program test_le_grids_integrate
