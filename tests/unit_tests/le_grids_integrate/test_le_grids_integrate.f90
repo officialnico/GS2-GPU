@@ -42,7 +42,8 @@ program test_le_grids_integrate
   logical :: global_pass
   logical :: reduce_via_mean = .false.
   logical :: check_all_values = .false.
-  namelist /le_grids_integrate/ tolerance
+  logical :: run_failing_tests = .false.
+  namelist /le_grids_integrate/ tolerance, check_all_values, run_failing_tests
 
   ! Set up depenencies
   call init_mp
@@ -57,6 +58,9 @@ program test_le_grids_integrate
      if (exist) read(in_file, nml = le_grids_integrate)
   end if
   call broadcast(tolerance)
+  call broadcast(check_all_values)
+  call broadcast(run_failing_tests)
+
   global_pass = .true.
 
   agrees = integrate_zero_test()
@@ -71,27 +75,27 @@ program test_le_grids_integrate
   !a reasonable degree. It does not appear to converge unless
   !new_trap_int = T and even then it only converges within 1e-6 if
   !ngauss >= 30. We might need to explore why this is the case.
-  !agrees = integrate_pitch_angle_squared_test()
+  if (run_failing_tests) agrees = integrate_pitch_angle_squared_test()
   agrees = integrate_pitch_angle_v_test()
   !The following test doesn't currently converge at reasonable
   !resolution.
-  !agrees = integrate_vperp_test()
+  if (run_failing_tests) agrees = integrate_vperp_test()
   !The following test doesn't currently converge at reasonable
   !resolution.
-  !agrees = integrate_vperp2_test()
+  if (run_failing_tests) agrees = integrate_vperp2_test()
   agrees = integrate_vpa_test()
   !The following test passes with default settings but has been seen to fail
   !at higher resolution in certain cases.
   agrees = integrate_mod_vpa_test()
   !The following test doesn't currently converge at reasonable
   !resolution.
-  !agrees = integrate_vpa2_test()
+  if (run_failing_tests) agrees = integrate_vpa2_test()
   !The following tests the mod cell centred vpa integral. We might expect this
   !to agree with the mod vpa value however this currently seems to fail with
   !a relatively large disagreement. The disagreement reduces as ntheta increases
   !but still fails to pass even for excessively high resolution. This may indicate
   !a potential issue.
-  !agrees = integrate_mod_vpac_test()
+  if (run_failing_tests) agrees = integrate_mod_vpac_test()
 
   call process_test(global_pass,'le_grids_integrate')
 
