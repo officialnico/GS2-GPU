@@ -79,6 +79,19 @@ program test_le_grids_integrate
   !The following test doesn't currently converge at reasonable
   !resolution.
   !agrees = integrate_vperp2_test()
+  agrees = integrate_vpa_test()
+  !The following test passes with default settings but has been seen to fail
+  !at higher resolution in certain cases.
+  agrees = integrate_mod_vpa_test()
+  !The following test doesn't currently converge at reasonable
+  !resolution.
+  !agrees = integrate_vpa2_test()
+  !The following tests the mod cell centred vpa integral. We might expect this
+  !to agree with the mod vpa value however this currently seems to fail with
+  !a relatively large disagreement. The disagreement reduces as ntheta increases
+  !but still fails to pass even for excessively high resolution. This may indicate
+  !a potential issue.
+  !agrees = integrate_mod_vpac_test()
 
   call process_test(global_pass,'le_grids_integrate')
 
@@ -314,5 +327,54 @@ contains
     gnew(:,2,:) = vperp2
     agrees = integrate_and_test(name, expected_value)
   end function integrate_vperp2_test
+
+  logical function integrate_vpa_test() result(agrees)
+    use dist_fn_arrays, only: vpa
+    implicit none
+    ! vpa = +/- sqrt(energy*(1-lambda*bmag)) = v * sqrt(1-sin^2(alpha))
+    ! Integral[vpa*sin[alpha]*v^2*exp[-v^2],{alpha,0,pi},{v,0,infty}]/
+    ! Integral[sin[alpha]*v^2*exp(-v^2),{alpha,0,pi}{v,0,infty}]
+    real, parameter :: expected_value = 0.0
+    character(len=*), parameter :: name = 'vpa'
+    gnew = vpa
+    agrees = integrate_and_test(name, expected_value)
+  end function integrate_vpa_test
+
+  logical function integrate_mod_vpac_test() result(agrees)
+    use dist_fn_arrays, only: vpac
+    implicit none
+    ! vpa = +/- sqrt(energy*(1-lambda*bmag)) = v * sqrt(1-sin^2(alpha))
+    ! vpac = cell centred vpa
+    ! Integral[vpa*sin[alpha]*v^2*exp[-v^2],{alpha,0,pi},{v,0,infty}]/
+    ! Integral[sin[alpha]*v^2*exp(-v^2),{alpha,0,pi}{v,0,infty}]
+    real, parameter :: expected_value = 1.0/sqrt(pi)
+    character(len=*), parameter :: name = 'mod vpac'
+    gnew = abs(vpac)
+    agrees = integrate_and_test(name, expected_value)
+  end function integrate_mod_vpac_test
+
+  logical function integrate_mod_vpa_test() result(agrees)
+    use dist_fn_arrays, only: vpa
+    implicit none
+    ! vpa = +/- sqrt(energy*(1-lambda*bmag)) = v * sqrt(1-sin^2(alpha))
+    ! Integral[vpa*sin[alpha]*v^2*exp[-v^2],{alpha,0,pi},{v,0,infty}]/
+    ! Integral[sin[alpha]*v^2*exp(-v^2),{alpha,0,pi}{v,0,infty}]
+    real, parameter :: expected_value = 1.0/sqrt(pi)
+    character(len=*), parameter :: name = 'mod vpa'
+    gnew = abs(vpa)
+    agrees = integrate_and_test(name, expected_value)
+  end function integrate_mod_vpa_test
+
+  logical function integrate_vpa2_test() result(agrees)
+    use dist_fn_arrays, only: vpa
+    implicit none
+    ! vpa^2 = (energy*(1-lambda*bmag)) = v^2 * (1-sin^2(alpha))
+    ! Integral[vpa*sin[alpha]*v^2*exp[-v^2],{alpha,0,pi},{v,0,infty}]/
+    ! Integral[sin[alpha]*v^2*exp(-v^2),{alpha,0,pi}{v,0,infty}]
+    real, parameter :: expected_value = 1.0/2.0
+    character(len=*), parameter :: name = 'vpa2'
+    gnew = vpa*vpa
+    agrees = integrate_and_test(name, expected_value)
+  end function integrate_vpa2_test
 
 end program test_le_grids_integrate
