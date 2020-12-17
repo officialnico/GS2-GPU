@@ -128,7 +128,7 @@ contains
        agrees = all(abs(integrate_results-expected_value) <= tolerance)
        ! Hacky representation of reduced integral result
        integral = maxval(abs(integrate_results-expected_value)) + expected_value
-       if(.not. agrees .and. proc0) print*,"Failure : ",name," : Got ",integral," but expected ",expected_value,"(disagreement ~ ",abs(integral-expected_value),"). Note the quoted obtained value is not accurate here."
+       if(.not. agrees .and. proc0) print*,"Failure : ",name," : Got ",integral," but expected ",expected_value,"(disagreement ~ ",maxval(abs(integrate_results-expected_value)),"). Note the quoted obtained value is not accurate here."
 
     else
        integral = reduce_to_single_value(integrate_results)
@@ -350,6 +350,11 @@ contains
     real, parameter :: expected_value = 1.0/sqrt(pi)
     character(len=*), parameter :: name = 'mod vpac'
     gnew = abs(vpac)
+    ! As vpac is cell centred the ntgrid location does not get a value
+    ! so here we copy in the -ntgrid value to ensure that if we check
+    ! all locations it doesn't automatically fail as one theta point
+    ! was not set non-zero.
+    gnew(ntgrid,:,:) = gnew(-ntgrid,:,:)
     agrees = integrate_and_test(name, expected_value)
   end function integrate_mod_vpac_test
 
