@@ -730,7 +730,10 @@ contains
           deallocate (divpts)
        end if
 
-! check to make sure the weights do not get too large
+       ! check to make sure the weights do not get too large
+       ! @Warning: This looks a bit unusual -- we're taking the magnitude of
+       ! the maximum value, whilst usually we would find the maximum value of
+       ! the magnitude.
        if (abs(maxval(wgts)) .gt. wgt_max) then
           if (maxpts .lt. 3) then
              err_flag = .true.
@@ -2265,6 +2268,17 @@ contains
 
 ! can't get error estimate for npts = 0 or 1
              if (npts > 1) then
+                ! This section is all to calculate wberr/wlterr which is just used
+                ! in trap_error, which in turn is only used in get_verr. This is used
+                ! as a part of the vary_vnew adaptive collisionality code triggered
+                ! through the diagnostics. This loop is rather expensive for high
+                ! theta resolution - measured in the order of 4-5 minutes for ntheta=256.
+                ! As such we might want to consider skipping this if the variable vnewk
+                ! code is not active. As we do this for each npt and each theta, and npt
+                ! ~ntheta/2 we might expect this to scale quadratically with ntheta. In
+                ! practice it seems to scale somewhat worse than this. This may in part
+                ! be due to an increase in the number of iterations required in get_weights
+                ! such that this may scale closer to ntheta cubed.
                 do ix=1,npts
 
                    if (ix == 1) then
