@@ -96,6 +96,8 @@ program test_le_grids_integrate
   !but still fails to pass even for excessively high resolution. This may indicate
   !a potential issue.
   if (run_failing_tests) agrees = integrate_mod_vpac_test()
+  !The following test fails with large errors
+  if (run_failing_tests) agrees = integrate_vperp_inverse_test()
 
   call process_test(global_pass,'le_grids_integrate')
 
@@ -316,6 +318,30 @@ contains
     end do
     agrees = integrate_and_test(name, expected_value)
   end function integrate_vperp_test
+
+  logical function integrate_vperp_inverse_test() result(agrees)
+    implicit none
+    ! vperp = sqrt(energy) * sin(alpha) = sqrt(energy*lambda*Bmag)
+    ! Integral[sin[alpha]*v^2*exp[-v^2]/vperp2,{alpha,0,pi},{v,0,infty}]/
+    ! Integral[sin[alpha]*v^2*exp(-v^2),{alpha,0,pi}{v,0,infty}]
+    real, parameter :: expected_value = sqrt(pi)
+    character(len=*), parameter :: name = 'vperp inverse'
+    real :: sin_pitch_angle
+    gnew = 0.0d0
+    do iglo = g_lo%llim_proc, g_lo%ulim_proc
+       il = il_idx(g_lo, iglo)
+       ie = ie_idx(g_lo, iglo)
+       is = is_idx(g_lo, iglo)
+       do ig = -ntgrid, ntgrid
+          if(forbid(ig, il)) cycle
+          sin_pitch_angle = sqrt(al(il)*bmag(ig))
+          gnew(ig,1,iglo) = 1.0/sin_pitch_angle
+          gnew(ig,2,iglo) = 1.0/sin_pitch_angle
+       end do
+       gnew(:, :, iglo) = gnew(:, :, iglo)/sqrt(energy(ie,is))
+    end do
+    agrees = integrate_and_test(name, expected_value)
+  end function integrate_vperp_inverse_test
 
   logical function integrate_vperp2_test() result(agrees)
     use dist_fn_arrays, only: vperp2
