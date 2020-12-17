@@ -13,6 +13,10 @@
 !> Integral(f*v^2*exp(-v^2) dv, {v,0,infinity})/Integral(v^2*exp(-v^2) dv, {v,0,infinity})
 !> i.e.
 !> Integral(f*v^2*exp(-v^2) dv, {v,0,infinity})*4/sqrt(pi)
+!>
+!> The integral over lambda is of a quantity f is given by
+!> Integral(f sqrt(lambda*Bmag) d alpha, {alpha, 0, pi})
+!> where alpha is the pitch angle, alpha = arcsin(sqrt(lambda*bmag))
 program test_le_grids_integrate
   use unit_tests
   use le_grids, only: integrate_moment, energy, al, forbid
