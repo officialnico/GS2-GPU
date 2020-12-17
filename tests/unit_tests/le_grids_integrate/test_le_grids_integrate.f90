@@ -76,6 +76,9 @@ program test_le_grids_integrate
   !The following test doesn't currently converge at reasonable
   !resolution.
   !agrees = integrate_vperp_test()
+  !The following test doesn't currently converge at reasonable
+  !resolution.
+  !agrees = integrate_vperp2_test()
 
   call process_test(global_pass,'le_grids_integrate')
 
@@ -296,5 +299,20 @@ contains
     end do
     agrees = integrate_and_test(name, expected_value)
   end function integrate_vperp_test
+
+  logical function integrate_vperp2_test() result(agrees)
+    use dist_fn_arrays, only: vperp2
+    implicit none
+    ! vperp = sqrt(energy) * sin(alpha) = sqrt(energy*lambda*Bmag)
+    ! vperp2 = energy*lambda*Bmag
+    ! Integral[vperp^2*sin[alpha]*v^2*exp[-v^2],{alpha,0,pi},{v,0,infty}]/
+    ! Integral[sin[alpha]*v^2*exp(-v^2),{alpha,0,pi}{v,0,infty}]
+    real, parameter :: expected_value = 1.0
+    character(len=*), parameter :: name = 'vperp^2'
+    gnew = 0.0d0
+    gnew(:,1,:) = vperp2
+    gnew(:,2,:) = vperp2
+    agrees = integrate_and_test(name, expected_value)
+  end function integrate_vperp2_test
 
 end program test_le_grids_integrate
