@@ -6,6 +6,7 @@ module test_le_grids_integrate_utils
   interface mean
      module procedure mean_4c
      module procedure mean_r
+     module procedure mean_2r
   end interface mean
 
   public :: mean
@@ -22,6 +23,12 @@ contains
     real, dimension(:), intent(in) :: array
     mean = sum(array)/size(array)
   end function mean_r
+
+  real function mean_2r(array) result(mean)
+    implicit none
+    real, dimension(:,:), intent(in) :: array
+    mean = sum(array)/size(array)
+  end function mean_2r
 
 end module test_le_grids_integrate_utils
 
@@ -83,6 +90,7 @@ program test_le_grids_integrate
   logical :: run_failing_tests = .false.
   real, parameter :: expected_lambda = 2.0, expected_energy = 0.25
   real, dimension(:), allocatable :: lambda_error, energy_error
+  real, dimension(:, :), allocatable :: mixed_error, mixed_value
   namelist /le_grids_integrate/ tolerance, check_all_values, run_failing_tests
 
   ! Set up depenencies
@@ -106,18 +114,43 @@ program test_le_grids_integrate
   !First get estimates of the error on the integration weights.
   if (proc0) then
      allocate(lambda_error(-ntgrid:ntgrid))
-     lambda_error = 0
+     lambda_error = 0.0
      do ig = -ntgrid, ntgrid
         lambda_error(ig) = expected_lambda - sum(wl(ig, :))
      end do
 
      allocate(energy_error(nspec))
+     energy_error = 0.0
      do is = 1, nspec
         energy_error(is) = expected_energy - sum(w(:,is))
      end do
 
+     allocate(mixed_error(-ntgrid:ntgrid, nspec))
+     allocate(mixed_value(size(wl(0,:)), size(w(:,1))))
+     mixed_error = 0.0
+     do is = 1, nspec
+        do ig = -ntgrid, ntgrid
+           mixed_value = 0.0
+           do ie = 1, size(w(:,1))
+              mixed_value(:, ie) = wl(ig,:)*w(ie, is)
+           end do
+           mixed_error(ig, is) = expected_lambda*expected_energy - sum(mixed_value)
+        end do
+     end do
+
      write(output_unit,'("Lambda weights errors, max/mean/mean(|error|) :",3(E14.6E3," "))') maxval(abs(lambda_error)),mean(lambda_error), mean(abs(lambda_error))
      write(output_unit,'("Energy weights errors, max/mean/mean(|error|) :",3(E14.6E3," "))') maxval(abs(energy_error)),mean(energy_error), mean(abs(energy_error))
+
+     write(output_unit,'("Mixed weights errors, max/mean/mean(|error|)  :",3(E14.6E3," "))') maxval(abs(mixed_error)),mean(mixed_error), mean(abs(mixed_error))
+     write(output_unit,'("")')
+
+     ! Crudely we probably expect integrals to be no more accurate than mean(mixed_error)
+     ! so lets print a warning about that here.
+     if (abs(mean(mixed_error)) >= tolerance) then
+        write(output_unit, '("Warning : Mean(mixed_error) >= tolerance (",E14.6E3,") so expect tests may fail.")') tolerance
+     else
+        write(output_unit, '("Mean(mixed_error) < tolerance (",E14.6E3,") so expect tests should pass.")') tolerance
+     end if
   end if
   call barrier
 
