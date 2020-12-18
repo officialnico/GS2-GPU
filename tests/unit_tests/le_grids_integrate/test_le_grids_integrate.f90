@@ -1,3 +1,30 @@
+module test_le_grids_integrate_utils
+  implicit none
+  private
+
+
+  interface mean
+     module procedure mean_4c
+     module procedure mean_r
+  end interface mean
+
+  public :: mean
+contains
+
+  complex function mean_4c(array) result(mean)
+    implicit none
+    complex, dimension(:,:,:,:), intent(in) :: array
+    mean = sum(array)/size(array)
+  end function mean_4c
+
+  real function mean_r(array) result(mean)
+    implicit none
+    real, dimension(:), intent(in) :: array
+    mean = sum(array)/size(array)
+  end function mean_r
+
+end module test_le_grids_integrate_utils
+
 !> Possible integration tests -- check check at all theta and mean
 !> 1. Int(1) = 1.0 | Integral of normalised Maxwellian, normalised to integral of Maxwellian
 !> 2, Int(0) = 0.0 | Trivial sanity check
@@ -18,6 +45,7 @@
 !> Integral(f sqrt(lambda*Bmag) d alpha, {alpha, 0, pi})
 !> where alpha is the pitch angle, alpha = arcsin(sqrt(lambda*bmag))
 program test_le_grids_integrate
+  use test_le_grids_integrate_utils, only: mean
   use unit_tests
   use le_grids, only: integrate_moment, energy, al, forbid
   use dist_fn, only: init_dist_fn
@@ -105,12 +133,6 @@ program test_le_grids_integrate
   call finish_mp
 
 contains
-  complex function mean(array)
-    implicit none
-    complex, dimension(:,:,:,:), intent(in) :: array
-    mean = sum(array)/size(array)
-  end function mean
-
   complex function reduce_to_single_value(array) result(val)
     implicit none
     complex, dimension(-ntgrid:,:,:,:), intent(in) :: array
