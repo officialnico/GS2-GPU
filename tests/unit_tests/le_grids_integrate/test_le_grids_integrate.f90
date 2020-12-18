@@ -91,6 +91,8 @@ program test_le_grids_integrate
   real, parameter :: expected_lambda = 2.0, expected_energy = 0.25
   real, dimension(:), allocatable :: lambda_error, energy_error
   real, dimension(:, :), allocatable :: mixed_error, mixed_value
+  real :: relevant_value
+  character(len=22) :: error_name
   namelist /le_grids_integrate/ tolerance, check_all_values, run_failing_tests
 
   ! Set up depenencies
@@ -118,6 +120,8 @@ program test_le_grids_integrate
      do ig = -ntgrid, ntgrid
         lambda_error(ig) = expected_lambda - sum(wl(ig, :))
      end do
+     !Introduce factor 2 here to account for sigma doubling
+     lambda_error = 2*lambda_error
 
      allocate(energy_error(nspec))
      energy_error = 0.0
@@ -138,6 +142,9 @@ program test_le_grids_integrate
         end do
      end do
 
+     !Introduce factor 2 here to account for sigma doubling
+     mixed_error = 2 * mixed_error
+
      write(output_unit,'("Lambda weights errors, max/mean/mean(|error|) :",3(E14.6E3," "))') maxval(abs(lambda_error)),mean(lambda_error), mean(abs(lambda_error))
      write(output_unit,'("Energy weights errors, max/mean/mean(|error|) :",3(E14.6E3," "))') maxval(abs(energy_error)),mean(energy_error), mean(abs(energy_error))
 
@@ -145,11 +152,23 @@ program test_le_grids_integrate
      write(output_unit,'("")')
 
      ! Crudely we probably expect integrals to be no more accurate than mean(mixed_error)
-     ! so lets print a warning about that here.
-     if (abs(mean(mixed_error)) >= tolerance) then
-        write(output_unit, '("Warning : Mean(mixed_error) >= tolerance (",E14.6E3,") so expect tests may fail.")') tolerance
+     ! for theta = 0 ror max(abs(error)) for checking all so lets print a warning about
+     ! that here.
+
+     if (check_all_values) then
+        relevant_value = maxval(abs(mixed_error))
+        error_name = 'Max(abs(mixed_error))'
      else
-        write(output_unit, '("Mean(mixed_error) < tolerance (",E14.6E3,") so expect tests should pass.")') tolerance
+        relevant_value = abs(mean(mixed_error))
+        error_name = 'Abs(mean(mixed_error))'
+     end if
+
+     if (relevant_value >= tolerance * 2) then
+        write(output_unit, '("Warning : ",A," >= tolerance (",E14.6E3,") so expect tests may fail.")') error_name, tolerance
+     else if (relevant_value >= tolerance / 2) then
+        write(output_unit, '("Warning : ",A," similar to tolerance (",E14.6E3,") so tests may fail.")') error_name, tolerance
+     else
+        write(output_unit, '(A," < tolerance (",E14.6E3,") so expect tests should pass.")') error_name, tolerance
      end if
   end if
   call barrier
