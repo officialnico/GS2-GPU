@@ -44,6 +44,14 @@ end module test_le_grids_integrate_utils
 !> The integral over lambda is of a quantity f is given by
 !> Integral(f sqrt(lambda*Bmag) d alpha, {alpha, 0, pi})
 !> where alpha is the pitch angle, alpha = arcsin(sqrt(lambda*bmag))
+!>
+!> We use quadrature rules such that we expect accurate integral results
+!> with relatively small grids. Our integrals are just sums of the quantity
+!> weighted with the velocity space weights, wl and w, (lambda and energy).
+!> We expect the sum of the energy weights, w, to be 0.25, the sum of lambda
+!> weights to be 2.0 such that the integral of 1 is exactly 1. This is given by
+!> Sum_{sigma,lambda,energy}(w*wl*sigma) at fixed theta. This allows us to
+!> estimate the error in the integral weights (very roughly).
 program test_le_grids_integrate
   use test_le_grids_integrate_utils, only: mean
   use unit_tests
@@ -112,8 +120,6 @@ program test_le_grids_integrate
   !resolution.
   if (run_failing_tests) agrees = integrate_vperp2_test()
   agrees = integrate_vpa_test()
-  !The following test passes with default settings but has been seen to fail
-  !at higher resolution in certain cases.
   agrees = integrate_mod_vpa_test()
   !The following test doesn't currently converge at reasonable
   !resolution.
@@ -127,6 +133,30 @@ program test_le_grids_integrate
   !The following test fails with large errors
   if (run_failing_tests) agrees = integrate_vperp_inverse_test()
 
+  !Out of the default test cases the nesuper version has the most
+  !accurate results. The majority of tests then pass at ~1e-8. This
+  !level does not reduce with increasing ngauss or nesuper/nesub
+  !indicating we are perhaps limited by the trapped pitch
+  !angles. Switching to new_trap_int = T reduces the error by 2-4
+  !orders of magnitude at fixed resolution. (The same reduction can be
+  !achieved with ntheta ~= 132 and new_trap_int = F) The error then
+  !reduceds further with increasing ngauss/negrid.  Setting nesuper
+  !=12, nesub = 24, ngauss = 10 leads to errors in the range
+  !1e-15. Switching to radau_gauss_grid = F drops some of the tests
+  !further to ~4e-16 (close to the minimum possible > 0). Changing
+  !ntheta doesn't significantly improve most of these tests with
+  !new_trap_int active and can actually increase error.  The
+  !integration is a weighted sum over all velocity space. This sum
+  !will have associated round off error which is likely setting a
+  !lower limit on the error, and this limit may be expected to
+  !increase as the number of velocity space points increases. We could
+  !perhaps consider using compensated summation instead of direct
+  !summation in order to further minimise this. In practice, however,
+  !we are probably more than happy with an error in the range 1e-12.
+
+  !The mod vpa test case is an interesting example as this is the only
+  !(non-failing) test which doesn't pass when turning on new_trap_int
+  !(with radau_gauss_grid = F).
   call process_test(global_pass,'le_grids_integrate')
 
   call close_module_test('le_grids_integrate')
