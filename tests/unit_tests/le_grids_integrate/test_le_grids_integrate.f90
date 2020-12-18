@@ -55,18 +55,20 @@ end module test_le_grids_integrate_utils
 program test_le_grids_integrate
   use test_le_grids_integrate_utils, only: mean
   use unit_tests
-  use le_grids, only: integrate_moment, energy, al, forbid
+  use le_grids, only: integrate_moment, energy, al, forbid, wl, w
   use dist_fn, only: init_dist_fn
   use dist_fn_arrays, only: gnew
-  use mp, only: init_mp, finish_mp, proc0, broadcast
   use file_utils, only: init_file_utils, input_unit_exist
+  use mp, only: init_mp, finish_mp, proc0, broadcast, barrier
   use species, only: nspec
   use kt_grids, only: naky, ntheta0
   use theta_grid, only: ntgrid, bmag
   use gs2_layouts, only: g_lo, ie_idx, il_idx, is_idx
   use constants, only: pi
+  use iso_fortran_env, only: output_unit
 
   implicit none
+
   logical :: dummy
   complex, dimension (:,:,:,:), allocatable :: integrate_results
   real, dimension(:, :,:), allocatable :: test_sum
@@ -79,6 +81,8 @@ program test_le_grids_integrate
   logical :: reduce_via_mean = .false.
   logical :: check_all_values = .false.
   logical :: run_failing_tests = .false.
+  real, parameter :: expected_lambda = 2.0, expected_energy = 0.25
+  real, dimension(:), allocatable :: lambda_error, energy_error
   namelist /le_grids_integrate/ tolerance, check_all_values, run_failing_tests
 
   ! Set up depenencies
@@ -98,6 +102,24 @@ program test_le_grids_integrate
   call broadcast(run_failing_tests)
 
   global_pass = .true.
+
+  !First get estimates of the error on the integration weights.
+  if (proc0) then
+     allocate(lambda_error(-ntgrid:ntgrid))
+     lambda_error = 0
+     do ig = -ntgrid, ntgrid
+        lambda_error(ig) = expected_lambda - sum(wl(ig, :))
+     end do
+
+     allocate(energy_error(nspec))
+     do is = 1, nspec
+        energy_error(is) = expected_energy - sum(w(:,is))
+     end do
+
+     write(output_unit,'("Lambda weights errors, max/mean/mean(|error|) :",3(E14.6E3," "))') maxval(abs(lambda_error)),mean(lambda_error), mean(abs(lambda_error))
+     write(output_unit,'("Energy weights errors, max/mean/mean(|error|) :",3(E14.6E3," "))') maxval(abs(energy_error)),mean(energy_error), mean(abs(energy_error))
+  end if
+  call barrier
 
   agrees = integrate_zero_test()
   agrees = integrate_zero_forbid_test()
