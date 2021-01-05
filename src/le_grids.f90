@@ -561,7 +561,11 @@ contains
 
   end subroutine init_integrations
 
-  !> FIXME : Add documentation  
+  !> Calculates energy grid and pitch angle weights for integrals
+  !> which drop a point from the energy/lambda dimensions. These are
+  !> only used for estimating the velocity space error in
+  !> [[dist_fn::get_verr]] as a part of the adaptive collisionality
+  !> algorithm.
   subroutine init_weights
 
     use file_utils, only: open_output_file, close_output_file
