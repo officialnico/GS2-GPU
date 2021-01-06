@@ -11,6 +11,6 @@
 /
 
 &le_grids_integrate
-  tolerance = 1.0e-7
+  tolerance = 2.0e-7
 /
 !include test_le_grids_integrate_base.in
