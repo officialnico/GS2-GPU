@@ -206,7 +206,7 @@ program test_le_grids_integrate
   if (run_failing_tests) agrees = integrate_mod_vpac_test()
   !The following test fails with large errors
   if (run_failing_tests) agrees = integrate_vperp_inverse_test()
-
+  agrees = integrate_polynomial_test()
   !Out of the default test cases the nesuper version has the most
   !accurate results. The majority of tests then pass at ~1e-8. This
   !level does not reduce with increasing ngauss or nesuper/nesub
@@ -537,5 +537,35 @@ contains
     gnew = vpa*vpa
     agrees = integrate_and_test(name, expected_value)
   end function integrate_vpa2_test
+
+  logical function integrate_polynomial_test() result(agrees)
+    use le_grids, only: nesub, vcut
+    implicit none
+    ! Sum_sigma{ sigma *Integral[sqrt[pi]*v^N * (exp[v^2]/v^2) * v^2 exp[-v^2],{v,0,infty}]}/
+    ! Sum_sigma{Integral[v^2 exp[-v^2],{v,0,infty}]}
+    ! This is a slightly odd test which attempts to check the standard
+    ! Legendre quadrature used in the lower energy domain
+    ! (i.e. between 0 and Ecut=vcut^2).  We expect the Gauss-Legendre
+    ! to exactly capture integrals of polynomials of degree 2*nesub-1
+    ! or lower. This region is formulated in terms of velocity, hence
+    ! the use of sqrt(energy). The exp(E)*sqrt(pi)/E factor comes from
+    ! cancelling the contribution to the weights which comes from the
+    ! fact our normal integrals require us to absorb the inverse of
+    ! these factors (see eqn 28/29 of Numata et al 2010, the AstroGK
+    ! paper).
+    real :: expected_value
+    character(len=*), parameter :: name = 'exp poly'
+    integer, parameter :: poly_order = 1
+    expected_value = 2 * expected_lambda * (vcut**(poly_order+1))/(poly_order+1)
+    gnew = 0.0d0
+    do iglo = g_lo%llim_proc, g_lo%ulim_proc
+       ie = ie_idx(g_lo, iglo)
+       is = is_idx(g_lo, iglo)
+       if(ie > nesub) cycle
+       gnew(:,:,iglo) = sqrt(energy(ie,is))**poly_order*&
+            exp(energy(ie, is))*sqrt(pi)/energy(ie,is)
+    end do
+    agrees = integrate_and_test(name, expected_value)
+  end function integrate_polynomial_test
 
 end program test_le_grids_integrate
