@@ -753,7 +753,26 @@ contains
 
   end subroutine get_weights
 
-  !> FIXME : Add documentation  
+  !> Used by [[get_weights]] to find the Lagrange quadrature weights for the given grid.
+  !>
+  !> Suppose we wish to calculate Int(f[x] dx) over the range [llim, ulim].
+  !> We could approximate f[x] by the Lagrange interpolating polynomial -->
+  !> f[x] ~ Sum_i{ f[x_i] l_i(x)} where. the Lagrange polynomial is given by
+  !> l_i(x) = Pi_j{ (x - x_i)/(x_i - x_j) }. Hence our integral can be written as
+  !> I = Int(f[x] dx) ~ Sum_i{ f[x_i] Int(Pi_j{ (x - x_i)/(x_i - x_j) })} so
+  !> I ~ Sum_i{f[x_i] c_i} with c_i = Int(Pi_j{ (x - x_i)/(x_i - x_j) }). Here
+  !> we are calculating the `c_i` values which are passed out as [[wgts]] corresponding
+  !> to the set of positions {x_i} set by [[nodes]]. To evaluate the integral
+  !> of the Lagrange polynomial coefficients we adopt Gauss-Legendre quadrature,
+  !> which allows highly accurate evaluation of polynomials of degree 2*N-1.
+  !> Given the need to find M weights we find we only need Gauss-Legendre of order
+  !> N = (M + 1)/2. Here we actually use degree (M/2) + 1.
+  !>
+  !> One limitation of Lagrange polynomials is their lack of numerical stability
+  !> at high order (i.e. when M is large, typically > 20 is quoted as a limit).
+  !> The routine [[get_weights]] allows the integration domain to be sub-divided
+  !> in order to limit the Lagrange order and reduce the variation in weights.
+  !> This is partially controlled by the input [[nmax]].
   subroutine get_intrvl_weights (llim, ulim, nodes, wgts)
     use gauss_quad, only: get_legendre_grids_from_cheb
     
@@ -2206,7 +2225,35 @@ contains
        return
     end if
 
-! pick integration method (new=high-order interp, old=finite difference)
+    ! pick integration method (new=high-order interp, old=finite difference)
+
+    ! The new method uses Lagrange polynomial interpolation to provide an accurate
+    ! approximation of the integration over the trapped region. The old method
+    ! effectively uses the trapezium rule to integrate. In both cases the integration
+    ! variable is the parallel velocity spanning the range [-v_||_wfb, v_||_wfb].
+    ! Both methods give zero weight to the wfb at the locations where B == Bmax.
+    ! Generally the old method appears to be accurate to at most single precision,
+    ! whilst the new method is more accurate, reaching the double precision round off
+    ! level even with just a few trapped pitch angles. It can be noted that the the
+    ! old method can reach the same level of accuracy at some theta grid points but
+    ! not all. Further work may be able to optimise the grid to avoid these locations.
+    ! There are a number of reasons why we may not want to make new_trap_int default to
+    ! true, including :
+    !
+    !   1. It is not compatible with radau_gauss_grid = T (which is the default).
+    !   2. One might expect high order Lagrange interpolation to be unstable so may
+    !      anticipate that the new method will not work well at higher ntheta. Empirically
+    !      it seems this does not become an issue here. Further, the input `nmax` can be
+    !      used to limit the maximum Lagrange order used by splitting the domain.
+    !   3. For large ntheta the new method leads to slow initialisation. This is due to
+    !      the calculation of the error coefficients for use with get_verr. This could
+    !      perhaps be optmised.
+    !
+    ! Both points 2 and 3 could be avoided to some extent if the
+    ! trapped pitch angle grid resolution is decoupled from the theta
+    ! grid resolution. It may be possible to make the new approach
+    ! compatible with radau_gauss_grid or we may decide
+    ! radau_gauss_grid should default to false.
     if (new_trap_int) then
 
 ! wlterr contains weights for less accurate trapped integrals (for error estimation)
@@ -2259,6 +2306,10 @@ contains
 !          call lagrange_coefs (ig, yb, lgrnge(ig,:,:,:), xloc(ig,:))
 
 ! gets grid point weights for trapped particle integral
+
+             ! Note : Here ulim and llim are the upper and lower vpar values for the
+             ! valid trapped pitch angles at this theta location. In other words
+             ! ulim == v_||_wfb(theta(ig)) = sqrt(max(1.0-al(ng2+1)*bmag(ig),0.0))
              ulim = sqrt(max(1.0-bmag(ig)/bmax,0.0))
              llim = -ulim
 
