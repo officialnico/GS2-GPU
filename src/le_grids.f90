@@ -2150,7 +2150,7 @@ contains
     integer :: ig, il, ndiv, divmax, divmaxerr, ndiverr
 
 
-    allocate (xx(2*ngauss))
+    allocate (xx(ng2))
     if(radau_gauss_grid .and. nlambda > ng2 ) then
         
         ! This grid uses a fixed endpoint such that il = ng2+1 has a finite weight at bounce points
@@ -2158,12 +2158,12 @@ contains
         ! which is why xx, wx are one element longer than the standard Legendre Gauss grid
         ! This grid should only be used when nlambda > ng2, i.e. there is a wfb and trapped particles
  
-        allocate (xx_radau(2*ngauss +1))
-        allocate (wx(2*ngauss +1))
+        allocate (xx_radau(ng2 +1))
+        allocate (wx(ng2 +1))
         call get_radau_gauss_grids(0.,1., xx_radau, wx,report_in=.false.) 
         xx = xx_radau(:ng2)
     else
-        allocate (wx(2*ngauss))
+        allocate (wx(ng2))
         call get_legendre_grids_from_cheb (1., 0., xx, wx)
     end if
     wl = 0.0
