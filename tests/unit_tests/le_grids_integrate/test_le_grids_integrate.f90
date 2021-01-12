@@ -109,14 +109,13 @@ program test_le_grids_integrate
   logical :: agrees
   integer :: in_file
   logical :: exist
-  logical :: global_pass
   logical :: reduce_via_mean = .false.
   logical :: check_all_values = .false.
   logical :: run_failing_tests = .false.
   real, parameter :: expected_lambda = 2.0, expected_energy = 0.25
   real, dimension(:), allocatable :: lambda_error, energy_error
   real, dimension(:, :), allocatable :: mixed_error, mixed_value
-  real :: relevant_value
+  real :: relevant_value, tmp
   character(len=22) :: error_name
   namelist /le_grids_integrate/ tolerance, check_all_values, run_failing_tests
 
@@ -135,8 +134,6 @@ program test_le_grids_integrate
   call broadcast(tolerance)
   call broadcast(check_all_values)
   call broadcast(run_failing_tests)
-
-  global_pass = .true.
 
   !First get estimates of the error on the integration weights.
   if (proc0) then
@@ -198,42 +195,45 @@ program test_le_grids_integrate
   end if
   call barrier
 
-  agrees = integrate_zero_test()
-  agrees = integrate_zero_forbid_test()
-  agrees = integrate_one_test()
-  agrees = integrate_one_forbid_test()
-  agrees = integrate_one_signed_test()
-  agrees = integrate_sqrt_e_test()
-  agrees = integrate_e_test()
-  agrees = integrate_pitch_angle_test()
+  ! Default to passing
+  agrees = .true.
+
+  agrees = integrate_zero_test() .and. agrees
+  agrees = integrate_zero_forbid_test() .and. agrees
+  agrees = integrate_one_test() .and. agrees
+  agrees = integrate_one_forbid_test() .and. agrees
+  agrees = integrate_one_signed_test() .and. agrees
+  agrees = integrate_sqrt_e_test() .and. agrees
+  agrees = integrate_e_test() .and. agrees
+  agrees = integrate_pitch_angle_test() .and. agrees
   !The following test is surprisingly hard to get converged to
   !a reasonable degree. It does not appear to converge unless
   !new_trap_int = T and even then it only converges within 1e-6 if
   !ngauss >= 30. We might need to explore why this is the case.
-  if (run_failing_tests) agrees = integrate_pitch_angle_squared_test()
-  agrees = integrate_pitch_angle_v_test()
+  if (run_failing_tests) agrees = integrate_pitch_angle_squared_test() .and. agrees
+  agrees = integrate_pitch_angle_v_test() .and. agrees
   !The following test doesn't currently converge at reasonable
   !resolution.
-  if (run_failing_tests) agrees = integrate_vperp_test()
+  if (run_failing_tests) agrees = integrate_vperp_test() .and. agrees
   !The following test doesn't currently converge at reasonable
   !resolution.
-  if (run_failing_tests) agrees = integrate_vperp2_test()
-  agrees = integrate_vpa_test()
-  agrees = integrate_mod_vpa_test()
+  if (run_failing_tests) agrees = integrate_vperp2_test() .and. agrees
+  agrees = integrate_vpa_test() .and. agrees
+  agrees = integrate_mod_vpa_test() .and. agrees
   !The following test doesn't currently converge at reasonable
   !resolution.
-  if (run_failing_tests) agrees = integrate_vpa2_test()
+  if (run_failing_tests) agrees = integrate_vpa2_test() .and. agrees
   !The following tests the mod cell centred vpa integral. We might expect this
   !to agree with the mod vpa value however this currently seems to fail with
   !a relatively large disagreement. The disagreement reduces as ntheta increases
   !but still fails to pass even for excessively high resolution. This may indicate
   !a potential issue.
-  if (run_failing_tests) agrees = integrate_mod_vpac_test()
+  if (run_failing_tests) agrees = integrate_mod_vpac_test() .and. agrees
   !The following test fails with large errors
-  if (run_failing_tests) agrees = integrate_vperp_inverse_test()
-  agrees = integrate_polynomial_test()
+  if (run_failing_tests) agrees = integrate_vperp_inverse_test() .and. agrees
+  agrees = integrate_polynomial_test() .and. agrees
 
-  call process_test(global_pass,'le_grids_integrate')
+  call process_test(agrees,'le_grids_integrate')
 
   call close_module_test('le_grids_integrate')
   call finish_mp
@@ -254,6 +254,7 @@ contains
     character(len=*), intent(in) :: name
     real, intent(in) :: expected_value
     real :: integral
+    logical :: dummy_flag
     call announce_test('le_grids_integrate :: '//name)
     integrate_results = 0.0
     call integrate_moment(gnew, integrate_results, all = .true.)
@@ -270,7 +271,8 @@ contains
        if(.not. agrees .and. proc0) print*,"Failure : ",name," : Got ",integral," but expected ",expected_value,"(disagreement ~ ",abs(integral-expected_value),")"
     end if
 
-    call process_check(global_pass,agrees,"TEST CASE "//name)
+    dummy_flag = .true.
+    call process_check(dummy_flag, agrees, "TEST CASE "//name)
   end function integrate_and_test
 
   logical function integrate_zero_test() result(agrees)
