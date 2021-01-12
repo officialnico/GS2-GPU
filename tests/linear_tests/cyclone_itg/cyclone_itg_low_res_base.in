@@ -24,18 +24,6 @@
  zeff = 1.0 ! Effective ionic charge.
 /
 
-&kt_grids_knobs
- grid_option = "single" ! The general layout of the perpendicular grid.
-/
-
-!==============================
-!  
-!==============================
-&kt_grids_single_parameters
- aky = 0.5 ! The actual value of ky rho
- akx = 0.0 
-/
-
 !==============================
 !  
 !==============================
@@ -72,25 +60,6 @@
 /
 
 !==============================
-!BOUNDARY CONDITIONS  
-!==============================
-&dist_fn_knobs
- gridfac = 1.0 ! Affects boundary condition at end of theta grid.
- omprimfac = 1.0 
- boundary_option = "linked" ! Sets the boundary condition along the field line (i.e. the boundary conditions at theta = +- pi).
- adiabatic_option = "iphi00=2" ! The form of the adiabatic response (if a species is being modeled as adiabatic).
- g_exb = 0.0 
- nonad_zero = .true. ! If true switches on new parallel boundary condition where h=0 at incoming boundary instead of g=0.
-/
-
-!==============================
-!ALGORITHMIC CHOICES  
-!==============================
-&fields_knobs
- field_option = "local" ! Controls which time-advance algorithm is used for the linear terms.
-/
-
-!==============================
 !  
 !==============================
 &knobs
@@ -108,13 +77,6 @@
 &reinit_knobs
  delt_adj = 2.0 ! When the time step needs to be changed, it is adjusted 
  delt_minimum = 1.0e-06 ! The minimum time step is delt_minimum.
-/
-
-!==============================
-!  
-!==============================
-&layouts_knobs
- layout = "lexys" ! 'yxles', 'lxyes', 'lyxes', 'lexys' Determines the way the grids are laid out in memory.
 /
 
 !==============================
@@ -169,6 +131,7 @@
  chop_side = .false. ! Rarely needed. Forces asymmetry into initial condition.
  phiinit = 0.001 ! Average amplitude of initial perturbation of each Fourier mode.
  ginit_option = "noise" ! Sets the way that the distribution function is initialized.
+ constant_random_flag = .true. ! Uses gs2 internal psuedo-random numbers to ensure the same noise is produced on all systems
 /
 
 !==============================
@@ -228,12 +191,3 @@
   ! write_moments not specified --- 
   ! write_final_db not specified --- Write final delta B.
 /
-
-!==============================
-!  
-!==============================
-&general_f0_parameters
- alpha_f0 = "analytic" ! Form of the alpha equilibrium distribution function: "maxwellian", "analytic" or "external"
- energy_0 = 0.01 ! Lower limit of F_alpha for : F_alpha(energy_0)=0.
-/
-
