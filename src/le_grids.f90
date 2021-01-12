@@ -278,7 +278,7 @@ module le_grids
      !> B(theta) < -bouncefuzz`. This provides a small "buffer" to
      !> account for floating round off in the calculation of `lambda`
      !> and `B`.
-     real :: bouncefuzz = 1e-5
+     real :: bouncefuzz = 10*epsilon(0.0)
      !> If true use generalised quadrature scheme for velocity
      !> integrals and energy grid. See [G. Wilkie
      !> thesis](https://drum.lib.umd.edu/handle/1903/17302).

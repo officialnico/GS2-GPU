@@ -1,7 +1,17 @@
 !> A program to generate response matrix data for a given input file 
-!! and dump the resulting arrays to file to be used by subsequent runs
-!!
-!! Written by : David Dickinson (ddickinson@users.sourceforge.net)
+!> and dump the resulting arrays to file to be used by subsequent runs.
+!>
+!> By default this will produce a single set of response matrix files
+!> for the time step in the provided input file. The input file can
+!> contain a `dump_response_knobs` namelist which specifies
+!> `n_time_steps`. If this is greater than one then the program will
+!> produce response matrix files for `n_time_steps`
+!> timesteps. Specifically, it will produce these files for time steps
+!> {delt/delt_adj^N, N=0, n_time_steps-1}. This may be useful for
+!> precomputing the response matrices required for a nonlinear run
+!> where the timestep is allowed to vary and take values from this sequence.
+!>
+!> Written by : David Dickinson (ddickinson@users.sourceforge.net)
 program dump_response
   use job_manage, only: job_fork
   use mp, only: init_mp, proc0, nproc, broadcast
@@ -14,10 +24,9 @@ program dump_response
   integer :: istep, n_time_steps, in_file
   namelist /dump_response_knobs/n_time_steps
 
-  ! <doc> Initialize message passing </doc>
   call init_mp
   
-  ! <doc> Report # of processors being used </doc>
+  ! Report # of processors being used
   if (proc0) then
      if(.not.quiet)then
         if (nproc == 1) then
@@ -27,14 +36,14 @@ program dump_response
         end if
      endif
 
-     ! <doc> Call init_file_utils, ie. initialize the inputs and outputs, checking 
-     !  whether we are doing a run or a list of runs. </doc>
+     ! Call init_file_utils, ie. initialize the inputs and outputs, checking
+     ! whether we are doing a run or a list of runs.
      call init_file_utils (list, name="gs")
   end if
 
   call broadcast (list)
   
-  ! <doc> If given a list of jobs, fork </doc>
+  ! If given a list of jobs, fork
   if (list) call job_fork
   
   if (proc0) cbuff = trim(run_name)
@@ -48,8 +57,10 @@ program dump_response
   endif
   call broadcast(n_time_steps)
 
-  !This routine initialises the response matrix and dumps it to file.
+  ! This routine initialises the response matrix and dumps it to file.
+  ! This call will use the time step as specified in the input file.
   call init_and_dump(quiet)
+  ! Now we deal with the other time steps in the sequence if n_time_steps > 1
   do istep=2,n_time_steps
      !Reduce the time step
      call next_time_step
@@ -62,7 +73,9 @@ program dump_response
   call finish_dump_response
 
 contains
-  !> FIXME : Add documentation  
+
+  !> Changes to the next time step in the sequence as determined by the usual
+  !> rules to reduce the timestep in a nonlinear simulation.
   subroutine next_time_step
     use gs2_time, only: code_dt, save_dt
     use gs2_reinit, only: reduce_time_step
@@ -83,7 +96,7 @@ contains
     call f_reset
   end subroutine next_time_step
 
-  !> FIXME : Add documentation  
+  !> Initialise the response matrices and write to file
   subroutine init_and_dump(quiet)
     use fields, only: fields_pre_init, fields_init_response, set_dump_and_read_response, dump_response_to_file
     use job_manage, only: time_message
@@ -92,9 +105,10 @@ contains
     implicit none
     logical, intent(in) :: quiet
     real :: time_measure(2)
-    character (len=64) :: suffix, str_code_dt
+    character (len=64) :: str_code_dt
 
     if(.not.quiet) write(*,'("")')
+    time_measure = 0.
 
     !Prepare to initialise the fields
     if(proc0.and.(.not.quiet)) then 
@@ -104,7 +118,7 @@ contains
     call fields_pre_init
     if(proc0.and.(.not.quiet)) then
        call time_message(.false.,time_measure,'Pre-init')
-       write(*,'("  --> Done in : ",F12.6," seconds")') time_measure(1)
+       write(*,'("  --> Done in : ",ES14.6E3," seconds")') time_measure(1)
     endif
     time_measure=0.
 
@@ -120,28 +134,27 @@ contains
     call fields_init_response
     if(proc0.and.(.not.quiet)) then
        call time_message(.false.,time_measure,'Init')
-       write(*,'("  --> Done in : ",F12.6," seconds")') time_measure(1)
+       write(*,'("  --> Done in : ",ES14.6E3," seconds")') time_measure(1)
     endif
     time_measure=0.
 
-    !Now we make the file suffix
-    write(str_code_dt,'(F12.10)') code_dt
-    write(suffix,'(".dt_",A,".response")') trim(adjustl(str_code_dt))
+    !Now we make the dt string
+    write(str_code_dt,'(ES14.6E3)') code_dt
 
     !Now write response to files
     if(proc0.and.(.not.quiet)) then
-       write(*,'("Dumping to file with suffix ",A,A,A)',advance='no') "'",trim(suffix),"'"
+       write(*,'("Dumping to file for timestep ",A,A,A)',advance='no') "'",trim(adjustl(str_code_dt)),"'"
        call time_message(.false.,time_measure,'Dump')
     endif
-    call dump_response_to_file(suffix)
+    call dump_response_to_file()
     if(proc0.and.(.not.quiet)) then
        call time_message(.false.,time_measure,'Dump')
-       write(*,'("  --> Done in : ",F12.6," seconds")') time_measure(1)
+       write(*,'("  --> Done in : ",ES14.6E3," seconds")') time_measure(1)
     endif
     time_measure=0.
   end subroutine init_and_dump
 
-  !> FIXME : Add documentation
+  !> Call the finialise routines for any module we have initialised.
   subroutine finish_dump_response
     use antenna, only: finish_antenna
     use collisions, only: finish_collisions
