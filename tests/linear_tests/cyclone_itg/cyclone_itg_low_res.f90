@@ -14,13 +14,13 @@ module checks_mod
       real, parameter :: golden_growth_rate = 0.17027768751030398
 
       if(gridopt_switch==gridopt_single) then
-        checks =  check_growth_rate((/golden_growth_rate/), tolerance)
+        checks =  check_growth_rate([golden_growth_rate], tolerance)
       elseif(gridopt_switch==gridopt_range) then
         ! Assuming ky = (0.0, 0.5), kx = 0.0
-        checks =  check_growth_rate((/0.0000, golden_growth_rate/), tolerance)
+        checks =  check_growth_rate([0.0000, golden_growth_rate], tolerance)
       elseif(gridopt_switch==gridopt_box) then
         ! Assuming ky = (0.0, 0.5), kx = (0.0, 1.0)
-        checks =  check_growth_rate((/0.0000, golden_growth_rate/), tolerance)
+        checks =  check_growth_rate([0.0000, golden_growth_rate], tolerance)
       else
         checks = .false.
       end if
