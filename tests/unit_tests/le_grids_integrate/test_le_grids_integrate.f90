@@ -207,6 +207,7 @@ program test_le_grids_integrate
   agrees = integrate_inverse_sqrt_e_test() .and. agrees
   agrees = integrate_e_test() .and. agrees
   agrees = integrate_pitch_angle_test() .and. agrees
+  agrees = integrate_one_minus_sin_pitch_angle_squared_test() .and. agrees
   !The following test is surprisingly hard to get converged to
   !a reasonable degree. It does not appear to converge unless
   !new_trap_int = T and even then it only converges within 1e-6 if
@@ -397,6 +398,25 @@ contains
     end do
     agrees = integrate_and_test(name, expected_value)
   end function integrate_pitch_angle_test
+
+  logical function integrate_one_minus_sin_pitch_angle_squared_test() result(agrees)
+    implicit none
+    ! Integral[sqrt(1-sin^2[alpha])sin[alpha],{alpha,0,pi}]/Integral[sin[alpha],{alpha,0,pi}]
+    real, parameter :: expected_value = 1.0/2.0
+    character(len=*), parameter :: name = 'one minus sin squared pitch angle'
+    real :: sin_squared_pitch_angle
+    gnew = 0.0d0
+    do iglo = g_lo%llim_proc, g_lo%ulim_proc
+       il = il_idx(g_lo, iglo)
+       do ig = -ntgrid, ntgrid
+          if(forbid(ig, il)) cycle
+          sin_squared_pitch_angle = al(il)*bmag(ig)
+          gnew(ig,1,iglo) = sqrt(1 - sin_squared_pitch_angle)
+          gnew(ig,2,iglo) = sqrt(1 - sin_squared_pitch_angle)
+       end do
+    end do
+    agrees = integrate_and_test(name, expected_value)
+  end function integrate_one_minus_sin_pitch_angle_squared_test
 
   logical function integrate_pitch_angle_squared_test() result(agrees)
     implicit none
