@@ -467,8 +467,17 @@ contains
   logical function integrate_vperp_inverse_test() result(agrees)
     implicit none
     ! vperp = sqrt(energy) * sin(alpha) = sqrt(energy*lambda*Bmag)
-    ! Integral[sin[alpha]*v^2*exp[-v^2]/vperp2,{alpha,0,pi},{v,0,infty}]/
+    ! Integral[sin[alpha]*v^2*exp[-v^2]/sqrt(vperp2),{alpha,0,pi},{v,0,infty}]/
     ! Integral[sin[alpha]*v^2*exp(-v^2),{alpha,0,pi}{v,0,infty}]
+    ! Which becomes
+    ! Integral[v*exp[-v^2],{alpha,0,pi},{v,0,infty}]/
+    ! Integral[sin[alpha]*v^2*exp(-v^2),{alpha,0,pi}{v,0,infty}]
+    ! Note that our integrand contains 1/sin(alpha) and our
+    ! pitch angle domain ranges from 0 to pi. Whilst we don't have
+    ! pitch angle points exactly on the boundaries (i.e. at 0 and pi)
+    ! they can approach the boundaries and hence 1/sin(alpha) can
+    ! become large. This results in this test case showing relatively large
+    ! errors and slow convergence (first order only).
     real, parameter :: expected_value = sqrt(pi)
     character(len=*), parameter :: name = 'vperp inverse'
     real :: sin_pitch_angle
