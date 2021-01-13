@@ -204,6 +204,7 @@ program test_le_grids_integrate
   agrees = integrate_one_forbid_test() .and. agrees
   agrees = integrate_one_signed_test() .and. agrees
   agrees = integrate_sqrt_e_test() .and. agrees
+  agrees = integrate_inverse_sqrt_e_test() .and. agrees
   agrees = integrate_e_test() .and. agrees
   agrees = integrate_pitch_angle_test() .and. agrees
   !The following test is surprisingly hard to get converged to
@@ -317,6 +318,20 @@ contains
     end do
     agrees = integrate_and_test(name, expected_value)
   end function integrate_sqrt_e_test
+
+  logical function integrate_inverse_sqrt_e_test() result(agrees)
+    implicit none
+    ! Integral[v^2 exp[-v^2] / v,{v,0,infty}]/Integral[v^2 exp[-v^2],{v,0,infty}]
+    real, parameter :: expected_value = 2.0/sqrt(pi)
+    character(len=*), parameter :: name = 'inverse sqrt(energy)'
+    gnew = 0.0d0
+    do iglo = g_lo%llim_proc, g_lo%ulim_proc
+       ie = ie_idx(g_lo, iglo)
+       is = is_idx(g_lo, iglo)
+       gnew(:,:,iglo) = 1.0/sqrt(energy(ie, is))
+    end do
+    agrees = integrate_and_test(name, expected_value)
+  end function integrate_inverse_sqrt_e_test
 
   logical function integrate_e_test() result(agrees)
     implicit none
