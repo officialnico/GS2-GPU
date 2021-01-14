@@ -1579,7 +1579,7 @@ contains
     character(*), intent(in) :: dimension_list
     character(*), intent(in) :: variable_description
     character(*), intent(in) :: variable_units
-    character(len=1), dimension(len(dimension_list)) :: dimension_names
+    character(len=len(dimension_list)), dimension(len(dimension_list)) :: dimension_names
     character(len=len(dimension_list)) :: buffer
     integer :: xdim, idim, i, count, dimlistlength
     integer :: id, it, ik
@@ -1711,7 +1711,7 @@ contains
     character(*), intent(in) :: dimension_list
     character(*), intent(in) :: variable_description
     character(*), intent(in) :: variable_units
-    character(len=1), dimension(len(dimension_list)) :: dimension_names
+    character(len=len(dimension_list)), dimension(len(dimension_list)) :: dimension_names
     character(len=len(dimension_list)) :: buffer
     integer :: xdim, idim, i, count, dimlistlength
     integer :: id, it, ik
@@ -1843,7 +1843,7 @@ contains
     character(*), intent(in) :: dimension_list
     character(*), intent(in) :: variable_description
     character(*), intent(in) :: variable_units
-    character(len=1), dimension(len(dimension_list)) :: dimension_names
+    character(len=len(dimension_list)), dimension(len(dimension_list)) :: dimension_names
     character(len=len(dimension_list)) :: buffer
     integer :: xdim, idim, i, count, dimlistlength
     integer :: id, it, ik
@@ -1975,7 +1975,7 @@ contains
     character(*), intent(in) :: dimension_list
     character(*), intent(in) :: variable_description
     character(*), intent(in) :: variable_units
-    character(len=1), dimension(len(dimension_list)) :: dimension_names
+    character(len=len(dimension_list)), dimension(len(dimension_list)) :: dimension_names
     character(len=len(dimension_list)) :: buffer
     integer :: xdim, idim, i, count, dimlistlength
     integer :: id, it, ik
@@ -2107,7 +2107,7 @@ contains
     character(*), intent(in) :: dimension_list
     character(*), intent(in) :: variable_description
     character(*), intent(in) :: variable_units
-    character(len=1), dimension(len(dimension_list)) :: dimension_names
+    character(len=len(dimension_list)), dimension(len(dimension_list)) :: dimension_names
     character(len=len(dimension_list)) :: buffer
     integer :: xdim, idim, i, count, dimlistlength
     integer :: id, it, ik
@@ -2239,7 +2239,7 @@ contains
     character(*), intent(in) :: dimension_list
     character(*), intent(in) :: variable_description
     character(*), intent(in) :: variable_units
-    character(len=1), dimension(len(dimension_list)) :: dimension_names
+    character(len=len(dimension_list)), dimension(len(dimension_list)) :: dimension_names
     character(len=len(dimension_list)) :: buffer
     integer :: xdim, idim, i, count, dimlistlength
     integer :: id, it, ik
@@ -2371,7 +2371,7 @@ contains
     character(*), intent(in) :: dimension_list
     character(*), intent(in) :: variable_description
     character(*), intent(in) :: variable_units
-    character(len=1), dimension(len(dimension_list)) :: dimension_names
+    character(len=len(dimension_list)), dimension(len(dimension_list)) :: dimension_names
     character(len=len(dimension_list)) :: buffer
     integer :: xdim, idim, i, count, dimlistlength
     integer :: id, it, ik
@@ -2503,7 +2503,7 @@ contains
     character(*), intent(in) :: dimension_list
     character(*), intent(in) :: variable_description
     character(*), intent(in) :: variable_units
-    character(len=1), dimension(len(dimension_list)) :: dimension_names
+    character(len=len(dimension_list)), dimension(len(dimension_list)) :: dimension_names
     character(len=len(dimension_list)) :: buffer
     integer :: xdim, idim, i, count, dimlistlength
     integer :: id, it, ik
@@ -2635,7 +2635,7 @@ contains
     character(*), intent(in) :: dimension_list
     character(*), intent(in) :: variable_description
     character(*), intent(in) :: variable_units
-    character(len=1), dimension(len(dimension_list)) :: dimension_names
+    character(len=len(dimension_list)), dimension(len(dimension_list)) :: dimension_names
     character(len=len(dimension_list)) :: buffer
     integer :: xdim, idim, i, count, dimlistlength
     integer :: id, it, ik
@@ -2767,7 +2767,7 @@ contains
     character(*), intent(in) :: dimension_list
     character(*), intent(in) :: variable_description
     character(*), intent(in) :: variable_units
-    character(len=1), dimension(len(dimension_list)) :: dimension_names
+    character(len=len(dimension_list)), dimension(len(dimension_list)) :: dimension_names
     character(len=len(dimension_list)) :: buffer
     integer :: xdim, idim, i, count, dimlistlength
     integer :: id, it, ik
@@ -2899,7 +2899,7 @@ contains
     character(*), intent(in) :: dimension_list
     character(*), intent(in) :: variable_description
     character(*), intent(in) :: variable_units
-    character(len=1), dimension(len(dimension_list)) :: dimension_names
+    character(len=len(dimension_list)), dimension(len(dimension_list)) :: dimension_names
     character(len=len(dimension_list)) :: buffer
     integer :: xdim, idim, i, count, dimlistlength
     integer :: id, it, ik
@@ -3031,7 +3031,7 @@ contains
     character(*), intent(in) :: dimension_list
     character(*), intent(in) :: variable_description
     character(*), intent(in) :: variable_units
-    character(len=1), dimension(len(dimension_list)) :: dimension_names
+    character(len=len(dimension_list)), dimension(len(dimension_list)) :: dimension_names
     character(len=len(dimension_list)) :: buffer
     integer :: xdim, idim, i, count, dimlistlength
     integer :: id, it, ik
@@ -3163,7 +3163,7 @@ contains
     character(*), intent(in) :: dimension_list
     character(*), intent(in) :: variable_description
     character(*), intent(in) :: variable_units
-    character(len=1), dimension(len(dimension_list)) :: dimension_names
+    character(len=len(dimension_list)), dimension(len(dimension_list)) :: dimension_names
     character(len=len(dimension_list)) :: buffer
     integer :: xdim, idim, i, count, dimlistlength
     integer :: id, it, ik
@@ -3295,7 +3295,7 @@ contains
     character(*), intent(in) :: dimension_list
     character(*), intent(in) :: variable_description
     character(*), intent(in) :: variable_units
-    character(len=1), dimension(len(dimension_list)) :: dimension_names
+    character(len=len(dimension_list)), dimension(len(dimension_list)) :: dimension_names
     character(len=len(dimension_list)) :: buffer
     integer :: xdim, idim, i, count, dimlistlength
     integer :: id, it, ik
@@ -3427,7 +3427,7 @@ contains
     character(*), intent(in) :: dimension_list
     character(*), intent(in) :: variable_description
     character(*), intent(in) :: variable_units
-    character(len=1), dimension(len(dimension_list)) :: dimension_names
+    character(len=len(dimension_list)), dimension(len(dimension_list)) :: dimension_names
     character(len=len(dimension_list)) :: buffer
     integer :: xdim, idim, i, count, dimlistlength
     integer :: id, it, ik
@@ -3559,7 +3559,7 @@ contains
     character(*), intent(in) :: dimension_list
     character(*), intent(in) :: variable_description
     character(*), intent(in) :: variable_units
-    character(len=1), dimension(len(dimension_list)) :: dimension_names
+    character(len=len(dimension_list)), dimension(len(dimension_list)) :: dimension_names
     character(len=len(dimension_list)) :: buffer
     integer :: xdim, idim, i, count, dimlistlength
     integer :: id, it, ik
@@ -3691,7 +3691,7 @@ contains
     character(*), intent(in) :: dimension_list
     character(*), intent(in) :: variable_description
     character(*), intent(in) :: variable_units
-    character(len=1), dimension(len(dimension_list)) :: dimension_names
+    character(len=len(dimension_list)), dimension(len(dimension_list)) :: dimension_names
     character(len=len(dimension_list)) :: buffer
     integer :: xdim, idim, i, count, dimlistlength
     integer :: id, it, ik
@@ -3823,7 +3823,7 @@ contains
     character(*), intent(in) :: dimension_list
     character(*), intent(in) :: variable_description
     character(*), intent(in) :: variable_units
-    character(len=1), dimension(len(dimension_list)) :: dimension_names
+    character(len=len(dimension_list)), dimension(len(dimension_list)) :: dimension_names
     character(len=len(dimension_list)) :: buffer
     integer :: xdim, idim, i, count, dimlistlength
     integer :: id, it, ik
