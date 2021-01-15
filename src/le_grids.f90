@@ -2448,8 +2448,8 @@ contains
                   then
                 wwo = sqrt(max(1.0 -   al(il)*bmag(ig),0.0)) - &
                      sqrt(max(1.0 - al(il+1)*bmag(ig),0.0))
-                wl(ig,il)   = wl(ig,il)   + wwo
-                wl(ig,il+1) = wl(ig,il+1) + wwo
+                weights(ig,il)   = weights(ig,il)   + wwo
+                weights(ig,il+1) = weights(ig,il+1) + wwo
              end if
           end do
        end do
