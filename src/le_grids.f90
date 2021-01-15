@@ -2302,6 +2302,17 @@ contains
   !> grid resolution. It may be possible to make the new approach
   !> compatible with radau_gauss_grid or we may decide
   !> radau_gauss_grid should default to false.
+  !>
+  !> @note Here we overwrite/replace any previously calculated weights
+  !> for points considered trapped. This is usually ok as we have a clear
+  !> separation between passing and trapped so the trapped weights are
+  !> zero on entry to this routine. In some situations, however, we
+  !> may consider some points as both passing and trapped and run the
+  !> risk of discarding any existing passing weights for such points.
+  !> This could potentially be the case with Radau-like grids, for example
+  !> (although likely isn't an issue currently as the routine here does not
+  !> calculate a weight for the wfb when bmag = bmax). A simple fix is to
+  !> replace `weights = ` with effectively `weights +=` in this routine.
   subroutine setup_trapped_lambda_grids(al, weights)
     use theta_grid, only: ntgrid, bmag, bmax, eps_trapped
     use file_utils, only: open_output_file, close_output_file
