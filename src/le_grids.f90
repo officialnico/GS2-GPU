@@ -2157,7 +2157,16 @@ contains
     delal(2:) = al(2:) - al(:nlambda-1)
   end subroutine set_grids
 
-  !> FIXME : Add documentation  
+  !> Determines the location lambda ([[al]]) grid points in the
+  !> passing domain and associated integrations weights. Also
+  !> determines the integration weights for the trapped pitch angle
+  !> grid (the location of trapped [[al]] is already determined
+  !> through the values of [[bset]]).
+  !>
+  !> Alongside determining the passing locations and the lambda
+  !> integration weights we also set [[forbid]], [[jend]] and
+  !> call [[xigridset]] to setup the \(\xi = \v_\|/v\) grid
+  !> and associated quantities.
   subroutine lgridset
     use theta_grid, only: ntgrid, bmag, bmax, eps_trapped
     use gauss_quad, only: get_legendre_grids_from_cheb, get_radau_gauss_grids
