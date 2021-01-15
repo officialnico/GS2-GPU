@@ -2191,17 +2191,11 @@ contains
     if (has_trapped_points) call setup_trapped_lambda_grids(al, wl)
 
     ! Calculate the forbid flag indicating which pitch angles are allowed at
-    ! various points. Note that in older versions of the code we would only
-    ! not set this flag appropriately for trapped pitch angles if we indicated
-    ! we did not want to calculate trapped weights (i.e. if has_trapped_points
-    ! was .false.). This was probably not what was intended
+    ! various points.
     call calculate_forbidden_region(forbid)
 
     ! Calculate the jend values indicating the pitch angle which bounces at
-    ! each theta point. Note that in older versions of the code we would only
-    ! not set this appropriately for trapped pitch angles if we indicated
-    ! we did not want to calculate trapped weights (i.e. if has_trapped_points
-    ! was .false.). This was probably not what was intended
+    ! each theta point.
     call calculate_jend(jend)
 
     ! Setup the xi (v||/v) grid used in collisions
