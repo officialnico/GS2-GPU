@@ -20,6 +20,7 @@ all: ${TEST_BASE_NAME}
 	$(call RUNCOMMAND,${TEST_BASE_NAME},${TEST_BASE_NAME}_default_slab.in)
 	$(call RUNCOMMAND,${TEST_BASE_NAME},${TEST_BASE_NAME}_nonradau.in)
 	$(call RUNCOMMAND,${TEST_BASE_NAME},${TEST_BASE_NAME}_nonradau_new_trap_int.in)
+	$(call RUNCOMMAND,${TEST_BASE_NAME},${TEST_BASE_NAME}_nonradau_new_trap_int_high_res.in)
 endif
 endif
 
