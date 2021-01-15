@@ -2173,40 +2173,38 @@ contains
   !> call [[xigridset]] to setup the \(\xi = \v_\|/v\) grid
   !> and associated quantities.
   subroutine lgridset
-    use theta_grid, only: ntgrid, bmag, eps_trapped
+    use theta_grid, only: eps_trapped
     implicit none
     integer :: ig, il
+    logical :: has_trapped_points
 
+    ! Decide if we need to calculate the trapped lambda integration weights
+    has_trapped_points = trapped_particles .and. eps_trapped > epsilon(0.0)
+
+    ! Intialise the weights to zero
     wl = 0.0
 
+    ! Calculate the passing lambda grid location and integration weights
     call setup_passing_lambda_grids(al, wl)
 
-    jend = 0
-    forbid = .false.
+    ! Calculate the trapped lambda grid integration weights
+    if (has_trapped_points) call setup_trapped_lambda_grids(al, wl)
 
-    if (.not. trapped_particles .or. eps_trapped <= epsilon(0.0)) then
-       call xigridset
-       return
-    end if
+    ! Calculate the forbid flag indicating which pitch angles are allowed at
+    ! various points. Note that in older versions of the code we would only
+    ! not set this flag appropriately for trapped pitch angles if we indicated
+    ! we did not want to calculate trapped weights (i.e. if has_trapped_points
+    ! was .false.). This was probably not what was intended
+    call calculate_forbidden_region(forbid)
 
-    ! Calculates trapped jend values -- should be able to extract this though
-    call setup_trapped_lambda_grids(al, wl)
+    ! Calculate the jend values indicating the pitch angle which bounces at
+    ! each theta point. Note that in older versions of the code we would only
+    ! not set this appropriately for trapped pitch angles if we indicated
+    ! we did not want to calculate trapped weights (i.e. if has_trapped_points
+    ! was .false.). This was probably not what was intended
+    call calculate_jend(jend)
 
-    do il = 1, ng2
-       do ig = -ntgrid, ntgrid
-          forbid(ig,il) = 1.0 - al(il)*bmag(ig) < -bouncefuzz
-          if (forbid(ig,il)) then
-            call stop_message("Fatal error: supposedly passing particle was trapped, in legridset, in le_grids.f90")
-         end if
-       end do
-    end do
-
-    do il = ng2+1, nlambda
-       do ig = -ntgrid, ntgrid
-          forbid(ig,il) = 1.0 - al(il)*bmag(ig) < -bouncefuzz
-       end do
-    end do
-
+    ! Setup the xi (v||/v) grid used in collisions
     call xigridset
 
   end subroutine lgridset
@@ -2358,9 +2356,6 @@ contains
           ! this work for npts = 1 as well.
           if (npts > 0) then
 
-             ! jend(ig) is total # of al grid points at each theta value
-             jend(ig) = ng2 + npts
-
              ! ytmp is an array containing pitch angle grid points (for vpa >= 0)
              ! These are the v||/v points for each lambda between wfb (sets maximum
              ! v||/v here) and the lambda which bounces at this point (v||/v = 0)
@@ -2440,12 +2435,6 @@ contains
 
     else
        ! old (finite-difference) integration scheme
-!CMR, 1/11/2013:
-! Above, with no trapped particles, we set: jend(ig)=   0
-! Here, with trapped particles, we set:     jend(ig)=  il
-!  where il is the lambda index of the trapped particle bouncing at theta(ig)
-!
-       jend = ng2 + 1
 
        ! Here we find the trapped pitch angle weights corresponding to a trapezium
        ! rule integration in v||/v. With this method we can write:
@@ -2460,7 +2449,6 @@ contains
              if (1.0-al(il)*bmag(ig) > -bouncefuzz &
                   .and. 1.0-al(il+1)*bmag(ig) > -bouncefuzz) &
                   then
-                jend(ig) = jend(ig) + 1
                 wwo = sqrt(max(1.0 -   al(il)*bmag(ig),0.0)) - &
                      sqrt(max(1.0 - al(il+1)*bmag(ig),0.0))
                 wl(ig,il)   = wl(ig,il)   + wwo
@@ -2468,7 +2456,6 @@ contains
              end if
           end do
        end do
-
     end if
   end subroutine setup_trapped_lambda_grids
 
@@ -2541,6 +2528,62 @@ contains
        end do
     end if
   end subroutine get_trapped_lambda_grid_error_estimate_weights
+
+  !> Determine which lambda grid points are forbidden at each
+  !> theta/bmag value.
+  subroutine calculate_forbidden_region(forbid)
+    use theta_grid, only: ntgrid, bmag
+    use mp, only: mp_abort
+    implicit none
+    logical, dimension(-ntgrid:, :), intent(out) :: forbid
+    integer :: ig, il
+
+    forbid = .false.
+
+    ! Set the forbid flag
+    do il = 1, nlambda
+       do ig = -ntgrid, ntgrid
+          forbid(ig,il) = 1.0 - al(il)*bmag(ig) < -bouncefuzz
+       end do
+    end do
+
+    ! Check that none of our supposedly passing particles are forbidden
+    ! at any point in our domain
+    do il = 1, ng2
+       if ( any(forbid(:,il)) ) then
+          call mp_abort("Fatal error: supposedly passing particle was trapped, in calculate_forbidden_region, in le_grids.f90", .true.)
+       end if
+    end do
+  end subroutine calculate_forbidden_region
+
+  !> Determine which lambda grid point bounces at this
+  !> theta/bmag value.
+  subroutine calculate_jend(jend)
+    use theta_grid, only: ntgrid, bmag
+    use mp, only: mp_abort
+    implicit none
+    integer, dimension(-ntgrid:), intent(out) :: jend
+    integer :: ig, il
+
+    jend = 0
+
+    ! jend(ig) is total # of valid al grid points at each theta value
+
+    !CMR, 1/11/2013:
+    ! Above, with no trapped particles, we set: jend(ig)=   0
+    ! Here, with trapped particles, we set:     jend(ig)=  il
+    !  where il is the lambda index of the trapped particle bouncing at theta(ig)
+
+    do ig = -ntgrid, ntgrid
+       ! We could initialise jend to ng2 and start this loop at ng2 + 1
+       ! as we assume that all lambda up to and including with ng2 satisfy
+       ! 1-lambda*bmag > -bouncefuzz for all theta. This is enforced/checked
+       ! in [[calculate_forbidden_region]].
+       do il = 1, nlambda
+          if (1.0 - al(il)*bmag(ig) > -bouncefuzz) jend(ig) = jend(ig) + 1
+       end do
+    end do
+  end subroutine calculate_jend
 
   !> FIXME : Add documentation  
   subroutine xigridset
