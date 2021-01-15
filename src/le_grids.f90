@@ -2374,17 +2374,15 @@ contains
              if (npts > 1) yb(:npts-1) = -ytmp(:npts-1)
              yb(npts:) = ytmp(npts:1:-1)
 
-             ! TO REMOVE
-             ! get lagrange coefficients for construction of lagrange interpolating polynomial
-             ! this is not necessary for integration, but can be useful diagnostic for integral accuracy
-             !          call lagrange_coefs (ig, yb, lgrnge(ig,:,:,:), xloc(ig,:))
 
-             ! gets grid point weights for trapped particle integral
+             ! get grid point weights for trapped particle integral
 
              ! Note : Here ulim and llim are the upper and lower vpar
              ! values for the valid trapped pitch angles at this theta
              ! location. In other words ulim == v_||_wfb(theta(ig)) =
              ! sqrt(max(1.0-al(ng2+1)*bmag(ig),0.0)) = yb(2*npts-1)
+             ! We could probably replace ulim and llim with yb(2*npts-1)
+             ! and yb(1) respectively.
              ulim = sqrt(max(1.0-bmag(ig)/bmax,0.0))
              llim = -ulim
 
@@ -2393,11 +2391,16 @@ contains
              ! This situation can arise when bmag(ig) == bmax where we would find
              ! npts = 1, corresponding to just the wfb being a valid lambda. This
              ! means that at this location and the wfb has zero integration weight.
+             ! Note we currently ignore the error flag and other returned values other
+             ! than the weights. We should probably check this to at least warn the
+             ! user if something looks badly behaved.
              if (ulim > 0.0) call get_weights (nmax, llim, ulim, yb, wb, ndiv, divmax, eflag)
 
-             ! Calculate the weights for use in the trapped integration error estimation code.
-             ! This can be quite expensive so we would like to to only call this if the error estimation
-             ! code is active (i.e. if we're going to call [[get_verr]]).
+             ! Calculate the weights for use in the trapped
+             ! integration error estimation code.  This can be quite
+             ! expensive so we would like to to only call this if the
+             ! error estimation code is active (i.e. if we're going to
+             ! call [[get_verr]]).
              if (npts > 1) call get_trapped_lambda_grid_error_estimate_weights(yb, llim, ulim, npts, wberr)
 
              ! Convert from v||/v weights to lambda
