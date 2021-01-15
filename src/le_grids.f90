@@ -2324,7 +2324,7 @@ contains
     real, dimension (:), allocatable :: ytmp, yb, yberr, wb, wberrtmp
     real, dimension (:,:), allocatable :: wberr
     integer :: npts, ix, ntrap
-    real :: wwo, llim, ulim
+    real :: wwo, llim, ulim, wgt_tmp
     logical :: eflag
     integer :: ig, il, ndiv, divmax, divmaxerr, ndiverr
 
@@ -2405,7 +2405,21 @@ contains
              ! Note we currently ignore the error flag and other returned values other
              ! than the weights. We should probably check this to at least warn the
              ! user if something looks badly behaved.
-             if (ulim > 0.0) call get_weights (nmax, llim, ulim, yb, wb, ndiv, divmax, eflag)
+             if (ulim > 0.0) then
+                ! We split the weights calculation into two symmetric domains from
+                ! -v||_wfb to 0 and from 0 to v||_wfb. This has been shown to have
+                ! favourable properties when compared to treating the full -v||_wfb
+                ! to v||_wfb domain in a single call. In particular significantly more
+                ! accurate results when integrating certain functions (see mod vpa test
+                ! in the le_grids_integrate unit tests).
+                call get_weights (nmax, llim, 0., yb(:npts), wb(:npts), ndiv, divmax, eflag)
+                ! Store the v|| = 0 weight for the lower domain as this will be
+                ! clobbered by the subsequent get_weights call so we need to add
+                ! this on afterwards
+                wgt_tmp = wb(npts)
+                call get_weights (nmax, 0., ulim, yb(npts:), wb(npts:), ndiv, divmax, eflag)
+                wb(npts) = wb(npts) + wgt_tmp
+             end if
 
              ! Calculate the weights for use in the trapped
              ! integration error estimation code.  This can be quite
