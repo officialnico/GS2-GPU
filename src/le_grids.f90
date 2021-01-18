@@ -2096,10 +2096,13 @@ contains
     use egrid, only: setvgrid, x0, x0_maxw, zeroes, zeroes_maxw
     use species, only: nspec, spec, f0_maxwellian
     use theta_grid, only: init_theta_grid, ntgrid, nbset, bset, eps_trapped
+    use file_utils, only: open_output_file, close_output_file
+    use mp, only: proc0
     implicit none
 
     integer :: tsize,is
     logical :: has_maxwellian_species
+    integer :: unit
 
     call init_theta_grid
     call init_species
@@ -2155,7 +2158,79 @@ contains
     call lgridset
     delal(1) = al(1)
     delal(2:) = al(2:) - al(:nlambda-1)
+
+    if (proc0) then
+       call open_output_file(unit, '.vspace_integration_error')
+       call report_velocity_integration_error_estimate(unit)
+       call close_output_file(unit)
+    end if
+
   end subroutine set_grids
+
+  !> Calculate estimates of the velocity space integration errors
+  !> and report to screen / specified unit.
+  !>
+  !> This error estimate provides an estimate on the lower bound
+  !> for the error on subsequent calls to integrate_species/integrate_moment
+  !> Alternative error estimates can be calculated following the approach
+  !> adopted in [[dist_fn::get_verr]].
+  subroutine report_velocity_integration_error_estimate(unit_in)
+    use iso_fortran_env, only: output_unit
+    use theta_grid, only: ntgrid
+    use species, only: nspec
+
+    implicit none
+
+    integer, intent(in), optional :: unit_in
+    real, parameter :: expected_lambda = 2.0, expected_energy = 0.25
+    real, dimension(:), allocatable :: lambda_error, energy_error
+    real, dimension(:, :), allocatable :: mixed_error, mixed_value
+    integer :: unit, ie, ig, is
+
+    unit = output_unit
+    if (present(unit_in)) unit = unit_in
+
+    !Get estimates of the error on the integration weights.
+    allocate(lambda_error(-ntgrid:ntgrid))
+    lambda_error = 0.0
+    do ig = -ntgrid, ntgrid
+       lambda_error(ig) = expected_lambda - sum(wl(ig, :))
+    end do
+    !Introduce factor 2 here to account for sigma doubling
+    lambda_error = 2*lambda_error
+
+    allocate(energy_error(nspec))
+    energy_error = 0.0
+    do is = 1, nspec
+       energy_error(is) = expected_energy - sum(w(:,is))
+    end do
+
+    allocate(mixed_error(-ntgrid:ntgrid, nspec))
+    allocate(mixed_value(size(wl(0,:)), size(w(:,1))))
+    mixed_error = 0.0
+    do is = 1, nspec
+       do ig = -ntgrid, ntgrid
+          mixed_value = 0.0
+          do ie = 1, size(w(:,1))
+             mixed_value(:, ie) = wl(ig,:)*w(ie, is)
+          end do
+          mixed_error(ig, is) = expected_lambda*expected_energy - sum(mixed_value)
+       end do
+    end do
+
+    !Introduce factor 2 here to account for sigma doubling
+    mixed_error = 2 * mixed_error
+
+    write(unit,'("Lambda weights errors, max/mean/mean(|error|) :",3(E14.6E3," "))') &
+         maxval(abs(lambda_error)),sum(lambda_error)/size(lambda_error), sum(abs(lambda_error))/size(lambda_error)
+
+    write(unit,'("Energy weights errors, max/mean/mean(|error|) :",3(E14.6E3," "))') &
+         maxval(abs(energy_error)),sum(energy_error)/size(energy_error), sum(abs(energy_error))/size(energy_error)
+
+    write(unit,'("Mixed weights errors, max/mean/mean(|error|)  :",3(E14.6E3," "))') &
+         maxval(abs(mixed_error)),sum(mixed_error)/size(mixed_error), sum(abs(mixed_error))/size(mixed_error)
+
+  end subroutine report_velocity_integration_error_estimate
 
   !> FIXME : Add documentation  
   subroutine lgridset
