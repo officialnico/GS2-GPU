@@ -128,6 +128,7 @@ contains
 !David has made some changes to this subroutine (may 2005) now should 
 !be able to do movies for linear box runs as well as nonlinear box runs.
     use mp, only: proc0
+    use init_g, only: tstart
 # ifdef NETCDF
     use mp, only: barrier
     use file_utils, only: run_name
@@ -136,7 +137,6 @@ contains
     use theta_grid, only: ntgrid
     use le_grids, only: nlambda, negrid
     use species, only: nspec
-    use init_g, only: tstart
     use netcdf, only: NF90_CLOBBER, nf90_create, nf90_open, NF90_WRITE
     use netcdf_utils, only: get_netcdf_code_precision, netcdf_real
     use constants, only: run_name_size
