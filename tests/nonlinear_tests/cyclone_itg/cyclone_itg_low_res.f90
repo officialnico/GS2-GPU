@@ -24,7 +24,10 @@ program cyclone_itg_low_res
   use mp, only: init_mp, proc0, finish_mp
   use gs2_time, only: code_dt_cfl
   implicit none
-  character(len=8) :: field_type
+  ! Note the field type is currently determined by the input file
+  ! so we will need to change this if we change [[fields_knobs:field_option]]
+  ! in the future.
+  character(len=8), parameter :: field_type = 'implicit'
   integer :: length, ierr
 
   ! If you want to see the minimal linear test look at slab_itg_low_res

@@ -40,6 +40,6 @@ endif
 test_gs2_diagnostics_new.o:  ${TEST_MODS} 
 
 test_gs2_diagnostics_new: test_gs2_diagnostics_new.o $(TEST_MODS)
-	$(call messageOp,"Linking ","\\t:",$^,"\\n\\t\-\-\-\-\-\-\>",$@)
+	$(call messageOp,"Linking ","\\t:",$(call processName, $^),"\\n\\t\-\-\-\-\-\-\>",$(call processName, $@))
 	$(QUIETSYM)$(LD) $(LDFLAGS) -o $@ $^ $(LIBS)
 

@@ -14,6 +14,9 @@ generated_src/
 docs/html/
 objs/
 
+# Helper files
+*_placeholders.f90
+
 # GS2 output files
 *.amoments
 *.bin
@@ -74,6 +77,7 @@ coverage/
 *.d
 
 # Compiled Object files
+*.pyc
 *.slo
 *.lo
 *.o

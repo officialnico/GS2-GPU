@@ -100,7 +100,9 @@ function test_ffts()
   integer :: ix, iy
   character(len=22) :: message = ''
   dummy = .true.
-  
+
+  ! Need to default to true as process_check uses this value
+  test_ffts = .true.
 
   !ix =0
   !iy=0

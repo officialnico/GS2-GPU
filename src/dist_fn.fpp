@@ -11,6 +11,7 @@
 !!velocity shear and calculating the right-hand side of the field 
 !!equation, as well as a host of other functions.
 module dist_fn
+  use abstract_config, only: abstract_config_type, CONFIG_MAX_NAME_LEN
   use redistribute, only: redist_type
   implicit none
 
@@ -101,6 +102,11 @@ module dist_fn
   public :: check_getan
   public :: calculate_flux_surface_average
 
+  public :: dist_fn_config_type
+  public :: dist_fn_species_config_type
+  public :: source_config_type
+  public :: set_dist_fn_config
+  
   ! knobs
   complex, dimension (:), allocatable :: fexp ! (nspec)
   real, dimension (:), allocatable :: bkdiff  ! (nspec)
@@ -277,8 +283,287 @@ module dist_fn
   logical, parameter :: moment_to_allprocs = .true.
 #else
   logical, parameter :: moment_to_allprocs = .false.
-#endif
+#endif 
 
+  !> Used to represent the input configuration of dist_fn
+  type, extends(abstract_config_type) :: dist_fn_config_type
+     ! namelist : dist_fn_knobs
+     ! indexed : false
+     !> The form of the adiabatic response (if a species is being modeled as adiabatic). Ignored if there are electrons in the species list.
+     !>
+     !> - 'no-field-line-average-term'  Adiabatic species has n = Phi.  Appropriate for single-species ETG simulations.
+     !> - 'default'  Same as 'no-field-line-average-term'
+     !> - 'iphi00=0' Same as 'no-field-line-average-term'
+     !> - 'iphi00=1' Same as 'no-field-line-average-term'
+     !> - 'field-line-average-term'  Adiabatic species has n=Phi-< Phi >.  Appropriate for single-species ITG simulations.
+     !> - 'iphi00=2' Same as field-line-average-term'
+     !> - 'iphi00=3' Adiabatic species has n=Phi-< Phi >_y.  Incorrect implementation of field-line-average-term.
+     !>
+     !> @todo Remove 'iphi00=3'
+     character(len = 30) :: adiabatic_option = 'default'
+     !> For debugging only.
+     !>
+     !> @todo Improve documentation
+     real :: afilter = 0.0
+     !> Leave as unity.  For debugging.
+     !>
+     !> @todo Improve documentation
+     real :: apfac = 1.0
+     !> Sets the boundary condition along the field line (i.e. the
+     !> boundary conditions at \(\theta = \pm \pi\) in flux-tube
+     !> simulations or \(\theta = \pm (2*\textrm{nperiod}-1)*\pi\) in
+     !> ballooning space). Possible values are:
+     !>
+     !> - 'zero', 'default', 'unconnected' - Use Kotschenreuther boundary condition at endpoints of theta grid
+     !> - 'self-periodic', 'periodic', 'kperiod=1' - Each mode is periodic in theta with itself
+     !> - 'linked' - Twist and shift boundary conditions (used for kt_grids:grid_option='box')
+     !> - 'alternate-zero' - Ignored
+     !>
+     !> See also [[dist_fn_knobs:nonad_zero]]
+     character(len = 20) :: boundary_option = 'default'
+     !> Overrides the [[theta_grid:itor_over_B]] internal parameter,
+     !> meant only for slab runs where it sets the angle between the
+     !> magnetic field and the toroidal flow.
+     real :: btor_slab = 0.0
+     !> True only allows solutions of single parity as determined by
+     !> the input [[dist_fn_knobs:even]].
+     logical :: def_parity = .false.
+     !> FIXME: Add documentation
+     !>
+     !> Used for GRYFX - should probably be moved elsewhere - ~ rho_i
+     real :: densfac_lin = sqrt(2.)
+     !> Leave as unity for physical runs can be used for
+     !> debugging. Multiplies the passing particle drifts (also see
+     !> [[dist_fn_knobs:tpdriftknob]]).
+     real :: driftknob = 1.0
+     !> If `esv=.true.` and `boundary_option='linked'` (i.e. flux tube
+     !> simulation) then at every time step we ensure the fields are
+     !> exactly single valued by replacing the field at one of the
+     !> repeated boundary points with the value at the other boundary
+     !> (i.e. of the two array locations which should be storing the
+     !> field at the same point in space we pick one and set the other
+     !> equal to the one we picked). This can be important in
+     !> correctly tracking the amplitude of damped modes to very small
+     !> values. Also see [[init_g_knobs:clean_init]].
+     logical :: esv = .false.
+     !> If `def_parity` is true, determines allowed parity.
+     logical :: even = .true.
+     !> \(\frac{\rho}{q} \frac{d\Omega^{\rm GS2}}{d\rho_n}\) where
+     !> \(\Omega^{\rm GS2}\) is toroidal angular velocity normalised
+     !> to the reference frequency \(v_{t}^{\rm ref}/a\) and
+     !> \(\rho_n\) is the normalised flux label which has value
+     !> \(\rho\) on the local surface.
+     real :: g_exb = 0.0
+     !> With flow shear in single mode, constrains relative error in `phi^2`.
+     !>
+     !> @todo Add more documentation
+     real :: g_exb_error_limit = 0.0
+     !> Flow shear switched on when simulation time exceeds this time.
+     real :: g_exb_start_time = -1
+     !> Flow shear switched on when simulation timestep exceeds this timestep.
+     integer :: g_exb_start_timestep = -1
+     !> Multiplies `g_exb` in the perpendicular shearing term *but
+     !> not* in the parallel drive term. Can be used to construct simulations with
+     !> purely parallel flow.
+     real :: g_exbfac = 1.0
+     !> Perform velocity space integration using `gf_lo`, rather than
+     !> `g_lo`, data decomposition if true.  If used without
+     !> `field_option = 'gf_local'` in [[fields_knobs]] it is likely to give
+     !> poor performance. If `field_option = 'gf_local'` in
+     !> [[fields_knobs]] then this needs to be present and set to `.true.`.
+     !>
+     !> @todo Consider if this should be a field input.
+     logical :: gf_lo_integrate = .false.
+     !> Affects boundary condition at end of theta grid.   Recommended value: 1.
+     !>_
+     !> @note This used to default to 5.e4
+     !> @todo Improve documentation
+     real :: gridfac = 1.0
+     !> For debugging only.
+     !>_
+     !> @todo Improve documentation
+     real :: kfilter = 0.0
+     !> FIXME: Add documentation
+     logical :: lf_decompose = .false.
+     !> FIXME: Add documentation
+     logical :: lf_default = .true.
+     !> Number multiplying the coriolis drift.
+     !>
+     !> @todo Expand documentation
+     real :: mach = 0.0
+     !> Allow different species to have different values of `bakdif` and
+     !> `fexpr`.  Not allowed for nonlinear runs.
+     !>
+     !> @note The restriction to `.false.` for nonlinear runs isn't actually enforced.
+     logical :: mult_imp = .false.
+     !> If true switches on "new" parallel boundary condition where h=0 at incoming boundary instead of g=0.
+     !> This is considered the correct boundary condition but old behaviour retained for experimentation.
+     logical :: nonad_zero = .true.
+     !> Factor multiplying the parallel shearing drive term when
+     !> running with non-zero [[dist_fn_knobs:g_exb]]
+     real :: omprimfac = 1.0
+     !> Deprecated and due for removal
+     logical :: opt_init_bc = .false.
+     !>  If true then use an optimised linear source calculation which
+     !>  uses pre-calculated coefficients, calculates both sigma
+     !>  together and skips work associated with empty fields. Can
+     !>  contribute at least 10-25% savings for linear electrostatic
+     !>  collisionless simulations. For more complicated runs the
+     !>  savings may be less. If enabled memory usage will
+     !>  increase due to using an additional array of size 2-4 times
+     !>  `gnew`.
+     logical :: opt_source = .false.
+     !> FIXME: Add documentation
+     !>
+     !> Used for GRYFX - should probably be moved elsewhere - ~ rho_i
+     real :: phifac_lin = sqrt(2.)
+     !> If non-zero, quasineutrality is not enforced,
+     !> `poisfac`=  \((\lambda_\textrm{Debye}/\rho)^2\)
+     real :: poisfac = 0.0
+     !> FIXME: Add documentation
+     !>
+     !> Used for GRYFX - should probably be moved elsewhere - ~ rho_i vti^3
+     real :: qparfac_lin = 4.
+     !> FIXME: Add documentation
+     !>
+     !> Used for GRYFX - should probably be moved elsewhere - ~ rho_i vti^3
+     real :: qprpfac_lin = 4.
+     !> For debugging only. If set then run will print various grid sizes and then stop.
+     logical :: test = .false.
+     !> FIXME: Add documentation
+     !>
+     !> Used for GRYFX - should probably be moved elsewhere - ~ rho_i vti^2
+     real :: tparfac_lin = 2.*sqrt(2.)
+     !> For debugging only. Multiplies the trapped particle drifts
+     !> (also see [[dist_fn_knobs:driftknob]]).
+     real :: tpdriftknob = -9.9e9
+     !> FIXME: Add documentation
+     !>
+     !> Used for GRYFX - should probably be moved elsewhere - ~ rho_i vti^2
+     real :: tprpfac_lin = 2.*sqrt(2.)
+     !> FIXME: Add documentation
+     !>
+     !> Used for GRYFX - should probably be moved elsewhere - ~ rho_i vti
+     real :: uparfac_lin = 2.
+     !> For debugging only. Sets the boundary value for the barely trapped/passing particle.
+     real :: wfb = 1.0
+     !> FIXME: Add documentation
+     logical :: wfb_cmr = .false.
+     !> FIXME: Add documentation
+     character(len = 20) :: wfbbc_option = 'default'
+     !> If true then force `gnew=0` in the forbidden region at the end
+     !> of [[invert_rhs_1]] (this is the original behaviour).
+     !> Nothing should depend on the forbidden region so `g` should be 0 here
+     !> and if it is not for some reason then it shouldn't impact on
+     !> results. If the results of your simulation depend upon this
+     !> flag then something has likely gone wrong somewhere.
+     logical :: zero_forbid = .false.
+   contains
+     procedure, public :: read => read_dist_fn_config
+     procedure, public :: write => write_dist_fn_config
+     procedure, public :: reset => reset_dist_fn_config
+     procedure, public :: broadcast => broadcast_dist_fn_config
+     procedure, public, nopass :: get_default_name => get_default_name_dist_fn_config
+     procedure, public, nopass :: get_default_requires_index => get_default_requires_index_dist_fn_config
+  end type dist_fn_config_type
+  
+  type(dist_fn_config_type) :: dist_fn_config
+  
+  !> Used to represent the input configuration of source
+  type, extends(abstract_config_type) :: source_config_type
+     ! namelist : source_knobs
+     ! indexed : false
+     !> Growth rate of non-standard source used with `source_option = 'phiext_full'`.
+     real :: gamma0 = 0.0
+     !> Frequency of non-standard source used with `source_option = 'phiext_full'`.
+     real :: omega0 = 0.0
+     !> Amplitude of external phi added as source term with
+     !> `source_option = 'phiext_full'`. If zero (default) then no
+     !> extra term included in the source.
+     real :: phi_ext = 0.0
+     !> Amplitude of non-standard source used with `source_option =
+     !> 'phiext_full'` when time >= t0.
+     real :: source0 = 1.0
+     !> Controls the source term used in the time advance. Should be
+     !> one of:
+     !>
+     !> - 'source_option_full' : Solve GK equation in standard form (with no artificial sources)
+     !> - 'default' : Same as 'source_option_full'
+     !> - 'phiext_full' : Solve GK equation with additional source
+     !>   proportional to `phi_ext*F_0`.
+     character(len = 20) :: source_option = 'default'
+     !> Turn on any artificial sources after time = t0. Only used with
+     !> `source_option = 'phiext_full'`.
+     real :: t0 = 100.0
+   contains
+     procedure, public :: read => read_source_config
+     procedure, public :: write => write_source_config
+     procedure, public :: reset => reset_source_config
+     procedure, public :: broadcast => broadcast_source_config
+     procedure, public, nopass :: get_default_name => get_default_name_source_config
+     procedure, public, nopass :: get_default_requires_index => get_default_requires_index_source_config
+  end type source_config_type
+
+  type(source_config_type) :: source_config
+
+  !> Used to represent the input configuration of
+  !> dist_fn_species. There should be one of this namelist for each
+  !> species simulated.
+  type, extends(abstract_config_type) :: dist_fn_species_config_type
+     ! namelist : dist_fn_species_knobs
+     ! indexed : true
+     !> Spatial implicitness parameter. Any value greater than 0 adds
+     !> numerical dissipation which is often necessary to avoid grid
+     !> scale oscillations. When `bakdif = 0.0` (default) we use a
+     !> \(2^\textrm{nd}\) order grid centered approach in the parallel
+     !> direction. When `bakdif = 1.0` this becomes a fully upwinded
+     !> method. Recommended value is 0.05 for electrostatic
+     !> simulations and 0.0 for electromagnetic.
+     !>
+     !>
+     !> @warning It is possible to have different values for the
+     !> different species simulated, but in a number of places we only
+     !> use the value given by the first species. It is strongly
+     !> recommended to use the same value for all species.
+     !>
+     !> @todo Clarify the motivation for the electromagnetic
+     !> recommendation.
+     !>
+     !> @todo Consider forcing this to be constant across all species.
+     !>
+     !> @todo Consider changing the default to the recommended value.     
+     real :: bakdif = 0.0
+     !> Not used for anything.
+     !>
+     !> @todo Remove this variable.
+     integer :: bd_exp = 0
+     !> Sets the imaginary part of the temporal implicitness
+     !> parameter. It is considered an error for this to be non-zero.
+     !>
+     !> @todo Consider removing this variable as it should always be
+     !> zero. Is this used for numerical testing?
+     real :: fexpi = 0.0
+     !> Sets the real part of the temporal implicitness parameter. Any
+     !> value smaller than 0.5 adds numerical dissipation. When `fexpr
+     !> = 0.5` we have a \(2^\textrm{nd}\) order time centered
+     !> approach. If `fexpr = 0.0` this reduces to a fully implicit
+     !> backward Euler method. When `fexpr = 1.0` this instead becomes
+     !> a fully explicit forward Euler method (not recommended). The
+     !> recommended value is 0.48.
+     !>
+     !> @todo Consider changing the default to the recommended value.
+     real :: fexpr = 0.4
+   contains
+     procedure, public :: read => read_dist_fn_species_config
+     procedure, public :: write => write_dist_fn_species_config
+     procedure, public :: reset => reset_dist_fn_species_config
+     procedure, public :: broadcast => broadcast_dist_fn_species_config
+     procedure, public, nopass :: get_default_name => get_default_name_dist_fn_species_config
+     procedure, public, nopass :: get_default_requires_index => get_default_requires_index_dist_fn_species_config
+  end type dist_fn_species_config_type
+
+  type(dist_fn_species_config_type), dimension(:), allocatable :: dist_fn_species_config
+  
 contains
 
   !> FIXME : Add documentation
@@ -613,12 +898,16 @@ contains
   end subroutine wnml_dist_fn_species
 
   !> FIXME : Add documentation  
-  subroutine init_dist_fn_parameters
+  subroutine init_dist_fn_parameters(dist_fn_config_in, source_config_in, dist_fn_species_config_in)
     use gs2_layouts, only: init_gs2_layouts
     use kt_grids, only: init_kt_grids
     use le_grids, only: init_le_grids
     use species, only: init_species
     use theta_grid, only: init_theta_grid
+    implicit none
+    type(dist_fn_config_type), intent(in), optional :: dist_fn_config_in
+    type(source_config_type), intent(in), optional :: source_config_in
+    type(dist_fn_species_config_type), intent(in), dimension(:), optional :: dist_fn_species_config_in
     logical,parameter:: debug=.false.
 
     if (initialized_dist_fn_parameters) return
@@ -640,7 +929,7 @@ contains
     call init_le_grids (accelerated_x, accelerated_v)
 
     if (debug) write(6,*) "init_dist_fn: read_parameters"
-    call read_parameters
+    call read_parameters(dist_fn_config_in, source_config_in, dist_fn_species_config_in)
 
   end subroutine init_dist_fn_parameters
 
@@ -732,7 +1021,7 @@ contains
   !> FIXME : Add documentation  
   subroutine init_dist_fn_level_3
     use mp, only: finish_mp, mp_abort
-    use species, only: init_species, nspec
+    use species, only: init_species
     use collisions, only: init_collisions!, vnmult
     use hyper, only: init_hyper
     use le_grids, only: init_g2gf
@@ -779,7 +1068,7 @@ contains
     if (debug) write(6,*) "init_dist_fn: init_source_term"
     call init_source_term
 
-    call init_g2gf(debug)
+    if (gf_lo_integrate) call init_g2gf(debug)
 
   end subroutine init_dist_fn_level_3
 
@@ -928,6 +1217,10 @@ contains
     if (allocated(wstar)) deallocate (wstar)
 !AJ
     if (allocated(vpa_gf)) deallocate(vpa_gf, vperp2_gf)
+
+    call dist_fn_config%reset()
+    call source_config%reset()
+    if(allocated(dist_fn_species_config)) deallocate(dist_fn_species_config)
   end subroutine finish_dist_fn_level_3
 
   !> FIXME : Add documentation  
@@ -948,7 +1241,7 @@ contains
   end subroutine set_optimisations_overrides
 
   !> FIXME : Add documentation  
-  subroutine read_parameters
+  subroutine read_parameters(dist_fn_config_in, source_config_in, dist_fn_species_config_in)
     use file_utils, only: input_unit, error_unit, input_unit_exist
     use theta_grid, only: shat
     use text_options, only: text_option, get_option_value
@@ -956,6 +1249,9 @@ contains
     use mp, only: proc0, broadcast
     use theta_grid, only: itor_over_B
     implicit none
+    type(dist_fn_config_type), intent(in), optional :: dist_fn_config_in
+    type(source_config_type), intent(in), optional :: source_config_in
+    type(dist_fn_species_config_type), intent(in), dimension(:), optional :: dist_fn_species_config_in
     type (text_option), dimension (3), parameter :: sourceopts = &
          (/ text_option('default', source_option_full), &
             text_option('full', source_option_full), &
@@ -990,172 +1286,121 @@ contains
             text_option('trapped', wfbbc_option_trapped), &
             text_option('mixed', wfbbc_option_mixed)/)
     character(20) :: wfbbc_option
-            
-    namelist /dist_fn_knobs/ boundary_option, nonad_zero, gridfac, apfac, &
-         driftknob, tpdriftknob, poisfac, adiabatic_option, &
-         kfilter, afilter, mult_imp, test, def_parity, even, wfb, &
-         g_exb, g_exbfac, omprimfac, btor_slab, mach, lf_default, &
-         g_exb_start_time, g_exb_start_timestep, g_exb_error_limit, &
-         wfbbc_option, &
 
-         lf_decompose, esv, wfb_cmr, opt_init_bc, opt_source, zero_forbid, &
-         densfac_lin, uparfac_lin, tparfac_lin, tprpfac_lin, &
-         qparfac_lin, qprpfac_lin, phifac_lin, &
-         gf_lo_integrate
-    
-    namelist /source_knobs/ t0, omega0, gamma0, source0, phi_ext, source_option
-    integer :: ierr, is, in_file
+    integer :: ierr, is
     real :: bd
 
     if (readinit) return
     readinit = .true.
 
-    if (proc0) then
-       boundary_option = 'default'
-       nonad_zero = .true.  ! BD: Default value changed to TRUE  8.15.13
-       wfb_cmr= .false.
-       trapped_wfb = .false.! flag for treating wfb as a trapped particle
-       passing_wfb = .false.! flag for treating wfb as a passing particle
-       wfbbc_option = 'default'
-       esv = .false.
-       opt_init_bc = .false. !Deprecated
-       opt_source = .false.
-       adiabatic_option = 'default'
-       poisfac = 0.0
-       gridfac = 1.0  ! used to be 5.e4
-       apfac = 1.0
-       driftknob = 1.0
-       tpdriftknob = -9.9e9
-       t0 = 100.0
-       source0 = 1.0
-       omega0 = 0.0
-       gamma0 = 0.0
-       phi_ext = 0.0
-       afilter = 0.0
-       kfilter = 0.0
-       g_exb = 0.0
-       g_exbfac = 1.0
-       g_exb_error_limit = 0.0
-       g_exb_start_time = -1
-       g_exb_start_timestep = -1
-       mach = 0.0
-       omprimfac = 1.0
-       btor_slab = 0.0
-       wfb = 1.
-       mult_imp = .false.
-       test = .false.
-       def_parity = .false.
-       zero_forbid = .false.
-       gf_lo_integrate = .false.
-       even = .true.
-       lf_default = .true.
-       lf_decompose = .false.
-       source_option = 'default'
 
-       densfac_lin = sqrt(2.)           ! ~ rho_i
-       uparfac_lin = 2.                 ! ~ rho_i vti
-       tparfac_lin = 2.*sqrt(2.)        ! ~ rho_i vti^2
-       tprpfac_lin = 2.*sqrt(2.)        ! ~ rho_i vti^2
-       qparfac_lin = 4.                 ! ~ rho_i vti^3
-       qprpfac_lin = 4.                 ! ~ rho_i vti^3
-       phifac_lin = densfac_lin         ! ~ rho_i
+    !Deal with source_knobs namelist
+    if (present(source_config_in)) source_config = source_config_in
 
-       in_file = input_unit_exist("dist_fn_knobs", dfexist)
-!       if (dfexist) read (unit=input_unit("dist_fn_knobs"), nml=dist_fn_knobs)
-       if (dfexist) read (unit=in_file, nml=dist_fn_knobs)
-       if (tpdriftknob == -9.9e9) tpdriftknob=driftknob
+    call source_config%init(name = 'source_knobs', requires_index = .false.)
 
-       in_file = input_unit_exist("source_knobs", skexist)
-!       if (skexist) read (unit=input_unit("source_knobs"), nml=source_knobs)
-       if (skexist) read (unit=in_file, nml=source_knobs)
+    ! Copy out internal values into module level parameters
+    gamma0 = source_config%gamma0
+    omega0 = source_config%omega0
+    phi_ext = source_config%phi_ext
+    source0 = source_config%source0
+    source_option = source_config%source_option
+    t0 = source_config%t0
 
+    skexist = source_config%exist
 
-       ierr = error_unit()
+    !Deal with dist_fn_knobs namelist    
+    if (present(dist_fn_config_in)) dist_fn_config = dist_fn_config_in
 
-       if(abs(shat) <=  1.e-5) boundary_option = 'periodic'
+    call dist_fn_config%init(name = 'dist_fn_knobs', requires_index = .false.)
 
-       call get_option_value &
-            (boundary_option, boundaryopts, boundary_option_switch, &
-            ierr, "boundary_option in dist_fn_knobs",.true.)
+    ! Copy out internal values into module level parameters
+    adiabatic_option = dist_fn_config%adiabatic_option
+    afilter = dist_fn_config%afilter
+    apfac = dist_fn_config%apfac
+    boundary_option = dist_fn_config%boundary_option
+    btor_slab = dist_fn_config%btor_slab
+    def_parity = dist_fn_config%def_parity
+    densfac_lin = dist_fn_config%densfac_lin
+    driftknob = dist_fn_config%driftknob
+    esv = dist_fn_config%esv
+    even = dist_fn_config%even
+    g_exb = dist_fn_config%g_exb
+    g_exb_error_limit = dist_fn_config%g_exb_error_limit
+    g_exb_start_time = dist_fn_config%g_exb_start_time
+    g_exb_start_timestep = dist_fn_config%g_exb_start_timestep
+    g_exbfac = dist_fn_config%g_exbfac
+    gf_lo_integrate = dist_fn_config%gf_lo_integrate
+    gridfac = dist_fn_config%gridfac
+    kfilter = dist_fn_config%kfilter
+    lf_decompose = dist_fn_config%lf_decompose
+    lf_default = dist_fn_config%lf_default
+    mach = dist_fn_config%mach
+    mult_imp = dist_fn_config%mult_imp
+    nonad_zero = dist_fn_config%nonad_zero
+    omprimfac = dist_fn_config%omprimfac
+    opt_init_bc = dist_fn_config%opt_init_bc
+    opt_source = dist_fn_config%opt_source
+    phifac_lin = dist_fn_config%phifac_lin
+    poisfac = dist_fn_config%poisfac
+    qparfac_lin = dist_fn_config%qparfac_lin
+    qprpfac_lin = dist_fn_config%qprpfac_lin
+    test = dist_fn_config%test
+    tparfac_lin = dist_fn_config%tparfac_lin
+    tpdriftknob = dist_fn_config%tpdriftknob
+    tprpfac_lin = dist_fn_config%tprpfac_lin
+    uparfac_lin = dist_fn_config%uparfac_lin
+    wfb = dist_fn_config%wfb
+    wfb_cmr = dist_fn_config%wfb_cmr
+    wfbbc_option = dist_fn_config%wfbbc_option
+    zero_forbid = dist_fn_config%zero_forbid
 
-       call get_option_value &
-            (wfbbc_option, wfbbcopts, wfbbc_option_switch, &
-            ierr, "wfbbc_option in dist_fn_knobs",.true.)
+    dfexist = dist_fn_config%exist
+    
+    if (tpdriftknob == -9.9e9) tpdriftknob=driftknob
 
-       call get_option_value &
-            (source_option, sourceopts, source_option_switch, &
-            ierr, "source_option in source_knobs",.true.)
-       call get_option_value &
-            (adiabatic_option, adiabaticopts, adiabatic_option_switch, &
-            ierr, "adiabatic_option in dist_fn_knobs",.true.)
+    ierr = error_unit()
 
-       select case (wfbbc_option_switch)
-        case(wfbbc_option_mixed) ! The previous default boundary condition which mixes the passing and trapped boundary conditions
-            passing_wfb =.false.
-            trapped_wfb =.false.
-        case(wfbbc_option_passing) ! Treats wfb using a passing particle boundary condition 
-            passing_wfb =.true.
-            trapped_wfb =.false.
-        case(wfbbc_option_trapped) ! Treats the wfb using a trapped particle boundary condition 
-            passing_wfb =.false.
-            trapped_wfb =.true.
-       end select
+    if(abs(shat) <=  1.e-5) boundary_option = 'periodic'
+
+    call get_option_value &
+         (boundary_option, boundaryopts, boundary_option_switch, &
+         ierr, "boundary_option in dist_fn_knobs",.true.)
+
+    call get_option_value &
+         (wfbbc_option, wfbbcopts, wfbbc_option_switch, &
+         ierr, "wfbbc_option in dist_fn_knobs",.true.)
+
+    call get_option_value &
+         (source_option, sourceopts, source_option_switch, &
+         ierr, "source_option in source_knobs",.true.)
+    call get_option_value &
+         (adiabatic_option, adiabaticopts, adiabatic_option_switch, &
+         ierr, "adiabatic_option in dist_fn_knobs",.true.)
+
+    trapped_wfb = .false.! flag for treating wfb as a trapped particle
+    passing_wfb = .false.! flag for treating wfb as a passing particle
+
+    select case (wfbbc_option_switch)
+    case(wfbbc_option_mixed) ! The previous default boundary condition which mixes the passing and trapped boundary conditions
+       passing_wfb =.false.
+       trapped_wfb =.false.
+    case(wfbbc_option_passing) ! Treats wfb using a passing particle boundary condition 
+       passing_wfb =.true.
+       trapped_wfb =.false.
+    case(wfbbc_option_trapped) ! Treats the wfb using a trapped particle boundary condition 
+       passing_wfb =.false.
+       trapped_wfb =.true.
+    end select
        
-    end if
     if (.not.allocated(fexp)) allocate (fexp(nspec), bkdiff(nspec), bd_exp(nspec))
-    if (proc0) call read_species_knobs
 
-    call broadcast (boundary_option_switch)
-    call broadcast (nonad_zero)
-    call broadcast (wfb_cmr)
-    call broadcast (trapped_wfb)
-    call broadcast (passing_wfb)
-    call broadcast (wfbbc_option_switch)
-    call broadcast (esv)
-    call broadcast (opt_init_bc)
-    call broadcast (opt_source)
-    call broadcast (adiabatic_option_switch)
-    call broadcast (gridfac)
-    call broadcast (poisfac)
-    call broadcast (apfac)
-    call broadcast (driftknob)
-    call broadcast (tpdriftknob)
-    call broadcast (t0)
-    call broadcast (source0)
-    call broadcast (omega0)
-    call broadcast (gamma0)
-    call broadcast (phi_ext)
-    call broadcast (g_exb)
-    call broadcast (g_exbfac)
-    call broadcast (g_exb_start_timestep)
-    call broadcast (g_exb_start_time)
-    call broadcast (g_exb_error_limit)
-    call broadcast (mach)
-    call broadcast (omprimfac)
-    call broadcast (btor_slab)
-    call broadcast (afilter)
-    call broadcast (kfilter)
-    call broadcast (source_option_switch)
+    call read_species_knobs(dist_fn_species_config_in)
+
     call broadcast (fexp)
     call broadcast (bkdiff)
     call broadcast (bd_exp)
-    call broadcast (mult_imp)
-    call broadcast (test)
-    call broadcast (def_parity)
-    call broadcast (zero_forbid)
-    call broadcast (gf_lo_integrate)
-    call broadcast (lf_default)
-    call broadcast (lf_decompose)
-    call broadcast (even)
-    call broadcast (wfb)
-    call broadcast (densfac_lin)
-    call broadcast (uparfac_lin)
-    call broadcast (tparfac_lin)
-    call broadcast (tprpfac_lin)
-    call broadcast (qparfac_lin)
-    call broadcast (qprpfac_lin)
-    call broadcast (phifac_lin)
-
+  
     !<DD>Turn off esv if not using linked boundaries
     esv=esv.and.(boundary_option_switch.eq.boundary_option_linked)
 
@@ -1207,43 +1452,36 @@ contains
   end subroutine read_parameters 
 
   !> FIXME : Add documentation  
-  subroutine read_species_knobs
+  subroutine read_species_knobs(dist_fn_species_config_in)
     use species, only: nspec
+    use mp, only: proc0
     use file_utils, only: get_indexed_namelist_unit
     implicit none
-    integer :: is, unit
+    type(dist_fn_species_config_type), intent(in), dimension(:), optional :: dist_fn_species_config_in    
+    integer :: is
+    logical :: exist
+    real :: fexpr, fexpi
+
+    if(present(dist_fn_species_config_in)) dist_fn_species_config = dist_fn_species_config_in
+    if(.not.allocated(dist_fn_species_config)) allocate(dist_fn_species_config(nspec))
+    if(size(dist_fn_species_config).ne.nspec) then
+       if(proc0) print*,"Warning: inconsistent config size in read_species_knobs"
+    endif
+    
     do is = 1, nspec
-       fexp(is) = (0.4,0.0)
-       bkdiff(is) = 0.0
-       bd_exp(is) = 0
+       call dist_fn_species_config(is)%init(name = 'dist_fn_species_knobs', requires_index = .true., index = is)
+
+       ! Copy out internal values into module level parameters
+       bkdiff(is) = dist_fn_species_config(is)%bakdif
+       bd_exp(is) = dist_fn_species_config(is)%bd_exp
+       fexpi = dist_fn_species_config(is)%fexpi
+       fexpr = dist_fn_species_config(is)%fexpr
        
-       call get_indexed_namelist_unit (unit, "dist_fn_species_knobs", is)
-       call fill_species_knobs (unit, fexp(is), bkdiff(is), bd_exp(is))
-       close (unit=unit)
+       exist = dist_fn_species_config(is)%exist
+       
+       fexp(is) = cmplx(fexpr,fexpi)
     end do
   end subroutine read_species_knobs
-
-  !> FIXME : Add documentation  
-  subroutine fill_species_knobs (unit, fexp_out, bakdif_out, bd_exp_out)
-    implicit none
-    integer, intent (in) :: unit
-    complex, intent (in out) :: fexp_out
-    real, intent (in out) :: bakdif_out
-    integer, intent (in out) :: bd_exp_out
-    integer :: bd_exp,iostat
-    real :: fexpr, fexpi, bakdif
-    namelist /dist_fn_species_knobs/ fexpr, fexpi, bakdif, bd_exp
-
-    fexpr = real(fexp_out)
-    fexpi = aimag(fexp_out)
-    bakdif = bakdif_out
-    bd_exp = bd_exp_out
-    read (unit=unit, nml=dist_fn_species_knobs,iostat=iostat)
-    if(iostat /= 0) write(6,*) 'Error ',iostat,'dist_fn species knobs'
-    fexp_out = cmplx(fexpr,fexpi)
-    bd_exp_out = bd_exp
-    bakdif_out = bakdif
-  end subroutine fill_species_knobs
 
   !> FIXME : Add documentation
   subroutine init_wdrift
@@ -1667,9 +1905,9 @@ contains
   !> FIXME : Add documentation  
   subroutine init_invert_rhs
     use dist_fn_arrays, only: vpar, ittp
-    use species, only: spec, nspec
+    use species, only: spec
     use theta_grid, only: ntgrid
-    use le_grids, only: nlambda, ng2, forbid, negrid
+    use le_grids, only: nlambda, ng2, forbid
     use constants, only: zi
     use gs2_layouts, only: g_lo, ik_idx, it_idx, il_idx, ie_idx, is_idx
     implicit none
@@ -3772,8 +4010,8 @@ contains
 
   !> FIXME : Add documentation
   subroutine get_source_term &
-       (phi, apar, bpar, phinew, aparnew, bparnew, nstep_available, &
-        isgn, iglo,ik,it,il,ie,is, sourcefac, source)
+       (phi, apar, bpar, phinew, aparnew, bparnew, include_explicit, &
+        ab_coefficients, isgn, iglo,ik,it,il,ie,is, sourcefac, source)
 #ifdef LOWFLOW
     use dist_fn_arrays, only: hneoc, vparterm, wdfac, wstarfac, wdttpfac
 #endif
@@ -3781,8 +4019,8 @@ contains
     use dist_fn_arrays, only: gexp_1, gexp_2, gexp_3
     use theta_grid, only: ntgrid
     use kt_grids, only: aky
-    use le_grids, only: nlambda, ng2, lmax, negrid
-    use species, only: spec, nspec, nonmaxw_corr
+    use le_grids, only: nlambda, ng2, lmax
+    use species, only: spec, nonmaxw_corr
     use run_parameters, only: fphi, fapar, fbpar, wunits
     use gs2_time, only: code_dt
     use gs2_time, only: dt0 => code_dt, dt1 => code_dt_prev1, dt2 => code_dt_prev2
@@ -3792,26 +4030,14 @@ contains
     implicit none
     complex, dimension (-ntgrid:,:,:), intent (in) :: phi,    apar,    bpar
     complex, dimension (-ntgrid:,:,:), intent (in) :: phinew, aparnew, bparnew
-    integer, intent (in) :: nstep_available
+    logical, intent (in) :: include_explicit
+    real, dimension(:), intent(in) :: ab_coefficients
     integer, intent (in) :: isgn, iglo, ik, it, il, ie, is
     complex, intent (in) :: sourcefac
     complex, dimension (-ntgrid:), intent (out) :: source
 
     integer :: ig
     complex, dimension (-ntgrid:ntgrid) :: phigavg, apargavg
-    real :: c0, c1, c2
-
-
-    ! NRM, 3/18/2015 
-    ! calculate AB3 coefficients generalized to changing timestep
-    ! see Tatsuno & Dorland, Physics of Plasmas 13, 092107 (2006)
-    ! http://www.cscamm.umd.edu/publications/TatsunoDorland-PoP06_CS-06-11.pdf
-    ! if dt0 = dt1 = dt2, this reduces to usual AB3 coefficients
-    c0 = (1. / (dt1 + dt2)) * ( &
-         ((dt0 + dt1)**2./dt1)*( (dt0+dt1)/3. + dt2/2. ) &
-         - dt1*(dt1/3. + dt2/2.) )
-    c1 = - dt0**2. * ( dt0/3. + (dt1+dt2)/2. ) / (dt1*dt2)
-    c2 = dt0**2. * ( dt0/3. + dt1/2. ) / ( dt2*(dt1+dt2) )
 
 !CMR, 4/8/2011
 ! apargavg and phigavg combine to give the GK EM potential chi. 
@@ -3914,71 +4140,31 @@ contains
              end do
           endif
 
-#ifdef LOWFLOW
-          select case (nstep_available)
-          case (0)
-             ! nothing
-          case (1)
-             do ig = -ntgrid, ntgrid-1
-                if (il < ittp(ig)) cycle
-                source(ig) = source(ig) + 0.5*code_dt*gexp_1(ig,isgn,iglo)
-             end do
-          case (2) 
-             do ig = -ntgrid, ntgrid-1
-                if (il < ittp(ig)) cycle
-                source(ig) = source(ig) + 0.5*code_dt*( &
-                     1.5*gexp_1(ig,isgn,iglo) - 0.5*gexp_2(ig,isgn,iglo))
-             end do
-          case default
-             do ig = -ntgrid, ntgrid-1
-                if (il < ittp(ig)) cycle
-             !   source(ig) = source(ig) + 0.5*code_dt*( &
-             !        (23./12.)*gexp_1(ig,isgn,iglo) &
-             !        - (4./3.)  *gexp_2(ig,isgn,iglo) &
-             !        + (5./12.) *gexp_3(ig,isgn,iglo))
-    ! NRM, 3/18/2015 
-    ! use AB3 generalized to changing timestep
-                 source(ig) = source(ig) + 0.5*( &
-                          c0*gexp_1(ig,isgn,iglo) &
-                        + c1*gexp_2(ig,isgn,iglo) &
-                        + c2*gexp_3(ig,isgn,iglo))
-             end do
-          end select
-#else
-! add in nonlinear terms 
-          if (nonlin) then         
-             select case (nstep_available)
-             case (0)
-                ! nothing
+          if (include_explicit) then
+             select case (size(ab_coefficients))
              case (1)
                 do ig = -ntgrid, ntgrid-1
                    if (il < ittp(ig)) cycle
-                   source(ig) = source(ig) + 0.5*code_dt*gexp_1(ig,isgn,iglo)
+                   source(ig) = source(ig) + 0.5*code_dt*(&
+                        ab_coefficients(1)*gexp_1(ig,isgn,iglo))
                 end do
-             case (2) 
+             case (2)
                 do ig = -ntgrid, ntgrid-1
                    if (il < ittp(ig)) cycle
                    source(ig) = source(ig) + 0.5*code_dt*( &
-                        1.5*gexp_1(ig,isgn,iglo) - 0.5*gexp_2(ig,isgn,iglo))
-                end do                   
-             case default
+                        ab_coefficients(1)*gexp_1(ig,isgn,iglo) + &
+                        ab_coefficients(2)*gexp_2(ig,isgn,iglo))
+                end do
+             case (3)
                 do ig = -ntgrid, ntgrid-1
                    if (il < ittp(ig)) cycle
-              !    source(ig) = source(ig) + 0.5*code_dt*( &
-              !           (23./12.)*gexp_1(ig,isgn,iglo) &
-              !         - (4./3.)  *gexp_2(ig,isgn,iglo) &
-              !         + (5./12.) *gexp_3(ig,isgn,iglo))
-    ! NRM, 3/18/2015 
-    ! use AB3 generalized to changing timestep
-                 source(ig) = source(ig) + 0.5*( &
-                          c0*gexp_1(ig,isgn,iglo) &
-                        + c1*gexp_2(ig,isgn,iglo) &
-                        + c2*gexp_3(ig,isgn,iglo))
+                   source(ig) = source(ig) + 0.5*code_dt*( &
+                        ab_coefficients(1)*gexp_1(ig,isgn,iglo) + &
+                        ab_coefficients(2)*gexp_2(ig,isgn,iglo) + &
+                        ab_coefficients(3)*gexp_3(ig,isgn,iglo))
                 end do
              end select
           end if
-#endif
-
        end if
     end if
 
@@ -4078,65 +4264,28 @@ contains
 #endif
       end do
 
-#ifdef LOWFLOW
-      select case (nstep_available)
-      case (0)
-         ! nothing
-      case (1)
-         do ig = -ntgrid, ntgrid-1
-            source(ig) = source(ig) + 0.5*code_dt*gexp_1(ig,isgn,iglo)
-         end do
-      case (2) 
-         do ig = -ntgrid, ntgrid-1
-            source(ig) = source(ig) + 0.5*code_dt*( &
-                 1.5*gexp_1(ig,isgn,iglo) - 0.5*gexp_2(ig,isgn,iglo))
-         end do
-      case default
-         do ig = -ntgrid, ntgrid-1
-          !  source(ig) = source(ig) + 0.5*code_dt*( &
-          !       (23./12.)*gexp_1(ig,isgn,iglo) &
-          !       - (4./3.)  *gexp_2(ig,isgn,iglo) &
-          !       + (5./12.) *gexp_3(ig,isgn,iglo))
-    ! NRM, 3/18/2015 
-    ! use AB3 generalized to changing timestep
-                 source(ig) = source(ig) + 0.5*( &
-                          c0*gexp_1(ig,isgn,iglo) &
-                        + c1*gexp_2(ig,isgn,iglo) &
-                        + c2*gexp_3(ig,isgn,iglo))
-         end do
-      end select
-#else
-! add in nonlinear terms 
-      if (nonlin) then         
-         select case (nstep_available)
-         case (0)
-            ! nothing
+      if (include_explicit) then
+         select case (size(ab_coefficients))
          case (1)
             do ig = -ntgrid, ntgrid-1
-               source(ig) = source(ig) + 0.5*code_dt*gexp_1(ig,isgn,iglo)
+               source(ig) = source(ig) + 0.5*code_dt*(&
+                    ab_coefficients(1)*gexp_1(ig,isgn,iglo))
             end do
-         case (2) 
+         case (2)
             do ig = -ntgrid, ntgrid-1
                source(ig) = source(ig) + 0.5*code_dt*( &
-                    1.5*gexp_1(ig,isgn,iglo) - 0.5*gexp_2(ig,isgn,iglo))
+                    ab_coefficients(1)*gexp_1(ig,isgn,iglo) + &
+                    ab_coefficients(2)*gexp_2(ig,isgn,iglo))
             end do
-         case default
+         case (3)
             do ig = -ntgrid, ntgrid-1
-             !  source(ig) = source(ig) + 0.5*code_dt*( &
-             !         (23./12.)*gexp_1(ig,isgn,iglo) &
-             !       - (4./3.)  *gexp_2(ig,isgn,iglo) &
-             !       + (5./12.) *gexp_3(ig,isgn,iglo))
-    ! NRM, 3/18/2015 
-    ! use AB3 generalized to changing timestep
-                 source(ig) = source(ig) + 0.5*( &
-                          c0*gexp_1(ig,isgn,iglo) &
-                        + c1*gexp_2(ig,isgn,iglo) &
-                        + c2*gexp_3(ig,isgn,iglo))
+               source(ig) = source(ig) + 0.5*code_dt*( &
+                    ab_coefficients(1)*gexp_1(ig,isgn,iglo) + &
+                    ab_coefficients(2)*gexp_2(ig,isgn,iglo) + &
+                    ab_coefficients(3)*gexp_3(ig,isgn,iglo))
             end do
          end select
       end if
-#endif
-
     end subroutine set_source
 
   end subroutine get_source_term
@@ -4145,8 +4294,8 @@ contains
   !! and uses precalculated constant terms. Leads to more memory usage than 
   !! original version but can be significantly faster (~50%)
   subroutine get_source_term_opt &
-       (phi, apar, bpar, phinew, aparnew, bparnew, nstep_available, &
-        iglo,ik,it,il,ie,is, sourcefac, source)
+       (phi, apar, bpar, phinew, aparnew, bparnew, include_explicit, &
+        ab_coefficients, iglo,ik,it,il,ie,is, sourcefac, source)
 #ifdef LOWFLOW
     use dist_fn_arrays, only: hneoc, vparterm, wdfac, wstarfac, wdttpfac
 #endif
@@ -4164,25 +4313,13 @@ contains
     implicit none
     complex, dimension (-ntgrid:,:,:), intent (in) :: phi,    apar,    bpar
     complex, dimension (-ntgrid:,:,:), intent (in) :: phinew, aparnew, bparnew
-    integer, intent (in) :: nstep_available
+    logical, intent (in) :: include_explicit
+    real, dimension(:), intent(in) :: ab_coefficients
     integer, intent (in) :: iglo, ik, it, il, ie, is
     complex, intent (in) :: sourcefac
     complex, dimension (-ntgrid:,:), intent (out) :: source
     integer :: ig, isgn
     complex, dimension (-ntgrid:ntgrid) :: phigavg, apargavg
-
-    real :: c0, c1, c2
-
-    ! NRM, 3/18/2015 
-    ! calculate AB3 coefficients generalized to changing timestep
-    ! see Tatsuno & Dorland, Physics of Plasmas 13, 092107 (2006)
-    ! http://www.cscamm.umd.edu/publications/TatsunoDorland-PoP06_CS-06-11.pdf
-    ! if dt0 = dt1 = dt2, this reduces to usual AB3 coefficients
-    c0 = (1. / (dt1 + dt2)) * ( &
-         ((dt0 + dt1)**2./dt1)*( (dt0+dt1)/3. + dt2/2. ) &
-         - dt1*(dt1/3. + dt2/2.) )
-    c1 = - dt0**2. * ( dt0/3. + (dt1+dt2)/2. ) / (dt1*dt2)
-    c2 = dt0**2. * ( dt0/3. + dt1/2. ) / ( dt2*(dt1+dt2) )
 
 
     !Temporally weighted fields
@@ -4278,35 +4415,29 @@ contains
              end do
           endif
 
-          ! add in nonlinear terms 
-          if (nonlin) then         
-             select case (nstep_available)
-             case (0)
-                ! nothing
+          ! add in explicit terms
+          if (include_explicit) then
+             select case (size(ab_coefficients))
              case (1)
                 do ig = -ntgrid, ntgrid-1
                    if (il < ittp(ig)) cycle
-                   source(ig,isgn) = source(ig,isgn) + 0.5*code_dt*gexp_1(ig,isgn,iglo)
+                   source(ig, isgn) = source(ig, isgn) + 0.5*code_dt*(&
+                        ab_coefficients(1)*gexp_1(ig,isgn,iglo))
                 end do
-             case (2) 
+             case (2)
                 do ig = -ntgrid, ntgrid-1
                    if (il < ittp(ig)) cycle
-                   source(ig,isgn) = source(ig,isgn) + 0.5*code_dt*( &
-                        1.5*gexp_1(ig,isgn,iglo) - 0.5*gexp_2(ig,isgn,iglo))
+                   source(ig, isgn) = source(ig, isgn) + 0.5*code_dt*( &
+                        ab_coefficients(1)*gexp_1(ig,isgn,iglo) + &
+                        ab_coefficients(2)*gexp_2(ig,isgn,iglo))
                 end do
-             case default
+             case (3)
                 do ig = -ntgrid, ntgrid-1
                    if (il < ittp(ig)) cycle
-                !   source(ig,isgn) = source(ig,isgn) + 0.5*code_dt*( &
-                !        (23./12.)*gexp_1(ig,isgn,iglo) &
-                !        - (4./3.)  *gexp_2(ig,isgn,iglo) &
-                !        + (5./12.) *gexp_3(ig,isgn,iglo))
-    ! NRM, 3/18/2015 
-    ! use AB3 generalized to changing timestep
-                 source(ig,isgn) = source(ig,isgn) + 0.5*( &
-                          c0*gexp_1(ig,isgn,iglo) &
-                        + c1*gexp_2(ig,isgn,iglo) &
-                        + c2*gexp_3(ig,isgn,iglo))
+                   source(ig, isgn) = source(ig, isgn) + 0.5*code_dt*( &
+                        ab_coefficients(1)*gexp_1(ig,isgn,iglo) + &
+                        ab_coefficients(2)*gexp_2(ig,isgn,iglo) + &
+                        ab_coefficients(3)*gexp_3(ig,isgn,iglo))
                 end do
              end select
           end if
@@ -4350,36 +4481,29 @@ contains
          end do
       endif
 
-! add in nonlinear terms 
-      if (nonlin) then         
-         select case (nstep_available)
-         case (0)
-            ! nothing
+      ! add in explicit terms
+      if (include_explicit) then
+         select case (size(ab_coefficients))
          case (1)
             do ig = -ntgrid, ntgrid-1
-               source(ig,isgn) = source(ig,isgn) + 0.5*code_dt*gexp_1(ig,isgn,iglo)
+               source(ig, isgn) = source(ig, isgn) + 0.5*code_dt*(&
+                    ab_coefficients(1)*gexp_1(ig,isgn,iglo))
             end do
-         case (2) 
+         case (2)
             do ig = -ntgrid, ntgrid-1
-               source(ig,isgn) = source(ig,isgn) + 0.5*code_dt*( &
-                    1.5*gexp_1(ig,isgn,iglo) - 0.5*gexp_2(ig,isgn,iglo))
+               source(ig, isgn) = source(ig, isgn) + 0.5*code_dt*( &
+                    ab_coefficients(1)*gexp_1(ig,isgn,iglo) + &
+                    ab_coefficients(2)*gexp_2(ig,isgn,iglo))
             end do
-         case default
+         case (3)
             do ig = -ntgrid, ntgrid-1
-            !   source(ig,isgn) = source(ig,isgn) + 0.5*code_dt*( &
-            !          (23./12.)*gexp_1(ig,isgn,iglo) &
-            !        - (4./3.)  *gexp_2(ig,isgn,iglo) &
-            !        + (5./12.) *gexp_3(ig,isgn,iglo))
-    ! NRM, 3/18/2015 
-    ! use AB3 generalized to changing timestep
-                 source(ig,isgn) = source(ig,isgn) + 0.5*( &
-                          c0*gexp_1(ig,isgn,iglo) &
-                        + c1*gexp_2(ig,isgn,iglo) &
-                        + c2*gexp_3(ig,isgn,iglo))
+               source(ig, isgn) = source(ig, isgn) + 0.5*code_dt*( &
+                    ab_coefficients(1)*gexp_1(ig,isgn,iglo) + &
+                    ab_coefficients(2)*gexp_2(ig,isgn,iglo) + &
+                    ab_coefficients(3)*gexp_3(ig,isgn,iglo))
             end do
          end select
       end if
-
     end subroutine set_source_opt
 
   end subroutine get_source_term_opt
@@ -4399,14 +4523,15 @@ contains
     use kt_grids, only: kwork_filter
     use species, only: spec, nonmaxw_corr
     use mp, only: mp_abort
-    use gs2_time, only: time_history_available
+    use gs2_time, only: get_adams_bashforth_coefficients
+    use nonlinear_terms, only: nonlin
     implicit none
     complex, dimension (-ntgrid:,:,:), intent (in) :: phi,    apar,    bpar
     complex, dimension (-ntgrid:,:,:), intent (in) :: phinew, aparnew, bparnew
     integer, intent (in) :: istep
     integer, intent (in) :: iglo
     complex, intent (in) :: sourcefac
-
+    real, dimension(:), allocatable :: ab_coefficients
     integer :: ig, ik, it, il, ie, isgn, is
     integer :: ilmin
     complex :: beta1
@@ -4415,7 +4540,7 @@ contains
     complex :: adjleft, adjright
     logical :: use_pass_homog, speriod_flag
     integer :: ntgl, ntgr
-    integer :: nstep_available
+    logical :: include_explicit
 
 !    call prof_entering ("invert_rhs_1", "dist_fn")
 
@@ -4439,18 +4564,24 @@ contains
     is = is_idx(g_lo,iglo)
 
     if (istep .eq. 0) then
-       nstep_available = 0
+       include_explicit = .false.
     else
-       nstep_available = time_history_available()
+       include_explicit = .true.
     endif
-    
+
+#ifndef LOWFLOW
+    include_explicit = include_explicit .and. nonlin
+#endif
+
+    ab_coefficients = get_adams_bashforth_coefficients()
+
     if(opt_source)then
        call get_source_term_opt (phi, apar, bpar, phinew, aparnew, bparnew, &
-            nstep_available, iglo,ik,it,il,ie,is, sourcefac, source)
+            include_explicit, ab_coefficients, iglo,ik,it,il,ie,is, sourcefac, source)
     else
        do isgn = 1, 2
           call get_source_term (phi, apar, bpar, phinew, aparnew, bparnew, &
-               nstep_available, isgn, iglo,ik,it,il,ie,is, sourcefac, source(:,isgn))
+               include_explicit, ab_coefficients, isgn, iglo,ik,it,il,ie,is, sourcefac, source(:,isgn))
        end do
     endif
 
@@ -5318,7 +5449,6 @@ endif
     use theta_grid, only: ntgrid
     use le_grids, only: integrate_moment
     use prof, only: prof_entering, prof_leaving
-    use run_parameters, only: fphi, fbpar
     use fields_arrays, only: phinew
     use kt_grids, only: ntheta0, naky
     use mp, only: proc0
@@ -5833,8 +5963,7 @@ endif
        fieldeq, fieldeqa, fieldeqp)
     use theta_grid, only: ntgrid, bmag
     use kt_grids, only: naky, ntheta0, kperp2
-    use run_parameters, only: fphi, fapar, fbpar
-    use run_parameters, only: beta, tite
+    use run_parameters, only: fphi, fapar, fbpar, beta
     use species, only: spec, has_electron_species
     implicit none
     complex, dimension (-ntgrid:,:,:), intent (in) :: phi, apar, bpar
@@ -5939,8 +6068,7 @@ endif
        fieldeq, fieldeqa, fieldeqp)
     use theta_grid, only: ntgrid, bmag
     use kt_grids, only: naky, ntheta0, kperp2
-    use run_parameters, only: fphi, fapar, fbpar
-    use run_parameters, only: beta, tite
+    use run_parameters, only: fphi, fapar, fbpar, beta
     use kt_grids, only: kwork_filter
     use species, only: spec, has_electron_species
     implicit none
@@ -5993,9 +6121,7 @@ endif
   !> FIXME : Add documentation    
   subroutine check_getan (antot, antota, antotp, tempantot, tempantota, tempantotp)
     use mp, only : iproc
-    use species, only: nspec
     use theta_grid, only: ntgrid
-    use le_grids, only: negrid
     use run_parameters, only: fphi, fapar, fbpar
     use kt_grids, only: naky, ntheta0, kwork_filter
     use gs2_layouts, only: g_lo, it_idx, ik_idx, gf_lo, idx, proc_id
@@ -6464,6 +6590,74 @@ endif
     end if
 
   end subroutine get_init_field
+
+  !> Routine to dump the current source term used in [[invert_rhs]].
+  !>
+  !> This might be relatively expensive so care should be taken in
+  !> calling this.  It makes use of the existing code for saving
+  !> restart files and as such produces either one file per processor
+  !> or a single file depending on if the build uses parallel i/o or
+  !> not. These files are automatically overwritten so calling it
+  !> repeatedly within a single run might not be useful.
+  subroutine dump_current_source_term(istep, phi, apar, bpar, phinew, aparnew, bparnew)
+    use gs2_save, only: gs2_save_for_restart
+    use gs2_layouts, only: g_lo, ik_idx, it_idx, il_idx, ie_idx, is_idx
+    use theta_grid, only: ntgrid
+    use run_parameters, only: fphi, fapar, fbpar
+    use gs2_time, only: user_time, user_dt, get_adams_bashforth_coefficients
+    use collisions, only: vnmult
+    use nonlinear_terms, only: nonlin
+    implicit none
+    integer, intent(in) :: istep
+    complex, dimension (-ntgrid:,:,:), intent (in) :: phi,    apar,    bpar
+    complex, dimension (-ntgrid:,:,:), intent (in) :: phinew, aparnew, bparnew
+    complex, dimension(:, :, :), allocatable :: gtmp
+    complex, dimension (-ntgrid:ntgrid-1,2) :: source
+    character(len = 20), parameter :: extension = '.source'
+    integer :: istatus
+    logical :: include_explicit
+    integer :: iglo, ik, it, il, ie, is, isgn
+    real, dimension(:), allocatable :: ab_coefficients
+    complex, parameter :: sourcefac = 0.0
+
+    allocate(gtmp(-ntgrid:ntgrid, 2, g_lo%llim_proc:g_lo%ulim_alloc))
+    gtmp = 0.
+
+    if (istep .eq. 0) then
+       include_explicit = .false.
+    else
+       include_explicit = .true.
+    endif
+
+#ifndef LOWFLOW
+    include_explicit = include_explicit .and. nonlin
+#endif
+
+    ab_coefficients = get_adams_bashforth_coefficients()
+
+    do iglo = g_lo%llim_proc, g_lo%ulim_proc
+       ik = ik_idx(g_lo, iglo)
+       it = it_idx(g_lo, iglo)
+       il = il_idx(g_lo, iglo)
+       ie = ie_idx(g_lo, iglo)
+       is = is_idx(g_lo, iglo)
+
+       if(opt_source)then
+          call get_source_term_opt (phi, apar, bpar, phinew, aparnew, bparnew, &
+               include_explicit, ab_coefficients, iglo,ik,it,il,ie,is, sourcefac, source)
+       else
+          do isgn = 1, 2
+             call get_source_term (phi, apar, bpar, phinew, aparnew, bparnew, &
+                  include_explicit, ab_coefficients, isgn, iglo,ik,it,il,ie,is, sourcefac, source(:,isgn))
+          end do
+       endif
+
+       gtmp(:ntgrid-1, :, iglo) = source
+    end do
+
+    call gs2_save_for_restart (gtmp, user_time, user_dt, vnmult, istatus, &
+         fphi, fapar, fbpar, fileopt = extension)
+  end subroutine dump_current_source_term
 
   !> FIXME : Add documentation
   subroutine flux (phi, apar, bpar, &
@@ -7032,7 +7226,9 @@ endif
 
   end subroutine eexchange
 
-  !> FIXME : Add documentation  
+  !> FIXME : Add documentation
+  !!
+  !! @Warning This routine may only make sense when compiling with LOWFLOW on?
   subroutine lf_flux (phi, vflx0, vflx1)
     use species, only: nspec
     use theta_grid, only: ntgrid, bmag, gradpar, delthet
@@ -7271,11 +7467,10 @@ endif
     use le_grids, only: energy
     use dist_fn_arrays, only: gnew, aj0, vpac, aj1, vperp2
     use gs2_layouts, only: g_lo, ie_idx, is_idx, it_idx, ik_idx
-    use run_parameters, only: woutunits, fphi, fapar, fbpar
+    use run_parameters, only: woutunits, fphi
     use constants, only: zi
     use geometry, only: rhoc
     use theta_grid, only: Rplot, Bpol
-    use species, only: nspec
     implicit none
     complex, dimension (-ntgrid:,:,:), intent (in) :: phi
     real, dimension (-ntgrid:,:,:,:), intent (out) :: pflux_dist, vflux_par_dist, vflux_perp_dist, qflux_dist
@@ -9798,9 +9993,6 @@ endif
          call delete_list (to)
       endif
   end subroutine init_pass_wfb
-
-
-
   
   !> Calculate the flux surface average term for the adiabatic response. 
   !!
@@ -9849,4 +10041,507 @@ endif
 
   end subroutine calculate_flux_surface_average
 
+  !> Set the module level config types
+  !> Will abort if the module has already been initialised to avoid
+  !> inconsistencies.
+  subroutine set_dist_fn_config(dist_fn_config_in, source_config_in, dist_fn_species_config_in)
+    use mp, only: mp_abort
+    type(dist_fn_config_type), intent(in), optional :: dist_fn_config_in
+    type(source_config_type), intent(in), optional :: source_config_in
+    type(dist_fn_species_config_type), intent(in), dimension(:), optional :: dist_fn_species_config_in
+ 
+    if (initialized) then
+       call mp_abort("Trying to set dist_fn_config when already initialized.", to_screen = .true.)
+    end if
+    if (present(dist_fn_config_in)) then
+       dist_fn_config = dist_fn_config_in
+    end if
+    if (present(source_config_in)) then
+       source_config = source_config_in
+    end if
+    if (present(dist_fn_species_config_in)) then
+       dist_fn_species_config = dist_fn_species_config_in
+    end if    
+  end subroutine set_dist_fn_config   
+  
+  !---------------------------------------
+  ! Following is for the dist_fn config_type
+  !---------------------------------------
+  
+  !> Reads in the dist_fn_knobs namelist and populates the member variables
+  subroutine read_dist_fn_config(self)
+    use file_utils, only: input_unit_exist, get_indexed_namelist_unit
+    use mp, only: proc0
+    implicit none
+    class(dist_fn_config_type), intent(in out) :: self
+    logical :: exist
+    integer :: in_file, iostat
+
+    ! Note: When this routine is in the module where these variables live
+    ! we shadow the module level variables here. This is intentional to provide
+    ! isolation and ensure we can move this routine to another module easily.
+    character(len = 20) :: boundary_option, wfbbc_option
+    character(len = 30) :: adiabatic_option
+    integer :: g_exb_start_timestep
+    logical :: def_parity, esv, even, gf_lo_integrate, lf_decompose, lf_default, mult_imp, nonad_zero, opt_init_bc, opt_source, test, wfb_cmr, zero_forbid
+    real :: afilter, apfac, btor_slab, densfac_lin, driftknob, g_exb, g_exb_error_limit, g_exb_start_time, g_exbfac, gridfac, kfilter, mach, omprimfac, phifac_lin, poisfac, qparfac_lin, qprpfac_lin, tparfac_lin
+    real :: tpdriftknob, tprpfac_lin, uparfac_lin, wfb
+
+    namelist /dist_fn_knobs/ adiabatic_option, afilter, apfac, boundary_option, btor_slab, def_parity, densfac_lin, driftknob, esv, even, g_exb, g_exb_error_limit, g_exb_start_time, g_exb_start_timestep, g_exbfac, &
+         gf_lo_integrate, gridfac, kfilter, lf_decompose, lf_default, mach, mult_imp, nonad_zero, omprimfac, opt_init_bc, opt_source, phifac_lin, poisfac, qparfac_lin, qprpfac_lin, test, tparfac_lin, &
+         tpdriftknob, tprpfac_lin, uparfac_lin, wfb, wfb_cmr, wfbbc_option, zero_forbid
+
+    ! Only proc0 reads from file
+    if (.not. proc0) return
+
+    ! First set local variables from current values
+    adiabatic_option = self%adiabatic_option
+    afilter = self%afilter
+    apfac = self%apfac
+    boundary_option = self%boundary_option
+    btor_slab = self%btor_slab
+    def_parity = self%def_parity
+    densfac_lin = self%densfac_lin
+    driftknob = self%driftknob
+    esv = self%esv
+    even = self%even
+    g_exb = self%g_exb
+    g_exb_error_limit = self%g_exb_error_limit
+    g_exb_start_time = self%g_exb_start_time
+    g_exb_start_timestep = self%g_exb_start_timestep
+    g_exbfac = self%g_exbfac
+    gf_lo_integrate = self%gf_lo_integrate
+    gridfac = self%gridfac
+    kfilter = self%kfilter
+    lf_decompose = self%lf_decompose
+    lf_default = self%lf_default
+    mach = self%mach
+    mult_imp = self%mult_imp
+    nonad_zero = self%nonad_zero
+    omprimfac = self%omprimfac
+    opt_init_bc = self%opt_init_bc
+    opt_source = self%opt_source
+    phifac_lin = self%phifac_lin
+    poisfac = self%poisfac
+    qparfac_lin = self%qparfac_lin
+    qprpfac_lin = self%qprpfac_lin
+    test = self%test
+    tparfac_lin = self%tparfac_lin
+    tpdriftknob = self%tpdriftknob
+    tprpfac_lin = self%tprpfac_lin
+    uparfac_lin = self%uparfac_lin
+    wfb = self%wfb
+    wfb_cmr = self%wfb_cmr
+    wfbbc_option = self%wfbbc_option
+    zero_forbid = self%zero_forbid
+
+    ! Now read in the main namelist
+    if (self%get_requires_index()) then
+       call get_indexed_namelist_unit(in_file, trim(self%get_name()), self%index)
+       read(in_file, nml = dist_fn_knobs, iostat = iostat)
+       exist = .true.
+       if (iostat .ne.0) exist = .false.
+       close(unit = in_file, iostat = iostat)
+    else
+       in_file = input_unit_exist(self%get_name(), exist)
+       if (exist) read(in_file, nml = dist_fn_knobs)
+    endif
+
+    ! Now copy from local variables into type members
+    self%adiabatic_option = adiabatic_option
+    self%afilter = afilter
+    self%apfac = apfac
+    self%boundary_option = boundary_option
+    self%btor_slab = btor_slab
+    self%def_parity = def_parity
+    self%densfac_lin = densfac_lin
+    self%driftknob = driftknob
+    self%esv = esv
+    self%even = even
+    self%g_exb = g_exb
+    self%g_exb_error_limit = g_exb_error_limit
+    self%g_exb_start_time = g_exb_start_time
+    self%g_exb_start_timestep = g_exb_start_timestep
+    self%g_exbfac = g_exbfac
+    self%gf_lo_integrate = gf_lo_integrate
+    self%gridfac = gridfac
+    self%kfilter = kfilter
+    self%lf_decompose = lf_decompose
+    self%lf_default = lf_default
+    self%mach = mach
+    self%mult_imp = mult_imp
+    self%nonad_zero = nonad_zero
+    self%omprimfac = omprimfac
+    self%opt_init_bc = opt_init_bc
+    self%opt_source = opt_source
+    self%phifac_lin = phifac_lin
+    self%poisfac = poisfac
+    self%qparfac_lin = qparfac_lin
+    self%qprpfac_lin = qprpfac_lin
+    self%test = test
+    self%tparfac_lin = tparfac_lin
+    self%tpdriftknob = tpdriftknob
+    self%tprpfac_lin = tprpfac_lin
+    self%uparfac_lin = uparfac_lin
+    self%wfb = wfb
+    self%wfb_cmr = wfb_cmr
+    self%wfbbc_option = wfbbc_option
+    self%zero_forbid = zero_forbid
+
+    self%exist = exist
+  end subroutine read_dist_fn_config
+
+  !> Writes out a namelist representing the current state of the config object
+  subroutine write_dist_fn_config(self, unit)
+    implicit none
+    class(dist_fn_config_type), intent(in) :: self
+    integer, intent(in) , optional:: unit
+    integer :: unit_internal
+
+    unit_internal = 6 ! @todo -- get stdout from file_utils
+    if (present(unit)) then
+       unit_internal = unit
+    endif
+
+    call self%write_namelist_header(unit_internal)
+    call self%write_key_val("adiabatic_option", self%adiabatic_option, unit_internal)
+    call self%write_key_val("afilter", self%afilter, unit_internal)
+    call self%write_key_val("apfac", self%apfac, unit_internal)
+    call self%write_key_val("boundary_option", self%boundary_option, unit_internal)
+    call self%write_key_val("btor_slab", self%btor_slab, unit_internal)
+    call self%write_key_val("def_parity", self%def_parity, unit_internal)
+    call self%write_key_val("densfac_lin", self%densfac_lin, unit_internal)
+    call self%write_key_val("driftknob", self%driftknob, unit_internal)
+    call self%write_key_val("esv", self%esv, unit_internal)
+    call self%write_key_val("even", self%even, unit_internal)
+    call self%write_key_val("g_exb", self%g_exb, unit_internal)
+    call self%write_key_val("g_exb_error_limit", self%g_exb_error_limit, unit_internal)
+    call self%write_key_val("g_exb_start_time", self%g_exb_start_time, unit_internal)
+    call self%write_key_val("g_exb_start_timestep", self%g_exb_start_timestep, unit_internal)
+    call self%write_key_val("g_exbfac", self%g_exbfac, unit_internal)
+    call self%write_key_val("gf_lo_integrate", self%gf_lo_integrate, unit_internal)
+    call self%write_key_val("gridfac", self%gridfac, unit_internal)
+    call self%write_key_val("kfilter", self%kfilter, unit_internal)
+    call self%write_key_val("lf_decompose", self%lf_decompose, unit_internal)
+    call self%write_key_val("lf_default", self%lf_default, unit_internal)
+    call self%write_key_val("mach", self%mach, unit_internal)
+    call self%write_key_val("mult_imp", self%mult_imp, unit_internal)
+    call self%write_key_val("nonad_zero", self%nonad_zero, unit_internal)
+    call self%write_key_val("omprimfac", self%omprimfac, unit_internal)
+    call self%write_key_val("opt_init_bc", self%opt_init_bc, unit_internal)
+    call self%write_key_val("opt_source", self%opt_source, unit_internal)
+    call self%write_key_val("phifac_lin", self%phifac_lin, unit_internal)
+    call self%write_key_val("poisfac", self%poisfac, unit_internal)
+    call self%write_key_val("qparfac_lin", self%qparfac_lin, unit_internal)
+    call self%write_key_val("qprpfac_lin", self%qprpfac_lin, unit_internal)
+    call self%write_key_val("test", self%test, unit_internal)
+    call self%write_key_val("tparfac_lin", self%tparfac_lin, unit_internal)
+    call self%write_key_val("tpdriftknob", self%tpdriftknob, unit_internal)
+    call self%write_key_val("tprpfac_lin", self%tprpfac_lin, unit_internal)
+    call self%write_key_val("uparfac_lin", self%uparfac_lin, unit_internal)
+    call self%write_key_val("wfb", self%wfb, unit_internal)
+    call self%write_key_val("wfb_cmr", self%wfb_cmr, unit_internal)
+    call self%write_key_val("wfbbc_option", self%wfbbc_option, unit_internal)
+    call self%write_key_val("zero_forbid", self%zero_forbid, unit_internal)
+    call self%write_namelist_footer(unit_internal)
+  end subroutine write_dist_fn_config
+
+  !> Resets the config object to the initial empty state
+  subroutine reset_dist_fn_config(self)
+    class(dist_fn_config_type), intent(in out) :: self
+    type(dist_fn_config_type) :: empty
+    select type (self)
+    type is (dist_fn_config_type)
+       self = empty
+    end select
+  end subroutine reset_dist_fn_config
+
+  !> Broadcasts all config parameters so object is populated identically on
+  !! all processors
+  subroutine broadcast_dist_fn_config(self)
+    use mp, only: broadcast
+    implicit none
+    class(dist_fn_config_type), intent(in out) :: self
+    call broadcast(self%adiabatic_option)
+    call broadcast(self%afilter)
+    call broadcast(self%apfac)
+    call broadcast(self%boundary_option)
+    call broadcast(self%btor_slab)
+    call broadcast(self%def_parity)
+    call broadcast(self%densfac_lin)
+    call broadcast(self%driftknob)
+    call broadcast(self%esv)
+    call broadcast(self%even)
+    call broadcast(self%g_exb)
+    call broadcast(self%g_exb_error_limit)
+    call broadcast(self%g_exb_start_time)
+    call broadcast(self%g_exb_start_timestep)
+    call broadcast(self%g_exbfac)
+    call broadcast(self%gf_lo_integrate)
+    call broadcast(self%gridfac)
+    call broadcast(self%kfilter)
+    call broadcast(self%lf_decompose)
+    call broadcast(self%lf_default)
+    call broadcast(self%mach)
+    call broadcast(self%mult_imp)
+    call broadcast(self%nonad_zero)
+    call broadcast(self%omprimfac)
+    call broadcast(self%opt_init_bc)
+    call broadcast(self%opt_source)
+    call broadcast(self%phifac_lin)
+    call broadcast(self%poisfac)
+    call broadcast(self%qparfac_lin)
+    call broadcast(self%qprpfac_lin)
+    call broadcast(self%test)
+    call broadcast(self%tparfac_lin)
+    call broadcast(self%tpdriftknob)
+    call broadcast(self%tprpfac_lin)
+    call broadcast(self%uparfac_lin)
+    call broadcast(self%wfb)
+    call broadcast(self%wfb_cmr)
+    call broadcast(self%wfbbc_option)
+    call broadcast(self%zero_forbid)
+
+    call broadcast(self%exist)
+  end subroutine broadcast_dist_fn_config
+  
+  !> Gets the default name for this namelist
+  function get_default_name_dist_fn_config()
+    implicit none
+    character(len = CONFIG_MAX_NAME_LEN) :: get_default_name_dist_fn_config
+    get_default_name_dist_fn_config = "dist_fn_knobs"
+  end function get_default_name_dist_fn_config
+
+  !> Gets the default requires index for this namelist
+  function get_default_requires_index_dist_fn_config()
+    implicit none
+    logical :: get_default_requires_index_dist_fn_config
+    get_default_requires_index_dist_fn_config = .false.
+  end function get_default_requires_index_dist_fn_config
+  
+  !---------------------------------------
+  ! Following is for the source config_type
+  !---------------------------------------
+  
+  !> Reads in the source_knobs namelist and populates the member variables
+  subroutine read_source_config(self)
+    use file_utils, only: input_unit_exist, get_indexed_namelist_unit
+    use mp, only: proc0
+    implicit none
+    class(source_config_type), intent(in out) :: self
+    logical :: exist
+    integer :: in_file, iostat
+
+    ! Note: When this routine is in the module where these variables live
+    ! we shadow the module level variables here. This is intentional to provide
+    ! isolation and ensure we can move this routine to another module easily.    
+    character(len = 20) :: source_option
+    real :: gamma0, omega0, phi_ext, source0, t0
+
+    namelist /source_knobs/ gamma0, omega0, phi_ext, source0, source_option, t0
+
+    ! Only proc0 reads from file
+    if (.not. proc0) return
+
+    ! First set local variables from current values
+    gamma0 = self%gamma0
+    omega0 = self%omega0
+    phi_ext = self%phi_ext
+    source0 = self%source0
+    source_option = self%source_option
+    t0 = self%t0
+
+    ! Now read in the main namelist
+    if (self%get_requires_index()) then
+       call get_indexed_namelist_unit(in_file, trim(self%get_name()), self%index)
+       read(in_file, nml = source_knobs, iostat = iostat)
+       exist = .true.
+       if (iostat .ne.0) exist = .false.
+       close(unit = in_file, iostat = iostat)
+    else
+       in_file = input_unit_exist(self%get_name(), exist)
+       if (exist) read(in_file, nml = source_knobs)
+    endif
+
+    ! Now copy from local variables into type members
+    self%gamma0 = gamma0
+    self%omega0 = omega0
+    self%phi_ext = phi_ext
+    self%source0 = source0
+    self%source_option = source_option
+    self%t0 = t0
+
+    self%exist = exist
+  end subroutine read_source_config
+
+  !> Writes out a namelist representing the current state of the config object
+  subroutine write_source_config(self, unit)
+    implicit none
+    class(source_config_type), intent(in) :: self
+    integer, intent(in) , optional:: unit
+    integer :: unit_internal
+
+    unit_internal = 6 ! @todo -- get stdout from file_utils
+    if (present(unit)) then
+       unit_internal = unit
+    endif
+
+    call self%write_namelist_header(unit_internal)
+    call self%write_key_val("gamma0", self%gamma0, unit_internal)
+    call self%write_key_val("omega0", self%omega0, unit_internal)
+    call self%write_key_val("phi_ext", self%phi_ext, unit_internal)
+    call self%write_key_val("source0", self%source0, unit_internal)
+    call self%write_key_val("source_option", self%source_option, unit_internal)
+    call self%write_key_val("t0", self%t0, unit_internal)
+    call self%write_namelist_footer(unit_internal)
+  end subroutine write_source_config
+
+  !> Resets the config object to the initial empty state
+  subroutine reset_source_config(self)
+    class(source_config_type), intent(in out) :: self
+    type(source_config_type) :: empty
+    select type (self)
+    type is (source_config_type)
+       self = empty
+    end select
+  end subroutine reset_source_config
+
+  !> Broadcasts all config parameters so object is populated identically on
+  !! all processors
+  subroutine broadcast_source_config(self)
+    use mp, only: broadcast
+    implicit none
+    class(source_config_type), intent(in out) :: self
+    call broadcast(self%gamma0)
+    call broadcast(self%omega0)
+    call broadcast(self%phi_ext)
+    call broadcast(self%source0)
+    call broadcast(self%source_option)
+    call broadcast(self%t0)
+
+    call broadcast(self%exist)
+  end subroutine broadcast_source_config
+
+  !> Gets the default name for this namelist
+  function get_default_name_source_config()
+    implicit none
+    character(len = CONFIG_MAX_NAME_LEN) :: get_default_name_source_config
+    get_default_name_source_config = "source_knobs"
+  end function get_default_name_source_config
+
+  !> Gets the default requires index for this namelist
+  function get_default_requires_index_source_config()
+    implicit none
+    logical :: get_default_requires_index_source_config
+    get_default_requires_index_source_config = .false.
+  end function get_default_requires_index_source_config
+
+  !---------------------------------------
+  ! Following is for the dist_fn_species config_type
+  !---------------------------------------
+  
+  !> Reads in the dist_fn_species_knobs namelist and populates the member variables
+  subroutine read_dist_fn_species_config(self)
+    use file_utils, only: input_unit_exist, get_indexed_namelist_unit
+    use mp, only: proc0
+    implicit none
+    class(dist_fn_species_config_type), intent(in out) :: self
+    logical :: exist
+    integer :: in_file, iostat
+
+    ! Note: When this routine is in the module where these variables live
+    ! we shadow the module level variables here. This is intentional to provide
+    ! isolation and ensure we can move this routine to another module easily.
+    integer :: bd_exp
+    real :: bakdif, fexpi, fexpr
+
+    namelist /dist_fn_species_knobs/ bakdif, bd_exp, fexpi, fexpr
+
+    ! Only proc0 reads from file
+    if (.not. proc0) return
+
+    ! First set local variables from current values
+    bakdif = self%bakdif
+    bd_exp = self%bd_exp
+    fexpi = self%fexpi
+    fexpr = self%fexpr
+
+    ! Now read in the main namelist
+    if (self%get_requires_index()) then
+       call get_indexed_namelist_unit(in_file, trim(self%get_name()), self%index)
+       read(in_file, nml = dist_fn_species_knobs, iostat = iostat)
+       exist = .true.
+       if (iostat .ne.0) exist = .false.
+       close(unit = in_file, iostat = iostat)
+    else
+       in_file = input_unit_exist(self%get_name(), exist)
+       if (exist) read(in_file, nml = dist_fn_species_knobs)
+    endif
+
+    ! Now copy from local variables into type members
+    self%bakdif = bakdif
+    self%bd_exp = bd_exp
+    self%fexpi = fexpi
+    self%fexpr = fexpr
+
+    self%exist = exist
+  end subroutine read_dist_fn_species_config
+
+  !> Writes out a namelist representing the current state of the config object
+  subroutine write_dist_fn_species_config(self, unit)
+    implicit none
+    class(dist_fn_species_config_type), intent(in) :: self
+    integer, intent(in) , optional:: unit
+    integer :: unit_internal
+
+    unit_internal = 6 ! @todo -- get stdout from file_utils
+    if (present(unit)) then
+       unit_internal = unit
+    endif
+
+    call self%write_namelist_header(unit_internal)
+    call self%write_key_val("bakdif", self%bakdif, unit_internal)
+    call self%write_key_val("bd_exp", self%bd_exp, unit_internal)
+    call self%write_key_val("fexpi", self%fexpi, unit_internal)
+    call self%write_key_val("fexpr", self%fexpr, unit_internal)
+    call self%write_namelist_footer(unit_internal)
+  end subroutine write_dist_fn_species_config
+
+  !> Resets the config object to the initial empty state
+  subroutine reset_dist_fn_species_config(self)
+    class(dist_fn_species_config_type), intent(in out) :: self
+    type(dist_fn_species_config_type) :: empty
+    select type (self)
+    type is (dist_fn_species_config_type)
+       self = empty
+    end select
+  end subroutine reset_dist_fn_species_config
+
+  !> Broadcasts all config parameters so object is populated identically on
+  !! all processors
+  subroutine broadcast_dist_fn_species_config(self)
+    use mp, only: broadcast
+    implicit none
+    class(dist_fn_species_config_type), intent(in out) :: self
+    call broadcast(self%bakdif)
+    call broadcast(self%bd_exp)
+    call broadcast(self%fexpi)
+    call broadcast(self%fexpr)
+
+    call broadcast(self%exist)
+  end subroutine broadcast_dist_fn_species_config
+
+  !> Gets the default name for this namelist
+  function get_default_name_dist_fn_species_config()
+    implicit none
+    character(len = CONFIG_MAX_NAME_LEN) :: get_default_name_dist_fn_species_config
+    get_default_name_dist_fn_species_config = "dist_fn_species_knobs"
+  end function get_default_name_dist_fn_species_config
+
+  !> Gets the default requires index for this namelist
+  function get_default_requires_index_dist_fn_species_config()
+    implicit none
+    logical :: get_default_requires_index_dist_fn_species_config
+    get_default_requires_index_dist_fn_species_config = .true.
+  end function get_default_requires_index_dist_fn_species_config
 end module dist_fn

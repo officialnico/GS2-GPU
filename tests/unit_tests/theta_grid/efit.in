@@ -1,3 +1,20 @@
+!=================================================================
+!                        GS2 INPUT FILE
+!=================================================================
+!
+!  GS2 is a gyrokinetic flux tube initial value turbulence code
+!  which can be used for fusion or astrophysical plasmas.
+!
+!  Website:
+!            https://gyrokinetics.gitlab.io/gs2/
+!  Repo:
+!            https://bitbucket.org/gyrokinetics/gs2/
+!  Citation:
+!            https://zenodo.org/record/2551066
+!  doi:
+!            10.5281/zenodo.2551066
+!
+!=================================================================
 
 !&species_parameters_1
 !  type = 'ion'
@@ -70,7 +87,7 @@
  iflux = 1 
  irho = 2 ! Chooses definition of flux surface coordinate.
  local_eq = F
- eqfile = "EQDSK" 
+ eqfile = "../../common_geometry_files/EQDSK"
  bishop = 4
  delrho = 0.001 
  isym = 0 

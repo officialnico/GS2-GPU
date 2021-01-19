@@ -333,8 +333,6 @@ contains
     use mp, only: trin_flag, job
     use mp, only: use_nproc, included, mp_comm
     use redistribute, only: using_measure_scatter
-    use run_parameters, only: avail_cpu_time
-    use runtime_tests, only: verbosity
     use unit_tests, only: debug_message, set_job_id
     implicit none
     type(gs2_program_state_type), intent(inout) :: state
@@ -345,8 +343,6 @@ contains
         & without calling finalize_gs2"
       stop 1
     end if
-
-
 
     call debug_message(4, 'gs2_main::initialize_gs2 starting initialization')
 
@@ -364,7 +360,6 @@ contains
     state%included = included
     state%nproc_actual = nproc
     if (.not. state%included) return
-    !write (*,*) 'I am included and my rank is ', iproc, 'and my old rank is', oldrank
 
     if (state%is_trinity_job) state%is_external_job = .true.
     if (state%is_external_job) then 
@@ -372,15 +367,9 @@ contains
       call set_job_id(state%external_job_id)
     end if
 
-    ! All subroutines that use this are now no longer 
-    ! needed and will be deleted
-    !trin_flag = state%is_trinity_job
     trin_flag = .false. 
 
     call debug_message(state%verb, 'gs2_main::initialize_gs2 initialized mp')
-    ! I don't think these should be necessary
-    !call broadcast(state%trin_job)
-    !call set_job_id(trin_job)
 
     call reset_timers(state%timers)
     if (.not. checktime_initialized) call init_checktime ! <doc> Initialize timer </doc>
@@ -470,18 +459,14 @@ contains
     use unit_tests, only: debug_message
     use gs2_reinit, only: init_gs2_reinit
     use fields_implicit, only: skip_initialisation
-    !use dist_fn, only: replay_d=>replay
     use fields, only: fields_allocate_arrays=>allocate_arrays
     use fields_local, only: fieldmat
-    use nonlinear_terms, only: nonlinear_mode_switch, nonlinear_mode_none
     use run_parameters, only: trinity_linear_fluxes
     implicit none
     type(gs2_program_state_type), intent(inout) :: state
 
     if (.not. state%included) return
     call debug_message(state%verb, 'gs2_main::initialize_equations starting')
-       !call time_message(.false., time_init,' Initialization')
-    !call init_parameter_scan
     if (proc0) call time_message(.false.,state%timers%total,' Total')
 
     call debug_message(state%verb, &
@@ -497,7 +482,6 @@ contains
     !! matrix
     if (state%replay) then
       skip_initialisation = .true.
-      !replay_d = .true.
       fieldmat%no_prepare = .true.
       fieldmat%no_populate = .true.
       call init(state%init, init_level_list%le_grids)
@@ -507,8 +491,6 @@ contains
         call init(state%init, init_level_list%full)
       end if
         
-      !call fields_allocate_arrays
-      !nonlinear_mode_switch = nonlinear_mode_none
     else
       ! This triggers initializing of all the grids, all the physics parameters
       ! and all the modules which solve the equations
@@ -960,7 +942,6 @@ contains
 #endif
     use nonlinear_terms, only: nonlinear_mode_switch, nonlinear_mode_none
     use run_parameters, only: trinity_linear_fluxes, use_old_diagnostics
-    use dist_fn_arrays, only: gnew
     use gs2_time, only: code_dt, save_dt
     use mp, only: scope, subprocs, allprocs
     use mp, only: mp_abort
@@ -976,8 +957,6 @@ contains
 
     call debug_message(state%verb, 'gs2_main::reset_equations starting')
 
-    ! EGH is this line necessary?
-    !gnew = 0.
     call save_dt (code_dt)
     ! This call to gs2_diagnostics::reset_init sets some time averages
     ! and counters to zero... used mainly for trinity convergence checks.
@@ -1081,8 +1060,7 @@ contains
     use file_utils, only: finish_file_utils
     use gs2_init, only: finish_gs2_init
     use job_manage, only: time_message
-    use mp, only: finish_mp, proc0, barrier
-    use mp, only: mp_abort, unsplit_all, included, nproc, iproc
+    use mp, only: finish_mp, proc0, barrier, unsplit_all, included
     use unit_tests, only: debug_message
     implicit none
     type(gs2_program_state_type), intent(inout) :: state
@@ -1123,12 +1101,10 @@ contains
 
     end if
 
-    !write (*,*) 'I AM iproc ', iproc, 'and nproc = ', nproc
     if (state%init%opt_ov%init .and. state%init%opt_ov%override_nproc) &
       call unsplit_all(state%init%opt_ov%old_comm)
     call barrier
     state%included = included
-    !write (*,*) 'I am iproc ', iproc, 'and nproc = ', nproc
 
     call debug_message(state%verb, 'gs2_main::finalize_gs2 calling finish_mp')
 
@@ -1145,11 +1121,9 @@ contains
   !> FIXME : Add documentation  
   subroutine prepare_optimisations_overrides(state)
     use overrides, only: init_optimisations_overrides
-    use gs2_init, only: init, init_level_list
     type(gs2_program_state_type), intent(inout) :: state
     if (.not. state%included) return
     ! Initialize to the level below so that overrides are triggered
-    !call init(state%init, init_level_list%override_optimisations-1)
     call init_optimisations_overrides(state%init%opt_ov)
   end subroutine prepare_optimisations_overrides
 
@@ -1198,7 +1172,6 @@ contains
     use gs2_layouts, only: g_lo
     use kt_grids, only: naky, ntheta0
     use theta_grid, only: ntgrid
-    use species, only: nspec
     implicit none
     type(gs2_program_state_type), intent(inout) :: state
     if (.not. state%included) return
@@ -1500,20 +1473,8 @@ contains
     logical, intent (out), optional :: converged
 
     logical, save :: first_time = .true.
-    logical :: debug
 
-    !debug = (verbosity() .gt. 2)
-
-
-!
-!CMR, 12/2/2010: 
-!     add nofinish optional variable to avoid deallocations at end of simulation
-!     as may want to do post-processing
-!
-!    if (present(nofinish)) nofin=nofinish
-     
-
-! HJL tests on Trinity optionals for load balancing
+    ! HJL tests on Trinity optionals for load balancing
     old_iface_state%external_job_id = -1
     if(present(job_id)) then
       old_iface_state%external_job_id = job_id + 1
@@ -1524,8 +1485,6 @@ contains
        old_iface_state%converged = .false.
        trin_reset = trinity_reset
        first_time = .true.
-       !if (debug) write (*,*) 'gs2_main::run_gs2 set first_time = .true., jid=', &
-         !old_iface_state%external_job_id
     endif
     if (present(filename)) then
       old_iface_state%run_name_external = .true.
@@ -1822,7 +1781,7 @@ contains
 
   !> FIXME : Add documentation  
   subroutine determine_gs2spec_from_trin(ntspec, trin_multispec_in)
-    use species, only: determine_species_order, nspec, impurity, ions
+    use species, only: determine_species_order, impurity, ions
     use species, only: electrons
     use mp, only: mp_abort
     integer, intent(in) :: ntspec
@@ -1939,9 +1898,7 @@ contains
        deltam, deltan, deltampri, deltanpri, thetam, thetan, &
        betaprim, ntspec, dens, temp, fprim, tprim, gexb, mach, nu, use_gs2_geo)
 
-    use dist_fn, only: dist_fn_g_exb => g_exb
     use old_interface_store
-    !use mp, only: broadcast
 
     implicit none
 

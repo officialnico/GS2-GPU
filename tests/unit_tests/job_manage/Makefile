@@ -23,5 +23,5 @@ endif
 test_job_manage_stop_file.o:  ${TEST_MODS} 
 
 test_job_manage_stop_file: test_job_manage_stop_file.o $(TEST_MODS)
-	$(call messageOp,"Linking ","\\t:",$^,"\\n\\t\-\-\-\-\-\-\>",$@)
+	$(call messageOp,"Linking ","\\t:",$(call processName, $^),"\\n\\t\-\-\-\-\-\-\>",$(call processName, $@))
 	$(QUIETSYM)$(LD) $(LDFLAGS) -o $@ $^ $(LIBS)

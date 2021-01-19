@@ -128,18 +128,11 @@ program eiktest
   open(unit=11,file='eik2.out',status='unknown')
   open(unit=99,file='eik3.out',status='unknown')
   open(unit=78,file='eik7.out',status='unknown')
-!     
-!     compute the theta grid
-
-  if((.not. gen_eq) &
-       .and. (.not. transp_eq) .and. (.not. ppl_eq) .and. (.not. chs_eq)) &
-       call init_theta(ntheta)
   
-  call eikcoefs
+  call eikcoefs(ntheta)
 ! note that ntheta may have changed
 
   ntgrid = (size(theta)-1)/2
-  ntheta = (size(theta)-1)/(2*nperiod-1)
 
   if (writelots) then
      bbar = 0.

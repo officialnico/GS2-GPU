@@ -56,7 +56,7 @@ contains
     !It should probably be moved to simpledataio as the rest of the diagnostics
     !doesn't know what backend simpledataio is using (i.e. if it is netcdf or not).
     use netcdf, only: NF90_CLOBBER
-    use simpledataio, only: SDATIO_DOUBLE, SDATIO_FLOAT, SDATIO_INT
+    use simpledataio, only: SDATIO_DOUBLE, SDATIO_FLOAT, SDATIO_INT, SDATIO_CHAR
     !use simpledataio, only: print_dimensions
     use simpledataio, only: sdatio_init, simpledataio_functional
     use simpledataio, only: set_parallel, create_file, open_file
@@ -128,7 +128,8 @@ contains
        gnostics%rtype = SDATIO_FLOAT
     end if
     gnostics%itype = SDATIO_INT
-    
+    gnostics%ctype = SDATIO_CHAR
+
     gnostics%user_time_old = 0.0
     
     ! fluxfac is used for summing fields, fluxes etc over ky
@@ -641,6 +642,7 @@ contains
     use diagnostics_final_routines,only: do_write_gs
     use diagnostics_final_routines,only: init_par_filter
     use diagnostics_final_routines,only: ntg_out
+    use diagnostics_fields, only: get_phi0
     use nonlinear_terms, only: nonlin
     use antenna, only: dump_ant_amp
     use mp, only: proc0
@@ -671,8 +673,8 @@ contains
          & calling do_write_final_db')
        if (gnostics%write_final_db) call do_write_final_db(gnostics)
     end if
-    !Note pass in phase factor phi0 which may not be initialised
-    !this is ok as phi0 will be set in routine if not already set
+
+    phi0 = get_phi0()
     if (gnostics%write_final_moments) call do_write_final_moments(gnostics,phi0)
     call debug_message(verb, 'gs2_diagnostics_new::run_old_final_routines &
       & calling do_write_final_antot')
@@ -772,7 +774,9 @@ contains
     use diagnostics_dimensions, only: dim_string
     use species, only: nspec, spec
     use run_parameters, only: beta
+    use gs2_layouts, only: layout
     implicit none
+    character, dimension(5) :: layout_split
     call create_and_write_variable(gnostics, gnostics%rtype, "kx", dim_string(gnostics%dims%kx),  &
          "Values of kx, the wavenumber perpendicular to the flux surface ", "1/rho_r", akx)
     call create_and_write_variable(gnostics, gnostics%rtype, "ky", dim_string(gnostics%dims%ky),  &
@@ -806,5 +810,8 @@ contains
          "Type of each species: 1=ion, 2=electron, 3=slowing down, 4=trace", "", spec(1:nspec)%type)
     call create_and_write_variable(gnostics, gnostics%rtype, "beta", "",  &
          "Reference beta", "2.mu0.nref.Tref/B_a**2", beta)
+    layout_split = [layout(1:1), layout(2:2), layout(3:3), layout(4:4), layout(5:5)]
+    call create_and_write_variable(gnostics, gnostics%ctype, "layout", dim_string(gnostics%dims%generic_5),  &
+         "Decomposition layout for g_lo", "", layout_split)
   end subroutine write_dimensions
 end module gs2_diagnostics_new

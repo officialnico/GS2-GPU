@@ -2,6 +2,7 @@
 !! Based on the original ball program in geo/ball.f90 of GS2
 !! but tweaked to integrate closer to full GS2 runs etc.
 module ballstab
+  use abstract_config, only: abstract_config_type, CONFIG_MAX_NAME_LEN
   implicit none
 
   private
@@ -14,6 +15,9 @@ module ballstab
   !Vars
   public :: stability
 
+  public :: ballstab_config_type
+  public :: set_ballstab_config
+  
   logical :: make_salpha
   integer :: n_shat, n_beta
   real :: shat_min, shat_max
@@ -25,19 +29,62 @@ module ballstab
   logical :: initialised = .false. 
   character(len=14) :: namelist_name="ballstab_knobs"
 
+  !> Used to represent the input configuration of ballstab
+  type, extends(abstract_config_type) :: ballstab_config_type
+     ! namelist : ballstab_knobs
+     ! indexed : false
+     !> The minimum \(\beta^\prime\) in scans is
+     !> `beta_prime_equilibrium/beta_div`
+     real :: beta_div = 1.0
+     !> The maximum \(\beta^\prime\) in scans is
+     !> `beta_prime_equilibrium*beta_mul`
+     real :: beta_mul = 1.0
+     !> Controls decentring used in the numerical integration used for
+     !> solving the ballooning equation. Recommended values are either
+     !> 0 (default) or 1/3.
+     real :: diff = 0.0
+     !> Not currently used for anything.
+     !>
+     !> @todo Consider removing this variable
+     logical :: make_salpha = .false.
+     !> How many \(\beta^\prime\) values should be used in s-alpha
+     !> type scans.
+     integer :: n_beta = 1
+     !> How many \(\hat{s}\) values should be used in s-alpha type
+     !> scans.
+     integer :: n_shat = 1
+     !> The maximum value of \(\hat{s}\) to use in s-alpha type scans.
+     !>
+     !> @note This gets a smart default of the equilibrium value of \(\hat{s}\)
+     real :: shat_max = 0.0
+     !> The minimum value of \(\hat{s}\) to use in s-alpha type scans.
+     !>
+     !> @note This gets a smart default of the equilibrium value of \(\hat{s}\)
+     real :: shat_min = 0.0
+   contains
+     procedure, public :: read => read_ballstab_config
+     procedure, public :: write => write_ballstab_config
+     procedure, public :: reset => reset_ballstab_config
+     procedure, public :: broadcast => broadcast_ballstab_config
+     procedure, public, nopass :: get_default_name => get_default_name_ballstab_config
+     procedure, public, nopass :: get_default_requires_index => get_default_requires_index_ballstab_config
+  end type ballstab_config_type
+
+  type(ballstab_config_type) :: ballstab_config
+  
 contains
   
   !> Initialise grids, other modules etc.
-  subroutine init_ballstab
+  subroutine init_ballstab(ballstab_config_in)
     use theta_grid, only: init_theta_grid
-    use mp, only: proc0
     implicit none
-
+    type(ballstab_config_type), intent(in), optional :: ballstab_config_in
+    
     !Other modules
     call init_theta_grid
 
-    !This module -- Note only proc0 will be allowed to do any work
-    if(proc0) call real_init_ballstab
+    !This module
+    call real_init_ballstab(ballstab_config_in)
   end subroutine init_ballstab
 
   !> Finalise this module
@@ -47,18 +94,24 @@ contains
     call dealloc_arrays
 
     initialised = .false.
+    call ballstab_config%reset()
   end subroutine finish_ballstab
 
   !> Initialise this module
-  subroutine real_init_ballstab
+  subroutine real_init_ballstab(ballstab_config_in)
+    use mp, only: proc0
     implicit none
+    type(ballstab_config_type), intent(in), optional :: ballstab_config_in    
 
     if(initialised) return
     initialised = .true.
 
     !Get settings
-    call read_parameters
+    call read_parameters(ballstab_config_in)
 
+    !Note only proc0 will be allowed to do any work
+    if (.not.proc0) return
+    
     !Verify parameters
     call verify_parameters
 
@@ -68,30 +121,33 @@ contains
   end subroutine real_init_ballstab
 
   !> Read parameters
-  subroutine read_parameters
-    use file_utils, only: input_unit, input_unit_exist
+  subroutine read_parameters(ballstab_config_in)
     use theta_grid, only: shat
     implicit none
-    namelist/ballstab_knobs/make_salpha, n_shat, shat_min, shat_max, &
-         n_beta, beta_mul, beta_div, diff
-    integer :: in_file
+    type(ballstab_config_type), intent(in), optional :: ballstab_config_in    
     logical :: exist
 
-    !Set defaults
-    make_salpha = .false.
-    n_shat = 1
-    shat_min = shat
-    shat_max = shat
-    n_beta = 1
-    beta_mul = 1.
-    beta_div = 1.
-    diff = 0.
+    if (present(ballstab_config_in)) ballstab_config = ballstab_config_in
 
-    !Check if namelist is present in input file
-    in_file = input_unit_exist (namelist_name, exist)
+    !Smart defaults
+    if (.not.ballstab_config%is_initialised()) then    
+       ballstab_config%shat_min = shat
+       ballstab_config%shat_max = shat
+    end if
+    
+    call ballstab_config%init(name = 'ballstab_knobs', requires_index = .false.)
 
-    !If it is then read in parameters
-    if(exist) read(unit = in_file, nml = ballstab_knobs)
+    ! Copy out internal values into module level parameters
+    beta_div = ballstab_config%beta_div
+    beta_mul = ballstab_config%beta_mul
+    diff = ballstab_config%diff
+    make_salpha = ballstab_config%make_salpha
+    n_beta = ballstab_config%n_beta
+    n_shat = ballstab_config%n_shat
+    shat_max = ballstab_config%shat_max
+    shat_min = ballstab_config%shat_min
+
+    exist = ballstab_config%exist
   end subroutine read_parameters
 
   !> Check parameters are consistent etc.
@@ -358,6 +414,7 @@ contains
   !> Test if given shat/beta is unstable
   subroutine check_stability(shat_in, beta_prime_in, ib, iunstable, restore)
     !Note iunstable>0 means unstable - Could use a logical but size may be interesting
+    use theta_grid_params, only: ntheta
     use geometry, only: dbetadrho, eikcoefs
     implicit none
     real, intent(in) :: shat_in, beta_prime_in
@@ -376,7 +433,7 @@ contains
     !physical parameter dbetadrho should really be the relevant parameter.
     call set_beta_prime(beta_prime_in)
     call set_shat(shat_in)
-    call eikcoefs !Recalculate geometry terms
+    call eikcoefs(ntheta) !Recalculate geometry terms
 
     !Here we store the value of dbetadrho, this should be bishop value independent
     dbdrho_arr(ib)=dbetadrho
@@ -389,7 +446,7 @@ contains
        if(restore) then
           call set_beta_prime(beta_prime_bak)
           call set_shat(shat_bak)
-          call eikcoefs
+          call eikcoefs(ntheta)
        endif
     endif
   end subroutine check_stability
@@ -486,4 +543,144 @@ contains
     !Clean up
     deallocate(g,c,g1,c1,g2,c2,gh,ch)
   end function is_unstable
+
+  !> Set the module level config type
+  !> Will abort if the module has already been initialised to avoid
+  !> inconsistencies.
+  subroutine set_ballstab_config(ballstab_config_in)
+    use mp, only: mp_abort
+    type(ballstab_config_type), intent(in), optional :: ballstab_config_in
+    if (initialised) then
+       call mp_abort("Trying to set ballstab_config when already initialised.", to_screen = .true.)
+    end if
+    if (present(ballstab_config_in)) then
+       ballstab_config = ballstab_config_in
+    end if
+  end subroutine set_ballstab_config
+  
+  !---------------------------------------
+  ! Following is for the config_type
+  !---------------------------------------
+  
+  !> Reads in the ballstab_knobs namelist and populates the member variables
+  subroutine read_ballstab_config(self)
+    use file_utils, only: input_unit_exist, get_indexed_namelist_unit
+    use mp, only: proc0
+    implicit none
+    class(ballstab_config_type), intent(in out) :: self
+    logical :: exist
+    integer :: in_file, iostat
+
+    ! Note: When this routine is in the module where these variables live
+    ! we shadow the module level variables here. This is intentional to provide
+    ! isolation and ensure we can move this routine to another module easily.    
+    integer :: n_beta, n_shat
+    logical :: make_salpha
+    real :: beta_div, beta_mul, diff, shat_max, shat_min
+
+    namelist /ballstab_knobs/ beta_div, beta_mul, diff, make_salpha, n_beta, n_shat, shat_max, shat_min
+
+    ! Only proc0 reads from file
+    if (.not. proc0) return
+
+    ! First set local variables from current values
+    beta_div = self%beta_div
+    beta_mul = self%beta_mul
+    diff = self%diff
+    make_salpha = self%make_salpha
+    n_beta = self%n_beta
+    n_shat = self%n_shat
+    shat_max = self%shat_max
+    shat_min = self%shat_min
+
+    ! Now read in the main namelist
+    if (self%get_requires_index()) then
+       call get_indexed_namelist_unit(in_file, trim(self%get_name()), self%index)
+       read(in_file, nml = ballstab_knobs, iostat = iostat)
+       exist = .true.
+       if (iostat .ne.0) exist = .false.
+       close(unit = in_file, iostat = iostat)
+    else
+       in_file = input_unit_exist(self%get_name(), exist)
+       if (exist) read(in_file, nml = ballstab_knobs)
+    endif
+
+    ! Now copy from local variables into type members
+    self%beta_div = beta_div
+    self%beta_mul = beta_mul
+    self%diff = diff
+    self%make_salpha = make_salpha
+    self%n_beta = n_beta
+    self%n_shat = n_shat
+    self%shat_max = shat_max
+    self%shat_min = shat_min
+
+    self%exist = exist
+  end subroutine read_ballstab_config
+
+  !> Writes out a namelist representing the current state of the config object
+  subroutine write_ballstab_config(self, unit)
+    implicit none
+    class(ballstab_config_type), intent(in) :: self
+    integer, intent(in) , optional:: unit
+    integer :: unit_internal
+
+    unit_internal = 6 ! @todo -- get stdout from file_utils
+    if (present(unit)) then
+       unit_internal = unit
+    endif
+
+    call self%write_namelist_header(unit_internal)
+    call self%write_key_val("beta_div", self%beta_div, unit_internal)
+    call self%write_key_val("beta_mul", self%beta_mul, unit_internal)
+    call self%write_key_val("diff", self%diff, unit_internal)
+    call self%write_key_val("make_salpha", self%make_salpha, unit_internal)
+    call self%write_key_val("n_beta", self%n_beta, unit_internal)
+    call self%write_key_val("n_shat", self%n_shat, unit_internal)
+    call self%write_key_val("shat_max", self%shat_max, unit_internal)
+    call self%write_key_val("shat_min", self%shat_min, unit_internal)
+    call self%write_namelist_footer(unit_internal)
+  end subroutine write_ballstab_config
+
+  !> Resets the config object to the initial empty state
+  subroutine reset_ballstab_config(self)
+    class(ballstab_config_type), intent(in out) :: self
+    type(ballstab_config_type) :: empty
+    select type (self)
+    type is (ballstab_config_type)
+       self = empty
+    end select
+  end subroutine reset_ballstab_config
+
+  !> Broadcasts all config parameters so object is populated identically on
+  !! all processors
+  subroutine broadcast_ballstab_config(self)
+    use mp, only: broadcast
+    implicit none
+    class(ballstab_config_type), intent(in out) :: self
+    call broadcast(self%beta_div)
+    call broadcast(self%beta_mul)
+    call broadcast(self%diff)
+    call broadcast(self%make_salpha)
+    call broadcast(self%n_beta)
+    call broadcast(self%n_shat)
+    call broadcast(self%shat_max)
+    call broadcast(self%shat_min)
+
+    call broadcast(self%exist)
+  end subroutine broadcast_ballstab_config
+
+  !> Gets the default name for this namelist
+  function get_default_name_ballstab_config()
+    implicit none
+    character(len = CONFIG_MAX_NAME_LEN) :: get_default_name_ballstab_config
+    get_default_name_ballstab_config = "ballstab_knobs"
+  end function get_default_name_ballstab_config
+
+  !> Gets the default requires index for this namelist
+  function get_default_requires_index_ballstab_config()
+    implicit none
+    logical :: get_default_requires_index_ballstab_config
+    get_default_requires_index_ballstab_config = .false.
+  end function get_default_requires_index_ballstab_config
 end module ballstab

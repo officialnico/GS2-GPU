@@ -22,6 +22,6 @@ endif
 wstar_units.o:  ${TEST_MODS} 
 
 wstar_units: wstar_units.o $(TEST_MODS)
-	$(call messageOp,"Linking ","\\t:",$^,"\\n\\t\-\-\-\-\-\-\>",$@)
+	$(call messageOp,"Linking ","\\t:",$(call processName, $^),"\\n\\t\-\-\-\-\-\-\>",$(call processName, $@))
 	$(QUIETSYM)$(LD) $(LDFLAGS) -o $@ $^ $(LIBS)
 

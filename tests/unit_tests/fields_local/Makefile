@@ -23,12 +23,12 @@ endif
 test_fields_local.o:  ${TEST_MODS} 
 
 test_fields_local: test_fields_local.o $(TEST_MODS)
-	$(call messageOp,"Linking ","\\t:",$^,"\\n\\t\-\-\-\-\-\-\>",$@)
+	$(call messageOp,"Linking ","\\t:",$(call processName, $^),"\\n\\t\-\-\-\-\-\-\>",$(call processName, $@))
 	$(QUIETSYM)$(LD) $(LDFLAGS) -o $@ $^ $(LIBS)
 
 test_fields_local_tuning.o:  ${TEST_MODS}
 
 test_fields_local_tuning: test_fields_local_tuning.o $(TEST_MODS)
-	$(call messageOp,"Linking ","\\t:",$^,"\\n\\t\-\-\-\-\-\-\>",$@)
+	$(call messageOp,"Linking ","\\t:",$(call processName, $^),"\\n\\t\-\-\-\-\-\-\>",$(call processName, $@))
 	$(QUIETSYM)$(LD) $(LDFLAGS) -o $@ $^ $(LIBS)
 

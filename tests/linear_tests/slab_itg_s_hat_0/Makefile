@@ -1,7 +1,7 @@
 
 sinclude ../Makefile.tests_common
 
-CLEANCOMMAND+= slab_itg_s_hat_0_low_res
+CLEANCOMMAND+= slab_itg_s_hat_0_low_res gs2_slab_itg
 
 COPY=cp ../../../bin/gs2 gs2_slab_itg
 
@@ -26,6 +26,6 @@ endif
 slab_itg_s_hat_0_low_res.o:  ${TEST_MODS} 
 
 slab_itg_s_hat_0_low_res: slab_itg_s_hat_0_low_res.o $(TEST_MODS)
-	$(call messageOp,"Linking ","\\t:",$^,"\\n\\t\-\-\-\-\-\-\>",$@)
+	$(call messageOp,"Linking ","\\t:",$(call processName, $^),"\\n\\t\-\-\-\-\-\-\>",$(call processName, $@))
 	$(QUIETSYM)$(LD) $(LDFLAGS) -o $@ $^ $(LIBS)
 
