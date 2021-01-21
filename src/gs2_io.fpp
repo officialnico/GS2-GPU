@@ -88,8 +88,8 @@ module gs2_io
   integer :: uprim_id, uprim2_id, vnewk_id, spec_type_id
   integer :: bmag_id, gradpar_id, gbdrift_id, gbdrift0_id
   integer :: cdrift_id, cdrift0_id
-  integer :: cvdrift_id, cvdrift0_id, gds2_id, gds21_id, gds22_id
-  integer :: grho_id, jacob_id, shat_id, eps_id, drhodpsi_id, q_id, surfarea_id
+  integer :: cvdrift_id, cvdrift0_id, gds2_id, gds21_id, gds22_id, gds23_id, gds24_id
+  integer :: gds24_noq_id, grho_id, jacob_id, shat_id, eps_id, drhodpsi_id, q_id, surfarea_id
   integer :: rplot_id, zplot_id, aplot_id, rprime_id, zprime_id, aprime_id, bpol_id
   integer :: beta_id
   integer :: code_id, layout_id
@@ -947,6 +947,12 @@ contains
     if (status /= NF90_NOERR) call netcdf_error (status, var='gds21')
     status = nf90_def_var (ncid, 'gds22', netcdf_real, nttot_dim, gds22_id)
     if (status /= NF90_NOERR) call netcdf_error (status, var='gds22')
+    status = nf90_def_var (ncid, 'gds23', netcdf_real, nttot_dim, gds23_id)
+    if (status /= NF90_NOERR) call netcdf_error (status, var='gds23')
+    status = nf90_def_var (ncid, 'gds24', netcdf_real, nttot_dim, gds24_id)
+    if (status /= NF90_NOERR) call netcdf_error (status, var='gds24')
+    status = nf90_def_var (ncid, 'gds24_noq', netcdf_real, nttot_dim, gds24_noq_id)
+    if (status /= NF90_NOERR) call netcdf_error (status, var='gds24_noq')
     status = nf90_def_var (ncid, 'grho', netcdf_real, nttot_dim, grho_id)
     if (status /= NF90_NOERR) call netcdf_error (status, var='grho')
     status = nf90_def_var (ncid, 'jacob', netcdf_real, nttot_dim, jacob_id)
@@ -3169,7 +3175,7 @@ contains
   subroutine nc_geo
 # ifdef NETCDF
     use theta_grid, only: bmag, gradpar, gbdrift, gbdrift0, &
-         cvdrift, cvdrift0, gds2, gds21, gds22, grho, jacob, &
+         cvdrift, cvdrift0, gds2, gds21, gds22, gds23, gds24, gds24_noq, grho, jacob, &
          shat, drhodpsi, eps_trapped, cdrift, cdrift0, qval, rplot, &
          zplot, aplot, rprime, zprime, aprime, bpol !, surfarea
 !CMR add qval and beta here too, as they are both useful
@@ -3200,6 +3206,12 @@ contains
     if (status /= NF90_NOERR) call netcdf_error (status, ncid, gds21_id)
     status = nf90_put_var (ncid, gds22_id, gds22)
     if (status /= NF90_NOERR) call netcdf_error (status, ncid, gds22_id)
+    status = nf90_put_var (ncid, gds23_id, gds23)
+    if (status /= NF90_NOERR) call netcdf_error (status, ncid, gds23_id)
+    status = nf90_put_var (ncid, gds24_id, gds24)
+    if (status /= NF90_NOERR) call netcdf_error (status, ncid, gds24_id)
+    status = nf90_put_var (ncid, gds24_noq_id, gds24_noq)
+    if (status /= NF90_NOERR) call netcdf_error (status, ncid, gds24_noq_id)
     status = nf90_put_var (ncid, grho_id, grho)
     if (status /= NF90_NOERR) call netcdf_error (status, ncid, grho_id)
     status = nf90_put_var (ncid, jacob_id, jacob)
