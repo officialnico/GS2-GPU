@@ -956,7 +956,7 @@ contains
        ! the fields unless force_maxwell_reinit is true. If we are not
        ! restarting then we better call set_init_fields to set the initial
        ! fields here.
-       if (restarted .or. force_maxwell_reinit) call set_init_fields
+       if ((.not.restarted) .or. force_maxwell_reinit) call set_init_fields
        return
     else
       if (current%initval_ov%in_memory) then
