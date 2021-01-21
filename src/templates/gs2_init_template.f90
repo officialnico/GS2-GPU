@@ -330,7 +330,11 @@ contains
     if (.not. current%initval_ov%override) then
        ! This is the usual initial setup
        call ginit (restarted)
-       call set_init_fields
+       ! If we're restarting from file then we don't want to recalculate
+       ! the fields unless force_maxwell_reinit is true. If we are not
+       ! restarting then we better call set_init_fields to set the initial
+       ! fields here.
+       if (restarted .or. force_maxwell_reinit) call set_init_fields
        return
     else
       if (current%initval_ov%in_memory) then
