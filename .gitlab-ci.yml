@@ -52,7 +52,7 @@ variables: &default_variables
   EXTRA_PFUNIT_FLAGS: ""
   GK_MAKEFILE_LOCAL_EXTRA_FLAGS: ""
   JOB_STATUS_FILE: "special_file_to_indicate_job_status"
-  BASIC_PACKAGES: "environment-modules make git which cmake findutils"
+  BASIC_PACKAGES: "environment-modules make git which cmake findutils bzip2"
   GS2_PACKAGES: "fftw-devel netcdf-fortran netcdf-devel netcdf-fortran-devel openmpi openmpi-devel gcc gcc-gfortran"
   PYTHON_PACKAGES: "python python3 python3-pip python3-devel"
   EXTRA_PACKAGES: ""
