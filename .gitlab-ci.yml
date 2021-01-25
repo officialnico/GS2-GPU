@@ -24,7 +24,7 @@ stages:
 
 .push_status: &push_status
   - BUILD_STATUS=$(cat ${JOB_STATUS_FILE})  BUILD_KEY=push ./.push_gitlab_build_status ${CASENAME}
-  
+
 .init_test_job: &init_test_job
   - echo "running" > ${JOB_STATUS_FILE}
   - BUILD_STATUS=$(cat ${JOB_STATUS_FILE})  BUILD_KEY=push ./.push_gitlab_build_status ${CASENAME}
@@ -40,7 +40,7 @@ stages:
 .create_user: &create_user
   - adduser theuser --disabled-password --gecos ""
   - chmod gou+rw ${JOB_STATUS_FILE}
-  
+
 variables:
   GIT_SUBMODULE_STRATEGY: recursive
   OMPI_MCA_rmaps_base_oversubscribe: "yes"
@@ -55,7 +55,7 @@ variables:
   WITH_PYTHON: "yes"
   WITH_PFUNIT_TESTS: "yes"
   WITH_GS2_TESTS: "yes"
-  
+
 default:
   artifacts:
     paths:
@@ -67,9 +67,9 @@ default:
     - *install_main_packages
     - *create_user
   after_script:
-    - *push_status 
+    - *push_status
   interruptible: true
-    
+
 formattting_tests:
   variables:
     CASENAME: "formatting"
@@ -78,14 +78,14 @@ formattting_tests:
   script:
     - scripts/test_maximum_line_length $(scripts/get_all_matching_files.py --path=src --path=externals/utils --pattern="*.[Ff]??") || (echo "failed" > ${JOB_STATUS_FILE} ; exit 1)
     - *report_pass
-    
+
 standard_tests:
   variables:
     CASENAME: "standard"
     EXTRA_BUILD_FLAGS: "USE_NEW_DIAG= "
   script:
     - *typical_test_script
-    
+
 standard_tests_onestep:
   variables:
     CASENAME: "standard_one_step_pp"
@@ -124,12 +124,12 @@ pages:
     # Always build the website if the source branch name is master or next
     - if: '$CI_COMMIT_BRANCH == "master" || $CI_COMMIT_BRANCH == "next"'
       when: always
-    # Always build the website if the commit message contains build-website      
+    # Always build the website if the commit message contains build-website
     - if: '$CI_COMMIT_MESSAGE =~ /build-website/'
       when: always
     # Otherwise it's a manual action that can be triggered by an authenticated user on gitlab
     - when: manual
-    
+
 success:
   stage: ci_status
   before_script:
