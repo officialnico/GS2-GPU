@@ -87,7 +87,7 @@ formattting_tests:
     WITH_PYTHON: "no"
     WITH_MPI: "no"
   script:
-    - scripts/test_maximum_line_length $(scripts/get_all_matching_files.py --path=src --path=externals/utils --pattern="*.[Ff]??") || (echo "failed" > ${JOB_STATUS_FILE} ; exit 1)
+    - scripts/test_maximum_line_length $(find src externals/utils -type f -name "*.[fF]??") || (echo "failed" > ${JOB_STATUS_FILE} ; exit 1)
     - *report_pass
 
 standard_tests:
