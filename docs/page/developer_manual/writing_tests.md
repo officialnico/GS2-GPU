@@ -220,10 +220,255 @@ end subroutine teardown
 
 Calling `finish_mp` will finalise MPI, which will cause problems for the next MPI test!
 
-When using MPI tests for more than just getting `proc0` correct in GS2, you should use
-`@mpiAssert*` in your tests.
+### Parameterised tests
 
+It's possible to parameterise tests over other parameters than just MPI ranks, though it
+is a bit more involved and involves several pieces.
 
+Here's an example from one of the GS2 parameterised tests:
 
+```
+module test_antenna_data_mod
+  use PFUNIT_MOD
+
+  implicit none
+
+  @TestParameter
+  !> Type to hold parameter we want to scan in
+  type, extends(MpiTestParameter) :: test_antenna_parameter
+    integer :: nk_stir_in
+  contains
+    procedure :: toString
+  end type test_antenna_parameter
+
+  @TestCase(constructor = new_case)
+  !> Test fixture
+  type, extends(MpiTestCase) :: test_antenna_case
+    integer :: nk_stir_in
+  contains
+    procedure :: tearDown
+  end type test_antenna_case
+
+contains
+
+  !> Construct test_antenna_case from test_antenna_parameter
+  function new_case(test_parameter) result (test_case)
+    type(test_antenna_case) :: test_case
+    type(test_antenna_parameter), intent(in) :: test_parameter
+    test_case%nk_stir_in = test_parameter%nk_stir_in
+  end function new_case
+
+  !> Construct test_antenna_parameter
+  function new_parameter(nk_stir_in)
+    type(test_antenna_parameter) :: new_parameter
+    integer, intent(in) :: nk_stir_in
+    new_parameter%nk_stir_in = nk_stir_in
+  end function new_parameter
+
+  !> Serialise test_antenna_parameter as a string
+  function toString(this) result(string)
+    class(test_antenna_parameter), intent(in) :: this
+    character(:), allocatable :: string
+    allocate(character(len=10)::string)
+    write(string, '("nk_stir=", i2)') this%nk_stir_in
+  end function toString
+
+  !> Tear down test module
+  subroutine tearDown(this)
+    use antenna_data, only : finish_antenna_data
+    class(test_antenna_case), intent(inout) :: this
+    call finish_antenna_data
+  end subroutine tearDown
+
+  !> Define the parameters scan
+  function get_parameters() result(params)
+    type(test_antenna_parameter), allocatable :: params(:)
+
+    params = [ &
+         & new_parameter(nk_stir_in=-1), &
+         & new_parameter(nk_stir_in=3) &
+         & ]
+
+  end function get_parameters
+
+  @test(npes=[1,2,4], testParameters={get_parameters()})
+  !> Test for initialization with no antenna
+  subroutine test_init_antenna_data(this)
+    use antenna_data
+    implicit none
+    class (test_antenna_case), intent(inout) :: this
+
+    associate( nk_stir_in => this%nk_stir_in )
+      call init_antenna_data(nk_stir_in)
+
+      if (nk_stir_in < 0) then
+        ! Antenna off
+        @AssertFalse(ant_on)
+      else
+        ! Antenna on
+        @AssertTrue(ant_on)
+        @AssertEqual(nk_stir_in, nk_stir)
+      end if
+      @AssertSameShape(shape(nk_stir_in), shape(a_ant))
+      @AssertSameShape(shape(nk_stir_in), shape(b_ant))
+    end associate
+  end subroutine test_init_antenna_data
+
+end module test_antenna_data_mod
+```
+
+The parameterisation machinery looks very complicated here because we're just
+parameterising over a single integer, with the result that we end up defining two very
+similar types, but they are for different purposes, mostly to do with the internals of
+pFUnit and how Fortran works.
+
+Let's start with the test itself:
+
+```
+  @test(npes=[1,2,4], testParameters={get_parameters()})
+  !> Test for initialization with no antenna
+  subroutine test_init_antenna_data(this)
+    use antenna_data
+    implicit none
+    class (test_antenna_case), intent(inout) :: this
+```
+
+Our `@test` directive now has parameterisation over both MPI ranks and an extra set of
+parameters. The `testParameters` argument calls the function `get_parameters` to get an
+array of _parameters_ which are used to construct _test cases_. The test cases are passed
+into the test routine. pFUnit constructs the Cartesian product of `npes` and
+`testParameters`, that is, it calls the test routine with every combination of `npes` and
+`testParameters`.
+
+**Note**: the curly brackets `{...}` around the argument to `testParameters` are required.
+
+The function `get_parameters` looks like:
+
+```
+  function get_parameters() result(params)
+    type(test_antenna_parameter), allocatable :: params(:)
+
+    params = [ &
+         & new_parameter(nk_stir_in=-1), &
+         & new_parameter(nk_stir_in=3) &
+         & ]
+
+  end function get_parameters
+```
+
+This returns an `allocatable` array of `test_antenna_parameter` values. We want to scan
+over the `integer` `nk_stir_in` -- why can't we just return an `integer` array? This is
+because pFUnit needs to store the return value and has to know what type we're
+using. Because Fortran doesn't have generic data types, we're forced to use a derived type
+that extends pFUnit's `AbstractTestParameter`. Our definition of `test_antenna_parameter`:
+
+```
+  @TestParameter
+  type, extends(MpiTestParameter) :: test_antenna_parameter
+    integer :: nk_stir_in
+  contains
+    procedure :: toString
+  end type test_antenna_parameter
+```
+
+actually extends `MpiTestParameter`, which itself extends `AbstractTestParameter`. We use
+the `@TestParameter` directive to tell pFUnit this is our test parameter type. Notice
+that we also define a type-bound procedure or method called `toString`. This is used to
+print error messages. For our example, it can be quite simple:
+
+```
+  function toString(this) result(string)
+    class(test_antenna_parameter), intent(in) :: this
+    character(:), allocatable :: string
+    allocate(character(len=10)::string)
+    write(string, '("nk_stir=", i2)') this%nk_stir_in
+  end function toString
+```
+
+The `MpiTestParameter` base class takes care of writing the number of processes, so we
+just need to write the rest of the type to an `allocatable` `character`.
+
+We also need to write a function to construct a `test_antenna_parameter` from an
+`integer`:
+
+```
+  function new_parameter(nk_stir_in)
+    type(test_antenna_parameter) :: new_parameter
+    integer, intent(in) :: nk_stir_in
+    new_parameter%nk_stir_in = nk_stir_in
+  end function new_parameter
+```
+
+This isn't strictly necessary if you can make your array of test parameters some other
+way, but this is usually the easiest and least error prone method.
+
+Now that we have our test parameters, pFUnit uses these to construct a _test case_ which
+is finally passed to the test routine. Our test case type looks like this:
+
+```
+  @TestCase(constructor = new_case)
+  type, extends(MpiTestCase) :: test_antenna_case
+    integer :: nk_stir_in
+  contains
+    procedure :: tearDown
+  end type test_antenna_case
+```
+
+The `constructor` argument to the `@TestCase` directive tells pFUnit which function to use
+to make a new `test_antenna_case`. For us, this is very similar to the constructor for
+`test_antenna_parameter`:
+
+```
+  function new_case(test_parameter) result (test_case)
+    type(test_antenna_case) :: test_case
+    type(test_antenna_parameter), intent(in) :: test_parameter
+    test_case%nk_stir_in = test_parameter%nk_stir_in
+  end function new_case
+```
+
+We just copy the `nk_stir_in` member from the _parameter_ to the _case_.
+
+Also notice that the `test_antenna_case` type has a `tearDown` method. Unfortunately for
+parameterised tests, we can't just use the `@before` and `@after` directives. Instead, we
+need to overload the `setUp` and `tearDown` methods on the test case type. We don't have a
+`setUp` here, but we do have a `tearDown`, which just cleans up the module we're testing:
+
+```
+  subroutine tearDown(this)
+    use antenna_data, only : finish_antenna_data
+    class(test_antenna_case), intent(inout) :: this
+    call finish_antenna_data
+  end subroutine tearDown
+```
+
+Finally, now that we've constructed the parameters and the cases, we can actually use the
+case in the test routine itself:
+
+```
+  subroutine test_init_antenna_data(this)
+    use antenna_data
+    implicit none
+    class (test_antenna_case), intent(inout) :: this
+
+    associate( nk_stir_in => this%nk_stir_in )
+      call init_antenna_data(nk_stir_in)
+
+      if (nk_stir_in < 0) then
+        ! Antenna off
+        @AssertFalse(ant_on)
+      else
+        ! Antenna on
+        @AssertTrue(ant_on)
+        @AssertEqual(nk_stir_in, nk_stir)
+      end if
+      @AssertSameShape(shape(nk_stir_in), shape(a_ant))
+      @AssertSameShape(shape(nk_stir_in), shape(b_ant))
+    end associate
+  end subroutine test_init_antenna_data
+```
+
+We can access the `nk_stir_in` member of `test_antenna_case` through `this%nk_stir_in`. We
+actually use the Fortran `associate` block here to make a local name, `nk_stir_in`, to
+avoid writing `this%nk_stir_in` each time. The rest of the test looks like usual.
 
 [pfunit]: https://github.com/Goddard-Fortran-Ecosystem/pFUnit
