@@ -1,0 +1,167 @@
+module test_kt_grids_box_mod
+  use PFUNIT_MOD
+  implicit none
+
+  real, parameter :: tolerance = 1.e-8
+
+  @TestParameter
+  type, extends(MpiTestParameter) :: test_kt_grids_parameter
+    real :: shat = 0.75
+    real :: rtwist = 0.0
+    integer :: jtwist = 1
+    real :: x0 = 0.0
+    real :: dkx
+    real :: dky
+  contains
+    procedure :: toString
+  end type test_kt_grids_parameter
+
+  @TestCase(constructor = new_test_kt_grids_case)
+  type, extends(MpiTestCase) :: test_kt_grids_case
+    real :: shat
+    real :: rtwist
+    integer :: jtwist
+    real :: x0
+    real :: dkx
+    real :: dky
+  contains
+    procedure :: setup
+    procedure :: teardown
+  end type test_kt_grids_case
+
+contains
+
+  function new_test_kt_grids_parameter(shat, rtwist, jtwist, x0, dkx, dky) result(this)
+    type(test_kt_grids_parameter) :: this
+    real, intent(in) :: shat, rtwist, x0, dkx, dky
+    integer, intent(in) :: jtwist
+    this%shat = shat
+    this%rtwist = rtwist
+    this%jtwist = jtwist
+    this%x0 = x0
+    this%dkx = dkx
+    this%dky = dky
+  end function new_test_kt_grids_parameter
+
+  function toString(this) result(string)
+    class(test_kt_grids_parameter), intent(in) :: this
+    character(:), allocatable :: string
+    allocate(character(len=800)::string)
+    write(string, '("shat = ", f7.5, ", rtwist = ", f3.0, ", jtwist = ", i0, ", x0 = ", f4.0, ", dkx = ", f8.5, ", dky = ", f3.1)') &
+         this%shat, this%rtwist, this%jtwist, this%x0, this%dkx, this%dky
+    string = trim(string)
+  end function toString
+
+  function new_test_kt_grids_case(test_parameter) result(this)
+    type(test_kt_grids_parameter), intent(in) :: test_parameter
+    type(test_kt_grids_case) :: this
+    this%shat = test_parameter%shat
+    this%rtwist = test_parameter%rtwist
+    this%jtwist = test_parameter%jtwist
+    this%x0 = test_parameter%x0
+    this%dkx = test_parameter%dkx
+    this%dky = test_parameter%dky
+  end function new_test_kt_grids_case
+
+  subroutine setup(this)
+    use file_utils, only : initialized, run_name
+    use constants, only : run_name_size
+    use mp, only : init_mp
+    class (test_kt_grids_case), intent(inout) :: this
+    call init_mp(this%getMpiCommunicator())
+
+    allocate(character(len=run_name_size)::run_name)
+    run_name = "test_kt_grids_box"
+    initialized = .true.
+  end subroutine setup
+
+  subroutine teardown(this)
+    use kt_grids_box, only : finish_parameters_box
+    use theta_grid, only : finish_theta_grid
+    use theta_grid_params, only : finish_theta_grid_params
+    class (test_kt_grids_case), intent(inout) :: this
+
+    call finish_theta_grid()
+    call finish_theta_grid_params()
+    ! kt_grids_box finish is named strange?
+    call finish_parameters_box()
+  end subroutine teardown
+
+  function get_parameters() result(params)
+    use constants, only : pi
+    type(test_kt_grids_parameter), allocatable :: params(:)
+    ! There are six different ways of setting dkx in kt_grids_box::box_get_grids
+    params = [ &
+         new_test_kt_grids_parameter(shat=0.75, rtwist=0.0, jtwist=1, x0=0.0, dkx=pi * 2.25, dky=0.5), &
+         new_test_kt_grids_parameter(shat=0.75, rtwist=0.0, jtwist=0, x0=0.0, dkx=0.5, dky=0.5), &
+         new_test_kt_grids_parameter(shat=1e-5, rtwist=2.0, jtwist=0, x0=0.0, dkx=0.25, dky=0.5), &
+         new_test_kt_grids_parameter(shat=1e-5, rtwist=-2.0, jtwist=0, x0=0.0, dkx=1., dky=0.5), &
+         new_test_kt_grids_parameter(shat=1e-5, rtwist=0.0, jtwist=0, x0=10.0, dkx=0.1, dky=0.5), &
+         new_test_kt_grids_parameter(shat=1e-5, rtwist=0.0, jtwist=0, x0=-10.0, dkx=10., dky=0.5) &
+         ]
+  end function get_parameters
+
+  @test(npes=[1], testParameters={get_parameters()})
+  subroutine test_kt_box_get_grids(this)
+    use theta_grid_params, only : theta_grid_parameters_config_type, set_theta_grid_params_config
+    use kt_grids_box, only : kt_grids_box_config_type, init_kt_grids_box, box_get_grids
+    use constants, only : pi
+
+    class (test_kt_grids_case), intent(inout) :: this
+
+    type(theta_grid_parameters_config_type) :: theta_grid_parameters_config
+    type(kt_grids_box_config_type) :: kt_grids_box_config
+
+    integer, parameter :: nx = 4, ny = 5
+    integer, dimension(nx), parameter :: ikx_expected = [0, 1, -2, -1]
+    integer, dimension(ny), parameter :: iky_expected = [0, 1, 2, 3, 4]
+    real, dimension(nx) :: akx_expected
+    real, dimension(ny) :: aky_expected
+    real, dimension(nx, ny) :: theta0_expected
+
+    real, dimension(nx) :: akx
+    real, dimension(ny) :: aky
+    real, dimension(nx, ny) :: theta0
+    integer, dimension(nx) :: ikx
+    integer, dimension(ny) :: iky
+
+    integer :: i, j
+
+    akx_expected = ikx_expected * this%dkx
+    aky_expected = iky_expected * this%dky
+
+    ! Can't do this with an  implied-do and reshape, because the first
+    ! index involves division by zero :(
+    do i = 1, nx
+      theta0_expected(i,1) = 0.0
+      theta0_expected(i,2:) = akx_expected(i) / (aky_expected(2:) * this%shat)
+    end do
+
+    ! Need to set shat, drhodpsi, nperiod from theta_grid
+    theta_grid_parameters_config = theta_grid_parameters_config_type( &
+         shat=this%shat &
+         )
+    call theta_grid_parameters_config%setup()
+    call set_theta_grid_params_config(theta_grid_parameters_config)
+
+    kt_grids_box_config = kt_grids_box_config_type( &
+         nx=nx, &
+         ny=ny, &
+         jtwist=this%jtwist, &
+         rtwist=this%rtwist, &
+         x0=this%x0 &
+         )
+
+    call kt_grids_box_config%setup()
+    call init_kt_grids_box(kt_grids_box_config)
+    call box_get_grids(aky, theta0, akx, ikx, iky)
+
+    @assertEqual(ikx_expected, ikx, message="ikx")
+    @assertEqual(iky_expected, iky, message="iky")
+    @assertEqual(akx_expected, akx, message="akx", tolerance=tolerance)
+    @assertEqual(aky_expected, aky, message="aky", tolerance=tolerance)
+    @assertEqual(theta0_expected, theta0, message="theta0", tolerance=tolerance)
+
+  end subroutine test_kt_box_get_grids
+
+end module test_kt_grids_box_mod
