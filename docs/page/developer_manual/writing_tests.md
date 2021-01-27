@@ -471,4 +471,73 @@ We can access the `nk_stir_in` member of `test_antenna_case` through `this%nk_st
 actually use the Fortran `associate` block here to make a local name, `nk_stir_in`, to
 avoid writing `this%nk_stir_in` each time. The rest of the test looks like usual.
 
+## Setting up GS2 modules
+
+GS2 often treats a module as a singular instance of an object, with module procedures
+often relying on module-level variables to be set, which in turn require a `init_<module>`
+subroutine to have been called. This means unit tests often need to call one or more of
+these `init_` procedures before calling the function they actually want to test. Normally,
+the `init_` functions read namelist variables from an input file, but in unit tests we'd
+prefer not to read files from disk, as this can substantially slow down the test (remember
+we're aiming for milliseconds per test!). GS2 now has "config" types for each module that
+allow us to programmatically set up each module without hitting the disk.
+
+GS2 modules also (usually!) call the `init_` functions for the modules that they rely on,
+so each module has a module-level config variable that we can set. This allows us to use
+the config types for modules "lower down", and just call the `init_` function of the "top
+level" module.
+
+Using these config types involves three steps:
+
+1. create an instance of the config type, setting the input parameters as desired. The
+   config types work similarly to namelists in input files, in that we only need to set
+   the variables we care about, and any variables not mentioned use the default value.
+2. call the config `setup` subroutine. This marks the config object as having been "read",
+   and so the module skips reading the input file.
+3. use the config variable instead of reading from file. There are two ways to do this,
+   depending on whether we're setting it for the top-level module, or for a module down
+   the chain:
+   1. pass the config directly to the `init_` function: `call init_<module>(config)`
+   2. set the module-level instance of the config using `call set_<module>_config(config)`
+
+Here's an example of this procedure for setting up the `theta_grid` module, including
+setting variables for the `theta_grid_prams` module:
+
+```
+! We need to setup MPI first, so use the init_mp procedure
+use mp, only : init_mp
+
+! Use just the config type and setter from the two modules
+use theta_grid_params, only : theta_grid_parameters_config_type, set_theta_grid_params_config
+use theta_grid, only : theta_grid_config_type, init_theta_grid
+
+! Declare the config variables
+type(theta_grid_parameters_config_type) :: theta_grid_params_config
+type(theta_grid_config_type) :: theta_grid_config
+
+! Setup MPI
+call init_mp(this%getMpiCommunicator())
+
+! Initialise the config variable, setting just three parameters
+theta_grid_params_config = theta_grid_parameters_config_type( &
+     rhoc = 0.28877366171282209, &
+     qinp = 2.1141399689990714, &
+     shat = 0.28528707850004253, &
+     )
+! Finish the initialisation
+call theta_grid_params_config%setup()
+! Now we can set the module config itself for the theta_grid_parameters module
+call set_theta_grid_params_config(theta_grid_params_config)
+
+! Repeat the above procedure for the theta_grid module...
+theta_grid_config = theta_grid_config_type(equilibrium_option = "eik")
+call theta_grid_config%setup()
+! ...but this time call the init subroutine to setup the module directly
+call init_theta_grid(theta_grid_config)
+```
+
+After doing this, `theta_grid` will have been set up using the `"eik"` equilibrium with
+the inputs defined in the code.
+
+
 [pfunit]: https://github.com/Goddard-Fortran-Ecosystem/pFUnit
