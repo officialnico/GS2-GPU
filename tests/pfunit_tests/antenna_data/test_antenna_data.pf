@@ -21,75 +21,79 @@ module test_antenna_data_mod
 
   implicit none
 
-  @testParameter(contsructor = new_test)
-  type, extends(MpiTestParameter) :: case
+  @TestParameter
+  type, extends(MpiTestParameter) :: test_antenna_parameter
     integer :: nk_stir_in
-  end type case
+  contains
+    procedure :: toString
+  end type test_antenna_parameter
 
-  @TestCase(constructor = new_test)
-  type, extends(MpiTestCase) :: test_parameters
+  @TestCase(constructor = new_case)
+  type, extends(MpiTestCase) :: test_antenna_case
     integer :: nk_stir_in
-  end type test_parameters
+  contains
+    procedure :: tearDown
+  end type test_antenna_case
 
 contains
 
-  ! Constructor
-  function new_test(test_parameter) result (test)
-    type (test_parameters) :: test
-    type (case), intent(in) :: test_parameter
-
-    test%nk_stir_in = test_parameter%nk_stir_in
-
-  end function new_test
-
-  function new_case(nk_stir_in)
-    type (case) :: new_case
-    integer, intent(in) :: nk_stir_in
-    new_case%nk_stir_in = nk_stir_in
+  function new_case(test_parameter) result (test_case)
+    type(test_antenna_case) :: test_case
+    type(test_antenna_parameter), intent(in) :: test_parameter
+    test_case%nk_stir_in = test_parameter%nk_stir_in
   end function new_case
+
+  function new_parameter(nk_stir_in)
+    type(test_antenna_parameter) :: new_parameter
+    integer, intent(in) :: nk_stir_in
+    new_parameter%nk_stir_in = nk_stir_in
+  end function new_parameter
+
+  function toString(this) result(string)
+    class(test_antenna_parameter), intent(in) :: this
+    character(:), allocatable :: string
+    allocate(character(len=10)::string)
+    write(string, '("nk_stir=", i2)') this%nk_stir_in
+  end function toString
+
+  subroutine tearDown(this)
+    use antenna_data, only : finish_antenna_data
+    class(test_antenna_case), intent(inout) :: this
+    call finish_antenna_data
+  end subroutine tearDown
 
   ! Define the parameters scan
   function get_parameters() result(params)
-    type(case), allocatable :: params(:)
+    type(test_antenna_parameter), allocatable :: params(:)
 
     params = [ &
-         & new_case(nk_stir_in=-1), &
-         & new_case(nk_stir_in=3) &
+         & new_parameter(nk_stir_in=-1), &
+         & new_parameter(nk_stir_in=3) &
          & ]
 
   end function get_parameters
 
-  @test(npes=[1,2,4],testParameters={get_parameters()})
+  @test(npes=[1,2,4], testParameters={get_parameters()})
   !> Test for initialization with no antenna
   subroutine test_init_antenna_data(this)
-
     use antenna_data
-
     implicit none
-    class (test_parameters), intent(inout) :: this
+    class (test_antenna_case), intent(inout) :: this
 
     associate( nk_stir_in => this%nk_stir_in )
-
       call init_antenna_data(nk_stir_in)
 
-      if( nk_stir_in .lt. 0 ) then ! Antenna off
-        @mpiAssertFalse(ant_on)
-      else ! Antenna on
-        @mpiAssertTrue(ant_on)
-        @mpiAssertEqual(nk_stir_in , nk_stir )
+      if (nk_stir_in < 0) then
+        ! Antenna off
+        @AssertFalse(ant_on)
+      else
+        ! Antenna on
+        @AssertTrue(ant_on)
+        @AssertEqual(nk_stir_in, nk_stir)
       end if
-      @mpiAssertSameShape ( shape(nk_stir_in) , shape(a_ant) )
-      @mpiAssertSameShape ( shape(nk_stir_in) , shape(b_ant) )
-
-      ! Reset module
-      call finish_antenna_data
-
-      @mpiAssertFalse(ant_on)
-      @mpiAssertFalse(allocated(a_ant))
-      @mpiAssertFalse(allocated(b_ant))
-
+      @AssertSameShape(shape(nk_stir_in), shape(a_ant))
+      @AssertSameShape(shape(nk_stir_in), shape(b_ant))
     end associate
-
   end subroutine test_init_antenna_data
 
 end module test_antenna_data_mod
