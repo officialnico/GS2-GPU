@@ -4,12 +4,17 @@ title: Writing Tests
 
 [TOC]
 
-There are two test suites in GS2 - a legacy test suite and a [pFUnit][pfunit] test
-suite. The pFUnit test suite is a collection of _unit tests_. These try to test the
-smallest units of code -- usually individual subroutines or functions. They also aim to be
-very fast: "one-tenth of a second is _too slow_" is the usual motto. Unit tests should
-also try to be independent of other tests: you don't want something going wrong in one
-test to cause other tests to unnecessarily fail.
+There are two test suites in GS2 - a "legacy" test suite and a [pFUnit][pfunit] test
+suite. The pFUnit test suite is a collection of _unit tests_, whereas the legacy suite is
+a collection of _integrated tests_. Integrated tests, also called system tests, run all or
+large parts of the main code, while unit tests, in contrast, try to test the smallest
+units of code -- usually individual subroutines or functions. They also aim to be very
+fast: "one-tenth of a second is _too slow_" is the usual motto. Unit tests should also try
+to be independent of other tests: you don't want something going wrong in one test to
+cause other tests to unnecessarily fail. The legacy test suite includes a set of tests
+that are called "unit tests", but unfortunately, these still end up calling a lot of GS2
+infrastructure to set up tests on even the smallest feature. The pFUnit tests aim to set
+up the bare minimum to test each unit.
 
 This document will take you through writing a new pFUnit test, detailing some of the
 pitfalls and things to be aware of.
@@ -105,6 +110,10 @@ _actual_ value.
 Something to be aware of here is that the pFUnit preprocessor doesn't like this directive
 split over multiple lines! Currently, we just have to live with long lines.
 
+Another thing to note is that all pFUnit directives (the keywords and functions beginning
+with `@`) are case insensitive: `@AssertEqual` is the same as `@assertEqual` and
+`@assertequal`.
+
 ## Getting fancier
 
 ### Setup and Teardown
@@ -134,8 +143,9 @@ These `@before` and `@after` routines are run before/after each individual test,
 that test fails. This can be very useful to, for example, call the `<module>_finish`
 routine to cleanup a GS2 module, which helps make the tests more independent. Without the
 `@after` routine, a failure in one test might result in a GS2 module being in a bad or
-wrong state for the next test. For this reason, you may wish to call the `<module>_finish`
-routine in both the setup and teardown routines.
+wrong state for the next test. To guard against other tests or modules not cleaning up
+after themselves correctly, you may wish to call the `<module>_finish` routine in both the
+setup and teardown routines. This helps ensure the tests are independent.
 
 ### Tolerances
 
@@ -178,7 +188,7 @@ subroutine test_some_mpi(this)
   ...
 ```
 
-Here, we'll end up calling the test twice times, first with one rank, and second with
+Here, we'll end up calling the test two times, first with one rank, and second with
 two. Next, our test subroutine now takes a single argument of `class(MPITestMethod)` --
 note it is `intent(inout)`. Conventionally we name it `this`, but the exact name is not
 important. This argument has some useful methods:
