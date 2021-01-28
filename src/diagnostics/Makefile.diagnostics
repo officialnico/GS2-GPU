@@ -30,28 +30,28 @@ $(LIBDIR)/libsimpledataio.a: $(OBJDIR)/simpledataio_write.o $(OBJDIR)/simpledata
 	$(QUIETSYM)$(RANLIB) $@
 
 ifdef ONE_STEP_PP
-$(OBJDIR)/simpledataio_write.o: simpledataio_write.F90 $(OBJDIR)/simpledataiof.o
+$(OBJDIR)/simpledataio_write.o: simpledataio_write.F90 $(OBJDIR)/simpledataiof.o|$(MODDIR)
 	$(call messageOp,"Compiling and preprocessing","\\t:",$(call processName,$<))
 	$(QUIETSYM)$(FC) $(MACRO_DEFS) $(subst $(DBLEFLAGS),,$(F90FLAGS)) $(MODDIR_FLAG)$(MODDIR) -c $< -o $@
 
-$(OBJDIR)/simpledataio_read.o: simpledataio_read.F90 $(OBJDIR)/simpledataiof.o $(OBJDIR)/simpledataio_write.o
+$(OBJDIR)/simpledataio_read.o: simpledataio_read.F90 $(OBJDIR)/simpledataiof.o $(OBJDIR)/simpledataio_write.o|$(MODDIR)
 	$(call messageOp,"Compiling and preprocessing","\\t:",$(call processName,$<))
 	$(QUIETSYM)$(FC) $(MACRO_DEFS) $(subst $(DBLEFLAGS),,$(F90FLAGS)) $(MODDIR_FLAG)$(MODDIR) -c $< -o $@
 
-$(OBJDIR)/simpledataiof.o: simpledataiof.F90 $(OBJDIR)/simpledataio.o
+$(OBJDIR)/simpledataiof.o: simpledataiof.F90 $(OBJDIR)/simpledataio.o|$(MODDIR)
 	$(call messageOp,"Compiling and preprocessing","\\t:",$(call processName,$<))
 	$(QUIETSYM)$(FC) $(MACRO_DEFS) $(subst $(DBLEFLAGS),,$(F90FLAGS)) $(MODDIR_FLAG)$(MODDIR) -c $< -o $@
 else
 
-$(OBJDIR)/simpledataio_write.o: $(GENERATED_SRC_DIR)/simpledataio_write.f90 $(OBJDIR)/simpledataiof.o
+$(OBJDIR)/simpledataio_write.o: $(GENERATED_SRC_DIR)/simpledataio_write.f90 $(OBJDIR)/simpledataiof.o|$(MODDIR)
 	$(call messageOp,"Compiling","\\t:",$(call processName,$<))
 	$(QUIETSYM)$(FC) $(subst $(DBLEFLAGS),,$(F90FLAGS)) $(MODDIR_FLAG)$(MODDIR) -c $< -o $@
 
-$(OBJDIR)/simpledataio_read.o: $(GENERATED_SRC_DIR)/simpledataio_read.f90 $(OBJDIR)/simpledataiof.o $(OBJDIR)/simpledataio_write.o
+$(OBJDIR)/simpledataio_read.o: $(GENERATED_SRC_DIR)/simpledataio_read.f90 $(OBJDIR)/simpledataiof.o $(OBJDIR)/simpledataio_write.o|$(MODDIR)
 	$(call messageOp,"Compiling","\\t:",$(call processName,$<))
 	$(QUIETSYM)$(FC) $(subst $(DBLEFLAGS),,$(F90FLAGS)) $(MODDIR_FLAG)$(MODDIR) -c $< -o $@
 
-$(OBJDIR)/simpledataiof.o: $(GENERATED_SRC_DIR)/simpledataiof.f90 $(OBJDIR)/simpledataio.o
+$(OBJDIR)/simpledataiof.o: $(GENERATED_SRC_DIR)/simpledataiof.f90 $(OBJDIR)/simpledataio.o|$(MODDIR)
 	$(call messageOp,"Compiling","\\t:",$(call processName,$<))
 	$(QUIETSYM)$(FC) $(subst $(DBLEFLAGS),,$(F90FLAGS)) $(MODDIR_FLAG)$(MODDIR) -c $< -o $@
 endif
@@ -78,7 +78,7 @@ $(SRCDIR)/diagnostics/diagnostics_ascii.f90: diagnostics/generate_diagnostics_as
 	$(QUIETSYM)$(call RUBY_GENERATE,$@,$<)
 
 # This must be built without promotion of reals to doubles
-$(OBJDIR)/diagnostics_create_and_write.o: diagnostics_create_and_write.f90
+$(OBJDIR)/diagnostics_create_and_write.o: diagnostics_create_and_write.f90|$(MODDIR)
 	$(call messageOp,"Compiling","\\t:",$(call processName,$<))
 	$(QUIETSYM)$(FC) $(subst $(DBLEFLAGS),,$(F90FLAGS)) $(MODDIR_FLAG)$(MODDIR) -c $< -o $@
 
