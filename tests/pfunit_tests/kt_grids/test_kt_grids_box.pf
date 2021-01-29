@@ -47,7 +47,7 @@ contains
     class(test_kt_grids_parameter), intent(in) :: this
     character(:), allocatable :: string
     allocate(character(len=800)::string)
-    write(string, '("shat = ", f7.5, ", rtwist = ", f3.0, ", jtwist = ", i0, ", x0 = ", f4.0, ", dkx = ", f8.5, ", dky = ", f3.1)') &
+    write(string, '("shat=", f7.5, ", rtwist=", f3.0, ", jtwist=", i0, ", x0=", f4.0, ", dkx=", f8.5, ", dky=", f3.1)') &
          this%shat, this%rtwist, this%jtwist, this%x0, this%dkx, this%dky
     string = trim(string)
   end function toString
