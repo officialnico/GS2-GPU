@@ -102,19 +102,10 @@ module gs2_save
 
 contains
 
-  !> FIXME : Add documentation  
+  !> Create and fill the restart files
   subroutine gs2_save_for_restart &
        (g, t0, delt0, vnm, istatus, fphi, fapar, fbpar, exit_in, distfn, fileopt, &
         save_glo_info_and_grids, save_velocities)
-!<DD 18-10-2010> Added flag distfn to gs2_save_for_restart
-!If present then will save to "rootname.nc.dfn.proc" and will
-!include extra information including velocity and energy grids
-!</DD>
-!CMR, 5/4/2011: Add optional parameter fileopt to add to output filename
-! MRH 15/08/2018: added options to save g lo info and velocities for 
-! diagnostics for either restart .nc or save_dfn .nc.dfn files
-! These options change save_dfn =.true. default behaviour
-!MR, 2007: save kx_shift array in restart file if allocated    
 # ifdef NETCDF
     use fields_arrays, only: phinew, aparnew, bparnew
     use dist_fn_arrays, only: kx_shift  !MR
@@ -126,37 +117,47 @@ contains
 # endif    
     use mp, only: iproc, barrier, proc0
     use theta_grid, only: ntgrid, theta
-! Must include g_layout_type here to avoid obscure bomb while compiling
-! gs2_diagnostics.f90 (which uses this module) with the Compaq F90 compiler:
-! TT>
-!    use gs2_layouts, only: g_lo, g_layout_type
     use gs2_layouts, only: g_lo, layout
     use gs2_layouts, only: proc_id,ik_idx,it_idx,is_idx,ie_idx,il_idx ! MRH layout information for plotting
 # ifdef NETCDF_PARALLEL
     use gs2_layouts, only: layout
 # endif
     use layouts_type, only: g_layout_type
-! <TT
     use file_utils, only: error_unit
-    !<DD> Added for saving distribution function
     use le_grids, only: energy, al, negrid, nlambda
     use species, only: nspec
     use dist_fn_arrays, only: vpa, vperp2
-    !</DD> Added for saving distribution function
     use parameter_scan_arrays, only: current_scan_parameter_value
     use unit_tests, only: debug_message
     use gs2_time, only: code_dt, code_dt_prev1, code_dt_prev2
     implicit none
+    !> The distribution function \(g\)
     complex, dimension (-ntgrid:,:,g_lo%llim_proc:), intent (in) :: g
-    real, intent (in) :: t0, delt0
+    !> FIXME: Current simulation time?
+    real, intent (in) :: t0
+    !> FIXME: Current timestep size?
+    real, intent (in) :: delt0
+    !> FIXME: Collisionality multiplier?
     real, dimension (2), intent (in) :: vnm
-    real, intent (in) :: fphi, fapar, fbpar
+    !> Electrostatic potential, \(\phi\)
+    real, intent (in) :: fphi
+    !> Vector potential, \(A_\parallel\)
+    real, intent (in) :: fapar
+    !> Parallel magnetic field, \(B_\parallel\)
+    real, intent (in) :: fbpar
+    !> Last netCDF status: zero on success, non-zero on failure
     integer, intent (out) :: istatus
+    !> FIXME: unused
     logical, intent (in), optional :: exit_in
-    LOGICAL, INTENT (in), optional :: distfn !<DD> Added for saving distribution function
-    character (20), INTENT (in), optional :: fileopt
-    logical, intent (in), optional :: save_glo_info_and_grids ! MRH added to control if layout and diagnostic information is saved
-    logical, intent (in), optional :: save_velocities ! MRH added to control if vpa, vperp information is saved
+    !> If present then will save to "rootname.nc.dfn.proc" and will
+    !> include extra information including velocity and energy grids
+    logical, intent (in), optional :: distfn
+    !> Optional extra filename infix
+    character (20), intent (in), optional :: fileopt
+    !> Control if layout and diagnostic information is saved
+    logical, intent (in), optional :: save_glo_info_and_grids
+    !> Control if \(v_\parallel, v_\perp\) information is saved
+    logical, intent (in), optional :: save_velocities
 # ifdef NETCDF
     character (run_name_size) :: file_proc
     character (10) :: suffix
@@ -167,8 +168,8 @@ contains
     integer, parameter :: tmpunit = 348
 # endif
     logical :: exit
-    logical :: local_init !<DD> Added for saving distribution function
-    logical :: save_glo_info_and_grids_local, save_velocities_info  ! MRH added to control if layout and diagnostic information is saved
+    logical :: local_init
+    logical :: save_glo_info_and_grids_local, save_velocities_info
     integer, parameter :: verb = 3
     integer :: iglo
 
@@ -198,21 +199,19 @@ contains
     
     call debug_message(verb, 'gs2_save::gs2_save_for_restart checking init')
 
-    !<DD> Added for saving distribution function
     IF (PRESENT(distfn)) THEN
        local_init=initialized_dfn
     ELSE
        local_init=initialized
     END IF
-    !</DD> Added for saving distribution function
     
-     if(present(save_glo_info_and_grids)) then ! MRH 
+    if (present(save_glo_info_and_grids)) then
         save_glo_info_and_grids_local = save_glo_info_and_grids
     else
         save_glo_info_and_grids_local = .false.
     endif 
     
-    if(present(save_velocities)) then ! MRH 
+    if (present(save_velocities)) then
         save_velocities_info = save_velocities
     else
         save_velocities_info = .false.
@@ -220,26 +219,21 @@ contains
     
     if (.not.local_init) then
 
-       !<DD> Added for saving distribution function
        IF (PRESENT(distfn)) THEN
           initialized_dfn=.true.
        ELSE
           initialized = .true.
        END IF
-       !</DD> Added for saving distribution function
        
        file_proc = trim(restart_file)
        
-!CMR, 5/4/2011: Add optional piece of filename
        IF (PRESENT(fileopt)) THEN
           file_proc=trim(file_proc)//trim(fileopt)
        END IF
-!CMRend 
 
-!</HL>  The NETCDF_PARALLEL directives include code for parallel 
-!       netcdf using HDF5 to write the output to a single restart file
-!       The read_many flag allows the old style multiple file output
-       !<DD> Added for saving distribution function
+! The NETCDF_PARALLEL directives include code for parallel
+! netcdf using HDF5 to write the output to a single restart file
+! The read_many flag allows the old style multiple file output
        IF (PRESENT(distfn)) THEN
 # ifdef NETCDF_PARALLEL
           if(save_many) then
@@ -250,7 +244,6 @@ contains
              WRITE (suffix,'(a4)') '.dfn'
           endif
 # endif
-       !</DD> Added for saving distribution function
        ELSE
 # ifdef NETCDF_PARALLEL
           if(save_many) then

@@ -561,13 +561,12 @@ contains
 
   end subroutine init_integrations
 
-  !> Calculates energy grid and pitch angle weights for integrals
-  !> which drop a point from the energy/lambda dimensions. These are
-  !> only used for estimating the velocity space error in
-  !> [[dist_fn::get_verr]] as a part of the adaptive collisionality
-  !> algorithm.
+  !> Calculates energy grid and (untrapped) pitch angle weights for
+  !> integrals which drop a point from the energy/lambda
+  !> dimensions. These are only used for estimating the velocity space
+  !> error in [[dist_fn::get_verr]] as a part of the adaptive
+  !> collisionality algorithm.
   subroutine init_weights
-
     use file_utils, only: open_output_file, close_output_file
     use egrid, only: zeroes
     use constants, only: pi => dpi
@@ -4129,7 +4128,7 @@ contains
     call le_grids_config%reset()
   end subroutine finish_le_grids
 
-  !> FIXME : Add documentation  
+  !> Deallocate the weights used to provide error estimates
   subroutine finish_weights
     if (allocated(werr)) deallocate (werr)
     if (allocated(wlerr)) deallocate (wlerr)
