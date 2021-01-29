@@ -91,6 +91,7 @@
 !==============================
 &fields_knobs
  field_option = "implicit" ! Controls which time-advance algorithm is used for the linear terms.
+ force_maxwell_reinit = .false. !If true then recalculate the fields from the distribution function using get_init_field when restarting a simulation rather than using the values in the restart file. Set false for this test to ensure exact reproducibility.
 /
 
 !==============================
@@ -214,6 +215,7 @@
  write_line = .false. ! If (write_ascii = T) write estimated frequencies and growth rates to the output file
   ! write_gyx not specified --- Write dist fn at a given physical spacial point to a file
  write_hrate = .true. ! Write heating rate, collisonal entropy generation etc to '.heat'
+ write_heating = .true. !This is the equivalent to write_hrate for new diagnostics, which ignores write_hrate 
   ! write_final_epar not specified --- If (write_ascii = T) E_parallel(theta) written to runname.eigenfunc
  write_avg_moments = .true. ! Write flux surface averaged low-order moments of g to runname.out.nc and runname.moments (if write_ascii = T)
   ! write_lorentzian not specified --- Frequency Sweep Data

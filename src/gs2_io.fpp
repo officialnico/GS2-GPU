@@ -13,9 +13,7 @@ module gs2_io
   public :: init_gs2_io, nc_eigenfunc, nc_final_fields, nc_final_epar
   public :: nc_final_moments, nc_final_an, nc_finish
   public :: nc_qflux, nc_vflux, nc_pflux, nc_pflux_tormom, nc_loop, nc_loop_moments
-!  public :: nc_loop_vres
   public :: nc_loop_movie, nc_write_moments, nc_exchange
-!<DD>  public :: nc_write_fields
   public :: nc_loop_fullmom, nc_loop_dist, nc_loop_sym, nc_loop_corr, nc_loop_corr_extend
   public :: nc_loop_partsym_tormom, nc_sync
 
@@ -114,7 +112,10 @@ module gs2_io
   
 contains
   
-  !> FIXME : Add documentation
+  !> Create and initialise the output netCDF files
+  !>
+  !> Create the main and movie (real-space fields) netCDF files,
+  !> creating the dimensions and main variables
   subroutine init_gs2_io (write_nl_flux, write_omega, &
       write_hrate, write_final_antot, write_eigenfunc, &
       make_movie, nmovie_tot, write_verr, &
@@ -124,9 +125,6 @@ contains
       write_phi_over_time, write_apar_over_time, write_bpar_over_time, &
       write_avg_moments, write_final_moments, write_final_epar, &
       ob_midplane) 
-    !write_fields_over_time added by EGH 08/2009
-!David has made some changes to this subroutine (may 2005) now should 
-!be able to do movies for linear box runs as well as nonlinear box runs.
     use mp, only: proc0
 # ifdef NETCDF
     use mp, only: barrier
@@ -141,6 +139,7 @@ contains
     use constants, only: run_name_size
 # endif
     implicit none
+    !> See [[gs2_diagnostics_knobs]] for details of these inputs
     logical, intent(in) :: write_nl_flux, write_nl_flux_dist, write_omega
     logical, intent(in) :: write_hrate, make_movie, write_moments
     logical, intent(in) :: write_final_antot, write_eigenfunc, write_verr
@@ -151,6 +150,8 @@ contains
     logical, intent(in) :: write_phi_over_time
     logical, intent(in) :: write_apar_over_time,  write_bpar_over_time
     logical, intent(in) :: write_avg_moments, write_final_moments, write_final_epar
+    !> If true, write out moments at the outboard midplane only,
+    !> otherwise write them out along the entire flux surface
     logical, intent(in), optional :: ob_midplane
 # ifdef NETCDF
     logical :: accelerated
@@ -160,12 +161,10 @@ contains
     !################
     !# Update internal flags
 
-    !EGH
     write_phi_t = write_phi_over_time
     write_apar_t = write_apar_over_time
     write_bpar_t = write_bpar_over_time
 
-    ! added by EAB 03/2004 for making movie netcdf files
     my_make_movie = make_movie
     io_write_corr_extend = write_correlation_extend
 
@@ -227,7 +226,9 @@ contains
 
   end subroutine init_gs2_io
 
-  !> FIXME : Add documentation  
+  !> Create (but don't fill) the dimension variables in the netCDF file
+  !>
+  !> Dimension variable IDs are module level variables
   subroutine define_dims (nwrite_big_tot)
 # ifdef NETCDF
     use file_utils, only: num_input_lines
@@ -239,11 +240,11 @@ contains
     use netcdf, only: nf90_def_dim
 # endif
     implicit none
+    !> Total number of output timesteps for "large" diagnostics
     integer, intent (in) :: nwrite_big_tot
 # ifdef NETCDF
     integer :: status
 
-    !<doc> Associate the grid variables, e.g. ky, kx, with their size, e.g. naky, ntheta0 (= nakx) , and a variable which is later used to store these sizes in the NetCDF file, e.g. naky_dim, nakx_dim </doc>
     status = nf90_def_dim (ncid, 'ky', naky, naky_dim)
     if (status /= NF90_NOERR) call netcdf_error (status, dim='ky')
     status = nf90_def_dim (ncid, 'kx', ntheta0, nakx_dim)
@@ -318,7 +319,9 @@ contains
 # endif
   end subroutine define_dims_mymovie
 
-  !> FIXME : Add documentation
+  !> Write grid dimensions to the output netCDF file
+  !>
+  !> This must be called after [[define_dims]]
   subroutine nc_grids
 # ifdef NETCDF
     use theta_grid, only: ntgrid, theta
@@ -337,7 +340,6 @@ contains
     status = nf90_put_var (ncid, layout_id, layout)
     if (status /= NF90_NOERR) call netcdf_error (status, ncid, layout_id)
 
-    !<doc> Store the size of the grid dimensions (as defined in def_dims), in the NetCDF file </doc>
     status = nf90_put_var (ncid, nttot_id, 2*ntgrid+1)
     if (status /= NF90_NOERR) call netcdf_error (status, ncid, nttot_id)
     status = nf90_put_var (ncid, naky_id, naky)
@@ -375,7 +377,7 @@ contains
 # endif
   end subroutine nc_grids
 
-  !> FIXME : Add documentation
+  !> Write the physical normalisations to the output netCDF file
   subroutine nc_norms
 # ifdef NETCDF
     use netcdf, only: nf90_put_var
@@ -385,7 +387,6 @@ contains
 # ifdef NETCDF
     integer :: status
 
-    !>Store the normalisations
     status = nf90_put_var (ncid, aref_id, norms%get_value("aref"))
     if (status /= NF90_NOERR) call netcdf_error (status, ncid, aref_id)
     status = nf90_put_var (ncid, zref_id, norms%get_value("zref"))
@@ -449,7 +450,7 @@ contains
 # endif
   end subroutine nc_grids_mymovie
 
-  !> FIXME : Add documentation  
+  !> Close the output netCDF files
   subroutine nc_finish
 # ifdef NETCDF
     use mp, only: proc0
@@ -497,7 +498,11 @@ contains
 # endif
   end subroutine save_input
 
-  !> FIXME : Add documentation
+  !> Create (but don't fill) the various diagnostics variables in the
+  !> output netCDF file
+  !>
+  !> This also calls `nf90_enddef` which leaves "define" mode, so no
+  !> more variables can be added to the file after this call
   subroutine define_vars (write_nl_flux, write_omega, &
        write_hrate, write_final_antot, write_eigenfunc, write_verr, &
        write_moments, write_full_moments_notgc, write_sym, write_pflux_sym, &
@@ -1696,7 +1701,7 @@ contains
 #endif
   end subroutine define_vars_mymovie
 
-  !> FIXME : Add documentation
+  !> Write the normalised fields to netCDF
   subroutine nc_eigenfunc (phase)
 # ifdef NETCDF
     use convert, only: c2r
@@ -1707,6 +1712,7 @@ contains
     use netcdf, only: nf90_put_var
 # endif
     implicit none
+    !> Normalising phase factor (nominally \(\phi\) at the outboard midplane)
     complex, dimension(:,:), intent (in) :: phase
 # ifdef NETCDF
     complex, dimension(-ntgrid:ntgrid, ntheta0, naky) :: tmp
@@ -1747,59 +1753,7 @@ contains
 # endif
   end subroutine nc_eigenfunc
 
-!<DD> Commenting out the following routine as should use
-!     write_phi_over_time, write_apar_over_time etc. to
-!     indicate that we want to write various fields vs time.
-! !MR begin
-!   subroutine nc_write_fields (nout, phinew, aparnew, bparnew)
-!     use convert, only: c2r
-!     use run_parameters, only: fphi, fapar, fbpar
-!     use theta_grid, only: ntgrid
-!     use kt_grids, only: naky, ntheta0
-! # ifdef NETCDF
-!     use netcdf, only: nf90_put_var
-! # endif
-!     complex, dimension (:,:,:), intent (in) :: phinew, aparnew, bparnew
-!     integer, intent (in) :: nout
-! !    real, dimension (2, 2*ntgrid+1, ntheta0, naky, 1) :: ri4
-!     real, dimension (2, 2*ntgrid+1, ntheta0, naky) :: ri3
-!     integer, dimension (5) :: start5, count5
-!     integer :: status
-! # ifdef NETCDF
-!     start5(1) = 1
-!     start5(2) = 1
-!     start5(3) = 1
-!     start5(4) = 1
-!     start5(5) = nout
-    
-!     count5(1) = 2
-!     count5(2) = 2*ntgrid+1
-!     count5(3) = ntheta0
-!     count5(4) = naky
-!     count5(5) = 1
-
-!     if (fphi > zero) then
-!        call c2r (phinew, ri3)
-!        status = nf90_put_var(ncid, phi_t_id, ri3, start=start5, count=count5)
-!        if (status /= NF90_NOERR) call netcdf_error (status, ncid, phi_t_id)
-!     end if
-
-!     if (fapar > zero) then
-!        call c2r (aparnew, ri3)
-!        status = nf90_put_var(ncid, apar_t_id, ri3, start=start5, count=count5)
-!        if (status /= NF90_NOERR) call netcdf_error (status, ncid, apar_t_id)
-!     end if
-
-!     if (fbpar > zero) then
-!        call c2r (bparnew, ri3)
-!        status = nf90_put_var(ncid, bpar_t_id, ri3, start=start5, count=count5)
-!        if (status /= NF90_NOERR) call netcdf_error (status, ncid, bpar_t_id)
-!     end if
-! # endif
-!   end subroutine nc_write_fields
-! !MR end
-
-  !> FIXME : Add documentation
+  !> Write various moments to netcdf
   subroutine nc_write_moments (nout, ntot, density, upar, tpar, tperp, qparflux, pperpj1, qpperpj1, ob_midplane) 
     use theta_grid, only: ntgrid
 # ifdef NETCDF
@@ -1809,9 +1763,26 @@ contains
     use netcdf, only: nf90_put_var
 # endif
     implicit none
-    complex, dimension (-ntgrid:,:,:,:), intent (in) :: ntot, density, upar, tpar, tperp
-    complex, dimension (-ntgrid:,:,:,:), intent (in) :: qparflux, pperpj1, qpperpj1
+    !> Total perturbed density
+    complex, dimension (-ntgrid:,:,:,:), intent (in) :: ntot
+    !> Non-adiabatic part of the perturbed density
+    complex, dimension (-ntgrid:,:,:,:), intent (in) :: density
+    !> Parallel velocity
+    complex, dimension (-ntgrid:,:,:,:), intent (in) :: upar
+    !> Parallel temperature
+    complex, dimension (-ntgrid:,:,:,:), intent (in) :: tpar
+    !> Perpendicular temperature
+    complex, dimension (-ntgrid:,:,:,:), intent (in) :: tperp
+    !> Parallel heat flux
+    complex, dimension (-ntgrid:,:,:,:), intent (in) :: qparflux
+    !> Pressure part of the particle flux
+    complex, dimension (-ntgrid:,:,:,:), intent (in) :: pperpj1
+    !> Pressure part of the heat flux
+    complex, dimension (-ntgrid:,:,:,:), intent (in) :: qpperpj1
+    !> Current output timestep
     integer, intent (in) :: nout
+    !> If true, write out moments at the outboard midplane only,
+    !> otherwise write them out along the entire flux surface
     logical, optional, intent(in) :: ob_midplane
 # ifdef NETCDF
     real, dimension (2, 2*ntgrid+1, ntheta0, naky, nspec) :: ri4
@@ -1920,11 +1891,10 @@ contains
 # endif
   end subroutine nc_write_moments
 
-  !> FIXME : Add documentation
+  !> Write the fields to netCDF, overwriting existing values
   subroutine nc_final_fields
 # ifdef NETCDF
     use convert, only: c2r
-    !use fields_arrays, only: phi, apar, bpar ! EGH changed Jan 14
     use fields_arrays, only: phinew, aparnew, bparnew
     use theta_grid, only: ntgrid
     use kt_grids, only: naky, ntheta0
@@ -1954,7 +1924,7 @@ contains
 # endif
   end subroutine nc_final_fields
 
-  !> FIXME : Add documentation  
+  !> Write \(E_\parallel\) to netCDF, overwriting existing values
   subroutine nc_final_epar (epar)
 # ifdef NETCDF
     use convert, only: c2r
@@ -1974,7 +1944,8 @@ contains
 # endif
   end subroutine nc_final_epar
 
-  !> FIXME : Add documentation  
+  !> Write the various low-order moments to the output netCDF file,
+  !> overwriting existing values
   subroutine nc_final_moments (ntot, density, upar, tpar, tperp, qparflux, pperpj1, qpperpj1)
 # ifdef NETCDF
     use convert, only: c2r
@@ -2123,7 +2094,8 @@ contains
 # endif
   end subroutine nc_loop_moments
 
-  !> FIXME : Add documentation  
+  !> Write the right-hand sides of the field equations to netCDF,
+  !> overwriting existing values
   subroutine nc_final_an (antot, antota, antotp)
 # ifdef NETCDF
     use convert, only: c2r
@@ -2158,7 +2130,7 @@ contains
 # endif
   end subroutine nc_final_an
 
-  !> FIXME : Add documentation  
+  !> Write the energy exchange to netCDF
   subroutine nc_exchange (nout, exchange, exchange_avg)
 # ifdef NETCDF
     use species, only: nspec
@@ -2167,8 +2139,11 @@ contains
     use netcdf, only: nf90_put_var
 # endif
     implicit none
+    !> Current output timestep
     integer, intent (in) :: nout
+    !> Energy exchange
     real, dimension (:,:,:), intent (in) :: exchange
+    !> Volume-averaged energy exchange
     real, dimension (:), intent (in) :: exchange_avg
 # ifdef NETCDF
     integer, dimension (2) :: start, count
@@ -2200,7 +2175,7 @@ contains
 # endif
   end subroutine nc_exchange
 
-  !> FIXME : Add documentation  
+  !> Write various heat fluxes to netCDF
   subroutine nc_qflux (nout, qheat, qmheat, qbheat, &
        heat_par,  mheat_par,  bheat_par, &
        heat_perp, mheat_perp, bheat_perp, &
@@ -2212,6 +2187,7 @@ contains
     use netcdf, only: nf90_put_var
 # endif
     implicit none
+    !> Current output timestep
     integer, intent (in) :: nout
     real, dimension (:,:,:), intent (in) :: qheat, qmheat, qbheat
     real, dimension (:), intent (in) :: heat_par, mheat_par, bheat_par
@@ -2350,7 +2326,7 @@ contains
 # endif
   end subroutine nc_pflux
 
-  !> FIXME : Add documentation  
+  !> Write toroidal angular momentum flux to netCDF
   subroutine nc_pflux_tormom (nout, pflux_tormom, part_tormom_fluxes)
 # ifdef NETCDF
     use species, only: nspec
@@ -2359,6 +2335,7 @@ contains
     use netcdf, only: nf90_put_var
 # endif
     implicit none
+    !> Current output timestep
     integer, intent (in) :: nout
     real, dimension (:,:,:), intent (in) :: pflux_tormom
     real, dimension(:), intent (in) :: part_tormom_fluxes
@@ -2515,7 +2492,7 @@ contains
 # endif
   end subroutine nc_loop_dist
   
-  !> FIXME : Add documentation
+  !> Write the momentum flux as a function of \((v_\parallel, \theta, t)\) to netCDF
   subroutine nc_loop_sym (nout, vflx_sym)
     use theta_grid, only: ntgrid
 # ifdef NETCDF
@@ -2549,7 +2526,7 @@ contains
 # endif
   end subroutine nc_loop_sym
   
-  !> FIXME : Add documentation
+  !> Write the particle flux contribution to toroidal momentum flux to netCDF
   subroutine nc_loop_partsym_tormom (nout, partflx_sym) 
     use theta_grid, only: ntgrid
 # ifdef NETCDF
@@ -2583,7 +2560,7 @@ contains
 # endif
   end subroutine nc_loop_partsym_tormom
 
-  !> FIXME : Add documentation  
+  !> Write the correlation function over the physical domain to netCDF
   subroutine nc_loop_corr (nout,phi_2pi_corr)
     use theta_grid, only: ntgrid
 # ifdef NETCDF
@@ -2593,7 +2570,9 @@ contains
     use netcdf, only: nf90_put_var
 # endif
     implicit none
+    !> Current output timestep
     integer, intent (in) :: nout
+    !> The correlation function over the physical domain
     complex, dimension (-ntgrid:,:), intent (in) :: phi_2pi_corr
 # ifdef NETCDF
     integer, dimension (4) :: start4, count4
@@ -2620,7 +2599,7 @@ contains
 # endif
   end subroutine nc_loop_corr
 
-  !> FIXME : Add documentation  
+  !> Write the correlation function over the extended domain to netCDF
   subroutine nc_loop_corr_extend (nout_big,phi_corr,phi2_extend)
 # ifdef NETCDF
     use file_utils, only: error_unit
@@ -2631,6 +2610,7 @@ contains
     use netcdf, only: nf90_put_var
 # endif
     implicit none
+    !> The current output timestep for "large" diagnostics
     integer, intent (in) :: nout_big
     real, dimension (:,:,:), intent (in) :: phi2_extend
     complex, dimension (:,:,:), intent (in) :: phi_corr
@@ -2675,7 +2655,7 @@ contains
 # endif
   end subroutine nc_loop_corr_extend
 
-  !> FIXME : Add documentation  
+  !> Write various fields, heating, and frequency diagnostics to netCDF
   subroutine nc_loop (nout, time, fluxfac, &
        phi0,   phi2,   phi2_by_mode, &
        apar0,  apar2,  apar2_by_mode, &
@@ -2694,12 +2674,19 @@ contains
     use netcdf, only: nf90_put_var
 # endif
     implicit none
+    !> Current output timestep
     integer, intent (in) :: nout
+    !> Current simulation time, fields squared
     real, intent (in) :: time, phi2, apar2, bpar2
+    !> Scaling factor for modes (FIXME?), normalisation factor for frequency
     real, dimension (:), intent (in) :: fluxfac, woutunits
+    !> Fields, frequency and time-averaged frequency
     complex, dimension(:,:), intent (in) :: phi0, apar0, bpar0, omega, omegaavg
+    !> FIXME: add documentation
     real, dimension(:,:), intent (in) :: phi2_by_mode, apar2_by_mode, bpar2_by_mode, phitot
+    !> Heating diagnostics
     type(heating_diagnostics), intent (in) :: h
+    !> Heating per-mode
     type(heating_diagnostics), dimension(:,:), intent (in) :: hk
     logical, intent(in) :: write_omega, write_hrate
 # ifdef NETCDF
@@ -2712,7 +2699,6 @@ contains
     integer, dimension (3) :: start, count, starth, counth
     integer, dimension (2) :: startx, countx, starty, county, starts, counts
     integer :: status, it, ik
-    !Added by EGH ; for writing phi_t, the whole potential vs time
     real, dimension (2, 2*ntgrid+1, ntheta0, naky) :: ri3
     integer, dimension (5) :: start5, count5
 
@@ -2727,8 +2713,6 @@ contains
     count5(3) = ntheta0
     count5(4) = naky
     count5(5) = 1
-  
-    !End EGH
 
     status = nf90_put_var (ncid, time_id, time, start=(/ nout /))
 
@@ -2788,8 +2772,6 @@ contains
 
     if (fphi > zero) then
 
-
-       !<wkdoc> Write fields at the current timestep, if [[write_phi_over_time]], [[write_apar_over_time]], [[write_bpar_over_time]] are set in the input file</wkdoc>
        if(write_phi_t) then
           call c2r (phinew, ri3)
           !ri_phi_t(:,:,:,:,1) = ri3(:,:,:,:)
@@ -3052,9 +3034,7 @@ contains
 # endif
   end subroutine nc_loop_fullmom
 
-  !> FIXME : Add documentation
-  !!
-  !! @note added by EAB on 03/05/04
+  !> Write \(\phi, A_\parallel, B_\parallel\) as functions of real space
   subroutine nc_loop_movie (nout_movie, time, yxphi, yxapar, yxbpar)
 # ifdef NETCDF
     use gs2_layouts, only: yxf_lo
@@ -3063,8 +3043,11 @@ contains
     use netcdf, only: nf90_put_var
 # endif
     implicit none
+    !> Current movie timestep
     integer, intent (in) :: nout_movie
+    !> Current simulation time
     real, intent (in) :: time
+    !> \(\phi, A_\parallel, B_\parallel\) as functions of real space
     real, dimension (:,:,:), intent (in):: yxphi, yxapar, yxbpar 
 # ifdef NETCDF
     integer :: status
@@ -3104,7 +3087,11 @@ contains
     use netcdf, only: nf90_sync
 # endif
     implicit none
-    integer, intent(in) :: nout, nout_movie
+    !> Current output timestep
+    integer, intent(in) :: nout
+    !> Current output timestep for real-space fields
+    integer, intent(in) :: nout_movie
+    !> Timestep period at which to actually flush files
     integer, intent(in), optional :: nsync_freq
 # ifdef NETCDF
     integer, parameter :: nsync_default = 10
@@ -3129,13 +3116,12 @@ contains
 # endif
   end subroutine nc_sync
 
-  !> FIXME : Add documentation
+  !> Write [[species:spec]] to output netCDF file
   subroutine nc_species
 # ifdef NETCDF
     use species, only: spec
     use netcdf, only: nf90_put_var
     implicit none
-!    real :: betatot
     integer :: status
 
     status = nf90_put_var (ncid, charge_id, spec%z)
@@ -3159,13 +3145,10 @@ contains
     status = nf90_put_var (ncid, spec_type_id, spec%type)
     if (status /= NF90_NOERR) call netcdf_error (status, ncid, spec_type_id)
 
-!    betatot = beta * ...
-!    status = nf90_put_var (ncid, betatot_id, betatot)
-!    if (status /= NF90_NOERR) call netcdf_error (status, ncid_movie, betatot_id)
 # endif
   end subroutine nc_species
   
-  !> FIXME : Add documentation
+  !> Write various geometric quantities to output netCDF file
   subroutine nc_geo
 # ifdef NETCDF
     use theta_grid, only: bmag, gradpar, gbdrift, gbdrift0, &

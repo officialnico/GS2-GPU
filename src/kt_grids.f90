@@ -1341,8 +1341,13 @@ module kt_grids_box
      !> during geometry setup.
      integer :: n0 = 0
      !> The actual number of ky modes. For nonlinear runs it is
-     !> recommended to use `ny` instead. If set to 0 (the default)
-     !> this will be automatically set to `1 + (ny-1)/3`.
+     !> generally recommended to use `ny` instead. If set to 0 (the
+     !> default) this will be automatically set to `1 + (ny-1)/3`.  If
+     !> both `ny` and `naky` are set then GS2 will check that `ny`
+     !> is sufficiently high to ensure de-aliasing. It can be larger
+     !> than this minimum value. Setting both values can be useful to
+     !> allow values to be selected which are performant for the FFTs
+     !> and provide a good range of sweetspots.
      integer :: naky = 0
      !> FIXME: Add documentation
      !>
@@ -1352,8 +1357,13 @@ module kt_grids_box
      !> @todo Consider for removal.
      integer :: nkpolar = 0
      !> The actual number of theta0 modes. For nonlinear runs it is
-     !> recommended to use `nx` instead. If set to 0 (the default)
-     !> this will be automatically set to `1 + 2*(nx-1)/3`.
+     !> generally recommended to use `nx` instead. If set to 0 (the
+     !> default) this will be automatically set to `1 + 2*(nx-1)/3`.
+     !> If both `nx` and `ntheta0` are set then GS2 will check that
+     !> `nx` is sufficiently high to ensure de-aliasing. It can be
+     !> larger than this minimum value. Setting both values can be
+     !> useful to allow values to be selected which are performant for
+     !> the FFTs and provide a good range of sweetspots.
      integer :: ntheta0 = 0
      !> The number of kx points in inputs to the fft routines, and
      !> hence the number of radial points used in real space
@@ -1513,30 +1523,73 @@ contains
     if (rtwist == 0.) rtwist = real(jtwist)
     if (nkpolar == 0) nkpolar = int(real(naky-1.)*sqrt(2.))
 
+    if (mod(ntheta0, 2) /= 1) then
+       call mp_abort("ERROR: ntheta0 must be an odd number in box mode", .true.)
+    end if
+
     ! Now we make sure that we set ny and nx for given 
     ! choices of naky and ntheta0. If e.g. both ny and naky
     ! are set and they are not consistent with each other
     ! raise an error.
 
-    if (ny == 0) then 
-      if (proc0) write (error_unit(), *) "INFO: ny set from naky"
-      ny = (naky - 1)*  3 + 1
-    else if (naky /= (ny-1)/3 + 1) then
-      if (proc0) write (error_unit(), *) "ERROR: naky and ny both set and inconsistent... set one or the other"
-      call mp_abort("ERROR: naky and ny both set and inconsistent... set one or the other")
-    end if
-    if (nx == 0) then 
-      if (proc0) write (error_unit(), *) "INFO: nx set from ntheta0"
-      if (mod(ntheta0, 2) /= 1) then
-        call mp_abort("ERROR: ntheta0 must be an odd number in box mode", .true.)
-      end if
-      nx = ((ntheta0 - 1) /  2) * 3 + 1
-    else if (ntheta0 /= 2*((nx-1)/3) + 1) then
-      if (proc0) write (error_unit(), *) "ERROR: ntheta0 and nx both set and inconsistent... set one or the other"
-      call mp_abort("")
+    if (ny == 0) then
+       ! If ny hasn't been set the determine it from naky
+       ny = (naky - 1)*  3 + 1
+       if (proc0) write (error_unit(), '("INFO: ny (",I0,") set from naky (",I0,").")') ny, naky
+    else
+       ! If both naky and ny are set then check that the resulting padding is at least
+       ! as much as required for dealiasing
+       if (naky < (ny-1)/3 + 1) then ! Excess padding
+          if (proc0) then
+             write (error_unit(), '("INFO: Both ny (",I0,") and naky (",I0,") have been set by the user.")') ny, naky
+             write (error_unit(), '("      these values lead to excess padding (",I0,".) for the FFTs.")') ny - ((naky - 1)*  3 + 1)
+             write (error_unit(), '("      This may be desirable if the values chosen increase the number of parallelization sweetspots,")')
+             write (error_unit(), '("      but this also makes the resolution in ny larger than is strictly necessary.")')
+          end if
+
+       else if (naky > (ny-1)/3 + 1) then ! Insufficient padding
+          if (proc0) then
+             write (error_unit(), '("ERROR: ny (",I0,") and naky (",I0,") have been set by the user.")') ny, naky
+             write (error_unit(), '("       but these values lead to insufficient padding (",I0,") for the FFTS.")') ny - ((naky - 1)*  3 + 1)
+             write (error_unit(), '("       The zero-padding must satisfy the one thirds rule to avoid aliasing, which requires naky <= (ny-1)/3 + 1.")')
+             write (error_unit(), '("  Please do one of the following:")')
+             write (error_unit(), '("       1. Increase ny or decrease naky to ensure naky <= (ny-1)/3 + 1")')
+             write (error_unit(), '("       2. Set just one of ny and naky, GS2 will then set the other appropriately.")')
+          end if
+
+          call mp_abort("ERROR: naky and ny both set resulting in insufficient padding. See error file for more details.", .true.)
+       end if
     end if
 
-    
+    if (nx == 0) then
+       ! If nx hasn't been set the determine it from ntheta0
+       nx = ((ntheta0 - 1) /  2) * 3 + 1
+       if (proc0) write (error_unit(), '("INFO: nx (",I0,") set from ntheta0 (",I0,").")') nx, ntheta0
+    else
+       ! If both ntheta0 and nx are set then check that the resulting padding is at least
+       ! as much as required for dealiasing
+       if (ntheta0 < 2*((nx-1)/3) + 1) then ! Excess padding
+          if (proc0) then
+             write (error_unit(), '("INFO: Both nx (",I0,") and ntheta0 (",I0,") have been set by the user.")') nx, ntheta0
+             write (error_unit(), '("      these values lead to excess padding (",I0,".) for the FFTs.")') nx - (((ntheta0 - 1) /  2) * 3 + 1)
+             write (error_unit(), '("      This may be desirable if the values chosen increase the number of parallelization sweetspots,")')
+             write (error_unit(), '("      but this also makes the resolution in ny larger than is strictly necessary.")')
+          end if
+
+       else if (ntheta0 > 2*((nx-1)/3) + 1) then ! Insufficient padding
+          if (proc0) then
+             write (error_unit(), '("ERROR: nx (",I0,") and ntheta0 (",I0,") have been set by the user.")') nx, ntheta0
+             write (error_unit(), '("       but these values lead to insufficient padding (",I0,") for the FFTS.")') nx - (((ntheta0 - 1) /  2) * 3 + 1)
+             write (error_unit(), '("       The zero-padding must satisfy the two thirds rule to avoid aliasing, which requires ntheta0 <= 2*((nx-1)/3)+1.")')
+             write (error_unit(), '("  Please do one of the following:")')
+             write (error_unit(), '("       1. Increase nx or decrease ntheta0 to ensure ntheta0 <= 2*((nx-1)/3)+1")')
+             write (error_unit(), '("       2. Set just one of nx and ntheta0, GS2 will then set the other appropriately.")')
+          end if
+
+          call mp_abort("ERROR: ntheta0 and nx both set resulting in insufficient padding. See error file for more details.", .true.)
+       end if
+    end if
+
     nkpolar_private = nkpolar
     naky_private = naky
     ntheta0_private = ntheta0
@@ -1552,7 +1605,9 @@ contains
     write (unit, *)
     write (unit, fmt="(' &',a)") "kt_grids_box_parameters"
     write (unit, fmt="(' nx = ',i4)") nx_private
+    write (unit, fmt="(' ntheta0 = ',i4)") ntheta0_private
     write (unit, fmt="(' ny = ',i4)") ny_private
+    write (unit, fmt="(' naky = ',i4)") naky_private
     write (unit, fmt="(' Ly = ',e17.10)") ly
     if (rtwist /= 0.) then
        write (unit, fmt="(' rtwist = ',e17.10)") rtwist
@@ -1670,6 +1725,7 @@ contains
     integer, intent(in) :: report_unit
     real :: lx, shat
     integer :: nx, ny, naky, ntheta0
+    integer :: naky_calc, ntheta0_calc
 
     naky=naky_private
     ntheta0=ntheta0_private
@@ -1720,10 +1776,39 @@ contains
     write (report_unit, fmt="('The nonlinear terms will be evaluated on a grid with ',&
          & i4,' points in x and ',i4,' points in y.')") nx, ny
     write (report_unit, *) 
-    naky = (ny-1)/3+1
-    ntheta0 = 2*((nx-1)/3)+1
-    write (report_unit, fmt="('After de-aliasing, there will be ',i4,'  ky >= 0 modes and ',i4,' kx modes.')") naky, ntheta0
+    naky_calc = (ny-1)/3+1
+    ntheta0_calc = 2*((nx-1)/3)+1
+    write (report_unit, fmt="('After de-aliasing, there will be ',i4,'  ky >= 0 modes and ',i4,' kx modes.')") naky_calc, ntheta0_calc
     write (report_unit, fmt="('The modes with ky < 0 are determined by the reality condition.')")
+
+    if ( naky_calc < naky ) then
+       write (report_unit, *)
+       write (report_unit, fmt="('################# WARNING #######################')")
+       write (report_unit, fmt="('ERROR : The requested number of ky >= 0 modes is ',I0,' which exceeds that available after de-aliasing.')") naky
+       write (report_unit, fmt="('THIS IS AN ERROR.')")
+       write (report_unit, fmt="('################# WARNING #######################')")
+       write (report_unit, *)
+    else if ( naky_calc > naky ) then
+       write (report_unit, *)
+       write (report_unit, fmt="('The requested number of ky >= 0 modes is ',I0,' which is less than available after de-aliasing.')") naky
+       write (report_unit, fmt="('This corresponds to extra padding in the y grid of ',I0,' points.')") ny - ((naky - 1)*  3 + 1)
+       write (report_unit, *)
+    end if
+
+    if ( ntheta0_calc < ntheta0 ) then
+       write (report_unit, *)
+       write (report_unit, fmt="('################# WARNING #######################')")
+       write (report_unit, fmt="('ERROR : The requested number of kx modes is ',I0,' which exceeds that available after de-aliasing.')") ntheta0
+       write (report_unit, fmt="('THIS IS AN ERROR.')")
+       write (report_unit, fmt="('################# WARNING #######################')")
+       write (report_unit, *)
+    else if ( ntheta0_calc > ntheta0 ) then
+       write (report_unit, *)
+       write (report_unit, fmt="('The requested number of kx modes is ',I0,' which is less than available after de-aliasing.')") ntheta0
+       write (report_unit, fmt="('This corresponds to extra padding in the x grid of ',I0,' points.')") nx - (((ntheta0 - 1) /  2) * 3 + 1)
+       write (report_unit, *)
+    end if
+
   end subroutine check_kt_grids_box
 
   !> Set the module level config type

@@ -3,6 +3,7 @@
 [![gitlab pipeline status](https://gitlab.com/gyrokinetics/gs2/badges/master/pipeline.svg)](https://gitlab.com/gyrokinetics/gs2/commits/master)
 [![Build Status](https://anvil.softeng-support.ac.uk/jenkins/buildStatus/icon?job=Gyrokinetics%2FMerge%2BBuild%2BTests-gfortran-7.2-coverage)](https://anvil.softeng-support.ac.uk/jenkins/job/Gyrokinetics/job/Merge+Build+Tests-gfortran-7.2-coverage/)
 [![codecov](https://codecov.io/bb/gyrokinetics/gs2/branch/master/graph/badge.svg)](https://codecov.io/bb/gyrokinetics/gs2)
+[![Coverage Status](https://coveralls.io/repos/bitbucket/gyrokinetics/gs2/badge.svg?branch=master)](https://coveralls.io/bitbucket/gyrokinetics/gs2?branch=master)
 
 [TOC]
 
