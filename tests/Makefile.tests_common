@@ -1,5 +1,5 @@
 export
-SHELL = bash
+SHELL := bash
 include $(GK_HEAD_DIR)/Makefile.utils
 
 .SUFFIXES: .fpp .f90 .c .o
