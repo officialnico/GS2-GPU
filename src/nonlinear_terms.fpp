@@ -372,7 +372,7 @@ contains
     use theta_grid, only: ntgrid
     use gs2_layouts, only: g_lo, ik_idx, it_idx, il_idx, is_idx
     use dist_fn_arrays, only: g
-    use gs2_time, only: save_dt_cfl, code_dt
+    use gs2_time, only: save_dt_cfl, code_dt, code_dt_cfl
     use run_parameters, only: reset
     use unit_tests, only: debug_message
     implicit none
@@ -457,9 +457,9 @@ contains
              ! Update the current "CFL" limit -- really this is the largest timestep
              ! we think we can take. If we've reached this part of the code then we
              ! know we're not CFL limited currently. Note, however, the target_dt
-             ! here could exceed our estimate of the cfl limit. We might want to
-             ! consider doing call save_dt_cfl(min(target_dt, code_dt_cfl)).
-             call save_dt_cfl(target_dt)
+             ! here could exceed our estimate of the cfl limit if we're not careful.
+             ! Therefore limit ourselves to the minimum of the two limits.
+             call save_dt_cfl(min(target_dt, code_dt_cfl))
 
              ! If our timestep is bigger than our target then we need to flag that
              ! we want to change the timestep by setting reset.
