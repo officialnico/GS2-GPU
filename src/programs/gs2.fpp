@@ -65,8 +65,13 @@ program gs2
   use gs2_main, only: finalize_gs2
   use exit_codes, only: EXIT_NSTEP, EXIT_NOT_REQUESTED
   use mp, only: proc0
+  use config_collection, only : gs2_config_type
+  use file_utils, only: get_unused_unit, run_name
   implicit none
   type(gs2_program_state_type) :: state
+  type(gs2_config_type) :: input_config
+  integer :: used_inputs_unit
+
   call initialize_gs2_optimisation(state)
   call initialize_wall_clock_timer
 
@@ -77,6 +82,13 @@ program gs2
     call initialize_gs2(state)
     call initialize_equations(state)
     call initialize_diagnostics(state)
+
+    call input_config%get_configs()
+    call get_unused_unit(used_inputs_unit)
+    open(unit=used_inputs_unit, action="write", file=trim(run_name)//".used_inputs.in")
+    call input_config%write_to_unit(used_inputs_unit)
+    close(used_inputs_unit)
+
     state%print_times = .false.
     if (state%do_eigsolve) then 
       call run_eigensolver(state)
