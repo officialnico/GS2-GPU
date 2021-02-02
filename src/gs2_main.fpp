@@ -334,6 +334,7 @@ contains
     use mp, only: use_nproc, included, mp_comm
     use redistribute, only: using_measure_scatter
     use unit_tests, only: debug_message, set_job_id
+    use standard_header_mod, only: standard_header
     implicit none
     type(gs2_program_state_type), intent(inout) :: state
     integer :: oldrank
@@ -377,6 +378,7 @@ contains
       'gs2_main::initialize_gs2 called init_checktime')
   
     if (proc0) then
+       write(*, '(a)') standard_header(comment_character=" ")
        ! Report # of processors being used </doc>
        if (nproc == 1) then
          write(*,*) 'Running on ',nproc,' processor'

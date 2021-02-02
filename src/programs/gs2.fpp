@@ -67,6 +67,7 @@ program gs2
   use mp, only: proc0
   use config_collection, only : gs2_config_type
   use file_utils, only: get_unused_unit, run_name
+  use standard_header_mod, only: standard_header
   implicit none
   type(gs2_program_state_type) :: state
   type(gs2_config_type) :: input_config
@@ -86,6 +87,12 @@ program gs2
     call input_config%get_configs()
     call get_unused_unit(used_inputs_unit)
     open(unit=used_inputs_unit, action="write", file=trim(run_name)//".used_inputs.in")
+    write(unit=used_inputs_unit, fmt='(a)') &
+         standard_header( &
+             comment_character="! ", &
+             file_description="Input parameters as used by " // trim(run_name) &
+         )
+
     call input_config%write_to_unit(used_inputs_unit)
     close(used_inputs_unit)
 

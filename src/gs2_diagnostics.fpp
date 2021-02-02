@@ -1131,6 +1131,7 @@ contains
     use kt_grids, only: naky, ntheta0
     use species, only: nspec
     use mp, only: proc0
+    use standard_header_mod, only: standard_header
     implicit none
     !> If true, this is a "list-mode run" and so turn off
     !> [[gs2_diagnostics_knobs:print_flux_line]] and
@@ -1138,7 +1139,6 @@ contains
     logical, intent (in) :: is_list_run
     !> Input parameters for this module
     type(gs2_diagnostics_config_type), intent(in), optional :: gs2_diagnostics_config_in    
-    character(20) :: datestamp, timestamp, zone
 
     call read_parameters(is_list_run, gs2_diagnostics_config_in)
 
@@ -1186,13 +1186,7 @@ contains
        end if
 
        if (write_ascii) then
-          write (unit=out_unit, fmt="('gs2')")
-          datestamp(:) = ' '
-          timestamp(:) = ' '
-          zone(:) = ' '
-          call date_and_time (datestamp, timestamp, zone)
-          write (unit=out_unit, fmt="('Date: ',a,' Time: ',a,1x,a)") &
-               trim(datestamp), trim(timestamp), trim(zone)
+          write (unit=out_unit, fmt='(a)') standard_header()
        end if
 
        allocate (omegahist(0:navg-1,ntheta0,naky))

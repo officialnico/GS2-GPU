@@ -868,6 +868,7 @@ if (debug) write(6,*) 'get_namelists: returning'
     use species, only: wnml_species, spec, has_electron_species
     use theta_grid, only: wnml_theta_grid
     use theta_grid_params, only: wnml_theta_grid_params
+    use standard_header_mod, only: standard_header
 
     integer, intent (in), optional :: jr
     character (*), intent (in), optional :: tag1, tag2
@@ -875,7 +876,6 @@ if (debug) write(6,*) 'get_namelists: returning'
 
     integer :: h, t, u
     character (4) :: suffix
-    character(20) :: datestamp, timestamp, zone
     
     call get_unused_unit (unit)
 
@@ -892,13 +892,7 @@ if (debug) write(6,*) 'get_namelists: returning'
 
     write (unit, *)
 
-    write (unit, fmt="('gs2')")
-    datestamp(:) = ' '
-    timestamp(:) = ' '
-    zone(:) = ' '
-    call date_and_time (datestamp, timestamp, zone)
-    write (unit=unit, fmt="('Date: ',a,' Time: ',a,1x,a)") &
-         trim(datestamp), trim(timestamp), trim(zone)
+    write (unit=unit, fmt='(a)') standard_header()
 
     if (present(tag1)) then
        write (unit, *) '*****************************************************'
@@ -990,10 +984,10 @@ if (debug) write(6,*) 'get_namelists: returning'
     use collisions, only: collision_model_full, collision_model_ediffuse
     use collisions, only: collision_model_lorentz, collision_model_lorentz_test
     use collisions, only: use_le_layout
+    use standard_header_mod, only: standard_header
 
     implicit none
     real :: alne, dbetadrho_spec
-    character (20) :: datestamp, timestamp, zone
     logical :: le_ok = .true.
     integer :: nmesh
     integer, dimension(4) :: pfacs
@@ -1003,15 +997,7 @@ if (debug) write(6,*) 'get_namelists: returning'
 
     write (report_unit, *) 
 
-    write (report_unit, fmt="('GS2')")
-    datestamp(:) = ' '
-    timestamp(:) = ' '
-    zone(:) = ' '
-    call date_and_time (datestamp, timestamp, zone)
-    write (report_unit, fmt="('Date: ',a,'/',a,'/',a,&
-         &  ' Time: ',a,':',a,1x,a)") datestamp(5:6), &
-         &  datestamp(7:8), datestamp(1:4), timestamp(1:2), timestamp(3:4), trim(zone)
-
+    write (report_unit, fmt='(a)') standard_header()
     write (report_unit, fmt="(/'------------------------------------------------------------'/)")
 
     !     le_ok=leok_le_grids(report_unit)
