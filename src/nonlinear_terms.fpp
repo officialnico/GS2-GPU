@@ -450,9 +450,12 @@ contains
           if (use_order_based_error .and. (.not. reset) .and. (istep > istep_error_start)) then
              ! Get the current order based error estimate
              error = estimate_error(g1, g2, g3)
+
              ! Based on the current error estimate and the expected error scaling
              ! work out what time step we expect to give us the target error.
-             target_dt =code_dt*sqrt(error_target/(error))*cfl
+             ! Note that we don't scale by cfl here as the user has direct control
+             ! over error_target already.
+             target_dt =code_dt*sqrt(error_target/(error))
 
              ! Update the current "CFL" limit -- really this is the largest timestep
              ! we think we can take. If we've reached this part of the code then we
@@ -465,6 +468,7 @@ contains
              ! we want to change the timestep by setting reset.
              reset = code_dt > target_dt
           end if
+
           if(reset) then
              return !Return if resetting
           endif
