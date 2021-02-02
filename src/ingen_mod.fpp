@@ -33,6 +33,7 @@ module ingen_mod
 
   public :: ingen_config_type
   public :: set_ingen_mod_config
+  public :: get_ingen_mod_config
   
   character (100) :: pythonin
   integer :: interactive_record, interactive_input
@@ -2409,7 +2410,13 @@ if (debug) write(6,*) 'get_namelists: returning'
        ingen_config = ingen_config_in
     end if
   end subroutine set_ingen_mod_config
-  
+
+  !> Get the module level config instance
+  function get_ingen_mod_config()
+    type(ingen_config_type) :: get_ingen_mod_config
+    get_ingen_mod_config = ingen_config
+  end function get_ingen_mod_config
+
   !---------------------------------------
   ! Following is for the config_type
   !---------------------------------------

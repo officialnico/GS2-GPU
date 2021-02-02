@@ -14,6 +14,7 @@ module hyper
 
   public :: hyper_config_type
   public :: set_hyper_config
+  public :: get_hyper_config
   
 ! D_v, D_eta are hyper coefficients, normalized correctly 
 ! i.e., either by unity or by 1/k_perp**2*nexp
@@ -806,7 +807,13 @@ contains
        hyper_config = hyper_config_in
     end if
   end subroutine set_hyper_config
-  
+
+    !> Get the module level config instance
+  function get_hyper_config()
+    type(hyper_config_type) :: get_hyper_config
+    get_hyper_config = hyper_config
+  end function get_hyper_config
+
   !---------------------------------------
   ! Following is for the config_type
   !---------------------------------------

@@ -12,6 +12,7 @@ module theta_grid_gridgen
 
   public :: theta_grid_gridgen_config_type
   public :: set_theta_grid_gridgen_config
+  public :: get_theta_grid_gridgen_config
   
   ! knobs
   integer :: npadd
@@ -254,6 +255,12 @@ if (debug) write(6,*) 'gridgen_get_grids: end'
     end if
   end subroutine set_theta_grid_gridgen_config
 
+  !> Get the module level config instance
+  function get_theta_grid_gridgen_config()
+    type(theta_grid_gridgen_config_type) :: get_theta_grid_gridgen_config
+    get_theta_grid_gridgen_config = theta_grid_gridgen_config
+  end function get_theta_grid_gridgen_config
+
   !---------------------------------------
   ! Following is for the config_type
   !---------------------------------------
@@ -390,6 +397,7 @@ module theta_grid_salpha
 
   public :: theta_grid_salpha_config_type
   public :: set_theta_grid_salpha_config
+  public :: get_theta_grid_salpha_config
   
   ! knobs
   real :: alpmhdfac, alpha1
@@ -915,7 +923,13 @@ contains
        theta_grid_salpha_config = theta_grid_salpha_config_in
     end if
   end subroutine set_theta_grid_salpha_config
-  
+
+  !> Get the module level config instance
+  function get_theta_grid_salpha_config()
+    type(theta_grid_salpha_config_type) :: get_theta_grid_salpha_config
+    get_theta_grid_salpha_config = theta_grid_salpha_config
+  end function get_theta_grid_salpha_config
+
   !---------------------------------------
   ! Following is for the config_type
   !--------------------------------------- 
@@ -1035,6 +1049,7 @@ module theta_grid_eik
 
   public :: theta_grid_eik_config_type
   public :: set_theta_grid_eik_config
+  public :: get_theta_grid_eik_config
   
   logical :: exist, initialized = .false.
 
@@ -1893,7 +1908,13 @@ contains
        theta_grid_eik_config = theta_grid_eik_config_in
     end if
   end subroutine set_theta_grid_eik_config
-  
+
+  !> Get the module level config instance
+  function get_theta_grid_eik_config()
+    type(theta_grid_eik_config_type) :: get_theta_grid_eik_config
+    get_theta_grid_eik_config = theta_grid_eik_config
+  end function get_theta_grid_eik_config
+
   !---------------------------------------
   ! Following is for the config_type
   !---------------------------------------
@@ -2106,6 +2127,7 @@ module theta_grid_file
 
   public :: theta_grid_file_config_type
   public :: set_theta_grid_file_config
+  public :: get_theta_grid_file_config
   
   character (2000) :: gridout_file
   real :: shat_input, drhodpsi_input, kxfac_input, qval_input
@@ -2391,7 +2413,13 @@ contains
        theta_grid_file_config = theta_grid_file_config_in
     end if
   end subroutine set_theta_grid_file_config
-  
+
+  !> Get the module level config instance
+  function get_theta_grid_file_config()
+    type(theta_grid_file_config_type) :: get_theta_grid_file_config
+    get_theta_grid_file_config = theta_grid_file_config
+  end function get_theta_grid_file_config
+
   !---------------------------------------
   ! Following is for the config_type
   !---------------------------------------
@@ -2518,6 +2546,7 @@ module theta_grid
 
   public :: theta_grid_config_type
   public :: set_theta_grid_config
+  public :: get_theta_grid_config
   
   real, dimension (:), allocatable :: theta, theta2, delthet, delthet2
   real, dimension (:), allocatable :: bset
@@ -3131,7 +3160,13 @@ if (debug) write(6,*) 'get_grids: call file_get_grids'
        theta_grid_config = theta_grid_config_in
     end if
   end subroutine set_theta_grid_config
-  
+
+  !> Get the module level config instance
+  function get_theta_grid_config()
+    type(theta_grid_config_type) :: get_theta_grid_config
+    get_theta_grid_config = theta_grid_config
+  end function get_theta_grid_config
+
   !---------------------------------------
   ! Following is for the config_type
   !--------------------------------------- 

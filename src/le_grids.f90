@@ -171,6 +171,7 @@ module le_grids
 
   public :: le_grids_config_type
   public :: set_le_grids_config
+  public :: get_le_grids_config
   
   interface integrate_moment
      module procedure integrate_moment_c34
@@ -4148,7 +4149,13 @@ contains
        le_grids_config = le_grids_config_in
     end if
   end subroutine set_le_grids_config
-  
+
+  !> Get the module level config instance
+  function get_le_grids_config()
+    type(le_grids_config_type) :: get_le_grids_config
+    get_le_grids_config = le_grids_config
+  end function get_le_grids_config
+
   !---------------------------------------
   ! Following is for the config_type
   !---------------------------------------

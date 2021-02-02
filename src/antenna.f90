@@ -36,6 +36,8 @@ module antenna
   public :: driver_config_type
   public :: stir_config_type
   public :: set_antenna_config
+  public :: get_antenna_driver_config
+  public :: get_antenna_stir_config
   
   complex :: w_antenna
   complex, dimension(:), allocatable :: w_stir
@@ -568,7 +570,23 @@ contains
     if (present(stir_config_in)) then
        stir_config = stir_config_in
     end if    
-  end subroutine set_antenna_config   
+  end subroutine set_antenna_config
+
+  !> Get the module level driver config
+  function get_antenna_driver_config()
+    type(driver_config_type) :: get_antenna_driver_config
+    get_antenna_driver_config = driver_config
+  end function get_antenna_driver_config
+
+  !> Get the module level stir config
+  function get_antenna_stir_config()
+    type(stir_config_type), allocatable, dimension(:) :: get_antenna_stir_config
+    if (allocated(stir_config)) then
+      get_antenna_stir_config = stir_config
+    else
+      allocate(get_antenna_stir_config(0))
+    end if
+  end function get_antenna_stir_config
   
   !---------------------------------------
   ! Following is for the driver config_type

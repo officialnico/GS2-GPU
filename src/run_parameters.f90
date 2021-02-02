@@ -42,6 +42,8 @@ module run_parameters
   public :: knobs_config_type
   public :: parameters_config_type
   public :: set_run_parameters_config
+  public :: get_knobs_config
+  public :: get_parameters_config
   
   real :: beta, zeff, tite
   real :: fphi, fapar, fbpar, faperp
@@ -639,7 +641,19 @@ contains
        parameters_config = parameters_config_in
     end if
   end subroutine set_run_parameters_config
-  
+
+  !> Get the module level config instance
+  function get_knobs_config()
+    type(knobs_config_type) :: get_knobs_config
+    get_knobs_config = knobs_config
+  end function get_knobs_config
+
+  !> Get the module level config instance
+  function get_parameters_config()
+    type(parameters_config_type) :: get_parameters_config
+    get_parameters_config = parameters_config
+  end function get_parameters_config
+
   !---------------------------------------
   ! Following is for the knobs config_type
   !--------------------------------------- 

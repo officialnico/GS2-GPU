@@ -26,6 +26,7 @@ module gs2_diagnostics
 
   public :: gs2_diagnostics_config_type
   public :: set_gs2_diagnostics_config
+  public :: get_gs2_diagnostics_config
   
   interface get_vol_average
      module procedure get_vol_average_one, get_vol_average_all
@@ -4662,6 +4663,12 @@ contains
        gs2_diagnostics_config = gs2_diagnostics_config_in
     end if
   end subroutine set_gs2_diagnostics_config
+
+  !> Get the module level config instance
+  function get_gs2_diagnostics_config()
+    type(gs2_diagnostics_config_type) :: get_gs2_diagnostics_config
+    get_gs2_diagnostics_config = gs2_diagnostics_config
+  end function get_gs2_diagnostics_config
   
   !---------------------------------------
   ! Following is for the config_type
