@@ -1,6 +1,20 @@
 !> Contains functions for creating a standard header for files and output
 module standard_header_mod
   implicit none
+
+  ! Explicit interfaces for the functions in git_hash.fpp
+  interface
+    function get_git_hash(length_in)
+      integer, optional, intent(in) :: length_in
+      integer :: length
+      character(:), allocatable :: get_git_hash
+    end function get_git_hash
+
+    function get_git_state()
+      character(:), allocatable :: get_git_state
+    end function get_git_state
+  end interface
+
 contains
   !> Return the current date and time in ISO8601 format:
   !>     YYYY-MM-DDThh:mm:ss.ssssZhh:mm
@@ -19,7 +33,8 @@ contains
   !> Return a multiline string with a standard header of the form:
   !>
   !>     Created by GS2 at 2021-02-02T15:01:26.370Z+00:00
-  !>     Build ID: local.gfortran.b3393a8-dirty
+  !>     GK_SYSTEM: local
+  !>     Compiler: gfortran
   !>     <optional file description>
   !>
   !> If \p comment_character is passed, it is prepended to the start
@@ -58,14 +73,10 @@ contains
       description_line = ""
     end if
 
-    if (runtime_info%get_git_modified()) then
-      git_dirty = "-dirty"
-    else
-      git_dirty = ""
-    end if
-
     header = comment_char // "Created by GS2 at " // date_iso8601() // newline &
-         // comment_char // "Build ID: " // trim(runtime_info%build_identifier()) // git_dirty // newline &
+         // comment_char // "GK_SYSTEM: " // trim(runtime_info%get_gk_system()) // newline &
+         // comment_char // "Compiler: " // trim(runtime_info%get_compiler_name()) // newline &
+         // comment_char // "Commit hash: " // get_git_hash() // get_git_state() // newline &
          // description_line
 
   end function standard_header
