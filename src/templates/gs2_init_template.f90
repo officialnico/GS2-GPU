@@ -315,8 +315,8 @@ contains
 
   !> Get the module level config instance
   function get_gs2_init_config()
-    type(gs2_init_config_type) :: get_gs2_init_config
-    get_gs2_init_config = gs2_init_config
+    type(init_config_type) :: get_gs2_init_config
+    get_gs2_init_config = init_config
   end function get_gs2_init_config
 
   !---------------------------------------
