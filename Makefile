@@ -719,8 +719,14 @@ COMPILER_FLAGS_CONTENTS = "FC = $(FC)\nFPPFLAGS = $(FPPFLAGS)\nF90FLAGS = $(F90F
 compiler_flags: force
 	$(QUIETSYM)echo -e $(COMPILER_FLAGS_CONTENTS) | cmp -s - $@ || echo -e $(COMPILER_FLAGS_CONTENTS) > $@
 
-# Things that should be rebuilt if the compilation flags change (for example, on a new commit)
+# Things that should be rebuilt if the compilation flags change (for example, on
+# a new commit). Files that get preprocessed need either the object file or the
+# preprocessed file to depend on compiler_flags, depending on ONE_STEP_PP
+ifdef ONE_STEP_PP
 $(OBJDIR)/git_hash.o: compiler_flags
+else
+$(GENERATED_SRC_DIR)/git_hash.f90: compiler_flags
+endif
 
 ##################################################################### Main TARGETS
 # .DEFAULT_GOAL works for GNU make 3.81 (or higher)
