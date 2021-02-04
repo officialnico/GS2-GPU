@@ -27,16 +27,16 @@ endif
 
 MACRO_DEFS += -DPFUNIT_MOD=$(PFUNIT_MOD)
 
-PFUNIT_TEST_PATH=.
+PFUNIT_TEST_PATH :=.
 
-GS2_OBJS = $(filter-out $(OBJDIR)/gs2.o, $(gs2_mod))
+GS2_OBJS := $(filter-out $(OBJDIR)/gs2.o, $(gs2_mod))
 
-PFUNIT_TESTS= $(shell find $(PFUNIT_TEST_DIR) -name '[^.\#]*.pf')
+PFUNIT_TESTS:= $(shell find $(PFUNIT_TEST_DIR) -name '[^.\#]*.pf')
 
-PFUNIT_OBJS = $(PFUNIT_TESTS:.pf=.o)
-PFUNIT_INTERMEDIATES = $(PFUNIT_TESTS:.pf=.F90)
-PFUNIT_DRIVER = $(PFUNIT_DIR)/include/driver.F90
-PFUNIT_TEST_LIST = $(PFUNIT_TEST_DIR)/testSuites.inc
+PFUNIT_OBJS := $(PFUNIT_TESTS:.pf=.o)
+PFUNIT_INTERMEDIATES := $(PFUNIT_TESTS:.pf=.F90)
+PFUNIT_DRIVER := $(PFUNIT_DIR)/include/driver.F90
+PFUNIT_TEST_LIST := $(PFUNIT_TEST_DIR)/testSuites.inc
 
 .INTERMEDIATE: $(PFUNIT_INTERMEDIATES)
 
@@ -46,9 +46,9 @@ PFUNIT_TEST_LIST = $(PFUNIT_TEST_DIR)/testSuites.inc
 build_pfunit_library:
 	$(call messageInfo,"Building pFUnit in default location: $(GK_HEAD_DIR)/externals/pFUnit_build/install")
 ifdef USE_MPI
-	@scripts/build_pfunit
+	@scripts/build_pfunit -v ${PFUNIT_VERSION_MAJOR}
 else
-	@scripts/build_pfunit -m
+	@scripts/build_pfunit -v ${PFUNIT_VERSION_MAJOR} -m
 endif
 
 clean_pfunit_library:
@@ -89,7 +89,7 @@ coverage_gcov_fail:
 else
 pfunit_coverage: gs2 make_test run_test run_gcov
 	mkdir -p coverage-pfunit
-	mv *.gcov coverage-pfunit/.
+	mv *.gcov coverage-pfunit/. || echo "Couldn't move generated gcov files to coverage-pfunit. This is likely because gcov files not found in ${GK_HEAD_DIR}."
 endif
 
 pfunit_clean:

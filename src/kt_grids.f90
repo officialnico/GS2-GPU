@@ -731,6 +731,7 @@ contains
   subroutine box_get_grids (aky, theta0, akx, ikx, iky)
     use theta_grid, only: shat
     use constants, only: pi
+    use theta_grid, only: nperiod 
     implicit none
     real, dimension (:), intent (out) :: akx, aky
     real, dimension (:,:), intent (out) :: theta0
@@ -768,7 +769,7 @@ contains
 
     else
        if (jtwist /= 0) then
-          dkx = dky * 2.0*pi*abs(shat)/real(jtwist)
+          dkx = dky * 2.0*pi*(2*nperiod-1)*abs(shat)/real(jtwist)
        else
           dkx = dky
        end if
