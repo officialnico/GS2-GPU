@@ -1122,6 +1122,10 @@ module theta_grid_eik
      !> If `.true.` use Miller-style local equilibrium else use other
      !> numerical equilibrium types
      logical :: local_eq = .true.
+     !> The number of theta grid points to use in eikcoefs calls.
+     !> Currently may not have an effect for all equilibrium types.
+     !> If not set then defaults to [[theta_grid_parameters::ntheta]]
+     integer :: ntheta_geometry = -1
      !> Use Menard-style NetCDF equilibrium (JSOLVER)
      logical :: ppl_eq = .false.
      !> Never used
@@ -1603,6 +1607,7 @@ contains
     use geometry, only: gen_eq, ppl_eq, transp_eq, chs_eq
     use geometry, only: debug_geo => debug, verb_geo => verb
     use geometry, only: job_id_geo => job_id
+    use geometry, only: ntheta_geometry
     use unit_tests, only: job_id
     use theta_grid_params, only: init_theta_grid_params, ntheta, nperiod
     use runtime_tests, only: verbosity
@@ -1638,6 +1643,7 @@ contains
      call debug_message(verb, "init_theta_grid_eik: call read_parameters, ntheta="//ntheta_char)
     call read_parameters(theta_grid_eik_config_in)
 
+    if (ntheta_geometry == -1) ntheta_geometry = ntheta
     nperiod_geo = nperiod 
     rhoc_save = rhoc
     if (itor == 0) rhoc = 1.5*delrho
@@ -1800,7 +1806,7 @@ contains
     use geometry, only: rmaj, r_geo
     use geometry, only: geoType, aSurf, shift, shiftVert, mMode, nMode, deltam, deltan
     use geometry, only: deltampri, deltanpri, thetam, thetan, qinp
-    use geometry, only: delrho, rmin, rmax
+    use geometry, only: delrho, rmin, rmax, ntheta_geometry
     use geometry, only: isym, in_nt, writelots
     use geometry, only: chs_eq
     use theta_grid_params, only: nperiod_in => nperiod
@@ -1870,6 +1876,7 @@ contains
     isym = theta_grid_eik_config%isym
     itor = theta_grid_eik_config%itor
     local_eq = theta_grid_eik_config%local_eq
+    ntheta_geometry = theta_grid_eik_config%ntheta_geometry
     ppl_eq = theta_grid_eik_config%ppl_eq
     rmax = theta_grid_eik_config%rmax
     rmin = theta_grid_eik_config%rmin
@@ -1911,12 +1918,12 @@ contains
     ! we shadow the module level variables here. This is intentional to provide
     ! isolation and ensure we can move this routine to another module easily.
     character(len = 800) :: eqfile
-    integer :: bishop, iflux, irho, isym, itor
+    integer :: bishop, iflux, irho, isym, itor, ntheta_geometry
     logical :: chs_eq, dfit_eq, efit_eq, equal_arc, gen_eq, gs2d_eq, idfit_eq, local_eq, ppl_eq, transp_eq, writelots
     real :: alpha_input, beta_prime_input, delrho, dp_mult, invlp_input, rmax, rmin, s_hat_input
 
-    namelist /theta_grid_eik_knobs/ alpha_input, beta_prime_input, bishop, chs_eq, delrho, dfit_eq, dp_mult, efit_eq, eqfile, equal_arc, gen_eq, gs2d_eq, idfit_eq, iflux, invlp_input, irho, isym, itor, local_eq, ppl_eq, rmax, rmin, &
-         s_hat_input, transp_eq, writelots
+    namelist /theta_grid_eik_knobs/ alpha_input, beta_prime_input, bishop, chs_eq, delrho, dfit_eq, dp_mult, efit_eq, eqfile, equal_arc, gen_eq, gs2d_eq, idfit_eq, iflux, invlp_input, irho, isym, itor, local_eq, ntheta_geometry, ppl_eq, &
+         rmax, rmin, s_hat_input, transp_eq, writelots
 
     ! Only proc0 reads from file
     if (.not. proc0) return
@@ -1941,6 +1948,7 @@ contains
     isym = self%isym
     itor = self%itor
     local_eq = self%local_eq
+    ntheta_geometry = self%ntheta_geometry
     ppl_eq = self%ppl_eq
     rmax = self%rmax
     rmin = self%rmin
@@ -1980,6 +1988,7 @@ contains
     self%isym = isym
     self%itor = itor
     self%local_eq = local_eq
+    self%ntheta_geometry = ntheta_geometry
     self%ppl_eq = ppl_eq
     self%rmax = rmax
     self%rmin = rmin
@@ -2022,6 +2031,7 @@ contains
     call self%write_key_val("isym", self%isym, unit_internal)
     call self%write_key_val("itor", self%itor, unit_internal)
     call self%write_key_val("local_eq", self%local_eq, unit_internal)
+    call self%write_key_val("ntheta_geometry", self%ntheta_geometry, unit_internal)
     call self%write_key_val("ppl_eq", self%ppl_eq, unit_internal)
     call self%write_key_val("rmax", self%rmax, unit_internal)
     call self%write_key_val("rmin", self%rmin, unit_internal)
@@ -2066,6 +2076,7 @@ contains
     call broadcast(self%isym)
     call broadcast(self%itor)
     call broadcast(self%local_eq)
+    call broadcast(self%ntheta_geometry)
     call broadcast(self%ppl_eq)
     call broadcast(self%rmax)
     call broadcast(self%rmin)
