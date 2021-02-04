@@ -361,7 +361,124 @@ module geometry
   type(constant_coefficients_type) :: constant_coefficients
 
   real, parameter :: invalidValue = -24680.123579 !< Used to initialise values to indicate unset
+
+  !> A type to hold a collection of geometrical quantities as calculated by
+  !> [[eikcoefs]]
+  type eikcoefs_output
+     integer :: ntheta
+     real, dimension(:), allocatable :: theta
+     real, dimension(:), allocatable :: bmag
+     real, dimension(:), allocatable :: gradpar
+     real, dimension(:), allocatable :: grho
+     real, dimension(:), allocatable :: cdrift
+     real, dimension(:), allocatable :: cvdrift
+     real, dimension(:), allocatable :: gbdrift
+     real, dimension(:), allocatable :: cdrift0
+     real, dimension(:), allocatable :: cvdrift0
+     real, dimension(:), allocatable :: gbdrift0
+     real, dimension(:), allocatable :: cvdrift_th
+     real, dimension(:), allocatable :: gbdrift_th
+     real, dimension(:), allocatable :: gds2
+     real, dimension(:), allocatable :: gds21
+     real, dimension(:), allocatable :: gds22
+     real, dimension(:), allocatable :: gds23
+     real, dimension(:), allocatable :: gds24
+     real, dimension(:), allocatable :: gds24_noq
+     real, dimension(:), allocatable :: jacob
+     real, dimension(:), allocatable :: rplot
+     real, dimension(:), allocatable :: zplot
+     real, dimension(:), allocatable :: aplot
+     real, dimension(:), allocatable :: rprime
+     real, dimension(:), allocatable :: zprime
+     real, dimension(:), allocatable :: aprime
+     real, dimension(:), allocatable :: bpol
+  end type eikcoefs_output
+
 contains
+
+  !> Run eikcoefs with `ntheta = ntheta_input` and then resample onto
+  !> a uniform theta grid with resolution `ntheta_target`.
+  subroutine run_eikcoefs_and_resample(ntheta_input, ntheta_target, results)
+    implicit none
+    !> This is the number of theta grid points per two pi period used in the
+    !> geometry calculation (actually one less than this).
+    integer, intent(in out) :: ntheta_input
+    !> This is the desired number of theta grid points per two pi period
+    !> in the resulting geometrical coefficients used elsewhere.
+    integer, intent(in) :: ntheta_target
+    type(eikcoefs_output), intent(out) :: results
+    real, dimension(:), allocatable :: theta_target
+    integer :: ig, ntgrid_target, ntgrid_input
+    real :: dtheta_uniform_target
+
+    ! First run eikcoefs using requested resolution
+    call eikcoefs(ntheta_input)
+
+    ntgrid_input = (size(theta) - 1) / 2
+    ntgrid_target =(ntheta_target*(2*nperiod-1)) / 2
+
+    ! Make new uniform theta grid
+    allocate(theta_target(-ntgrid_target:ntgrid_target))
+    dtheta_uniform_target = theta(ntgrid_input)/ ntgrid_target
+
+    do ig = -ntgrid_target, ntgrid_target
+       theta_target(ig) = ig * dtheta_uniform_target
+    end do
+
+    results%ntheta = ntheta_target
+    results%theta  = theta_target
+    results%bmag = resample(theta, bmag, results%theta)
+    results%gradpar = resample(theta, gradpar, results%theta)
+    results%grho = resample(theta, grho, results%theta)
+    results%cdrift = resample(theta, cdrift, results%theta)
+    results%cvdrift = resample(theta, cvdrift, results%theta)
+    results%gbdrift = resample(theta, gbdrift, results%theta)
+    results%cdrift0 = resample(theta, cdrift0, results%theta)
+    results%cvdrift0 = resample(theta, cvdrift0, results%theta)
+    results%gbdrift0 = resample(theta, gbdrift0, results%theta)
+    results%cvdrift_th = resample(theta, cvdrift_th, results%theta)
+    results%gbdrift_th = resample(theta, gbdrift_th, results%theta)
+    results%gds2 = resample(theta, gds2, results%theta)
+    results%gds21 = resample(theta, gds21, results%theta)
+    results%gds22 = resample(theta, gds22, results%theta)
+    results%gds23 = resample(theta, gds23, results%theta)
+    results%gds24 = resample(theta, gds24, results%theta)
+    results%gds24_noq = resample(theta, gds24_noq, results%theta)
+    results%jacob = resample(theta, jacob, results%theta)
+    results%rplot = resample(theta, rplot, results%theta)
+    results%zplot = resample(theta, zplot, results%theta)
+    results%aplot = resample(theta, aplot, results%theta)
+    results%rprime = resample(theta, rprime, results%theta)
+    results%zprime = resample(theta, zprime, results%theta)
+    results%aprime = resample(theta, aprime, results%theta)
+    results%bpol = resample(theta, bpol, results%theta)
+
+  contains
+    function resample(x_orig, y_orig, x_new) result(y_new)
+      use splines, only: new_spline, delete_spline, splint, spline
+      real, dimension(:), intent(in) :: x_orig, y_orig
+      real, dimension(:), intent(in) :: x_new
+      real, dimension(:), allocatable ::  y_new
+      type(spline) :: the_spline
+      integer :: i, lower, upper
+
+      ! Spline the old data
+      call new_spline(size(x_orig), x_orig, y_orig, the_spline)
+
+      lower = lbound(x_new, 1)
+      upper = ubound(x_new, 1)
+
+      allocate(y_new(lower:upper))
+
+      do i = lower, upper
+         y_new(i) = splint(x_new(i), the_spline)
+      end do
+
+      ! Get rid of the spline
+      call delete_spline(the_spline)
+    end function resample
+
+  end subroutine run_eikcoefs_and_resample
   
   !> FIXME : Add documentation    
   subroutine eikcoefs (ntheta_input)
