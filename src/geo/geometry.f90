@@ -166,6 +166,8 @@ module geometry
   public :: qinp, s_hat_input
   public :: Rpos
 
+  public :: eikcoefs_output, run_eikcoefs_and_resample, set_eikcoefs_output
+
   !> The theta grid of the results. The final grid has
   !> $$\pi - 2 \pi \mathrm{nperiod} \leq \theta \leq 2 \pi \mathrm{nperiod} - \pi$$
   real, allocatable, dimension(:) :: theta
@@ -479,7 +481,41 @@ contains
     end function resample
 
   end subroutine run_eikcoefs_and_resample
-  
+
+  !> Set the module level outputs from eikcoefs based on what is in
+  !> the passed output type. Ideally we wouldn't do this.
+  subroutine set_eikcoefs_output(eikcoefs_results)
+    implicit none
+    type(eikcoefs_output), intent(in) :: eikcoefs_results
+
+    theta = eikcoefs_results%theta
+    bmag = eikcoefs_results%bmag
+    gradpar = eikcoefs_results%gradpar
+    grho = eikcoefs_results%grho
+    cdrift = eikcoefs_results%cdrift
+    cvdrift = eikcoefs_results%cvdrift
+    gbdrift = eikcoefs_results%gbdrift
+    cdrift0 = eikcoefs_results%cdrift0
+    cvdrift0 = eikcoefs_results%cvdrift0
+    gbdrift0 = eikcoefs_results%gbdrift0
+    cvdrift_th = eikcoefs_results%cvdrift_th
+    gbdrift_th = eikcoefs_results%gbdrift_th
+    gds2 = eikcoefs_results%gds2
+    gds21 = eikcoefs_results%gds21
+    gds22 = eikcoefs_results%gds22
+    gds23 = eikcoefs_results%gds23
+    gds24 = eikcoefs_results%gds24
+    gds24_noq = eikcoefs_results%gds24_noq
+    jacob = eikcoefs_results%jacob
+    rplot = eikcoefs_results%rplot
+    zplot = eikcoefs_results%zplot
+    aplot = eikcoefs_results%aplot
+    rprime = eikcoefs_results%rprime
+    zprime = eikcoefs_results%zprime
+    aprime = eikcoefs_results%aprime
+    bpol = eikcoefs_results%bpol
+  end subroutine set_eikcoefs_output
+
   !> FIXME : Add documentation    
   subroutine eikcoefs (ntheta_input)
     use  geq, only: eqin, geq_init
