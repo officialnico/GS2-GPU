@@ -47,21 +47,24 @@ It probably isn't necessary to make an issue for the release in `utils` or `Make
    ```
      $ git log <previous version tag>..HEAD --format='%aN' | sort | uniq
    ```
-9. **Make a PR for the release candidate into `master`.** List main fixes and
+9. **Update Zenodo DOI in README and CITATION.cff.** Update the DOI in the
+   Zenodo badge at the top of the README. Also update the DOI, release date and
+   version number in CITATION.cff.
+10. **Make a PR for the release candidate into `master`.** List main fixes and
    features. Highlight changes in defaults, or manual changes that users might
    need to make. Give this releases' DOI. Invite users to try the branch and
    raise issues. See [this
    example](https://bitbucket.org/gyrokinetics/gs2/pull-requests/135).
-10. **Wait.** Allow some time for users to try the release candidate and for its
+11. **Wait.** Allow some time for users to try the release candidate and for its
     manifold failings to be exposed. Fix these with PRs to the release candidate
     branch.
-11. **Merge.** After merge, make sure to tag the merge commit with the version
+12. **Merge.** After merge, make sure to tag the merge commit with the version
     number. It is **necessary to use an annotated tag** (use -a), otherwise
    `git describe` does not work.
-12. **Finish Zenodo release.** Download the tarball from the [Bitbucket downloads page](https://bitbucket.org/gyrokinetics/gs2/downloads/?tab=tags),
+13. **Finish Zenodo release.** Download the tarball from the [Bitbucket downloads page](https://bitbucket.org/gyrokinetics/gs2/downloads/?tab=tags),
     along with the corresponding tarballs for utils` and `Makefiles`. Upload all
     three to Zenodo, and then publish the Zenodo draft.
-13. **Merge master into next.** To do this, we need to make a new branch
+14. **Merge master into next.** To do this, we need to make a new branch
     containing the release's changes so that we can make a pull request into
     `next`:  
     ```
@@ -74,4 +77,4 @@ It probably isn't necessary to make an issue for the release in `utils` or `Make
       $ git merge master
     ```  
     Then fix conflicts and make a PR to `next`.
-14. **Make a new RC branch for the next release.**
+15. **Make a new RC branch for the next release.**
