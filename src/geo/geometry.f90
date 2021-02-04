@@ -164,7 +164,7 @@ module geometry
   public :: geotype, rmaj, r_geo, rhoc, delrho, aSurf, shift, shiftVert, mMode, nMode
   public :: deltam, deltan, deltampri, deltanpri, thetam, thetan
   public :: qinp, s_hat_input
-  public :: Rpos
+  public :: Rpos, ntheta_geometry
 
   public :: eikcoefs_output, run_eikcoefs_and_resample, set_eikcoefs_output
 
@@ -192,7 +192,7 @@ module geometry
   real :: p_prime_input, invLp_input, beta_prime_input
   real :: alpha_input, dp_mult
 
-  integer :: nperiod
+  integer :: nperiod, ntheta_geometry
   integer :: itor, iflux, irho
   integer :: shotnum
   real :: tstar
