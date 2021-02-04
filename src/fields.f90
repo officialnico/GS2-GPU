@@ -146,6 +146,10 @@ module fields
      !> attempting to use it, which could cause problems. The default
      !> is to save them in the working directory.
      character(len = 256) :: response_dir = ''
+     !> Allows customisation of the base filename to be used for
+     !> response files. If not set then we use `run_name` derived
+     !> from the input file name.
+     character(len = 256) :: response_file = ''
    contains
      procedure, public :: read => read_fields_config
      procedure, public :: write => write_fields_config
@@ -459,12 +463,13 @@ contains
     use fields_local, only: minNRow
     use fields_local, only: do_smart_update, field_local_allreduce, field_local_allreduce_sub
     use fields_local, only: field_local_tuneminnrow,  field_local_nonblocking_collectives
-    use fields_arrays, only: response_file
+    use fields_arrays, only: real_response_file => response_file
     use file_utils, only: run_name
     implicit none
     type(fields_config_type), intent(in), optional :: fields_config_in    
     character(20) :: field_option
     character(len=256) :: response_dir
+    character(len=256) :: response_file
     integer :: ierr
 
 
@@ -486,6 +491,7 @@ contains
     read_response = fields_config%read_response
     remove_zonal_flows_switch = fields_config%remove_zonal_flows_switch
     response_dir = fields_config%response_dir
+    response_file = fields_config%response_file
 
     exist = fields_config%exist
     ierr = error_unit()
@@ -493,10 +499,14 @@ contains
          (field_option, fieldopts, fieldopt_switch, &
          ierr, "field_option in fields_knobs",.true.)
 
+    if (trim(response_file) == '') then
+       response_file = trim(run_name)
+    end if
+
     if(trim(response_dir).eq.'')then
-       write(response_file,'(A)') trim(run_name)
+       write(real_response_file,'(A)') trim(response_file)
     else
-       write(response_file,'(A,"/",A)') trim(response_dir),trim(run_name)
+       write(real_response_file,'(A,"/",A)') trim(response_dir),trim(response_file)
     endif
 
     !Set the solve type specific flags
@@ -814,13 +824,13 @@ contains
     ! we shadow the module level variables here. This is intentional to provide
     ! isolation and ensure we can move this routine to another module easily.
     character(len = 20) :: field_option
-    character(len = 256) :: response_dir
+    character(len = 256) :: response_dir, response_file
     integer :: minnrow
     logical :: do_smart_update, dump_response, field_local_allreduce, field_local_allreduce_sub, field_local_nonblocking_collectives, field_local_tuneminnrow, field_subgath, force_maxwell_reinit, read_response
     logical :: remove_zonal_flows_switch
 
     namelist /fields_knobs/ do_smart_update, dump_response, field_local_allreduce, field_local_allreduce_sub, field_local_nonblocking_collectives, field_local_tuneminnrow, field_option, field_subgath, force_maxwell_reinit, &
-         minnrow, read_response, remove_zonal_flows_switch, response_dir
+         minnrow, read_response, remove_zonal_flows_switch, response_dir, response_file
 
     ! Only proc0 reads from file
     if (.not. proc0) return
@@ -839,6 +849,7 @@ contains
     read_response = self%read_response
     remove_zonal_flows_switch = self%remove_zonal_flows_switch
     response_dir = self%response_dir
+    response_file = self%response_file
 
     ! Now read in the main namelist
     if (self%get_requires_index()) then
@@ -866,6 +877,7 @@ contains
     self%read_response = read_response
     self%remove_zonal_flows_switch = remove_zonal_flows_switch
     self%response_dir = response_dir
+    self%response_file = response_file
 
     self%exist = exist
   end subroutine read_fields_config
@@ -896,6 +908,7 @@ contains
     call self%write_key_val("read_response", self%read_response, unit_internal)
     call self%write_key_val("remove_zonal_flows_switch", self%remove_zonal_flows_switch, unit_internal)
     call self%write_key_val("response_dir", self%response_dir, unit_internal)
+    call self%write_key_val("response_file", self%response_file, unit_internal)
     call self%write_namelist_footer(unit_internal)
   end subroutine write_fields_config
 
@@ -928,6 +941,7 @@ contains
     call broadcast(self%read_response)
     call broadcast(self%remove_zonal_flows_switch)
     call broadcast(self%response_dir)
+    call broadcast(self%response_file)
 
     call broadcast(self%exist)
   end subroutine broadcast_fields_config
