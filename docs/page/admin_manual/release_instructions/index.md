@@ -61,5 +61,17 @@ It probably isn't necessary to make an issue for the release in `utils` or `Make
 12. **Finish Zenodo release.** Download the tarball from the [Bitbucket downloads page](https://bitbucket.org/gyrokinetics/gs2/downloads/?tab=tags),
     along with the corresponding tarballs for utils` and `Makefiles`. Upload all
     three to Zenodo, and then publish the Zenodo draft.
-13. **Merge master into next.**
-14. **Make a new RC branch for the next bugfix version.**
+13. **Merge master into next.** To do this, we need to make a new branch
+    containing the release's changes so that we can make a pull request into
+    `next`:  
+    ```
+      $ git checkout next
+    ```  
+    ```
+      $ git checkout -b admin/update_next_with_8.0.6
+    ```  
+    ```
+      $ git merge master
+    ```  
+    Then fix conflicts and make a PR to `next`.
+14. **Make a new RC branch for the next release.**
