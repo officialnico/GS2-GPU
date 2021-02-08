@@ -8,11 +8,13 @@ module gs2_heating
   public :: init_htype, zero_htype, del_htype
   public :: avg_h, avg_hk
   public :: hk_repack
-  !GGH Density-velocity perturbations
   public :: dens_vel_diagnostics
   public :: init_dvtype, zero_dvtype, del_dvtype
   public :: avg_dv, avg_dvk
    
+  !> Allocate the array components of [[heating_diagnostics]]
+  !>
+  !> FIXME: Could be replaced with `elemental` constructor
   interface init_htype
      module procedure init_htype_0, init_htype_1, init_htype_2, init_htype_3
   end interface
@@ -60,15 +62,14 @@ module gs2_heating
      real, dimension(:), pointer :: heating    => null()
   end type heating_diagnostics
 
-  !GGH>
-  !> FIXME : Add documentation  
+  !> Density-velocity perturbations
   type :: dens_vel_diagnostics
      !GGH NOTE: Dimension here is for species
      real, dimension(:), pointer :: dvpar  => null()
      real, dimension(:), pointer :: dvperp   => null()
      real, dimension(:), pointer :: dn => null()
   end type dens_vel_diagnostics
-!<GGH
+
 contains
 
   !> FIXME : Add documentation  
@@ -403,12 +404,14 @@ contains
 
   end subroutine del_htype_3
 
-  !> FIXME : Add documentation
+  !> Calculate the average of various heating quantities
   subroutine avg_h (h, h_hist, istep, navg)
     use mp, only: proc0
     use species, only: nspec
     implicit none
+    !> The heating diagnostics at the current timestep
     type (heating_diagnostics), intent(in out) :: h
+    !> The last [[gs2_diagnostics:navg]] timesteps of heating diagnostics
     type (heating_diagnostics), dimension (0:), intent(in out) :: h_hist
     integer, intent (in) :: istep, navg
     integer :: is, i
@@ -462,13 +465,15 @@ contains
 
   end subroutine avg_h
 
-  !> FIXME : Add documentation
+  !> Calculate the average of various heating quantities as a function of \((\theta, k_y)\)
   subroutine avg_hk (hk, hk_hist, istep, navg)
     use mp, only: proc0
     use species, only: nspec
-    implicit none    
+    implicit none
+    !> Heating diagnostics as a function of \((\theta, k_y)\) at the current timestep
     type (heating_diagnostics), dimension(:,:), intent(in out) :: hk
-    type (heating_diagnostics), dimension (:,:,0:), intent(in out) :: hk_hist
+    !> Heating diagnostics as a function of \((\theta, k_y)\) over the last [[gs2_diagnostics:navg]] timesteps
+    type (heating_diagnostics), dimension(:,:,0:), intent(in out) :: hk_hist
     integer, intent (in) :: istep, navg
     integer :: is, i, m, n, mmax, nmax
 
