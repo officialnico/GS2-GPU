@@ -27,6 +27,8 @@ changes** to input or analysis scripts, or that **may alter results** slightly
   **wavenumber resolution** `nakx`, `naky` (provided the anti-aliasing
   constraint is met), making it easier to select **sweetspots** (... but can
   still define only one of these and let GS2 choose the other).
+* Users can now specify the **number of passing pitch angles** by specifying
+  `npassing` in the `le_grids_knobs` namelist.
 * The **explicit source terms** are now stored in the output. This is the
   default, but can be turned off by setting
   `include_explicit_source_in_restart` in the `init_g_knobs` namelist to false.
