@@ -20,7 +20,7 @@ stages:
 .install_main_packages: &install_main_packages
   - dnf install -y ${BASIC_PACKAGES} ${GS2_PACKAGES} ${PYTHON_PACKAGES} ${EXTRA_PACKAGES}
   - if [ "x"${WITH_MPI} == "xyes" ]; then source /etc/profile.d/modules.sh ; module load mpi ; echo 'MPI_LIB=' > Makefile.local ; fi #Note the MPI_LIB is needed until we namespace our Makefile variables
-  - if [ "x"${WITH_PYTHON} == "xyes" ]; then pip3 install -r requirements.txt; fi
+  - if [ "x"${WITH_PYTHON} == "xyes" ]; then pip3 install -U pip ; pip3 install -r requirements.txt; fi
 
 .create_user: &create_user
   - useradd theuser
