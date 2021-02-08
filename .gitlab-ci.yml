@@ -141,7 +141,7 @@ intel_tests:
 
 coverage_standard_tests:
   stage: test
-  image: fedora:30
+  image: fedora:29
   variables:
     CASENAME: "standard+coverage+debug+onestep"
     GK_CI_INTEGRATED: ""
