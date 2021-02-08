@@ -228,7 +228,7 @@ module le_grids
   logical :: exist
 
  ! knobs
-  integer :: ngauss, negrid, nesuper, nesub
+  integer :: ngauss, npassing, negrid, nesuper, nesub
   real :: bouncefuzz, vcut
   logical :: genquad
 
@@ -300,9 +300,13 @@ module le_grids
      !> difference method.
      logical :: new_trap_int = .false.
      !> The number of untrapped pitch-angles moving in one direction
-     !> along field line is `2*ngauss`. Note that the number of
-     !> trapped pitch angles is directly related to the number of
-     !> theta grid points (per \(2\pi\)) and is `ntheta/2 + 1`.
+     !> along field line.
+     integer :: npassing = -1
+     !> The number of untrapped pitch-angles moving in one direction
+     !> along field line is `2*ngauss` if [[le_grids_knobs::npassing]] is
+     !> not set. Note that the number of trapped pitch angles is
+     !> directly related to the number of theta grid points (per
+     !> \(2\pi\)) and is `ntheta/2 + 1`.
      integer :: ngauss = 5
      !> Influences the minimum number of grid points in an integration
      !> subinterval used in calculating the integration grid weights.
@@ -511,6 +515,7 @@ contains
     nesub = le_grids_config%nesub
     nesuper = le_grids_config%nesuper
     new_trap_int = le_grids_config%new_trap_int
+    npassing = le_grids_config%npassing
     ngauss = le_grids_config%ngauss
     nmax = le_grids_config%nmax
     nterp = le_grids_config%nterp
@@ -531,6 +536,13 @@ contains
        nesuper = min(negrid/10+1, 4)
        nesub = negrid - nesuper
     endif
+
+    ! Set ng2 from ngauss if not specified in the input file
+    if (npassing < 0) then
+       ng2 = 2 * ngauss
+    else
+       ng2 = npassing
+    end if
 
   end subroutine read_parameters
 
@@ -2134,8 +2146,6 @@ contains
 
     dele(1,:) = energy(1,:)
     dele(2:,:) = energy(2:,:)-energy(:negrid-1,:)
-
-    ng2 = 2*ngauss
 
     if (trapped_particles .and. eps_trapped > epsilon(0.0)) then
        nlambda = ng2+nbset
@@ -4244,7 +4254,7 @@ contains
     logical :: genquad, new_trap_int, radau_gauss_grid, test, trapped_particles
     real :: bouncefuzz, vcut, wgt_fac
 
-    namelist /le_grids_knobs/ bouncefuzz, genquad, negrid, nesub, nesuper, new_trap_int, ngauss, nmax, nterp, radau_gauss_grid, test, trapped_particles, vcut, wgt_fac
+    namelist /le_grids_knobs/ bouncefuzz, genquad, negrid, nesub, nesuper, new_trap_int, npassing, ngauss, nmax, nterp, radau_gauss_grid, test, trapped_particles, vcut, wgt_fac
 
     ! Only proc0 reads from file
     if (.not. proc0) return
@@ -4256,6 +4266,7 @@ contains
     nesub = self%nesub
     nesuper = self%nesuper
     new_trap_int = self%new_trap_int
+    npassing = self%npassing
     ngauss = self%ngauss
     nmax = self%nmax
     nterp = self%nterp
@@ -4284,6 +4295,7 @@ contains
     self%nesub = nesub
     self%nesuper = nesuper
     self%new_trap_int = new_trap_int
+    self%npassing = npassing
     self%ngauss = ngauss
     self%nmax = nmax
     self%nterp = nterp
@@ -4315,6 +4327,7 @@ contains
     call self%write_key_val("nesub", self%nesub, unit_internal)
     call self%write_key_val("nesuper", self%nesuper, unit_internal)
     call self%write_key_val("new_trap_int", self%new_trap_int, unit_internal)
+    call self%write_key_val("npassing", self%npassing, unit_internal)
     call self%write_key_val("ngauss", self%ngauss, unit_internal)
     call self%write_key_val("nmax", self%nmax, unit_internal)
     call self%write_key_val("nterp", self%nterp, unit_internal)
@@ -4348,6 +4361,7 @@ contains
     call broadcast(self%nesub)
     call broadcast(self%nesuper)
     call broadcast(self%new_trap_int)
+    call broadcast(self%npassing)
     call broadcast(self%ngauss)
     call broadcast(self%nmax)
     call broadcast(self%nterp)
