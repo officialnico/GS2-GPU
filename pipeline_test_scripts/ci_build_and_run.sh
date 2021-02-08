@@ -10,6 +10,12 @@ header() {
     echo ""
 }
 
+add_to_local_makefile() {
+    header "Adding to Makefile.local"
+    echo ${GK_MAKEFILE_LOCAL_EXTRA_FLAGS} >> Makefile.local
+    cat Makefile.local
+}
+
 build_gs2() {
     header "Build GS2"
     make test_make ${EXTRA_MAKE_FLAGS}
@@ -19,7 +25,7 @@ build_gs2() {
 make_and_run_pfunit_tests() {
     header "Build and run pfunit tests"
     make build_pfunit_library ${EXTRA_MAKE_FLAGS} ${EXTRA_PFUNIT_FLAGS}
-    if [[ "x${GK_TRAVIS_PFUNIT_COVERAGE}" == "x" ]]
+    if [[ "x${GK_CI_PFUNIT_COVERAGE}" == "x" ]]
     then
         make -j pfunit_tests ${EXTRA_MAKE_FLAGS} ${EXTRA_PFUNIT_FLAGS}
     else
@@ -35,17 +41,22 @@ make_and_run_integrated_tests() {
 }
 
 
-if [[ "x${GK_TRAVIS_BUILD}" != "x" ]]
+if [[ "x${GK_MAKEFILE_LOCAL_EXTRA_FLAGS}" != "x" ]]
+then
+    time add_to_local_makefile
+fi
+
+if [[ "x${GK_CI_BUILD}" != "x" ]]
 then
     time build_gs2
 fi
 
-if [[ "x${GK_TRAVIS_PFUNIT}" != "x" ]]
+if [[ "x${GK_CI_PFUNIT}" != "x" ]]
 then
     time make_and_run_pfunit_tests
 fi
 
-if [[ "x${GK_TRAVIS_INTEGRATED}" != "x" ]]
+if [[ "x${GK_CI_INTEGRATED}" != "x" ]]
 then
     time make_and_run_integrated_tests
 fi
