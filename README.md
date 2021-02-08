@@ -1,8 +1,8 @@
 # GS2
 
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.4461680.svg)](https://doi.org/10.5281/zenodo.4461680)
+
 [![gitlab pipeline status](https://gitlab.com/gyrokinetics/gs2/badges/master/pipeline.svg)](https://gitlab.com/gyrokinetics/gs2/commits/master)
-[![Build Status](https://anvil.softeng-support.ac.uk/jenkins/buildStatus/icon?job=Gyrokinetics%2FMerge%2BBuild%2BTests-gfortran-7.2-coverage)](https://anvil.softeng-support.ac.uk/jenkins/job/Gyrokinetics/job/Merge+Build+Tests-gfortran-7.2-coverage/)
-[![codecov](https://codecov.io/bb/gyrokinetics/gs2/branch/master/graph/badge.svg)](https://codecov.io/bb/gyrokinetics/gs2)
 [![Coverage Status](https://coveralls.io/repos/bitbucket/gyrokinetics/gs2/badge.svg?branch=master)](https://coveralls.io/bitbucket/gyrokinetics/gs2?branch=master)
 
 [TOC]
@@ -94,10 +94,13 @@ If you use GS2 in your work, please cite GS2 and acknowledge the grants that
 support its development.
 
 ### Citation
-GS2's DOI is [10.5281/zenodo.2551066](https://doi.org/10.5281/zenodo.2551066).
-The DOI for the current stable version 8.0.5 is [10.5281/zenodo.4012004](https://doi.org/10.5281/zenodo.4012004).
-The full citation for GS2 may be also found in CITATION.cff. You can convert the
-CITATION.cff file into a Bibtex file as follows:
+
+The DOI for the current stable version can be found at the top of this README.
+For reproducibility, it's best to use and cite a specific release version.
+If that's not possible (for example, if you are using your own development branch), the next best thing is to cite the GS2 project DOI [10.5281/zenodo.2551066](https://doi.org/10.5281/zenodo.2551066).
+
+The full citation for GS2 is in CITATION.cff.
+To get a bibtex citation from this file, do:
 
     pip3 install --user cffconvert
     cffconvert -if CITATION.cff -f bibtex -of CITATION.bib 

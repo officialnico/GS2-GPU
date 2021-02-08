@@ -46,6 +46,9 @@ authors:
   - family-names: Numata
     given-names: Ryusuke
 
+  - family-names: Parisi
+    given-names: Jason
+
   - family-names: Wilkie
     given-names: George
 
@@ -98,9 +101,9 @@ authors:
   - family-names: Van Wyk
     given-names: Ferdinand
 
-version: 8.0.5
-date-released: 2020-09-02
+version: 8.0.6
+date-released: 2021-02-03
 repository-code: https://bitbucket.org/gyrokinetics/gs2/
 url: https://gyrokinetics.gitlab.io/gs2/
-doi: 10.5281/zenodo.4012004
+doi: 10.5281/zenodo.4461680
 license: 'MIT'
