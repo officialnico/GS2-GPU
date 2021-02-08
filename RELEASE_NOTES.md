@@ -59,11 +59,22 @@ We've made significant improvements to our documentation:
 We've expanded our test suites and improved our building and continuous
 integration frameworks.
 
+* New expanded **GitLab testing framework** to replace Jenkins
+* New more accurate **Coveralls test coverage** tracking of pfunit tests to replace Codecov
 * Makefile is now **tidier** and **more robust**. Git **hashes** for `utils`and
   `Makefiles` are now **stored** during the build process, making it easier to
   track down bugs.
 * We've removed many instances of imported-but-unused variables from the source
   code, making the **build output quieter** and easier to read. 
+* We've **added tests** and **benchmarks**, including for 
+	* indexing routines
+	* ceq and leq geometries
+	* theta grid
+	* zonal flow residual linear test
+	* box mode linear itg test
+	* `le_integrate` tests
+	* fix the `fields_local` benchmark
+	* tidy and expand pfunit tests
 
 ## Performance improvements
 
