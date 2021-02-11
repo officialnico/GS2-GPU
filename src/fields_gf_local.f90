@@ -890,7 +890,7 @@ contains
 
   !> A routine to invert the field matrix locally
   subroutine sc_invert_local(self)
-    use mat_inv, only: inverse_gj
+    use mat_inv, only: invert_serial
     implicit none
     class(supercell_type), intent(inout) :: self
     complex, dimension(:,:), allocatable :: tmp_arr
@@ -906,7 +906,7 @@ contains
     call self%pull_rows_to_arr(tmp_arr)
 
     !Now invert in place
-    call inverse_gj(tmp_arr,self%nrow)
+    call invert_serial(tmp_arr,self%nrow)
     tmp_arr=transpose(tmp_arr)
 
     !Now push back to row level
