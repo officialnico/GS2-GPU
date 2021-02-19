@@ -89,32 +89,47 @@ contains
     integer :: iglo, ig, ik, it, ie, is, il
     complex :: adj
     logical :: trapped
+    logical :: with_bpar, with_phi
+    real :: phi_factor, bpar_factor
 
     trapped = .false.
     if (minval(jend) .gt. ng2) trapped=.true.
 
+    with_bpar = facbpar /= 0
+    with_phi = facphi /= 0
+
+    phi_factor = 0.0
+
+    if (with_bpar) then
+       bpar_factor = 2.0*facbpar
+    else
+       bpar_factor = 0.0
+    end if
+
     do iglo = g_lo%llim_proc, g_lo%ulim_proc
        ik = ik_idx(g_lo,iglo)
        it = it_idx(g_lo,iglo)
-       ie = ie_idx(g_lo,iglo)
-       is = is_idx(g_lo,iglo)
        il = il_idx(g_lo,iglo)
 
-       ! BD:  bpar == delta B_parallel / B_0(theta) so no extra factor of 
+       if (with_phi) then
+          ie = ie_idx(g_lo,iglo)
+          is = is_idx(g_lo,iglo)
+          phi_factor = spec(is)%zt*nonmaxw_corr(ie,is)*facphi
+       end if
+
+       ! BD:  bpar == delta B_parallel / B_0(theta) so no extra factor of
        ! 1/bmag is needed here.
        do ig = -ntgrid, ntgrid
-          !<DD>Don't adjust in the forbidden region as we don't set g/h here
-!CMR, 13/10/2014: attempting minor reduction in memory bandwidth by replacing 
-!         if( forbid(ig,il) ) cycle with 
-!         if ( trapped .and. il > jend(ig))
-          if ( trapped .and. il > jend(ig)) cycle 
 
-          adj = 2.0*vperp2(ig,iglo)*aj1(ig,iglo) &
-               *bpar(ig,it,ik)*facbpar &
-               + spec(is)%zt*phi(ig,it,ik)*aj0(ig,iglo) &
-               *facphi*nonmaxw_corr(ie,is)
+          ! Avoid adjusting in the forbidden region
+          if ( trapped .and. il > jend(ig)) cycle
+
+          adj = bpar_factor*vperp2(ig,iglo)*aj1(ig,iglo)*bpar(ig,it,ik) &
+               + phi_factor*phi(ig,it,ik)*aj0(ig,iglo)
+
           g(ig,1,iglo) = g(ig,1,iglo) + adj
           g(ig,2,iglo) = g(ig,2,iglo) + adj
+
        end do
     end do
   end subroutine g_adjust
