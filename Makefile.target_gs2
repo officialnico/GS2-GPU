@@ -17,6 +17,14 @@ $(BINDIR)/gs2.x: $(gs2_mod) $(SIMPLEDATAIO_LIB) | $(BINDIR)
 .PHONY: gs2.x
 gs2.x: $(BINDIR)/gs2.x
 
+#Mat inv benchmark
+$(BINDIR)/mat_inv_benchmark: $(mat_inv_benchmark_mod) $(SIMPLEDATAIO_LIB) | $(BINDIR)
+	$(call messageOp,"Linking ","\\t:",$(call processName,$^),"\\n\\t\-\-\-\-\-\-\>",$(call processName,$@))
+	$(QUIETSYM)$(LD) $(LDFLAGS) -o $@ $^ $(LIBS)
+
+.PHONY: mat_inv_benchmark
+mat_inv_benchmark: $(BINDIR)/mat_inv_benchmark
+
 #Input file checker
 $(BINDIR)/ingen: $(ingen_mod) $(SIMPLEDATAIO_LIB) | $(BINDIR)
 	$(call messageOp,"Linking ","\\t:",$(call processName,$^),"\\n\\t\-\-\-\-\-\-\>",$(call processName,$@))
