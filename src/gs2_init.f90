@@ -853,8 +853,14 @@ contains
     !write (*,*) 'set_init_field in_memory', in_memory, fields_and_dist_fn_saved
 
     if (.not. current%initval_ov%override) then
-      ! This is the usual initial setup
-      call ginit (restarted)
+       ! This is the usual initial setup
+       call ginit (restarted)
+       ! If we're restarting from file then we don't want to recalculate
+       ! the fields unless force_maxwell_reinit is true. If we are not
+       ! restarting then we better call set_init_fields to set the initial
+       ! fields here.
+       if ((.not.restarted) .or. force_maxwell_reinit) call set_init_fields
+       return
     else
       if (current%initval_ov%in_memory) then
         g = current%initval_ov%g
@@ -897,7 +903,8 @@ contains
           apar = aparnew
           bpar = bparnew
        else
-          ! No need to do anything: fields read from file.
+          ! No need to do anything: fields read from file in
+          ! [[gs2_save::gs2_restore_many]]
        end if
     end if
   end subroutine set_initial_field_and_dist_fn_values

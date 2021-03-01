@@ -417,7 +417,7 @@ ifeq ($(USE_FFT),fftw)
 	FFT_LIB ?= -lfftw -lrfftw
 endif
 
-ifeq ($(USE_FFT),fftw3)
+ifeq ($(findstring fftw3,$(USE_FFT)),fftw3)
 	MACRO_DEFS += -DFFT=_FFTW3_
 	FFT_LIB ?= -lfftw -lrfftw
 endif
