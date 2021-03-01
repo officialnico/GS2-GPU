@@ -16,6 +16,30 @@ module standard_header_mod
   end interface
 
 contains
+
+  !> Return the UUID for this run
+  !>
+  !> Generated when first called, guaranteed not to change during the
+  !> simulation. Communicates when first called to broadcast the UUID
+  !> to all processors
+  function simulation_run_uuid()
+    use mp, only : proc0, broadcast
+    use uuid_mod, only : generate_uuid
+    character(len=36) :: simulation_run_uuid
+    character(len=36), save :: run_uuid
+    logical, save :: first_run = .true.
+
+    if (first_run) then
+      if (proc0) then
+        run_uuid = generate_uuid()
+      end if
+      call broadcast(run_uuid)
+      first_run = .false.
+    end if
+
+    simulation_run_uuid = run_uuid
+  end function simulation_run_uuid
+
   !> Return the current date and time in ISO8601 format:
   !>     YYYY-MM-DDThh:mm:ss.ssssZhh:mm
   function date_iso8601()
@@ -33,6 +57,7 @@ contains
   !> Return a multiline string with a standard header of the form:
   !>
   !>     Created by GS2 at 2021-02-02T15:01:26.370Z+00:00
+  !>     Run UUID: <unique ID for this run>
   !>     GK_SYSTEM: local
   !>     Compiler: gfortran
   !>     <optional file description>
@@ -74,6 +99,7 @@ contains
     end if
 
     header = comment_char // "Created by GS2 at " // date_iso8601() // newline &
+         // comment_char // "Run UUID: " // simulation_run_uuid() // newline &
          // comment_char // "GK_SYSTEM: " // trim(runtime_info%get_gk_system()) // newline &
          // comment_char // "Compiler: " // trim(runtime_info%get_compiler_name()) // newline &
          // comment_char // "Commit hash: " // get_git_hash() // get_git_state() // newline &
