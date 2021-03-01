@@ -1,0 +1,36 @@
+module test_uuid_mod
+  use PFUNIT_MOD
+  implicit none
+contains
+
+  @test
+  subroutine test_uuid_unique_each_time
+    use uuid_mod, only : generate_uuid
+    character(len=36) :: uuid1, uuid2, uuid3, uuid4
+
+    uuid1 = generate_uuid()
+    uuid2 = generate_uuid()
+    uuid3 = generate_uuid()
+    uuid4 = generate_uuid()
+
+    ! No assertNotEqual for characters for some reason
+    @assertTrue(uuid1 /= uuid2)
+    @assertTrue(uuid1 /= uuid3)
+    @assertTrue(uuid1 /= uuid4)
+  end subroutine test_uuid_unique_each_time
+
+  @test
+  subroutine test_uuid_has_correct_version_variant
+    use uuid_mod, only : generate_uuid
+    character(len=36) :: uuid
+    character(len=1) :: version, variant
+
+    uuid = generate_uuid()
+
+    version = uuid(15:15)       ! 13th digit + two hyphens
+    variant = uuid(20:20)       ! 17th digit + three hyphens
+
+    @assertEqual(version, "4")
+    @assertAny([variant == "8", variant == "9", variant == "A", variant == "B", variant == "a", variant == "b"])
+  end subroutine test_uuid_has_correct_version_variant
+end module test_uuid_mod
