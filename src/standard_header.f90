@@ -75,8 +75,6 @@ contains
     !> [[comment_character]]
     character(*), optional, intent(in) :: file_description
 
-    ! Indicates a dirty git repo, may be empty
-    character(:), allocatable :: git_dirty
     ! Actual comment character to use, may be empty
     character(:), allocatable :: comment_char
     ! Note that description_line will contain the comment character if
