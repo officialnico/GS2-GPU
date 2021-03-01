@@ -24,9 +24,9 @@ contains
   !> to all processors
   function simulation_run_uuid()
     use mp, only : proc0, broadcast
-    use uuid_mod, only : generate_uuid
-    character(len=36) :: simulation_run_uuid
-    character(len=36), save :: run_uuid
+    use uuid_mod, only : generate_uuid, uuid_len
+    character(len=uuid_len) :: simulation_run_uuid
+    character(len=uuid_len), save :: run_uuid
     logical, save :: first_run = .true.
 
     if (first_run) then

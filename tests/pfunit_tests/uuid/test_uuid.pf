@@ -5,8 +5,8 @@ contains
 
   @test
   subroutine test_uuid_unique_each_time
-    use uuid_mod, only : generate_uuid
-    character(len=36) :: uuid1, uuid2, uuid3, uuid4
+    use uuid_mod, only : generate_uuid, uuid_len
+    character(len=uuid_len) :: uuid1, uuid2, uuid3, uuid4
 
     uuid1 = generate_uuid()
     uuid2 = generate_uuid()
@@ -21,8 +21,8 @@ contains
 
   @test
   subroutine test_uuid_has_correct_version_variant
-    use uuid_mod, only : generate_uuid
-    character(len=36) :: uuid
+    use uuid_mod, only : generate_uuid, uuid_len
+    character(len=uuid_len) :: uuid
     character(len=1) :: version, variant
 
     uuid = generate_uuid()

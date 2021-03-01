@@ -16,6 +16,10 @@ module uuid_mod
   private
 
   public :: generate_uuid
+  public :: uuid_len
+
+  !> Length of the UUID character
+  integer, parameter :: uuid_len = 36
 
   integer, parameter :: N_mt19937 = 624
   integer, parameter :: M_mt19937 = 397
@@ -38,7 +42,7 @@ contains
   !> Convert an array of 1-byte integers into UUID format:
   !> "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
   function format_uuid(uuid_in)
-    character(len=36) :: format_uuid
+    character(len=uuid_len) :: format_uuid
     character(2), dimension(0:15) :: temp1
     character(32) :: temp
     integer(c_signed_char), dimension(16), intent(in) :: uuid_in
@@ -58,7 +62,7 @@ contains
   !> our own random number generator wrapper
   function generate_uuid()
     use, intrinsic :: iso_fortran_env, only : int16
-    character(len=36) :: generate_uuid
+    character(len=uuid_len) :: generate_uuid
     integer(c_signed_char), dimension(16) :: uuid_version_4
     integer :: i
 
