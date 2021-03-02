@@ -321,7 +321,7 @@ contains
   !! reaches init\%level = basic. If it is desired to provide
   !! an external commuicator or set the input file name externally,
   !! these should be set before calling this function. 
-  subroutine initialize_gs2(state)
+  subroutine initialize_gs2(state, header)
     use file_utils, only: init_file_utils
     use file_utils, only: run_name, run_name_target
     use gs2_init, only: init_gs2_init
@@ -334,10 +334,15 @@ contains
     use mp, only: use_nproc, included, mp_comm
     use redistribute, only: using_measure_scatter
     use unit_tests, only: debug_message, set_job_id
-    use standard_header_mod, only: standard_header
+    use standard_header_mod, only: standard_header_type
     implicit none
     type(gs2_program_state_type), intent(inout) :: state
+    !> Header for files with build and run information
+    type(standard_header_type), intent(in), optional :: header
     integer :: oldrank
+
+    ! Actual value for optional `header` input
+    type(standard_header_type) :: standard_header
 
     if (state%init%level .ge. init_level_list%basic) then
       write  (*,*) "ERROR: Called initialize_gs2 twice &
@@ -351,6 +356,12 @@ contains
        call init_mp (state%mp_comm)
     else
        call init_mp
+    end if
+
+    if (present(header)) then
+      standard_header = header
+    else
+      standard_header = standard_header_type()
     end if
 
     oldrank = iproc
@@ -378,7 +389,7 @@ contains
       'gs2_main::initialize_gs2 called init_checktime')
   
     if (proc0) then
-       write(*, '(a)') standard_header(comment_character=" ")
+       write(*, '(a)') standard_header%to_string(comment_character=" ")
        ! Report # of processors being used </doc>
        if (nproc == 1) then
          write(*,*) 'Running on ',nproc,' processor'
@@ -547,7 +558,7 @@ contains
   !! initialize_equations.  However, gs2 can be partially
   !! uninitialized without finalizing the diagnostics, for example to
   !! change parameters such as the timestep.
-  subroutine initialize_diagnostics(state)
+  subroutine initialize_diagnostics(state, header)
     use gs2_diagnostics, only: init_gs2_diagnostics
     use gs2_diagnostics, only: nwrite, write_nl_flux
     use gs2_diagnostics, only: loop_diagnostics
@@ -561,14 +572,26 @@ contains
     use parameter_scan, only: allocate_target_arrays
     use run_parameters, only: nstep, use_old_diagnostics
     use unit_tests, only: debug_message
+    use standard_header_mod, only: standard_header_type
     implicit none
     type(gs2_program_state_type), intent(inout) :: state
+    !> Header for files with build and run information
+    type(standard_header_type), intent(in), optional :: header
+    ! Actual value for optional `header` input
+    type(standard_header_type) :: standard_header
+
 #ifdef NEW_DIAG
     ! Configuration for the new diagnostics module
     type(diagnostics_init_options_type) :: diagnostics_init_options
     real :: precision_test
 #endif
     if (.not. state%included) return
+
+    if (present(header)) then
+      standard_header = header
+    else
+      standard_header = standard_header_type()
+    end if
 
     state%exit = .false. 
 
@@ -625,7 +648,7 @@ contains
 
       call debug_message(state%verb, &
         'gs2_main::initialize_diagnostics calling init_gs2_diagnostics')
-      call init_gs2_diagnostics (state%list, nstep)
+      call init_gs2_diagnostics (state%list, nstep, header=standard_header)
       call allocate_target_arrays(nwrite,write_nl_flux) ! must be after init_gs2_diagnostics
       call loop_diagnostics(0,state%exit)
     end if

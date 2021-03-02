@@ -1,5 +1,6 @@
 !> Contains functions for creating a standard header for files and output
 module standard_header_mod
+  use uuid_mod, only : uuid_len
   implicit none
 
   ! Explicit interfaces for the functions in git_hash.fpp
@@ -14,6 +15,24 @@ module standard_header_mod
       character(:), allocatable :: get_git_state
     end function get_git_state
   end interface
+
+  !> A header for files and output.
+  !>
+  !> This is a type rather than a function so that we can use a
+  !> consistent date/time and UUID across different files by reusing
+  !> the same object.
+  !>
+  !> Call `standard_header_type::to_string` to get the header as text.
+  type :: standard_header_type
+    character(:), allocatable :: date_time
+    character(len=uuid_len) :: run_uuid
+  contains
+    procedure :: to_string => standard_header_to_string
+  end type standard_header_type
+
+  interface standard_header_type
+    module procedure make_standard_header
+  end interface standard_header_type
 
 contains
 
@@ -54,19 +73,34 @@ contains
          // "Z" // zone(1:3) // ":" // zone(4:5)
   end function date_iso8601
 
+  !> Constructor for `standard_header_type`.
+  !>
+  !> Stores the date using `date_is08601` and the UUID using
+  !> `simulation_run_uuid`. Note that this may involve collective
+  !> communication, so all processors should be involved in
+  !> construction.
+  function make_standard_header() result(this)
+    type(standard_header_type) :: this
+
+    this%date_time = date_iso8601()
+    this%run_uuid = simulation_run_uuid()
+  end function make_standard_header
+
   !> Return a multiline string with a standard header of the form:
   !>
   !>     Created by GS2 at 2021-02-02T15:01:26.370Z+00:00
-  !>     Run UUID: <unique ID for this run>
-  !>     GK_SYSTEM: local
+  !>     Run UUID: 36310A48-6A73-4941-9366-410C5731027A
+  !>     GK_SYSTEM: ubuntu
   !>     Compiler: gfortran
   !>     <optional file description>
   !>
   !> If \p comment_character is passed, it is prepended to the start
   !> of each line. Note that it is used as-is, including any whitespace.
-  function standard_header(comment_character, file_description) result(header)
+  function standard_header_to_string(this, comment_character, file_description) result(header)
     use runtime_tests, only: runtime_info
     character(:), allocatable :: header
+
+    class(standard_header_type), intent(in) :: this
     !> Optional character(s) to start each line. Whitespace is not
     !> stripped or added. Default is empty string
     character(*), optional, intent(in) :: comment_character
@@ -96,12 +130,13 @@ contains
       description_line = ""
     end if
 
-    header = comment_char // "Created by GS2 at " // date_iso8601() // newline &
-         // comment_char // "Run UUID: " // simulation_run_uuid() // newline &
+    header = comment_char // "Created by GS2 at " // this%date_time // newline &
+         // comment_char // "Run UUID: " // this%run_uuid // newline &
          // comment_char // "GK_SYSTEM: " // trim(runtime_info%get_gk_system()) // newline &
          // comment_char // "Compiler: " // trim(runtime_info%get_compiler_name()) // newline &
          // comment_char // "Commit hash: " // get_git_hash() // get_git_state() // newline &
          // description_line
 
-  end function standard_header
+  end function standard_header_to_string
+
 end module standard_header_mod
