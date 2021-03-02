@@ -104,8 +104,8 @@ contains
     integer, parameter :: second = 1000
     integer, parameter :: minute = 60*second
     integer, parameter :: hour = 60*minute
-    integer, parameter :: day = 24*hour
-    integer, parameter :: month = 31*day
+    integer(int64), parameter :: day = 24*hour
+    integer(int64), parameter :: month = 31*day
     integer(int64), parameter :: year = 365_int64*day
 
     integer :: un, istat
