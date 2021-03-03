@@ -19,6 +19,8 @@ else
 all: cyclone_itg_low_res cyclone_itg_replay
 	$(call RUNCOMMAND,cyclone_itg_low_res,fields_implicit_single_mode.in)
 	$(call RUNCOMMAND,cyclone_itg_low_res,fields_local_single_mode.in)
+	$(call RUNCOMMAND,cyclone_itg_low_res,fields_local_single_mode_npassing_even.in)
+	$(call RUNCOMMAND,cyclone_itg_low_res,fields_local_single_mode_npassing_odd.in)
 	$(call RUNCOMMAND,cyclone_itg_low_res,fields_local_range.in)
 	$(call RUNCOMMAND,cyclone_itg_low_res,fields_local_box.in)
 ifeq ($(shell expr ${NTESTPROCS} \< 6; echo $?),1)
