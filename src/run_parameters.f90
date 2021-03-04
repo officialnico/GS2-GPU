@@ -87,7 +87,10 @@ module run_parameters
      real :: beta = 0.0
      !> Initial timestep
      real :: delt = 0.1
-     !> Determines how initial timestep is set
+     !> Determines how initial timestep is set. Possible options are:
+     !>
+     !>  - "default" or "set_by_hand": use timestep from input file
+     !>  - "check_restart": read timestep(s) from restart file
      character(len = 20) :: delt_option = 'default'
      !> If true then use eigensolver instead of initial value solver.
      logical :: do_eigsolve = .false.

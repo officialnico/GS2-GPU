@@ -352,6 +352,47 @@ probably want to issue a command like
 where `nprocs` is the number of processors. If you are running on an HPC system, you will
 need to consult their own manuals.
 
+Restarting a simulation
+-----------------------
+
+By default, GS2 doesn't create the files needed to restart a simulation, as they can get
+very large. In order to create them, you must first set the input variable
+[gs2_diagnostics_knobs::save_for_restart][save_for_restart] to `T` (or `.true.`) in your
+input file:
+
+``` Fortran
+&gs2_diagnostics_knobs
+    save_for_restart = T
+/
+```
+
+This will create one restart file per processor named like `<your input filename>.nc.<N>`
+where `<N>` is the processor rank.
+
+To then restart a simulation, set the following input variables:
+
+- [knobs::delt_option][delt_option] to `check_restart`
+- [init_g_knobs::ginit_option][ginit_option] to `many`
+
+``` Fortran
+&knobs
+    delt_option = "check_restart"
+/
+&init_g_knobs
+    ginit_option = "many"
+/
+```
+
+Important: by default, GS2 will overwrite existing output files! You may wish to backup
+these files before restarting the simulation. It is possible to get GS2 to append the
+output to the existing files with [gs2_diagnostics_knobs::append_old][append_old]:
+
+``` Fortran
+&gs2_diagnostics_knobs
+    append_old = T
+/
+```
+
 Analysing the Results
 ---------------------
 
@@ -391,6 +432,10 @@ Good luck!
 [simple_makefile]: https://bitbucket.org/gyrokinetics/makefiles/src/master/Makefile.simple
 [tests_readme]: https://bitbucket.org/gyrokinetics/gs2/src/master/tests/README.md
 [results_diagnostics]: |url|/page/user_manual/results_diagnostics.html
+[append_old]: |url|/page/namelists/index.html#gs2_diagnostics_knobs-append_old
+[save_for_restart]: |url|/page/namelists/index.html#gs2_diagnostics_knobs-save_for_restart
+[delt_option]: |url|/page/namelists/index.html#knobs-delt_option
+[ginit_option]: |url|/page/namelists/index.html#init_g_knobs-ginit_option
 
 <!-- Local Variables: -->
 <!-- mode: gfm -->
