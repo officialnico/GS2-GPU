@@ -238,6 +238,7 @@ contains
             call nc_norms
             call nc_species
             call nc_geo
+            call save_input
             nout = 1
         end if
 
@@ -529,7 +530,6 @@ contains
     integer :: status
 
     if (proc0) then
-       call save_input
        status = nf90_close (ncid)
        if (status /= NF90_NOERR) call netcdf_error (status)
        if(my_make_movie) then
