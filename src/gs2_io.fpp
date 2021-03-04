@@ -723,120 +723,31 @@ contains
     endif
 
     !Define dimensions/shapes for different data types
-    fmode_dim(1) = nakx_dim
-    fmode_dim(2) = naky_dim
-
-    mode_dim (1) = nakx_dim
-    mode_dim (2) = naky_dim
-    mode_dim (3) = time_dim
-
-    err_dim (1) = nttot_dim
-    err_dim (2) = nakx_dim
-    err_dim (3) = naky_dim
-    err_dim (4) = ncoordt_dim
-    err_dim (5) = time_dim
-
-    lp_dim (1) = nttot_dim
-    lp_dim (2) = nakx_dim
-    lp_dim (3) = naky_dim
-    lp_dim (4) = nspec_dim
-    lp_dim (5) = ncoord_dim
-    lp_dim (6) = time_dim
-
-    kx_dim (1) = nakx_dim
-    kx_dim (2) = time_dim
-
-    ky_dim (1) = naky_dim
-    ky_dim (2) = time_dim
-
-    om_dim (1) = ri_dim
-    om_dim (2) = time_dim
-
-    omega_dim (1) = ri_dim
-    omega_dim (2) = nakx_dim
-    omega_dim (3) = naky_dim
-    omega_dim (4) = time_dim
-
-    phase_dim (1) = ri_dim
-    phase_dim (2) = nakx_dim
-    phase_dim (3) = naky_dim
-
-    nin_dim(1) = char200_dim
-    nin_dim(2) = nlines_dim
-
-    flux_dim (1) = nspec_dim
-    flux_dim (2) = time_dim
-
-    fluxk_dim (1) = nakx_dim
-    fluxk_dim (2) = naky_dim
-    fluxk_dim (3) = nspec_dim
-    fluxk_dim (4) = time_dim
-
-    fluxx_dim (1) = nakx_dim
-    fluxx_dim (2) = nspec_dim
-    fluxx_dim (3) = time_dim
-
-    heat_dim (1) = nspec_dim
-    heat_dim (2) = nheat_dim
-    heat_dim (3) = time_dim
-
-    heatk_dim (1) = nakx_dim
-    heatk_dim (2) = naky_dim
-    heatk_dim (3) = nspec_dim
-    heatk_dim (4) = nheat_dim
-    heatk_dim (5) = time_dim
-
-    field_dim (1) = ri_dim
-    field_dim (2) = nttot_dim
-    field_dim (3) = nakx_dim
-    field_dim (4) = naky_dim
-    field_dim (5) = time_dim
-
-    mom_t_dim (1) = ri_dim
-    mom_t_dim (2) = nttot_dim
-    mom_t_dim (3) = nakx_dim
-    mom_t_dim (4) = naky_dim
-    mom_t_dim (5) = nspec_dim
-    mom_t_dim (6) = time_dim
-
-    final_field_dim (1) = ri_dim
-    final_field_dim (2) = nttot_dim
-    final_field_dim (3) = nakx_dim
-    final_field_dim (4) = naky_dim
-
-    final_mom_dim (1) = ri_dim
-    final_mom_dim (2) = nttot_dim
-    final_mom_dim (3) = nakx_dim
-    final_mom_dim (4) = naky_dim
-    final_mom_dim (5) = nspec_dim
-
-    loop_mom_dim (1) = ri_dim
-    loop_mom_dim (2) = nakx_dim
-    loop_mom_dim (3) = nspec_dim
-    loop_mom_dim (4) = time_dim
-
-    loop_phi_dim (1) = ri_dim
-    loop_phi_dim (2) = nakx_dim
-    loop_phi_dim (3) = time_dim
-
-    mom_dim(1) = ri_dim
-    mom_dim(2) = nakx_dim
-    mom_dim(3) = naky_dim
-    mom_dim(4) = nspec_dim
-    mom_dim(5) = time_dim
-
-    flux_dist_dim(1) = nttot_dim
-    flux_dist_dim(2) = nspec_dim
-    flux_dist_dim(3) = time_dim
-
-    phi_dist_dim(1) = ri_dim
-    phi_dist_dim(2) = nttot_dim
-    phi_dist_dim(3) = time_dim
-
-    sym_dim(1) = nttot_dim
-    sym_dim(2) = vpa_dim
-    sym_dim(3) = nspec_dim
-    sym_dim(4) = time_dim
+    fmode_dim       = [nakx_dim, naky_dim]
+    mode_dim        = [nakx_dim, naky_dim, time_dim]
+    err_dim         = [nttot_dim, nakx_dim, naky_dim, ncoordt_dim, time_dim]
+    lp_dim          = [nttot_dim, nakx_dim, naky_dim, nspec_dim, ncoord_dim, time_dim]
+    kx_dim          = [nakx_dim, time_dim]
+    ky_dim          = [naky_dim, time_dim]
+    om_dim          = [ri_dim, time_dim]
+    omega_dim       = [ri_dim, nakx_dim, naky_dim, time_dim]
+    phase_dim       = [ri_dim, nakx_dim, naky_dim]
+    nin_dim         = [char200_dim, nlines_dim]
+    flux_dim        = [nspec_dim, time_dim]
+    fluxk_dim       = [nakx_dim, naky_dim, nspec_dim, time_dim]
+    fluxx_dim       = [nakx_dim, nspec_dim, time_dim]
+    heat_dim        = [nspec_dim, nheat_dim, time_dim]
+    heatk_dim       = [nakx_dim, naky_dim, nspec_dim, nheat_dim, time_dim]
+    field_dim       = [ri_dim, nttot_dim, nakx_dim, naky_dim, time_dim]
+    mom_t_dim       = [ri_dim, nttot_dim, nakx_dim, naky_dim, nspec_dim, time_dim]
+    final_field_dim = [ri_dim, nttot_dim, nakx_dim, naky_dim]
+    final_mom_dim   = [ri_dim, nttot_dim, nakx_dim, naky_dim, nspec_dim]
+    loop_mom_dim    = [ri_dim, nakx_dim, nspec_dim, time_dim]
+    loop_phi_dim    = [ri_dim, nakx_dim, time_dim]
+    mom_dim         = [ri_dim, nakx_dim, naky_dim, nspec_dim, time_dim]
+    flux_dist_dim   = [nttot_dim, nspec_dim, time_dim]
+    phi_dist_dim    = [ri_dim, nttot_dim, time_dim]
+    sym_dim         = [nttot_dim, vpa_dim, nspec_dim, time_dim]
 
 
     ! HJL This is a hack to stop the netcdf diagnostic output failing when the variable sizes are too big
@@ -861,22 +772,11 @@ contains
     endif
     ! HJL End of hack
     if (io_write_corr_extend) then
-       phi2_extend_dim(1) = nttotext_dim
-       phi2_extend_dim(2) = nakx_dim
-       phi2_extend_dim(3) = naky_dim
-       phi2_extend_dim(4) = time_big_dim
-
-       phi_corr_dim(1) = ri_dim
-       phi_corr_dim(2) = nttotext_dim
-       phi_corr_dim(3) = nakx_dim
-       phi_corr_dim(4) = naky_dim
-       phi_corr_dim(5) = time_big_dim
+       phi2_extend_dim = [nttotext_dim, nakx_dim, naky_dim, time_big_dim]
+       phi_corr_dim = [ri_dim, nttotext_dim, nakx_dim, naky_dim, time_big_dim]
     end if
 
-    phi_corr_2pi_dim(1) = ri_dim
-    phi_corr_2pi_dim(2) = nttot_dim
-    phi_corr_2pi_dim(3) = naky_dim
-    phi_corr_2pi_dim(4) = time_dim
+    phi_corr_2pi_dim = [ri_dim, nttot_dim, naky_dim, time_dim]
 
     !<doc> Write some useful general information such as the website,
     ! date and time into the NetCDF file </doc>
@@ -1487,10 +1387,7 @@ contains
     ! added by EAB 03/05/04 for GS2 movies
     if(my_make_movie) then
        !Setup field shape
-       xmode_dim (1) = nx_dim
-       xmode_dim (2) = ny_dim
-       xmode_dim (3) = nth_dim
-       xmode_dim (4) = time_movie_dim
+       xmode_dim = [nx_dim, ny_dim, nth_dim, time_movie_dim]
 
        !Basic information
        call ensure_netcdf_att_exists(ncid_movie, NF90_GLOBAL, 'title', 'GS2 Simulation x,y,theta Data for Movies')
