@@ -135,6 +135,7 @@ contains
       write_phi_over_time, write_apar_over_time, write_bpar_over_time, &
       write_avg_moments, write_final_moments, write_final_epar, nout, &
       ob_midplane) 
+    use, intrinsic :: iso_fortran_env, only : error_unit
     use mp, only: proc0
     use init_g, only: tstart
 # ifdef NETCDF
@@ -195,7 +196,15 @@ contains
 
     ! only proc0 opens the file:
     if (proc0) then
+       ! See if the output file already exists, so we know how to open
+       ! the file.  This would be simpler if netCDF had a "open if it
+       ! exists, create if it doesn't" mode, but it doesn't so we have
+       ! to do this instead
        inquire(file=trim(filename), exist=previous_file_exists)
+       if (append_old .and. .not. previous_file_exists) then
+         write(error_unit, '(a, a, a)') "WARNING: 'append_old' requested, but '", trim(filename), &
+              "' does not exist. Creating new file"
+       end if
        appending = (previous_file_exists .and. append_old)
        if (appending) then
           status = nf90_open(trim(filename), NF90_WRITE, ncid)
