@@ -1091,7 +1091,7 @@ contains
          nout, ob_midplane=ob_midplane)
 
     call broadcast (nout)
-    call broadcast (user_time)
+
     if (write_cerr) then
        if (collision_model_switch == 1 .or. collision_model_switch == 5) then
           call init_lorentz_error
