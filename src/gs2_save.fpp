@@ -34,7 +34,7 @@ module gs2_save
 
   public :: read_many, save_many, gs2_save_response, gs2_restore_response
   public :: restore_current_scan_parameter_value
-  public :: init_gs2_save, init_dt, init_tstart, init_ant_amp
+  public :: init_gs2_save, init_dt, read_t0_from_restart_file, init_ant_amp
   public :: set_restart_file, include_explicit_source_in_restart
   public :: init_vnm, restart_writable, EigNetcdfID
   public :: init_eigenfunc_file, finish_eigenfunc_file, add_eigenpair_to_file
@@ -2438,7 +2438,7 @@ contains
   end subroutine init_ant_amp
 
   !> FIXME : Add documentation  
-  subroutine init_tstart (tstart, istatus)
+  subroutine read_t0_from_restart_file (tstart, istatus)
 
 # ifdef NETCDF
     use mp, only: proc0, broadcast
@@ -2486,5 +2486,5 @@ contains
 
 # endif
 
-  end subroutine init_tstart
+  end subroutine read_t0_from_restart_file
 end module gs2_save
