@@ -281,7 +281,7 @@ contains
     end if
     ! Something went wrong with one of the previous two calls
     if (status /= NF90_NOERR) then
-      call netcdf_error(status, dim=dim_name, abort=.true.)
+      call netcdf_error(status, dim=dim_name, message="(ensure_netcdf_dim_exists)", abort=.true.)
     end if
 #endif
   end subroutine ensure_netcdf_dim_exists
@@ -353,7 +353,7 @@ contains
     if (status /= NF90_NOERR) then
       call netcdf_error(status, &
                         dim=trim(dim_name), &
-                        message="Could not get length of dimension", &
+                        message="(get_netcdf_dim_length)", &
                         abort=.true.)
     end if
 #endif
@@ -594,7 +594,8 @@ contains
     end if
     ! Something went wrong with one of the previous two calls
     if (status /= NF90_NOERR) then
-      call netcdf_error(status, var=var_name, varid=var_id, abort=.true.)
+      call netcdf_error(status, var=var_name, varid=var_id, &
+                        message="(ensure_netcdf_var_exists)", abort=.true.)
     end if
 #endif
   end subroutine ensure_netcdf_var_exists_scalar
@@ -644,7 +645,8 @@ contains
     end if
     ! Something went wrong with one of the previous two calls
     if (status /= NF90_NOERR) then
-      call netcdf_error(status, var=var_name, varid=var_id, abort=.true.)
+      call netcdf_error(status, var=var_name, varid=var_id, &
+                        message="(ensure_netcdf_var_exists)", abort=.true.)
     end if
 #endif
   end subroutine ensure_netcdf_var_exists_manydims
@@ -673,7 +675,8 @@ contains
     end if
     ! Something went wrong with one of the previous two calls
     if (status /= NF90_NOERR) then
-      call netcdf_error(status, file_id, var_id, att=att_name, abort=.true.)
+      call netcdf_error(status, file_id, var_id, att=att_name, &
+                        message="(ensure_netcdf_att_exists)", abort=.true.)
     end if
 #endif
   end subroutine ensure_netcdf_att_exists_text
