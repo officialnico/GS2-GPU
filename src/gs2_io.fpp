@@ -108,6 +108,16 @@ module gs2_io
 # endif
   real :: zero
   
+  interface ensure_netcdf_var_exists
+    module procedure ensure_netcdf_var_exists_scalar
+    module procedure ensure_netcdf_var_exists_onedim
+    module procedure ensure_netcdf_var_exists_manydims
+  end interface ensure_netcdf_var_exists
+
+  interface ensure_netcdf_att_exists
+    module procedure ensure_netcdf_att_exists_text
+  end interface ensure_netcdf_att_exists
+
 !  include 'netcdf.inc'
   
 contains
@@ -541,6 +551,116 @@ contains
 # endif
   end subroutine save_input
 
+  !> Get the netCDF ID for a variable, creating it if it doesn't exist
+  !> already
+  subroutine ensure_netcdf_var_exists_scalar(file_id, var_name, var_type, var_id)
+#ifdef NETCDF
+    use netcdf, only: nf90_inq_varid, nf90_def_var, NF90_NOERR, NF90_ENOTVAR
+#endif
+    !> ID of the file or group to look for or create the variable under
+    integer(kind_nf), intent(in) :: file_id
+    !> Name of the variable
+    character(len=*), intent(in) :: var_name
+    !> The netCDF type of the variable
+    integer(kind_nf), intent(in) :: var_type
+    !> The netCDF ID of the variable under `file_id`
+    integer(kind_nf), intent(out) :: var_id
+
+    ! Error code of the netCDF calls
+    integer(kind_nf) :: status
+
+#ifdef NETCDF
+    status = nf90_inq_varid(file_id, var_name, var_id)
+    ! Variable doesn't exist, so let's create it
+    if (status == NF90_ENOTVAR) then
+      status = nf90_def_var(file_id, var_name, var_type, var_id)
+    end if
+    ! Something went wrong with one of the previous two calls
+    if (status /= NF90_NOERR) then
+      call netcdf_error(status, var=var_name, varid=var_id, abort=.true.)
+    end if
+#endif
+  end subroutine ensure_netcdf_var_exists_scalar
+
+  !> Get the netCDF ID for a variable, creating it if it doesn't exist
+  !> already
+  subroutine ensure_netcdf_var_exists_onedim(file_id, var_name, var_type, dim_id, var_id)
+    !> ID of the file or group to look for or create the variable under
+    integer(kind_nf), intent(in) :: file_id
+    !> Name of the variable
+    character(len=*), intent(in) :: var_name
+    !> The netCDF type of the variable
+    integer(kind_nf), intent(in) :: var_type
+    !> Array of dimension IDs
+    integer(kind_nf), intent(in) :: dim_id
+    !> The netCDF ID of the variable under `file_id`
+    integer(kind_nf), intent(out) :: var_id
+
+    call ensure_netcdf_var_exists_manydims(file_id, var_name, var_type, [dim_id], var_id)
+  end subroutine ensure_netcdf_var_exists_onedim
+
+  !> Get the netCDF ID for a variable, creating it if it doesn't exist
+  !> already
+  subroutine ensure_netcdf_var_exists_manydims(file_id, var_name, var_type, dim_id, var_id)
+#ifdef NETCDF
+    use netcdf, only: nf90_inq_varid, nf90_def_var, NF90_NOERR, NF90_ENOTVAR
+#endif
+    !> ID of the file or group to look for or create the variable under
+    integer(kind_nf), intent(in) :: file_id
+    !> Name of the variable
+    character(len=*), intent(in) :: var_name
+    !> The netCDF type of the variable
+    integer(kind_nf), intent(in) :: var_type
+    !> Array of dimension IDs
+    integer(kind_nf), dimension(:), intent(in) :: dim_id
+    !> The netCDF ID of the variable under `file_id`
+    integer(kind_nf), intent(out) :: var_id
+
+    ! Error code of the netCDF calls
+    integer(kind_nf) :: status
+
+#ifdef NETCDF
+    status = nf90_inq_varid(file_id, var_name, var_id)
+    ! Variable doesn't exist, so let's create it
+    if (status == NF90_ENOTVAR) then
+      status = nf90_def_var(file_id, var_name, var_type, dim_id, var_id)
+    end if
+    ! Something went wrong with one of the previous two calls
+    if (status /= NF90_NOERR) then
+      call netcdf_error(status, var=var_name, varid=var_id, abort=.true.)
+    end if
+#endif
+  end subroutine ensure_netcdf_var_exists_manydims
+
+  subroutine ensure_netcdf_att_exists_text(file_id, var_id, att_name, att_text)
+#ifdef NETCDF
+    use netcdf, only: nf90_inquire_attribute, nf90_put_att, NF90_NOERR, NF90_ENOTATT
+#endif
+    !> ID of the file or group to look for or create the variable under
+    integer(kind_nf), intent(in) :: file_id
+    !> The netCDF ID of the variable under `file_id`
+    integer(kind_nf), intent(in) :: var_id
+    !> Name of the attribute
+    character(len=*), intent(in) :: att_name
+    !> Attribute text to store
+    character(len=*), intent(in) :: att_text
+
+    ! Error code of the netCDF calls
+    integer(kind_nf) :: status
+
+#ifdef NETCDF
+    status = nf90_inquire_attribute(file_id, var_id, att_name)
+    ! Attribute doesn't exist, so let's create it
+    if (status == NF90_ENOTATT) then
+      status = nf90_put_att(file_id, var_id, att_name, att_text)
+    end if
+    ! Something went wrong with one of the previous two calls
+    if (status /= NF90_NOERR) then
+      call netcdf_error(status, file_id, var_id, att=att_name, abort=.true.)
+    end if
+#endif
+  end subroutine ensure_netcdf_att_exists_text
+
   !> Create (but don't fill) the various diagnostics variables in the
   !> output netCDF file
   !>
@@ -552,15 +672,14 @@ contains
        write_nl_flux_dist, write_pflux_tormom, write_correlation, &
        write_correlation_extend, write_avg_moments, write_final_moments, write_final_epar, &
        ob_midplane)
-# ifdef NETCDF 
+# ifdef NETCDF
     use file_utils, only: error_unit
     use mp, only: nproc
     use kt_grids, only: naky, ntheta0
     use run_parameters, only: fphi, fapar, fbpar
     use parameter_scan_arrays, only: write_scan_parameter
     use netcdf, only: NF90_CHAR, NF90_INT, NF90_GLOBAL
-    use netcdf, only: nf90_def_var, nf90_put_att, nf90_enddef, nf90_put_var
-    use netcdf, only: nf90_inq_libvers, nf90_inquire_dimension
+    use netcdf, only: nf90_enddef, nf90_inq_libvers, nf90_put_var
     use netcdf_utils, only: netcdf_real
 # endif
     implicit none
@@ -573,7 +692,6 @@ contains
     logical, intent(in) :: write_avg_moments, write_final_moments, write_final_epar
     logical, optional, intent(in) :: ob_midplane
 # ifdef NETCDF
-    character (5) :: ci
     character (20) :: datestamp, timestamp, timezone, tmpc
     integer :: status, ierr, dimsize(5)
     real    :: total
@@ -607,10 +725,10 @@ contains
 
     kx_dim (1) = nakx_dim
     kx_dim (2) = time_dim
-    
+
     ky_dim (1) = naky_dim
     ky_dim (2) = time_dim
-    
+
     om_dim (1) = ri_dim
     om_dim (2) = time_dim
 
@@ -622,10 +740,10 @@ contains
     phase_dim (1) = ri_dim
     phase_dim (2) = nakx_dim
     phase_dim (3) = naky_dim
-    
+
     nin_dim(1) = char200_dim
     nin_dim(2) = nlines_dim
-    
+
     flux_dim (1) = nspec_dim
     flux_dim (2) = time_dim
 
@@ -653,14 +771,14 @@ contains
     field_dim (3) = nakx_dim
     field_dim (4) = naky_dim
     field_dim (5) = time_dim
-    
+
     mom_t_dim (1) = ri_dim
     mom_t_dim (2) = nttot_dim
     mom_t_dim (3) = nakx_dim
     mom_t_dim (4) = naky_dim
     mom_t_dim (5) = nspec_dim
     mom_t_dim (6) = time_dim
-    
+
     final_field_dim (1) = ri_dim
     final_field_dim (2) = nttot_dim
     final_field_dim (3) = nakx_dim
@@ -707,11 +825,11 @@ contains
     ! and is not worth pursuing at the moment
     !<DD>Added protective if statement as nttotext_dim is only defined if io_write_corr_extend
     if(io_write_corr_extend)then
-       status = nf90_inquire_dimension(ncid, ri_dim, tmpc, dimsize(1))
-       status = nf90_inquire_dimension(ncid, nttotext_dim, tmpc, dimsize(2))
-       status = nf90_inquire_dimension(ncid, nakx_dim, tmpc, dimsize(3))
-       status = nf90_inquire_dimension(ncid, naky_dim, tmpc, dimsize(4))
-       status = nf90_inquire_dimension(ncid, time_big_dim, tmpc, dimsize(5))
+       dimsize(1) = get_netcdf_dim_length(ncid, ri_dim)
+       dimsize(2) = get_netcdf_dim_length(ncid, nttotext_dim)
+       dimsize(3) = get_netcdf_dim_length(ncid, nakx_dim)
+       dimsize(4) = get_netcdf_dim_length(ncid, naky_dim)
+       dimsize(5) = get_netcdf_dim_length(ncid, time_big_dim)
        ierr = error_unit()
        total = product(real(dimsize(1:5)))
        if(total .gt. 178180992) then ! number of reals allowed in netcdf
@@ -742,11 +860,8 @@ contains
 
     !<doc> Write some useful general information such as the website,
     ! date and time into the NetCDF file </doc>
-    status = nf90_put_att (ncid, NF90_GLOBAL, 'title', 'GS2 Simulation Data')
-    if (status /= NF90_NOERR) call netcdf_error (status, ncid, NF90_GLOBAL, att='title')
-    status = nf90_put_att (ncid, NF90_GLOBAL, 'Conventions', &
-         'https://sourceforge.net/projects/gyrokinetics/')
-    if (status /= NF90_NOERR) call netcdf_error (status, ncid, NF90_GLOBAL, att='Conventions')
+    call ensure_netcdf_att_exists(ncid, NF90_GLOBAL, "title", "GS2 Simulation Data")
+    call ensure_netcdf_att_exists(ncid, NF90_GLOBAL, "Conventions", "https://gyrokinetics.gitlab.io/gs2/")
 
     datestamp(:) = ' '
     timestamp(:) = ' '
@@ -756,296 +871,168 @@ contains
     !################################################
     !# START WITH BASIC ATTRIBUTES
 
-    status = nf90_def_var (ncid, 'code_info', NF90_CHAR, char10_dim, code_id)
-    if (status /= NF90_NOERR) call netcdf_error (status, var='code_info')
-    status = nf90_put_att (ncid, code_id, 'long_name', 'GS2')
-    if (status /= NF90_NOERR) call netcdf_error (status, ncid, code_id, att='long_name')
-
-    ci = 'c1'
-    status = nf90_put_att (ncid, code_id, trim(ci), 'Date: '//trim(datestamp))
-    if (status /= NF90_NOERR) call netcdf_error (status, ncid, code_id, att=ci)
-
-    ci = 'c2'
-    status = nf90_put_att (ncid, code_id, trim(ci), &
+    call ensure_netcdf_var_exists(ncid, "code_info", NF90_CHAR, char10_dim, code_id)
+    call ensure_netcdf_att_exists(ncid, code_id, "long_name", "GS2")
+    call ensure_netcdf_att_exists(ncid, code_id, "c1", 'Date: '//trim(datestamp))
+    call ensure_netcdf_att_exists(ncid, code_id, "c2", &
          'Time: '//trim(timestamp)//' '//trim(timezone))
-    if (status /= NF90_NOERR) call netcdf_error (status, ncid, code_id, att=ci)
-
-    ci = 'c3'
-    status = nf90_put_att (ncid, code_id, trim(ci), &
+    call ensure_netcdf_att_exists(ncid, code_id, "c3", &
          'netCDF version '//trim(nf90_inq_libvers()))
-    if (status /= NF90_NOERR) call netcdf_error (status, ncid, code_id, att=ci)
-
-    ci = 'c4'
-    status = nf90_put_att (ncid, code_id, trim(ci), &
+    call ensure_netcdf_att_exists(ncid, code_id, "c4", &
          'Units are determined with respect to reference temperature (T_ref),')
-    if (status /= NF90_NOERR) call netcdf_error (status, ncid, code_id, att=ci)
-
-    ci = 'c5'
-    status = nf90_put_att (ncid, code_id, trim(ci), &
+    call ensure_netcdf_att_exists(ncid, code_id, "c5", &
          'reference charge (q_ref), reference mass (mass_ref),')
-    if (status /= NF90_NOERR) call netcdf_error (status, ncid, code_id, att=ci)
-
-    ci = 'c6'
-    status = nf90_put_att (ncid, code_id, trim(ci), &
+    call ensure_netcdf_att_exists(ncid, code_id, "c6", &
          'reference field (B_ref), and reference length (a_ref)')
-    if (status /= NF90_NOERR) call netcdf_error (status, ncid, code_id, att=ci)
-
-    ci = 'c7'
-    status = nf90_put_att (ncid, code_id, trim(ci), &
+    call ensure_netcdf_att_exists(ncid, code_id, "c7", &
          'from which one may construct rho_ref and vt_ref/a,')
-    if (status /= NF90_NOERR) call netcdf_error (status, ncid, code_id, att=ci)
-
-    ci = 'c8'
-    status = nf90_put_att (ncid, code_id, trim(ci), &
+    call ensure_netcdf_att_exists(ncid, code_id, "c8", &
          'which are the basic units of perpendicular length and time.')
-    if (status /= NF90_NOERR) call netcdf_error (status, ncid, code_id, att=ci)
-
-    ci = 'c9'
-    status = nf90_put_att (ncid, code_id, trim(ci), &
+    call ensure_netcdf_att_exists(ncid, code_id, "c9", &
          'Macroscopic lengths are normalized to the minor radius.')
-    if (status /= NF90_NOERR) call netcdf_error (status, ncid, code_id, att=ci)
-
-    ci = 'c10'
-    status = nf90_put_att (ncid, code_id, trim(ci), &
+    call ensure_netcdf_att_exists(ncid, code_id, "c10", &
          'The difference between rho (normalized minor radius) and rho (gyroradius)')
-    if (status /= NF90_NOERR) call netcdf_error (status, ncid, code_id, att=ci)
-
-    ci = 'c11'
-    status = nf90_put_att (ncid, code_id, trim(ci), &
+    call ensure_netcdf_att_exists(ncid, code_id, "c11", &
          'should be clear from the context in which they appear below.')
-    if (status /= NF90_NOERR) call netcdf_error (status, ncid, code_id, att=ci)
 
     !This stores a copy of the (sanitised?) input file
-    status = nf90_def_var (ncid, 'input_file', NF90_CHAR, nin_dim, input_id)
-    if (status /= NF90_NOERR) call netcdf_error (status, var='input_file')
-    status = nf90_put_att (ncid, input_id, 'long_name', 'Input file')
-    if (status /= NF90_NOERR) call netcdf_error (status, ncid, input_id, att='long_name')
-
-    !------------------------------------------------
+    call ensure_netcdf_var_exists(ncid, 'input_file', NF90_CHAR, nin_dim, input_id)
+    call ensure_netcdf_att_exists(ncid, input_id, 'long_name', 'Input file')
 
     !################################################
     !# NOW HANDLE DATA ABOUT GRID SIZES
-    !<doc> Write lots of input variables (e.g. nproc, nkx, nky)
-    ! into the NetCDF file </doc>
+    ! Write lots of input variables (e.g. nproc, nkx, nky)
+    ! into the NetCDF file
 
-    status = nf90_def_var (ncid, 'layout', NF90_CHAR, char5_dim, layout_id)
-    if (status /= NF90_NOERR) call netcdf_error (status, var='layout')
+    call ensure_netcdf_var_exists(ncid, 'layout', NF90_CHAR, char5_dim, layout_id)
+    call ensure_netcdf_var_exists(ncid, 'nproc', NF90_INT, nproc_id)
+    call ensure_netcdf_att_exists(ncid, nproc_id, 'long_name', 'Number of processors')
 
-    status = nf90_def_var (ncid, 'nproc', NF90_INT, nproc_id)
-    if (status /= NF90_NOERR) call netcdf_error (status, var='nproc')
-    status = nf90_put_att (ncid, nproc_id, 'long_name', 'Number of processors')
-    if (status /= NF90_NOERR) call netcdf_error (status, ncid, nproc_id, att='long_name')
+    call ensure_netcdf_var_exists(ncid, 'nmesh', netcdf_real, nmesh_id)
+    call ensure_netcdf_att_exists(ncid, nmesh_id, 'long_name', 'Number of meshpoints')
 
-    status = nf90_def_var (ncid, 'nmesh', netcdf_real, nmesh_id)
-    if (status /= NF90_NOERR) call netcdf_error (status, var='nmesh')
-    status = nf90_put_att (ncid, nmesh_id, 'long_name', 'Number of meshpoints')
-    if (status /= NF90_NOERR) call netcdf_error (status, ncid, nmesh_id, att='long_name')
-
-    status = nf90_def_var (ncid, 'nkx', NF90_INT, nakx_id)
-    if (status /= NF90_NOERR) call netcdf_error (status, var='nkx')
-    status = nf90_def_var (ncid, 'nky', NF90_INT, naky_id)
-    if (status /= NF90_NOERR) call netcdf_error (status, var='nky')
-    status = nf90_def_var (ncid, 'ntheta_tot', NF90_INT, nttot_id)
-    if (status /= NF90_NOERR) call netcdf_error (status, var='ntheta_tot')
-    status = nf90_def_var (ncid, 'nspecies', NF90_INT, nspec_id)
-    if (status /= NF90_NOERR) call netcdf_error (status, var='nspecies')
-    status = nf90_def_var (ncid, 'nenergy', NF90_INT, negrid_id)
-    if (status /= NF90_NOERR) call netcdf_error (status, var='nenergy')
-    status = nf90_def_var (ncid, 'nlambda', NF90_INT, nlambda_id)
-    if (status /= NF90_NOERR) call netcdf_error (status, var='nlambda')
+    call ensure_netcdf_var_exists(ncid, 'nkx', NF90_INT, nakx_id)
+    call ensure_netcdf_var_exists(ncid, 'nky', NF90_INT, naky_id)
+    call ensure_netcdf_var_exists(ncid, 'ntheta_tot', NF90_INT, nttot_id)
+    call ensure_netcdf_var_exists(ncid, 'nspecies', NF90_INT, nspec_id)
+    call ensure_netcdf_var_exists(ncid, 'nenergy', NF90_INT, negrid_id)
+    call ensure_netcdf_var_exists(ncid, 'nlambda', NF90_INT, nlambda_id)
 
     !################################################
     !# NOW DO NORMALISATIONS
-    !>Could use norms%check_if_set to decide what we want to write here
-    status = nf90_def_var (ncid, 'aref', netcdf_real, aref_id)
-    if (status /= NF90_NOERR) call netcdf_error (status, var='aref')
-    status = nf90_def_var (ncid, 'zref', netcdf_real, zref_id)
-    if (status /= NF90_NOERR) call netcdf_error (status, var='zref')
-    status = nf90_def_var (ncid, 'nref', netcdf_real, nref_id)
-    if (status /= NF90_NOERR) call netcdf_error (status, var='nref')
-    status = nf90_def_var (ncid, 'tref', netcdf_real, tref_id)
-    if (status /= NF90_NOERR) call netcdf_error (status, var='tref')
-    status = nf90_def_var (ncid, 'mref', netcdf_real, mref_id)
-    if (status /= NF90_NOERR) call netcdf_error (status, var='mref')
-    status = nf90_def_var (ncid, 'vref', netcdf_real, vref_id)
-    if (status /= NF90_NOERR) call netcdf_error (status, var='vref')
-    status = nf90_def_var (ncid, 'bref', netcdf_real, bref_id)
-    if (status /= NF90_NOERR) call netcdf_error (status, var='bref')
-    status = nf90_def_var (ncid, 'rhoref', netcdf_real, rhoref_id)
-    if (status /= NF90_NOERR) call netcdf_error (status, var='rhoref')
+    ! Could use norms%check_if_set to decide what we want to write here
+
+    call ensure_netcdf_var_exists(ncid, 'aref', netcdf_real, aref_id)
+    call ensure_netcdf_var_exists(ncid, 'zref', netcdf_real, zref_id)
+    call ensure_netcdf_var_exists(ncid, 'nref', netcdf_real, nref_id)
+    call ensure_netcdf_var_exists(ncid, 'tref', netcdf_real, tref_id)
+    call ensure_netcdf_var_exists(ncid, 'mref', netcdf_real, mref_id)
+    call ensure_netcdf_var_exists(ncid, 'vref', netcdf_real, vref_id)
+    call ensure_netcdf_var_exists(ncid, 'bref', netcdf_real, bref_id)
+    call ensure_netcdf_var_exists(ncid, 'rhoref', netcdf_real, rhoref_id)
 
     !################################################
     !# NOW DO SPECIES DATA
-    status = nf90_def_var (ncid, 'charge', NF90_INT, nspec_dim, charge_id)
-    if (status /= NF90_NOERR) call netcdf_error (status, var='charge')
-    status = nf90_put_att (ncid, charge_id, 'long_name', 'Charge')
-    if (status /= NF90_NOERR) call netcdf_error (status, ncid, charge_id, att='long_name')
-    status = nf90_put_att (ncid, charge_id, 'units', 'q')
-    if (status /= NF90_NOERR) call netcdf_error (status, ncid, charge_id, att='units')
 
-    status = nf90_def_var (ncid, 'mass', netcdf_real, nspec_dim, mass_id)
-    if (status /= NF90_NOERR) call netcdf_error (status, var='mass')
-    status = nf90_put_att (ncid, mass_id, 'long_name', 'Atomic mass')
-    if (status /= NF90_NOERR) call netcdf_error (status, ncid, mass_id, att='long_name')
-    status = nf90_put_att (ncid, mass_id, 'units', 'm')
-    if (status /= NF90_NOERR) call netcdf_error (status, ncid, mass_id, att='units')
+    call ensure_netcdf_var_exists(ncid, 'charge', NF90_INT, nspec_dim, charge_id)
+    call ensure_netcdf_att_exists(ncid, charge_id, 'long_name', 'Charge')
+    call ensure_netcdf_att_exists(ncid, charge_id, 'units', 'q')
 
-    status = nf90_def_var (ncid, 'dens', netcdf_real, nspec_dim, dens_id)
-    if (status /= NF90_NOERR) call netcdf_error (status, var='dens')
-    status = nf90_put_att (ncid, dens_id, 'long_name', 'Density')
-    if (status /= NF90_NOERR) call netcdf_error (status, ncid, dens_id, att='long_name')
-    status = nf90_put_att (ncid, dens_id, 'units', 'n_e')
-    if (status /= NF90_NOERR) call netcdf_error (status, ncid, dens_id, att='units')
+    call ensure_netcdf_var_exists(ncid, 'mass', netcdf_real, nspec_dim, mass_id)
+    call ensure_netcdf_att_exists(ncid, mass_id, 'long_name', 'Atomic mass')
+    call ensure_netcdf_att_exists(ncid, mass_id, 'units', 'm')
 
-    status = nf90_def_var (ncid, 'temp', netcdf_real, nspec_dim, temp_id)
-    if (status /= NF90_NOERR) call netcdf_error (status, var='temp')
-    status = nf90_put_att (ncid, temp_id, 'long_name', 'Temperature')
-    if (status /= NF90_NOERR) call netcdf_error (status, ncid, temp_id, att='long_name')
-    status = nf90_put_att (ncid, temp_id, 'units', 'T')
-    if (status /= NF90_NOERR) call netcdf_error (status, ncid, temp_id, att='units')
+    call ensure_netcdf_var_exists(ncid, 'dens', netcdf_real, nspec_dim, dens_id)
+    call ensure_netcdf_att_exists(ncid, dens_id, 'long_name', 'Density')
+    call ensure_netcdf_att_exists(ncid, dens_id, 'units', 'n_e')
 
-    status = nf90_def_var (ncid, 'tprim', netcdf_real, nspec_dim, tprim_id)
-    if (status /= NF90_NOERR) call netcdf_error (status, var='tprim')
-    status = nf90_put_att (ncid, tprim_id, 'long_name', '-1/rho dT/drho')
-    if (status /= NF90_NOERR) call netcdf_error (status, ncid, tprim_id, att='long_name')
+    call ensure_netcdf_var_exists(ncid, 'temp', netcdf_real, nspec_dim, temp_id)
+    call ensure_netcdf_att_exists(ncid, temp_id, 'long_name', 'Temperature')
+    call ensure_netcdf_att_exists(ncid, temp_id, 'units', 'T')
 
-    status = nf90_def_var (ncid, 'fprim', netcdf_real, nspec_dim, fprim_id) 
-    if (status /= NF90_NOERR) call netcdf_error (status, var='fprim')
-    status = nf90_put_att (ncid, fprim_id, 'long_name', '-1/rho dn/drho')
-    if (status /= NF90_NOERR) call netcdf_error (status, ncid, fprim_id, att='long_name')
+    call ensure_netcdf_var_exists(ncid, 'tprim', netcdf_real, nspec_dim, tprim_id)
+    call ensure_netcdf_att_exists(ncid, tprim_id, 'long_name', '-1/rho dT/drho')
 
-    status = nf90_def_var (ncid, 'uprim', netcdf_real, nspec_dim, uprim_id)
-    if (status /= NF90_NOERR) call netcdf_error (status, var='uprim')
-    status = nf90_put_att (ncid, uprim_id, 'long_name', '-1/v_t du_par/drho')
-    if (status /= NF90_NOERR) call netcdf_error (status, ncid, uprim_id, att='long_name')
+    call ensure_netcdf_var_exists(ncid, 'fprim', netcdf_real, nspec_dim, fprim_id)
+    call ensure_netcdf_att_exists(ncid, fprim_id, 'long_name', '-1/rho dn/drho')
 
-    status = nf90_def_var (ncid, 'uprim2', netcdf_real, nspec_dim, uprim2_id)
-    if (status /= NF90_NOERR) call netcdf_error (status, var='uprim2')
+    call ensure_netcdf_var_exists(ncid, 'uprim', netcdf_real, nspec_dim, uprim_id)
+    call ensure_netcdf_att_exists(ncid, uprim_id, 'long_name', '-1/v_t du_par/drho')
 
-    status = nf90_def_var (ncid, 'vnewk', netcdf_real, nspec_dim, vnewk_id)
-    if (status /= NF90_NOERR) call netcdf_error (status, var='vnewk')
-    status = nf90_put_att (ncid, vnewk_id, 'long_name', 'Collisionality')
-    if (status /= NF90_NOERR) call netcdf_error (status, ncid, vnewk_id, att='long_name')
-    status = nf90_put_att (ncid, vnewk_id, 'units', 'v_t/L')
-    if (status /= NF90_NOERR) call netcdf_error (status, ncid, vnewk_id, att='units')
-    
-    status = nf90_def_var (ncid, 'type_of_species', NF90_INT, nspec_dim, spec_type_id)
-    if (status /= NF90_NOERR) call netcdf_error (status, var='type_of_species')
+    call ensure_netcdf_var_exists(ncid, 'uprim2', netcdf_real, nspec_dim, uprim2_id)
+
+    call ensure_netcdf_var_exists(ncid, 'vnewk', netcdf_real, nspec_dim, vnewk_id)
+    call ensure_netcdf_att_exists(ncid, vnewk_id, 'long_name', 'Collisionality')
+    call ensure_netcdf_att_exists(ncid, vnewk_id, 'units', 'v_t/L')
+
+    call ensure_netcdf_var_exists(ncid, 'type_of_species', NF90_INT, nspec_dim, spec_type_id)
     !------------------------------------------------
 
     !################################################
     !# NOW DO GRIDS
-    status = nf90_def_var (ncid, 't', netcdf_real, time_dim, time_id)
-    if (status /= NF90_NOERR) call netcdf_error (status, var='t')
-    status = nf90_put_att (ncid, time_id, 'long_name', 'Time')
-    if (status /= NF90_NOERR) call netcdf_error (status, ncid, time_id, att='long_name')
-    status = nf90_put_att (ncid, time_id, 'units', 'L/vt')
-    if (status /= NF90_NOERR) call netcdf_error (status, ncid, time_id, att='units')
+    call ensure_netcdf_var_exists(ncid, 't', netcdf_real, time_dim, time_id)
+    call ensure_netcdf_att_exists(ncid, time_id, 'long_name', 'Time')
+    call ensure_netcdf_att_exists(ncid, time_id, 'units', 'L/vt')
 
-    status = nf90_def_var (ncid, 'theta0', netcdf_real, fmode_dim, theta0_id)
-    if (status /= NF90_NOERR) call netcdf_error (status, var='theta0')
-    status = nf90_put_att (ncid, theta0_id, 'long_name', 'Theta_0')
-    if (status /= NF90_NOERR) call netcdf_error (status, ncid, theta0_id, att='long_name')
+    call ensure_netcdf_var_exists(ncid, 'theta0', netcdf_real, fmode_dim, theta0_id)
+    call ensure_netcdf_att_exists(ncid, theta0_id, 'long_name', 'Theta_0')
 
-    status = nf90_def_var (ncid, 'kx', netcdf_real, nakx_dim, akx_id)
-    if (status /= NF90_NOERR) call netcdf_error (status, var='kx')
-    status = nf90_put_att (ncid, akx_id, 'long_name', 'kx rho')
-    if (status /= NF90_NOERR) call netcdf_error (status, ncid, akx_id, att='long_name')
+    call ensure_netcdf_var_exists(ncid, 'kx', netcdf_real, nakx_dim, akx_id)
+    call ensure_netcdf_att_exists(ncid, akx_id, 'long_name', 'kx rho')
 
-    status = nf90_def_var (ncid, 'ky', netcdf_real, naky_dim, aky_id)
-    if (status /= NF90_NOERR) call netcdf_error (status, var='ky')
-    status = nf90_put_att (ncid, aky_id, 'long_name', 'ky rho')
-    if (status /= NF90_NOERR) call netcdf_error (status, ncid, aky_id, att='long_name')
+    call ensure_netcdf_var_exists(ncid, 'ky', netcdf_real, naky_dim, aky_id)
+    call ensure_netcdf_att_exists(ncid, aky_id, 'long_name', 'ky rho')
 
-    status = nf90_def_var (ncid, 'egrid', netcdf_real, negrid_dim, egrid_id)
-    if (status /= NF90_NOERR) call netcdf_error (status, var='egrid')
-    status = nf90_def_var (ncid, 'lambda', netcdf_real, nlambda_dim, lambda_id)
-    if (status /= NF90_NOERR) call netcdf_error (status, var='lambda')
+    call ensure_netcdf_var_exists(ncid, 'egrid', netcdf_real, negrid_dim, egrid_id)
+    call ensure_netcdf_var_exists(ncid, 'lambda', netcdf_real, nlambda_dim, lambda_id)
 
-    status = nf90_def_var (ncid, 'theta', netcdf_real, nttot_dim, theta_id)
-    if (status /= NF90_NOERR) call netcdf_error (status, var='theta')
+    call ensure_netcdf_var_exists(ncid, 'theta', netcdf_real, nttot_dim, theta_id)
 
     !################################################
     !# NOW DO GEOMETRICAL/EQUILIBRIUM DATA
-    status = nf90_def_var (ncid, 'bmag', netcdf_real, nttot_dim, bmag_id)
-    if (status /= NF90_NOERR) call netcdf_error (status, var='bmag')
-    status = nf90_put_att (ncid, bmag_id, 'long_name', '|B|(theta)')
-    if (status /= NF90_NOERR) call netcdf_error (status, ncid, bmag_id, att='long_name')
-    status = nf90_put_att (ncid, bmag_id, 'units', 'B_0')
-    if (status /= NF90_NOERR) call netcdf_error (status, ncid, bmag_id, att='units')
+    call ensure_netcdf_var_exists(ncid, 'bmag', netcdf_real, nttot_dim, bmag_id)
+    call ensure_netcdf_att_exists(ncid, bmag_id, 'long_name', '|B|(theta)')
+    call ensure_netcdf_att_exists(ncid, bmag_id, 'units', 'B_0')
 
-    status = nf90_def_var (ncid, 'gradpar', netcdf_real, nttot_dim, gradpar_id)
-    if (status /= NF90_NOERR) call netcdf_error (status, var='gradpar')
-    status = nf90_def_var (ncid, 'gbdrift', netcdf_real, nttot_dim, gbdrift_id) 
-    if (status /= NF90_NOERR) call netcdf_error (status, var='gbdrift')
-    status = nf90_def_var (ncid, 'gbdrift0', netcdf_real, nttot_dim, gbdrift0_id)
-    if (status /= NF90_NOERR) call netcdf_error (status, var='gbdrift0')
-    status = nf90_def_var (ncid, 'cvdrift', netcdf_real, nttot_dim, cvdrift_id)
-    if (status /= NF90_NOERR) call netcdf_error (status, var='cvdrift')
-    status = nf90_def_var (ncid, 'cvdrift0', netcdf_real, nttot_dim, cvdrift0_id)
-    if (status /= NF90_NOERR) call netcdf_error (status, var='cvdrift0')
-    status = nf90_def_var (ncid, 'cdrift', netcdf_real, nttot_dim, cdrift_id)
-    if (status /= NF90_NOERR) call netcdf_error (status, var='cdrift')
-    status = nf90_def_var (ncid, 'cdrift0', netcdf_real, nttot_dim, cdrift0_id)
-    if (status /= NF90_NOERR) call netcdf_error (status, var='cdrift0')
+    call ensure_netcdf_var_exists(ncid, 'gradpar', netcdf_real, nttot_dim, gradpar_id)
+    call ensure_netcdf_var_exists(ncid, 'gbdrift', netcdf_real, nttot_dim, gbdrift_id)
+    call ensure_netcdf_var_exists(ncid, 'gbdrift0', netcdf_real, nttot_dim, gbdrift0_id)
+    call ensure_netcdf_var_exists(ncid, 'cvdrift', netcdf_real, nttot_dim, cvdrift_id)
+    call ensure_netcdf_var_exists(ncid, 'cvdrift0', netcdf_real, nttot_dim, cvdrift0_id)
+    call ensure_netcdf_var_exists(ncid, 'cdrift', netcdf_real, nttot_dim, cdrift_id)
+    call ensure_netcdf_var_exists(ncid, 'cdrift0', netcdf_real, nttot_dim, cdrift0_id)
 
-    status = nf90_def_var (ncid, 'gds2', netcdf_real, nttot_dim, gds2_id)
-    if (status /= NF90_NOERR) call netcdf_error (status, var='gds2')
-    status = nf90_def_var (ncid, 'gds21', netcdf_real, nttot_dim, gds21_id)
-    if (status /= NF90_NOERR) call netcdf_error (status, var='gds21')
-    status = nf90_def_var (ncid, 'gds22', netcdf_real, nttot_dim, gds22_id)
-    if (status /= NF90_NOERR) call netcdf_error (status, var='gds22')
-    status = nf90_def_var (ncid, 'gds23', netcdf_real, nttot_dim, gds23_id)
-    if (status /= NF90_NOERR) call netcdf_error (status, var='gds23')
-    status = nf90_def_var (ncid, 'gds24', netcdf_real, nttot_dim, gds24_id)
-    if (status /= NF90_NOERR) call netcdf_error (status, var='gds24')
-    status = nf90_def_var (ncid, 'gds24_noq', netcdf_real, nttot_dim, gds24_noq_id)
-    if (status /= NF90_NOERR) call netcdf_error (status, var='gds24_noq')
-    status = nf90_def_var (ncid, 'grho', netcdf_real, nttot_dim, grho_id)
-    if (status /= NF90_NOERR) call netcdf_error (status, var='grho')
-    status = nf90_def_var (ncid, 'jacob', netcdf_real, nttot_dim, jacob_id)
-    if (status /= NF90_NOERR) call netcdf_error (status, var='jacob')
+    call ensure_netcdf_var_exists(ncid, 'gds2', netcdf_real, nttot_dim, gds2_id)
+    call ensure_netcdf_var_exists(ncid, 'gds21', netcdf_real, nttot_dim, gds21_id)
+    call ensure_netcdf_var_exists(ncid, 'gds22', netcdf_real, nttot_dim, gds22_id)
+    call ensure_netcdf_var_exists(ncid, 'gds23', netcdf_real, nttot_dim, gds23_id)
+    call ensure_netcdf_var_exists(ncid, 'gds24', netcdf_real, nttot_dim, gds24_id)
+    call ensure_netcdf_var_exists(ncid, 'gds24_noq', netcdf_real, nttot_dim, gds24_noq_id)
+    call ensure_netcdf_var_exists(ncid, 'grho', netcdf_real, nttot_dim, grho_id)
+    call ensure_netcdf_var_exists(ncid, 'jacob', netcdf_real, nttot_dim, jacob_id)
 
-    status = nf90_def_var (ncid, 'rplot', netcdf_real, nttot_dim, rplot_id)
-    if (status /= NF90_NOERR) call netcdf_error (status, var='rplot')
-    status = nf90_def_var (ncid, 'zplot', netcdf_real, nttot_dim, zplot_id)
-    if (status /= NF90_NOERR) call netcdf_error (status, var='zplot')
-    status = nf90_def_var (ncid, 'aplot', netcdf_real, nttot_dim, aplot_id)
-    if (status /= NF90_NOERR) call netcdf_error (status, var='aplot')
-    status = nf90_def_var (ncid, 'rprime', netcdf_real, nttot_dim, rprime_id)
-    if (status /= NF90_NOERR) call netcdf_error (status, var='rprime')
-    status = nf90_def_var (ncid, 'zprime', netcdf_real, nttot_dim, zprime_id)
-    if (status /= NF90_NOERR) call netcdf_error (status, var='zprime')
-    status = nf90_def_var (ncid, 'aprime', netcdf_real, nttot_dim, aprime_id)
-    if (status /= NF90_NOERR) call netcdf_error (status, var='aprime')
+    call ensure_netcdf_var_exists(ncid, 'rplot', netcdf_real, nttot_dim, rplot_id)
+    call ensure_netcdf_var_exists(ncid, 'zplot', netcdf_real, nttot_dim, zplot_id)
+    call ensure_netcdf_var_exists(ncid, 'aplot', netcdf_real, nttot_dim, aplot_id)
+    call ensure_netcdf_var_exists(ncid, 'rprime', netcdf_real, nttot_dim, rprime_id)
+    call ensure_netcdf_var_exists(ncid, 'zprime', netcdf_real, nttot_dim, zprime_id)
+    call ensure_netcdf_var_exists(ncid, 'aprime', netcdf_real, nttot_dim, aprime_id)
 
-    status = nf90_def_var (ncid, 'bpol', netcdf_real, nttot_dim, bpol_id)
-    if (status /= NF90_NOERR) call netcdf_error (status, var='bpol')
+    call ensure_netcdf_var_exists(ncid, 'bpol', netcdf_real, nttot_dim, bpol_id)
 
-    !    status = nf90_def_var (ncid, 'surfarea', netcdf_real, nttot_dim, surfarea_id)
-    !    if (status /= NF90_NOERR) call netcdf_error (status, var='surfarea')
+    !    call ensure_netcdf_var_exists(ncid, 'surfarea', netcdf_real, nttot_dim, surfarea_id)
 
-    status = nf90_def_var (ncid, 'q', netcdf_real, q_id)
-    if (status /= NF90_NOERR) call netcdf_error (status, var='q')
-    status = nf90_put_att (ncid, q_id, 'long_name', 'local safety factor')
-    if (status /= NF90_NOERR) call netcdf_error (status, ncid, q_id, att='long_name')
-    status = nf90_def_var (ncid, 'eps_trapped', netcdf_real, eps_id)
-    if (status /= NF90_NOERR) call netcdf_error (status, var='eps_trapped')
-    status = nf90_put_att (ncid, eps_id, 'long_name', 'Trapped fraction 1 - sqrt(bmin/bmax)')
-    if (status /= NF90_NOERR) call netcdf_error (status, ncid, eps_id, att='long_name')
-    status = nf90_def_var (ncid, 'beta', netcdf_real, beta_id)
-    if (status /= NF90_NOERR) call netcdf_error (status, var='beta')
-    status = nf90_put_att (ncid, beta_id, 'long_name', 'reference beta')
-    if (status /= NF90_NOERR) call netcdf_error (status, ncid, beta_id, att='long_name')
-    status = nf90_def_var (ncid, 'shat', netcdf_real, shat_id)
-    if (status /= NF90_NOERR) call netcdf_error (status, var='shat')
-    status = nf90_put_att (ncid, shat_id, 'long_name', '(rho/q) dq/drho')
-    if (status /= NF90_NOERR) call netcdf_error (status, ncid, shat_id, att='long_name')
+    call ensure_netcdf_var_exists(ncid, 'q', netcdf_real, q_id)
+    call ensure_netcdf_att_exists(ncid, q_id, 'long_name', 'local safety factor')
+    call ensure_netcdf_var_exists(ncid, 'eps_trapped', netcdf_real, eps_id)
+    call ensure_netcdf_att_exists(ncid, eps_id, 'long_name', 'Trapped fraction 1 - sqrt(bmin/bmax)')
+    call ensure_netcdf_var_exists(ncid, 'beta', netcdf_real, beta_id)
+    call ensure_netcdf_att_exists(ncid, beta_id, 'long_name', 'reference beta')
+    call ensure_netcdf_var_exists(ncid, 'shat', netcdf_real, shat_id)
+    call ensure_netcdf_att_exists(ncid, shat_id, 'long_name', '(rho/q) dq/drho')
 
-    status = nf90_def_var (ncid, 'drhodpsi', netcdf_real, drhodpsi_id)
-    if (status /= NF90_NOERR) call netcdf_error (status, var='drhodpsi')
-    status = nf90_put_att (ncid, drhodpsi_id, 'long_name', 'drho/dPsi')
-    if (status /= NF90_NOERR) call netcdf_error (status, ncid, drhodpsi_id, att='long_name')
+    call ensure_netcdf_var_exists(ncid, 'drhodpsi', netcdf_real, drhodpsi_id)
+    call ensure_netcdf_att_exists(ncid, drhodpsi_id, 'long_name', 'drho/dPsi')
     !------------------------------------------------
 
     !################################################
@@ -1055,130 +1042,91 @@ contains
     if (fphi > zero) then
 
        !Field at end of run
-       status = nf90_def_var (ncid, 'phi', netcdf_real, final_field_dim, phi_id)
-       if (status /= NF90_NOERR) call netcdf_error (status, var='phi')
-       status = nf90_put_att(ncid, phi_id, 'long_name', 'Electrostatic Potential')
-       if (status /= NF90_NOERR) call netcdf_error (status, ncid, phi_id, att='long_name')
-       status = nf90_put_att (ncid, phi_id, 'idl_name', '!7U!6')
-       if (status /= NF90_NOERR) call netcdf_error (status, ncid, phi_id, att='idl_name')
-       status = nf90_put_att (ncid, phi_id, 'units', 'T/q rho/L')
-       if (status /= NF90_NOERR) call netcdf_error (status, ncid, phi_id, att='units')
+       call ensure_netcdf_var_exists(ncid, 'phi', netcdf_real, final_field_dim, phi_id)
+       call ensure_netcdf_att_exists(ncid, phi_id, 'long_name', 'Electrostatic Potential')
+       call ensure_netcdf_att_exists(ncid, phi_id, 'idl_name', '!7U!6')
+       call ensure_netcdf_att_exists(ncid, phi_id, 'units', 'T/q rho/L')
 
        !Volume averaged amplitude data
-       status = nf90_def_var (ncid, 'phi2', netcdf_real, time_dim, phi2_id)
-       if (status /= NF90_NOERR) call netcdf_error (status, var='phi2')
-       status = nf90_put_att (ncid, phi2_id, 'long_name', '|Potential**2|')
-       if (status /= NF90_NOERR) call netcdf_error (status, ncid, phi2_id, att='long_name')
-       status = nf90_put_att (ncid, phi2_id, 'units', '(T/q rho/L)**2')
-       if (status /= NF90_NOERR) call netcdf_error (status, ncid, phi2_id, att='units')
-       
+       call ensure_netcdf_var_exists(ncid, 'phi2', netcdf_real, time_dim, phi2_id)
+       call ensure_netcdf_att_exists(ncid, phi2_id, 'long_name', '|Potential**2|')
+       call ensure_netcdf_att_exists(ncid, phi2_id, 'units', '(T/q rho/L)**2')
+
        !Amplitude data per Fourier mode
-       status = nf90_def_var(ncid, 'phi2_by_mode', netcdf_real, mode_dim, phi2_by_mode_id)
-       if (status /= NF90_NOERR) call netcdf_error (status, var='phi2_by_mode')
-       
+       call ensure_netcdf_var_exists(ncid, 'phi2_by_mode', netcdf_real, mode_dim, phi2_by_mode_id)
+
        !Amplitude data summed over ky
        if (ntheta0 > 1) then
-          status = nf90_def_var(ncid, 'phi2_by_kx', netcdf_real, kx_dim, phi2_by_kx_id)
-          if (status /= NF90_NOERR) call netcdf_error (status, var='phi2_by_kx')
+          call ensure_netcdf_var_exists(ncid, 'phi2_by_kx', netcdf_real, kx_dim, phi2_by_kx_id)
        end if
-       
+
        !Amplitude data summed over theta0
        if (naky > 1) then
-          status = nf90_def_var(ncid, 'phi2_by_ky', netcdf_real, ky_dim, phi2_by_ky_id)
-          if (status /= NF90_NOERR) call netcdf_error (status, var='phi2_by_ky')
+          call ensure_netcdf_var_exists(ncid, 'phi2_by_ky', netcdf_real, ky_dim, phi2_by_ky_id)
        end if
-       
+
        !Field at theta=igomega
-       status = nf90_def_var (ncid, 'phi0', netcdf_real, omega_dim, phi0_id)
-       if (status /= NF90_NOERR) call netcdf_error (status, var='phi0')
+       call ensure_netcdf_var_exists(ncid, 'phi0', netcdf_real, omega_dim, phi0_id)
 
        !Electrostatic fluxes
        if (write_nl_flux) then
-          status = nf90_def_var (ncid, 'es_heat_par',  netcdf_real, flux_dim, es_heat_par_id)
-          if (status /= NF90_NOERR) call netcdf_error (status, var='es_heat_par')
-          status = nf90_def_var (ncid, 'es_heat_perp', netcdf_real, flux_dim, es_heat_perp_id)
-          if (status /= NF90_NOERR) call netcdf_error (status, var='es_heat_perp')
-          status = nf90_def_var (ncid, 'es_heat_flux', netcdf_real, flux_dim, es_heat_flux_id)
-          if (status /= NF90_NOERR) call netcdf_error (status, var='es_heat_flux')
-          status = nf90_def_var (ncid, 'es_mom_flux',  netcdf_real, flux_dim, es_mom_flux_id)
-          if (status /= NF90_NOERR) call netcdf_error (status, var='es_mom_flux')
-          status = nf90_def_var (ncid, 'es_part_flux', netcdf_real, flux_dim, es_part_flux_id)
-          if (status /= NF90_NOERR) call netcdf_error (status, var='es_part_flux')
-          status = nf90_def_var (ncid, 'es_exchange', netcdf_real, flux_dim, es_exchange_id)
-          if (status /= NF90_NOERR) call netcdf_error (status, var='es_exchange')
-          status = nf90_def_var (ncid, 'es_exchange_by_k', netcdf_real, fluxk_dim, es_exchange_by_k_id)
-          if (status /= NF90_NOERR) call netcdf_error (status, var='es_exchange_by_k')
-          status = nf90_def_var (ncid, 'es_heat_by_k', netcdf_real, fluxk_dim, es_heat_by_k_id)
-          if (status /= NF90_NOERR) call netcdf_error (status, var='es_heat_by_k')
-          status = nf90_def_var (ncid, 'es_mom_by_k',  netcdf_real, fluxk_dim, es_mom_by_k_id)
-          if (status /= NF90_NOERR) call netcdf_error (status, var='es_mom_by_k')
-          status = nf90_def_var (ncid, 'es_part_by_k', netcdf_real, fluxk_dim, es_part_by_k_id)
-          if (status /= NF90_NOERR) call netcdf_error (status, var='es_part_by_k')
-          status = nf90_def_var (ncid, 'es_parmom_by_k', netcdf_real, fluxk_dim, es_parmom_by_k_id)
-          if (status /= NF90_NOERR) call netcdf_error (status, var='es_parmom_by_k')
-          status = nf90_def_var (ncid, 'es_perpmom_by_k', netcdf_real, fluxk_dim, es_perpmom_by_k_id)
-          if (status /= NF90_NOERR) call netcdf_error (status, var='es_perpmom_by_k')
-          status = nf90_def_var (ncid, 'es_mom0_by_k', netcdf_real, fluxk_dim, es_mom0_by_k_id)
-          if (status /= NF90_NOERR) call netcdf_error (status, var='es_mom0_by_k')
-          status = nf90_def_var (ncid, 'es_mom1_by_k', netcdf_real, fluxk_dim, es_mom1_by_k_id)
-          if (status /= NF90_NOERR) call netcdf_error (status, var='es_mom1_by_k')
+          call ensure_netcdf_var_exists(ncid, 'es_heat_par',  netcdf_real, flux_dim, es_heat_par_id)
+          call ensure_netcdf_var_exists(ncid, 'es_heat_perp', netcdf_real, flux_dim, es_heat_perp_id)
+          call ensure_netcdf_var_exists(ncid, 'es_heat_flux', netcdf_real, flux_dim, es_heat_flux_id)
+          call ensure_netcdf_var_exists(ncid, 'es_mom_flux',  netcdf_real, flux_dim, es_mom_flux_id)
+          call ensure_netcdf_var_exists(ncid, 'es_part_flux', netcdf_real, flux_dim, es_part_flux_id)
+          call ensure_netcdf_var_exists(ncid, 'es_exchange', netcdf_real, flux_dim, es_exchange_id)
+          call ensure_netcdf_var_exists(ncid, 'es_exchange_by_k', netcdf_real, fluxk_dim, es_exchange_by_k_id)
+          call ensure_netcdf_var_exists(ncid, 'es_heat_by_k', netcdf_real, fluxk_dim, es_heat_by_k_id)
+          call ensure_netcdf_var_exists(ncid, 'es_mom_by_k',  netcdf_real, fluxk_dim, es_mom_by_k_id)
+          call ensure_netcdf_var_exists(ncid, 'es_part_by_k', netcdf_real, fluxk_dim, es_part_by_k_id)
+          call ensure_netcdf_var_exists(ncid, 'es_parmom_by_k', netcdf_real, fluxk_dim, es_parmom_by_k_id)
+          call ensure_netcdf_var_exists(ncid, 'es_perpmom_by_k', netcdf_real, fluxk_dim, es_perpmom_by_k_id)
+          call ensure_netcdf_var_exists(ncid, 'es_mom0_by_k', netcdf_real, fluxk_dim, es_mom0_by_k_id)
+          call ensure_netcdf_var_exists(ncid, 'es_mom1_by_k', netcdf_real, fluxk_dim, es_mom1_by_k_id)
        end if
 
        if (write_nl_flux_dist) then
-          status = nf90_def_var (ncid, 'es_part_flux_dist',  netcdf_real, flux_dist_dim, es_part_flux_dist_id)
-          if (status /= NF90_NOERR) call netcdf_error (status, var='es_part_flux_dist')
-          status = nf90_def_var (ncid, 'es_mom_flux_par_dist',  netcdf_real, flux_dist_dim, es_mom_flux_par_dist_id)
-          if (status /= NF90_NOERR) call netcdf_error (status, var='es_mom_flux_par_dist')
-          status = nf90_def_var (ncid, 'es_mom_flux_perp_dist',  netcdf_real, flux_dist_dim, es_mom_flux_perp_dist_id)
-          if (status /= NF90_NOERR) call netcdf_error (status, var='es_mom_flux_perp_dist')
-          status = nf90_def_var (ncid, 'es_heat_flux_dist',  netcdf_real, flux_dist_dim, es_heat_flux_dist_id)
-          if (status /= NF90_NOERR) call netcdf_error (status, var='es_heat_flux_dist')
-          status = nf90_def_var (ncid, 'es_phi_dist',  netcdf_real, phi_dist_dim, es_phi_dist_id)
-          if (status /= NF90_NOERR) call netcdf_error (status, var='es_phi_dist')
+          call ensure_netcdf_var_exists(ncid, 'es_part_flux_dist',  netcdf_real, flux_dist_dim, es_part_flux_dist_id)
+          call ensure_netcdf_var_exists(ncid, 'es_mom_flux_par_dist',  netcdf_real, flux_dist_dim, es_mom_flux_par_dist_id)
+          call ensure_netcdf_var_exists(ncid, 'es_mom_flux_perp_dist',  netcdf_real, flux_dist_dim, es_mom_flux_perp_dist_id)
+          call ensure_netcdf_var_exists(ncid, 'es_heat_flux_dist',  netcdf_real, flux_dist_dim, es_heat_flux_dist_id)
+          call ensure_netcdf_var_exists(ncid, 'es_phi_dist',  netcdf_real, phi_dist_dim, es_phi_dist_id)
        end if
 
        !????
        if (write_sym) then
-          status = nf90_def_var (ncid, 'es_mom_sym',  netcdf_real, sym_dim, es_mom_sym_id)
-          if (status /= NF90_NOERR) call netcdf_error (status, var='es_mom_sym')
+          call ensure_netcdf_var_exists(ncid, 'es_mom_sym',  netcdf_real, sym_dim, es_mom_sym_id)
        end if
        !????
        if (write_pflux_sym) then !JPL
-          status = nf90_def_var (ncid, 'es_part_tormom_sym',  netcdf_real, sym_dim, es_part_sym_id)
-          if (status /= NF90_NOERR) call netcdf_error (status, var='es_part_tormom_sym')
+          call ensure_netcdf_var_exists(ncid, 'es_part_tormom_sym',  netcdf_real, sym_dim, es_part_sym_id)
        end if
        !????
        if (write_pflux_tormom) then !JPL
-          status = nf90_def_var (ncid, 'es_part_tormom_flux', netcdf_real, flux_dim, es_part_tormom_flux_id)
-          if (status /= NF90_NOERR) call netcdf_error (status, var='es_part_tormom_flux')
-          status = nf90_def_var (ncid, 'es_part_tormom_by_k', netcdf_real, fluxk_dim, es_part_tormom_by_k_id)
-          if (status /= NF90_NOERR) call netcdf_error (status, var='es_part_tormom_by_k')  
+          call ensure_netcdf_var_exists(ncid, 'es_part_tormom_flux', netcdf_real, flux_dim, es_part_tormom_flux_id)
+          call ensure_netcdf_var_exists(ncid, 'es_part_tormom_by_k', netcdf_real, fluxk_dim, es_part_tormom_by_k_id)
        end if
 
        !Correlation over 2pi range
        if (write_correlation) then
-          status = nf90_def_var (ncid, 'phi_corr_2pi',  netcdf_real, phi_corr_2pi_dim, phi_corr_2pi_id)
-          if (status /= NF90_NOERR) call netcdf_error (status, var='phi_corr_2pi')
+          call ensure_netcdf_var_exists(ncid, 'phi_corr_2pi',  netcdf_real, phi_corr_2pi_dim, phi_corr_2pi_id)
        end if
 
        !Normalised phi at end of run
        if (write_eigenfunc) then
-          status = nf90_def_var (ncid, 'phi_norm',  netcdf_real, final_field_dim, phi_norm_id)
-          if (status /= NF90_NOERR) call netcdf_error (status, var='phi_norm')
+          call ensure_netcdf_var_exists(ncid, 'phi_norm',  netcdf_real, final_field_dim, phi_norm_id)
        endif
 
        !Velocity moment of g used in calculating phi
        if (write_final_antot) then
-          status = nf90_def_var (ncid, 'antot', netcdf_real, final_field_dim, antot_id)
-          if (status /= NF90_NOERR) call netcdf_error (status, var='antot')
+          call ensure_netcdf_var_exists(ncid, 'antot', netcdf_real, final_field_dim, antot_id)
        endif
 
        !Field as a function of time
        if (write_phi_t) then
-          status = nf90_def_var(ncid, 'phi_t', netcdf_real, field_dim, phi_t_id)
-          if (status /= NF90_NOERR) call netcdf_error (status, var='phi_t')
-          status = nf90_put_att (ncid, phi_t_id, 'long_name', 'Electrostatic Potential over time')
-          if (status /= NF90_NOERR) call netcdf_error (status, ncid, phi_t_id, att='long_name')
+          call ensure_netcdf_var_exists(ncid, 'phi_t', netcdf_real, field_dim, phi_t_id)
+          call ensure_netcdf_att_exists(ncid, phi_t_id, 'long_name', 'Electrostatic Potential over time')
        end if
     end if
 
@@ -1186,81 +1134,58 @@ contains
     if (fapar > zero) then
 
        !Field at end of run
-       status = nf90_def_var (ncid, 'apar', netcdf_real, final_field_dim, apar_id)
-       if (status /= NF90_NOERR) call netcdf_error (status, var='apar')
-       status = nf90_put_att (ncid, apar_id, 'long_name', 'Parallel Magnetic Potential')
-       if (status /= NF90_NOERR) call netcdf_error (status, ncid, apar_id, att='long_name')
-       status = nf90_put_att (ncid, apar_id, 'idl_name', '!6A!9!D#!N!6')
-       if (status /= NF90_NOERR) call netcdf_error (status, ncid, apar_id, att='idl_name')
+       call ensure_netcdf_var_exists(ncid, 'apar', netcdf_real, final_field_dim, apar_id)
+       call ensure_netcdf_att_exists(ncid, apar_id, 'long_name', 'Parallel Magnetic Potential')
+       call ensure_netcdf_att_exists(ncid, apar_id, 'idl_name', '!6A!9!D#!N!6')
 
        !Volume averaged amplitude data
-       status = nf90_def_var (ncid, 'apar2', netcdf_real, time_dim, apar2_id)
-       if (status /= NF90_NOERR) call netcdf_error (status, var='apar2')
-       status = nf90_put_att (ncid, apar2_id, 'long_name', 'Total A_par squared')
-       if (status /= NF90_NOERR) call netcdf_error (status, ncid, apar2_id, att='long_name')
+       call ensure_netcdf_var_exists(ncid, 'apar2', netcdf_real, time_dim, apar2_id)
+       call ensure_netcdf_att_exists(ncid, apar2_id, 'long_name', 'Total A_par squared')
 
        !K-resolved amplitude data
-       status = nf90_def_var(ncid, 'apar2_by_mode', netcdf_real, mode_dim, apar2_by_mode_id)
-       if (status /= NF90_NOERR) call netcdf_error (status, var='apar2_by_mode')
-       status = nf90_put_att (ncid, apar2_by_mode_id, 'long_name', 'Apar squared')
-       if (status /= NF90_NOERR) call netcdf_error (status, ncid, apar2_by_mode_id, att='long_name')
+       call ensure_netcdf_var_exists(ncid, 'apar2_by_mode', netcdf_real, mode_dim, apar2_by_mode_id)
+       call ensure_netcdf_att_exists(ncid, apar2_by_mode_id, 'long_name', 'Apar squared')
 
        !Amplitude data summed over ky
        if (ntheta0 > 1) then
-          status = nf90_def_var(ncid, 'apar2_by_kx', netcdf_real, kx_dim, apar2_by_kx_id)
-          if (status /= NF90_NOERR) call netcdf_error (status, var='apar2_by_kx')
+          call ensure_netcdf_var_exists(ncid, 'apar2_by_kx', netcdf_real, kx_dim, apar2_by_kx_id)
        end if
 
        !Amplitude data summed over theta0
        if (naky > 1) then
-          status = nf90_def_var(ncid, 'apar2_by_ky', netcdf_real, ky_dim, apar2_by_ky_id)
-          if (status /= NF90_NOERR) call netcdf_error (status, var='apar2_by_ky')
+          call ensure_netcdf_var_exists(ncid, 'apar2_by_ky', netcdf_real, ky_dim, apar2_by_ky_id)
        end if
 
        !Field at theta=igomega
-       status = nf90_def_var (ncid, 'apar0', netcdf_real, omega_dim, apar0_id)
-       if (status /= NF90_NOERR) call netcdf_error (status, var='apar0')
+       call ensure_netcdf_var_exists(ncid, 'apar0', netcdf_real, omega_dim, apar0_id)
 
        !Apar related fluxes
        if (write_nl_flux) then
-          status = nf90_def_var(ncid,'apar_heat_flux',netcdf_real, flux_dim, apar_heat_flux_id)
-          if (status /= NF90_NOERR) call netcdf_error (status, var='apar_heat_flux')
-          status = nf90_def_var(ncid, 'apar_heat_par', netcdf_real, flux_dim, apar_heat_par_id)
-          if (status /= NF90_NOERR) call netcdf_error (status, var='apar_heat_par')
-          status = nf90_def_var (ncid, 'apar_heat_perp', netcdf_real, flux_dim, apar_heat_perp_id)
-          if (status /= NF90_NOERR) call netcdf_error (status, var='apar_heat_perp')
-          status = nf90_def_var (ncid, 'apar_mom_flux',  netcdf_real, flux_dim, apar_mom_flux_id)
-          if (status /= NF90_NOERR) call netcdf_error (status, var='apar_mom_flux')
-          status = nf90_def_var (ncid, 'apar_part_flux', netcdf_real, flux_dim, apar_part_flux_id)
-          if (status /= NF90_NOERR) call netcdf_error (status, var='apar_part_flux')
-          status = nf90_def_var (ncid, 'apar_heat_by_k', netcdf_real, fluxk_dim, apar_heat_by_k_id)
-          if (status /= NF90_NOERR) call netcdf_error (status, var='apar_heat_by_k')
-          status = nf90_def_var (ncid, 'apar_heat_by_x', netcdf_real, fluxx_dim, apar_heat_by_x_id)
-          if (status /= NF90_NOERR) call netcdf_error (status, var='apar_heat_by_x')
-          status = nf90_def_var (ncid, 'apar_mom_by_k',  netcdf_real, fluxk_dim, apar_mom_by_k_id)
-          if (status /= NF90_NOERR) call netcdf_error (status, var='apar_mom_by_k')
-          status = nf90_def_var (ncid, 'apar_part_by_k', netcdf_real, fluxk_dim, apar_part_by_k_id)
-          if (status /= NF90_NOERR) call netcdf_error (status, var='apar_part_by_k')
+          call ensure_netcdf_var_exists(ncid,'apar_heat_flux',netcdf_real, flux_dim, apar_heat_flux_id)
+          call ensure_netcdf_var_exists(ncid, 'apar_heat_par', netcdf_real, flux_dim, apar_heat_par_id)
+          call ensure_netcdf_var_exists(ncid, 'apar_heat_perp', netcdf_real, flux_dim, apar_heat_perp_id)
+          call ensure_netcdf_var_exists(ncid, 'apar_mom_flux',  netcdf_real, flux_dim, apar_mom_flux_id)
+          call ensure_netcdf_var_exists(ncid, 'apar_part_flux', netcdf_real, flux_dim, apar_part_flux_id)
+          call ensure_netcdf_var_exists(ncid, 'apar_heat_by_k', netcdf_real, fluxk_dim, apar_heat_by_k_id)
+          call ensure_netcdf_var_exists(ncid, 'apar_heat_by_x', netcdf_real, fluxx_dim, apar_heat_by_x_id)
+          call ensure_netcdf_var_exists(ncid, 'apar_mom_by_k',  netcdf_real, fluxk_dim, apar_mom_by_k_id)
+          call ensure_netcdf_var_exists(ncid, 'apar_part_by_k', netcdf_real, fluxk_dim, apar_part_by_k_id)
        end if
 
        !Normalised eigenfunction
        if (write_eigenfunc) then
-          status = nf90_def_var (ncid, 'apar_norm', netcdf_real, final_field_dim, apar_norm_id)
-          if (status /= NF90_NOERR) call netcdf_error (status, var='apar_norm')
+          call ensure_netcdf_var_exists(ncid, 'apar_norm', netcdf_real, final_field_dim, apar_norm_id)
        endif
 
        !Velocity space moment of g used in calculating apar
        if (write_final_antot) then
-          status = nf90_def_var (ncid, 'antota', netcdf_real, final_field_dim, antota_id)
-          if (status /= NF90_NOERR) call netcdf_error (status, var='antota')
+          call ensure_netcdf_var_exists(ncid, 'antota', netcdf_real, final_field_dim, antota_id)
        endif
 
        !Field as a function of time
        if (write_apar_t) then
-          status = nf90_def_var (ncid, 'apar_t', netcdf_real, field_dim, apar_t_id)
-          if (status /= NF90_NOERR) call netcdf_error (status, var='apar_t')
-          status = nf90_put_att (ncid, apar_t_id, 'long_name', 'Parallel Magnetic Potential over Time')
-          if (status /= NF90_NOERR) call netcdf_error (status, ncid, apar_t_id, att='long_name')
+          call ensure_netcdf_var_exists(ncid, 'apar_t', netcdf_real, field_dim, apar_t_id)
+          call ensure_netcdf_att_exists(ncid, apar_t_id, 'long_name', 'Parallel Magnetic Potential over Time')
        end if
     end if
 
@@ -1268,79 +1193,57 @@ contains
     if (fbpar > zero) then
 
        !Field at end of run
-       status = nf90_def_var (ncid, 'bpar', netcdf_real, final_field_dim, bpar_id)
-       if (status /= NF90_NOERR) call netcdf_error (status, var='bpar')
-       status = nf90_put_att (ncid, bpar_id, 'long_name', 'delta B Parallel')
-       if (status /= NF90_NOERR) call netcdf_error (status, ncid, bpar_id, att='long_name')
-       status = nf90_put_att (ncid, bpar_id, 'idl_name', '!6B!9!D#!N!6')
-       if (status /= NF90_NOERR) call netcdf_error (status, ncid, bpar_id, att='idl_name')
+       call ensure_netcdf_var_exists(ncid, 'bpar', netcdf_real, final_field_dim, bpar_id)
+       call ensure_netcdf_att_exists(ncid, bpar_id, 'long_name', 'delta B Parallel')
+       call ensure_netcdf_att_exists(ncid, bpar_id, 'idl_name', '!6B!9!D#!N!6')
 
        !Volume averaged amplitude data
-       status = nf90_def_var (ncid, 'bpar2', netcdf_real, time_dim, bpar2_id)
-       if (status /= NF90_NOERR) call netcdf_error (status, var='bpar2')
-       status = nf90_put_att (ncid, bpar2_id, 'long_name', 'Total A_perp squared')
-       if (status /= NF90_NOERR) call netcdf_error (status, ncid, bpar2_id, att='long_name')
+       call ensure_netcdf_var_exists(ncid, 'bpar2', netcdf_real, time_dim, bpar2_id)
+       call ensure_netcdf_att_exists(ncid, bpar2_id, 'long_name', 'Total A_perp squared')
 
        !K-resolved amplitude data
-       status = nf90_def_var (ncid, 'bpar2_by_mode', netcdf_real, mode_dim, bpar2_by_mode_id)
-       if (status /= NF90_NOERR) call netcdf_error (status, var='bpar2_by_mode')
-       status = nf90_put_att (ncid, bpar2_by_mode_id, 'long_name', 'A_perp squared')
-       if (status /= NF90_NOERR) call netcdf_error (status, ncid, bpar2_by_mode_id, att='long_name')
+       call ensure_netcdf_var_exists(ncid, 'bpar2_by_mode', netcdf_real, mode_dim, bpar2_by_mode_id)
+       call ensure_netcdf_att_exists(ncid, bpar2_by_mode_id, 'long_name', 'A_perp squared')
 
        !Amplitude data summed over ky
        if (ntheta0 > 1) then
-          status = nf90_def_var (ncid, 'bpar2_by_kx', netcdf_real, kx_dim, bpar2_by_kx_id)
-          if (status /= NF90_NOERR) call netcdf_error (status, var='bpar2_by_kx')
+          call ensure_netcdf_var_exists(ncid, 'bpar2_by_kx', netcdf_real, kx_dim, bpar2_by_kx_id)
        end if
 
        !Amplitude data summed over theta0
        if (naky > 1) then
-          status = nf90_def_var (ncid, 'bpar2_by_ky', netcdf_real, ky_dim, bpar2_by_ky_id)
-          if (status /= NF90_NOERR) call netcdf_error (status, var='bpar2_by_ky')
+          call ensure_netcdf_var_exists(ncid, 'bpar2_by_ky', netcdf_real, ky_dim, bpar2_by_ky_id)
        end if
 
        !Field at theta=igomega
-       status = nf90_def_var (ncid, 'bpar0', netcdf_real, omega_dim, bpar0_id)
-       if (status /= NF90_NOERR) call netcdf_error (status, var='bpar0')
+       call ensure_netcdf_var_exists(ncid, 'bpar0', netcdf_real, omega_dim, bpar0_id)
 
        !Bpar related fluxes
        if (write_nl_flux) then
-          status = nf90_def_var (ncid, 'bpar_heat_flux', netcdf_real, flux_dim, bpar_heat_flux_id)
-          if (status /= NF90_NOERR) call netcdf_error (status, var='bpar_heat_flux')
-          status = nf90_def_var (ncid, 'bpar_heat_par', netcdf_real, flux_dim, bpar_heat_par_id)
-          if (status /= NF90_NOERR) call netcdf_error (status, var='bpar_heat_par')
-          status = nf90_def_var (ncid, 'bpar_heat_perp', netcdf_real, flux_dim, bpar_heat_perp_id)
-          if (status /= NF90_NOERR) call netcdf_error (status, var='bpar_heat_perp')
-          status = nf90_def_var (ncid, 'bpar_mom_flux', netcdf_real, flux_dim, bpar_mom_flux_id)
-          if (status /= NF90_NOERR) call netcdf_error (status, var='bpar_mom_flux')
-          status = nf90_def_var (ncid, 'bpar_part_flux', netcdf_real, flux_dim, bpar_part_flux_id)
-          if (status /= NF90_NOERR) call netcdf_error (status, var='bpar_part_flux')
-          status = nf90_def_var (ncid, 'bpar_heat_by_k', netcdf_real, fluxk_dim, bpar_heat_by_k_id)
-          if (status /= NF90_NOERR) call netcdf_error (status, var='bpar_heat_by_k')
-          status = nf90_def_var (ncid, 'bpar_mom_by_k', netcdf_real, fluxk_dim, bpar_mom_by_k_id)
-          if (status /= NF90_NOERR) call netcdf_error (status, var='bpar_mom_by_k')
-          status = nf90_def_var (ncid, 'bpar_part_by_k', netcdf_real, fluxk_dim, bpar_part_by_k_id)
-          if (status /= NF90_NOERR) call netcdf_error (status, var='bpar_part_by_k')
+          call ensure_netcdf_var_exists(ncid, 'bpar_heat_flux', netcdf_real, flux_dim, bpar_heat_flux_id)
+          call ensure_netcdf_var_exists(ncid, 'bpar_heat_par', netcdf_real, flux_dim, bpar_heat_par_id)
+          call ensure_netcdf_var_exists(ncid, 'bpar_heat_perp', netcdf_real, flux_dim, bpar_heat_perp_id)
+          call ensure_netcdf_var_exists(ncid, 'bpar_mom_flux', netcdf_real, flux_dim, bpar_mom_flux_id)
+          call ensure_netcdf_var_exists(ncid, 'bpar_part_flux', netcdf_real, flux_dim, bpar_part_flux_id)
+          call ensure_netcdf_var_exists(ncid, 'bpar_heat_by_k', netcdf_real, fluxk_dim, bpar_heat_by_k_id)
+          call ensure_netcdf_var_exists(ncid, 'bpar_mom_by_k', netcdf_real, fluxk_dim, bpar_mom_by_k_id)
+          call ensure_netcdf_var_exists(ncid, 'bpar_part_by_k', netcdf_real, fluxk_dim, bpar_part_by_k_id)
        end if
 
        !Normalised eigenfunction
        if (write_eigenfunc) then
-          status = nf90_def_var (ncid, 'bpar_norm', netcdf_real, final_field_dim, bpar_norm_id)
-          if (status /= NF90_NOERR) call netcdf_error (status, var='bpar_norm')
+          call ensure_netcdf_var_exists(ncid, 'bpar_norm', netcdf_real, final_field_dim, bpar_norm_id)
        endif
 
        !Velocity space moment of g used in calculating bpar
        if (write_final_antot) then
-          status = nf90_def_var (ncid, 'antotp', netcdf_real, final_field_dim, antotp_id)
-          if (status /= NF90_NOERR) call netcdf_error (status, var='antotp')
+          call ensure_netcdf_var_exists(ncid, 'antotp', netcdf_real, final_field_dim, antotp_id)
        endif
 
        !Field as a function of time
        if (write_bpar_t) then
-          status = nf90_def_var (ncid, 'bpar_t', netcdf_real, field_dim, bpar_t_id)
-          if (status /= NF90_NOERR) call netcdf_error (status, var='bpar_t')
-          status = nf90_put_att (ncid, bpar_t_id, 'long_name', 'delta B Parallel over time')
-          if (status /= NF90_NOERR) call netcdf_error (status, ncid, bpar_t_id, att='long_name')
+          call ensure_netcdf_var_exists(ncid, 'bpar_t', netcdf_real, field_dim, bpar_t_id)
+          call ensure_netcdf_att_exists(ncid, bpar_t_id, 'long_name', 'delta B Parallel over time')
        end if
     end if
 
@@ -1349,156 +1252,95 @@ contains
        !Only at outboard midplane
        !<DD>Should these really have _t at the end to identify them as being a function of time?
        if (obmid) then
-          status = nf90_def_var &
-               (ncid, 'ntot0', netcdf_real, mom_dim, ntot0_id)
-          if (status /= NF90_NOERR) call netcdf_error (status, var='ntot0')
-          status = nf90_put_att (ncid, ntot0_id, 'long_name', 'Total perturbed density (theta=0) over time')
-          if (status /= NF90_NOERR) call netcdf_error (status, ncid, ntot0_id, att='long_name')
-          
-          status = nf90_def_var &
-               (ncid, 'density0', netcdf_real, mom_dim, density0_id)
-          if (status /= NF90_NOERR) call netcdf_error (status, var='density0')
-          status = nf90_put_att (ncid, density0_id, 'long_name', 'Nonadiabatic piece of perturbed density (theta=0) over time')
-          if (status /= NF90_NOERR) call netcdf_error (status, ncid, density0_id, att='long_name')
-          
-          status = nf90_def_var &
-               (ncid, 'upar0', netcdf_real, mom_dim, upar0_id)
-          if (status /= NF90_NOERR) call netcdf_error (status, var='upar')
-          status = nf90_put_att (ncid, upar0_id, 'long_name', 'Upar (theta=0) over time')
-          if (status /= NF90_NOERR) call netcdf_error (status, ncid, upar0_id, att='long_name')
-   
-          status = nf90_def_var &
-               (ncid, 'tpar0', netcdf_real, mom_dim, tpar0_id)
-          if (status /= NF90_NOERR) call netcdf_error (status, var='tpar')
-          status = nf90_put_att (ncid, tpar0_id, 'long_name', 'Tpar (theta=0) over time')
-          if (status /= NF90_NOERR) call netcdf_error (status, ncid, tpar0_id, att='long_name')
-          
-          status = nf90_def_var &
-               (ncid, 'tperp0', netcdf_real, mom_dim, tperp0_id)
-          if (status /= NF90_NOERR) call netcdf_error (status, var='tperp')
-          status = nf90_put_att (ncid, tperp0_id, 'long_name', 'Tperp (theta=0) over time')
-          if (status /= NF90_NOERR) call netcdf_error (status, ncid, tperp0_id, att='long_name')
-          
-          status = nf90_def_var &
-               (ncid, 'qparflux0', netcdf_real, mom_dim, qparflux0_id)
-          if (status /= NF90_NOERR) call netcdf_error (status, var='qparflux')
-          status = nf90_put_att (ncid, qparflux0_id, 'long_name', 'Qparflux (theta=0) over time')
-          if (status /= NF90_NOERR) call netcdf_error (status, ncid, qparflux0_id, att='long_name')
-          
-          status = nf90_def_var &
-               (ncid, 'pperpj10', netcdf_real, mom_dim, pperpj10_id)
-          if (status /= NF90_NOERR) call netcdf_error (status, var='pperpj1')
-          status = nf90_put_att (ncid, pperpj10_id, 'long_name', 'Pperpj1 (theta=0) over time')
-          if (status /= NF90_NOERR) call netcdf_error (status, ncid, pperpj10_id, att='long_name')
-          
-          status = nf90_def_var &
-               (ncid, 'qpperpj10', netcdf_real, mom_dim, qpperpj10_id)
-          if (status /= NF90_NOERR) call netcdf_error (status, var='qpperpj1')
-          status = nf90_put_att (ncid, qpperpj10_id, 'long_name', 'Qpperpj1 (theta=0) over time')
-          if (status /= NF90_NOERR) call netcdf_error (status, ncid, qpperpj10_id, att='long_name')
+          call ensure_netcdf_var_exists(ncid, 'ntot0', netcdf_real, mom_dim, ntot0_id)
+          call ensure_netcdf_att_exists(ncid, ntot0_id, 'long_name', 'Total perturbed density (theta=0) over time')
+
+          call ensure_netcdf_var_exists(ncid, 'density0', netcdf_real, mom_dim, density0_id)
+          call ensure_netcdf_att_exists(ncid, density0_id, 'long_name', 'Nonadiabatic piece of perturbed density (theta=0) over time')
+
+          call ensure_netcdf_var_exists(ncid, 'upar0', netcdf_real, mom_dim, upar0_id)
+          call ensure_netcdf_att_exists(ncid, upar0_id, 'long_name', 'Upar (theta=0) over time')
+
+          call ensure_netcdf_var_exists(ncid, 'tpar0', netcdf_real, mom_dim, tpar0_id)
+          call ensure_netcdf_att_exists(ncid, tpar0_id, 'long_name', 'Tpar (theta=0) over time')
+
+          call ensure_netcdf_var_exists(ncid, 'tperp0', netcdf_real, mom_dim, tperp0_id)
+          call ensure_netcdf_att_exists(ncid, tperp0_id, 'long_name', 'Tperp (theta=0) over time')
+
+          call ensure_netcdf_var_exists(ncid, 'qparflux0', netcdf_real, mom_dim, qparflux0_id)
+          call ensure_netcdf_att_exists(ncid, qparflux0_id, 'long_name', 'Qparflux (theta=0) over time')
+
+          call ensure_netcdf_var_exists(ncid, 'pperpj10', netcdf_real, mom_dim, pperpj10_id)
+          call ensure_netcdf_att_exists(ncid, pperpj10_id, 'long_name', 'Pperpj1 (theta=0) over time')
+
+          call ensure_netcdf_var_exists(ncid, 'qpperpj10', netcdf_real, mom_dim, qpperpj10_id)
+          call ensure_netcdf_att_exists(ncid, qpperpj10_id, 'long_name', 'Qpperpj1 (theta=0) over time')
        !Along flux_surface
        else
-          status = nf90_def_var &
-               (ncid, 'ntot_t', netcdf_real, mom_t_dim, ntot_t_id)
-          if (status /= NF90_NOERR) call netcdf_error (status, var='ntot_t')
-          status = nf90_put_att (ncid, ntot_t_id, 'long_name', 'Total perturbed density over time')
-          if (status /= NF90_NOERR) call netcdf_error (status, ncid, ntot_t_id, att='long_name')
-          
-          status = nf90_def_var &
-               (ncid, 'density_t', netcdf_real, mom_t_dim, density_t_id)
-          if (status /= NF90_NOERR) call netcdf_error (status, var='density_t')
-          status = nf90_put_att (ncid, density_t_id, 'long_name', 'Nonadiabatic piece of perturbed density over time')
-          if (status /= NF90_NOERR) call netcdf_error (status, ncid, density_t_id, att='long_name')
-          
-          status = nf90_def_var &
-               (ncid, 'upar_t', netcdf_real, mom_t_dim, upar_t_id)
-          if (status /= NF90_NOERR) call netcdf_error (status, var='upar_t')
-          status = nf90_put_att (ncid, upar_t_id, 'long_name', 'Upar over time')
-          if (status /= NF90_NOERR) call netcdf_error (status, ncid, upar_t_id, att='long_name')
-          
-          status = nf90_def_var &
-               (ncid, 'tpar_t', netcdf_real, mom_t_dim, tpar_t_id)
-          if (status /= NF90_NOERR) call netcdf_error (status, var='tpar_t')
-          status = nf90_put_att (ncid, tpar_t_id, 'long_name', 'Tpar over time')
-          if (status /= NF90_NOERR) call netcdf_error (status, ncid, tpar_t_id, att='long_name')
-          
-          status = nf90_def_var &
-               (ncid, 'tperp_t', netcdf_real, mom_t_dim, tperp_t_id)
-          if (status /= NF90_NOERR) call netcdf_error (status, var='tperp_t')
-          status = nf90_put_att (ncid, tperp_t_id, 'long_name', 'Tperp over time')
-          if (status /= NF90_NOERR) call netcdf_error (status, ncid, tperp_t_id, att='long_name')
-          
-          status = nf90_def_var &
-               (ncid, 'qparflux_t', netcdf_real, mom_t_dim, qparflux_t_id)
-          if (status /= NF90_NOERR) call netcdf_error (status, var='qparflux_t')
-          status = nf90_put_att (ncid, qparflux_t_id, 'long_name', 'Qparflux over time')
-          if (status /= NF90_NOERR) call netcdf_error (status, ncid, qparflux_t_id, att='long_name')
-          
-          status = nf90_def_var &
-               (ncid, 'pperpj1_t', netcdf_real, mom_t_dim, pperpj1_t_id)
-          if (status /= NF90_NOERR) call netcdf_error (status, var='pperpj1_t')
-          status = nf90_put_att (ncid, pperpj1_t_id, 'long_name', 'Pperpj1 over time')
-          if (status /= NF90_NOERR) call netcdf_error (status, ncid, pperpj1_t_id, att='long_name')
-          
-          status = nf90_def_var &
-               (ncid, 'qpperpj1_t', netcdf_real, mom_t_dim, qpperpj1_t_id)
-          if (status /= NF90_NOERR) call netcdf_error (status, var='qpperpj1_t')
-          status = nf90_put_att (ncid, qpperpj1_t_id, 'long_name', 'Qpperpj1 over time')
-          if (status /= NF90_NOERR) call netcdf_error (status, ncid, qpperpj1_t_id, att='long_name')
+          call ensure_netcdf_var_exists(ncid, 'ntot_t', netcdf_real, mom_t_dim, ntot_t_id)
+          call ensure_netcdf_att_exists(ncid, ntot_t_id, 'long_name', 'Total perturbed density over time')
+
+          call ensure_netcdf_var_exists(ncid, 'density_t', netcdf_real, mom_t_dim, density_t_id)
+          call ensure_netcdf_att_exists(ncid, density_t_id, 'long_name', 'Nonadiabatic piece of perturbed density over time')
+
+          call ensure_netcdf_var_exists(ncid, 'upar_t', netcdf_real, mom_t_dim, upar_t_id)
+          call ensure_netcdf_att_exists(ncid, upar_t_id, 'long_name', 'Upar over time')
+
+          call ensure_netcdf_var_exists(ncid, 'tpar_t', netcdf_real, mom_t_dim, tpar_t_id)
+          call ensure_netcdf_att_exists(ncid, tpar_t_id, 'long_name', 'Tpar over time')
+
+          call ensure_netcdf_var_exists(ncid, 'tperp_t', netcdf_real, mom_t_dim, tperp_t_id)
+          call ensure_netcdf_att_exists(ncid, tperp_t_id, 'long_name', 'Tperp over time')
+
+          call ensure_netcdf_var_exists(ncid, 'qparflux_t', netcdf_real, mom_t_dim, qparflux_t_id)
+          call ensure_netcdf_att_exists(ncid, qparflux_t_id, 'long_name', 'Qparflux over time')
+
+          call ensure_netcdf_var_exists(ncid, 'pperpj1_t', netcdf_real, mom_t_dim, pperpj1_t_id)
+          call ensure_netcdf_att_exists(ncid, pperpj1_t_id, 'long_name', 'Pperpj1 over time')
+
+          call ensure_netcdf_var_exists(ncid, 'qpperpj1_t', netcdf_real, mom_t_dim, qpperpj1_t_id)
+          call ensure_netcdf_att_exists(ncid, qpperpj1_t_id, 'long_name', 'Qpperpj1 over time')
        end if
     end if
 !CMRend
 
     if (write_verr) then
-!       status = nf90_def_var (ncid, 'errest_by_mode', netcdf_real, err_dim, errest_by_mode_id)
-!       if (status /= NF90_NOERR) call netcdf_error (status, var='errest_by_mode')
-!       status = nf90_def_var (ncid, 'lpcoef_by_mode', netcdf_real, lp_dim, lpcoef_by_mode_id)
-!       if (status /= NF90_NOERR) call netcdf_error (status, var='lpcoef_by_mode')
+!       call ensure_netcdf_var_exists(ncid, 'errest_by_mode', netcdf_real, err_dim, errest_by_mode_id)
+!       call ensure_netcdf_var_exists(ncid, 'lpcoef_by_mode', netcdf_real, lp_dim, lpcoef_by_mode_id)
     end if
 
     !The current value of the scanned parameter
     if (write_scan_parameter) then
-       status = nf90_def_var(ncid,'scan_parameter_value',netcdf_real,time_dim,current_scan_parameter_value_id)
-       if (status /= NF90_NOERR) call netcdf_error (status,var='scan_parameter_value')
-       status = nf90_put_att (ncid,current_scan_parameter_value_id,'long_name','The current value of the scan parameter')
-       if (status /= NF90_NOERR) call netcdf_error (status,ncid, current_scan_parameter_value_id, att='long_name')
+       call ensure_netcdf_var_exists(ncid,'scan_parameter_value',netcdf_real,time_dim,current_scan_parameter_value_id)
+       call ensure_netcdf_att_exists(ncid,current_scan_parameter_value_id,'long_name','The current value of the scan parameter')
     end if
 
     !Phase used to normalise eigenfunction/field
     if(write_eigenfunc)then
-       status = nf90_def_var (ncid, 'phase', netcdf_real, phase_dim, phase_id)
-       if (status /= NF90_NOERR) call netcdf_error (status, var='phase')
-       status = nf90_put_att (ncid, phase_id, 'long_name', 'Normalizing phase')
-       if (status /= NF90_NOERR) call netcdf_error (status, ncid, phase_id, att='long_name')
+       call ensure_netcdf_var_exists(ncid, 'phase', netcdf_real, phase_dim, phase_id)
+       call ensure_netcdf_att_exists(ncid, phase_id, 'long_name', 'Normalizing phase')
     endif
 
     !Roughly the field line averaged summed field amplitudes
-    status = nf90_def_var (ncid, 'phtot', netcdf_real, mode_dim, phtot_id)
-    if (status /= NF90_NOERR) call netcdf_error (status, var='phtot')
-    status = nf90_put_att (ncid, phtot_id, 'long_name', 'Field amplitude')
+    call ensure_netcdf_var_exists(ncid, 'phtot', netcdf_real, mode_dim, phtot_id)
+    call ensure_netcdf_att_exists(ncid, phtot_id, 'long_name', 'Field amplitude')
 
     !Frequency and growth rate estimates
     if (write_omega) then
-       status = nf90_def_var (ncid, 'omega', netcdf_real, omega_dim, omega_id)
-       if (status /= NF90_NOERR) call netcdf_error (status, var='omega')
-       status = nf90_def_var (ncid, 'omegaavg', netcdf_real, omega_dim, omegaavg_id)
-       if (status /= NF90_NOERR) call netcdf_error (status, var='omegaavg')
+       call ensure_netcdf_var_exists(ncid, 'omega', netcdf_real, omega_dim, omega_id)
+       call ensure_netcdf_var_exists(ncid, 'omegaavg', netcdf_real, omega_dim, omegaavg_id)
     end if
 
     !Summed fluxes
     if (write_nl_flux) then
-       status = nf90_def_var (ncid, 'hflux_tot', netcdf_real, time_dim, hflux_tot_id)
-       if (status /= NF90_NOERR) call netcdf_error (status, var='hflux_tot')
-       status = nf90_def_var (ncid, 'vflux_tot', netcdf_real, time_dim, vflux_tot_id)
-       if (status /= NF90_NOERR) call netcdf_error (status, var='vflux_tot')
-       status = nf90_def_var (ncid, 'zflux_tot', netcdf_real, time_dim, zflux_tot_id)
-       if (status /= NF90_NOERR) call netcdf_error (status, var='zflux_tot')
+       call ensure_netcdf_var_exists(ncid, 'hflux_tot', netcdf_real, time_dim, hflux_tot_id)
+       call ensure_netcdf_var_exists(ncid, 'vflux_tot', netcdf_real, time_dim, vflux_tot_id)
+       call ensure_netcdf_var_exists(ncid, 'zflux_tot', netcdf_real, time_dim, zflux_tot_id)
     end if
 
     !Parallel electric field -- only good for linear runs
     if(write_final_epar) then
-       status = nf90_def_var (ncid, 'epar', netcdf_real, final_field_dim, epar_id)
-       if (status /= NF90_NOERR) call netcdf_error (status, var='epar')
+       call ensure_netcdf_var_exists(ncid, 'epar', netcdf_real, final_field_dim, epar_id)
     endif
 
     !Here we setup the volume/fieldline averaged moment data, currently this triggers
@@ -1506,164 +1348,102 @@ contains
     if(write_avg_moments) then
        !Volume averaged function of theta
        !<DD>Should we only do this if .not.obmid?
-       status = nf90_def_var (ncid, 'ntot2', netcdf_real, flux_dim,  ntot2_id)
-       if (status /= NF90_NOERR) call netcdf_error (status, var='ntot2')
-       status = nf90_def_var (ncid, 'ntot2_by_mode', netcdf_real, fluxk_dim, ntot2_by_mode_id)
-       if (status /= NF90_NOERR) call netcdf_error (status, var='ntot2_by_mode')
-       status = nf90_def_var (ncid, 'tpar2_by_mode', netcdf_real, fluxk_dim, tpar2_by_mode_id)
-       if (status /= NF90_NOERR) call netcdf_error (status, var='tpar2_by_mode')
-       status = nf90_def_var (ncid, 'tperp2_by_mode', netcdf_real, fluxk_dim, tperp2_by_mode_id)
-       if (status /= NF90_NOERR) call netcdf_error (status, var='tperp2_by_mode')
+       call ensure_netcdf_var_exists(ncid, 'ntot2', netcdf_real, flux_dim,  ntot2_id)
+       call ensure_netcdf_var_exists(ncid, 'ntot2_by_mode', netcdf_real, fluxk_dim, ntot2_by_mode_id)
+       call ensure_netcdf_var_exists(ncid, 'tpar2_by_mode', netcdf_real, fluxk_dim, tpar2_by_mode_id)
+       call ensure_netcdf_var_exists(ncid, 'tperp2_by_mode', netcdf_real, fluxk_dim, tperp2_by_mode_id)
 
        !"Volume averaged" data from outboard midplane (really just evaluated at theta=0
        !and then weighted with Fourier coeff factor (typically 0.5).
        !<DD>Should we only do this if obmid?
-       status = nf90_def_var (ncid, 'ntot20', netcdf_real, flux_dim,  ntot20_id)
-       if (status /= NF90_NOERR) call netcdf_error (status, var='ntot20')
-       status = nf90_put_att (ncid, ntot20_id, 'long_name', 'Density**2 at theta=0')
-       if (status /= NF90_NOERR) call netcdf_error (status, ncid, ntot20_id, att='long_name')
-       status = nf90_def_var (ncid, 'ntot20_by_mode', netcdf_real, fluxk_dim, ntot20_by_mode_id)
-       if (status /= NF90_NOERR) call netcdf_error (status, var='ntot20_by_mode')
+       call ensure_netcdf_var_exists(ncid, 'ntot20', netcdf_real, flux_dim,  ntot20_id)
+       call ensure_netcdf_att_exists(ncid, ntot20_id, 'long_name', 'Density**2 at theta=0')
+       call ensure_netcdf_var_exists(ncid, 'ntot20_by_mode', netcdf_real, fluxk_dim, ntot20_by_mode_id)
 
 
        !Fieldline averaged data, note this includes phi which is not a moment
-       status = nf90_def_var (ncid, 'phi00', netcdf_real, loop_phi_dim, phi00_id)
-       if (status /= NF90_NOERR) call netcdf_error (status, var='phi00')
-       status = nf90_def_var (ncid, 'ntot00', netcdf_real, loop_mom_dim, ntot00_id)
-       if (status /= NF90_NOERR) call netcdf_error (status, var='ntot00')
-       status = nf90_def_var (ncid, 'density00', netcdf_real, loop_mom_dim, density00_id)
-       if (status /= NF90_NOERR) call netcdf_error (status, var='density00')
-       status = nf90_def_var (ncid, 'upar00', netcdf_real, loop_mom_dim, upar00_id)
-       if (status /= NF90_NOERR) call netcdf_error (status, var='upar00')
-       status = nf90_def_var (ncid, 'tpar00', netcdf_real, loop_mom_dim, tpar00_id)
-       if (status /= NF90_NOERR) call netcdf_error (status, var='tpar00')
-       status = nf90_def_var (ncid, 'tperp00', netcdf_real, loop_mom_dim, tperp00_id)
-       if (status /= NF90_NOERR) call netcdf_error (status, var='tperp00')
+       call ensure_netcdf_var_exists(ncid, 'phi00', netcdf_real, loop_phi_dim, phi00_id)
+       call ensure_netcdf_var_exists(ncid, 'ntot00', netcdf_real, loop_mom_dim, ntot00_id)
+       call ensure_netcdf_var_exists(ncid, 'density00', netcdf_real, loop_mom_dim, density00_id)
+       call ensure_netcdf_var_exists(ncid, 'upar00', netcdf_real, loop_mom_dim, upar00_id)
+       call ensure_netcdf_var_exists(ncid, 'tpar00', netcdf_real, loop_mom_dim, tpar00_id)
+       call ensure_netcdf_var_exists(ncid, 'tperp00', netcdf_real, loop_mom_dim, tperp00_id)
     endif
 
     !Setup full moment data for end of simulation
     if(write_final_moments)then
-       status = nf90_def_var (ncid, 'ntot', netcdf_real, final_mom_dim, ntot_id)
-       if (status /= NF90_NOERR) call netcdf_error (status, var='ntot')
-       status = nf90_def_var (ncid, 'density', netcdf_real, final_mom_dim, density_id)
-       if (status /= NF90_NOERR) call netcdf_error (status, var='density')
-       status = nf90_def_var (ncid, 'upar', netcdf_real, final_mom_dim, upar_id)
-       if (status /= NF90_NOERR) call netcdf_error (status, var='upar')
-       status = nf90_def_var (ncid, 'tpar', netcdf_real, final_mom_dim, tpar_id)
-       if (status /= NF90_NOERR) call netcdf_error (status, var='tpar')
-       status = nf90_def_var (ncid, 'tperp', netcdf_real, final_mom_dim, tperp_id)
-       if (status /= NF90_NOERR) call netcdf_error (status, var='tperp')
-       status = nf90_def_var (ncid, 'qparflux', netcdf_real, final_mom_dim, qparflux_id)
-       if (status /= NF90_NOERR) call netcdf_error (status, var='qparflux')
-       status = nf90_def_var (ncid, 'pperpj1', netcdf_real, final_mom_dim, pperpj1_id)
-       if (status /= NF90_NOERR) call netcdf_error (status, var='pperpj1')
-       status = nf90_def_var (ncid, 'qpperpj1', netcdf_real, final_mom_dim, qpperpj1_id)
-       if (status /= NF90_NOERR) call netcdf_error (status, var='qpperpj1')
+       call ensure_netcdf_var_exists(ncid, 'ntot', netcdf_real, final_mom_dim, ntot_id)
+       call ensure_netcdf_var_exists(ncid, 'density', netcdf_real, final_mom_dim, density_id)
+       call ensure_netcdf_var_exists(ncid, 'upar', netcdf_real, final_mom_dim, upar_id)
+       call ensure_netcdf_var_exists(ncid, 'tpar', netcdf_real, final_mom_dim, tpar_id)
+       call ensure_netcdf_var_exists(ncid, 'tperp', netcdf_real, final_mom_dim, tperp_id)
+       call ensure_netcdf_var_exists(ncid, 'qparflux', netcdf_real, final_mom_dim, qparflux_id)
+       call ensure_netcdf_var_exists(ncid, 'pperpj1', netcdf_real, final_mom_dim, pperpj1_id)
+       call ensure_netcdf_var_exists(ncid, 'qpperpj1', netcdf_real, final_mom_dim, qpperpj1_id)
     endif
 
     !Heating rate diagnostics
     if (write_hrate) then
-       status = nf90_def_var (ncid, 'h_energy', netcdf_real, time_dim, h_energy_id)
-       if (status /= NF90_NOERR) call netcdf_error (status, var='h_energy')
-       status = nf90_def_var (ncid, 'h_energy_dot', netcdf_real, time_dim, h_energy_dot_id)
-       if (status /= NF90_NOERR) call netcdf_error (status, var='h_energy_dot')
-       status = nf90_def_var (ncid, 'h_antenna', netcdf_real, time_dim, h_antenna_id)
-       if (status /= NF90_NOERR) call netcdf_error (status, var='h_antenna')
-       status = nf90_def_var (ncid, 'h_eapar', netcdf_real, time_dim, h_eapar_id)
-       if (status /= NF90_NOERR) call netcdf_error (status, var='h_eapar')
-       status = nf90_def_var (ncid, 'h_ebpar', netcdf_real, time_dim, h_ebpar_id)
-       if (status /= NF90_NOERR) call netcdf_error (status, var='h_ebpar')
+       call ensure_netcdf_var_exists(ncid, 'h_energy', netcdf_real, time_dim, h_energy_id)
+       call ensure_netcdf_var_exists(ncid, 'h_energy_dot', netcdf_real, time_dim, h_energy_dot_id)
+       call ensure_netcdf_var_exists(ncid, 'h_antenna', netcdf_real, time_dim, h_antenna_id)
+       call ensure_netcdf_var_exists(ncid, 'h_eapar', netcdf_real, time_dim, h_eapar_id)
+       call ensure_netcdf_var_exists(ncid, 'h_ebpar', netcdf_real, time_dim, h_ebpar_id)
 
-       status = nf90_def_var (ncid, 'h_delfs2', netcdf_real, flux_dim, h_delfs2_id)
-       if (status /= NF90_NOERR) call netcdf_error (status, var='h_delfs2')
-       status = nf90_def_var (ncid, 'h_hs2', netcdf_real, flux_dim, h_hs2_id)
-       if (status /= NF90_NOERR) call netcdf_error (status, var='h_hs2')
-       status = nf90_def_var (ncid, 'h_phis2', netcdf_real, flux_dim, h_phis2_id)
-       if (status /= NF90_NOERR) call netcdf_error (status, var='h_phis2')
-       status = nf90_def_var (ncid, 'h_hypervisc', netcdf_real, flux_dim, h_hypervisc_id)
-       if (status /= NF90_NOERR) call netcdf_error (status, var='h_hypervisc')
-       status = nf90_def_var (ncid, 'h_hyperres', netcdf_real, flux_dim, h_hyperres_id)
-       if (status /= NF90_NOERR) call netcdf_error (status, var='h_hyperres')
-       status = nf90_def_var (ncid, 'h_collisions', netcdf_real, flux_dim, h_collisions_id)
-       if (status /= NF90_NOERR) call netcdf_error (status, var='h_collisions')
-       status = nf90_def_var (ncid, 'h_gradients', netcdf_real, flux_dim, h_gradients_id)
-       if (status /= NF90_NOERR) call netcdf_error (status, var='h_gradients')
-       status = nf90_def_var (ncid, 'h_hypercoll', netcdf_real, flux_dim, h_hypercoll_id)
-       if (status /= NF90_NOERR) call netcdf_error (status, var='h_hypercoll')
-       status = nf90_def_var (ncid, 'h_imp_colls', netcdf_real, flux_dim, h_imp_colls_id)
-       if (status /= NF90_NOERR) call netcdf_error (status, var='h_imp_colls')
-       status = nf90_def_var (ncid, 'h_heating', netcdf_real, flux_dim, h_heating_id)
-       if (status /= NF90_NOERR) call netcdf_error (status, var='h_heating')
-       status = nf90_put_att (ncid, h_heating_id, 'long_name', 'Total heating by species')
-       if (status /= NF90_NOERR) call netcdf_error (status, ncid, h_heating_id, att='long_name')
+       call ensure_netcdf_var_exists(ncid, 'h_delfs2', netcdf_real, flux_dim, h_delfs2_id)
+       call ensure_netcdf_var_exists(ncid, 'h_hs2', netcdf_real, flux_dim, h_hs2_id)
+       call ensure_netcdf_var_exists(ncid, 'h_phis2', netcdf_real, flux_dim, h_phis2_id)
+       call ensure_netcdf_var_exists(ncid, 'h_hypervisc', netcdf_real, flux_dim, h_hypervisc_id)
+       call ensure_netcdf_var_exists(ncid, 'h_hyperres', netcdf_real, flux_dim, h_hyperres_id)
+       call ensure_netcdf_var_exists(ncid, 'h_collisions', netcdf_real, flux_dim, h_collisions_id)
+       call ensure_netcdf_var_exists(ncid, 'h_gradients', netcdf_real, flux_dim, h_gradients_id)
+       call ensure_netcdf_var_exists(ncid, 'h_hypercoll', netcdf_real, flux_dim, h_hypercoll_id)
+       call ensure_netcdf_var_exists(ncid, 'h_imp_colls', netcdf_real, flux_dim, h_imp_colls_id)
+       call ensure_netcdf_var_exists(ncid, 'h_heating', netcdf_real, flux_dim, h_heating_id)
+       call ensure_netcdf_att_exists(ncid, h_heating_id, 'long_name', 'Total heating by species')
 
-       status = nf90_def_var (ncid, 'hk_energy', netcdf_real, mode_dim, hk_energy_id)
-       if (status /= NF90_NOERR) call netcdf_error (status, var='h_heating')
-       status = nf90_def_var (ncid, 'hk_energy_dot', netcdf_real, mode_dim, hk_energy_dot_id)
-       if (status /= NF90_NOERR) call netcdf_error (status, var='h_heating')
-       status = nf90_def_var (ncid, 'hk_antenna', netcdf_real, mode_dim, hk_antenna_id)
-       if (status /= NF90_NOERR) call netcdf_error (status, var='h_heating')
-       status = nf90_def_var (ncid, 'hk_eapar', netcdf_real, mode_dim, hk_eapar_id)
-       if (status /= NF90_NOERR) call netcdf_error (status, var='h_heating')
-       status = nf90_def_var (ncid, 'hk_ebpar', netcdf_real, mode_dim, hk_ebpar_id)
-       if (status /= NF90_NOERR) call netcdf_error (status, var='h_heating')
+       call ensure_netcdf_var_exists(ncid, 'hk_energy', netcdf_real, mode_dim, hk_energy_id)
+       call ensure_netcdf_var_exists(ncid, 'hk_energy_dot', netcdf_real, mode_dim, hk_energy_dot_id)
+       call ensure_netcdf_var_exists(ncid, 'hk_antenna', netcdf_real, mode_dim, hk_antenna_id)
+       call ensure_netcdf_var_exists(ncid, 'hk_eapar', netcdf_real, mode_dim, hk_eapar_id)
+       call ensure_netcdf_var_exists(ncid, 'hk_ebpar', netcdf_real, mode_dim, hk_ebpar_id)
 
-       status = nf90_def_var (ncid, 'hk_delfs2', netcdf_real, fluxk_dim, hk_delfs2_id)
-       if (status /= NF90_NOERR) call netcdf_error (status, var='hk_delfs2')
-       status = nf90_def_var (ncid, 'hk_hs2', netcdf_real, fluxk_dim, hk_hs2_id)
-       if (status /= NF90_NOERR) call netcdf_error (status, var='hk_hs2')
-       status = nf90_def_var (ncid, 'hk_phis2', netcdf_real, fluxk_dim, hk_phis2_id)
-       if (status /= NF90_NOERR) call netcdf_error (status, var='hk_phis2')
-       status = nf90_def_var (ncid, 'hk_hypervisc', netcdf_real, fluxk_dim, hk_hypervisc_id)
-       if (status /= NF90_NOERR) call netcdf_error (status, var='hk_hypervisc')
-       status = nf90_def_var (ncid, 'hk_hyperres', netcdf_real, fluxk_dim, hk_hyperres_id)
-       if (status /= NF90_NOERR) call netcdf_error (status, var='hk_hyperres')
-       status = nf90_def_var (ncid, 'hk_collisions', netcdf_real, fluxk_dim, hk_collisions_id)
-       if (status /= NF90_NOERR) call netcdf_error (status, var='hk_collisions')
-       status = nf90_def_var (ncid, 'hk_gradients', netcdf_real, fluxk_dim, hk_gradients_id)
-       if (status /= NF90_NOERR) call netcdf_error (status, var='hk_gradients')
-       status = nf90_def_var (ncid, 'hk_imp_colls', netcdf_real, fluxk_dim, hk_imp_colls_id)
-       if (status /= NF90_NOERR) call netcdf_error (status, var='hk_imp_colls')
-       status = nf90_def_var (ncid, 'hk_hypercoll', netcdf_real, fluxk_dim, hk_hypercoll_id)
-       if (status /= NF90_NOERR) call netcdf_error (status, var='hk_hypercoll')
-       status = nf90_def_var (ncid, 'hk_heating', netcdf_real, fluxk_dim, hk_heating_id)
-       if (status /= NF90_NOERR) call netcdf_error (status, var='hk_heating')
-       status = nf90_put_att (ncid, hk_heating_id, 'long_name', 'Total heating by species and mode')
-       if (status /= NF90_NOERR) call netcdf_error (status, ncid, hk_heating_id, att='long_name')
+       call ensure_netcdf_var_exists(ncid, 'hk_delfs2', netcdf_real, fluxk_dim, hk_delfs2_id)
+       call ensure_netcdf_var_exists(ncid, 'hk_hs2', netcdf_real, fluxk_dim, hk_hs2_id)
+       call ensure_netcdf_var_exists(ncid, 'hk_phis2', netcdf_real, fluxk_dim, hk_phis2_id)
+       call ensure_netcdf_var_exists(ncid, 'hk_hypervisc', netcdf_real, fluxk_dim, hk_hypervisc_id)
+       call ensure_netcdf_var_exists(ncid, 'hk_hyperres', netcdf_real, fluxk_dim, hk_hyperres_id)
+       call ensure_netcdf_var_exists(ncid, 'hk_collisions', netcdf_real, fluxk_dim, hk_collisions_id)
+       call ensure_netcdf_var_exists(ncid, 'hk_gradients', netcdf_real, fluxk_dim, hk_gradients_id)
+       call ensure_netcdf_var_exists(ncid, 'hk_imp_colls', netcdf_real, fluxk_dim, hk_imp_colls_id)
+       call ensure_netcdf_var_exists(ncid, 'hk_hypercoll', netcdf_real, fluxk_dim, hk_hypercoll_id)
+       call ensure_netcdf_var_exists(ncid, 'hk_heating', netcdf_real, fluxk_dim, hk_heating_id)
+       call ensure_netcdf_att_exists(ncid, hk_heating_id, 'long_name', 'Total heating by species and mode')
     end if
 
     ! RN> not guiding center moments (every nwrite steps)
     if (write_full_moments_notgc .and. .not. (write_moments .and. obmid)) then
-       status = nf90_def_var (ncid, 'ntot0', netcdf_real, mom_dim, ntot0_id)
-       if (status /= NF90_NOERR) call netcdf_error (status, var='ntot0')
-       status = nf90_def_var (ncid, 'density0', netcdf_real, mom_dim, density0_id)
-       if (status /= NF90_NOERR) call netcdf_error (status, var='density0')
-       status = nf90_def_var (ncid, 'upar0', netcdf_real, mom_dim, upar0_id)
-       if (status /= NF90_NOERR) call netcdf_error (status, var='upar0')
-       status = nf90_def_var (ncid, 'tpar0', netcdf_real, mom_dim, tpar0_id)
-       if (status /= NF90_NOERR) call netcdf_error (status, var='tpar0')
-       status = nf90_def_var (ncid, 'tperp0', netcdf_real, mom_dim, tperp0_id)
-       if (status /= NF90_NOERR) call netcdf_error (status, var='tperp0')
+       call ensure_netcdf_var_exists(ncid, 'ntot0', netcdf_real, mom_dim, ntot0_id)
+       call ensure_netcdf_var_exists(ncid, 'density0', netcdf_real, mom_dim, density0_id)
+       call ensure_netcdf_var_exists(ncid, 'upar0', netcdf_real, mom_dim, upar0_id)
+       call ensure_netcdf_var_exists(ncid, 'tpar0', netcdf_real, mom_dim, tpar0_id)
+       call ensure_netcdf_var_exists(ncid, 'tperp0', netcdf_real, mom_dim, tperp0_id)
     endif
     ! <RN
 
     !Correlation function (phi only so should probably include if fphi>0)
     if (io_write_corr_extend) then
-       status = nf90_def_var (ncid, 'phi2_extend',  netcdf_real, phi2_extend_dim, phi2_extend_id)
-       if (status /= NF90_NOERR) call netcdf_error (status, var='phi2_extend')
-       status = nf90_def_var (ncid, 'phi_corr',  netcdf_real, phi_corr_dim, phi_corr_id)
-       if (status /= NF90_NOERR) call netcdf_error (status, var='phi_corr')
+       call ensure_netcdf_var_exists(ncid, 'phi2_extend',  netcdf_real, phi2_extend_dim, phi2_extend_id)
+       call ensure_netcdf_var_exists(ncid, 'phi_corr',  netcdf_real, phi_corr_dim, phi_corr_id)
     end if
     !------------------------------------------------
 
     !################################################
     !# NOW EXIT DEFINITION MODE
     status = nf90_enddef (ncid)  ! out of definition mode
-    if (status /= NF90_NOERR) call netcdf_error (status)
 
     !Fill the value of nproc -- helps make sure we can write vars to file
     status = nf90_put_var (ncid, nproc_id, nproc)
-    if (status /= NF90_NOERR) call netcdf_error (status, ncid, nproc_id)
 
 # endif
   end subroutine define_vars
@@ -1693,56 +1473,39 @@ contains
        xmode_dim (4) = time_movie_dim
 
        !Basic information
-       status = nf90_put_att (ncid_movie, NF90_GLOBAL, 'title', 'GS2 Simulation x,y,theta Data for Movies')
-       if (status /= NF90_NOERR) call netcdf_error (status, ncid_movie, NF90_GLOBAL, att='title')
-       status = nf90_put_att (ncid_movie, NF90_GLOBAL, 'Conventions','https://sourceforge.net/projects/gyrokinetics/')
-       if (status /= NF90_NOERR) call netcdf_error (status, ncid_movie, NF90_GLOBAL, att='Conventions')
-       
+       call ensure_netcdf_att_exists(ncid_movie, NF90_GLOBAL, 'title', 'GS2 Simulation x,y,theta Data for Movies')
+       call ensure_netcdf_att_exists(ncid_movie, NF90_GLOBAL, 'Conventions','https://sourceforge.net/projects/gyrokinetics/')
+
        !Grid sizes
-       status = nf90_def_var (ncid_movie, 'nx', NF90_INT, nx_id)
-       if (status /= NF90_NOERR) call netcdf_error (status, var='nx')
-       status = nf90_def_var (ncid_movie, 'ny', NF90_INT, ny_id)
-       if (status /= NF90_NOERR) call netcdf_error (status, var='ny')
-       status = nf90_def_var (ncid_movie, 'ntheta', NF90_INT, nth_id)    
-       if (status /= NF90_NOERR) call netcdf_error (status, var='ntheta')
+       call ensure_netcdf_var_exists(ncid_movie, 'nx', NF90_INT, nx_id)
+       call ensure_netcdf_var_exists(ncid_movie, 'ny', NF90_INT, ny_id)
+       call ensure_netcdf_var_exists(ncid_movie, 'ntheta', NF90_INT, nth_id)
 
        !Grids
-       status = nf90_def_var (ncid_movie, 'tm', netcdf_real, time_movie_dim, time_movie_id)
-       if (status /= NF90_NOERR) call netcdf_error (status, var='tm')
-       status = nf90_put_att (ncid_movie, time_movie_id, 'long_name', 'Time')
-       if (status /= NF90_NOERR) call netcdf_error (status, ncid_movie, time_movie_id, att='long_name')
-       status = nf90_put_att (ncid_movie, time_movie_id, 'units', 'L/vt')
-       if (status /= NF90_NOERR) call netcdf_error (status, ncid_movie, time_movie_id, att='units')
-       status = nf90_def_var (ncid_movie, 'x', netcdf_real, nx_dim, x_id)
-       if (status /= NF90_NOERR) call netcdf_error (status, var='x')
-       status = nf90_put_att (ncid_movie, x_id, 'long_name', 'x / rho')
-       if (status /= NF90_NOERR) call netcdf_error (status, ncid_movie, x_id, att='long_name')
-       status = nf90_def_var (ncid_movie, 'y', netcdf_real, ny_dim, y_id)
-       if (status /= NF90_NOERR) call netcdf_error (status, var='y')
-       status = nf90_put_att (ncid_movie, y_id, 'long_name', 'y / rho')
-       if (status /= NF90_NOERR) call netcdf_error (status, ncid_movie, y_id, att='long_name')
-       status = nf90_def_var (ncid_movie, 'theta', netcdf_real, nth_dim, th_id)
-       if (status /= NF90_NOERR) call netcdf_error (status, var='theta')
+       call ensure_netcdf_var_exists(ncid_movie, 'tm', netcdf_real, time_movie_dim, time_movie_id)
+       call ensure_netcdf_att_exists(ncid_movie, time_movie_id, 'long_name', 'Time')
+       call ensure_netcdf_att_exists(ncid_movie, time_movie_id, 'units', 'L/vt')
+       call ensure_netcdf_var_exists(ncid_movie, 'x', netcdf_real, nx_dim, x_id)
+       call ensure_netcdf_att_exists(ncid_movie, x_id, 'long_name', 'x / rho')
+       call ensure_netcdf_var_exists(ncid_movie, 'y', netcdf_real, ny_dim, y_id)
+       call ensure_netcdf_att_exists(ncid_movie, y_id, 'long_name', 'y / rho')
+       call ensure_netcdf_var_exists(ncid_movie, 'theta', netcdf_real, nth_dim, th_id)
 
        !Field data for movie
        if(fphi > zero) then
-          status = nf90_def_var (ncid_movie, 'phi_by_xmode', netcdf_real, xmode_dim, phi_by_xmode_id)
-          if (status /= NF90_NOERR) call netcdf_error (status, var='phi_by_xmode')
+          call ensure_netcdf_var_exists(ncid_movie, 'phi_by_xmode', netcdf_real, xmode_dim, phi_by_xmode_id)
        end if
        ! TEMPORARY BD | Disable DD to match gs2_diagnostics
-       !status = nf90_def_var (ncid_movie, 'density_by_xmode', netcdf_real, xmode_dim, apar_by_xmode_id)
-       !if (status /= NF90_NOERR) call netcdf_error (status, var='density_by_xmode')
+       !call ensure_netcdf_var_exists(ncid_movie, 'density_by_xmode', netcdf_real, xmode_dim, apar_by_xmode_id)
 
        if(fapar > zero) then
-          status = nf90_def_var (ncid_movie, 'apar_by_xmode', netcdf_real, xmode_dim, apar_by_xmode_id)
-          if (status /= NF90_NOERR) call netcdf_error (status, var='apar_by_xmode')
+          call ensure_netcdf_var_exists(ncid_movie, 'apar_by_xmode', netcdf_real, xmode_dim, apar_by_xmode_id)
        end if
 
        if(fbpar > zero) then
-          status = nf90_def_var (ncid_movie, 'bpar_by_xmode', netcdf_real, xmode_dim, bpar_by_xmode_id)
-          if (status /= NF90_NOERR) call netcdf_error (status, var='bpar_by_xmode')
+          call ensure_netcdf_var_exists(ncid_movie, 'bpar_by_xmode', netcdf_real, xmode_dim, bpar_by_xmode_id)
        end if
-       
+
        !Finish defining
        status = nf90_enddef (ncid_movie)  ! out of definition mode
        if (status /= NF90_NOERR) call netcdf_error (status)
