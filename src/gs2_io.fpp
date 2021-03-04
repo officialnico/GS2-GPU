@@ -159,6 +159,7 @@ contains
     logical :: accelerated
     character(run_name_size) :: filename, filename_movie
     integer :: status
+    logical :: previous_file_exists, appending
 
     !################
     !# Update internal flags
@@ -183,12 +184,14 @@ contains
 
     ! only proc0 opens the file:
     if (proc0) then
-       if (tstart .gt. 1.0e-4) then
+       inquire(file=trim(filename), exist=previous_file_exists)
+       appending = (previous_file_exists .and. (tstart .gt. 1.0e-4))
+       if (appending) then
           status = nf90_open(trim(filename), NF90_WRITE, ncid)
        else
           status = nf90_create (trim(filename), NF90_CLOBBER, ncid)
        end if
-       if (status /= NF90_NOERR) call netcdf_error (status, file=filename)
+       if (status /= NF90_NOERR) call netcdf_error (status, file=filename, abort=.true.)
     end if
 
     !Create the movie file
@@ -209,8 +212,8 @@ contains
 
     if (proc0) then
         !Setup main file by creating netCDF file
-        if (tstart .lt. 1e-4) then
-            call define_dims (nwrite_big_tot)
+        call define_dims (nwrite_big_tot, io_write_corr_extend)
+        if (.not. appending) then
             call define_vars (write_nl_flux, write_omega, &
                 write_hrate, write_final_antot, write_eigenfunc, write_verr, &
                 write_moments, write_full_moments_notgc, write_sym, write_pflux_sym, &
@@ -225,14 +228,14 @@ contains
             call nc_geo
             nout = 1
         else
-            ! Read existing netCDF file and allows for appending if restarting 
-            call inquire_dims (nwrite_big_tot, nout)
+            ! Read existing netCDF file and allows for appending if restarting
             call inquire_vars (write_nl_flux, write_omega, &
                 write_hrate, write_final_antot, write_eigenfunc, write_verr, &
                 write_moments, write_full_moments_notgc, write_sym, write_pflux_sym, &
                 write_nl_flux_dist, write_pflux_tormom, write_correlation, &
                 write_correlation_extend, write_avg_moments, write_final_moments, write_final_epar, &
                 ob_midplane=ob_midplane)
+            nout = get_netcdf_dim_length(ncid, time_dim)
         end if
 
         !Setup movie file
@@ -245,130 +248,114 @@ contains
 
   end subroutine init_gs2_io
 
-  !> A subroutine for reading in the dimensions of the netCDF file and finding current position in time
-  !! Looks in exisiting NetCDF file and allows for appending rather than overwriting
-  subroutine inquire_dims (nwrite_big_tot, nout)
-# ifdef NETCDF
-    use file_utils, only: num_input_lines
-    use kt_grids, only: naky, ntheta0, jtwist_out
-    use theta_grid, only: ntgrid
-    use le_grids, only: nlambda, negrid
-    use species, only: nspec
-    use gs2_time, only: user_time
-    use netcdf, only: NF90_UNLIMITED
-    use netcdf, only: nf90_inq_dimid, nf90_inquire_dimension
-    use netcdf, only: nf90_inq_varid, nf90_get_var
-# endif
-    implicit none
-    integer, intent (in) :: nwrite_big_tot
-    integer, intent (out) :: nout
-# ifdef NETCDF
-    integer :: status
+  !> Get the netCDF ID for a dimension, creating it if it doesn't
+  !> exist already
+  subroutine ensure_netcdf_dim_exists(file_id, dim_name, dim_size, dim_id)
+#ifdef NETCDF
+    use netcdf, only: nf90_inq_dimid, nf90_def_dim, NF90_NOERR, NF90_EBADDIM
+#endif
+    !> ID of the file or group to look for or create the dimension under
+    integer(kind_nf), intent(in) :: file_id
+    !> Name of the dimension
+    character(len=*), intent(in) :: dim_name
+    !> The size of the dimension
+    integer(kind_nf), intent(in) :: dim_size
+    !> The netCDF ID of the dimension under `file_id`
+    integer(kind_nf), intent(out) :: dim_id
 
-    !<doc> Associate the grid variables, e.g. ky, kx, with their size, e.g. naky, ntheta0 (= nakx) , and a variable which is later used to store these sizes in the NetCDF file, e.g. naky_dim, nakx_dim </doc>
-    status = nf90_inq_dimid (ncid, 'ky', naky_dim)
-    if (status /= NF90_NOERR) call netcdf_error (status, dim='ky')
-    status = nf90_inq_dimid (ncid, 'kx', nakx_dim)
-    if (status /= NF90_NOERR) call netcdf_error (status, dim='kx')
-    status = nf90_inq_dimid (ncid, 'theta', nttot_dim)
-    if (status /= NF90_NOERR) call netcdf_error (status, dim='theta')
-    status = nf90_inq_dimid (ncid, 'lambda', nlambda_dim)
-    if (status /= NF90_NOERR) call netcdf_error (status, dim='lambda')
-    status = nf90_inq_dimid (ncid, 'egrid', negrid_dim)
-    if (status /= NF90_NOERR) call netcdf_error (status, dim='egrid')
-    status = nf90_inq_dimid (ncid, 'species', nspec_dim)
-    if (status /= NF90_NOERR) call netcdf_error (status, dim='species')
-    status = nf90_inq_dimid (ncid, 'sign', nsign_dim)
-    if (status /= NF90_NOERR) call netcdf_error (status, dim='sign')
-    status = nf90_inq_dimid (ncid, 't', time_dim)
-    if (status /= NF90_NOERR) call netcdf_error (status, dim='t')
-    status = nf90_inq_dimid (ncid, 'ri', ri_dim)
-    if (status /= NF90_NOERR) call netcdf_error (status, dim='ri')
-    status = nf90_inq_dimid (ncid, 'nheat', nheat_dim)
-    if (status /= NF90_NOERR) call netcdf_error (status, dim='nheat')
-    status = nf90_inq_dimid (ncid, 'vpa', vpa_dim)
-    if (status /= NF90_NOERR) call netcdf_error (status, dim='vpa')
-    if (io_write_corr_extend) then
-       status = nf90_inq_dimid (ncid, 'theta_ext', nttotext_dim)
-       if (status /= NF90_NOERR) call netcdf_error (status, dim='theta_ext')
-       status = nf90_inq_dimid (ncid, 'tb', time_big_dim)
-       if (status /= NF90_NOERR) call netcdf_error (status, dim='tb')
+    ! Error code of the netCDF calls
+    integer(kind_nf) :: status
+
+#ifdef NETCDF
+    status = nf90_inq_dimid(file_id, dim_name, dim_id)
+    ! Dimension doesn't exist, so let's create it
+    if (status == NF90_EBADDIM) then
+      status = nf90_def_dim(file_id, dim_name, dim_size, dim_id)
     end if
+    ! Something went wrong with one of the previous two calls
+    if (status /= NF90_NOERR) then
+      call netcdf_error(status, dim=dim_name, abort=.true.)
+    end if
+#endif
+  end subroutine ensure_netcdf_dim_exists
 
-    !<doc> Find length of time array and final time
-    status = nf90_inquire_dimension(ncid, time_dim, len=nout )
-    if (status /= NF90_NOERR) call netcdf_error (status, dim='t')
-
-    status = nf90_inq_varid(ncid, 't', time_id)
-    if (status /= NF90_NOERR) call netcdf_error (status, dim='t')    
-    status = nf90_get_var(ncid, time_id, values=user_time, start=(/nout/))
-    if (status /= NF90_NOERR) call netcdf_error (status, dim='t')
-# endif
-  end subroutine inquire_dims
-
-  !> Fresh set up of NetCDF dimensions for diagnostics
-  !> Create (but don't fill) the dimension variables in the netCDF file
+  !> Ensure the netCDF file contains all the dimensions, creating them
+  !> if necessary. Doesn't fill the values.
   !>
   !> Dimension variable IDs are module level variables
-  subroutine define_dims (nwrite_big_tot)
+  subroutine define_dims (nwrite_big_tot, create_extended_correlation)
 # ifdef NETCDF
     use file_utils, only: num_input_lines
+    use gs2_time, only: user_time
     use kt_grids, only: naky, ntheta0, jtwist_out
     use theta_grid, only: ntgrid
     use le_grids, only: nlambda, negrid
     use species, only: nspec
     use netcdf, only: NF90_UNLIMITED
-    use netcdf, only: nf90_def_dim
 # endif
     implicit none
     !> Total number of output timesteps for "large" diagnostics
-    integer, intent (in) :: nwrite_big_tot
+    integer, intent(in) :: nwrite_big_tot
+    !> Create the dimensions for the extended correlation diagnostics
+    logical, intent(in) :: create_extended_correlation
 # ifdef NETCDF
-    integer :: status
+    integer(kind_nf) :: status
 
-    status = nf90_def_dim (ncid, 'ky', naky, naky_dim)
-    if (status /= NF90_NOERR) call netcdf_error (status, dim='ky')
-    status = nf90_def_dim (ncid, 'kx', ntheta0, nakx_dim)
-    if (status /= NF90_NOERR) call netcdf_error (status, dim='kx')
-    status = nf90_def_dim (ncid, 'theta', 2*ntgrid+1, nttot_dim)
-    if (status /= NF90_NOERR) call netcdf_error (status, dim='theta')
-    status = nf90_def_dim (ncid, 'lambda', nlambda, nlambda_dim)
-    if (status /= NF90_NOERR) call netcdf_error (status, dim='lambda')
-    status = nf90_def_dim (ncid, 'egrid', negrid, negrid_dim)
-    if (status /= NF90_NOERR) call netcdf_error (status, dim='egrid')
-    status = nf90_def_dim (ncid, 'species', nspec, nspec_dim)
-    if (status /= NF90_NOERR) call netcdf_error (status, dim='species')
-    status = nf90_def_dim (ncid, 'sign', 2, nsign_dim)
-    if (status /= NF90_NOERR) call netcdf_error (status, dim='sign')
-    status = nf90_def_dim (ncid, 't', NF90_UNLIMITED, time_dim)
-    if (status /= NF90_NOERR) call netcdf_error (status, dim='t')
-    status = nf90_def_dim (ncid, 'char5', 5, char5_dim)
-    if (status /= NF90_NOERR) call netcdf_error (status, dim='char5')
-    status = nf90_def_dim (ncid, 'char10', 10, char10_dim)
-    if (status /= NF90_NOERR) call netcdf_error (status, dim='char10')
-    status = nf90_def_dim (ncid, 'char200', 200, char200_dim)
-    if (status /= NF90_NOERR) call netcdf_error (status, dim='char200')
-    status = nf90_def_dim (ncid, 'nlines', num_input_lines, nlines_dim)
-    if (status /= NF90_NOERR) call netcdf_error (status, dim='nlines')
-    status = nf90_def_dim (ncid, 'ri', 2, ri_dim)
-    if (status /= NF90_NOERR) call netcdf_error (status, dim='ri')
-    status = nf90_def_dim (ncid, 'nheat', 7, nheat_dim)
-    if (status /= NF90_NOERR) call netcdf_error (status, dim='nheat')
-    status = nf90_def_dim (ncid, 'vpa', negrid*nlambda, vpa_dim)
-    if (status /= NF90_NOERR) call netcdf_error (status, dim='vpa')
-    if (io_write_corr_extend) then
-       status = nf90_def_dim (ncid, 'theta_ext', (2*ntgrid+1)*((ntheta0-1)/jtwist_out+1), nttotext_dim)
-       if (status /= NF90_NOERR) call netcdf_error (status, dim='theta_ext')
-       status = nf90_def_dim (ncid, 'tb', nwrite_big_tot, time_big_dim)
-       if (status /= NF90_NOERR) call netcdf_error (status, dim='tb')
+    call ensure_netcdf_dim_exists(ncid, 'ky', naky, naky_dim)
+    call ensure_netcdf_dim_exists(ncid, 'kx', ntheta0, nakx_dim)
+    call ensure_netcdf_dim_exists(ncid, 'theta', 2*ntgrid+1, nttot_dim)
+    call ensure_netcdf_dim_exists(ncid, 'lambda', nlambda, nlambda_dim)
+    call ensure_netcdf_dim_exists(ncid, 'egrid', negrid, negrid_dim)
+    call ensure_netcdf_dim_exists(ncid, 'species', nspec, nspec_dim)
+    call ensure_netcdf_dim_exists(ncid, 'sign', 2, nsign_dim)
+    call ensure_netcdf_dim_exists(ncid, 't', NF90_UNLIMITED, time_dim)
+    call ensure_netcdf_dim_exists(ncid, 'char5', 5, char5_dim)
+    call ensure_netcdf_dim_exists(ncid, 'char10', 10, char10_dim)
+    call ensure_netcdf_dim_exists(ncid, 'char200', 200, char200_dim)
+    call ensure_netcdf_dim_exists(ncid, 'nlines', num_input_lines, nlines_dim)
+    call ensure_netcdf_dim_exists(ncid, 'ri', 2, ri_dim)
+    call ensure_netcdf_dim_exists(ncid, 'nheat', 7, nheat_dim)
+    call ensure_netcdf_dim_exists(ncid, 'vpa', negrid*nlambda, vpa_dim)
+    if (create_extended_correlation) then
+       call ensure_netcdf_dim_exists(ncid, 'theta_ext', (2*ntgrid+1)*((ntheta0-1)/jtwist_out+1), nttotext_dim)
+       call ensure_netcdf_dim_exists(ncid, 'tb', nwrite_big_tot, time_big_dim)
     end if
 # endif
   end subroutine define_dims
 
+  !> Wrapper around `nf90_inquire_dimension`, includes error handling
+  function get_netcdf_dim_length(file_id, dim_id) result(length)
+#ifdef NETCDF
+    use netcdf, only: nf90_inquire_dimension, NF90_MAX_NAME, NF90_NOERR
+#endif
+    integer :: length
+    !> NetCDF ID of the file
+    integer(kind_nf), intent(in) :: file_id
+    !> NetCDF ID of the dimension
+    integer(kind_nf), intent(in) :: dim_id
+
+    ! Temporary variable for the dimension name
+    character(len=NF90_MAX_NAME) :: dim_name
+    ! NetCDF error status
+    integer :: status
+
+#ifdef NETCDF
+    ! This could be less reliant on module-level variables if we
+    ! passed in the dimension name and used nf90_inq_dim to get the ID
+    status = nf90_inquire_dimension(file_id, dim_id, dim_name, length)
+    if (status /= NF90_NOERR) then
+      call netcdf_error(status, &
+                        dim=trim(dim_name), &
+                        message="Could not get length of dimension", &
+                        abort=.true.)
+    end if
+#endif
+  end function get_netcdf_dim_length
+
   !> Define the dimensions used in the movie file. Some duplication with
   !! main file -- may want to merge movie data into main file
   !! Main reason for using a new file is we can only have one unlimited dimension
-  !! per file (with new versions of NETCDF this is no longer true) and we 
+  !! per file (with new versions of NETCDF this is no longer true) and we
   !! probably don't want to write movie data as often as other data.
   !! However, at the moment we precalculate the number of outputs, so it
   !! isn't actually unlimited
@@ -388,14 +375,10 @@ contains
     if (my_make_movie) then
        nx=yxf_lo%nx
        ny=yxf_lo%ny
-       status = nf90_def_dim (ncid_movie, 'x', nx, nx_dim)
-       if (status /= NF90_NOERR) call netcdf_error (status, dim='x')
-       status = nf90_def_dim (ncid_movie, 'y', ny, ny_dim)
-       if (status /= NF90_NOERR) call netcdf_error (status, dim='y')
-       status = nf90_def_dim (ncid_movie, 'theta', 2*ntgrid+1, nth_dim)
-       if (status /= NF90_NOERR) call netcdf_error (status, dim='theta')
-       status = nf90_def_dim (ncid_movie, 'tm', nmovie_tot, time_movie_dim)
-       if (status /= NF90_NOERR) call netcdf_error (status, dim='tm')
+       call ensure_netcdf_dim_exists(ncid_movie, 'x', nx, nx_dim)
+       call ensure_netcdf_dim_exists(ncid_movie, 'y', ny, ny_dim)
+       call ensure_netcdf_dim_exists(ncid_movie, 'theta', 2*ntgrid+1, nth_dim)
+       call ensure_netcdf_dim_exists(ncid_movie, 'tm', nmovie_tot, time_movie_dim)
     endif
 # endif
   end subroutine define_dims_mymovie
