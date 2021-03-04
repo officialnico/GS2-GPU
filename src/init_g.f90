@@ -129,7 +129,44 @@ module init_g
      character(len = 20) :: eq_type = 'sinusoidal'
      !> FIXME: Add documentation
      logical :: even = .true.
-     !> FIXME: Add documentation
+     !> Method for initialising `g`. Available options are:
+     !>
+     !>   - "default"
+     !>   - "default_odd"
+     !>   - "noise"
+     !>   - "xi"
+     !>   - "xi2"
+     !>   - "zero"
+     !>   - "test3"
+     !>   - "convect"
+     !>   - "rh"
+     !>   - "many": use `g` from restart files
+     !>   - "small"
+     !>   - "file": use `g` from restart file (note: same as "many"?)
+     !>   - "cont"
+     !>   - "kz0"
+     !>   - "nl"
+     !>   - "nl2"
+     !>   - "nl3"
+     !>   - "nl3r"
+     !>   - "nl4"
+     !>   - "nl5"
+     !>   - "nl6"
+     !>   - "nl7"
+     !>   - "alf"
+     !>   - "gs"
+     !>   - "kpar"
+     !>   - "smallflat"
+     !>   - "harris"
+     !>   - "recon"
+     !>   - "recon3"
+     !>   - "ot"
+     !>   - "zonal_only"
+     !>   - "no_zonal"
+     !>   - "single_parallel_mode"
+     !>   - "all_modes_equal"
+     !>   - "eig_restart"
+     !>   - "stationary_mode"
      character(len = 20) :: ginit_option = "default"
      !> FIXME: Add documentation
      integer, dimension(2) :: ikk = [1, 2]
