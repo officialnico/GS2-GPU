@@ -187,11 +187,8 @@ module diagnostics_config
      ! namelist : gs2_diagnostics_knobs
      ! indexed : false     
 
-     !> If true, and a copy of the .out.nc already exists,
-     !> open it and append to it. Obviously grid sizes must be
-     !> unchanged.
-     !>
-     !> @warning Only present in new diagnostics
+     !> Append output data to a previous output file `<run name>.out.nc` if it
+     !> already exists. Grid sizes must be unchanged.
      logical :: append_old = .false.
      !> Used for Trinity nonlinear convergence
      !> ([[gs2_diagnostics_knobs:use_nonlin_convergence]]). The maximum number

@@ -68,6 +68,7 @@ module gs2_diagnostics
 
   logical, public :: write_phi_over_time, write_apar_over_time, write_bpar_over_time !EGH
 
+  logical :: append_old
   logical :: write_jext=.true.
 
   !> Variables for convergence condition testing
@@ -143,13 +144,9 @@ module gs2_diagnostics
      ! namelist : gs2_diagnostics_knobs
      ! indexed : false     
 
-     !> If true, and a copy of the .out.nc already exists,
-     !> open it and append to it. Obviously grid sizes must be
-     !> unchanged.
-     !>
-     !> @warning Only present in new diagnostics
-     ! logical :: append_old = .false.
-
+     !> Append output data to a previous output file `<run name>.out.nc` if it
+     !> already exists. Grid sizes must be unchanged.
+     logical :: append_old = .false.
      !> Used for Trinity nonlinear convergence
      !> ([[gs2_diagnostics_knobs:use_nonlin_convergence]]). The maximum number
      !> of Trinity steps, after which consider the run converged regardless
@@ -1080,7 +1077,7 @@ contains
        j_ext_hist = 0
     end if
 
-    call init_gs2_io (write_nl_flux, write_omega, &
+    call init_gs2_io (append_old, write_nl_flux, write_omega, &
          write_hrate, write_final_antot, &
          write_eigenfunc, make_movie, nmovie_tot, write_verr, &
          write_moments, write_full_moments_notgc, &
@@ -1261,6 +1258,7 @@ contains
     call gs2_diagnostics_config%init(name = 'gs2_diagnostics_knobs', requires_index = .false.)
 
     ! Copy out internal values into module level parameters
+    append_old = gs2_diagnostics_config%append_old
     conv_max_step = gs2_diagnostics_config%conv_max_step
     conv_min_step = gs2_diagnostics_config%conv_min_step
     conv_nstep_av = gs2_diagnostics_config%conv_nstep_av
@@ -4683,14 +4681,14 @@ contains
     ! we shadow the module level variables here. This is intentional to provide
     ! isolation and ensure we can move this routine to another module easily.
     integer :: conv_max_step, conv_min_step, conv_nstep_av, conv_nsteps_converged, igomega, navg, nc_sync_freq, nmovie, nsave, nwrite, nwrite_mult
-    logical :: dump_check1, dump_check2, dump_fields_periodically, exit_when_converged, file_safety_check, make_movie, ob_midplane, print_flux_line, print_line, save_distfn, save_for_restart, save_many
+    logical :: append_old, dump_check1, dump_check2, dump_fields_periodically, exit_when_converged, file_safety_check, make_movie, ob_midplane, print_flux_line, print_line, save_distfn, save_for_restart, save_many
     logical :: use_nonlin_convergence, write_apar_over_time, write_ascii, write_avg_moments, write_bpar_over_time, write_cerr, write_correlation, write_correlation_extend, write_cross_phase, write_eigenfunc
     logical :: write_fields, write_final_antot, write_final_db, write_final_epar, write_final_fields, write_final_moments, write_flux_line, write_full_moments_notgc, write_g, write_gg, write_gs, write_gyx
     logical :: write_hrate, write_kpar, write_line, write_lorentzian, write_lpoly, write_max_verr, write_moments, write_nl_flux, write_nl_flux_dist, write_omavg, write_omega, write_parity, write_pflux_sym
     logical :: write_pflux_tormom, write_phi_over_time, write_symmetry, write_verr
     real :: conv_test_multiplier, omegatinst, omegatol
 
-    namelist /gs2_diagnostics_knobs/ conv_max_step, conv_min_step, conv_nstep_av, conv_nsteps_converged, conv_test_multiplier, dump_check1, dump_check2, dump_fields_periodically, exit_when_converged, file_safety_check, igomega, &
+    namelist /gs2_diagnostics_knobs/ append_old, conv_max_step, conv_min_step, conv_nstep_av, conv_nsteps_converged, conv_test_multiplier, dump_check1, dump_check2, dump_fields_periodically, exit_when_converged, file_safety_check, igomega, &
          make_movie, navg, nc_sync_freq, nmovie, nsave, nwrite, nwrite_mult, ob_midplane, omegatinst, omegatol, print_flux_line, print_line, save_distfn, save_for_restart, save_many, use_nonlin_convergence, &
          write_apar_over_time, write_ascii, write_avg_moments, write_bpar_over_time, write_cerr, write_correlation, write_correlation_extend, write_cross_phase, write_eigenfunc, write_fields, &
          write_final_antot, write_final_db, write_final_epar, write_final_fields, write_final_moments, write_flux_line, write_full_moments_notgc, write_g, write_gg, write_gs, write_gyx, write_hrate, &
@@ -4701,6 +4699,7 @@ contains
     if (.not. proc0) return
 
     ! First set local variables from current values
+    append_old = self%append_old
     conv_max_step = self%conv_max_step
     conv_min_step = self%conv_min_step
     conv_nstep_av = self%conv_nstep_av
@@ -4780,6 +4779,7 @@ contains
     endif
 
     ! Now copy from local variables into type members
+    self%append_old = append_old
     self%conv_max_step = conv_max_step
     self%conv_min_step = conv_min_step
     self%conv_nstep_av = conv_nstep_av
@@ -4862,6 +4862,7 @@ contains
     endif
 
     call self%write_namelist_header(unit_internal)
+    call self%write_key_val("append_old", self%append_old, unit_internal)
     call self%write_key_val("conv_max_step", self%conv_max_step, unit_internal)
     call self%write_key_val("conv_min_step", self%conv_min_step, unit_internal)
     call self%write_key_val("conv_nstep_av", self%conv_nstep_av, unit_internal)
@@ -4946,6 +4947,7 @@ contains
     use mp, only: broadcast
     implicit none
     class(gs2_diagnostics_config_type), intent(in out) :: self
+    call broadcast(self%append_old)
     call broadcast(self%conv_max_step)
     call broadcast(self%conv_min_step)
     call broadcast(self%conv_nstep_av)

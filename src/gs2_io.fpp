@@ -126,7 +126,7 @@ contains
   !>
   !> Create the main and movie (real-space fields) netCDF files,
   !> creating the dimensions and main variables
-  subroutine init_gs2_io (write_nl_flux, write_omega, &
+  subroutine init_gs2_io (append_old, write_nl_flux, write_omega, &
       write_hrate, write_final_antot, write_eigenfunc, &
       make_movie, nmovie_tot, write_verr, &
       write_moments,&
@@ -151,6 +151,7 @@ contains
 # endif
     implicit none
     !> See [[gs2_diagnostics_knobs]] for details of these inputs
+    logical, intent(in) :: append_old
     logical, intent(in) :: write_nl_flux, write_nl_flux_dist, write_omega
     logical, intent(in) :: write_hrate, make_movie, write_moments
     logical, intent(in) :: write_final_antot, write_eigenfunc, write_verr
@@ -195,7 +196,7 @@ contains
     ! only proc0 opens the file:
     if (proc0) then
        inquire(file=trim(filename), exist=previous_file_exists)
-       appending = (previous_file_exists .and. (tstart .gt. 1.0e-4))
+       appending = (previous_file_exists .and. append_old)
        if (appending) then
           status = nf90_open(trim(filename), NF90_WRITE, ncid)
        else
