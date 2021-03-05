@@ -3,8 +3,8 @@ module gs2_io
 
 # ifdef NETCDF
   use netcdf, only: NF90_NOERR
-  use netcdf_utils, only: netcdf_error, kind_nf
 # endif
+  use netcdf_utils, only: netcdf_error, kind_nf
 
   implicit none
 
@@ -209,8 +209,6 @@ contains
        end if
     endif
 
-# endif
-
     if (proc0) then
        !Setup main file
        call define_dims (nwrite_big_tot, io_write_corr_extend)
@@ -234,7 +232,7 @@ contains
        !Write constant movie data
        call nc_grids_mymovie
     end if
-
+# endif
   end subroutine init_gs2_io
 
   !> Get the netCDF ID for a dimension, creating it if it doesn't
@@ -323,12 +321,12 @@ contains
     !> NetCDF ID of the dimension
     integer(kind_nf), intent(in) :: dim_id
 
+#ifdef NETCDF
     ! Temporary variable for the dimension name
     character(len=NF90_MAX_NAME) :: dim_name
     ! NetCDF error status
     integer :: status
 
-#ifdef NETCDF
     ! This could be less reliant on module-level variables if we
     ! passed in the dimension name and used nf90_inq_dim to get the ID
     status = nf90_inquire_dimension(file_id, dim_id, dim_name, length)
