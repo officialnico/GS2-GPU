@@ -89,7 +89,7 @@ module diagnostics_base_config
     !>
     !> @warning Default value differs between old (100) and new (10)
     !> diagnostics
-    integer :: navg = 100
+    integer :: navg = 10
 
     !> FIXME: Timestep period of which to check velocity space resolution and
     !> correction by varying collisionality. But doesn't happen on timesteps
@@ -115,7 +115,7 @@ module diagnostics_base_config
     !>
     !> @warning Default value differs between old (1000) and new (-1)
     !> diagnostics
-    integer :: nmovie = 1000
+    integer :: nmovie = -1
     !> Timestep period for writing restart data if
     !> [[gs2_diagnostics_knobs:save_for_restart]] is `.true.`. Negative values
     !> disable the periodic checkpoints.
@@ -124,7 +124,7 @@ module diagnostics_base_config
     !>
     !> @warning Default value differs between old (`== 100`) and new (`== 10`)
     !> diagnostics!
-    integer :: nwrite = 100
+    integer :: nwrite = 10
     !> Timestep period multiplier for certain "large" diagnostics, which are
     !> written every `nwrite_mult * nwrite` timesteps.
     !>
@@ -139,7 +139,7 @@ module diagnostics_base_config
     !> @warning Non-functional in new diagnostics
     !>
     !> @warning Default value differs between old (.true.) and new (.false.) diagnostics
-    logical :: ob_midplane = .true.
+    logical :: ob_midplane = .false.
     !> Threshold complex frequency (\(\Omega\)) for detecting a numerical
     !> instability. If \(\abs(\Omega)\) averaged over
     !> [[gs2_diagnostics_knobs:navg]] timesteps is greater than `omegatinst`,
@@ -147,7 +147,7 @@ module diagnostics_base_config
     !>
     !> @warning Default value differs between old (1.0) and new (1.0e6)
     !> diagnostics
-    real :: omegatinst = 1.0
+    real :: omegatinst = 1.0e6
     !> Frequency (\(\omega\)) convergence tolerance. Consider the simulation
     !> converged and finish the run if \(\omega\) has changed by less than
     !> `omegatol` over the last [[gs2_diagnostics_knobs:navg]] timesteps.
@@ -167,7 +167,7 @@ module diagnostics_base_config
     !>
     !> @warning Default value differs between old (`.true.`) and new
     !> (`.false.`) diagnostics
-    logical :: print_line = .true.
+    logical :: print_line = .false.
     !> Write the distribution function to `<rootname>.nc.dfn.<processor>`
     !> files. Only written at end of simulation
     logical :: save_distfn = .false.
@@ -267,7 +267,7 @@ module diagnostics_base_config
     !>
     !> @warning Default value differs between old (`.false.`) and new
     !> (`.true.`) diagnostics
-    logical :: write_correlation = .false.
+    logical :: write_correlation = .true.
     !> Write two point parallel correlation function calculated from the
     !> electric potential as a function of \(k_y\) and parallel separation,
     !> time averaged and calculated along the extended domain every
@@ -324,7 +324,7 @@ module diagnostics_base_config
     !>
     !> @warning Default value differs between old (`.false.`) and new
     !> (`.true.`) diagnostics
-    logical :: write_fields = .false.
+    logical :: write_fields = .true.
     !> Write the right-hand sides of the field equations at the final
     !> timestep. If [[gs2_diagnostics_knobs:write_ascii]] is enabled, the file
     !> suffix is `.antot`
@@ -480,7 +480,7 @@ module diagnostics_base_config
     !>
     !> @warning Default value differs between old (`.false.`) and new
     !> (`.true.`) diagnostics
-    logical :: write_moments = .false.
+    logical :: write_moments = .true.
     !> Write various fluxes every [[gs2_diagnostics_knobs:nwrite]]
     !> timesteps
     !>
