@@ -648,6 +648,7 @@ contains
 
   !> Read the input parameters for the diagnostics module
   subroutine read_parameters (is_list_run, gs2_diagnostics_config_in)
+    use diagnostics_base_config, only: warn_about_nonfunctional_selection
     use file_utils, only: input_unit, input_unit_exist
     use theta_grid, only: nperiod, ntheta
     use run_parameters, only: fphi
@@ -672,6 +673,24 @@ contains
     end if
 
     call gs2_diagnostics_config%init(name = 'gs2_diagnostics_knobs', requires_index = .false.)
+
+    ! Print some health warnings if switches are not their default
+    ! values and are not available in this diagnostics module
+    call warn_about_nonfunctional_selection(gs2_diagnostics_config%append_old, "append_old")
+    call warn_about_nonfunctional_selection(gs2_diagnostics_config%enable_parallel, "enable_parallel")
+    call warn_about_nonfunctional_selection(gs2_diagnostics_config%ncheck /= 10, "ncheck")
+    call warn_about_nonfunctional_selection(gs2_diagnostics_config%save_glo_info_and_grids, "save_glo_info_and_grids")
+    call warn_about_nonfunctional_selection(gs2_diagnostics_config%save_velocities, "save_velocities")
+    call warn_about_nonfunctional_selection(gs2_diagnostics_config%serial_netcdf4, "serial_netcdf4")
+    call warn_about_nonfunctional_selection(.not. gs2_diagnostics_config%write_any, "write_any")
+    call warn_about_nonfunctional_selection(gs2_diagnostics_config%write_collisional, "write_collisional")
+    call warn_about_nonfunctional_selection(gs2_diagnostics_config%write_density_over_time, "write_density_over_time")
+    call warn_about_nonfunctional_selection(gs2_diagnostics_config%write_fluxes, "write_fluxes")
+    call warn_about_nonfunctional_selection(gs2_diagnostics_config%write_heating, "write_heating")
+    call warn_about_nonfunctional_selection(gs2_diagnostics_config%write_ntot_over_time, "write_ntot_over_time")
+    call warn_about_nonfunctional_selection(gs2_diagnostics_config%write_tperp_over_time, "write_tperp_over_time")
+    call warn_about_nonfunctional_selection(gs2_diagnostics_config%write_upar_over_time, "write_upar_over_time")
+    call warn_about_nonfunctional_selection(gs2_diagnostics_config%write_zonal_transfer, "write_zonal_transfer")
 
     ! Copy out internal values into module level parameters
     conv_max_step = gs2_diagnostics_config%conv_max_step

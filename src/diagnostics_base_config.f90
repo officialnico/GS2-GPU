@@ -610,6 +610,29 @@ module diagnostics_base_config
 
 contains
 
+  !> Prints a warning about a non-functional diagnostic
+  subroutine warn_about_nonfunctional_selection(diagnostic_switch, name)
+    use run_parameters, only: use_old_diagnostics
+    !> Diagnostic switch
+    logical, intent(in) :: diagnostic_switch
+    !> Name of the switch
+    character(len=*), intent(in) :: name
+
+    character(len=3) :: diagnostics_module
+
+    if (use_old_diagnostics) then
+      diagnostics_module = "old"
+    else
+      diagnostics_module = "new"
+    end if
+
+    if (diagnostic_switch) then
+      write(*, '(a, a, a, a, a)') "WARNING: diagnostic '", name, &
+           "' is (currently) non-functional in ", diagnostics_module, &
+           " diagnostics module. This will have no effect."
+    end if
+  end subroutine warn_about_nonfunctional_selection
+
   !> Reads in the gs2_diagnostics_knobs namelist and populates the member variables
   subroutine read_diagnostics_base_config(self)
     use file_utils, only: input_unit_exist, get_indexed_namelist_unit

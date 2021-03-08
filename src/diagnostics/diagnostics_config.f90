@@ -271,6 +271,7 @@ contains
   end subroutine apply_new_defaults
 
   subroutine read_parameters(gnostics, new_gs2_diagnostics_config_in)
+    use diagnostics_base_config, only: warn_about_nonfunctional_selection
     use file_utils, only: input_unit, error_unit, input_unit_exist
     use text_options, only: text_option, get_option_value
     use mp, only: proc0, broadcast, nproc, iproc
@@ -293,6 +294,19 @@ contains
     end if
 
     call new_gs2_diagnostics_config%init(name = 'gs2_diagnostics_knobs', requires_index = .false.)
+
+    ! Print some health warnings if switches are not their default
+    ! values and are not available in this diagnostics module
+    call warn_about_nonfunctional_selection(new_gs2_diagnostics_config%dump_check1, "dump_check1")
+    call warn_about_nonfunctional_selection(new_gs2_diagnostics_config%dump_check2, "dump_check2")
+    call warn_about_nonfunctional_selection(.not. new_gs2_diagnostics_config%file_safety_check, "file_safety_check")
+    call warn_about_nonfunctional_selection(new_gs2_diagnostics_config%nc_sync_freq /= 10, "nc_sync_freq")
+    call warn_about_nonfunctional_selection(new_gs2_diagnostics_config%ob_midplane, "ob_midplane")
+    call warn_about_nonfunctional_selection(new_gs2_diagnostics_config%write_hrate, "write_hrate")
+    call warn_about_nonfunctional_selection(new_gs2_diagnostics_config%write_nl_flux, "write_nl_flux")
+    call warn_about_nonfunctional_selection(.not. new_gs2_diagnostics_config%write_omavg, "write_omavg")
+    call warn_about_nonfunctional_selection(new_gs2_diagnostics_config%write_pflux_sym, "write_pflux_sym")
+    call warn_about_nonfunctional_selection(new_gs2_diagnostics_config%write_pflux_tormom, "write_pflux_tormom")
 
     ! Copy out internal values into module level parameters
     gnostics%append_old = new_gs2_diagnostics_config%append_old
