@@ -1400,34 +1400,32 @@ contains
     type(gs2_program_state_type), intent(in) :: state
     type(gs2_timers_type), intent(in) :: timers
 
-    if (proc0) then
-       if (.not. state%print_full_timers) then
-          print '(/,'' Job ID:'', i4,'', total from timer is:'', 0pf9.2,'' min'',/)', &
-               state%external_job_id, state%timers%total(1)/60.
-       else
-!    if (proc0 .and. .not. nofin) then
+    if (.not. proc0) return
 
+    if (state%print_full_timers) then
 #ifdef WITH_EIG
-          print '(/,'' Eigensolver'',T25,0pf8.2,'' min'',T40,2pf5.1,'' %'',/)', &
-               timers%eigval(1)/60.,timers%eigval(1)/timers%total(1)
+      print '(/,'' Eigensolver'',T25,0pf8.2,'' min'',T40,2pf5.1,'' %'',/)', &
+           timers%eigval(1)/60.,timers%eigval(1)/timers%total(1)
 #endif
-          print '(/,'' Initialization'',T25,0pf8.2,'' min'',T40,2pf5.1,'' %'',/, &
-               &'' Advance steps'',T25,0pf8.2,'' min'',T40,2pf5.1,'' %'',/, &
-               &''(redistribute'',T25,0pf9.3,'' min'',T40,2pf5.1,'' %)'',/, &
-               &''(field solve'',T25,0pf9.3,'' min'',T40,2pf5.1,'' %)'',/, &
-               &''(diagnostics'',T25,0pf9.3,'' min'',T40,2pf5.1,'' %)'',/, &
-               &'' Re-initialize'',T25,0pf8.2,'' min'',T40,2pf5.1,'' %'',/, &
-               &'' Finishing'',T25,0pf8.2,'' min'',T40,2pf5.1,'' %'',/,  &
-               &'' total from timer is:'', 0pf9.2,'' min'',/)', &
-               timers%init(1)/60.,timers%init(1)/timers%total(1), &
-               timers%advance(1)/60.,timers%advance(1)/timers%total(1), &
-               time_redist(1)/60.,time_redist(1)/timers%total(1), &
-               time_field(1)/60.,time_field(1)/timers%total(1), &
-               timers%diagnostics(1)/60.,timers%diagnostics(1)/timers%total(1), &
-               time_reinit(1)/60.,time_reinit(1)/timers%total(1), &
-               timers%finish(1)/60.,timers%finish(1)/timers%total(1),timers%total(1)/60.
-       endif
-    end if
+      print '(/,'' Initialization'',T25,0pf8.2,'' min'',T40,2pf5.1,'' %'',/, &
+           &'' Advance steps'',T25,0pf8.2,'' min'',T40,2pf5.1,'' %'',/, &
+           &''(redistribute'',T25,0pf9.3,'' min'',T40,2pf5.1,'' %)'',/, &
+           &''(field solve'',T25,0pf9.3,'' min'',T40,2pf5.1,'' %)'',/, &
+           &''(diagnostics'',T25,0pf9.3,'' min'',T40,2pf5.1,'' %)'',/, &
+           &'' Re-initialize'',T25,0pf8.2,'' min'',T40,2pf5.1,'' %'',/, &
+           &'' Finishing'',T25,0pf8.2,'' min'',T40,2pf5.1,'' %'',/,  &
+           &'' total from timer is:'', 0pf9.2,'' min'',/)', &
+           timers%init(1)/60.,timers%init(1)/timers%total(1), &
+           timers%advance(1)/60.,timers%advance(1)/timers%total(1), &
+           time_redist(1)/60.,time_redist(1)/timers%total(1), &
+           time_field(1)/60.,time_field(1)/timers%total(1), &
+           timers%diagnostics(1)/60.,timers%diagnostics(1)/timers%total(1), &
+           time_reinit(1)/60.,time_reinit(1)/timers%total(1), &
+           timers%finish(1)/60.,timers%finish(1)/timers%total(1),timers%total(1)/60.
+    else
+      print '(/,'' Job ID:'', i4,'', total from timer is:'', 0pf9.2,'' min'',/)', &
+           state%external_job_id, state%timers%total(1)/60.
+    endif
 
   end subroutine print_times
 
