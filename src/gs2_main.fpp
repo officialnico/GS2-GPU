@@ -393,8 +393,14 @@ contains
         if (state%external_job_id >= 0) then
           write(*, '(a, i0, a)', advance="no") "External job ", state%external_job_id, " "
         end if
-        write(*, '(a, i0, a)') "Running on ", nproc, " processors"
-        write (*,*)
+        write(*, '(a, i0, a)', advance="no") "Running on ", nproc, " processor"
+        if (nproc > 1) then
+          ! Pluralise processor
+          write(*, '(a)') "s" // new_line('a')
+        else
+          ! Make sure we still get a blank line
+          write(*,*) new_line('a')
+        end if
       end if
 
       ! Call init_file_utils, ie. initialize the run_name, checking
