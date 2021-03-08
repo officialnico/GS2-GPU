@@ -390,16 +390,10 @@ contains
     if (proc0) then
       ! Report # of processors being used
       if (.not. quiet_value) then
-        if (nproc == 1) then
-          write(*,*) 'Running on ',nproc,' processor'
-        else
-          if(state%mp_comm_external) then
-            write(*,*) 'Job ',state%external_job_id,'Running on ',nproc,' processors'
-          else
-            write(*,*) 'Running on ',nproc,' processors'
-          endif
+        if (state%external_job_id >= 0) then
+          write(*, '(a, i0, a)', advance="no") "External job ", state%external_job_id, " "
         end if
-
+        write(*, '(a, i0, a)') "Running on ", nproc, " processors"
         write (*,*)
       end if
 
