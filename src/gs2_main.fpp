@@ -1389,7 +1389,10 @@ contains
     timers%main_loop = 0.
   end subroutine reset_timers
 
-  !> FIXME : Add documentation  
+  !> Print timing information to standard output.
+  !>
+  !> Prints a full breakdown of timing information if `state%print_full_timers`
+  !> is true, otherwise just prints the total time.
   subroutine print_times(state, timers)
     use mp, only: proc0, min_reduce, max_reduce, sum_reduce, job
     use redistribute, only: time_redist
@@ -1397,7 +1400,9 @@ contains
     use gs2_reinit, only: time_reinit
 
     implicit none
+    !> Program state information, needed to print
     type(gs2_program_state_type), intent(in) :: state
+    !> Timing information
     type(gs2_timers_type), intent(in) :: timers
 
     if (.not. proc0) return
