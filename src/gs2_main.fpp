@@ -399,10 +399,10 @@ contains
       'gs2_main::initialize_gs2 called init_checktime')
   
     if (proc0) then
-      write(*, '(a)') standard_header%to_string(comment_character=" ")
-
       ! Report number of processors being used
       if (.not. quiet_value) then
+        write(*, '(a)') standard_header%to_string(comment_character=" ")
+
         if (state%external_job_id >= 0) then
           write(*, '(a, i0, a)', advance="no") "External job ", state%external_job_id, " "
         end if
