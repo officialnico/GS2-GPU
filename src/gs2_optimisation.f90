@@ -27,7 +27,6 @@ contains
     call initialize_gs2(state, quiet=.true.)
     call init_optimisation_config(state%optim)
     call finalize_gs2(state, quiet=.true.)
-    state%mp_comm_external = .false.
   end subroutine initialize_gs2_optimisation
 
   !> FIXME : Add documentation  
