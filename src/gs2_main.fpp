@@ -1391,7 +1391,7 @@ contains
 
   !> FIXME : Add documentation  
   subroutine print_times(state, timers)
-    use mp, only: proc0, min_reduce, max_reduce, sum_reduce
+    use mp, only: proc0, min_reduce, max_reduce, sum_reduce, job
     use redistribute, only: time_redist
     use fields_arrays, only: time_field
     use gs2_reinit, only: time_reinit
@@ -1423,8 +1423,14 @@ contains
            time_reinit(1)/60.,time_reinit(1)/timers%total(1), &
            timers%finish(1)/60.,timers%finish(1)/timers%total(1),timers%total(1)/60.
     else
-      print '(/,'' Job ID:'', i4,'', total from timer is:'', 0pf9.2,'' min'',/)', &
-           state%external_job_id, state%timers%total(1)/60.
+      if (state%external_job_id >= 0) then
+        write(*, '(a, i0, ", ")', advance="no") " External job ID: ", state%external_job_id
+      end if
+      if (state%list) then
+        write(*, '(a, i0, ", ")', advance="no") " Job ID: ", job
+      end if
+
+      write(*, '("Total from timer is:", 0pf9.2," min")') state%timers%total(1)/60.
     endif
 
   end subroutine print_times
