@@ -1019,7 +1019,6 @@ contains
     use le_grids, only: init_weights
     use gs2_save, only: restart_writable
     use normalisations, only: init_normalisations
-    use gs2_time, only: user_time
     implicit none
     !> If true, this is a "list-mode run" and so turn off
     !> [[gs2_diagnostics_knobs:print_flux_line]] and
