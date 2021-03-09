@@ -28,6 +28,9 @@ module gs2_diagnostics
   public :: set_gs2_diagnostics_config
   public :: apply_old_defaults
 
+  ! Export some functions to be used in the new diagnostics
+  public :: save_restart_dist_fn
+
   interface get_vol_average
      module procedure get_vol_average_one, get_vol_average_all
   end interface get_vol_average
@@ -818,7 +821,7 @@ contains
     implicit none
     !> The current (final) timestep
     integer, intent (in) :: istep
-    integer :: istatus
+
     complex, dimension (ntheta0, naky) :: phi0
     logical :: last = .true.
 
@@ -850,22 +853,10 @@ contains
 
     if (write_final_antot) call do_write_final_antot
 
-    if (save_for_restart) then
-       call gs2_save_for_restart (gnew, user_time, user_dt, vnmult, istatus, &
-            fphi, fapar, fbpar, exit_in=.true.)
-    end if
-
-    if (save_distfn) then
-       !Convert h to distribution function
-       call g_adjust(gnew,phinew,bparnew,fphi,fbpar)
-
-       !Save dfn, fields and velocity grids to file
-       call gs2_save_for_restart (gnew, user_time, user_dt, vnmult, istatus, &
-            fphi, fapar, fbpar, exit_in=.true., distfn=.true.)
-
-       !Convert distribution function back to h
-       call g_adjust(gnew,phinew,bparnew,-fphi,-fbpar)
-    end if
+    call save_restart_dist_fn(save_for_restart, save_distfn, &
+                              save_glo_info_and_grids=.false., &
+                              save_velocities=.false., &
+                              user_time=user_time)
 
     !Finalise the netcdf file
     call nc_finish
@@ -883,6 +874,51 @@ contains
     initialized = .false.
     call gs2_diagnostics_config%reset()
   end subroutine finish_gs2_diagnostics
+
+  !> Save some extra information in final restart files
+  subroutine save_restart_dist_fn(save_for_restart, save_distfn, &
+                                  save_glo_info_and_grids, &
+                                  save_velocities, user_time)
+    use run_parameters, only: fphi, fapar, fbpar
+    use collisions, only: vnmult
+    use gs2_save, only: gs2_save_for_restart
+    use fields_arrays, only: phinew, bparnew
+    use gs2_time, only: user_dt
+    use dist_fn_arrays, only: gnew
+    use dist_fn_arrays, only: g_adjust
+    !> See [[gs2_diagnostics_knobs:save_for_restart]]
+    logical, intent(in) :: save_for_restart
+    !> See [[gs2_diagnostics_knobs:save_distfn]]
+    logical, intent(in) :: save_distfn
+    !> See [[gs2_diagnostics_knobs:save_glo_info_and_grids]]
+    logical, intent(in) :: save_glo_info_and_grids
+    !> See [[gs2_diagnostics_knobs:save_velocities]]
+    logical, intent(in) :: save_velocities
+    !> Current simulation time
+    real, intent(in) :: user_time
+    integer :: istatus
+
+    if (save_for_restart) then
+       call gs2_save_for_restart(gnew, user_time, user_dt, vnmult, istatus, &
+            fphi, fapar, fbpar, exit_in=.true., &
+            save_glo_info_and_grids=save_glo_info_and_grids, &
+            save_velocities=save_velocities)
+    end if
+
+    if (save_distfn) then
+       !Convert h to distribution function
+       call g_adjust(gnew, phinew, bparnew, fphi, fbpar)
+
+       !Save dfn, fields and velocity grids to file
+       call gs2_save_for_restart(gnew, user_time, user_dt, vnmult, istatus, &
+            fphi, fapar, fbpar, exit_in=.true., distfn=.true., &
+            save_glo_info_and_grids=save_glo_info_and_grids, &
+            save_velocities=save_velocities)
+
+       !Convert distribution function back to h
+       call g_adjust(gnew, phinew, bparnew, -fphi, -fbpar)
+    end if
+  end subroutine save_restart_dist_fn
 
   !> Deallocate the [[gs2_diagnostics]] module-level arrays
   subroutine deallocate_arrays
