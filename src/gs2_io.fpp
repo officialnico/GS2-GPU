@@ -137,7 +137,6 @@ contains
       ob_midplane) 
     use, intrinsic :: iso_fortran_env, only : error_unit
     use mp, only: proc0
-    use init_g, only: tstart
 # ifdef NETCDF
     use mp, only: barrier
     use file_utils, only: run_name
@@ -300,7 +299,6 @@ contains
   subroutine define_dims (nwrite_big_tot, create_extended_correlation)
 # ifdef NETCDF
     use file_utils, only: num_input_lines
-    use gs2_time, only: user_time
     use kt_grids, only: naky, ntheta0, jtwist_out
     use theta_grid, only: ntgrid
     use le_grids, only: nlambda, negrid
@@ -313,8 +311,6 @@ contains
     !> Create the dimensions for the extended correlation diagnostics
     logical, intent(in) :: create_extended_correlation
 # ifdef NETCDF
-    integer(kind_nf) :: status
-
     call ensure_netcdf_dim_exists(ncid, 'ky', naky, naky_dim)
     call ensure_netcdf_dim_exists(ncid, 'kx', ntheta0, nakx_dim)
     call ensure_netcdf_dim_exists(ncid, 'theta', 2*ntgrid+1, nttot_dim)
@@ -382,7 +378,7 @@ contains
     implicit none
     integer, intent(in) :: nmovie_tot
 # ifdef NETCDF
-    integer :: nx, ny, status
+    integer :: nx, ny
 
     ! added by EAB 03/05/04 for GS2 movies
     ! <doc> If make_movie = .true., define some extra dimensions for movie output; x with dimension yxf_lo%nx; y with dimension yxf_lo%ny, and tm, (i.e. time) with dimension nmovie_tot = nstep/nmovie </doc>
@@ -719,7 +715,7 @@ contains
     logical, intent(in) :: write_avg_moments, write_final_moments, write_final_epar
     logical, optional, intent(in) :: ob_midplane
 # ifdef NETCDF
-    character (20) :: datestamp, timestamp, timezone, tmpc
+    character (20) :: datestamp, timestamp, timezone
     integer :: status, ierr, dimsize(5)
     real    :: total
     logical :: obmid=.false.
