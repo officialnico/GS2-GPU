@@ -177,10 +177,7 @@ module diagnostics_base_config
     logical :: save_for_restart = .false.
 
     !> Save some layout and distribution information in restart files
-    !>
-    !> @warning Only in new diagnostics
     logical :: save_glo_info_and_grids = .false.
-
     !> If `.true.`, write one restart file per processor, otherwise write a
     !> single restart file.
     !>
@@ -191,12 +188,10 @@ module diagnostics_base_config
     !> If `write_many` is enabled, you probably want to also set
     !> [[init_g_knobs:read_many]] in order to restart from multiple files.
     logical :: save_many = .false.
-
     !> Save parallel and perpendicular velocities in final restart and/or
     !> distribution function files
-    !>
-    !> @warning Only in new diagnostics
     logical :: save_velocities = .false.
+
     !> @warning Not used
     !>
     !> @warning Only in new diagnostics

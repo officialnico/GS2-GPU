@@ -64,6 +64,8 @@ module gs2_diagnostics
   logical, public :: dump_fields_periodically, make_movie
   logical, public :: save_for_restart
   logical, public :: save_distfn
+  logical, public :: save_glo_info_and_grids
+  logical, public :: save_velocities
   logical, public :: write_symmetry, write_correlation_extend, write_correlation
   logical, public :: write_pflux_sym, write_nl_flux_dist, write_pflux_tormom
   logical :: file_safety_check
@@ -682,8 +684,6 @@ contains
     call warn_about_nonfunctional_selection(gs2_diagnostics_config%append_old, "append_old")
     call warn_about_nonfunctional_selection(gs2_diagnostics_config%enable_parallel, "enable_parallel")
     call warn_about_nonfunctional_selection(gs2_diagnostics_config%ncheck /= 10, "ncheck")
-    call warn_about_nonfunctional_selection(gs2_diagnostics_config%save_glo_info_and_grids, "save_glo_info_and_grids")
-    call warn_about_nonfunctional_selection(gs2_diagnostics_config%save_velocities, "save_velocities")
     call warn_about_nonfunctional_selection(gs2_diagnostics_config%serial_netcdf4, "serial_netcdf4")
     call warn_about_nonfunctional_selection(.not. gs2_diagnostics_config%write_any, "write_any")
     call warn_about_nonfunctional_selection(gs2_diagnostics_config%write_collisional, "write_collisional")
@@ -721,6 +721,8 @@ contains
     print_line = gs2_diagnostics_config%print_line
     save_distfn = gs2_diagnostics_config%save_distfn
     save_for_restart = gs2_diagnostics_config%save_for_restart
+    save_glo_info_and_grids = gs2_diagnostics_config%save_glo_info_and_grids
+    save_velocities = gs2_diagnostics_config%save_velocities
     save_many = gs2_diagnostics_config%save_many
     use_nonlin_convergence = gs2_diagnostics_config%use_nonlin_convergence
     write_apar_over_time = gs2_diagnostics_config%write_apar_over_time
@@ -854,8 +856,8 @@ contains
     if (write_final_antot) call do_write_final_antot
 
     call save_restart_dist_fn(save_for_restart, save_distfn, &
-                              save_glo_info_and_grids=.false., &
-                              save_velocities=.false., &
+                              save_glo_info_and_grids=save_glo_info_and_grids, &
+                              save_velocities=save_velocities, &
                               user_time=user_time)
 
     !Finalise the netcdf file
