@@ -679,7 +679,6 @@ contains
 
     ! Print some health warnings if switches are not their default
     ! values and are not available in this diagnostics module
-    call warn_about_nonfunctional_selection(gs2_diagnostics_config%append_old, "append_old")
     call warn_about_nonfunctional_selection(gs2_diagnostics_config%enable_parallel, "enable_parallel")
     call warn_about_nonfunctional_selection(gs2_diagnostics_config%ncheck /= 10, "ncheck")
     call warn_about_nonfunctional_selection(gs2_diagnostics_config%save_glo_info_and_grids, "save_glo_info_and_grids")
