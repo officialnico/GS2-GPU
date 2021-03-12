@@ -560,7 +560,6 @@ void sdatio_create_variable(struct sdatio_file * sfile,
                             char * description,
                             char * units){
   int ndims;
-  int nunlim;
   struct sdatio_variable  * svar;
   int retval;
   /*int * dimension_ids;*/
@@ -633,6 +632,7 @@ void sdatio_create_variable(struct sdatio_file * sfile,
   DEBUG_MESS("Ending sdatio_append_variable\n");
 
 #ifdef PARALLEL
+  int nunlim;
   if (sfile->is_parallel){
     sdatio_number_of_unlimited_dimensions(sfile, variable_name, &nunlim);
     if (nunlim > 0)
@@ -941,8 +941,8 @@ int sdatio_dimension_exists(struct sdatio_file * sfile, char * dimension_name){
 
 void sdatio_write_variable_fortran_convert(struct sdatio_file * sfile, char * variable_name, void ** address){
   /*printf("address2 is %d\n", address);*/
-  printf("address3 is %d\n", *address);
-  printf("address4 is %d\n", &address);
+  printf("address3 is %p\n", *address);
+  printf("address4 is %p\n", &address);
   sdatio_write_variable(sfile, variable_name, *address);
 }
 
@@ -1091,11 +1091,9 @@ void sdatio_open_file(struct sdatio_file * sfile )  {
   int is_unlimited;
   char * name_tmp;
   int * vardimids;
-  char * dimension_list;
   nc_type vartype;
   int vartypeint;
   int dummy;
-  int *nunlim;
 
   DEBUG_MESS("starting sdatio_open_file\n");
 
@@ -1239,6 +1237,7 @@ void sdatio_open_file(struct sdatio_file * sfile )  {
     DEBUG_MESS("Ending sdatio_append_variable\n");
 
 #ifdef PARALLEL
+    int nunlim;
     if (sfile->is_parallel){
       sdatio_number_of_unlimited_dimensions(sfile, svar->name, &nunlim);
       if (nunlim > 0)
