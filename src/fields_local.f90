@@ -1244,7 +1244,7 @@ contains
     use mp, only: comm_type, split, free_comm, sum_allreduce_sub, proc0, mp_undefined
     implicit none
     class(supercell_type), intent(inout) :: self
-    integer :: colour, key, cc
+    integer :: colour, cc
     type(comm_type) :: tmp
     logical :: some_empty, some_pd, some_all, head_notfull
     !Exit if we don't have this supercell
@@ -3549,7 +3549,6 @@ contains
     class(pc_type), intent(inout) :: self
     integer :: ik, is, ic, ifq, it, ip, llim, ulim
     integer :: nrow_tmp, nrow_loc, remainder, np
-    integer :: counter
     integer, dimension(:), allocatable :: nwork, iproc_work
     type(comm_type) :: supercell_comm
     logical :: cell_is_local
