@@ -446,7 +446,7 @@ contains
     using_measure_scatter=.false.
 
     ! Initialize the gs2 initialization system
-    call init_gs2_init(state%init)
+    call init_gs2_init()
 
     !state%gs2_initialized = .true.
     state%init%level = init_level_list%basic
@@ -698,7 +698,7 @@ contains
     use gs2_reinit, only: reset_time_step
     use gs2_reinit, only: check_time_step
     use gs2_save, only: gs2_save_for_restart
-    use gs2_time, only: user_time, user_dt, update_time, write_dt
+    use gs2_time, only: user_time, update_time, write_dt
     use job_manage, only: time_message, checkstop, checktime
     use mp, only: proc0
     use mp, only: scope, subprocs, broadcast
@@ -790,11 +790,11 @@ contains
          
          if (use_old_diagnostics) then
            if (nsave > 0 .and. mod(istep, nsave) == 0) &
-                call gs2_save_for_restart (gnew, user_time, user_dt, vnmult, istatus, fphi, fapar, fbpar)
+                call gs2_save_for_restart (gnew, user_time, vnmult, istatus, fphi, fapar, fbpar)
          else
 #ifdef NEW_DIAG
            if (gnostics%nsave > 0 .and. mod(istep, gnostics%nsave) == 0) &
-                call gs2_save_for_restart (gnew, user_time, user_dt, vnmult, istatus, fphi, fapar, fbpar)
+                call gs2_save_for_restart (gnew, user_time, vnmult, istatus, fphi, fapar, fbpar)
 #endif
          end if
          call update_time
@@ -1112,7 +1112,7 @@ contains
 
       if (proc0) call time_message(.false.,state%timers%total,' Total')
 
-      call finish_gs2_init(state%init)
+      call finish_gs2_init()
 
       if (proc0) call finish_file_utils
 
@@ -1218,7 +1218,7 @@ contains
     use run_parameters, only: fphi, fapar, fbpar
     use fields, only:  force_maxwell_reinit
     use fields_arrays, only: phinew, aparnew, bparnew
-    use gs2_time, only: user_time, user_dt
+    use gs2_time, only: user_time
     use overrides, only: initial_values_overrides_type
     use antenna, only: dump_ant_amp
     implicit none
@@ -1260,7 +1260,7 @@ contains
       !not sure that we really need to as we never read in the dumped data.
       if (proc0) call dump_ant_amp
 
-      call gs2_save_for_restart (gnew, user_time, user_dt, vnmult, istatus, fphi, fapar, fbpar)
+      call gs2_save_for_restart (gnew, user_time, vnmult, istatus, fphi, fapar, fbpar)
     endif
 
   end subroutine set_initval_overrides_to_current_vals
@@ -1930,7 +1930,7 @@ contains
   !> FIXME : Add documentation  
   subroutine gs2_trin_init (rhoc, qval, shat, rgeo_lcfs, rgeo_local, aSurf, shift, shiftVert, &
        deltam, deltan, deltampri, deltanpri, thetam, thetan, &
-       betaprim, ntspec, dens, temp, fprim, tprim, gexb, mach, nu, use_gs2_geo)
+       betaprim, ntspec, dens, temp, fprim, tprim, nu, use_gs2_geo)
 
     use old_interface_store
 
@@ -1939,7 +1939,7 @@ contains
     integer, intent (inout) :: ntspec
     real, intent (inout) :: rhoc, qval, shat, rgeo_lcfs, rgeo_local, aSurf, shift, shiftVert
     real, intent (inout) :: deltam, deltan, deltampri, deltanpri, thetam, thetan
-    real, intent (inout) :: betaprim, gexb, mach
+    real, intent (inout) :: betaprim
     real, dimension (:), intent (inout) :: dens, fprim, temp, tprim, nu
     logical, intent (inout) :: use_gs2_geo
 

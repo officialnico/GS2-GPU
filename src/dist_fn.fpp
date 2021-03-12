@@ -3284,7 +3284,7 @@ contains
   !!   + only applying collisions every nth timestep
   !!
   !!  Author : Joseph Parker, STFC
-  subroutine collisions_advance (phi, bpar, phinew, aparnew, bparnew, istep, mode)
+  subroutine collisions_advance (phi, bpar, phinew, aparnew, bparnew, mode)
     use collisions, only: split_collisions
     use dist_fn_arrays, only: gnew, g
     use le_derivatives, only: vspace_derivatives
@@ -3293,7 +3293,6 @@ contains
     implicit none
     complex, dimension (-ntgrid:,:,:), intent (in) :: phi, bpar
     complex, dimension (-ntgrid:,:,:), intent (inout) :: phinew, aparnew, bparnew
-    integer, intent (in) :: istep
     integer, optional, intent (in) :: mode
     integer :: modep
     integer, parameter :: verb = 3
@@ -6610,7 +6609,7 @@ endif
     use gs2_layouts, only: g_lo, ik_idx, it_idx, il_idx, ie_idx, is_idx
     use theta_grid, only: ntgrid
     use run_parameters, only: fphi, fapar, fbpar
-    use gs2_time, only: user_time, user_dt, get_adams_bashforth_coefficients
+    use gs2_time, only: user_time, get_adams_bashforth_coefficients
     use collisions, only: vnmult
     use nonlinear_terms, only: nonlin
     implicit none
@@ -6661,7 +6660,7 @@ endif
        gtmp(:ntgrid-1, :, iglo) = source
     end do
 
-    call gs2_save_for_restart (gtmp, user_time, user_dt, vnmult, istatus, &
+    call gs2_save_for_restart (gtmp, user_time, vnmult, istatus, &
          fphi, fapar, fbpar, fileopt = extension)
   end subroutine dump_current_source_term
 

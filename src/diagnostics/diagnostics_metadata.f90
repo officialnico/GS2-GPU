@@ -149,11 +149,10 @@ contains
   end function jline
 
   !> FIXME : Add documentation  
-  subroutine read_input_file_and_get_size(gnostics)
+  subroutine read_input_file_and_get_size()
     use file_utils, only: get_input_unit
     use mp, only: proc0, broadcast
     implicit none
-    type(diagnostics_type), intent(in) :: gnostics
     character(len=1000) :: line
     integer :: inputunit
     integer :: ios, i

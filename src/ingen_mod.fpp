@@ -1105,26 +1105,26 @@ if (debug) write(6,*) 'get_namelists: returning'
        call nprocs (nmesh)
        if (nonlin) then
           write (report_unit, fmt="(/'Nonlinear run => consider #proc sweetspots for xxf+yxf objects!')") 
-          call nprocs_xxf(nmesh)
-          call nprocs_yxf(nmesh)
+          call nprocs_xxf()
+          call nprocs_yxf()
        endif
 
        if(use_le_layout) then
           write (report_unit, fmt="(/'Collisions using le_lo')") 
-          call nprocs_le(nmesh)
+          call nprocs_le()
        else
           select case (collision_model_switch)
           case (collision_model_full)
              write (report_unit, fmt="(/'Collisions using lz_lo')") 
-             call nprocs_lz(nmesh)
+             call nprocs_lz()
              write (report_unit, fmt="(/'Collisions using e_lo')") 
-             call nprocs_e(nmesh)
+             call nprocs_e()
           case(collision_model_lorentz,collision_model_lorentz_test)
              write (report_unit, fmt="(/'Collisions using lz_lo')") 
-             call nprocs_lz(nmesh)
+             call nprocs_lz()
           case (collision_model_ediffuse)
              write (report_unit, fmt="(/'Collisions using e_lo')") 
-             call nprocs_e(nmesh)
+             call nprocs_e()
           end select
        end if
     endif
@@ -1277,7 +1277,7 @@ if (debug) write(6,*) 'get_namelists: returning'
   end subroutine wsweetspots
 
   !> FIXME : Add documentation  
-  subroutine nprocs_xxf(nmesh)
+  subroutine nprocs_xxf()
     use nonlinear_terms, only : nonlin
     use species, only : nspec
     use kt_grids, only: naky
@@ -1285,7 +1285,6 @@ if (debug) write(6,*) 'get_namelists: returning'
     use theta_grid, only: ntgrid
     use gs2_layouts, only: layout, factors
     implicit none
-    integer, intent (in) :: nmesh
     integer :: nefacs, nlfacs, nkyfacs, nsgfacs, nspfacs, ntgfacs
     integer, dimension(:,:), allocatable :: facs
     integer :: maxfacs
@@ -1324,7 +1323,7 @@ if (debug) write(6,*) 'get_namelists: returning'
   end subroutine nprocs_xxf
 
   !> FIXME : Add documentation    
-  subroutine nprocs_yxf(nmesh)
+  subroutine nprocs_yxf()
     use nonlinear_terms, only : nonlin
     use species, only : nspec
     use kt_grids, only: naky, nx
@@ -1333,7 +1332,6 @@ if (debug) write(6,*) 'get_namelists: returning'
 
     use gs2_layouts, only: layout, factors
     implicit none
-    integer, intent (in) :: nmesh
     integer :: nefacs, nlfacs, nkxfacs, nsgfacs, nspfacs, ntgfacs
     integer, dimension(:,:), allocatable :: facs
     integer :: maxfacs
@@ -1372,7 +1370,7 @@ if (debug) write(6,*) 'get_namelists: returning'
   end subroutine nprocs_yxf
 
   !> FIXME : Add documentation  
-  subroutine nprocs_e(nmesh)
+  subroutine nprocs_e()
     use species, only : nspec
     use kt_grids, only: naky, ntheta0
     use le_grids, only: nlambda
@@ -1380,7 +1378,6 @@ if (debug) write(6,*) 'get_namelists: returning'
 
     use gs2_layouts, only: layout, factors
     implicit none
-    integer, intent (in) :: nmesh
     integer :: nlfacs, nkxfacs, nkyfacs, nsgfacs, nspfacs, ntgfacs
     integer, dimension(:,:), allocatable :: facs
     integer :: maxfacs
@@ -1432,7 +1429,7 @@ if (debug) write(6,*) 'get_namelists: returning'
   end subroutine nprocs_e
 
   !> FIXME : Add documentation  
-  subroutine nprocs_lz(nmesh)
+  subroutine nprocs_lz()
     use species, only : nspec
     use kt_grids, only: naky, ntheta0
     use le_grids, only: negrid
@@ -1440,7 +1437,6 @@ if (debug) write(6,*) 'get_namelists: returning'
 
     use gs2_layouts, only: layout, factors
     implicit none
-    integer, intent (in) :: nmesh
     integer :: nefacs, nkxfacs, nkyfacs, nspfacs, ntgfacs
     integer, dimension(:,:), allocatable :: facs
     integer :: maxfacs
@@ -1485,13 +1481,12 @@ if (debug) write(6,*) 'get_namelists: returning'
   end subroutine nprocs_lz
 
   !> FIXME : Add documentation  
-  subroutine nprocs_le(nmesh)
+  subroutine nprocs_le()
     use species, only : nspec
     use kt_grids, only: naky, ntheta0
     use theta_grid, only: ntgrid
     use gs2_layouts, only: layout, factors
     implicit none
-    integer, intent (in) :: nmesh
     integer :: nkxfacs, nkyfacs, nspfacs, ntgfacs
     integer, dimension(:,:), allocatable :: facs
     integer :: maxfacs

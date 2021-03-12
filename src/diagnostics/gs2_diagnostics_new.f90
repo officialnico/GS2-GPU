@@ -161,7 +161,7 @@ contains
 
     if (gnostics%write_heating) call init_diagnostics_heating(gnostics)
     if (nonlin.and.gnostics%use_nonlin_convergence) call init_nonlinear_convergence(gnostics)
-    call read_input_file_and_get_size(gnostics)
+    call read_input_file_and_get_size()
     
     call sdatio_init(gnostics%sfile, trim(run_name)//'.out.nc')
     if (gnostics%parallel) then 
@@ -342,9 +342,9 @@ contains
     call finish_collisional
     
     call finish_diagnostics_antenna(gnostics)
-    call finish_diagnostics_velocity_space(gnostics)
+    call finish_diagnostics_velocity_space()
     
-    if (nonlin.and.gnostics%use_nonlin_convergence) call finish_nonlinear_convergence(gnostics)
+    if (nonlin.and.gnostics%use_nonlin_convergence) call finish_nonlinear_convergence()
     if (gnostics%write_heating) call finish_diagnostics_heating(gnostics)
     if (gnostics%parallel .or. proc0) then
        if(proc0.and.debug) write(*,*) "Closing new diagnostics"
@@ -598,7 +598,7 @@ contains
     
 ! HJL > reset values for convergence condition
     if (nonlin.and.gnostics%use_nonlin_convergence) &
-      call dnc_reset(gnostics)
+      call dnc_reset()
     call fluxes_reset(gnostics)
     call heating_reset(gnostics)
 

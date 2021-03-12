@@ -811,9 +811,8 @@ contains
 
   end subroutine init
 
-  subroutine init_gs2_init(current, init_config_in)
+  subroutine init_gs2_init(init_config_in)
     implicit none
-    type(init_type), intent(inout) :: current
     type(init_config_type), intent(in), optional :: init_config_in
 
     logical :: exist
@@ -830,8 +829,7 @@ contains
     exist = init_config%exist
   end subroutine init_gs2_init
 
-  subroutine finish_gs2_init(current)
-    type(init_type), intent(inout) :: current
+  subroutine finish_gs2_init()
     call init_config%reset()
     initialized = .false.
   end subroutine finish_gs2_init

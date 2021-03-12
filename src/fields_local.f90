@@ -4109,7 +4109,7 @@ contains
          aparnew, bparnew, istep, diagnostics) 
 
     ! Advance collisions, if separate from timeadv
-    call collisions_advance (phi, bpar, phinew, aparnew, bparnew, istep, diagnostics)
+    call collisions_advance (phi, bpar, phinew, aparnew, bparnew, diagnostics)
 
   end subroutine advance_local
 

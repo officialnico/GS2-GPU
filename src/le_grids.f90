@@ -96,7 +96,7 @@ contains
   end subroutine setvgrid
 
   !> FIXME : Add documentation  
-  subroutine setvgrid_genquad (negrid, epts, wgts, nesub)
+  subroutine setvgrid_genquad (negrid, epts, wgts)
     use genquad, only: get_quadrature_rule
     use constants, only: pi => dpi
     use gauss_quad, only: get_legendre_grids_from_cheb, get_laguerre_grids
@@ -105,7 +105,6 @@ contains
     implicit none
     
     integer, intent (in) :: negrid
-    integer, intent (in) :: nesub
     real, dimension(:,:), intent (out) :: epts
     real, dimension(:,:), intent (out) :: wgts
     integer :: is
@@ -429,7 +428,7 @@ contains
 
     allocate (energy(negrid,nspec), w(negrid,nspec))
     if (genquad) then
-       call setvgrid_genquad (negrid, energy, w, nesub)
+       call setvgrid_genquad (negrid, energy, w)
     else
        call setvgrid (vcut, negrid, energy, w, nesub)
     end if

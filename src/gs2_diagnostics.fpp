@@ -881,7 +881,6 @@ contains
     use collisions, only: vnmult
     use gs2_save, only: gs2_save_for_restart
     use fields_arrays, only: phinew, bparnew
-    use gs2_time, only: user_dt
     use dist_fn_arrays, only: gnew
     use dist_fn_arrays, only: g_adjust
     !> See [[gs2_diagnostics_knobs:save_for_restart]]
@@ -897,7 +896,7 @@ contains
     integer :: istatus
 
     if (save_for_restart) then
-       call gs2_save_for_restart(gnew, user_time, user_dt, vnmult, istatus, &
+       call gs2_save_for_restart(gnew, user_time, vnmult, istatus, &
             fphi, fapar, fbpar, exit_in=.true., &
             save_glo_info_and_grids=save_glo_info_and_grids, &
             save_velocities=save_velocities)
@@ -908,7 +907,7 @@ contains
        call g_adjust(gnew, phinew, bparnew, fphi, fbpar)
 
        !Save dfn, fields and velocity grids to file
-       call gs2_save_for_restart(gnew, user_time, user_dt, vnmult, istatus, &
+       call gs2_save_for_restart(gnew, user_time, vnmult, istatus, &
             fphi, fapar, fbpar, exit_in=.true., distfn=.true., &
             save_glo_info_and_grids=save_glo_info_and_grids, &
             save_velocities=save_velocities)
