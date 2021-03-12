@@ -1600,7 +1600,6 @@ contains
   subroutine init_theta_grid_eik(theta_grid_eik_config_in)
     use geometry, only: nperiod_geo => nperiod
     use geometry, only: eikcoefs, itor, delrho, rhoc
-    use geometry, only: gen_eq, ppl_eq, transp_eq, chs_eq
     use geometry, only: debug_geo => debug, verb_geo => verb
     use geometry, only: job_id_geo => job_id
     use unit_tests, only: job_id

@@ -53,12 +53,11 @@ contains
     use dist_fn_arrays, only: g, g_adjust
     use species, only: spec
     use gs2_transforms, only: transform2, inverse2
-    use run_parameters, only: fphi, fapar, fbpar
+    use run_parameters, only: fphi, fbpar
     use kt_grids, only: aky, akx
     use fields_arrays, only: phi, bpar
     use constants, only: zi
-    use species, only: nspec, spec
-    
+
     implicit none
     
     complex, dimension (-ntgrid:,:,g_lo%llim_proc:), intent(out) :: g1

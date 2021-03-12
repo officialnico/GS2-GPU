@@ -4023,8 +4023,6 @@ contains
     use species, only: spec, nonmaxw_corr
     use run_parameters, only: fphi, fapar, fbpar, wunits
     use gs2_time, only: code_dt
-    use gs2_time, only: dt0 => code_dt, dt1 => code_dt_prev1, dt2 => code_dt_prev2
-    use nonlinear_terms, only: nonlin
     use hyper, only: D_res
     use constants, only: zi
     implicit none
@@ -4307,8 +4305,6 @@ contains
     use species, only: spec, nonmaxw_corr
     use run_parameters, only: fphi, fapar, fbpar
     use gs2_time, only: code_dt
-    use gs2_time, only: dt0 => code_dt, dt1 => code_dt_prev1, dt2 => code_dt_prev2
-    use nonlinear_terms, only: nonlin
     use constants, only: zi
     implicit none
     complex, dimension (-ntgrid:,:,:), intent (in) :: phi,    apar,    bpar

@@ -359,7 +359,7 @@ contains
   subroutine init_hyper(hyper_config_in)
     use kt_grids, only: ntheta0, naky, akx, aky
     use kt_grids, only: kperp2 ! MRH
-    use theta_grid, only: ntgrid, gds2, gds21, gds22, shat ! MRH
+    use theta_grid, only: gds2, gds21, gds22, shat ! MRH
     use gs2_time, only: code_dt
     use gs2_layouts, only: init_gs2_layouts
     implicit none

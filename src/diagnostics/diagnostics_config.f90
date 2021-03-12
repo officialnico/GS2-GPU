@@ -272,11 +272,7 @@ contains
 
   subroutine read_parameters(gnostics, new_gs2_diagnostics_config_in)
     use diagnostics_base_config, only: warn_about_nonfunctional_selection
-    use file_utils, only: input_unit, error_unit, input_unit_exist
-    use text_options, only: text_option, get_option_value
-    use mp, only: proc0, broadcast, nproc, iproc
     use nonlinear_terms, only: nonlin
-    use unit_tests, only: debug_message
     implicit none
     type(diagnostics_type), intent(out) :: gnostics
     type(new_gs2_diagnostics_config_type), intent(in), optional :: new_gs2_diagnostics_config_in

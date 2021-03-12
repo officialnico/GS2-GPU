@@ -3543,7 +3543,7 @@ contains
 
   !> Cells are decomposed based on proc || Decomp_type=3
   subroutine pc_decomp_owncells_simplempi(self)
-    use mp, only: comm_type, sum_allreduce_sub, iproc
+    use mp, only: comm_type, sum_allreduce_sub
     use sorting, only: quicksort
     implicit none
     class(pc_type), intent(inout) :: self

@@ -807,16 +807,12 @@ contains
   !> closing any open files
   subroutine finish_gs2_diagnostics (istep)
     use mp, only: proc0
-    use run_parameters, only: fphi, fapar, fbpar
     use fields_arrays, only: phinew, bparnew
-    use dist_fn, only: write_f, write_fyx,write_poly, collision_error
-    use dist_fn_arrays, only: g_adjust, gnew
-    use collisions, only: vnmult
-    use gs2_save, only: gs2_save_for_restart
+    use dist_fn, only: write_f, write_fyx, write_poly, collision_error
     use gs2_io, only: nc_finish
     use antenna, only: dump_ant_amp
     use kt_grids, only: naky, ntheta0
-    use gs2_time, only: user_time, user_dt
+    use gs2_time, only: user_time
     use le_grids, only: finish_weights
     use unit_tests, only: debug_message
 

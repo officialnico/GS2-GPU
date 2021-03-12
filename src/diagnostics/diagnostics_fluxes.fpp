@@ -999,7 +999,6 @@ contains
   subroutine write_nl_flux_dist(gnostics)
     use dist_fn, only: flux_dist
     use theta_grid, only: ntgrid
-    use le_grids, only: negrid
     use species, only: nspec, spec
     use mp, only: proc0
     use kt_grids, only: naky, ntheta0
