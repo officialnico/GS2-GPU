@@ -144,14 +144,15 @@ contains
 
   !> FIXME : Add documentation  
   subroutine interpolate_theta(matrix, array, is_field)
+    use, intrinsic :: iso_fortran_env, only: real32
     use theta_grid, only: ntgrid
     use kt_grids, only: naky, ntheta0
     use species, only: nspec
     real, dimension(:,:), intent(in) :: matrix
-    complex*8, dimension (:), intent (inout) :: &
+    complex(real32), dimension (:), intent (inout) :: &
          array
     logical, intent(in) :: is_field
-    complex*8, dimension (:), allocatable :: array_temp
+    complex(real32), dimension (:), allocatable :: array_temp
     integer :: iz_row, iz_col, is, it, ik, index_gryfx_row, index_gryfx_col
     integer :: spec_max
 
@@ -181,9 +182,9 @@ contains
                         naky*ntheta0*(iz_col-1) + &
                         (2*ntgrid)*naky*ntheta0*(is-1)
 
-                   array(index_gryfx_row) = array(index_gryfx_row) + &
+                   array(index_gryfx_row) = cmplx(array(index_gryfx_row) + &
                         matrix(iz_row, iz_col) * &
-                        array_temp(index_gryfx_col)
+                        array_temp(index_gryfx_col), kind=real32)
 
                 end do
              end do

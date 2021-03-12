@@ -4195,7 +4195,7 @@ contains
     matrix_shape = shape(matrix)
     do j = 1, matrix_shape(2)
        do i = 1, matrix_shape(1)
-          l2norm = l2norm + matrix(i,j)*matrix(i,j)
+          l2norm = l2norm + real(matrix(i,j)*matrix(i,j))
        end do
     end do
     l2norm = sqrt(l2norm)

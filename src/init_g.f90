@@ -2551,11 +2551,11 @@ contains
        it = ittt(i)
        ik = ikkk(i)
        if (abs(phiamp(i)) > epsilon(0.0)) then
-          fac = phiamp(i) / phinew(0,it,ik)
+          fac = real(phiamp(i) / phinew(0,it,ik))
           phi(:,it,ik) = phi(:,it,ik) * fac
        end if
        if (abs(aparamp(i)) > epsilon(0.0)) then
-          fac = aparamp(i) / aparnew(0,it,ik)
+          fac = real(aparamp(i) / aparnew(0,it,ik))
           jpar(:,it,ik) = jpar(:,it,ik) * fac
        end if
     end do
