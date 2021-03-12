@@ -36,7 +36,7 @@ program generate_fftw_wisdom
   end if
 
   call broadcast (cbuff)
-  if (.not. proc0) run_name => cbuff
+  if (.not. proc0) run_name = cbuff
 
   if (proc0) call time_message(.false., time_taken, "Init transforms")
 
