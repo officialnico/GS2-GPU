@@ -3320,7 +3320,7 @@ contains
           gf_bpar=gf_bpar+orig_gf_bpar
        end if
        return
-    else
+    end if
 
     !AJ Iterate through each distinct ik,it point I have in g_lo and update the associated fields
     do ikit=1,g_lo%ikitrange
@@ -3341,8 +3341,6 @@ contains
        if(fapar>epsilon(0.0)) gf_apar(:,it,ik)=gf_apar(:,it,ik)+orig_gf_apar(:,it,ik)
        if(fbpar>epsilon(0.0)) gf_bpar(:,it,ik)=gf_bpar(:,it,ik)+orig_gf_bpar(:,it,ik)       
     end do
-
-    end if
 
   end subroutine fm_update_fields
 
@@ -3372,7 +3370,7 @@ contains
           gf_bpar=gf_bparnew
        end if
        return
-    else
+    end if
 
     !AJ Iterate through each distinct ik,it point I have in g_lo and update the associated fields
     do ikit=1,g_lo%ikitrange
@@ -3393,7 +3391,6 @@ contains
        if(fapar>epsilon(0.0)) gf_apar(:,it,ik)=gf_aparnew(:,it,ik)
        if(fbpar>epsilon(0.0)) gf_bpar(:,it,ik)=gf_bparnew(:,it,ik)
     end do
-    end if
 
   end subroutine fm_update_fields_newstep
 
