@@ -6717,8 +6717,9 @@ endif
           g0(:,isgn,:) = gnew(:,isgn,:)*aj0
        end do
        call get_flux (phi, pflux, dnorm)
+#ifdef LOWFLOW
        call get_flux_tormom (phi, pflux_tormom, dnorm)
-
+#endif
        do iglo = g_lo%llim_proc, g_lo%ulim_proc
           g0(:,:,iglo) = g0(:,:,iglo)*energy(ie_idx(g_lo,iglo),is_idx(g_lo,iglo))
        end do
@@ -7009,12 +7010,12 @@ endif
 
   end subroutine get_flux_dist
 
+#ifdef LOWFLOW
   !> Calculate toroidal angular momentum flux due to field
   !>
   !> FIXME: confirm & expand
   subroutine get_flux_tormom (fld, flx, dnorm)
     use theta_grid, only: ntgrid
-#ifdef LOWFLOW
     use kt_grids, only: ntheta0, naky
     use le_grids, only: integrate_moment
     use species, only: nspec
@@ -7022,7 +7023,6 @@ endif
     use theta_grid, only: rplot, grho
     use kt_grids, only: aky
     use lowflow, only: mach_lab
-#endif
     implicit none
     !> Input field
     complex, dimension (-ntgrid:,:,:), intent (in) :: fld
@@ -7030,7 +7030,6 @@ endif
     real, dimension (:,:,:), intent (out) :: flx
     !> Normalisation
     real, dimension (-ntgrid:,:,:) :: dnorm
-#ifdef LOWFLOW 
     complex, dimension (:,:,:,:), allocatable :: total
     real :: wgt
     integer :: ik, it, is
@@ -7051,8 +7050,8 @@ endif
     end if
 
     deallocate (total)
-#endif
   end subroutine get_flux_tormom !JPL
+#endif
 
   !> FIXME : Add documentation
   subroutine get_flux_vs_e (fld, flx, dnorm)
