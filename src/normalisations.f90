@@ -340,12 +340,6 @@ contains
     call normalisations_config%reset()
   end subroutine finish_normalisations
 
-  !> Reset normalisations object
-  subroutine reset_normalisations
-    implicit none
-    call norms%reset    
-  end subroutine reset_normalisations
-
   !> Set the module level config type
   !> Will abort if the module has already been initialised to avoid
   !> inconsistencies.
