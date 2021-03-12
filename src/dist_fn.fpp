@@ -2813,18 +2813,6 @@ contains
 
   end subroutine init_connected_bc
 
-  !> Create a pass_right object to pass boundary values to the left connection
-  !! for sigma=1 (i.e. rightwards moving particles).
-  subroutine init_pass_right
-    call init_pass_ends(pass_right,'r',1,'c')
-  end subroutine init_pass_right
-
-  !> Create a pass_left object to pass boundary values to the left connection
-  !! for sigma=2 (i.e. leftwards moving particles).
-  subroutine init_pass_left
-    call init_pass_ends(pass_left,'l',2,'c')
-  end subroutine init_pass_left
-  
   !> Copy of CMR's init_pass_right (revision 2085) 
   !! but in customisable direction to aid code reuse and with optional
   !!range in theta (i.e. so can pass more than just boundary points)
