@@ -1147,7 +1147,7 @@ if (debug) write(6,*) "gs2din: B_T0, aminor, psi_0, psi_a=", B_T0, aminor, psi_0
     real, intent(in) :: Z_mag
     real, intent(out) :: a
     real :: r1, r2
-    integer, parameter :: nz = 5, half_nz = 2, invalidPoint = -nz
+    integer, parameter :: nz = 5, half_nz = int(nz/2.0), invalidPoint = -nz
     integer :: index
     real, dimension(nz) :: rtmp, ztmp
     integer i, j, i1, n
