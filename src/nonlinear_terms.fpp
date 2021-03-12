@@ -364,7 +364,6 @@ contains
     real, intent (in) :: bd
     logical, intent (in), optional :: nl
     integer, parameter :: verb = 4
-    real, parameter :: zero = epsilon(0.0)
     integer :: iglo, ik
     real :: dt_cfl
 
