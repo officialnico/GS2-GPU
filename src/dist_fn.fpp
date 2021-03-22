@@ -6954,10 +6954,11 @@ endif
     use kt_grids, only: ntheta0, aky, naky
     use le_grids, only: integrate_moment
     use species, only: nspec
+    use gs2_layouts, only: g_lo
     implicit none
     logical, parameter :: full_arr=moment_to_allprocs
     !> Input weighted distribution    
-    complex, dimension (-ntgrid:,:,:), intent (in) :: g_in
+    complex, dimension (-ntgrid:,:,g_lo%llim_proc:), intent (in) :: g_in
     !> Input field
     complex, dimension (-ntgrid:,:,:), intent (in) :: fld
     !> Output flux
@@ -6993,10 +6994,11 @@ endif
     use kt_grids, only: ntheta0, aky, naky
     use le_grids, only: integrate_moment
     use species, only: nspec
+    use gs2_layouts, only: g_lo
     implicit none
     logical, parameter :: full_arr=moment_to_allprocs
     !> Input weighted distribution    
-    complex, dimension (-ntgrid:,:,:), intent (in) :: g_in
+    complex, dimension (-ntgrid:,:,g_lo%llim_proc:), intent (in) :: g_in
     complex, dimension (-ntgrid:,:,:), intent (in) :: fld
     real, dimension (-ntgrid:,:,:,:), intent (in out) :: flx_dist
     real, dimension (-ntgrid:,:,:) :: dnorm
@@ -7035,6 +7037,7 @@ endif
   !> FIXME: confirm & expand
   subroutine get_flux_tormom (g_in, fld, flx, dnorm)
     use theta_grid, only: ntgrid
+    use gs2_layouts, only: g_lo
 #ifdef LOWFLOW
     use kt_grids, only: ntheta0, naky
     use le_grids, only: integrate_moment
@@ -7046,7 +7049,7 @@ endif
 #endif
     implicit none
     !> Input weighted distribution    
-    complex, dimension (-ntgrid:,:,:), intent (in) :: g_in
+    complex, dimension (-ntgrid:,:,g_lo%llim_proc:), intent (in) :: g_in
     !> Input field
     complex, dimension (-ntgrid:,:,:), intent (in) :: fld
     !> Output flux
@@ -7087,7 +7090,7 @@ endif
     use gs2_layouts, only: g_lo,ie_idx,il_idx,is_idx,it_idx,ik_idx,isign_idx
     implicit none
     !> Input weighted distribution    
-    complex, dimension (-ntgrid:,:,:), intent (in) :: g_in
+    complex, dimension (-ntgrid:,:,g_lo%llim_proc:), intent (in) :: g_in
     complex, dimension (-ntgrid:,:,:), intent (in) :: fld
     real, dimension (:,:), intent (inout) :: flx
     real, dimension (-ntgrid:,:,:) :: dnorm
