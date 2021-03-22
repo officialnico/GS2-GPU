@@ -5227,9 +5227,11 @@ endif
   !>
   !> See Colin's field equation notes for more details
   !>
+  !> Takes `g_in` as \(h_s\)
+  !>
   !> FIXME: Get these notes on the website
-  subroutine getan (antot, antota, antotp)
-    use dist_fn_arrays, only: vpa, vperp2, aj0, aj1, gnew
+  subroutine getan_from_g (g_in, antot, antota, antotp)
+    use dist_fn_arrays, only: vpa, vperp2, aj0, aj1
     use kt_grids, only: kperp2
     use species, only: nspec, spec
     use theta_grid, only: ntgrid
@@ -5238,12 +5240,13 @@ endif
     use prof, only: prof_entering, prof_leaving
     use gs2_layouts, only: g_lo
     implicit none
+    complex, dimension(-ntgrid:, :, g_lo%llim_proc:), intent(in) :: g_in
     complex, dimension (-ntgrid:,:,:), intent (out) :: antot, antota, antotp
     real, dimension (nspec) :: wgt
 
     integer :: isgn, iglo, ig
 
-    call prof_entering ("getan", "dist_fn")
+    call prof_entering ("getan_from_g", "dist_fn")
 
 !Don't do this as integrate_species will fill in all values
 !    antot=0. ; antota=0. ; antotp=0.
@@ -5255,7 +5258,7 @@ endif
        do iglo = g_lo%llim_proc, g_lo%ulim_proc
           do isgn = 1, 2
              do ig=-ntgrid, ntgrid
-                g0(ig,isgn,iglo) = aj0(ig,iglo)*gnew(ig,isgn,iglo)
+                g0(ig,isgn,iglo) = aj0(ig,iglo)*g_in(ig,isgn,iglo)
              end do
           end do
        end do
@@ -5274,7 +5277,7 @@ endif
        do iglo = g_lo%llim_proc, g_lo%ulim_proc
           do isgn = 1, 2
              do ig=-ntgrid, ntgrid
-                g0(ig,isgn,iglo) = aj0(ig,iglo)*vpa(ig,isgn,iglo)*gnew(ig,isgn,iglo)
+                g0(ig,isgn,iglo) = aj0(ig,iglo)*vpa(ig,isgn,iglo)*g_in(ig,isgn,iglo)
              end do
           end do
        end do
@@ -5291,7 +5294,7 @@ endif
        do iglo = g_lo%llim_proc, g_lo%ulim_proc
           do isgn = 1, 2
              do ig=-ntgrid, ntgrid
-                g0(ig,isgn,iglo) = aj1(ig,iglo)*vperp2(ig,iglo)*gnew(ig,isgn,iglo)
+                g0(ig,isgn,iglo) = aj1(ig,iglo)*vperp2(ig,iglo)*g_in(ig,isgn,iglo)
              end do
           end do
        end do
@@ -5303,6 +5306,27 @@ endif
        antotp=0.
     end if
 
+    call prof_leaving ("getan_from_g", "dist_fn")
+  end subroutine getan_from_g
+
+  !> Compute velocity space integrals over \(h_s\):
+  !> $$\mathrm{antot} = n_s q_s \int d^3 v f_0 J_0(Z_s) h_s$$
+  !> $$\mathrm{antota} = 2 \beta n_s q_s \sqrt{\tfrac{T_s}{m_s}} \int d^3 v f_0 J_0(Z_s) h_s$$
+  !> $$\mathrm{antotp} = n_s T_s \int d^3 v f_0 \frac{v_\perp^2 J_1(Z_s)}{Z_s} h_s$$
+  !>
+  !> See Colin's field equation notes for more details
+  !>
+  !> Always uses `gnew` as \(h_s\)
+  !>
+  !> FIXME: Get these notes on the website
+  subroutine getan (antot, antota, antotp)
+    use dist_fn_arrays, only: gnew
+    use theta_grid, only: ntgrid
+    use prof, only: prof_entering, prof_leaving
+    implicit none
+    complex, dimension (-ntgrid:,:,:), intent (out) :: antot, antota, antotp
+    call prof_entering ("getan", "dist_fn")
+    call getan_from_g(gnew, antot, antota, antotp)
     call prof_leaving ("getan", "dist_fn")
   end subroutine getan
 
