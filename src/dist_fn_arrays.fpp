@@ -10,7 +10,7 @@ module dist_fn_arrays
 
   private
 
-  public :: g, gnew, g_restart_tmp, kx_shift, theta0_shift, vpa, vpac
+  public :: g, gnew, g0_tmp, g_restart_tmp, kx_shift, theta0_shift, vpa, vpac
   public :: gexp_1, gexp_2, gexp_3
   public :: vperp2, vpar, ittp, aj0, aj1
 !AJ
@@ -24,6 +24,12 @@ module dist_fn_arrays
   ! dist fn
   complex, dimension (:,:,:), allocatable :: g, gnew, g_restart_tmp
   ! (-ntgrid:ntgrid,2, -g-layout-)
+
+#ifndef SHMEM
+  complex, dimension (:,:,:), allocatable :: g0_tmp
+#else
+  complex, dimension (:,:,:), allocatable, target :: g0_tmp
+#endif
 
 #ifndef SHMEM
   complex, dimension (:,:,:), allocatable :: gexp_1, gexp_2, gexp_3
