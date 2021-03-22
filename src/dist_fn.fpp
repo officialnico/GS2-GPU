@@ -5230,7 +5230,7 @@ endif
   !> Takes `g_in` as \(h_s\)
   !>
   !> FIXME: Get these notes on the website
-  subroutine getan_from_g (g_in, antot, antota, antotp)
+  subroutine getan_from_dfn (g_in, antot, antota, antotp)
     use dist_fn_arrays, only: vpa, vperp2, aj0, aj1
     use kt_grids, only: kperp2
     use species, only: nspec, spec
@@ -5246,7 +5246,7 @@ endif
 
     integer :: isgn, iglo, ig
 
-    call prof_entering ("getan_from_g", "dist_fn")
+    call prof_entering ("getan_from_dfn", "dist_fn")
 
 !Don't do this as integrate_species will fill in all values
 !    antot=0. ; antota=0. ; antotp=0.
@@ -5306,8 +5306,8 @@ endif
        antotp=0.
     end if
 
-    call prof_leaving ("getan_from_g", "dist_fn")
-  end subroutine getan_from_g
+    call prof_leaving ("getan_from_dfn", "dist_fn")
+  end subroutine getan_from_dfn
 
   !> Compute velocity space integrals over \(h_s\):
   !> $$\mathrm{antot} = n_s q_s \int d^3 v f_0 J_0(Z_s) h_s$$
@@ -5326,7 +5326,7 @@ endif
     implicit none
     complex, dimension (-ntgrid:,:,:), intent (out) :: antot, antota, antotp
     call prof_entering ("getan", "dist_fn")
-    call getan_from_g(gnew, antot, antota, antotp)
+    call getan_from_dfn(gnew, antot, antota, antotp)
     call prof_leaving ("getan", "dist_fn")
   end subroutine getan
 
