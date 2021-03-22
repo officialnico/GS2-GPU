@@ -6733,30 +6733,30 @@ endif
        do isgn = 1, 2
           g0_tmp(:,isgn,:) = gnew(:,isgn,:)*aj0
        end do
-       call get_flux (phi, pflux, dnorm)
-       call get_flux_tormom (phi, pflux_tormom, dnorm)
+       call get_flux (g0_tmp, phi, pflux, dnorm)
+       call get_flux_tormom (g0_tmp, phi, pflux_tormom, dnorm)
 
        do iglo = g_lo%llim_proc, g_lo%ulim_proc
           g0_tmp(:,:,iglo) = g0_tmp(:,:,iglo)*energy(ie_idx(g_lo,iglo),is_idx(g_lo,iglo))
        end do
-       call get_flux (phi, qflux(:,:,:,1), dnorm)
+       call get_flux (g0_tmp, phi, qflux(:,:,:,1), dnorm)
 
        do isgn = 1, 2
           g0_tmp(:,isgn,:) = gnew(:,isgn,:)*2.*vpa(:,isgn,:)**2*aj0
        end do
-       call get_flux (phi, qflux(:,:,:,2), dnorm)
+       call get_flux (g0_tmp, phi, qflux(:,:,:,2), dnorm)
 
        do isgn = 1, 2
           g0_tmp(:,isgn,:) = gnew(:,isgn,:)*vperp2*aj0
        end do
-       call get_flux (phi, qflux(:,:,:,3), dnorm)
+       call get_flux (g0_tmp, phi, qflux(:,:,:,3), dnorm)
 
        do isgn = 1, 2
           do ig = -ntgrid, ntgrid
              g0_tmp(ig,isgn,:) = gnew(ig,isgn,:)*aj0(ig,:)*vpac(ig,isgn,:)*Rplot(ig)*sqrt(1.0-Bpol(ig)**2/bmag(ig)**2)
           end do
        end do
-       call get_flux (phi, vflux_par, dnorm)
+       call get_flux (g0_tmp, phi, vflux_par, dnorm)
        do iglo = g_lo%llim_proc, g_lo%ulim_proc
           it = it_idx(g_lo,iglo)
           ik = ik_idx(g_lo,iglo)
@@ -6768,7 +6768,7 @@ endif
 !                  *2.0*vperp2(:,iglo)*spec(is)%smz/(bmag**2*drhodpsi)
           end do
        end do
-       call get_flux (phi, vflux_perp, dnorm)
+       call get_flux (g0_tmp, phi, vflux_perp, dnorm)
        vflux = vflux_par + vflux_perp
 
     else
@@ -6785,12 +6785,12 @@ endif
                   = -gnew(:,isgn,iglo)*aj0(:,iglo)*spec(is)%stm*vpa(:,isgn,iglo)
           end do
        end do
-       call get_flux (apar, pmflux, dnorm)
+       call get_flux (g0_tmp, apar, pmflux, dnorm)
 
        do iglo = g_lo%llim_proc, g_lo%ulim_proc
           g0_tmp(:,:,iglo) = g0_tmp(:,:,iglo)*energy(ie_idx(g_lo,iglo),is_idx(g_lo,iglo))
        end do
-       call get_flux (apar, qmflux(:,:,:,1), dnorm)
+       call get_flux (g0_tmp, apar, qmflux(:,:,:,1), dnorm)
        
        do iglo = g_lo%llim_proc, g_lo%ulim_proc
           is = is_idx(g_lo,iglo)
@@ -6800,7 +6800,7 @@ endif
                   *2.*vpa(:,isgn,iglo)**2
           end do
        end do
-       call get_flux (apar, qmflux(:,:,:,2), dnorm)
+       call get_flux (g0_tmp, apar, qmflux(:,:,:,2), dnorm)
 
        do iglo = g_lo%llim_proc, g_lo%ulim_proc
           is = is_idx(g_lo,iglo)
@@ -6810,7 +6810,7 @@ endif
                   *vperp2(:,iglo)
           end do
        end do
-       call get_flux (apar, qmflux(:,:,:,3), dnorm)
+       call get_flux (g0_tmp, apar, qmflux(:,:,:,3), dnorm)
        
        do iglo = g_lo%llim_proc, g_lo%ulim_proc
           is = is_idx(g_lo,iglo)
@@ -6820,7 +6820,7 @@ endif
                   *vpa(:,isgn,iglo)*vpac(:,isgn,iglo)
           end do
        end do
-       call get_flux (apar, vmflux, dnorm)
+       call get_flux (g0_tmp, apar, vmflux, dnorm)
     else
        pmflux = 0.
        qmflux = 0.
@@ -6835,12 +6835,12 @@ endif
                   = gnew(:,isgn,iglo)*aj1(:,iglo)*2.0*vperp2(:,iglo)*spec(is)%tz
           end do
        end do
-       call get_flux (bpar, pbflux, dnorm)
+       call get_flux (g0_tmp, bpar, pbflux, dnorm)
 
        do iglo = g_lo%llim_proc, g_lo%ulim_proc
           g0_tmp(:,:,iglo) = g0_tmp(:,:,iglo)*energy(ie_idx(g_lo,iglo),is_idx(g_lo,iglo))
        end do
-       call get_flux (bpar, qbflux(:,:,:,1), dnorm)
+       call get_flux (g0_tmp, bpar, qbflux(:,:,:,1), dnorm)
 
        do iglo = g_lo%llim_proc, g_lo%ulim_proc
           is = is_idx(g_lo,iglo)
@@ -6850,7 +6850,7 @@ endif
                     *2.*vpa(:,isgn,iglo)**2
           end do
        end do
-       call get_flux (bpar, qbflux(:,:,:,2), dnorm)
+       call get_flux (g0_tmp, bpar, qbflux(:,:,:,2), dnorm)
 
        do iglo = g_lo%llim_proc, g_lo%ulim_proc
           is = is_idx(g_lo,iglo)
@@ -6860,7 +6860,7 @@ endif
                     *vperp2(:,iglo)
           end do
        end do
-       call get_flux (bpar, qbflux(:,:,:,3), dnorm)
+       call get_flux (g0_tmp, bpar, qbflux(:,:,:,3), dnorm)
 
        do iglo = g_lo%llim_proc, g_lo%ulim_proc
           is = is_idx(g_lo,iglo)
@@ -6870,7 +6870,7 @@ endif
                   *spec(is)%tz*vpac(:,isgn,iglo)
           end do
        end do
-       call get_flux (bpar, vbflux, dnorm)
+       call get_flux (g0_tmp, bpar, vbflux, dnorm)
     else
        pbflux = 0.
        qbflux = 0.
@@ -6912,7 +6912,7 @@ endif
        do isgn = 1, 2
           g0_tmp(:,isgn,:) = gnew(:,isgn,:)*aj0
        end do
-       call get_flux_vs_e (phi, pflux, dnorm)
+       call get_flux_vs_e (g0_tmp, phi, pflux, dnorm)
 
     else
        pflux = 0.
@@ -6926,7 +6926,7 @@ endif
                   = -gnew(:,isgn,iglo)*aj0(:,iglo)*spec(is)%stm*vpa(:,isgn,iglo)
           end do
        end do
-       call get_flux_vs_e (apar, pmflux, dnorm)
+       call get_flux_vs_e (g0_tmp, apar, pmflux, dnorm)
 
     else
        pmflux = 0.
@@ -6940,7 +6940,7 @@ endif
                   = gnew(:,isgn,iglo)*aj1(:,iglo)*2.0*vperp2(:,iglo)*spec(is)%tz
           end do
        end do
-       call get_flux_vs_e (bpar, pbflux, dnorm)
+       call get_flux_vs_e (g0_tmp, bpar, pbflux, dnorm)
     else
        pbflux = 0.
     end if
@@ -6949,17 +6949,15 @@ endif
   end subroutine flux_vs_e
 
   !> Calculate the flux of a field
-  !>
-  !> Note this relies on [[g0_tmp]] being populated already elsewhere.
-  !> We should probably pass in the g0_tmp array to integrate instead.
-  subroutine get_flux (fld, flx, dnorm)
+  subroutine get_flux (g_in, fld, flx, dnorm)
     use theta_grid, only: ntgrid, grho
     use kt_grids, only: ntheta0, aky, naky
     use le_grids, only: integrate_moment
     use species, only: nspec
-    use dist_fn_arrays, only: g0_tmp
     implicit none
     logical, parameter :: full_arr=moment_to_allprocs
+    !> Input weighted distribution    
+    complex, dimension (-ntgrid:,:,:), intent (in) :: g_in
     !> Input field
     complex, dimension (-ntgrid:,:,:), intent (in) :: fld
     !> Output flux
@@ -6972,7 +6970,7 @@ endif
 
     allocate (total(-ntgrid:ntgrid,ntheta0,naky,nspec))
 
-    call integrate_moment (g0_tmp, total, moment_to_allprocs, full_arr)
+    call integrate_moment (g_in, total, moment_to_allprocs, full_arr)
 
     do is = 1, nspec
        do ik = 1, naky
@@ -6990,17 +6988,15 @@ endif
   end subroutine get_flux
 
   !> Identical to get_flux except don't integrate over poloidal angle ! JRB
-  !>
-  !> Note this relies on [[g0_tmp]] being populated already elsewhere.
-  !> We should probably pass in the g0_tmp array to integrate instead.  
-  subroutine get_flux_dist (fld, flx_dist, dnorm)
+  subroutine get_flux_dist (g_in, fld, flx_dist, dnorm)
     use theta_grid, only: ntgrid, grho
     use kt_grids, only: ntheta0, aky, naky
     use le_grids, only: integrate_moment
     use species, only: nspec
-    use dist_fn_arrays, only: g0_tmp
     implicit none
     logical, parameter :: full_arr=moment_to_allprocs
+    !> Input weighted distribution    
+    complex, dimension (-ntgrid:,:,:), intent (in) :: g_in
     complex, dimension (-ntgrid:,:,:), intent (in) :: fld
     real, dimension (-ntgrid:,:,:,:), intent (in out) :: flx_dist
     real, dimension (-ntgrid:,:,:) :: dnorm
@@ -7013,7 +7009,7 @@ endif
     ! to the call below for new parallel output
     ! This is temporary until distributed fields
     ! are implemented 1/2014
-    call integrate_moment (g0_tmp, total, moment_to_allprocs, full_arr)
+    call integrate_moment (g_in, total, moment_to_allprocs, full_arr)
 
     ! EGH for new parallel I/O everyone
     ! calculates fluxes
@@ -7037,10 +7033,7 @@ endif
   !> Calculate toroidal angular momentum flux due to field
   !>
   !> FIXME: confirm & expand
-  !>
-  !> Note this relies on [[g0_tmp]] being populated already elsewhere.
-  !> We should probably pass in the g0_tmp array to integrate instead.  
-  subroutine get_flux_tormom (fld, flx, dnorm)
+  subroutine get_flux_tormom (g_in, fld, flx, dnorm)
     use theta_grid, only: ntgrid
 #ifdef LOWFLOW
     use kt_grids, only: ntheta0, naky
@@ -7050,9 +7043,10 @@ endif
     use theta_grid, only: rplot, grho
     use kt_grids, only: aky
     use lowflow, only: mach_lab
-    use dist_fn_arrays, only: g0_tmp
 #endif
     implicit none
+    !> Input weighted distribution    
+    complex, dimension (-ntgrid:,:,:), intent (in) :: g_in
     !> Input field
     complex, dimension (-ntgrid:,:,:), intent (in) :: fld
     !> Output flux
@@ -7064,7 +7058,7 @@ endif
     real :: wgt
     integer :: ik, it, is
     allocate (total(-ntgrid:ntgrid,ntheta0,naky,nspec))
-    call integrate_moment (g0_tmp, total)
+    call integrate_moment (g_in, total)
 
     if (proc0) then
        do is = 1, nspec
@@ -7084,18 +7078,16 @@ endif
   end subroutine get_flux_tormom !JPL
 
   !> FIXME : Add documentation
-  !>
-  !> Note this relies on [[g0_tmp]] being populated already elsewhere.
-  !> We should probably pass in the g0_tmp array to integrate instead.
-  subroutine get_flux_vs_e (fld, flx, dnorm)
+  subroutine get_flux_vs_e (g_in, fld, flx, dnorm)
     use theta_grid, only: ntgrid, grho
     use kt_grids, only: aky
     use le_grids, only: negrid, wl
     use species, only: nspec
     use mp, only: sum_reduce, proc0
     use gs2_layouts, only: g_lo,ie_idx,il_idx,is_idx,it_idx,ik_idx,isign_idx
-    use dist_fn_arrays, only: g0_tmp
     implicit none
+    !> Input weighted distribution    
+    complex, dimension (-ntgrid:,:,:), intent (in) :: g_in
     complex, dimension (-ntgrid:,:,:), intent (in) :: fld
     real, dimension (:,:), intent (inout) :: flx
     real, dimension (-ntgrid:,:,:) :: dnorm
@@ -7117,10 +7109,10 @@ endif
 
        wgt = sum(dnorm(-ntgrid:,it,ik)*grho(-ntgrid:))
        total(ie,is) = total(ie,is) + fac*& 
-          sum(aimag(g0_tmp(-ntgrid:,1,iglo)*conjg(fld(-ntgrid:,it,ik)) * &
+          sum(aimag(g_in(-ntgrid:,1,iglo)*conjg(fld(-ntgrid:,it,ik)) * &
           dnorm(-ntgrid:,it,ik) * aky(ik)) * wl(-ntgrid:,il)/wgt)
        total(ie,is) = total(ie,is) + fac*& 
-          sum(aimag(g0_tmp(-ntgrid:,2,iglo)*conjg(fld(-ntgrid:,it,ik)) * &
+          sum(aimag(g_in(-ntgrid:,2,iglo)*conjg(fld(-ntgrid:,it,ik)) * &
           dnorm(-ntgrid:,it,ik) * aky(ik)) * wl(-ntgrid:,il)/wgt)
     end do
 
@@ -7319,7 +7311,7 @@ endif
                   *drhodpsi*IoB**2*rhostar
           end do
        end do
-       call get_flux (phi, vflx1, dnorm)
+       call get_flux (g0_tmp, phi, vflx1, dnorm)
 
 !        do isgn = 1, 2
 !           do ig = -ntgrid, ntgrid
@@ -7330,7 +7322,7 @@ endif
 !              end if
 !           end do
 !        end do
-!        call get_flux (phi, vflux_par, dnorm)
+!        call get_flux (g0_tmp, phi, vflux_par, dnorm)
     else
        vflx0 = 0. ; vflx1 = 0.
     end if
@@ -7530,19 +7522,19 @@ endif
        do isgn = 1, 2
           g0_tmp(:,isgn,:) = gnew(:,isgn,:)*aj0
        end do
-       call get_flux_dist (phi, pflux_dist, dnorm)
+       call get_flux_dist (g0_tmp, phi, pflux_dist, dnorm)
 
        do iglo = g_lo%llim_proc, g_lo%ulim_proc
           g0_tmp(:,:,iglo) = g0_tmp(:,:,iglo)*energy(ie_idx(g_lo,iglo),is_idx(g_lo,iglo))
        end do
-       call get_flux_dist (phi, qflux_dist, dnorm)
+       call get_flux_dist (g0_tmp, phi, qflux_dist, dnorm)
 
        do isgn = 1, 2
           do ig = -ntgrid, ntgrid
              g0_tmp(ig,isgn,:) = gnew(ig,isgn,:)*aj0(ig,:)*vpac(ig,isgn,:)*Rplot(ig)*sqrt(1.0-Bpol(ig)**2/bmag(ig)**2)
           end do
        end do
-       call get_flux_dist (phi, vflux_par_dist, dnorm)
+       call get_flux_dist (g0_tmp, phi, vflux_par_dist, dnorm)
        do iglo = g_lo%llim_proc, g_lo%ulim_proc
           it = it_idx(g_lo,iglo)
           ik = ik_idx(g_lo,iglo)
@@ -7552,7 +7544,7 @@ endif
                   *rhoc*(gds21+theta0(it,ik)*gds22)*vperp2(:,iglo)*spec(is)%smz/(qval*shat*bmag**2)
           end do
        end do
-       call get_flux_dist (phi, vflux_perp_dist, dnorm)
+       call get_flux_dist (g0_tmp, phi, vflux_perp_dist, dnorm)
     else
        pflux_dist = 0.
        vflux_par_dist = 0.
