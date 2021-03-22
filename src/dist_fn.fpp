@@ -102,6 +102,8 @@ module dist_fn
   public :: check_getan
   public :: calculate_flux_surface_average
 
+  public :: calculate_potentials_from_nonadiabatic_dfn
+
   public :: dist_fn_config_type
   public :: dist_fn_species_config_type
   public :: source_config_type
@@ -6544,6 +6546,62 @@ endif
 !///////////////////////////////////////
 !///////////////////////////////////////
 
+
+  !> Calculates the potentials consistent with the passed nonadiabatic
+  !> distribution function, `f_in`. Note this is not what GS2 usually
+  !> evolves as `g`/`gnew` but the adjusted version.
+  !>
+  !> This is closely related to [[get_init_field]] which does the same job
+  !> but works with the `g`/`gnew` modified distribution function instead.
+  !>
+  !> Currently we force potentials to zero if they are not included in the
+  !> simulation. We should provide a method to calculate these fields even
+  !> if they are not included in the evolution (e.g. for diagnostics,
+  !> collisions etc.). Perhaps an optional flag here would be enough.
+  subroutine calculate_potentials_from_nonadiabatic_dfn(f_in, phi, apar, bpar)
+    use gs2_layouts, only: g_lo
+    use theta_grid, only: ntgrid, bmag
+    use run_parameters, only: fphi, fapar, fbpar, beta
+    use kt_grids, only: naky, ntheta0, kperp2
+    use species, only: nspec, spec
+    implicit none
+    complex, dimension(-ntgrid:, :, g_lo%llim_proc:), intent(in) :: f_in
+    complex, dimension(-ntgrid:, :, :), intent(out) :: phi, apar, bpar
+    complex, dimension(:, :, :), allocatable :: antot, antota, antotp
+    real, dimension(nspec) :: weights
+
+    allocate(  antot(-ntgrid:ntgrid, ntheta0, naky))
+    allocate( antota(-ntgrid:ntgrid, ntheta0, naky))
+    allocate( antotp(-ntgrid:ntgrid, ntheta0, naky))
+
+    ! Get the weighted velocity space integrals of the passed
+    ! distribution function.
+    call getan_from_dfn(f_in, antot, antota, antotp)
+
+    if (fphi > 0) then
+       ! Do we need to include the adiabatic contribution in the sum?
+       phi = antot / sum(spec%dens*spec%z*spec%z / spec%temp)
+    else
+       phi = 0
+    end if
+
+    if (fapar > 0) then
+       where (kperp2 > epsilon(0.0))
+          apar = antota / kperp2
+       elsewhere
+          apar = 0
+       end where
+    else
+       apar = 0
+    end if
+
+    if (fbpar > 0) then
+       bpar = -beta * antotp / (spread(spread(bmag, 2, ntheta0), 3, naky)**2)
+    else
+       bpar = 0.0
+    end if
+
+  end subroutine calculate_potentials_from_nonadiabatic_dfn
 
   !> Inverts the field equations:
   !!   gamtot * phi - gamtot1 * bpar = antot
