@@ -1,24 +1,29 @@
+!> Times the matrix inversion code for a particular method for various sizes.
+!> Can also check the correctness.
 program mat_inv_benchmark
   use mp, only: init_mp, finish_mp, barrier, proc0, iproc
-  use mat_inv, only: inverse_gj
-  !use mat_inv, only: inverse_lapack
+  use mat_inv, only: invert_serial, matrix_inversion_method_type
+  use mat_inv, only: mat_inv_serial_lapack
+  use mat_inv, only: mat_inv_serial_gauss_jordan, mat_inv_serial_block
   use ran, only: ranf
   use job_manage, only: timer_local
   use iso_fortran_env, only: output_unit
-  complex, dimension(:, :), allocatable :: array
+  implicit none
+  complex, dimension(:, :), allocatable :: array, original_array
   integer, dimension(:), allocatable :: sizes
-  integer :: icase, nrep, current_size, ncases
+  integer :: icase, irep, nrep, current_size, ncases, j, k
   real, dimension(:), allocatable :: current_times
   real, dimension(:), allocatable :: average_times, max_times, min_times
   real :: time_a, time_b
   integer :: output
+  type(matrix_inversion_method_type), parameter :: the_method = mat_inv_serial_gauss_jordan
 
   call init_mp
 
   output = output_unit
 
   if (proc0) then
-     sizes =  [2,4,8,16,32,64,256,512,1024,2048,4096,8192]
+     sizes =  [2,4,8,16,32,64,128,256,512,1024,2048,2049]
      ncases = size(sizes)
      allocate(average_times(ncases))
      allocate(max_times(ncases))
@@ -35,7 +40,13 @@ program mat_inv_benchmark
            do k = 1, current_size
               array(j,k) = cmplx(ranf(), ranf())
            end do
+
+           ! Try to ensure array is diagonally dominant
+           array(j, j) = array(j, j) + 1.0
         end do
+
+        original_array = array
+
         time_b = timer_local() - time_a
         write(output, '("Took ",F12.5,"s to construct with size ",I0," for ",I0," repeats")') time_b, current_size, nrep
 
@@ -45,11 +56,19 @@ program mat_inv_benchmark
         do irep = 1, nrep
            time_a = timer_local()
 
-           call inverse_gj(array, current_size)
-           !call inverse_lapack(array, current_size)
+           call invert_serial(array, current_size, the_method)
 
            time_b = timer_local()
            current_times(irep) = time_b - time_a
+
+           ! Test the inversion, if it fails abort.
+           if(irep==1) then
+              if(.not.test(original_array,array)) then
+                 print*,"ERROR: Inversion failed"
+                 exit
+              end if
+           end if
+
         end do
 
         average_times(icase) = sum(current_times) / size(current_times)
@@ -72,4 +91,29 @@ program mat_inv_benchmark
 
 
   call finish_mp
+
+contains
+
+  logical function test(A,B)
+    implicit none
+    complex, dimension(:,:), intent(in) :: A, B
+    complex, dimension(:,:), allocatable :: C
+    real, dimension(:,:), allocatable :: identity
+    real, parameter :: tolerance = 1.0e-8
+    real :: maxerr
+    integer :: i, N
+
+    C = matmul(A,B)
+    N = size(A, dim = 1)
+    allocate( identity(N, N))
+    identity = 0
+    do i = 1, N
+       identity(i, i) = 1.0
+    end do
+
+    maxerr = maxval(abs(C - identity))
+
+    test = maxerr <= tolerance
+  end function test
+
 end program mat_inv_benchmark
