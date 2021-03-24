@@ -4541,7 +4541,7 @@ contains
     logical :: use_pass_homog, speriod_flag
     integer :: ntgl, ntgr
     logical :: include_explicit, have_trapped_particles
-    logical :: is_wfb, is_not_ttp, is_passing
+    logical :: is_wfb, is_not_ttp, is_passing, is_trapped
 
     ! Decide if we want to include the explicit terms or not
     include_explicit = istep > 0
@@ -4636,6 +4636,11 @@ contains
        ! how we treat this as given by passing_wfb, trapped_wfb etc.
        is_passing = il <= ng2
 
+       ! Is this particle trapped? Note we exclude the wfb here as we can choose
+       ! how we treat this as given by passing_wfb, trapped_wfb etc.
+       ! This implies have_trapped_particles is true.
+       is_trapped = il > ng2 + 1
+
        !/////////////////////////
        !// Initialisation
        !/////////////////////////
@@ -4690,9 +4695,10 @@ contains
        ! difference would the the totally trapped particle where we
        ! have forbid everywhere except at a single point, but then we
        ! don't use g2 for the ttp.
-       if (have_trapped_particles .and. il >= ng2+1 .and. is_not_ttp) then
+       if (have_trapped_particles .and. (is_wfb .or. is_trapped) .and. is_not_ttp) then
           !CMR, surely il >= ng2+2 works, as forbid gives no bounce point for wfb?
           !      ... but does not matter
+          !In other words (is_wfb .or. is_trapped) could just be (is_trapped)
           do ig=-ntgrid,ntgrid-1
              !CMR: set g2=1 at UPPER bounce point for trapped (not ttp or wfb) at vpar<0
              if (forbid(ig+1,il).and..not.forbid(ig,il)) g2(ig,2) = 1.0
@@ -4763,7 +4769,7 @@ contains
        ! (excluding wfb and ttp)
 
        !CMR, 17/4/2012: ng2+1< il <=lmax excludes wfb,ttp
-       if (have_trapped_particles .and. il > ng2+1 .and. is_not_ttp) then
+       if (have_trapped_particles .and. is_trapped .and. is_not_ttp) then
           ! match boundary conditions at lower bounce point
           do ig = -ntgrid, ntgrid-1
              if (forbid(ig,il) .and. .not. forbid(ig+1,il)) then
@@ -4873,7 +4879,7 @@ contains
        !Revert to looping from il>= ng2+2, i.e. exclude wfb as:
        !          (1) wfb bc is already handled above
        !          (2) forbid never true for wfb, so including ng2+1 in loop is pointless.
-       if (il >= ng2+2 .and. is_not_ttp) then
+       if (is_trapped .and. is_not_ttp) then
           beta1 = 0.0
           do ig = ntgr-1, ntgl, -1
              ! If totally trapped or forbidden then cycle
