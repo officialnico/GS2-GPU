@@ -4675,9 +4675,15 @@ contains
        else if (is_wfb .and. passing_wfb) then ! MRH give the passing initial condition
           g1(-ntgrid,1) = 1.0
           g1( ntgrid,2) = 1.0
+
        endif
 
-       if (nlambda > ng2 .and. il >= ng2+1 .and. il <= lmax) then
+       ! Do we need the following conditional? If it is not true then
+       ! we just find that forbid is false everywhere. The only
+       ! difference would the the totally trapped particle where we
+       ! have forbid everywhere except at a single point, but then we
+       ! don't use g2 for the ttp.
+       if (have_trapped_particles .and. il >= ng2+1 .and. .not. is_ttp) then
           !CMR, surely il >= ng2+2 works, as forbid gives no bounce point for wfb?
           !      ... but does not matter
           do ig=-ntgrid,ntgrid-1
@@ -4750,7 +4756,7 @@ contains
        ! (excluding wfb and ttp)
 
        !CMR, 17/4/2012: ng2+1< il <=lmax excludes wfb,ttp
-       if (nlambda > ng2 .and. il > ng2+1 .and. il <= lmax) then
+       if (have_trapped_particles .and. il > ng2+1 .and. .not. is_ttp) then
           ! match boundary conditions at lower bounce point
           do ig = -ntgrid, ntgrid-1
              if (forbid(ig,il) .and. .not. forbid(ig+1,il)) then
@@ -4768,14 +4774,14 @@ contains
        end if
 
        ! If trapped wfb enforce the bounce condition at the lower bounce point
-       if (nlambda > ng2 .and. is_wfb .and. il <= lmax .and. trapped_wfb) then
+       if (have_trapped_particles .and. is_wfb .and. trapped_wfb .and. .not. is_ttp) then
           ig = -ntgrid
           g1(ig,1) = g1(ig,2)
           gnew(ig,1,iglo) = gnew(ig,2,iglo)
        endif
 
        ! time advance vpar > 0 inhomogeneous part
-       if (il <= lmax) then
+       if (.not. is_ttp) then
           do ig = -ntgrid, ntgrid-1
              ! Use two statements here to *prevent* erroneous vectorization of this loop by gfortran 7.2
              gnew(ig+1,1,iglo) = ainv(ig,1,iglo)*source(ig,1)
@@ -4796,7 +4802,7 @@ contains
        end do
 
        ! time advance vpar > 0 homogeneous part
-       if (il >= ilmin) then
+       if (.not. is_ttp) then
           do ig = -ntgrid, ntgrid-1
              !CMR, 17/4/2012:  use consistent homogeneous trapped solution (g2) at lbp
              g1(ig+1,1) = -g1(ig,1)*r(ig,1,iglo) + g2(ig+1,1)
@@ -4858,7 +4864,7 @@ contains
        !Revert to looping from il>= ng2+2, i.e. exclude wfb as:
        !          (1) wfb bc is already handled above
        !          (2) forbid never true for wfb, so including ng2+1 in loop is pointless.
-       if (il >= ng2+2 .and. il <= lmax) then
+       if (il >= ng2+2 .and. .not. is_ttp) then
           beta1 = 0.0
           do ig = ntgr-1, ntgl, -1
              if (ittp(ig) <= il) cycle
@@ -4874,7 +4880,7 @@ contains
        end if
        ! If wfb is trapped, enforce the bounce condition at the upper bounce point
        ! By recombining, inhomogeneous and inhomogeneous solutions
-       if (is_wfb .and. il <= lmax .and. trapped_wfb) then
+       if (is_wfb .and. trapped_wfb .and. .not. is_ttp ) then
           ig = ntgrid
           beta1 = (gnew(ig,1,iglo) - gnew(ig,2,iglo))/(1.0 - g1(ig,1))
           do ig = ntgrid, -ntgrid, -1
