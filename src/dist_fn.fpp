@@ -4542,6 +4542,21 @@ contains
     integer :: ntgl, ntgr
     logical :: include_explicit
 
+    ! Decide if we want to include the explicit terms or not
+    if (istep .eq. 0) then
+       include_explicit = .false.
+    else
+       include_explicit = .true.
+    endif
+
+#ifndef LOWFLOW
+    include_explicit = include_explicit .and. nonlin
+#endif
+
+    ab_coefficients = get_adams_bashforth_coefficients()
+
+    ntgl = -ntgrid
+    ntgr =  ntgrid
 
     do iglo = g_lo%llim_proc, g_lo%ulim_proc
        ik = ik_idx(g_lo,iglo)
@@ -4562,18 +4577,6 @@ contains
        il = il_idx(g_lo,iglo)
        ie = ie_idx(g_lo,iglo)
        is = is_idx(g_lo,iglo)
-
-       if (istep .eq. 0) then
-          include_explicit = .false.
-       else
-          include_explicit = .true.
-       endif
-
-#ifndef LOWFLOW
-       include_explicit = include_explicit .and. nonlin
-#endif
-
-       ab_coefficients = get_adams_bashforth_coefficients()
 
        if(opt_source)then
           call get_source_term_opt (phi, apar, bpar, phinew, aparnew, bparnew, &
@@ -4643,9 +4646,6 @@ contains
 
        ! g1 is the homogeneous solution
        g1 = 0.0
-
-       ntgl = -ntgrid
-       ntgr =  ntgrid
 
        ! ng2+1 is WFB
 
@@ -4851,8 +4851,6 @@ contains
           end do
        end if
 
-       if (def_parity) call enforce_parity(parity_redist)
-
        !CMR,DD, 25/7/2014:
        ! Not keen on following kludge zeroing forbidden region
        ! Introduced new flag: zero_forbid defaults to .false.
@@ -4867,6 +4865,8 @@ contains
        endif
 
     end do
+
+    if (def_parity) call enforce_parity(parity_redist)
 
   contains
     !> FIXME : Add documentation
