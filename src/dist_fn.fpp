@@ -4548,15 +4548,15 @@ contains
        it = it_idx(g_lo,iglo)
 
        !Skip work if we're not interested in this ik and it
-       if(kwork_filter(it,ik)) return
+       if(kwork_filter(it,ik)) cycle
 
-       if(ieqzip(it,ik)==0) return
+       if(ieqzip(it,ik)==0) cycle
        if (eqzip) then
-          if (secondary .and. ik == 2 .and. it == 1) return ! do not evolve primary mode
+          if (secondary .and. ik == 2 .and. it == 1) cycle ! do not evolve primary mode
           if (tertiary .and. ik == 1) then
-             if (it == 2 .or. it == ntheta0) return ! do not evolve periodic equilibrium
+             if (it == 2 .or. it == ntheta0) cycle ! do not evolve periodic equilibrium
           end if
-          if (harris .and. ik == 1) return ! do not evolve primary mode
+          if (harris .and. ik == 1) cycle ! do not evolve primary mode
        end if
 
        il = il_idx(g_lo,iglo)
