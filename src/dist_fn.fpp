@@ -4578,6 +4578,10 @@ contains
        ie = ie_idx(g_lo,iglo)
        is = is_idx(g_lo,iglo)
 
+       !/////////////////////////
+       !// Get the source terms
+       !/////////////////////////
+
        if(opt_source)then
           call get_source_term_opt (phi, apar, bpar, phinew, aparnew, bparnew, &
                include_explicit, ab_coefficients, iglo,ik,it,il,ie,is, sourcefac, source)
@@ -4611,8 +4615,68 @@ contains
 
        use_pass_homog = use_pass_homog .or. aky(ik) == 0.0
 
+       if (use_pass_homog) then
+          ilmin = 1
+       else
+          ilmin = ng2 + 1
+       end if
+
+       !/////////////////////////
+       !// Initialisation
+       !/////////////////////////
+
        ! gnew is the inhomogeneous solution
        gnew(:,:,iglo) = 0.0
+
+       ! g1 is the homogeneous solution
+       g1 = 0.0
+
+
+       !CMR
+       ! g2 simply stores trapped homogeneous boundary conditions at bounce points
+       !     g2(iub,2) = 1.0        iub is UPPER bounce point, trapped bc for vpar < 0
+       !     g2(ilb,1) = g1(ilb,2)  ilb is LOWER bounce point, trapped bc for vpar > 0
+       ! otherwise g2 is zero
+       !      -- g2 = 0 for all passing particles
+       !      -- g2 = 0 for wfb as forbid always false
+       !      -- g2 = 0 for ttp too
+       ! g2 NOT used for totally trapped particles at il=nlambda
+
+       ! NB with trapped particles lmax=nlambda-1, and ttp is at il=nlambda
+
+       g2 = 0.0
+
+
+       !/////////////////////////
+       !// Boundaries
+       !/////////////////////////
+
+       ! ng2+1 is WFB
+       if (use_pass_homog) then
+          if (il < ng2+1) then
+             g1(-ntgrid,1) = 1.0
+             g1( ntgrid,2) = 1.0
+          end if
+       end if
+
+       if (il == ng2+1 .and. (.not. trapped_wfb) .and. (.not. passing_wfb) ) then ! ng2+1 is WFB
+          g1(-ntgrid,1) = wfb  ! wfb should be unity here; variable is for testing
+          g1( ntgrid,2) = wfb  ! wfb should be unity here; variable is for testing
+       else if (il == ng2+1 .and. trapped_wfb) then ! MRH Only set the upper bounce point initial condition
+          g1( ntgrid,2) = 1.0
+       else if (il == ng2+1 .and. passing_wfb) then ! MRH give the passing initial condition
+          g1(-ntgrid,1) = 1.0
+          g1( ntgrid,2) = 1.0
+       endif
+
+       if (nlambda > ng2 .and. il >= ng2+1 .and. il <= lmax) then
+          !CMR, surely il >= ng2+2 works, as forbid gives no bounce point for wfb?
+          !      ... but does not matter
+          do ig=-ntgrid,ntgrid-1
+             !CMR: set g2=1 at UPPER bounce point for trapped (not ttp or wfb) at vpar<0
+             if (forbid(ig+1,il).and..not.forbid(ig,il)) g2(ig,2) = 1.0
+          end do
+       end if
 
        !CMR, 18/4/2012:
        ! What follows is a selectable improved parallel bc for passing particles.
@@ -4644,52 +4708,13 @@ contains
           endif
        endif
 
-       ! g1 is the homogeneous solution
-       g1 = 0.0
 
-       ! ng2+1 is WFB
-
-       if (use_pass_homog) then
-          if (il < ng2+1) then
-             g1(-ntgrid,1) = 1.0
-             g1( ntgrid,2) = 1.0
-          end if
-       end if
-
-       if (il == ng2+1 .and. (.not. trapped_wfb) .and. (.not. passing_wfb) ) then ! ng2+1 is WFB
-          g1(-ntgrid,1) = wfb  ! wfb should be unity here; variable is for testing
-          g1( ntgrid,2) = wfb  ! wfb should be unity here; variable is for testing
-       else if (il == ng2+1 .and. trapped_wfb) then ! MRH Only set the upper bounce point initial condition
-          g1( ntgrid,2) = 1.0
-       else if (il == ng2+1 .and. passing_wfb) then ! MRH give the passing initial condition
-          g1(-ntgrid,1) = 1.0
-          g1( ntgrid,2) = 1.0
-       endif
-
-       !CMR
-       ! g2 simply stores trapped homogeneous boundary conditions at bounce points
-       !     g2(iub,2) = 1.0        iub is UPPER bounce point, trapped bc for vpar < 0
-       !     g2(ilb,1) = g1(ilb,2)  ilb is LOWER bounce point, trapped bc for vpar > 0
-       ! otherwise g2 is zero
-       !      -- g2 = 0 for all passing particles
-       !      -- g2 = 0 for wfb as forbid always false
-       !      -- g2 = 0 for ttp too
-       ! g2 NOT used for totally trapped particles at il=nlambda
-
-       ! NB with trapped particles lmax=nlambda-1, and ttp is at il=nlambda
-
-       g2 = 0.0
-       if (nlambda > ng2 .and. il >= ng2+1 .and. il <= lmax) then
-          !CMR, surely il >= ng2+2 works, as forbid gives no bounce point for wfb?
-          !      ... but does not matter
-          do ig=-ntgrid,ntgrid-1
-             !CMR: set g2=1 at UPPER bounce point for trapped (not ttp or wfb) at vpar<0
-             if (forbid(ig+1,il).and..not.forbid(ig,il)) g2(ig,2) = 1.0
-          end do
-       end if
+       !/////////////////////////
+       !// Time advance
+       !/////////////////////////
 
        !!!!!!!!!!!!!!!!!!!!!!!!!!!
-       ! time advance vpar < 0  !
+       ! time advance vpar < 0   !
        !!!!!!!!!!!!!!!!!!!!!!!!!!!
 
        ! inhomogeneous part: gnew
@@ -4698,12 +4723,6 @@ contains
        do ig = ntgrid-1, -ntgrid, -1
           gnew(ig,2,iglo) = -gnew(ig+1,2,iglo)*r(ig,2,iglo) + ainv(ig,2,iglo)*source(ig,2)
        end do
-
-       if (use_pass_homog) then
-          ilmin = 1
-       else
-          ilmin = ng2 + 1
-       end if
 
        ! time advance vpar < 0 homogeneous part: g1
        !CMR, 17/4/2012: computes homogeneous solutions for il >= ilmin
@@ -4746,6 +4765,7 @@ contains
           g1(ig,1) = g1(ig,2)
           gnew(ig,1,iglo) = gnew(ig,2,iglo)
        endif
+
        ! time advance vpar > 0 inhomogeneous part
        if (il <= lmax) then
           do ig = -ntgrid, ntgrid-1
@@ -4774,6 +4794,10 @@ contains
              g1(ig+1,1) = -g1(ig,1)*r(ig,1,iglo) + g2(ig+1,1)
           end do
        end if
+
+       !/////////////////////////
+       !// Periodicity at bounce point and parallel boundary
+       !/////////////////////////
 
        !CMR, 17/4/2012:
        ! self_periodic bc is applied as follows:
