@@ -4543,11 +4543,7 @@ contains
     logical :: include_explicit, is_wfb, is_ttp, have_trapped_particles
 
     ! Decide if we want to include the explicit terms or not
-    if (istep .eq. 0) then
-       include_explicit = .false.
-    else
-       include_explicit = .true.
-    endif
+    include_explicit = istep > 0
 
 #ifndef LOWFLOW
     include_explicit = include_explicit .and. nonlin
