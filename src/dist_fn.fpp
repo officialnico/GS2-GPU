@@ -4540,7 +4540,7 @@ contains
     complex :: adjleft, adjright
     logical :: use_pass_homog, speriod_flag
     integer :: ntgl, ntgr
-    logical :: include_explicit
+    logical :: include_explicit, is_wfb
 
     ! Decide if we want to include the explicit terms or not
     if (istep .eq. 0) then
@@ -4559,6 +4559,10 @@ contains
     ntgr =  ntgrid
 
     do iglo = g_lo%llim_proc, g_lo%ulim_proc
+       !/////////////////////////
+       !// Constants, flags etc.
+       !/////////////////////////
+
        ik = ik_idx(g_lo,iglo)
        it = it_idx(g_lo,iglo)
 
@@ -4621,6 +4625,9 @@ contains
           ilmin = ng2 + 1
        end if
 
+       ! ng2+1 is WFB
+       is_wfb = il == ng2 + 1
+
        !/////////////////////////
        !// Initialisation
        !/////////////////////////
@@ -4631,7 +4638,6 @@ contains
        ! g1 is the homogeneous solution
        g1 = 0.0
 
-
        !CMR
        ! g2 simply stores trapped homogeneous boundary conditions at bounce points
        !     g2(iub,2) = 1.0        iub is UPPER bounce point, trapped bc for vpar < 0
@@ -4641,17 +4647,14 @@ contains
        !      -- g2 = 0 for wfb as forbid always false
        !      -- g2 = 0 for ttp too
        ! g2 NOT used for totally trapped particles at il=nlambda
-
+       !
        ! NB with trapped particles lmax=nlambda-1, and ttp is at il=nlambda
-
        g2 = 0.0
-
 
        !/////////////////////////
        !// Boundaries
        !/////////////////////////
 
-       ! ng2+1 is WFB
        if (use_pass_homog) then
           if (il < ng2+1) then
              g1(-ntgrid,1) = 1.0
@@ -4659,12 +4662,12 @@ contains
           end if
        end if
 
-       if (il == ng2+1 .and. (.not. trapped_wfb) .and. (.not. passing_wfb) ) then ! ng2+1 is WFB
+       if (is_wfb .and. (.not. trapped_wfb) .and. (.not. passing_wfb) ) then ! ng2+1 is WFB
           g1(-ntgrid,1) = wfb  ! wfb should be unity here; variable is for testing
           g1( ntgrid,2) = wfb  ! wfb should be unity here; variable is for testing
-       else if (il == ng2+1 .and. trapped_wfb) then ! MRH Only set the upper bounce point initial condition
+       else if (is_wfb .and. trapped_wfb) then ! MRH Only set the upper bounce point initial condition
           g1( ntgrid,2) = 1.0
-       else if (il == ng2+1 .and. passing_wfb) then ! MRH give the passing initial condition
+       else if (is_wfb .and. passing_wfb) then ! MRH give the passing initial condition
           g1(-ntgrid,1) = 1.0
           g1( ntgrid,2) = 1.0
        endif
@@ -4686,7 +4689,7 @@ contains
        ! Here ensure ZERO incoming particles in nonadiabatic delta f at domain ends
        !  (exploits code used in subroutine g_adjust to transform g_wesson to g_gs2)
        if ( nonad_zero ) then
-          if (il <= ng2 .or. (il==ng2+1 .and. passing_wfb) ) then
+          if (il <= ng2 .or. (is_wfb .and. passing_wfb) ) then
              !Only apply the new boundary condition to the leftmost
              !cell for sign going from left to right
              if (l_links(ik,it) .eq. 0) then
@@ -4760,7 +4763,7 @@ contains
        end if
 
        ! If trapped wfb enforce the bounce condition at the lower bounce point
-       if (nlambda > ng2 .and. il == ng2+1 .and. il <= lmax .and. trapped_wfb) then
+       if (nlambda > ng2 .and. is_wfb .and. il <= lmax .and. trapped_wfb) then
           ig = -ntgrid
           g1(ig,1) = g1(ig,2)
           gnew(ig,1,iglo) = gnew(ig,2,iglo)
@@ -4823,7 +4826,7 @@ contains
        if (boundary_option_switch == boundary_option_linked) then
           if (speriod_flag .and. il <= ng2) then
              call self_periodic
-          else if (speriod_flag .and. il==ng2+1 .and. .not. trapped_wfb) then
+          else if (speriod_flag .and. is_wfb .and. .not. trapped_wfb) then
              call self_periodic
           else
              ! save homogeneous solution as necessary
@@ -4832,14 +4835,14 @@ contains
           end if
 
           ! wfb (isolated)
-          if (il == ng2+1 .and. .not. connections(iglo)%neighbor .and. .not. trapped_wfb .and. .not. passing_wfb ) &
+          if (is_wfb .and. .not. connections(iglo)%neighbor .and. .not. trapped_wfb .and. .not. passing_wfb ) &
                call self_periodic
 
        else
           ! add correct amount of homogeneous solution now
           if (use_pass_homog .and. il <= ng2) then
              call self_periodic
-          else if (il == ng2 + 1 .and. .not. trapped_wfb) then
+          else if (is_wfb .and. .not. trapped_wfb) then
              call self_periodic
           end if
 
@@ -4866,7 +4869,7 @@ contains
        end if
        ! If wfb is trapped, enforce the bounce condition at the upper bounce point
        ! By recombining, inhomogeneous and inhomogeneous solutions
-       if (il == ng2+1 .and. il <= lmax .and. trapped_wfb) then
+       if (is_wfb .and. il <= lmax .and. trapped_wfb) then
           ig = ntgrid
           beta1 = (gnew(ig,1,iglo) - gnew(ig,2,iglo))/(1.0 - g1(ig,1))
           do ig = ntgrid, -ntgrid, -1
@@ -4911,7 +4914,7 @@ contains
       implicit none
       complex :: adjl, adjr, dadj
 
-      if ((il .eq. ng2+1 .and. nonad_zero) .and. .not. passing_wfb) then 
+      if ((is_wfb .and. nonad_zero) .and. .not. passing_wfb) then
          adjl = 2.0*vperp2(ntgl,iglo)*aj1(ntgl,iglo) &
               *bparnew(ntgl,it,ik)*fbpar &
               + spec(is)%zt*phinew(ntgl,it,ik)*aj0(ntgl,iglo) &
