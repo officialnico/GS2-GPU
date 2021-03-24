@@ -4540,7 +4540,7 @@ contains
     complex :: adjleft, adjright
     logical :: use_pass_homog, speriod_flag
     integer :: ntgl, ntgr
-    logical :: include_explicit, is_wfb
+    logical :: include_explicit, is_wfb, is_ttp, have_trapped_particles
 
     ! Decide if we want to include the explicit terms or not
     if (istep .eq. 0) then
@@ -4557,6 +4557,8 @@ contains
 
     ntgl = -ntgrid
     ntgr =  ntgrid
+
+    have_trapped_particles = nlambda > ng2
 
     do iglo = g_lo%llim_proc, g_lo%ulim_proc
        !/////////////////////////
@@ -4627,6 +4629,9 @@ contains
 
        ! ng2+1 is WFB
        is_wfb = il == ng2 + 1
+
+       ! totally trapped particle is last lambda when we have trapped_particles
+       is_ttp = il > lmax
 
        !/////////////////////////
        !// Initialisation
