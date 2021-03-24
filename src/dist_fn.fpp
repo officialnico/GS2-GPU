@@ -4623,10 +4623,12 @@ contains
           ilmin = ng2 + 1
        end if
 
-       ! ng2+1 is WFB
+       ! ng2+1 is WFB.
+       ! This implies have_trapped_particles is true.
        is_wfb = il == ng2 + 1
 
-       ! totally trapped particle is last lambda when we have trapped_particles
+       ! Totally trapped particle is last lambda when we have trapped_particles.
+       ! This implies have_trapped_particles is true.
        is_not_ttp = il <= lmax
 
        !/////////////////////////
@@ -4663,15 +4665,19 @@ contains
           end if
        end if
 
-       if (is_wfb .and. (.not. trapped_wfb) .and. (.not. passing_wfb) ) then ! ng2+1 is WFB
-          g1(-ntgrid,1) = wfb  ! wfb should be unity here; variable is for testing
-          g1( ntgrid,2) = wfb  ! wfb should be unity here; variable is for testing
-       else if (is_wfb .and. trapped_wfb) then ! MRH Only set the upper bounce point initial condition
+       if (is_wfb .and. (.not. trapped_wfb) .and. (.not. passing_wfb) ) then
+          ! wfb should be unity here; variable is for testing
+          g1(-ntgrid,1) = wfb
+          g1( ntgrid,2) = wfb
+       else if (is_wfb .and. trapped_wfb) then
+          ! MRH Only set the upper bounce point initial condition
+          ! Should this be wfb for consistency with mixed treatment above?
           g1( ntgrid,2) = 1.0
-       else if (is_wfb .and. passing_wfb) then ! MRH give the passing initial condition
+       else if (is_wfb .and. passing_wfb) then
+          ! MRH give the passing initial condition
+          ! Should this be wfb for consistency with mixed treatment above?
           g1(-ntgrid,1) = 1.0
           g1( ntgrid,2) = 1.0
-
        endif
 
        ! Do we need the following conditional? If it is not true then
@@ -4788,6 +4794,8 @@ contains
        ! BD: Are there ever totally trapped particles at ig = ntgrid?
        ! balancing totally trapped particles
        do ig = -ntgrid, ntgrid
+          ! If this pitch angle is greater or equal to ittp(ig) then it
+          ! is either totally trapped at ig or forbidden.
           if (il >= ittp(ig)) then
              if (forbid(ig,il)) then
                 gnew(ig,1,iglo) = 0.0
@@ -4874,6 +4882,7 @@ contains
              gnew(ig,2,iglo) = gnew(ig,2,iglo) + beta1*g1(ig,2)
           end do
        end if
+
        ! If wfb is trapped, enforce the bounce condition at the upper bounce point
        ! By recombining, inhomogeneous and inhomogeneous solutions
        if (is_wfb .and. trapped_wfb .and. is_not_ttp ) then
