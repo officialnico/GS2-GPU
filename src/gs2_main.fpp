@@ -321,7 +321,7 @@ contains
   !! reaches init\%level = basic. If it is desired to provide
   !! an external commuicator or set the input file name externally,
   !! these should be set before calling this function. 
-  subroutine initialize_gs2(state)
+  subroutine initialize_gs2(state, quiet)
     use file_utils, only: init_file_utils
     use file_utils, only: run_name, run_name_target
     use gs2_init, only: init_gs2_init
@@ -336,7 +336,12 @@ contains
     use unit_tests, only: debug_message, set_job_id
     implicit none
     type(gs2_program_state_type), intent(inout) :: state
+    !> If true, don't print start-up messages/header
+    logical, intent(in), optional :: quiet
     integer :: oldrank
+
+    ! Internal value for optional `quiet` input
+    logical :: quiet_value
 
     if (state%init%level .ge. init_level_list%basic) then
       write  (*,*) "ERROR: Called initialize_gs2 twice &
@@ -350,6 +355,12 @@ contains
        call init_mp (state%mp_comm)
     else
        call init_mp
+    end if
+
+    if (present(quiet)) then
+      quiet_value = quiet
+    else
+      quiet_value = .false.
     end if
 
     oldrank = iproc
@@ -377,31 +388,34 @@ contains
       'gs2_main::initialize_gs2 called init_checktime')
   
     if (proc0) then
-       ! Report # of processors being used </doc>
-       if (nproc == 1) then
-         write(*,*) 'Running on ',nproc,' processor'
-       else
-         if(state%mp_comm_external) then
-            write(*,*) 'Job ',state%external_job_id,'Running on ',nproc,' processors'
-         else
-            write(*,*) 'Running on ',nproc,' processors'
-         endif
-       end if
+      ! Report number of processors being used
+      if (.not. quiet_value) then
+        if (state%external_job_id >= 0) then
+          write(*, '(a, i0, a)', advance="no") "External job ", state%external_job_id, " "
+        end if
+        write(*, '(a, i0, a)', advance="no") "Running on ", nproc, " processor"
+        if (nproc > 1) then
+          ! Pluralise processor
+          write(*, '(a)') "s" // new_line('a')
+        else
+          ! Make sure we still get a blank line
+          write(*,*) new_line('a')
+        end if
+      end if
 
-       write (*,*) 
-       ! Call init_file_utils, ie. initialize the run_name, checking 
-       !  whether we are doing a Trinity run or a list of runs.
-       ! Until the logic of init_file_utils is fixed we set trin_run
-       ! when an external file name has been provided... this prevents
-       ! it overriding the name from the command line.
-       if (state%run_name_external) then
-          call init_file_utils (state%list, trin_run=state%run_name_external, &
+      ! Call init_file_utils, ie. initialize the run_name, checking
+      !  whether we are doing a Trinity run or a list of runs.
+      ! Until the logic of init_file_utils is fixed we set trin_run
+      ! when an external file name has been provided... this prevents
+      ! it overriding the name from the command line.
+      if (state%run_name_external) then
+        call init_file_utils (state%list, trin_run=state%run_name_external, &
              name=state%run_name, n_ensembles=state%nensembles)
-       else
-          call init_file_utils (state%list, name="gs")
-       end if
-       call debug_message(state%verb, &
-         'gs2_main::initialize_gs2 initialized file_utils')
+      else
+        call init_file_utils (state%list, name="gs")
+      end if
+      call debug_message(state%verb, &
+           'gs2_main::initialize_gs2 initialized file_utils')
     end if
     
     call broadcast (state%list)
@@ -1056,7 +1070,7 @@ contains
   end subroutine finalize_equations
 
   !> FIXME : Add documentation  
-  subroutine finalize_gs2(state)
+  subroutine finalize_gs2(state, quiet)
     use file_utils, only: finish_file_utils
     use gs2_init, only: finish_gs2_init
     use job_manage, only: time_message
@@ -1064,6 +1078,17 @@ contains
     use unit_tests, only: debug_message
     implicit none
     type(gs2_program_state_type), intent(inout) :: state
+    !> If true, don't print start-up messages/header
+    logical, intent(in), optional :: quiet
+
+    ! Internal value for optional `quiet` input
+    logical :: quiet_value
+
+    if (present(quiet)) then
+      quiet_value = quiet
+    else
+      quiet_value = .false.
+    end if
 
     if (state%included) then
 
@@ -1097,7 +1122,7 @@ contains
       
       call debug_message(state%verb, 'gs2_main::finalize_gs2 calling print_times')
 
-      if (state%print_times) call print_times(state, state%timers)
+      if (state%print_times .and. .not. quiet_value) call print_times(state, state%timers)
 
     end if
 
@@ -1370,45 +1395,54 @@ contains
     timers%main_loop = 0.
   end subroutine reset_timers
 
-  !> FIXME : Add documentation  
+  !> Print timing information to standard output.
+  !>
+  !> Prints a full breakdown of timing information if `state%print_full_timers`
+  !> is true, otherwise just prints the total time.
   subroutine print_times(state, timers)
-    use mp, only: proc0, min_reduce, max_reduce, sum_reduce
+    use mp, only: proc0, min_reduce, max_reduce, sum_reduce, job
     use redistribute, only: time_redist
     use fields_arrays, only: time_field
     use gs2_reinit, only: time_reinit
 
     implicit none
+    !> Program state information, needed to print
     type(gs2_program_state_type), intent(in) :: state
+    !> Timing information
     type(gs2_timers_type), intent(in) :: timers
 
-    if (proc0) then
-       if (.not. state%print_full_timers) then
-          print '(/,'' Job ID:'', i4,'', total from timer is:'', 0pf9.2,'' min'',/)', &
-               state%external_job_id, state%timers%total(1)/60.
-       else
-!    if (proc0 .and. .not. nofin) then
+    if (.not. proc0) return
 
+    if (state%print_full_timers) then
 #ifdef WITH_EIG
-          print '(/,'' Eigensolver'',T25,0pf8.2,'' min'',T40,2pf5.1,'' %'',/)', &
-               timers%eigval(1)/60.,timers%eigval(1)/timers%total(1)
+      print '(/,'' Eigensolver'',T25,0pf8.2,'' min'',T40,2pf5.1,'' %'',/)', &
+           timers%eigval(1)/60.,timers%eigval(1)/timers%total(1)
 #endif
-          print '(/,'' Initialization'',T25,0pf8.2,'' min'',T40,2pf5.1,'' %'',/, &
-               &'' Advance steps'',T25,0pf8.2,'' min'',T40,2pf5.1,'' %'',/, &
-               &''(redistribute'',T25,0pf9.3,'' min'',T40,2pf5.1,'' %)'',/, &
-               &''(field solve'',T25,0pf9.3,'' min'',T40,2pf5.1,'' %)'',/, &
-               &''(diagnostics'',T25,0pf9.3,'' min'',T40,2pf5.1,'' %)'',/, &
-               &'' Re-initialize'',T25,0pf8.2,'' min'',T40,2pf5.1,'' %'',/, &
-               &'' Finishing'',T25,0pf8.2,'' min'',T40,2pf5.1,'' %'',/,  &
-               &'' total from timer is:'', 0pf9.2,'' min'',/)', &
-               timers%init(1)/60.,timers%init(1)/timers%total(1), &
-               timers%advance(1)/60.,timers%advance(1)/timers%total(1), &
-               time_redist(1)/60.,time_redist(1)/timers%total(1), &
-               time_field(1)/60.,time_field(1)/timers%total(1), &
-               timers%diagnostics(1)/60.,timers%diagnostics(1)/timers%total(1), &
-               time_reinit(1)/60.,time_reinit(1)/timers%total(1), &
-               timers%finish(1)/60.,timers%finish(1)/timers%total(1),timers%total(1)/60.
-       endif
-    end if
+      print '(/,'' Initialization'',T25,0pf8.2,'' min'',T40,2pf5.1,'' %'',/, &
+           &'' Advance steps'',T25,0pf8.2,'' min'',T40,2pf5.1,'' %'',/, &
+           &''(redistribute'',T25,0pf9.3,'' min'',T40,2pf5.1,'' %)'',/, &
+           &''(field solve'',T25,0pf9.3,'' min'',T40,2pf5.1,'' %)'',/, &
+           &''(diagnostics'',T25,0pf9.3,'' min'',T40,2pf5.1,'' %)'',/, &
+           &'' Re-initialize'',T25,0pf8.2,'' min'',T40,2pf5.1,'' %'',/, &
+           &'' Finishing'',T25,0pf8.2,'' min'',T40,2pf5.1,'' %'',/,  &
+           &'' total from timer is:'', 0pf9.2,'' min'',/)', &
+           timers%init(1)/60.,timers%init(1)/timers%total(1), &
+           timers%advance(1)/60.,timers%advance(1)/timers%total(1), &
+           time_redist(1)/60.,time_redist(1)/timers%total(1), &
+           time_field(1)/60.,time_field(1)/timers%total(1), &
+           timers%diagnostics(1)/60.,timers%diagnostics(1)/timers%total(1), &
+           time_reinit(1)/60.,time_reinit(1)/timers%total(1), &
+           timers%finish(1)/60.,timers%finish(1)/timers%total(1),timers%total(1)/60.
+    else
+      if (state%external_job_id >= 0) then
+        write(*, '(a, i0, ", ")', advance="no") " External job ID: ", state%external_job_id
+      end if
+      if (state%list) then
+        write(*, '(a, i0, ", ")', advance="no") " Job ID: ", job
+      end if
+
+      write(*, '("Total from timer is:", 0pf9.2," min")') state%timers%total(1)/60.
+    endif
 
   end subroutine print_times
 
