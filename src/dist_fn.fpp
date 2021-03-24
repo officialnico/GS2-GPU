@@ -4542,6 +4542,7 @@ contains
     integer :: ntgl, ntgr
     logical :: include_explicit, have_trapped_particles
     logical :: is_wfb, is_not_ttp, is_passing, is_trapped
+    logical :: is_self_periodic
 
     ! Decide if we want to include the explicit terms or not
     include_explicit = istep > 0
@@ -4640,6 +4641,38 @@ contains
        ! how we treat this as given by passing_wfb, trapped_wfb etc.
        ! This implies have_trapped_particles is true.
        is_trapped = il > ng2 + 1
+
+
+       ! Decide if this point is self periodic
+       !CMR, 17/4/2012:
+       ! self_periodic bc is applied as follows:
+       ! if boundary_option_linked = .T.
+       !      isolated wfb (ie no linked domains)
+       !      passing + wfb if aky=0
+       ! else (ie boundary_option_linked = .F.)
+       !      wfb
+       !      passing and wfb particles if boundary_option_self_periodic = T
+       !
+       !CMR, 6/8/2014:
+       ! Parallel BC for wfb is as follows:
+       !    ballooning space
+       !           wfb ALWAYS self-periodic (-ntgrid:ntgrid)
+       !    linked fluxtube
+       !           wfb self-periodic (-ntgrid:ntgrid) ONLY if ISOLATED,
+       !                                               OR if iky=0
+       !           OTHERWISE wfb treated as passing for now in (-ntgrid:ntgrid)
+       !                     store homogeneous and inhomog solutions
+       !                     AND set amplitude of homog later in invert_rhs_linked
+       !                     to satisfy self-periodic bc in fully linked SUPER-CELL
+       if (boundary_option_switch == boundary_option_linked) then
+          is_self_periodic = (speriod_flag .and. is_passing) & ! Passing particle with ky=0
+               .or. (speriod_flag .and. is_wfb .and. .not. trapped_wfb) & ! Non-trapped wfb treatment of wfb with ky = 0
+               .or. (is_wfb .and. .not. connections(iglo)%neighbor & ! Isolated (i.e. ky/=0 cell with no connections) wfb
+               .and. .not. trapped_wfb .and. .not. passing_wfb )     ! treated as neither passing or trapped particle (i.e. unique)
+       else
+          is_self_periodic = (use_pass_homog .and. is_passing) & ! Passing particle with ky=0 or with self-periodic boundaries
+               .or. (is_wfb .and. .not. trapped_wfb) ! Non-trapped treatment of wfb with any B.C.
+       end if
 
        !/////////////////////////
        !// Initialisation
@@ -4828,51 +4861,13 @@ contains
        !// Periodicity at bounce point and parallel boundary
        !/////////////////////////
 
-       !CMR, 17/4/2012:
-       ! self_periodic bc is applied as follows:
-       ! if boundary_option_linked = .T.
-       !      isolated wfb (ie no linked domains)
-       !      passing + wfb if aky=0
-       ! else (ie boundary_option_linked = .F.)
-       !      wfb
-       !      passing and wfb particles if boundary_option_self_periodic = T
-       !
-       !CMR, 6/8/2014:
-       ! Parallel BC for wfb is as follows:
-       !    ballooning space
-       !           wfb ALWAYS self-periodic (-ntgrid:ntgrid)
-       !    linked fluxtube
-       !           wfb self-periodic (-ntgrid:ntgrid) ONLY if ISOLATED,
-       !                                               OR if iky=0
-       !           OTHERWISE wfb treated as passing for now in (-ntgrid:ntgrid)
-       !                     store homogeneous and inhomog solutions
-       !                     AND set amplitude of homog later in invert_rhs_linked
-       !                     to satisfy self-periodic bc in fully linked SUPER-CELL
-
-       if (boundary_option_switch == boundary_option_linked) then
-          if (speriod_flag .and. is_passing) then
-             call self_periodic
-          else if (speriod_flag .and. is_wfb .and. .not. trapped_wfb) then
-             call self_periodic
-          else
-             ! save homogeneous solution as necessary
-             if (save_h (1, iglo)) g_h(:,1,iglo) = g1(:,1)
-             if (save_h (2, iglo)) g_h(:,2,iglo) = g1(:,2)
-          end if
-
-          ! wfb (isolated)
-          if (is_wfb .and. .not. connections(iglo)%neighbor .and. .not. trapped_wfb .and. .not. passing_wfb ) &
-               call self_periodic
-
-       else
-          ! add correct amount of homogeneous solution now
-          if (use_pass_homog .and. is_passing) then
-             call self_periodic
-          else if (is_wfb .and. .not. trapped_wfb) then
-             call self_periodic
-          end if
-
+       ! save homogeneous solution as necessary
+       if (boundary_option_switch == boundary_option_linked .and. (.not. is_self_periodic)) then
+          if (save_h (1, iglo)) g_h(:,1,iglo) = g1(:,1)
+          if (save_h (2, iglo)) g_h(:,2,iglo) = g1(:,2)
        end if
+
+       if (is_self_periodic) call self_periodic
 
        ! add correct amount of homogeneous solution for trapped particles to satisfy boundary conditions
        !CMR, 24/7/2014:
