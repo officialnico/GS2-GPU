@@ -4892,13 +4892,19 @@ contains
 
        ! If wfb is trapped, enforce the bounce condition at the upper bounce point
        ! by combining homogeneous and inhomogeneous solutions
+       ! Note this treats the wfb as bouncing at the end of the parallel grid.
+       ! When nperiod  > 1 this means we do not consider the wfb to bounce at the
+       ! interior points with bmag=bmax. This treatment works out slightly similar
+       ! to the self_periodic treatment but mixes the different sigma.
        if (is_wfb .and. trapped_wfb .and. is_not_ttp ) then
           ig = ntgrid
+          ! Note here we find the difference between gnew at different sigma
+          ! but the same theta, whilst in self_periodic we find the difference
+          ! between different theta at the same sigma.
+          ! Note if trapped_wfb then g1(ntgrid, 2) == 1.0 so the denominator
+          ! is equivalent to g1(ig,2) - g1(ig,1) here.
           beta1 = (gnew(ig,1,iglo) - gnew(ig,2,iglo))/(1.0 - g1(ig,1))
-          do ig = ntgrid, -ntgrid, -1
-             gnew(ig,1,iglo) = gnew(ig,1,iglo) + beta1*g1(ig,1)
-             gnew(ig,2,iglo) = gnew(ig,2,iglo) + beta1*g1(ig,2)
-          end do
+          gnew(:, :, iglo) = gnew(:, :, iglo) + beta1*g1
        end if
 
        !CMR,DD, 25/7/2014:
