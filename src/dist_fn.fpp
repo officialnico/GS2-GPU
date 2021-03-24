@@ -4540,7 +4540,8 @@ contains
     complex :: adjleft, adjright
     logical :: use_pass_homog, speriod_flag
     integer :: ntgl, ntgr
-    logical :: include_explicit, is_wfb, is_not_ttp, have_trapped_particles
+    logical :: include_explicit, have_trapped_particles
+    logical :: is_wfb, is_not_ttp, is_passing
 
     ! Decide if we want to include the explicit terms or not
     include_explicit = istep > 0
@@ -4631,6 +4632,10 @@ contains
        ! This implies have_trapped_particles is true.
        is_not_ttp = il <= lmax
 
+       ! Is this particle passing. Note we exclude the wfb here as we can choose
+       ! how we treat this as given by passing_wfb, trapped_wfb etc.
+       is_passing = il <= ng2
+
        !/////////////////////////
        !// Initialisation
        !/////////////////////////
@@ -4659,7 +4664,7 @@ contains
        !/////////////////////////
 
        if (use_pass_homog) then
-          if (il < ng2+1) then
+          if (is_passing) then
              g1(-ntgrid,1) = 1.0
              g1( ntgrid,2) = 1.0
           end if
@@ -4702,7 +4707,7 @@ contains
        ! Here ensure ZERO incoming particles in nonadiabatic delta f at domain ends
        !  (exploits code used in subroutine g_adjust to transform g_wesson to g_gs2)
        if ( nonad_zero ) then
-          if (il <= ng2 .or. (is_wfb .and. passing_wfb) ) then
+          if (is_passing .or. (is_wfb .and. passing_wfb) ) then
              !Only apply the new boundary condition to the leftmost
              !cell for sign going from left to right
              if (l_links(ik,it) .eq. 0) then
@@ -4839,7 +4844,7 @@ contains
        !                     to satisfy self-periodic bc in fully linked SUPER-CELL
 
        if (boundary_option_switch == boundary_option_linked) then
-          if (speriod_flag .and. il <= ng2) then
+          if (speriod_flag .and. is_passing) then
              call self_periodic
           else if (speriod_flag .and. is_wfb .and. .not. trapped_wfb) then
              call self_periodic
@@ -4855,7 +4860,7 @@ contains
 
        else
           ! add correct amount of homogeneous solution now
-          if (use_pass_homog .and. il <= ng2) then
+          if (use_pass_homog .and. is_passing) then
              call self_periodic
           else if (is_wfb .and. .not. trapped_wfb) then
              call self_periodic
@@ -4871,6 +4876,7 @@ contains
        if (il >= ng2+2 .and. is_not_ttp) then
           beta1 = 0.0
           do ig = ntgr-1, ntgl, -1
+             ! If totally trapped or forbidden then cycle
              if (ittp(ig) <= il) cycle
              if (forbid(ig,il)) then
                 beta1 = 0.0
@@ -4884,7 +4890,7 @@ contains
        end if
 
        ! If wfb is trapped, enforce the bounce condition at the upper bounce point
-       ! By recombining, inhomogeneous and inhomogeneous solutions
+       ! by combining homogeneous and inhomogeneous solutions
        if (is_wfb .and. trapped_wfb .and. is_not_ttp ) then
           ig = ntgrid
           beta1 = (gnew(ig,1,iglo) - gnew(ig,2,iglo))/(1.0 - g1(ig,1))
