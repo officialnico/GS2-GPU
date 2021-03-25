@@ -4519,6 +4519,7 @@ contains
     use theta_grid, only: ntgrid
     use gs2_time, only: get_adams_bashforth_coefficients
     use nonlinear_terms, only: nonlin
+    use kt_grids, only: kwork_filter
     implicit none
     complex, dimension (-ntgrid:, :, g_lo%llim_proc:), intent(in out) :: source
     complex, dimension (-ntgrid:,:,:), intent (in) :: phi,    apar,    bpar
@@ -4540,6 +4541,10 @@ contains
     do iglo = g_lo%llim_proc, g_lo%ulim_proc
        ik = ik_idx(g_lo, iglo)
        it = it_idx(g_lo, iglo)
+
+       !Skip work if we're not interested in this ik and it
+       if(kwork_filter(it,ik)) cycle
+
        il = il_idx(g_lo, iglo)
        ie = ie_idx(g_lo, iglo)
        is = is_idx(g_lo, iglo)
@@ -4558,7 +4563,7 @@ contains
     end do
   end subroutine get_source_term_on_local_domain
 
-  !> Calculates the "new" distribution function for the current source
+  !> Calculates the "new" distribution function for the passed source
   !> calculated using the passed fields and current distribution in g.
   !>
   !> Also calculates the homogeneous solution in some cases.
@@ -4570,7 +4575,6 @@ contains
   !> The routine is roughly organised as:
   !>  1. Calculate constants
   !>  2. Loop over domain
-  !>     - Calculate source term
   !>     - Calculate flags
   !>     - Set initial conditions
   !>     - Set parallel boundary conditions
@@ -4578,8 +4582,7 @@ contains
   !>     - Ensure continuity (e.g. periodicity in theta and in sigma at bounce points)
   !>  3. Enforce parity if required.
   subroutine invert_rhs_1 &
-       (phi, apar, bpar, phinew, aparnew, bparnew, istep, &
-        sourcefac)
+       (phi, apar, bpar, phinew, aparnew, bparnew, source)
     use dist_fn_arrays, only: gnew, ittp, vperp2, aj1, aj0
     use run_parameters, only: eqzip, secondary, tertiary, harris
     use theta_grid, only: ntgrid
@@ -4596,35 +4599,20 @@ contains
     implicit none
     complex, dimension (-ntgrid:,:,:), intent (in) :: phi,    apar,    bpar
     complex, dimension (-ntgrid:,:,:), intent (in) :: phinew, aparnew, bparnew
-    integer, intent (in) :: istep
-    complex, intent (in) :: sourcefac
-    real, dimension(:), allocatable :: ab_coefficients
+    complex, dimension (-ntgrid:,:,g_lo%llim_proc:), intent (in out) :: source
     integer :: iglo
     integer :: ig, ik, it, il, ie, isgn, is
     integer :: ilmin
     complex :: beta1
     complex, dimension (-ntgrid:ntgrid,2) :: g1, g2
-    complex, dimension (-ntgrid:ntgrid-1,2) :: source
     complex :: adjleft, adjright
     logical :: use_pass_homog, speriod_flag
-    logical :: include_explicit, have_trapped_particles
+    logical :: have_trapped_particles
     logical :: is_wfb, is_not_ttp, is_passing, is_trapped
     logical :: is_self_periodic
 
-    ! Decide if we want to include the explicit terms or not
-    include_explicit = istep > 0
-
-#ifndef LOWFLOW
-    include_explicit = include_explicit .and. nonlin
-#endif
-
-    ab_coefficients = get_adams_bashforth_coefficients()
-
-    ! Note this variable is probably redundant in the later conditionals as it is
-    ! always combined with other logicals, e.g. is_wfb and is_trapped, which can
-    ! only be true if have_trapped_particles is true.
     have_trapped_particles = nlambda > ng2
-
+    
     do iglo = g_lo%llim_proc, g_lo%ulim_proc
        !/////////////////////////
        !// Constants, flags etc.
@@ -4648,20 +4636,6 @@ contains
        il = il_idx(g_lo,iglo)
        ie = ie_idx(g_lo,iglo)
        is = is_idx(g_lo,iglo)
-
-       !/////////////////////////
-       !// Get the source terms
-       !/////////////////////////
-
-       if(opt_source)then
-          call get_source_term_opt (phi, apar, bpar, phinew, aparnew, bparnew, &
-               include_explicit, ab_coefficients, iglo,ik,it,il,ie,is, sourcefac, source)
-       else
-          do isgn = 1, 2
-             call get_source_term (phi, apar, bpar, phinew, aparnew, bparnew, &
-                  include_explicit, ab_coefficients, isgn, iglo,ik,it,il,ie,is, sourcefac, source(:,isgn))
-          end do
-       endif
 
        !CMR, 17/4/2012:
        !  use_pass_homog = T  iff one of following applies:
@@ -4848,7 +4822,7 @@ contains
        ! r=ainv=0 if forbid(ig,il) or forbid(ig+1,il), so gnew=0 in forbidden
        ! region and at upper bounce point
        do ig = ntgrid-1, -ntgrid, -1
-          gnew(ig,2,iglo) = -gnew(ig+1,2,iglo)*r(ig,2,iglo) + ainv(ig,2,iglo)*source(ig,2)
+          gnew(ig,2,iglo) = -gnew(ig+1,2,iglo)*r(ig,2,iglo) + ainv(ig,2,iglo)*source(ig,2,iglo)
        end do
 
        ! time advance vpar < 0 homogeneous part: g1
@@ -4881,7 +4855,7 @@ contains
                 !CMR: init_invert_rhs  sets ainv=1 at lower bounce point for trapped
                 !     source below ensures gnew(lb,1,iglo)=gnew(lb,2,iglo)
                 !     where lb is the lower bounce point.
-                source(ig,1) = gnew(ig+1,2,iglo)
+                source(ig,1,iglo) = gnew(ig+1,2,iglo)
              end if
           end do
        end if
@@ -4900,7 +4874,7 @@ contains
        if (is_not_ttp) then
           do ig = -ntgrid, ntgrid-1
              ! Use two statements here to *prevent* erroneous vectorization of this loop by gfortran 7.2
-             gnew(ig+1,1,iglo) = ainv(ig,1,iglo)*source(ig,1)
+             gnew(ig+1,1,iglo) = ainv(ig,1,iglo)*source(ig,1,iglo)
              gnew(ig+1,1,iglo) = gnew(ig+1,1,iglo) - gnew(ig,1,iglo)*r(ig,1,iglo)
           end do
        end if
@@ -5074,8 +5048,11 @@ contains
     complex :: adjl, adjr, dadj
     real :: vperp2left, vperp2right, argl, argr, aj0l, aj0r, aj1l, aj1r
 
+    g0 = 0.
+    call get_source_term_on_local_domain(g0, phi, apar, bpar, phinew, &
+         aparnew, bparnew, istep, sourcefac)
     call invert_rhs_1 (phi, apar, bpar, phinew, aparnew, bparnew, &
-         istep, sourcefac)
+         source = g0)
 
     if (no_comm) then
        ! nothing
@@ -5290,8 +5267,11 @@ contains
        call invert_rhs_linked &
             (phi, apar, bpar, phinew, aparnew, bparnew, istep, sourcefac) 
     case default
+       g0 = 0.
+       call get_source_term_on_local_domain(g0, phi, apar, bpar, phinew, &
+            aparnew, bparnew, istep, sourcefac)
        call invert_rhs_1 (phi, apar, bpar, phinew, aparnew, bparnew, &
-            istep, sourcefac)
+         source = g0)
     end select
 
     call prof_leaving ("invert_rhs", "dist_fn")
