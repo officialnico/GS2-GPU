@@ -4508,7 +4508,14 @@ contains
 
   end subroutine get_source_term_opt
 
-  !> FIXME : Add documentation
+  !> Calculates the "new" distribution function for the current source
+  !> calculated using the passed fields and current distribution in g.
+  !>
+  !> Also calculates the homogeneous solution in some cases.
+  !>
+  !> Note that further work may be required to produce the final distribution function.
+  !> In particular with link boundary conditions we may need to add in the homogeneous
+  !> solution to ensure continuity across linked boundaries.
   subroutine invert_rhs_1 &
        (phi, apar, bpar, phinew, aparnew, bparnew, istep, &
         sourcefac)
