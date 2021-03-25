@@ -4558,7 +4558,25 @@ contains
     end do
   end subroutine get_source_term_on_local_domain
 
-  !> FIXME : Add documentation
+  !> Calculates the "new" distribution function for the current source
+  !> calculated using the passed fields and current distribution in g.
+  !>
+  !> Also calculates the homogeneous solution in some cases.
+  !>
+  !> Note that further work may be required to produce the final distribution function.
+  !> In particular with link boundary conditions we may need to add in the homogeneous
+  !> solution to ensure continuity across linked boundaries.
+  !>
+  !> The routine is roughly organised as:
+  !>  1. Calculate constants
+  !>  2. Loop over domain
+  !>     - Calculate source term
+  !>     - Calculate flags
+  !>     - Set initial conditions
+  !>     - Set parallel boundary conditions
+  !>     - Solve for homogeneous and inhomogeneous solution
+  !>     - Ensure continuity (e.g. periodicity in theta and in sigma at bounce points)
+  !>  3. Enforce parity if required.
   subroutine invert_rhs_1 &
        (phi, apar, bpar, phinew, aparnew, bparnew, istep, &
         sourcefac)
@@ -4589,7 +4607,6 @@ contains
     complex, dimension (-ntgrid:ntgrid-1,2) :: source
     complex :: adjleft, adjright
     logical :: use_pass_homog, speriod_flag
-    integer :: ntgl, ntgr
     logical :: include_explicit, have_trapped_particles
     logical :: is_wfb, is_not_ttp, is_passing, is_trapped
     logical :: is_self_periodic
@@ -4602,9 +4619,6 @@ contains
 #endif
 
     ab_coefficients = get_adams_bashforth_coefficients()
-
-    ntgl = -ntgrid
-    ntgr =  ntgrid
 
     ! Note this variable is probably redundant in the later conditionals as it is
     ! always combined with other logicals, e.g. is_wfb and is_trapped, which can
@@ -4932,7 +4946,7 @@ contains
        !          (2) forbid never true for wfb, so including ng2+1 in loop is pointless.
        if (is_trapped .and. is_not_ttp) then
           beta1 = 0.0
-          do ig = ntgr-1, ntgl, -1
+          do ig = ntgrid-1, -ntgrid, -1
              ! If totally trapped or forbidden then cycle
              if (ittp(ig) <= il) cycle
              if (forbid(ig,il)) then
@@ -4985,8 +4999,8 @@ contains
     !> FIXME : Add documentation
     subroutine self_periodic
       !CMR: sets sum of homogeneous and inhomogeneous solutions to give a result
-      !     gnew(ntgr,2) = gnew(ntgl,2)
-      !     gnew(ntgr,1) = gnew(ntgl,1)
+      !     gnew(ntgrid,2) = gnew(-ntgrid,2)
+      !     gnew(ntgrid,1) = gnew(-ntgrid,1)
       ! ie periodic bcs at the ends of the flux tube.
 
       !CMR, 25/7/2014:
@@ -5001,26 +5015,26 @@ contains
       complex :: adjl, adjr, dadj
 
       if ((is_wfb .and. nonad_zero) .and. .not. passing_wfb) then
-         adjl = 2.0*vperp2(ntgl,iglo)*aj1(ntgl,iglo) &
-              *bparnew(ntgl,it,ik)*fbpar &
-              + spec(is)%zt*phinew(ntgl,it,ik)*aj0(ntgl,iglo) &
+         adjl = 2.0*vperp2(-ntgrid,iglo)*aj1(-ntgrid,iglo) &
+              *bparnew(-ntgrid,it,ik)*fbpar &
+              + spec(is)%zt*phinew(-ntgrid,it,ik)*aj0(-ntgrid,iglo) &
               *nonmaxw_corr(ie,is)*fphi
-         adjr = 2.0*vperp2(ntgr,iglo)*aj1(ntgr,iglo) &
-              *bparnew(ntgr,it,ik)*fbpar &
-              + spec(is)%zt*phinew(ntgr,it,ik)*aj0(ntgr,iglo) &
+         adjr = 2.0*vperp2(ntgrid,iglo)*aj1(ntgrid,iglo) &
+              *bparnew(ntgrid,it,ik)*fbpar &
+              + spec(is)%zt*phinew(ntgrid,it,ik)*aj0(ntgrid,iglo) &
               *nonmaxw_corr(ie,is)*fphi
          dadj = adjl-adjr
       else 
          dadj = cmplx(0.0,0.0)
       endif
 
-      if (g1(ntgr,1) /= 1.) then
-         beta1 = (gnew(ntgr,1,iglo) - gnew(ntgl,1,iglo) - dadj)/(1.0 - g1(ntgr,1))
+      if (g1(ntgrid,1) /= 1.) then
+         beta1 = (gnew(ntgrid,1,iglo) - gnew(-ntgrid,1,iglo) - dadj)/(1.0 - g1(ntgrid,1))
          gnew(:,1,iglo) = gnew(:,1,iglo) + beta1*g1(:,1)
       end if
 
-      if (g1(ntgl,2) /= 1.) then
-         beta1 = (gnew(ntgl,2,iglo) - gnew(ntgr,2,iglo) + dadj)/(1.0 - g1(ntgl,2))
+      if (g1(-ntgrid,2) /= 1.) then
+         beta1 = (gnew(-ntgrid,2,iglo) - gnew(ntgrid,2,iglo) + dadj)/(1.0 - g1(-ntgrid,2))
          gnew(:,2,iglo) = gnew(:,2,iglo) + beta1*g1(:,2)
       end if
       
