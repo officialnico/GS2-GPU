@@ -6730,61 +6730,28 @@ contains
   !> or a single file depending on if the build uses parallel i/o or
   !> not. These files are automatically overwritten so calling it
   !> repeatedly within a single run might not be useful.
-  subroutine dump_current_source_term(istep, phi, apar, bpar, phinew, aparnew, bparnew)
+  subroutine dump_current_source_term(istep, phi, apar, bpar, phinew, aparnew, bparnew, sourfac)
     use gs2_save, only: gs2_save_for_restart
-    use gs2_layouts, only: g_lo, ik_idx, it_idx, il_idx, ie_idx, is_idx
+    use gs2_layouts, only: g_lo
     use theta_grid, only: ntgrid
     use run_parameters, only: fphi, fapar, fbpar
-    use gs2_time, only: user_time, user_dt, get_adams_bashforth_coefficients
+    use gs2_time, only: user_time, user_dt
     use collisions, only: vnmult
     use nonlinear_terms, only: nonlin
     implicit none
     integer, intent(in) :: istep
     complex, dimension (-ntgrid:,:,:), intent (in) :: phi,    apar,    bpar
     complex, dimension (-ntgrid:,:,:), intent (in) :: phinew, aparnew, bparnew
+    complex, intent(in) :: sourcefac
     complex, dimension(:, :, :), allocatable :: gtmp
-    complex, dimension (-ntgrid:ntgrid-1,2) :: source
     character(len = 20), parameter :: extension = '.source'
     integer :: istatus
-    logical :: include_explicit
-    integer :: iglo, ik, it, il, ie, is, isgn
-    real, dimension(:), allocatable :: ab_coefficients
-    complex, parameter :: sourcefac = 0.0
 
     allocate(gtmp(-ntgrid:ntgrid, 2, g_lo%llim_proc:g_lo%ulim_alloc))
     gtmp = 0.
 
-    if (istep .eq. 0) then
-       include_explicit = .false.
-    else
-       include_explicit = .true.
-    endif
-
-#ifndef LOWFLOW
-    include_explicit = include_explicit .and. nonlin
-#endif
-
-    ab_coefficients = get_adams_bashforth_coefficients()
-
-    do iglo = g_lo%llim_proc, g_lo%ulim_proc
-       ik = ik_idx(g_lo, iglo)
-       it = it_idx(g_lo, iglo)
-       il = il_idx(g_lo, iglo)
-       ie = ie_idx(g_lo, iglo)
-       is = is_idx(g_lo, iglo)
-
-       if(opt_source)then
-          call get_source_term_opt (phi, apar, bpar, phinew, aparnew, bparnew, &
-               include_explicit, ab_coefficients, iglo,ik,it,il,ie,is, sourcefac, source)
-       else
-          do isgn = 1, 2
-             call get_source_term (phi, apar, bpar, phinew, aparnew, bparnew, &
-                  include_explicit, ab_coefficients, isgn, iglo,ik,it,il,ie,is, sourcefac, source(:,isgn))
-          end do
-       endif
-
-       gtmp(:ntgrid-1, :, iglo) = source
-    end do
+    call get_source_term_on_local_domain(gtmp, phi, apar, bpar, phinew, &
+         aparnew, bparnew, istep, sourcefac)
 
     call gs2_save_for_restart (gtmp, user_time, user_dt, vnmult, istatus, &
          fphi, fapar, fbpar, fileopt = extension)
