@@ -4556,6 +4556,9 @@ contains
     ntgl = -ntgrid
     ntgr =  ntgrid
 
+    ! Note this variable is probably redundant in the later conditionals as it is
+    ! always combined with other logicals, e.g. is_wfb and is_trapped, which can
+    ! only be true if have_trapped_particles is true.
     have_trapped_particles = nlambda > ng2
 
     do iglo = g_lo%llim_proc, g_lo%ulim_proc
@@ -4820,6 +4823,9 @@ contains
        end if
 
        ! If trapped wfb enforce the bounce condition at the lower bounce point
+       ! Note this treats the wfb as bouncing at the end of the parallel domain.
+       ! For nperiod > 1 this means the wfb does not bounce at the interior points
+       ! where bmag = bmax
        if (have_trapped_particles .and. is_wfb .and. trapped_wfb .and. is_not_ttp) then
           ig = -ntgrid
           g1(ig,1) = g1(ig,2)
