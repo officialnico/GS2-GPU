@@ -4946,21 +4946,20 @@ contains
 
   contains
 
-    !> FIXME : Add documentation
+    !> Sets sum of homogeneous and inhomogeneous solutions to give a result
+    !>     gnew(ntgrid,2) = gnew(-ntgrid,2)
+    !>     gnew(ntgrid,1) = gnew(-ntgrid,1)
+    !> ie periodic bcs at the ends of the flux tube.
+    !>
+    !> CMR, 25/7/2014:
+    !> self-periodic applied to zonal modes (makes sense)
+    !>                      and wfb        (seems strange)
+    !> adding adjr, adjl to cope with application of self-periodic to WFB
+    !>   dadj=adjl-adjr will be ZERO for ky=0 modes, but NOT for WFB.
+    !> This change sets g_wesson (or h) to be self-periodic for wfb, not g !!!
+    !> NB this code change will implement this only in ballooning space,
+    !> and not in a linked fluxtube.
     subroutine self_periodic
-      !CMR: sets sum of homogeneous and inhomogeneous solutions to give a result
-      !     gnew(ntgrid,2) = gnew(-ntgrid,2)
-      !     gnew(ntgrid,1) = gnew(-ntgrid,1)
-      ! ie periodic bcs at the ends of the flux tube.
-
-      !CMR, 25/7/2014:
-      ! self-periodic applied to zonal modes (makes sense)
-      !                       and wfb        (seems strange)
-      ! adding adjr, adjl to cope with application of self-periodic to WFB
-      !   dadj=adjl-adjr will be ZERO for ky=0 modes, but NOT for WFB.
-      ! This change sets g_wesson (or h) to be self-periodic for wfb, not g !!!
-      ! NB this code change will implement this only in ballooning space,
-      ! and not in a linked fluxtube.
       implicit none
       complex :: adjl, adjr, dadj
 
