@@ -4516,6 +4516,17 @@ contains
   !> Note that further work may be required to produce the final distribution function.
   !> In particular with link boundary conditions we may need to add in the homogeneous
   !> solution to ensure continuity across linked boundaries.
+  !>
+  !> The routine is roughly organised as:
+  !>  1. Calculate constants
+  !>  2. Loop over domain
+  !>     - Calculate source term
+  !>     - Calculate flags
+  !>     - Set initial conditions
+  !>     - Set parallel boundary conditions
+  !>     - Solve for homogeneous and inhomogeneous solution
+  !>     - Ensure continuity (e.g. periodicity in theta and in sigma at bounce points)
+  !>  3. Enforce parity if required.
   subroutine invert_rhs_1 &
        (phi, apar, bpar, phinew, aparnew, bparnew, istep, &
         sourcefac)
