@@ -6724,7 +6724,7 @@ contains
   !> or a single file depending on if the build uses parallel i/o or
   !> not. These files are automatically overwritten so calling it
   !> repeatedly within a single run might not be useful.
-  subroutine dump_current_source_term(istep, phi, apar, bpar, phinew, aparnew, bparnew, sourfac)
+  subroutine dump_current_source_term(istep, phi, apar, bpar, phinew, aparnew, bparnew, sourcefac)
     use gs2_save, only: gs2_save_for_restart
     use gs2_layouts, only: g_lo
     use theta_grid, only: ntgrid
