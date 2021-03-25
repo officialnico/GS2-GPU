@@ -4508,7 +4508,7 @@ contains
 
   end subroutine get_source_term_opt
 
-  !> Adds a routine which calculates the regular source term on the entire local
+  !> Calculates the regular source term on the entire local
   !> domain and stores in the output `source`.
   !>
   !> In the future we may wish to move the loop over the domain into the routine
