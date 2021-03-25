@@ -4508,6 +4508,56 @@ contains
 
   end subroutine get_source_term_opt
 
+  !> Adds a routine which calculates the regular source term on the entire local
+  !> domain and stores in the output `source`.
+  !>
+  !> In the future we may wish to move the loop over the domain into the routine
+  !> which calculates the source in order to improve memory locality etc.
+  subroutine get_source_term_on_local_domain(source, phi, apar, bpar, &
+       phinew, aparnew, bparnew, istep, sourcefac)
+    use gs2_layouts, only: g_lo, ik_idx, it_idx, il_idx, ie_idx, is_idx
+    use theta_grid, only: ntgrid
+    use gs2_time, only: get_adams_bashforth_coefficients
+    use nonlinear_terms, only: nonlin
+    implicit none
+    complex, dimension (-ntgrid:, :, g_lo%llim_proc:), intent(in out) :: source
+    complex, dimension (-ntgrid:,:,:), intent (in) :: phi,    apar,    bpar
+    complex, dimension (-ntgrid:,:,:), intent (in) :: phinew, aparnew, bparnew
+    integer, intent (in) :: istep
+    complex, intent (in) :: sourcefac
+    logical :: include_explicit
+    integer :: iglo, ik, it, il, ie, is, isgn
+    real, dimension(:), allocatable :: ab_coefficients
+
+    include_explicit = istep > 0
+
+#ifndef LOWFLOW
+    include_explicit = include_explicit .and. nonlin
+#endif
+
+    ab_coefficients = get_adams_bashforth_coefficients()
+
+    do iglo = g_lo%llim_proc, g_lo%ulim_proc
+       ik = ik_idx(g_lo, iglo)
+       it = it_idx(g_lo, iglo)
+       il = il_idx(g_lo, iglo)
+       ie = ie_idx(g_lo, iglo)
+       is = is_idx(g_lo, iglo)
+
+       if(opt_source)then
+          call get_source_term_opt (phi, apar, bpar, phinew, aparnew, bparnew, &
+               include_explicit, ab_coefficients, iglo, ik, it, il, ie, is, &
+               sourcefac, source(:, :, iglo))
+       else
+          do isgn = 1, 2
+             call get_source_term (phi, apar, bpar, phinew, aparnew, bparnew, &
+                  include_explicit, ab_coefficients, isgn, iglo, ik, it, il, ie, is, &
+                  sourcefac, source(:, isgn, iglo))
+          end do
+       endif
+    end do
+  end subroutine get_source_term_on_local_domain
+
   !> FIXME : Add documentation
   subroutine invert_rhs_1 &
        (phi, apar, bpar, phinew, aparnew, bparnew, istep, &
