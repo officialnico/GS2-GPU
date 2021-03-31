@@ -141,7 +141,7 @@ module dist_fn
 
   integer :: source_option_switch
   integer, parameter :: source_option_full = 1, &
-       source_option_phiext_full = 5
+       source_option_phiext_full = 5, source_option_homogeneous = 6
   
   integer :: boundary_option_switch
   integer, parameter :: boundary_option_zero = 1, &
@@ -491,6 +491,7 @@ module dist_fn
      !> - 'default' : Same as 'source_option_full'
      !> - 'phiext_full' : Solve GK equation with additional source
      !>   proportional to `phi_ext*F_0`.
+     !> - 'homogeneous' : Solve the homogeneous equation, i.e. no potential related sources.
      character(len = 20) :: source_option = 'default'
      !> Turn on any artificial sources after time = t0. Only used with
      !> `source_option = 'phiext_full'`.
@@ -765,8 +766,16 @@ contains
        write (report_unit, fmt="('with an additional source proportional to Phi*F_0')")
        write (report_unit, fmt="('Together with phi_ext = -1., this is the usual way to &
             & calculate the Rosenbluth-Hinton response.')")
-       write (report_unit, *) 
+       write (report_unit, *)
 
+    case (source_option_homogeneous)
+       write (report_unit, *)
+       write (report_unit, fmt="('################# WARNING #######################')")
+       write (report_unit, fmt="('The homogeneous GK equation will be solved.')")
+       write (report_unit, fmt="('The calculated response matrices and resulting')")
+       write (report_unit, fmt="('potentials will not be accurate.')")
+       write (report_unit, fmt="('################# WARNING #######################')")
+       write (report_unit, *)
     end select
 
     ! 
@@ -873,7 +882,8 @@ contains
           write (unit, fmt="(' gamma0 = ',e17.10)") gamma0
           write (unit, fmt="(' t0 = ',e17.10)") t0
           write (unit, fmt="(' phi_ext = ',e17.10)") phi_ext
-
+       case(source_option_homogeneous)
+          write (unit, fmt="(' source_option = ',a)") '"homogeneous"'
        end select
        write (unit, fmt="(' /')")
     endif
@@ -1252,10 +1262,11 @@ contains
     type(dist_fn_config_type), intent(in), optional :: dist_fn_config_in
     type(source_config_type), intent(in), optional :: source_config_in
     type(dist_fn_species_config_type), intent(in), dimension(:), optional :: dist_fn_species_config_in
-    type (text_option), dimension (3), parameter :: sourceopts = &
+    type (text_option), dimension (4), parameter :: sourceopts = &
          (/ text_option('default', source_option_full), &
             text_option('full', source_option_full), &
-            text_option('phiext_full', source_option_phiext_full) /)
+            text_option('phiext_full', source_option_phiext_full), &
+            text_option('homogeneous', source_option_homogeneous) /)
     character(20) :: source_option
 
     type (text_option), dimension (8), parameter :: boundaryopts = &
@@ -4080,7 +4091,8 @@ contains
        else
           source = 0.0
        end if
-
+    case(source_option_homogeneous)
+       source = 0.0
     end select
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -4360,6 +4372,8 @@ contains
                   *2.0*phi_ext*sourcefac*aj0(:ntgrid-1,iglo)
              end if
           end if
+       case(source_option_homogeneous)
+          source = 0.0
        end select
     enddo
        
