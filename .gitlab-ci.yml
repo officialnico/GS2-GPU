@@ -133,7 +133,7 @@ intel_tests:
   script:
     - dnf config-manager --add-repo https://yum.repos.intel.com/oneapi
     - rpmkeys --import https://yum.repos.intel.com/intel-gpg-keys/GPG-PUB-KEY-INTEL-SW-PRODUCTS.PUB
-    - dnf install -y intel-oneapi-compiler-fortran*
+    - dnf install -y intel-oneapi-compiler-fortran
     - source /opt/intel/oneapi/compiler/latest/env/vars.sh
     - . /opt/intel/oneapi/setvars.sh intel64
     - su -c "./pipeline_test_scripts/ci_build_and_run.sh" theuser
