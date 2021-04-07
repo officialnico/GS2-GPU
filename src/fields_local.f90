@@ -1088,8 +1088,8 @@ contains
     end if
 
     !Now invert in place
-    if(self%is_head) then
-       call invert_serial(tmp_arr,self%nrow)
+    if (self%is_head) then
+       call invert_serial(tmp_arr, self%nrow)
        tmp_arr=transpose(tmp_arr)
     end if
 
@@ -1097,8 +1097,9 @@ contains
     !but this would require us to either keep the potentially large tmp_arr allocated
     !for all supercells or for us to be able to do this "in-place" (i.e. we use something
     !like non-blocking scatterv rather than broadcast).
-    if (.not.self%is_all_local) then
-       if(self%sc_sub_pd%nproc.gt.0) call broadcast_sub(tmp_arr,self%head_iproc_pd,self%sc_sub_pd%id)
+    if (.not. self%is_all_local) then
+       if (self%sc_sub_pd%nproc > 0) call broadcast_sub(tmp_arr, &
+            self%head_iproc_pd, self%sc_sub_pd%id)
     end if
 
     if (self%is_head) then
