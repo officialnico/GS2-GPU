@@ -646,13 +646,11 @@ endif
 ifdef ONE_STEP_PP
 $(OBJDIR)/%.o: %.fpp |$(MODDIR) $(OBJDIR)
 	$(call messageOp,"Compiling and preprocessing","\\t:",$(call processName,$<))
-	$(QUIETSYM)$(FC) $(FPPFLAGS) $(F90FLAGS) -c $< -o $@
-	$(shell mv *.mod $(MODDIR) 2>/dev/null)
+	$(QUIETSYM)$(FC) $(FPPFLAGS) $(F90FLAGS) $(MODDIR_FLAG)$(MODDIR) -c $< -o $@
 
 $(OBJDIR)/%.o: %.F90 |$(MODDIR) $(OBJDIR)
 	$(call messageOp,"Compiling and preprocessing","\\t:",$(call processName,$<))
-	$(QUIETSYM)$(FC) $(FPPFLAGS) $(F90FLAGS) -c $< -o $@
-	$(shell mv *.mod $(MODDIR) 2>/dev/null)
+	$(QUIETSYM)$(FC) $(FPPFLAGS) $(F90FLAGS) $(MODDIR_FLAG)$(MODDIR) -c $< -o $@
 endif
 
 %.f90: %.rb
@@ -661,13 +659,11 @@ endif
 
 $(OBJDIR)/%.o:$(GENERATED_SRC_DIR)/%.f90 |$(MODDIR) $(OBJDIR)
 	$(call messageOp,"Compiling","\\t:",$(call processName,$<))
-	$(QUIETSYM) $(FC) $(F90FLAGS) -c $< -o $@
-	$(shell mv *.mod $(MODDIR) 2>/dev/null)
+	$(QUIETSYM) $(FC) $(F90FLAGS) $(MODDIR_FLAG)$(MODDIR) -c $< -o $@
 
 $(OBJDIR)/%.o:%.f90 |$(MODDIR) $(OBJDIR)
 	$(call messageOp,"Compiling","\\t:",$(call processName,$<))
-	$(QUIETSYM) $(FC) $(F90FLAGS) -c $< -o $@
-	$(shell mv *.mod $(MODDIR) 2>/dev/null)
+	$(QUIETSYM) $(FC) $(F90FLAGS) $(MODDIR_FLAG)$(MODDIR) -c $< -o $@
 
 # The depend command needs the preprocessed source files. 
 # This is a little clunky, and maybe could be fixed in the future.
