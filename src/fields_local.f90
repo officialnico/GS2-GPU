@@ -1061,6 +1061,7 @@ contains
   !> important in most cases.
   subroutine sc_invert_local(self)
     use mat_inv, only: invert_serial
+    use mp, only: broadcast_sub
     use file_utils, only: error_unit
     use gs2_time, only: code_dt
     implicit none
@@ -1087,8 +1088,19 @@ contains
     end if
 
     !Now invert in place
-    call invert_serial(tmp_arr,self%nrow)
-    tmp_arr=transpose(tmp_arr)
+    if (self%is_head) then
+       call invert_serial(tmp_arr, self%nrow)
+       tmp_arr=transpose(tmp_arr)
+    end if
+
+    !It would be quite nice if we could do the following in a non-blocking manner
+    !but this would require us to either keep the potentially large tmp_arr allocated
+    !for all supercells or for us to be able to do this "in-place" (i.e. we use something
+    !like non-blocking scatterv rather than broadcast).
+    if (.not. self%is_all_local) then
+       if (self%sc_sub_pd%nproc > 0) call broadcast_sub(tmp_arr, &
+            self%head_iproc_pd, self%sc_sub_pd%id)
+    end if
 
     if (self%is_head) then
        condition_number = condition_number * l2norm(tmp_arr)
