@@ -106,18 +106,20 @@ underpopulating, however this is not guaranteed and not always worth
 it in terms of overall resource use. You should measure performance
 before underpopulating production jobs.
 
-In order to use fewer cores per node you need to change
-`--tasks-per-node`:
+In order to use fewer cores per node you need to change a couple of
+`SLURM` parameters:
+
 
 ```bash
 #SBATCH --nodes=2
 #SBATCH --tasks-per-node=64
-#SBATCH --cpus-per-task=1
+#SBATCH --cpus-per-task=2
 ```
 
-This now uses 128 cores spread across two nodes. The `--distribution=block:block`
-and `--hint=nomultithread` arguments to `srun` will make sure these
-cores are allocated sensibly.
+This now uses 128 cores spread across two nodes. We use two cpus per
+task in order to spread the cores across both sockets in the node. If
+you want underpopulate further, don't forget to increase
+`--cpus-per-task` proportionally to compensate.
 
 
 [archer2]: https://www.archer2.ac.uk
