@@ -1617,7 +1617,7 @@ contains
     implicit none
     type(theta_grid_eik_config_type), intent(in), optional :: theta_grid_eik_config_in    
     real :: rhoc_save
-!CMR nov04: adding following debug switch
+    !CMR nov04: adding following debug switch
     logical :: debug=.true.
     integer, parameter :: verb = 3
     character(4) :: ntheta_char
@@ -1628,36 +1628,41 @@ contains
     verb_geo = verbosity()
     job_id_geo = job_id
 
-!CMR
+    !CMR
 
     if (initialized) return
     initialized = .true.
     write(ntheta_char, "(I4)") ntheta
-     call debug_message(verb, "init_theta_grid_eik: call init_theta_grid_params, ntheta="//ntheta_char)
-! After this call, would think you have ntheta from input file
-! stored in theta_grid_params data structure.
-! but when running from numerical equilibrium, this is not right
-! Instead, get it stored via the eikcoefs call below.  
+    call debug_message(verb, "init_theta_grid_eik: call init_theta_grid_params, ntheta="//ntheta_char)
+    ! After this call, would think you have ntheta from input file
+    ! stored in theta_grid_params data structure.
+    ! but when running from numerical equilibrium, this is not right
+    ! Instead, get it stored via the eikcoefs call below.
     call init_theta_grid_params
 
     write(ntheta_char, "(I4)") ntheta
-     call debug_message(verb, "init_theta_grid_eik: call read_parameters, ntheta="//ntheta_char)
+    call debug_message(verb, "init_theta_grid_eik: call read_parameters, ntheta="//ntheta_char)
     call read_parameters(theta_grid_eik_config_in)
 
-    if (ntheta_geometry == -1) ntheta_geometry = ntheta
-    nperiod_geo = nperiod 
+    nperiod_geo = nperiod
     rhoc_save = rhoc
     if (itor == 0) rhoc = 1.5*delrho
 
-    write(ntheta_char, "(I4)") ntheta
-     call debug_message(verb, "init_theta_grid_eik: call eikcoefs, ntheta="//ntheta_char)
-     if(proc0) then
-        call run_eikcoefs_and_resample (ntheta_geometry, ntheta, eikcoefs_results)
-        call set_eikcoefs_output(eikcoefs_results)
-     end if
+    if(proc0) then
+       if (ntheta_geometry == -1) then
+          write(ntheta_char, "(I4)") ntheta
+          call debug_message(verb, "init_theta_grid_eik: call eikcoefs, ntheta="//ntheta_char)
+          call eikcoefs(ntheta)
+       else
+          write(ntheta_char, "(I4)") ntheta_geometry
+          call debug_message(verb, "init_theta_grid_eik: call run_eikcoefs_and_resample, ntheta_geometry="//ntheta_char)
+          call run_eikcoefs_and_resample (ntheta_geometry, ntheta, eikcoefs_results)
+          call set_eikcoefs_output(eikcoefs_results)
+       end if
+    end if
 
     write(ntheta_char, "(I4)") ntheta
-     call debug_message(verb, "init_theta_grid_eik: done, ntheta="//ntheta_char)
+    call debug_message(verb, "init_theta_grid_eik: done, ntheta="//ntheta_char)
 
     rhoc = rhoc_save
   end subroutine init_theta_grid_eik
