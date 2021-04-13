@@ -429,63 +429,38 @@ contains
 
     results%ntheta = ntheta_target
     results%theta  = theta_target
-    allocate( results%bmag( -ntgrid_target:ntgrid_target), &
-         source = resample(theta, bmag, results%theta)
-    allocate( results%gradpar( -ntgrid_target:ntgrid_target), &
-         source = resample(theta, gradpar, results%theta)
-    allocate( results%grho( -ntgrid_target:ntgrid_target), &
-         source = resample(theta, grho, results%theta)
-    allocate( results%cdrift( -ntgrid_target:ntgrid_target), &
-         source = resample(theta, cdrift, results%theta)
-    allocate( results%cvdrift( -ntgrid_target:ntgrid_target), &
-         source = resample(theta, cvdrift, results%theta)
-    allocate( results%gbdrift( -ntgrid_target:ntgrid_target), &
-         source = resample(theta, gbdrift, results%theta)
-    allocate( results%cdrift0( -ntgrid_target:ntgrid_target), &
-         source = resample(theta, cdrift0, results%theta)
-    allocate( results%cvdrift0( -ntgrid_target:ntgrid_target), &
-         source = resample(theta, cvdrift0, results%theta)
-    allocate( results%gbdrift0( -ntgrid_target:ntgrid_target), &
-         source = resample(theta, gbdrift0, results%theta)
-    allocate( results%cvdrift_th( -ntgrid_target:ntgrid_target), &
-         source = resample(theta, cvdrift_th, results%theta)
-    allocate( results%gbdrift_th( -ntgrid_target:ntgrid_target), &
-         source = resample(theta, gbdrift_th, results%theta)
-    allocate( results%gds2( -ntgrid_target:ntgrid_target), &
-         source = resample(theta, gds2, results%theta)
-    allocate( results%gds21( -ntgrid_target:ntgrid_target), &
-         source = resample(theta, gds21, results%theta)
-    allocate( results%gds22( -ntgrid_target:ntgrid_target), &
-         source = resample(theta, gds22, results%theta)
-    allocate( results%gds23( -ntgrid_target:ntgrid_target), &
-         source = resample(theta, gds23, results%theta)
-    allocate( results%gds24( -ntgrid_target:ntgrid_target), &
-         source = resample(theta, gds24, results%theta)
-    allocate( results%gds24_noq( -ntgrid_target:ntgrid_target), &
-         source = resample(theta, gds24_noq, results%theta)
-    allocate( results%jacob( -ntgrid_target:ntgrid_target), &
-         source = resample(theta, jacob, results%theta)
-    allocate( results%rplot( -ntgrid_target:ntgrid_target), &
-         source = resample(theta, rplot, results%theta)
-    allocate( results%zplot( -ntgrid_target:ntgrid_target), &
-         source = resample(theta, zplot, results%theta)
-    allocate( results%aplot( -ntgrid_target:ntgrid_target), &
-         source = resample(theta, aplot, results%theta)
-    allocate( results%rprime( -ntgrid_target:ntgrid_target), &
-         source = resample(theta, rprime, results%theta)
-    allocate( results%zprime( -ntgrid_target:ntgrid_target), &
-         source = resample(theta, zprime, results%theta)
-    allocate( results%aprime( -ntgrid_target:ntgrid_target), &
-         source = resample(theta, aprime, results%theta)
-    allocate( results%bpol( -ntgrid_target:ntgrid_target), &
-         source = resample(theta, bpol, results%theta)
+    call resample( theta, bmag, results%theta, results%bmag)
+    call resample( theta, gradpar, results%theta, results%gradpar)
+    call resample( theta, grho, results%theta, results%grho)
+    call resample( theta, cdrift, results%theta, results%cdrift)
+    call resample( theta, cvdrift, results%theta, results%cvdrift)
+    call resample( theta, gbdrift, results%theta, results%gbdrift)
+    call resample( theta, cdrift0, results%theta, results%cdrift0)
+    call resample( theta, cvdrift0, results%theta, results%cvdrift0)
+    call resample( theta, gbdrift0, results%theta, results%gbdrift0)
+    call resample( theta, cvdrift_th, results%theta, results%cvdrift_th)
+    call resample( theta, gbdrift_th, results%theta, results%gbdrift_th)
+    call resample( theta, gds2, results%theta, results%gds2)
+    call resample( theta, gds21, results%theta, results%gds21)
+    call resample( theta, gds22, results%theta, results%gds22)
+    call resample( theta, gds23, results%theta, results%gds23)
+    call resample( theta, gds24, results%theta, results%gds24)
+    call resample( theta, gds24_noq, results%theta, results%gds24_noq)
+    call resample( theta, jacob, results%theta, results%jacob)
+    call resample( theta, rplot, results%theta, results%rplot)
+    call resample( theta, zplot, results%theta, results%zplot)
+    call resample( theta, aplot, results%theta, results%aplot)
+    call resample( theta, rprime, results%theta, results%rprime)
+    call resample( theta, zprime, results%theta, results%zprime)
+    call resample( theta, aprime, results%theta, results%aprime)
+    call resample( theta, bpol, results%theta, results%bpol)
 
   contains
-    function resample(x_orig, y_orig, x_new) result(y_new)
+    subroutine resample(x_orig, y_orig, x_new, y_new)
       use splines, only: new_spline, delete_spline, splint, spline
       real, dimension(:), intent(in) :: x_orig, y_orig
-      real, dimension(:), intent(in) :: x_new
-      real, dimension(:), allocatable ::  y_new
+      real, dimension(-ntgrid_target:), intent(in) :: x_new
+      real, dimension(:), allocatable, intent(out) ::  y_new
       type(spline) :: the_spline
       integer :: i, lower, upper
 
@@ -503,7 +478,7 @@ contains
 
       ! Get rid of the spline
       call delete_spline(the_spline)
-    end function resample
+    end subroutine resample
 
   end subroutine run_eikcoefs_and_resample
 
