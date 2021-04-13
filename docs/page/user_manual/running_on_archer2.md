@@ -118,7 +118,7 @@ In order to use fewer cores per node you need to change a couple of
 
 This now uses 128 cores spread across two nodes. We use two cpus per
 task in order to spread the cores across both sockets in the node. If
-you want underpopulate further, don't forget to increase
+you want to underpopulate further, don't forget to increase
 `--cpus-per-task` proportionally to compensate.
 
 
