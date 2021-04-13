@@ -429,31 +429,56 @@ contains
 
     results%ntheta = ntheta_target
     results%theta  = theta_target
-    results%bmag = resample(theta, bmag, results%theta)
-    results%gradpar = resample(theta, gradpar, results%theta)
-    results%grho = resample(theta, grho, results%theta)
-    results%cdrift = resample(theta, cdrift, results%theta)
-    results%cvdrift = resample(theta, cvdrift, results%theta)
-    results%gbdrift = resample(theta, gbdrift, results%theta)
-    results%cdrift0 = resample(theta, cdrift0, results%theta)
-    results%cvdrift0 = resample(theta, cvdrift0, results%theta)
-    results%gbdrift0 = resample(theta, gbdrift0, results%theta)
-    results%cvdrift_th = resample(theta, cvdrift_th, results%theta)
-    results%gbdrift_th = resample(theta, gbdrift_th, results%theta)
-    results%gds2 = resample(theta, gds2, results%theta)
-    results%gds21 = resample(theta, gds21, results%theta)
-    results%gds22 = resample(theta, gds22, results%theta)
-    results%gds23 = resample(theta, gds23, results%theta)
-    results%gds24 = resample(theta, gds24, results%theta)
-    results%gds24_noq = resample(theta, gds24_noq, results%theta)
-    results%jacob = resample(theta, jacob, results%theta)
-    results%rplot = resample(theta, rplot, results%theta)
-    results%zplot = resample(theta, zplot, results%theta)
-    results%aplot = resample(theta, aplot, results%theta)
-    results%rprime = resample(theta, rprime, results%theta)
-    results%zprime = resample(theta, zprime, results%theta)
-    results%aprime = resample(theta, aprime, results%theta)
-    results%bpol = resample(theta, bpol, results%theta)
+    allocate( results%bmag( -ntgrid_target:ntgrid_target), &
+         source = resample(theta, bmag, results%theta)
+    allocate( results%gradpar( -ntgrid_target:ntgrid_target), &
+         source = resample(theta, gradpar, results%theta)
+    allocate( results%grho( -ntgrid_target:ntgrid_target), &
+         source = resample(theta, grho, results%theta)
+    allocate( results%cdrift( -ntgrid_target:ntgrid_target), &
+         source = resample(theta, cdrift, results%theta)
+    allocate( results%cvdrift( -ntgrid_target:ntgrid_target), &
+         source = resample(theta, cvdrift, results%theta)
+    allocate( results%gbdrift( -ntgrid_target:ntgrid_target), &
+         source = resample(theta, gbdrift, results%theta)
+    allocate( results%cdrift0( -ntgrid_target:ntgrid_target), &
+         source = resample(theta, cdrift0, results%theta)
+    allocate( results%cvdrift0( -ntgrid_target:ntgrid_target), &
+         source = resample(theta, cvdrift0, results%theta)
+    allocate( results%gbdrift0( -ntgrid_target:ntgrid_target), &
+         source = resample(theta, gbdrift0, results%theta)
+    allocate( results%cvdrift_th( -ntgrid_target:ntgrid_target), &
+         source = resample(theta, cvdrift_th, results%theta)
+    allocate( results%gbdrift_th( -ntgrid_target:ntgrid_target), &
+         source = resample(theta, gbdrift_th, results%theta)
+    allocate( results%gds2( -ntgrid_target:ntgrid_target), &
+         source = resample(theta, gds2, results%theta)
+    allocate( results%gds21( -ntgrid_target:ntgrid_target), &
+         source = resample(theta, gds21, results%theta)
+    allocate( results%gds22( -ntgrid_target:ntgrid_target), &
+         source = resample(theta, gds22, results%theta)
+    allocate( results%gds23( -ntgrid_target:ntgrid_target), &
+         source = resample(theta, gds23, results%theta)
+    allocate( results%gds24( -ntgrid_target:ntgrid_target), &
+         source = resample(theta, gds24, results%theta)
+    allocate( results%gds24_noq( -ntgrid_target:ntgrid_target), &
+         source = resample(theta, gds24_noq, results%theta)
+    allocate( results%jacob( -ntgrid_target:ntgrid_target), &
+         source = resample(theta, jacob, results%theta)
+    allocate( results%rplot( -ntgrid_target:ntgrid_target), &
+         source = resample(theta, rplot, results%theta)
+    allocate( results%zplot( -ntgrid_target:ntgrid_target), &
+         source = resample(theta, zplot, results%theta)
+    allocate( results%aplot( -ntgrid_target:ntgrid_target), &
+         source = resample(theta, aplot, results%theta)
+    allocate( results%rprime( -ntgrid_target:ntgrid_target), &
+         source = resample(theta, rprime, results%theta)
+    allocate( results%zprime( -ntgrid_target:ntgrid_target), &
+         source = resample(theta, zprime, results%theta)
+    allocate( results%aprime( -ntgrid_target:ntgrid_target), &
+         source = resample(theta, aprime, results%theta)
+    allocate( results%bpol( -ntgrid_target:ntgrid_target), &
+         source = resample(theta, bpol, results%theta)
 
   contains
     function resample(x_orig, y_orig, x_new) result(y_new)
