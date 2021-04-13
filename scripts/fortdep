@@ -32,7 +32,7 @@ my $DEPFILE="Makefile.depend";
     # define system files. Suppress error/warning message 
     # when those files do not exist even if they are used
 #    my @SYSFILE=("mpif.h", "netcdf.inc", "fftw3.f", "netcdf", "mpi" );
-    my @SYSFILE=("mpif.h", "netcdf.inc", "fftw3.f", "fftw3.f03");
+    my @SYSFILE=("mpif.h", "netcdf.inc", "fftw3.f", "fftw3.f03", "aslfftw3.f");
 
     &process_options(\%OPTION,\@PATH);
 
