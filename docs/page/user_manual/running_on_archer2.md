@@ -2,6 +2,8 @@
 title: Running on ARCHER2
 ---
 
+# ARCHER2
+
 [ARCHER2][archer2] is the UK's top research supercomputer. There are a
 few things to be aware of when compiling and running GS2 on ARCHER2
 that we will list here.
@@ -71,8 +73,9 @@ team][srun].
 
 If you're developing GS2 and want to make sure your modified code
 remains on the backed-up home partition, don't forget to copy the
-`gs2` executable on to the work partition first. You can do this as
-part of your job script.
+`gs2` executable on to the work partition first. You can do
+automatically by using another script as a wrapper to your actual job
+script.
 
 ### Short Experiments
 
@@ -92,6 +95,30 @@ jobs, but has a much sorter queue time
 
 Note the queue limits in the documentation: 20 minutes on 8 nodes, and
 only Monday to Friday.
+
+### Underpopulating Nodes
+
+Particularly large jobs may need more memory per core than available
+by default, in which case you will need to use fewer cores per node
+(also called "underpopulating the nodes"). Depending on your input
+parameters, you may also find that you can get better performance by
+underpopulating, however this is not guaranteed and not always worth
+it in terms of overall resource use. You should measure performance
+before underpopulating production jobs.
+
+In order to use fewer cores per node you need to change
+`--tasks-per-node`:
+
+```bash
+#SBATCH --nodes=2
+#SBATCH --tasks-per-node=64
+#SBATCH --cpus-per-task=1
+```
+
+This now uses 128 cores spread across two nodes. The `--distribution=block:block`
+and `--hint=nomultithread` arguments to `srun` will make sure these
+cores are allocated sensibly.
+
 
 [archer2]: https://www.archer2.ac.uk
 [srun]: https://docs.archer2.ac.uk/user-guide/scheduler/#srun-launching-parallel-jobs
