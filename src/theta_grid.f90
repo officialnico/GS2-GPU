@@ -1124,7 +1124,7 @@ module theta_grid_eik
      logical :: local_eq = .true.
      !> The number of theta grid points to use in eikcoefs calls.
      !> Currently may not have an effect for all equilibrium types.
-     !> If not set then defaults to [[theta_grid_parameters::ntheta]]
+     !> If not set then defaults to [[theta_grid_parameters:ntheta]]
      integer :: ntheta_geometry = -1
      !> Use Menard-style NetCDF equilibrium (JSOLVER)
      logical :: ppl_eq = .false.
