@@ -865,6 +865,101 @@ contains
 
   end subroutine test_miller_run_eikcoefs_and_resample
 
+  !> Call to dump the current values from theta grid in a vaguely useful format.
+  !> Helpful when we need to update the golden results as we've fixed a bug/changed
+  !> behaviour etc.
+  subroutine helper_to_update_results(name)
+    use theta_grid, only: bmag, grho, gbdrift, cvdrift, gds2, gds21, gds22, gds23
+    use theta_grid, only: gds24, gds24_noq, jacob, rplot, zplot, aplot
+    use theta_grid, only: rprime, zprime, aprime, bpol, gbdrift0, cvdrift0, theta
+    use theta_grid, only: cdrift, cdrift0, cvdrift_th, gbdrift_th, gradpar
+    implicit none
+    character(len=*), intent(in) :: name
+    integer :: lun
+    open(file=name,newunit=lun)
+
+    write(lun, '("real, parameter :: expected_",A,"(grid_size) = [",32(" ",F25.15,",")," ",F25.15," ]")') "theta",theta
+    write(lun,'()')
+
+    write(lun, '("real, parameter :: expected_",A,"(grid_size) = [",32(" ",F25.15,",")," ",F25.15," ]")') "bmag",bmag
+    write(lun,'()')
+
+    write(lun, '("real, parameter :: expected_",A,"(grid_size) = [",32(" ",F25.15,",")," ",F25.15," ]")') "grho",grho
+    write(lun,'()')
+
+    write(lun, '("real, parameter :: expected_",A,"(grid_size) = [",32(" ",F25.15,",")," ",F25.15," ]")') "gradpar",gradpar
+    write(lun,'()')
+
+    write(lun, '("real, parameter :: expected_",A,"(grid_size) = [",32(" ",F25.15,",")," ",F25.15," ]")') "gbdrift",gbdrift
+    write(lun,'()')
+
+    write(lun, '("real, parameter :: expected_",A,"(grid_size) = [",32(" ",F25.15,",")," ",F25.15," ]")') "gbdrift0",gbdrift0
+    write(lun,'()')
+
+    write(lun, '("real, parameter :: expected_",A,"(grid_size) = [",32(" ",F25.15,",")," ",F25.15," ]")') "gbdrift_th",gbdrift_th
+    write(lun,'()')
+
+    write(lun, '("real, parameter :: expected_",A,"(grid_size) = [",32(" ",F25.15,",")," ",F25.15," ]")') "cvdrift",cvdrift
+    write(lun,'()')
+
+    write(lun, '("real, parameter :: expected_",A,"(grid_size) = [",32(" ",F25.15,",")," ",F25.15," ]")') "cvdrift0",cvdrift0
+    write(lun,'()')
+
+    write(lun, '("real, parameter :: expected_",A,"(grid_size) = [",32(" ",F25.15,",")," ",F25.15," ]")') "cvdrift_th",cvdrift_th
+    write(lun,'()')
+
+    write(lun, '("real, parameter :: expected_",A,"(grid_size) = [",32(" ",F25.15,",")," ",F25.15," ]")') "cdrift",cdrift
+    write(lun,'()')
+
+    write(lun, '("real, parameter :: expected_",A,"(grid_size) = [",32(" ",F25.15,",")," ",F25.15," ]")') "cdrift0",cdrift0
+    write(lun,'()')
+
+    write(lun, '("real, parameter :: expected_",A,"(grid_size) = [",32(" ",F25.15,",")," ",F25.15," ]")') "gds2",gds2
+    write(lun,'()')
+
+    write(lun, '("real, parameter :: expected_",A,"(grid_size) = [",32(" ",F25.15,",")," ",F25.15," ]")') "gds21",gds21
+    write(lun,'()')
+
+    write(lun, '("real, parameter :: expected_",A,"(grid_size) = [",32(" ",F25.15,",")," ",F25.15," ]")') "gds22",gds22
+    write(lun,'()')
+
+    write(lun, '("real, parameter :: expected_",A,"(grid_size) = [",32(" ",F25.15,",")," ",F25.15," ]")') "gds23",gds23
+    write(lun,'()')
+
+    write(lun, '("real, parameter :: expected_",A,"(grid_size) = [",32(" ",F25.15,",")," ",F25.15," ]")') "gds24",gds24
+    write(lun,'()')
+
+    write(lun, '("real, parameter :: expected_",A,"(grid_size) = [",32(" ",F25.15,",")," ",F25.15," ]")') "gds24_noq",gds24_noq
+    write(lun,'()')
+
+    write(lun, '("real, parameter :: expected_",A,"(grid_size) = [",32(" ",F25.15,",")," ",F25.15," ]")') "jacob",jacob
+    write(lun,'()')
+
+    write(lun, '("real, parameter :: expected_",A,"(grid_size) = [",32(" ",F25.15,",")," ",F25.15," ]")') "rplot",rplot
+    write(lun,'()')
+
+    write(lun, '("real, parameter :: expected_",A,"(grid_size) = [",32(" ",F25.15,",")," ",F25.15," ]")') "zplot",zplot
+    write(lun,'()')
+
+    write(lun, '("real, parameter :: expected_",A,"(grid_size) = [",32(" ",F25.15,",")," ",F25.15," ]")') "aplot",aplot
+    write(lun,'()')
+
+    write(lun, '("real, parameter :: expected_",A,"(grid_size) = [",32(" ",F25.15,",")," ",F25.15," ]")') "rprime",rprime
+    write(lun,'()')
+
+    write(lun, '("real, parameter :: expected_",A,"(grid_size) = [",32(" ",F25.15,",")," ",F25.15," ]")') "zprime",zprime
+    write(lun,'()')
+
+    write(lun, '("real, parameter :: expected_",A,"(grid_size) = [",32(" ",F25.15,",")," ",F25.15," ]")') "aprime",aprime
+    write(lun,'()')
+
+    write(lun, '("real, parameter :: expected_",A,"(grid_size) = [",32(" ",F25.15,",")," ",F25.15," ]")') "bpol",bpol
+    write(lun,'()')
+
+    close(lun)
+
+  end subroutine helper_to_update_results
+
   @test(npes=[1])
   subroutine test_chease_eikcoefs(this)
     use theta_grid, only: bmag, grho, gbdrift, cvdrift, gds2, gds21, theta, init_theta_grid
