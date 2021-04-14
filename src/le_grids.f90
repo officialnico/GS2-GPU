@@ -2385,7 +2385,7 @@ contains
     real, dimension(-ntgrid:, :), intent(in out) :: weights
 
     if (new_trap_int) then
-       call setup_trapped_lambda_grids_new_trap_in(lambda_grid, weights)
+       call setup_trapped_lambda_grids_new_trap_int(lambda_grid, weights)
     else
        call setup_trapped_lambda_grids_old_finite_difference(lambda_grid, weights)
     end if
