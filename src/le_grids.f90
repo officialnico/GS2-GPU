@@ -2292,13 +2292,16 @@ contains
 
   !> Determines the location of lambda ([[al]]) grid points in the
   !> passing domain and the associated integrations weights.
-  subroutine setup_passing_lambda_grids(al, weights)
+  subroutine setup_passing_lambda_grids(lambda_grid, weights)
     use gauss_quad, only: get_legendre_grids_from_cheb, get_radau_gauss_grids
     use theta_grid, only: ntgrid, bmag, bmax
     implicit none
-    !> Array which stores the lambda grid points
-    real, dimension(:), intent(in out) :: al
-    !> Array which stores the integration weights for the lambda grid
+    !> The lambda grid points. Note this is intent `in out` as we only
+    !> set a portion of the grid so may want to keep the rest of the
+    !> input values.
+    real, dimension(:), intent(in out) :: lambda_grid
+    !> The integration weights for the lambda grid. This is intent `in out`
+    !> for the same reason as `lambda_grid`.
     real, dimension(-ntgrid:, :), intent(in out) :: weights
     real, dimension (:), allocatable :: wx, xx_radau
     integer :: ig, il
@@ -2324,13 +2327,13 @@ contains
     end if
 
     ! Store the location of the passing lambda grid points
-    al(:ng2) = (1.0 - xx(:ng2)**2)/bmax
+    lambda_grid(:ng2) = (1.0 - xx(:ng2)**2)/bmax
 
     ! Transform the Legendre/Radau weights to the lambda grid
     do il = 1, ng2
        do ig = -ntgrid, ntgrid
           weights(ig,il) = wx(il)*2.0*sqrt((bmag(ig)/bmax) &
-               *((1.0/bmax-al(il))/(1.0/bmag(ig)-al(il))))
+               *((1.0/bmax-lambda_grid(il))/(1.0/bmag(ig)-lambda_grid(il))))
        end do
     end do
 
@@ -2340,9 +2343,9 @@ contains
        do ig = -ntgrid, ntgrid
           if (bmag(ig) < bmax) then ! i.e. we are not the bounce point for wfb
              ! Note this will currently always be exactly 0
-             ! as al(ng2+1) == 1.0/bmax
+             ! as lambda_grid(ng2+1) == 1.0/bmax
              weights(ig,il) = wx(il)*2.0*sqrt((bmag(ig)/bmax) &
-                  *((1.0/bmax-al(il))/(1.0/bmag(ig)-al(il))))
+                  *((1.0/bmax-lambda_grid(il))/(1.0/bmag(ig)-lambda_grid(il))))
           else ! at the bounce point
              weights(ig,il) = wx(il)*2.0
           endif
