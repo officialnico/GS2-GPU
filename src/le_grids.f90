@@ -2403,14 +2403,18 @@ contains
   !> (although likely isn't an issue currently as the routine here does not
   !> calculate a weight for the wfb when bmag = bmax). A simple fix is to
   !> replace `weights = ` with effectively `weights +=` in this routine.
-  subroutine setup_trapped_lambda_grids(al, weights)
+  subroutine setup_trapped_lambda_grids(lambda_grid, weights)
     use theta_grid, only: ntgrid, bmag, bmax, eps_trapped
     use file_utils, only: open_output_file, close_output_file, error_unit
     use mp, only: proc0
     implicit none
-    !> Array which stores the lambda grid points
-    real, dimension(:), intent(in out) :: al
-    !> Array which stores the integration weights for the lambda grid
+    !> The lambda grid points. Note this is intent `in out` as we only
+    !> set a portion of the grid so may want to keep the rest of the
+    !> input values.
+    real, dimension(:), intent(in out) :: lambda_grid
+    !> The integration weights for the lambda grid. Note this is
+    !> intent `in out` as we only set a portion of the grid so may
+    !> want to keep the rest of the input values.
     real, dimension(-ntgrid:, :), intent(in out) :: weights
     real, dimension (:), allocatable :: ytmp, yb, yberr, wb, wberrtmp
     real, dimension (:,:), allocatable :: wberr
@@ -2437,11 +2441,11 @@ contains
           ! have to consider at this point. In other words how many
           ! bounce points are not forbidden for the current theta
           ! grid point.
-          ! npts is the number of al values in the trapped integral (varies with theta)
+          ! npts is the number of lambda_grid values in the trapped integral (varies with theta)
           npts = 0
 
           do il = ng2+1, nlambda
-             if (1.0 - al(il)*bmag(ig) > -bouncefuzz) then
+             if (1.0 - lambda_grid(il)*bmag(ig) > -bouncefuzz) then
                 npts = npts + 1
              end if
           end do
@@ -2468,7 +2472,7 @@ contains
 
              ! loop computes transformed variable of integration (v||/v)
              do il = ng2+1, ng2+npts
-                ytmp(il-ng2) = sqrt(max(1 - al(il)*bmag(ig), 0.0))
+                ytmp(il-ng2) = sqrt(max(1 - lambda_grid(il)*bmag(ig), 0.0))
              end do
 
              ! define array (yb) with pitch-angle gridpts
@@ -2482,7 +2486,7 @@ contains
              ! Note : Here ulim and llim are the upper and lower vpar
              ! values for the valid trapped pitch angles at this theta
              ! location. In other words ulim == v_||_wfb(theta(ig)) =
-             ! sqrt(max(1.0-al(ng2+1)*bmag(ig),0.0)) = yb(2*npts-1)
+             ! sqrt(max(1.0-lambda_grid(ng2+1)*bmag(ig),0.0)) = yb(2*npts-1)
              ! We could probably replace ulim and llim with yb(2*npts-1)
              ! and yb(1) respectively.
              ulim = sqrt(max(1.0-bmag(ig)/bmax,0.0))
@@ -2569,11 +2573,11 @@ contains
        ! lambda.
        do il = ng2+1, nlambda-1
           do ig = -ntgrid, ntgrid
-             if (1.0-al(il)*bmag(ig) > -bouncefuzz &
-                  .and. 1.0-al(il+1)*bmag(ig) > -bouncefuzz) &
+             if (1.0-lambda_grid(il)*bmag(ig) > -bouncefuzz &
+                  .and. 1.0-lambda_grid(il+1)*bmag(ig) > -bouncefuzz) &
                   then
-                wwo = sqrt(max(1.0 -   al(il)*bmag(ig),0.0)) - &
-                     sqrt(max(1.0 - al(il+1)*bmag(ig),0.0))
+                wwo = sqrt(max(1.0 -   lambda_grid(il)*bmag(ig),0.0)) - &
+                     sqrt(max(1.0 - lambda_grid(il+1)*bmag(ig),0.0))
                 weights(ig,il)   = weights(ig,il)   + wwo
                 weights(ig,il+1) = weights(ig,il+1) + wwo
              end if
