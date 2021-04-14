@@ -868,96 +868,68 @@ contains
   !> Call to dump the current values from theta grid in a vaguely useful format.
   !> Helpful when we need to update the golden results as we've fixed a bug/changed
   !> behaviour etc.
-  subroutine helper_to_update_results(name)
+  subroutine helper_to_update_results(name, raw_format_in)
     use theta_grid, only: bmag, grho, gbdrift, cvdrift, gds2, gds21, gds22, gds23
     use theta_grid, only: gds24, gds24_noq, jacob, rplot, zplot, aplot
     use theta_grid, only: rprime, zprime, aprime, bpol, gbdrift0, cvdrift0, theta
     use theta_grid, only: cdrift, cdrift0, cvdrift_th, gbdrift_th, gradpar
     implicit none
     character(len=*), intent(in) :: name
+    logical, intent(in), optional :: raw_format_in
+    logical :: raw_format
     integer :: lun
     open(file=name,newunit=lun)
 
-    write(lun, '("real, parameter :: expected_",A,"(grid_size) = [",32(" ",F25.15,",")," ",F25.15," ]")') "theta",theta
-    write(lun,'()')
+    raw_format = .false.
+    if (present(raw_format_in)) raw_format = raw_format_in
 
-    write(lun, '("real, parameter :: expected_",A,"(grid_size) = [",32(" ",F25.15,",")," ",F25.15," ]")') "bmag",bmag
-    write(lun,'()')
-
-    write(lun, '("real, parameter :: expected_",A,"(grid_size) = [",32(" ",F25.15,",")," ",F25.15," ]")') "grho",grho
-    write(lun,'()')
-
-    write(lun, '("real, parameter :: expected_",A,"(grid_size) = [",32(" ",F25.15,",")," ",F25.15," ]")') "gradpar",gradpar
-    write(lun,'()')
-
-    write(lun, '("real, parameter :: expected_",A,"(grid_size) = [",32(" ",F25.15,",")," ",F25.15," ]")') "gbdrift",gbdrift
-    write(lun,'()')
-
-    write(lun, '("real, parameter :: expected_",A,"(grid_size) = [",32(" ",F25.15,",")," ",F25.15," ]")') "gbdrift0",gbdrift0
-    write(lun,'()')
-
-    write(lun, '("real, parameter :: expected_",A,"(grid_size) = [",32(" ",F25.15,",")," ",F25.15," ]")') "gbdrift_th",gbdrift_th
-    write(lun,'()')
-
-    write(lun, '("real, parameter :: expected_",A,"(grid_size) = [",32(" ",F25.15,",")," ",F25.15," ]")') "cvdrift",cvdrift
-    write(lun,'()')
-
-    write(lun, '("real, parameter :: expected_",A,"(grid_size) = [",32(" ",F25.15,",")," ",F25.15," ]")') "cvdrift0",cvdrift0
-    write(lun,'()')
-
-    write(lun, '("real, parameter :: expected_",A,"(grid_size) = [",32(" ",F25.15,",")," ",F25.15," ]")') "cvdrift_th",cvdrift_th
-    write(lun,'()')
-
-    write(lun, '("real, parameter :: expected_",A,"(grid_size) = [",32(" ",F25.15,",")," ",F25.15," ]")') "cdrift",cdrift
-    write(lun,'()')
-
-    write(lun, '("real, parameter :: expected_",A,"(grid_size) = [",32(" ",F25.15,",")," ",F25.15," ]")') "cdrift0",cdrift0
-    write(lun,'()')
-
-    write(lun, '("real, parameter :: expected_",A,"(grid_size) = [",32(" ",F25.15,",")," ",F25.15," ]")') "gds2",gds2
-    write(lun,'()')
-
-    write(lun, '("real, parameter :: expected_",A,"(grid_size) = [",32(" ",F25.15,",")," ",F25.15," ]")') "gds21",gds21
-    write(lun,'()')
-
-    write(lun, '("real, parameter :: expected_",A,"(grid_size) = [",32(" ",F25.15,",")," ",F25.15," ]")') "gds22",gds22
-    write(lun,'()')
-
-    write(lun, '("real, parameter :: expected_",A,"(grid_size) = [",32(" ",F25.15,",")," ",F25.15," ]")') "gds23",gds23
-    write(lun,'()')
-
-    write(lun, '("real, parameter :: expected_",A,"(grid_size) = [",32(" ",F25.15,",")," ",F25.15," ]")') "gds24",gds24
-    write(lun,'()')
-
-    write(lun, '("real, parameter :: expected_",A,"(grid_size) = [",32(" ",F25.15,",")," ",F25.15," ]")') "gds24_noq",gds24_noq
-    write(lun,'()')
-
-    write(lun, '("real, parameter :: expected_",A,"(grid_size) = [",32(" ",F25.15,",")," ",F25.15," ]")') "jacob",jacob
-    write(lun,'()')
-
-    write(lun, '("real, parameter :: expected_",A,"(grid_size) = [",32(" ",F25.15,",")," ",F25.15," ]")') "rplot",rplot
-    write(lun,'()')
-
-    write(lun, '("real, parameter :: expected_",A,"(grid_size) = [",32(" ",F25.15,",")," ",F25.15," ]")') "zplot",zplot
-    write(lun,'()')
-
-    write(lun, '("real, parameter :: expected_",A,"(grid_size) = [",32(" ",F25.15,",")," ",F25.15," ]")') "aplot",aplot
-    write(lun,'()')
-
-    write(lun, '("real, parameter :: expected_",A,"(grid_size) = [",32(" ",F25.15,",")," ",F25.15," ]")') "rprime",rprime
-    write(lun,'()')
-
-    write(lun, '("real, parameter :: expected_",A,"(grid_size) = [",32(" ",F25.15,",")," ",F25.15," ]")') "zprime",zprime
-    write(lun,'()')
-
-    write(lun, '("real, parameter :: expected_",A,"(grid_size) = [",32(" ",F25.15,",")," ",F25.15," ]")') "aprime",aprime
-    write(lun,'()')
-
-    write(lun, '("real, parameter :: expected_",A,"(grid_size) = [",32(" ",F25.15,",")," ",F25.15," ]")') "bpol",bpol
-    write(lun,'()')
+    call write_data( lun, "theta", theta, raw_format)
+    call write_data( lun, "bmag", bmag, raw_format)    
+    call write_data( lun, "grho", grho, raw_format)
+    call write_data( lun, "gradpar", gradpar, raw_format)    
+    call write_data( lun, "gbdrift", gbdrift, raw_format)        
+    call write_data( lun, "gbdrift0", gbdrift0, raw_format)
+    call write_data( lun, "gbdrift_th", gbdrift_th, raw_format)    
+    call write_data( lun, "cvdrift", cvdrift, raw_format)    
+    call write_data( lun, "cvdrift0", cvdrift0, raw_format)    
+    call write_data( lun, "cvdrift_th", cvdrift_th, raw_format)
+    call write_data( lun, "cdrift", cdrift, raw_format)
+    call write_data( lun, "cdrift0", cdrift0, raw_format)        
+    call write_data( lun, "gds2", gds2, raw_format)
+    call write_data( lun, "gds21", gds21, raw_format)
+    call write_data( lun, "gds22", gds22, raw_format)
+    call write_data( lun, "gds23", gds23, raw_format)
+    call write_data( lun, "gds24", gds24, raw_format)
+    call write_data( lun, "gds24_noq", gds24_noq, raw_format)
+    call write_data( lun, "jacob", jacob, raw_format)
+    call write_data( lun, "rplot", rplot, raw_format)
+    call write_data( lun, "zplot", zplot, raw_format)
+    call write_data( lun, "aplot", aplot, raw_format)
+    call write_data( lun, "rprime", rprime, raw_format)
+    call write_data( lun, "zprime", zprime, raw_format)
+    call write_data( lun, "aprime", aprime, raw_format)
+    call write_data( lun, "bpol", bpol, raw_format)
 
     close(lun)
 
+  contains
+    subroutine write_data(unit, name, data, raw_format)
+      implicit none
+      integer, intent(in) :: unit
+      character(len=*), intent(in) :: name
+      real, dimension(:), intent(in) :: data
+      logical, intent(in) :: raw_format
+
+      if (raw_format) then
+         write(unit, '(33(F25.15," "))') data
+      else
+         write(unit, '("real, parameter :: expected_",A,"(grid_size) = [ &")') name
+         write(unit, '(10(" ", 3(F25.15, ", "), "&", /), " ", 2(F25.15, ", "), F25.15, "  &")') data
+         write(unit, '("]")')
+      end if
+
+    end subroutine write_data
+    
   end subroutine helper_to_update_results
 
   @test(npes=[1])
