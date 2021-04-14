@@ -2405,7 +2405,8 @@ contains
   !> replace `weights = ` with effectively `weights +=` in this routine.
   subroutine setup_trapped_lambda_grids(al, weights)
     use theta_grid, only: ntgrid, bmag, bmax, eps_trapped
-    use file_utils, only: open_output_file, close_output_file
+    use file_utils, only: open_output_file, close_output_file, error_unit
+    use mp, only: proc0
     implicit none
     !> Array which stores the lambda grid points
     real, dimension(:), intent(in out) :: al
@@ -2455,7 +2456,7 @@ contains
              ! These are the v||/v points for each lambda between wfb (sets maximum
              ! v||/v here) and the lambda which bounces at this point (v||/v = 0)
              ! yb is an array containing the full set of [-v||/v, v||/v] grid points.
-             ! Constructed directly from ytmp by copying and flipping sign+orde
+             ! Constructed directly from ytmp by copying and flipping sign+order
              ! wb is an array containing the integration weights calculated for the
              ! given v||/v grid.
              allocate(ytmp(npts), yb(2*npts-1), wb(2*npts-1))
@@ -2491,7 +2492,7 @@ contains
              ! Note we don't call this if ulim == 0 as the grid then has no extent.
              ! This situation can arise when bmag(ig) == bmax where we would find
              ! npts = 1, corresponding to just the wfb being a valid lambda. This
-             ! means that at this location and the wfb has zero integration weight.
+             ! means that at this location the wfb has zero integration weight.
              ! Note we currently ignore the error flag and other returned values other
              ! than the weights. We should probably check this to at least warn the
              ! user if something looks badly behaved.
@@ -2503,11 +2504,21 @@ contains
                 ! accurate results when integrating certain functions (see mod vpa test
                 ! in the le_grids_integrate unit tests).
                 call get_weights (nmax, llim, 0., yb(:npts), wb(:npts), ndiv, divmax, eflag)
+
+                if (eflag .and. proc0) then
+                   write(error_unit(), '("Error flag set by first call to get_weights in setup_trapped_lambda_grids")')
+                end if
+
                 ! Store the v|| = 0 weight for the lower domain as this will be
                 ! clobbered by the subsequent get_weights call so we need to add
                 ! this on afterwards
                 wgt_tmp = wb(npts)
                 call get_weights (nmax, 0., ulim, yb(npts:), wb(npts:), ndiv, divmax, eflag)
+
+                if (eflag .and. proc0) then
+                   write(error_unit(), '("Error flag set by second call to get_weights in setup_trapped_lambda_grids")')
+                end if
+
                 wb(npts) = wb(npts) + wgt_tmp
              end if
 
