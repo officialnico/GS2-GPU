@@ -1,3 +1,6 @@
 pfunit_test_suite
 
 fort.*
+
+# Ignore generated .F90 files
+*.F90

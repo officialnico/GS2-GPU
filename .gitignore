@@ -46,6 +46,7 @@ results_of_test.txt
 *.trinpars
 *.vres
 *.vres2
+*.vspace_integration_error
 
 .patch.make
 Revision

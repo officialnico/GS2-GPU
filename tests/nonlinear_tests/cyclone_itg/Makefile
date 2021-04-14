@@ -20,6 +20,7 @@ all:
 else
 all: cyclone_itg_low_res 
 	$(call RUNCOMMAND,cyclone_itg_low_res,cyclone_itg_low_res.in)
+	$(call RUNCOMMAND,cyclone_itg_low_res,cyclone_itg_low_res_pad.in)
 endif
 endif
 endif

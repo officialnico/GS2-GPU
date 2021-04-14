@@ -532,7 +532,13 @@ contains
        vnm_init = 1.0
        call init_vnm (vnm_saved, istatus)
        if (istatus == 0) vnm_init = vnm_saved
-       call init_dt (delt0, delt1, delt2, istatus)
+       call init_dt (delt0, delt1, delt2, istatus, dt_not_set)
+
+       ! FIXME: The following check means that we only set all the
+       ! time step values if there were no errors in whatever the last
+       ! operation in `init_dt` was. In reality we should probably always
+       ! set these values based on what is returned and move the error
+       ! handling into `init_dt`.
        if (istatus == 0) then
           delt  = delt0
           delt_prev1 = delt1
