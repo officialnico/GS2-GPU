@@ -38,7 +38,7 @@ program mat_inv_benchmark
         time_a = timer_local()
         do j = 1, current_size
            do k = 1, current_size
-              array(j,k) = cmplx(ranf(), ranf())
+              array(j, k) = cmplx(ranf(), ranf())
            end do
 
            ! Try to ensure array is diagonally dominant
@@ -63,8 +63,7 @@ program mat_inv_benchmark
 
            ! Test the inversion, if it fails abort.
            if(irep==1) then
-              if(.not.test(original_array,array)) then
-                 print*,"ERROR: Inversion failed"
+              if(.not.test(original_array,array, print_error = .true.)) then
                  exit
               end if
            end if
@@ -94,14 +93,16 @@ program mat_inv_benchmark
 
 contains
 
-  logical function test(A,B)
+  logical function test(A, B, print_error)
     implicit none
     complex, dimension(:,:), intent(in) :: A, B
+    logical, intent(in), optional :: print_error
     complex, dimension(:,:), allocatable :: C
     real, dimension(:,:), allocatable :: identity
     real, parameter :: tolerance = 1.0e-8
     real :: maxerr
-    integer :: i, N
+    integer :: i, N, error_position
+    logical :: print_error_internal
 
     C = matmul(A,B)
     N = size(A, dim = 1)
@@ -114,6 +115,16 @@ contains
     maxerr = maxval(abs(C - identity))
 
     test = maxerr <= tolerance
+
+    print_error_internal = .false.
+    if (present(print_error)) print_error_internal = print_error
+
+    if (.not. test .and. print_error) then
+       print*,"ERROR: Inversion failed with maxerr = ",maxerr," compared to tolerance ",tolerance
+       error_position = maxloc(abs(C - identity))
+       print*,"Location of first maximum error is given by flat index : ",error_position,"(",1 + (error_position-1)/N,",", 1 + mod((error_position-1), N), ")"
+    end if
+
   end function test
 
 end program mat_inv_benchmark
