@@ -101,7 +101,8 @@ contains
     real, dimension(:,:), allocatable :: identity
     real, parameter :: tolerance = 1.0e-8
     real :: maxerr
-    integer :: i, N, error_position
+    integer :: i, N
+    integer, dimension(2) :: error_position
     logical :: print_error_internal
 
     C = matmul(A,B)
@@ -122,7 +123,7 @@ contains
     if (.not. test .and. print_error) then
        print*,"ERROR: Inversion failed with maxerr = ",maxerr," compared to tolerance ",tolerance
        error_position = maxloc(abs(C - identity))
-       print*,"Location of first maximum error is given by flat index : ",error_position,"(",1 + (error_position-1)/N,",", 1 + mod((error_position-1), N), ")"
+       print*,"Location of first maximum error is given at (",error_position(1),",",error_position(2),")"
     end if
 
   end function test
