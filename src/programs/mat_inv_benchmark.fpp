@@ -23,7 +23,7 @@ program mat_inv_benchmark
   output = output_unit
 
   if (proc0) then
-     sizes =  [2,4,8,16,32,64,128,256,512,1024,2048,2049]
+     sizes =  [2,4,8,16,32,64,128,256,257,400,512,1024,2048]
      ncases = size(sizes)
      allocate(average_times(ncases))
      allocate(max_times(ncases))
