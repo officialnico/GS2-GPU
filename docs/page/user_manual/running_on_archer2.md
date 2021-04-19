@@ -45,6 +45,14 @@ dependency file if it already exists by running:
 make -I Makefiles GK_SYSTEM=archer2 USE_LAPACK=on depend
 ```
 
+In general BLAS and Lapack can support OpenMP parallelisation. Due to the way that Archer2
+links libraries it is likely that we will not get access to the OpenMP BLAS/Lapack unless
+we add OpenMP flags to our link line (e.g. `-fopenmp`). Whilst we do not typically use
+OpenMP in GS2 one may find a need to under-populate nodes. In this instance enabling
+OpenMP and using `fields_option = 'local'`, coupled with setting `OMP_NUM_THREADS` to the
+appropriate value (typically the same as `--cpus-per-task`) one may find that the
+calculation of the response matrices can be OpenMP accelerated.
+
 ## Running
 
 ARCHER2 doesn't mount the home partition on the compute nodes, so
