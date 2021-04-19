@@ -29,6 +29,22 @@ then we can compile GS2:
 make -I Makefiles GK_SYSTEM=archer2 -j
 ```
 
+### Optional dependencies
+
+Archer2 provides optimised lapack routines in the `cray-libsci` module which tends to be
+loaded automatically. GS2 can make use of these by passing `USE_LAPACK=on` when building:
+
+```
+make -I Makefiles GK_SYSTEM=archer2 USE_LAPACK=on -j
+```
+
+No changes to the Archer2 makefile are required. It may be necessary to rebuild the
+dependency file if it already exists by running:
+
+```
+make -I Makefiles GK_SYSTEM=archer2 USE_LAPACK=on depend
+```
+
 ## Running
 
 ARCHER2 doesn't mount the home partition on the compute nodes, so
