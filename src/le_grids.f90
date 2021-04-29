@@ -2185,14 +2185,16 @@ contains
   !> adopted in [[dist_fn::get_verr]].
   subroutine report_velocity_integration_error_estimate(unit_in)
     use iso_fortran_env, only: output_unit
-    use theta_grid, only: ntgrid
+    use theta_grid, only: ntgrid, bmag, bmax
     use species, only: nspec
 
     implicit none
 
     integer, intent(in), optional :: unit_in
     real, parameter :: expected_lambda = 2.0, expected_energy = 0.25
-    real, dimension(:), allocatable :: lambda_error, energy_error
+    real, dimension(:), allocatable :: lambda_error, energy_error, b_ratio
+    real, dimension(:), allocatable :: passing_error, expected_passing
+    real, dimension(:), allocatable :: trapped_error, expected_trapped
     real, dimension(:, :), allocatable :: mixed_error, mixed_value
     integer :: unit, ie, ig, is
 
@@ -2200,6 +2202,7 @@ contains
     if (present(unit_in)) unit = unit_in
 
     !Get estimates of the error on the integration weights.
+    ! Total pitch angle grid
     allocate(lambda_error(-ntgrid:ntgrid))
     lambda_error = 0.0
     do ig = -ntgrid, ntgrid
@@ -2208,6 +2211,45 @@ contains
     !Introduce factor 2 here to account for sigma doubling
     lambda_error = 2*lambda_error
 
+    ! Passing pitch angle grid
+    allocate(passing_error(-ntgrid:ntgrid))
+    passing_error = 0.0
+    allocate(expected_passing(-ntgrid:ntgrid))
+    allocate(b_ratio(-ntgrid:ntgrid))
+    b_ratio = bmax / bmag
+    ! This is the analytic integral of the function we weight the Legendre
+    ! weights by over the passing region, i.e.
+    ! 2.0*sqrt((bmag(ig)/bmax)*((1.0/bmax-al(il))/(1.0/bmag(ig)-al(il)))
+    ! Note to integrate this correctly it is useful to transform from lambda
+    ! to the Legendre variable xx, through xx = sqrt(1-lambda*bmax)
+    ! The weight function then becomes:
+    ! 2.0*sqrt(bmag/bmax) * sqrt([xx^2]/[(bmax/bmag)-1+xx^2])
+    ! and we would integrate from xx=0 to xx=1
+    expected_passing = 2.0 * (1 - sqrt(b_ratio - 1)/sqrt(b_ratio))
+    do ig = -ntgrid, ntgrid
+       passing_error(ig) = expected_passing(ig) - sum(wl(ig, :ng2))
+    end do
+    !Introduce factor 2 here to account for sigma doubling
+    passing_error = 2*passing_error
+
+    ! Trapped pitch angle grid
+    allocate(trapped_error(-ntgrid:ntgrid))
+    trapped_error = 0.0
+    ! Only calculate this if we have any trapped pitch angles
+    if (nlambda > ng2) then
+       allocate(expected_trapped(-ntgrid:ntgrid))
+       ! We're essentially just subtracting the passing analytic
+       ! result from the total expectation, i.e. effectively
+       !  expected_trapped = expected_lambda - expected_passing
+       expected_trapped = 2.0 * sqrt(b_ratio - 1)/sqrt(b_ratio)
+       do ig = -ntgrid, ntgrid
+          trapped_error(ig) = expected_trapped(ig) - sum(wl(ig, ng2+1:))
+       end do
+       !Introduce factor 2 here to account for sigma doubling
+       trapped_error = 2*trapped_error
+    end if
+
+    ! Energy grid
     allocate(energy_error(nspec))
     energy_error = 0.0
     do is = 1, nspec
@@ -2232,6 +2274,12 @@ contains
 
     write(unit,'("Lambda weights errors, max/mean/mean(|error|) :",3(E14.6E3," "))') &
          maxval(abs(lambda_error)),sum(lambda_error)/size(lambda_error), sum(abs(lambda_error))/size(lambda_error)
+
+    write(unit,'("Passing weights errors, max/mean/mean(|error|) :",3(E14.6E3," "))') &
+         maxval(abs(passing_error)),sum(passing_error)/size(passing_error), sum(abs(passing_error))/size(passing_error)
+
+    write(unit,'("Trapped weights errors, max/mean/mean(|error|) :",3(E14.6E3," "))') &
+         maxval(abs(trapped_error)),sum(trapped_error)/size(trapped_error), sum(abs(trapped_error))/size(trapped_error)
 
     write(unit,'("Energy weights errors, max/mean/mean(|error|) :",3(E14.6E3," "))') &
          maxval(abs(energy_error)),sum(energy_error)/size(energy_error), sum(abs(energy_error))/size(energy_error)
