@@ -2187,7 +2187,9 @@ contains
     use iso_fortran_env, only: output_unit
     use theta_grid, only: ntgrid, bmag, bmax
     use species, only: nspec
-
+    ! Note in fortran 2008 we could just use the erf intrinsic
+    use spfunc, only: erf_ext
+    use constants, only: pi
     implicit none
 
     integer, intent(in), optional :: unit_in
@@ -2195,7 +2197,9 @@ contains
     real, dimension(:), allocatable :: lambda_error, energy_error, b_ratio
     real, dimension(:), allocatable :: passing_error, expected_passing
     real, dimension(:), allocatable :: trapped_error, expected_trapped
+    real, dimension(:), allocatable :: energy_sub_error, energy_super_error
     real, dimension(:, :), allocatable :: mixed_error, mixed_value
+    real :: expected_energy_sub, expected_energy_super
     integer :: unit, ie, ig, is
 
     unit = output_unit
@@ -2249,12 +2253,49 @@ contains
        trapped_error = 2*trapped_error
     end if
 
-    ! Energy grid
+    ! Total energy grid
     allocate(energy_error(nspec))
     energy_error = 0.0
     do is = 1, nspec
        energy_error(is) = expected_energy - sum(w(:,is))
     end do
+
+    ! Energy sub grid
+    allocate(energy_sub_error(nspec))
+    energy_sub_error = 0.0
+    ! NOTE: This assumes we are considering a species with Maxwellian
+    ! background such that f0_values = exp(-energy)/pi^3/2
+    ! We are analytically evaluating
+    ! Integral_0^vcut{v^2 * pi * f0_values dv}
+    ! Assuming Maxwellian this becomes
+    ! Integral_0^vcut{v^2 exp(-v^2)/sqrt(pi) dv}
+    ! Which has result:
+    ! (1/4) [ erf(vcut) - 2 vcut exp(-vcut^2)/sqrt(pi)]
+    expected_energy_sub = 0.25 * ( erf_ext(vcut) - 2*vcut*exp(-vcut*vcut)/sqrt(pi))
+    do is = 1, nspec
+       energy_sub_error(is) = expected_energy_sub - sum(w(:nesub,is))
+    end do
+
+    ! Energy super grid
+    allocate(energy_super_error(nspec))
+    energy_super_error = 0.0
+    if (negrid > nesub) then
+       ! NOTE: This assumes we are considering a species with Maxwellian
+       ! background such that f0_values = exp(-energy)/pi^3/2
+       ! We are analytically evaluating
+       ! Integral_0^infinity{sqrt(y+vcut^2) * exp(y) * pi * f0_values * W(y) dy}/2
+       ! where W(y) are the Laguerre weights = exp(-y)
+       ! Assuming Maxwellian this becomes
+       ! Integral_0^infinity{sqrt(y+vcut^2) * exp(y) * exp(-(y+vcut^2)) * exp(-y) dy}/2
+       ! which simplifies slightly to
+       ! Integral_0^infinity{sqrt(y+vcut^2) * exp(-(vcut^2)) * exp(-y) dy}/2
+       ! Which has result:
+       ! [sqrt(pi)*erfc(vcut)/2 + vcut*exp(-vcut^2)]/(2*sqrt(pi))
+       expected_energy_super =  0.5*(sqrt(pi)*(1-erf_ext(vcut))/2 + vcut*exp(-vcut*vcut))/sqrt(pi)
+       do is = 1, nspec
+          energy_super_error(is) = expected_energy_super - sum(w(nesub+1:,is))
+       end do
+    end if
 
     allocate(mixed_error(-ntgrid:ntgrid, nspec))
     allocate(mixed_value(size(wl(0,:)), size(w(:,1))))
@@ -2283,6 +2324,12 @@ contains
 
     write(unit,'("Energy weights errors, max/mean/mean(|error|) :",3(E14.6E3," "))') &
          maxval(abs(energy_error)),sum(energy_error)/size(energy_error), sum(abs(energy_error))/size(energy_error)
+
+    write(unit,'("Energy_Sub weights errors, max/mean/mean(|error|) :",3(E14.6E3," "))') &
+         maxval(abs(energy_sub_error)),sum(energy_sub_error)/size(energy_sub_error), sum(abs(energy_sub_error))/size(energy_sub_error)
+
+    write(unit,'("Energy_Super weights errors, max/mean/mean(|error|) :",3(E14.6E3," "))') &
+         maxval(abs(energy_super_error)),sum(energy_super_error)/size(energy_super_error), sum(abs(energy_super_error))/size(energy_super_error)
 
     write(unit,'("Mixed weights errors, max/mean/mean(|error|)  :",3(E14.6E3," "))') &
          maxval(abs(mixed_error)),sum(mixed_error)/size(mixed_error), sum(abs(mixed_error))/size(mixed_error)
