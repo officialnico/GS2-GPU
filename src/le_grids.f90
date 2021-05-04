@@ -2230,6 +2230,13 @@ contains
     ! The weight function then becomes:
     ! 2.0*sqrt(bmag/bmax) * sqrt([xx^2]/[(bmax/bmag)-1+xx^2])
     ! and we would integrate from xx=0 to xx=1
+    ! Note this analytic result and comparison is appropriate when
+    ! Radau_Gauss_Grid = F.  When this is not the case (default) then
+    ! the calculation of the passing and trapped errors from this
+    ! analytic result is no longer appropriate as the wfb contains
+    ! contributions from both the passing and trapped regions when
+    ! bmag = bmax, and as such our comparison is only valid away from
+    ! where bmag=bmax.
     expected_passing = 2.0 * (1 - sqrt(b_ratio - 1)/sqrt(b_ratio))
     do ig = -ntgrid, ntgrid
        passing_error(ig) = expected_passing(ig) - sum(wl(ig, :ng2))
