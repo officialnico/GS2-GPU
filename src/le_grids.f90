@@ -2206,13 +2206,14 @@ contains
     if (present(unit_in)) unit = unit_in
 
     !Get estimates of the error on the integration weights.
+
     ! Total pitch angle grid
     allocate(lambda_error(-ntgrid:ntgrid))
     lambda_error = 0.0
     do ig = -ntgrid, ntgrid
        lambda_error(ig) = expected_lambda - sum(wl(ig, :))
     end do
-    !Introduce factor 2 here to account for sigma doubling
+    ! Introduce factor 2 here to account for sigma doubling
     lambda_error = 2*lambda_error
 
     ! Passing pitch angle grid
@@ -2233,7 +2234,7 @@ contains
     do ig = -ntgrid, ntgrid
        passing_error(ig) = expected_passing(ig) - sum(wl(ig, :ng2))
     end do
-    !Introduce factor 2 here to account for sigma doubling
+    ! Introduce factor 2 here to account for sigma doubling
     passing_error = 2*passing_error
 
     ! Trapped pitch angle grid
@@ -2310,29 +2311,36 @@ contains
        end do
     end do
 
-    !Introduce factor 2 here to account for sigma doubling
+    ! Introduce factor 2 here to account for sigma doubling
     mixed_error = 2 * mixed_error
 
-    write(unit,'("Lambda weights errors, max/mean/mean(|error|) :",3(E14.6E3," "))') &
-         maxval(abs(lambda_error)),sum(lambda_error)/size(lambda_error), sum(abs(lambda_error))/size(lambda_error)
+    ! Report errors to unit
+    call report_error(unit, "Lambda", lambda_error)
+    call report_error(unit, "Passing", passing_error)
+    call report_error(unit, "Trapped", trapped_error)
+    call report_error(unit, "Energy", energy_error)
+    call report_error(unit, "Energy_Sub", energy_sub_error)
+    call report_error(unit, "Energy_Super", energy_super_error)
+    call report_error_2d(unit, "Mixed", mixed_error)
 
-    write(unit,'("Passing weights errors, max/mean/mean(|error|) :",3(E14.6E3," "))') &
-         maxval(abs(passing_error)),sum(passing_error)/size(passing_error), sum(abs(passing_error))/size(passing_error)
+  contains
+    subroutine report_error(unit, name, error)
+      implicit none
+      integer, intent(in) :: unit
+      character(len=*), intent(in) :: name
+      real, dimension(:), intent(in) :: error
+      write(unit, '(A," weights errors, max/mean/mean(|error|)  :",3(E14.6E3," "))') &
+           name, maxval(abs(error)), sum(error)/size(error), sum(abs(error))/size(error)
+    end subroutine report_error
 
-    write(unit,'("Trapped weights errors, max/mean/mean(|error|) :",3(E14.6E3," "))') &
-         maxval(abs(trapped_error)),sum(trapped_error)/size(trapped_error), sum(abs(trapped_error))/size(trapped_error)
-
-    write(unit,'("Energy weights errors, max/mean/mean(|error|) :",3(E14.6E3," "))') &
-         maxval(abs(energy_error)),sum(energy_error)/size(energy_error), sum(abs(energy_error))/size(energy_error)
-
-    write(unit,'("Energy_Sub weights errors, max/mean/mean(|error|) :",3(E14.6E3," "))') &
-         maxval(abs(energy_sub_error)),sum(energy_sub_error)/size(energy_sub_error), sum(abs(energy_sub_error))/size(energy_sub_error)
-
-    write(unit,'("Energy_Super weights errors, max/mean/mean(|error|) :",3(E14.6E3," "))') &
-         maxval(abs(energy_super_error)),sum(energy_super_error)/size(energy_super_error), sum(abs(energy_super_error))/size(energy_super_error)
-
-    write(unit,'("Mixed weights errors, max/mean/mean(|error|)  :",3(E14.6E3," "))') &
-         maxval(abs(mixed_error)),sum(mixed_error)/size(mixed_error), sum(abs(mixed_error))/size(mixed_error)
+    subroutine report_error_2d(unit, name, error)
+      implicit none
+      integer, intent(in) :: unit
+      character(len=*), intent(in) :: name
+      real, dimension(:, :), intent(in) :: error
+      write(unit, '(A," weights errors, max/mean/mean(|error|)  :",3(E14.6E3," "))') &
+           name, maxval(abs(error)), sum(error)/size(error), sum(abs(error))/size(error)
+    end subroutine report_error_2d
 
   end subroutine report_velocity_integration_error_estimate
 
