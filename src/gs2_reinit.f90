@@ -116,7 +116,7 @@ contains
     write (unit, fmt="(' /')")       
   end subroutine wnml_gs2_reinit
 
-  !> FIXME : Add documentation  
+  !> Reduces the time step by a factor `delt_adj`.
   subroutine reduce_time_step
     use gs2_time, only: code_dt
     implicit none
@@ -124,7 +124,9 @@ contains
     code_dt = code_dt/delt_adj
   end subroutine reduce_time_step
 
-  !> FIXME : Add documentation  
+  !> Increases the time step by a factor `delt_adj` up to a limit of
+  !> `code_dt_max` set by [[reinit_config_type:dt0]] or from the
+  !> restart file.
   subroutine increase_time_step
     use gs2_time, only: code_dt, code_dt_max
     implicit none
