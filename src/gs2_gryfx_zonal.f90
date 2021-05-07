@@ -286,7 +286,7 @@ contains
     use unit_tests, only: debug_message
     use geometry, only: equal_arc
     use gs2_save, only: init_dt
-    use gs2_time, only: init_delt
+    use gs2_time, only: init_delt, dt_not_set
 
     implicit none
     integer, intent(in) :: strlen
@@ -329,7 +329,7 @@ contains
     endif
     if (gryfx_parameters%restart==1) then
        ! Load the saved value of dt
-       call init_dt(delt, delt1, delt2, delt_max, istatus)
+       call init_dt(delt, delt1, delt2, delt_max, istatus, dt_not_set)
        call init_delt(delt, delt1, delt2)
        ! Set up gs2 state so that it reads the
        ! initial values from the restart file.
