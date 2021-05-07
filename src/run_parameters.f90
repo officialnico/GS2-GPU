@@ -532,7 +532,8 @@ contains
        vnm_init = 1.0
        call init_vnm (vnm_saved, istatus)
        if (istatus == 0) vnm_init = vnm_saved
-       call init_dt (delt0, delt1, delt2, delt_max, istatus)
+
+       call init_dt (delt0, delt1, delt2, delt_max, istatus, dt_not_set)
        if (delt0 /= dt_not_set) delt = delt0
        if (delt1 /= dt_not_set) delt_prev1 = delt1
        if (delt2 /= dt_not_set) delt_prev2 = delt2

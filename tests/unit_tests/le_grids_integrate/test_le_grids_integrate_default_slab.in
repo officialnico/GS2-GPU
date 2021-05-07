@@ -1,0 +1,19 @@
+&le_grids_knobs
+negrid = 16
+/
+
+&theta_grid_parameters
+  nperiod = 1
+  ntheta = 8
+  eps = 0.
+  kp = 2.0
+  epsl = 0.
+/
+
+&theta_grid_knobs
+equilibrium_option='s-alpha'
+/
+&le_grids_integrate
+tolerance = 1.0e-6
+/
+!include test_le_grids_integrate_base.in
