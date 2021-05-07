@@ -12,6 +12,8 @@ def get_all_matching_files(paths = None, patterns = None, absolute = False, excl
         paths = [paths]
     if not isinstance(patterns, list):
         patterns = [patterns]
+    if not isinstance(exclude, list):
+        exclude = [exclude]
 
     # Use recursion when number of paths/patterns
     # is bigger than one
@@ -60,9 +62,11 @@ if __name__ == "__main__":
     parser.add_argument("--absolute", action = "store_true", help =
                         "If set then report absolute paths.")
     
+    parser.add_argument("--exclude", action="append", help="Paths to exclude from search")
+
     args = parser.parse_args()
 
-    result = get_all_matching_files(paths=args.path, patterns = args.pattern, absolute = args.absolute)
+    result = get_all_matching_files(paths=args.path, patterns = args.pattern, absolute = args.absolute, exclude=args.exclude)
 
     for f in result:
         print(f)
