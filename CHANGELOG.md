@@ -1,7 +1,22 @@
+## 8.0.6 (2021-02-03)
+
+* Bugfix for nperiod > 1 rebased for 8.0.6 RC [PR #409 | Jason Parisi](https://bitbucket.org/gyrokinetics/gs2/pull-requests/409)
+* Backport gitlab to 8.0.6 [PR #403 | Peter Hill](https://bitbucket.org/gyrokinetics/gs2/pull-requests/403)
+* Add instructions on making a release [PR #404 | Joseph Parker](https://bitbucket.org/gyrokinetics/gs2/pull-requests/404)
+* Fix for issue #138 : Ensure correct size of dimension_names array in new diagnostics distributed field code [PR #394 | David Dickinson](https://bitbucket.org/gyrokinetics/gs2/pull-requests/394)
+* Ensure istep used in new diagnostics is not negative. [PR #377 | David Dickinson](https://bitbucket.org/gyrokinetics/gs2/pull-requests/377)
+* Pass `nth` rather than `ntgrid` to `leqin` [PR #372 | David Dickinson](https://bitbucket.org/gyrokinetics/gs2/pull-requests/372)
+* Pass the value of PFUNIT_VERSION_MAJOR to the build_pfunit script [PR #351 | David Dickinson](https://bitbucket.org/gyrokinetics/gs2/pull-requests/351)
+* [backport] Fix logic checking requested pfunit version [PR #352 | David Dickinson](https://bitbucket.org/gyrokinetics/gs2/pull-requests/352)
+* Bugfix/fix parallel netcdf inconsistent defines [PR #341 | David Dickinson](https://bitbucket.org/gyrokinetics/gs2/pull-requests/341)
+
+
 ## 8.0.5 (2020-09-02)
 
-* Fix Jenkins trying to fetch more than required from submodules [PR #324 | Peter Hill](https://bitbucket.org/gyrokinetics/gs2/pull-requests/324)
+* 8.0.5 RC [PR #322 | Joseph Parker](https://bitbucket.org/gyrokinetics/gs2/pull-requests/322)
+* Backport/PR 306 to 8.0.5 RC [PR #319 | David Dickinson](https://bitbucket.org/gyrokinetics/gs2/pull-requests/319)
 * Update utils and makefiles for 8.0.5 [PR #323 | Joseph Parker](https://bitbucket.org/gyrokinetics/gs2/pull-requests/323)
+* Fix Jenkins trying to fetch more than required from submodules [PR #324 | Peter Hill](https://bitbucket.org/gyrokinetics/gs2/pull-requests/324)
 * Bugfix/fix some valgrind warnings testsuite 8 0 5 [PR #311 | David Dickinson](https://bitbucket.org/gyrokinetics/gs2/pull-requests/311)
 * Bugfix/fix efit aminor duplicate point skip [PR #308 | David Dickinson](https://bitbucket.org/gyrokinetics/gs2/pull-requests/308)
 * Fix calculation of the extended domain length for cases with more than one field [PR #299 | David Dickinson](https://bitbucket.org/gyrokinetics/gs2/pull-requests/299)
