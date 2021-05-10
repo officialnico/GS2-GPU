@@ -26,10 +26,10 @@ program test_init_g_nonadiabatic
 
   call initialize_gs2(state)
 
-  ! initialize up to but not including setting the initial values
-  ! Actually we stop just before fields_level_2 where the response
-  ! matrices are calculated as we do not need this level.
-  !call init(state%init, init_level_list%set_initial_values - 1)  
+  ! Might expect to initialize up to but not including setting the
+  ! initial values but actually we stop just before fields_level_2 where
+  ! the response matrices are calculated as we do not need this level and
+  ! this can save a significant amount of time.
   call init(state%init, init_level_list%fields_level_2 - 1)
 
   agrees = .true.
