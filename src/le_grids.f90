@@ -2632,7 +2632,7 @@ contains
   !> in [[trap_error]], which in turn is only used in
   !> [[get_verr]]. This is used as a part of the [[vary_vnew]]
   !> adaptive collisionality code triggered through the
-  !> diagnostics. This routinie is rather expensive for high theta
+  !> diagnostics. This routine is rather expensive for high theta
   !> resolution - measured in the order of 4-5 minutes for ntheta=256.
   !> As such we might want to consider skipping this if the variable
   !> vnewk code is not active. As we do this for each npt and each
