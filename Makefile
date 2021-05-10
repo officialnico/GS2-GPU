@@ -65,6 +65,8 @@ USE_NETCDF ?= on
 USE_PARALLEL_NETCDF ?= 
 # uses hdf5 library (bin)
 USE_HDF5 ?=  
+# uses lapack or compatible library (bin)
+USE_LAPACK ?=
 # Use local random number generator (mt,undefined)
 # see also README
 USE_LOCAL_RAN ?=
@@ -172,6 +174,8 @@ GENQUAD_INC ?=
 GENQUAD_LIB ?=
 NETCDF_INC ?=
 NETCDF_LIB ?=
+LAPACK_INC ?=
+LAPACK_LIB ?=
 HDF5_INC ?=
 HDF5_LIB ?=
 NAG_LIB ?=
@@ -453,6 +457,10 @@ ifdef USE_POSIX
 	MACRO_DEFS += -DPOSIX
 endif
 
+ifdef USE_LAPACK
+	MACRO_DEFS += -DLAPACK
+endif
+
 ifdef USE_F200X_INTRINSICS
 	MACRO_DEFS += -DF200X_INTRINSICS -DSPFUNC=_SPF200X_
 else
@@ -540,9 +548,9 @@ endif
 ############################################################################# Done dealing with user flags
 
 LIBS	+= $(DEFAULT_LIB) $(MPI_LIB) $(NETCDF_LIB) $(HDF5_LIB) $(FFT_LIB) \
-		   $(NAG_LIB) $(EIG_LIB) $(GENQUAD_LIB)
+		   $(NAG_LIB) $(EIG_LIB) $(GENQUAD_LIB) $(LAPACK_LIB)
 INCLUDES = $(DEFAULT_INC) $(MPI_INC) $(NETCDF_INC) $(HDF5_INC) $(FFT_INC)\
-		   $(SIMPLEDATAIO_INC) $(EIG_INC) $(GENQUAD_INC) $(PFUNIT_INC)
+		   $(SIMPLEDATAIO_INC) $(EIG_INC) $(GENQUAD_INC) $(PFUNIT_INC) $(LAPACK_INC)
 
 INCLUDES += -I$(MODDIR)
 
@@ -903,6 +911,7 @@ test_make:
 	$(call messageKeyVal, "USE_HDF5", $(USE_HDF5))
 	$(call messageKeyVal, "WITH_EIG", $(WITH_EIG))
 	$(call messageKeyVal, "USE_POSIX", $(USE_POSIX))
+	$(call messageKeyVal, "USE_LAPACK", $(USE_LAPACK))
 	$(call messageKeyVal, "USE_LOCAL_RAN", $(USE_LOCAL_RN))
 	$(call messageKeyVal, "USE_SPFUNC", $(USE_SPFUNC))
 	$(call messageKeyVal, "USE_NAGLIB", $(USE_NAGLIB))
@@ -1007,6 +1016,14 @@ else
 	$(call messageInfo,"Eigensolver: DISABLED")
 endif
 	@echo
+ifdef USE_LAPACK
+	$(call messageInfo,"Lapack:")
+	$(call messageKeyVal, "LAPACK_LIB", $(LAPACK_LIB))
+	$(call messageKeyVal, "LAPACK_INC", $(LAPACK_INC))
+else
+	$(call messageInfo,"Lapack: DISABLED")
+endif
+	@echo
 
 revision:
 	@LANG=C git rev-parse HEAD > Revision
@@ -1029,7 +1046,7 @@ check_ford_install:
 endif
 
 namelist_doc: PATHS:=$(foreach dir, $(SRCDIR) $(SUBDIRS), --path ${dir})
-namelist_doc: FILES:=$(shell $(GK_HEAD_DIR)/scripts/get_all_matching_files.py --pattern "*.[fF]??" ${PATHS} --absolute)
+namelist_doc: FILES:=$(shell $(GK_HEAD_DIR)/scripts/get_all_matching_files.py --pattern "*.[fF]??" ${PATHS} --absolute --exclude "$(GK_HEAD_DIR)/src/templates")
 # for the `doc` target, `check_ford_install` must be before `namelist_doc` to ensure visibility of the error message
 # in the case where Ford is not installed and `make` is run with the `-j` option. The most robust way to do this is
 # to have `namelist_doc` to depend explicitly on `check_ford_install` as below
