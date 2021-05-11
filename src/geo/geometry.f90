@@ -399,7 +399,7 @@ module geometry
 contains
 
   !> Run eikcoefs with `ntheta = ntheta_input` and then resample onto
-  !> a uniform theta grid with resolution `ntheta_target`.
+  !> a theta grid with resolution `ntheta_target`.
   subroutine run_eikcoefs_and_resample(ntheta_input, ntheta_target, results)
     implicit none
     !> This is the number of theta grid points per two pi period used in the
@@ -409,9 +409,9 @@ contains
     !> in the resulting geometrical coefficients used elsewhere.
     integer, intent(in) :: ntheta_target
     type(eikcoefs_output), intent(out) :: results
-    real, dimension(:), allocatable :: theta_target
+    real, dimension(:), allocatable :: input_index_space, target_index_space
     integer :: ig, ntgrid_target, ntgrid_input
-    real :: dtheta_uniform_target
+    real :: spacing
 
     ! First run eikcoefs using requested resolution
     call eikcoefs(ntheta_input)
@@ -419,16 +419,29 @@ contains
     ntgrid_input = (size(theta) - 1) / 2
     ntgrid_target =(ntheta_target*(2*nperiod-1)) / 2
 
-    ! Make new uniform theta grid
-    allocate(theta_target(-ntgrid_target:ntgrid_target))
-    dtheta_uniform_target = theta(ntgrid_input)/ ntgrid_target
+    results%ntheta = ntheta_target
 
-    do ig = -ntgrid_target, ntgrid_target
-       theta_target(ig) = ig * dtheta_uniform_target
+    ! Make an index space array for the original theta
+    ! grid. Spans [0,1] in size(theta)=2*ntgrid_input points
+    allocate(input_index_space(-ntgrid_input:ntgrid_input))
+    spacing = 1.0/(2*ntgrid_input)
+    do ig = -ntgrid_input, ntgrid_input
+       input_index_space(ig) = (ig+ntgrid_input) * spacing
     end do
 
-    results%ntheta = ntheta_target
-    results%theta  = theta_target
+    ! Make new theta grid
+    allocate(target_index_space(-ntgrid_target:ntgrid_target))
+
+    ! First make target index space grid
+    spacing = 1.0/(2*ntgrid_target)
+    do ig = -ntgrid_target, ntgrid_target
+       target_index_space(ig) = (ig+ntgrid_target) * spacing
+    end do
+
+    ! Now interpolate theta grid onto target index space grid
+    call resample( input_index_space, theta, target_index_space, results%theta)
+
+    ! Now interpolate other output quantities onto target theta grid
     call resample( theta, bmag, results%theta, results%bmag)
     call resample( theta, gradpar, results%theta, results%gradpar)
     call resample( theta, grho, results%theta, results%grho)
