@@ -608,6 +608,7 @@ contains
   !> Prints a warning about a non-functional diagnostic
   subroutine warn_about_nonfunctional_selection(diagnostic_switch, name)
     use run_parameters, only: use_old_diagnostics
+    use mp, only: proc0
     !> Diagnostic switch
     logical, intent(in) :: diagnostic_switch
     !> Name of the switch
@@ -621,7 +622,7 @@ contains
       diagnostics_module = "new"
     end if
 
-    if (diagnostic_switch) then
+    if (diagnostic_switch .and. proc0) then
       write(*, '(a, a, a, a, a)') "WARNING: diagnostic '", name, &
            "' is (currently) non-functional in ", diagnostics_module, &
            " diagnostics module. This will have no effect."
