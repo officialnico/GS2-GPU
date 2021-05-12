@@ -1088,18 +1088,20 @@ if (debug) write(6,*) "gs2din: B_T0, aminor, psi_0, psi_a=", B_T0, aminor, psi_0
     initialize_bound = 1
   end function initialize_bound
 
-  !> FIXME : Add documentation  
+  !> Find the value of the major radius on the plasma boundary
+  !> at given geometric theta.
   function bound(theta) 
-    use splines, only: new_spline, splint, spline
+    use splines, only: new_periodic_spline, periodic_splint, periodic_spline
+    use constants, only: twopi
     implicit none
     real, intent(in) :: theta
     real :: bound
-    type (spline), save :: spl
+    type (periodic_spline), save :: spl
 
-    if(init_bound) call new_spline(nbbbs, thetab, r_bound, spl)
+    if(init_bound) call new_periodic_spline(nbbbs, thetab, r_bound, twopi, spl)
     init_bound = .false.
     
-    bound = splint(theta, spl)
+    bound = periodic_splint(theta, spl)
   end function bound    
 
   !> FIXME : Add documentation  
