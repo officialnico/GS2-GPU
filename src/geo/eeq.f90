@@ -1136,6 +1136,7 @@ if (debug) write(6,*) "gs2din: B_T0, aminor, psi_0, psi_a=", B_T0, aminor, psi_0
     if(allocated(dpm)) deallocate(dpm,dtm)
     if(allocated(dum2)) deallocate(dum2,dum3)
     if(allocated(efit_t)) deallocate(efit_t)
+    if(allocated(thetab)) deallocate(thetab, r_bound)
   end subroutine dealloc_module_arrays
 
   !> FIXME : Add documentation  
