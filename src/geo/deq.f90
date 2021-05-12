@@ -752,6 +752,7 @@ contains
     if(allocated(spsi_bar)) deallocate(spsi_bar,sdfit_R,sdfit_Z)
     if(allocated(dfit_psi)) deallocate(dfit_psi)
     if(allocated(dpm)) deallocate(dpm,dtm)
+    if(allocated(thetab)) deallocate(thetab, r_bound)    
   end subroutine dealloc_module_arrays
 
   !> FIXME : Add documentation    
