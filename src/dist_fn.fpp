@@ -6587,9 +6587,15 @@ endif
     ! get phi
     if (fphi > epsilon(0.0)) then
 
-!CMR, 1/8/2011:  bmag corrections here: 
-       numerator = (beta * gamtot2 + bmagsp**2) * (antot+fl_avg_sp) - (beta * gamtot1) * antotp
-       denominator = (beta * gamtot2 + bmagsp**2) * gamtot + (beta/2.0) * gamtot1 * gamtot1
+!CMR, 1/8/2011:  bmag corrections here:
+!BSP 20/04/2021: flag if fbpar= 0.0 as beta is effectively zero here
+       if (fbpar > epsilon(0.0)) then
+          numerator = (beta * gamtot2 + bmagsp**2) * (antot+fl_avg_sp) - (beta * gamtot1) * antotp
+          denominator = (beta * gamtot2 + bmagsp**2) * gamtot + (beta/2.0) * gamtot1 * gamtot1
+       else
+          numerator = antot+fl_avg_sp
+          denominator = gamtot
+       end if
 
        where (abs(denominator) < epsilon(0.0)) ! it == ik == 1 only
           !NOTE: denominator=0 for the it==ik==1 only in certain circumstances
