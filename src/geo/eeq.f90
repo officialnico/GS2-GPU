@@ -1102,7 +1102,7 @@ if (debug) write(6,*) "gs2din: B_T0, aminor, psi_0, psi_a=", B_T0, aminor, psi_0
     real :: bound
     type (periodic_spline), save :: spl
 
-    if(init_bound) call new_periodic_spline(nbbbs, thetab, r_bound, twopi, spl)
+    if(init_bound) call new_periodic_spline(nbbbs, thetab, r_bound, twopi, spl, drop_last_point = .true.)
     init_bound = .false.
     
     bound = periodic_splint(theta, spl)
