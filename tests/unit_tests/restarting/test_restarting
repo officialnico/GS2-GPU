@@ -130,6 +130,7 @@ new diagnostics with and without appending"""))
                 "*.vspace_integration_error",
                 ".*.in",
                 ".*.scratch",
+                "./gs2",
             ]
         )
         clean_command = f"rm -f {file_extensions_to_clean}"

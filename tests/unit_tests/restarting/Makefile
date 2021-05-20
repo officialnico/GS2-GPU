@@ -18,29 +18,22 @@ else
 # to call `gs2` with `mpirun` (or equivalent) and not the Python
 # script. The usual `RUNCOMMAND` test comand calls its first argument
 # with `TESTCOMMAND`, which in turn calls `TESTEXEC` (which is usually
-# `mpirun`). This would end up calling the Python script with
-# `mpirun`, rather than `gs2`. We could do:
-#
-#   RESTART_EXEC := $(TESTCOMMAND)
-#   TESTCOMMAND =
-#
-# which allows to pass `TESTCOMMAND` to the `--gs2` test script
-# argument. However, `TESTCOMMAND` ends with `./` and `BINDIR` is an
-# absolute path. All of this is to say, we need to undefine
-# `TESTCOMMAND` and reimplement it in a separate variable.
+# `mpirun`). So let's use a copy of `TESTCOMMAND` to run `gs2`, and
+# then we can undefine `TESTCOMMAND`
+RESTART_EXEC := $(TESTCOMMAND)
 TESTCOMMAND =
-ifdef TESTEXEC
-RESTART_EXEC=$(call TESTEXEC,$(NTESTPROCS))
-else
-ifdef USE_MPI
-RESTART_EXEC=mpirun -np $(NTESTPROCS)
-else
-RESTART_EXEC=./
-endif
-endif
 
-all: clean
-	$(call RUNCOMMAND,./test_restarting,--gs2="$(RESTART_EXEC) $(BINDIR)/gs2")
+# Make a symlink of gs2 in the current directory, needed because
+# `TESTCOMMAND` ends with `./`, and `BINDIR` is an absolute path, so
+# we can't just do `$(RESTART_EXEC)$(BINDIR)/gs2`
+link_gs2: clean
+	@ln -sfv $(BINDIR)/gs2 ./gs2
+
+# Also remove the gs2 symlink
+CLEANCOMMAND += ./gs2
+
+all: link_gs2
+	$(call RUNCOMMAND,./test_restarting,--gs2="$(RESTART_EXEC)gs2")
 
 .PHONY: all
 endif
