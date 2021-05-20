@@ -337,12 +337,12 @@ contains
   end function get_netcdf_dim_length
 
   !> Define the dimensions used in the movie file. Some duplication with
-  !! main file -- may want to merge movie data into main file
-  !! Main reason for using a new file is we can only have one unlimited dimension
-  !! per file (with new versions of NETCDF this is no longer true) and we
-  !! probably don't want to write movie data as often as other data.
-  !! However, at the moment we precalculate the number of outputs, so it
-  !! isn't actually unlimited
+  !> main file -- may want to merge movie data into main file
+  !> Main reason for using a new file is we can only have one unlimited dimension
+  !> per file (with new versions of NETCDF this is no longer true) and we
+  !> probably don't want to write movie data as often as other data.
+  !> However, at the moment we precalculate the number of outputs, so it
+  !> isn't actually unlimited
   subroutine define_dims_mymovie(nmovie_tot)
 # ifdef NETCDF
     use gs2_layouts, only: yxf_lo
@@ -1349,12 +1349,12 @@ contains
   end subroutine define_vars
 
   !> Define the vars in the movie file. A fair bit of duplication wrt main
-  !! file -- may want to think about merging movie data into main file.
-  !! Main reason for using a new file is we can only have one unlimited dimension
-  !! per file (with new versions of NETCDF this is no longer true) and we 
-  !! probably don't want to write movie data as often as other data.
-  !! However, at the moment we precalculate the number of outputs, so it
-  !! isn't actually unlimited
+  !> file -- may want to think about merging movie data into main file.
+  !> Main reason for using a new file is we can only have one unlimited dimension
+  !> per file (with new versions of NETCDF this is no longer true) and we
+  !> probably don't want to write movie data as often as other data.
+  !> However, at the moment we precalculate the number of outputs, so it
+  !> isn't actually unlimited
   subroutine define_vars_mymovie
 # ifdef NETCDF
     use run_parameters, only: fphi, fapar, fbpar
@@ -2152,7 +2152,7 @@ contains
   end subroutine nc_vflux
 
   !> Output the poloidal distributions of the fluxes of particles, perpendicular
-  !! momentum, parallel momentum, and energy ! JRB
+  !> momentum, parallel momentum, and energy ! JRB
   subroutine nc_loop_dist (nout, part_fluxes_dist, mom_fluxes_par_dist, mom_fluxes_perp_dist, heat_fluxes_dist, phi_dist)
 
     use species, only: nspec
