@@ -561,10 +561,10 @@ contains
     !> The netCDF ID of the variable under `file_id`
     integer(kind_nf), intent(out) :: var_id
 
+#ifdef NETCDF
     ! Error code of the netCDF calls
     integer(kind_nf) :: status
 
-#ifdef NETCDF
     status = nf90_inq_varid(file_id, var_name, var_id)
     ! Variable doesn't exist, so let's create it
     if (status == NF90_ENOTVAR) then
@@ -612,10 +612,10 @@ contains
     !> The netCDF ID of the variable under `file_id`
     integer(kind_nf), intent(out) :: var_id
 
+#ifdef NETCDF
     ! Error code of the netCDF calls
     integer(kind_nf) :: status
 
-#ifdef NETCDF
     status = nf90_inq_varid(file_id, var_name, var_id)
     ! Variable doesn't exist, so let's create it
     if (status == NF90_ENOTVAR) then
@@ -642,10 +642,10 @@ contains
     !> Attribute text to store
     character(len=*), intent(in) :: att_text
 
+#ifdef NETCDF
     ! Error code of the netCDF calls
     integer(kind_nf) :: status
 
-#ifdef NETCDF
     status = nf90_inquire_attribute(file_id, var_id, att_name)
     ! Attribute doesn't exist, so let's create it
     if (status == NF90_ENOTATT) then
