@@ -1339,9 +1339,11 @@ contains
     !################################################
     !# NOW EXIT DEFINITION MODE
     status = nf90_enddef (ncid)  ! out of definition mode
+    if (status /= NF90_NOERR) call netcdf_error (status)
 
     !Fill the value of nproc -- helps make sure we can write vars to file
     status = nf90_put_var (ncid, nproc_id, nproc)
+    if (status /= NF90_NOERR) call netcdf_error (status, ncid, nproc_id)
 
 # endif
   end subroutine define_vars
