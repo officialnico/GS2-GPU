@@ -6588,11 +6588,14 @@ endif
     if (fphi > epsilon(0.0)) then
 
 !CMR, 1/8/2011:  bmag corrections here:
-!BSP 20/04/2021: flag if fbpar= 0.0 as beta is effectively zero here
+!BSP 20/04/2021: Check if fbpar= 0.0 as beta terms should not be present in this case.
        if (fbpar > epsilon(0.0)) then
           numerator = (beta * gamtot2 + bmagsp**2) * (antot+fl_avg_sp) - (beta * gamtot1) * antotp
           denominator = (beta * gamtot2 + bmagsp**2) * gamtot + (beta/2.0) * gamtot1 * gamtot1
        else
+          ! If fbpar = 0 then the terms in earlier branch proportional to beta
+          ! should be zero as these terms arrive from the bpar parts of quasineutrality
+          ! as expressed in terms of gnew. In this case we get the below.
           numerator = antot+fl_avg_sp
           denominator = gamtot
        end if
