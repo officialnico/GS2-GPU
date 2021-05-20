@@ -1371,7 +1371,7 @@ contains
 
        !Basic information
        call ensure_netcdf_att_exists(ncid_movie, NF90_GLOBAL, 'title', 'GS2 Simulation x,y,theta Data for Movies')
-       call ensure_netcdf_att_exists(ncid_movie, NF90_GLOBAL, 'Conventions','https://sourceforge.net/projects/gyrokinetics/')
+       call ensure_netcdf_att_exists(ncid_movie, NF90_GLOBAL, 'Conventions','https://gyrokinetics.gitlab.io/gs2/')
 
        !Grid sizes
        call ensure_netcdf_var_exists(ncid_movie, 'nx', NF90_INT, nx_id)
