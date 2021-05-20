@@ -1046,7 +1046,7 @@ check_ford_install:
 endif
 
 namelist_doc: PATHS:=$(foreach dir, $(SRCDIR) $(SUBDIRS), --path ${dir})
-namelist_doc: FILES:=$(shell $(GK_HEAD_DIR)/scripts/get_all_matching_files.py --pattern "*.[fF]??" ${PATHS} --absolute)
+namelist_doc: FILES:=$(shell $(GK_HEAD_DIR)/scripts/get_all_matching_files.py --pattern "*.[fF]??" ${PATHS} --absolute --exclude "$(GK_HEAD_DIR)/src/templates")
 # for the `doc` target, `check_ford_install` must be before `namelist_doc` to ensure visibility of the error message
 # in the case where Ford is not installed and `make` is run with the `-j` option. The most robust way to do this is
 # to have `namelist_doc` to depend explicitly on `check_ford_install` as below
