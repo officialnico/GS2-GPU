@@ -367,7 +367,19 @@ input file:
 ```
 
 This will create one restart file per processor named like `<your input filename>.nc.<N>`
-where `<N>` is the processor rank.
+where `<N>` is the processor rank. There are two other inputs you can use to control where
+these restart files get created and how they're named:
+
+- you can use [init_g_knobs::restart_file][restart_file_option] to change the "base name"
+  of the restart files. By default, this is the same as the input filename.
+- you can change the directory where the restart files are created with
+  [init_g_knobs::restart_dir][restart_dir_option]. `restart_dir` defaults to the directory
+  where you run `gs2`. If you set this option, it's important to create the directory
+  first, as GS2 won't do this for you. You can turn on
+  [gs2_diagnostics_knobs::file_safety_check][file_safety_check_option] (default is on) to
+  check during initialisation that `restart_dir` exists and that GS2 can write to the
+  directory. (NOTE: `file_safety_check` currently doesn't work for the new diagnostics
+  ([knobs::use_old_diagnostics][use_old_diagnostics] = `.false.`)).
 
 To then restart a simulation, set the following input variables:
 
@@ -436,6 +448,10 @@ Good luck!
 [save_for_restart]: |url|/page/namelists/index.html#gs2_diagnostics_knobs-save_for_restart
 [delt_option]: |url|/page/namelists/index.html#knobs-delt_option
 [ginit_option]: |url|/page/namelists/index.html#init_g_knobs-ginit_option
+[restart_dir_option]: |url|/page/namelists/index.html#init_g_knobs-restart_dir
+[restart_file_option]: |url|/page/namelists/index.html#init_g_knobs-restart_file
+[file_safety_check_option]: |url|/page/namelists/index.html#gs2_diagnostics_knobs-file_safety_check
+[use_old_diagnostics]: |url|/page/namelists/index.html#knobs-use_old_diagnostics
 
 <!-- Local Variables: -->
 <!-- mode: gfm -->
