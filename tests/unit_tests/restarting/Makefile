@@ -1,7 +1,5 @@
 sinclude ../Makefile.tests_common
 
-CLEANCOMMAND = ./runtest.py --clean
-
 ifdef TESTNORUN
 all:
 	$(call SKIPCOMMAND,variable TESTNORUN is defined; unset TESTNORUN to run this test)
@@ -41,7 +39,7 @@ RESTART_EXEC=./
 endif
 endif
 
-all:
+all: clean
 	$(call RUNCOMMAND,./test_restarting,--gs2="$(RESTART_EXEC) $(BINDIR)/gs2")
 
 .PHONY: all
