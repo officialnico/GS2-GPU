@@ -6624,8 +6624,20 @@ endif
     ! get bpar
     if (fbpar > epsilon(0.0)) then
 !CMR>  bmag corrections here
-       numerator = - (beta * gamtot) * antotp - (beta/2.0) * gamtot1 * antot
-       denominator = gamtot * (beta * gamtot2 + bmagsp**2) + (beta/2.0) * gamtot1 * gamtot1
+
+       ! As in our calculation of phi, we see that the equations for
+       ! bpar and phi are coupled when written in terms of gnew. This
+       ! means we get contributions arising from phi in the expression
+       ! for B|| here. In particular, they are the terms involving
+       ! gamtot1. However, if we have disabled phi then they should
+       ! not appear in our calculation, so handle that here.
+       if (fphi > epsilon(0.0)) then
+          numerator = - (beta * gamtot) * antotp - (beta/2.0) * gamtot1 * antot
+          denominator = gamtot * (beta * gamtot2 + bmagsp**2) + (beta/2.0) * gamtot1 * gamtot1
+       else
+          numerator = - beta * antotp
+          denominator = (beta * gamtot2 + bmagsp**2)
+       end if
 
        where (abs(denominator) < epsilon(0.0)) ! it == ik == 1 only
           bpar = 0.0
