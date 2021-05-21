@@ -143,9 +143,6 @@ contains
     integer :: rplot_varid, zplot_varid, aplot_varid, rprime_varid, zprime_varid, aprime_varid
     integer :: wl_varid, w_varid
 
-    !First get precisions
-    if(netcdf_real==0) netcdf_real=get_netcdf_code_precision()
-
     !First create a file
     ierr=nf90_create(trim(adjustl(fname))//".grids.nc",NF90_CLOBBER,ncid)
 
