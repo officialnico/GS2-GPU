@@ -4010,10 +4010,6 @@ contains
     integer :: ik, it, il, is, in, sgn
     real :: arg, kxrange
 
-    !Set zonal components of g to zero
-    !Otherwise set non-zero ky = constant
-    !ex
-
     if (phiinit < 0.0) then
        sgn = -1
     else
