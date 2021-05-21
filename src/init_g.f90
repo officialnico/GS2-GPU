@@ -37,7 +37,7 @@ module init_g
        ginitopt_all_modes_equal = 33, &
        ginitopt_default_odd=34, ginitopt_restart_memory=35, & !Note ginitopt_restart_memory isn't meant to be a user selected choice.
        ginitopt_restart_eig=36, ginitopt_no_zonal = 37, &
-       ginitopt_stationary_mode = 38
+       ginitopt_stationary_mode = 38, ginitopt_cgyro = 39
 
   real :: width0, dphiinit, phiinit, imfac, refac, zf_init, phifrac
   real :: den0, upar0, tpar0, tperp0
@@ -433,6 +433,14 @@ contains
        write (unit, fmt="(' tperp1 = ',e17.10)") tperp1
        write (unit, fmt="(' tperp2 = ',e17.10)") tperp2
 
+    case (ginitopt_cgyro)
+       write (unit, fmt="(' ginit_option = ',a)") '"cgyro"'
+       write (unit, fmt="(' phiinit = ',e17.10)") phiinit
+       write (unit, fmt="(' zf_init = ',e17.10)") zf_init
+       write (unit, fmt="(' chop_side = ',L1)") chop_side
+       if (chop_side) write (unit, fmt="(' left = ',L1)") left
+       write (unit, fmt="(' clean_init = ',L1)") clean_init
+
     end select
     write (unit, fmt="(' /')")
   end subroutine wnml_init_g
@@ -726,6 +734,12 @@ contains
        write (report_unit, fmt="('THIS IS PROBABLY AN ERROR.')") 
        write (report_unit, fmt="('################# WARNING #######################')")
        write (report_unit, *) 
+
+    case (ginitopt_cgyro)
+       write (report_unit, fmt="('Initial conditions:')")
+       write (report_unit, fmt="('  Amplitude:        ',f10.4)") phiinit
+       write (report_unit, fmt="('Constant amplitude for ky!=0')")
+       write (report_unit, fmt="('Zero amplitude for ky=0')")
 
     end select
 
@@ -3993,6 +4007,74 @@ contains
 
     gnew = g
   end subroutine ginit_stationary_mode
+
+  !> Sets g to a constant value everywhere except zonal component which is 0
+  !> Default initial conditions for CGYRO
+  !>
+  !> if phiinit>0:
+  !>     g(ky!=0) = constant
+  !> else:
+  !>     g(ky!=0) = constant/n
+  !>
+  !> if zfinit!=0:
+  !>     g(ky==0) = constant * exp(-|kx|/max(kx))
+  !> else:
+  !>     g(ky==0) = 0
+  !>
+  !> Set by having 'ginit_option' = cgyro
+  !> Equivalent CGYRO parameters achieved by setting
+  !>    GS2   =    CGYRO
+  !> phiiinit = AMP / sqrt(2)
+  !> zfinit   = AMP0 / AMP
+  !>
+  !> By default AMP0=0 and AMP=0.1 in CGYRO
+  !>
+  !> Potential issue in AMP=0 in CGYRO due to zfinit defn
+  !>
+  !> Author: BSP (copy of EGH code)
+  subroutine ginit_cgyro
+    use mp, only: proc0
+    use le_grids, only: forbid
+    use kt_grids, only: akx, aky
+    use dist_fn_arrays, only: g, gnew
+    use gs2_layouts, only: g_lo, ik_idx, it_idx, il_idx
+
+    implicit none
+    integer :: istatus, ierr
+    integer :: iglo
+    integer :: ik, it, il, in
+    real :: arg, kxrange
+
+    kxrange = maxval(akx) - minval(akx)
+
+    if(debug.and.proc0) write(*,*) 'Entering CGYRO def'
+    do iglo = g_lo%llim_proc, g_lo%ulim_proc
+       ik = ik_idx(g_lo,iglo)
+       it = it_idx(g_lo,iglo)
+       il = il_idx(g_lo,iglo)
+       if (aky(ik) == 0.0) then
+          arg = abs(akx(it))/ kxrange
+          g(:,1,iglo) = zf_init * abs(phiinit) * exp(-arg)
+       else
+          ! Ensure we don't end up with in = 0. This shouldn't
+          ! be needed for flux tube (box) simulations as ik == 1
+          ! would correspond to the zonal mode, handled in the
+          ! earlier branch.
+          if (phiinit < 0.0 .and. ik > 1) then
+             in = ik - 1
+          else
+             in = 1
+          end if
+          g(:,1,iglo) = abs(phiinit) / in**2
+       end if
+
+       where (forbid(:,il)) g(:,1,iglo) = 0.0
+       g(:,2,iglo) = g(:,1,iglo)
+    end do
+
+    gnew = g
+
+  end subroutine ginit_cgyro
 
   !> FIXME : Add documentation    
   subroutine reset_init(from_file)
