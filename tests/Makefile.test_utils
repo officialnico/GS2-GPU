@@ -46,6 +46,8 @@ list_$(call lowerCase,$(1))_tests:
 	@echo ""
 endef
 
+unexport defineTestRecipes getListDir getListSource lowerCase
+
 #For each type of test use defineTestRecipes to define recipes for
 #that test type
 $(foreach testType, $(TEST_TYPES), $(eval $(call defineTestRecipes,$(testType))))
