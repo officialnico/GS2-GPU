@@ -4018,7 +4018,7 @@ contains
        it = it_idx(g_lo,iglo)
        il = il_idx(g_lo,iglo)
        is = is_idx(g_lo,iglo)
-       if (ik == 1) then
+       if (aky(ik) == 0.0) then
           arg = abs(akx(it))/ kxrange
           g(:,1,iglo) = zf_init * abs(phiinit) * exp(-arg)
           where (forbid(:,il)) g(:,1,iglo) = 0.0
