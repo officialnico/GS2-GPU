@@ -4019,7 +4019,11 @@ contains
           arg = abs(akx(it))/ kxrange
           g(:,1,iglo) = zf_init * abs(phiinit) * exp(-arg)
        else
-          if (phiinit < 0.0) then
+          ! Ensure we don't end up with in = 0. This shouldn't
+          ! be needed for flux tube (box) simulations as ik == 1
+          ! would correspond to the zonal mode, handled in the
+          ! earlier branch.
+          if (phiinit < 0.0 .and. ik > 1) then
              in = ik - 1
           else
              in = 1
