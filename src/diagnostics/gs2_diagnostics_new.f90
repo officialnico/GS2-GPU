@@ -306,7 +306,7 @@ contains
     use diagnostics_velocity_space, only: finish_diagnostics_velocity_space
 !    use diagnostics_zonal_transfer, only: finish_diagnostics_transfer  !!! new diagnostic
     use collisional_heating, only: finish_collisional
-    
+    use gs2_diagnostics, only: save_restart_dist_fn
     use nonlinear_terms, only: nonlin
     use dist_fn, only: write_fyx, write_f, write_poly, collision_error
     use mp, only: proc0
@@ -321,7 +321,11 @@ contains
     if (.not. gnostics%replay) then
        call debug_message(verb, 'gs2_diagnostics_new::finish_gs2_diagnostics_new &
             & calling save_restart_dist_fn')
-       call save_restart_dist_fn
+       call save_restart_dist_fn(gnostics%save_for_restart, &
+                                 gnostics%save_distfn, &
+                                 gnostics%save_glo_info_and_grids, &
+                                 gnostics%save_velocities, &
+                                 gnostics%user_time)
        
        call debug_message(verb, 'gs2_diagnostics_new::finish_gs2_diagnostics_new &
             & calling run_old_final_routines')
@@ -358,40 +362,6 @@ contains
     
     call finish_diagnostics_config(gnostics)
   end subroutine finish_gs2_diagnostics_new
-
-  !> FIXME : Add documentation  
-  subroutine save_restart_dist_fn
-    use run_parameters, only: fphi, fapar, fbpar
-    use collisions, only: vnmult
-    use gs2_save, only: gs2_save_for_restart
-    use fields_arrays, only: phinew, bparnew
-    use gs2_time, only: user_dt
-    use dist_fn_arrays, only: gnew
-    use dist_fn_arrays, only: g_adjust
-    integer :: istatus
-    if (gnostics%save_for_restart) then
-       call gs2_save_for_restart (gnew, gnostics%user_time, user_dt, vnmult, istatus, &
-            fphi, fapar, fbpar, exit_in=.true., & 
-            save_glo_info_and_grids= gnostics%save_glo_info_and_grids, &
-            save_velocities=gnostics%save_velocities)
-    end if
-    
-    !<DD> Added for saving distribution function
-    if (gnostics%save_distfn) then
-       !Convert h to distribution function
-       call g_adjust(gnew,phinew,bparnew,fphi,fbpar)
-       
-       !Save dfn, fields and velocity grids to file
-       call gs2_save_for_restart (gnew, gnostics%user_time, user_dt, vnmult, istatus, &
-            fphi, fapar, fbpar, exit_in=.true.,distfn=.true., & 
-            save_glo_info_and_grids= gnostics%save_glo_info_and_grids, &
-            save_velocities=gnostics%save_velocities)
-       
-       !Convert distribution function back to h
-       call g_adjust(gnew,phinew,bparnew,-fphi,-fbpar)
-    end if
-    !</DD> Added for saving distribution function
-  end subroutine save_restart_dist_fn
 
   !> FIXME : Add documentation  
   subroutine run_diagnostics_to_be_updated

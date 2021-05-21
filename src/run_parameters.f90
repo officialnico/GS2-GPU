@@ -91,6 +91,12 @@ module run_parameters
      !>
      !>  - "default" or "set_by_hand": use timestep from input file
      !>  - "check_restart": read timestep(s) from restart file
+     !>
+     !> If "check_restart" is used but the restart files aren't
+     !> present for any reason (for instance, the current run is not a
+     !> restart), GS2 will error when trying to read the
+     !> timesteps. You can run the [[ingen]] tool on your input file
+     !> to check this issue before running your job
      character(len = 20) :: delt_option = 'default'
      !> If true then use eigensolver instead of initial value solver.
      logical :: do_eigsolve = .false.

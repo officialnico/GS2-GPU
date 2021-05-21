@@ -3,8 +3,8 @@ module gs2_io
 
 # ifdef NETCDF
   use netcdf, only: NF90_NOERR
-# endif
   use netcdf_utils, only: netcdf_error, kind_nf
+# endif
 
   implicit none
 
@@ -107,16 +107,6 @@ module gs2_io
 
 # endif
   real :: zero
-  
-  interface ensure_netcdf_var_exists
-    module procedure ensure_netcdf_var_exists_scalar
-    module procedure ensure_netcdf_var_exists_onedim
-    module procedure ensure_netcdf_var_exists_manydims
-  end interface ensure_netcdf_var_exists
-
-  interface ensure_netcdf_att_exists
-    module procedure ensure_netcdf_att_exists_text
-  end interface ensure_netcdf_att_exists
 
 !  include 'netcdf.inc'
   
@@ -147,6 +137,7 @@ contains
     use species, only: nspec
     use netcdf, only: NF90_CLOBBER, nf90_create, nf90_open, NF90_WRITE
     use netcdf_utils, only: get_netcdf_code_precision, netcdf_real
+    use netcdf_utils, only: get_netcdf_dim_length
     use constants, only: run_name_size
 # endif
     implicit none
@@ -185,8 +176,6 @@ contains
     !----------------
 
     zero = epsilon(0.0)
-
-    if (netcdf_real == 0) netcdf_real = get_netcdf_code_precision()
 
     status = NF90_NOERR
 
@@ -261,37 +250,6 @@ contains
 # endif
   end subroutine init_gs2_io
 
-  !> Get the netCDF ID for a dimension, creating it if it doesn't
-  !> exist already
-  subroutine ensure_netcdf_dim_exists(file_id, dim_name, dim_size, dim_id)
-#ifdef NETCDF
-    use netcdf, only: nf90_inq_dimid, nf90_def_dim, NF90_NOERR, NF90_EBADDIM
-#endif
-    !> ID of the file or group to look for or create the dimension under
-    integer(kind_nf), intent(in) :: file_id
-    !> Name of the dimension
-    character(len=*), intent(in) :: dim_name
-    !> The size of the dimension
-    integer(kind_nf), intent(in) :: dim_size
-    !> The netCDF ID of the dimension under `file_id`
-    integer(kind_nf), intent(out) :: dim_id
-
-    ! Error code of the netCDF calls
-    integer(kind_nf) :: status
-
-#ifdef NETCDF
-    status = nf90_inq_dimid(file_id, dim_name, dim_id)
-    ! Dimension doesn't exist, so let's create it
-    if (status == NF90_EBADDIM) then
-      status = nf90_def_dim(file_id, dim_name, dim_size, dim_id)
-    end if
-    ! Something went wrong with one of the previous two calls
-    if (status /= NF90_NOERR) then
-      call netcdf_error(status, dim=dim_name, message="(ensure_netcdf_dim_exists)", abort=.true.)
-    end if
-#endif
-  end subroutine ensure_netcdf_dim_exists
-
   !> Ensure the netCDF file contains all the dimensions, creating them
   !> if necessary. Doesn't fill the values.
   !>
@@ -304,6 +262,7 @@ contains
     use le_grids, only: nlambda, negrid
     use species, only: nspec
     use netcdf, only: NF90_UNLIMITED
+    use netcdf_utils, only: ensure_netcdf_dim_exists
 # endif
     implicit none
     !> Total number of output timesteps for "large" diagnostics
@@ -333,47 +292,19 @@ contains
 # endif
   end subroutine define_dims
 
-  !> Wrapper around `nf90_inquire_dimension`, includes error handling
-  function get_netcdf_dim_length(file_id, dim_id) result(length)
-#ifdef NETCDF
-    use netcdf, only: nf90_inquire_dimension, NF90_MAX_NAME, NF90_NOERR
-#endif
-    integer :: length
-    !> NetCDF ID of the file
-    integer(kind_nf), intent(in) :: file_id
-    !> NetCDF ID of the dimension
-    integer(kind_nf), intent(in) :: dim_id
-
-#ifdef NETCDF
-    ! Temporary variable for the dimension name
-    character(len=NF90_MAX_NAME) :: dim_name
-    ! NetCDF error status
-    integer :: status
-
-    ! This could be less reliant on module-level variables if we
-    ! passed in the dimension name and used nf90_inq_dim to get the ID
-    status = nf90_inquire_dimension(file_id, dim_id, dim_name, length)
-    if (status /= NF90_NOERR) then
-      call netcdf_error(status, &
-                        dim=trim(dim_name), &
-                        message="(get_netcdf_dim_length)", &
-                        abort=.true.)
-    end if
-#endif
-  end function get_netcdf_dim_length
-
   !> Define the dimensions used in the movie file. Some duplication with
-  !! main file -- may want to merge movie data into main file
-  !! Main reason for using a new file is we can only have one unlimited dimension
-  !! per file (with new versions of NETCDF this is no longer true) and we
-  !! probably don't want to write movie data as often as other data.
-  !! However, at the moment we precalculate the number of outputs, so it
-  !! isn't actually unlimited
+  !> main file -- may want to merge movie data into main file
+  !> Main reason for using a new file is we can only have one unlimited dimension
+  !> per file (with new versions of NETCDF this is no longer true) and we
+  !> probably don't want to write movie data as often as other data.
+  !> However, at the moment we precalculate the number of outputs, so it
+  !> isn't actually unlimited
   subroutine define_dims_mymovie(nmovie_tot)
 # ifdef NETCDF
     use gs2_layouts, only: yxf_lo
     use theta_grid, only: ntgrid
     use netcdf, only: nf90_def_dim
+    use netcdf_utils, only: ensure_netcdf_dim_exists
 # endif
     implicit none
     integer, intent(in) :: nmovie_tot
@@ -571,119 +502,6 @@ contains
 # endif
   end subroutine save_input
 
-  !> Get the netCDF ID for a variable, creating it if it doesn't exist
-  !> already
-  subroutine ensure_netcdf_var_exists_scalar(file_id, var_name, var_type, var_id)
-#ifdef NETCDF
-    use netcdf, only: nf90_inq_varid, nf90_def_var, NF90_NOERR, NF90_ENOTVAR
-#endif
-    !> ID of the file or group to look for or create the variable under
-    integer(kind_nf), intent(in) :: file_id
-    !> Name of the variable
-    character(len=*), intent(in) :: var_name
-    !> The netCDF type of the variable
-    integer(kind_nf), intent(in) :: var_type
-    !> The netCDF ID of the variable under `file_id`
-    integer(kind_nf), intent(out) :: var_id
-
-    ! Error code of the netCDF calls
-    integer(kind_nf) :: status
-
-#ifdef NETCDF
-    status = nf90_inq_varid(file_id, var_name, var_id)
-    ! Variable doesn't exist, so let's create it
-    if (status == NF90_ENOTVAR) then
-      status = nf90_def_var(file_id, var_name, var_type, var_id)
-    end if
-    ! Something went wrong with one of the previous two calls
-    if (status /= NF90_NOERR) then
-      call netcdf_error(status, var=var_name, varid=var_id, &
-                        message="(ensure_netcdf_var_exists)", abort=.true.)
-    end if
-#endif
-  end subroutine ensure_netcdf_var_exists_scalar
-
-  !> Get the netCDF ID for a variable, creating it if it doesn't exist
-  !> already
-  subroutine ensure_netcdf_var_exists_onedim(file_id, var_name, var_type, dim_id, var_id)
-    !> ID of the file or group to look for or create the variable under
-    integer(kind_nf), intent(in) :: file_id
-    !> Name of the variable
-    character(len=*), intent(in) :: var_name
-    !> The netCDF type of the variable
-    integer(kind_nf), intent(in) :: var_type
-    !> Array of dimension IDs
-    integer(kind_nf), intent(in) :: dim_id
-    !> The netCDF ID of the variable under `file_id`
-    integer(kind_nf), intent(out) :: var_id
-
-    call ensure_netcdf_var_exists_manydims(file_id, var_name, var_type, [dim_id], var_id)
-  end subroutine ensure_netcdf_var_exists_onedim
-
-  !> Get the netCDF ID for a variable, creating it if it doesn't exist
-  !> already
-  subroutine ensure_netcdf_var_exists_manydims(file_id, var_name, var_type, dim_id, var_id)
-#ifdef NETCDF
-    use netcdf, only: nf90_inq_varid, nf90_def_var, NF90_NOERR, NF90_ENOTVAR
-#endif
-    !> ID of the file or group to look for or create the variable under
-    integer(kind_nf), intent(in) :: file_id
-    !> Name of the variable
-    character(len=*), intent(in) :: var_name
-    !> The netCDF type of the variable
-    integer(kind_nf), intent(in) :: var_type
-    !> Array of dimension IDs
-    integer(kind_nf), dimension(:), intent(in) :: dim_id
-    !> The netCDF ID of the variable under `file_id`
-    integer(kind_nf), intent(out) :: var_id
-
-    ! Error code of the netCDF calls
-    integer(kind_nf) :: status
-
-#ifdef NETCDF
-    status = nf90_inq_varid(file_id, var_name, var_id)
-    ! Variable doesn't exist, so let's create it
-    if (status == NF90_ENOTVAR) then
-      status = nf90_def_var(file_id, var_name, var_type, dim_id, var_id)
-    end if
-    ! Something went wrong with one of the previous two calls
-    if (status /= NF90_NOERR) then
-      call netcdf_error(status, var=var_name, varid=var_id, &
-                        message="(ensure_netcdf_var_exists)", abort=.true.)
-    end if
-#endif
-  end subroutine ensure_netcdf_var_exists_manydims
-
-  subroutine ensure_netcdf_att_exists_text(file_id, var_id, att_name, att_text)
-#ifdef NETCDF
-    use netcdf, only: nf90_inquire_attribute, nf90_put_att, NF90_NOERR, NF90_ENOTATT
-#endif
-    !> ID of the file or group to look for or create the variable under
-    integer(kind_nf), intent(in) :: file_id
-    !> The netCDF ID of the variable under `file_id`
-    integer(kind_nf), intent(in) :: var_id
-    !> Name of the attribute
-    character(len=*), intent(in) :: att_name
-    !> Attribute text to store
-    character(len=*), intent(in) :: att_text
-
-    ! Error code of the netCDF calls
-    integer(kind_nf) :: status
-
-#ifdef NETCDF
-    status = nf90_inquire_attribute(file_id, var_id, att_name)
-    ! Attribute doesn't exist, so let's create it
-    if (status == NF90_ENOTATT) then
-      status = nf90_put_att(file_id, var_id, att_name, att_text)
-    end if
-    ! Something went wrong with one of the previous two calls
-    if (status /= NF90_NOERR) then
-      call netcdf_error(status, file_id, var_id, att=att_name, &
-                        message="(ensure_netcdf_att_exists)", abort=.true.)
-    end if
-#endif
-  end subroutine ensure_netcdf_att_exists_text
-
   !> Create (but don't fill) the various diagnostics variables in the
   !> output netCDF file
   !>
@@ -703,7 +521,8 @@ contains
     use parameter_scan_arrays, only: write_scan_parameter
     use netcdf, only: NF90_CHAR, NF90_INT, NF90_GLOBAL
     use netcdf, only: nf90_enddef, nf90_inq_libvers, nf90_put_var
-    use netcdf_utils, only: netcdf_real
+    use netcdf_utils, only: netcdf_real, get_netcdf_dim_length
+    use netcdf_utils, only: ensure_netcdf_att_exists, ensure_netcdf_var_exists
 # endif
     implicit none
     logical, intent(in) :: write_nl_flux, write_nl_flux_dist, write_omega
@@ -1364,26 +1183,28 @@ contains
     !################################################
     !# NOW EXIT DEFINITION MODE
     status = nf90_enddef (ncid)  ! out of definition mode
+    if (status /= NF90_NOERR) call netcdf_error (status)
 
     !Fill the value of nproc -- helps make sure we can write vars to file
     status = nf90_put_var (ncid, nproc_id, nproc)
+    if (status /= NF90_NOERR) call netcdf_error (status, ncid, nproc_id)
 
 # endif
   end subroutine define_vars
 
   !> Define the vars in the movie file. A fair bit of duplication wrt main
-  !! file -- may want to think about merging movie data into main file.
-  !! Main reason for using a new file is we can only have one unlimited dimension
-  !! per file (with new versions of NETCDF this is no longer true) and we 
-  !! probably don't want to write movie data as often as other data.
-  !! However, at the moment we precalculate the number of outputs, so it
-  !! isn't actually unlimited
+  !> file -- may want to think about merging movie data into main file.
+  !> Main reason for using a new file is we can only have one unlimited dimension
+  !> per file (with new versions of NETCDF this is no longer true) and we
+  !> probably don't want to write movie data as often as other data.
+  !> However, at the moment we precalculate the number of outputs, so it
+  !> isn't actually unlimited
   subroutine define_vars_mymovie
 # ifdef NETCDF
     use run_parameters, only: fphi, fapar, fbpar
     use netcdf, only: NF90_INT, NF90_GLOBAL
     use netcdf, only: nf90_def_var, nf90_put_att, nf90_enddef
-    use netcdf_utils, only: netcdf_real
+    use netcdf_utils, only: netcdf_real, ensure_netcdf_att_exists, ensure_netcdf_var_exists
     implicit none
     integer :: status
 
@@ -1394,7 +1215,7 @@ contains
 
        !Basic information
        call ensure_netcdf_att_exists(ncid_movie, NF90_GLOBAL, 'title', 'GS2 Simulation x,y,theta Data for Movies')
-       call ensure_netcdf_att_exists(ncid_movie, NF90_GLOBAL, 'Conventions','https://sourceforge.net/projects/gyrokinetics/')
+       call ensure_netcdf_att_exists(ncid_movie, NF90_GLOBAL, 'Conventions','https://gyrokinetics.gitlab.io/gs2/')
 
        !Grid sizes
        call ensure_netcdf_var_exists(ncid_movie, 'nx', NF90_INT, nx_id)
@@ -2175,7 +1996,7 @@ contains
   end subroutine nc_vflux
 
   !> Output the poloidal distributions of the fluxes of particles, perpendicular
-  !! momentum, parallel momentum, and energy ! JRB
+  !> momentum, parallel momentum, and energy ! JRB
   subroutine nc_loop_dist (nout, part_fluxes_dist, mom_fluxes_par_dist, mom_fluxes_perp_dist, heat_fluxes_dist, phi_dist)
 
     use species, only: nspec

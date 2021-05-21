@@ -65,6 +65,8 @@ USE_NETCDF ?= on
 USE_PARALLEL_NETCDF ?= 
 # uses hdf5 library (bin)
 USE_HDF5 ?=  
+# uses lapack or compatible library (bin)
+USE_LAPACK ?=
 # Use local random number generator (mt,undefined)
 # see also README
 USE_LOCAL_RAN ?=
@@ -172,6 +174,8 @@ GENQUAD_INC ?=
 GENQUAD_LIB ?=
 NETCDF_INC ?=
 NETCDF_LIB ?=
+LAPACK_INC ?=
+LAPACK_LIB ?=
 HDF5_INC ?=
 HDF5_LIB ?=
 NAG_LIB ?=
@@ -305,6 +309,8 @@ sinclude Makefile.local
 Makefile.utils: ;
 include Makefile.utils
 
+#Indicate that we don't want to rebuild the COMPILER makefile
+Makefiles/Makefile.$(COMPILER): ;
 #############################################################################
 
 GIT_HASH:=$(shell git rev-parse HEAD)
@@ -453,6 +459,10 @@ ifdef USE_POSIX
 	MACRO_DEFS += -DPOSIX
 endif
 
+ifdef USE_LAPACK
+	MACRO_DEFS += -DLAPACK
+endif
+
 ifdef USE_F200X_INTRINSICS
 	MACRO_DEFS += -DF200X_INTRINSICS -DSPFUNC=_SPF200X_
 else
@@ -528,7 +538,7 @@ endif
 
 #Make empty targets if not using the new diagnostics
 ifeq ($(USE_NEW_DIAG),on)
-$(SRCDIR)/Makefile.diagnostics/Makefile.diagnostics: ;
+$(SRCDIR)/diagnostics/Makefile.diagnostics: ;
 sinclude $(SRCDIR)/diagnostics/Makefile.diagnostics
 else
 distclean_simpledataio:
@@ -540,9 +550,9 @@ endif
 ############################################################################# Done dealing with user flags
 
 LIBS	+= $(DEFAULT_LIB) $(MPI_LIB) $(NETCDF_LIB) $(HDF5_LIB) $(FFT_LIB) \
-		   $(NAG_LIB) $(EIG_LIB) $(GENQUAD_LIB)
+		   $(NAG_LIB) $(EIG_LIB) $(GENQUAD_LIB) $(LAPACK_LIB)
 INCLUDES = $(DEFAULT_INC) $(MPI_INC) $(NETCDF_INC) $(HDF5_INC) $(FFT_INC)\
-		   $(SIMPLEDATAIO_INC) $(EIG_INC) $(GENQUAD_INC) $(PFUNIT_INC)
+		   $(SIMPLEDATAIO_INC) $(EIG_INC) $(GENQUAD_INC) $(PFUNIT_INC) $(LAPACK_INC)
 
 INCLUDES += -I$(MODDIR)
 
@@ -638,13 +648,11 @@ endif
 ifdef ONE_STEP_PP
 $(OBJDIR)/%.o: %.fpp |$(MODDIR) $(OBJDIR)
 	$(call messageOp,"Compiling and preprocessing","\\t:",$(call processName,$<))
-	$(QUIETSYM)$(FC) $(FPPFLAGS) $(F90FLAGS) -c $< -o $@
-	$(shell mv *.mod $(MODDIR) 2>/dev/null)
+	$(QUIETSYM)$(FC) $(FPPFLAGS) $(F90FLAGS) $(MODDIR_FLAG)$(MODDIR) -c $< -o $@
 
 $(OBJDIR)/%.o: %.F90 |$(MODDIR) $(OBJDIR)
 	$(call messageOp,"Compiling and preprocessing","\\t:",$(call processName,$<))
-	$(QUIETSYM)$(FC) $(FPPFLAGS) $(F90FLAGS) -c $< -o $@
-	$(shell mv *.mod $(MODDIR) 2>/dev/null)
+	$(QUIETSYM)$(FC) $(FPPFLAGS) $(F90FLAGS) $(MODDIR_FLAG)$(MODDIR) -c $< -o $@
 endif
 
 %.f90: %.rb
@@ -653,13 +661,11 @@ endif
 
 $(OBJDIR)/%.o:$(GENERATED_SRC_DIR)/%.f90 |$(MODDIR) $(OBJDIR)
 	$(call messageOp,"Compiling","\\t:",$(call processName,$<))
-	$(QUIETSYM) $(FC) $(F90FLAGS) -c $< -o $@
-	$(shell mv *.mod $(MODDIR) 2>/dev/null)
+	$(QUIETSYM) $(FC) $(F90FLAGS) $(MODDIR_FLAG)$(MODDIR) -c $< -o $@
 
 $(OBJDIR)/%.o:%.f90 |$(MODDIR) $(OBJDIR)
 	$(call messageOp,"Compiling","\\t:",$(call processName,$<))
-	$(QUIETSYM) $(FC) $(F90FLAGS) -c $< -o $@
-	$(shell mv *.mod $(MODDIR) 2>/dev/null)
+	$(QUIETSYM) $(FC) $(F90FLAGS) $(MODDIR_FLAG)$(MODDIR) -c $< -o $@
 
 # The depend command needs the preprocessed source files. 
 # This is a little clunky, and maybe could be fixed in the future.
@@ -851,6 +857,7 @@ sinclude $(TEST_DIR)/Makefile.tests_and_benchmarks
 
 #This is the location of the pfunit test suites
 PFUNIT_TEST_DIR:=$(TEST_DIR)/pfunit_tests
+$(PFUNIT_TEST_DIR)/Makefile: ;
 sinclude $(PFUNIT_TEST_DIR)/Makefile
 
 ############################################################# Introspection targets
@@ -907,6 +914,7 @@ test_make:
 	$(call messageKeyVal, "USE_HDF5", $(USE_HDF5))
 	$(call messageKeyVal, "WITH_EIG", $(WITH_EIG))
 	$(call messageKeyVal, "USE_POSIX", $(USE_POSIX))
+	$(call messageKeyVal, "USE_LAPACK", $(USE_LAPACK))
 	$(call messageKeyVal, "USE_LOCAL_RAN", $(USE_LOCAL_RN))
 	$(call messageKeyVal, "USE_SPFUNC", $(USE_SPFUNC))
 	$(call messageKeyVal, "USE_NAGLIB", $(USE_NAGLIB))
@@ -1011,6 +1019,14 @@ else
 	$(call messageInfo,"Eigensolver: DISABLED")
 endif
 	@echo
+ifdef USE_LAPACK
+	$(call messageInfo,"Lapack:")
+	$(call messageKeyVal, "LAPACK_LIB", $(LAPACK_LIB))
+	$(call messageKeyVal, "LAPACK_INC", $(LAPACK_INC))
+else
+	$(call messageInfo,"Lapack: DISABLED")
+endif
+	@echo
 
 revision:
 	@LANG=C git rev-parse HEAD > Revision
@@ -1033,7 +1049,7 @@ check_ford_install:
 endif
 
 namelist_doc: PATHS:=$(foreach dir, $(SRCDIR) $(SUBDIRS), --path ${dir})
-namelist_doc: FILES:=$(shell $(GK_HEAD_DIR)/scripts/get_all_matching_files.py --pattern "*.[fF]??" ${PATHS} --absolute)
+namelist_doc: FILES:=$(shell $(GK_HEAD_DIR)/scripts/get_all_matching_files.py --pattern "*.[fF]??" ${PATHS} --absolute --exclude "$(GK_HEAD_DIR)/src/templates")
 # for the `doc` target, `check_ford_install` must be before `namelist_doc` to ensure visibility of the error message
 # in the case where Ford is not installed and `make` is run with the `-j` option. The most robust way to do this is
 # to have `namelist_doc` to depend explicitly on `check_ford_install` as below

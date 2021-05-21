@@ -117,26 +117,26 @@ new diagnostics with and without appending"""))
 
     args = parser.parse_args()
 
-    file_extensions_to_clean = " ".join(
-        [
-            "*.error",
-            "*.exit_reason",
-            "*.g",
-            "*.log",
-            "*.nc.*",
-            "*.out",
-            "*.out.nc",
-            "*.vspace_integration_error",
-            ".*.in",
-            ".*.scratch",
-        ]
-    )
-    clean_command = f"rm -f {file_extensions_to_clean}"
-    print("Cleaning directory")
-    print(clean_command)
-    subprocess.run(clean_command, shell=True)
-
     if args.clean:
+        file_extensions_to_clean = " ".join(
+            [
+                "*.error",
+                "*.exit_reason",
+                "*.g",
+                "*.log",
+                "*.nc.*",
+                "*.out",
+                "*.out.nc",
+                "*.vspace_integration_error",
+                ".*.in",
+                ".*.scratch",
+                "./gs2",
+            ]
+        )
+        clean_command = f"rm -f {file_extensions_to_clean}"
+        print("Cleaning directory")
+        print(clean_command)
+        subprocess.run(clean_command, shell=True)
         exit(0)
 
     success = True

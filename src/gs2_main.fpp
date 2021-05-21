@@ -756,35 +756,47 @@ contains
        ! If we are doing a replay we don't actually evolve 
        ! the equations
        if (.not. state%replay) then 
-         !Initialise reset to true
-         reset=.true.
 
          call debug_message(state%verb+1, &
             'gs2_main::evolve_equations calling advance')
-         do while(reset)
-            reset=.false. !So that we only do this once unless something triggers a reset
-            if (proc0) call time_message(.false.,state%timers%timestep,' Timestep')
-            call advance (istep)
-            if (proc0) call time_message(.false.,state%timers%timestep,' Timestep')
-            call debug_message(state%verb+1, &
+
+         if (proc0) call time_message(.false.,state%timers%timestep,' Timestep')
+         ! Try to take a time step
+         call advance (istep)
+         if (proc0) call time_message(.false.,state%timers%timestep,' Timestep')
+         call debug_message(state%verb+1, &
               'gs2_main::evolve_equations called advance')
 
-            if(state%dont_change_timestep) reset = .false.
-            !If we've triggered a reset then actually reset
-            if (reset) then
-               call prepare_initial_values_overrides(state)
-               call debug_message(state%verb+1, &
-                  'gs2_main::evolve_equations resetting timestep')
-               call set_initval_overrides_to_current_vals(state%init%initval_ov)
-               state%init%initval_ov%override = .true.
-               if (state%is_external_job) then
-                  call reset_time_step (state%init, istep, state%exit, state%external_job_id)
-               else       
-                  call reset_time_step (state%init, istep, state%exit)
-               end if
+         if(state%dont_change_timestep) reset = .false.
+
+         !If the advance call has triggered a reset then change the timestep.
+         !Currently this is triggered if immediate_reset is true and the nonlinear
+         !cfl limit is exceeded.
+         if (reset) then
+            call prepare_initial_values_overrides(state)
+            call debug_message(state%verb+1, &
+                 'gs2_main::evolve_equations resetting timestep')
+            call set_initval_overrides_to_current_vals(state%init%initval_ov)
+            state%init%initval_ov%override = .true.
+            if (state%is_external_job) then
+               call reset_time_step (state%init, istep, state%exit, state%external_job_id)
+            else
+               call reset_time_step (state%init, istep, state%exit)
             end if
-            if(state%exit) exit
-         enddo
+
+            ! Now we've reset set the flag back to .false.
+            reset = .false.
+
+            ! If we've changed the timestep and have not decided to exit then
+            ! we need to call advance to actually complete this timestep.
+            if (.not. state%exit) then
+               call advance(istep)
+            end if
+         end if
+         if(state%exit) exit
+
+
+
          call debug_message(state%verb+1, &
             'gs2_main::evolve_equations calling gs2_save_for_restart')
          
@@ -844,7 +856,9 @@ contains
               'gs2_main::evolve_equations checking time step')
 
             !Note this should only trigger a reset for timesteps too small
-            !as timesteps too large are already handled
+            !as timesteps too large are already handled when immediate_reset is
+            !.true. If immediate_reset is .false. then this is where we handle
+            !all checking of the time step.
             call check_time_step(reset,state%exit)
             !call update_scan_parameter_value(istep, reset, state%exit)
             call debug_message(state%verb+1, &
