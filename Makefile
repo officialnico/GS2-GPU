@@ -854,6 +854,7 @@ $(TEST_DIR)/Makefile.tests_and_benchmarks: ;
 sinclude $(TEST_DIR)/Makefile.tests_and_benchmarks
 
 #This is the location of the pfunit test suites
+$(PFUNIT_TEST_DIR)/Makefile: ;
 PFUNIT_TEST_DIR:=$(TEST_DIR)/pfunit_tests
 sinclude $(PFUNIT_TEST_DIR)/Makefile
 
