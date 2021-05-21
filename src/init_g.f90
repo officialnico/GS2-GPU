@@ -4007,14 +4007,8 @@ contains
     implicit none
     integer :: istatus, ierr
     integer :: iglo
-    integer :: ik, it, il, is, in, sgn
+    integer :: ik, it, il, is, in
     real :: arg, kxrange
-
-    if (phiinit < 0.0) then
-       sgn = -1
-    else
-       sgn = 1
-    end if
 
     kxrange = maxval(akx) - minval(akx)
 
@@ -4026,7 +4020,7 @@ contains
        is = is_idx(g_lo,iglo)
        if (ik == 1) then
           arg = abs(akx(it))/ kxrange
-          g(:,1,iglo) = zf_init * sgn * phiinit * exp(-arg)
+          g(:,1,iglo) = zf_init * abs(phiinit) * exp(-arg)
           where (forbid(:,il)) g(:,1,iglo) = 0.0
           g(:,2,iglo) = g(:,1,iglo)
        else
@@ -4035,7 +4029,7 @@ contains
           else
              in = 1
           end if
-          g(:,1,iglo) = sgn * phiinit / in**2
+          g(:,1,iglo) = abs(phiinit) / in**2
           where (forbid(:,il)) g(:,1,iglo) = 0.0
           g(:,2,iglo) = g(:,1,iglo)
        end if
