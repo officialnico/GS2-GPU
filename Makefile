@@ -309,7 +309,7 @@ sinclude Makefile.local
 Makefile.utils: ;
 include Makefile.utils
 
-#Indicate that we don't want to revuild the COMPILER makefile
+#Indicate that we don't want to rebuild the COMPILER makefile
 Makefiles/Makefile.$(COMPILER): ;
 #############################################################################
 
