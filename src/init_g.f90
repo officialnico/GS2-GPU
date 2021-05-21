@@ -3997,17 +3997,15 @@ contains
   !> Author: BSP (copy of EGH code)
   subroutine ginit_cgyro
     use mp, only: proc0
-    use file_utils, only: error_unit
     use le_grids, only: forbid
     use kt_grids, only: akx, aky
     use dist_fn_arrays, only: g, gnew
-    use gs2_layouts, only: g_lo, ik_idx, it_idx, il_idx, is_idx
-    use run_parameters, only: fphi, fapar, fbpar
+    use gs2_layouts, only: g_lo, ik_idx, it_idx, il_idx
 
     implicit none
     integer :: istatus, ierr
     integer :: iglo
-    integer :: ik, it, il, is, in
+    integer :: ik, it, il, in
     real :: arg, kxrange
 
     kxrange = maxval(akx) - minval(akx)
@@ -4017,12 +4015,9 @@ contains
        ik = ik_idx(g_lo,iglo)
        it = it_idx(g_lo,iglo)
        il = il_idx(g_lo,iglo)
-       is = is_idx(g_lo,iglo)
        if (aky(ik) == 0.0) then
           arg = abs(akx(it))/ kxrange
           g(:,1,iglo) = zf_init * abs(phiinit) * exp(-arg)
-          where (forbid(:,il)) g(:,1,iglo) = 0.0
-          g(:,2,iglo) = g(:,1,iglo)
        else
           if (phiinit < 0.0) then
              in = ik - 1
@@ -4030,10 +4025,11 @@ contains
              in = 1
           end if
           g(:,1,iglo) = abs(phiinit) / in**2
-          where (forbid(:,il)) g(:,1,iglo) = 0.0
-          g(:,2,iglo) = g(:,1,iglo)
        end if
-    end do
+
+       where (forbid(:,il)) g(:,1,iglo) = 0.0
+       g(:,2,iglo) = g(:,1,iglo)
+     end do
 
     gnew = g
 
