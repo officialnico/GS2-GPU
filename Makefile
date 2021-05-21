@@ -121,6 +121,14 @@ WITH_COLOUR     ?= $(WITH_COLOR)
 # If defined then show the full path in compilation statements etc.
 SHOW_ABS_PATH ?= yes
 
+###############################################################
+# By default we export all variables defined in this Makefile
+# or any included makefiles. This gives sub-make invocations
+# (i.e. make calls from within our Makefile) access to the same
+# variables. Really we should just default what is needed.
+export
+###############################################################
+
 #
 # * Targets:
 #

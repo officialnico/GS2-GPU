@@ -1,3 +1,6 @@
+# Don't export these local utilities
+unexport defineTestRecipes getListDir getListSource lowerCase
+
 ############################################################################# UTILS
 #The following converts to lower case
 define lowerCase
@@ -45,8 +48,6 @@ list_$(call lowerCase,$(1))_tests:
 	$(call messageItem,"\\t"$(shell echo $(call getListDir,$($(1)_TEST_DIR)) | sed 's/ /\\\\n\\\\t/g'))
 	@echo ""
 endef
-
-unexport defineTestRecipes getListDir getListSource lowerCase
 
 #For each type of test use defineTestRecipes to define recipes for
 #that test type
