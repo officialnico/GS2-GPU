@@ -4033,7 +4033,7 @@ contains
 
        where (forbid(:,il)) g(:,1,iglo) = 0.0
        g(:,2,iglo) = g(:,1,iglo)
-     end do
+    end do
 
     gnew = g
 
