@@ -3,8 +3,8 @@ module gs2_io
 
 # ifdef NETCDF
   use netcdf, only: NF90_NOERR
-# endif
   use netcdf_utils, only: netcdf_error, kind_nf
+# endif
 
   implicit none
 
@@ -172,8 +172,6 @@ contains
     !----------------
 
     zero = epsilon(0.0)
-
-    if (netcdf_real == 0) netcdf_real = get_netcdf_code_precision()
 
     status = NF90_NOERR
 

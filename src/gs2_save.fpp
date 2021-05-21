@@ -84,8 +84,6 @@ module gs2_save
   LOGICAL :: initialized_dfn= .false.
   ! MRH arrays holding information about the layout for plotting
   integer, dimension (:,:,:,:,:), allocatable :: procid_kykxsel, iglo_kykxsel
-!</DD> Added for saving distribution function
-!  integer (kind_nf) :: netcdf_real=0
 
   logical :: initialized = .false.
   logical :: include_parameter_scan = .true.
@@ -398,8 +396,6 @@ contains
           
        END IF
        !For saving distribution function
-       
-       if (netcdf_real == 0) netcdf_real = get_netcdf_code_precision()
 
        call debug_message(verb, 'gs2_save::gs2_save_for_restart defining variables')
 
@@ -1386,8 +1382,6 @@ contains
 
        if (istatus /= NF90_NOERR) call netcdf_error (istatus, file=file_proc)
        
-       ! check precision
-       if (netcdf_real == 0) netcdf_real = get_netcdf_code_precision()
        call check_netcdf_file_precision (ncid)
 
        istatus = nf90_inq_dimid (ncid, "theta", thetaid)
@@ -1788,9 +1782,6 @@ contains
     endif
 
 #ifdef NETCDF
-    !Get precision
-    if (netcdf_real == 0) netcdf_real = get_netcdf_code_precision()
-    
     !/Make file
     ierr=nf90_create(fname,NF90_CLOBBER,ncid)
     if(ierr/=NF90_NOERR) call netcdf_error(ierr,file=fname)
@@ -1918,9 +1909,6 @@ contains
     IDs%nconv_count=0
 
 #ifdef NETCDF
-    !Get precision
-    if (netcdf_real == 0) netcdf_real = get_netcdf_code_precision()
-    
     !/Make file
     ierr=nf90_create(fname,NF90_CLOBBER,IDs%ncid)
     if(ierr/=NF90_NOERR) call netcdf_error(ierr,file=fname)
