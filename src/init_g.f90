@@ -4010,7 +4010,7 @@ contains
 
     kxrange = maxval(akx) - minval(akx)
 
-    if(debug.and.proc0) write(6,*) 'Entering CGYRO def'
+    if(debug.and.proc0) write(*,*) 'Entering CGYRO def'
     do iglo = g_lo%llim_proc, g_lo%ulim_proc
        ik = ik_idx(g_lo,iglo)
        it = it_idx(g_lo,iglo)
