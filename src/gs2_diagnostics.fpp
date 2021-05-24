@@ -30,6 +30,7 @@ module gs2_diagnostics
 
   ! Export some functions to be used in the new diagnostics
   public :: save_restart_dist_fn
+  public :: check_restart_file_writeable
 
   interface get_vol_average
      module procedure get_vol_average_one, get_vol_average_all
@@ -432,7 +433,6 @@ contains
     !> Input parameters for this module
     type(gs2_diagnostics_config_type), intent(in), optional :: gs2_diagnostics_config_in    
     integer :: nmovie_tot, nwrite_big_tot
-    logical :: writable
 
     if (initialized) return
     initialized = .true.
@@ -504,24 +504,48 @@ contains
        pflux_avg = 0.0 ; qflux_avg = 0.0 ; heat_avg = 0.0 ; vflux_avg = 0.0
     endif
 
-    !Verify restart file can be written
-    if((save_for_restart.or.save_distfn).and.(file_safety_check))then
-       !Can we write file?
-       writable=restart_writable()
-
-       !If we can't write the restart file then we should probably quit
-       if((.not.writable).and.save_for_restart) call mp_abort("Cannot write to test file, maybe restart_dir doesn't exist --> Aborting.",to_screen=.true.)
-
-       !If it's just a case of save_distfn then we can carry on but print a useful mesasge
-       if((.not.writable).and.save_distfn)then
-          if(proc0)write(6,'("Warning: Cannot write to test restart_file --> Setting save_distfn=F.")')
-          save_distfn=.false.
-       endif
-    endif
+    call check_restart_file_writeable(file_safety_check, save_for_restart, save_distfn)
 
     !Setup the parallel fft if we're writing/using the parallel spectrum
     if(write_kpar.or.write_gs) call init_par_filter
   end subroutine init_gs2_diagnostics
+
+  !> Check if we can write the restart files
+  !>
+  !> If restart files aren't writable, aborts if `need_restart` is
+  !> true, or sets `extra_files` to false. Also prints a warning in
+  !> the second case.
+  subroutine check_restart_file_writeable(check_writable, need_restart, extra_files)
+    use gs2_save, only: restart_writable
+    use mp, only: proc0, mp_abort, broadcast
+    implicit none
+    !> Has the user requested this check
+    logical, intent(in) :: check_writable
+    !> Has the user requested restart files
+    logical, intent(in) :: need_restart
+    !> Has the user requested distribution function to be written
+    logical, intent(inout) :: extra_files
+
+    ! Assume everything's fine if we're not checking, or if it's not needed
+    if (.not. check_writable) return
+    if (.not. (need_restart .or. extra_files)) return
+
+    ! If we can write the restart files, we're done
+    if (restart_writable()) return
+
+    ! User has requested restart files, but we can't write them => abort
+    if (need_restart) then
+      call mp_abort("Cannot write to test file, maybe restart_dir &
+                    &doesn't exist --> Aborting.",to_screen=.true.)
+    end if
+
+    ! If it's just a case of save_distfn, then we can carry on but
+    ! disable `save_distfn` and print a useful mesasge
+    if (extra_files) then
+      if(proc0) write(*, '("Warning: Cannot write to test restart_file --> Setting `save_distfn = F`")')
+      extra_files = .false.
+    endif
+  end subroutine check_restart_file_writeable
 
   !> Read the input parameters; open the various text output files according to
   !> the relevant input flags; allocate and zero the module-level flux arrays,
