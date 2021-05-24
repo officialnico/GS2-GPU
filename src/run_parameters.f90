@@ -87,7 +87,16 @@ module run_parameters
      real :: beta = 0.0
      !> Initial timestep
      real :: delt = 0.1
-     !> Determines how initial timestep is set
+     !> Determines how initial timestep is set. Possible options are:
+     !>
+     !>  - "default" or "set_by_hand": use timestep from input file
+     !>  - "check_restart": read timestep(s) from restart file
+     !>
+     !> If "check_restart" is used but the restart files aren't
+     !> present for any reason (for instance, the current run is not a
+     !> restart), GS2 will error when trying to read the
+     !> timesteps. You can run the [[ingen]] tool on your input file
+     !> to check this issue before running your job
      character(len = 20) :: delt_option = 'default'
      !> If true then use eigensolver instead of initial value solver.
      logical :: do_eigsolve = .false.
@@ -532,7 +541,13 @@ contains
        vnm_init = 1.0
        call init_vnm (vnm_saved, istatus)
        if (istatus == 0) vnm_init = vnm_saved
-       call init_dt (delt0, delt1, delt2, istatus)
+       call init_dt (delt0, delt1, delt2, istatus, dt_not_set)
+
+       ! FIXME: The following check means that we only set all the
+       ! time step values if there were no errors in whatever the last
+       ! operation in `init_dt` was. In reality we should probably always
+       ! set these values based on what is returned and move the error
+       ! handling into `init_dt`.
        if (istatus == 0) then
           delt  = delt0
           delt_prev1 = delt1

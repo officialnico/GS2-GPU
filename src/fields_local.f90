@@ -140,6 +140,8 @@ module fields_local
      procedure :: dump => sc_dump
      procedure :: make_subcom_1 => sc_make_subcom_1
      procedure :: make_subcom_2 => sc_make_subcom_2
+     procedure :: dump_to_file => sc_dump_to_file
+     procedure :: read_from_file => sc_read_from_file
   end type supercell_type
 
   !> This is the next level up of data and represents the ky type.
@@ -813,6 +815,111 @@ contains
     deallocate(tmp)
   end subroutine sc_dump
 
+  !> Routine to write the response matrix for this supercell to netcdf file.
+  !>
+  !> @note Only the head processor actually writes to file. However, in current
+  !> use we only call this routine on processors which have this supercell local
+  !> and which don't consider it empty. This is usually ok, but for box runs the
+  !> mode with ky=kx=0 (super)cell is forced to be considered empty which means 
+  !> that, as it stands, this supercell won't be dumped here (although it is for
+  !> the fields_implicit approach). This could cause issues for restoring these
+  !> response matrices as we end up recalculating these if we can't load any
+  !> expected file. As such we have to be careful how we deal with this matrix.
+  subroutine sc_dump_to_file(self, suffix)
+    use gs2_save, only: gs2_save_response
+    use fields_arrays, only: get_specific_response_file_name
+    use gs2_time, only: code_dt
+    implicit none
+    !> The instance of the supercell class
+    class(supercell_type), intent(in out) :: self
+    !> If passed then use as part of file suffix
+    character(len=*), optional, intent(in) :: suffix
+    complex, dimension(:,:), allocatable :: tmp_arr
+
+    ! Exit early if we're not involved in this supercell
+    if(.not.self%is_local) return
+
+    !Allocate array -- for big problems this might be an issue
+    allocate(tmp_arr(self%nrow,self%ncol))
+
+    !First have to pull all row level data
+    call self%pull_rows_to_arr(tmp_arr)
+
+    !Now save if on head proc -- could probably only allocate tmp_arr and call
+    !pull_rows_to_arr on this head proc as well, at least for now.
+    if(self%is_head)then
+       call gs2_save_response(tmp_arr, get_specific_response_file_name(self%ik_ind, self%is_ind, code_dt, suffix))
+    endif
+
+    deallocate(tmp_arr)
+
+  end subroutine sc_dump_to_file
+
+  !> Routine to read the response matrix for this supercell from netcdf file.
+  subroutine sc_read_from_file(self, could_read, suffix)
+    use gs2_save, only: gs2_restore_response
+    use mp, only: sum_allreduce_sub, proc0
+    use fields_arrays, only: get_specific_response_file_name
+    use gs2_time, only: code_dt
+    use file_utils, only: error_unit
+    implicit none
+    !> The instance of the supercell class
+    class(supercell_type), intent(in out) :: self
+    !> Flag to indicate if the file was successfully read
+    logical, intent(out) :: could_read
+    !> If passed then use as part of file suffix
+    character(len=*), optional, intent(in) :: suffix
+
+    complex, dimension(:,:), allocatable :: tmp_arr
+    character(len = 256) :: file_name
+    logical :: file_found
+
+    ! Initialise reading state.
+    could_read = .true.
+
+    ! Construct the expected file name
+    file_name = adjustl(get_specific_response_file_name(self%ik_ind, self%is_ind, code_dt, suffix))
+
+    ! First check if the expected file exists, if not then exit
+    inquire( file = trim(file_name), exist = file_found)
+    if (.not. file_found) then
+       if(proc0) write(error_unit(), &
+            '("Could not find response file ",A,", reverting to calculation.")') trim(file_name)
+       ! Set the flag indicating if we could read the file. Note if this processor
+       ! doesn't require this data (i.e. it considers this empty) then we ignore
+       ! the presence of the file as we don't care. This is mostly important for
+       ! the ky=kx=0 file which may not be present but also isn't required for any
+       ! processor.
+       could_read = .false. .or. self%is_empty
+       return
+    end if
+
+    !Now allocate array -- for big problems this might be an issue
+    allocate(tmp_arr(self%nrow,self%ncol))
+    tmp_arr=0.
+
+    !Now if on head proc read
+    if (self%is_head) then
+       call gs2_restore_response(tmp_arr, file_name)
+    end if
+
+    !Now we need to broadcast the data to everyone with supercell.
+    !NOTE: Really we would want a supercell bound method which will do
+    !this so that this module level routine is insensitive to communicators etc.
+    !Furthermore we are lazy and use a sum_allreduce_sub to send data to everyone
+    !NOTE: The processors which consider this to supercell to be empty (i.e. which
+    !don't have any associated work) shouldn't need to take part in this communication.
+    !If we can promise that only non-empty processors could be the head that should
+    !work fine, provided we have a suitable communicator (sc_sub_pd?).
+    call sum_allreduce_sub(tmp_arr,self%sc_sub_all%id)
+
+    !Now push array to local storage
+    call self%push_arr_to_rows(tmp_arr)
+
+    deallocate(tmp_arr)
+
+  end subroutine sc_read_from_file
+
   !> Store the field equations at row level
   subroutine sc_store_fq(self,fq,fqa,fqp,ifl_in,it_in,ig_in)
     use theta_grid, only: ntgrid
@@ -911,6 +1018,9 @@ contains
        write(errmesg,'("ERROR: Invalid prepare_type : ",I0)') prepare_type
        call mp_abort(trim(errmesg))
     end select
+
+    ! Now dump the matrix
+    if (dump_response) call self%dump_to_file
   end subroutine sc_prepare
 
   !> A routine to invert the field matrix
@@ -935,11 +1045,31 @@ contains
   end subroutine sc_invert
 
   !> A routine to invert the field matrix locally
+  !>
+  !> @note Currently every processor which is responsible for a chunk
+  !> of the response matrix at the solve stage will do this inversion.
+  !> This is obviously duplicated work but allows us to skip any
+  !> communication in the push_arr_to_rows method. If only one
+  !> processor did the inversion then we would need to communicate the
+  !> result back. We are unlikely to want to do this in a non-blocking
+  !> manner as it would require that we hold onto the tmp_arr for each
+  !> response matrix, only freeing this memory after the non-blocking
+  !> communications have completed. As these matrices are large we
+  !> don't want them hanging around longer than required. In the typical
+  !> use case where we have large minnrow, we would expect most matrices
+  !> to belong to just one or a few processors so this point may not be
+  !> important in most cases.
   subroutine sc_invert_local(self)
-    use mat_inv, only: inverse_gj
+    use mat_inv, only: invert_serial
+    use mp, only: broadcast_sub
+    use file_utils, only: error_unit
+    use gs2_time, only: code_dt
     implicit none
     class(supercell_type), intent(inout) :: self
     complex, dimension(:,:), allocatable :: tmp_arr
+    real :: condition_number
+    real, parameter :: condition_number_warning_limit = sqrt(1.0/epsilon(condition_number))
+    character(len = 100) :: condition_number_message
 
     !Exit early if possible
     if(self%is_empty) return
@@ -951,9 +1081,39 @@ contains
     !First have to pull all row level data
     call self%pull_rows_to_arr(tmp_arr)
 
+    !It may be better to hook into the GK_VERBOSITY level system
+    !rather than relying on the debug flag.
+    if (self%is_head) then
+       condition_number = l2norm(tmp_arr)
+    end if
+
     !Now invert in place
-    call inverse_gj(tmp_arr,self%nrow)
-    tmp_arr=transpose(tmp_arr)
+    if (self%is_head) then
+       call invert_serial(tmp_arr, self%nrow)
+       tmp_arr=transpose(tmp_arr)
+    end if
+
+    !It would be quite nice if we could do the following in a non-blocking manner
+    !but this would require us to either keep the potentially large tmp_arr allocated
+    !for all supercells or for us to be able to do this "in-place" (i.e. we use something
+    !like non-blocking scatterv rather than broadcast).
+    if (.not. self%is_all_local) then
+       if (self%sc_sub_pd%nproc > 0) call broadcast_sub(tmp_arr, &
+            self%head_iproc_pd, self%sc_sub_pd%id)
+    end if
+
+    if (self%is_head) then
+       condition_number = condition_number * l2norm(tmp_arr)
+       write(condition_number_message,'("Condition number for response with ik = ",I0,", is = ",I0," and dt = ",E14.6E3," is ",E14.6E3)') self%ik_ind, self%is_ind, code_dt, condition_number
+       if (condition_number > condition_number_warning_limit) then
+          write(error_unit(), '("Warning: ",A)') trim(condition_number_message)
+       end if
+
+       !In debug mode always display the condition number message to screen
+       if (debug) then
+          write(*,'(A)') trim(condition_number_message)
+       end if
+    end if
 
     !Now push back to row level
     call self%push_arr_to_rows(tmp_arr)
@@ -3604,10 +3764,12 @@ contains
 
   !> Routine use to initialise field matrix data
   subroutine init_fields_matrixlocal(tuning_in)
-    use mp, only: proc0, mp_abort
+    use mp, only: proc0, mp_abort, land_allreduce
+    use file_utils, only: error_unit
     implicit none
     logical, optional :: tuning_in
     logical :: tuning
+    logical :: response_was_read
     real :: ts,te
 
     !Exit if we've already initialised
@@ -3726,18 +3888,32 @@ contains
 !!when the time step changes.
 !!!!!!!!!!
     if(.not. tuning) then
+
+       response_was_read = .false.
+
        !Now fill the fieldmat with data
        if(read_response)then
           if(proc0.and.debug)then
              write(dlun,'("Populating from dump.")')
              call cpu_time(ts)
           endif
-          call read_response_from_file_local
-          if(proc0.and.debug) then 
+          call read_response_from_file_local(could_read = response_was_read)
+          if(proc0.and.debug) then
              call cpu_time(te)
              write(dlun,'("--Done in ",F12.4," units")') te-ts
           endif
-       else       
+
+          ! Ensure we reduce response_was_read across all processors so if _any_
+          ! processors couldn't read the matrices we recalculate on all processors.
+          call land_allreduce(response_was_read)
+          if((.not. response_was_read) .and. proc0) write(error_unit(), &
+               '("Could not find response file so reverting to calculation.")')
+
+       end if
+
+       !If we weren't able to read the response file, or didn't try to,
+       !then we need to calculate the response matrix instead
+       if (.not. response_was_read) then
           !if(debug)call barrier
           if(proc0.and.debug)then
              write(dlun,'("Populating.")')
@@ -3745,7 +3921,7 @@ contains
           endif
           call fieldmat%populate
           !if(debug)call barrier
-          if(proc0.and.debug) then 
+          if(proc0.and.debug) then
              call cpu_time(te)
              write(dlun,'("--Done in ",F12.4," units")') te-ts
           endif
@@ -3774,7 +3950,7 @@ contains
              call cpu_time(ts)
           endif
           call dump_response_to_file_local
-          if(proc0.and.debug) then 
+          if(proc0.and.debug) then
              call cpu_time(te)
              write(dlun,'("--Done in ",F12.4," units")') te-ts
           endif
@@ -3954,18 +4130,10 @@ contains
   !! to file. One file per connected domain. Each written
   !! by the head of the supercell.
   subroutine dump_response_to_file_local(suffix)
-    use gs2_save, only: gs2_save_response
-    use fields_arrays, only: response_file
     implicit none
-    character(len=*), optional, intent(in) :: suffix !If passed then use as part of file suffix
-    character(len=64) :: suffix_local, suffix_default='.response'
-    character(len=256) :: file_name
-    complex, dimension(:,:), allocatable :: tmp_arr
+    !> If passed then use as part of file suffix
+    character(len=*), optional, intent(in) :: suffix
     integer :: ik, is
-
-    !Set file suffix
-    suffix_local=suffix_default
-    if(present(suffix)) suffix_local=suffix
 
     !First we have to pull data so that head of each supercell has full data
     !Currently we are lazy and just ensure all procs in supercell has full data
@@ -3978,47 +4146,26 @@ contains
           !If is isn't local than cycle
           if(.not.fieldmat%kyb(ik)%supercells(is)%is_local) cycle
 
-          !Now allocate array
-          allocate(tmp_arr(fieldmat%kyb(ik)%supercells(is)%nrow,fieldmat%kyb(ik)%supercells(is)%ncol))
-
-          !First have to pull all row level data
-          call fieldmat%kyb(ik)%supercells(is)%pull_rows_to_arr(tmp_arr)
-          
-          !Now save if on head proc
-          if(fieldmat%kyb(ik)%supercells(is)%is_head)then
-             !Really we should do this with netcdf but for now we will
-             !simply dump a binary file.
-
-             !First make file name
-             write(file_name,'(A,"_ik_",I0,"_is_",I0,A)') trim(response_file),ik,is,trim(suffix_local)
-             call gs2_save_response(tmp_arr,file_name)
-          endif
-
-          !Deallocate
-          deallocate(tmp_arr)
+          !Call supercell bound method to dump response
+          call fieldmat%kyb(ik)%supercells(is)%dump_to_file(suffix)
        enddo
     enddo
 
   end subroutine dump_response_to_file_local
 
   !> Routine to read the current response matrix data
-  !! from file dump. One file per connected domain. Each written
-  !! by the head of the supercell.
-  !! NOTE: Have to have setup communicators etc.
-  subroutine read_response_from_file_local(suffix)
-    use gs2_save, only: gs2_restore_response
-    use mp, only: sum_allreduce_sub
-    use fields_arrays, only: response_file
+  !> from file dump. One file per connected domain. Each written
+  !> by the head of the supercell.
+  !> NOTE: Have to have setup communicators etc.
+  subroutine read_response_from_file_local(could_read, suffix)
     implicit none
-    character(len=*), optional, intent(in) :: suffix !If passed then use as part of file suffix
-    character(len=64) :: suffix_local, suffix_default='.response'
-    character(len=256) :: file_name
-    complex, dimension(:,:), allocatable :: tmp_arr
+    !> Flag to indicate if all files successfully read
+    logical, intent(out) :: could_read
+    !> If passed then use as part of file suffix
+    character(len=*), optional, intent(in) :: suffix
     integer :: ik, is
 
-    !Set file suffix
-    suffix_local=suffix_default
-    if(present(suffix)) suffix_local=suffix
+    could_read = .true.
 
     !First we have to pull data so that head of each supercell has full data
     !Currently we are lazy and just ensure all procs in supercell has full data
@@ -4029,35 +4176,13 @@ contains
        !Loop over supercells
        do is=1,fieldmat%kyb(ik)%nsupercell
           !If is isn't local than cycle
-          if(.not.fieldmat%kyb(ik)%supercells(is)%is_local) cycle
+          if (.not.fieldmat%kyb(ik)%supercells(is)%is_local) cycle
 
-          !Now allocate array
-          allocate(tmp_arr(fieldmat%kyb(ik)%supercells(is)%nrow,fieldmat%kyb(ik)%supercells(is)%ncol))
-          tmp_arr=0.
-
-          !Now if on head proc read
-          if(fieldmat%kyb(ik)%supercells(is)%is_head)then
-             !Really we should do this with netcdf but for now we will
-             !simply dump a binary file.
-
-             !First make file name
-             write(file_name,'(A,"_ik_",I0,"_is_",I0,A)') trim(response_file),ik,is,trim(suffix_local)
-             call gs2_restore_response(tmp_arr,file_name)
-          endif
-
-          !Now we need to broadcast the data to everyone with supercell.
-          !NOTE: Really we would want a supercell bound method which will do
-          !this so that this module level routine is insensitive to communicators etc.
-          !Furthermore we are lazy and use a sum_allreduce_sub to send data to everyone
-          call sum_allreduce_sub(tmp_arr,fieldmat%kyb(ik)%supercells(is)%sc_sub_all%id)
-
-          !Now push array to local storage
-          call fieldmat%kyb(ik)%supercells(is)%push_arr_to_rows(tmp_arr)
-
-          !Deallocate
-          deallocate(tmp_arr)
-       enddo
-    enddo
+          call fieldmat%kyb(ik)%supercells(is)%read_from_file(could_read = could_read, suffix = suffix)
+          ! If we failed to read this file then leave immediately
+          if (.not. could_read) return
+       end do
+    end do
 
   end subroutine read_response_from_file_local
 
@@ -4070,5 +4195,37 @@ contains
     logical :: fields_local_functional
     fields_local_functional = (.not. compiler_pgi())
   end function fields_local_functional
+
+  !> Calculate the L2/Frobenius/Euclidiean-norm of a 2D complex array
+  real function l2norm(matrix)
+    !> The matrix to calculate the norm of
+    complex, dimension(:, :), intent(in) :: matrix
+    !> The shape of the matrix
+    integer, dimension(2) :: matrix_shape
+    !> Indicies for indexing the matrix
+    integer :: i, j
+    l2norm = 0.
+    matrix_shape = shape(matrix)
+    do j = 1, matrix_shape(2)
+       do i = 1, matrix_shape(1)
+          l2norm = l2norm + matrix(i,j)*matrix(i,j)
+       end do
+    end do
+    l2norm = sqrt(l2norm)
+
+    ! We could write all of the above as
+    !    l2norm = sqrt(sum(matrix*matrix))
+    ! but this could run over the matrix twice
+    ! and require a matrix sized temporary. Our
+    ! approach avoids this. We could have an intermediate
+    ! approach of
+    !  do j = 1, matrix_shape(1)
+    !     l2norm = l2norm + sum(matrix(:,j)*matrix(:,j))
+    !  end do
+    !  l2norm = sqrt(l2norm)
+    ! which might offer a bit of a middle ground
+    ! Also note that a norm2 method was introduced in fortran 2008
+    ! but that only accepts real valued arguments.
+  end function l2norm
 
 end module fields_local

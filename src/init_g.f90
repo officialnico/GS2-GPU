@@ -37,7 +37,7 @@ module init_g
        ginitopt_all_modes_equal = 33, &
        ginitopt_default_odd=34, ginitopt_restart_memory=35, & !Note ginitopt_restart_memory isn't meant to be a user selected choice.
        ginitopt_restart_eig=36, ginitopt_no_zonal = 37, &
-       ginitopt_stationary_mode = 38
+       ginitopt_stationary_mode = 38, ginitopt_cgyro = 39
 
   real :: width0, dphiinit, phiinit, imfac, refac, zf_init, phifrac
   real :: den0, upar0, tpar0, tperp0
@@ -129,7 +129,44 @@ module init_g
      character(len = 20) :: eq_type = 'sinusoidal'
      !> FIXME: Add documentation
      logical :: even = .true.
-     !> FIXME: Add documentation
+     !> Method for initialising `g`. Available options are:
+     !>
+     !>   - "default"
+     !>   - "default_odd"
+     !>   - "noise"
+     !>   - "xi"
+     !>   - "xi2"
+     !>   - "zero"
+     !>   - "test3"
+     !>   - "convect"
+     !>   - "rh"
+     !>   - "many": use `g` from restart files
+     !>   - "small"
+     !>   - "file": use `g` from restart file (note: same as "many"?)
+     !>   - "cont"
+     !>   - "kz0"
+     !>   - "nl"
+     !>   - "nl2"
+     !>   - "nl3"
+     !>   - "nl3r"
+     !>   - "nl4"
+     !>   - "nl5"
+     !>   - "nl6"
+     !>   - "nl7"
+     !>   - "alf"
+     !>   - "gs"
+     !>   - "kpar"
+     !>   - "smallflat"
+     !>   - "harris"
+     !>   - "recon"
+     !>   - "recon3"
+     !>   - "ot"
+     !>   - "zonal_only"
+     !>   - "no_zonal"
+     !>   - "single_parallel_mode"
+     !>   - "all_modes_equal"
+     !>   - "eig_restart"
+     !>   - "stationary_mode"
      character(len = 20) :: ginit_option = "default"
      !> FIXME: Add documentation
      integer, dimension(2) :: ikk = [1, 2]
@@ -141,6 +178,9 @@ module init_g
      integer :: ikx_init = -1
      !> FIXME: Add documentation
      real :: imfac = 0.0
+     !> Do we want to include the explicit source terms and
+     !> related timesteps when saving/restoring from the restart file.
+     logical :: include_explicit_source_in_restart = .true.
      !> FIXME: Add documentation
      logical :: input_check_recon = .false.
      !> FIXME: Add documentation
@@ -392,6 +432,14 @@ contains
        write (unit, fmt="(' tperp0 = ',e17.10)") tperp0
        write (unit, fmt="(' tperp1 = ',e17.10)") tperp1
        write (unit, fmt="(' tperp2 = ',e17.10)") tperp2
+
+    case (ginitopt_cgyro)
+       write (unit, fmt="(' ginit_option = ',a)") '"cgyro"'
+       write (unit, fmt="(' phiinit = ',e17.10)") phiinit
+       write (unit, fmt="(' zf_init = ',e17.10)") zf_init
+       write (unit, fmt="(' chop_side = ',L1)") chop_side
+       if (chop_side) write (unit, fmt="(' left = ',L1)") left
+       write (unit, fmt="(' clean_init = ',L1)") clean_init
 
     end select
     write (unit, fmt="(' /')")
@@ -687,6 +735,12 @@ contains
        write (report_unit, fmt="('################# WARNING #######################')")
        write (report_unit, *) 
 
+    case (ginitopt_cgyro)
+       write (report_unit, fmt="('Initial conditions:')")
+       write (report_unit, fmt="('  Amplitude:        ',f10.4)") phiinit
+       write (report_unit, fmt="('Constant amplitude for ky!=0')")
+       write (report_unit, fmt="('Zero amplitude for ky=0')")
+
     end select
 
     if (ginitopt_switch == ginitopt_restart_many) then
@@ -820,7 +874,7 @@ contains
 
   !> FIXME : Add documentation  
   subroutine ginit (restarted, override_ginitopt_switch)
-    use gs2_save, only: init_tstart
+    use gs2_save, only: read_t0_from_restart_file
     implicit none
     logical, intent (out) :: restarted
     integer, intent(in), optional :: override_ginitopt_switch
@@ -867,28 +921,28 @@ contains
 ! results, you might need to comment out this line and...
 !       t0 = tstart
        call ginit_nl4
-       call init_tstart (tstart, istatus)
+       call read_t0_from_restart_file (tstart, istatus)
 ! this line:
 !       tstart = t0
        restarted = .true.
        scale = 1.
     case (ginitopt_nl5)
        t0 = tstart
-       call init_tstart (tstart, istatus)
+       call read_t0_from_restart_file (tstart, istatus)
        call ginit_nl5
        tstart = t0
        restarted = .true.
        scale = 1.
     case (ginitopt_recon)
        t0 = tstart
-       call init_tstart (tstart, istatus)
+       call read_t0_from_restart_file (tstart, istatus)
        call ginit_recon
        tstart = t0
        restarted = .true.
        scale = 1.
     case (ginitopt_nl6)
        t0 = tstart
-       call init_tstart (tstart, istatus)
+       call read_t0_from_restart_file (tstart, istatus)
        call ginit_nl6
        tstart = t0
        restarted = .true.
@@ -911,22 +965,22 @@ contains
        call ginit_convect
     case (ginitopt_restart_file)
        call ginit_restart_file 
-       call init_tstart (tstart, istatus)
+       call read_t0_from_restart_file (tstart, istatus)
        restarted = .true.
        scale = 1.
     case (ginitopt_restart_many)
        call ginit_restart_many 
-       call init_tstart (tstart, istatus)
+       call read_t0_from_restart_file (tstart, istatus)
        restarted = .true.
        scale = 1.
     case (ginitopt_restart_eig)
        call ginit_restart_eig 
-       call init_tstart (tstart, istatus)
+       call read_t0_from_restart_file (tstart, istatus)
        restarted = .true.
        scale = 1.
     case (ginitopt_restart_small)
        call ginit_restart_small
-       call init_tstart (tstart, istatus)
+       call read_t0_from_restart_file (tstart, istatus)
        restarted = .true.
        scale = 1.
     case (ginitopt_restart_memory)
@@ -935,17 +989,17 @@ contains
        scale = 1.
     case (ginitopt_zonal_only)
        call ginit_restart_zonal_only
-       call init_tstart (tstart, istatus)
+       call read_t0_from_restart_file (tstart, istatus)
        restarted = .true.
        scale = 1.
     case (ginitopt_no_zonal)
        call ginit_restart_no_zonal
-       call init_tstart (tstart, istatus)
+       call read_t0_from_restart_file (tstart, istatus)
        restarted = .true.
        scale = 1.
     case (ginitopt_smallflat)
        call ginit_restart_smallflat
-       call init_tstart (tstart, istatus)
+       call read_t0_from_restart_file (tstart, istatus)
        restarted = .true.
        scale = 1.
     case (ginitopt_continue)
@@ -964,7 +1018,7 @@ contains
   subroutine read_parameters(init_g_config_in)
     use file_utils, only: input_unit, error_unit, run_name, input_unit_exist
     use text_options, only: text_option, get_option_value
-    use gs2_save, only: read_many
+    use gs2_save, only: read_many, include_explicit_source_in_restart
     use job_manage, only: trin_restart
 
     implicit none
@@ -1044,6 +1098,7 @@ contains
     ikpar_init = init_g_config%ikpar_init
     ikx_init = init_g_config%ikx_init
     imfac = init_g_config%imfac
+    include_explicit_source_in_restart = init_g_config%include_explicit_source_in_restart
     input_check_recon = init_g_config%input_check_recon
     itt = init_g_config%itt
     ittt = init_g_config%ittt
@@ -3953,6 +4008,74 @@ contains
     gnew = g
   end subroutine ginit_stationary_mode
 
+  !> Sets g to a constant value everywhere except zonal component which is 0
+  !> Default initial conditions for CGYRO
+  !>
+  !> if phiinit>0:
+  !>     g(ky!=0) = constant
+  !> else:
+  !>     g(ky!=0) = constant/n
+  !>
+  !> if zfinit!=0:
+  !>     g(ky==0) = constant * exp(-|kx|/max(kx))
+  !> else:
+  !>     g(ky==0) = 0
+  !>
+  !> Set by having 'ginit_option' = cgyro
+  !> Equivalent CGYRO parameters achieved by setting
+  !>    GS2   =    CGYRO
+  !> phiiinit = AMP / sqrt(2)
+  !> zfinit   = AMP0 / AMP
+  !>
+  !> By default AMP0=0 and AMP=0.1 in CGYRO
+  !>
+  !> Potential issue in AMP=0 in CGYRO due to zfinit defn
+  !>
+  !> Author: BSP (copy of EGH code)
+  subroutine ginit_cgyro
+    use mp, only: proc0
+    use le_grids, only: forbid
+    use kt_grids, only: akx, aky
+    use dist_fn_arrays, only: g, gnew
+    use gs2_layouts, only: g_lo, ik_idx, it_idx, il_idx
+
+    implicit none
+    integer :: istatus, ierr
+    integer :: iglo
+    integer :: ik, it, il, in
+    real :: arg, kxrange
+
+    kxrange = maxval(akx) - minval(akx)
+
+    if(debug.and.proc0) write(*,*) 'Entering CGYRO def'
+    do iglo = g_lo%llim_proc, g_lo%ulim_proc
+       ik = ik_idx(g_lo,iglo)
+       it = it_idx(g_lo,iglo)
+       il = il_idx(g_lo,iglo)
+       if (aky(ik) == 0.0) then
+          arg = abs(akx(it))/ kxrange
+          g(:,1,iglo) = zf_init * abs(phiinit) * exp(-arg)
+       else
+          ! Ensure we don't end up with in = 0. This shouldn't
+          ! be needed for flux tube (box) simulations as ik == 1
+          ! would correspond to the zonal mode, handled in the
+          ! earlier branch.
+          if (phiinit < 0.0 .and. ik > 1) then
+             in = ik - 1
+          else
+             in = 1
+          end if
+          g(:,1,iglo) = abs(phiinit) / in**2
+       end if
+
+       where (forbid(:,il)) g(:,1,iglo) = 0.0
+       g(:,2,iglo) = g(:,1,iglo)
+    end do
+
+    gnew = g
+
+  end subroutine ginit_cgyro
+
   !> FIXME : Add documentation    
   subroutine reset_init(from_file)
     implicit none
@@ -4044,13 +4167,13 @@ contains
     integer :: adj_spec, eq_mode_n, eq_mode_u, ikpar_init, ikx_init, restart_eig_id
     integer, dimension(2) :: ikk, itt
     integer, dimension(3) :: ikkk, ittt
-    logical :: chop_side, clean_init, constant_random_flag, even, input_check_recon, left, new_field_init, null_apar, null_bpar, null_phi, read_many
+    logical :: chop_side, clean_init, constant_random_flag, even, include_explicit_source_in_restart, input_check_recon, left, new_field_init, null_apar, null_bpar, null_phi, read_many
     real :: a0, apar0, b0, den0, den1, den2, dphiinit, imfac, kpar_init, phifrac, phiinit, phiinit0, phiinit_rand, prof_width, refac, scale, tpar0, tpar1, tpar2, tperp0, tperp1, tperp2, tstart, upar0, upar1
     real :: upar2, width0, zf_init
 
     namelist /init_g_knobs/ a0, adj_spec, apar0, aparamp, b0, chop_side, clean_init, constant_random_flag, den0, den1, den2, dphiinit, eq_mode_n, eq_mode_u, eq_type, even, ginit_option, ikk, ikkk, ikpar_init, ikx_init, imfac, &
-         input_check_recon, itt, ittt, kpar_init, left, new_field_init, nkxy_pt, null_apar, null_bpar, null_phi, phiamp, phifrac, phiinit, phiinit0, phiinit_rand, prof_width, read_many, refac, restart_dir, &
-         restart_eig_id, restart_file, scale, tpar0, tpar1, tpar2, tperp0, tperp1, tperp2, tstart, ukxy_pt, upar0, upar1, upar2, width0, zf_init
+         include_explicit_source_in_restart, input_check_recon, itt, ittt, kpar_init, left, new_field_init, nkxy_pt, null_apar, null_bpar, null_phi, phiamp, phifrac, phiinit, phiinit0, phiinit_rand, prof_width, read_many, refac, &
+         restart_dir, restart_eig_id, restart_file, scale, tpar0, tpar1, tpar2, tperp0, tperp1, tperp2, tstart, ukxy_pt, upar0, upar1, upar2, width0, zf_init
 
     ! Only proc0 reads from file
     if (.not. proc0) return
@@ -4078,6 +4201,7 @@ contains
     ikpar_init = self%ikpar_init
     ikx_init = self%ikx_init
     imfac = self%imfac
+    include_explicit_source_in_restart = self%include_explicit_source_in_restart
     input_check_recon = self%input_check_recon
     itt = self%itt
     ittt = self%ittt
@@ -4149,6 +4273,7 @@ contains
     self%ikpar_init = ikpar_init
     self%ikx_init = ikx_init
     self%imfac = imfac
+    self%include_explicit_source_in_restart = include_explicit_source_in_restart
     self%input_check_recon = input_check_recon
     self%itt = itt
     self%ittt = ittt
@@ -4223,6 +4348,7 @@ contains
     call self%write_key_val("ikpar_init", self%ikpar_init, unit_internal)
     call self%write_key_val("ikx_init", self%ikx_init, unit_internal)
     call self%write_key_val("imfac", self%imfac, unit_internal)
+    call self%write_key_val("include_explicit_source_in_restart", self%include_explicit_source_in_restart, unit_internal)    
     call self%write_key_val("input_check_recon", self%input_check_recon, unit_internal)
     call self%write_key_val("itt", self%itt, unit_internal)
     call self%write_key_val("ittt", self%ittt, unit_internal)
@@ -4299,6 +4425,7 @@ contains
     call broadcast(self%ikpar_init)
     call broadcast(self%ikx_init)
     call broadcast(self%imfac)
+    call broadcast(self%include_explicit_source_in_restart)
     call broadcast(self%input_check_recon)
     call broadcast(self%itt)
     call broadcast(self%ittt)

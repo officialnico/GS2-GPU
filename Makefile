@@ -65,6 +65,8 @@ USE_NETCDF ?= on
 USE_PARALLEL_NETCDF ?= 
 # uses hdf5 library (bin)
 USE_HDF5 ?=  
+# uses lapack or compatible library (bin)
+USE_LAPACK ?=
 # Use local random number generator (mt,undefined)
 # see also README
 USE_LOCAL_RAN ?=
@@ -119,6 +121,14 @@ WITH_COLOUR     ?= $(WITH_COLOR)
 # If defined then show the full path in compilation statements etc.
 SHOW_ABS_PATH ?= yes
 
+###############################################################
+# By default we export all variables defined in this Makefile
+# or any included makefiles. This gives sub-make invocations
+# (i.e. make calls from within our Makefile) access to the same
+# variables. Really we should just default what is needed.
+export
+###############################################################
+
 #
 # * Targets:
 #
@@ -172,6 +182,8 @@ GENQUAD_INC ?=
 GENQUAD_LIB ?=
 NETCDF_INC ?=
 NETCDF_LIB ?=
+LAPACK_INC ?=
+LAPACK_LIB ?=
 HDF5_INC ?=
 HDF5_LIB ?=
 NAG_LIB ?=
@@ -215,8 +227,8 @@ EXTERNALSRCDIRS:= $(addprefix $(EXTERNALDIR)/, $(EXTERNALSRCDIRS))
 
 SUBDIRS += $(EXTERNALSRCDIRS)
 
-GEO=$(SRCDIR)/geo
-UTILS=$(EXTERNALDIR)/utils
+GEO:=$(SRCDIR)/geo
+UTILS:=$(EXTERNALDIR)/utils
 
 #Tests
 TEST_DIR:=$(GK_HEAD_DIR)/tests
@@ -266,8 +278,8 @@ include Makefile.$(GK_SYSTEM)
 # Files that we know are going to be in the submodule directories.
 # This is in case the directories exist but the submodules haven't
 # actually been initialised
-MAKEFILES_SENTINEL = Makefiles/Makefile.bitbucket
-UTILS_SENTINEL = $(UTILS)/mp.fpp
+MAKEFILES_SENTINEL := Makefiles/Makefile.bitbucket
+UTILS_SENTINEL := $(UTILS)/mp.fpp
 
 .PRECIOUS: $(MAKEFILES_SENTINEL) $(UTILS_SENTINEL)
 
@@ -305,9 +317,11 @@ sinclude Makefile.local
 Makefile.utils: ;
 include Makefile.utils
 
+#Indicate that we don't want to rebuild the COMPILER makefile
+Makefiles/Makefile.$(COMPILER): ;
 #############################################################################
 
-GIT_HASH=$(shell git rev-parse HEAD)
+GIT_HASH:=$(shell git rev-parse HEAD)
 MACRO_DEFS+=-DGIT_HASH='"$(GIT_HASH)"'
 
 GIT_HASH_MAKEFILES:=$(shell git submodule status Makefiles | cut -d ' ' -f2)
@@ -317,7 +331,7 @@ GIT_HASH_UTILS:=$(shell git submodule status $(UTILS) | cut -d ' ' -f2)
 MACRO_DEFS+=-DGIT_HASH_UTILS='"$(GIT_HASH_UTILS)"'
 
 #The magic sed esacpes either ( or ) by replacing with \( or \)
-GIT_BRANCH=$(shell git branch | grep \* | cut -d ' ' -f2- | sed 's|\([()]\)|\\\1|g')
+GIT_BRANCH:=$(shell git branch | grep \* | cut -d ' ' -f2- | sed 's|\([()]\)|\\\1|g')
 MACRO_DEFS+=-DGIT_BRANCH='"$(GIT_BRANCH)"'
 
 # Find if there are any modified tracked files (except Makefile.depend)
@@ -417,7 +431,7 @@ ifeq ($(USE_FFT),fftw)
 	FFT_LIB ?= -lfftw -lrfftw
 endif
 
-ifeq ($(USE_FFT),fftw3)
+ifeq ($(findstring fftw3,$(USE_FFT)),fftw3)
 	MACRO_DEFS += -DFFT=_FFTW3_
 	FFT_LIB ?= -lfftw -lrfftw
 endif
@@ -451,6 +465,10 @@ endif
 
 ifdef USE_POSIX
 	MACRO_DEFS += -DPOSIX
+endif
+
+ifdef USE_LAPACK
+	MACRO_DEFS += -DLAPACK
 endif
 
 ifdef USE_F200X_INTRINSICS
@@ -528,7 +546,7 @@ endif
 
 #Make empty targets if not using the new diagnostics
 ifeq ($(USE_NEW_DIAG),on)
-$(SRCDIR)/Makefile.diagnostics/Makefile.diagnostics: ;
+$(SRCDIR)/diagnostics/Makefile.diagnostics: ;
 sinclude $(SRCDIR)/diagnostics/Makefile.diagnostics
 else
 distclean_simpledataio:
@@ -540,9 +558,9 @@ endif
 ############################################################################# Done dealing with user flags
 
 LIBS	+= $(DEFAULT_LIB) $(MPI_LIB) $(NETCDF_LIB) $(HDF5_LIB) $(FFT_LIB) \
-		   $(NAG_LIB) $(EIG_LIB) $(GENQUAD_LIB)
+		   $(NAG_LIB) $(EIG_LIB) $(GENQUAD_LIB) $(LAPACK_LIB)
 INCLUDES = $(DEFAULT_INC) $(MPI_INC) $(NETCDF_INC) $(HDF5_INC) $(FFT_INC)\
-		   $(SIMPLEDATAIO_INC) $(EIG_INC) $(GENQUAD_INC) $(PFUNIT_INC)
+		   $(SIMPLEDATAIO_INC) $(EIG_INC) $(GENQUAD_INC) $(PFUNIT_INC) $(LAPACK_INC)
 
 INCLUDES += -I$(MODDIR)
 
@@ -559,7 +577,7 @@ CFLAGS += $(COPTFLAGS) \
 CPPFLAGS += $(MACRO_DEFS)
 FPPFLAGS += $(MACRO_DEFS)
 
-DATE=$(shell date +%y%m%d)
+DATE:=$(shell date +%y%m%d)
 TARDIR=$(GK_PROJECT)_$(DATE)
 TOPDIR=$(CURDIR)
 ifeq ($(notdir $(CURDIR)), $(UTILS))
@@ -575,16 +593,16 @@ endif
 VPATH = $(SUBDIRS) $(MODDIR) $(SRCDIR) $(PROGDIR) $(GENERATED_SRC_DIR)
 # this just removes non-existing directory from VPATH
 VPATH_tmp := $(foreach tmpvp,$(subst :, ,$(VPATH)),$(shell [ -d $(tmpvp) ] && echo $(tmpvp)))
-VPATH = .:$(shell echo $(VPATH_tmp) | sed "s/ /:/g")
+VPATH := .:$(shell echo $(VPATH_tmp) | sed "s/ /:/g")
 
 # most common include and library directories
-DEFAULT_INC_LIST = . $(GK_HEAD_DIR)/$(UTILS) $(GK_HEAD_DIR)/$(GEO) .. ../$(UTILS) ../$(GEO)
-DEFAULT_LIB_LIST =
+DEFAULT_INC_LIST := . $(GK_HEAD_DIR)/$(UTILS) $(GK_HEAD_DIR)/$(GEO) .. ../$(UTILS) ../$(GEO)
+DEFAULT_LIB_LIST :=
 # This default library path list can simplify the procedure of porting,
 # however, I found this (actually -L/usr/lib flag) causes an error
 # when linking gs2 at bassi (RS6000 with xl fortran)
-DEFAULT_INC=$(foreach tmpinc,$(DEFAULT_INC_LIST),$(shell [ -d $(tmpinc) ] && echo -I$(tmpinc)))
-DEFAULT_LIB=$(foreach tmplib,$(DEFAULT_LIB_LIST),$(shell [ -d $(tmplib) ] && echo -L$(tmplib)))
+DEFAULT_INC:=$(foreach tmpinc,$(DEFAULT_INC_LIST),$(shell [ -d $(tmpinc) ] && echo -I$(tmpinc)))
+DEFAULT_LIB:=$(foreach tmplib,$(DEFAULT_LIB_LIST),$(shell [ -d $(tmplib) ] && echo -L$(tmplib)))
 
 # Generation of large fortran source files
 RUBY_GENERATE=env ruby $2 $1; if test "$$?" != 0; then  echo && echo && echo  "Warning: no ruby: $1 is not updated!!!" && echo && echo; fi
@@ -593,12 +611,12 @@ RUBY_GENERATE=env ruby $2 $1; if test "$$?" != 0; then  echo && echo && echo  "W
 # Note these are not deleted at the end of the compilation:
 # in fact, they are stored in the repository 
 # because some antique systems don't have ruby
-FORTFROMRUBY=$(subst generate_,,$(patsubst %.rb,%.f90,$(wildcard $(SRCDIR)/*.rb $(SRCDIR)/*/*.rb)))
+FORTFROMRUBY:=$(subst generate_,,$(patsubst %.rb,%.f90,$(wildcard $(SRCDIR)/*.rb $(SRCDIR)/*/*.rb)))
 
 # list of intermediate f90 files generated by preprocessor
 FPPFILES = $(wildcard $(addsuffix /*.fpp, $(SRCDIR) $(PROGDIR) $(SUBDIRS)))
 FPPFILES += $(wildcard $(addsuffix /*.F90, $(SRCDIR) $(PROGDIR) $(SUBDIRS)))
-F90FROMFPP = $(addprefix $(GENERATED_SRC_DIR)/, $(patsubst %.F90,%.f90,$(patsubst %.fpp,%.f90,$(notdir $(FPPFILES)))))
+F90FROMFPP := $(addprefix $(GENERATED_SRC_DIR)/, $(patsubst %.F90,%.f90,$(patsubst %.fpp,%.f90,$(notdir $(FPPFILES)))))
 
 ####################################################################### RULES
 
@@ -638,13 +656,11 @@ endif
 ifdef ONE_STEP_PP
 $(OBJDIR)/%.o: %.fpp |$(MODDIR) $(OBJDIR)
 	$(call messageOp,"Compiling and preprocessing","\\t:",$(call processName,$<))
-	$(QUIETSYM)$(FC) $(FPPFLAGS) $(F90FLAGS) -c $< -o $@
-	$(shell mv *.mod $(MODDIR) 2>/dev/null)
+	$(QUIETSYM)$(FC) $(FPPFLAGS) $(F90FLAGS) $(MODDIR_FLAG)$(MODDIR) -c $< -o $@
 
 $(OBJDIR)/%.o: %.F90 |$(MODDIR) $(OBJDIR)
 	$(call messageOp,"Compiling and preprocessing","\\t:",$(call processName,$<))
-	$(QUIETSYM)$(FC) $(FPPFLAGS) $(F90FLAGS) -c $< -o $@
-	$(shell mv *.mod $(MODDIR) 2>/dev/null)
+	$(QUIETSYM)$(FC) $(FPPFLAGS) $(F90FLAGS) $(MODDIR_FLAG)$(MODDIR) -c $< -o $@
 endif
 
 %.f90: %.rb
@@ -653,13 +669,11 @@ endif
 
 $(OBJDIR)/%.o:$(GENERATED_SRC_DIR)/%.f90 |$(MODDIR) $(OBJDIR)
 	$(call messageOp,"Compiling","\\t:",$(call processName,$<))
-	$(QUIETSYM) $(FC) $(F90FLAGS) -c $< -o $@
-	$(shell mv *.mod $(MODDIR) 2>/dev/null)
+	$(QUIETSYM) $(FC) $(F90FLAGS) $(MODDIR_FLAG)$(MODDIR) -c $< -o $@
 
 $(OBJDIR)/%.o:%.f90 |$(MODDIR) $(OBJDIR)
 	$(call messageOp,"Compiling","\\t:",$(call processName,$<))
-	$(QUIETSYM) $(FC) $(F90FLAGS) -c $< -o $@
-	$(shell mv *.mod $(MODDIR) 2>/dev/null)
+	$(QUIETSYM) $(FC) $(F90FLAGS) $(MODDIR_FLAG)$(MODDIR) -c $< -o $@
 
 # The depend command needs the preprocessed source files. 
 # This is a little clunky, and maybe could be fixed in the future.
@@ -680,8 +694,8 @@ $(OBJDIR)/%.o: %.c |$(OBJDIR)
 %.o : %.mod
 
 
-DEPEND=Makefile.depend
-DEPEND_CMD=$(PERL) scripts/fortdep
+DEPEND:=Makefile.depend
+DEPEND_CMD:=$(PERL) scripts/fortdep
 
 # Only define recipe to build dependency file if it doesn't exist
 ifeq ("$(wildcard $(DEPEND))", "")
@@ -851,6 +865,7 @@ sinclude $(TEST_DIR)/Makefile.tests_and_benchmarks
 
 #This is the location of the pfunit test suites
 PFUNIT_TEST_DIR:=$(TEST_DIR)/pfunit_tests
+$(PFUNIT_TEST_DIR)/Makefile: ;
 sinclude $(PFUNIT_TEST_DIR)/Makefile
 
 ############################################################# Introspection targets
@@ -907,6 +922,7 @@ test_make:
 	$(call messageKeyVal, "USE_HDF5", $(USE_HDF5))
 	$(call messageKeyVal, "WITH_EIG", $(WITH_EIG))
 	$(call messageKeyVal, "USE_POSIX", $(USE_POSIX))
+	$(call messageKeyVal, "USE_LAPACK", $(USE_LAPACK))
 	$(call messageKeyVal, "USE_LOCAL_RAN", $(USE_LOCAL_RN))
 	$(call messageKeyVal, "USE_SPFUNC", $(USE_SPFUNC))
 	$(call messageKeyVal, "USE_NAGLIB", $(USE_NAGLIB))
@@ -1011,6 +1027,14 @@ else
 	$(call messageInfo,"Eigensolver: DISABLED")
 endif
 	@echo
+ifdef USE_LAPACK
+	$(call messageInfo,"Lapack:")
+	$(call messageKeyVal, "LAPACK_LIB", $(LAPACK_LIB))
+	$(call messageKeyVal, "LAPACK_INC", $(LAPACK_INC))
+else
+	$(call messageInfo,"Lapack: DISABLED")
+endif
+	@echo
 
 revision:
 	@LANG=C git rev-parse HEAD > Revision
@@ -1033,7 +1057,7 @@ check_ford_install:
 endif
 
 namelist_doc: PATHS:=$(foreach dir, $(SRCDIR) $(SUBDIRS), --path ${dir})
-namelist_doc: FILES:=$(shell $(GK_HEAD_DIR)/scripts/get_all_matching_files.py --pattern "*.[fF]??" ${PATHS} --absolute)
+namelist_doc: FILES:=$(shell $(GK_HEAD_DIR)/scripts/get_all_matching_files.py --pattern "*.[fF]??" ${PATHS} --absolute --exclude "$(GK_HEAD_DIR)/src/templates")
 # for the `doc` target, `check_ford_install` must be before `namelist_doc` to ensure visibility of the error message
 # in the case where Ford is not installed and `make` is run with the `-j` option. The most robust way to do this is
 # to have `namelist_doc` to depend explicitly on `check_ford_install` as below
