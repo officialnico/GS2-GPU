@@ -516,6 +516,7 @@ contains
   !> true, or sets `extra_files` to false. Also prints a warning in
   !> the second case.
   subroutine check_restart_file_writeable(check_writable, need_restart, extra_files)
+    use init_g, only: get_restart_dir
     use gs2_save, only: restart_writable
     use mp, only: proc0, mp_abort, broadcast
     implicit none
@@ -526,23 +527,33 @@ contains
     !> Has the user requested distribution function to be written
     logical, intent(inout) :: extra_files
 
+    ! Error message from trying to open restart file
+    character(len=:), allocatable :: error_message
+    ! GS2 error message to show user
+    character(len=:), allocatable :: abort_message
+
     ! Assume everything's fine if we're not checking, or if it's not needed
     if (.not. check_writable) return
     if (.not. (need_restart .or. extra_files)) return
 
     ! If we can write the restart files, we're done
-    if (restart_writable()) return
+    if (restart_writable(error_message=error_message)) return
+
+    abort_message = " Cannot write restart files! Error message was:" // new_line('a') &
+         // "    " // error_message // new_line('a') &
+         // " Please check that `init_g_knobs::restart_dir = " // trim(get_restart_dir()) &
+         // "` exists and has the correct permissions."
 
     ! User has requested restart files, but we can't write them => abort
     if (need_restart) then
-      call mp_abort("Cannot write to test file, maybe restart_dir &
-                    &doesn't exist --> Aborting.",to_screen=.true.)
+      abort_message = abort_message // new_line('a') // "    --> Aborting"
+      call mp_abort(trim(abort_message), to_screen=.true.)
     end if
 
     ! If it's just a case of save_distfn, then we can carry on but
     ! disable `save_distfn` and print a useful mesasge
     if (extra_files) then
-      if(proc0) write(*, '("Warning: Cannot write to test restart_file --> Setting `save_distfn = F`")')
+      if(proc0) write(*, '(a, a, a)') abort_message, new_line('a'), "    --> Setting `save_distfn = F`"
       extra_files = .false.
     endif
   end subroutine check_restart_file_writeable
