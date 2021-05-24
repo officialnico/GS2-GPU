@@ -214,9 +214,9 @@ SRCDIR:= $(GK_HEAD_DIR)/src
 PROGDIR:= $(SRCDIR)/programs
 
 #Extra subdirectories which include code that might be needed
-SUBDIRS= geo
+SUBDIRS= geo diagnostics
 ifdef USE_NEW_DIAG
-SUBDIRS += diagnostics diagnostics/simpledataio/src
+SUBDIRS += diagnostics/simpledataio/src
 endif
 SUBDIRS:= $(addprefix $(SRCDIR)/, $(SUBDIRS))
 

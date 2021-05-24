@@ -1,31 +1,32 @@
-!> Contains a lot of old routines for writing stuff out at the end
-!! of the simulation that I had no time to upgrade
+!> Diagnostic routines that are called at the end of the simulation,
+!> rather than during the run
 module diagnostics_final_routines
   implicit none
 
   private
 
-  public :: ntg_out, init_par_filter, do_write_gs
+  public :: init_par_filter, do_write_gs
   public :: do_write_final_antot, do_write_final_moments, do_write_final_db
   public :: do_write_final_epar, do_write_kpar, do_write_final_fields
 
-  integer :: ntg_out
-
 contains
 
-  !> FIXME : Add documentation  
+  !> Setup the FFTs for calculating the parallel spectrum
   subroutine init_par_filter
     use theta_grid, only: ntgrid
     use gs2_transforms, only: init_zf
     use kt_grids, only: naky, ntheta0
     use mp, only: proc0
     implicit none
-    
-    if ( proc0.and.(naky*ntheta0.eq.0)) print *,"WARNING: kt_grids used in init_par_filter before initialised?"    
+
+    if (naky * ntheta0 == 0) then
+      if (proc0) print *,"WARNING: kt_grids used in init_par_filter before initialised?"
+    end if
+
     call init_zf (ntgrid, ntheta0*naky)
   end subroutine init_par_filter
 
-  !> FIXME : Add documentation  
+  !> Calculate the parallel spectrum
   subroutine par_spectrum(an, an2)
     use gs2_transforms, only: kz_spectrum
     use theta_grid, only: ntgrid
@@ -33,32 +34,37 @@ contains
     complex, dimension(:,:,:), intent(in) :: an
     complex, dimension(:,:,:), intent(out) :: an2
     real :: scale
-    
+
     call kz_spectrum (an, an2)
     scale = 1./real(4*ntgrid**2)
     an2 = an2*scale
   end subroutine par_spectrum
 
-  !> FIXME : Add documentation  
-  subroutine do_write_final_fields(gnostics)
+  !> Write \(\phi, A_\parallel, B_\parallel\), overwriting existing values
+  subroutine do_write_final_fields(write_text, write_netcdf)
     use mp, only: proc0
     use file_utils, only: open_output_file, close_output_file
+    use gs2_io, only: nc_final_fields
     use kt_grids, only: naky, ntheta0, aky, akx, theta0
-    use theta_grid, only: theta
+    use theta_grid, only: ntgrid, theta
     use fields_arrays, only: phi, apar, bpar
-    use diagnostics_config, only: diagnostics_type
     implicit none
-    type(diagnostics_type), intent(in) :: gnostics
+
+    !> Write to text file
+    logical, intent(in) :: write_text
+    !> Write to netcdf file
+    logical, intent(in) :: write_netcdf
+
     integer :: ik, it, ig, unit
 
-    if(.not.proc0) return
-    
-    !Do ascii output
-    if (gnostics%write_ascii) then
+    if (.not. proc0) return
+    if (.not. (write_text .or. write_netcdf)) return
+
+    if (write_text) then
        call open_output_file (unit, ".fields")
        do ik = 1, naky
           do it = 1, ntheta0
-             do ig = -ntg_out, ntg_out
+             do ig = -ntgrid, ntgrid
                 write (unit, "(15(1x,e12.5))") &
                      theta(ig), aky(ik), akx(it), &
                      phi(ig,it,ik), &
@@ -72,106 +78,113 @@ contains
        end do
        call close_output_file (unit)
     end if
+
+    if (write_netcdf) call nc_final_fields()
+
   end subroutine do_write_final_fields
 
-  !> FIXME : Add documentation  
-  subroutine do_write_kpar(gnostics)
+  !> Write the parallel spectrum of \(\phi, A_\parallel, B_\parallel\), overwriting existing values
+  !>
+  !> @note No netCDF output
+  subroutine do_write_kpar(write_text)
     use mp, only: proc0
     use file_utils, only: open_output_file, close_output_file
     use theta_grid, only: ntgrid, gradpar, nperiod
     use kt_grids, only: naky, ntheta0, aky, akx
     use run_parameters, only: fphi,fapar,fbpar
     use fields_arrays, only: phi, apar, bpar
-    use diagnostics_config, only: diagnostics_type
     implicit none
-    type(diagnostics_type), intent(in) :: gnostics
+
+    !> Write to text file
+    logical, intent(in) :: write_text
+
     complex, dimension (:,:,:), allocatable :: phi2, apar2, bpar2
     real, dimension (2*ntgrid) :: kpar
     integer :: ig, ik, it, unit
 
-    if(.not.proc0) return
-    
-    allocate (phi2(-ntgrid:ntgrid,ntheta0,naky)) 
+    if (.not. proc0) return
+    if (.not. write_text) return
+
+    allocate (phi2(-ntgrid:ntgrid,ntheta0,naky))
     allocate (apar2(-ntgrid:ntgrid,ntheta0,naky))
     allocate (bpar2(-ntgrid:ntgrid,ntheta0,naky))
 
     if (fphi > epsilon(0.0)) then
-       call par_spectrum(phi, phi2)
+      call par_spectrum(phi, phi2)
     else
-       phi2=0.
+      phi2=0.
     end if
     if (fapar > epsilon(0.0)) then
-       call par_spectrum(apar, apar2)
+      call par_spectrum(apar, apar2)
     else
-       apar2=0.
+      apar2=0.
     endif
     if (fbpar > epsilon(0.0)) then
-       call par_spectrum(bpar, bpar2)
+      call par_spectrum(bpar, bpar2)
     else
-       bpar2=0.
+      bpar2=0.
     endif
-    
-    !Do ascii output
-    if(gnostics%write_ascii)then
-       call open_output_file (unit, ".kpar")
-       do ig = 1, ntgrid
-          kpar(ig) = (ig-1)*gradpar(ig)/real(2*nperiod-1)
-          kpar(2*ntgrid-ig+1)=-(ig)*gradpar(ig)/real(2*nperiod-1)
-       end do
-       do ik = 1, naky
-          do it = 1, ntheta0
-             do ig = ntgrid+1,2*ntgrid
-                write (unit, "(9(1x,e12.5))") &
-                     kpar(ig), aky(ik), akx(it), &
-                     phi2(ig-ntgrid-1,it,ik), &
-                     apar2(ig-ntgrid-1,it,ik), &
-                     bpar2(ig-ntgrid-1,it,ik)                        
-             end do
-             do ig = 1, ntgrid
-                write (unit, "(9(1x,e12.5))") &
-                     kpar(ig), aky(ik), akx(it), &
-                     phi2(ig-ntgrid-1,it,ik), &
-                     apar2(ig-ntgrid-1,it,ik), &
-                     bpar2(ig-ntgrid-1,it,ik)
-             end do
-             write (unit, "()")
-          end do
-       end do
-       call close_output_file (unit)
-    endif
-    
-    !Currently no netcdf output for this diagnostic.
+
+    call open_output_file (unit, ".kpar")
+    do ig = 1, ntgrid
+      kpar(ig) = (ig-1)*gradpar(ig)/real(2*nperiod-1)
+      kpar(2*ntgrid-ig+1)=-(ig)*gradpar(ig)/real(2*nperiod-1)
+    end do
+    do ik = 1, naky
+      do it = 1, ntheta0
+        do ig = ntgrid+1,2*ntgrid
+          write (unit, "(9(1x,e12.5))") &
+               kpar(ig), aky(ik), akx(it), &
+               phi2(ig-ntgrid-1,it,ik), &
+               apar2(ig-ntgrid-1,it,ik), &
+               bpar2(ig-ntgrid-1,it,ik)
+        end do
+        do ig = 1, ntgrid
+          write (unit, "(9(1x,e12.5))") &
+               kpar(ig), aky(ik), akx(it), &
+               phi2(ig-ntgrid-1,it,ik), &
+               apar2(ig-ntgrid-1,it,ik), &
+               bpar2(ig-ntgrid-1,it,ik)
+        end do
+        write (unit, "()")
+      end do
+    end do
+    call close_output_file (unit)
+
     deallocate (phi2, apar2, bpar2)
   end subroutine do_write_kpar
 
-  !> FIXME : Add documentation  
-  subroutine do_write_final_epar(gnostics)
+  !> Calculate and write \(E_\parallel\), overwriting existing values
+  subroutine do_write_final_epar(write_text, write_netcdf)
     use mp, only: proc0
     use file_utils, only: open_output_file, close_output_file
     use kt_grids, only: naky, ntheta0, theta0, aky, akx
     use theta_grid, only: theta, ntgrid
     use dist_fn, only: get_epar
     use fields_arrays, only: phi, apar, phinew, aparnew
-    ! use gs2_io, only: nc_final_epar
+    use gs2_io, only: nc_final_epar
     use diagnostics_config, only: diagnostics_type
     implicit none
-    type(diagnostics_type), intent(in) :: gnostics
+    !> Write to text file
+    logical, intent(in) :: write_text
+    !> Write to netcdf file
+    logical, intent(in) :: write_netcdf
+
     complex, dimension (:,:,:), allocatable :: epar
     integer :: ik, it, ig, unit
-    
-    if(.not.proc0) return
-    
+
+    if (.not. proc0) return
+    if (.not. (write_text .or. write_netcdf)) return
+
     allocate (epar(-ntgrid:ntgrid,ntheta0,naky))
-    
-    !Calculate
+
     call get_epar (phi, apar, phinew, aparnew, epar)
-    
-    !Write to ascii
-    if (gnostics%write_ascii) then
+
+    if (write_text) then
        call open_output_file (unit, ".epar")
        do ik = 1, naky
           do it = 1, ntheta0
-             do ig = -ntg_out, ntg_out-1
+             do ig = -ntgrid, ntgrid-1
                 write (unit, "(6(1x,e12.5))") &
                      theta(ig), aky(ik), akx(it), &
                      epar(ig,it,ik), &
@@ -182,68 +195,67 @@ contains
        end do
        call close_output_file (unit)
     end if
-    
-    !Do netcdf output
-    ! Commented out as this attempts to use the _old_ i/o routines to
-    ! save the data to netcdf, but this won't be initialised when
-    ! using the new diagnostics. Not deleted as we need to implement
-    ! this in the new diagnostics.
-    !    call nc_final_epar (epar)
+
+    if (write_netcdf) call nc_final_epar (epar)
 
     deallocate (epar)
   end subroutine do_write_final_epar
 
-  !> FIXME : Add documentation
-  subroutine do_write_final_db(gnostics)
+  !> Calculate and write \(\delta B\), overwriting existing values
+  !>
+  !> @note No netCDF output
+  subroutine do_write_final_db(write_text)
     use file_utils, only: open_output_file, close_output_file
     use mp, only: proc0
     use theta_grid, only: ntgrid, gradpar, delthet, bmag, theta
     use kt_grids, only: ntheta0, naky, aky, akx
     use fields_arrays, only: phinew, aparnew, apar
     use gs2_time, only: code_dt
-    use diagnostics_config, only: diagnostics_type
     implicit none
-    type(diagnostics_type), intent(in) :: gnostics
+    !> Write to text file
+    logical, intent(in) :: write_text
+
     complex, dimension (-ntgrid:ntgrid, ntheta0, naky) :: db
     complex, dimension (ntheta0, naky) :: dbfac
     integer :: ik, it, ig, unit
 
-    if(.not.proc0) return
-    !Only write to ascii for now so if not gnostics%write_ascii return
-    if(.not.gnostics%write_ascii) return
-    
+    if (.not. proc0) return
+    if (.not. write_text) return
+
     !Calculate db
     do ik = 1, naky
-       do it = 1, ntheta0
-          dbfac(it,ik) = 1./sum(delthet/bmag/gradpar)/maxval(abs(phinew(:,it,ik)),1) &
-               * abs(log(aparnew(1,it,ik)/apar(1,it,ik)))/code_dt
-          ig = -ntg_out
-          db(ig, it, ik) = aparnew(ig,it,ik)*delthet(ig)/bmag(ig)/gradpar(ig)*dbfac(it,ik)
-          do ig = -ntg_out+1, ntg_out-1
-             db(ig, it, ik) = db(ig-1, it, ik) + aparnew(ig,it,ik)*delthet(ig)/bmag(ig)/gradpar(ig)*dbfac(it,ik)
-          end do
-       end do
+      do it = 1, ntheta0
+        dbfac(it,ik) = 1./sum(delthet/bmag/gradpar)/maxval(abs(phinew(:,it,ik)),1) &
+             * abs(log(aparnew(1,it,ik)/apar(1,it,ik)))/code_dt
+        ig = -ntgrid
+        db(ig, it, ik) = aparnew(ig,it,ik)*delthet(ig)/bmag(ig)/gradpar(ig)*dbfac(it,ik)
+        do ig = -ntgrid+1, ntgrid-1
+          db(ig, it, ik) = db(ig-1, it, ik) + aparnew(ig,it,ik)*delthet(ig)/bmag(ig)/gradpar(ig)*dbfac(it,ik)
+        end do
+      end do
     end do
-    
-    if (gnostics%write_ascii) then
-       call open_output_file (unit, ".db")
-       do ik = 1, naky
-          do it = 1, ntheta0
-             do ig = -ntg_out, ntg_out-1
-                write (unit, "(5(1x,e12.5))") &
-                     theta(ig), aky(ik), akx(it), real(db(ig, it,ik)), aimag(db(ig, it, ik))
-             end do
-             write (unit, "()")
-          end do
-       end do
-       call close_output_file (unit)
-    end if
-    
-    !No netcdf output for this diagnostic yet
+
+    call open_output_file (unit, ".db")
+    do ik = 1, naky
+      do it = 1, ntheta0
+        do ig = -ntgrid, ntgrid-1
+          write (unit, "(5(1x,e12.5))") &
+               theta(ig), aky(ik), akx(it), real(db(ig, it,ik)), aimag(db(ig, it, ik))
+        end do
+        write (unit, "()")
+      end do
+    end do
+    call close_output_file (unit)
   end subroutine do_write_final_db
 
-  !> FIXME : Add documentation  
-  subroutine do_write_final_moments(gnostics, phi0_in)
+  !> Calculate and write the various low-order moments, overwriting existing values
+  !>
+  !> Text files contain moments normalised by phase factor (see
+  !> [[gs2_diagnostics_knobs:write_eigenfunc]] for details), the magnitudes, and
+  !> field-line averages.
+  !>
+  !> NetCDF files contain just the full values
+  subroutine do_write_final_moments(phi0_in, use_normalisation, write_text, write_netcdf)
     use theta_grid, only: ntgrid, theta
     use kt_grids, only: ntheta0, naky, aky, akx, theta0
     use species, only: nspec, spec
@@ -251,20 +263,28 @@ contains
     use file_utils, only: open_output_file, close_output_file
     use mp, only: proc0
     use fields_arrays, only: phinew, bparnew
-    ! use gs2_io, only: nc_final_moments
+    use gs2_io, only: nc_final_moments
     use diagnostics_config, only: diagnostics_type
     use volume_averages, only: average_theta
     implicit none
-    type(diagnostics_type), intent(in) :: gnostics
+    !> Pre-calculated phase
+    complex, dimension (:, :), intent(in) :: phi0_in
+    !> Use [[phi0_in]] as normalisation
+    logical, intent(in) :: use_normalisation
+    !> Write to text file
+    logical, intent(in) :: write_text
+    !> Write to netcdf file
+    logical, intent(in) :: write_netcdf
+
     complex, dimension (:,:,:,:), allocatable :: ntot, density, upar, tpar, tperp
     complex, dimension (:,:,:,:), allocatable :: qparflux, pperpj1, qpperpj1
-    complex, dimension (:, :), intent(in) :: phi0_in !Phase calculated
     complex, dimension (:,:), allocatable :: phi0
     complex :: phi_tmp, ntot_tmp, density_tmp, upar_tmp, tpar_tmp, tperp_tmp
     real, dimension (:, :), allocatable :: phi02
     integer :: is, ik, it, ig, unit
-    
-    !Make storage
+
+    if (.not. (write_text .or. write_netcdf)) return
+
     allocate (ntot(-ntgrid:ntgrid,ntheta0,naky,nspec))
     allocate (density(-ntgrid:ntgrid,ntheta0,naky,nspec))
     allocate (upar(-ntgrid:ntgrid,ntheta0,naky,nspec))
@@ -274,151 +294,146 @@ contains
     allocate (pperpj1(-ntgrid:ntgrid,ntheta0,naky,nspec))
     allocate (qpperpj1(-ntgrid:ntgrid,ntheta0,naky,nspec))
 
-    !Calculate moments
+    ! Calculate moments -- NOTE: This contains MPI collectives, so we
+    ! can't return early if we're not proc0
     call getmoms (phinew, bparnew, ntot, density, upar, tpar, tperp, qparflux, pperpj1, qpperpj1)
-    
-    if (proc0) then
-       if (gnostics%write_ascii) then
-          !Setup the phase factor
-          allocate(phi0(ntheta0,naky),phi02(ntheta0,naky))
-          if(.not.gnostics%write_eigenfunc) then
-             phi0 = 1.
-          else
-             phi0 = phi0_in
-          endif
-          phi02=real(phi0*conjg(phi0))
-          
-          !Write out the moments normalised by phase factor
-          call open_output_file (unit, ".moments")          
-          do is  = 1, nspec
-             do ik = 1, naky
-                do it = 1, ntheta0
-                   do ig = -ntg_out, ntg_out
-                      write (unit, "(15(1x,e12.5))") &
-                           theta(ig), aky(ik), akx(it), &
-                           ntot(ig,it,ik,is)/phi0(it,ik), &
-                           density(ig,it,ik,is)/phi0(it,ik), &
-                           upar(ig,it,ik,is)/phi0(it,ik), &
-                           tpar(ig,it,ik,is)/phi0(it,ik), &
-                           tperp(ig,it,ik,is)/phi0(it,ik), &
-                           theta(ig) - theta0(it,ik), &
-                           real(is)
-                   end do
-                   write (unit, "()")
-                end do
-             end do
+
+    if (.not. proc0) return
+
+    if (write_text) then
+      !Setup the phase factor
+      allocate(phi0(ntheta0,naky),phi02(ntheta0,naky))
+      if (use_normalisation) then
+        phi0 = phi0_in
+      else
+        phi0 = 1.
+      endif
+      phi02 = real(phi0*conjg(phi0))
+
+      !Write out the moments normalised by phase factor
+      call open_output_file (unit, ".moments")
+      do is  = 1, nspec
+        do ik = 1, naky
+          do it = 1, ntheta0
+            do ig = -ntgrid, ntgrid
+              write (unit, "(15(1x,e12.5))") &
+                   theta(ig), aky(ik), akx(it), &
+                   ntot(ig,it,ik,is)/phi0(it,ik), &
+                   density(ig,it,ik,is)/phi0(it,ik), &
+                   upar(ig,it,ik,is)/phi0(it,ik), &
+                   tpar(ig,it,ik,is)/phi0(it,ik), &
+                   tperp(ig,it,ik,is)/phi0(it,ik), &
+                   theta(ig) - theta0(it,ik), &
+                   real(is)
+            end do
+            write (unit, "()")
           end do
-          call close_output_file (unit)          
-          
-          !Write out magnitude of moments
-          call open_output_file (unit, ".mom2")
-          do is  = 1, nspec
-             do ik = 1, naky
-                do it = 1, ntheta0
-                   do ig = -ntg_out, ntg_out
-                      write (unit, "(15(1x,e12.5))") &
-                           theta(ig), aky(ik), akx(it), &
-                           real(ntot(ig,it,ik,is)*conjg(ntot(ig,it,ik,is)))/phi02(it,ik), &
-                           real(density(ig,it,ik,is)*conjg(density(ig,it,ik,is)))/phi02(it,ik), &
-                           real(upar(ig,it,ik,is)*conjg(upar(ig,it,ik,is)))/phi02(it,ik), &
-                           real(tpar(ig,it,ik,is)*conjg(tpar(ig,it,ik,is)))/phi02(it,ik), &
-                           real(tperp(ig,it,ik,is)*conjg(tperp(ig,it,ik,is)))/phi02(it,ik), &
-                           theta(ig) - theta0(it,ik), &
-                           real(is)
-                   end do
-                   write (unit, "()")
-                end do
-             end do
+        end do
+      end do
+      call close_output_file (unit)
+
+      !Write out magnitude of moments
+      call open_output_file (unit, ".mom2")
+      do is  = 1, nspec
+        do ik = 1, naky
+          do it = 1, ntheta0
+            do ig = -ntgrid, ntgrid
+              write (unit, "(15(1x,e12.5))") &
+                   theta(ig), aky(ik), akx(it), &
+                   real(ntot(ig,it,ik,is)*conjg(ntot(ig,it,ik,is)))/phi02(it,ik), &
+                   real(density(ig,it,ik,is)*conjg(density(ig,it,ik,is)))/phi02(it,ik), &
+                   real(upar(ig,it,ik,is)*conjg(upar(ig,it,ik,is)))/phi02(it,ik), &
+                   real(tpar(ig,it,ik,is)*conjg(tpar(ig,it,ik,is)))/phi02(it,ik), &
+                   real(tperp(ig,it,ik,is)*conjg(tperp(ig,it,ik,is)))/phi02(it,ik), &
+                   theta(ig) - theta0(it,ik), &
+                   real(is)
+            end do
+            write (unit, "()")
           end do
-          call close_output_file (unit)          
-          
-          !Write out the field line averaged moments
-          call open_output_file (unit, ".amoments")
-          write (unit,*) 'type    kx     re(phi)    im(phi)    re(ntot)   im(ntot)   ',&
-               &'re(dens)   im(dens)   re(upar)   im(upar)   re(tpar)',&
-               &'   im(tpar)   re(tperp)  im(tperp)'
-          
-          do is  = 1, nspec
-             do it = 2, ntheta0/2+1
-                call average_theta(phinew(-ntg_out:ntg_out,it,1),phi_tmp)
-                call average_theta(ntot(-ntg_out:ntg_out,it,1,is),ntot_tmp)
-                call average_theta(density(-ntg_out:ntg_out,it,1,is),density_tmp)
-                call average_theta(upar(-ntg_out:ntg_out,it,1,is),upar_tmp)
-                call average_theta(tpar(-ntg_out:ntg_out,it,1,is),tpar_tmp)
-                call average_theta(tperp(-ntg_out:ntg_out,it,1,is),tperp_tmp)
-                
-                write (unit, "(i2,14(1x,e10.3))") spec(is)%type, akx(it), &
-                     phi_tmp, ntot_tmp, density_tmp, upar_tmp, tpar_tmp, tperp_tmp
-             end do
-          end do
-          call close_output_file (unit)          
-          
-          deallocate(phi0,phi02)
-       end if
-       
-       !Do the netcdf output -- Note we don't have the phi0 phase factor here
-       ! Commented out as this attempts to use the _old_ i/o routines to
-       ! save the data to netcdf, but this won't be initialised when
-       ! using the new diagnostics. Not deleted as we need to implement
-       ! this in the new diagnostics.
-       ! call nc_final_moments (ntot, density, upar, tpar, tperp, qparflux, pperpj1, qpperpj1)
+        end do
+      end do
+      call close_output_file (unit)
+
+      !Write out the field line averaged moments
+      call open_output_file (unit, ".amoments")
+      write (unit,*) 'type    kx     re(phi)    im(phi)    re(ntot)   im(ntot)   ',&
+           &'re(dens)   im(dens)   re(upar)   im(upar)   re(tpar)',&
+           &'   im(tpar)   re(tperp)  im(tperp)'
+
+      do is  = 1, nspec
+        do it = 2, ntheta0/2+1
+          call average_theta(phinew(-ntgrid:ntgrid,it,1),phi_tmp)
+          call average_theta(ntot(-ntgrid:ntgrid,it,1,is),ntot_tmp)
+          call average_theta(density(-ntgrid:ntgrid,it,1,is),density_tmp)
+          call average_theta(upar(-ntgrid:ntgrid,it,1,is),upar_tmp)
+          call average_theta(tpar(-ntgrid:ntgrid,it,1,is),tpar_tmp)
+          call average_theta(tperp(-ntgrid:ntgrid,it,1,is),tperp_tmp)
+
+          write (unit, "(i2,14(1x,e10.3))") spec(is)%type, akx(it), &
+               phi_tmp, ntot_tmp, density_tmp, upar_tmp, tpar_tmp, tperp_tmp
+        end do
+      end do
+      call close_output_file (unit)
+
+      deallocate(phi0,phi02)
     end if
-    
+
+    if (write_netcdf) call nc_final_moments (ntot, density, upar, tpar, tperp, qparflux, pperpj1, qpperpj1)
+
     deallocate (ntot, density, upar, tpar, tperp, qparflux, pperpj1, qpperpj1)
   end subroutine do_write_final_moments
 
-  !> FIXME : Add documentation  
-  subroutine do_write_final_antot(gnostics)
+  !> Write the right-hand sides of the field equations, overwriting
+  !> existing values
+  subroutine do_write_final_antot(write_text, write_netcdf)
     use file_utils, only: open_output_file, close_output_file
     use mp, only: proc0
     use kt_grids, only: ntheta0, naky, theta0, aky
     use theta_grid, only: theta, ntgrid
-    ! use gs2_io, only: nc_final_an
+    use gs2_io, only: nc_final_an
     use dist_fn, only: getan
-    use diagnostics_config, only: diagnostics_type
     implicit none
-    type(diagnostics_type), intent(in) :: gnostics
+    !> Write to text file
+    logical, intent(in) :: write_text
+    !> Write to netcdf file
+    logical, intent(in) :: write_netcdf
+
     complex, dimension (:,:,:), allocatable :: antot, antota, antotp
     integer :: ik, it, ig, unit
-    
+
+    if (.not. proc0) return
+    if (.not. (write_text .or. write_netcdf)) return
+
     allocate ( antot(-ntgrid:ntgrid,ntheta0,naky))
     allocate (antota(-ntgrid:ntgrid,ntheta0,naky))
     allocate (antotp(-ntgrid:ntgrid,ntheta0,naky))
     call getan (antot, antota, antotp)
 
-    if (proc0) then
-       !Do ascii output
-       if (gnostics%write_ascii) then
-          call open_output_file (unit, ".antot")
-          do ik = 1, naky
-             do it = 1, ntheta0
-                do ig = -ntg_out, ntg_out
-                   write (unit, "(10(1x,e12.5))") &
-                        theta(ig), theta0(it,ik), aky(ik), &
-                        antot(ig,it,ik), &
-                        antota(ig,it,ik), &
-                        antotp(ig,it,ik), &
-                        theta(ig) - theta0(it,ik)
-                end do
-                write (unit, "()")
-             end do
+    if (write_text) then
+      call open_output_file (unit, ".antot")
+      do ik = 1, naky
+        do it = 1, ntheta0
+          do ig = -ntgrid, ntgrid
+            write (unit, "(10(1x,e12.5))") &
+                 theta(ig), theta0(it,ik), aky(ik), &
+                 antot(ig,it,ik), &
+                 antota(ig,it,ik), &
+                 antotp(ig,it,ik), &
+                 theta(ig) - theta0(it,ik)
           end do
-          call close_output_file (unit)
-       end if
-       
-       !Do netcdf output
-       ! Commented out as this attempts to use the _old_ i/o routines to
-       ! save the data to netcdf, but this won't be initialised when
-       ! using the new diagnostics. Not deleted as we need to implement
-       ! this in the new diagnostics.
-       ! call nc_final_an (antot, antota, antotp)
+          write (unit, "()")
+        end do
+      end do
+      call close_output_file (unit)
     end if
+
+    if (write_netcdf) call nc_final_an (antot, antota, antotp)
 
     deallocate (antot, antota, antotp)
   end subroutine do_write_final_antot
 
-  !> FIXME : Add documentation  
-  subroutine do_write_gs(gnostics)
+  !> FIXME : Add documentation
+  subroutine do_write_gs(write_text)
     use file_utils, only: open_output_file, close_output_file
     use mp, only: proc0, sum_reduce, iproc, nproc
     use gs2_transforms, only: transform2, inverse2
@@ -427,9 +442,10 @@ contains
     use theta_grid, only: ntgrid, delthet, jacob, gradpar, nperiod
     use constants, only: pi, zi
     use splines, only: fitp_surf1, fitp_surf2
-    use diagnostics_config, only: diagnostics_type
     implicit none
-    type(diagnostics_type), intent(in) :: gnostics
+    !> Write to text file
+    logical, intent(in) :: write_text
+
     real, dimension (:), allocatable :: total
     real, dimension (:,:,:), allocatable :: bxf, byf, vxf, vyf, bxfsavg, byfsavg
     real, dimension (:,:,:), allocatable :: bxfs, byfs, vxfs, vyfs, rvx, rvy, rx, ry
@@ -442,15 +458,15 @@ contains
     real, dimension (2*ntgrid) :: kpar
     integer :: nnx, nny, nnx4, nny4, ulim, llim, iblock, i, unit
     integer :: ik, it, ig, ierr
-    
-    !Note no netcdf output so if not write_ascii then exit now
-    if(.not.gnostics%write_ascii) return
-    
+
+    if (.not. proc0) return
+    if (.not. write_text) return
+
     nny = 2*ny
     nnx = 2*nx
     nnx4 = nnx+4
     nny4 = nny+4
-    
+
     allocate (bx(-ntgrid:ntgrid,ntheta0,naky))
     allocate (by(-ntgrid:ntgrid,ntheta0,naky))
     allocate (vx(-ntgrid:ntgrid,ntheta0,naky))
@@ -609,7 +625,7 @@ contains
 
     !Should these not come from layouts object?
     iblock = (nnx*nny-1)/nproc + 1
-    llim = 1 + iblock * iproc  
+    llim = 1 + iblock * iproc
     ulim = min(nnx*nny, llim+iblock-1)
 
     do i=llim, ulim
@@ -629,8 +645,8 @@ contains
           bxt = fitp_surf2(rxt, ryt, nnx4, nny4, xx4, yy4, bxfs(:,:,ig), nnx4, bxs(:,ig), 1.)
           byt = fitp_surf2(rxt, ryt, nnx4, nny4, xx4, yy4, byfs(:,:,ig), nnx4, bys(:,ig), 1.)
 
-          rxt = rx(it,ik,ig) + 0.5*dz(ig)*bxt  
-          ryt = ry(it,ik,ig) + 0.5*dz(ig)*byt  
+          rxt = rx(it,ik,ig) + 0.5*dz(ig)*bxt
+          ryt = ry(it,ik,ig) + 0.5*dz(ig)*byt
 
           if (rxt > L_x) rxt = rxt - L_x
           if (ryt > L_y) ryt = ryt - L_y
@@ -641,8 +657,8 @@ contains
           bxt = fitp_surf2(rxt, ryt, nnx4, nny4, xx4, yy4, bxfsavg(:,:,ig), nnx4, bxsavg(:,ig), 1.)
           byt = fitp_surf2(rxt, ryt, nnx4, nny4, xx4, yy4, byfsavg(:,:,ig), nnx4, bysavg(:,ig), 1.)
 
-          rxt = rx(it,ik,ig) + dz(ig)*bxt  
-          ryt = ry(it,ik,ig) + dz(ig)*byt  
+          rxt = rx(it,ik,ig) + dz(ig)*bxt
+          ryt = ry(it,ik,ig) + dz(ig)*byt
 
           if (rxt > L_x) rxt = rxt - L_x
           if (ryt > L_y) ryt = ryt - L_y
@@ -687,43 +703,41 @@ contains
        end do
     end do
 
-    if (proc0) then
-       call inverse2 (rvx, vx, nny, nnx)
-       call inverse2 (rvy, vy, nny, nnx)
+    call inverse2 (rvx, vx, nny, nnx)
+    call inverse2 (rvy, vy, nny, nnx)
 
-       allocate (vx2(-ntgrid:ntgrid,ntheta0,naky))
-       allocate (vy2(-ntgrid:ntgrid,ntheta0,naky))
+    allocate (vx2(-ntgrid:ntgrid,ntheta0,naky))
+    allocate (vy2(-ntgrid:ntgrid,ntheta0,naky))
 
-       call par_spectrum (vx, vx2)
-       call par_spectrum (vy, vy2)
+    call par_spectrum (vx, vx2)
+    call par_spectrum (vy, vy2)
 
-       call open_output_file (unit, ".gs")
-       do ig = 1, ntgrid
-          kpar(ig) = (ig-1)*gradpar(ig)/real(2*nperiod-1)
-          kpar(2*ntgrid-ig+1)=-(ig)*gradpar(ig)/real(2*nperiod-1)
-       end do
-       do ik = 1, naky
-          do it = 1, ntheta0
-             do ig = ntgrid+1,2*ntgrid
-                write (unit, "(9(1x,e12.5))") &
-                     kpar(ig), aky(ik), akx(it), &
-                     real(vx2(ig-ntgrid-1,it,ik)), &
-                     real(vy2(ig-ntgrid-1,it,ik))
-             end do
-             do ig = 1, ntgrid
-                write (unit, "(9(1x,e12.5))") &
-                     kpar(ig), aky(ik), akx(it), &
-                     real(vx2(ig-ntgrid-1,it,ik)), &
-                     real(vy2(ig-ntgrid-1,it,ik))
-             end do
-             write (unit, "()")
-          end do
-       end do
-       call close_output_file (unit)
-       deallocate (vx2, vy2)
-    end if
+    call open_output_file (unit, ".gs")
+    do ig = 1, ntgrid
+      kpar(ig) = (ig-1)*gradpar(ig)/real(2*nperiod-1)
+      kpar(2*ntgrid-ig+1)=-(ig)*gradpar(ig)/real(2*nperiod-1)
+    end do
+    do ik = 1, naky
+      do it = 1, ntheta0
+        do ig = ntgrid+1,2*ntgrid
+          write (unit, "(9(1x,e12.5))") &
+               kpar(ig), aky(ik), akx(it), &
+               real(vx2(ig-ntgrid-1,it,ik)), &
+               real(vy2(ig-ntgrid-1,it,ik))
+        end do
+        do ig = 1, ntgrid
+          write (unit, "(9(1x,e12.5))") &
+               kpar(ig), aky(ik), akx(it), &
+               real(vx2(ig-ntgrid-1,it,ik)), &
+               real(vy2(ig-ntgrid-1,it,ik))
+        end do
+        write (unit, "()")
+      end do
+    end do
+    call close_output_file (unit)
+    deallocate (vx2, vy2)
 
-    if (allocated(bxf)) deallocate (bxf, byf, xx4, xx, yy4, yy, dz, total)
+    deallocate (bxf, byf, xx4, xx, yy4, yy, dz, total)
     deallocate (vx, vy, rvx, rvy)
   end subroutine do_write_gs
 end module diagnostics_final_routines
