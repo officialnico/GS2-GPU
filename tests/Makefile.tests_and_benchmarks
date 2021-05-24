@@ -1,6 +1,3 @@
-export
-SHELL := bash
-
 $(TEST_DIR)/Makefile.test_utils: ;
 include $(TEST_DIR)/Makefile.test_utils
 
