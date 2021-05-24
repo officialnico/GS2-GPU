@@ -125,11 +125,10 @@ contains
       write_phi_over_time, write_apar_over_time, write_bpar_over_time, &
       write_avg_moments, write_final_moments, write_final_epar, nout, &
       ob_midplane) 
-    use, intrinsic :: iso_fortran_env, only : error_unit
     use mp, only: proc0
 # ifdef NETCDF
     use mp, only: barrier
-    use file_utils, only: run_name
+    use file_utils, only: run_name, error_unit
     use gs2_transforms, only: init_transforms
     use kt_grids, only: naky, ntheta0,nx,ny
     use theta_grid, only: ntgrid
@@ -190,7 +189,7 @@ contains
        ! to do this instead
        inquire(file=trim(filename), exist=previous_file_exists)
        if (append_old .and. .not. previous_file_exists) then
-         write(error_unit, '(a, a, a)') "WARNING: 'append_old' requested, but '", trim(filename), &
+         write(error_unit(), '(a, a, a)') "WARNING: 'append_old' requested, but '", trim(filename), &
               "' does not exist. Creating new file"
        end if
        appending = (previous_file_exists .and. append_old)
