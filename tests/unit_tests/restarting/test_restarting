@@ -99,8 +99,8 @@ if __name__ == "__main__":
 
 Checks the restarting capabilities by first running a "full length"
 simulation, and then repeating the same simulation with two
-half-length simulations. Runs three sets of simulations in total: old
-diagnostics without appending to an existing output file, and
+half-length simulations. Runs four sets of simulations in total: old
+diagnostics with and without appending to an existing output file, and
 new diagnostics with and without appending"""))
     parser.add_argument(
         "--gs2", default="../../../bin/gs2", help="Path to GS2 executable"
@@ -150,6 +150,22 @@ new diagnostics with and without appending"""))
     success &= compare_two_output_files(
         "full_run_old_diagnostics.out.nc",
         "end_half_run_old_diagnostics.out.nc",
+        args.tolerance,
+    )
+
+    print("\nChecking old diagnostics with appending")
+    shutil.copy(
+        "start_half_run_old_diagnostics.out.nc",
+        "end_half_run_append_old_diagnostics.out.nc",
+    )
+    run_gs2(
+        args.gs2,
+        "end_half_run_append_old_diagnostics.in",
+        "restarted half-length simulation with appending",
+    )
+    success &= compare_two_output_files(
+        "full_run_old_diagnostics.out.nc",
+        "end_half_run_append_old_diagnostics.out.nc",
         args.tolerance,
     )
 

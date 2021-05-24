@@ -874,7 +874,7 @@ contains
 
   !> FIXME : Add documentation  
   subroutine ginit (restarted, override_ginitopt_switch)
-    use gs2_save, only: init_tstart
+    use gs2_save, only: read_t0_from_restart_file
     implicit none
     logical, intent (out) :: restarted
     integer, intent(in), optional :: override_ginitopt_switch
@@ -921,28 +921,28 @@ contains
 ! results, you might need to comment out this line and...
 !       t0 = tstart
        call ginit_nl4
-       call init_tstart (tstart, istatus)
+       call read_t0_from_restart_file (tstart, istatus)
 ! this line:
 !       tstart = t0
        restarted = .true.
        scale = 1.
     case (ginitopt_nl5)
        t0 = tstart
-       call init_tstart (tstart, istatus)
+       call read_t0_from_restart_file (tstart, istatus)
        call ginit_nl5
        tstart = t0
        restarted = .true.
        scale = 1.
     case (ginitopt_recon)
        t0 = tstart
-       call init_tstart (tstart, istatus)
+       call read_t0_from_restart_file (tstart, istatus)
        call ginit_recon
        tstart = t0
        restarted = .true.
        scale = 1.
     case (ginitopt_nl6)
        t0 = tstart
-       call init_tstart (tstart, istatus)
+       call read_t0_from_restart_file (tstart, istatus)
        call ginit_nl6
        tstart = t0
        restarted = .true.
@@ -965,22 +965,22 @@ contains
        call ginit_convect
     case (ginitopt_restart_file)
        call ginit_restart_file 
-       call init_tstart (tstart, istatus)
+       call read_t0_from_restart_file (tstart, istatus)
        restarted = .true.
        scale = 1.
     case (ginitopt_restart_many)
        call ginit_restart_many 
-       call init_tstart (tstart, istatus)
+       call read_t0_from_restart_file (tstart, istatus)
        restarted = .true.
        scale = 1.
     case (ginitopt_restart_eig)
        call ginit_restart_eig 
-       call init_tstart (tstart, istatus)
+       call read_t0_from_restart_file (tstart, istatus)
        restarted = .true.
        scale = 1.
     case (ginitopt_restart_small)
        call ginit_restart_small
-       call init_tstart (tstart, istatus)
+       call read_t0_from_restart_file (tstart, istatus)
        restarted = .true.
        scale = 1.
     case (ginitopt_restart_memory)
@@ -989,17 +989,17 @@ contains
        scale = 1.
     case (ginitopt_zonal_only)
        call ginit_restart_zonal_only
-       call init_tstart (tstart, istatus)
+       call read_t0_from_restart_file (tstart, istatus)
        restarted = .true.
        scale = 1.
     case (ginitopt_no_zonal)
        call ginit_restart_no_zonal
-       call init_tstart (tstart, istatus)
+       call read_t0_from_restart_file (tstart, istatus)
        restarted = .true.
        scale = 1.
     case (ginitopt_smallflat)
        call ginit_restart_smallflat
-       call init_tstart (tstart, istatus)
+       call read_t0_from_restart_file (tstart, istatus)
        restarted = .true.
        scale = 1.
     case (ginitopt_continue)

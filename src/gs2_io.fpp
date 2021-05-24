@@ -116,30 +116,32 @@ contains
   !>
   !> Create the main and movie (real-space fields) netCDF files,
   !> creating the dimensions and main variables
-  subroutine init_gs2_io (write_nl_flux, write_omega, &
+  subroutine init_gs2_io (append_old, write_nl_flux, write_omega, &
       write_hrate, write_final_antot, write_eigenfunc, &
       make_movie, nmovie_tot, write_verr, &
       write_moments,&
       write_full_moments_notgc, write_sym, write_pflux_sym, write_nl_flux_dist, &
       write_pflux_tormom, write_correlation, nwrite_big_tot, write_correlation_extend, & 
       write_phi_over_time, write_apar_over_time, write_bpar_over_time, &
-      write_avg_moments, write_final_moments, write_final_epar, &
+      write_avg_moments, write_final_moments, write_final_epar, nout, &
       ob_midplane) 
     use mp, only: proc0
 # ifdef NETCDF
     use mp, only: barrier
-    use file_utils, only: run_name
+    use file_utils, only: run_name, error_unit
     use gs2_transforms, only: init_transforms
     use kt_grids, only: naky, ntheta0,nx,ny
     use theta_grid, only: ntgrid
     use le_grids, only: nlambda, negrid
     use species, only: nspec
-    use netcdf, only: NF90_CLOBBER, nf90_create
+    use netcdf, only: NF90_CLOBBER, nf90_create, nf90_open, NF90_WRITE
     use netcdf_utils, only: get_netcdf_code_precision, netcdf_real
+    use netcdf_utils, only: get_netcdf_dim_length
     use constants, only: run_name_size
 # endif
     implicit none
     !> See [[gs2_diagnostics_knobs]] for details of these inputs
+    logical, intent(in) :: append_old
     logical, intent(in) :: write_nl_flux, write_nl_flux_dist, write_omega
     logical, intent(in) :: write_hrate, make_movie, write_moments
     logical, intent(in) :: write_final_antot, write_eigenfunc, write_verr
@@ -153,6 +155,7 @@ contains
     !> If true, write out moments at the outboard midplane only,
     !> otherwise write them out along the entire flux surface
     logical, intent(in), optional :: ob_midplane
+    integer, intent(out) :: nout
 # ifdef NETCDF
     logical :: accelerated
     character(run_name_size) :: filename, filename_movie
@@ -177,10 +180,25 @@ contains
 
     !Create file
     filename = trim(trim(run_name)//'.out.nc')
+
     ! only proc0 opens the file:
     if (proc0) then
-       status = nf90_create (trim(filename), NF90_CLOBBER, ncid)
-       if (status /= NF90_NOERR) call netcdf_error (status, file=filename)
+       ! See if the output file already exists, so we know how to open
+       ! the file.  This would be simpler if netCDF had a "open if it
+       ! exists, create if it doesn't" mode, but it doesn't so we have
+       ! to do this instead
+       inquire(file=trim(filename), exist=previous_file_exists)
+       if (append_old .and. .not. previous_file_exists) then
+         write(error_unit(), '(a, a, a)') "WARNING: 'append_old' requested, but '", trim(filename), &
+              "' does not exist. Creating new file"
+       end if
+       appending = (previous_file_exists .and. append_old)
+       if (appending) then
+          status = nf90_open(trim(filename), NF90_WRITE, ncid)
+       else
+          status = nf90_create (trim(filename), NF90_CLOBBER, ncid)
+       end if
+       if (status /= NF90_NOERR) call netcdf_error (status, file=filename, abort=.true.)
     end if
 
     !Create the movie file
@@ -198,27 +216,35 @@ contains
     endif
 
     if (proc0) then
-       !Setup main file
-       call define_dims (nwrite_big_tot, io_write_corr_extend)
-       call define_vars (write_nl_flux, write_omega, &
-            write_hrate, write_final_antot, write_eigenfunc, write_verr, &
-            write_moments, write_full_moments_notgc, write_sym, write_pflux_sym, &
-            write_nl_flux_dist, write_pflux_tormom, write_correlation, &
-            write_correlation_extend, write_avg_moments, write_final_moments, write_final_epar, &
-            ob_midplane=ob_midplane)
+        !Setup main file by creating netCDF file
+        call define_dims (nwrite_big_tot, io_write_corr_extend)
+        call define_vars (write_nl_flux, write_omega, &
+                          write_hrate, write_final_antot, write_eigenfunc, write_verr, &
+                          write_moments, write_full_moments_notgc, write_sym, write_pflux_sym, &
+                          write_nl_flux_dist, write_pflux_tormom, write_correlation, &
+                          write_correlation_extend, write_avg_moments, write_final_moments, write_final_epar, &
+                          ob_midplane=ob_midplane)
 
-       !Write constant data
-       call nc_grids
-       call nc_norms
-       call nc_species
-       call nc_geo
+        if (appending) then
+            nout = get_netcdf_dim_length(ncid, time_dim)
+        else
+            !Write constant data
+            call nc_grids
+            call nc_norms
+            call nc_species
+            call nc_geo
+            call save_input
+            nout = 1
+        end if
 
-       !Setup movie file
-       call define_dims_mymovie (nmovie_tot)
-       call define_vars_mymovie
+        if (my_make_movie) then
+          !Setup movie file
+          call define_dims_mymovie (nmovie_tot)
+          call define_vars_mymovie
 
-       !Write constant movie data
-       call nc_grids_mymovie
+          !Write constant movie data
+          call nc_grids_mymovie
+        end if
     end if
 # endif
   end subroutine init_gs2_io
@@ -438,7 +464,6 @@ contains
     integer :: status
 
     if (proc0) then
-       call save_input
        status = nf90_close (ncid)
        if (status /= NF90_NOERR) call netcdf_error (status)
        if(my_make_movie) then
