@@ -5,6 +5,7 @@ module nonlinear_terms
   !
 
   use abstract_config, only: abstract_config_type, CONFIG_MAX_NAME_LEN
+  use mp, only: mp_request_null
   
   implicit none
 
@@ -69,7 +70,7 @@ module nonlinear_terms
   !> satisfies the CFL condition. This currently has to be module level due to potential
   !> non-blocking reduction.
   real :: max_vel
-  integer :: cfl_req_hand
+  integer :: cfl_req_hand = mp_request_null
 
   !> Variables related to the order based error estimate -- see config documentation
   real :: error_target
@@ -451,21 +452,17 @@ contains
           call nl_center (g1, bd)
 
           ! Estimate the global cfl limit based on max_vel calculated
-          ! in `add_nl`.If immediate_reset is true, do a max
-          ! allreduce.  If not, overlap comms and work, and check for
-          ! reset at the end of the timestep.
+          ! in `add_nl`.If immediate_reset is true, check the max
+          ! allreduce immediately.  If not, overlap comms and work,
+          ! and check for reset at the end of the timestep.
           if(immediate_reset)then
              call max_allreduce(max_vel)
-             dt_cfl = 1./max_vel
-             call save_dt_cfl (dt_cfl)
-
-             !Now check to see if we've violated the
-             !cfl condition if requested
-             call check_time_step_too_large(reset)
+             call set_cfl_time_step_and_check_if_too_large
           else
-             !Do a nonblocking reduce and check later
+             ! Do a nonblocking reduce and check later in
+             ! [[gs2_reinit:check_time_step]].
              call nb_max_allreduce(max_vel, cfl_req_hand)
-          endif
+          end if
 
           ! If the CFL condition hasn't triggered then look at the
           ! order based error
@@ -1051,32 +1048,48 @@ contains
     g1 = -g1 !left-handed / right-handed conversion    
   end subroutine add_nl_gryfx
 
-  !> Nonblocking version of check_time_step_too_large
-  !!
-  !! This receives the mpi_iallreduce of the maximum velocity and calculates
-  !! the CFL condition.
-  !!
-  !! Joseph Parker, STFC
+  !> Finish nonblocking calculation of the maximum velocity
+  !> and set the cfl limit.
+  !>
+  !> Joseph Parker, STFC
   subroutine nb_check_time_step_too_large
-    use run_parameters, only: reset, immediate_reset
+    use run_parameters, only: immediate_reset
+    implicit none
+    if (immediate_reset) return
+    call finish_nonblocking_max_vel_reduction
+    call set_cfl_time_step_and_check_if_too_large
+  end subroutine nb_check_time_step_too_large
+
+  !> Finish nonblocking calculation of the maximum velocity
+  !>
+  !> This receives the mpi_iallreduce of the maximum velocity.
+  subroutine finish_nonblocking_max_vel_reduction
+    use mp, only: wait, mp_request_null
+    implicit none
+
+    ! Wait for the nonblocking maximum operation used to find
+    ! the maximum velocity.
+    if (cfl_req_hand == mp_request_null) return
+    call wait(cfl_req_hand)
+    cfl_req_hand = mp_request_null
+  end subroutine finish_nonblocking_max_vel_reduction
+
+  !> Calculates the cfl limit from the module level max_vel value
+  !> saves it using [[gs2_time:save_dt_cfl]] and then sets the reset
+  !> flag based on checking if the current time step is too large.
+  subroutine set_cfl_time_step_and_check_if_too_large
+    use run_parameters, only: reset
     use gs2_time, only: save_dt_cfl, check_time_step_too_large
-    use mp, only: wait
     implicit none
     real :: dt_cfl
 
-    !Estimate the global cfl limit based on max_vel
-    !If immediate_reset, this check has already been done during the timestep.
-    if(immediate_reset) return
-
-    call wait(cfl_req_hand)    
+    ! Estimate the global cfl limit based on max_vel.
     dt_cfl = 1./max_vel
     call save_dt_cfl (dt_cfl)
 
-    !Now check to see if we've violated the 
-    !cfl condition if requested
+    ! Now check to see if we've violated the cfl condition.
     call check_time_step_too_large(reset)
-  
-  end subroutine nb_check_time_step_too_large
+  end subroutine set_cfl_time_step_and_check_if_too_large
 
   !> FIXME : Add documentation
   subroutine reset_init
