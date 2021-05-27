@@ -196,9 +196,38 @@ contains
           write (report_unit, *) 
        end if
 
+       if (use_cfl_limit) then
+          write (report_unit, *)
+          write (report_unit, fmt="('The timestep will be adjusted to satify the CFL limit.')")
+          write (report_unit, fmt="('The maximum delt < ',f10.4,' * min(Delta_perp/v_perp). (cfl)')") cfl
+          write (report_unit, *)
+       else
+          write (report_unit, *)
+          write (report_unit, fmt="('################# WARNING #######################')")
+          write (report_unit, fmt="('Nonlinear usually have use_cfl_limit = T')")
+          write (report_unit, fmt="('################# WARNING #######################')")
+          write (report_unit, *)
+       end if
+
+       if (use_order_based_error) then
+          write (report_unit, *)
+          write (report_unit, fmt="('The timestep will be adjusted to keep the estimated error below',e11.4)") error_target
+          write (report_unit, fmt="('beginning on step',I0)") istep_error_start
+
+          write (report_unit, *)
+       else
+          if (.not. use_cfl_limit) then
+             write (report_unit, *)
+             write (report_unit, fmt="('################# WARNING #######################')")
+             write (report_unit, fmt="('Both CFL and error methods for controlling explicit timestep are disabled.')")
+             write (report_unit, fmt="('THIS IS PROBABLY AN ERROR.')")
+             write (report_unit, fmt="('################# WARNING #######################')")
+             write (report_unit, *)
+          end if
+       end if
+
        write (report_unit, fmt="('The minimum delt ( code_dt_min ) = ',e11.4)") code_dt_min
        write (report_unit, fmt="('The maximum delt (code_delt_max) = ',e11.4)") code_delt_max
-       write (report_unit, fmt="('The maximum delt < ',f10.4,' * min(Delta_perp/v_perp). (cfl)')") cfl
        write (report_unit, fmt="('When the time step needs to be changed, it is adjusted by a factor of ',f10.4)") delt_adj
        write (report_unit, fmt="('The number of time steps nstep = ',i7)") nstep
     endif
