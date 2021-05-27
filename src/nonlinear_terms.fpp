@@ -507,7 +507,10 @@ contains
              ! Based on the current error estimate and the expected error scaling
              ! work out what time step we expect to give us the target error.
              ! Note that we don't scale by cfl here as the user has direct control
-             ! over error_target already.
+             ! over error_target already. Also note that by taking the square root
+             ! we are assuming that the error looks like dt^2. We should probably
+             ! look at what order schemes we're actually comparing to determine
+             ! the appropriate dependency.
              target_dt =code_dt*sqrt(error_target/(error))
 
              ! Now we have an error limited time step lets convert this
