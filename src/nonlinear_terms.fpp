@@ -372,9 +372,10 @@ contains
     use theta_grid, only: ntgrid
     use gs2_layouts, only: g_lo, ik_idx, it_idx, il_idx, is_idx
     use dist_fn_arrays, only: g
-    use gs2_time, only: save_dt_cfl, code_dt, code_dt_cfl
-    use run_parameters, only: reset
+    use gs2_time, only: save_dt_cfl, code_dt, code_dt_cfl, check_time_step_too_large
+    use run_parameters, only: reset, immediate_reset
     use unit_tests, only: debug_message
+    use mp, only: nb_max_allreduce, max_allreduce
     implicit none
     complex, dimension (-ntgrid:,:,g_lo%llim_proc:), intent (in out) :: g1, g2, g3
     complex, dimension (-ntgrid:,:,:), intent (in) :: phi, apar, bpar
@@ -448,6 +449,23 @@ contains
           ! takes g1 at grid points and returns 2*g1 at cell centers
 
           call nl_center (g1, bd)
+
+          ! Estimate the global cfl limit based on max_vel calculated
+          ! in `add_nl`.If immediate_reset is true, do a max
+          ! allreduce.  If not, overlap comms and work, and check for
+          ! reset at the end of the timestep.
+          if(immediate_reset)then
+             call max_allreduce(max_vel)
+             dt_cfl = 1./max_vel
+             call save_dt_cfl (dt_cfl)
+
+             !Now check to see if we've violated the
+             !cfl condition if requested
+             call check_time_step_too_large(reset)
+          else
+             !Do a nonblocking reduce and check later
+             call nb_max_allreduce(max_vel, cfl_req_hand)
+          endif
 
           ! If the CFL condition hasn't triggered then look at the
           ! order based error
@@ -636,12 +654,11 @@ contains
 
   !> Calculate the nonlinear term and corresponding CFL condition
   subroutine add_nl (g1, phi, apar, bpar)
-    use mp, only: max_allreduce, nb_max_allreduce
     use theta_grid, only: ntgrid
     use gs2_layouts, only: g_lo, ik_idx, it_idx
     use dist_fn_arrays, only: g, g_adjust
     use gs2_transforms, only: transform2, inverse2
-    use run_parameters, only: fbpar, fphi, reset, immediate_reset
+    use run_parameters, only: fbpar, fphi
     use kt_grids, only: aky, akx
     use gs2_time, only: save_dt_cfl, check_time_step_too_large
     use constants, only: zi
@@ -739,25 +756,6 @@ contains
     else
        call inverse2 (bracket, g1)
     end if
-
-    !Estimate the global cfl limit based on max_vel
-    !If immediate_reset, do a max allreduce.
-    !If not, overlap comms and work, and check for
-    ! reset at the end of the timestep.
-    if(immediate_reset)then
-       call max_allreduce(max_vel)
-       dt_cfl = 1./max_vel
-       call save_dt_cfl (dt_cfl)
-
-       !Now check to see if we've violated the
-       !cfl condition if requested
-       call check_time_step_too_large(reset)
-       !If we have violated cfl then return immediately
-       if (reset) return
-    else
-       !Do a nonblocking reduce and check later
-       call nb_max_allreduce(max_vel, cfl_req_hand)
-    endif
 
     call debug_message(verb, &
       'nonlinear_terms::add_nl calculated nonlinear term')
