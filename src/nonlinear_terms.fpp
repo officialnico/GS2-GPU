@@ -395,6 +395,10 @@ contains
        if (present(nl)) then
           dt_cfl = 1.e8
           call save_dt_cfl (dt_cfl)
+
+          ! Ensure the module level max_vel is consistent with
+          ! the selected cfl limiting timestep.
+          max_vel = 1.0/dt_cfl
        end if
        return
     endif
