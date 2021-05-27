@@ -459,8 +459,12 @@ contains
           ! velocity found from the nonlinear term on this
           ! processor. This can be used to find the cfl limting time
           ! step.
+
+          ! If we're not using the cfl limit then we'd like to zero
+          ! out the maximum velocity however, we later take 1/max_vel
+          ! so let's just set it small.
           if (.not. use_cfl_limit) then
-             max_vel = 0.0
+             max_vel = epsilon(0.0)
           end if
 
           ! Calculate the effective maximum velocity based on the error
@@ -487,21 +491,22 @@ contains
           end if
 
           ! Now we can reduce our local limiting velocities to get
-          ! a global value for the maximum velocity.
-
-          ! Estimate the global cfl limit based on max_vel calculated
-          ! in `add_nl`.If immediate_reset is true, check the max
-          ! allreduce immediately.  If not, overlap comms and work,
-          ! and check for reset at the end of the timestep.
-          if(immediate_reset)then
-             call max_allreduce(max_vel)
-             call set_cfl_time_step_and_check_if_too_large
-          else
-             ! Do a nonblocking reduce and check later in
-             ! [[gs2_reinit:check_time_step]].
-             call nb_max_allreduce(max_vel, cfl_req_hand)
+          ! a global value for the maximum velocity. We only need to
+          ! reduce if at least one time limit check is active.
+          if (use_cfl_limit .or. use_order_based_error) then
+             ! Estimate the global cfl limit based on max_vel calculated
+             ! in `add_nl`.If immediate_reset is true, check the max
+             ! allreduce immediately.  If not, overlap comms and work,
+             ! and check for reset at the end of the timestep.
+             if(immediate_reset)then
+                call max_allreduce(max_vel)
+                call set_cfl_time_step_and_check_if_too_large
+             else
+                ! Do a nonblocking reduce and check later in
+                ! [[gs2_reinit:check_time_step]].
+                call nb_max_allreduce(max_vel, cfl_req_hand)
+             end if
           end if
-
 
           if(reset) then
              return !Return if resetting
