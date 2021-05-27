@@ -471,10 +471,7 @@ contains
           ! based time step limit (really we estimate the maximum time step
           ! to keep our errors below our target and then convert to an
           ! effective velocity).
-
-          ! If the CFL condition hasn't triggered then look at the
-          ! order based error
-          if (use_order_based_error .and. (.not. reset) .and. (istep > istep_error_start)) then
+          if (use_order_based_error .and. (istep > istep_error_start)) then
              ! Get the current order based error estimate
              error = estimate_error(g1, g2, g3)
 
@@ -487,7 +484,6 @@ contains
              ! Now we have an error limited time step lets convert this
              ! to an effective maximum velocity
              max_vel = max(max_vel, 1.0/target_dt)
-
           end if
 
           ! Now we can reduce our local limiting velocities to get
@@ -500,6 +496,7 @@ contains
              ! and check for reset at the end of the timestep.
              if(immediate_reset)then
                 call max_allreduce(max_vel)
+                ! This call can update the value of reset.
                 call set_cfl_time_step_and_check_if_too_large
              else
                 ! Do a nonblocking reduce and check later in
