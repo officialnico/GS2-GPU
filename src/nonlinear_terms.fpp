@@ -535,6 +535,14 @@ contains
                 ! [[gs2_reinit:check_time_step]].
                 call nb_max_allreduce(max_vel, cfl_req_hand)
              end if
+          else
+             ! If we don't have any checks active then we better make sure that the
+             ! limiting time step is set. We will have set max_vel earlier to
+             ! epsilon(0.0) so we can just use the usual routine to set this, but
+             ! can skip communications. Really we probably just need to do this once
+             ! but for now just put this here to be on the safe side. The cost should
+             ! be low.
+             call set_cfl_time_step_and_check_if_too_large
           end if
 
           if(reset) then
