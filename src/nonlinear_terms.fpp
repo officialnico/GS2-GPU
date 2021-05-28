@@ -1107,8 +1107,6 @@ contains
 
   !> Finish nonblocking calculation of the maximum velocity
   !> and set the cfl limit.
-  !>
-  !> Joseph Parker, STFC
   subroutine nb_check_time_step_too_large
     use run_parameters, only: immediate_reset
     implicit none
