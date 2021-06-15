@@ -141,7 +141,7 @@ module dist_fn
 
   integer :: source_option_switch
   integer, parameter :: source_option_full = 1, &
-       source_option_phiext_full = 5
+       source_option_phiext_full = 5, source_option_homogeneous = 6
   
   integer :: boundary_option_switch
   integer, parameter :: boundary_option_zero = 1, &
@@ -490,6 +490,7 @@ module dist_fn
      !> - 'default' : Same as 'source_option_full'
      !> - 'phiext_full' : Solve GK equation with additional source
      !>   proportional to `phi_ext*F_0`.
+     !> - 'homogeneous' : Solve the homogeneous equation, i.e. no potential related sources.
      character(len = 20) :: source_option = 'default'
      !> Turn on any artificial sources after time = t0. Only used with
      !> `source_option = 'phiext_full'`.
@@ -764,8 +765,16 @@ contains
        write (report_unit, fmt="('with an additional source proportional to Phi*F_0')")
        write (report_unit, fmt="('Together with phi_ext = -1., this is the usual way to &
             & calculate the Rosenbluth-Hinton response.')")
-       write (report_unit, *) 
+       write (report_unit, *)
 
+    case (source_option_homogeneous)
+       write (report_unit, *)
+       write (report_unit, fmt="('################# WARNING #######################')")
+       write (report_unit, fmt="('The homogeneous GK equation will be solved.')")
+       write (report_unit, fmt="('The calculated response matrices and resulting')")
+       write (report_unit, fmt="('potentials will not be accurate.')")
+       write (report_unit, fmt="('################# WARNING #######################')")
+       write (report_unit, *)
     end select
 
     ! 
@@ -872,7 +881,8 @@ contains
           write (unit, fmt="(' gamma0 = ',e17.10)") gamma0
           write (unit, fmt="(' t0 = ',e17.10)") t0
           write (unit, fmt="(' phi_ext = ',e17.10)") phi_ext
-
+       case(source_option_homogeneous)
+          write (unit, fmt="(' source_option = ',a)") '"homogeneous"'
        end select
        write (unit, fmt="(' /')")
     endif
@@ -1251,10 +1261,11 @@ contains
     type(dist_fn_config_type), intent(in), optional :: dist_fn_config_in
     type(source_config_type), intent(in), optional :: source_config_in
     type(dist_fn_species_config_type), intent(in), dimension(:), optional :: dist_fn_species_config_in
-    type (text_option), dimension (3), parameter :: sourceopts = &
+    type (text_option), dimension (4), parameter :: sourceopts = &
          (/ text_option('default', source_option_full), &
             text_option('full', source_option_full), &
-            text_option('phiext_full', source_option_phiext_full) /)
+            text_option('phiext_full', source_option_phiext_full), &
+            text_option('homogeneous', source_option_homogeneous) /)
     character(20) :: source_option
 
     type (text_option), dimension (8), parameter :: boundaryopts = &
@@ -4086,7 +4097,8 @@ contains
        else
           source = 0.0
        end if
-
+    case(source_option_homogeneous)
+       source = 0.0
     end select
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -4367,6 +4379,8 @@ contains
                   *2.0*phi_ext*sourcefac*aj0(:ntgrid-1,iglo)
              end if
           end if
+       case(source_option_homogeneous)
+          source = 0.0
        end select
     enddo
        
@@ -5227,7 +5241,14 @@ endif
     !    call broadcast(arr)
   end subroutine ensure_single_val_fields_pass_r
 
-  !> FIXME : Add documentation  
+  !> Compute velocity space integrals over \(h_s\):
+  !> $$\mathrm{antot} = n_s q_s \int d^3 v f_0 J_0(Z_s) h_s$$
+  !> $$\mathrm{antota} = 2 \beta n_s q_s \sqrt{\tfrac{T_s}{m_s}} \int d^3 v f_0 J_0(Z_s) h_s$$
+  !> $$\mathrm{antotp} = n_s T_s \int d^3 v f_0 \frac{v_\perp^2 J_1(Z_s)}{Z_s} h_s$$
+  !>
+  !> See Colin's field equation notes for more details
+  !>
+  !> FIXME: Get these notes on the website
   subroutine getan (antot, antota, antotp)
     use dist_fn_arrays, only: vpa, vperp2, aj0, aj1, gnew
     use kt_grids, only: kperp2
@@ -5245,7 +5266,6 @@ endif
 
     call prof_entering ("getan", "dist_fn")
 
-!<DD>
 !Don't do this as integrate_species will fill in all values
 !    antot=0. ; antota=0. ; antotp=0.
 !Need to set individual arrays to zero if not using integrate_species for
@@ -5266,7 +5286,7 @@ endif
 
 !    if (kfilter > epsilon(0.0)) call par_filter(antot)
        if (afilter > epsilon(0.0)) antot = antot * exp(-afilter**4*kperp2**2/4.)
-       if(esv) call ensure_single_val_fields_pass(antot) !<DD>
+       if(esv) call ensure_single_val_fields_pass(antot)
     else
        antot=0.
     end if
@@ -5283,7 +5303,7 @@ endif
        wgt = 2.0*beta*spec%z*spec%dens*sqrt(spec%temp/spec%mass)
        call integrate_species (g0, wgt, antota)
 !    if (kfilter > epsilon(0.0)) call par_filter(antota)
-       if(esv) call ensure_single_val_fields_pass(antota) !<DD>
+       if(esv) call ensure_single_val_fields_pass(antota)
     else
        antota=0.
     end if
@@ -5299,7 +5319,7 @@ endif
        wgt = spec%temp*spec%dens
        call integrate_species (g0, wgt, antotp)
 !    if (kfilter > epsilon(0.0)) call par_filter(antotp)
-       if(esv) call ensure_single_val_fields_pass(antotp) !<DD>
+       if(esv) call ensure_single_val_fields_pass(antotp)
     else
        antotp=0.
     end if
@@ -5307,8 +5327,8 @@ endif
     call prof_leaving ("getan", "dist_fn")
   end subroutine getan
 
-  !> FIXME : Add documentation  
-  subroutine getmoms (phinew,bparnew,ntot, density, upar, tpar, tperp, qparflux, pperpj1, qpperpj1)
+  !> Calculate various moments of the distribution function
+  subroutine getmoms (phinew, bparnew, ntot, density, upar, tpar, tperp, qparflux, pperpj1, qpperpj1)
     use dist_fn_arrays, only: vpa, vperp2, aj0, aj1, gnew, g_adjust
     use gs2_layouts, only: is_idx, ie_idx, g_lo, ik_idx, it_idx
     use species, only: nspec, spec, nonmaxw_corr
@@ -5319,13 +5339,29 @@ endif
 
     implicit none
     logical, parameter :: full_arr=moment_to_allprocs
-    complex, dimension (-ntgrid:,:,:,:), intent (out) :: density, &
-         upar, tpar, tperp, ntot, qparflux, pperpj1, qpperpj1
-    complex, dimension (-ntgrid:,:,:), intent(in) :: phinew, bparnew
+    !> Total perturbed density
+    complex, dimension (-ntgrid:,:,:,:), intent (out) :: ntot
+    !> Non-adiabatic part of the perturbed density. Normalised to \(n_s n_{ref}\)
+    complex, dimension (-ntgrid:,:,:,:), intent (out) :: density
+    !> Parallel velocity. Normalised to \(v_{t,s} = v_{t,ref}\sqrt{T_s / m_s}\)
+    complex, dimension (-ntgrid:,:,:,:), intent (out) :: upar
+    !> Parallel temperature. Normalised to \(T_s T_{ref}\)
+    complex, dimension (-ntgrid:,:,:,:), intent (out) :: tpar
+    !> Perpendicular temperature. Normalised to \(T_s T_{ref}\)
+    complex, dimension (-ntgrid:,:,:,:), intent (out) :: tperp
+    !> Parallel heat flux. Normalised to \(n_s n_{ref} T_s T_{ref} v_{t,s}\)
+    complex, dimension (-ntgrid:,:,:,:), intent (out) :: qparflux
+    !> Pressure part of the particle flux. Normalised to \(\frac{n_s T_s}{q_s} \frac{n_{ref} T_{ref}}{q_{ref}}\)
+    complex, dimension (-ntgrid:,:,:,:), intent (out) :: pperpj1
+    !> Pressure part of the heat flux. Normalised to \(\frac{n_s T_s^2}{q_s} \frac{n_{ref} T_{ref}^2}{q_{ref}}\)
+    complex, dimension (-ntgrid:,:,:,:), intent (out) :: qpperpj1
+    !> Electrostatic potential, \(\phi\)
+    complex, dimension (-ntgrid:,:,:), intent(in) :: phinew
+    !> Parallel magnetic field, \(B_\parallel\)
+    complex, dimension (-ntgrid:,:,:), intent(in) :: bparnew
 
     integer :: ik, it, isgn, ie, is, iglo
 
-! returns moment integrals to PE 0
     call prof_entering ("getmoms", "dist_fn")
 
 ! DJA+CMR: 17/1/06, use g_adjust routine to extract g_wesson
@@ -6558,9 +6594,18 @@ endif
     ! get phi
     if (fphi > epsilon(0.0)) then
 
-!CMR, 1/8/2011:  bmag corrections here: 
-       numerator = (beta * gamtot2 + bmagsp**2) * (antot+fl_avg_sp) - (beta * gamtot1) * antotp
-       denominator = (beta * gamtot2 + bmagsp**2) * gamtot + (beta/2.0) * gamtot1 * gamtot1
+!CMR, 1/8/2011:  bmag corrections here:
+!BSP 20/04/2021: Check if fbpar= 0.0 as beta terms should not be present in this case.
+       if (fbpar > epsilon(0.0)) then
+          numerator = (beta * gamtot2 + bmagsp**2) * (antot+fl_avg_sp) - (beta * gamtot1) * antotp
+          denominator = (beta * gamtot2 + bmagsp**2) * gamtot + (beta/2.0) * gamtot1 * gamtot1
+       else
+          ! If fbpar = 0 then the terms in earlier branch proportional to beta
+          ! should be zero as these terms arrive from the bpar parts of quasineutrality
+          ! as expressed in terms of gnew. In this case we get the below.
+          numerator = antot+fl_avg_sp
+          denominator = gamtot
+       end if
 
        where (abs(denominator) < epsilon(0.0)) ! it == ik == 1 only
           !NOTE: denominator=0 for the it==ik==1 only in certain circumstances
@@ -6586,8 +6631,20 @@ endif
     ! get bpar
     if (fbpar > epsilon(0.0)) then
 !CMR>  bmag corrections here
-       numerator = - (beta * gamtot) * antotp - (beta/2.0) * gamtot1 * antot
-       denominator = gamtot * (beta * gamtot2 + bmagsp**2) + (beta/2.0) * gamtot1 * gamtot1
+
+       ! As in our calculation of phi, we see that the equations for
+       ! bpar and phi are coupled when written in terms of gnew. This
+       ! means we get contributions arising from phi in the expression
+       ! for B|| here. In particular, they are the terms involving
+       ! gamtot1. However, if we have disabled phi then they should
+       ! not appear in our calculation, so handle that here.
+       if (fphi > epsilon(0.0)) then
+          numerator = - (beta * gamtot) * antotp - (beta/2.0) * gamtot1 * antot
+          denominator = gamtot * (beta * gamtot2 + bmagsp**2) + (beta/2.0) * gamtot1 * gamtot1
+       else
+          numerator = - beta * antotp
+          denominator = (beta * gamtot2 + bmagsp**2)
+       end if
 
        where (abs(denominator) < epsilon(0.0)) ! it == ik == 1 only
           bpar = 0.0
@@ -6666,7 +6723,9 @@ endif
          fphi, fapar, fbpar, fileopt = extension)
   end subroutine dump_current_source_term
 
-  !> FIXME : Add documentation
+  !> Calculate various fluxes
+  !>
+  !> FIXME: add documentation of exactly what fluxes
   subroutine flux (phi, apar, bpar, &
        pflux,  qflux,  vflux, vflux_par, vflux_perp, &
        pmflux, qmflux, vmflux, &
@@ -6701,14 +6760,10 @@ endif
 
     allocate (dnorm (-ntgrid:ntgrid,ntheta0,naky))
 
-    ! EGH for new parallel I/O everyone
-    ! calculates fluxes
-    !if (proc0) then
-       pflux = 0.0;   qflux = 0.0;   vflux = 0.0 ; vflux_par = 0.0 ; vflux_perp = 0.0
-       pmflux = 0.0;  qmflux = 0.0;  vmflux = 0.0
-       pbflux = 0.0;  qbflux = 0.0;  vbflux = 0.0
-       pflux_tormom = 0.0 
-    !end if
+    pflux = 0.0;   qflux = 0.0;   vflux = 0.0 ; vflux_par = 0.0 ; vflux_perp = 0.0
+    pmflux = 0.0;  qmflux = 0.0;  vmflux = 0.0
+    pbflux = 0.0;  qbflux = 0.0;  vbflux = 0.0
+    pflux_tormom = 0.0
 
     do ik = 1, naky
        do it = 1, ntheta0
@@ -6721,7 +6776,7 @@ endif
           g0(:,isgn,:) = gnew(:,isgn,:)*aj0
        end do
        call get_flux (phi, pflux, dnorm)
-       call get_flux_tormom (phi, pflux_tormom, dnorm)  !JPL
+       call get_flux_tormom (phi, pflux_tormom, dnorm)
 
        do iglo = g_lo%llim_proc, g_lo%ulim_proc
           g0(:,:,iglo) = g0(:,:,iglo)*energy(ie_idx(g_lo,iglo),is_idx(g_lo,iglo))
@@ -6935,7 +6990,7 @@ endif
     deallocate (dnorm)
   end subroutine flux_vs_e
 
-  !> FIXME : Add documentation  
+  !> Calculate the flux of a field
   subroutine get_flux (fld, flx, dnorm)
     use theta_grid, only: ntgrid, grho
     use kt_grids, only: ntheta0, aky, naky
@@ -6943,25 +6998,20 @@ endif
     use species, only: nspec
     implicit none
     logical, parameter :: full_arr=moment_to_allprocs
+    !> Input field
     complex, dimension (-ntgrid:,:,:), intent (in) :: fld
+    !> Output flux
     real, dimension (:,:,:), intent (out) :: flx
+    !> Normalisation
     real, dimension (-ntgrid:,:,:) :: dnorm
     complex, dimension (:,:,:,:), allocatable :: total
     real :: wgt
     integer :: ik, it, is
 
     allocate (total(-ntgrid:ntgrid,ntheta0,naky,nspec))
-    ! EGH added final parameter 'all'
-    ! to the call below for new parallel output
-    ! This is temporary until distributed fields
-    ! are implemented 1/2014
-    ! DD added full_arr=.true. to ensure all procs get the 
-    ! full array
+
     call integrate_moment (g0, total, moment_to_allprocs, full_arr)
 
-    ! EGH for new parallel I/O everyone
-    ! calculates fluxes
-    !if (proc0) then
     do is = 1, nspec
        do ik = 1, naky
           do it = 1, ntheta0
@@ -6972,7 +7022,6 @@ endif
        end do
     end do
     flx = flx*0.5
-    ! end if
 
     deallocate (total)
 
@@ -7019,8 +7068,10 @@ endif
 
   end subroutine get_flux_dist
 
-  !> FIXME : Add documentation  
-  subroutine get_flux_tormom (fld, flx, dnorm) !JPL
+  !> Calculate toroidal angular momentum flux due to field
+  !>
+  !> FIXME: confirm & expand
+  subroutine get_flux_tormom (fld, flx, dnorm)
     use theta_grid, only: ntgrid
 #ifdef LOWFLOW
     use kt_grids, only: ntheta0, naky
@@ -7032,12 +7083,12 @@ endif
     use lowflow, only: mach_lab
 #endif
     implicit none
+    !> Input field
     complex, dimension (-ntgrid:,:,:), intent (in) :: fld
+    !> Output flux
     real, dimension (:,:,:), intent (out) :: flx
+    !> Normalisation
     real, dimension (-ntgrid:,:,:) :: dnorm
-!<DD> Moved directive to here (was previously just around flx= line below)
-!     as if we haven't compiled with LOWFLOW then this routine shouldn't
-!     do anything (integrate_moment is not that cheap).
 #ifdef LOWFLOW 
     complex, dimension (:,:,:,:), allocatable :: total
     real :: wgt
@@ -7105,7 +7156,8 @@ endif
 
   end subroutine get_flux_vs_e
 
-  !> FIXME : Add documentation  
+  !> Calculate energy exchange diagnostic that numerically guarantees that the total
+  !> energy exchange (summed over species) is zero
   subroutine eexchange (phinew, phi, exchange1, exchange2)
     use mp, only: proc0
     use constants, only: zi
@@ -7349,7 +7401,7 @@ endif
 
   end subroutine get_lfflux
 
-  !> FIXME : Add documentation  
+  !> Calculate the momentum flux as a function of \((v_\parallel, \theta, t)\)
   subroutine flux_vs_theta_vs_vpa (phinew,vflx)
     use constants, only: zi
     use dist_fn_arrays, only: gnew, vperp2, aj1, aj0, vpac
@@ -7399,10 +7451,8 @@ endif
 
   end subroutine flux_vs_theta_vs_vpa
 
-  !> Diagnose particle flux contribution to toroidal momentum flux 
-  !! in the lab frame in terms of vpar and theta.
-  !!
-  !! JPL
+  !> Diagnose particle flux contribution to toroidal momentum flux
+  !> in the lab frame in terms of vpar and theta.
   subroutine pflux_vs_theta_vs_vpa (vflx)
 #ifdef LOWFLOW   
     use dist_fn_arrays, only: gnew, aj0
@@ -7420,7 +7470,6 @@ endif
     implicit none
 
     real, dimension (-ntgrid:,:,:), intent (out) :: vflx
-    !This whole routine will return zero when not using lowflow so move directive to here <DD>
 #ifdef LOWFLOW  
     integer :: all = 1
     integer :: iglo, isgn, ig, it, ik, is
@@ -7542,7 +7591,7 @@ endif
 ! Density: Calculate Density perturbations
  !=============================================================================
  
- !> FIXME : Add documentation
+ !> Calculate the external current in the antenna
  subroutine get_jext(j_ext)
    use kt_grids, only: ntheta0, naky,aky, kperp2
    use theta_grid, only: jacob, delthet, ntgrid
@@ -7550,7 +7599,7 @@ endif
    implicit none
    !Passed
    !Intent(in) only needed as initialised to zero at top level
-   real, dimension(:,:), intent(in out) ::  j_ext 
+   real, dimension(:,:), intent(in out) ::  j_ext
    !Local 
    complex, dimension(:,:,:), allocatable :: j_extz
    integer :: ig,ik, it                             !Indices
@@ -7590,7 +7639,14 @@ endif
     
   end subroutine get_jext
 
-  !> FIXME : Add documentation
+  !> Calculate some heating quantities:
+  !> - ion/electron heating
+  !> - antenna power and B-field contributions to E and E_dot
+  !> - gradient contributions to heating
+  !> - hyperviscosity
+  !> - hyperresistivity
+  !>
+  !> FIXME: This is too large and does too much, split into smaller routines
   subroutine get_heat (h, hk, phi, apar, bpar, phinew, aparnew, bparnew)
     use mp, only: proc0
     use constants, only: zi
@@ -8292,8 +8348,13 @@ endif
     call init_wstar
   end subroutine reset_physics
 
-  !> FIXME : Add documentation    
-  subroutine get_verr (errest, erridx, phi, bpar)    
+  !> Error estimate obtained by comparing standard integral with less-accurate integral
+  !>
+  !> Estimate of the (1) absolute and (2) relative errors resulting from velocity space
+  !> integrals in the calculation of the following quantities in the given dimensions: (1)
+  !> k phi, energy (2) k phi, untrapped pitch angles (3) k phi, trapped pitch angles, (4)
+  !> k apar, energy, (5) k apar, untrapped angles. Relative errors should be < 0.1.
+  subroutine get_verr (errest, erridx, phi, bpar)
     use mp, only: broadcast
     use le_grids, only: integrate_species
     use le_grids, only: eint_error, trap_error, lint_error, wdim
@@ -8308,17 +8369,17 @@ endif
     use collisions, only: etol, ewindow, etola, ewindowa
     use collisions, only: vnmult, vary_vnew
 
-    ! TEMP FOR TESTING -- MAB
-!    use gs2_layouts, only: il_idx
-!    use theta_grid, only: bmag, bmax
-!    use le_grids, only: al
-
     implicit none
 
     integer :: ig, it, ik, iglo, isgn, ntrap
 
+    !> Indices of maximum error.
+    !> FIXME: Make this fixed size
     integer, dimension (:,:), intent (out) :: erridx
+    !> Estimated error.
+    !> FIXME: Make this fixed size.
     real, dimension (:,:), intent (out) :: errest
+    !> Electrostatic potential and parallel magnetic field
     complex, dimension (-ntgrid:,:,:), intent (in) :: phi, bpar
 
     complex, dimension (:,:,:), allocatable :: phi_app, apar_app
@@ -8594,7 +8655,9 @@ endif
 
   end subroutine estimate_error
 
-  !> FIXME : Add documentation  
+  !> Error estimate based on monitoring amplitudes of legendre polynomial coefficients.
+  !>
+  !> FIXME: finish documentation
   subroutine get_gtran (geavg, glavg, gtavg, phi, bpar)
     use le_grids, only: legendre_transform, nlambda, ng2, nesub, jend
     use theta_grid, only: ntgrid
@@ -8722,7 +8785,8 @@ endif
 
   end subroutine get_gtran
 
-  !> FIXME : Add documentation  
+  !> Write Lagrange interpolating function value at interpolating
+  !> points specified by `xloc` to text file with suffix `.interp`
   subroutine write_poly (phi, bpar, last, istep)
     use file_utils, only: open_output_file, close_output_file
     use dist_fn_arrays, only: gnew, aj0, g_adjust
@@ -8735,27 +8799,26 @@ endif
 
     implicit none
 
+    !> Electrostatic potential and parallel magnetic field
     complex, dimension (-ntgrid:,:,:), intent (in) :: phi, bpar
+    !> If true, also close the file
     logical, intent (in) :: last
+    !> Simulation timestep
     integer, intent (in) :: istep
 
     complex, dimension (:,:,:,:,:), allocatable :: lpoly
     integer :: iglo, isgn, ix, ig, tsize
-!    logical, save :: first = .true.
     integer, save :: interp_unit
 
     allocate(lpoly(-ntgrid:ntgrid,ntheta0,naky,negrid,2*nterp-1))
 
     if (proc0) then
-!       if (first) then 
        if (.not. lpolinit) then
           call open_output_file (interp_unit, ".interp")
           lpolinit = .true.
-!          first = .false.
        end if
     end if
 
-! why not phinew, bparnew?   MAB
     call g_adjust (gnew, phi, bpar, fphi, fbpar)
 
 ! take gyro-average of h at fixed total position (not g.c. position)
@@ -8788,7 +8851,7 @@ endif
 
   end subroutine write_poly
 
-  !> FIXME : Add documentation  
+  !> Write \(g(v_\parallel,v_\perp)\) at `ik=it=is=1, ig=0` to text file `<runname>.dist`
   subroutine write_f (last)
     use mp, only: proc0, send, receive
     use file_utils, only: open_output_file, close_output_file, get_unused_unit
@@ -8805,7 +8868,7 @@ endif
     integer, save :: unit
     real :: vpa, vpe
     complex, dimension(2) :: gtmp
-!    logical :: first = .true.
+    !> If true, also close the file
     logical, intent(in)  :: last 
 
     real, dimension (:,:), allocatable, save :: xpts
@@ -8816,27 +8879,21 @@ endif
        allocate(ypts(nlambda))
 
     ! should really just get rid of xpts and ypts
-!    if (first) then
        xpts(1:negrid-1,:) = zeroes(1:negrid-1,:)
        xpts(negrid,:) = x0(:)
-!       xpts = 0.0
        ypts = 0.0
        ! change argument of bmag depending on which theta you want to write out
        do il=1,nlambda
           if (1.0-al(il)*bmag(0) .gt. 0.0) ypts(il) = sqrt(1.0-al(il)*bmag(0))
        end do
-!    end if
 
        if (proc0) then
-!       if (first) then 
           call open_output_file (unit, ".dist")
           write(unit, *) negrid*nlambda
-!          first = .false.
        end if
     endif
 
     do iglo = g_lo%llim_world, g_lo%ulim_world
-       ! writing out g(vpar,vperp) at ik=it=is=1, ig=0
        ik = ik_idx(g_lo, iglo) ; if (ik /= 1) cycle
        it = it_idx(g_lo, iglo) ; if (it /= 1) cycle
        is = is_idx(g_lo, iglo) ; if (is /= 1) cycle
@@ -8866,7 +8923,8 @@ endif
     
   end subroutine write_f
 
-  !> FIXME : Add documentation  
+  !> Write distribution function (\(g\) or possibly \(f\)?) in real space to text file
+  !> "<runname>.yxdist"
   subroutine write_fyx (phi,bpar,last)
     use mp, only: proc0, send, receive, barrier
     use file_utils, only: open_output_file, close_output_file, flush_output_file
@@ -8881,8 +8939,9 @@ endif
 #ifdef SHMEM
     use shm_mpi3, only: shm_alloc, shm_free
 #endif
-
+    !> Electrostatic potential and parallel magnetic field
     complex, dimension (-ntgrid:,:,:), intent (in) :: phi, bpar
+    !> If true, also close the file
     logical, intent (in) :: last
 
     real, dimension (:,:), allocatable :: grs, gzf
@@ -8896,7 +8955,6 @@ endif
     real :: gp0, gp0zf
     integer :: ig, it, ik, il, ie, is, iyxlo, isign, ia, iaclo, iglo, acc
     integer, save :: unit
-!    logical :: first = .true.
 
     if (accelerated) then
 #ifndef SHMEM
@@ -8921,7 +8979,6 @@ endif
        grs = 0.0; gzf = 0.0; gp0 = 0.0; gp0zf = 0.0
     end if
 
-!    if (first) then
     if (.not. fyxinit) then
        if (proc0) then
           acc = 0
@@ -8930,7 +8987,6 @@ endif
           write(unit,*) 2*negrid*nlambda, bmag(0), acc
        end if
 
-!       first = .false.
        fyxinit = .true.
     end if
 
@@ -9073,8 +9129,8 @@ endif
 
   end subroutine write_fyx
 
-  !> This routine is also in diagnostics/diagnostics_velocity_space.f90
-  subroutine collision_error (phi, bpar, last)   
+  !> Calculate the collision error and write to text file `<runname>.cres`
+  subroutine collision_error (phi, bpar, last)
     use mp, only: proc0, send, receive, barrier
     use le_grids, only: ng2, jend, nlambda, lambda_map
     use theta_grid, only: ntgrid
@@ -9089,6 +9145,7 @@ endif
     implicit none
 
     complex, dimension (-ntgrid:,:,:), intent (in) :: phi, bpar
+    !> If true, close the file
     logical, intent (in) :: last
 
     integer :: je, te, ig, il, ip, ilz, ie, is, ik, it
@@ -9304,9 +9361,11 @@ endif
     linked = boundary_option_switch == boundary_option_linked
   end subroutine boundary
 
-  !> FIXME : Add documentation
-  !!
-  !! @note This subroutine only returns epar correctly for linear runs.
+  !> Calculate \(E_\parallel\)
+  !>
+  !> @note This subroutine only returns epar correctly for linear runs.
+  !>
+  !> FIXME: Add equation
   subroutine get_epar (phi, apar, phinew, aparnew, epar)
 
     use theta_grid, only: ntgrid, delthet, gradpar

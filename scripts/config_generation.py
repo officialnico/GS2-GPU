@@ -246,7 +246,7 @@ class config():
                 name = 2*indent + val
             else:
                 # Add to the existing name
-                if len(name) is not 0:
+                if len(name) != 0:
                     name += sep + val
                 else:
                     name = val
@@ -299,7 +299,7 @@ class config():
                     name = val
                 else:
                     # Add to the existing name
-                    if len(name) is not 0:
+                    if len(name) != 0:
                         name += sep + val
                     else:
                         name = val

@@ -20,6 +20,7 @@ stages:
 .install_main_packages: &install_main_packages
   - dnf install -y ${BASIC_PACKAGES} ${GS2_PACKAGES} ${PYTHON_PACKAGES} ${EXTRA_PACKAGES}
   - if [ "x"${WITH_MPI} == "xyes" ]; then source /etc/profile.d/modules.sh ; module load mpi ; echo 'MPI_LIB=' > Makefile.local ; fi #Note the MPI_LIB is needed until we namespace our Makefile variables
+  - if [ "x"${WITH_PYTHON} == "xyes" ]; then pip3 install -U pip; fi
   - if [ "x"${WITH_PYTHON} == "xyes" ]; then pip3 install -r requirements.txt; fi
 
 .create_user: &create_user
@@ -102,6 +103,8 @@ gfortran10_standard_tests:
   image: fedora:33
   variables:
     CASENAME: "gfortran_10"
+    EXTRA_PACKAGES: "lapack lapack-devel"
+    EXTRA_MAKE_FLAGS: "USE_LAPACK=on LAPACK_LIB=-llapack"
 #Disable pfunit tests for now as v3 doesn't support gfortran 10 so it fails to build.
     GK_CI_PFUNIT: ""
   script: *default_script
@@ -132,7 +135,7 @@ intel_tests:
   script:
     - dnf config-manager --add-repo https://yum.repos.intel.com/oneapi
     - rpmkeys --import https://yum.repos.intel.com/intel-gpg-keys/GPG-PUB-KEY-INTEL-SW-PRODUCTS.PUB
-    - dnf install -y intel-oneapi-compiler-fortran*
+    - dnf install -y intel-oneapi-compiler-fortran
     - source /opt/intel/oneapi/compiler/latest/env/vars.sh
     - . /opt/intel/oneapi/setvars.sh intel64
     - su -c "./pipeline_test_scripts/ci_build_and_run.sh" theuser
@@ -140,18 +143,19 @@ intel_tests:
 
 coverage_standard_tests:
   stage: test
-  image: fedora:28
+  image: fedora:29
   variables:
     CASENAME: "standard+coverage+debug+onestep"
     GK_CI_INTEGRATED: ""
     GK_CI_PFUNIT_COVERAGE: "ON"
     EXTRA_MAKE_FLAGS: "USE_GCOV=on DEBUG=on ONE_STEP_PP=on"
     GK_MAKEFILE_LOCAL_EXTRA_FLAGS: "F90FLAGS += -ffree-form"
+    COVERALLS_SERVICE_NAME: "gitlab-ci"
   script: *default_script
   after_script:
     - *push_status
-    - pip3 install cpp-coveralls
-    - coveralls
+    - pip3 install git+https://github.com/d7919/cpp-coveralls.git
+    - coveralls --exclude tests --exclude externals/pFUnit_build
 
 onestep_standard_tests:
   stage: test

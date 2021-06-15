@@ -24,9 +24,9 @@ contains
     ! We have to initialize_gs2 so that we 
     ! can read the optimisation_config namelist
     !call initialize_wall_clock_timer
-    call initialize_gs2(state)
+    call initialize_gs2(state, quiet=.true.)
     call init_optimisation_config(state%optim)
-    call finalize_gs2(state)
+    call finalize_gs2(state, quiet=.true.)
   end subroutine initialize_gs2_optimisation
 
   !> FIXME : Add documentation  

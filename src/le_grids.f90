@@ -228,7 +228,7 @@ module le_grids
   logical :: exist
 
  ! knobs
-  integer :: ngauss, negrid, nesuper, nesub
+  integer :: ngauss, npassing, negrid, nesuper, nesub
   real :: bouncefuzz, vcut
   logical :: genquad
 
@@ -278,7 +278,7 @@ module le_grids
      !> B(theta) < -bouncefuzz`. This provides a small "buffer" to
      !> account for floating round off in the calculation of `lambda`
      !> and `B`.
-     real :: bouncefuzz = 1e-5
+     real :: bouncefuzz = 10*epsilon(0.0)
      !> If true use generalised quadrature scheme for velocity
      !> integrals and energy grid. See [G. Wilkie
      !> thesis](https://drum.lib.umd.edu/handle/1903/17302).
@@ -300,9 +300,13 @@ module le_grids
      !> difference method.
      logical :: new_trap_int = .false.
      !> The number of untrapped pitch-angles moving in one direction
-     !> along field line is `2*ngauss`. Note that the number of
-     !> trapped pitch angles is directly related to the number of
-     !> theta grid points (per \(2\pi\)) and is `ntheta/2 + 1`.
+     !> along field line.
+     integer :: npassing = -1
+     !> The number of untrapped pitch-angles moving in one direction
+     !> along field line is `2*ngauss` if [[le_grids_knobs::npassing]] is
+     !> not set. Note that the number of trapped pitch angles is
+     !> directly related to the number of theta grid points (per
+     !> \(2\pi\)) and is `ntheta/2 + 1`.
      integer :: ngauss = 5
      !> Influences the minimum number of grid points in an integration
      !> subinterval used in calculating the integration grid weights.
@@ -511,6 +515,7 @@ contains
     nesub = le_grids_config%nesub
     nesuper = le_grids_config%nesuper
     new_trap_int = le_grids_config%new_trap_int
+    npassing = le_grids_config%npassing
     ngauss = le_grids_config%ngauss
     nmax = le_grids_config%nmax
     nterp = le_grids_config%nterp
@@ -531,6 +536,13 @@ contains
        nesuper = min(negrid/10+1, 4)
        nesub = negrid - nesuper
     endif
+
+    ! Set ng2 from ngauss if not specified in the input file
+    if (npassing < 0) then
+       ng2 = 2 * ngauss
+    else
+       ng2 = npassing
+    end if
 
   end subroutine read_parameters
 
@@ -561,9 +573,12 @@ contains
 
   end subroutine init_integrations
 
-  !> FIXME : Add documentation  
+  !> Calculates energy grid and (untrapped) pitch angle weights for
+  !> integrals which drop a point from the energy/lambda
+  !> dimensions. These are only used for estimating the velocity space
+  !> error in [[dist_fn::get_verr]] as a part of the adaptive
+  !> collisionality algorithm.
   subroutine init_weights
-
     use file_utils, only: open_output_file, close_output_file
     use egrid, only: zeroes
     use constants, only: pi => dpi
@@ -730,7 +745,10 @@ contains
           deallocate (divpts)
        end if
 
-! check to make sure the weights do not get too large
+       ! check to make sure the weights do not get too large
+       ! @Warning: This looks a bit unusual -- we're taking the magnitude of
+       ! the maximum value, whilst usually we would find the maximum value of
+       ! the magnitude.
        if (abs(maxval(wgts)) .gt. wgt_max) then
           if (maxpts .lt. 3) then
              err_flag = .true.
@@ -746,7 +764,26 @@ contains
 
   end subroutine get_weights
 
-  !> FIXME : Add documentation  
+  !> Used by [[get_weights]] to find the Lagrange quadrature weights for the given grid.
+  !>
+  !> Suppose we wish to calculate Int(f[x] dx) over the range [llim, ulim].
+  !> We could approximate f[x] by the Lagrange interpolating polynomial -->
+  !> f[x] ~ Sum_i{ f[x_i] l_i(x)} where. the Lagrange polynomial is given by
+  !> l_i(x) = Pi_j{ (x - x_i)/(x_i - x_j) }. Hence our integral can be written as
+  !> I = Int(f[x] dx) ~ Sum_i{ f[x_i] Int(Pi_j{ (x - x_i)/(x_i - x_j) })} so
+  !> I ~ Sum_i{f[x_i] c_i} with c_i = Int(Pi_j{ (x - x_i)/(x_i - x_j) }). Here
+  !> we are calculating the `c_i` values which are passed out as [[wgts]] corresponding
+  !> to the set of positions {x_i} set by [[nodes]]. To evaluate the integral
+  !> of the Lagrange polynomial coefficients we adopt Gauss-Legendre quadrature,
+  !> which allows highly accurate evaluation of polynomials of degree 2*N-1.
+  !> Given the need to find M weights we find we only need Gauss-Legendre of order
+  !> N = (M + 1)/2. Here we actually use degree (M/2) + 1.
+  !>
+  !> One limitation of Lagrange polynomials is their lack of numerical stability
+  !> at high order (i.e. when M is large, typically > 20 is quoted as a limit).
+  !> The routine [[get_weights]] allows the integration domain to be sub-divided
+  !> in order to limit the Lagrange order and reduce the variation in weights.
+  !> This is partially controlled by the input [[nmax]].
   subroutine get_intrvl_weights (llim, ulim, nodes, wgts)
     use gauss_quad, only: get_legendre_grids_from_cheb
     
@@ -2070,10 +2107,13 @@ contains
     use egrid, only: setvgrid, x0, x0_maxw, zeroes, zeroes_maxw
     use species, only: nspec, spec, f0_maxwellian
     use theta_grid, only: init_theta_grid, ntgrid, nbset, bset, eps_trapped
+    use file_utils, only: open_output_file, close_output_file
+    use mp, only: proc0
     implicit none
 
     integer :: tsize,is
     logical :: has_maxwellian_species
+    integer :: unit
 
     call init_theta_grid
     call init_species
@@ -2107,8 +2147,6 @@ contains
     dele(1,:) = energy(1,:)
     dele(2:,:) = energy(2:,:)-energy(:negrid-1,:)
 
-    ng2 = 2*ngauss
-
     if (trapped_particles .and. eps_trapped > epsilon(0.0)) then
        nlambda = ng2+nbset
        lmax = nlambda-1
@@ -2129,7 +2167,189 @@ contains
     call lgridset
     delal(1) = al(1)
     delal(2:) = al(2:) - al(:nlambda-1)
+
+    if (proc0) then
+       call open_output_file(unit, '.vspace_integration_error')
+       call report_velocity_integration_error_estimate(unit)
+       call close_output_file(unit)
+    end if
+
   end subroutine set_grids
+
+  !> Calculate estimates of the velocity space integration errors
+  !> and report to screen / specified unit.
+  !>
+  !> This error estimate provides an estimate on the lower bound
+  !> for the error on subsequent calls to integrate_species/integrate_moment
+  !> Alternative error estimates can be calculated following the approach
+  !> adopted in [[dist_fn::get_verr]].
+  subroutine report_velocity_integration_error_estimate(unit_in)
+    use iso_fortran_env, only: output_unit
+    use theta_grid, only: ntgrid, bmag, bmax
+    use species, only: nspec
+    ! Note in fortran 2008 we could just use the erf intrinsic
+    use spfunc, only: erf_ext
+    use constants, only: pi
+    implicit none
+
+    integer, intent(in), optional :: unit_in
+    real, parameter :: expected_lambda = 2.0, expected_energy = 0.25
+    real, dimension(:), allocatable :: lambda_error, energy_error, b_ratio
+    real, dimension(:), allocatable :: passing_error, expected_passing
+    real, dimension(:), allocatable :: trapped_error, expected_trapped
+    real, dimension(:), allocatable :: energy_sub_error, energy_super_error
+    real, dimension(:, :), allocatable :: mixed_error, mixed_value
+    real :: expected_energy_sub, expected_energy_super
+    integer :: unit, ie, ig, is
+
+    unit = output_unit
+    if (present(unit_in)) unit = unit_in
+
+    !Get estimates of the error on the integration weights.
+
+    ! Total pitch angle grid
+    allocate(lambda_error(-ntgrid:ntgrid))
+    lambda_error = 0.0
+    do ig = -ntgrid, ntgrid
+       lambda_error(ig) = expected_lambda - sum(wl(ig, :))
+    end do
+    ! Introduce factor 2 here to account for sigma doubling
+    lambda_error = 2*lambda_error
+
+    ! Passing pitch angle grid
+    allocate(passing_error(-ntgrid:ntgrid))
+    passing_error = 0.0
+    allocate(expected_passing(-ntgrid:ntgrid))
+    allocate(b_ratio(-ntgrid:ntgrid))
+    b_ratio = bmax / bmag
+    ! This is the analytic integral of the function we weight the Legendre
+    ! weights by over the passing region, i.e.
+    ! 2.0*sqrt((bmag(ig)/bmax)*((1.0/bmax-al(il))/(1.0/bmag(ig)-al(il)))
+    ! Note to integrate this correctly it is useful to transform from lambda
+    ! to the Legendre variable xx, through xx = sqrt(1-lambda*bmax)
+    ! The weight function then becomes:
+    ! 2.0*sqrt(bmag/bmax) * sqrt([xx^2]/[(bmax/bmag)-1+xx^2])
+    ! and we would integrate from xx=0 to xx=1
+    ! Note this analytic result and comparison is appropriate when
+    ! Radau_Gauss_Grid = F.  When this is not the case (default) then
+    ! the calculation of the passing and trapped errors from this
+    ! analytic result is no longer appropriate as the wfb contains
+    ! contributions from both the passing and trapped regions when
+    ! bmag = bmax, and as such our comparison is only valid away from
+    ! where bmag=bmax.
+    expected_passing = 2.0 * (1 - sqrt(b_ratio - 1)/sqrt(b_ratio))
+    do ig = -ntgrid, ntgrid
+       passing_error(ig) = expected_passing(ig) - sum(wl(ig, :ng2))
+    end do
+    ! Introduce factor 2 here to account for sigma doubling
+    passing_error = 2*passing_error
+
+    ! Trapped pitch angle grid
+    allocate(trapped_error(-ntgrid:ntgrid))
+    trapped_error = 0.0
+    ! Only calculate this if we have any trapped pitch angles
+    if (nlambda > ng2) then
+       allocate(expected_trapped(-ntgrid:ntgrid))
+       ! We're essentially just subtracting the passing analytic
+       ! result from the total expectation, i.e. effectively
+       !  expected_trapped = expected_lambda - expected_passing
+       expected_trapped = 2.0 * sqrt(b_ratio - 1)/sqrt(b_ratio)
+       do ig = -ntgrid, ntgrid
+          trapped_error(ig) = expected_trapped(ig) - sum(wl(ig, ng2+1:))
+       end do
+       !Introduce factor 2 here to account for sigma doubling
+       trapped_error = 2*trapped_error
+    end if
+
+    ! Total energy grid
+    allocate(energy_error(nspec))
+    energy_error = 0.0
+    do is = 1, nspec
+       energy_error(is) = expected_energy - sum(w(:,is))
+    end do
+
+    ! Energy sub grid
+    allocate(energy_sub_error(nspec))
+    energy_sub_error = 0.0
+    ! NOTE: This assumes we are considering a species with Maxwellian
+    ! background such that f0_values = exp(-energy)/pi^3/2
+    ! We are analytically evaluating
+    ! Integral_0^vcut{v^2 * pi * f0_values dv}
+    ! Assuming Maxwellian this becomes
+    ! Integral_0^vcut{v^2 exp(-v^2)/sqrt(pi) dv}
+    ! Which has result:
+    ! (1/4) [ erf(vcut) - 2 vcut exp(-vcut^2)/sqrt(pi)]
+    expected_energy_sub = 0.25 * ( erf_ext(vcut) - 2*vcut*exp(-vcut*vcut)/sqrt(pi))
+    do is = 1, nspec
+       energy_sub_error(is) = expected_energy_sub - sum(w(:nesub,is))
+    end do
+
+    ! Energy super grid
+    allocate(energy_super_error(nspec))
+    energy_super_error = 0.0
+    if (negrid > nesub) then
+       ! NOTE: This assumes we are considering a species with Maxwellian
+       ! background such that f0_values = exp(-energy)/pi^3/2
+       ! We are analytically evaluating
+       ! Integral_0^infinity{sqrt(y+vcut^2) * exp(y) * pi * f0_values * W(y) dy}/2
+       ! where W(y) are the Laguerre weights = exp(-y)
+       ! Assuming Maxwellian this becomes
+       ! Integral_0^infinity{sqrt(y+vcut^2) * exp(y) * exp(-(y+vcut^2)) * exp(-y) dy}/2
+       ! which simplifies slightly to
+       ! Integral_0^infinity{sqrt(y+vcut^2) * exp(-(vcut^2)) * exp(-y) dy}/2
+       ! Which has result:
+       ! [sqrt(pi)*erfc(vcut)/2 + vcut*exp(-vcut^2)]/(2*sqrt(pi))
+       expected_energy_super =  0.5*(sqrt(pi)*(1-erf_ext(vcut))/2 + vcut*exp(-vcut*vcut))/sqrt(pi)
+       do is = 1, nspec
+          energy_super_error(is) = expected_energy_super - sum(w(nesub+1:,is))
+       end do
+    end if
+
+    allocate(mixed_error(-ntgrid:ntgrid, nspec))
+    allocate(mixed_value(size(wl(0,:)), size(w(:,1))))
+    mixed_error = 0.0
+    do is = 1, nspec
+       do ig = -ntgrid, ntgrid
+          mixed_value = 0.0
+          do ie = 1, size(w(:,1))
+             mixed_value(:, ie) = wl(ig,:)*w(ie, is)
+          end do
+          mixed_error(ig, is) = expected_lambda*expected_energy - sum(mixed_value)
+       end do
+    end do
+
+    ! Introduce factor 2 here to account for sigma doubling
+    mixed_error = 2 * mixed_error
+
+    ! Report errors to unit
+    call report_error(unit, "Lambda", lambda_error)
+    call report_error(unit, "Passing", passing_error)
+    call report_error(unit, "Trapped", trapped_error)
+    call report_error(unit, "Energy", energy_error)
+    call report_error(unit, "Energy_Sub", energy_sub_error)
+    call report_error(unit, "Energy_Super", energy_super_error)
+    call report_error_2d(unit, "Mixed", mixed_error)
+
+  contains
+    subroutine report_error(unit, name, error)
+      implicit none
+      integer, intent(in) :: unit
+      character(len=*), intent(in) :: name
+      real, dimension(:), intent(in) :: error
+      write(unit, '(A," weights errors, max/mean/mean(|error|)  :",3(E14.6E3," "))') &
+           name, maxval(abs(error)), sum(error)/size(error), sum(abs(error))/size(error)
+    end subroutine report_error
+
+    subroutine report_error_2d(unit, name, error)
+      implicit none
+      integer, intent(in) :: unit
+      character(len=*), intent(in) :: name
+      real, dimension(:, :), intent(in) :: error
+      write(unit, '(A," weights errors, max/mean/mean(|error|)  :",3(E14.6E3," "))') &
+           name, maxval(abs(error)), sum(error)/size(error), sum(abs(error))/size(error)
+    end subroutine report_error_2d
+
+  end subroutine report_velocity_integration_error_estimate
 
   !> FIXME : Add documentation  
   subroutine lgridset
@@ -2150,7 +2370,7 @@ contains
     integer :: ig, il, ndiv, divmax, divmaxerr, ndiverr
 
 
-    allocate (xx(2*ngauss))
+    allocate (xx(ng2))
     if(radau_gauss_grid .and. nlambda > ng2 ) then
         
         ! This grid uses a fixed endpoint such that il = ng2+1 has a finite weight at bounce points
@@ -2158,12 +2378,12 @@ contains
         ! which is why xx, wx are one element longer than the standard Legendre Gauss grid
         ! This grid should only be used when nlambda > ng2, i.e. there is a wfb and trapped particles
  
-        allocate (xx_radau(2*ngauss +1))
-        allocate (wx(2*ngauss +1))
+        allocate (xx_radau(ng2 +1))
+        allocate (wx(ng2 +1))
         call get_radau_gauss_grids(0.,1., xx_radau, wx,report_in=.false.) 
         xx = xx_radau(:ng2)
     else
-        allocate (wx(2*ngauss))
+        allocate (wx(ng2))
         call get_legendre_grids_from_cheb (1., 0., xx, wx)
     end if
     wl = 0.0
@@ -2199,7 +2419,35 @@ contains
        return
     end if
 
-! pick integration method (new=high-order interp, old=finite difference)
+    ! pick integration method (new=high-order interp, old=finite difference)
+
+    ! The new method uses Lagrange polynomial interpolation to provide an accurate
+    ! approximation of the integration over the trapped region. The old method
+    ! effectively uses the trapezium rule to integrate. In both cases the integration
+    ! variable is the parallel velocity spanning the range [-v_||_wfb, v_||_wfb].
+    ! Both methods give zero weight to the wfb at the locations where B == Bmax.
+    ! Generally the old method appears to be accurate to at most single precision,
+    ! whilst the new method is more accurate, reaching the double precision round off
+    ! level even with just a few trapped pitch angles. It can be noted that the the
+    ! old method can reach the same level of accuracy at some theta grid points but
+    ! not all. Further work may be able to optimise the grid to avoid these locations.
+    ! There are a number of reasons why we may not want to make new_trap_int default to
+    ! true, including :
+    !
+    !   1. It is not compatible with radau_gauss_grid = T (which is the default).
+    !   2. One might expect high order Lagrange interpolation to be unstable so may
+    !      anticipate that the new method will not work well at higher ntheta. Empirically
+    !      it seems this does not become an issue here. Further, the input `nmax` can be
+    !      used to limit the maximum Lagrange order used by splitting the domain.
+    !   3. For large ntheta the new method leads to slow initialisation. This is due to
+    !      the calculation of the error coefficients for use with get_verr. This could
+    !      perhaps be optmised.
+    !
+    ! Both points 2 and 3 could be avoided to some extent if the
+    ! trapped pitch angle grid resolution is decoupled from the theta
+    ! grid resolution. It may be possible to make the new approach
+    ! compatible with radau_gauss_grid or we may decide
+    ! radau_gauss_grid should default to false.
     if (new_trap_int) then
 
 ! wlterr contains weights for less accurate trapped integrals (for error estimation)
@@ -2252,6 +2500,10 @@ contains
 !          call lagrange_coefs (ig, yb, lgrnge(ig,:,:,:), xloc(ig,:))
 
 ! gets grid point weights for trapped particle integral
+
+             ! Note : Here ulim and llim are the upper and lower vpar values for the
+             ! valid trapped pitch angles at this theta location. In other words
+             ! ulim == v_||_wfb(theta(ig)) = sqrt(max(1.0-al(ng2+1)*bmag(ig),0.0))
              ulim = sqrt(max(1.0-bmag(ig)/bmax,0.0))
              llim = -ulim
 
@@ -2265,6 +2517,17 @@ contains
 
 ! can't get error estimate for npts = 0 or 1
              if (npts > 1) then
+                ! This section is all to calculate wberr/wlterr which is just used
+                ! in trap_error, which in turn is only used in get_verr. This is used
+                ! as a part of the vary_vnew adaptive collisionality code triggered
+                ! through the diagnostics. This loop is rather expensive for high
+                ! theta resolution - measured in the order of 4-5 minutes for ntheta=256.
+                ! As such we might want to consider skipping this if the variable vnewk
+                ! code is not active. As we do this for each npt and each theta, and npt
+                ! ~ntheta/2 we might expect this to scale quadratically with ntheta. In
+                ! practice it seems to scale somewhat worse than this. This may in part
+                ! be due to an increase in the number of iterations required in get_weights
+                ! such that this may scale closer to ntheta cubed.
                 do ix=1,npts
 
                    if (ix == 1) then
@@ -4060,7 +4323,7 @@ contains
     call le_grids_config%reset()
   end subroutine finish_le_grids
 
-  !> FIXME : Add documentation  
+  !> Deallocate the weights used to provide error estimates
   subroutine finish_weights
     if (allocated(werr)) deallocate (werr)
     if (allocated(wlerr)) deallocate (wlerr)
@@ -4101,7 +4364,7 @@ contains
     logical :: genquad, new_trap_int, radau_gauss_grid, test, trapped_particles
     real :: bouncefuzz, vcut, wgt_fac
 
-    namelist /le_grids_knobs/ bouncefuzz, genquad, negrid, nesub, nesuper, new_trap_int, ngauss, nmax, nterp, radau_gauss_grid, test, trapped_particles, vcut, wgt_fac
+    namelist /le_grids_knobs/ bouncefuzz, genquad, negrid, nesub, nesuper, new_trap_int, npassing, ngauss, nmax, nterp, radau_gauss_grid, test, trapped_particles, vcut, wgt_fac
 
     ! Only proc0 reads from file
     if (.not. proc0) return
@@ -4113,6 +4376,7 @@ contains
     nesub = self%nesub
     nesuper = self%nesuper
     new_trap_int = self%new_trap_int
+    npassing = self%npassing
     ngauss = self%ngauss
     nmax = self%nmax
     nterp = self%nterp
@@ -4141,6 +4405,7 @@ contains
     self%nesub = nesub
     self%nesuper = nesuper
     self%new_trap_int = new_trap_int
+    self%npassing = npassing
     self%ngauss = ngauss
     self%nmax = nmax
     self%nterp = nterp
@@ -4172,6 +4437,7 @@ contains
     call self%write_key_val("nesub", self%nesub, unit_internal)
     call self%write_key_val("nesuper", self%nesuper, unit_internal)
     call self%write_key_val("new_trap_int", self%new_trap_int, unit_internal)
+    call self%write_key_val("npassing", self%npassing, unit_internal)
     call self%write_key_val("ngauss", self%ngauss, unit_internal)
     call self%write_key_val("nmax", self%nmax, unit_internal)
     call self%write_key_val("nterp", self%nterp, unit_internal)
@@ -4205,6 +4471,7 @@ contains
     call broadcast(self%nesub)
     call broadcast(self%nesuper)
     call broadcast(self%new_trap_int)
+    call broadcast(self%npassing)
     call broadcast(self%ngauss)
     call broadcast(self%nmax)
     call broadcast(self%nterp)
