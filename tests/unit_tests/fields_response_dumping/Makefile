@@ -2,7 +2,7 @@
 sinclude ../Makefile.tests_common
 
 clean_local_test:
-	-$(QUIETSYM)rm -f test_fields_response_dumping
+	-$(QUIETSYM)rm -f test_fields_response_dumping gs2 OUTPUT_TEST
 clean_individual_test: clean_local_test
 
 ifdef TESTNORUN
