@@ -781,7 +781,6 @@ clean: cleanobjs cleanpreprocess clean_simpledataio
 cleanobjs:
 	$(call messageRm,"Object and module files")
 	-$(QUIETSYM)rm -rf $(OBJDIR)/*.o $(MODDIR)/*.mod *.o *.mod
-	-$(QUIETSYM)rm -rf *.L
 
 cleandirs:
 	$(call messageRm,"Directories")
@@ -792,7 +791,7 @@ cleanpreprocess:
 	-$(QUIETSYM)rm -f $(F90FROMFPP)
 
 CLEANCOMMAND=echo $$$$PWD
-CLEANCOMMAND=rm -f *.o *.error *.out *.out.nc *.gridgen.200 *.lpc *.vres *.fields *.g *.fort.?? *.mod .*.scratch *.moments *.cdf *.jext *.parity *.heat *.heat2 *.vres2 *.amoments *.eigenfunc *.nc* *.mom2 *.epar .*.in results_of_test.txt *.stop *.fftw_wisdom *.phase *.kpar *.interp *.dist *.L
+CLEANCOMMAND=rm -f *.o *.error *.out *.out.nc *.gridgen.200 *.lpc *.vres *.fields *.g *.fort.?? *.mod .*.scratch *.moments *.cdf *.jext *.parity *.heat *.heat2 *.vres2 *.amoments *.eigenfunc *.nc* *.mom2 *.epar .*.in results_of_test.txt *.stop *.fftw_wisdom *.phase *.kpar *.interp *.dist
 
 ifdef CLEAN_TEXTFILES
 	CLEANCOMMAND+= *~ *.orig
