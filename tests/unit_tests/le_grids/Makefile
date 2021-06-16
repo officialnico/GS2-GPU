@@ -1,7 +1,9 @@
 
 sinclude ../Makefile.tests_common
 
-CLEANCOMMAND+= test_le_grids
+clean_local_test:
+	-$(QUIETSYM)rm -f test_le_grids
+clean_individual_test: clean_local_test
 
 ifdef TESTNORUN
 all: test_le_grids 

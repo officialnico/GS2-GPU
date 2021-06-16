@@ -1,7 +1,9 @@
 
 sinclude ../Makefile.tests_common
 
-CLEANCOMMAND+= *.{error,exit_reason,fort*,g,gridgen*,nc*,optim,out*} OUTPUT
+clean_local_test:
+	-$(QUIETSYM)rm -f *.{error,exit_reason,fort*,g,gridgen*,nc*,optim,out*} OUTPUT
+clean_individual_test: clean_local_test
 
 PYTHONCOMPARE=./compare.py initial.out.nc phi restart.out.nc phi
 

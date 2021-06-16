@@ -1,7 +1,9 @@
 
 sinclude ../Makefile.tests_common
 
-CLEANCOMMAND+= slab_itg_s_hat_0_low_res gs2_slab_itg
+clean_local_test:
+	-$(QUIETSYM)rm -f slab_itg_s_hat_0_low_res gs2_slab_itg
+clean_individual_test: clean_local_test
 
 COPY=cp ../../../bin/gs2 gs2_slab_itg
 

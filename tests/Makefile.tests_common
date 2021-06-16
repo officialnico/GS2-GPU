@@ -35,7 +35,6 @@ endif
 clean_individual_test:
 	$(call messageRm,"\\t$(TEST_NAME)")
 	-$(QUIETSYM)rm -f ${CLEAN_TEST_FILES}
-	-$(QUIETSYM)rm -f ${CLEANCOMMAND}
 
 upload:
 	$(UPLOADCOMMAND)

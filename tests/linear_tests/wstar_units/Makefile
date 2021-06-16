@@ -1,7 +1,9 @@
 
 sinclude ../Makefile.tests_common
 
-CLEANCOMMAND+= wstar_units
+clean_local_test:
+	-$(QUIETSYM)rm -f wstar_units
+clean_individual_test: clean_local_test
 
 ifdef TESTNORUN
 all: wstar_units 

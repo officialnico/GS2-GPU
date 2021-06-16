@@ -30,8 +30,10 @@ clean_individual_test: TEST_NAME = restarting
 link_gs2: clean_individual_test
 	@ln -sfv $(BINDIR)/gs2 ./gs2
 
+clean_local_test:
 # Also remove the gs2 symlink
-CLEANCOMMAND += ./gs2
+	-$(QUIETSYM)rm -f ./gs2
+clean_individual_test: clean_local_test
 
 all: link_gs2
 	$(call RUNCOMMAND,./test_restarting,--gs2="$(RESTART_EXEC)gs2")

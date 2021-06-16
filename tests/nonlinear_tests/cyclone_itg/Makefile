@@ -1,7 +1,9 @@
 
 sinclude ../Makefile.tests_common
 
-CLEANCOMMAND+= cyclone_itg_low_res
+clean_local_test:
+	-$(QUIETSYM)rm -f cyclone_itg_low_res
+clean_individual_test: clean_local_test
 
 ifdef TESTNORUN
 all: cyclone_itg_low_res
