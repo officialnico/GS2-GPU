@@ -89,7 +89,7 @@ clean_tests: clean_unit_tests clean_linear_tests clean_nonlinear_tests
 	@echo -n ''
 
 clean_benchmarks:
-	$(QUIETSYM)$(MAKE) clean -C $(TEST_DIR)/benchmarks TEST_TYPE=Benchmarks --no-print-directory
+	$(QUIETSYM)$(MAKE) clean_test_type -C $(TEST_DIR)/benchmarks TEST_TYPE=Benchmarks --no-print-directory
 
 unit_tests_no_message: | $(TEST_RESULT_DIR)
 unit_tests_no_message: $(OBJDIR)/unit_tests.o $(TEST_DEPS)
