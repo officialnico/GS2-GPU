@@ -804,15 +804,6 @@ cleanpreprocess:
 	$(call messageRm,"Processed files")
 	-$(QUIETSYM)rm -f $(F90FROMFPP)
 
-CLEANCOMMAND=echo $$$$PWD
-CLEANCOMMAND=rm -f *.o *.error *.out *.out.nc *.gridgen.200 *.lpc *.vres *.fields *.g *.fort.?? *.mod .*.scratch *.moments *.cdf *.jext *.parity *.heat *.heat2 *.vres2 *.amoments *.eigenfunc *.nc* *.mom2 *.epar .*.in results_of_test.txt *.stop *.fftw_wisdom *.phase *.kpar *.interp *.dist
-
-ifdef CLEAN_TEXTFILES
-	CLEANCOMMAND+= *~ *.orig
-endif
-
-export CLEANCOMMAND
-
 cleanlib:
 	$(call messageRm,"Libraries")
 	-$(QUIETSYM)rm -f $(LIBDIR)/*.a

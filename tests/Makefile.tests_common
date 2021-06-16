@@ -3,7 +3,7 @@ SHELL := bash
 include $(GK_HEAD_DIR)/Makefile.utils
 
 .SUFFIXES: .fpp .f90 .c .o
-.PHONY: all clean
+.PHONY: all clean_individual_test
 
 .f90.o:
 	$(call messageOp,"Compiling","\\t:",$<)
@@ -26,9 +26,16 @@ endif
 # This prevents error messages like m2c: Command not found
 %.o : %.mod
 
-clean:
+CLEAN_TEST_FILES=*.o *.error *.out *.out.nc *.gridgen.200 *.lpc *.vres *.fields *.g *.fort.?? *.mod .*.scratch *.moments *.cdf *.jext *.parity *.heat *.heat2 *.vres2 *.amoments *.eigenfunc *.nc* *.mom2 *.epar .*.in results_of_test.txt *.stop *.fftw_wisdom *.phase *.kpar *.interp *.dist
+
+ifdef CLEAN_TEXTFILES
+	CLEAN_TEST_FILES+= *~ *.orig
+endif
+
+clean_individual_test:
 	$(call messageRm,"\\t$(TEST_NAME)")
-	$(QUIETSYM)$(CLEANCOMMAND)
+	-$(QUIETSYM)rm -f ${CLEAN_TEST_FILES}
+	-$(QUIETSYM)rm -f ${CLEANCOMMAND}
 
 upload:
 	$(UPLOADCOMMAND)
