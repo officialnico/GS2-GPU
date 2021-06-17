@@ -117,6 +117,9 @@ ONE_STEP_PP?=
 QUIET           ?= yes
 # If defined then use escape commands to colourise some output
 # Note hack to support both spellings
+ifdef MAKE_TERMOUT
+WITH_COLOR ?= yes
+endif
 WITH_COLOUR     ?= $(WITH_COLOR)
 # If defined then show the full path in compilation statements etc.
 SHOW_ABS_PATH ?= yes
