@@ -74,6 +74,7 @@ module gs2_diagnostics
 
   logical, public :: write_phi_over_time, write_apar_over_time, write_bpar_over_time !EGH
 
+  logical :: append_old
   logical :: write_jext=.true.
 
   !> Variables for convergence condition testing
@@ -478,7 +479,7 @@ contains
        j_ext_hist = 0
     end if
 
-    call init_gs2_io (write_nl_flux, write_omega, &
+    call init_gs2_io (append_old, write_nl_flux, write_omega, &
          write_hrate, write_final_antot, &
          write_eigenfunc, make_movie, nmovie_tot, write_verr, &
          write_moments, write_full_moments_notgc, &
@@ -486,7 +487,9 @@ contains
          write_correlation, nwrite_big_tot, write_correlation_extend, &
          write_phi_over_time, write_apar_over_time, write_bpar_over_time, &
          write_avg_moments, write_final_moments, write_final_epar, &
-         ob_midplane=ob_midplane)
+         nout, ob_midplane=ob_midplane)
+
+    call broadcast (nout)
 
     if (write_cerr) then
        if (collision_model_switch == 1 .or. collision_model_switch == 5) then
@@ -681,7 +684,6 @@ contains
 
     ! Print some health warnings if switches are not their default
     ! values and are not available in this diagnostics module
-    call warn_about_nonfunctional_selection(gs2_diagnostics_config%append_old, "append_old")
     call warn_about_nonfunctional_selection(gs2_diagnostics_config%enable_parallel, "enable_parallel")
     call warn_about_nonfunctional_selection(gs2_diagnostics_config%ncheck /= 10, "ncheck")
     call warn_about_nonfunctional_selection(gs2_diagnostics_config%serial_netcdf4, "serial_netcdf4")
@@ -696,6 +698,7 @@ contains
     call warn_about_nonfunctional_selection(gs2_diagnostics_config%write_zonal_transfer, "write_zonal_transfer")
 
     ! Copy out internal values into module level parameters
+    append_old = gs2_diagnostics_config%append_old
     conv_max_step = gs2_diagnostics_config%conv_max_step
     conv_min_step = gs2_diagnostics_config%conv_min_step
     conv_nstep_av = gs2_diagnostics_config%conv_nstep_av
