@@ -35,6 +35,21 @@ upload:
 	$(UPLOADCOMMAND)
 
 
+# This target allows us to run `make local_test` in a given individual
+# test directory in order to build and run just that test
+# If the individual test directory looks like:
+# GK_HEAD_DIR/tests/<test_type>/<test_directory>
+# Then $(notdir $(abspath $(PWD)/..)) gives us <test_type>
+# and $(notdir $(PWD)) gives us <test_directory>.
+# Note we currently hard-code the relative path to GK_HEAD_DIR as ../../../
+# for any of the individual test cases.
+local_test:
+	make -C ../../../ $(notdir $(abspath $(PWD)/..))  TESTS=$(notdir $(PWD))
+
+# This allows us to just run `make` in an individual test directory to get
+# it to build and run just that test.
+.DEFAULT_GOAL := local_test
+
 ifdef TESTEXEC
 # TESTEXEC is typically defined in a system makefile
 # For example, in Makefile.debian (note the double $$):
