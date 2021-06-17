@@ -6,7 +6,7 @@ SHELL := bash
 #taken here ensures that GK_HEAD_DIR is the location of this Makefile.
 #Here we assume that this makefile is one level down from the root.
 GK_THIS_MAKEFILE := $(abspath $(lastword $(MAKEFILE_LIST)))
-GK_HEAD_DIR ?= $(dir $(abspath $(GK_THIS_MAKEFILE)/..))
+GK_HEAD_DIR ?= $(realpath $(abspath $(GK_THIS_MAKEFILE)/..))
 
 # The following tells make not to try rebuilding Makefile.utils
 $(GK_HEAD_DIR)/Makefile.utils: ;
