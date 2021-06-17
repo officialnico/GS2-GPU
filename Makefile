@@ -243,11 +243,6 @@ COVERAGE_DIR:= $(GK_HEAD_DIR)/coverage
 #Patch file
 PATCHFILE:= .patch.make
 
-ifdef SHOW_ABS_PATH
-processName = $1
-else
-processName = $(subst $(GK_HEAD_DIR)/,,$1)
-endif
 ################################################### SET COMPILE MODE SWITCHES
 
 # It makes no sense to set USE_PARALLEL_NETCDF without
