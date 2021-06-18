@@ -117,6 +117,10 @@ ONE_STEP_PP?=
 QUIET           ?= yes
 # If defined then use escape commands to colourise some output
 # Note hack to support both spellings
+# We default WITH_COLOR (and hence WITH_COLOUR) to on if
+# MAKE_TERMOUT is set. This is an internal make variable which is set
+# provided the output is going to a terminal.  In other words we don't
+# default the colour on if we're redirecting output to file.
 ifdef MAKE_TERMOUT
 WITH_COLOR ?= yes
 endif
