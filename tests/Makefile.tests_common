@@ -8,6 +8,8 @@ SHELL := bash
 GK_THIS_MAKEFILE := $(abspath $(lastword $(MAKEFILE_LIST)))
 GK_HEAD_DIR ?= $(realpath $(abspath $(GK_THIS_MAKEFILE)/../..))
 
+QUIET ?= yes
+
 # The following tells make not to try rebuilding Makefile.utils
 $(GK_HEAD_DIR)/Makefile.utils: ;
 include $(GK_HEAD_DIR)/Makefile.utils
