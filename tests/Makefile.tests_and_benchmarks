@@ -27,6 +27,14 @@ TEST_DEPS?=$(LIBDIR)/libgs2.a $(OBJDIR)/functional_tests.o $(OBJDIR)/benchmarks.
 #already contain this information
 MAKETESTS:=$(MAKE) "LIBS=-L$(LIBDIR) -lgs2 $(SDATIO_LINK) $(SDATIO_LIB) $(LIBS)"
 
+#Set the level of testing, currently loosely defined as
+# 0 : Only most basic tests included
+# 1 : Most simple tests run
+# 2 : More expensive tests (say a few minutes on 8 cores)
+# 3 : Very expensive tests (say more than 10 minutes on 8 cores)
+#etc.
+TEST_LEVEL ?= 1
+
 ifndef NO_TEST_COLOURS
 COLOUR_COMMAND:=| sed -e "s/passed/[32mpassed[39m/" \
 										 -e "s/FAILED/[31mFAILED[39m/" \

@@ -12,15 +12,12 @@ GK_HEAD_DIR ?= $(realpath $(abspath $(GK_THIS_MAKEFILE)/../..))
 $(GK_HEAD_DIR)/Makefile.utils: ;
 include $(GK_HEAD_DIR)/Makefile.utils
 
-#Set the level of testing, currently loosely defined as
-# 0 : Only most basic tests included
-# 1 : Most simple tests run
-# 2 : More expensive tests (say a few minutes on 8 cores)
-# 3 : Very expensive tests (say more than 10 minutes on 8 cores)
-#etc.
-ifndef TEST_LEVEL
-       TEST_LEVEL:=1
-endif
+#Set the level of testing if not already set. Note we set to
+#MY_TEST_LEVEL here if not set such that running make in a
+#test directory forces that test to be active if no test
+#levels set.
+MY_TEST_LEVEL ?= 1
+TEST_LEVEL ?= MY_TEST_LEVEL
 
 .SUFFIXES: .fpp .f90 .c .o
 .PHONY: all clean
