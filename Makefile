@@ -121,6 +121,14 @@ WITH_COLOUR     ?= $(WITH_COLOR)
 # If defined then show the full path in compilation statements etc.
 SHOW_ABS_PATH ?= yes
 
+###############################################################
+# By default we export all variables defined in this Makefile
+# or any included makefiles. This gives sub-make invocations
+# (i.e. make calls from within our Makefile) access to the same
+# variables. Really we should just default what is needed.
+export
+###############################################################
+
 #
 # * Targets:
 #
@@ -309,6 +317,8 @@ sinclude Makefile.local
 Makefile.utils: ;
 include Makefile.utils
 
+#Indicate that we don't want to rebuild the COMPILER makefile
+Makefiles/Makefile.$(COMPILER): ;
 #############################################################################
 
 GIT_HASH:=$(shell git rev-parse HEAD)
@@ -536,7 +546,7 @@ endif
 
 #Make empty targets if not using the new diagnostics
 ifeq ($(USE_NEW_DIAG),on)
-$(SRCDIR)/Makefile.diagnostics/Makefile.diagnostics: ;
+$(SRCDIR)/diagnostics/Makefile.diagnostics: ;
 sinclude $(SRCDIR)/diagnostics/Makefile.diagnostics
 else
 distclean_simpledataio:
@@ -586,13 +596,13 @@ VPATH_tmp := $(foreach tmpvp,$(subst :, ,$(VPATH)),$(shell [ -d $(tmpvp) ] && ec
 VPATH := .:$(shell echo $(VPATH_tmp) | sed "s/ /:/g")
 
 # most common include and library directories
-DEFAULT_INC_LIST = . $(GK_HEAD_DIR)/$(UTILS) $(GK_HEAD_DIR)/$(GEO) .. ../$(UTILS) ../$(GEO)
-DEFAULT_LIB_LIST =
+DEFAULT_INC_LIST := . $(GK_HEAD_DIR)/$(UTILS) $(GK_HEAD_DIR)/$(GEO) .. ../$(UTILS) ../$(GEO)
+DEFAULT_LIB_LIST :=
 # This default library path list can simplify the procedure of porting,
 # however, I found this (actually -L/usr/lib flag) causes an error
 # when linking gs2 at bassi (RS6000 with xl fortran)
-DEFAULT_INC=$(foreach tmpinc,$(DEFAULT_INC_LIST),$(shell [ -d $(tmpinc) ] && echo -I$(tmpinc)))
-DEFAULT_LIB=$(foreach tmplib,$(DEFAULT_LIB_LIST),$(shell [ -d $(tmplib) ] && echo -L$(tmplib)))
+DEFAULT_INC:=$(foreach tmpinc,$(DEFAULT_INC_LIST),$(shell [ -d $(tmpinc) ] && echo -I$(tmpinc)))
+DEFAULT_LIB:=$(foreach tmplib,$(DEFAULT_LIB_LIST),$(shell [ -d $(tmplib) ] && echo -L$(tmplib)))
 
 # Generation of large fortran source files
 RUBY_GENERATE=env ruby $2 $1; if test "$$?" != 0; then  echo && echo && echo  "Warning: no ruby: $1 is not updated!!!" && echo && echo; fi
@@ -855,6 +865,7 @@ sinclude $(TEST_DIR)/Makefile.tests_and_benchmarks
 
 #This is the location of the pfunit test suites
 PFUNIT_TEST_DIR:=$(TEST_DIR)/pfunit_tests
+$(PFUNIT_TEST_DIR)/Makefile: ;
 sinclude $(PFUNIT_TEST_DIR)/Makefile
 
 ############################################################# Introspection targets
@@ -1046,7 +1057,7 @@ check_ford_install:
 endif
 
 namelist_doc: PATHS:=$(foreach dir, $(SRCDIR) $(SUBDIRS), --path ${dir})
-namelist_doc: FILES:=$(shell $(GK_HEAD_DIR)/scripts/get_all_matching_files.py --pattern "*.[fF]??" ${PATHS} --absolute)
+namelist_doc: FILES:=$(shell $(GK_HEAD_DIR)/scripts/get_all_matching_files.py --pattern "*.[fF]??" ${PATHS} --absolute --exclude "$(GK_HEAD_DIR)/src/templates")
 # for the `doc` target, `check_ford_install` must be before `namelist_doc` to ensure visibility of the error message
 # in the case where Ford is not installed and `make` is run with the `-j` option. The most robust way to do this is
 # to have `namelist_doc` to depend explicitly on `check_ford_install` as below
