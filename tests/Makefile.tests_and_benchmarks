@@ -10,16 +10,6 @@ endif
 $(COVERAGE_DIR):
 	$(QUIETSYM)$(MKDIR) $@
 
-#Set the level of testing, currently loosely defined as
-# 0 : Only most basic tests included
-# 1 : Most simple tests run
-# 2 : More expensive tests (say a few minutes on 8 cores)
-# 3 : Very expensive tests (say more than 10 minutes on 8 cores)
-#etc.
-ifndef TEST_LEVEL
-       TEST_LEVEL:=1
-endif
-
 ifdef SIMPLEDATAIO_LIB_DIR_ABS
       SDATIO_LINK:=-L$(SIMPLEDATAIO_LIB_DIR_ABS)
       SDATIO_LIB:=-lsimpledataio
@@ -36,6 +26,14 @@ TEST_DEPS?=$(LIBDIR)/libgs2.a $(OBJDIR)/functional_tests.o $(OBJDIR)/benchmarks.
 #to wrap calls to make to ensure these get passed in. Ideally LIBS would
 #already contain this information
 MAKETESTS:=$(MAKE) "LIBS=-L$(LIBDIR) -lgs2 $(SDATIO_LINK) $(SDATIO_LIB) $(LIBS)"
+
+#Set the level of testing, currently loosely defined as
+# 0 : Only most basic tests included
+# 1 : Most simple tests run
+# 2 : More expensive tests (say a few minutes on 8 cores)
+# 3 : Very expensive tests (say more than 10 minutes on 8 cores)
+#etc.
+TEST_LEVEL ?= 1
 
 ifndef NO_TEST_COLOURS
 COLOUR_COMMAND:=| sed -e "s/passed/[32mpassed[39m/" \

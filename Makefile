@@ -197,8 +197,13 @@ sinclude Makefile.local
 
 #### directories
 
-#Record the top level path
-GK_HEAD_DIR:=$(PWD)
+#Record the top level path. Note we don't just use $(PWD) as this
+#resolves to the directory from which make was invoked. The approach
+#taken here ensures that GK_HEAD_DIR is the location of this Makefile.
+#Note the realpath call removes the trailing slash so later we need
+#to add a slash if we want to address subdirectories
+GK_THIS_MAKEFILE := $(abspath $(lastword $(MAKEFILE_LIST)))
+GK_HEAD_DIR := $(realpath $(dir $(GK_THIS_MAKEFILE)))
 
 #Directories to store outputs of different types
 OBJDIR:= $(GK_HEAD_DIR)/objs
@@ -238,11 +243,6 @@ COVERAGE_DIR:= $(GK_HEAD_DIR)/coverage
 #Patch file
 PATCHFILE:= .patch.make
 
-ifdef SHOW_ABS_PATH
-processName = $1
-else
-processName = $(subst $(GK_HEAD_DIR)/,,$1)
-endif
 ################################################### SET COMPILE MODE SWITCHES
 
 # It makes no sense to set USE_PARALLEL_NETCDF without
@@ -862,6 +862,7 @@ sinclude $(PFUNIT_TEST_DIR)/Makefile
 ############################################################# Introspection targets
 test_make:
 	$(call messageInfo,"Global settings:")
+	$(call messageKeyVal, "GK_HEAD_DIR", $(GK_HEAD_DIR))
 	$(call messageKeyVal, "GK_SYSTEM", $(GK_SYSTEM))
 	$(call messageKeyVal, "VPATH", $(VPATH))
 	$(call messageKeyVal, "CURDIR", $(CURDIR))
