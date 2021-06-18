@@ -61,7 +61,7 @@ upload:
 # Then $(notdir $(abspath $(PWD)/..)) gives us <test_type>
 # and $(notdir $(PWD)) gives us <test_directory>.
 local_test:
-	make -C $(GK_HEAD_DIR) $(notdir $(abspath $(PWD)/..))  TESTS=$(notdir $(PWD))
+	@make -C $(GK_HEAD_DIR) $(notdir $(abspath $(PWD)/..)) TESTS=$(notdir $(PWD))  --no-print-directory
 
 # This allows us to just run `make` in an individual test directory to get
 # it to build and run just that test.
