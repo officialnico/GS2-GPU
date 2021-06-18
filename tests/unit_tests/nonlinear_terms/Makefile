@@ -3,7 +3,7 @@ sinclude ../Makefile.tests_common
 
 clean_local_test:
 	-$(QUIETSYM)rm -f test_nonlinear_terms
-clean_individual_test: clean_local_test
+
 
 ifdef TESTNORUN
 all: test_nonlinear_terms 

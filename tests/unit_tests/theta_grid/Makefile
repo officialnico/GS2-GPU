@@ -3,7 +3,7 @@ sinclude ../Makefile.tests_common
 
 clean_local_test:
 	-$(QUIETSYM)rm -f test_theta_grid
-clean_individual_test: clean_local_test
+
 
 ifdef TESTNORUN
 all: test_theta_grid

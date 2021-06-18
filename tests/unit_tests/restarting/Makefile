@@ -33,7 +33,7 @@ link_gs2: clean_individual_test
 clean_local_test:
 # Also remove the gs2 symlink
 	-$(QUIETSYM)rm -f ./gs2 *.log
-clean_individual_test: clean_local_test
+
 
 all: link_gs2
 	$(call RUNCOMMAND,./test_restarting,--gs2="$(RESTART_EXEC)gs2")

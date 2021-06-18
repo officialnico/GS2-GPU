@@ -2,7 +2,7 @@ sinclude ../Makefile.tests_common
 
 clean_local_test:
 	-$(QUIETSYM)rm -f zonal_flow_residual
-clean_individual_test: clean_local_test
+
 
 ifdef TESTNORUN
 all: zonal_flow_residual
