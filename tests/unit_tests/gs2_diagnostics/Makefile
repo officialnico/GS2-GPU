@@ -1,7 +1,7 @@
 
 sinclude ../Makefile.tests_common
 
-clean_invidual_test: LOCAL_TEST_FILES:=test_gs2_diagnostics
+clean_individual_test: LOCAL_TEST_FILES:=test_gs2_diagnostics
 
 ifdef TESTNORUN
 all: test_gs2_diagnostics 

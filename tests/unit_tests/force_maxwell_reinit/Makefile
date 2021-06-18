@@ -3,7 +3,7 @@ sinclude ../Makefile.tests_common
 
 #export LOCAL_TEST_FILES
 
-clean_individual_test: LOCAL_TEST_FILES:=HELLO *.{error,exit_reason,fort*,g,gridgen*,nc*,optim,out*} OUTPUT HELLO
+clean_individual_test: LOCAL_TEST_FILES:=*.{error,exit_reason,fort*,g,gridgen*,nc*,optim,out*}
 
 PYTHONCOMPARE:=./compare.py initial.out.nc phi restart.out.nc phi
 

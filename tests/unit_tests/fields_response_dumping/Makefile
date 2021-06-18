@@ -1,7 +1,7 @@
 
 sinclude ../Makefile.tests_common
 
-clean_invidual_test: LOCAL_TEST_FILES:=test_fields_response_dumping gs2 OUTPUT_TEST
+clean_individual_test: LOCAL_TEST_FILES:=test_fields_response_dumping gs2 OUTPUT_TEST
 
 ifdef TESTNORUN
 all: test_fields_response_dumping
