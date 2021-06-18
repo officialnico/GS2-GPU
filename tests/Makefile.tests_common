@@ -51,6 +51,9 @@ ifdef CLEAN_TEXTFILES
 	CLEAN_TEST_FILES+= *~ *.orig
 endif
 
+clean: clean_individual_test
+clean_individual_test: clean_local_test
+clean_individual_test: TEST_NAME ?= $(notdir $(PWD))
 clean_individual_test:
 	$(call messageRm,"\\t$(TEST_NAME)")
 	-$(QUIETSYM)rm -f ${CLEAN_TEST_FILES}
@@ -66,7 +69,7 @@ upload:
 # Then $(notdir $(abspath $(PWD)/..)) gives us <test_type>
 # and $(notdir $(PWD)) gives us <test_directory>.
 local_test:
-	@make -C $(GK_HEAD_DIR) $(notdir $(abspath $(PWD)/..)) TESTS=$(notdir $(PWD))  --no-print-directory
+	$(QUIETSYM)make -C $(GK_HEAD_DIR) $(notdir $(abspath $(PWD)/..)) TESTS=$(notdir $(PWD))  --no-print-directory
 
 # This allows us to just run `make` in an individual test directory to get
 # it to build and run just that test.
