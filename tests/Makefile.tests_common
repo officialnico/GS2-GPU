@@ -1,6 +1,23 @@
 export
 SHELL := bash
+
+#Record the top level path. Note we don't just use $(PWD) as this
+#resolves to the directory from which make was invoked. The approach
+#taken here ensures that GK_HEAD_DIR is the location of this Makefile.
+#Here we assume that this makefile is one level down from the root.
+GK_THIS_MAKEFILE := $(abspath $(lastword $(MAKEFILE_LIST)))
+GK_HEAD_DIR ?= $(realpath $(abspath $(GK_THIS_MAKEFILE)/../..))
+
+# The following tells make not to try rebuilding Makefile.utils
+$(GK_HEAD_DIR)/Makefile.utils: ;
 include $(GK_HEAD_DIR)/Makefile.utils
+
+#Set the level of testing if not already set. Note we set to
+#MY_TEST_LEVEL here if not set such that running make in a
+#test directory forces that test to be active if no test
+#levels set.
+MY_TEST_LEVEL ?= 1
+TEST_LEVEL ?= MY_TEST_LEVEL
 
 .SUFFIXES: .fpp .f90 .c .o
 .PHONY: all clean
@@ -33,6 +50,19 @@ clean:
 upload:
 	$(UPLOADCOMMAND)
 
+
+# This target allows us to run `make local_test` in a given individual
+# test directory in order to build and run just that test
+# If the individual test directory looks like:
+# GK_HEAD_DIR/tests/<test_type>/<test_directory>
+# Then $(notdir $(abspath $(PWD)/..)) gives us <test_type>
+# and $(notdir $(PWD)) gives us <test_directory>.
+local_test:
+	@make -C $(GK_HEAD_DIR) $(notdir $(abspath $(PWD)/..)) TESTS=$(notdir $(PWD))  --no-print-directory
+
+# This allows us to just run `make` in an individual test directory to get
+# it to build and run just that test.
+.DEFAULT_GOAL := local_test
 
 ifdef TESTEXEC
 # TESTEXEC is typically defined in a system makefile
