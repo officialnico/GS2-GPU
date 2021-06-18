@@ -52,11 +52,14 @@ ifdef CLEAN_TEXTFILES
 endif
 
 clean: clean_individual_test
+#Define an empty clean_local_test recipe for now. Individual tests can add their own
+#actions in their makefile by expanding this recipe.
+clean_local_test:
 clean_individual_test: clean_local_test
 clean_individual_test: TEST_NAME ?= $(notdir $(PWD))
 clean_individual_test:
 	$(call messageRm,"\\t$(TEST_NAME)")
-	-$(QUIETSYM)rm -f ${CLEAN_TEST_FILES}
+	-$(QUIETSYM)rm -f ${CLEAN_TEST_FILES} ${LOCAL_TEST_FILES}
 
 upload:
 	$(UPLOADCOMMAND)

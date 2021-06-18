@@ -2,9 +2,7 @@
 sinclude ../Makefile.tests_common
 TEST_BASE_NAME:=test_le_grids_integrate
 
-clean_local_test:
-	-$(QUIETSYM)rm -f ${TEST_BASE_NAME}
-
+clean_individual_test: LOCAL_TEST_FILES:=${TEST_BASE_NAME}
 
 ifdef TESTNORUN
 all: ${TEST_BASE_NAME}

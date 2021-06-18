@@ -1,11 +1,9 @@
 
 sinclude ../Makefile.tests_common
 
-clean_local_test:
-	-$(QUIETSYM)rm -f cyclone_itg_low_res cyclone_itg_replay
+clean_individual_test: LOCAL_TEST_FILES:=cyclone_itg_low_res cyclone_itg_replay
 
-
-COPY=cp fields_local_single_mode.out.nc fields_local_single_mode_replay.out.nc
+COPY:=cp fields_local_single_mode.out.nc fields_local_single_mode_replay.out.nc
 
 ifdef TESTNORUN
 all: cyclone_itg_low_res cyclone_itg_replay

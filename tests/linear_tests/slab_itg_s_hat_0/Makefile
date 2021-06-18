@@ -1,11 +1,9 @@
 
 sinclude ../Makefile.tests_common
 
-clean_local_test:
-	-$(QUIETSYM)rm -f slab_itg_s_hat_0_low_res gs2_slab_itg
+clean_individual_test: LOCAL_TEST_FILES:=slab_itg_s_hat_0_low_res gs2_slab_itg
 
-
-COPY=cp ../../../bin/gs2 gs2_slab_itg
+COPY:=cp ../../../bin/gs2 gs2_slab_itg
 
 ifdef TESTNORUN
 all: slab_itg_s_hat_0_low_res 

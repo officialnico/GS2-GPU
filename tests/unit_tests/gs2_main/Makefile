@@ -1,9 +1,7 @@
 
 sinclude ../Makefile.tests_common
 
-clean_local_test:
-	-$(QUIETSYM)rm -f test_gs2_main
-
+clean_individual_test: LOCAL_TEST_FILES:=test_gs2_main
 
 ifdef TESTNORUN
 all: test_gs2_main 

@@ -1,9 +1,7 @@
 
 sinclude ../Makefile.tests_common
 
-clean_local_test:
-	-$(QUIETSYM)rm -f test_gs2_diagnostics_new old_diagnostics/.test_* old_diagnostics/*.{o,error,out*,vres,*mom*,eigenfunc,fields,g,heat*,jext,lpc,parity,phase,exit_reason} averages.dat tmpdata.dat
-
+clean_individual_test: LOCAL_TEST_FILES:=test_gs2_diagnostics_new old_diagnostics/.test_* old_diagnostics/*.{o,error,out*,vres,*mom*,eigenfunc,fields,g,heat*,jext,lpc,parity,phase,exit_reason} averages.dat tmpdata.dat
 
 ifdef TESTNORUN
 all: test_gs2_diagnostics_new 
