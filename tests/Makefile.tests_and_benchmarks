@@ -28,9 +28,19 @@ TEST_DEPS?=$(LIBDIR)/libgs2.a $(OBJDIR)/functional_tests.o $(OBJDIR)/benchmarks.
 MAKETESTS:=$(MAKE) "LIBS=-L$(LIBDIR) -lgs2 $(SDATIO_LINK) $(SDATIO_LIB) $(LIBS)"
 
 ifndef NO_TEST_COLOURS
-COLOUR_COMMAND:=| sed -e "s/passed/[32mpassed[39m/" \
-										 -e "s/FAILED/[31mFAILED[39m/" \
-										 -e "s/skipped/[34mskipped[39m/"
+# We have to change escape type from \033[0; to [ as otherwise
+# sed interprets the leading \0 as print matching pattern.
+SWITCH_ESCAPE_TYPE = $(subst \033[0;,[,$(1))
+_TEST_GREEN := $(call SWITCH_ESCAPE_TYPE,$(C_GRE))
+_TEST_RED := $(call SWITCH_ESCAPE_TYPE,$(C_RED))
+_TEST_BLUE := $(call SWITCH_ESCAPE_TYPE,$(C_BLU))
+_TEST_END := $(call SWITCH_ESCAPE_TYPE,$(C_RESET))
+COLOUR_COMMAND:= sed -e \
+	"s/passed/$(_TEST_GREEN)passed$(_TEST_END)/" -e \
+	"s/FAILED/$(_TEST_RED)FAILED$(_TEST_END)/"   -e \
+	"s/skipped/$(_TEST_BLUE)skipped$(_TEST_END)/"
+else
+COLOUR_COMMAND:= cat
 endif
 
 define TEST_PRINTOUT
@@ -48,7 +58,7 @@ define TEST_RESULTS
 	@echo
 	@echo "=======   $(1)"
 	@echo
-	@find $(TEST_DIR)/$(1) -name results_of_test.txt | xargs -n 1 cat $(COLOUR_COMMAND)
+	@find $(TEST_DIR)/$(1) -name results_of_test.txt -exec $(COLOUR_COMMAND) {} \;
 endef
 
 define RUN_TESTS
