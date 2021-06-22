@@ -141,7 +141,7 @@ module dist_fn
 
   integer :: source_option_switch
   integer, parameter :: source_option_full = 1, &
-       source_option_phiext_full = 5
+       source_option_phiext_full = 5, source_option_homogeneous = 6
   
   integer :: boundary_option_switch
   integer, parameter :: boundary_option_zero = 1, &
@@ -491,6 +491,7 @@ module dist_fn
      !> - 'default' : Same as 'source_option_full'
      !> - 'phiext_full' : Solve GK equation with additional source
      !>   proportional to `phi_ext*F_0`.
+     !> - 'homogeneous' : Solve the homogeneous equation, i.e. no potential related sources.
      character(len = 20) :: source_option = 'default'
      !> Turn on any artificial sources after time = t0. Only used with
      !> `source_option = 'phiext_full'`.
@@ -765,8 +766,16 @@ contains
        write (report_unit, fmt="('with an additional source proportional to Phi*F_0')")
        write (report_unit, fmt="('Together with phi_ext = -1., this is the usual way to &
             & calculate the Rosenbluth-Hinton response.')")
-       write (report_unit, *) 
+       write (report_unit, *)
 
+    case (source_option_homogeneous)
+       write (report_unit, *)
+       write (report_unit, fmt="('################# WARNING #######################')")
+       write (report_unit, fmt="('The homogeneous GK equation will be solved.')")
+       write (report_unit, fmt="('The calculated response matrices and resulting')")
+       write (report_unit, fmt="('potentials will not be accurate.')")
+       write (report_unit, fmt="('################# WARNING #######################')")
+       write (report_unit, *)
     end select
 
     ! 
@@ -873,7 +882,8 @@ contains
           write (unit, fmt="(' gamma0 = ',e17.10)") gamma0
           write (unit, fmt="(' t0 = ',e17.10)") t0
           write (unit, fmt="(' phi_ext = ',e17.10)") phi_ext
-
+       case(source_option_homogeneous)
+          write (unit, fmt="(' source_option = ',a)") '"homogeneous"'
        end select
        write (unit, fmt="(' /')")
     endif
@@ -1252,10 +1262,11 @@ contains
     type(dist_fn_config_type), intent(in), optional :: dist_fn_config_in
     type(source_config_type), intent(in), optional :: source_config_in
     type(dist_fn_species_config_type), intent(in), dimension(:), optional :: dist_fn_species_config_in
-    type (text_option), dimension (3), parameter :: sourceopts = &
+    type (text_option), dimension (4), parameter :: sourceopts = &
          (/ text_option('default', source_option_full), &
             text_option('full', source_option_full), &
-            text_option('phiext_full', source_option_phiext_full) /)
+            text_option('phiext_full', source_option_phiext_full), &
+            text_option('homogeneous', source_option_homogeneous) /)
     character(20) :: source_option
 
     type (text_option), dimension (8), parameter :: boundaryopts = &
@@ -4080,7 +4091,8 @@ contains
        else
           source = 0.0
        end if
-
+    case(source_option_homogeneous)
+       source = 0.0
     end select
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -4360,6 +4372,8 @@ contains
                   *2.0*phi_ext*sourcefac*aj0(:ntgrid-1,iglo)
              end if
           end if
+       case(source_option_homogeneous)
+          source = 0.0
        end select
     enddo
        
@@ -6573,9 +6587,18 @@ endif
     ! get phi
     if (fphi > epsilon(0.0)) then
 
-!CMR, 1/8/2011:  bmag corrections here: 
-       numerator = (beta * gamtot2 + bmagsp**2) * (antot+fl_avg_sp) - (beta * gamtot1) * antotp
-       denominator = (beta * gamtot2 + bmagsp**2) * gamtot + (beta/2.0) * gamtot1 * gamtot1
+!CMR, 1/8/2011:  bmag corrections here:
+!BSP 20/04/2021: Check if fbpar= 0.0 as beta terms should not be present in this case.
+       if (fbpar > epsilon(0.0)) then
+          numerator = (beta * gamtot2 + bmagsp**2) * (antot+fl_avg_sp) - (beta * gamtot1) * antotp
+          denominator = (beta * gamtot2 + bmagsp**2) * gamtot + (beta/2.0) * gamtot1 * gamtot1
+       else
+          ! If fbpar = 0 then the terms in earlier branch proportional to beta
+          ! should be zero as these terms arrive from the bpar parts of quasineutrality
+          ! as expressed in terms of gnew. In this case we get the below.
+          numerator = antot+fl_avg_sp
+          denominator = gamtot
+       end if
 
        where (abs(denominator) < epsilon(0.0)) ! it == ik == 1 only
           !NOTE: denominator=0 for the it==ik==1 only in certain circumstances
@@ -6601,8 +6624,20 @@ endif
     ! get bpar
     if (fbpar > epsilon(0.0)) then
 !CMR>  bmag corrections here
-       numerator = - (beta * gamtot) * antotp - (beta/2.0) * gamtot1 * antot
-       denominator = gamtot * (beta * gamtot2 + bmagsp**2) + (beta/2.0) * gamtot1 * gamtot1
+
+       ! As in our calculation of phi, we see that the equations for
+       ! bpar and phi are coupled when written in terms of gnew. This
+       ! means we get contributions arising from phi in the expression
+       ! for B|| here. In particular, they are the terms involving
+       ! gamtot1. However, if we have disabled phi then they should
+       ! not appear in our calculation, so handle that here.
+       if (fphi > epsilon(0.0)) then
+          numerator = - (beta * gamtot) * antotp - (beta/2.0) * gamtot1 * antot
+          denominator = gamtot * (beta * gamtot2 + bmagsp**2) + (beta/2.0) * gamtot1 * gamtot1
+       else
+          numerator = - beta * antotp
+          denominator = (beta * gamtot2 + bmagsp**2)
+       end if
 
        where (abs(denominator) < epsilon(0.0)) ! it == ik == 1 only
           bpar = 0.0

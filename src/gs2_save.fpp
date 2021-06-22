@@ -34,7 +34,7 @@ module gs2_save
 
   public :: read_many, save_many, gs2_save_response, gs2_restore_response
   public :: restore_current_scan_parameter_value
-  public :: init_gs2_save, init_dt, init_tstart, init_ant_amp
+  public :: init_gs2_save, init_dt, read_t0_from_restart_file, init_ant_amp
   public :: set_restart_file, include_explicit_source_in_restart
   public :: init_vnm, restart_writable, EigNetcdfID
   public :: init_eigenfunc_file, finish_eigenfunc_file, add_eigenpair_to_file
@@ -84,8 +84,6 @@ module gs2_save
   LOGICAL :: initialized_dfn= .false.
   ! MRH arrays holding information about the layout for plotting
   integer, dimension (:,:,:,:,:), allocatable :: procid_kykxsel, iglo_kykxsel
-!</DD> Added for saving distribution function
-!  integer (kind_nf) :: netcdf_real=0
 
   logical :: initialized = .false.
   logical :: include_parameter_scan = .true.
@@ -398,8 +396,6 @@ contains
           
        END IF
        !For saving distribution function
-       
-       if (netcdf_real == 0) netcdf_real = get_netcdf_code_precision()
 
        call debug_message(verb, 'gs2_save::gs2_save_for_restart defining variables')
 
@@ -1386,8 +1382,6 @@ contains
 
        if (istatus /= NF90_NOERR) call netcdf_error (istatus, file=file_proc)
        
-       ! check precision
-       if (netcdf_real == 0) netcdf_real = get_netcdf_code_precision()
        call check_netcdf_file_precision (ncid)
 
        istatus = nf90_inq_dimid (ncid, "theta", thetaid)
@@ -1788,9 +1782,6 @@ contains
     endif
 
 #ifdef NETCDF
-    !Get precision
-    if (netcdf_real == 0) netcdf_real = get_netcdf_code_precision()
-    
     !/Make file
     ierr=nf90_create(fname,NF90_CLOBBER,ncid)
     if(ierr/=NF90_NOERR) call netcdf_error(ierr,file=fname)
@@ -1918,9 +1909,6 @@ contains
     IDs%nconv_count=0
 
 #ifdef NETCDF
-    !Get precision
-    if (netcdf_real == 0) netcdf_real = get_netcdf_code_precision()
-    
     !/Make file
     ierr=nf90_create(fname,NF90_CLOBBER,IDs%ncid)
     if(ierr/=NF90_NOERR) call netcdf_error(ierr,file=fname)
@@ -2438,7 +2426,7 @@ contains
   end subroutine init_ant_amp
 
   !> FIXME : Add documentation  
-  subroutine init_tstart (tstart, istatus)
+  subroutine read_t0_from_restart_file (tstart, istatus)
 
 # ifdef NETCDF
     use mp, only: proc0, broadcast
@@ -2486,5 +2474,5 @@ contains
 
 # endif
 
-  end subroutine init_tstart
+  end subroutine read_t0_from_restart_file
 end module gs2_save

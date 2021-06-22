@@ -2190,34 +2190,125 @@ contains
   !> adopted in [[dist_fn::get_verr]].
   subroutine report_velocity_integration_error_estimate(unit_in)
     use iso_fortran_env, only: output_unit
-    use theta_grid, only: ntgrid
+    use theta_grid, only: ntgrid, bmag, bmax
     use species, only: nspec
-
+    ! Note in fortran 2008 we could just use the erf intrinsic
+    use spfunc, only: erf_ext
+    use constants, only: pi
     implicit none
 
     integer, intent(in), optional :: unit_in
     real, parameter :: expected_lambda = 2.0, expected_energy = 0.25
-    real, dimension(:), allocatable :: lambda_error, energy_error
+    real, dimension(:), allocatable :: lambda_error, energy_error, b_ratio
+    real, dimension(:), allocatable :: passing_error, expected_passing
+    real, dimension(:), allocatable :: trapped_error, expected_trapped
+    real, dimension(:), allocatable :: energy_sub_error, energy_super_error
     real, dimension(:, :), allocatable :: mixed_error, mixed_value
+    real :: expected_energy_sub, expected_energy_super
     integer :: unit, ie, ig, is
 
     unit = output_unit
     if (present(unit_in)) unit = unit_in
 
     !Get estimates of the error on the integration weights.
+
+    ! Total pitch angle grid
     allocate(lambda_error(-ntgrid:ntgrid))
     lambda_error = 0.0
     do ig = -ntgrid, ntgrid
        lambda_error(ig) = expected_lambda - sum(wl(ig, :))
     end do
-    !Introduce factor 2 here to account for sigma doubling
+    ! Introduce factor 2 here to account for sigma doubling
     lambda_error = 2*lambda_error
 
+    ! Passing pitch angle grid
+    allocate(passing_error(-ntgrid:ntgrid))
+    passing_error = 0.0
+    allocate(expected_passing(-ntgrid:ntgrid))
+    allocate(b_ratio(-ntgrid:ntgrid))
+    b_ratio = bmax / bmag
+    ! This is the analytic integral of the function we weight the Legendre
+    ! weights by over the passing region, i.e.
+    ! 2.0*sqrt((bmag(ig)/bmax)*((1.0/bmax-al(il))/(1.0/bmag(ig)-al(il)))
+    ! Note to integrate this correctly it is useful to transform from lambda
+    ! to the Legendre variable xx, through xx = sqrt(1-lambda*bmax)
+    ! The weight function then becomes:
+    ! 2.0*sqrt(bmag/bmax) * sqrt([xx^2]/[(bmax/bmag)-1+xx^2])
+    ! and we would integrate from xx=0 to xx=1
+    ! Note this analytic result and comparison is appropriate when
+    ! Radau_Gauss_Grid = F.  When this is not the case (default) then
+    ! the calculation of the passing and trapped errors from this
+    ! analytic result is no longer appropriate as the wfb contains
+    ! contributions from both the passing and trapped regions when
+    ! bmag = bmax, and as such our comparison is only valid away from
+    ! where bmag=bmax.
+    expected_passing = 2.0 * (1 - sqrt(b_ratio - 1)/sqrt(b_ratio))
+    do ig = -ntgrid, ntgrid
+       passing_error(ig) = expected_passing(ig) - sum(wl(ig, :ng2))
+    end do
+    ! Introduce factor 2 here to account for sigma doubling
+    passing_error = 2*passing_error
+
+    ! Trapped pitch angle grid
+    allocate(trapped_error(-ntgrid:ntgrid))
+    trapped_error = 0.0
+    ! Only calculate this if we have any trapped pitch angles
+    if (nlambda > ng2) then
+       allocate(expected_trapped(-ntgrid:ntgrid))
+       ! We're essentially just subtracting the passing analytic
+       ! result from the total expectation, i.e. effectively
+       !  expected_trapped = expected_lambda - expected_passing
+       expected_trapped = 2.0 * sqrt(b_ratio - 1)/sqrt(b_ratio)
+       do ig = -ntgrid, ntgrid
+          trapped_error(ig) = expected_trapped(ig) - sum(wl(ig, ng2+1:))
+       end do
+       !Introduce factor 2 here to account for sigma doubling
+       trapped_error = 2*trapped_error
+    end if
+
+    ! Total energy grid
     allocate(energy_error(nspec))
     energy_error = 0.0
     do is = 1, nspec
        energy_error(is) = expected_energy - sum(w(:,is))
     end do
+
+    ! Energy sub grid
+    allocate(energy_sub_error(nspec))
+    energy_sub_error = 0.0
+    ! NOTE: This assumes we are considering a species with Maxwellian
+    ! background such that f0_values = exp(-energy)/pi^3/2
+    ! We are analytically evaluating
+    ! Integral_0^vcut{v^2 * pi * f0_values dv}
+    ! Assuming Maxwellian this becomes
+    ! Integral_0^vcut{v^2 exp(-v^2)/sqrt(pi) dv}
+    ! Which has result:
+    ! (1/4) [ erf(vcut) - 2 vcut exp(-vcut^2)/sqrt(pi)]
+    expected_energy_sub = 0.25 * ( erf_ext(vcut) - 2*vcut*exp(-vcut*vcut)/sqrt(pi))
+    do is = 1, nspec
+       energy_sub_error(is) = expected_energy_sub - sum(w(:nesub,is))
+    end do
+
+    ! Energy super grid
+    allocate(energy_super_error(nspec))
+    energy_super_error = 0.0
+    if (negrid > nesub) then
+       ! NOTE: This assumes we are considering a species with Maxwellian
+       ! background such that f0_values = exp(-energy)/pi^3/2
+       ! We are analytically evaluating
+       ! Integral_0^infinity{sqrt(y+vcut^2) * exp(y) * pi * f0_values * W(y) dy}/2
+       ! where W(y) are the Laguerre weights = exp(-y)
+       ! Assuming Maxwellian this becomes
+       ! Integral_0^infinity{sqrt(y+vcut^2) * exp(y) * exp(-(y+vcut^2)) * exp(-y) dy}/2
+       ! which simplifies slightly to
+       ! Integral_0^infinity{sqrt(y+vcut^2) * exp(-(vcut^2)) * exp(-y) dy}/2
+       ! Which has result:
+       ! [sqrt(pi)*erfc(vcut)/2 + vcut*exp(-vcut^2)]/(2*sqrt(pi))
+       expected_energy_super =  0.5*(sqrt(pi)*(1-erf_ext(vcut))/2 + vcut*exp(-vcut*vcut))/sqrt(pi)
+       do is = 1, nspec
+          energy_super_error(is) = expected_energy_super - sum(w(nesub+1:,is))
+       end do
+    end if
 
     allocate(mixed_error(-ntgrid:ntgrid, nspec))
     allocate(mixed_value(size(wl(0,:)), size(w(:,1))))
@@ -2232,17 +2323,36 @@ contains
        end do
     end do
 
-    !Introduce factor 2 here to account for sigma doubling
+    ! Introduce factor 2 here to account for sigma doubling
     mixed_error = 2 * mixed_error
 
-    write(unit,'("Lambda weights errors, max/mean/mean(|error|) :",3(E14.6E3," "))') &
-         maxval(abs(lambda_error)),sum(lambda_error)/size(lambda_error), sum(abs(lambda_error))/size(lambda_error)
+    ! Report errors to unit
+    call report_error(unit, "Lambda", lambda_error)
+    call report_error(unit, "Passing", passing_error)
+    call report_error(unit, "Trapped", trapped_error)
+    call report_error(unit, "Energy", energy_error)
+    call report_error(unit, "Energy_Sub", energy_sub_error)
+    call report_error(unit, "Energy_Super", energy_super_error)
+    call report_error_2d(unit, "Mixed", mixed_error)
 
-    write(unit,'("Energy weights errors, max/mean/mean(|error|) :",3(E14.6E3," "))') &
-         maxval(abs(energy_error)),sum(energy_error)/size(energy_error), sum(abs(energy_error))/size(energy_error)
+  contains
+    subroutine report_error(unit, name, error)
+      implicit none
+      integer, intent(in) :: unit
+      character(len=*), intent(in) :: name
+      real, dimension(:), intent(in) :: error
+      write(unit, '(A," weights errors, max/mean/mean(|error|)  :",3(E14.6E3," "))') &
+           name, maxval(abs(error)), sum(error)/size(error), sum(abs(error))/size(error)
+    end subroutine report_error
 
-    write(unit,'("Mixed weights errors, max/mean/mean(|error|)  :",3(E14.6E3," "))') &
-         maxval(abs(mixed_error)),sum(mixed_error)/size(mixed_error), sum(abs(mixed_error))/size(mixed_error)
+    subroutine report_error_2d(unit, name, error)
+      implicit none
+      integer, intent(in) :: unit
+      character(len=*), intent(in) :: name
+      real, dimension(:, :), intent(in) :: error
+      write(unit, '(A," weights errors, max/mean/mean(|error|)  :",3(E14.6E3," "))') &
+           name, maxval(abs(error)), sum(error)/size(error), sum(abs(error))/size(error)
+    end subroutine report_error_2d
 
   end subroutine report_velocity_integration_error_estimate
 

@@ -117,9 +117,24 @@ ONE_STEP_PP?=
 QUIET           ?= yes
 # If defined then use escape commands to colourise some output
 # Note hack to support both spellings
+# We default WITH_COLOR (and hence WITH_COLOUR) to on if
+# MAKE_TERMOUT is set. This is an internal make variable which is set
+# provided the output is going to a terminal.  In other words we don't
+# default the colour on if we're redirecting output to file.
+ifdef MAKE_TERMOUT
+WITH_COLOR ?= yes
+endif
 WITH_COLOUR     ?= $(WITH_COLOR)
 # If defined then show the full path in compilation statements etc.
 SHOW_ABS_PATH ?= yes
+
+###############################################################
+# By default we export all variables defined in this Makefile
+# or any included makefiles. This gives sub-make invocations
+# (i.e. make calls from within our Makefile) access to the same
+# variables. Really we should just default what is needed.
+export
+###############################################################
 
 #
 # * Targets:
@@ -189,8 +204,13 @@ sinclude Makefile.local
 
 #### directories
 
-#Record the top level path
-GK_HEAD_DIR:=$(PWD)
+#Record the top level path. Note we don't just use $(PWD) as this
+#resolves to the directory from which make was invoked. The approach
+#taken here ensures that GK_HEAD_DIR is the location of this Makefile.
+#Note the realpath call removes the trailing slash so later we need
+#to add a slash if we want to address subdirectories
+GK_THIS_MAKEFILE := $(abspath $(lastword $(MAKEFILE_LIST)))
+GK_HEAD_DIR := $(realpath $(dir $(GK_THIS_MAKEFILE)))
 
 #Directories to store outputs of different types
 OBJDIR:= $(GK_HEAD_DIR)/objs
@@ -230,11 +250,6 @@ COVERAGE_DIR:= $(GK_HEAD_DIR)/coverage
 #Patch file
 PATCHFILE:= .patch.make
 
-ifdef SHOW_ABS_PATH
-processName = $1
-else
-processName = $(subst $(GK_HEAD_DIR)/,,$1)
-endif
 ################################################### SET COMPILE MODE SWITCHES
 
 # It makes no sense to set USE_PARALLEL_NETCDF without
@@ -309,6 +324,8 @@ sinclude Makefile.local
 Makefile.utils: ;
 include Makefile.utils
 
+#Indicate that we don't want to rebuild the COMPILER makefile
+Makefiles/Makefile.$(COMPILER): ;
 #############################################################################
 
 GIT_HASH:=$(shell git rev-parse HEAD)
@@ -536,7 +553,7 @@ endif
 
 #Make empty targets if not using the new diagnostics
 ifeq ($(USE_NEW_DIAG),on)
-$(SRCDIR)/Makefile.diagnostics/Makefile.diagnostics: ;
+$(SRCDIR)/diagnostics/Makefile.diagnostics: ;
 sinclude $(SRCDIR)/diagnostics/Makefile.diagnostics
 else
 distclean_simpledataio:
@@ -586,13 +603,13 @@ VPATH_tmp := $(foreach tmpvp,$(subst :, ,$(VPATH)),$(shell [ -d $(tmpvp) ] && ec
 VPATH := .:$(shell echo $(VPATH_tmp) | sed "s/ /:/g")
 
 # most common include and library directories
-DEFAULT_INC_LIST = . $(GK_HEAD_DIR)/$(UTILS) $(GK_HEAD_DIR)/$(GEO) .. ../$(UTILS) ../$(GEO)
-DEFAULT_LIB_LIST =
+DEFAULT_INC_LIST := . $(GK_HEAD_DIR)/$(UTILS) $(GK_HEAD_DIR)/$(GEO) .. ../$(UTILS) ../$(GEO)
+DEFAULT_LIB_LIST :=
 # This default library path list can simplify the procedure of porting,
 # however, I found this (actually -L/usr/lib flag) causes an error
 # when linking gs2 at bassi (RS6000 with xl fortran)
-DEFAULT_INC=$(foreach tmpinc,$(DEFAULT_INC_LIST),$(shell [ -d $(tmpinc) ] && echo -I$(tmpinc)))
-DEFAULT_LIB=$(foreach tmplib,$(DEFAULT_LIB_LIST),$(shell [ -d $(tmplib) ] && echo -L$(tmplib)))
+DEFAULT_INC:=$(foreach tmpinc,$(DEFAULT_INC_LIST),$(shell [ -d $(tmpinc) ] && echo -I$(tmpinc)))
+DEFAULT_LIB:=$(foreach tmplib,$(DEFAULT_LIB_LIST),$(shell [ -d $(tmplib) ] && echo -L$(tmplib)))
 
 # Generation of large fortran source files
 RUBY_GENERATE=env ruby $2 $1; if test "$$?" != 0; then  echo && echo && echo  "Warning: no ruby: $1 is not updated!!!" && echo && echo; fi
@@ -855,11 +872,13 @@ sinclude $(TEST_DIR)/Makefile.tests_and_benchmarks
 
 #This is the location of the pfunit test suites
 PFUNIT_TEST_DIR:=$(TEST_DIR)/pfunit_tests
+$(PFUNIT_TEST_DIR)/Makefile: ;
 sinclude $(PFUNIT_TEST_DIR)/Makefile
 
 ############################################################# Introspection targets
 test_make:
 	$(call messageInfo,"Global settings:")
+	$(call messageKeyVal, "GK_HEAD_DIR", $(GK_HEAD_DIR))
 	$(call messageKeyVal, "GK_SYSTEM", $(GK_SYSTEM))
 	$(call messageKeyVal, "VPATH", $(VPATH))
 	$(call messageKeyVal, "CURDIR", $(CURDIR))
@@ -1046,7 +1065,7 @@ check_ford_install:
 endif
 
 namelist_doc: PATHS:=$(foreach dir, $(SRCDIR) $(SUBDIRS), --path ${dir})
-namelist_doc: FILES:=$(shell $(GK_HEAD_DIR)/scripts/get_all_matching_files.py --pattern "*.[fF]??" ${PATHS} --absolute)
+namelist_doc: FILES:=$(shell $(GK_HEAD_DIR)/scripts/get_all_matching_files.py --pattern "*.[fF]??" ${PATHS} --absolute --exclude "$(GK_HEAD_DIR)/src/templates")
 # for the `doc` target, `check_ford_install` must be before `namelist_doc` to ensure visibility of the error message
 # in the case where Ford is not installed and `make` is run with the `-j` option. The most robust way to do this is
 # to have `namelist_doc` to depend explicitly on `check_ford_install` as below
