@@ -73,9 +73,12 @@ $(SRCDIR)/diagnostics/simpledataio/src/simpledataio_read.F90: diagnostics/simple
 $(SRCDIR)/diagnostics/diagnostics_create_and_write.f90: diagnostics/generate_diagnostics_create_and_write.rb
 	$(call messageOp,"Generating from ruby","\\t:",$(call processName,$<))
 	$(QUIETSYM)$(call RUBY_GENERATE,$@,$<)
-$(SRCDIR)/diagnostics/diagnostics_ascii.f90: diagnostics/generate_diagnostics_ascii.rb
-	$(call messageOp,"Generating from ruby","\\t:",$(call processName,$<))
-	$(QUIETSYM)$(call RUBY_GENERATE,$@,$<)
+
+ifeq ($(GS2_HAS_PYTHON),yes)
+$(SRCDIR)/diagnostics/diagnostics_ascii.f90: diagnostics/generate_diagnostics_ascii.py
+	$(call messageOp,"Generating from python","\\t:",$(call processName,$<))
+	$(QUIETSYM)$(PYTHON_EXE) $< $@
+endif
 
 # This must be built without promotion of reals to doubles
 $(OBJDIR)/diagnostics_create_and_write.o: diagnostics_create_and_write.f90 | $(MODDIR) $(OBJDIR)
