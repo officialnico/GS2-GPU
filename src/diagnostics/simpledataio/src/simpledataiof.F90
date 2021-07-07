@@ -1,11 +1,11 @@
 
 !> Fortran interface to simpledataio, which requires the
-!! iso_c_binding intrinsic module introduced in Fortran 2003.
-!! All functions of simpledataio are provided in this module
-!! with the exception of write_variable which is provided in
-!! simpledataio_write
+!> iso_c_binding intrinsic module introduced in Fortran 2003.
+!> All functions of simpledataio are provided in this module
+!> with the exception of write_variable which is provided in
+!> simpledataio_write
 module simpledataio
-
+  use iso_fortran_env, only: real32, real64
 
 #ifdef FORTRAN_NETCDF
   use netcdf 
@@ -738,7 +738,7 @@ contains
     implicit none
     type(sdatio_file), intent(in) :: sfile
     character(*), intent(in) :: metadata_name
-    real, intent(in) :: metadata
+    real(kind=real32), intent(in) :: metadata
 #ifdef ISO_C_BINDING
     interface
        subroutine sdatio_add_metadata(sfile, metadata_type, metadata_name, metadata) &
@@ -764,7 +764,7 @@ contains
     implicit none
     type(sdatio_file), intent(in) :: sfile
     character(*), intent(in) :: metadata_name
-    double precision, intent(in) :: metadata
+    real(kind=real64), intent(in) :: metadata
 #ifdef ISO_C_BINDING
     interface
        subroutine sdatio_add_metadata(sfile, metadata_type, metadata_name, metadata) &
