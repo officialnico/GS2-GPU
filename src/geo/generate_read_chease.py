@@ -76,12 +76,6 @@ subroutine read_infile(filename)
 
 {zero_d_read}
 
-  allocate( psi_chease(npsi_chease))
-  read(infile, *) ; read(infile, *) psi_chease
-
-  allocate( chi_chease(nchi_chease))
-  read(infile, *) ; read(infile, *) chi_chease
-
 {one_d_read}
 
 {two_d_read}
@@ -104,10 +98,15 @@ end subroutine read_infile
         read = read_statement,
         var = var).rstrip() for var in zero_d])
 
-    one_d_reads = "\n\n".join([one_d_read.format(
+    # Need some special handling as the first two are
+    # psi_chease and chi_chease with size npsi_chease and
+    # nchi_chease respectively
+    one_d_reads = one_d_read.format(read = read_statement, shape = one_d_shape, var = one_d[0])
+    one_d_reads += "\n\n" + one_d_read.format(read = read_statement, shape = "nchi_chease", var = one_d[1]) + "\n"
+    one_d_reads += "\n\n".join([one_d_read.format(
         read = read_statement,
         var = var,
-        shape = one_d_shape).rstrip() for var in one_d])
+        shape = one_d_shape).rstrip() for var in one_d[2:]])
 
     two_d_reads = "\n\n".join([two_d_read.format(
         read = read_statement,

@@ -161,13 +161,6 @@ subroutine read_infile(filename)
 
   allocate( chi_chease(nchi_chease))
   read(infile, *) ; read(infile, *) chi_chease
-
-  allocate( psi_chease(npsi_chease))
-  read(infile, *) ; read(infile, *) psi_chease
-
-  allocate( chi_chease(npsi_chease))
-  read(infile, *) ; read(infile, *) chi_chease
-
   allocate( rgeom_chease(npsi_chease))
   read(infile, *) ; read(infile, *) rgeom_chease
 
