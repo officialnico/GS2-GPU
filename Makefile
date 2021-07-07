@@ -554,12 +554,9 @@ endif
 #Make empty targets if not using the new diagnostics
 ifeq ($(USE_NEW_DIAG),on)
 $(SRCDIR)/diagnostics/Makefile.diagnostics: ;
-sinclude $(SRCDIR)/diagnostics/Makefile.diagnostics
+include $(SRCDIR)/diagnostics/Makefile.diagnostics
 else
-distclean_simpledataio:
-clean_simpledataio:
 diagnostics:
-simpledataio:
 endif
 
 ############################################################################# Done dealing with user flags
@@ -567,7 +564,7 @@ endif
 LIBS	+= $(DEFAULT_LIB) $(MPI_LIB) $(NETCDF_LIB) $(HDF5_LIB) $(FFT_LIB) \
 		   $(NAG_LIB) $(EIG_LIB) $(GENQUAD_LIB) $(LAPACK_LIB)
 INCLUDES = $(DEFAULT_INC) $(MPI_INC) $(NETCDF_INC) $(HDF5_INC) $(FFT_INC)\
-		   $(SIMPLEDATAIO_INC) $(EIG_INC) $(GENQUAD_INC) $(PFUNIT_INC) $(LAPACK_INC)
+		   $(EIG_INC) $(GENQUAD_INC) $(PFUNIT_INC) $(LAPACK_INC)
 
 INCLUDES += -I$(MODDIR)
 
@@ -797,7 +794,7 @@ system_config:
 endif
 
 ############################################################# Cleanup targets
-clean: cleanobjs cleanpreprocess clean_simpledataio
+clean: cleanobjs cleanpreprocess
 
 cleanobjs:
 	$(call messageRm,"Object and module files")
@@ -832,7 +829,7 @@ clean_depend:
 	$(call messageRm,"Dependency file")	
 	-$(QUIETSYM)rm -f $(DEPEND)
 
-distclean: unlink clean cleanlib clean_tests clean_benchmarks distclean_simpledataio cleanconfig cleandoc clean_depend pfunit_clean cleandirs
+distclean: unlink clean cleanlib clean_tests clean_benchmarks cleanconfig cleandoc clean_depend pfunit_clean cleandirs
 
 unlink:
 	$(call messageRm,"Preprocessed files")	
@@ -1021,8 +1018,6 @@ endif
 ifdef USE_NEW_DIAG
 	$(call messageInfo,"SIMPLEDATAIO:")
 	$(call messageKeyVal, "SIMPLEDATAIO_LIB", $(SIMPLEDATAIO_LIB))
-	$(call messageKeyVal, "SIMPLEDATAIO_LIB_ABS", $(SIMPLEDATAIO_LIB_ABS))
-	$(call messageKeyVal, "SIMPLEDATAIO_INC" $(SIMPLEDATAIO_INC))
 else
 	$(call messageInfo,"SIMPLEDATAIO: DISABLED")
 endif

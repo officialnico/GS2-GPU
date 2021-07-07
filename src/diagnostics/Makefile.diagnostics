@@ -11,17 +11,9 @@ endif
 
 CFLAGS+= -I$(SRCDIR)/diagnostics/simpledataio
 
-SIMPLEDATAIO_LIB_DIR_ABS:=$(LIBDIR)
 SIMPLEDATAIO_LIB:=$(LIBDIR)/libsimpledataio.a
-SIMPLEDATAIO_LIB_ABS:=$(SIMPLEDATAIO_LIB_DIR_ABS)/libsimpledataio.a
 
-distclean_simpledataio:
-clean_simpledataio:
-simpledataio:
-
-SIMPLEDATAIO_VPATH:=:diagnostics/simpledataio/src/:../diagnostics/simpledataio/src/:diagnostics/simpledataio/include/:../diagnostics/simpledataio/include/
-
-diagnostics: $(LIBDIR)/libsimpledataio.a
+diagnostics: $(SIMPLEDATAIO_LIB)
 
 $(LIBDIR)/libsimpledataio.a: $(OBJDIR)/simpledataio_write.o $(OBJDIR)/simpledataiof.o $(OBJDIR)/simpledataio.o $(OBJDIR)/simpledataio_read.o |$(LIBDIR)
 	$(call messageOp,"Linking ","\\t:",$(call processName,$^),"\\n\\t\-\-\-\-\-\-\>",$(call processName,$@))
@@ -49,6 +41,6 @@ $(SRCDIR)/diagnostics/diagnostics_ascii.f90: diagnostics/generate_diagnostics_as
 	$(QUIETSYM)$(PYTHON_EXE) $< $@
 endif
 
-# This line ensures that libsimpledataio is built before any of the diagnostics
-# modules
+# This line ensures that libsimpledataio is built before any of the
+# diagnostics modules
 $(OBJDIR)/diagnostics_ascii.o $(OBJDIR)/diagnostics_dimensions.o: $(SIMPLEDATAIO_LIB)
