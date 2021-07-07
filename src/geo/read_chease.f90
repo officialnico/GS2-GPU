@@ -25,56 +25,56 @@ module read_chease
   public :: npsi_chease, nchi_chease
   public :: psi_chease, chi_chease
 
-  public :: r0exp
-  public :: b0exp
-  public :: psi
-  public :: chi
-  public :: rgeom
-  public :: ageom
-  public :: q
-  public :: dqdpsi
-  public :: d2qdpsi2
-  public :: p
-  public :: dpdpsi
-  public :: f
-  public :: fdfdpsi
-  public :: v
-  public :: rho_t
-  public :: shear
-  public :: dsheardpsi
-  public :: kappa
-  public :: delta_lower
-  public :: delta_upper
-  public :: dvdpsi
-  public :: dpsidrhotor
-  public :: gdpsi_av
-  public :: radius_av
-  public :: r_av
-  public :: te
-  public :: dtedpsi
-  public :: ne
-  public :: dnedpsi
-  public :: ti
-  public :: dtidpsi
-  public :: ni
-  public :: dnidpsi
-  public :: zeff
-  public :: signeo
-  public :: jbsbav
-  public :: g11
-  public :: g12
-  public :: g22
-  public :: g33
-  public :: b
-  public :: dbdpsi
-  public :: dbdchi
-  public :: dpsidr
-  public :: dpsidz
-  public :: dchidr
-  public :: dchidz
-  public :: jacobian
-  public :: r
-  public :: z
+  public :: r0exp_chease
+  public :: b0exp_chease
+  public :: psi_chease
+  public :: chi_chease
+  public :: rgeom_chease
+  public :: ageom_chease
+  public :: q_chease
+  public :: dqdpsi_chease
+  public :: d2qdpsi2_chease
+  public :: p_chease
+  public :: dpdpsi_chease
+  public :: f_chease
+  public :: fdfdpsi_chease
+  public :: v_chease
+  public :: rho_t_chease
+  public :: shear_chease
+  public :: dsheardpsi_chease
+  public :: kappa_chease
+  public :: delta_lower_chease
+  public :: delta_upper_chease
+  public :: dvdpsi_chease
+  public :: dpsidrhotor_chease
+  public :: gdpsi_av_chease
+  public :: radius_av_chease
+  public :: r_av_chease
+  public :: te_chease
+  public :: dtedpsi_chease
+  public :: ne_chease
+  public :: dnedpsi_chease
+  public :: ti_chease
+  public :: dtidpsi_chease
+  public :: ni_chease
+  public :: dnidpsi_chease
+  public :: zeff_chease
+  public :: signeo_chease
+  public :: jbsbav_chease
+  public :: g11_chease
+  public :: g12_chease
+  public :: g22_chease
+  public :: g33_chease
+  public :: b_chease
+  public :: dbdpsi_chease
+  public :: dbdchi_chease
+  public :: dpsidr_chease
+  public :: dpsidz_chease
+  public :: dchidr_chease
+  public :: dchidz_chease
+  public :: jacobian_chease
+  public :: r_chease
+  public :: z_chease
 
   integer :: npsi_chease, nchi_chease
   real, dimension (:), allocatable :: psi_chease,chi_chease
@@ -84,56 +84,56 @@ module read_chease
   ! this now to avoid any dependencies on the rest of gs2 or F2008.
   integer, parameter :: infile = 1212
 
-  real :: r0exp
-  real :: b0exp
-  real, dimension(:), allocatable :: psi
-  real, dimension(:), allocatable :: chi
-  real, dimension(:), allocatable :: rgeom
-  real, dimension(:), allocatable :: ageom
-  real, dimension(:), allocatable :: q
-  real, dimension(:), allocatable :: dqdpsi
-  real, dimension(:), allocatable :: d2qdpsi2
-  real, dimension(:), allocatable :: p
-  real, dimension(:), allocatable :: dpdpsi
-  real, dimension(:), allocatable :: f
-  real, dimension(:), allocatable :: fdfdpsi
-  real, dimension(:), allocatable :: v
-  real, dimension(:), allocatable :: rho_t
-  real, dimension(:), allocatable :: shear
-  real, dimension(:), allocatable :: dsheardpsi
-  real, dimension(:), allocatable :: kappa
-  real, dimension(:), allocatable :: delta_lower
-  real, dimension(:), allocatable :: delta_upper
-  real, dimension(:), allocatable :: dvdpsi
-  real, dimension(:), allocatable :: dpsidrhotor
-  real, dimension(:), allocatable :: gdpsi_av
-  real, dimension(:), allocatable :: radius_av
-  real, dimension(:), allocatable :: r_av
-  real, dimension(:), allocatable :: te
-  real, dimension(:), allocatable :: dtedpsi
-  real, dimension(:), allocatable :: ne
-  real, dimension(:), allocatable :: dnedpsi
-  real, dimension(:), allocatable :: ti
-  real, dimension(:), allocatable :: dtidpsi
-  real, dimension(:), allocatable :: ni
-  real, dimension(:), allocatable :: dnidpsi
-  real, dimension(:), allocatable :: zeff
-  real, dimension(:), allocatable :: signeo
-  real, dimension(:), allocatable :: jbsbav
-  real, dimension(:, :), allocatable :: g11
-  real, dimension(:, :), allocatable :: g12
-  real, dimension(:, :), allocatable :: g22
-  real, dimension(:, :), allocatable :: g33
-  real, dimension(:, :), allocatable :: b
-  real, dimension(:, :), allocatable :: dbdpsi
-  real, dimension(:, :), allocatable :: dbdchi
-  real, dimension(:, :), allocatable :: dpsidr
-  real, dimension(:, :), allocatable :: dpsidz
-  real, dimension(:, :), allocatable :: dchidr
-  real, dimension(:, :), allocatable :: dchidz
-  real, dimension(:, :), allocatable :: jacobian
-  real, dimension(:, :), allocatable :: r
-  real, dimension(:, :), allocatable :: z
+  real :: r0exp_chease
+  real :: b0exp_chease
+  real, dimension(:), allocatable :: psi_chease
+  real, dimension(:), allocatable :: chi_chease
+  real, dimension(:), allocatable :: rgeom_chease
+  real, dimension(:), allocatable :: ageom_chease
+  real, dimension(:), allocatable :: q_chease
+  real, dimension(:), allocatable :: dqdpsi_chease
+  real, dimension(:), allocatable :: d2qdpsi2_chease
+  real, dimension(:), allocatable :: p_chease
+  real, dimension(:), allocatable :: dpdpsi_chease
+  real, dimension(:), allocatable :: f_chease
+  real, dimension(:), allocatable :: fdfdpsi_chease
+  real, dimension(:), allocatable :: v_chease
+  real, dimension(:), allocatable :: rho_t_chease
+  real, dimension(:), allocatable :: shear_chease
+  real, dimension(:), allocatable :: dsheardpsi_chease
+  real, dimension(:), allocatable :: kappa_chease
+  real, dimension(:), allocatable :: delta_lower_chease
+  real, dimension(:), allocatable :: delta_upper_chease
+  real, dimension(:), allocatable :: dvdpsi_chease
+  real, dimension(:), allocatable :: dpsidrhotor_chease
+  real, dimension(:), allocatable :: gdpsi_av_chease
+  real, dimension(:), allocatable :: radius_av_chease
+  real, dimension(:), allocatable :: r_av_chease
+  real, dimension(:), allocatable :: te_chease
+  real, dimension(:), allocatable :: dtedpsi_chease
+  real, dimension(:), allocatable :: ne_chease
+  real, dimension(:), allocatable :: dnedpsi_chease
+  real, dimension(:), allocatable :: ti_chease
+  real, dimension(:), allocatable :: dtidpsi_chease
+  real, dimension(:), allocatable :: ni_chease
+  real, dimension(:), allocatable :: dnidpsi_chease
+  real, dimension(:), allocatable :: zeff_chease
+  real, dimension(:), allocatable :: signeo_chease
+  real, dimension(:), allocatable :: jbsbav_chease
+  real, dimension(:, :), allocatable :: g11_chease
+  real, dimension(:, :), allocatable :: g12_chease
+  real, dimension(:, :), allocatable :: g22_chease
+  real, dimension(:, :), allocatable :: g33_chease
+  real, dimension(:, :), allocatable :: b_chease
+  real, dimension(:, :), allocatable :: dbdpsi_chease
+  real, dimension(:, :), allocatable :: dbdchi_chease
+  real, dimension(:, :), allocatable :: dpsidr_chease
+  real, dimension(:, :), allocatable :: dpsidz_chease
+  real, dimension(:, :), allocatable :: dchidr_chease
+  real, dimension(:, :), allocatable :: dchidz_chease
+  real, dimension(:, :), allocatable :: jacobian_chease
+  real, dimension(:, :), allocatable :: r_chease
+  real, dimension(:, :), allocatable :: z_chease
 
   logical, parameter :: debug = .true.
 
@@ -154,9 +154,9 @@ subroutine read_infile(filename)
   read(infile, *) ; read(infile, *) nchi_chease
   if (debug) write(*, *) nchi_chease, "<---nchi_chease"
 
-  read(infile, *) ; read(infile, *) r0exp
+  read(infile, *) ; read(infile, *) r0exp_chease
 
-  read(infile, *) ; read(infile, *) b0exp
+  read(infile, *) ; read(infile, *) b0exp_chease
 
   allocate( psi_chease(npsi_chease))
   read(infile, *) ; read(infile, *) psi_chease
@@ -164,149 +164,149 @@ subroutine read_infile(filename)
   allocate( chi_chease(nchi_chease))
   read(infile, *) ; read(infile, *) chi_chease
 
-  allocate( psi(npsi_chease))
-  read(infile, *) ; read(infile, *) psi
+  allocate( psi_chease(npsi_chease))
+  read(infile, *) ; read(infile, *) psi_chease
 
-  allocate( chi(npsi_chease))
-  read(infile, *) ; read(infile, *) chi
+  allocate( chi_chease(npsi_chease))
+  read(infile, *) ; read(infile, *) chi_chease
 
-  allocate( rgeom(npsi_chease))
-  read(infile, *) ; read(infile, *) rgeom
+  allocate( rgeom_chease(npsi_chease))
+  read(infile, *) ; read(infile, *) rgeom_chease
 
-  allocate( ageom(npsi_chease))
-  read(infile, *) ; read(infile, *) ageom
+  allocate( ageom_chease(npsi_chease))
+  read(infile, *) ; read(infile, *) ageom_chease
 
-  allocate( q(npsi_chease))
-  read(infile, *) ; read(infile, *) q
+  allocate( q_chease(npsi_chease))
+  read(infile, *) ; read(infile, *) q_chease
 
-  allocate( dqdpsi(npsi_chease))
-  read(infile, *) ; read(infile, *) dqdpsi
+  allocate( dqdpsi_chease(npsi_chease))
+  read(infile, *) ; read(infile, *) dqdpsi_chease
 
-  allocate( d2qdpsi2(npsi_chease))
-  read(infile, *) ; read(infile, *) d2qdpsi2
+  allocate( d2qdpsi2_chease(npsi_chease))
+  read(infile, *) ; read(infile, *) d2qdpsi2_chease
 
-  allocate( p(npsi_chease))
-  read(infile, *) ; read(infile, *) p
+  allocate( p_chease(npsi_chease))
+  read(infile, *) ; read(infile, *) p_chease
 
-  allocate( dpdpsi(npsi_chease))
-  read(infile, *) ; read(infile, *) dpdpsi
+  allocate( dpdpsi_chease(npsi_chease))
+  read(infile, *) ; read(infile, *) dpdpsi_chease
 
-  allocate( f(npsi_chease))
-  read(infile, *) ; read(infile, *) f
+  allocate( f_chease(npsi_chease))
+  read(infile, *) ; read(infile, *) f_chease
 
-  allocate( fdfdpsi(npsi_chease))
-  read(infile, *) ; read(infile, *) fdfdpsi
+  allocate( fdfdpsi_chease(npsi_chease))
+  read(infile, *) ; read(infile, *) fdfdpsi_chease
 
-  allocate( v(npsi_chease))
-  read(infile, *) ; read(infile, *) v
+  allocate( v_chease(npsi_chease))
+  read(infile, *) ; read(infile, *) v_chease
 
-  allocate( rho_t(npsi_chease))
-  read(infile, *) ; read(infile, *) rho_t
+  allocate( rho_t_chease(npsi_chease))
+  read(infile, *) ; read(infile, *) rho_t_chease
 
-  allocate( shear(npsi_chease))
-  read(infile, *) ; read(infile, *) shear
+  allocate( shear_chease(npsi_chease))
+  read(infile, *) ; read(infile, *) shear_chease
 
-  allocate( dsheardpsi(npsi_chease))
-  read(infile, *) ; read(infile, *) dsheardpsi
+  allocate( dsheardpsi_chease(npsi_chease))
+  read(infile, *) ; read(infile, *) dsheardpsi_chease
 
-  allocate( kappa(npsi_chease))
-  read(infile, *) ; read(infile, *) kappa
+  allocate( kappa_chease(npsi_chease))
+  read(infile, *) ; read(infile, *) kappa_chease
 
-  allocate( delta_lower(npsi_chease))
-  read(infile, *) ; read(infile, *) delta_lower
+  allocate( delta_lower_chease(npsi_chease))
+  read(infile, *) ; read(infile, *) delta_lower_chease
 
-  allocate( delta_upper(npsi_chease))
-  read(infile, *) ; read(infile, *) delta_upper
+  allocate( delta_upper_chease(npsi_chease))
+  read(infile, *) ; read(infile, *) delta_upper_chease
 
-  allocate( dvdpsi(npsi_chease))
-  read(infile, *) ; read(infile, *) dvdpsi
+  allocate( dvdpsi_chease(npsi_chease))
+  read(infile, *) ; read(infile, *) dvdpsi_chease
 
-  allocate( dpsidrhotor(npsi_chease))
-  read(infile, *) ; read(infile, *) dpsidrhotor
+  allocate( dpsidrhotor_chease(npsi_chease))
+  read(infile, *) ; read(infile, *) dpsidrhotor_chease
 
-  allocate( gdpsi_av(npsi_chease))
-  read(infile, *) ; read(infile, *) gdpsi_av
+  allocate( gdpsi_av_chease(npsi_chease))
+  read(infile, *) ; read(infile, *) gdpsi_av_chease
 
-  allocate( radius_av(npsi_chease))
-  read(infile, *) ; read(infile, *) radius_av
+  allocate( radius_av_chease(npsi_chease))
+  read(infile, *) ; read(infile, *) radius_av_chease
 
-  allocate( r_av(npsi_chease))
-  read(infile, *) ; read(infile, *) r_av
+  allocate( r_av_chease(npsi_chease))
+  read(infile, *) ; read(infile, *) r_av_chease
 
-  allocate( te(npsi_chease))
-  read(infile, *) ; read(infile, *) te
+  allocate( te_chease(npsi_chease))
+  read(infile, *) ; read(infile, *) te_chease
 
-  allocate( dtedpsi(npsi_chease))
-  read(infile, *) ; read(infile, *) dtedpsi
+  allocate( dtedpsi_chease(npsi_chease))
+  read(infile, *) ; read(infile, *) dtedpsi_chease
 
-  allocate( ne(npsi_chease))
-  read(infile, *) ; read(infile, *) ne
+  allocate( ne_chease(npsi_chease))
+  read(infile, *) ; read(infile, *) ne_chease
 
-  allocate( dnedpsi(npsi_chease))
-  read(infile, *) ; read(infile, *) dnedpsi
+  allocate( dnedpsi_chease(npsi_chease))
+  read(infile, *) ; read(infile, *) dnedpsi_chease
 
-  allocate( ti(npsi_chease))
-  read(infile, *) ; read(infile, *) ti
+  allocate( ti_chease(npsi_chease))
+  read(infile, *) ; read(infile, *) ti_chease
 
-  allocate( dtidpsi(npsi_chease))
-  read(infile, *) ; read(infile, *) dtidpsi
+  allocate( dtidpsi_chease(npsi_chease))
+  read(infile, *) ; read(infile, *) dtidpsi_chease
 
-  allocate( ni(npsi_chease))
-  read(infile, *) ; read(infile, *) ni
+  allocate( ni_chease(npsi_chease))
+  read(infile, *) ; read(infile, *) ni_chease
 
-  allocate( dnidpsi(npsi_chease))
-  read(infile, *) ; read(infile, *) dnidpsi
+  allocate( dnidpsi_chease(npsi_chease))
+  read(infile, *) ; read(infile, *) dnidpsi_chease
 
-  allocate( zeff(npsi_chease))
-  read(infile, *) ; read(infile, *) zeff
+  allocate( zeff_chease(npsi_chease))
+  read(infile, *) ; read(infile, *) zeff_chease
 
-  allocate( signeo(npsi_chease))
-  read(infile, *) ; read(infile, *) signeo
+  allocate( signeo_chease(npsi_chease))
+  read(infile, *) ; read(infile, *) signeo_chease
 
-  allocate( jbsbav(npsi_chease))
-  read(infile, *) ; read(infile, *) jbsbav
+  allocate( jbsbav_chease(npsi_chease))
+  read(infile, *) ; read(infile, *) jbsbav_chease
 
-  allocate( g11(npsi_chease, nchi_chease))
-  read(infile, *) ; read(infile, *) g11
+  allocate( g11_chease(npsi_chease, nchi_chease))
+  read(infile, *) ; read(infile, *) g11_chease
 
-  allocate( g12(npsi_chease, nchi_chease))
-  read(infile, *) ; read(infile, *) g12
+  allocate( g12_chease(npsi_chease, nchi_chease))
+  read(infile, *) ; read(infile, *) g12_chease
 
-  allocate( g22(npsi_chease, nchi_chease))
-  read(infile, *) ; read(infile, *) g22
+  allocate( g22_chease(npsi_chease, nchi_chease))
+  read(infile, *) ; read(infile, *) g22_chease
 
-  allocate( g33(npsi_chease, nchi_chease))
-  read(infile, *) ; read(infile, *) g33
+  allocate( g33_chease(npsi_chease, nchi_chease))
+  read(infile, *) ; read(infile, *) g33_chease
 
-  allocate( b(npsi_chease, nchi_chease))
-  read(infile, *) ; read(infile, *) b
+  allocate( b_chease(npsi_chease, nchi_chease))
+  read(infile, *) ; read(infile, *) b_chease
 
-  allocate( dbdpsi(npsi_chease, nchi_chease))
-  read(infile, *) ; read(infile, *) dbdpsi
+  allocate( dbdpsi_chease(npsi_chease, nchi_chease))
+  read(infile, *) ; read(infile, *) dbdpsi_chease
 
-  allocate( dbdchi(npsi_chease, nchi_chease))
-  read(infile, *) ; read(infile, *) dbdchi
+  allocate( dbdchi_chease(npsi_chease, nchi_chease))
+  read(infile, *) ; read(infile, *) dbdchi_chease
 
-  allocate( dpsidr(npsi_chease, nchi_chease))
-  read(infile, *) ; read(infile, *) dpsidr
+  allocate( dpsidr_chease(npsi_chease, nchi_chease))
+  read(infile, *) ; read(infile, *) dpsidr_chease
 
-  allocate( dpsidz(npsi_chease, nchi_chease))
-  read(infile, *) ; read(infile, *) dpsidz
+  allocate( dpsidz_chease(npsi_chease, nchi_chease))
+  read(infile, *) ; read(infile, *) dpsidz_chease
 
-  allocate( dchidr(npsi_chease, nchi_chease))
-  read(infile, *) ; read(infile, *) dchidr
+  allocate( dchidr_chease(npsi_chease, nchi_chease))
+  read(infile, *) ; read(infile, *) dchidr_chease
 
-  allocate( dchidz(npsi_chease, nchi_chease))
-  read(infile, *) ; read(infile, *) dchidz
+  allocate( dchidz_chease(npsi_chease, nchi_chease))
+  read(infile, *) ; read(infile, *) dchidz_chease
 
-  allocate( jacobian(npsi_chease, nchi_chease))
-  read(infile, *) ; read(infile, *) jacobian
+  allocate( jacobian_chease(npsi_chease, nchi_chease))
+  read(infile, *) ; read(infile, *) jacobian_chease
 
-  allocate( r(npsi_chease, nchi_chease))
-  read(infile, *) ; read(infile, *) r
+  allocate( r_chease(npsi_chease, nchi_chease))
+  read(infile, *) ; read(infile, *) r_chease
 
-  allocate( z(npsi_chease, nchi_chease))
-  read(infile, *) ; read(infile, *) z
+  allocate( z_chease(npsi_chease, nchi_chease))
+  read(infile, *) ; read(infile, *) z_chease
 
   close(unit = infile)
 end subroutine read_infile
@@ -314,54 +314,54 @@ end subroutine read_infile
 !> Deallocate any module level arrays which have been allocated
 subroutine finish
   implicit none
-  if ( allocated(psi)) deallocate(psi)
-  if ( allocated(chi)) deallocate(chi)
-  if ( allocated(rgeom)) deallocate(rgeom)
-  if ( allocated(ageom)) deallocate(ageom)
-  if ( allocated(q)) deallocate(q)
-  if ( allocated(dqdpsi)) deallocate(dqdpsi)
-  if ( allocated(d2qdpsi2)) deallocate(d2qdpsi2)
-  if ( allocated(p)) deallocate(p)
-  if ( allocated(dpdpsi)) deallocate(dpdpsi)
-  if ( allocated(f)) deallocate(f)
-  if ( allocated(fdfdpsi)) deallocate(fdfdpsi)
-  if ( allocated(v)) deallocate(v)
-  if ( allocated(rho_t)) deallocate(rho_t)
-  if ( allocated(shear)) deallocate(shear)
-  if ( allocated(dsheardpsi)) deallocate(dsheardpsi)
-  if ( allocated(kappa)) deallocate(kappa)
-  if ( allocated(delta_lower)) deallocate(delta_lower)
-  if ( allocated(delta_upper)) deallocate(delta_upper)
-  if ( allocated(dvdpsi)) deallocate(dvdpsi)
-  if ( allocated(dpsidrhotor)) deallocate(dpsidrhotor)
-  if ( allocated(gdpsi_av)) deallocate(gdpsi_av)
-  if ( allocated(radius_av)) deallocate(radius_av)
-  if ( allocated(r_av)) deallocate(r_av)
-  if ( allocated(te)) deallocate(te)
-  if ( allocated(dtedpsi)) deallocate(dtedpsi)
-  if ( allocated(ne)) deallocate(ne)
-  if ( allocated(dnedpsi)) deallocate(dnedpsi)
-  if ( allocated(ti)) deallocate(ti)
-  if ( allocated(dtidpsi)) deallocate(dtidpsi)
-  if ( allocated(ni)) deallocate(ni)
-  if ( allocated(dnidpsi)) deallocate(dnidpsi)
-  if ( allocated(zeff)) deallocate(zeff)
-  if ( allocated(signeo)) deallocate(signeo)
-  if ( allocated(jbsbav)) deallocate(jbsbav)
-  if ( allocated(g11)) deallocate(g11)
-  if ( allocated(g12)) deallocate(g12)
-  if ( allocated(g22)) deallocate(g22)
-  if ( allocated(g33)) deallocate(g33)
-  if ( allocated(b)) deallocate(b)
-  if ( allocated(dbdpsi)) deallocate(dbdpsi)
-  if ( allocated(dbdchi)) deallocate(dbdchi)
-  if ( allocated(dpsidr)) deallocate(dpsidr)
-  if ( allocated(dpsidz)) deallocate(dpsidz)
-  if ( allocated(dchidr)) deallocate(dchidr)
-  if ( allocated(dchidz)) deallocate(dchidz)
-  if ( allocated(jacobian)) deallocate(jacobian)
-  if ( allocated(r)) deallocate(r)
-  if ( allocated(z)) deallocate(z)
+  if ( allocated(psi_chease)) deallocate(psi_chease)
+  if ( allocated(chi_chease)) deallocate(chi_chease)
+  if ( allocated(rgeom_chease)) deallocate(rgeom_chease)
+  if ( allocated(ageom_chease)) deallocate(ageom_chease)
+  if ( allocated(q_chease)) deallocate(q_chease)
+  if ( allocated(dqdpsi_chease)) deallocate(dqdpsi_chease)
+  if ( allocated(d2qdpsi2_chease)) deallocate(d2qdpsi2_chease)
+  if ( allocated(p_chease)) deallocate(p_chease)
+  if ( allocated(dpdpsi_chease)) deallocate(dpdpsi_chease)
+  if ( allocated(f_chease)) deallocate(f_chease)
+  if ( allocated(fdfdpsi_chease)) deallocate(fdfdpsi_chease)
+  if ( allocated(v_chease)) deallocate(v_chease)
+  if ( allocated(rho_t_chease)) deallocate(rho_t_chease)
+  if ( allocated(shear_chease)) deallocate(shear_chease)
+  if ( allocated(dsheardpsi_chease)) deallocate(dsheardpsi_chease)
+  if ( allocated(kappa_chease)) deallocate(kappa_chease)
+  if ( allocated(delta_lower_chease)) deallocate(delta_lower_chease)
+  if ( allocated(delta_upper_chease)) deallocate(delta_upper_chease)
+  if ( allocated(dvdpsi_chease)) deallocate(dvdpsi_chease)
+  if ( allocated(dpsidrhotor_chease)) deallocate(dpsidrhotor_chease)
+  if ( allocated(gdpsi_av_chease)) deallocate(gdpsi_av_chease)
+  if ( allocated(radius_av_chease)) deallocate(radius_av_chease)
+  if ( allocated(r_av_chease)) deallocate(r_av_chease)
+  if ( allocated(te_chease)) deallocate(te_chease)
+  if ( allocated(dtedpsi_chease)) deallocate(dtedpsi_chease)
+  if ( allocated(ne_chease)) deallocate(ne_chease)
+  if ( allocated(dnedpsi_chease)) deallocate(dnedpsi_chease)
+  if ( allocated(ti_chease)) deallocate(ti_chease)
+  if ( allocated(dtidpsi_chease)) deallocate(dtidpsi_chease)
+  if ( allocated(ni_chease)) deallocate(ni_chease)
+  if ( allocated(dnidpsi_chease)) deallocate(dnidpsi_chease)
+  if ( allocated(zeff_chease)) deallocate(zeff_chease)
+  if ( allocated(signeo_chease)) deallocate(signeo_chease)
+  if ( allocated(jbsbav_chease)) deallocate(jbsbav_chease)
+  if ( allocated(g11_chease)) deallocate(g11_chease)
+  if ( allocated(g12_chease)) deallocate(g12_chease)
+  if ( allocated(g22_chease)) deallocate(g22_chease)
+  if ( allocated(g33_chease)) deallocate(g33_chease)
+  if ( allocated(b_chease)) deallocate(b_chease)
+  if ( allocated(dbdpsi_chease)) deallocate(dbdpsi_chease)
+  if ( allocated(dbdchi_chease)) deallocate(dbdchi_chease)
+  if ( allocated(dpsidr_chease)) deallocate(dpsidr_chease)
+  if ( allocated(dpsidz_chease)) deallocate(dpsidz_chease)
+  if ( allocated(dchidr_chease)) deallocate(dchidr_chease)
+  if ( allocated(dchidz_chease)) deallocate(dchidz_chease)
+  if ( allocated(jacobian_chease)) deallocate(jacobian_chease)
+  if ( allocated(r_chease)) deallocate(r_chease)
+  if ( allocated(z_chease)) deallocate(z_chease)
 end subroutine finish
 
 end module read_chease

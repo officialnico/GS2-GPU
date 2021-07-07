@@ -179,10 +179,10 @@ if __name__ == "__main__":
     two_d =  [ "g11", "g12", "g22", "g33", "B", "dBdpsi", "dBdchi", "dPsidR",
                "dPsidZ", "dChidR", "dChidZ", "Jacobian", "R", "Z"]
 
-    # Convert to lower case
-    zero_d = [x.lower() for x in zero_d]
-    one_d = [x.lower() for x in one_d]
-    two_d = [x.lower() for x in two_d]
+    # Convert to lower case and add "_chease"
+    zero_d = [x.lower()+"_chease" for x in zero_d]
+    one_d = [x.lower()+"_chease" for x in one_d]
+    two_d = [x.lower()+"_chease" for x in two_d]
 
     the_vars = [zero_d, one_d, two_d]
 
