@@ -3,7 +3,7 @@ ifdef USE_MPI
 MACRO_DEFS += -DHAVE_MPI
 endif
 
-MACRO_DEFS+= -DFORTRAN_NETCDF -DISO_C_BINDING
+MACRO_DEFS += -DFORTRAN_NETCDF -DISO_C_BINDING
 
 ifdef USE_PARALLEL_NETCDF
 	MACRO_DEFS += -DPARALLEL
@@ -14,7 +14,6 @@ CFLAGS+= -I$(SRCDIR)/diagnostics/simpledataio
 SIMPLEDATAIO_LIB_DIR_ABS:=$(LIBDIR)
 SIMPLEDATAIO_LIB:=$(LIBDIR)/libsimpledataio.a
 SIMPLEDATAIO_LIB_ABS:=$(SIMPLEDATAIO_LIB_DIR_ABS)/libsimpledataio.a
-
 
 distclean_simpledataio:
 clean_simpledataio:
@@ -57,10 +56,6 @@ $(OBJDIR)/simpledataiof.o: $(GENERATED_SRC_DIR)/simpledataiof.f90 $(OBJDIR)/simp
 endif
 
 $(OBJDIR)/simpledataio.o: $(SRCDIR)/diagnostics/simpledataio/include/definitions.h $(SRCDIR)/diagnostics/simpledataio/include/simpledataio.h
-
-#ifdef DBLE
-#CPPFLAGS+=-DSDATIO_DEFAULT_DOUBLE
-#endif
 
 # Commands for generating repetitive Fortran files from python scripts
 ifeq ($(GS2_HAS_PYTHON),yes)
