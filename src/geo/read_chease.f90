@@ -23,7 +23,6 @@ module read_chease
   public :: finish
 
   public :: npsi_chease, nchi_chease
-  public :: psi_chease, chi_chease
 
   public :: r0exp_chease
   public :: b0exp_chease
@@ -77,7 +76,6 @@ module read_chease
   public :: z_chease
 
   integer :: npsi_chease, nchi_chease
-  real, dimension (:), allocatable :: psi_chease,chi_chease
 
   ! We could either use [[file_utils:get_unused_unit]] or F2008's
   ! newunit option to open to avoid hard-coding this. We don't do
