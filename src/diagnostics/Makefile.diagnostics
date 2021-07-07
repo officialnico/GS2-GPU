@@ -32,11 +32,11 @@ $(LIBDIR)/libsimpledataio.a: $(OBJDIR)/simpledataio_write.o $(OBJDIR)/simpledata
 ifdef ONE_STEP_PP
 $(OBJDIR)/simpledataio_write.o: simpledataio_write.F90 $(OBJDIR)/simpledataiof.o | $(MODDIR) $(OBJDIR)
 	$(call messageOp,"Compiling and preprocessing","\\t:",$(call processName,$<))
-	$(QUIETSYM)$(FC) $(MACRO_DEFS) $(subst $(DBLEFLAGS),,$(F90FLAGS)) $(MODDIR_FLAG)$(MODDIR) -c $< -o $@
+	$(QUIETSYM)$(FC) $(MACRO_DEFS) $(F90FLAGS) $(MODDIR_FLAG)$(MODDIR) -c $< -o $@
 
 $(OBJDIR)/simpledataio_read.o: simpledataio_read.F90 $(OBJDIR)/simpledataiof.o $(OBJDIR)/simpledataio_write.o | $(MODDIR) $(OBJDIR)
 	$(call messageOp,"Compiling and preprocessing","\\t:",$(call processName,$<))
-	$(QUIETSYM)$(FC) $(MACRO_DEFS) $(subst $(DBLEFLAGS),,$(F90FLAGS)) $(MODDIR_FLAG)$(MODDIR) -c $< -o $@
+	$(QUIETSYM)$(FC) $(MACRO_DEFS) $(F90FLAGS) $(MODDIR_FLAG)$(MODDIR) -c $< -o $@
 
 $(OBJDIR)/simpledataiof.o: simpledataiof.F90 $(OBJDIR)/simpledataio.o | $(MODDIR) $(OBJDIR)
 	$(call messageOp,"Compiling and preprocessing","\\t:",$(call processName,$<))
@@ -45,11 +45,11 @@ else
 
 $(OBJDIR)/simpledataio_write.o: $(GENERATED_SRC_DIR)/simpledataio_write.f90 $(OBJDIR)/simpledataiof.o | $(MODDIR) $(OBJDIR)
 	$(call messageOp,"Compiling","\\t:",$(call processName,$<))
-	$(QUIETSYM)$(FC) $(subst $(DBLEFLAGS),,$(F90FLAGS)) $(MODDIR_FLAG)$(MODDIR) -c $< -o $@
+	$(QUIETSYM)$(FC) $(F90FLAGS) $(MODDIR_FLAG)$(MODDIR) -c $< -o $@
 
 $(OBJDIR)/simpledataio_read.o: $(GENERATED_SRC_DIR)/simpledataio_read.f90 $(OBJDIR)/simpledataiof.o $(OBJDIR)/simpledataio_write.o | $(MODDIR) $(OBJDIR)
 	$(call messageOp,"Compiling","\\t:",$(call processName,$<))
-	$(QUIETSYM)$(FC) $(subst $(DBLEFLAGS),,$(F90FLAGS)) $(MODDIR_FLAG)$(MODDIR) -c $< -o $@
+	$(QUIETSYM)$(FC) $(F90FLAGS) $(MODDIR_FLAG)$(MODDIR) -c $< -o $@
 
 $(OBJDIR)/simpledataiof.o: $(GENERATED_SRC_DIR)/simpledataiof.f90 $(OBJDIR)/simpledataio.o | $(MODDIR) $(OBJDIR)
 	$(call messageOp,"Compiling","\\t:",$(call processName,$<))
