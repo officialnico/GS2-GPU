@@ -809,8 +809,10 @@ contains
        case(SolverTypePrimme)
           SolverType=EPSPRIMME
 #if SLEPC_VERSION_GE(3,4,0)
+#if SLEPC_VERSION_LE(3,11,0) || SLEPC_VERSION_GE(3,14,0)
        case(SolverTypeFeast)
           SolverType=EPSFEAST
+#endif
 #endif
        case default
           !Should never get here
