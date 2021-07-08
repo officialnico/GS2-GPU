@@ -328,7 +328,7 @@ module dist_fn
      !> True only allows solutions of single parity as determined by
      !> the input [[dist_fn_knobs:even]].
      logical :: def_parity = .false.
-     !> FIXME: Add documentation
+     !> FIXME: Remove, unused
      !>
      !> Used for GRYFX - should probably be moved elsewhere - ~ rho_i
      real :: densfac_lin = sqrt(2.)
@@ -383,9 +383,14 @@ module dist_fn
      !>_
      !> @todo Improve documentation
      real :: kfilter = 0.0
-     !> FIXME: Add documentation
+     !> Set up lowflow term \(F_1/F_0 = xi*(v/v_{th})*(a + b*(v/v_{th})^2)\)
      logical :: lf_decompose = .false.
-     !> FIXME: Add documentation
+     !> Treatment of radial variation of temperature in NEO energy variable:
+     !>
+     !> - (true, default) take it into account when constructing distribution
+     !>   function, i.e. `H(EGS2, r)`
+     !> - (false) construct `H(ENEO)` and deal with it later by including a temp
+     !>   gradient term in `wstarfac` in [[dist_fn.fpp]]
      logical :: lf_default = .true.
      !> Number multiplying the coriolis drift.
      !>
@@ -413,43 +418,48 @@ module dist_fn
      !>  increase due to using an additional array of size 2-4 times
      !>  `gnew`.
      logical :: opt_source = .false.
-     !> FIXME: Add documentation
+     !> FIXME: Remove, unused
      !>
      !> Used for GRYFX - should probably be moved elsewhere - ~ rho_i
      real :: phifac_lin = sqrt(2.)
      !> If non-zero, quasineutrality is not enforced,
      !> `poisfac`=  \((\lambda_\textrm{Debye}/\rho)^2\)
      real :: poisfac = 0.0
-     !> FIXME: Add documentation
+     !> FIXME: Remove, unused
      !>
      !> Used for GRYFX - should probably be moved elsewhere - ~ rho_i vti^3
      real :: qparfac_lin = 4.
-     !> FIXME: Add documentation
+     !> FIXME: Remove, unused
      !>
      !> Used for GRYFX - should probably be moved elsewhere - ~ rho_i vti^3
      real :: qprpfac_lin = 4.
      !> For debugging only. If set then run will print various grid sizes and then stop.
      logical :: test = .false.
-     !> FIXME: Add documentation
+     !> FIXME: Remove, unused
      !>
      !> Used for GRYFX - should probably be moved elsewhere - ~ rho_i vti^2
      real :: tparfac_lin = 2.*sqrt(2.)
      !> For debugging only. Multiplies the trapped particle drifts
      !> (also see [[dist_fn_knobs:driftknob]]).
      real :: tpdriftknob = -9.9e9
-     !> FIXME: Add documentation
+     !> FIXME: Remove, unused
      !>
      !> Used for GRYFX - should probably be moved elsewhere - ~ rho_i vti^2
      real :: tprpfac_lin = 2.*sqrt(2.)
-     !> FIXME: Add documentation
+     !> FIXME: Remove, unused
      !>
      !> Used for GRYFX - should probably be moved elsewhere - ~ rho_i vti
      real :: uparfac_lin = 2.
      !> For debugging only. Sets the boundary value for the barely trapped/passing particle.
      real :: wfb = 1.0
-     !> FIXME: Add documentation
+     !> If true, do NOT save homogeneous solutions for WFB
      logical :: wfb_cmr = .false.
-     !> FIXME: Add documentation
+     !> Set boundary condition for WFB:
+     !>
+     !> - "default", "mixed": The previous default boundary condition which
+     !>   mixes the passing and trapped boundary conditions
+     !> - "passing": Treats the WFB using a passing particle boundary condition
+     !> - "trapped": Treats the WFB using a trapped particle boundary condition
      character(len = 20) :: wfbbc_option = 'default'
      !> If true then force `gnew=0` in the forbidden region at the end
      !> of [[invert_rhs_1]] (this is the original behaviour).
