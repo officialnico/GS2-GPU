@@ -167,6 +167,7 @@ module init_g
      !>   - "all_modes_equal"
      !>   - "eig_restart"
      !>   - "stationary_mode"
+     !>   - "cgyro"
      character(len = 20) :: ginit_option = "default"
      !> FIXME: Add documentation
      integer, dimension(2) :: ikk = [1, 2]
@@ -1011,6 +1012,8 @@ contains
        call ginit_ot
     case (ginitopt_stationary_mode)
        call ginit_stationary_mode
+    case (ginitopt_cgyro)
+       call ginit_cgyro
     end select
   end subroutine ginit
 
@@ -1024,7 +1027,7 @@ contains
     implicit none
     type(init_g_config_type), intent(in), optional :: init_g_config_in
 
-    type (text_option), dimension (36), parameter :: ginitopts = &
+    type (text_option), dimension (*), parameter :: ginitopts = &
          (/ text_option('default', ginitopt_default), &
             text_option('default_odd', ginitopt_default_odd), &
             text_option('noise', ginitopt_noise), &
@@ -1060,7 +1063,8 @@ contains
             text_option('single_parallel_mode', ginitopt_single_parallel_mode), &
             text_option('all_modes_equal', ginitopt_all_modes_equal), &
             text_option('eig_restart', ginitopt_restart_eig), &
-            text_option('stationary_mode', ginitopt_stationary_mode) &
+            text_option('stationary_mode', ginitopt_stationary_mode), &
+            text_option('cgyro', ginitopt_cgyro) &
             /)
     character(20) :: ginit_option
 
