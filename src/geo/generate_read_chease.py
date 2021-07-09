@@ -1,7 +1,8 @@
 # This Python script automatically generates the module
-# read_chease. It is automatically invoked by the Makefile;
-# thus, after editing it a simple make will trigger the generation of
-# the file read_chease.f90.
+# read_chease. It is NOT automatically invoked by the Makefile;
+# thus, after editing it need to run the following to generate
+# the updated fortran file:
+#      python generate_read_chease read_chease.f90
 #
 # This could make good use of jinja templating, but we do it in a more
 # manual approach currently in order to avoid external dependencies
