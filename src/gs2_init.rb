@@ -172,7 +172,7 @@ class GenerateInit
         when /override_kt_grids/
           str = <<EOF2
           use kt_grids, only: ktso=>set_overrides
-          if (up() .and. current%kt_ov%init) call ktso(current%kt_ov)
+          if (up() .and. current%kt_ov%is_initialised()) call ktso(current%kt_ov)
 
 EOF2
         when /override_optimisations/
@@ -180,29 +180,29 @@ EOF2
           use gs2_layouts, only: lso=>set_overrides
           use fields, only: fso=>set_overrides
           use dist_fn, only: dso=>set_overrides
-          if (up() .and. current%opt_ov%init) call lso(current%opt_ov)
-          if (up() .and. current%opt_ov%init) call fso(current%opt_ov)
-          if (up() .and. current%opt_ov%init) call dso(current%opt_ov)
+          if (up() .and. current%opt_ov%is_initialised()) call lso(current%opt_ov)
+          if (up() .and. current%opt_ov%is_initialised()) call fso(current%opt_ov)
+          if (up() .and. current%opt_ov%is_initialised()) call dso(current%opt_ov)
 
 EOF2
         when /override_miller_geometry/
           str = <<EOF2
           use theta_grid_params, only: tgpso=>set_overrides
-          if (up() .and. current%mgeo_ov%init) call tgpso(current%mgeo_ov)
+          if (up() .and. current%mgeo_ov%is_initialised()) call tgpso(current%mgeo_ov)
 
 EOF2
 			  when /override_timestep/
           str = <<EOF2
           use run_parameters, only: rso=>set_overrides
-          if (up() .and. current%tstep_ov%init) call rso(current%tstep_ov)
+          if (up() .and. current%tstep_ov%is_initialised()) call rso(current%tstep_ov)
 
 EOF2
         when /override_profiles/
           str = <<EOF2
           use dist_fn, only: dfso=>set_overrides
           use species, only: sso=>set_overrides
-          if (up() .and. current%prof_ov%init) call dfso(current%prof_ov)
-          if (up() .and. current%prof_ov%init) call sso(current%prof_ov)
+          if (up() .and. current%prof_ov%is_initialised()) call dfso(current%prof_ov)
+          if (up() .and. current%prof_ov%is_initialised()) call sso(current%prof_ov)
 
 EOF2
         when 'set_initial_values'
