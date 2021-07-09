@@ -53,11 +53,11 @@ module gs2_init
   type init_level_list_type
      !> The init_level reaches basic
      !> when initialize_gs2 has been called.
-     integer, parameter :: basic = 1
+     integer :: basic = 1
      include "gs2_init_level_list.f90"
   end type init_level_list_type
 
-  type(init_level_list_type), parameter :: init_level_list
+  type(init_level_list_type), parameter :: init_level_list = init_level_list_type()
 
   !> A type for storing the current initialization
   !> status, as well as all the overrides.
