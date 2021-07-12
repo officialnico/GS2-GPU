@@ -1320,6 +1320,7 @@ contains
             text_option('test3', ginitopt_test3), &
             text_option('convect', ginitopt_convect), &
             text_option('rh', ginitopt_rh), &
+            text_option('restart', ginitopt_restart_many), &
             text_option('many', ginitopt_restart_many), &
             text_option('small', ginitopt_restart_small), &
             text_option('file', ginitopt_restart_file), &

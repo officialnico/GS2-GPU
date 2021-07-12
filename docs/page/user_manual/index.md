@@ -384,14 +384,14 @@ these restart files get created and how they're named:
 To then restart a simulation, set the following input variables:
 
 - [knobs::delt_option][delt_option] to `check_restart`
-- [init_g_knobs::ginit_option][ginit_option] to `many`
+- [init_g_knobs::ginit_option][ginit_option] to `restart`
 
 ``` Fortran
 &knobs
     delt_option = "check_restart"
 /
 &init_g_knobs
-    ginit_option = "many"
+    ginit_option = "restart"
 /
 ```
 
