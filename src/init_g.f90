@@ -218,7 +218,7 @@ module init_g
      !>     useful.
      !>   - "zero": Sets distribution function to zero
      !>   - "test3": Unsupported; do not use.
-     !>   - "convect": Unsupported; do not use.
+     !>   - "convect": Unsupported; do not use. Controlled by [[knobs:k0]].
      !>   - "rh": Maxwellian perturbation in `ik == 1` mode; do not use?
      !>   - "many": Restart, using `g` from restart files.
      !>   - "small": Restart, using `g` from restart files, scaled by
@@ -308,7 +308,7 @@ module init_g
      !>         [[init_g_knobs:tperp1]], [[init_g_knobs:tperp2]]
      !>
      !>   - "smallflat"
-     !>   - "harris"
+     !>   - "harris": Controlled by [[knobs:k0]]
      !>   - "recon"
      !>   - "recon3"
      !>   - "ot": Orszag-Tang 2D vortex problem (see [[init_g_knobs:aparamp]],
