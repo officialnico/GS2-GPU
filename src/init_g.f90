@@ -101,30 +101,29 @@ module init_g
      !> Amplitude of equilibrium `Apara`: if `a0` is non-zero, \(u_0\) is
      !> rescaled to give this `Apara` amplitude
      real :: a0 = 0.0
-     !> Used by [[init_g_knobs:ginit_option]] == "recon3": adjust input
-     !> parameter of this species; if = 0, just warn if given conditions are not
-     !> satisfied
+     !> Used by [[init_g_knobs:ginit_option]] `"recon3"`: adjust input parameter
+     !> of this species; if = 0, just warn if given conditions are not satisfied
      !>
      !> FIXME: What input parameter, what conditions?
      integer :: adj_spec = 0
-     !> Used by [[init_g_knobs:ginit_option]] == "nl3r": set amplitude of `apar`
+     !> Used by [[init_g_knobs:ginit_option]] `"nl3r"`: set amplitude of `apar`
      !> if [[init_g_knobs:width0]] is negative
      real :: apar0 = 0.0
      !> Used in initialization for the Orszag-Tang 2D vortex problem
-     !> ([[init_g_knobs:ginit_option]] == "ot"). Controls size of `jpar` term.
-     !>
+     !> ([[init_g_knobs:ginit_option]] `"ot"`). Controls size of `jpar` term.
      !> FIXME: Reference equations?
      complex, dimension(6) :: aparamp = cmplx(0.0,0.0)
-     !> Amplitude of equilibrium `By: if `b0` is non-zero, \(u_0\) is
+     !> Amplitude of equilibrium `By`: if `b0` is non-zero, \(u_0\) is
      !> rescaled to give this `By` amplitude by overriding [[init_g_knobs:a0]]
      real :: b0 = 0.0
      !> Rarely needed. Forces asymmetry into initial condition. Warning: This
      !> does not behave as one may expect in flux tube simulations (see
      !> clean_init), this can be important as the default is to use chop_side
      logical :: chop_side = .true.
-     !> Used with ginit_option='noise'. Ensures that in flux tube simulations
-     !> the connected boundary points are initialised to the same value. Also
-     !> allows for chop_side to behave correctly in flux tube simulations.
+     !> Used with [[init_g_knobs:ginit_option]] `"noise"`. Ensures that in flux
+     !> tube simulations the connected boundary points are initialised to the
+     !> same value. Also allows for [[init_g_knobs:chop_side]] to behave
+     !> correctly in flux tube simulations.
      logical :: clean_init = .true.
      !> Use the constant_random number generator, which always gives the same
      !> random numbers. Useful for testing.
@@ -132,62 +131,62 @@ module init_g
      !> Amplitude of zeroth density perturbation for [[init_g_knobs:ginit_option]]
      !> options:
      !>
-     !> - "kpar" (see [[init_g:ginit_kpar]])
-     !> - "kz0" (see [[init_g:ginit_kz0]])
-     !> - "nl3" (see [[init_g:ginit_nl3]])
-     !> - "nl3r" (see [[init_g:ginit_nl3r]])
-     !> - "nl7" (see [[init_g:ginit_nl7]])
-     !> - "ot" (see [[init_g:ginit_ot]])
-     !> - "recon" (see [[init_g:ginit_recon]])
+     !> - `"kpar"` (see [[init_g:ginit_kpar]])
+     !> - `"kz0"` (see [[init_g:ginit_kz0]])
+     !> - `"nl3"` (see [[init_g:ginit_nl3]])
+     !> - `"nl3r"` (see [[init_g:ginit_nl3r]])
+     !> - `"nl7"` (see [[init_g:ginit_nl7]])
+     !> - `"ot"` (see [[init_g:ginit_ot]])
+     !> - `"recon"` (see [[init_g:ginit_recon]])
      real :: den0 = 1.0
      !> Amplitude of first density perturbation for [[init_g_knobs:ginit_option]]
      !> options:
      !>
-     !> - "gs" (see [[init_g:ginit_gs]])
-     !> - "kpar" (see [[init_g:ginit_kpar]])
-     !> - "nl3" (see [[init_g:ginit_nl3]])
-     !> - "nl3r" (see [[init_g:ginit_nl3r]])
-     !> - "nl7" (see [[init_g:ginit_nl7]])
-     !> - "recon" (see [[init_g:ginit_recon]])
-     !> - "recon3" (see [[init_g:ginit_recon3]])
+     !> - `"gs"` (see [[init_g:ginit_gs]])
+     !> - `"kpar"` (see [[init_g:ginit_kpar]])
+     !> - `"nl3"` (see [[init_g:ginit_nl3]])
+     !> - `"nl3r"` (see [[init_g:ginit_nl3r]])
+     !> - `"nl7"` (see [[init_g:ginit_nl7]])
+     !> - `"recon"` (see [[init_g:ginit_recon]])
+     !> - `"recon3"` (see [[init_g:ginit_recon3]])
      real :: den1 = 0.0
      !> Amplitude of second density perturbation for [[init_g_knobs:ginit_option]]
      !> options:
      !>
-     !> - "kpar" (see [[init_g:ginit_kpar]])
-     !> - "kz0" (see [[init_g:ginit_kz0]])
-     !> - "nl3" (see [[init_g:ginit_nl3]])
-     !> - "nl3r" (see [[init_g:ginit_nl3r]])
-     !> - "nl7" (see [[init_g:ginit_nl7]])
-     !> - "recon" (see [[init_g:ginit_recon]])
-     !> - "recon3" (see [[init_g:ginit_recon3]])
+     !> - `"kpar"` (see [[init_g:ginit_kpar]])
+     !> - `"kz0"` (see [[init_g:ginit_kz0]])
+     !> - `"nl3"` (see [[init_g:ginit_nl3]])
+     !> - `"nl3r"` (see [[init_g:ginit_nl3r]])
+     !> - `"nl7"` (see [[init_g:ginit_nl7]])
+     !> - `"recon"` (see [[init_g:ginit_recon]])
+     !> - `"recon3"` (see [[init_g:ginit_recon3]])
      real :: den2 = 0.0
-     !> Amplitude of \(\phi\) for "nl7" (see [[init_g:ginit_nl7]])
+     !> Amplitude of \(\phi\) for `"nl7"` (see [[init_g:ginit_nl7]])
      real :: dphiinit = 1.0
      !> Mode number in \(x\) for the sinusoidal equilbrium option of
-     !> [[init_g_knobs:ginit_option]] "recon3" (see [[init_g:ginit_recon3]]),
+     !> [[init_g_knobs:ginit_option]] `"recon3"` (see [[init_g:ginit_recon3]]),
      !> applies to density and temperatures
      integer :: eq_mode_n = 0
      !> Mode number in \(x\) for the sinusoidal equilbrium option of
-     !> [[init_g_knobs:ginit_option]] "recon3" (see [[init_g:ginit_recon3]]),
+     !> [[init_g_knobs:ginit_option]] `"recon3"` (see [[init_g:ginit_recon3]]),
      !> applies to parallel velocity
      integer :: eq_mode_u = 1
-     !> Equilbrium choice for [[init_g_knobs:ginit_option]] "recon3" (see
+     !> Equilbrium choice for [[init_g_knobs:ginit_option]] `"recon3"` (see
      !> [[init_g:ginit_recon3]]). Choices are:
      !>
-     !> - "sinusoidal"
-     !> - "porcelli"
-     !> - "doubleharris"
+     !> - `"sinusoidal"`
+     !> - `"porcelli"`
+     !> - `"doubleharris"`
      character(len = 20) :: eq_type = 'sinusoidal'
      !> Sometimes initial conditions have definite parity; this picks the parity
      !> in those cases. Affects the following choices of
      !> [[init_g_knobs:ginit_option]]:
      !>
-     !> - "nl3" (see [[init_g:ginit_nl3]])
-     !> - "nl3r" (see [[init_g:ginit_nl3r]])
-     !> - "nl7" (see [[init_g:ginit_nl7]])
-     !> - "recon" (see [[init_g:ginit_recon]])
-     !> - "recon3" (see [[init_g:ginit_recon3]])
+     !> - `"nl3"` (see [[init_g:ginit_nl3]])
+     !> - `"nl3r"` (see [[init_g:ginit_nl3r]])
+     !> - `"nl7"` (see [[init_g:ginit_nl7]])
+     !> - `"recon"` (see [[init_g:ginit_recon]])
+     !> - `"recon3"` (see [[init_g:ginit_recon3]])
      logical :: even = .true.
      !> Method for initialising `g`. There are many possible options, but the
      !> typical ones are:
@@ -215,13 +214,11 @@ module init_g
      !> \(k_y\) indices of three modes to initialise for certain options
      integer, dimension(3) :: ikkk = [1, 2, 2]
      !> Parallel mode number to initialise for [[init_g_knobs:ginit_option]]
-     !> "single_parallel_mode" with periodic boundary conditions
+     !> `"single_parallel_mode"` with periodic boundary conditions
      integer :: ikpar_init = 0
-     !> Initialise only the given \(k_x\) with noise. This input parameter is
-     !> used when noise is being initialised. If set greater than zero, noise
-     !> will only be initialised for `itheta0 = ikx_init`. This is useful for
-     !> linear runs with flow shear, to track the evolution of a single
-     !> Lagrangian mode.
+     !> If greater than zero, initialise only the given \(k_x\) with
+     !> [[init_g_knobs:ginit_option]] `"noise"`. This is useful for linear runs
+     !> with flow shear, to track the evolution of a single Lagrangian mode.
      integer :: ikx_init = -1
      !> Amplitude of imaginary part of \(\phi\) for various
      !> [[init_g_knobs:ginit_option]] options
@@ -229,14 +226,14 @@ module init_g
      !> Do we want to include the explicit source terms and
      !> related timesteps when saving/restoring from the restart file.
      logical :: include_explicit_source_in_restart = .true.
-     !> Print some debug information for [[init_g_knobs:ginit_option]] "recon3"
+     !> Print some debug information for [[init_g_knobs:ginit_option]] `"recon3"`
      logical :: input_check_recon = .false.
      !> \(k_x\) indices of two modes to initialise for certain options
      integer, dimension(2) :: itt = [1, 2]     
      !> \(k_x\) indices of three modes to initialise for certain options
      integer, dimension(3) :: ittt = [1, 2, 2]     
      !> Parallel mode number to initialise for [[init_g_knobs:ginit_option]]
-     !> "single_parallel_mode" with linked boundary conditions
+     !> `"single_parallel_mode"` with linked boundary conditions
      real :: kpar_init = 0.0
      !> If [[init_g_knobs:chop_side]] is true, chop out left side in theta if
      !> true, right side if false. Applies to: FIXME: list of initial conditions
@@ -249,15 +246,15 @@ module init_g
      !>
      !> FIXME: Remove
      complex, dimension(3) :: nkxy_pt = cmplx(0.,0.)
-     !> "Nullify fields". Used by [[init_g_knobs:ginit_option]] "recon3"
+     !> "Nullify fields". Used by [[init_g_knobs:ginit_option]] `"recon3"`
      !>
      !> FIXME: Add documentation
      logical :: null_apar = .false.
-     !> "Nullify fields". Used by [[init_g_knobs:ginit_option]] "recon3"
+     !> "Nullify fields". Used by [[init_g_knobs:ginit_option]] `"recon3"`
      !>
      !> FIXME: Add documentation
      logical :: null_bpar = .false.
-     !> "Nullify fields". Used by [[init_g_knobs:ginit_option]] "recon3"
+     !> "Nullify fields". Used by [[init_g_knobs:ginit_option]] `"recon3"`
      !>
      !> FIXME: Add documentation
      logical :: null_phi = .false.
@@ -272,12 +269,12 @@ module init_g
      !> Average amplitude of initial perturbation of each Fourier mode. Used by
      !> most [[init_g_knobs:ginit_option]] options
      real :: phiinit = 1.0
-     !> Amplitude of equilibrium. Used by [[init_g_knobs:ginit_option]] "recon3"
+     !> Amplitude of equilibrium. Used by [[init_g_knobs:ginit_option]] `"recon3"`
      real :: phiinit0 = 0.0
-     !> Amplitude of random perturbation. Used by [[init_g_knobs:ginit_option]] "recon3"
+     !> Amplitude of random perturbation. Used by [[init_g_knobs:ginit_option]] `"recon3"`
      real :: phiinit_rand = 0.0
      !> Width of "porcelli", "doubleharris" profiles in
-     !> [[init_g_knobs:ginit_option]] "recon3". If negative, this gives the
+     !> [[init_g_knobs:ginit_option]] `"recon3"`. If negative, this gives the
      !> ratio to the box size
      real :: prof_width = -0.1
      !> Restart from many restart files. If false, use a single restart file:
@@ -297,113 +294,115 @@ module init_g
      !>
      !> @note gets a smart default
      character(len = 2000) :: restart_file = "restart_file_not_set.nc"
-     !> Allows rescaling of amplitudes for restarts.
+     !> Rescale amplitudes of fields for restart [[init_g_knobs:ginit_option]]
+     !> options such as `"restart"`. Note that if `scale` is negative, the
+     !> fields are scaled by `-scale / max(abs(phi))`!
      real :: scale = 1.0
      !> Amplitude of zeroth parallel temperature perturbation for
      !> [[init_g_knobs:ginit_option]] options:
      !>
-     !> - "kpar" (see [[init_g:ginit_kpar]])
-     !> - "kz0" (see [[init_g:ginit_kz0]])
-     !> - "nl3" (see [[init_g:ginit_nl3]])
-     !> - "nl3r" (see [[init_g:ginit_nl3r]])
-     !> - "nl7" (see [[init_g:ginit_nl7]])
-     !> - "ot" (see [[init_g:ginit_ot]])
-     !> - "recon" (see [[init_g:ginit_recon]])
+     !> - `"kpar"` (see [[init_g:ginit_kpar]])
+     !> - `"kz0"` (see [[init_g:ginit_kz0]])
+     !> - `"nl3"` (see [[init_g:ginit_nl3]])
+     !> - `"nl3r"` (see [[init_g:ginit_nl3r]])
+     !> - `"nl7"` (see [[init_g:ginit_nl7]])
+     !> - `"ot"` (see [[init_g:ginit_ot]])
+     !> - `"recon"` (see [[init_g:ginit_recon]])
      real :: tpar0 = 0.0
      !> Amplitude of first parallel temperature perturbation for
      !> [[init_g_knobs:ginit_option]] options:
      !>
-     !> - "gs" (see [[init_g:ginit_gs]])
-     !> - "kpar" (see [[init_g:ginit_kpar]])
-     !> - "nl3" (see [[init_g:ginit_nl3]])
-     !> - "nl3r" (see [[init_g:ginit_nl3r]])
-     !> - "nl7" (see [[init_g:ginit_nl7]])
-     !> - "recon" (see [[init_g:ginit_recon]])
-     !> - "recon3" (see [[init_g:ginit_recon3]])
+     !> - `"gs"` (see [[init_g:ginit_gs]])
+     !> - `"kpar"` (see [[init_g:ginit_kpar]])
+     !> - `"nl3"` (see [[init_g:ginit_nl3]])
+     !> - `"nl3r"` (see [[init_g:ginit_nl3r]])
+     !> - `"nl7"` (see [[init_g:ginit_nl7]])
+     !> - `"recon"` (see [[init_g:ginit_recon]])
+     !> - `"recon3"` (see [[init_g:ginit_recon3]])
      real :: tpar1 = 0.0
      !> Amplitude of second parallel temperature perturbation for
      !> [[init_g_knobs:ginit_option]] options:
      !>
-     !> - "kpar" (see [[init_g:ginit_kpar]])
-     !> - "kz0" (see [[init_g:ginit_kz0]])
-     !> - "nl3" (see [[init_g:ginit_nl3]])
-     !> - "nl3r" (see [[init_g:ginit_nl3r]])
-     !> - "nl7" (see [[init_g:ginit_nl7]])
-     !> - "recon" (see [[init_g:ginit_recon]])
-     !> - "recon3" (see [[init_g:ginit_recon3]])
+     !> - `"kpar"` (see [[init_g:ginit_kpar]])
+     !> - `"kz0"` (see [[init_g:ginit_kz0]])
+     !> - `"nl3"` (see [[init_g:ginit_nl3]])
+     !> - `"nl3r"` (see [[init_g:ginit_nl3r]])
+     !> - `"nl7"` (see [[init_g:ginit_nl7]])
+     !> - `"recon"` (see [[init_g:ginit_recon]])
+     !> - `"recon3"` (see [[init_g:ginit_recon3]])
      real :: tpar2 = 0.0
      !> Amplitude of zeroth perpendicular temperature perturbation for
      !> [[init_g_knobs:ginit_option]] options:
      !>
-     !> - "kpar" (see [[init_g:ginit_kpar]])
-     !> - "kz0" (see [[init_g:ginit_kz0]])
-     !> - "nl3" (see [[init_g:ginit_nl3]])
-     !> - "nl3r" (see [[init_g:ginit_nl3r]])
-     !> - "nl7" (see [[init_g:ginit_nl7]])
-     !> - "ot" (see [[init_g:ginit_ot]])
-     !> - "recon" (see [[init_g:ginit_recon]])
+     !> - `"kpar"` (see [[init_g:ginit_kpar]])
+     !> - `"kz0"` (see [[init_g:ginit_kz0]])
+     !> - `"nl3"` (see [[init_g:ginit_nl3]])
+     !> - `"nl3r"` (see [[init_g:ginit_nl3r]])
+     !> - `"nl7"` (see [[init_g:ginit_nl7]])
+     !> - `"ot"` (see [[init_g:ginit_ot]])
+     !> - `"recon"` (see [[init_g:ginit_recon]])
      real :: tperp0 = 0.0
      !> Amplitude of first perpendicular temperature perturbation for
      !> [[init_g_knobs:ginit_option]] options:
      !>
-     !> - "gs" (see [[init_g:ginit_gs]])
-     !> - "kpar" (see [[init_g:ginit_kpar]])
-     !> - "nl3" (see [[init_g:ginit_nl3]])
-     !> - "nl3r" (see [[init_g:ginit_nl3r]])
-     !> - "nl7" (see [[init_g:ginit_nl7]])
-     !> - "recon" (see [[init_g:ginit_recon]])
-     !> - "recon3" (see [[init_g:ginit_recon3]])
+     !> - `"gs"` (see [[init_g:ginit_gs]])
+     !> - `"kpar"` (see [[init_g:ginit_kpar]])
+     !> - `"nl3"` (see [[init_g:ginit_nl3]])
+     !> - `"nl3r"` (see [[init_g:ginit_nl3r]])
+     !> - `"nl7"` (see [[init_g:ginit_nl7]])
+     !> - `"recon"` (see [[init_g:ginit_recon]])
+     !> - `"recon3"` (see [[init_g:ginit_recon3]])
      real :: tperp1 = 0.0
      !> Amplitude of second perpendicular temperature perturbation for
      !> [[init_g_knobs:ginit_option]] options:
      !>
-     !> - "kpar" (see [[init_g:ginit_kpar]])
-     !> - "kz0" (see [[init_g:ginit_kz0]])
-     !> - "nl3" (see [[init_g:ginit_nl3]])
-     !> - "nl3r" (see [[init_g:ginit_nl3r]])
-     !> - "nl7" (see [[init_g:ginit_nl7]])
-     !> - "recon" (see [[init_g:ginit_recon]])
-     !> - "recon3" (see [[init_g:ginit_recon3]])
+     !> - `"kpar"` (see [[init_g:ginit_kpar]])
+     !> - `"kz0"` (see [[init_g:ginit_kz0]])
+     !> - `"nl3"` (see [[init_g:ginit_nl3]])
+     !> - `"nl3r"` (see [[init_g:ginit_nl3r]])
+     !> - `"nl7"` (see [[init_g:ginit_nl7]])
+     !> - `"recon"` (see [[init_g:ginit_recon]])
+     !> - `"recon3"` (see [[init_g:ginit_recon3]])
      real :: tperp2 = 0.0
      !> Force `t = tstart` at beginning of run
      real :: tstart = 0.0
      !> Perturbation amplitude of parallel velocity? Used by
-     !> [[init_g_knobs:ginit_option]] "recon3"
+     !> [[init_g_knobs:ginit_option]] `"recon3"`
      !>
      !> FIXME: Add documentation
      complex, dimension(3) :: ukxy_pt = cmplx(0.,0.)
      !> Amplitude of zeroth parallel velocity perturbation for
      !> [[init_g_knobs:ginit_option]] options:
      !>
-     !> - "kpar" (see [[init_g:ginit_kpar]])
-     !> - "kz0" (see [[init_g:ginit_kz0]])
-     !> - "nl3" (see [[init_g:ginit_nl3]])
-     !> - "nl3r" (see [[init_g:ginit_nl3r]])
-     !> - "nl7" (see [[init_g:ginit_nl7]])
-     !> - "ot" (see [[init_g:ginit_ot]])
-     !> - "recon" (see [[init_g:ginit_recon]])
+     !> - `"kpar"` (see [[init_g:ginit_kpar]])
+     !> - `"kz0"` (see [[init_g:ginit_kz0]])
+     !> - `"nl3"` (see [[init_g:ginit_nl3]])
+     !> - `"nl3r"` (see [[init_g:ginit_nl3r]])
+     !> - `"nl7"` (see [[init_g:ginit_nl7]])
+     !> - `"ot"` (see [[init_g:ginit_ot]])
+     !> - `"recon"` (see [[init_g:ginit_recon]])
      real :: upar0 = 0.0
      !> Amplitude of first parallel velocity perturbation for
      !> [[init_g_knobs:ginit_option]] options:
      !>
-     !> - "gs" (see [[init_g:ginit_gs]])
-     !> - "kpar" (see [[init_g:ginit_kpar]])
-     !> - "nl3" (see [[init_g:ginit_nl3]])
-     !> - "nl3r" (see [[init_g:ginit_nl3r]])
-     !> - "nl7" (see [[init_g:ginit_nl7]])
-     !> - "recon" (see [[init_g:ginit_recon]])
-     !> - "recon3" (see [[init_g:ginit_recon3]])
+     !> - `"gs"` (see [[init_g:ginit_gs]])
+     !> - `"kpar"` (see [[init_g:ginit_kpar]])
+     !> - `"nl3"` (see [[init_g:ginit_nl3]])
+     !> - `"nl3r"` (see [[init_g:ginit_nl3r]])
+     !> - `"nl7"` (see [[init_g:ginit_nl7]])
+     !> - `"recon"` (see [[init_g:ginit_recon]])
+     !> - `"recon3"` (see [[init_g:ginit_recon3]])
      real :: upar1 = 0.0
      !> Amplitude of second parallel velocity perturbation for
      !> [[init_g_knobs:ginit_option]] options:
      !>
-     !> - "kpar" (see [[init_g:ginit_kpar]])
-     !> - "kz0" (see [[init_g:ginit_kz0]])
-     !> - "nl3" (see [[init_g:ginit_nl3]])
-     !> - "nl3r" (see [[init_g:ginit_nl3r]])
-     !> - "nl7" (see [[init_g:ginit_nl7]])
-     !> - "recon" (see [[init_g:ginit_recon]])
-     !> - "recon3" (see [[init_g:ginit_recon3]])
+     !> - `"kpar"` (see [[init_g:ginit_kpar]])
+     !> - `"kz0"` (see [[init_g:ginit_kz0]])
+     !> - `"nl3"` (see [[init_g:ginit_nl3]])
+     !> - `"nl3r"` (see [[init_g:ginit_nl3r]])
+     !> - `"nl7"` (see [[init_g:ginit_nl7]])
+     !> - `"recon"` (see [[init_g:ginit_recon]])
+     !> - `"recon3"` (see [[init_g:ginit_recon3]])
      real :: upar2 = 0.0
      !> Width of initial perturbation Gaussian envelope in \(\theta\)
      real :: width0 = -3.5
@@ -1310,7 +1309,7 @@ contains
   !> Set initial condition to gaussian in \(\theta\)
   !>
   !> Controlled by:
-  !> - Amplitude: [[init_g_knobs:phiiinit]]
+  !> - Amplitude: [[init_g_knobs:phiinit]]
   !> - Width in \(\theta\): [[init_g_knobs:width0]]
   !> - Parity: even about \(\theta_0\) unless [[init_g_knobs:chop_side]] is true
   subroutine ginit_default
@@ -1363,7 +1362,7 @@ contains
   !> Set initial condition to gaussian in \(\theta\)
   !>
   !> Controlled by:
-  !> - Amplitude: [[init_g_knobs:phiiinit]]
+  !> - Amplitude: [[init_g_knobs:phiinit]]
   !> - Width in \(\theta\): [[init_g_knobs:width0]]
   !> - Parity: odd about \(\theta_0\) unless [[init_g_knobs:chop_side]] is true
   subroutine ginit_default_odd
@@ -1846,7 +1845,7 @@ contains
 
   !> "nl": Two \(k_\perp\) modes set to constant amplitude. Controlled by:
   !>
-  !>  - Overall amplitude: [[init_g_knobs:phiiinit]]
+  !>  - Overall amplitude: [[init_g_knobs:phiinit]]
   !>  - `ky` indices of modes: [[init_g_knobs:ikk]]
   !>  - `kx` indices of modes: [[init_g_knobs:itt]]
   !>  - Parity: even about \(\theta_0\) unless
@@ -1905,7 +1904,7 @@ contains
   !> "nl2": Two \(k_\perp\) modes proportional to \(1 + v_\Vert
   !>     \sin(\theta)\). Controlled by:
   !>
-  !>  - Overall amplitude: [[init_g_knobs:phiiinit]]
+  !>  - Overall amplitude: [[init_g_knobs:phiinit]]
   !>  - `ky` indices of modes: [[init_g_knobs:ikk]]
   !>  - `kx` indices of modes: [[init_g_knobs:itt]]
   !>  - Parity: even about \(\theta_0\) unless
@@ -1970,7 +1969,7 @@ contains
   !> \(\sin\). Density, parallel velocity, and perpendicular and parallel
   !> temperatures can all be controlled independently. Controlled by:
   !>
-  !>   - Overall amplitude: [[init_g_knobs:phiiinit]]
+  !>   - Overall amplitude: [[init_g_knobs:phiinit]]
   !>   - Amplitude of real and imaginary parts of \(\phi\):
   !>     [[init_g_knobs:refac]], [[init_g_knobs:imfac]]
   !>   - Gaussian envelope width in \(\theta\): [[init_g_knobs:width0]]
