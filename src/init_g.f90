@@ -329,8 +329,9 @@ module init_g
      !>   - "stationary_mode": Initialises the distribution function such that
      !>     it is a time-independent solution to the gyrokinetic equation when
      !>     collisions are neglected and only one mode (with `aky = 0`) is
-     !>     present. See Section 4 of the Analytic Geometry Specification
-     !>     documentation for more details. FIXME: link
+     !>     present. See Section 4 of the [Analytic Geometry
+     !>     Specification](https://bitbucket.org/gyrokinetics/wikifiles/raw/master/JRB/GS2GeoDoc.pdf)
+     !>     documentation for more details.
      !>   - "cgyro": CGYRO-like initialisation, constant amplitude for \(k_y \ne
      !>     0\) and zero amplitude for \(k_y == 0\) (see [[ginit_cgyro]] for
      !>     details).
