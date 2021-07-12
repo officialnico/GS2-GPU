@@ -1484,9 +1484,9 @@ contains
     end do
   end subroutine single_initial_kx
 
-  !> Initialise the distribution function with random noise. This is the default
-  !! initialisation option. Each different mode is given a random amplitude
-  !! between zero and one.
+  !> Initialise the distribution function with random noise. This is the
+  !> recommended initialisation option. Each different mode is given a random
+  !> amplitude between zero and one.
   subroutine ginit_noise
     use species, only: spec, tracer_species
     use theta_grid, only: ntgrid 
@@ -1654,9 +1654,10 @@ contains
 
   end subroutine ginit_noise
 
-  !> Initialize with a single parallel mode. Only makes sense in a linear 
-  !! calculation. k_parallel is specified with kpar_init or with ikpar_init 
-  !! when periodic boundary conditions are used. 
+  !> Initialise only with a single parallel mode \(k_\Vert\) specified by either
+  !> [[init_g_knobs:ikpar_init]] for periodic boundary conditions or
+  !> [[init_g_knobs:kpar_init]] for linked boundary conditions. Only makes sense
+  !> for linear calculations.
   subroutine ginit_single_parallel_mode
     use species, only: spec, tracer_species
     use theta_grid, only: ntgrid, shat, theta 
@@ -3862,7 +3863,7 @@ contains
 
   end subroutine ginit_recon3
 
-  !> FIXME : Add documentation  
+  !> FIXME: This is identical to [[ginit_restart_many]]? Remove?
   subroutine ginit_restart_file
     use dist_fn_arrays, only: g, gnew
     use fields_arrays, only: phi, apar, bpar, phinew, aparnew, bparnew
@@ -3884,7 +3885,8 @@ contains
 
   end subroutine ginit_restart_file
 
-  !> FIXME : Add documentation  
+  !> Restore `g` from restart files. Note that the timestep and simulation time
+  !> are restored by [[read_t0_from_restart_file]]
   subroutine ginit_restart_many
     use dist_fn_arrays, only: g, gnew
     use fields_arrays, only: phi, apar, bpar, phinew, aparnew, bparnew
@@ -3906,7 +3908,8 @@ contains
     phi=phinew ; apar=aparnew ; bpar=bparnew
   end subroutine ginit_restart_many
 
-  !> FIXME : Add documentation  
+  !> Uses the restart files written by the eigensolver. File to read is set by
+  !> [[init_g_knobs:restart_eig_id]]
   subroutine ginit_restart_eig
     use dist_fn_arrays, only: g, gnew
     use fields_arrays, only: phi, apar, bpar, phinew, aparnew, bparnew
@@ -3946,7 +3949,9 @@ contains
     end if
   end subroutine ginit_restart_memory
 
-  !> FIXME : Add documentation    
+  !> Restores `g` from restart files _on top of_ a background from [[ginit_noise]].
+  !>
+  !> Note that this doesnt set `phi`, `apar`, `bpar` -- is this correct?
   subroutine ginit_restart_small
     use dist_fn_arrays, only: g, gnew
     use gs2_save, only: gs2_restore
@@ -3969,7 +3974,8 @@ contains
 
   end subroutine ginit_restart_small
 
-  !> FIXME : Add documentation    
+  !> Similar to `"small"`, restores fields from restart files _on top of_ a
+  !> random background
   subroutine ginit_restart_smallflat
     use gs2_save, only: gs2_restore
     use mp, only: proc0
@@ -4031,11 +4037,12 @@ contains
 
   end subroutine ginit_restart_smallflat
 
-  !> Restart but remove all turbulence except the zonal flow (ky = 0) component upon 
-  !! restarting. It can be selected by setting the input parameter ginit to "zonal_only". 
-  !! The size of the zonal flows can be adjusted using the input parameter zf_init. 
-  !!
-  !! Author EGH
+  !> Restart but set all non-zonal components \((k_y \ne 0)\) of the potential
+  !> and the distribution function to 0. Noise can be added to these other
+  !> components by setting [[init_g_knobs:phiinit]] > 0. The size of the zonal
+  !> flows can be adjusted using [[init_g_knobs:zf_init]].
+  !>
+  !> Author EGH
   subroutine ginit_restart_zonal_only
     use gs2_save, only: gs2_restore
     use mp, only: proc0
@@ -4115,10 +4122,8 @@ contains
   end subroutine ginit_restart_zonal_only
 
   !> Restart but remove the zonal flow (ky = 0) component upon restarting.
-  !! It can be selected by setting the input parameter ginit to "no_zonal". 
-  !! The size of the zonal flows can be adjusted using the input parameter zf_init.
-  !!
-  !! Author: FvW (copy of EGH code)
+  !>
+  !> Author: FvW (copy of EGH code)
   subroutine ginit_restart_no_zonal
     use gs2_save, only: gs2_restore
     use mp, only: proc0
@@ -4229,7 +4234,7 @@ contains
   !> Set by having 'ginit_option' = cgyro
   !> Equivalent CGYRO parameters achieved by setting
   !>    GS2   =    CGYRO
-  !> phiiinit = AMP / sqrt(2)
+  !> phiinit = AMP / sqrt(2)
   !> zfinit   = AMP0 / AMP
   !>
   !> By default AMP0=0 and AMP=0.1 in CGYRO
