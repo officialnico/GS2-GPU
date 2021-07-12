@@ -323,14 +323,14 @@ if __name__ == "__main__":
     import os
     import sys
     src_dir = os.path.dirname(sys.argv[0])
-    with open(os.path.join(src_dir,"gs2_init_level_list.f90"), "w") as output:
+    with open(os.path.join(src_dir,"gs2_init_level_list.inc"), "w") as output:
         output.write(init_level_list.strip())
 
-    with open(os.path.join(src_dir,"gs2_init_up.f90"), "w") as output:
+    with open(os.path.join(src_dir,"gs2_init_up.inc"), "w") as output:
         output.write(up_calls.strip())
 
-    with open(os.path.join(src_dir,"gs2_init_down.f90"), "w") as output:
+    with open(os.path.join(src_dir,"gs2_init_down.inc"), "w") as output:
         output.write(down_calls.strip())
 
-    with open(os.path.join(src_dir,"gs2_init_subroutines.f90"), "w") as output:
+    with open(os.path.join(src_dir,"gs2_init_subroutines.inc"), "w") as output:
         output.write(visit_methods.strip())

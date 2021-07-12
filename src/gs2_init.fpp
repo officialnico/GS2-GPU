@@ -54,7 +54,7 @@ module gs2_init
      !> The init_level reaches basic
      !> when initialize_gs2 has been called.
      integer :: basic = 1
-     include "gs2_init_level_list.f90"
+#include "gs2_init_level_list.inc"
   end type init_level_list_type
 
   type(init_level_list_type), parameter :: init_level_list = init_level_list_type()
@@ -158,9 +158,9 @@ contains
        return
     else
        if (up()) then
-          include "gs2_init_up.f90"
+#include "gs2_init_up.inc"
        else if (down()) then
-          include "gs2_init_down.f90"
+#include "gs2_init_down.inc"
        end if
     end if
   contains
@@ -172,7 +172,7 @@ contains
       logical :: down
       down = (target_level<current%level)
     end function down
-    include "gs2_init_subroutines.f90"
+#include "gs2_init_subroutines.inc"
   end subroutine init
 
   !> Initialise this module
