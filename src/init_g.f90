@@ -4056,17 +4056,9 @@ contains
     use run_parameters, only: fphi, fapar, fbpar
 
     implicit none
-!     complex, dimension (-ntgrid:ntgrid,ntheta0,naky) :: phi
     integer :: istatus, ierr
     integer :: iglo
-!    integer :: ig, ik, it, il, is
     integer :: ik, it, il, is
-
-
-!    if (phiinit > epsilon(0.0)) then 
-! 
-!    end if 
-       
 
     !  Load phi and g from the restart file
     call gs2_restore (g, scale, istatus, fphi, fapar, fbpar)
@@ -4086,7 +4078,6 @@ contains
     
     ! Allow adjustment of the size of the zonal flows via the input parameter zf_init
     phinew(:,:,1) = phinew(:,:,1)*zf_init
-    
     
     !Apply reality condition for k_theta = 0 component!
     !if (reality) then
@@ -4113,8 +4104,8 @@ contains
 
     ! If phiinit > 0, add some noise
     if (phiinit >  epsilon(0.0)) then 
-     call ginit_noise
-     g = g + gnew
+      call ginit_noise
+      g = g + gnew
     end if
 
     gnew = g
