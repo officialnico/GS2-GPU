@@ -309,11 +309,11 @@ if __name__ == "__main__":
 
     # Now we can form the up/down calls
     up_calls = "\n".join([
-        "    if (current%level == init_level_list%{name} - 1) call {name}_subroutine(.true.)".format(
+        "    if (up() .and. (current%level == init_level_list%{name} - 1)) call {name}_subroutine(.true.)".format(
             name = x.name) for x in ordered_levels.values()])
 
     down_calls = "\n".join([
-        "    if (current%level == init_level_list%{name}) call {name}_subroutine(.false.)".format(
+        "    if (down() .and. (current%level == init_level_list%{name})) call {name}_subroutine(.false.)".format(
             name = x.name) for x in ordered_levels.values()][::-1])
 
     # Now the visit methods
