@@ -418,7 +418,9 @@ module theta_grid_salpha
   type, extends(abstract_config_type) :: theta_grid_salpha_config_type
      ! namelist : theta_grid_salpha_knobs
      ! indexed : false     
-     !> Used in conjunction with `alpmhd` of [[theta_grid_parameters]] to override `shift`, set as `shift=-alpmhd*alpmhdfac`.
+
+     !> Used in conjunction with [[theta_grid_parameters:alpmhd]] to override
+     !> `shift`, set as `shift=-alpmhd*alpmhdfac`.
      real :: alpmhdfac = 0.0
      !> Coefficient in model when `model_option='alpha1'` has been selected.
      real :: alpha1 = 0.0
@@ -2105,7 +2107,7 @@ contains
   end function get_default_requires_index_theta_grid_eik_config
 end module theta_grid_eik
 
-!> FIXME : Add documentation
+!> Use output from [[rungridgen]]
 module theta_grid_file
   use abstract_config, only: abstract_config_type, CONFIG_MAX_NAME_LEN
   
@@ -2131,9 +2133,10 @@ module theta_grid_file
   type, extends(abstract_config_type) :: theta_grid_file_config_type
      ! namelist : theta_grid_file_knobs 
      ! indexed : false    
-     !> Name of file with output from rungridgen.
+     !> Name of file with output from [[rungridgen]].
      character(len = 2000) :: gridout_file = "grid.out"
-     !> Unknown
+     !> If false, read `Rplot`, `Rprime`, `Zplot`, `Zprime`, `aplot`, `aprime`
+     !> from [[theta_grid_file_knobs:gridout_file]].
      logical :: no_geo_info = .false.
    contains
      procedure, public :: read => read_theta_grid_file_config
