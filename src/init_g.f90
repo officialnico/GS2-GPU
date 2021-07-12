@@ -189,153 +189,27 @@ module init_g
      !> - "recon" (see [[init_g:ginit_recon]])
      !> - "recon3" (see [[init_g:ginit_recon3]])
      logical :: even = .true.
-     !> Method for initialising `g`. Available options are:
+     !> Method for initialising `g`. There are many possible options, but the
+     !> typical ones are:
      !>
-     !>   - "default": Gaussian in \(\theta\) controlled by:
-     !>
-     !>       - Amplitude: [[init_g_knobs:phiiinit]]
-     !>       - Width in \(\theta\): [[init_g_knobs:width0]]
-     !>       - Parity: even about \(\theta_0\) unless
-     !>         [[init_g_knobs:chop_side]] is true, in which case none
-     !>
-     !>   - "default_odd": Guassian in \(\theta\) multiplied by \(\sin(\theta -
-     !>     \theta_0)\), controlled by:
-     !>
-     !>       - Amplitude: [[init_g_knobs:phiiinit]]
-     !>       - Width in \(\theta\): [[init_g_knobs:width0]]
-     !>       - Parity: odd about \(\theta_0\) unless
-     !>         [[init_g_knobs:chop_side]] is true, in which case none
-     !>
-     !>   - "noise": Noise along field line. The recommended (but not default)
-     !>     selection. Controlled by:
-     !>
-     !>       - Amplitude: [[init_g_knobs:phiiinit]]
-     !>       - Zonal flow factor: [[init_g_knobs:zf_init]]
-     !>
-     !>   - "xi": Perturbation proportional to pitch angle, \(\xi\). Unlikely to
-     !>     be useful.
-     !>   - "xi2": Perturbation proportional to \(1 - 3\xi^2\). Unlikely to be
-     !>     useful.
-     !>   - "zero": Sets distribution function to zero
-     !>   - "test3": Unsupported; do not use.
-     !>   - "convect": Unsupported; do not use. Controlled by [[knobs:k0]].
-     !>   - "rh": Maxwellian perturbation in `ik == 1` mode; do not use?
-     !>   - "many": Restart, using `g` from restart files.
-     !>   - "small": Restart, using `g` from restart files, scaled by
-     !>     [[init_g_knobs:scale]]
-     !>   - "file": Restart, using `g` from restart file (note: same as "many"?).
-     !>   - "cont": Restart, using current value of `g` in memory; unsupported,
-     !>     do not use.
-     !>   - "kz0": Constant along a field line, that is initialise only with
-     !>     \(k_\Vert = 0\).
-     !>   - "nl": Two \(k_\perp\) modes set to constant amplitude. Controlled by:
-     !>
-     !>       - Overall amplitude: [[init_g_knobs:phiiinit]]
-     !>       - `ky` indices of modes: [[init_g_knobs:ikk]]
-     !>       - `kx` indices of modes: [[init_g_knobs:itt]]
-     !>       - Parity: even about \(\theta_0\) unless
-     !>         [[init_g_knobs:chop_side]] is true, in which case none
-     !>
-     !>   - "nl2": Two \(k_\perp\) modes proportional to \(1 + v_\Vert
-     !>     \sin(\theta)\). Controlled by:
-     !>
-     !>       - Overall amplitude: [[init_g_knobs:phiiinit]]
-     !>       - `ky` indices of modes: [[init_g_knobs:ikk]]
-     !>       - `kx` indices of modes: [[init_g_knobs:itt]]
-     !>       - Parity: even about \(\theta_0\) unless
-     !>         [[init_g_knobs:chop_side]] is true, in which case none
-     !>
-     !>   - "nl3": Two \(k_\perp\) modes with a Gaussian envelope, and
-     !>     perturbation in fields of form \(x_0 + x_1 \cos(\theta) + x_2 \cos(2
-     !>     \theta)\), except for parallel velocity which uses is 90 degrees out
-     !>     of phase and uses \(\sin\). Density, parallel velocity, and
-     !>     perpendicular and parallel temperatures can all be controlled
-     !>     independently. Controlled by:
-     !>
-     !>       - Overall amplitude: [[init_g_knobs:phiiinit]]
-     !>       - Amplitude of real and imaginary parts of \(\phi\):
-     !>         [[init_g_knobs:refac]], [[init_g_knobs:imfac]]
-     !>       - Gaussian envelope width in \(\theta\): [[init_g_knobs:width0]]
-     !>       - `ky` indices of modes: [[init_g_knobs:ikk]]
-     !>       - `kx` indices of modes: [[init_g_knobs:itt]]
-     !>       - Parity: even about \(\theta_0\) unless
-     !>         [[init_g_knobs:chop_side]] is true, in which case none
-     !>       - Density perturbation: [[init_g_knobs:den0]],
-     !>         [[init_g_knobs:den1]], [[init_g_knobs:den2]]
-     !>       - Parallel velocity perturbation: [[init_g_knobs:upar0]],
-     !>         [[init_g_knobs:upar1]], [[init_g_knobs:upar2]]
-     !>       - Parallel temperature perturbation: [[init_g_knobs:tpar0]],
-     !>         [[init_g_knobs:tpar1]], [[init_g_knobs:tpar2]]
-     !>       - Perpendicular temperature perturbation: [[init_g_knobs:tperp0]],
-     !>         [[init_g_knobs:tperp1]], [[init_g_knobs:tperp2]]
-     !>
-     !>   - "nl3r"
-     !>   - "nl4": Incomplete and inconsistent over time; do not use.
-     !>   - "nl5": Incomplete; do not use.
-     !>   - "nl6": Incomplete; do not use.
-     !>   - "nl7"
-     !>   - "alf": Ion distribution function proportional to \(v_\Vert
-     !>     \sin(\theta)\); do not use.
-     !>   - "gs": Randomly phased \(k_\Vert = 1\) sines and cosines in density,
-     !>     parallel velocity, and parallel and perpendicular
-     !>     temperatures. Controlled by:
-     !>
-     !>       - Overall amplitude: [[init_g_knobs:phiiinit]]
-     !>       - Amplitude of real and imaginary parts of \(\phi\):
-     !>         [[init_g_knobs:refac]], [[init_g_knobs:imfac]]
-     !>       - Density perturbation: [[init_g_knobs:den1]]
-     !>       - Parallel velocity perturbation: [[init_g_knobs:upar1]]
-     !>       - Parallel temperature perturbation: [[init_g_knobs:tpar1]]
-     !>       - Perpendicular temperature perturbation: [[init_g_knobs:tperp1]]
-     !>
-     !>   - "kpar": Initial perturbation in fields of form \(x_0 + x_1
-     !>     \cos(\theta) + x_2 \cos(2 \theta)\), except for parallel velocity
-     !>     which uses is 90 degrees out of phase and uses \(\sin\). Density,
-     !>     parallel velocity, and perpendicular and parallel temperatures can
-     !>     all be controlled independently. Controlled by:
-     !>
-     !>       - Overall amplitude: [[init_g_knobs:phiiinit]]
-     !>       - Amplitude of real and imaginary parts of \(\phi\):
-     !>         [[init_g_knobs:refac]], [[init_g_knobs:imfac]]
-     !>       - Gaussian envelope width in \(\theta\): [[init_g_knobs:width0]]
-     !>       - Density perturbation: [[init_g_knobs:den0]],
-     !>         [[init_g_knobs:den1]], [[init_g_knobs:den2]]
-     !>       - Parallel velocity perturbation: [[init_g_knobs:upar0]],
-     !>         [[init_g_knobs:upar1]], [[init_g_knobs:upar2]]
-     !>       - Parallel temperature perturbation: [[init_g_knobs:tpar0]],
-     !>         [[init_g_knobs:tpar1]], [[init_g_knobs:tpar2]]
-     !>       - Perpendicular temperature perturbation: [[init_g_knobs:tperp0]],
-     !>         [[init_g_knobs:tperp1]], [[init_g_knobs:tperp2]]
-     !>
-     !>   - "smallflat"
-     !>   - "harris": Controlled by [[knobs:k0]]
-     !>   - "recon"
-     !>   - "recon3"
-     !>   - "ot": Orszag-Tang 2D vortex problem (see [[init_g_knobs:aparamp]],
-     !>     [[init_g_knobs:phiamp]], [[init_g_knobs:ittt]], [[init_g_knobs:ikkk]])
-     !>   - "zonal_only": Restart but set all non-zonal components of the
-     !>     potential and the distribution function to 0. Noise can be added to
-     !>     these other components by setting iphiinit > 0.
-     !>   - "no_zonal"
-     !>   - "single_parallel_mode": Initialise only with a single parallel mode
+     !>   - `"default"`: Gaussian in \(\theta\). See [[init_g_knobs:phiinit]],
+     !>     [[init_g_knobs:width0]], [[init_g_knobs:chop_side]]
+     !>   - `"default_odd"`: Guassian in \(\theta\) multiplied by \(\sin(\theta -
+     !>     \theta_0)\). See [[init_g_knobs:phiinit]], [[init_g_knobs:width0]],
+     !>     [[init_g_knobs:chop_side]]
+     !>   - `"noise"`: Noise along field line. The recommended (but not default)
+     !>     selection. See [[init_g_knobs:phiinit]], [[init_g_knobs:zf_init]]
+     !>   - `"restart", "many"`: Restart, using `g` from restart files.
+     !>   - `"single_parallel_mode"`: Initialise only with a single parallel mode
      !>     specified by either [[init_g_knobs:ikpar_init]] for periodic
      !>     boundary conditions or [[init_g_knobs:kpar_init]] for linked
      !>     boundary conditions. Intended for linear calculations.
-     !>   - "all_modes_equal": Initialise with every single parallel and
-     !>     perpendicular mode given the same amplitude. Intended for linear
-     !>     calculations
-     !>   - "eig_restart": Uses the restart files written by the
+     !>   - `"eig_restart"`: Uses the restart files written by the
      !>     eigensolver. Also see [[init_g_knobs:restart_eig_id]].
-     !>   - "stationary_mode": Initialises the distribution function such that
-     !>     it is a time-independent solution to the gyrokinetic equation when
-     !>     collisions are neglected and only one mode (with `aky = 0`) is
-     !>     present. See Section 4 of the [Analytic Geometry
-     !>     Specification](https://bitbucket.org/gyrokinetics/wikifiles/raw/master/JRB/GS2GeoDoc.pdf)
-     !>     documentation for more details.
-     !>   - "cgyro": CGYRO-like initialisation, constant amplitude for \(k_y \ne
-     !>     0\) and zero amplitude for \(k_y == 0\) (see [[ginit_cgyro]] for
-     !>     details).
-     character(len = 20) :: ginit_option = "default"
+     !>
+     !> All the options are detailed further in the [initialisation options
+     !> documentation](../user_manual/initialisation.html)
+     character(len = 20) :: ginit_option = `"default"`
      !> \(k_y\) indices of two modes to initialise for certain options
      integer, dimension(2) :: ikk = [1, 2]
      !> \(k_y\) indices of three modes to initialise for certain options
