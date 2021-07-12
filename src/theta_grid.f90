@@ -1081,8 +1081,8 @@ module theta_grid_eik
      integer :: bishop = 5
      !> Use equilbrium data from the CHEASE file ogyropsi.dat
      logical :: chs_eq = .false.
-     !> Default usually okay
-     !> @todo Expand documentation
+     !> Step size for radial derivatives, \(\Delta r_{\psi N}\). Should be
+     !> "small enough", typically 0.001.
      real :: delrho = 1e-3
      !> Vacuum magnetic dipole geometry
      logical :: dfit_eq = .false.
@@ -1100,6 +1100,7 @@ module theta_grid_eik
      logical :: gen_eq = .false.
      !> Read Colin Roach's GS2D equilibrium file
      logical :: gs2d_eq = .false.
+     !> Unknown equilibrium file. You probably don't want this.
      !> FIXME: Add documentation
      logical :: idfit_eq = .false.
      !> Choose mode of operation:
@@ -1109,7 +1110,8 @@ module theta_grid_eik
      !> -  2: Running inside a transport code without numerical equilibrium
      !>
      integer :: iflux = 0
-     !> FIXME: Add documentation
+     !> Used with [[theta_grid_eik_knobs:bishop]] == 3: controls pressure length
+     !> scale by multiplying \(p \frac{d \rho}{d \psi}\)
      real :: invlp_input = 0.
      !> Choose definition of flux surface coordinate
      !>
@@ -1136,9 +1138,9 @@ module theta_grid_eik
      logical :: local_eq = .true.
      !> Use Menard-style NetCDF equilibrium (JSOLVER)
      logical :: ppl_eq = .false.
-     !> Never used
+     !> Used by [[eiktest]]
      real :: rmax = 1.0
-     !> Never used
+     !> Used by [[eiktest]]
      real :: rmin = 1e-3
      !> Used to overrides s_hat prescribed by the numerical
      !> equilibrium, but _only_ if bishop=2,3,4,5,8, or 9.
