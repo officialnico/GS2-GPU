@@ -611,9 +611,11 @@ DEFAULT_LIB:=$(foreach tmplib,$(DEFAULT_LIB_LIST),$(shell [ -d $(tmplib) ] && ec
 # Commands for generating repetitive Fortran files from python scripts
 ifeq ($(GS2_HAS_PYTHON),yes)
 
-$(SRCDIR)/gs2_init.fpp: $(SRCDIR)/generate_gs2_init.py
-	$(call messageOp,"Generating from python","\\t:",$(call processName,$<))
+$(SRCDIR)/gs2_init_down.inc $(SRCDIR)/gs2_init_up.inc $(SRCDIR)/gs2_init_subroutines.inc $(SRCDIR)/gs2_init_level_list.inc: $(SRCDIR)/generate_gs2_init.py
+	$(call messageOp,"Generating from python","\\t:",$(call processName,$@) ($(call processName,$^)))
 	$(QUIETSYM)$(PYTHON_EXE) $< $@
+
+$(GENERATED_SRC_DIR)/gs2_init.f90: $(SRCDIR)/gs2_init.fpp $(SRCDIR)/gs2_init_down.inc $(SRCDIR)/gs2_init_up.inc $(SRCDIR)/gs2_init_subroutines.inc $(SRCDIR)/gs2_init_level_list.inc
 
 $(SRCDIR)/overrides.f90: $(SRCDIR)/generate_overrides.py
 	$(call messageOp,"Generating from python","\\t:",$(call processName,$<))
