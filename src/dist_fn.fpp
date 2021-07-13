@@ -454,7 +454,7 @@ module dist_fn
      real :: wfb = 1.0
      !> If true, do NOT save homogeneous solutions for WFB
      logical :: wfb_cmr = .false.
-     !> Set boundary condition for WFB:
+     !> Set boundary condition for WFB in the linear/parallel solve:
      !>
      !> - "default", "mixed": The previous default boundary condition which
      !>   mixes the passing and trapped boundary conditions

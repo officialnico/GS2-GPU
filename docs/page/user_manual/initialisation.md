@@ -27,8 +27,8 @@ These options are the most useful for ordinary GS2 simulations:
     - Parity: [[init_g_knobs:chop_side]] and [[init_g_knobs:left]]
 
 - `"noise"`: Noise along field line: each mode is given a random amplitude
-  between zero and one. The recommended (but not default)
-  selection. See [[init_g:ginit_noise]]. Input parameters:
+  between zero and one. The recommended choice for nonlinear runs. See
+  [[init_g:ginit_noise]]. Input parameters:
 
     - Amplitude: [[init_g_knobs:phiinit]]
     - Zonal flow factor: [[init_g_knobs:zf_init]]
@@ -36,6 +36,7 @@ These options are the most useful for ordinary GS2 simulations:
     - Continuity in parallel direction: [[init_g_knobs:clean_init]]
     - Single \(k_x\) mode: [[init_g_knobs:ikx_init]]
     - Parity: [[init_g_knobs:chop_side]] and [[init_g_knobs:left]]
+    - Seed for random numbers: [[knobs:seed]]
 
 - `"single_parallel_mode"`: Initialise only with a single parallel mode
   \(k_\Vert\) specified by either [[init_g_knobs:ikpar_init]] for periodic
