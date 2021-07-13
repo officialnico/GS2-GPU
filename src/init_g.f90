@@ -208,7 +208,7 @@ module init_g
      !>
      !> All the options are detailed further in the [initialisation options
      !> documentation](../user_manual/initialisation.html)
-     character(len = 20) :: ginit_option = `"default"`
+     character(len = 20) :: ginit_option = "default"
      !> \(k_y\) indices of two modes to initialise for certain options
      integer, dimension(2) :: ikk = [1, 2]
      !> \(k_y\) indices of three modes to initialise for certain options
