@@ -145,7 +145,7 @@ module run_parameters
      !> See [[knobs:eqzip]]
      logical :: secondary = .true.
      !> Used to set the random seed used in the random number
-     !> generators provided by [[ran]]. If this inpud is 0 (the
+     !> generators provided by [[ran]]. If this input is 0 (the
      !> default) then we don't set the seed and use the system default
      !> instead.
      integer :: seed = 0
