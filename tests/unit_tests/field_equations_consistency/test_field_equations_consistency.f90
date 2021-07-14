@@ -12,6 +12,7 @@ program test_field_equations_consistency
   use dist_fn, only: get_init_field, getfieldeq
   use dist_fn_arrays, only: gnew
   use fields_arrays, only: phi, apar, bpar
+  use gs2_layouts, only: g_lo
   implicit none
   type(gs2_program_state_type) :: state
   complex, dimension(:, :, :), allocatable :: fq, fqa, fqp  
@@ -94,7 +95,7 @@ program test_field_equations_consistency
   name = "flipped g"
   phi = 0.0 ; apar = 0.0  ; bpar = 0.0
   fq = 0.0 ; fqa = 0.0 ; fqp = 0.0
-  gnew(:, 2, :) = gnew(:, 2, ::-1)
+  gnew(:, 2, :) = gnew(:, 2, g_lo%ulim_proc:g_lo%llim_proc:-1)
 
   call get_init_field(phi, apar, bpar)
   call getfieldeq(phi, apar, bpar, fq, fqa, fqp)
