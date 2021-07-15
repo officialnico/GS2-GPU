@@ -114,6 +114,7 @@ module fields_local
      integer :: is_ind
      integer :: ik_ind !< Parent properties
      integer :: collective_request
+     real :: condition_number = -1 !< Condition number of the associated response matrix. Only valid on the head.
    contains
      private
      procedure :: deallocate => sc_deallocate
@@ -289,7 +290,8 @@ module fields_local
   integer :: minNRow = 16 !< Tuning this can influence both init and advance times
   type(pc_type),save :: pc !< This is the parallel control object
   type(fieldmat_type),save :: fieldmat !< This is the top level field matrix object
-
+  !> The condition numbers above this limit will trigger a warning
+  real, parameter :: condition_number_warning_limit = sqrt(1.0/epsilon(1.0))
 contains
 
 !//////////////////////////////
@@ -1067,8 +1069,6 @@ contains
     implicit none
     class(supercell_type), intent(inout) :: self
     complex, dimension(:,:), allocatable :: tmp_arr
-    real :: condition_number
-    real, parameter :: condition_number_warning_limit = sqrt(1.0/epsilon(condition_number))
     character(len = 100) :: condition_number_message
 
     !Exit early if possible
@@ -1084,7 +1084,7 @@ contains
     !It may be better to hook into the GK_VERBOSITY level system
     !rather than relying on the debug flag.
     if (self%is_head) then
-       condition_number = l2norm(tmp_arr)
+       self%condition_number = l2norm(tmp_arr)
     end if
 
     !Now invert in place
@@ -1103,9 +1103,9 @@ contains
     end if
 
     if (self%is_head) then
-       condition_number = condition_number * l2norm(tmp_arr)
-       write(condition_number_message,'("Condition number for response with ik = ",I0,", is = ",I0," and dt = ",E14.6E3," is ",E14.6E3)') self%ik_ind, self%is_ind, code_dt, condition_number
-       if (condition_number > condition_number_warning_limit) then
+       self%condition_number = self%condition_number * l2norm(tmp_arr)
+       write(condition_number_message,'("Condition number for response with ik = ",I0,", is = ",I0," and dt = ",E14.6E3," is ",E14.6E3)') self%ik_ind, self%is_ind, code_dt, self%condition_number
+       if (self%condition_number > condition_number_warning_limit) then
           write(error_unit(), '("Warning: ",A)') trim(condition_number_message)
        end if
 
@@ -3942,7 +3942,7 @@ contains
              write(dlun,'("--Done in ",F12.4," units")') te-ts
           endif
        endif
-       
+
        !Dump response to file
        if(dump_response)then
           if(proc0.and.debug)then
