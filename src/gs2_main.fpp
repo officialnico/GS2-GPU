@@ -120,9 +120,7 @@ module gs2_main
     real :: finish(2) = 0.
     real :: total(2) = 0. 
     real :: diagnostics(2)=0.
-#ifdef WITH_EIG
     real :: eigval(2)=0.
-#endif
     !real :: interval
     real :: main_loop(2)
   end type gs2_timers_type
@@ -930,7 +928,7 @@ contains
   !> FIXME : Add documentation
   subroutine run_eigensolver(state)
 #ifdef WITH_EIG
-    use eigval, only: init_eigval, finish_eigval, time_eigval
+    use eigval, only: init_eigval, finish_eigval
     use eigval, only: BasicSolve
 #endif 
     use job_manage, only: time_message
@@ -941,7 +939,7 @@ contains
    if (proc0) call time_message(.false.,state%timers%total,' Total')
 
    !Start timer
-   call time_message(.false.,time_eigval,' Eigensolver')
+   call time_message(.false.,state%timers%eigval,' Eigensolver')
 
    !Initialise slepc and the default/input eigensolver parameters
    call init_eigval
@@ -954,7 +952,7 @@ contains
    call finish_eigval
 
    !Stop timer
-   call time_message(.false.,time_eigval,' Eigensolver')
+   call time_message(.false.,state%timers%eigval,' Eigensolver')
 #else
    call mp_abort("Require slepc/petsc")
 #endif
