@@ -1443,16 +1443,16 @@ contains
     ! isolation and ensure we can move this routine to another module easily.
     character(len = 20) :: extraction_option, solver_option, transform_option, which_option
     integer :: max_iter, n_eig, nadv
-    logical :: ddt, save_restarts, use_ginit
+    logical :: analyse_ddt_operator, save_restarts, use_ginit
     real :: targ_im, targ_re, tolerance
 
-    namelist /eigval_knobs/ ddt, extraction_option, max_iter, n_eig, nadv, save_restarts, solver_option, targ_im, targ_re, tolerance, transform_option, use_ginit, which_option
+    namelist /eigval_knobs/ analyse_ddt_operator, extraction_option, max_iter, n_eig, nadv, save_restarts, solver_option, targ_im, targ_re, tolerance, transform_option, use_ginit, which_option
 
     ! Only proc0 reads from file
     if (.not. proc0) return
 
     ! First set local variables from current values
-    ddt = self%ddt
+    analyse_ddt_operator = self%analyse_ddt_operator
     extraction_option = self%extraction_option
     max_iter = self%max_iter
     n_eig = self%n_eig
@@ -1479,7 +1479,7 @@ contains
     endif
 
     ! Now copy from local variables into type members
-    self%ddt = ddt
+    self%analyse_ddt_operator = analyse_ddt_operator
     self%extraction_option = extraction_option
     self%max_iter = max_iter
     self%n_eig = n_eig
@@ -1509,7 +1509,7 @@ contains
     endif
 
     call self%write_namelist_header(unit_internal)
-    call self%write_key_val("ddt", self%ddt, unit_internal)
+    call self%write_key_val("analyse_ddt_operator", self%analyse_ddt_operator, unit_internal)
     call self%write_key_val("extraction_option", self%extraction_option, unit_internal)
     call self%write_key_val("max_iter", self%max_iter, unit_internal)
     call self%write_key_val("n_eig", self%n_eig, unit_internal)
@@ -1541,7 +1541,7 @@ contains
     use mp, only: broadcast
     implicit none
     class(eigval_config_type), intent(in out) :: self
-    call broadcast(self%ddt)
+    call broadcast(self%analyse_ddt_operator)
     call broadcast(self%extraction_option)
     call broadcast(self%max_iter)
     call broadcast(self%n_eig)
