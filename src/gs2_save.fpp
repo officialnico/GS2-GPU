@@ -1752,8 +1752,8 @@ contains
   end subroutine gs2_restore_many
 
   !> This routine writes a passed square complex array to a file
-  !! with passed name
-  subroutine gs2_save_response(resp,fname)
+  !> with passed name
+  subroutine gs2_save_response(resp, fname, condition)
     use file_utils, only: error_unit
 #ifdef NETCDF
     use gs2_time, only: code_dt
@@ -1764,9 +1764,11 @@ contains
     implicit none
     complex,dimension(:,:), intent(in) :: resp
     character(len=*), intent(in) :: fname
+    real, intent(in), optional :: condition
     integer :: sz
 #ifdef NETCDF
-    integer :: ierr, ax1id,ax2id,riid, respid,dtid, ncid
+    real :: condition_local
+    integer :: ierr, ax1id,ax2id,riid, respid,dtid, condition_id, ncid
     real, dimension(:,:,:), allocatable :: ri_resp
 #else
     integer :: unit
@@ -1799,6 +1801,8 @@ contains
     if(ierr/=NF90_NOERR) call netcdf_error(ierr,var="response")
     ierr=nf90_def_var(ncid,"dt",netcdf_real,dtid)
     if(ierr/=NF90_NOERR) call netcdf_error(ierr,var="dt")
+    ierr=nf90_def_var(ncid,"condition",netcdf_real,condition_id)
+    if(ierr/=NF90_NOERR) call netcdf_error(ierr,var="condition")
 
     !End definitions
     ierr=nf90_enddef(ncid)
@@ -1807,6 +1811,11 @@ contains
     !Now we can place our data in the file
     ierr=nf90_put_var(ncid,dtid,code_dt)
     if(ierr/=NF90_NOERR) call netcdf_error(ierr,var="dt")
+
+    condition_local = -1.0
+    if(present(condition)) condition_local = condition
+    ierr=nf90_put_var(ncid,condition_id,condition_local)
+    if(ierr/=NF90_NOERR) call netcdf_error(ierr,var="condtion")
 
     !/Convert complex to ri and write
     allocate(ri_resp(2,sz,sz))
@@ -1823,7 +1832,7 @@ contains
 !Fall back on binary output if no NETCDF
     !Get a free unit
     call get_unused_unit(unit)
-    
+
     !Open file and write
     open(unit=unit,file=fname,form="unformatted")
     write(unit) resp
