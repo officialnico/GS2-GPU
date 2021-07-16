@@ -38,7 +38,6 @@ module eigval
   public :: eigval_functional
   public :: init_eigval, finish_eigval, BasicSolve
   public :: read_parameters, wnml_eigval, check_eigval
-  public :: time_eigval
 
   public :: eigval_config_type
   public :: set_eigval_config
@@ -156,7 +155,6 @@ module eigval
   !//////////////////////
   logical, parameter :: allow_command_line_settings=.true.
   character(len=12),parameter :: nml_name="eigval_knobs"
-  real, save :: time_eigval(2)=0.
 
   !> Used to represent the input configuration of eigval. Several of
   !> these options are controlling SLEPc settings, which can also be
