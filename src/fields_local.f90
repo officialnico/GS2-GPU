@@ -1066,10 +1066,12 @@ contains
     use mp, only: broadcast_sub
     use file_utils, only: error_unit
     use gs2_time, only: code_dt
+    use unit_tests, only: debug_message
     implicit none
     class(supercell_type), intent(inout) :: self
     complex, dimension(:,:), allocatable :: tmp_arr
     character(len = 100) :: condition_number_message
+    integer, parameter :: verb = 1
 
     !Exit early if possible
     if(self%is_empty) return
@@ -1105,6 +1107,7 @@ contains
     if (self%is_head) then
        self%condition_number = self%condition_number * l2norm(tmp_arr)
        write(condition_number_message,'("Condition number for response with ik = ",I0,", is = ",I0," and dt = ",E14.6E3," is ",E14.6E3)') self%ik_ind, self%is_ind, code_dt, self%condition_number
+       call debug_message(verb, "fields_local::sc_invert_local "//condition_number_message)
        if (self%condition_number > condition_number_warning_limit) then
           write(error_unit(), '("Warning: ",A)') trim(condition_number_message)
        end if
