@@ -850,7 +850,7 @@ contains
     !Now save if on head proc -- could probably only allocate tmp_arr and call
     !pull_rows_to_arr on this head proc as well, at least for now.
     if(self%is_head)then
-       call gs2_save_response(tmp_arr, get_specific_response_file_name(self%ik_ind, self%is_ind, code_dt, suffix))
+       call gs2_save_response(tmp_arr, get_specific_response_file_name(self%ik_ind, self%is_ind, code_dt, suffix), self%condition_number)
     endif
 
     deallocate(tmp_arr)
