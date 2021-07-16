@@ -4208,7 +4208,7 @@ contains
     matrix_shape = shape(matrix)
     do j = 1, matrix_shape(2)
        do i = 1, matrix_shape(1)
-          l2norm = l2norm + matrix(i,j)*matrix(i,j)
+          l2norm = l2norm + matrix(i,j) * conjg(matrix(i,j))
        end do
     end do
     l2norm = sqrt(l2norm)
@@ -4220,7 +4220,7 @@ contains
     ! approach avoids this. We could have an intermediate
     ! approach of
     !  do j = 1, matrix_shape(1)
-    !     l2norm = l2norm + sum(matrix(:,j)*matrix(:,j))
+    !     l2norm = l2norm + sum(matrix(:,j) * conjg(matrix(:,j)))
     !  end do
     !  l2norm = sqrt(l2norm)
     ! which might offer a bit of a middle ground
