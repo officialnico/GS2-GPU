@@ -26,9 +26,9 @@ upload:
 	$(call messageOp,"Uploading test results")
 	$(QUIETSYM)$(foreach element, $(TESTS_ACTUAL),$(MAKE) $@ -C $(element);)
 
-clean:
+clean_test_type:
 	$(call messageRm,"$(TEST_TYPE) test cases")
-	$(QUIETSYM)$(foreach element, $(TESTS_ACTUAL),$(MAKE) $@ -C $(element) TEST_NAME=$(dir $(element)) --no-print-directory;)
+	$(QUIETSYM)$(foreach element, $(TESTS_ACTUAL),$(MAKE) clean_individual_test -C $(element) TEST_NAME=$(dir $(element)) --no-print-directory;)
 
 $(TESTS_ACTUAL):
 	$(call messageOp,"Making $(TEST_TYPE) test case","\\t:",$@)
