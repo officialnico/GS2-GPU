@@ -122,7 +122,7 @@ module eigval
   logical :: use_ginit
 
   !Do we evaluate the time derivative operator or the time advance operator?
-  logical :: ddt
+  logical :: analyse_ddt_operator
 
   !Number of GS2 advance steps per SLEPc call to advance_eigen
   !May be useful when looking at marginal modes etc.
@@ -137,7 +137,7 @@ module eigval
   !> A custom type to make it easy to encapsulate specific settings
   type EpsSettings
      logical :: use_ginit
-     logical :: ddt
+     logical :: analyse_ddt_operator
      integer :: n_eig
      integer :: max_iter
      integer :: solver_option_switch
@@ -171,7 +171,7 @@ module eigval
      !> internally works with the eigenvalue `-i*omega`. Note we form
      !> a first order one sided approximation of the time derivative
      !> (e.g. `(g_{n+nadv}-g_{n})/(nadv*code_dt)`) to be analysed.
-     logical :: ddt = .false.
+     logical :: analyse_ddt_operator = .false.
      !> Sets the extraction technique, must be one of:
      !>
      !> - 'default' (use SLEPC default)
@@ -445,7 +445,7 @@ contains
     call eigval_config%init(name = 'eigval_knobs', requires_index = .false.)
 
     ! Copy out internal values into module level parameters
-    ddt = eigval_config%ddt
+    analyse_ddt_operator = eigval_config%analyse_ddt_operator
     extraction_option = eigval_config%extraction_option
     max_iter = eigval_config%max_iter
     n_eig = eigval_config%n_eig
@@ -492,7 +492,7 @@ contains
     write(unit,*)
     write(unit,'(" &",A)') nml_name
     !Basic pars
-    write(unit,'(A,A,"=",L1)') inden,'ddt',ddt
+    write(unit,'(A,A,"=",L1)') inden,'analyse_ddt_operator',analyse_ddt_operator
     write(unit,'(A,A,"=",L1)') inden,'use_ginit',use_ginit
     write(unit,'(A,A,"=",I0)') inden,'n_eig',n_eig
     write(unit,'(A,A,"=",I0)') inden,'max_iter',max_iter
@@ -635,7 +635,7 @@ contains
     use gs2_time, only: code_dt
     implicit none
     type(EpsSettings), intent(inout) :: eps_settings
-    eps_settings%ddt=ddt
+    eps_settings%analyse_ddt_operator=analyse_ddt_operator
     eps_settings%use_ginit=use_ginit
     eps_settings%n_eig=n_eig
     eps_settings%max_iter=max_iter
@@ -1020,7 +1020,7 @@ contains
     my_settings%global_size=n_glob
 
     !Initialise the matrix operator
-    if (ddt) then
+    if (analyse_ddt_operator) then
        call InitMatrixOperator(my_operator, ddt_eigen, my_settings)
     else
        call InitMatrixOperator(my_operator, advance_eigen, my_settings)
@@ -1165,7 +1165,7 @@ contains
     use gs2_time, only: code_dt
     implicit none
     complex, intent(in) :: eig
-    if (ddt) then
+    if (analyse_ddt_operator) then
        Eig_SlepcToGs2=eig*cmplx(0.0,1.0)
     else
        Eig_SlepcToGs2=log(eig)*cmplx(0.0,1.0)/(code_dt*nadv)
@@ -1179,7 +1179,7 @@ contains
     complex, intent(in) :: eig
     !If PETSC doesn't have a complex type then return the
     !magnitude of the eigenvalue.
-    if (ddt) then
+    if (analyse_ddt_operator) then
 #ifdef PETSC_USE_COMPLEX
        Eig_Gs2ToSlepc=-cmplx(0.0,1.0)*eig
 #else
