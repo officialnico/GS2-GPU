@@ -104,8 +104,8 @@ gfortran10_standard_tests:
   image: fedora:33
   variables:
     CASENAME: "gfortran_10"
-    EXTRA_PACKAGES: "wget lapack lapack-devel"
-    EXTRA_MAKE_FLAGS: "USE_LAPACK=on LAPACK_LIB=-llapack WITH_EIG=on"
+    EXTRA_PACKAGES: "wget openblas openblas-devel"
+    EXTRA_MAKE_FLAGS: "USE_LAPACK=on LAPACK_LIB=-lopenblas WITH_EIG=on"
 #Disable pfunit tests for now as v3 doesn't support gfortran 10 so it fails to build.
     GK_CI_PFUNIT: ""
   cache:
