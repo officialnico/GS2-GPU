@@ -649,7 +649,7 @@ $(BINDIR) $(LIBDIR) $(OBJDIR) $(MODDIR) $(GENERATED_SRC_DIR):
 ifdef ONE_STEP_PP
 	$(QUIETSYM)$(FC) $(FPPFLAGS) $(F90FLAGS) -c $(basename $<).F90 $(PFUNIT_INC) -I$(GK_HEAD_DIR) -o $@
 else
-	$(QUIETSYM)$(CPP) $(FPPFLAGS) $(basename $<).F90 -o $(basename $<).f90
+	$(QUIETSYM)$(CPP) $(FPPFLAGS) $(INCLUDES) $(basename $<).F90 -o $(basename $<).f90
 	$(QUIETSYM)$(FC) $(F90FLAGS) -c $(basename $<).f90 $(PFUNIT_INC) -I$(GK_HEAD_DIR) -o $@
 endif
 
@@ -686,11 +686,11 @@ $(OBJDIR)/%.o:%.f90 |$(MODDIR) $(OBJDIR)
 # This is a little clunky, and maybe could be fixed in the future.
 $(GENERATED_SRC_DIR)/%.f90: %.fpp |$(GENERATED_SRC_DIR)
 	$(call messageOp,"Preprocessing","\\t:",$(call processName,$<))
-	$(QUIETSYM)$(CPP) $(FPPFLAGS) $< -o $@
+	$(QUIETSYM)$(CPP) $(FPPFLAGS) $(INCLUDES) $< -o $@
 
 $(GENERATED_SRC_DIR)/%.f90: %.F90 |$(GENERATED_SRC_DIR)
 	$(call messageOp,"Preprocessing","\\t:",$(call processName,$<))
-	$(QUIETSYM)$(CPP) $(FPPFLAGS) $< -o $@
+	$(QUIETSYM)$(CPP) $(FPPFLAGS) $(INCLUDES) $< -o $@
 
 $(OBJDIR)/%.o: %.c |$(OBJDIR)
 	$(call messageOp,"Compiling C","\\t:",$(call processName,$<))
