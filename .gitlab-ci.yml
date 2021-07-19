@@ -112,7 +112,7 @@ gfortran10_standard_tests:
     paths:
       - cache
   script:
-    - su -c "./pipeline_test_scripts/ci_compile_and_build_petsc_slepc.sh -d ${PKG_CACHE_DIR}" theuser
+    - su -c "./pipeline_test_scripts/ci_fetch_and_build_petsc_and_slepc.sh -d ${PKG_CACHE_DIR}" theuser
     - su -c "source load_petsc_slepc ;  ./pipeline_test_scripts/ci_build_and_run.sh" theuser
     - *report_pass
 
