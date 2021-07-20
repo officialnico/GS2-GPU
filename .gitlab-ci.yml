@@ -114,9 +114,10 @@ gfortran10_standard_tests:
     CASENAME: "gfortran_10"
     EXTRA_PACKAGES: "lapack lapack-devel"
     EXTRA_MAKE_FLAGS: "USE_LAPACK=on LAPACK_LIB=-llapack"
-#Must use pfunit v4 as v3 doesn't support gfortran 10 so it fails to build.
-    PFUNIT_VERSION_MAJOR: "4"
+#Disable pfunit tests for now as v3 doesn't support gfortran 10 so it fails to build.
+    GK_CI_PFUNIT: ""
   script: *default_script
+  cache: {}
 
 gfortran5_standard_tests:
   stage: test
