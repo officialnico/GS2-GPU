@@ -61,7 +61,7 @@ variables: &default_variables
   WITH_MPI: "yes"
   PKG_CACHE_DIR: "${CI_PROJECT_DIR}/cache"
   BUILD_PFUNIT_INSTALL_DIR: "${PKG_CACHE_DIR}/pfunit"
-  BUILD_PFUNIT_JOBS: "2"
+  BUILD_PFUNIT_JOBS: "1"
   PFUNIT_DIR: "${BUILD_PFUNIT_INSTALL_DIR}"
 
 default:
