@@ -60,6 +60,9 @@ variables: &default_variables
   WITH_PYTHON: "yes"
   WITH_MPI: "yes"
   PKG_CACHE_DIR: "${CI_PROJECT_DIR}/cache"
+  BUILD_PFUNIT_INSTALL_DIR: "${PKG_CACHE_DIR}/pfunit"
+  BUILD_PFUNIT_JOBS: "2"
+  PFUNIT_DIR: "${BUILD_PFUNIT_INSTALL_DIR}"
 
 default:
   timeout: 20m
