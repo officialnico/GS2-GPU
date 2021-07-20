@@ -67,7 +67,7 @@ $(PFUNIT_OBJS): $(GS2_OBJS)
 
 $(PFUNIT_TEST_EXE): $(PFUNIT_OBJS) $(PFUNIT_DRIVER) $(GS2_OBJS)
 	$(call messageOp,"Compiling","\\t:","pFUnit tests")
-	$(QUIETSYM)$(FC) -o $@ $^ -DUSE_MPI=YES $(PFUNIT_INC) $(PFUNIT_LIB) -I. $(SIMPLEDATAIO_LIB_ABS) $(LIBS) $(F90FLAGS) -I$(PFUNIT_TEST_DIR) -D_TEST_SUITES='"$(PFUNIT_TEST_LIST)"'
+	$(QUIETSYM)$(FC) -o $@ $^ -DUSE_MPI=YES $(PFUNIT_INC) $(PFUNIT_LIB) -I. $(SIMPLEDATAIO_LIB) $(LIBS) $(F90FLAGS) -I$(PFUNIT_TEST_DIR) -D_TEST_SUITES='"$(PFUNIT_TEST_LIST)"'
 
 run_test: make_test
 	-@rm -f pfunit.log pfunit.error
