@@ -60,6 +60,9 @@ variables: &default_variables
   WITH_PYTHON: "yes"
   WITH_MPI: "yes"
   PKG_CACHE_DIR: "${CI_PROJECT_DIR}/cache"
+  BUILD_PFUNIT_INSTALL_DIR: "${PKG_CACHE_DIR}/pfunit"
+  BUILD_PFUNIT_JOBS: "1"
+  PFUNIT_DIR: "${BUILD_PFUNIT_INSTALL_DIR}"
 
 default:
   timeout: 20m
@@ -75,6 +78,10 @@ default:
   after_script:
     - *push_status
   interruptible: true
+  cache:
+    paths:
+      - cache
+    key: "$CI_JOB_NAME"
 
 .the_default_script: &default_script
   - su -c "./pipeline_test_scripts/ci_build_and_run.sh" theuser
@@ -91,6 +98,7 @@ formattting_tests:
   script:
     - scripts/test_maximum_line_length $(scripts/get_all_matching_files.py --path=src --path=externals/utils --pattern="*.[Ff]??") || (echo "failed" > ${JOB_STATUS_FILE} ; exit 1)
     - *report_pass
+  cache: {}
 
 standard_tests:
   stage: test
@@ -108,9 +116,6 @@ gfortran10_standard_tests:
     EXTRA_MAKE_FLAGS: "USE_LAPACK=on LAPACK_LIB=-lopenblas WITH_EIG=on"
 #Disable pfunit tests for now as v3 doesn't support gfortran 10 so it fails to build.
     GK_CI_PFUNIT: ""
-  cache:
-    paths:
-      - cache
   script:
     - su -c "./pipeline_test_scripts/ci_fetch_and_build_petsc_and_slepc.sh -d ${PKG_CACHE_DIR}" theuser
     - su -c "source load_petsc_slepc ;  ./pipeline_test_scripts/ci_build_and_run.sh" theuser
@@ -125,6 +130,7 @@ gfortran5_standard_tests:
     GK_CI_PFUNIT: ""
     GK_CI_INTEGRATED: ""
   script: *default_script
+  cache: {}
 
 intel_tests:
   stage: test
@@ -147,6 +153,7 @@ intel_tests:
     - . /opt/intel/oneapi/setvars.sh intel64
     - su -c "./pipeline_test_scripts/ci_build_and_run.sh" theuser
     - *report_pass
+  cache: {}
 
 coverage_standard_tests:
   stage: test
@@ -184,6 +191,7 @@ nodeps_tests:
     WITH_MPI: "no"
     GK_CI_PFUNIT: ""
   script: *default_script
+  cache: {}
 
 pages:
   stage: test
@@ -201,7 +209,7 @@ pages:
   artifacts:
     paths:
       - public
-
+  cache: {}
   rules:
     # Always build the website if the source branch name is master or next
     - if: '$CI_COMMIT_BRANCH == "master" || $CI_COMMIT_BRANCH == "next"'
