@@ -1060,7 +1060,8 @@ contains
   !> to belong to just one or a few processors so this point may not be
   !> important in most cases.
   subroutine sc_invert_local(self)
-    use mat_inv, only: inverse_gj
+    use mat_inv, only: invert_serial
+    use mp, only: broadcast_sub
     use file_utils, only: error_unit
     use gs2_time, only: code_dt
     implicit none
@@ -1087,8 +1088,19 @@ contains
     end if
 
     !Now invert in place
-    call inverse_gj(tmp_arr,self%nrow)
-    tmp_arr=transpose(tmp_arr)
+    if (self%is_head) then
+       call invert_serial(tmp_arr, self%nrow)
+       tmp_arr=transpose(tmp_arr)
+    end if
+
+    !It would be quite nice if we could do the following in a non-blocking manner
+    !but this would require us to either keep the potentially large tmp_arr allocated
+    !for all supercells or for us to be able to do this "in-place" (i.e. we use something
+    !like non-blocking scatterv rather than broadcast).
+    if (.not. self%is_all_local) then
+       if (self%sc_sub_pd%nproc > 0) call broadcast_sub(tmp_arr, &
+            self%head_iproc_pd, self%sc_sub_pd%id)
+    end if
 
     if (self%is_head) then
        condition_number = condition_number * l2norm(tmp_arr)
@@ -4196,7 +4208,7 @@ contains
     matrix_shape = shape(matrix)
     do j = 1, matrix_shape(2)
        do i = 1, matrix_shape(1)
-          l2norm = l2norm + matrix(i,j)*matrix(i,j)
+          l2norm = l2norm + matrix(i,j) * conjg(matrix(i,j))
        end do
     end do
     l2norm = sqrt(l2norm)
@@ -4208,7 +4220,7 @@ contains
     ! approach avoids this. We could have an intermediate
     ! approach of
     !  do j = 1, matrix_shape(1)
-    !     l2norm = l2norm + sum(matrix(:,j)*matrix(:,j))
+    !     l2norm = l2norm + sum(matrix(:,j) * conjg(matrix(:,j)))
     !  end do
     !  l2norm = sqrt(l2norm)
     ! which might offer a bit of a middle ground

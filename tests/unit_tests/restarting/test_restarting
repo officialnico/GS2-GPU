@@ -1,0 +1,205 @@
+#!/usr/bin/env python3
+
+import argparse
+import datetime
+import shutil
+import subprocess
+import textwrap
+
+import netCDF4
+import numpy as np
+
+
+def run_gs2(gs2, input_file, name="GS2"):
+    """Run GS2 on the given input file
+
+    Times the run and saves a log file to `input_file.log`
+    """
+    print(f"Running {name}... ", end="", flush=True)
+    start = datetime.datetime.now()
+    output = subprocess.run(
+        f"{gs2} {input_file}",
+        shell=True,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.STDOUT,
+        text=True,
+        check=True,
+    )
+    end = datetime.datetime.now()
+    print(f"Done in {end - start}")
+    with open(f"{input_file}.log", "w") as f:
+        f.write(output.stdout)
+
+
+def compare_two_output_files(file1, file2, tolerance):
+    """Compares all the variables in file1 and file2 using `numpy.allclose`"""
+    success = True
+
+    file1_data = netCDF4.Dataset(file1)
+    file2_data = netCDF4.Dataset(file2)
+
+    print("Checking timesteps... ", end="")
+    if file1_data["t"][-1] == file2_data["t"][-1]:
+        print("Pass")
+    else:
+        print("Fail")
+        print(f"\tLast timestep in file1 run: {file1_data['t'][-1]}")
+        print(f"\tLast timestep in file2 run: {file2_data['t'][-1]}")
+        success = False
+
+    print("Checking diagnostics match")
+    # Remove variables that we know can change from run to run. These
+    # are stored as attributes in new diagnostics
+    variables = list(file1_data.variables.keys())
+    try:
+        variables.remove("code_info")
+    except ValueError:
+        pass
+    try:
+        variables.remove("input_file")
+    except ValueError:
+        pass
+
+    for variable in variables:
+        if file1_data[variable].dtype.kind == "S":
+            file1_variable = str(file1_data[variable][:], encoding="utf-8")
+            file2_variable = str(file2_data[variable][:], encoding="utf-8")
+            if file1_variable != file2_variable:
+                print(
+                    f"  {variable}: Fail => Strings are: file1='{file1_variable}', file2='{file2_variable}'"
+                )
+                success = False
+        else:
+            # If the variable is time-varying, then only compare the
+            # last time slice, as we may have different length arrays
+            # in the two files
+            if "t" in file1_data[variable].dimensions:
+                file1_variable = file1_data[variable][-1, ...]
+                file2_variable = file2_data[variable][-1, ...]
+            else:
+                file1_variable = file1_data[variable][:]
+                file2_variable = file2_data[variable][:]
+
+            if not np.allclose(file1_variable, file2_variable, atol=tolerance):
+                success = False
+                difference = np.max(np.abs(file1_variable - file2_variable))
+                print(
+                    f"  => Fail: {variable}, maximum difference: {difference} (tolerance: {tolerance})"
+                )
+
+    if success:
+        print("  => Pass")
+    return success
+
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser(
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        description=textwrap.dedent("""Test restarting capabilities of GS2
+
+Checks the restarting capabilities by first running a "full length"
+simulation, and then repeating the same simulation with two
+half-length simulations. Runs four sets of simulations in total: old
+diagnostics with and without appending to an existing output file, and
+new diagnostics with and without appending"""))
+    parser.add_argument(
+        "--gs2", default="../../../bin/gs2", help="Path to GS2 executable"
+    )
+    # Default is 1.0e-6 because the heating diagnostics in the old
+    # diagnostics only match to 1e-7
+    parser.add_argument(
+        "--tolerance",
+        default=1.0e-6,
+        help="Absolute tolerance for comparing values",
+        type=float,
+    )
+    parser.add_argument("--clean", action="store_true", help="Clean up files and exit")
+
+    args = parser.parse_args()
+
+    if args.clean:
+        file_extensions_to_clean = " ".join(
+            [
+                "*.error",
+                "*.exit_reason",
+                "*.g",
+                "*.log",
+                "*.nc.*",
+                "*.out",
+                "*.out.nc",
+                "*.vspace_integration_error",
+                ".*.in",
+                ".*.scratch",
+                "./gs2",
+            ]
+        )
+        clean_command = f"rm -f {file_extensions_to_clean}"
+        print("Cleaning directory")
+        print(clean_command)
+        subprocess.run(clean_command, shell=True)
+        exit(0)
+
+    success = True
+
+    print("\nChecking old diagnostics without appending")
+    run_gs2(args.gs2, "full_run_old_diagnostics.in", "full simulation")
+    run_gs2(args.gs2, "start_half_run_old_diagnostics.in", "half-length simulation")
+    run_gs2(
+        args.gs2, "end_half_run_old_diagnostics.in", "restarted half-length simulation"
+    )
+    success &= compare_two_output_files(
+        "full_run_old_diagnostics.out.nc",
+        "end_half_run_old_diagnostics.out.nc",
+        args.tolerance,
+    )
+
+    print("\nChecking old diagnostics with appending")
+    shutil.copy(
+        "start_half_run_old_diagnostics.out.nc",
+        "end_half_run_append_old_diagnostics.out.nc",
+    )
+    run_gs2(
+        args.gs2,
+        "end_half_run_append_old_diagnostics.in",
+        "restarted half-length simulation with appending",
+    )
+    success &= compare_two_output_files(
+        "full_run_old_diagnostics.out.nc",
+        "end_half_run_append_old_diagnostics.out.nc",
+        args.tolerance,
+    )
+
+    print("\nChecking new diagnostics without appending")
+    run_gs2(args.gs2, "full_run_new_diagnostics.in", "full simulation")
+    run_gs2(args.gs2, "start_half_run_new_diagnostics.in", "half-length simulation")
+    run_gs2(
+        args.gs2, "end_half_run_new_diagnostics.in", "restarted half-length simulation"
+    )
+
+    success &= compare_two_output_files(
+        "full_run_new_diagnostics.out.nc",
+        "end_half_run_new_diagnostics.out.nc",
+        args.tolerance,
+    )
+
+    print("\nChecking new diagnostics with appending")
+    shutil.copy(
+        "start_half_run_new_diagnostics.out.nc",
+        "end_half_run_append_new_diagnostics.out.nc",
+    )
+    run_gs2(
+        args.gs2,
+        "end_half_run_append_new_diagnostics.in",
+        "restarted half-length simulation with appending",
+    )
+    success &= compare_two_output_files(
+        "full_run_new_diagnostics.out.nc",
+        "end_half_run_append_new_diagnostics.out.nc",
+        args.tolerance,
+    )
+
+    if success:
+        print("=> All tests passed")
+        exit(0)
+    print("=> Some tests failed")
+    exit(1)

@@ -143,9 +143,6 @@ contains
     integer :: rplot_varid, zplot_varid, aplot_varid, rprime_varid, zprime_varid, aprime_varid
     integer :: wl_varid, w_varid
 
-    !First get precisions
-    if(netcdf_real==0) netcdf_real=get_netcdf_code_precision()
-
     !First create a file
     ierr=nf90_create(trim(adjustl(fname))//".grids.nc",NF90_CLOBBER,ncid)
 
@@ -190,8 +187,8 @@ contains
     ierr=nf90_def_var(ncid,'rprime',netcdf_real,[theta_dimid], rprime_varid)
     ierr=nf90_def_var(ncid,'zprime',netcdf_real,[theta_dimid], zprime_varid)
     ierr=nf90_def_var(ncid,'aprime',netcdf_real,[theta_dimid], aprime_varid)
-    ierr=nf90_def_var(ncid,'wl',netcdf_real,[theta_dimid, al_dimid],wl_varid)
-    ierr=nf90_def_var(ncid,'w',netcdf_real,[species_dimid, energy_dimid],w_varid)
+    ierr=nf90_def_var(ncid,'wl',netcdf_real,[theta_dimid, al_dimid], wl_varid)
+    ierr=nf90_def_var(ncid,'w',netcdf_real,[energy_dimid, species_dimid], w_varid)
 
     !End definitions
     ierr=nf90_enddef(ncid)
@@ -228,8 +225,8 @@ contains
     ierr=nf90_put_var(ncid, rprime_varid, rprime)
     ierr=nf90_put_var(ncid, zprime_varid, zprime)
     ierr=nf90_put_var(ncid, aprime_varid, aprime)
-    ierr=nf90_put_var(ncid,wl_varid,wl)
-    ierr=nf90_put_var(ncid,w_varid,w)
+    ierr=nf90_put_var(ncid, wl_varid, wl)
+    ierr=nf90_put_var(ncid, w_varid, w)
 
     !Now close file
     ierr=nf90_close(ncid)

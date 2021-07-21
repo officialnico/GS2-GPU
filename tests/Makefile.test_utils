@@ -1,3 +1,6 @@
+# Don't export these local utilities
+unexport defineTestRecipes getListDir getListSource lowerCase
+
 ############################################################################# UTILS
 #The following converts to lower case
 define lowerCase
