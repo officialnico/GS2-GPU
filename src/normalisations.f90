@@ -36,12 +36,12 @@ module normalisations
      !The normalisations
      real :: mref !< Reference mass in atomic mass units
      real :: zref !< Reference charge in units of the elementary charge
-     real :: nref !< Reference density in $m^3$
-     real :: tref !< Reference temperature in $eV$
-     real :: aref !< Reference length in $m$
-     real :: vref !< Reference (thermal) velocity in $m/s$
-     real :: bref !< Reference magnetic field in Tesla, $T$
-     real :: rhoref !< Reference Larmor radius in $m$
+     real :: nref !< Reference density in \(m^{-3}\)
+     real :: tref !< Reference temperature in \(eV\)
+     real :: aref !< Reference length in \(m\)
+     real :: vref !< Reference (thermal) velocity in \(m/s\)
+     real :: bref !< Reference magnetic field in Tesla, \(T\)
+     real :: rhoref !< Reference Larmor radius in \(m\)
    contains
      private
      procedure, public :: init => norms_init
@@ -71,7 +71,7 @@ module normalisations
      real :: mref = default_value
      !> Reference density in \(m^{-3}\)
      real :: nref = default_value
-     !> Reference Larmor radius in $m$
+     !> Reference Larmor radius in \(m\)
      real :: rhoref = default_value
      !> Reference temperature in \(eV\)
      real :: tref = default_value

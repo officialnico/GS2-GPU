@@ -1,3 +1,6 @@
+# Don't export these local utilities
+unexport defineTestRecipes getListDir getListSource lowerCase
+
 ############################################################################# UTILS
 #The following converts to lower case
 define lowerCase
@@ -25,7 +28,7 @@ LINEAR_TEST_DIR := $(TEST_DIR)/linear_tests
 NONLINEAR_TEST_DIR := $(TEST_DIR)/nonlinear_tests
 
 #Define the different types of tests
-TEST_TYPES=UNIT LINEAR NONLINEAR
+TEST_TYPES:=UNIT LINEAR NONLINEAR
 
 .PHONY: list_tests
 

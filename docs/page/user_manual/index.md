@@ -352,6 +352,59 @@ probably want to issue a command like
 where `nprocs` is the number of processors. If you are running on an HPC system, you will
 need to consult their own manuals.
 
+Restarting a simulation
+-----------------------
+
+By default, GS2 doesn't create the files needed to restart a simulation, as they can get
+very large. In order to create them, you must first set the input variable
+[gs2_diagnostics_knobs::save_for_restart][save_for_restart] to `T` (or `.true.`) in your
+input file:
+
+``` Fortran
+&gs2_diagnostics_knobs
+    save_for_restart = T
+/
+```
+
+This will create one restart file per processor named like `<your input filename>.nc.<N>`
+where `<N>` is the processor rank. There are two other inputs you can use to control where
+these restart files get created and how they're named:
+
+- you can use [init_g_knobs::restart_file][restart_file_option] to change the "base name"
+  of the restart files. By default, this is the same as the input filename.
+- you can change the directory where the restart files are created with
+  [init_g_knobs::restart_dir][restart_dir_option]. `restart_dir` defaults to the directory
+  where you run `gs2`. If you set this option, it's important to create the directory
+  first, as GS2 won't do this for you. You can turn on
+  [gs2_diagnostics_knobs::file_safety_check][file_safety_check_option] (default is on) to
+  check during initialisation that `restart_dir` exists and that GS2 can write to the
+  directory. (NOTE: `file_safety_check` currently doesn't work for the new diagnostics
+  ([knobs::use_old_diagnostics][use_old_diagnostics] = `.false.`)).
+
+To then restart a simulation, set the following input variables:
+
+- [knobs::delt_option][delt_option] to `check_restart`
+- [init_g_knobs::ginit_option][ginit_option] to `restart`
+
+``` Fortran
+&knobs
+    delt_option = "check_restart"
+/
+&init_g_knobs
+    ginit_option = "restart"
+/
+```
+
+Important: by default, GS2 will overwrite existing output files! You may wish to backup
+these files before restarting the simulation. It is possible to get GS2 to append the
+output to the existing files with [gs2_diagnostics_knobs::append_old][append_old]:
+
+``` Fortran
+&gs2_diagnostics_knobs
+    append_old = T
+/
+```
+
 Analysing the Results
 ---------------------
 
@@ -391,6 +444,14 @@ Good luck!
 [simple_makefile]: https://bitbucket.org/gyrokinetics/makefiles/src/master/Makefile.simple
 [tests_readme]: https://bitbucket.org/gyrokinetics/gs2/src/master/tests/README.md
 [results_diagnostics]: |url|/page/user_manual/results_diagnostics.html
+[append_old]: |url|/page/namelists/index.html#gs2_diagnostics_knobs-append_old
+[save_for_restart]: |url|/page/namelists/index.html#gs2_diagnostics_knobs-save_for_restart
+[delt_option]: |url|/page/namelists/index.html#knobs-delt_option
+[ginit_option]: |url|/page/namelists/index.html#init_g_knobs-ginit_option
+[restart_dir_option]: |url|/page/namelists/index.html#init_g_knobs-restart_dir
+[restart_file_option]: |url|/page/namelists/index.html#init_g_knobs-restart_file
+[file_safety_check_option]: |url|/page/namelists/index.html#gs2_diagnostics_knobs-file_safety_check
+[use_old_diagnostics]: |url|/page/namelists/index.html#knobs-use_old_diagnostics
 
 <!-- Local Variables: -->
 <!-- mode: gfm -->

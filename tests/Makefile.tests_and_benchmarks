@@ -1,6 +1,3 @@
-export
-SHELL = bash
-
 $(TEST_DIR)/Makefile.test_utils: ;
 include $(TEST_DIR)/Makefile.test_utils
 
@@ -13,19 +10,9 @@ endif
 $(COVERAGE_DIR):
 	$(QUIETSYM)$(MKDIR) $@
 
-#Set the level of testing, currently loosely defined as
-# 0 : Only most basic tests included
-# 1 : Most simple tests run
-# 2 : More expensive tests (say a few minutes on 8 cores)
-# 3 : Very expensive tests (say more than 10 minutes on 8 cores)
-#etc.
-ifndef TEST_LEVEL
-       TEST_LEVEL:=1
-endif
-
-ifdef SIMPLEDATAIO_LIB_DIR_ABS
-      SDATIO_LINK=-L$(SIMPLEDATAIO_LIB_DIR_ABS)
-      SDATIO_LIB=-lsimpledataio
+ifdef SIMPLEDATAIO_LIB
+      SDATIO_LINK:=-L$(SIMPLEDATAIO_LIB)
+      SDATIO_LIB:=-lsimpledataio
 endif
 
 # To save time you can set test deps yourself on the command line:
@@ -38,12 +25,30 @@ TEST_DEPS?=$(LIBDIR)/libgs2.a $(OBJDIR)/functional_tests.o $(OBJDIR)/benchmarks.
 #We need to pass in some extra libraries in some cases so currently have
 #to wrap calls to make to ensure these get passed in. Ideally LIBS would
 #already contain this information
-MAKETESTS=$(MAKE) "LIBS=-L$(LIBDIR) -lgs2 $(SDATIO_LINK) $(SDATIO_LIB) $(LIBS)"
+MAKETESTS:=$(MAKE) "LIBS=-L$(LIBDIR) -lgs2 $(SDATIO_LINK) $(SDATIO_LIB) $(LIBS)"
+
+#Set the level of testing, currently loosely defined as
+# 0 : Only most basic tests included
+# 1 : Most simple tests run
+# 2 : More expensive tests (say a few minutes on 8 cores)
+# 3 : Very expensive tests (say more than 10 minutes on 8 cores)
+#etc.
+TEST_LEVEL ?= 1
 
 ifndef NO_TEST_COLOURS
-COLOUR_COMMAND=| sed -e "s/passed/[32mpassed[39m/" \
-										 -e "s/FAILED/[31mFAILED[39m/" \
-										 -e "s/skipped/[34mskipped[39m/"
+# We have to change escape type from \033[0; to [ as otherwise
+# sed interprets the leading \0 as print matching pattern.
+SWITCH_ESCAPE_TYPE = $(subst \033[0;,[,$(1))
+_TEST_GREEN := $(call SWITCH_ESCAPE_TYPE,$(C_GRE))
+_TEST_RED := $(call SWITCH_ESCAPE_TYPE,$(C_RED))
+_TEST_BLUE := $(call SWITCH_ESCAPE_TYPE,$(C_BLU))
+_TEST_END := $(call SWITCH_ESCAPE_TYPE,$(C_RESET))
+COLOUR_COMMAND:= sed -e \
+	"s/passed/$(_TEST_GREEN)passed$(_TEST_END)/" -e \
+	"s/FAILED/$(_TEST_RED)FAILED$(_TEST_END)/"   -e \
+	"s/skipped/$(_TEST_BLUE)skipped$(_TEST_END)/"
+else
+COLOUR_COMMAND:= cat
 endif
 
 define TEST_PRINTOUT
@@ -61,7 +66,7 @@ define TEST_RESULTS
 	@echo
 	@echo "=======   $(1)"
 	@echo
-	@find $(TEST_DIR)/$(1) -name results_of_test.txt | xargs -n 1 cat $(COLOUR_COMMAND)
+	@find $(TEST_DIR)/$(1) -name results_of_test.txt -exec $(COLOUR_COMMAND) {} \;
 endef
 
 define RUN_TESTS
@@ -78,21 +83,21 @@ endef
 
 clean_unit_tests: TYPE=Unit
 clean_unit_tests:
-	$(QUIETSYM)$(MAKE) clean -C $(TEST_DIR)/$(call lowerCase,$(TYPE))_tests TEST_TYPE=$(TYPE) --no-print-directory
+	$(QUIETSYM)$(MAKE) clean_test_type -C $(TEST_DIR)/$(call lowerCase,$(TYPE))_tests TEST_TYPE=$(TYPE) --no-print-directory
 
 clean_linear_tests: TYPE=Linear
 clean_linear_tests:
-	$(QUIETSYM)$(MAKE) clean -C $(TEST_DIR)/$(call lowerCase,$(TYPE))_tests TEST_TYPE=$(TYPE) --no-print-directory
+	$(QUIETSYM)$(MAKE) clean_test_type -C $(TEST_DIR)/$(call lowerCase,$(TYPE))_tests TEST_TYPE=$(TYPE) --no-print-directory
 
 clean_nonlinear_tests: TYPE=Nonlinear
 clean_nonlinear_tests:
-	$(QUIETSYM)$(MAKE) clean -C $(TEST_DIR)/$(call lowerCase,$(TYPE))_tests TEST_TYPE=$(TYPE) --no-print-directory
+	$(QUIETSYM)$(MAKE) clean_test_type -C $(TEST_DIR)/$(call lowerCase,$(TYPE))_tests TEST_TYPE=$(TYPE) --no-print-directory
 
 clean_tests: clean_unit_tests clean_linear_tests clean_nonlinear_tests
 	@echo -n ''
 
 clean_benchmarks:
-	$(QUIETSYM)$(MAKE) clean -C $(TEST_DIR)/benchmarks TEST_TYPE=Benchmarks --no-print-directory
+	$(QUIETSYM)$(MAKE) clean_test_type -C $(TEST_DIR)/benchmarks TEST_TYPE=Benchmarks --no-print-directory
 
 unit_tests_no_message: | $(TEST_RESULT_DIR)
 unit_tests_no_message: $(OBJDIR)/unit_tests.o $(TEST_DEPS)

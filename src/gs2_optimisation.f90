@@ -24,9 +24,9 @@ contains
     ! We have to initialize_gs2 so that we 
     ! can read the optimisation_config namelist
     !call initialize_wall_clock_timer
-    call initialize_gs2(state)
+    call initialize_gs2(state, quiet=.true.)
     call init_optimisation_config(state%optim)
-    call finalize_gs2(state)
+    call finalize_gs2(state, quiet=.true.)
   end subroutine initialize_gs2_optimisation
 
   !> FIXME : Add documentation  
@@ -66,7 +66,7 @@ contains
     fieldmat%no_populate = .true.
     state%dont_change_timestep = .true.
 
-    state%init%tstep_ov%init = .true.
+    call state%init%tstep_ov%initialise()
     state%init%tstep_ov%override_immediate_reset = .true.
     state%init%tstep_ov%immediate_reset = .false.
 

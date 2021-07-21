@@ -484,7 +484,7 @@ do while (bMaxShift)
        if (verb>3) write (*,*) 'Starting leqin, ntheta = ', ntheta, ntgrid
 
        call leqin(geoType, rmaj, R_geo, rhoc, delrho, aSurf, shift, shiftVert, mMode, nMode, deltam, deltan, deltampri, deltanpri, &
-            thetam, thetan, qinp, s_hat_input, ntgrid, thetaShift)
+            thetam, thetan, qinp, s_hat_input, nth, thetaShift)
        if(.not.allocated(gds22)) call alloc_module_arrays(ntgrid)
        if(.not.allocated(smodel)) call alloc_local_arrays(ntgrid)
     endif

@@ -1,5 +1,5 @@
 !> This module contains the subroutines which set the initial value of the
-!! fields and the distribution function.
+!> fields and the distribution function.
 module init_g
   use abstract_config, only: abstract_config_type, CONFIG_MAX_NAME_LEN
   implicit none
@@ -37,7 +37,7 @@ module init_g
        ginitopt_all_modes_equal = 33, &
        ginitopt_default_odd=34, ginitopt_restart_memory=35, & !Note ginitopt_restart_memory isn't meant to be a user selected choice.
        ginitopt_restart_eig=36, ginitopt_no_zonal = 37, &
-       ginitopt_stationary_mode = 38
+       ginitopt_stationary_mode = 38, ginitopt_cgyro = 39
 
   real :: width0, dphiinit, phiinit, imfac, refac, zf_init, phifrac
   real :: den0, upar0, tpar0, tperp0
@@ -45,6 +45,7 @@ module init_g
   real :: den2, upar2, tpar2, tperp2
   real :: tstart, scale, apar0
   logical :: chop_side, clean_init, left, even, new_field_init
+  logical :: initial_condition_is_nonadiabatic_dfn
   character (2000) :: restart_file !WARNING: This is also defined in gs2_save. This should be addressed
   character (len=150) :: restart_dir
   integer, dimension(2) :: ikk, itt
@@ -97,119 +98,319 @@ module init_g
   type, extends(abstract_config_type) :: init_g_config_type
      ! namelist : init_g_knobs
      ! indexed : false     
-     !> FIXME: Add documentation
+
+     !> Amplitude of equilibrium `Apara`: if `a0` is non-zero, \(u_0\) is
+     !> rescaled to give this `Apara` amplitude
      real :: a0 = 0.0
-     !> FIXME: Add documentation
+     !> Used by [[init_g_knobs:ginit_option]] `"recon3"`: adjust input parameter
+     !> of this species; if = 0, just warn if given conditions are not satisfied
+     !>
+     !> FIXME: What input parameter, what conditions?
      integer :: adj_spec = 0
-     !> FIXME: Add documentation
+     !> Used by [[init_g_knobs:ginit_option]] `"nl3r"`: set amplitude of `apar`
+     !> if [[init_g_knobs:width0]] is negative
      real :: apar0 = 0.0
-     !> FIXME: Add documentation
+     !> Used in initialization for the Orszag-Tang 2D vortex problem
+     !> ([[init_g_knobs:ginit_option]] `"ot"`). Controls size of `jpar` term.
+     !> FIXME: Reference equations?
      complex, dimension(6) :: aparamp = cmplx(0.0,0.0)
-     !> FIXME: Add documentation
+     !> Amplitude of equilibrium `By`: if `b0` is non-zero, \(u_0\) is
+     !> rescaled to give this `By` amplitude by overriding [[init_g_knobs:a0]]
      real :: b0 = 0.0
-     !> FIXME: Add documentation
+     !> Rarely needed. Forces asymmetry into initial condition. Warning: This
+     !> does not behave as one may expect in flux tube simulations (see
+     !> clean_init), this can be important as the default is to use chop_side
      logical :: chop_side = .true.
-     !> FIXME: Add documentation
-     logical :: clean_init = .true. ! MRH Default changed 15/08/2018 Initial conditions should satisfy boundary condition
-     !> FIXME: Add documentation
+     !> Used with [[init_g_knobs:ginit_option]] `"noise"`. Ensures that in flux
+     !> tube simulations the connected boundary points are initialised to the
+     !> same value. Also allows for [[init_g_knobs:chop_side]] to behave
+     !> correctly in flux tube simulations.
+     logical :: clean_init = .true.
+     !> Use the constant_random number generator, which always gives the same
+     !> random numbers. Useful for testing.
      logical :: constant_random_flag = .false.
-     !> FIXME: Add documentation
+     !> Amplitude of zeroth density perturbation for [[init_g_knobs:ginit_option]]
+     !> options:
+     !>
+     !> - `"kpar"` (see [[init_g:ginit_kpar]])
+     !> - `"kz0"` (see [[init_g:ginit_kz0]])
+     !> - `"nl3"` (see [[init_g:ginit_nl3]])
+     !> - `"nl3r"` (see [[init_g:ginit_nl3r]])
+     !> - `"nl7"` (see [[init_g:ginit_nl7]])
+     !> - `"ot"` (see [[init_g:ginit_ot]])
+     !> - `"recon"` (see [[init_g:ginit_recon]])
      real :: den0 = 1.0
-     !> FIXME: Add documentation
+     !> Amplitude of first density perturbation for [[init_g_knobs:ginit_option]]
+     !> options:
+     !>
+     !> - `"gs"` (see [[init_g:ginit_gs]])
+     !> - `"kpar"` (see [[init_g:ginit_kpar]])
+     !> - `"nl3"` (see [[init_g:ginit_nl3]])
+     !> - `"nl3r"` (see [[init_g:ginit_nl3r]])
+     !> - `"nl7"` (see [[init_g:ginit_nl7]])
+     !> - `"recon"` (see [[init_g:ginit_recon]])
+     !> - `"recon3"` (see [[init_g:ginit_recon3]])
      real :: den1 = 0.0
-     !> FIXME: Add documentation
+     !> Amplitude of second density perturbation for [[init_g_knobs:ginit_option]]
+     !> options:
+     !>
+     !> - `"kpar"` (see [[init_g:ginit_kpar]])
+     !> - `"kz0"` (see [[init_g:ginit_kz0]])
+     !> - `"nl3"` (see [[init_g:ginit_nl3]])
+     !> - `"nl3r"` (see [[init_g:ginit_nl3r]])
+     !> - `"nl7"` (see [[init_g:ginit_nl7]])
+     !> - `"recon"` (see [[init_g:ginit_recon]])
+     !> - `"recon3"` (see [[init_g:ginit_recon3]])
      real :: den2 = 0.0
-     !> FIXME: Add documentation
+     !> Amplitude of \(\phi\) for `"nl7"` (see [[init_g:ginit_nl7]])
      real :: dphiinit = 1.0
-     !> FIXME: Add documentation
+     !> Mode number in \(x\) for the sinusoidal equilbrium option of
+     !> [[init_g_knobs:ginit_option]] `"recon3"` (see [[init_g:ginit_recon3]]),
+     !> applies to density and temperatures
      integer :: eq_mode_n = 0
-     !> FIXME: Add documentation
+     !> Mode number in \(x\) for the sinusoidal equilbrium option of
+     !> [[init_g_knobs:ginit_option]] `"recon3"` (see [[init_g:ginit_recon3]]),
+     !> applies to parallel velocity
      integer :: eq_mode_u = 1
-     !> FIXME: Add documentation
+     !> Equilbrium choice for [[init_g_knobs:ginit_option]] `"recon3"` (see
+     !> [[init_g:ginit_recon3]]). Choices are:
+     !>
+     !> - `"sinusoidal"`
+     !> - `"porcelli"`
+     !> - `"doubleharris"`
      character(len = 20) :: eq_type = 'sinusoidal'
-     !> FIXME: Add documentation
+     !> Sometimes initial conditions have definite parity; this picks the parity
+     !> in those cases. Affects the following choices of
+     !> [[init_g_knobs:ginit_option]]:
+     !>
+     !> - `"nl3"` (see [[init_g:ginit_nl3]])
+     !> - `"nl3r"` (see [[init_g:ginit_nl3r]])
+     !> - `"nl7"` (see [[init_g:ginit_nl7]])
+     !> - `"recon"` (see [[init_g:ginit_recon]])
+     !> - `"recon3"` (see [[init_g:ginit_recon3]])
      logical :: even = .true.
-     !> FIXME: Add documentation
+     !> Method for initialising `g`. There are many possible options, but the
+     !> typical ones are:
+     !>
+     !>   - `"default"`: Gaussian in \(\theta\). See [[init_g_knobs:phiinit]],
+     !>     [[init_g_knobs:width0]], [[init_g_knobs:chop_side]]
+     !>   - `"default_odd"`: Guassian in \(\theta\) multiplied by \(\sin(\theta -
+     !>     \theta_0)\). See [[init_g_knobs:phiinit]], [[init_g_knobs:width0]],
+     !>     [[init_g_knobs:chop_side]]
+     !>   - `"noise"`: Noise along field line. The recommended (but not default)
+     !>     selection. See [[init_g_knobs:phiinit]], [[init_g_knobs:zf_init]]
+     !>   - `"restart", "many"`: Restart, using `g` from restart files.
+     !>   - `"single_parallel_mode"`: Initialise only with a single parallel mode
+     !>     specified by either [[init_g_knobs:ikpar_init]] for periodic
+     !>     boundary conditions or [[init_g_knobs:kpar_init]] for linked
+     !>     boundary conditions. Intended for linear calculations.
+     !>   - `"eig_restart"`: Uses the restart files written by the
+     !>     eigensolver. Also see [[init_g_knobs:restart_eig_id]].
+     !>
+     !> All the options are detailed further in the [initialisation options
+     !> documentation](../user_manual/initialisation.html)
      character(len = 20) :: ginit_option = "default"
-     !> FIXME: Add documentation
+     !> \(k_y\) indices of two modes to initialise for certain options
      integer, dimension(2) :: ikk = [1, 2]
-     !> FIXME: Add documentation
+     !> \(k_y\) indices of three modes to initialise for certain options
      integer, dimension(3) :: ikkk = [1, 2, 2]
-     !> FIXME: Add documentation
+     !> Parallel mode number to initialise for [[init_g_knobs:ginit_option]]
+     !> `"single_parallel_mode"` with periodic boundary conditions
      integer :: ikpar_init = 0
-     !> FIXME: Add documentation
+     !> If greater than zero, initialise only the given \(k_x\) with
+     !> [[init_g_knobs:ginit_option]] `"noise"`. This is useful for linear runs
+     !> with flow shear, to track the evolution of a single Lagrangian mode.
      integer :: ikx_init = -1
-     !> FIXME: Add documentation
+     !> Amplitude of imaginary part of \(\phi\) for various
+     !> [[init_g_knobs:ginit_option]] options
      real :: imfac = 0.0
-     !> FIXME: Add documentation
+     !> Do we want to include the explicit source terms and
+     !> related timesteps when saving/restoring from the restart file.
+     logical :: include_explicit_source_in_restart = .true.
+     !> If true then the initial condition is used to set the non-adiabatic
+     !> distribution function rather than the `g` evolved by GS2.
+     logical :: initial_condition_is_nonadiabatic_dfn = .false.
+     !> Print some debug information for [[init_g_knobs:ginit_option]] `"recon3"`
      logical :: input_check_recon = .false.
-     !> FIXME: Add documentation
+     !> \(k_x\) indices of two modes to initialise for certain options
      integer, dimension(2) :: itt = [1, 2]     
-     !> FIXME: Add documentation
+     !> \(k_x\) indices of three modes to initialise for certain options
      integer, dimension(3) :: ittt = [1, 2, 2]     
-     !> FIXME: Add documentation
+     !> Parallel mode number to initialise for [[init_g_knobs:ginit_option]]
+     !> `"single_parallel_mode"` with linked boundary conditions
      real :: kpar_init = 0.0
-     !> FIXME: Add documentation
+     !> If [[init_g_knobs:chop_side]] is true, chop out left side in theta if
+     !> true, right side if false. Applies to: FIXME: list of initial conditions
      logical :: left = .true.
+     !> Change fields implicit initialisation somehow
+     !>
      !> FIXME: Add documentation
      logical :: new_field_init = .true.
-     !> FIXME: Add documentation
+     !> Unused
+     !>
+     !> FIXME: Remove
      complex, dimension(3) :: nkxy_pt = cmplx(0.,0.)
+     !> "Nullify fields". Used by [[init_g_knobs:ginit_option]] `"recon3"`
+     !>
      !> FIXME: Add documentation
      logical :: null_apar = .false.
+     !> "Nullify fields". Used by [[init_g_knobs:ginit_option]] `"recon3"`
+     !>
      !> FIXME: Add documentation
      logical :: null_bpar = .false.
+     !> "Nullify fields". Used by [[init_g_knobs:ginit_option]] `"recon3"`
+     !>
      !> FIXME: Add documentation
      logical :: null_phi = .false.
-     !> FIXME: Add documentation
+     !> Used in initialization for the Orszag-Tang 2D vortex problem.
+     !>
+     !> FIXME: expand
      complex, dimension(6) :: phiamp = cmplx(0.0,0.0)
-     !> FIXME: Add documentation
+     !> If doing multiple flux tube calculations, multiply
+     !> [[init_g_knobs:phiinit]] by `(job * phifrac + 1)`. Allows for ensemble
+     !> averaging of multiple flux tube calculations
      real :: phifrac = 0.1
-     !> FIXME: Add documentation
+     !> Average amplitude of initial perturbation of each Fourier mode. Used by
+     !> most [[init_g_knobs:ginit_option]] options
      real :: phiinit = 1.0
-     !> FIXME: Add documentation
+     !> Amplitude of equilibrium. Used by [[init_g_knobs:ginit_option]] `"recon3"`
      real :: phiinit0 = 0.0
-     !> FIXME: Add documentation
+     !> Amplitude of random perturbation. Used by [[init_g_knobs:ginit_option]] `"recon3"`
      real :: phiinit_rand = 0.0
-     !> FIXME: Add documentation
+     !> Width of "porcelli", "doubleharris" profiles in
+     !> [[init_g_knobs:ginit_option]] `"recon3"`. If negative, this gives the
+     !> ratio to the box size
      real :: prof_width = -0.1
-     !> FIXME: Add documentation
+     !> Restart from many restart files. If false, use a single restart file:
+     !> this requires GS2 to have been built with parallel netCDF.
      logical :: read_many = .false.
-     !> FIXME: Add documentation
+     !> Amplitude of real part of \(\phi\) for various
+     !> [[init_g_knobs:ginit_option]] options
      real :: refac = 1.0
-     !> FIXME: Add documentation
+     !> Directory to read/write restart files to/from. Make sure this exists
+     !> before running (see [[gs2_diagnostics_knobs:file_safety_check]])
      character(len = 150) :: restart_dir = "./"
-     !> FIXME: Add documentation
+     !> Used to select with eigensolver generated restart file to load. Sets
+     !> `<id>` in `restart_file//eig_<id>//.<proc>` string used to set
+     !> filename. Note that this is zero indexed.
      integer :: restart_eig_id = 0
+     !> Basename of restart files
+     !>
      !> @note gets a smart default
      character(len = 2000) :: restart_file = "restart_file_not_set.nc"
-     !> FIXME: Add documentation
+     !> Rescale amplitudes of fields for restart [[init_g_knobs:ginit_option]]
+     !> options such as `"restart"`. Note that if `scale` is negative, the
+     !> fields are scaled by `-scale / max(abs(phi))`!
      real :: scale = 1.0
-     !> FIXME: Add documentation
+     !> Amplitude of zeroth parallel temperature perturbation for
+     !> [[init_g_knobs:ginit_option]] options:
+     !>
+     !> - `"kpar"` (see [[init_g:ginit_kpar]])
+     !> - `"kz0"` (see [[init_g:ginit_kz0]])
+     !> - `"nl3"` (see [[init_g:ginit_nl3]])
+     !> - `"nl3r"` (see [[init_g:ginit_nl3r]])
+     !> - `"nl7"` (see [[init_g:ginit_nl7]])
+     !> - `"ot"` (see [[init_g:ginit_ot]])
+     !> - `"recon"` (see [[init_g:ginit_recon]])
      real :: tpar0 = 0.0
-     !> FIXME: Add documentation
+     !> Amplitude of first parallel temperature perturbation for
+     !> [[init_g_knobs:ginit_option]] options:
+     !>
+     !> - `"gs"` (see [[init_g:ginit_gs]])
+     !> - `"kpar"` (see [[init_g:ginit_kpar]])
+     !> - `"nl3"` (see [[init_g:ginit_nl3]])
+     !> - `"nl3r"` (see [[init_g:ginit_nl3r]])
+     !> - `"nl7"` (see [[init_g:ginit_nl7]])
+     !> - `"recon"` (see [[init_g:ginit_recon]])
+     !> - `"recon3"` (see [[init_g:ginit_recon3]])
      real :: tpar1 = 0.0
-     !> FIXME: Add documentation
+     !> Amplitude of second parallel temperature perturbation for
+     !> [[init_g_knobs:ginit_option]] options:
+     !>
+     !> - `"kpar"` (see [[init_g:ginit_kpar]])
+     !> - `"kz0"` (see [[init_g:ginit_kz0]])
+     !> - `"nl3"` (see [[init_g:ginit_nl3]])
+     !> - `"nl3r"` (see [[init_g:ginit_nl3r]])
+     !> - `"nl7"` (see [[init_g:ginit_nl7]])
+     !> - `"recon"` (see [[init_g:ginit_recon]])
+     !> - `"recon3"` (see [[init_g:ginit_recon3]])
      real :: tpar2 = 0.0
-     !> FIXME: Add documentation
+     !> Amplitude of zeroth perpendicular temperature perturbation for
+     !> [[init_g_knobs:ginit_option]] options:
+     !>
+     !> - `"kpar"` (see [[init_g:ginit_kpar]])
+     !> - `"kz0"` (see [[init_g:ginit_kz0]])
+     !> - `"nl3"` (see [[init_g:ginit_nl3]])
+     !> - `"nl3r"` (see [[init_g:ginit_nl3r]])
+     !> - `"nl7"` (see [[init_g:ginit_nl7]])
+     !> - `"ot"` (see [[init_g:ginit_ot]])
+     !> - `"recon"` (see [[init_g:ginit_recon]])
      real :: tperp0 = 0.0
-     !> FIXME: Add documentation
+     !> Amplitude of first perpendicular temperature perturbation for
+     !> [[init_g_knobs:ginit_option]] options:
+     !>
+     !> - `"gs"` (see [[init_g:ginit_gs]])
+     !> - `"kpar"` (see [[init_g:ginit_kpar]])
+     !> - `"nl3"` (see [[init_g:ginit_nl3]])
+     !> - `"nl3r"` (see [[init_g:ginit_nl3r]])
+     !> - `"nl7"` (see [[init_g:ginit_nl7]])
+     !> - `"recon"` (see [[init_g:ginit_recon]])
+     !> - `"recon3"` (see [[init_g:ginit_recon3]])
      real :: tperp1 = 0.0
-     !> FIXME: Add documentation
+     !> Amplitude of second perpendicular temperature perturbation for
+     !> [[init_g_knobs:ginit_option]] options:
+     !>
+     !> - `"kpar"` (see [[init_g:ginit_kpar]])
+     !> - `"kz0"` (see [[init_g:ginit_kz0]])
+     !> - `"nl3"` (see [[init_g:ginit_nl3]])
+     !> - `"nl3r"` (see [[init_g:ginit_nl3r]])
+     !> - `"nl7"` (see [[init_g:ginit_nl7]])
+     !> - `"recon"` (see [[init_g:ginit_recon]])
+     !> - `"recon3"` (see [[init_g:ginit_recon3]])
      real :: tperp2 = 0.0
-     !> FIXME: Add documentation
+     !> Force `t = tstart` at beginning of run
      real :: tstart = 0.0
+     !> Perturbation amplitude of parallel velocity? Used by
+     !> [[init_g_knobs:ginit_option]] `"recon3"`
+     !>
      !> FIXME: Add documentation
      complex, dimension(3) :: ukxy_pt = cmplx(0.,0.)
-     !> FIXME: Add documentation
+     !> Amplitude of zeroth parallel velocity perturbation for
+     !> [[init_g_knobs:ginit_option]] options:
+     !>
+     !> - `"kpar"` (see [[init_g:ginit_kpar]])
+     !> - `"kz0"` (see [[init_g:ginit_kz0]])
+     !> - `"nl3"` (see [[init_g:ginit_nl3]])
+     !> - `"nl3r"` (see [[init_g:ginit_nl3r]])
+     !> - `"nl7"` (see [[init_g:ginit_nl7]])
+     !> - `"ot"` (see [[init_g:ginit_ot]])
+     !> - `"recon"` (see [[init_g:ginit_recon]])
      real :: upar0 = 0.0
-     !> FIXME: Add documentation
+     !> Amplitude of first parallel velocity perturbation for
+     !> [[init_g_knobs:ginit_option]] options:
+     !>
+     !> - `"gs"` (see [[init_g:ginit_gs]])
+     !> - `"kpar"` (see [[init_g:ginit_kpar]])
+     !> - `"nl3"` (see [[init_g:ginit_nl3]])
+     !> - `"nl3r"` (see [[init_g:ginit_nl3r]])
+     !> - `"nl7"` (see [[init_g:ginit_nl7]])
+     !> - `"recon"` (see [[init_g:ginit_recon]])
+     !> - `"recon3"` (see [[init_g:ginit_recon3]])
      real :: upar1 = 0.0
-     !> FIXME: Add documentation
+     !> Amplitude of second parallel velocity perturbation for
+     !> [[init_g_knobs:ginit_option]] options:
+     !>
+     !> - `"kpar"` (see [[init_g:ginit_kpar]])
+     !> - `"kz0"` (see [[init_g:ginit_kz0]])
+     !> - `"nl3"` (see [[init_g:ginit_nl3]])
+     !> - `"nl3r"` (see [[init_g:ginit_nl3r]])
+     !> - `"nl7"` (see [[init_g:ginit_nl7]])
+     !> - `"recon"` (see [[init_g:ginit_recon]])
+     !> - `"recon3"` (see [[init_g:ginit_recon3]])
      real :: upar2 = 0.0
-     !> FIXME: Add documentation
+     !> Width of initial perturbation Gaussian envelope in \(\theta\)
      real :: width0 = -3.5
-     !> FIXME: Add documentation
+     !> Amplitude of initial zonal flow perturbations relative to other modes
      real :: zf_init = 1.0
    contains
      procedure, public :: read => read_init_g_config
@@ -393,6 +594,14 @@ contains
        write (unit, fmt="(' tperp1 = ',e17.10)") tperp1
        write (unit, fmt="(' tperp2 = ',e17.10)") tperp2
 
+    case (ginitopt_cgyro)
+       write (unit, fmt="(' ginit_option = ',a)") '"cgyro"'
+       write (unit, fmt="(' phiinit = ',e17.10)") phiinit
+       write (unit, fmt="(' zf_init = ',e17.10)") zf_init
+       write (unit, fmt="(' chop_side = ',L1)") chop_side
+       if (chop_side) write (unit, fmt="(' left = ',L1)") left
+       write (unit, fmt="(' clean_init = ',L1)") clean_init
+
     end select
     write (unit, fmt="(' /')")
   end subroutine wnml_init_g
@@ -463,7 +672,7 @@ contains
        if (upar0 > epsilon(0.0) .or. upar1 > epsilon(0.0) .or. upar2 > epsilon(0.0)) then
           write (report_unit, *) 
           write (report_unit, fmt="('Initial parallel velocity perturbation of the form:')")
-          write (report_unit, fmt="('upar0   + upar1 * cos(theta) + upar2 * cos(2.*theta)')")
+          write (report_unit, fmt="('upar0   + upar1 * sin(theta) + upar2 * sin(2.*theta)')")
           write (report_unit, fmt="('90 degrees out of phase with other perturbations.')")
           write (report_unit, *) 
           write (report_unit, fmt="('with upar0 =',f7.4,' upar1 = ',f7.4,' upar2 = ',f7.4)") upar0, upar1, upar2
@@ -687,6 +896,12 @@ contains
        write (report_unit, fmt="('################# WARNING #######################')")
        write (report_unit, *) 
 
+    case (ginitopt_cgyro)
+       write (report_unit, fmt="('Initial conditions:')")
+       write (report_unit, fmt="('  Amplitude:        ',f10.4)") phiinit
+       write (report_unit, fmt="('Constant amplitude for ky!=0')")
+       write (report_unit, fmt="('Zero amplitude for ky=0')")
+
     end select
 
     if (ginitopt_switch == ginitopt_restart_many) then
@@ -820,7 +1035,7 @@ contains
 
   !> FIXME : Add documentation  
   subroutine ginit (restarted, override_ginitopt_switch)
-    use gs2_save, only: init_tstart
+    use gs2_save, only: read_t0_from_restart_file
     implicit none
     logical, intent (out) :: restarted
     integer, intent(in), optional :: override_ginitopt_switch
@@ -867,28 +1082,28 @@ contains
 ! results, you might need to comment out this line and...
 !       t0 = tstart
        call ginit_nl4
-       call init_tstart (tstart, istatus)
+       call read_t0_from_restart_file (tstart, istatus)
 ! this line:
 !       tstart = t0
        restarted = .true.
        scale = 1.
     case (ginitopt_nl5)
        t0 = tstart
-       call init_tstart (tstart, istatus)
+       call read_t0_from_restart_file (tstart, istatus)
        call ginit_nl5
        tstart = t0
        restarted = .true.
        scale = 1.
     case (ginitopt_recon)
        t0 = tstart
-       call init_tstart (tstart, istatus)
+       call read_t0_from_restart_file (tstart, istatus)
        call ginit_recon
        tstart = t0
        restarted = .true.
        scale = 1.
     case (ginitopt_nl6)
        t0 = tstart
-       call init_tstart (tstart, istatus)
+       call read_t0_from_restart_file (tstart, istatus)
        call ginit_nl6
        tstart = t0
        restarted = .true.
@@ -911,22 +1126,22 @@ contains
        call ginit_convect
     case (ginitopt_restart_file)
        call ginit_restart_file 
-       call init_tstart (tstart, istatus)
+       call read_t0_from_restart_file (tstart, istatus)
        restarted = .true.
        scale = 1.
     case (ginitopt_restart_many)
        call ginit_restart_many 
-       call init_tstart (tstart, istatus)
+       call read_t0_from_restart_file (tstart, istatus)
        restarted = .true.
        scale = 1.
     case (ginitopt_restart_eig)
        call ginit_restart_eig 
-       call init_tstart (tstart, istatus)
+       call read_t0_from_restart_file (tstart, istatus)
        restarted = .true.
        scale = 1.
     case (ginitopt_restart_small)
        call ginit_restart_small
-       call init_tstart (tstart, istatus)
+       call read_t0_from_restart_file (tstart, istatus)
        restarted = .true.
        scale = 1.
     case (ginitopt_restart_memory)
@@ -935,17 +1150,17 @@ contains
        scale = 1.
     case (ginitopt_zonal_only)
        call ginit_restart_zonal_only
-       call init_tstart (tstart, istatus)
+       call read_t0_from_restart_file (tstart, istatus)
        restarted = .true.
        scale = 1.
     case (ginitopt_no_zonal)
        call ginit_restart_no_zonal
-       call init_tstart (tstart, istatus)
+       call read_t0_from_restart_file (tstart, istatus)
        restarted = .true.
        scale = 1.
     case (ginitopt_smallflat)
        call ginit_restart_smallflat
-       call init_tstart (tstart, istatus)
+       call read_t0_from_restart_file (tstart, istatus)
        restarted = .true.
        scale = 1.
     case (ginitopt_continue)
@@ -957,20 +1172,54 @@ contains
        call ginit_ot
     case (ginitopt_stationary_mode)
        call ginit_stationary_mode
+    case (ginitopt_cgyro)
+       call ginit_cgyro
     end select
+
+    ! If the initial condition is the nonadiabatic dfn then
+    ! ensure we've actually set `gnew` correctly.
+    if (initial_condition_is_nonadiabatic_dfn) then
+       !Should we avoid doing this if restart is true?
+       call set_gnew_from_nonadiabatic_dfn
+    end if
+
   end subroutine ginit
 
-  !> FIXME : Add documentation  
+  !> Take the existing gnew value and, assuming it is the nonadiabatic dfn,
+  !> calculate the consistent potentials to set the true gnew value.
+  subroutine set_gnew_from_nonadiabatic_dfn
+    use dist_fn_arrays, only: gnew, g, g_adjust
+    use kt_grids, only: naky, ntheta0
+    use theta_grid, only: ntgrid
+    use dist_fn, only: calculate_potentials_from_nonadiabatic_dfn
+    use run_parameters, only: fphi, fbpar
+    implicit none
+    complex, dimension(:, :, :), allocatable :: phi, apar, bpar
+    allocate( phi(-ntgrid:ntgrid, ntheta0, naky))
+    allocate(apar(-ntgrid:ntgrid, ntheta0, naky))
+    allocate(bpar(-ntgrid:ntgrid, ntheta0, naky))
+
+    ! Calculate the consistent potentials
+    call calculate_potentials_from_nonadiabatic_dfn(gnew, phi, apar, bpar)
+
+    ! Adjust the nonadiabatic dfn to give the actual gnew we evolve
+    call g_adjust(gnew, phi, bpar, -fphi, -fbpar)
+
+    ! Ensure both timesteps are set correctly
+    g = gnew
+  end subroutine set_gnew_from_nonadiabatic_dfn
+
+  !> FIXME : Add documentation
   subroutine read_parameters(init_g_config_in)
     use file_utils, only: input_unit, error_unit, run_name, input_unit_exist
     use text_options, only: text_option, get_option_value
-    use gs2_save, only: read_many
+    use gs2_save, only: read_many, include_explicit_source_in_restart
     use job_manage, only: trin_restart
 
     implicit none
     type(init_g_config_type), intent(in), optional :: init_g_config_in
 
-    type (text_option), dimension (36), parameter :: ginitopts = &
+    type (text_option), dimension (*), parameter :: ginitopts = &
          (/ text_option('default', ginitopt_default), &
             text_option('default_odd', ginitopt_default_odd), &
             text_option('noise', ginitopt_noise), &
@@ -980,6 +1229,7 @@ contains
             text_option('test3', ginitopt_test3), &
             text_option('convect', ginitopt_convect), &
             text_option('rh', ginitopt_rh), &
+            text_option('restart', ginitopt_restart_many), &
             text_option('many', ginitopt_restart_many), &
             text_option('small', ginitopt_restart_small), &
             text_option('file', ginitopt_restart_file), &
@@ -1006,7 +1256,8 @@ contains
             text_option('single_parallel_mode', ginitopt_single_parallel_mode), &
             text_option('all_modes_equal', ginitopt_all_modes_equal), &
             text_option('eig_restart', ginitopt_restart_eig), &
-            text_option('stationary_mode', ginitopt_stationary_mode) &
+            text_option('stationary_mode', ginitopt_stationary_mode), &
+            text_option('cgyro', ginitopt_cgyro) &
             /)
     character(20) :: ginit_option
 
@@ -1044,6 +1295,8 @@ contains
     ikpar_init = init_g_config%ikpar_init
     ikx_init = init_g_config%ikx_init
     imfac = init_g_config%imfac
+    include_explicit_source_in_restart = init_g_config%include_explicit_source_in_restart
+    initial_condition_is_nonadiabatic_dfn = init_g_config%initial_condition_is_nonadiabatic_dfn
     input_check_recon = init_g_config%input_check_recon
     itt = init_g_config%itt
     ittt = init_g_config%ittt
@@ -1090,7 +1343,12 @@ contains
          ierr, "ginit_option in ginit_knobs",.true.)
   end subroutine read_parameters
 
-  !> FIXME : Add documentation  
+  !> Set initial condition to gaussian in \(\theta\)
+  !>
+  !> Controlled by:
+  !> - Amplitude: [[init_g_knobs:phiinit]]
+  !> - Width in \(\theta\): [[init_g_knobs:width0]]
+  !> - Parity: even about \(\theta_0\) unless [[init_g_knobs:chop_side]] is true
   subroutine ginit_default
     use species, only: spec
     use theta_grid, only: ntgrid, theta
@@ -1138,7 +1396,12 @@ contains
     gnew = g
   end subroutine ginit_default
 
-  !> FIXME : Add documentation  
+  !> Set initial condition to gaussian in \(\theta\)
+  !>
+  !> Controlled by:
+  !> - Amplitude: [[init_g_knobs:phiinit]]
+  !> - Width in \(\theta\): [[init_g_knobs:width0]]
+  !> - Parity: odd about \(\theta_0\) unless [[init_g_knobs:chop_side]] is true
   subroutine ginit_default_odd
     use species, only: spec
     use theta_grid, only: ntgrid, theta
@@ -1258,9 +1521,9 @@ contains
     end do
   end subroutine single_initial_kx
 
-  !> Initialise the distribution function with random noise. This is the default
-  !! initialisation option. Each different mode is given a random amplitude
-  !! between zero and one.
+  !> Initialise the distribution function with random noise. This is the
+  !> recommended initialisation option. Each different mode is given a random
+  !> amplitude between zero and one.
   subroutine ginit_noise
     use species, only: spec, tracer_species
     use theta_grid, only: ntgrid 
@@ -1428,9 +1691,10 @@ contains
 
   end subroutine ginit_noise
 
-  !> Initialize with a single parallel mode. Only makes sense in a linear 
-  !! calculation. k_parallel is specified with kpar_init or with ikpar_init 
-  !! when periodic boundary conditions are used. 
+  !> Initialise only with a single parallel mode \(k_\Vert\) specified by either
+  !> [[init_g_knobs:ikpar_init]] for periodic boundary conditions or
+  !> [[init_g_knobs:kpar_init]] for linked boundary conditions. Only makes sense
+  !> for linear calculations.
   subroutine ginit_single_parallel_mode
     use species, only: spec, tracer_species
     use theta_grid, only: ntgrid, shat, theta 
@@ -1617,7 +1881,13 @@ contains
 
   end subroutine ginit_all_modes_equal
 
-  !> FIXME : Add documentation  
+  !> "nl": Two \(k_\perp\) modes set to constant amplitude. Controlled by:
+  !>
+  !>  - Overall amplitude: [[init_g_knobs:phiinit]]
+  !>  - `ky` indices of modes: [[init_g_knobs:ikk]]
+  !>  - `kx` indices of modes: [[init_g_knobs:itt]]
+  !>  - Parity: even about \(\theta_0\) unless
+  !>    [[init_g_knobs:chop_side]] is true, in which case none
   subroutine ginit_nl
     use species, only: spec
     use theta_grid, only: ntgrid 
@@ -1669,7 +1939,14 @@ contains
     gnew = g
   end subroutine ginit_nl
 
-  !> FIXME : Add documentation  
+  !> "nl2": Two \(k_\perp\) modes proportional to \(1 + v_\Vert
+  !>     \sin(\theta)\). Controlled by:
+  !>
+  !>  - Overall amplitude: [[init_g_knobs:phiinit]]
+  !>  - `ky` indices of modes: [[init_g_knobs:ikk]]
+  !>  - `kx` indices of modes: [[init_g_knobs:itt]]
+  !>  - Parity: even about \(\theta_0\) unless
+  !>    [[init_g_knobs:chop_side]] is true, in which case none
   subroutine ginit_nl2
     use species, only: spec
     use theta_grid, only: ntgrid, theta
@@ -1724,7 +2001,28 @@ contains
     gnew = g
   end subroutine ginit_nl2
 
-  !> FIXME : Add documentation  
+  !> "nl3": Two \(k_\perp\) modes with a Gaussian envelope, and perturbation in
+  !> fields of form \(x_0 + x_1 \cos(\theta) + x_2 \cos(2 \theta)\), except for
+  !> parallel velocity which uses is 90 degrees out of phase and uses
+  !> \(\sin\). Density, parallel velocity, and perpendicular and parallel
+  !> temperatures can all be controlled independently. Controlled by:
+  !>
+  !>   - Overall amplitude: [[init_g_knobs:phiinit]]
+  !>   - Amplitude of real and imaginary parts of \(\phi\):
+  !>     [[init_g_knobs:refac]], [[init_g_knobs:imfac]]
+  !>   - Gaussian envelope width in \(\theta\): [[init_g_knobs:width0]]
+  !>   - `ky` indices of modes: [[init_g_knobs:ikk]]
+  !>   - `kx` indices of modes: [[init_g_knobs:itt]]
+  !>   - Parity: even about \(\theta_0\) unless
+  !>     [[init_g_knobs:chop_side]] is true, in which case none
+  !>   - Density perturbation: [[init_g_knobs:den0]],
+  !>     [[init_g_knobs:den1]], [[init_g_knobs:den2]]
+  !>   - Parallel velocity perturbation: [[init_g_knobs:upar0]],
+  !>     [[init_g_knobs:upar1]], [[init_g_knobs:upar2]]
+  !>   - Parallel temperature perturbation: [[init_g_knobs:tpar0]],
+  !>     [[init_g_knobs:tpar1]], [[init_g_knobs:tpar2]]
+  !>   - Perpendicular temperature perturbation: [[init_g_knobs:tperp0]],
+  !>     [[init_g_knobs:tperp1]], [[init_g_knobs:tperp2]]
   subroutine ginit_nl3
     use species, only: spec, has_electron_species
     use theta_grid, only: ntgrid, theta
@@ -3602,7 +3900,7 @@ contains
 
   end subroutine ginit_recon3
 
-  !> FIXME : Add documentation  
+  !> FIXME: This is identical to [[ginit_restart_many]]? Remove?
   subroutine ginit_restart_file
     use dist_fn_arrays, only: g, gnew
     use fields_arrays, only: phi, apar, bpar, phinew, aparnew, bparnew
@@ -3624,7 +3922,8 @@ contains
 
   end subroutine ginit_restart_file
 
-  !> FIXME : Add documentation  
+  !> Restore `g` from restart files. Note that the timestep and simulation time
+  !> are restored by [[read_t0_from_restart_file]]
   subroutine ginit_restart_many
     use dist_fn_arrays, only: g, gnew
     use fields_arrays, only: phi, apar, bpar, phinew, aparnew, bparnew
@@ -3646,7 +3945,8 @@ contains
     phi=phinew ; apar=aparnew ; bpar=bparnew
   end subroutine ginit_restart_many
 
-  !> FIXME : Add documentation  
+  !> Uses the restart files written by the eigensolver. File to read is set by
+  !> [[init_g_knobs:restart_eig_id]]
   subroutine ginit_restart_eig
     use dist_fn_arrays, only: g, gnew
     use fields_arrays, only: phi, apar, bpar, phinew, aparnew, bparnew
@@ -3686,7 +3986,9 @@ contains
     end if
   end subroutine ginit_restart_memory
 
-  !> FIXME : Add documentation    
+  !> Restores `g` from restart files _on top of_ a background from [[ginit_noise]].
+  !>
+  !> Note that this doesnt set `phi`, `apar`, `bpar` -- is this correct?
   subroutine ginit_restart_small
     use dist_fn_arrays, only: g, gnew
     use gs2_save, only: gs2_restore
@@ -3709,7 +4011,8 @@ contains
 
   end subroutine ginit_restart_small
 
-  !> FIXME : Add documentation    
+  !> Similar to `"small"`, restores fields from restart files _on top of_ a
+  !> random background
   subroutine ginit_restart_smallflat
     use gs2_save, only: gs2_restore
     use mp, only: proc0
@@ -3771,11 +4074,12 @@ contains
 
   end subroutine ginit_restart_smallflat
 
-  !> Restart but remove all turbulence except the zonal flow (ky = 0) component upon 
-  !! restarting. It can be selected by setting the input parameter ginit to "zonal_only". 
-  !! The size of the zonal flows can be adjusted using the input parameter zf_init. 
-  !!
-  !! Author EGH
+  !> Restart but set all non-zonal components \((k_y \ne 0)\) of the potential
+  !> and the distribution function to 0. Noise can be added to these other
+  !> components by setting [[init_g_knobs:phiinit]] > 0. The size of the zonal
+  !> flows can be adjusted using [[init_g_knobs:zf_init]].
+  !>
+  !> Author EGH
   subroutine ginit_restart_zonal_only
     use gs2_save, only: gs2_restore
     use mp, only: proc0
@@ -3789,17 +4093,9 @@ contains
     use run_parameters, only: fphi, fapar, fbpar
 
     implicit none
-!     complex, dimension (-ntgrid:ntgrid,ntheta0,naky) :: phi
     integer :: istatus, ierr
     integer :: iglo
-!    integer :: ig, ik, it, il, is
     integer :: ik, it, il, is
-
-
-!    if (phiinit > epsilon(0.0)) then 
-! 
-!    end if 
-       
 
     !  Load phi and g from the restart file
     call gs2_restore (g, scale, istatus, fphi, fapar, fbpar)
@@ -3819,7 +4115,6 @@ contains
     
     ! Allow adjustment of the size of the zonal flows via the input parameter zf_init
     phinew(:,:,1) = phinew(:,:,1)*zf_init
-    
     
     !Apply reality condition for k_theta = 0 component!
     !if (reality) then
@@ -3846,8 +4141,8 @@ contains
 
     ! If phiinit > 0, add some noise
     if (phiinit >  epsilon(0.0)) then 
-     call ginit_noise
-     g = g + gnew
+      call ginit_noise
+      g = g + gnew
     end if
 
     gnew = g
@@ -3855,10 +4150,8 @@ contains
   end subroutine ginit_restart_zonal_only
 
   !> Restart but remove the zonal flow (ky = 0) component upon restarting.
-  !! It can be selected by setting the input parameter ginit to "no_zonal". 
-  !! The size of the zonal flows can be adjusted using the input parameter zf_init.
-  !!
-  !! Author: FvW (copy of EGH code)
+  !>
+  !> Author: FvW (copy of EGH code)
   subroutine ginit_restart_no_zonal
     use gs2_save, only: gs2_restore
     use mp, only: proc0
@@ -3953,6 +4246,74 @@ contains
     gnew = g
   end subroutine ginit_stationary_mode
 
+  !> Sets g to a constant value everywhere except zonal component which is 0
+  !> Default initial conditions for CGYRO
+  !>
+  !> if phiinit>0:
+  !>     g(ky!=0) = constant
+  !> else:
+  !>     g(ky!=0) = constant/n
+  !>
+  !> if zfinit!=0:
+  !>     g(ky==0) = constant * exp(-|kx|/max(kx))
+  !> else:
+  !>     g(ky==0) = 0
+  !>
+  !> Set by having 'ginit_option' = cgyro
+  !> Equivalent CGYRO parameters achieved by setting
+  !>    GS2   =    CGYRO
+  !> phiinit = AMP / sqrt(2)
+  !> zfinit   = AMP0 / AMP
+  !>
+  !> By default AMP0=0 and AMP=0.1 in CGYRO
+  !>
+  !> Potential issue in AMP=0 in CGYRO due to zfinit defn
+  !>
+  !> Author: BSP (copy of EGH code)
+  subroutine ginit_cgyro
+    use mp, only: proc0
+    use le_grids, only: forbid
+    use kt_grids, only: akx, aky
+    use dist_fn_arrays, only: g, gnew
+    use gs2_layouts, only: g_lo, ik_idx, it_idx, il_idx
+
+    implicit none
+    integer :: istatus, ierr
+    integer :: iglo
+    integer :: ik, it, il, in
+    real :: arg, kxrange
+
+    kxrange = maxval(akx) - minval(akx)
+
+    if(debug.and.proc0) write(*,*) 'Entering CGYRO def'
+    do iglo = g_lo%llim_proc, g_lo%ulim_proc
+       ik = ik_idx(g_lo,iglo)
+       it = it_idx(g_lo,iglo)
+       il = il_idx(g_lo,iglo)
+       if (aky(ik) == 0.0) then
+          arg = abs(akx(it))/ kxrange
+          g(:,1,iglo) = zf_init * abs(phiinit) * exp(-arg)
+       else
+          ! Ensure we don't end up with in = 0. This shouldn't
+          ! be needed for flux tube (box) simulations as ik == 1
+          ! would correspond to the zonal mode, handled in the
+          ! earlier branch.
+          if (phiinit < 0.0 .and. ik > 1) then
+             in = ik - 1
+          else
+             in = 1
+          end if
+          g(:,1,iglo) = abs(phiinit) / in**2
+       end if
+
+       where (forbid(:,il)) g(:,1,iglo) = 0.0
+       g(:,2,iglo) = g(:,1,iglo)
+    end do
+
+    gnew = g
+
+  end subroutine ginit_cgyro
+
   !> FIXME : Add documentation    
   subroutine reset_init(from_file)
     implicit none
@@ -4044,13 +4405,14 @@ contains
     integer :: adj_spec, eq_mode_n, eq_mode_u, ikpar_init, ikx_init, restart_eig_id
     integer, dimension(2) :: ikk, itt
     integer, dimension(3) :: ikkk, ittt
-    logical :: chop_side, clean_init, constant_random_flag, even, input_check_recon, left, new_field_init, null_apar, null_bpar, null_phi, read_many
+    logical :: chop_side, clean_init, constant_random_flag, even, include_explicit_source_in_restart, initial_condition_is_nonadiabatic_dfn, input_check_recon, left, new_field_init, null_apar, null_bpar, null_phi, read_many
     real :: a0, apar0, b0, den0, den1, den2, dphiinit, imfac, kpar_init, phifrac, phiinit, phiinit0, phiinit_rand, prof_width, refac, scale, tpar0, tpar1, tpar2, tperp0, tperp1, tperp2, tstart, upar0, upar1
     real :: upar2, width0, zf_init
 
     namelist /init_g_knobs/ a0, adj_spec, apar0, aparamp, b0, chop_side, clean_init, constant_random_flag, den0, den1, den2, dphiinit, eq_mode_n, eq_mode_u, eq_type, even, ginit_option, ikk, ikkk, ikpar_init, ikx_init, imfac, &
-         input_check_recon, itt, ittt, kpar_init, left, new_field_init, nkxy_pt, null_apar, null_bpar, null_phi, phiamp, phifrac, phiinit, phiinit0, phiinit_rand, prof_width, read_many, refac, restart_dir, &
-         restart_eig_id, restart_file, scale, tpar0, tpar1, tpar2, tperp0, tperp1, tperp2, tstart, ukxy_pt, upar0, upar1, upar2, width0, zf_init
+         include_explicit_source_in_restart, initial_condition_is_nonadiabatic_dfn, input_check_recon, itt, ittt, kpar_init, left, new_field_init, nkxy_pt, null_apar, null_bpar, null_phi, phiamp, phifrac, &
+         phiinit, phiinit0, phiinit_rand, prof_width, read_many, refac, restart_dir, restart_eig_id, restart_file, scale, tpar0, tpar1, tpar2, tperp0, tperp1, tperp2, tstart, ukxy_pt, upar0, upar1, upar2, &
+         width0, zf_init
 
     ! Only proc0 reads from file
     if (.not. proc0) return
@@ -4078,6 +4440,8 @@ contains
     ikpar_init = self%ikpar_init
     ikx_init = self%ikx_init
     imfac = self%imfac
+    include_explicit_source_in_restart = self%include_explicit_source_in_restart
+    initial_condition_is_nonadiabatic_dfn = self%initial_condition_is_nonadiabatic_dfn
     input_check_recon = self%input_check_recon
     itt = self%itt
     ittt = self%ittt
@@ -4149,6 +4513,8 @@ contains
     self%ikpar_init = ikpar_init
     self%ikx_init = ikx_init
     self%imfac = imfac
+    self%include_explicit_source_in_restart = include_explicit_source_in_restart
+    self%initial_condition_is_nonadiabatic_dfn = initial_condition_is_nonadiabatic_dfn
     self%input_check_recon = input_check_recon
     self%itt = itt
     self%ittt = ittt
@@ -4223,6 +4589,8 @@ contains
     call self%write_key_val("ikpar_init", self%ikpar_init, unit_internal)
     call self%write_key_val("ikx_init", self%ikx_init, unit_internal)
     call self%write_key_val("imfac", self%imfac, unit_internal)
+    call self%write_key_val("include_explicit_source_in_restart", self%include_explicit_source_in_restart, unit_internal)
+    call self%write_key_val("initial_condition_is_nonadiabatic_dfn", self%initial_condition_is_nonadiabatic_dfn, unit_internal)
     call self%write_key_val("input_check_recon", self%input_check_recon, unit_internal)
     call self%write_key_val("itt", self%itt, unit_internal)
     call self%write_key_val("ittt", self%ittt, unit_internal)
@@ -4299,6 +4667,8 @@ contains
     call broadcast(self%ikpar_init)
     call broadcast(self%ikx_init)
     call broadcast(self%imfac)
+    call broadcast(self%include_explicit_source_in_restart)
+    call broadcast(self%initial_condition_is_nonadiabatic_dfn)
     call broadcast(self%input_check_recon)
     call broadcast(self%itt)
     call broadcast(self%ittt)
