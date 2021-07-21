@@ -102,6 +102,8 @@ module dist_fn
   public :: check_getan
   public :: calculate_flux_surface_average
 
+  public :: calculate_potentials_from_nonadiabatic_dfn
+
   public :: dist_fn_config_type
   public :: dist_fn_species_config_type
   public :: source_config_type
@@ -328,7 +330,7 @@ module dist_fn
      !> True only allows solutions of single parity as determined by
      !> the input [[dist_fn_knobs:even]].
      logical :: def_parity = .false.
-     !> FIXME: Add documentation
+     !> FIXME: Remove, unused
      !>
      !> Used for GRYFX - should probably be moved elsewhere - ~ rho_i
      real :: densfac_lin = sqrt(2.)
@@ -383,9 +385,14 @@ module dist_fn
      !>_
      !> @todo Improve documentation
      real :: kfilter = 0.0
-     !> FIXME: Add documentation
+     !> Set up lowflow term \(F_1/F_0 = xi*(v/v_{th})*(a + b*(v/v_{th})^2)\)
      logical :: lf_decompose = .false.
-     !> FIXME: Add documentation
+     !> Treatment of radial variation of temperature in NEO energy variable:
+     !>
+     !> - (true, default) take it into account when constructing distribution
+     !>   function, i.e. `H(EGS2, r)`
+     !> - (false) construct `H(ENEO)` and deal with it later by including a temp
+     !>   gradient term in `wstarfac` in [[dist_fn.fpp]]
      logical :: lf_default = .true.
      !> Number multiplying the coriolis drift.
      !>
@@ -413,43 +420,48 @@ module dist_fn
      !>  increase due to using an additional array of size 2-4 times
      !>  `gnew`.
      logical :: opt_source = .false.
-     !> FIXME: Add documentation
+     !> FIXME: Remove, unused
      !>
      !> Used for GRYFX - should probably be moved elsewhere - ~ rho_i
      real :: phifac_lin = sqrt(2.)
      !> If non-zero, quasineutrality is not enforced,
      !> `poisfac`=  \((\lambda_\textrm{Debye}/\rho)^2\)
      real :: poisfac = 0.0
-     !> FIXME: Add documentation
+     !> FIXME: Remove, unused
      !>
      !> Used for GRYFX - should probably be moved elsewhere - ~ rho_i vti^3
      real :: qparfac_lin = 4.
-     !> FIXME: Add documentation
+     !> FIXME: Remove, unused
      !>
      !> Used for GRYFX - should probably be moved elsewhere - ~ rho_i vti^3
      real :: qprpfac_lin = 4.
      !> For debugging only. If set then run will print various grid sizes and then stop.
      logical :: test = .false.
-     !> FIXME: Add documentation
+     !> FIXME: Remove, unused
      !>
      !> Used for GRYFX - should probably be moved elsewhere - ~ rho_i vti^2
      real :: tparfac_lin = 2.*sqrt(2.)
      !> For debugging only. Multiplies the trapped particle drifts
      !> (also see [[dist_fn_knobs:driftknob]]).
      real :: tpdriftknob = -9.9e9
-     !> FIXME: Add documentation
+     !> FIXME: Remove, unused
      !>
      !> Used for GRYFX - should probably be moved elsewhere - ~ rho_i vti^2
      real :: tprpfac_lin = 2.*sqrt(2.)
-     !> FIXME: Add documentation
+     !> FIXME: Remove, unused
      !>
      !> Used for GRYFX - should probably be moved elsewhere - ~ rho_i vti
      real :: uparfac_lin = 2.
      !> For debugging only. Sets the boundary value for the barely trapped/passing particle.
      real :: wfb = 1.0
-     !> FIXME: Add documentation
+     !> If true, do NOT save homogeneous solutions for WFB
      logical :: wfb_cmr = .false.
-     !> FIXME: Add documentation
+     !> Set boundary condition for WFB in the linear/parallel solve:
+     !>
+     !> - "default", "mixed": The previous default boundary condition which
+     !>   mixes the passing and trapped boundary conditions
+     !> - "passing": Treats the WFB using a passing particle boundary condition
+     !> - "trapped": Treats the WFB using a trapped particle boundary condition
      character(len = 20) :: wfbbc_option = 'default'
      !> If true then force `gnew=0` in the forbidden region at the end
      !> of [[invert_rhs_1]] (this is the original behaviour).
@@ -5241,9 +5253,11 @@ endif
   !>
   !> See Colin's field equation notes for more details
   !>
+  !> Takes `g_in` as \(h_s\)
+  !>
   !> FIXME: Get these notes on the website
-  subroutine getan (antot, antota, antotp)
-    use dist_fn_arrays, only: vpa, vperp2, aj0, aj1, gnew
+  subroutine getan_from_dfn (g_in, antot, antota, antotp)
+    use dist_fn_arrays, only: vpa, vperp2, aj0, aj1
     use kt_grids, only: kperp2
     use species, only: nspec, spec
     use theta_grid, only: ntgrid
@@ -5252,12 +5266,13 @@ endif
     use prof, only: prof_entering, prof_leaving
     use gs2_layouts, only: g_lo
     implicit none
+    complex, dimension(-ntgrid:, :, g_lo%llim_proc:), intent(in) :: g_in
     complex, dimension (-ntgrid:,:,:), intent (out) :: antot, antota, antotp
     real, dimension (nspec) :: wgt
 
     integer :: isgn, iglo, ig
 
-    call prof_entering ("getan", "dist_fn")
+    call prof_entering ("getan_from_dfn", "dist_fn")
 
 !Don't do this as integrate_species will fill in all values
 !    antot=0. ; antota=0. ; antotp=0.
@@ -5269,7 +5284,7 @@ endif
        do iglo = g_lo%llim_proc, g_lo%ulim_proc
           do isgn = 1, 2
              do ig=-ntgrid, ntgrid
-                g0(ig,isgn,iglo) = aj0(ig,iglo)*gnew(ig,isgn,iglo)
+                g0(ig,isgn,iglo) = aj0(ig,iglo)*g_in(ig,isgn,iglo)
              end do
           end do
        end do
@@ -5288,7 +5303,7 @@ endif
        do iglo = g_lo%llim_proc, g_lo%ulim_proc
           do isgn = 1, 2
              do ig=-ntgrid, ntgrid
-                g0(ig,isgn,iglo) = aj0(ig,iglo)*vpa(ig,isgn,iglo)*gnew(ig,isgn,iglo)
+                g0(ig,isgn,iglo) = aj0(ig,iglo)*vpa(ig,isgn,iglo)*g_in(ig,isgn,iglo)
              end do
           end do
        end do
@@ -5305,7 +5320,7 @@ endif
        do iglo = g_lo%llim_proc, g_lo%ulim_proc
           do isgn = 1, 2
              do ig=-ntgrid, ntgrid
-                g0(ig,isgn,iglo) = aj1(ig,iglo)*vperp2(ig,iglo)*gnew(ig,isgn,iglo)
+                g0(ig,isgn,iglo) = aj1(ig,iglo)*vperp2(ig,iglo)*g_in(ig,isgn,iglo)
              end do
           end do
        end do
@@ -5317,6 +5332,27 @@ endif
        antotp=0.
     end if
 
+    call prof_leaving ("getan_from_dfn", "dist_fn")
+  end subroutine getan_from_dfn
+
+  !> Compute velocity space integrals over \(h_s\):
+  !> $$\mathrm{antot} = n_s q_s \int d^3 v f_0 J_0(Z_s) h_s$$
+  !> $$\mathrm{antota} = 2 \beta n_s q_s \sqrt{\tfrac{T_s}{m_s}} \int d^3 v f_0 J_0(Z_s) h_s$$
+  !> $$\mathrm{antotp} = n_s T_s \int d^3 v f_0 \frac{v_\perp^2 J_1(Z_s)}{Z_s} h_s$$
+  !>
+  !> See Colin's field equation notes for more details
+  !>
+  !> Always uses `gnew` as \(h_s\)
+  !>
+  !> FIXME: Get these notes on the website
+  subroutine getan (antot, antota, antotp)
+    use dist_fn_arrays, only: gnew
+    use theta_grid, only: ntgrid
+    use prof, only: prof_entering, prof_leaving
+    implicit none
+    complex, dimension (-ntgrid:,:,:), intent (out) :: antot, antota, antotp
+    call prof_entering ("getan", "dist_fn")
+    call getan_from_dfn(gnew, antot, antota, antotp)
     call prof_leaving ("getan", "dist_fn")
   end subroutine getan
 
@@ -6534,6 +6570,62 @@ endif
 !///////////////////////////////////////
 !///////////////////////////////////////
 
+
+  !> Calculates the potentials consistent with the passed nonadiabatic
+  !> distribution function, `f_in`. Note this is not what GS2 usually
+  !> evolves as `g`/`gnew` but the adjusted version.
+  !>
+  !> This is closely related to [[get_init_field]] which does the same job
+  !> but works with the `g`/`gnew` modified distribution function instead.
+  !>
+  !> Currently we force potentials to zero if they are not included in the
+  !> simulation. We should provide a method to calculate these fields even
+  !> if they are not included in the evolution (e.g. for diagnostics,
+  !> collisions etc.). Perhaps an optional flag here would be enough.
+  subroutine calculate_potentials_from_nonadiabatic_dfn(f_in, phi, apar, bpar)
+    use gs2_layouts, only: g_lo
+    use theta_grid, only: ntgrid, bmag
+    use run_parameters, only: fphi, fapar, fbpar, beta
+    use kt_grids, only: naky, ntheta0, kperp2
+    use species, only: nspec, spec
+    implicit none
+    complex, dimension(-ntgrid:, :, g_lo%llim_proc:), intent(in) :: f_in
+    complex, dimension(-ntgrid:, :, :), intent(out) :: phi, apar, bpar
+    complex, dimension(:, :, :), allocatable :: antot, antota, antotp
+    real, dimension(nspec) :: weights
+
+    allocate(  antot(-ntgrid:ntgrid, ntheta0, naky))
+    allocate( antota(-ntgrid:ntgrid, ntheta0, naky))
+    allocate( antotp(-ntgrid:ntgrid, ntheta0, naky))
+
+    ! Get the weighted velocity space integrals of the passed
+    ! distribution function.
+    call getan_from_dfn(f_in, antot, antota, antotp)
+
+    if (fphi > 0) then
+       ! Do we need to include the adiabatic contribution in the sum?
+       phi = antot / sum(spec%dens*spec%z*spec%z / spec%temp)
+    else
+       phi = 0
+    end if
+
+    if (fapar > 0) then
+       where (kperp2 > epsilon(0.0))
+          apar = antota / kperp2
+       elsewhere
+          apar = 0
+       end where
+    else
+       apar = 0
+    end if
+
+    if (fbpar > 0) then
+       bpar = -beta * antotp / (spread(spread(bmag, 2, ntheta0), 3, naky)**2)
+    else
+       bpar = 0.0
+    end if
+
+  end subroutine calculate_potentials_from_nonadiabatic_dfn
 
   !> Inverts the field equations:
   !!   gamtot * phi - gamtot1 * bpar = antot
