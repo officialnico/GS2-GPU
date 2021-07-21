@@ -199,9 +199,9 @@ module dist_fn
   ! (-ntgrid:ntgrid,ntheta0,naky)
 
 #ifndef SHMEM
-  complex, dimension (:,:,:), allocatable :: g0, g_h
+  complex, dimension (:,:,:), allocatable :: g_h
 #else
-  complex, dimension (:,:,:), allocatable, target :: g0, g_h
+  complex, dimension (:,:,:), allocatable, target :: g_h
 #endif
   ! (-ntgrid:ntgrid,2, -g-layout-)
 
@@ -1109,7 +1109,7 @@ contains
   end subroutine finish_dist_fn_parameters
 
   subroutine finish_dist_fn_arrays
-    use dist_fn_arrays, only: g, gnew, kx_shift, theta0_shift, vperp2
+    use dist_fn_arrays, only: g, gnew, g_work, kx_shift, theta0_shift, vperp2
     use dist_fn_arrays, only: gexp_1, gexp_2, gexp_3
 #ifdef SHMEM
     use shm_mpi3, only : shm_free
@@ -1121,7 +1121,7 @@ contains
     initialized_dist_fn_arrays = .false.
 
     call finish_dist_fn_level_1
-    if (allocated(g)) deallocate (g, gnew, g0)
+    if (allocated(g)) deallocate (g, gnew, g_work)
     if (allocated(source_coeffs)) deallocate(source_coeffs)
 #ifndef SHMEM
     if (allocated(gexp_1)) deallocate (gexp_1, gexp_2, gexp_3)
@@ -1214,7 +1214,7 @@ contains
 
   !> FIXME : Add documentation  
   subroutine finish_dist_fn_level_3
-    use dist_fn_arrays, only: gnew, g
+    use dist_fn_arrays, only: gnew, g, g_work
     use dist_fn_arrays, only: vpa, vpac, vpar
     use dist_fn_arrays, only: ittp
     use dist_fn_arrays, only: vpa_gf, vperp2_gf
@@ -1231,7 +1231,7 @@ contains
     r = 0.
     ainv = 0.
     gnew = 0.
-    g0 = 0.
+    g_work = 0.
     g = 0.
 
     if (allocated(vpa)) deallocate (vpa, vpac, vpar)
@@ -3176,7 +3176,7 @@ contains
   subroutine allocate_arrays
     use kt_grids, only: naky,  box
     use theta_grid, only: ntgrid, shat
-    use dist_fn_arrays, only: g, gnew
+    use dist_fn_arrays, only: g, gnew, g_work
     use dist_fn_arrays, only: kx_shift, theta0_shift   ! MR
     use dist_fn_arrays, only: gexp_1, gexp_2, gexp_3
     use gs2_layouts, only: g_lo
@@ -3190,9 +3190,9 @@ contains
 
 !    if (alloc) then
     if (.not. allocated(g)) then
-       allocate (g    (-ntgrid:ntgrid,2,g_lo%llim_proc:g_lo%ulim_alloc))
-       allocate (gnew (-ntgrid:ntgrid,2,g_lo%llim_proc:g_lo%ulim_alloc))
-       allocate (g0   (-ntgrid:ntgrid,2,g_lo%llim_proc:g_lo%ulim_alloc))
+       allocate (g      (-ntgrid:ntgrid,2,g_lo%llim_proc:g_lo%ulim_alloc))
+       allocate (gnew   (-ntgrid:ntgrid,2,g_lo%llim_proc:g_lo%ulim_alloc))
+       allocate (g_work (-ntgrid:ntgrid,2,g_lo%llim_proc:g_lo%ulim_alloc))
        if(opt_source)then
           if(fapar.gt.0)then
              allocate (source_coeffs(4,-ntgrid:ntgrid-1,2,g_lo%llim_proc:g_lo%ulim_alloc))
@@ -3240,7 +3240,7 @@ contains
        endif                           ! MR end
     endif
 
-    g = 0. ; gnew = 0. ; g0 = 0.
+    g = 0. ; gnew = 0. ; g_work = 0.
 
 !    alloc = .false.
   end subroutine allocate_arrays
@@ -3258,7 +3258,7 @@ contains
 
     use theta_grid, only: ntgrid
     use le_derivatives, only: vspace_derivatives
-    use dist_fn_arrays, only: gnew, g
+    use dist_fn_arrays, only: gnew, g, g_work
     use dist_fn_arrays, only: gexp_1, gexp_2, gexp_3
     use nonlinear_terms, only: add_explicit_terms
     use hyper, only: hyper_diff
@@ -3294,7 +3294,7 @@ contains
         'dist_fn::timeadv calculated hypviscosity')
     !Add collisions
     if( .not. split_collisions) then
-      call vspace_derivatives (gnew, g, g0, phi, bpar, phinew, bparnew, modep)
+      call vspace_derivatives (gnew, g, g_work, phi, bpar, phinew, bparnew, modep)
       call debug_message(verb, &
           'dist_fn::timeadv calculated collisions etc')
     end if
@@ -3321,7 +3321,7 @@ contains
   !!  Author : Joseph Parker, STFC
   subroutine collisions_advance (phi, bpar, phinew, aparnew, bparnew, istep, mode)
     use collisions, only: split_collisions
-    use dist_fn_arrays, only: gnew, g
+    use dist_fn_arrays, only: gnew, g, g_work
     use le_derivatives, only: vspace_derivatives
     use theta_grid, only: ntgrid
     use unit_tests, only: debug_message
@@ -3339,7 +3339,7 @@ contains
     if (present(mode)) modep = mode
 
     !Add collisions
-    call vspace_derivatives (gnew, g, g0, phi, bpar, phinew, bparnew, modep)
+    call vspace_derivatives (gnew, g, g_work, phi, bpar, phinew, bparnew, modep)
     call debug_message(verb, &
       'dist_fn::collisions_advance calculated collisions etc')
 
@@ -5257,7 +5257,7 @@ endif
   !>
   !> FIXME: Get these notes on the website
   subroutine getan_from_dfn (g_in, antot, antota, antotp)
-    use dist_fn_arrays, only: vpa, vperp2, aj0, aj1
+    use dist_fn_arrays, only: vpa, vperp2, aj0, aj1, g_work
     use kt_grids, only: kperp2
     use species, only: nspec, spec
     use theta_grid, only: ntgrid
@@ -5284,13 +5284,13 @@ endif
        do iglo = g_lo%llim_proc, g_lo%ulim_proc
           do isgn = 1, 2
              do ig=-ntgrid, ntgrid
-                g0(ig,isgn,iglo) = aj0(ig,iglo)*g_in(ig,isgn,iglo)
+                g_work(ig,isgn,iglo) = aj0(ig,iglo)*g_in(ig,isgn,iglo)
              end do
           end do
        end do
 
        wgt = spec%z*spec%dens
-       call integrate_species (g0, wgt, antot)
+       call integrate_species (g_work, wgt, antot)
 
 !    if (kfilter > epsilon(0.0)) call par_filter(antot)
        if (afilter > epsilon(0.0)) antot = antot * exp(-afilter**4*kperp2**2/4.)
@@ -5303,13 +5303,13 @@ endif
        do iglo = g_lo%llim_proc, g_lo%ulim_proc
           do isgn = 1, 2
              do ig=-ntgrid, ntgrid
-                g0(ig,isgn,iglo) = aj0(ig,iglo)*vpa(ig,isgn,iglo)*g_in(ig,isgn,iglo)
+                g_work(ig,isgn,iglo) = aj0(ig,iglo)*vpa(ig,isgn,iglo)*g_in(ig,isgn,iglo)
              end do
           end do
        end do
        
        wgt = 2.0*beta*spec%z*spec%dens*sqrt(spec%temp/spec%mass)
-       call integrate_species (g0, wgt, antota)
+       call integrate_species (g_work, wgt, antota)
 !    if (kfilter > epsilon(0.0)) call par_filter(antota)
        if(esv) call ensure_single_val_fields_pass(antota)
     else
@@ -5320,12 +5320,12 @@ endif
        do iglo = g_lo%llim_proc, g_lo%ulim_proc
           do isgn = 1, 2
              do ig=-ntgrid, ntgrid
-                g0(ig,isgn,iglo) = aj1(ig,iglo)*vperp2(ig,iglo)*g_in(ig,isgn,iglo)
+                g_work(ig,isgn,iglo) = aj1(ig,iglo)*vperp2(ig,iglo)*g_in(ig,isgn,iglo)
              end do
           end do
        end do
        wgt = spec%temp*spec%dens
-       call integrate_species (g0, wgt, antotp)
+       call integrate_species (g_work, wgt, antotp)
 !    if (kfilter > epsilon(0.0)) call par_filter(antotp)
        if(esv) call ensure_single_val_fields_pass(antotp)
     else
@@ -5358,7 +5358,7 @@ endif
 
   !> Calculate various moments of the distribution function
   subroutine getmoms (phinew, bparnew, ntot, density, upar, tpar, tperp, qparflux, pperpj1, qpperpj1)
-    use dist_fn_arrays, only: vpa, vperp2, aj0, aj1, gnew, g_adjust
+    use dist_fn_arrays, only: vpa, vperp2, aj0, aj1, gnew, g_adjust, g_work
     use gs2_layouts, only: is_idx, ie_idx, g_lo, ik_idx, it_idx
     use species, only: nspec, spec, nonmaxw_corr
     use theta_grid, only: ntgrid
@@ -5398,7 +5398,7 @@ endif
 !           nb  <delta_f> = g_wesson J0 - q phi/T F_m  where <> = gyroaverage
 !           ie  <delta_f>/F_m = g_wesson J0 - q phi/T
 !
-! use g0 as dist_fn dimensioned working space for all moments
+! use g_work as dist_fn dimensioned working space for all moments
 ! (avoid making more copies of gnew to save memory!)
 !
 ! set gnew = g_wesson, but return gnew to entry state prior to exit 
@@ -5413,36 +5413,36 @@ endif
        ie = ie_idx(g_lo,iglo) ; is = is_idx(g_lo,iglo)
        ik = ik_idx(g_lo,iglo) ; it = it_idx(g_lo,iglo)
        do isgn = 1, 2
-          g0(:,isgn,iglo) = aj0(:,iglo)*gnew(:,isgn,iglo)
+          g_work(:,isgn,iglo) = aj0(:,iglo)*gnew(:,isgn,iglo)
        end do
     end do
 
 ! CMR: density is the nonadiabatic piece of perturbed density
 ! NB normalised wrt equ'm density for species s: n_s n_ref  
 !    ie multiply by (n_s n_ref) to get abs density pert'n
-    call integrate_moment (g0, density,  moment_to_allprocs, full_arr)
+    call integrate_moment (g_work, density,  moment_to_allprocs, full_arr)
 
 ! DJA/CMR: upar and tpar moments 
 ! (nb adiabatic part of <delta f> does not contribute to upar, tpar or tperp)
 ! NB UPAR is normalised to vt_s = sqrt(T_s/m_s) vt_ref
 !    ie multiply by spec(is)%stm * vt_ref to get abs upar
-    g0 = vpa*g0
-    call integrate_moment (g0, upar,  moment_to_allprocs, full_arr)
+    g_work = vpa*g_work
+    call integrate_moment (g_work, upar,  moment_to_allprocs, full_arr)
 
-    g0 = 2.*vpa*g0
-    call integrate_moment (g0, tpar,  moment_to_allprocs, full_arr)
+    g_work = 2.*vpa*g_work
+    call integrate_moment (g_work, tpar,  moment_to_allprocs, full_arr)
 ! tpar transiently stores ppar, nonadiabatic perturbed par pressure 
 !      vpa normalised to: sqrt(2 T_s T_ref/m_s m_ref)
-!  including factor 2 in g0 product ensures 
+!  including factor 2 in g_work product ensures 
 !     ppar normalised to: n_s T_s n_ref T_ref 
 !                         ppar = tpar + density, and so:
     tpar = tpar - density
     do iglo = g_lo%llim_proc, g_lo%ulim_proc
        do isgn = 1, 2
-          g0(:,isgn,iglo) = vperp2(:,iglo)*gnew(:,isgn,iglo)*aj0(:,iglo)
+          g_work(:,isgn,iglo) = vperp2(:,iglo)*gnew(:,isgn,iglo)*aj0(:,iglo)
        end do
     end do
-    call integrate_moment (g0, tperp,  moment_to_allprocs, full_arr)
+    call integrate_moment (g_work, tperp,  moment_to_allprocs, full_arr)
 ! tperp transiently stores pperp, nonadiabatic perturbed perp pressure
 !                          pperp = tperp + density, and so:
     tperp = tperp - density
@@ -5454,10 +5454,10 @@ endif
 !    ie multiply by (n_s T_s spec(is)%stm) n_ref T_ref vt_ref to get abs qparflux
     do iglo = g_lo%llim_proc, g_lo%ulim_proc
        do isgn = 1, 2
-          g0(:,isgn,iglo) = vpa(:,isgn,iglo)*gnew(:,isgn,iglo)*aj0(:,iglo)*energy(ie_idx(g_lo,iglo),is_idx(g_lo,iglo))
+          g_work(:,isgn,iglo) = vpa(:,isgn,iglo)*gnew(:,isgn,iglo)*aj0(:,iglo)*energy(ie_idx(g_lo,iglo),is_idx(g_lo,iglo))
        end do
     end do 
-    call integrate_moment (g0, qparflux,  moment_to_allprocs, full_arr)
+    call integrate_moment (g_work, qparflux,  moment_to_allprocs, full_arr)
    
 ! Now compute PPERPJ1, a modified p_perp which gives particle flux from Bpar
 ! NB PPERPJ1 is normalised to (n_s T_s/q_s)  n_ref T_ref/q_ref 
@@ -5465,35 +5465,35 @@ endif
     do iglo = g_lo%llim_proc, g_lo%ulim_proc
        is = is_idx(g_lo,iglo)
        do isgn = 1, 2
-          g0(:,isgn,iglo) &
+          g_work(:,isgn,iglo) &
                = gnew(:,isgn,iglo)*aj1(:,iglo)*2.0*vperp2(:,iglo)*spec(is)%tz
        end do
     end do
-    call integrate_moment (g0, pperpj1,  moment_to_allprocs, full_arr)
+    call integrate_moment (g_work, pperpj1,  moment_to_allprocs, full_arr)
 
 ! Now compute QPPERPJ1, a modified p_perp*energy which gives heat flux from Bpar
 ! NB QPPERPJ1 is normalised to (n_s T_s^2/q_s)  n_ref  T_ref^2/q_ref
 !    ie multiply by (n_s T_s spec(is)%tz) n_ref T_ref^2/q_ref to get abs QPPERPJ1
     do iglo = g_lo%llim_proc, g_lo%ulim_proc
-       g0(:,:,iglo) = g0(:,:,iglo)*energy(ie_idx(g_lo,iglo),is_idx(g_lo,iglo))
+       g_work(:,:,iglo) = g_work(:,:,iglo)*energy(ie_idx(g_lo,iglo),is_idx(g_lo,iglo))
     end do
-    call integrate_moment (g0, qpperpj1, moment_to_allprocs, full_arr)
+    call integrate_moment (g_work, qpperpj1, moment_to_allprocs, full_arr)
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 ! now include the adiabatic part of <delta f>
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
-! set g0 = <delta_f>/F_m, including the adiabatic term
+! set g_work = <delta_f>/F_m, including the adiabatic term
     do iglo = g_lo%llim_proc, g_lo%ulim_proc
        ie = ie_idx(g_lo,iglo) ; is = is_idx(g_lo,iglo)
        ik = ik_idx(g_lo,iglo) ; it = it_idx(g_lo,iglo)
        do isgn = 1, 2
-          g0(:,isgn,iglo) = aj0(:,iglo)*gnew(:,isgn,iglo) - phinew(:,it,ik)*spec(is)%zt*nonmaxw_corr(ie,is)
+          g_work(:,isgn,iglo) = aj0(:,iglo)*gnew(:,isgn,iglo) - phinew(:,it,ik)*spec(is)%zt*nonmaxw_corr(ie,is)
        end do
     end do
 
 ! total perturbed density
-    call integrate_moment (g0, ntot,  moment_to_allprocs, full_arr)
+    call integrate_moment (g_work, ntot,  moment_to_allprocs, full_arr)
 
 !CMR, now multiply by species dependent normalisations to leave only reference normalisations
     do is=1,nspec
@@ -5515,7 +5515,7 @@ endif
 
   !> FIXME : Add documentation
   subroutine getmoms_gryfx_dist (density_gryfx, upar_gryfx, tpar_gryfx, tperp_gryfx, qpar_gryfx, qperp_gryfx, phi_gryfx)
-    use dist_fn_arrays, only: vpa, vperp2, gnew, g_adjust
+    use dist_fn_arrays, only: vpa, vperp2, gnew, g_adjust, g_work
     use gs2_layouts, only: is_idx, ie_idx, g_lo, ik_idx, it_idx
     use species, only: nspec
     use theta_grid, only: ntgrid
@@ -5545,8 +5545,8 @@ endif
     ! vperp2_gryfx = 2 vperp2
 
     ! dens = < f >
-    g0 = gnew 
-    call integrate_moment (g0, total)
+    g_work = gnew 
+    call integrate_moment (g_work, total)
     if(proc0) then
     do ig = -ntgrid, ntgrid-1
       iz = ig + ntgrid + 1
@@ -5564,8 +5564,8 @@ endif
     end if
 
     ! upar = < (vpar/vt_gryfx) f > = < ( sqrt(2) vpar/vt_gs2 ) f > = upar1/vt_gryfx
-    g0 = sqrt(2.)*vpa*gnew  
-    call integrate_moment (g0, total)
+    g_work = sqrt(2.)*vpa*gnew  
+    call integrate_moment (g_work, total)
     if(proc0) then
     do ig = -ntgrid, ntgrid-1
       iz = ig + ntgrid + 1
@@ -5583,8 +5583,8 @@ endif
     end if
 
     ! tpar = < (vpar^2/vt_gryfx^2 - 1) f > = tpar1/T_0
-    g0 = (2.*vpa*vpa - 1.)*gnew
-    call integrate_moment (g0, total)
+    g_work = (2.*vpa*vpa - 1.)*gnew
+    call integrate_moment (g_work, total)
     if(proc0) then
     do ig = -ntgrid, ntgrid-1
       iz = ig + ntgrid + 1
@@ -5602,8 +5602,8 @@ endif
     end if
 
     ! qpar = < (vpar^3/vt_gryfx^3 - 3*vpar/vt_gryfx) f > = qpar1/( n0 m vt_gryfx^3 )
-    g0 = (2.*sqrt(2.)*vpa*vpa*vpa - 3.*sqrt(2.)*vpa)*gnew
-    call integrate_moment (g0, total)
+    g_work = (2.*sqrt(2.)*vpa*vpa*vpa - 3.*sqrt(2.)*vpa)*gnew
+    call integrate_moment (g_work, total)
     if(proc0) then
     do ig = -ntgrid, ntgrid-1
       iz = ig + ntgrid + 1
@@ -5623,10 +5623,10 @@ endif
     ! tprp = < ( 1/2 vprp/vt_gryfx^2 - 1 ) f > = tprp1/T_0
     do iglo = g_lo%llim_proc, g_lo%ulim_proc
        do isgn = 1, 2
-          g0(:,isgn,iglo) = (vperp2(:,iglo)-1.)*gnew(:,isgn,iglo) 
+          g_work(:,isgn,iglo) = (vperp2(:,iglo)-1.)*gnew(:,isgn,iglo) 
        end do
     end do
-    call integrate_moment (g0, total)
+    call integrate_moment (g_work, total)
     if(proc0) then
     do ig = -ntgrid, ntgrid-1
       iz = ig + ntgrid + 1
@@ -5644,8 +5644,8 @@ endif
     end if
 
     ! qprp = < vpar/vt_gryfx*( 1/2 vprp/vt_gryfx^2 - 1 ) f > = qprp1/( n0 m vt_gryfx^3 )
-    g0 = sqrt(2.)*vpa*g0
-    call integrate_moment (g0, total)
+    g_work = sqrt(2.)*vpa*g_work
+    call integrate_moment (g_work, total)
     if(proc0) then
     do ig = -ntgrid, ntgrid-1
       iz = ig + ntgrid + 1
@@ -5695,7 +5695,7 @@ endif
   !> Calculates hermite-laguerre moments of g
   !! uses gryfx normalization convention (see getmoms_gryfx above)
   subroutine get_mom_glm (glm, l, m)
-    use dist_fn_arrays, only: vpa, vperp2, gnew
+    use dist_fn_arrays, only: vpa, vperp2, gnew, g_work
     use gs2_layouts, only: g_lo
     use theta_grid, only: ntgrid
     use le_grids, only: integrate_moment, hermite_prob
@@ -5710,17 +5710,17 @@ endif
     do iglo = g_lo%llim_proc, g_lo%ulim_proc
       do isgn = 1, 2
         do ig = -ntgrid, ntgrid
-          g0(ig,isgn,iglo) = hermite_prob(l, sqrt(2.0)*vpa(ig,isgn,iglo)) * &
+          g_work(ig,isgn,iglo) = hermite_prob(l, sqrt(2.0)*vpa(ig,isgn,iglo)) * &
                         laguerre_norm(m, vperp2(ig,iglo)) * gnew(ig,isgn,iglo) 
         end do
       end do
     end do
-    call integrate_moment (g0, glm,  moment_to_allprocs, full_arr)
+    call integrate_moment (g_work, glm,  moment_to_allprocs, full_arr)
   end subroutine get_mom_glm
 
   !> FIXME : Add documentation
   subroutine getemoms (phinew, bparnew, ntot, tperp)
-    use dist_fn_arrays, only: vperp2, aj0, gnew, g_adjust
+    use dist_fn_arrays, only: vperp2, aj0, gnew, g_adjust, g_work
     use gs2_layouts, only: is_idx, ie_idx, g_lo, ik_idx, it_idx
     use species, only: nspec, spec, nonmaxw_corr
     use theta_grid, only: ntgrid
@@ -5763,7 +5763,7 @@ endif
 !           nb  <delta_f> = g_wesson J0 - q phi/T F_m  where <> = gyroaverage
 !           ie  <delta_f>/F_m = g_wesson J0 - q phi/T
 !
-! use g0 as dist_fn dimensioned working space for all moments
+! use g_work as dist_fn dimensioned working space for all moments
 ! (avoid making more copies of gnew to save memory!)
 !
 ! set gnew = g_wesson, but return gnew to entry state prior to exit 
@@ -5773,25 +5773,25 @@ endif
        ie = ie_idx(g_lo,iglo) ; is = is_idx(g_lo,iglo)
        ik = ik_idx(g_lo,iglo) ; it = it_idx(g_lo,iglo)
        do isgn = 1, 2
-          g0(:,isgn,iglo) = aj0(:,iglo)*gnew(:,isgn,iglo) - phinew(:,it,ik)*spec(is)%zt*nonmaxw_corr(ie,is)
+          g_work(:,isgn,iglo) = aj0(:,iglo)*gnew(:,isgn,iglo) - phinew(:,it,ik)*spec(is)%zt*nonmaxw_corr(ie,is)
        end do
     end do
 
 ! total perturbed density
-    call integrate_moment (g0, ntot,  moment_to_allprocs, full_arr)
+    call integrate_moment (g_work, ntot,  moment_to_allprocs, full_arr)
 
 ! vperp**2 moment:
     do iglo = g_lo%llim_proc, g_lo%ulim_proc       
        ie = ie_idx(g_lo,iglo) ; is = is_idx(g_lo,iglo)
        ik = ik_idx(g_lo,iglo) ; it = it_idx(g_lo,iglo)
        do isgn = 1, 2
-          g0(:,isgn,iglo) = aj0(:,iglo)*gnew(:,isgn,iglo)*vperp2(:,iglo) &
+          g_work(:,isgn,iglo) = aj0(:,iglo)*gnew(:,isgn,iglo)*vperp2(:,iglo) &
              - phinew(:,it,ik)*spec(is)%zt*nonmaxw_corr(ie,is)*vperp2(:,iglo)
        end do
     end do
 
 ! total perturbed perp pressure
-    call integrate_moment (g0, tperp,  moment_to_allprocs, full_arr)
+    call integrate_moment (g_work, tperp,  moment_to_allprocs, full_arr)
 
 ! tperp transiently stores pperp, 
 !       pperp = tperp + density, and so:
@@ -5810,7 +5810,7 @@ endif
   
   !> Calculates moments at not guiding center coordinate
   subroutine getmoms_notgc (phinew, bparnew, dens, upar, tpar, tper, ntot, jpar)
-    use dist_fn_arrays, only: vpa, vperp2, aj0, aj1, gnew
+    use dist_fn_arrays, only: vpa, vperp2, aj0, aj1, gnew, g_work
     use gs2_layouts, only: g_lo, is_idx, ik_idx, it_idx, ie_idx
     use species, only: nspec, spec, nonmaxw_corr
     use theta_grid, only: ntgrid
@@ -5842,56 +5842,56 @@ endif
           ie = ie_idx(g_lo,iglo)
 
           do isgn = 1, 2
-             g0(:,isgn,iglo) = aj0(:,iglo) * gnew(:,isgn,iglo)
+             g_work(:,isgn,iglo) = aj0(:,iglo) * gnew(:,isgn,iglo)
           end do
           do isgn = 1, 2
-             g0(:,isgn,iglo) = g0(:,isgn,iglo) + phinew(:,it,ik) &
+             g_work(:,isgn,iglo) = g_work(:,isgn,iglo) + phinew(:,it,ik) &
                   & *(aj0(:,iglo)**2-1.0) * spec(is)%zt * nonmaxw_corr(ie,is)
           end do
           do isgn = 1, 2
-             g0(:,isgn,iglo) = g0(:,isgn,iglo) &
+             g_work(:,isgn,iglo) = g_work(:,isgn,iglo) &
                   & + 2.*vperp2(:,iglo)*aj1(:,iglo)*aj0(:,iglo) &
                   & * bparnew(:,it,ik) * nonmaxw_corr(ie,is)
           end do
        end do
-       call integrate_moment (g0, ntot,  moment_to_allprocs,full_arr)
+       call integrate_moment (g_work, ntot,  moment_to_allprocs,full_arr)
     endif
 
 ! not guiding center density
     do iglo = g_lo%llim_proc, g_lo%ulim_proc
        do isgn = 1, 2
-          g0(:,isgn,iglo) = aj0(:,iglo)*gnew(:,isgn,iglo)
+          g_work(:,isgn,iglo) = aj0(:,iglo)*gnew(:,isgn,iglo)
        end do
     end do
 
-    call integrate_moment (g0, dens,  moment_to_allprocs,full_arr)
+    call integrate_moment (g_work, dens,  moment_to_allprocs,full_arr)
 
 ! not guiding center upar
     do iglo = g_lo%llim_proc, g_lo%ulim_proc
        do isgn = 1, 2
-          g0(:,isgn,iglo) = aj0(:,iglo)*vpa(:,isgn,iglo)*gnew(:,isgn,iglo)
+          g_work(:,isgn,iglo) = aj0(:,iglo)*vpa(:,isgn,iglo)*gnew(:,isgn,iglo)
        end do
     end do
 
-    call integrate_moment (g0, upar,  moment_to_allprocs,full_arr)
+    call integrate_moment (g_work, upar,  moment_to_allprocs,full_arr)
 
 ! not guiding center tpar
     do iglo = g_lo%llim_proc, g_lo%ulim_proc
        do isgn = 1, 2
-          g0(:,isgn,iglo) = 2.*aj0(:,iglo)*vpa(:,isgn,iglo)**2*gnew(:,isgn,iglo)
+          g_work(:,isgn,iglo) = 2.*aj0(:,iglo)*vpa(:,isgn,iglo)**2*gnew(:,isgn,iglo)
        end do
     end do
 
-    call integrate_moment (g0, tpar,  moment_to_allprocs,full_arr)
+    call integrate_moment (g_work, tpar,  moment_to_allprocs,full_arr)
     
 ! not guiding center tperp
     do iglo = g_lo%llim_proc, g_lo%ulim_proc
        do isgn = 1, 2
-          g0(:,isgn,iglo) = 2.*vperp2(:,iglo)*aj1(:,iglo)*gnew(:,isgn,iglo)
+          g_work(:,isgn,iglo) = 2.*vperp2(:,iglo)*aj1(:,iglo)*gnew(:,isgn,iglo)
        end do
     end do
 
-    call integrate_moment (g0, tper,  moment_to_allprocs,full_arr)
+    call integrate_moment (g_work, tper,  moment_to_allprocs,full_arr)
 
     do ig=-ntgrid,ntgrid
        do it=1,nakx
@@ -5929,7 +5929,7 @@ endif
 
   !> FIXME : Add documentation  
   subroutine init_fieldeq
-    use dist_fn_arrays, only: aj0, aj1, vperp2
+    use dist_fn_arrays, only: aj0, aj1, vperp2, g_work
     use species, only: nspec, spec, has_electron_species, has_ion_species, nonmaxw_corr
     use theta_grid, only: ntgrid
     use kt_grids, only: naky, ntheta0, aky, kperp2
@@ -5977,34 +5977,34 @@ endif
        ie = ie_idx(g_lo,iglo)
        is = is_idx(g_lo,iglo)
        do isgn = 1, 2
-          g0(:,isgn,iglo) = (1.0 - aj0(:,iglo)**2)*nonmaxw_corr(ie,is)
+          g_work(:,isgn,iglo) = (1.0 - aj0(:,iglo)**2)*nonmaxw_corr(ie,is)
        end do
     end do
     wgt = spec%z*spec%z*spec%dens/spec%temp
-    call integrate_species (g0, wgt, tot)
+    call integrate_species (g_work, wgt, tot)
     gamtot = real(tot) + kperp2*poisfac
     
     do iglo = g_lo%llim_proc, g_lo%ulim_proc
        ie = ie_idx(g_lo,iglo)
        is = is_idx(g_lo,iglo)
        do isgn = 1, 2
-          g0(:,isgn,iglo) = aj0(:,iglo)*aj1(:,iglo) &
+          g_work(:,isgn,iglo) = aj0(:,iglo)*aj1(:,iglo) &
                *2.0*vperp2(:,iglo) * nonmaxw_corr(ie,is)
        end do
     end do
     wgt = spec%z*spec%dens
-    call integrate_species (g0, wgt, tot)
+    call integrate_species (g_work, wgt, tot)
     gamtot1 = real(tot)
     
     do iglo = g_lo%llim_proc, g_lo%ulim_proc
        ie = ie_idx(g_lo,iglo)
        is = is_idx(g_lo,iglo)
        do isgn = 1, 2
-          g0(:,isgn,iglo) = aj1(:,iglo)**2*2.0*vperp2(:,iglo)**2*nonmaxw_corr(ie,is)
+          g_work(:,isgn,iglo) = aj1(:,iglo)**2*2.0*vperp2(:,iglo)**2*nonmaxw_corr(ie,is)
        end do
     end do
     wgt = spec%temp*spec%dens
-    call integrate_species (g0, wgt, tot)
+    call integrate_species (g_work, wgt, tot)
     gamtot2 = real(tot)
 
     !<DD>Make sure gamtots are single valued
@@ -6326,7 +6326,7 @@ endif
   !!
   !! AJ
   subroutine getan_nogath (antot, antota, antotp)
-    use dist_fn_arrays, only: vpa, vperp2, aj0, aj1, gnew
+    use dist_fn_arrays, only: vpa, vperp2, aj0, aj1, gnew, g_work
     use dist_fn_arrays, only: vpa_gf, vperp2_gf, aj0_gf, aj1_gf
     use species, only: nspec, spec
     use theta_grid, only: ntgrid
@@ -6356,7 +6356,7 @@ endif
 
     if (fphi > epsilon(0.0)) then
        !<DD>NOTE: It's possible to rewrite this loop as simply
-       !g0=gnew*spread(aj0,2,2)
+       !g_work=gnew*spread(aj0,2,2)
        !but this seems to be slower than an explicit loop and 
        !the ability to skip certain it/ik values is lost.
 
@@ -6369,17 +6369,17 @@ endif
                ik=ik_idx(g_lo,iglo)
                if(kwork_filter(it,ik))cycle
                do isgn = 1, 2
-                  g0(:,isgn,iglo) = aj0(:,iglo)*gnew(:,isgn,iglo)
+                  g_work(:,isgn,iglo) = aj0(:,iglo)*gnew(:,isgn,iglo)
                end do
             end do
          else
             do iglo = g_lo%llim_proc, g_lo%ulim_proc
                do isgn = 1, 2
-                  g0(:,isgn,iglo) = aj0(:,iglo)*gnew(:,isgn,iglo)
+                  g_work(:,isgn,iglo) = aj0(:,iglo)*gnew(:,isgn,iglo)
                end do
             end do
          endif
-         call integrate_species (g0, wgt, antot, nogath=.true.)
+         call integrate_species (g_work, wgt, antot, nogath=.true.)
       end if
       
 
@@ -6437,17 +6437,17 @@ endif
                 ik=ik_idx(g_lo,iglo)
                 if(kwork_filter(it,ik))cycle
                 do isgn = 1, 2
-                   g0(:,isgn,iglo) = aj0(:,iglo)*vpa(:,isgn,iglo)*gnew(:,isgn,iglo)
+                   g_work(:,isgn,iglo) = aj0(:,iglo)*vpa(:,isgn,iglo)*gnew(:,isgn,iglo)
                 end do
              end do
           else
              do iglo = g_lo%llim_proc, g_lo%ulim_proc
                 do isgn = 1, 2
-                   g0(:,isgn,iglo) = aj0(:,iglo)*vpa(:,isgn,iglo)*gnew(:,isgn,iglo)
+                   g_work(:,isgn,iglo) = aj0(:,iglo)*vpa(:,isgn,iglo)*gnew(:,isgn,iglo)
                 end do
              end do
           end if
-          call integrate_species (g0, wgt, antota, nogath=.true.)
+          call integrate_species (g_work, wgt, antota, nogath=.true.)
        end if
 
        if(gf_lo_integrate) then
@@ -6508,17 +6508,17 @@ endif
                 ik=ik_idx(g_lo,iglo)
                 if(kwork_filter(it,ik))cycle
                 do isgn = 1, 2
-                   g0(:,isgn,iglo) = aj1(:,iglo)*vperp2(:,iglo)*gnew(:,isgn,iglo)
+                   g_work(:,isgn,iglo) = aj1(:,iglo)*vperp2(:,iglo)*gnew(:,isgn,iglo)
                 end do
              end do
           else
              do iglo = g_lo%llim_proc, g_lo%ulim_proc
                 do isgn = 1, 2
-                   g0(:,isgn,iglo) = aj1(:,iglo)*vperp2(:,iglo)*gnew(:,isgn,iglo)
+                   g_work(:,isgn,iglo) = aj1(:,iglo)*vperp2(:,iglo)*gnew(:,isgn,iglo)
                 end do
              end do
           end if
-          call integrate_species (g0, wgt, antotp, nogath=.true.)
+          call integrate_species (g_work, wgt, antotp, nogath=.true.)
        end if
 
        if(gf_lo_integrate) then
@@ -6828,7 +6828,7 @@ endif
 !   use theta_grid, only: drhodpsi, grho
 !    use kt_grids, only: akx
     use le_grids, only: energy
-    use dist_fn_arrays, only: gnew, aj0, vpac, vpa, aj1, vperp2
+    use dist_fn_arrays, only: gnew, aj0, vpac, vpa, aj1, vperp2, g_work
     use gs2_layouts, only: g_lo, ie_idx, is_idx, it_idx, ik_idx
     use run_parameters, only: woutunits, fphi, fapar, fbpar
     use constants, only: zi
@@ -6858,44 +6858,44 @@ endif
 
     if (fphi > epsilon(0.0)) then
        do isgn = 1, 2
-          g0(:,isgn,:) = gnew(:,isgn,:)*aj0
+          g_work(:,isgn,:) = gnew(:,isgn,:)*aj0
        end do
-       call get_flux (phi, pflux, dnorm)
-       call get_flux_tormom (phi, pflux_tormom, dnorm)
+       call get_flux (g_work, phi, pflux, dnorm)
+       call get_flux_tormom (g_work, phi, pflux_tormom, dnorm)
 
        do iglo = g_lo%llim_proc, g_lo%ulim_proc
-          g0(:,:,iglo) = g0(:,:,iglo)*energy(ie_idx(g_lo,iglo),is_idx(g_lo,iglo))
+          g_work(:,:,iglo) = g_work(:,:,iglo)*energy(ie_idx(g_lo,iglo),is_idx(g_lo,iglo))
        end do
-       call get_flux (phi, qflux(:,:,:,1), dnorm)
+       call get_flux (g_work, phi, qflux(:,:,:,1), dnorm)
 
        do isgn = 1, 2
-          g0(:,isgn,:) = gnew(:,isgn,:)*2.*vpa(:,isgn,:)**2*aj0
+          g_work(:,isgn,:) = gnew(:,isgn,:)*2.*vpa(:,isgn,:)**2*aj0
        end do
-       call get_flux (phi, qflux(:,:,:,2), dnorm)
+       call get_flux (g_work, phi, qflux(:,:,:,2), dnorm)
 
        do isgn = 1, 2
-          g0(:,isgn,:) = gnew(:,isgn,:)*vperp2*aj0
+          g_work(:,isgn,:) = gnew(:,isgn,:)*vperp2*aj0
        end do
-       call get_flux (phi, qflux(:,:,:,3), dnorm)
+       call get_flux (g_work, phi, qflux(:,:,:,3), dnorm)
 
        do isgn = 1, 2
           do ig = -ntgrid, ntgrid
-             g0(ig,isgn,:) = gnew(ig,isgn,:)*aj0(ig,:)*vpac(ig,isgn,:)*Rplot(ig)*sqrt(1.0-Bpol(ig)**2/bmag(ig)**2)
+             g_work(ig,isgn,:) = gnew(ig,isgn,:)*aj0(ig,:)*vpac(ig,isgn,:)*Rplot(ig)*sqrt(1.0-Bpol(ig)**2/bmag(ig)**2)
           end do
        end do
-       call get_flux (phi, vflux_par, dnorm)
+       call get_flux (g_work, phi, vflux_par, dnorm)
        do iglo = g_lo%llim_proc, g_lo%ulim_proc
           it = it_idx(g_lo,iglo)
           ik = ik_idx(g_lo,iglo)
           is = is_idx(g_lo,iglo)
           do isgn = 1, 2
-             g0(:,isgn,iglo) = -zi*aky(ik)*gnew(:,isgn,iglo)*aj1(:,iglo) &
+             g_work(:,isgn,iglo) = -zi*aky(ik)*gnew(:,isgn,iglo)*aj1(:,iglo) &
                   *rhoc*(gds21+theta0(it,ik)*gds22)*vperp2(:,iglo)*spec(is)%smz/(qval*shat*bmag**2)
-!             g0(:,isgn,iglo) = zi*akx(it)*grho*gnew(:,isgn,iglo)*aj1(:,iglo) &
+!             g_work(:,isgn,iglo) = zi*akx(it)*grho*gnew(:,isgn,iglo)*aj1(:,iglo) &
 !                  *2.0*vperp2(:,iglo)*spec(is)%smz/(bmag**2*drhodpsi)
           end do
        end do
-       call get_flux (phi, vflux_perp, dnorm)
+       call get_flux (g_work, phi, vflux_perp, dnorm)
        vflux = vflux_par + vflux_perp
 
     else
@@ -6908,46 +6908,46 @@ endif
        do iglo = g_lo%llim_proc, g_lo%ulim_proc
           is = is_idx(g_lo,iglo)
           do isgn = 1, 2
-             g0(:,isgn,iglo) &
+             g_work(:,isgn,iglo) &
                   = -gnew(:,isgn,iglo)*aj0(:,iglo)*spec(is)%stm*vpa(:,isgn,iglo)
           end do
        end do
-       call get_flux (apar, pmflux, dnorm)
+       call get_flux (g_work, apar, pmflux, dnorm)
 
        do iglo = g_lo%llim_proc, g_lo%ulim_proc
-          g0(:,:,iglo) = g0(:,:,iglo)*energy(ie_idx(g_lo,iglo),is_idx(g_lo,iglo))
+          g_work(:,:,iglo) = g_work(:,:,iglo)*energy(ie_idx(g_lo,iglo),is_idx(g_lo,iglo))
        end do
-       call get_flux (apar, qmflux(:,:,:,1), dnorm)
+       call get_flux (g_work, apar, qmflux(:,:,:,1), dnorm)
        
        do iglo = g_lo%llim_proc, g_lo%ulim_proc
           is = is_idx(g_lo,iglo)
           do isgn = 1, 2
-             g0(:,isgn,iglo) &
+             g_work(:,isgn,iglo) &
                   = -gnew(:,isgn,iglo)*aj0(:,iglo)*spec(is)%stm*vpa(:,isgn,iglo) &
                   *2.*vpa(:,isgn,iglo)**2
           end do
        end do
-       call get_flux (apar, qmflux(:,:,:,2), dnorm)
+       call get_flux (g_work, apar, qmflux(:,:,:,2), dnorm)
 
        do iglo = g_lo%llim_proc, g_lo%ulim_proc
           is = is_idx(g_lo,iglo)
           do isgn = 1, 2
-             g0(:,isgn,iglo) &
+             g_work(:,isgn,iglo) &
                   = -gnew(:,isgn,iglo)*aj0(:,iglo)*spec(is)%stm*vpa(:,isgn,iglo) &
                   *vperp2(:,iglo)
           end do
        end do
-       call get_flux (apar, qmflux(:,:,:,3), dnorm)
+       call get_flux (g_work, apar, qmflux(:,:,:,3), dnorm)
        
        do iglo = g_lo%llim_proc, g_lo%ulim_proc
           is = is_idx(g_lo,iglo)
           do isgn = 1, 2
-             g0(:,isgn,iglo) &
+             g_work(:,isgn,iglo) &
                   = -gnew(:,isgn,iglo)*aj0(:,iglo)*spec(is)%stm &
                   *vpa(:,isgn,iglo)*vpac(:,isgn,iglo)
           end do
        end do
-       call get_flux (apar, vmflux, dnorm)
+       call get_flux (g_work, apar, vmflux, dnorm)
     else
        pmflux = 0.
        qmflux = 0.
@@ -6958,46 +6958,46 @@ endif
        do iglo = g_lo%llim_proc, g_lo%ulim_proc
           is = is_idx(g_lo,iglo)
           do isgn = 1, 2
-             g0(:,isgn,iglo) &
+             g_work(:,isgn,iglo) &
                   = gnew(:,isgn,iglo)*aj1(:,iglo)*2.0*vperp2(:,iglo)*spec(is)%tz
           end do
        end do
-       call get_flux (bpar, pbflux, dnorm)
+       call get_flux (g_work, bpar, pbflux, dnorm)
 
        do iglo = g_lo%llim_proc, g_lo%ulim_proc
-          g0(:,:,iglo) = g0(:,:,iglo)*energy(ie_idx(g_lo,iglo),is_idx(g_lo,iglo))
+          g_work(:,:,iglo) = g_work(:,:,iglo)*energy(ie_idx(g_lo,iglo),is_idx(g_lo,iglo))
        end do
-       call get_flux (bpar, qbflux(:,:,:,1), dnorm)
+       call get_flux (g_work, bpar, qbflux(:,:,:,1), dnorm)
 
        do iglo = g_lo%llim_proc, g_lo%ulim_proc
           is = is_idx(g_lo,iglo)
           do isgn = 1, 2
-             g0(:,isgn,iglo) &
+             g_work(:,isgn,iglo) &
                   = gnew(:,isgn,iglo)*aj1(:,iglo)*2.0*vperp2(:,iglo)*spec(is)%tz &
                     *2.*vpa(:,isgn,iglo)**2
           end do
        end do
-       call get_flux (bpar, qbflux(:,:,:,2), dnorm)
+       call get_flux (g_work, bpar, qbflux(:,:,:,2), dnorm)
 
        do iglo = g_lo%llim_proc, g_lo%ulim_proc
           is = is_idx(g_lo,iglo)
           do isgn = 1, 2
-             g0(:,isgn,iglo) &
+             g_work(:,isgn,iglo) &
                   = gnew(:,isgn,iglo)*aj1(:,iglo)*2.0*vperp2(:,iglo)*spec(is)%tz &
                     *vperp2(:,iglo)
           end do
        end do
-       call get_flux (bpar, qbflux(:,:,:,3), dnorm)
+       call get_flux (g_work, bpar, qbflux(:,:,:,3), dnorm)
 
        do iglo = g_lo%llim_proc, g_lo%ulim_proc
           is = is_idx(g_lo,iglo)
           do isgn = 1, 2
-             g0(:,isgn,iglo) &
+             g_work(:,isgn,iglo) &
                   = gnew(:,isgn,iglo)*aj1(:,iglo)*2.0*vperp2(:,iglo) &
                   *spec(is)%tz*vpac(:,isgn,iglo)
           end do
        end do
-       call get_flux (bpar, vbflux, dnorm)
+       call get_flux (g_work, bpar, vbflux, dnorm)
     else
        pbflux = 0.
        qbflux = 0.
@@ -7012,7 +7012,7 @@ endif
     use species, only: spec
     use theta_grid, only: ntgrid, bmag, gradpar, delthet
     use kt_grids, only: naky, ntheta0
-    use dist_fn_arrays, only: gnew, aj0, vpa, aj1, vperp2
+    use dist_fn_arrays, only: gnew, aj0, vpa, aj1, vperp2, g_work
     use gs2_layouts, only: g_lo, ie_idx, is_idx, it_idx, ik_idx
     use mp, only: proc0
     use run_parameters, only: woutunits, fphi, fapar, fbpar
@@ -7037,9 +7037,9 @@ endif
 
     if (fphi > epsilon(0.0)) then
        do isgn = 1, 2
-          g0(:,isgn,:) = gnew(:,isgn,:)*aj0
+          g_work(:,isgn,:) = gnew(:,isgn,:)*aj0
        end do
-       call get_flux_vs_e (phi, pflux, dnorm)
+       call get_flux_vs_e (g_work, phi, pflux, dnorm)
 
     else
        pflux = 0.
@@ -7049,11 +7049,11 @@ endif
        do iglo = g_lo%llim_proc, g_lo%ulim_proc
           is = is_idx(g_lo,iglo)
           do isgn = 1, 2
-             g0(:,isgn,iglo) &
+             g_work(:,isgn,iglo) &
                   = -gnew(:,isgn,iglo)*aj0(:,iglo)*spec(is)%stm*vpa(:,isgn,iglo)
           end do
        end do
-       call get_flux_vs_e (apar, pmflux, dnorm)
+       call get_flux_vs_e (g_work, apar, pmflux, dnorm)
 
     else
        pmflux = 0.
@@ -7063,11 +7063,11 @@ endif
        do iglo = g_lo%llim_proc, g_lo%ulim_proc
           is = is_idx(g_lo,iglo)
           do isgn = 1, 2
-             g0(:,isgn,iglo) &
+             g_work(:,isgn,iglo) &
                   = gnew(:,isgn,iglo)*aj1(:,iglo)*2.0*vperp2(:,iglo)*spec(is)%tz
           end do
        end do
-       call get_flux_vs_e (bpar, pbflux, dnorm)
+       call get_flux_vs_e (g_work, bpar, pbflux, dnorm)
     else
        pbflux = 0.
     end if
@@ -7076,13 +7076,16 @@ endif
   end subroutine flux_vs_e
 
   !> Calculate the flux of a field
-  subroutine get_flux (fld, flx, dnorm)
+  subroutine get_flux (g_in, fld, flx, dnorm)
     use theta_grid, only: ntgrid, grho
     use kt_grids, only: ntheta0, aky, naky
     use le_grids, only: integrate_moment
     use species, only: nspec
+    use gs2_layouts, only: g_lo
     implicit none
     logical, parameter :: full_arr=moment_to_allprocs
+    !> Input weighted distribution    
+    complex, dimension (-ntgrid:,:,g_lo%llim_proc:), intent (in) :: g_in
     !> Input field
     complex, dimension (-ntgrid:,:,:), intent (in) :: fld
     !> Output flux
@@ -7095,7 +7098,7 @@ endif
 
     allocate (total(-ntgrid:ntgrid,ntheta0,naky,nspec))
 
-    call integrate_moment (g0, total, moment_to_allprocs, full_arr)
+    call integrate_moment (g_in, total, moment_to_allprocs, full_arr)
 
     do is = 1, nspec
        do ik = 1, naky
@@ -7113,13 +7116,16 @@ endif
   end subroutine get_flux
 
   !> Identical to get_flux except don't integrate over poloidal angle ! JRB
-  subroutine get_flux_dist (fld, flx_dist, dnorm)
+  subroutine get_flux_dist (g_in, fld, flx_dist, dnorm)
     use theta_grid, only: ntgrid, grho
     use kt_grids, only: ntheta0, aky, naky
     use le_grids, only: integrate_moment
     use species, only: nspec
+    use gs2_layouts, only: g_lo
     implicit none
     logical, parameter :: full_arr=moment_to_allprocs
+    !> Input weighted distribution    
+    complex, dimension (-ntgrid:,:,g_lo%llim_proc:), intent (in) :: g_in
     complex, dimension (-ntgrid:,:,:), intent (in) :: fld
     real, dimension (-ntgrid:,:,:,:), intent (in out) :: flx_dist
     real, dimension (-ntgrid:,:,:) :: dnorm
@@ -7132,7 +7138,7 @@ endif
     ! to the call below for new parallel output
     ! This is temporary until distributed fields
     ! are implemented 1/2014
-    call integrate_moment (g0, total, moment_to_allprocs, full_arr)
+    call integrate_moment (g_in, total, moment_to_allprocs, full_arr)
 
     ! EGH for new parallel I/O everyone
     ! calculates fluxes
@@ -7156,8 +7162,9 @@ endif
   !> Calculate toroidal angular momentum flux due to field
   !>
   !> FIXME: confirm & expand
-  subroutine get_flux_tormom (fld, flx, dnorm)
+  subroutine get_flux_tormom (g_in, fld, flx, dnorm)
     use theta_grid, only: ntgrid
+    use gs2_layouts, only: g_lo
 #ifdef LOWFLOW
     use kt_grids, only: ntheta0, naky
     use le_grids, only: integrate_moment
@@ -7168,6 +7175,8 @@ endif
     use lowflow, only: mach_lab
 #endif
     implicit none
+    !> Input weighted distribution    
+    complex, dimension (-ntgrid:,:,g_lo%llim_proc:), intent (in) :: g_in
     !> Input field
     complex, dimension (-ntgrid:,:,:), intent (in) :: fld
     !> Output flux
@@ -7179,7 +7188,7 @@ endif
     real :: wgt
     integer :: ik, it, is
     allocate (total(-ntgrid:ntgrid,ntheta0,naky,nspec))
-    call integrate_moment (g0, total)
+    call integrate_moment (g_in, total)
 
     if (proc0) then
        do is = 1, nspec
@@ -7199,7 +7208,7 @@ endif
   end subroutine get_flux_tormom !JPL
 
   !> FIXME : Add documentation
-  subroutine get_flux_vs_e (fld, flx, dnorm)
+  subroutine get_flux_vs_e (g_in, fld, flx, dnorm)
     use theta_grid, only: ntgrid, grho
     use kt_grids, only: aky
     use le_grids, only: negrid, wl
@@ -7207,6 +7216,8 @@ endif
     use mp, only: sum_reduce, proc0
     use gs2_layouts, only: g_lo,ie_idx,il_idx,is_idx,it_idx,ik_idx,isign_idx
     implicit none
+    !> Input weighted distribution    
+    complex, dimension (-ntgrid:,:,g_lo%llim_proc:), intent (in) :: g_in
     complex, dimension (-ntgrid:,:,:), intent (in) :: fld
     real, dimension (:,:), intent (inout) :: flx
     real, dimension (-ntgrid:,:,:) :: dnorm
@@ -7228,10 +7239,10 @@ endif
 
        wgt = sum(dnorm(-ntgrid:,it,ik)*grho(-ntgrid:))
        total(ie,is) = total(ie,is) + fac*& 
-          sum(aimag(g0(-ntgrid:,1,iglo)*conjg(fld(-ntgrid:,it,ik)) * &
+          sum(aimag(g_in(-ntgrid:,1,iglo)*conjg(fld(-ntgrid:,it,ik)) * &
           dnorm(-ntgrid:,it,ik) * aky(ik)) * wl(-ntgrid:,il)/wgt)
        total(ie,is) = total(ie,is) + fac*& 
-          sum(aimag(g0(-ntgrid:,2,iglo)*conjg(fld(-ntgrid:,it,ik)) * &
+          sum(aimag(g_in(-ntgrid:,2,iglo)*conjg(fld(-ntgrid:,it,ik)) * &
           dnorm(-ntgrid:,it,ik) * aky(ik)) * wl(-ntgrid:,il)/wgt)
     end do
 
@@ -7248,7 +7259,7 @@ endif
     use constants, only: zi
     use gs2_layouts, only: g_lo, il_idx, ie_idx, it_idx, ik_idx, is_idx
     use gs2_time, only: code_dt
-    use dist_fn_arrays, only: gnew, aj0, vpac, g
+    use dist_fn_arrays, only: gnew, aj0, vpac, g, g_work
     use theta_grid, only: ntgrid, gradpar, delthet, jacob
     use kt_grids, only: ntheta0, naky
     use le_grids, only: integrate_moment
@@ -7283,7 +7294,7 @@ endif
     end do
 
     if (fphi > epsilon(0.0)) then
-       g0 = 0.
+       g_work = 0.
        do iglo = g_lo%llim_proc, g_lo%ulim_proc
           it = it_idx(g_lo,iglo)
           ik = ik_idx(g_lo,iglo)          
@@ -7292,25 +7303,25 @@ endif
           il = il_idx(g_lo,iglo)
           ie = ie_idx(g_lo,iglo)
           do isgn = 1, 2
-             ! get v_magnetic piece of g0 at grid points instead of cell centers
+             ! get v_magnetic piece of g_work at grid points instead of cell centers
              do ig = -ntgrid, ntgrid
-                g0(ig,isgn,iglo) = aj0(ig,iglo)*(zi*wdrift_func(ig,il,ie,it,ik,is)/code_dt &
+                g_work(ig,isgn,iglo) = aj0(ig,iglo)*(zi*wdrift_func(ig,il,ie,it,ik,is)/code_dt &
                      * gnew(ig,isgn,iglo)*spec(is)%tz)
              end do
 
-             ! add contribution to g0 from hyperviscosity at grid points
+             ! add contribution to g_work from hyperviscosity at grid points
              ! this is -(dg/dt)_hypervisc, equivalent to collisions term in eqn. 5 of PRL 109, 185003
              do ig = -ntgrid, ntgrid
                 if (abs(hypervisc_filter(ig,it,ik)-1.0) > epsilon(0.0)) then
                    dgdt_hypervisc = (1.0-1./hypervisc_filter(ig,it,ik))*gnew(ig,isgn,iglo)/code_dt
                    ! should gnew be (gnew+gold)/2?
-                   g0(ig,isgn,iglo) = g0(ig,isgn,iglo) - dgdt_hypervisc
+                   g_work(ig,isgn,iglo) = g_work(ig,isgn,iglo) - dgdt_hypervisc
                 end if
              end do
 
-             ! get v_magnetic piece of g0 at cell centers and add in vpar piece at cell centers
+             ! get v_magnetic piece of g_work at cell centers and add in vpar piece at cell centers
              do ig = -ntgrid, ntgrid-1
-                g0(ig,isgn,iglo) = 0.5*(g0(ig,isgn,iglo)+g0(ig+1,isgn,iglo)) &
+                g_work(ig,isgn,iglo) = 0.5*(g_work(ig,isgn,iglo)+g_work(ig+1,isgn,iglo)) &
                      + 0.5*vpac(ig,isgn,iglo)*(gradpar(ig)+gradpar(ig+1))/delthet(ig) &
                      * (gnew(ig+1,isgn,iglo)-gnew(ig,isgn,iglo))*spec(is)%stm
              end do
@@ -7318,7 +7329,7 @@ endif
           end do
        end do
 
-       call integrate_moment (g0, total)
+       call integrate_moment (g_work, total)
 
        if (proc0) then
           do is = 1, nspec
@@ -7335,17 +7346,17 @@ endif
 
        do iglo = g_lo%llim_proc, g_lo%ulim_proc
           do isgn = 1, 2
-             g0(:,isgn,iglo) = aj0(:,iglo)*0.25*(gnew(:,isgn,iglo)+g(:,isgn,iglo))
+             g_work(:,isgn,iglo) = aj0(:,iglo)*0.25*(gnew(:,isgn,iglo)+g(:,isgn,iglo))
           end do
        end do
-       call integrate_moment (g0, total)
+       call integrate_moment (g_work, total)
 
        do iglo = g_lo%llim_proc, g_lo%ulim_proc
           do isgn = 1, 2
-             g0(:,isgn,iglo) = aj0(:,iglo)*0.25*(gnew(:,isgn,iglo)-g(:,isgn,iglo))
+             g_work(:,isgn,iglo) = aj0(:,iglo)*0.25*(gnew(:,isgn,iglo)-g(:,isgn,iglo))
           end do
        end do
-       call integrate_moment (g0, total2)
+       call integrate_moment (g_work, total2)
 
        ! exchange2 is a symmetrized form of energy exchange,
        ! which guarantees species-summed energy exchange is zero
@@ -7378,7 +7389,7 @@ endif
     use theta_grid, only: ntgrid, bmag, gradpar, delthet
     use theta_grid, only: drhodpsi, IoB
     use kt_grids, only: naky, ntheta0
-    use dist_fn_arrays, only: gnew, aj0, vpa
+    use dist_fn_arrays, only: gnew, aj0, vpa, g_work
 !    use dist_fn_arrays, only: vpac
     use gs2_layouts, only: g_lo, ie_idx, is_idx, it_idx, ik_idx
     use mp, only: proc0
@@ -7417,7 +7428,7 @@ endif
        ! this is the second term in Pi_0^{tb} in toroidal_flux.pdf notes
        do iglo = g_lo%llim_proc, g_lo%ulim_proc
           do isgn = 1, 2
-             g0(:,isgn,iglo) = -zi*gnew(:,isgn,iglo)*aj0(:,iglo)*vpa(:,isgn,iglo) &
+             g_work(:,isgn,iglo) = -zi*gnew(:,isgn,iglo)*aj0(:,iglo)*vpa(:,isgn,iglo) &
                   *drhodpsi*IoB**2*gradpar*rhostar
           end do
        end do
@@ -7426,22 +7437,22 @@ endif
        ! this is the bracketed part of the first term in Pi_0^{tb} in toroidal_flux.pdf notes
        do iglo = g_lo%llim_proc, g_lo%ulim_proc
           do isgn = 1, 2
-             g0(:,isgn,iglo) = 0.5*gnew(:,isgn,iglo)*aj0(:,iglo)*vpa(:,isgn,iglo)**2 &
+             g_work(:,isgn,iglo) = 0.5*gnew(:,isgn,iglo)*aj0(:,iglo)*vpa(:,isgn,iglo)**2 &
                   *drhodpsi*IoB**2*rhostar
           end do
        end do
-       call get_flux (phi, vflx1, dnorm)
+       call get_flux (g_work, phi, vflx1, dnorm)
 
 !        do isgn = 1, 2
 !           do ig = -ntgrid, ntgrid
 !              if (allocated(rmajor_geo)) then
-!                 g0(ig,isgn,:) = gnew(ig,isgn,:)*aj0(ig,:)*vpac(ig,isgn,:)*rmajor_geo(ig)*sqrt(1.0-bpol_geo(ig)**2/bmag(ig)**2)
+!                 g_work(ig,isgn,:) = gnew(ig,isgn,:)*aj0(ig,:)*vpac(ig,isgn,:)*rmajor_geo(ig)*sqrt(1.0-bpol_geo(ig)**2/bmag(ig)**2)
 !              else
-!                 g0(ig,isgn,:) = gnew(ig,isgn,:)*aj0(ig,:)*vpac(ig,isgn,:)
+!                 g_work(ig,isgn,:) = gnew(ig,isgn,:)*aj0(ig,:)*vpac(ig,isgn,:)
 !              end if
 !           end do
 !        end do
-!        call get_flux (phi, vflux_par, dnorm)
+!        call get_flux (g_work, phi, vflux_par, dnorm)
     else
        vflx0 = 0. ; vflx1 = 0.
     end if
@@ -7449,13 +7460,17 @@ endif
     deallocate (dnorm,dum,dphi)
   end subroutine lf_flux
 
-  !> FIXME : Add documentation  
+  !> FIXME : Add documentation
+  !>
+  !> Note this relies on [[g_work]] being populated already elsewhere.
+  !> We should probably pass in the g_work array to integrate instead.
   subroutine get_lfflux (fld, flx, dnorm)
     use theta_grid, only: ntgrid, grho
     use kt_grids, only: ntheta0, naky
     use le_grids, only: integrate_moment
     use species, only: nspec
     use mp, only: proc0
+    use dist_fn_arrays, only: g_work
     implicit none
     complex, dimension (-ntgrid:,:,:), intent (in) :: fld
     real, dimension (:,:,:), intent (out) :: flx
@@ -7465,7 +7480,7 @@ endif
     integer :: ik, it, is
 
     allocate (total(-ntgrid:ntgrid,ntheta0,naky,nspec))
-    call integrate_moment (g0, total)
+    call integrate_moment (g_work, total)
 
     if (proc0) then
        do is = 1, nspec
@@ -7489,7 +7504,7 @@ endif
   !> Calculate the momentum flux as a function of \((v_\parallel, \theta, t)\)
   subroutine flux_vs_theta_vs_vpa (phinew,vflx)
     use constants, only: zi
-    use dist_fn_arrays, only: gnew, vperp2, aj1, aj0, vpac
+    use dist_fn_arrays, only: gnew, vperp2, aj1, aj0, vpac, g_work
     use gs2_layouts, only: g_lo
     use gs2_layouts, only: it_idx, ik_idx, is_idx
     use geometry, only: rhoc!Should this not be value from theta_grid_params?
@@ -7519,11 +7534,11 @@ endif
        is = is_idx(g_lo,iglo)
        do isgn = 1, 2
           do ig = -ntgrid, ntgrid
-             g0(ig,isgn,iglo) = gnew(ig,isgn,iglo)*aj0(ig,iglo)*vpac(ig,isgn,iglo) &
+             g_work(ig,isgn,iglo) = gnew(ig,isgn,iglo)*aj0(ig,iglo)*vpac(ig,isgn,iglo) &
                   *Rplot(ig)*sqrt(1.0-Bpol(ig)**2/bmag(ig)**2) &
                   -zi*aky(ik)*gnew(ig,isgn,iglo)*aj1(ig,iglo) &
                   *rhoc*(gds21(ig)+theta0(it,ik)*gds22(ig))*vperp2(ig,iglo)*spec(is)%smz/(qval*shat*bmag(ig)**2)
-             g0r(ig,isgn,iglo) = aimag(g0(ig,isgn,iglo)*conjg(phinew(ig,it,ik)))*aky(ik)
+             g0r(ig,isgn,iglo) = aimag(g_work(ig,isgn,iglo)*conjg(phinew(ig,it,ik)))*aky(ik)
           end do
        end do
     end do
@@ -7540,7 +7555,7 @@ endif
   !> in the lab frame in terms of vpar and theta.
   subroutine pflux_vs_theta_vs_vpa (vflx)
 #ifdef LOWFLOW   
-    use dist_fn_arrays, only: gnew, aj0
+    use dist_fn_arrays, only: gnew, aj0, g_work
     use gs2_layouts, only: g_lo
     use gs2_layouts, only: it_idx, ik_idx, is_idx
     use theta_grid, only: Rplot !JPL
@@ -7570,9 +7585,9 @@ endif
        is = is_idx(g_lo,iglo)
        do isgn = 1, 2
           do ig = -ntgrid, ntgrid
-             g0(ig,isgn,iglo) = gnew(ig,isgn,iglo)*aj0(ig,iglo) 
+             g_work(ig,isgn,iglo) = gnew(ig,isgn,iglo)*aj0(ig,iglo) 
 
-             g0r(ig,isgn,iglo) = aimag(g0(ig,isgn,iglo)*conjg(phinew(ig,it,ik)))*aky(ik)*Rplot(ig)**2*mach_lab(is)
+             g0r(ig,isgn,iglo) = aimag(g_work(ig,isgn,iglo)*conjg(phinew(ig,it,ik)))*aky(ik)*Rplot(ig)**2*mach_lab(is)
 
           end do
        end do
@@ -7606,7 +7621,7 @@ endif
 !   use theta_grid, only: drhodpsi, grho
 !    use kt_grids, only: akx
     use le_grids, only: energy
-    use dist_fn_arrays, only: gnew, aj0, vpac, aj1, vperp2
+    use dist_fn_arrays, only: gnew, aj0, vpac, aj1, vperp2, g_work
     use gs2_layouts, only: g_lo, ie_idx, is_idx, it_idx, ik_idx
     use run_parameters, only: woutunits, fphi
     use constants, only: zi
@@ -7635,31 +7650,31 @@ endif
 
     if (fphi > epsilon(0.0)) then
        do isgn = 1, 2
-          g0(:,isgn,:) = gnew(:,isgn,:)*aj0
+          g_work(:,isgn,:) = gnew(:,isgn,:)*aj0
        end do
-       call get_flux_dist (phi, pflux_dist, dnorm)
+       call get_flux_dist (g_work, phi, pflux_dist, dnorm)
 
        do iglo = g_lo%llim_proc, g_lo%ulim_proc
-          g0(:,:,iglo) = g0(:,:,iglo)*energy(ie_idx(g_lo,iglo),is_idx(g_lo,iglo))
+          g_work(:,:,iglo) = g_work(:,:,iglo)*energy(ie_idx(g_lo,iglo),is_idx(g_lo,iglo))
        end do
-       call get_flux_dist (phi, qflux_dist, dnorm)
+       call get_flux_dist (g_work, phi, qflux_dist, dnorm)
 
        do isgn = 1, 2
           do ig = -ntgrid, ntgrid
-             g0(ig,isgn,:) = gnew(ig,isgn,:)*aj0(ig,:)*vpac(ig,isgn,:)*Rplot(ig)*sqrt(1.0-Bpol(ig)**2/bmag(ig)**2)
+             g_work(ig,isgn,:) = gnew(ig,isgn,:)*aj0(ig,:)*vpac(ig,isgn,:)*Rplot(ig)*sqrt(1.0-Bpol(ig)**2/bmag(ig)**2)
           end do
        end do
-       call get_flux_dist (phi, vflux_par_dist, dnorm)
+       call get_flux_dist (g_work, phi, vflux_par_dist, dnorm)
        do iglo = g_lo%llim_proc, g_lo%ulim_proc
           it = it_idx(g_lo,iglo)
           ik = ik_idx(g_lo,iglo)
           is = is_idx(g_lo,iglo)
           do isgn = 1, 2
-             g0(:,isgn,iglo) = -zi*aky(ik)*gnew(:,isgn,iglo)*aj1(:,iglo) &
+             g_work(:,isgn,iglo) = -zi*aky(ik)*gnew(:,isgn,iglo)*aj1(:,iglo) &
                   *rhoc*(gds21+theta0(it,ik)*gds22)*vperp2(:,iglo)*spec(is)%smz/(qval*shat*bmag**2)
           end do
        end do
-       call get_flux_dist (phi, vflux_perp_dist, dnorm)
+       call get_flux_dist (g_work, phi, vflux_perp_dist, dnorm)
     else
        pflux_dist = 0.
        vflux_par_dist = 0.
@@ -7739,7 +7754,7 @@ endif
 #ifdef LOWFLOW
     use dist_fn_arrays, only: hneoc
 #endif
-    use dist_fn_arrays, only: vpac, aj0, aj1, vperp2, g, gnew, g_adjust
+    use dist_fn_arrays, only: vpac, aj0, aj1, vperp2, g, gnew, g_adjust, g_work
     use gs2_heating, only: heating_diagnostics
     use gs2_layouts, only: g_lo, ik_idx, it_idx, is_idx, ie_idx
     use le_grids, only: integrate_moment
@@ -7770,7 +7785,7 @@ endif
     real :: fac2, dtinv, akperp4
     integer :: isgn, iglo, ig, is, ik, it, ie
 
-    g0(ntgrid,:,:) = 0.
+    g_work(ntgrid,:,:) = 0.
 
 ! ==========================================================================
 ! Ion/Electron heating------------------------------------------------------
@@ -7818,7 +7833,7 @@ endif
              
 ! First term on RHS and LHS of Eq B-10 of H1:
 
-             g0(ig,isgn,iglo) = spec(is)%dens*conjg(havg)* &
+             g_work(ig,isgn,iglo) = spec(is)%dens*conjg(havg)* &
                   (chidot*spec(is)%z-hdot*spec(is)%temp)
 
           end do
@@ -7829,7 +7844,7 @@ endif
 
     allocate (tot(-ntgrid:ntgrid, ntheta0, naky, nspec))
 
-    call integrate_moment (g0, tot)
+    call integrate_moment (g_work, tot)
 
     if (proc0) then
        allocate (wgt(-ntgrid:ntgrid))
@@ -8032,15 +8047,15 @@ endif
                   - conjg(j0phiavg)*havg &
                   - conjg(havg)*j0phiavg) 
 
-             !Set g0 as the change of energy (denew-de)/dt
-             g0(ig,isgn,iglo) = fdot_t(de,denew,dtinv)
+             !Set g_work as the change of energy (denew-de)/dt
+             g_work(ig,isgn,iglo) = fdot_t(de,denew,dtinv)
 
           end do
        end do
     end do
     !GGH -END new e_dot calc
 
-   call integrate_moment (g0, tot)
+   call integrate_moment (g_work, tot)
 
     if (proc0) then
        do ik = 1, naky
@@ -8104,9 +8119,9 @@ endif
                           gnew(ig+1,isgn,iglo))
 
 #ifdef LOWFLOW
-             g0(ig,isgn,iglo) = zi * wstar(ik,ie,is)*hneoc(ig,isgn,iglo)/code_dt * conjg(havg)*chi &
+             g_work(ig,isgn,iglo) = zi * wstar(ik,ie,is)*hneoc(ig,isgn,iglo)/code_dt * conjg(havg)*chi &
 #else
-             g0(ig,isgn,iglo) = zi * wstar(ik,ie,is)/code_dt * conjg(havg)*chi &
+             g_work(ig,isgn,iglo) = zi * wstar(ik,ie,is)/code_dt * conjg(havg)*chi &
 #endif
                   * spec(is)%dens
             
@@ -8114,7 +8129,7 @@ endif
        end do
     end do
 
-    call integrate_moment (g0, tot)
+    call integrate_moment (g_work, tot)
 
     if (proc0) then
        do is = 1, nspec
@@ -8166,17 +8181,17 @@ endif
                 dgdt_hypervisc = 0.5*((1.0-1./hypervisc_filter(ig,it,ik))*gnew(ig,isgn,iglo) &
                      + (1.0-1./hypervisc_filter(ig+1,it,ik))*gnew(ig+1,isgn,iglo))/code_dt
 
-!Set g0 for hyperviscous heating
-!                g0(ig,isgn,iglo) = spec(is)%dens*spec(is)%temp*D_v*akperp4* &
+!Set g_work for hyperviscous heating
+!                g_work(ig,isgn,iglo) = spec(is)%dens*spec(is)%temp*D_v*akperp4* &
 !                     ( conjg(havg)*havg - conjg(havg)*j0phiavg - &
 !                     conjg(havg)*j1bparavg)
-                g0(ig,isgn,iglo) = spec(is)%dens*spec(is)%temp*conjg(havg)*dgdt_hypervisc
+                g_work(ig,isgn,iglo) = spec(is)%dens*spec(is)%temp*conjg(havg)*dgdt_hypervisc
 
              end do
           end do
        end do
 
-       call integrate_moment (g0, tot)
+       call integrate_moment (g_work, tot)
        if (proc0) then
           do ik = 1, naky
              fac2 = 0.5
@@ -8223,15 +8238,15 @@ endif
                                  aj0(ig+1,iglo)  * aparnew(ig+1,it,ik)) & 
                                  * fapar * spec(is)%zstm * vpac(ig,isgn,iglo)
 
-!Set g0 for hyperresistive heating
-                g0(ig,isgn,iglo) = spec(is)%dens*spec(is)%temp*D_eta*akperp4* &
+!Set g_work for hyperresistive heating
+                g_work(ig,isgn,iglo) = spec(is)%dens*spec(is)%temp*D_eta*akperp4* &
                      conjg(havg)*j0aparavg
 
              end do
           end do
        end do
 
-       call integrate_moment (g0, tot)
+       call integrate_moment (g_work, tot)
        if (proc0) then
           do ik = 1, naky
              fac2 = 0.5
@@ -8270,12 +8285,12 @@ endif
                           gnew(ig  ,isgn,iglo), &
                           gnew(ig+1,isgn,iglo))
 
-             g0(ig,isgn,iglo) = 0.5*spec(is)%temp*spec(is)%dens*(conjg(havg)*havg)
+             g_work(ig,isgn,iglo) = 0.5*spec(is)%temp*spec(is)%dens*(conjg(havg)*havg)
           end do
        end do
     end do
 
-    call integrate_moment (g0, tot)
+    call integrate_moment (g_work, tot)
 
     if (proc0) then
        do ik = 1, naky
@@ -8380,7 +8395,7 @@ endif
                              phinew(ig  ,it,ik), &
                              phinew(ig+1,it,ik)) * fphi * spec(is)%zt
 
-             g0(ig,isgn,iglo) = 0.5*spec(is)%temp*spec(is)%dens*(conjg(havg)*havg &
+             g_work(ig,isgn,iglo) = 0.5*spec(is)%temp*spec(is)%dens*(conjg(havg)*havg &
                   + conjg(phi_avg)*phi_avg &
                   - conjg(j0phiavg)*havg &
                   - conjg(havg)*j0phiavg)
@@ -8388,7 +8403,7 @@ endif
        end do
     end do
 
-    call integrate_moment (g0, tot)
+    call integrate_moment (g_work, tot)
 
     if (proc0) then
        do ik = 1, naky
@@ -8447,7 +8462,7 @@ endif
     use theta_grid, only: ntgrid
     use kt_grids, only: ntheta0, naky, aky, akx
     use species, only: nspec, spec
-    use dist_fn_arrays, only: gnew, aj0, vpa, g_adjust
+    use dist_fn_arrays, only: gnew, aj0, vpa, g_adjust, g_work
     use run_parameters, only: fphi, fapar, fbpar, beta
     use gs2_layouts, only: g_lo
     use collisions, only: init_lorentz, init_ediffuse, init_lorentz_conserve, init_diffuse_conserve
@@ -8511,30 +8526,30 @@ endif
           do isgn = 1, 2
              do ig=-ntgrid, ntgrid
                 ! TEMP FOR TESTING -- MAB
-                g0(ig,isgn,iglo) = aj0(ig,iglo)*gnew(ig,isgn,iglo)
-!                g0(ig,isgn,iglo) = sqrt(max(0.0,1.0-bmag(ig)*al(il)))
-!                g0 = 1.
+                g_work(ig,isgn,iglo) = aj0(ig,iglo)*gnew(ig,isgn,iglo)
+!                g_work(ig,isgn,iglo) = sqrt(max(0.0,1.0-bmag(ig)*al(il)))
+!                g_work = 1.
              end do
           end do
        end do
 
        wgt = spec%z*spec%dens
 
-       call integrate_species (g0, wgt, phi_app)
+       call integrate_species (g_work, wgt, phi_app)
 
 ! integrates dist fn of each species over v-space
 ! after dropping an energy grid point and returns
 ! phi_e, which contains the integral approximations
 ! to phi for each point dropped
 
-       call eint_error (g0, wgt, phi_e)
+       call eint_error (g_work, wgt, phi_e)
 
 ! integrates dist fn of each species over v-space
 ! after dropping an untrapped lambda grid point and returns phi_l.
 ! phi_l contains ng2 approximations for the integral over lambda that
 ! come from dropping different pts from the gaussian quadrature grid
 
-       call lint_error (g0, wgt, phi_l)
+       call lint_error (g_work, wgt, phi_l)
 
 ! next loop gets error estimate for trapped particles, if there are any
 
@@ -8542,7 +8557,7 @@ endif
           ntrap = nlambda - ng2
           allocate(phi_t(-ntgrid:ntgrid,ntheta0,naky,ntrap))       
           phi_t = 0.0
-          call trap_error (g0, wgt, phi_t)
+          call trap_error (g_work, wgt, phi_t)
        end if
 
     end if
@@ -8551,22 +8566,22 @@ endif
        do iglo = g_lo%llim_proc, g_lo%ulim_proc
           do isgn = 1, 2
              do ig=-ntgrid, ntgrid
-                g0(ig,isgn,iglo) = aj0(ig,iglo)*vpa(ig,isgn,iglo)*gnew(ig,isgn,iglo)
+                g_work(ig,isgn,iglo) = aj0(ig,iglo)*vpa(ig,isgn,iglo)*gnew(ig,isgn,iglo)
              end do
           end do
        end do
        
 
        wgt = 2.0*beta*spec%z*spec%dens*sqrt(spec%temp/spec%mass)
-       call integrate_species (g0, wgt, apar_app)
+       call integrate_species (g_work, wgt, apar_app)
 
-       call eint_error (g0, wgt, apar_e)
-       call lint_error (g0, wgt, apar_l)
+       call eint_error (g_work, wgt, apar_e)
+       call lint_error (g_work, wgt, apar_l)
        if (nlambda > ng2 .and. new_trap_int) then
           ntrap = nlambda - ng2
           allocate(apar_t(-ntgrid:ntgrid,ntheta0,naky,ntrap))       
           apar_t = 0.0
-          call trap_error (g0, wgt, apar_t)
+          call trap_error (g_work, wgt, apar_t)
        end if
        
     end if
@@ -8748,7 +8763,7 @@ endif
     use theta_grid, only: ntgrid
     use kt_grids, only: ntheta0, naky
     use species, only: nspec
-    use dist_fn_arrays, only: gnew, aj0, g_adjust
+    use dist_fn_arrays, only: gnew, aj0, g_adjust, g_work
     use run_parameters, only: fphi, fbpar
     use gs2_layouts, only: g_lo
     use mp, only: proc0, broadcast
@@ -8793,7 +8808,7 @@ endif
     do iglo = g_lo%llim_proc, g_lo%ulim_proc
        do isgn = 1, 2
           do ig=-ntgrid, ntgrid
-             g0(ig,isgn,iglo) = aj0(ig,iglo)*gnew(ig,isgn,iglo)
+             g_work(ig,isgn,iglo) = aj0(ig,iglo)*gnew(ig,isgn,iglo)
           end do
        end do
     end do
@@ -8801,9 +8816,9 @@ endif
 ! perform legendre transform on dist. fn. to obtain coefficients
 ! used when expanding dist. fn. in legendre polynomials 
     if (allocated(gttran)) then
-       call legendre_transform (g0, getran, gltran, gttran)
+       call legendre_transform (g_work, getran, gltran, gttran)
     else
-       call legendre_transform (g0, getran, gltran)
+       call legendre_transform (g_work, getran, gltran)
     end if
 
 ! transform from h back to g
@@ -8874,7 +8889,7 @@ endif
   !> points specified by `xloc` to text file with suffix `.interp`
   subroutine write_poly (phi, bpar, last, istep)
     use file_utils, only: open_output_file, close_output_file
-    use dist_fn_arrays, only: gnew, aj0, g_adjust
+    use dist_fn_arrays, only: gnew, aj0, g_adjust, g_work
     use run_parameters, only: fphi, fbpar
     use gs2_layouts, only: g_lo
     use mp, only: proc0
@@ -8910,14 +8925,14 @@ endif
     do iglo = g_lo%llim_proc, g_lo%ulim_proc
        do isgn = 1, 2
           do ig=-ntgrid, ntgrid
-             g0(ig,isgn,iglo) = aj0(ig,iglo)*gnew(ig,isgn,iglo)
+             g_work(ig,isgn,iglo) = aj0(ig,iglo)*gnew(ig,isgn,iglo)
           end do
        end do
     end do
 
-! computes and returns lagrange interpolating polynomial for g0
-!<DD>WARNING: THIS ROUTINE DOESN'T USE g0 FOR ANYTHING IS THIS CORRECT?
-    call lagrange_interp (g0, lpoly, istep)
+! computes and returns lagrange interpolating polynomial for g_work
+!<DD>WARNING: THIS ROUTINE DOESN'T USE g_work FOR ANYTHING IS THIS CORRECT?
+    call lagrange_interp (g_work, lpoly, istep)
 
     call g_adjust (gnew, phi, bpar, -fphi, -fbpar)
 
@@ -9017,7 +9032,7 @@ endif
     use gs2_layouts, only: idx_local, proc_id, yxf_lo, accelx_lo, g_lo
     use le_grids, only: al, energy=>energy_maxw, forbid, negrid, nlambda
     use theta_grid, only: bmag, ntgrid
-    use dist_fn_arrays, only: gnew, g_adjust
+    use dist_fn_arrays, only: gnew, g_adjust, g_work
     use nonlinear_terms, only: accelerated
     use gs2_transforms, only: transform2, init_transforms
     use run_parameters, only: fphi, fbpar
@@ -9057,7 +9072,7 @@ endif
        agrs = 0.0; agzf = 0.0; agp0 = 0.0; agp0zf = 0.0
     else
 #ifdef SHMEM
-       g0_ptr => g0
+       g0_ptr => g_work
 #endif
        allocate (grs(yxf_lo%ny, yxf_lo%llim_proc:yxf_lo%ulim_alloc))
        allocate (gzf(yxf_lo%ny, yxf_lo%llim_proc:yxf_lo%ulim_alloc))
@@ -9078,30 +9093,30 @@ endif
     call g_adjust (gnew, phi, bpar, fphi, fbpar)
 
 #ifndef SHMEM
-    g0 = gnew
+    g_work = gnew
 #else
     g0_ptr = gnew
 #endif
 
 #ifndef SHMEM
     if (accelerated) then
-       call transform2 (g0, agrs, ia)
+       call transform2 (g_work, agrs, ia)
     else
-       call transform2 (g0, grs)
+       call transform2 (g_work, grs)
     end if
 
-    g0 = 0.0
+    g_work = 0.0
     do iglo=g_lo%llim_proc, g_lo%ulim_proc
        ik = ik_idx(g_lo,iglo)
-       if (ik == 1) g0(:,:,iglo) = gnew(:,:,iglo)
+       if (ik == 1) g_work(:,:,iglo) = gnew(:,:,iglo)
     end do
 
     call g_adjust (gnew, phi, bpar, -fphi, -fbpar)
 
     if (accelerated) then
-       call transform2 (g0, agzf, ia)
+       call transform2 (g_work, agzf, ia)
     else
-       call transform2 (g0, gzf)
+       call transform2 (g_work, gzf)
     end if
 
 #else
@@ -9219,7 +9234,7 @@ endif
     use mp, only: proc0, send, receive, barrier
     use le_grids, only: ng2, jend, nlambda, lambda_map
     use theta_grid, only: ntgrid
-    use dist_fn_arrays, only: gnew, g_adjust
+    use dist_fn_arrays, only: gnew, g_adjust, g_work
     use run_parameters, only: fphi, fbpar
     use gs2_layouts, only: lz_lo, ig_idx, idx_local, proc_id
     use gs2_layouts, only: ik_idx, ie_idx, is_idx, it_idx, il_idx
@@ -9260,13 +9275,13 @@ endif
 ! convert gnew from g to h
     call g_adjust(gnew,phi,bpar,fphi,fbpar)
 
-    g0 = gnew
+    g_work = gnew
 
 ! convert gnew from h back to g
     call g_adjust(gnew,phi,bpar,-fphi,-fbpar)
 
-! map from g0(ig,isgn,iglo) to glze(il,ilz)
-    call gather (lambda_map, g0, glze)
+! map from g_work(ig,isgn,iglo) to glze(il,ilz)
+    call gather (lambda_map, g_work, glze)
 
 ! loop over ig, isign, ik, it, ie, is
     do ilz = lz_lo%llim_proc, lz_lo%ulim_proc
