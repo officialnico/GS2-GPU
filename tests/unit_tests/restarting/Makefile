@@ -1,5 +1,7 @@
 sinclude ../Makefile.tests_common
 
+clean_individual_test: LOCAL_TEST_FILES:=./gs2 *.log
+
 ifdef TESTNORUN
 all:
 	$(call SKIPCOMMAND,variable TESTNORUN is defined; unset TESTNORUN to run this test)
@@ -26,11 +28,8 @@ TESTCOMMAND =
 # Make a symlink of gs2 in the current directory, needed because
 # `TESTCOMMAND` ends with `./`, and `BINDIR` is an absolute path, so
 # we can't just do `$(RESTART_EXEC)$(BINDIR)/gs2`
-link_gs2: clean
+link_gs2: clean_individual_test
 	@ln -sfv $(BINDIR)/gs2 ./gs2
-
-# Also remove the gs2 symlink
-CLEANCOMMAND += ./gs2
 
 all: link_gs2
 	$(call RUNCOMMAND,./test_restarting,--gs2="$(RESTART_EXEC)gs2")

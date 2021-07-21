@@ -1,7 +1,8 @@
 
 sinclude ../Makefile.tests_common
 
-CLEANCOMMAND+= test_job_manage_stop_file
+clean_individual_test: LOCAL_TEST_FILES:=test_job_manage_stop_file
+
 ifdef TESTNORUN
 all: test_job_manage_stop_file
 	$(call SKIPCOMMAND,variable TESTNORUN is defined; unset TESTNORUN to run this test)
