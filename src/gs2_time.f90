@@ -18,8 +18,8 @@ module gs2_time
   real :: user_dt, code_dt 
   real :: code_dt_prev1 = dt_not_set
   real :: code_dt_prev2 = dt_not_set
-  real :: user_dt_cfl
-  real :: code_dt_cfl
+  real :: user_dt_cfl = 1.e8
+  real :: code_dt_cfl = 1.e8
   
   real :: code_dt_min, user_dt_min
 
