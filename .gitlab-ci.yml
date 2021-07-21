@@ -112,12 +112,14 @@ gfortran10_standard_tests:
   image: fedora:33
   variables:
     CASENAME: "gfortran_10"
-    EXTRA_PACKAGES: "lapack lapack-devel"
-    EXTRA_MAKE_FLAGS: "USE_LAPACK=on LAPACK_LIB=-llapack"
+    EXTRA_PACKAGES: "wget openblas openblas-devel"
+    EXTRA_MAKE_FLAGS: "USE_LAPACK=on LAPACK_LIB=-lopenblas WITH_EIG=on"
 #Disable pfunit tests for now as v3 doesn't support gfortran 10 so it fails to build.
     GK_CI_PFUNIT: ""
-  script: *default_script
-  cache: {}
+  script:
+    - su -c "./pipeline_test_scripts/ci_fetch_and_build_petsc_and_slepc.sh -d ${PKG_CACHE_DIR}" theuser
+    - su -c "source load_petsc_slepc ;  ./pipeline_test_scripts/ci_build_and_run.sh" theuser
+    - *report_pass
 
 gfortran5_standard_tests:
   stage: test
