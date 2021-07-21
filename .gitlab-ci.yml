@@ -133,11 +133,8 @@ intel_tests:
     WITH_MPI: "no"
     GK_CI_PFUNIT: ""
   script:
-    - dnf config-manager --add-repo https://yum.repos.intel.com/oneapi
-    - rpmkeys --import https://yum.repos.intel.com/intel-gpg-keys/GPG-PUB-KEY-INTEL-SW-PRODUCTS.PUB
-    - dnf install -y intel-oneapi-compiler-fortran
-    - source /opt/intel/oneapi/compiler/latest/env/vars.sh
-    - . /opt/intel/oneapi/setvars.sh intel64
+    - ./pipeline_test_scripts/ci_setup_intel_on_gitlab.sh -y
+    - source load_intel_compiler
     - su -c "./pipeline_test_scripts/ci_build_and_run.sh" theuser
     - *report_pass
 
