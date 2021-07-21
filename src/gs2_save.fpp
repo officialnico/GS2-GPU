@@ -34,7 +34,7 @@ module gs2_save
 
   public :: read_many, save_many, gs2_save_response, gs2_restore_response
   public :: restore_current_scan_parameter_value
-  public :: init_gs2_save, init_dt, init_tstart, init_ant_amp
+  public :: init_gs2_save, init_dt, read_t0_from_restart_file, init_ant_amp
   public :: set_restart_file, include_explicit_source_in_restart
   public :: init_vnm, restart_writable, EigNetcdfID
   public :: init_eigenfunc_file, finish_eigenfunc_file, add_eigenpair_to_file
@@ -68,7 +68,7 @@ module gs2_save
   integer (kind_nf) :: phir_id, phii_id, aparr_id, apari_id, bparr_id, bpari_id
   integer (kind_nf) :: kx_shift_id   ! MR: added to save kx_shift variable
   integer (kind_nf) :: t0id, gr_id, gi_id, vnm1id, vnm2id
-  integer (kind_nf) :: delt0id, delt1id, delt2id
+  integer (kind_nf) :: delt0id, delt1id, delt2id, delt_max_id
   integer (kind_nf) :: gexp_1_r_id, gexp_1_i_id
   integer (kind_nf) :: gexp_2_r_id, gexp_2_i_id
   integer (kind_nf) :: gexp_3_r_id, gexp_3_i_id
@@ -84,8 +84,6 @@ module gs2_save
   LOGICAL :: initialized_dfn= .false.
   ! MRH arrays holding information about the layout for plotting
   integer, dimension (:,:,:,:,:), allocatable :: procid_kykxsel, iglo_kykxsel
-!</DD> Added for saving distribution function
-!  integer (kind_nf) :: netcdf_real=0
 
   logical :: initialized = .false.
   logical :: include_parameter_scan = .true.
@@ -129,7 +127,7 @@ contains
     use dist_fn_arrays, only: vpa, vperp2
     use parameter_scan_arrays, only: current_scan_parameter_value
     use unit_tests, only: debug_message
-    use gs2_time, only: code_dt, code_dt_prev1, code_dt_prev2
+    use gs2_time, only: code_dt, code_dt_prev1, code_dt_prev2, code_dt_max
     implicit none
     !> The distribution function \(g\)
     complex, dimension (-ntgrid:,:,g_lo%llim_proc:), intent (in) :: g
@@ -398,8 +396,6 @@ contains
           
        END IF
        !For saving distribution function
-       
-       if (netcdf_real == 0) netcdf_real = get_netcdf_code_precision()
 
        call debug_message(verb, 'gs2_save::gs2_save_for_restart defining variables')
 
@@ -478,6 +474,13 @@ contains
        if (istatus /= NF90_NOERR) then
           ierr = error_unit()
           write(ierr,*) "nf90_def_var delt2 error: ", nf90_strerror(istatus)
+          goto 1
+       end if
+
+       istatus = nf90_def_var (ncid, "delt_max", netcdf_real, delt_max_id)
+       if (istatus /= NF90_NOERR) then
+          ierr = error_unit()
+          write(ierr,*) "nf90_def_var delt_max error: ", nf90_strerror(istatus)
           goto 1
        end if
        
@@ -880,6 +883,13 @@ contains
           goto 1
        end if
        
+       istatus = nf90_put_var (ncid, delt_max_id, code_dt_max)
+       if (istatus /= NF90_NOERR) then
+          ierr = error_unit()
+          write (ierr,*) "nf90_put_var delt0 error: ", nf90_strerror(istatus)
+          goto 1
+       end if
+
        istatus = nf90_put_var (ncid, t0id, t0)
        if (istatus /= NF90_NOERR) then
           ierr = error_unit()
@@ -1386,8 +1396,6 @@ contains
 
        if (istatus /= NF90_NOERR) call netcdf_error (istatus, file=file_proc)
        
-       ! check precision
-       if (netcdf_real == 0) netcdf_real = get_netcdf_code_precision()
        call check_netcdf_file_precision (ncid)
 
        istatus = nf90_inq_dimid (ncid, "theta", thetaid)
@@ -1788,9 +1796,6 @@ contains
     endif
 
 #ifdef NETCDF
-    !Get precision
-    if (netcdf_real == 0) netcdf_real = get_netcdf_code_precision()
-    
     !/Make file
     ierr=nf90_create(fname,NF90_CLOBBER,ncid)
     if(ierr/=NF90_NOERR) call netcdf_error(ierr,file=fname)
@@ -1918,9 +1923,6 @@ contains
     IDs%nconv_count=0
 
 #ifdef NETCDF
-    !Get precision
-    if (netcdf_real == 0) netcdf_real = get_netcdf_code_precision()
-    
     !/Make file
     ierr=nf90_create(fname,NF90_CLOBBER,IDs%ncid)
     if(ierr/=NF90_NOERR) call netcdf_error(ierr,file=fname)
@@ -2198,13 +2200,13 @@ contains
   end subroutine restore_current_scan_parameter_value
 
   !> FIXME : Add documentation  
-  subroutine init_dt (delt0, delt1, delt2, istatus, not_set_value)
+  subroutine init_dt (delt0, delt1, delt2, delt_max, istatus, not_set_value)
 # ifdef NETCDF
     use mp, only: proc0, broadcast
     use file_utils, only: error_unit
 # endif
     implicit none
-    real, intent (in out) :: delt0, delt1, delt2
+    real, intent (in out) :: delt0, delt1, delt2, delt_max
     integer, intent (out) :: istatus
     real, intent(in), optional :: not_set_value
 # ifdef NETCDF
@@ -2271,14 +2273,25 @@ contains
           call netcdf_error (istatus, ncid, delt2id, message=' in init_dt')
           delt2 = not_set_value_to_use
        endif           
-       
+
+       istatus = nf90_inq_varid (ncid, "delt_max", delt_max_id)
+       if (istatus /= NF90_NOERR) call netcdf_error (istatus, var='delt_max')
+
+       istatus = nf90_get_var (ncid, delt_max_id, delt_max)
+
+       if (istatus /= NF90_NOERR) then
+          call netcdf_error (istatus, ncid, delt_max_id, message=' in init_dt')
+          delt_max = not_set_value_to_use
+       endif
+
        if (.not.initialized) istatus = nf90_close (ncid)
     endif
 
     call broadcast (istatus)
     call broadcast (delt0)
     call broadcast (delt1)
-    call broadcast (delt2)        
+    call broadcast (delt2)
+    call broadcast (delt_max)
 
 # endif
 
@@ -2438,7 +2451,7 @@ contains
   end subroutine init_ant_amp
 
   !> FIXME : Add documentation  
-  subroutine init_tstart (tstart, istatus)
+  subroutine read_t0_from_restart_file (tstart, istatus)
 
 # ifdef NETCDF
     use mp, only: proc0, broadcast
@@ -2486,5 +2499,5 @@ contains
 
 # endif
 
-  end subroutine init_tstart
+  end subroutine read_t0_from_restart_file
 end module gs2_save
