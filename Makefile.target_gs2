@@ -1,5 +1,6 @@
 ############################################################################# PROGRAMS
-gs2_all: diagnostics modules gs2 ingen rungridgen generate_fftw_wisdom
+gs2_all: diagnostics modules gs2 ingen rungridgen generate_fftw_wisdom dump_response
+gs2_all: dump_grids ideal_ball write_default_input_file
 
 #Main code
 $(BINDIR)/gs2: $(gs2_mod) $(SIMPLEDATAIO_LIB) | $(BINDIR)
@@ -125,7 +126,10 @@ modules: utils.a geo.a libgs2.a diagnostics
 utils_all: | $(UTILS_SENTINEL)
 utils_all: utils.a
 
-UTIL_OBJ_LIST := spl.o constants.o file_utils.o netcdf_utils.o command_line.o runtime_tests.o constant_random.o
+UTIL_OBJ_LIST := spl.o constants.o file_utils.o command_line.o runtime_tests.o constant_random.o
+ifdef USE_NETCDF
+UTIL_OBJ_LIST += netcdf_utils.o
+endif
 UTIL_OBJ := $(addprefix $(OBJDIR)/, $(UTIL_OBJ_LIST))
 $(LIBDIR)/utils.a: | $(UTILS_SENTINEL)
 $(LIBDIR)/utils.a: $(UTIL_OBJ) |$(LIBDIR)
