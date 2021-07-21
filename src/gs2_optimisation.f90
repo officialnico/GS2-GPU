@@ -66,7 +66,7 @@ contains
     fieldmat%no_populate = .true.
     state%dont_change_timestep = .true.
 
-    state%init%tstep_ov%init = .true.
+    call state%init%tstep_ov%initialise()
     state%init%tstep_ov%override_immediate_reset = .true.
     state%init%tstep_ov%immediate_reset = .false.
 

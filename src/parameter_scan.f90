@@ -63,33 +63,67 @@ module parameter_scan
   type, extends(abstract_config_type) :: parameter_scan_config_type
      ! namelist : parameter_scan_knobs
      ! indexed : false     
-     !> FIXME: Add documentation
+
+     !> When the increment condition is `"delta_t"`, the parameter will be changed
+     !> every time `delta_t_inc` time has elapsed.
      real :: delta_t_inc = 0.0
-     !> FIXME: Add documentation
+     !> When the increment condition is `"delta_t"`, the parameter will not be
+     !> changed until `delta_t_init` time has elapsed from the beginning of the
+     !> simulation. Note, that if the simulation is restarted, this parameter
+     !> will measure from beginning of original simulation.
      real :: delta_t_init = 0.0
-     !> FIXME: Add documentation
+     !> Specifies the condition for incrementing the parameter. Possible values are:
+     !>
+     !> - "n_timesteps": change the parameter after a given number of time steps
+     !> - "delta_t": change the parameter after an elapsed time
+     !> - "saturated": change the parameter after the simulation has reached a
+     !>   saturated state (determined using the target parameter) at the current
+     !>   value of the parameter
      character(len = 20) :: inc_con = 'delta_t'
-     !> FIXME: Add documentation
+     !> When the increment condition is `'n_timesteps'`, the parameter will be
+     !> changed every `nstep_inc`.
      integer :: nstep_inc = 0
-     !> FIXME: Add documentation
+     !> When the increment condition is 'n_timesteps' or 'saturated', the
+     !> parameter will not be changed until nstep_init have elapsed from the
+     !> beginning of the simulation. Note that if the simulation is restarted,
+     !> this parameter will measure from the restart.
      integer :: nstep_init = 0
-     !> FIXME: Add documentation
+     !> If the scan is being run in 'range' mode, specifies the value of the
+     !> parameter that will be reached.
      real :: par_end = 0.0
-     !> FIXME: Add documentation
+     !> If the parameter scan is being run in 'range' or 'target' modes,
+     !> specifies the amount by which the parameter is varied at one go.
      real :: par_inc = 0.0
-     !> FIXME: Add documentation
+     !> Specifies the starting value for the parameter scan.
      real :: par_start = 0.0
-     !> FIXME: Add documentation
+     !> Specify the parameter to be varied. If the parameter pertains to a
+     !> species, the scan_spec must be specified as well.
      character(len = 20) :: scan_par = 'tprim'
-     !> FIXME: Add documentation
+     !> Specify the parameter to be varied. If the parameter pertains to a
+     !> species, the scan_spec must be specified as well.
      logical :: scan_restarted = .false.
-     !> FIXME: Add documentation
+     !> When parameter pertains to a species, specifies the index of the
+     !> species.
      integer :: scan_spec = 1
-     !> FIXME: Add documentation
+     !> Specifies the way that the parameter scan is conducted. Possible values are:
+     !>
+     !> - 'none': do not conduct a parameter scan (default)
+     !> - 'range': vary parameter in constant increments between 2 values:
+     !>   par_start and par_end. The step size is given by par_inc.
+     !> - 'target': start with the parameter at par_start, and then change the
+     !>   parameter by par_inc until the target parameter has reached the target
+     !>   value
+     !> - 'root_finding': the same as target, but the increment is changed
+     !>   intelligently using a Newton-like method.
      character(len = 20) :: scan_type = 'none'
-     !> FIXME: Add documentation
+     !> If the scan is being run in 'target' or 'root_finding' mode, specifies
+     !> the target parameter. Possible values are:
+     !>
+     !> - 'hflux_tot'
+     !> - 'momflux_tot'
+     !> - 'phi2_tot'
      character(len = 20) :: target_par = 'hflux_tot'
-     !> FIXME: Add documentation
+     !> 
      real :: target_val = 0.0
    contains
      procedure, public :: read => read_parameter_scan_config
