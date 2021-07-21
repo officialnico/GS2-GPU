@@ -8,16 +8,27 @@ usage: ./$(basename $0) [options]
 
 OPTIONS:
    -y          Proceed with setup
-   -f          Force run even if gitlab CI not detected    
+   -f          Force run even if gitlab CI not detected
 EOF
 }
 
+
+header() {
+    echo ""
+    echo "###############################################"
+    echo " "${1:-"UNNAMED SECTION"}
+    echo "###############################################"
+    echo ""
+}
+
 function add_intel_oneapi_repo() {
+    header "Setup intel oneapi repository"
     dnf config-manager --add-repo https://yum.repos.intel.com/oneapi
     rpmkeys --import https://yum.repos.intel.com/intel-gpg-keys/GPG-PUB-KEY-INTEL-SW-PRODUCTS.PUB
 }
 
 function install_intel_compiler() {
+    header "Install intel compiler"
     dnf install -y intel-oneapi-compiler-fortran
 }
 
@@ -68,8 +79,8 @@ then
 fi
 
 
-add_intel_oneapi_repo
-install_intel_compiler
+time add_intel_oneapi_repo
+time install_intel_compiler
 
 # Write out a short file to source which should
 # make the intel compiler available
