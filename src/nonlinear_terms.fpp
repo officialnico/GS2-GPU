@@ -406,7 +406,7 @@ contains
     use theta_grid, only: ntgrid
     use gs2_layouts, only: g_lo, ik_idx, it_idx, il_idx, is_idx
     use dist_fn_arrays, only: g
-    use gs2_time, only: save_dt_cfl, code_dt, code_dt_cfl, check_time_step_too_large
+    use gs2_time, only: save_dt_cfl, code_dt, check_time_step_too_large
     use run_parameters, only: reset, immediate_reset
     use unit_tests, only: debug_message
     use mp, only: nb_max_allreduce, max_allreduce
