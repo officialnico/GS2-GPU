@@ -1,6 +1,6 @@
 sinclude ../Makefile.tests_common
 
-CLEANCOMMAND += zonal_flow_residual
+clean_individual_test: LOCAL_TEST_FILES:=zonal_flow_residual
 
 ifdef TESTNORUN
 all: zonal_flow_residual
