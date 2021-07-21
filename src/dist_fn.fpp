@@ -102,6 +102,8 @@ module dist_fn
   public :: check_getan
   public :: calculate_flux_surface_average
 
+  public :: calculate_potentials_from_nonadiabatic_dfn
+
   public :: dist_fn_config_type
   public :: dist_fn_species_config_type
   public :: source_config_type
@@ -5251,9 +5253,11 @@ endif
   !>
   !> See Colin's field equation notes for more details
   !>
+  !> Takes `g_in` as \(h_s\)
+  !>
   !> FIXME: Get these notes on the website
-  subroutine getan (antot, antota, antotp)
-    use dist_fn_arrays, only: vpa, vperp2, aj0, aj1, gnew
+  subroutine getan_from_dfn (g_in, antot, antota, antotp)
+    use dist_fn_arrays, only: vpa, vperp2, aj0, aj1
     use kt_grids, only: kperp2
     use species, only: nspec, spec
     use theta_grid, only: ntgrid
@@ -5262,12 +5266,13 @@ endif
     use prof, only: prof_entering, prof_leaving
     use gs2_layouts, only: g_lo
     implicit none
+    complex, dimension(-ntgrid:, :, g_lo%llim_proc:), intent(in) :: g_in
     complex, dimension (-ntgrid:,:,:), intent (out) :: antot, antota, antotp
     real, dimension (nspec) :: wgt
 
     integer :: isgn, iglo, ig
 
-    call prof_entering ("getan", "dist_fn")
+    call prof_entering ("getan_from_dfn", "dist_fn")
 
 !Don't do this as integrate_species will fill in all values
 !    antot=0. ; antota=0. ; antotp=0.
@@ -5279,7 +5284,7 @@ endif
        do iglo = g_lo%llim_proc, g_lo%ulim_proc
           do isgn = 1, 2
              do ig=-ntgrid, ntgrid
-                g0(ig,isgn,iglo) = aj0(ig,iglo)*gnew(ig,isgn,iglo)
+                g0(ig,isgn,iglo) = aj0(ig,iglo)*g_in(ig,isgn,iglo)
              end do
           end do
        end do
@@ -5298,7 +5303,7 @@ endif
        do iglo = g_lo%llim_proc, g_lo%ulim_proc
           do isgn = 1, 2
              do ig=-ntgrid, ntgrid
-                g0(ig,isgn,iglo) = aj0(ig,iglo)*vpa(ig,isgn,iglo)*gnew(ig,isgn,iglo)
+                g0(ig,isgn,iglo) = aj0(ig,iglo)*vpa(ig,isgn,iglo)*g_in(ig,isgn,iglo)
              end do
           end do
        end do
@@ -5315,7 +5320,7 @@ endif
        do iglo = g_lo%llim_proc, g_lo%ulim_proc
           do isgn = 1, 2
              do ig=-ntgrid, ntgrid
-                g0(ig,isgn,iglo) = aj1(ig,iglo)*vperp2(ig,iglo)*gnew(ig,isgn,iglo)
+                g0(ig,isgn,iglo) = aj1(ig,iglo)*vperp2(ig,iglo)*g_in(ig,isgn,iglo)
              end do
           end do
        end do
@@ -5327,6 +5332,27 @@ endif
        antotp=0.
     end if
 
+    call prof_leaving ("getan_from_dfn", "dist_fn")
+  end subroutine getan_from_dfn
+
+  !> Compute velocity space integrals over \(h_s\):
+  !> $$\mathrm{antot} = n_s q_s \int d^3 v f_0 J_0(Z_s) h_s$$
+  !> $$\mathrm{antota} = 2 \beta n_s q_s \sqrt{\tfrac{T_s}{m_s}} \int d^3 v f_0 J_0(Z_s) h_s$$
+  !> $$\mathrm{antotp} = n_s T_s \int d^3 v f_0 \frac{v_\perp^2 J_1(Z_s)}{Z_s} h_s$$
+  !>
+  !> See Colin's field equation notes for more details
+  !>
+  !> Always uses `gnew` as \(h_s\)
+  !>
+  !> FIXME: Get these notes on the website
+  subroutine getan (antot, antota, antotp)
+    use dist_fn_arrays, only: gnew
+    use theta_grid, only: ntgrid
+    use prof, only: prof_entering, prof_leaving
+    implicit none
+    complex, dimension (-ntgrid:,:,:), intent (out) :: antot, antota, antotp
+    call prof_entering ("getan", "dist_fn")
+    call getan_from_dfn(gnew, antot, antota, antotp)
     call prof_leaving ("getan", "dist_fn")
   end subroutine getan
 
@@ -6544,6 +6570,62 @@ endif
 !///////////////////////////////////////
 !///////////////////////////////////////
 
+
+  !> Calculates the potentials consistent with the passed nonadiabatic
+  !> distribution function, `f_in`. Note this is not what GS2 usually
+  !> evolves as `g`/`gnew` but the adjusted version.
+  !>
+  !> This is closely related to [[get_init_field]] which does the same job
+  !> but works with the `g`/`gnew` modified distribution function instead.
+  !>
+  !> Currently we force potentials to zero if they are not included in the
+  !> simulation. We should provide a method to calculate these fields even
+  !> if they are not included in the evolution (e.g. for diagnostics,
+  !> collisions etc.). Perhaps an optional flag here would be enough.
+  subroutine calculate_potentials_from_nonadiabatic_dfn(f_in, phi, apar, bpar)
+    use gs2_layouts, only: g_lo
+    use theta_grid, only: ntgrid, bmag
+    use run_parameters, only: fphi, fapar, fbpar, beta
+    use kt_grids, only: naky, ntheta0, kperp2
+    use species, only: nspec, spec
+    implicit none
+    complex, dimension(-ntgrid:, :, g_lo%llim_proc:), intent(in) :: f_in
+    complex, dimension(-ntgrid:, :, :), intent(out) :: phi, apar, bpar
+    complex, dimension(:, :, :), allocatable :: antot, antota, antotp
+    real, dimension(nspec) :: weights
+
+    allocate(  antot(-ntgrid:ntgrid, ntheta0, naky))
+    allocate( antota(-ntgrid:ntgrid, ntheta0, naky))
+    allocate( antotp(-ntgrid:ntgrid, ntheta0, naky))
+
+    ! Get the weighted velocity space integrals of the passed
+    ! distribution function.
+    call getan_from_dfn(f_in, antot, antota, antotp)
+
+    if (fphi > 0) then
+       ! Do we need to include the adiabatic contribution in the sum?
+       phi = antot / sum(spec%dens*spec%z*spec%z / spec%temp)
+    else
+       phi = 0
+    end if
+
+    if (fapar > 0) then
+       where (kperp2 > epsilon(0.0))
+          apar = antota / kperp2
+       elsewhere
+          apar = 0
+       end where
+    else
+       apar = 0
+    end if
+
+    if (fbpar > 0) then
+       bpar = -beta * antotp / (spread(spread(bmag, 2, ntheta0), 3, naky)**2)
+    else
+       bpar = 0.0
+    end if
+
+  end subroutine calculate_potentials_from_nonadiabatic_dfn
 
   !> Inverts the field equations:
   !!   gamtot * phi - gamtot1 * bpar = antot
