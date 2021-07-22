@@ -337,6 +337,11 @@ MACRO_DEFS+=-DGIT_HASH_MAKEFILES='"$(GIT_HASH_MAKEFILES)"'
 GIT_HASH_UTILS:=$(shell git submodule status $(UTILS) | cut -d ' ' -f2)
 MACRO_DEFS+=-DGIT_HASH_UTILS='"$(GIT_HASH_UTILS)"'
 
+# Version string, including current commit if not on a release, plus
+# '-dirty' if there are uncommitted changes
+GIT_VERSION := $(shell git describe --tags --long --dirty)
+MACRO_DEFS += -DGIT_VERSION='"$(GIT_VERSION)"'
+
 #The magic sed esacpes either ( or ) by replacing with \( or \)
 GIT_BRANCH:=$(shell git branch | grep \* | cut -d ' ' -f2- | sed 's|\([()]\)|\\\1|g')
 MACRO_DEFS+=-DGIT_BRANCH='"$(GIT_BRANCH)"'
