@@ -339,7 +339,7 @@ MACRO_DEFS+=-DGIT_HASH_UTILS='"$(GIT_HASH_UTILS)"'
 
 # Version string, including current commit if not on a release, plus
 # '-dirty' if there are uncommitted changes
-GIT_VERSION := $(shell git describe --tags --long --dirty)
+GIT_VERSION := $(shell git describe --tags --long --dirty --match "[0-9]*.[0-9]*.[0-9]*")
 MACRO_DEFS += -DGIT_VERSION='"$(GIT_VERSION)"'
 
 #The magic sed esacpes either ( or ) by replacing with \( or \)
@@ -895,6 +895,7 @@ test_make:
 	$(call messageKeyVal, "DEPEND", $(DEPEND))
 	$(call messageKeyVal, "QUIET", $(QUIET))
 	$(call messageKeyVal, "WITH_COLOUR", $(WITH_COLOUR))
+	$(call messageKeyVal, "GIT_VERSION", $(GIT_VERSION))
 	$(call messageKeyVal, "GIT_HASH", $(GIT_HASH))
 	$(call messageKeyVal, "GIT_HASH_MAKEFILES", $(GIT_HASH_MAKEFILES))
 	$(call messageKeyVal, "GIT_HASH_UTILS", $(GIT_HASH_UTILS))
