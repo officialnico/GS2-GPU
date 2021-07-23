@@ -307,7 +307,9 @@ contains
   !>
   !> This should be called before anything else, but especially before initialising MPI.
   subroutine parse_command_line()
-    use runtime_tests, only: runtime_info
+    use, intrinsic :: iso_fortran_env, only: compiler_version, compiler_options
+    use git_version_mod, only: get_git_version
+    use build_config
     integer :: arg_count, arg_n
     integer :: arg_length
     character(len=:), allocatable :: argument
@@ -321,17 +323,37 @@ contains
       allocate(character(len=arg_length)::argument)
       call get_command_argument(1, argument)
 
-      if ((argument == "--version") .or. (argument == "-v")) then
-        write(*, '("GS2 version ", a)') runtime_info%release()
-        stop
-      else if ((argument == "--help") .or. (argument == "-h")) then
-        write(*, '(a)') "gs2 [--version|-v] [--help|-h] [input file]" // nl // nl // &
+      if ((argument == "--help") .or. (argument == "-h")) then
+        write(*, '(a)') "gs2 [--version|-v] [--help|-h] [--build-config] [input file]" // nl // nl // &
              "GS2: A fast, flexible physicist's toolkit for gyrokinetics" // nl // &
              "For more help, see the documentation at https://gyrokinetics.gitlab.io/gs2/" // nl // &
              "or create an issue https://bitbucket.org/gyrokinetics/gs2/issues?status=open" // nl // &
              nl // &
              "  -h, --help     Print this message" // nl // &
-             "  -v, --version  Print the GS2 version"
+             "  -v, --version  Print the GS2 version" // nl // &
+             "  --build-config Print the current build configuration"
+        stop
+      else if ((argument == "--version") .or. (argument == "-v")) then
+        write(*, '("GS2 version ", a)') get_git_version()
+        stop
+      else if (argument == "--build-config") then
+        write(*, '(a, a)') "Built with ", compiler_version()
+        write(*, '(a, a)') "Build flags: ", compiler_options()
+        write(*, '(a)') nl // "Current build configuration: "
+        write(*, '(a, l)') "MPI: ", gs2_has_mpi
+        write(*, '(a, l)') "MPI3: ", gs2_has_mpi3
+        write(*, '(a, l)') "FFTW: ", gs2_has_fft
+        write(*, '(a, l)') "iso_c_binding: ", gs2_has_iso_c_binding
+        write(*, '(a, l)') "New diagnostics: ", gs2_has_new_diag
+        write(*, '(a, l)') "GENQUAD: ", gs2_has_genquad
+        write(*, '(a, l)') "NetCDF: ", gs2_has_netcdf
+        write(*, '(a, l)') "LAPACK: ", gs2_has_lapack
+        write(*, '(a, l)') "Lowflow: ", gs2_has_lowflow
+        write(*, '(a, l)') "Eigensolver: ", gs2_has_with_eig
+        write(*, '(a, l)') "HDF5: ", gs2_has_hdf5
+        write(*, '(a, l)') "F200X intrinsics: ", gs2_has_f200x_intrinsics
+        write(*, '(a, l)') "Single precision: ", gs2_is_single_precision
+        write(*, '(a, l)') "Quad precision: ", gs2_has_quad
         stop
       end if
     end do
