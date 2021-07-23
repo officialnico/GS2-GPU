@@ -713,18 +713,20 @@ contains
     initialize_bound = 1
   end function initialize_bound
 
-  !> FIXME : Add documentation    
+  !> Find the value of the major radius on the plasma boundary
+  !> at given geometric theta.
   function bound(theta) 
-    use splines, only: new_spline, splint, spline
+    use splines, only: new_periodic_spline, periodic_splint, periodic_spline
+    use constants, only: twopi
     implicit none
     real, intent(in) :: theta
     real :: bound
-    type (spline), save :: spl
+    type (periodic_spline), save :: spl
 
-    if(init_bound) call new_spline(nbbbs, thetab, r_bound, spl)
+    if(init_bound) call new_periodic_spline(nbbbs, thetab, r_bound, twopi, spl, drop_last_point = .true.)
     init_bound = .false.
     
-    bound = splint(theta, spl)
+    bound = periodic_splint(theta, spl)
   end function bound    
 
   !> FIXME : Add documentation    
@@ -750,6 +752,7 @@ contains
     if(allocated(spsi_bar)) deallocate(spsi_bar,sdfit_R,sdfit_Z)
     if(allocated(dfit_psi)) deallocate(dfit_psi)
     if(allocated(dpm)) deallocate(dpm,dtm)
+    if(allocated(thetab)) deallocate(thetab, r_bound)    
   end subroutine dealloc_module_arrays
 
   !> FIXME : Add documentation    

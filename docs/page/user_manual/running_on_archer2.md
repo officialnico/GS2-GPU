@@ -1,0 +1,156 @@
+---
+title: Running on ARCHER2
+---
+
+# ARCHER2
+
+[ARCHER2][archer2] is the UK's top research supercomputer. There are a
+few things to be aware of when compiling and running GS2 on ARCHER2
+that we will list here.
+
+## Compiling
+
+There is a Makefile already written for ARCHER2, so you can set
+`GK_SYSTEM=archer2` to use it. This Makefile uses the GNU compilers by
+default, so you must load the GNU compiler suite in addition to the
+other GS2 dependencies -- in contrast to previous systems, the
+compiler suites use `module restore`:
+
+```
+module restore PrgEnv-gnu
+module load cray-fftw
+module load cray-netcdf
+module load cray-hdf5   # The netCDF module needs HDF5
+```
+
+then we can compile GS2:
+
+```
+make -I Makefiles GK_SYSTEM=archer2 -j
+```
+
+### Optional dependencies
+
+Archer2 provides optimised lapack routines in the `cray-libsci` module which tends to be
+loaded automatically. GS2 can make use of these by passing `USE_LAPACK=on` when building:
+
+```
+make -I Makefiles GK_SYSTEM=archer2 USE_LAPACK=on -j
+```
+
+No changes to the Archer2 makefile are required. It may be necessary to rebuild the
+dependency file if it already exists by running:
+
+```
+make -I Makefiles GK_SYSTEM=archer2 USE_LAPACK=on depend
+```
+
+In general BLAS and Lapack can support OpenMP parallelisation. Due to the way that Archer2
+links libraries it is likely that we will not get access to the OpenMP BLAS/Lapack unless
+we add OpenMP flags to our link line (e.g. `-fopenmp`). Whilst we do not typically use
+OpenMP in GS2 one may find a need to under-populate nodes. In this instance enabling
+OpenMP and using `fields_option = 'local'`, coupled with setting `OMP_NUM_THREADS` to the
+appropriate value (typically the same as `--cpus-per-task`) one may find that the
+calculation of the response matrices can be OpenMP accelerated.
+
+## Running
+
+ARCHER2 doesn't mount the home partition on the compute nodes, so
+you will want to either make sure the compilation is done in the work
+partition, or more simply, copy the `gs2` executable over.
+
+In your job submission script, it is necessary to restore some
+modules first to make sure the correct libraries are found. Note that
+you only need to load `epcc-job-env` and restore `PrgEnv-gnu`, the
+other libraries will be found automatically.
+
+Here is an example job submission script for 1 minute on 1 node:
+
+```shell
+#!/bin/bash
+
+# Job info
+#SBATCH --job-name=gs2
+#SBATCH --nodes=1
+#SBATCH --tasks-per-node=128
+#SBATCH --cpus-per-task=1
+#SBATCH --time=00:01:00
+
+# Partition info
+#SBATCH --account=<account>
+#SBATCH --partition=standard
+
+# Ensure simulation has access to libraries.
+module load epcc-job-env
+module restore /etc/cray-pe.d/PrgEnv-gnu
+
+# Important: set OpenMP threads to 1, as we're not using OpenMP.
+# This makes sure any libraries don't use threads
+export OMP_NUM_THREADS=1
+
+srun --distribution=block:block --hint=nomultithread gs2 <input file>
+```
+
+Note that the `--distribution=block:block --hint=nomultithread`
+arguments to `srun` are _strongly_ [recommended by the ARCHER2
+team][srun].
+
+If you're developing GS2 and want to make sure your modified code
+remains on the backed-up home partition, don't forget to copy the
+`gs2` executable on to the work partition first. You can do
+automatically by using another script as a wrapper to your actual job
+script.
+
+### Short Experiments
+
+Sometimes you'd like to run a short simulation and find you spend more
+time waiting for it to get through the queue and start running than it
+actually takes to run the simulation. In that case, you can try using
+the [short queue][short] (which is called "Quality of Service" in
+`SLURM` jargon). You can do that by adding the following to your
+submission script:
+
+```shell
+# The following uses the short job partition, which can only be used for quick
+jobs, but has a much sorter queue time
+#SBATCH --reservation=shortqos
+#SBATCH --qos=short
+```
+
+Note the queue limits in the documentation: 20 minutes on 8 nodes, and
+only Monday to Friday.
+
+### Underpopulating Nodes
+
+Particularly large jobs may need more memory per core than available
+by default, in which case you will need to use fewer cores per node
+(also called "underpopulating the nodes"). Depending on your input
+parameters, you may also find that you can get better performance by
+underpopulating, however this is not guaranteed and not always worth
+it in terms of overall resource use. You should measure performance
+before underpopulating production jobs.
+
+In order to use fewer cores per node you need to change a couple of
+`SLURM` parameters:
+
+
+```bash
+#SBATCH --nodes=2
+#SBATCH --tasks-per-node=64
+#SBATCH --cpus-per-task=2
+```
+
+This now uses 128 cores spread across two nodes. We use two cpus per
+task in order to spread the cores across both sockets in the node. If
+you want to underpopulate further, don't forget to increase
+`--cpus-per-task` proportionally to compensate.
+
+
+[archer2]: https://www.archer2.ac.uk
+[srun]: https://docs.archer2.ac.uk/user-guide/scheduler/#srun-launching-parallel-jobs
+[short]: https://docs.archer2.ac.uk/user-guide/scheduler/#quality-of-service-qos
+
+<!-- Local Variables: -->
+<!-- mode: gfm -->
+<!-- fill-column: 90 -->
+<!-- End: -->
