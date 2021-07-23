@@ -136,6 +136,15 @@ function get_default_requires_index_{module}_config()
   get_default_requires_index_{module}_config = {requires_index}
 end function get_default_requires_index_{module}_config"""
 
+getModuleConfigSubString = """
+!> Get the module level config instance
+function get_{module}_config()
+  type({module}_config_type) :: get_{module}_config
+  get_{module}_config = {module}_config
+end function get_{module}_config
+"""
+
+
 class var():
     assignInString = "{instanceName}%{name} = {name}"
     assignOutString = "{name} = {instanceName}%{name}"
@@ -362,7 +371,9 @@ class config():
         if self.requires_index: requires_index = ".true."
         return getDefaultRequiresIndexSubString.format(module = self.moduleName, requires_index = requires_index)
 
-    
+    def getModuleConfig(self):
+        return getModuleConfigSubString.format(module=self.moduleName)
+
     def printAll(self,**kwargs):
         st = []
         st.append(self.decl(**kwargs))
@@ -375,6 +386,7 @@ class config():
         st.append(self.broadcastConfig())
         st.append(self.defaultNameConfig())
         st.append(self.defaultRequiresIndexConfig())
+        st.append(self.getModuleConfig())
         return "\n".join(st)
 
     def dumpToFile(self,fileOut=None):
