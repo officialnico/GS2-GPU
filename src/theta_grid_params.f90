@@ -49,9 +49,9 @@ module theta_grid_params
      !> `geoType=0`, which selects the Generalised Miller analytic
      !> geometry specification).  `akappri` = \(d\kappa/d\rho\)
      real :: akappri = 0.0
-     !> Default = 0. Do not use unless you know what you are doing.
-     !>
-     !> @todo Provide more complete documentation
+     !> Used in conjunction with [[theta_grid_salpha_knobs:alpmhdfac]]
+     !> to override `shift`, set as `shift=-alpmhd*alpmhdfac`. Do not
+     !> use unless you know what you are doing.
      real :: alpmhd = 0.0
      !> Minor radius of the flux surface that receives the specified
      !> shaping (only used when `geoType=1`, which selects the Global

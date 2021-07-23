@@ -149,7 +149,7 @@ module species
      !>
      !> @todo Consider moving this parameter to [[init_g_knobs]].
      real :: tperp0 = 0.
-     !> Normalised inverse density gradient: \(-\frac{1}{T}\frac{dT}{d
+     !> Normalised inverse temperature gradient: \(-\frac{1}{T}\frac{dT}{d
      !> \rho_N}\) (Note here \(\rho_N\) is the normalised radius
      !> \(\frac{\rho}{L_\textrm{ref}}\).
      real :: tprim = 6.9

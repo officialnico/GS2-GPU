@@ -29,6 +29,9 @@ module gs2_diagnostics
   public :: get_gs2_diagnostics_config
   public :: apply_old_defaults
 
+  ! Export some functions to be used in the new diagnostics
+  public :: save_restart_dist_fn
+
   interface get_vol_average
      module procedure get_vol_average_one, get_vol_average_all
   end interface get_vol_average
@@ -62,6 +65,8 @@ module gs2_diagnostics
   logical, public :: dump_fields_periodically, make_movie
   logical, public :: save_for_restart
   logical, public :: save_distfn
+  logical, public :: save_glo_info_and_grids
+  logical, public :: save_velocities
   logical, public :: write_symmetry, write_correlation_extend, write_correlation
   logical, public :: write_pflux_sym, write_nl_flux_dist, write_pflux_tormom
   logical :: file_safety_check
@@ -70,6 +75,7 @@ module gs2_diagnostics
 
   logical, public :: write_phi_over_time, write_apar_over_time, write_bpar_over_time !EGH
 
+  logical :: append_old
   logical :: write_jext=.true.
 
   !> Variables for convergence condition testing
@@ -485,7 +491,7 @@ contains
        j_ext_hist = 0
     end if
 
-    call init_gs2_io (write_nl_flux, write_omega, &
+    call init_gs2_io (append_old, write_nl_flux, write_omega, &
          write_hrate, write_final_antot, &
          write_eigenfunc, make_movie, nmovie_tot, write_verr, &
          write_moments, write_full_moments_notgc, &
@@ -493,7 +499,9 @@ contains
          write_correlation, nwrite_big_tot, write_correlation_extend, &
          write_phi_over_time, write_apar_over_time, write_bpar_over_time, &
          write_avg_moments, write_final_moments, write_final_epar, &
-         ob_midplane=ob_midplane)
+         nout, ob_midplane=ob_midplane)
+
+    call broadcast (nout)
 
     if (write_cerr) then
        if (collision_model_switch == 1 .or. collision_model_switch == 5) then
@@ -692,11 +700,8 @@ contains
 
     ! Print some health warnings if switches are not their default
     ! values and are not available in this diagnostics module
-    call warn_about_nonfunctional_selection(gs2_diagnostics_config%append_old, "append_old")
     call warn_about_nonfunctional_selection(gs2_diagnostics_config%enable_parallel, "enable_parallel")
     call warn_about_nonfunctional_selection(gs2_diagnostics_config%ncheck /= 10, "ncheck")
-    call warn_about_nonfunctional_selection(gs2_diagnostics_config%save_glo_info_and_grids, "save_glo_info_and_grids")
-    call warn_about_nonfunctional_selection(gs2_diagnostics_config%save_velocities, "save_velocities")
     call warn_about_nonfunctional_selection(gs2_diagnostics_config%serial_netcdf4, "serial_netcdf4")
     call warn_about_nonfunctional_selection(.not. gs2_diagnostics_config%write_any, "write_any")
     call warn_about_nonfunctional_selection(gs2_diagnostics_config%write_collisional, "write_collisional")
@@ -709,6 +714,7 @@ contains
     call warn_about_nonfunctional_selection(gs2_diagnostics_config%write_zonal_transfer, "write_zonal_transfer")
 
     ! Copy out internal values into module level parameters
+    append_old = gs2_diagnostics_config%append_old
     conv_max_step = gs2_diagnostics_config%conv_max_step
     conv_min_step = gs2_diagnostics_config%conv_min_step
     conv_nstep_av = gs2_diagnostics_config%conv_nstep_av
@@ -734,6 +740,8 @@ contains
     print_line = gs2_diagnostics_config%print_line
     save_distfn = gs2_diagnostics_config%save_distfn
     save_for_restart = gs2_diagnostics_config%save_for_restart
+    save_glo_info_and_grids = gs2_diagnostics_config%save_glo_info_and_grids
+    save_velocities = gs2_diagnostics_config%save_velocities
     save_many = gs2_diagnostics_config%save_many
     use_nonlin_convergence = gs2_diagnostics_config%use_nonlin_convergence
     write_apar_over_time = gs2_diagnostics_config%write_apar_over_time
@@ -834,7 +842,7 @@ contains
     implicit none
     !> The current (final) timestep
     integer, intent (in) :: istep
-    integer :: istatus
+
     complex, dimension (ntheta0, naky) :: phi0
     logical :: last = .true.
 
@@ -866,22 +874,10 @@ contains
 
     if (write_final_antot) call do_write_final_antot
 
-    if (save_for_restart) then
-       call gs2_save_for_restart (gnew, user_time, user_dt, vnmult, istatus, &
-            fphi, fapar, fbpar, exit_in=.true.)
-    end if
-
-    if (save_distfn) then
-       !Convert h to distribution function
-       call g_adjust(gnew,phinew,bparnew,fphi,fbpar)
-
-       !Save dfn, fields and velocity grids to file
-       call gs2_save_for_restart (gnew, user_time, user_dt, vnmult, istatus, &
-            fphi, fapar, fbpar, exit_in=.true., distfn=.true.)
-
-       !Convert distribution function back to h
-       call g_adjust(gnew,phinew,bparnew,-fphi,-fbpar)
-    end if
+    call save_restart_dist_fn(save_for_restart, save_distfn, &
+                              save_glo_info_and_grids=save_glo_info_and_grids, &
+                              save_velocities=save_velocities, &
+                              user_time=user_time)
 
     !Finalise the netcdf file
     call nc_finish
@@ -899,6 +895,51 @@ contains
     initialized = .false.
     call gs2_diagnostics_config%reset()
   end subroutine finish_gs2_diagnostics
+
+  !> Save some extra information in final restart files
+  subroutine save_restart_dist_fn(save_for_restart, save_distfn, &
+                                  save_glo_info_and_grids, &
+                                  save_velocities, user_time)
+    use run_parameters, only: fphi, fapar, fbpar
+    use collisions, only: vnmult
+    use gs2_save, only: gs2_save_for_restart
+    use fields_arrays, only: phinew, bparnew
+    use gs2_time, only: user_dt
+    use dist_fn_arrays, only: gnew
+    use dist_fn_arrays, only: g_adjust
+    !> See [[gs2_diagnostics_knobs:save_for_restart]]
+    logical, intent(in) :: save_for_restart
+    !> See [[gs2_diagnostics_knobs:save_distfn]]
+    logical, intent(in) :: save_distfn
+    !> See [[gs2_diagnostics_knobs:save_glo_info_and_grids]]
+    logical, intent(in) :: save_glo_info_and_grids
+    !> See [[gs2_diagnostics_knobs:save_velocities]]
+    logical, intent(in) :: save_velocities
+    !> Current simulation time
+    real, intent(in) :: user_time
+    integer :: istatus
+
+    if (save_for_restart) then
+       call gs2_save_for_restart(gnew, user_time, user_dt, vnmult, istatus, &
+            fphi, fapar, fbpar, exit_in=.true., &
+            save_glo_info_and_grids=save_glo_info_and_grids, &
+            save_velocities=save_velocities)
+    end if
+
+    if (save_distfn) then
+       !Convert h to distribution function
+       call g_adjust(gnew, phinew, bparnew, fphi, fbpar)
+
+       !Save dfn, fields and velocity grids to file
+       call gs2_save_for_restart(gnew, user_time, user_dt, vnmult, istatus, &
+            fphi, fapar, fbpar, exit_in=.true., distfn=.true., &
+            save_glo_info_and_grids=save_glo_info_and_grids, &
+            save_velocities=save_velocities)
+
+       !Convert distribution function back to h
+       call g_adjust(gnew, phinew, bparnew, -fphi, -fbpar)
+    end if
+  end subroutine save_restart_dist_fn
 
   !> Deallocate the [[gs2_diagnostics]] module-level arrays
   subroutine deallocate_arrays

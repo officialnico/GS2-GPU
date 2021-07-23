@@ -82,55 +82,76 @@ module run_parameters
   type, extends(abstract_config_type) :: knobs_config_type
      ! namelist : knobs
      ! indexed : false     
+
      !> The maximum wall clock time available to GS2
      real :: avail_cpu_time = 1.0e10
-     !> \(\beta\) is the ratio of the reference pressure to the reference magnetic energy density, \(\beta=2\mu_0n_{ref}T_{ref}/B^2_{ref}\).
-     !> This gets a smart default from parameters
+     !> \(\beta\) is the ratio of the reference pressure to the reference
+     !> magnetic energy density, \(\beta=2\mu_0n_{ref}T_{ref}/B^2_{ref}\).  This
+     !> gets a smart default from parameters
      real :: beta = 0.0
      !> Initial timestep
      real :: delt = 0.1
-     !> Determines how initial timestep is set
+     !> Determines how initial timestep is set. Possible options are:
+     !>
+     !>  - "default" or "set_by_hand": use timestep from input file
+     !>  - "check_restart": read timestep(s) from restart file
+     !>
+     !> If "check_restart" is used but the restart files aren't
+     !> present for any reason (for instance, the current run is not a
+     !> restart), GS2 will error when trying to read the
+     !> timesteps. You can run the [[ingen]] tool on your input file
+     !> to check this issue before running your job
      character(len = 20) :: delt_option = 'default'
      !> If true then use eigensolver instead of initial value solver.
      logical :: do_eigsolve = .false.
-     !> Advanced option to freeze evolution of certain modes
+     !> Advanced option to freeze evolution of certain modes, used with
+     !> [[knobs:secondary]], [[knobs:tertiary]], [[knobs:harris]]. See
+     !> [knobs:eqzip_option]] for details.
      logical :: eqzip = .false.
-     !> What types of modes are frozen with eqzip
+     !> Advanced option to freeze evolution of certain modes. Reimplementation
+     !> of [[knobs:eqzip]]. Possible values are:
+     !>
+     !> - "secondary": don't evolve `ik == 2, it == 1`;
+     !> - "tertiary": dont' evolve `ik == 1, it == 2 or ntheta`;
+     !> - "harris": don't evolve `ik == 1`.
+     !>
+     !> Only used in [[dist_fn]], should be moved to [[dist_fn_knobs]].
      character(len = 20) :: eqzip_option = 'none'
      !> Multiplies \(A_\|\) throughout.
      real :: fapar = 0.0
-     !> Deprecated
+     !> Deprecated, synonym for `fapar`
      real :: faperp = 0.0
      !> Multiplies \(B_\|\) throughout.
      real :: fbpar = -1.0
      !> Multiplies \(\phi\) throughout.
      real :: fphi = 1.0
-     !> Advanced
+     !> See [[knobs:eqzip]]
      logical :: harris = .false.
      !> Determines the behaviour when the CFL condition is broken in the nonlinear term:
      logical :: immediate_reset = .true.
-     !> Unknown, only uses in [[init_g]] -- should be moved to init_g namelist.
-     !> This gets a smart default from parameters
+     !> Used in [[init_g_knobs:ginit_option]] "harris" and "convect". Should be
+     !> moved to init_g namelist. This gets a smart default from [[parameters]].
      real :: k0 = 1.0
      !> Not used anywhere -- to be removed.
      real :: margin = 0.05
      !> How close to avail_cpu_time can we go before trying to stop the run cleanly
      real :: margin_cpu_time = 300.0
-     !> Lowflow only.
+     !> Lowflow only. If true, GS2 exits after writing out neoclassical
+     !> quantities of interest
      logical :: neo_test = .false.
      !> Maximum number of steps to take
      integer :: nstep = 100
      !> Normalised gyro-radius, only used for low flow builds
      !> This gets a smart default from parameters
      real :: rhostar = 3.0e-3
-     !> Advanced
+     !> See [[knobs:eqzip]]
      logical :: secondary = .true.
      !> Used to set the random seed used in the random number
-     !> generators provided by [[ran]]. If this inpud is 0 (the
+     !> generators provided by [[ran]]. If this input is 0 (the
      !> default) then we don't set the seed and use the system default
      !> instead.
      integer :: seed = 0
-     !> Advanced
+     !> See [[knobs:eqzip]]
      logical :: tertiary = .false.
      !> Deprecated
      !> This gets a smart default from parameters
@@ -377,7 +398,7 @@ contains
             text_option('check_restart', delt_option_auto) /)
     character(20) :: delt_option
     integer :: ierr, istatus
-    real :: delt0, delt1, delt2
+    real :: delt0, delt1, delt2, delt_max
     real, dimension (2) :: vnm_saved
 
     real :: teti  ! for back-compatibility
@@ -534,18 +555,12 @@ contains
        vnm_init = 1.0
        call init_vnm (vnm_saved, istatus)
        if (istatus == 0) vnm_init = vnm_saved
-       call init_dt (delt0, delt1, delt2, istatus, dt_not_set)
 
-       ! FIXME: The following check means that we only set all the
-       ! time step values if there were no errors in whatever the last
-       ! operation in `init_dt` was. In reality we should probably always
-       ! set these values based on what is returned and move the error
-       ! handling into `init_dt`.
-       if (istatus == 0) then
-          delt  = delt0
-          delt_prev1 = delt1
-          delt_prev2 = delt2
-       endif
+       call init_dt (delt0, delt1, delt2, delt_max, istatus, dt_not_set)
+       if (delt0 /= dt_not_set) delt = delt0
+       if (delt1 /= dt_not_set) delt_prev1 = delt1
+       if (delt2 /= dt_not_set) delt_prev2 = delt2
+       if (delt_max /= dt_not_set) user_delt_max = delt_max
     endif
 
     if (seed .ne. 0 ) call set_seed_from_single_integer(seed)

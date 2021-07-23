@@ -86,6 +86,7 @@ module collisions
   real :: vnfac, vnslow
   real :: etol, ewindow, etola, ewindowa
   integer :: timesteps_between_collisions
+  logical :: force_collisions
 
   real, dimension (:,:,:), allocatable :: dtot
   ! (-ntgrid:ntgrid,nlambda,max(ng2,nlambda-ng2)) lagrange coefficients for derivative error estimate
@@ -180,7 +181,7 @@ module collisions
      !> - `'lorentz'` : Only pitch angle scattering.
      !> - `'lorentz-test'` : Only pitch angle scattering. For testing,
      !> disables some components of the operator.
-     !> - `'ediffusion'` : Only energy diffusion.
+     !> - `'ediffuse'` : Only energy diffusion.
      !> - `'krook'` : "Home made" Krook operator (this is not recommended).
      !>
      !> If no species have a non-zero collision frequency, `vnewk`, then
@@ -263,6 +264,15 @@ module collisions
      !>
      !> @todo Confirm the above description.     
      real :: ewindowa = 1.e-2
+     !> Currently we skip the application of the selected collision
+     !> operator for species with zero collision frequency and disable
+     !> collisions entirely if no species have non-zero collision
+     !> frequency. This is generally sensible, but it can be useful to
+     !> force the use of the collisional code path in some situations
+     !> such as in code testing. Setting this flag to `.true.` forces
+     !> the selected collision model operator to be applied even if
+     !> the collision frequency is zero.
+     logical :: force_collisions = .false.
      !> If true (not the default) then calculate collisional heating
      !> when applying the collion operator. This is purely a
      !> diagnostic calculation. It should not change the evolution.
@@ -518,6 +528,7 @@ contains
     etola = collisions_config%etola
     ewindow = collisions_config%ewindow
     ewindowa = collisions_config%ewindowa
+    force_collisions = collisions_config%force_collisions
     heating = collisions_config%heating
     hypermult = collisions_config%hypermult
     le_nxilim_fix = collisions_config%le_nxilim_fix
@@ -604,7 +615,7 @@ contains
     call init_map (use_lz_layout, use_e_layout, use_le_layout, test)
 
     call init_vnew (hee)
-    if (all(abs(vnew(:,1,:)) <= 2.0*epsilon(0.0))) then
+    if (all(abs(vnew(:,1,:)) <= 2.0*epsilon(0.0)) .and. .not. force_collisions) then
        collision_model_switch = collision_model_none
        colls = .false.
        return
@@ -3885,7 +3896,7 @@ contains
        if(kwork_filter(it,ik))cycle
        if (ieqzip(it,ik)==0) cycle
        is = is_idx(lz_lo,ilz)
-       if (abs(vnew(ik,1,is)) < 2.0*epsilon(0.0)) cycle
+       if ( (abs(vnew(ik,1,is)) < 2.0*epsilon(0.0)) .and. .not. force_collisions) cycle
        ie = ie_idx(lz_lo,ilz)
        ig = ig_idx(lz_lo,ilz)
 
@@ -4055,7 +4066,7 @@ contains
        if (kwork_filter(it,ik)) cycle
        if (ieqzip(it,ik)==0) cycle
        is = is_idx(le_lo,ile)
-       if (abs(vnew(ik,1,is)) < 2.0*epsilon(0.0)) cycle
+       if ( (abs(vnew(ik,1,is)) < 2.0*epsilon(0.0)) .and. .not. force_collisions) cycle
        ig = ig_idx(le_lo,ile)
 
 !CMRDDGC, 10/2/1014: 
@@ -4168,7 +4179,7 @@ contains
        if(kwork_filter(it,ik))cycle
        if (ieqzip(it,ik)==0) cycle
        is = is_idx(e_lo,ielo)
-       if (spec(is)%vnewk < 2.0*epsilon(0.0)) cycle
+       if ( (spec(is)%vnewk < 2.0*epsilon(0.0)) .and. .not. force_collisions) cycle
        ig = ig_idx(e_lo,ielo)
        il = il_idx(e_lo,ielo)
        if (forbid(ig,il)) cycle
@@ -4217,7 +4228,7 @@ contains
     do ile = le_lo%llim_proc, le_lo%ulim_proc
 
        is = is_idx(le_lo,ile)
-       if (spec(is)%vnewk < 2.0*epsilon(0.0)) cycle
+       if ( (spec(is)%vnewk < 2.0*epsilon(0.0)) .and. .not. force_collisions) cycle
        it=it_idx(le_lo,ile)
        ik=ik_idx(le_lo,ile)
        if (kwork_filter(it,ik)) cycle
@@ -4444,11 +4455,11 @@ contains
     ! isolation and ensure we can move this routine to another module easily.
     character(len = 20) :: collision_model, ediff_scheme, lorentz_scheme
     integer :: ncheck, timesteps_between_collisions
-    logical :: adjust, conservative, conserve_forbid_zero, conserve_moments, const_v, ei_coll_only, heating, hypermult, le_nxilim_fix, resistivity, special_wfb_lorentz, split_collisions, test, use_le_layout
+    logical :: adjust, conservative, conserve_forbid_zero, conserve_moments, const_v, ei_coll_only, force_collisions, heating, hypermult, le_nxilim_fix, resistivity, special_wfb_lorentz, split_collisions, test, use_le_layout
     logical :: vary_vnew, vpar_zero_mean
     real :: cfac, etol, etola, ewindow, ewindowa, vnfac, vnslow
     
-    namelist /collisions_knobs/ adjust, cfac, collision_model, conservative, conserve_forbid_zero, conserve_moments, const_v, ediff_scheme, ei_coll_only, etol, etola, ewindow, ewindowa, heating, hypermult, le_nxilim_fix, &
+    namelist /collisions_knobs/ adjust, cfac, collision_model, conservative, conserve_forbid_zero, conserve_moments, const_v, ediff_scheme, ei_coll_only, etol, etola, ewindow, ewindowa, force_collisions, heating, hypermult, le_nxilim_fix, &
          lorentz_scheme, ncheck, resistivity, special_wfb_lorentz, split_collisions, test, timesteps_between_collisions, use_le_layout, vary_vnew, vnfac, vnslow, vpar_zero_mean
 
     ! Only proc0 reads from file
@@ -4468,6 +4479,7 @@ contains
     etola = self%etola
     ewindow = self%ewindow
     ewindowa = self%ewindowa
+    force_collisions = self%force_collisions
     heating = self%heating
     hypermult = self%hypermult
     le_nxilim_fix = self%le_nxilim_fix
@@ -4510,6 +4522,7 @@ contains
     self%etola = etola
     self%ewindow = ewindow
     self%ewindowa = ewindowa
+    self%force_collisions = force_collisions
     self%heating = heating
     self%hypermult = hypermult
     self%le_nxilim_fix = le_nxilim_fix
@@ -4555,6 +4568,7 @@ contains
     call self%write_key_val("etola", self%etola, unit_internal)
     call self%write_key_val("ewindow", self%ewindow, unit_internal)
     call self%write_key_val("ewindowa", self%ewindowa, unit_internal)
+    call self%write_key_val("force_collisions", self%force_collisions, unit_internal)
     call self%write_key_val("heating", self%heating, unit_internal)
     call self%write_key_val("hypermult", self%hypermult, unit_internal)
     call self%write_key_val("le_nxilim_fix", self%le_nxilim_fix, unit_internal)
@@ -4602,6 +4616,7 @@ contains
     call broadcast(self%etola)
     call broadcast(self%ewindow)
     call broadcast(self%ewindowa)
+    call broadcast(self%force_collisions)
     call broadcast(self%heating)
     call broadcast(self%hypermult)
     call broadcast(self%le_nxilim_fix)
