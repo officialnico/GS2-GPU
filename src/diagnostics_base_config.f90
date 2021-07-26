@@ -401,21 +401,10 @@ module diagnostics_base_config
     !>
     !> @warning Only to text files
     logical :: write_gyx = .false.
-
     !> Write out various heating, free energy and energy injection
     !> diagnostics. Text file extension is `.heat`
-    !>
-    !> @warning Only in new diagnostics. Equivalent to
-    !> [[gs2_diagnostics_knobs:write_hrate]] in old diagnostics
     logical :: write_heating = .false.
-
-    !> Write out various heating, free energy and energy injection
-    !> diagnostics. Text file extension is `.heat`
-    !>
-    !> @warning Non-functional in new diagnostics. Equivalent to
-    !> [[gs2_diagnostics_knobs:write_heating]] in new diagnostics
-    !>
-    !> @warning Old diagnostics only writes to text files
+    !> @deprecated Use [[gs2_diagnostics_knobs:write_heating]] instead
     logical :: write_hrate = .false.
 
     !> Write time averaged external current in the antenna,
@@ -622,6 +611,25 @@ contains
     end if
   end subroutine warn_about_nonfunctional_selection
 
+  subroutine warn_about_deprecated_option(old_switch, old_name, new_switch, new_name)
+    use run_parameters, only: use_old_diagnostics
+    use mp, only: proc0
+    !> Deprecated diagnostic switch
+    logical, intent(in) :: old_switch
+    !> Deprecated name of the switch
+    character(len=*), intent(in) :: old_name
+    !> New diagnostic switch
+    logical, intent(in out) :: new_switch
+    !> New name of the switch
+    character(len=*), intent(in) :: new_name
+
+    if (old_switch .and. proc0) then
+      write(*, '(8(a), l)') "WARNING: diagnostic '", old_name, &
+           "' is deprecated. Please use '", new_name, "' instead.",  &
+           " Using ", new_name, " = ", new_switch
+    end if
+  end subroutine warn_about_deprecated_option
+
   !> Reads in the gs2_diagnostics_knobs namelist and populates the member variables
   subroutine read_diagnostics_base_config(self)
     use file_utils, only: input_unit_exist, get_indexed_namelist_unit
@@ -759,6 +767,15 @@ contains
       in_file = input_unit_exist(self%get_name(), exist)
       if (exist) read(in_file, nml = gs2_diagnostics_knobs)
     endif
+
+    !!!!!!!!!!!!!!!!!!!!
+    ! Non-generated code
+    ! write_heating is now correct synonym for write_hrate
+    write_heating = write_heating .or. write_hrate
+
+    call warn_about_deprecated_option(write_hrate, "write_hrate", &
+                                      write_heating, "write_heating")
+    !!!!!!!!!!!!!!!!!!!!
 
     ! Now copy from local variables into type members
     self%append_old = append_old
