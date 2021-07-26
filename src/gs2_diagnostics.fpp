@@ -56,7 +56,7 @@ module gs2_diagnostics
   logical, public :: write_moments, ob_midplane, write_final_db
   logical, public :: write_full_moments_notgc, write_cross_phase = .false.
   logical, public :: write_final_epar, write_kpar
-  logical, public :: write_hrate, write_lorentzian
+  logical, public :: write_heating, write_lorentzian
   logical, public :: write_nl_flux
   logical, public :: write_verr, write_cerr, write_max_verr
   logical, public :: exit_when_converged
@@ -178,7 +178,7 @@ contains
        write (unit, fmt="(' write_omega = ',L1)") write_omega
        write (unit, fmt="(' write_omavg = ',L1)") write_omavg
     end if
-    write (unit, fmt="(' write_hrate = ',L1)") write_hrate
+    write (unit, fmt="(' write_heating = ',L1)") write_heating
     write (unit, fmt="(' write_lorentzian = ',L1)") write_lorentzian
     write (unit, fmt="(' write_eigenfunc = ',L1)") write_eigenfunc
     write (unit, fmt="(' write_final_fields = ',L1)") write_final_fields
@@ -456,7 +456,7 @@ contains
     if (write_verr .and. proc0) call init_weights
 
     ! allocate heating diagnostic data structures
-    if (write_hrate) then
+    if (write_heating) then
        allocate (h_hist(0:navg-1))
        call init_htype (h_hist,  nspec)
 
@@ -480,7 +480,7 @@ contains
     end if
 
     call init_gs2_io (append_old, write_nl_flux, write_omega, &
-         write_hrate, write_final_antot, &
+         write_heating, write_final_antot, &
          write_eigenfunc, make_movie, nmovie_tot, write_verr, &
          write_moments, write_full_moments_notgc, &
          write_symmetry, write_pflux_sym, write_nl_flux_dist, write_pflux_tormom, &
@@ -587,7 +587,7 @@ contains
           call open_output_file (phase_unit, ".phase")
        end if
 
-       if (write_hrate .and. write_ascii) then
+       if (write_heating .and. write_ascii) then
           call open_output_file (heat_unit, ".heat")
           call open_output_file (heat_unit2, ".heat2")
        end if
@@ -726,7 +726,6 @@ contains
     call warn_about_nonfunctional_selection(gs2_diagnostics_config%write_collisional, "write_collisional")
     call warn_about_nonfunctional_selection(gs2_diagnostics_config%write_density_over_time, "write_density_over_time")
     call warn_about_nonfunctional_selection(gs2_diagnostics_config%write_fluxes, "write_fluxes")
-    call warn_about_nonfunctional_selection(gs2_diagnostics_config%write_heating, "write_heating")
     call warn_about_nonfunctional_selection(gs2_diagnostics_config%write_ntot_over_time, "write_ntot_over_time")
     call warn_about_nonfunctional_selection(gs2_diagnostics_config%write_tperp_over_time, "write_tperp_over_time")
     call warn_about_nonfunctional_selection(gs2_diagnostics_config%write_upar_over_time, "write_upar_over_time")
@@ -784,7 +783,7 @@ contains
     write_gg = gs2_diagnostics_config%write_gg
     write_gs = gs2_diagnostics_config%write_gs
     write_gyx = gs2_diagnostics_config%write_gyx
-    write_hrate = gs2_diagnostics_config%write_hrate
+    write_heating = gs2_diagnostics_config%write_heating
     write_kpar = gs2_diagnostics_config%write_kpar
     write_line = gs2_diagnostics_config%write_line
     write_lorentzian = gs2_diagnostics_config%write_lorentzian
@@ -832,7 +831,7 @@ contains
 
     write_any = write_line .or. write_omega     .or. write_omavg &
          .or. write_flux_line                   .or. write_nl_flux  &
-         .or. write_kpar   .or. write_hrate     .or. write_lorentzian  .or. write_gs
+         .or. write_kpar   .or. write_heating     .or. write_lorentzian  .or. write_gs
     write_any_fluxes =  write_flux_line .or. print_flux_line .or. write_nl_flux 
     dump_any = dump_check1  .or. dump_fields_periodically &
          .or.  dump_check2 .or. make_movie .or. print_summary &
@@ -967,7 +966,7 @@ contains
     use gs2_heating, only: del_htype
     implicit none
 
-    if (write_hrate) then
+    if (write_heating) then
        call del_htype (h)
        call del_htype (h_hist)
        call del_htype (hk_hist)
@@ -1004,8 +1003,8 @@ contains
     end if
     if (write_ascii) call close_output_file (out_unit)
     if (write_ascii .and. write_cross_phase) call close_output_file (phase_unit)
-    if (write_ascii .and. write_hrate) call close_output_file (heat_unit)
-    if (write_ascii .and. write_hrate) call close_output_file (heat_unit2)
+    if (write_ascii .and. write_heating) call close_output_file (heat_unit)
+    if (write_ascii .and. write_heating) call close_output_file (heat_unit2)
     if (write_ascii .and. write_jext) call close_output_file (jext_unit)
     if (dump_check1) call close_output_file (dump_check1_unit)
     if (dump_check2) call close_output_file (dump_check2_unit)
@@ -1075,7 +1074,7 @@ contains
 
     call do_get_omega(istep,debug,exit)
 
-    if (write_hrate) call heating (istep, h, hk)
+    if (write_heating) call heating (istep, h, hk)
 
     if (make_movie .and. mod(istep,nmovie) == 0) call do_write_movie(t)
 
@@ -1231,7 +1230,7 @@ contains
           pflux_avg = pflux_avg + (part_fluxes + mpart_fluxes + bpart_fluxes)*(t-t_old)
           qflux_avg = qflux_avg + (heat_fluxes + mheat_fluxes + bheat_fluxes)*(t-t_old)
           vflux_avg = vflux_avg + (mom_fluxes + mmom_fluxes + bmom_fluxes)*(t-t_old)
-          if (write_hrate) heat_avg = heat_avg + h%imp_colls*(t-t_old)
+          if (write_heating) heat_avg = heat_avg + h%imp_colls*(t-t_old)
           !          t_old = t
        end if
 
@@ -1241,7 +1240,7 @@ contains
        call broadcast (qflux_avg)
        call broadcast (vflux_avg)
 
-       if (write_hrate) call broadcast (heat_avg)
+       if (write_heating) call broadcast (heat_avg)
     end if
 
     if (proc0) then
@@ -1286,7 +1285,7 @@ contains
 
     if (proc0 .and. write_any) then
        if (write_ascii) write (unit=out_unit, fmt=*) 'time=', t
-       if (write_ascii .and. write_hrate) call do_write_hrate(t)
+       if (write_ascii .and. write_heating) call do_write_heating(t)
 
        if (write_ascii .and. write_jext) call do_write_jext(t,istep)
 
@@ -1516,7 +1515,7 @@ contains
          phinew(igomega,:,:), phi2, phi2_by_mode, &
          aparnew(igomega,:,:), apar2, apar2_by_mode, &
          bparnew(igomega,:,:), bpar2, bpar2_by_mode, &
-         h, hk, omega, omegaavg, woutunits, phitot, write_omega, write_hrate)
+         h, hk, omega, omegaavg, woutunits, phitot, write_omega, write_heating)
 
   end subroutine do_write_ncloop
 
@@ -2521,14 +2520,14 @@ contains
   end subroutine do_write_verr
 
   !> Write the (total) heating diagnostics to [[heat_unit]] and [[heat_unit2]] (per-species)
-  subroutine do_write_hrate(t)
+  subroutine do_write_heating(t)
     use species, only: nspec
     use file_utils, only: flush_output_file
     implicit none
     real, intent(in) :: t
     integer :: is
 
-    if (write_ascii .and. write_hrate) then
+    if (write_ascii .and. write_heating) then
        !
        ! For case with two species:
        !
@@ -2628,7 +2627,7 @@ contains
        !GGH               sum(h%heating)+h%antenna+sum(h%gradients)+h%energy_dot*sqrt(2.)
        !GGH          write (unit=heat_unit, fmt='(a)') ''
     end if
-  end subroutine do_write_hrate
+  end subroutine do_write_heating
 
   !> Calculate the momentum flux as a function of \((v_\parallel, \theta, t)\)
   !> and write to netCDF
@@ -3826,7 +3825,7 @@ contains
        qflux_avg = sum(qflx_global(:,is))
        vflux_avg = sum(vflx_global(:,is))
     end do
-    if (write_hrate) then
+    if (write_heating) then
        call group_to_all (heat_avg, heat_global, nensembles)
        call broadcast (heat_global)
        do is = 1, nspec
