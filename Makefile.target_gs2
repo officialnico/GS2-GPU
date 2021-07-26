@@ -1,5 +1,6 @@
 ############################################################################# PROGRAMS
-gs2_all: diagnostics modules gs2 ingen rungridgen generate_fftw_wisdom
+gs2_all: diagnostics modules gs2 ingen rungridgen generate_fftw_wisdom dump_response
+gs2_all: dump_grids ideal_ball write_default_input_file
 
 #Main code
 $(BINDIR)/gs2: $(gs2_mod) $(SIMPLEDATAIO_LIB) | $(BINDIR)

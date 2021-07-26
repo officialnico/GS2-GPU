@@ -8,6 +8,8 @@ SHELL := bash
 GK_THIS_MAKEFILE := $(abspath $(lastword $(MAKEFILE_LIST)))
 GK_HEAD_DIR ?= $(realpath $(abspath $(GK_THIS_MAKEFILE)/../..))
 
+QUIET ?= yes
+
 # The following tells make not to try rebuilding Makefile.utils
 $(GK_HEAD_DIR)/Makefile.utils: ;
 include $(GK_HEAD_DIR)/Makefile.utils
@@ -20,7 +22,7 @@ MY_TEST_LEVEL ?= 1
 TEST_LEVEL ?= MY_TEST_LEVEL
 
 .SUFFIXES: .fpp .f90 .c .o
-.PHONY: all clean
+.PHONY: all clean_individual_test
 
 .f90.o:
 	$(call messageOp,"Compiling","\\t:",$<)
@@ -37,15 +39,27 @@ ifdef ONE_STEP_PP
 else
 .fpp.f90:
 	$(call messageOp,"Preprocessing","\\t:",$<)
-	$(QUIETSYM)$(CPP) $(FPPFLAGS) -I$(GK_HEAD_DIR) $< $@ 
+	$(QUIETSYM)$(CPP) $(FPPFLAGS) $(INCLUDES) -I$(GK_HEAD_DIR) $< $@ 
 endif
 
 # This prevents error messages like m2c: Command not found
 %.o : %.mod
 
-clean:
+CLEAN_TEST_FILES=*.o *.error *.out *.out.nc *.gridgen.200 *.lpc *.vres *.fields *.g *.fort.?? *.mod .*.scratch *.moments *.cdf *.jext *.parity *.heat *.heat2 *.vres2 *.amoments *.eigenfunc *.nc* *.mom2 *.epar .*.in results_of_test.txt *.stop *.fftw_wisdom *.phase *.kpar *.interp *.dist *.exit_reason OUTPUT
+
+ifdef CLEAN_TEXTFILES
+	CLEAN_TEST_FILES+= *~ *.orig
+endif
+
+clean: clean_individual_test
+#Define an empty clean_local_test recipe for now. Individual tests can add their own
+#actions in their makefile by expanding this recipe.
+clean_local_test:
+clean_individual_test: clean_local_test
+clean_individual_test: TEST_NAME ?= $(notdir $(PWD))
+clean_individual_test:
 	$(call messageRm,"\\t$(TEST_NAME)")
-	$(QUIETSYM)$(CLEANCOMMAND)
+	-$(QUIETSYM)rm -f ${CLEAN_TEST_FILES} ${LOCAL_TEST_FILES}
 
 upload:
 	$(UPLOADCOMMAND)
@@ -58,7 +72,7 @@ upload:
 # Then $(notdir $(abspath $(PWD)/..)) gives us <test_type>
 # and $(notdir $(PWD)) gives us <test_directory>.
 local_test:
-	@make -C $(GK_HEAD_DIR) $(notdir $(abspath $(PWD)/..)) TESTS=$(notdir $(PWD))  --no-print-directory
+	$(QUIETSYM)make -C $(GK_HEAD_DIR) $(notdir $(abspath $(PWD)/..)) TESTS=$(notdir $(PWD))  --no-print-directory
 
 # This allows us to just run `make` in an individual test directory to get
 # it to build and run just that test.

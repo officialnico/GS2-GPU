@@ -120,9 +120,7 @@ module gs2_main
     real :: finish(2) = 0.
     real :: total(2) = 0. 
     real :: diagnostics(2)=0.
-#ifdef WITH_EIG
     real :: eigval(2)=0.
-#endif
     !real :: interval
     real :: main_loop(2)
   end type gs2_timers_type
@@ -364,7 +362,7 @@ contains
     end if
 
     oldrank = iproc
-    if (state%init%opt_ov%init .and. state%init%opt_ov%override_nproc) then
+    if (state%init%opt_ov%is_initialised() .and. state%init%opt_ov%override_nproc) then
       state%init%opt_ov%old_comm = mp_comm
       call use_nproc(state%init%opt_ov%nproc)
     end if
@@ -930,7 +928,7 @@ contains
   !> FIXME : Add documentation
   subroutine run_eigensolver(state)
 #ifdef WITH_EIG
-    use eigval, only: init_eigval, finish_eigval, time_eigval
+    use eigval, only: init_eigval, finish_eigval
     use eigval, only: BasicSolve
 #endif 
     use job_manage, only: time_message
@@ -941,7 +939,7 @@ contains
    if (proc0) call time_message(.false.,state%timers%total,' Total')
 
    !Start timer
-   call time_message(.false.,time_eigval,' Eigensolver')
+   call time_message(.false.,state%timers%eigval,' Eigensolver')
 
    !Initialise slepc and the default/input eigensolver parameters
    call init_eigval
@@ -954,7 +952,7 @@ contains
    call finish_eigval
 
    !Stop timer
-   call time_message(.false.,time_eigval,' Eigensolver')
+   call time_message(.false.,state%timers%eigval,' Eigensolver')
 #else
    call mp_abort("Require slepc/petsc")
 #endif
@@ -1140,7 +1138,7 @@ contains
 
     end if
 
-    if (state%init%opt_ov%init .and. state%init%opt_ov%override_nproc) &
+    if (state%init%opt_ov%is_initialised() .and. state%init%opt_ov%override_nproc) &
       call unsplit_all(state%init%opt_ov%old_comm)
     call barrier
     state%included = included
@@ -1240,7 +1238,7 @@ contains
     integer :: istatus
     !if (.not. state%included) return
 
-    if (.not.initval_ov%init) &
+    if (.not.initval_ov%is_initialised()) &
       call mp_abort("Trying to set initial value overrides &
       & before they are initialized... have you called &
       & prepare_initial_values_overrides ? ", .true.)
@@ -1286,12 +1284,9 @@ contains
     use overrides, only: finish_initial_values_overrides
     type(gs2_program_state_type), intent(inout) :: state
 
-    if (state%init%mgeo_ov%init) call &
-      finish_miller_geometry_overrides(state%init%mgeo_ov)
-    if (state%init%prof_ov%init) call &
-      finish_profiles_overrides(state%init%prof_ov)
-    if (state%init%initval_ov%init) call &
-      finish_initial_values_overrides(state%init%initval_ov)
+    if (state%init%mgeo_ov%is_initialised()) call state%init%mgeo_ov%finish()
+    if (state%init%prof_ov%is_initialised()) call state%init%prof_ov%finish()
+    if (state%init%initval_ov%is_initialised()) call state%init%initval_ov%finish()
   end subroutine finalize_overrides
 
   !> FIXME : Add documentation
