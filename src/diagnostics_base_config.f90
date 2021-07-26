@@ -61,10 +61,7 @@ module diagnostics_base_config
 
     !> Exit when the run has reached convergence
     logical :: exit_when_converged = .true.
-    !> Verify that the restart file(s) can be written before starting the
-    !> run.
-    !>
-    !> @warning Currently non-functional in new diagnostics
+    !> Verify that the restart file(s) can be written before starting the run
     logical :: file_safety_check = .true.
     !> Index in \(\theta\) to measure various diagnostics at. By default, this
     !> is the outboard midplane \(\theta = 0\), but it may be useful to set

@@ -2071,64 +2071,74 @@ contains
   !! <restart_file>//<SomeSuffix> if not then our restarts are not
   !! going to be possible and we return false. Can also be used to check
   !! that we can read from the restart file (which assumes it exists).
-  function restart_writable(read_only,my_file)
+  function restart_writable(read_only, my_file, error_message)
     use mp, only: proc0, broadcast
     use file_utils, only: get_unused_unit
     use constants, only: run_name_size
     implicit none
-    character(16) :: SuffixTmp='.ThisIsATestFile'
-    character(9) :: FileMode
-    character(len=*),intent(in),optional::my_file
-    character(run_name_size) :: local_file
+    !> If present and true, only check that files can be read
     logical, intent(in), optional :: read_only
-    logical :: restart_writable, writable
-    integer :: unit,ierr
+    !> An optional specific filename to check
+    character(len=*),intent(in),optional::my_file
+    !> Error message returned from `open` if there was a problem
+    character(len=:), allocatable, optional :: error_message
 
-    !Check that restart_file will be writable now
-    writable=.false.
+    character(len=*), parameter :: SuffixTmp = '.ThisIsATestFile'
+    character(9) :: open_mode
+    character(6) :: close_mode
+    character(run_name_size) :: local_file, filename
+    logical :: restart_writable
+    integer :: unit, ierr
+    character(len=200) :: io_err_msg
+
     ierr=-200
-    local_file=trim(restart_file)
-    if(present(my_file)) local_file=trim(my_file)
+    local_file = trim(restart_file)
+    if (present(my_file)) local_file = trim(my_file)
 
-    !On proc0 try to open tmp file for writing
-    if(proc0)then
-       !Get a unit
+    ! On proc0 try to open tmp file for writing
+    if (proc0)then
        call get_unused_unit(unit)
 
-       !Set the default file mode to readwrite
-       FileMode='readwrite'
+       ! Default open and close modes
+       open_mode = 'readwrite'
+       close_mode = 'delete'
 
-       !Set filemode to READ if read_only=T
-       if(present(read_only))then
-          if(read_only) FileMode='read'
+       ! If we want to test write capability then do it with an unusual
+       ! file name to prevent clobber
+       filename = trim(local_file) // SuffixTmp
+
+       ! Set filemode to READ if read_only=T
+       if (present(read_only)) then
+         if (read_only) then
+           ! If we're only checking a file can be read, then don't
+           ! delete the file after we're done
+           open_mode = 'read'
+           close_mode = 'keep'
+           ! If checking readonly then we need to make sure we try to
+           ! read from an existing file
+           filename = local_file
+         end if
        endif
 
-       !If checking readonly then we need to make sure we try to read from
-       !an existing file
-       if(trim(FileMode).eq.'read')then
-          open(unit=unit,File=trim(local_file),&
-               iostat=ierr,Action=FileMode)
-       !If we want to test write capability then do it with an unusual
-       !file name to prevent clobber
-       else
-          open(unit=unit,File=trim(local_file)//trim(SuffixTmp),&
-               iostat=ierr,Action=FileMode)
-       endif
+       open(unit=unit, file=trim(filename), &
+            iostat=ierr, action=open_mode, &
+            iomsg=io_err_msg)
 
-       !If open was successful then we can close the file and delete it
-       if(ierr.eq.0)then
-          if(trim(FileMode).eq.'read')then
-             close(unit=unit)
-          else
-             close(unit=unit,status='delete')
-          endif
-       endif
+       ! If open was successful then we can close the file and delete it
+       if (ierr == 0) close(unit=unit, status=close_mode)
     endif
 
-    !Now make sure everyone knows the answer
+    ! Now make sure everyone knows the answer
     call broadcast(ierr)
-    if(ierr.eq.0)writable=.true.
-    restart_writable=writable
+    restart_writable = (ierr == 0)
+
+    if (.not. present(error_message)) return
+
+    if (restart_writable) then
+      error_message = ""
+    else
+      error_message = trim(io_err_msg)
+    end if
   end function restart_writable
 
   !> FIXME : Add documentation
