@@ -567,7 +567,11 @@ contains
           end if
 
           if(include_explicit_source_in_restart) then
+#ifndef SHMEM
              if(allocated(gexp_1)) then
+#else
+             if(associated(gexp_1)) then
+#endif
                 istatus = nf90_def_var (ncid, "gexp_1_r", netcdf_real, &
                      (/ thetaid, signid, gloid /), gexp_1_r_id)
                 if (istatus /= NF90_NOERR) then
@@ -1061,7 +1065,11 @@ contains
        
        if (include_explicit_source_in_restart) then
           !Explicit source term gexp_1
+#ifndef SHMEM
           if(allocated(gexp_1)) then
+#else
+          if(associated(gexp_1)) then
+#endif
              tmpr = real(gexp_1)
 # ifdef NETCDF_PARALLEL
              if(save_many) then
@@ -1482,7 +1490,11 @@ contains
 
        if (include_explicit_source_in_restart) then
           has_explicit_source_terms = .true.
-          if (allocated(gexp_1)) then
+#ifndef SHMEM
+          if(allocated(gexp_1)) then
+#else
+          if(associated(gexp_1)) then
+#endif
              istatus = nf90_inq_varid (ncid, "gexp_1_r", gexp_1_r_id)
              if (istatus /= NF90_NOERR) has_explicit_source_terms = .false.
 
@@ -1587,7 +1599,11 @@ contains
 
     if (include_explicit_source_in_restart .and. has_explicit_source_terms) then
        ! Explicit source term
+#ifndef SHMEM
        if(allocated(gexp_1)) then
+#else
+       if(associated(gexp_1)) then
+#endif
 # ifdef NETCDF_PARALLEL
           if(read_many) then
 # endif
