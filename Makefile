@@ -738,7 +738,7 @@ depend: $(F90FROMFPP) $(UTILS_SENTINEL) Makefile.$(GK_SYSTEM) |$(GENERATED_SRC_D
 # change. Adding a dependency of a file on `compiler_flags` causes it to be
 # rebuilt when the flags change. Taken from
 # https://stackoverflow.com/a/3237349/2043465
-COMPILER_FLAGS_CONTENTS = "FC = $(FC)\nFPPFLAGS = $(FPPFLAGS)\nF90FLAGS = $(F90FLAGS)"
+COMPILER_FLAGS_CONTENTS = "$(GIT_VERSION)"
 .PHONY: force
 compiler_flags: force
 	$(QUIETSYM)echo -e $(COMPILER_FLAGS_CONTENTS) | cmp -s - $@ || echo -e $(COMPILER_FLAGS_CONTENTS) > $@
