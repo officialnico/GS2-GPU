@@ -181,9 +181,8 @@ module dist_fn
   ! (-ntgrid:ntgrid, 2, -g-layout-)
 #endif
 
-!  real, dimension (:,:,:,:,:), allocatable :: wdriftttp
-  real, dimension (:,:,:,:,:,:), allocatable :: wdriftttp
-  ! (-ntgrid:ntgrid,ntheta0,naky,negrid,nspec) replicated
+  real, dimension (:,:,:), allocatable :: wdriftttp
+  ! (-ntgrid:ntgrid, 2, -g-layout-)
 
   real, dimension (:,:,:), allocatable :: wstar
   ! (naky,negrid,nspec) replicated
@@ -1554,7 +1553,7 @@ contains
        ! allocate wdrift with sign(vpa) dependence because will contain 
        ! Coriolis as well as magnetic drifts
        allocate (wdrift(-ntgrid:ntgrid,2,g_lo%llim_proc:g_lo%ulim_alloc))
-       allocate (wdriftttp(-ntgrid:ntgrid,ntheta0,naky,negrid,nspec,2))
+       allocate (wdriftttp(-ntgrid:ntgrid,2,g_lo%llim_proc:g_lo%ulim_alloc))
     end if
     wdrift = 0.  ; wdriftttp = 0.
 #ifdef LOWFLOW
@@ -1590,29 +1589,36 @@ contains
           wdrift(ig,1,iglo) = wdrift(ig,1,iglo) + wcoriolis_func(ig,il,ie,it,ik,is)
        end do
     end do
+
     wdriftttp = 0.0
-    do is = 1, nspec
-       do ie = 1, negrid
-          do ik = 1, naky
-             do it = 1, ntheta0
-! moved this loop inside. 4.10.99
-                do ig = -ntgrid, ntgrid
-                   if (ittp(ig) == nlambda+1) cycle
-                   do il = ittp(ig), nlambda
-                      if (forbid(ig, il)) exit
-!GWH+JAB: should this be calculated only at ittp? or for each totally trapped pitch angle? (Orig logic: there was only one totally trapped pitch angle; now multiple ttp are allowed.
-                      wdriftttp(ig,it,ik,ie,is,1) &
-                           = wdrift_func(ig,ittp(ig),ie,it,ik,is)*tpdriftknob
-!CMR:  totally trapped particle drifts also scaled by tpdriftknob 
-                      ! add Coriolis drift to magnetic drifts
-                      wdriftttp(ig,it,ik,ie,is,2) = wdriftttp(ig,it,ik,ie,is,1) &
-                           - wcoriolis_func(ig,il,ie,it,ik,is)
-                      wdriftttp(ig,it,ik,ie,is,1) = wdriftttp(ig,it,ik,ie,is,1) &
-                           + wcoriolis_func(ig,il,ie,it,ik,is)
-                   end do
-                end do
-             end do
-          end do
+    do iglo = g_lo%llim_proc, g_lo%ulim_proc
+       il=il_idx(g_lo,iglo)
+       ie=ie_idx(g_lo,iglo)
+       it=it_idx(g_lo,iglo)
+       ik=ik_idx(g_lo,iglo)
+       is=is_idx(g_lo,iglo)
+       do ig = -ntgrid, ntgrid
+          ! These cycles will activate regularly, indicating wdriftttp
+          ! may be a relatively inefficent way of storing this
+          ! information, requiring a lot of memory to hold mostly 0.
+          if (ittp(ig) == nlambda+1) cycle
+          if (forbid(ig, il)) cycle
+
+          !GWH+JAB: should this be calculated only at ittp? or for
+          !each totally trapped pitch angle? (Orig logic: there was
+          !only one totally trapped pitch angle; now multiple ttp are
+          !allowed.
+          ! Is there a reason we pass ittp(ig) as the lambda index here, rather than
+          ! the actual lambda value? Surely if we're at this point we know that il
+          ! corresponds to a totally trapped particle that we're considering and it cannot
+          ! be forbidden. It seems like either ittp(ig) == il at this point _or_ what we're
+          ! doing here is not quite right?
+          wdriftttp(ig, :, iglo) = wdrift_func(ig,ittp(ig),ie,it,ik,is)*tpdriftknob
+
+          !CMR:  totally trapped particle drifts also scaled by tpdriftknob
+          ! add Coriolis drift to magnetic drifts
+          wdriftttp(ig, 1, iglo) = wdriftttp(ig, 1, iglo) + wcoriolis_func(ig,il,ie,it,ik,is)
+          wdriftttp(ig, 2, iglo) = wdriftttp(ig, 2, iglo) - wcoriolis_func(ig,il,ie,it,ik,is)
        end do
     end do
 
@@ -1960,10 +1966,10 @@ contains
           do ig = -ntgrid, ntgrid-1
 # ifdef LOWFLOW
              wd = wdrift(ig,isgn,iglo) + wstar_neo(ig,it,ik)*spec(is)%zt
-             wdttp = wdriftttp(ig,it,ik,ie,is,isgn) + wstar_neo(ig,it,ik)*spec(is)%zt
+             wdttp = wdriftttp(ig, isgn, iglo) + wstar_neo(ig,it,ik)*spec(is)%zt
 # else
              wd = wdrift(ig,isgn,iglo)
-             wdttp = wdriftttp(ig,it,ik,ie,is,isgn)
+             wdttp = wdriftttp(ig, isgn, iglo)
 # endif
 
              ! use positive vpar because we will be flipping sign of d/dz
@@ -4141,12 +4147,13 @@ contains
           do ig = -ntgrid, ntgrid-1
              if (il < ittp(ig)) cycle
              source(ig) &
+                  ! Note we could replace the explicit "2" appearing below with isgn for consistency.
                   = g(ig,2,iglo)*a(ig,2,iglo) &
 #ifdef LOWFLOW
                   - zi*(wdttpfac(ig,it,ik,ie,is,2)*hneoc(ig,2,iglo))*phigavg(ig) &
                   + zi*wstar(ik,ie,is)*hneoc(ig,2,iglo)*phigavg(ig)
 #else
-                  - zi*(wdriftttp(ig,it,ik,ie,is,2))*nonmaxw_corr(ie,is)*phigavg(ig) &
+                  - zi*(wdriftttp(ig, 2, iglo))*nonmaxw_corr(ie,is)*phigavg(ig) &
                   + zi*wstar(ik,ie,is)*phigavg(ig)
 #endif             
           end do
@@ -4159,7 +4166,7 @@ contains
 #ifdef LOWFLOW
                      wdttpfac(ig,it,ik,ie,is,isgn)*2.0*phi_ext*sourcefac*aj0(ig,iglo)
 #else
-                     wdriftttp(ig,it,ik,ie,is,isgn)*nonmaxw_corr(ie,is)*2.0*phi_ext*sourcefac*aj0(ig,iglo)
+                     wdriftttp(ig, isgn, iglo)*nonmaxw_corr(ie,is)*2.0*phi_ext*sourcefac*aj0(ig,iglo)
 #endif
              end do
           endif
@@ -4423,7 +4430,7 @@ contains
                   - zi*(wdttpfac(ig,it,ik,ie,is,2)*hneoc(ig,2,iglo))*phigavg(ig) &
                   + zi*wstar(ik,ie,is)*hneoc(ig,2,iglo)*phigavg(ig)
 #else
-                  - zi*(wdriftttp(ig,it,ik,ie,is,2))*nonmaxw_corr(ie,is)*phigavg(ig) &
+                  - zi*(wdriftttp(ig, 2, iglo))*nonmaxw_corr(ie,is)*phigavg(ig) &
                   + zi*wstar(ik,ie,is)*phigavg(ig)
 #endif             
           end do
@@ -4436,7 +4443,7 @@ contains
 #ifdef LOWFLOW
                      wdttpfac(ig,it,ik,ie,is,isgn)*2.0*phi_ext*sourcefac*aj0(ig,iglo)
 #else
-                     wdriftttp(ig,it,ik,ie,is,isgn)*2.0*phi_ext*sourcefac*aj0(ig,iglo)
+                     wdriftttp(ig, isgn, iglo)*2.0*phi_ext*sourcefac*aj0(ig,iglo)
 #endif
              end do
           endif
@@ -10069,9 +10076,9 @@ contains
             + cdfac(:,1,iglo)*wcurv(:,iglo)
        wdfac(:,2,iglo) = wdfac(:,2,iglo)*wdrift(:,2,iglo) &
             + cdfac(:,2,iglo)*wcurv(:,iglo)
-       wdttpfac(:,it,ik,ie,is,1) = wdfac(:,1,iglo)*wdriftttp(:,it,ik,ie,is,1) &
+       wdttpfac(:,it,ik,ie,is,1) = wdfac(:,1,iglo)*wdriftttp(:, 1, iglo) &
             + cdfac(:,1,iglo)*wcurv(:,iglo)
-       wdttpfac(:,it,ik,ie,is,2) = wdfac(:,2,iglo)*wdriftttp(:,it,ik,ie,is,2) &
+       wdttpfac(:,it,ik,ie,is,2) = wdfac(:,2,iglo)*wdriftttp(:, 2, iglo) &
             + cdfac(:,2,iglo)*wcurv(:,iglo)
 
        ! add Z^2 * sqrt(m*T^3) * vpa * (bhat . grad(theta)) * d(phineo)/dth term to wdrift
