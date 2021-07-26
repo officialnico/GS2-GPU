@@ -299,7 +299,6 @@ contains
     ! values and are not available in this diagnostics module
     call warn_about_nonfunctional_selection(new_gs2_diagnostics_config%dump_check1, "dump_check1")
     call warn_about_nonfunctional_selection(new_gs2_diagnostics_config%dump_check2, "dump_check2")
-    call warn_about_nonfunctional_selection(.not. new_gs2_diagnostics_config%file_safety_check, "file_safety_check")
     call warn_about_nonfunctional_selection(new_gs2_diagnostics_config%nc_sync_freq /= 10, "nc_sync_freq")
     call warn_about_nonfunctional_selection(new_gs2_diagnostics_config%ob_midplane, "ob_midplane")
     call warn_about_nonfunctional_selection(new_gs2_diagnostics_config%write_hrate, "write_hrate")
