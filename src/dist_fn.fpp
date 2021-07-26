@@ -5051,7 +5051,7 @@ contains
   !> FIXME : Add documentation  
   subroutine invert_rhs_linked &
        (phi, apar, bpar, phinew, aparnew, bparnew, istep, sourcefac)
-    use dist_fn_arrays, only: gnew
+    use dist_fn_arrays, only: gnew, g_work
     use theta_grid, only: bmag, ntgrid
     use le_grids, only: energy, al, nlambda, ng2
     use gs2_layouts, only: g_lo, ik_idx, it_idx, il_idx, ie_idx, is_idx, idx
@@ -5080,11 +5080,11 @@ contains
     complex :: adjl, adjr, dadj
     real :: vperp2left, vperp2right, argl, argr, aj0l, aj0r, aj1l, aj1r
 
-    g0 = 0.
-    call get_source_term_on_local_domain(g0, phi, apar, bpar, phinew, &
+    g_work = 0.
+    call get_source_term_on_local_domain(g_work, phi, apar, bpar, phinew, &
          aparnew, bparnew, istep, sourcefac)
     call invert_rhs_1 (phi, apar, bpar, phinew, aparnew, bparnew, &
-         source = g0)
+         source = g_work)
 
     if (no_comm) then
        ! nothing
@@ -5270,6 +5270,7 @@ contains
     use gs2_time, only: code_time
     use constants, only: zi, pi
     use prof, only: prof_entering, prof_leaving
+    use dist_fn_arrays, only: g_work
     implicit none
     complex, dimension (-ntgrid:,:,:), intent (in) :: phi,    apar,    bpar
     complex, dimension (-ntgrid:,:,:), intent (in) :: phinew, aparnew, bparnew
@@ -5299,11 +5300,11 @@ contains
        call invert_rhs_linked &
             (phi, apar, bpar, phinew, aparnew, bparnew, istep, sourcefac) 
     case default
-       g0 = 0.
-       call get_source_term_on_local_domain(g0, phi, apar, bpar, phinew, &
+       g_work = 0.
+       call get_source_term_on_local_domain(g_work, phi, apar, bpar, phinew, &
             aparnew, bparnew, istep, sourcefac)
        call invert_rhs_1 (phi, apar, bpar, phinew, aparnew, bparnew, &
-         source = g0)
+         source = g_work)
     end select
 
     call prof_leaving ("invert_rhs", "dist_fn")
@@ -5517,7 +5518,7 @@ contains
 ! integrate moments over the nonadiabatic part of <delta_f>
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
-! set g0= J0 g_wesson = nonadiabatic piece of <delta_f>/F_m 
+! set g_work= J0 g_wesson = nonadiabatic piece of <delta_f>/F_m 
     do iglo = g_lo%llim_proc, g_lo%ulim_proc
        ie = ie_idx(g_lo,iglo) ; is = is_idx(g_lo,iglo)
        ik = ik_idx(g_lo,iglo) ; it = it_idx(g_lo,iglo)
