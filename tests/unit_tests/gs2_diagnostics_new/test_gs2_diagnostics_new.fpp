@@ -298,7 +298,7 @@ contains
     call execute_command_line(command)
     test_variable = .true.
     open(120349, file='tmpdata.dat')
-    read(120349, '(L)') test_variable
+    read(120349, '(L1)') test_variable
     close(120349)
 #endif
   end function test_variable
@@ -321,7 +321,7 @@ contains
     if (should_print(3)) write(*,*) trim(command)
     call execute_command_line(command)
     open(120349, file='tmpdata.dat')
-    read(120349, '(L)') test_file
+    read(120349, '(L1)') test_file
     close(120349)
 #endif
   end function test_file

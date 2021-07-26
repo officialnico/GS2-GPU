@@ -30,6 +30,7 @@ module gs2_diagnostics
 
   ! Export some functions to be used in the new diagnostics
   public :: save_restart_dist_fn
+  public :: check_restart_file_writeable
 
   interface get_vol_average
      module procedure get_vol_average_one, get_vol_average_all
@@ -74,6 +75,7 @@ module gs2_diagnostics
 
   logical, public :: write_phi_over_time, write_apar_over_time, write_bpar_over_time !EGH
 
+  logical :: append_old
   logical :: write_jext=.true.
 
   !> Variables for convergence condition testing
@@ -431,7 +433,6 @@ contains
     !> Input parameters for this module
     type(gs2_diagnostics_config_type), intent(in), optional :: gs2_diagnostics_config_in    
     integer :: nmovie_tot, nwrite_big_tot
-    logical :: writable
 
     if (initialized) return
     initialized = .true.
@@ -478,7 +479,7 @@ contains
        j_ext_hist = 0
     end if
 
-    call init_gs2_io (write_nl_flux, write_omega, &
+    call init_gs2_io (append_old, write_nl_flux, write_omega, &
          write_hrate, write_final_antot, &
          write_eigenfunc, make_movie, nmovie_tot, write_verr, &
          write_moments, write_full_moments_notgc, &
@@ -486,7 +487,9 @@ contains
          write_correlation, nwrite_big_tot, write_correlation_extend, &
          write_phi_over_time, write_apar_over_time, write_bpar_over_time, &
          write_avg_moments, write_final_moments, write_final_epar, &
-         ob_midplane=ob_midplane)
+         nout, ob_midplane=ob_midplane)
+
+    call broadcast (nout)
 
     if (write_cerr) then
        if (collision_model_switch == 1 .or. collision_model_switch == 5) then
@@ -501,24 +504,59 @@ contains
        pflux_avg = 0.0 ; qflux_avg = 0.0 ; heat_avg = 0.0 ; vflux_avg = 0.0
     endif
 
-    !Verify restart file can be written
-    if((save_for_restart.or.save_distfn).and.(file_safety_check))then
-       !Can we write file?
-       writable=restart_writable()
-
-       !If we can't write the restart file then we should probably quit
-       if((.not.writable).and.save_for_restart) call mp_abort("Cannot write to test file, maybe restart_dir doesn't exist --> Aborting.",to_screen=.true.)
-
-       !If it's just a case of save_distfn then we can carry on but print a useful mesasge
-       if((.not.writable).and.save_distfn)then
-          if(proc0)write(6,'("Warning: Cannot write to test restart_file --> Setting save_distfn=F.")')
-          save_distfn=.false.
-       endif
-    endif
+    call check_restart_file_writeable(file_safety_check, save_for_restart, save_distfn)
 
     !Setup the parallel fft if we're writing/using the parallel spectrum
     if(write_kpar.or.write_gs) call init_par_filter
   end subroutine init_gs2_diagnostics
+
+  !> Check if we can write the restart files
+  !>
+  !> If restart files aren't writable, aborts if `need_restart` is
+  !> true, or sets `extra_files` to false. Also prints a warning in
+  !> the second case.
+  subroutine check_restart_file_writeable(check_writable, need_restart, extra_files)
+    use init_g, only: get_restart_dir
+    use gs2_save, only: restart_writable
+    use mp, only: proc0, mp_abort, broadcast
+    implicit none
+    !> Has the user requested this check
+    logical, intent(in) :: check_writable
+    !> Has the user requested restart files
+    logical, intent(in) :: need_restart
+    !> Has the user requested distribution function to be written
+    logical, intent(inout) :: extra_files
+
+    ! Error message from trying to open restart file
+    character(len=:), allocatable :: error_message
+    ! GS2 error message to show user
+    character(len=:), allocatable :: abort_message
+
+    ! Assume everything's fine if we're not checking, or if it's not needed
+    if (.not. check_writable) return
+    if (.not. (need_restart .or. extra_files)) return
+
+    ! If we can write the restart files, we're done
+    if (restart_writable(error_message=error_message)) return
+
+    abort_message = " Cannot write restart files! Error message was:" // new_line('a') &
+         // "    " // error_message // new_line('a') &
+         // " Please check that `init_g_knobs::restart_dir = " // trim(get_restart_dir()) &
+         // "` exists and has the correct permissions."
+
+    ! User has requested restart files, but we can't write them => abort
+    if (need_restart) then
+      abort_message = abort_message // new_line('a') // "    --> Aborting"
+      call mp_abort(trim(abort_message), to_screen=.true.)
+    end if
+
+    ! If it's just a case of save_distfn, then we can carry on but
+    ! disable `save_distfn` and print a useful mesasge
+    if (extra_files) then
+      if(proc0) write(*, '(a, a, a)') abort_message, new_line('a'), "    --> Setting `save_distfn = F`"
+      extra_files = .false.
+    endif
+  end subroutine check_restart_file_writeable
 
   !> Read the input parameters; open the various text output files according to
   !> the relevant input flags; allocate and zero the module-level flux arrays,
@@ -681,7 +719,6 @@ contains
 
     ! Print some health warnings if switches are not their default
     ! values and are not available in this diagnostics module
-    call warn_about_nonfunctional_selection(gs2_diagnostics_config%append_old, "append_old")
     call warn_about_nonfunctional_selection(gs2_diagnostics_config%enable_parallel, "enable_parallel")
     call warn_about_nonfunctional_selection(gs2_diagnostics_config%ncheck /= 10, "ncheck")
     call warn_about_nonfunctional_selection(gs2_diagnostics_config%serial_netcdf4, "serial_netcdf4")
@@ -696,6 +733,7 @@ contains
     call warn_about_nonfunctional_selection(gs2_diagnostics_config%write_zonal_transfer, "write_zonal_transfer")
 
     ! Copy out internal values into module level parameters
+    append_old = gs2_diagnostics_config%append_old
     conv_max_step = gs2_diagnostics_config%conv_max_step
     conv_min_step = gs2_diagnostics_config%conv_min_step
     conv_nstep_av = gs2_diagnostics_config%conv_nstep_av
