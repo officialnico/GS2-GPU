@@ -86,4 +86,36 @@ module build_config
   logical, parameter :: gs2_has_quad = .false.
 #endif
 
+contains
+
+  function formatted_build_config() result(output)
+    use, intrinsic :: iso_fortran_env, only: compiler_version, compiler_options
+    character(len=:), allocatable :: output
+
+    character(len=*), parameter :: nl = new_line('a')
+    integer, parameter :: max_len = 2000
+
+    allocate(character(len=max_len)::output)
+
+    write(output, '(a, a)') "Built with ", compiler_version()
+    write(output, '(a, a)') trim(output) // nl // "Build flags: ", compiler_options()
+    write(output, '(a)') trim(output) // nl // nl // "Current build configuration: "
+    write(output, '(a, l)') trim(output) // nl // "MPI: ", gs2_has_mpi
+    write(output, '(a, l)') trim(output) // nl // "MPI3: ", gs2_has_mpi3
+    write(output, '(a, l)') trim(output) // nl // "FFTW: ", gs2_has_fft
+    write(output, '(a, l)') trim(output) // nl // "iso_c_binding: ", gs2_has_iso_c_binding
+    write(output, '(a, l)') trim(output) // nl // "New diagnostics: ", gs2_has_new_diag
+    write(output, '(a, l)') trim(output) // nl // "GENQUAD: ", gs2_has_genquad
+    write(output, '(a, l)') trim(output) // nl // "NetCDF: ", gs2_has_netcdf
+    write(output, '(a, l)') trim(output) // nl // "LAPACK: ", gs2_has_lapack
+    write(output, '(a, l)') trim(output) // nl // "Lowflow: ", gs2_has_lowflow
+    write(output, '(a, l)') trim(output) // nl // "Eigensolver: ", gs2_has_with_eig
+    write(output, '(a, l)') trim(output) // nl // "HDF5: ", gs2_has_hdf5
+    write(output, '(a, l)') trim(output) // nl // "F200X intrinsics: ", gs2_has_f200x_intrinsics
+    write(output, '(a, l)') trim(output) // nl // "Single precision: ", gs2_is_single_precision
+    write(output, '(a, l)') trim(output) // nl // "Quad precision: ", gs2_has_quad
+
+    output = trim(output)
+  end function formatted_build_config
+
 end module build_config
