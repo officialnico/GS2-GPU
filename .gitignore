@@ -83,6 +83,7 @@ coverage/
 *.lo
 *.o
 *.obj
+*.L
 
 # Precompiled Headers
 *.gch

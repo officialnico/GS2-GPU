@@ -4534,10 +4534,28 @@ contains
 
   end subroutine get_source_term_opt
 
-  !> FIXME : Add documentation  
+  !> Calculates the "new" distribution function for the current source
+  !> calculated using the passed fields and current distribution in g.
+  !>
+  !> Also calculates the homogeneous solution in some cases.
+  !>
+  !> Note that further work may be required to produce the final distribution function.
+  !> In particular with link boundary conditions we may need to add in the homogeneous
+  !> solution to ensure continuity across linked boundaries.
+  !>
+  !> The routine is roughly organised as:
+  !>  1. Calculate constants
+  !>  2. Loop over domain
+  !>     - Calculate source term
+  !>     - Calculate flags
+  !>     - Set initial conditions
+  !>     - Set parallel boundary conditions
+  !>     - Solve for homogeneous and inhomogeneous solution
+  !>     - Ensure continuity (e.g. periodicity in theta and in sigma at bounce points)
+  !>  3. Enforce parity if required.
   subroutine invert_rhs_1 &
        (phi, apar, bpar, phinew, aparnew, bparnew, istep, &
-        iglo, sourcefac)
+        sourcefac)
     use dist_fn_arrays, only: gnew, ittp, vperp2, aj1, aj0
     use run_parameters, only: eqzip, secondary, tertiary, harris
     use theta_grid, only: ntgrid
@@ -4555,9 +4573,9 @@ contains
     complex, dimension (-ntgrid:,:,:), intent (in) :: phi,    apar,    bpar
     complex, dimension (-ntgrid:,:,:), intent (in) :: phinew, aparnew, bparnew
     integer, intent (in) :: istep
-    integer, intent (in) :: iglo
     complex, intent (in) :: sourcefac
     real, dimension(:), allocatable :: ab_coefficients
+    integer :: iglo
     integer :: ig, ik, it, il, ie, isgn, is
     integer :: ilmin
     complex :: beta1
@@ -4565,35 +4583,12 @@ contains
     complex, dimension (-ntgrid:ntgrid-1,2) :: source
     complex :: adjleft, adjright
     logical :: use_pass_homog, speriod_flag
-    integer :: ntgl, ntgr
-    logical :: include_explicit
+    logical :: include_explicit, have_trapped_particles
+    logical :: is_wfb, is_not_ttp, is_passing, is_trapped
+    logical :: is_self_periodic
 
-!    call prof_entering ("invert_rhs_1", "dist_fn")
-
-    ik = ik_idx(g_lo,iglo)
-    it = it_idx(g_lo,iglo)
-
-    !Skip work if we're not interested in this ik and it
-    if(kwork_filter(it,ik)) return
-
-    if(ieqzip(it,ik)==0) return
-    if (eqzip) then
-       if (secondary .and. ik == 2 .and. it == 1) return ! do not evolve primary mode
-       if (tertiary .and. ik == 1) then
-          if (it == 2 .or. it == ntheta0) return ! do not evolve periodic equilibrium
-       end if
-       if (harris .and. ik == 1) return ! do not evolve primary mode       
-    end if
-
-    il = il_idx(g_lo,iglo)
-    ie = ie_idx(g_lo,iglo)
-    is = is_idx(g_lo,iglo)
-
-    if (istep .eq. 0) then
-       include_explicit = .false.
-    else
-       include_explicit = .true.
-    endif
+    ! Decide if we want to include the explicit terms or not
+    include_explicit = istep > 0
 
 #ifndef LOWFLOW
     include_explicit = include_explicit .and. nonlin
@@ -4601,338 +4596,420 @@ contains
 
     ab_coefficients = get_adams_bashforth_coefficients()
 
-    if(opt_source)then
-       call get_source_term_opt (phi, apar, bpar, phinew, aparnew, bparnew, &
-            include_explicit, ab_coefficients, iglo,ik,it,il,ie,is, sourcefac, source)
-    else
-       do isgn = 1, 2
-          call get_source_term (phi, apar, bpar, phinew, aparnew, bparnew, &
-               include_explicit, ab_coefficients, isgn, iglo,ik,it,il,ie,is, sourcefac, source(:,isgn))
-       end do
-    endif
+    ! Note this variable is probably redundant in the later conditionals as it is
+    ! always combined with other logicals, e.g. is_wfb and is_trapped, which can
+    ! only be true if have_trapped_particles is true.
+    have_trapped_particles = nlambda > ng2
 
-!CMR, 17/4/2012:
-!  use_pass_homog = T  iff one of following applies:   
-!                 boundary_option_self_periodic
-!     OR          boundary_option_linked
-!     OR          aky=0
-!  if use_pass_homog = T, compute homogeneous solution (g1) for passing.
-!        otherwise ONLY compute inhomogenous solution for passing particles.
-!
-!  speriod_flag = T  iff boundary_option_linked AND aky=0
-!  if speriod_flag = T, apply self-periodic bcs for passing and wfb.
+    do iglo = g_lo%llim_proc, g_lo%ulim_proc
+       !/////////////////////////
+       !// Constants, flags etc.
+       !/////////////////////////
 
-    select case (boundary_option_switch)
-    case (boundary_option_self_periodic)
-       use_pass_homog = .true.
-    case (boundary_option_linked)
-       use_pass_homog = .true.
-       speriod_flag = aky(ik) == 0.0
-    case default
-       use_pass_homog = .false.
-    end select
+       ik = ik_idx(g_lo,iglo)
+       it = it_idx(g_lo,iglo)
 
-    use_pass_homog = use_pass_homog .or. aky(ik) == 0.0
+       !Skip work if we're not interested in this ik and it
+       if(kwork_filter(it,ik)) cycle
 
-    ! gnew is the inhomogeneous solution
-    gnew(:,:,iglo) = 0.0
-
-!CMR, 18/4/2012:
-! What follows is a selectable improved parallel bc for passing particles.
-!                                            (prompted by Greg Hammett)
-! Original bc is: g_gs2 = gnew = 0 at ends of domain:
-!   ONLY implies zero incoming particles in nonadiabatic delta f if phi=bpar=0
-! Here ensure ZERO incoming particles in nonadiabatic delta f at domain ends
-!  (exploits code used in subroutine g_adjust to transform g_wesson to g_gs2)
-    if ( nonad_zero ) then 
-       if (il <= ng2 .or. (il==ng2+1 .and. passing_wfb) ) then
-          !Only apply the new boundary condition to the leftmost
-          !cell for sign going from left to right
-          if (l_links(ik,it) .eq. 0) then
-             adjleft = 2.0*vperp2(-ntgrid,iglo)*aj1(-ntgrid,iglo) &
-                  *bparnew(-ntgrid,it,ik)*fbpar &
-                  + spec(is)%zt*phinew(-ntgrid,it,ik)*aj0(-ntgrid,iglo) &
-                  *fphi*nonmaxw_corr(ie,is)
-             gnew(-ntgrid,1,iglo) = gnew(-ntgrid,1,iglo) - adjleft
+       if(ieqzip(it,ik)==0) cycle
+       if (eqzip) then
+          if (secondary .and. ik == 2 .and. it == 1) cycle ! do not evolve primary mode
+          if (tertiary .and. ik == 1) then
+             if (it == 2 .or. it == ntheta0) cycle ! do not evolve periodic equilibrium
           end if
-          !Only apply the new boundary condition to the rightmost
-          !cell for sign going from right to left
-          if (r_links(ik,it) .eq. 0) then
-             adjright = 2.0*vperp2(ntgrid,iglo)*aj1(ntgrid,iglo) &
-                  *bparnew(ntgrid,it,ik)*fbpar &
-                  + spec(is)%zt*phinew(ntgrid,it,ik)*aj0(ntgrid,iglo) &
-                  *fphi*nonmaxw_corr(ie,is)
-             gnew(ntgrid,2,iglo) = gnew(ntgrid,2,iglo) - adjright
-         end if
+          if (harris .and. ik == 1) cycle ! do not evolve primary mode
+       end if
+
+       il = il_idx(g_lo,iglo)
+       ie = ie_idx(g_lo,iglo)
+       is = is_idx(g_lo,iglo)
+
+       !/////////////////////////
+       !// Get the source terms
+       !/////////////////////////
+
+       if(opt_source)then
+          call get_source_term_opt (phi, apar, bpar, phinew, aparnew, bparnew, &
+               include_explicit, ab_coefficients, iglo,ik,it,il,ie,is, sourcefac, source)
+       else
+          do isgn = 1, 2
+             call get_source_term (phi, apar, bpar, phinew, aparnew, bparnew, &
+                  include_explicit, ab_coefficients, isgn, iglo,ik,it,il,ie,is, sourcefac, source(:,isgn))
+          end do
        endif
-    endif
 
-    ! g1 is the homogeneous solution
-    g1 = 0.0
+       !CMR, 17/4/2012:
+       !  use_pass_homog = T  iff one of following applies:
+       !                 boundary_option_self_periodic
+       !     OR          boundary_option_linked
+       !     OR          aky=0
+       !  if use_pass_homog = T, compute homogeneous solution (g1) for passing.
+       !        otherwise ONLY compute inhomogenous solution for passing particles.
+       !
+       !  speriod_flag = T  iff boundary_option_linked AND aky=0
+       !  if speriod_flag = T, apply self-periodic bcs for passing and wfb.
 
-    ntgl = -ntgrid
-    ntgr =  ntgrid
+       select case (boundary_option_switch)
+       case (boundary_option_self_periodic)
+          use_pass_homog = .true.
+       case (boundary_option_linked)
+          use_pass_homog = .true.
+          speriod_flag = aky(ik) == 0.0
+       case default
+          use_pass_homog = .false.
+       end select
 
-! ng2+1 is WFB
+       use_pass_homog = use_pass_homog .or. aky(ik) == 0.0
 
-    if (use_pass_homog) then
-       if (il < ng2+1) then
+       if (use_pass_homog) then
+          ilmin = 1
+       else
+          ilmin = ng2 + 1
+       end if
+
+       ! ng2+1 is WFB.
+       ! This implies have_trapped_particles is true.
+       is_wfb = il == ng2 + 1
+
+       ! Totally trapped particle is last lambda when we have trapped_particles.
+       ! This implies have_trapped_particles is true.
+       is_not_ttp = il <= lmax
+
+       ! Is this particle passing. Note we exclude the wfb here as we can choose
+       ! how we treat this as given by passing_wfb, trapped_wfb etc.
+       is_passing = il <= ng2
+
+       ! Is this particle trapped? Note we exclude the wfb here as we can choose
+       ! how we treat this as given by passing_wfb, trapped_wfb etc.
+       ! This implies have_trapped_particles is true.
+       is_trapped = il > ng2 + 1
+
+
+       ! Decide if this point is self periodic
+       !CMR, 17/4/2012:
+       ! self_periodic bc is applied as follows:
+       ! if boundary_option_linked = .T.
+       !      isolated wfb (ie no linked domains)
+       !      passing + wfb if aky=0
+       ! else (ie boundary_option_linked = .F.)
+       !      wfb
+       !      passing and wfb particles if boundary_option_self_periodic = T
+       !
+       !CMR, 6/8/2014:
+       ! Parallel BC for wfb is as follows:
+       !    ballooning space
+       !           wfb ALWAYS self-periodic (-ntgrid:ntgrid)
+       !    linked fluxtube
+       !           wfb self-periodic (-ntgrid:ntgrid) ONLY if ISOLATED,
+       !                                               OR if iky=0
+       !           OTHERWISE wfb treated as passing for now in (-ntgrid:ntgrid)
+       !                     store homogeneous and inhomog solutions
+       !                     AND set amplitude of homog later in invert_rhs_linked
+       !                     to satisfy self-periodic bc in fully linked SUPER-CELL
+       if (boundary_option_switch == boundary_option_linked) then
+          is_self_periodic = (speriod_flag .and. is_passing) & ! Passing particle with ky=0
+               .or. (speriod_flag .and. is_wfb .and. .not. trapped_wfb) & ! Non-trapped wfb treatment of wfb with ky = 0
+               .or. (is_wfb .and. .not. connections(iglo)%neighbor & ! Isolated (i.e. ky/=0 cell with no connections) wfb
+               .and. .not. trapped_wfb .and. .not. passing_wfb )     ! treated as neither passing or trapped particle (i.e. unique)
+       else
+          is_self_periodic = (use_pass_homog .and. is_passing) & ! Passing particle with ky=0 or with self-periodic boundaries
+               .or. (is_wfb .and. .not. trapped_wfb) ! Non-trapped treatment of wfb with any B.C.
+       end if
+
+       !/////////////////////////
+       !// Initialisation
+       !/////////////////////////
+
+       ! gnew is the inhomogeneous solution
+       gnew(:,:,iglo) = 0.0
+
+       ! g1 is the homogeneous solution
+       g1 = 0.0
+
+       !CMR
+       ! g2 simply stores trapped homogeneous boundary conditions at bounce points
+       !     g2(iub,2) = 1.0        iub is UPPER bounce point, trapped bc for vpar < 0
+       !     g2(ilb,1) = g1(ilb,2)  ilb is LOWER bounce point, trapped bc for vpar > 0
+       ! otherwise g2 is zero
+       !      -- g2 = 0 for all passing particles
+       !      -- g2 = 0 for wfb as forbid always false
+       !      -- g2 = 0 for ttp too
+       ! g2 NOT used for totally trapped particles at il=nlambda
+       !
+       ! NB with trapped particles lmax=nlambda-1, and ttp is at il=nlambda
+       g2 = 0.0
+
+       !/////////////////////////
+       !// Boundaries
+       !/////////////////////////
+
+       if (use_pass_homog) then
+          if (is_passing) then
+             g1(-ntgrid,1) = 1.0
+             g1( ntgrid,2) = 1.0
+          end if
+       end if
+
+       if (is_wfb .and. (.not. trapped_wfb) .and. (.not. passing_wfb) ) then
+          ! wfb should be unity here; variable is for testing
+          g1(-ntgrid,1) = wfb
+          g1( ntgrid,2) = wfb
+       else if (is_wfb .and. trapped_wfb) then
+          ! MRH Only set the upper bounce point initial condition
+          ! Should this be wfb for consistency with mixed treatment above?
+          g1( ntgrid,2) = 1.0
+       else if (is_wfb .and. passing_wfb) then
+          ! MRH give the passing initial condition
+          ! Should this be wfb for consistency with mixed treatment above?
           g1(-ntgrid,1) = 1.0
           g1( ntgrid,2) = 1.0
+       endif
+
+       ! Do we need the following conditional? If it is not true then
+       ! we just find that forbid is false everywhere. The only
+       ! difference would the the totally trapped particle where we
+       ! have forbid everywhere except at a single point, but then we
+       ! don't use g2 for the ttp.
+       if (have_trapped_particles .and. (is_wfb .or. is_trapped) .and. is_not_ttp) then
+          !CMR, surely il >= ng2+2 works, as forbid gives no bounce point for wfb?
+          !      ... but does not matter
+          !In other words (is_wfb .or. is_trapped) could just be (is_trapped)
+          do ig=-ntgrid,ntgrid-1
+             !CMR: set g2=1 at UPPER bounce point for trapped (not ttp or wfb) at vpar<0
+             if (forbid(ig+1,il).and..not.forbid(ig,il)) g2(ig,2) = 1.0
+          end do
        end if
-    end if
 
-    if (il == ng2+1 .and. (.not. trapped_wfb) .and. (.not. passing_wfb) ) then ! ng2+1 is WFB
-       g1(-ntgrid,1) = wfb  ! wfb should be unity here; variable is for testing
-       g1( ntgrid,2) = wfb  ! wfb should be unity here; variable is for testing
-    else if (il == ng2+1 .and. trapped_wfb) then ! MRH Only set the upper bounce point initial condition    
-       g1( ntgrid,2) = 1.0  
-    else if (il == ng2+1 .and. passing_wfb) then ! MRH give the passing initial condition
-       g1(-ntgrid,1) = 1.0
-       g1( ntgrid,2) = 1.0
-    endif
+       !CMR, 18/4/2012:
+       ! What follows is a selectable improved parallel bc for passing particles.
+       !                                            (prompted by Greg Hammett)
+       ! Original bc is: g_gs2 = gnew = 0 at ends of domain:
+       !   ONLY implies zero incoming particles in nonadiabatic delta f if phi=bpar=0
+       ! Here ensure ZERO incoming particles in nonadiabatic delta f at domain ends
+       !  (exploits code used in subroutine g_adjust to transform g_wesson to g_gs2)
+       if ( nonad_zero ) then
+          if (is_passing .or. (is_wfb .and. passing_wfb) ) then
+             !Only apply the new boundary condition to the leftmost
+             !cell for sign going from left to right
+             if (l_links(ik,it) .eq. 0) then
+                adjleft = 2.0*vperp2(-ntgrid,iglo)*aj1(-ntgrid,iglo) &
+                     *bparnew(-ntgrid,it,ik)*fbpar &
+                     + spec(is)%zt*phinew(-ntgrid,it,ik)*aj0(-ntgrid,iglo) &
+                     *fphi*nonmaxw_corr(ie,is)
+                gnew(-ntgrid,1,iglo) = gnew(-ntgrid,1,iglo) - adjleft
+             end if
+             !Only apply the new boundary condition to the rightmost
+             !cell for sign going from right to left
+             if (r_links(ik,it) .eq. 0) then
+                adjright = 2.0*vperp2(ntgrid,iglo)*aj1(ntgrid,iglo) &
+                     *bparnew(ntgrid,it,ik)*fbpar &
+                     + spec(is)%zt*phinew(ntgrid,it,ik)*aj0(ntgrid,iglo) &
+                     *fphi*nonmaxw_corr(ie,is)
+                gnew(ntgrid,2,iglo) = gnew(ntgrid,2,iglo) - adjright
+             end if
+          endif
+       endif
 
-!CMR
-! g2 simply stores trapped homogeneous boundary conditions at bounce points
-!     g2(iub,2) = 1.0        iub is UPPER bounce point, trapped bc for vpar < 0
-!     g2(ilb,1) = g1(ilb,2)  ilb is LOWER bounce point, trapped bc for vpar > 0
-! otherwise g2 is zero
-!      -- g2 = 0 for all passing particles
-!      -- g2 = 0 for wfb as forbid always false
-!      -- g2 = 0 for ttp too
-! g2 NOT used for totally trapped particles at il=nlambda 
 
-! NB with trapped particles lmax=nlambda-1, and ttp is at il=nlambda
+       !/////////////////////////
+       !// Time advance
+       !/////////////////////////
 
-    g2 = 0.0
-    if (nlambda > ng2 .and. il >= ng2+1 .and. il <= lmax) then
-!CMR, surely il >= ng2+2 works, as forbid gives no bounce point for wfb?
-!      ... but does not matter
-       do ig=-ntgrid,ntgrid-1
-!CMR: set g2=1 at UPPER bounce point for trapped (not ttp or wfb) at vpar<0
-          if (forbid(ig+1,il).and..not.forbid(ig,il)) g2(ig,2) = 1.0
-       end do
-    end if
+       !!!!!!!!!!!!!!!!!!!!!!!!!!!
+       ! time advance vpar < 0   !
+       !!!!!!!!!!!!!!!!!!!!!!!!!!!
 
-!!!!!!!!!!!!!!!!!!!!!!!!!!!
-! time advance vpar < 0  !
-!!!!!!!!!!!!!!!!!!!!!!!!!!!
-
-! inhomogeneous part: gnew
-! r=ainv=0 if forbid(ig,il) or forbid(ig+1,il), so gnew=0 in forbidden
-! region and at upper bounce point
-    do ig = ntgrid-1, -ntgrid, -1
-       gnew(ig,2,iglo) = -gnew(ig+1,2,iglo)*r(ig,2,iglo) + ainv(ig,2,iglo)*source(ig,2)
-    end do
-
-    if (use_pass_homog) then
-       ilmin = 1
-    else
-       ilmin = ng2 + 1
-    end if
-
-! time advance vpar < 0 homogeneous part: g1
-!CMR, 17/4/2012: computes homogeneous solutions for il >= ilmin
-!                il >= ilmin includes trapped particles, wfb
-!                AND passing particles IF use_pass_homog = T
-
-    if (il >= ilmin) then
+       ! inhomogeneous part: gnew
+       ! r=ainv=0 if forbid(ig,il) or forbid(ig+1,il), so gnew=0 in forbidden
+       ! region and at upper bounce point
        do ig = ntgrid-1, -ntgrid, -1
-          g1(ig,2) = -g1(ig+1,2)*r(ig,2,iglo) + g2(ig,2)
+          gnew(ig,2,iglo) = -gnew(ig+1,2,iglo)*r(ig,2,iglo) + ainv(ig,2,iglo)*source(ig,2)
        end do
-    end if
 
-!!!!!!!!!!!!!!!!!!!!!!!!!!!
-! time advance vpar > 0   !
-!!!!!!!!!!!!!!!!!!!!!!!!!!!
-    ! First set BCs for trapped particles at lower bounce point
-    ! (excluding wfb and ttp)
+       ! time advance vpar < 0 homogeneous part: g1
+       !CMR, 17/4/2012: computes homogeneous solutions for il >= ilmin
+       !                il >= ilmin includes trapped particles, wfb
+       !                AND passing particles IF use_pass_homog = T
 
-!CMR, 17/4/2012: ng2+1< il <=lmax excludes wfb,ttp 
-    if (nlambda > ng2 .and. il > ng2+1 .and. il <= lmax) then
-       ! match boundary conditions at lower bounce point
-       do ig = -ntgrid, ntgrid-1
-          if (forbid(ig,il) .and. .not. forbid(ig+1,il)) then
-!CMR, 17/4/2012: set g2=(ig+1,1) = g1(ig+1,2) where ig+1 is LOWER bounce point
-!     (previously g2 was set to 1 at ig just LEFT of lower bounce point
-!      but this was handled consistently in integration of g1)
-!  
-             g2(ig+1,1) = g1(ig+1,2)
-!CMR: init_invert_rhs  sets ainv=1 at lower bounce point for trapped 
-!     source below ensures gnew(lb,1,iglo)=gnew(lb,2,iglo)
-!     where lb is the lower bounce point.
-             source(ig,1) = gnew(ig+1,2,iglo)  
-          end if
-       end do
-    end if
-
-    ! If trapped wfb enforce the bounce condition at the lower bounce point
-    if (nlambda > ng2 .and. il == ng2+1 .and. il <= lmax .and. trapped_wfb) then
-        ig = -ntgrid
-        g1(ig,1) = g1(ig,2)
-        gnew(ig,1,iglo) = gnew(ig,2,iglo)
-    endif 
-    ! time advance vpar > 0 inhomogeneous part
-    if (il <= lmax) then
-       do ig = -ntgrid, ntgrid-1
-         ! Use two statements here to *prevent* erroneous vectorization of this loop by gfortran 7.2
-         gnew(ig+1,1,iglo) = ainv(ig,1,iglo)*source(ig,1)
-         gnew(ig+1,1,iglo) = gnew(ig+1,1,iglo) - gnew(ig,1,iglo)*r(ig,1,iglo)
-       end do
-    end if
-
-    ! BD: Are there ever totally trapped particles at ig = ntgrid? 
-    ! balancing totally trapped particles
-    do ig = -ntgrid, ntgrid
-       if (il >= ittp(ig)) then
-          if (forbid(ig,il)) then
-             gnew(ig,1,iglo) = 0.0
-          else
-             gnew(ig,1,iglo) = gnew(ig,2,iglo)
-          end if
+       if (il >= ilmin) then
+          do ig = ntgrid-1, -ntgrid, -1
+             g1(ig,2) = -g1(ig+1,2)*r(ig,2,iglo) + g2(ig,2)
+          end do
        end if
-    end do
 
-    ! time advance vpar > 0 homogeneous part
-    if (il >= ilmin) then
-       do ig = -ntgrid, ntgrid-1
-!CMR, 17/4/2012:  use consistent homogeneous trapped solution (g2) at lbp
-          g1(ig+1,1) = -g1(ig,1)*r(ig,1,iglo) + g2(ig+1,1)
+       !!!!!!!!!!!!!!!!!!!!!!!!!!!
+       ! time advance vpar > 0   !
+       !!!!!!!!!!!!!!!!!!!!!!!!!!!
+       ! First set BCs for trapped particles at lower bounce point
+       ! (excluding wfb and ttp)
+
+       !CMR, 17/4/2012: ng2+1< il <=lmax excludes wfb,ttp
+       if (have_trapped_particles .and. is_trapped .and. is_not_ttp) then
+          ! match boundary conditions at lower bounce point
+          do ig = -ntgrid, ntgrid-1
+             if (forbid(ig,il) .and. .not. forbid(ig+1,il)) then
+                !CMR, 17/4/2012: set g2=(ig+1,1) = g1(ig+1,2) where ig+1 is LOWER bounce point
+                !     (previously g2 was set to 1 at ig just LEFT of lower bounce point
+                !      but this was handled consistently in integration of g1)
+                !
+                g2(ig+1,1) = g1(ig+1,2)
+                !CMR: init_invert_rhs  sets ainv=1 at lower bounce point for trapped
+                !     source below ensures gnew(lb,1,iglo)=gnew(lb,2,iglo)
+                !     where lb is the lower bounce point.
+                source(ig,1) = gnew(ig+1,2,iglo)
+             end if
+          end do
+       end if
+
+       ! If trapped wfb enforce the bounce condition at the lower bounce point
+       ! Note this treats the wfb as bouncing at the end of the parallel domain.
+       ! For nperiod > 1 this means the wfb does not bounce at the interior points
+       ! where bmag = bmax
+       if (have_trapped_particles .and. is_wfb .and. trapped_wfb .and. is_not_ttp) then
+          ig = -ntgrid
+          g1(ig,1) = g1(ig,2)
+          gnew(ig,1,iglo) = gnew(ig,2,iglo)
+       endif
+
+       ! time advance vpar > 0 inhomogeneous part
+       if (is_not_ttp) then
+          do ig = -ntgrid, ntgrid-1
+             ! Use two statements here to *prevent* erroneous vectorization of this loop by gfortran 7.2
+             gnew(ig+1,1,iglo) = ainv(ig,1,iglo)*source(ig,1)
+             gnew(ig+1,1,iglo) = gnew(ig+1,1,iglo) - gnew(ig,1,iglo)*r(ig,1,iglo)
+          end do
+       end if
+
+       ! BD: Are there ever totally trapped particles at ig = ntgrid?
+       ! balancing totally trapped particles
+       do ig = -ntgrid, ntgrid
+          ! If this pitch angle is greater or equal to ittp(ig) then it
+          ! is either totally trapped at ig or forbidden.
+          if (il >= ittp(ig)) then
+             if (forbid(ig,il)) then
+                gnew(ig,1,iglo) = 0.0
+             else
+                gnew(ig,1,iglo) = gnew(ig,2,iglo)
+             end if
+          end if
        end do
-    end if
 
-!CMR, 17/4/2012:  
-! self_periodic bc is applied as follows:
-! if boundary_option_linked = .T.
-!      isolated wfb (ie no linked domains) 
-!      passing + wfb if aky=0
-! else (ie boundary_option_linked = .F.)
-!      wfb 
-!      passing and wfb particles if boundary_option_self_periodic = T
-!
-!CMR, 6/8/2014:
-! Parallel BC for wfb is as follows:
-!    ballooning space 
-!           wfb ALWAYS self-periodic (-ntgrid:ntgrid)
-!    linked fluxtube  
-!           wfb self-periodic (-ntgrid:ntgrid) ONLY if ISOLATED, 
-!                                               OR if iky=0
-!           OTHERWISE wfb treated as passing for now in (-ntgrid:ntgrid)
-!                     store homogeneous and inhomog solutions 
-!                     AND set amplitude of homog later in invert_rhs_linked 
-!                     to satisfy self-periodic bc in fully linked SUPER-CELL
+       ! time advance vpar > 0 homogeneous part
+       if (is_not_ttp) then
+          do ig = -ntgrid, ntgrid-1
+             !CMR, 17/4/2012:  use consistent homogeneous trapped solution (g2) at lbp
+             g1(ig+1,1) = -g1(ig,1)*r(ig,1,iglo) + g2(ig+1,1)
+          end do
+       end if
 
-    if (boundary_option_switch == boundary_option_linked) then
-       if (speriod_flag .and. il <= ng2) then
-          call self_periodic
-       else if (speriod_flag .and. il==ng2+1 .and. .not. trapped_wfb) then
-          call self_periodic
-       else 
+       !/////////////////////////
+       !// Periodicity at bounce point and parallel boundary
+       !/////////////////////////
+
        ! save homogeneous solution as necessary
+       if (boundary_option_switch == boundary_option_linked .and. (.not. is_self_periodic)) then
           if (save_h (1, iglo)) g_h(:,1,iglo) = g1(:,1)
           if (save_h (2, iglo)) g_h(:,2,iglo) = g1(:,2)
        end if
 
-! wfb (isolated)
-       if (il == ng2+1 .and. .not. connections(iglo)%neighbor .and. .not. trapped_wfb .and. .not. passing_wfb ) &
-            call self_periodic
+       if (is_self_periodic) call self_periodic
 
-    else       
-       ! add correct amount of homogeneous solution now
-       if (use_pass_homog .and. il <= ng2) then
-          call self_periodic
-       else if (il == ng2 + 1 .and. .not. trapped_wfb) then
-          call self_periodic
+       ! add correct amount of homogeneous solution for trapped particles to satisfy boundary conditions
+       !CMR, 24/7/2014:
+       !Revert to looping from il>= ng2+2, i.e. exclude wfb as:
+       !          (1) wfb bc is already handled above
+       !          (2) forbid never true for wfb, so including ng2+1 in loop is pointless.
+       if (is_trapped .and. is_not_ttp) then
+          beta1 = 0.0
+          do ig = ntgrid-1, -ntgrid, -1
+             ! If totally trapped or forbidden then cycle
+             if (ittp(ig) <= il) cycle
+             if (forbid(ig,il)) then
+                beta1 = 0.0
+                cycle !CMR: to avoid pointless arithmetic later in loop
+             else if (forbid(ig+1,il)) then
+                beta1 = (gnew(ig,1,iglo) - gnew(ig,2,iglo))/(1.0 - g1(ig,1))
+             end if
+             gnew(ig,1,iglo) = gnew(ig,1,iglo) + beta1*g1(ig,1)
+             gnew(ig,2,iglo) = gnew(ig,2,iglo) + beta1*g1(ig,2)
+          end do
        end if
 
-    end if
+       ! If wfb is trapped, enforce the bounce condition at the upper bounce point
+       ! by combining homogeneous and inhomogeneous solutions
+       ! Note this treats the wfb as bouncing at the end of the parallel grid.
+       ! When nperiod  > 1 this means we do not consider the wfb to bounce at the
+       ! interior points with bmag=bmax. This treatment works out slightly similar
+       ! to the self_periodic treatment but mixes the different sigma.
+       if (is_wfb .and. trapped_wfb .and. is_not_ttp ) then
+          ig = ntgrid
+          ! Note here we find the difference between gnew at different sigma
+          ! but the same theta, whilst in self_periodic we find the difference
+          ! between different theta at the same sigma.
+          ! Note if trapped_wfb then g1(ntgrid, 2) == 1.0 so the denominator
+          ! is equivalent to g1(ig,2) - g1(ig,1) here.
+          beta1 = (gnew(ig,1,iglo) - gnew(ig,2,iglo))/(1.0 - g1(ig,1))
+          gnew(:, :, iglo) = gnew(:, :, iglo) + beta1*g1
+       end if
 
-    ! add correct amount of homogeneous solution for trapped particles to satisfy boundary conditions
-!CMR, 24/7/2014:  
-!Revert to looping from il>= ng2+2, i.e. exclude wfb as: 
-!          (1) wfb bc is already handled above
-!          (2) forbid never true for wfb, so including ng2+1 in loop is pointless.
-    if (il >= ng2+2 .and. il <= lmax) then
-       beta1 = 0.0
-       do ig = ntgr-1, ntgl, -1
-          if (ittp(ig) <= il) cycle
-          if (forbid(ig,il)) then
-             beta1 = 0.0
-             cycle !CMR: to avoid pointless arithmetic later in loop
-          else if (forbid(ig+1,il)) then
-             beta1 = (gnew(ig,1,iglo) - gnew(ig,2,iglo))/(1.0 - g1(ig,1))
-          end if
-          gnew(ig,1,iglo) = gnew(ig,1,iglo) + beta1*g1(ig,1)
-          gnew(ig,2,iglo) = gnew(ig,2,iglo) + beta1*g1(ig,2)
-       end do
-    end if
-! If wfb is trapped, enforce the bounce condition at the upper bounce point
-! By recombining, inhomogeneous and inhomogeneous solutions
-    if (il == ng2+1 .and. il <= lmax .and. trapped_wfb) then
-        ig = ntgrid
-        beta1 = (gnew(ig,1,iglo) - gnew(ig,2,iglo))/(1.0 - g1(ig,1))
-        do ig = ntgrid, -ntgrid, -1
-          gnew(ig,1,iglo) = gnew(ig,1,iglo) + beta1*g1(ig,1)
-          gnew(ig,2,iglo) = gnew(ig,2,iglo) + beta1*g1(ig,2)
-        end do
-    end if
-    
+       !CMR,DD, 25/7/2014:
+       ! Not keen on following kludge zeroing forbidden region
+       ! Introduced new flag: zero_forbid defaults to .false.
+       !  Tested and default is fine linearly, expect should work nonlinearly,
+       !  (Can easily restore old behaviour by setting: zero_forbid=.true.)
+       ! zero out spurious gnew outside trapped boundary
+       if(zero_forbid)then
+          where (forbid(:,il))
+             gnew(:,1,iglo) = 0.0
+             gnew(:,2,iglo) = 0.0
+          end where
+       endif
+
+    end do
+
     if (def_parity) call enforce_parity(parity_redist)
 
-!CMR,DD, 25/7/2014: 
-! Not keen on following kludge zeroing forbidden region
-! Introduced new flag: zero_forbid defaults to .false.
-!  Tested and default is fine linearly, expect should work nonlinearly, 
-!  (Can easily restore old behaviour by setting: zero_forbid=.true.)
-    ! zero out spurious gnew outside trapped boundary
-if(zero_forbid)then
-    where (forbid(:,il))
-       gnew(:,1,iglo) = 0.0
-       gnew(:,2,iglo) = 0.0
-    end where
-endif
-!    call prof_leaving ("invert_rhs_1", "dist_fn")
-
   contains
-    !> FIXME : Add documentation
-    subroutine self_periodic
-!CMR: sets sum of homogeneous and inhomogeneous solutions to give a result
-!     gnew(ntgr,2) = gnew(ntgl,2)
-!     gnew(ntgr,1) = gnew(ntgl,1) 
-! ie periodic bcs at the ends of the flux tube.
 
-!CMR, 25/7/2014:
-! self-periodic applied to zonal modes (makes sense)
-!                       and wfb        (seems strange)
-! adding adjr, adjl to cope with application of self-periodic to WFB
-!   dadj=adjl-adjr will be ZERO for ky=0 modes, but NOT for WFB.
-! This change sets g_wesson (or h) to be self-periodic for wfb, not g !!!
-! NB this code change will implement this only in ballooning space, 
-! and not in a linked fluxtube.
+    !> Sets sum of homogeneous and inhomogeneous solutions to give a result
+    !>     gnew(ntgrid,2) = gnew(-ntgrid,2)
+    !>     gnew(ntgrid,1) = gnew(-ntgrid,1)
+    !> ie periodic bcs at the ends of the flux tube.
+    !>
+    !> CMR, 25/7/2014:
+    !> self-periodic applied to zonal modes (makes sense)
+    !>                      and wfb        (seems strange)
+    !> adding adjr, adjl to cope with application of self-periodic to WFB
+    !>   dadj=adjl-adjr will be ZERO for ky=0 modes, but NOT for WFB.
+    !> This change sets g_wesson (or h) to be self-periodic for wfb, not g !!!
+    !> NB this code change will implement this only in ballooning space,
+    !> and not in a linked fluxtube.
+    subroutine self_periodic
       implicit none
       complex :: adjl, adjr, dadj
 
-      if ((il .eq. ng2+1 .and. nonad_zero) .and. .not. passing_wfb) then 
-         adjl = 2.0*vperp2(ntgl,iglo)*aj1(ntgl,iglo) &
-              *bparnew(ntgl,it,ik)*fbpar &
-              + spec(is)%zt*phinew(ntgl,it,ik)*aj0(ntgl,iglo) &
+      if ((is_wfb .and. nonad_zero) .and. .not. passing_wfb) then
+         adjl = 2.0*vperp2(-ntgrid,iglo)*aj1(-ntgrid,iglo) &
+              *bparnew(-ntgrid,it,ik)*fbpar &
+              + spec(is)%zt*phinew(-ntgrid,it,ik)*aj0(-ntgrid,iglo) &
               *nonmaxw_corr(ie,is)*fphi
-         adjr = 2.0*vperp2(ntgr,iglo)*aj1(ntgr,iglo) &
-              *bparnew(ntgr,it,ik)*fbpar &
-              + spec(is)%zt*phinew(ntgr,it,ik)*aj0(ntgr,iglo) &
+         adjr = 2.0*vperp2(ntgrid,iglo)*aj1(ntgrid,iglo) &
+              *bparnew(ntgrid,it,ik)*fbpar &
+              + spec(is)%zt*phinew(ntgrid,it,ik)*aj0(ntgrid,iglo) &
               *nonmaxw_corr(ie,is)*fphi
          dadj = adjl-adjr
       else 
          dadj = cmplx(0.0,0.0)
       endif
 
-      if (g1(ntgr,1) /= 1.) then
-         beta1 = (gnew(ntgr,1,iglo) - gnew(ntgl,1,iglo) - dadj)/(1.0 - g1(ntgr,1))
+      if (g1(ntgrid,1) /= 1.) then
+         beta1 = (gnew(ntgrid,1,iglo) - gnew(-ntgrid,1,iglo) - dadj)/(1.0 - g1(ntgrid,1))
          gnew(:,1,iglo) = gnew(:,1,iglo) + beta1*g1(:,1)
       end if
 
-      if (g1(ntgl,2) /= 1.) then
-         beta1 = (gnew(ntgl,2,iglo) - gnew(ntgr,2,iglo) + dadj)/(1.0 - g1(ntgl,2))
+      if (g1(-ntgrid,2) /= 1.) then
+         beta1 = (gnew(-ntgrid,2,iglo) - gnew(ntgrid,2,iglo) + dadj)/(1.0 - g1(-ntgrid,2))
          gnew(:,2,iglo) = gnew(:,2,iglo) + beta1*g1(:,2)
       end if
       
@@ -4972,11 +5049,8 @@ endif
     complex :: adjl, adjr, dadj
     real :: vperp2left, vperp2right, argl, argr, aj0l, aj0r, aj1l, aj1r
 
-
-    do iglo = g_lo%llim_proc, g_lo%ulim_proc
-       call invert_rhs_1 (phi, apar, bpar, phinew, aparnew, bparnew, &
-            istep, iglo, sourcefac)
-    end do
+    call invert_rhs_1 (phi, apar, bpar, phinew, aparnew, bparnew, &
+         istep, sourcefac)
 
     if (no_comm) then
        ! nothing
@@ -5191,10 +5265,8 @@ endif
        call invert_rhs_linked &
             (phi, apar, bpar, phinew, aparnew, bparnew, istep, sourcefac) 
     case default
-       do iglo = g_lo%llim_proc, g_lo%ulim_proc
-          call invert_rhs_1 (phi, apar, bpar, phinew, aparnew, bparnew, &
-               istep, iglo, sourcefac)
-       end do
+       call invert_rhs_1 (phi, apar, bpar, phinew, aparnew, bparnew, &
+            istep, sourcefac)
     end select
 
     call prof_leaving ("invert_rhs", "dist_fn")
