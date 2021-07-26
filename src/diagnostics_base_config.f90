@@ -405,7 +405,7 @@ module diagnostics_base_config
     !> diagnostics. Text file extension is `.heat`
     logical :: write_heating = .false.
     !> @deprecated Use [[gs2_diagnostics_knobs:write_heating]] instead
-    logical :: write_hrate = .false.
+    logical, private :: write_hrate = .false.
 
     !> Write time averaged external current in the antenna,
     !> \(\operatorname{Re}(k_\perp^2 A_\mathrm{antenna})\), as a function of
