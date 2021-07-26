@@ -318,10 +318,10 @@ contains
     arg_count = command_argument_count()
 
     do arg_n = 0, arg_count
-      call get_command_argument(1, length=arg_length)
+      call get_command_argument(arg_n, length=arg_length)
       if (allocated(argument)) deallocate(argument)
       allocate(character(len=arg_length)::argument)
-      call get_command_argument(1, argument)
+      call get_command_argument(arg_n, argument)
 
       if ((argument == "--help") .or. (argument == "-h")) then
         write(*, '(a)') "gs2 [--version|-v] [--help|-h] [--build-config] [input file]" // nl // nl // &
