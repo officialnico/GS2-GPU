@@ -313,6 +313,15 @@ contains
     integer :: arg_length
     character(len=:), allocatable :: argument
     character(len=*), parameter :: nl = new_line('a')
+    character(len=*), parameter :: usage = &
+         "gs2 [--version|-v] [--help|-h] [--build-config] [input file]" // nl // nl // &
+         "GS2: A fast, flexible physicist's toolkit for gyrokinetics" // nl // &
+         "For more help, see the documentation at https://gyrokinetics.gitlab.io/gs2/" // nl // &
+         "or create an issue https://bitbucket.org/gyrokinetics/gs2/issues?status=open" // nl // &
+         nl // &
+         "  -h, --help     Print this message" // nl // &
+         "  -v, --version  Print the GS2 version" // nl // &
+         "  --build-config Print the current build configuration"
 
     arg_count = command_argument_count()
 
@@ -323,14 +332,7 @@ contains
       call get_command_argument(arg_n, argument)
 
       if ((argument == "--help") .or. (argument == "-h")) then
-        write(*, '(a)') "gs2 [--version|-v] [--help|-h] [--build-config] [input file]" // nl // nl // &
-             "GS2: A fast, flexible physicist's toolkit for gyrokinetics" // nl // &
-             "For more help, see the documentation at https://gyrokinetics.gitlab.io/gs2/" // nl // &
-             "or create an issue https://bitbucket.org/gyrokinetics/gs2/issues?status=open" // nl // &
-             nl // &
-             "  -h, --help     Print this message" // nl // &
-             "  -v, --version  Print the GS2 version" // nl // &
-             "  --build-config Print the current build configuration"
+        write(*, '(a)') usage
         stop
       else if ((argument == "--version") .or. (argument == "-v")) then
         write(*, '("GS2 version ", a)') get_git_version()
@@ -338,6 +340,9 @@ contains
       else if (argument == "--build-config") then
         write(*, '(a)') formatted_build_config()
         stop
+      else if (argument(1:1) == "-") then
+        write(*, '(a)') "Error: Unrecognised argument '" // argument // "'. Usage is:" // nl // nl // usage
+        stop 2
       end if
     end do
   end subroutine parse_command_line
