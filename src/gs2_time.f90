@@ -158,8 +158,9 @@ contains
   !> are generalised for variable timestep.
   function get_adams_bashforth_coefficients(maximum_order) result(coefficients)
     implicit none
-    !> If present then sets the maxmimum method order to use
-    !> when calculating the coefficients
+    !> If present then sets the maxmimum method order to use when
+    !> calculating the coefficients. Limited by how much time history
+    !> we have available and no higher than 3.
     integer, intent(in), optional :: maximum_order
     !> The result contains up to three coefficients. The first entry
     !> corresponds to the coefficient for the latest source term, the
