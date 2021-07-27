@@ -1,0 +1,12 @@
+!==============================
+!NONLINEARITY  
+!==============================
+&nonlinear_terms_knobs
+ nonlinear_mode = "on" ! Include nonlinear terms? ('on','off')
+ use_cfl_limit = F
+ use_order_based_error = F
+ istep_error_start = 3
+ error_target = 0.01
+/
+
+!include cyclone_itg_timestep_change.in

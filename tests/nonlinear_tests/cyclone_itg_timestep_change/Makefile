@@ -21,6 +21,7 @@ else
 all: ${TEST_BASE_NAME}
 	$(call RUNCOMMAND,${TEST_BASE_NAME},${TEST_BASE_NAME}.in)
 	$(call RUNCOMMAND,${TEST_BASE_NAME},${TEST_BASE_NAME}_error_based.in)
+	$(call RUNCOMMAND_EXPECT_FAIL,${TEST_BASE_NAME},${TEST_BASE_NAME}_no_limits.in)
 endif
 endif
 endif
