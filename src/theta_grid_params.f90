@@ -624,7 +624,7 @@ contains
   !> Get the module level config instance
   function get_theta_grid_params_config()
     type(theta_grid_parameters_config_type) :: get_theta_grid_params_config
-    get_theta_grid_params_config = get_theta_grid_params_config
+    get_theta_grid_params_config = theta_grid_parameters_config
   end function get_theta_grid_params_config
 
   !---------------------------------------
