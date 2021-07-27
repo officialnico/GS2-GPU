@@ -166,3 +166,23 @@ ifeq ($(HAS_GCOV),on)
 	$(call messageRm,"Gcov files")	
 	-$(QUIETSYM)rm -f $(COVERAGE_DIR)/*.gcov $(OBJDIR)/*.gcda $(OBJDIR)/*.gcno
 endif
+
+############################################################
+# Recipes for Python-based tests
+
+test_venv = $(GK_HEAD_DIR)/tests/venv
+
+# Create a virtualenv and install the test dependencies there
+create-test-virtualenv:
+	@echo "Creating virtualenv and installing test dependencies"
+	bash -c "python3 -m venv $(test_venv); \
+		source $(test_venv)/bin/activate; \
+		pip install -r requirements.txt; \
+		deactivate; \
+	"
+	@echo "----------------------------------------"
+	@echo "Now activate the virtualenv with 'source $(test_venv)/bin/activate'"
+	@echo "You can use 'deactivate' to stop the virtualenv"
+
+clean-test-virtualenv:
+	rm -rf $(test_venv)
