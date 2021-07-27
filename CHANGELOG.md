@@ -23,7 +23,13 @@ step history from the restart file, and an error is thrown.
 
 ### Known issues
 
-No known issues.
+* If users see compile/cleaning errors relating to tests, it may be necessary
+  to delete folders for benchmarks that no longer exist in 8.1:
+```
+rm -rf tests/benchmarks/init
+rm -rf tests/benchmarks/timestep
+```
+
 
 ### Merged Pull Requests
 
