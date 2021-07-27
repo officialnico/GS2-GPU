@@ -203,9 +203,9 @@ contains
     ! in order to be consistent with g_adjust, the correct function call
     ! To set h = 0 is
     ! call set_h_zero(g, phi, bpar, -fphi, -fbpar, iglo)
-    use species, only: spec
+    use species, only: spec, nonmaxw_corr
     use theta_grid, only: ntgrid
-    use le_grids, only: anon, jend, ng2
+    use le_grids, only: jend, ng2
     use gs2_layouts, only: g_lo, ik_idx, it_idx, ie_idx, is_idx, il_idx
     implicit none
     complex, dimension (-ntgrid:,:), intent (out) :: g
@@ -230,7 +230,7 @@ contains
         !Don't adjust in the forbidden region as we don't set g/h here
         if ( trapped .and. il > jend(ig)) cycle 
 
-        adj = anon(ie)*2.0*vperp2(ig,iglo)*aj1(ig,iglo) &
+        adj = nonmaxw_corr(ie, is)*2.0*vperp2(ig,iglo)*aj1(ig,iglo) &
               *bpar(ig,it,ik)*facbpar &
               + spec(is)%z*anon(ie)*phi(ig,it,ik)*aj0(ig,iglo) &
               /spec(is)%temp*facphi
