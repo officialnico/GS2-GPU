@@ -19,6 +19,7 @@ C_CYA_BOLD:=\033[36;1m
 C_WHI_BOLD:=\033[37;1m
 
 C_END:=\033[0m
+C_RESET:=\033[0;39m
 endif
 
 #############################################################################
@@ -26,9 +27,9 @@ endif
 ############################################################################# MESSAGES
 ifdef QUIET
 # Main line for turning off command output
-QUIETSYM=@
+QUIETSYM:=@
 # Helper methods for colourising and displaying various message types
-SEPARATOR_ITEM=":"
+SEPARATOR_ITEM:=":"
 whitebold  = "$(C_WHI_BOLD)$(1)$(C_END)"
 blue  = "$(C_BLU)$(1)$(C_END)"
 operation  = "$(C_WHI_BOLD)$(1)$(C_END)"
@@ -43,5 +44,13 @@ messageItem = @echo -e $(call blue,$(1))
 messageKeyVal = @echo -e "\t"$(call operation,$(1))"\t$(SEPARATOR_ITEM) "$(call blue,$(2))
 errEndAndFail = || (echo -en "$(C_END)" ; exit 1)
 errHighlightStart = (echo -en "$(C_RED)");
+endif
+#############################################################################
+
+############################################################################# METHODS
+ifdef SHOW_ABS_PATH
+processName = $1
+else
+processName = $(subst $(GK_HEAD_DIR)/,,$1)
 endif
 #############################################################################

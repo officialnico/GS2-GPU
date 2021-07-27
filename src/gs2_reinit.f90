@@ -116,7 +116,7 @@ contains
     write (unit, fmt="(' /')")       
   end subroutine wnml_gs2_reinit
 
-  !> FIXME : Add documentation  
+  !> Reduces the time step by a factor `delt_adj`.
   subroutine reduce_time_step
     use gs2_time, only: code_dt
     implicit none
@@ -124,12 +124,14 @@ contains
     code_dt = code_dt/delt_adj
   end subroutine reduce_time_step
 
-  !> FIXME : Add documentation  
+  !> Increases the time step by a factor `delt_adj` up to a limit of
+  !> `code_dt_max` set by [[reinit_config_type:dt0]] or from the
+  !> restart file.
   subroutine increase_time_step
-    use gs2_time, only: code_dt
+    use gs2_time, only: code_dt, code_dt_max
     implicit none
     if (first) call init_reinit
-    code_dt = min(code_dt*delt_adj, dt0)
+    code_dt = min(code_dt*delt_adj, code_dt_max)
   end subroutine increase_time_step
 
   !> FIXME : Add documentation  
@@ -137,7 +139,7 @@ contains
     use run_parameters, only: reset
     use gs2_time, only: code_dt, user_dt, code_dt_cfl, save_dt, user_time
     use dist_fn_arrays, only: gnew
-    use gs2_time, only: code_dt_min
+    use gs2_time, only: code_dt_min, code_dt_max
     use gs2_init, only: init_type, init
     use gs2_init, only: init_level_list
     use mp, only: proc0
@@ -154,7 +156,8 @@ contains
     type(init_type), intent(inout) :: current_init
     real :: original_time_step
     real :: fac = 1.0
-
+    integer :: timestep_change_attempts
+    integer, parameter :: timestep_change_attempts_limit = 10
     if (first) call init_reinit
     first = .false.
 
@@ -203,16 +206,45 @@ contains
     endif
 
     original_time_step = code_dt
-    
-! If timestep is too big, make it smaller
-    if (code_dt*fac > code_dt_cfl) then
-       call reduce_time_step
-! If timestep is too small, make it bigger
-    else if (code_dt*fac < min(dt0, code_dt_cfl/delt_adj/delt_cushion)) then
-       call increase_time_step
-    endif
-    
+
+    timestep_change_attempts = 0
+
+    ! Keep adjusting the timestep until it satisfies the required conditions
+    do while (timestep_change_attempts < timestep_change_attempts_limit)
+       ! If timestep is too big, make it smaller
+       if (code_dt*fac > code_dt_cfl) then
+          call reduce_time_step
+          ! If timestep is too small, make it bigger
+       else if (code_dt*fac < min(code_dt_max, code_dt_cfl/delt_adj/delt_cushion)) then
+          call increase_time_step
+       else
+          exit
+       endif
+       timestep_change_attempts = timestep_change_attempts + 1
+    end do
+
+    ! Handle the case where it took too many iterations for the time step
+    ! to satisfy the required conditions.
+    if(timestep_change_attempts == timestep_change_attempts_limit) then
+       if (proc0) write(error_unit(), '("Attempting to change the timestep too much in one go")')
+       reset = reset_in
+       my_exit = .true.
+       ! Note here we leave with our init level less than full. We expect to be
+       ! aborting the run here, so that's probably fine but something to be aware of.
+       return
+    end if
+
     call save_dt (code_dt)
+
+    ! Check we still aren't below the minimum step
+    if (code_dt <= code_dt_min) then
+       code_dt = code_dt_min  ! set it so restart is ok
+       my_exit = .true.
+       if (proc0) write(error_unit(), *) 'Time step wants to fall below delt_min.  Abort run.'
+       ! Note here we leave with our init level less than full. We expect to be
+       ! aborting the run here, so that's probably fine but something to be aware of.
+       return
+    end if
 
     if (proc0 .and. .not. present(job_id)) write(*,*) 'Changing time step to ', user_dt, ' from ', original_time_step, ' on step number ', istep, ' i.e. time = ', user_time
 
@@ -233,7 +265,7 @@ contains
 
   !> FIXME : Add documentation  
   subroutine check_time_step (reset, exit)
-    use gs2_time, only: code_dt_cfl, code_dt
+    use gs2_time, only: code_dt_cfl, code_dt, code_dt_max
     use nonlinear_terms, only: gryfx_zonal, nb_check_time_step_too_large
     use mp, only: broadcast
     implicit none
@@ -265,7 +297,7 @@ contains
     if (code_dt*fac > code_dt_cfl) reset = .true. !Note this logic is repeated in gs2_time::check_time_step_too_large
        
 ! If timestep is too small, make it bigger
-    if (code_dt*fac < min(dt0, code_dt_cfl/delt_adj/delt_cushion)) reset = .true.
+    if (code_dt*fac < min(code_dt_max, code_dt_cfl/delt_adj/delt_cushion)) reset = .true.
 
   end subroutine check_time_step
 
@@ -285,7 +317,7 @@ contains
   subroutine init_reinit(reinit_config_in)
     use run_parameters, only: code_delt_max
     use file_utils, only: input_unit, input_unit_exist
-    use gs2_time, only: save_dt_min
+    use gs2_time, only: save_dt_min, save_dt_max
     use gs2_init, only: gs2_init_in_memory=>in_memory
     implicit none
     type(reinit_config_type), intent(in), optional :: reinit_config_in    
@@ -316,7 +348,8 @@ contains
     exist = reinit_config%exist
     
     call save_dt_min (delt_minimum)
-    
+    call save_dt_max (dt0)
+
     ! Override with the value from gs2 init
     ! This is not transparent to the user - why do we do this?
     in_memory = gs2_init_in_memory

@@ -9,9 +9,10 @@ module gs2_time
   public :: time_history_available, dt_not_set
   public :: code_dt_prev1, code_dt_prev2
   public :: user_time, code_time, check_time_step_too_large
-  public :: save_dt_min, save_dt, save_dt_cfl, write_dt
+  public :: save_dt_min, save_dt_max, save_dt, save_dt_cfl, write_dt
   public :: init_tstart, init_delt
-  public :: code_dt_cfl, code_dt_min, user2code
+  public :: code_dt_cfl, code_dt_min, user2code, code_dt_max
+  public :: get_adams_bashforth_coefficients
 
   real, parameter :: dt_not_set = -1.0
   real :: user_dt, code_dt 
@@ -19,8 +20,9 @@ module gs2_time
   real :: code_dt_prev2 = dt_not_set
   real :: user_dt_cfl
   real :: code_dt_cfl
-  
+
   real :: code_dt_min, user_dt_min
+  real :: code_dt_max, user_dt_max
 
   ! added May 18, 2009 to take care of problems
   ! in exb_shear calculation after change in time step size
@@ -89,7 +91,7 @@ contains
 
   end subroutine save_dt_cfl
 
-  !> FIXME : Add documentation  
+  !> Sets the minimum timestep size allowed based on passed value.
   subroutine save_dt_min (dt_min)
     implicit none
     real, intent (in) :: dt_min
@@ -98,6 +100,16 @@ contains
     code_dt_min = dt_min
 
   end subroutine save_dt_min
+
+  !> Sets the maximum timestep size allowed based on passed value.
+  subroutine save_dt_max (dt_max)
+    implicit none
+    real, intent (in) :: dt_max
+
+    user_dt_max = dt_max
+    code_dt_max = dt_max
+
+  end subroutine save_dt_max
 
   !> FIXME : Add documentation
   subroutine save_dt(delt)
@@ -125,9 +137,9 @@ contains
   end subroutine user2code
 
   !> Reports how many previous time steps are available
-  !! by checking if the previous code_dt values have been
-  !! set to anything. Note we assume that if a time step is
-  !! set then all more recent values have also been set.
+  !> by checking if the previous code_dt values have been
+  !> set to anything. Note we assume that if a time step is
+  !> set then all more recent values have also been set.
   function time_history_available()
     implicit none
     integer :: time_history_available
@@ -135,8 +147,56 @@ contains
        time_history_available =  3
     else if (code_dt_prev1 .ne. dt_not_set) then
        time_history_available =  2
-    else
+    else !Note here we assume code_dt is always set
        time_history_available =  1
     endif
   end function time_history_available
+
+  !> Returns the current set of Adams Bashforth coefficients.
+  !> The order is determined by how much time history we have
+  !> available up to a maximum of 3rd order. The coefficients
+  !> are generalised for variable timestep.
+  function get_adams_bashforth_coefficients() result(coefficients)
+    implicit none
+    !> The result contains up to three coefficients. The first entry
+    !> corresponds to the coefficient for the latest source term, the
+    !> second entry corresponds to the coefficient for the previous source
+    !> term and the last entry is for the oldest source term.
+    real, dimension(:), allocatable :: coefficients
+
+    ! We have one coefficient for each point of history we keep
+    allocate(coefficients(time_history_available()))
+
+    select case (time_history_available())
+    case (3) !Most common case - 3rd order coefficients
+       ! see Tatsuno & Dorland, Physics of Plasmas 13, 092107 (2006)
+       ! http://www.cscamm.umd.edu/publications/TatsunoDorland-PoP06_CS-06-11.pdf
+       ! if code_dt = code_dt_prev1 = code_dt_prev2, this reduces to usual AB3
+       ! coefficients 23/12, -4/3 and 5/12.
+       coefficients(1) = (((code_dt + &
+            code_dt_prev1)**2/code_dt_prev1)*( &
+            (code_dt+code_dt_prev1)/3. + code_dt_prev2/2. )  - &
+            code_dt_prev1*(code_dt_prev1/3. + code_dt_prev2/2.) ) / &
+            (code_dt*(code_dt_prev1 + code_dt_prev2))
+
+       coefficients(2) = - code_dt * ( code_dt/3. + &
+            (code_dt_prev1+code_dt_prev2)/2. ) / &
+            (code_dt_prev1*code_dt_prev2)
+
+       coefficients(3) = code_dt * ( code_dt/3. + &
+            code_dt_prev1/2. ) / ( &
+            code_dt_prev2*(code_dt_prev1+code_dt_prev2) )
+
+    case (2) !2nd order coefficients
+
+       coefficients(1) = (0.5*code_dt + code_dt_prev1) / code_dt_prev1
+
+       coefficients(2) = -0.5*code_dt / code_dt_prev1
+
+    case (1) !1st order coefficients - this is just explicit Euler
+
+       coefficients(1) = 1.0
+    end select
+
+  end function get_adams_bashforth_coefficients
 end module gs2_time

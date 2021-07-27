@@ -1,7 +1,7 @@
 
 sinclude ../Makefile.tests_common
 
-CLEANCOMMAND+= test_le_grids
+clean_individual_test: LOCAL_TEST_FILES:=test_le_grids
 
 ifdef TESTNORUN
 all: test_le_grids 

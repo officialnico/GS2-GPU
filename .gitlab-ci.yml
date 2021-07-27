@@ -9,60 +9,63 @@ stages:
 .report_pass: &report_pass
   - su -c "echo passed > ${JOB_STATUS_FILE}" theuser
 
-.typical_test_script: &typical_test_script
-  - su -c "make ${EXTRA_BUILD_FLAGS} test_make" theuser
-  - su -c "make ${EXTRA_BUILD_FLAGS} -j gs2 || (echo 'build_gs2_failed' > ${JOB_STATUS_FILE}; exit 1)" theuser
-  - su -c "echo CHECKING ; cat ${JOB_STATUS_FILE} " theuser
-  - if [ x${WITH_PFUNIT_TESTS} == "xyes" ] ; then su -c "whoami ; make ${EXTRA_BUILD_FLAGS} build_pfunit_library || (echo 'build_pfunit_library_failed' > ${JOB_STATUS_FILE}; exit 1) ; make ${EXTRA_BUILD_FLAGS} -j pfunit_tests || (cat pfunit.log; echo 'pfunit_tests_failed' > ${JOB_STATUS_FILE}; exit 1)"  theuser ; fi
-  - su -c "echo CHECKING ; cat ${JOB_STATUS_FILE} " theuser
-  - if [ x${WITH_GS2_TESTS} == "xyes" ] ; then su -c "whoami ; make ${EXTRA_BUILD_FLAGS} -j tests || (echo 'failed' > ${JOB_STATUS_FILE}; exit 1) ; pipeline_test_scripts/didTestsFail.sh ${PWD}/tests results_of_test.txt  || (echo 'failed' > ${JOB_STATUS_FILE}; exit 1) ; cat ${JOB_STATUS_FILE}" theuser ; fi
-  - su -c "echo CHECKING ; cat ${JOB_STATUS_FILE} " theuser
-  - su -c "echo passed > ${JOB_STATUS_FILE}" theuser
-  - su -c "echo CHECKING ; cat ${JOB_STATUS_FILE} " theuser
-
-.pfunit_tests: &pfunit_tests
-  - if [ x${WITH_PFUNIT_TESTS} == "xyes" ] ; then su -c "whoami ; make ${EXTRA_BUILD_FLAGS} build_pfunit_library || (echo 'build_pfunit_library_failed' > ${JOB_STATUS_FILE}; exit 1) ; make ${EXTRA_BUILD_FLAGS} -j pfunit_tests || (cat pfunit.log; echo 'pfunit_tests_failed' > ${JOB_STATUS_FILE}; exit 1) "  theuser ; fi
-    - su -c "echo CHECKING ; cat ${JOB_STATUS_FILE} " theuser
-
-.gs2_tests: &gs2_tests
-  - if [ x${WITH_GS2_TESTS} == "xyes" ] ; then su -c "whoami ; make ${EXTRA_BUILD_FLAGS} -j tests || (echo 'failed' > ${JOB_STATUS_FILE}; exit 1) ; pipeline_test_scripts/didTestsFail.sh ${PWD}/tests results_of_test.txt  || (echo 'failed' > ${JOB_STATUS_FILE}; exit 1)" theuser ; fi
-    - su -c "echo CHECKING ; cat ${JOB_STATUS_FILE} " theuser
-
 .push_status: &push_status
-  - BUILD_STATUS=$(cat ${JOB_STATUS_FILE})  BUILD_KEY=push ./.push_gitlab_build_status ${CASENAME}
-  
+  - BUILD_STATUS=$(cat ${JOB_STATUS_FILE})  BUILD_KEY=push ./pipeline_test_scripts/push_gitlab_build_status ${CASENAME}
+
 .init_test_job: &init_test_job
   - echo "running" > ${JOB_STATUS_FILE}
-  - BUILD_STATUS=$(cat ${JOB_STATUS_FILE})  BUILD_KEY=push ./.push_gitlab_build_status ${CASENAME}
+  - BUILD_STATUS=$(cat ${JOB_STATUS_FILE})  BUILD_KEY=push ./pipeline_test_scripts/push_gitlab_build_status ${CASENAME}
   - echo "before_script" > ${JOB_STATUS_FILE}
 
 .install_main_packages: &install_main_packages
-  - apt-get update -qq && apt-get install -y -qq ${GS2_PACKAGES}
+  - dnf install -y ${BASIC_PACKAGES} ${GS2_PACKAGES} ${PYTHON_PACKAGES} ${EXTRA_PACKAGES}
+  - if [ "x"${WITH_MPI} == "xyes" ]; then source /etc/profile.d/modules.sh ; module load mpi ; echo 'MPI_LIB=' > Makefile.local ; fi #Note the MPI_LIB is needed until we namespace our Makefile variables
+  - if [ "x"${WITH_PYTHON} == "xyes" ]; then pip3 install -U pip; fi
   - if [ "x"${WITH_PYTHON} == "xyes" ]; then pip3 install -r requirements.txt; fi
 
-.build_gs2: &build_gs2
-  - su -c "make ${EXTRA_BUILD_FLAGS} -j gs2 || (echo 'build_gs2_failed' > ${JOB_STATUS_FILE}; exit 1)" theuser
-
 .create_user: &create_user
-  - adduser theuser --disabled-password --gecos ""
+  - useradd theuser
   - chmod gou+rw ${JOB_STATUS_FILE}
-  
-variables:
+  - touch Makefile.local
+  - chmod gou+rw Makefile.local
+
+variables: &default_variables
   GIT_SUBMODULE_STRATEGY: recursive
   OMPI_MCA_rmaps_base_oversubscribe: "yes"
   # The following required to avoid lots of "Read -1, expected _, errno = 38" issues
   # Fix discussed at https://github.com/open-mpi/ompi/issues/4948, suggests newer mpi
   # and docker may avoid this issue
   OMPI_MCA_btl_vader_single_copy_mechanism: "none"
-  JOB_STATUS_FILE: "special_file_to_indicate_job_status"
+  # The below would allow us to run as root and avoid having to create a
+  # a new user to run as.
+  # OMPI_ALLOW_RUN_AS_ROOT=1
+  # OMPI_ALLOW_RUN_AS_ROOT_CONFIRM=1
   MAKEFLAGS: "-IMakefiles"
-  GK_SYSTEM: "bitbucket"
-  GS2_PACKAGES: "libfftw3-dev libnetcdf-dev libnetcdff-dev netcdf-bin openmpi-bin libopenmpi-dev gfortran cmake python3 python3-pip"
+  GK_SYSTEM: "fedora"
+  # The following control what aspects of the test script are run
+  GK_CI_BUILD: "ON"
+  GK_CI_PFUNIT: "ON"
+  GK_CI_INTEGRATED: "ON"
+  # The following control some of the job setup and behaviour and can be
+  # customised on a per job basis.
+  EXTRA_MAKE_FLAGS: ""
+  EXTRA_TEST_FLAGS: ""
+  EXTRA_PFUNIT_FLAGS: ""
+  GK_MAKEFILE_LOCAL_EXTRA_FLAGS: ""
+  JOB_STATUS_FILE: "special_file_to_indicate_job_status"
+  BASIC_PACKAGES: "environment-modules make git which cmake findutils"
+  GS2_PACKAGES: "fftw-devel netcdf-fortran netcdf-devel netcdf-fortran-devel openmpi openmpi-devel gcc gcc-gfortran"
+  PYTHON_PACKAGES: "python python3 python3-pip python3-devel"
+  EXTRA_PACKAGES: ""
   WITH_PYTHON: "yes"
-  WITH_PFUNIT_TESTS: "yes"
-  WITH_GS2_TESTS: "yes"
-  
+  WITH_MPI: "yes"
+  PKG_CACHE_DIR: "${CI_PROJECT_DIR}/cache"
+  BUILD_PFUNIT_INSTALL_DIR: "${PKG_CACHE_DIR}/pfunit"
+  BUILD_PFUNIT_JOBS: "1"
+  PFUNIT_DIR: "${BUILD_PFUNIT_INSTALL_DIR}"
+
 default:
+  timeout: 20m
   artifacts:
     paths:
       - pfunit.log
@@ -73,66 +76,142 @@ default:
     - *install_main_packages
     - *create_user
   after_script:
-    - *push_status 
+    - *push_status
   interruptible: true
-    
+  cache:
+    paths:
+      - cache
+    key: "$CI_JOB_NAME"
+
+.the_default_script: &default_script
+  - su -c "./pipeline_test_scripts/ci_build_and_run.sh" theuser
+  - *report_pass
+
 formattting_tests:
+  stage: test
+  image: fedora:31
   variables:
     CASENAME: "formatting"
-    GS2_PACKAGES: "python3"
+    GS2_PACKAGES: ""
     WITH_PYTHON: "no"
+    WITH_MPI: "no"
   script:
     - scripts/test_maximum_line_length $(scripts/get_all_matching_files.py --path=src --path=externals/utils --pattern="*.[Ff]??") || (echo "failed" > ${JOB_STATUS_FILE} ; exit 1)
     - *report_pass
-    
+  cache: {}
+
 standard_tests:
+  stage: test
+  image: fedora:31
   variables:
     CASENAME: "standard"
-    EXTRA_BUILD_FLAGS: "USE_NEW_DIAG= "
+  script: *default_script
+
+gfortran10_standard_tests:
+  stage: test
+  image: fedora:33
+  variables:
+    CASENAME: "gfortran_10"
+    EXTRA_PACKAGES: "wget openblas openblas-devel"
+    EXTRA_MAKE_FLAGS: "USE_LAPACK=on LAPACK_LIB=-lopenblas WITH_EIG=on"
+#Disable pfunit tests for now as v3 doesn't support gfortran 10 so it fails to build.
+    GK_CI_PFUNIT: ""
   script:
-    - *typical_test_script
-    
-standard_tests_onestep:
+    - su -c "./pipeline_test_scripts/ci_fetch_and_build_petsc_and_slepc.sh -d ${PKG_CACHE_DIR}" theuser
+    - su -c "source load_petsc_slepc ;  ./pipeline_test_scripts/ci_build_and_run.sh" theuser
+    - *report_pass
+
+gfortran5_standard_tests:
+  stage: test
+  image: fedora:23
+  variables:
+    CASENAME: "gfortran_5"
+    WITH_PYTHON: ""
+    GK_CI_PFUNIT: ""
+    GK_CI_INTEGRATED: ""
+  script: *default_script
+  cache: {}
+
+intel_tests:
+  stage: test
+  image: fedora:31
+  artifacts:
+  variables:
+    CASENAME: "intel"
+    EXTRA_MAKE_FLAGS: "COMPILER=intel USE_FFT= USE_NETCDF= USE_MPI= USE_NEW_DIAG= "
+    GK_MAKEFILE_LOCAL_EXTRA_FLAGS: "DBLESIZEOPT=-double_size 128"
+    GS2_PACKAGES: "cpp gcc"
+    EXTRA_PACKAGES: "dnf-plugins-core"
+    WITH_PYTHON: "no"
+    WITH_MPI: "no"
+    GK_CI_PFUNIT: ""
+  script:
+    - ./pipeline_test_scripts/ci_setup_intel_on_gitlab.sh -y
+    - source load_intel_compiler
+    - su -c "./pipeline_test_scripts/ci_build_and_run.sh" theuser
+    - *report_pass
+  cache: {}
+
+coverage_standard_tests:
+  stage: test
+  image: fedora:29
+  variables:
+    CASENAME: "standard+coverage+debug+onestep"
+    GK_CI_INTEGRATED: ""
+    GK_CI_PFUNIT_COVERAGE: "ON"
+    EXTRA_MAKE_FLAGS: "USE_GCOV=on DEBUG=on ONE_STEP_PP=on"
+    GK_MAKEFILE_LOCAL_EXTRA_FLAGS: "F90FLAGS += -ffree-form"
+    COVERALLS_SERVICE_NAME: "gitlab-ci"
+  script: *default_script
+  after_script:
+    - *push_status
+    - pip3 install git+https://github.com/d7919/cpp-coveralls.git
+    - coveralls --exclude tests --exclude externals/pFUnit_build
+
+onestep_standard_tests:
+  stage: test
+  image: fedora:31
   variables:
     CASENAME: "standard_one_step_pp"
-    EXTRA_BUILD_FLAGS: "USE_NEW_DIAG= ONE_STEP_PP=on"
-  script:
-    - su -c "whoami ; echo 'F90FLAGS += -ffree-form' > Makefile.local" theuser
-    - *typical_test_script
+    EXTRA_MAKE_FLAGS: "USE_NEW_DIAG= ONE_STEP_PP=on TEST_LEVEL=2"
+    GK_MAKEFILE_LOCAL_EXTRA_FLAGS: "F90FLAGS += -ffree-form"
+  script: *default_script
 
 nodeps_tests:
+  stage: test
+  image: fedora:31
   variables:
     CASENAME: "no_dependency"
-    EXTRA_BUILD_FLAGS: "USE_FFT= USE_NETCDF= USE_MPI= USE_NEW_DIAG= "
+    EXTRA_MAKE_FLAGS: "USE_FFT= USE_NETCDF= USE_MPI= USE_NEW_DIAG= "
     GS2_PACKAGES: "gfortran"
     WITH_PYTHON: "no"
-    WITH_PFUNIT_TESTS: "no"
-    WITH_GS2_TESTS: "yes"
-  script:
-    - *typical_test_script
+    WITH_MPI: "no"
+    GK_CI_PFUNIT: ""
+  script: *default_script
+  cache: {}
 
 pages:
   stage: test
+  image: fedora:31
   variables:
-    EXTRA_BUILD_FLAGS: "USE_NEW_DIAG= "
     CASENAME: "website"
   script:
-    - BUILD_STATUS=running  BUILD_KEY=push ./.push_gitlab_build_status ${CASENAME}
+    - BUILD_STATUS=running  BUILD_KEY=push ./pipeline_test_scripts/push_gitlab_build_status ${CASENAME}
     - *install_main_packages
-    - make ${EXTRA_BUILD_FLAGS} doc
+    - make ${EXTRA_MAKE_FLAGS} doc
     - mv docs/html ./public
-    - BUILD_STATUS=passed  BUILD_KEY=push ./.push_gitlab_build_status ${CASENAME}
+    - BUILD_STATUS=passed  BUILD_KEY=push ./pipeline_test_scripts/push_gitlab_build_status ${CASENAME}
   after_script:
     - echo "Website created and pushed, it may take a while before the changes are reflected."
   artifacts:
     paths:
       - public
-
+  cache: {}
   rules:
     # Always build the website if the source branch name is master or next
     - if: '$CI_COMMIT_BRANCH == "master" || $CI_COMMIT_BRANCH == "next"'
       when: always
-    # Always build the website if the commit message contains build-website      
+    # Always build the website if the commit message contains build-website
     - if: '$CI_COMMIT_MESSAGE =~ /build-website/'
       when: always
     # Otherwise it's a manual action that can be triggered by an authenticated user on gitlab
@@ -141,23 +220,3 @@ pages:
       # the entire pipeline cannot complete until the manual action is triggered.
       # We need allow_failure true here to avoid this blocking the pipeline.
       allow_failure: true
-
-success:
-  stage: ci_status
-  before_script:
-    - ""
-  after_script:
-    - ""
-  script:
-    - echo "All tests passed."
-  when: on_success
-
-failure:
-  stage: ci_status
-  before_script:
-    - ""
-  after_script:
-    - ""
-  script:
-    - echo "At least one test failed."
-  when: on_failure
