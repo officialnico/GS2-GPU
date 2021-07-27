@@ -232,7 +232,7 @@ contains
 
         adj = nonmaxw_corr(ie, is)*2.0*vperp2(ig,iglo)*aj1(ig,iglo) &
               *bpar(ig,it,ik)*facbpar &
-              + spec(is)%z*anon(ie)*phi(ig,it,ik)*aj0(ig,iglo) &
+              + spec(is)%z*nonmaxw_corr(ie, is)*phi(ig,it,ik)*aj0(ig,iglo) &
               /spec(is)%temp*facphi
         g(ig,1) = adj
         g(ig,2) = adj
