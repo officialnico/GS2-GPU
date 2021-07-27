@@ -1,20 +1,24 @@
 
 sinclude ../Makefile.tests_common
+
+INPUTFILE=time_timestep_level_1.in
+ifeq "$(BENCHMARK_LEVEL)" "2"
+INPUTFILE=time_timestep_level_2.in
+endif
+ifeq "$(BENCHMARK_LEVEL)" "3"
+INPUTFILE=time_timestep_level_3.in
+endif
+
 all: time_timestep 
 	for d in $(NTESTPROCS); \
 	do \
-	  $(call BENCHMARKCOMMAND,$$d,time_timestep,time_timestep.in) ; \
+	  $(call BENCHMARKCOMMAND,$$d,time_timestep,$(INPUTFILE)) ; \
 	done
 	#$(TESTCOMMAND) time_timestep time_timestep.in
 
 TIMINGFILES=$(wildcard *.timing.*)
 
 UPLOADCOMMAND = $(call UPLOAD_BENCHMARKS,$(TIMINGFILES))
-
-
-# For building unit tests - to get rid of too much dependency
-#TEST_MODS = ../../unit_tests.o ../../general_f0.o ../../species.o ../../file_utils.o ../../spl.o ../../command_line.o ../../mp.o ../../text_options.o ../../constants.o ../../analytical_falpha.o
-
 
 time_timestep.o:  ${TEST_MODS} 
 
