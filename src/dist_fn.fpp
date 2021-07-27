@@ -6124,7 +6124,7 @@ contains
 
     ! passing non-zonal electrons
     if(hzero_passing_electron_response) then 
-        g0 = 0.
+        g_work = 0.
         do iglo = g_lo%llim_proc, g_lo%ulim_proc
            ie = ie_idx(g_lo,iglo)
            is = is_idx(g_lo,iglo)
@@ -6133,12 +6133,12 @@ contains
            if(spec(is)%type == electron_species &
            .and. aky(ik) /= 0. .and. il <= ng2+1) then
                do isgn = 1, 2
-                  g0(:,isgn,iglo) = -(aj0(:,iglo)**2)*nonmaxw_corr(ie, is)
+                  g_work(:,isgn,iglo) = -(aj0(:,iglo)**2)*nonmaxw_corr(ie, is)
                end do
            endif
         end do
         wgt = spec%z*spec%z*spec%dens/spec%temp
-        call integrate_species (g0, wgt, tot)
+        call integrate_species (g_work, wgt, tot)
         gamtot_hzero = real(tot) 
     endif
     
