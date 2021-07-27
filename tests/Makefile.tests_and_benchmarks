@@ -175,19 +175,22 @@ test_venv := $(GK_HEAD_DIR)/tests/venv
 ifeq ($(GS2_HAS_PYTHON),yes)
 # Create a virtualenv and install the test dependencies there
 create-test-virtualenv:
-	@echo "Creating virtualenv and installing test dependencies"
+	$(call messageInfo,"Creating virtualenv and installing test dependencies")
 	sh -c "python3 -m venv $(test_venv); \
 		. $(test_venv)/bin/activate; \
 		pip install -r requirements.txt; \
 		deactivate; \
 	"
 	@echo "----------------------------------------"
-	@echo "Now activate the virtualenv with 'source $(test_venv)/bin/activate'"
-	@echo "You can use 'deactivate' to stop the virtualenv"
+	$(call messageInfo,Now activate the virtualenv with '. $(test_venv)/bin/activate')
+	$(call messageInfo,You can use 'deactivate' to stop the virtualenv)
 else
 create-test-virtualenv:
 	@echo "No Python available, cannot create virtualenv"
 endif
 
 clean-test-virtualenv:
-	rm -rf $(test_venv)
+	$(call messageRm,Test virtualenv)
+	-$(QUIETSYM)rm -rf $(test_venv)
+
+distclean: clean-test-virtualenv
