@@ -170,7 +170,7 @@ endif
 ############################################################
 # Recipes for Python-based tests
 
-test_venv = $(GK_HEAD_DIR)/tests/venv
+test_venv := $(GK_HEAD_DIR)/tests/venv
 
 # Create a virtualenv and install the test dependencies there
 create-test-virtualenv:
