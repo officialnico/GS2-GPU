@@ -198,7 +198,7 @@ contains
 
        if (use_cfl_limit) then
           write (report_unit, *)
-          write (report_unit, fmt="('The timestep will be adjusted to satify the CFL limit.')")
+          write (report_unit, fmt="('The timestep will be adjusted to satisfy the CFL limit.')")
           write (report_unit, fmt="('The maximum delt < ',f10.4,' * min(Delta_perp/v_perp). (cfl)')") cfl
           write (report_unit, *)
        else
