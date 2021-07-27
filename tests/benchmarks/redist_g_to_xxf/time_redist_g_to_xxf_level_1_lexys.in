@@ -17,7 +17,7 @@
 !=================================================================
 
 &layouts_knobs
- layout = 'yxles'
+ layout = 'lexys'
 /
 
 &collisions_knobs
@@ -53,7 +53,7 @@
 /
 
 &knobs
- nstep = 10
+ nstep = 2000
 /
 
 &species_knobs
@@ -78,7 +78,7 @@ grid_option="box"
 /
 
 &kt_grids_box_parameters
-ny = 16
+ny = 15
 nx = 16
 y0=10.0
 x0=10.0

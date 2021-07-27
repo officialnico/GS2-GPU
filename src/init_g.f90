@@ -17,6 +17,7 @@ module init_g
   public :: ginitopt_restart_memory
   private :: single_initial_kx
   public :: restart_file
+  public :: get_restart_dir
 
   public :: init_g_config_type
   public :: set_init_g_config
@@ -4387,6 +4388,12 @@ contains
     type(init_g_config_type) :: get_init_g_config
     get_init_g_config = init_g_config
   end function get_init_g_config
+
+  !> Returns the value of [[init_g_knobs:restart_dir]]
+  function get_restart_dir()
+    character(len=:), allocatable :: get_restart_dir
+    get_restart_dir = restart_dir
+  end function get_restart_dir
 
   !---------------------------------------
   ! Following is for the config_type
