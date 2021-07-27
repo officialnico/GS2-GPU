@@ -5363,7 +5363,7 @@ contains
     use prof, only: prof_entering, prof_leaving
     use gs2_layouts, only: g_lo, ik_idx, il_idx, is_idx
     implicit none
-    complex, dimension(-ntgrid:, :, g_lo%llim_proc:), intent(in) :: g_in
+    complex, dimension(-ntgrid:, :, g_lo%llim_proc:), intent(in out) :: g_in
     complex, dimension (-ntgrid:,:,:), intent (out) :: antot, antota, antotp
     real, dimension (nspec) :: wgt
 
@@ -5371,6 +5371,8 @@ contains
 
     call prof_entering ("getan_from_dfn", "dist_fn")
 
+    ! This is an unexpected side effect from this routine.
+    ! May need to check if this zeroing is required.
     if(hzero_passing_electron_response) then 
         do iglo = g_lo%llim_proc, g_lo%ulim_proc
             ik = ik_idx(g_lo,iglo)
@@ -6729,7 +6731,7 @@ contains
     use kt_grids, only: naky, ntheta0, kperp2
     use species, only: nspec, spec
     implicit none
-    complex, dimension(-ntgrid:, :, g_lo%llim_proc:), intent(in) :: f_in
+    complex, dimension(-ntgrid:, :, g_lo%llim_proc:), intent(in out) :: f_in
     complex, dimension(-ntgrid:, :, :), intent(out) :: phi, apar, bpar
     complex, dimension(:, :, :), allocatable :: antot, antota, antotp
     real, dimension(nspec) :: weights
