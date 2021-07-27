@@ -123,6 +123,13 @@ module gs2_init
      !> this value and the value of `in_memory` in [[reinit_knobs]]
      !> must be set to `true` in order to enable this feature.
      !>
+     !> @warning Currently it is recommended that this flag is set to false.
+     !> Whilst avoiding hitting disk can be useful, at the moment due to how
+     !> gs2_init deals with changing the time step when `in_memory` is true we
+     !> will lose the history of the NL source terms (`gexp_1`, `gexp_2` and `gexp_3`).
+     !> The `in_memory = .false.` path stores these values in the restart file so can
+     !> restore these after the timestep has changed.
+     !>
      !> @todo Consider if this can be removed and just the
      !> [[reinit_knobs]] version controls the feature.
      logical :: in_memory = .false.
