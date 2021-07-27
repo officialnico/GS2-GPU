@@ -176,8 +176,8 @@ ifeq ($(GS2_HAS_PYTHON),yes)
 # Create a virtualenv and install the test dependencies there
 create-test-virtualenv:
 	@echo "Creating virtualenv and installing test dependencies"
-	bash -c "python3 -m venv $(test_venv); \
-		source $(test_venv)/bin/activate; \
+	sh -c "python3 -m venv $(test_venv); \
+		. $(test_venv)/bin/activate; \
 		pip install -r requirements.txt; \
 		deactivate; \
 	"
