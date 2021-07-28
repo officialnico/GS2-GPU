@@ -105,7 +105,7 @@ $(call messageOp,"Running ","\\t:",$(1))
 endef
 
 define FAILCOMMAND
-echo "FAILED: `basename $$PWD` ($(TESTCOMMAND)$(1) $(2) $(3))" >> results_of_test.txt ; $(TEST_DIR)/write_test_xml.sh `basename $$PWD` 1 0 1 0 $(TEST_RESULT_DIR); cat OUTPUT $(2).error
+echo "FAILED: `basename $$PWD` ($(TESTCOMMAND)$(1) $(2) $(3))" >> results_of_test.txt ; $(TEST_DIR)/write_test_xml.sh `basename $$PWD` 1 0 1 0 $(TEST_RESULT_DIR); cat OUTPUT
 endef
 
 define PASSCOMMAND
