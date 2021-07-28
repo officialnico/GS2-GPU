@@ -123,6 +123,8 @@ contains
           ie = ie_idx(g_lo,iglo)
           is = is_idx(g_lo,iglo)
           phi_factor = spec(is)%zt*nonmaxw_corr(ie,is)*facphi
+       else if (hzero_passing_electron) then
+          is = is_idx(g_lo,iglo)
        end if
 
        ! BD:  bpar == delta B_parallel / B_0(theta) so no extra factor of
