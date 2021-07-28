@@ -2088,12 +2088,11 @@ contains
 
   !> FIXME : Add documentation  
   subroutine init_lorentz (vnmult_target)
-    use le_grids, only: negrid, jend, ng2, nxi
+    use le_grids, only: negrid, jend, ng2, nxi, g2le
     use gs2_layouts, only: le_lo
     use gs2_layouts, only: lz_lo, g_lo
     use gs2_layouts, only: ig_idx, ik_idx, ie_idx, is_idx, it_idx
     use redistribute, only: gather
-    use le_grids, only: g2le, xi
     use theta_grid, only: ntgrid
     use dist_fn_arrays, only: aj0, aj1
     use species, only: hzero_passing_electron_collisions_matrix
