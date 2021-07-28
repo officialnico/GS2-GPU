@@ -138,7 +138,7 @@ intel_tests:
   artifacts:
   variables:
     CASENAME: "intel"
-    EXTRA_MAKE_FLAGS: "COMPILER=intel USE_FFT= USE_NETCDF= USE_MPI= USE_NEW_DIAG= "
+    EXTRA_MAKE_FLAGS: "COMPILER=intel DEBUG=on USE_FFT= USE_NETCDF= USE_MPI= USE_NEW_DIAG= "
     GK_MAKEFILE_LOCAL_EXTRA_FLAGS: "DBLESIZEOPT=-double_size 128"
     GS2_PACKAGES: "cpp gcc"
     EXTRA_PACKAGES: "dnf-plugins-core"
