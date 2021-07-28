@@ -82,7 +82,8 @@ module optimisation_config
      !> considered when looking for a constrained set of parameters.
      !> A negative value implies only the optimal parameters are considered.
      real :: min_efficiency = -1.0
-     !> The number of timestep to use in the timing experiments
+     !> The number of timestep to use in the timing experiments. Must
+     !> be greater than 1
      integer :: nstep_measure = 5
      !> Set true to turn on optimisation procedure
      logical :: on = .false.
@@ -130,6 +131,8 @@ contains
   end subroutine finish_optimisation_config
 
   subroutine read_parameters(optim, optimisation_config_config_in)
+    use mp, only: proc0
+    use file_utils, only: error_unit
     implicit none
     type(optimisation_type), intent(inout) :: optim
     type(optimisation_config_type), intent(in), optional :: optimisation_config_config_in
@@ -148,6 +151,12 @@ contains
     optim%nstep_measure = optimisation_config_config%nstep_measure
     optim%on = optimisation_config_config%on
     optim%warm_up = optimisation_config_config%warm_up
+
+    if (optim%nstep_measure < 2) then
+       optim%nstep_measure = 2
+       if (proc0) write(error_unit(), '("Warning nstep_measure must be at least 2. Forcing nstep_measure = 2")')
+    end if
+
   end subroutine read_parameters
 
   !> Set the module level config type
