@@ -196,13 +196,15 @@ contains
     write(6,fmt='(5i6,1pe12.4)')ik,it,il,ie,is,err
     write(6,*) "-----"
   end subroutine check_g_bouncepoints
-  
+
+  !> Assign g a value corresponding to h (g_wesson of CMR's note in
+  !> g_adjust) of h = 0 in order to be consistent with g_adjust. The
+  !> correct function call to set h = 0 is call set_h_zero(g, phi,
+  !> bpar, -fphi, -fbpar, iglo)
+  !>
+  !> @note This looks like the g_adjust loop kernel, we might be able
+  !> to combine these in some way to avoid duplication.
   subroutine set_h_zero (g, phi, bpar, facphi, facbpar, iglo)
-    ! MRH subroutine which assigns g a value
-    ! corresponding to h (g_wesson of CMR's note in g_adjust) of h = 0
-    ! in order to be consistent with g_adjust, the correct function call
-    ! To set h = 0 is
-    ! call set_h_zero(g, phi, bpar, -fphi, -fbpar, iglo)
     use species, only: spec, nonmaxw_corr
     use theta_grid, only: ntgrid
     use le_grids, only: jend, ng2
@@ -214,21 +216,23 @@ contains
     integer, intent (in) :: iglo
     integer :: ig, ik, it, ie, is, il
     complex :: adj
-    logical :: trapped=.false.
-    
+    logical :: trapped
+
+    trapped = .false.
+
     if (minval(jend) .gt. ng2) trapped=.true.
 
     ik = ik_idx(g_lo,iglo)
     it = it_idx(g_lo,iglo)
+    il = il_idx(g_lo,iglo)
     ie = ie_idx(g_lo,iglo)
     is = is_idx(g_lo,iglo)
-    il = il_idx(g_lo,iglo)
 
-    ! bpar == delta B_parallel / B_0(theta) so no extra factor of 
+    ! bpar == delta B_parallel / B_0(theta) so no extra factor of
     ! 1/bmag is needed here.
     do ig = -ntgrid, ntgrid
         !Don't adjust in the forbidden region as we don't set g/h here
-        if ( trapped .and. il > jend(ig)) cycle 
+        if ( trapped .and. il > jend(ig)) cycle
 
         adj = nonmaxw_corr(ie, is)*2.0*vperp2(ig,iglo)*aj1(ig,iglo) &
               *bpar(ig,it,ik)*facbpar &
@@ -239,5 +243,5 @@ contains
     end do
 
   end subroutine set_h_zero
-  
+
 end module dist_fn_arrays
