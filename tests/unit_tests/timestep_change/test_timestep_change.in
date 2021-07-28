@@ -1,0 +1,127 @@
+&collisions_knobs
+                           collision_model =  "none"
+/
+
+&dist_fn_knobs
+                          adiabatic_option =  "iphi00=2"
+                           boundary_option =  "linked"
+                                opt_source =  T
+/
+
+&dist_fn_species_knobs_1
+                                    bakdif =  0.0
+                                     fexpr =  0.48
+/
+
+&fields_knobs
+                              field_option =  "local"
+                      force_maxwell_reinit =  F
+                                   minnrow =  64000
+/
+
+&gs2_diagnostics_knobs
+                                      navg =  10
+                                     nsave = -1
+                                    nwrite =  10
+                          save_for_restart =  F
+                               write_ascii =  F
+                         write_correlation =  F
+                        write_final_fields =  T
+                           write_flux_line =  F
+                                write_line =  F
+                             write_moments =  F
+                               write_omavg =  F
+                               write_omega =  F
+/
+
+&init_knobs
+                                 in_memory =  F
+/
+
+&init_g_knobs
+                                 chop_side =  F
+                                clean_init =  T
+                              ginit_option =  "default"
+        include_explicit_source_in_restart =  T
+                                   phiinit =  1.0e-3
+/
+
+&knobs
+                                      delt =  0.1
+                                     fapar =  0.0
+                                     fbpar =  0.0
+                                      fphi =  1.0
+                           immediate_reset =  T
+                                     nstep =  100
+/
+
+&kt_grids_knobs
+                               grid_option =  "box"
+/
+
+&kt_grids_box_parameters
+                                        nx =  32
+                                        ny =  32
+                                        y0 =  5.0
+/
+
+&layouts_knobs
+                          fft_measure_plan =  F
+                                intmom_sub =  T
+                               intspec_sub =  T
+                                    layout =  "xyles"
+                            opt_local_copy =  T
+                            opt_redist_nbk =  T
+                        opt_redist_persist =  T
+                opt_redist_persist_overlap =  T
+/
+
+&le_grids_knobs
+                                     nesub =  12
+                                   nesuper =  4
+                                  npassing =  10
+/
+
+&nonlinear_terms_knobs
+                                       cfl =  1.0
+                            nonlinear_mode =  "on"
+/
+
+&parameters
+                                      beta =  0.0
+                                      tite =  1.0
+                                      zeff =  1.0
+/
+
+&reinit_knobs
+                                 in_memory =  F
+/
+
+&species_knobs
+                                     nspec =  1
+/
+
+&species_parameters_1
+                                     fprim =  0.0
+                                      mass =  1.0
+                                      temp =  1.0
+                                     tprim =  0.0
+                                      type =  "ion"
+                                     vnewk =  0.0
+                                         z =  1.0
+/
+
+&theta_grid_knobs
+                        equilibrium_option =  "s-alpha"
+/
+
+&theta_grid_parameters
+                                   nperiod =  1
+                                    ntheta = 12
+                                       eps = 0.18
+                                      epsl = 2.0
+                                      shat = 0.8
+                                        pk = 1.44
+                                     shift = 0.0
+/
+
