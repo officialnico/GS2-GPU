@@ -244,7 +244,7 @@ contains
     type(stir_config_type), intent(in), dimension(:), optional :: stir_config_in
     complex :: a, b
     integer :: kx, ky, kz, i, ierr
-    logical :: exist, travel
+    logical :: exist, travel, ant_off
 
     if (present(driver_config_in)) driver_config = driver_config_in
 
@@ -252,7 +252,7 @@ contains
 
     ! Copy out internal values into module level parameters
     amplitude = driver_config%amplitude
-    no_driver = driver_config%ant_off .or. .not. driver_config%exist
+    ant_off = driver_config%ant_off
     nk_stir = driver_config%nk_stir
     restarting = driver_config%restarting
     t0 = driver_config%t0
@@ -265,6 +265,7 @@ contains
     ! If the namelist wasn't present, or if [[driver_config:ant_off]]
     ! was explicitly set to true, then we won't be using the antenna,
     ! so for consistency, we turn it off in this case
+    no_driver = driver_config%ant_off .or. .not. driver_config%exist
     driver_config%ant_off = no_driver
 
     if (no_driver) return
