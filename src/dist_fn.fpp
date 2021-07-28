@@ -6147,7 +6147,7 @@ contains
        call ensure_single_val_fields_pass_r(gamtot)
        call ensure_single_val_fields_pass_r(gamtot1)
        call ensure_single_val_fields_pass_r(gamtot2)
-       call ensure_single_val_fields_pass_r(gamtot_hzero)
+       if (allocated(gamtot_hzero)) call ensure_single_val_fields_pass_r(gamtot_hzero)
     endif
 
 ! adiabatic electrons 
