@@ -2096,8 +2096,7 @@ contains
     use le_grids, only: g2le, xi
     use theta_grid, only: ntgrid
     use dist_fn_arrays, only: aj0, aj1
-    use species, only: spec, electron_species, hzero_passing_electron_collisions_matrix
-    use kt_grids, only: aky
+    use species, only: hzero_passing_electron_collisions_matrix
     implicit none
 
     real, intent (in), optional :: vnmult_target
@@ -2107,7 +2106,6 @@ contains
     real, dimension (:), allocatable :: dd, hh
     integer :: ile
     integer :: ilz
-    integer :: il_ulim, il_llim
     complex, dimension (:,:,:), allocatable :: ctmp, z_big
 
     allocate (aa(nxi+1), bb(nxi+1), cc(nxi+1), dd(nxi+1), hh(nxi+1))
@@ -2182,21 +2180,7 @@ contains
 
             call get_lorentz_matrix (aa, bb, cc, dd, hh, ig, ik, it, ie, is)
             
-            if (hzero_passing_electron_collisions_matrix .and. spec(is)%type == electron_species &
-           .and. aky(ik) /= 0.) then ! MRH special behaviour when h=0 for passing non-zonal electrons
-            ! The effect of these changes is to exclude passing electrons
-            ! From pitch angle scattering, and to enforce 0 passing as a boundary condition
-            ! For the trapped particle pitch angle scattering
-                il_llim = ng2 + 2 ! il index of 1st non-wfb trapped particle
-                il_ulim = 2*je-1 - (ng2+ 1) ! il index of last non-wfb trapped particle
-                !write(*,*) "ig",ig,"xi(ig,il_llim)",xi(ig,il_llim),"xi(ig,il_ulim)",xi(ig,il_ulim)
-                aa(:il_llim) = 0.
-                bb(:il_llim-1) = 1.
-                cc(:il_llim-1) = 0.
-                aa(il_ulim+1:) = 0.
-                bb(il_ulim+1:) = 1.
-                cc(il_ulim:) = 0.
-            endif
+            if (hzero_passing_electron_collisions_matrix) call set_hzero_collisions_matrix
             
             c1le(:,ie,ile) = cc
             if (allocated(d1le)) then
@@ -2257,20 +2241,7 @@ contains
 
          call get_lorentz_matrix (aa, bb, cc, dd, hh, ig, ik, it, ie, is)
          
-         if (hzero_passing_electron_collisions_matrix .and. spec(is)%type == electron_species &
-       .and. aky(ik) /= 0.) then ! MRH special behaviour when h=0 for passing non-zonal electrons
-        ! The effect of these changes is to exclude passing electrons
-        ! From pitch angle scattering, and to enforce 0 passing as a boundary condition
-        ! For the trapped particle pitch angle scattering
-            il_llim = ng2 + 2 ! il index of 1st non-wfb trapped particle
-            il_ulim = 2*je-1 - (ng2+ 1) ! il index of last non-wfb trapped particle
-            aa(:il_llim) = 0.
-            bb(:il_llim-1) = 1.
-            cc(:il_llim-1) = 0.
-            aa(il_ulim+1:) = 0.
-            bb(il_ulim+1:) = 1.
-            cc(il_ulim:) = 0.
-         endif
+         if (hzero_passing_electron_collisions_matrix) call set_hzero_collisions_matrix
         
          c1(:,ilz) = cc
          if (allocated(d1)) then
@@ -2293,6 +2264,36 @@ contains
     end if
 
     deallocate (aa, bb, cc, dd, hh)
+
+  contains
+
+    !> Special behaviour when h=0 for passing non-zonal electrons
+    !>
+    !> The effect of these changes is to exclude passing electrons
+    !> From pitch angle scattering, and to enforce 0 passing as a
+    !> boundary condition For the trapped particle pitch angle
+    !> scattering.
+    subroutine set_hzero_collisions_matrix
+      use species, only: spec, electron_species
+      use kt_grids, only: aky
+      implicit none
+      !> il index of 1st non-wfb trapped particle
+      integer :: il_llim
+      !> il index of last non-wfb trapped particle
+      integer :: il_ulim
+
+      il_llim = ng2 + 2
+      il_ulim = 2*je-1 - (ng2+ 1)
+
+      if ( spec(is)%type == electron_species .and. aky(ik) /= 0.) then
+         aa(:il_llim) = 0.
+         bb(:il_llim-1) = 1.
+         cc(:il_llim-1) = 0.
+         aa(il_ulim+1:) = 0.
+         bb(il_ulim+1:) = 1.
+         cc(il_ulim:) = 0.
+      endif
+    end subroutine set_hzero_collisions_matrix
 
   end subroutine init_lorentz
 
