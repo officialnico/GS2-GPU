@@ -12,7 +12,7 @@ module species
   public :: nspec, specie, spec
   public :: tracer_species
   public :: f0_maxwellian, f0_tabulated, f0_sdanalytic
-  public :: has_ion_species, has_electron_species, has_nonmaxw_species
+  public :: has_ion_species, has_electron_species, has_nonmaxw_species, has_hybrid_electron_species
   public :: is_electron_species, is_hybrid_electron_species
   public :: calculate_slowingdown_parameters
   public :: ions, electrons, impurity
@@ -1007,10 +1007,11 @@ contains
   end subroutine calculate_f0_arrays_tabulated
 
   !> Determine if any of the known species are electron like
-  pure function has_electron_species (spec)
+  !>
+  !> @note This should be effectively constant, could cache during init
+  pure logical function has_electron_species (spec)
     implicit none
     type (specie), dimension (:), intent (in) :: spec
-    logical :: has_electron_species
     has_electron_species = any(is_electron_species(spec))
   end function has_electron_species
 
@@ -1024,11 +1025,12 @@ contains
   end function has_hybrid_electron_species
 
   !> Determine if any of the known species are ion like
-  pure function has_ion_species (spec)
+  !>
+  !> @note This should be effectively constant, could cache during init
+  pure logical function has_ion_species (spec)
     implicit none
     type (specie), dimension (:), intent (in) :: spec
-    logical :: has_ion_species
-    has_ion_species = any(spec%type == ion_species)
+    has_ion_species = any(is_ion_species(spec))
   end function has_ion_species
 
   !> Determine if the passed species instance is considered electron
@@ -1055,14 +1057,13 @@ contains
   end function is_ion_species
 
   !> Determine if any of the known species are non-Maxwellian
-  pure function has_nonmaxw_species (spec)
+  pure logical function has_nonmaxw_species (spec)
     implicit none
     type (specie), dimension (:), intent (in) :: spec
-    logical :: has_nonmaxw_species
     has_nonmaxw_species = .NOT. all(spec%f0type == f0_maxwellian)
   end function has_nonmaxw_species
 
-  !> FIXME : Add documentation   
+  !> FIXME : Add documentation
   subroutine finish_species
     implicit none
     if(allocated(spec)) deallocate (spec)
