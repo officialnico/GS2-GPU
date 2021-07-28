@@ -24,8 +24,7 @@ else
 # Expect the following to fail due to losing the explicit source terms
 #	$(call RUNCOMMAND,${TEST_BASE_NAME},${TEST_BASE_NAME}_no_explicit_in_restart.in)
 endif
-# Expect the following to fail until we merge PR #490 or similar
-#	$(call RUNCOMMAND,${TEST_BASE_NAME},${TEST_BASE_NAME}_in_memory.in)
+	$(call RUNCOMMAND,${TEST_BASE_NAME},${TEST_BASE_NAME}_in_memory.in)
 endif
 endif
 ${TEST_BASE_NAME}.o:  ${TEST_MODS}
