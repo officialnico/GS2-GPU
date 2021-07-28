@@ -110,7 +110,7 @@ module gs2_init
   end type init_type
 
   logical :: in_memory = .false.
-  logical :: initialized = .true.
+  logical :: initialized = .false.
 
   !> Used to represent the input configuration of init
   type, extends(abstract_config_type) :: init_config_type
