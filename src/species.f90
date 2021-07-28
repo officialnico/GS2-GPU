@@ -1014,6 +1014,15 @@ contains
     has_electron_species = any(is_electron_species(spec))
   end function has_electron_species
 
+  !> Determine if any of the known species are hybrid electrons
+  !>
+  !> @note This should be effectively constant, could cache during init
+  pure logical function has_hybrid_electron_species (spec)
+    implicit none
+    type (specie), dimension (:), intent (in) :: spec
+    has_hybrid_electron_species = any(is_hybrid_electron_species(spec))
+  end function has_hybrid_electron_species
+
   !> Determine if any of the known species are ion like
   pure function has_ion_species (spec)
     implicit none
