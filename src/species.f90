@@ -13,7 +13,7 @@ module species
   public :: tracer_species
   public :: f0_maxwellian, f0_tabulated, f0_sdanalytic
   public :: has_ion_species, has_electron_species, has_nonmaxw_species
-  public :: is_electron_species
+  public :: is_electron_species, is_hybrid_electron_species
   public :: calculate_slowingdown_parameters
   public :: ions, electrons, impurity
   public :: set_overrides
@@ -1030,6 +1030,13 @@ contains
     type(specie), intent(in) :: spec
     is_electron_species = any(spec%type == electron_like_species)
   end function is_electron_species
+
+  !> Determine if the passed species instance corresponds to hybrid electrons
+  elemental logical function is_hybrid_electron_species(spec)
+    implicit none
+    type(specie), intent(in) :: spec
+    is_hybrid_electron_species = spec%type == hybrid_electron_species
+  end function is_hybrid_electron_species
 
   !> Determine if any of the known species are non-Maxwellian
   pure function has_nonmaxw_species (spec)
