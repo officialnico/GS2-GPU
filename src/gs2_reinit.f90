@@ -83,13 +83,6 @@ module gs2_reinit
      !> fall back to the traditional file based approach. Note must
      !> also set the `in_memory` switch in [[init_knobs]] to `true` to
      !> enable.
-     !>
-     !> @warning Currently it is recommended that this flag is set to false.
-     !> Whilst avoiding hitting disk can be useful, at the moment due to how
-     !> gs2_init deals with changing the time step when `in_memory` is true we
-     !> will lose the history of the NL source terms (`gexp_1`, `gexp_2` and `gexp_3`).
-     !> The `in_memory = .false.` path stores these values in the restart file so can
-     !> restore these after the timestep has changed.
      logical :: in_memory = .false.
    contains
      procedure, public :: read => read_reinit_config
