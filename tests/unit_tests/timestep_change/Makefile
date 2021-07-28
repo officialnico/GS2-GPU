@@ -7,6 +7,10 @@ ifdef TESTNORUN
 all: ${TEST_BASE_NAME}
 	$(call SKIPCOMMAND,variable TESTNORUN is defined; unset TESTNORUN to run this test)
 else
+ifndef USE_NETCDF
+all:
+	$(call SKIPCOMMAND,compiled without NetCDF library; compile with USE_NETCDF=on to run this test)
+else
 #Define this tests level
 MY_TEST_LEVEL=1
 VAL:= $(shell expr ${MY_TEST_LEVEL} \<= ${TEST_LEVEL})
@@ -24,7 +28,7 @@ all: ${TEST_BASE_NAME}
 #	$(call RUNCOMMAND,${TEST_BASE_NAME},${TEST_BASE_NAME}_in_memory.in)
 endif
 endif
-
+endif
 ${TEST_BASE_NAME}.o:  ${TEST_MODS}
 
 ${TEST_BASE_NAME}: ${TEST_BASE_NAME}.o $(TEST_MODS)
