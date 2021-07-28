@@ -451,7 +451,7 @@ subroutine init_initial_values_overrides(overrides_obj, ntgrid, ntheta0, naky, &
 
      if (iostat.ne.0) then
         overrides_obj%in_memory = .false.
-        if (proc0) write(error_unit(),*) "WARNING: could not allocate memory for initial_values_overrides. Only restart from file possible (manual setting of initial values not possible)"
+        if (proc0) write(error_unit(), '(A," ",I0)') "WARNING: could not allocate memory for initial_values_overrides. Only restart from file possible (manual setting of initial values not possible). Error code",iostat
         if (allocated(overrides_obj%g)) deallocate(overrides_obj%g)
         if (allocated(overrides_obj%gexp_1)) deallocate(overrides_obj%gexp_1)
         if (allocated(overrides_obj%gexp_2)) deallocate(overrides_obj%gexp_2)
