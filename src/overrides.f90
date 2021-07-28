@@ -65,6 +65,7 @@ type initial_values_overrides_type
   complex, dimension (:,:,:), allocatable :: apar
   complex, dimension (:,:,:), allocatable :: bpar
   complex, dimension (:,:,:), allocatable :: g
+  complex, dimension (:,:,:), allocatable :: gexp_1, gexp_2, gexp_3
  contains
   procedure :: initialise => init_initial_values_overrides
   procedure :: finish => finish_initial_values_overrides
@@ -418,13 +419,13 @@ end subroutine finish_kt_grids_overrides
 !> Warning: You can't change the value of
 !> overrides%in_memory after calling this function
 subroutine init_initial_values_overrides(overrides_obj, ntgrid, ntheta0, naky, &
-   g_llim, g_ulim, force_maxwell_reinit, in_memory)
+   g_llim, g_ulim, force_maxwell_reinit, in_memory, has_explicit_terms)
   use file_utils, only: error_unit
   use mp, only: proc0
   implicit none
   class(initial_values_overrides_type), intent(in out) :: overrides_obj
   integer, intent(in) :: ntgrid, ntheta0, naky, g_llim, g_ulim
-  logical, intent(in) :: force_maxwell_reinit, in_memory
+  logical, intent(in) :: force_maxwell_reinit, in_memory, has_explicit_terms
   integer :: iostat
   if (overrides_obj%init) return
   overrides_obj%init = .true.
@@ -435,20 +436,30 @@ subroutine init_initial_values_overrides(overrides_obj, ntgrid, ntheta0, naky, &
     & after calling initial_values_overrides_type will almost certainly cause &
     & segmentation faults."
   if (overrides_obj%in_memory) then
-    allocate(overrides_obj%g(-ntgrid:ntgrid,2,g_llim:g_ulim), stat=iostat)
-    if (.not. force_maxwell_reinit) then
-      if (iostat.eq.0) allocate(overrides_obj%phi(-ntgrid:ntgrid,ntheta0,naky), stat=iostat)
-      if (iostat.eq.0) allocate(overrides_obj%apar(-ntgrid:ntgrid,ntheta0,naky), stat=iostat)
-      if (iostat.eq.0) allocate(overrides_obj%bpar(-ntgrid:ntgrid,ntheta0,naky), stat=iostat)
-    end if
-    if (iostat.ne.0) then
-      overrides_obj%in_memory = .false.
-      if (proc0) write(error_unit(),*) "WARNING: could not allocate memory for initial_values_overrides. Only restart from file possible (manual setting of initial values not possible)"
-      if (allocated(overrides_obj%g)) deallocate(overrides_obj%g)
-      if (allocated(overrides_obj%phi)) deallocate(overrides_obj%phi)
-      if (allocated(overrides_obj%apar)) deallocate(overrides_obj%apar)
-      if (allocated(overrides_obj%bpar)) deallocate(overrides_obj%bpar)
-    end if
+     allocate(overrides_obj%g(-ntgrid:ntgrid,2,g_llim:g_ulim), stat=iostat)
+     if (has_explicit_terms) then
+        if (iostat.eq.0) allocate(overrides_obj%gexp_1(-ntgrid:ntgrid,2,g_llim:g_ulim), stat=iostat)
+        if (iostat.eq.0) allocate(overrides_obj%gexp_2(-ntgrid:ntgrid,2,g_llim:g_ulim), stat=iostat)
+        if (iostat.eq.0) allocate(overrides_obj%gexp_3(-ntgrid:ntgrid,2,g_llim:g_ulim), stat=iostat)
+     end if
+
+     if (.not. force_maxwell_reinit) then
+        if (iostat.eq.0) allocate(overrides_obj%phi(-ntgrid:ntgrid,ntheta0,naky), stat=iostat)
+        if (iostat.eq.0) allocate(overrides_obj%apar(-ntgrid:ntgrid,ntheta0,naky), stat=iostat)
+        if (iostat.eq.0) allocate(overrides_obj%bpar(-ntgrid:ntgrid,ntheta0,naky), stat=iostat)
+     end if
+
+     if (iostat.ne.0) then
+        overrides_obj%in_memory = .false.
+        if (proc0) write(error_unit(),*) "WARNING: could not allocate memory for initial_values_overrides. Only restart from file possible (manual setting of initial values not possible)"
+        if (allocated(overrides_obj%g)) deallocate(overrides_obj%g)
+        if (allocated(overrides_obj%gexp_1)) deallocate(overrides_obj%gexp_1)
+        if (allocated(overrides_obj%gexp_2)) deallocate(overrides_obj%gexp_2)
+        if (allocated(overrides_obj%gexp_3)) deallocate(overrides_obj%gexp_3)
+        if (allocated(overrides_obj%phi)) deallocate(overrides_obj%phi)
+        if (allocated(overrides_obj%apar)) deallocate(overrides_obj%apar)
+        if (allocated(overrides_obj%bpar)) deallocate(overrides_obj%bpar)
+     end if
   end if
 end subroutine init_initial_values_overrides
 elemental logical function is_initialised_initial_values_overrides(self) result(init)
@@ -467,6 +478,9 @@ subroutine finish_initial_values_overrides(overrides_obj)
   overrides_obj%init = .false.
   overrides_obj%override = .false.
   if (allocated(overrides_obj%g)) deallocate(overrides_obj%g)
+  if (allocated(overrides_obj%gexp_1)) deallocate(overrides_obj%gexp_1)
+  if (allocated(overrides_obj%gexp_2)) deallocate(overrides_obj%gexp_2)
+  if (allocated(overrides_obj%gexp_3)) deallocate(overrides_obj%gexp_3)
   if (allocated(overrides_obj%phi)) deallocate(overrides_obj%phi)
   if (allocated(overrides_obj%apar)) deallocate(overrides_obj%apar)
   if (allocated(overrides_obj%bpar)) deallocate(overrides_obj%bpar)
