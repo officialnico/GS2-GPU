@@ -7,10 +7,6 @@ ifdef TESTNORUN
 all: ${TEST_BASE_NAME}
 	$(call SKIPCOMMAND,variable TESTNORUN is defined; unset TESTNORUN to run this test)
 else
-ifndef USE_FFT
-all:
-	$(call SKIPCOMMAND,compiled without FFT library; compile with USE_FFT=on to run this test)
-else
 #Define this tests level
 MY_TEST_LEVEL=1
 VAL:= $(shell expr ${MY_TEST_LEVEL} \<= ${TEST_LEVEL})
@@ -29,7 +25,6 @@ else
 #	$(call RUNCOMMAND,${TEST_BASE_NAME},${TEST_BASE_NAME}_no_explicit_in_restart.in)
 endif
 	$(call RUNCOMMAND,${TEST_BASE_NAME},${TEST_BASE_NAME}_in_memory.in)
-endif
 endif
 endif
 ${TEST_BASE_NAME}.o:  ${TEST_MODS}
