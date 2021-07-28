@@ -203,7 +203,7 @@ contains
   end subroutine finish_gs2_init
 
   subroutine set_initial_field_and_dist_fn_values(current)
-    use dist_fn_arrays, only: g, gnew
+    use dist_fn_arrays, only: g, gnew, gexp_1, gexp_2, gexp_3
     use fields_arrays, only: phinew, aparnew, bparnew, phi, apar, bpar
     use fields, only: force_maxwell_reinit
     use fields, only: set_init_fields
@@ -231,6 +231,12 @@ contains
        else
           call ginit(restarted, ginitopt_restart_many)
        end if
+    end if
+
+    if (current%initval_ov%in_memory) then
+       if (allocated(current%initval_ov%gexp_1)) gexp_1 = current%initval_ov%gexp_1
+       if (allocated(current%initval_ov%gexp_1)) gexp_2 = current%initval_ov%gexp_2
+       if (allocated(current%initval_ov%gexp_1)) gexp_3 = current%initval_ov%gexp_3
     end if
 
     ! Do not use the value from state%init%initval_ov%force_maxwell_reinit = current%initval_ov%force_maxwell_reinit as follows:
