@@ -206,15 +206,7 @@ contains
     initialized = .true.
     
     if (.not. allocated(w_stir)) then
-       !call init_species
-       
        call read_parameters(driver_config_in, stir_config_in)
-       if (no_driver) then
-          i = -1
-          call init_antenna_data (i)
-          return
-       end if
-       
        allocate (w_stir(nk_stir))
     end if
     
