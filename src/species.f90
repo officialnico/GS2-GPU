@@ -10,9 +10,10 @@ module species
   public :: write_trinity_parameters
   public :: wnml_species, check_species
   public :: nspec, specie, spec
-  public :: ion_species, electron_species, tracer_species
+  public :: tracer_species
   public :: f0_maxwellian, f0_tabulated, f0_sdanalytic
   public :: has_ion_species, has_electron_species, has_nonmaxw_species
+  public :: is_electron_species
   public :: calculate_slowingdown_parameters
   public :: ions, electrons, impurity
   public :: set_overrides
@@ -579,8 +580,8 @@ contains
     main_ion_species = -1
 
     do is = 1,nspec
-       if (spec(is)%type .eq. electron_species)                            electron_spec = is
-       if (main_ion_species < 1 .and. spec(is)%type .eq. ion_species)      main_ion_species = is
+       if (is_electron_species(spec(is))) electron_spec = is
+       if (main_ion_species < 1 .and. spec(is)%type .eq. ion_species) main_ion_species = is
     end do
 
     if (electron_spec .GT. 0) then

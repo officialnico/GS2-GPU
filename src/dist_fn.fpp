@@ -4573,7 +4573,7 @@ contains
     use prof, only: prof_entering, prof_leaving
     use run_parameters, only: fbpar, fphi, ieqzip
     use kt_grids, only: kwork_filter
-    use species, only: spec, electron_species, nonmaxw_corr, hzero_passing_electron
+    use species, only: spec, is_electron_species, nonmaxw_corr, hzero_passing_electron
     use mp, only: mp_abort
     use gs2_time, only: get_adams_bashforth_coefficients
     use nonlinear_terms, only: nonlin
@@ -4637,7 +4637,7 @@ contains
        !// Handle hybrid electrons when passing
        !/////////////////////////
        
-       if (hzero_passing_electron .and. spec(is)%type == electron_species &
+       if (hzero_passing_electron .and. is_electron_species(spec(is)) &
             .and. aky(ik) /= 0. .and. il <= ng2+1)  then
           call set_h_zero (gnew(:,:,iglo), phinew, bparnew,-fphi,-fbpar,iglo)
           cycle
@@ -5044,7 +5044,7 @@ contains
     use gs2_layouts, only: g_lo, ik_idx, it_idx, il_idx, ie_idx, is_idx, idx
     use redistribute, only: fill
     use run_parameters, only: fbpar, fphi
-    use species, only: spec, nonmaxw_corr, electron_species, hzero_passing_electron
+    use species, only: spec, nonmaxw_corr, is_electron_species, hzero_passing_electron
     use spfunc, only: j0, j1
     use kt_grids, only: kperp2, aky
 
@@ -5097,8 +5097,8 @@ contains
           
           il = il_idx(g_lo,iglo)
           is = is_idx(g_lo,iglo)
-          if (hzero_passing_electron .and. spec(is)%type == electron_species &
-           .and. aky(ik) /= 0. .and. il <= ng2+1)  cycle
+          if (hzero_passing_electron .and. is_electron_species(spec(is)) &
+               .and. aky(ik) /= 0. .and. il <= ng2+1)  cycle
           ! MRH above line causes us to skip the loops below which
           ! build the solution along the connected cells
           ! MRH we skip this in the case that we have taken the non-zonal
@@ -5356,7 +5356,7 @@ contains
   subroutine getan_from_dfn (g_in, antot, antota, antotp)
     use dist_fn_arrays, only: vpa, vperp2, aj0, aj1, g_work
     use kt_grids, only: kperp2, aky
-    use species, only: nspec, spec, hzero_passing_electron_response, electron_species
+    use species, only: nspec, spec, hzero_passing_electron_response, is_electron_species
     use theta_grid, only: ntgrid
     use le_grids, only: integrate_species, ng2
     use run_parameters, only: beta, fphi, fapar, fbpar
@@ -5378,9 +5378,9 @@ contains
             ik = ik_idx(g_lo,iglo)
             is = is_idx(g_lo,iglo)
             il = il_idx(g_lo,iglo)
-            if(spec(is)%type == electron_species &
-           .and. aky(ik) /= 0. .and. il <= ng2+1) then
-                g_in(:,:,iglo) = 0.
+            if(is_electron_species(spec(is)) &
+                 .and. aky(ik) /= 0. .and. il <= ng2+1) then
+               g_in(:,:,iglo) = 0.
             endif
         enddo
     endif
@@ -6042,7 +6042,7 @@ contains
   subroutine init_fieldeq
     use dist_fn_arrays, only: aj0, aj1, vperp2, g_work
     use species, only: nspec, spec, has_electron_species, has_ion_species, nonmaxw_corr
-    use species, only: hzero_passing_electron_response, electron_species
+    use species, only: hzero_passing_electron_response, is_electron_species
     use theta_grid, only: ntgrid
     use kt_grids, only: naky, ntheta0, aky, kperp2
     use le_grids, only: integrate_species, ng2
@@ -6130,11 +6130,11 @@ contains
            is = is_idx(g_lo,iglo)
            il = il_idx(g_lo,iglo)
            ik = ik_idx(g_lo,iglo)
-           if(spec(is)%type == electron_species &
-           .and. aky(ik) /= 0. .and. il <= ng2+1) then
-               do isgn = 1, 2
-                  g_work(:,isgn,iglo) = -(aj0(:,iglo)**2)*nonmaxw_corr(ie, is)
-               end do
+           if(is_electron_species(spec(is)) &
+                .and. aky(ik) /= 0. .and. il <= ng2+1) then
+              do isgn = 1, 2
+                 g_work(:,isgn,iglo) = -(aj0(:,iglo)**2)*nonmaxw_corr(ie, is)
+              end do
            endif
         end do
         wgt = spec%z*spec%z*spec%dens/spec%temp

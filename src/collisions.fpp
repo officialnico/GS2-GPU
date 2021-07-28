@@ -642,7 +642,7 @@ contains
   !! z0, w0, s0 (z0le, w0le, s0le if use_le_layout chosen in the input file defined)
   subroutine init_lorentz_conserve
     use gs2_layouts, only: g_lo, ie_idx, is_idx, ik_idx, il_idx, it_idx
-    use species, only: nspec, spec, electron_species
+    use species, only: nspec, spec, is_electron_species
     use kt_grids, only: kperp2, naky, ntheta0
     use theta_grid, only: ntgrid, bmag
     use le_grids, only: energy => energy_maxw, al, integrate_moment, negrid, forbid
@@ -688,7 +688,7 @@ contains
 
     if (drag) then
        do is = 1, nspec
-          if (spec(is)%type /= electron_species) cycle
+          if (.not. is_electron_species(spec(is))) cycle
           do ik = 1, naky
              vns(ik,:,is,3) = vnmult(1)*spec(is)%vnewk*tunits(ik)/energy**1.5
           end do
@@ -1606,7 +1606,7 @@ contains
 
   !> FIXME : Add documentation
   subroutine init_vnew (hee)
-    use species, only: nspec, spec, electron_species, has_electron_species
+    use species, only: nspec, spec, is_electron_species
     use le_grids, only: negrid, energy => energy_maxw, w => w_maxw
     use kt_grids, only: naky, ntheta0, kperp2
     use theta_grid, only: ntgrid
@@ -1657,7 +1657,7 @@ contains
        ! Don't include following lines, as haven't yet accounted for possibility of timestep changing.
        ! Correct collision frequency if applying collisions only every nth timestep:
        !spec(is)%vnewk = spec(is)%vnewk * float(timesteps_between_collisions)
-       if (spec(is)%type == electron_species) then
+       if (is_electron_species(spec(is))) then
           do ie = 1, negrid
              do ik = 1, naky
                 if (ei_coll_only) then
@@ -2273,7 +2273,7 @@ contains
     !> boundary condition For the trapped particle pitch angle
     !> scattering.
     subroutine set_hzero_collisions_matrix
-      use species, only: spec, electron_species
+      use species, only: spec, is_electron_species
       use kt_grids, only: aky
       implicit none
       !> il index of 1st non-wfb trapped particle
@@ -2284,7 +2284,7 @@ contains
       il_llim = ng2 + 2
       il_ulim = 2*je-1 - (ng2+ 1)
 
-      if ( spec(is)%type == electron_species .and. aky(ik) /= 0.) then
+      if ( is_electron_species(spec(is)) .and. aky(ik) /= 0.) then
          aa(:il_llim) = 0.
          bb(:il_llim-1) = 1.
          cc(:il_llim-1) = 0.
@@ -2883,7 +2883,7 @@ contains
     use run_parameters, only: beta
     use gs2_time, only: code_dt
     use le_grids, only: energy => energy_maxw
-    use species, only: spec, electron_species
+    use species, only: spec, is_electron_species
     use dist_fn_arrays, only: vpa, aj0
     use fields_arrays, only: aparnew
     use run_parameters, only: ieqzip
@@ -2950,7 +2950,7 @@ contains
        if (drag) then
           do iglo = g_lo%llim_proc, g_lo%ulim_proc
              is = is_idx(g_lo,iglo)
-             if (spec(is)%type /= electron_species) cycle
+             if (.not. is_electron_species(spec(is))) cycle
              it = it_idx(g_lo,iglo)
              ik = ik_idx(g_lo,iglo)
              if(kwork_filter(it,ik)) cycle
@@ -2997,7 +2997,7 @@ contains
        if (drag) then
           do iglo = g_lo%llim_proc, g_lo%ulim_proc
              is = is_idx(g_lo,iglo)
-             if (spec(is)%type /= electron_species) cycle
+             if (.not. is_electron_species(spec(is))) cycle
              it = it_idx(g_lo,iglo)
              ik = ik_idx(g_lo,iglo)
              if(kwork_filter(it,ik))cycle
@@ -3035,7 +3035,7 @@ contains
     use run_parameters, only: beta, ieqzip
     use gs2_time, only: code_dt
     use le_grids, only: energy => energy_maxw, negrid, nxi, ixi_to_il, ixi_to_isgn, sgn, al, ng2
-    use species, only: spec, electron_species
+    use species, only: spec, is_electron_species
     use fields_arrays, only: aparnew
     use kt_grids, only: kwork_filter, kperp2
     ! TMP FOR TESTING -- MAB
@@ -3086,7 +3086,7 @@ contains
        if (drag) then
           do ile = le_lo%llim_proc, le_lo%ulim_proc
              is = is_idx(le_lo,ile)
-             if (spec(is)%type /= electron_species) cycle
+             if (.not. is_electron_species(spec(is))) cycle
              it = it_idx(le_lo,ile)
              ik = ik_idx(le_lo,ile)
              if(kwork_filter(it,ik)) cycle
@@ -3138,7 +3138,7 @@ contains
        if (drag) then
           do ile = le_lo%llim_proc, le_lo%ulim_proc
              is = is_idx(le_lo,ile)
-             if (spec(is)%type /= electron_species) cycle
+             if (.not. is_electron_species(spec(is))) cycle
              it = it_idx(le_lo,ile)
              ik = ik_idx(le_lo,ile)
              if(kwork_filter(it,ik)) cycle

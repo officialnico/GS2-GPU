@@ -83,7 +83,7 @@ contains
   !>    call g_adjust(gnew,phinew,bparnew,-fphi,-fbpar)
   !> CMR, 17/4/2012:
   subroutine g_adjust (g, phi, bpar, facphi, facbpar)
-    use species, only: spec, nonmaxw_corr, electron_species, hzero_passing_electron
+    use species, only: spec, nonmaxw_corr, is_electron_species, hzero_passing_electron
     use theta_grid, only: ntgrid
     use le_grids, only: jend, ng2
     use gs2_layouts, only: g_lo, ik_idx, it_idx, ie_idx, is_idx, il_idx
@@ -138,15 +138,15 @@ contains
 
           g(ig,1,iglo) = g(ig,1,iglo) + adj
           g(ig,2,iglo) = g(ig,2,iglo) + adj
-
-          if (hzero_passing_electron .and. spec(is)%type == electron_species &
-               .and. aky(ik) /= 0. .and. il <= ng2+1 .and. facphi > 0.) then
-             ! Special behaviour when h=0 for passing non-zonal electrons
-             ! if going from g_gs2 to h ( g_wesson ), enforce h = 0 explicitly
-             g(ig,1,iglo) = 0.
-             g(ig,2,iglo) = 0.
-          endif
        end do
+
+       if (hzero_passing_electron .and. is_electron_species(spec(is))&
+            .and. aky(ik) /= 0. .and. il <= ng2+1 .and. facphi > 0.) then
+          ! Special behaviour when h=0 for passing non-zonal electrons
+          ! if going from g_gs2 to h ( g_wesson ), enforce h = 0 explicitly
+          g(:,:,iglo) = 0.
+       endif
+
     end do
   end subroutine g_adjust
 

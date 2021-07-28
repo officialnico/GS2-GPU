@@ -248,7 +248,7 @@ contains
   !! other fields at some point, but for now this is just a skeleton for 
   !! a more realistic synthetic diagnostic. 
   subroutine get_cross_phase (gnostics, phase_tot, phase_theta)
-    use species, only: nspec, spec, electron_species
+    use species, only: nspec, spec, is_electron_species
     use kt_grids, only: ntheta0, naky
     use theta_grid, only: ntgrid
     use dist_fn, only: getemoms
@@ -271,7 +271,7 @@ contains
     call getemoms (phinew, bparnew, ntot, tperp)
     
     do is = 1,nspec
-       if (spec(is)%type == electron_species) then
+       if (is_electron_species(spec(is))) then
           ! get cross_phase at outboard midplane
           !call get_vol_int (ntot(0,:,:,is), tperp(0,:,:,is), nTp, nTp_by_mode)
           call average_all(ntot(0,:,:,is), tperp(0,:,:,is), nTp, gnostics%distributed)

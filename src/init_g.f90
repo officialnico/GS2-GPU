@@ -2111,7 +2111,7 @@ contains
        it = it_idx(g_lo,iglo)
        il = il_idx(g_lo,iglo)
        is = is_idx(g_lo,iglo)       
-!       if (spec(is)%type /= electron_species) cycle
+!       if (is_electron_species(spec(is))) cycle
        g(:,1,iglo) = phiinit* &!spec(is)%z* &
             ( dfac*spec(is)%dens0            * phi(:,it,ik) &
             + 2.*ufac* vpa(:,1,iglo)         * odd(:,it,ik) &
@@ -3112,7 +3112,7 @@ contains
     use le_grids, only: forbid
     use dist_fn_arrays, only: g, gnew, vpa
     use gs2_layouts, only: g_lo, il_idx, is_idx
-    use species, only: spec, electron_species
+    use species, only: spec, is_electron_species
 
     implicit none
     integer :: iglo
@@ -3120,7 +3120,7 @@ contains
 
     do iglo = g_lo%llim_proc, g_lo%ulim_proc
        is = is_idx(g_lo,iglo)
-       if (spec(is_idx(g_lo, iglo))%type == electron_species) cycle
+       if (is_electron_species(spec(is))) cycle
        il = il_idx(g_lo,iglo)
        g(:,1,iglo) = sin(theta)*vpa(:,1,iglo)*spec(is)%z
        where (forbid(:,il)) g(:,1,iglo) = 0.0
@@ -4342,7 +4342,7 @@ contains
 
   !> FIXME : Add documentation    
   subroutine flae (g, gavg)
-    use species, only: spec, electron_species 
+    use species, only: spec, is_electron_species
     use theta_grid, only: ntgrid, delthet, jacob
     use kt_grids, only: aky
     use gs2_layouts, only: g_lo, is_idx, ik_idx
@@ -4350,13 +4350,14 @@ contains
     complex, dimension (-ntgrid:,:,g_lo%llim_proc:), intent (out) :: gavg
 
     real :: wgt
-    integer :: iglo
+    integer :: iglo, is
     
     gavg = 0.
     wgt = 1./sum(delthet*jacob)
 
-    do iglo = g_lo%llim_proc, g_lo%ulim_proc       
-       if (spec(is_idx(g_lo, iglo))%type /= electron_species) cycle
+    do iglo = g_lo%llim_proc, g_lo%ulim_proc
+       is = is_idx(g_lo, iglo)
+       if (is_electron_species(spec(is))) cycle
        if (aky(ik_idx(g_lo, iglo)) /= 0.) cycle
        gavg(:,1,iglo) = sum(g(:,1,iglo)*delthet*jacob)*wgt
        gavg(:,2,iglo) = sum(g(:,2,iglo)*delthet*jacob)*wgt
