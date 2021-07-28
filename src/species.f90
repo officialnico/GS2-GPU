@@ -1047,6 +1047,13 @@ contains
     is_hybrid_electron_species = spec%type == hybrid_electron_species
   end function is_hybrid_electron_species
 
+  !> Determine if the passed species instance corresponds to ions
+  elemental logical function is_ion_species(spec)
+    implicit none
+    type(specie), intent(in) :: spec
+    is_ion_species = spec%type == ion_species
+  end function is_ion_species
+
   !> Determine if any of the known species are non-Maxwellian
   pure function has_nonmaxw_species (spec)
     implicit none
