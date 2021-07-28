@@ -558,10 +558,12 @@ contains
     tmp_bcast=spec%vcprim ; call broadcast(tmp_bcast) ; spec%vcprim=tmp_bcast
     deallocate(tmp_bcast)
 
+    ! Set flags to indicate if we have a hybrid electron species or not.
+    ! We currently keep these different flags to aid debugging and testing.
     hzero_passing_electron = has_hybrid_electron_species(spec)
-    hzero_passing_electron_response = has_passing_electron
-    hzero_passing_electron_response_init = has_passing_electron
-    hzero_passing_electron_collisions_matrix = has_passing_electron
+    hzero_passing_electron_response = hzero_passing_electron
+    hzero_passing_electron_response_init = hzero_passing_electron
+    hzero_passing_electron_collisions_matrix = hzero_passing_electron
   end subroutine read_parameters
 
   !> FIXME : Add documentation
