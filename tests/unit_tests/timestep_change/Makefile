@@ -1,7 +1,7 @@
 
 sinclude ../Makefile.tests_common
 TEST_BASE_NAME:=test_timestep_change
-clean_individual_test: LOCAL_TEST_FILES:= ${TEST_BASE_NAME}
+clean_individual_test: LOCAL_TEST_FILES:= ${TEST_BASE_NAME} *.vspace_*
 
 ifdef TESTNORUN
 all: ${TEST_BASE_NAME}
@@ -16,7 +16,12 @@ all:
 else
 all: ${TEST_BASE_NAME}
 	$(call RUNCOMMAND,${TEST_BASE_NAME},${TEST_BASE_NAME}.in)
-
+# Expect the following to fail due to changes in the fields
+#	$(call RUNCOMMAND,${TEST_BASE_NAME},${TEST_BASE_NAME}_maxwell_reinit.in)
+# Expect the following to fail due to losing the explicit source terms
+#	$(call RUNCOMMAND,${TEST_BASE_NAME},${TEST_BASE_NAME}_no_explicit_in_restart.in)
+# Expect the following to fail until we merge PR #490 or similar
+#	$(call RUNCOMMAND,${TEST_BASE_NAME},${TEST_BASE_NAME}_in_memory.in)
 endif
 endif
 
