@@ -63,19 +63,17 @@ program test_timestep_change
   call process_test(maxval(abs(aparnew-apar_bak)) <= tolerance, 'timestep_change : aparnew')
   call process_test(maxval(abs(bparnew-bpar_bak)) <= tolerance, 'timestep_change : bparnew')
 
-  ! For now the following will fail due to a bug in the handling of istep_last in nonlinear_terms
+  ! Now try repeating the step and checking initial values still match
+  call advance(istep)
 
-  ! ! Now try repeating the step and checking initial values still match
-  ! call advance(istep)
-
-  ! call process_test(code_dt <= code_dt_bak / 1.5, 'timestep_change : Code dt')
-  ! call process_test(maxval(abs(g-g_bak)) <= tolerance, 'timestep_change : g')
-  ! call process_test(maxval(abs(gexp_1-gexp_1_bak)) <= tolerance, 'timestep_change : gexp_1 2')
-  ! call process_test(maxval(abs(gexp_2-gexp_2_bak)) <= tolerance, 'timestep_change : gexp_2 2')
-  ! call process_test(maxval(abs(gexp_3-gexp_3_bak)) <= tolerance, 'timestep_change : gexp_3 2')
-  ! call process_test(maxval(abs(phi-phi_bak)) <= tolerance, 'timestep_change : phi')
-  ! call process_test(maxval(abs(apar-apar_bak)) <= tolerance, 'timestep_change : apar')
-  ! call process_test(maxval(abs(bpar-bpar_bak)) <= tolerance, 'timestep_change : bpar')
+  call process_test(code_dt <= code_dt_bak / 1.5, 'timestep_change : Code dt')
+  call process_test(maxval(abs(g-g_bak)) <= tolerance, 'timestep_change : g')
+  call process_test(maxval(abs(gexp_1-gexp_1_bak)) <= tolerance, 'timestep_change : gexp_1 2')
+  call process_test(maxval(abs(gexp_2-gexp_2_bak)) <= tolerance, 'timestep_change : gexp_2 2')
+  call process_test(maxval(abs(gexp_3-gexp_3_bak)) <= tolerance, 'timestep_change : gexp_3 2')
+  call process_test(maxval(abs(phi-phi_bak)) <= tolerance, 'timestep_change : phi')
+  call process_test(maxval(abs(apar-apar_bak)) <= tolerance, 'timestep_change : apar')
+  call process_test(maxval(abs(bpar-bpar_bak)) <= tolerance, 'timestep_change : bpar')
   
   call close_module_test("timestep_change")
   call finish_mp
