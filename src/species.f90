@@ -51,6 +51,10 @@ module species
   integer, parameter :: ion_species = 1
   integer, parameter :: electron_species = 2 ! for collision operator
   integer, parameter :: tracer_species = 3 ! for test particle diffusion studies
+  integer, parameter :: hybrid_electron_species = 4 ! Adibatic passing, non-adiabatic trapped
+
+  integer, dimension(*), parameter :: electron_like_species = &
+       [electron_species, hybrid_electron_species]
 
   integer, parameter :: f0_maxwellian = 1, &           !< Regular Maxwellian species
                         f0_tabulated = 2, &            !< f0 determined from table in external input file
@@ -177,6 +181,8 @@ module species
      !> - 'electron' : Thermal electron species
      !> - 'e' : Same as 'electron'
      !> - 'trace' : Tracer species
+     !> - 'hybrid_electron' : Adiabatic passing electrons, full
+     !>    trapped electron treatment
      !>
      !> This primarily controls the treatment in the collision
      !> operator, the detection of adiabatic species. Tracer species
@@ -375,6 +381,8 @@ contains
             write (unit, fmt="(a)") ' type = "ion" /'
        if (spec(i)%type == electron_species) &
             write (unit, fmt="(a)") ' type = "electron"  /'
+       if (spec(i)%type == hybrid_electron_species) &
+            write (unit, fmt="(a)") ' type = "hybrid_electron"  /'
        if (spec(i)%type == tracer_species) &
             write (unit, fmt="(a)") ' type = "trace"  /'
        if (spec(i)%f0type == f0_maxwellian) &
@@ -417,17 +425,20 @@ contains
     integer :: is
     integer :: ierr
 
-    type (text_option), dimension (5), parameter :: typeopts = &
-         (/ text_option('default', ion_species), &
-            text_option('ion', ion_species), &
-            text_option('electron', electron_species), &
-            text_option('e', electron_species), &
-            text_option('trace', tracer_species) /)
+    type (text_option), dimension (*), parameter :: typeopts = [ &
+         text_option('default', ion_species), &
+         text_option('ion', ion_species), &
+         text_option('electron', electron_species), &
+         text_option('e', electron_species), &
+         text_option('trace', tracer_species), &
+         text_option('hybrid_electron', hybrid_electron_species) &
+         ]
 
-    type (text_option), dimension (3), parameter :: f0_opts = &
-         (/ text_option('maxwellian', f0_maxwellian), &
-            text_option('tabulated', f0_tabulated), &
-            text_option('sdanalytic', f0_sdanalytic) /)
+    type (text_option), dimension (3), parameter :: f0_opts = [ &
+         text_option('maxwellian', f0_maxwellian), &
+         text_option('tabulated', f0_tabulated), &
+         text_option('sdanalytic', f0_sdanalytic) &
+         ]
 
     if (present(species_config_in)) species_config = species_config_in
 
@@ -554,15 +565,7 @@ contains
 
   end subroutine read_parameters
 
-  !> FIXME : Add documentation   
-  pure function has_ion_species (spec)
-    implicit none
-    type (specie), dimension (:), intent (in) :: spec
-    logical :: has_ion_species
-    has_ion_species = any(spec%type == ion_species)
-  end function has_ion_species
-
-  !> FIXME : Add documentation   
+  !> FIXME : Add documentation
   subroutine calculate_slowingdown_parameters(alpha_index,vc,vcprim)
     use constants, only: pi
     use mp, only: proc0
@@ -672,7 +675,6 @@ contains
      integer, intent(in):: is
      is_global = is
   end subroutine set_current_f0_species
-
 
   !> FIXME : Add documentation
   !!
@@ -1003,15 +1005,32 @@ contains
 
   end subroutine calculate_f0_arrays_tabulated
 
-  !> FIXME : Add documentation   
+  !> Determine if any of the known species are electron like
   pure function has_electron_species (spec)
     implicit none
     type (specie), dimension (:), intent (in) :: spec
     logical :: has_electron_species
-    has_electron_species = any(spec%type == electron_species)
+    has_electron_species = any(is_electron_species(spec))
   end function has_electron_species
 
-  !> FIXME : Add documentation   
+  !> Determine if any of the known species are ion like
+  pure function has_ion_species (spec)
+    implicit none
+    type (specie), dimension (:), intent (in) :: spec
+    logical :: has_ion_species
+    has_ion_species = any(spec%type == ion_species)
+  end function has_ion_species
+
+  !> Determine if the passed species instance is considered electron
+  !> like. In other words if spec%type matches any of the recognised
+  !> electron like types (electron, hybrid_electron)
+  elemental logical function is_electron_species(spec)
+    implicit none
+    type(specie), intent(in) :: spec
+    is_electron_species = any(spec%type == electron_like_species)
+  end function is_electron_species
+
+  !> Determine if any of the known species are non-Maxwellian
   pure function has_nonmaxw_species (spec)
     implicit none
     type (specie), dimension (:), intent (in) :: spec
