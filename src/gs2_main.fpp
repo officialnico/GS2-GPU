@@ -1209,6 +1209,7 @@ contains
     use gs2_layouts, only: g_lo
     use kt_grids, only: naky, ntheta0
     use theta_grid, only: ntgrid
+    use dist_fn_arrays, only: gexp_3
     implicit none
     type(gs2_program_state_type), intent(inout) :: state
     if (.not. state%included) return
@@ -1217,12 +1218,12 @@ contains
     call init_initial_values_overrides(state%init%initval_ov,&
       ntgrid, ntheta0, naky, g_lo%llim_proc, g_lo%ulim_alloc, &
       force_maxwell_reinit=force_maxwell_reinit, &
-      in_memory=in_memory)
+      in_memory=in_memory, has_explicit_terms = allocated(gexp_3))
   end subroutine prepare_initial_values_overrides
 
   !> FIXME : Add documentation  
   subroutine set_initval_overrides_to_current_vals(initval_ov)
-    use dist_fn_arrays, only: gnew
+    use dist_fn_arrays, only: gnew, gexp_1, gexp_2, gexp_3
     use gs2_save, only: gs2_save_for_restart
     use mp, only: proc0, broadcast, mp_abort
     use collisions, only: vnmult
@@ -1245,6 +1246,10 @@ contains
 
     if(initval_ov%in_memory)then
       initval_ov%g=gnew
+
+      if (allocated(initval_ov%gexp_1)) initval_ov%gexp_1 = gexp_1
+      if (allocated(initval_ov%gexp_2)) initval_ov%gexp_2 = gexp_2
+      if (allocated(initval_ov%gexp_3)) initval_ov%gexp_3 = gexp_3
 
       ! Do not use the value from [old_iface_]state%init%initval_ov%force_maxwell_reinit = initval_ov%force_maxwell_reinit as
       ! follows:

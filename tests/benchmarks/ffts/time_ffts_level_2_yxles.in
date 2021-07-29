@@ -17,13 +17,7 @@
 !=================================================================
 
 &layouts_knobs
- layout = 'yxles'
-/
-
-&collisions_knobs
- collision_model = "default" ! Collision model used in the simulation. Options: 'default', 'none', 'lorentz', 'ediffuse'
- use_le_layout = .true.
- adjust = .false.
+layout = 'yxles'
 /
 
 &species_parameters_1
@@ -34,7 +28,6 @@
   mass = 1.0
   tprim = 4.0
   fprim = 3.0
-  vnewk = 0.01 ! collisionality parameter
 /
 
 &species_parameters_2
@@ -48,12 +41,12 @@
 /
 
 &le_grids_knobs
-  negrid = 8
+  negrid = 4
   ngauss = 5
 /
 
 &knobs
- nstep = 10
+ nstep = 100
 /
 
 &species_knobs
@@ -69,17 +62,14 @@
 /
 &dist_fn_species_knobs_2
 /
-&dist_fn_species_knobs_3
-/
-
 
 &kt_grids_knobs
 grid_option="box"
 /
 
 &kt_grids_box_parameters
-ny = 15
-nx = 16
+ny = 96
+nx = 96
 y0=10.0
 x0=10.0
 jtwist = 6
@@ -87,8 +77,4 @@ jtwist = 6
 
 &nonlinear_terms_knobs
 nonlinear_mode = "on"
-/
-
-&fields_knobs
- field_option = "test" 
 /

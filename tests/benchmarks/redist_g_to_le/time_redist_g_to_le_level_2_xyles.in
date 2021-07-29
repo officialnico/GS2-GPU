@@ -53,7 +53,7 @@
 /
 
 &knobs
- nstep = 10
+ nstep = 1000
 /
 
 &species_knobs
@@ -78,8 +78,8 @@ grid_option="box"
 /
 
 &kt_grids_box_parameters
-ny = 15
-nx = 16
+ny = 96
+nx = 96
 y0=10.0
 x0=10.0
 jtwist = 6
