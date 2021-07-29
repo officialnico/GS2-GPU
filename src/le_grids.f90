@@ -967,13 +967,13 @@ contains
     implicit none
 
     complex, dimension (-ntgrid:,:,g_lo%llim_proc:), intent (in) :: g
-    complex, dimension (-ntgrid:ntgrid,2,nspec,negrid,nlambda,gf_lo%llim_proc:gf_lo%ulim_alloc) :: gf
+    complex, dimension (:, :, :, :, :, :), allocatable :: gf
     real, dimension (:), intent (in) :: weights
     complex, dimension (-ntgrid:ntgrid,gf_lo%ntheta0,gf_lo%naky), intent (out) :: total
     integer :: is, il, ie, igf, it, ik
 
     total =0.
-
+    allocate(gf(-ntgrid:ntgrid,2,nspec,negrid,nlambda,gf_lo%llim_proc:gf_lo%ulim_alloc))
     call gather(g2gf, g, gf, ntgrid)
 
     !Performed integral (weighted sum) over local velocity space and species
@@ -1007,7 +1007,8 @@ contains
           end do
        end do
     end if
-    
+
+    deallocate(gf)
   end subroutine integrate_species_gf
 
   !> Integrate species using gf_lo data format assuming that gf has already been gathered prior to being 
@@ -1026,7 +1027,7 @@ contains
     use species, only: spec, tracer_species
     implicit none
 
-    complex, dimension (-ntgrid:ntgrid,2,nspec,negrid,nlambda,gf_lo%llim_proc:gf_lo%ulim_alloc), intent (in) :: gf
+    complex, dimension(-ntgrid:ntgrid,2,nspec,negrid,nlambda,gf_lo%llim_proc:gf_lo%ulim_alloc), intent(in) :: gf
     real, dimension (:), intent (in) :: weights
     complex, dimension (-ntgrid:ntgrid,gf_lo%ntheta0,gf_lo%naky), intent (out) :: total
     integer :: is, il, ie, igf, it, ik
@@ -1064,7 +1065,6 @@ contains
           end do
        end do
     end if
-    
   end subroutine integrate_species_gf_nogather
   
   !> Integrate_species on subcommunicator with gather
