@@ -1027,13 +1027,12 @@ contains
     use species, only: spec, tracer_species
     implicit none
 
-    complex, dimension (:, :, :, :, :, :), allocatable :: gf
+    complex, dimension(-ntgrid:ntgrid,2,nspec,negrid,nlambda,gf_lo%llim_proc:gf_lo%ulim_alloc), intent(in) :: gf
     real, dimension (:), intent (in) :: weights
     complex, dimension (-ntgrid:ntgrid,gf_lo%ntheta0,gf_lo%naky), intent (out) :: total
     integer :: is, il, ie, igf, it, ik
 
     total =0.
-    allocate(gf(-ntgrid:ntgrid,2,nspec,negrid,nlambda,gf_lo%llim_proc:gf_lo%ulim_alloc))
 
     !Performed integral (weighted sum) over local velocity space and species
     if(any(kwork_filter)) then
@@ -1066,8 +1065,6 @@ contains
           end do
        end do
     end if
-
-    deallocate(gf)
   end subroutine integrate_species_gf_nogather
   
   !> Integrate_species on subcommunicator with gather
