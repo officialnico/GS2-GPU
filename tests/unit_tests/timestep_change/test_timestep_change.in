@@ -60,8 +60,8 @@
 /
 
 &kt_grids_box_parameters
-                                        nx =  32
-                                        ny =  32
+                                        nx =  16
+                                        ny =  8
                                         y0 =  5.0
 /
 
@@ -77,9 +77,9 @@
 /
 
 &le_grids_knobs
-                                     nesub =  12
-                                   nesuper =  4
-                                  npassing =  10
+                                     nesub =  6
+                                   nesuper =  2
+                                  npassing =  4
 /
 
 &nonlinear_terms_knobs
