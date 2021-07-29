@@ -6422,7 +6422,7 @@ contains
     complex, dimension (-ntgrid:,:,:), intent (out) :: antot, antota, antotp
     real, dimension (nspec) :: wgt
     integer :: isgn, iglo, it, ik, igf
-    complex, dimension (-ntgrid:ntgrid,2,nspec,negrid,nlambda,gf_lo%llim_proc:gf_lo%ulim_alloc) :: gfarray
+    complex, dimension (:, :, :, :, :, :), allocatable :: gfarray
     integer :: ie, il, is
     real, dimension(-ntgrid:ntgrid) :: temparg3
 
@@ -6430,6 +6430,7 @@ contains
     !AJ then do the initial redistribution of the data from g_lo (where gnew is current) to gf_lo
     !AJ where it will end up in gfarray)
     if(gf_lo_integrate) then
+       allocate( gfarray(-ntgrid:ntgrid,2,nspec,negrid,nlambda,gf_lo%llim_proc:gf_lo%ulim_alloc))
        call gather(g2gf, gnew, gfarray, ntgrid)
     end if
 
@@ -6643,6 +6644,7 @@ contains
 
     end if
 
+    if (allocated(gfarray)) deallocate(gfarray)
   end subroutine getan_nogath
 
 !///////////////////////////////////////
