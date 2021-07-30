@@ -63,6 +63,7 @@ program gs2
   use gs2_main, only: finalize_diagnostics
   use gs2_main, only: finalize_equations
   use gs2_main, only: finalize_gs2
+  use gs2_main, only: parse_command_line
   use exit_codes, only: EXIT_NSTEP, EXIT_NOT_REQUESTED
   use mp, only: proc0
   use config_collection, only : gs2_config_type
@@ -73,6 +74,8 @@ program gs2
   type(gs2_config_type) :: input_config
   type(standard_header_type) :: standard_header
   integer :: used_inputs_unit
+
+  call parse_command_line()
 
   call initialize_gs2_optimisation(state)
   call initialize_wall_clock_timer

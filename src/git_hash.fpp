@@ -4,8 +4,8 @@
 ! anything that `use`d it would pick up a dependency and therefore need
 ! rebuilding on new commits. Instead, we just rebuild this file and link the
 ! object in at the link stage -- so the executables get relinked, but that's it.
-! standard_header.f90 has explicit interfaces for these functions, so please
-! `use` that module in order to call these function.
+! `git_version_mod.f90` has explicit interfaces for these functions, so please
+! `use` that module in order to call these functions.
 
 #ifndef GIT_HASH
 #define GIT_HASH "unknown"
@@ -15,8 +15,27 @@
 #define GIT_STATE "unknown"
 #endif
 
+#ifndef GIT_VERSION
+#define GIT_VERSION "unknown"
+#endif
 
-!> Returns the git hash
+!> Returns the git version from `git describe`
+!>
+!> This looks like: `{tag}-g{hash}[-dirty]`
+function get_git_version()
+  implicit none
+  character(:), allocatable :: get_git_version
+  integer, parameter :: max_length = 40
+  integer :: length
+
+  length = min(max_length, len(GIT_VERSION))
+  allocate(character(length)::get_git_version)
+  get_git_version = GIT_VERSION(1:length)
+  get_git_version = trim(get_git_version)
+end function get_git_version
+
+
+!> Returns the git hash of the current commit
 function get_git_hash(length_in)
   implicit none
   !> How many characters of the hash to return, default is 7

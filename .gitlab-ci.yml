@@ -55,7 +55,7 @@ variables: &default_variables
   JOB_STATUS_FILE: "special_file_to_indicate_job_status"
   BASIC_PACKAGES: "environment-modules make git which cmake findutils"
   GS2_PACKAGES: "fftw-devel netcdf-fortran netcdf-devel netcdf-fortran-devel openmpi openmpi-devel gcc gcc-gfortran"
-  PYTHON_PACKAGES: "python python3 python3-pip python3-devel"
+  PYTHON_PACKAGES: "python python3 python3-pip python3-devel python3-pytest"
   EXTRA_PACKAGES: ""
   WITH_PYTHON: "yes"
   WITH_MPI: "yes"

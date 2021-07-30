@@ -6397,16 +6397,16 @@ contains
   end subroutine check_getan
 
   !> Getan_nogath has been substantially changed to enable gf_lo field calculations, it can now operate in 
-  !! 2 modes; using the standard integrate_species (integrate_species_sub in le_grids) when called from
-  !! fields_local and gf_lo_integrate is false (which is teh default, or doing the integrate in place when 
-  !! called from fields_gf_local or from fields_local when gf_lo_integrate is true.  Note, if this is called from
-  !! fields_local and gf_lo_integrate is true then the calculation will be done locally but there is a function
-  !! called after this has finished in fields_local that sends the data back (from gf_lo to g_lo layouts).
-  !! When call with gf_lo_integrate = .true. this routine does a gather that converts the gnew array from g_lo
-  !! data distribution to gf_lo data distribution and stores the result in gfarray.  With gf_lo_integrate = .false.
-  !! gnew is used instead and this is in g_lo data distribution.
-  !!
-  !! AJ
+  !> 2 modes; using the standard integrate_species (integrate_species_sub in le_grids) when called from
+  !> fields_local and gf_lo_integrate is false (which is teh default, or doing the integrate in place when 
+  !> called from fields_gf_local or from fields_local when gf_lo_integrate is true.  Note, if this is called from
+  !> fields_local and gf_lo_integrate is true then the calculation will be done locally but there is a function
+  !> called after this has finished in fields_local that sends the data back (from gf_lo to g_lo layouts).
+  !> When call with gf_lo_integrate = .true. this routine does a gather that converts the gnew array from g_lo
+  !> data distribution to gf_lo data distribution and stores the result in gfarray.  With gf_lo_integrate = .false.
+  !> gnew is used instead and this is in g_lo data distribution.
+  !>
+  !> AJ
   subroutine getan_nogath (antot, antota, antotp)
     use dist_fn_arrays, only: vpa, vperp2, aj0, aj1, gnew, g_work
     use dist_fn_arrays, only: vpa_gf, vperp2_gf, aj0_gf, aj1_gf
@@ -6425,7 +6425,7 @@ contains
     complex, dimension (-ntgrid:,:,:), intent (out) :: antot, antota, antotp
     real, dimension (nspec) :: wgt
     integer :: isgn, iglo, it, ik, igf
-    complex, dimension (-ntgrid:ntgrid,2,nspec,negrid,nlambda,gf_lo%llim_proc:gf_lo%ulim_alloc) :: gfarray
+    complex, dimension (:, :, :, :, :, :), allocatable :: gfarray
     integer :: ie, il, is
     real, dimension(-ntgrid:ntgrid) :: temparg3
 
@@ -6433,6 +6433,7 @@ contains
     !AJ then do the initial redistribution of the data from g_lo (where gnew is current) to gf_lo
     !AJ where it will end up in gfarray)
     if(gf_lo_integrate) then
+       allocate( gfarray(-ntgrid:ntgrid,2,nspec,negrid,nlambda,gf_lo%llim_proc:gf_lo%ulim_alloc))
        call gather(g2gf, gnew, gfarray, ntgrid)
     end if
 
@@ -6646,6 +6647,7 @@ contains
 
     end if
 
+    if (allocated(gfarray)) deallocate(gfarray)
   end subroutine getan_nogath
 
 !///////////////////////////////////////

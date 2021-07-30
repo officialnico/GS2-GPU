@@ -313,8 +313,6 @@ contains
          (nonlinear_mode, nonlinearopts, nonlinear_mode_switch, &
          ierr, "nonlinear_mode in nonlinear_terms_knobs",.true.)
 
-    istep_last = 0
-
     if (nonlinear_mode_switch == nonlinear_mode_on)  then
        nonlin = .true.
     end if
