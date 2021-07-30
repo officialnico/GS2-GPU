@@ -337,17 +337,22 @@ MACRO_DEFS+=-DGIT_HASH_MAKEFILES='"$(GIT_HASH_MAKEFILES)"'
 GIT_HASH_UTILS:=$(shell git submodule status $(UTILS) | cut -d ' ' -f2)
 MACRO_DEFS+=-DGIT_HASH_UTILS='"$(GIT_HASH_UTILS)"'
 
+# Version string, including current commit if not on a release, plus
+# '-dirty' if there are uncommitted changes
+GIT_VERSION := $(shell git describe --tags --long --dirty --match "[0-9]*.[0-9]*.[0-9]*")
+MACRO_DEFS += -DGIT_VERSION='"$(GIT_VERSION)"'
+
 #The magic sed esacpes either ( or ) by replacing with \( or \)
 GIT_BRANCH:=$(shell git branch | grep \* | cut -d ' ' -f2- | sed 's|\([()]\)|\\\1|g')
 MACRO_DEFS+=-DGIT_BRANCH='"$(GIT_BRANCH)"'
 
 # Find if there are any modified tracked files (except Makefile.depend)
 ifeq ($(shell git status --short -uno -- . | wc -l), 0)
-	GIT_STATE="clean"
+	GIT_STATE:="clean"
 	MACRO_DEFS+=-DGIT_STATE='$(GIT_STATE)'
 $(shell touch $(PATCHFILE))
 else
-	GIT_STATE="modified"
+	GIT_STATE:="modified"
 	MACRO_DEFS+=-DGIT_STATE='$(GIT_STATE)'
 
 # Here we make a patch file, which could be read by the program if we wanted to keep a record
@@ -727,6 +732,20 @@ depend: $(F90FROMFPP) $(UTILS_SENTINEL) Makefile.$(GK_SYSTEM) |$(GENERATED_SRC_D
 		--keep=$(KEEP_PROCESSED_FILES_FROM_DEPEND) $(VPATH):$(UTILS) \
 		--generated_src_dir=$(GENERATED_SRC_DIR) || rm $(DEPEND)
 	$(call messageOp,"Dependency file created at","\\t:",$(call processName,$(DEPEND)))
+
+# Dump the compilation flags to a file, so we can check if they change between
+# invocations of `make`. The `cmp` bit checks if the file contents
+# change. Adding a dependency of a file on `compiler_flags` causes it to be
+# rebuilt when the flags change. Taken from
+# https://stackoverflow.com/a/3237349/2043465
+COMPILER_FLAGS_CONTENTS = "$(GIT_VERSION)"
+.PHONY: force
+compiler_flags: force
+	$(QUIETSYM)echo -e $(COMPILER_FLAGS_CONTENTS) | cmp -s - $@ || echo -e $(COMPILER_FLAGS_CONTENTS) > $@
+
+# Things that should be rebuilt if the compilation flags change (for example, on a new commit)
+$(OBJDIR)/git_hash.o: compiler_flags
+
 ##################################################################### Main TARGETS
 # .DEFAULT_GOAL works for GNU make 3.81 (or higher)
 # For 3.80 or less, see all target
@@ -876,6 +895,7 @@ test_make:
 	$(call messageKeyVal, "DEPEND", $(DEPEND))
 	$(call messageKeyVal, "QUIET", $(QUIET))
 	$(call messageKeyVal, "WITH_COLOUR", $(WITH_COLOUR))
+	$(call messageKeyVal, "GIT_VERSION", $(GIT_VERSION))
 	$(call messageKeyVal, "GIT_HASH", $(GIT_HASH))
 	$(call messageKeyVal, "GIT_HASH_MAKEFILES", $(GIT_HASH_MAKEFILES))
 	$(call messageKeyVal, "GIT_HASH_UTILS", $(GIT_HASH_UTILS))
