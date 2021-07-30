@@ -96,6 +96,7 @@
  fbpar = 0.0 ! Multiplies B_parallel. Use 1 for high beta, 0 otherwise.
  delt = 0.05 ! Time step
  nstep = 5000 ! Maximum number of timesteps
+ seed = 10000
 /
 
 !==============================
