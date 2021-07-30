@@ -3,19 +3,6 @@ module standard_header_mod
   use uuid_mod, only : uuid_len
   implicit none
 
-  ! Explicit interfaces for the functions in git_hash.fpp
-  interface
-    function get_git_hash(length_in)
-      integer, optional, intent(in) :: length_in
-      integer :: length
-      character(:), allocatable :: get_git_hash
-    end function get_git_hash
-
-    function get_git_state()
-      character(:), allocatable :: get_git_state
-    end function get_git_state
-  end interface
-
   !> A header for files and output.
   !>
   !> This is a type rather than a function so that we can use a
@@ -98,6 +85,7 @@ contains
   !> of each line. Note that it is used as-is, including any whitespace.
   function standard_header_to_string(this, comment_character, file_description) result(header)
     use runtime_tests, only: runtime_info
+    use git_version_mod, only: get_git_version
     character(:), allocatable :: header
 
     class(standard_header_type), intent(in) :: this
@@ -131,10 +119,10 @@ contains
     end if
 
     header = comment_char // "Created by GS2 at " // this%date_time // newline &
+         // comment_char // "GS2 version: " // get_git_version() // newline &
          // comment_char // "Run UUID: " // this%run_uuid // newline &
          // comment_char // "GK_SYSTEM: " // trim(runtime_info%get_gk_system()) // newline &
          // comment_char // "Compiler: " // trim(runtime_info%get_compiler_name()) // newline &
-         // comment_char // "Commit hash: " // get_git_hash() // get_git_state() // newline &
          // description_line
 
   end function standard_header_to_string
