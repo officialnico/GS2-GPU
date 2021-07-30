@@ -30,16 +30,6 @@
 !==============================
 !  
 !==============================
-&kt_grids_box_parameters
- nx = 32 ! The number of kx modes: the number of kx modes actually simulated (ntheta0) is equal to 2*(nx - 1)/3 + 1, due to the need to prevent aliasing.
- ny = 32 ! The number of ky modes: the number of ky modes actually simulated (naky) is equal to (ny - 1)/3 + 1, due to the need to prevent aliasing.
- jtwist = 30 ! L_x = L_y  jtwist / (2 pi shat)
- y0 = 1.0 ! The length of the box in the y direction (measured in the Larmour radius of species 1)
-/
-
-!==============================
-!  
-!==============================
 &kt_grids_single_parameters
  aky = 1.0 ! The actual value of ky rho
  akx = 0.0 
@@ -85,13 +75,8 @@
 !BOUNDARY CONDITIONS  
 !==============================
 &dist_fn_knobs
- gridfac = 1.0 ! Affects boundary condition at end of theta grid.
  boundary_option = "periodic" ! Sets the boundary condition along the field line (i.e. the boundary conditions at theta = +- pi).
  adiabatic_option = "iphi00=2" ! The form of the adiabatic response (if a species is being modeled as adiabatic).
- test = .false. ! For debugging
- g_exb = 0.0 
- btor_slab = 0.0 
- nonad_zero = .true. ! If true switches on new parallel boundary condition where h=0 at incoming boundary instead of g=0.
 /
 
 !==============================
@@ -116,14 +101,6 @@
 !==============================
 !  
 !==============================
-&reinit_knobs
- delt_adj = 2.0 ! When the time step needs to be changed, it is adjusted 
- delt_minimum = 5.0e-07 ! The minimum time step is delt_minimum.
-/
-
-!==============================
-!  
-!==============================
 &layouts_knobs
  layout = "lexys" ! 'yxles', 'lxyes', 'lyxes', 'lexys' Determines the way the grids are laid out in memory.
  local_field_solve = .false. ! Strongly affects initialization time on some parallel computers.
@@ -135,14 +112,6 @@
 &collisions_knobs
  collision_model = "none" ! Collision model used in the simulation. Options: 'default', 'none', 'lorentz', 'ediffuse'
  conserve_moments = .true. 
-/
-
-!==============================
-!NONLINEARITY  
-!==============================
-&nonlinear_terms_knobs
- nonlinear_mode = "off" ! Include nonlinear terms? ('on','off')
- cfl = 0.2 ! The maximum delt < cfl * min(Delta_perp/v_perp)
 /
 
 !==============================
@@ -179,10 +148,6 @@
 !INITIAL CONDITIONS  
 !==============================
 &init_g_knobs
- refac = 1.0 ! Used in rare cases.
- imfac = 1.0 ! Used in rare cases.
- den0 = 0.0 ! Parameters for setting up special initial conditions.
- den1 = 1.0 ! Parameters for setting up special initial conditions.
  chop_side = .false. ! Rarely needed. Forces asymmetry into initial condition.
  width0 = -4.0 ! Initial perturbation has Gaussian envelope in theta with width width0,
  phiinit = 0.1 ! Average amplitude of initial perturbation of each Fourier mode.
@@ -194,57 +159,26 @@
 !DIAGNOSTICS  
 !==============================
 &gs2_diagnostics_knobs
- print_flux_line = .f. ! Instantaneous fluxes output to screen
- write_nl_flux = .true. ! Write nonlinear fluxes as a function of time.
+ print_flux_line = .false. ! Instantaneous fluxes output to screen
+ write_nl_flux = .false. ! Write nonlinear fluxes as a function of time.
  print_line = .false. ! Estimated frequencies and growth rates to the screen/stdout
- write_verr = .true. ! Write velocity space diagnostics to '.lpc' and '.verr' files
- write_g = F ! Write the distribution function to the '.dist' (NetCDF?)
- write_line = .true. ! If (write_ascii = T) write estimated frequencies and growth rates to the output file
+ write_verr = .false. ! Write velocity space diagnostics to '.lpc' and '.verr' files
+ write_g = .false. ! Write the distribution function to the '.dist' (NetCDF?)
+ write_line = .false.. ! If (write_ascii = T) write estimated frequencies and growth rates to the output file
   ! write_gyx not specified --- Write dist fn at a given physical spacial point to a file
- write_hrate = F ! Write heating rate, collisonal entropy generation etc to '.heat'
- write_final_epar = .true. ! If (write_ascii = T) E_parallel(theta) written to runname.eigenfunc
- write_avg_moments = .true. ! Write flux surface averaged low-order moments of g to runname.out.nc and runname.moments (if write_ascii = T)
- write_lorentzian = .true. ! Frequency Sweep Data
+ write_hrate = .false. ! Write heating rate, collisonal entropy generation etc to '.heat'
+ write_final_epar = .false. ! If (write_ascii = T) E_parallel(theta) written to runname.eigenfunc
+ write_avg_moments = .false. ! Write flux surface averaged low-order moments of g to runname.out.nc and runname.moments (if write_ascii = T)
+ write_lorentzian = .false. ! Frequency Sweep Data
  write_omega = .false. ! If (write_ascii = T) instantaneous omega to output file. Very heavy output
  write_omavg = .true. ! If (write_ascii = T) time-averaged growth rate and frequency to the output file.
- write_eigenfunc = .true. ! If (write_ascii = T) Normalized phi written to runname.eigenfunc
+ write_eigenfunc = .false. ! If (write_ascii = T) Normalized phi written to runname.eigenfunc
  write_final_fields = .true. ! If (write_ascii = T) Phi(theta) written to '.fields'
  write_final_moments = .true. ! write final n, T
-  ! write_parity not specified --- Writes parities in dist fn and particle fluxes
-  ! nsave not specified --- Write restart files every nsave timesteps
- nwrite = 1 ! Output diagnostic data every nwrite
+ nwrite = 10 ! Output diagnostic data every nwrite
  navg = 10 ! Any time averages performed over navg
  omegatol = -0.001 ! The convergence has to be better than one part in 1/omegatol
  omegatinst = 500.0 ! Recommended value: 500.
  save_for_restart = .false. ! Write restart files.
-  ! write_flux_line not specified --- 
-  ! write_ascii not specified --- 
-  ! write_kpar not specified --- 
-  ! write_gs not specified --- 
-  ! write_gg not specified --- 
-  ! write_lpoly not specified --- 
-  ! write_fields not specified --- 
-  ! write_final_antot not specified --- 
-  ! write_cerr not specified --- 
-  ! write_max_verr not specified --- 
-  ! nmovie not specified --- 
-  ! igomega not specified --- 
-  ! exit_when_converged not specified --- 
-  ! write_full_moments_notgc not specified --- 
-  ! write_cross_phase not specified --- 
-  ! dump_check1 not specified --- 
-  ! dump_check2 not specified --- 
-  ! dump_fields_periodically not specified --- 
-  ! make_movie not specified --- 
-  ! write_phi_over_time not specified --- Write entire Phi field to NetCDF file every nwrite.
-  ! write_apar_over_time not specified --- Write entire A_parallel field to NetCDF file every nwrite.
-  ! write_bpar_over_time not specified --- Write entire B_parallel field to NetCDF file every nwrite.
-  ! write_symmetry not specified --- Test the symmetry properties of the GK eqn.
-  ! save_distfn not specified --- Save dist_fn with lots of detail.
-  ! write_correlation_extend not specified --- Extend domain of correlation function calculation.
-  ! nwrite_mult not specified --- Large datasets written every nwrite_mult * nwrite timesteps.
-  ! write_correlation not specified --- Write parallel correlation.
-  ! write_moments not specified --- 
-  ! write_final_db not specified --- Write final delta B.
 /
 
