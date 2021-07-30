@@ -138,9 +138,22 @@ end function get_default_requires_index_{module}_config"""
 
 getModuleConfigSubString = """
 !> Get the module level config instance
-function get_{module}_config()
+pure function get_{module}_config()
   type({module}_config_type) :: get_{module}_config
   get_{module}_config = {module}_config
+end function get_{module}_config
+"""
+
+getModuleIndexedConfigSubString = """
+!> Get the array of module level config instances. If it isn't allocated,
+!> then return a zero-length array
+pure function get_{module}_config()
+  type({module}_config_type), allocatable, dimension(:) :: get_{module}_config
+  if (allocated({module}_config)) then
+    get_{module}_config = {module}_config
+  else
+    allocate(get_{module}_config(0))
+  end if
 end function get_{module}_config
 """
 
@@ -372,6 +385,8 @@ class config():
         return getDefaultRequiresIndexSubString.format(module = self.moduleName, requires_index = requires_index)
 
     def getModuleConfig(self):
+        if self.requires_index:
+            return getModuleIndexedConfigSubString.format(module=self.moduleName)
         return getModuleConfigSubString.format(module=self.moduleName)
 
     def printAll(self,**kwargs):
