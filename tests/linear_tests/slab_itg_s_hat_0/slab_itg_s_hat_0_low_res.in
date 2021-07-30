@@ -95,7 +95,7 @@
  fapar = 0.0 ! Multiplies A_par. Use 1 for finite beta (electromagnetic), 0 otherwise (electrostatic)
  fbpar = 0.0 ! Multiplies B_parallel. Use 1 for high beta, 0 otherwise.
  delt = 0.05 ! Time step
- nstep = 1000 ! Maximum number of timesteps
+ nstep = 5000 ! Maximum number of timesteps
 /
 
 !==============================
