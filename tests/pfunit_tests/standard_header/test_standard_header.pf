@@ -6,7 +6,7 @@ contains
   @test(npes=[1])
   subroutine test_simulation_run_uuid_same_between_calls(this)
     use mp, only : init_mp
-    use standard_header_mod, only : simulation_run_uuid
+    use standard_header, only : simulation_run_uuid
     class (MpiTestMethod), intent(inout) :: this
 
     character(len=36) :: uuid1, uuid2

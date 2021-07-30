@@ -424,7 +424,7 @@ contains
     use le_grids, only: init_weights
     use gs2_save, only: restart_writable
     use normalisations, only: init_normalisations
-    use standard_header_mod, only: standard_header_type
+    use standard_header, only: standard_header_type
     implicit none
     !> If true, this is a "list-mode run" and so turn off
     !> [[gs2_diagnostics_knobs:print_flux_line]] and
@@ -437,13 +437,13 @@ contains
     !> Header for files with build and run information
     type(standard_header_type), intent(in), optional :: header
     ! Actual value for optional `header` input
-    type(standard_header_type) :: standard_header
+    type(standard_header_type) :: local_header
     integer :: nmovie_tot, nwrite_big_tot
 
     if (present(header)) then
-      standard_header = header
+      local_header = header
     else
-      standard_header = standard_header_type()
+      local_header = standard_header_type()
     end if
 
     if (initialized) return
@@ -457,7 +457,7 @@ contains
     call init_init_g
     call init_dist_fn
 
-    call real_init (list, gs2_diagnostics_config_in, header=standard_header)
+    call real_init (list, gs2_diagnostics_config_in, header=local_header)
 
     nmovie_tot = nstep/nmovie
     nwrite_big_tot = nstep/(nwrite*nwrite_mult)-nstep/4/(nwrite*nwrite_mult)
@@ -579,7 +579,7 @@ contains
     use kt_grids, only: naky, ntheta0
     use species, only: nspec
     use mp, only: proc0
-    use standard_header_mod, only: standard_header_type
+    use standard_header, only: standard_header_type
     implicit none
     !> If true, this is a "list-mode run" and so turn off
     !> [[gs2_diagnostics_knobs:print_flux_line]] and
@@ -590,12 +590,12 @@ contains
     !> Header for files with build and run information
     type(standard_header_type), intent(in), optional :: header
     ! Actual value for optional `header` input
-    type(standard_header_type) :: standard_header
+    type(standard_header_type) :: local_header
 
     if (present(header)) then
-      standard_header = header
+      local_header = header
     else
-      standard_header = standard_header_type()
+      local_header = standard_header_type()
     end if
 
     call read_parameters(is_list_run, gs2_diagnostics_config_in)
@@ -644,7 +644,7 @@ contains
        end if
 
        if (write_ascii) then
-          write (unit=out_unit, fmt='(a)') standard_header%to_string()
+          write (unit=out_unit, fmt='(a)') local_header%to_string()
        end if
 
        allocate (omegahist(0:navg-1,ntheta0,naky))

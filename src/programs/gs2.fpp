@@ -68,11 +68,11 @@ program gs2
   use mp, only: proc0
   use config_collection, only : gs2_config_type
   use file_utils, only: get_unused_unit, run_name
-  use standard_header_mod, only: standard_header_type
+  use standard_header, only: standard_header_type
   implicit none
   type(gs2_program_state_type) :: state
   type(gs2_config_type) :: input_config
-  type(standard_header_type) :: standard_header
+  type(standard_header_type) :: local_header
   integer :: used_inputs_unit
 
   call parse_command_line()
@@ -84,16 +84,16 @@ program gs2
     call optimise_gs2(state)
   end if
   if (state%optim%auto .or. .not. state%optim%on) then
-    standard_header = standard_header_type()
-    call initialize_gs2(state, header=standard_header)
+    local_header = standard_header_type()
+    call initialize_gs2(state, header=local_header)
     call initialize_equations(state)
-    call initialize_diagnostics(state, header=standard_header)
+    call initialize_diagnostics(state, header=local_header)
 
     call input_config%get_configs()
     call get_unused_unit(used_inputs_unit)
     open(unit=used_inputs_unit, action="write", file=trim(run_name)//".used_inputs.in")
     write(unit=used_inputs_unit, fmt='(a)') &
-         standard_header%to_string( &
+         local_header%to_string( &
              comment_character="! ", &
              file_description="Input parameters as used by " // trim(run_name) &
          )

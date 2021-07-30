@@ -132,15 +132,15 @@ contains
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     use file_utils, only: init_file_utils
-    use standard_header_mod, only: standard_header_type
+    use standard_header, only: standard_header_type
     implicit none
     type(ingen_config_type), intent(in), optional :: ingen_config_in
-    type(standard_header_type) :: standard_header
+    type(standard_header_type) :: local_header
     logical :: list
     
     call init_mp
 
-    standard_header = standard_header_type()
+    local_header = standard_header_type()
 
     call init_file_utils (list, name="template")
     call init_ingen(ingen_config_in)
@@ -149,9 +149,9 @@ contains
     
     call get_namelists
     if (debug) write(6,*) 'ingen: call report'
-    call report(standard_header)
+    call report(local_header)
     if (debug) write(6,*) 'ingen: call write_namelists'
-    call write_namelists(header=standard_header)
+    call write_namelists(header=local_header)
     
     if (debug) write(6,*) 'ingen: call interactive, scan=',scan
     if (scan) call interactive
@@ -210,11 +210,11 @@ contains
     use species, only: spec, nspec, has_electron_species
     use geometry, only: beta_prime_input, bishop
     use run_parameters, only: beta, fapar, fbpar
-    use standard_header_mod, only: standard_header_type
+    use standard_header, only: standard_header_type
     !> Header for files with build and run information
     type(standard_header_type), intent(in), optional :: header
     ! Actual value for optional `header` input
-    type(standard_header_type) :: standard_header
+    type(standard_header_type) :: local_header
 
     integer :: sel, nbeta, j, ise
     real :: beta_low, beta_high, dbeta, beta_save
@@ -227,9 +227,9 @@ contains
 
     if (first) then
        if (present(header)) then
-         standard_header = header
+         local_header = header
        else
-         standard_header = standard_header_type()
+         local_header = standard_header_type()
        end if
 
        call get_unused_unit (interactive_record)
@@ -367,7 +367,7 @@ contains
 
                 write (tag2, fmt='("beta = ",e16.10," and electron tprim = ",e16.10)') beta, spec(ise)%tprim 
 
-                call write_namelists (j, tag1, tag2, standard_header)
+                call write_namelists (j, tag1, tag2, local_header)
                 spec(ise)%tprim = tpe_save
              end do
              beta = beta_save
@@ -426,7 +426,7 @@ contains
                 write (tag1, fmt='("Varying beta and all L_T values self-consistently")')
                 write (tag2, fmt='("beta = ",e16.10," and tprim values scaled by ",e16.10)') beta, fac
 
-                call write_namelists (j, tag1, tag2, standard_header)
+                call write_namelists (j, tag1, tag2, local_header)
                 spec%tprim = tp_save
              end do
              beta = beta_save
@@ -487,7 +487,7 @@ contains
                 write (tag1, fmt='("Varying beta and all L_n values self-consistently")')
                 write (tag2, fmt='("beta = ",e16.10," and tprim values scaled by ",e16.10)') beta, fac
 
-                call write_namelists (j, tag1, tag2, standard_header)
+                call write_namelists (j, tag1, tag2, local_header)
                 spec%fprim = fp_save
              end do
              beta = beta_save
@@ -536,7 +536,7 @@ contains
              write (tag1, fmt='("Varying beta, all else fixed")')
              write (tag2, fmt='("beta = ",e16.10)') beta
 
-             call write_namelists (j, tag1, tag2, standard_header)
+             call write_namelists (j, tag1, tag2, local_header)
 
              fapar = fapar_save 
              fbpar = fbpar_save
@@ -661,7 +661,7 @@ contains
                 write (tag1, fmt='("Varying beta_prime and beta self-consistently")')
                 write (tag2, fmt='("beta_prime = ",e16.10," and beta = ",e16.10)') beta_prime_input, beta
 
-                call write_namelists (j, tag1, tag2, standard_header)
+                call write_namelists (j, tag1, tag2, local_header)
 
                 fapar = fapar_save 
                 fbpar = fbpar_save
@@ -717,7 +717,7 @@ contains
              write (tag1, fmt='("Varying beta_prime only (non-self-consistently)")')
              write (tag2, fmt='("beta_prime = ",e16.10)') beta_prime_input
 
-             call write_namelists (j, tag1, tag2, standard_header)
+             call write_namelists (j, tag1, tag2, local_header)
              
              beta_prime_input = beta_prime_save
              
@@ -884,14 +884,14 @@ if (debug) write(6,*) 'get_namelists: returning'
     use species, only: wnml_species, spec, has_electron_species
     use theta_grid, only: wnml_theta_grid
     use theta_grid_params, only: wnml_theta_grid_params
-    use standard_header_mod, only: standard_header_type
+    use standard_header, only: standard_header_type
 
     integer, intent (in), optional :: jr
     character (*), intent (in), optional :: tag1, tag2
     !> Header for files with build and run information
     type(standard_header_type), intent(in), optional :: header
     ! Actual value for optional `header` input
-    type(standard_header_type) :: standard_header
+    type(standard_header_type) :: local_header
 
     logical :: electrons
 
@@ -899,9 +899,9 @@ if (debug) write(6,*) 'get_namelists: returning'
     character (4) :: suffix
     
     if (present(header)) then
-      standard_header = header
+      local_header = header
     else
-      standard_header = standard_header_type()
+      local_header = standard_header_type()
     end if
 
     call get_unused_unit (unit)
@@ -919,7 +919,7 @@ if (debug) write(6,*) 'get_namelists: returning'
 
     write (unit, *)
 
-    write (unit=unit, fmt='(a)') standard_header%to_string()
+    write (unit=unit, fmt='(a)') local_header%to_string()
 
     if (present(tag1)) then
        write (unit, *) '*****************************************************'
@@ -1011,13 +1011,13 @@ if (debug) write(6,*) 'get_namelists: returning'
     use collisions, only: collision_model_full, collision_model_ediffuse
     use collisions, only: collision_model_lorentz, collision_model_lorentz_test
     use collisions, only: use_le_layout
-    use standard_header_mod, only: standard_header_type
+    use standard_header, only: standard_header_type
 
     implicit none
     !> Header for files with build and run information
     type(standard_header_type), intent(in), optional :: header
     ! Actual value for optional `header` input
-    type(standard_header_type) :: standard_header
+    type(standard_header_type) :: local_header
 
     real :: alne, dbetadrho_spec
     logical :: le_ok = .true.
@@ -1025,9 +1025,9 @@ if (debug) write(6,*) 'get_namelists: returning'
     integer, dimension(4) :: pfacs
 
     if (present(header)) then
-      standard_header = header
+      local_header = header
     else
-      standard_header = standard_header_type()
+      local_header = standard_header_type()
     end if
 
     call get_unused_unit (report_unit)
@@ -1035,7 +1035,7 @@ if (debug) write(6,*) 'get_namelists: returning'
 
     write (report_unit, *) 
 
-    write (report_unit, fmt='(a)') standard_header%to_string()
+    write (report_unit, fmt='(a)') local_header%to_string()
     write (report_unit, fmt="(/'------------------------------------------------------------'/)")
 
     !     le_ok=leok_le_grids(report_unit)

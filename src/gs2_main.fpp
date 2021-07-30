@@ -377,7 +377,7 @@ contains
     use mp, only: use_nproc, included, mp_comm
     use redistribute, only: using_measure_scatter
     use unit_tests, only: debug_message, set_job_id
-    use standard_header_mod, only: standard_header_type
+    use standard_header, only: standard_header_type
     implicit none
     type(gs2_program_state_type), intent(inout) :: state
     !> Header for files with build and run information
@@ -387,7 +387,7 @@ contains
 
     integer :: oldrank
     ! Actual value for optional `header` input
-    type(standard_header_type) :: standard_header
+    type(standard_header_type) :: local_header
     ! Internal value for optional `quiet` input
     logical :: quiet_value
 
@@ -406,9 +406,9 @@ contains
     end if
 
     if (present(header)) then
-      standard_header = header
+      local_header = header
     else
-      standard_header = standard_header_type()
+      local_header = standard_header_type()
     end if
 
     if (present(quiet)) then
@@ -444,7 +444,7 @@ contains
     if (proc0) then
       ! Report number of processors being used
       if (.not. quiet_value) then
-        write(*, '(a)') standard_header%to_string(comment_character=" ")
+        write(*, '(a)') local_header%to_string(comment_character=" ")
 
         if (state%external_job_id >= 0) then
           write(*, '(a, i0, a)', advance="no") "External job ", state%external_job_id, " "
@@ -629,13 +629,13 @@ contains
     use parameter_scan, only: allocate_target_arrays
     use run_parameters, only: nstep, use_old_diagnostics
     use unit_tests, only: debug_message
-    use standard_header_mod, only: standard_header_type
+    use standard_header, only: standard_header_type
     implicit none
     type(gs2_program_state_type), intent(inout) :: state
     !> Header for files with build and run information
     type(standard_header_type), intent(in), optional :: header
     ! Actual value for optional `header` input
-    type(standard_header_type) :: standard_header
+    type(standard_header_type) :: local_header
 
 #ifdef NEW_DIAG
     ! Configuration for the new diagnostics module
@@ -645,9 +645,9 @@ contains
     if (.not. state%included) return
 
     if (present(header)) then
-      standard_header = header
+      local_header = header
     else
-      standard_header = standard_header_type()
+      local_header = standard_header_type()
     end if
 
     state%exit = .false. 
@@ -705,7 +705,7 @@ contains
 
       call debug_message(state%verb, &
         'gs2_main::initialize_diagnostics calling init_gs2_diagnostics')
-      call init_gs2_diagnostics (state%list, nstep, header=standard_header)
+      call init_gs2_diagnostics (state%list, nstep, header=local_header)
       call allocate_target_arrays(nwrite,write_nl_flux) ! must be after init_gs2_diagnostics
       call loop_diagnostics(0,state%exit)
     end if

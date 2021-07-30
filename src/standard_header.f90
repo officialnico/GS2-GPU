@@ -1,5 +1,5 @@
 !> Contains functions for creating a standard header for files and output
-module standard_header_mod
+module standard_header
   use uuid_mod, only : uuid_len
   implicit none
 
@@ -127,4 +127,4 @@ contains
 
   end function standard_header_to_string
 
-end module standard_header_mod
+end module standard_header
