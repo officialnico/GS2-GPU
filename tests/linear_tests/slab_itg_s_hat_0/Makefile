@@ -18,6 +18,7 @@ all:
 else
 all: slab_itg_s_hat_0_low_res 
 	$(call RUNCOMMAND,slab_itg_s_hat_0_low_res,slab_itg_s_hat_0_low_res.in)
+	$(call RUNCOMMAND,slab_itg_s_hat_0_low_res,slab_itg_s_hat_0_low_res_hybrid.in)
 	$(call COPY)
 	$(call RUNCOMMAND,gs2_slab_itg,slab_itg_s_hat_0_low_res.in)
 endif
