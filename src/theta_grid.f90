@@ -23,23 +23,35 @@ module theta_grid_gridgen
   type, extends(abstract_config_type) :: theta_grid_gridgen_config_type
      ! namelist : theta_grid_gridgen_knobs
      ! indexed : false     
-     !> Unknown
+
+     !> Number of points between original grid points to oversample \(\theta\) by
      integer :: npadd = 2
-     !> Unknown
+     !> Relative weighting of pitch-angle metric to \(\theta\) metric
      real :: alknob = 0.0
-     !> Unknown
+     !> Maximum difference between neighbouring points for determining
+     !> if a point is an extremum.
      real :: epsknob = 1e-5
-     !> Unknown
+     !> Consider when the right grid point is equal to the target bmag.
+     !>
+     !> FIXME: What does this mean?
      real :: bpknob = 1.e-8
-     !> Unknown
+     !> Something to do with scaling the theta resolution?
+     !>
+     !> FIXME: What does this mean?
      real :: extrknob = 0.0
-     !> Unknown
+     !> Tension for \(B\) spline
      real :: tension = 1.0
-     !> Unknown
+     !> Parameter for weighted resolution in theta?
+     !>
+     !> FIXME: What does this mean?
      real :: thetamax = 0.0
-     !> Unknown
+     !> Parameter for weighted resolution in theta?
+     !>
+     !> FIXME: What does this mean?
      real :: deltaw = 0.0
-     !> Unknown
+     !> Parameter for weighted resolution in theta?
+     !>
+     !> FIXME: What does this mean?
      real :: widthw = 1.0
    contains
      procedure, public :: read => read_theta_grid_gridgen_config
@@ -406,7 +418,9 @@ module theta_grid_salpha
   type, extends(abstract_config_type) :: theta_grid_salpha_config_type
      ! namelist : theta_grid_salpha_knobs
      ! indexed : false     
-     !> Used in conjunction with `alpmhd` of [[theta_grid_parameters]] to override `shift`, set as `shift=-alpmhd*alpmhdfac`.
+
+     !> Used in conjunction with [[theta_grid_parameters:alpmhd]] to override
+     !> `shift`, set as `shift=-alpmhd*alpmhdfac`.
      real :: alpmhdfac = 0.0
      !> Coefficient in model when `model_option='alpha1'` has been selected.
      real :: alpha1 = 0.0
@@ -1069,8 +1083,8 @@ module theta_grid_eik
      integer :: bishop = 5
      !> Use equilbrium data from the CHEASE file ogyropsi.dat
      logical :: chs_eq = .false.
-     !> Default usually okay
-     !> @todo Expand documentation
+     !> Step size for radial derivatives, \(\Delta r_{\psi N}\). Should be
+     !> "small enough", typically 0.001.
      real :: delrho = 1e-3
      !> Vacuum magnetic dipole geometry
      logical :: dfit_eq = .false.
@@ -1088,6 +1102,7 @@ module theta_grid_eik
      logical :: gen_eq = .false.
      !> Read Colin Roach's GS2D equilibrium file
      logical :: gs2d_eq = .false.
+     !> Unknown equilibrium file. You probably don't want this.
      !> FIXME: Add documentation
      logical :: idfit_eq = .false.
      !> Choose mode of operation:
@@ -1097,7 +1112,8 @@ module theta_grid_eik
      !> -  2: Running inside a transport code without numerical equilibrium
      !>
      integer :: iflux = 0
-     !> FIXME: Add documentation
+     !> Used with [[theta_grid_eik_knobs:bishop]] == 3: controls pressure length
+     !> scale by multiplying \(p \frac{d \rho}{d \psi}\)
      real :: invlp_input = 0.
      !> Choose definition of flux surface coordinate
      !>
@@ -1128,9 +1144,9 @@ module theta_grid_eik
      integer :: ntheta_geometry = -1
      !> Use Menard-style NetCDF equilibrium (JSOLVER)
      logical :: ppl_eq = .false.
-     !> Never used
+     !> Used by [[eiktest]]
      real :: rmax = 1.0
-     !> Never used
+     !> Used by [[eiktest]]
      real :: rmin = 1e-3
      !> Used to overrides s_hat prescribed by the numerical
      !> equilibrium, but _only_ if bishop=2,3,4,5,8, or 9.
@@ -2112,7 +2128,7 @@ contains
   end function get_default_requires_index_theta_grid_eik_config
 end module theta_grid_eik
 
-!> FIXME : Add documentation
+!> Use output from [[rungridgen]]
 module theta_grid_file
   use abstract_config, only: abstract_config_type, CONFIG_MAX_NAME_LEN
   
@@ -2138,9 +2154,10 @@ module theta_grid_file
   type, extends(abstract_config_type) :: theta_grid_file_config_type
      ! namelist : theta_grid_file_knobs 
      ! indexed : false    
-     !> Name of file with output from rungridgen.
+     !> Name of file with output from [[rungridgen]].
      character(len = 2000) :: gridout_file = "grid.out"
-     !> Unknown
+     !> If false, read `Rplot`, `Rprime`, `Zplot`, `Zprime`, `aplot`, `aprime`
+     !> from [[theta_grid_file_knobs:gridout_file]].
      logical :: no_geo_info = .false.
    contains
      procedure, public :: read => read_theta_grid_file_config

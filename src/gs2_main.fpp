@@ -120,9 +120,7 @@ module gs2_main
     real :: finish(2) = 0.
     real :: total(2) = 0. 
     real :: diagnostics(2)=0.
-#ifdef WITH_EIG
     real :: eigval(2)=0.
-#endif
     !real :: interval
     real :: main_loop(2)
   end type gs2_timers_type
@@ -364,7 +362,7 @@ contains
     end if
 
     oldrank = iproc
-    if (state%init%opt_ov%init .and. state%init%opt_ov%override_nproc) then
+    if (state%init%opt_ov%is_initialised() .and. state%init%opt_ov%override_nproc) then
       state%init%opt_ov%old_comm = mp_comm
       call use_nproc(state%init%opt_ov%nproc)
     end if
@@ -756,35 +754,47 @@ contains
        ! If we are doing a replay we don't actually evolve 
        ! the equations
        if (.not. state%replay) then 
-         !Initialise reset to true
-         reset=.true.
 
          call debug_message(state%verb+1, &
             'gs2_main::evolve_equations calling advance')
-         do while(reset)
-            reset=.false. !So that we only do this once unless something triggers a reset
-            if (proc0) call time_message(.false.,state%timers%timestep,' Timestep')
-            call advance (istep)
-            if (proc0) call time_message(.false.,state%timers%timestep,' Timestep')
-            call debug_message(state%verb+1, &
+
+         if (proc0) call time_message(.false.,state%timers%timestep,' Timestep')
+         ! Try to take a time step
+         call advance (istep)
+         if (proc0) call time_message(.false.,state%timers%timestep,' Timestep')
+         call debug_message(state%verb+1, &
               'gs2_main::evolve_equations called advance')
 
-            if(state%dont_change_timestep) reset = .false.
-            !If we've triggered a reset then actually reset
-            if (reset) then
-               call prepare_initial_values_overrides(state)
-               call debug_message(state%verb+1, &
-                  'gs2_main::evolve_equations resetting timestep')
-               call set_initval_overrides_to_current_vals(state%init%initval_ov)
-               state%init%initval_ov%override = .true.
-               if (state%is_external_job) then
-                  call reset_time_step (state%init, istep, state%exit, state%external_job_id)
-               else       
-                  call reset_time_step (state%init, istep, state%exit)
-               end if
+         if(state%dont_change_timestep) reset = .false.
+
+         !If the advance call has triggered a reset then change the timestep.
+         !Currently this is triggered if immediate_reset is true and the nonlinear
+         !cfl limit is exceeded.
+         if (reset) then
+            call prepare_initial_values_overrides(state)
+            call debug_message(state%verb+1, &
+                 'gs2_main::evolve_equations resetting timestep')
+            call set_initval_overrides_to_current_vals(state%init%initval_ov)
+            state%init%initval_ov%override = .true.
+            if (state%is_external_job) then
+               call reset_time_step (state%init, istep, state%exit, state%external_job_id)
+            else
+               call reset_time_step (state%init, istep, state%exit)
             end if
-            if(state%exit) exit
-         enddo
+
+            ! Now we've reset set the flag back to .false.
+            reset = .false.
+
+            ! If we've changed the timestep and have not decided to exit then
+            ! we need to call advance to actually complete this timestep.
+            if (.not. state%exit) then
+               call advance(istep)
+            end if
+         end if
+         if(state%exit) exit
+
+
+
          call debug_message(state%verb+1, &
             'gs2_main::evolve_equations calling gs2_save_for_restart')
          
@@ -844,7 +854,9 @@ contains
               'gs2_main::evolve_equations checking time step')
 
             !Note this should only trigger a reset for timesteps too small
-            !as timesteps too large are already handled
+            !as timesteps too large are already handled when immediate_reset is
+            !.true. If immediate_reset is .false. then this is where we handle
+            !all checking of the time step.
             call check_time_step(reset,state%exit)
             !call update_scan_parameter_value(istep, reset, state%exit)
             call debug_message(state%verb+1, &
@@ -916,7 +928,7 @@ contains
   !> FIXME : Add documentation
   subroutine run_eigensolver(state)
 #ifdef WITH_EIG
-    use eigval, only: init_eigval, finish_eigval, time_eigval
+    use eigval, only: init_eigval, finish_eigval
     use eigval, only: BasicSolve
 #endif 
     use job_manage, only: time_message
@@ -927,7 +939,7 @@ contains
    if (proc0) call time_message(.false.,state%timers%total,' Total')
 
    !Start timer
-   call time_message(.false.,time_eigval,' Eigensolver')
+   call time_message(.false.,state%timers%eigval,' Eigensolver')
 
    !Initialise slepc and the default/input eigensolver parameters
    call init_eigval
@@ -940,7 +952,7 @@ contains
    call finish_eigval
 
    !Stop timer
-   call time_message(.false.,time_eigval,' Eigensolver')
+   call time_message(.false.,state%timers%eigval,' Eigensolver')
 #else
    call mp_abort("Require slepc/petsc")
 #endif
@@ -1126,7 +1138,7 @@ contains
 
     end if
 
-    if (state%init%opt_ov%init .and. state%init%opt_ov%override_nproc) &
+    if (state%init%opt_ov%is_initialised() .and. state%init%opt_ov%override_nproc) &
       call unsplit_all(state%init%opt_ov%old_comm)
     call barrier
     state%included = included
@@ -1197,6 +1209,7 @@ contains
     use gs2_layouts, only: g_lo
     use kt_grids, only: naky, ntheta0
     use theta_grid, only: ntgrid
+    use dist_fn_arrays, only: gexp_3
     implicit none
     type(gs2_program_state_type), intent(inout) :: state
     if (.not. state%included) return
@@ -1205,12 +1218,12 @@ contains
     call init_initial_values_overrides(state%init%initval_ov,&
       ntgrid, ntheta0, naky, g_lo%llim_proc, g_lo%ulim_alloc, &
       force_maxwell_reinit=force_maxwell_reinit, &
-      in_memory=in_memory)
+      in_memory=in_memory, has_explicit_terms = allocated(gexp_3))
   end subroutine prepare_initial_values_overrides
 
   !> FIXME : Add documentation  
   subroutine set_initval_overrides_to_current_vals(initval_ov)
-    use dist_fn_arrays, only: gnew
+    use dist_fn_arrays, only: gnew, gexp_1, gexp_2, gexp_3
     use gs2_save, only: gs2_save_for_restart
     use mp, only: proc0, broadcast, mp_abort
     use collisions, only: vnmult
@@ -1226,13 +1239,17 @@ contains
     integer :: istatus
     !if (.not. state%included) return
 
-    if (.not.initval_ov%init) &
+    if (.not.initval_ov%is_initialised()) &
       call mp_abort("Trying to set initial value overrides &
       & before they are initialized... have you called &
       & prepare_initial_values_overrides ? ", .true.)
 
     if(initval_ov%in_memory)then
       initval_ov%g=gnew
+
+      if (allocated(initval_ov%gexp_1)) initval_ov%gexp_1 = gexp_1
+      if (allocated(initval_ov%gexp_2)) initval_ov%gexp_2 = gexp_2
+      if (allocated(initval_ov%gexp_3)) initval_ov%gexp_3 = gexp_3
 
       ! Do not use the value from [old_iface_]state%init%initval_ov%force_maxwell_reinit = initval_ov%force_maxwell_reinit as
       ! follows:
@@ -1272,12 +1289,9 @@ contains
     use overrides, only: finish_initial_values_overrides
     type(gs2_program_state_type), intent(inout) :: state
 
-    if (state%init%mgeo_ov%init) call &
-      finish_miller_geometry_overrides(state%init%mgeo_ov)
-    if (state%init%prof_ov%init) call &
-      finish_profiles_overrides(state%init%prof_ov)
-    if (state%init%initval_ov%init) call &
-      finish_initial_values_overrides(state%init%initval_ov)
+    if (state%init%mgeo_ov%is_initialised()) call state%init%mgeo_ov%finish()
+    if (state%init%prof_ov%is_initialised()) call state%init%prof_ov%finish()
+    if (state%init%initval_ov%is_initialised()) call state%init%initval_ov%finish()
   end subroutine finalize_overrides
 
   !> FIXME : Add documentation

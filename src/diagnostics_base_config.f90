@@ -8,13 +8,9 @@ module diagnostics_base_config
     ! namelist : gs2_diagnostics_knobs
     ! indexed : false
 
-    !> If true, and a copy of the .out.nc already exists,
-    !> open it and append to it. Obviously grid sizes must be
-    !> unchanged.
-    !>
-    !> @warning Only present in new diagnostics
+    !> Append output data to a previous output file `<run name>.out.nc` if it
+    !> already exists. Grid sizes must be unchanged.
     logical :: append_old = .false.
-
     !> Used for Trinity nonlinear convergence
     !> ([[gs2_diagnostics_knobs:use_nonlin_convergence]]). The maximum number
     !> of Trinity steps, after which consider the run converged regardless
@@ -65,10 +61,7 @@ module diagnostics_base_config
 
     !> Exit when the run has reached convergence
     logical :: exit_when_converged = .true.
-    !> Verify that the restart file(s) can be written before starting the
-    !> run.
-    !>
-    !> @warning Currently non-functional in new diagnostics
+    !> Verify that the restart file(s) can be written before starting the run
     logical :: file_safety_check = .true.
     !> Index in \(\theta\) to measure various diagnostics at. By default, this
     !> is the outboard midplane \(\theta = 0\), but it may be useful to set
@@ -608,6 +601,7 @@ contains
   !> Prints a warning about a non-functional diagnostic
   subroutine warn_about_nonfunctional_selection(diagnostic_switch, name)
     use run_parameters, only: use_old_diagnostics
+    use mp, only: proc0
     !> Diagnostic switch
     logical, intent(in) :: diagnostic_switch
     !> Name of the switch
@@ -621,7 +615,7 @@ contains
       diagnostics_module = "new"
     end if
 
-    if (diagnostic_switch) then
+    if (diagnostic_switch .and. proc0) then
       write(*, '(a, a, a, a, a)') "WARNING: diagnostic '", name, &
            "' is (currently) non-functional in ", diagnostics_module, &
            " diagnostics module. This will have no effect."
@@ -649,8 +643,8 @@ contains
     logical :: write_cross_phase, write_density_over_time, write_eigenfunc, write_fields, write_final_antot, write_final_db
     logical :: write_final_epar, write_final_fields, write_final_moments, write_flux_line, write_fluxes, write_fluxes_by_mode
     logical :: write_full_moments_notgc, write_g, write_gg, write_gs, write_gyx, write_heating, write_hrate, write_jext, write_kpar
-    logical :: write_line, write_lorentzian, write_lpoly, write_max_verr, write_moments, write_nl_flux, write_nl_flux_dist
-    logical :: write_omavg, write_omega, write_parity, write_pflux_sym, write_pflux_tormom, write_phi_over_time, write_symmetry
+    logical :: write_line, write_lorentzian, write_lpoly, write_max_verr, write_moments, write_nl_flux, write_nl_flux_dist, write_ntot_over_time
+    logical :: write_omavg, write_omega, write_parity, write_pflux_sym, write_pflux_tormom, write_phi_over_time, write_tperp_over_time, write_symmetry
     logical :: write_upar_over_time, write_verr, write_zonal_transfer
     real :: conv_test_multiplier, omegatinst, omegatol
 
@@ -663,8 +657,8 @@ contains
          write_cross_phase, write_density_over_time, write_eigenfunc, write_fields, write_final_antot, write_final_db, &
          write_final_epar, write_final_fields, write_final_moments, write_flux_line, write_fluxes, write_fluxes_by_mode, &
          write_full_moments_notgc, write_g, write_gg, write_gs, write_gyx, write_heating, write_hrate, write_jext, write_kpar, &
-         write_line, write_lorentzian, write_lpoly, write_max_verr, write_moments, write_nl_flux, write_nl_flux_dist, &
-         write_omavg, write_omega, write_parity, write_pflux_sym, write_pflux_tormom, write_phi_over_time, write_symmetry, &
+         write_line, write_lorentzian, write_lpoly, write_max_verr, write_moments, write_nl_flux, write_nl_flux_dist, write_ntot_over_time, &
+         write_omavg, write_omega, write_parity, write_pflux_sym, write_pflux_tormom, write_phi_over_time, write_tperp_over_time, write_symmetry, &
          write_upar_over_time, write_verr, write_zonal_transfer
 
     ! Only proc0 reads from file
@@ -741,6 +735,7 @@ contains
     write_moments = self%write_moments
     write_nl_flux = self%write_nl_flux
     write_nl_flux_dist = self%write_nl_flux_dist
+    write_ntot_over_time = self%write_ntot_over_time
     write_omavg = self%write_omavg
     write_omega = self%write_omega
     write_parity = self%write_parity
@@ -748,6 +743,7 @@ contains
     write_pflux_tormom = self%write_pflux_tormom
     write_phi_over_time = self%write_phi_over_time
     write_symmetry = self%write_symmetry
+    write_tperp_over_time = self%write_tperp_over_time
     write_upar_over_time = self%write_upar_over_time
     write_verr = self%write_verr
     write_zonal_transfer = self%write_zonal_transfer
@@ -835,6 +831,7 @@ contains
     self%write_moments = write_moments
     self%write_nl_flux = write_nl_flux
     self%write_nl_flux_dist = write_nl_flux_dist
+    self%write_ntot_over_time = write_ntot_over_time
     self%write_omavg = write_omavg
     self%write_omega = write_omega
     self%write_parity = write_parity
@@ -842,6 +839,7 @@ contains
     self%write_pflux_tormom = write_pflux_tormom
     self%write_phi_over_time = write_phi_over_time
     self%write_symmetry = write_symmetry
+    self%write_tperp_over_time = write_tperp_over_time
     self%write_upar_over_time = write_upar_over_time
     self%write_verr = write_verr
     self%write_zonal_transfer = write_zonal_transfer
@@ -932,6 +930,7 @@ contains
     call self%write_key_val("write_moments", self%write_moments, unit_internal)
     call self%write_key_val("write_nl_flux", self%write_nl_flux, unit_internal)
     call self%write_key_val("write_nl_flux_dist", self%write_nl_flux_dist, unit_internal)
+    call self%write_key_val("write_ntot_over_time", self%write_ntot_over_time, unit_internal)
     call self%write_key_val("write_omavg", self%write_omavg, unit_internal)
     call self%write_key_val("write_omega", self%write_omega, unit_internal)
     call self%write_key_val("write_parity", self%write_parity, unit_internal)
@@ -939,6 +938,7 @@ contains
     call self%write_key_val("write_pflux_tormom", self%write_pflux_tormom, unit_internal)
     call self%write_key_val("write_phi_over_time", self%write_phi_over_time, unit_internal)
     call self%write_key_val("write_symmetry", self%write_symmetry, unit_internal)
+    call self%write_key_val("write_tperp_over_time", self%write_tperp_over_time, unit_internal)
     call self%write_key_val("write_upar_over_time", self%write_upar_over_time, unit_internal)
     call self%write_key_val("write_verr", self%write_verr, unit_internal)
     call self%write_key_val("write_zonal_transfer", self%write_zonal_transfer, unit_internal)
@@ -1031,6 +1031,7 @@ contains
     call broadcast(self%write_moments)
     call broadcast(self%write_nl_flux)
     call broadcast(self%write_nl_flux_dist)
+    call broadcast(self%write_ntot_over_time)
     call broadcast(self%write_omavg)
     call broadcast(self%write_omega)
     call broadcast(self%write_parity)
@@ -1038,6 +1039,7 @@ contains
     call broadcast(self%write_pflux_tormom)
     call broadcast(self%write_phi_over_time)
     call broadcast(self%write_symmetry)
+    call broadcast(self%write_tperp_over_time)
     call broadcast(self%write_upar_over_time)
     call broadcast(self%write_verr)
     call broadcast(self%write_zonal_transfer)

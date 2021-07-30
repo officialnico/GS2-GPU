@@ -3,7 +3,7 @@ ifdef USE_MPI
 MACRO_DEFS += -DHAVE_MPI
 endif
 
-MACRO_DEFS+= -DFORTRAN_NETCDF -DISO_C_BINDING
+MACRO_DEFS += -DFORTRAN_NETCDF -DISO_C_BINDING
 
 ifdef USE_PARALLEL_NETCDF
 	MACRO_DEFS += -DPARALLEL
@@ -11,77 +11,36 @@ endif
 
 CFLAGS+= -I$(SRCDIR)/diagnostics/simpledataio
 
-SIMPLEDATAIO_LIB_DIR_ABS:=$(LIBDIR)
 SIMPLEDATAIO_LIB:=$(LIBDIR)/libsimpledataio.a
-SIMPLEDATAIO_LIB_ABS:=$(SIMPLEDATAIO_LIB_DIR_ABS)/libsimpledataio.a
 
-
-distclean_simpledataio:
-clean_simpledataio:
-simpledataio:
-
-SIMPLEDATAIO_VPATH:=:diagnostics/simpledataio/src/:../diagnostics/simpledataio/src/:diagnostics/simpledataio/include/:../diagnostics/simpledataio/include/
-
-diagnostics: $(LIBDIR)/libsimpledataio.a
+diagnostics: $(SIMPLEDATAIO_LIB)
 
 $(LIBDIR)/libsimpledataio.a: $(OBJDIR)/simpledataio_write.o $(OBJDIR)/simpledataiof.o $(OBJDIR)/simpledataio.o $(OBJDIR)/simpledataio_read.o |$(LIBDIR)
 	$(call messageOp,"Linking ","\\t:",$(call processName,$^),"\\n\\t\-\-\-\-\-\-\>",$(call processName,$@))
 	$(QUIETSYM)$(ARCH) $(ARCHFLAGS) $@ $^
 	$(QUIETSYM)$(RANLIB) $@
 
-ifdef ONE_STEP_PP
-$(OBJDIR)/simpledataio_write.o: simpledataio_write.F90 $(OBJDIR)/simpledataiof.o | $(MODDIR) $(OBJDIR)
-	$(call messageOp,"Compiling and preprocessing","\\t:",$(call processName,$<))
-	$(QUIETSYM)$(FC) $(MACRO_DEFS) $(subst $(DBLEFLAGS),,$(F90FLAGS)) $(MODDIR_FLAG)$(MODDIR) -c $< -o $@
-
-$(OBJDIR)/simpledataio_read.o: simpledataio_read.F90 $(OBJDIR)/simpledataiof.o $(OBJDIR)/simpledataio_write.o | $(MODDIR) $(OBJDIR)
-	$(call messageOp,"Compiling and preprocessing","\\t:",$(call processName,$<))
-	$(QUIETSYM)$(FC) $(MACRO_DEFS) $(subst $(DBLEFLAGS),,$(F90FLAGS)) $(MODDIR_FLAG)$(MODDIR) -c $< -o $@
-
-$(OBJDIR)/simpledataiof.o: simpledataiof.F90 $(OBJDIR)/simpledataio.o | $(MODDIR) $(OBJDIR)
-	$(call messageOp,"Compiling and preprocessing","\\t:",$(call processName,$<))
-	$(QUIETSYM)$(FC) $(MACRO_DEFS) $(subst $(DBLEFLAGS),,$(F90FLAGS)) $(MODDIR_FLAG)$(MODDIR) -c $< -o $@
-else
-
-$(OBJDIR)/simpledataio_write.o: $(GENERATED_SRC_DIR)/simpledataio_write.f90 $(OBJDIR)/simpledataiof.o | $(MODDIR) $(OBJDIR)
-	$(call messageOp,"Compiling","\\t:",$(call processName,$<))
-	$(QUIETSYM)$(FC) $(subst $(DBLEFLAGS),,$(F90FLAGS)) $(MODDIR_FLAG)$(MODDIR) -c $< -o $@
-
-$(OBJDIR)/simpledataio_read.o: $(GENERATED_SRC_DIR)/simpledataio_read.f90 $(OBJDIR)/simpledataiof.o $(OBJDIR)/simpledataio_write.o | $(MODDIR) $(OBJDIR)
-	$(call messageOp,"Compiling","\\t:",$(call processName,$<))
-	$(QUIETSYM)$(FC) $(subst $(DBLEFLAGS),,$(F90FLAGS)) $(MODDIR_FLAG)$(MODDIR) -c $< -o $@
-
-$(OBJDIR)/simpledataiof.o: $(GENERATED_SRC_DIR)/simpledataiof.f90 $(OBJDIR)/simpledataio.o | $(MODDIR) $(OBJDIR)
-	$(call messageOp,"Compiling","\\t:",$(call processName,$<))
-	$(QUIETSYM)$(FC) $(subst $(DBLEFLAGS),,$(F90FLAGS)) $(MODDIR_FLAG)$(MODDIR) -c $< -o $@
-endif
-
 $(OBJDIR)/simpledataio.o: $(SRCDIR)/diagnostics/simpledataio/include/definitions.h $(SRCDIR)/diagnostics/simpledataio/include/simpledataio.h
 
-#ifdef DBLE
-#CPPFLAGS+=-DSDATIO_DEFAULT_DOUBLE
-#endif
+# Commands for generating repetitive Fortran files from python scripts
+ifeq ($(GS2_HAS_PYTHON),yes)
+$(SRCDIR)/diagnostics/simpledataio/src/simpledataio_write.F90: diagnostics/simpledataio/src/generate_simpledataio_write.py
+	$(call messageOp,"Generating from python","\\t:",$(call processName,$<))
+	$(QUIETSYM)$(PYTHON_EXE) $< $@
 
-$(SRCDIR)/diagnostics/simpledataio/src/simpledataio_write.F90: diagnostics/simpledataio/src/generate_simpledataio_write.rb
-	$(call messageOp,"Generating from ruby","\\t:",$(call processName,$<))
-	$(QUIETSYM)$(call RUBY_GENERATE,$@,$<)
-$(SRCDIR)/diagnostics/simpledataio/src/simpledataio_read.F90: diagnostics/simpledataio/src/generate_simpledataio_read.rb
-	$(call messageOp,"Generating from ruby","\\t:",$(call processName,$<))
-	$(QUIETSYM)$(call RUBY_GENERATE,$@,$<)
+$(SRCDIR)/diagnostics/simpledataio/src/simpledataio_read.F90: diagnostics/simpledataio/src/generate_simpledataio_read.py
+	$(call messageOp,"Generating from python","\\t:",$(call processName,$<))
+	$(QUIETSYM)$(PYTHON_EXE) $< $@
 
-# Commands for generating repetitive Fortran files from Ruby scripts
-$(SRCDIR)/diagnostics/diagnostics_create_and_write.f90: diagnostics/generate_diagnostics_create_and_write.rb
-	$(call messageOp,"Generating from ruby","\\t:",$(call processName,$<))
-	$(QUIETSYM)$(call RUBY_GENERATE,$@,$<)
-$(SRCDIR)/diagnostics/diagnostics_ascii.f90: diagnostics/generate_diagnostics_ascii.rb
-	$(call messageOp,"Generating from ruby","\\t:",$(call processName,$<))
-	$(QUIETSYM)$(call RUBY_GENERATE,$@,$<)
+$(SRCDIR)/diagnostics/diagnostics_create_and_write.f90: diagnostics/generate_diagnostics_create_and_write.py
+	$(call messageOp,"Generating from python","\\t:",$(call processName,$<))
+	$(QUIETSYM)$(PYTHON_EXE) $< $@
 
-# This must be built without promotion of reals to doubles
-$(OBJDIR)/diagnostics_create_and_write.o: diagnostics_create_and_write.f90 | $(MODDIR) $(OBJDIR)
-	$(call messageOp,"Compiling","\\t:",$(call processName,$<))
-	$(QUIETSYM)$(FC) $(subst $(DBLEFLAGS),,$(F90FLAGS)) $(MODDIR_FLAG)$(MODDIR) -c $< -o $@
+$(SRCDIR)/diagnostics/diagnostics_ascii.f90: diagnostics/generate_diagnostics_ascii.py
+	$(call messageOp,"Generating from python","\\t:",$(call processName,$<))
+	$(QUIETSYM)$(PYTHON_EXE) $< $@
+endif
 
-# This line ensures that libsimpledataio is built before any of the diagnostics
-# modules
+# This line ensures that libsimpledataio is built before any of the
+# diagnostics modules
 $(OBJDIR)/diagnostics_ascii.o $(OBJDIR)/diagnostics_dimensions.o: $(SIMPLEDATAIO_LIB)

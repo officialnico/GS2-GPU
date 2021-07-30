@@ -1,0 +1,4 @@
+&init_g_knobs
+  phiinit = 1.0
+  ginit_option = 'noise'
+/

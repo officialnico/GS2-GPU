@@ -1,2 +1,3 @@
-.time_ffts.in
+.*.in
+fort.*
 time_ffts
