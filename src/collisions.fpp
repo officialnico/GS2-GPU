@@ -2273,7 +2273,7 @@ contains
     !> boundary condition For the trapped particle pitch angle
     !> scattering.
     subroutine set_hzero_collisions_matrix
-      use species, only: spec, is_electron_species
+      use species, only: spec, is_hybrid_electron_species
       use kt_grids, only: aky
       implicit none
       !> il index of 1st non-wfb trapped particle
@@ -2284,7 +2284,7 @@ contains
       il_llim = ng2 + 2
       il_ulim = 2*je-1 - (ng2+ 1)
 
-      if ( is_electron_species(spec(is)) .and. aky(ik) /= 0.) then
+      if ( is_hybrid_electron_species(spec(is)) .and. aky(ik) /= 0.) then
          aa(:il_llim) = 0.
          bb(:il_llim-1) = 1.
          cc(:il_llim-1) = 0.

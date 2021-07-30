@@ -83,7 +83,7 @@ contains
   !>    call g_adjust(gnew,phinew,bparnew,-fphi,-fbpar)
   !> CMR, 17/4/2012:
   subroutine g_adjust (g, phi, bpar, facphi, facbpar)
-    use species, only: spec, nonmaxw_corr, is_electron_species, hzero_passing_electron
+    use species, only: spec, nonmaxw_corr, is_hybrid_electron_species, hzero_passing_electron
     use theta_grid, only: ntgrid
     use le_grids, only: jend, ng2
     use gs2_layouts, only: g_lo, ik_idx, it_idx, ie_idx, is_idx, il_idx
@@ -140,7 +140,7 @@ contains
           g(ig,2,iglo) = g(ig,2,iglo) + adj
        end do
 
-       if (hzero_passing_electron .and. is_electron_species(spec(is))&
+       if (hzero_passing_electron .and. is_hybrid_electron_species(spec(is))&
             .and. aky(ik) /= 0. .and. il <= ng2+1 .and. facphi > 0.) then
           ! Special behaviour when h=0 for passing non-zonal electrons
           ! if going from g_gs2 to h ( g_wesson ), enforce h = 0 explicitly
@@ -207,7 +207,7 @@ contains
   !> @note This looks like the g_adjust loop kernel, we might be able
   !> to combine these in some way to avoid duplication.
   subroutine set_h_zero (g, phi, bpar, facphi, facbpar, iglo)
-    use species, only: spec, nonmaxw_corr
+    use species, only: spec, nonmaxw_corr, is_hybrid_electron_species
     use theta_grid, only: ntgrid
     use le_grids, only: jend, ng2
     use gs2_layouts, only: g_lo, ik_idx, it_idx, ie_idx, is_idx, il_idx
@@ -224,11 +224,14 @@ contains
 
     if (minval(jend) .gt. ng2) trapped=.true.
 
+    is = is_idx(g_lo,iglo)
+    if (.not. is_hybrid_electron_species(spec(is))) return
+
     ik = ik_idx(g_lo,iglo)
     it = it_idx(g_lo,iglo)
     il = il_idx(g_lo,iglo)
     ie = ie_idx(g_lo,iglo)
-    is = is_idx(g_lo,iglo)
+
 
     ! bpar == delta B_parallel / B_0(theta) so no extra factor of
     ! 1/bmag is needed here.
