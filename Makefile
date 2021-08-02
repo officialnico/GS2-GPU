@@ -93,6 +93,8 @@ USE_GCOV ?=
 HAS_GCOV=$(USE_GCOV)
 # Name of python exe
 GS2_PYTHON_NAME ?= python3
+# Name of pytest executable
+GS2_PYTEST_NAME ?= pytest
 
 # Compile with the new simplified diagnostics module (bin)
 USE_NEW_DIAG ?=on
@@ -362,11 +364,19 @@ MACRO_DEFS+=-DGIT_PATCH_FILE='"$(PATCHFILE)"'
 
 ######## PYTHON ###############################################################
 
-PYTHON_EXE:=$(shell which $(GS2_PYTHON_NAME))
+PYTHON_EXE:=$(shell which $(GS2_PYTHON_NAME) 2>/dev/null)
 GS2_HAS_PYTHON:=$(if $(PYTHON_EXE),yes,no)
 ifeq ($(GS2_HAS_PYTHON),yes)
 PYTHON_VERSION:=$(shell $(PYTHON_EXE) --version 2>&1)
+else
+$(warning Could not find Python, looking for '$(GS2_PYTHON_NAME)'. \
+You will not be able to generate some files, or run some tests. \
+Please make sure '$(GS2_PYTHON_NAME)' is in your '$$PATH', or set \
+"GS2_PYTHON_NAME" to the correct name of the Python executable on your system)
 endif
+
+PYTEST := $(shell which $(GS2_PYTEST_NAME) 2>/dev/null)
+GS2_HAS_PYTEST := $(if $(PYTEST),yes,no)
 
 ###############################################################################
 
