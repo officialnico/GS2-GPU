@@ -109,7 +109,7 @@ module fields_local
      integer, dimension(:),allocatable :: nb_req_hand !< For non-blocking broadcast request handle storage
      logical :: initdone !< Have we finished initialising this block?
      logical, dimension(:), allocatable :: initialised !< Have we initialised each point?
-     logical :: is_head=.false. !< Are we the head of this supercell?
+     logical :: is_head = .false. !< Are we the head of this supercell?
      !Cell and parent properties. Mostly for debug printing.
      integer :: is_ind
      integer :: ik_ind !< Parent properties
@@ -188,11 +188,11 @@ module fields_local
      type(comm_type) :: fm_sub_all !< Sub communicator involving all processors with fieldmat
      type(comm_type) :: fm_sub_headsc_p0 !< Sub communicator involving the supercell heads and proc0
      integer :: prepare_type=0 !< What sort of preparation do we do to the field matrix
-     integer, dimension(:,:), allocatable :: heads !<  An array that holds the iproc (from comm world) of the supercell head for a given ik,it point
      !Currently only support:
      !0   : Invert the field matrix
      !In the future may wish to do things like LU decomposition etc.
      !Could also do things like eigenvalue analysis etc.
+     integer, dimension(:,:), allocatable :: heads !<  An array that holds the iproc (from comm world) of the supercell head for a given ik,it point
      logical :: no_populate=.false. !< Advanced usage only, if true then don't populate response
      logical :: no_prepare=.false. !< Advanced usage only, if true then don't prepare (invert) response
    contains
@@ -220,6 +220,7 @@ module fields_local
      procedure :: getfieldeq1_nogath => fm_getfieldeq1_nogath
      procedure :: update_fields => fm_update_fields
      procedure :: update_fields_newstep => fm_update_fields_newstep
+     procedure :: get_condition_numbers => fm_get_condition_numbers
   end type fieldmat_type
 
   !> This is the type which controls/organises the parallel
@@ -1064,14 +1065,10 @@ contains
   subroutine sc_invert_local(self)
     use mat_inv, only: invert_serial
     use mp, only: broadcast_sub
-    use file_utils, only: error_unit
     use gs2_time, only: code_dt
-    use unit_tests, only: debug_message
     implicit none
     class(supercell_type), intent(inout) :: self
     complex, dimension(:,:), allocatable :: tmp_arr
-    character(len = 100) :: condition_number_message
-    integer, parameter :: verb = 1
 
     !Exit early if possible
     if(self%is_empty) return
@@ -1106,16 +1103,6 @@ contains
 
     if (self%is_head) then
        self%condition_number = self%condition_number * l2norm(tmp_arr)
-       write(condition_number_message,'("Condition number for response with ik = ",I0,", is = ",I0," and dt = ",E14.6E3," is ",E14.6E3)') self%ik_ind, self%is_ind, code_dt, self%condition_number
-       call debug_message(verb, "fields_local::sc_invert_local "//condition_number_message)
-       if (self%condition_number > condition_number_warning_limit) then
-          write(error_unit(), '("Warning: ",A)') trim(condition_number_message)
-       end if
-
-       !In debug mode always display the condition number message to screen
-       if (debug) then
-          write(*,'(A)') trim(condition_number_message)
-       end if
     end if
 
     !Now push back to row level
@@ -2747,6 +2734,60 @@ contains
 
   end subroutine fm_update_fields_newstep
 
+  !> Fetch all condition numbers to proc0 and report on
+  !> worrying values as required.
+  subroutine fm_get_condition_numbers(self)
+    use file_utils, only: error_unit
+    use gs2_time, only: code_dt
+    use mp, only: proc0, sum_reduce
+    use unit_tests, only: debug_message
+    implicit none
+    type ky_condition_type
+       real, dimension(:), allocatable ::  conditions
+    end type ky_condition_type
+    class(fieldmat_type), intent(in) :: self
+    integer, parameter :: verb = 1
+    type(ky_condition_type), dimension(:), allocatable :: ky_conditions
+    integer :: ik, is
+    character(len = 100) :: condition_number_message
+    real :: condition_number
+    allocate(ky_conditions(self%naky))
+
+    do ik = 1, self%naky
+       allocate(ky_conditions(ik)%conditions(self%kyb(ik)%nsupercell))
+       ky_conditions(ik)%conditions = 0.0
+       do is = 1, self%kyb(ik)%nsupercell
+          if (self%kyb(ik)%supercells(is)%is_head) then
+             ky_conditions(ik)%conditions(is) = self%kyb(ik)%supercells(is)%condition_number
+          end if
+       end do
+       call sum_reduce(ky_conditions(ik)%conditions, 0)
+    end do
+
+    if (proc0) then
+       do ik = 1, self%naky
+          do is = 1, self%kyb(ik)%nsupercell
+             condition_number = ky_conditions(ik)%conditions(is)
+             write(condition_number_message,'("Condition number for response with ik = ",I0,", is = ",I0," and dt = ",E14.6E3," is ",E14.6E3)') ik, is, code_dt, condition_number
+             call debug_message(verb, "fields_local::fm_get_condition_numbers "//condition_number_message)
+             if (condition_number > condition_number_warning_limit) then
+                write(error_unit(), '("Warning: ",A)') trim(condition_number_message)
+             end if
+
+             ! In debug mode always display the condition number message to screen
+             if (debug) then
+                write(*,'(A)') trim(condition_number_message)
+             end if
+          end do
+       end do
+    end if
+
+    do ik = 1, self%naky
+       deallocate(ky_conditions(ik)%conditions)
+    end do
+    deallocate(ky_conditions)
+  end subroutine fm_get_condition_numbers
+
   !> Write some debug data to file
   subroutine fm_write_debug_data(self)
     use file_utils, only: open_output_file, close_output_file
@@ -3944,6 +3985,7 @@ contains
              call cpu_time(te)
              write(dlun,'("--Done in ",F12.4," units")') te-ts
           endif
+          call fieldmat%get_condition_numbers
        endif
 
        !Dump response to file
