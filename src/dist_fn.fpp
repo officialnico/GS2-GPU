@@ -8832,7 +8832,15 @@ contains
     erridx(2) = ikmax
     erridx(3) = itmax
     errest(1) = gdmax
-    errest(2) = gnsum/gdsum
+
+    ! Guard against divide by zero. This can commonly occur on the first time step
+    ! in runs with fapar /= 0 due to our initial conditions typically ensuring that
+    ! the initial apar is identically zero.
+    if (abs(gdsum) < epsilon(0.0)) then
+       errest(2) = 0.0
+    else
+       errest(2) = gnsum/gdsum
+    end if
 
   end subroutine estimate_error
 
