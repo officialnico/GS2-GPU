@@ -2753,6 +2753,13 @@ contains
     real :: condition_number
     allocate(ky_conditions(self%naky))
 
+    ! Note that here we communciate over comm_world. It is likely that we
+    ! could instead reduce individual `ky_conditions(:)%conditions` arrays
+    ! amongst just the supercell heads of the ky block and then reduce
+    ! across the ky heads to proc0. Currently we don't worry about this as
+    ! we just do this once per initialisation, but this could become expensive
+    ! when running at large scale?
+
     do ik = 1, self%naky
        allocate(ky_conditions(ik)%conditions(self%kyb(ik)%nsupercell))
        ky_conditions(ik)%conditions = 0.0
