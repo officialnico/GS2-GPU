@@ -373,6 +373,10 @@ contains
     call read_parameters(hyper_config_in)
     call allocate_arrays
 
+    ! Initialise module level variables
+    D_v = 0
+    D_eta = 0
+
     select case (hyper_option_switch)
         case(hyper_option_both, hyper_option_res, hyper_option_visc)
     
