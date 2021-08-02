@@ -919,7 +919,7 @@ if (debug) write(6,*) 'get_namelists: returning'
 
     write (unit, *)
 
-    write (unit=unit, fmt='(a)') local_header%to_string()
+    write (unit=unit, fmt='(a)') local_header%to_string(file_description="Input parameters as set by ingen")
 
     if (present(tag1)) then
        write (unit, *) '*****************************************************'
@@ -1035,7 +1035,7 @@ if (debug) write(6,*) 'get_namelists: returning'
 
     write (report_unit, *) 
 
-    write (report_unit, fmt='(a)') local_header%to_string()
+    write (report_unit, fmt='(a)') local_header%to_string(file_description="Input file report from ingen")
     write (report_unit, fmt="(/'------------------------------------------------------------'/)")
 
     !     le_ok=leok_le_grids(report_unit)

@@ -644,7 +644,7 @@ contains
        end if
 
        if (write_ascii) then
-          write (unit=out_unit, fmt='(a)') local_header%to_string()
+          write (unit=out_unit, fmt='(a)') local_header%to_string(file_description="GS2 output file")
        end if
 
        allocate (omegahist(0:navg-1,ntheta0,naky))
