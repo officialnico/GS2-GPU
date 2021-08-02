@@ -164,7 +164,7 @@ module geometry
   public :: geotype, rmaj, r_geo, rhoc, delrho, aSurf, shift, shiftVert, mMode, nMode
   public :: deltam, deltan, deltampri, deltanpri, thetam, thetan
   public :: qinp, s_hat_input
-  public :: Rpos, ntheta_geometry
+  public :: Rpos, ntheta_geometry, grhoavg
 
   public :: eikcoefs_output, run_eikcoefs_and_resample, set_eikcoefs_output
 

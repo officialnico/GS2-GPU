@@ -505,7 +505,7 @@ contains
   !! init\%level = full. 
   subroutine initialize_equations(state)
     use fields, only: init_fields
-    use geometry, only: surfarea, dvdrhon
+    use geometry, only: grhoavg, dvdrhon
     use gs2_time, only: init_tstart
     use gs2_init, only: init
     use init_g, only: tstart
@@ -563,12 +563,12 @@ contains
     ! Trinity to state%outputs
     if (proc0) then
        state%outputs%dvdrho = dvdrhon
-       ! Note surfarea isn't defined/set for s-alpha geometry so
+       ! Note grhoavg isn't defined/set for s-alpha geometry so
        ! the following is not well defined.
        ! Note this isn't actually "grho" as defined by the rest of the
        ! code but rather "grhoavg", i.e. an average value. It may be
        ! appropriate to replace this with something like `mean(grho)`
-       state%outputs%grho = surfarea/dvdrhon
+       state%outputs%grho = grhoavg
     end if
     call broadcast (state%outputs%dvdrho)
     call broadcast (state%outputs%grho)
