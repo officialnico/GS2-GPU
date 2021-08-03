@@ -207,7 +207,7 @@ module geometry
   real :: s_hat_new
   real :: beta_prime_new
 
-  integer :: isym, big
+  integer :: isym, big = 0
   integer :: eqinit = 1
   
   logical :: gen_eq, efit_eq, ppl_eq, local_eq
