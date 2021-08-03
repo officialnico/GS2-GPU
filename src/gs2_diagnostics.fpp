@@ -2378,6 +2378,7 @@ contains
     real, dimension(:,:), allocatable ::  j_ext
 
     if (.not.proc0) return
+    if (.not. write_ascii) return
     allocate (j_ext(ntheta0, naky)); j_ext=0.
     call calc_jext(istep, j_ext)
     do ik=1,naky
@@ -2417,7 +2418,7 @@ contains
     !> Current simulation time
     real, intent(in) :: time
     real :: phase_tot, phase_theta
-
+    if (.not. write_ascii) return
     call get_cross_phase (phase_tot, phase_theta)
     if (proc0) write (unit=phase_unit, fmt="('t= ',e17.10,' phase_tot= ',e11.4,' phase_theta= ',e11.4)") &
          & time, phase_tot, phase_theta
@@ -2432,6 +2433,7 @@ contains
     real, intent(in) :: time, phitot
     !> \(k_y\)- and \(\theta\)-indices
     integer, intent(in) :: ik, it
+    if (.not. write_ascii) return
     write (out_unit, "('t= ',e17.10,' aky= ',1p,e12.4, ' akx= ',1p,e12.4, &
          &' om= ',1p,2e12.4,' omav= ', 1p,2e12.4,' phtot= ',1p,e12.4,' theta0= ',1p,e12.4)") &
          time, aky(ik), akx(it), &
@@ -2448,7 +2450,7 @@ contains
     implicit none
     !> \(k_y\)- and \(\theta\)-indices
     integer, intent(in) :: it, ik
-
+    if (.not. write_ascii) return
     write (out_unit,&
          fmt='(" omega= (",1p,e12.4,",",1p,e12.4,")",t45,"omega/(vt/a)= (",1p,e12.4,",",1p,e12.4,")")') &
          omega(it,ik)/tunits(ik), omega(it,ik)*woutunits(ik)
@@ -2459,7 +2461,7 @@ contains
     use run_parameters, only: tunits, woutunits
     implicit none
     integer, intent(in) :: it, ik
-
+    if (.not. write_ascii) return
     write (out_unit,&
          fmt='(" omavg= (",1p,e12.4,",",1p,e12.4,")",t45,"omavg/(vt/a)= (",1p,e12.4,",",1p,e12.4,")")') &
          omegaavg(it,ik)/tunits(ik), omegaavg(it,ik)*woutunits(ik)               
@@ -2823,6 +2825,8 @@ contains
        call init_parity_layouts (naky, nlambda, negrid, nspec)
        first = .false.
     end if
+
+    if (.not. write_ascii) return
 
     allocate (gparity(-ntgrid:ntgrid,ntheta0,2,p_lo%llim_proc:p_lo%ulim_alloc))
     allocate (g0(-ntgrid:ntgrid,2,p_lo%llim_proc:p_lo%ulim_alloc))
@@ -3387,6 +3391,7 @@ contains
   subroutine flush_files
     use file_utils, only: flush_output_file
     implicit none
+    if (.not. write_ascii) return
     call flush_output_file (out_unit)
     if (write_verr) then
        call flush_output_file (res_unit)

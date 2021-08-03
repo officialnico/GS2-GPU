@@ -6426,6 +6426,13 @@ contains
     integer :: ie, il, is
     real, dimension(-ntgrid:ntgrid) :: temparg3
 
+    ! Initialise the outputs. We note that both gf_lo_integrate and integrate_species
+    ! with no_gath = .true. may only populate part of these arrays so we initialise to
+    ! zero here to avoid later using uninitialised data.
+    antot = 0.0
+    antota = 0.0
+    antotp = 0.0
+
     !AJ if we are performing the integrate in gf_lo space (i.e. the result will be returned in gf_lo)
     !AJ then do the initial redistribution of the data from g_lo (where gnew is current) to gf_lo
     !AJ where it will end up in gfarray)
@@ -8832,7 +8839,15 @@ contains
     erridx(2) = ikmax
     erridx(3) = itmax
     errest(1) = gdmax
-    errest(2) = gnsum/gdsum
+
+    ! Guard against divide by zero. This can commonly occur on the first time step
+    ! in runs with fapar /= 0 due to our initial conditions typically ensuring that
+    ! the initial apar is identically zero.
+    if (abs(gdsum) < epsilon(0.0)) then
+       errest(2) = 0.0
+    else
+       errest(2) = gnsum/gdsum
+    end if
 
   end subroutine estimate_error
 
