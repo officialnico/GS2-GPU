@@ -5,7 +5,7 @@ module diagnostics_config
   use simpledataio, only: sdf=>sdatio_file
   use diagnostics_ascii, only: diagnostics_ascii_type
   use diagnostics_dimensions, only: diagnostics_dimension_list_type
-  use diagnostics_base_config, only: new_gs2_diagnostics_config_type => diagnostics_base_config_type
+  use diagnostics_base_config, only: diagnostics_base_config_type
   implicit none
 
   private
@@ -181,7 +181,10 @@ module diagnostics_config
 
   logical :: initialized = .false.
 
-  type(new_gs2_diagnostics_config_type) :: new_gs2_diagnostics_config  
+  type, extends(diagnostics_base_config_type) :: new_gs2_diagnostics_config_type
+  end type new_gs2_diagnostics_config_type
+
+  type(new_gs2_diagnostics_config_type) :: new_gs2_diagnostics_config
   
 contains
   subroutine init_diagnostics_config(gnostics, new_gs2_diagnostics_config_in)

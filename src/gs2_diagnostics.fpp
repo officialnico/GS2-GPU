@@ -2,7 +2,7 @@
 module gs2_diagnostics
   use gs2_heating, only: heating_diagnostics
   use gs2_save, only: save_many
-  use diagnostics_base_config, only: gs2_diagnostics_config_type => diagnostics_base_config_type
+  use diagnostics_base_config, only: diagnostics_base_config_type
 
   ! what about boundary condition contributions?  In the presence 
   ! of magnetic shear, there are not always zero amplitudes at the ends
@@ -144,7 +144,10 @@ module gs2_diagnostics
   !> Does the `gs2_diagnostics_knobs` namelist exist in the input file?
   logical :: exist
 
-  type(gs2_diagnostics_config_type) :: gs2_diagnostics_config  
+  type, extends(diagnostics_base_config_type) :: gs2_diagnostics_config_type
+  end type gs2_diagnostics_config_type
+
+  type(gs2_diagnostics_config_type) :: gs2_diagnostics_config
 contains
 
   !> Write the diagnostics namelist to file

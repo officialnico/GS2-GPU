@@ -750,11 +750,12 @@ contains
        bmag, gradpar, gbdrift, gbdrift0, cvdrift, cvdrift0, cdrift, cdrift0, &
        gbdrift_th, cvdrift_th, gds2, gds21, gds22, gds23, gds24, gds24_noq, grho, &
        jacob, Rplot, Zplot, Rprime, Zprime, aplot, aprime, shat, drhodpsi, kxfac, &
-       qval, shape, gb_to_cv, Bpol)
+       qval, shape, gb_to_cv, Bpol, surfarea, dvdrhon)
     use constants, only: pi
     use theta_grid_params, only: eps, epsl, shat_param => shat, pk
     use theta_grid_gridgen, only: theta_grid_gridgen_init, gridgen_get_grids
     use file_utils, only: error_unit
+    use integration, only: trapezoidal_integration
     implicit none
     integer, intent (in) :: nperiod
     integer, intent (in out) :: ntheta, ntgrid, nbset
@@ -764,7 +765,7 @@ contains
          bmag, gradpar, gbdrift, gbdrift0, cvdrift, cvdrift0, cdrift, cdrift0, &
          gbdrift_th, cvdrift_th, gds2, gds21, gds22, gds23, gds24, gds24_noq, grho, &
          jacob, Rplot, Zplot, Rprime, Zprime, aplot, aprime, Bpol
-    real, intent (out) :: shat, drhodpsi, kxfac, qval
+    real, intent (out) :: shat, drhodpsi, kxfac, qval, surfarea, dvdrhon
     character (8), intent(out) :: shape
     logical, intent (in) :: gb_to_cv
     integer :: i
@@ -914,6 +915,12 @@ contains
             gbdrift_th, cvdrift_th, gds2, gds21, gds22, gds23, gds24, gds24_noq, grho, &
             jacob, Rplot, Zplot, Rprime, Zprime, aplot, aprime, Bpol)
     end if
+
+    ! Possibly crude approximations for s-alpha
+    ! Note jacob is usually defined as jacob = 1.0/(drhodpsi*gradpar*bmag)
+    ! but isn't yet stored here.
+    surfarea = 2 * pi * trapezoidal_integration(theta, grho / (drhodpsi*gradpar*bmag))
+    dvdrhon = 2 * pi * trapezoidal_integration(theta, 1.0 / (drhodpsi*gradpar*bmag))
   end subroutine salpha_get_grids
 
   !> Set the module level config type
@@ -1708,7 +1715,7 @@ contains
             gradpar, gbdrift, gbdrift0, cvdrift, cvdrift0, cdrift, cdrift0, &
             gbdrift_th, cvdrift_th, gds2, gds21, gds22, gds23, gds24, gds24_noq, &
             grho, jacob, Rplot, Zplot, Rprime, Zprime, aplot, aprime, shat, drhodpsi,&
-            kxfac, qval, gb_to_cv, Bpol)
+            kxfac, qval, gb_to_cv, Bpol, surfarea, dvdrhon)
     use theta_grid_gridgen, only: theta_grid_gridgen_init, gridgen_get_grids
     use geometry, only: kxfac_out => kxfac
     use geometry, only: theta_out => theta
@@ -1736,6 +1743,7 @@ contains
     use geometry, only: Zprime_out => Zprime
     use geometry, only: aprime_out => aprime
     use geometry, only: Bpol_out => Bpol
+    use geometry, only: surfarea_out => surfarea, dvdrhon_out => dvdrhon
     use geometry, only: qsf
     use geometry, only: s_hat_new, drhodpsin
     use unit_tests, only: debug_message
@@ -1748,7 +1756,7 @@ contains
          bmag, gradpar, gbdrift, gbdrift0, cvdrift, cvdrift0, cdrift, cdrift0, &
          gbdrift_th, cvdrift_th, gds2, gds21, gds22, gds23, gds24, gds24_noq, grho, &
          jacob, Rplot, Zplot, Rprime, Zprime, aplot, aprime, Bpol
-    real, intent (out) :: shat, drhodpsi, kxfac, qval
+    real, intent (out) :: shat, drhodpsi, kxfac, qval, surfarea, dvdrhon
     logical, intent (in) :: gb_to_cv
     integer :: ig
     integer, parameter :: verb=3 
@@ -1808,8 +1816,10 @@ contains
     drhodpsi = drhodpsin
     kxfac = kxfac_out
     qval = qsf
+    surfarea = surfarea_out
+    dvdrhon = dvdrhon_out
 
-!    write (*,*) 
+!    write (*,*)
 !    do ig=-ntgrid,ntgrid
 !       write (*,*) theta(ig), gradpar(ig), bmag(ig), grho(ig), &
 !            gbdrift(ig), gbdrift(ig), gds2(ig)
@@ -2302,8 +2312,10 @@ contains
        bmag, gradpar, gbdrift, gbdrift0, cvdrift, cvdrift0, cdrift, cdrift0, &
        gbdrift_th, cvdrift_th, gds2, gds21, gds22, gds23, gds24, gds24_noq, grho, &
        Rplot, Zplot, Rprime, Zprime, aplot, aprime, &
-       shat, drhodpsi, kxfac, qval, gb_to_cv, Bpol)
+       shat, drhodpsi, kxfac, qval, gb_to_cv, Bpol, surfarea, dvdrhon)
     use file_utils, only: get_unused_unit
+    use constants, only: pi
+    use integration, only: trapezoidal_integration
     implicit none
     integer, intent (in) :: nperiod
     integer, intent (in out) :: ntheta, ntgrid, nbset
@@ -2313,7 +2325,7 @@ contains
          bmag, gradpar, gbdrift, gbdrift0, cvdrift, cvdrift0, cdrift, cdrift0, &
          gbdrift_th, cvdrift_th, gds2, gds21, gds22, gds23, gds24, gds24_noq, grho, &
          Rplot, Zplot, Rprime, Zprime, aplot, aprime, Bpol
-    real, intent (out) :: shat, drhodpsi, kxfac, qval
+    real, intent (out) :: shat, drhodpsi, kxfac, qval, surfarea, dvdrhon
     logical, intent (in) :: gb_to_cv
     integer :: unit
     character(200) :: line
@@ -2414,6 +2426,11 @@ contains
 
     close (unit=unit)
 
+    ! Possibly crude approximations for file
+    ! Note jacob is usually defined as jacob = 1.0/(drhodpsi*gradpar*bmag)
+    ! but isn't yet stored here.
+    surfarea = 2 * pi * trapezoidal_integration(theta, grho / (drhodpsi*gradpar*bmag))
+    dvdrhon = 2 * pi * trapezoidal_integration(theta, 1.0 / (drhodpsi*gradpar*bmag))
   end subroutine file_get_grids
 
   !> Set the module level config type
@@ -2552,6 +2569,7 @@ module theta_grid
   public :: ntheta, ntgrid, nperiod, nbset
   public :: Rplot, Zplot, aplot, Rprime, Zprime, aprime, Bpol
   public :: shape, gb_to_cv
+  public :: surfarea, dvdrhon
   public :: initialized
 
   public :: theta_grid_config_type
@@ -2568,6 +2586,7 @@ module theta_grid
   real, dimension (:), allocatable :: Rprime, Zprime, aprime
   real :: bmin, bmax, eps_trapped, shat, drhodpsi, kxfac, qval
   real :: cvdriftknob, gbdriftknob
+  real :: surfarea, dvdrhon
   integer :: ntheta, ntgrid, nperiod, nbset
   logical :: gb_to_cv
 
@@ -3104,7 +3123,7 @@ if (debug) write(6,*) 'get_grids: call eik_get_grids'
             gradpar, gbdrift, gbdrift0, cvdrift, cvdrift0, cdrift, cdrift0, &
             gbdrift_th, cvdrift_th, gds2, gds21, gds22, gds23, gds24, gds24_noq, grho, &
             jacob, Rplot, Zplot, Rprime, Zprime, aplot, aprime, &
-            shat, drhodpsi, kxfac, qval, gb_to_cv, Bpol)
+            shat, drhodpsi, kxfac, qval, gb_to_cv, Bpol, surfarea, dvdrhon)
        shape = 'torus   '
     case (eqopt_salpha)
 if (debug) write(6,*) 'get_grids: call salpha_get_grids'
@@ -3113,14 +3132,14 @@ if (debug) write(6,*) 'get_grids: call salpha_get_grids'
             gradpar, gbdrift, gbdrift0, cvdrift, cvdrift0, cdrift, cdrift0, &
             gbdrift_th, cvdrift_th, gds2, gds21, gds22, gds23, gds24, gds24_noq, grho, &
             jacob, Rplot, Zplot, Rprime, Zprime, aplot, aprime, &
-            shat, drhodpsi, kxfac, qval, shape, gb_to_cv, Bpol)
+            shat, drhodpsi, kxfac, qval, shape, gb_to_cv, Bpol, surfarea, dvdrhon)
     case (eqopt_file)
 if (debug) write(6,*) 'get_grids: call file_get_grids'
        call file_get_grids (nperiod, ntheta, ntgrid, nbset, theta, bset, bmag, &
             gradpar, gbdrift, gbdrift0, cvdrift, cvdrift0, cdrift, cdrift0, &
             gbdrift_th, cvdrift_th, gds2, gds21, gds22, gds23, gds24, gds24_noq, grho, &
             Rplot, Zplot, Rprime, Zprime, aplot, aprime, &
-            shat, drhodpsi, kxfac, qval, gb_to_cv, Bpol)
+            shat, drhodpsi, kxfac, qval, gb_to_cv, Bpol, surfarea, dvdrhon)
        shape = 'torus   '
     end select
     kxfac = abs(kxfac)
