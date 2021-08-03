@@ -26,6 +26,7 @@ program test_gs2_diagnostics
     use unit_tests
     use file_utils, only: run_name, error_unit
     use mp, only: init_mp, mp_comm, test_driver_flag, finish_mp, mp_abort
+    use run_parameters, only: use_old_diagnostics
     use gs2_diagnostics
 #ifdef NEW_DIAG
     use gs2_diagnostics_new, only: finish_gs2_diagnostics_new
@@ -57,7 +58,7 @@ program test_gs2_diagnostics
 
     call finish_gs2_diagnostics(ilast_step)
 #ifdef NEW_DIAG
-    call finish_gs2_diagnostics_new
+    if (.not. use_old_diagnostics) call finish_gs2_diagnostics_new
 #endif 
 
     call finish_gs2
