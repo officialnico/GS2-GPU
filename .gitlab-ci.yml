@@ -138,7 +138,7 @@ debug_tests:
   variables:
     CASENAME: "debug"
     EXTRA_MAKE_FLAGS: "DEBUG=on TEST_LEVEL=2"
-    GK_MAKEFILE_LOCAL_EXTRA_FLAGS: "-ffpe-trap=invalid,zero -fcheck=all -finit-real=snan -finit-integer=-12345 -finit-logical=true -finit-character=95 -finit-derived"
+    GK_MAKEFILE_LOCAL_EXTRA_FLAGS: "F90FLAGS+=-ffpe-trap=invalid,zero -fcheck=all -finit-real=snan -finit-integer=-12345 -finit-logical=true -finit-character=95 -finit-derived"
   script: *default_script
 
 intel_tests:
