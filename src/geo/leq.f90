@@ -139,17 +139,20 @@ module leq
 
 contains
   
-  !> Set module-level `surf`
+  !> Set module-level `surf` and associated `thetaShift` and `beta_0`
   !! PURELY FOR TESTING
   !! FIXME: Remove when we have more control over module-level variables for testing
   subroutine set_surf(Rmaj, Rgeo, r, dr, aSurf, sHorz, sVert, &
-       delm, deln, delmp, delnp, thm, thn, q, shat, nt, geoType, mMode, nMode)
+       delm, deln, delmp, delnp, thm, thn, q, shat, nt, geoType, &
+       mMode, nMode, thetaShift_in, beta_0_in)
      real, intent(in) :: Rmaj, Rgeo, r, dr, aSurf, sHorz, sVert,&
-          delm, deln, delmp, delnp, thm, thn, q, shat
+          delm, deln, delmp, delnp, thm, thn, q, shat, thetaShift_in, beta_0_in
      integer, intent(in) :: nt, geoType, mMode, nMode
 
      surf = flux_surface(Rmaj, Rgeo, r, dr, aSurf, sHorz, sVert, &
-       delm, deln, delmp, delnp, thm, thn, q, shat, nt, geoType, mMode, nMode)
+          delm, deln, delmp, delnp, thm, thn, q, shat, nt, geoType, mMode, nMode)
+     thetaShift = thetaShift_in
+     beta_0 = beta_0_in
   end subroutine set_surf
 
   !> Set module-level `nt`, `nr`
