@@ -20,7 +20,9 @@ contains
          upar, tpar, tperp, qparflux, pperpj1, qpperpj1
 
     if (.not. gnostics%replay) then
-      call getmoms (phinew, bparnew, ntot, density, upar, tpar, tperp, qparflux, pperpj1, qpperpj1)
+       call getmoms (phinew, bparnew, ntot, density, upar, tpar, tperp, qparflux, pperpj1, qpperpj1)
+    else
+       ntot = 0. ; density = 0. ; upar = 0. ; tpar = 0. ; tperp = 0.; qparflux = 0. ; pperpj1 = 0. ; qpperpj1 = 0.
     end if
 
     call write_standard_moment_properties(gnostics, &
@@ -59,7 +61,9 @@ contains
          upar, tpar, tperp !, qparflux, pperpj1, qpperpj1
 
     if (.not. gnostics%replay) then
-      call getmoms_notgc(phinew, bparnew, density,upar,tpar,tperp,ntot)
+       call getmoms_notgc(phinew, bparnew, density,upar,tpar,tperp,ntot)
+    else
+       ntot = 0. ; density = 0. ; upar = 0. ; tpar = 0. ; tperp = 0.
     end if
 
     call write_standard_moment_properties(gnostics, &
