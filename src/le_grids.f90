@@ -3555,13 +3555,14 @@ contains
        ik = ik_idx(le_lo,ile)
        it = it_idx(le_lo,ile)
        is = is_idx(le_lo,ile)
-       do ixi = 1, 2*nlambda
-          isgn = ixi_to_isgn(ig,ixi)
-          il = ixi_to_il(ig,ixi)
-          if (int(real(letmp(ixi,ie,ile))) /= rule(ig,isgn,ik,it,il,ie,is)) &
-               write (ierr,'(a,8i6)') 'ERROR: gather by g2le broken!', iproc
+       do ie = 1, negrid
+          do ixi = 1, 2*nlambda
+             isgn = ixi_to_isgn(ig,ixi)
+             il = ixi_to_il(ig,ixi)
+             if (int(real(letmp(ixi,ie,ile))) /= rule(ig,isgn,ik,it,il,ie,is)) &
+                  write (ierr,'(a,8i6)') 'ERROR: gather by g2le broken!', iproc
+          end do
        end do
-
     end do
     if (proc0) write (ierr,'(a)') 'g2le gather check done'
 
