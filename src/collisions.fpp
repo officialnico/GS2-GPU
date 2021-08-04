@@ -666,6 +666,9 @@ contains
 
     if(use_le_layout) then
        allocate (ctmp(nxi+1, negrid+1, le_lo%llim_proc:le_lo%ulim_alloc))
+       ! We need to initialise ctmp as it is used as receiving buffer in
+       ! g2le redistribute, which doesn't populate all elements
+       ctmp = 0.
     end if
     
 ! TO DO: 
@@ -1165,7 +1168,10 @@ contains
     logical :: all
 
     if(use_le_layout) then
-      allocate (ctmp(nxi+1, negrid+1, le_lo%llim_proc:le_lo%ulim_alloc))
+       allocate (ctmp(nxi+1, negrid+1, le_lo%llim_proc:le_lo%ulim_alloc))
+       ! We need to initialise ctmp as it is used as receiving buffer in
+       ! g2le redistribute, which doesn't populate all elements
+       ctmp = 0.
     end  if
 
 ! TO DO: 
@@ -2119,6 +2125,10 @@ contains
           if(.not.allocated(aj0le))then
              allocate (z_big(-ntgrid:ntgrid, 2, g_lo%llim_proc:g_lo%ulim_alloc))
              allocate (ctmp(nxi+1, negrid+1, le_lo%llim_proc:le_lo%ulim_alloc))
+
+             ! We need to initialise ctmp as it is used as receiving buffer in
+             ! g2le redistribute, which doesn't populate all elements
+             ctmp = 0.
 
              ! next set aj0le & aj1l
              z_big(:,1,:) = cmplx(aj0,aj1)
