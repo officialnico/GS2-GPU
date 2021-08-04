@@ -3532,6 +3532,7 @@ contains
 
     allocate (gtmp(-ntgrid:ntgrid, 2, g_lo%llim_proc:g_lo%ulim_alloc))
     allocate (letmp(nlambda*2+1, negrid+1, le_lo%llim_proc:le_lo%ulim_alloc))
+    letmp = 0.
 
     ! gather check
     gtmp = 0.0
