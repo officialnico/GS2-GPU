@@ -587,7 +587,7 @@ contains
 # endif
 
     !<DD>This (potentially large) array should only be needed if 
-    !write_hrate (gs2_diagnostics) is true.
+    !write_heating (gs2_diagnostics) is true.
     if (.not. allocated(c_rate)) then
        allocate (c_rate(-ntgrid:ntgrid, ntheta0, naky, nspec, 3))
        c_rate = 0.

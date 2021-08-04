@@ -129,7 +129,7 @@ contains
   subroutine gridgen_get_grids (nperiod, ntheta, ntgrid, nbset, &
        theta, bset, bmag, gradpar, gbdrift, gbdrift0, cvdrift, &
        cvdrift0, cdrift, cdrift0, gbdrift_th, cvdrift_th, &
-       gds2, gds21, gds22, gds23, gds24, gds24_noq, grho, jacob, &
+       gds2, gds21, gds22, gds23, gds24, gds24_noq, grho, &
        Rplot, Zplot, Rprime, Zprime, aplot, aprime, Bpol)
     use gridgen4mod, only: gridgen4_2
     use constants, only: pi
@@ -141,7 +141,7 @@ contains
     real, dimension (-ntgrid:ntgrid), intent (in out) :: &
          bmag, gradpar, gbdrift, gbdrift0, cvdrift, cvdrift0, cdrift, cdrift0, &
          gbdrift_th, cvdrift_th, gds2, gds21, gds22, gds23, gds24, gds24_noq, grho, &
-         jacob, Rplot, Zplot, Rprime, Zprime, aplot, aprime, Bpol
+         Rplot, Zplot, Rprime, Zprime, aplot, aprime, Bpol
     integer :: ntheta_old, ntgrid_old, nbset_old
     real, dimension (-ntgrid:ntgrid) :: thetasave
     real, dimension (ntheta+1) :: thetaold, thetanew
@@ -217,7 +217,6 @@ if (debug) write(6,*) 'gridgen_get_grids: call regrid'
     call regrid (ntgrid_old, thetasave, gds24, ntgrid, theta)
     call regrid (ntgrid_old, thetasave, gds24_noq, ntgrid, theta)
     call regrid (ntgrid_old, thetasave, grho, ntgrid, theta)
-    call regrid (ntgrid_old, thetasave, jacob, ntgrid, theta)
     call regrid (ntgrid_old, thetasave, Rplot, ntgrid, theta)
     call regrid (ntgrid_old, thetasave, Zplot, ntgrid, theta)
     call regrid (ntgrid_old, thetasave, aplot, ntgrid, theta)
@@ -749,7 +748,7 @@ contains
   subroutine salpha_get_grids (nperiod, ntheta, ntgrid, nbset, theta, bset, &
        bmag, gradpar, gbdrift, gbdrift0, cvdrift, cvdrift0, cdrift, cdrift0, &
        gbdrift_th, cvdrift_th, gds2, gds21, gds22, gds23, gds24, gds24_noq, grho, &
-       jacob, Rplot, Zplot, Rprime, Zprime, aplot, aprime, shat, drhodpsi, kxfac, &
+       Rplot, Zplot, Rprime, Zprime, aplot, aprime, shat, drhodpsi, kxfac, &
        qval, shape, gb_to_cv, Bpol, surfarea, dvdrhon)
     use constants, only: pi
     use theta_grid_params, only: eps, epsl, shat_param => shat, pk
@@ -764,7 +763,7 @@ contains
     real, dimension (-ntgrid:ntgrid), intent (out) :: &
          bmag, gradpar, gbdrift, gbdrift0, cvdrift, cvdrift0, cdrift, cdrift0, &
          gbdrift_th, cvdrift_th, gds2, gds21, gds22, gds23, gds24, gds24_noq, grho, &
-         jacob, Rplot, Zplot, Rprime, Zprime, aplot, aprime, Bpol
+         Rplot, Zplot, Rprime, Zprime, aplot, aprime, Bpol
     real, intent (out) :: shat, drhodpsi, kxfac, qval, surfarea, dvdrhon
     character (8), intent(out) :: shape
     logical, intent (in) :: gb_to_cv
@@ -913,7 +912,7 @@ contains
             theta, bset, bmag, &
             gradpar, gbdrift, gbdrift0, cvdrift, cvdrift0, cdrift, cdrift0, &
             gbdrift_th, cvdrift_th, gds2, gds21, gds22, gds23, gds24, gds24_noq, grho, &
-            jacob, Rplot, Zplot, Rprime, Zprime, aplot, aprime, Bpol)
+            Rplot, Zplot, Rprime, Zprime, aplot, aprime, Bpol)
     end if
 
     ! Possibly crude approximations for s-alpha
@@ -1714,7 +1713,7 @@ contains
   subroutine eik_get_grids (nperiod, ntheta, ntgrid, nbset, theta, bset, bmag,&
             gradpar, gbdrift, gbdrift0, cvdrift, cvdrift0, cdrift, cdrift0, &
             gbdrift_th, cvdrift_th, gds2, gds21, gds22, gds23, gds24, gds24_noq, &
-            grho, jacob, Rplot, Zplot, Rprime, Zprime, aplot, aprime, shat, drhodpsi,&
+            grho, Rplot, Zplot, Rprime, Zprime, aplot, aprime, shat, drhodpsi,&
             kxfac, qval, gb_to_cv, Bpol, surfarea, dvdrhon)
     use theta_grid_gridgen, only: theta_grid_gridgen_init, gridgen_get_grids
     use geometry, only: kxfac_out => kxfac
@@ -1755,7 +1754,7 @@ contains
     real, dimension (-ntgrid:ntgrid), intent (out) :: &
          bmag, gradpar, gbdrift, gbdrift0, cvdrift, cvdrift0, cdrift, cdrift0, &
          gbdrift_th, cvdrift_th, gds2, gds21, gds22, gds23, gds24, gds24_noq, grho, &
-         jacob, Rplot, Zplot, Rprime, Zprime, aplot, aprime, Bpol
+         Rplot, Zplot, Rprime, Zprime, aplot, aprime, Bpol
     real, intent (out) :: shat, drhodpsi, kxfac, qval, surfarea, dvdrhon
     logical, intent (in) :: gb_to_cv
     integer :: ig
@@ -1811,7 +1810,7 @@ contains
          theta, bset, bmag, &
          gradpar, gbdrift, gbdrift0, cvdrift, cvdrift0, cdrift, cdrift0, &
          gbdrift_th, cvdrift_th, gds2, gds21, gds22, gds23, gds24, gds24_noq, &
-         grho, jacob, Rplot, Zplot, Rprime, Zprime, aplot, aprime, Bpol)
+         grho, Rplot, Zplot, Rprime, Zprime, aplot, aprime, Bpol)
     shat = s_hat_new
     drhodpsi = drhodpsin
     kxfac = kxfac_out
@@ -3122,7 +3121,7 @@ if (debug) write(6,*) 'get_grids: call eik_get_grids'
             theta, bset, bmag, &
             gradpar, gbdrift, gbdrift0, cvdrift, cvdrift0, cdrift, cdrift0, &
             gbdrift_th, cvdrift_th, gds2, gds21, gds22, gds23, gds24, gds24_noq, grho, &
-            jacob, Rplot, Zplot, Rprime, Zprime, aplot, aprime, &
+            Rplot, Zplot, Rprime, Zprime, aplot, aprime, &
             shat, drhodpsi, kxfac, qval, gb_to_cv, Bpol, surfarea, dvdrhon)
        shape = 'torus   '
     case (eqopt_salpha)
@@ -3131,7 +3130,7 @@ if (debug) write(6,*) 'get_grids: call salpha_get_grids'
             theta, bset, bmag, &
             gradpar, gbdrift, gbdrift0, cvdrift, cvdrift0, cdrift, cdrift0, &
             gbdrift_th, cvdrift_th, gds2, gds21, gds22, gds23, gds24, gds24_noq, grho, &
-            jacob, Rplot, Zplot, Rprime, Zprime, aplot, aprime, &
+            Rplot, Zplot, Rprime, Zprime, aplot, aprime, &
             shat, drhodpsi, kxfac, qval, shape, gb_to_cv, Bpol, surfarea, dvdrhon)
     case (eqopt_file)
 if (debug) write(6,*) 'get_grids: call file_get_grids'

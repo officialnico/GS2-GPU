@@ -863,7 +863,10 @@ if (debug) write(6,*) "eikcoefs: call rmajortgrid"
           Ltot = ltheta(nth)-ltheta(-nth)
           call periodic_copy(ltheta, Ltot)
        endif
-    endif 
+    endif
+
+    call periodic_copy(crpgrad(:,1), 0.)
+    call periodic_copy(crpgrad(:,2), 0.)
 
 !     compute |grad rho|:
     do k=-nperiod+1,nperiod-1
