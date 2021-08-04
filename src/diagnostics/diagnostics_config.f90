@@ -167,7 +167,6 @@ module diagnostics_config
      logical :: write_gg
      logical :: ob_midplane
      logical :: write_nl_flux
-     logical :: write_hrate
      logical :: write_avg_moments
      logical :: dump_check1
      logical :: dump_check2
@@ -302,10 +301,8 @@ contains
     ! values and are not available in this diagnostics module
     call warn_about_nonfunctional_selection(new_gs2_diagnostics_config%dump_check1, "dump_check1")
     call warn_about_nonfunctional_selection(new_gs2_diagnostics_config%dump_check2, "dump_check2")
-    call warn_about_nonfunctional_selection(.not. new_gs2_diagnostics_config%file_safety_check, "file_safety_check")
     call warn_about_nonfunctional_selection(new_gs2_diagnostics_config%nc_sync_freq /= 10, "nc_sync_freq")
     call warn_about_nonfunctional_selection(new_gs2_diagnostics_config%ob_midplane, "ob_midplane")
-    call warn_about_nonfunctional_selection(new_gs2_diagnostics_config%write_hrate, "write_hrate")
     call warn_about_nonfunctional_selection(new_gs2_diagnostics_config%write_nl_flux, "write_nl_flux")
     call warn_about_nonfunctional_selection(.not. new_gs2_diagnostics_config%write_omavg, "write_omavg")
     call warn_about_nonfunctional_selection(new_gs2_diagnostics_config%write_pflux_sym, "write_pflux_sym")
@@ -371,7 +368,6 @@ contains
     gnostics%write_gs = new_gs2_diagnostics_config%write_gs
     gnostics%write_gyx = new_gs2_diagnostics_config%write_gyx
     gnostics%write_heating = new_gs2_diagnostics_config%write_heating
-    gnostics%write_hrate = new_gs2_diagnostics_config%write_hrate
     gnostics%write_jext = new_gs2_diagnostics_config%write_jext
     gnostics%write_kpar = new_gs2_diagnostics_config%write_kpar
     gnostics%write_line = new_gs2_diagnostics_config%write_line
