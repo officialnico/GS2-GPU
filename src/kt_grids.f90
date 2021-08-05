@@ -2251,8 +2251,9 @@ contains
     case (gridopt_box)
        write (unit, fmt="(' grid_option = ',a)") '"box"'
     end select
+    write(unit, fmt="(' /')")
 
-    select case (gridopt_switch)          
+    select case (gridopt_switch)
     case (gridopt_single)
        call wnml_kt_grids_single (unit)
     case (gridopt_range)
