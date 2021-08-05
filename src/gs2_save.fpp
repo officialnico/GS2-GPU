@@ -193,8 +193,6 @@ contains
 
     n_elements = g_lo%ulim_proc-g_lo%llim_proc+1
     total_elements = g_lo%ulim_world+1
-
-    if (n_elements <= 0) return
     
     call debug_message(verb, 'gs2_save::gs2_save_for_restart checking init')
 
@@ -1379,7 +1377,6 @@ contains
     logical :: has_explicit_source_terms
     logical, save :: explicit_warning_given = .false.
     n_elements = g_lo%ulim_proc-g_lo%llim_proc+1
-    if (n_elements <= 0) return
     
     if (.not.initialized) then
        initialized = .true.
