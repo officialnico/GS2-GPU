@@ -127,10 +127,7 @@ contains
     use mp, only: iproc, barrier, proc0
     use theta_grid, only: ntgrid, theta
     use gs2_layouts, only: g_lo, layout
-    use gs2_layouts, only: proc_id,ik_idx,it_idx,is_idx,ie_idx,il_idx ! MRH layout information for plotting
-# ifdef NETCDF_PARALLEL
-    use gs2_layouts, only: layout
-# endif
+    use gs2_layouts, only: proc_id,ik_idx,it_idx,is_idx,ie_idx,il_idx
     use layouts_type, only: g_layout_type
     use file_utils, only: error_unit
     use le_grids, only: energy, al, negrid, nlambda
@@ -389,7 +386,6 @@ contains
        !For saving distribution function
 
        call debug_message(verb, 'gs2_save::gs2_save_for_restart defining variables')
-
 
        istatus = nf90_def_dim (ncid, "char5", 5, char5_dim)
        if (istatus /= NF90_NOERR) then
