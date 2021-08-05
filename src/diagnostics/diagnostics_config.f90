@@ -18,6 +18,7 @@ module diagnostics_config
 
   public :: new_gs2_diagnostics_config_type
   public :: set_diagnostics_config_config
+  public :: get_diagnostics_config_config
   public :: apply_new_defaults
 
   real, parameter :: initial_value = -1.0
@@ -415,5 +416,11 @@ contains
        new_gs2_diagnostics_config = diagnostics_config_config_in
     end if
   end subroutine set_diagnostics_config_config
+
+  !> Get the module level config instance
+  function get_diagnostics_config_config()
+    type(new_gs2_diagnostics_config_type) :: get_diagnostics_config_config
+    get_diagnostics_config_config = new_gs2_diagnostics_config
+  end function get_diagnostics_config_config
 
 end module diagnostics_config

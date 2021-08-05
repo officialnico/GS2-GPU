@@ -41,6 +41,7 @@ module eigval
 
   public :: eigval_config_type
   public :: set_eigval_config
+  public :: get_eigval_config
 
   !//////////////////
   !Slepc related configuration parameters
@@ -1422,6 +1423,12 @@ contains
        eigval_config = eigval_config_in
     end if
   end subroutine set_eigval_config
+
+  !> Get the module level config instance
+  function get_eigval_config()
+    type(eigval_config_type) :: get_eigval_config
+    get_eigval_config = eigval_config
+  end function get_eigval_config
 
   !---------------------------------------
   ! Following is for the config_type

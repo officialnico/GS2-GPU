@@ -35,6 +35,7 @@ module gs2_reinit
 
   public :: reinit_config_type
   public :: set_gs2_reinit_config
+  public :: get_gs2_reinit_config
   
   real :: delt_adj, dt0
   real :: delt_cushion
@@ -368,7 +369,13 @@ contains
        reinit_config = gs2_reinit_config_in
     end if
   end subroutine set_gs2_reinit_config
-  
+
+  !> Get the module level config instance
+  function get_gs2_reinit_config()
+    type(reinit_config_type) :: get_gs2_reinit_config
+    get_gs2_reinit_config = reinit_config
+  end function get_gs2_reinit_config
+
   !---------------------------------------
   ! Following is for the config_type
   !---------------------------------------

@@ -74,6 +74,7 @@ module gs2_layouts
 
   public :: layouts_config_type
   public :: set_gs2_layouts_config
+  public :: get_gs2_layouts_config
 
   logical :: initialized = .false.
   logical :: initialized_x_transform = .false.
@@ -5039,6 +5040,12 @@ contains
        layouts_config = gs2_layouts_config_in
     end if
   end subroutine set_gs2_layouts_config
+
+  !> Get the module level config instance
+  function get_gs2_layouts_config()
+    type(layouts_config_type) :: get_gs2_layouts_config
+    get_gs2_layouts_config = layouts_config
+  end function get_gs2_layouts_config
   
   !---------------------------------------
   ! Following is for the config_type

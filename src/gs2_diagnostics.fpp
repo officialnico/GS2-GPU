@@ -26,6 +26,7 @@ module gs2_diagnostics
 
   public :: gs2_diagnostics_config_type
   public :: set_gs2_diagnostics_config
+  public :: get_gs2_diagnostics_config
   public :: apply_old_defaults
 
   ! Export some functions to be used in the new diagnostics
@@ -412,7 +413,7 @@ contains
   !> Initialise this module and all its dependencies, including defining NetCDF
   !> vars, call real_init, which calls read_parameters; broadcast all the
   !> different write flags.
-  subroutine init_gs2_diagnostics (list, nstep, gs2_diagnostics_config_in)
+  subroutine init_gs2_diagnostics (list, nstep, gs2_diagnostics_config_in, header)
     use theta_grid, only: init_theta_grid
     use kt_grids, only: init_kt_grids, ntheta0, naky
     use run_parameters, only: init_run_parameters
@@ -426,6 +427,7 @@ contains
     use le_grids, only: init_weights
     use gs2_save, only: restart_writable
     use normalisations, only: init_normalisations
+    use standard_header, only: standard_header_type
     implicit none
     !> If true, this is a "list-mode run" and so turn off
     !> [[gs2_diagnostics_knobs:print_flux_line]] and
@@ -435,7 +437,17 @@ contains
     integer, intent (in) :: nstep
     !> Input parameters for this module
     type(gs2_diagnostics_config_type), intent(in), optional :: gs2_diagnostics_config_in    
+    !> Header for files with build and run information
+    type(standard_header_type), intent(in), optional :: header
+    ! Actual value for optional `header` input
+    type(standard_header_type) :: local_header
     integer :: nmovie_tot, nwrite_big_tot
+
+    if (present(header)) then
+      local_header = header
+    else
+      local_header = standard_header_type()
+    end if
 
     if (initialized) return
     initialized = .true.
@@ -448,7 +460,7 @@ contains
     call init_init_g
     call init_dist_fn
 
-    call real_init (list, gs2_diagnostics_config_in)
+    call real_init (list, gs2_diagnostics_config_in, header=local_header)
 
     nmovie_tot = nstep/nmovie
     nwrite_big_tot = nstep/(nwrite*nwrite_mult)-nstep/4/(nwrite*nwrite_mult)
@@ -564,12 +576,13 @@ contains
   !> Read the input parameters; open the various text output files according to
   !> the relevant input flags; allocate and zero the module-level flux arrays,
   !> [[gs2_diagnostics_knobs:omega]] and [[gs2_diagnostics_knobs:omegaavg]]
-  subroutine real_init(is_list_run, gs2_diagnostics_config_in)
+  subroutine real_init(is_list_run, gs2_diagnostics_config_in, header)
     use run_parameters, only: fapar
     use file_utils, only: open_output_file, get_unused_unit
     use kt_grids, only: naky, ntheta0
     use species, only: nspec
     use mp, only: proc0
+    use standard_header, only: standard_header_type
     implicit none
     !> If true, this is a "list-mode run" and so turn off
     !> [[gs2_diagnostics_knobs:print_flux_line]] and
@@ -577,7 +590,16 @@ contains
     logical, intent (in) :: is_list_run
     !> Input parameters for this module
     type(gs2_diagnostics_config_type), intent(in), optional :: gs2_diagnostics_config_in    
-    character(20) :: datestamp, timestamp, zone
+    !> Header for files with build and run information
+    type(standard_header_type), intent(in), optional :: header
+    ! Actual value for optional `header` input
+    type(standard_header_type) :: local_header
+
+    if (present(header)) then
+      local_header = header
+    else
+      local_header = standard_header_type()
+    end if
 
     call read_parameters(is_list_run, gs2_diagnostics_config_in)
 
@@ -625,13 +647,7 @@ contains
        end if
 
        if (write_ascii) then
-          write (unit=out_unit, fmt="('gs2')")
-          datestamp(:) = ' '
-          timestamp(:) = ' '
-          zone(:) = ' '
-          call date_and_time (datestamp, timestamp, zone)
-          write (unit=out_unit, fmt="('Date: ',a,' Time: ',a,1x,a)") &
-               trim(datestamp), trim(timestamp), trim(zone)
+          write (unit=out_unit, fmt='(a)') local_header%to_string(file_description="GS2 output file")
        end if
 
        allocate (omegahist(0:navg-1,ntheta0,naky))
@@ -4180,5 +4196,11 @@ contains
        gs2_diagnostics_config = gs2_diagnostics_config_in
     end if
   end subroutine set_gs2_diagnostics_config
+
+  !> Get the module level config instance
+  function get_gs2_diagnostics_config()
+    type(gs2_diagnostics_config_type) :: get_gs2_diagnostics_config
+    get_gs2_diagnostics_config = gs2_diagnostics_config
+  end function get_gs2_diagnostics_config
   
 end module gs2_diagnostics

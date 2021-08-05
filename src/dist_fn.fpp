@@ -108,6 +108,9 @@ module dist_fn
   public :: dist_fn_species_config_type
   public :: source_config_type
   public :: set_dist_fn_config
+  public :: get_dist_fn_config
+  public :: get_dist_fn_species_config
+  public :: get_source_config
   
   ! knobs
   complex, dimension (:), allocatable :: fexp ! (nspec)
@@ -10325,7 +10328,29 @@ contains
        dist_fn_species_config = dist_fn_species_config_in
     end if    
   end subroutine set_dist_fn_config   
-  
+
+  !> Get the module level config instance
+  function get_dist_fn_config()
+    type(dist_fn_config_type) :: get_dist_fn_config
+    get_dist_fn_config = dist_fn_config
+  end function get_dist_fn_config
+
+  !> Get the module level config instance
+  function get_dist_fn_species_config()
+    type(dist_fn_species_config_type), allocatable :: get_dist_fn_species_config(:)
+    if (allocated(dist_fn_species_config)) then
+      get_dist_fn_species_config = dist_fn_species_config
+    else
+      allocate(get_dist_fn_species_config(0))
+    end if
+  end function get_dist_fn_species_config
+
+  !> Get the module level config instance
+  function get_source_config()
+    type(source_config_type) :: get_source_config
+    get_source_config = source_config
+  end function get_source_config
+
   !---------------------------------------
   ! Following is for the dist_fn config_type
   !---------------------------------------

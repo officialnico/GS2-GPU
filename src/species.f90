@@ -23,7 +23,9 @@ module species
   public :: species_config_type
   public :: species_element_config_type
   public :: set_species_config
-  
+  public :: get_species_config
+  public :: get_species_element_config
+
   !> FIXME : Add documentation 
   type :: specie
      real :: z
@@ -1136,7 +1138,23 @@ contains
        species_element_config = species_element_config_in
     end if    
   end subroutine set_species_config   
-  
+
+  !> Get the module level config instance
+  function get_species_config()
+    type(species_config_type) :: get_species_config
+    get_species_config = species_config
+  end function get_species_config
+
+  !> Get the module level config instance
+  function get_species_element_config()
+    type(species_element_config_type), allocatable :: get_species_element_config(:)
+    if (allocated(species_element_config)) then
+      get_species_element_config = species_element_config
+    else
+      allocate(get_species_element_config(0))
+    end if
+  end function get_species_element_config
+
   !---------------------------------------
   ! Following is for the config_type
   !---------------------------------------

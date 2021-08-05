@@ -14,6 +14,7 @@ module optimisation_config
 
   public :: optimisation_config_type
   public :: set_optimisation_config_config
+  public :: get_optimisation_config_config
 
   logical :: initialized = .false.
   
@@ -172,7 +173,13 @@ contains
        optimisation_config_config = optimisation_config_config_in
     end if
   end subroutine set_optimisation_config_config
-  
+
+  !> Get the module level config instance
+  function get_optimisation_config_config()
+    type(optimisation_config_type) :: get_optimisation_config_config
+    get_optimisation_config_config = optimisation_config_config
+  end function get_optimisation_config_config
+
   !---------------------------------------
   ! Following is for the config_type
   !---------------------------------------

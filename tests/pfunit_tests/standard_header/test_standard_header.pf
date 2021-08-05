@@ -1,0 +1,22 @@
+module test_standard_header_mod
+  use PFUNIT_MOD
+  implicit none
+contains
+
+  @test(npes=[1])
+  subroutine test_simulation_run_uuid_same_between_calls(this)
+    use mp, only : init_mp
+    use standard_header, only : simulation_run_uuid
+    class (MpiTestMethod), intent(inout) :: this
+
+    character(len=36) :: uuid1, uuid2
+
+    call init_mp(this%getMpiCommunicator())
+
+    uuid1 = simulation_run_uuid()
+    uuid2 = simulation_run_uuid()
+
+    @assertEqual(uuid1, uuid2)
+  end subroutine test_simulation_run_uuid_same_between_calls
+
+end module test_standard_header_mod
