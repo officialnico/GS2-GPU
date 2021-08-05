@@ -164,7 +164,6 @@ contains
     logical, intent (in), optional :: save_velocities
 # ifdef NETCDF
     character (run_name_size) :: file_proc
-    character (10) :: suffix
     integer :: i, n_elements, ierr
     integer :: total_elements
     integer, dimension(3) :: start_pos, counts
@@ -227,31 +226,11 @@ contains
 
        if (present(distfn)) then
           initialized_dfn=.true.
+          file_proc = get_file_proc(is_one_file_per_processor, fileopt, suffix = '.dfn')
        else
           initialized = .true.
+          file_proc = get_file_proc(is_one_file_per_processor, fileopt)
        end if
-
-       file_proc = trim(restart_file)
-
-       if (present(fileopt)) then
-          file_proc=trim(file_proc)//trim(fileopt)
-       end if
-
-       if (present(distfn)) then
-          if (is_one_file_per_processor) then
-             write (suffix,'(a5,i0)') '.dfn.', iproc
-          else
-             write (suffix,'(a4)') '.dfn'
-          endif
-       else
-          if (is_one_file_per_processor) then
-             write (suffix,'(a1,i0)') '.', iproc
-          else
-             write (suffix,*) ''
-          endif
-       end if
-
-       file_proc = trim(trim(file_proc)//adjustl(suffix))
 
        call debug_message(verb, 'gs2_save::gs2_save_for_restart opening file')
        call debug_message(verb, 'file proc is')
@@ -1328,7 +1307,6 @@ contains
 # ifdef NETCDF
     integer, dimension(3) :: counts, start_pos
     character (run_name_size) :: file_proc
-    character (10) :: suffix
     character (len = 5) :: restart_layout
     integer :: i, n_elements, ierr
     real :: fac
@@ -1342,15 +1320,10 @@ contains
     
     if (.not.initialized) then
        initialized = .true.
-       file_proc = trim(restart_file)
 
-       IF (PRESENT(fileopt)) THEN
-          file_proc=trim(file_proc)//trim(fileopt)
-       END IF
+       file_proc = get_file_proc(is_one_file_per_processor, fileopt)
 
        if (is_one_file_per_processor) then
-          write (suffix,'(a1,i0)') '.', iproc
-          file_proc = trim(trim(file_proc)//adjustl(suffix))       
           istatus = nf90_open (file_proc, NF90_NOWRITE, ncid)
        else
 # ifdef NETCDF_PARALLEL          
@@ -2097,18 +2070,20 @@ contains
   end subroutine finish_gs2_save
 
   !> Returns the file corresponding to restart file in current setup
-  pure function get_file_proc(is_one_file_per_processor) result(file_proc)
+  function get_file_proc(is_one_file_per_processor, fileopt, suffix) result(file_proc)
     use mp, only: iproc
     implicit none
     logical, intent(in) :: is_one_file_per_processor
+    character(len=*), intent(in), optional :: fileopt, suffix
     character(run_name_size) :: file_proc
-
     file_proc = trim(restart_file)
+
+    if (present(fileopt)) file_proc = trim(file_proc) // trim(adjustl(fileopt))
+    if (present(suffix)) file_proc = trim(file_proc) // "." // trim(adjustl(suffix))
 
     if (is_one_file_per_processor) then
        write(file_proc, '(A,".",I0)') trim(file_proc), iproc
     end if
-
   end function get_file_proc
 
   !> FIXME : Add documentation
