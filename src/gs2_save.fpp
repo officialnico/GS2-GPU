@@ -226,7 +226,7 @@ contains
 
        if (present(distfn)) then
           initialized_dfn=.true.
-          file_proc = get_file_proc(is_one_file_per_processor, fileopt, suffix = '.dfn')
+          file_proc = get_file_proc(is_one_file_per_processor, fileopt, suffix = 'dfn')
        else
           initialized = .true.
           file_proc = get_file_proc(is_one_file_per_processor, fileopt)
