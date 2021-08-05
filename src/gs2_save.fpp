@@ -175,10 +175,10 @@ contains
 
 !*********-----------------------_**********************
 
+    call debug_message(verb, 'gs2_save::gs2_save_for_restart initialising')
+
     istatus = 0
-    !ncid = -1 
-    !call broadcast(ncid)
-    !call broadcast(file_proc)
+    ierr = error_unit()
     
     if (present(exit_in)) then
        exit = exit_in
@@ -186,16 +186,8 @@ contains
        exit = .false.
     end if
 
-!    if (proc0) then
-!      write (*,*) "Starting save_for_restart in ", restart_file
-!      write (*,*) "List restart files"
-!      call system("echo 'start' >> filelist.txt; ls nc/* >> filelist.txt;  ")
-!    end if
-
     n_elements = max(g_lo%ulim_proc-g_lo%llim_proc+1, 0)
     total_elements = g_lo%ulim_world+1
-
-    call debug_message(verb, 'gs2_save::gs2_save_for_restart checking init')
 
     ! Decide if we want one file per processor or not
     is_one_file_per_processor = save_many .or. (.not. has_netcdf_parallel)
@@ -248,7 +240,6 @@ contains
     end if
 
     if (istatus /= NF90_NOERR) then
-       ierr = error_unit()
        write(ierr,*) "nf90_create error: ", nf90_strerror(istatus)
        goto 1
     end if
@@ -257,7 +248,6 @@ contains
 # ifdef NETCDF_PARALLEL
        istatus = nf90_put_att(ncid, NF90_GLOBAL, 'layout', layout)
        if (istatus /= NF90_NOERR) then
-          ierr = error_unit()
           write(ierr,*) "nf90_put_attr error: ", nf90_strerror(istatus)
           goto 1
        end if
@@ -268,14 +258,12 @@ contains
 
     istatus = nf90_def_dim (ncid, "theta", 2*ntgrid+1, thetaid)
     if (istatus /= NF90_NOERR) then
-       ierr = error_unit()
        write(ierr,*) "nf90_def_dim theta error: ", nf90_strerror(istatus)
        goto 1
     end if
 
     istatus = nf90_def_dim (ncid, "sign", 2, signid)
     if (istatus /= NF90_NOERR) then
-       ierr = error_unit()
        write(ierr,*) "nf90_def_dim sign error: ", nf90_strerror(istatus)
        goto 1
     end if
@@ -287,21 +275,18 @@ contains
     endif
 
     if (istatus /= NF90_NOERR) then
-       ierr = error_unit()
        write(ierr,*) "nf90_def_dim glo error: ", nf90_strerror(istatus)
        goto 1
     end if
 
     istatus = nf90_def_dim (ncid, "aky", naky, kyid)
     if (istatus /= NF90_NOERR) then
-       ierr = error_unit()
        write(ierr,*) "nf90_def_dim aky error: ", nf90_strerror(istatus)
        goto 1
     end if
 
     istatus = nf90_def_dim (ncid, "akx", ntheta0, kxid)
     if (istatus /= NF90_NOERR) then
-       ierr = error_unit()
        write(ierr,*) "nf90_def_dim akx error: ", nf90_strerror(istatus)
        goto 1
     end if
@@ -321,7 +306,6 @@ contains
 
        !Check dimension created successfully
        IF (istatus /= NF90_NOERR) THEN
-          ierr = error_unit()
           WRITE(ierr,*) "nf90_def_dim negrid error: ", nf90_strerror(istatus)
           GOTO 1
        END IF
@@ -331,7 +315,6 @@ contains
 
        !Check dimension created successfully
        IF (istatus /= NF90_NOERR) THEN
-          ierr = error_unit()
           WRITE(ierr,*) "nf90_def_dim nlambda error: ", nf90_strerror(istatus)
           GOTO 1
        END IF
@@ -341,7 +324,6 @@ contains
 
        !Check dimension created successfully
        IF (istatus /= NF90_NOERR) THEN
-          ierr = error_unit()
           WRITE(ierr,*) "nf90_def_dim nspec error: ", nf90_strerror(istatus)
           GOTO 1
        END IF
@@ -353,84 +335,72 @@ contains
 
     istatus = nf90_def_dim (ncid, "char5", 5, char5_dim)
     if (istatus /= NF90_NOERR) then
-       ierr = error_unit()
        write(ierr,*) "nf90_def_dim char5 error: ", nf90_strerror(istatus)
        goto 1
     end if
 
     istatus = nf90_def_var (ncid, "layout", nf90_char, char5_dim, layout_id)
     if (istatus /= NF90_NOERR) then
-       ierr = error_unit()
        write(ierr,*) "nf90_def_var layout error: ", nf90_strerror(istatus)
        goto 1
     end if
 
     istatus = nf90_def_var (ncid, "ntheta0", netcdf_int, ntheta0_id)
     if (istatus /= NF90_NOERR) then
-       ierr = error_unit()
        write(ierr,*) "nf90_def_var ntheta0 error: ", nf90_strerror(istatus)
        goto 1
     end if
 
     istatus = nf90_def_var (ncid, "naky", netcdf_int, naky_id)
     if (istatus /= NF90_NOERR) then
-       ierr = error_unit()
        write(ierr,*) "nf90_def_var naky error: ", nf90_strerror(istatus)
        goto 1
     end if
 
     istatus = nf90_def_var (ncid, "nlambda", netcdf_int, nlambda_id)
     if (istatus /= NF90_NOERR) then
-       ierr = error_unit()
        write(ierr,*) "nf90_def_var nlambda error: ", nf90_strerror(istatus)
        goto 1
     end if
 
     istatus = nf90_def_var (ncid, "negrid", netcdf_int, negrid_id)
     if (istatus /= NF90_NOERR) then
-       ierr = error_unit()
        write(ierr,*) "nf90_def_var negrid error: ", nf90_strerror(istatus)
        goto 1
     end if
 
     istatus = nf90_def_var (ncid, "nspec", netcdf_int, nspec_id)
     if (istatus /= NF90_NOERR) then
-       ierr = error_unit()
        write(ierr,*) "nf90_def_var nspec error: ", nf90_strerror(istatus)
        goto 1
     end if
 
     istatus = nf90_def_var (ncid, "t0", netcdf_real, t0id)
     if (istatus /= NF90_NOERR) then
-       ierr = error_unit()
        write(ierr,*) "nf90_def_var t0 error: ", nf90_strerror(istatus)
        goto 1
     end if
 
     istatus = nf90_def_var (ncid, "delt0", netcdf_real, delt0id)
     if (istatus /= NF90_NOERR) then
-       ierr = error_unit()
        write(ierr,*) "nf90_def_var delt0 error: ", nf90_strerror(istatus)
        goto 1
     end if
 
     istatus = nf90_def_var (ncid, "delt1", netcdf_real, delt1id)
     if (istatus /= NF90_NOERR) then
-       ierr = error_unit()
        write(ierr,*) "nf90_def_var delt1 error: ", nf90_strerror(istatus)
        goto 1
     end if
 
     istatus = nf90_def_var (ncid, "delt2", netcdf_real, delt2id)
     if (istatus /= NF90_NOERR) then
-       ierr = error_unit()
        write(ierr,*) "nf90_def_var delt2 error: ", nf90_strerror(istatus)
        goto 1
     end if
 
     istatus = nf90_def_var (ncid, "delt_max", netcdf_real, delt_max_id)
     if (istatus /= NF90_NOERR) then
-       ierr = error_unit()
        write(ierr,*) "nf90_def_var delt_max error: ", nf90_strerror(istatus)
        goto 1
     end if
@@ -442,7 +412,6 @@ contains
             netcdf_real, &
             current_scan_parameter_value_id)
        if (istatus /= NF90_NOERR) then
-          ierr = error_unit()
           write(ierr,*) "nf90_def_var current_scan_parameter_value error: ", nf90_strerror(istatus)
           goto 1
        end if
@@ -451,14 +420,12 @@ contains
 
     istatus = nf90_def_var (ncid, "vnm1", netcdf_real, vnm1id)
     if (istatus /= NF90_NOERR) then
-       ierr = error_unit()
        write(ierr,*) "nf90_def_var vnm(1) error: ", nf90_strerror(istatus)
        goto 1
     end if
 
     istatus = nf90_def_var (ncid, "vnm2", netcdf_real, vnm2id)
     if (istatus /= NF90_NOERR) then
-       ierr = error_unit()
        write(ierr,*) "nf90_def_var vnm(2) error: ", nf90_strerror(istatus)
        goto 1
     end if
@@ -466,35 +433,30 @@ contains
     if (ant_on) then
        istatus = nf90_def_dim (ncid, "nk_stir", nk_stir, nk_stir_dim)
        if (istatus /= NF90_NOERR) then
-          ierr = error_unit()
           write(ierr,*) "nf90_def_dim nk_stir error: ", nf90_strerror(istatus)
           goto 1
        end if
 
        istatus = nf90_def_var (ncid, "a_ant_r", netcdf_real, nk_stir_dim, a_antr_id)
        if (istatus /= NF90_NOERR) then
-          ierr = error_unit()
           write(ierr,*) "nf90_def_var a_ant_r error: ", nf90_strerror(istatus)
           goto 1
        end if
 
        istatus = nf90_def_var (ncid, "a_ant_i", netcdf_real, nk_stir_dim, a_anti_id)
        if (istatus /= NF90_NOERR) then
-          ierr = error_unit()
           write(ierr,*) "nf90_def_var a_ant_i error: ", nf90_strerror(istatus)
           goto 1
        end if
 
        istatus = nf90_def_var (ncid, "b_ant_r", netcdf_real, nk_stir_dim, b_antr_id)
        if (istatus /= NF90_NOERR) then
-          ierr = error_unit()
           write(ierr,*) "nf90_def_var b_ant_r error: ", nf90_strerror(istatus)
           goto 1
        end if
 
        istatus = nf90_def_var (ncid, "b_ant_i", netcdf_real, nk_stir_dim, b_anti_id)
        if (istatus /= NF90_NOERR) then
-          ierr = error_unit()
           write(ierr,*) "nf90_def_var b_ant_i error: ", nf90_strerror(istatus)
           goto 1
        end if
@@ -503,7 +465,6 @@ contains
     istatus = nf90_def_var (ncid, "gr", netcdf_real, &
          (/ thetaid, signid, gloid /), gr_id)
     if (istatus /= NF90_NOERR) then
-       ierr = error_unit()
        write(ierr,*) "nf90_def_var g error: ", nf90_strerror(istatus)
        goto 1
     end if
@@ -511,7 +472,6 @@ contains
     istatus = nf90_def_var (ncid, "gi", netcdf_real, &
          (/ thetaid, signid, gloid /), gi_id)
     if (istatus /= NF90_NOERR) then
-       ierr = error_unit()
        write(ierr,*) "nf90_def_var g error: ", nf90_strerror(istatus)
        goto 1
     end if
@@ -528,7 +488,6 @@ contains
           istatus = nf90_def_var (ncid, "gexp_1_r", netcdf_real, &
                (/ thetaid, signid, gloid /), gexp_1_r_id)
           if (istatus /= NF90_NOERR) then
-             ierr = error_unit()
              write(ierr,*) "nf90_def_var gexp_1_r error: ", nf90_strerror(istatus)
              goto 1
           end if
@@ -536,7 +495,6 @@ contains
           istatus = nf90_def_var (ncid, "gexp_1_i", netcdf_real, &
                (/ thetaid, signid, gloid /), gexp_1_i_id)
           if (istatus /= NF90_NOERR) then
-             ierr = error_unit()
              write(ierr,*) "nf90_def_var gexp_1_i error: ", nf90_strerror(istatus)
              goto 1
           end if
@@ -546,7 +504,6 @@ contains
           istatus = nf90_def_var (ncid, "gexp_2_r", netcdf_real, &
                (/ thetaid, signid, gloid /), gexp_2_r_id)
           if (istatus /= NF90_NOERR) then
-             ierr = error_unit()
              write(ierr,*) "nf90_def_var gexp_2_r error: ", nf90_strerror(istatus)
              goto 1
           end if
@@ -554,7 +511,6 @@ contains
           istatus = nf90_def_var (ncid, "gexp_2_i", netcdf_real, &
                (/ thetaid, signid, gloid /), gexp_2_i_id)
           if (istatus /= NF90_NOERR) then
-             ierr = error_unit()
              write(ierr,*) "nf90_def_var gexp_2_i error: ", nf90_strerror(istatus)
              goto 1
           end if
@@ -564,7 +520,6 @@ contains
           istatus = nf90_def_var (ncid, "gexp_3_r", netcdf_real, &
                (/ thetaid, signid, gloid /), gexp_3_r_id)
           if (istatus /= NF90_NOERR) then
-             ierr = error_unit()
              write(ierr,*) "nf90_def_var gexp_3_r error: ", nf90_strerror(istatus)
              goto 1
           end if
@@ -572,7 +527,6 @@ contains
           istatus = nf90_def_var (ncid, "gexp_3_i", netcdf_real, &
                (/ thetaid, signid, gloid /), gexp_3_i_id)
           if (istatus /= NF90_NOERR) then
-             ierr = error_unit()
              write(ierr,*) "nf90_def_var gexp_3_i error: ", nf90_strerror(istatus)
              goto 1
           end if
@@ -583,7 +537,6 @@ contains
        istatus = nf90_def_var (ncid, "phi_r", netcdf_real, &
             (/ thetaid, kxid, kyid /), phir_id)
        if (istatus /= NF90_NOERR) then
-          ierr = error_unit()
           write(ierr,*) "nf90_def_var phi error: ", nf90_strerror(istatus)
           goto 1
        end if
@@ -591,7 +544,6 @@ contains
        istatus = nf90_def_var (ncid, "phi_i", netcdf_real, &
             (/ thetaid, kxid, kyid /), phii_id)
        if (istatus /= NF90_NOERR) then
-          ierr = error_unit()
           write(ierr,*) "nf90_def_var phi error: ", nf90_strerror(istatus)
           goto 1
        end if
@@ -601,7 +553,6 @@ contains
        istatus = nf90_def_var (ncid, "apar_r", netcdf_real, &
             (/ thetaid, kxid, kyid /), aparr_id)
        if (istatus /= NF90_NOERR) then
-          ierr = error_unit()
           write(ierr,*) "nf90_def_var apar error: ", nf90_strerror(istatus)
           goto 1
        end if
@@ -609,7 +560,6 @@ contains
        istatus = nf90_def_var (ncid, "apar_i", netcdf_real, &
             (/ thetaid, kxid, kyid /), apari_id)
        if (istatus /= NF90_NOERR) then
-          ierr = error_unit()
           write(ierr,*) "nf90_def_var apar error: ", nf90_strerror(istatus)
           goto 1
        end if
@@ -619,7 +569,6 @@ contains
        istatus = nf90_def_var (ncid, "bpar_r", netcdf_real, &
             (/ thetaid, kxid, kyid /), bparr_id)
        if (istatus /= NF90_NOERR) then
-          ierr = error_unit()
           write(ierr,*) "nf90_def_var bparr error: ", nf90_strerror(istatus)
           goto 1
        end if
@@ -627,7 +576,6 @@ contains
        istatus = nf90_def_var (ncid, "bpar_i", netcdf_real, &
             (/ thetaid, kxid, kyid /), bpari_id)
        if (istatus /= NF90_NOERR) then
-          ierr = error_unit()
           write(ierr,*) "nf90_def_var bpari error: ", nf90_strerror(istatus)
           goto 1
        end if
@@ -655,7 +603,6 @@ contains
 
           !Check variable created successfully
           IF (istatus /= NF90_NOERR) THEN
-             ierr = error_unit()
              WRITE(ierr,*) "nf90_def_var iglo_kykxsel error: ", nf90_strerror(istatus)
              GOTO 1
           END IF
@@ -665,7 +612,6 @@ contains
 
           !Check variable created successfully
           IF (istatus /= NF90_NOERR) THEN
-             ierr = error_unit()
              WRITE(ierr,*) "nf90_def_var procid_kykxsel error: ", nf90_strerror(istatus)
              GOTO 1
           END IF
@@ -675,7 +621,6 @@ contains
 
        !Check variable created successfully
        IF (istatus /= NF90_NOERR) THEN
-          ierr = error_unit()
           WRITE(ierr,*) "nf90_def_var iglo_llim_proc error: ", nf90_strerror(istatus)
           GOTO 1
        END IF
@@ -686,7 +631,6 @@ contains
 
           !Check variable created successfully
           IF (istatus /= NF90_NOERR) THEN
-             ierr = error_unit()
              WRITE(ierr,*) "nf90_def_var jtwist error: ", nf90_strerror(istatus)
              GOTO 1
           END IF
@@ -696,7 +640,6 @@ contains
 
           !Check variable created successfully
           IF (istatus /= NF90_NOERR) THEN
-             ierr = error_unit()
              WRITE(ierr,*) "nf90_def_var theta_grid error: ", nf90_strerror(istatus)
              GOTO 1
           END IF
@@ -706,7 +649,6 @@ contains
 
           !Check variable created successfully
           IF (istatus /= NF90_NOERR) THEN
-             ierr = error_unit()
              WRITE(ierr,*) "nf90_def_var ky_grid error: ", nf90_strerror(istatus)
              GOTO 1
           END IF
@@ -716,7 +658,6 @@ contains
 
           !Check variable created successfully
           IF (istatus /= NF90_NOERR) THEN
-             ierr = error_unit()
              WRITE(ierr,*) "nf90_def_var kx_grid error: ", nf90_strerror(istatus)
              GOTO 1
           END IF
@@ -727,7 +668,6 @@ contains
 
           !Check variable created successfully
           IF (istatus /= NF90_NOERR) THEN
-             ierr = error_unit()
              WRITE(ierr,*) "nf90_def_var energy error: ", nf90_strerror(istatus)
              GOTO 1
           END IF
@@ -738,7 +678,6 @@ contains
 
           !Check variable created successfully
           IF (istatus /= NF90_NOERR) THEN
-             ierr = error_unit()
              WRITE(ierr,*) "nf90_def_var lambda error: ", nf90_strerror(istatus)
              GOTO 1
           END IF
@@ -748,7 +687,6 @@ contains
                (/ nspecid /), spec_id)
           !Check variable created successfully
           IF (istatus /= NF90_NOERR) THEN
-             ierr = error_unit()
              WRITE(ierr,*) "nf90_def_var species error: ",nf90_strerror(istatus)
              GOTO 1
           END IF
@@ -765,7 +703,6 @@ contains
 
        !Check variable created successfully
        IF (istatus /= NF90_NOERR) THEN
-          ierr = error_unit()
           WRITE(ierr,*) "nf90_def_var vpa error: ",nf90_strerror(istatus)
           GOTO 1
        END IF
@@ -776,7 +713,6 @@ contains
 
        !Check variable created successfully
        IF (istatus /= NF90_NOERR) THEN
-          ierr = error_unit()
           WRITE(ierr,*) "nf90_def_var vperp2 error: ",nf90_strerror(istatus)
           GOTO 1
        END IF
@@ -791,7 +727,6 @@ contains
     istatus = nf90_def_var (ncid, "kx_shift", netcdf_real, &
          (/ kyid /), kx_shift_id)
     if (istatus /= NF90_NOERR) then
-       ierr = error_unit()
        write(ierr,*) "nf90_def_var kx_shift error: ", nf90_strerror(istatus)
        goto 1
     endif
@@ -800,7 +735,6 @@ contains
     call debug_message(verb, 'gs2_save::gs2_save_for_restart nf90_enddef')
     istatus = nf90_enddef (ncid)
     if (istatus /= NF90_NOERR) then
-       ierr = error_unit()
        write (ierr,*) "nf90_enddef error: ", nf90_strerror(istatus)
        goto 1
     end if
@@ -811,77 +745,66 @@ contains
 
        istatus = nf90_put_var (ncid, delt0id, code_dt)
        if (istatus /= NF90_NOERR) then
-          ierr = error_unit()
           write (ierr,*) "nf90_put_var delt0 error: ", nf90_strerror(istatus)
           goto 1
        end if
 
        istatus = nf90_put_var (ncid, delt1id, code_dt_prev1)
        if (istatus /= NF90_NOERR) then
-          ierr = error_unit()
           write (ierr,*) "nf90_put_var delt1 error: ", nf90_strerror(istatus)
           goto 1
        end if
 
        istatus = nf90_put_var (ncid, delt2id, code_dt_prev2)
        if (istatus /= NF90_NOERR) then
-          ierr = error_unit()
           write (ierr,*) "nf90_put_var delt2 error: ", nf90_strerror(istatus)
           goto 1
        end if
 
        istatus = nf90_put_var (ncid, delt_max_id, code_dt_max)
        if (istatus /= NF90_NOERR) then
-          ierr = error_unit()
           write (ierr,*) "nf90_put_var delt0 error: ", nf90_strerror(istatus)
           goto 1
        end if
 
        istatus = nf90_put_var (ncid, t0id, t0)
        if (istatus /= NF90_NOERR) then
-          ierr = error_unit()
           write (ierr,*) "nf90_put_var t0 error: ", nf90_strerror(istatus)
           goto 1
        end if
 
        istatus = nf90_put_var (ncid, layout_id, layout)
        if (istatus /= NF90_NOERR) then
-          ierr = error_unit()
           write (ierr,*) "nf90_put_var layout error: ", nf90_strerror(istatus)
           goto 1
        end if
 
        istatus = nf90_put_var (ncid, ntheta0_id, ntheta0)
        if (istatus /= NF90_NOERR) then
-          ierr = error_unit()
           write (ierr,*) "nf90_put_var ntheta0 error: ", nf90_strerror(istatus)
           goto 1
        end if
 
        istatus = nf90_put_var (ncid, naky_id, naky)
        if (istatus /= NF90_NOERR) then
-          ierr = error_unit()
           write (ierr,*) "nf90_put_var naky error: ", nf90_strerror(istatus)
           goto 1
        end if
 
        istatus = nf90_put_var (ncid, nlambda_id, nlambda)
        if (istatus /= NF90_NOERR) then
-          ierr = error_unit()
           write (ierr,*) "nf90_put_var nlambda error: ", nf90_strerror(istatus)
           goto 1
        end if
 
        istatus = nf90_put_var (ncid, negrid_id, negrid)
        if (istatus /= NF90_NOERR) then
-          ierr = error_unit()
           write (ierr,*) "nf90_put_var negrid error: ", nf90_strerror(istatus)
           goto 1
        end if
 
        istatus = nf90_put_var (ncid, nspec_id, nspec)
        if (istatus /= NF90_NOERR) then
-          ierr = error_unit()
           write (ierr,*) "nf90_put_var nspec error: ", nf90_strerror(istatus)
           goto 1
        end if
@@ -891,7 +814,6 @@ contains
           istatus = nf90_put_var (ncid, &
                current_scan_parameter_value_id, current_scan_parameter_value)
           if (istatus /= NF90_NOERR) then
-             ierr = error_unit()
              write (ierr,*) "nf90_put_var current_scan_parameter_value error: ", nf90_strerror(istatus)
              goto 1
           end if
@@ -900,14 +822,12 @@ contains
 
        istatus = nf90_put_var (ncid, vnm1id, vnm(1))
        if (istatus /= NF90_NOERR) then
-          ierr = error_unit()
           write (ierr,*) "nf90_put_var vnm(1) error: ", nf90_strerror(istatus)
           goto 1
        end if
 
        istatus = nf90_put_var (ncid, vnm2id, vnm(2))
        if (istatus /= NF90_NOERR) then
-          ierr = error_unit()
           write (ierr,*) "nf90_put_var vnm(2) error: ", nf90_strerror(istatus)
           goto 1
        end if
@@ -932,7 +852,6 @@ contains
        istatus = nf90_put_var (ncid, a_antr_id, atmp)
 
        if (istatus /= NF90_NOERR) then
-          ierr = error_unit()
           write (ierr,*) "nf90_put_var a_antr error: ", &
                nf90_strerror(istatus), ' ', iproc
        end if
@@ -941,7 +860,6 @@ contains
        istatus = nf90_put_var (ncid, a_anti_id, atmp)
 
        if (istatus /= NF90_NOERR) then
-          ierr = error_unit()
           write (ierr,*) "nf90_put_var a_anti error: ", &
                nf90_strerror(istatus), ' ', iproc
        end if
@@ -949,7 +867,6 @@ contains
        atmp = real(b_ant)
        istatus = nf90_put_var (ncid, b_antr_id, atmp)
        if (istatus /= NF90_NOERR) then
-          ierr = error_unit()
           write (ierr,*) "nf90_put_var b_antr error: ", &
                nf90_strerror(istatus), ' ', iproc
        end if
@@ -957,7 +874,6 @@ contains
        atmp = aimag(b_ant)
        istatus = nf90_put_var (ncid, b_anti_id, atmp)
        if (istatus /= NF90_NOERR) then
-          ierr = error_unit()
           write (ierr,*) "nf90_put_var b_anti error: ", &
                nf90_strerror(istatus), ' ', iproc
        end if
@@ -1275,7 +1191,7 @@ contains
     integer, dimension(3) :: counts, start_pos
     character (run_name_size) :: file_proc
     character (len = 5) :: restart_layout
-    integer :: i, n_elements, ierr
+    integer :: i, n_elements
     real :: fac
     logical :: has_explicit_source_terms
     logical :: is_one_file_per_processor
@@ -1627,8 +1543,7 @@ contains
     ! RN 2008/05/23: this was commented out. why? HJL 2013/05/15 Because it stops future writing to the file, it's now back in after setting initialized to false
     istatus = nf90_close (ncid)
     if (istatus /= NF90_NOERR) then
-       ierr = error_unit()
-       write(ierr,*) "nf90_close error: ", nf90_strerror(istatus),' ',iproc
+       write(error_unit(),*) "nf90_close error: ", nf90_strerror(istatus),' ',iproc
     end if
 
 # else
