@@ -131,6 +131,7 @@ contains
     use parameter_scan_arrays, only: current_scan_parameter_value
     use unit_tests, only: debug_message
     use gs2_time, only: code_dt, code_dt_prev1, code_dt_prev2, code_dt_max
+    use optionals, only: get_option_with_default
     implicit none
     !> The distribution function \(g\)
     complex, dimension (-ntgrid:,:,g_lo%llim_proc:), intent (in) :: g
@@ -179,30 +180,20 @@ contains
 
     istatus = 0
     ierr = error_unit()
-    
-    if (present(exit_in)) then
-       exit = exit_in
-    else
-       exit = .false.
-    end if
 
+    ! This is no longer used so should be removed from the interface
+    exit = get_option_with_default(exit_in, .false.)
+
+    ! Handle some optional inputs
+    save_glo_info_and_grids_local = get_option_with_default(save_glo_info_and_grids, .false.)
+    save_velocities_info = get_option_with_default(save_velocities, .false.)
+
+    ! Work out the problem size
     n_elements = max(g_lo%ulim_proc-g_lo%llim_proc+1, 0)
     total_elements = g_lo%ulim_world+1
 
     ! Decide if we want one file per processor or not
     is_one_file_per_processor = save_many .or. (.not. has_netcdf_parallel)
-    
-    if (present(save_glo_info_and_grids)) then
-        save_glo_info_and_grids_local = save_glo_info_and_grids
-    else
-        save_glo_info_and_grids_local = .false.
-    endif
-
-    if (present(save_velocities)) then
-        save_velocities_info = save_velocities
-    else
-        save_velocities_info = .false.
-    endif
 
     ! Open the file and define dimensions and variables
     if (present(distfn)) then
@@ -2009,6 +2000,7 @@ contains
 # ifdef NETCDF
     use mp, only: proc0, broadcast
     use file_utils, only: error_unit
+    use optionals, only: get_option_with_default
 # endif
     implicit none
     real, intent (in out) :: delt0, delt1, delt2, delt_max
@@ -2027,11 +2019,7 @@ contains
        istatus = nf90_open (file_proc, NF90_NOWRITE, ncid)
        if (istatus /= NF90_NOERR) call netcdf_error (istatus,file=file_proc)
 
-       if(present(not_set_value)) then
-          not_set_value_to_use = not_set_value
-       else
-          not_set_value_to_use = -1.0
-       end if
+       not_set_value_to_use = get_option_with_default(not_set_value, -1.0)
 
        ! Note unlike the explicit source terms all three time steps should always
        ! be available in the restart file so we don't silence the error messages here.
