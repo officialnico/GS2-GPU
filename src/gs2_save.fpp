@@ -174,6 +174,7 @@ contains
     logical :: exit
     logical :: local_init
     logical :: is_one_file_per_processor
+    logical :: has_gexp_1
     logical :: save_glo_info_and_grids_local, save_velocities_info
     logical :: should_define_single_entry_variables
     integer, parameter :: verb = 3
@@ -553,11 +554,14 @@ contains
        end if
 
        if(include_explicit_source_in_restart) then
+
 #ifndef SHMEM
-          if(allocated(gexp_1)) then
+          has_gexp_1 = allocated(gexp_1)
 #else
-          if(associated(gexp_1)) then
+          has_gexp_1 = associated(gexp_1)
 #endif
+
+          if (has_gexp_1) then
              istatus = nf90_def_var (ncid, "gexp_1_r", netcdf_real, &
                   (/ thetaid, signid, gloid /), gexp_1_r_id)
              if (istatus /= NF90_NOERR) then
@@ -1041,10 +1045,12 @@ contains
     if (include_explicit_source_in_restart) then
        !Explicit source term gexp_1
 #ifndef SHMEM
-       if(allocated(gexp_1)) then
+       has_gexp_1 = allocated(gexp_1)
 #else
-       if(associated(gexp_1)) then
+       has_gexp_1 = associated(gexp_1)
 #endif
+
+       if (has_gexp_1) then
           tmpr = real(gexp_1)
 
           if (is_one_file_per_processor) then
@@ -1331,6 +1337,7 @@ contains
     real :: fac
     logical :: has_explicit_source_terms
     logical :: is_one_file_per_processor
+    logical :: has_gexp_1
     logical, save :: explicit_warning_given = .false.
     n_elements = max(g_lo%ulim_proc-g_lo%llim_proc+1, 0)
 
@@ -1440,11 +1447,14 @@ contains
 
        if (include_explicit_source_in_restart) then
           has_explicit_source_terms = .true.
+
 #ifndef SHMEM
-          if(allocated(gexp_1)) then
+          has_gexp_1 = allocated(gexp_1)
 #else
-          if(associated(gexp_1)) then
+          has_gexp_1 = associated(gexp_1)
 #endif
+
+          if (has_gexp_1) then
              istatus = nf90_inq_varid (ncid, "gexp_1_r", gexp_1_r_id)
              if (istatus /= NF90_NOERR) has_explicit_source_terms = .false.
 
@@ -1541,10 +1551,12 @@ contains
     if (include_explicit_source_in_restart .and. has_explicit_source_terms) then
        ! Explicit source term
 #ifndef SHMEM
-       if(allocated(gexp_1)) then
+       has_gexp_1 = allocated(gexp_1)
 #else
-       if(associated(gexp_1)) then
+       has_gexp_1 = associated(gexp_1)
 #endif
+
+       if (has_gexp_1) then
           if (is_one_file_per_processor) then
              istatus = nf90_get_var (ncid, gexp_1_r_id, tmpr)
           else
