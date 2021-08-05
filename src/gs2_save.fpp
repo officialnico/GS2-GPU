@@ -2111,21 +2111,20 @@ contains
     real, intent (out) :: current_scan_parameter_value
 # ifdef NETCDF
     character (run_name_size) :: file_proc
+    logical :: is_one_file_per_processor
+
     if (.not. include_parameter_scan) return
 
+    is_one_file_per_processor = read_many .or. (.not. has_netcdf_parallel)
+
     if (proc0) then
-
        if (.not. initialized) then
-
-# ifdef NETCDF_PARALLEL
-          if(read_many) then
-# endif
+          if (is_one_file_per_processor) then
              file_proc=trim(trim(restart_file)//'.0')
-# ifdef NETCDF_PARALLEL
-          else 
+          else
              file_proc=trim(trim(restart_file))
           end if
-# endif
+
           istatus = nf90_open (file_proc, NF90_NOWRITE, ncid_local)
           if (istatus /= NF90_NOERR) call netcdf_error (istatus,file=file_proc)
           istatus = nf90_inq_varid (ncid_local, &
@@ -2167,20 +2166,17 @@ contains
 # ifdef NETCDF
     character (run_name_size) :: file_proc
     real :: not_set_value_to_use
+    logical :: is_one_file_per_processor
+
+    is_one_file_per_processor = read_many .or. (.not. has_netcdf_parallel)
 
     if (proc0) then
-
        if (.not. initialized) then
-
-# ifdef NETCDF_PARALLEL
-          if(read_many) then
-# endif
+          if (is_one_file_per_processor) then
              file_proc=trim(trim(restart_file)//'.0')
-# ifdef NETCDF_PARALLEL
           else 
              file_proc=trim(trim(restart_file))
           end if
-# endif
 
           istatus = nf90_open (file_proc, NF90_NOWRITE, ncid)
           if (istatus /= NF90_NOERR) call netcdf_error (istatus,file=file_proc)
@@ -2249,7 +2245,6 @@ contains
     call broadcast (delt_max)
 
 # endif
-
   end subroutine init_dt
 
 !> FIXME : Add documentation  
@@ -2263,19 +2258,17 @@ contains
     integer, intent (out) :: istatus
 # ifdef NETCDF
     character (run_name_size) :: file_proc
+    logical :: is_one_file_per_processor
+
+    is_one_file_per_processor = read_many .or. (.not. has_netcdf_parallel)
 
     if (proc0) then
        if (.not.initialized) then
-
-# ifdef NETCDF_PARALLEL
-          if(read_many) then
-# endif
+          if (is_one_file_per_processor) then
              file_proc=trim(trim(restart_file)//'.0')
-# ifdef NETCDF_PARALLEL
           else 
              file_proc=trim(trim(restart_file))
           end if
-# endif
 
           istatus = nf90_open (file_proc, 0, ncid)
           if (istatus /= NF90_NOERR) call netcdf_error (istatus, file=file_proc)
@@ -2315,7 +2308,6 @@ contains
   !!
   !! @note This routine gets a_ant and b_ant for proc 0 only!
   subroutine init_ant_amp (a_ant, b_ant, nk_stir, istatus)
-
 # ifdef NETCDF
     use file_utils, only: error_unit
     use constants, only: zi
@@ -2328,21 +2320,20 @@ contains
 # ifdef NETCDF
     character (run_name_size) :: file_proc
     integer :: ierr, i
+    logical :: is_one_file_per_processor
+
+    is_one_file_per_processor = read_many .or. (.not. has_netcdf_parallel)
 
     if (proc0) then
        a_ant = 0. ; b_ant = 0.
 
        if (.not.initialized) then
-
-# ifdef NETCDF_PARALLEL
-          if(read_many) then
-# endif
+          if (is_one_file_per_processor) then
              file_proc=trim(trim(restart_file)//'.0')
-# ifdef NETCDF_PARALLEL
           else 
              file_proc=trim(trim(restart_file))
           end if
-# endif       
+
           istatus = nf90_open (file_proc, NF90_NOWRITE, ncid)
           if (istatus /= NF90_NOERR) then
              ierr = error_unit()
@@ -2407,7 +2398,6 @@ contains
 
   !> FIXME : Add documentation  
   subroutine read_t0_from_restart_file (tstart, istatus)
-
 # ifdef NETCDF
     use mp, only: proc0, broadcast
     use file_utils, only: error_unit
@@ -2417,37 +2407,34 @@ contains
     integer, intent (out) :: istatus
 # ifdef NETCDF
     character (run_name_size) :: file_proc
+    logical :: is_one_file_per_processor
+
+    is_one_file_per_processor = read_many .or. (.not. has_netcdf_parallel)
 
     if (proc0) then
-
        if (.not.initialized) then
-
-# ifdef NETCDF_PARALLEL
-          if(read_many) then
-# endif
+          if (is_one_file_per_processor) then
              file_proc=trim(trim(restart_file)//'.0')
-# ifdef NETCDF_PARALLEL
           else 
              file_proc=trim(trim(restart_file))
           end if
-# endif
+          
+          istatus = nf90_open (file_proc, NF90_NOWRITE, ncid)
+          if (istatus /= NF90_NOERR) call netcdf_error (istatus, file=file_proc)
+       end if
+          
+       istatus = nf90_inq_varid (ncid, "t0", t0id)
+       if (istatus /= NF90_NOERR) call netcdf_error (istatus, var='t0')
 
-             istatus = nf90_open (file_proc, NF90_NOWRITE, ncid)
-             if (istatus /= NF90_NOERR) call netcdf_error (istatus, file=file_proc)
-          end if
-          
-          istatus = nf90_inq_varid (ncid, "t0", t0id)
-          if (istatus /= NF90_NOERR) call netcdf_error (istatus, var='t0')
-          
-          istatus = nf90_get_var (ncid, t0id, tstart)
-          if (istatus /= NF90_NOERR) then
-             call netcdf_error (istatus, ncid, t0id, message=' in init_tstart')
-             tstart = -1.
-          end if
+       istatus = nf90_get_var (ncid, t0id, tstart)
+       if (istatus /= NF90_NOERR) then
+          call netcdf_error (istatus, ncid, t0id, message=' in init_tstart')
+          tstart = -1.
+       end if
 
-          if (.not.initialized) istatus = nf90_close (ncid)
-          
-    endif
+       if (.not.initialized) istatus = nf90_close (ncid)
+
+    end if
 
     call broadcast (istatus)
     call broadcast (tstart)
