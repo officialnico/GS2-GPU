@@ -268,7 +268,7 @@ contains
           call debug_message(verb, &
             'gs2_save::gs2_save_for_restart called barrier before delete file')
 
-          if(iproc .eq. 0) then
+          if (proc0) then
              open(unit=tmpunit, file=file_proc)
              close(unit=tmpunit, status='delete')
           end if
@@ -282,7 +282,6 @@ contains
           istatus = nf90_create_par (file_proc, IOR(NF90_HDF5,NF90_MPIIO), ncid=ncid, comm=mp_comm, info=mp_info)
 # endif          
        end if
-
 
        if (istatus /= NF90_NOERR) then
           ierr = error_unit()
@@ -851,7 +850,7 @@ contains
 
     call debug_message(verb, 'gs2_save::gs2_save_for_restart writing scalars')
     
-    if(is_one_file_per_processor .or. iproc == 0) then
+    if (is_one_file_per_processor .or. proc0) then
 
        istatus = nf90_put_var (ncid, delt0id, code_dt)
        if (istatus /= NF90_NOERR) then
@@ -1224,7 +1223,7 @@ contains
        if (istatus /= NF90_NOERR) call netcdf_error (istatus, ncid, vperp2_id)
     end if
 
-    if(is_one_file_per_processor .or. iproc == 0) then
+    if (is_one_file_per_processor .or. proc0) then
        if (.not. allocated(ftmpr)) allocate (ftmpr(2*ntgrid+1,ntheta0,naky))
        if (.not. allocated(ftmpi)) allocate (ftmpi(2*ntgrid+1,ntheta0,naky))
 
