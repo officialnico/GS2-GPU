@@ -5,7 +5,6 @@ module gs2_save
   use constants, only: run_name_size
 
 # ifdef NETCDF
-!  use netcdf, only: NF90_FLOAT, NF90_DOUBLE
 # ifdef NETCDF_PARALLEL
 ! If using netcdf version 4.1.2 or older delete NF90_MPIIO
   use netcdf, only: NF90_HDF5,NF90_MPIIO
@@ -40,7 +39,7 @@ module gs2_save
   public :: init_eigenfunc_file, finish_eigenfunc_file, add_eigenpair_to_file
 
   interface gs2_restore
-     module procedure gs2_restore_many!, gs2_restore_one
+     module procedure gs2_restore_many
   end interface
 
   !> A custom type to look after the netcdf ids for the eigenvalue file
@@ -63,7 +62,6 @@ module gs2_save
   real, allocatable, dimension(:,:,:) :: tmpr, tmpi, ftmpr, ftmpi
   real, allocatable, dimension(:) :: stmp  ! MR: tmp var for kx_shift
   real, allocatable, dimension(:) :: atmp
-!  integer, parameter :: kind_nf = kind (NF90_NOERR)
   integer (kind_nf) :: ncid, thetaid, signid, gloid, kyid, kxid, nk_stir_dim, char5_dim
   integer (kind_nf) :: phir_id, phii_id, aparr_id, apari_id, bparr_id, bpari_id
   integer (kind_nf) :: kx_shift_id   ! MR: added to save kx_shift variable
@@ -2118,10 +2116,9 @@ contains
 
     if (proc0) then
        if (.not. initialized) then
+          file_proc = trim(restart_file)
           if (is_one_file_per_processor) then
-             file_proc=trim(trim(restart_file)//'.0')
-          else
-             file_proc=trim(trim(restart_file))
+             file_proc = trim(file_proc) // '.0'
           end if
 
           istatus = nf90_open (file_proc, NF90_NOWRITE, ncid_local)
@@ -2171,10 +2168,9 @@ contains
 
     if (proc0) then
        if (.not. initialized) then
+          file_proc = trim(restart_file)
           if (is_one_file_per_processor) then
-             file_proc=trim(trim(restart_file)//'.0')
-          else 
-             file_proc=trim(trim(restart_file))
+             file_proc = trim(file_proc) // '.0'
           end if
 
           istatus = nf90_open (file_proc, NF90_NOWRITE, ncid)
@@ -2263,10 +2259,9 @@ contains
 
     if (proc0) then
        if (.not.initialized) then
+          file_proc = trim(restart_file)
           if (is_one_file_per_processor) then
-             file_proc=trim(trim(restart_file)//'.0')
-          else 
-             file_proc=trim(trim(restart_file))
+             file_proc = trim(file_proc) // '.0'
           end if
 
           istatus = nf90_open (file_proc, 0, ncid)
@@ -2327,10 +2322,9 @@ contains
        a_ant = 0. ; b_ant = 0.
 
        if (.not.initialized) then
+          file_proc = trim(restart_file)
           if (is_one_file_per_processor) then
-             file_proc=trim(trim(restart_file)//'.0')
-          else 
-             file_proc=trim(trim(restart_file))
+             file_proc = trim(file_proc) // '.0'
           end if
 
           istatus = nf90_open (file_proc, NF90_NOWRITE, ncid)
@@ -2412,10 +2406,9 @@ contains
 
     if (proc0) then
        if (.not.initialized) then
+          file_proc = trim(restart_file)
           if (is_one_file_per_processor) then
-             file_proc=trim(trim(restart_file)//'.0')
-          else 
-             file_proc=trim(trim(restart_file))
+             file_proc = trim(file_proc) // '.0'
           end if
           
           istatus = nf90_open (file_proc, NF90_NOWRITE, ncid)
