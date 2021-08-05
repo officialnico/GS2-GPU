@@ -191,7 +191,7 @@ contains
 !      call system("echo 'start' >> filelist.txt; ls nc/* >> filelist.txt;  ")
 !    end if
 
-    n_elements = g_lo%ulim_proc-g_lo%llim_proc+1
+    n_elements = max(g_lo%ulim_proc-g_lo%llim_proc+1, 0)
     total_elements = g_lo%ulim_world+1
     
     call debug_message(verb, 'gs2_save::gs2_save_for_restart checking init')
@@ -1376,7 +1376,7 @@ contains
     real :: fac
     logical :: has_explicit_source_terms
     logical, save :: explicit_warning_given = .false.
-    n_elements = g_lo%ulim_proc-g_lo%llim_proc+1
+    n_elements = max(g_lo%ulim_proc-g_lo%llim_proc+1, 0)
     
     if (.not.initialized) then
        initialized = .true.
