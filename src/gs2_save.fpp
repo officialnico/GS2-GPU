@@ -2096,7 +2096,22 @@ contains
 #endif
   end subroutine finish_gs2_save
 
-  !> FIXME : Add documentation  
+  !> Returns the file corresponding to restart file in current setup
+  pure function get_file_proc(is_one_file_per_processor) result(file_proc)
+    use mp, only: iproc
+    implicit none
+    logical, intent(in) :: is_one_file_per_processor
+    character(run_name_size) :: file_proc
+
+    file_proc = trim(restart_file)
+
+    if (is_one_file_per_processor) then
+       write(file_proc, '(A,".",I0)') trim(file_proc), iproc
+    end if
+
+  end function get_file_proc
+
+  !> FIXME : Add documentation
   subroutine restore_current_scan_parameter_value(current_scan_parameter_value)
 # ifdef NETCDF
     use mp, only: proc0, broadcast
@@ -2116,10 +2131,7 @@ contains
 
     if (proc0) then
        if (.not. initialized) then
-          file_proc = trim(restart_file)
-          if (is_one_file_per_processor) then
-             file_proc = trim(file_proc) // '.0'
-          end if
+          file_proc = get_file_proc(is_one_file_per_processor)
 
           istatus = nf90_open (file_proc, NF90_NOWRITE, ncid_local)
           if (istatus /= NF90_NOERR) call netcdf_error (istatus,file=file_proc)
@@ -2168,10 +2180,7 @@ contains
 
     if (proc0) then
        if (.not. initialized) then
-          file_proc = trim(restart_file)
-          if (is_one_file_per_processor) then
-             file_proc = trim(file_proc) // '.0'
-          end if
+          file_proc = get_file_proc(is_one_file_per_processor)
 
           istatus = nf90_open (file_proc, NF90_NOWRITE, ncid)
           if (istatus /= NF90_NOERR) call netcdf_error (istatus,file=file_proc)
@@ -2259,10 +2268,7 @@ contains
 
     if (proc0) then
        if (.not.initialized) then
-          file_proc = trim(restart_file)
-          if (is_one_file_per_processor) then
-             file_proc = trim(file_proc) // '.0'
-          end if
+          file_proc = get_file_proc(is_one_file_per_processor)
 
           istatus = nf90_open (file_proc, 0, ncid)
           if (istatus /= NF90_NOERR) call netcdf_error (istatus, file=file_proc)
@@ -2322,10 +2328,7 @@ contains
        a_ant = 0. ; b_ant = 0.
 
        if (.not.initialized) then
-          file_proc = trim(restart_file)
-          if (is_one_file_per_processor) then
-             file_proc = trim(file_proc) // '.0'
-          end if
+          file_proc = get_file_proc(is_one_file_per_processor)
 
           istatus = nf90_open (file_proc, NF90_NOWRITE, ncid)
           if (istatus /= NF90_NOERR) then
@@ -2406,10 +2409,7 @@ contains
 
     if (proc0) then
        if (.not.initialized) then
-          file_proc = trim(restart_file)
-          if (is_one_file_per_processor) then
-             file_proc = trim(file_proc) // '.0'
-          end if
+          file_proc = get_file_proc(is_one_file_per_processor)
           
           istatus = nf90_open (file_proc, NF90_NOWRITE, ncid)
           if (istatus /= NF90_NOERR) call netcdf_error (istatus, file=file_proc)
