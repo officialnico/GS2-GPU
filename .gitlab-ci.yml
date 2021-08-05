@@ -129,6 +129,7 @@ gfortran5_standard_tests:
     WITH_PYTHON: ""
     GK_CI_PFUNIT: ""
     GK_CI_INTEGRATED: ""
+    EXTRA_MAKE_FLAGS: "DEBUG=on"
   script: *default_script
   cache: {}
 
