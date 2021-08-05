@@ -940,7 +940,11 @@ contains
     if (istatus /= NF90_NOERR) then
        call debug_message(verb, 'gs2_save::gs2_save_for_restart closing file at the continue point')
        i = nf90_close (ncid)
-       initialized = .false.
+       if (present(distfn)) then
+          initialized_dfn = .false.
+       else
+          initialized = .false.
+       end if
        return
     end if
 
@@ -1251,23 +1255,15 @@ contains
        endif ! MR end
     end if
 
+    ! Close the file
+    i = nf90_close (ncid)
+    if (i /= NF90_NOERR) &
+         call netcdf_error (istatus, message='nf90_close error')
 
-    ! EGH Why don't we just close the file every time? As things stand
-    ! if you reinitalise the timestep in a nonlinear run, but don't have
-    ! save_for_restart true in gs2_diagnostics, then the last call to
-    ! this function will leave the file open. This is highly non-intuitive
-    ! behaviour and causes nasty error messages when you run with parallel
-    ! netcdf.
-    !if (exit) then
-    if (.true.) then
-       i = nf90_close (ncid)
-       if (i /= NF90_NOERR) &
-            call netcdf_error (istatus, message='nf90_close error')
-       initialized = .false.
+    if (present(distfn)) then
+       initialized_dfn = .false.
     else
-       i = nf90_sync (ncid)
-       if (i /= NF90_NOERR) &
-            call netcdf_error (istatus, message='nf90_sync error')
+       initialized = .false.
     end if
 
     ! deallocate layout information arrays
