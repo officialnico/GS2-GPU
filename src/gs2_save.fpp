@@ -94,6 +94,17 @@ module gs2_save
   !! I can think of no conceivable reason why this
   !! would ever need to be .false., but comments welcome. EGH
   logical, parameter :: abort_on_restart_fail = .true.
+
+  !> The NETCDF_PARALLEL directives include code for parallel
+  !> netcdf using HDF5 to write the output to a single restart file
+  !> The save_many/read_many flag allows the old style multiple file output
+  !> Here we set a run time flag to enable us to handle some of the different
+  !> paths through the code at run time rather than with ifdef mazes
+#ifdef NETCDF_PARALLEL
+  logical, parameter :: has_netcdf_parallel = .true.
+#else
+  logical, parameter :: has_netcdf_parallel = .false.
+#endif
   
 # endif
 
@@ -161,12 +172,11 @@ contains
     character (10) :: suffix
     integer :: i, n_elements, ierr
     integer :: total_elements
-# ifdef NETCDF_PARALLEL
     integer, dimension(3) :: start_pos, counts
     integer, parameter :: tmpunit = 348
-# endif
     logical :: exit
     logical :: local_init
+    logical :: is_one_file_per_processor
     logical :: save_glo_info_and_grids_local, save_velocities_info
     logical :: should_define_single_entry_variables
     integer, parameter :: verb = 3
@@ -196,11 +206,14 @@ contains
 
     call debug_message(verb, 'gs2_save::gs2_save_for_restart checking init')
 
-    IF (PRESENT(distfn)) THEN
+    ! Decide if we want one file per processor or not
+    is_one_file_per_processor = save_many .or. (.not. has_netcdf_parallel)
+    
+    if (present(distfn)) then
        local_init=initialized_dfn
-    ELSE
+    else
        local_init=initialized
-    END IF
+    end if
 
     if (present(save_glo_info_and_grids)) then
         save_glo_info_and_grids_local = save_glo_info_and_grids
@@ -216,42 +229,31 @@ contains
 
     if (.not.local_init) then
 
-       IF (PRESENT(distfn)) THEN
+       if (present(distfn)) then
           initialized_dfn=.true.
-       ELSE
+       else
           initialized = .true.
-       END IF
+       end if
 
        file_proc = trim(restart_file)
 
-       IF (PRESENT(fileopt)) THEN
+       if (present(fileopt)) then
           file_proc=trim(file_proc)//trim(fileopt)
-       END IF
+       end if
 
-! The NETCDF_PARALLEL directives include code for parallel
-! netcdf using HDF5 to write the output to a single restart file
-! The read_many flag allows the old style multiple file output
-       IF (PRESENT(distfn)) THEN
-# ifdef NETCDF_PARALLEL
-          if(save_many) then
-# endif
-             WRITE (suffix,'(a5,i0)') '.dfn.', iproc
-# ifdef NETCDF_PARALLEL
+       if (present(distfn)) then
+          if (is_one_file_per_processor) then
+             write (suffix,'(a5,i0)') '.dfn.', iproc
           else
-             WRITE (suffix,'(a4)') '.dfn'
+             write (suffix,'(a4)') '.dfn'
           endif
-# endif
-       ELSE
-# ifdef NETCDF_PARALLEL
-          if(save_many) then
-# endif
-             WRITE (suffix,'(a1,i0)') '.', iproc
-# ifdef NETCDF_PARALLEL
+       else
+          if (is_one_file_per_processor) then
+             write (suffix,'(a1,i0)') '.', iproc
           else
-             WRITE (suffix,*) ''
+             write (suffix,*) ''
           endif
-# endif
-       END IF
+       end if
 
        file_proc = trim(trim(file_proc)//adjustl(suffix))
 
@@ -259,11 +261,8 @@ contains
        call debug_message(verb, 'file proc is')
        call debug_message(verb, file_proc)
 
-# ifdef NETCDF_PARALLEL
-       if(save_many) then
-# endif
+       if (is_one_file_per_processor) then
           istatus = nf90_create (file_proc, NF90_CLOBBER, ncid)
-# ifdef NETCDF_PARALLEL
        else
           call debug_message(verb, &
             'gs2_save::gs2_save_for_restart calling barrier before delete file')
@@ -278,11 +277,14 @@ contains
 
           call barrier
           call debug_message(verb, &
-            'gs2_save::gs2_save_for_restart called barrier before opening')
-! If using netcdf version 4.1.2 or older replace NF90_MPIIO with NF90_CLOBBER
+               'gs2_save::gs2_save_for_restart called barrier before opening')
+
+# ifdef NETCDF_PARALLEL          
+          ! If using netcdf version 4.1.2 or older replace NF90_MPIIO with NF90_CLOBBER
           istatus = nf90_create_par (file_proc, IOR(NF90_HDF5,NF90_MPIIO), ncid=ncid, comm=mp_comm, info=mp_info)
+# endif          
        end if
-# endif
+
 
        if (istatus /= NF90_NOERR) then
           ierr = error_unit()
@@ -290,16 +292,17 @@ contains
           goto 1
        end if
 
-# ifdef NETCDF_PARALLEL
-       if(.not.save_many) then
+       if (.not.is_one_file_per_processor) then
+# ifdef NETCDF_PARALLEL         
           istatus = nf90_put_att(ncid, NF90_GLOBAL, 'layout', layout)
           if (istatus /= NF90_NOERR) then
              ierr = error_unit()
              write(ierr,*) "nf90_put_attr error: ", nf90_strerror(istatus)
              goto 1
           end if
-       endif
 # endif
+       end if
+
        call debug_message(verb, 'gs2_save::gs2_save_for_restart defining dimensions')
 
        istatus = nf90_def_dim (ncid, "theta", 2*ntgrid+1, thetaid)
@@ -316,15 +319,12 @@ contains
           goto 1
        end if
 
-# ifdef NETCDF_PARALLEL
-       if(save_many) then
-# endif
+       if(is_one_file_per_processor) then
           istatus = nf90_def_dim (ncid, "glo", n_elements, gloid)
-# ifdef NETCDF_PARALLEL
        else
           istatus = nf90_def_dim (ncid, "glo", total_elements, gloid)
        endif
-# endif
+
        if (istatus /= NF90_NOERR) then
           ierr = error_unit()
           write(ierr,*) "nf90_def_dim glo error: ", nf90_strerror(istatus)
@@ -347,11 +347,7 @@ contains
 
        ! Decide if this processor should take part in defining items
        ! which should only appear once in outputs.
-# ifdef NETCDF_PARALLEL
-       should_define_single_entry_variables = ((.not. save_many) .or. (save_many .and. proc0))
-# else
-       should_define_single_entry_variables = proc0
-# endif
+       should_define_single_entry_variables = proc0 .or. (.not. is_one_file_per_processor)
 
        !For saving distribution function
        IF (save_glo_info_and_grids_local .and. should_define_single_entry_variables) THEN
@@ -854,9 +850,8 @@ contains
     end if
 
     call debug_message(verb, 'gs2_save::gs2_save_for_restart writing scalars')
-# ifdef NETCDF_PARALLEL
-    if(save_many .or. iproc == 0) then
-# endif
+    
+    if(is_one_file_per_processor .or. iproc == 0) then
 
        istatus = nf90_put_var (ncid, delt0id, code_dt)
        if (istatus /= NF90_NOERR) then
@@ -961,9 +956,8 @@ contains
           write (ierr,*) "nf90_put_var vnm(2) error: ", nf90_strerror(istatus)
           goto 1
        end if
-# ifdef NETCDF_PARALLEL
+
     endif
-# endif
 
 1   continue
 
@@ -1019,35 +1013,30 @@ contains
     tmpr = real(g)
     call debug_message(verb, 'gs2_save::gs2_save_for_restart writing dist fn')
 
-# ifdef NETCDF_PARALLEL
-    if(save_many) then
-# endif
+
+    if (is_one_file_per_processor) then
        istatus = nf90_put_var (ncid, gr_id, tmpr)
-#ifdef NETCDF_PARALLEL
     else
+#ifdef NETCDF_PARALLEL       
        istatus = nf90_var_par_access(ncid, gr_id, NF90_COLLECTIVE)
        istatus = nf90_var_par_access(ncid, gi_id, NF90_COLLECTIVE)
-
+# endif
        start_pos = (/1,1,g_lo%llim_proc+1/)
        counts = (/2*ntgrid+1, 2, n_elements/)
 
        istatus = nf90_put_var (ncid, gr_id, tmpr, start=start_pos, count=counts)
     endif
-# endif
 
     if (istatus /= NF90_NOERR) call netcdf_error (istatus, ncid, gr_id, &
          var='gr put')
 
     tmpr = aimag(g)
-# ifdef NETCDF_PARALLEL
-    if(save_many) then
-# endif
+
+    if (is_one_file_per_processor) then
        istatus = nf90_put_var (ncid, gi_id, tmpr)
-#ifdef NETCDF_PARALLEL
     else
        istatus = nf90_put_var (ncid, gi_id, tmpr, start=start_pos, count=counts)
     endif
-# endif
 
     if (istatus /= NF90_NOERR) call netcdf_error (istatus, ncid, gi_id, &
          var = 'gi put')
@@ -1058,251 +1047,232 @@ contains
 #ifndef SHMEM
        if(allocated(gexp_1)) then
 #else
-          if(associated(gexp_1)) then
+       if(associated(gexp_1)) then
 #endif
-             tmpr = real(gexp_1)
-# ifdef NETCDF_PARALLEL
-             if(save_many) then
-# endif
-                istatus = nf90_put_var (ncid, gexp_1_r_id, tmpr)
+          tmpr = real(gexp_1)
+
+          if (is_one_file_per_processor) then
+             istatus = nf90_put_var (ncid, gexp_1_r_id, tmpr)
+          else
 #ifdef NETCDF_PARALLEL
-             else
-                istatus = nf90_var_par_access(ncid, gexp_1_r_id, NF90_COLLECTIVE)
-                istatus = nf90_var_par_access(ncid, gexp_1_i_id, NF90_COLLECTIVE)
+             istatus = nf90_var_par_access(ncid, gexp_1_r_id, NF90_COLLECTIVE)
+             istatus = nf90_var_par_access(ncid, gexp_1_i_id, NF90_COLLECTIVE)
+#endif             
+             start_pos = (/1,1,g_lo%llim_proc+1/)
+             counts = (/2*ntgrid+1, 2, n_elements/)
+             
+             istatus = nf90_put_var (ncid, gexp_1_r_id, tmpr, start=start_pos, count=counts)
+          end if
 
-                start_pos = (/1,1,g_lo%llim_proc+1/)
-                counts = (/2*ntgrid+1, 2, n_elements/)
+          if (istatus /= NF90_NOERR) call netcdf_error (istatus, ncid, gexp_1_r_id, &
+               var='gexp_1_r put')
+          
+          tmpr = aimag(gexp_1)
 
-                istatus = nf90_put_var (ncid, gexp_1_r_id, tmpr, start=start_pos, count=counts)
-             endif
-# endif
-
-             if (istatus /= NF90_NOERR) call netcdf_error (istatus, ncid, gexp_1_r_id, &
-                  var='gexp_1_r put')
-
-             tmpr = aimag(gexp_1)
-# ifdef NETCDF_PARALLEL
-             if(save_many) then
-# endif
-                istatus = nf90_put_var (ncid, gexp_1_i_id, tmpr)
-#ifdef NETCDF_PARALLEL
-             else
-                istatus = nf90_put_var (ncid, gexp_1_i_id, tmpr, start=start_pos, count=counts)
-             endif
-# endif
-
-             if (istatus /= NF90_NOERR) call netcdf_error (istatus, ncid, gexp_1_i_id, &
-                  var = 'gexp_1_i put')
+          if (is_one_file_per_processor) then
+             istatus = nf90_put_var (ncid, gexp_1_i_id, tmpr)
+          else
+             istatus = nf90_put_var (ncid, gexp_1_i_id, tmpr, start=start_pos, count=counts)
           endif
 
-          !Explicit source term gexp_2
-          if(allocated(gexp_2)) then
-             tmpr = real(gexp_2)
-# ifdef NETCDF_PARALLEL
-             if(save_many) then
-# endif
-                istatus = nf90_put_var (ncid, gexp_2_r_id, tmpr)
-#ifdef NETCDF_PARALLEL
-             else
-                istatus = nf90_var_par_access(ncid, gexp_2_r_id, NF90_COLLECTIVE)
-                istatus = nf90_var_par_access(ncid, gexp_2_i_id, NF90_COLLECTIVE)
-
-                start_pos = (/1,1,g_lo%llim_proc+1/)
-                counts = (/2*ntgrid+1, 2, n_elements/)
-
-                istatus = nf90_put_var (ncid, gexp_2_r_id, tmpr, start=start_pos, count=counts)
-             endif
-# endif
-
-             if (istatus /= NF90_NOERR) call netcdf_error (istatus, ncid, gexp_2_r_id, &
-                  var='gexp_2_r put')
-
-             tmpr = aimag(gexp_2)
-# ifdef NETCDF_PARALLEL
-             if(save_many) then
-# endif
-                istatus = nf90_put_var (ncid, gexp_2_i_id, tmpr)
-#ifdef NETCDF_PARALLEL
-             else
-                istatus = nf90_put_var (ncid, gexp_2_i_id, tmpr, start=start_pos, count=counts)
-             endif
-# endif
-
-             if (istatus /= NF90_NOERR) call netcdf_error (istatus, ncid, gexp_2_i_id, &
-                  var = 'gexp_2_i put')
-          endif
-
-          !Explicit source term gexp_3
-          if(allocated(gexp_3)) then
-             tmpr = real(gexp_3)
-# ifdef NETCDF_PARALLEL
-             if(save_many) then
-# endif
-                istatus = nf90_put_var (ncid, gexp_3_r_id, tmpr)
-#ifdef NETCDF_PARALLEL
-             else
-                istatus = nf90_var_par_access(ncid, gexp_3_r_id, NF90_COLLECTIVE)
-                istatus = nf90_var_par_access(ncid, gexp_3_i_id, NF90_COLLECTIVE)
-
-                start_pos = (/1,1,g_lo%llim_proc+1/)
-                counts = (/2*ntgrid+1, 2, n_elements/)
-
-                istatus = nf90_put_var (ncid, gexp_3_r_id, tmpr, start=start_pos, count=counts)
-             endif
-# endif
-
-             if (istatus /= NF90_NOERR) call netcdf_error (istatus, ncid, gexp_3_r_id, &
-                  var='gexp_3_r put')
-
-             tmpr = aimag(gexp_3)
-# ifdef NETCDF_PARALLEL
-             if(save_many) then
-# endif
-                istatus = nf90_put_var (ncid, gexp_3_i_id, tmpr)
-#ifdef NETCDF_PARALLEL
-             else
-                istatus = nf90_put_var (ncid, gexp_3_i_id, tmpr, start=start_pos, count=counts)
-             endif
-# endif
-
-             if (istatus /= NF90_NOERR) call netcdf_error (istatus, ncid, gexp_3_i_id, &
-                  var = 'gexp_3_i put')
-          endif
+          if (istatus /= NF90_NOERR) call netcdf_error (istatus, ncid, gexp_1_i_id, &
+               var = 'gexp_1_i put')
        end if
 
-       ! For saving distribution function
-       IF (save_glo_info_and_grids_local) THEN
-          ! Fill processor and layout information for plotting purposes
-          if (proc0) then
-             istatus = nf90_put_var (ncid, iglo_kykxsel_id, iglo_kykxsel)
-
-             !Check store was successful
-             IF (istatus /= NF90_NOERR) CALL netcdf_error (istatus, ncid, iglo_kykxsel_id)
-
-
-             istatus = nf90_put_var (ncid, procid_kykxsel_id, procid_kykxsel)
-
-             !Check store was successful
-             IF (istatus /= NF90_NOERR) CALL netcdf_error (istatus, ncid, procid_kykxsel_id)
+       !Explicit source term gexp_2
+       if(allocated(gexp_2)) then
+          tmpr = real(gexp_2)
+          
+          if(is_one_file_per_processor) then
+             istatus = nf90_put_var (ncid, gexp_2_r_id, tmpr)
+          else
+#ifdef NETCDF_PARALLEL             
+             istatus = nf90_var_par_access(ncid, gexp_2_r_id, NF90_COLLECTIVE)
+             istatus = nf90_var_par_access(ncid, gexp_2_i_id, NF90_COLLECTIVE)
+#endif             
+             start_pos = (/1,1,g_lo%llim_proc+1/)
+             counts = (/2*ntgrid+1, 2, n_elements/)
+             
+             istatus = nf90_put_var (ncid, gexp_2_r_id, tmpr, start=start_pos, count=counts)
           endif
 
-          !Store variable iglo_llim_proc
-          istatus = nf90_put_var (ncid, iglo_llim_proc_id, g_lo%llim_proc)
+          if (istatus /= NF90_NOERR) call netcdf_error (istatus, ncid, gexp_2_r_id, &
+               var='gexp_2_r put')
 
-          !Check store was successful
-          IF (istatus /= NF90_NOERR) CALL netcdf_error (istatus, ncid, iglo_llim_proc_id)
+          tmpr = aimag(gexp_2)
 
-          if(proc0) then ! only save grids on proc0
-             !Store variable jtwist
-             istatus = nf90_put_var (ncid, jtwist_id, jtwist_out)
-
-             !Check store was successful
-             IF (istatus /= NF90_NOERR) CALL netcdf_error (istatus, ncid, jtwist_id)
-
-             !Store variable theta_grid
-             istatus = nf90_put_var (ncid, theta_grid_id, theta)
-
-             !Check store was successful
-             IF (istatus /= NF90_NOERR) CALL netcdf_error (istatus, ncid, theta_grid_id)
-
-             !Store variable ky_grid
-             istatus = nf90_put_var (ncid, ky_grid_id, aky)
-
-             !Check store was successful
-             IF (istatus /= NF90_NOERR) CALL netcdf_error (istatus, ncid, ky_grid_id)
-
-             !Store variable kx_grid
-             istatus = nf90_put_var (ncid, kx_grid_id, akx)
-
-             !Check store was successful
-             IF (istatus /= NF90_NOERR) CALL netcdf_error (istatus, ncid, kx_grid_id)
-             ! Fill energy and lambda information
-
-             !Store variable energy
-             istatus = nf90_put_var (ncid, energy_id, energy)
-
-             !Check store was successful
-             IF (istatus /= NF90_NOERR) CALL netcdf_error (istatus, ncid, energy_id)
-
-             !Store variable lambda
-             istatus = nf90_put_var (ncid, lambda_id, al)
-
-             !Check store was successful
-             IF (istatus /= NF90_NOERR) CALL netcdf_error (istatus, ncid, lambda_id)
+          if (is_one_file_per_processor) then
+             istatus = nf90_put_var (ncid, gexp_2_i_id, tmpr)
+          else
+             istatus = nf90_put_var (ncid, gexp_2_i_id, tmpr, start=start_pos, count=counts)
           endif
-       END IF
 
-       if(save_velocities_info) then
-          !Fill velocity variables
+          if (istatus /= NF90_NOERR) call netcdf_error (istatus, ncid, gexp_2_i_id, &
+               var = 'gexp_2_i put')
+       end if
 
-          !Store variable vpa
-          istatus = nf90_put_var (ncid, vpa_id, vpa)
+       !Explicit source term gexp_3
+       if(allocated(gexp_3)) then
+          tmpr = real(gexp_3)
 
-          !Check store was successful
-          IF (istatus /= NF90_NOERR) CALL netcdf_error (istatus, ncid, vpa_id)
-
-          !Store variable vperp2
-          istatus = nf90_put_var (ncid, vperp2_id, vperp2)
-
-          !Check store was successful
-          IF (istatus /= NF90_NOERR) CALL netcdf_error (istatus, ncid, vperp2_id)
-       endif
-
-# ifdef NETCDF_PARALLEL
-       if(save_many .or. iproc == 0) then
+          if (is_one_file_per_processor) then
+             istatus = nf90_put_var (ncid, gexp_3_r_id, tmpr)
+          else
+#ifdef NETCDF_PARALLEL            
+             istatus = nf90_var_par_access(ncid, gexp_3_r_id, NF90_COLLECTIVE)
+             istatus = nf90_var_par_access(ncid, gexp_3_i_id, NF90_COLLECTIVE)
 # endif
-
-          if (.not. allocated(ftmpr)) allocate (ftmpr(2*ntgrid+1,ntheta0,naky))
-          if (.not. allocated(ftmpi)) allocate (ftmpi(2*ntgrid+1,ntheta0,naky))
-
-          if (fphi > epsilon(0.)) then
-             ftmpr = real(phinew)
-             istatus = nf90_put_var (ncid, phir_id, ftmpr)
-             if (istatus /= NF90_NOERR) call netcdf_error (istatus, ncid, phir_id, &
-                  var = 'phir put')
-
-             ftmpi = aimag(phinew)
-             istatus = nf90_put_var (ncid, phii_id, ftmpi)
-             if (istatus /= NF90_NOERR) call netcdf_error (istatus, ncid, phii_id, &
-                  var = 'phir put')
+             start_pos = (/1,1,g_lo%llim_proc+1/)
+             counts = (/2*ntgrid+1, 2, n_elements/)
+             
+             istatus = nf90_put_var (ncid, gexp_3_r_id, tmpr, start=start_pos, count=counts)
           end if
 
-          if (fapar > epsilon(0.)) then
-             ftmpr = real(aparnew)
-             istatus = nf90_put_var (ncid, aparr_id, ftmpr)
-             if (istatus /= NF90_NOERR) call netcdf_error (istatus, ncid, aparr_id)
+          if (istatus /= NF90_NOERR) call netcdf_error (istatus, ncid, gexp_3_r_id, &
+               var='gexp_3_r put')
+          
+          tmpr = aimag(gexp_3)
 
-             ftmpi = aimag(aparnew)
-             istatus = nf90_put_var (ncid, apari_id, ftmpi)
-             if (istatus /= NF90_NOERR) call netcdf_error (istatus, ncid, apari_id)
+          if (is_one_file_per_processor) then
+             istatus = nf90_put_var (ncid, gexp_3_i_id, tmpr)
+          else
+             istatus = nf90_put_var (ncid, gexp_3_i_id, tmpr, start=start_pos, count=counts)
           end if
 
-          if (fbpar > epsilon(0.)) then
-             ftmpr = real(bparnew)
-             istatus = nf90_put_var (ncid, bparr_id, ftmpr)
-             if (istatus /= NF90_NOERR) call netcdf_error (istatus, ncid, bparr_id)
+          if (istatus /= NF90_NOERR) call netcdf_error (istatus, ncid, gexp_3_i_id, &
+               var = 'gexp_3_i put')
+       end if
+    end if
 
-             ftmpi = aimag(bparnew)
-             istatus = nf90_put_var (ncid, bpari_id, ftmpi)
-             if (istatus /= NF90_NOERR) call netcdf_error (istatus, ncid, bpari_id)
-          end if
+    ! For saving distribution function
+    if (save_glo_info_and_grids_local) then
+       ! Fill processor and layout information for plotting purposes
+       if (proc0) then
+          istatus = nf90_put_var (ncid, iglo_kykxsel_id, iglo_kykxsel)
+
+          !Check store was successful
+          if (istatus /= NF90_NOERR) call netcdf_error (istatus, ncid, iglo_kykxsel_id)
+
+
+          istatus = nf90_put_var (ncid, procid_kykxsel_id, procid_kykxsel)
+
+          !Check store was successful
+          if (istatus /= NF90_NOERR) call netcdf_error (istatus, ncid, procid_kykxsel_id)
+       end if
+
+       !Store variable iglo_llim_proc
+       istatus = nf90_put_var (ncid, iglo_llim_proc_id, g_lo%llim_proc)
+
+       !Check store was successful
+       if (istatus /= NF90_NOERR) call netcdf_error (istatus, ncid, iglo_llim_proc_id)
+
+       if (proc0) then ! only save grids on proc0
+          !Store variable jtwist
+          istatus = nf90_put_var (ncid, jtwist_id, jtwist_out)
+
+          !Check store was successful
+          if (istatus /= NF90_NOERR) call netcdf_error (istatus, ncid, jtwist_id)
+
+          !Store variable theta_grid
+          istatus = nf90_put_var (ncid, theta_grid_id, theta)
+
+          !Check store was successful
+          if (istatus /= NF90_NOERR) call netcdf_error (istatus, ncid, theta_grid_id)
+
+          !Store variable ky_grid
+          istatus = nf90_put_var (ncid, ky_grid_id, aky)
+
+          !Check store was successful
+          if (istatus /= NF90_NOERR) call netcdf_error (istatus, ncid, ky_grid_id)
+
+          !Store variable kx_grid
+          istatus = nf90_put_var (ncid, kx_grid_id, akx)
+
+          !Check store was successful
+          if (istatus /= NF90_NOERR) call netcdf_error (istatus, ncid, kx_grid_id)
+          ! Fill energy and lambda information
+
+          !Store variable energy
+          istatus = nf90_put_var (ncid, energy_id, energy)
+
+          !Check store was successful
+          if (istatus /= NF90_NOERR) call netcdf_error (istatus, ncid, energy_id)
+
+          !Store variable lambda
+          istatus = nf90_put_var (ncid, lambda_id, al)
+
+          !Check store was successful
+          if (istatus /= NF90_NOERR) call netcdf_error (istatus, ncid, lambda_id)
+       end if
+    end if
+
+    if(save_velocities_info) then
+       !Fill velocity variables
+
+       !Store variable vpa
+       istatus = nf90_put_var (ncid, vpa_id, vpa)
+
+       !Check store was successful
+       if (istatus /= NF90_NOERR) call netcdf_error (istatus, ncid, vpa_id)
+
+       !Store variable vperp2
+       istatus = nf90_put_var (ncid, vperp2_id, vperp2)
+
+       !Check store was successful
+       if (istatus /= NF90_NOERR) call netcdf_error (istatus, ncid, vperp2_id)
+    end if
+
+    if(is_one_file_per_processor .or. iproc == 0) then
+       if (.not. allocated(ftmpr)) allocate (ftmpr(2*ntgrid+1,ntheta0,naky))
+       if (.not. allocated(ftmpi)) allocate (ftmpi(2*ntgrid+1,ntheta0,naky))
+
+       if (fphi > epsilon(0.)) then
+          ftmpr = real(phinew)
+          istatus = nf90_put_var (ncid, phir_id, ftmpr)
+          if (istatus /= NF90_NOERR) call netcdf_error (istatus, ncid, phir_id, &
+               var = 'phir put')
+
+          ftmpi = aimag(phinew)
+          istatus = nf90_put_var (ncid, phii_id, ftmpi)
+          if (istatus /= NF90_NOERR) call netcdf_error (istatus, ncid, phii_id, &
+               var = 'phir put')
+       end if
+
+       if (fapar > epsilon(0.)) then
+          ftmpr = real(aparnew)
+          istatus = nf90_put_var (ncid, aparr_id, ftmpr)
+          if (istatus /= NF90_NOERR) call netcdf_error (istatus, ncid, aparr_id)
+
+          ftmpi = aimag(aparnew)
+          istatus = nf90_put_var (ncid, apari_id, ftmpi)
+          if (istatus /= NF90_NOERR) call netcdf_error (istatus, ncid, apari_id)
+       end if
+
+       if (fbpar > epsilon(0.)) then
+          ftmpr = real(bparnew)
+          istatus = nf90_put_var (ncid, bparr_id, ftmpr)
+          if (istatus /= NF90_NOERR) call netcdf_error (istatus, ncid, bparr_id)
+
+          ftmpi = aimag(bparnew)
+          istatus = nf90_put_var (ncid, bpari_id, ftmpi)
+          if (istatus /= NF90_NOERR) call netcdf_error (istatus, ncid, bpari_id)
+       end if
 
        if (allocated(kx_shift)) then ! MR begin
           if (.not. allocated(stmp)) allocate (stmp(naky))
           stmp = kx_shift
           istatus = nf90_put_var (ncid, kx_shift_id, stmp)
           if (istatus /= NF90_NOERR) call netcdf_error &
-            (istatus, ncid, kx_shift_id, var = 'kx_shift put')
+               (istatus, ncid, kx_shift_id, var = 'kx_shift put')
        else
           if (.not. allocated(stmp)) allocate (stmp(naky))
           stmp = 0.
           istatus = nf90_put_var (ncid, kx_shift_id, stmp)
           if (istatus /= NF90_NOERR) call netcdf_error &
-            (istatus, ncid, kx_shift_id, var = 'kx_shift dummy')
+               (istatus, ncid, kx_shift_id, var = 'kx_shift dummy')
        endif ! MR end
-# ifdef NETCDF_PARALLEL
     end if
-# endif
+
 
     ! EGH Why don't we just close the file every time? As things stand
     ! if you reinitalise the timestep in a nonlinear run, but don't have
@@ -1357,18 +1327,19 @@ contains
     real, intent (in) :: fphi, fapar, fbpar
     character (20), INTENT (in), optional :: fileopt
 # ifdef NETCDF
-# ifdef NETCDF_PARALLEL
     integer, dimension(3) :: counts, start_pos
-# endif
     character (run_name_size) :: file_proc
     character (10) :: suffix
     character (len = 5) :: restart_layout
     integer :: i, n_elements, ierr
     real :: fac
     logical :: has_explicit_source_terms
+    logical :: is_one_file_per_processor
     logical, save :: explicit_warning_given = .false.
     n_elements = max(g_lo%ulim_proc-g_lo%llim_proc+1, 0)
 
+    is_one_file_per_processor = read_many .or. (.not. has_netcdf_parallel)
+    
     if (.not.initialized) then
        initialized = .true.
        file_proc = trim(restart_file)
@@ -1377,18 +1348,16 @@ contains
           file_proc=trim(file_proc)//trim(fileopt)
        END IF
 
-# ifdef NETCDF_PARALLEL
-       if(read_many) then
-# endif
+       if (is_one_file_per_processor) then
           write (suffix,'(a1,i0)') '.', iproc
           file_proc = trim(trim(file_proc)//adjustl(suffix))       
           istatus = nf90_open (file_proc, NF90_NOWRITE, ncid)
-# ifdef NETCDF_PARALLEL
        else
-! If using netcdf version 4.1.2 deleted NF90_MPIIO and the associated IOR
+# ifdef NETCDF_PARALLEL          
+          ! If using netcdf version 4.1.2 deleted NF90_MPIIO and the associated IOR
           istatus = nf90_open (file_proc, IOR(NF90_NOWRITE, NF90_MPIIO), ncid, comm=mp_comm, info=mp_info)
-       endif
-# endif
+# endif          
+       end if
 
        if (istatus /= NF90_NOERR) call netcdf_error (istatus, file=file_proc)
        
@@ -1427,15 +1396,13 @@ contains
        istatus = nf90_inquire_dimension (ncid, gloid, len=i)
        if (istatus /= NF90_NOERR) call netcdf_error (istatus, ncid, dimid=gloid,&
          abort=abort_on_restart_fail)
-#ifdef NETCDF_PARALLEL       
-       if(read_many) then
-#endif
+
+       if (is_one_file_per_processor) then
           if (i /= g_lo%ulim_proc-g_lo%llim_proc+1) write(*,*) 'Restart error: glo=? ',i,' : ',iproc
-#ifdef NETCDF_PARALLEL
        else
           if (i /= g_lo%ulim_world+1) write(*,*) 'Restart error: glo=? ',i,' : ',iproc
        endif
-#endif
+
        istatus = nf90_inquire_dimension (ncid, kyid, len=i)
        if (istatus /= NF90_NOERR) call netcdf_error (istatus, ncid, dimid=kyid,&
          abort=abort_on_restart_fail)
@@ -1445,7 +1412,6 @@ contains
        if (istatus /= NF90_NOERR) call netcdf_error (istatus, ncid, dimid=kxid,&
          abort=abort_on_restart_fail)
        if (i /= ntheta0) write(*,*) 'Restart error: ntheta0=? ',i,' : ',ntheta0,' : ',iproc
-
        
        if (fphi > epsilon(0.)) then
           istatus = nf90_inq_varid (ncid, "phi_r", phir_id)
@@ -1553,31 +1519,22 @@ contains
 
     tmpr = 0.; tmpi = 0.
 
-
-# ifdef NETCDF_PARALLEL
-    if(read_many) then
-# endif
+    if (is_one_file_per_processor) then
        istatus = nf90_get_var (ncid, gr_id, tmpr)
-#ifdef NETCDF_PARALLEL
     else
        start_pos = (/1,1,g_lo%llim_proc+1/)
        counts = (/2*ntgrid+1, 2, n_elements/)
        istatus = nf90_get_var (ncid, gr_id, tmpr, start=start_pos, count=counts)
     end if
-# endif
 
    if (istatus /= NF90_NOERR) call netcdf_error (istatus, ncid, gr_id,&
          abort=abort_on_restart_fail, var='gr')
 
-# ifdef NETCDF_PARALLEL
-    if(read_many) then
-# endif
+    if(is_one_file_per_processor) then
        istatus = nf90_get_var (ncid, gi_id, tmpi)
-#ifdef NETCDF_PARALLEL
     else
        istatus = nf90_get_var (ncid, gi_id, tmpi, start=start_pos, count=counts)
     end if
-# endif
 
     if (istatus /= NF90_NOERR) call netcdf_error (istatus, ncid, gi_id,&
          abort=abort_on_restart_fail, var='gi')
@@ -1592,30 +1549,22 @@ contains
 #else
        if(associated(gexp_1)) then
 #endif
-# ifdef NETCDF_PARALLEL
-          if(read_many) then
-# endif
+          if (is_one_file_per_processor) then
              istatus = nf90_get_var (ncid, gexp_1_r_id, tmpr)
-#ifdef NETCDF_PARALLEL
           else
              start_pos = (/1,1,g_lo%llim_proc+1/)
              counts = (/2*ntgrid+1, 2, n_elements/)
              istatus = nf90_get_var (ncid, gexp_1_r_id, tmpr, start=start_pos, count=counts)
           end if
-# endif
 
           if (istatus /= NF90_NOERR) call netcdf_error (istatus, ncid, gexp_1_r_id,&
                var='gexp_1_r')
 
-# ifdef NETCDF_PARALLEL
-          if(read_many) then
-# endif
+          if(is_one_file_per_processor) then
              istatus = nf90_get_var (ncid, gexp_1_i_id, tmpi)
-#ifdef NETCDF_PARALLEL
           else
              istatus = nf90_get_var (ncid, gexp_1_i_id, tmpi, start=start_pos, count=counts)
           end if
-# endif
 
           if (istatus /= NF90_NOERR) call netcdf_error (istatus, ncid, gexp_1_i_id,&
                var='gexp_1_i')
@@ -1626,30 +1575,22 @@ contains
 
        ! Explicit source term
        if(allocated(gexp_2)) then
-# ifdef NETCDF_PARALLEL
-          if(read_many) then
-# endif
+          if (is_one_file_per_processor) then
              istatus = nf90_get_var (ncid, gexp_2_r_id, tmpr)
-#ifdef NETCDF_PARALLEL
           else
              start_pos = (/1,1,g_lo%llim_proc+1/)
              counts = (/2*ntgrid+1, 2, n_elements/)
              istatus = nf90_get_var (ncid, gexp_2_r_id, tmpr, start=start_pos, count=counts)
           end if
-# endif
 
           if (istatus /= NF90_NOERR) call netcdf_error (istatus, ncid, gexp_2_r_id,&
                var='gexp_2_r')
 
-# ifdef NETCDF_PARALLEL
-          if(read_many) then
-# endif
+          if(is_one_file_per_processor) then
              istatus = nf90_get_var (ncid, gexp_2_i_id, tmpi)
-#ifdef NETCDF_PARALLEL
           else
              istatus = nf90_get_var (ncid, gexp_2_i_id, tmpi, start=start_pos, count=counts)
           end if
-# endif
 
           if (istatus /= NF90_NOERR) call netcdf_error (istatus, ncid, gexp_2_i_id,&
                var='gexp_2_i')
@@ -1660,30 +1601,22 @@ contains
 
        ! Explicit source term
        if(allocated(gexp_3)) then
-# ifdef NETCDF_PARALLEL
-          if(read_many) then
-# endif
+          if (is_one_file_per_processor) then
              istatus = nf90_get_var (ncid, gexp_3_r_id, tmpr)
-#ifdef NETCDF_PARALLEL
           else
              start_pos = (/1,1,g_lo%llim_proc+1/)
              counts = (/2*ntgrid+1, 2, n_elements/)
              istatus = nf90_get_var (ncid, gexp_3_r_id, tmpr, start=start_pos, count=counts)
           end if
-# endif
 
           if (istatus /= NF90_NOERR) call netcdf_error (istatus, ncid, gexp_3_r_id,&
                var='gexp_3_r')
 
-# ifdef NETCDF_PARALLEL
-          if(read_many) then
-# endif
+          if (is_one_file_per_processor) then
              istatus = nf90_get_var (ncid, gexp_3_i_id, tmpi)
-#ifdef NETCDF_PARALLEL
           else
              istatus = nf90_get_var (ncid, gexp_3_i_id, tmpi, start=start_pos, count=counts)
           end if
-# endif
 
           if (istatus /= NF90_NOERR) call netcdf_error (istatus, ncid, gexp_3_i_id,&
                var='gexp_3_i')
