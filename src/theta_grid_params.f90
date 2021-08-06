@@ -343,6 +343,8 @@ contains
       "theta_grid_params::init_theta_grid_params call read_parameters")
     call read_parameters(theta_grid_parameters_config_in)
 
+    betaprim = 0.0
+
     call debug_message(verb, "theta_grid_params::init_theta_grid_params end")
   end subroutine init_theta_grid_params
 
