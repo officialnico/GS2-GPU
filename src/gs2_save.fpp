@@ -62,33 +62,26 @@ module gs2_save
   real, allocatable, dimension(:,:,:) :: tmpr, tmpi, ftmpr, ftmpi
   real, allocatable, dimension(:) :: stmp  ! MR: tmp var for kx_shift
   real, allocatable, dimension(:) :: atmp
-  integer (kind_nf) :: ncid, thetaid, signid, gloid, kyid, kxid, nk_stir_dim, char5_dim
+  ! Netcdf ids for quantities referenced in multiple routines.
+  integer (kind_nf) :: ncid, thetaid, signid, gloid, kyid, kxid, nk_stir_dim
   integer (kind_nf) :: phir_id, phii_id, aparr_id, apari_id, bparr_id, bpari_id
-  integer (kind_nf) :: kx_shift_id   ! MR: added to save kx_shift variable
   integer (kind_nf) :: t0id, gr_id, gi_id, vnm1id, vnm2id
   integer (kind_nf) :: delt0id, delt1id, delt2id, delt_max_id
   integer (kind_nf) :: gexp_1_r_id, gexp_1_i_id
   integer (kind_nf) :: gexp_2_r_id, gexp_2_i_id
   integer (kind_nf) :: gexp_3_r_id, gexp_3_i_id
-  integer (kind_nf) :: layout_id, ntheta0_id, naky_id, nlambda_id, negrid_id, nspec_id
+  integer (kind_nf) :: layout_id, kx_shift_id
   integer (kind_nf) :: current_scan_parameter_value_id
   integer (kind_nf) :: a_antr_id, b_antr_id, a_anti_id, b_anti_id
-!<DD> Added for saving distribution function
-  integer (kind_nf) :: iglo_kykxsel_id, procid_kykxsel_id, iglo_llim_proc_id ! MRH added layout information for plotting
-  integer (kind_nf) :: theta_grid_id, kx_grid_id, ky_grid_id, jtwist_id ! MRH added grid information for plotting
-  INTEGER (KIND_NF) :: egridid,lgridid, vpa_id, vperp2_id
-  INTEGER (KIND_NF) :: energy_id, lambda_id
-  INTEGER (KIND_NF) :: nspecid, spec_id
-  ! MRH arrays holding information about the layout for plotting
-  integer, dimension (:,:,:,:,:), allocatable :: procid_kykxsel, iglo_kykxsel
-  logical :: include_parameter_scan = .true.
   !> This parameter controls whether or not gs2
-  !! aborts if it cannot read the restart file (and
-  !! it has been told to load g from  a restart).
-  !! It is set to .true..
-  !! I can think of no conceivable reason why this
-  !! would ever need to be .false., but comments welcome. EGH
+  !> aborts if it cannot read the restart file (and
+  !> it has been told to load g from  a restart).
+  !> It is set to .true..
+  !> I can think of no conceivable reason why this
+  !> would ever need to be .false., but comments welcome. EGH
   logical, parameter :: abort_on_restart_fail = .true.
+  !> Do we save the scan parameter or not?
+  logical, parameter :: include_parameter_scan = .true.
 
   !> The NETCDF_PARALLEL directives include code for parallel
   !> netcdf using HDF5 to write the output to a single restart file
@@ -161,6 +154,8 @@ contains
     !> Control if \(v_\parallel, v_\perp\) information is saved
     logical, intent (in), optional :: save_velocities
 # ifdef NETCDF
+    !> Arrays holding information about the layout for plotting
+    integer, dimension (:,:,:,:,:), allocatable :: procid_kykxsel, iglo_kykxsel
     character (run_name_size) :: file_proc
     integer :: i, n_elements, ierr
     integer :: total_elements
@@ -173,6 +168,13 @@ contains
     logical :: should_define_single_entry_variables
     integer, parameter :: verb = 3
     integer :: iglo
+    ! Netcdf ids for variables only handled in this routine
+    integer (kind_nf) :: iglo_kykxsel_id, procid_kykxsel_id, iglo_llim_proc_id
+    integer (kind_nf) :: theta_grid_id, kx_grid_id, ky_grid_id, jtwist_id
+    integer (kind_nf) :: egridid,lgridid, vpa_id, vperp2_id
+    integer (kind_nf) :: energy_id, lambda_id
+    integer (kind_nf) :: nspecid, spec_id, char5_dim
+    integer (kind_nf) :: ntheta0_id, naky_id, nlambda_id, negrid_id, nspec_id
 
 !*********-----------------------_**********************
 
