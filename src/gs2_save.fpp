@@ -835,6 +835,10 @@ contains
     if (istatus /= NF90_NOERR) then
        call debug_message(verb, 'gs2_save::gs2_save_for_restart closing file at the continue point')
        i = nf90_close (ncid)
+
+       ! Deallocate module arrays
+       call deallocate_arrays
+
        return
     end if
 
@@ -1145,17 +1149,17 @@ contains
     if (i /= NF90_NOERR) &
          call netcdf_error (istatus, message='nf90_close error')
 
-    ! deallocate layout information arrays
-    if(allocated(iglo_kykxsel)) deallocate(iglo_kykxsel)
-    if(allocated(procid_kykxsel)) deallocate(procid_kykxsel)
+    ! Deallocate local arrays
+    if (allocated(iglo_kykxsel)) deallocate(iglo_kykxsel)
+    if (allocated(procid_kykxsel)) deallocate(procid_kykxsel)
+
+    ! Deallocate module arrays
+    call deallocate_arrays
 
 # else
-
     if (proc0) write (error_unit(),*) &
          'WARNING: gs2_save_for_restart is called without netcdf library'
-
 # endif
-
   end subroutine gs2_save_for_restart
   
   !> FIXME : Add documentation
@@ -1538,13 +1542,13 @@ contains
        write(error_unit(),*) "nf90_close error: ", nf90_strerror(istatus),' ',iproc
     end if
 
-# else
+    ! Deallocate modul level arrays
+    call deallocate_arrays
     
+# else
     write (error_unit(),*) &
          'ERROR: gs2_restore_many is called without netcdf'
-
 # endif
-
   end subroutine gs2_restore_many
 
   !> This routine writes a passed square complex array to a file
@@ -1923,6 +1927,12 @@ contains
 
   !> FIXME : Add documentation  
   subroutine finish_gs2_save
+    implicit none
+    call deallocate_arrays
+  end subroutine finish_gs2_save
+
+  !> Deallocate all module level arrays
+  subroutine deallocate_arrays
 #ifdef NETCDF    
     if (allocated(tmpr)) deallocate(tmpr)
     if (allocated(tmpi)) deallocate(tmpi)
@@ -1931,7 +1941,7 @@ contains
     if (allocated(stmp)) deallocate(stmp)
     if (allocated(atmp)) deallocate(atmp)
 #endif
-  end subroutine finish_gs2_save
+  end subroutine deallocate_arrays
 
   !> Returns the file corresponding to restart file in current setup
   function get_file_proc(is_one_file_per_processor, fileopt, suffix) result(file_proc)
