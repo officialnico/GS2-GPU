@@ -868,7 +868,6 @@ contains
     use dist_fn, only: write_f, write_fyx,write_poly, collision_error
     use dist_fn_arrays, only: g_adjust, gnew
     use collisions, only: vnmult
-    use gs2_save, only: gs2_save_for_restart
     use gs2_io, only: nc_finish
     use antenna, only: dump_ant_amp
     use kt_grids, only: naky, ntheta0
@@ -958,7 +957,7 @@ contains
 
     if (save_for_restart) then
        call gs2_save_for_restart(gnew, user_time, user_dt, vnmult, istatus, &
-            fphi, fapar, fbpar, exit_in=.true., &
+            fphi, fapar, fbpar, &
             save_glo_info_and_grids=save_glo_info_and_grids, &
             save_velocities=save_velocities)
     end if
@@ -969,7 +968,7 @@ contains
 
        !Save dfn, fields and velocity grids to file
        call gs2_save_for_restart(gnew, user_time, user_dt, vnmult, istatus, &
-            fphi, fapar, fbpar, exit_in=.true., distfn=.true., &
+            fphi, fapar, fbpar, fileopt=".dfn", &
             save_glo_info_and_grids=save_glo_info_and_grids, &
             save_velocities=save_velocities)
 
