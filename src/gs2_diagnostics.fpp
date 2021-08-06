@@ -952,7 +952,7 @@ contains
 
        !Save dfn, fields and velocity grids to file
        call gs2_save_for_restart(gnew, user_time, user_dt, vnmult, istatus, &
-            fphi, fapar, fbpar, distfn=.true., &
+            fphi, fapar, fbpar, fileopt=".dfn", &
             save_glo_info_and_grids=save_glo_info_and_grids, &
             save_velocities=save_velocities)
 

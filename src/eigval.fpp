@@ -1137,7 +1137,7 @@ contains
                 call g_adjust(gnew,phinew,bparnew,fphi,fbpar)
 
                 !Save dfn, fields and velocity grids to file
-                call gs2_save_for_restart(gnew, user_time, user_dt, vnmult, istatus, fphi, fapar, fbpar,distfn=.true.,fileopt=restart_unique_string)
+                call gs2_save_for_restart(gnew, user_time, user_dt, vnmult, istatus, fphi, fapar, fbpar,fileopt=trim(restart_unique_string)//".dfn")
 
                 !Convert distribution function back to h
                 call g_adjust(gnew,phinew,bparnew,-fphi,-fbpar)

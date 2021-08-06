@@ -100,7 +100,7 @@ contains
 
   !> Create and fill the restart files
   subroutine gs2_save_for_restart &
-       (g, t0, delt0, vnm, istatus, fphi, fapar, fbpar, distfn, fileopt, &
+       (g, t0, delt0, vnm, istatus, fphi, fapar, fbpar, fileopt, &
         save_glo_info_and_grids, save_velocities)
 # ifdef NETCDF
     use fields_arrays, only: phinew, aparnew, bparnew
@@ -140,10 +140,8 @@ contains
     real, intent (in) :: fbpar
     !> Last netCDF status: zero on success, non-zero on failure
     integer, intent (out) :: istatus
-    !> If present then will save to "rootname.nc.dfn.proc"
-    logical, intent (in), optional :: distfn
     !> Optional extra filename infix
-    character (20), intent (in), optional :: fileopt
+    character (len=*), intent (in), optional :: fileopt
     !> Control if layout and diagnostic information is saved
     logical, intent (in), optional :: save_glo_info_and_grids
     !> Control if \(v_\parallel, v_\perp\) information is saved
@@ -189,11 +187,7 @@ contains
     is_one_file_per_processor = save_many .or. (.not. has_netcdf_parallel)
 
     ! Open the file and define dimensions and variables
-    if (present(distfn)) then
-       file_proc = get_file_proc(is_one_file_per_processor, fileopt, suffix = 'dfn')
-    else
-       file_proc = get_file_proc(is_one_file_per_processor, fileopt)
-    end if
+    file_proc = get_file_proc(is_one_file_per_processor, fileopt)
 
     call debug_message(verb, 'gs2_save::gs2_save_for_restart opening file')
     call debug_message(verb, 'file proc is')
@@ -1168,7 +1162,7 @@ contains
     real, intent (in) :: scale
     integer, intent (out) :: istatus
     real, intent (in) :: fphi, fapar, fbpar
-    character (20), INTENT (in), optional :: fileopt
+    character (len=*), intent(in), optional :: fileopt
 # ifdef NETCDF
     integer, dimension(3) :: counts, start_pos
     character (run_name_size) :: file_proc
@@ -1930,20 +1924,15 @@ contains
   end subroutine deallocate_arrays
 
   !> Returns the file corresponding to restart file in current setup
-  function get_file_proc(is_one_file_per_processor, fileopt, suffix) result(file_proc)
+  function get_file_proc(is_one_file_per_processor, fileopt) result(file_proc)
     use mp, only: iproc
     implicit none
     logical, intent(in) :: is_one_file_per_processor
-    character(len=*), intent(in), optional :: fileopt, suffix
+    character(len=*), intent(in), optional :: fileopt
     character(run_name_size) :: file_proc
     file_proc = trim(restart_file)
-
     if (present(fileopt)) file_proc = trim(file_proc) // trim(adjustl(fileopt))
-    if (present(suffix)) file_proc = trim(file_proc) // "." // trim(adjustl(suffix))
-
-    if (is_one_file_per_processor) then
-       write(file_proc, '(A,".",I0)') trim(file_proc), iproc
-    end if
+    if (is_one_file_per_processor) write(file_proc, '(A,".",I0)') trim(file_proc), iproc
   end function get_file_proc
 
   !> FIXME : Add documentation
