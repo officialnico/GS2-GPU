@@ -1340,6 +1340,7 @@ module kt_grids_box
   integer :: nkpolar_private, n0
   integer :: jtwist
   integer :: naky, ntheta0, nx, ny, nkpolar
+  !> Are we being called from gryfx?
   logical :: gryfx
   logical :: parameters_read = .false.
   logical :: initialized = .false.
@@ -2190,14 +2191,17 @@ contains
     end if
   end subroutine set_overrides
 
-  !> FIXME : Add documentation  
-  function gryfx()
+  !> Have we been called from a gryfx run or not?
+  pure function gryfx()
     use mp, only: broadcast
-    use kt_grids_box, only: grbx=>gryfx
+    use kt_grids_box, only: gryfx_box => gryfx
     implicit none
     logical :: gryfx
-    gryfx = grbx
-    !call broadcast(gryfx)
+    if (gridopt_switch == grids_box) then
+       gryfx = gryfx_box
+    else
+       gryfx = .false.
+    end if
   end function gryfx
 
   !> FIXME : Add documentation
