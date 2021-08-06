@@ -105,8 +105,7 @@ contains
         save_glo_info_and_grids, save_velocities)
 # ifdef NETCDF
     use fields_arrays, only: phinew, aparnew, bparnew
-    use dist_fn_arrays, only: kx_shift  !MR
-    use dist_fn_arrays, only: gexp_1, gexp_2, gexp_3
+    use dist_fn_arrays, only: gexp_1, gexp_2, gexp_3, kx_shift
     use kt_grids, only: naky, ntheta0, jtwist_out, akx, aky
     use antenna_data, only: nk_stir, a_ant, b_ant, ant_on
 # else
@@ -1129,19 +1128,15 @@ contains
           if (istatus /= NF90_NOERR) call netcdf_error (istatus, ncid, bpari_id)
        end if
 
-       if (allocated(kx_shift)) then ! MR begin
-          if (.not. allocated(stmp)) allocate (stmp(naky))
+       if (.not. allocated(stmp)) allocate (stmp(naky))
+       if (allocated(kx_shift)) then
           stmp = kx_shift
-          istatus = nf90_put_var (ncid, kx_shift_id, stmp)
-          if (istatus /= NF90_NOERR) call netcdf_error &
-               (istatus, ncid, kx_shift_id, var = 'kx_shift put')
        else
-          if (.not. allocated(stmp)) allocate (stmp(naky))
           stmp = 0.
-          istatus = nf90_put_var (ncid, kx_shift_id, stmp)
-          if (istatus /= NF90_NOERR) call netcdf_error &
-               (istatus, ncid, kx_shift_id, var = 'kx_shift dummy')
-       endif ! MR end
+       end if
+       istatus = nf90_put_var (ncid, kx_shift_id, stmp)
+       if (istatus /= NF90_NOERR) call netcdf_error &
+            (istatus, ncid, kx_shift_id, var = 'kx_shift put')
     end if
 
     ! Close the file
@@ -1169,8 +1164,7 @@ contains
     use mp, only: iproc, mp_abort, proc0
     use fields_arrays, only: phinew, aparnew, bparnew
     use fields_arrays, only: phi, apar, bpar
-    use dist_fn_arrays, only: kx_shift   ! MR
-    use dist_fn_arrays, only: gexp_1, gexp_2, gexp_3
+    use dist_fn_arrays, only: gexp_1, gexp_2, gexp_3, kx_shift
     use kt_grids, only: naky, ntheta0
     use gs2_layouts, only: layout
 # endif
