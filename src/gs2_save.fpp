@@ -50,18 +50,20 @@ module gs2_save
      integer :: nconv_count
   end type EigNetcdfID
 
-  logical :: read_many, save_many ! Read and write single or multiple restart files
+  !> Read and write single or multiple restart files.
+  !> Effectively ignored if not built with parallel netcdf
+  logical :: read_many, save_many
 
   !> Do we want to include the explicit source terms and
   !> related timesteps when saving/restoring from the restart file.
   logical :: include_explicit_source_in_restart = .true.
-  
+
+  !> Used to hold the base of the restart file name.
   character (run_name_size) :: restart_file
 
-# ifdef NETCDF
+#ifdef NETCDF
   real, allocatable, dimension(:,:,:) :: tmpr, tmpi, ftmpr, ftmpi
-  real, allocatable, dimension(:) :: stmp  ! MR: tmp var for kx_shift
-  real, allocatable, dimension(:) :: atmp
+  real, allocatable, dimension(:) :: stmp, atmp
   ! Netcdf ids for quantities referenced in multiple routines.
   integer (kind_nf) :: ncid, thetaid, signid, gloid, kyid, kxid, nk_stir_dim
   integer (kind_nf) :: phir_id, phii_id, aparr_id, apari_id, bparr_id, bpari_id
@@ -93,10 +95,7 @@ module gs2_save
 #else
   logical, parameter :: has_netcdf_parallel = .false.
 #endif
-  
-# endif
-
-
+#endif
 contains
 
   !> Create and fill the restart files
@@ -127,24 +126,23 @@ contains
     implicit none
     !> The distribution function \(g\)
     complex, dimension (-ntgrid:,:,g_lo%llim_proc:), intent (in) :: g
-    !> FIXME: Current simulation time?
+    !> Current simulation time
     real, intent (in) :: t0
-    !> FIXME: Current timestep size?
+    !> Current timestep size
     real, intent (in) :: delt0
     !> FIXME: Collisionality multiplier?
     real, dimension (2), intent (in) :: vnm
-    !> Electrostatic potential, \(\phi\)
+    !> Electrostatic potential, \(\phi\), scaling factor
     real, intent (in) :: fphi
-    !> Vector potential, \(A_\parallel\)
+    !> Vector potential, \(A_\parallel\), scaling factor
     real, intent (in) :: fapar
-    !> Parallel magnetic field, \(B_\parallel\)
+    !> Parallel magnetic field, \(B_\parallel\), scaling factor
     real, intent (in) :: fbpar
     !> Last netCDF status: zero on success, non-zero on failure
     integer, intent (out) :: istatus
     !> FIXME: unused
     logical, intent (in), optional :: exit_in
-    !> If present then will save to "rootname.nc.dfn.proc" and will
-    !> include extra information including velocity and energy grids
+    !> If present then will save to "rootname.nc.dfn.proc"
     logical, intent (in), optional :: distfn
     !> Optional extra filename infix
     character (20), intent (in), optional :: fileopt
