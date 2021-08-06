@@ -1092,7 +1092,6 @@ contains
 
     if (is_one_file_per_processor .or. proc0) then
        if (.not. allocated(ftmpr)) allocate (ftmpr(2*ntgrid+1,ntheta0,naky))
-       if (.not. allocated(ftmpi)) allocate (ftmpi(2*ntgrid+1,ntheta0,naky))
 
        if (fphi > epsilon(0.)) then
           ftmpr = real(phinew)
@@ -1100,8 +1099,8 @@ contains
           if (istatus /= NF90_NOERR) call netcdf_error (istatus, ncid, phir_id, &
                var = 'phir put')
 
-          ftmpi = aimag(phinew)
-          istatus = nf90_put_var (ncid, phii_id, ftmpi)
+          ftmpr = aimag(phinew)
+          istatus = nf90_put_var (ncid, phii_id, ftmpr)
           if (istatus /= NF90_NOERR) call netcdf_error (istatus, ncid, phii_id, &
                var = 'phir put')
        end if
@@ -1111,8 +1110,8 @@ contains
           istatus = nf90_put_var (ncid, aparr_id, ftmpr)
           if (istatus /= NF90_NOERR) call netcdf_error (istatus, ncid, aparr_id)
 
-          ftmpi = aimag(aparnew)
-          istatus = nf90_put_var (ncid, apari_id, ftmpi)
+          ftmpr = aimag(aparnew)
+          istatus = nf90_put_var (ncid, apari_id, ftmpr)
           if (istatus /= NF90_NOERR) call netcdf_error (istatus, ncid, apari_id)
        end if
 
@@ -1121,8 +1120,8 @@ contains
           istatus = nf90_put_var (ncid, bparr_id, ftmpr)
           if (istatus /= NF90_NOERR) call netcdf_error (istatus, ncid, bparr_id)
 
-          ftmpi = aimag(bparnew)
-          istatus = nf90_put_var (ncid, bpari_id, ftmpi)
+          ftmpr = aimag(bparnew)
+          istatus = nf90_put_var (ncid, bpari_id, ftmpr)
           if (istatus /= NF90_NOERR) call netcdf_error (istatus, ncid, bpari_id)
        end if
 
