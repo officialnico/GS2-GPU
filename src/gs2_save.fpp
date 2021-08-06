@@ -100,7 +100,7 @@ contains
 
   !> Create and fill the restart files
   subroutine gs2_save_for_restart &
-       (g, t0, delt0, vnm, istatus, fphi, fapar, fbpar, exit_in, distfn, fileopt, &
+       (g, t0, delt0, vnm, istatus, fphi, fapar, fbpar, distfn, fileopt, &
         save_glo_info_and_grids, save_velocities)
 # ifdef NETCDF
     use fields_arrays, only: phinew, aparnew, bparnew
@@ -140,8 +140,6 @@ contains
     real, intent (in) :: fbpar
     !> Last netCDF status: zero on success, non-zero on failure
     integer, intent (out) :: istatus
-    !> FIXME: unused
-    logical, intent (in), optional :: exit_in
     !> If present then will save to "rootname.nc.dfn.proc"
     logical, intent (in), optional :: distfn
     !> Optional extra filename infix
@@ -158,7 +156,6 @@ contains
     integer :: total_elements
     integer, dimension(3) :: start_pos, counts
     integer, parameter :: tmpunit = 348
-    logical :: exit
     logical :: is_one_file_per_processor
     logical :: has_gexp_1
     logical :: save_glo_info_and_grids_local, save_velocities_info
@@ -179,9 +176,6 @@ contains
 
     istatus = 0
     ierr = error_unit()
-
-    ! This is no longer used so should be removed from the interface
-    exit = get_option_with_default(exit_in, .false.)
 
     ! Handle some optional inputs
     save_glo_info_and_grids_local = get_option_with_default(save_glo_info_and_grids, .false.)
