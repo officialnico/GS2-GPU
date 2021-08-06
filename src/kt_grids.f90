@@ -2193,11 +2193,10 @@ contains
 
   !> Have we been called from a gryfx run or not?
   pure function gryfx()
-    use mp, only: broadcast
     use kt_grids_box, only: gryfx_box => gryfx
     implicit none
     logical :: gryfx
-    if (gridopt_switch == grids_box) then
+    if (gridopt_switch == gridopt_box) then
        gryfx = gryfx_box
     else
        gryfx = .false.
