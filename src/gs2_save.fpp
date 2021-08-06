@@ -75,13 +75,6 @@ module gs2_save
   integer (kind_nf) :: layout_id, kx_shift_id
   integer (kind_nf) :: current_scan_parameter_value_id
   integer (kind_nf) :: a_antr_id, b_antr_id, a_anti_id, b_anti_id
-  !> This parameter controls whether or not gs2
-  !> aborts if it cannot read the restart file (and
-  !> it has been told to load g from  a restart).
-  !> It is set to .true..
-  !> I can think of no conceivable reason why this
-  !> would ever need to be .false., but comments welcome. EGH
-  logical, parameter :: abort_on_restart_fail = .true.
   !> Do we save the scan parameter or not?
   logical, parameter :: include_parameter_scan = .true.
 
@@ -1164,6 +1157,13 @@ contains
     real, intent (in) :: fphi, fapar, fbpar
     character (len=*), intent(in), optional :: fileopt
 # ifdef NETCDF
+    !> This parameter controls whether or not gs2
+    !> aborts if it cannot read the restart file (and
+    !> it has been told to load g from  a restart).
+    !> It is set to .true..
+    !> I can think of no conceivable reason why this
+    !> would ever need to be .false., but comments welcome. EGH
+    logical, parameter :: abort_on_restart_fail = .true.
     integer, dimension(3) :: counts, start_pos
     character (run_name_size) :: file_proc
     character (len = 5) :: restart_layout
