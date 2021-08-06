@@ -972,6 +972,16 @@ contains
     complex, dimension(:,:), intent(out) :: arr !Note: Dimensions should be self%ncol, self%nrow
     integer :: ic, rl,ru, cl,cu, irb
 
+    ! Zero out arr |--> Not needed if gathering
+    ! This may look like it is only needed for the sum_allreduce_sub branch below,
+    ! however without this line we would end up not setting arr in cases where we
+    ! think of this supercell as empty. This is usually fine, but for the ky=kx=0
+    ! mode all processors consider the supercell to be empty, but we still need to
+    ! initialise this array in some cases (e.g. when dumping to file). We could
+    ! attempt to only do this zeroing in this special case to save some time, but
+    ! we don't expect to be calling this routine much so opt for simpler approach.
+    arr=0
+    
     !Now see if we want to exit
     if(self%is_empty) return
     if(.not.self%is_local) return
@@ -988,8 +998,6 @@ contains
           enddo
        enddo
     else
-       !Zero out arr |--> Not needed if gathering
-       arr=0
 
        !Place local piece in arr
        do ic=1,self%ncell

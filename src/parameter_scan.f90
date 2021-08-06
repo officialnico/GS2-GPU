@@ -30,6 +30,7 @@ module parameter_scan
 
   public :: parameter_scan_config_type
   public :: set_parameter_scan_config
+  public :: get_parameter_scan_config
   
   logical :: scan_restarted
 
@@ -500,7 +501,13 @@ contains
        parameter_scan_config = parameter_scan_config_in
     end if
   end subroutine set_parameter_scan_config
-  
+
+  !> Get the module level config instance
+  function get_parameter_scan_config()
+    type(parameter_scan_config_type) :: get_parameter_scan_config
+    get_parameter_scan_config = parameter_scan_config
+  end function get_parameter_scan_config
+
   !---------------------------------------
   ! Following is for the config_type
   !---------------------------------------

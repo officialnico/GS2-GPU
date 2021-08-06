@@ -47,6 +47,7 @@ module gs2_init
   public :: in_memory
   public :: init_config_type
   public :: set_gs2_init_config
+  public :: get_gs2_init_config
 
   !> A type for labelling the different init
   !> levels available in gs2.
@@ -291,6 +292,12 @@ contains
        init_config = gs2_init_config_in
     end if
   end subroutine set_gs2_init_config
+
+  !> Get the module level config instance
+  function get_gs2_init_config()
+    type(init_config_type) :: get_gs2_init_config
+    get_gs2_init_config = init_config
+  end function get_gs2_init_config
 
   !---------------------------------------
   ! Following is for the config_type
