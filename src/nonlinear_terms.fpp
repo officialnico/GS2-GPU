@@ -22,6 +22,7 @@ module nonlinear_terms
 
   public :: nonlinear_terms_config_type
   public :: set_nonlinear_terms_config
+  public :: get_nonlinear_terms_config
   
   !> Public type allowing tests to access otherwise-private routines
   type :: nonlinear_terms_testing
@@ -311,8 +312,6 @@ contains
     call get_option_value &
          (nonlinear_mode, nonlinearopts, nonlinear_mode_switch, &
          ierr, "nonlinear_mode in nonlinear_terms_knobs",.true.)
-
-    istep_last = 0
 
     if (nonlinear_mode_switch == nonlinear_mode_on)  then
        nonlin = .true.
@@ -1039,7 +1038,13 @@ contains
        nonlinear_terms_config = nonlinear_terms_config_in
     end if
   end subroutine set_nonlinear_terms_config
-  
+
+  !> Get the module level config instance
+  function get_nonlinear_terms_config()
+    type(nonlinear_terms_config_type) :: get_nonlinear_terms_config
+    get_nonlinear_terms_config = nonlinear_terms_config
+  end function get_nonlinear_terms_config
+
   !---------------------------------------
   ! Following is for the config_type
   !--------------------------------------- 

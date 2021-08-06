@@ -1,5 +1,5 @@
 !> This module contains the subroutines which set the initial value of the
-!! fields and the distribution function.
+!> fields and the distribution function.
 module init_g
   use abstract_config, only: abstract_config_type, CONFIG_MAX_NAME_LEN
   implicit none
@@ -17,9 +17,11 @@ module init_g
   public :: ginitopt_restart_memory
   private :: single_initial_kx
   public :: restart_file
+  public :: get_restart_dir
 
   public :: init_g_config_type
   public :: set_init_g_config
+  public :: get_init_g_config
   
   ! knobs
   integer :: ginitopt_switch
@@ -45,6 +47,7 @@ module init_g
   real :: den2, upar2, tpar2, tperp2
   real :: tstart, scale, apar0
   logical :: chop_side, clean_init, left, even, new_field_init
+  logical :: initial_condition_is_nonadiabatic_dfn
   character (2000) :: restart_file !WARNING: This is also defined in gs2_save. This should be addressed
   character (len=150) :: restart_dir
   integer, dimension(2) :: ikk, itt
@@ -226,6 +229,9 @@ module init_g
      !> Do we want to include the explicit source terms and
      !> related timesteps when saving/restoring from the restart file.
      logical :: include_explicit_source_in_restart = .true.
+     !> If true then the initial condition is used to set the non-adiabatic
+     !> distribution function rather than the `g` evolved by GS2.
+     logical :: initial_condition_is_nonadiabatic_dfn = .false.
      !> Print some debug information for [[init_g_knobs:ginit_option]] `"recon3"`
      logical :: input_check_recon = .false.
      !> \(k_x\) indices of two modes to initialise for certain options
@@ -1171,9 +1177,41 @@ contains
     case (ginitopt_cgyro)
        call ginit_cgyro
     end select
+
+    ! If the initial condition is the nonadiabatic dfn then
+    ! ensure we've actually set `gnew` correctly.
+    if (initial_condition_is_nonadiabatic_dfn) then
+       !Should we avoid doing this if restart is true?
+       call set_gnew_from_nonadiabatic_dfn
+    end if
+
   end subroutine ginit
 
-  !> FIXME : Add documentation  
+  !> Take the existing gnew value and, assuming it is the nonadiabatic dfn,
+  !> calculate the consistent potentials to set the true gnew value.
+  subroutine set_gnew_from_nonadiabatic_dfn
+    use dist_fn_arrays, only: gnew, g, g_adjust
+    use kt_grids, only: naky, ntheta0
+    use theta_grid, only: ntgrid
+    use dist_fn, only: calculate_potentials_from_nonadiabatic_dfn
+    use run_parameters, only: fphi, fbpar
+    implicit none
+    complex, dimension(:, :, :), allocatable :: phi, apar, bpar
+    allocate( phi(-ntgrid:ntgrid, ntheta0, naky))
+    allocate(apar(-ntgrid:ntgrid, ntheta0, naky))
+    allocate(bpar(-ntgrid:ntgrid, ntheta0, naky))
+
+    ! Calculate the consistent potentials
+    call calculate_potentials_from_nonadiabatic_dfn(gnew, phi, apar, bpar)
+
+    ! Adjust the nonadiabatic dfn to give the actual gnew we evolve
+    call g_adjust(gnew, phi, bpar, -fphi, -fbpar)
+
+    ! Ensure both timesteps are set correctly
+    g = gnew
+  end subroutine set_gnew_from_nonadiabatic_dfn
+
+  !> FIXME : Add documentation
   subroutine read_parameters(init_g_config_in)
     use file_utils, only: input_unit, error_unit, run_name, input_unit_exist
     use text_options, only: text_option, get_option_value
@@ -1260,6 +1298,7 @@ contains
     ikx_init = init_g_config%ikx_init
     imfac = init_g_config%imfac
     include_explicit_source_in_restart = init_g_config%include_explicit_source_in_restart
+    initial_condition_is_nonadiabatic_dfn = init_g_config%initial_condition_is_nonadiabatic_dfn
     input_check_recon = init_g_config%input_check_recon
     itt = init_g_config%itt
     ittt = init_g_config%ittt
@@ -4343,7 +4382,19 @@ contains
        init_g_config = init_g_config_in
     end if
   end subroutine set_init_g_config
-  
+
+  !> Get the module level config instance
+  function get_init_g_config()
+    type(init_g_config_type) :: get_init_g_config
+    get_init_g_config = init_g_config
+  end function get_init_g_config
+
+  !> Returns the value of [[init_g_knobs:restart_dir]]
+  function get_restart_dir()
+    character(len=:), allocatable :: get_restart_dir
+    get_restart_dir = restart_dir
+  end function get_restart_dir
+
   !---------------------------------------
   ! Following is for the config_type
   !---------------------------------------
@@ -4368,13 +4419,14 @@ contains
     integer :: adj_spec, eq_mode_n, eq_mode_u, ikpar_init, ikx_init, restart_eig_id
     integer, dimension(2) :: ikk, itt
     integer, dimension(3) :: ikkk, ittt
-    logical :: chop_side, clean_init, constant_random_flag, even, include_explicit_source_in_restart, input_check_recon, left, new_field_init, null_apar, null_bpar, null_phi, read_many
+    logical :: chop_side, clean_init, constant_random_flag, even, include_explicit_source_in_restart, initial_condition_is_nonadiabatic_dfn, input_check_recon, left, new_field_init, null_apar, null_bpar, null_phi, read_many
     real :: a0, apar0, b0, den0, den1, den2, dphiinit, imfac, kpar_init, phifrac, phiinit, phiinit0, phiinit_rand, prof_width, refac, scale, tpar0, tpar1, tpar2, tperp0, tperp1, tperp2, tstart, upar0, upar1
     real :: upar2, width0, zf_init
 
     namelist /init_g_knobs/ a0, adj_spec, apar0, aparamp, b0, chop_side, clean_init, constant_random_flag, den0, den1, den2, dphiinit, eq_mode_n, eq_mode_u, eq_type, even, ginit_option, ikk, ikkk, ikpar_init, ikx_init, imfac, &
-         include_explicit_source_in_restart, input_check_recon, itt, ittt, kpar_init, left, new_field_init, nkxy_pt, null_apar, null_bpar, null_phi, phiamp, phifrac, phiinit, phiinit0, phiinit_rand, prof_width, read_many, refac, &
-         restart_dir, restart_eig_id, restart_file, scale, tpar0, tpar1, tpar2, tperp0, tperp1, tperp2, tstart, ukxy_pt, upar0, upar1, upar2, width0, zf_init
+         include_explicit_source_in_restart, initial_condition_is_nonadiabatic_dfn, input_check_recon, itt, ittt, kpar_init, left, new_field_init, nkxy_pt, null_apar, null_bpar, null_phi, phiamp, phifrac, &
+         phiinit, phiinit0, phiinit_rand, prof_width, read_many, refac, restart_dir, restart_eig_id, restart_file, scale, tpar0, tpar1, tpar2, tperp0, tperp1, tperp2, tstart, ukxy_pt, upar0, upar1, upar2, &
+         width0, zf_init
 
     ! Only proc0 reads from file
     if (.not. proc0) return
@@ -4403,6 +4455,7 @@ contains
     ikx_init = self%ikx_init
     imfac = self%imfac
     include_explicit_source_in_restart = self%include_explicit_source_in_restart
+    initial_condition_is_nonadiabatic_dfn = self%initial_condition_is_nonadiabatic_dfn
     input_check_recon = self%input_check_recon
     itt = self%itt
     ittt = self%ittt
@@ -4475,6 +4528,7 @@ contains
     self%ikx_init = ikx_init
     self%imfac = imfac
     self%include_explicit_source_in_restart = include_explicit_source_in_restart
+    self%initial_condition_is_nonadiabatic_dfn = initial_condition_is_nonadiabatic_dfn
     self%input_check_recon = input_check_recon
     self%itt = itt
     self%ittt = ittt
@@ -4549,7 +4603,8 @@ contains
     call self%write_key_val("ikpar_init", self%ikpar_init, unit_internal)
     call self%write_key_val("ikx_init", self%ikx_init, unit_internal)
     call self%write_key_val("imfac", self%imfac, unit_internal)
-    call self%write_key_val("include_explicit_source_in_restart", self%include_explicit_source_in_restart, unit_internal)    
+    call self%write_key_val("include_explicit_source_in_restart", self%include_explicit_source_in_restart, unit_internal)
+    call self%write_key_val("initial_condition_is_nonadiabatic_dfn", self%initial_condition_is_nonadiabatic_dfn, unit_internal)
     call self%write_key_val("input_check_recon", self%input_check_recon, unit_internal)
     call self%write_key_val("itt", self%itt, unit_internal)
     call self%write_key_val("ittt", self%ittt, unit_internal)
@@ -4627,6 +4682,7 @@ contains
     call broadcast(self%ikx_init)
     call broadcast(self%imfac)
     call broadcast(self%include_explicit_source_in_restart)
+    call broadcast(self%initial_condition_is_nonadiabatic_dfn)
     call broadcast(self%input_check_recon)
     call broadcast(self%itt)
     call broadcast(self%ittt)

@@ -2,6 +2,18 @@
 gs2_all: diagnostics modules gs2 ingen rungridgen generate_fftw_wisdom dump_response
 gs2_all: dump_grids ideal_ball write_default_input_file
 
+# undefined reference to `get_git_state` or `get_git_hash`? You need to manually
+# add a dependency of the affected binary on `$(OBJDIR)/git_hash.o` like
+# below. This file needs to be first in the list of dependencies so that the
+# file that needs the functions can find them. Yes this is unpleasant, no we
+# (probably?) can`t automate this like for the other dependencies. `fortdep`
+# searches for module `use` statements, and we`re deliberately _not_ using a
+# module for `git_hash`, otherwise basically the entire project needs to be
+# rebuilt on new commits.
+gs2_mod := $(OBJDIR)/git_hash.o $(gs2_mod)
+ingen_mod := $(OBJDIR)/git_hash.o $(ingen_mod)
+write_default_input_file_mod := $(OBJDIR)/git_hash.o $(write_default_input_file_mod)
+
 #Main code
 $(BINDIR)/gs2: $(gs2_mod) $(SIMPLEDATAIO_LIB) | $(BINDIR)
 	$(call messageOp,"Linking ","\\t:",$(call processName,$^),"\\n\\t\-\-\-\-\-\-\>",$(call processName,$@))

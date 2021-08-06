@@ -1,0 +1,70 @@
+!=================================================================
+!                        GS2 INPUT FILE
+!=================================================================
+!
+!  GS2 is a gyrokinetic flux tube initial value turbulence code
+!  which can be used for fusion or astrophysical plasmas.
+!
+!  Website:
+!            https://gyrokinetics.gitlab.io/gs2/
+!  Repo:
+!            https://bitbucket.org/gyrokinetics/gs2/
+!  Citation:
+!            https://zenodo.org/record/2551066
+!  doi:
+!            10.5281/zenodo.2551066
+!
+!=================================================================
+
+&parameters
+ beta = 0.01 ! Ratio of particle to magnetic pressure (reference Beta, not total beta):  beta=n_0 T_0 /( B^2 / (8 pi))
+/
+
+&kt_grids_knobs
+ grid_option = "box" ! The general layout of the perpendicular grid.
+/
+
+&kt_grids_box_parameters
+ nx = 6
+ ny = 6
+/
+
+&theta_grid_parameters
+ ntheta = 12 ! Number of points along field line (theta) per 2 pi segment
+/
+
+&le_grids_knobs
+ ngauss = 3 ! Number of untrapped pitch-angles moving in one direction along field line.
+ negrid = 12 ! Total number of energy grid points
+/
+
+&fields_knobs
+ field_option = "local" ! Controls which time-advance algorithm is used for the linear terms.
+/
+
+&knobs
+ fphi = 1.0 ! Multiplies Phi (electrostatic potential).
+ fapar = 1.0 ! Multiplies A_par. Use 1 for finite beta (electromagnetic), 0 otherwise (electrostatic)
+ fbpar = 1.0
+ nstep = 20000 ! Maximum number of timesteps
+/
+
+&layouts_knobs
+ layout = "lexys" ! 'yxles', 'lxyes', 'lyxes', 'lexys' Determines the way the grids are laid out in memory.
+/
+
+&species_knobs
+ nspec = 1 ! Number of kinetic species evolved.
+/
+
+&species_parameters_1
+/
+
+&species_parameters_2
+/
+
+&dist_fn_species_knobs_1
+/
+
+&dist_fn_species_knobs_2
+/

@@ -171,6 +171,7 @@ module le_grids
 
   public :: le_grids_config_type
   public :: set_le_grids_config
+  public :: get_le_grids_config
   
   interface integrate_moment
      module procedure integrate_moment_c34
@@ -967,13 +968,13 @@ contains
     implicit none
 
     complex, dimension (-ntgrid:,:,g_lo%llim_proc:), intent (in) :: g
-    complex, dimension (-ntgrid:ntgrid,2,nspec,negrid,nlambda,gf_lo%llim_proc:gf_lo%ulim_alloc) :: gf
+    complex, dimension (:, :, :, :, :, :), allocatable :: gf
     real, dimension (:), intent (in) :: weights
     complex, dimension (-ntgrid:ntgrid,gf_lo%ntheta0,gf_lo%naky), intent (out) :: total
     integer :: is, il, ie, igf, it, ik
 
     total =0.
-
+    allocate(gf(-ntgrid:ntgrid,2,nspec,negrid,nlambda,gf_lo%llim_proc:gf_lo%ulim_alloc))
     call gather(g2gf, g, gf, ntgrid)
 
     !Performed integral (weighted sum) over local velocity space and species
@@ -1007,7 +1008,8 @@ contains
           end do
        end do
     end if
-    
+
+    deallocate(gf)
   end subroutine integrate_species_gf
 
   !> Integrate species using gf_lo data format assuming that gf has already been gathered prior to being 
@@ -1026,7 +1028,7 @@ contains
     use species, only: spec, tracer_species
     implicit none
 
-    complex, dimension (-ntgrid:ntgrid,2,nspec,negrid,nlambda,gf_lo%llim_proc:gf_lo%ulim_alloc), intent (in) :: gf
+    complex, dimension(-ntgrid:ntgrid,2,nspec,negrid,nlambda,gf_lo%llim_proc:gf_lo%ulim_alloc), intent(in) :: gf
     real, dimension (:), intent (in) :: weights
     complex, dimension (-ntgrid:ntgrid,gf_lo%ntheta0,gf_lo%naky), intent (out) :: total
     integer :: is, il, ie, igf, it, ik
@@ -1064,7 +1066,6 @@ contains
           end do
        end do
     end if
-    
   end subroutine integrate_species_gf_nogather
   
   !> Integrate_species on subcommunicator with gather
@@ -2221,49 +2222,54 @@ contains
     ! Introduce factor 2 here to account for sigma doubling
     lambda_error = 2*lambda_error
 
-    ! Passing pitch angle grid
-    allocate(passing_error(-ntgrid:ntgrid))
-    passing_error = 0.0
-    allocate(expected_passing(-ntgrid:ntgrid))
-    allocate(b_ratio(-ntgrid:ntgrid))
-    b_ratio = bmax / bmag
-    ! This is the analytic integral of the function we weight the Legendre
-    ! weights by over the passing region, i.e.
-    ! 2.0*sqrt((bmag(ig)/bmax)*((1.0/bmax-al(il))/(1.0/bmag(ig)-al(il)))
-    ! Note to integrate this correctly it is useful to transform from lambda
-    ! to the Legendre variable xx, through xx = sqrt(1-lambda*bmax)
-    ! The weight function then becomes:
-    ! 2.0*sqrt(bmag/bmax) * sqrt([xx^2]/[(bmax/bmag)-1+xx^2])
-    ! and we would integrate from xx=0 to xx=1
-    ! Note this analytic result and comparison is appropriate when
-    ! Radau_Gauss_Grid = F.  When this is not the case (default) then
-    ! the calculation of the passing and trapped errors from this
-    ! analytic result is no longer appropriate as the wfb contains
-    ! contributions from both the passing and trapped regions when
-    ! bmag = bmax, and as such our comparison is only valid away from
-    ! where bmag=bmax.
-    expected_passing = 2.0 * (1 - sqrt(b_ratio - 1)/sqrt(b_ratio))
-    do ig = -ntgrid, ntgrid
-       passing_error(ig) = expected_passing(ig) - sum(wl(ig, :ng2))
-    end do
-    ! Introduce factor 2 here to account for sigma doubling
-    passing_error = 2*passing_error
+    ! The trapped/passing error breakdown is currently only
+    ! appropriate when not using the Radau-Gauss grids
+    if (.not. radau_gauss_grid) then
 
-    ! Trapped pitch angle grid
-    allocate(trapped_error(-ntgrid:ntgrid))
-    trapped_error = 0.0
-    ! Only calculate this if we have any trapped pitch angles
-    if (nlambda > ng2) then
-       allocate(expected_trapped(-ntgrid:ntgrid))
-       ! We're essentially just subtracting the passing analytic
-       ! result from the total expectation, i.e. effectively
-       !  expected_trapped = expected_lambda - expected_passing
-       expected_trapped = 2.0 * sqrt(b_ratio - 1)/sqrt(b_ratio)
+       ! Passing pitch angle grid
+       allocate(passing_error(-ntgrid:ntgrid))
+       passing_error = 0.0
+       allocate(expected_passing(-ntgrid:ntgrid))
+       allocate(b_ratio(-ntgrid:ntgrid))
+       b_ratio = bmax / bmag
+       ! This is the analytic integral of the function we weight the Legendre
+       ! weights by over the passing region, i.e.
+       ! 2.0*sqrt((bmag(ig)/bmax)*((1.0/bmax-al(il))/(1.0/bmag(ig)-al(il)))
+       ! Note to integrate this correctly it is useful to transform from lambda
+       ! to the Legendre variable xx, through xx = sqrt(1-lambda*bmax)
+       ! The weight function then becomes:
+       ! 2.0*sqrt(bmag/bmax) * sqrt([xx^2]/[(bmax/bmag)-1+xx^2])
+       ! and we would integrate from xx=0 to xx=1
+       ! Note this analytic result and comparison is appropriate when
+       ! Radau_Gauss_Grid = F.  When this is not the case (default) then
+       ! the calculation of the passing and trapped errors from this
+       ! analytic result is no longer appropriate as the wfb contains
+       ! contributions from both the passing and trapped regions when
+       ! bmag = bmax, and as such our comparison is only valid away from
+       ! where bmag=bmax.
+       expected_passing = 2.0 * (1 - sqrt(b_ratio - 1)/sqrt(b_ratio))
        do ig = -ntgrid, ntgrid
-          trapped_error(ig) = expected_trapped(ig) - sum(wl(ig, ng2+1:))
+          passing_error(ig) = expected_passing(ig) - sum(wl(ig, :ng2))
        end do
-       !Introduce factor 2 here to account for sigma doubling
-       trapped_error = 2*trapped_error
+       ! Introduce factor 2 here to account for sigma doubling
+       passing_error = 2*passing_error
+
+       ! Trapped pitch angle grid
+       allocate(trapped_error(-ntgrid:ntgrid))
+       trapped_error = 0.0
+       ! Only calculate this if we have any trapped pitch angles
+       if (nlambda > ng2) then
+          allocate(expected_trapped(-ntgrid:ntgrid))
+          ! We're essentially just subtracting the passing analytic
+          ! result from the total expectation, i.e. effectively
+          !  expected_trapped = expected_lambda - expected_passing
+          expected_trapped = 2.0 * sqrt(b_ratio - 1)/sqrt(b_ratio)
+          do ig = -ntgrid, ntgrid
+             trapped_error(ig) = expected_trapped(ig) - sum(wl(ig, ng2+1:))
+          end do
+          !Introduce factor 2 here to account for sigma doubling
+          trapped_error = 2*trapped_error
+       end if
     end if
 
     ! Total energy grid
@@ -2328,8 +2334,12 @@ contains
 
     ! Report errors to unit
     call report_error(unit, "Lambda", lambda_error)
-    call report_error(unit, "Passing", passing_error)
-    call report_error(unit, "Trapped", trapped_error)
+    ! The trapped/passing error breakdown is currently only
+    ! appropriate when not using the Radau-Gauss grids
+    if (.not. radau_gauss_grid) then
+       call report_error(unit, "Passing", passing_error)
+       call report_error(unit, "Trapped", trapped_error)
+    end if
     call report_error(unit, "Energy", energy_error)
     call report_error(unit, "Energy_Sub", energy_sub_error)
     call report_error(unit, "Energy_Super", energy_super_error)
@@ -3597,6 +3607,7 @@ contains
 
     allocate (gtmp(-ntgrid:ntgrid, 2, g_lo%llim_proc:g_lo%ulim_alloc))
     allocate (letmp(nlambda*2+1, negrid+1, le_lo%llim_proc:le_lo%ulim_alloc))
+    letmp = 0.
 
     ! gather check
     gtmp = 0.0
@@ -3619,13 +3630,14 @@ contains
        ik = ik_idx(le_lo,ile)
        it = it_idx(le_lo,ile)
        is = is_idx(le_lo,ile)
-       do ixi = 1, 2*nlambda
-          isgn = ixi_to_isgn(ig,ixi)
-          il = ixi_to_il(ig,ixi)
-          if (int(real(letmp(ixi,ie,ile))) /= rule(ig,isgn,ik,it,il,ie,is)) &
-               write (ierr,'(a,8i6)') 'ERROR: gather by g2le broken!', iproc
+       do ie = 1, negrid
+          do ixi = 1, 2*nlambda
+             isgn = ixi_to_isgn(ig,ixi)
+             il = ixi_to_il(ig,ixi)
+             if (int(real(letmp(ixi,ie,ile))) /= rule(ig,isgn,ik,it,il,ie,is)) &
+                  write (ierr,'(a,8i6)') 'ERROR: gather by g2le broken!', iproc
+          end do
        end do
-
     end do
     if (proc0) write (ierr,'(a)') 'g2le gather check done'
 
@@ -4539,7 +4551,13 @@ contains
        le_grids_config = le_grids_config_in
     end if
   end subroutine set_le_grids_config
-  
+
+  !> Get the module level config instance
+  function get_le_grids_config()
+    type(le_grids_config_type) :: get_le_grids_config
+    get_le_grids_config = le_grids_config
+  end function get_le_grids_config
+
   !---------------------------------------
   ! Following is for the config_type
   !---------------------------------------

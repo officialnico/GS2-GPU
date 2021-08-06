@@ -36,6 +36,8 @@ module antenna
   public :: driver_config_type
   public :: stir_config_type
   public :: set_antenna_config
+  public :: get_antenna_driver_config
+  public :: get_antenna_stir_config
   
   complex :: w_antenna
   complex, dimension(:), allocatable :: w_stir
@@ -47,7 +49,6 @@ module antenna
   logical :: no_driver = .false.
   logical :: write_antenna = .false.
   logical, dimension (:), allocatable :: trav
-  logical :: ant_off = .false.
   real :: beta_s
   complex :: wtmp
   logical :: initialized = .false.
@@ -172,7 +173,7 @@ contains
     if (no_driver) return
     write (unit, *)
     write (unit, fmt="(' &',a)") "driver"
-    write (unit, fmt="(' ant_off = ',L1)") ant_off
+    write (unit, fmt="(' ant_off = ',L1)") no_driver
     write (unit, fmt="(' write_antenna = ',L1)") write_antenna
     write (unit, fmt="(' amplitude = ',e17.10)") amplitude
     write (unit, fmt="(' w_antenna = (',e17.10,', ',e17.10,')')") w_antenna
@@ -207,15 +208,7 @@ contains
     initialized = .true.
     
     if (.not. allocated(w_stir)) then
-       !call init_species
-       
        call read_parameters(driver_config_in, stir_config_in)
-       if (no_driver) then
-          i = -1
-          call init_antenna_data (i)
-          return
-       end if
-       
        allocate (w_stir(nk_stir))
     end if
     
@@ -245,7 +238,7 @@ contains
     type(stir_config_type), intent(in), dimension(:), optional :: stir_config_in
     complex :: a, b
     integer :: kx, ky, kz, i, ierr
-    logical :: exist, travel
+    logical :: exist, travel, ant_off
 
     if (present(driver_config_in)) driver_config = driver_config_in
 
@@ -263,65 +256,67 @@ contains
 
     exist = driver_config%exist
 
-    no_driver = (.not. exist) .or. ant_off
+    ! If the namelist wasn't present, or if [[driver_config:ant_off]]
+    ! was explicitly set to true, then we won't be using the antenna,
+    ! so for consistency, we turn it off in this case
+    no_driver = driver_config%ant_off .or. .not. driver_config%exist
+    driver_config%ant_off = no_driver
 
-    if (exist) then
-       call init_antenna_data (nk_stir)
-       allocate (kx_stir(nk_stir))
-       allocate (ky_stir(nk_stir))
-       allocate (kz_stir(nk_stir))
-       allocate (trav(nk_stir))
-          
-       ! BD
-       ! get initial antenna amplitudes from restart file
-       ! if none are found, a_ant = b_ant = 0 will be returned
-       ! and ierr will be non-zero.  
-       !
-       ! TO DO: need to know if there IS a restart file to check...
-       !
-       
-       ierr = 1
-       if (restarting) call init_ant_amp (a_ant, b_ant, nk_stir, ierr)
-       
-       if (present(stir_config_in)) stir_config = stir_config_in
-       
-       if (.not.allocated(stir_config)) allocate(stir_config(nk_stir))
-       if (size(stir_config) .ne. nk_stir) then
-          if (proc0) print*,"Warning: inconsistent config size in antenna"
-       endif
-       
-       do i=1,nk_stir
-          call stir_config(i)%init(name = 'stir', requires_index = .true., index = i)
-          
-          ! Copy out internal values into module level parameters
-          a = stir_config(i)%a
-          b = stir_config(i)%b
-          kx = stir_config(i)%kx
-          ky = stir_config(i)%ky
-          kz = stir_config(i)%kz
-          travel = stir_config(i)%travel
-          
-          kx_stir(i) = kx 
-          ky_stir(i) = ky
-          kz_stir(i) = kz
-          trav(i) = travel
-          ! If a, b are not specified in the input file:
-          if (a == -1.0 .and. b == -1.0) then
-             ! And if a, b are not specified in the restart file 
-             ! (else use values from restart file by default)
-             if (ierr /= 0) then                   
-                a_ant(i) = amplitude*cmplx(1.,1.)/2. 
-                b_ant(i) = amplitude*cmplx(1.,1.)/2. 
-             end if
-          ! Else if a, b ARE specified in the input file (ignore restart file):
-          else
-             a_ant(i) = a
-             b_ant(i) = b
-          end if
-       end do
-    endif
-    
     if (no_driver) return
+
+    call init_antenna_data (nk_stir)
+    allocate (kx_stir(nk_stir))
+    allocate (ky_stir(nk_stir))
+    allocate (kz_stir(nk_stir))
+    allocate (trav(nk_stir))
+
+    ! BD
+    ! get initial antenna amplitudes from restart file
+    ! if none are found, a_ant = b_ant = 0 will be returned
+    ! and ierr will be non-zero.
+    !
+    ! TO DO: need to know if there IS a restart file to check...
+    !
+
+    ierr = 1
+    if (restarting) call init_ant_amp (a_ant, b_ant, nk_stir, ierr)
+
+    if (present(stir_config_in)) stir_config = stir_config_in
+
+    if (.not.allocated(stir_config)) allocate(stir_config(nk_stir))
+    if (size(stir_config) .ne. nk_stir) then
+      if (proc0) print*,"Warning: inconsistent config size in antenna"
+    endif
+
+    do i=1,nk_stir
+      call stir_config(i)%init(name = 'stir', requires_index = .true., index = i)
+
+      ! Copy out internal values into module level parameters
+      a = stir_config(i)%a
+      b = stir_config(i)%b
+      kx = stir_config(i)%kx
+      ky = stir_config(i)%ky
+      kz = stir_config(i)%kz
+      travel = stir_config(i)%travel
+
+      kx_stir(i) = kx
+      ky_stir(i) = ky
+      kz_stir(i) = kz
+      trav(i) = travel
+      ! If a, b are not specified in the input file:
+      if (a == -1.0 .and. b == -1.0) then
+        ! And if a, b are not specified in the restart file
+        ! (else use values from restart file by default)
+        if (ierr /= 0) then
+          a_ant(i) = amplitude*cmplx(1.,1.)/2.
+          b_ant(i) = amplitude*cmplx(1.,1.)/2.
+        end if
+        ! Else if a, b ARE specified in the input file (ignore restart file):
+      else
+        a_ant(i) = a
+        b_ant(i) = b
+      end if
+    end do
 
     if (proc0) then
        call get_unused_unit (out_unit)
@@ -568,7 +563,23 @@ contains
     if (present(stir_config_in)) then
        stir_config = stir_config_in
     end if    
-  end subroutine set_antenna_config   
+  end subroutine set_antenna_config
+
+  !> Get the module level driver config
+  function get_antenna_driver_config()
+    type(driver_config_type) :: get_antenna_driver_config
+    get_antenna_driver_config = driver_config
+  end function get_antenna_driver_config
+
+  !> Get the module level stir config
+  function get_antenna_stir_config()
+    type(stir_config_type), allocatable, dimension(:) :: get_antenna_stir_config
+    if (allocated(stir_config)) then
+      get_antenna_stir_config = stir_config
+    else
+      allocate(get_antenna_stir_config(0))
+    end if
+  end function get_antenna_stir_config
   
   !---------------------------------------
   ! Following is for the driver config_type

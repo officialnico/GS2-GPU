@@ -42,6 +42,8 @@ module run_parameters
   public :: knobs_config_type
   public :: parameters_config_type
   public :: set_run_parameters_config
+  public :: get_knobs_config
+  public :: get_parameters_config
   
   real :: beta, zeff, tite
   real :: fphi, fapar, fbpar, faperp
@@ -396,7 +398,7 @@ contains
             text_option('check_restart', delt_option_auto) /)
     character(20) :: delt_option
     integer :: ierr, istatus
-    real :: delt0, delt1, delt2
+    real :: delt0, delt1, delt2, delt_max
     real, dimension (2) :: vnm_saved
 
     real :: teti  ! for back-compatibility
@@ -553,18 +555,12 @@ contains
        vnm_init = 1.0
        call init_vnm (vnm_saved, istatus)
        if (istatus == 0) vnm_init = vnm_saved
-       call init_dt (delt0, delt1, delt2, istatus, dt_not_set)
 
-       ! FIXME: The following check means that we only set all the
-       ! time step values if there were no errors in whatever the last
-       ! operation in `init_dt` was. In reality we should probably always
-       ! set these values based on what is returned and move the error
-       ! handling into `init_dt`.
-       if (istatus == 0) then
-          delt  = delt0
-          delt_prev1 = delt1
-          delt_prev2 = delt2
-       endif
+       call init_dt (delt0, delt1, delt2, delt_max, istatus, dt_not_set)
+       if (delt0 /= dt_not_set) delt = delt0
+       if (delt1 /= dt_not_set) delt_prev1 = delt1
+       if (delt2 /= dt_not_set) delt_prev2 = delt2
+       if (delt_max /= dt_not_set) user_delt_max = delt_max
     endif
 
     if (seed .ne. 0 ) call set_seed_from_single_integer(seed)
@@ -660,7 +656,19 @@ contains
        parameters_config = parameters_config_in
     end if
   end subroutine set_run_parameters_config
-  
+
+  !> Get the module level config instance
+  function get_knobs_config()
+    type(knobs_config_type) :: get_knobs_config
+    get_knobs_config = knobs_config
+  end function get_knobs_config
+
+  !> Get the module level config instance
+  function get_parameters_config()
+    type(parameters_config_type) :: get_parameters_config
+    get_parameters_config = parameters_config
+  end function get_parameters_config
+
   !---------------------------------------
   ! Following is for the knobs config_type
   !--------------------------------------- 

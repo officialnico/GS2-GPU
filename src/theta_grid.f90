@@ -12,6 +12,7 @@ module theta_grid_gridgen
 
   public :: theta_grid_gridgen_config_type
   public :: set_theta_grid_gridgen_config
+  public :: get_theta_grid_gridgen_config
   
   ! knobs
   integer :: npadd
@@ -129,7 +130,7 @@ contains
   subroutine gridgen_get_grids (nperiod, ntheta, ntgrid, nbset, &
        theta, bset, bmag, gradpar, gbdrift, gbdrift0, cvdrift, &
        cvdrift0, cdrift, cdrift0, gbdrift_th, cvdrift_th, &
-       gds2, gds21, gds22, gds23, gds24, gds24_noq, grho, jacob, &
+       gds2, gds21, gds22, gds23, gds24, gds24_noq, grho, &
        Rplot, Zplot, Rprime, Zprime, aplot, aprime, Bpol)
     use gridgen4mod, only: gridgen4_2
     use constants, only: pi
@@ -141,7 +142,7 @@ contains
     real, dimension (-ntgrid:ntgrid), intent (in out) :: &
          bmag, gradpar, gbdrift, gbdrift0, cvdrift, cvdrift0, cdrift, cdrift0, &
          gbdrift_th, cvdrift_th, gds2, gds21, gds22, gds23, gds24, gds24_noq, grho, &
-         jacob, Rplot, Zplot, Rprime, Zprime, aplot, aprime, Bpol
+         Rplot, Zplot, Rprime, Zprime, aplot, aprime, Bpol
     integer :: ntheta_old, ntgrid_old, nbset_old
     real, dimension (-ntgrid:ntgrid) :: thetasave
     real, dimension (ntheta+1) :: thetaold, thetanew
@@ -217,7 +218,6 @@ if (debug) write(6,*) 'gridgen_get_grids: call regrid'
     call regrid (ntgrid_old, thetasave, gds24, ntgrid, theta)
     call regrid (ntgrid_old, thetasave, gds24_noq, ntgrid, theta)
     call regrid (ntgrid_old, thetasave, grho, ntgrid, theta)
-    call regrid (ntgrid_old, thetasave, jacob, ntgrid, theta)
     call regrid (ntgrid_old, thetasave, Rplot, ntgrid, theta)
     call regrid (ntgrid_old, thetasave, Zplot, ntgrid, theta)
     call regrid (ntgrid_old, thetasave, aplot, ntgrid, theta)
@@ -265,6 +265,12 @@ if (debug) write(6,*) 'gridgen_get_grids: end'
        theta_grid_gridgen_config = theta_grid_gridgen_config_in
     end if
   end subroutine set_theta_grid_gridgen_config
+
+  !> Get the module level config instance
+  function get_theta_grid_gridgen_config()
+    type(theta_grid_gridgen_config_type) :: get_theta_grid_gridgen_config
+    get_theta_grid_gridgen_config = theta_grid_gridgen_config
+  end function get_theta_grid_gridgen_config
 
   !---------------------------------------
   ! Following is for the config_type
@@ -402,6 +408,7 @@ module theta_grid_salpha
 
   public :: theta_grid_salpha_config_type
   public :: set_theta_grid_salpha_config
+  public :: get_theta_grid_salpha_config
   
   ! knobs
   real :: alpmhdfac, alpha1
@@ -749,12 +756,13 @@ contains
   subroutine salpha_get_grids (nperiod, ntheta, ntgrid, nbset, theta, bset, &
        bmag, gradpar, gbdrift, gbdrift0, cvdrift, cvdrift0, cdrift, cdrift0, &
        gbdrift_th, cvdrift_th, gds2, gds21, gds22, gds23, gds24, gds24_noq, grho, &
-       jacob, Rplot, Zplot, Rprime, Zprime, aplot, aprime, shat, drhodpsi, kxfac, &
-       qval, shape, gb_to_cv, Bpol)
+       Rplot, Zplot, Rprime, Zprime, aplot, aprime, shat, drhodpsi, kxfac, &
+       qval, shape, gb_to_cv, Bpol, surfarea, dvdrhon)
     use constants, only: pi
     use theta_grid_params, only: eps, epsl, shat_param => shat, pk
     use theta_grid_gridgen, only: theta_grid_gridgen_init, gridgen_get_grids
     use file_utils, only: error_unit
+    use integration, only: trapezoidal_integration
     implicit none
     integer, intent (in) :: nperiod
     integer, intent (in out) :: ntheta, ntgrid, nbset
@@ -763,8 +771,8 @@ contains
     real, dimension (-ntgrid:ntgrid), intent (out) :: &
          bmag, gradpar, gbdrift, gbdrift0, cvdrift, cvdrift0, cdrift, cdrift0, &
          gbdrift_th, cvdrift_th, gds2, gds21, gds22, gds23, gds24, gds24_noq, grho, &
-         jacob, Rplot, Zplot, Rprime, Zprime, aplot, aprime, Bpol
-    real, intent (out) :: shat, drhodpsi, kxfac, qval
+         Rplot, Zplot, Rprime, Zprime, aplot, aprime, Bpol
+    real, intent (out) :: shat, drhodpsi, kxfac, qval, surfarea, dvdrhon
     character (8), intent(out) :: shape
     logical, intent (in) :: gb_to_cv
     integer :: i
@@ -912,8 +920,14 @@ contains
             theta, bset, bmag, &
             gradpar, gbdrift, gbdrift0, cvdrift, cvdrift0, cdrift, cdrift0, &
             gbdrift_th, cvdrift_th, gds2, gds21, gds22, gds23, gds24, gds24_noq, grho, &
-            jacob, Rplot, Zplot, Rprime, Zprime, aplot, aprime, Bpol)
+            Rplot, Zplot, Rprime, Zprime, aplot, aprime, Bpol)
     end if
+
+    ! Possibly crude approximations for s-alpha
+    ! Note jacob is usually defined as jacob = 1.0/(drhodpsi*gradpar*bmag)
+    ! but isn't yet stored here.
+    surfarea = 2 * pi * trapezoidal_integration(theta, grho / (drhodpsi*gradpar*bmag))
+    dvdrhon = 2 * pi * trapezoidal_integration(theta, 1.0 / (drhodpsi*gradpar*bmag))
   end subroutine salpha_get_grids
 
   !> Set the module level config type
@@ -929,7 +943,13 @@ contains
        theta_grid_salpha_config = theta_grid_salpha_config_in
     end if
   end subroutine set_theta_grid_salpha_config
-  
+
+  !> Get the module level config instance
+  function get_theta_grid_salpha_config()
+    type(theta_grid_salpha_config_type) :: get_theta_grid_salpha_config
+    get_theta_grid_salpha_config = theta_grid_salpha_config
+  end function get_theta_grid_salpha_config
+
   !---------------------------------------
   ! Following is for the config_type
   !--------------------------------------- 
@@ -1049,6 +1069,7 @@ module theta_grid_eik
 
   public :: theta_grid_eik_config_type
   public :: set_theta_grid_eik_config
+  public :: get_theta_grid_eik_config
   
   logical :: exist, initialized = .false.
 
@@ -1138,6 +1159,10 @@ module theta_grid_eik
      !> If `.true.` use Miller-style local equilibrium else use other
      !> numerical equilibrium types
      logical :: local_eq = .true.
+     !> The number of theta grid points to use in eikcoefs calls.
+     !> Currently may not have an effect for all equilibrium types.
+     !> If not set then defaults to [[theta_grid_parameters:ntheta]]
+     integer :: ntheta_geometry = -1
      !> Use Menard-style NetCDF equilibrium (JSOLVER)
      logical :: ppl_eq = .false.
      !> Used by [[eiktest]]
@@ -1619,6 +1644,8 @@ contains
     use geometry, only: gen_eq, ppl_eq, transp_eq, chs_eq
     use geometry, only: debug_geo => debug, verb_geo => verb
     use geometry, only: job_id_geo => job_id
+    use geometry, only: ntheta_geometry
+    use geometry, only: eikcoefs_output, set_eikcoefs_output, run_eikcoefs_and_resample
     use unit_tests, only: job_id
     use theta_grid_params, only: init_theta_grid_params, ntheta, nperiod
     use runtime_tests, only: verbosity
@@ -1627,42 +1654,52 @@ contains
     implicit none
     type(theta_grid_eik_config_type), intent(in), optional :: theta_grid_eik_config_in    
     real :: rhoc_save
-!CMR nov04: adding following debug switch
+    !CMR nov04: adding following debug switch
     logical :: debug=.true.
     integer, parameter :: verb = 3
     character(4) :: ntheta_char
-    
+    type(eikcoefs_output) :: eikcoefs_results
 
     debug = (verbosity() > 2)
     debug_geo = debug
     verb_geo = verbosity()
     job_id_geo = job_id
 
-!CMR
+    !CMR
 
     if (initialized) return
     initialized = .true.
     write(ntheta_char, "(I4)") ntheta
-     call debug_message(verb, "init_theta_grid_eik: call init_theta_grid_params, ntheta="//ntheta_char)
-! After this call, would think you have ntheta from input file
-! stored in theta_grid_params data structure.
-! but when running from numerical equilibrium, this is not right
-! Instead, get it stored via the eikcoefs call below.  
+    call debug_message(verb, "init_theta_grid_eik: call init_theta_grid_params, ntheta="//ntheta_char)
+    ! After this call, would think you have ntheta from input file
+    ! stored in theta_grid_params data structure.
+    ! but when running from numerical equilibrium, this is not right
+    ! Instead, get it stored via the eikcoefs call below.
     call init_theta_grid_params
 
     write(ntheta_char, "(I4)") ntheta
-     call debug_message(verb, "init_theta_grid_eik: call read_parameters, ntheta="//ntheta_char)
+    call debug_message(verb, "init_theta_grid_eik: call read_parameters, ntheta="//ntheta_char)
     call read_parameters(theta_grid_eik_config_in)
 
-    nperiod_geo = nperiod 
+    nperiod_geo = nperiod
     rhoc_save = rhoc
     if (itor == 0) rhoc = 1.5*delrho
 
+    if(proc0) then
+       if (ntheta_geometry == -1) then
+          write(ntheta_char, "(I4)") ntheta
+          call debug_message(verb, "init_theta_grid_eik: call eikcoefs, ntheta="//ntheta_char)
+          call eikcoefs(ntheta)
+       else
+          write(ntheta_char, "(I4)") ntheta_geometry
+          call debug_message(verb, "init_theta_grid_eik: call run_eikcoefs_and_resample, ntheta_geometry="//ntheta_char)
+          call run_eikcoefs_and_resample (ntheta_geometry, ntheta, eikcoefs_results)
+          call set_eikcoefs_output(eikcoefs_results)
+       end if
+    end if
+
     write(ntheta_char, "(I4)") ntheta
-     call debug_message(verb, "init_theta_grid_eik: call eikcoefs, ntheta="//ntheta_char)
-    if(proc0) call eikcoefs (ntheta)
-    write(ntheta_char, "(I4)") ntheta
-     call debug_message(verb, "init_theta_grid_eik: done, ntheta="//ntheta_char)
+    call debug_message(verb, "init_theta_grid_eik: done, ntheta="//ntheta_char)
 
     rhoc = rhoc_save
   end subroutine init_theta_grid_eik
@@ -1691,8 +1728,8 @@ contains
   subroutine eik_get_grids (nperiod, ntheta, ntgrid, nbset, theta, bset, bmag,&
             gradpar, gbdrift, gbdrift0, cvdrift, cvdrift0, cdrift, cdrift0, &
             gbdrift_th, cvdrift_th, gds2, gds21, gds22, gds23, gds24, gds24_noq, &
-            grho, jacob, Rplot, Zplot, Rprime, Zprime, aplot, aprime, shat, drhodpsi,&
-            kxfac, qval, gb_to_cv, Bpol)
+            grho, Rplot, Zplot, Rprime, Zprime, aplot, aprime, shat, drhodpsi,&
+            kxfac, qval, gb_to_cv, Bpol, surfarea, dvdrhon)
     use theta_grid_gridgen, only: theta_grid_gridgen_init, gridgen_get_grids
     use geometry, only: kxfac_out => kxfac
     use geometry, only: theta_out => theta
@@ -1720,6 +1757,7 @@ contains
     use geometry, only: Zprime_out => Zprime
     use geometry, only: aprime_out => aprime
     use geometry, only: Bpol_out => Bpol
+    use geometry, only: surfarea_out => surfarea, dvdrhon_out => dvdrhon
     use geometry, only: qsf
     use geometry, only: s_hat_new, drhodpsin
     use unit_tests, only: debug_message
@@ -1731,8 +1769,8 @@ contains
     real, dimension (-ntgrid:ntgrid), intent (out) :: &
          bmag, gradpar, gbdrift, gbdrift0, cvdrift, cvdrift0, cdrift, cdrift0, &
          gbdrift_th, cvdrift_th, gds2, gds21, gds22, gds23, gds24, gds24_noq, grho, &
-         jacob, Rplot, Zplot, Rprime, Zprime, aplot, aprime, Bpol
-    real, intent (out) :: shat, drhodpsi, kxfac, qval
+         Rplot, Zplot, Rprime, Zprime, aplot, aprime, Bpol
+    real, intent (out) :: shat, drhodpsi, kxfac, qval, surfarea, dvdrhon
     logical, intent (in) :: gb_to_cv
     integer :: ig
     integer, parameter :: verb=3 
@@ -1787,13 +1825,15 @@ contains
          theta, bset, bmag, &
          gradpar, gbdrift, gbdrift0, cvdrift, cvdrift0, cdrift, cdrift0, &
          gbdrift_th, cvdrift_th, gds2, gds21, gds22, gds23, gds24, gds24_noq, &
-         grho, jacob, Rplot, Zplot, Rprime, Zprime, aplot, aprime, Bpol)
+         grho, Rplot, Zplot, Rprime, Zprime, aplot, aprime, Bpol)
     shat = s_hat_new
     drhodpsi = drhodpsin
     kxfac = kxfac_out
     qval = qsf
+    surfarea = surfarea_out
+    dvdrhon = dvdrhon_out
 
-!    write (*,*) 
+!    write (*,*)
 !    do ig=-ntgrid,ntgrid
 !       write (*,*) theta(ig), gradpar(ig), bmag(ig), grho(ig), &
 !            gbdrift(ig), gbdrift(ig), gds2(ig)
@@ -1816,7 +1856,7 @@ contains
     use geometry, only: rmaj, r_geo
     use geometry, only: geoType, aSurf, shift, shiftVert, mMode, nMode, deltam, deltan
     use geometry, only: deltampri, deltanpri, thetam, thetan, qinp
-    use geometry, only: delrho, rmin, rmax
+    use geometry, only: delrho, rmin, rmax, ntheta_geometry
     use geometry, only: isym, in_nt, writelots
     use geometry, only: chs_eq
     use theta_grid_params, only: nperiod_in => nperiod
@@ -1886,6 +1926,7 @@ contains
     isym = theta_grid_eik_config%isym
     itor = theta_grid_eik_config%itor
     local_eq = theta_grid_eik_config%local_eq
+    ntheta_geometry = theta_grid_eik_config%ntheta_geometry
     ppl_eq = theta_grid_eik_config%ppl_eq
     rmax = theta_grid_eik_config%rmax
     rmin = theta_grid_eik_config%rmin
@@ -1909,7 +1950,13 @@ contains
        theta_grid_eik_config = theta_grid_eik_config_in
     end if
   end subroutine set_theta_grid_eik_config
-  
+
+  !> Get the module level config instance
+  function get_theta_grid_eik_config()
+    type(theta_grid_eik_config_type) :: get_theta_grid_eik_config
+    get_theta_grid_eik_config = theta_grid_eik_config
+  end function get_theta_grid_eik_config
+
   !---------------------------------------
   ! Following is for the config_type
   !---------------------------------------
@@ -1927,12 +1974,12 @@ contains
     ! we shadow the module level variables here. This is intentional to provide
     ! isolation and ensure we can move this routine to another module easily.
     character(len = 800) :: eqfile
-    integer :: bishop, iflux, irho, isym, itor
+    integer :: bishop, iflux, irho, isym, itor, ntheta_geometry
     logical :: chs_eq, dfit_eq, efit_eq, equal_arc, gen_eq, gs2d_eq, idfit_eq, local_eq, ppl_eq, transp_eq, writelots
     real :: alpha_input, beta_prime_input, delrho, dp_mult, invlp_input, rmax, rmin, s_hat_input
 
-    namelist /theta_grid_eik_knobs/ alpha_input, beta_prime_input, bishop, chs_eq, delrho, dfit_eq, dp_mult, efit_eq, eqfile, equal_arc, gen_eq, gs2d_eq, idfit_eq, iflux, invlp_input, irho, isym, itor, local_eq, ppl_eq, rmax, rmin, &
-         s_hat_input, transp_eq, writelots
+    namelist /theta_grid_eik_knobs/ alpha_input, beta_prime_input, bishop, chs_eq, delrho, dfit_eq, dp_mult, efit_eq, eqfile, equal_arc, gen_eq, gs2d_eq, idfit_eq, iflux, invlp_input, irho, isym, itor, local_eq, ntheta_geometry, ppl_eq, &
+         rmax, rmin, s_hat_input, transp_eq, writelots
 
     ! Only proc0 reads from file
     if (.not. proc0) return
@@ -1957,6 +2004,7 @@ contains
     isym = self%isym
     itor = self%itor
     local_eq = self%local_eq
+    ntheta_geometry = self%ntheta_geometry
     ppl_eq = self%ppl_eq
     rmax = self%rmax
     rmin = self%rmin
@@ -1996,6 +2044,7 @@ contains
     self%isym = isym
     self%itor = itor
     self%local_eq = local_eq
+    self%ntheta_geometry = ntheta_geometry
     self%ppl_eq = ppl_eq
     self%rmax = rmax
     self%rmin = rmin
@@ -2038,6 +2087,7 @@ contains
     call self%write_key_val("isym", self%isym, unit_internal)
     call self%write_key_val("itor", self%itor, unit_internal)
     call self%write_key_val("local_eq", self%local_eq, unit_internal)
+    call self%write_key_val("ntheta_geometry", self%ntheta_geometry, unit_internal)
     call self%write_key_val("ppl_eq", self%ppl_eq, unit_internal)
     call self%write_key_val("rmax", self%rmax, unit_internal)
     call self%write_key_val("rmin", self%rmin, unit_internal)
@@ -2082,6 +2132,7 @@ contains
     call broadcast(self%isym)
     call broadcast(self%itor)
     call broadcast(self%local_eq)
+    call broadcast(self%ntheta_geometry)
     call broadcast(self%ppl_eq)
     call broadcast(self%rmax)
     call broadcast(self%rmin)
@@ -2122,6 +2173,7 @@ module theta_grid_file
 
   public :: theta_grid_file_config_type
   public :: set_theta_grid_file_config
+  public :: get_theta_grid_file_config
   
   character (2000) :: gridout_file
   real :: shat_input, drhodpsi_input, kxfac_input, qval_input
@@ -2281,8 +2333,10 @@ contains
        bmag, gradpar, gbdrift, gbdrift0, cvdrift, cvdrift0, cdrift, cdrift0, &
        gbdrift_th, cvdrift_th, gds2, gds21, gds22, gds23, gds24, gds24_noq, grho, &
        Rplot, Zplot, Rprime, Zprime, aplot, aprime, &
-       shat, drhodpsi, kxfac, qval, gb_to_cv, Bpol)
+       shat, drhodpsi, kxfac, qval, gb_to_cv, Bpol, surfarea, dvdrhon)
     use file_utils, only: get_unused_unit
+    use constants, only: pi
+    use integration, only: trapezoidal_integration
     implicit none
     integer, intent (in) :: nperiod
     integer, intent (in out) :: ntheta, ntgrid, nbset
@@ -2292,7 +2346,7 @@ contains
          bmag, gradpar, gbdrift, gbdrift0, cvdrift, cvdrift0, cdrift, cdrift0, &
          gbdrift_th, cvdrift_th, gds2, gds21, gds22, gds23, gds24, gds24_noq, grho, &
          Rplot, Zplot, Rprime, Zprime, aplot, aprime, Bpol
-    real, intent (out) :: shat, drhodpsi, kxfac, qval
+    real, intent (out) :: shat, drhodpsi, kxfac, qval, surfarea, dvdrhon
     logical, intent (in) :: gb_to_cv
     integer :: unit
     character(200) :: line
@@ -2393,6 +2447,11 @@ contains
 
     close (unit=unit)
 
+    ! Possibly crude approximations for file
+    ! Note jacob is usually defined as jacob = 1.0/(drhodpsi*gradpar*bmag)
+    ! but isn't yet stored here.
+    surfarea = 2 * pi * trapezoidal_integration(theta, grho / (drhodpsi*gradpar*bmag))
+    dvdrhon = 2 * pi * trapezoidal_integration(theta, 1.0 / (drhodpsi*gradpar*bmag))
   end subroutine file_get_grids
 
   !> Set the module level config type
@@ -2408,7 +2467,13 @@ contains
        theta_grid_file_config = theta_grid_file_config_in
     end if
   end subroutine set_theta_grid_file_config
-  
+
+  !> Get the module level config instance
+  function get_theta_grid_file_config()
+    type(theta_grid_file_config_type) :: get_theta_grid_file_config
+    get_theta_grid_file_config = theta_grid_file_config
+  end function get_theta_grid_file_config
+
   !---------------------------------------
   ! Following is for the config_type
   !---------------------------------------
@@ -2531,10 +2596,12 @@ module theta_grid
   public :: ntheta, ntgrid, nperiod, nbset
   public :: Rplot, Zplot, aplot, Rprime, Zprime, aprime, Bpol
   public :: shape, gb_to_cv
+  public :: surfarea, dvdrhon
   public :: initialized
 
   public :: theta_grid_config_type
   public :: set_theta_grid_config
+  public :: get_theta_grid_config
   
   real, dimension (:), allocatable :: theta, theta2, delthet, delthet2
   real, dimension (:), allocatable :: bset
@@ -2547,6 +2614,7 @@ module theta_grid
   real, dimension (:), allocatable :: Rprime, Zprime, aprime
   real :: bmin, bmax, eps_trapped, shat, drhodpsi, kxfac, qval
   real :: cvdriftknob, gbdriftknob
+  real :: surfarea, dvdrhon
   integer :: ntheta, ntgrid, nperiod, nbset
   logical :: gb_to_cv
 
@@ -3082,8 +3150,8 @@ if (debug) write(6,*) 'get_grids: call eik_get_grids'
             theta, bset, bmag, &
             gradpar, gbdrift, gbdrift0, cvdrift, cvdrift0, cdrift, cdrift0, &
             gbdrift_th, cvdrift_th, gds2, gds21, gds22, gds23, gds24, gds24_noq, grho, &
-            jacob, Rplot, Zplot, Rprime, Zprime, aplot, aprime, &
-            shat, drhodpsi, kxfac, qval, gb_to_cv, Bpol)
+            Rplot, Zplot, Rprime, Zprime, aplot, aprime, &
+            shat, drhodpsi, kxfac, qval, gb_to_cv, Bpol, surfarea, dvdrhon)
        shape = 'torus   '
     case (eqopt_salpha)
 if (debug) write(6,*) 'get_grids: call salpha_get_grids'
@@ -3091,15 +3159,15 @@ if (debug) write(6,*) 'get_grids: call salpha_get_grids'
             theta, bset, bmag, &
             gradpar, gbdrift, gbdrift0, cvdrift, cvdrift0, cdrift, cdrift0, &
             gbdrift_th, cvdrift_th, gds2, gds21, gds22, gds23, gds24, gds24_noq, grho, &
-            jacob, Rplot, Zplot, Rprime, Zprime, aplot, aprime, &
-            shat, drhodpsi, kxfac, qval, shape, gb_to_cv, Bpol)
+            Rplot, Zplot, Rprime, Zprime, aplot, aprime, &
+            shat, drhodpsi, kxfac, qval, shape, gb_to_cv, Bpol, surfarea, dvdrhon)
     case (eqopt_file)
 if (debug) write(6,*) 'get_grids: call file_get_grids'
        call file_get_grids (nperiod, ntheta, ntgrid, nbset, theta, bset, bmag, &
             gradpar, gbdrift, gbdrift0, cvdrift, cvdrift0, cdrift, cdrift0, &
             gbdrift_th, cvdrift_th, gds2, gds21, gds22, gds23, gds24, gds24_noq, grho, &
             Rplot, Zplot, Rprime, Zprime, aplot, aprime, &
-            shat, drhodpsi, kxfac, qval, gb_to_cv, Bpol)
+            shat, drhodpsi, kxfac, qval, gb_to_cv, Bpol, surfarea, dvdrhon)
        shape = 'torus   '
     end select
     kxfac = abs(kxfac)
@@ -3148,7 +3216,13 @@ if (debug) write(6,*) 'get_grids: call file_get_grids'
        theta_grid_config = theta_grid_config_in
     end if
   end subroutine set_theta_grid_config
-  
+
+  !> Get the module level config instance
+  function get_theta_grid_config()
+    type(theta_grid_config_type) :: get_theta_grid_config
+    get_theta_grid_config = theta_grid_config
+  end function get_theta_grid_config
+
   !---------------------------------------
   ! Following is for the config_type
   !--------------------------------------- 

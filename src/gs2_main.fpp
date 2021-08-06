@@ -84,6 +84,7 @@ module gs2_main
   use exit_codes, only: exit_code, EXIT_NOT_REQUESTED
   implicit none
   public :: run_gs2, finish_gs2, reset_gs2, trin_finish_gs2
+  public :: parse_command_line
 
   public :: gs2_program_state_type
 
@@ -302,6 +303,50 @@ module gs2_main
 contains
 # endif
 
+  !> Parse some basic command line arguments. Currently just 'version' and 'help'.
+  !>
+  !> This should be called before anything else, but especially before initialising MPI.
+  subroutine parse_command_line()
+    use git_version_mod, only: get_git_version
+    use build_config, only : formatted_build_config
+    integer :: arg_count, arg_n
+    integer :: arg_length
+    character(len=:), allocatable :: argument
+    character(len=*), parameter :: nl = new_line('a')
+    character(len=*), parameter :: usage = &
+         "gs2 [--version|-v] [--help|-h] [--build-config] [input file]" // nl // nl // &
+         "GS2: A fast, flexible physicist's toolkit for gyrokinetics" // nl // &
+         "For more help, see the documentation at https://gyrokinetics.gitlab.io/gs2/" // nl // &
+         "or create an issue https://bitbucket.org/gyrokinetics/gs2/issues?status=open" // nl // &
+         nl // &
+         "  -h, --help     Print this message" // nl // &
+         "  -v, --version  Print the GS2 version" // nl // &
+         "  --build-config Print the current build configuration"
+
+    arg_count = command_argument_count()
+
+    do arg_n = 0, arg_count
+      call get_command_argument(arg_n, length=arg_length)
+      if (allocated(argument)) deallocate(argument)
+      allocate(character(len=arg_length)::argument)
+      call get_command_argument(arg_n, argument)
+
+      if ((argument == "--help") .or. (argument == "-h")) then
+        write(*, '(a)') usage
+        stop
+      else if ((argument == "--version") .or. (argument == "-v")) then
+        write(*, '("GS2 version ", a)') get_git_version()
+        stop
+      else if (argument == "--build-config") then
+        write(*, '(a)') formatted_build_config()
+        stop
+      else if (argument(1:1) == "-") then
+        write(*, '(a)') "Error: Unrecognised argument '" // argument // "'. Usage is:" // nl // nl // usage
+        stop 2
+      end if
+    end do
+  end subroutine parse_command_line
+
   !> Starts the global wall clock timer
   !! used by check time. This is useful
   !! if you have multiple copies of gs2 
@@ -319,7 +364,7 @@ contains
   !! reaches init\%level = basic. If it is desired to provide
   !! an external commuicator or set the input file name externally,
   !! these should be set before calling this function. 
-  subroutine initialize_gs2(state, quiet)
+  subroutine initialize_gs2(state, header, quiet)
     use file_utils, only: init_file_utils
     use file_utils, only: run_name, run_name_target
     use gs2_init, only: init_gs2_init
@@ -332,12 +377,17 @@ contains
     use mp, only: use_nproc, included, mp_comm
     use redistribute, only: using_measure_scatter
     use unit_tests, only: debug_message, set_job_id
+    use standard_header, only: standard_header_type
     implicit none
     type(gs2_program_state_type), intent(inout) :: state
+    !> Header for files with build and run information
+    type(standard_header_type), intent(in), optional :: header
     !> If true, don't print start-up messages/header
     logical, intent(in), optional :: quiet
-    integer :: oldrank
 
+    integer :: oldrank
+    ! Actual value for optional `header` input
+    type(standard_header_type) :: local_header
     ! Internal value for optional `quiet` input
     logical :: quiet_value
 
@@ -353,6 +403,12 @@ contains
        call init_mp (state%mp_comm)
     else
        call init_mp
+    end if
+
+    if (present(header)) then
+      local_header = header
+    else
+      local_header = standard_header_type()
     end if
 
     if (present(quiet)) then
@@ -388,6 +444,8 @@ contains
     if (proc0) then
       ! Report number of processors being used
       if (.not. quiet_value) then
+        write(*, '(a)') local_header%to_string(comment_character=" ")
+
         if (state%external_job_id >= 0) then
           write(*, '(a, i0, a)', advance="no") "External job ", state%external_job_id, " "
         end if
@@ -460,7 +518,7 @@ contains
   !! init\%level = full. 
   subroutine initialize_equations(state)
     use fields, only: init_fields
-    use geometry, only: surfarea, dvdrhon
+    use theta_grid, only: surfarea, dvdrhon
     use gs2_time, only: init_tstart
     use gs2_init, only: init
     use init_g, only: tstart
@@ -523,7 +581,7 @@ contains
        ! Note this isn't actually "grho" as defined by the rest of the
        ! code but rather "grhoavg", i.e. an average value. It may be
        ! appropriate to replace this with something like `mean(grho)`
-       state%outputs%grho = surfarea/dvdrhon
+       state%outputs%grho = surfarea / dvdrhon
     end if
     call broadcast (state%outputs%dvdrho)
     call broadcast (state%outputs%grho)
@@ -557,7 +615,7 @@ contains
   !! initialize_equations.  However, gs2 can be partially
   !! uninitialized without finalizing the diagnostics, for example to
   !! change parameters such as the timestep.
-  subroutine initialize_diagnostics(state)
+  subroutine initialize_diagnostics(state, header)
     use gs2_diagnostics, only: init_gs2_diagnostics
     use gs2_diagnostics, only: nwrite, write_nl_flux
     use gs2_diagnostics, only: loop_diagnostics
@@ -571,14 +629,26 @@ contains
     use parameter_scan, only: allocate_target_arrays
     use run_parameters, only: nstep, use_old_diagnostics
     use unit_tests, only: debug_message
+    use standard_header, only: standard_header_type
     implicit none
     type(gs2_program_state_type), intent(inout) :: state
+    !> Header for files with build and run information
+    type(standard_header_type), intent(in), optional :: header
+    ! Actual value for optional `header` input
+    type(standard_header_type) :: local_header
+
 #ifdef NEW_DIAG
     ! Configuration for the new diagnostics module
     type(diagnostics_init_options_type) :: diagnostics_init_options
     real :: precision_test
 #endif
     if (.not. state%included) return
+
+    if (present(header)) then
+      local_header = header
+    else
+      local_header = standard_header_type()
+    end if
 
     state%exit = .false. 
 
@@ -635,7 +705,7 @@ contains
 
       call debug_message(state%verb, &
         'gs2_main::initialize_diagnostics calling init_gs2_diagnostics')
-      call init_gs2_diagnostics (state%list, nstep)
+      call init_gs2_diagnostics (state%list, nstep, header=local_header)
       call allocate_target_arrays(nwrite,write_nl_flux) ! must be after init_gs2_diagnostics
       call loop_diagnostics(0,state%exit)
     end if
@@ -1209,6 +1279,7 @@ contains
     use gs2_layouts, only: g_lo
     use kt_grids, only: naky, ntheta0
     use theta_grid, only: ntgrid
+    use dist_fn_arrays, only: gexp_3
     implicit none
     type(gs2_program_state_type), intent(inout) :: state
     if (.not. state%included) return
@@ -1217,12 +1288,12 @@ contains
     call init_initial_values_overrides(state%init%initval_ov,&
       ntgrid, ntheta0, naky, g_lo%llim_proc, g_lo%ulim_alloc, &
       force_maxwell_reinit=force_maxwell_reinit, &
-      in_memory=in_memory)
+      in_memory=in_memory, has_explicit_terms = allocated(gexp_3))
   end subroutine prepare_initial_values_overrides
 
   !> FIXME : Add documentation  
   subroutine set_initval_overrides_to_current_vals(initval_ov)
-    use dist_fn_arrays, only: gnew
+    use dist_fn_arrays, only: gnew, gexp_1, gexp_2, gexp_3
     use gs2_save, only: gs2_save_for_restart
     use mp, only: proc0, broadcast, mp_abort
     use collisions, only: vnmult
@@ -1245,6 +1316,10 @@ contains
 
     if(initval_ov%in_memory)then
       initval_ov%g=gnew
+
+      if (allocated(initval_ov%gexp_1)) initval_ov%gexp_1 = gexp_1
+      if (allocated(initval_ov%gexp_2)) initval_ov%gexp_2 = gexp_2
+      if (allocated(initval_ov%gexp_3)) initval_ov%gexp_3 = gexp_3
 
       ! Do not use the value from [old_iface_]state%init%initval_ov%force_maxwell_reinit = initval_ov%force_maxwell_reinit as
       ! follows:
@@ -1516,6 +1591,8 @@ contains
     logical, intent (out), optional :: converged
 
     logical, save :: first_time = .true.
+
+    call parse_command_line()
 
     ! HJL tests on Trinity optionals for load balancing
     old_iface_state%external_job_id = -1

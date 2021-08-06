@@ -12,6 +12,7 @@ module normalisations
 
   public :: normalisations_config_type
   public :: set_normalisations_config
+  public :: get_normalisations_config
   
   real, parameter :: default_value = -999.0
   
@@ -359,7 +360,13 @@ contains
        normalisations_config = normalisations_config_in
     end if
   end subroutine set_normalisations_config
-  
+
+  !> Get the module level config instance
+  function get_normalisations_config()
+    type(normalisations_config_type) :: get_normalisations_config
+    get_normalisations_config = normalisations_config
+  end function get_normalisations_config
+
   !---------------------------------------
   ! Following is for the config_type
   !---------------------------------------
