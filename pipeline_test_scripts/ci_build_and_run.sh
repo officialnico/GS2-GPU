@@ -20,6 +20,8 @@ build_gs2() {
     header "Build GS2"
     make test_make ${EXTRA_MAKE_FLAGS}
     make -j gs2 ${EXTRA_MAKE_FLAGS}
+    ./bin/gs2 --version
+    ./bin/gs2 --build-config
 }
 
 make_and_run_pfunit_tests() {

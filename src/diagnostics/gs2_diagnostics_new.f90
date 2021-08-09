@@ -63,6 +63,7 @@ contains
     use simpledataio, only: set_dimension_start
     use diagnostics_metadata, only: write_metadata
     use diagnostics_metadata, only: read_input_file_and_get_size
+    use gs2_diagnostics, only: check_restart_file_writeable
     use unit_tests, only: debug_message
     implicit none
     type(diagnostics_init_options_type), intent(in) :: init_options
@@ -74,7 +75,9 @@ contains
     call debug_message(gnostics%verbosity, &
       'gs2_diagnostics_new::init_gs2_diagnostics_new initialized config')
     call check_parameters
-    !call check_restart_file_writeable
+    call check_restart_file_writeable(gnostics%file_safety_check, &
+                                      gnostics%save_for_restart, &
+                                      gnostics%save_distfn)
     call debug_message(gnostics%verbosity, &
       'gs2_diagnostics_new::init_gs2_diagnostics_new  checked restart file')
     
@@ -247,30 +250,6 @@ contains
     end if
     
   end subroutine check_parameters
-
-  !> FIXME : Add documentation
-  subroutine check_restart_file_writeable
-    use gs2_save, only: restart_writable
-    use mp, only: proc0, mp_abort, broadcast
-    implicit none
-    logical :: writable
-    !Verify restart file can be written
-    if((gnostics%save_for_restart.or.gnostics%save_distfn).and.(gnostics%file_safety_check))then
-       !Can we write file?
-       writable=restart_writable()
-
-       !If we can't write the restart file then we should probably quit
-       if((.not.writable).and.gnostics%save_for_restart) &
-         call mp_abort("Cannot write to test file, maybe restart_dir &
-         & doesn't exist --> Aborting.",to_screen=.true.)
-
-       !If it's just a case of save_distfn then we can carry on but print a useful mesasge
-       if((.not.writable).and.gnostics%save_distfn)then
-          if(proc0)write(6,'("Warning: Cannot write to test restart_file --> Setting save_distfn=F.")')
-          gnostics%save_distfn=.false.
-       endif
-    endif
-  end subroutine check_restart_file_writeable
 
   !> This subroutine determines which ascii output files are enabled
   !! (i.e., opened, flushed at each write, and then closed).

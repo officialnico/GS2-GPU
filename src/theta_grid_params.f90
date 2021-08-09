@@ -17,6 +17,7 @@ module theta_grid_params
 
   public :: theta_grid_parameters_config_type
   public :: set_theta_grid_params_config
+  public :: get_theta_grid_params_config
   
   real :: rhoc, rmaj, r_geo, eps, epsl
   real :: qinp, shat, alpmhd, pk
@@ -342,6 +343,8 @@ contains
       "theta_grid_params::init_theta_grid_params call read_parameters")
     call read_parameters(theta_grid_parameters_config_in)
 
+    betaprim = 0.0
+
     call debug_message(verb, "theta_grid_params::init_theta_grid_params end")
   end subroutine init_theta_grid_params
 
@@ -619,6 +622,12 @@ contains
        theta_grid_parameters_config = theta_grid_parameters_config_in
     end if
   end subroutine set_theta_grid_params_config
+
+  !> Get the module level config instance
+  function get_theta_grid_params_config()
+    type(theta_grid_parameters_config_type) :: get_theta_grid_params_config
+    get_theta_grid_params_config = theta_grid_parameters_config
+  end function get_theta_grid_params_config
 
   !---------------------------------------
   ! Following is for the config_type

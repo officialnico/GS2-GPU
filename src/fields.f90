@@ -28,6 +28,7 @@ module fields
 
   public :: fields_config_type
   public :: set_fields_config
+  public :: get_fields_config
   
   !> FIXME : Add documentation
   interface fieldlineavgphi
@@ -806,7 +807,13 @@ contains
        fields_config = fields_config_in
     end if
   end subroutine set_fields_config
-  
+
+  !> Get the module level config instance
+  function get_fields_config()
+    type(fields_config_type) :: get_fields_config
+    get_fields_config = fields_config
+  end function get_fields_config
+
   !---------------------------------------
   ! Following is for the config_type
   !---------------------------------------

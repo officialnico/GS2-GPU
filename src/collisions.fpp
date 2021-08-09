@@ -30,6 +30,7 @@ module collisions
 
   public :: collisions_config_type
   public :: set_collisions_config
+  public :: get_collisions_config
   
   interface solfp1
      module procedure solfp1_le_layout
@@ -587,7 +588,7 @@ contains
 # endif
 
     !<DD>This (potentially large) array should only be needed if 
-    !write_hrate (gs2_diagnostics) is true.
+    !write_heating (gs2_diagnostics) is true.
     if (.not. allocated(c_rate)) then
        allocate (c_rate(-ntgrid:ntgrid, ntheta0, naky, nspec, 3))
        c_rate = 0.
@@ -666,6 +667,9 @@ contains
 
     if(use_le_layout) then
        allocate (ctmp(nxi+1, negrid+1, le_lo%llim_proc:le_lo%ulim_alloc))
+       ! We need to initialise ctmp as it is used as receiving buffer in
+       ! g2le redistribute, which doesn't populate all elements
+       ctmp = 0.
     end if
     
 ! TO DO: 
@@ -1165,7 +1169,10 @@ contains
     logical :: all
 
     if(use_le_layout) then
-      allocate (ctmp(nxi+1, negrid+1, le_lo%llim_proc:le_lo%ulim_alloc))
+       allocate (ctmp(nxi+1, negrid+1, le_lo%llim_proc:le_lo%ulim_alloc))
+       ! We need to initialise ctmp as it is used as receiving buffer in
+       ! g2le redistribute, which doesn't populate all elements
+       ctmp = 0.
     end  if
 
 ! TO DO: 
@@ -2119,6 +2126,10 @@ contains
           if(.not.allocated(aj0le))then
              allocate (z_big(-ntgrid:ntgrid, 2, g_lo%llim_proc:g_lo%ulim_alloc))
              allocate (ctmp(nxi+1, negrid+1, le_lo%llim_proc:le_lo%ulim_alloc))
+
+             ! We need to initialise ctmp as it is used as receiving buffer in
+             ! g2le redistribute, which doesn't populate all elements
+             ctmp = 0.
 
              ! next set aj0le & aj1l
              z_big(:,1,:) = cmplx(aj0,aj1)
@@ -4429,7 +4440,13 @@ contains
        collisions_config = collisions_config_in
     end if
   end subroutine set_collisions_config
-  
+
+  !> Get the module level config instance
+  function get_collisions_config()
+    type(collisions_config_type) :: get_collisions_config
+    get_collisions_config = collisions_config
+  end function get_collisions_config
+
   !---------------------------------------
   ! Following is for the config_type
   !---------------------------------------

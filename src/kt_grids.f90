@@ -13,6 +13,7 @@ module kt_grids_single
 
   public :: kt_grids_single_config_type
   public :: set_kt_grids_single_config
+  public :: get_kt_grids_single_config
   
   real :: akx, aky, theta0, rhostar_single
   integer :: n0
@@ -171,7 +172,13 @@ contains
        kt_grids_single_config = kt_grids_single_config_in
     end if
   end subroutine set_kt_grids_single_config
-  
+
+  !> Get the module level config instance
+  function get_kt_grids_single_config()
+    type(kt_grids_single_config_type) :: get_kt_grids_single_config
+    get_kt_grids_single_config = kt_grids_single_config
+  end function get_kt_grids_single_config
+
   !---------------------------------------
   ! Following is for the config_type
   !--------------------------------------- 
@@ -302,6 +309,7 @@ module kt_grids_range
 
   public :: kt_grids_range_config_type  
   public :: set_kt_grids_range_config
+  public :: get_kt_grids_range_config
   
   integer :: naky, ntheta0, nn0, n0_min, n0_max
   real :: aky_min, aky_max, theta0_min, theta0_max
@@ -695,7 +703,13 @@ contains
        kt_grids_range_config = kt_grids_range_config_in
     end if
   end subroutine set_kt_grids_range_config   
-  
+
+  !> Get the module level config instance
+  function get_kt_grids_range_config()
+    type(kt_grids_range_config_type) :: get_kt_grids_range_config
+    get_kt_grids_range_config = kt_grids_range_config
+  end function get_kt_grids_range_config
+
   !---------------------------------------
   ! Following is for the config_type
   !---------------------------------------
@@ -857,6 +871,8 @@ module kt_grids_specified
   public :: kt_grids_specified_config_type 
   public :: kt_grids_specified_element_config_type
   public :: set_kt_grids_specified_config
+  public :: get_kt_grids_specified_config
+  public :: get_kt_grids_specified_element_config
   
   integer :: naky, ntheta0, nx, ny
   logical :: initialized = .false.
@@ -1069,7 +1085,23 @@ contains
        kt_grids_specified_element_config = kt_grids_specified_element_config_in
     end if    
   end subroutine set_kt_grids_specified_config   
-  
+
+  !> Get the module level config instance
+  function get_kt_grids_specified_config()
+    type(kt_grids_specified_config_type) :: get_kt_grids_specified_config
+    get_kt_grids_specified_config = kt_grids_specified_config
+  end function get_kt_grids_specified_config
+
+  !> Get the module level config instance
+  function get_kt_grids_specified_element_config()
+    type(kt_grids_specified_element_config_type), allocatable :: get_kt_grids_specified_element_config(:)
+    if (allocated(kt_grids_specified_element_config)) then
+      get_kt_grids_specified_element_config = kt_grids_specified_element_config
+    else
+      allocate(get_kt_grids_specified_element_config(0))
+    end if
+  end function get_kt_grids_specified_element_config
+
   !---------------------------------------
   ! Following is for the config_type
   !--------------------------------------- 
@@ -1301,12 +1333,14 @@ module kt_grids_box
 
   public :: kt_grids_box_config_type
   public :: set_kt_grids_box_config
+  public :: get_kt_grids_box_config
   
   real :: ly, y0, x0, rtwist, rhostar_box
   integer :: naky_private, ntheta0_private, nx_private, ny_private
   integer :: nkpolar_private, n0
   integer :: jtwist
   integer :: naky, ntheta0, nx, ny, nkpolar
+  !> Are we being called from gryfx?
   logical :: gryfx
   logical :: parameters_read = .false.
   logical :: initialized = .false.
@@ -1841,7 +1875,13 @@ contains
        kt_grids_box_config = kt_grids_box_config_in
     end if
   end subroutine set_kt_grids_box_config
-  
+
+  !> Get the module level config instance
+  function get_kt_grids_box_config()
+    type(kt_grids_box_config_type) :: get_kt_grids_box_config
+    get_kt_grids_box_config = kt_grids_box_config
+  end function get_kt_grids_box_config
+
   !---------------------------------------
   ! Following is for the config_type
   !---------------------------------------
@@ -2012,6 +2052,7 @@ module kt_grids
 
   public :: kt_grids_config_type
   public :: set_kt_grids_config
+  public :: get_kt_grids_config
   
   logical, dimension(:,:), allocatable :: kwork_filter
   real, dimension (:,:,:), allocatable :: kperp2
@@ -2150,14 +2191,16 @@ contains
     end if
   end subroutine set_overrides
 
-  !> FIXME : Add documentation  
-  function gryfx()
-    use mp, only: broadcast
-    use kt_grids_box, only: grbx=>gryfx
+  !> Have we been called from a gryfx run or not?
+  pure function gryfx()
+    use kt_grids_box, only: gryfx_box => gryfx
     implicit none
     logical :: gryfx
-    gryfx = grbx
-    !call broadcast(gryfx)
+    if (gridopt_switch == gridopt_box) then
+       gryfx = gryfx_box
+    else
+       gryfx = .false.
+    end if
   end function gryfx
 
   !> FIXME : Add documentation
@@ -2251,8 +2294,9 @@ contains
     case (gridopt_box)
        write (unit, fmt="(' grid_option = ',a)") '"box"'
     end select
+    write(unit, fmt="(' /')")
 
-    select case (gridopt_switch)          
+    select case (gridopt_switch)
     case (gridopt_single)
        call wnml_kt_grids_single (unit)
     case (gridopt_range)
@@ -2393,6 +2437,12 @@ contains
        kt_grids_config = kt_grids_config_in
     end if
   end subroutine set_kt_grids_config
+
+  !> Get the module level config instance
+  function get_kt_grids_config()
+    type(kt_grids_config_type) :: get_kt_grids_config
+    get_kt_grids_config = kt_grids_config
+  end function get_kt_grids_config
 
   !---------------------------------------
   ! Following is for the config_type

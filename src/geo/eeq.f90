@@ -154,6 +154,7 @@ contains
   !! rleft      position of leftmost point of domain
   !! zhei       total height of domain
   subroutine gs2din(eqfile, psi_0, psi_a, rmaj, B_T, amin, initeq, big)
+    ! It may be clearer if we use our spline/periodic_spline wrappers?
     use splines, only: inter_cspl, fitp_surf2, fitp_surf1
     use constants, only: pi, twopi
     use gs2d, only: read_gs2d, psi, b0, f, ippsi, nr, nz, p, ps
@@ -367,6 +368,7 @@ if (debug) write(6,*) "gs2din: B_T0, aminor, psi_0, psi_a=", B_T0, aminor, psi_0
   !! - zhei:       total height of domain
   subroutine efitin(eqfile, psi_0, psi_a, rmaj, B_T, amin, initeq, big)
     use constants, only: pi, twopi
+    ! It may be clearer if we use our spline/periodic_spline wrappers?
     use splines, only: inter_cspl, fitp_surf2, fitp_surf1
     implicit none
     
@@ -712,6 +714,7 @@ if (debug) write(6,*) "gs2din: B_T0, aminor, psi_0, psi_a=", B_T0, aminor, psi_0
   !! - nth: number of theta points
   !! - ntm: lower index of theta array is -ntm
   subroutine gradient(rgrid, theta, grad, char, rp, nth, ntm)
+    ! It may be clearer if we use our spline/periodic_spline wrappers?
     use splines, only: inter_d_cspl
     implicit none
     integer, intent(in) :: nth, ntm
@@ -757,6 +760,7 @@ if (debug) write(6,*) "gs2din: B_T0, aminor, psi_0, psi_a=", B_T0, aminor, psi_0
   !! - nth: number of theta points
   !! - ntm: lower index of theta array is -ntm
   subroutine bgradient(rgrid, theta, grad, char, rp, nth_used, ntm)
+    ! It may be clearer if we use our spline/periodic_spline wrappers?
     use splines, only: inter_d_cspl
     implicit none
     
@@ -1088,18 +1092,20 @@ if (debug) write(6,*) "gs2din: B_T0, aminor, psi_0, psi_a=", B_T0, aminor, psi_0
     initialize_bound = 1
   end function initialize_bound
 
-  !> FIXME : Add documentation  
+  !> Find the value of the major radius on the plasma boundary
+  !> at given geometric theta.
   function bound(theta) 
-    use splines, only: new_spline, splint, spline
+    use splines, only: new_periodic_spline, periodic_splint, periodic_spline
+    use constants, only: twopi
     implicit none
     real, intent(in) :: theta
     real :: bound
-    type (spline), save :: spl
+    type (periodic_spline), save :: spl
 
-    if(init_bound) call new_spline(nbbbs, thetab, r_bound, spl)
+    if(init_bound) call new_periodic_spline(nbbbs, thetab, r_bound, twopi, spl, drop_last_point = .true.)
     init_bound = .false.
     
-    bound = splint(theta, spl)
+    bound = periodic_splint(theta, spl)
   end function bound    
 
   !> FIXME : Add documentation  
@@ -1130,6 +1136,7 @@ if (debug) write(6,*) "gs2din: B_T0, aminor, psi_0, psi_a=", B_T0, aminor, psi_0
     if(allocated(dpm)) deallocate(dpm,dtm)
     if(allocated(dum2)) deallocate(dum2,dum3)
     if(allocated(efit_t)) deallocate(efit_t)
+    if(allocated(thetab)) deallocate(thetab, r_bound)
   end subroutine dealloc_module_arrays
 
   !> FIXME : Add documentation  

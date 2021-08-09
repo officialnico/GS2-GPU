@@ -3,7 +3,7 @@
 module checks_mod
   implicit none
   real :: phi2_value
-  real, parameter :: target_value = 2200.0
+  real, parameter :: target_value = 2290.0
   real, parameter :: tolerance = 0.05
 contains
   real function phi2()
