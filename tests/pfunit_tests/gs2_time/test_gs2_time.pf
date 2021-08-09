@@ -42,16 +42,25 @@ contains
     implicit none
     class(MPITestMethod), intent(inout) :: this
     real, dimension(:), allocatable :: ab_coefficients
+    real, dimension(3), parameter :: expected_3rd_order = [23./12., -4./3., 5./12.]
+    real, dimension(2), parameter :: expected_2nd_order = [1.5, -0.5]
+    real, dimension(1), parameter :: expected_1st_order = [1.]
+
     !First reset the module state
     call reset_gs2_time
 
     !Set the initial timestep
     call save_dt(1.0)
 
-    !Get 1st order coefficients
+    !Check we get 1st order coefficients even though we ask for third
+    ab_coefficients = get_adams_bashforth_coefficients(maximum_order = 3)
+    @assertEqual(size(ab_coefficients), 1, message="1st Order Coefficient size - order force to 3")
+    @assertEqual(ab_coefficients(1), expected_1st_order(1), tolerance=tolerance, message="1st Order 1st Coefficient - order force to 3")
+
+    !Get 1st order coefficients - pretty much duplicate of above
     ab_coefficients = get_adams_bashforth_coefficients()
     @assertEqual(size(ab_coefficients), 1, message="1st Order Coefficient size")
-    @assertEqual(ab_coefficients(1), 1.0, tolerance=tolerance, message="1st Order 1st Coefficient")
+    @assertEqual(ab_coefficients(1), expected_1st_order(1), tolerance=tolerance, message="1st Order 1st Coefficient")
 
     !Now set another timestep
     call update_time
@@ -59,8 +68,8 @@ contains
     !Get 2nd order coefficients
     ab_coefficients = get_adams_bashforth_coefficients()
     @assertEqual(size(ab_coefficients), 2, message="2nd Order Coefficient size")
-    @assertEqual(ab_coefficients(1), 1.5, tolerance=tolerance, message="2nd Order 1st Coefficient")
-    @assertEqual(ab_coefficients(2), -0.5, tolerance=tolerance, message="2nd Order 2nd Coefficient")
+    @assertEqual(ab_coefficients(1), expected_2nd_order(1), tolerance=tolerance, message="2nd Order 1st Coefficient")
+    @assertEqual(ab_coefficients(2), expected_2nd_order(2), tolerance=tolerance, message="2nd Order 2nd Coefficient")
 
     !Now set another timestep
     call update_time
@@ -68,9 +77,20 @@ contains
     !Get 3rd order coefficients
     ab_coefficients = get_adams_bashforth_coefficients()
     @assertEqual(size(ab_coefficients), 3, message="3rd Order Coefficient size")
-    @assertEqual(ab_coefficients(1), 23./12., tolerance=tolerance, message="3rd Order 1st Coefficient")
-    @assertEqual(ab_coefficients(2), -4./3., tolerance=tolerance, message="3rd Order 2nd Coefficient")
-    @assertEqual(ab_coefficients(3), 5./12., tolerance=tolerance, message="3rd Order 3rd Coefficient")
+    @assertEqual(ab_coefficients(1), expected_3rd_order(1), tolerance=tolerance, message="3rd Order 1st Coefficient")
+    @assertEqual(ab_coefficients(2), expected_3rd_order(2), tolerance=tolerance, message="3rd Order 2nd Coefficient")
+    @assertEqual(ab_coefficients(3), expected_3rd_order(3), tolerance=tolerance, message="3rd Order 3rd Coefficient")
+
+    !Get 2nd order coefficients again now that 3rd order is available
+    ab_coefficients = get_adams_bashforth_coefficients(maximum_order = 2)
+    @assertEqual(size(ab_coefficients), 2, message="2nd Order Coefficient size - order force")
+    @assertEqual(ab_coefficients(1), expected_2nd_order(1), tolerance=tolerance, message="2nd Order 1st Coefficient - order force")
+    @assertEqual(ab_coefficients(2), expected_2nd_order(2), tolerance=tolerance, message="2nd Order 2nd Coefficient - order force")
+
+    !Get 1st order coefficients again now that 3rd order is available
+    ab_coefficients = get_adams_bashforth_coefficients(maximum_order = 1)
+    @assertEqual(size(ab_coefficients), 1, message="1st Order Coefficient size - order force")
+    @assertEqual(ab_coefficients(1), expected_1st_order(1), tolerance=tolerance, message="1st Order 1st Coefficient - order force")
 
     !Reset the module state again
     call reset_gs2_time
