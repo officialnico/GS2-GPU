@@ -79,40 +79,20 @@
 !BOUNDARY CONDITIONS  
 !==============================
 &dist_fn_knobs
- gridfac = 1.0 ! Affects boundary condition at end of theta grid.
- omprimfac = 1.0 
  boundary_option = "linked" ! Sets the boundary condition along the field line (i.e. the boundary conditions at theta = +- pi).
  adiabatic_option = "iphi00=2" ! The form of the adiabatic response (if a species is being modeled as adiabatic).
- g_exb = 0.0 
- nonad_zero = .true. ! If true switches on new parallel boundary condition where h=0 at incoming boundary instead of g=0.
-/
-
-!==============================
-!ALGORITHMIC CHOICES  
-!==============================
-&fields_knobs
- field_option = "implicit" ! Controls which time-advance algorithm is used for the linear terms.
 /
 
 !==============================
 !  
 !==============================
 &knobs
- wstar_units = .false. ! For linear runs only. Evolves each k_y with a different timestep.
  fphi = 1.0 ! Multiplies Phi (electrostatic potential).
  fapar = 0.0 ! Multiplies A_par. Use 1 for finite beta (electromagnetic), 0 otherwise (electrostatic)
- faperp = 0.0 ! Multiplies A_perp. Use 1 for high beta, 0 otherwise. Deprecated: use fbpar instead
- delt = 0.05 ! Time step
+ fbpar = 0.0
+ delt = 0.5 ! Time step
  nstep = 200 ! Maximum number of timesteps
  use_old_diagnostics = .true.
-/
-
-!==============================
-!  
-!==============================
-&reinit_knobs
- delt_adj = 2.0 ! When the time step needs to be changed, it is adjusted 
- delt_minimum = 1.0e-06 ! The minimum time step is delt_minimum.
 /
 
 !==============================
@@ -127,14 +107,6 @@
 !==============================
 &collisions_knobs
  collision_model = "none" ! Collision model used in the simulation. Options: 'default', 'none', 'lorentz', 'ediffuse'
-/
-
-!==============================
-!NONLINEARITY  
-!==============================
-&nonlinear_terms_knobs
- nonlinear_mode = "off" ! Include nonlinear terms? ('on','off')
- cfl = 0.5 ! The maximum delt < cfl * min(Delta_perp/v_perp)
 /
 
 !==============================
@@ -175,17 +147,17 @@
  phiinit = 0.001 ! Average amplitude of initial perturbation of each Fourier mode.
  ginit_option = "single_parallel_mode" ! Sets the way that the distribution function is initialized.
  ikpar_init = 1
- restart_dir = "monkeys"
 /
 
 !==============================
 !DIAGNOSTICS  
 !==============================
 &gs2_diagnostics_knobs
+ write_ascii = F
  print_flux_line = .F. ! Instantaneous fluxes output to screen
- write_nl_flux = .true. ! Write nonlinear fluxes as a function of time.
+ write_nl_flux = F ! Write nonlinear fluxes as a function of time.
  print_line = .false. ! Estimated frequencies and growth rates to the screen/stdout
- write_verr = .true. ! Write velocity space diagnostics to '.lpc' and '.verr' files
+ write_verr = F ! Write velocity space diagnostics to '.lpc' and '.verr' files
   ! write_g not specified --- Write the distribution function to the '.dist' (NetCDF?)
  write_line = .false. ! If (write_ascii = T) write estimated frequencies and growth rates to the output file
   ! write_gyx not specified --- Write dist fn at a given physical spacial point to a file
@@ -195,9 +167,9 @@
   ! write_lorentzian not specified --- Frequency Sweep Data
  write_omega = .true. ! If (write_ascii = T) instantaneous omega to output file. Very heavy output
  write_omavg = .true. ! If (write_ascii = T) time-averaged growth rate and frequency to the output file.
- write_eigenfunc = .true. ! If (write_ascii = T) Normalized phi written to runname.eigenfunc
- write_final_fields = .true. ! If (write_ascii = T) Phi(theta) written to '.fields'
- write_final_moments = .true. ! write final n, T
+ write_eigenfunc = F ! If (write_ascii = T) Normalized phi written to runname.eigenfunc
+ write_final_fields = F ! If (write_ascii = T) Phi(theta) written to '.fields'
+ write_final_moments =F ! write final n, T
   ! write_parity not specified --- Writes parities in dist fn and particle fluxes
  nsave = 100 ! Write restart files every nsave timesteps
  nwrite = 10 ! Output diagnostic data every nwrite
@@ -205,42 +177,5 @@
  omegatol = -0.001 ! The convergence has to be better than one part in 1/omegatol
  omegatinst = 500.0 ! Recommended value: 500.
  save_for_restart = .false. ! Write restart files.
-  ! write_flux_line not specified --- 
-  ! write_ascii not specified --- 
-  ! write_kpar not specified --- 
-  ! write_gs not specified --- 
-  ! write_gg not specified --- 
-  ! write_lpoly not specified --- 
-  ! write_fields not specified --- 
-  ! write_final_antot not specified --- 
-  ! write_cerr not specified --- 
-  ! write_max_verr not specified --- 
-  ! nmovie not specified --- 
-  ! igomega not specified --- 
-  ! exit_when_converged not specified --- 
-  ! write_full_moments_notgc not specified --- 
-  ! write_cross_phase not specified --- 
-  ! dump_check1 not specified --- 
-  ! dump_check2 not specified --- 
-  ! dump_fields_periodically not specified --- 
-  ! make_movie not specified --- 
- write_phi_over_time = .false. ! Write entire Phi field to NetCDF file every nwrite.
-  ! write_apar_over_time not specified --- Write entire A_parallel field to NetCDF file every nwrite.
-  ! write_bpar_over_time not specified --- Write entire B_parallel field to NetCDF file every nwrite.
-  ! write_symmetry not specified --- Test the symmetry properties of the GK eqn.
-  ! save_distfn not specified --- Save dist_fn with lots of detail.
-  ! write_correlation_extend not specified --- Extend domain of correlation function calculation.
-  ! nwrite_mult not specified --- Large datasets written every nwrite_mult * nwrite timesteps.
-  ! write_correlation not specified --- Write parallel correlation.
-  ! write_moments not specified --- 
-  ! write_final_db not specified --- Write final delta B.
-/
-
-!==============================
-!  
-!==============================
-&general_f0_parameters
- alpha_f0 = "analytic" ! Form of the alpha equilibrium distribution function: "maxwellian", "analytic" or "external"
- energy_0 = 0.01 ! Lower limit of F_alpha for : F_alpha(energy_0)=0.
 /
 
