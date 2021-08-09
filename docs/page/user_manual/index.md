@@ -378,8 +378,7 @@ these restart files get created and how they're named:
   first, as GS2 won't do this for you. You can turn on
   [gs2_diagnostics_knobs::file_safety_check][file_safety_check_option] (default is on) to
   check during initialisation that `restart_dir` exists and that GS2 can write to the
-  directory. (NOTE: `file_safety_check` currently doesn't work for the new diagnostics
-  ([knobs::use_old_diagnostics][use_old_diagnostics] = `.false.`)).
+  directory.
 
 To then restart a simulation, set the following input variables:
 

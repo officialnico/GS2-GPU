@@ -108,6 +108,9 @@ module dist_fn
   public :: dist_fn_species_config_type
   public :: source_config_type
   public :: set_dist_fn_config
+  public :: get_dist_fn_config
+  public :: get_dist_fn_species_config
+  public :: get_source_config
   
   ! knobs
   complex, dimension (:), allocatable :: fexp ! (nspec)
@@ -6457,16 +6460,16 @@ contains
   end subroutine check_getan
 
   !> Getan_nogath has been substantially changed to enable gf_lo field calculations, it can now operate in 
-  !! 2 modes; using the standard integrate_species (integrate_species_sub in le_grids) when called from
-  !! fields_local and gf_lo_integrate is false (which is teh default, or doing the integrate in place when 
-  !! called from fields_gf_local or from fields_local when gf_lo_integrate is true.  Note, if this is called from
-  !! fields_local and gf_lo_integrate is true then the calculation will be done locally but there is a function
-  !! called after this has finished in fields_local that sends the data back (from gf_lo to g_lo layouts).
-  !! When call with gf_lo_integrate = .true. this routine does a gather that converts the gnew array from g_lo
-  !! data distribution to gf_lo data distribution and stores the result in gfarray.  With gf_lo_integrate = .false.
-  !! gnew is used instead and this is in g_lo data distribution.
-  !!
-  !! AJ
+  !> 2 modes; using the standard integrate_species (integrate_species_sub in le_grids) when called from
+  !> fields_local and gf_lo_integrate is false (which is teh default, or doing the integrate in place when 
+  !> called from fields_gf_local or from fields_local when gf_lo_integrate is true.  Note, if this is called from
+  !> fields_local and gf_lo_integrate is true then the calculation will be done locally but there is a function
+  !> called after this has finished in fields_local that sends the data back (from gf_lo to g_lo layouts).
+  !> When call with gf_lo_integrate = .true. this routine does a gather that converts the gnew array from g_lo
+  !> data distribution to gf_lo data distribution and stores the result in gfarray.  With gf_lo_integrate = .false.
+  !> gnew is used instead and this is in g_lo data distribution.
+  !>
+  !> AJ
   subroutine getan_nogath (antot, antota, antotp)
     use dist_fn_arrays, only: vpa, vperp2, aj0, aj1, gnew, g_work
     use dist_fn_arrays, only: vpa_gf, vperp2_gf, aj0_gf, aj1_gf
@@ -6485,14 +6488,22 @@ contains
     complex, dimension (-ntgrid:,:,:), intent (out) :: antot, antota, antotp
     real, dimension (nspec) :: wgt
     integer :: isgn, iglo, it, ik, igf
-    complex, dimension (-ntgrid:ntgrid,2,nspec,negrid,nlambda,gf_lo%llim_proc:gf_lo%ulim_alloc) :: gfarray
+    complex, dimension (:, :, :, :, :, :), allocatable :: gfarray
     integer :: ie, il, is
     real, dimension(-ntgrid:ntgrid) :: temparg3
+
+    ! Initialise the outputs. We note that both gf_lo_integrate and integrate_species
+    ! with no_gath = .true. may only populate part of these arrays so we initialise to
+    ! zero here to avoid later using uninitialised data.
+    antot = 0.0
+    antota = 0.0
+    antotp = 0.0
 
     !AJ if we are performing the integrate in gf_lo space (i.e. the result will be returned in gf_lo)
     !AJ then do the initial redistribution of the data from g_lo (where gnew is current) to gf_lo
     !AJ where it will end up in gfarray)
     if(gf_lo_integrate) then
+       allocate( gfarray(-ntgrid:ntgrid,2,nspec,negrid,nlambda,gf_lo%llim_proc:gf_lo%ulim_alloc))
        call gather(g2gf, gnew, gfarray, ntgrid)
     end if
 
@@ -6706,6 +6717,7 @@ contains
 
     end if
 
+    if (allocated(gfarray)) deallocate(gfarray)
   end subroutine getan_nogath
 
 !///////////////////////////////////////
@@ -8899,7 +8911,15 @@ contains
     erridx(2) = ikmax
     erridx(3) = itmax
     errest(1) = gdmax
-    errest(2) = gnsum/gdsum
+
+    ! Guard against divide by zero. This can commonly occur on the first time step
+    ! in runs with fapar /= 0 due to our initial conditions typically ensuring that
+    ! the initial apar is identically zero.
+    if (abs(gdsum) < epsilon(0.0)) then
+       errest(2) = 0.0
+    else
+       errest(2) = gnsum/gdsum
+    end if
 
   end subroutine estimate_error
 
@@ -10377,7 +10397,29 @@ contains
        dist_fn_species_config = dist_fn_species_config_in
     end if    
   end subroutine set_dist_fn_config   
-  
+
+  !> Get the module level config instance
+  function get_dist_fn_config()
+    type(dist_fn_config_type) :: get_dist_fn_config
+    get_dist_fn_config = dist_fn_config
+  end function get_dist_fn_config
+
+  !> Get the module level config instance
+  function get_dist_fn_species_config()
+    type(dist_fn_species_config_type), allocatable :: get_dist_fn_species_config(:)
+    if (allocated(dist_fn_species_config)) then
+      get_dist_fn_species_config = dist_fn_species_config
+    else
+      allocate(get_dist_fn_species_config(0))
+    end if
+  end function get_dist_fn_species_config
+
+  !> Get the module level config instance
+  function get_source_config()
+    type(source_config_type) :: get_source_config
+    get_source_config = source_config
+  end function get_source_config
+
   !---------------------------------------
   ! Following is for the dist_fn config_type
   !---------------------------------------

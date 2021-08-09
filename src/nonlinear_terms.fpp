@@ -5,6 +5,7 @@ module nonlinear_terms
   !
 
   use abstract_config, only: abstract_config_type, CONFIG_MAX_NAME_LEN
+  use mp, only: mp_request_null
   
   implicit none
 
@@ -22,6 +23,7 @@ module nonlinear_terms
 
   public :: nonlinear_terms_config_type
   public :: set_nonlinear_terms_config
+  public :: get_nonlinear_terms_config
   
   !> Public type allowing tests to access otherwise-private routines
   type :: nonlinear_terms_testing
@@ -69,7 +71,13 @@ module nonlinear_terms
   !> satisfies the CFL condition. This currently has to be module level due to potential
   !> non-blocking reduction.
   real :: max_vel
-  integer :: cfl_req_hand
+  integer :: cfl_req_hand = mp_request_null
+  logical :: use_cfl_limit
+
+  !> Variables related to the order based error estimate -- see config documentation
+  real :: error_target
+  integer :: istep_error_start
+  logical :: use_order_based_error
 
 ! for gryfx
   real :: densfac, uparfac, tparfac, tprpfac, qparfac, qprpfac
@@ -96,6 +104,12 @@ module nonlinear_terms
      real :: cfl = 0.1
      !> GRYFX only. No documentation available
      real :: densfac = 1.
+     !> Set the error threshold used to determine when the timestep should change if
+     !> [[nonlinear_terms_knobs::use_order_based_error]] is true.
+     real :: error_target = 0.1
+     !> Set the first timestep for which the order based error checks are made if
+     !> [[nonlinear_terms_knobs::use_order_based_error]] is true.
+     integer :: istep_error_start = 30
      !> If `true` (default) then forces the nonlinear source term to
      !> zero in the forbidden region.
      logical :: nl_forbid_force_zero = .true.
@@ -119,6 +133,12 @@ module nonlinear_terms
      real :: tprpfac = 1./2.
      !> GRYFX only. No documentation available
      real :: uparfac = 1./sqrt(2.)
+     !> If true then use the cfl limit to set the maximum timestep allowed.
+     logical :: use_cfl_limit = .true.
+     !> If true then use an error estimate from comparing the nonlinear source
+     !> calculated using 2nd and 3rd order Adams-Bashforth schemes to control
+     !> the timestep in use. This does not disable the CFL estimate.
+     logical :: use_order_based_error = .false.
      !> Not currently used, should consider removing.  Original
      !> documentation was "Experts only (for secondary/tertiary
      !> calculations)."  which suggests a close relation to the
@@ -177,9 +197,38 @@ contains
           write (report_unit, *) 
        end if
 
+       if (use_cfl_limit) then
+          write (report_unit, *)
+          write (report_unit, fmt="('The timestep will be adjusted to satisfy the CFL limit.')")
+          write (report_unit, fmt="('The maximum delt < ',f10.4,' * min(Delta_perp/v_perp). (cfl)')") cfl
+          write (report_unit, *)
+       else
+          write (report_unit, *)
+          write (report_unit, fmt="('################# WARNING #######################')")
+          write (report_unit, fmt="('Nonlinear usually have use_cfl_limit = T')")
+          write (report_unit, fmt="('################# WARNING #######################')")
+          write (report_unit, *)
+       end if
+
+       if (use_order_based_error) then
+          write (report_unit, *)
+          write (report_unit, fmt="('The timestep will be adjusted to keep the estimated error below',e11.4)") error_target
+          write (report_unit, fmt="('beginning on step',I0)") istep_error_start
+
+          write (report_unit, *)
+       else
+          if (.not. use_cfl_limit) then
+             write (report_unit, *)
+             write (report_unit, fmt="('################# WARNING #######################')")
+             write (report_unit, fmt="('Both CFL and error methods for controlling explicit timestep are disabled.')")
+             write (report_unit, fmt="('THIS IS PROBABLY AN ERROR.')")
+             write (report_unit, fmt="('################# WARNING #######################')")
+             write (report_unit, *)
+          end if
+       end if
+
        write (report_unit, fmt="('The minimum delt ( code_dt_min ) = ',e11.4)") code_dt_min
        write (report_unit, fmt="('The maximum delt (code_delt_max) = ',e11.4)") code_delt_max
-       write (report_unit, fmt="('The maximum delt < ',f10.4,' * min(Delta_perp/v_perp). (cfl)')") cfl
        write (report_unit, fmt="('When the time step needs to be changed, it is adjusted by a factor of ',f10.4)") delt_adj
        write (report_unit, fmt="('The number of time steps nstep = ',i7)") nstep
     endif
@@ -296,6 +345,8 @@ contains
     ! Copy out internal values into module level parameters
     cfl = nonlinear_terms_config%cfl
     densfac = nonlinear_terms_config%densfac
+    error_target = nonlinear_terms_config%error_target
+    istep_error_start = nonlinear_terms_config%istep_error_start
     nl_forbid_force_zero = nonlinear_terms_config%nl_forbid_force_zero
     nonlinear_mode = nonlinear_terms_config%nonlinear_mode
     qparfac = nonlinear_terms_config%qparfac
@@ -303,6 +354,8 @@ contains
     tparfac = nonlinear_terms_config%tparfac
     tprpfac = nonlinear_terms_config%tprpfac
     uparfac = nonlinear_terms_config%uparfac
+    use_cfl_limit = nonlinear_terms_config%use_cfl_limit
+    use_order_based_error = nonlinear_terms_config%use_order_based_error
     zip = nonlinear_terms_config%zip
 
     exist = nonlinear_terms_config%exist
@@ -311,8 +364,6 @@ contains
     call get_option_value &
          (nonlinear_mode, nonlinearopts, nonlinear_mode_switch, &
          ierr, "nonlinear_mode in nonlinear_terms_knobs",.true.)
-
-    istep_last = 0
 
     if (nonlinear_mode_switch == nonlinear_mode_on)  then
        nonlin = .true.
@@ -354,9 +405,10 @@ contains
     use theta_grid, only: ntgrid
     use gs2_layouts, only: g_lo, ik_idx, it_idx, il_idx, is_idx
     use dist_fn_arrays, only: g
-    use gs2_time, only: save_dt_cfl
-    use run_parameters, only: reset
+    use gs2_time, only: save_dt_cfl, code_dt, check_time_step_too_large
+    use run_parameters, only: reset, immediate_reset
     use unit_tests, only: debug_message
+    use mp, only: nb_max_allreduce, max_allreduce
     implicit none
     complex, dimension (-ntgrid:,:,g_lo%llim_proc:), intent (in out) :: g1, g2, g3
     complex, dimension (-ntgrid:,:,:), intent (in) :: phi, apar, bpar
@@ -368,12 +420,19 @@ contains
     integer :: iglo, ik
     real :: dt_cfl
 
+    real :: error
+    real :: target_dt
+
     call debug_message(verb, 'nonlinear_terms::add_explicit starting')
 
     if (initializing) then
        if (present(nl)) then
           dt_cfl = 1.e8
           call save_dt_cfl (dt_cfl)
+
+          ! Ensure the module level max_vel is consistent with
+          ! the selected cfl limiting timestep.
+          max_vel = 1.0/dt_cfl
        end if
        return
     endif
@@ -424,6 +483,67 @@ contains
 
           call nl_center (g1, bd)
 
+          ! Currently the module level max_vel contains the maximum
+          ! velocity found from the nonlinear term on this
+          ! processor. This can be used to find the cfl limting time
+          ! step.
+
+          ! If we're not using the cfl limit then we'd like to zero
+          ! out the maximum velocity however, we later take 1/max_vel
+          ! so let's just set it small.
+          if (.not. use_cfl_limit) then
+             max_vel = epsilon(0.0)
+          end if
+
+          ! Calculate the effective maximum velocity based on the error
+          ! based time step limit (really we estimate the maximum time step
+          ! to keep our errors below our target and then convert to an
+          ! effective velocity).
+          if (use_order_based_error .and. (istep > istep_error_start)) then
+             ! Get the current order based error estimate
+             error = estimate_error(g1, g2, g3)
+
+             ! Based on the current error estimate and the expected error scaling
+             ! work out what time step we expect to give us the target error.
+             ! Note that we don't scale by cfl here as the user has direct control
+             ! over error_target already. Also note that by taking the square root
+             ! we are assuming that the error looks like dt^2. We should probably
+             ! look at what order schemes we're actually comparing to determine
+             ! the appropriate dependency.
+             target_dt =code_dt*sqrt(error_target/(error))
+
+             ! Now we have an error limited time step lets convert this
+             ! to an effective maximum velocity
+             max_vel = max(max_vel, 1.0/target_dt)
+          end if
+
+          ! Now we can reduce our local limiting velocities to get
+          ! a global value for the maximum velocity. We only need to
+          ! reduce if at least one time limit check is active.
+          if (use_cfl_limit .or. use_order_based_error) then
+             ! Estimate the global cfl limit based on max_vel calculated
+             ! in `add_nl`.If immediate_reset is true, check the max
+             ! allreduce immediately.  If not, overlap comms and work,
+             ! and check for reset at the end of the timestep.
+             if(immediate_reset)then
+                call max_allreduce(max_vel)
+                ! This call can update the value of reset.
+                call set_cfl_time_step_and_check_if_too_large
+             else
+                ! Do a nonblocking reduce and check later in
+                ! [[gs2_reinit:check_time_step]].
+                call nb_max_allreduce(max_vel, cfl_req_hand)
+             end if
+          else
+             ! If we don't have any checks active then we better make sure that the
+             ! limiting time step is set. We will have set max_vel earlier to
+             ! epsilon(0.0) so we can just use the usual routine to set this, but
+             ! can skip communications. Really we probably just need to do this once
+             ! but for now just put this here to be on the safe side. The cost should
+             ! be low.
+             call set_cfl_time_step_and_check_if_too_large
+          end if
+
           if(reset) then
              return !Return if resetting
           endif
@@ -452,7 +572,61 @@ contains
 
     istep_last = istep
   end subroutine add_explicit
- 
+
+  !> Get an estimate of the error on the NL source term by comparing
+  !> 2nd and 3rd order calculations of the source term.
+  !>
+  !> Here we're calculating g at t+code_dt using g(t) = g1, g(t-dt1) = g2
+  !> and g(t-dt2) = g3 using 2nd and 3rd order methods and comparing
+  !> the difference to estimate the error.
+  real function estimate_error(g1, g2, g3) result(error)
+    use gs2_time, only: get_adams_bashforth_coefficients
+    use mp, only: max_allreduce
+    implicit none
+    complex, dimension(:, :, :), intent(in) :: g1, g2, g3
+    complex, dimension(:, :, :), allocatable :: source_order_3, source_order_2
+    real, dimension(2) :: intermediate_error
+    real, dimension(:), allocatable :: coeff_3rd, coeff_2nd
+
+    ! Calculate the coefficients required for variable time step schemes
+    coeff_3rd = get_adams_bashforth_coefficients(maximum_order = 3)
+    coeff_2nd = get_adams_bashforth_coefficients(maximum_order = 2)
+
+    ! Check that we actually have 3rd and 2nd order coefficients.
+    ! This could fail on the first two time steps of a simulation, for
+    ! example, where we don't have enough time history to allow a
+    ! 2nd/3rd order calculation. For now just return an error of
+    ! error_target times cfl squared. This is chosen such the target
+    ! timestep remains the current timestep.
+    if ( (size(coeff_3rd) /= 3) .or. (size(coeff_2nd) /= 2) ) then
+       error = error_target *cfl*cfl
+       return
+    end if
+
+    ! Calculate the source terms using 3rd and 2nd order methods
+    source_order_3 = coeff_3rd(1) * g1 + coeff_3rd(2) * g2 + coeff_3rd(3) * g3
+    source_order_2 = coeff_2nd(1) * g1 + coeff_2nd(2) * g2
+
+    ! Here we find the maximum absolute error
+    intermediate_error(1) = maxval(abs(source_order_3 - source_order_2))
+
+    ! Now we find the maximum of source_order_2 to scale the absolute
+    ! error with.  Note we use this rather than source_order_3 as the
+    ! higher order method has a smaller region of stability so is
+    ! perhaps more likely to blow up.
+    intermediate_error(2) = maxval(abs(source_order_2))
+
+    ! Reduce over all processors
+    call max_allreduce(intermediate_error)
+
+    ! Now we form a crude relative error by dividing by the maximum
+    ! source value. We do this rather than forming the true relative
+    ! error (i.e. dividing the entire absolute difference by the source)
+    ! to avoid issues with dividing by small numbers. This will tend to
+    ! underestimate the real relative error.
+    error = intermediate_error(1) / intermediate_error(2)
+  end function estimate_error
+
   !> Takes input array evaluated at theta grid points
   !! and overwrites it with array evaluated at cell centers
   !! note that there is an extra factor of 2 in output array
@@ -533,12 +707,11 @@ contains
 
   !> Calculate the nonlinear term and corresponding CFL condition
   subroutine add_nl (g1, phi, apar, bpar)
-    use mp, only: max_allreduce, nb_max_allreduce
     use theta_grid, only: ntgrid
     use gs2_layouts, only: g_lo, ik_idx, it_idx
     use dist_fn_arrays, only: g, g_adjust
     use gs2_transforms, only: transform2, inverse2
-    use run_parameters, only: fbpar, fphi, reset, immediate_reset
+    use run_parameters, only: fbpar, fphi
     use kt_grids, only: aky, akx
     use gs2_time, only: save_dt_cfl, check_time_step_too_large
     use constants, only: zi
@@ -636,25 +809,6 @@ contains
     else
        call inverse2 (bracket, g1)
     end if
-
-    !Estimate the global cfl limit based on max_vel
-    !If immediate_reset, do a max allreduce.
-    !If not, overlap comms and work, and check for
-    ! reset at the end of the timestep.
-    if(immediate_reset)then
-       call max_allreduce(max_vel)
-       dt_cfl = 1./max_vel
-       call save_dt_cfl (dt_cfl)
-
-       !Now check to see if we've violated the
-       !cfl condition if requested
-       call check_time_step_too_large(reset)
-       !If we have violated cfl then return immediately
-       if (reset) return
-    else
-       !Do a nonblocking reduce and check later
-       call nb_max_allreduce(max_vel, cfl_req_hand)
-    endif
 
     call debug_message(verb, &
       'nonlinear_terms::add_nl calculated nonlinear term')
@@ -950,32 +1104,46 @@ contains
     g1 = -g1 !left-handed / right-handed conversion    
   end subroutine add_nl_gryfx
 
-  !> Nonblocking version of check_time_step_too_large
-  !!
-  !! This receives the mpi_iallreduce of the maximum velocity and calculates
-  !! the CFL condition.
-  !!
-  !! Joseph Parker, STFC
+  !> Finish nonblocking calculation of the maximum velocity
+  !> and set the cfl limit.
   subroutine nb_check_time_step_too_large
-    use run_parameters, only: reset, immediate_reset
+    use run_parameters, only: immediate_reset
+    implicit none
+    if (immediate_reset) return
+    call finish_nonblocking_max_vel_reduction
+    call set_cfl_time_step_and_check_if_too_large
+  end subroutine nb_check_time_step_too_large
+
+  !> Finish nonblocking calculation of the maximum velocity
+  !>
+  !> This receives the mpi_iallreduce of the maximum velocity.
+  subroutine finish_nonblocking_max_vel_reduction
+    use mp, only: wait, mp_request_null
+    implicit none
+
+    ! Wait for the nonblocking maximum operation used to find
+    ! the maximum velocity.
+    if (cfl_req_hand == mp_request_null) return
+    call wait(cfl_req_hand)
+    cfl_req_hand = mp_request_null
+  end subroutine finish_nonblocking_max_vel_reduction
+
+  !> Calculates the cfl limit from the module level max_vel value
+  !> saves it using [[gs2_time:save_dt_cfl]] and then sets the reset
+  !> flag based on checking if the current time step is too large.
+  subroutine set_cfl_time_step_and_check_if_too_large
+    use run_parameters, only: reset
     use gs2_time, only: save_dt_cfl, check_time_step_too_large
-    use mp, only: wait
     implicit none
     real :: dt_cfl
 
-    !Estimate the global cfl limit based on max_vel
-    !If immediate_reset, this check has already been done during the timestep.
-    if(immediate_reset) return
-
-    call wait(cfl_req_hand)    
+    ! Estimate the global cfl limit based on max_vel.
     dt_cfl = 1./max_vel
     call save_dt_cfl (dt_cfl)
 
-    !Now check to see if we've violated the 
-    !cfl condition if requested
+    ! Now check to see if we've violated the cfl condition.
     call check_time_step_too_large(reset)
-  
-  end subroutine nb_check_time_step_too_large
+  end subroutine set_cfl_time_step_and_check_if_too_large
 
   !> FIXME : Add documentation
   subroutine reset_init
@@ -1039,11 +1207,17 @@ contains
        nonlinear_terms_config = nonlinear_terms_config_in
     end if
   end subroutine set_nonlinear_terms_config
-  
+
+  !> Get the module level config instance
+  function get_nonlinear_terms_config()
+    type(nonlinear_terms_config_type) :: get_nonlinear_terms_config
+    get_nonlinear_terms_config = nonlinear_terms_config
+  end function get_nonlinear_terms_config
+
   !---------------------------------------
   ! Following is for the config_type
-  !--------------------------------------- 
-  
+  !---------------------------------------
+
   !> Reads in the nonlinear_terms_knobs namelist and populates the member variables
   subroutine read_nonlinear_terms_config(self)
     use file_utils, only: input_unit_exist, get_indexed_namelist_unit
@@ -1057,10 +1231,11 @@ contains
     ! we shadow the module level variables here. This is intentional to provide
     ! isolation and ensure we can move this routine to another module easily.
     character(len = 20) :: nonlinear_mode
-    logical :: nl_forbid_force_zero, zip
-    real :: cfl, densfac, qparfac, qprpfac, tparfac, tprpfac, uparfac
+    integer :: istep_error_start
+    logical :: nl_forbid_force_zero, use_cfl_limit, use_order_based_error, zip
+    real :: cfl, densfac, error_target, qparfac, qprpfac, tparfac, tprpfac, uparfac
 
-    namelist /nonlinear_terms_knobs/ cfl, densfac, nl_forbid_force_zero, nonlinear_mode, qparfac, qprpfac, tparfac, tprpfac, uparfac, zip
+    namelist /nonlinear_terms_knobs/ cfl, densfac, error_target, istep_error_start, nl_forbid_force_zero, nonlinear_mode, qparfac, qprpfac, tparfac, tprpfac, uparfac, use_cfl_limit, use_order_based_error, zip
 
     ! Only proc0 reads from file
     if (.not. proc0) return
@@ -1068,6 +1243,8 @@ contains
     ! First set local variables from current values
     cfl = self%cfl
     densfac = self%densfac
+    error_target = self%error_target
+    istep_error_start = self%istep_error_start
     nl_forbid_force_zero = self%nl_forbid_force_zero
     nonlinear_mode = self%nonlinear_mode
     qparfac = self%qparfac
@@ -1075,6 +1252,8 @@ contains
     tparfac = self%tparfac
     tprpfac = self%tprpfac
     uparfac = self%uparfac
+    use_cfl_limit = self%use_cfl_limit
+    use_order_based_error = self%use_order_based_error
     zip = self%zip
 
     ! Now read in the main namelist
@@ -1092,6 +1271,8 @@ contains
     ! Now copy from local variables into type members
     self%cfl = cfl
     self%densfac = densfac
+    self%error_target = error_target
+    self%istep_error_start = istep_error_start
     self%nl_forbid_force_zero = nl_forbid_force_zero
     self%nonlinear_mode = nonlinear_mode
     self%qparfac = qparfac
@@ -1099,6 +1280,8 @@ contains
     self%tparfac = tparfac
     self%tprpfac = tprpfac
     self%uparfac = uparfac
+    self%use_cfl_limit = use_cfl_limit
+    self%use_order_based_error = use_order_based_error
     self%zip = zip
 
     self%exist = exist
@@ -1119,6 +1302,8 @@ contains
     call self%write_namelist_header(unit_internal)
     call self%write_key_val("cfl", self%cfl, unit_internal)
     call self%write_key_val("densfac", self%densfac, unit_internal)
+    call self%write_key_val("error_target", self%error_target, unit_internal)
+    call self%write_key_val("istep_error_start", self%istep_error_start, unit_internal)
     call self%write_key_val("nl_forbid_force_zero", self%nl_forbid_force_zero, unit_internal)
     call self%write_key_val("nonlinear_mode", self%nonlinear_mode, unit_internal)
     call self%write_key_val("qparfac", self%qparfac, unit_internal)
@@ -1126,6 +1311,8 @@ contains
     call self%write_key_val("tparfac", self%tparfac, unit_internal)
     call self%write_key_val("tprpfac", self%tprpfac, unit_internal)
     call self%write_key_val("uparfac", self%uparfac, unit_internal)
+    call self%write_key_val("use_cfl_limit", self%use_cfl_limit, unit_internal)
+    call self%write_key_val("use_order_based_error", self%use_order_based_error, unit_internal)
     call self%write_key_val("zip", self%zip, unit_internal)
     call self%write_namelist_footer(unit_internal)
   end subroutine write_nonlinear_terms_config
@@ -1148,6 +1335,8 @@ contains
     class(nonlinear_terms_config_type), intent(in out) :: self
     call broadcast(self%cfl)
     call broadcast(self%densfac)
+    call broadcast(self%error_target)
+    call broadcast(self%istep_error_start)
     call broadcast(self%nl_forbid_force_zero)
     call broadcast(self%nonlinear_mode)
     call broadcast(self%qparfac)
@@ -1155,6 +1344,8 @@ contains
     call broadcast(self%tparfac)
     call broadcast(self%tprpfac)
     call broadcast(self%uparfac)
+    call broadcast(self%use_cfl_limit)
+    call broadcast(self%use_order_based_error)
     call broadcast(self%zip)
 
     call broadcast(self%exist)
@@ -1173,6 +1364,5 @@ contains
     logical :: get_default_requires_index_nonlinear_terms_config
     get_default_requires_index_nonlinear_terms_config = .false.
   end function get_default_requires_index_nonlinear_terms_config
+
 end module nonlinear_terms
-
-

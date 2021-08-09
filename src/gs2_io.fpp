@@ -117,7 +117,7 @@ contains
   !> Create the main and movie (real-space fields) netCDF files,
   !> creating the dimensions and main variables
   subroutine init_gs2_io (append_old, write_nl_flux, write_omega, &
-      write_hrate, write_final_antot, write_eigenfunc, &
+      write_heating, write_final_antot, write_eigenfunc, &
       make_movie, nmovie_tot, write_verr, &
       write_moments,&
       write_full_moments_notgc, write_sym, write_pflux_sym, write_nl_flux_dist, &
@@ -143,7 +143,7 @@ contains
     !> See [[gs2_diagnostics_knobs]] for details of these inputs
     logical, intent(in) :: append_old
     logical, intent(in) :: write_nl_flux, write_nl_flux_dist, write_omega
-    logical, intent(in) :: write_hrate, make_movie, write_moments
+    logical, intent(in) :: write_heating, make_movie, write_moments
     logical, intent(in) :: write_final_antot, write_eigenfunc, write_verr
     logical, intent(in) :: write_full_moments_notgc, write_sym, write_correlation
     logical, intent(in) :: write_pflux_sym, write_pflux_tormom 
@@ -219,7 +219,7 @@ contains
         !Setup main file by creating netCDF file
         call define_dims (nwrite_big_tot, io_write_corr_extend)
         call define_vars (write_nl_flux, write_omega, &
-                          write_hrate, write_final_antot, write_eigenfunc, write_verr, &
+                          write_heating, write_final_antot, write_eigenfunc, write_verr, &
                           write_moments, write_full_moments_notgc, write_sym, write_pflux_sym, &
                           write_nl_flux_dist, write_pflux_tormom, write_correlation, &
                           write_correlation_extend, write_avg_moments, write_final_moments, write_final_epar, &
@@ -507,7 +507,7 @@ contains
   !> This also calls `nf90_enddef` which leaves "define" mode, so no
   !> more variables can be added to the file after this call
   subroutine define_vars (write_nl_flux, write_omega, &
-       write_hrate, write_final_antot, write_eigenfunc, write_verr, &
+       write_heating, write_final_antot, write_eigenfunc, write_verr, &
        write_moments, write_full_moments_notgc, write_sym, write_pflux_sym, &
        write_nl_flux_dist, write_pflux_tormom, write_correlation, &
        write_correlation_extend, write_avg_moments, write_final_moments, write_final_epar, &
@@ -525,7 +525,7 @@ contains
 # endif
     implicit none
     logical, intent(in) :: write_nl_flux, write_nl_flux_dist, write_omega
-    logical, intent(in) :: write_hrate, write_final_antot
+    logical, intent(in) :: write_heating, write_final_antot
     logical, intent(in) :: write_eigenfunc, write_verr, write_moments
     logical, intent(in) :: write_full_moments_notgc, write_sym, write_correlation
     logical, intent(in) :: write_pflux_sym, write_pflux_tormom
@@ -1124,7 +1124,7 @@ contains
     endif
 
     !Heating rate diagnostics
-    if (write_hrate) then
+    if (write_heating) then
        call ensure_netcdf_var_exists(ncid, 'h_energy', netcdf_real, time_dim, h_energy_id)
        call ensure_netcdf_var_exists(ncid, 'h_energy_dot', netcdf_real, time_dim, h_energy_dot_id)
        call ensure_netcdf_var_exists(ncid, 'h_antenna', netcdf_real, time_dim, h_antenna_id)
@@ -2212,7 +2212,7 @@ contains
        phi0,   phi2,   phi2_by_mode, &
        apar0,  apar2,  apar2_by_mode, &
        bpar0, bpar2, bpar2_by_mode, &
-       h, hk, omega, omegaavg, woutunits, phitot, write_omega, write_hrate)
+       h, hk, omega, omegaavg, woutunits, phitot, write_omega, write_heating)
     use gs2_heating, only: heating_diagnostics
 # ifdef NETCDF
     use gs2_heating, only: hk_repack
@@ -2240,7 +2240,7 @@ contains
     type(heating_diagnostics), intent (in) :: h
     !> Heating per-mode
     type(heating_diagnostics), dimension(:,:), intent (in) :: hk
-    logical, intent(in) :: write_omega, write_hrate
+    logical, intent(in) :: write_omega, write_heating
 # ifdef NETCDF
     real, dimension (ntheta0) :: field2_by_kx
     real, dimension (naky) :: field2_by_ky
@@ -2424,7 +2424,7 @@ contains
        if (status /= NF90_NOERR) call netcdf_error (status, ncid, bpar2_id)
     end if
 
-    if (write_hrate) then
+    if (write_heating) then
        status = nf90_put_var (ncid, h_energy_id, h%energy, start=(/nout/))
        if (status /= NF90_NOERR) call netcdf_error (status, ncid, h_energy_id)
        status = nf90_put_var (ncid, h_energy_dot_id, h%energy_dot, start=(/nout/))

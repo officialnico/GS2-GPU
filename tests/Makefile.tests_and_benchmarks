@@ -166,3 +166,31 @@ ifeq ($(HAS_GCOV),on)
 	$(call messageRm,"Gcov files")	
 	-$(QUIETSYM)rm -f $(COVERAGE_DIR)/*.gcov $(OBJDIR)/*.gcda $(OBJDIR)/*.gcno
 endif
+
+############################################################
+# Recipes for Python-based tests
+
+test_venv := $(GK_HEAD_DIR)/tests/venv
+
+ifeq ($(GS2_HAS_PYTHON),yes)
+# Create a virtualenv and install the test dependencies there
+create-test-virtualenv:
+	$(call messageInfo,"Creating virtualenv and installing test dependencies")
+	sh -c "python3 -m venv $(test_venv); \
+		. $(test_venv)/bin/activate; \
+		pip install -r requirements.txt; \
+		deactivate; \
+	"
+	@echo "----------------------------------------"
+	$(call messageInfo,Now activate the virtualenv with '. $(test_venv)/bin/activate')
+	$(call messageInfo,You can use 'deactivate' to stop the virtualenv)
+else
+create-test-virtualenv:
+	@echo "No Python available, cannot create virtualenv"
+endif
+
+clean-test-virtualenv:
+	$(call messageRm,Test virtualenv)
+	-$(QUIETSYM)rm -rf $(test_venv)
+
+distclean: clean-test-virtualenv

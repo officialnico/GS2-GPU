@@ -171,6 +171,7 @@ module le_grids
 
   public :: le_grids_config_type
   public :: set_le_grids_config
+  public :: get_le_grids_config
   
   interface integrate_moment
      module procedure integrate_moment_c34
@@ -967,13 +968,13 @@ contains
     implicit none
 
     complex, dimension (-ntgrid:,:,g_lo%llim_proc:), intent (in) :: g
-    complex, dimension (-ntgrid:ntgrid,2,nspec,negrid,nlambda,gf_lo%llim_proc:gf_lo%ulim_alloc) :: gf
+    complex, dimension (:, :, :, :, :, :), allocatable :: gf
     real, dimension (:), intent (in) :: weights
     complex, dimension (-ntgrid:ntgrid,gf_lo%ntheta0,gf_lo%naky), intent (out) :: total
     integer :: is, il, ie, igf, it, ik
 
     total =0.
-
+    allocate(gf(-ntgrid:ntgrid,2,nspec,negrid,nlambda,gf_lo%llim_proc:gf_lo%ulim_alloc))
     call gather(g2gf, g, gf, ntgrid)
 
     !Performed integral (weighted sum) over local velocity space and species
@@ -1007,7 +1008,8 @@ contains
           end do
        end do
     end if
-    
+
+    deallocate(gf)
   end subroutine integrate_species_gf
 
   !> Integrate species using gf_lo data format assuming that gf has already been gathered prior to being 
@@ -1026,7 +1028,7 @@ contains
     use species, only: spec, tracer_species
     implicit none
 
-    complex, dimension (-ntgrid:ntgrid,2,nspec,negrid,nlambda,gf_lo%llim_proc:gf_lo%ulim_alloc), intent (in) :: gf
+    complex, dimension(-ntgrid:ntgrid,2,nspec,negrid,nlambda,gf_lo%llim_proc:gf_lo%ulim_alloc), intent(in) :: gf
     real, dimension (:), intent (in) :: weights
     complex, dimension (-ntgrid:ntgrid,gf_lo%ntheta0,gf_lo%naky), intent (out) :: total
     integer :: is, il, ie, igf, it, ik
@@ -1064,7 +1066,6 @@ contains
           end do
        end do
     end if
-    
   end subroutine integrate_species_gf_nogather
   
   !> Integrate_species on subcommunicator with gather
@@ -2365,7 +2366,10 @@ contains
 
   end subroutine report_velocity_integration_error_estimate
 
-  !> Determines the location lambda ([[al]]) grid points in the
+  !> Sets up the pitch angle grid and associated data. Does so by
+  !> calling other routines. A summary of the actions is below.
+  !>
+  !> Determines the location of lambda ([[al]]) grid points in the
   !> passing domain and associated integrations weights. Also
   !> determines the integration weights for the trapped pitch angle
   !> grid (the location of trapped [[al]] is already determined
@@ -2408,13 +2412,16 @@ contains
 
   !> Determines the location of lambda ([[al]]) grid points in the
   !> passing domain and the associated integrations weights.
-  subroutine setup_passing_lambda_grids(al, weights)
+  subroutine setup_passing_lambda_grids(lambda_grid, weights)
     use gauss_quad, only: get_legendre_grids_from_cheb, get_radau_gauss_grids
     use theta_grid, only: ntgrid, bmag, bmax
     implicit none
-    !> Array which stores the lambda grid points
-    real, dimension(:), intent(in out) :: al
-    !> Array which stores the integration weights for the lambda grid
+    !> The lambda grid points. Note this is intent `in out` as we only
+    !> set a portion of the grid so may want to keep the rest of the
+    !> input values.
+    real, dimension(:), intent(in out) :: lambda_grid
+    !> The integration weights for the lambda grid. This is intent `in out`
+    !> for the same reason as `lambda_grid`.
     real, dimension(-ntgrid:, :), intent(in out) :: weights
     real, dimension (:), allocatable :: wx, xx_radau
     integer :: ig, il
@@ -2440,13 +2447,13 @@ contains
     end if
 
     ! Store the location of the passing lambda grid points
-    al(:ng2) = (1.0 - xx(:ng2)**2)/bmax
+    lambda_grid(:ng2) = (1.0 - xx(:ng2)**2)/bmax
 
     ! Transform the Legendre/Radau weights to the lambda grid
     do il = 1, ng2
        do ig = -ntgrid, ntgrid
           weights(ig,il) = wx(il)*2.0*sqrt((bmag(ig)/bmax) &
-               *((1.0/bmax-al(il))/(1.0/bmag(ig)-al(il))))
+               *((1.0/bmax-lambda_grid(il))/(1.0/bmag(ig)-lambda_grid(il))))
        end do
     end do
 
@@ -2456,9 +2463,9 @@ contains
        do ig = -ntgrid, ntgrid
           if (bmag(ig) < bmax) then ! i.e. we are not the bounce point for wfb
              ! Note this will currently always be exactly 0
-             ! as al(ng2+1) == 1.0/bmax
+             ! as lambda_grid(ng2+1) == 1.0/bmax
              weights(ig,il) = wx(il)*2.0*sqrt((bmag(ig)/bmax) &
-                  *((1.0/bmax-al(il))/(1.0/bmag(ig)-al(il))))
+                  *((1.0/bmax-lambda_grid(il))/(1.0/bmag(ig)-lambda_grid(il))))
           else ! at the bounce point
              weights(ig,il) = wx(il)*2.0
           endif
@@ -2473,6 +2480,40 @@ contains
   !> trapped domain using either new or old (default) methods,
   !> determined by [[le_grids_knobs::new_trap_int]] with
   !> new=high-order interp, old=finite difference).
+  !>
+  !> @note Here we overwrite/replace any previously calculated weights
+  !> for points considered trapped. This is usually ok as we have a clear
+  !> separation between passing and trapped so the trapped weights are
+  !> zero on entry to this routine. In some situations, however, we
+  !> may consider some points as both passing and trapped and run the
+  !> risk of discarding any existing passing weights for such points.
+  !> This could potentially be the case with Radau-like grids, for example
+  !> (although likely isn't an issue currently as the routine here does not
+  !> calculate a weight for the wfb when bmag = bmax). A simple fix is to
+  !> replace `weights = ` with effectively `weights +=` in this routine and
+  !> those it calls.
+  subroutine setup_trapped_lambda_grids(lambda_grid, weights)
+    use theta_grid, only: ntgrid
+    implicit none
+    !> The lambda grid points. Note this is intent `in out` as we only
+    !> set a portion of the grid so may want to keep the rest of the
+    !> input values.
+    real, dimension(:), intent(in out) :: lambda_grid
+    !> The integration weights for the lambda grid. Note this is
+    !> intent `in out` as we only set a portion of the grid so may
+    !> want to keep the rest of the input values.
+    real, dimension(-ntgrid:, :), intent(in out) :: weights
+
+    if (new_trap_int) then
+       call setup_trapped_lambda_grids_new_trap_int(lambda_grid, weights)
+    else
+       call setup_trapped_lambda_grids_old_finite_difference(lambda_grid, weights)
+    end if
+
+  end subroutine setup_trapped_lambda_grids
+
+  !> Determine trapped pitch angle weights using "new" polynomial
+  !> interpolation.
   !>
   !> The new method uses Lagrange polynomial interpolation to provide
   !> an accurate approximation of the integration over the trapped
@@ -2505,24 +2546,18 @@ contains
   !> grid resolution. It may be possible to make the new approach
   !> compatible with radau_gauss_grid or we may decide
   !> radau_gauss_grid should default to false.
-  !>
-  !> @note Here we overwrite/replace any previously calculated weights
-  !> for points considered trapped. This is usually ok as we have a clear
-  !> separation between passing and trapped so the trapped weights are
-  !> zero on entry to this routine. In some situations, however, we
-  !> may consider some points as both passing and trapped and run the
-  !> risk of discarding any existing passing weights for such points.
-  !> This could potentially be the case with Radau-like grids, for example
-  !> (although likely isn't an issue currently as the routine here does not
-  !> calculate a weight for the wfb when bmag = bmax). A simple fix is to
-  !> replace `weights = ` with effectively `weights +=` in this routine.
-  subroutine setup_trapped_lambda_grids(al, weights)
+  subroutine setup_trapped_lambda_grids_new_trap_int(lambda_grid, weights)
     use theta_grid, only: ntgrid, bmag, bmax, eps_trapped
-    use file_utils, only: open_output_file, close_output_file
+    use file_utils, only: open_output_file, close_output_file, error_unit
+    use mp, only: proc0
     implicit none
-    !> Array which stores the lambda grid points
-    real, dimension(:), intent(in out) :: al
-    !> Array which stores the integration weights for the lambda grid
+    !> The lambda grid points. Note this is intent `in out` as we only
+    !> set a portion of the grid so may want to keep the rest of the
+    !> input values.
+    real, dimension(:), intent(in out) :: lambda_grid
+    !> The integration weights for the lambda grid. Note this is
+    !> intent `in out` as we only set a portion of the grid so may
+    !> want to keep the rest of the input values.
     real, dimension(-ntgrid:, :), intent(in out) :: weights
     real, dimension (:), allocatable :: ytmp, yb, yberr, wb, wberrtmp
     real, dimension (:,:), allocatable :: wberr
@@ -2531,144 +2566,168 @@ contains
     logical :: eflag
     integer :: ig, il, ndiv, divmax, divmaxerr, ndiverr
 
-    if (new_trap_int) then
-       eflag = .false.
+    ! Initialise the error flag
+    eflag = .false.
 
-       ! max number of trapped particles (occurs at outboard midplane)
-       ntrap = nlambda - ng2
+    ! max number of trapped particles (occurs at outboard midplane)
+    ntrap = nlambda - ng2
 
-       ! wlterr contains weights for less accurate trapped integrals (for error estimation)
-       allocate(wlterr(-ntgrid:ntgrid,nlambda,ntrap))
+    ! wlterr contains weights for less accurate trapped integrals (for error estimation)
+    allocate(wlterr(-ntgrid:ntgrid,nlambda,ntrap))
 
-       wlterr = 0.0
+    wlterr = 0.0
 
-       ! Find the integration weights for each theta grid point
-       do ig = -ntgrid, ntgrid
+    ! Find the integration weights for each theta grid point
+    do ig = -ntgrid, ntgrid
 
-          ! First we count how many trapped lambda bounce points we
-          ! have to consider at this point. In other words how many
-          ! bounce points are not forbidden for the current theta
-          ! grid point.
-          ! npts is the number of al values in the trapped integral (varies with theta)
-          npts = 0
+       ! First we count how many trapped lambda bounce points we
+       ! have to consider at this point. In other words how many
+       ! bounce points are not forbidden for the current theta
+       ! grid point.
+       ! npts is the number of lambda_grid values in the trapped integral (varies with theta)
+       npts = 0
 
-          do il = ng2+1, nlambda
-             if (1.0 - al(il)*bmag(ig) > -bouncefuzz) then
-                npts = npts + 1
-             end if
-          end do
-
-          ! If there are any valid bounce points then we need to
-          ! calculate the weights. If npts == 1 then we probably also expect
-          ! the integration weights to be 0 so we could probably skip all of
-          ! this work for npts = 1 as well.
-          if (npts > 0) then
-
-             ! ytmp is an array containing pitch angle grid points (for vpa >= 0)
-             ! These are the v||/v points for each lambda between wfb (sets maximum
-             ! v||/v here) and the lambda which bounces at this point (v||/v = 0)
-             ! yb is an array containing the full set of [-v||/v, v||/v] grid points.
-             ! Constructed directly from ytmp by copying and flipping sign+orde
-             ! wb is an array containing the integration weights calculated for the
-             ! given v||/v grid.
-             allocate(ytmp(npts), yb(2*npts-1), wb(2*npts-1))
-             ! wberr is an array used to hold the weights used in the error estimation
-             ! in [[trap_error]] called by [[get_verr]]
-             allocate(wberr(2*npts-1,npts))
-
-             ytmp = 0.0; yb = 0.0; wb = 0.0; wberr = 0.0
-
-             ! loop computes transformed variable of integration (v||/v)
-             do il = ng2+1, ng2+npts
-                ytmp(il-ng2) = sqrt(max(1 - al(il)*bmag(ig), 0.0))
-             end do
-
-             ! define array (yb) with pitch-angle gridpts
-             ! corresponding to both positive and negative vpa
-             if (npts > 1) yb(:npts-1) = -ytmp(:npts-1)
-             yb(npts:) = ytmp(npts:1:-1)
-
-
-             ! get grid point weights for trapped particle integral
-
-             ! Note : Here ulim and llim are the upper and lower vpar
-             ! values for the valid trapped pitch angles at this theta
-             ! location. In other words ulim == v_||_wfb(theta(ig)) =
-             ! sqrt(max(1.0-al(ng2+1)*bmag(ig),0.0)) = yb(2*npts-1)
-             ! We could probably replace ulim and llim with yb(2*npts-1)
-             ! and yb(1) respectively.
-             ulim = sqrt(max(1.0-bmag(ig)/bmax,0.0))
-             llim = -ulim
-
-             ! Call get_weights to find the integration weights for the v||/v grid
-             ! Note we don't call this if ulim == 0 as the grid then has no extent.
-             ! This situation can arise when bmag(ig) == bmax where we would find
-             ! npts = 1, corresponding to just the wfb being a valid lambda. This
-             ! means that at this location and the wfb has zero integration weight.
-             ! Note we currently ignore the error flag and other returned values other
-             ! than the weights. We should probably check this to at least warn the
-             ! user if something looks badly behaved.
-             if (ulim > 0.0) call get_weights (nmax, llim, ulim, yb, wb, ndiv, divmax, eflag)
-
-             ! Calculate the weights for use in the trapped
-             ! integration error estimation code.  This can be quite
-             ! expensive so we would like to to only call this if the
-             ! error estimation code is active (i.e. if we're going to
-             ! call [[get_verr]]).
-             if (npts > 1) call get_trapped_lambda_grid_error_estimate_weights(yb, llim, ulim, npts, wberr)
-
-             ! Convert from v||/v weights to lambda
-             ! weights. Essentially just sum up the postive and
-             ! negtive v|| points corresponding to the same lambda
-             ! point. Note we skip the v|| == 0 point currently to ensure we
-             ! don't double count.
-             if (npts > 1) then
-                do il = ng2+1, ng2+npts-1
-                   ! take into account possible asymmetry of weights about xi = 0
-                   ! due to unequal # of grid points per integration interval
-                   ! Whilst the v||/v grid should always be symmetric
-                   ! the algorithm in [[get_weights]] could
-                   ! potentially lead to asymmetry in the resulting
-                   ! weights. This may be an indication that things
-                   ! aren't behaving well.
-                   weights(ig,il) = wb(il-ng2) + wb(2*npts-il+ng2)
-                   wlterr(ig,il,:npts) = wberr(il-ng2,:) + wberr(2*npts-il+ng2,:)
-                end do
-             end if
-
-             ! avoid double counting of gridpoint at vpa=0
-             weights(ig,ng2+npts) = wb(npts)
-             wlterr(ig,ng2+npts,:npts) = wberr(npts,:)
-
-             deallocate(ytmp, yb, wb, wberr)
+       do il = ng2+1, nlambda
+          if (1.0 - lambda_grid(il)*bmag(ig) > -bouncefuzz) then
+             npts = npts + 1
           end if
        end do
 
-    else
-       ! old (finite-difference) integration scheme
+       ! If there are any valid bounce points then we need to
+       ! calculate the weights. If npts == 1 then we probably also expect
+       ! the integration weights to be 0 so we could probably skip all of
+       ! this work for npts = 1 as well.
+       if (npts > 0) then
 
-       ! Here we find the trapped pitch angle weights corresponding to a trapezium
-       ! rule integration in v||/v. With this method we can write:
-       !   Int(f) ~ Sum_i((f(l_{i+1}) - f(l_{i}))*(l_{i+1}-l_{i}))/2
-       ! with some handling required for the upper and lower boundaries. Here we find
-       ! the v||/v spacing. Note there is no factor 1/2 due to the fact the lambda
-       ! weight is the sum of the (identical) positive and negative v||/v weights, which
-       ! cancels this factor of 1/2. Also note that there is no weight for the bouncing
-       ! lambda.
-       do il = ng2+1, nlambda-1
-          do ig = -ntgrid, ntgrid
-             if (1.0-al(il)*bmag(ig) > -bouncefuzz &
-                  .and. 1.0-al(il+1)*bmag(ig) > -bouncefuzz) &
-                  then
-                wwo = sqrt(max(1.0 -   al(il)*bmag(ig),0.0)) - &
-                     sqrt(max(1.0 - al(il+1)*bmag(ig),0.0))
-                weights(ig,il)   = weights(ig,il)   + wwo
-                weights(ig,il+1) = weights(ig,il+1) + wwo
-             end if
+          ! ytmp is an array containing pitch angle grid points (for vpa >= 0)
+          ! These are the v||/v points for each lambda between wfb (sets maximum
+          ! v||/v here) and the lambda which bounces at this point (v||/v = 0)
+          ! yb is an array containing the full set of [-v||/v, v||/v] grid points.
+          ! Constructed directly from ytmp by copying and flipping sign+order
+          ! wb is an array containing the integration weights calculated for the
+          ! given v||/v grid.
+          allocate(ytmp(npts), yb(2*npts-1), wb(2*npts-1))
+          ! wberr is an array used to hold the weights used in the error estimation
+          ! in [[trap_error]] called by [[get_verr]]
+          allocate(wberr(2*npts-1,npts))
+
+          ytmp = 0.0; yb = 0.0; wb = 0.0; wberr = 0.0
+
+          ! loop computes transformed variable of integration (v||/v)
+          do il = ng2+1, ng2+npts
+             ytmp(il-ng2) = sqrt(max(1 - lambda_grid(il)*bmag(ig), 0.0))
           end do
+
+          ! define array (yb) with pitch-angle gridpts
+          ! corresponding to both positive and negative vpa
+          if (npts > 1) yb(:npts-1) = -ytmp(:npts-1)
+          yb(npts:) = ytmp(npts:1:-1)
+
+
+          ! get grid point weights for trapped particle integral
+
+          ! Note : Here ulim and llim are the upper and lower vpar
+          ! values for the valid trapped pitch angles at this theta
+          ! location. In other words ulim == v_||_wfb(theta(ig)) =
+          ! sqrt(max(1.0-lambda_grid(ng2+1)*bmag(ig),0.0)) = yb(2*npts-1)
+          ! We could probably replace ulim and llim with yb(2*npts-1)
+          ! and yb(1) respectively.
+          ulim = sqrt(max(1.0-bmag(ig)/bmax,0.0))
+          llim = -ulim
+
+          ! Call get_weights to find the integration weights for the v||/v grid
+          ! Note we don't call this if ulim == 0 as the grid then has no extent.
+          ! This situation can arise when bmag(ig) == bmax where we would find
+          ! npts = 1, corresponding to just the wfb being a valid lambda. This
+          ! means that at this location the wfb has zero integration weight.
+          ! Note we currently ignore the error flag and other returned values other
+          ! than the weights. We should probably check this to at least warn the
+          ! user if something looks badly behaved.
+          if (ulim > 0.0) then
+             ! For 8.1 we stick with the original single call to get_weights
+             ! for the full domain at once.
+             call get_weights (nmax, llim, ulim, yb, wb, ndiv, divmax, eflag)
+
+             if (eflag .and. proc0) then
+                write(error_unit(), '("Error flag set by first call to get_weights in setup_trapped_lambda_grids")')
+             end if
+          end if
+
+          ! Calculate the weights for use in the trapped
+          ! integration error estimation code.  This can be quite
+          ! expensive so we would like to to only call this if the
+          ! error estimation code is active (i.e. if we're going to
+          ! call [[get_verr]]).
+          if (npts > 1) call get_trapped_lambda_grid_error_estimate_weights(yb, llim, ulim, npts, wberr)
+
+          ! Convert from v||/v weights to lambda
+          ! weights. Essentially just sum up the postive and
+          ! negtive v|| points corresponding to the same lambda
+          ! point. Note we skip the v|| == 0 point currently to ensure we
+          ! don't double count.
+          if (npts > 1) then
+             do il = ng2+1, ng2+npts-1
+                ! take into account possible asymmetry of weights about xi = 0
+                ! due to unequal # of grid points per integration interval
+                ! Whilst the v||/v grid should always be symmetric
+                ! the algorithm in [[get_weights]] could
+                ! potentially lead to asymmetry in the resulting
+                ! weights. This may be an indication that things
+                ! aren't behaving well.
+                weights(ig,il) = wb(il-ng2) + wb(2*npts-il+ng2)
+                wlterr(ig,il,:npts) = wberr(il-ng2,:) + wberr(2*npts-il+ng2,:)
+             end do
+          end if
+
+          ! avoid double counting of gridpoint at vpa=0
+          weights(ig,ng2+npts) = wb(npts)
+          wlterr(ig,ng2+npts,:npts) = wberr(npts,:)
+
+          deallocate(ytmp, yb, wb, wberr)
+       end if
+    end do
+  end subroutine setup_trapped_lambda_grids_new_trap_int
+
+  !> Find the trapped pitch angle weights using an old
+  !> (finite-difference) integration scheme
+  !>
+  !> Here we find the trapped pitch angle weights corresponding to a
+  !> trapezium rule integration in v||/v. With this method we can
+  !> write:
+  !>   Int(f) ~ Sum_i((f(l_{i+1}) - f(l_{i}))*(l_{i+1}-l_{i}))/2
+  !> with some handling required for the upper and lower
+  !> boundaries. Here we find the v||/v spacing. Note there is no
+  !> factor 1/2 due to the fact the lambda weight is the sum of the
+  !> (identical) positive and negative v||/v weights, which cancels
+  !> this factor of 1/2. Also note that there is no weight for the
+  !> bouncing lambda.
+  subroutine setup_trapped_lambda_grids_old_finite_difference(lambda_grid, weights)
+    use theta_grid, only: ntgrid, bmag
+    implicit none
+    !> The lambda grid points. Note this is intent `in out` as we only
+    !> set a portion of the grid so may want to keep the rest of the
+    !> input values.
+    real, dimension(:), intent(in out) :: lambda_grid
+    !> The integration weights for the lambda grid. Note this is
+    !> intent `in out` as we only set a portion of the grid so may
+    !> want to keep the rest of the input values.
+    real, dimension(-ntgrid:, :), intent(in out) :: weights
+    real :: wwo
+    integer :: ig, il
+
+    do il = ng2+1, nlambda-1
+       do ig = -ntgrid, ntgrid
+          if (1.0-lambda_grid(il)*bmag(ig) > -bouncefuzz &
+               .and. 1.0-lambda_grid(il+1)*bmag(ig) > -bouncefuzz) &
+               then
+             wwo = sqrt(max(1.0 -   lambda_grid(il)*bmag(ig),0.0)) - &
+                  sqrt(max(1.0 - lambda_grid(il+1)*bmag(ig),0.0))
+             weights(ig,il)   = weights(ig,il)   + wwo
+             weights(ig,il+1) = weights(ig,il+1) + wwo
+          end if
        end do
-    end if
-  end subroutine setup_trapped_lambda_grids
+    end do
+  end subroutine setup_trapped_lambda_grids_old_finite_difference
 
   !> Routine for getting the weights used in estimating the error on
   !> trapped particle integrals as a part of [[trap_error]]
@@ -3532,6 +3591,7 @@ contains
 
     allocate (gtmp(-ntgrid:ntgrid, 2, g_lo%llim_proc:g_lo%ulim_alloc))
     allocate (letmp(nlambda*2+1, negrid+1, le_lo%llim_proc:le_lo%ulim_alloc))
+    letmp = 0.
 
     ! gather check
     gtmp = 0.0
@@ -3554,13 +3614,14 @@ contains
        ik = ik_idx(le_lo,ile)
        it = it_idx(le_lo,ile)
        is = is_idx(le_lo,ile)
-       do ixi = 1, 2*nlambda
-          isgn = ixi_to_isgn(ig,ixi)
-          il = ixi_to_il(ig,ixi)
-          if (int(real(letmp(ixi,ie,ile))) /= rule(ig,isgn,ik,it,il,ie,is)) &
-               write (ierr,'(a,8i6)') 'ERROR: gather by g2le broken!', iproc
+       do ie = 1, negrid
+          do ixi = 1, 2*nlambda
+             isgn = ixi_to_isgn(ig,ixi)
+             il = ixi_to_il(ig,ixi)
+             if (int(real(letmp(ixi,ie,ile))) /= rule(ig,isgn,ik,it,il,ie,is)) &
+                  write (ierr,'(a,8i6)') 'ERROR: gather by g2le broken!', iproc
+          end do
        end do
-
     end do
     if (proc0) write (ierr,'(a)') 'g2le gather check done'
 
@@ -4474,7 +4535,13 @@ contains
        le_grids_config = le_grids_config_in
     end if
   end subroutine set_le_grids_config
-  
+
+  !> Get the module level config instance
+  function get_le_grids_config()
+    type(le_grids_config_type) :: get_le_grids_config
+    get_le_grids_config = le_grids_config
+  end function get_le_grids_config
+
   !---------------------------------------
   ! Following is for the config_type
   !---------------------------------------

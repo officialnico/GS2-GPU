@@ -17,6 +17,7 @@ module ballstab
 
   public :: ballstab_config_type
   public :: set_ballstab_config
+  public :: get_ballstab_config
   
   logical :: make_salpha
   integer :: n_shat, n_beta
@@ -557,7 +558,13 @@ contains
        ballstab_config = ballstab_config_in
     end if
   end subroutine set_ballstab_config
-  
+
+  !> Get the module level config instance
+  function get_ballstab_config()
+    type(ballstab_config_type) :: get_ballstab_config
+    get_ballstab_config = ballstab_config
+  end function get_ballstab_config
+
   !---------------------------------------
   ! Following is for the config_type
   !---------------------------------------
