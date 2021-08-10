@@ -191,7 +191,7 @@ module dist_fn
   ! (naky,negrid,nspec) replicated
 
   ! fieldeq
-  real, dimension (:,:,:), allocatable :: gamtot, gamtot1, gamtot2, gamtot3, gamtot_hzero
+  real, dimension (:,:,:), allocatable :: gamtot, gamtot1, gamtot2, gamtot3
   ! (-ntgrid:ntgrid,ntheta0,naky) replicated
 
   complex, dimension (:,:,:), allocatable :: a, b, r, ainv
@@ -1211,7 +1211,6 @@ contains
     if (allocated(aj0_gf)) deallocate (aj0_gf, aj1_gf)
     if (allocated(gridfac1)) deallocate (gridfac1, gamtot, gamtot1, gamtot2)
     if (allocated(gamtot3)) deallocate (gamtot3)
-    if (allocated(gamtot_hzero)) deallocate(gamtot_hzero)
     if (allocated(a)) deallocate (a, b, r, ainv)
   end subroutine finish_dist_fn_level_2
 
@@ -4642,7 +4641,7 @@ contains
        
        if (hzero_passing_electron .and. is_hybrid_electron_species(spec(is)) &
             .and. aky(ik) /= 0. .and. il <= ng2+1)  then
-          call set_h_zero (gnew(:,:,iglo), phinew, bparnew,-fphi,-fbpar,iglo)
+          call set_h_zero (gnew, phinew, bparnew, -fphi, -fbpar, iglo)
           cycle
        end if
        
@@ -5359,34 +5358,20 @@ contains
   subroutine getan_from_dfn (g_in, antot, antota, antotp)
     use dist_fn_arrays, only: vpa, vperp2, aj0, aj1, g_work
     use kt_grids, only: kperp2, aky
-    use species, only: nspec, spec, hzero_passing_electron_response, is_hybrid_electron_species
+    use species, only: nspec, spec
     use theta_grid, only: ntgrid
     use le_grids, only: integrate_species, ng2
     use run_parameters, only: beta, fphi, fapar, fbpar
     use prof, only: prof_entering, prof_leaving
-    use gs2_layouts, only: g_lo, ik_idx, il_idx, is_idx
+    use gs2_layouts, only: g_lo
     implicit none
-    complex, dimension(-ntgrid:, :, g_lo%llim_proc:), intent(in out) :: g_in
+    complex, dimension(-ntgrid:, :, g_lo%llim_proc:), intent(in) :: g_in
     complex, dimension (-ntgrid:,:,:), intent (out) :: antot, antota, antotp
     real, dimension (nspec) :: wgt
 
-    integer :: isgn, iglo, ig, ik , il, is
+    integer :: isgn, iglo, ig
 
     call prof_entering ("getan_from_dfn", "dist_fn")
-
-    ! This is an unexpected side effect from this routine.
-    ! May need to check if this zeroing is required.
-    if(hzero_passing_electron_response) then 
-        do iglo = g_lo%llim_proc, g_lo%ulim_proc
-            ik = ik_idx(g_lo,iglo)
-            is = is_idx(g_lo,iglo)
-            il = il_idx(g_lo,iglo)
-            if(is_hybrid_electron_species(spec(is)) &
-                 .and. aky(ik) /= 0. .and. il <= ng2+1) then
-               g_in(:,:,iglo) = 0.
-            endif
-        enddo
-    endif
 
 !Don't do this as integrate_species will fill in all values
 !    antot=0. ; antota=0. ; antotp=0.
@@ -6087,9 +6072,6 @@ contains
     if (adiabatic_option_switch == adiabatic_option_fieldlineavg) then
        allocate (gamtot3(-ntgrid:ntgrid,ntheta0,naky))
     endif
-    if (hzero_passing_electron_response) then
-       allocate (gamtot_hzero(-ntgrid:ntgrid,ntheta0,naky))
-    endif
     
     do iglo = g_lo%llim_proc, g_lo%ulim_proc
        ie = ie_idx(g_lo,iglo)
@@ -6124,33 +6106,12 @@ contains
     wgt = spec%temp*spec%dens
     call integrate_species (g_work, wgt, tot)
     gamtot2 = real(tot)
-
-    ! passing non-zonal electrons
-    if(hzero_passing_electron_response) then 
-        g_work = 0.
-        do iglo = g_lo%llim_proc, g_lo%ulim_proc
-           ie = ie_idx(g_lo,iglo)
-           is = is_idx(g_lo,iglo)
-           il = il_idx(g_lo,iglo)
-           ik = ik_idx(g_lo,iglo)
-           if(is_hybrid_electron_species(spec(is)) &
-                .and. aky(ik) /= 0. .and. il <= ng2+1) then
-              do isgn = 1, 2
-                 g_work(:,isgn,iglo) = -(aj0(:,iglo)**2)*nonmaxw_corr(ie, is)
-              end do
-           endif
-        end do
-        wgt = spec%z*spec%z*spec%dens/spec%temp
-        call integrate_species (g_work, wgt, tot)
-        gamtot_hzero = real(tot) 
-    endif
     
     !<DD>Make sure gamtots are single valued
     if(esv)then
        call ensure_single_val_fields_pass_r(gamtot)
        call ensure_single_val_fields_pass_r(gamtot1)
        call ensure_single_val_fields_pass_r(gamtot2)
-       if (allocated(gamtot_hzero)) call ensure_single_val_fields_pass_r(gamtot_hzero)
     endif
 
 ! adiabatic electrons 
@@ -6177,7 +6138,7 @@ contains
     use theta_grid, only: ntgrid, bmag
     use kt_grids, only: naky, ntheta0, kperp2, aky
     use run_parameters, only: fphi, fapar, fbpar, beta, tite
-    use species, only: spec, has_electron_species, hzero_passing_electron_response
+    use species, only: spec, has_electron_species
     implicit none
     complex, dimension (-ntgrid:,:,:), intent (in) :: phi, apar, bpar
     complex, dimension (-ntgrid:,:,:), intent (in) :: antot, antota, antotp
@@ -6208,10 +6169,6 @@ contains
              end do
           end do
        end if
-       
-       if(hzero_passing_electron_response) then
-            fieldeq = fieldeq + gamtot_hzero*phi
-       endif
     end if
 
     if (fapar > epsilon(0.0)) then
@@ -6743,7 +6700,7 @@ contains
     use kt_grids, only: naky, ntheta0, kperp2
     use species, only: nspec, spec
     implicit none
-    complex, dimension(-ntgrid:, :, g_lo%llim_proc:), intent(in out) :: f_in
+    complex, dimension(-ntgrid:, :, g_lo%llim_proc:), intent(in) :: f_in
     complex, dimension(-ntgrid:, :, :), intent(out) :: phi, apar, bpar
     complex, dimension(:, :, :), allocatable :: antot, antota, antotp
     real, dimension(nspec) :: weights
@@ -6796,8 +6753,6 @@ contains
     use species, only: spec, has_electron_species
     use theta_grid, only: ntgrid, bmag
     use kt_grids, only: ntheta0, naky, kperp2
-    use species, only: hzero_passing_electron_response
-    
     complex, dimension (-ntgrid:,:,:), intent (out) :: phi, apar, bpar
     logical, optional :: gf_lo
     real, dimension (-ntgrid:ntgrid,ntheta0,naky) :: denominator
@@ -6846,11 +6801,6 @@ contains
           numerator = antot+fl_avg_sp
           denominator = gamtot
        end if
-
-       if (hzero_passing_electron_response) then 
-        ! Probably only correct for beta = 0
-            denominator = (beta * gamtot2 + bmagsp**2) * (gamtot-gamtot_hzero) + (beta/2.0) * gamtot1 * gamtot1
-       end if 
        
        where (abs(denominator) < epsilon(0.0)) ! it == ik == 1 only
           !NOTE: denominator=0 for the it==ik==1 only in certain circumstances

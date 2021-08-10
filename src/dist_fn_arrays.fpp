@@ -83,7 +83,7 @@ contains
   !>    call g_adjust(gnew,phinew,bparnew,-fphi,-fbpar)
   !> CMR, 17/4/2012:
   subroutine g_adjust (g, phi, bpar, facphi, facbpar)
-    use species, only: spec, nonmaxw_corr, is_hybrid_electron_species, hzero_passing_electron
+    use species, only: spec, nonmaxw_corr
     use theta_grid, only: ntgrid
     use le_grids, only: jend, ng2
     use gs2_layouts, only: g_lo, ik_idx, it_idx, ie_idx, is_idx, il_idx
@@ -123,8 +123,6 @@ contains
           ie = ie_idx(g_lo,iglo)
           is = is_idx(g_lo,iglo)
           phi_factor = spec(is)%zt*nonmaxw_corr(ie,is)*facphi
-       else if (hzero_passing_electron) then
-          is = is_idx(g_lo,iglo)
        end if
 
        ! BD:  bpar == delta B_parallel / B_0(theta) so no extra factor of
@@ -139,14 +137,6 @@ contains
           g(ig,1,iglo) = g(ig,1,iglo) + adj
           g(ig,2,iglo) = g(ig,2,iglo) + adj
        end do
-
-       if (hzero_passing_electron .and. is_hybrid_electron_species(spec(is))&
-            .and. aky(ik) /= 0. .and. il <= ng2+1 .and. facphi > 0.) then
-          ! Special behaviour when h=0 for passing non-zonal electrons
-          ! if going from g_gs2 to h ( g_wesson ), enforce h = 0 explicitly
-          g(:,:,iglo) = 0.
-       endif
-
     end do
   end subroutine g_adjust
 
@@ -209,42 +199,50 @@ contains
   subroutine set_h_zero (g, phi, bpar, facphi, facbpar, iglo)
     use species, only: spec, nonmaxw_corr, is_hybrid_electron_species
     use theta_grid, only: ntgrid
-    use le_grids, only: jend, ng2
+    use le_grids, only: ng2
     use gs2_layouts, only: g_lo, ik_idx, it_idx, ie_idx, is_idx, il_idx
+    use kt_grids, only: aky
     implicit none
-    complex, dimension (-ntgrid:,:), intent (out) :: g
-    complex, dimension (-ntgrid:,:,:), intent (in) :: phi, bpar
+    complex, dimension (-ntgrid:, :, g_lo%llim_proc:), intent (in out) :: g
+    complex, dimension (-ntgrid:, :, :), intent (in) :: phi, bpar
     real, intent (in) :: facphi, facbpar
     integer, intent (in) :: iglo
     integer :: ig, ik, it, ie, is, il
     complex :: adj
-    logical :: trapped
+    real :: phi_factor, bpar_factor
 
-    trapped = .false.
-
-    if (minval(jend) .gt. ng2) trapped=.true.
-
+    ! Skip non hybrid electrons
     is = is_idx(g_lo,iglo)
     if (.not. is_hybrid_electron_species(spec(is))) return
 
+    ! Skip zonal modes
     ik = ik_idx(g_lo,iglo)
-    it = it_idx(g_lo,iglo)
+    if (aky(ik) == 0) return
+
+    ! Skip trapped particles
     il = il_idx(g_lo,iglo)
+    if (il > ng2+1) return
+    
+    it = it_idx(g_lo,iglo)
     ie = ie_idx(g_lo,iglo)
 
+    if (facphi /= 0) then
+       phi_factor = spec(is)%zt*nonmaxw_corr(ie,is)*facphi
+    else
+       phi_factor = 0.0
+    end if
 
-    ! bpar == delta B_parallel / B_0(theta) so no extra factor of
-    ! 1/bmag is needed here.
+    if (facbpar /= 0) then
+       bpar_factor = 2.0*facbpar
+    else
+       bpar_factor = 0.0
+    end if
+    
     do ig = -ntgrid, ntgrid
-        !Don't adjust in the forbidden region as we don't set g/h here
-        if ( trapped .and. il > jend(ig)) cycle
-
-        adj = nonmaxw_corr(ie, is)*2.0*vperp2(ig,iglo)*aj1(ig,iglo) &
-              *bpar(ig,it,ik)*facbpar &
-              + spec(is)%z*nonmaxw_corr(ie, is)*phi(ig,it,ik)*aj0(ig,iglo) &
-              /spec(is)%temp*facphi
-        g(ig,1) = adj
-        g(ig,2) = adj
+       adj = bpar_factor*vperp2(ig,iglo)*aj1(ig,iglo)*bpar(ig,it,ik) &
+            + phi_factor*phi(ig,it,ik)*aj0(ig,iglo)
+       g(ig, 1, iglo) = adj
+       g(ig, 2, iglo) = adj
     end do
 
   end subroutine set_h_zero
