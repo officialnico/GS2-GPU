@@ -1908,11 +1908,14 @@ contains
   !> writing/reading files.
   subroutine set_restart_file (file)
     use constants, only: run_name_size
+    use mp, only: proc0
+    use file_utils, only: error_unit
     implicit none
     character(len=*), intent (in) :: file
-    
-    restart_file = file
-
+    if (proc0 .and. len_trim(file) > run_name_size) then
+       write( error_unit(), '("Argument to set_restart_file exceeds restart_file size so truncating")')
+    end if
+    restart_file = file(1:min(len_trim(file), run_name_size))
   end subroutine set_restart_file
 
   !> FIXME : Add documentation  
