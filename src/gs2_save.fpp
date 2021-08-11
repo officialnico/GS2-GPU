@@ -52,7 +52,7 @@ module gs2_save
 
   !> Read and write single or multiple restart files.
   !> Effectively ignored if not built with parallel netcdf
-  logical :: read_many, save_many
+  logical :: read_many = .false., save_many = .false.
 
   !> Do we want to include the explicit source terms and
   !> related timesteps when saving/restoring from the restart file.
