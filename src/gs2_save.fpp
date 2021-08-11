@@ -1904,11 +1904,12 @@ contains
   subroutine init_gs2_save
   end subroutine init_gs2_save
 
-!> FIXME : Add documentation  
+  !> Sets the base of the restart file to be used when
+  !> writing/reading files.
   subroutine set_restart_file (file)
     use constants, only: run_name_size
     implicit none
-    character(run_name_size), intent (in) :: file
+    character(len=*), intent (in) :: file
     
     restart_file = file
 
