@@ -3490,6 +3490,7 @@ contains
     use theta_grid, only: ntgrid, delthet, jacob
     use dist_fn_arrays, only: c_rate
     use gs2_heating, only: heating_diagnostics, avg_h, avg_hk, zero_htype
+    use collisions, only: collisions_heating => heating
     implicit none
     integer, intent (in) :: istep
     !> Heating diagnostics summed over space at the current timestep
@@ -3505,7 +3506,7 @@ contains
     call zero_htype(h)
     call zero_htype(hk)
 
-    if (proc0) then
+    if (proc0 .and. collisions_heating) then
 
        !GGH NOTE: Here wgt is 1/(2*ntgrid+1)
        wgt = delthet*jacob
@@ -3538,6 +3539,7 @@ contains
        end do
     end if
 
+    ! We may be able to skip this work as well if heating is false.
     call get_heat (h, hk, phi, apar, bpar, phinew, aparnew, bparnew)    
 
     call avg_h(h, h_hist, istep, navg)
