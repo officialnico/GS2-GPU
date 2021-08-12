@@ -129,7 +129,12 @@ contains
           deallocate (gle)
           if (heating_flag) then
             ! form (h_i+1 + h_i)/2 * C(h_i+1) and integrate.  
-             gc3 = 0.5*conjg(g+gold)*(g-gc3)/code_dt          
+             gc3 = 0.5*conjg(g+gold)*(g-gc3)/code_dt
+             ! We only want the real part of this result so we could
+             ! either provide a real argument overload or reduce to
+             ! a complex temporary before storing just the real part.
+             ! This would allow c_rate to be declared real, halving the
+             ! memory requirements.
              call integrate_moment (gc3, c_rate(:,:,:,:,3))
              deallocate (gc3)
           endif
@@ -176,6 +181,11 @@ contains
             call integrate_moment (gc1, c_rate(:,:,:,:,1))
             deallocate (gc1)
           
+            ! We only want the real part of this result so we could
+            ! either provide a real argument overload or reduce to
+            ! a complex temporary before storing just the real part.
+            ! This would allow c_rate to be declared real, halving the
+            ! memory requirements.
             if (hyper_colls) call integrate_moment (gc2, c_rate(:,:,:,:,2))
             deallocate (gc2)
           
