@@ -106,7 +106,7 @@ endef
 
 define RUNCOMMAND_EXPECT_FAIL
 $(call messageOp,"Running ","\\t:",$(1))
-@$(TESTCOMMAND)$(1) $(2) $(3) > OUTPUT ; if test "$$?" == 0; then $(FAILCOMMAND) ; else $(PASSCOMMAND) ;  fi
+@$(TESTCOMMAND)$(1) $(2) $(3) > OUTPUT 2>&1 ; if test "$$?" == 0; then $(FAILCOMMAND) ; else $(PASSCOMMAND) ;  fi
 endef
 
 define FAILCOMMAND
