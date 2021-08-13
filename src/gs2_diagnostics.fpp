@@ -2791,6 +2791,9 @@ contains
     if (.not. allocated(phicorr_sum)) then
        ntg_extend = (2*ntgrid+1)*((ntheta0-1)/jtwist_out+1)
        nth0_extend = min(ntheta0,jtwist_out*(naky-1))
+       ! Warning: For ntheta=ntheta0=naky=128 and jtwist = 6 these two arrays
+       ! will require 750 MB and 375 MB respectively and they are not freed
+       ! after leaving the routine.
        allocate (phicorr_sum(ntg_extend,ntheta0,naky)) ; phicorr_sum = 0.0
        allocate (phiextend_sum(ntg_extend,ntheta0,naky)) ; phiextend_sum = 0.0
        tcorr0 = time_old
