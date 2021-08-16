@@ -37,7 +37,7 @@ subroutine read_{module}_config(self)
   implicit none
   class({module}_config_type), intent(in out) :: self
   logical :: exist
-  integer :: in_file, iostat
+  integer :: in_file
 
   ! Note: When this routine is in the module where these variables live
   ! we shadow the module level variables here. This is intentional to provide
@@ -53,22 +53,24 @@ subroutine read_{module}_config(self)
 {COPYOUT_LIST}
 
   ! Now read in the main namelist
-  if (self%get_requires_index()) then
-    call get_indexed_namelist_unit(in_file, trim(self%get_name()), self%index)
-    read(in_file, nml = {namelist}, iostat = iostat)
-    exist = .true.
-    if (iostat .ne.0) exist = .false.
-    close(unit = in_file, iostat = iostat)
-  else
-    in_file = input_unit_exist(self%get_name(), exist)
-    if (exist) read(in_file, nml = {namelist})
-  endif
+  {READ_NML}
 
   ! Now copy from local variables into type members
 {COPYIN_LIST}
 
   self%exist = exist
 end subroutine read_{module}_config"""
+
+readNMLSubStringIndexed = """
+  call get_indexed_namelist_unit(in_file, trim(self%get_name()), self%index, exist)
+  if (exist) read(in_file, nml = {namelist})
+  close(unit = in_file)
+"""
+
+readNMLSubString = """
+  in_file = input_unit_exist(self%get_name(), exist)
+  if (exist) read(in_file, nml = {namelist})
+"""
 
 writeSubString = """
 !> Writes out a namelist representing the current state of the config object
@@ -362,9 +364,14 @@ class config():
                                           instance_name = instance_name, config_in = config_in, att = att, req=req)
     
     def readConfig(self, **kwargs):
+        if self.requires_index:
+            read_nml = readNMLSubStringIndexed.format(namelist = self.namelistName).strip()
+        else:
+            read_nml = readNMLSubString.format(namelist = self.namelistName).strip()
+
         return readSubString.format(namelist = self.namelistName, module = self.moduleName,
                                     COPYIN_LIST = self.copyInList(**kwargs), COPYOUT_LIST = self.copyOutList(**kwargs),
-                                    NAMELIST_LIST = self.namelistList(**kwargs), DECL_LIST=self.declarationList(**kwargs))
+                                    NAMELIST_LIST = self.namelistList(**kwargs), DECL_LIST=self.declarationList(**kwargs), READ_NML = read_nml)
 
     def writeConfig(self, **kwargs):
         return writeSubString.format(namelist = self.namelistName, module = self.moduleName,KEYVAL_LIST = self.keyValList(**kwargs))
