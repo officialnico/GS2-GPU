@@ -190,7 +190,7 @@ contains
     implicit none
     class(kt_grids_single_config_type), intent(in out) :: self
     logical :: exist
-    integer :: in_file, iostat
+    integer :: in_file
 
     ! Note: When this routine is in the module where these variables live
     ! we shadow the module level variables here. This is intentional to provide
@@ -211,16 +211,8 @@ contains
     theta0 = self%theta0
 
     ! Now read in the main namelist
-    if (self%get_requires_index()) then
-       call get_indexed_namelist_unit(in_file, trim(self%get_name()), self%index)
-       read(in_file, nml = kt_grids_single_parameters, iostat = iostat)
-       exist = .true.
-       if (iostat .ne.0) exist = .false.
-       close(unit = in_file, iostat = iostat)       
-    else
-       in_file = input_unit_exist(self%get_name(), exist)
-       if (exist) read(in_file, nml = kt_grids_single_parameters)
-    endif
+    in_file = input_unit_exist(self%get_name(), exist)
+    if (exist) read(in_file, nml = kt_grids_single_parameters)
 
     ! Now copy from local variables into type members
     self%akx = akx
@@ -721,7 +713,7 @@ contains
     implicit none
     class(kt_grids_range_config_type), intent(in out) :: self
     logical :: exist
-    integer :: in_file, iostat
+    integer :: in_file
 
     ! Note: When this routine is in the module where these variables live
     ! we shadow the module level variables here. This is intentional to provide
@@ -751,16 +743,8 @@ contains
     theta0_min = self%theta0_min
 
     ! Now read in the main namelist
-    if (self%get_requires_index()) then
-       call get_indexed_namelist_unit(in_file, trim(self%get_name()), self%index)
-       read(in_file, nml = kt_grids_range_parameters, iostat = iostat)
-       exist = .true.
-       if (iostat .ne.0) exist = .false.
-       close(unit = in_file, iostat = iostat)       
-    else
-       in_file = input_unit_exist(self%get_name(), exist)
-       if (exist) read(in_file, nml = kt_grids_range_parameters)
-    endif
+    in_file = input_unit_exist(self%get_name(), exist)
+    if (exist) read(in_file, nml = kt_grids_range_parameters)
 
     ! Now copy from local variables into type members
     self%akx_max = akx_max
@@ -1113,7 +1097,7 @@ contains
     implicit none
     class(kt_grids_specified_config_type), intent(in out) :: self
     logical :: exist
-    integer :: in_file, iostat
+    integer :: in_file
 
     ! Note: When this routine is in the module where these variables live
     ! we shadow the module level variables here. This is intentional to provide
@@ -1132,16 +1116,8 @@ contains
     ny = self%ny
 
     ! Now read in the main namelist
-    if (self%get_requires_index()) then
-       call get_indexed_namelist_unit(in_file, trim(self%get_name()), self%index)
-       read(in_file, nml = kt_grids_specified_parameters, iostat = iostat)
-       exist = .true.
-       if (iostat .ne.0) exist = .false.
-       close(unit = in_file, iostat = iostat)       
-    else
-       in_file = input_unit_exist(self%get_name(), exist)
-       if (exist) read(in_file, nml = kt_grids_specified_parameters)
-    endif
+    in_file = input_unit_exist(self%get_name(), exist)
+    if (exist) read(in_file, nml = kt_grids_specified_parameters)
 
     ! Now copy from local variables into type members
     self%naky = naky
@@ -1221,7 +1197,7 @@ contains
     implicit none
     class(kt_grids_specified_element_config_type), intent(in out) :: self
     logical :: exist
-    integer :: in_file, iostat
+    integer :: in_file
 
     ! Note: When this routine is in the module where these variables live
     ! we shadow the module level variables here. This is intentional to provide
@@ -1239,16 +1215,9 @@ contains
     theta0 = self%theta0
 
     ! Now read in the main namelist
-    if (self%get_requires_index()) then
-       call get_indexed_namelist_unit(in_file, trim(self%get_name()), self%index)
-       read(in_file, nml = kt_grids_specified_element, iostat = iostat)
-       exist = .true.
-       if (iostat .ne.0) exist = .false.
-       close(unit = in_file, iostat = iostat)       
-    else
-       in_file = input_unit_exist(self%get_name(), exist)
-       if (exist) read(in_file, nml = kt_grids_specified_element)
-    endif
+    call get_indexed_namelist_unit(in_file, trim(self%get_name()), self%index, exist)
+    if (exist) read(in_file, nml = kt_grids_specified_element)
+    close(unit = in_file)
 
     ! Now copy from local variables into type members
     self%akx = akx
@@ -1893,7 +1862,7 @@ contains
     implicit none
     class(kt_grids_box_config_type), intent(in out) :: self
     logical :: exist
-    integer :: in_file, iostat
+    integer :: in_file
 
     ! Note: When this routine is in the module where these variables live
     ! we shadow the module level variables here. This is intentional to provide
@@ -1923,16 +1892,8 @@ contains
     y0 = self%y0
 
     ! Now read in the main namelist
-    if (self%get_requires_index()) then
-       call get_indexed_namelist_unit(in_file, trim(self%get_name()), self%index)
-       read(in_file, nml = kt_grids_box_parameters, iostat = iostat)
-       exist = .true.
-       if (iostat .ne.0) exist = .false.
-       close(unit = in_file, iostat = iostat)       
-    else
-       in_file = input_unit_exist(self%get_name(), exist)
-       if (exist) read(in_file, nml = kt_grids_box_parameters)
-    endif
+    in_file = input_unit_exist(self%get_name(), exist)
+    if (exist) read(in_file, nml = kt_grids_box_parameters)
 
     ! Now copy from local variables into type members
     self%gryfx = gryfx
@@ -2455,7 +2416,7 @@ contains
     implicit none
     class(kt_grids_config_type), intent(in out) :: self
     logical :: exist
-    integer :: in_file, iostat
+    integer :: in_file
 
     ! Note: When this routine is in the module where these variables live
     ! we shadow the module level variables here. This is intentional to provide
@@ -2471,16 +2432,8 @@ contains
     grid_option = self%grid_option
 
     ! Now read in the main namelist
-    if (self%get_requires_index()) then
-       call get_indexed_namelist_unit(in_file, trim(self%get_name()), self%index)
-       read(in_file, nml = kt_grids_knobs, iostat = iostat)
-       exist = .true.
-       if (iostat .ne.0) exist = .false.
-       close(unit = in_file, iostat = iostat)       
-    else
-       in_file = input_unit_exist(self%get_name(), exist)
-       if (exist) read(in_file, nml = kt_grids_knobs)
-    endif
+    in_file = input_unit_exist(self%get_name(), exist)
+    if (exist) read(in_file, nml = kt_grids_knobs)
 
     ! Now copy from local variables into type members
     self%grid_option = grid_option

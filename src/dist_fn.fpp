@@ -10362,7 +10362,7 @@ contains
     implicit none
     class(dist_fn_config_type), intent(in out) :: self
     logical :: exist
-    integer :: in_file, iostat
+    integer :: in_file
 
     ! Note: When this routine is in the module where these variables live
     ! we shadow the module level variables here. This is intentional to provide
@@ -10423,16 +10423,8 @@ contains
     zero_forbid = self%zero_forbid
 
     ! Now read in the main namelist
-    if (self%get_requires_index()) then
-       call get_indexed_namelist_unit(in_file, trim(self%get_name()), self%index)
-       read(in_file, nml = dist_fn_knobs, iostat = iostat)
-       exist = .true.
-       if (iostat .ne.0) exist = .false.
-       close(unit = in_file, iostat = iostat)
-    else
-       in_file = input_unit_exist(self%get_name(), exist)
-       if (exist) read(in_file, nml = dist_fn_knobs)
-    endif
+    in_file = input_unit_exist(self%get_name(), exist)
+    if (exist) read(in_file, nml = dist_fn_knobs)
 
     ! Now copy from local variables into type members
     self%adiabatic_option = adiabatic_option
@@ -10617,7 +10609,7 @@ contains
     implicit none
     class(source_config_type), intent(in out) :: self
     logical :: exist
-    integer :: in_file, iostat
+    integer :: in_file
 
     ! Note: When this routine is in the module where these variables live
     ! we shadow the module level variables here. This is intentional to provide
@@ -10639,16 +10631,8 @@ contains
     t0 = self%t0
 
     ! Now read in the main namelist
-    if (self%get_requires_index()) then
-       call get_indexed_namelist_unit(in_file, trim(self%get_name()), self%index)
-       read(in_file, nml = source_knobs, iostat = iostat)
-       exist = .true.
-       if (iostat .ne.0) exist = .false.
-       close(unit = in_file, iostat = iostat)
-    else
-       in_file = input_unit_exist(self%get_name(), exist)
-       if (exist) read(in_file, nml = source_knobs)
-    endif
+    in_file = input_unit_exist(self%get_name(), exist)
+    if (exist) read(in_file, nml = source_knobs)
 
     ! Now copy from local variables into type members
     self%gamma0 = gamma0
@@ -10734,7 +10718,7 @@ contains
     implicit none
     class(dist_fn_species_config_type), intent(in out) :: self
     logical :: exist
-    integer :: in_file, iostat
+    integer :: in_file
 
     ! Note: When this routine is in the module where these variables live
     ! we shadow the module level variables here. This is intentional to provide
@@ -10754,16 +10738,9 @@ contains
     fexpr = self%fexpr
 
     ! Now read in the main namelist
-    if (self%get_requires_index()) then
-       call get_indexed_namelist_unit(in_file, trim(self%get_name()), self%index)
-       read(in_file, nml = dist_fn_species_knobs, iostat = iostat)
-       exist = .true.
-       if (iostat .ne.0) exist = .false.
-       close(unit = in_file, iostat = iostat)
-    else
-       in_file = input_unit_exist(self%get_name(), exist)
-       if (exist) read(in_file, nml = dist_fn_species_knobs)
-    endif
+    call get_indexed_namelist_unit(in_file, trim(self%get_name()), self%index, exist)
+    if (exist) read(in_file, nml = dist_fn_species_knobs)
+    close(unit = in_file)
 
     ! Now copy from local variables into type members
     self%bakdif = bakdif
