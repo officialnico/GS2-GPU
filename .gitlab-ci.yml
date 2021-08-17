@@ -164,7 +164,7 @@ intel_tests:
 
 coverage_standard_tests:
   stage: test
-  image: fedora:29
+  image: fedora:34
   variables:
     CASENAME: "standard+coverage+debug+onestep"
     GK_CI_INTEGRATED: ""
@@ -172,11 +172,14 @@ coverage_standard_tests:
     EXTRA_MAKE_FLAGS: "USE_GCOV=on DEBUG=on ONE_STEP_PP=on"
     GK_MAKEFILE_LOCAL_EXTRA_FLAGS: "F90FLAGS += -ffree-form"
     COVERALLS_SERVICE_NAME: "gitlab-ci"
+    PFUNIT_EXTRA_CMAKE_FLAGS: -DCMAKE_Fortran_FLAGS_DEBUG="-fallow-argument-mismatch -g"
   script: *default_script
   after_script:
     - *push_status
-    - pip3 install git+https://github.com/d7919/cpp-coveralls.git
-    - coveralls --exclude tests --exclude externals/pFUnit_build
+    - time pip3 install git+https://github.com/d7919/cpp-coveralls.git
+    - date
+    - time coveralls --exclude tests --exclude ${PKG_CACHE_DIR} --exclude externals/pFUnit_build
+
 
 onestep_standard_tests:
   stage: test
