@@ -1,7 +1,7 @@
 
 sinclude ../Makefile.tests_common
 
-CLEANCOMMAND+= wstar_units
+clean_individual_test: LOCAL_TEST_FILES:=wstar_units
 
 ifdef TESTNORUN
 all: wstar_units 

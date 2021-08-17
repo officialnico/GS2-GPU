@@ -12,6 +12,7 @@ module normalisations
 
   public :: normalisations_config_type
   public :: set_normalisations_config
+  public :: get_normalisations_config
   
   real, parameter :: default_value = -999.0
   
@@ -36,12 +37,12 @@ module normalisations
      !The normalisations
      real :: mref !< Reference mass in atomic mass units
      real :: zref !< Reference charge in units of the elementary charge
-     real :: nref !< Reference density in $m^3$
-     real :: tref !< Reference temperature in $eV$
-     real :: aref !< Reference length in $m$
-     real :: vref !< Reference (thermal) velocity in $m/s$
-     real :: bref !< Reference magnetic field in Tesla, $T$
-     real :: rhoref !< Reference Larmor radius in $m$
+     real :: nref !< Reference density in \(m^{-3}\)
+     real :: tref !< Reference temperature in \(eV\)
+     real :: aref !< Reference length in \(m\)
+     real :: vref !< Reference (thermal) velocity in \(m/s\)
+     real :: bref !< Reference magnetic field in Tesla, \(T\)
+     real :: rhoref !< Reference Larmor radius in \(m\)
    contains
      private
      procedure, public :: init => norms_init
@@ -71,7 +72,7 @@ module normalisations
      real :: mref = default_value
      !> Reference density in \(m^{-3}\)
      real :: nref = default_value
-     !> Reference Larmor radius in $m$
+     !> Reference Larmor radius in \(m\)
      real :: rhoref = default_value
      !> Reference temperature in \(eV\)
      real :: tref = default_value
@@ -359,7 +360,13 @@ contains
        normalisations_config = normalisations_config_in
     end if
   end subroutine set_normalisations_config
-  
+
+  !> Get the module level config instance
+  function get_normalisations_config()
+    type(normalisations_config_type) :: get_normalisations_config
+    get_normalisations_config = normalisations_config
+  end function get_normalisations_config
+
   !---------------------------------------
   ! Following is for the config_type
   !---------------------------------------

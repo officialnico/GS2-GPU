@@ -109,11 +109,12 @@ module fields_local
      integer, dimension(:),allocatable :: nb_req_hand !< For non-blocking broadcast request handle storage
      logical :: initdone !< Have we finished initialising this block?
      logical, dimension(:), allocatable :: initialised !< Have we initialised each point?
-     logical :: is_head=.false. !< Are we the head of this supercell?
+     logical :: is_head = .false. !< Are we the head of this supercell?
      !Cell and parent properties. Mostly for debug printing.
      integer :: is_ind
      integer :: ik_ind !< Parent properties
      integer :: collective_request
+     real :: condition_number = -1 !< Condition number of the associated response matrix. Only valid on the head.
    contains
      private
      procedure :: deallocate => sc_deallocate
@@ -187,11 +188,11 @@ module fields_local
      type(comm_type) :: fm_sub_all !< Sub communicator involving all processors with fieldmat
      type(comm_type) :: fm_sub_headsc_p0 !< Sub communicator involving the supercell heads and proc0
      integer :: prepare_type=0 !< What sort of preparation do we do to the field matrix
-     integer, dimension(:,:), allocatable :: heads !<  An array that holds the iproc (from comm world) of the supercell head for a given ik,it point
      !Currently only support:
      !0   : Invert the field matrix
      !In the future may wish to do things like LU decomposition etc.
      !Could also do things like eigenvalue analysis etc.
+     integer, dimension(:,:), allocatable :: heads !<  An array that holds the iproc (from comm world) of the supercell head for a given ik,it point
      logical :: no_populate=.false. !< Advanced usage only, if true then don't populate response
      logical :: no_prepare=.false. !< Advanced usage only, if true then don't prepare (invert) response
    contains
@@ -219,6 +220,7 @@ module fields_local
      procedure :: getfieldeq1_nogath => fm_getfieldeq1_nogath
      procedure :: update_fields => fm_update_fields
      procedure :: update_fields_newstep => fm_update_fields_newstep
+     procedure :: get_condition_numbers => fm_get_condition_numbers
   end type fieldmat_type
 
   !> This is the type which controls/organises the parallel
@@ -289,7 +291,8 @@ module fields_local
   integer :: minNRow = 16 !< Tuning this can influence both init and advance times
   type(pc_type),save :: pc !< This is the parallel control object
   type(fieldmat_type),save :: fieldmat !< This is the top level field matrix object
-
+  !> The condition numbers above this limit will trigger a warning
+  real, parameter :: condition_number_warning_limit = sqrt(1.0/epsilon(1.0))
 contains
 
 !//////////////////////////////
@@ -848,7 +851,7 @@ contains
     !Now save if on head proc -- could probably only allocate tmp_arr and call
     !pull_rows_to_arr on this head proc as well, at least for now.
     if(self%is_head)then
-       call gs2_save_response(tmp_arr, get_specific_response_file_name(self%ik_ind, self%is_ind, code_dt, suffix))
+       call gs2_save_response(tmp_arr, get_specific_response_file_name(self%ik_ind, self%is_ind, code_dt, suffix), self%condition_number)
     endif
 
     deallocate(tmp_arr)
@@ -1045,8 +1048,24 @@ contains
   end subroutine sc_invert
 
   !> A routine to invert the field matrix locally
+  !>
+  !> @note Currently every processor which is responsible for a chunk
+  !> of the response matrix at the solve stage will do this inversion.
+  !> This is obviously duplicated work but allows us to skip any
+  !> communication in the push_arr_to_rows method. If only one
+  !> processor did the inversion then we would need to communicate the
+  !> result back. We are unlikely to want to do this in a non-blocking
+  !> manner as it would require that we hold onto the tmp_arr for each
+  !> response matrix, only freeing this memory after the non-blocking
+  !> communications have completed. As these matrices are large we
+  !> don't want them hanging around longer than required. In the typical
+  !> use case where we have large minnrow, we would expect most matrices
+  !> to belong to just one or a few processors so this point may not be
+  !> important in most cases.
   subroutine sc_invert_local(self)
-    use mat_inv, only: inverse_gj
+    use mat_inv, only: invert_serial
+    use mp, only: broadcast_sub
+    use gs2_time, only: code_dt
     implicit none
     class(supercell_type), intent(inout) :: self
     complex, dimension(:,:), allocatable :: tmp_arr
@@ -1061,9 +1080,30 @@ contains
     !First have to pull all row level data
     call self%pull_rows_to_arr(tmp_arr)
 
+    !It may be better to hook into the GK_VERBOSITY level system
+    !rather than relying on the debug flag.
+    if (self%is_head) then
+       self%condition_number = l2norm(tmp_arr)
+    end if
+
     !Now invert in place
-    call inverse_gj(tmp_arr,self%nrow)
-    tmp_arr=transpose(tmp_arr)
+    if (self%is_head) then
+       call invert_serial(tmp_arr, self%nrow)
+       tmp_arr=transpose(tmp_arr)
+    end if
+
+    !It would be quite nice if we could do the following in a non-blocking manner
+    !but this would require us to either keep the potentially large tmp_arr allocated
+    !for all supercells or for us to be able to do this "in-place" (i.e. we use something
+    !like non-blocking scatterv rather than broadcast).
+    if (.not. self%is_all_local) then
+       if (self%sc_sub_pd%nproc > 0) call broadcast_sub(tmp_arr, &
+            self%head_iproc_pd, self%sc_sub_pd%id)
+    end if
+
+    if (self%is_head) then
+       self%condition_number = self%condition_number * l2norm(tmp_arr)
+    end if
 
     !Now push back to row level
     call self%push_arr_to_rows(tmp_arr)
@@ -1091,6 +1131,16 @@ contains
     complex, dimension(:,:), intent(out) :: arr !Note: Dimensions should be self%ncol, self%nrow
     integer :: ic, rl,ru, cl,cu, irb
 
+    ! Zero out arr |--> Not needed if gathering
+    ! This may look like it is only needed for the sum_allreduce_sub branch below,
+    ! however without this line we would end up not setting arr in cases where we
+    ! think of this supercell as empty. This is usually fine, but for the ky=kx=0
+    ! mode all processors consider the supercell to be empty, but we still need to
+    ! initialise this array in some cases (e.g. when dumping to file). We could
+    ! attempt to only do this zeroing in this special case to save some time, but
+    ! we don't expect to be calling this routine much so opt for simpler approach.
+    arr=0
+
     !Now see if we want to exit
     if(self%is_empty) return
     if(.not.self%is_local) return
@@ -1107,9 +1157,6 @@ contains
           enddo
        enddo
     else
-       !Zero out arr |--> Not needed if gathering
-       arr=0
-
        !Place local piece in arr
        do ic=1,self%ncell
           if(self%cells(ic)%is_empty) cycle
@@ -2694,6 +2741,67 @@ contains
 
   end subroutine fm_update_fields_newstep
 
+  !> Fetch all condition numbers to proc0 and report on
+  !> worrying values as required.
+  subroutine fm_get_condition_numbers(self)
+    use file_utils, only: error_unit
+    use gs2_time, only: code_dt
+    use mp, only: proc0, sum_reduce
+    use unit_tests, only: debug_message
+    implicit none
+    type ky_condition_type
+       real, dimension(:), allocatable ::  conditions
+    end type ky_condition_type
+    class(fieldmat_type), intent(in) :: self
+    integer, parameter :: verb = 1
+    type(ky_condition_type), dimension(:), allocatable :: ky_conditions
+    integer :: ik, is
+    character(len = 100) :: condition_number_message
+    real :: condition_number
+    allocate(ky_conditions(self%naky))
+
+    ! Note that here we communciate over comm_world. It is likely that we
+    ! could instead reduce individual `ky_conditions(:)%conditions` arrays
+    ! amongst just the supercell heads of the ky block and then reduce
+    ! across the ky heads to proc0. Currently we don't worry about this as
+    ! we just do this once per initialisation, but this could become expensive
+    ! when running at large scale?
+
+    do ik = 1, self%naky
+       allocate(ky_conditions(ik)%conditions(self%kyb(ik)%nsupercell))
+       ky_conditions(ik)%conditions = 0.0
+       do is = 1, self%kyb(ik)%nsupercell
+          if (self%kyb(ik)%supercells(is)%is_head) then
+             ky_conditions(ik)%conditions(is) = self%kyb(ik)%supercells(is)%condition_number
+          end if
+       end do
+       call sum_reduce(ky_conditions(ik)%conditions, 0)
+    end do
+
+    if (proc0) then
+       do ik = 1, self%naky
+          do is = 1, self%kyb(ik)%nsupercell
+             condition_number = ky_conditions(ik)%conditions(is)
+             write(condition_number_message,'("Condition number for response with ik = ",I0,", is = ",I0," and dt = ",E14.6E3," is ",E14.6E3)') ik, is, code_dt, condition_number
+             call debug_message(verb, "fields_local::fm_get_condition_numbers "//condition_number_message)
+             if (condition_number > condition_number_warning_limit) then
+                write(error_unit(), '("Warning: ",A)') trim(condition_number_message)
+             end if
+
+             ! In debug mode always display the condition number message to screen
+             if (debug) then
+                write(*,'(A)') trim(condition_number_message)
+             end if
+          end do
+       end do
+    end if
+
+    do ik = 1, self%naky
+       deallocate(ky_conditions(ik)%conditions)
+    end do
+    deallocate(ky_conditions)
+  end subroutine fm_get_condition_numbers
+
   !> Write some debug data to file
   subroutine fm_write_debug_data(self)
     use file_utils, only: open_output_file, close_output_file
@@ -3891,8 +3999,9 @@ contains
              call cpu_time(te)
              write(dlun,'("--Done in ",F12.4," units")') te-ts
           endif
+          call fieldmat%get_condition_numbers
        endif
-       
+
        !Dump response to file
        if(dump_response)then
           if(proc0.and.debug)then
@@ -4145,5 +4254,37 @@ contains
     logical :: fields_local_functional
     fields_local_functional = (.not. compiler_pgi())
   end function fields_local_functional
+
+  !> Calculate the L2/Frobenius/Euclidiean-norm of a 2D complex array
+  real function l2norm(matrix)
+    !> The matrix to calculate the norm of
+    complex, dimension(:, :), intent(in) :: matrix
+    !> The shape of the matrix
+    integer, dimension(2) :: matrix_shape
+    !> Indicies for indexing the matrix
+    integer :: i, j
+    l2norm = 0.
+    matrix_shape = shape(matrix)
+    do j = 1, matrix_shape(2)
+       do i = 1, matrix_shape(1)
+          l2norm = l2norm + matrix(i,j) * conjg(matrix(i,j))
+       end do
+    end do
+    l2norm = sqrt(l2norm)
+
+    ! We could write all of the above as
+    !    l2norm = sqrt(sum(matrix*matrix))
+    ! but this could run over the matrix twice
+    ! and require a matrix sized temporary. Our
+    ! approach avoids this. We could have an intermediate
+    ! approach of
+    !  do j = 1, matrix_shape(1)
+    !     l2norm = l2norm + sum(matrix(:,j) * conjg(matrix(:,j)))
+    !  end do
+    !  l2norm = sqrt(l2norm)
+    ! which might offer a bit of a middle ground
+    ! Also note that a norm2 method was introduced in fortran 2008
+    ! but that only accepts real valued arguments.
+  end function l2norm
 
 end module fields_local

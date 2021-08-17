@@ -19,16 +19,25 @@ NAMELIST_PAGE_URL = "{}/page/namelists/index.html#{}"
 
 
 def get_namelist_url(self):
-    """Get the url for a namelist
-    """
+    """Get the url for a namelist"""
     return NAMELIST_PAGE_URL.format(self.base_url, self.namelistName)
 
 
 def get_namelist_variable_url(self):
-    """Get the url for a specific variable in a namelist
-    """
+    """Get the url for a specific variable in a namelist"""
     anchor = "{}-{}".format(self.namelist, self.name)
     return NAMELIST_PAGE_URL.format(anchor)
+
+
+def interceptor_sub_macros(string, base_url):
+    """Version of sub_macros to be compatible between 6.0 and 6.1"""
+    try:
+        ford.utils.register_macro("url = {0}".format(base_url))
+        ford.utils.register_macro("media = {0}".format(os.path.join(base_url, "media")))
+        ford.utils.register_macro("page = {0}".format(os.path.join(base_url, "page")))
+    except RuntimeError:
+        pass
+    return ford.utils.sub_macros(string)
 
 
 def interceptor_main(proj_data, proj_docs, md):
@@ -85,13 +94,24 @@ def interceptor_main(proj_data, proj_docs, md):
     else:
         project.make_links(proj_data["project_url"])
 
+    # Register the user defined aliases:
+    for alias in proj_data["alias"]:
+        ford.utils.register_macro(alias)
+
+    ford_version_tuple = tuple(map(int, ford.__version__.split(".", maxsplit=2)[0:2]))
+
+    if ford_version_tuple[0] == 6 and ford_version_tuple[1] >= 1:
+        sub_macros = interceptor_sub_macros
+    else:
+        sub_macros = ford.utils.sub_macros
+
     # Convert summaries and descriptions to HTML
     if proj_data["relative"]:
         ford.sourceform.set_base_url(".")
     if "summary" in proj_data:
         proj_data["summary"] = md.convert(proj_data["summary"])
         proj_data["summary"] = ford.utils.sub_links(
-            ford.utils.sub_macros(
+            sub_macros(
                 ford.utils.sub_notes(proj_data["summary"]), proj_data["project_url"]
             ),
             project,
@@ -99,7 +119,7 @@ def interceptor_main(proj_data, proj_docs, md):
     if "author_description" in proj_data:
         proj_data["author_description"] = md.convert(proj_data["author_description"])
         proj_data["author_description"] = ford.utils.sub_links(
-            ford.utils.sub_macros(
+            sub_macros(
                 ford.utils.sub_notes(proj_data["author_description"]),
                 proj_data["project_url"],
             ),
@@ -107,17 +127,20 @@ def interceptor_main(proj_data, proj_docs, md):
         )
 
     proj_docs_ = ford.utils.sub_links(
-        ford.utils.sub_macros(
-            ford.utils.sub_notes(proj_docs), proj_data["project_url"]
-        ),
+        sub_macros(ford.utils.sub_notes(proj_docs), proj_data["project_url"]),
         project,
     )
 
     # Process any pages
     if "page_dir" in proj_data:
-        page_tree = ford.pagetree.get_page_tree(
-            os.path.normpath(proj_data["page_dir"]), md
-        )
+        if ford_version_tuple[0] == 6 and ford_version_tuple[1] >= 1:
+            page_tree = ford.pagetree.get_page_tree(
+                os.path.normpath(proj_data["page_dir"]), [], md
+            )
+        else:
+            page_tree = ford.pagetree.get_page_tree(
+                os.path.normpath(proj_data["page_dir"]), md
+            )
         print()
     else:
         page_tree = None
@@ -180,8 +203,7 @@ def interceptor_sub_links(string, project):
     }
 
     def extend_or_append(search, name, item, value):
-        """Helper function to add to search space for converting links
-        """
+        """Helper function to add to search space for converting links"""
         if name == "constructor":
             constructor = getattr(item, "constructor", False)
             if constructor:
@@ -257,7 +279,10 @@ def interceptor_sub_links(string, project):
                     return match.group()
 
                 extend_or_append(
-                    searchlist, match.group(4).lower(), item, subobject_type,
+                    searchlist,
+                    match.group(4).lower(),
+                    item,
+                    subobject_type,
                 )
 
             # The other child items are anchors within the parent

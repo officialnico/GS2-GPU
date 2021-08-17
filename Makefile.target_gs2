@@ -1,5 +1,18 @@
 ############################################################################# PROGRAMS
-gs2_all: diagnostics modules gs2 ingen rungridgen generate_fftw_wisdom
+gs2_all: diagnostics modules gs2 ingen rungridgen generate_fftw_wisdom dump_response
+gs2_all: dump_grids ideal_ball write_default_input_file
+
+# undefined reference to `get_git_state` or `get_git_hash`? You need to manually
+# add a dependency of the affected binary on `$(OBJDIR)/git_hash.o` like
+# below. This file needs to be first in the list of dependencies so that the
+# file that needs the functions can find them. Yes this is unpleasant, no we
+# (probably?) can`t automate this like for the other dependencies. `fortdep`
+# searches for module `use` statements, and we`re deliberately _not_ using a
+# module for `git_hash`, otherwise basically the entire project needs to be
+# rebuilt on new commits.
+gs2_mod := $(OBJDIR)/git_hash.o $(gs2_mod)
+ingen_mod := $(OBJDIR)/git_hash.o $(ingen_mod)
+write_default_input_file_mod := $(OBJDIR)/git_hash.o $(write_default_input_file_mod)
 
 #Main code
 $(BINDIR)/gs2: $(gs2_mod) $(SIMPLEDATAIO_LIB) | $(BINDIR)
@@ -16,6 +29,14 @@ $(BINDIR)/gs2.x: $(gs2_mod) $(SIMPLEDATAIO_LIB) | $(BINDIR)
 
 .PHONY: gs2.x
 gs2.x: $(BINDIR)/gs2.x
+
+#Mat inv benchmark
+$(BINDIR)/mat_inv_benchmark: $(mat_inv_benchmark_mod) | $(BINDIR)
+	$(call messageOp,"Linking ","\\t:",$(call processName,$^),"\\n\\t\-\-\-\-\-\-\>",$(call processName,$@))
+	$(QUIETSYM)$(LD) $(LDFLAGS) -o $@ $^ $(LIBS)
+
+.PHONY: mat_inv_benchmark
+mat_inv_benchmark: $(BINDIR)/mat_inv_benchmark
 
 #Input file checker
 $(BINDIR)/ingen: $(ingen_mod) $(SIMPLEDATAIO_LIB) | $(BINDIR)
@@ -117,7 +138,10 @@ modules: utils.a geo.a libgs2.a diagnostics
 utils_all: | $(UTILS_SENTINEL)
 utils_all: utils.a
 
-UTIL_OBJ_LIST := spl.o constants.o file_utils.o netcdf_utils.o command_line.o runtime_tests.o constant_random.o
+UTIL_OBJ_LIST := spl.o constants.o file_utils.o command_line.o runtime_tests.o constant_random.o
+ifdef USE_NETCDF
+UTIL_OBJ_LIST += netcdf_utils.o
+endif
 UTIL_OBJ := $(addprefix $(OBJDIR)/, $(UTIL_OBJ_LIST))
 $(LIBDIR)/utils.a: | $(UTILS_SENTINEL)
 $(LIBDIR)/utils.a: $(UTIL_OBJ) |$(LIBDIR)

@@ -42,8 +42,14 @@ To run these, do
 ```
 $ make benchmarks
 ```
-Particular benchmarks can be selected or ignored by setting the `TESTS` and
-`EXCLUDE_TESTS` variables, as with the test suite above.
+By default this runs the benchmarks with small resolutions, chosen so that the benchmarks
+each take a few seconds on a small number of cores (<= 4). The input files for these
+have the suffix `level_1`. To run larger benchmarks, do
+```
+$ make benchmarks BENCHMARK_LEVEL=2
+```
+These benchmarks are designed to take a few minutes each on 24 to 96 cores. These use the
+input files that have the `level_2` suffix.
 
 Benchmarks can be run for a range of processor counts by specifying a string in
 `NTESTPROCS`, e.g.
@@ -57,10 +63,12 @@ TESTEXEC=mpirun -np $$(1)
 ```
 or the command line should contain the definition
 ```
-make benchmarks -I Makefiles/  NTESTPROCS='1 2 4' TESTEXEC='mpirun -np $1'
+make benchmarks NTESTPROCS='1 2 4' TESTEXEC='mpirun -np $1'
 ```
 Some benchmarks only make sense for a single processor and will ignore `NTESTPROCS`.
 
+As with the test suite above, particular benchmarks can be selected or ignored by setting
+the `TESTS` and `EXCLUDE_TESTS` variables.
 
 ## pFUnit tests
 

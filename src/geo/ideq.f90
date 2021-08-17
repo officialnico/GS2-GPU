@@ -85,9 +85,12 @@ contains
     integer :: i, j, init
     integer :: idum, jj, nthg
     integer :: jmax
-    
+
     character(80) :: filename
     character (200) :: line
+
+    logical, dimension(:), allocatable :: has_duplicate_point
+
 !What is this for?
     data init /1/
     save init
@@ -163,8 +166,17 @@ contains
 
     call alloc_arrays (d%nr, nt)
 
+    allocate(has_duplicate_point(d%nr))
+
+    ! Need to determine if we have a duplicate grid point as the spline routines
+    ! require that we do not include the duplicate point
     do i = 1, d%nr
-       call new_periodic_spline (d%grid(i)%nt, d%grid(i)%theta(:), d%grid(i)%R(:), twopi, d%grid(i)%spl)
+       has_duplicate_point(i) = twopi - (d%grid(i)%theta(d%grid(i)%nt) - d%grid(i)%theta(1)) <= epsilon(twopi)
+    end do
+
+
+    do i = 1, d%nr
+       call new_periodic_spline (d%grid(i)%nt, d%grid(i)%theta(:), d%grid(i)%R(:), twopi, d%grid(i)%spl, drop_last_point = has_duplicate_point(i))
        do jj = 1, nt
           R_psi (i, jj) = periodic_splint (theta(jj), d%grid(i)%spl)
        end do
@@ -172,7 +184,7 @@ contains
     end do
 
     do i = 1, d%nr
-       call new_periodic_spline (d%grid(i)%nt, d%grid(i)%theta(:), d%grid(i)%Z(:), twopi, d%grid(i)%spl)
+       call new_periodic_spline (d%grid(i)%nt, d%grid(i)%theta(:), d%grid(i)%Z(:), twopi, d%grid(i)%spl, drop_last_point = has_duplicate_point(i))
        do jj = 1, nt
           Z_psi (i, jj) = periodic_splint (theta(jj), d%grid(i)%spl)
        end do
@@ -180,7 +192,7 @@ contains
     end do
 
     do i = 1, d%nr
-       call new_periodic_spline (d%grid(i)%nt, d%grid(i)%theta(:), d%grid(i)%B(:), twopi, d%grid(i)%spl)
+       call new_periodic_spline (d%grid(i)%nt, d%grid(i)%theta(:), d%grid(i)%B(:), twopi, d%grid(i)%spl, drop_last_point = has_duplicate_point(i))
        do jj = 1, nt
           B_psi (i, jj) = periodic_splint (theta(jj), d%grid(i)%spl)
        end do
