@@ -209,9 +209,10 @@ contains
     use fields, only: force_maxwell_reinit
     use fields, only: set_init_fields
     use file_utils, only: error_unit
-    use init_g, only: ginit
+    use init_g, only: ginit, init_vnmult
     use init_g, only: ginitopt_restart_many
     use run_parameters, only: fphi, fapar, fbpar
+    use collisions, only: vnmult
     implicit none
     type (init_type), intent(in) :: current
     logical :: restarted
@@ -229,8 +230,10 @@ contains
        if (current%initval_ov%in_memory) then
           g = current%initval_ov%g
           gnew = g
+          vnmult = current%initval_ov%vnmult
        else
           call ginit(restarted, ginitopt_restart_many)
+          call init_vnmult(vnmult)
        end if
     end if
 
