@@ -571,7 +571,6 @@ contains
     use kt_grids, only: naky, ntheta0
     use theta_grid, only: ntgrid
     use dist_fn_arrays, only: c_rate
-
     implicit none
 
     real, dimension (negrid) :: hee
@@ -1617,7 +1616,7 @@ contains
     use le_grids, only: negrid, energy => energy_maxw, w => w_maxw
     use kt_grids, only: naky, ntheta0, kperp2
     use theta_grid, only: ntgrid
-    use run_parameters, only: zeff, tunits
+    use run_parameters, only: zeff, tunits, vnm_init
     use constants
     use spfunc, only: erf => erf_ext
     real, dimension (:), intent (out) :: hee
@@ -1625,8 +1624,13 @@ contains
     integer :: ik, ie, is, it, ig
     real :: k4max
     real :: vl, vr, dv2l, dv2r
-!    real :: erf ! this is needed for PGI: RN
 
+    ! Initialise vnmult from the values in run_parameters. This is
+    ! either what has been restored from the restart file  if
+    ! `delt_option /= 'check_restart'` or 1 otherwise.
+    if (all(vnmult) == -1) then
+       vnmult = vnm_init
+    end if
 
     do ie = 1, negrid
        hee(ie) = exp(-energy(ie))/sqrt(pi*energy(ie)) &
