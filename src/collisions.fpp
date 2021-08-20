@@ -80,7 +80,7 @@ module collisions
   integer, parameter :: ediff_scheme_default = 1
   integer, parameter :: ediff_scheme_old = 2
 
-  real, dimension (2) :: vnmult = 0.0
+  real, dimension (2) :: vnmult = -1.0
   integer :: ncheck
   logical :: vary_vnew
   real :: vnfac, vnslow
