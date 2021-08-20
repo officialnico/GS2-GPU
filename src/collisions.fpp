@@ -1628,7 +1628,7 @@ contains
     ! Initialise vnmult from the values in run_parameters. This is
     ! either what has been restored from the restart file  if
     ! `delt_option /= 'check_restart'` or 1 otherwise.
-    if (all(vnmult) == -1) then
+    if (all(vnmult == -1)) then
        vnmult = vnm_init
     end if
 
