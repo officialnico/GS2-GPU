@@ -259,7 +259,9 @@ module diagnostics_base_config
     !> Write two point parallel correlation function calculated from the
     !> electric potential as a function of \(k_y\) and parallel separation,
     !> time averaged and calculated along the extended domain every
-    !> [[gs2_diagnostics_knobs:nwrite]] timesteps
+    !> [[gs2_diagnostics_knobs:nwrite]] timesteps once istep > nstep/4.
+    !>
+    !> @warning This diagnostic can have large persistent memory cost.
     logical :: write_correlation_extend = .false.
     !> Write the cross phase between electron density and perpendicular
     !> electron temperature every [[gs2_diagnostics_knobs:nwrite]]

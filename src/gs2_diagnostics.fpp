@@ -2791,6 +2791,9 @@ contains
     if (.not. allocated(phicorr_sum)) then
        ntg_extend = (2*ntgrid+1)*((ntheta0-1)/jtwist_out+1)
        nth0_extend = min(ntheta0,jtwist_out*(naky-1))
+       ! Warning: For ntheta=ntheta0=naky=128 and jtwist = 6 these two arrays
+       ! will require 750 MB and 375 MB respectively and they are not freed
+       ! after leaving the routine.
        allocate (phicorr_sum(ntg_extend,ntheta0,naky)) ; phicorr_sum = 0.0
        allocate (phiextend_sum(ntg_extend,ntheta0,naky)) ; phiextend_sum = 0.0
        tcorr0 = time_old
@@ -3490,6 +3493,7 @@ contains
     use theta_grid, only: ntgrid, delthet, jacob
     use dist_fn_arrays, only: c_rate
     use gs2_heating, only: heating_diagnostics, avg_h, avg_hk, zero_htype
+    use collisions, only: collisions_heating => heating
     implicit none
     integer, intent (in) :: istep
     !> Heating diagnostics summed over space at the current timestep
@@ -3505,7 +3509,7 @@ contains
     call zero_htype(h)
     call zero_htype(hk)
 
-    if (proc0) then
+    if (proc0 .and. collisions_heating) then
 
        !GGH NOTE: Here wgt is 1/(2*ntgrid+1)
        wgt = delthet*jacob
@@ -3538,6 +3542,7 @@ contains
        end do
     end if
 
+    ! We may be able to skip this work as well if heating is false.
     call get_heat (h, hk, phi, apar, bpar, phinew, aparnew, bparnew)    
 
     call avg_h(h, h_hist, istep, navg)
