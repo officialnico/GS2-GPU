@@ -4389,9 +4389,17 @@ contains
   !! when timestep changes.
   subroutine finish_collisions
     use dist_fn_arrays, only: c_rate
+    use run_parameters, only: vnm_init
     implicit none
 
-    vnmult = 0.0
+    ! This is a bit of a hack to make sure that we get the correct vnmult
+    ! value during a timestep change. Whilst we do restore vnmult from the
+    ! restart file, this unfortunately doesn't happen until after we've initialised
+    ! the collision operator so we choose to store this in vnm_init, which is
+    ! where we get our initial value of vnmult from anyway.
+    vnm_init = vnmult
+    vnmult = -1.0
+
     accelerated_x = .false. ; accelerated_v = .false.
     ediffinit = .false. ; lzinit = .false. ; leinit = .false.
     initialized = .false.  
