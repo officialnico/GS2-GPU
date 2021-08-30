@@ -94,6 +94,12 @@ contains
     
 ! Need to generalize initialization condition if equilibrium changes
 
+    ! WARNING: Exiting early without setting `nthg` may result in `nthg`
+    ! being uninitialised in the calling procedure. The value it gets set to
+    ! must be consistent with the value set at the end of this subroutine
+    ! when not exiting early or the calling procedure may end up with
+    ! inconsistently sized arrays. This is expected to affect `ideal_ball`
+    ! (unconfirmed) but not `gs2` (also unconfirmed).
     if(initeq == 0) return
     init=0
 

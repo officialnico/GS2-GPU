@@ -45,6 +45,7 @@ module read_chease
   private
 
   public :: read_infile
+  public :: finish
 
   public :: npsi_chease, nchi_chease 
   public :: psi_chease, chi_chease
@@ -55,62 +56,53 @@ module read_chease
   integer :: npsi_chease, nchi_chease 
   real, dimension (:), allocatable :: psi_chease,chi_chease  
   integer :: infile=1212
-  integer, parameter :: ncols = 5
 
   #{zero_dim_vars.map{|v| "real :: #{v}"}.join("\n  ")}
   #{one_dim_vars.map{|v| "real, dimension(:), allocatable :: #{v}"}.join("\n  ")}
   #{two_dim_vars.map{|v| "real, dimension(:,:), allocatable :: #{v}"}.join("\n  ")}
 
+  logical, parameter :: debug = .true.
+
 contains
   subroutine read_infile(filename)
     implicit none
-    character(len=80), intent(in) :: filename
+    character(len=*), intent(in) :: filename
     open(infile,file= filename)
 
     read(infile, *)
     read(infile, *) npsi_chease
-    write(*, *) npsi_chease, "<---npsi_chease"
+    if (debug) write(*, *) npsi_chease, "<---npsi_chease"
 
     read(infile, *)
     read(infile, *) nchi_chease
-    write(*, *) nchi_chease, "<---nchi_chease"
+    if (debug) write(*, *) nchi_chease, "<---nchi_chease"
 
     #{zero_dim_vars.map{ |v| "read(infile, *)
-    read(infile, *) #{v}"}.join("\n    ")}
+    read(infile, *) #{v}"}.join("\n\n    ")}
 
     allocate(psi_chease(npsi_chease))
     read(infile, *)
     read(infile, *) psi_chease
-    !write(*, *) psi_chease, "<---psi_chease"
 
     allocate(chi_chease(nchi_chease))
     read(infile, *)
     read(infile, *) chi_chease
-    !write(*, *) chi_chease, "<---chi_chease"
 
     #{one_dim_vars.map{|v| "allocate(#{v}(npsi_chease))
     read(infile, *)
-    read(infile, *) #{v}
-    !write(*, *) #{v}, \"<---#{v}\""}.join("\n\n    ")}
+    read(infile, *) #{v}"}.join("\n\n    ")}
 
     #{two_dim_vars.map{|v| "allocate(#{v}(npsi_chease,nchi_chease))
     read(infile, *)
-    read(infile, *) #{v}
-    !write(*, *) #{v}, \"<---#{v}\""}.join("\n\n    ")}
+    read(infile, *) #{v}"}.join("\n\n    ")}
   end subroutine read_infile
 
   subroutine finish
-    deallocate(psi_chease)
-    deallocate(chi_chease)
-    #{(one_dim_vars + two_dim_vars).map{|v| "deallocate(#{v})"}.join("\n    ")}
+    if (allocated(psi_chease)) deallocate(psi_chease)
+    if (allocated(chi_chease)) deallocate(chi_chease)
+    #{(one_dim_vars + two_dim_vars).map{|v| "if (allocated(#{v})) deallocate(#{v})"}.join("\n    ")}
   end subroutine finish
 end module read_chease
-
-!program test
-!  use read_chease
-!  call read_infile("ogyropsi.dat")
-!
-!end program test
 
 EOF
 

@@ -9,27 +9,6 @@ GK_PROJECT := gs2
 #  Makefile written by Bill Dorland and Ryusuke Numata
 #  Modified by GS2 contributors
 #
-#
-# * Changelogs
-# 26/09/10: added targets doc_depend and doc to make doxygen documentation. EGH.
-#	12/17/09: make it explicit that the codes are written in
-#		  Fortran 95 Standard
-#	10/12/09: share the Makefile with gsp gyrokinetic PIC code
-#	04/11/09: * share the Makefile with rmhdper reduced MHD code
-#		  * include progject specific target definitions
-#		    Makefile.target_$(GK_PROJECT)
-#	04/06/09: SYSTEM environment variable is replaced by GK_SYSTEM
-#	02/25/09: gs2 replaced by trinity (MAB)
-#	01/26/09: USE_C_INDEX is imported to gs2 by TT
-#       12/11/08: add support for NAGWare and Lahey compilers
-#       10/28/08: some non-standard macros respect environment variables
-#       10/27/08: default commands for MPI and HDF5 are defined
-#       09/26/08: hack for treating intermediate f90 files properly
-#	 	 (this is to keep all intermediate f90 files when 
-#		 .PRECIOUS is given)
-#	07/01/08: new switches USE_LOCAL_SPFUNC and USE_NAGLIB
-#	06/16/08: clean up unused statements related to PLATFORM_LINKS
-#
 # * Available Compilers (tested on limited hosts)
 #   (must be Fortran 95 Standard compliant)
 #
@@ -86,9 +65,8 @@ USE_NETCDF ?= on
 USE_PARALLEL_NETCDF ?= 
 # uses hdf5 library (bin)
 USE_HDF5 ?=  
-# Use function pointer in layouts_indices.c (bin)
-# see also README
-USE_C_INDEX ?= 
+# uses lapack or compatible library (bin)
+USE_LAPACK ?=
 # Use local random number generator (mt,undefined)
 # see also README
 USE_LOCAL_RAN ?=
@@ -113,6 +91,8 @@ GENQUAD ?=
 # Compile with gcov flags to check for code coverage
 USE_GCOV ?=
 HAS_GCOV=$(USE_GCOV)
+# Name of python exe
+GS2_PYTHON_NAME ?= python3
 
 # Compile with the new simplified diagnostics module (bin)
 USE_NEW_DIAG ?=on
@@ -138,6 +118,17 @@ QUIET           ?= yes
 # If defined then use escape commands to colourise some output
 # Note hack to support both spellings
 WITH_COLOUR     ?= $(WITH_COLOR)
+# If defined then show the full path in compilation statements etc.
+SHOW_ABS_PATH ?= yes
+
+###############################################################
+# By default we export all variables defined in this Makefile
+# or any included makefiles. This gives sub-make invocations
+# (i.e. make calls from within our Makefile) access to the same
+# variables. Really we should just default what is needed.
+export
+###############################################################
+
 #
 # * Targets:
 #
@@ -157,7 +148,7 @@ Makefile: ;
 SHELL           = bash
 MAKE		= make
 CPP		= cpp
-CPPFLAGS        = 
+CPPFLAGS	=
 FPPFLAGS	= -P -traditional
 FC		= f90
 MPIFC		?= mpif90
@@ -178,7 +169,7 @@ ARCHFLAGS 	= cr
 RANLIB		= ranlib
 AWK 		= awk
 PERL		= perl
-FORD           ?= ford
+FORD           ?= $(GK_HEAD_DIR)/scripts/ford_interceptor.py
 MKDIR           = mkdir -p
 
 MPI_INC	?=
@@ -191,11 +182,18 @@ GENQUAD_INC ?=
 GENQUAD_LIB ?=
 NETCDF_INC ?=
 NETCDF_LIB ?=
+LAPACK_INC ?=
+LAPACK_LIB ?=
 HDF5_INC ?=
 HDF5_LIB ?=
 NAG_LIB ?=
 NAG_PREC ?= dble
 MACRO_DEFS ?=
+
+# Makefile.local may override some options set in Makefile.$(GK_SYSTEM),
+# thus it is included before and after Makefile.$(GK_SYSTEM)
+Makefile.local: ;
+sinclude Makefile.local
 
 #### directories
 
@@ -229,8 +227,8 @@ EXTERNALSRCDIRS:= $(addprefix $(EXTERNALDIR)/, $(EXTERNALSRCDIRS))
 
 SUBDIRS += $(EXTERNALSRCDIRS)
 
-GEO=$(SRCDIR)/geo
-UTILS=$(EXTERNALDIR)/utils
+GEO:=$(SRCDIR)/geo
+UTILS:=$(EXTERNALDIR)/utils
 
 #Tests
 TEST_DIR:=$(GK_HEAD_DIR)/tests
@@ -240,6 +238,11 @@ COVERAGE_DIR:= $(GK_HEAD_DIR)/coverage
 #Patch file
 PATCHFILE:= .patch.make
 
+ifdef SHOW_ABS_PATH
+processName = $1
+else
+processName = $(subst $(GK_HEAD_DIR)/,,$1)
+endif
 ################################################### SET COMPILE MODE SWITCHES
 
 # It makes no sense to set USE_PARALLEL_NETCDF without
@@ -257,10 +260,6 @@ endif
 # compile mode switches (DEBUG, TEST, PROF, OPT, STATIC, DBLE)
 # must be set before loading Makefile.$(GK_SYSTEM) because they may affect
 # compiler options.
-# However, Makefile.local may override some options set in Makefile.$(GK_SYSTEM),
-# thus it is included before and after Makefile.$(GK_SYSTEM)
-Makefile.local: ;
-sinclude Makefile.local
 
 # include system-dependent make variables
 ifndef GK_SYSTEM
@@ -279,15 +278,13 @@ include Makefile.$(GK_SYSTEM)
 # Files that we know are going to be in the submodule directories.
 # This is in case the directories exist but the submodules haven't
 # actually been initialised
-MAKEFILES_SENTINEL = Makefiles/Makefile.bitbucket
-UTILS_SENTINEL = $(UTILS)/mp.fpp
+MAKEFILES_SENTINEL := Makefiles/Makefile.bitbucket
+UTILS_SENTINEL := $(UTILS)/mp.fpp
 
 .PRECIOUS: $(MAKEFILES_SENTINEL) $(UTILS_SENTINEL)
 
 # Make sure the submodules exist; they all currently share the same recipe
-$(UTILS_SENTINEL) : $(MAKEFILES_SENTINEL)
-
-$(MAKEFILES_SENTINEL) submodules:
+$(UTILS_SENTINEL) $(MAKEFILES_SENTINEL) submodules:
 	@echo "Downloading submodules"
 	git submodule update --init --recursive
 
@@ -303,6 +300,16 @@ $(MAKEFILES_SENTINEL) submodules:
 Makefile.$(GK_SYSTEM): $(MAKEFILES_SENTINEL)
 	@$(MAKE) -f .Makefile.makefile_exists_helper --no-print-directory
 
+# Here we add dependency on the utils_sentinel for a somewhat arbitrary
+# file in utils that we will try to include. If $(UTILS)/define.inc is not
+# present this dependency will ensure the submodules recipe is run.
+$(UTILS)/define.inc: $(UTILS_SENTINEL)
+
+# Here we try to include this file from utils. We don't want (or get) any
+# information from including it, it is merely to trigger the submodules
+# recipe when utils hasn't been checked out
+include $(UTILS)/define.inc
+
 # include Makefile.local if exists
 sinclude Makefile.local
 
@@ -310,13 +317,21 @@ sinclude Makefile.local
 Makefile.utils: ;
 include Makefile.utils
 
+#Indicate that we don't want to rebuild the COMPILER makefile
+Makefiles/Makefile.$(COMPILER): ;
 #############################################################################
 
-GIT_HASH=$(shell git rev-parse HEAD)
+GIT_HASH:=$(shell git rev-parse HEAD)
 MACRO_DEFS+=-DGIT_HASH='"$(GIT_HASH)"'
 
+GIT_HASH_MAKEFILES:=$(shell git submodule status Makefiles | cut -d ' ' -f2)
+MACRO_DEFS+=-DGIT_HASH_MAKEFILES='"$(GIT_HASH_MAKEFILES)"'
+
+GIT_HASH_UTILS:=$(shell git submodule status $(UTILS) | cut -d ' ' -f2)
+MACRO_DEFS+=-DGIT_HASH_UTILS='"$(GIT_HASH_UTILS)"'
+
 #The magic sed esacpes either ( or ) by replacing with \( or \)
-GIT_BRANCH=$(shell git branch | grep \* | cut -d ' ' -f2- | sed 's|\([()]\)|\\\1|g')
+GIT_BRANCH:=$(shell git branch | grep \* | cut -d ' ' -f2- | sed 's|\([()]\)|\\\1|g')
 MACRO_DEFS+=-DGIT_BRANCH='"$(GIT_BRANCH)"'
 
 # Find if there are any modified tracked files (except Makefile.depend)
@@ -333,20 +348,34 @@ $(shell git diff -w -- .  > $(PATCHFILE))
 endif
 MACRO_DEFS+=-DGIT_PATCH_FILE='"$(PATCHFILE)"'
 
+######## PYTHON ###############################################################
+
+PYTHON_EXE:=$(shell which $(GS2_PYTHON_NAME))
+GS2_HAS_PYTHON:=$(if $(PYTHON_EXE),yes,no)
+ifeq ($(GS2_HAS_PYTHON),yes)
+PYTHON_VERSION:=$(shell $(PYTHON_EXE) --version 2>&1)
+endif
+
+###############################################################################
 
 # Define RUN_NAME_SIZE
 MACRO_DEFS+=-DRUN_NAME_SIZE=$(RUN_NAME_SIZE) 
 
 ############################################################################# Deal with user flags
 
-# Define RELEASE based on the contents of the RELEASE
-# file, which is empty unless we are in a release.
-RELEASE_FILE = $(shell cat RELEASE)
-ifneq ($(RELEASE_FILE),) # If the file is not empty
-	RELEASE=$(RELEASE_FILE)
-	MACRO_DEFS+=-DRELEASE=$(RELEASE_FILE)
-	DOC_FOLDER=releases/$(RELEASE_FILE)/
+# Define IS_RELEASE based on if current commit exactly matches
+# a tagged version. If it does then we define RELEASE to reflect
+# this tag. If it doesn't then we define RELEASE from the "closest"
+# tag plus a modifier.
+IS_RELEASE := $(shell git describe --tags --exact-match 2>/dev/null)
+MACRO_DEFS+=-DIS_RELEASE=$(IS_RELEASE)
+
+ifneq ($(IS_RELEASE),) # If we're on a commit corresponding to a tag
+	RELEASE:=$(IS_RELEASE)
+else
+	RELEASE:=$(shell git describe --tags 2>/dev/null)
 endif
+MACRO_DEFS+=-DRELEASE='"$(RELEASE)"'
 
 # Define GK_SYSTEM for runtime_tests so that we can get the system name
 # at runtime
@@ -402,9 +431,8 @@ ifeq ($(USE_FFT),fftw)
 	FFT_LIB ?= -lfftw -lrfftw
 endif
 
-ifeq ($(USE_FFT),fftw3)
+ifeq ($(findstring fftw3,$(USE_FFT)),fftw3)
 	MACRO_DEFS += -DFFT=_FFTW3_
-        CPPFLAGS += $(FFT_INC)
 	FFT_LIB ?= -lfftw -lrfftw
 endif
 
@@ -431,16 +459,16 @@ ifdef USE_HDF5
 	MACRO_DEFS += -DHDF
 endif
 
-ifdef USE_C_INDEX
-	MACRO_DEFS += -DUSE_C_INDEX
-endif
-
 ifeq ($(USE_LOCAL_RAN),mt)
 	MACRO_DEFS += -DRANDOM=_RANMT_
 endif
 
 ifdef USE_POSIX
 	MACRO_DEFS += -DPOSIX
+endif
+
+ifdef USE_LAPACK
+	MACRO_DEFS += -DLAPACK
 endif
 
 ifdef USE_F200X_INTRINSICS
@@ -493,9 +521,13 @@ ifdef WITH_EIG
 	ifdef PETSC_ARCH
 		EIG_LIB += -L$(PETSC_DIR)/$(PETSC_ARCH)/lib
 		EIG_INC += -I$(PETSC_DIR)/$(PETSC_ARCH)/include
+		EIG_LIB += -L$(SLEPC_DIR)/$(PETSC_ARCH)/lib
+		EIG_INC += -I$(SLEPC_DIR)/$(PETSC_ARCH)/include
 	else
 		EIG_LIB += -L$(PETSC_DIR)/lib
 	endif
+#SLEPC_ARCH is non-standard and is unlikely to be set, it should
+#really be PETSC_ARCH (as used above)
 	ifdef SLEPC_ARCH
 		EIG_LIB += -L$(SLEPC_DIR)/$(SLEPC_ARCH)/lib
 		EIG_INC += -I$(SLEPC_DIR)/$(SLEPC_ARCH)/include
@@ -505,7 +537,6 @@ ifdef WITH_EIG
 	EIG_LIB += -lslepc -lpetsc
 
 	MACRO_DEFS += -DWITH_EIG
-	CPPFLAGS += $(EIG_INC)
 	CFLAGS += -DWITH_EIG 
 endif 
 
@@ -515,7 +546,7 @@ endif
 
 #Make empty targets if not using the new diagnostics
 ifeq ($(USE_NEW_DIAG),on)
-$(SRCDIR)/Makefile.diagnostics/Makefile.diagnostics: ;
+$(SRCDIR)/diagnostics/Makefile.diagnostics: ;
 sinclude $(SRCDIR)/diagnostics/Makefile.diagnostics
 else
 distclean_simpledataio:
@@ -527,9 +558,9 @@ endif
 ############################################################################# Done dealing with user flags
 
 LIBS	+= $(DEFAULT_LIB) $(MPI_LIB) $(NETCDF_LIB) $(HDF5_LIB) $(FFT_LIB) \
-		   $(NAG_LIB) $(EIG_LIB) $(GENQUAD_LIB)
+		   $(NAG_LIB) $(EIG_LIB) $(GENQUAD_LIB) $(LAPACK_LIB)
 INCLUDES = $(DEFAULT_INC) $(MPI_INC) $(NETCDF_INC) $(HDF5_INC) $(FFT_INC)\
-		   $(SIMPLEDATAIO_INC) $(EIG_INC) $(GENQUAD_INC) $(PFUNIT_INC)
+		   $(SIMPLEDATAIO_INC) $(EIG_INC) $(GENQUAD_INC) $(PFUNIT_INC) $(LAPACK_INC)
 
 INCLUDES += -I$(MODDIR)
 
@@ -543,8 +574,10 @@ F90FLAGS+= $(F90OPTFLAGS) $(INCLUDES)
 CFLAGS += $(COPTFLAGS) \
 	   $(DEFAULT_INC) $(MPI_INC) $(NETCDF_INC) $(HDF5_INC) $(FFT_INC)
 
+CPPFLAGS += $(MACRO_DEFS)
+FPPFLAGS += $(MACRO_DEFS)
 
-DATE=$(shell date +%y%m%d)
+DATE:=$(shell date +%y%m%d)
 TARDIR=$(GK_PROJECT)_$(DATE)
 TOPDIR=$(CURDIR)
 ifeq ($(notdir $(CURDIR)), $(UTILS))
@@ -560,16 +593,16 @@ endif
 VPATH = $(SUBDIRS) $(MODDIR) $(SRCDIR) $(PROGDIR) $(GENERATED_SRC_DIR)
 # this just removes non-existing directory from VPATH
 VPATH_tmp := $(foreach tmpvp,$(subst :, ,$(VPATH)),$(shell [ -d $(tmpvp) ] && echo $(tmpvp)))
-VPATH = .:$(shell echo $(VPATH_tmp) | sed "s/ /:/g")
+VPATH := .:$(shell echo $(VPATH_tmp) | sed "s/ /:/g")
 
 # most common include and library directories
-DEFAULT_INC_LIST = . $(GK_HEAD_DIR)/$(UTILS) $(GK_HEAD_DIR)/$(GEO) .. ../$(UTILS) ../$(GEO)
-DEFAULT_LIB_LIST =
+DEFAULT_INC_LIST := . $(GK_HEAD_DIR)/$(UTILS) $(GK_HEAD_DIR)/$(GEO) .. ../$(UTILS) ../$(GEO)
+DEFAULT_LIB_LIST :=
 # This default library path list can simplify the procedure of porting,
 # however, I found this (actually -L/usr/lib flag) causes an error
 # when linking gs2 at bassi (RS6000 with xl fortran)
-DEFAULT_INC=$(foreach tmpinc,$(DEFAULT_INC_LIST),$(shell [ -d $(tmpinc) ] && echo -I$(tmpinc)))
-DEFAULT_LIB=$(foreach tmplib,$(DEFAULT_LIB_LIST),$(shell [ -d $(tmplib) ] && echo -L$(tmplib)))
+DEFAULT_INC:=$(foreach tmpinc,$(DEFAULT_INC_LIST),$(shell [ -d $(tmpinc) ] && echo -I$(tmpinc)))
+DEFAULT_LIB:=$(foreach tmplib,$(DEFAULT_LIB_LIST),$(shell [ -d $(tmplib) ] && echo -L$(tmplib)))
 
 # Generation of large fortran source files
 RUBY_GENERATE=env ruby $2 $1; if test "$$?" != 0; then  echo && echo && echo  "Warning: no ruby: $1 is not updated!!!" && echo && echo; fi
@@ -578,13 +611,12 @@ RUBY_GENERATE=env ruby $2 $1; if test "$$?" != 0; then  echo && echo && echo  "W
 # Note these are not deleted at the end of the compilation:
 # in fact, they are stored in the repository 
 # because some antique systems don't have ruby
-FORTFROMRUBY=$(subst generate_,,$(patsubst %.rb,%.f90,$(wildcard $(SRCDIR)/*.rb $(SRCDIR)/*/*.rb)))
+FORTFROMRUBY:=$(subst generate_,,$(patsubst %.rb,%.f90,$(wildcard $(SRCDIR)/*.rb $(SRCDIR)/*/*.rb)))
 
 # list of intermediate f90 files generated by preprocessor
 FPPFILES = $(wildcard $(addsuffix /*.fpp, $(SRCDIR) $(PROGDIR) $(SUBDIRS)))
 FPPFILES += $(wildcard $(addsuffix /*.F90, $(SRCDIR) $(PROGDIR) $(SUBDIRS)))
-F90FROMFPP = $(addprefix $(GENERATED_SRC_DIR)/, $(patsubst %.F90,%.f90,$(patsubst %.fpp,%.f90,$(notdir $(FPPFILES)))))
-
+F90FROMFPP := $(addprefix $(GENERATED_SRC_DIR)/, $(patsubst %.F90,%.f90,$(patsubst %.fpp,%.f90,$(notdir $(FPPFILES)))))
 
 ####################################################################### RULES
 
@@ -594,8 +626,7 @@ F90FROMFPP = $(addprefix $(GENERATED_SRC_DIR)/, $(patsubst %.F90,%.f90,$(patsubs
 .PHONY: depend tar tar_exec test_make diagnostics simpledataio
 .PHONY: help TAGS
 .PHONY: clean cleanlib cleanconfig clean_coverage distclean unlink
-.PHONY: doc docs/html docs/graphs cleandoc check_ford_install
-.PHONY: doxygen_doc clean_doxygendoc sync_doc check_coderunner_install sync_input_doc
+.PHONY: doc docs/html docs/graphs cleandoc check_ford_install namelist_doc
 
 # comment this out to keep intermediate .f90 files
 ifdef KEEP_PROCESSED
@@ -609,9 +640,9 @@ $(BINDIR) $(LIBDIR) $(OBJDIR) $(MODDIR) $(GENERATED_SRC_DIR):
 %.o : %.pf
 	$(PFUNIT_PREPROCESSOR) $< $(basename $<).F90
 ifdef ONE_STEP_PP
-	$(QUIETSYM)$(FC) $(MACRO_DEFS) $(F90FLAGS) -c $(basename $<).F90 $(PFUNIT_INC) -I$(GK_HEAD_DIR) -o $@
+	$(QUIETSYM)$(FC) $(FPPFLAGS) $(F90FLAGS) -c $(basename $<).F90 $(PFUNIT_INC) -I$(GK_HEAD_DIR) -o $@
 else
-	$(QUIETSYM)$(CPP) $(FPPFLAGS) $(CPPFLAGS) $(MACRO_DEFS) $(basename $<).F90 -o $(basename $<).f90
+	$(QUIETSYM)$(CPP) $(FPPFLAGS) $(basename $<).F90 -o $(basename $<).f90
 	$(QUIETSYM)$(FC) $(F90FLAGS) -c $(basename $<).f90 $(PFUNIT_INC) -I$(GK_HEAD_DIR) -o $@
 endif
 
@@ -624,44 +655,47 @@ endif
 # and you HAVE to preprocess and compile in one step.
 ifdef ONE_STEP_PP
 $(OBJDIR)/%.o: %.fpp |$(MODDIR) $(OBJDIR)
-	$(call messageOp,"Compiling and preprocessing","\\t:",$<)
-	$(QUIETSYM)$(FC) $(MACRO_DEFS) $(F90FLAGS) -c $< -o $@
+	$(call messageOp,"Compiling and preprocessing","\\t:",$(call processName,$<))
+	$(QUIETSYM)$(FC) $(FPPFLAGS) $(F90FLAGS) $(MODDIR_FLAG)$(MODDIR) -c $< -o $@
 
 $(OBJDIR)/%.o: %.F90 |$(MODDIR) $(OBJDIR)
-	$(call messageOp,"Compiling and preprocessing","\\t:",$<)
-	$(QUIETSYM)$(FC) $(MACRO_DEFS) $(F90FLAGS) -c $< -o $@
+	$(call messageOp,"Compiling and preprocessing","\\t:",$(call processName,$<))
+	$(QUIETSYM)$(FC) $(FPPFLAGS) $(F90FLAGS) $(MODDIR_FLAG)$(MODDIR) -c $< -o $@
 endif
 
 %.f90: %.rb
-	$(call messageOp,"Generating from ruby","\\t:",$<)
+	$(call messageOp,"Generating from ruby","\\t:",$(call processName,$<))
 	$(QUIETSYM)$(call RUBY_GENERATE,$@,$<)
 
+$(OBJDIR)/%.o:$(GENERATED_SRC_DIR)/%.f90 |$(MODDIR) $(OBJDIR)
+	$(call messageOp,"Compiling","\\t:",$(call processName,$<))
+	$(QUIETSYM) $(FC) $(F90FLAGS) $(MODDIR_FLAG)$(MODDIR) -c $< -o $@
+
 $(OBJDIR)/%.o:%.f90 |$(MODDIR) $(OBJDIR)
-	$(call messageOp,"Compiling","\\t:",$<)
-	$(QUIETSYM) $(FC) $(F90FLAGS) -c $< -o $@
-	$(shell mv *.mod $(MODDIR) 2>/dev/null)
+	$(call messageOp,"Compiling","\\t:",$(call processName,$<))
+	$(QUIETSYM) $(FC) $(F90FLAGS) $(MODDIR_FLAG)$(MODDIR) -c $< -o $@
 
 # The depend command needs the preprocessed source files. 
 # This is a little clunky, and maybe could be fixed in the future.
 $(GENERATED_SRC_DIR)/%.f90: %.fpp |$(GENERATED_SRC_DIR)
-	$(call messageOp,"Preprocessing","\\t:",$<)
-	$(QUIETSYM)$(CPP) $(FPPFLAGS) $(CPPFLAGS) $(MACRO_DEFS) $< -o $@
+	$(call messageOp,"Preprocessing","\\t:",$(call processName,$<))
+	$(QUIETSYM)$(CPP) $(FPPFLAGS) $< -o $@
 
 $(GENERATED_SRC_DIR)/%.f90: %.F90 |$(GENERATED_SRC_DIR)
-	$(call messageOp,"Preprocessing","\\t:",$<)
-	$(QUIETSYM)$(CPP) $(FPPFLAGS) $(CPPFLAGS) $(MACRO_DEFS) $< -o $@
+	$(call messageOp,"Preprocessing","\\t:",$(call processName,$<))
+	$(QUIETSYM)$(CPP) $(FPPFLAGS) $< -o $@
 
 $(OBJDIR)/%.o: %.c |$(OBJDIR)
-	$(call messageOp,"Compiling C","\\t:",$<)
-	$(QUIETSYM)$(CC) $(CFLAGS) $(subst -traditional,,$(subst -C,,$(subst -P,,$(CPPFLAGS)))) $(MACRO_DEFS) -c $< -o $@
+	$(call messageOp,"Compiling C","\\t:",$(call processName,$<))
+	$(QUIETSYM)$(CC) $(CFLAGS) $(INCLUDES) $(CPPFLAGS) -c $< -o $@
 
 # This prevents error messages like m2c: Command not found
 # This is from a implicit makefile rule that we're overriding
 %.o : %.mod
 
 
-DEPEND=Makefile.depend
-DEPEND_CMD=$(PERL) scripts/fortdep
+DEPEND:=Makefile.depend
+DEPEND_CMD:=$(PERL) scripts/fortdep
 
 # Only define recipe to build dependency file if it doesn't exist
 ifeq ("$(wildcard $(DEPEND))", "")
@@ -679,15 +713,15 @@ ifdef ONE_STEP_PP
 KEEP_PROCESSED_FILES_FROM_DEPEND="no"
 endif
 
-depend: $(FORTFROMRUBY) $(UTILS_SENTINEL) Makefile.$(GK_SYSTEM) |$(GENERATED_SRC_DIR)
-	$(call messageOp,"Generating dependency file","\\t:",$(DEPEND))
+depend: $(F90FROMFPP) $(FORTFROMRUBY) $(UTILS_SENTINEL) Makefile.$(GK_SYSTEM) |$(GENERATED_SRC_DIR)
+	$(call messageOp,"Generating dependency file","\\t:",$(call processName,$(DEPEND)))
 # Note we force UTILS to be included in the paths that we pass to fortdep
 # We touch the dependency file first as fortdep will call make in order to try
 # and preprocess files, so we need this to avoid recursion
 	$(QUIETSYM)touch $(DEPEND) && $(DEPEND_CMD) -m "$(MAKE) --no-print-directory" -1 -o -v=1\
 		--keep=$(KEEP_PROCESSED_FILES_FROM_DEPEND) $(VPATH):$(UTILS) \
 		--generated_src_dir=$(GENERATED_SRC_DIR) || rm $(DEPEND)
-	$(call messageOp,"Dependency file created at","\\t:",$(DEPEND))
+	$(call messageOp,"Dependency file created at","\\t:",$(call processName,$(DEPEND)))
 ##################################################################### Main TARGETS
 # .DEFAULT_GOAL works for GNU make 3.81 (or higher)
 # For 3.80 or less, see all target
@@ -701,11 +735,23 @@ endif
 
 all: $(.DEFAULT_GOAL)
 
-#TODO : Add a rule to automatically build the depend file when appropriate.
-ifneq ("$(MAKECMDGOALS)", "distclean")
-ifneq ("$(MAKECMDGOALS)", "depend")
-include $(DEPEND)
+# Here we list all targets for which we don't care if there's a dependency file or not
+# this can help us avoid the slow generation of the dependency file when not required
+DONT_INCLUDE_DEPEND_TARGETS := clean distclean depend test_make submodules doc namelist_doc
+# Note we really need to say do any of our targets not match the above as if we have multiple
+# targets and any of them require the dependency file then we have to build the dependency file
+# We achieve that using filter-out. Because we also want to be able to build when the user
+# doesn't specify the target (i.e. just make -j ) it's not enough to check that MAKECMDGOALS is
+# empty after filtering. We need to know if this was the case before hand.
+ifneq ($(strip $(MAKECMDGOALS)),)
+MUST_INCLUDE_DEPEND := $(filter-out $(DONT_INCLUDE_DEPEND_TARGETS),  $(MAKECMDGOALS))
+else
+MUST_INCLUDE_DEPEND := "YES"
 endif
+
+# If MUST_INCLUDE_DEPEND isn't empty then we better include the dependency file
+ifneq ($(strip $(MUST_INCLUDE_DEPEND)),)
+include $(DEPEND)
 endif
 
 #If we're using fft(w) then we want to link the fft_save_wisdom object file
@@ -715,27 +761,22 @@ ifdef USE_FFT
     utils_mod += $(OBJDIR)/fft_save_wisdom.o
     gs2_mod += $(OBJDIR)/fft_save_wisdom.o
     ingen_mod += $(OBJDIR)/fft_save_wisdom.o
+    dump_response_mod += $(OBJDIR)/fft_save_wisdom.o
     generate_fftw_wisdom_mod += $(OBJDIR)/fft_save_wisdom.o
+    write_default_input_file_mod += $(OBJDIR)/fft_save_wisdom.o
 endif
-
-ifdef USE_C_INDEX
-    gs2_mod += $(OBJDIR)/layouts_indices.o
-endif
-
-$(OBJDIR)/layouts_indices.o: layouts_type.h
-layouts_type.h: layouts_type.f90
-	$(AWK) -f makehead.awk $^ > $@
 
 # Make sure template dependencies are specified
 gs2_init.f90: $(SRCDIR)/templates/gs2_init_template.f90
 
 geometry_c_interface.o: geometry_c_interface.h
 
-gryfx_libs: utils.a geo.a $(SRCDIR)/geo/geometry_c_interface.o
+gryfx_libs: utils.a geo.a $(OBJDIR)/geometry_c_interface.o
 
 ############################################################# Get project specific targets
 Makefile.target_$(GK_PROJECT): ;
 include Makefile.target_$(GK_PROJECT)
+
 ############################################################# System config targets
 ifdef STANDARD_SYSTEM_CONFIGURATION
 system_config:
@@ -784,11 +825,11 @@ clean_depend:
 	$(call messageRm,"Dependency file")	
 	-$(QUIETSYM)rm -f $(DEPEND)
 
-distclean: unlink clean cleanlib clean_tests clean_benchmarks distclean_simpledataio cleanconfig clean_doxygendoc cleandoc clean_depend pfunit_clean cleandirs
+distclean: unlink clean cleanlib clean_tests clean_benchmarks distclean_simpledataio cleanconfig cleandoc clean_depend pfunit_clean cleandirs
 
 unlink:
 	$(call messageRm,"Preprocessed files")	
-	-$(QUIETSYM)rm -f $(F90FROMFPP) layouts_type.h
+	-$(QUIETSYM)rm -f $(F90FROMFPP)
 
 ############################################################# Tar targets
 tar:
@@ -801,7 +842,7 @@ $(TARDIR):
 ### setting tar_exec local $(TARLIST*) variables
 # expand wildcards listed $(TARLIST_wild) in ( $(TARLIST_dir) + . )
 # directories and add them into TARLIST
-tar_exec: TARLIST = makehead.awk scripts/fortdep AstroGK.in
+tar_exec: TARLIST = scripts/fortdep
 tar_exec: TARLIST_dir = Makefiles utils geo Aux
 tar_exec: TARLIST_wild = *.f90 *.fpp *.inc *.c Makefile Makefile.* README README.*
 tar_exec: TARLIST += $(foreach dir,. $(TARLIST_dir),$(wildcard $(addprefix $(dir)/,$(TARLIST_wild))))
@@ -824,6 +865,7 @@ sinclude $(TEST_DIR)/Makefile.tests_and_benchmarks
 
 #This is the location of the pfunit test suites
 PFUNIT_TEST_DIR:=$(TEST_DIR)/pfunit_tests
+$(PFUNIT_TEST_DIR)/Makefile: ;
 sinclude $(PFUNIT_TEST_DIR)/Makefile
 
 ############################################################# Introspection targets
@@ -841,9 +883,13 @@ test_make:
 	$(call messageKeyVal, "QUIET", $(QUIET))
 	$(call messageKeyVal, "WITH_COLOUR", $(WITH_COLOUR))
 	$(call messageKeyVal, "GIT_HASH", $(GIT_HASH))
+	$(call messageKeyVal, "GIT_HASH_MAKEFILES", $(GIT_HASH_MAKEFILES))
+	$(call messageKeyVal, "GIT_HASH_UTILS", $(GIT_HASH_UTILS))
 	$(call messageKeyVal, "GIT_STATE", $(GIT_STATE))
 	$(call messageKeyVal, "GIT_BRANCH", $(GIT_BRANCH))
 	$(call messageKeyVal, "PATCHFILE", $(PATHFILE))
+	$(call messageKeyVal, "IS_RELEASE", $(IS_RELEASE))
+	$(call messageKeyVal, "RELEASE", $(RELEASE))
 	@echo
 	$(call messageInfo,"Commands:")
 	$(call messageKeyVal, "COMPILER", $(COMPILER))
@@ -875,8 +921,8 @@ test_make:
 	$(call messageKeyVal, "USE_NETCDF", $(USE_NETCDF))
 	$(call messageKeyVal, "USE_HDF5", $(USE_HDF5))
 	$(call messageKeyVal, "WITH_EIG", $(WITH_EIG))
-	$(call messageKeyVal, "USE_C_INDEX", $(USE_C_INDEX))
 	$(call messageKeyVal, "USE_POSIX", $(USE_POSIX))
+	$(call messageKeyVal, "USE_LAPACK", $(USE_LAPACK))
 	$(call messageKeyVal, "USE_LOCAL_RAN", $(USE_LOCAL_RN))
 	$(call messageKeyVal, "USE_SPFUNC", $(USE_SPFUNC))
 	$(call messageKeyVal, "USE_NAGLIB", $(USE_NAGLIB))
@@ -895,7 +941,7 @@ test_make:
 	$(call messageKeyVal, "MACRO_DEFS", $(MACRO_DEFS))
 	$(call messageKeyVal, "LD_LIBRARY_PATH", $(LD_LIBRARY_PATH))
 	$(call messageKeyVal, "LIBS", $(LIBS))
-	$(call messageKeyVal, "INCS", $(INCLUDES))
+	$(call messageKeyVal, "INCLUDES", $(INCLUDES))
 	@echo
 	$(call messageInfo,"Build info:")
 	$(call messageKeyVal, "SRCDIR ", $(SRCDIR))
@@ -911,6 +957,12 @@ test_make:
 	$(call messageKeyVal, "FPPFILES", $(FPPFILES))
 	$(call messageKeyVal, "F90FROMFPP", $(F90FROMFPP))
 	$(call messageKeyVal, "FORTFROMRUBY", $(FORTFROMRUBY))
+	@echo
+	$(call messageInfo,"PYTHON:")
+	$(call messageKeyVal, "GS2_HAS_PYTHON", $(GS2_HAS_PYTHON))
+	$(call messageKeyVal, "GS2_PYTHON_NAME", $(GS2_PYTHON_NAME))
+	$(call messageKeyVal, "PYTHON_EXE", $(PYTHON_EXE))
+	$(call messageKeyVal, "PYTHON_VERSION", $(PYTHON_VERSION))
 	@echo
 	$(call messageInfo,"PFUNIT:")
 	$(call messageKeyVal, "PFUNIT_VERSION_MAJOR", $(PFUNIT_VERSION_MAJOR))
@@ -975,6 +1027,14 @@ else
 	$(call messageInfo,"Eigensolver: DISABLED")
 endif
 	@echo
+ifdef USE_LAPACK
+	$(call messageInfo,"Lapack:")
+	$(call messageKeyVal, "LAPACK_LIB", $(LAPACK_LIB))
+	$(call messageKeyVal, "LAPACK_INC", $(LAPACK_INC))
+else
+	$(call messageInfo,"Lapack: DISABLED")
+endif
+	@echo
 
 revision:
 	@LANG=C git rev-parse HEAD > Revision
@@ -996,42 +1056,25 @@ check_ford_install:
 	$(call messageInfo,"Ford command $(FORD) not in path -- is it installed?\\n\\tConsider installing with 'pip install --user ford' and add ${HOME}/.local/bin to PATH") ; which $(FORD)
 endif
 
+namelist_doc: PATHS:=$(foreach dir, $(SRCDIR) $(SUBDIRS), --path ${dir})
+namelist_doc: FILES:=$(shell $(GK_HEAD_DIR)/scripts/get_all_matching_files.py --pattern "*.[fF]??" ${PATHS} --absolute --exclude "$(GK_HEAD_DIR)/src/templates")
+# for the `doc` target, `check_ford_install` must be before `namelist_doc` to ensure visibility of the error message
+# in the case where Ford is not installed and `make` is run with the `-j` option. The most robust way to do this is
+# to have `namelist_doc` to depend explicitly on `check_ford_install` as below
+namelist_doc: check_ford_install
+	$(call messageInfo,"Generating namelist documentation")
+	@$(GK_HEAD_DIR)/scripts/generate_namelist_documentation.py ${FILES}
+
+.PHONY: clean_namelist_doc
+clean_namelist_doc:
+	$(call messageRm,"Generated namelist documentation")
+	-$(QUIETSYM)rm -f docs/page/namelists/auto_generated_* docs/page/namelists/index.md
+
 docs/html:
-doc: docs/docs.config.md check_ford_install
+doc: docs/docs.config.md namelist_doc  check_ford_install
 	$(FORD) $(subst -D,--macro ,$(MACRO_DEFS)) $(INCLUDES) -r $(GIT_HASH) $<
 
+cleandoc: clean_namelist_doc
 cleandoc: docs/html docs/graphs
 	$(call messageRm,"FORD docs")	
 	-$(QUIETSYM)rm -rf $^
-
-doxygen_doc: $(F90FROMFPP) $(FORTFROMRUBY)
-	doxygen doxygen_config 
-
-clean_doxygendoc: #Doxygen documentation
-	$(call messageRm,"Doxygen documentation")
-	-$(QUIETSYM)rm -rf doc/
-
-#TODO: This will need updating when documentation has migrated to bitbucket
-sync_doc:
-	$(call messageInfo,"Warning: Target sync_doc out of date."
-	rsync -av --delete --exclude=releases doc/html/	${USER},gyrokinetics@web.sourceforge.net:htdocs/gs2_documentation/$(DOC_FOLDER)
-	$(MKDIR) doc/html/releases
-	echo "Options +Indexes" > doc/html/releases/.htaccess
-	rsync -av doc/html/releases/ ${USER},gyrokinetics@web.sourceforge.net:htdocs/gs2_documentation/releases/
-
-
-ifneq ("$(wildcard $(shell which $(coderunner) 2>/dev/null))","")
-check_coderunner_install:
-	$(call messageInfo,"Using coderunner at $(shell which coderunner)")
-else
-check_coderunner_install:
-	$(call messageInfo,"Coderunner command coderunner not in path -- is it installed?") ; which coderunner
-endif
-
-#This has an external dependency on coderunner
-sync_input_doc: |check_coderunner_install
-	$(call messageInfo,"Warning: Target sync_input_doc out of date."
-	coderunner cc synchronise_variables . -C gs2
-	curl 'http://sourceforge.net/apps/mediawiki/gyrokinetics/index.php?title=GS2_Input_Parameters&action=edit' | sed 's/&amp;/\&/g' | sed 's/&quot;/"/g' | sed 's/&gt;/>/g' | sed 's/&lt;/</g'  | sed 's/&nbsp;/ /g' > wiki_in.tmp
-	coderunner cc read_mediawiki_documentation wiki_in.tmp -C gs2
-	coderunner cc write_mediawiki_documentation > wiki_out.txt -C gs2

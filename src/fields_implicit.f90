@@ -478,7 +478,7 @@ contains
 
   !> FIXME : Add documentation  
   subroutine init_response_matrix
-    use mp, only: barrier
+    use mp, only: barrier, land_allreduce, proc0
     use fields_arrays, only: phi, apar, bpar, phinew, aparnew, bparnew
     use theta_grid, only: ntgrid
     use kt_grids, only: naky, ntheta0
@@ -488,11 +488,12 @@ contains
     use gs2_layouts, only: init_fields_layouts, f_lo
     use gs2_layouts, only: init_jfields_layouts
     use prof, only: prof_entering, prof_leaving
+    use file_utils, only: error_unit
     implicit none
     integer :: ig, ifield, it, ik, i, m, n
     complex, dimension(:,:), allocatable :: am
     logical :: endpoint
-
+    logical :: response_was_read
     call prof_entering ("init_response_matrix", "fields_implicit")
 
     nfield = 0
@@ -505,9 +506,18 @@ contains
     call init_jfields_layouts (nfield, nidx, naky, ntheta0, i_class)
     call finish_fields_layouts
 
+    response_was_read = .false.
+
     !Either read the reponse
     if(read_response) then
-        call read_response_from_file_imp
+        call read_response_from_file_imp(could_read = response_was_read)
+
+        ! Ensure we reduce response_was_read across all processors so if _any_
+        ! processors couldn't read the matrices we recalculate on all processors.
+        call land_allreduce(response_was_read)
+        if((.not. response_was_read) .and. proc0) write(error_unit(), &
+             '("Could not find response file so reverting to calculation.")')
+
       !elseif(skip_initialisation) then
        !do i = i_class, 1, -1
           !!Pretty sure this barrier is not needed
@@ -527,15 +537,17 @@ contains
           !!Free memory
           !deallocate (am)
        !end do
-    else
-    !or calculate it
+     end if
 
+
+     !or calculate it
+     if (.not. response_was_read) then
 !
 ! keep storage cost down by doing one class at a time
-! Note: could define a superclass (of all classes), a structure containing all am, 
-! then do this all at once.  This would be faster, especially for large runs in a 
-! sheared domain, and could be triggered by local_field_solve 
-! 
+! Note: could define a superclass (of all classes), a structure containing all am,
+! then do this all at once.  This would be faster, especially for large runs in a
+! sheared domain, and could be triggered by local_field_solve
+!
 
 !<DD> Comments
 !A class refers to a class of connected domain.
@@ -1196,7 +1208,8 @@ contains
 
   !> A routine to dump the current response matrix to file
   subroutine dump_response_to_file_imp(suffix)
-    use fields_arrays, only: response_file
+    use fields_arrays, only: get_specific_response_file_name
+    use gs2_time, only: code_dt
     use theta_grid, only: ntgrid
     use kt_grids, only: naky, ntheta0
     use dist_fn, only: i_class, N_class, M_class, get_leftmost_it, itright
@@ -1205,8 +1218,6 @@ contains
     use gs2_save, only: gs2_save_response
     implicit none
     character(len=*), optional, intent(in) :: suffix !If passed then use as part of file suffix
-    character(len=64) :: suffix_local, suffix_default='.response'
-    character(len=256) :: file_name
     complex, dimension(:,:), allocatable :: tmp_arr, tmp_arr_full
     complex, dimension(:), allocatable :: tmp_vec_full, tmp_vec
     integer :: ic, im, ik, it, itmin, supercell_length, supercell_length_bound, in, ifld, ig, is_tmp
@@ -1214,9 +1225,6 @@ contains
     integer, dimension(:,:), allocatable :: it_to_is, leftmost_it
     integer, dimension(:), allocatable :: tmp_ints
     logical :: is_local
-    !Set file suffix
-    suffix_local=suffix_default
-    if(present(suffix)) suffix_local=suffix
 
     !Make a lookup array to convert itmin (the leftmost it in a connected domain)
     !to the supercell index "is" used in the local fields. This will be used to 
@@ -1277,11 +1285,11 @@ contains
 
     !Loop over classes (supercell length)
     do ic=1,i_class
-       !Work out how long the supercell is
-       supercell_length=1+(2*ntgrid)*nfield*N_class(ic) !Without boundary points
-       supercell_length_bound=(1+2*ntgrid)*nfield*N_class(ic) !With boundary points
        !Extended domain length
        ext_dom_length=1+(2*ntgrid)*N_class(ic)
+       !Work out how long the supercell is
+       supercell_length=nfield*ext_dom_length !Without boundary points
+       supercell_length_bound=(1+2*ntgrid)*nfield*N_class(ic) !With boundary points
 
        !Make storage
        allocate(tmp_arr_full(supercell_length,supercell_length))
@@ -1309,10 +1317,17 @@ contains
           !Initialise counter
           icount=1
 
-          !Loop over the different it (2Pi domains)
-          do in=1,N_class(ic)
-             !Loop over the fields
-             do ifld=1,nfield
+          !The order of the field, cell and theta loops below is chosen
+          !in order to match the data layout of the fields local matrix
+
+          !Loop over the fields
+          do ifld=1,nfield
+
+             !Reinitialise "it" back to the start of the supercell chain
+             it=itmin
+
+             !Loop over the different it (2Pi domains)
+             do in=1,N_class(ic)
                 !Loop over theta
                 do ig=-ntgrid,ntgrid
                    !Skip the duplicate boundary points
@@ -1375,8 +1390,13 @@ contains
                             enddo
                          enddo
 
-                         !Increment it
-                         it_tmp=itright(ik,it_tmp)
+                         !If we're not at the last cell then increment it_tmp.
+                         !This check is needed to avoid trying to access itright
+                         !in non-box simulations where this array is not allocated.
+                         if(in_tmp < N_class(ic)) then
+                            it_tmp=itright(ik, it_tmp)
+                         end if
+
                       enddo
 
                       !No comms needed if on proc0
@@ -1395,16 +1415,19 @@ contains
                    !Increment counter
                    icount=icount+1
                 enddo
-             enddo
 
-             !Increment it
-             it=itright(ik,it)
+                !If we're not at the last cell then increment it.
+                !This check is needed to avoid trying to access itright
+                !in non-box simulations where this array is not allocated.
+                if(in < N_class(ic)) then
+                   it=itright(ik, it)
+                end if
+             enddo
           enddo
 
           !Now make file name
           if(proc0)then
-             write(file_name,'(A,"_ik_",I0,"_is_",I0,A)') trim(response_file),ik,it_to_is(itmin,ik),trim(suffix_local)
-             call gs2_save_response(tmp_arr_full,file_name)
+             call gs2_save_response(tmp_arr_full, get_specific_response_file_name(ik, it_to_is(itmin, ik), code_dt, suffix))
           endif
        end do
           
@@ -1417,19 +1440,20 @@ contains
   end subroutine dump_response_to_file_imp
 
   !> A routine to read the response matrix from file and populate the implicit
-  !! response storage, note we also allocate the response storage objects
-  subroutine read_response_from_file_imp(suffix)
-    use fields_arrays, only: response_file
+  !> response storage, note we also allocate the response storage objects
+  subroutine read_response_from_file_imp(could_read, suffix)
+    use fields_arrays, only: get_specific_response_file_name
+    use gs2_time, only: code_dt
     use theta_grid, only: ntgrid
     use kt_grids, only: naky, ntheta0
     use dist_fn, only: i_class, N_class, M_class, get_leftmost_it, itright
     use gs2_layouts, only: f_lo, jf_lo, ij_idx, idx_local, idx, proc_id,idx_local,dj
     use mp, only: proc0, send, receive
     use gs2_save, only: gs2_restore_response
+    use file_utils, only: error_unit
     implicit none
+    logical, intent(out) :: could_read
     character(len=*), optional, intent(in) :: suffix !If passed then use as part of file suffix
-    character(len=64) :: suffix_local, suffix_default='.response'
-    character(len=256) :: file_name
     complex, dimension(:,:), allocatable :: tmp_arr, tmp_arr_full
     complex, dimension(:), allocatable :: tmp_vec_full, tmp_vec
     integer :: ic, im, ik, it, itmin, supercell_length, supercell_length_bound, in, ifld, ig, is_tmp
@@ -1438,9 +1462,10 @@ contains
     integer, dimension(:,:), allocatable :: it_to_is, leftmost_it
     integer, dimension(:), allocatable :: tmp_ints
     logical :: is_local, is_local_dup
-    !Set file suffix
-    suffix_local=suffix_default
-    if(present(suffix)) suffix_local=suffix
+    character(len = 256) :: file_name
+    logical :: file_found
+
+    could_read = .true.
 
     !First allocate the matrix storage
     call alloc_response_objects
@@ -1504,11 +1529,11 @@ contains
 
     !Loop over classes (supercell length)
     do ic=1,i_class
-       !Work out how long the supercell is
-       supercell_length=1+(2*ntgrid)*nfield*N_class(ic) !Without boundary points
-       supercell_length_bound=(1+2*ntgrid)*nfield*N_class(ic) !With boundary points
        !Extended domain length
        ext_dom_length=1+(2*ntgrid)*N_class(ic)
+       !Work out how long the supercell is
+       supercell_length=nfield*ext_dom_length !Without boundary points
+       supercell_length_bound=(1+2*ntgrid)*nfield*N_class(ic) !With boundary points
 
        !Make storage
        allocate(tmp_arr_full(supercell_length,supercell_length))
@@ -1532,23 +1557,32 @@ contains
           !"itmin" there).
           itmin=leftmost_it(f_lo(ic)%it(im,1),ik)
           
-          !Now we have the basic properties we want to loop over the elements
-          !First initialise "it"
-          it=itmin
-
           !Now make file name
+          file_name = adjustl(get_specific_response_file_name(ik, it_to_is(itmin, ik), code_dt, suffix))
+
+          ! First check if the expected file exists, if not then exit
+          inquire( file = trim(file_name), exist = file_found)
+          if (.not. file_found) then
+             if(proc0) write(error_unit(), &
+                  '("Could not find response file ",A,", reverting to calculation.")') trim(file_name)
+             could_read = .false.
+             return
+          end if
+
           if(proc0)then
-             write(file_name,'(A,"_ik_",I0,"_is_",I0,A)') trim(response_file),ik,it_to_is(itmin,ik),trim(suffix_local)
-             call gs2_restore_response(tmp_arr_full,file_name)
+             call gs2_restore_response(tmp_arr_full, file_name)
           endif
 
           !Initialise counter
           icount=1
 
-          !Loop over the different it (2Pi domains)
-          do in=1,N_class(ic)
-             !Loop over the fields
-             do ifld=1,nfield
+          !Loop over the fields
+          do ifld=1,nfield
+             !Reinitialise "it" back to the start of the supercell chain
+             it=itmin
+
+             !Loop over the different it (2Pi domains)
+             do in=1,N_class(ic)
                 !Loop over theta
                 do ig=-ntgrid,ntgrid
                    !Skip the duplicate boundary points -- This is no good here. !<DD>
@@ -1638,18 +1672,27 @@ contains
                          !Store section
                          aminv(ic)%dcell(dc)%supercell(nl:nr)=tmp_vec
 
-                         !Increment it
-                         it_tmp=itright(ik,it_tmp)
+                         !If we're not at the last cell then increment it_tmp.
+                         !This check is needed to avoid trying to access itright
+                         !in non-box simulations where this array is not allocated.
+                         if(in_tmp < N_class(ic)) then
+                            it_tmp=itright(ik, it_tmp)
+                         end if
+
                       enddo
                    else
                       !Only proc0 should get here but test anyway
                       if(proc0) call send(tmp_vec_full,proc_id(jf_lo,jflo))
                    endif
                 enddo
-             enddo
 
-             !Increment it
-             it=itright(ik,it)
+                !If we're not at the last cell then increment it.
+                !This check is needed to avoid trying to access itright
+                !in non-box simulations where this array is not allocated.
+                if(in < N_class(ic)) then
+                   it=itright(ik, it)
+                end if
+             enddo
           enddo
 
           !Now we need to fill in the repeated boundary points
@@ -1685,7 +1728,9 @@ contains
                 endif
              enddo
 
-             !Increment it
+             !Increment it -- note we don't need to guard against access to itright
+             !here as for non-box runs we won't enter the outer in=1,N_class(ic)-1
+             !loop as N_class(ic) == 1
              it=itright(ik,it)
           enddo
        end do

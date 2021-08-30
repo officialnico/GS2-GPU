@@ -116,7 +116,7 @@ program ball
 
   if( (.not. gen_eq) .and. (.not. ppl_eq) &
        .and. (.not. transp_eq) .and. (.not. chs_eq)) then
-     call init_theta(ntheta)
+     call eikcoefs(ntheta)
      ntgrid = (2*nperiod - 1)*(ntheta/2)
      allocate(psi(-ntgrid:ntgrid))
   else 
@@ -128,7 +128,7 @@ program ball
 
   if (.not. diagram) then
      order = 1
-     call beta_loop (bcrit, order)
+     call beta_loop (bcrit, order, ntheta)
      stop
   endif
 
@@ -144,7 +144,7 @@ program ball
              s_hat_input = shat_0 + (ishat-1)*(s_hat_max-shat_0)/(nshat-1)
         
         bcrit = 0.
-        call beta_loop (bcrit, order)
+        call beta_loop (bcrit, order, ntheta)
         
         if (bcrit /= 0.) then
            write (*,*) 'shat= ',s_hat_input,' alpha= ', -Rmaj*qinp**2*bcrit
@@ -155,8 +155,8 @@ program ball
 
 contains
   
-  subroutine beta_loop (bcrit, order)
-
+  subroutine beta_loop (bcrit, order, ntheta)
+    integer, intent(inout) :: ntheta
     integer :: order
     real :: bcrit
     logical :: done 
@@ -192,7 +192,7 @@ contains
           beta_prime_input = beta_prime
        endif
        
-       call eikcoefs
+       call eikcoefs(ntheta)
        
        if(.not.local_eq) then
           ntgrid = (size(theta)-1)/2

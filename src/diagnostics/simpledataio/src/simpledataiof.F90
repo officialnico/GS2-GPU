@@ -169,7 +169,7 @@ contains
 
   !/* Open a new file for writing.*/
   subroutine create_file(sfile)
-    type(sdatio_file), intent(out) :: sfile
+    type(sdatio_file), intent(inout) :: sfile
 #ifdef ISO_C_BINDING
 #ifdef FORTRAN_NETCDF
     interface
@@ -189,7 +189,7 @@ contains
   !! the object and you can carry on as if the file
   !! had never been closed.*/
   subroutine open_file(sfile)
-    type(sdatio_file), intent(out) :: sfile
+    type(sdatio_file), intent(inout) :: sfile
 #ifdef ISO_C_BINDING
 #ifdef FORTRAN_NETCDF
     interface

@@ -26,9 +26,9 @@ endif
 ############################################################################# MESSAGES
 ifdef QUIET
 # Main line for turning off command output
-QUIETSYM=@
+QUIETSYM:=@
 # Helper methods for colourising and displaying various message types
-SEPARATOR_ITEM=":"
+SEPARATOR_ITEM:=":"
 whitebold  = "$(C_WHI_BOLD)$(1)$(C_END)"
 blue  = "$(C_BLU)$(1)$(C_END)"
 operation  = "$(C_WHI_BOLD)$(1)$(C_END)"

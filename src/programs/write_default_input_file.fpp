@@ -1,0 +1,23 @@
+program write_default_input_file
+  use mp, only: init_mp, finish_mp, proc0
+  use file_utils, only: get_unused_unit, open_output_file, close_output_file
+
+  use config_collection, only: gs2_config_type
+  implicit none
+
+  type(gs2_config_type) :: the_config
+
+  logical :: list
+  integer :: local_output_unit
+
+  call init_mp
+
+  if (proc0) then
+     call get_unused_unit(local_output_unit)
+     open(unit = local_output_unit, action = "write", file = "defaults.in")
+     call the_config%write_to_unit(local_output_unit)
+     call close_output_file(local_output_unit)
+  end if
+
+  call finish_mp
+end program write_default_input_file

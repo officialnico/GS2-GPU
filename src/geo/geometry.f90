@@ -132,9 +132,6 @@
 !!  Use: 
 !! Include this module, set input variables appropriately and call eikcoefs.  
 !!
-!! NOTE: If gen_eq and ppl_eq are false, you should call init_theta
-!!       before eikcoefs to set the number of theta gridpoints per 2 pi.
-!!
 !! I do not recommend calling other routines, but a few are available for 
 !! diagnostic purposes.  
 !!  
@@ -145,7 +142,7 @@ module geometry
   private
 
   public :: beta_a_fun, eikcoefs, geofax, iofrho, pbarofrho, bi_out
-  public :: qfun, rpofrho, rcenter, init_theta, nth_get, f_trap  !procedures
+  public :: qfun, rpofrho, rcenter, nth_get, f_trap  !procedures
   public :: psi, cvdrift, theta, dvdrhon, surfarea
   public :: nperiod, eqfile, irho, iflux, local_eq, gen_eq
   public :: ppl_eq, transp_eq, chs_eq, efit_eq, equal_arc, bishop
@@ -169,7 +166,11 @@ module geometry
   public :: qinp, s_hat_input
   public :: Rpos
 
-  real, allocatable, dimension(:) :: grho, theta, bmag, gradpar, &
+  !> The theta grid of the results. The final grid has
+  !> $$\pi - 2 \pi \mathrm{nperiod} \leq \theta \leq 2 \pi \mathrm{nperiod} - \pi$$
+  real, allocatable, dimension(:) :: theta
+
+  real, allocatable, dimension(:) :: grho, bmag, gradpar, &
        cvdrift, cvdrift0, gbdrift, gbdrift0, gds2, gds21, gds22, jacob, &
        Rplot, Zplot, Rprime, Zprime, aplot, aprime, Uk1, Uk2, &
        cdrift, cdrift0, gds23, gds24, gds24_noq, gbdrift_th, cvdrift_th, Bpol ! MAB
@@ -196,7 +197,7 @@ module geometry
    
   real :: dp_new, di_new
   real :: psi_0, psi_a
-  real :: B_T0, avgrmid, dvdrhon, surfarea, grho2n, drhodpsin
+  real :: B_T0, avgrmid, dvdrhon, surfarea, drhodpsin
   real :: grhoavg  ! needed for Trinity -- MAB
 
   real, dimension(3) :: rpval
@@ -217,7 +218,19 @@ module geometry
 
   integer :: bishop
 
-  integer :: ntgrid, nth, ntheta
+  !> The single-period theta domain "half-grid" size. That is, the number of points in
+  !> \((0, \pi]\). `theta(-nth:nth)` is the single central period \([-\pi, \pi]\).  For
+  !> EFIT and local equilbria, this is set from
+  !> [[theta_grid_parameters_config_type:ntheta]]; for all other numerical equilbria, it
+  !> is determined by the data file. Always even.
+  integer :: nth
+  !> The full theta domain "half-grid" size. That is, the total size of the
+  !> [[geometry:theta]] grid is `(2 * ntgrid) + 1`, with array bounds
+  !> `theta(-ntgrid:ntgrid)`. Equal to `(2*nperiod - 1)*nth`
+  integer :: ntgrid
+  !> Equal to `2 * nth`
+  !> FIXME: Remove and replace uses with calls to [[periodic_copy]]
+  integer :: ntheta
 
   integer :: verb = 2 ! Verbosity of print statements | Should we use runtime_tests:verbosity?
   ! EGH debug now set by verb, which (in GS2) is set in theta_grid
@@ -346,11 +359,12 @@ module geometry
   end type constant_coefficients_type
 
   type(constant_coefficients_type) :: constant_coefficients
-   
+
+  real, parameter :: invalidValue = -24680.123579 !< Used to initialise values to indicate unset
 contains
   
   !> FIXME : Add documentation    
-  subroutine eikcoefs (ntheta_returned)
+  subroutine eikcoefs (ntheta_input)
     use  geq, only: eqin, geq_init
     ! CHEASE EQUILIBRIUM  EGH
     use  ceq, only: ceqin, ceq_init 
@@ -365,7 +379,12 @@ contains
     use file_utils, only: futils_initialized => initialized, init_file_utils
     use file_utils, only: finish_file_utils
     implicit none
-    integer, optional, intent (out) :: ntheta_returned
+    !> For most numerical equilibria, **returns** the value of [[geometry:nth]];
+    !> for EFIT and local equilibria, instead **sets** [[geometry:nth]].
+    !>
+    !> If setting [[geometry:nth]], then even values are used directly, while odd values
+    !> set `nth = ntheta_input - 1`
+    integer, intent (inout) :: ntheta_input
     logical :: start_file_utils, dummy
 
 ! Local variables:
@@ -401,7 +420,7 @@ contains
     real :: s_hat, dp, di, pressure, tmp, rbar
 
     character(1) :: char
-    integer :: i, j, k, itot, nthg, n
+    integer :: i, j, k, itot, n
     integer :: fort25_unit !For outputting geom values
     integer :: fort78_unit !For outputting geom values
     integer :: fort99_unit !For outputting geom values
@@ -455,32 +474,19 @@ if (debug) write(6,*) "eikcoefs: call check", 'jid=',job_id
     call check(gen_eq, efit_eq, ppl_eq, &
          local_eq, dfit_eq, idfit_eq, chs_eq) 
 
-if (debug) write(6,*) "eikcoefs: allocated(theta)", allocated(theta), 'jid=',job_id
-
-    if(.not. gen_eq .and. .not. ppl_eq &
-    .and. .not. transp_eq .and. .not. chs_eq &
-         .and. .not. allocated(theta)) then
-       write(*,*) 'You should call init_theta to specify the '
-       write(*,*) 'number of theta grid points per 2 pi '
-       write(*,*) 'before calling eikcoefs.'
-       write(*,*) 
-       write(*,*) 'Proceeding with ntheta = 32.'
-       ntheta = 32
-       call init_theta(ntheta)
-    endif
-
 thetaShift = 0.0
 bMaxShift = .true. ! limits the initialization routine to run no more than twice
 do while (bMaxShift)
 
     if(iflux /= 1 .and. iflux /= 10) then
 
+      call init_uniform_theta_grid(ntheta_input)
+
        if (verb>3) write (*,*) 'Starting leqin, ntheta = ', ntheta, ntgrid
 
        call leqin(geoType, rmaj, R_geo, rhoc, delrho, aSurf, shift, shiftVert, mMode, nMode, deltam, deltan, deltampri, deltanpri, &
-            thetam, thetan, qinp, s_hat_input, ntgrid, thetaShift)
+            thetam, thetan, qinp, s_hat_input, nth, thetaShift)
        if(.not.allocated(gds22)) call alloc_module_arrays(ntgrid)
-       if(present(ntheta_returned)) ntheta_returned = ntheta
        if(.not.allocated(smodel)) call alloc_local_arrays(ntgrid)
     endif
 
@@ -492,41 +498,20 @@ if (debug) write(6,*) "eikcoefs: iflux=",iflux, 'chs_eq=', chs_eq, 'jid=',job_id
        case (1, 10)
           if (gs2d_eq) efit_eq = .true.
           if(gen_eq) then
-             call eqin(eqfile, psi_0, psi_a, rmaj, B_T0, avgrmid, eqinit, in_nt, nthg)
-             if(present(ntheta_returned)) then
-                call tdef(nthg, ntheta_returned)
-             else
-                call tdef(nthg)
-             endif
-!CMR+SSAAR: moved following if clause ahead of ppl_eq to avoid ball problems 
+             call eqin(eqfile, psi_0, psi_a, rmaj, B_T0, avgrmid, eqinit, in_nt, ntheta_input)
           else if(transp_eq) then
 if (debug) write(6,fmt='("eikcoefs: transp_eq, eqfile=",a)') eqfile, 'jid=',job_id
 
              ppl_eq = .true.
-             call teqin(eqfile, psi_0, psi_a, rmaj, B_T0, avgrmid, eqinit, in_nt, nthg)
+             call teqin(eqfile, psi_0, psi_a, rmaj, B_T0, avgrmid, eqinit, in_nt, ntheta_input)
 if (debug) write(6,*) 'eikcoefs: transp_eq, called teqin'
-if (debug) write(6,fmt='("eikcoefs: teqin returns",1p,5e10.2,i6,l2,i6)') psi_0, psi_a, rmaj, B_T0, avgrmid, eqinit, in_nt, nthg
-             if(present(ntheta_returned)) then
-                call tdef(nthg, ntheta_returned)
-             else
-                call tdef(nthg)
-             endif
+if (debug) write(6,fmt='("eikcoefs: teqin returns",1p,5e10.2,i6,l2,i6)') psi_0, psi_a, rmaj, B_T0, avgrmid, eqinit, in_nt, ntheta_input
 if (debug) write(6,*) 'eikcoefs: transp_eq, called tdef'
 !CMRend
           else if(ppl_eq) then
-             call peqin(eqfile, psi_0, psi_a, rmaj, B_T0, avgrmid, eqinit, in_nt, nthg)
-             if(present(ntheta_returned)) then
-                call tdef(nthg,ntheta_returned)
-             else
-                call tdef(nthg)
-             endif
+             call peqin(eqfile, psi_0, psi_a, rmaj, B_T0, avgrmid, eqinit, in_nt, ntheta_input)
           else if(chs_eq) then
-             call ceqin(eqfile, psi_0, psi_a, rmaj, B_T0, avgrmid, eqinit, in_nt, nthg)
-             if(present(ntheta_returned)) then
-                call tdef(nthg,ntheta_returned)
-             else
-                call tdef(nthg)
-             endif
+             call ceqin(eqfile, psi_0, psi_a, rmaj, B_T0, avgrmid, eqinit, in_nt, ntheta_input)
    !if (debug) write (*,*) 
           else if(efit_eq) then
              if(big <= 0) big = 8
@@ -546,14 +531,12 @@ if (debug) write(6,*) "eikcoefs: call efitin eqfile=",eqfile, "eqinit =", eqinit
              !<DD>WARNING : ON EXIT AVGRMID WILL BE UNDEFINED AS IDFITIN DOESN'T GIVE IT A VALUE
              !THIS SHOULD BE FIXED BUT SHOULD BE OK AS AVGRMID NOT USED ANYWHERE (AT THE MOMENT)?
              call idfitin(eqfile, theta, psi_0, psi_a, rmaj, B_T0, avgrmid, eqinit) 
-             if(present(ntheta_returned)) then
-                call tdef(nthg, ntheta_returned)
-             else
-                call tdef(nthg)
-             endif
           endif
 if (debug) write(6,*) 'eikcoefs: iflux=',iflux
           if(iflux == 10) return
+
+          call init_uniform_theta_grid(ntheta_input)
+
 if (debug) write(6,*) 'eikcoefs: alloc_module_arrays, ntgrid=',ntgrid
           if(.not.allocated(gds22)) call alloc_module_arrays(ntgrid)
 if (debug) write(6,*) 'eikcoefs: alloc_local_arrays'
@@ -561,6 +544,7 @@ if (debug) write(6,*) 'eikcoefs: alloc_local_arrays'
        case (2) 
           continue
     end select
+
 if (debug) writelots=.true.
 if (debug) write(6,*) "eikcoefs: if (writelots)"
     if(writelots) then
@@ -1149,6 +1133,19 @@ if (debug) write(6,*) "eikcoefs: end gradients"
 
     if(isym == 1) call sym(gradpar, 0, ntgrid)
      
+
+    ! MAB, CMR, 6/5/2009:
+    ! remove unnecessary restriction to calling plotdata for nperiod=1
+    ! so that Rplot, Zplot etc can be made available elsewhere in GS2
+    ! Note : We should call this before we potentially redefine the theta grid
+    ! due to equal_arc below as some specific equilibrium types rely on theta
+    ! having a consistent definition with that used to calculate rgrid initially.
+    ! In particular this is important for Efit and GS2D equilibria (in eeq). Other
+    ! equilibrium types use interpolation so shouldn't depend on the specific theta grid
+    ! (although it's possible there could still be some interaction, given that one of the
+    ! outputs of the below 'aplot' is given by `seik` which is evaluated on the original
+    ! grid rather than the "new" one defined below).
+    call plotdata (rgrid, seik, grads, dpsidrho)
     
     ! EGH added this for GRYFX
     bi_out = btori(rgrid(0),theta(0))
@@ -1274,11 +1271,6 @@ if (debug) write(6,*) "eikcoefs: end gradients"
     qsf = qval
     dum=qfun(0.5)
     if(eqinit >= 1) eqinit=0
-! MAB, CMR, 6/5/2009:
-! remove unnecessary restriction to calling plotdata for nperiod=1
-! so that Rplot, Zplot etc can be made available elsewhere in GS2
-!    if (nperiod ==1) call plotdata (rgrid, seik, grads, dpsidrho)
-    call plotdata (rgrid, seik, grads, dpsidrho)
 
     !write (*,*) 'gbdrift is ', gbdrift
 
@@ -1536,17 +1528,23 @@ if (debug) write(6,*) "eikcoefs: end gradients"
     use  eeq, only: eeq_R => Rpos
     use  deq, only: deq_R => Rpos
     use ideq, only: ideq_R => Rpos
+    use mp, only: mp_abort
     implicit none
     real, intent (in) :: r, thet
     real :: rpos
 
+    Rpos = invalidValue
+    
     if(gen_eq)  Rpos = geq_R (r, thet)       
     if(ppl_eq)  Rpos = peq_R (r, thet)       
     if(chs_eq)  Rpos = ceq_R (r, thet)       
     if(efit_eq) Rpos = eeq_R (r, thet)
     if(dfit_eq) Rpos = deq_R (r, thet)
     if(idfit_eq)Rpos = ideq_R (r, thet)
-    if(local_eq)Rpos = leq_R (r, thet)       
+    if(local_eq)Rpos = leq_R (r, thet)
+
+    if (Rpos == invalidValue) call mp_abort("Rpos not set")
+
   end function Rpos
 
   !> FIXME : Add documentation    
@@ -1558,17 +1556,22 @@ if (debug) write(6,*) "eikcoefs: end gradients"
     use  eeq, only: eeq_Z => Zpos
     use  deq, only: deq_Z => Zpos
     use ideq, only: ideq_Z => Zpos
+    use mp, only: mp_abort
     implicit none
     real, intent (in) :: r, thet
     real :: Zpos
 
+    Zpos = invalidValue
     if(gen_eq)  Zpos =  geq_Z (r, thet)       
     if(ppl_eq)  Zpos =  peq_Z (r, thet)       
     if(chs_eq)  Zpos =  ceq_Z (r, thet)       
     if(efit_eq) Zpos =  eeq_Z (r, thet)
     if(dfit_eq) Zpos =  deq_Z (r, thet)
     if(idfit_eq)Zpos = ideq_Z (r, thet)
-    if(local_eq)Zpos =  leq_Z (r, thet)       
+    if(local_eq)Zpos =  leq_Z (r, thet)
+
+    if (Zpos == invalidValue) call mp_abort("Zpos not set")
+    
   end function Zpos
 
   !> FIXME : Add documentation    
@@ -1580,10 +1583,13 @@ if (debug) write(6,*) "eikcoefs: end gradients"
     use  eeq, only: eeq_invR => invR
     use  deq, only: deq_invR => invR
     use ideq, only: ideq_invR => invR
+    use mp, only: mp_abort
     implicit none
     real, intent (in) :: r, thet
     real :: invRfun
 
+    invRfun = invalidValue
+    
     if(itor == 0) then
        invRfun=1./rmaj
     else
@@ -1595,6 +1601,9 @@ if (debug) write(6,*) "eikcoefs: end gradients"
        if(idfit_eq)invRfun = ideq_invR (r, thet)
        if(local_eq)invRfun =  leq_invR (r, thet)
     endif
+
+    if (invRfun == invalidValue) call mp_abort("invRFun not set")
+    
   end function invRfun
 
   !> FIXME : Add documentation    
@@ -1832,11 +1841,15 @@ if (debug) write(6,*) "eikcoefs: end gradients"
     use ideq,only: ideq_diameter => diameter, ideq_init_diameter => initialize_diameter
     use eeq, only: bound
     use constants, only: pi
+    use mp, only: mp_abort
     implicit none
     real, intent(in) :: rp
     integer :: i, initd = 1
     real :: diameter
     real :: broot0, brootpi
+
+    diameter = invalidValue
+    
     if(rp <= rpmin .and. .not. efit_eq) then 
        diameter = 0.
        return
@@ -1863,6 +1876,8 @@ if (debug) write(6,*) "eikcoefs: end gradients"
           diameter = rfun(rp, 0., broot0) + rfun(rp, pi, brootpi)
        endif
     endif
+
+    if (diameter == invalidValue) call mp_abort("diameter not set")    
   end function diameter
 
   !> FIXME : Add documentation  
@@ -1906,7 +1921,8 @@ if (debug) write(6,*) "eikcoefs: end gradients"
     real :: rpofrho
     real :: a, b, xerrbi, xerrsec, fval, soln
     integer :: nsolv,ier
-    
+
+    ier = 123456 ! Default to indicating error
     a=rpmin
     b=rpmax
     xerrbi=1.e-4
@@ -1925,7 +1941,7 @@ if (debug) write(6,*) "eikcoefs: end gradients"
        fval=rho*rhofun(b)
        call root(rhofun, fval, a, b, xerrbi, xerrsec, nsolv, ier, soln)
     endif
-    !<EGH
+
     if (debug) then 
        write (*,*) "Values in root: "
        write (*,*) 'rho:  ', rho
@@ -1934,7 +1950,7 @@ if (debug) write(6,*) "eikcoefs: end gradients"
        write (*,*) 'rpmin: ', rpmin
        write (*,*) 'rpmax: ', rpmax
     end if
-    !EGH>
+
     rpofrho=soln
     if(ier > 0) write(fort11_unit,*) 'error in rpofrho,rho=',rho
   end function rpofrho
@@ -2066,16 +2082,21 @@ if (debug) write(6,*) "eikcoefs: end gradients"
     use ceq, only: ceq_iofpbar => btori
     use eeq, only: eeq_iofpbar => btori
     use leq, only: leq_i => btori
+    use mp, only: mp_abort
     implicit none
     real, intent (in) :: rho    
     real :: iofrho
-            
+
+    iofrho = invalidValue
+    
     if (gen_eq) iofrho = geq_iofpbar(pbarofrho(rho))
     if (ppl_eq) iofrho = peq_iofpbar(pbarofrho(rho))
     if (chs_eq) iofrho = ceq_iofpbar(pbarofrho(rho))
     if(efit_eq) iofrho = eeq_iofpbar(pbarofrho(rho))
     if(dfit_eq) iofrho = 0.
     if(local_eq) iofrho = leq_i()
+
+    if (iofrho == invalidValue) call mp_abort("iofrho not set")
   end function iofrho
 
   subroutine integrate(arg, grid, ans, n)
@@ -2130,15 +2151,13 @@ if (debug) write(6,*) "eikcoefs: end gradients"
     use ceq, only: ceq_qfun => qfun, chs_init_q => initialize_q
     use eeq, only: eeq_qfun => qfun, efit_init_q => initialize_q
     use leq, only: leq_qfun => qfun
+    use mp, only: mp_abort
     implicit none
     real, intent(in) :: pbar
     real :: qfun
     integer :: i, initq = 1
     
-!    if(in_nt .and. iflux == 1) then
-!       write(*,*) 'qfun not update in nt.'
-!stop
-!endif
+    qfun = invalidValue
     
     if(iflux == 0 .or. iflux == 2) then
        qfun=leq_qfun()
@@ -2164,6 +2183,9 @@ if (debug) write(6,*) "eikcoefs: end gradients"
     endif
 
     if(initq == 1) initq = 0
+
+    if (qfun == invalidValue) call mp_abort("qfun not set")
+    
   end function qfun
 
   !> FIXME : Add documentation    
@@ -2175,12 +2197,15 @@ if (debug) write(6,*) "eikcoefs: end gradients"
     use  deq, only: deq_pfun => pfun, dfit_init_pressure => initialize_pressure
     use ideq, only: ideq_pfun => pfun, idfit_init_pressure => initialize_pressure
     use  leq, only: leq_pfun => pfun
+    use mp, only: mp_abort
     implicit none
     real, intent (in) :: r, thet
     real :: pfun
     real :: pbar, f
     integer :: i, initp = 1
 
+    pfun = invalidValue
+    
     if(iflux /= 1) then
        pfun=leq_pfun() 
        return
@@ -2212,6 +2237,9 @@ if (debug) write(6,*) "eikcoefs: end gradients"
     endif
 
     if(initp == 1) initp = 0
+
+    if (pfun == invalidValue) call mp_abort("pfun not set")
+
   end function pfun
 
   !> FIXME : Add documentation    
@@ -2223,12 +2251,15 @@ if (debug) write(6,*) "eikcoefs: end gradients"
     use  deq, only: deq_dpfun => dpfun, dfit_init_dpressure => initialize_dpressure
     use ideq, only: ideq_dpfun => dpfun, idfit_init_dpressure => initialize_dpressure
     use  leq, only: leq_dpfun => dpfun
+    use mp, only: mp_abort
     implicit none
     real, intent (in) :: r, thet
     real :: dpfun
     real :: pbar, f
     integer :: i, initdp = 1
 
+    dpfun = invalidValue
+    
     if(iflux /= 1) then
        dpfun=leq_dpfun() 
        return
@@ -2253,6 +2284,9 @@ if (debug) write(6,*) "eikcoefs: end gradients"
     if(efit_eq)  dpfun = eeq_dpfun(pbar)
     if(dfit_eq)  dpfun = deq_dpfun(pbar)
     if(idfit_eq) dpfun = ideq_dpfun(pbar)
+
+    if (dpfun == invalidValue) call mp_abort("dpfun not set")
+    
   end function dpfun
 
   !> FIXME : Add documentation    
@@ -2437,11 +2471,14 @@ if (debug) write(6,*) "eikcoefs: end gradients"
     use  deq, only: deq_psi => psi, dfit_init_psi => initialize_psi
     use ideq, only: ideq_psi => psi, idfit_init_psi => initialize_psi
     use  leq, only: leq_psi => psi
+    use mp, only: mp_abort
     implicit none
     real, intent (in) :: r, thet
     real :: psi    
     integer :: init = 1, i
-     
+
+    psi = invalidValue
+    
     if(r == 0.) then
        psi=psi_0
        return
@@ -2478,6 +2515,9 @@ if (debug) write(6,*) "eikcoefs: end gradients"
     endif
 
     init = 0
+
+    if (psi == invalidValue) call mp_abort("psi not set")
+    
   end function psi
 
   !> FIXME : Add documentation    
@@ -2870,43 +2910,6 @@ if (debug) write(6,*) "eikcoefs: end gradients"
   end subroutine R_pol
 
   !> FIXME : Add documentation    
-  subroutine tdef(nthg, ntheta_returned)
-    use constants, only: pi
-    implicit none
-!RN>
-    integer, intent(in) :: nthg
-    integer, intent(out), optional :: ntheta_returned
-    integer :: i
-!<RN
-
-!    nthsave=nth
-    nth=nthg/2   ! correct, at least for geq
-    if (debug) write(6,*) "tdef: nthg,nth=",nthg,nth
-!    write(*,*) 'old nth: ',nthsave,' new nth: ',nth
-!RN>
-!    ntheta_returned=2*nth  ! guarantees even
-!    ntheta = ntheta_returned
-    ntheta=2*nth  ! guarantees even
-    if(present(ntheta_returned)) ntheta_returned = ntheta
-!<RN
-    ntgrid=(2*nperiod-1)*nth
-    
-    !     redefine theta grid used by the rest of the code.
-    !     note that the gen_eq theta grid has theta(1)=0.
-    !     problems avoided by mtheta grid in eqitem.  
-    
-    if (debug) write(6,*) "tdef: allocated(theta)=",allocated(theta)
-    if (debug .and. allocated(theta)) write(6,*) "tdef: size(theta)=",size(theta)
-    if(.not.allocated(theta)) allocate(theta(-ntgrid:ntgrid))
-    if (debug) write(6,*) "tdef: ntgrid=",ntgrid
-    theta(0)=0.
-    do i=1,nth
-       theta(i)=i*pi/float(nth)
-       theta(-i)=-theta(i)
-    enddo
-  end subroutine tdef
-
-  !> FIXME : Add documentation    
   subroutine alloc_module_arrays(n)
     implicit none
     integer, intent(in) :: n
@@ -3009,27 +3012,33 @@ if (debug) write(6,*) "eikcoefs: end gradients"
     if(local_eq) call  leq_finish
   end subroutine finish_geometry
 
-  !> FIXME : Add documentation    
-  subroutine init_theta(nt)
+  !> Initialse [[geometry:theta]] to a uniform grid with `2*((2*nperiod - 1)*(nt/2)) + 1`
+  !> points. Also set [[geometry:nth]], [[geometry:ntheta]] and [[geometry::ntgrid]]
+  !> consistently; importantly [[geometry:nth]] is forced to be even. If `nt` is odd, then
+  !> `nth == nt - 1`.
+  !>
+  !> `nt` is set equal to [[geometry:ntheta]] on exit
+  subroutine init_uniform_theta_grid(nt)
     use constants, only: pi
     implicit none
-    integer, intent(in) :: nt
+    integer, intent(inout) :: nt
     integer :: i
 
-    logical :: first_local = .true.
-
-    ntheta=nt
     nth = nt / 2
-    ntgrid = (2*nperiod - 1)*nth       
+    ! Make sure ntheta is even
+    ntheta = nth * 2
+    nt = ntheta
+    ntgrid = (2*nperiod - 1)*nth
+
     if (verb>3) write(6,*) "init_theta: allocated(theta),ntgrid,nt,nperiod=",&
       allocated(theta),ntgrid,nt,nperiod
-    if (.not. first_local .and. allocated(theta)) deallocate (theta)
+
+    if (allocated(theta)) deallocate (theta)
     allocate(theta(-ntgrid:ntgrid))
-    first_local = .false.
 
-    theta = (/ (i*pi/real(nth), i=-ntgrid, ntgrid ) /) 
+    theta = [ (i*pi/real(nth), i=-ntgrid, ntgrid) ]
 
-  end subroutine init_theta
+  end subroutine init_uniform_theta_grid
 
   !> FIXME : Add documentation    
   subroutine periodic_copy(a, ext)
@@ -3553,387 +3562,3 @@ if (debug) write(6,*) "eikcoefs: end gradients"
     end do
   end subroutine plotdata
 end module geometry
-
-!> THE FOLLOWING FREE ROUTINES SHOULD BE PLACED IN A MODULE IF POSSIBLE
-
-!> This subroutine implements a general interface to geometry
-!! which can be used outside GS2; in particular, it can be
-!! called from C/C++ programs. 
-!!
-!! Equilibrium types:
-!!     1: Local (Miller)
-!!     2: EFIT
-!!     3: Chease
-!!     4: Transp
-!!
-!! Some equilibria, those that are created from a grid of psi(R,Z),
-!! which means EFIT and Chease, change ntheta. 
-!! This should then be used as the number of 
-!! gridpoints along the fieldline. 
-!!
-!! Massive note to self, check where iflux and local_eq are set
-!! in GS2
-subroutine geometry_set_inputs(equilibrium_type,&
-                               !eqfile_in, &
-                               irho_in, &
-                               rhoc_in, &
-                               bishop_in, &
-                               nperiod_in, &
-                               ntheta)
-  use geometry, only: rhoc, nperiod, eqfile, irho, iflux, local_eq, gen_eq, init_theta
-  use geometry, only: ppl_eq, transp_eq, chs_eq, efit_eq, equal_arc, bishop
-  use geometry, only: dp_mult, delrho, rmin, rmax, isym, in_nt, writelots, itor
-  use geometry, only: verb
-  use mp, only: mp_abort
-  implicit none
-  integer, intent(in) :: equilibrium_type, nperiod_in, irho_in, bishop_in
-  real, intent(in) :: rhoc_in
-  integer, intent(inout) :: ntheta
-  !character(len=800), intent(in) :: eqfile_in
-
-  write (*,*) 'Setting inputs'
-  write (*,*)
-
-  rhoc = rhoc_in
-  nperiod = nperiod_in
-  !eqfile = eqfile_in
-  irho = irho_in
-
-  iflux = 1 ! Numerical unless changed for miller
-
-  local_eq = .false.
-  gen_eq = .false.
-  ppl_eq = .false.
-  transp_eq = .false.
-  chs_eq = .false.
-  efit_eq = .false.
-
-  equal_arc = .true. ! JRB - are we sure equal_arc works properly?
-  bishop = bishop_in
-  dp_mult = 1.0
-  delrho = 1e-3
-  rmin = 1e-3
-  rmax = 1.0
-  isym = 0
-  in_nt = .false.
-  writelots = .true.
-  !! Advanced use only
-  itor = 1
-
-  verb = 4
-
-  
-  !ntheta_out = -1
-
-  select case (equilibrium_type)
-  case (1)  ! Miller
-    local_eq = .true.
-    iflux = 0
-    bishop = 4
-    call init_theta(ntheta)
-  case (2)  ! EFIT
-    efit_eq = .true.
-  case (3)  ! CHEASE
-    chs_eq = .true.
-  case default
-    write(*,*) "Whatever geometry you are using hasn't "
-    write(*,*) "been tested in a long time!"
-    call mp_abort("Whatever geometry you are using hasn't been tested in a long time!",.true.)
-  end select
-
-end subroutine geometry_set_inputs  
-
-
-!> This subroutine gets default values for the advanced switches,
-!! returning a derived type (advanced_parameters_type) containing
-!! all the parameters. It does not modify the geometry variables. 
-subroutine geometry_get_default_advanced_parameters(advanced_parameters_out)
-  use geometry, only: advanced_parameters_type
-  implicit none
-  type(advanced_parameters_type), intent(out) :: advanced_parameters_out
- 
-  advanced_parameters_out%equal_arc = .true.  ! JRB - are we sure equal_arc works properly?
-  advanced_parameters_out%dp_mult = 1.0
-  advanced_parameters_out%delrho = 1e-3
-  advanced_parameters_out%rmin = 1e-3
-  advanced_parameters_out%rmax = 1.0
-  advanced_parameters_out%isym = 0
-  advanced_parameters_out%in_nt = .false.
-  advanced_parameters_out%writelots = .false.
-  advanced_parameters_out%itor =  1
-end subroutine geometry_get_default_advanced_parameters
-
-!> Returns a derived type containing values of the advanced geometry
-!! parameters. 
-subroutine geometry_get_advanced_parameters(advanced_parameters_out)
-  use geometry, only: equal_arc, dp_mult, delrho, rmin, rmax, isym, in_nt, writelots, itor
-  use geometry, only: advanced_parameters_type, advanced_parameters
-  implicit none
-  type(advanced_parameters_type), intent(out) :: advanced_parameters_out
-
-  advanced_parameters%equal_arc = equal_arc
-  advanced_parameters%dp_mult = dp_mult
-  advanced_parameters%delrho = delrho
-  advanced_parameters%rmin = rmin
-  advanced_parameters%rmax = rmax
-  advanced_parameters%isym = isym
-  advanced_parameters%in_nt = in_nt
-  advanced_parameters%writelots = writelots
-  advanced_parameters%itor = itor
-
-  advanced_parameters_out = advanced_parameters
-
-end subroutine geometry_get_advanced_parameters
-
-!> Accepts a derived type containing values of the advanced geometry
-!! parameters and sets the variables in the geometry module accordingly. 
-subroutine geometry_set_advanced_parameters(advanced_parameters_in)
-  use geometry, only: equal_arc, dp_mult, delrho, rmin, rmax, isym, in_nt, writelots, itor
-  use geometry, only: advanced_parameters_type, advanced_parameters
-  implicit none
-  type(advanced_parameters_type), intent(in) :: advanced_parameters_in
-
-  write(*,*) 'Setting advanced parameters'
-  advanced_parameters = advanced_parameters_in
-
-  equal_arc = advanced_parameters%equal_arc
-  dp_mult = advanced_parameters%dp_mult
-  delrho = advanced_parameters%delrho
-  rmin = advanced_parameters%rmin
-  rmax = advanced_parameters%rmax
-  isym = advanced_parameters%isym
-  in_nt = advanced_parameters%in_nt
-  writelots = advanced_parameters%writelots
-  itor = advanced_parameters%itor
-
-  write(*,*) 'delrho was set to', delrho
-
-end subroutine geometry_set_advanced_parameters
-
-!> FIXME : Add documentation
-subroutine geometry_get_miller_parameters(miller_parameters_out)
-  use geometry, only: geoType, rmaj, r_geo, aSurf, shift, shiftVert, mMode, nMode
-  use geometry, only: deltam, deltan, deltampri, deltanpri, thetam, thetan, qinp, shat
-  use geometry, only: miller_parameters_type, miller_parameters
-  implicit none
-  type(miller_parameters_type), intent(out) :: miller_parameters_out
- 
-  miller_parameters%geoType = geoType
-  miller_parameters%rmaj = rmaj
-  miller_parameters%r_geo = r_geo
-  miller_parameters%aSurf = aSurf
-  miller_parameters%shift = shift
-  miller_parameters%shiftVert = shiftVert
-  miller_parameters%mMode = mMode
-  miller_parameters%nMode = nMode
-  miller_parameters%deltam = deltam
-  miller_parameters%deltan = deltan
-  miller_parameters%deltampri = deltampri
-  miller_parameters%deltanpri = deltanpri
-  miller_parameters%thetam = thetam
-  miller_parameters%thetan = thetan
-  miller_parameters%qinp = qinp
-  miller_parameters%shat = shat
-  
-  miller_parameters_out = miller_parameters
-
-end subroutine geometry_get_miller_parameters
-
-!> FIXME : Add documentation
-subroutine geometry_set_miller_parameters(miller_parameters_in)
-  use geometry, only: geoType, rmaj, r_geo, aSurf, shift, shiftVert, mMode, nMode
-  use geometry, only: deltam, deltan, deltampri, deltanpri, thetam, thetan, qinp, shat
-  use geometry, only: miller_parameters_type, miller_parameters
-  implicit none
-  type(miller_parameters_type), intent(in) :: miller_parameters_in
-
-  miller_parameters = miller_parameters_in
-
-  geoType = miller_parameters_in%geoType
-  rmaj = miller_parameters_in%rmaj
-  R_geo = miller_parameters_in%R_geo
-  aSurf = miller_parameters_in%aSurf
-  shift = miller_parameters_in%shift
-  shiftVert = miller_parameters_in%shiftVert
-  mMode = miller_parameters_in%mMode
-  nMode = miller_parameters_in%nMode
-  deltam = miller_parameters_in%deltam
-  deltan = miller_parameters_in%deltan
-  deltampri = miller_parameters_in%deltampri
-  deltanpri = miller_parameters_in%deltanpri
-  thetam = miller_parameters_in%thetam
-  thetan = miller_parameters_in%thetan
-  qinp = miller_parameters_in%qinp
-  shat = miller_parameters_in%shat
-
-  write(*,*) 's_hat was set to', shat
-  write(*,*) 'deltam was set to', deltam
-  write(*,*) 'deltan was set to', deltan
-  write(*,*) 'R_geo was set to', R_geo
-  write(*,*) 'rmaj was set to', rmaj
-  write(*,*) 'qinp was set to', qinp
-  !write(*,*) 'ntheta was set to', ntheta
-
-end subroutine geometry_set_miller_parameters
-
-!> Vary the magnetic shear and pressure gradient 
-!! while maintaing a solution to the Grad-Shrafranov eqn,
-!! as described variously by Greene & Chance, Bishop and Miller.
-subroutine geometry_vary_s_alpha(s_hat_input_in, beta_prime_input_in)
-  use geometry, only: s_hat_input, beta_prime_input
-  implicit none
-  real, intent(in) :: s_hat_input_in, beta_prime_input_in
-  s_hat_input = s_hat_input_in
-  beta_prime_input = beta_prime_input_in
-end subroutine geometry_vary_s_alpha
-
-!> FIXME : Add documentation
-subroutine geometry_calculate_coefficients(grid_size)
-  use geometry, only: eikcoefs, nperiod, equal_arc
-  implicit none
-  integer, intent(out) :: grid_size
-  integer :: ntheta_out
-  ! We calculate the equal_arc grids manually,
-  ! and override equal_arc = .false.
-  equal_arc = .false.
-  call eikcoefs(ntheta_out)
-  write (*,*) 'ntheta out is ', ntheta_out
-  grid_size = (2*nperiod - 1)*ntheta_out + 1 ! = 2*ntgrid + 1
-  write (*,*) 'grid_size out is ', grid_size
-end subroutine geometry_calculate_coefficients
-
-!> Get the geometric coefficients calculated by the geometry module.
-subroutine geometry_get_coefficients(grid_size, coefficients_out)
-  use geometry, only: grho, bmag, gradpar, cvdrift, cvdrift0, coefficients_type
-  use geometry, only: gbdrift, gbdrift0, cdrift, cdrift0, gbdrift_th
-  use geometry, only: cvdrift_th, gds2, gds21, gds22, gds23, gds24, gds24_noq
-  use geometry, only: jacob, Rplot, Zplot, aplot, Rprime, Zprime, aprime, Uk1, Uk2, Bpol
-  use geometry, only: theta, theta_eqarc, theta_prime, theta_prime_eqarc
-  use geometry, only: gradpar_prime
-  implicit none
-  integer, intent(in) :: grid_size
-  type(coefficients_type), dimension(grid_size) :: coefficients_out
-  integer ::ntgrid, i
-  real, dimension(:,:),allocatable :: interp_matrix
-   
-  allocate(interp_matrix(grid_size,grid_size))
-
-  !ntgrid = (2*nperiod - 1) * ntheta/2
-  ntgrid = (grid_size - 1)/2
-
-  call create_interp_matrix
-
-  write (*,*) 'HERE'
-  write (*,*) 'Grid size should be ', 2*ntgrid + 1
-  do i = -ntgrid,ntgrid
-     write (*,*) 'i', i
-     coefficients_out(i+ntgrid+1)%theta        = theta(i)   
-     coefficients_out(i+ntgrid+1)%theta_eqarc = theta_eqarc(i)
-     coefficients_out(i+ntgrid+1)%theta_prime        = theta_prime(i)   
-     coefficients_out(i+ntgrid+1)%theta_prime_eqarc = theta_prime_eqarc(i)
-     coefficients_out(i+ntgrid+1)%grho        = grho(i)   
-     coefficients_out(i+ntgrid+1)%grho_eqarc = interp(grho,i)
-     coefficients_out(i+ntgrid+1)%bmag        = bmag(i)       
-     coefficients_out(i+ntgrid+1)%bmag_eqarc = interp(bmag,i)
-     coefficients_out(i+ntgrid+1)%gradpar     = gradpar(i)    
-     coefficients_out(i+ntgrid+1)%gradpar_eqarc = interp(gradpar,i)
-     coefficients_out(i+ntgrid+1)%gradpar_prime     = gradpar_prime(i)    
-     coefficients_out(i+ntgrid+1)%gradpar_prime_eqarc = interp(gradpar_prime,i)
-     coefficients_out(i+ntgrid+1)%cvdrift     = cvdrift(i)    
-     coefficients_out(i+ntgrid+1)%cvdrift_eqarc = interp(cvdrift,i)
-     coefficients_out(i+ntgrid+1)%cvdrift0    = cvdrift0(i)   
-     coefficients_out(i+ntgrid+1)%cvdrift0_eqarc = interp(cvdrift0,i)
-     coefficients_out(i+ntgrid+1)%gbdrift     = gbdrift(i)    
-     coefficients_out(i+ntgrid+1)%gbdrift_eqarc = interp(gbdrift,i)
-     coefficients_out(i+ntgrid+1)%gbdrift0    = gbdrift0(i)   
-     coefficients_out(i+ntgrid+1)%gbdrift0_eqarc = interp(gbdrift0,i)
-     coefficients_out(i+ntgrid+1)%cdrift     = cdrift(i)    
-     coefficients_out(i+ntgrid+1)%cdrift_eqarc = interp(cdrift,i)
-     coefficients_out(i+ntgrid+1)%cdrift0     = cdrift0(i)    
-     coefficients_out(i+ntgrid+1)%cdrift0_eqarc = interp(cdrift0,i)
-     coefficients_out(i+ntgrid+1)%gbdrift_th  = gbdrift_th(i) 
-     coefficients_out(i+ntgrid+1)%gbdrift_th_eqarc = interp(gbdrift_th,i)
-     coefficients_out(i+ntgrid+1)%cvdrift_th  = cvdrift_th(i) 
-     coefficients_out(i+ntgrid+1)%cvdrift_th_eqarc = interp(cvdrift_th,i)
-     coefficients_out(i+ntgrid+1)%gds2        = gds2(i)       
-     coefficients_out(i+ntgrid+1)%gds2_eqarc = interp(gds2,i)
-     coefficients_out(i+ntgrid+1)%gds21       = gds21(i)      
-     coefficients_out(i+ntgrid+1)%gds21_eqarc = interp(gds21,i)
-     coefficients_out(i+ntgrid+1)%gds22       = gds22(i)      
-     coefficients_out(i+ntgrid+1)%gds22_eqarc = interp(gds22,i)
-     coefficients_out(i+ntgrid+1)%gds23       = gds23(i)      
-     coefficients_out(i+ntgrid+1)%gds23_eqarc = interp(gds23,i)
-     coefficients_out(i+ntgrid+1)%gds24       = gds24(i)      
-     coefficients_out(i+ntgrid+1)%gds24_eqarc = interp(gds24,i)
-     coefficients_out(i+ntgrid+1)%gds24_noq   = gds24_noq(i)  
-     coefficients_out(i+ntgrid+1)%gds24_noq_eqarc = interp(gds24_noq,i)
-     coefficients_out(i+ntgrid+1)%jacob       = jacob(i)      
-     coefficients_out(i+ntgrid+1)%jacob_eqarc = interp(jacob,i)
-     coefficients_out(i+ntgrid+1)%Rplot       = Rplot(i)      
-     coefficients_out(i+ntgrid+1)%Rplot_eqarc = interp(Rplot,i)
-     coefficients_out(i+ntgrid+1)%Zplot       = Zplot(i)      
-     coefficients_out(i+ntgrid+1)%Zplot_eqarc = interp(Zplot,i)
-     coefficients_out(i+ntgrid+1)%aplot       = aplot(i)      
-     coefficients_out(i+ntgrid+1)%aplot_eqarc = interp(aplot,i)
-     coefficients_out(i+ntgrid+1)%Rprime      = Rprime(i)     
-     coefficients_out(i+ntgrid+1)%Rprime_eqarc = interp(Rprime,i)
-     coefficients_out(i+ntgrid+1)%Zprime      = Zprime(i)     
-     coefficients_out(i+ntgrid+1)%Zprime_eqarc = interp(Zprime,i)
-     coefficients_out(i+ntgrid+1)%aprime      = aprime(i)     
-     coefficients_out(i+ntgrid+1)%aprime_eqarc = interp(aprime,i)
-     coefficients_out(i+ntgrid+1)%Uk1         = Uk1(i)        
-     coefficients_out(i+ntgrid+1)%Uk1_eqarc = interp(Uk1,i)
-     coefficients_out(i+ntgrid+1)%Uk2         = Uk2(i)        
-     coefficients_out(i+ntgrid+1)%Uk2_eqarc = interp(Uk2,i)
-     coefficients_out(i+ntgrid+1)%Bpol        = Bpol(i)       
-     coefficients_out(i+ntgrid+1)%Bpol_eqarc = interp(Bpol,i)
-  end do
-
-  deallocate(interp_matrix)
-
-  write (*,*) 'Returning....'
-  contains
-    subroutine create_interp_matrix
-      use geometry, only: theta, theta_eqarc
-      use splines, only: inter_cspl
-      integer :: j
-      real, dimension(grid_size) :: delta_array
-      do j = 1,grid_size
-        delta_array = 0.
-        delta_array(j) = 1.
-        call inter_cspl(grid_size, theta, delta_array, &
-                        grid_size, theta_eqarc, interp_matrix(:,j))
-      end do
-
-    end subroutine create_interp_matrix
-
-    function interp(array, ig)
-      real, dimension(:), intent(in) :: array
-      integer, intent(in) :: ig
-      real :: interp
-      integer :: j
-      j = ig + ntgrid + 1
-      interp = dot_product(array(:),interp_matrix(j,:))
-      !interp = array(j)
-    end function interp
-
-end subroutine geometry_get_coefficients
-
-!> FIXME : Add documentation
-subroutine geometry_get_constant_coefficients(constant_coefficients_out)
-  use geometry, only: qsf, rmaj, shat, kxfac, aminor, drhodpsin
-  use geometry, only: bi_out
-  use geometry, only: constant_coefficients_type, constant_coefficients
-  implicit none
-  type(constant_coefficients_type), intent(out) :: constant_coefficients_out
-
-  constant_coefficients%qsf = qsf
-  constant_coefficients%rmaj = rmaj
-  constant_coefficients%shat = shat
-  constant_coefficients%kxfac = kxfac
-  constant_coefficients%aminor = aminor
-  constant_coefficients%drhodpsin = drhodpsin
-  constant_coefficients%bi = bi_out
-  constant_coefficients_out = constant_coefficients
-  
-end subroutine geometry_get_constant_coefficients

@@ -14,7 +14,8 @@ ascii_files = [
   'vres2',
   'cres',
   'parity',
-  'jext'
+  'jext',
+  'eigenfunc'
 ]
 
 

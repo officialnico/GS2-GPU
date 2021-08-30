@@ -1,0 +1,30 @@
+#!/bin/bash
+
+# A short script to test the maximum line length of files are set an error code
+# if the specified maximum length is exceeded. Should pass all files to test as argument
+# to the script. Otherwise will try to find all fortran source files.
+
+
+MAX_LINE_LENGTH=256
+
+
+if [[ $# -gt 0 ]]
+then
+    FILES="$@"
+else
+    FILES=$(find ./src ./externals/utils -name '*.[fF]??')
+fi
+
+ERROR=0
+
+for file in ${FILES}
+do
+    MAX_LINE_LENGTH_IN_FILE=$(awk 'length > max_length {max_length=length} END {print max_length}' ${file})
+    if [[ ${MAX_LINE_LENGTH_IN_FILE} -gt ${MAX_LINE_LENGTH} ]]
+    then
+        echo "Error: Maximum line length of ${MAX_LINE_LENGTH_IN_FILE} in ${file} exceeds maximum allowed (${MAX_LINE_LENGTH})."
+        ERROR=1
+    fi
+done
+
+exit ${ERROR}

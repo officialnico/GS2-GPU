@@ -4,3 +4,6 @@
 [submodule "Makefiles"]
 	path = Makefiles
 	url = https://bitbucket.org/gyrokinetics/Makefiles.git
+[submodule "externals/pFUnit"]
+	path = externals/pFUnit
+	url = https://github.com/Goddard-Fortran-Ecosystem/pFUnit.git

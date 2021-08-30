@@ -176,7 +176,7 @@ contains
     !call finish_gs2
     call finalize_diagnostics(old_iface_state)
     call finalize_equations(old_iface_state)
-    call finalize_gs2(old_iface_state)
+    call finalize_gs2(old_iface_state, quiet=.true.)
 
     if (proc0) call close_functional_test(test_name)
 

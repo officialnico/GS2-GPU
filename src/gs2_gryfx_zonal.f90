@@ -124,14 +124,12 @@ contains
   subroutine create_interp_matrices(gryfx_theta)
     use theta_grid, only: ntgrid, theta
     use splines, only: inter_cspl
-    real*8, intent(in), dimension(1:2*ntgrid) :: gryfx_theta
+    real, intent(in), dimension(1:2*ntgrid) :: gryfx_theta
     real, dimension(1:2*ntgrid) :: delta_array, gryfx_theta_real
     integer ::iz
 
     ! NB Gryfx grid has one less theta point
     gryfx_theta_real = gryfx_theta
-
-    !write (*,*) 'theta', theta, 'gryfx_theta_real', gryfx_theta_real
 
     do iz = 1,2*ntgrid
        delta_array = 0.
@@ -262,8 +260,7 @@ contains
     real(c_float), intent(in), dimension(nz) :: gryfx_theta
     type(gryfx_parameters_type), intent(in) :: gryfx_parameters
     integer(c_int), intent(in) :: nz
-    real*8, dimension(nz) :: gryfx_theta_real
-
+    real, dimension(nz) :: gryfx_theta_real
 
     gryfx_theta_real = gryfx_theta
     !call broadcast(gryfx_theta_real)
@@ -285,8 +282,7 @@ contains
     use gs2_main, only: prepare_kt_grids_overrides
     use theta_grid, only: ntgrid
     use nonlinear_terms, only: gryfx_zonal
-    use file_utils, only: run_name
-    use mp, only: proc0, mp_abort, broadcast
+    use mp, only: mp_abort, broadcast
     use unit_tests, only: debug_message
     use geometry, only: equal_arc
     use gs2_save, only: init_dt
@@ -296,7 +292,7 @@ contains
     integer, intent(in) :: strlen
     character (len=strlen), intent (in) :: file_name
     integer, intent(in) :: mp_comm
-    real*8, intent(inout), dimension(2*ntgrid) :: gryfx_theta
+    real, intent(inout), dimension(2*ntgrid) :: gryfx_theta
     type(gryfx_parameters_type), intent(in) :: gryfx_parameters
     integer :: istatus
     real :: delt, delt1, delt2
@@ -315,9 +311,7 @@ contains
 
     gryfx_zonal%on = .true.
 
-
     call initialize_gs2(state)
-    !if(proc0) write(*,*) 'initialize_gs2 complete. gs2 thinks run_name is ', run_name
     !set overrides of naky, x0, y0, dt, vnewk here. 
     !currently this is hard-coded in kt_grids.f90 and run_parameters.f90
     !just search for "GRYFX"
@@ -428,8 +422,7 @@ contains
     !> FIXME : Add documentation    
     subroutine set_profiles_overrides
       use species, only: nspec
-      integer :: is, isg, idens
-      !write (*,*) 'SET_PROFILES_OVERRIDES'
+      integer :: is, isg
       do is = 1,nspec
          isg = is
          state%init%prof_ov%override_dens(isg) = .true.
@@ -495,7 +488,6 @@ contains
   subroutine advance_gs2_gryfx(istep, dens_ky0, upar_ky0, tpar_ky0, tprp_ky0, &
        qpar_ky0, qprp_ky0, phi_ky0, first_half_step)
 
-    use species, only: nspec
     use nonlinear_terms, only: gryfx_zonal
     use gs2_main, only: evolve_equations
     use dist_fn, only: getmoms_gryfx_dist 

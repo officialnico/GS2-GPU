@@ -2,7 +2,7 @@
 module gs2d
   private
 
-  public :: read_gs2d, psi, b0, f, ippsi, nr, nz, p, ps
+  public :: write_gs2d, read_gs2d, psi, b0, f, ippsi, nr, nz, p, ps
   public :: psip, psmin, q, r0, rgrid, rmag, rsep, zgrid, zmag, zsep
 
   real, dimension(:), allocatable :: ps,amin_gs2d,q,f,p,pp
@@ -179,6 +179,12 @@ contains
 ! Need to generalize initialization condition if equilibrium changes
 
 if (debug) write(6,*) "gs2din: initeq=",initeq
+    ! WARNING: Exiting early without setting `nthg` may result in `nthg`
+    ! being uninitialised in the calling procedure. The value it gets set to
+    ! must be consistent with the value set at the end of this subroutine
+    ! when not exiting early or the calling procedure may end up with
+    ! inconsistently sized arrays. This is expected to affect `ideal_ball`
+    ! (unconfirmed) but not `gs2` (also unconfirmed).
     if(initeq == 0) return
     init=0
     
@@ -384,6 +390,12 @@ if (debug) write(6,*) "gs2din: B_T0, aminor, psi_0, psi_a=", B_T0, aminor, psi_0
 ! Need to generalize initialization condition if equilibrium changes
 
     if (verbosity>2) write (*,*) 'Starting efitin'
+    ! WARNING: Exiting early without setting `nthg` may result in `nthg`
+    ! being uninitialised in the calling procedure. The value it gets set to
+    ! must be consistent with the value set at the end of this subroutine
+    ! when not exiting early or the calling procedure may end up with
+    ! inconsistently sized arrays. This is expected to affect `ideal_ball`
+    ! (unconfirmed) but not `gs2` (also unconfirmed).
     if(initeq == 0) return
     init=0
     
@@ -1128,23 +1140,24 @@ if (debug) write(6,*) "gs2din: B_T0, aminor, psi_0, psi_a=", B_T0, aminor, psi_0
 
   !> FIXME : Add documentation  
   subroutine a_minor(r, z, Z_mag, a)
-!    use mp, only: mp_abort
+    use mp, only: mp_abort
     use splines, only: new_spline, splint, delete_spline, spline
     implicit none
     real, dimension(:), intent (in) :: r, z
     real, intent(in) :: Z_mag
     real, intent(out) :: a
     real :: r1, r2
-    integer, parameter :: nz = 5, half_nz = nz/2
+    integer, parameter :: nz = 5, half_nz = nz/2, invalidPoint = -nz
     integer :: index
     real, dimension(nz) :: rtmp, ztmp
     integer i, j, i1, n
     type (spline) :: spl
 !CMR, 28/10/08: add code to avoid duplicate points in 5 point spline 
 !               to determine r2 on inboard mid-plane
-    integer :: k = 0 
+    integer :: k
     logical, parameter :: debug=.false.
 
+    k = 0
     n = size(r)
 
     if (debug) write(6,*) "aminor:"
@@ -1188,6 +1201,12 @@ if (debug) write(6,*) "gs2din: B_T0, aminor, psi_0, psi_a=", B_T0, aminor, psi_0
 
 ! find point near magnetic axis elevation on low field side
 
+    ! Initialise i1 to some invalid value so we can check if an appropriate
+    ! point is not found.
+    i1 = invalidPoint
+    
+    ! Note there appears to be an assumption here about the order
+    ! of z which may not be true
     do i = nz, n
        if(z(i)-Z_mag > 0.) then
           i1 = i - 1
@@ -1195,6 +1214,11 @@ if (debug) write(6,*) "gs2din: B_T0, aminor, psi_0, psi_a=", B_T0, aminor, psi_0
        endif
     enddo
 
+    if (i1 == invalidPoint) then
+       write(*, '("Could not find point near magnetic axis elevation on low field side in aminor of eeq.f90")')
+       call mp_abort("Could not find point near magnetic axis elevation on low field side in aminor of eeq.f90")
+    endif
+    
 !CMR, 28/10/08: modify this code to avoid duplicate points in 5 point spline 
 !               to determine r2 on inboard mid-plane
     do i = 1, nz
@@ -1202,11 +1226,17 @@ if (debug) write(6,*) "gs2din: B_T0, aminor, psi_0, psi_a=", B_T0, aminor, psi_0
        rtmp(i) = r(index)
        ztmp(i) = z(index)
        if ( i.gt.1 ) then
+          ! If we find a duplicate point then we increase the
+          ! duplicate point counter in k, used to offset index and
+          ! store the next value instead Note, here we assume we can't
+          ! get three duplicate values. A better approach may be to
+          ! instead use a while loop where we keep going until we've
+          ! found enough points.
           if ((rtmp(i)-rtmp(i-1))**2+(ztmp(i)-ztmp(i-1))**2 .lt. 1.0e-7) then
              k=k+1
              if (debug) write(6,fmt='("a_minor: duplicate pt, set k=",i2)') k
-             rtmp(i) = r(index)
-             ztmp(i) = z(index)
+             rtmp(i) = r(index + 1)
+             ztmp(i) = z(index + 1)
           endif
        endif
     enddo

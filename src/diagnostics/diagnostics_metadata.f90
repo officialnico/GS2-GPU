@@ -176,7 +176,7 @@ contains
       inputfile_length = 0
       do while (ios .eq. 0)
         line = ''
-        read(unit=inputunit, iostat=ios, fmt=('(A,$)')) &
+        read(unit=inputunit, iostat=ios, fmt=('(A)')) &
           line
 
         !if (len(trim(line)) .gt. 1) then

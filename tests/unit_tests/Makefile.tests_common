@@ -1,4 +1,4 @@
 export
-SHELL=bash
+SHELL:=bash
 sinclude ../../Makefile.tests_common
 

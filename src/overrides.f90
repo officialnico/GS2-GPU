@@ -216,7 +216,7 @@ type initial_values_overrides_type
   !! (note that of course, this can result in initial values
   !! being taken from the input files).
   logical :: override = .false.
-  logical :: force_maxwell_reinit = .true.
+  ! The force_maxwell_reinit component has been removed to avoid problems in gs2_init. See comments there and in gs2_main for details.
   complex, dimension (:,:,:), allocatable :: phi
   complex, dimension (:,:,:), allocatable :: apar
   complex, dimension (:,:,:), allocatable :: bpar
@@ -433,10 +433,11 @@ contains
 
 
 
-!> Warning: You can't change the value of overrides%force_maxwell_reinit 
-!! or overrides%in_memory after calling this function
+!> Warning: You can't change the value of
+!! overrides%in_memory after calling this function
 subroutine init_initial_values_overrides(overrides_obj, ntgrid, ntheta0, naky, g_llim, g_ulim, force_maxwell_reinit, in_memory)
   use file_utils, only: error_unit
+  use mp, only: proc0
   implicit none
   type(initial_values_overrides_type), intent(inout) :: overrides_obj
   integer, intent(in) :: ntgrid, ntheta0, naky, g_llim, g_ulim
@@ -445,26 +446,21 @@ subroutine init_initial_values_overrides(overrides_obj, ntgrid, ntheta0, naky, g
   if (overrides_obj%init) return
   overrides_obj%init = .true.
   overrides_obj%override = .false.
-  !overrides_obj%override_phi = .false.
-  !overrides_obj%override_apar = .false.
-  !overrides_obj%override_bpar = .false.
-  !overrides_obj%override_g = .false.
-  overrides_obj%force_maxwell_reinit = force_maxwell_reinit
   overrides_obj%in_memory = in_memory
 
-  write (error_unit(), *) "INFO: changing force_maxwell_reinit or in_memory &
+  if (proc0) write (error_unit(), *) "INFO: changing in_memory &
     & after calling initial_values_overrides_type will almost certainly cause &
     & segmentation faults."
   if (overrides_obj%in_memory) then 
     allocate(overrides_obj%g(-ntgrid:ntgrid,2,g_llim:g_ulim), stat=iostat)
-    if (.not.overrides_obj%force_maxwell_reinit) then 
+    if (.not. force_maxwell_reinit) then
       if (iostat.eq.0) allocate(overrides_obj%phi(-ntgrid:ntgrid,ntheta0,naky), stat=iostat)
       if (iostat.eq.0) allocate(overrides_obj%apar(-ntgrid:ntgrid,ntheta0,naky), stat=iostat)
       if (iostat.eq.0) allocate(overrides_obj%bpar(-ntgrid:ntgrid,ntheta0,naky), stat=iostat)
     end if
     if (iostat.ne.0) then
       overrides_obj%in_memory = .false.
-      write(error_unit(),*) "WARNING: could not allocate memory for initial_values_overrides. Only restart from file possible (manual setting of initial values not possible)"
+      if (proc0) write(error_unit(),*) "WARNING: could not allocate memory for initial_values_overrides. Only restart from file possible (manual setting of initial values not possible)"
       if (allocated(overrides_obj%g)) deallocate(overrides_obj%g)
       if (allocated(overrides_obj%phi)) deallocate(overrides_obj%phi)
       if (allocated(overrides_obj%apar)) deallocate(overrides_obj%apar)
@@ -474,19 +470,19 @@ subroutine init_initial_values_overrides(overrides_obj, ntgrid, ntheta0, naky, g
 end subroutine init_initial_values_overrides
 
 subroutine finish_initial_values_overrides(overrides_obj)
+  use mp, only: proc0
   implicit none
   type(initial_values_overrides_type), intent(inout) :: overrides_obj
   if (.not. overrides_obj%init) then
-    write (*,*) "WARNING: Called finish_initial_values_overrides on an uninitialized object"
+    if (proc0) write (*,*) "WARNING: Called finish_initial_values_overrides on an uninitialized object"
     return 
   end if
   overrides_obj%init = .false.
   overrides_obj%override = .false.
-  overrides_obj%force_maxwell_reinit = .true.
-  if(allocated(overrides_obj%g)) deallocate(overrides_obj%g)
-  if(allocated(overrides_obj%phi)) deallocate(overrides_obj%phi)
-  if(allocated(overrides_obj%apar)) deallocate(overrides_obj%apar)
-  if(allocated(overrides_obj%bpar)) deallocate(overrides_obj%bpar)     
+  if (allocated(overrides_obj%g)) deallocate(overrides_obj%g)
+  if (allocated(overrides_obj%phi)) deallocate(overrides_obj%phi)
+  if (allocated(overrides_obj%apar)) deallocate(overrides_obj%apar)
+  if (allocated(overrides_obj%bpar)) deallocate(overrides_obj%bpar)
 end subroutine finish_initial_values_overrides
 
 end module overrides

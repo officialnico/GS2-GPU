@@ -56,7 +56,7 @@ contains
     !It should probably be moved to simpledataio as the rest of the diagnostics
     !doesn't know what backend simpledataio is using (i.e. if it is netcdf or not).
     use netcdf, only: NF90_CLOBBER
-    use simpledataio, only: SDATIO_DOUBLE, SDATIO_FLOAT, SDATIO_INT
+    use simpledataio, only: SDATIO_DOUBLE, SDATIO_FLOAT, SDATIO_INT, SDATIO_CHAR
     !use simpledataio, only: print_dimensions
     use simpledataio, only: sdatio_init, simpledataio_functional
     use simpledataio, only: set_parallel, create_file, open_file
@@ -128,7 +128,8 @@ contains
        gnostics%rtype = SDATIO_FLOAT
     end if
     gnostics%itype = SDATIO_INT
-    
+    gnostics%ctype = SDATIO_CHAR
+
     gnostics%user_time_old = 0.0
     
     ! fluxfac is used for summing fields, fluxes etc over ky
@@ -290,7 +291,7 @@ contains
     gnostics%ascii_files%write_to_phase  = gnostics%write_cross_phase .and.  gnostics%write_ascii
     gnostics%ascii_files%write_to_jext   = gnostics%write_jext    .and.  gnostics%write_ascii
     gnostics%ascii_files%write_to_parity = gnostics%write_parity  .and.  gnostics%write_ascii
-    !write (*,*) 'gnostics%ascii_files%write_to_heat2', gnostics%ascii_files%write_to_heat2
+    gnostics%ascii_files%write_to_eigenfunc = gnostics%write_eigenfunc .and.  gnostics%write_ascii
   end subroutine set_ascii_file_switches
 
   !> Close the output file and deallocate arrays
@@ -305,7 +306,7 @@ contains
     use diagnostics_velocity_space, only: finish_diagnostics_velocity_space
 !    use diagnostics_zonal_transfer, only: finish_diagnostics_transfer  !!! new diagnostic
     use collisional_heating, only: finish_collisional
-    
+    use gs2_diagnostics, only: save_restart_dist_fn
     use nonlinear_terms, only: nonlin
     use dist_fn, only: write_fyx, write_f, write_poly, collision_error
     use mp, only: proc0
@@ -320,7 +321,11 @@ contains
     if (.not. gnostics%replay) then
        call debug_message(verb, 'gs2_diagnostics_new::finish_gs2_diagnostics_new &
             & calling save_restart_dist_fn')
-       call save_restart_dist_fn
+       call save_restart_dist_fn(gnostics%save_for_restart, &
+                                 gnostics%save_distfn, &
+                                 gnostics%save_glo_info_and_grids, &
+                                 gnostics%save_velocities, &
+                                 gnostics%user_time)
        
        call debug_message(verb, 'gs2_diagnostics_new::finish_gs2_diagnostics_new &
             & calling run_old_final_routines')
@@ -359,40 +364,6 @@ contains
   end subroutine finish_gs2_diagnostics_new
 
   !> FIXME : Add documentation  
-  subroutine save_restart_dist_fn
-    use run_parameters, only: fphi, fapar, fbpar
-    use collisions, only: vnmult
-    use gs2_save, only: gs2_save_for_restart
-    use fields_arrays, only: phinew, bparnew
-    use gs2_time, only: user_dt
-    use dist_fn_arrays, only: gnew
-    use dist_fn_arrays, only: g_adjust
-    integer :: istatus
-    if (gnostics%save_for_restart) then
-       call gs2_save_for_restart (gnew, gnostics%user_time, user_dt, vnmult, istatus, &
-            fphi, fapar, fbpar, exit_in=.true., & 
-            save_glo_info_and_grids= gnostics%save_glo_info_and_grids, &
-            save_velocities=gnostics%save_velocities)
-    end if
-    
-    !<DD> Added for saving distribution function
-    if (gnostics%save_distfn) then
-       !Convert h to distribution function
-       call g_adjust(gnew,phinew,bparnew,fphi,fbpar)
-       
-       !Save dfn, fields and velocity grids to file
-       call gs2_save_for_restart (gnew, gnostics%user_time, user_dt, vnmult, istatus, &
-            fphi, fapar, fbpar, exit_in=.true.,distfn=.true., & 
-            save_glo_info_and_grids= gnostics%save_glo_info_and_grids, &
-            save_velocities=gnostics%save_velocities)
-       
-       !Convert distribution function back to h
-       call g_adjust(gnew,phinew,bparnew,-fphi,-fbpar)
-    end if
-    !</DD> Added for saving distribution function
-  end subroutine save_restart_dist_fn
-
-  !> FIXME : Add documentation  
   subroutine run_diagnostics_to_be_updated
     use fields_arrays, only: phinew, bparnew
     use dist_fn, only: write_fyx, write_f, write_poly, collision_error
@@ -412,7 +383,7 @@ contains
   !! istep=-1 --> Create all netcdf variables
   !! istep=0 --> Write constant arrays/parameters (e.g. aky) and initial values
   !! istep>0 --> Write variables
-  subroutine run_diagnostics(istep, exit, read_existing)
+  subroutine run_diagnostics(istep_in, exit, read_existing)
     use gs2_time, only: user_time
     use mp, only: proc0
     use simpledataio, only: print_dimensions
@@ -424,6 +395,7 @@ contains
     use diagnostics_fluxes, only: write_parity, write_nl_flux_dist
     use diagnostics_fields, only: write_fields, write_movie
     use diagnostics_fields, only: dump_fields_periodically
+    use diagnostics_fields, only: write_eigenfunc
     use diagnostics_moments, only: write_moments, write_full_moments_notgc
     use diagnostics_omega, only: calculate_omega, write_omega
     use diagnostics_velocity_space, only: write_velocity_space_checks
@@ -446,10 +418,11 @@ contains
     use unit_tests, only: debug_message
     use mp,  only: broadcast
     implicit none
-    integer, intent(in) :: istep
+    integer, intent(in) :: istep_in
     logical, intent(inout) :: exit
     logical, intent(in) :: read_existing
     integer, parameter :: verb=3
+    integer :: istep
     
     if (.not. gnostics%write_any) return
     
@@ -457,7 +430,6 @@ contains
 
     call debug_message(verb, 'gs2_diagnostics_new::run_diagnostics starting')
     
-    gnostics%istep = istep
     gnostics%exit = exit
     
     ! If parallel, then everybody writes to netcdf,
@@ -467,11 +439,11 @@ contains
       if (read_existing ) then
        gnostics%create = .false.
        gnostics%wryte = .false.
-       gnostics%reed = (istep>-1)
+       gnostics%reed = (istep_in>-1)
      else
        gnostics%reed = .false.
-       gnostics%create = (istep==-1).and..not.gnostics%appending
-       gnostics%wryte = (istep>-1) .and. .not. gnostics%replay
+       gnostics%create = (istep_in==-1).and..not.gnostics%appending
+       gnostics%wryte = (istep_in>-1) .and. .not. gnostics%replay
      end if
     else
        gnostics%reed = .false.
@@ -479,6 +451,11 @@ contains
        gnostics%wryte=.false.
     end if
 
+    ! Now that we've used istep to work out what operations we want
+    ! to do, ensure the istep value is valid.
+    istep = istep_in
+    if(istep_in == -1) istep = 0
+    gnostics%istep = istep
     
     !gnostics%wryte = .false.
     
@@ -522,7 +499,7 @@ contains
       !call save_restart_dist_fn
     !end if
 
-    if (istep==-1.or.mod(istep, gnostics%nwrite).eq.0.or.gnostics%exit) then
+    if (mod(istep, gnostics%nwrite).eq.0.or.gnostics%exit) then
        ! Finally, write time value and update time index
        call create_and_write_variable(gnostics, gnostics%rtype, "t", &
             trim(dim_string(gnostics%dims%time)), &
@@ -556,6 +533,7 @@ contains
        if (gnostics%write_correlation) call write_correlation(gnostics)
        if (gnostics%write_correlation_extend) call write_correlation_extend(gnostics)
        if (gnostics%write_lorentzian) call write_lorentzian(gnostics)
+       if (gnostics%write_eigenfunc) call write_eigenfunc(gnostics)
        
        if (gnostics%print_line) call print_line(gnostics)
        if (gnostics%write_line) call write_line(gnostics)
@@ -630,7 +608,6 @@ contains
 
   !> FIXME : Add documentation  
   subroutine run_old_final_routines
-    use diagnostics_final_routines,only: do_write_eigenfunc
     use diagnostics_final_routines,only: do_write_final_fields
     use diagnostics_final_routines,only: do_write_kpar
     use diagnostics_final_routines,only: do_write_final_epar
@@ -640,6 +617,7 @@ contains
     use diagnostics_final_routines,only: do_write_gs
     use diagnostics_final_routines,only: init_par_filter
     use diagnostics_final_routines,only: ntg_out
+    use diagnostics_fields, only: get_phi0
     use nonlinear_terms, only: nonlin
     use antenna, only: dump_ant_amp
     use mp, only: proc0
@@ -656,9 +634,6 @@ contains
     ntg_out = ntgrid
     if (proc0) then
        call debug_message(verb, 'gs2_diagnostics_new::run_old_final_routines &
-         & calling do_write_eigenfunc')
-       if (gnostics%write_eigenfunc) call do_write_eigenfunc(gnostics,phi0)
-       call debug_message(verb, 'gs2_diagnostics_new::run_old_final_routines &
          & calling do_write_final_fields')
        if (gnostics%write_final_fields) call do_write_final_fields(gnostics)
        call debug_message(verb, 'gs2_diagnostics_new::run_old_final_routines &
@@ -673,8 +648,8 @@ contains
          & calling do_write_final_db')
        if (gnostics%write_final_db) call do_write_final_db(gnostics)
     end if
-    !Note pass in phase factor phi0 which may not be initialised
-    !this is ok as phi0 will be set in routine if not already set
+
+    phi0 = get_phi0()
     if (gnostics%write_final_moments) call do_write_final_moments(gnostics,phi0)
     call debug_message(verb, 'gs2_diagnostics_new::run_old_final_routines &
       & calling do_write_final_antot')
@@ -774,7 +749,9 @@ contains
     use diagnostics_dimensions, only: dim_string
     use species, only: nspec, spec
     use run_parameters, only: beta
+    use gs2_layouts, only: layout
     implicit none
+    character, dimension(5) :: layout_split
     call create_and_write_variable(gnostics, gnostics%rtype, "kx", dim_string(gnostics%dims%kx),  &
          "Values of kx, the wavenumber perpendicular to the flux surface ", "1/rho_r", akx)
     call create_and_write_variable(gnostics, gnostics%rtype, "ky", dim_string(gnostics%dims%ky),  &
@@ -808,5 +785,8 @@ contains
          "Type of each species: 1=ion, 2=electron, 3=slowing down, 4=trace", "", spec(1:nspec)%type)
     call create_and_write_variable(gnostics, gnostics%rtype, "beta", "",  &
          "Reference beta", "2.mu0.nref.Tref/B_a**2", beta)
+    layout_split = [layout(1:1), layout(2:2), layout(3:3), layout(4:4), layout(5:5)]
+    call create_and_write_variable(gnostics, gnostics%ctype, "layout", dim_string(gnostics%dims%generic_5),  &
+         "Decomposition layout for g_lo", "", layout_split)
   end subroutine write_dimensions
 end module gs2_diagnostics_new

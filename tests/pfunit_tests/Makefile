@@ -2,7 +2,15 @@ PFUNIT_TEST_EXE=pfunit_test_suite
 PFUNIT_TEST_DIR=$(GK_HEAD_DIR)/tests/pfunit_tests
 PFUNIT_NPROC=4
 
+# Default major version of pFUnit
+# Versions 3 and 4 require different flags, etc.
 PFUNIT_VERSION_MAJOR ?= 3
+# Installation directory of pFUnit
+# Default is the directory where `scripts/build_pfunit` puts it
+PFUNIT_DIR ?= $(GK_HEAD_DIR)/externals/pFUnit_build/install
+
+PFUNIT_LOG:=pfunit.log
+PFUNIT_ERROR:=pfunit.error
 
 MACRO_DEFS += -DPFUNIT_VERSION_MAJOR=$(PFUNIT_VERSION_MAJOR)
 
@@ -22,39 +30,52 @@ endif
 
 MACRO_DEFS += -DPFUNIT_MOD=$(PFUNIT_MOD)
 
-ifeq ($(GK_SYSTEM),bitbucket)
-  PFUNIT_TEST_PATH=/opt/atlassian/pipelines/agent/build/pfunit_tests
-else
-  PFUNIT_TEST_PATH=.
-endif
+PFUNIT_TEST_PATH :=.
 
+GS2_OBJS := $(filter-out $(OBJDIR)/gs2.o, $(gs2_mod))
 
-GS2_OBJS = $(filter-out $(OBJDIR)/gs2.o, $(gs2_mod))
+PFUNIT_TESTS:= $(shell find $(PFUNIT_TEST_DIR) -name '[^.\#]*.pf')
 
-PFUNIT_TESTS= $(shell find $(PFUNIT_TEST_DIR) -name '*.pf')
-
-PFUNIT_OBJS = $(PFUNIT_TESTS:.pf=.o)
-PFUNIT_INTERMEDIATES = $(PFUNIT_TESTS:.pf=.F90)
-PFUNIT_DRIVER = $(PFUNIT_DIR)/include/driver.F90
-PFUNIT_TEST_LIST = $(PFUNIT_TEST_DIR)/testSuites.inc
+PFUNIT_OBJS := $(PFUNIT_TESTS:.pf=.o)
+PFUNIT_INTERMEDIATES := $(PFUNIT_TESTS:.pf=.F90)
+PFUNIT_DRIVER := $(PFUNIT_DIR)/include/driver.F90
+PFUNIT_TEST_LIST := $(PFUNIT_TEST_DIR)/testSuites.inc
 
 .INTERMEDIATE: $(PFUNIT_INTERMEDIATES)
 
 .PHONY: pfunit_tests make_test run_test check_pfunit_install pfunit_coverage run_gcov pfunit_clean
+.PHONY: build_pfunit_library clean_pfunit_library
+
+build_pfunit_library:
+	$(call messageInfo,"Building pFUnit in default location: $(GK_HEAD_DIR)/externals/pFUnit_build/install")
+ifdef USE_MPI
+	@scripts/build_pfunit -v ${PFUNIT_VERSION_MAJOR}
+else
+	@scripts/build_pfunit -v ${PFUNIT_VERSION_MAJOR} -m
+endif
+
+clean_pfunit_library:
+	$(call messageInfo "Removing pFUnit library")
+	@scripts/build_pfunit -r
 
 make_test: $(PFUNIT_TEST_EXE)
 
 $(PFUNIT_DRIVER): $(PFUNIT_TEST_LIST)
 	@touch $(PFUNIT_DRIVER)
 
-$(PFUNIT_TEST_EXE): $(GS2_OBJS) $(PFUNIT_DRIVER) $(PFUNIT_OBJS)
+$(PFUNIT_OBJS): $(GS2_OBJS)
+
+$(PFUNIT_TEST_EXE): $(PFUNIT_OBJS) $(PFUNIT_DRIVER) $(GS2_OBJS)
 	$(call messageOp,"Compiling","\\t:","pFUnit tests")
 	$(QUIETSYM)$(FC) -o $@ $^ -DUSE_MPI=YES $(PFUNIT_INC) $(PFUNIT_LIB) -I. $(SIMPLEDATAIO_LIB_ABS) $(LIBS) $(F90FLAGS) -I$(PFUNIT_TEST_DIR) -D_TEST_SUITES='"$(PFUNIT_TEST_LIST)"'
 
 run_test: make_test
-	-@$(RM) pfunit.log pfunit.error
+	-@rm -f pfunit.log pfunit.error
 	$(call messageOp,"Running ","\\t:","pFUnit tests")
-	$(QUIETSYM)(touch pfunit.log ; tail -f pfunit.log &  mpirun -np $(PFUNIT_NPROC) $(PFUNIT_TEST_PATH)/$(PFUNIT_TEST_EXE) -o pfunit.log > /dev/null 2> pfunit.error ) || (cat pfunit.error ; exit 1)
+	$(QUIETSYM) touch $(PFUNIT_LOG); \
+      mpirun -np $(PFUNIT_NPROC) $(PFUNIT_TEST_PATH)/$(PFUNIT_TEST_EXE) -o $(PFUNIT_LOG) > /dev/null 2> $(PFUNIT_ERROR) \
+      && cat $(PFUNIT_LOG) \
+      || (cat $(PFUNIT_LOG) $(PFUNIT_ERROR); exit 1)
 
 run_gcov:
 	gcov *.f90
@@ -74,7 +95,7 @@ coverage_gcov_fail:
 else
 pfunit_coverage: gs2 make_test run_test run_gcov
 	mkdir -p coverage-pfunit
-	mv *.gcov coverage-pfunit/.
+	mv *.gcov coverage-pfunit/. || echo "Couldn't move generated gcov files to coverage-pfunit. This is likely because gcov files not found in ${GK_HEAD_DIR}."
 endif
 
 pfunit_clean:

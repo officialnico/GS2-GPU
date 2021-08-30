@@ -1,0 +1,10 @@
+&fields_knobs
+field_option = "implicit"
+response_dir = 'implicit'
+dump_response = T
+read_response = F
+response_file = 'response'
+/
+
+!Include the other parameters
+!include test_fields_response_dumping_base.in
