@@ -52,7 +52,7 @@ module gs2_save
 
   !> Read and write single or multiple restart files.
   !> Effectively ignored if not built with parallel netcdf
-  logical :: read_many, save_many
+  logical :: read_many = .false., save_many = .false.
 
   !> Do we want to include the explicit source terms and
   !> related timesteps when saving/restoring from the restart file.
@@ -1904,14 +1904,18 @@ contains
   subroutine init_gs2_save
   end subroutine init_gs2_save
 
-!> FIXME : Add documentation  
+  !> Sets the base of the restart file to be used when
+  !> writing/reading files.
   subroutine set_restart_file (file)
     use constants, only: run_name_size
+    use mp, only: proc0
+    use file_utils, only: error_unit
     implicit none
-    character(run_name_size), intent (in) :: file
-    
-    restart_file = file
-
+    character(len=*), intent (in) :: file
+    if (proc0 .and. len_trim(file) > run_name_size) then
+       write( error_unit(), '("Argument to set_restart_file exceeds restart_file size so truncating")')
+    end if
+    restart_file = file(1:min(len_trim(file), run_name_size))
   end subroutine set_restart_file
 
   !> FIXME : Add documentation  
