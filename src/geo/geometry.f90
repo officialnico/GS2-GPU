@@ -606,7 +606,7 @@ contains
       & in eikcoefs. This is a hack to &
       & support older programs like eiktest. You should&
       & initialize file utils before calling eikcoefs'
-      call init_file_utils(dummy, name='geometry_module', trin_run=.true.)
+      call init_file_utils(dummy, name='geometry_module', trin_run=.true., input=.false.)
     else
       start_file_utils = .false.
     end if
