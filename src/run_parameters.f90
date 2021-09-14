@@ -550,9 +550,10 @@ contains
     !! @todo: Add input variables to allow these to be set directly
     delt_prev1 = dt_not_set
     delt_prev2 = dt_not_set
+
+    vnm_init = 1.0
     
     if (delt_option_switch == delt_option_auto) then
-       vnm_init = 1.0
        call init_vnm (vnm_saved, istatus)
        if (istatus == 0) vnm_init = vnm_saved
 

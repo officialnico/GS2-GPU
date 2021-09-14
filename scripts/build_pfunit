@@ -150,7 +150,7 @@ cd ${pfunit_build_directory}
 echo "Building pFUnit version ${pfunit_version_major} from ${pfunit_directory}"
 cmake ${pfunit_directory} -DMPI=${pfunit_use_mpi} ${pfunit_openmp_flag} \
       -DCMAKE_INSTALL_PREFIX=${pfunit_install_directory} \
-      -DMPIEXEC_EXECUTABLE=$(which mpiexec)
+      -DMPIEXEC_EXECUTABLE=$(which mpiexec) "${PFUNIT_EXTRA_CMAKE_FLAGS}"
 make -j "$make_jobs"
 echo "Install pFUnit to ${pfunit_install_directory}"
 make install

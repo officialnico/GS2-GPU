@@ -6,13 +6,12 @@ module gs2_save
 
 # ifdef NETCDF
 # ifdef NETCDF_PARALLEL
-! If using netcdf version 4.1.2 or older delete NF90_MPIIO
-  use netcdf, only: NF90_HDF5,NF90_MPIIO
+  use netcdf, only: NF90_MPIIO
   use netcdf, only: nf90_var_par_access, NF90_COLLECTIVE
   use netcdf, only: nf90_put_att, NF90_GLOBAL, nf90_get_att
   use netcdf, only: nf90_create_par
 # endif
-  use netcdf, only: NF90_NOWRITE, NF90_CLOBBER, NF90_NOERR, NF90_UNLIMITED, NF90_CHAR
+  use netcdf, only: NF90_NOWRITE, NF90_CLOBBER, NF90_NOERR, NF90_UNLIMITED, NF90_CHAR, NF90_NETCDF4
   use netcdf, only: nf90_create, nf90_open, nf90_sync, nf90_close
   use netcdf, only: nf90_def_dim, nf90_def_var, nf90_enddef
   use netcdf, only: nf90_put_var, nf90_get_var, nf90_strerror
@@ -52,7 +51,7 @@ module gs2_save
 
   !> Read and write single or multiple restart files.
   !> Effectively ignored if not built with parallel netcdf
-  logical :: read_many, save_many
+  logical :: read_many = .false., save_many = .false.
 
   !> Do we want to include the explicit source terms and
   !> related timesteps when saving/restoring from the restart file.
@@ -77,6 +76,8 @@ module gs2_save
   integer (kind_nf) :: a_antr_id, b_antr_id, a_anti_id, b_anti_id
   !> Do we save the scan parameter or not?
   logical, parameter :: include_parameter_scan = .true.
+  !> Open new netCDF files with netCDF-4 model, and overwrite existing files
+  integer, parameter :: create_file_mode = ior(NF90_NETCDF4, NF90_CLOBBER)
 
   !> The NETCDF_PARALLEL directives include code for parallel
   !> netcdf using HDF5 to write the output to a single restart file
@@ -187,7 +188,7 @@ contains
     call debug_message(verb, file_proc)
 
     if (is_one_file_per_processor) then
-       istatus = nf90_create (file_proc, NF90_CLOBBER, ncid)
+       istatus = nf90_create (file_proc, create_file_mode, ncid)
     else
        call debug_message(verb, &
             'gs2_save::gs2_save_for_restart calling barrier before delete file')
@@ -205,8 +206,7 @@ contains
             'gs2_save::gs2_save_for_restart called barrier before opening')
 
 # ifdef NETCDF_PARALLEL          
-       ! If using netcdf version 4.1.2 or older replace NF90_MPIIO with NF90_CLOBBER
-       istatus = nf90_create_par (file_proc, IOR(NF90_HDF5,NF90_MPIIO), ncid=ncid, comm=mp_comm, info=mp_info)
+       istatus = nf90_create_par (file_proc, ior(create_file_mode, NF90_MPIIO), ncid=ncid, comm=mp_comm, info=mp_info)
 # endif          
     end if
 
@@ -1565,7 +1565,7 @@ contains
 
 #ifdef NETCDF
     !/Make file
-    ierr=nf90_create(fname,NF90_CLOBBER,ncid)
+    ierr=nf90_create(fname, create_file_mode, ncid)
     if(ierr/=NF90_NOERR) call netcdf_error(ierr,file=fname)
 
     !/Define dimensions
@@ -1699,7 +1699,7 @@ contains
 
 #ifdef NETCDF
     !/Make file
-    ierr=nf90_create(fname,NF90_CLOBBER,IDs%ncid)
+    ierr=nf90_create(fname, create_file_mode, IDs%ncid)
     if(ierr/=NF90_NOERR) call netcdf_error(ierr,file=fname)
 
     !/Define dimensions
@@ -1904,14 +1904,18 @@ contains
   subroutine init_gs2_save
   end subroutine init_gs2_save
 
-!> FIXME : Add documentation  
+  !> Sets the base of the restart file to be used when
+  !> writing/reading files.
   subroutine set_restart_file (file)
     use constants, only: run_name_size
+    use mp, only: proc0
+    use file_utils, only: error_unit
     implicit none
-    character(run_name_size), intent (in) :: file
-    
-    restart_file = file
-
+    character(len=*), intent (in) :: file
+    if (proc0 .and. len_trim(file) > run_name_size) then
+       write( error_unit(), '("Argument to set_restart_file exceeds restart_file size so truncating")')
+    end if
+    restart_file = file(1:min(len_trim(file), run_name_size))
   end subroutine set_restart_file
 
   !> FIXME : Add documentation  
