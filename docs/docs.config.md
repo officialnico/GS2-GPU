@@ -144,7 +144,7 @@ GS2 has no required external dependencies, but does have the following
 optional ones:
 
 - MPI
-- NetCDF
+- NetCDF (needs >= v4.2.0)
 - HDF5
 - FFTW
 - LAPACK
