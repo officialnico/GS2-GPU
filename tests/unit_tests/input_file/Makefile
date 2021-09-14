@@ -23,6 +23,8 @@ all: ${TEST_BASE_NAME}
 	$(call RUNCOMMAND_EXPECT_FAIL,${TEST_BASE_NAME},doesnt_exist.in)
 	$(call RUNCOMMAND_EXPECT_FAIL,${TEST_BASE_NAME},circular_dependency.in)
 	$(call RUNCOMMAND_EXPECT_FAIL,${TEST_BASE_NAME},nested_include.in)
+# Intentionally no input file specified
+	$(call RUNCOMMAND_EXPECT_FAIL,${TEST_BASE_NAME},)
 endif
 endif
 
