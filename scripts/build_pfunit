@@ -100,10 +100,16 @@ if [[ ${pfunit_version_major} == 3 ]]; then
     pfunit_url="https://github.com/Goddard-Fortran-Ecosystem/pFUnit/archive/3.3.3.tar.gz"
     pfunit_version="3.3.3"
     pfunit_openmp_flag="-DOPENMP=NO"
+    pfunit_mpi_flag="-DMPI=${pfunit_use_mpi}"
 else
     pfunit_url="https://github.com/Goddard-Fortran-Ecosystem/pFUnit/releases/download/v4.0.0/pFUnit-4.0.tar.gz"
     pfunit_version="4.0.0"
     pfunit_openmp_flag="-DSKIP_OPENMP=YES"
+    if [[  ${pfunit_use_mpi} == "NO" ]]; then
+        pfunit_mpi_flag="-DSKIP_MPI=YES"
+    else
+        pfunit_mpi_flag="-DSKIP_MPI=NO"
+    fi
 fi
 
 # What to rename the tarball to
@@ -148,7 +154,7 @@ mkdir -p ${pfunit_build_directory}
 
 cd ${pfunit_build_directory}
 echo "Building pFUnit version ${pfunit_version_major} from ${pfunit_directory}"
-cmake ${pfunit_directory} -DMPI=${pfunit_use_mpi} ${pfunit_openmp_flag} \
+cmake ${pfunit_directory} ${pfunit_mpi_flag} ${pfunit_openmp_flag} \
       -DCMAKE_INSTALL_PREFIX=${pfunit_install_directory} \
       -DMPIEXEC_EXECUTABLE=$(which mpiexec) "${PFUNIT_EXTRA_CMAKE_FLAGS}"
 make -j "$make_jobs"
