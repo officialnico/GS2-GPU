@@ -3302,8 +3302,8 @@ contains
         'dist_fn::timeadv calculated rhs')
 
     !Add hyper terms (damping)
-    if (istep > 0) then
-       !Note we exclude the hyper terms when we calculate the response
+    if ((istep == 0 .and. hyper_in_initialisation) .or. istep > 0) then
+       !Note we potentially exclude the hyper terms when we calculate the response
        !data (indicated by istep==0) as these terms are typically not
        !linearly independent.
        call hyper_diff (gnew, phinew)
