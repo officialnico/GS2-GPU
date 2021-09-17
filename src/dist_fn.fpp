@@ -383,6 +383,9 @@ module dist_fn
      !> @note This used to default to 5.e4
      !> @todo Improve documentation
      real :: gridfac = 1.0
+     !> Determines if we include the hyperviscosity term during the
+     !> initialisation of the response matrix or not.
+     logical :: hyper_in_initialisation = .true.
      !> For debugging only.
      !>_
      !> @todo Improve documentation
@@ -1357,6 +1360,7 @@ contains
     g_exbfac = dist_fn_config%g_exbfac
     gf_lo_integrate = dist_fn_config%gf_lo_integrate
     gridfac = dist_fn_config%gridfac
+    hyper_in_initialisation = dist_fn_config%hyper_in_initialisation
     kfilter = dist_fn_config%kfilter
     lf_decompose = dist_fn_config%lf_decompose
     lf_default = dist_fn_config%lf_default
@@ -10376,13 +10380,13 @@ contains
     character(len = 20) :: boundary_option, wfbbc_option
     character(len = 30) :: adiabatic_option
     integer :: g_exb_start_timestep
-    logical :: def_parity, esv, even, gf_lo_integrate, lf_decompose, lf_default, mult_imp, nonad_zero, opt_init_bc, opt_source, test, wfb_cmr, zero_forbid
+    logical :: def_parity, esv, even, gf_lo_integrate, hyper_in_initialisation, lf_decompose, lf_default, mult_imp, nonad_zero, opt_init_bc, opt_source, test, wfb_cmr, zero_forbid
     real :: afilter, apfac, btor_slab, densfac_lin, driftknob, g_exb, g_exb_error_limit, g_exb_start_time, g_exbfac, gridfac, kfilter, mach, omprimfac, phifac_lin, poisfac, qparfac_lin, qprpfac_lin, tparfac_lin
     real :: tpdriftknob, tprpfac_lin, uparfac_lin, wfb
 
     namelist /dist_fn_knobs/ adiabatic_option, afilter, apfac, boundary_option, btor_slab, def_parity, densfac_lin, driftknob, esv, even, g_exb, g_exb_error_limit, g_exb_start_time, g_exb_start_timestep, g_exbfac, &
-         gf_lo_integrate, gridfac, kfilter, lf_decompose, lf_default, mach, mult_imp, nonad_zero, omprimfac, opt_init_bc, opt_source, phifac_lin, poisfac, qparfac_lin, qprpfac_lin, test, tparfac_lin, &
-         tpdriftknob, tprpfac_lin, uparfac_lin, wfb, wfb_cmr, wfbbc_option, zero_forbid
+         gf_lo_integrate, gridfac, hyper_in_initialisation, kfilter, lf_decompose, lf_default, mach, mult_imp, nonad_zero, omprimfac, opt_init_bc, opt_source, phifac_lin, poisfac, qparfac_lin, qprpfac_lin, &
+         test, tparfac_lin, tpdriftknob, tprpfac_lin, uparfac_lin, wfb, wfb_cmr, wfbbc_option, zero_forbid
 
     ! Only proc0 reads from file
     if (.not. proc0) return
@@ -10405,6 +10409,7 @@ contains
     g_exbfac = self%g_exbfac
     gf_lo_integrate = self%gf_lo_integrate
     gridfac = self%gridfac
+    hyper_in_initialisation = self%hyper_in_initialisation
     kfilter = self%kfilter
     lf_decompose = self%lf_decompose
     lf_default = self%lf_default
@@ -10458,6 +10463,7 @@ contains
     self%g_exbfac = g_exbfac
     self%gf_lo_integrate = gf_lo_integrate
     self%gridfac = gridfac
+    self%hyper_in_initialisation = hyper_in_initialisation
     self%kfilter = kfilter
     self%lf_decompose = lf_decompose
     self%lf_default = lf_default
@@ -10514,6 +10520,7 @@ contains
     call self%write_key_val("g_exbfac", self%g_exbfac, unit_internal)
     call self%write_key_val("gf_lo_integrate", self%gf_lo_integrate, unit_internal)
     call self%write_key_val("gridfac", self%gridfac, unit_internal)
+    call self%write_key_val("hyper_in_initialisation", self%hyper_in_initialisation, unit_internal)
     call self%write_key_val("kfilter", self%kfilter, unit_internal)
     call self%write_key_val("lf_decompose", self%lf_decompose, unit_internal)
     call self%write_key_val("lf_default", self%lf_default, unit_internal)
@@ -10572,6 +10579,7 @@ contains
     call broadcast(self%g_exbfac)
     call broadcast(self%gf_lo_integrate)
     call broadcast(self%gridfac)
+    call broadcast(self%hyper_in_initialisation)
     call broadcast(self%kfilter)
     call broadcast(self%lf_decompose)
     call broadcast(self%lf_default)
