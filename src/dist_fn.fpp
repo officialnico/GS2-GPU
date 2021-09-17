@@ -122,6 +122,7 @@ module dist_fn
   real :: wfb, g_exb, g_exbfac, omprimfac, btor_slab, mach
   real :: g_exb_start_time, g_exb_error_limit
   integer :: g_exb_start_timestep
+  logical :: hyper_in_initialisation
   !logical :: dfexist, skexist, nonad_zero
   logical :: dfexist, skexist, nonad_zero, lf_default, lf_decompose, esv, opt_source
   logical :: opt_init_bc !< DEPRECATED
