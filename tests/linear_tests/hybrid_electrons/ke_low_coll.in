@@ -1,0 +1,6 @@
+&test_settings
+  tolerance = 1.0e-8
+  gamma_expected = 0.17127006182622961
+  omega_expected = 0.18993406700092080
+/
+  
