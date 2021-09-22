@@ -750,7 +750,7 @@ contains
            il = il_idx(g_lo,iglo)
            is = is_idx(g_lo,iglo)
            if (is_hybrid_electron_species(spec(is)) .and. &
-                aky(ik) > 0.0 .and. il < ng2+1) then
+                aky(ik) /= 0.0 .and. il <= ng2+1) then
               z0tmp(:, :, iglo) = 0.0
            end if
         end do
@@ -886,7 +886,7 @@ contains
            il = il_idx(g_lo,iglo)
            is = is_idx(g_lo,iglo)
            if (is_hybrid_electron_species(spec(is)) .and. &
-                aky(ik) > 0.0 .and. il < ng2+1) then
+                aky(ik) /= 0.0 .and. il <= ng2+1) then
               s0tmp(:, :, iglo) = 0.0
            end if
         end do
@@ -1018,7 +1018,7 @@ contains
           il = il_idx(g_lo,iglo)
           is = is_idx(g_lo,iglo)
           if (is_hybrid_electron_species(spec(is)) .and. &
-               aky(ik) > 0.0 .and. il < ng2+1) then
+               aky(ik) /= 0.0 .and. il <= ng2+1) then
              w0tmp(:, :, iglo) = 0.0
           end if
        end do
@@ -1304,7 +1304,7 @@ contains
            il = il_idx(g_lo,iglo)
            is = is_idx(g_lo,iglo)
            if (is_hybrid_electron_species(spec(is)) .and. &
-                aky(ik) > 0.0 .and. il < ng2+1) then
+                aky(ik) /= 0.0 .and. il <= ng2+1) then
               bz0tmp(:, :, iglo) = 0.0
            end if
         end do
@@ -1430,7 +1430,7 @@ contains
           il = il_idx(g_lo,iglo)
           is = is_idx(g_lo,iglo)
           if (is_hybrid_electron_species(spec(is)) .and. &
-               aky(ik) > 0.0 .and. il < ng2+1) then
+               aky(ik) /= 0.0 .and. il <= ng2+1) then
              bs0tmp(:, :, iglo) = 0.0
           end if
        end do
@@ -1548,7 +1548,7 @@ contains
           il = il_idx(g_lo,iglo)
           is = is_idx(g_lo,iglo)
           if (is_hybrid_electron_species(spec(is)) .and. &
-               aky(ik) > 0.0 .and. il < ng2+1) then
+               aky(ik) /= 0.0 .and. il <= ng2+1) then
              bw0tmp(:, :, iglo) = 0.0
           end if
        end do
