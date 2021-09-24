@@ -36,14 +36,22 @@ contains
 
     if (current) then
        bits = number_of_bits_in_use()
-       write(output, '(" Current memory usage  : ", A)') &
-            trim(adjustl(bits_to_human_readable(bits)))
+       if ( bits >= 0 ) then
+          write(output, '(" Current memory usage  : ", A)') &
+               trim(adjustl(bits_to_human_readable(bits)))
+       else
+          write(output, '(" Cannot estimate memory usage.")')
+       end if
     end if
 
     if (peak) then
        peak_bits = peak_number_of_bits_in_use()
-       write(output, '(" Peak memory usage     : ", A)') &
-            trim(adjustl(bits_to_human_readable(peak_bits)))
+       if ( peak_bits >= 0 ) then
+          write(output, '(" Peak memory usage     : ", A)') &
+               trim(adjustl(bits_to_human_readable(peak_bits)))
+       else
+          write(output, '(" Cannot estimate peak memory usage.")')
+       end if
     end if
 
     write(output, '(35("-"))')
