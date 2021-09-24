@@ -1488,7 +1488,7 @@ contains
     use redistribute, only: time_redist
     use fields_arrays, only: time_field
     use gs2_reinit, only: time_reinit
-
+    use memory_usage, only: print_memory_usage
     implicit none
     !> Program state information, needed to print
     type(gs2_program_state_type), intent(in) :: state
@@ -1528,6 +1528,7 @@ contains
       write(*, '("Total from timer is:", 0pf9.2," min")') state%timers%total(1)/60.
     endif
 
+    call print_memory_usage
   end subroutine print_times
 
   !> FIXME : Add documentation  
