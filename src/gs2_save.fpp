@@ -101,7 +101,7 @@ contains
     use dist_fn_arrays, only: gexp_1, gexp_2, gexp_3, kx_shift
     use kt_grids, only: naky, ntheta0, jtwist_out, akx, aky
     use antenna_data, only: nk_stir, a_ant, b_ant, ant_on
-    use netcdf_utils, only: ensure_netcdf_var_exists
+    use netcdf_utils, only: ensure_netcdf_var_exists, ensure_netcdf_dim_exists
 # else
     use mp, only: proc0
 # endif    
@@ -228,40 +228,16 @@ contains
 
     call debug_message(verb, 'gs2_save::gs2_save_for_restart defining dimensions')
 
-    istatus = nf90_def_dim (ncid, "theta", 2*ntgrid+1, thetaid)
-    if (istatus /= NF90_NOERR) then
-       write(ierr,*) "nf90_def_dim theta error: ", nf90_strerror(istatus)
-       goto 1
-    end if
-
-    istatus = nf90_def_dim (ncid, "sign", 2, signid)
-    if (istatus /= NF90_NOERR) then
-       write(ierr,*) "nf90_def_dim sign error: ", nf90_strerror(istatus)
-       goto 1
-    end if
-
     if(is_one_file_per_processor) then
-       istatus = nf90_def_dim (ncid, "glo", n_elements, gloid)
+       call ensure_netcdf_dim_exists(ncid, "glo", n_elements, gloid)
     else
-       istatus = nf90_def_dim (ncid, "glo", total_elements, gloid)
+       call ensure_netcdf_dim_exists(ncid, "glo", total_elements, gloid)
     endif
 
-    if (istatus /= NF90_NOERR) then
-       write(ierr,*) "nf90_def_dim glo error: ", nf90_strerror(istatus)
-       goto 1
-    end if
-
-    istatus = nf90_def_dim (ncid, "aky", naky, kyid)
-    if (istatus /= NF90_NOERR) then
-       write(ierr,*) "nf90_def_dim aky error: ", nf90_strerror(istatus)
-       goto 1
-    end if
-
-    istatus = nf90_def_dim (ncid, "akx", ntheta0, kxid)
-    if (istatus /= NF90_NOERR) then
-       write(ierr,*) "nf90_def_dim akx error: ", nf90_strerror(istatus)
-       goto 1
-    end if
+    call ensure_netcdf_dim_exists(ncid, "theta", 2*ntgrid+1, thetaid)
+    call ensure_netcdf_dim_exists(ncid, "sign", 2, signid)
+    call ensure_netcdf_dim_exists(ncid, "aky", naky, kyid)
+    call ensure_netcdf_dim_exists(ncid, "akx", ntheta0, kxid)
 
     ! Decide if this processor should take part in defining items
     ! which should only appear once in outputs.
@@ -269,47 +245,14 @@ contains
 
     !For saving distribution function
     IF (save_glo_info_and_grids_local .and. should_define_single_entry_variables) THEN
-       ! only need these dimensions on proc0
-
-       !Define energy and lambda dimensions
-
-       !Define negrid dimension (number of energy grid points)
-       istatus = nf90_def_dim (ncid, "negrid", negrid, egridid)
-
-       !Check dimension created successfully
-       IF (istatus /= NF90_NOERR) THEN
-          WRITE(ierr,*) "nf90_def_dim negrid error: ", nf90_strerror(istatus)
-          GOTO 1
-       END IF
-
-       !Define nlambda dimension (number of pitch angles)
-       istatus = nf90_def_dim (ncid, "nlambda", nlambda, lgridid)
-
-       !Check dimension created successfully
-       IF (istatus /= NF90_NOERR) THEN
-          WRITE(ierr,*) "nf90_def_dim nlambda error: ", nf90_strerror(istatus)
-          GOTO 1
-       END IF
-
-       !Define nspec dimension (number of species)
-       istatus = nf90_def_dim (ncid, "nspec", nspec, nspecid)
-
-       !Check dimension created successfully
-       IF (istatus /= NF90_NOERR) THEN
-          WRITE(ierr,*) "nf90_def_dim nspec error: ", nf90_strerror(istatus)
-          GOTO 1
-       END IF
-
-    END IF
-    !For saving distribution function
+       call ensure_netcdf_dim_exists(ncid, "negrid", negrid, egridid)
+       call ensure_netcdf_dim_exists(ncid, "nlambda", nlambda, lgridid)
+       call ensure_netcdf_dim_exists(ncid, "nspec", nspec, nspecid)
+    end if
 
     call debug_message(verb, 'gs2_save::gs2_save_for_restart defining variables')
 
-    istatus = nf90_def_dim (ncid, "char5", 5, char5_dim)
-    if (istatus /= NF90_NOERR) then
-       write(ierr,*) "nf90_def_dim char5 error: ", nf90_strerror(istatus)
-       goto 1
-    end if
+    call ensure_netcdf_dim_exists(ncid, "char5", 5, char5_dim)
 
     call ensure_netcdf_var_exists(ncid, "layout", nf90_char, char5_dim, layout_id)
     call ensure_netcdf_var_exists(ncid, "ntheta0", netcdf_int, ntheta0_id)
@@ -333,7 +276,7 @@ contains
     call ensure_netcdf_var_exists(ncid, "vnm2", netcdf_real, vnm2id)
 
     if (ant_on) then
-       istatus = nf90_def_dim (ncid, "nk_stir", nk_stir, nk_stir_dim)
+       call ensure_netcdf_dim_exists(ncid, "nk_stir", nk_stir, nk_stir_dim)
        call ensure_netcdf_var_exists(ncid, "a_ant_r", netcdf_real, nk_stir_dim, a_antr_id)
        call ensure_netcdf_var_exists(ncid, "a_ant_i", netcdf_real, nk_stir_dim, a_anti_id)
        call ensure_netcdf_var_exists(ncid, "b_ant_r", netcdf_real, nk_stir_dim, b_antr_id)
