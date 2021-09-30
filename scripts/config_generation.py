@@ -429,7 +429,7 @@ class config():
 
         # Table header
         st.append("<html>")
-        st.append('<table class="divNamelistTable">')
+        st.append('<table class="divNamelistTable" markdown="1">')
         st.append("<thead><tr>")
         header_cell = "<th> {val} </th>"
         st.append(header_cell.format(val = "Name"))
@@ -439,16 +439,16 @@ class config():
         st.append("</tr></thead>")
 
         # Table body
-        st.append("<tbody>")
+        st.append("<tbody markdown='1'>")
         # Note the double new lines in the following are very important as it ensures the markdown content
         # is treated as a separate paragraph, which ensures that any generated div elements and similar are
         # correctly closed here. This avoids strange issues with div tag mismatches in the generated html
-        row_cell = "<td>\n\n{val}\n\n</td>"
+        row_cell = "<td markdown='block'>\n\n{val}\n\n</td>"
         full_row = "\n".join([row_cell.format(val="{nm}"), row_cell.format(val="{ty}"), row_cell.format(val="{de}"), row_cell.format(val="{co}")])
 
-        name_link = "[{name}](./index.html#{namelist}-{name})"
+        name_link = "<a href='./index.html#{namelist}-{name}'>{name}</a>"
         for var in self.varList:
-            st.append('<tr id="{}-{}">'.format(self.namelistName, var.name))
+            st.append('<tr id="{}-{}" markdown="1">'.format(self.namelistName, var.name))
             st.append(full_row.format(nm =
                                       name_link.format(namelist = self.namelistName, name = var.name),
                                       ty = var.typ, de = var.default.split("!")[0], co = "\n".join(var.comment)))
