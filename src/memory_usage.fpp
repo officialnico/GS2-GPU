@@ -80,20 +80,20 @@ contains
 
   !> Try to read the number of kilobytes in use currently
   !> from /proc/self/status and return number of bits in use.
-  !> Will return negative if error encountered.
+  !> Will return negative if error encountered. This gets VmHWM.
   integer(int64) function number_of_bits_in_use() result(in_use)
     implicit none
     ! We multiply by 1024 * 8 to convert to bits from kilobytes
-    in_use = get_status_entry(status_entry = 18) * 1024 * 8
+    in_use = get_status_entry(status_entry = 25) * 1024 * 8
   end function number_of_bits_in_use
 
   !> Try to read the peak number of kilobytes currently
   !> from /proc/self/status and return number of bits in use.
-  !> Will return negative if error encountered.
+  !> Will return negative if error encountered. This gets VmRSS.
   integer(int64) function peak_number_of_bits_in_use() result(in_use)
     implicit none
     ! We multiply by 1024 * 8 to convert to bits from kilobytes
-    in_use = get_status_entry(status_entry = 17) * 1024 * 8
+    in_use = get_status_entry(status_entry = 24) * 1024 * 8
   end function peak_number_of_bits_in_use
 
   !> Try to read an integer from /proc/self/status. Returns negative
