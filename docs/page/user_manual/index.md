@@ -165,6 +165,7 @@ The following is the full list of switches the possible options in
  - `USE_SHMEM` (defined [undefined]): turns on SHMEM parallel communications on SGI (not working yet)
  - `USE_FFT` (`fftw`, `fftw3` [fftw]): which FFT library to use
  - `USE_NETCDF` (defined [defined]): uses NETCDF library or not
+ - `USE_NETCDF_COMPRESSION` (defined [undefined]): default to creating compressed NETCDF files
  - `USE_HDF5` (defined [undefined]): uses HDF5 library or not
  - `USE_MDSPLUS` (defined [undefind]): uses MDSplus for geo (gs2 only)
  - `USE_POSIX` (defined [undefined]): uses posix routines for argument processing
