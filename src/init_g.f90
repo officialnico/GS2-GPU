@@ -1038,9 +1038,6 @@ contains
   !> FIXME : Add documentation  
   subroutine ginit (restarted, override_ginitopt_switch)
     use gs2_save, only: read_t0_from_restart_file
-    use fields_arrays, only: phi, bpar, apar, bparnew, aparnew, phinew
-    use dist_fn_arrays, only: g, gnew
-    use dist_fn, only: get_init_field
     implicit none
     logical, intent (out) :: restarted
     integer, intent(in), optional :: override_ginitopt_switch
@@ -1551,7 +1548,7 @@ contains
     use dist_fn_arrays, only: g, gnew
     use gs2_layouts, only: g_lo, ik_idx, it_idx, il_idx, is_idx, proc_id
     use dist_fn, only: boundary_option_linked, boundary_option_switch
-    use dist_fn, only: l_links, r_links, get_init_field
+    use dist_fn, only: l_links, r_links
     use dist_fn, only: pass_right, init_pass_ends
     use redistribute, only: fill, delete_redist
     use ran, only: ranf

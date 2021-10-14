@@ -87,7 +87,6 @@ contains
     use theta_grid, only: ntgrid
     use le_grids, only: jend, ng2
     use gs2_layouts, only: g_lo, ik_idx, it_idx, ie_idx, is_idx, il_idx
-    use kt_grids, only: aky
     implicit none
     complex, dimension (-ntgrid:,:,g_lo%llim_proc:), intent (in out) :: g
     complex, dimension (-ntgrid:,:,:), intent (in) :: phi, bpar
@@ -201,7 +200,6 @@ contains
     use theta_grid, only: ntgrid
     use le_grids, only: is_passing_hybrid_electron
     use gs2_layouts, only: g_lo, ik_idx, it_idx, ie_idx, is_idx, il_idx
-    use kt_grids, only: aky
     implicit none
     complex, dimension (-ntgrid:, :, g_lo%llim_proc:), intent (in out) :: g
     complex, dimension (-ntgrid:, :, :), intent (in) :: phi, bpar

@@ -5058,7 +5058,7 @@ contains
     use run_parameters, only: fbpar, fphi
     use species, only: spec, nonmaxw_corr
     use spfunc, only: j0, j1
-    use kt_grids, only: kperp2, aky
+    use kt_grids, only: kperp2
 
     implicit none
     complex, dimension (-ntgrid:,:,:), intent (in) :: phi,    apar,    bpar
@@ -5366,10 +5366,10 @@ contains
   !> FIXME: Get these notes on the website
   subroutine getan_from_dfn (g_in, antot, antota, antotp)
     use dist_fn_arrays, only: vpa, vperp2, aj0, aj1, g_work
-    use kt_grids, only: kperp2, aky
+    use kt_grids, only: kperp2
     use species, only: nspec, spec
     use theta_grid, only: ntgrid
-    use le_grids, only: integrate_species, ng2
+    use le_grids, only: integrate_species
     use run_parameters, only: beta, fphi, fapar, fbpar
     use prof, only: prof_entering, prof_leaving
     use gs2_layouts, only: g_lo
@@ -6041,12 +6041,12 @@ contains
     use species, only: nspec, spec, has_electron_species, has_ion_species, nonmaxw_corr
     use theta_grid, only: ntgrid
     use kt_grids, only: naky, ntheta0, aky, kperp2
-    use le_grids, only: integrate_species, ng2
-    use gs2_layouts, only: g_lo, ie_idx, is_idx, ik_idx, il_idx
+    use le_grids, only: integrate_species
+    use gs2_layouts, only: g_lo, ie_idx, is_idx
     use run_parameters, only: tite
     implicit none
     integer :: iglo, isgn
-    integer :: ik, it, ie, is, il
+    integer :: ik, it, ie, is
     complex, dimension (-ntgrid:ntgrid,ntheta0,naky) :: tot
     real, dimension (nspec) :: wgt
 
@@ -6144,8 +6144,8 @@ contains
   subroutine getfieldeq1 (phi, apar, bpar, antot, antota, antotp, &
        fieldeq, fieldeqa, fieldeqp)
     use theta_grid, only: ntgrid, bmag
-    use kt_grids, only: naky, ntheta0, kperp2, aky
-    use run_parameters, only: fphi, fapar, fbpar, beta, tite
+    use kt_grids, only: naky, ntheta0, kperp2
+    use run_parameters, only: fphi, fapar, fbpar, beta
     use species, only: spec, has_electron_species
     implicit none
     complex, dimension (-ntgrid:,:,:), intent (in) :: phi, apar, bpar

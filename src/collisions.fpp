@@ -643,9 +643,9 @@ contains
   subroutine init_lorentz_conserve
     use gs2_layouts, only: g_lo, ie_idx, is_idx, ik_idx, il_idx, it_idx
     use species, only: nspec, spec, is_electron_species, has_hybrid_electron_species
-    use kt_grids, only: kperp2, naky, ntheta0, aky
+    use kt_grids, only: kperp2, naky, ntheta0
     use theta_grid, only: ntgrid, bmag
-    use le_grids, only: energy => energy_maxw, al, integrate_moment, negrid, forbid, ng2
+    use le_grids, only: energy => energy_maxw, al, integrate_moment, negrid, forbid
     use gs2_time, only: code_dt
     use dist_fn_arrays, only: aj0, aj1, vpa
     use run_parameters, only: tunits
@@ -1183,10 +1183,9 @@ contains
   subroutine init_diffuse_conserve
     use gs2_layouts, only: g_lo, ie_idx, is_idx, ik_idx, il_idx, it_idx
     use species, only: nspec, spec, is_electron_species, has_hybrid_electron_species
-    use kt_grids, only: naky, ntheta0, kperp2, aky
+    use kt_grids, only: naky, ntheta0, kperp2
     use theta_grid, only: ntgrid, bmag
-    use le_grids, only: energy => energy_maxw, al, integrate_moment, negrid
-    use le_grids, only: forbid, ng2
+    use le_grids, only: energy => energy_maxw, al, integrate_moment, negrid, forbid
     use gs2_time, only: code_dt
     use dist_fn_arrays, only: aj0, aj1, vpa
     use le_grids, only: g2le, nxi, is_passing_hybrid_electron
