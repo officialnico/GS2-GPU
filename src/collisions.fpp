@@ -1182,7 +1182,7 @@ contains
   !! bz0, bw0, bs0
   subroutine init_diffuse_conserve
     use gs2_layouts, only: g_lo, ie_idx, is_idx, ik_idx, il_idx, it_idx
-    use species, only: nspec, spec, is_electron_species, has_hybrid_electron_species
+    use species, only: nspec, spec, has_hybrid_electron_species
     use kt_grids, only: naky, ntheta0, kperp2
     use theta_grid, only: ntgrid, bmag
     use le_grids, only: energy => energy_maxw, al, integrate_moment, negrid, forbid
