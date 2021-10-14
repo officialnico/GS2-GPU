@@ -1038,9 +1038,12 @@ contains
   !> FIXME : Add documentation  
   subroutine ginit (restarted, override_ginitopt_switch)
     use gs2_save, only: read_t0_from_restart_file
+    use species, only: has_hybrid_electron_species, spec
+    use mp, only: proc0
     implicit none
     logical, intent (out) :: restarted
     integer, intent(in), optional :: override_ginitopt_switch
+    logical, save :: have_warned_about_hybrid = .false.
     real :: t0
     integer :: istatus
     integer :: ginitopt_actual
@@ -1183,6 +1186,12 @@ contains
     if (initial_condition_is_nonadiabatic_dfn) then
        !Should we avoid doing this if restart is true?
        call set_gnew_from_nonadiabatic_dfn
+    else
+       if ((.not. restarted) .and. has_hybrid_electron_species(spec) &
+            (.not. have_warned_about_hybrid) .and. proc0) then
+          have_warned_about_hybrid = .true.
+          write(*,'("Warning : Running with a hybrid electron species but initial_condition_is_nonadiabatic_dfn is false.")')
+       end if
     end if
     
   end subroutine ginit
