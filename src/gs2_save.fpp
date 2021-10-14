@@ -12,8 +12,7 @@ module gs2_save
   use netcdf, only: nf90_create_par
 # endif
   use netcdf, only: NF90_NOWRITE, NF90_CLOBBER, NF90_NOERR, NF90_UNLIMITED, NF90_CHAR, NF90_NETCDF4
-  use netcdf, only: nf90_create, nf90_open, nf90_sync, nf90_close
-  use netcdf, only: nf90_def_dim, nf90_def_var, nf90_enddef
+  use netcdf, only: nf90_create, nf90_open, nf90_sync, nf90_close, nf90_enddef
   use netcdf, only: nf90_put_var, nf90_get_var, nf90_strerror
   use netcdf, only: nf90_inq_dimid, nf90_inquire_dimension
   use netcdf, only: nf90_inq_varid, nf90_inquire_variable
@@ -101,6 +100,7 @@ contains
     use dist_fn_arrays, only: gexp_1, gexp_2, gexp_3, kx_shift
     use kt_grids, only: naky, ntheta0, jtwist_out, akx, aky
     use antenna_data, only: nk_stir, a_ant, b_ant, ant_on
+    use netcdf_utils, only: ensure_netcdf_var_exists, ensure_netcdf_dim_exists
 # else
     use mp, only: proc0
 # endif    
@@ -227,40 +227,16 @@ contains
 
     call debug_message(verb, 'gs2_save::gs2_save_for_restart defining dimensions')
 
-    istatus = nf90_def_dim (ncid, "theta", 2*ntgrid+1, thetaid)
-    if (istatus /= NF90_NOERR) then
-       write(ierr,*) "nf90_def_dim theta error: ", nf90_strerror(istatus)
-       goto 1
-    end if
-
-    istatus = nf90_def_dim (ncid, "sign", 2, signid)
-    if (istatus /= NF90_NOERR) then
-       write(ierr,*) "nf90_def_dim sign error: ", nf90_strerror(istatus)
-       goto 1
-    end if
-
     if(is_one_file_per_processor) then
-       istatus = nf90_def_dim (ncid, "glo", n_elements, gloid)
+       call ensure_netcdf_dim_exists(ncid, "glo", n_elements, gloid)
     else
-       istatus = nf90_def_dim (ncid, "glo", total_elements, gloid)
+       call ensure_netcdf_dim_exists(ncid, "glo", total_elements, gloid)
     endif
 
-    if (istatus /= NF90_NOERR) then
-       write(ierr,*) "nf90_def_dim glo error: ", nf90_strerror(istatus)
-       goto 1
-    end if
-
-    istatus = nf90_def_dim (ncid, "aky", naky, kyid)
-    if (istatus /= NF90_NOERR) then
-       write(ierr,*) "nf90_def_dim aky error: ", nf90_strerror(istatus)
-       goto 1
-    end if
-
-    istatus = nf90_def_dim (ncid, "akx", ntheta0, kxid)
-    if (istatus /= NF90_NOERR) then
-       write(ierr,*) "nf90_def_dim akx error: ", nf90_strerror(istatus)
-       goto 1
-    end if
+    call ensure_netcdf_dim_exists(ncid, "theta", 2*ntgrid+1, thetaid)
+    call ensure_netcdf_dim_exists(ncid, "sign", 2, signid)
+    call ensure_netcdf_dim_exists(ncid, "aky", naky, kyid)
+    call ensure_netcdf_dim_exists(ncid, "akx", ntheta0, kxid)
 
     ! Decide if this processor should take part in defining items
     ! which should only appear once in outputs.
@@ -268,184 +244,48 @@ contains
 
     !For saving distribution function
     IF (save_glo_info_and_grids_local .and. should_define_single_entry_variables) THEN
-       ! only need these dimensions on proc0
-
-       !Define energy and lambda dimensions
-
-       !Define negrid dimension (number of energy grid points)
-       istatus = nf90_def_dim (ncid, "negrid", negrid, egridid)
-
-       !Check dimension created successfully
-       IF (istatus /= NF90_NOERR) THEN
-          WRITE(ierr,*) "nf90_def_dim negrid error: ", nf90_strerror(istatus)
-          GOTO 1
-       END IF
-
-       !Define nlambda dimension (number of pitch angles)
-       istatus = nf90_def_dim (ncid, "nlambda", nlambda, lgridid)
-
-       !Check dimension created successfully
-       IF (istatus /= NF90_NOERR) THEN
-          WRITE(ierr,*) "nf90_def_dim nlambda error: ", nf90_strerror(istatus)
-          GOTO 1
-       END IF
-
-       !Define nspec dimension (number of species)
-       istatus = nf90_def_dim (ncid, "nspec", nspec, nspecid)
-
-       !Check dimension created successfully
-       IF (istatus /= NF90_NOERR) THEN
-          WRITE(ierr,*) "nf90_def_dim nspec error: ", nf90_strerror(istatus)
-          GOTO 1
-       END IF
-
-    END IF
-    !For saving distribution function
+       call ensure_netcdf_dim_exists(ncid, "negrid", negrid, egridid)
+       call ensure_netcdf_dim_exists(ncid, "nlambda", nlambda, lgridid)
+       call ensure_netcdf_dim_exists(ncid, "nspec", nspec, nspecid)
+    end if
 
     call debug_message(verb, 'gs2_save::gs2_save_for_restart defining variables')
 
-    istatus = nf90_def_dim (ncid, "char5", 5, char5_dim)
-    if (istatus /= NF90_NOERR) then
-       write(ierr,*) "nf90_def_dim char5 error: ", nf90_strerror(istatus)
-       goto 1
-    end if
+    call ensure_netcdf_dim_exists(ncid, "char5", 5, char5_dim)
 
-    istatus = nf90_def_var (ncid, "layout", nf90_char, char5_dim, layout_id)
-    if (istatus /= NF90_NOERR) then
-       write(ierr,*) "nf90_def_var layout error: ", nf90_strerror(istatus)
-       goto 1
-    end if
+    call ensure_netcdf_var_exists(ncid, "layout", nf90_char, char5_dim, layout_id)
+    call ensure_netcdf_var_exists(ncid, "ntheta0", netcdf_int, ntheta0_id)
+    call ensure_netcdf_var_exists(ncid, "naky", netcdf_int, naky_id)
+    call ensure_netcdf_var_exists(ncid, "nlambda", netcdf_int, nlambda_id)
+    call ensure_netcdf_var_exists(ncid, "negrid", netcdf_int, negrid_id)
+    call ensure_netcdf_var_exists(ncid, "nspec", netcdf_int, nspec_id)
 
-    istatus = nf90_def_var (ncid, "ntheta0", netcdf_int, ntheta0_id)
-    if (istatus /= NF90_NOERR) then
-       write(ierr,*) "nf90_def_var ntheta0 error: ", nf90_strerror(istatus)
-       goto 1
-    end if
-
-    istatus = nf90_def_var (ncid, "naky", netcdf_int, naky_id)
-    if (istatus /= NF90_NOERR) then
-       write(ierr,*) "nf90_def_var naky error: ", nf90_strerror(istatus)
-       goto 1
-    end if
-
-    istatus = nf90_def_var (ncid, "nlambda", netcdf_int, nlambda_id)
-    if (istatus /= NF90_NOERR) then
-       write(ierr,*) "nf90_def_var nlambda error: ", nf90_strerror(istatus)
-       goto 1
-    end if
-
-    istatus = nf90_def_var (ncid, "negrid", netcdf_int, negrid_id)
-    if (istatus /= NF90_NOERR) then
-       write(ierr,*) "nf90_def_var negrid error: ", nf90_strerror(istatus)
-       goto 1
-    end if
-
-    istatus = nf90_def_var (ncid, "nspec", netcdf_int, nspec_id)
-    if (istatus /= NF90_NOERR) then
-       write(ierr,*) "nf90_def_var nspec error: ", nf90_strerror(istatus)
-       goto 1
-    end if
-
-    istatus = nf90_def_var (ncid, "t0", netcdf_real, t0id)
-    if (istatus /= NF90_NOERR) then
-       write(ierr,*) "nf90_def_var t0 error: ", nf90_strerror(istatus)
-       goto 1
-    end if
-
-    istatus = nf90_def_var (ncid, "delt0", netcdf_real, delt0id)
-    if (istatus /= NF90_NOERR) then
-       write(ierr,*) "nf90_def_var delt0 error: ", nf90_strerror(istatus)
-       goto 1
-    end if
-
-    istatus = nf90_def_var (ncid, "delt1", netcdf_real, delt1id)
-    if (istatus /= NF90_NOERR) then
-       write(ierr,*) "nf90_def_var delt1 error: ", nf90_strerror(istatus)
-       goto 1
-    end if
-
-    istatus = nf90_def_var (ncid, "delt2", netcdf_real, delt2id)
-    if (istatus /= NF90_NOERR) then
-       write(ierr,*) "nf90_def_var delt2 error: ", nf90_strerror(istatus)
-       goto 1
-    end if
-
-    istatus = nf90_def_var (ncid, "delt_max", netcdf_real, delt_max_id)
-    if (istatus /= NF90_NOERR) then
-       write(ierr,*) "nf90_def_var delt_max error: ", nf90_strerror(istatus)
-       goto 1
-    end if
+    call ensure_netcdf_var_exists(ncid, "t0", netcdf_real, t0id)
+    call ensure_netcdf_var_exists(ncid, "delt0", netcdf_real, delt0id)
+    call ensure_netcdf_var_exists(ncid, "delt1", netcdf_real, delt1id)
+    call ensure_netcdf_var_exists(ncid, "delt2", netcdf_real, delt2id)
+    call ensure_netcdf_var_exists(ncid, "delt_max", netcdf_real, delt_max_id)
 
     if (include_parameter_scan) then
-       !if (proc0) write (*,*) "Starting current_scan_parameter_value def"
-       istatus = nf90_def_var (ncid, &
-            "current_scan_parameter_value", &
-            netcdf_real, &
-            current_scan_parameter_value_id)
-       if (istatus /= NF90_NOERR) then
-          write(ierr,*) "nf90_def_var current_scan_parameter_value error: ", nf90_strerror(istatus)
-          goto 1
-       end if
-       !if (proc0) write (*,*) "Finishing current_scan_parameter_value def"
+       call ensure_netcdf_var_exists(ncid, "current_scan_parameter_value", &
+            netcdf_real, current_scan_parameter_value_id)
     end if
 
-    istatus = nf90_def_var (ncid, "vnm1", netcdf_real, vnm1id)
-    if (istatus /= NF90_NOERR) then
-       write(ierr,*) "nf90_def_var vnm(1) error: ", nf90_strerror(istatus)
-       goto 1
-    end if
-
-    istatus = nf90_def_var (ncid, "vnm2", netcdf_real, vnm2id)
-    if (istatus /= NF90_NOERR) then
-       write(ierr,*) "nf90_def_var vnm(2) error: ", nf90_strerror(istatus)
-       goto 1
-    end if
+    call ensure_netcdf_var_exists(ncid, "vnm1", netcdf_real, vnm1id)
+    call ensure_netcdf_var_exists(ncid, "vnm2", netcdf_real, vnm2id)
 
     if (ant_on) then
-       istatus = nf90_def_dim (ncid, "nk_stir", nk_stir, nk_stir_dim)
-       if (istatus /= NF90_NOERR) then
-          write(ierr,*) "nf90_def_dim nk_stir error: ", nf90_strerror(istatus)
-          goto 1
-       end if
-
-       istatus = nf90_def_var (ncid, "a_ant_r", netcdf_real, nk_stir_dim, a_antr_id)
-       if (istatus /= NF90_NOERR) then
-          write(ierr,*) "nf90_def_var a_ant_r error: ", nf90_strerror(istatus)
-          goto 1
-       end if
-
-       istatus = nf90_def_var (ncid, "a_ant_i", netcdf_real, nk_stir_dim, a_anti_id)
-       if (istatus /= NF90_NOERR) then
-          write(ierr,*) "nf90_def_var a_ant_i error: ", nf90_strerror(istatus)
-          goto 1
-       end if
-
-       istatus = nf90_def_var (ncid, "b_ant_r", netcdf_real, nk_stir_dim, b_antr_id)
-       if (istatus /= NF90_NOERR) then
-          write(ierr,*) "nf90_def_var b_ant_r error: ", nf90_strerror(istatus)
-          goto 1
-       end if
-
-       istatus = nf90_def_var (ncid, "b_ant_i", netcdf_real, nk_stir_dim, b_anti_id)
-       if (istatus /= NF90_NOERR) then
-          write(ierr,*) "nf90_def_var b_ant_i error: ", nf90_strerror(istatus)
-          goto 1
-       end if
+       call ensure_netcdf_dim_exists(ncid, "nk_stir", nk_stir, nk_stir_dim)
+       call ensure_netcdf_var_exists(ncid, "a_ant_r", netcdf_real, nk_stir_dim, a_antr_id)
+       call ensure_netcdf_var_exists(ncid, "a_ant_i", netcdf_real, nk_stir_dim, a_anti_id)
+       call ensure_netcdf_var_exists(ncid, "b_ant_r", netcdf_real, nk_stir_dim, b_antr_id)
+       call ensure_netcdf_var_exists(ncid, "b_ant_i", netcdf_real, nk_stir_dim, b_anti_id)
     end if
 
-    istatus = nf90_def_var (ncid, "gr", netcdf_real, &
-         (/ thetaid, signid, gloid /), gr_id)
-    if (istatus /= NF90_NOERR) then
-       write(ierr,*) "nf90_def_var g error: ", nf90_strerror(istatus)
-       goto 1
-    end if
-
-    istatus = nf90_def_var (ncid, "gi", netcdf_real, &
-         (/ thetaid, signid, gloid /), gi_id)
-    if (istatus /= NF90_NOERR) then
-       write(ierr,*) "nf90_def_var g error: ", nf90_strerror(istatus)
-       goto 1
-    end if
+    call ensure_netcdf_var_exists(ncid, "gr", netcdf_real, &
+         [thetaid, signid, gloid], gr_id)
+    call ensure_netcdf_var_exists(ncid, "gi", netcdf_real, &
+         [thetaid, signid, gloid], gi_id)
 
     if(include_explicit_source_in_restart) then
 
@@ -456,251 +296,100 @@ contains
 #endif
 
        if (has_gexp_1) then
-          istatus = nf90_def_var (ncid, "gexp_1_r", netcdf_real, &
-               (/ thetaid, signid, gloid /), gexp_1_r_id)
-          if (istatus /= NF90_NOERR) then
-             write(ierr,*) "nf90_def_var gexp_1_r error: ", nf90_strerror(istatus)
-             goto 1
-          end if
-
-          istatus = nf90_def_var (ncid, "gexp_1_i", netcdf_real, &
-               (/ thetaid, signid, gloid /), gexp_1_i_id)
-          if (istatus /= NF90_NOERR) then
-             write(ierr,*) "nf90_def_var gexp_1_i error: ", nf90_strerror(istatus)
-             goto 1
-          end if
+          call ensure_netcdf_var_exists(ncid, "gexp_1_r", netcdf_real, &
+               [thetaid, signid, gloid], gexp_1_r_id)
+          call ensure_netcdf_var_exists(ncid, "gexp_1_i", netcdf_real, &
+               [thetaid, signid, gloid], gexp_1_i_id)
        endif
 
        if(allocated(gexp_2)) then
-          istatus = nf90_def_var (ncid, "gexp_2_r", netcdf_real, &
-               (/ thetaid, signid, gloid /), gexp_2_r_id)
-          if (istatus /= NF90_NOERR) then
-             write(ierr,*) "nf90_def_var gexp_2_r error: ", nf90_strerror(istatus)
-             goto 1
-          end if
-
-          istatus = nf90_def_var (ncid, "gexp_2_i", netcdf_real, &
-               (/ thetaid, signid, gloid /), gexp_2_i_id)
-          if (istatus /= NF90_NOERR) then
-             write(ierr,*) "nf90_def_var gexp_2_i error: ", nf90_strerror(istatus)
-             goto 1
-          end if
+          call ensure_netcdf_var_exists(ncid, "gexp_2_r", netcdf_real, &
+               [thetaid, signid, gloid], gexp_2_r_id)
+          call ensure_netcdf_var_exists(ncid, "gexp_2_i", netcdf_real, &
+               [thetaid, signid, gloid], gexp_2_i_id)
        endif
 
        if(allocated(gexp_3)) then
-          istatus = nf90_def_var (ncid, "gexp_3_r", netcdf_real, &
-               (/ thetaid, signid, gloid /), gexp_3_r_id)
-          if (istatus /= NF90_NOERR) then
-             write(ierr,*) "nf90_def_var gexp_3_r error: ", nf90_strerror(istatus)
-             goto 1
-          end if
-
-          istatus = nf90_def_var (ncid, "gexp_3_i", netcdf_real, &
-               (/ thetaid, signid, gloid /), gexp_3_i_id)
-          if (istatus /= NF90_NOERR) then
-             write(ierr,*) "nf90_def_var gexp_3_i error: ", nf90_strerror(istatus)
-             goto 1
-          end if
+          call ensure_netcdf_var_exists(ncid, "gexp_3_r", netcdf_real, &
+               [thetaid, signid, gloid], gexp_3_r_id)
+          call ensure_netcdf_var_exists(ncid, "gexp_3_i", netcdf_real, &
+               [thetaid, signid, gloid], gexp_3_i_id)
        endif
     end if
 
     if (fphi > epsilon(0.)) then
-       istatus = nf90_def_var (ncid, "phi_r", netcdf_real, &
-            (/ thetaid, kxid, kyid /), phir_id)
-       if (istatus /= NF90_NOERR) then
-          write(ierr,*) "nf90_def_var phi error: ", nf90_strerror(istatus)
-          goto 1
-       end if
-
-       istatus = nf90_def_var (ncid, "phi_i", netcdf_real, &
-            (/ thetaid, kxid, kyid /), phii_id)
-       if (istatus /= NF90_NOERR) then
-          write(ierr,*) "nf90_def_var phi error: ", nf90_strerror(istatus)
-          goto 1
-       end if
+       call ensure_netcdf_var_exists(ncid, "phi_r", netcdf_real, &
+            [thetaid, kxid, kyid], phir_id)
+       call ensure_netcdf_var_exists(ncid, "phi_i", netcdf_real, &
+            [thetaid, kxid, kyid], phii_id)
     end if
 
     if (fapar > epsilon(0.)) then
-       istatus = nf90_def_var (ncid, "apar_r", netcdf_real, &
-            (/ thetaid, kxid, kyid /), aparr_id)
-       if (istatus /= NF90_NOERR) then
-          write(ierr,*) "nf90_def_var apar error: ", nf90_strerror(istatus)
-          goto 1
-       end if
-
-       istatus = nf90_def_var (ncid, "apar_i", netcdf_real, &
-            (/ thetaid, kxid, kyid /), apari_id)
-       if (istatus /= NF90_NOERR) then
-          write(ierr,*) "nf90_def_var apar error: ", nf90_strerror(istatus)
-          goto 1
-       end if
+       call ensure_netcdf_var_exists(ncid, "apar_r", netcdf_real, &
+            [thetaid, kxid, kyid], aparr_id)
+       call ensure_netcdf_var_exists(ncid, "apar_i", netcdf_real, &
+            [thetaid, kxid, kyid], apari_id)
     end if
 
     if (fbpar > epsilon(0.)) then
-       istatus = nf90_def_var (ncid, "bpar_r", netcdf_real, &
-            (/ thetaid, kxid, kyid /), bparr_id)
-       if (istatus /= NF90_NOERR) then
-          write(ierr,*) "nf90_def_var bparr error: ", nf90_strerror(istatus)
-          goto 1
-       end if
-
-       istatus = nf90_def_var (ncid, "bpar_i", netcdf_real, &
-            (/ thetaid, kxid, kyid /), bpari_id)
-       if (istatus /= NF90_NOERR) then
-          write(ierr,*) "nf90_def_var bpari error: ", nf90_strerror(istatus)
-          goto 1
-       end if
+       call ensure_netcdf_var_exists(ncid, "bpar_r", netcdf_real, &
+            [thetaid, kxid, kyid], bparr_id)
+       call ensure_netcdf_var_exists(ncid, "bpar_i", netcdf_real, &
+            [thetaid, kxid, kyid], bpari_id)
     end if
 
     !For saving distribution function
     IF (save_glo_info_and_grids_local) THEN
+       ! only store layout information on processor 0
        if (should_define_single_entry_variables) then
-          ! only store layout information on processor 0
-          ! allocate layout information arrays for plotting
           if(.not. allocated(iglo_kykxsel)) allocate(iglo_kykxsel(naky,ntheta0,nspec,negrid,nlambda))
           if(.not. allocated(procid_kykxsel)) allocate(procid_kykxsel(naky,ntheta0,nspec,negrid,nlambda))
 
           do iglo=g_lo%llim_world,g_lo%ulim_world
-             iglo_kykxsel(ik_idx(g_lo,iglo),it_idx(g_lo,iglo),is_idx(g_lo,iglo),ie_idx(g_lo,iglo),il_idx(g_lo,iglo)) = &
-                  iglo
-          enddo
+             iglo_kykxsel(ik_idx(g_lo,iglo),it_idx(g_lo,iglo),is_idx(g_lo,iglo), &
+                  ie_idx(g_lo,iglo),il_idx(g_lo,iglo)) = iglo
+          end do
+
           do iglo=g_lo%llim_world,g_lo%ulim_world
-             procid_kykxsel(ik_idx(g_lo,iglo),it_idx(g_lo,iglo),is_idx(g_lo,iglo),ie_idx(g_lo,iglo),il_idx(g_lo,iglo)) = &
-                  proc_id(g_lo,iglo)
-          enddo
+             procid_kykxsel(ik_idx(g_lo,iglo),it_idx(g_lo,iglo),is_idx(g_lo,iglo), &
+                  ie_idx(g_lo,iglo),il_idx(g_lo,iglo)) = proc_id(g_lo,iglo)
+          end do
+
           !define layout information for plotting
-          !Define iglo_kykxsel variable
-          istatus = nf90_def_var (ncid, "iglo_kykxsel", netcdf_int, (/ kyid, kxid, nspecid, egridid, lgridid /), iglo_kykxsel_id)
-
-          !Check variable created successfully
-          IF (istatus /= NF90_NOERR) THEN
-             WRITE(ierr,*) "nf90_def_var iglo_kykxsel error: ", nf90_strerror(istatus)
-             GOTO 1
-          END IF
-
-          !Define procid_kykxsel variable
-          istatus = nf90_def_var (ncid, "procid_kykxsel", netcdf_int, (/ kyid, kxid, nspecid, egridid, lgridid /), procid_kykxsel_id)
-
-          !Check variable created successfully
-          IF (istatus /= NF90_NOERR) THEN
-             WRITE(ierr,*) "nf90_def_var procid_kykxsel error: ", nf90_strerror(istatus)
-             GOTO 1
-          END IF
+          call ensure_netcdf_var_exists(ncid, "iglo_kykxsel", netcdf_int, &
+               [kyid, kxid, nspecid, egridid, lgridid], iglo_kykxsel_id)
+          call ensure_netcdf_var_exists(ncid, "procid_kykxsel", netcdf_int, &
+               [kyid, kxid, nspecid, egridid, lgridid], procid_kykxsel_id)
        endif
-       !Define iglo_llim_proc variable
-       istatus = nf90_def_var (ncid, "iglo_llim_proc", netcdf_int, iglo_llim_proc_id)
 
-       !Check variable created successfully
-       IF (istatus /= NF90_NOERR) THEN
-          WRITE(ierr,*) "nf90_def_var iglo_llim_proc error: ", nf90_strerror(istatus)
-          GOTO 1
-       END IF
+       call ensure_netcdf_var_exists(ncid, "iglo_llim_proc", netcdf_int, iglo_llim_proc_id)
 
-       if(should_define_single_entry_variables) then ! only store layout information on processor 0
-          !Define jtwist variable
-          istatus = nf90_def_var (ncid, "jtwist", netcdf_int, jtwist_id)
-
-          !Check variable created successfully
-          IF (istatus /= NF90_NOERR) THEN
-             WRITE(ierr,*) "nf90_def_var jtwist error: ", nf90_strerror(istatus)
-             GOTO 1
-          END IF
-
-          !Define theta_grid variable
-          istatus = nf90_def_var (ncid, "theta_grid", netcdf_real, (/ thetaid /), theta_grid_id)
-
-          !Check variable created successfully
-          IF (istatus /= NF90_NOERR) THEN
-             WRITE(ierr,*) "nf90_def_var theta_grid error: ", nf90_strerror(istatus)
-             GOTO 1
-          END IF
-
-          !Define ky_grid variable
-          istatus = nf90_def_var (ncid, "ky_grid", netcdf_real, (/ kyid /), ky_grid_id)
-
-          !Check variable created successfully
-          IF (istatus /= NF90_NOERR) THEN
-             WRITE(ierr,*) "nf90_def_var ky_grid error: ", nf90_strerror(istatus)
-             GOTO 1
-          END IF
-
-          !Define kx_grid variable
-          istatus = nf90_def_var (ncid, "kx_grid", netcdf_real, (/ kxid /), kx_grid_id)
-
-          !Check variable created successfully
-          IF (istatus /= NF90_NOERR) THEN
-             WRITE(ierr,*) "nf90_def_var kx_grid error: ", nf90_strerror(istatus)
-             GOTO 1
-          END IF
-
-          !Define energy and lambda variables
-          !Define energy variable
-          istatus = nf90_def_var (ncid, "energy", netcdf_real, (/ egridid /), energy_id)
-
-          !Check variable created successfully
-          IF (istatus /= NF90_NOERR) THEN
-             WRITE(ierr,*) "nf90_def_var energy error: ", nf90_strerror(istatus)
-             GOTO 1
-          END IF
-
-          !Define lambda variable (pitch angles)
-          istatus = nf90_def_var (ncid, "lambda", netcdf_real, &
-               (/ lgridid /), lambda_id)
-
-          !Check variable created successfully
-          IF (istatus /= NF90_NOERR) THEN
-             WRITE(ierr,*) "nf90_def_var lambda error: ", nf90_strerror(istatus)
-             GOTO 1
-          END IF
-
-          !Define species variable - n.b. this variable seems redundant MRH
-          istatus = nf90_def_var (ncid, "species", netcdf_real, &
-               (/ nspecid /), spec_id)
-          !Check variable created successfully
-          IF (istatus /= NF90_NOERR) THEN
-             WRITE(ierr,*) "nf90_def_var species error: ",nf90_strerror(istatus)
-             GOTO 1
-          END IF
-
+       ! only store layout information on processor 0
+       if(should_define_single_entry_variables) then
+          call ensure_netcdf_var_exists(ncid, "jtwist", netcdf_int, jtwist_id)
+          call ensure_netcdf_var_exists(ncid, "theta_grid", netcdf_real, [thetaid], theta_grid_id)
+          call ensure_netcdf_var_exists(ncid, "ky_grid", netcdf_real, [kyid], ky_grid_id)
+          call ensure_netcdf_var_exists(ncid, "kx_grid", netcdf_real, [kxid], kx_grid_id)
+          call ensure_netcdf_var_exists(ncid, "energy", netcdf_real, [egridid], energy_id)
+          call ensure_netcdf_var_exists(ncid, "lambda", netcdf_real, [lgridid], lambda_id)
+          call ensure_netcdf_var_exists(ncid, "species", netcdf_real, [nspecid], spec_id)
        endif
 
     END IF
 
     if(save_velocities_info) then
-       !Define velocity variables
-       !Define vpa variable
-       istatus = nf90_def_var (ncid, "vpa", netcdf_real, &
-            (/ thetaid, signid, gloid /), vpa_id)
+       call ensure_netcdf_var_exists(ncid, "vpa", netcdf_real, &
+            [thetaid, signid, gloid], vpa_id)
 
-       !Check variable created successfully
-       IF (istatus /= NF90_NOERR) THEN
-          WRITE(ierr,*) "nf90_def_var vpa error: ",nf90_strerror(istatus)
-          GOTO 1
-       END IF
-
-       !Define vperp2 variable
-       istatus = nf90_def_var (ncid, "vperp2", netcdf_real, &
-            (/ thetaid, gloid /), vperp2_id)
-
-       !Check variable created successfully
-       IF (istatus /= NF90_NOERR) THEN
-          WRITE(ierr,*) "nf90_def_var vperp2 error: ",nf90_strerror(istatus)
-          GOTO 1
-       END IF
-
+       call ensure_netcdf_var_exists(ncid, "vperp2", netcdf_real, &
+            [thetaid, gloid], vperp2_id)
     endif
 
-    ! remove allocated conditional because we want to be able to restart
-    ! using exb shear from a case which does not have exb shear (i.e.
-    ! we need kx_shift variable defined in netcdf file even if no exb
-    ! shear present in simulation) -- MAB + CMR
-    !       if (allocated(kx_shift)) then   ! MR begin
-    istatus = nf90_def_var (ncid, "kx_shift", netcdf_real, &
-         (/ kyid /), kx_shift_id)
-    if (istatus /= NF90_NOERR) then
-       write(ierr,*) "nf90_def_var kx_shift error: ", nf90_strerror(istatus)
-       goto 1
-    endif
+    ! Because we want to be able to restart using exb shear from a
+    ! case which does not have exb shear we always add kx_shift even
+    ! if no exb shear present in simulation)
+    call ensure_netcdf_var_exists(ncid, "kx_shift", netcdf_real, &
+         [kyid], kx_shift_id)
 
     ! Now we've finished defining things switch to put mode
     call debug_message(verb, 'gs2_save::gs2_save_for_restart nf90_enddef')
@@ -1538,6 +1227,7 @@ contains
 #ifdef NETCDF
     use gs2_time, only: code_dt
     use convert, only: c2r
+    use netcdf_utils, only: ensure_netcdf_dim_exists, ensure_netcdf_var_exists
 #else
     use file_utils, only: get_unused_unit
 #endif
@@ -1569,20 +1259,14 @@ contains
     if(ierr/=NF90_NOERR) call netcdf_error(ierr,file=fname)
 
     !/Define dimensions
-    ierr=nf90_def_dim(ncid,"ri",2,riid)
-    if(ierr/=NF90_NOERR) call netcdf_error(ierr,dim="ri")
-    ierr=nf90_def_dim(ncid,"ax1",sz,ax1id)
-    if(ierr/=NF90_NOERR) call netcdf_error(ierr,dim="ax1")
-    ierr=nf90_def_dim(ncid,"ax2",sz,ax2id)
-    if(ierr/=NF90_NOERR) call netcdf_error(ierr,dim="ax2")
+    call ensure_netcdf_dim_exists(ncid, "ri", 2, riid)
+    call ensure_netcdf_dim_exists(ncid, "ax1", sz, ax1id)
+    call ensure_netcdf_dim_exists(ncid, "ax2", sz, ax2id)
 
     !/Define variables
-    ierr=nf90_def_var(ncid,"response",netcdf_real,(/riid,ax1id,ax2id/),respid)
-    if(ierr/=NF90_NOERR) call netcdf_error(ierr,var="response")
-    ierr=nf90_def_var(ncid,"dt",netcdf_real,dtid)
-    if(ierr/=NF90_NOERR) call netcdf_error(ierr,var="dt")
-    ierr=nf90_def_var(ncid,"condition",netcdf_real,condition_id)
-    if(ierr/=NF90_NOERR) call netcdf_error(ierr,var="condition")
+    call ensure_netcdf_var_exists(ncid, "response", netcdf_real, [riid,ax1id,ax2id], respid)
+    call ensure_netcdf_var_exists(ncid, "dt", netcdf_real, dtid)
+    call ensure_netcdf_var_exists(ncid, "condition", netcdf_real, condition_id)
 
     !End definitions
     ierr=nf90_enddef(ncid)
@@ -1686,6 +1370,9 @@ contains
   subroutine init_eigenfunc_file(fname,fphi,fapar,fbpar,IDs)
     use file_utils, only: error_unit
     use theta_grid, only: ntgrid, theta
+#ifdef NETCDF
+    use netcdf_utils, only: ensure_netcdf_dim_exists, ensure_netcdf_var_exists
+#endif
     implicit none
     character(len=*), intent(in) :: fname
     type(EigNetcdfID), intent(inout) :: IDs
@@ -1703,38 +1390,32 @@ contains
     if(ierr/=NF90_NOERR) call netcdf_error(ierr,file=fname)
 
     !/Define dimensions
-    ierr=nf90_def_dim(IDs%ncid,"ri",2,IDs%ri_dim_id)
-    if(ierr/=NF90_NOERR) call netcdf_error(ierr,dim="ri")
-    ierr=nf90_def_dim(IDs%ncid,"theta",2*ntgrid+1,IDs%theta_dim_id)
-    if(ierr/=NF90_NOERR) call netcdf_error(ierr,dim="theta")
-    ierr=nf90_def_dim(IDs%ncid,"nconv",NF90_UNLIMITED,IDs%conv_dim_id)
-    if(ierr/=NF90_NOERR) call netcdf_error(ierr,dim="nconv")
+    call ensure_netcdf_dim_exists(IDs%ncid, "ri", 2, IDs%ri_dim_id)
+    call ensure_netcdf_dim_exists(IDs%ncid, "theta", 2*ntgrid+1, IDs%theta_dim_id)
+    call ensure_netcdf_dim_exists(IDs%ncid, "nconv", NF90_UNLIMITED, IDs%conv_dim_id)
 
     !/Define variables
     !Dimensions
-    ierr=nf90_def_var(IDs%ncid,"theta",netcdf_real,IDs%theta_dim_id,IDs%theta_var_id)
-    if(ierr/=NF90_NOERR) call netcdf_error(ierr,var="theta")
-    ierr=nf90_def_var(IDs%ncid,"conv",netcdf_real,IDs%conv_dim_id,IDs%conv_var_id)
-    if(ierr/=NF90_NOERR) call netcdf_error(ierr,var="conv_id")
+    call ensure_netcdf_var_exists(IDs%ncid, "theta", netcdf_real, &
+         IDs%theta_dim_id, IDs%theta_var_id)
+    call ensure_netcdf_var_exists(IDs%ncid, "conv", netcdf_real, &
+         IDs%conv_dim_id, IDs%conv_var_id)
     !Fields
     if(fphi.gt.epsilon(0.0))then
-       ierr=nf90_def_var(IDs%ncid,"phi",netcdf_real,(/IDs%ri_dim_id,IDs%theta_dim_id,&
-            & IDs%conv_dim_id/),IDs%phi_var_id)
-       if(ierr/=NF90_NOERR) call netcdf_error(ierr,var="phi")
+       call ensure_netcdf_var_exists(IDs%ncid, "phi", netcdf_real, &
+            [IDs%ri_dim_id, IDs%theta_dim_id, IDs%conv_dim_id], IDs%phi_var_id)
     endif
     if(fapar.gt.epsilon(0.0))then
-       ierr=nf90_def_var(IDs%ncid,"apar",netcdf_real,(/IDs%ri_dim_id,IDs%theta_dim_id,&
-            & IDs%conv_dim_id/),IDs%apar_var_id)
-       if(ierr/=NF90_NOERR) call netcdf_error(ierr,var="apar")
+       call ensure_netcdf_var_exists(IDs%ncid, "apar", netcdf_real, &
+            [IDs%ri_dim_id, IDs%theta_dim_id, IDs%conv_dim_id], IDs%apar_var_id)
     endif
     if(fbpar.gt.epsilon(0.0))then
-       ierr=nf90_def_var(IDs%ncid,"bpar",netcdf_real,(/IDs%ri_dim_id,IDs%theta_dim_id,&
-            & IDs%conv_dim_id/),IDs%bpar_var_id)
-       if(ierr/=NF90_NOERR) call netcdf_error(ierr,var="bpar")
+       call ensure_netcdf_var_exists(IDs%ncid, "bpar", netcdf_real, &
+            [IDs%ri_dim_id, IDs%theta_dim_id, IDs%conv_dim_id], IDs%bpar_var_id)
     endif
     !Omega
-    ierr=nf90_def_var(IDs%ncid,"omega",netcdf_real,(/IDs%ri_dim_id,IDs%conv_dim_id/),IDs%omega_var_id)
-    if(ierr/=NF90_NOERR) call netcdf_error(ierr,var="omega")
+    call ensure_netcdf_var_exists(IDs%ncid, "omega", netcdf_real, &
+         [IDs%ri_dim_id, IDs%conv_dim_id], IDs%omega_var_id)
     
     !End definitions
     ierr=nf90_enddef(IDs%ncid)

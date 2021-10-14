@@ -186,7 +186,7 @@ onestep_standard_tests:
   image: fedora:31
   variables:
     CASENAME: "standard_one_step_pp"
-    EXTRA_MAKE_FLAGS: "USE_NEW_DIAG= ONE_STEP_PP=on TEST_LEVEL=2"
+    EXTRA_MAKE_FLAGS: "USE_NEW_DIAG= ONE_STEP_PP=on TEST_LEVEL=2 USE_NETCDF_COMPRESSION=on"
     GK_MAKEFILE_LOCAL_EXTRA_FLAGS: "F90FLAGS += -ffree-form"
   script: *default_script
 
