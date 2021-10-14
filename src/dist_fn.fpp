@@ -4580,13 +4580,13 @@ contains
     use dist_fn_arrays, only: gnew, ittp, vperp2, aj1, aj0, set_h_zero
     use run_parameters, only: eqzip, secondary, tertiary, harris
     use theta_grid, only: ntgrid
-    use le_grids, only: nlambda, ng2, lmax, forbid
+    use le_grids, only: nlambda, ng2, lmax, forbid, is_passing_hybrid_electron
     use kt_grids, only: aky, ntheta0
     use gs2_layouts, only: g_lo, ik_idx, it_idx, il_idx, ie_idx, is_idx
     use prof, only: prof_entering, prof_leaving
     use run_parameters, only: fbpar, fphi, ieqzip
     use kt_grids, only: kwork_filter
-    use species, only: spec, is_hybrid_electron_species, nonmaxw_corr, hzero_passing_electron
+    use species, only: spec, nonmaxw_corr
     use mp, only: mp_abort
     use gs2_time, only: get_adams_bashforth_coefficients
     use nonlinear_terms, only: nonlin
@@ -4650,8 +4650,7 @@ contains
        !// Handle hybrid electrons when passing
        !/////////////////////////
        
-       if (hzero_passing_electron .and. is_hybrid_electron_species(spec(is)) &
-            .and. aky(ik) /= 0. .and. il <= ng2+1)  then
+       if (is_passing_hybrid_electron(is, ik, il))  then
           call set_h_zero (gnew, phinew, bparnew, -fphi, -fbpar, iglo)
           cycle
        end if
@@ -5053,11 +5052,11 @@ contains
        (phi, apar, bpar, phinew, aparnew, bparnew, istep, sourcefac)
     use dist_fn_arrays, only: gnew
     use theta_grid, only: bmag, ntgrid
-    use le_grids, only: energy, al, nlambda, ng2
+    use le_grids, only: energy, al, nlambda, ng2, is_passing_hybrid_electron
     use gs2_layouts, only: g_lo, ik_idx, it_idx, il_idx, ie_idx, is_idx, idx
     use redistribute, only: fill
     use run_parameters, only: fbpar, fphi
-    use species, only: spec, nonmaxw_corr, is_hybrid_electron_species, hzero_passing_electron
+    use species, only: spec, nonmaxw_corr
     use spfunc, only: j0, j1
     use kt_grids, only: kperp2, aky
 
@@ -5110,8 +5109,7 @@ contains
           
           il = il_idx(g_lo,iglo)
           is = is_idx(g_lo,iglo)
-          if (hzero_passing_electron .and. is_hybrid_electron_species(spec(is)) &
-               .and. aky(ik) /= 0. .and. il <= ng2+1)  cycle
+          if (is_passing_hybrid_electron(is, ik, il))  cycle
           ! MRH above line causes us to skip the loops below which
           ! build the solution along the connected cells
           ! MRH we skip this in the case that we have taken the non-zonal
@@ -6041,7 +6039,6 @@ contains
   subroutine init_fieldeq
     use dist_fn_arrays, only: aj0, aj1, vperp2, g_work
     use species, only: nspec, spec, has_electron_species, has_ion_species, nonmaxw_corr
-    use species, only: hzero_passing_electron_response, is_hybrid_electron_species
     use theta_grid, only: ntgrid
     use kt_grids, only: naky, ntheta0, aky, kperp2
     use le_grids, only: integrate_species, ng2

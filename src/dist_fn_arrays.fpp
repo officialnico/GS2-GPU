@@ -197,9 +197,9 @@ contains
   !> @note This looks like the g_adjust loop kernel, we might be able
   !> to combine these in some way to avoid duplication.
   subroutine set_h_zero (g, phi, bpar, facphi, facbpar, iglo)
-    use species, only: spec, nonmaxw_corr, is_hybrid_electron_species
+    use species, only: spec, nonmaxw_corr
     use theta_grid, only: ntgrid
-    use le_grids, only: ng2
+    use le_grids, only: is_passing_hybrid_electron
     use gs2_layouts, only: g_lo, ik_idx, it_idx, ie_idx, is_idx, il_idx
     use kt_grids, only: aky
     implicit none
@@ -213,15 +213,11 @@ contains
 
     ! Skip non hybrid electrons
     is = is_idx(g_lo,iglo)
-    if (.not. is_hybrid_electron_species(spec(is))) return
-
     ! Skip zonal modes
     ik = ik_idx(g_lo,iglo)
-    if (aky(ik) == 0) return
-
     ! Skip trapped particles
     il = il_idx(g_lo,iglo)
-    if (il > ng2+1) return
+    if (.not. is_passing_hybrid_electron(is, ik, il)) return
     
     it = it_idx(g_lo,iglo)
     ie = ie_idx(g_lo,iglo)

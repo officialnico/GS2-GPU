@@ -642,14 +642,14 @@ contains
   !! z0, w0, s0 (z0le, w0le, s0le if use_le_layout chosen in the input file defined)
   subroutine init_lorentz_conserve
     use gs2_layouts, only: g_lo, ie_idx, is_idx, ik_idx, il_idx, it_idx
-    use species, only: nspec, spec, is_electron_species, hzero_passing_electron, is_hybrid_electron_species
+    use species, only: nspec, spec, is_electron_species, hzero_passing_electron
     use kt_grids, only: kperp2, naky, ntheta0, aky
     use theta_grid, only: ntgrid, bmag
     use le_grids, only: energy => energy_maxw, al, integrate_moment, negrid, forbid, ng2
     use gs2_time, only: code_dt
     use dist_fn_arrays, only: aj0, aj1, vpa
     use run_parameters, only: tunits
-    use le_grids, only: g2le, nxi
+    use le_grids, only: g2le, nxi, is_passing_hybrid_electron
     use gs2_layouts, only: le_lo
     use redistribute, only: gather, scatter
 
@@ -748,10 +748,7 @@ contains
            ik = ik_idx(g_lo,iglo)
            il = il_idx(g_lo,iglo)
            is = is_idx(g_lo,iglo)
-           if (is_hybrid_electron_species(spec(is)) .and. &
-                aky(ik) /= 0.0 .and. il <= ng2+1) then
-              z0tmp(:, :, iglo) = 0.0
-           end if
+           if (is_passing_hybrid_electron(is, ik, il)) z0tmp(:, :, iglo) = 0.0
         end do
      end if
 
@@ -884,10 +881,7 @@ contains
            ik = ik_idx(g_lo,iglo)
            il = il_idx(g_lo,iglo)
            is = is_idx(g_lo,iglo)
-           if (is_hybrid_electron_species(spec(is)) .and. &
-                aky(ik) /= 0.0 .and. il <= ng2+1) then
-              s0tmp(:, :, iglo) = 0.0
-           end if
+           if (is_passing_hybrid_electron(is, ik, il)) s0tmp(:, :, iglo) = 0.0
         end do
      end if
 
@@ -1016,10 +1010,7 @@ contains
           ik = ik_idx(g_lo,iglo)
           il = il_idx(g_lo,iglo)
           is = is_idx(g_lo,iglo)
-          if (is_hybrid_electron_species(spec(is)) .and. &
-               aky(ik) /= 0.0 .and. il <= ng2+1) then
-             w0tmp(:, :, iglo) = 0.0
-          end if
+           if (is_passing_hybrid_electron(is, ik, il)) w0tmp(:, :, iglo) = 0.0
        end do
     end if
 
@@ -1191,14 +1182,14 @@ contains
   !! bz0, bw0, bs0
   subroutine init_diffuse_conserve
     use gs2_layouts, only: g_lo, ie_idx, is_idx, ik_idx, il_idx, it_idx
-    use species, only: nspec, spec, is_electron_species, hzero_passing_electron, is_hybrid_electron_species
+    use species, only: nspec, spec, is_electron_species, hzero_passing_electron
     use kt_grids, only: naky, ntheta0, kperp2, aky
     use theta_grid, only: ntgrid, bmag
     use le_grids, only: energy => energy_maxw, al, integrate_moment, negrid
     use le_grids, only: forbid, ng2
     use gs2_time, only: code_dt
     use dist_fn_arrays, only: aj0, aj1, vpa
-    use le_grids, only: g2le, nxi
+    use le_grids, only: g2le, nxi, is_passing_hybrid_electron
     use gs2_layouts, only: le_lo
     use redistribute, only: gather, scatter
 
@@ -1302,10 +1293,7 @@ contains
            ik = ik_idx(g_lo,iglo)
            il = il_idx(g_lo,iglo)
            is = is_idx(g_lo,iglo)
-           if (is_hybrid_electron_species(spec(is)) .and. &
-                aky(ik) /= 0.0 .and. il <= ng2+1) then
-              bz0tmp(:, :, iglo) = 0.0
-           end if
+           if (is_passing_hybrid_electron(is, ik, il)) bz0tmp(:, :, iglo) = 0.0
         end do
      end if
 
@@ -1428,10 +1416,7 @@ contains
           ik = ik_idx(g_lo,iglo)
           il = il_idx(g_lo,iglo)
           is = is_idx(g_lo,iglo)
-          if (is_hybrid_electron_species(spec(is)) .and. &
-               aky(ik) /= 0.0 .and. il <= ng2+1) then
-             bs0tmp(:, :, iglo) = 0.0
-          end if
+          if (is_passing_hybrid_electron(is, ik, il)) bs0tmp(:, :, iglo) = 0.0
        end do
     end if
 
@@ -1546,10 +1531,7 @@ contains
           ik = ik_idx(g_lo,iglo)
           il = il_idx(g_lo,iglo)
           is = is_idx(g_lo,iglo)
-          if (is_hybrid_electron_species(spec(is)) .and. &
-               aky(ik) /= 0.0 .and. il <= ng2+1) then
-             bw0tmp(:, :, iglo) = 0.0
-          end if
+          if (is_passing_hybrid_electron(is, ik, il)) bw0tmp(:, :, iglo) = 0.0
        end do
     end if
 
