@@ -241,6 +241,7 @@ contains
        if (spec(is)%type == ion_species) write (report_unit, fmt="('    Type:             Ion')")
        if (spec(is)%type == electron_species) write (report_unit, fmt="('    Type:             Electron')")
        if (spec(is)%type == tracer_species) write (report_unit, fmt="('    Type:             Trace')")
+       if (spec(is)%type == hybrid_electron_species) write (report_unit, fmt="('    Type:             Hybrid-Electron')")       
        write (report_unit, fmt="('    Charge:         ',f7.3)") spec(is)%z
        write (report_unit, fmt="('    Mass:             ',es11.4)") spec(is)%mass
        write (report_unit, fmt="('    Density:        ',f7.3)") spec(is)%dens
