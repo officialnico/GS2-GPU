@@ -110,7 +110,7 @@ contains
 
   !> FIXME : Add documentation
   subroutine write_grids_to_file(fname)
-    use netcdf, only: NF90_CLOBBER
+    use netcdf, only: NF90_CLOBBER, NF90_NETCDF4
     use netcdf, only: nf90_create, nf90_close
     use netcdf, only: nf90_def_dim, nf90_def_var, nf90_enddef
     use netcdf, only: nf90_put_var
@@ -144,7 +144,7 @@ contains
     integer :: wl_varid, w_varid
 
     !First create a file
-    ierr=nf90_create(trim(adjustl(fname))//".grids.nc",NF90_CLOBBER,ncid)
+    ierr=nf90_create(trim(adjustl(fname))//".grids.nc", ior(NF90_CLOBBER, NF90_NETCDF4), ncid)
 
     !Define dimensions
     ierr=nf90_def_dim(ncid,'aky',size(aky),ky_dimid)

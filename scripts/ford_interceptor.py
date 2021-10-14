@@ -94,13 +94,13 @@ def interceptor_main(proj_data, proj_docs, md):
     else:
         project.make_links(proj_data["project_url"])
 
-    # Register the user defined aliases:
-    for alias in proj_data["alias"]:
-        ford.utils.register_macro(alias)
-
     ford_version_tuple = tuple(map(int, ford.__version__.split(".", maxsplit=2)[0:2]))
 
     if ford_version_tuple[0] == 6 and ford_version_tuple[1] >= 1:
+        # Register the user defined aliases:
+        for alias in proj_data["alias"]:
+            ford.utils.register_macro(alias)
+
         sub_macros = interceptor_sub_macros
     else:
         sub_macros = ford.utils.sub_macros

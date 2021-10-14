@@ -80,7 +80,7 @@ module collisions
   integer, parameter :: ediff_scheme_default = 1
   integer, parameter :: ediff_scheme_old = 2
 
-  real, dimension (2) :: vnmult = 0.0
+  real, dimension (2) :: vnmult = -1.0
   integer :: ncheck
   logical :: vary_vnew
   real :: vnfac, vnslow
@@ -571,7 +571,6 @@ contains
     use kt_grids, only: naky, ntheta0
     use theta_grid, only: ntgrid
     use dist_fn_arrays, only: c_rate
-
     implicit none
 
     real, dimension (negrid) :: hee
@@ -589,7 +588,7 @@ contains
 
     !<DD>This (potentially large) array should only be needed if 
     !write_heating (gs2_diagnostics) is true.
-    if (.not. allocated(c_rate)) then
+    if (heating .and. .not. allocated(c_rate)) then
        allocate (c_rate(-ntgrid:ntgrid, ntheta0, naky, nspec, 3))
        c_rate = 0.
     end if
@@ -1710,7 +1709,7 @@ contains
     use le_grids, only: negrid, energy => energy_maxw, w => w_maxw
     use kt_grids, only: naky, ntheta0, kperp2
     use theta_grid, only: ntgrid
-    use run_parameters, only: zeff, tunits
+    use run_parameters, only: zeff, tunits, vnm_init
     use constants
     use spfunc, only: erf => erf_ext
     real, dimension (:), intent (out) :: hee
@@ -1718,8 +1717,13 @@ contains
     integer :: ik, ie, is, it, ig
     real :: k4max
     real :: vl, vr, dv2l, dv2r
-!    real :: erf ! this is needed for PGI: RN
 
+    ! Initialise vnmult from the values in run_parameters. This is
+    ! either what has been restored from the restart file  if
+    ! `delt_option /= 'check_restart'` or 1 otherwise.
+    if (all(vnmult == -1)) then
+       vnmult = vnm_init
+    end if
 
     do ie = 1, negrid
        hee(ie) = exp(-energy(ie))/sqrt(pi*energy(ie)) &
@@ -4511,9 +4515,17 @@ contains
   !! when timestep changes.
   subroutine finish_collisions
     use dist_fn_arrays, only: c_rate
+    use run_parameters, only: vnm_init
     implicit none
 
-    vnmult = 0.0
+    ! This is a bit of a hack to make sure that we get the correct vnmult
+    ! value during a timestep change. Whilst we do restore vnmult from the
+    ! restart file, this unfortunately doesn't happen until after we've initialised
+    ! the collision operator so we choose to store this in vnm_init, which is
+    ! where we get our initial value of vnmult from anyway.
+    vnm_init = vnmult
+    vnmult = -1.0
+
     accelerated_x = .false. ; accelerated_v = .false.
     ediffinit = .false. ; lzinit = .false. ; leinit = .false.
     initialized = .false.  
@@ -4584,7 +4596,7 @@ contains
     implicit none
     class(collisions_config_type), intent(in out) :: self
     logical :: exist
-    integer :: in_file, iostat
+    integer :: in_file
 
     ! Note: When this routine is in the module where these variables live
     ! we shadow the module level variables here. This is intentional to provide
@@ -4633,16 +4645,8 @@ contains
     vpar_zero_mean = self%vpar_zero_mean
 
     ! Now read in the main namelist
-    if (self%get_requires_index()) then
-       call get_indexed_namelist_unit(in_file, trim(self%get_name()), self%index)
-       read(in_file, nml = collisions_knobs, iostat = iostat)
-       exist = .true.
-       if (iostat .ne.0) exist = .false.
-       close(unit = in_file, iostat = iostat)
-    else
-       in_file = input_unit_exist(self%get_name(), exist)
-       if (exist) read(in_file, nml = collisions_knobs)
-    endif
+    in_file = input_unit_exist(self%get_name(), exist)
+    if (exist) read(in_file, nml = collisions_knobs)
 
     ! Now copy from local variables into type members
     self%adjust = adjust

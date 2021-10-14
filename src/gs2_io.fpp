@@ -134,7 +134,7 @@ contains
     use theta_grid, only: ntgrid
     use le_grids, only: nlambda, negrid
     use species, only: nspec
-    use netcdf, only: NF90_CLOBBER, nf90_create, nf90_open, NF90_WRITE
+    use netcdf, only: NF90_CLOBBER, nf90_create, nf90_open, NF90_WRITE, NF90_NETCDF4
     use netcdf_utils, only: get_netcdf_code_precision, netcdf_real
     use netcdf_utils, only: get_netcdf_dim_length
     use constants, only: run_name_size
@@ -161,6 +161,7 @@ contains
     character(run_name_size) :: filename, filename_movie
     integer :: status
     logical :: previous_file_exists, appending
+    integer, parameter :: create_file_mode = ior(NF90_CLOBBER, NF90_NETCDF4)
 
     !################
     !# Update internal flags
@@ -196,7 +197,7 @@ contains
        if (appending) then
           status = nf90_open(trim(filename), NF90_WRITE, ncid)
        else
-          status = nf90_create (trim(filename), NF90_CLOBBER, ncid)
+          status = nf90_create (trim(filename), create_file_mode, ncid)
        end if
        if (status /= NF90_NOERR) call netcdf_error (status, file=filename, abort=.true.)
     end if
@@ -209,7 +210,7 @@ contains
        filename_movie = trim(trim(run_name)//'.movie.nc')
        ! only proc0 opens the file:
        if (proc0) then
-          status = nf90_create (trim(filename_movie), NF90_CLOBBER, ncid_movie)
+          status = nf90_create (trim(filename_movie), create_file_mode, ncid_movie)
           if (status /= NF90_NOERR) &
                call netcdf_error (status, file=filename_movie)
        end if
