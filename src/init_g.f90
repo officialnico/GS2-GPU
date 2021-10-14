@@ -1198,11 +1198,25 @@ contains
     use theta_grid, only: ntgrid
     use dist_fn, only: calculate_potentials_from_nonadiabatic_dfn
     use run_parameters, only: fphi, fbpar
+    use species, only: spec, has_hybrid_electron_species
+    use le_grids, only: is_passing_hybrid_electron
+    use gs2_layouts, only: g_lo, ik_idx, il_idx, is_idx
     implicit none
     complex, dimension(:, :, :), allocatable :: phi, apar, bpar
+    integer :: iglo, ik, il, is
     allocate( phi(-ntgrid:ntgrid, ntheta0, naky))
     allocate(apar(-ntgrid:ntgrid, ntheta0, naky))
     allocate(bpar(-ntgrid:ntgrid, ntheta0, naky))
+
+    ! Respect passing hybrid electrons h=0
+    if (has_hybrid_electron_species(spec)) then
+       do iglo = g_lo%llim_proc, g_lo%ulim_proc
+          is = is_idx(g_lo, iglo)
+          ik = ik_idx(g_lo, iglo)
+          il = il_idx(g_lo, iglo)
+          if (is_passing_hybrid_electron(is, ik, il)) gnew(:,:,iglo) = 0.0
+       end do
+    end if
 
     ! Calculate the consistent potentials
     call calculate_potentials_from_nonadiabatic_dfn(gnew, phi, apar, bpar)
