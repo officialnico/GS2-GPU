@@ -1228,6 +1228,7 @@ contains
 #ifdef NETCDF
     use gs2_time, only: code_dt
     use convert, only: c2r
+    use netcdf_utils, only: ensure_netcdf_dim_exists, ensure_netcdf_var_exists
 #else
     use file_utils, only: get_unused_unit
 #endif
@@ -1259,20 +1260,14 @@ contains
     if(ierr/=NF90_NOERR) call netcdf_error(ierr,file=fname)
 
     !/Define dimensions
-    ierr=nf90_def_dim(ncid,"ri",2,riid)
-    if(ierr/=NF90_NOERR) call netcdf_error(ierr,dim="ri")
-    ierr=nf90_def_dim(ncid,"ax1",sz,ax1id)
-    if(ierr/=NF90_NOERR) call netcdf_error(ierr,dim="ax1")
-    ierr=nf90_def_dim(ncid,"ax2",sz,ax2id)
-    if(ierr/=NF90_NOERR) call netcdf_error(ierr,dim="ax2")
+    call ensure_netcdf_dim_exists(ncid, "ri", 2, riid)
+    call ensure_netcdf_dim_exists(ncid, "ax1", sz, ax1id)
+    call ensure_netcdf_dim_exists(ncid, "ax2", sz, ax2id)
 
     !/Define variables
-    ierr=nf90_def_var(ncid,"response",netcdf_real,(/riid,ax1id,ax2id/),respid)
-    if(ierr/=NF90_NOERR) call netcdf_error(ierr,var="response")
-    ierr=nf90_def_var(ncid,"dt",netcdf_real,dtid)
-    if(ierr/=NF90_NOERR) call netcdf_error(ierr,var="dt")
-    ierr=nf90_def_var(ncid,"condition",netcdf_real,condition_id)
-    if(ierr/=NF90_NOERR) call netcdf_error(ierr,var="condition")
+    call ensure_netcdf_var_exists(ncid, "response", netcdf_real, [riid,ax1id,ax2id], respid)
+    call ensure_netcdf_var_exists(ncid, "dt", netcdf_real, dtid)
+    call ensure_netcdf_var_exists(ncid, "condition", netcdf_real, condition_id)
 
     !End definitions
     ierr=nf90_enddef(ncid)
