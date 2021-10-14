@@ -12,8 +12,7 @@ module gs2_save
   use netcdf, only: nf90_create_par
 # endif
   use netcdf, only: NF90_NOWRITE, NF90_CLOBBER, NF90_NOERR, NF90_UNLIMITED, NF90_CHAR, NF90_NETCDF4
-  use netcdf, only: nf90_create, nf90_open, nf90_sync, nf90_close
-  use netcdf, only: nf90_def_dim, nf90_def_var, nf90_enddef
+  use netcdf, only: nf90_create, nf90_open, nf90_sync, nf90_close, nf90_enddef
   use netcdf, only: nf90_put_var, nf90_get_var, nf90_strerror
   use netcdf, only: nf90_inq_dimid, nf90_inquire_dimension
   use netcdf, only: nf90_inq_varid, nf90_inquire_variable
