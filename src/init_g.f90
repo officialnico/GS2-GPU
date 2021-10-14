@@ -4362,7 +4362,7 @@ contains
 
     do iglo = g_lo%llim_proc, g_lo%ulim_proc
        is = is_idx(g_lo, iglo)
-       if (is_electron_species(spec(is))) cycle
+       if (.not. is_electron_species(spec(is))) cycle
        if (aky(ik_idx(g_lo, iglo)) /= 0.) cycle
        gavg(:,1,iglo) = sum(g(:,1,iglo)*delthet*jacob)*wgt
        gavg(:,2,iglo) = sum(g(:,2,iglo)*delthet*jacob)*wgt
