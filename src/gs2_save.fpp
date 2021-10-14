@@ -1371,6 +1371,9 @@ contains
   subroutine init_eigenfunc_file(fname,fphi,fapar,fbpar,IDs)
     use file_utils, only: error_unit
     use theta_grid, only: ntgrid, theta
+#ifdef NETCDF
+    use netcdf_utils, only: ensure_netcdf_dim_exists, ensure_netcdf_var_exists
+#endif
     implicit none
     character(len=*), intent(in) :: fname
     type(EigNetcdfID), intent(inout) :: IDs
@@ -1388,38 +1391,32 @@ contains
     if(ierr/=NF90_NOERR) call netcdf_error(ierr,file=fname)
 
     !/Define dimensions
-    ierr=nf90_def_dim(IDs%ncid,"ri",2,IDs%ri_dim_id)
-    if(ierr/=NF90_NOERR) call netcdf_error(ierr,dim="ri")
-    ierr=nf90_def_dim(IDs%ncid,"theta",2*ntgrid+1,IDs%theta_dim_id)
-    if(ierr/=NF90_NOERR) call netcdf_error(ierr,dim="theta")
-    ierr=nf90_def_dim(IDs%ncid,"nconv",NF90_UNLIMITED,IDs%conv_dim_id)
-    if(ierr/=NF90_NOERR) call netcdf_error(ierr,dim="nconv")
+    call ensure_netcdf_dim_exists(IDs%ncid, "ri", 2, IDs%ri_dim_id)
+    call ensure_netcdf_dim_exists(IDs%ncid, "theta", 2*ntgrid+1, IDs%theta_dim_id)
+    call ensure_netcdf_dim_exists(IDs%ncid, "nconv", NF90_UNLIMITED, IDs%conv_dim_id)
 
     !/Define variables
     !Dimensions
-    ierr=nf90_def_var(IDs%ncid,"theta",netcdf_real,IDs%theta_dim_id,IDs%theta_var_id)
-    if(ierr/=NF90_NOERR) call netcdf_error(ierr,var="theta")
-    ierr=nf90_def_var(IDs%ncid,"conv",netcdf_real,IDs%conv_dim_id,IDs%conv_var_id)
-    if(ierr/=NF90_NOERR) call netcdf_error(ierr,var="conv_id")
+    call ensure_netcdf_var_exists(IDs%ncid, "theta", netcdf_real, &
+         IDs%theta_dim_id, IDs%theta_var_id)
+    call ensure_netcdf_var_exists(IDs%ncid, "conv", netcdf_real, &
+         IDs%conv_dim_id, IDs%conv_var_id)
     !Fields
     if(fphi.gt.epsilon(0.0))then
-       ierr=nf90_def_var(IDs%ncid,"phi",netcdf_real,(/IDs%ri_dim_id,IDs%theta_dim_id,&
-            & IDs%conv_dim_id/),IDs%phi_var_id)
-       if(ierr/=NF90_NOERR) call netcdf_error(ierr,var="phi")
+       call ensure_netcdf_var_exists(IDs%ncid, "phi", netcdf_real, &
+            [IDs%ri_dim_id, IDs%theta_dim_id, IDs%conv_dim_id], IDs%phi_var_id)
     endif
     if(fapar.gt.epsilon(0.0))then
-       ierr=nf90_def_var(IDs%ncid,"apar",netcdf_real,(/IDs%ri_dim_id,IDs%theta_dim_id,&
-            & IDs%conv_dim_id/),IDs%apar_var_id)
-       if(ierr/=NF90_NOERR) call netcdf_error(ierr,var="apar")
+       call ensure_netcdf_var_exists(IDs%ncid, "apar", netcdf_real, &
+            [IDs%ri_dim_id, IDs%theta_dim_id, IDs%conv_dim_id], IDs%apar_var_id)
     endif
     if(fbpar.gt.epsilon(0.0))then
-       ierr=nf90_def_var(IDs%ncid,"bpar",netcdf_real,(/IDs%ri_dim_id,IDs%theta_dim_id,&
-            & IDs%conv_dim_id/),IDs%bpar_var_id)
-       if(ierr/=NF90_NOERR) call netcdf_error(ierr,var="bpar")
+       call ensure_netcdf_var_exists(IDs%ncid, "bpar", netcdf_real, &
+            [IDs%ri_dim_id, IDs%theta_dim_id, IDs%conv_dim_id], IDs%bpar_var_id)
     endif
     !Omega
-    ierr=nf90_def_var(IDs%ncid,"omega",netcdf_real,(/IDs%ri_dim_id,IDs%conv_dim_id/),IDs%omega_var_id)
-    if(ierr/=NF90_NOERR) call netcdf_error(ierr,var="omega")
+    call ensure_netcdf_var_exists(IDs%ncid, "omega", netcdf_real, &
+         [IDs%ri_dim_id, IDs%conv_dim_id], IDs%omega_var_id)
     
     !End definitions
     ierr=nf90_enddef(IDs%ncid)
