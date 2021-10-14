@@ -642,7 +642,7 @@ contains
   !! z0, w0, s0 (z0le, w0le, s0le if use_le_layout chosen in the input file defined)
   subroutine init_lorentz_conserve
     use gs2_layouts, only: g_lo, ie_idx, is_idx, ik_idx, il_idx, it_idx
-    use species, only: nspec, spec, is_electron_species, hzero_passing_electron
+    use species, only: nspec, spec, is_electron_species, has_hybrid_electron_species
     use kt_grids, only: kperp2, naky, ntheta0, aky
     use theta_grid, only: ntgrid, bmag
     use le_grids, only: energy => energy_maxw, al, integrate_moment, negrid, forbid, ng2
@@ -743,7 +743,7 @@ contains
     ! If we have hybrid electrons then we need to remove the
     ! contribution to the conservation terms from the adiabatic
     ! passing part.
-    if (hzero_passing_electron) then
+    if (has_hybrid_electron_species(spec)) then
         do iglo = g_lo%llim_proc, g_lo%ulim_proc
            ik = ik_idx(g_lo,iglo)
            il = il_idx(g_lo,iglo)
@@ -876,7 +876,7 @@ contains
     ! If we have hybrid electrons then we need to remove the
     ! contribution to the conservation terms from the adiabatic
     ! passing part.
-    if (hzero_passing_electron) then
+    if (has_hybrid_electron_species(spec)) then
         do iglo = g_lo%llim_proc, g_lo%ulim_proc
            ik = ik_idx(g_lo,iglo)
            il = il_idx(g_lo,iglo)
@@ -1005,7 +1005,7 @@ contains
     ! If we have hybrid electrons then we need to remove the
     ! contribution to the conservation terms from the adiabatic
     ! passing part.
-    if (hzero_passing_electron) then
+    if (has_hybrid_electron_species(spec)) then
        do iglo = g_lo%llim_proc, g_lo%ulim_proc
           ik = ik_idx(g_lo,iglo)
           il = il_idx(g_lo,iglo)
@@ -1182,7 +1182,7 @@ contains
   !! bz0, bw0, bs0
   subroutine init_diffuse_conserve
     use gs2_layouts, only: g_lo, ie_idx, is_idx, ik_idx, il_idx, it_idx
-    use species, only: nspec, spec, is_electron_species, hzero_passing_electron
+    use species, only: nspec, spec, is_electron_species, has_hybrid_electron_species
     use kt_grids, only: naky, ntheta0, kperp2, aky
     use theta_grid, only: ntgrid, bmag
     use le_grids, only: energy => energy_maxw, al, integrate_moment, negrid
@@ -1288,7 +1288,7 @@ contains
     ! If we have hybrid electrons then we need to remove the
     ! contribution to the conservation terms from the adiabatic
     ! passing part.
-    if (hzero_passing_electron) then
+    if (has_hybrid_electron_species(spec)) then
         do iglo = g_lo%llim_proc, g_lo%ulim_proc
            ik = ik_idx(g_lo,iglo)
            il = il_idx(g_lo,iglo)
@@ -1411,7 +1411,7 @@ contains
     ! If we have hybrid electrons then we need to remove the
     ! contribution to the conservation terms from the adiabatic
     ! passing part.
-    if (hzero_passing_electron) then
+    if (has_hybrid_electron_species(spec)) then
        do iglo = g_lo%llim_proc, g_lo%ulim_proc
           ik = ik_idx(g_lo,iglo)
           il = il_idx(g_lo,iglo)
@@ -1526,7 +1526,7 @@ contains
     ! If we have hybrid electrons then we need to remove the
     ! contribution to the conservation terms from the adiabatic
     ! passing part.
-    if (hzero_passing_electron) then
+    if (has_hybrid_electron_species(spec)) then
        do iglo = g_lo%llim_proc, g_lo%ulim_proc
           ik = ik_idx(g_lo,iglo)
           il = il_idx(g_lo,iglo)
@@ -2181,7 +2181,7 @@ contains
     use redistribute, only: gather
     use theta_grid, only: ntgrid
     use dist_fn_arrays, only: aj0, aj1
-    use species, only: hzero_passing_electron_collisions_matrix
+    use species, only: has_hybrid_electron_species, spec
     implicit none
 
     real, intent (in), optional :: vnmult_target
@@ -2269,7 +2269,7 @@ contains
 
             call get_lorentz_matrix (aa, bb, cc, dd, hh, ig, ik, it, ie, is)
             
-            if (hzero_passing_electron_collisions_matrix) call set_hzero_collisions_matrix
+            if (has_hybrid_electron_species(spec)) call set_hzero_collisions_matrix
             
             c1le(:,ie,ile) = cc
             if (allocated(d1le)) then
@@ -2330,7 +2330,7 @@ contains
 
          call get_lorentz_matrix (aa, bb, cc, dd, hh, ig, ik, it, ie, is)
          
-         if (hzero_passing_electron_collisions_matrix) call set_hzero_collisions_matrix
+         if (has_hybrid_electron_species(spec)) call set_hzero_collisions_matrix
         
          c1(:,ilz) = cc
          if (allocated(d1)) then
@@ -2363,7 +2363,7 @@ contains
     !> boundary condition For the trapped particle pitch angle
     !> scattering.
     subroutine set_hzero_collisions_matrix
-      use species, only: spec, is_hybrid_electron_species
+      use species, only: is_hybrid_electron_species
       use kt_grids, only: aky
       implicit none
       !> il index of 1st non-wfb trapped particle

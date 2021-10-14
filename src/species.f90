@@ -20,8 +20,6 @@ module species
   public :: determine_species_order
   public :: calculate_f0_arrays, set_current_f0_species, eval_f0
   public :: nonmaxw_corr, f0_values, dlnf0drho
-  public :: hzero_passing_electron, hzero_passing_electron_collisions_matrix
-  public :: hzero_passing_electron_response, hzero_passing_electron_response_init
   
   public :: species_config_type
   public :: species_element_config_type
@@ -67,20 +65,6 @@ module species
   !> Various quantities needed in the calculation of the slowing-down distribution in case electrons are
   !! adiabatic
   real:: me, ZI_fac
-
-  !> When true, the electron response for non-zonal passing
-  !> particles is set to be adiabatic. (h=0)
-  logical :: hzero_passing_electron
-  !> If true, the non-zonal electron collision operator is modified to
-  !> reflect the h=0 (zero passing) boundary condition for trapped particles
-  logical :: hzero_passing_electron_collisions_matrix
-  !> FIXME: Add documentation
-  logical :: hzero_passing_electron_response
-  !> If true, the electron response for non-zonal
-  !> passing particles is set to be adiabatic. (h=0)
-  !> by removing g_electron from the calculation of the fields
-  !> and modifying the fields calculation (and the response matrix)
-  logical :: hzero_passing_electron_response_init
   
   !> Defines a working species so that eval_f0 only needs to take one argument (needed for genquad)
   integer:: is_global = -1
@@ -559,13 +543,6 @@ contains
     tmp_bcast=spec%vcrit ; call broadcast(tmp_bcast) ; spec%vcrit=tmp_bcast
     tmp_bcast=spec%vcprim ; call broadcast(tmp_bcast) ; spec%vcprim=tmp_bcast
     deallocate(tmp_bcast)
-
-    ! Set flags to indicate if we have a hybrid electron species or not.
-    ! We currently keep these different flags to aid debugging and testing.
-    hzero_passing_electron = has_hybrid_electron_species(spec)
-    hzero_passing_electron_response = hzero_passing_electron
-    hzero_passing_electron_response_init = hzero_passing_electron
-    hzero_passing_electron_collisions_matrix = hzero_passing_electron
   end subroutine read_parameters
 
   !> FIXME : Add documentation
