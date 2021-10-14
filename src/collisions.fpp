@@ -643,10 +643,10 @@ contains
   !! z0, w0, s0 (z0le, w0le, s0le if use_le_layout chosen in the input file defined)
   subroutine init_lorentz_conserve
     use gs2_layouts, only: g_lo, ie_idx, is_idx, ik_idx, il_idx, it_idx
-    use species, only: nspec, spec, is_electron_species
-    use kt_grids, only: kperp2, naky, ntheta0
+    use species, only: nspec, spec, is_electron_species, hzero_passing_electron, is_hybrid_electron_species
+    use kt_grids, only: kperp2, naky, ntheta0, aky
     use theta_grid, only: ntgrid, bmag
-    use le_grids, only: energy => energy_maxw, al, integrate_moment, negrid, forbid
+    use le_grids, only: energy => energy_maxw, al, integrate_moment, negrid, forbid, ng2
     use gs2_time, only: code_dt
     use dist_fn_arrays, only: aj0, aj1, vpa
     use run_parameters, only: tunits
@@ -741,7 +741,22 @@ contains
         end do
     endif
 
-    if(use_le_layout) then    
+    ! If we have hybrid electrons then we need to remove the
+    ! contribution to the conservation terms from the adiabatic
+    ! passing part.
+    if (hzero_passing_electron) then
+        do iglo = g_lo%llim_proc, g_lo%ulim_proc
+           ik = ik_idx(g_lo,iglo)
+           il = il_idx(g_lo,iglo)
+           is = is_idx(g_lo,iglo)
+           if (is_hybrid_electron_species(spec(is)) .and. &
+                aky(ik) /= 0.0 .and. il <= ng2+1) then
+              z0tmp(:, :, iglo) = 0.0
+           end if
+        end do
+     end if
+
+    if(use_le_layout) then
        call gather (g2le, z0tmp, ctmp)
        call solfp_lorentz (ctmp)
        call scatter (g2le, ctmp, z0tmp)   ! z0 is redefined below
@@ -862,7 +877,22 @@ contains
         end do
     endif    
 
-    if(use_le_layout) then    
+    ! If we have hybrid electrons then we need to remove the
+    ! contribution to the conservation terms from the adiabatic
+    ! passing part.
+    if (hzero_passing_electron) then
+        do iglo = g_lo%llim_proc, g_lo%ulim_proc
+           ik = ik_idx(g_lo,iglo)
+           il = il_idx(g_lo,iglo)
+           is = is_idx(g_lo,iglo)
+           if (is_hybrid_electron_species(spec(is)) .and. &
+                aky(ik) /= 0.0 .and. il <= ng2+1) then
+              s0tmp(:, :, iglo) = 0.0
+           end if
+        end do
+     end if
+
+     if(use_le_layout) then
        call gather (g2le, s0tmp, ctmp)
        call solfp_lorentz (ctmp)
        call scatter (g2le, ctmp, s0tmp)   ! s0
@@ -978,6 +1008,21 @@ contains
            end do
         end do
     endif
+
+    ! If we have hybrid electrons then we need to remove the
+    ! contribution to the conservation terms from the adiabatic
+    ! passing part.
+    if (hzero_passing_electron) then
+       do iglo = g_lo%llim_proc, g_lo%ulim_proc
+          ik = ik_idx(g_lo,iglo)
+          il = il_idx(g_lo,iglo)
+          is = is_idx(g_lo,iglo)
+          if (is_hybrid_electron_species(spec(is)) .and. &
+               aky(ik) /= 0.0 .and. il <= ng2+1) then
+             w0tmp(:, :, iglo) = 0.0
+          end if
+       end do
+    end if
 
     if(use_le_layout) then    
        call gather (g2le, w0tmp, ctmp)
@@ -1147,11 +1192,11 @@ contains
   !! bz0, bw0, bs0
   subroutine init_diffuse_conserve
     use gs2_layouts, only: g_lo, ie_idx, is_idx, ik_idx, il_idx, it_idx
-    use species, only: nspec, spec
-    use kt_grids, only: naky, ntheta0, kperp2
+    use species, only: nspec, spec, is_electron_species, hzero_passing_electron, is_hybrid_electron_species
+    use kt_grids, only: naky, ntheta0, kperp2, aky
     use theta_grid, only: ntgrid, bmag
     use le_grids, only: energy => energy_maxw, al, integrate_moment, negrid
-    use le_grids, only: forbid
+    use le_grids, only: forbid, ng2
     use gs2_time, only: code_dt
     use dist_fn_arrays, only: aj0, aj1, vpa
     use le_grids, only: g2le, nxi
@@ -1249,6 +1294,22 @@ contains
            end do
         end do
     endif
+
+    ! If we have hybrid electrons then we need to remove the
+    ! contribution to the conservation terms from the adiabatic
+    ! passing part.
+    if (hzero_passing_electron) then
+        do iglo = g_lo%llim_proc, g_lo%ulim_proc
+           ik = ik_idx(g_lo,iglo)
+           il = il_idx(g_lo,iglo)
+           is = is_idx(g_lo,iglo)
+           if (is_hybrid_electron_species(spec(is)) .and. &
+                aky(ik) /= 0.0 .and. il <= ng2+1) then
+              bz0tmp(:, :, iglo) = 0.0
+           end if
+        end do
+     end if
+
     if(use_le_layout) then    
        call gather (g2le, bz0tmp, ctmp)
        call solfp_ediffuse_le_layout (ctmp)
@@ -1359,6 +1420,22 @@ contains
            end do
         end do
     endif
+
+    ! If we have hybrid electrons then we need to remove the
+    ! contribution to the conservation terms from the adiabatic
+    ! passing part.
+    if (hzero_passing_electron) then
+       do iglo = g_lo%llim_proc, g_lo%ulim_proc
+          ik = ik_idx(g_lo,iglo)
+          il = il_idx(g_lo,iglo)
+          is = is_idx(g_lo,iglo)
+          if (is_hybrid_electron_species(spec(is)) .and. &
+               aky(ik) /= 0.0 .and. il <= ng2+1) then
+             bs0tmp(:, :, iglo) = 0.0
+          end if
+       end do
+    end if
+
     if(use_le_layout) then
        call gather (g2le, bs0tmp, ctmp)
        call solfp_ediffuse_le_layout (ctmp)
@@ -1461,6 +1538,22 @@ contains
            end do
         end do
     endif
+
+    ! If we have hybrid electrons then we need to remove the
+    ! contribution to the conservation terms from the adiabatic
+    ! passing part.
+    if (hzero_passing_electron) then
+       do iglo = g_lo%llim_proc, g_lo%ulim_proc
+          ik = ik_idx(g_lo,iglo)
+          il = il_idx(g_lo,iglo)
+          is = is_idx(g_lo,iglo)
+          if (is_hybrid_electron_species(spec(is)) .and. &
+               aky(ik) /= 0.0 .and. il <= ng2+1) then
+             bw0tmp(:, :, iglo) = 0.0
+          end if
+       end do
+    end if
+
     if(use_le_layout) then    
        call gather (g2le, bw0tmp, ctmp)
        call solfp_ediffuse_le_layout (ctmp)
