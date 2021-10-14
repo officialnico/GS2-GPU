@@ -1041,7 +1041,6 @@ contains
     use fields_arrays, only: phi, bpar, apar, bparnew, aparnew, phinew
     use dist_fn_arrays, only: g, gnew
     use dist_fn, only: get_init_field
-    use species, only: hzero_passing_electron_response_init
     implicit none
     logical, intent (out) :: restarted
     integer, intent(in), optional :: override_ginitopt_switch
@@ -1188,15 +1187,6 @@ contains
        !Should we avoid doing this if restart is true?
        call set_gnew_from_nonadiabatic_dfn
     end if
-
-    ! This looks curious, why is this here now?
-    if (hzero_passing_electron_response_init) then
-        call get_init_field (phinew, aparnew, bparnew)
-        phinew = phi 
-        aparnew = apar
-        bparnew = bpar
-        g = gnew
-    endif 
     
   end subroutine ginit
 
