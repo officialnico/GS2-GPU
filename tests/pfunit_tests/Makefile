@@ -107,7 +107,10 @@ pfunit_tests: check_pfunit_install make_test run_test
 
 check_pfunit_install:
 ifeq ("$(wildcard $(PFUNIT_PREPROCESSOR))","")
-	$(error pFUnit files not found. Make sure pFUnit is installed and PFUNIT_DIR is set to its location)
+	$(error \
+pFUnit files not found. Make sure pFUnit is installed and PFUNIT_DIR is set to its location.\
+Consider running 'make build_pfunit_library' or use 'scripts/build_pfunit' \
+to try to build a copy of pFUnit if you do not have one)
 endif
 
 

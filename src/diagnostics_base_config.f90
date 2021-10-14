@@ -259,7 +259,9 @@ module diagnostics_base_config
     !> Write two point parallel correlation function calculated from the
     !> electric potential as a function of \(k_y\) and parallel separation,
     !> time averaged and calculated along the extended domain every
-    !> [[gs2_diagnostics_knobs:nwrite]] timesteps
+    !> [[gs2_diagnostics_knobs:nwrite]] timesteps once istep > nstep/4.
+    !>
+    !> @warning This diagnostic can have large persistent memory cost.
     logical :: write_correlation_extend = .false.
     !> Write the cross phase between electron density and perpendicular
     !> electron temperature every [[gs2_diagnostics_knobs:nwrite]]
@@ -637,7 +639,7 @@ contains
     implicit none
     class(diagnostics_base_config_type), intent(in out) :: self
     logical :: exist
-    integer :: in_file, iostat
+    integer :: in_file
 
     ! Note: When this routine is in the module where these variables live
     ! we shadow the module level variables here. This is intentional to provide
@@ -757,16 +759,8 @@ contains
     write_zonal_transfer = self%write_zonal_transfer
 
     ! Now read in the main namelist
-    if (self%get_requires_index()) then
-      call get_indexed_namelist_unit(in_file, trim(self%get_name()), self%index)
-      read(in_file, nml = gs2_diagnostics_knobs, iostat = iostat)
-      exist = .true.
-      if (iostat .ne.0) exist = .false.
-      close(unit = in_file, iostat = iostat)
-    else
-      in_file = input_unit_exist(self%get_name(), exist)
-      if (exist) read(in_file, nml = gs2_diagnostics_knobs)
-    endif
+    in_file = input_unit_exist(self%get_name(), exist)
+    if (exist) read(in_file, nml = gs2_diagnostics_knobs)
 
     !!!!!!!!!!!!!!!!!!!!
     ! Non-generated code

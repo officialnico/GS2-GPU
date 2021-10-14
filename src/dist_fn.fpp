@@ -122,6 +122,7 @@ module dist_fn
   real :: wfb, g_exb, g_exbfac, omprimfac, btor_slab, mach
   real :: g_exb_start_time, g_exb_error_limit
   integer :: g_exb_start_timestep
+  logical :: hyper_in_initialisation
   !logical :: dfexist, skexist, nonad_zero
   logical :: dfexist, skexist, nonad_zero, lf_default, lf_decompose, esv, opt_source
   logical :: opt_init_bc !< DEPRECATED
@@ -383,6 +384,9 @@ module dist_fn
      !> @note This used to default to 5.e4
      !> @todo Improve documentation
      real :: gridfac = 1.0
+     !> Determines if we include the hyperviscosity term during the
+     !> initialisation of the response matrix or not.
+     logical :: hyper_in_initialisation = .true.
      !> For debugging only.
      !>_
      !> @todo Improve documentation
@@ -1357,6 +1361,7 @@ contains
     g_exbfac = dist_fn_config%g_exbfac
     gf_lo_integrate = dist_fn_config%gf_lo_integrate
     gridfac = dist_fn_config%gridfac
+    hyper_in_initialisation = dist_fn_config%hyper_in_initialisation
     kfilter = dist_fn_config%kfilter
     lf_decompose = dist_fn_config%lf_decompose
     lf_default = dist_fn_config%lf_default
@@ -3298,9 +3303,15 @@ contains
         'dist_fn::timeadv calculated rhs')
 
     !Add hyper terms (damping)
-    call hyper_diff (gnew, phinew)
-    call debug_message(verb, &
-        'dist_fn::timeadv calculated hypviscosity')
+    if ((istep == 0 .and. hyper_in_initialisation) .or. istep > 0) then
+       !Note we potentially exclude the hyper terms when we calculate the response
+       !data (indicated by istep==0) as these terms are typically not
+       !linearly independent.
+       call hyper_diff (gnew, phinew)
+       call debug_message(verb, &
+            'dist_fn::timeadv calculated hypviscosity')
+    end if
+
     !Add collisions
     if( .not. split_collisions) then
       call vspace_derivatives (gnew, g, g_work, phi, bpar, phinew, bparnew, modep)
@@ -10381,7 +10392,7 @@ contains
     implicit none
     class(dist_fn_config_type), intent(in out) :: self
     logical :: exist
-    integer :: in_file, iostat
+    integer :: in_file
 
     ! Note: When this routine is in the module where these variables live
     ! we shadow the module level variables here. This is intentional to provide
@@ -10389,13 +10400,13 @@ contains
     character(len = 20) :: boundary_option, wfbbc_option
     character(len = 30) :: adiabatic_option
     integer :: g_exb_start_timestep
-    logical :: def_parity, esv, even, gf_lo_integrate, lf_decompose, lf_default, mult_imp, nonad_zero, opt_init_bc, opt_source, test, wfb_cmr, zero_forbid
+    logical :: def_parity, esv, even, gf_lo_integrate, hyper_in_initialisation, lf_decompose, lf_default, mult_imp, nonad_zero, opt_init_bc, opt_source, test, wfb_cmr, zero_forbid
     real :: afilter, apfac, btor_slab, densfac_lin, driftknob, g_exb, g_exb_error_limit, g_exb_start_time, g_exbfac, gridfac, kfilter, mach, omprimfac, phifac_lin, poisfac, qparfac_lin, qprpfac_lin, tparfac_lin
     real :: tpdriftknob, tprpfac_lin, uparfac_lin, wfb
 
     namelist /dist_fn_knobs/ adiabatic_option, afilter, apfac, boundary_option, btor_slab, def_parity, densfac_lin, driftknob, esv, even, g_exb, g_exb_error_limit, g_exb_start_time, g_exb_start_timestep, g_exbfac, &
-         gf_lo_integrate, gridfac, kfilter, lf_decompose, lf_default, mach, mult_imp, nonad_zero, omprimfac, opt_init_bc, opt_source, phifac_lin, poisfac, qparfac_lin, qprpfac_lin, test, tparfac_lin, &
-         tpdriftknob, tprpfac_lin, uparfac_lin, wfb, wfb_cmr, wfbbc_option, zero_forbid
+         gf_lo_integrate, gridfac, hyper_in_initialisation, kfilter, lf_decompose, lf_default, mach, mult_imp, nonad_zero, omprimfac, opt_init_bc, opt_source, phifac_lin, poisfac, qparfac_lin, qprpfac_lin, &
+         test, tparfac_lin, tpdriftknob, tprpfac_lin, uparfac_lin, wfb, wfb_cmr, wfbbc_option, zero_forbid
 
     ! Only proc0 reads from file
     if (.not. proc0) return
@@ -10418,6 +10429,7 @@ contains
     g_exbfac = self%g_exbfac
     gf_lo_integrate = self%gf_lo_integrate
     gridfac = self%gridfac
+    hyper_in_initialisation = self%hyper_in_initialisation
     kfilter = self%kfilter
     lf_decompose = self%lf_decompose
     lf_default = self%lf_default
@@ -10442,16 +10454,8 @@ contains
     zero_forbid = self%zero_forbid
 
     ! Now read in the main namelist
-    if (self%get_requires_index()) then
-       call get_indexed_namelist_unit(in_file, trim(self%get_name()), self%index)
-       read(in_file, nml = dist_fn_knobs, iostat = iostat)
-       exist = .true.
-       if (iostat .ne.0) exist = .false.
-       close(unit = in_file, iostat = iostat)
-    else
-       in_file = input_unit_exist(self%get_name(), exist)
-       if (exist) read(in_file, nml = dist_fn_knobs)
-    endif
+    in_file = input_unit_exist(self%get_name(), exist)
+    if (exist) read(in_file, nml = dist_fn_knobs)
 
     ! Now copy from local variables into type members
     self%adiabatic_option = adiabatic_option
@@ -10471,6 +10475,7 @@ contains
     self%g_exbfac = g_exbfac
     self%gf_lo_integrate = gf_lo_integrate
     self%gridfac = gridfac
+    self%hyper_in_initialisation = hyper_in_initialisation
     self%kfilter = kfilter
     self%lf_decompose = lf_decompose
     self%lf_default = lf_default
@@ -10527,6 +10532,7 @@ contains
     call self%write_key_val("g_exbfac", self%g_exbfac, unit_internal)
     call self%write_key_val("gf_lo_integrate", self%gf_lo_integrate, unit_internal)
     call self%write_key_val("gridfac", self%gridfac, unit_internal)
+    call self%write_key_val("hyper_in_initialisation", self%hyper_in_initialisation, unit_internal)
     call self%write_key_val("kfilter", self%kfilter, unit_internal)
     call self%write_key_val("lf_decompose", self%lf_decompose, unit_internal)
     call self%write_key_val("lf_default", self%lf_default, unit_internal)
@@ -10585,6 +10591,7 @@ contains
     call broadcast(self%g_exbfac)
     call broadcast(self%gf_lo_integrate)
     call broadcast(self%gridfac)
+    call broadcast(self%hyper_in_initialisation)
     call broadcast(self%kfilter)
     call broadcast(self%lf_decompose)
     call broadcast(self%lf_default)
@@ -10636,7 +10643,7 @@ contains
     implicit none
     class(source_config_type), intent(in out) :: self
     logical :: exist
-    integer :: in_file, iostat
+    integer :: in_file
 
     ! Note: When this routine is in the module where these variables live
     ! we shadow the module level variables here. This is intentional to provide
@@ -10658,16 +10665,8 @@ contains
     t0 = self%t0
 
     ! Now read in the main namelist
-    if (self%get_requires_index()) then
-       call get_indexed_namelist_unit(in_file, trim(self%get_name()), self%index)
-       read(in_file, nml = source_knobs, iostat = iostat)
-       exist = .true.
-       if (iostat .ne.0) exist = .false.
-       close(unit = in_file, iostat = iostat)
-    else
-       in_file = input_unit_exist(self%get_name(), exist)
-       if (exist) read(in_file, nml = source_knobs)
-    endif
+    in_file = input_unit_exist(self%get_name(), exist)
+    if (exist) read(in_file, nml = source_knobs)
 
     ! Now copy from local variables into type members
     self%gamma0 = gamma0
@@ -10753,7 +10752,7 @@ contains
     implicit none
     class(dist_fn_species_config_type), intent(in out) :: self
     logical :: exist
-    integer :: in_file, iostat
+    integer :: in_file
 
     ! Note: When this routine is in the module where these variables live
     ! we shadow the module level variables here. This is intentional to provide
@@ -10773,16 +10772,9 @@ contains
     fexpr = self%fexpr
 
     ! Now read in the main namelist
-    if (self%get_requires_index()) then
-       call get_indexed_namelist_unit(in_file, trim(self%get_name()), self%index)
-       read(in_file, nml = dist_fn_species_knobs, iostat = iostat)
-       exist = .true.
-       if (iostat .ne.0) exist = .false.
-       close(unit = in_file, iostat = iostat)
-    else
-       in_file = input_unit_exist(self%get_name(), exist)
-       if (exist) read(in_file, nml = dist_fn_species_knobs)
-    endif
+    call get_indexed_namelist_unit(in_file, trim(self%get_name()), self%index, exist)
+    if (exist) read(in_file, nml = dist_fn_species_knobs)
+    close(unit = in_file)
 
     ! Now copy from local variables into type members
     self%bakdif = bakdif

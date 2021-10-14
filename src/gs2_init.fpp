@@ -209,9 +209,10 @@ contains
     use fields, only: force_maxwell_reinit
     use fields, only: set_init_fields
     use file_utils, only: error_unit
-    use init_g, only: ginit
+    use init_g, only: ginit, init_vnmult
     use init_g, only: ginitopt_restart_many
     use run_parameters, only: fphi, fapar, fbpar
+    use collisions, only: vnmult
     implicit none
     type (init_type), intent(in) :: current
     logical :: restarted
@@ -229,8 +230,10 @@ contains
        if (current%initval_ov%in_memory) then
           g = current%initval_ov%g
           gnew = g
+          vnmult = current%initval_ov%vnmult
        else
           call ginit(restarted, ginitopt_restart_many)
+          call init_vnmult(vnmult)
        end if
     end if
 
@@ -310,7 +313,7 @@ contains
     implicit none
     class(init_config_type), intent(in out) :: self
     logical :: exist
-    integer :: in_file, iostat
+    integer :: in_file
 
     ! Note: When this routine is in the module where these variables live
     ! we shadow the module level variables here. This is intentional to provide
@@ -326,16 +329,8 @@ contains
     in_memory = self%in_memory
 
     ! Now read in the main namelist
-    if (self%get_requires_index()) then
-       call get_indexed_namelist_unit(in_file, trim(self%get_name()), self%index)
-       read(in_file, nml = init_knobs, iostat = iostat)
-       exist = .true.
-       if (iostat .ne.0) exist = .false.
-       close(unit = in_file, iostat = iostat)
-    else
-       in_file = input_unit_exist(self%get_name(), exist)
-       if (exist) read(in_file, nml = init_knobs)
-    endif
+    in_file = input_unit_exist(self%get_name(), exist)
+    if (exist) read(in_file, nml = init_knobs)
 
     ! Now copy from local variables into type members
     self%in_memory = in_memory

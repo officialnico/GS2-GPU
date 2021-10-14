@@ -1316,7 +1316,7 @@ contains
 
     if(initval_ov%in_memory)then
       initval_ov%g=gnew
-
+      initval_ov%vnmult = vnmult
       if (allocated(initval_ov%gexp_1)) initval_ov%gexp_1 = gexp_1
       if (allocated(initval_ov%gexp_2)) initval_ov%gexp_2 = gexp_2
       if (allocated(initval_ov%gexp_3)) initval_ov%gexp_3 = gexp_3

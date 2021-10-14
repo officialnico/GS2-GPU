@@ -1,0 +1,6 @@
+&knobs
+  nstep = 0
+/
+
+!include invalid_input_name.in
+

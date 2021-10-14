@@ -80,7 +80,7 @@ module collisions
   integer, parameter :: ediff_scheme_default = 1
   integer, parameter :: ediff_scheme_old = 2
 
-  real, dimension (2) :: vnmult = 0.0
+  real, dimension (2) :: vnmult = -1.0
   integer :: ncheck
   logical :: vary_vnew
   real :: vnfac, vnslow
@@ -571,7 +571,6 @@ contains
     use kt_grids, only: naky, ntheta0
     use theta_grid, only: ntgrid
     use dist_fn_arrays, only: c_rate
-
     implicit none
 
     real, dimension (negrid) :: hee
@@ -589,7 +588,7 @@ contains
 
     !<DD>This (potentially large) array should only be needed if 
     !write_heating (gs2_diagnostics) is true.
-    if (.not. allocated(c_rate)) then
+    if (heating .and. .not. allocated(c_rate)) then
        allocate (c_rate(-ntgrid:ntgrid, ntheta0, naky, nspec, 3))
        c_rate = 0.
     end if
@@ -643,10 +642,10 @@ contains
   !! z0, w0, s0 (z0le, w0le, s0le if use_le_layout chosen in the input file defined)
   subroutine init_lorentz_conserve
     use gs2_layouts, only: g_lo, ie_idx, is_idx, ik_idx, il_idx, it_idx
-    use species, only: nspec, spec, is_electron_species
-    use kt_grids, only: kperp2, naky, ntheta0
+    use species, only: nspec, spec, is_electron_species, hzero_passing_electron, is_hybrid_electron_species
+    use kt_grids, only: kperp2, naky, ntheta0, aky
     use theta_grid, only: ntgrid, bmag
-    use le_grids, only: energy => energy_maxw, al, integrate_moment, negrid, forbid
+    use le_grids, only: energy => energy_maxw, al, integrate_moment, negrid, forbid, ng2
     use gs2_time, only: code_dt
     use dist_fn_arrays, only: aj0, aj1, vpa
     use run_parameters, only: tunits
@@ -741,7 +740,22 @@ contains
         end do
     endif
 
-    if(use_le_layout) then    
+    ! If we have hybrid electrons then we need to remove the
+    ! contribution to the conservation terms from the adiabatic
+    ! passing part.
+    if (hzero_passing_electron) then
+        do iglo = g_lo%llim_proc, g_lo%ulim_proc
+           ik = ik_idx(g_lo,iglo)
+           il = il_idx(g_lo,iglo)
+           is = is_idx(g_lo,iglo)
+           if (is_hybrid_electron_species(spec(is)) .and. &
+                aky(ik) /= 0.0 .and. il <= ng2+1) then
+              z0tmp(:, :, iglo) = 0.0
+           end if
+        end do
+     end if
+
+    if(use_le_layout) then
        call gather (g2le, z0tmp, ctmp)
        call solfp_lorentz (ctmp)
        call scatter (g2le, ctmp, z0tmp)   ! z0 is redefined below
@@ -862,7 +876,22 @@ contains
         end do
     endif    
 
-    if(use_le_layout) then    
+    ! If we have hybrid electrons then we need to remove the
+    ! contribution to the conservation terms from the adiabatic
+    ! passing part.
+    if (hzero_passing_electron) then
+        do iglo = g_lo%llim_proc, g_lo%ulim_proc
+           ik = ik_idx(g_lo,iglo)
+           il = il_idx(g_lo,iglo)
+           is = is_idx(g_lo,iglo)
+           if (is_hybrid_electron_species(spec(is)) .and. &
+                aky(ik) /= 0.0 .and. il <= ng2+1) then
+              s0tmp(:, :, iglo) = 0.0
+           end if
+        end do
+     end if
+
+     if(use_le_layout) then
        call gather (g2le, s0tmp, ctmp)
        call solfp_lorentz (ctmp)
        call scatter (g2le, ctmp, s0tmp)   ! s0
@@ -978,6 +1007,21 @@ contains
            end do
         end do
     endif
+
+    ! If we have hybrid electrons then we need to remove the
+    ! contribution to the conservation terms from the adiabatic
+    ! passing part.
+    if (hzero_passing_electron) then
+       do iglo = g_lo%llim_proc, g_lo%ulim_proc
+          ik = ik_idx(g_lo,iglo)
+          il = il_idx(g_lo,iglo)
+          is = is_idx(g_lo,iglo)
+          if (is_hybrid_electron_species(spec(is)) .and. &
+               aky(ik) /= 0.0 .and. il <= ng2+1) then
+             w0tmp(:, :, iglo) = 0.0
+          end if
+       end do
+    end if
 
     if(use_le_layout) then    
        call gather (g2le, w0tmp, ctmp)
@@ -1147,11 +1191,11 @@ contains
   !! bz0, bw0, bs0
   subroutine init_diffuse_conserve
     use gs2_layouts, only: g_lo, ie_idx, is_idx, ik_idx, il_idx, it_idx
-    use species, only: nspec, spec
-    use kt_grids, only: naky, ntheta0, kperp2
+    use species, only: nspec, spec, is_electron_species, hzero_passing_electron, is_hybrid_electron_species
+    use kt_grids, only: naky, ntheta0, kperp2, aky
     use theta_grid, only: ntgrid, bmag
     use le_grids, only: energy => energy_maxw, al, integrate_moment, negrid
-    use le_grids, only: forbid
+    use le_grids, only: forbid, ng2
     use gs2_time, only: code_dt
     use dist_fn_arrays, only: aj0, aj1, vpa
     use le_grids, only: g2le, nxi
@@ -1249,6 +1293,22 @@ contains
            end do
         end do
     endif
+
+    ! If we have hybrid electrons then we need to remove the
+    ! contribution to the conservation terms from the adiabatic
+    ! passing part.
+    if (hzero_passing_electron) then
+        do iglo = g_lo%llim_proc, g_lo%ulim_proc
+           ik = ik_idx(g_lo,iglo)
+           il = il_idx(g_lo,iglo)
+           is = is_idx(g_lo,iglo)
+           if (is_hybrid_electron_species(spec(is)) .and. &
+                aky(ik) /= 0.0 .and. il <= ng2+1) then
+              bz0tmp(:, :, iglo) = 0.0
+           end if
+        end do
+     end if
+
     if(use_le_layout) then    
        call gather (g2le, bz0tmp, ctmp)
        call solfp_ediffuse_le_layout (ctmp)
@@ -1359,6 +1419,22 @@ contains
            end do
         end do
     endif
+
+    ! If we have hybrid electrons then we need to remove the
+    ! contribution to the conservation terms from the adiabatic
+    ! passing part.
+    if (hzero_passing_electron) then
+       do iglo = g_lo%llim_proc, g_lo%ulim_proc
+          ik = ik_idx(g_lo,iglo)
+          il = il_idx(g_lo,iglo)
+          is = is_idx(g_lo,iglo)
+          if (is_hybrid_electron_species(spec(is)) .and. &
+               aky(ik) /= 0.0 .and. il <= ng2+1) then
+             bs0tmp(:, :, iglo) = 0.0
+          end if
+       end do
+    end if
+
     if(use_le_layout) then
        call gather (g2le, bs0tmp, ctmp)
        call solfp_ediffuse_le_layout (ctmp)
@@ -1461,6 +1537,22 @@ contains
            end do
         end do
     endif
+
+    ! If we have hybrid electrons then we need to remove the
+    ! contribution to the conservation terms from the adiabatic
+    ! passing part.
+    if (hzero_passing_electron) then
+       do iglo = g_lo%llim_proc, g_lo%ulim_proc
+          ik = ik_idx(g_lo,iglo)
+          il = il_idx(g_lo,iglo)
+          is = is_idx(g_lo,iglo)
+          if (is_hybrid_electron_species(spec(is)) .and. &
+               aky(ik) /= 0.0 .and. il <= ng2+1) then
+             bw0tmp(:, :, iglo) = 0.0
+          end if
+       end do
+    end if
+
     if(use_le_layout) then    
        call gather (g2le, bw0tmp, ctmp)
        call solfp_ediffuse_le_layout (ctmp)
@@ -1617,7 +1709,7 @@ contains
     use le_grids, only: negrid, energy => energy_maxw, w => w_maxw
     use kt_grids, only: naky, ntheta0, kperp2
     use theta_grid, only: ntgrid
-    use run_parameters, only: zeff, tunits
+    use run_parameters, only: zeff, tunits, vnm_init
     use constants
     use spfunc, only: erf => erf_ext
     real, dimension (:), intent (out) :: hee
@@ -1625,8 +1717,13 @@ contains
     integer :: ik, ie, is, it, ig
     real :: k4max
     real :: vl, vr, dv2l, dv2r
-!    real :: erf ! this is needed for PGI: RN
 
+    ! Initialise vnmult from the values in run_parameters. This is
+    ! either what has been restored from the restart file  if
+    ! `delt_option /= 'check_restart'` or 1 otherwise.
+    if (all(vnmult == -1)) then
+       vnmult = vnm_init
+    end if
 
     do ie = 1, negrid
        hee(ie) = exp(-energy(ie))/sqrt(pi*energy(ie)) &
@@ -4418,9 +4515,17 @@ contains
   !! when timestep changes.
   subroutine finish_collisions
     use dist_fn_arrays, only: c_rate
+    use run_parameters, only: vnm_init
     implicit none
 
-    vnmult = 0.0
+    ! This is a bit of a hack to make sure that we get the correct vnmult
+    ! value during a timestep change. Whilst we do restore vnmult from the
+    ! restart file, this unfortunately doesn't happen until after we've initialised
+    ! the collision operator so we choose to store this in vnm_init, which is
+    ! where we get our initial value of vnmult from anyway.
+    vnm_init = vnmult
+    vnmult = -1.0
+
     accelerated_x = .false. ; accelerated_v = .false.
     ediffinit = .false. ; lzinit = .false. ; leinit = .false.
     initialized = .false.  
@@ -4491,7 +4596,7 @@ contains
     implicit none
     class(collisions_config_type), intent(in out) :: self
     logical :: exist
-    integer :: in_file, iostat
+    integer :: in_file
 
     ! Note: When this routine is in the module where these variables live
     ! we shadow the module level variables here. This is intentional to provide
@@ -4540,16 +4645,8 @@ contains
     vpar_zero_mean = self%vpar_zero_mean
 
     ! Now read in the main namelist
-    if (self%get_requires_index()) then
-       call get_indexed_namelist_unit(in_file, trim(self%get_name()), self%index)
-       read(in_file, nml = collisions_knobs, iostat = iostat)
-       exist = .true.
-       if (iostat .ne.0) exist = .false.
-       close(unit = in_file, iostat = iostat)
-    else
-       in_file = input_unit_exist(self%get_name(), exist)
-       if (exist) read(in_file, nml = collisions_knobs)
-    endif
+    in_file = input_unit_exist(self%get_name(), exist)
+    if (exist) read(in_file, nml = collisions_knobs)
 
     ! Now copy from local variables into type members
     self%adjust = adjust
