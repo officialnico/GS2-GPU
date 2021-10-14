@@ -1187,6 +1187,10 @@ contains
        !Should we avoid doing this if restart is true?
        call set_gnew_from_nonadiabatic_dfn
     else
+       ! If not restarting and have a hybrid electron species then
+       ! issue a warning (once only) as recommend initialising the
+       ! non-adiabatic dfn directly in this situation as this respects
+       ! the hybrid electron h = 0 condition.
        if ((.not. restarted) .and. has_hybrid_electron_species(spec) &
             (.not. have_warned_about_hybrid) .and. proc0) then
           have_warned_about_hybrid = .true.
