@@ -1192,7 +1192,7 @@ contains
        ! non-adiabatic dfn directly in this situation as this respects
        ! the hybrid electron h = 0 condition.
        if ((.not. restarted) .and. has_hybrid_electron_species(spec) &
-            (.not. have_warned_about_hybrid) .and. proc0) then
+            .and. (.not. have_warned_about_hybrid) .and. proc0) then
           have_warned_about_hybrid = .true.
           write(*,'("Warning : Running with a hybrid electron species but initial_condition_is_nonadiabatic_dfn is false.")')
        end if
