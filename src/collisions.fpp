@@ -642,14 +642,14 @@ contains
   !! z0, w0, s0 (z0le, w0le, s0le if use_le_layout chosen in the input file defined)
   subroutine init_lorentz_conserve
     use gs2_layouts, only: g_lo, ie_idx, is_idx, ik_idx, il_idx, it_idx
-    use species, only: nspec, spec, is_electron_species, has_hybrid_electron_species
+    use species, only: nspec, spec, is_electron_species
     use kt_grids, only: kperp2, naky, ntheta0
     use theta_grid, only: ntgrid, bmag
     use le_grids, only: energy => energy_maxw, al, integrate_moment, negrid, forbid
     use gs2_time, only: code_dt
     use dist_fn_arrays, only: aj0, aj1, vpa
     use run_parameters, only: tunits
-    use le_grids, only: g2le, nxi, is_passing_hybrid_electron
+    use le_grids, only: g2le, nxi
     use gs2_layouts, only: le_lo
     use redistribute, only: gather, scatter
 
@@ -740,17 +740,7 @@ contains
         end do
     endif
 
-    ! If we have hybrid electrons then we need to remove the
-    ! contribution to the conservation terms from the adiabatic
-    ! passing part.
-    if (has_hybrid_electron_species(spec)) then
-        do iglo = g_lo%llim_proc, g_lo%ulim_proc
-           ik = ik_idx(g_lo,iglo)
-           il = il_idx(g_lo,iglo)
-           is = is_idx(g_lo,iglo)
-           if (is_passing_hybrid_electron(is, ik, il)) z0tmp(:, :, iglo) = 0.0
-        end do
-     end if
+    call zero_out_passing_hybrid_electrons(z0tmp)
 
     if(use_le_layout) then
        call gather (g2le, z0tmp, ctmp)
@@ -873,17 +863,7 @@ contains
         end do
     endif    
 
-    ! If we have hybrid electrons then we need to remove the
-    ! contribution to the conservation terms from the adiabatic
-    ! passing part.
-    if (has_hybrid_electron_species(spec)) then
-        do iglo = g_lo%llim_proc, g_lo%ulim_proc
-           ik = ik_idx(g_lo,iglo)
-           il = il_idx(g_lo,iglo)
-           is = is_idx(g_lo,iglo)
-           if (is_passing_hybrid_electron(is, ik, il)) s0tmp(:, :, iglo) = 0.0
-        end do
-     end if
+    call zero_out_passing_hybrid_electrons(s0tmp)
 
      if(use_le_layout) then
        call gather (g2le, s0tmp, ctmp)
@@ -1000,21 +980,11 @@ contains
               end if
            end do
         end do
-    endif
+     endif
 
-    ! If we have hybrid electrons then we need to remove the
-    ! contribution to the conservation terms from the adiabatic
-    ! passing part.
-    if (has_hybrid_electron_species(spec)) then
-       do iglo = g_lo%llim_proc, g_lo%ulim_proc
-          ik = ik_idx(g_lo,iglo)
-          il = il_idx(g_lo,iglo)
-          is = is_idx(g_lo,iglo)
-           if (is_passing_hybrid_electron(is, ik, il)) w0tmp(:, :, iglo) = 0.0
-       end do
-    end if
+    call zero_out_passing_hybrid_electrons(w0tmp)
 
-    if(use_le_layout) then    
+    if(use_le_layout) then
        call gather (g2le, w0tmp, ctmp)
        call solfp_lorentz (ctmp)
        call scatter (g2le, ctmp, w0tmp)
@@ -1182,13 +1152,13 @@ contains
   !! bz0, bw0, bs0
   subroutine init_diffuse_conserve
     use gs2_layouts, only: g_lo, ie_idx, is_idx, ik_idx, il_idx, it_idx
-    use species, only: nspec, spec, has_hybrid_electron_species
+    use species, only: nspec, spec
     use kt_grids, only: naky, ntheta0, kperp2
     use theta_grid, only: ntgrid, bmag
     use le_grids, only: energy => energy_maxw, al, integrate_moment, negrid, forbid
     use gs2_time, only: code_dt
     use dist_fn_arrays, only: aj0, aj1, vpa
-    use le_grids, only: g2le, nxi, is_passing_hybrid_electron
+    use le_grids, only: g2le, nxi
     use gs2_layouts, only: le_lo
     use redistribute, only: gather, scatter
 
@@ -1284,17 +1254,7 @@ contains
         end do
     endif
 
-    ! If we have hybrid electrons then we need to remove the
-    ! contribution to the conservation terms from the adiabatic
-    ! passing part.
-    if (has_hybrid_electron_species(spec)) then
-        do iglo = g_lo%llim_proc, g_lo%ulim_proc
-           ik = ik_idx(g_lo,iglo)
-           il = il_idx(g_lo,iglo)
-           is = is_idx(g_lo,iglo)
-           if (is_passing_hybrid_electron(is, ik, il)) bz0tmp(:, :, iglo) = 0.0
-        end do
-     end if
+    call zero_out_passing_hybrid_electrons(bz0tmp)
 
     if(use_le_layout) then    
        call gather (g2le, bz0tmp, ctmp)
@@ -1407,17 +1367,7 @@ contains
         end do
     endif
 
-    ! If we have hybrid electrons then we need to remove the
-    ! contribution to the conservation terms from the adiabatic
-    ! passing part.
-    if (has_hybrid_electron_species(spec)) then
-       do iglo = g_lo%llim_proc, g_lo%ulim_proc
-          ik = ik_idx(g_lo,iglo)
-          il = il_idx(g_lo,iglo)
-          is = is_idx(g_lo,iglo)
-          if (is_passing_hybrid_electron(is, ik, il)) bs0tmp(:, :, iglo) = 0.0
-       end do
-    end if
+    call zero_out_passing_hybrid_electrons(bs0tmp)
 
     if(use_le_layout) then
        call gather (g2le, bs0tmp, ctmp)
@@ -1522,17 +1472,7 @@ contains
         end do
     endif
 
-    ! If we have hybrid electrons then we need to remove the
-    ! contribution to the conservation terms from the adiabatic
-    ! passing part.
-    if (has_hybrid_electron_species(spec)) then
-       do iglo = g_lo%llim_proc, g_lo%ulim_proc
-          ik = ik_idx(g_lo,iglo)
-          il = il_idx(g_lo,iglo)
-          is = is_idx(g_lo,iglo)
-          if (is_passing_hybrid_electron(is, ik, il)) bw0tmp(:, :, iglo) = 0.0
-       end do
-    end if
+    call zero_out_passing_hybrid_electrons(bw0tmp)
 
     if(use_le_layout) then    
        call gather (g2le, bw0tmp, ctmp)
@@ -1683,6 +1623,26 @@ contains
     end if
 
   end subroutine init_diffuse_conserve
+  
+  !> If we have hybrid electrons then we need to remove the
+  !> contribution to the conservation terms from the adiabatic
+  !> passing part. This routine does this for us.
+  subroutine zero_out_passing_hybrid_electrons(arr)
+    use gs2_layouts, only: g_lo, ik_idx, il_idx, is_idx
+    use species, only: has_hybrid_electron_species, spec
+    use le_grids, only: is_passing_hybrid_electron
+    implicit none
+    complex, dimension(:, :, g_lo%llim_proc:), intent(in out) :: arr
+    integer :: iglo, is, ik, il
+    if (has_hybrid_electron_species(spec)) then
+       do iglo = g_lo%llim_proc, g_lo%ulim_proc
+          ik = ik_idx(g_lo,iglo)
+          il = il_idx(g_lo,iglo)
+          is = is_idx(g_lo,iglo)
+          if (is_passing_hybrid_electron(is, ik, il)) arr(:, :, iglo) = 0.0
+       end do
+    end if
+  end subroutine zero_out_passing_hybrid_electrons
 
   !> FIXME : Add documentation
   subroutine init_vnew (hee)
