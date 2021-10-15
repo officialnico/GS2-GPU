@@ -188,10 +188,10 @@ contains
     write(6,*) "-----"
   end subroutine check_g_bouncepoints
 
-  !> Assign g a value corresponding to h (g_wesson of CMR's note in
-  !> g_adjust) of h = 0 in order to be consistent with g_adjust. The
-  !> correct function call to set h = 0 is call set_h_zero(g, phi,
-  !> bpar, -fphi, -fbpar, iglo)
+  !> Assign $g$ a value corresponding to $h$ (g_wesson of CMR's note
+  !> in [[dist_fn_arrays:g_adjust]]) of $h = 0$ in order to be
+  !> consistent with g_adjust. The correct function call to set h = 0
+  !> is call set_h_zero(g, phi, bpar, -fphi, -fbpar, iglo)
   !>
   !> @note This looks like the g_adjust loop kernel, we might be able
   !> to combine these in some way to avoid duplication.
