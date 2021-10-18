@@ -5102,34 +5102,38 @@ contains
 
 ! wfb
           if ( (nlambda > ng2 .and. il == ng2+1) .and. (.not. trapped_wfb) .and. (.not. passing_wfb) ) then
-             is = is_idx(g_lo,iglo)
-             ie = ie_idx(g_lo,iglo)
-!CMR, 29/8/2014:
-!(1) compute adjl, adjr: the corrections in mapping from g_gs2 to g_wesson
-!                     at the extreme left and right of the supercell
-!(2) dadj=adjl-adjr then used to apply the self-periodic bc to g_wesson
-!    (was previously applied to g)
-!      
-             vperp2left = bmag(-ntgrid)*al(il)*energy(ie,is)
-             vperp2right = bmag(ntgrid)*al(il)*energy(ie,is)
-             itl=get_leftmost_it(it,ik)
-             itr=get_rightmost_it(it,ik)
-             argl = spec(is)%bess_fac*spec(is)%smz*sqrt(energy(ie,is)*al(il)/bmag(-ntgrid)*kperp2(-ntgrid,itl,ik))
-             argr = spec(is)%bess_fac*spec(is)%smz*sqrt(energy(ie,is)*al(il)/bmag(ntgrid)*kperp2(ntgrid,itr,ik))
-             aj0l = j0(argl)
-             aj0r = j0(argr)
-             aj1l = j1(argl)
-             aj1r = j1(argr)
+             if (nonad_zero) then
+                is = is_idx(g_lo,iglo)
+                ie = ie_idx(g_lo,iglo)
+                !CMR, 29/8/2014:
+                !(1) compute adjl, adjr: the corrections in mapping from g_gs2 to g_wesson
+                !                     at the extreme left and right of the supercell
+                !(2) dadj=adjl-adjr then used to apply the self-periodic bc to g_wesson
+                !    (was previously applied to g)
+                !
+                vperp2left = bmag(-ntgrid)*al(il)*energy(ie,is)
+                vperp2right = bmag(ntgrid)*al(il)*energy(ie,is)
+                itl=get_leftmost_it(it,ik)
+                itr=get_rightmost_it(it,ik)
+                argl = spec(is)%bess_fac*spec(is)%smz*sqrt(energy(ie,is)*al(il)/bmag(-ntgrid)*kperp2(-ntgrid,itl,ik))
+                argr = spec(is)%bess_fac*spec(is)%smz*sqrt(energy(ie,is)*al(il)/bmag(ntgrid)*kperp2(ntgrid,itr,ik))
+                aj0l = j0(argl)
+                aj0r = j0(argr)
+                aj1l = j1(argl)
+                aj1r = j1(argr)
 
-             adjl = 2.0*vperp2left*aj1l &
-              *bparnew(-ntgrid,itl,ik)*fbpar &
-              + spec(is)%zt*phinew(-ntgrid,itl,ik)*aj0l &
-              *nonmaxw_corr(ie,is)*fphi
-             adjr = 2.0*vperp2right*aj1r &
-              *bparnew(ntgrid,itr,ik)*fbpar &
-              + spec(is)%zt*phinew(ntgrid,itr,ik)*aj0r &
-              *nonmaxw_corr(ie,is)*fphi
-             dadj = adjl-adjr
+                adjl = 2.0*vperp2left*aj1l &
+                     *bparnew(-ntgrid,itl,ik)*fbpar &
+                     + spec(is)%zt*phinew(-ntgrid,itl,ik)*aj0l &
+                     *nonmaxw_corr(ie,is)*fphi
+                adjr = 2.0*vperp2right*aj1r &
+                     *bparnew(ntgrid,itr,ik)*fbpar &
+                     + spec(is)%zt*phinew(ntgrid,itr,ik)*aj0r &
+                     *nonmaxw_corr(ie,is)*fphi
+                dadj = adjl-adjr
+             else
+                dadj = 0.0
+             end if
 
              if (save_h(1, iglo)) then
 !CMR, 7/8/2014:
