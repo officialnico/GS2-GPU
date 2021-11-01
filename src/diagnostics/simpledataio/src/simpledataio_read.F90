@@ -1371,7 +1371,7 @@ contains
     status =  nf90_get_var(fileid, varid+1, &
          temp_storage(:), start=int(starts), count=int(counts))
 
-    val = cmplx( temp_storage(1), temp_storage(2))
+    val = cmplx( temp_storage(1), temp_storage(2), kind = kind(val))
 
     if (.not. status .eq. 0) write (*,*) 'Error reading variable: ', &
          variable_name, ', ',  nf90_strerror(status), 'starts=', starts, 'counts=', counts
@@ -1416,7 +1416,7 @@ contains
     status =  nf90_get_var(fileid, varid+1, &
          temp_storage(:, offsets(2):), start=int(starts), count=int(counts))
 
-    val = cmplx( temp_storage(1, :), temp_storage(2, :))
+    val = cmplx( temp_storage(1, :), temp_storage(2, :), kind = kind(val))
 
     if (.not. status .eq. 0) write (*,*) 'Error reading variable: ', &
          variable_name, ', ',  nf90_strerror(status), 'starts=', starts, 'counts=', counts
@@ -1461,7 +1461,7 @@ contains
     status =  nf90_get_var(fileid, varid+1, &
          temp_storage(:, offsets(2):, offsets(3):), start=int(starts), count=int(counts))
 
-    val = cmplx( temp_storage(1, :, :), temp_storage(2, :, :))
+    val = cmplx( temp_storage(1, :, :), temp_storage(2, :, :), kind = kind(val))
 
     if (.not. status .eq. 0) write (*,*) 'Error reading variable: ', &
          variable_name, ', ',  nf90_strerror(status), 'starts=', starts, 'counts=', counts
@@ -1506,7 +1506,7 @@ contains
     status =  nf90_get_var(fileid, varid+1, &
          temp_storage(:, offsets(2):, offsets(3):, offsets(4):), start=int(starts), count=int(counts))
 
-    val = cmplx( temp_storage(1, :, :, :), temp_storage(2, :, :, :))
+    val = cmplx( temp_storage(1, :, :, :), temp_storage(2, :, :, :), kind = kind(val))
 
     if (.not. status .eq. 0) write (*,*) 'Error reading variable: ', &
          variable_name, ', ',  nf90_strerror(status), 'starts=', starts, 'counts=', counts
@@ -1551,7 +1551,7 @@ contains
     status =  nf90_get_var(fileid, varid+1, &
          temp_storage(:, offsets(2):, offsets(3):, offsets(4):, offsets(5):), start=int(starts), count=int(counts))
 
-    val = cmplx( temp_storage(1, :, :, :, :), temp_storage(2, :, :, :, :))
+    val = cmplx( temp_storage(1, :, :, :, :), temp_storage(2, :, :, :, :), kind = kind(val))
 
     if (.not. status .eq. 0) write (*,*) 'Error reading variable: ', &
          variable_name, ', ',  nf90_strerror(status), 'starts=', starts, 'counts=', counts
@@ -1596,7 +1596,7 @@ contains
     status =  nf90_get_var(fileid, varid+1, &
          temp_storage(:, offsets(2):, offsets(3):, offsets(4):, offsets(5):, offsets(6):), start=int(starts), count=int(counts))
 
-    val = cmplx( temp_storage(1, :, :, :, :, :), temp_storage(2, :, :, :, :, :))
+    val = cmplx( temp_storage(1, :, :, :, :, :), temp_storage(2, :, :, :, :, :), kind = kind(val))
 
     if (.not. status .eq. 0) write (*,*) 'Error reading variable: ', &
          variable_name, ', ',  nf90_strerror(status), 'starts=', starts, 'counts=', counts
@@ -1641,7 +1641,7 @@ contains
     status =  nf90_get_var(fileid, varid+1, &
          temp_storage(:, offsets(2):, offsets(3):, offsets(4):, offsets(5):, offsets(6):, offsets(7):), start=int(starts), count=int(counts))
 
-    val = cmplx( temp_storage(1, :, :, :, :, :, :), temp_storage(2, :, :, :, :, :, :))
+    val = cmplx( temp_storage(1, :, :, :, :, :, :), temp_storage(2, :, :, :, :, :, :), kind = kind(val))
 
     if (.not. status .eq. 0) write (*,*) 'Error reading variable: ', &
          variable_name, ', ',  nf90_strerror(status), 'starts=', starts, 'counts=', counts
@@ -1686,7 +1686,7 @@ contains
     status =  nf90_get_var(fileid, varid+1, &
          temp_storage(:), start=int(starts), count=int(counts))
 
-    val = cmplx( temp_storage(1), temp_storage(2))
+    val = cmplx( temp_storage(1), temp_storage(2), kind = kind(val))
 
     if (.not. status .eq. 0) write (*,*) 'Error reading variable: ', &
          variable_name, ', ',  nf90_strerror(status), 'starts=', starts, 'counts=', counts
@@ -1731,7 +1731,7 @@ contains
     status =  nf90_get_var(fileid, varid+1, &
          temp_storage(:, offsets(2):), start=int(starts), count=int(counts))
 
-    val = cmplx( temp_storage(1, :), temp_storage(2, :))
+    val = cmplx( temp_storage(1, :), temp_storage(2, :), kind = kind(val))
 
     if (.not. status .eq. 0) write (*,*) 'Error reading variable: ', &
          variable_name, ', ',  nf90_strerror(status), 'starts=', starts, 'counts=', counts
@@ -1776,7 +1776,7 @@ contains
     status =  nf90_get_var(fileid, varid+1, &
          temp_storage(:, offsets(2):, offsets(3):), start=int(starts), count=int(counts))
 
-    val = cmplx( temp_storage(1, :, :), temp_storage(2, :, :))
+    val = cmplx( temp_storage(1, :, :), temp_storage(2, :, :), kind = kind(val))
 
     if (.not. status .eq. 0) write (*,*) 'Error reading variable: ', &
          variable_name, ', ',  nf90_strerror(status), 'starts=', starts, 'counts=', counts
@@ -1821,7 +1821,7 @@ contains
     status =  nf90_get_var(fileid, varid+1, &
          temp_storage(:, offsets(2):, offsets(3):, offsets(4):), start=int(starts), count=int(counts))
 
-    val = cmplx( temp_storage(1, :, :, :), temp_storage(2, :, :, :))
+    val = cmplx( temp_storage(1, :, :, :), temp_storage(2, :, :, :), kind = kind(val))
 
     if (.not. status .eq. 0) write (*,*) 'Error reading variable: ', &
          variable_name, ', ',  nf90_strerror(status), 'starts=', starts, 'counts=', counts
@@ -1866,7 +1866,7 @@ contains
     status =  nf90_get_var(fileid, varid+1, &
          temp_storage(:, offsets(2):, offsets(3):, offsets(4):, offsets(5):), start=int(starts), count=int(counts))
 
-    val = cmplx( temp_storage(1, :, :, :, :), temp_storage(2, :, :, :, :))
+    val = cmplx( temp_storage(1, :, :, :, :), temp_storage(2, :, :, :, :), kind = kind(val))
 
     if (.not. status .eq. 0) write (*,*) 'Error reading variable: ', &
          variable_name, ', ',  nf90_strerror(status), 'starts=', starts, 'counts=', counts
@@ -1911,7 +1911,7 @@ contains
     status =  nf90_get_var(fileid, varid+1, &
          temp_storage(:, offsets(2):, offsets(3):, offsets(4):, offsets(5):, offsets(6):), start=int(starts), count=int(counts))
 
-    val = cmplx( temp_storage(1, :, :, :, :, :), temp_storage(2, :, :, :, :, :))
+    val = cmplx( temp_storage(1, :, :, :, :, :), temp_storage(2, :, :, :, :, :), kind = kind(val))
 
     if (.not. status .eq. 0) write (*,*) 'Error reading variable: ', &
          variable_name, ', ',  nf90_strerror(status), 'starts=', starts, 'counts=', counts
@@ -1956,7 +1956,7 @@ contains
     status =  nf90_get_var(fileid, varid+1, &
          temp_storage(:, offsets(2):, offsets(3):, offsets(4):, offsets(5):, offsets(6):, offsets(7):), start=int(starts), count=int(counts))
 
-    val = cmplx( temp_storage(1, :, :, :, :, :, :), temp_storage(2, :, :, :, :, :, :))
+    val = cmplx( temp_storage(1, :, :, :, :, :, :), temp_storage(2, :, :, :, :, :, :), kind = kind(val))
 
     if (.not. status .eq. 0) write (*,*) 'Error reading variable: ', &
          variable_name, ', ',  nf90_strerror(status), 'starts=', starts, 'counts=', counts
@@ -2918,7 +2918,7 @@ contains
     status =  nf90_get_var(fileid, varid+1, &
          temp_storage, start=int(starts), count=int(counts))
 
-    val = cmplx( temp_storage(1), temp_storage(2))
+    val = cmplx( temp_storage(1), temp_storage(2), kind = kind(val))
 
     if (.not. status .eq. 0) write (*,*) 'Error reading variable: ', &
          variable_name, ', ',  nf90_strerror(status), 'starts=', starts, 'counts=', counts
@@ -2952,7 +2952,7 @@ contains
     status =  nf90_get_var(fileid, varid+1, &
          temp_storage, start=int(starts), count=int(counts))
 
-    val = cmplx( temp_storage(1, :), temp_storage(2, :))
+    val = cmplx( temp_storage(1, :), temp_storage(2, :), kind = kind(val))
 
     if (.not. status .eq. 0) write (*,*) 'Error reading variable: ', &
          variable_name, ', ',  nf90_strerror(status), 'starts=', starts, 'counts=', counts
@@ -2986,7 +2986,7 @@ contains
     status =  nf90_get_var(fileid, varid+1, &
          temp_storage, start=int(starts), count=int(counts))
 
-    val = cmplx( temp_storage(1, :, :), temp_storage(2, :, :))
+    val = cmplx( temp_storage(1, :, :), temp_storage(2, :, :), kind = kind(val))
 
     if (.not. status .eq. 0) write (*,*) 'Error reading variable: ', &
          variable_name, ', ',  nf90_strerror(status), 'starts=', starts, 'counts=', counts
@@ -3020,7 +3020,7 @@ contains
     status =  nf90_get_var(fileid, varid+1, &
          temp_storage, start=int(starts), count=int(counts))
 
-    val = cmplx( temp_storage(1, :, :, :), temp_storage(2, :, :, :))
+    val = cmplx( temp_storage(1, :, :, :), temp_storage(2, :, :, :), kind = kind(val))
 
     if (.not. status .eq. 0) write (*,*) 'Error reading variable: ', &
          variable_name, ', ',  nf90_strerror(status), 'starts=', starts, 'counts=', counts
@@ -3054,7 +3054,7 @@ contains
     status =  nf90_get_var(fileid, varid+1, &
          temp_storage, start=int(starts), count=int(counts))
 
-    val = cmplx( temp_storage(1, :, :, :, :), temp_storage(2, :, :, :, :))
+    val = cmplx( temp_storage(1, :, :, :, :), temp_storage(2, :, :, :, :), kind = kind(val))
 
     if (.not. status .eq. 0) write (*,*) 'Error reading variable: ', &
          variable_name, ', ',  nf90_strerror(status), 'starts=', starts, 'counts=', counts
@@ -3088,7 +3088,7 @@ contains
     status =  nf90_get_var(fileid, varid+1, &
          temp_storage, start=int(starts), count=int(counts))
 
-    val = cmplx( temp_storage(1, :, :, :, :, :), temp_storage(2, :, :, :, :, :))
+    val = cmplx( temp_storage(1, :, :, :, :, :), temp_storage(2, :, :, :, :, :), kind = kind(val))
 
     if (.not. status .eq. 0) write (*,*) 'Error reading variable: ', &
          variable_name, ', ',  nf90_strerror(status), 'starts=', starts, 'counts=', counts
@@ -3122,7 +3122,7 @@ contains
     status =  nf90_get_var(fileid, varid+1, &
          temp_storage, start=int(starts), count=int(counts))
 
-    val = cmplx( temp_storage(1, :, :, :, :, :, :), temp_storage(2, :, :, :, :, :, :))
+    val = cmplx( temp_storage(1, :, :, :, :, :, :), temp_storage(2, :, :, :, :, :, :), kind = kind(val))
 
     if (.not. status .eq. 0) write (*,*) 'Error reading variable: ', &
          variable_name, ', ',  nf90_strerror(status), 'starts=', starts, 'counts=', counts
@@ -3156,7 +3156,7 @@ contains
     status =  nf90_get_var(fileid, varid+1, &
          temp_storage, start=int(starts), count=int(counts))
 
-    val = cmplx( temp_storage(1), temp_storage(2))
+    val = cmplx( temp_storage(1), temp_storage(2), kind = kind(val))
 
     if (.not. status .eq. 0) write (*,*) 'Error reading variable: ', &
          variable_name, ', ',  nf90_strerror(status), 'starts=', starts, 'counts=', counts
@@ -3190,7 +3190,7 @@ contains
     status =  nf90_get_var(fileid, varid+1, &
          temp_storage, start=int(starts), count=int(counts))
 
-    val = cmplx( temp_storage(1, :), temp_storage(2, :))
+    val = cmplx( temp_storage(1, :), temp_storage(2, :), kind = kind(val))
 
     if (.not. status .eq. 0) write (*,*) 'Error reading variable: ', &
          variable_name, ', ',  nf90_strerror(status), 'starts=', starts, 'counts=', counts
@@ -3224,7 +3224,7 @@ contains
     status =  nf90_get_var(fileid, varid+1, &
          temp_storage, start=int(starts), count=int(counts))
 
-    val = cmplx( temp_storage(1, :, :), temp_storage(2, :, :))
+    val = cmplx( temp_storage(1, :, :), temp_storage(2, :, :), kind = kind(val))
 
     if (.not. status .eq. 0) write (*,*) 'Error reading variable: ', &
          variable_name, ', ',  nf90_strerror(status), 'starts=', starts, 'counts=', counts
@@ -3258,7 +3258,7 @@ contains
     status =  nf90_get_var(fileid, varid+1, &
          temp_storage, start=int(starts), count=int(counts))
 
-    val = cmplx( temp_storage(1, :, :, :), temp_storage(2, :, :, :))
+    val = cmplx( temp_storage(1, :, :, :), temp_storage(2, :, :, :), kind = kind(val))
 
     if (.not. status .eq. 0) write (*,*) 'Error reading variable: ', &
          variable_name, ', ',  nf90_strerror(status), 'starts=', starts, 'counts=', counts
@@ -3292,7 +3292,7 @@ contains
     status =  nf90_get_var(fileid, varid+1, &
          temp_storage, start=int(starts), count=int(counts))
 
-    val = cmplx( temp_storage(1, :, :, :, :), temp_storage(2, :, :, :, :))
+    val = cmplx( temp_storage(1, :, :, :, :), temp_storage(2, :, :, :, :), kind = kind(val))
 
     if (.not. status .eq. 0) write (*,*) 'Error reading variable: ', &
          variable_name, ', ',  nf90_strerror(status), 'starts=', starts, 'counts=', counts
@@ -3326,7 +3326,7 @@ contains
     status =  nf90_get_var(fileid, varid+1, &
          temp_storage, start=int(starts), count=int(counts))
 
-    val = cmplx( temp_storage(1, :, :, :, :, :), temp_storage(2, :, :, :, :, :))
+    val = cmplx( temp_storage(1, :, :, :, :, :), temp_storage(2, :, :, :, :, :), kind = kind(val))
 
     if (.not. status .eq. 0) write (*,*) 'Error reading variable: ', &
          variable_name, ', ',  nf90_strerror(status), 'starts=', starts, 'counts=', counts
@@ -3360,7 +3360,7 @@ contains
     status =  nf90_get_var(fileid, varid+1, &
          temp_storage, start=int(starts), count=int(counts))
 
-    val = cmplx( temp_storage(1, :, :, :, :, :, :), temp_storage(2, :, :, :, :, :, :))
+    val = cmplx( temp_storage(1, :, :, :, :, :, :), temp_storage(2, :, :, :, :, :, :), kind = kind(val))
 
     if (.not. status .eq. 0) write (*,*) 'Error reading variable: ', &
          variable_name, ', ',  nf90_strerror(status), 'starts=', starts, 'counts=', counts
