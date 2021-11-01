@@ -45,7 +45,6 @@ def generate_write_method(data_type, dimensions, with_offset = True):
     {data_type},{dimensionality} intent(in) :: val
     integer(sdatio_int_kind), dimension(:), allocatable :: starts, counts, offsets
     integer :: fileid, varid, status, n2
-    integer :: n, ndims
     {storage_array_decl}
 """
     body_string = """
@@ -107,6 +106,8 @@ def generate_write_method(data_type, dimensions, with_offset = True):
         extra_dimensions = 0
 
     if with_offset:
+        the_declarations += "\n    integer :: n, ndims"
+
         get_n2 = """
     call number_of_unlimited_dimensions(sfile, variable_name, n)
     n2 = n+{dimensions}+{extra_dimensions}
