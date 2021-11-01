@@ -1938,7 +1938,6 @@ contains
     real(kind=real32), intent(in) :: val
     integer(sdatio_int_kind), dimension(:), allocatable :: starts, counts, offsets
     integer :: fileid, varid, status, n2
-    integer :: n, ndims
     real(kind=real32), dimension(1) :: temp_storage
   
 #ifdef FORTRAN_NETCDF
@@ -1971,7 +1970,6 @@ contains
     real(kind=real32), dimension(:), intent(in) :: val
     integer(sdatio_int_kind), dimension(:), allocatable :: starts, counts, offsets
     integer :: fileid, varid, status, n2
-    integer :: n, ndims
   
 #ifdef FORTRAN_NETCDF
     n2 = number_of_dimensions(sfile, variable_name)
@@ -2003,7 +2001,6 @@ contains
     real(kind=real32), dimension(:, :), intent(in) :: val
     integer(sdatio_int_kind), dimension(:), allocatable :: starts, counts, offsets
     integer :: fileid, varid, status, n2
-    integer :: n, ndims
   
 #ifdef FORTRAN_NETCDF
     n2 = number_of_dimensions(sfile, variable_name)
@@ -2035,7 +2032,6 @@ contains
     real(kind=real32), dimension(:, :, :), intent(in) :: val
     integer(sdatio_int_kind), dimension(:), allocatable :: starts, counts, offsets
     integer :: fileid, varid, status, n2
-    integer :: n, ndims
   
 #ifdef FORTRAN_NETCDF
     n2 = number_of_dimensions(sfile, variable_name)
@@ -2067,7 +2063,6 @@ contains
     real(kind=real32), dimension(:, :, :, :), intent(in) :: val
     integer(sdatio_int_kind), dimension(:), allocatable :: starts, counts, offsets
     integer :: fileid, varid, status, n2
-    integer :: n, ndims
   
 #ifdef FORTRAN_NETCDF
     n2 = number_of_dimensions(sfile, variable_name)
@@ -2099,7 +2094,6 @@ contains
     real(kind=real32), dimension(:, :, :, :, :), intent(in) :: val
     integer(sdatio_int_kind), dimension(:), allocatable :: starts, counts, offsets
     integer :: fileid, varid, status, n2
-    integer :: n, ndims
   
 #ifdef FORTRAN_NETCDF
     n2 = number_of_dimensions(sfile, variable_name)
@@ -2131,7 +2125,6 @@ contains
     real(kind=real32), dimension(:, :, :, :, :, :), intent(in) :: val
     integer(sdatio_int_kind), dimension(:), allocatable :: starts, counts, offsets
     integer :: fileid, varid, status, n2
-    integer :: n, ndims
   
 #ifdef FORTRAN_NETCDF
     n2 = number_of_dimensions(sfile, variable_name)
@@ -2163,7 +2156,6 @@ contains
     real(kind=real64), intent(in) :: val
     integer(sdatio_int_kind), dimension(:), allocatable :: starts, counts, offsets
     integer :: fileid, varid, status, n2
-    integer :: n, ndims
     real(kind=real64), dimension(1) :: temp_storage
   
 #ifdef FORTRAN_NETCDF
@@ -2196,7 +2188,6 @@ contains
     real(kind=real64), dimension(:), intent(in) :: val
     integer(sdatio_int_kind), dimension(:), allocatable :: starts, counts, offsets
     integer :: fileid, varid, status, n2
-    integer :: n, ndims
   
 #ifdef FORTRAN_NETCDF
     n2 = number_of_dimensions(sfile, variable_name)
@@ -2228,7 +2219,6 @@ contains
     real(kind=real64), dimension(:, :), intent(in) :: val
     integer(sdatio_int_kind), dimension(:), allocatable :: starts, counts, offsets
     integer :: fileid, varid, status, n2
-    integer :: n, ndims
   
 #ifdef FORTRAN_NETCDF
     n2 = number_of_dimensions(sfile, variable_name)
@@ -2260,7 +2250,6 @@ contains
     real(kind=real64), dimension(:, :, :), intent(in) :: val
     integer(sdatio_int_kind), dimension(:), allocatable :: starts, counts, offsets
     integer :: fileid, varid, status, n2
-    integer :: n, ndims
   
 #ifdef FORTRAN_NETCDF
     n2 = number_of_dimensions(sfile, variable_name)
@@ -2292,7 +2281,6 @@ contains
     real(kind=real64), dimension(:, :, :, :), intent(in) :: val
     integer(sdatio_int_kind), dimension(:), allocatable :: starts, counts, offsets
     integer :: fileid, varid, status, n2
-    integer :: n, ndims
   
 #ifdef FORTRAN_NETCDF
     n2 = number_of_dimensions(sfile, variable_name)
@@ -2324,7 +2312,6 @@ contains
     real(kind=real64), dimension(:, :, :, :, :), intent(in) :: val
     integer(sdatio_int_kind), dimension(:), allocatable :: starts, counts, offsets
     integer :: fileid, varid, status, n2
-    integer :: n, ndims
   
 #ifdef FORTRAN_NETCDF
     n2 = number_of_dimensions(sfile, variable_name)
@@ -2356,7 +2343,6 @@ contains
     real(kind=real64), dimension(:, :, :, :, :, :), intent(in) :: val
     integer(sdatio_int_kind), dimension(:), allocatable :: starts, counts, offsets
     integer :: fileid, varid, status, n2
-    integer :: n, ndims
   
 #ifdef FORTRAN_NETCDF
     n2 = number_of_dimensions(sfile, variable_name)
@@ -2388,7 +2374,6 @@ contains
     integer, intent(in) :: val
     integer(sdatio_int_kind), dimension(:), allocatable :: starts, counts, offsets
     integer :: fileid, varid, status, n2
-    integer :: n, ndims
     integer, dimension(1) :: temp_storage
   
 #ifdef FORTRAN_NETCDF
@@ -2421,7 +2406,6 @@ contains
     integer, dimension(:), intent(in) :: val
     integer(sdatio_int_kind), dimension(:), allocatable :: starts, counts, offsets
     integer :: fileid, varid, status, n2
-    integer :: n, ndims
   
 #ifdef FORTRAN_NETCDF
     n2 = number_of_dimensions(sfile, variable_name)
@@ -2453,7 +2437,6 @@ contains
     integer, dimension(:, :), intent(in) :: val
     integer(sdatio_int_kind), dimension(:), allocatable :: starts, counts, offsets
     integer :: fileid, varid, status, n2
-    integer :: n, ndims
   
 #ifdef FORTRAN_NETCDF
     n2 = number_of_dimensions(sfile, variable_name)
@@ -2485,7 +2468,6 @@ contains
     integer, dimension(:, :, :), intent(in) :: val
     integer(sdatio_int_kind), dimension(:), allocatable :: starts, counts, offsets
     integer :: fileid, varid, status, n2
-    integer :: n, ndims
   
 #ifdef FORTRAN_NETCDF
     n2 = number_of_dimensions(sfile, variable_name)
@@ -2517,7 +2499,6 @@ contains
     integer, dimension(:, :, :, :), intent(in) :: val
     integer(sdatio_int_kind), dimension(:), allocatable :: starts, counts, offsets
     integer :: fileid, varid, status, n2
-    integer :: n, ndims
   
 #ifdef FORTRAN_NETCDF
     n2 = number_of_dimensions(sfile, variable_name)
@@ -2549,7 +2530,6 @@ contains
     integer, dimension(:, :, :, :, :), intent(in) :: val
     integer(sdatio_int_kind), dimension(:), allocatable :: starts, counts, offsets
     integer :: fileid, varid, status, n2
-    integer :: n, ndims
   
 #ifdef FORTRAN_NETCDF
     n2 = number_of_dimensions(sfile, variable_name)
@@ -2581,7 +2561,6 @@ contains
     integer, dimension(:, :, :, :, :, :), intent(in) :: val
     integer(sdatio_int_kind), dimension(:), allocatable :: starts, counts, offsets
     integer :: fileid, varid, status, n2
-    integer :: n, ndims
   
 #ifdef FORTRAN_NETCDF
     n2 = number_of_dimensions(sfile, variable_name)
@@ -2613,7 +2592,6 @@ contains
     character, intent(in) :: val
     integer(sdatio_int_kind), dimension(:), allocatable :: starts, counts, offsets
     integer :: fileid, varid, status, n2
-    integer :: n, ndims
     character, dimension(1) :: temp_storage
   
 #ifdef FORTRAN_NETCDF
@@ -2646,7 +2624,6 @@ contains
     character, dimension(:), intent(in) :: val
     integer(sdatio_int_kind), dimension(:), allocatable :: starts, counts, offsets
     integer :: fileid, varid, status, n2
-    integer :: n, ndims
   
 #ifdef FORTRAN_NETCDF
     n2 = number_of_dimensions(sfile, variable_name)
@@ -2678,7 +2655,6 @@ contains
     character, dimension(:, :), intent(in) :: val
     integer(sdatio_int_kind), dimension(:), allocatable :: starts, counts, offsets
     integer :: fileid, varid, status, n2
-    integer :: n, ndims
   
 #ifdef FORTRAN_NETCDF
     n2 = number_of_dimensions(sfile, variable_name)
@@ -2710,7 +2686,6 @@ contains
     character, dimension(:, :, :), intent(in) :: val
     integer(sdatio_int_kind), dimension(:), allocatable :: starts, counts, offsets
     integer :: fileid, varid, status, n2
-    integer :: n, ndims
   
 #ifdef FORTRAN_NETCDF
     n2 = number_of_dimensions(sfile, variable_name)
@@ -2742,7 +2717,6 @@ contains
     character, dimension(:, :, :, :), intent(in) :: val
     integer(sdatio_int_kind), dimension(:), allocatable :: starts, counts, offsets
     integer :: fileid, varid, status, n2
-    integer :: n, ndims
   
 #ifdef FORTRAN_NETCDF
     n2 = number_of_dimensions(sfile, variable_name)
@@ -2774,7 +2748,6 @@ contains
     character, dimension(:, :, :, :, :), intent(in) :: val
     integer(sdatio_int_kind), dimension(:), allocatable :: starts, counts, offsets
     integer :: fileid, varid, status, n2
-    integer :: n, ndims
   
 #ifdef FORTRAN_NETCDF
     n2 = number_of_dimensions(sfile, variable_name)
@@ -2806,7 +2779,6 @@ contains
     character, dimension(:, :, :, :, :, :), intent(in) :: val
     integer(sdatio_int_kind), dimension(:), allocatable :: starts, counts, offsets
     integer :: fileid, varid, status, n2
-    integer :: n, ndims
   
 #ifdef FORTRAN_NETCDF
     n2 = number_of_dimensions(sfile, variable_name)
@@ -2838,7 +2810,6 @@ contains
     complex(kind=real32), intent(in) :: val
     integer(sdatio_int_kind), dimension(:), allocatable :: starts, counts, offsets
     integer :: fileid, varid, status, n2
-    integer :: n, ndims
     real(kind = kind(val)), dimension(2) :: temp_storage
   
 #ifdef FORTRAN_NETCDF
@@ -2871,7 +2842,6 @@ contains
     complex(kind=real32), dimension(:), intent(in) :: val
     integer(sdatio_int_kind), dimension(:), allocatable :: starts, counts, offsets
     integer :: fileid, varid, status, n2
-    integer :: n, ndims
     real(kind = kind(val)), dimension(2, size(val, 1)) :: temp_storage
   
 #ifdef FORTRAN_NETCDF
@@ -2904,7 +2874,6 @@ contains
     complex(kind=real32), dimension(:, :), intent(in) :: val
     integer(sdatio_int_kind), dimension(:), allocatable :: starts, counts, offsets
     integer :: fileid, varid, status, n2
-    integer :: n, ndims
     real(kind = kind(val)), dimension(2, size(val, 1), size(val, 2)) :: temp_storage
   
 #ifdef FORTRAN_NETCDF
@@ -2937,7 +2906,6 @@ contains
     complex(kind=real32), dimension(:, :, :), intent(in) :: val
     integer(sdatio_int_kind), dimension(:), allocatable :: starts, counts, offsets
     integer :: fileid, varid, status, n2
-    integer :: n, ndims
     real(kind = kind(val)), dimension(2, size(val, 1), size(val, 2), size(val, 3)) :: temp_storage
   
 #ifdef FORTRAN_NETCDF
@@ -2970,7 +2938,6 @@ contains
     complex(kind=real32), dimension(:, :, :, :), intent(in) :: val
     integer(sdatio_int_kind), dimension(:), allocatable :: starts, counts, offsets
     integer :: fileid, varid, status, n2
-    integer :: n, ndims
     real(kind = kind(val)), dimension(2, size(val, 1), size(val, 2), size(val, 3), size(val, 4)) :: temp_storage
   
 #ifdef FORTRAN_NETCDF
@@ -3003,7 +2970,6 @@ contains
     complex(kind=real32), dimension(:, :, :, :, :), intent(in) :: val
     integer(sdatio_int_kind), dimension(:), allocatable :: starts, counts, offsets
     integer :: fileid, varid, status, n2
-    integer :: n, ndims
     real(kind = kind(val)), dimension(2, size(val, 1), size(val, 2), size(val, 3), size(val, 4), size(val, 5)) :: temp_storage
   
 #ifdef FORTRAN_NETCDF
@@ -3036,7 +3002,6 @@ contains
     complex(kind=real32), dimension(:, :, :, :, :, :), intent(in) :: val
     integer(sdatio_int_kind), dimension(:), allocatable :: starts, counts, offsets
     integer :: fileid, varid, status, n2
-    integer :: n, ndims
     real(kind = kind(val)), dimension(2, size(val, 1), size(val, 2), size(val, 3), size(val, 4), size(val, 5), size(val, 6)) :: temp_storage
   
 #ifdef FORTRAN_NETCDF
@@ -3069,7 +3034,6 @@ contains
     complex(kind=real64), intent(in) :: val
     integer(sdatio_int_kind), dimension(:), allocatable :: starts, counts, offsets
     integer :: fileid, varid, status, n2
-    integer :: n, ndims
     real(kind = kind(val)), dimension(2) :: temp_storage
   
 #ifdef FORTRAN_NETCDF
@@ -3102,7 +3066,6 @@ contains
     complex(kind=real64), dimension(:), intent(in) :: val
     integer(sdatio_int_kind), dimension(:), allocatable :: starts, counts, offsets
     integer :: fileid, varid, status, n2
-    integer :: n, ndims
     real(kind = kind(val)), dimension(2, size(val, 1)) :: temp_storage
   
 #ifdef FORTRAN_NETCDF
@@ -3135,7 +3098,6 @@ contains
     complex(kind=real64), dimension(:, :), intent(in) :: val
     integer(sdatio_int_kind), dimension(:), allocatable :: starts, counts, offsets
     integer :: fileid, varid, status, n2
-    integer :: n, ndims
     real(kind = kind(val)), dimension(2, size(val, 1), size(val, 2)) :: temp_storage
   
 #ifdef FORTRAN_NETCDF
@@ -3168,7 +3130,6 @@ contains
     complex(kind=real64), dimension(:, :, :), intent(in) :: val
     integer(sdatio_int_kind), dimension(:), allocatable :: starts, counts, offsets
     integer :: fileid, varid, status, n2
-    integer :: n, ndims
     real(kind = kind(val)), dimension(2, size(val, 1), size(val, 2), size(val, 3)) :: temp_storage
   
 #ifdef FORTRAN_NETCDF
@@ -3201,7 +3162,6 @@ contains
     complex(kind=real64), dimension(:, :, :, :), intent(in) :: val
     integer(sdatio_int_kind), dimension(:), allocatable :: starts, counts, offsets
     integer :: fileid, varid, status, n2
-    integer :: n, ndims
     real(kind = kind(val)), dimension(2, size(val, 1), size(val, 2), size(val, 3), size(val, 4)) :: temp_storage
   
 #ifdef FORTRAN_NETCDF
@@ -3234,7 +3194,6 @@ contains
     complex(kind=real64), dimension(:, :, :, :, :), intent(in) :: val
     integer(sdatio_int_kind), dimension(:), allocatable :: starts, counts, offsets
     integer :: fileid, varid, status, n2
-    integer :: n, ndims
     real(kind = kind(val)), dimension(2, size(val, 1), size(val, 2), size(val, 3), size(val, 4), size(val, 5)) :: temp_storage
   
 #ifdef FORTRAN_NETCDF
@@ -3267,7 +3226,6 @@ contains
     complex(kind=real64), dimension(:, :, :, :, :, :), intent(in) :: val
     integer(sdatio_int_kind), dimension(:), allocatable :: starts, counts, offsets
     integer :: fileid, varid, status, n2
-    integer :: n, ndims
     real(kind = kind(val)), dimension(2, size(val, 1), size(val, 2), size(val, 3), size(val, 4), size(val, 5), size(val, 6)) :: temp_storage
   
 #ifdef FORTRAN_NETCDF
