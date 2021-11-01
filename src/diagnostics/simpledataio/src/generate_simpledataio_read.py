@@ -42,7 +42,6 @@ def generate_read_method(data_type, dimensions, with_offset = True):
     {data_type},{dimensionality} intent(out) :: val
     integer(sdatio_int_kind), dimension(:), allocatable :: starts, counts, offsets
     integer :: fileid, varid, status, n2
-    integer :: n, ndims
     {storage_array_decl}
 """
     body_string = """
@@ -105,6 +104,8 @@ def generate_read_method(data_type, dimensions, with_offset = True):
         extra_dimensions = 0
 
     if with_offset:
+        the_declarations += "\n    integer :: n, ndims"
+
         get_n2 = """
     call number_of_unlimited_dimensions(sfile, variable_name, n)
     n2 = n+{dimensions}+{extra_dimensions}
@@ -149,7 +150,7 @@ def generate_read_method(data_type, dimensions, with_offset = True):
         copy_out = "val = temp_storage(1)"
     elif is_complex:
         indexing = "".join([", :" for i in range(dimensions)])
-        copy_out = "val = cmplx( temp_storage(1{indexing}), temp_storage(2{indexing}))".format(indexing = indexing)
+        copy_out = "val = cmplx( temp_storage(1{indexing}), temp_storage(2{indexing}), kind = kind(val))".format(indexing = indexing)
     else:
         copy_out = ""
 
