@@ -941,8 +941,8 @@ int sdatio_dimension_exists(struct sdatio_file * sfile, char * dimension_name){
 
 void sdatio_write_variable_fortran_convert(struct sdatio_file * sfile, char * variable_name, void ** address){
   /*printf("address2 is %d\n", address);*/
-  printf("address3 is %d\n", *address);
-  printf("address4 is %d\n", &address);
+  printf("address3 is %p\n", *address);
+  printf("address4 is %p\n", &address);
   sdatio_write_variable(sfile, variable_name, *address);
 }
 
