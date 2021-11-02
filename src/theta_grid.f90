@@ -18,6 +18,7 @@ module theta_grid_gridgen
   integer :: npadd
   real :: alknob, epsknob, bpknob, extrknob, tension
   real :: thetamax, deltaw, widthw
+  logical :: skip_gridgen
   logical :: exist, initialized=.false.
 
   !> Used to represent the input configuration of theta_grid_gridgen
@@ -43,6 +44,8 @@ module theta_grid_gridgen
      real :: extrknob = 0.0
      !> Number of points between original grid points to oversample \(\theta\) by
      integer :: npadd = 2
+     !> If true then skip gridgen call and instead just use the existing grid.
+     logical :: skip_gridgen = .false.
      !> Tension for \(B\) spline
      real :: tension = 1.0
      !> Parameter for weighted resolution in theta?
@@ -78,6 +81,7 @@ contains
     write (unit, fmt="(' epsknob =  ',e17.10)") epsknob
     write (unit, fmt="(' bpknob =   ',e17.10)") bpknob
     write (unit, fmt="(' extrknob = ',e17.10)") extrknob
+    write (unit, fmt="(' skip_gridgen =  ',L1)") skip_gridgen
     write (unit, fmt="(' tension =  ',e17.10)") tension
     write (unit, fmt="(' thetamax = ',e17.10)") thetamax
     write (unit, fmt="(' deltaw =   ',e17.10)") deltaw
@@ -117,6 +121,7 @@ contains
     epsknob  = theta_grid_gridgen_config%epsknob
     bpknob  = theta_grid_gridgen_config%bpknob
     extrknob  = theta_grid_gridgen_config%extrknob
+    skip_gridgen = theta_grid_gridgen_config%skip_gridgen
     tension  = theta_grid_gridgen_config%tension
     thetamax  = theta_grid_gridgen_config%thetamax
     deltaw  = theta_grid_gridgen_config%deltaw
@@ -287,9 +292,10 @@ if (debug) write(6,*) 'gridgen_get_grids: end'
     ! we shadow the module level variables here. This is intentional to provide
     ! isolation and ensure we can move this routine to another module easily.
     integer :: npadd
+    logical :: skip_gridgen
     real :: alknob, bpknob, deltaw, epsknob, extrknob, tension, thetamax, widthw
 
-    namelist /theta_grid_gridgen_knobs/ alknob, bpknob, deltaw, epsknob, extrknob, npadd, tension, thetamax, widthw
+    namelist /theta_grid_gridgen_knobs/ alknob, bpknob, deltaw, epsknob, extrknob, npadd, skip_gridgen, tension, thetamax, widthw
 
     ! Only proc0 reads from file
     if (.not. proc0) return
@@ -300,6 +306,7 @@ if (debug) write(6,*) 'gridgen_get_grids: end'
     epsknob  = self%epsknob
     bpknob  = self%bpknob
     extrknob  = self%extrknob
+    skip_gridgen = self%skip_gridgen
     tension  = self%tension
     thetamax  = self%thetamax
     deltaw  = self%deltaw
@@ -315,6 +322,7 @@ if (debug) write(6,*) 'gridgen_get_grids: end'
     self%epsknob   = epsknob
     self%bpknob   = bpknob
     self%extrknob   = extrknob
+    self%skip_gridgen = skip_gridgen
     self%tension   = tension
     self%thetamax   = thetamax
     self%deltaw   = deltaw
@@ -341,6 +349,7 @@ if (debug) write(6,*) 'gridgen_get_grids: end'
     call self%write_key_val("epsknob", self%epsknob ,unit_internal)
     call self%write_key_val("bpknob", self%bpknob ,unit_internal)
     call self%write_key_val("extrknob", self%extrknob ,unit_internal)
+    call self%write_key_val("skip_gridgen", self%skip_gridgen, unit_internal)
     call self%write_key_val("tension", self%tension ,unit_internal)
     call self%write_key_val("thetamax", self%thetamax ,unit_internal)
     call self%write_key_val("deltaw", self%deltaw ,unit_internal)
@@ -369,6 +378,7 @@ if (debug) write(6,*) 'gridgen_get_grids: end'
     call broadcast(self%epsknob)
     call broadcast(self%bpknob)
     call broadcast(self%extrknob)
+    call broadcast(self%skip_gridgen)
     call broadcast(self%tension)
     call broadcast(self%thetamax)
     call broadcast(self%deltaw)
