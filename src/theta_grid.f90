@@ -24,32 +24,31 @@ module theta_grid_gridgen
   type, extends(abstract_config_type) :: theta_grid_gridgen_config_type
      ! namelist : theta_grid_gridgen_knobs
      ! indexed : false     
-
-     !> Number of points between original grid points to oversample \(\theta\) by
-     integer :: npadd = 2
      !> Relative weighting of pitch-angle metric to \(\theta\) metric
      real :: alknob = 0.0
-     !> Maximum difference between neighbouring points for determining
-     !> if a point is an extremum.
-     real :: epsknob = 1e-5
      !> Consider when the right grid point is equal to the target bmag.
      !>
      !> FIXME: What does this mean?
      real :: bpknob = 1.e-8
+     !> Parameter for weighted resolution in theta?
+     !>
+     !> FIXME: What does this mean?
+     real :: deltaw = 0.0
+     !> Maximum difference between neighbouring points for determining
+     !> if a point is an extremum.
+     real :: epsknob = 1e-5
      !> Something to do with scaling the theta resolution?
      !>
      !> FIXME: What does this mean?
      real :: extrknob = 0.0
+     !> Number of points between original grid points to oversample \(\theta\) by
+     integer :: npadd = 2
      !> Tension for \(B\) spline
      real :: tension = 1.0
      !> Parameter for weighted resolution in theta?
      !>
      !> FIXME: What does this mean?
      real :: thetamax = 0.0
-     !> Parameter for weighted resolution in theta?
-     !>
-     !> FIXME: What does this mean?
-     real :: deltaw = 0.0
      !> Parameter for weighted resolution in theta?
      !>
      !> FIXME: What does this mean?
