@@ -153,7 +153,19 @@ contains
     real, dimension (ntheta+1) :: bmagold, bmagnew
     integer :: i
     logical, parameter :: debug=.false.
-if (debug) write(6,*) 'gridgen_get_grids'
+    if (debug) write(6,*) 'gridgen_get_grids'
+
+    ! If we're skipping gridgen then we'd better
+    ! make sure that we set the outputs. As we're not
+    ! changing the theta grid the only thing we need to
+    ! set is `bset`, which is just the unique bmag values
+    ! on our grid. Note here we're assuming bmag is symmetric,
+    ! ordered etc. By skipping gridgen we don't guarantee that
+    ! this will be the case.
+    if (skip_gridgen) then
+       bset = bmag(-ntheta/2:0)
+       return
+    end if
 
     ntheta_old = ntheta
     ntgrid_old = ntgrid
