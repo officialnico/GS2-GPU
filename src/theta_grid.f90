@@ -45,6 +45,10 @@ module theta_grid_gridgen
      !> Number of points between original grid points to oversample \(\theta\) by
      integer :: npadd = 2
      !> If true then skip gridgen call and instead just use the existing grid.
+     !>
+     !> @note This is primarily for debugging and testing. When active we are
+     !> effectively forced to assumed that the input bmag is symmetric and
+     !> monotonic. If this is not true then we should not trust the results.
      logical :: skip_gridgen = .false.
      !> Tension for \(B\) spline
      real :: tension = 1.0
