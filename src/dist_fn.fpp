@@ -5621,12 +5621,12 @@ contains
     use fields_arrays, only: phinew
     use kt_grids, only: ntheta0, naky
     use mp, only: proc0
-
+    use iso_fortran_env, only: real32
     implicit none
     integer :: ik, it, isgn, is, iglo, ig, iz, index_gryfx
-    complex*8, dimension(:), intent(out) :: density_gryfx, upar_gryfx, &
+    complex(real32), dimension(:), intent(out) :: density_gryfx, upar_gryfx, &
          tpar_gryfx, tperp_gryfx, qpar_gryfx, qperp_gryfx
-    complex*8, dimension(:), intent(out) :: phi_gryfx       
+    complex(real32), dimension(:), intent(out) :: phi_gryfx
     complex, dimension(:,:,:,:), allocatable :: total
 
     !real :: densfac_lin, uparfac_lin, tparfac_lin, tprpfac_lin, qparfac_lin, qprpfac_lin, phifac_lin
