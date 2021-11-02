@@ -6,6 +6,7 @@ module gs2_gryfx_zonal
 
   use gs2_main, only: gs2_program_state_type
   use iso_c_binding
+  use iso_fortran_env, only: real32
 
   implicit none
   private
@@ -148,10 +149,10 @@ contains
     use kt_grids, only: naky, ntheta0
     use species, only: nspec
     real, dimension(:,:), intent(in) :: matrix
-    complex*8, dimension (:), intent (inout) :: &
+    complex(real32), dimension (:), intent (inout) :: &
          array
     logical, intent(in) :: is_field
-    complex*8, dimension (:), allocatable :: array_temp
+    complex(real32), dimension (:), allocatable :: array_temp
     integer :: iz_row, iz_col, is, it, ik, index_gryfx_row, index_gryfx_col
     integer :: spec_max
 
@@ -254,12 +255,12 @@ contains
     use iso_c_binding
     use mp, only: broadcast
     implicit none
+    integer(c_int), intent(in) :: nz
     integer(c_int), intent(in) :: strlen
     character(kind=c_char), intent(in) :: run_name
     integer(c_int), intent(in) :: mp_comm
     real(c_float), intent(in), dimension(nz) :: gryfx_theta
     type(gryfx_parameters_type), intent(in) :: gryfx_parameters
-    integer(c_int), intent(in) :: nz
     real, dimension(nz) :: gryfx_theta_real
 
     gryfx_theta_real = gryfx_theta
@@ -495,9 +496,9 @@ contains
     use unit_tests, only: debug_message
 
     implicit none
-    complex*8, dimension (:), intent (inout) :: &
+    complex(real32), dimension (:), intent (inout) :: &
          dens_ky0, upar_ky0, tpar_ky0, tprp_ky0, qpar_ky0, qprp_ky0
-    complex*8, dimension (:), intent (inout) :: phi_ky0
+    complex(real32), dimension (:), intent (inout) :: phi_ky0
     logical, intent (in) :: first_half_step
     integer, intent (in) :: istep
 
