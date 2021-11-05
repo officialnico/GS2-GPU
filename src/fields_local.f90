@@ -2492,7 +2492,9 @@ contains
 
     !Work out if we want to use sub communicators in reduction and
     !if we are allowed to.
-    use_sub=(.not.(g_lo%x_local.and.g_lo%y_local)).and.do_allreduce.and.field_local_allreduce_sub.and.intspec_sub
+    use_sub=(.not. (g_lo%x_local .and. g_lo%y_local)) .and. &
+         do_allreduce .and. field_local_allreduce_sub .and. &
+         intspec_sub .and. x_local
 
     !If using sub-communicators set up object and work out which procs
     !have proc0 as a member
