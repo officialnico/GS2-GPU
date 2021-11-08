@@ -95,6 +95,7 @@ module gs2_main
   public :: gs2_trin_init
   public :: calculate_outputs
   public :: reset_equations
+  public :: write_used_inputs_file
 
   public :: determine_gs2spec_from_trin
   public :: gs2spec_from_trin
@@ -1488,7 +1489,9 @@ contains
     use redistribute, only: time_redist
     use fields_arrays, only: time_field
     use gs2_reinit, only: time_reinit
-
+#ifdef GS2_EXPERIMENTAL_ENABLE_MEMORY_USAGE
+    use memory_usage, only: print_memory_usage
+#endif
     implicit none
     !> Program state information, needed to print
     type(gs2_program_state_type), intent(in) :: state
@@ -1528,6 +1531,9 @@ contains
       write(*, '("Total from timer is:", 0pf9.2," min")') state%timers%total(1)/60.
     endif
 
+#ifdef GS2_EXPERIMENTAL_ENABLE_MEMORY_USAGE
+    call print_memory_usage
+#endif
   end subroutine print_times
 
   !> FIXME : Add documentation  
@@ -2066,6 +2072,46 @@ contains
      
     
   end subroutine gs2_trin_init
+
+  !> Write an input file containing the current state of all input
+  !> parameters
+  subroutine write_used_inputs_file(header)
+    use mp, only: proc0
+    use file_utils, only: get_unused_unit, run_name
+    use standard_header, only: standard_header_type
+    use config_collection, only : gs2_config_type
+
+    !> Header for files with build and run information
+    type(standard_header_type), intent(in), optional :: header
+
+    ! Actual value for optional `header` input
+    type(standard_header_type) :: local_header
+    ! File unit to write to
+    integer :: used_inputs_unit
+    type(gs2_config_type) :: input_config
+
+    ! Only write this file on rank 0
+    if (.not. proc0) return
+
+    if (present(header)) then
+      local_header = header
+    else
+      local_header = standard_header_type()
+    end if
+
+    call input_config%get_configs()
+    call get_unused_unit(used_inputs_unit)
+    open(unit=used_inputs_unit, action="write", file=trim(run_name)//".used_inputs.in")
+    write(unit=used_inputs_unit, fmt='(a)') &
+         local_header%to_string( &
+         comment_character="! ", &
+         file_description="Input parameters as used by " // trim(run_name) &
+         )
+
+    call input_config%write_to_unit(used_inputs_unit)
+    close(used_inputs_unit)
+
+  end subroutine write_used_inputs_file
 
 # ifndef MAKE_LIB
 end module gs2_main

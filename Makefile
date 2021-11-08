@@ -61,6 +61,8 @@ USE_SHMEM ?=
 USE_FFT ?= fftw3
 # uses netcdf library (bin)
 USE_NETCDF ?= on
+# Default to compressed netcdf files?
+USE_NETCDF_COMPRESSION ?=
 # uses parallel netcdf library
 USE_PARALLEL_NETCDF ?= 
 # uses hdf5 library (bin)
@@ -129,6 +131,12 @@ endif
 WITH_COLOUR     ?= $(WITH_COLOR)
 # If defined then show the full path in compilation statements etc.
 SHOW_ABS_PATH ?= yes
+
+###############################################################
+# Experimental features
+###############################################################
+# Do we use the experimental memory usage reporting
+GS2_EXPERIMENTAL_ENABLE_MEMORY_USAGE ?=
 
 ###############################################################
 # By default we export all variables defined in this Makefile
@@ -470,6 +478,10 @@ endif
 ifdef USE_NETCDF
 	NETCDF_LIB ?= -lnetcdf
 	MACRO_DEFS += -DNETCDF
+endif
+
+ifdef USE_NETCDF_COMPRESSION
+	MACRO_DEFS += -DGK_NETCDF_DEFAULT_COMPRESSION_ON
 endif
 
 ifdef USE_HDF5
@@ -949,6 +961,7 @@ test_make:
 	$(call messageKeyVal, "USE_SHMEM", $(USE_SHMEM))
 	$(call messageKeyVal, "USE_FFT", $(USE_FFT))
 	$(call messageKeyVal, "USE_NETCDF", $(USE_NETCDF))
+	$(call messageKeyVal, "USE_NETCDF_COMPRESSION", $(USE_NETCDF_COMPRESSION))
 	$(call messageKeyVal, "USE_HDF5", $(USE_HDF5))
 	$(call messageKeyVal, "WITH_EIG", $(WITH_EIG))
 	$(call messageKeyVal, "USE_POSIX", $(USE_POSIX))

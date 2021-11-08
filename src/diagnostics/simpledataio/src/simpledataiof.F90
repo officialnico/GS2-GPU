@@ -205,7 +205,7 @@ contains
 #endif
   end subroutine open_file
 
-!#ifdef PARALLEL 
+!#ifdef SIMPLEDATAIO_HAS_PARALLEL_NETCDF
   subroutine set_parallel(sfile, comm)
     type(sdatio_file), intent(out) :: sfile
     integer, intent(in) :: comm

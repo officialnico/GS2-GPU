@@ -50,7 +50,7 @@ void sdatio_set_parallel(struct sdatio_file * sfile, MPI_Comm * comm){
 }
 
 void sdatio_set_parallel_fortran(struct sdatio_file * sfile, MPI_Fint fcomm){
-#ifdef PARALLEL
+#ifdef SIMPLEDATAIO_HAS_PARALLEL_NETCDF
   MPI_Comm comm = MPI_Comm_f2c(fcomm);
   sdatio_set_parallel(sfile, &comm);
 #else 
@@ -90,7 +90,7 @@ void sdatio_create_file(struct sdatio_file * sfile )  {
 
   /*MPI_Init(&retval, &args);*/
   if (sfile->is_parallel) {
-#ifdef PARALLEL 
+#ifdef SIMPLEDATAIO_HAS_PARALLEL_NETCDF
     if ((retval = nc_create_par(sfile->name, sfile->mode, *(sfile->communicator), MPI_INFO_NULL,  &(sfile->nc_file_id)))) ERR(retval);
 #else
     printf("sdatio was built without --enable-parallel, sdatio_create_file will not work for parallel files\n");
@@ -632,7 +632,7 @@ void sdatio_create_variable(struct sdatio_file * sfile,
 
   DEBUG_MESS("Ending sdatio_append_variable\n");
 
-#ifdef PARALLEL
+#ifdef SIMPLEDATAIO_HAS_PARALLEL_NETCDF
   if (sfile->is_parallel){
     sdatio_number_of_unlimited_dimensions(sfile, variable_name, &nunlim);
     if (nunlim > 0)
@@ -896,14 +896,14 @@ struct sdatio_variable * sdatio_find_variable(struct sdatio_file * sfile, char *
 
 
 void sdatio_collective(struct sdatio_file * sfile, char * variable_name){
-#ifdef PARALLEL
+#ifdef SIMPLEDATAIO_HAS_PARALLEL_NETCDF
   int retval;
   struct sdatio_variable * svar = sdatio_find_variable(sfile, variable_name);
   if ((retval = nc_var_par_access(sfile->nc_file_id, svar->nc_id, NC_COLLECTIVE))) ERR(retval);
 #endif
 }
 void sdatio_independent(struct sdatio_file * sfile, char * variable_name){
-#ifdef PARALLEL
+#ifdef SIMPLEDATAIO_HAS_PARALLEL_NETCDF
   int retval;
   struct sdatio_variable * svar = sdatio_find_variable(sfile, variable_name);
   if ((retval = nc_var_par_access(sfile->nc_file_id, svar->nc_id, NC_INDEPENDENT))) ERR(retval);
@@ -941,8 +941,8 @@ int sdatio_dimension_exists(struct sdatio_file * sfile, char * dimension_name){
 
 void sdatio_write_variable_fortran_convert(struct sdatio_file * sfile, char * variable_name, void ** address){
   /*printf("address2 is %d\n", address);*/
-  printf("address3 is %d\n", *address);
-  printf("address4 is %d\n", &address);
+  printf("address3 is %p\n", *address);
+  printf("address4 is %p\n", &address);
   sdatio_write_variable(sfile, variable_name, *address);
 }
 
@@ -1112,7 +1112,7 @@ void sdatio_open_file(struct sdatio_file * sfile )  {
   DEBUG_MESS("sdatio_open_file opening file\n");
   /* Open the file*/
   if (sfile->is_parallel) {
-#ifdef PARALLEL 
+#ifdef SIMPLEDATAIO_HAS_PARALLEL_NETCDF
     if ((retval = nc_open_par(sfile->name, sfile->mode, *(sfile->communicator), MPI_INFO_NULL,  &(sfile->nc_file_id)))) ERR(retval);
 #else
     printf("sdatio was built without --enable-parallel, sdatio_create_file will not work for parallel files\n");
@@ -1238,7 +1238,7 @@ void sdatio_open_file(struct sdatio_file * sfile )  {
 
     DEBUG_MESS("Ending sdatio_append_variable\n");
 
-#ifdef PARALLEL
+#ifdef SIMPLEDATAIO_HAS_PARALLEL_NETCDF
     if (sfile->is_parallel){
       sdatio_number_of_unlimited_dimensions(sfile, svar->name, &nunlim);
       if (nunlim > 0)
