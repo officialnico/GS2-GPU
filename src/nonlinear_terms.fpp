@@ -6,7 +6,7 @@ module nonlinear_terms
 
   use abstract_config, only: abstract_config_type, CONFIG_MAX_NAME_LEN
   use mp, only: mp_request_null
-  
+  use iso_fortran_env, only: real32
   implicit none
 
   private
@@ -35,7 +35,7 @@ module nonlinear_terms
   !> FIXME : Add documentation  
   type gs2_gryfx_zonal_type
     logical :: on = .false.
-    complex*8, dimension (:), pointer :: NLdens_ky0, NLupar_ky0, NLtpar_ky0, &
+    complex(real32), dimension (:), pointer :: NLdens_ky0, NLupar_ky0, NLtpar_ky0, &
                                          NLtprp_ky0, NLqpar_ky0, NLqprp_ky0
     logical :: first_half_step = .false.
   end type gs2_gryfx_zonal_type

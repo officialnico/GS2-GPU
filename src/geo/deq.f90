@@ -351,11 +351,11 @@ contains
   subroutine gradient(rgrid, theta, grad, char, rp, nth, ntm)
     use splines, only: inter_d_cspl
     implicit none
+    integer, intent(in) :: nth, ntm
     real, dimension(-ntm:), intent(in) :: rgrid, theta
     real, dimension(-ntm:,:), intent(out) :: grad
     character(len=1), intent(in) :: char
     real, intent(in) :: rp
-    integer, intent(in) :: nth, ntm
     real :: aa(1), daa(1), rpt(1)
     integer :: i
     
@@ -379,12 +379,11 @@ contains
   subroutine bgradient(rgrid, theta, grad, char, rp, nth_used, ntm)
     use splines, only: inter_d_cspl
     implicit none
-
+    integer, intent(in) :: nth_used, ntm
     real, dimension(-ntm:), intent(in) :: rgrid, theta
     real, dimension(-ntm:,:), intent(out) :: grad
     character(len=1), intent(in) :: char
     real, intent(in) :: rp
-    integer, intent(in) :: nth_used, ntm
     real :: tmp(2), aa(1), daa(1), rpt(1)
     real, dimension(nw, nh, 2) ::  dbish
     integer :: i
