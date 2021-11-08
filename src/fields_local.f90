@@ -2478,6 +2478,8 @@ contains
     type(comm_type), save :: les_comm
     logical, save :: first=.true.
     logical, save :: sub_has_proc0=.false.
+    logical :: xy_block_comm_is_available
+    logical :: x_is_not_split
 
     !Set the to_all flag
     to_all=.false.
@@ -2492,9 +2494,11 @@ contains
 
     !Work out if we want to use sub communicators in reduction and
     !if we are allowed to.
-    use_sub=(.not. (g_lo%x_local .and. g_lo%y_local)) .and. &
-         do_allreduce .and. field_local_allreduce_sub .and. &
-         intspec_sub .and. g_lo%x_local
+    xy_block_comm_is_available = .not. (g_lo%x_local .and. g_lo%y_local) .and. intspec_sub
+    x_is_not_split = .not. g_lo%x_local
+    use_sub=( &
+         xy_block_comm_is_available .and. x_is_not_split .and. & !Parallel decomposition constraints
+         do_allreduce .and. field_local_allreduce_sub) !Runtime choices
 
     !If using sub-communicators set up object and work out which procs
     !have proc0 as a member
