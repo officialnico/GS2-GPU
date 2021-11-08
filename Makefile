@@ -133,6 +133,12 @@ WITH_COLOUR     ?= $(WITH_COLOR)
 SHOW_ABS_PATH ?= yes
 
 ###############################################################
+# Experimental features
+###############################################################
+# Do we use the experimental memory usage reporting
+GS2_EXPERIMENTAL_ENABLE_MEMORY_USAGE ?=
+
+###############################################################
 # By default we export all variables defined in this Makefile
 # or any included makefiles. This gives sub-make invocations
 # (i.e. make calls from within our Makefile) access to the same
