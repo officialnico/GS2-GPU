@@ -3392,11 +3392,15 @@ contains
           ile=idx(le_lo,-ntgrid,ik_idx(g_lo,iglo),&
                it_idx(g_lo,iglo),is_idx(g_lo,iglo))
 
+          il = il_idx(g_lo, iglo)
+
           !Loop over remaining dimensions, note ile is independent of isign
           !so add two to count
           do ig=-ntgrid,ntgrid
-             !Increment the data sent counter for this proc
-             nn_from(proc_id(le_lo,ile))=nn_from(proc_id(le_lo,ile))+2
+             if (.not. forbid(ig, il)) then
+                !Increment the data sent counter for this proc
+                nn_from(proc_id(le_lo,ile))=nn_from(proc_id(le_lo,ile))+2
+             end if
 
              !Increment ile
              ile=ile+1
@@ -3408,9 +3412,13 @@ contains
     !Protect against procs with no data
     if(le_lo%ulim_proc.ge.le_lo%llim_proc)then
        do ile=le_lo%llim_proc,le_lo%ulim_alloc
+          ig = ig_idx(le_lo, ile)
+
           !Loop over local dimensions, adding 2 to account for each sign
           do ie=1,g_lo%negrid
              do il=1,g_lo%nlambda
+                if (forbid(ig, il)) cycle
+
                 !Get index
                 iglo=idx(g_lo,ik_idx(le_lo,ile),it_idx(le_lo,ile),&
                      il,ie,is_idx(le_lo,ile))
@@ -3450,21 +3458,23 @@ contains
           ile=idx(le_lo,-ntgrid,ik_idx(g_lo,iglo),&
                it_idx(g_lo,iglo),is_idx(g_lo,iglo))
           ile_bak=ile
-
+          il = il_idx(g_lo, iglo)
           !Loop over sign
           do isign=1,2
              do ig=-ntgrid,ntgrid
-                !Get proc id
-                ip=proc_id(le_lo,ile)
+                if (.not. forbid(ig, il)) then
+                   !Get proc id
+                   ip=proc_id(le_lo,ile)
 
-                !Increment procs message counter
-                n=nn_from(ip)+1
-                nn_from(ip)=n
+                   !Increment procs message counter
+                   n=nn_from(ip)+1
+                   nn_from(ip)=n
 
-                !Store indices
-                from_list(ip)%first(n)=ig
-                from_list(ip)%second(n)=isign
-                from_list(ip)%third(n)=iglo
+                   !Store indices
+                   from_list(ip)%first(n)=ig
+                   from_list(ip)%second(n)=isign
+                   from_list(ip)%third(n)=iglo
+                end if
 
                 !Increment ile
                 ile=ile+1
@@ -3488,6 +3498,7 @@ contains
           do ie=1,g_lo%negrid
              do isign=1,2
                 do il0=1,g_lo%nlambda
+                   if (forbid(ig, il0)) cycle
                    !Pick correct extended lambda value
                    je=jend(ig)
                    il=il0
