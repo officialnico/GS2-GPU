@@ -3745,13 +3745,9 @@ contains
                          if (idx_local(g_lo, to_iglo) .and. idx_local(g_lo, from_iglo)) then
                             g0(:,:,to_iglo) = g0(:,:,from_iglo)
                          else if (idx_local(g_lo, from_iglo)) then
-                            do isgn=1, 2
-                               call send (g0(:, isgn, from_iglo), proc_id (g_lo, to_iglo))
-                            enddo
+                            call send (g0(:, :, from_iglo), proc_id (g_lo, to_iglo))
                          else if (idx_local(g_lo, to_iglo)) then
-                            do isgn=1, 2
-                               call receive (g0(:, isgn, to_iglo), proc_id (g_lo, from_iglo))
-                            enddo
+                            call receive (g0(:, :, to_iglo), proc_id (g_lo, from_iglo))
                          endif
                       enddo
 
@@ -3802,13 +3798,9 @@ contains
                          if (idx_local(g_lo, to_iglo) .and. idx_local(g_lo, from_iglo)) then
                             g0(:,:,to_iglo) = g0(:,:,from_iglo)
                          else if (idx_local(g_lo, from_iglo)) then
-                            do isgn=1, 2
-                               call send(g0(:, isgn, from_iglo), proc_id(g_lo, to_iglo))
-                            enddo
+                            call send(g0(:, :, from_iglo), proc_id(g_lo, to_iglo))
                          else if (idx_local(g_lo, to_iglo)) then
-                            do isgn=1, 2
-                               call receive(g0(:, isgn, to_iglo), proc_id (g_lo, from_iglo))
-                            enddo
+                            call receive(g0(:, :, to_iglo), proc_id (g_lo, from_iglo))
                          endif
                       enddo
 
