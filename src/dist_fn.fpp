@@ -3415,13 +3415,13 @@ contains
     integer, dimension(1), save :: itmin
     logical :: should_use_kx
     integer :: ierr, j 
-    integer :: ik, it, ie, is, il, isgn, to_iglo, from_iglo
+    integer :: ik, it, ie, is, il, to_iglo, from_iglo
     integer:: iib, iit, ileft, iright, i
     integer, save :: istep_last = 0
     logical :: field_local_loc
     real, save :: dkx, dtheta0
     real :: gdt
-    complex , dimension(-ntgrid:ntgrid) :: z
+    complex , dimension(-ntgrid:ntgrid, 2) :: z
     character(130) :: str
 
     ierr = error_unit()
@@ -3627,13 +3627,9 @@ contains
                          if (idx_local(g_lo, to_iglo).and. idx_local(g_lo, from_iglo)) then
                             g0(:,:,to_iglo) = g0(:,:,from_iglo)
                          else if (idx_local(g_lo, from_iglo)) then
-                            do isgn = 1, 2
-                               call send(g0(:, isgn, from_iglo), proc_id (g_lo, to_iglo))
-                            enddo
+                            call send(g0(:, :, from_iglo), proc_id (g_lo, to_iglo))
                          else if (idx_local(g_lo, to_iglo)) then
-                            do isgn = 1, 2
-                               call receive(g0(:, isgn, to_iglo), proc_id (g_lo, from_iglo))
-                            enddo
+                            call receive(g0(:, :, to_iglo), proc_id (g_lo, from_iglo))
                          endif
                       enddo
 
@@ -3645,14 +3641,11 @@ contains
                             g0(ileft:,:,to_iglo) = temp(:iright,:,it-iit+1)
                             g0(:ileft-1,:,to_iglo) = 0.0
                          else if (idx_local(g_lo, from_iglo)) then
-                            do isgn = 1,2
-                               call send(temp(:, isgn, it-iit+1), proc_id (g_lo, to_iglo))
-                            enddo
+                            call send(temp(:, :, it-iit+1), proc_id (g_lo, to_iglo))
                          else if (idx_local(g_lo, to_iglo)) then
-                            do isgn=1, 2
                                call receive(z, proc_id (g_lo, from_iglo))
-                               g0(ileft:,isgn,to_iglo) = z(:iright)
-                               g0(:ileft-1,isgn,to_iglo) = 0.0
+                               g0(ileft:, :, to_iglo) = z(:iright, :)
+                               g0(:ileft-1, :, to_iglo) = 0.0
                             enddo
                          endif
                       enddo
@@ -3671,13 +3664,9 @@ contains
                          if (idx_local(g_lo, to_iglo) .and. idx_local(g_lo, from_iglo)) then
                             g0(:,:,to_iglo) = g0(:,:,from_iglo)
                          else if (idx_local(g_lo, from_iglo)) then
-                            do isgn = 1, 2
-                               call send(g0(:, isgn, from_iglo), proc_id (g_lo, to_iglo))
-                            enddo
+                            call send(g0(:, :, from_iglo), proc_id (g_lo, to_iglo))
                          else if (idx_local(g_lo, to_iglo)) then
-                            do isgn = 1, 2
-                               call receive(g0(:,isgn,to_iglo), proc_id (g_lo, from_iglo))
-                            enddo
+                            call receive(g0(:, :, to_iglo), proc_id (g_lo, from_iglo))
                          endif
                       enddo
 
@@ -3689,15 +3678,11 @@ contains
                             g0(:iright,:,to_iglo) = temp(ileft:,:,it)
                             g0(iright+1:,:,to_iglo) = 0.0
                          else if (idx_local(g_lo, from_iglo)) then
-                            do isgn = 1, 2
-                               call send(temp(:, isgn, it), proc_id (g_lo, to_iglo))
-                            enddo
+                            call send(temp(:, :, it), proc_id (g_lo, to_iglo))
                          else if (idx_local(g_lo, to_iglo)) then
-                            do isgn = 1, 2
-                               call receive(z, proc_id (g_lo, from_iglo))
-                               g0(:iright,isgn,to_iglo) = z(ileft:)
-                               g0(iright+1:,isgn,to_iglo) = 0.0
-                            enddo
+                            call receive(z, proc_id (g_lo, from_iglo))
+                            g0(:iright, :, to_iglo) = z(ileft:, :)
+                            g0(iright+1:, :, to_iglo) = 0.0
                          endif
                       enddo
                    endif
@@ -3707,6 +3692,7 @@ contains
           deallocate (temp,temp2)
        enddo
     else
+       ! should_use_kx = .true.
        do ik = naky, 2, -1
           if (jump(ik) < 0) then
              if (fphi > epsilon(0.0)) then
