@@ -3411,6 +3411,7 @@ contains
     complex, dimension(:,:,:), allocatable :: temp 
     complex, dimension(:,:), allocatable :: temp2
     integer, dimension(1), save :: itmin
+    logical :: should_use_kx
     integer :: ierr, j 
     integer :: ik, it, ie, is, il, isgn, to_iglo, from_iglo
     integer:: iib, iit, ileft, iright, i
@@ -3426,6 +3427,10 @@ contains
 
     ierr = error_unit()
 
+    ! If in flux-tube (box mode) or have zero shear then we need
+    ! to work with kx, otherwise use theta0
+    should_use_kx = box .or. shat .eq. 0.0
+
 ! MR, March 2009: remove ExB restriction to box grids
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 ! MR, 2007: Works for ALL layouts (some layouts need no communication)
@@ -3435,7 +3440,7 @@ contains
        exb_first = .false.
        allocate (jump(naky)) 
        jump = 0
-       if (box .or. shat .eq. 0.0) then
+       if (should_use_kx) then
           allocate (ikx_indexed(ntheta0))
           itmin = minloc (ikx)
           
@@ -3487,7 +3492,7 @@ contains
 ! kx_shift is a function of time.   Update it here:  
 ! MR, 2007: kx_shift array gets saved in restart file
 ! CMR, 5/10/2010: multiply timestep by tunits(ik) for wstar_units=.true. 
-    if ( box .or. shat .eq. 0.0 ) then
+    if (should_use_kx) then
        do ik=1, naky
           kx_shift(ik) = kx_shift(ik) - aky(ik)*g_exb*g_exbfac*gdt*tunits(ik)
           jump(ik) = nint(kx_shift(ik)/dkx)
@@ -3512,7 +3517,7 @@ contains
        if(fbpar>epsilon(0.0)) call broadcast(bpar)
     endif
 
-    if (.not. box .and. shat .ne. 0.0 ) then
+    if (.not. should_use_kx) then
 ! MR, March 2009: impact of ExB shear on extended theta grid computed here
 !                 for finite shat
        do ik =1,naky
@@ -3677,9 +3682,7 @@ contains
           enddo
           deallocate (temp,temp2)
        enddo
-    end if
-    
-    if (box .or. shat .eq. 0.0) then
+    else
        do ik = naky, 2, -1
           if (jump(ik) < 0) then
              if (fphi > epsilon(0.0)) then
