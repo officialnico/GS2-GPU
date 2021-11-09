@@ -3643,10 +3643,9 @@ contains
                          else if (idx_local(g_lo, from_iglo)) then
                             call send(temp(:, :, it-iit+1), proc_id (g_lo, to_iglo))
                          else if (idx_local(g_lo, to_iglo)) then
-                               call receive(z, proc_id (g_lo, from_iglo))
-                               g0(ileft:, :, to_iglo) = z(:iright, :)
-                               g0(:ileft-1, :, to_iglo) = 0.0
-                            enddo
+                            call receive(z, proc_id (g_lo, from_iglo))
+                            g0(ileft:, :, to_iglo) = z(:iright, :)
+                            g0(:ileft-1, :, to_iglo) = 0.0
                          endif
                       enddo
 
