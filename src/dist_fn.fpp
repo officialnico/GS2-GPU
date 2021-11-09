@@ -3513,6 +3513,9 @@ contains
        enddo 
     end if
 
+    !If jump is zero for all ky then nothing else to do so leave
+    if (all(jump == 0)) return
+
     !If using field_option='local' and x/it is not entirely local
     !then we need to make sure that all procs know the full field
     !THIS IS A TEMPORARY FIX AND WE SHOULD PROBABLY DO SOMETHING BETTER
