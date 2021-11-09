@@ -3491,6 +3491,14 @@ contains
 ! kx_shift is a function of time.   Update it here:  
 ! MR, 2007: kx_shift array gets saved in restart file
 ! CMR, 5/10/2010: multiply timestep by tunits(ik) for wstar_units=.true. 
+    ! Here we calculate the continuous kx/theta0 shift away from the current
+    ! grid point we are on. Once this reaches at lesat +1/2 * kx/theta0 spacing
+    ! jump will be non-zero so we will need to shuffle data. We then subtract
+    ! jump times the grid space from our continuous shift to reset this to
+    ! effectively -1/2 * kx/theta0 spacing. Note that as this array starts at
+    ! 0, the first jump will happen in half the time of subsequent jumps.
+    !
+    ! @note These statements should be verified.
     if (should_use_kx) then
        do ik=1, naky
           kx_shift(ik) = kx_shift(ik) - aky(ik)*g_exb*g_exbfac*gdt*tunits(ik)
