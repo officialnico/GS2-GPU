@@ -3403,11 +3403,13 @@ contains
     use run_parameters, only: fphi, fapar, fbpar
     use dist_fn_arrays, only: kx_shift, theta0_shift
     use gs2_time, only: code_dt, code_dt_old, code_time
-    use constants, only: twopi    
-
+    use constants, only: twopi
+    use optionals, only: get_option_with_default
+    implicit none
     complex, dimension (-ntgrid:,:,:), intent (in out) :: phi,    apar,    bpar
     complex, dimension (-ntgrid:,:,g_lo%llim_proc:), intent (in out) :: g0
     integer, intent(in) :: istep
+    logical, intent(in), optional :: field_local
     complex, dimension(:,:,:), allocatable :: temp 
     complex, dimension(:,:), allocatable :: temp2
     integer, dimension(1), save :: itmin
@@ -3415,13 +3417,10 @@ contains
     integer :: ierr, j 
     integer :: ik, it, ie, is, il, isgn, to_iglo, from_iglo
     integer:: iib, iit, ileft, iright, i
-    integer, save :: istep_last=0
-    !integer, intent(in) :: istep EGH commented... faulty merge?
-    logical, intent(in), optional :: field_local
+    integer, save :: istep_last = 0
     logical :: field_local_loc
     real, save :: dkx, dtheta0
     real :: gdt
-    !logical, save :: exb_first = .true.
     complex , dimension(-ntgrid:ntgrid) :: z
     character(130) :: str
 
@@ -3509,8 +3508,7 @@ contains
     !If using field_option='local' and x/it is not entirely local
     !then we need to make sure that all procs know the full field
     !THIS IS A TEMPORARY FIX AND WE SHOULD PROBABLY DO SOMETHING BETTER
-    field_local_loc=.false.
-    if(present(field_local)) field_local_loc=field_local
+    field_local_loc = get_option_with_default(field_local, .false.)
     if(any(jump.ne.0).and.(.not.g_lo%x_local).and.field_local_loc) then
        if(fphi>epsilon(0.0)) call broadcast(phi)
        if(fapar>epsilon(0.0)) call broadcast(apar)
