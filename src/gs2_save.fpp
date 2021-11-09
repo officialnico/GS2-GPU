@@ -70,7 +70,7 @@ module gs2_save
   integer (kind_nf) :: gexp_1_r_id, gexp_1_i_id
   integer (kind_nf) :: gexp_2_r_id, gexp_2_i_id
   integer (kind_nf) :: gexp_3_r_id, gexp_3_i_id
-  integer (kind_nf) :: layout_id, kx_shift_id
+  integer (kind_nf) :: layout_id, kx_shift_id, theta0_shift_id
   integer (kind_nf) :: current_scan_parameter_value_id
   integer (kind_nf) :: a_antr_id, b_antr_id, a_anti_id, b_anti_id
   !> Do we save the scan parameter or not?
@@ -97,7 +97,7 @@ contains
         save_glo_info_and_grids, save_velocities)
 # ifdef NETCDF
     use fields_arrays, only: phinew, aparnew, bparnew
-    use dist_fn_arrays, only: gexp_1, gexp_2, gexp_3, kx_shift
+    use dist_fn_arrays, only: gexp_1, gexp_2, gexp_3, kx_shift, theta0_shift
     use kt_grids, only: naky, ntheta0, jtwist_out, akx, aky
     use antenna_data, only: nk_stir, a_ant, b_ant, ant_on
     use netcdf_utils, only: ensure_netcdf_var_exists, ensure_netcdf_dim_exists
@@ -386,10 +386,12 @@ contains
     endif
 
     ! Because we want to be able to restart using exb shear from a
-    ! case which does not have exb shear we always add kx_shift even
-    ! if no exb shear present in simulation)
+    ! case which does not have exb shear we always add kx_shift and
+    ! theta0_shift even if no exb shear present in simulation)
     call ensure_netcdf_var_exists(ncid, "kx_shift", netcdf_real, &
          [kyid], kx_shift_id)
+    call ensure_netcdf_var_exists(ncid, "theta0_shift", netcdf_real, &
+         [kyid], theta0_shift_id)
 
     ! Now we've finished defining things switch to put mode
     call debug_message(verb, 'gs2_save::gs2_save_for_restart nf90_enddef')
@@ -805,6 +807,15 @@ contains
        istatus = nf90_put_var (ncid, kx_shift_id, stmp)
        if (istatus /= NF90_NOERR) call netcdf_error &
             (istatus, ncid, kx_shift_id, var = 'kx_shift put')
+
+       if (allocated(theta0_shift)) then
+          stmp = theta0_shift
+       else
+          stmp = 0.
+       end if
+       istatus = nf90_put_var (ncid, theta0_shift_id, stmp)
+       if (istatus /= NF90_NOERR) call netcdf_error &
+            (istatus, ncid, ktheta0_shift_id, var = 'theta0_shift put')
     end if
 
     ! Close the file
@@ -832,7 +843,7 @@ contains
     use mp, only: iproc, mp_abort, proc0
     use fields_arrays, only: phinew, aparnew, bparnew
     use fields_arrays, only: phi, apar, bpar
-    use dist_fn_arrays, only: gexp_1, gexp_2, gexp_3, kx_shift
+    use dist_fn_arrays, only: gexp_1, gexp_2, gexp_3, kx_shift, theta0_shift
     use kt_grids, only: naky, ntheta0
     use gs2_layouts, only: layout
 # endif
@@ -959,6 +970,11 @@ contains
        istatus = nf90_inq_varid (ncid, "kx_shift", kx_shift_id)
        if (istatus /= NF90_NOERR) call netcdf_error (istatus, var='kx_shift')
     endif   ! MR end
+
+    if (allocated(theta0_shift)) then
+       istatus = nf90_inq_varid (ncid, "theta0_shift", theta0_shift_id)
+       if (istatus /= NF90_NOERR) call netcdf_error (istatus, var='theta0_shift')
+    endif
 
     if (include_explicit_source_in_restart) then
        has_explicit_source_terms = .true.
@@ -1156,6 +1172,14 @@ contains
          call netcdf_error (istatus, ncid, kx_shift_id, var='kx_shift')
        kx_shift = stmp
     endif   ! MR end
+
+    if (allocated(theta0_shift)) then
+       if (.not. allocated(stmp)) allocate (stmp(naky))
+       istatus = nf90_get_var (ncid, theta0_shift_id, stmp)
+       if (istatus /= NF90_NOERR) &
+         call netcdf_error (istatus, ncid, theta0_shift_id, var='theta0_shift')
+       theta0_shift = stmp
+    endif
 
     if (fphi > epsilon(0.)) then
        istatus = nf90_get_var (ncid, phir_id, ftmpr)
