@@ -815,7 +815,7 @@ contains
        end if
        istatus = nf90_put_var (ncid, theta0_shift_id, stmp)
        if (istatus /= NF90_NOERR) call netcdf_error &
-            (istatus, ncid, ktheta0_shift_id, var = 'theta0_shift put')
+            (istatus, ncid, theta0_shift_id, var = 'theta0_shift put')
     end if
 
     ! Close the file
