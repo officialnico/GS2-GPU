@@ -3526,6 +3526,21 @@ contains
        if(fbpar>epsilon(0.0)) call broadcast(bpar)
     endif
 
+    ! We should note that the following branches contain loops over the entire
+    ! global g_lo domain in order to do ordered point-wise communication. We should
+    ! probably think about constructing redistribute objects to represent the relevant
+    ! communications instead. As the communication pattern is ky dependent (as jump
+    ! depends on ky) and we may not wish to communicate in every ky at the same time
+    ! we probably want naky redistribute objects. This may be less than optimal as
+    ! we cannot then group communications for all ky together as in other redistributes.
+    ! The other option is to construct a single redistribute each time one is needed.
+    ! This would allow consolidation of communications but with the overhead of
+    ! redistribute construction. For cases with should_use_kx true, we would not
+    ! expect to need to communicate different ky at the same time (i.e. jump is
+    ! unlikely to be non-zero for more than one ky at a time). When should_use_kx
+    ! is false we will always need to communicate all ky at the same time as jump
+    ! is ky independent (unless wstar_units is true).
+
     if (.not. should_use_kx) then
 ! MR, March 2009: impact of ExB shear on extended theta grid computed here
 !                 for finite shat
