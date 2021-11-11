@@ -1486,6 +1486,7 @@ contains
   !> is true, otherwise just prints the total time.
   subroutine print_times(state, timers)
     use mp, only: proc0, min_reduce, max_reduce, sum_reduce, job
+    use mp, only: get_mp_times!time_mp_other, time_mp_collectives, time_mp_sync, time_mp_ptp
     use redistribute, only: time_redist
     use fields_arrays, only: time_field
     use gs2_reinit, only: time_reinit
@@ -1497,10 +1498,11 @@ contains
     type(gs2_program_state_type), intent(in) :: state
     !> Timing information
     type(gs2_timers_type), intent(in) :: timers
-
+    real :: mp_total, mp_over, mp_coll, mp_ptp, mp_sync
     if (.not. proc0) return
 
     if (state%print_full_timers) then
+       call get_mp_times(mp_total, mp_over, mp_coll, mp_ptp, mp_sync)
 #ifdef WITH_EIG
       print '(/,'' Eigensolver'',T25,0pf8.2,'' min'',T40,2pf5.1,'' %'',/)', &
            timers%eigval(1)/60.,timers%eigval(1)/timers%total(1)
@@ -1512,6 +1514,11 @@ contains
            &''(diagnostics'',T25,0pf9.3,'' min'',T40,2pf5.1,'' %)'',/, &
            &'' Re-initialize'',T25,0pf8.2,'' min'',T40,2pf5.1,'' %'',/, &
            &'' Finishing'',T25,0pf8.2,'' min'',T40,2pf5.1,'' %'',/,  &
+           &A,T25,0pf8.2,'' min'',T40,2pf5.1,'' %'',/,  &
+           &''(Overheads'',T25,0pf9.3,'' min'',T40,2pf5.1,'' %)'',/, &
+           &''(Collectives'',T25,0pf9.3,'' min'',T40,2pf5.1,'' %)'',/, &
+           &''(PTP'',T25,0pf9.3,'' min'',T40,2pf5.1,'' %)'',/, &
+           &''(Sync'',T25,0pf9.3,'' min'',T40,2pf5.1,'' %)'',/, &
            &'' total from timer is:'', 0pf9.2,'' min'',/)', &
            timers%init(1)/60.,timers%init(1)/timers%total(1), &
            timers%advance(1)/60.,timers%advance(1)/timers%total(1), &
@@ -1519,7 +1526,13 @@ contains
            time_field(1)/60.,time_field(1)/timers%total(1), &
            timers%diagnostics(1)/60.,timers%diagnostics(1)/timers%total(1), &
            time_reinit(1)/60.,time_reinit(1)/timers%total(1), &
-           timers%finish(1)/60.,timers%finish(1)/timers%total(1),timers%total(1)/60.
+           timers%finish(1)/60.,timers%finish(1)/timers%total(1), &
+           " MPI",mp_total/60., mp_total/timers%total(1), &
+           mp_over/60., mp_over/timers%total(1), &
+           mp_coll/60., mp_coll/timers%total(1), &
+           mp_ptp/60., mp_ptp/timers%total(1), &
+           mp_sync/60., mp_sync/timers%total(1), &
+           timers%total(1)/60.
     else
       if (state%external_job_id >= 0) then
         write(*, '(a, i0, ", ")', advance="no") " External job ID: ", state%external_job_id
