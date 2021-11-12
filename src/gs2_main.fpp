@@ -1487,7 +1487,7 @@ contains
   subroutine print_times(state, timers)
     use mp, only: proc0, min_reduce, max_reduce, sum_reduce, job
     use mp, only: get_mp_times
-    use redistribute, only: time_redist
+    use redistribute, only: get_redist_times
     use fields_arrays, only: time_field
     use gs2_reinit, only: time_reinit
 #ifdef GS2_EXPERIMENTAL_ENABLE_MEMORY_USAGE
@@ -1499,17 +1499,21 @@ contains
     !> Timing information
     type(gs2_timers_type), intent(in) :: timers
     real :: mp_total, mp_over, mp_coll, mp_ptp, mp_sync
+    real :: redist_total, redist_mpi, redist_copy
     if (.not. proc0) return
 
     if (state%print_full_timers) then
        call get_mp_times(mp_total, mp_over, mp_coll, mp_ptp, mp_sync)
+       call get_redist_times(redist_total, redist_mpi, redist_copy)
 #ifdef WITH_EIG
       print '(/,'' Eigensolver'',T25,0pf8.2,'' min'',T40,2pf5.1,'' %'',/)', &
            timers%eigval(1)/60.,timers%eigval(1)/timers%total(1)
 #endif
       print '(/,'' Initialization'',T25,0pf8.2,'' min'',T40,2pf5.1,'' %'',/, &
            &'' Advance steps'',T25,0pf8.2,'' min'',T40,2pf5.1,'' %'',/, &
-           &''(redistribute'',T25,0pf9.3,'' min'',T40,2pf5.1,'' %)'',/, &
+           &''(redistribute net'',T25,0pf9.3,'' min'',T40,2pf5.1,'' %)'',/, &
+           &''(redistribute mpi'',T25,0pf9.3,'' min'',T40,2pf5.1,'' %)'',/, &
+           &''(redistribute copy'',T25,0pf9.3,'' min'',T40,2pf5.1,'' %)'',/, &
            &''(field solve'',T25,0pf9.3,'' min'',T40,2pf5.1,'' %)'',/, &
            &''(diagnostics'',T25,0pf9.3,'' min'',T40,2pf5.1,'' %)'',/, &
            &'' Re-initialize'',T25,0pf8.2,'' min'',T40,2pf5.1,'' %'',/, &
@@ -1522,7 +1526,9 @@ contains
            &'' total from timer is:'', 0pf9.2,'' min'',/)', &
            timers%init(1)/60.,timers%init(1)/timers%total(1), &
            timers%advance(1)/60.,timers%advance(1)/timers%total(1), &
-           time_redist(1)/60.,time_redist(1)/timers%total(1), &
+           redist_total/60.,redist_total/timers%total(1), &
+           redist_mpi/60.,redist_mpi/timers%total(1), &
+           redist_copy/60.,redist_copy/timers%total(1), &
            time_field(1)/60.,time_field(1)/timers%total(1), &
            timers%diagnostics(1)/60.,timers%diagnostics(1)/timers%total(1), &
            time_reinit(1)/60.,time_reinit(1)/timers%total(1), &
