@@ -220,6 +220,7 @@ contains
 
   !> FIXME : Add documentation  
   subroutine check_run_parameters(report_unit)
+    use species, only: has_hybrid_electron_species, spec
     implicit none
     integer, intent(in) :: report_unit
     if (fphi /= 1.) then
@@ -291,6 +292,16 @@ contains
        write (report_unit, fmt="('The random number generator will use the default seed.')")
     endif
     write (report_unit, *)
+
+    if ( has_hybrid_electron_species(spec) .and. beta /= 0.0 &
+         .and. (fapar /= 0 .or. fbpar /=0) ) then
+       write (report_unit, *)
+       write (report_unit, fmt="('################# WARNING #######################')")
+       write (report_unit, fmt="('You are using a hybrid electron species in an electromagnetic simulation.')")
+       write (report_unit, fmt="('This is probably not physical.')")
+       write (report_unit, fmt="('################# WARNING #######################')")
+       write (report_unit, *)
+    end if
 
   end subroutine check_run_parameters
 

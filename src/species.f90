@@ -224,7 +224,6 @@ module species
 contains
   !> FIXME : Add documentation   
   subroutine check_species(report_unit,beta,tite,alne,dbetadrho_spec)
-    use run_parameters, only: fapar, fbpar
     implicit none
     integer, intent(in) :: report_unit
     real, intent(in) :: beta, tite
@@ -332,17 +331,9 @@ contains
        write (report_unit, fmt="('You are using a hybrid electron species.')")
        write (report_unit, fmt="('This is currently considered experimental.')")
        write (report_unit, fmt="('################# WARNING #######################')")
-
-       if ( beta /= 0.0 .and. (fapar /= 0 .or. fbpar /=0) ) then
-          write (report_unit, *)
-          write (report_unit, fmt="('################# WARNING #######################')")
-          write (report_unit, fmt="('You are using a hybrid electron species in an electromagnetic simulation.')")
-          write (report_unit, fmt="('This is probably not physical.')")
-          write (report_unit, fmt="('################# WARNING #######################')")
-       end if
     end if
 
-    write (report_unit, *) 
+    write (report_unit, *)
     write (report_unit, fmt="('------------------------------------------------------------')")
     
     write (report_unit, *) 
