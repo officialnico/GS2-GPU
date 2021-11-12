@@ -1486,7 +1486,7 @@ contains
   !> is true, otherwise just prints the total time.
   subroutine print_times(state, timers)
     use mp, only: proc0, min_reduce, max_reduce, sum_reduce, job
-    use mp, only: get_mp_times!time_mp_other, time_mp_collectives, time_mp_sync, time_mp_ptp
+    use mp, only: get_mp_times
     use redistribute, only: time_redist
     use fields_arrays, only: time_field
     use gs2_reinit, only: time_reinit
