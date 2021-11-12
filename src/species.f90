@@ -323,7 +323,15 @@ contains
           write (report_unit, fmt="('################# WARNING #######################')")
        end if
     end if
-    
+
+    if (has_hybrid_electron_species(spec)) then
+       write (report_unit, *)
+       write (report_unit, fmt="('################# WARNING #######################')")
+       write (report_unit, fmt="('You are using a hybrid electron species.')")
+       write (report_unit, fmt="('This is currently considered experimental.')")
+       write (report_unit, fmt="('################# WARNING #######################')")
+    end if
+
     write (report_unit, *) 
     write (report_unit, fmt="('------------------------------------------------------------')")
     
