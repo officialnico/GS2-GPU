@@ -167,7 +167,8 @@ module species
      !> - 'e' : Same as 'electron'
      !> - 'trace' : Tracer species
      !> - 'hybrid_electron' : Adiabatic passing electrons, full
-     !>    trapped electron treatment
+     !>    trapped electron treatment. *NOTE: This option is currently
+     !>    considered experimental.*
      !>
      !> This primarily controls the treatment in the collision
      !> operator, the detection of adiabatic species. Tracer species
