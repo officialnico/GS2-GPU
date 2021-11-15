@@ -4350,7 +4350,7 @@ contains
   !> (i.e. that either gnew or h = 0).
   subroutine ginit_random_sine
     use theta_grid, only: ntgrid, ntheta, theta
-    use kt_grids, only: naky, ntheta0, aky
+    use kt_grids, only: naky, ntheta0, aky, reality
     use le_grids, only: forbid
     use dist_fn_arrays, only: g, gnew
     use gs2_layouts, only: g_lo, ik_idx, it_idx, il_idx
@@ -4399,6 +4399,14 @@ contains
           end do
        end do
        if (constant_random_flag) call finish_constant_random
+
+       !Apply reality condition (i.e. -kx mode is conjugate of +kx mode)
+       if (reality) then
+          do it = 1, ntheta0/2
+             phi(:,it+(ntheta0+1)/2,1) = conjg(phi(:,(ntheta0+1)/2+1-it,1))
+          enddo
+       end if
+
     end if
 
     call broadcast(phi)
