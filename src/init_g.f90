@@ -4354,8 +4354,7 @@ contains
     use le_grids, only: forbid
     use dist_fn_arrays, only: g, gnew
     use gs2_layouts, only: g_lo, ik_idx, it_idx, il_idx
-    use ran, only: ranf
-    use constant_random, only: init_constant_random, finish_constant_random, constant_ranf=>ranf
+    use constant_random, only: init_constant_random, finish_constant_random
     use mp, only: proc0, broadcast
     implicit none
     complex, dimension (-ntgrid:ntgrid,ntheta0,naky) :: phi
@@ -4385,15 +4384,7 @@ contains
           sin_theta_mode = sin(imode*(theta-theta(-ntgrid))/2.0)
           do ik = 1, naky
              do it = 1, ntheta0
-                if (constant_random_flag) then
-                   a = (constant_ranf() - 0.5)
-                   b = (constant_ranf() - 0.5)
-                else
-                   a = (ranf() - 0.5)
-                   b = (ranf() - 0.5)
-                end if
-                a = a * sqrt_two
-                b = b * sqrt_two
+                call set_a_and_b_uniform_random_weighting(a, b)
                 phi(:, it, ik) = phi(:, it, ik) + cmplx(a*sin_theta_mode, b*sin_theta_mode)
              end do
           end do
@@ -4430,6 +4421,25 @@ contains
     end do
 
     gnew = g
+  contains
+    !> Real and imaginary weights are uniformly distributed between
+    !> -1/sqrt(2) and 1/sqrt(2) using either the main random number
+    !> generator or the constant random one.
+    subroutine set_a_and_b_uniform_random_weighting(a, b)
+      use ran, only: ranf
+      use constant_random, only: constant_ranf=>ranf
+      implicit none
+      real, intent(out) :: a, b
+      if (constant_random_flag) then
+         a = (constant_ranf() - 0.5)
+         b = (constant_ranf() - 0.5)
+      else
+         a = (ranf() - 0.5)
+         b = (ranf() - 0.5)
+      end if
+      a = a * sqrt_two
+      b = b * sqrt_two
+    end subroutine set_a_and_b_uniform_random_weighting
 
   end subroutine ginit_random_sine
 
