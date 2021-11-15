@@ -4376,9 +4376,9 @@ contains
     ! perturbation (i.e. something not constant in our velocity space).
     if (proc0) then
        if (constant_random_flag) call init_constant_random
-       do ik = 1, naky
-          do it = 1, ntheta0
-             do imode = 1, the_max_mode
+       do imode = 1, the_max_mode
+          do ik = 1, naky
+             do it = 1, ntheta0
                 if (constant_random_flag) then
                    a = (constant_ranf() - 0.5)
                    b = (constant_ranf() - 0.5)
