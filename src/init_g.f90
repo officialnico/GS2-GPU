@@ -4359,6 +4359,7 @@ contains
     use mp, only: proc0, broadcast
     implicit none
     complex, dimension (-ntgrid:ntgrid,ntheta0,naky) :: phi
+    real, dimension(-ntgrid:ntgrid) :: sin_theta_mode
     real :: a, b
     real, parameter :: sqrt_two = sqrt(2.0)
     integer :: iglo, ig, ik, it, il, imode, the_max_mode
@@ -4377,6 +4378,7 @@ contains
     if (proc0) then
        if (constant_random_flag) call init_constant_random
        do imode = 1, the_max_mode
+          sin_theta_mode = sin(imode*(theta-theta(-ntgrid)))
           do ik = 1, naky
              do it = 1, ntheta0
                 if (constant_random_flag) then
@@ -4388,7 +4390,7 @@ contains
                 end if
                 a = a * sqrt_two
                 b = b * sqrt_two
-                phi(:, it, ik) = cmplx(a*sin(imode*theta), b*sin(imode*theta))
+                phi(:, it, ik) = phi(:, it, ik) + cmplx(a*sin_theta_mode, b*sin_theta_mode)
              end do
           end do
        end do
