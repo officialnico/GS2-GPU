@@ -249,7 +249,7 @@ module init_g
      !> true, right side if false. Applies to: FIXME: list of initial conditions
      logical :: left = .true.
      !> The maximum mode number to initialise for [[init_g_knobs:ginit_option]]
-     !> `"random_sine"`. Actual maximum used will be lower of max_mode and `ntheta/4`
+     !> `"random_sine"`. Actual maximum used will be lower of max_mode and `ntheta/8`
      integer :: max_mode = 128
      !> Change fields implicit initialisation somehow
      !>
@@ -4343,7 +4343,7 @@ contains
   !> Construct the initial condition from a sum of sine waves scaled
   !> with random amplitude up to phiinit (ky > 0) or zf_init (ky ==
   !> 0). Use mode numbers up to minimum of max_mode or last resolved
-  !> wave (i.e. ntheta/4).
+  !> wave (i.e. ntheta/8).
   !>
   !> A sine wave is selected in order to ensure that the initial
   !> distribution satisfies the parallel boundary conditions
@@ -4366,8 +4366,8 @@ contains
     phi = 0.0
 
     ! Make sure the max mode is at least 1, but no bigger than the smaller
-    ! of the input max_mode and ntheta/4
-    the_max_mode = max(1, min(max_mode, ntheta/4))
+    ! of the input max_mode and ntheta/8
+    the_max_mode = max(1, min(max_mode, ntheta/8))
 
     ! We choose to only initialise on proc0 and then broadcast to make
     ! sure that all procs have the same values. If done on a processor
