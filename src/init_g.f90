@@ -4405,17 +4405,20 @@ contains
 
     ! Now set the distribution function from "phi".
     do iglo = g_lo%llim_proc, g_lo%ulim_proc
-       ik = ik_idx(g_lo,iglo)
-       it = it_idx(g_lo,iglo)
-       il = il_idx(g_lo,iglo)
+       ik = ik_idx(g_lo, iglo)
+       it = it_idx(g_lo, iglo)
+       il = il_idx(g_lo, iglo)
        if (aky(ik) == 0.0) then
-          g(:,1,iglo) = zf_init * phiinit * phi(:, it, ik)
+          g(:, 1, iglo) = zf_init * phiinit * phi(:, it, ik)
+
+          ! Zero the ky=kx=0 mode
+          if (it == 1) g(:, 1, iglo = 0.0)
        else
-          g(:,1,iglo) = phiinit * phi(:, it, ik)
+          g(:, 1, iglo) = phiinit * phi(:, it, ik)
        end if
 
-       where (forbid(:,il)) g(:,1,iglo) = 0.0
-       g(:,2,iglo) = g(:,1,iglo)
+       where (forbid(:, il)) g(:, 1, iglo) = 0.0
+       g(:, 2, iglo) = g(:, 1, iglo)
     end do
 
     gnew = g
