@@ -39,7 +39,8 @@ module init_g
        ginitopt_all_modes_equal = 33, &
        ginitopt_default_odd=34, ginitopt_restart_memory=35, & !Note ginitopt_restart_memory isn't meant to be a user selected choice.
        ginitopt_restart_eig=36, ginitopt_no_zonal = 37, &
-       ginitopt_stationary_mode = 38, ginitopt_cgyro = 39
+       ginitopt_stationary_mode = 38, ginitopt_cgyro = 39, &
+       ginitopt_random_sine = 40
 
   real :: width0, dphiinit, phiinit, imfac, refac, zf_init, phifrac
   real :: den0, upar0, tpar0, tperp0
@@ -54,11 +55,12 @@ module init_g
   integer, dimension(3) :: ikkk,ittt
   complex, dimension (6) :: phiamp, aparamp
   integer :: restart_eig_id
+  integer :: max_mode
+
   ! These are used for the function ginit_single_parallel_mode, and specify the
   !  kparallel to initialize. In the case of  zero magnetic shear, of course, the box 
   ! is periodic in the parallel direction, and so only harmonics of the box size 
   ! (i.e. ikpar_init) are allowed  EGH</doc>
-
   integer :: ikpar_init
   real :: kpar_init
 
@@ -208,6 +210,8 @@ module init_g
      !>     boundary conditions. Intended for linear calculations.
      !>   - `"eig_restart"`: Uses the restart files written by the
      !>     eigensolver. Also see [[init_g_knobs:restart_eig_id]].
+     !>   - `"random_sine"`: This option is notable as it attempts to make sure
+     !>     that the initial condition satisfies the parallel boundary condition.
      !>
      !> All the options are detailed further in the [initialisation options
      !> documentation](../user_manual/initialisation.html)
@@ -244,6 +248,9 @@ module init_g
      !> If [[init_g_knobs:chop_side]] is true, chop out left side in theta if
      !> true, right side if false. Applies to: FIXME: list of initial conditions
      logical :: left = .true.
+     !> The maximum mode number to initialise for [[init_g_knobs:ginit_option]]
+     !> `"random_sine"`. Actual maximum used will be lower of max_mode and `ntheta/4`
+     integer :: max_mode = 128
      !> Change fields implicit initialisation somehow
      !>
      !> FIXME: Add documentation
@@ -604,6 +611,12 @@ contains
        if (chop_side) write (unit, fmt="(' left = ',L1)") left
        write (unit, fmt="(' clean_init = ',L1)") clean_init
 
+    case (ginitopt_random_sine)
+       write (unit, fmt="(' ginit_option = ',a)") '"random_sine"'
+       write (unit, fmt="(' phiinit = ',e17.10)") phiinit
+       write (unit, fmt="(' zf_init = ',e17.10)") zf_init
+       write (unit, fmt="(' max_mode = ',I0)") max_mode
+
     end select
     write (unit, fmt="(' /')")
   end subroutine wnml_init_g
@@ -904,6 +917,12 @@ contains
        write (report_unit, fmt="('Constant amplitude for ky!=0')")
        write (report_unit, fmt="('Zero amplitude for ky=0')")
 
+    case (ginitopt_random_sine)
+       write (report_unit, fmt="('Initial conditions:')")
+       write (report_unit, fmt="('  Amplitude:        ',f10.4)") phiinit
+       write (report_unit, fmt="('  Zonal amplitude:  ',f10.4)") zf_init
+       write (report_unit, fmt="('  Max mode:         ',I0)") max_mode
+       write (report_unit, fmt="(' Random sum of sine waves up to max_mode mode number')")
     end select
 
     if (ginitopt_switch == ginitopt_restart_many) then
@@ -995,6 +1014,7 @@ contains
     call broadcast (chop_side)
     call broadcast (even)
     call broadcast (left)
+    call broadcast (max_mode)
     call broadcast (clean_init)
     call broadcast (restart_file)
     call broadcast (read_many)
@@ -1176,6 +1196,8 @@ contains
        call ginit_stationary_mode
     case (ginitopt_cgyro)
        call ginit_cgyro
+    case (ginitopt_random_sine)
+       call ginit_random_sine
     end select
 
     ! If the initial condition is the nonadiabatic dfn then
@@ -1259,7 +1281,8 @@ contains
             text_option('all_modes_equal', ginitopt_all_modes_equal), &
             text_option('eig_restart', ginitopt_restart_eig), &
             text_option('stationary_mode', ginitopt_stationary_mode), &
-            text_option('cgyro', ginitopt_cgyro) &
+            text_option('cgyro', ginitopt_cgyro), &
+            text_option('random_sine', ginitopt_random_sine) &
             /)
     character(20) :: ginit_option
 
@@ -1304,6 +1327,7 @@ contains
     ittt = init_g_config%ittt
     kpar_init = init_g_config%kpar_init
     left = init_g_config%left
+    max_mode = init_g_config%max_mode
     new_field_init = init_g_config%new_field_init
     nkxy_pt = init_g_config%nkxy_pt
     null_apar = init_g_config%null_apar
@@ -4316,6 +4340,82 @@ contains
 
   end subroutine ginit_cgyro
 
+  !> Construct the initial condition from a sum of sine waves scaled
+  !> with random amplitude up to phiinit (ky > 0) or zf_init (ky ==
+  !> 0). Use mode numbers up to minimum of max_mode or last resolved
+  !> wave (i.e. ntheta/4).
+  !>
+  !> A sine wave is selected in order to ensure that the initial
+  !> distribution satisfies the parallel boundary conditions
+  !> (i.e. that either gnew or h = 0).
+  subroutine ginit_random_sine
+    use theta_grid, only: ntgrid, ntheta, theta
+    use kt_grids, only: naky, ntheta0, aky
+    use le_grids, only: forbid
+    use dist_fn_arrays, only: g, gnew
+    use gs2_layouts, only: g_lo, ik_idx, it_idx, il_idx
+    use ran, only: ranf
+    use constant_random, only: init_constant_random, finish_constant_random, constant_ranf=>ranf
+    use mp, only: proc0, broadcast
+    implicit none
+    complex, dimension (-ntgrid:ntgrid,ntheta0,naky) :: phi
+    real :: a, b
+    real, parameter :: sqrt_two = sqrt(2.0)
+    integer :: iglo, ig, ik, it, il, imode, the_max_mode
+
+    phi = 0.0
+
+    ! Make sure the max mode is at least 1, but no bigger than the smaller
+    ! of the input max_mode and ntheta/4
+    the_max_mode = max(1, min(max_mode, ntheta/4))
+
+    ! We choose to only initialise on proc0 and then broadcast to make
+    ! sure that all procs have the same values. If done on a processor
+    ! by processor basis, then it's possible that different processors
+    ! would produce different values. This could lead to a non-Maxwellian
+    ! perturbation (i.e. something not constant in our velocity space).
+    if (proc0) then
+       if (constant_random_flag) call init_constant_random
+       do ik = 1, naky
+          do it = 1, ntheta0
+             do imode = 1, the_max_mode
+                if (constant_random_flag) then
+                   a = (constant_ranf() - 0.5)
+                   b = (constant_ranf() - 0.5)
+                else
+                   a = (ranf() - 0.5)
+                   b = (ranf() - 0.5)
+                end if
+                a = a * sqrt_two
+                b = b * sqrt_two
+                phi(:, it, ik) = cmplx(a*sin(imode*theta), b*sin(imode*theta))
+             end do
+          end do
+       end do
+       if (constant_random_flag) call finish_constant_random
+    end if
+
+    call broadcast(phi)
+
+    ! Now set the distribution function from "phi".
+    do iglo = g_lo%llim_proc, g_lo%ulim_proc
+       ik = ik_idx(g_lo,iglo)
+       it = it_idx(g_lo,iglo)
+       il = il_idx(g_lo,iglo)
+       if (aky(ik) == 0.0) then
+          g(:,1,iglo) = zf_init * phiinit * phi(:, it, ik)
+       else
+          g(:,1,iglo) = phiinit * phi(:, it, ik)
+       end if
+
+       where (forbid(:,il)) g(:,1,iglo) = 0.0
+       g(:,2,iglo) = g(:,1,iglo)
+    end do
+
+    gnew = g
+
+  end subroutine ginit_random_sine
+
   !> FIXME : Add documentation    
   subroutine reset_init(from_file)
     implicit none
@@ -4416,7 +4516,7 @@ contains
     character(len = 2000) :: restart_file
     complex, dimension(3) :: nkxy_pt, ukxy_pt
     complex, dimension(6) :: aparamp, phiamp
-    integer :: adj_spec, eq_mode_n, eq_mode_u, ikpar_init, ikx_init, restart_eig_id
+    integer :: adj_spec, eq_mode_n, eq_mode_u, ikpar_init, ikx_init, max_mode, restart_eig_id
     integer, dimension(2) :: ikk, itt
     integer, dimension(3) :: ikkk, ittt
     logical :: chop_side, clean_init, constant_random_flag, even, include_explicit_source_in_restart, initial_condition_is_nonadiabatic_dfn, input_check_recon, left, new_field_init, null_apar, null_bpar, null_phi, read_many
@@ -4424,9 +4524,9 @@ contains
     real :: upar2, width0, zf_init
 
     namelist /init_g_knobs/ a0, adj_spec, apar0, aparamp, b0, chop_side, clean_init, constant_random_flag, den0, den1, den2, dphiinit, eq_mode_n, eq_mode_u, eq_type, even, ginit_option, ikk, ikkk, ikpar_init, ikx_init, imfac, &
-         include_explicit_source_in_restart, initial_condition_is_nonadiabatic_dfn, input_check_recon, itt, ittt, kpar_init, left, new_field_init, nkxy_pt, null_apar, null_bpar, null_phi, phiamp, phifrac, &
-         phiinit, phiinit0, phiinit_rand, prof_width, read_many, refac, restart_dir, restart_eig_id, restart_file, scale, tpar0, tpar1, tpar2, tperp0, tperp1, tperp2, tstart, ukxy_pt, upar0, upar1, upar2, &
-         width0, zf_init
+         include_explicit_source_in_restart, initial_condition_is_nonadiabatic_dfn, input_check_recon, itt, ittt, kpar_init, max_mode, left, new_field_init, nkxy_pt, null_apar, null_bpar, null_phi, phiamp, &
+         phifrac, phiinit, phiinit0, phiinit_rand, prof_width, read_many, refac, restart_dir, restart_eig_id, restart_file, scale, tpar0, tpar1, tpar2, tperp0, tperp1, tperp2, tstart, ukxy_pt, upar0, &
+         upar1, upar2, width0, zf_init
 
     ! Only proc0 reads from file
     if (.not. proc0) return
@@ -4461,6 +4561,7 @@ contains
     ittt = self%ittt
     kpar_init = self%kpar_init
     left = self%left
+    max_mode = self%max_mode
     new_field_init = self%new_field_init
     nkxy_pt = self%nkxy_pt
     null_apar = self%null_apar
@@ -4526,6 +4627,7 @@ contains
     self%ittt = ittt
     self%kpar_init = kpar_init
     self%left = left
+    self%max_mode = max_mode
     self%new_field_init = new_field_init
     self%nkxy_pt = nkxy_pt
     self%null_apar = null_apar
@@ -4602,6 +4704,7 @@ contains
     call self%write_key_val("ittt", self%ittt, unit_internal)
     call self%write_key_val("kpar_init", self%kpar_init, unit_internal)
     call self%write_key_val("left", self%left, unit_internal)
+    call self%write_key_val("max_mode", self%max_mode, unit_internal)
     call self%write_key_val("new_field_init", self%new_field_init, unit_internal)
     call self%write_key_val("nkxy_pt", self%nkxy_pt, unit_internal)
     call self%write_key_val("null_apar", self%null_apar, unit_internal)
@@ -4680,6 +4783,7 @@ contains
     call broadcast(self%ittt)
     call broadcast(self%kpar_init)
     call broadcast(self%left)
+    call broadcast(self%max_mode)
     call broadcast(self%new_field_init)
     call broadcast(self%nkxy_pt)
     call broadcast(self%null_apar)
