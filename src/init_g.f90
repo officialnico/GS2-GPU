@@ -4412,7 +4412,7 @@ contains
           g(:, 1, iglo) = zf_init * phiinit * phi(:, it, ik)
 
           ! Zero the ky=kx=0 mode
-          if (it == 1) g(:, 1, iglo = 0.0)
+          if (it == 1) g(:, 1, iglo) = 0.0
        else
           g(:, 1, iglo) = phiinit * phi(:, it, ik)
        end if
