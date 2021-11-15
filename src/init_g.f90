@@ -4377,8 +4377,12 @@ contains
     ! perturbation (i.e. something not constant in our velocity space).
     if (proc0) then
        if (constant_random_flag) call init_constant_random
-       do imode = 1, the_max_mode
-          sin_theta_mode = sin(imode*(theta-theta(-ntgrid)))
+       ! Here we go from 2*min_mode (min_mode == 1) to 2*the_max_mode
+       ! but then divide imode by two in order to allow us to capture
+       ! n + 1/2 mode numbers and hence provide an even parity
+       ! contribution to the initial condition.
+       do imode = 2, the_max_mode*2
+          sin_theta_mode = sin(imode*(theta-theta(-ntgrid))/2.0)
           do ik = 1, naky
              do it = 1, ntheta0
                 if (constant_random_flag) then
