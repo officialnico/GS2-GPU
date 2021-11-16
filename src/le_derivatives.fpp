@@ -5,7 +5,9 @@ module le_derivatives
 
   private
   
-  public :: vspace_derivatives
+  public :: vspace_derivatives, time_vspace_derivatives
+
+  real, save :: time_vspace_derivatives(2) = 0.
 
 contains
 
@@ -19,6 +21,7 @@ contains
     use theta_grid, only: ntgrid
     use le_grids, only: integrate_moment, nxi, negrid, g2le
     use collisions, only: solfp1, colls, adjust, heating, hyper_colls, use_le_layout
+    use job_manage, only: time_message
 # ifdef LOWFLOW
     use gs2_layouts, only: ig_idx, is_idx
     use theta_grid, only: gradpar, theta
@@ -57,7 +60,8 @@ contains
     complex, dimension (:,:,:), allocatable :: gle
     complex, dimension (:,:,:), allocatable :: gc1, gc2, gc3
     logical :: heating_flag
-    
+
+    call time_message(.false., time_vspace_derivatives, "Vspace derivative")
     if (present(gtoc)) then 
        g_to_c=gtoc 
     else 
@@ -205,6 +209,7 @@ contains
 
    end if
 
+   call time_message(.false., time_vspace_derivatives, "Vspace derivative")
  contains
    
    !> FIXME : Add documentation    
