@@ -172,7 +172,7 @@ coverage_standard_tests:
     EXTRA_MAKE_FLAGS: "USE_GCOV=on DEBUG=on ONE_STEP_PP=on"
     GK_MAKEFILE_LOCAL_EXTRA_FLAGS: "F90FLAGS += -ffree-form"
     COVERALLS_SERVICE_NAME: "gitlab-ci"
-    PFUNIT_EXTRA_CMAKE_FLAGS: -DCMAKE_Fortran_FLAGS_DEBUG="-fallow-argument-mismatch -g"
+    PFUNIT_EXTRA_CMAKE_FLAGS: -DCMAKE_Fortran_FLAGS_DEBUG='-fallow-argument-mismatch -g'
   script: *default_script
   after_script:
     - *push_status
