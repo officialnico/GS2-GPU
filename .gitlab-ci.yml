@@ -111,13 +111,16 @@ standard_tests:
 
 gfortran10_standard_tests:
   stage: test
-  image: fedora:33
+  image: fedora:35
   variables:
-    CASENAME: "gfortran_10"
-    EXTRA_PACKAGES: "wget openblas openblas-devel"
+    CASENAME: "gfortran_11_mpich"
+    MPI_PACKAGES: "mpich mpich-devel"
+    EXTRA_PACKAGES: "wget openblas openblas-devel diffutils"
     EXTRA_MAKE_FLAGS: "USE_LAPACK=on LAPACK_LIB=-lopenblas WITH_EIG=on"
-#Disable pfunit tests for now as v3 doesn't support gfortran 10 so it fails to build.
-    GK_CI_PFUNIT: ""
+    PFUNIT_EXTRA_CMAKE_FLAGS: -DCMAKE_Fortran_FLAGS_DEBUG='-fallow-argument-mismatch -g'
+# MPICH performs very poorly when oversubscribed so we limit our integrated tests to
+# one process only.
+    EXTRA_TEST_FLAGS: "NTESTPROCS=1"
   script:
     - su -c "./pipeline_test_scripts/ci_fetch_and_build_petsc_and_slepc.sh -d ${PKG_CACHE_DIR}" theuser
     - su -c "source load_petsc_slepc ;  ./pipeline_test_scripts/ci_build_and_run.sh" theuser
