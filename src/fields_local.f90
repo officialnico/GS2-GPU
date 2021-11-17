@@ -2495,7 +2495,7 @@ contains
     !Work out if we want to use sub communicators in reduction and
     !if we are allowed to.
     xy_block_comm_is_available = .not. (g_lo%x_local .and. g_lo%y_local) .and. intspec_sub
-    x_is_not_split = .not. g_lo%x_local
+    x_is_not_split = g_lo%x_local
     use_sub=( &
          xy_block_comm_is_available .and. x_is_not_split .and. & !Parallel decomposition constraints
          do_allreduce .and. field_local_allreduce_sub) !Runtime choices
