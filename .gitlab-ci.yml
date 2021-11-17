@@ -103,9 +103,10 @@ formattting_tests:
 
 standard_tests:
   stage: test
-  image: fedora:31
+  image: fedora:35
   variables:
     CASENAME: "standard"
+    PFUNIT_EXTRA_CMAKE_FLAGS: -DCMAKE_Fortran_FLAGS_DEBUG='-fallow-argument-mismatch -g'
   script: *default_script
 
 gfortran10_standard_tests:
