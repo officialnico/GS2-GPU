@@ -4093,14 +4093,14 @@ contains
     use run_parameters, only: fphi, fapar, fbpar, reset
     use fields_implicit, only: remove_zonal_flows
     use fields_arrays, only: phi, apar, bpar, phinew, time_field
-    use fields_arrays, only: aparnew, bparnew, apar_ext
+    use fields_arrays, only: aparnew, bparnew, apar_ext, time_field_mpi
     use dist_fn, only: timeadv, exb_shear, g_exb, g_exbfac
     use dist_fn, only: collisions_advance
     use dist_fn_arrays, only: g, gnew
     use antenna, only: antenna_amplitudes, no_driver
     use gs2_layouts, only: g_lo
     use unit_tests, only: debug_message
-    use mp, only: proc0 !, barrier
+    use mp, only: proc0, get_mp_times !, barrier
     use job_manage, only: time_message
     implicit none
     integer, intent(in) :: istep
@@ -4109,6 +4109,7 @@ contains
     logical, parameter :: do_gather=.true.
     logical :: do_update
     integer, parameter :: verb = 4
+    real :: mp_total, mp_total_after
     !do_gather=.true. => fields are collected from all procs and distributed to everyone (required)
     !do_update=.true. => "Smart" update routines are used which only update the local parts of the
     !field arrays. This could help when xy are strongly parallelised but is likely to be slower
@@ -4152,7 +4153,10 @@ contains
 
     !For timing
     !if(debug)call barrier !!/These barriers influence the reported time
-    if (proc0) call time_message(.false.,time_field,' Field Solver')
+    if (proc0) then
+       call time_message(.false.,time_field,' Field Solver')
+       call get_mp_times(total_time = mp_total)
+    end if
 
     !Calculate the fields at the next time point
     call getfield_local(phinew,aparnew,bparnew,do_gather,do_update)
@@ -4168,7 +4172,11 @@ contains
     !Barrier usage ensures that proc0 measures the longest time taken on
     !any proc.
     !if(debug)call barrier !!/These barriers influence the reported time
-    if (proc0) call time_message(.false.,time_field,' Field Solver')
+    if (proc0) then
+       call time_message(.false.,time_field,' Field Solver')
+       call get_mp_times(total_time = mp_total_after)
+       time_field_mpi = time_field_mpi + (mp_total_after - mp_total)
+    end if
 
     !Remove zonal component if requested
     if(remove_zonal_flows_switch) call remove_zonal_flows

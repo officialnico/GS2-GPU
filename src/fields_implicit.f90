@@ -339,15 +339,16 @@ contains
   subroutine advance_implicit (istep, remove_zonal_flows_switch)
     use run_parameters, only: reset
     use fields_arrays, only: phi, apar, bpar, phinew, aparnew, bparnew
-    use fields_arrays, only: apar_ext, time_field
+    use fields_arrays, only: apar_ext, time_field, time_field_mpi
     use antenna, only: antenna_amplitudes, no_driver
     use dist_fn, only: timeadv, exb_shear, collisions_advance
     use dist_fn_arrays, only: g, gnew, kx_shift, theta0_shift
     use unit_tests, only: debug_message
     use job_manage, only: time_message
-    use mp, only: proc0
+    use mp, only: proc0, get_mp_times
     implicit none
     integer :: diagnostics = 1
+    real :: mp_total, mp_total_after
     integer, intent (in) :: istep
     logical, intent (in) :: remove_zonal_flows_switch
 
@@ -370,7 +371,10 @@ contains
     
     call debug_message(4, 'fields_implicit::advance_implicit calling getfield')
 
-    if (proc0) call time_message(.false.,time_field,' Field Solver')
+    if (proc0) then
+       call time_message(.false.,time_field,' Field Solver')
+       call get_mp_times(total_time = mp_total)
+    end if
 
     call getfield (phinew, aparnew, bparnew)
 
@@ -378,7 +382,11 @@ contains
     aparnew  = aparnew + apar
     bparnew  = bparnew + bpar
 
-    if (proc0) call time_message(.false.,time_field,' Field Solver')
+    if (proc0) then
+       call time_message(.false.,time_field,' Field Solver')
+       call get_mp_times(total_time = mp_total_after)
+       time_field_mpi = time_field_mpi + (mp_total_after - mp_total)
+    end if
 
     if (remove_zonal_flows_switch) call remove_zonal_flows
     
