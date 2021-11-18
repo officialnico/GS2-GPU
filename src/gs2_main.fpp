@@ -1488,7 +1488,7 @@ contains
     use mp, only: proc0, min_reduce, max_reduce, sum_reduce, job
     use mp, only: get_mp_times
     use redistribute, only: get_redist_times
-    use fields_arrays, only: time_field
+    use fields_arrays, only: time_field, time_field_mpi
     use gs2_reinit, only: time_reinit
     use le_derivatives, only: time_vspace_derivatives
     use nonlinear_terms, only: time_add_explicit_terms
@@ -1517,6 +1517,7 @@ contains
            &''(redistribute mpi'',T25,0pf9.3,'' min'',T40,2pf5.1,'' %)'',/, &
            &''(redistribute copy'',T25,0pf9.3,'' min'',T40,2pf5.1,'' %)'',/, &
            &''(field solve'',T25,0pf9.3,'' min'',T40,2pf5.1,'' %)'',/, &
+           &''(field solve mpi'',T25,0pf9.3,'' min'',T40,2pf5.1,'' %)'',/, &
            &''(collisions'',T25,0pf9.3,'' min'',T40,2pf5.1,'' %)'',/, &
            &''(explicit/nl'',T25,0pf9.3,'' min'',T40,2pf5.1,'' %)'',/, &
            &''(diagnostics'',T25,0pf9.3,'' min'',T40,2pf5.1,'' %)'',/, &
@@ -1534,6 +1535,7 @@ contains
            redist_mpi/60.,redist_mpi/timers%total(1), &
            redist_copy/60.,redist_copy/timers%total(1), &
            time_field(1)/60.,time_field(1)/timers%total(1), &
+           time_field_mpi/60.,time_field_mpi/timers%total(1), &
            time_vspace_derivatives(1)/60.,time_vspace_derivatives(1)/timers%total(1), &
            time_add_explicit_terms(1)/60.,time_add_explicit_terms(1)/timers%total(1), &
            timers%diagnostics(1)/60.,timers%diagnostics(1)/timers%total(1), &
