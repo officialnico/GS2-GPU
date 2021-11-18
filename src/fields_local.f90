@@ -4038,9 +4038,6 @@ contains
 
   !> Calculate the update to the fields
   subroutine getfield_local(phi,apar,bpar,do_gather_in,do_update_in)
-    use fields_arrays, only: time_field
-    use mp, only: proc0 !, barrier
-    use job_manage, only: time_message
     use unit_tests, only: debug_message
     implicit none
     complex, dimension(:,:,:), intent(out) :: phi,apar,bpar !Note, these are actually phinew,... in typical usage
@@ -4054,10 +4051,6 @@ contains
     if(present(do_gather_in)) do_gather=do_gather_in
     do_update=.false.
     if(present(do_update_in)) do_update=do_update_in
-
-    !For timing
-    !if(debug)call barrier !!/These barriers influence the reported time
-    if (proc0) call time_message(.false.,time_field,' Field Solver')
 
     call debug_message(verb, &
         'fields_local::getfield_local calling get_field_update')
@@ -4082,11 +4075,6 @@ contains
 
     call debug_message(verb, &
         'fields_local::getfield_local finished')
-    !For timing
-    !Barrier usage ensures that proc0 measures the longest time taken on
-    !any proc.
-    !if(debug)call barrier !!/These barriers influence the reported time
-    if (proc0) call time_message(.false.,time_field,' Field Solver')
   end subroutine getfield_local
 
   !> Initialise the fields from the initial g, just uses the
@@ -4104,7 +4092,7 @@ contains
   subroutine advance_local(istep, remove_zonal_flows_switch)
     use run_parameters, only: fphi, fapar, fbpar, reset
     use fields_implicit, only: remove_zonal_flows
-    use fields_arrays, only: phi, apar, bpar, phinew
+    use fields_arrays, only: phi, apar, bpar, phinew, time_field
     use fields_arrays, only: aparnew, bparnew, apar_ext
     use dist_fn, only: timeadv, exb_shear, g_exb, g_exbfac
     use dist_fn, only: collisions_advance
@@ -4112,6 +4100,8 @@ contains
     use antenna, only: antenna_amplitudes, no_driver
     use gs2_layouts, only: g_lo
     use unit_tests, only: debug_message
+    use mp, only: proc0 !, barrier
+    use job_manage, only: time_message
     implicit none
     integer, intent(in) :: istep
     logical, intent(in) :: remove_zonal_flows_switch
@@ -4158,10 +4148,14 @@ contains
     if(.not.no_driver) aparnew=aparnew+apar_ext
 
     call debug_message(verb, &
-      'fields_local::advance_local calling getfield_local')
+         'fields_local::advance_local calling getfield_local')
+
+    !For timing
+    !if(debug)call barrier !!/These barriers influence the reported time
+    if (proc0) call time_message(.false.,time_field,' Field Solver')
+
     !Calculate the fields at the next time point
     call getfield_local(phinew,aparnew,bparnew,do_gather,do_update)
-
 
     !If we do the update in getfield_local don't do it here
     if(.not.do_update)then
@@ -4170,6 +4164,11 @@ contains
        if(fbpar.gt.0) bparnew=bparnew+bpar
     endif
 
+    !For timing
+    !Barrier usage ensures that proc0 measures the longest time taken on
+    !any proc.
+    !if(debug)call barrier !!/These barriers influence the reported time
+    if (proc0) call time_message(.false.,time_field,' Field Solver')
 
     !Remove zonal component if requested
     if(remove_zonal_flows_switch) call remove_zonal_flows
