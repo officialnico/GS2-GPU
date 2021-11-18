@@ -242,19 +242,15 @@ contains
     use kt_grids, only: naky, ntheta0
     use gs2_layouts, only: f_lo, jf_lo, ij, mj, dj
     use prof, only: prof_entering, prof_leaving
-    use fields_arrays, only: time_field
     use theta_grid, only: ntgrid
     use dist_fn, only: N_class
     use mp, only: sum_allreduce, allgatherv, iproc,nproc, proc0
-    use job_manage, only: time_message
     implicit none
     complex, dimension (-ntgrid:,:,:), intent (in) :: phi, apar, bpar
     complex, dimension (:,:,:), allocatable :: fl
     complex, dimension (:), allocatable :: u
     complex, dimension (:), allocatable :: u_small
     integer :: jflo, ik, it, nl, nr, i, m, n, dc
-
-    if (proc0) call time_message(.false.,time_field,' Field Solver')
 
     call prof_entering ("getfield", "fields_implicit")
     allocate (fl(nidx, ntheta0, naky))
@@ -337,20 +333,19 @@ contains
     !For profiling
     call prof_leaving ("getfield", "fields_implicit")
 
-    !For timing
-    if (proc0) call time_message(.false.,time_field,' Field Solver')
-
   end subroutine getfield
 
   !> FIXME : Add documentation  
   subroutine advance_implicit (istep, remove_zonal_flows_switch)
     use run_parameters, only: reset
     use fields_arrays, only: phi, apar, bpar, phinew, aparnew, bparnew
-    use fields_arrays, only: apar_ext
+    use fields_arrays, only: apar_ext, time_field
     use antenna, only: antenna_amplitudes, no_driver
     use dist_fn, only: timeadv, exb_shear, collisions_advance
     use dist_fn_arrays, only: g, gnew, kx_shift, theta0_shift
     use unit_tests, only: debug_message
+    use job_manage, only: time_message
+    use mp, only: proc0
     implicit none
     integer :: diagnostics = 1
     integer, intent (in) :: istep
@@ -374,11 +369,16 @@ contains
     if(.not.no_driver) aparnew = aparnew + apar_ext 
     
     call debug_message(4, 'fields_implicit::advance_implicit calling getfield')
+
+    if (proc0) call time_message(.false.,time_field,' Field Solver')
+
     call getfield (phinew, aparnew, bparnew)
-    
+
     phinew   = phinew  + phi
     aparnew  = aparnew + apar
     bparnew  = bparnew + bpar
+
+    if (proc0) call time_message(.false.,time_field,' Field Solver')
 
     if (remove_zonal_flows_switch) call remove_zonal_flows
     
