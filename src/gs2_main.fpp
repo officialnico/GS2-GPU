@@ -1159,6 +1159,7 @@ contains
     use job_manage, only: time_message
     use mp, only: finish_mp, proc0, barrier, unsplit_all, included
     use unit_tests, only: debug_message
+    use standard_header, only: date_iso8601
     implicit none
     type(gs2_program_state_type), intent(inout) :: state
     !> If true, don't print start-up messages/header
@@ -1222,6 +1223,7 @@ contains
 
     state%init%level = 0
 
+    if (proc0 .and. (.not. quiet_value) ) write(*, '("Run finished at ",A)') date_iso8601()
 
     !if (.not. present(mpi_comm) .and. .not. nofin) call finish_mp
   end subroutine finalize_gs2
