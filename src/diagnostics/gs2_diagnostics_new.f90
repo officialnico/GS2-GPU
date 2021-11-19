@@ -35,7 +35,7 @@ contains
 
   !> Read namelist diagnostics_config, initialise submodules,
   !! open output file 'run_name.cdf' and create dimensions.
-  subroutine init_gs2_diagnostics_new(init_options)
+  subroutine init_gs2_diagnostics_new(init_options, header)
     use diagnostics_config, only: init_diagnostics_config
     use volume_averages, only: init_volume_averages
     use diagnostics_fluxes, only: init_diagnostics_fluxes
@@ -65,8 +65,12 @@ contains
     use diagnostics_metadata, only: read_input_file_and_get_size
     use gs2_diagnostics, only: check_restart_file_writeable
     use unit_tests, only: debug_message
+    use standard_header, only: standard_header_type
+    use gs2_io, only: create_metadata
     implicit none
     type(diagnostics_init_options_type), intent(in) :: init_options
+    !> Header for files with build and run information
+    type(standard_header_type), intent(in) :: header
     logical :: ex
     
     call debug_message(gnostics%verbosity, &
@@ -196,6 +200,7 @@ contains
        else
          gnostics%appending=.false.
          call create_file(gnostics%sfile)
+         call create_metadata(gnostics%sfile%nc_file_id, trim(run_name)//".out.nc", header)
          call write_metadata(gnostics)
          call debug_message(gnostics%verbosity, &
            'gs2_diagnostics_new::init_gs2_diagnostics_new written metadata')

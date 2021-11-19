@@ -689,7 +689,7 @@ contains
       ! Specifiy whether we are doing a replay.
       diagnostics_init_options%replay = state%replay
 
-      call init_gs2_diagnostics_new(diagnostics_init_options)
+      call init_gs2_diagnostics_new(diagnostics_init_options, local_header)
 
       call debug_message(state%verb, &
         'gs2_main::initialize_diagnostics calling run_diagnostics')
