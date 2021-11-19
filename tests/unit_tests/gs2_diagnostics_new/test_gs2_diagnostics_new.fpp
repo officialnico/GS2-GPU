@@ -216,8 +216,13 @@ program test_gs2_diagnostics_new
     end if
 #endif
 
-
-
+    if (use_old_diagnostics) then
+      call finish_gs2_diagnostics(ilast_step)
+#ifdef NEW_DIAG
+    else
+      call finish_gs2_diagnostics_new
+#endif
+    end if
 
 #ifdef NEW_DIAG
     if (proc0 .and. .not. use_old_diagnostics) then
@@ -254,19 +259,10 @@ program test_gs2_diagnostics_new
     end if
 #endif
 
-    if (use_old_diagnostics) then
-      call finish_gs2_diagnostics(ilast_step)
-
-#ifdef NEW_DIAG
-    else
-      call finish_gs2_diagnostics_new
-#endif
-    end if
     call finish_gs2
+    call close_module_test("gs2_diagnostics_new")
 
-   call close_module_test("gs2_diagnostics_new")
-
-   call finish_mp
+    call finish_mp
 
 contains
   

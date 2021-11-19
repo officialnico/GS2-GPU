@@ -169,10 +169,6 @@ contains
     call sdatio_init(gnostics%sfile, trim(run_name)//'.out.nc')
     if (gnostics%parallel) then 
        call set_parallel(gnostics%sfile, mp_comm)
-    else
-       if (.not. gnostics%serial_netcdf4) then 
-          gnostics%sfile%mode = NF90_CLOBBER
-       end if
     end if
 
     call debug_message(gnostics%verbosity, &
