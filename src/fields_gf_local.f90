@@ -4128,8 +4128,6 @@ contains
   subroutine getfield_gf_local(phi,apar,bpar,gf_phi,gf_apar,gf_bpar,do_update_in)
     use fields_arrays, only: time_field
     use theta_grid, only: ntgrid
-    use mp, only: proc0
-    use job_manage, only: time_message
     implicit none
     complex, dimension(-ntgrid:,:,:), intent(out) :: phi,apar,bpar,gf_phi,gf_apar,gf_bpar !Note, these are actually phinew,... in typical usage
     logical, optional, intent(in) :: do_update_in
@@ -4137,8 +4135,6 @@ contains
 
     do_update=.false.
     if(present(do_update_in)) do_update=do_update_in
-
-    call time_message(.false.,time_field,' Field Solver')
 
     !Use fieldmat routine to calculate the field update
     !AJ phi(new),apar(new),bpar(new) are in gf_lo here
@@ -4155,8 +4151,6 @@ contains
     !AJ phi(new),apar(new),bpar(new) are in g_lo
     !Thi s routine updates *new fields using gathered update
     if(do_update) call fieldmat%update_fields(phi,apar,bpar,gf_phi,gf_apar,gf_bpar)
-
-    call time_message(.false.,time_field,' Field Solver')
   end subroutine getfield_gf_local
 
   !> Initialise the fields from the initial g, just uses the
@@ -4186,12 +4180,15 @@ contains
     use dist_fn, only: timeadv, exb_shear, g_exb, g_exbfac
     use dist_fn, only: collisions_advance
     use dist_fn_arrays, only: g, gnew
+    use mp, only: get_mp_times
+    use job_manage, only: time_message
     use antenna, only: antenna_amplitudes, no_driver
     implicit none
     integer, intent(in) :: istep
     logical, intent(in) :: remove_zonal_flows_switch
     integer :: diagnostics = 1
     logical :: do_update
+    real :: mp_total, mp_total_after
 
     do_update=.true.
 
@@ -4242,12 +4239,15 @@ contains
        aparnew=aparnew+apar_ext
     end if
 
+    call time_message(.false.,time_field,' Field Solver')
+    call get_mp_times(total_time = mp_total)
+
     !Calculate the fields at the next time point
     call getfield_gf_local(phinew,aparnew,bparnew,gf_phinew,gf_aparnew,gf_bparnew,do_update)
 
     !If we do the update in getfield_gf_local don't do it here
     if(.not.do_update)then
-       if(fphi.gt.0) then 
+       if(fphi.gt.0) then
           phinew=phinew+phi
           gf_phinew=gf_phinew+gf_phi
        end if
@@ -4255,11 +4255,15 @@ contains
           aparnew=aparnew+apar
           gf_aparnew=gf_aparnew+gf_apar
        end if
-       if(fbpar.gt.0) then 
+       if(fbpar.gt.0) then
           bparnew=bparnew+bpar
           gf_bparnew=gf_bparnew+gf_bpar
        end if
-    endif    
+    endif
+
+    call time_message(.false.,time_field,' Field Solver')
+    call get_mp_times(total_time = mp_total_after)
+    time_field_mpi = time_field_mpi + (mp_total_after - mp_total)
 
     !Remove zonal component if requested
     if(remove_zonal_flows_switch) then
