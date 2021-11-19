@@ -4126,7 +4126,6 @@ contains
 
   !> Calculate the update to the fields
   subroutine getfield_gf_local(phi,apar,bpar,gf_phi,gf_apar,gf_bpar,do_update_in)
-    use fields_arrays, only: time_field
     use theta_grid, only: ntgrid
     implicit none
     complex, dimension(-ntgrid:,:,:), intent(out) :: phi,apar,bpar,gf_phi,gf_apar,gf_bpar !Note, these are actually phinew,... in typical usage
@@ -4177,6 +4176,7 @@ contains
     use fields_arrays, only: aparnew, bparnew, apar_ext
     use fields_arrays, only: gf_phi, gf_apar, gf_bpar
     use fields_arrays, only: gf_phinew, gf_aparnew, gf_bparnew
+    use fields_arrays, only: time_field, time_field_mpi
     use dist_fn, only: timeadv, exb_shear, g_exb, g_exbfac
     use dist_fn, only: collisions_advance
     use dist_fn_arrays, only: g, gnew
