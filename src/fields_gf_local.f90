@@ -4138,7 +4138,7 @@ contains
     do_update=.false.
     if(present(do_update_in)) do_update=do_update_in
 
-    if (proc0) call time_message(.false.,time_field,' Field Solver')
+    call time_message(.false.,time_field,' Field Solver')
 
     !Use fieldmat routine to calculate the field update
     !AJ phi(new),apar(new),bpar(new) are in gf_lo here
@@ -4156,7 +4156,7 @@ contains
     !Thi s routine updates *new fields using gathered update
     if(do_update) call fieldmat%update_fields(phi,apar,bpar,gf_phi,gf_apar,gf_bpar)
 
-    if (proc0) call time_message(.false.,time_field,' Field Solver')
+    call time_message(.false.,time_field,' Field Solver')
   end subroutine getfield_gf_local
 
   !> Initialise the fields from the initial g, just uses the

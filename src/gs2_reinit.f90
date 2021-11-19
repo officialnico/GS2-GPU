@@ -184,7 +184,7 @@ contains
        return
     end if
 
-    if (proc0 .and. .not. present(job_id)) call time_message(.true.,time_reinit,' Re-initialize')
+    if (.not. present(job_id)) call time_message(proc0,time_reinit,' Re-initialize')
 
     !First disable the reset flag so we can call 
     !routines needed in reinit
@@ -255,7 +255,7 @@ contains
     !call reinit_gk_and_field_equations(reset_antenna=.false.)
     call init(current_init, init_level_list%full)
     
-    if (proc0 .and. .not. present(job_id)) call time_message(.true.,time_reinit,' Re-initialize')
+    if (.not. present(job_id)) call time_message(proc0,time_reinit,' Re-initialize')
 
     istep_last = istep
 
