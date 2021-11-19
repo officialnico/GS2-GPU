@@ -349,7 +349,7 @@ MACRO_DEFS+=-DGIT_HASH_UTILS='"$(GIT_HASH_UTILS)"'
 
 # Version string, including current commit if not on a release, plus
 # '-dirty' if there are uncommitted changes
-GIT_VERSION := $(shell git describe --tags --long --dirty --match "[0-9]*.[0-9]*.[0-9]*")
+GIT_VERSION := $(shell git describe --tags --dirty --match "[0-9]*.[0-9]*.[0-9]*")
 MACRO_DEFS += -DGIT_VERSION='"$(GIT_VERSION)"'
 
 #The magic sed esacpes either ( or ) by replacing with \( or \)
