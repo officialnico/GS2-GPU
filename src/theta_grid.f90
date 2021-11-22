@@ -18,38 +18,44 @@ module theta_grid_gridgen
   integer :: npadd
   real :: alknob, epsknob, bpknob, extrknob, tension
   real :: thetamax, deltaw, widthw
+  logical :: skip_gridgen
   logical :: exist, initialized=.false.
 
   !> Used to represent the input configuration of theta_grid_gridgen
   type, extends(abstract_config_type) :: theta_grid_gridgen_config_type
      ! namelist : theta_grid_gridgen_knobs
      ! indexed : false     
-
-     !> Number of points between original grid points to oversample \(\theta\) by
-     integer :: npadd = 2
      !> Relative weighting of pitch-angle metric to \(\theta\) metric
      real :: alknob = 0.0
-     !> Maximum difference between neighbouring points for determining
-     !> if a point is an extremum.
-     real :: epsknob = 1e-5
      !> Consider when the right grid point is equal to the target bmag.
      !>
      !> FIXME: What does this mean?
      real :: bpknob = 1.e-8
+     !> Parameter for weighted resolution in theta?
+     !>
+     !> FIXME: What does this mean?
+     real :: deltaw = 0.0
+     !> Maximum difference between neighbouring points for determining
+     !> if a point is an extremum.
+     real :: epsknob = 1e-5
      !> Something to do with scaling the theta resolution?
      !>
      !> FIXME: What does this mean?
      real :: extrknob = 0.0
+     !> Number of points between original grid points to oversample \(\theta\) by
+     integer :: npadd = 2
+     !> If true then skip gridgen call and instead just use the existing grid.
+     !>
+     !> @note This is primarily for debugging and testing. When active we are
+     !> effectively forced to assumed that the input bmag is symmetric and
+     !> monotonic. If this is not true then we should not trust the results.
+     logical :: skip_gridgen = .false.
      !> Tension for \(B\) spline
      real :: tension = 1.0
      !> Parameter for weighted resolution in theta?
      !>
      !> FIXME: What does this mean?
      real :: thetamax = 0.0
-     !> Parameter for weighted resolution in theta?
-     !>
-     !> FIXME: What does this mean?
-     real :: deltaw = 0.0
      !> Parameter for weighted resolution in theta?
      !>
      !> FIXME: What does this mean?
@@ -79,6 +85,7 @@ contains
     write (unit, fmt="(' epsknob =  ',e17.10)") epsknob
     write (unit, fmt="(' bpknob =   ',e17.10)") bpknob
     write (unit, fmt="(' extrknob = ',e17.10)") extrknob
+    write (unit, fmt="(' skip_gridgen =  ',L1)") skip_gridgen
     write (unit, fmt="(' tension =  ',e17.10)") tension
     write (unit, fmt="(' thetamax = ',e17.10)") thetamax
     write (unit, fmt="(' deltaw =   ',e17.10)") deltaw
@@ -118,6 +125,7 @@ contains
     epsknob  = theta_grid_gridgen_config%epsknob
     bpknob  = theta_grid_gridgen_config%bpknob
     extrknob  = theta_grid_gridgen_config%extrknob
+    skip_gridgen = theta_grid_gridgen_config%skip_gridgen
     tension  = theta_grid_gridgen_config%tension
     thetamax  = theta_grid_gridgen_config%thetamax
     deltaw  = theta_grid_gridgen_config%deltaw
@@ -149,7 +157,19 @@ contains
     real, dimension (ntheta+1) :: bmagold, bmagnew
     integer :: i
     logical, parameter :: debug=.false.
-if (debug) write(6,*) 'gridgen_get_grids'
+    if (debug) write(6,*) 'gridgen_get_grids'
+
+    ! If we're skipping gridgen then we'd better
+    ! make sure that we set the outputs. As we're not
+    ! changing the theta grid the only thing we need to
+    ! set is `bset`, which is just the unique bmag values
+    ! on our grid. Note here we're assuming bmag is symmetric,
+    ! ordered etc. By skipping gridgen we don't guarantee that
+    ! this will be the case.
+    if (skip_gridgen) then
+       bset = bmag(-ntheta/2:0)
+       return
+    end if
 
     ntheta_old = ntheta
     ntgrid_old = ntgrid
@@ -288,9 +308,10 @@ if (debug) write(6,*) 'gridgen_get_grids: end'
     ! we shadow the module level variables here. This is intentional to provide
     ! isolation and ensure we can move this routine to another module easily.
     integer :: npadd
+    logical :: skip_gridgen
     real :: alknob, bpknob, deltaw, epsknob, extrknob, tension, thetamax, widthw
 
-    namelist /theta_grid_gridgen_knobs/ alknob, bpknob, deltaw, epsknob, extrknob, npadd, tension, thetamax, widthw
+    namelist /theta_grid_gridgen_knobs/ alknob, bpknob, deltaw, epsknob, extrknob, npadd, skip_gridgen, tension, thetamax, widthw
 
     ! Only proc0 reads from file
     if (.not. proc0) return
@@ -301,6 +322,7 @@ if (debug) write(6,*) 'gridgen_get_grids: end'
     epsknob  = self%epsknob
     bpknob  = self%bpknob
     extrknob  = self%extrknob
+    skip_gridgen = self%skip_gridgen
     tension  = self%tension
     thetamax  = self%thetamax
     deltaw  = self%deltaw
@@ -316,6 +338,7 @@ if (debug) write(6,*) 'gridgen_get_grids: end'
     self%epsknob   = epsknob
     self%bpknob   = bpknob
     self%extrknob   = extrknob
+    self%skip_gridgen = skip_gridgen
     self%tension   = tension
     self%thetamax   = thetamax
     self%deltaw   = deltaw
@@ -342,6 +365,7 @@ if (debug) write(6,*) 'gridgen_get_grids: end'
     call self%write_key_val("epsknob", self%epsknob ,unit_internal)
     call self%write_key_val("bpknob", self%bpknob ,unit_internal)
     call self%write_key_val("extrknob", self%extrknob ,unit_internal)
+    call self%write_key_val("skip_gridgen", self%skip_gridgen, unit_internal)
     call self%write_key_val("tension", self%tension ,unit_internal)
     call self%write_key_val("thetamax", self%thetamax ,unit_internal)
     call self%write_key_val("deltaw", self%deltaw ,unit_internal)
@@ -370,6 +394,7 @@ if (debug) write(6,*) 'gridgen_get_grids: end'
     call broadcast(self%epsknob)
     call broadcast(self%bpknob)
     call broadcast(self%extrknob)
+    call broadcast(self%skip_gridgen)
     call broadcast(self%tension)
     call broadcast(self%thetamax)
     call broadcast(self%deltaw)

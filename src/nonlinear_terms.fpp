@@ -82,7 +82,7 @@ module nonlinear_terms
 ! for gryfx
   real :: densfac, uparfac, tparfac, tprpfac, qparfac, qprpfac
 
-  real, save :: time_add_explicit_terms(2) = 0.
+  real :: time_add_explicit_terms(2) = 0.
 
   logical :: nonlin = .false.
   logical :: initialized = .false.

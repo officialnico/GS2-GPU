@@ -116,7 +116,7 @@ module dist_fn
   complex, dimension (:), allocatable :: fexp ! (nspec)
   real, dimension (:), allocatable :: bkdiff  ! (nspec)
   integer, dimension (:), allocatable :: bd_exp ! nspec
-  real :: gridfac, apfac, driftknob, tpdriftknob, poisfac
+  real :: gridfac, apfac, driftknob, tpdriftknob, poisfac, vparknob
   real :: t0, omega0, gamma0, source0
   real :: phi_ext, afilter, kfilter
   real :: wfb, g_exb, g_exbfac, omprimfac, btor_slab, mach
@@ -458,6 +458,13 @@ module dist_fn
      !>
      !> Used for GRYFX - should probably be moved elsewhere - ~ rho_i vti
      real :: uparfac_lin = 2.
+     !> For debugging only. Scales the calculated vparallel.
+     !>
+     !> @note If set to zero then the homogeneous contribution, `g1`, will be
+     !> exactly 1 everywhere it is defined. This can lead to a divide by zero
+     !> in the trapped particle continuity calculation in [[invert_rhs_1]],
+     !> leading to NaNs appearing in the solution.
+     real :: vparknob = 1.0
      !> For debugging only. Sets the boundary value for the barely trapped/passing particle.
      real :: wfb = 1.0
      !> If true, do NOT save homogeneous solutions for WFB
@@ -631,6 +638,16 @@ contains
        write (report_unit, fmt="('The normal choice is tpdriftknob = 1.')")
        write (report_unit, fmt="('################# WARNING #######################')")
        write (report_unit, *) 
+    end if
+
+    if (vparknob /= 1.0) then
+       write (report_unit, *)
+       write (report_unit, fmt="('################# WARNING #######################')")
+       write (report_unit, fmt="('You selected vparknob = ',e11.4,' in dist_fn_knobs.')") vparknob
+       write (report_unit, fmt="('THIS IS EITHER AN ERROR, or you are DELIBERATELY SCALING THE PARALLEL VELOCITY.')")
+       write (report_unit, fmt="('The normal choice is vparknob = 1.')")
+       write (report_unit, fmt="('################# WARNING #######################')")
+       write (report_unit, *)
     end if
 
     select case (boundary_option_switch)
@@ -1380,6 +1397,7 @@ contains
     tpdriftknob = dist_fn_config%tpdriftknob
     tprpfac_lin = dist_fn_config%tprpfac_lin
     uparfac_lin = dist_fn_config%uparfac_lin
+    vparknob = dist_fn_config%vparknob
     wfb = dist_fn_config%wfb
     wfb_cmr = dist_fn_config%wfb_cmr
     wfbbc_option = dist_fn_config%wfbbc_option
@@ -1795,7 +1813,7 @@ contains
        al1 = al(il_idx(g_lo,iglo))
        e1 = energy(ie_idx(g_lo,iglo),is_idx(g_lo,iglo))
 
-       vpa(:,1,iglo) = sqrt(e1*max(0.0, 1.0 - al1*bmag))
+       vpa(:,1,iglo) = sqrt(e1*max(0.0, 1.0 - al1*bmag)) * vparknob
        vpa(:,2,iglo) = - vpa(:,1,iglo)
        !vperp2(:,iglo) = bmag*al1*e1
 
@@ -10387,11 +10405,11 @@ contains
     integer :: g_exb_start_timestep
     logical :: def_parity, esv, even, gf_lo_integrate, hyper_in_initialisation, lf_decompose, lf_default, mult_imp, nonad_zero, opt_init_bc, opt_source, test, wfb_cmr, zero_forbid
     real :: afilter, apfac, btor_slab, densfac_lin, driftknob, g_exb, g_exb_error_limit, g_exb_start_time, g_exbfac, gridfac, kfilter, mach, omprimfac, phifac_lin, poisfac, qparfac_lin, qprpfac_lin, tparfac_lin
-    real :: tpdriftknob, tprpfac_lin, uparfac_lin, wfb
+    real :: tpdriftknob, tprpfac_lin, uparfac_lin, vparknob, wfb
 
     namelist /dist_fn_knobs/ adiabatic_option, afilter, apfac, boundary_option, btor_slab, def_parity, densfac_lin, driftknob, esv, even, g_exb, g_exb_error_limit, g_exb_start_time, g_exb_start_timestep, g_exbfac, &
          gf_lo_integrate, gridfac, hyper_in_initialisation, kfilter, lf_decompose, lf_default, mach, mult_imp, nonad_zero, omprimfac, opt_init_bc, opt_source, phifac_lin, poisfac, qparfac_lin, qprpfac_lin, &
-         test, tparfac_lin, tpdriftknob, tprpfac_lin, uparfac_lin, wfb, wfb_cmr, wfbbc_option, zero_forbid
+         test, tparfac_lin, tpdriftknob, tprpfac_lin, uparfac_lin, vparknob, wfb, wfb_cmr, wfbbc_option, zero_forbid
 
     ! Only proc0 reads from file
     if (.not. proc0) return
@@ -10433,6 +10451,7 @@ contains
     tpdriftknob = self%tpdriftknob
     tprpfac_lin = self%tprpfac_lin
     uparfac_lin = self%uparfac_lin
+    vparknob = self%vparknob
     wfb = self%wfb
     wfb_cmr = self%wfb_cmr
     wfbbc_option = self%wfbbc_option
@@ -10479,6 +10498,7 @@ contains
     self%tpdriftknob = tpdriftknob
     self%tprpfac_lin = tprpfac_lin
     self%uparfac_lin = uparfac_lin
+    self%vparknob = vparknob
     self%wfb = wfb
     self%wfb_cmr = wfb_cmr
     self%wfbbc_option = wfbbc_option
@@ -10536,6 +10556,7 @@ contains
     call self%write_key_val("tpdriftknob", self%tpdriftknob, unit_internal)
     call self%write_key_val("tprpfac_lin", self%tprpfac_lin, unit_internal)
     call self%write_key_val("uparfac_lin", self%uparfac_lin, unit_internal)
+    call self%write_key_val("vparknob", self%vparknob, unit_internal)
     call self%write_key_val("wfb", self%wfb, unit_internal)
     call self%write_key_val("wfb_cmr", self%wfb_cmr, unit_internal)
     call self%write_key_val("wfbbc_option", self%wfbbc_option, unit_internal)
@@ -10595,6 +10616,7 @@ contains
     call broadcast(self%tpdriftknob)
     call broadcast(self%tprpfac_lin)
     call broadcast(self%uparfac_lin)
+    call broadcast(self%vparknob)
     call broadcast(self%wfb)
     call broadcast(self%wfb_cmr)
     call broadcast(self%wfbbc_option)
