@@ -1511,12 +1511,12 @@ contains
 #endif
       print '(/,'' Initialization'',T25,0pf8.2,'' min'',T40,2pf5.1,'' %'',/, &
            &'' Advance steps'',T25,0pf8.2,'' min'',T40,2pf5.1,'' %'',/, &
-           &''(redistribute net'',T25,0pf9.3,'' min'',T40,2pf5.1,'' %)'',/, &
-           &''(redistribute mpi'',T25,0pf9.3,'' min'',T40,2pf5.1,'' %)'',/, &
-           &''(redistribute copy'',T25,0pf9.3,'' min'',T40,2pf5.1,'' %)'',/, &
            &''(field solve'',T25,0pf9.3,'' min'',T40,2pf5.1,'' %)'',/, &
            &''(diagnostics'',T25,0pf9.3,'' min'',T40,2pf5.1,'' %)'',/, &
            &'' Re-initialize'',T25,0pf8.2,'' min'',T40,2pf5.1,'' %'',/, &
+           &'' Redistribute  '',T25,0pf9.3,'' min'',T40,2pf5.1,'' %'',/, &
+           &''(redistribute mpi'',T25,0pf9.3,'' min'',T40,2pf5.1,'' %)'',/, &
+           &''(redistribute copy'',T25,0pf9.3,'' min'',T40,2pf5.1,'' %)'',/, &
            &'' Finishing'',T25,0pf8.2,'' min'',T40,2pf5.1,'' %'',/,  &
            &A,T25,0pf8.2,'' min'',T40,2pf5.1,'' %'',/,  &
            &''(Overheads'',T25,0pf9.3,'' min'',T40,2pf5.1,'' %)'',/, &
@@ -1526,12 +1526,12 @@ contains
            &'' total from timer is:'', 0pf9.2,'' min'',/)', &
            timers%init(1)/60.,timers%init(1)/timers%total(1), &
            timers%advance(1)/60.,timers%advance(1)/timers%total(1), &
-           redist_total/60.,redist_total/timers%total(1), &
-           redist_mpi/60.,redist_mpi/timers%total(1), &
-           redist_copy/60.,redist_copy/timers%total(1), &
            time_field(1)/60.,time_field(1)/timers%total(1), &
            timers%diagnostics(1)/60.,timers%diagnostics(1)/timers%total(1), &
            time_reinit(1)/60.,time_reinit(1)/timers%total(1), &
+           redist_total/60.,redist_total/timers%total(1), &
+           redist_mpi/60.,redist_mpi/timers%total(1), &
+           redist_copy/60.,redist_copy/timers%total(1), &
            timers%finish(1)/60.,timers%finish(1)/timers%total(1), &
            " MPI",mp_total/60., mp_total/timers%total(1), &
            mp_over/60., mp_over/timers%total(1), &
