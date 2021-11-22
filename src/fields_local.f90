@@ -2935,7 +2935,6 @@ contains
     use theta_grid, only: ntgrid
     use dist_fn, only: getan_nogath, gf_lo_integrate
     use kt_grids, only: naky, ntheta0
-    use job_manage, only: time_message
     implicit none
     class(fieldmat_type), intent(in) :: self
     complex, dimension (-ntgrid:,:,:), intent (in) :: phi, apar, bpar
@@ -2969,7 +2968,6 @@ contains
     use run_parameters, only: fphi, fapar, fbpar
     use gs2_layouts, only: gf_lo, proc_id, idx, ik_idx, it_idx
     use kt_grids, only: kwork_filter
-    use job_manage, only: time_message
     implicit none
     class(fieldmat_type), intent(in) :: self
     complex, dimension (-ntgrid:,:,:), intent (in out) :: antot, antota, antotp
@@ -4159,10 +4157,8 @@ contains
 
     !For timing
     !if(debug)call barrier !!/These barriers influence the reported time
-    if (proc0) then
-       call time_message(.false.,time_field,' Field Solver')
-       call get_mp_times(total_time = mp_total)
-    end if
+    call time_message(.false.,time_field,' Field Solver')
+    call get_mp_times(total_time = mp_total)
 
     !Calculate the fields at the next time point
     call getfield_local(phinew,aparnew,bparnew,do_gather,do_update)
@@ -4178,11 +4174,9 @@ contains
     !Barrier usage ensures that proc0 measures the longest time taken on
     !any proc.
     !if(debug)call barrier !!/These barriers influence the reported time
-    if (proc0) then
-       call time_message(.false.,time_field,' Field Solver')
-       call get_mp_times(total_time = mp_total_after)
-       time_field_mpi = time_field_mpi + (mp_total_after - mp_total)
-    end if
+    call time_message(.false.,time_field,' Field Solver')
+    call get_mp_times(total_time = mp_total_after)
+    time_field_mpi = time_field_mpi + (mp_total_after - mp_total)
 
     !Remove zonal component if requested
     if(remove_zonal_flows_switch) call remove_zonal_flows

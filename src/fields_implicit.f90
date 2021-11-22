@@ -371,10 +371,8 @@ contains
     
     call debug_message(4, 'fields_implicit::advance_implicit calling getfield')
 
-    if (proc0) then
-       call time_message(.false.,time_field,' Field Solver')
-       call get_mp_times(total_time = mp_total)
-    end if
+    call time_message(.false.,time_field,' Field Solver')
+    call get_mp_times(total_time = mp_total)
 
     call getfield (phinew, aparnew, bparnew)
 
@@ -382,11 +380,9 @@ contains
     aparnew  = aparnew + apar
     bparnew  = bparnew + bpar
 
-    if (proc0) then
-       call time_message(.false.,time_field,' Field Solver')
-       call get_mp_times(total_time = mp_total_after)
-       time_field_mpi = time_field_mpi + (mp_total_after - mp_total)
-    end if
+    call time_message(.false.,time_field,' Field Solver')
+    call get_mp_times(total_time = mp_total_after)
+    time_field_mpi = time_field_mpi + (mp_total_after - mp_total)
 
     if (remove_zonal_flows_switch) call remove_zonal_flows
     

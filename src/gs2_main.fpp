@@ -488,7 +488,7 @@ contains
          'gs2_main::initialize_gs2 called job fork (nensembles>1)')
     end if
 
-    if (proc0) call time_message(.false.,state%timers%total,' Total')
+    call time_message(.false.,state%timers%total,' Total')
 
 
     ! Pass run name to other procs
@@ -508,7 +508,7 @@ contains
     !state%gs2_initialized = .true.
     state%init%level = init_level_list%basic
 
-    if (proc0) call time_message(.false.,state%timers%total,' Total')
+    call time_message(.false.,state%timers%total,' Total')
 
     call debug_message(state%verb, 'gs2_main::initialize_gs2 finished')
 
@@ -538,13 +538,13 @@ contains
 
     if (.not. state%included) return
     call debug_message(state%verb, 'gs2_main::initialize_equations starting')
-    if (proc0) call time_message(.false.,state%timers%total,' Total')
+    call time_message(.false.,state%timers%total,' Total')
 
     call debug_message(state%verb, &
       'gs2_main::initialize_equations calling init_parameter_scan')
     call init_parameter_scan
 
-    if (proc0) call time_message(.false., state%timers%init,' Initialization')
+    call time_message(.false., state%timers%init,' Initialization')
     !Set using_measure_scatter to indicate we want to use in "gather/scatter" timings
     call debug_message(state%verb, 'gs2_main::initialize_equations calling init_fields')
 
@@ -587,7 +587,7 @@ contains
     call broadcast (state%outputs%dvdrho)
     call broadcast (state%outputs%grho)
     
-    if (proc0) call time_message(.false.,state%timers%init,' Initialization')
+    call time_message(.false.,state%timers%init,' Initialization')
 
 
     ! Set defaults. These are typically only important
@@ -607,7 +607,7 @@ contains
 
     call init_gs2_reinit
 
-    if (proc0) call time_message(.false.,state%timers%total,' Total')
+    call time_message(.false.,state%timers%total,' Total')
 
   end subroutine initialize_equations
 
@@ -653,7 +653,7 @@ contains
 
     state%exit = .false. 
 
-    if (proc0) call time_message(.false.,state%timers%total,' Total')
+    call time_message(.false.,state%timers%total,' Total')
 
     if (state%init%diagnostics_initialized) &
       call mp_abort('Calling initialize_diagnostics twice', .true.)
@@ -713,7 +713,7 @@ contains
 
     state%init%diagnostics_initialized = .true.
 
-    if (proc0) call time_message(.false.,state%timers%total,' Total')
+    call time_message(.false.,state%timers%total,' Total')
 
     call debug_message(state%verb, &
         'gs2_main::initialize_diagnostics finished')
@@ -791,7 +791,7 @@ contains
     
     temp_initval_override_store = state%init%initval_ov%override
     
-    if (proc0) call time_message(.false.,state%timers%total,' Total')
+    call time_message(.false.,state%timers%total,' Total')
     
     if (state%nensembles > 1) &
           call scope (subprocs)
@@ -819,7 +819,7 @@ contains
        end if
 
 
-       if (proc0) call time_message(.false.,state%timers%advance,' Advance time step')
+       call time_message(.false.,state%timers%advance,' Advance time step')
        !if (proc0) write (*,*) 'advance 1', state%timers%advance
 
        ! If we are doing a replay we don't actually evolve 
@@ -829,10 +829,10 @@ contains
          call debug_message(state%verb+1, &
             'gs2_main::evolve_equations calling advance')
 
-         if (proc0) call time_message(.false.,state%timers%timestep,' Timestep')
+         call time_message(.false.,state%timers%timestep,' Timestep')
          ! Try to take a time step
          call advance (istep)
-         if (proc0) call time_message(.false.,state%timers%timestep,' Timestep')
+         call time_message(.false.,state%timers%timestep,' Timestep')
          call debug_message(state%verb+1, &
               'gs2_main::evolve_equations called advance')
 
@@ -879,7 +879,7 @@ contains
 #endif
          end if
          call update_time
-         if(proc0) call time_message(.false.,state%timers%diagnostics,' Diagnostics')
+         call time_message(.false.,state%timers%diagnostics,' Diagnostics')
 
        end if ! if (.not. state%replay)
        call debug_message(state%verb+1, &
@@ -915,9 +915,8 @@ contains
          'gs2_main::evolve_equations exit true after diagnostics')
 
 
-       if(proc0) call time_message(.false.,state%timers%diagnostics,' Diagnostics')
-
-       if (proc0) call time_message(.false.,state%timers%advance,' Advance time step')
+       call time_message(.false.,state%timers%diagnostics,' Diagnostics')
+       call time_message(.false.,state%timers%advance,' Advance time step')
 
        if(.not.state%exit)then
           if (.not.state%replay) then
@@ -979,7 +978,7 @@ contains
 
     if (proc0 .and. .not. state%is_external_job) call write_dt
     
-    if (proc0) call time_message(.false.,state%timers%total,' Total')
+    call time_message(.false.,state%timers%total,' Total')
 
     if (state%print_times) call print_times(state, state%timers)
 
@@ -1007,7 +1006,7 @@ contains
     type(gs2_program_state_type), intent(inout) :: state
     if (.not. state%included) return
 #ifdef WITH_EIG
-   if (proc0) call time_message(.false.,state%timers%total,' Total')
+   call time_message(.false.,state%timers%total,' Total')
 
    !Start timer
    call time_message(.false.,state%timers%eigval,' Eigensolver')
@@ -1027,7 +1026,7 @@ contains
 #else
    call mp_abort("Require slepc/petsc")
 #endif
-    if (proc0) call time_message(.false.,state%timers%total,' Total')
+   call time_message(.false.,state%timers%total,' Total')
 
   end subroutine run_eigensolver
 
@@ -1092,9 +1091,8 @@ contains
 
     if (.not. state%included) return
 
-    if (proc0) call time_message(.false.,state%timers%total,' Total')
-
-    if (proc0) call time_message(.false.,state%timers%finish,' Finished run')
+    call time_message(.false.,state%timers%total,' Total')
+    call time_message(.false.,state%timers%finish,' Finished run')
 
     call debug_message(state%verb, 'gs2_main::finalize_diagnostics starting')
 
@@ -1113,12 +1111,10 @@ contains
     call deallocate_target_arrays
 
     state%istep_end = 0
-
-    if (proc0) call time_message(.false.,state%timers%finish,' Finished run')
-
     state%init%diagnostics_initialized = .false.
 
-    if (proc0) call time_message(.false.,state%timers%total,' Total')
+    call time_message(.false.,state%timers%finish,' Finished run')
+    call time_message(.false.,state%timers%total,' Total')
   end subroutine finalize_diagnostics
 
   !> FIXME : Add documentation  
@@ -1135,8 +1131,8 @@ contains
 
     if (.not. state%included) return
 
-    if (proc0) call time_message(.false.,state%timers%finish,' Finished run')
-    if (proc0) call time_message(.false.,state%timers%total,' Total')
+    call time_message(.false.,state%timers%finish,' Finished run')
+    call time_message(.false.,state%timers%total,' Total')
 
     call debug_message(state%verb, 'gs2_main::finalize_equations starting')
 
@@ -1147,9 +1143,8 @@ contains
     !if (state%replay .and. allocated(phi)) deallocate (phi, apar, bpar, phinew, aparnew, bparnew)
 
     call init(state%init, init_level_list%basic)
-    if (proc0) call time_message(.false.,state%timers%finish,' Finished run')
-    if (proc0) call time_message(.false.,state%timers%total,' Total')
-
+    call time_message(.false.,state%timers%finish,' Finished run')
+    call time_message(.false.,state%timers%total,' Total')
   end subroutine finalize_equations
 
   !> FIXME : Add documentation  
@@ -1194,15 +1189,14 @@ contains
          !stop 1
        !end if
 
-      if (proc0) call time_message(.false.,state%timers%total,' Total')
+      call time_message(.false.,state%timers%total,' Total')
 
       call finish_gs2_init(state%init)
 
       if (proc0) call finish_file_utils
 
-      if (proc0) call time_message(.false.,state%timers%finish,' Finished run')
-
-      if (proc0) call time_message(.false.,state%timers%total,' Total')
+      call time_message(.false.,state%timers%finish,' Finished run')
+      call time_message(.false.,state%timers%total,' Total')
       
       call debug_message(state%verb, 'gs2_main::finalize_gs2 calling print_times')
 
@@ -1658,9 +1652,9 @@ contains
       call initialize_wall_clock_timer
       call initialize_gs2(old_iface_state)
       if (override_profiles .or. override_miller_geometry) then 
-        if (proc0) call time_message(.false., old_iface_state%timers%init,' Initialization')
+        call time_message(.false., old_iface_state%timers%init,' Initialization')
         call old_interface_set_overrides
-        if (proc0) call time_message(.false., old_iface_state%timers%init,' Initialization')
+        call time_message(.false., old_iface_state%timers%init,' Initialization')
       end if
       call initialize_equations(old_iface_state)
       call initialize_diagnostics(old_iface_state)
