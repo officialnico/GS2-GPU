@@ -7,7 +7,7 @@ module le_derivatives
   
   public :: vspace_derivatives, time_vspace_derivatives
 
-  real, save :: time_vspace_derivatives(2) = 0.
+  real :: time_vspace_derivatives(2) = 0.
 
 contains
 
