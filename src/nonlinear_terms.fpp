@@ -15,7 +15,7 @@ module nonlinear_terms
   public :: read_parameters, wnml_nonlinear_terms, check_nonlinear_terms
   public :: add_explicit_terms, nonlinear_mode_switch
   public :: finish_init, reset_init, nonlin, accelerated
-  public :: cfl
+  public :: cfl, time_add_explicit_terms
   public :: nonlinear_mode_none, nonlinear_mode_on
   public :: gryfx_zonal
   public :: cfl_req_hand, nb_check_time_step_too_large
@@ -81,6 +81,8 @@ module nonlinear_terms
 
 ! for gryfx
   real :: densfac, uparfac, tparfac, tprpfac, qparfac, qprpfac
+
+  real :: time_add_explicit_terms(2) = 0.
 
   logical :: nonlin = .false.
   logical :: initialized = .false.
@@ -376,6 +378,7 @@ contains
     use theta_grid, only: ntgrid
     use gs2_layouts, only: g_lo
     use gs2_time, only: save_dt_cfl
+    use job_manage, only: time_message
     implicit none
     complex, dimension (-ntgrid:,:,g_lo%llim_proc:), intent (in out) :: g1, g2, g3
     complex, dimension (-ntgrid:,:,:), intent (in) :: phi,    apar,    bpar
@@ -383,7 +386,7 @@ contains
     real, intent (in) :: bd
     real :: dt_cfl
     logical, parameter :: nl = .true.
-
+    call time_message(.false., time_add_explicit_terms, 'Explicit terms')
     select case (nonlinear_mode_switch)
     case (nonlinear_mode_none)
 !!! NEED TO DO SOMETHING HERE...  BD GGH
@@ -398,6 +401,7 @@ contains
          call add_explicit (g1, g2, g3, phi, apar, bpar, istep, bd, nl)
        endif
     end select
+    call time_message(.false., time_add_explicit_terms, 'Explicit terms')
   end subroutine add_explicit_terms
 
   !> FIXME : Add documentation  

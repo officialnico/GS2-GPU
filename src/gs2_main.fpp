@@ -1492,6 +1492,8 @@ contains
     use redistribute, only: get_redist_times
     use fields_arrays, only: time_field
     use gs2_reinit, only: time_reinit
+    use le_derivatives, only: time_vspace_derivatives
+    use nonlinear_terms, only: time_add_explicit_terms
 #ifdef GS2_EXPERIMENTAL_ENABLE_MEMORY_USAGE
     use memory_usage, only: print_memory_usage
 #endif
@@ -1514,6 +1516,8 @@ contains
       print '(/,'' Initialization'',T25,0pf8.2,'' min'',T40,2pf5.1,'' %'',/, &
            &'' Advance steps'',T25,0pf8.2,'' min'',T40,2pf5.1,'' %'',/, &
            &''(field solve'',T25,0pf9.3,'' min'',T40,2pf5.1,'' %)'',/, &
+           &''(collisions'',T25,0pf9.3,'' min'',T40,2pf5.1,'' %)'',/, &
+           &''(explicit/nl'',T25,0pf9.3,'' min'',T40,2pf5.1,'' %)'',/, &
            &''(diagnostics'',T25,0pf9.3,'' min'',T40,2pf5.1,'' %)'',/, &
            &'' Re-initialize'',T25,0pf8.2,'' min'',T40,2pf5.1,'' %'',/, &
            &'' Redistribute  '',T25,0pf9.3,'' min'',T40,2pf5.1,'' %'',/, &
@@ -1529,6 +1533,8 @@ contains
            timers%init(1)/60.,timers%init(1)/timers%total(1), &
            timers%advance(1)/60.,timers%advance(1)/timers%total(1), &
            time_field(1)/60.,time_field(1)/timers%total(1), &
+           time_vspace_derivatives(1)/60.,time_vspace_derivatives(1)/timers%total(1), &
+           time_add_explicit_terms(1)/60.,time_add_explicit_terms(1)/timers%total(1), &
            timers%diagnostics(1)/60.,timers%diagnostics(1)/timers%total(1), &
            time_reinit(1)/60.,time_reinit(1)/timers%total(1), &
            redist_total/60.,redist_total/timers%total(1), &
