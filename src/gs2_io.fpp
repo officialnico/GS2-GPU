@@ -1259,7 +1259,7 @@ contains
 
     call ensure_netcdf_dim_exists(file_id, "netcdf_version_dim", len_trim(nf90_inq_libvers()), netcdf_dim_id)
     call ensure_netcdf_var_exists(group_id, "netcdf_version", NF90_CHAR, netcdf_dim_id, netcdf_id)
-    status = nf90_put_var(group_id, netcdf_id, nf90_inq_libvers())
+    status = nf90_put_var(group_id, netcdf_id, trim(nf90_inq_libvers()))
     if (status /= NF90_NOERR) call netcdf_error(status, ncid=group_id, file=filename, var="netcdf_version", varid=netcdf_id)
 
     call ensure_netcdf_dim_exists(file_id, "created_dim", len_trim(local_header%date_time), created_dim_id)
