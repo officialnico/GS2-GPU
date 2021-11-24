@@ -1200,21 +1200,20 @@ contains
 # endif
   end subroutine define_vars
 
-  !> Create a "/metadata" group in the file and add some useful metadata:
+  !> Add some standard metadata as global attributes to the file:
   !>
-  !> - /metadata/software_name: GS2
-  !> - /metadata/software_version: <current version>
-  !> - /metadata/netcdf_version: version of netCDF used
-  !> - /metadata/created: date/time of this simulation
-  !> - /metadata/file_id: UUID of this simulation
+  !> - software_name: GS2
+  !> - software_version: <current version>
+  !> - netcdf_version: version of netCDF used
+  !> - date_created: date/time of this simulation
+  !> - id: UUID of this simulation
   !>
-  !> Uses [[standard_header_type]] to get the UUID and date-time
-  !> consistent across the simulation
+  !> Uses [[standard_header_type]] to get the UUID and date-time consistent
+  !> across the simulation
   subroutine create_metadata(file_id, filename, header)
 #ifdef NETCDF
-    use netcdf, only : nf90_def_grp, nf90_put_var, NF90_NOERR, NF90_CHAR, nf90_inq_libvers, &
-         NF90_ENAMEINUSE
-    use netcdf_utils, only: ensure_netcdf_var_exists, netcdf_error, ensure_netcdf_dim_exists
+    use netcdf, only : NF90_GLOBAL, nf90_inq_libvers
+    use netcdf_utils, only: ensure_netcdf_var_exists, netcdf_error, ensure_netcdf_dim_exists, ensure_netcdf_att_exists
     use git_version_mod, only : get_git_version
 #endif
     use standard_header, only : standard_header_type
@@ -1227,10 +1226,6 @@ contains
     type(standard_header_type), optional, intent(in) :: header
 
 #ifdef NETCDF
-    ! NetCDF IDs for the various variables we're writing
-    integer :: name_id, version_id, netcdf_id, created_id, uuid_id, group_id
-    integer :: name_dim_id, version_dim_id, netcdf_dim_id, created_dim_id, uuid_dim_id
-    integer :: status
     type(standard_header_type) :: local_header
 
     if (present(header)) then
@@ -1239,38 +1234,11 @@ contains
       local_header = standard_header_type()
     end if
 
-    status = nf90_def_grp(file_id, "metadata", group_id)
-    if (status == NF90_ENAMEINUSE) then
-      ! Assume metadata already exists
-      return
-    end if
-    if (status /= NF90_NOERR) call netcdf_error(status, ncid=file_id, file=filename, message=" creating metadata group")
-
-    ! Dimensions are created at the file level because simpledataio can't handle dimensions in groups
-    call ensure_netcdf_dim_exists(file_id, "software_name_dim", len_trim("GS2"), name_dim_id)
-    call ensure_netcdf_var_exists(group_id, "software_name", NF90_CHAR, name_dim_id, name_id)
-    status = nf90_put_var(group_id, name_id, "GS2")
-    if (status /= NF90_NOERR) call netcdf_error(status, ncid=group_id, file=filename, var="software_name", varid=name_id)
-
-    call ensure_netcdf_dim_exists(file_id, "software_version_dim", len_trim(get_git_version()), version_dim_id)
-    call ensure_netcdf_var_exists(group_id, "software_version", NF90_CHAR, version_dim_id, version_id)
-    status = nf90_put_var(group_id, version_id, get_git_version())
-    if (status /= NF90_NOERR) call netcdf_error(status, ncid=group_id, file=filename, var="software_version", varid=version_id)
-
-    call ensure_netcdf_dim_exists(file_id, "netcdf_version_dim", len_trim(nf90_inq_libvers()), netcdf_dim_id)
-    call ensure_netcdf_var_exists(group_id, "netcdf_version", NF90_CHAR, netcdf_dim_id, netcdf_id)
-    status = nf90_put_var(group_id, netcdf_id, trim(nf90_inq_libvers()))
-    if (status /= NF90_NOERR) call netcdf_error(status, ncid=group_id, file=filename, var="netcdf_version", varid=netcdf_id)
-
-    call ensure_netcdf_dim_exists(file_id, "created_dim", len_trim(local_header%date_time), created_dim_id)
-    call ensure_netcdf_var_exists(group_id, "created", NF90_CHAR, created_dim_id, created_id)
-    status = nf90_put_var(group_id, created_id, local_header%date_time)
-    if (status /= NF90_NOERR) call netcdf_error(status, ncid=group_id, file=filename, var="created", varid=created_id)
-
-    call ensure_netcdf_dim_exists(file_id, "file_id_dim", len_trim(local_header%run_uuid), uuid_dim_id)
-    call ensure_netcdf_var_exists(group_id, "file_id", NF90_CHAR, uuid_dim_id, uuid_id)
-    status = nf90_put_var(group_id, uuid_id, local_header%run_uuid)
-    if (status /= NF90_NOERR) call netcdf_error(status, ncid=group_id, file=filename, var="file_id", varid=uuid_id)
+    call ensure_netcdf_att_exists(file_id, NF90_GLOBAL, "software_name", "GS2")
+    call ensure_netcdf_att_exists(file_id, NF90_GLOBAL, "software_version", trim(get_git_version()))
+    call ensure_netcdf_att_exists(file_id, NF90_GLOBAL, "netcdf_version", trim(nf90_inq_libvers()))
+    call ensure_netcdf_att_exists(file_id, NF90_GLOBAL, "date_created", trim(local_header%date_time))
+    call ensure_netcdf_att_exists(file_id, NF90_GLOBAL, "id", trim(local_header%run_uuid))
 #endif
   end subroutine create_metadata
 
