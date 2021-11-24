@@ -100,25 +100,6 @@ contains
       jline(""))
     call add_metadata(gnostics%sfile, "user_comments", &
       trim(user_comments))
-    call add_metadata(gnostics%sfile, "git_hash", &
-      trim(get_git_hash()))
-    if (get_git_modified()) then
-      call add_metadata(gnostics%sfile, "git_state_modified", &
-        "modified")
-    else
-      call add_metadata(gnostics%sfile, "git_state_modified", &
-        "clean")
-    end if
-    call add_metadata(gnostics%sfile, "build_identifier", &
-      trim(build_identifier()))
-    if (is_release()) then
-      call add_metadata(gnostics%sfile, "release_info", &
-        "This is official release number "//trim(build_identifier()))
-    else 
-      call add_metadata(gnostics%sfile, "release_info", &
-        jline("This is not an official release (presumably")//&
-        jline("a development version)"))
-    end if
 
     call add_standard_metadata(gnostics%sfile)
   end subroutine write_metadata

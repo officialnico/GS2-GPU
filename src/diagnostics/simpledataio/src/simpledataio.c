@@ -141,13 +141,7 @@ void sdatio_append_dimension(struct sdatio_file * sfile, struct sdatio_dimension
 
 
 void sdatio_add_standard_metadata(struct sdatio_file * sfile){
-  time_t current_time;
-  char  strtime[40];
   size_t count = 40;
-  current_time = time(NULL);
-  strftime(strtime, count, "%c %z", localtime(&current_time)); 
-  sdatio_add_metadata(sfile, SDATIO_CHAR, "creation_time", &strtime);
-  sdatio_add_metadata(sfile, SDATIO_INT, "creation_time_in_seconds_after_epoch", (int *)&current_time);
   sdatio_add_metadata(sfile, SDATIO_CHAR, "simpledatio_info", 
       "This datafile was constructed using simpledatio, a simplified netCDF interface.");
   sdatio_add_metadata(sfile, SDATIO_CHAR, "simpledatio_url", 
