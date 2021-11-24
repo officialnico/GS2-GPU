@@ -206,7 +206,7 @@ contains
        end if
        if (status /= NF90_NOERR) call netcdf_error (status, file=filename, abort=.true.)
 
-       call create_metadata(ncid, trim(filename), header)
+       call create_metadata(ncid, "GS2 Simulation Data", header)
     end if
 
     !Create the movie file
@@ -220,7 +220,7 @@ contains
           status = nf90_create (trim(filename_movie), create_file_mode, ncid_movie)
           if (status /= NF90_NOERR) &
                call netcdf_error (status, file=filename_movie)
-          call create_metadata(ncid_movie, trim(filename_movie), header)
+          call create_metadata(ncid_movie, 'GS2 Simulation x,y,theta Data for Movies', header)
        end if
     endif
 
@@ -607,11 +607,6 @@ contains
     end if
 
     phi_corr_2pi_dim = [ri_dim, nttot_dim, naky_dim, time_dim]
-
-    !<doc> Write some useful general information such as the website,
-    ! date and time into the NetCDF file </doc>
-    call ensure_netcdf_att_exists(ncid, NF90_GLOBAL, "title", "GS2 Simulation Data")
-    call ensure_netcdf_att_exists(ncid, NF90_GLOBAL, "Conventions", "https://gyrokinetics.gitlab.io/gs2/")
 
     datestamp(:) = ' '
     timestamp(:) = ' '
@@ -1202,15 +1197,17 @@ contains
 
   !> Add some standard metadata as global attributes to the file:
   !>
+  !> - title: description of file
   !> - software_name: GS2
   !> - software_version: <current version>
   !> - netcdf_version: version of netCDF used
   !> - date_created: date/time of this simulation
   !> - id: UUID of this simulation
+  !> - Conventions: URL of GS2 website
   !>
   !> Uses [[standard_header_type]] to get the UUID and date-time consistent
   !> across the simulation
-  subroutine create_metadata(file_id, filename, header)
+  subroutine create_metadata(file_id, title, header)
 #ifdef NETCDF
     use netcdf, only : NF90_GLOBAL, nf90_inq_libvers
     use netcdf_utils, only: ensure_netcdf_var_exists, netcdf_error, ensure_netcdf_dim_exists, ensure_netcdf_att_exists
@@ -1220,8 +1217,8 @@ contains
 
     !> NetCDF ID of the file
     integer, intent(in) :: file_id
-    !> Name of the file on disk (used to make error messages useful)
-    character(len=*), intent(in) :: filename
+    !> Brief description of the file contents
+    character(len=*), intent(in) :: title
     !> Pre-generated header with UUID and date information
     type(standard_header_type), optional, intent(in) :: header
 
@@ -1234,11 +1231,13 @@ contains
       local_header = standard_header_type()
     end if
 
+    call ensure_netcdf_att_exists(file_id, NF90_GLOBAL, "title", trim(title))
     call ensure_netcdf_att_exists(file_id, NF90_GLOBAL, "software_name", "GS2")
     call ensure_netcdf_att_exists(file_id, NF90_GLOBAL, "software_version", trim(get_git_version()))
     call ensure_netcdf_att_exists(file_id, NF90_GLOBAL, "netcdf_version", trim(nf90_inq_libvers()))
     call ensure_netcdf_att_exists(file_id, NF90_GLOBAL, "date_created", trim(local_header%date_time))
     call ensure_netcdf_att_exists(file_id, NF90_GLOBAL, "id", trim(local_header%run_uuid))
+    call ensure_netcdf_att_exists(file_id, NF90_GLOBAL, "Conventions","https://gyrokinetics.gitlab.io/gs2/")
 #endif
   end subroutine create_metadata
 
@@ -1262,10 +1261,6 @@ contains
     if(my_make_movie) then
        !Setup field shape
        xmode_dim = [nx_dim, ny_dim, nth_dim, time_movie_dim]
-
-       !Basic information
-       call ensure_netcdf_att_exists(ncid_movie, NF90_GLOBAL, 'title', 'GS2 Simulation x,y,theta Data for Movies')
-       call ensure_netcdf_att_exists(ncid_movie, NF90_GLOBAL, 'Conventions','https://gyrokinetics.gitlab.io/gs2/')
 
        !Grid sizes
        call ensure_netcdf_var_exists(ncid_movie, 'nx', NF90_INT, nx_id)

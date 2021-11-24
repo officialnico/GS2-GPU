@@ -20,12 +20,6 @@ contains
     implicit none
     type(diagnostics_type), intent(in) :: gnostics
 
-    call add_metadata(gnostics%sfile, "title", &
-      jline("")//&
-      jline("=================================================")//&
-      jline("                GS2 Output File")//&
-      jline("=================================================")//&
-      jline(""))
     call add_metadata(gnostics%sfile, "file_description", &
       jline("")//&
       jline(" This file contains output from the gyrokinetic")//&

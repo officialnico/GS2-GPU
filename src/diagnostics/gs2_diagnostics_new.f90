@@ -200,7 +200,7 @@ contains
        else
          gnostics%appending=.false.
          call create_file(gnostics%sfile)
-         call create_metadata(gnostics%sfile%nc_file_id, trim(run_name)//".out.nc", header)
+         call create_metadata(gnostics%sfile%nc_file_id, "GS2 Simulation Data", header)
          call write_metadata(gnostics)
          call debug_message(gnostics%verbosity, &
            'gs2_diagnostics_new::init_gs2_diagnostics_new written metadata')
