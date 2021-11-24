@@ -1,3 +1,9 @@
+# Replace the parallel mp with serial version in dependencies of codes
+# we want to be serial
+serial_targets := ingen write_default_input_file dump_grids
+make_serial = $(subst $(OBJDIR)/mp.o,$(OBJDIR)/mp_serial.o,$(1))
+# Call make_serial on each of serial_targets to replace mp.o with mp_serial.o
+ignored_junk := $(foreach tmp_target, $(serial_targets), $(eval $(tmp_target)_mod := $(call make_serial, $($(tmp_target)_mod))))
 ############################################################################# PROGRAMS
 gs2_all: diagnostics modules gs2 ingen rungridgen generate_fftw_wisdom dump_response
 gs2_all: dump_grids ideal_ball write_default_input_file
