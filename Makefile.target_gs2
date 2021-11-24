@@ -4,9 +4,6 @@ serial_targets := ingen write_default_input_file dump_grids
 make_serial = $(subst $(OBJDIR)/mp.o,$(OBJDIR)/mp_serial.o,$(1))
 # Call make_serial on each of serial_targets to replace mp.o with mp_serial.o
 ignored_junk := $(foreach tmp_target, $(serial_targets), $(eval $(tmp_target)_mod := $(call make_serial, $($(tmp_target)_mod))))
-############################################################################# PROGRAMS
-gs2_all: diagnostics modules gs2 ingen rungridgen generate_fftw_wisdom dump_response
-gs2_all: dump_grids ideal_ball write_default_input_file
 
 # undefined reference to `get_git_state` or `get_git_hash`? You need
 # to manually add the affected binary name to needs_git_hash
@@ -19,6 +16,20 @@ gs2_all: dump_grids ideal_ball write_default_input_file
 needs_git_hash := gs2 ingen write_default_input_file
 ignored_junk := $(foreach tmp_target, $(needs_git_hash), \
 	$(eval $(tmp_target)_mod := $(OBJDIR)/git_hash.o $($(tmp_target)_mod)))
+
+#If we're using fft(w) then we want to link the fft_save_wisdom object file
+#this currently has to be handled specially as it comes from a c source file
+#rather than fortran (so isn't picked up by fortdep).
+needs_fft_wisdom := utils gs2 ingen dump_response \
+	generate_fftw_wisdom write_default_input_file
+ifdef USE_FFT
+ignored_junk := $(foreach tmp_target, $(needs_fft_wisdom), \
+	$(eval $(tmp_target)_mod += $(OBJDIR)/fft_save_wisdom.o))
+endif
+
+############################################################################# PROGRAMS
+gs2_all: diagnostics modules gs2 ingen rungridgen generate_fftw_wisdom dump_response
+gs2_all: dump_grids ideal_ball write_default_input_file
 
 #Main code
 $(BINDIR)/gs2: $(gs2_mod) $(SIMPLEDATAIO_LIB) | $(BINDIR)

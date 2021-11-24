@@ -818,18 +818,6 @@ ifneq ($(strip $(MUST_INCLUDE_DEPEND)),)
 include $(DEPEND)
 endif
 
-#If we're using fft(w) then we want to link the fft_save_wisdom object file
-#this currently has to be handled specially as it comes from a c source file
-#rather than fortran (so isn't picked up by fortdep).
-ifdef USE_FFT
-    utils_mod += $(OBJDIR)/fft_save_wisdom.o
-    gs2_mod += $(OBJDIR)/fft_save_wisdom.o
-    ingen_mod += $(OBJDIR)/fft_save_wisdom.o
-    dump_response_mod += $(OBJDIR)/fft_save_wisdom.o
-    generate_fftw_wisdom_mod += $(OBJDIR)/fft_save_wisdom.o
-    write_default_input_file_mod += $(OBJDIR)/fft_save_wisdom.o
-endif
-
 geometry_c_interface.o: geometry_c_interface.h
 
 gryfx_libs: utils.a geo.a $(OBJDIR)/geometry_c_interface.o
