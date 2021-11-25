@@ -61,12 +61,16 @@ void sdatio_set_parallel_fortran(struct sdatio_file * sfile, MPI_Fint fcomm){
 
 /* Private*/
 void sdatio_end_definitions(struct sdatio_file * sfile){
+  // In netCDF4 we can forget about define mode
+  if (sfile->mode & NC_NETCDF4) return;
   int retval;
   if ((retval = nc_enddef(sfile->nc_file_id))) ERR(retval);
 }
 
 /* Private */
 void sdatio_recommence_definitions(struct sdatio_file * sfile){
+  // In netCDF4 we can forget about define mode
+  if (sfile->mode & NC_NETCDF4) return;
   int retval;
   if (sfile->data_written) 
     printf("Warning: adding more variables or dimensions after writing data can slow performance\n");
