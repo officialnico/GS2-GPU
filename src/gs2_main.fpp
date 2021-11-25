@@ -755,7 +755,7 @@ contains
   !!      call evolve_equations(state, state%nstep/2)
   !!      call reset_equations(state)
   !!      call evolve_equations(state, state%nstep/2)
-  subroutine evolve_equations(state, nstep_run)
+  subroutine evolve_equations(state, nstep_run, header)
     use collisions, only: vnmult
     use dist_fn_arrays, only: gnew
     use fields, only: advance
@@ -778,13 +778,23 @@ contains
     use unit_tests, only: ilast_step, debug_message
     use gs2_init, only: init
     use nonlinear_terms, only: gryfx_zonal
+    use standard_header, only: standard_header_type
     type(gs2_program_state_type), intent(inout) :: state
+    type(standard_header_type), optional, intent(in) :: header
     integer :: istep, istatus
     integer, intent(in) :: nstep_run
     logical :: temp_initval_override_store
     integer :: istep_loop_max
+    ! Actual value for optional `header` input
+    type(standard_header_type) :: local_header
 
     if (.not. state%included) return
+
+    if (present(header)) then
+      local_header = header
+    else
+      local_header = standard_header_type()
+    end if
 
     call debug_message(state%verb, &
         'gs2_main::evolve_equations starting')
@@ -871,11 +881,11 @@ contains
          
          if (use_old_diagnostics) then
            if (nsave > 0 .and. mod(istep, nsave) == 0) &
-                call gs2_save_for_restart (gnew, user_time, user_dt, vnmult, istatus, fphi, fapar, fbpar)
+                call gs2_save_for_restart (gnew, user_time, user_dt, vnmult, istatus, fphi, fapar, fbpar, header=local_header)
          else
 #ifdef NEW_DIAG
            if (gnostics%nsave > 0 .and. mod(istep, gnostics%nsave) == 0) &
-                call gs2_save_for_restart (gnew, user_time, user_dt, vnmult, istatus, fphi, fapar, fbpar)
+                call gs2_save_for_restart (gnew, user_time, user_dt, vnmult, istatus, fphi, fapar, fbpar, header=local_header)
 #endif
          end if
          call update_time

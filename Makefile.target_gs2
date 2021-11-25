@@ -13,7 +13,7 @@ ignored_junk := $(foreach tmp_target, $(serial_targets), $(eval $(tmp_target)_mo
 # dependencies. `fortdep` searches for module `use` statements, and
 # we`re deliberately _not_ using a module for `git_hash`, otherwise
 # basically the entire project needs to be rebuilt on new commits.
-needs_git_hash := gs2 ingen write_default_input_file
+needs_git_hash := gs2 ingen write_default_input_file dump_grids dump_response generate_fftw_wisdom
 ignored_junk := $(foreach tmp_target, $(needs_git_hash), \
 	$(eval $(tmp_target)_mod := $(OBJDIR)/git_hash.o $($(tmp_target)_mod)))
 
