@@ -1212,6 +1212,7 @@ contains
     use netcdf, only : NF90_GLOBAL, nf90_inq_libvers
     use netcdf_utils, only: ensure_netcdf_var_exists, netcdf_error, ensure_netcdf_dim_exists, ensure_netcdf_att_exists
     use git_version_mod, only : get_git_version
+    use run_parameters, only: user_comments
 #endif
     use standard_header, only : standard_header_type
 
@@ -1237,7 +1238,11 @@ contains
     call ensure_netcdf_att_exists(file_id, NF90_GLOBAL, "netcdf_version", trim(nf90_inq_libvers()))
     call ensure_netcdf_att_exists(file_id, NF90_GLOBAL, "date_created", trim(local_header%date_time))
     call ensure_netcdf_att_exists(file_id, NF90_GLOBAL, "id", trim(local_header%run_uuid))
-    call ensure_netcdf_att_exists(file_id, NF90_GLOBAL, "Conventions","https://gyrokinetics.gitlab.io/gs2/")
+    call ensure_netcdf_att_exists(file_id, NF90_GLOBAL, "Conventions", "https://gyrokinetics.gitlab.io/gs2/")
+    call ensure_netcdf_att_exists(file_id, NF90_GLOBAL, "references", "https://doi.org/10.5281/zenodo.2551066")
+    if (len_trim(user_comments) > 0) then
+      call ensure_netcdf_att_exists(file_id, NF90_GLOBAL, "comment", trim(user_comments))
+    end if
 #endif
   end subroutine create_metadata
 

@@ -98,8 +98,6 @@ contains
       jline(" folder in the GS2 source. To invoke it:")//&
       jline(" $ ./extract_input_file <netcdf_file>")//&
       jline(""))
-    call add_metadata(gnostics%sfile, "user_comments", &
-      trim(user_comments))
 
     call add_standard_metadata(gnostics%sfile)
   end subroutine write_metadata
