@@ -133,7 +133,6 @@ void sdatio_append_dimension(struct sdatio_file * sfile, struct sdatio_dimension
 }
 
 void sdatio_add_standard_metadata(struct sdatio_file * sfile){
-  size_t count = 40;
   sdatio_add_metadata(sfile, SDATIO_CHAR, "simpledatio_info", 
       "This datafile was constructed using simpledatio, a simplified netCDF interface.");
   sdatio_add_metadata(sfile, SDATIO_CHAR, "simpledatio_url", 
