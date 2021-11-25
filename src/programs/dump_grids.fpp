@@ -48,44 +48,44 @@ program dump_grids
   !/Theta
   if(proc0.and.(.not.quiet)) then
      write(*,'("Init theta_grids")',advance='no')
-     call time_message(.false.,time_measure,'init-theta')
   endif
+  call time_message(.false.,time_measure,'init-theta')
   call init_theta_grid
+  call time_message(.false.,time_measure,'init-theta')
   if(proc0.and.(.not.quiet)) then
-     call time_message(.false.,time_measure,'init-theta')
      write(*,'("  --> Done in : ",F12.6," seconds")') time_measure(1)
   endif
   time_measure=0.
   !/KT
   if(proc0.and.(.not.quiet)) then
      write(*,'("Init kt_grids   ")',advance='no')
-     call time_message(.false.,time_measure,'init-kt')
   endif
+  call time_message(.false.,time_measure,'init-kt')
   call init_kt_grids
+  call time_message(.false.,time_measure,'init-kt')
   if(proc0.and.(.not.quiet)) then
-     call time_message(.false.,time_measure,'init-kt')
      write(*,'("  --> Done in : ",F12.6," seconds")') time_measure(1)
   endif
   time_measure=0.
   !/SPECIES
   if(proc0.and.(.not.quiet)) then
      write(*,'("Init species   ")',advance='no')
-     call time_message(.false.,time_measure,'init-species')
   endif
+  call time_message(.false.,time_measure,'init-species')
   call init_species
+  call time_message(.false.,time_measure,'init-species')
   if(proc0.and.(.not.quiet)) then
-     call time_message(.false.,time_measure,'init-species')
      write(*,'("  --> Done in : ",F12.6," seconds")') time_measure(1)
   endif
   time_measure=0.
   !/LE
   if(proc0.and.(.not.quiet)) then
      write(*,'("Init le_grids   ")',advance='no')
-     call time_message(.false.,time_measure,'init-le')
   endif
+  call time_message(.false.,time_measure,'init-le')
   call init_le_grids(accel_x,accel_y)
+  call time_message(.false.,time_measure,'init-le')
   if(proc0.and.(.not.quiet)) then
-     call time_message(.false.,time_measure,'init-le')
      write(*,'("  --> Done in : ",F12.6," seconds")') time_measure(1)
   endif
   time_measure=0.
@@ -93,12 +93,12 @@ program dump_grids
   !Now write to file
   if(proc0.and.(.not.quiet)) then
      write(*,'("Write to file   ")',advance='no')
-     call time_message(.false.,time_measure,'write-file')
   endif
+  call time_message(.false.,time_measure,'write-file')
   filename=trim(adjustl(run_name))
   if(proc0) call write_grids_to_file(filename)
+  call time_message(.false.,time_measure,'write-file')
   if(proc0.and.(.not.quiet)) then
-     call time_message(.false.,time_measure,'write-file')
      write(*,'("  --> Done in : ",F12.6," seconds")') time_measure(1)
   endif
   time_measure=0.

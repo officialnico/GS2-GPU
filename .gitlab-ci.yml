@@ -18,7 +18,7 @@ stages:
   - echo "before_script" > ${JOB_STATUS_FILE}
 
 .install_main_packages: &install_main_packages
-  - dnf install -y ${BASIC_PACKAGES} ${GS2_PACKAGES} ${PYTHON_PACKAGES} ${EXTRA_PACKAGES}
+  - dnf install -y ${BASIC_PACKAGES} ${GS2_PACKAGES} ${PYTHON_PACKAGES} ${MPI_PACKAGES} ${EXTRA_PACKAGES}
   - if [ "x"${WITH_MPI} == "xyes" ]; then source /etc/profile.d/modules.sh ; module load mpi ; echo 'MPI_LIB=' > Makefile.local ; fi #Note the MPI_LIB is needed until we namespace our Makefile variables
   - if [ "x"${WITH_PYTHON} == "xyes" ]; then pip3 install -U pip; fi
   - if [ "x"${WITH_PYTHON} == "xyes" ]; then pip3 install -r requirements.txt; fi
@@ -54,7 +54,8 @@ variables: &default_variables
   GK_MAKEFILE_LOCAL_EXTRA_FLAGS: ""
   JOB_STATUS_FILE: "special_file_to_indicate_job_status"
   BASIC_PACKAGES: "environment-modules make git which cmake findutils"
-  GS2_PACKAGES: "fftw-devel netcdf-fortran netcdf-devel netcdf-fortran-devel openmpi openmpi-devel gcc gcc-gfortran"
+  GS2_PACKAGES: "fftw-devel netcdf-fortran netcdf-devel netcdf-fortran-devel gcc gcc-gfortran"
+  MPI_PACKAGES: "openmpi openmpi-devel"
   PYTHON_PACKAGES: "python python3 python3-pip python3-devel python3-pytest"
   EXTRA_PACKAGES: ""
   WITH_PYTHON: "yes"
@@ -102,20 +103,24 @@ formattting_tests:
 
 standard_tests:
   stage: test
-  image: fedora:31
+  image: fedora:35
   variables:
     CASENAME: "standard"
+    PFUNIT_EXTRA_CMAKE_FLAGS: -DCMAKE_Fortran_FLAGS_DEBUG='-fallow-argument-mismatch -g'
   script: *default_script
 
-gfortran10_standard_tests:
+gfortran11_mpich:
   stage: test
-  image: fedora:33
+  image: fedora:35
   variables:
-    CASENAME: "gfortran_10"
-    EXTRA_PACKAGES: "wget openblas openblas-devel"
+    CASENAME: "gfortran_11_mpich"
+    MPI_PACKAGES: "mpich mpich-devel"
+    EXTRA_PACKAGES: "wget openblas openblas-devel diffutils"
     EXTRA_MAKE_FLAGS: "USE_LAPACK=on LAPACK_LIB=-lopenblas WITH_EIG=on"
-#Disable pfunit tests for now as v3 doesn't support gfortran 10 so it fails to build.
-    GK_CI_PFUNIT: ""
+    PFUNIT_EXTRA_CMAKE_FLAGS: -DCMAKE_Fortran_FLAGS_DEBUG='-fallow-argument-mismatch -g'
+# MPICH performs very poorly when oversubscribed so we limit our integrated tests to
+# one process only.
+    EXTRA_TEST_FLAGS: "NTESTPROCS=1"
   script:
     - su -c "./pipeline_test_scripts/ci_fetch_and_build_petsc_and_slepc.sh -d ${PKG_CACHE_DIR}" theuser
     - su -c "source load_petsc_slepc ;  ./pipeline_test_scripts/ci_build_and_run.sh" theuser
@@ -172,7 +177,7 @@ coverage_standard_tests:
     EXTRA_MAKE_FLAGS: "USE_GCOV=on DEBUG=on ONE_STEP_PP=on"
     GK_MAKEFILE_LOCAL_EXTRA_FLAGS: "F90FLAGS += -ffree-form"
     COVERALLS_SERVICE_NAME: "gitlab-ci"
-    PFUNIT_EXTRA_CMAKE_FLAGS: -DCMAKE_Fortran_FLAGS_DEBUG="-fallow-argument-mismatch -g"
+    PFUNIT_EXTRA_CMAKE_FLAGS: -DCMAKE_Fortran_FLAGS_DEBUG='-fallow-argument-mismatch -g'
   script: *default_script
   after_script:
     - *push_status

@@ -16,7 +16,7 @@ module dist_fn_arrays
 !AJ
   public :: vpa_gf, vperp2_gf, aj0_gf, aj1_gf
   public :: c_rate
-  public :: g_adjust, check_g_bouncepoints
+  public :: g_adjust, check_g_bouncepoints, set_h_zero
 #ifdef LOWFLOW
   public :: hneoc, vparterm, wdfac, wstarfac, wdttpfac
 #endif
@@ -99,6 +99,7 @@ contains
     real :: phi_factor, bpar_factor
 
     trapped = .false.
+
     if (minval(jend) .gt. ng2) trapped=.true.
 
     with_bpar = facbpar /= 0
@@ -126,7 +127,6 @@ contains
        ! BD:  bpar == delta B_parallel / B_0(theta) so no extra factor of
        ! 1/bmag is needed here.
        do ig = -ntgrid, ntgrid
-
           ! Avoid adjusting in the forbidden region
           if ( trapped .and. il > jend(ig)) cycle
 
@@ -135,7 +135,6 @@ contains
 
           g(ig,1,iglo) = g(ig,1,iglo) + adj
           g(ig,2,iglo) = g(ig,2,iglo) + adj
-
        end do
     end do
   end subroutine g_adjust
@@ -188,4 +187,58 @@ contains
     write(6,fmt='(5i6,1pe12.4)')ik,it,il,ie,is,err
     write(6,*) "-----"
   end subroutine check_g_bouncepoints
+
+  !> Assign $g$ a value corresponding to $h$ (g_wesson of CMR's note
+  !> in [[dist_fn_arrays:g_adjust]]) of $h = 0$ in order to be
+  !> consistent with g_adjust. The correct function call to set h = 0
+  !> is call set_h_zero(g, phi, bpar, -fphi, -fbpar, iglo)
+  !>
+  !> @note This looks like the g_adjust loop kernel, we might be able
+  !> to combine these in some way to avoid duplication.
+  subroutine set_h_zero (g, phi, bpar, facphi, facbpar, iglo)
+    use species, only: spec, nonmaxw_corr
+    use theta_grid, only: ntgrid
+    use le_grids, only: is_passing_hybrid_electron
+    use gs2_layouts, only: g_lo, ik_idx, it_idx, ie_idx, is_idx, il_idx
+    implicit none
+    complex, dimension (-ntgrid:, :, g_lo%llim_proc:), intent (in out) :: g
+    complex, dimension (-ntgrid:, :, :), intent (in) :: phi, bpar
+    real, intent (in) :: facphi, facbpar
+    integer, intent (in) :: iglo
+    integer :: ig, ik, it, ie, is, il
+    complex :: adj
+    real :: phi_factor, bpar_factor
+
+    ! Skip non hybrid electrons
+    is = is_idx(g_lo,iglo)
+    ! Skip zonal modes
+    ik = ik_idx(g_lo,iglo)
+    ! Skip trapped particles
+    il = il_idx(g_lo,iglo)
+    if (.not. is_passing_hybrid_electron(is, ik, il)) return
+    
+    it = it_idx(g_lo,iglo)
+    ie = ie_idx(g_lo,iglo)
+
+    if (facphi /= 0) then
+       phi_factor = spec(is)%zt*nonmaxw_corr(ie,is)*facphi
+    else
+       phi_factor = 0.0
+    end if
+
+    if (facbpar /= 0) then
+       bpar_factor = 2.0*facbpar
+    else
+       bpar_factor = 0.0
+    end if
+    
+    do ig = -ntgrid, ntgrid
+       adj = bpar_factor*vperp2(ig,iglo)*aj1(ig,iglo)*bpar(ig,it,ik) &
+            + phi_factor*phi(ig,it,ik)*aj0(ig,iglo)
+       g(ig, 1, iglo) = adj
+       g(ig, 2, iglo) = adj
+    end do
+
+  end subroutine set_h_zero
+
 end module dist_fn_arrays

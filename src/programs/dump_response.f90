@@ -1,4 +1,4 @@
-!> A program to generate response matrix data for a given input file 
+!> A program to generate response matrix data for a given input file
 !> and dump the resulting arrays to file to be used by subsequent runs.
 !>
 !> By default this will produce a single set of response matrix files
@@ -25,7 +25,7 @@ program dump_response
   namelist /dump_response_knobs/n_time_steps
 
   call init_mp
-  
+
   ! Report # of processors being used
   if (proc0) then
      if(.not.quiet)then
@@ -42,14 +42,14 @@ program dump_response
   end if
 
   call broadcast (list)
-  
+
   ! If given a list of jobs, fork
   if (list) call job_fork
-  
+
   if (proc0) cbuff = trim(run_name)
   call broadcast (cbuff)
   if (.not. proc0) run_name => cbuff
-  
+
   if(proc0) then
      n_time_steps=1
      in_file = input_unit_exist ("dump_response_knobs", exist)
@@ -111,13 +111,13 @@ contains
     time_measure = 0.
 
     !Prepare to initialise the fields
-    if(proc0.and.(.not.quiet)) then 
-       write(*,'("Pre-init")',advance='no') 
-       call time_message(.false.,time_measure,'Pre-init')
-    endif
-    call fields_pre_init
     if(proc0.and.(.not.quiet)) then
-       call time_message(.false.,time_measure,'Pre-init')
+       write(*,'("Pre-init")',advance='no')
+    endif
+    call time_message(.false.,time_measure,'Pre-init')
+    call fields_pre_init
+    call time_message(.false.,time_measure,'Pre-init')
+    if(proc0.and.(.not.quiet)) then
        write(*,'("  --> Done in : ",ES14.6E3," seconds")') time_measure(1)
     endif
     time_measure=0.
@@ -128,12 +128,12 @@ contains
 
     !Now call the initialisation routine
     if(proc0.and.(.not.quiet)) then
-       write(*,'("Init")', advance='no') 
-       call time_message(.false.,time_measure,'Init')
+       write(*,'("Init")', advance='no')
     endif
+    call time_message(.false.,time_measure,'Init')
     call fields_init_response
+    call time_message(.false.,time_measure,'Init')
     if(proc0.and.(.not.quiet)) then
-       call time_message(.false.,time_measure,'Init')
        write(*,'("  --> Done in : ",ES14.6E3," seconds")') time_measure(1)
     endif
     time_measure=0.
@@ -144,11 +144,11 @@ contains
     !Now write response to files
     if(proc0.and.(.not.quiet)) then
        write(*,'("Dumping to file for timestep ",A,A,A)',advance='no') "'",trim(adjustl(str_code_dt)),"'"
-       call time_message(.false.,time_measure,'Dump')
     endif
+    call time_message(.false.,time_measure,'Dump')
     call dump_response_to_file()
+    call time_message(.false.,time_measure,'Dump')
     if(proc0.and.(.not.quiet)) then
-       call time_message(.false.,time_measure,'Dump')
        write(*,'("  --> Done in : ",ES14.6E3," seconds")') time_measure(1)
     endif
     time_measure=0.
@@ -186,4 +186,3 @@ contains
 
   end subroutine finish_dump_response
 end program dump_response
-

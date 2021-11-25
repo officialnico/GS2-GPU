@@ -150,6 +150,15 @@ if [[ ! -d ${pfunit_directory} ]]; then
     pfunit_directory=${pfunit_version_directory}
 fi
 
+# Handle case where PFUNIT_EXTRA_CMAKE_FLAGS is empty This is a bit
+# hacky, but cmake will interpret a non-option like argument as the
+# source directory, so just set PFUNIT_EXTRA_CMAKE_FLAGS to the actual
+# source directory.
+if [ "x${PFUNIT_EXTRA_CMAKE_FLAGS}" == "x" ]
+then
+    PFUNIT_EXTRA_CMAKE_FLAGS=${pfunit_directory}
+fi
+
 mkdir -p ${pfunit_build_directory}
 
 cd ${pfunit_build_directory}

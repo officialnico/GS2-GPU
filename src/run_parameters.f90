@@ -31,7 +31,7 @@ module run_parameters
   !! quasilinear estimates of fluxes to trinity
   public :: trinity_ql_fluxes
   public :: user_comments
-
+  
   !> If true use old diagnostics. Included for testing
   !! only and will eventually be removed. Please use 
   !! the new diagnostics module!
@@ -69,7 +69,7 @@ module run_parameters
   logical :: use_old_diagnostics
 
   character(len=100000) :: user_comments
-
+  
   integer, allocatable :: ieqzip(:,:)
   integer :: eqzip_option_switch
   integer, parameter :: &
@@ -220,6 +220,7 @@ contains
 
   !> FIXME : Add documentation  
   subroutine check_run_parameters(report_unit)
+    use species, only: has_hybrid_electron_species, spec
     implicit none
     integer, intent(in) :: report_unit
     if (fphi /= 1.) then
@@ -291,6 +292,16 @@ contains
        write (report_unit, fmt="('The random number generator will use the default seed.')")
     endif
     write (report_unit, *)
+
+    if ( has_hybrid_electron_species(spec) .and. beta /= 0.0 &
+         .and. (fapar /= 0 .or. fbpar /=0) ) then
+       write (report_unit, *)
+       write (report_unit, fmt="('################# WARNING #######################')")
+       write (report_unit, fmt="('You are using a hybrid electron species in an electromagnetic simulation.')")
+       write (report_unit, fmt="('This is probably not physical.')")
+       write (report_unit, fmt="('################# WARNING #######################')")
+       write (report_unit, *)
+    end if
 
   end subroutine check_run_parameters
 
@@ -435,36 +446,36 @@ contains
     call knobs_config%init(name = 'knobs', requires_index = .false.)
 
     ! Copy out internal values into module level parameters
-    beta  = knobs_config%beta 
-    zeff  = knobs_config%zeff 
-    tite  = knobs_config%tite 
-    teti  = knobs_config%teti 
-    k0    = knobs_config%k0   
-    rhostar  = knobs_config%rhostar 
-    user_comments  = knobs_config%user_comments 
-    fphi  = knobs_config%fphi 
-    fapar  = knobs_config%fapar 
-    fbpar  = knobs_config%fbpar 
-    delt  = knobs_config%delt 
-    nstep  = knobs_config%nstep 
-    wstar_units  = knobs_config%wstar_units 
-    eqzip  = knobs_config%eqzip 
-    delt_option  = knobs_config%delt_option 
+    avail_cpu_time = knobs_config%avail_cpu_time
+    beta = knobs_config%beta
+    delt = knobs_config%delt
+    delt_option = knobs_config%delt_option
+    do_eigsolve = knobs_config%do_eigsolve
+    eqzip = knobs_config%eqzip
+    eqzip_option = knobs_config%eqzip_option
+    fapar = knobs_config%fapar
+    faperp = knobs_config%faperp
+    fbpar = knobs_config%fbpar
+    fphi = knobs_config%fphi
+    harris = knobs_config%harris
+    immediate_reset = knobs_config%immediate_reset
+    k0 = knobs_config%k0
     margin = knobs_config%margin
-    secondary  = knobs_config%secondary
-    seed  = knobs_config%seed
-    tertiary  = knobs_config%tertiary 
-    faperp  = knobs_config%faperp 
-    harris  = knobs_config%harris 
-    avail_cpu_time  = knobs_config%avail_cpu_time 
-    margin_cpu_time  = knobs_config%margin_cpu_time 
-    eqzip_option  = knobs_config%eqzip_option 
-    neo_test  = knobs_config%neo_test 
-    trinity_linear_fluxes  = knobs_config%trinity_linear_fluxes 
-    do_eigsolve  = knobs_config%do_eigsolve 
-    immediate_reset  = knobs_config%immediate_reset 
-    use_old_diagnostics  = knobs_config%use_old_diagnostics 
-    trinity_ql_fluxes  = knobs_config%trinity_ql_fluxes 
+    margin_cpu_time = knobs_config%margin_cpu_time
+    neo_test = knobs_config%neo_test
+    nstep = knobs_config%nstep
+    rhostar = knobs_config%rhostar
+    secondary = knobs_config%secondary
+    seed = knobs_config%seed
+    tertiary = knobs_config%tertiary
+    teti = knobs_config%teti
+    tite = knobs_config%tite
+    trinity_linear_fluxes = knobs_config%trinity_linear_fluxes
+    trinity_ql_fluxes = knobs_config%trinity_ql_fluxes
+    use_old_diagnostics = knobs_config%use_old_diagnostics
+    user_comments = knobs_config%user_comments
+    wstar_units = knobs_config%wstar_units
+    zeff = knobs_config%zeff
   
     knexist = knobs_config%exist
 
@@ -673,7 +684,7 @@ contains
   !---------------------------------------
   ! Following is for the knobs config_type
   !--------------------------------------- 
-  
+
   !> Reads in the knobs namelist and populates the member variables
   subroutine read_knobs_config(self)
     use file_utils, only: input_unit_exist, get_indexed_namelist_unit
@@ -685,7 +696,7 @@ contains
 
     ! Note: When this routine is in the module where these variables live
     ! we shadow the module level variables here. This is intentional to provide
-    ! isolation and ensure we can move this routine to another module easily.
+    ! isolation and ensure we can move this routine to another module easily.    
     character(len = 100000) :: user_comments
     character(len = 20) :: delt_option, eqzip_option
     integer :: nstep, seed

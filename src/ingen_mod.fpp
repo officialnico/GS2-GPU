@@ -89,8 +89,7 @@ module ingen_mod
      !> `nmesh/ncut`.
      integer :: ncut = 100000
      !> Sets the maximum processor count considered when calculating
-     !> sweetspots. Currently this value is read in but always
-     !> overriden to 100000.
+     !> sweetspots.
      integer :: npmax = 100000     
      !> If `true` then alongside standard [[ingen]] report allows the
      !> creation of various types of scans. This will involve user
@@ -193,7 +192,6 @@ contains
     end if 
     
     n_sweet_spots = 0
-    npmax=100000
     allocate(sweet_spots(1))
     
   end subroutine init_ingen

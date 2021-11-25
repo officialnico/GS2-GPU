@@ -120,7 +120,7 @@ contains
   !> FIXME : Add documentation  
   subroutine init_transforms &
        (ntgrid, naky, ntheta0, nlambda, negrid, nspec, nx, ny, accelerated)
-    use mp, only: nproc, proc0
+    use mp, only: nproc, proc0, mp_abort
     use gs2_layouts, only: init_gs2_layouts
     use gs2_layouts, only: pe_layout, init_accel_transform_layouts
     use gs2_layouts, only: init_y_transform_layouts
@@ -140,6 +140,12 @@ contains
     !Early exit if possible
     if (initialized) return
     initialized = .true.
+
+    ! If either nx or ny are zero then we cannot setup the transforms so
+    ! detect this and abort with a helpful message
+    if (nx == 0 .or. ny == 0) then
+       call mp_abort("Trying to initialise gs2 transforms but nx and / or ny are zero. Did you remember to set `grid_option = 'box'` in `kt_grids_knobs`?", .true.)
+    end if
 
     if (debug) write (*,*) 'init_transforms: init_gs2_layouts'
     call init_gs2_layouts
