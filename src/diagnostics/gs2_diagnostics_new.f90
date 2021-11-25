@@ -66,7 +66,8 @@ contains
     use gs2_diagnostics, only: check_restart_file_writeable
     use unit_tests, only: debug_message
     use standard_header, only: standard_header_type
-    use gs2_io, only: create_metadata
+    use gs2_metadata, only: create_metadata
+    use run_parameters, only: user_comments
     implicit none
     type(diagnostics_init_options_type), intent(in) :: init_options
     !> Header for files with build and run information
@@ -200,7 +201,7 @@ contains
        else
          gnostics%appending=.false.
          call create_file(gnostics%sfile)
-         call create_metadata(gnostics%sfile%nc_file_id, "GS2 Simulation Data", header)
+         call create_metadata(gnostics%sfile%nc_file_id, "GS2 Simulation Data", header, user_comments)
          call write_metadata(gnostics)
          call debug_message(gnostics%verbosity, &
            'gs2_diagnostics_new::init_gs2_diagnostics_new written metadata')

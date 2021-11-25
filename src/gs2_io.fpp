@@ -16,7 +16,6 @@ module gs2_io
   public :: nc_loop_movie, nc_write_moments, nc_exchange
   public :: nc_loop_fullmom, nc_loop_dist, nc_loop_sym, nc_loop_corr, nc_loop_corr_extend
   public :: nc_loop_partsym_tormom, nc_sync
-  public :: create_metadata
 
 # ifdef NETCDF
   integer (kind_nf) :: ncid
@@ -140,6 +139,8 @@ contains
     use netcdf_utils, only: get_netcdf_code_precision, netcdf_real
     use netcdf_utils, only: get_netcdf_dim_length
     use constants, only: run_name_size
+    use gs2_metadata, only: create_metadata
+    use run_parameters, only: user_comments
 # endif
     implicit none
     !> See [[gs2_diagnostics_knobs]] for details of these inputs
@@ -206,7 +207,7 @@ contains
        end if
        if (status /= NF90_NOERR) call netcdf_error (status, file=filename, abort=.true.)
 
-       call create_metadata(ncid, "GS2 Simulation Data", header)
+       call create_metadata(ncid, "GS2 Simulation Data", header, user_comments)
     end if
 
     !Create the movie file
@@ -220,7 +221,7 @@ contains
           status = nf90_create (trim(filename_movie), create_file_mode, ncid_movie)
           if (status /= NF90_NOERR) &
                call netcdf_error (status, file=filename_movie)
-          call create_metadata(ncid_movie, 'GS2 Simulation x,y,theta Data for Movies', header)
+          call create_metadata(ncid_movie, 'GS2 Simulation x,y,theta Data for Movies', header, user_comments)
        end if
     endif
 
@@ -1194,57 +1195,6 @@ contains
 
 # endif
   end subroutine define_vars
-
-  !> Add some standard metadata as global attributes to the file:
-  !>
-  !> - title: description of file
-  !> - software_name: GS2
-  !> - software_version: <current version>
-  !> - netcdf_version: version of netCDF used
-  !> - date_created: date/time of this simulation
-  !> - id: UUID of this simulation
-  !> - Conventions: URL of GS2 website
-  !>
-  !> Uses [[standard_header_type]] to get the UUID and date-time consistent
-  !> across the simulation
-  subroutine create_metadata(file_id, title, header)
-#ifdef NETCDF
-    use netcdf, only : NF90_GLOBAL, nf90_inq_libvers
-    use netcdf_utils, only: ensure_netcdf_var_exists, netcdf_error, ensure_netcdf_dim_exists, ensure_netcdf_att_exists
-    use git_version_mod, only : get_git_version
-    use run_parameters, only: user_comments
-#endif
-    use standard_header, only : standard_header_type
-
-    !> NetCDF ID of the file
-    integer, intent(in) :: file_id
-    !> Brief description of the file contents
-    character(len=*), intent(in) :: title
-    !> Pre-generated header with UUID and date information
-    type(standard_header_type), optional, intent(in) :: header
-
-#ifdef NETCDF
-    type(standard_header_type) :: local_header
-
-    if (present(header)) then
-      local_header = header
-    else
-      local_header = standard_header_type()
-    end if
-
-    call ensure_netcdf_att_exists(file_id, NF90_GLOBAL, "title", trim(title))
-    call ensure_netcdf_att_exists(file_id, NF90_GLOBAL, "software_name", "GS2")
-    call ensure_netcdf_att_exists(file_id, NF90_GLOBAL, "software_version", trim(get_git_version()))
-    call ensure_netcdf_att_exists(file_id, NF90_GLOBAL, "netcdf_version", trim(nf90_inq_libvers()))
-    call ensure_netcdf_att_exists(file_id, NF90_GLOBAL, "date_created", trim(local_header%date_time))
-    call ensure_netcdf_att_exists(file_id, NF90_GLOBAL, "id", trim(local_header%run_uuid))
-    call ensure_netcdf_att_exists(file_id, NF90_GLOBAL, "Conventions", "https://gyrokinetics.gitlab.io/gs2/")
-    call ensure_netcdf_att_exists(file_id, NF90_GLOBAL, "references", "https://doi.org/10.5281/zenodo.2551066")
-    if (len_trim(user_comments) > 0) then
-      call ensure_netcdf_att_exists(file_id, NF90_GLOBAL, "comment", trim(user_comments))
-    end if
-#endif
-  end subroutine create_metadata
 
   !> Define the vars in the movie file. A fair bit of duplication wrt main
   !> file -- may want to think about merging movie data into main file.
