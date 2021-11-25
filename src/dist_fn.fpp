@@ -3421,28 +3421,32 @@ contains
     use run_parameters, only: fphi, fapar, fbpar
     use dist_fn_arrays, only: kx_shift, theta0_shift
     use gs2_time, only: code_dt, code_dt_old, code_time
-    use constants, only: twopi    
-
+    use constants, only: twopi
+    use optionals, only: get_option_with_default
+    implicit none
     complex, dimension (-ntgrid:,:,:), intent (in out) :: phi,    apar,    bpar
     complex, dimension (-ntgrid:,:,g_lo%llim_proc:), intent (in out) :: g0
     integer, intent(in) :: istep
+    logical, intent(in), optional :: field_local
     complex, dimension(:,:,:), allocatable :: temp 
     complex, dimension(:,:), allocatable :: temp2
     integer, dimension(1), save :: itmin
+    logical :: should_use_kx
     integer :: ierr, j 
-    integer :: ik, it, ie, is, il, isgn, to_iglo, from_iglo
+    integer :: ik, it, ie, is, il, to_iglo, from_iglo
     integer:: iib, iit, ileft, iright, i
-    integer, save :: istep_last=0
-    !integer, intent(in) :: istep EGH commented... faulty merge?
-    logical, intent(in), optional :: field_local
+    integer, save :: istep_last = 0
     logical :: field_local_loc
     real, save :: dkx, dtheta0
     real :: gdt
-    !logical, save :: exb_first = .true.
-    complex , dimension(-ntgrid:ntgrid) :: z
+    complex , dimension(-ntgrid:ntgrid, 2) :: z
     character(130) :: str
 
     ierr = error_unit()
+
+    ! If in flux-tube (box mode) or have zero shear then we need
+    ! to work with kx, otherwise use theta0
+    should_use_kx = box .or. (shat .eq. 0.0)
 
 ! MR, March 2009: remove ExB restriction to box grids
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -3453,7 +3457,7 @@ contains
        exb_first = .false.
        allocate (jump(naky)) 
        jump = 0
-       if (box .or. shat .eq. 0.0) then
+       if (should_use_kx) then
           allocate (ikx_indexed(ntheta0))
           itmin = minloc (ikx)
           
@@ -3505,7 +3509,15 @@ contains
 ! kx_shift is a function of time.   Update it here:  
 ! MR, 2007: kx_shift array gets saved in restart file
 ! CMR, 5/10/2010: multiply timestep by tunits(ik) for wstar_units=.true. 
-    if ( box .or. shat .eq. 0.0 ) then
+    ! Here we calculate the continuous kx/theta0 shift away from the current
+    ! grid point we are on. Once this reaches at lesat +1/2 * kx/theta0 spacing
+    ! jump will be non-zero so we will need to shuffle data. We then subtract
+    ! jump times the grid space from our continuous shift to reset this to
+    ! effectively -1/2 * kx/theta0 spacing. Note that as this array starts at
+    ! 0, the first jump will happen in half the time of subsequent jumps.
+    !
+    ! @note These statements should be verified.
+    if (should_use_kx) then
        do ik=1, naky
           kx_shift(ik) = kx_shift(ik) - aky(ik)*g_exb*g_exbfac*gdt*tunits(ik)
           jump(ik) = nint(kx_shift(ik)/dkx)
@@ -3519,18 +3531,35 @@ contains
        enddo 
     end if
 
+    !If jump is zero for all ky then nothing else to do so leave
+    if (all(jump == 0)) return
+
     !If using field_option='local' and x/it is not entirely local
     !then we need to make sure that all procs know the full field
     !THIS IS A TEMPORARY FIX AND WE SHOULD PROBABLY DO SOMETHING BETTER
-    field_local_loc=.false.
-    if(present(field_local)) field_local_loc=field_local
+    field_local_loc = get_option_with_default(field_local, .false.)
     if(any(jump.ne.0).and.(.not.g_lo%x_local).and.field_local_loc) then
        if(fphi>epsilon(0.0)) call broadcast(phi)
        if(fapar>epsilon(0.0)) call broadcast(apar)
        if(fbpar>epsilon(0.0)) call broadcast(bpar)
     endif
 
-    if (.not. box .and. shat .ne. 0.0 ) then
+    ! We should note that the following branches contain loops over the entire
+    ! global g_lo domain in order to do ordered point-wise communication. We should
+    ! probably think about constructing redistribute objects to represent the relevant
+    ! communications instead. As the communication pattern is ky dependent (as jump
+    ! depends on ky) and we may not wish to communicate in every ky at the same time
+    ! we probably want naky redistribute objects. This may be less than optimal as
+    ! we cannot then group communications for all ky together as in other redistributes.
+    ! The other option is to construct a single redistribute each time one is needed.
+    ! This would allow consolidation of communications but with the overhead of
+    ! redistribute construction. For cases with should_use_kx true, we would not
+    ! expect to need to communicate different ky at the same time (i.e. jump is
+    ! unlikely to be non-zero for more than one ky at a time). When should_use_kx
+    ! is false we will always need to communicate all ky at the same time as jump
+    ! is ky independent (unless wstar_units is true).
+
+    if (.not. should_use_kx) then
 ! MR, March 2009: impact of ExB shear on extended theta grid computed here
 !                 for finite shat
        do ik =1,naky
@@ -3616,13 +3645,9 @@ contains
                          if (idx_local(g_lo, to_iglo).and. idx_local(g_lo, from_iglo)) then
                             g0(:,:,to_iglo) = g0(:,:,from_iglo)
                          else if (idx_local(g_lo, from_iglo)) then
-                            do isgn = 1, 2
-                               call send(g0(:, isgn, from_iglo), proc_id (g_lo, to_iglo))
-                            enddo
+                            call send(g0(:, :, from_iglo), proc_id (g_lo, to_iglo))
                          else if (idx_local(g_lo, to_iglo)) then
-                            do isgn = 1, 2
-                               call receive(g0(:, isgn, to_iglo), proc_id (g_lo, from_iglo))
-                            enddo
+                            call receive(g0(:, :, to_iglo), proc_id (g_lo, from_iglo))
                          endif
                       enddo
 
@@ -3634,15 +3659,11 @@ contains
                             g0(ileft:,:,to_iglo) = temp(:iright,:,it-iit+1)
                             g0(:ileft-1,:,to_iglo) = 0.0
                          else if (idx_local(g_lo, from_iglo)) then
-                            do isgn = 1,2
-                               call send(temp(:, isgn, it-iit+1), proc_id (g_lo, to_iglo))
-                            enddo
+                            call send(temp(:, :, it-iit+1), proc_id (g_lo, to_iglo))
                          else if (idx_local(g_lo, to_iglo)) then
-                            do isgn=1, 2
-                               call receive(z, proc_id (g_lo, from_iglo))
-                               g0(ileft:,isgn,to_iglo) = z(:iright)
-                               g0(:ileft-1,isgn,to_iglo) = 0.0
-                            enddo
+                            call receive(z, proc_id (g_lo, from_iglo))
+                            g0(ileft:, :, to_iglo) = z(:iright, :)
+                            g0(:ileft-1, :, to_iglo) = 0.0
                          endif
                       enddo
 
@@ -3660,13 +3681,9 @@ contains
                          if (idx_local(g_lo, to_iglo) .and. idx_local(g_lo, from_iglo)) then
                             g0(:,:,to_iglo) = g0(:,:,from_iglo)
                          else if (idx_local(g_lo, from_iglo)) then
-                            do isgn = 1, 2
-                               call send(g0(:, isgn, from_iglo), proc_id (g_lo, to_iglo))
-                            enddo
+                            call send(g0(:, :, from_iglo), proc_id (g_lo, to_iglo))
                          else if (idx_local(g_lo, to_iglo)) then
-                            do isgn = 1, 2
-                               call receive(g0(:,isgn,to_iglo), proc_id (g_lo, from_iglo))
-                            enddo
+                            call receive(g0(:, :, to_iglo), proc_id (g_lo, from_iglo))
                          endif
                       enddo
 
@@ -3678,15 +3695,11 @@ contains
                             g0(:iright,:,to_iglo) = temp(ileft:,:,it)
                             g0(iright+1:,:,to_iglo) = 0.0
                          else if (idx_local(g_lo, from_iglo)) then
-                            do isgn = 1, 2
-                               call send(temp(:, isgn, it), proc_id (g_lo, to_iglo))
-                            enddo
+                            call send(temp(:, :, it), proc_id (g_lo, to_iglo))
                          else if (idx_local(g_lo, to_iglo)) then
-                            do isgn = 1, 2
-                               call receive(z, proc_id (g_lo, from_iglo))
-                               g0(:iright,isgn,to_iglo) = z(ileft:)
-                               g0(iright+1:,isgn,to_iglo) = 0.0
-                            enddo
+                            call receive(z, proc_id (g_lo, from_iglo))
+                            g0(:iright, :, to_iglo) = z(ileft:, :)
+                            g0(iright+1:, :, to_iglo) = 0.0
                          endif
                       enddo
                    endif
@@ -3695,9 +3708,8 @@ contains
           enddo
           deallocate (temp,temp2)
        enddo
-    end if
-    
-    if (box .or. shat .eq. 0.0) then
+    else
+       ! should_use_kx = .true.
        do ik = naky, 2, -1
           if (jump(ik) < 0) then
              if (fphi > epsilon(0.0)) then
@@ -3736,13 +3748,9 @@ contains
                          if (idx_local(g_lo, to_iglo) .and. idx_local(g_lo, from_iglo)) then
                             g0(:,:,to_iglo) = g0(:,:,from_iglo)
                          else if (idx_local(g_lo, from_iglo)) then
-                            do isgn=1, 2
-                               call send (g0(:, isgn, from_iglo), proc_id (g_lo, to_iglo))
-                            enddo
+                            call send (g0(:, :, from_iglo), proc_id (g_lo, to_iglo))
                          else if (idx_local(g_lo, to_iglo)) then
-                            do isgn=1, 2
-                               call receive (g0(:, isgn, to_iglo), proc_id (g_lo, from_iglo))
-                            enddo
+                            call receive (g0(:, :, to_iglo), proc_id (g_lo, from_iglo))
                          endif
                       enddo
 
@@ -3793,13 +3801,9 @@ contains
                          if (idx_local(g_lo, to_iglo) .and. idx_local(g_lo, from_iglo)) then
                             g0(:,:,to_iglo) = g0(:,:,from_iglo)
                          else if (idx_local(g_lo, from_iglo)) then
-                            do isgn=1, 2
-                               call send(g0(:, isgn, from_iglo), proc_id(g_lo, to_iglo))
-                            enddo
+                            call send(g0(:, :, from_iglo), proc_id(g_lo, to_iglo))
                          else if (idx_local(g_lo, to_iglo)) then
-                            do isgn=1, 2
-                               call receive(g0(:, isgn, to_iglo), proc_id (g_lo, from_iglo))
-                            enddo
+                            call receive(g0(:, :, to_iglo), proc_id (g_lo, from_iglo))
                          endif
                       enddo
 
