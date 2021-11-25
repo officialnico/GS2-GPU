@@ -3372,6 +3372,9 @@ contains
     integer :: ie
     integer :: n, ip, je
     integer :: ile_bak, il0
+    !> The following is for debug/testing to force all grid
+    !> points to be communicated if we wish.
+    logical, parameter :: skip_forbidden_region = .true.
 
     !Early exit if possible
     if (leinit) return
@@ -3397,7 +3400,7 @@ contains
           !Loop over remaining dimensions, note ile is independent of isign
           !so add two to count
           do ig=-ntgrid,ntgrid
-             if (.not. forbid(ig, il)) then
+             if ((.not. forbid(ig, il)) .or. .not. skip_forbidden_region) then
                 !Increment the data sent counter for this proc
                 nn_from(proc_id(le_lo,ile))=nn_from(proc_id(le_lo,ile))+2
              end if
@@ -3417,7 +3420,7 @@ contains
           !Loop over local dimensions, adding 2 to account for each sign
           do ie=1,g_lo%negrid
              do il=1,g_lo%nlambda
-                if (forbid(ig, il)) cycle
+                if (forbid(ig, il) .and. skip_forbidden_region) cycle
 
                 !Get index
                 iglo=idx(g_lo,ik_idx(le_lo,ile),it_idx(le_lo,ile),&
@@ -3462,7 +3465,7 @@ contains
           !Loop over sign
           do isign=1,2
              do ig=-ntgrid,ntgrid
-                if (.not. forbid(ig, il)) then
+                if ((.not. forbid(ig, il)) .or. .not. skip_forbidden_region ) then
                    !Get proc id
                    ip=proc_id(le_lo,ile)
 
@@ -3498,7 +3501,7 @@ contains
           do ie=1,g_lo%negrid
              do isign=1,2
                 do il0=1,g_lo%nlambda
-                   if (forbid(ig, il0)) cycle
+                   if (forbid(ig, il0) .and. skip_forbidden_region) cycle
                    !Pick correct extended lambda value
                    je=jend(ig)
                    il=il0
