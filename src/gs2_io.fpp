@@ -124,8 +124,9 @@ contains
       write_pflux_tormom, write_correlation, nwrite_big_tot, write_correlation_extend, & 
       write_phi_over_time, write_apar_over_time, write_bpar_over_time, &
       write_avg_moments, write_final_moments, write_final_epar, nout, &
-      ob_midplane) 
+      ob_midplane, header)
     use mp, only: proc0
+    use standard_header, only : standard_header_type
 # ifdef NETCDF
     use mp, only: barrier
     use file_utils, only: run_name, error_unit
@@ -138,6 +139,8 @@ contains
     use netcdf_utils, only: get_netcdf_code_precision, netcdf_real
     use netcdf_utils, only: get_netcdf_dim_length
     use constants, only: run_name_size
+    use gs2_metadata, only: create_metadata
+    use run_parameters, only: user_comments
 # endif
     implicit none
     !> See [[gs2_diagnostics_knobs]] for details of these inputs
@@ -156,6 +159,9 @@ contains
     !> otherwise write them out along the entire flux surface
     logical, intent(in), optional :: ob_midplane
     integer, intent(out) :: nout
+    !> Header for files with build and run information
+    type(standard_header_type), intent(in) :: header
+
 # ifdef NETCDF
     logical :: accelerated
     character(run_name_size) :: filename, filename_movie
@@ -200,6 +206,8 @@ contains
           status = nf90_create (trim(filename), create_file_mode, ncid)
        end if
        if (status /= NF90_NOERR) call netcdf_error (status, file=filename, abort=.true.)
+
+       call create_metadata(ncid, "GS2 Simulation Data", header, user_comments)
     end if
 
     !Create the movie file
@@ -213,6 +221,7 @@ contains
           status = nf90_create (trim(filename_movie), create_file_mode, ncid_movie)
           if (status /= NF90_NOERR) &
                call netcdf_error (status, file=filename_movie)
+          call create_metadata(ncid_movie, 'GS2 Simulation x,y,theta Data for Movies', header, user_comments)
        end if
     endif
 
@@ -599,11 +608,6 @@ contains
     end if
 
     phi_corr_2pi_dim = [ri_dim, nttot_dim, naky_dim, time_dim]
-
-    !<doc> Write some useful general information such as the website,
-    ! date and time into the NetCDF file </doc>
-    call ensure_netcdf_att_exists(ncid, NF90_GLOBAL, "title", "GS2 Simulation Data")
-    call ensure_netcdf_att_exists(ncid, NF90_GLOBAL, "Conventions", "https://gyrokinetics.gitlab.io/gs2/")
 
     datestamp(:) = ' '
     timestamp(:) = ' '
@@ -1212,10 +1216,6 @@ contains
     if(my_make_movie) then
        !Setup field shape
        xmode_dim = [nx_dim, ny_dim, nth_dim, time_movie_dim]
-
-       !Basic information
-       call ensure_netcdf_att_exists(ncid_movie, NF90_GLOBAL, 'title', 'GS2 Simulation x,y,theta Data for Movies')
-       call ensure_netcdf_att_exists(ncid_movie, NF90_GLOBAL, 'Conventions','https://gyrokinetics.gitlab.io/gs2/')
 
        !Grid sizes
        call ensure_netcdf_var_exists(ncid_movie, 'nx', NF90_INT, nx_id)

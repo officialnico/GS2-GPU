@@ -129,6 +129,7 @@ contains
     use theta_grid, only: rprime, zprime, aprime
     use le_grids, only: al, energy, negrid, wl, w
     use species, only: nspec
+    use gs2_metadata, only: create_metadata
 
     implicit none
     character(len=*), intent(in) :: fname
@@ -145,6 +146,7 @@ contains
 
     !First create a file
     ierr=nf90_create(trim(adjustl(fname))//".grids.nc", ior(NF90_CLOBBER, NF90_NETCDF4), ncid)
+    call create_metadata(ncid, "GS2 grids")
 
     !Define dimensions
     ierr=nf90_def_dim(ncid,'aky',size(aky),ky_dimid)

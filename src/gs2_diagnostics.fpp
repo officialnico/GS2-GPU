@@ -502,7 +502,7 @@ contains
          write_correlation, nwrite_big_tot, write_correlation_extend, &
          write_phi_over_time, write_apar_over_time, write_bpar_over_time, &
          write_avg_moments, write_final_moments, write_final_epar, &
-         nout, ob_midplane=ob_midplane)
+         nout, ob_midplane=ob_midplane, header=local_header)
 
     call broadcast (nout)
 

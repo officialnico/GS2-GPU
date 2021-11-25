@@ -94,13 +94,14 @@ contains
   !> Create and fill the restart files
   subroutine gs2_save_for_restart &
        (g, t0, delt0, vnm, istatus, fphi, fapar, fbpar, fileopt, &
-        save_glo_info_and_grids, save_velocities)
+        save_glo_info_and_grids, save_velocities, header)
 # ifdef NETCDF
     use fields_arrays, only: phinew, aparnew, bparnew
     use dist_fn_arrays, only: gexp_1, gexp_2, gexp_3, kx_shift, theta0_shift
     use kt_grids, only: naky, ntheta0, jtwist_out, akx, aky
     use antenna_data, only: nk_stir, a_ant, b_ant, ant_on
     use netcdf_utils, only: ensure_netcdf_var_exists, ensure_netcdf_dim_exists
+    use gs2_metadata, only: create_metadata
 # else
     use mp, only: proc0
 # endif    
@@ -117,6 +118,7 @@ contains
     use unit_tests, only: debug_message
     use gs2_time, only: code_dt, code_dt_prev1, code_dt_prev2, code_dt_max
     use optionals, only: get_option_with_default
+    use standard_header, only : standard_header_type
     implicit none
     !> The distribution function \(g\)
     complex, dimension (-ntgrid:,:,g_lo%llim_proc:), intent (in) :: g
@@ -140,6 +142,8 @@ contains
     logical, intent (in), optional :: save_glo_info_and_grids
     !> Control if \(v_\parallel, v_\perp\) information is saved
     logical, intent (in), optional :: save_velocities
+    !> Header for files with build and run information
+    type(standard_header_type), optional, intent(in) :: header
 # ifdef NETCDF
     !> Arrays holding information about the layout for plotting
     integer, dimension (:,:,:,:,:), allocatable :: procid_kykxsel, iglo_kykxsel
@@ -162,7 +166,13 @@ contains
     integer (kind_nf) :: nspecid, spec_id, char5_dim
     integer (kind_nf) :: ntheta0_id, naky_id, nlambda_id, negrid_id, nspec_id
 
-!*********-----------------------_**********************
+    type(standard_header_type) :: local_header
+
+    if (present(header)) then
+      local_header = header
+    else
+      local_header = standard_header_type()
+    end if
 
     call debug_message(verb, 'gs2_save::gs2_save_for_restart initialising')
 
@@ -214,6 +224,8 @@ contains
        write(ierr,*) "nf90_create error: ", nf90_strerror(istatus)
        goto 1
     end if
+
+    call create_metadata(ncid, "GS2 restart file", local_header)
 
     if (.not.is_one_file_per_processor) then
 # ifdef NETCDF_PARALLEL
@@ -1246,12 +1258,14 @@ contains
 
   !> This routine writes a passed square complex array to a file
   !> with passed name
-  subroutine gs2_save_response(resp, fname, condition)
+  subroutine gs2_save_response(resp, fname, condition, header)
     use file_utils, only: error_unit
+    use standard_header, only: standard_header_type
 #ifdef NETCDF
     use gs2_time, only: code_dt
     use convert, only: c2r
     use netcdf_utils, only: ensure_netcdf_dim_exists, ensure_netcdf_var_exists
+    use gs2_metadata, only: create_metadata
 #else
     use file_utils, only: get_unused_unit
 #endif
@@ -1259,11 +1273,16 @@ contains
     complex,dimension(:,:), intent(in) :: resp
     character(len=*), intent(in) :: fname
     real, intent(in), optional :: condition
+    !> Header for files with build and run information
+    type(standard_header_type), optional, intent(in) :: header
+
     integer :: sz
 #ifdef NETCDF
     real :: condition_local
     integer :: ierr, ax1id,ax2id,riid, respid,dtid, condition_id, ncid
     real, dimension(:,:,:), allocatable :: ri_resp
+    ! Actual value for optional `header` input
+    type(standard_header_type) :: local_header
 #else
     integer :: unit
 #endif
@@ -1278,9 +1297,17 @@ contains
     endif
 
 #ifdef NETCDF
+    if (present(header)) then
+      local_header = header
+    else
+      local_header = standard_header_type()
+    end if
+
     !/Make file
     ierr=nf90_create(fname, create_file_mode, ncid)
     if(ierr/=NF90_NOERR) call netcdf_error(ierr,file=fname)
+
+    call create_metadata(ncid, "GS2 response matrix", local_header)
 
     !/Define dimensions
     call ensure_netcdf_dim_exists(ncid, "ri", 2, riid)
