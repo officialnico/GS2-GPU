@@ -17,6 +17,9 @@ module functional_tests
   !! Returns .true. for pass and .false. for fail
   public :: check_growth_rate
 
+  !> As check_growth_rate but for the frequency instead of growth rate
+  public :: check_frequency
+  
   !> Run gs2 and then call the test_function to check the results 
   !! corresponding to the input file provided. test_name should 
   !! be a character(*) containing the title of the tests, and 
@@ -39,7 +42,7 @@ contains
     if (verbosity() .gt. 0) call print_with_stars('Completed functional test: ', test_name)
   end subroutine close_functional_test
 
-  !> FIXME : Add documentation  
+  !> FIXME : Add documentation
   function check_growth_rate(rslt, err)
     use unit_tests, only: ilast_step
     use gs2_diagnostics, only: get_omegaavg
@@ -72,6 +75,38 @@ contains
        call process_check(check_growth_rate, check_result, 'growth rate')
     end if
   end function check_growth_rate
+
+  !> FIXME : Add documentation
+  logical function check_frequency(rslt, err)
+    use unit_tests, only: ilast_step
+    use gs2_diagnostics, only: get_omegaavg
+    use kt_grids, only: ntheta0, naky
+    use mp, only: proc0
+    use run_parameters, only: use_old_diagnostics
+#ifdef NEW_DIAG
+    use gs2_diagnostics_new, only: gnostics
+#endif
+    real, dimension(naky), intent(in) :: rslt
+    real, intent(in) :: err
+    logical :: dummy
+    logical :: check_result
+    complex, dimension(ntheta0, naky) :: omegaavg
+
+    check_frequency = .true.
+
+    if (proc0) then
+       call announce_check('frequency')
+       if (use_old_diagnostics) then
+         call get_omegaavg(ilast_step-1, dummy, omegaavg)
+       else
+#ifdef NEW_DIAG
+         omegaavg = gnostics%current_results%omega_average
+#endif
+       end if
+       check_result =  agrees_with(real(omegaavg(1,:)), rslt, err)
+       call process_check(check_frequency, check_result, 'frequency')
+    end if
+  end function check_frequency
 
   !> FIXME : Add documentation  
   function check_growth_rates_equal_in_list(err)

@@ -4595,10 +4595,10 @@ contains
   subroutine invert_rhs_1 &
        (phi, apar, bpar, phinew, aparnew, bparnew, istep, &
         sourcefac)
-    use dist_fn_arrays, only: gnew, ittp, vperp2, aj1, aj0
+    use dist_fn_arrays, only: gnew, ittp, vperp2, aj1, aj0, set_h_zero
     use run_parameters, only: eqzip, secondary, tertiary, harris
     use theta_grid, only: ntgrid
-    use le_grids, only: nlambda, ng2, lmax, forbid
+    use le_grids, only: nlambda, ng2, lmax, forbid, is_passing_hybrid_electron
     use kt_grids, only: aky, ntheta0
     use gs2_layouts, only: g_lo, ik_idx, it_idx, il_idx, ie_idx, is_idx
     use prof, only: prof_entering, prof_leaving
@@ -4664,6 +4664,15 @@ contains
        ie = ie_idx(g_lo,iglo)
        is = is_idx(g_lo,iglo)
 
+       !/////////////////////////
+       !// Handle hybrid electrons when passing
+       !/////////////////////////
+       
+       if (is_passing_hybrid_electron(is, ik, il))  then
+          call set_h_zero (gnew, phinew, bparnew, -fphi, -fbpar, iglo)
+          cycle
+       end if
+       
        !/////////////////////////
        !// Get the source terms
        !/////////////////////////
@@ -5061,7 +5070,7 @@ contains
        (phi, apar, bpar, phinew, aparnew, bparnew, istep, sourcefac)
     use dist_fn_arrays, only: gnew
     use theta_grid, only: bmag, ntgrid
-    use le_grids, only: energy, al, nlambda, ng2
+    use le_grids, only: energy, al, nlambda, ng2, is_passing_hybrid_electron
     use gs2_layouts, only: g_lo, ik_idx, it_idx, il_idx, ie_idx, is_idx, idx
     use redistribute, only: fill
     use run_parameters, only: fbpar, fphi
@@ -5115,8 +5124,14 @@ contains
 
           ncell = r_links(ik, it) + l_links(ik, it) + 1
           if (ncell == 1) cycle
-
+          
           il = il_idx(g_lo,iglo)
+          is = is_idx(g_lo,iglo)
+          if (is_passing_hybrid_electron(is, ik, il))  cycle
+          ! MRH above line causes us to skip the loops below which
+          ! build the solution along the connected cells
+          ! MRH we skip this in the case that we have taken the non-zonal
+          ! passing electron (il<=ng2+1 including wfb) solution to be h=0
 
 ! wfb
           if ( (nlambda > ng2 .and. il == ng2+1) .and. (.not. trapped_wfb) .and. (.not. passing_wfb) ) then
@@ -6121,7 +6136,7 @@ contains
     wgt = spec%temp*spec%dens
     call integrate_species (g_work, wgt, tot)
     gamtot2 = real(tot)
-
+    
     !<DD>Make sure gamtots are single valued
     if(esv)then
        call ensure_single_val_fields_pass_r(gamtot)
@@ -6143,6 +6158,8 @@ contains
           gamtot = gamtot + tite 
        endif
     endif
+
+    
   end subroutine init_fieldeq
 
   !> FIXME : Add documentation    
@@ -6766,7 +6783,6 @@ contains
     use species, only: spec, has_electron_species
     use theta_grid, only: ntgrid, bmag
     use kt_grids, only: ntheta0, naky, kperp2
-    
     complex, dimension (-ntgrid:,:,:), intent (out) :: phi, apar, bpar
     logical, optional :: gf_lo
     real, dimension (-ntgrid:ntgrid,ntheta0,naky) :: denominator
@@ -6815,7 +6831,7 @@ contains
           numerator = antot+fl_avg_sp
           denominator = gamtot
        end if
-
+       
        where (abs(denominator) < epsilon(0.0)) ! it == ik == 1 only
           !NOTE: denominator=0 for the it==ik==1 only in certain circumstances
           !for example a simulation with beta=0.0 and an adiabatic species does

@@ -1058,9 +1058,12 @@ contains
   !> FIXME : Add documentation  
   subroutine ginit (restarted, override_ginitopt_switch)
     use gs2_save, only: read_t0_from_restart_file
+    use species, only: has_hybrid_electron_species, spec
+    use mp, only: proc0
     implicit none
     logical, intent (out) :: restarted
     integer, intent(in), optional :: override_ginitopt_switch
+    logical, save :: have_warned_about_hybrid = .false.
     real :: t0
     integer :: istatus
     integer :: ginitopt_actual
@@ -1205,8 +1208,18 @@ contains
     if (initial_condition_is_nonadiabatic_dfn) then
        !Should we avoid doing this if restart is true?
        call set_gnew_from_nonadiabatic_dfn
+    else
+       ! If not restarting and have a hybrid electron species then
+       ! issue a warning (once only) as recommend initialising the
+       ! non-adiabatic dfn directly in this situation as this respects
+       ! the hybrid electron h = 0 condition.
+       if ((.not. restarted) .and. has_hybrid_electron_species(spec) &
+            .and. (.not. have_warned_about_hybrid) .and. proc0) then
+          have_warned_about_hybrid = .true.
+          write(*,'("Warning : Running with a hybrid electron species but initial_condition_is_nonadiabatic_dfn is false.")')
+       end if
     end if
-
+    
   end subroutine ginit
 
   !> Take the existing gnew value and, assuming it is the nonadiabatic dfn,
@@ -1217,11 +1230,25 @@ contains
     use theta_grid, only: ntgrid
     use dist_fn, only: calculate_potentials_from_nonadiabatic_dfn
     use run_parameters, only: fphi, fbpar
+    use species, only: spec, has_hybrid_electron_species
+    use le_grids, only: is_passing_hybrid_electron
+    use gs2_layouts, only: g_lo, ik_idx, il_idx, is_idx
     implicit none
     complex, dimension(:, :, :), allocatable :: phi, apar, bpar
+    integer :: iglo, ik, il, is
     allocate( phi(-ntgrid:ntgrid, ntheta0, naky))
     allocate(apar(-ntgrid:ntgrid, ntheta0, naky))
     allocate(bpar(-ntgrid:ntgrid, ntheta0, naky))
+
+    ! Respect passing hybrid electrons h=0
+    if (has_hybrid_electron_species(spec)) then
+       do iglo = g_lo%llim_proc, g_lo%ulim_proc
+          is = is_idx(g_lo, iglo)
+          ik = ik_idx(g_lo, iglo)
+          il = il_idx(g_lo, iglo)
+          if (is_passing_hybrid_electron(is, ik, il)) gnew(:,:,iglo) = 0.0
+       end do
+    end if
 
     ! Calculate the consistent potentials
     call calculate_potentials_from_nonadiabatic_dfn(gnew, phi, apar, bpar)
@@ -2123,7 +2150,7 @@ contains
        it = it_idx(g_lo,iglo)
        il = il_idx(g_lo,iglo)
        is = is_idx(g_lo,iglo)       
-!       if (spec(is)%type /= electron_species) cycle
+!       if (is_electron_species(spec(is))) cycle
        g(:,1,iglo) = phiinit* &!spec(is)%z* &
             ( dfac*spec(is)%dens0            * phi(:,it,ik) &
             + 2.*ufac* vpa(:,1,iglo)         * odd(:,it,ik) &
@@ -3124,7 +3151,7 @@ contains
     use le_grids, only: forbid
     use dist_fn_arrays, only: g, gnew, vpa
     use gs2_layouts, only: g_lo, il_idx, is_idx
-    use species, only: spec, electron_species
+    use species, only: spec, is_electron_species
 
     implicit none
     integer :: iglo
@@ -3132,7 +3159,7 @@ contains
 
     do iglo = g_lo%llim_proc, g_lo%ulim_proc
        is = is_idx(g_lo,iglo)
-       if (spec(is_idx(g_lo, iglo))%type == electron_species) cycle
+       if (is_electron_species(spec(is))) cycle
        il = il_idx(g_lo,iglo)
        g(:,1,iglo) = sin(theta)*vpa(:,1,iglo)*spec(is)%z
        where (forbid(:,il)) g(:,1,iglo) = 0.0
@@ -4457,7 +4484,7 @@ contains
 
   !> FIXME : Add documentation    
   subroutine flae (g, gavg)
-    use species, only: spec, electron_species 
+    use species, only: spec, is_electron_species
     use theta_grid, only: ntgrid, delthet, jacob
     use kt_grids, only: aky
     use gs2_layouts, only: g_lo, is_idx, ik_idx
@@ -4465,13 +4492,14 @@ contains
     complex, dimension (-ntgrid:,:,g_lo%llim_proc:), intent (out) :: gavg
 
     real :: wgt
-    integer :: iglo
+    integer :: iglo, is
     
     gavg = 0.
     wgt = 1./sum(delthet*jacob)
 
-    do iglo = g_lo%llim_proc, g_lo%ulim_proc       
-       if (spec(is_idx(g_lo, iglo))%type /= electron_species) cycle
+    do iglo = g_lo%llim_proc, g_lo%ulim_proc
+       is = is_idx(g_lo, iglo)
+       if (.not. is_electron_species(spec(is))) cycle
        if (aky(ik_idx(g_lo, iglo)) /= 0.) cycle
        gavg(:,1,iglo) = sum(g(:,1,iglo)*delthet*jacob)*wgt
        gavg(:,2,iglo) = sum(g(:,2,iglo)*delthet*jacob)*wgt

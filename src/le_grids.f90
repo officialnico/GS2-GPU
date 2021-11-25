@@ -168,6 +168,7 @@ module le_grids
   public :: lambda_map, energy_map, g2le, g2gf, init_map, init_g2gf
   public :: integrate_species_sub !<DD>
   public :: hermite_prob
+  public :: is_passing_hybrid_electron
 
   public :: le_grids_config_type
   public :: set_le_grids_config
@@ -4521,6 +4522,17 @@ contains
     if (allocated(wlerr)) deallocate (wlerr)
     init_weights_init = .false.
   end subroutine finish_weights
+
+  !> Determine if the passed species, ky and lambda indicies correspond
+  !> to a passing hybrid electron point which should be skipped.
+  pure logical function is_passing_hybrid_electron(is, ik, il)
+    use species, only: spec, is_hybrid_electron_species
+    use kt_grids, only: aky
+    implicit none
+    integer, intent(in) :: is, ik, il
+    is_passing_hybrid_electron = &
+         is_hybrid_electron_species( spec(is)) .and. aky(ik) /= 0.0 .and. il <= ng2 + 1
+  end function is_passing_hybrid_electron
 
   !> Set the module level config type
   !> Will abort if the module has already been initialised to avoid
