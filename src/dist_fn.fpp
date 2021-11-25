@@ -3428,7 +3428,7 @@ contains
 
     ! If in flux-tube (box mode) or have zero shear then we need
     ! to work with kx, otherwise use theta0
-    should_use_kx = box .or. shat .eq. 0.0
+    should_use_kx = box .or. (shat .eq. 0.0)
 
 ! MR, March 2009: remove ExB restriction to box grids
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
