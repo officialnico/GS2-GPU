@@ -709,15 +709,15 @@ $(OBJDIR)/%.o:%.f90 |$(MODDIR) $(OBJDIR)
 
 # The depend command needs the preprocessed source files. 
 # This is a little clunky, and maybe could be fixed in the future.
-$(GENERATED_SRC_DIR)/%.f90: %.fpp |$(GENERATED_SRC_DIR)
+$(GENERATED_SRC_DIR)/%.f90: %.fpp |$(GENERATED_SRC_DIR) $(MODDIR)
 	$(call messageOp,"Preprocessing","\\t:",$(call processName,$<))
 	$(QUIETSYM)$(CPP) $(FPPFLAGS) $(INCLUDES) $< -o $@
 
-$(GENERATED_SRC_DIR)/%.f90: %.F90 |$(GENERATED_SRC_DIR)
+$(GENERATED_SRC_DIR)/%.f90: %.F90 |$(GENERATED_SRC_DIR) $(MODDIR)
 	$(call messageOp,"Preprocessing","\\t:",$(call processName,$<))
 	$(QUIETSYM)$(CPP) $(FPPFLAGS) $(INCLUDES) $< -o $@
 
-$(OBJDIR)/%.o: %.c |$(OBJDIR)
+$(OBJDIR)/%.o: %.c |$(MODDIR) $(OBJDIR)
 	$(call messageOp,"Compiling C","\\t:",$(call processName,$<))
 	$(QUIETSYM)$(CC) $(CFLAGS) $(INCLUDES) $(CPPFLAGS) -c $< -o $@
 
@@ -733,7 +733,7 @@ $(OBJDIR)/mp_serial.o: $(UTILS)/mp.fpp | $(MODDIR) $(OBJDIR)
 	$(call messageOp,"Compiling and preprocessing","\\t:",$(call processName,$<))
 	$(QUIETSYM)$(FC) $(FPPFLAGS_SERIAL) $(F90FLAGS) $(MODDIR_FLAG)$(MODDIR) -c $< -o $@
 else
-$(GENERATED_SRC_DIR)/mp_serial.f90: $(UTILS)/mp.fpp |$(GENERATED_SRC_DIR)
+$(GENERATED_SRC_DIR)/mp_serial.f90: $(UTILS)/mp.fpp |$(GENERATED_SRC_DIR) $(MODDIR)
 	$(call messageOp,"Preprocessing","\\t:",$(call processName,$<))
 	$(QUIETSYM)$(CPP) $(FPPFLAGS_SERIAL) $(INCLUDES) $< -o $@
 endif
