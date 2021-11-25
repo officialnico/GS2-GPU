@@ -725,6 +725,18 @@ $(OBJDIR)/%.o: %.c |$(OBJDIR)
 # This is from a implicit makefile rule that we're overriding
 %.o : %.mod
 
+# Special handling for creating a serial version of the mp module
+$(OBJDIR)/mp_serial.o: $(OBJDIR)/mp.o | $(MODDIR) $(OBJDIR)
+FPPFLAGS_SERIAL:=$(subst -DHAVE_MPI, ,$(subst -DMPI, ,$(FPPFLAGS)))
+ifdef ONE_STEP_PP
+$(OBJDIR)/mp_serial.o: $(UTILS)/mp.fpp | $(MODDIR) $(OBJDIR)
+	$(call messageOp,"Compiling and preprocessing","\\t:",$(call processName,$<))
+	$(QUIETSYM)$(FC) $(FPPFLAGS_SERIAL) $(F90FLAGS) $(MODDIR_FLAG)$(MODDIR) -c $< -o $@
+else
+$(GENERATED_SRC_DIR)/mp_serial.f90: $(UTILS)/mp.fpp |$(GENERATED_SRC_DIR)
+	$(call messageOp,"Preprocessing","\\t:",$(call processName,$<))
+	$(QUIETSYM)$(CPP) $(FPPFLAGS_SERIAL) $(INCLUDES) $< -o $@
+endif
 
 DEPEND:=Makefile.depend
 DEPEND_CMD:=$(PERL) scripts/fortdep
@@ -804,18 +816,6 @@ endif
 # If MUST_INCLUDE_DEPEND isn't empty then we better include the dependency file
 ifneq ($(strip $(MUST_INCLUDE_DEPEND)),)
 include $(DEPEND)
-endif
-
-#If we're using fft(w) then we want to link the fft_save_wisdom object file
-#this currently has to be handled specially as it comes from a c source file
-#rather than fortran (so isn't picked up by fortdep).
-ifdef USE_FFT
-    utils_mod += $(OBJDIR)/fft_save_wisdom.o
-    gs2_mod += $(OBJDIR)/fft_save_wisdom.o
-    ingen_mod += $(OBJDIR)/fft_save_wisdom.o
-    dump_response_mod += $(OBJDIR)/fft_save_wisdom.o
-    generate_fftw_wisdom_mod += $(OBJDIR)/fft_save_wisdom.o
-    write_default_input_file_mod += $(OBJDIR)/fft_save_wisdom.o
 endif
 
 geometry_c_interface.o: geometry_c_interface.h
