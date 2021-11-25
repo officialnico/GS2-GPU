@@ -167,7 +167,9 @@ module species
      !> - 'e' : Same as 'electron'
      !> - 'trace' : Tracer species
      !> - 'hybrid_electron' : Adiabatic passing electrons, full
-     !>    trapped electron treatment
+     !>    trapped electron treatment. *NOTE: This option is currently
+     !>    considered experimental and is intended for use in
+     !>    electrostatic simulations.*
      !>
      !> This primarily controls the treatment in the collision
      !> operator, the detection of adiabatic species. Tracer species
@@ -322,8 +324,16 @@ contains
           write (report_unit, fmt="('################# WARNING #######################')")
        end if
     end if
-    
-    write (report_unit, *) 
+
+    if (has_hybrid_electron_species(spec)) then
+       write (report_unit, *)
+       write (report_unit, fmt="('################# WARNING #######################')")
+       write (report_unit, fmt="('You are using a hybrid electron species.')")
+       write (report_unit, fmt="('This is currently considered experimental.')")
+       write (report_unit, fmt="('################# WARNING #######################')")
+    end if
+
+    write (report_unit, *)
     write (report_unit, fmt="('------------------------------------------------------------')")
     
     write (report_unit, *) 
