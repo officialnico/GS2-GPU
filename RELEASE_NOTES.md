@@ -1,7 +1,7 @@
 # GS2 v8.1
 
 GS2 v8.1 is our first **feature release** using the new git + Bitbucket
-workflow, and it's a big one! It's over **120 pull requests** - and over **1000
+workflow, and it's a big one! It's over **280 pull requests** - and over **2000
 commits** - ahead of the current bugfix release 8.0.6.
 
 v8.1 offers many new **features**, **enhancements** and **performance
@@ -16,10 +16,12 @@ changes** to input or analysis scripts, or that **may alter results** slightly
 
 ## Features and Enhancements
 
-* **Smart defaults** - it’s now possible to change the default value of a
+* **Smart defaults** - it's now possible to change the default value of a
   variable, based on the input from another variable.  For example, we now set
   `write_fluxes` and `write_fluxes_by_mode` to true for nonlinear runs
-  (`nonlin=true`) and to false for linear runs.
+  (`nonlin=true`) and to false for linear runs. This should hopefully lead to more
+  intuitive behaviour. If you have suggestions for extra smart defaults then please
+  report this in an issue.
 * New simpler option for **hyperviscosity**, `simple3D`, which has the form
   `D_hyper3D * (|kperp|/ max |kperp|)^P_hyper3D` that respects continuity along
   the field line, and does not require MPI communication.
@@ -41,6 +43,40 @@ changes** to input or analysis scripts, or that **may alter results** slightly
   restarted runs.
 * The new "run configuration" type allows **programmatic control of code
   inputs**, allowing better documentation and testing.
+* The user can query the built GS22 executable for the version, build configuration
+  and usage instructions. Try `./gs2 --help` for more details.
+* Netcdf output files store some useful metadata such as GS2 build
+  version, time and date of run, unique run id. These are stored as
+  global attributes, so will appear at the bottom when doing `ncdump`.
+* Fields local initialisation significantly improved to avoid issues
+  with communicator fragmentation which prevented the use of fields
+  local on large problems. We'd encourage you to try `field_option =
+  'local'` for nonlinear simulations as the initialisation can be a
+  factor of 20x faster than with `field_option = 'implicit'`.
+* Each run will generate a unique id which is reported to the screen,
+  various ascii outputs and stored in the netcdf outputs. This should
+  allow better data management, making it easier to associate data
+  from the same run etc.
+* A new ascii output file, `<run_name>.used_inputs.in`, is written
+  early in the run. This stores the values of all input configuration
+  parameters used in the run. This allows users to check which
+  defaults have been applied etc.
+* The ability to use compression in netcdf files has been
+  introduced. This is not currently applied by default, but can be
+  enabled by passing `USE_NETCDF_COMPRESSION=on` to make. This can
+  reduce the size of restart files by a factor 2.
+* A new species type, `'hybrid_electron'`, has been introduced and
+  results in an electron type for which the passing particles are
+  adiabatic and the trapped are kinetic. This has been tested but is
+  currently considered experimental.
+* More verbose timer output at the end of the run. This might help
+  identify if your run has an excess fraction of MPI, for example,
+  indicating that you may be using too many cores.
+* Additional matrix inversion implementations including LAPACK based
+  and block recursion.
+* Fully replaced ruby with python, removing ruby as an optional dependency.
+* There are many other small tweaks and features for testing and
+  convenience.
 
 ## Documentation
 
@@ -85,13 +121,20 @@ We have two big performance improvements coming up in future releases - an
 improved field solve, and better data layout - but 8.1 still includes some
 smaller improvements:  
 
-* We've vastly **reduce creation and destruction of MPI communicators**,
-  improving initialization performance, and enabling larger simulations which
-  were previously failing due either to running out of communicators or to
+* We've vastly **reduced creation and destruction of MPI
+  communicators** in the local field option, improving initialization
+  performance, and enabling larger simulations which were previously
+  failing due either to running out of communicators or to
   communicator fragmentation.
-* We now **store response matrices for reuse** (for example, when the timestep
-  halves and then doubles again). This can save orders-of-magnitude in
-  reinitialization time when the timestep is changing frequently.
+* We now **store response matrices for reuse** (for example, when the
+  timestep halves and then doubles again). This can save
+  orders-of-magnitude in reinitialization time when the timestep is
+  changing frequently. For nonlinear runs we recommend setting both
+  `dump_response = T` and `read_response = T`. This will save the
+  response matrices from each timestep and reuse these when revisiting
+  a timestep size. You may wish to set `response_dir` to a location to
+  store these files to avoid a large number of files in the main run
+  directory.
 * We've improved **indexing** by removing "select" cases from tight loops.
 * We've **removed** the **less performant** version of some routines (see
   [breaking changes](#breaking-changes)).
