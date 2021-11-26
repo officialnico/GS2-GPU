@@ -43,8 +43,9 @@ changes** to input or analysis scripts, or that **may alter results** slightly
   restarted runs.
 * The new "run configuration" type allows **programmatic control of code
   inputs**, allowing better documentation and testing.
-* The user can query the built GS22 executable for the version, build configuration
-  and usage instructions. Try `./gs2 --help` for more details.
+* The user can query the built GS2 executable for the version, build
+  configuration and usage instructions. Try `./gs2 --help` for more
+  details.
 * Netcdf output files store some useful metadata such as GS2 build
   version, time and date of run, unique run id. These are stored as
   global attributes, so will appear at the bottom when doing `ncdump`.
