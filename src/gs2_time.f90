@@ -9,19 +9,20 @@ module gs2_time
   public :: time_history_available, dt_not_set
   public :: code_dt_prev1, code_dt_prev2
   public :: user_time, code_time, check_time_step_too_large
-  public :: save_dt_min, save_dt, save_dt_cfl, write_dt
+  public :: save_dt_min, save_dt_max, save_dt, save_dt_cfl, write_dt
   public :: init_tstart, init_delt
-  public :: code_dt_cfl, code_dt_min, user2code
+  public :: code_dt_cfl, code_dt_min, user2code, code_dt_max
   public :: get_adams_bashforth_coefficients
 
   real, parameter :: dt_not_set = -1.0
   real :: user_dt, code_dt 
   real :: code_dt_prev1 = dt_not_set
   real :: code_dt_prev2 = dt_not_set
-  real :: user_dt_cfl
-  real :: code_dt_cfl
-  
+  real :: user_dt_cfl = 1e8
+  real :: code_dt_cfl = 1e8
+
   real :: code_dt_min, user_dt_min
+  real :: code_dt_max, user_dt_max
 
   ! added May 18, 2009 to take care of problems
   ! in exb_shear calculation after change in time step size
@@ -90,7 +91,7 @@ contains
 
   end subroutine save_dt_cfl
 
-  !> FIXME : Add documentation  
+  !> Sets the minimum timestep size allowed based on passed value.
   subroutine save_dt_min (dt_min)
     implicit none
     real, intent (in) :: dt_min
@@ -99,6 +100,16 @@ contains
     code_dt_min = dt_min
 
   end subroutine save_dt_min
+
+  !> Sets the maximum timestep size allowed based on passed value.
+  subroutine save_dt_max (dt_max)
+    implicit none
+    real, intent (in) :: dt_max
+
+    user_dt_max = dt_max
+    code_dt_max = dt_max
+
+  end subroutine save_dt_max
 
   !> FIXME : Add documentation
   subroutine save_dt(delt)
@@ -145,18 +156,31 @@ contains
   !> The order is determined by how much time history we have
   !> available up to a maximum of 3rd order. The coefficients
   !> are generalised for variable timestep.
-  function get_adams_bashforth_coefficients() result(coefficients)
+  function get_adams_bashforth_coefficients(maximum_order) result(coefficients)
     implicit none
+    !> If present then sets the maxmimum method order to use when
+    !> calculating the coefficients. Limited by how much time history
+    !> we have available and no higher than 3.
+    integer, intent(in), optional :: maximum_order
     !> The result contains up to three coefficients. The first entry
     !> corresponds to the coefficient for the latest source term, the
     !> second entry corresponds to the coefficient for the previous source
     !> term and the last entry is for the oldest source term.
     real, dimension(:), allocatable :: coefficients
+    integer :: order
 
-    ! We have one coefficient for each point of history we keep
-    allocate(coefficients(time_history_available()))
+    order = time_history_available()
+    if (present(maximum_order)) then
+       ! Limit order in use if passed maximum_order is less
+       ! than order set by available history
+       order = min(order, maximum_order)
+    end if
 
-    select case (time_history_available())
+    ! We have one coefficient for each point of history we keep at
+    ! this order
+    allocate(coefficients(order))
+
+    select case (order)
     case (3) !Most common case - 3rd order coefficients
        ! see Tatsuno & Dorland, Physics of Plasmas 13, 092107 (2006)
        ! http://www.cscamm.umd.edu/publications/TatsunoDorland-PoP06_CS-06-11.pdf

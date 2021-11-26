@@ -74,6 +74,7 @@ module gs2_layouts
 
   public :: layouts_config_type
   public :: set_gs2_layouts_config
+  public :: get_gs2_layouts_config
 
   logical :: initialized = .false.
   logical :: initialized_x_transform = .false.
@@ -347,7 +348,9 @@ module gs2_layouts
      !> runs](https://bitbucket.org/gyrokinetics/gs2/wiki/Optimising_your_runs)
      !> for more details.
      logical :: opt_redist_persist_overlap = .false.
-     !> FIXME: Add documentation
+     !> When in `gf_lo`, if there are fewer points \(n\) than processors \(P\),
+     !> then assign the points to the first \(n\) and leave the rest of the
+     !> processors empty
      logical :: simple_gf_decomposition = .true.
      !> Setting to true allows GS2 to adopt a more flexible domain
      !> decomposition of the xxf data decomposition (used in nonlinear
@@ -5037,6 +5040,12 @@ contains
        layouts_config = gs2_layouts_config_in
     end if
   end subroutine set_gs2_layouts_config
+
+  !> Get the module level config instance
+  function get_gs2_layouts_config()
+    type(layouts_config_type) :: get_gs2_layouts_config
+    get_gs2_layouts_config = layouts_config
+  end function get_gs2_layouts_config
   
   !---------------------------------------
   ! Following is for the config_type
@@ -5049,7 +5058,7 @@ contains
     implicit none
     class(layouts_config_type), intent(in out) :: self
     logical :: exist
-    integer :: in_file, iostat
+    integer :: in_file
 
     ! Note: When this routine is in the module where these variables live
     ! we shadow the module level variables here. This is intentional to provide
@@ -5086,16 +5095,8 @@ contains
     unbalanced_yxf = self%unbalanced_yxf
 
     ! Now read in the main namelist
-    if (self%get_requires_index()) then
-       call get_indexed_namelist_unit(in_file, trim(self%get_name()), self%index)
-       read(in_file, nml = layouts_knobs, iostat = iostat)
-       exist = .true.
-       if (iostat .ne.0) exist = .false.
-       close(unit = in_file, iostat = iostat)
-    else
-       in_file = input_unit_exist(self%get_name(), exist)
-       if (exist) read(in_file, nml = layouts_knobs)
-    endif
+    in_file = input_unit_exist(self%get_name(), exist)
+    if (exist) read(in_file, nml = layouts_knobs)
 
     ! Now copy from local variables into type members
     self%fft_measure_plan = fft_measure_plan

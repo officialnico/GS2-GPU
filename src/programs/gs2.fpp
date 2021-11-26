@@ -63,10 +63,17 @@ program gs2
   use gs2_main, only: finalize_diagnostics
   use gs2_main, only: finalize_equations
   use gs2_main, only: finalize_gs2
+  use gs2_main, only: parse_command_line, write_used_inputs_file
   use exit_codes, only: EXIT_NSTEP, EXIT_NOT_REQUESTED
   use mp, only: proc0
+  use file_utils, only: get_unused_unit, run_name
+  use standard_header, only: standard_header_type
   implicit none
   type(gs2_program_state_type) :: state
+  type(standard_header_type) :: local_header
+
+  call parse_command_line()
+
   call initialize_gs2_optimisation(state)
   call initialize_wall_clock_timer
 
@@ -74,9 +81,13 @@ program gs2
     call optimise_gs2(state)
   end if
   if (state%optim%auto .or. .not. state%optim%on) then
-    call initialize_gs2(state)
+    local_header = standard_header_type()
+    call initialize_gs2(state, header=local_header)
     call initialize_equations(state)
-    call initialize_diagnostics(state)
+    call initialize_diagnostics(state, header=local_header)
+
+    call write_used_inputs_file(header=local_header)
+
     state%print_times = .false.
     if (state%do_eigsolve) then 
       call run_eigensolver(state)

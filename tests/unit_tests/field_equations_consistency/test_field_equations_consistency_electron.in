@@ -1,0 +1,21 @@
+!include test_field_equations_consistency_base.in
+
+&knobs
+  beta = 1.0
+  fphi = 1.0
+  fapar = 1.0
+  fbpar = 1.0  
+/
+
+&species_knobs
+  nspec = 1
+/
+
+&species_parameters_1
+   z = -1.0
+   mass = 2.7e-4
+   type = 'electron'
+/
+
+&dist_fn_species_knobs_1
+/

@@ -13,6 +13,7 @@ module kt_grids_single
 
   public :: kt_grids_single_config_type
   public :: set_kt_grids_single_config
+  public :: get_kt_grids_single_config
   
   real :: akx, aky, theta0, rhostar_single
   integer :: n0
@@ -171,7 +172,13 @@ contains
        kt_grids_single_config = kt_grids_single_config_in
     end if
   end subroutine set_kt_grids_single_config
-  
+
+  !> Get the module level config instance
+  function get_kt_grids_single_config()
+    type(kt_grids_single_config_type) :: get_kt_grids_single_config
+    get_kt_grids_single_config = kt_grids_single_config
+  end function get_kt_grids_single_config
+
   !---------------------------------------
   ! Following is for the config_type
   !--------------------------------------- 
@@ -183,7 +190,7 @@ contains
     implicit none
     class(kt_grids_single_config_type), intent(in out) :: self
     logical :: exist
-    integer :: in_file, iostat
+    integer :: in_file
 
     ! Note: When this routine is in the module where these variables live
     ! we shadow the module level variables here. This is intentional to provide
@@ -204,16 +211,8 @@ contains
     theta0 = self%theta0
 
     ! Now read in the main namelist
-    if (self%get_requires_index()) then
-       call get_indexed_namelist_unit(in_file, trim(self%get_name()), self%index)
-       read(in_file, nml = kt_grids_single_parameters, iostat = iostat)
-       exist = .true.
-       if (iostat .ne.0) exist = .false.
-       close(unit = in_file, iostat = iostat)       
-    else
-       in_file = input_unit_exist(self%get_name(), exist)
-       if (exist) read(in_file, nml = kt_grids_single_parameters)
-    endif
+    in_file = input_unit_exist(self%get_name(), exist)
+    if (exist) read(in_file, nml = kt_grids_single_parameters)
 
     ! Now copy from local variables into type members
     self%akx = akx
@@ -302,6 +301,7 @@ module kt_grids_range
 
   public :: kt_grids_range_config_type  
   public :: set_kt_grids_range_config
+  public :: get_kt_grids_range_config
   
   integer :: naky, ntheta0, nn0, n0_min, n0_max
   real :: aky_min, aky_max, theta0_min, theta0_max
@@ -695,7 +695,13 @@ contains
        kt_grids_range_config = kt_grids_range_config_in
     end if
   end subroutine set_kt_grids_range_config   
-  
+
+  !> Get the module level config instance
+  function get_kt_grids_range_config()
+    type(kt_grids_range_config_type) :: get_kt_grids_range_config
+    get_kt_grids_range_config = kt_grids_range_config
+  end function get_kt_grids_range_config
+
   !---------------------------------------
   ! Following is for the config_type
   !---------------------------------------
@@ -707,7 +713,7 @@ contains
     implicit none
     class(kt_grids_range_config_type), intent(in out) :: self
     logical :: exist
-    integer :: in_file, iostat
+    integer :: in_file
 
     ! Note: When this routine is in the module where these variables live
     ! we shadow the module level variables here. This is intentional to provide
@@ -737,16 +743,8 @@ contains
     theta0_min = self%theta0_min
 
     ! Now read in the main namelist
-    if (self%get_requires_index()) then
-       call get_indexed_namelist_unit(in_file, trim(self%get_name()), self%index)
-       read(in_file, nml = kt_grids_range_parameters, iostat = iostat)
-       exist = .true.
-       if (iostat .ne.0) exist = .false.
-       close(unit = in_file, iostat = iostat)       
-    else
-       in_file = input_unit_exist(self%get_name(), exist)
-       if (exist) read(in_file, nml = kt_grids_range_parameters)
-    endif
+    in_file = input_unit_exist(self%get_name(), exist)
+    if (exist) read(in_file, nml = kt_grids_range_parameters)
 
     ! Now copy from local variables into type members
     self%akx_max = akx_max
@@ -857,6 +855,8 @@ module kt_grids_specified
   public :: kt_grids_specified_config_type 
   public :: kt_grids_specified_element_config_type
   public :: set_kt_grids_specified_config
+  public :: get_kt_grids_specified_config
+  public :: get_kt_grids_specified_element_config
   
   integer :: naky, ntheta0, nx, ny
   logical :: initialized = .false.
@@ -1069,7 +1069,23 @@ contains
        kt_grids_specified_element_config = kt_grids_specified_element_config_in
     end if    
   end subroutine set_kt_grids_specified_config   
-  
+
+  !> Get the module level config instance
+  function get_kt_grids_specified_config()
+    type(kt_grids_specified_config_type) :: get_kt_grids_specified_config
+    get_kt_grids_specified_config = kt_grids_specified_config
+  end function get_kt_grids_specified_config
+
+  !> Get the module level config instance
+  function get_kt_grids_specified_element_config()
+    type(kt_grids_specified_element_config_type), allocatable :: get_kt_grids_specified_element_config(:)
+    if (allocated(kt_grids_specified_element_config)) then
+      get_kt_grids_specified_element_config = kt_grids_specified_element_config
+    else
+      allocate(get_kt_grids_specified_element_config(0))
+    end if
+  end function get_kt_grids_specified_element_config
+
   !---------------------------------------
   ! Following is for the config_type
   !--------------------------------------- 
@@ -1081,7 +1097,7 @@ contains
     implicit none
     class(kt_grids_specified_config_type), intent(in out) :: self
     logical :: exist
-    integer :: in_file, iostat
+    integer :: in_file
 
     ! Note: When this routine is in the module where these variables live
     ! we shadow the module level variables here. This is intentional to provide
@@ -1100,16 +1116,8 @@ contains
     ny = self%ny
 
     ! Now read in the main namelist
-    if (self%get_requires_index()) then
-       call get_indexed_namelist_unit(in_file, trim(self%get_name()), self%index)
-       read(in_file, nml = kt_grids_specified_parameters, iostat = iostat)
-       exist = .true.
-       if (iostat .ne.0) exist = .false.
-       close(unit = in_file, iostat = iostat)       
-    else
-       in_file = input_unit_exist(self%get_name(), exist)
-       if (exist) read(in_file, nml = kt_grids_specified_parameters)
-    endif
+    in_file = input_unit_exist(self%get_name(), exist)
+    if (exist) read(in_file, nml = kt_grids_specified_parameters)
 
     ! Now copy from local variables into type members
     self%naky = naky
@@ -1189,7 +1197,7 @@ contains
     implicit none
     class(kt_grids_specified_element_config_type), intent(in out) :: self
     logical :: exist
-    integer :: in_file, iostat
+    integer :: in_file
 
     ! Note: When this routine is in the module where these variables live
     ! we shadow the module level variables here. This is intentional to provide
@@ -1207,16 +1215,9 @@ contains
     theta0 = self%theta0
 
     ! Now read in the main namelist
-    if (self%get_requires_index()) then
-       call get_indexed_namelist_unit(in_file, trim(self%get_name()), self%index)
-       read(in_file, nml = kt_grids_specified_element, iostat = iostat)
-       exist = .true.
-       if (iostat .ne.0) exist = .false.
-       close(unit = in_file, iostat = iostat)       
-    else
-       in_file = input_unit_exist(self%get_name(), exist)
-       if (exist) read(in_file, nml = kt_grids_specified_element)
-    endif
+    call get_indexed_namelist_unit(in_file, trim(self%get_name()), self%index, exist)
+    if (exist) read(in_file, nml = kt_grids_specified_element)
+    close(unit = in_file)
 
     ! Now copy from local variables into type members
     self%akx = akx
@@ -1301,12 +1302,14 @@ module kt_grids_box
 
   public :: kt_grids_box_config_type
   public :: set_kt_grids_box_config
+  public :: get_kt_grids_box_config
   
   real :: ly, y0, x0, rtwist, rhostar_box
   integer :: naky_private, ntheta0_private, nx_private, ny_private
   integer :: nkpolar_private, n0
   integer :: jtwist
   integer :: naky, ntheta0, nx, ny, nkpolar
+  !> Are we being called from gryfx?
   logical :: gryfx
   logical :: parameters_read = .false.
   logical :: initialized = .false.
@@ -1597,7 +1600,7 @@ contains
     ny_private = ny
   end subroutine init_kt_grids_box
 
-  !> FIXME : Add documentation  
+  !> Write namelist for kt_grids_box
   subroutine wnml_kt_grids_box (unit)
     implicit none
     integer, intent(in) :: unit
@@ -1617,10 +1620,19 @@ contains
     write (unit, fmt="(' /')")
   end subroutine wnml_kt_grids_box
 
-  !> FIXME : Add documentation  
+  !> Get the various grid sizes
   subroutine box_get_sizes (naky, ntheta0, nx, ny, nkpolar)
     implicit none
-    integer, intent (out) :: naky, ntheta0, nx, ny, nkpolar
+    !> Number of \(k_y \rho\) modes. See [[kt_grids_box_parameters::naky]]
+    integer, intent (out) :: naky
+    !> Number of \(\theta_0\) points. See [[kt_grids_box_parameters::ntheta0]]
+    integer, intent (out) :: ntheta0
+    !> Number of x points in real space. See [[kt_grids_box_parameters::nx]]
+    integer, intent (out) :: nx
+    !> Number of y points in real space. See [[kt_grids_box_parameters::ny]]
+    integer, intent (out) :: ny
+    !> See [[kt_grids_box_parameters::nkpolar]]
+    integer, intent (out) :: nkpolar
     naky = naky_private
     ntheta0 = ntheta0_private
     nx = nx_private
@@ -1641,14 +1653,21 @@ contains
     if (grids_ov%override_gryfx) gryfx = grids_ov%gryfx
   end subroutine box_set_overrides
 
-  !> FIXME : Add documentation  
+  !> Calculate the grid of wavenumbers for box mode
   subroutine box_get_grids (aky, theta0, akx, ikx, iky)
-    use theta_grid, only: shat
+    use theta_grid, only: shat, nperiod
     use constants, only: pi
     use theta_grid, only: nperiod 
     implicit none
-    real, dimension (:), intent (out) :: akx, aky
+    !> The \(k_x \rho\) grid
+    real, dimension (:), intent (out) :: akx
+    !> The \(k_y \rho\) grid
+    real, dimension (:), intent (out) :: aky
+    !> The \(\theta_0(k_x, k_y)\) grid
     real, dimension (:,:), intent (out) :: theta0
+    !> Discrete wavenumber grids
+    !>
+    !> @todo: Remove these as unused
     integer, dimension (:), intent (out) :: ikx, iky
 
     real :: dkx, dky, ratio
@@ -1825,7 +1844,13 @@ contains
        kt_grids_box_config = kt_grids_box_config_in
     end if
   end subroutine set_kt_grids_box_config
-  
+
+  !> Get the module level config instance
+  function get_kt_grids_box_config()
+    type(kt_grids_box_config_type) :: get_kt_grids_box_config
+    get_kt_grids_box_config = kt_grids_box_config
+  end function get_kt_grids_box_config
+
   !---------------------------------------
   ! Following is for the config_type
   !---------------------------------------
@@ -1837,7 +1862,7 @@ contains
     implicit none
     class(kt_grids_box_config_type), intent(in out) :: self
     logical :: exist
-    integer :: in_file, iostat
+    integer :: in_file
 
     ! Note: When this routine is in the module where these variables live
     ! we shadow the module level variables here. This is intentional to provide
@@ -1867,16 +1892,8 @@ contains
     y0 = self%y0
 
     ! Now read in the main namelist
-    if (self%get_requires_index()) then
-       call get_indexed_namelist_unit(in_file, trim(self%get_name()), self%index)
-       read(in_file, nml = kt_grids_box_parameters, iostat = iostat)
-       exist = .true.
-       if (iostat .ne.0) exist = .false.
-       close(unit = in_file, iostat = iostat)       
-    else
-       in_file = input_unit_exist(self%get_name(), exist)
-       if (exist) read(in_file, nml = kt_grids_box_parameters)
-    endif
+    in_file = input_unit_exist(self%get_name(), exist)
+    if (exist) read(in_file, nml = kt_grids_box_parameters)
 
     ! Now copy from local variables into type members
     self%gryfx = gryfx
@@ -1996,13 +2013,35 @@ module kt_grids
 
   public :: kt_grids_config_type
   public :: set_kt_grids_config
+  public :: get_kt_grids_config
   
   logical, dimension(:,:), allocatable :: kwork_filter
   real, dimension (:,:,:), allocatable :: kperp2
+  !> The \(\theta_0(k_x, k_y)\) grid
   real, dimension (:,:), allocatable :: theta0
-  real, dimension (:), allocatable :: aky, akx
+  !> The \(k_x \rho\) grid
+  real, dimension (:), allocatable :: akx
+  !> The \(k_y \rho\) grid
+  real, dimension (:), allocatable :: aky
+  !> Discrete wavenumber grids
+  !>
+  !> @todo: Remove these as unused
   integer, dimension(:), allocatable :: ikx, iky
-  integer :: naky, ntheta0, nx, ny, nkpolar, jtwist_out
+  !> Number of \(k_y \rho\) points
+  integer :: naky
+  !> Number of \(\theta_0\) points
+  integer :: ntheta0
+  !> Number of (real space) \(x\) points
+  integer :: nx
+  !> Number of (real space) \(y\) points
+  integer :: ny
+  !> @todo remove as unused
+  integer :: nkpolar
+  !> Related to the box size in x. See
+  !> [[kt_grids_box_parameters:jtwist]]
+  integer :: jtwist_out
+  !> The type of perpendicular wavenumber grid used. See
+  !> [[kt_grids_knobs:grid_option]]
   character(20) :: grid_option
 
   ! internal variables
@@ -2113,14 +2152,16 @@ contains
     end if
   end subroutine set_overrides
 
-  !> FIXME : Add documentation  
-  function gryfx()
-    use mp, only: broadcast
-    use kt_grids_box, only: grbx=>gryfx
+  !> Have we been called from a gryfx run or not?
+  pure function gryfx()
+    use kt_grids_box, only: gryfx_box => gryfx
     implicit none
     logical :: gryfx
-    gryfx = grbx
-    !call broadcast(gryfx)
+    if (gridopt_switch == gridopt_box) then
+       gryfx = gryfx_box
+    else
+       gryfx = .false.
+    end if
   end function gryfx
 
   !> FIXME : Add documentation
@@ -2214,8 +2255,9 @@ contains
     case (gridopt_box)
        write (unit, fmt="(' grid_option = ',a)") '"box"'
     end select
+    write(unit, fmt="(' /')")
 
-    select case (gridopt_switch)          
+    select case (gridopt_switch)
     case (gridopt_single)
        call wnml_kt_grids_single (unit)
     case (gridopt_range)
@@ -2357,6 +2399,12 @@ contains
     end if
   end subroutine set_kt_grids_config
 
+  !> Get the module level config instance
+  function get_kt_grids_config()
+    type(kt_grids_config_type) :: get_kt_grids_config
+    get_kt_grids_config = kt_grids_config
+  end function get_kt_grids_config
+
   !---------------------------------------
   ! Following is for the config_type
   !--------------------------------------- 
@@ -2368,7 +2416,7 @@ contains
     implicit none
     class(kt_grids_config_type), intent(in out) :: self
     logical :: exist
-    integer :: in_file, iostat
+    integer :: in_file
 
     ! Note: When this routine is in the module where these variables live
     ! we shadow the module level variables here. This is intentional to provide
@@ -2384,16 +2432,8 @@ contains
     grid_option = self%grid_option
 
     ! Now read in the main namelist
-    if (self%get_requires_index()) then
-       call get_indexed_namelist_unit(in_file, trim(self%get_name()), self%index)
-       read(in_file, nml = kt_grids_knobs, iostat = iostat)
-       exist = .true.
-       if (iostat .ne.0) exist = .false.
-       close(unit = in_file, iostat = iostat)       
-    else
-       in_file = input_unit_exist(self%get_name(), exist)
-       if (exist) read(in_file, nml = kt_grids_knobs)
-    endif
+    in_file = input_unit_exist(self%get_name(), exist)
+    if (exist) read(in_file, nml = kt_grids_knobs)
 
     ! Now copy from local variables into type members
     self%grid_option = grid_option

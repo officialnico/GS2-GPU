@@ -61,10 +61,14 @@ USE_SHMEM ?=
 USE_FFT ?= fftw3
 # uses netcdf library (bin)
 USE_NETCDF ?= on
+# Default to compressed netcdf files?
+USE_NETCDF_COMPRESSION ?=
 # uses parallel netcdf library
 USE_PARALLEL_NETCDF ?= 
 # uses hdf5 library (bin)
 USE_HDF5 ?=  
+# uses lapack or compatible library (bin)
+USE_LAPACK ?=
 # Use local random number generator (mt,undefined)
 # see also README
 USE_LOCAL_RAN ?=
@@ -91,6 +95,8 @@ USE_GCOV ?=
 HAS_GCOV=$(USE_GCOV)
 # Name of python exe
 GS2_PYTHON_NAME ?= python3
+# Name of pytest executable
+GS2_PYTEST_NAME ?= pytest
 
 # Compile with the new simplified diagnostics module (bin)
 USE_NEW_DIAG ?=on
@@ -115,9 +121,30 @@ ONE_STEP_PP?=
 QUIET           ?= yes
 # If defined then use escape commands to colourise some output
 # Note hack to support both spellings
+# We default WITH_COLOR (and hence WITH_COLOUR) to on if
+# MAKE_TERMOUT is set. This is an internal make variable which is set
+# provided the output is going to a terminal.  In other words we don't
+# default the colour on if we're redirecting output to file.
+ifdef MAKE_TERMOUT
+WITH_COLOR ?= yes
+endif
 WITH_COLOUR     ?= $(WITH_COLOR)
 # If defined then show the full path in compilation statements etc.
 SHOW_ABS_PATH ?= yes
+
+###############################################################
+# Experimental features
+###############################################################
+# Do we use the experimental memory usage reporting
+GS2_EXPERIMENTAL_ENABLE_MEMORY_USAGE ?=
+
+###############################################################
+# By default we export all variables defined in this Makefile
+# or any included makefiles. This gives sub-make invocations
+# (i.e. make calls from within our Makefile) access to the same
+# variables. Really we should just default what is needed.
+export
+###############################################################
 
 #
 # * Targets:
@@ -172,6 +199,8 @@ GENQUAD_INC ?=
 GENQUAD_LIB ?=
 NETCDF_INC ?=
 NETCDF_LIB ?=
+LAPACK_INC ?=
+LAPACK_LIB ?=
 HDF5_INC ?=
 HDF5_LIB ?=
 NAG_LIB ?=
@@ -185,8 +214,13 @@ sinclude Makefile.local
 
 #### directories
 
-#Record the top level path
-GK_HEAD_DIR:=$(PWD)
+#Record the top level path. Note we don't just use $(PWD) as this
+#resolves to the directory from which make was invoked. The approach
+#taken here ensures that GK_HEAD_DIR is the location of this Makefile.
+#Note the realpath call removes the trailing slash so later we need
+#to add a slash if we want to address subdirectories
+GK_THIS_MAKEFILE := $(abspath $(lastword $(MAKEFILE_LIST)))
+GK_HEAD_DIR := $(realpath $(dir $(GK_THIS_MAKEFILE)))
 
 #Directories to store outputs of different types
 OBJDIR:= $(GK_HEAD_DIR)/objs
@@ -226,11 +260,6 @@ COVERAGE_DIR:= $(GK_HEAD_DIR)/coverage
 #Patch file
 PATCHFILE:= .patch.make
 
-ifdef SHOW_ABS_PATH
-processName = $1
-else
-processName = $(subst $(GK_HEAD_DIR)/,,$1)
-endif
 ################################################### SET COMPILE MODE SWITCHES
 
 # It makes no sense to set USE_PARALLEL_NETCDF without
@@ -305,6 +334,8 @@ sinclude Makefile.local
 Makefile.utils: ;
 include Makefile.utils
 
+#Indicate that we don't want to rebuild the COMPILER makefile
+Makefiles/Makefile.$(COMPILER): ;
 #############################################################################
 
 GIT_HASH:=$(shell git rev-parse HEAD)
@@ -316,17 +347,22 @@ MACRO_DEFS+=-DGIT_HASH_MAKEFILES='"$(GIT_HASH_MAKEFILES)"'
 GIT_HASH_UTILS:=$(shell git submodule status $(UTILS) | cut -d ' ' -f2)
 MACRO_DEFS+=-DGIT_HASH_UTILS='"$(GIT_HASH_UTILS)"'
 
+# Version string, including current commit if not on a release, plus
+# '-dirty' if there are uncommitted changes
+GIT_VERSION := $(shell git describe --tags --dirty --match "[0-9]*.[0-9]*.[0-9]*")
+MACRO_DEFS += -DGIT_VERSION='"$(GIT_VERSION)"'
+
 #The magic sed esacpes either ( or ) by replacing with \( or \)
 GIT_BRANCH:=$(shell git branch | grep \* | cut -d ' ' -f2- | sed 's|\([()]\)|\\\1|g')
 MACRO_DEFS+=-DGIT_BRANCH='"$(GIT_BRANCH)"'
 
 # Find if there are any modified tracked files (except Makefile.depend)
 ifeq ($(shell git status --short -uno -- . | wc -l), 0)
-	GIT_STATE="clean"
+	GIT_STATE:="clean"
 	MACRO_DEFS+=-DGIT_STATE='$(GIT_STATE)'
 $(shell touch $(PATCHFILE))
 else
-	GIT_STATE="modified"
+	GIT_STATE:="modified"
 	MACRO_DEFS+=-DGIT_STATE='$(GIT_STATE)'
 
 # Here we make a patch file, which could be read by the program if we wanted to keep a record
@@ -336,11 +372,19 @@ MACRO_DEFS+=-DGIT_PATCH_FILE='"$(PATCHFILE)"'
 
 ######## PYTHON ###############################################################
 
-PYTHON_EXE:=$(shell which $(GS2_PYTHON_NAME))
+PYTHON_EXE:=$(shell which $(GS2_PYTHON_NAME) 2>/dev/null)
 GS2_HAS_PYTHON:=$(if $(PYTHON_EXE),yes,no)
 ifeq ($(GS2_HAS_PYTHON),yes)
 PYTHON_VERSION:=$(shell $(PYTHON_EXE) --version 2>&1)
+else
+$(warning Could not find Python, looking for '$(GS2_PYTHON_NAME)'. \
+You will not be able to generate some files, or run some tests. \
+Please make sure '$(GS2_PYTHON_NAME)' is in your '$$PATH', or set \
+"GS2_PYTHON_NAME" to the correct name of the Python executable on your system)
 endif
+
+PYTEST := $(shell which $(GS2_PYTEST_NAME) 2>/dev/null)
+GS2_HAS_PYTEST := $(if $(PYTEST),yes,no)
 
 ###############################################################################
 
@@ -417,7 +461,7 @@ ifeq ($(USE_FFT),fftw)
 	FFT_LIB ?= -lfftw -lrfftw
 endif
 
-ifeq ($(USE_FFT),fftw3)
+ifeq ($(findstring fftw3,$(USE_FFT)),fftw3)
 	MACRO_DEFS += -DFFT=_FFTW3_
 	FFT_LIB ?= -lfftw -lrfftw
 endif
@@ -436,6 +480,10 @@ ifdef USE_NETCDF
 	MACRO_DEFS += -DNETCDF
 endif
 
+ifdef USE_NETCDF_COMPRESSION
+	MACRO_DEFS += -DGK_NETCDF_DEFAULT_COMPRESSION_ON
+endif
+
 ifdef USE_HDF5
 	FC = $(H5FC_par)
 	CC = $(H5CC_par)
@@ -451,6 +499,10 @@ endif
 
 ifdef USE_POSIX
 	MACRO_DEFS += -DPOSIX
+endif
+
+ifdef USE_LAPACK
+	MACRO_DEFS += -DLAPACK
 endif
 
 ifdef USE_F200X_INTRINSICS
@@ -528,21 +580,18 @@ endif
 
 #Make empty targets if not using the new diagnostics
 ifeq ($(USE_NEW_DIAG),on)
-$(SRCDIR)/Makefile.diagnostics/Makefile.diagnostics: ;
-sinclude $(SRCDIR)/diagnostics/Makefile.diagnostics
+$(SRCDIR)/diagnostics/Makefile.diagnostics: ;
+include $(SRCDIR)/diagnostics/Makefile.diagnostics
 else
-distclean_simpledataio:
-clean_simpledataio:
 diagnostics:
-simpledataio:
 endif
 
 ############################################################################# Done dealing with user flags
 
 LIBS	+= $(DEFAULT_LIB) $(MPI_LIB) $(NETCDF_LIB) $(HDF5_LIB) $(FFT_LIB) \
-		   $(NAG_LIB) $(EIG_LIB) $(GENQUAD_LIB)
+		   $(NAG_LIB) $(EIG_LIB) $(GENQUAD_LIB) $(LAPACK_LIB)
 INCLUDES = $(DEFAULT_INC) $(MPI_INC) $(NETCDF_INC) $(HDF5_INC) $(FFT_INC)\
-		   $(SIMPLEDATAIO_INC) $(EIG_INC) $(GENQUAD_INC) $(PFUNIT_INC)
+		   $(EIG_INC) $(GENQUAD_INC) $(PFUNIT_INC) $(LAPACK_INC)
 
 INCLUDES += -I$(MODDIR)
 
@@ -578,22 +627,27 @@ VPATH_tmp := $(foreach tmpvp,$(subst :, ,$(VPATH)),$(shell [ -d $(tmpvp) ] && ec
 VPATH := .:$(shell echo $(VPATH_tmp) | sed "s/ /:/g")
 
 # most common include and library directories
-DEFAULT_INC_LIST = . $(GK_HEAD_DIR)/$(UTILS) $(GK_HEAD_DIR)/$(GEO) .. ../$(UTILS) ../$(GEO)
-DEFAULT_LIB_LIST =
+DEFAULT_INC_LIST := . $(GK_HEAD_DIR)/$(UTILS) $(GK_HEAD_DIR)/$(GEO) .. ../$(UTILS) ../$(GEO)
+DEFAULT_LIB_LIST :=
 # This default library path list can simplify the procedure of porting,
 # however, I found this (actually -L/usr/lib flag) causes an error
 # when linking gs2 at bassi (RS6000 with xl fortran)
-DEFAULT_INC=$(foreach tmpinc,$(DEFAULT_INC_LIST),$(shell [ -d $(tmpinc) ] && echo -I$(tmpinc)))
-DEFAULT_LIB=$(foreach tmplib,$(DEFAULT_LIB_LIST),$(shell [ -d $(tmplib) ] && echo -L$(tmplib)))
+DEFAULT_INC:=$(foreach tmpinc,$(DEFAULT_INC_LIST),$(shell [ -d $(tmpinc) ] && echo -I$(tmpinc)))
+DEFAULT_LIB:=$(foreach tmplib,$(DEFAULT_LIB_LIST),$(shell [ -d $(tmplib) ] && echo -L$(tmplib)))
 
-# Generation of large fortran source files
-RUBY_GENERATE=env ruby $2 $1; if test "$$?" != 0; then  echo && echo && echo  "Warning: no ruby: $1 is not updated!!!" && echo && echo; fi
+# Commands for generating repetitive Fortran files from python scripts
+ifeq ($(GS2_HAS_PYTHON),yes)
 
-# List of fortran files generated by ruby. 
-# Note these are not deleted at the end of the compilation:
-# in fact, they are stored in the repository 
-# because some antique systems don't have ruby
-FORTFROMRUBY:=$(subst generate_,,$(patsubst %.rb,%.f90,$(wildcard $(SRCDIR)/*.rb $(SRCDIR)/*/*.rb)))
+$(SRCDIR)/gs2_init_down.inc $(SRCDIR)/gs2_init_up.inc $(SRCDIR)/gs2_init_subroutines.inc $(SRCDIR)/gs2_init_level_list.inc: $(SRCDIR)/generate_gs2_init.py
+	$(call messageOp,"Generating from python","\\t:",$(call processName,$@) ($(call processName,$^)))
+	$(QUIETSYM)$(PYTHON_EXE) $< $@
+
+$(GENERATED_SRC_DIR)/gs2_init.f90: $(SRCDIR)/gs2_init.fpp $(SRCDIR)/gs2_init_down.inc $(SRCDIR)/gs2_init_up.inc $(SRCDIR)/gs2_init_subroutines.inc $(SRCDIR)/gs2_init_level_list.inc
+
+$(SRCDIR)/overrides.f90: $(SRCDIR)/generate_overrides.py
+	$(call messageOp,"Generating from python","\\t:",$(call processName,$<))
+	$(QUIETSYM)$(PYTHON_EXE) $< $@
+endif
 
 # list of intermediate f90 files generated by preprocessor
 FPPFILES = $(wildcard $(addsuffix /*.fpp, $(SRCDIR) $(PROGDIR) $(SUBDIRS)))
@@ -624,7 +678,7 @@ $(BINDIR) $(LIBDIR) $(OBJDIR) $(MODDIR) $(GENERATED_SRC_DIR):
 ifdef ONE_STEP_PP
 	$(QUIETSYM)$(FC) $(FPPFLAGS) $(F90FLAGS) -c $(basename $<).F90 $(PFUNIT_INC) -I$(GK_HEAD_DIR) -o $@
 else
-	$(QUIETSYM)$(CPP) $(FPPFLAGS) $(basename $<).F90 -o $(basename $<).f90
+	$(QUIETSYM)$(CPP) $(FPPFLAGS) $(INCLUDES) $(basename $<).F90 -o $(basename $<).f90
 	$(QUIETSYM)$(FC) $(F90FLAGS) -c $(basename $<).f90 $(PFUNIT_INC) -I$(GK_HEAD_DIR) -o $@
 endif
 
@@ -638,40 +692,32 @@ endif
 ifdef ONE_STEP_PP
 $(OBJDIR)/%.o: %.fpp |$(MODDIR) $(OBJDIR)
 	$(call messageOp,"Compiling and preprocessing","\\t:",$(call processName,$<))
-	$(QUIETSYM)$(FC) $(FPPFLAGS) $(F90FLAGS) -c $< -o $@
-	$(shell mv *.mod $(MODDIR) 2>/dev/null)
+	$(QUIETSYM)$(FC) $(FPPFLAGS) $(F90FLAGS) $(MODDIR_FLAG)$(MODDIR) -c $< -o $@
 
 $(OBJDIR)/%.o: %.F90 |$(MODDIR) $(OBJDIR)
 	$(call messageOp,"Compiling and preprocessing","\\t:",$(call processName,$<))
-	$(QUIETSYM)$(FC) $(FPPFLAGS) $(F90FLAGS) -c $< -o $@
-	$(shell mv *.mod $(MODDIR) 2>/dev/null)
+	$(QUIETSYM)$(FC) $(FPPFLAGS) $(F90FLAGS) $(MODDIR_FLAG)$(MODDIR) -c $< -o $@
 endif
-
-%.f90: %.rb
-	$(call messageOp,"Generating from ruby","\\t:",$(call processName,$<))
-	$(QUIETSYM)$(call RUBY_GENERATE,$@,$<)
 
 $(OBJDIR)/%.o:$(GENERATED_SRC_DIR)/%.f90 |$(MODDIR) $(OBJDIR)
 	$(call messageOp,"Compiling","\\t:",$(call processName,$<))
-	$(QUIETSYM) $(FC) $(F90FLAGS) -c $< -o $@
-	$(shell mv *.mod $(MODDIR) 2>/dev/null)
+	$(QUIETSYM) $(FC) $(F90FLAGS) $(MODDIR_FLAG)$(MODDIR) -c $< -o $@
 
 $(OBJDIR)/%.o:%.f90 |$(MODDIR) $(OBJDIR)
 	$(call messageOp,"Compiling","\\t:",$(call processName,$<))
-	$(QUIETSYM) $(FC) $(F90FLAGS) -c $< -o $@
-	$(shell mv *.mod $(MODDIR) 2>/dev/null)
+	$(QUIETSYM) $(FC) $(F90FLAGS) $(MODDIR_FLAG)$(MODDIR) -c $< -o $@
 
 # The depend command needs the preprocessed source files. 
 # This is a little clunky, and maybe could be fixed in the future.
-$(GENERATED_SRC_DIR)/%.f90: %.fpp |$(GENERATED_SRC_DIR)
+$(GENERATED_SRC_DIR)/%.f90: %.fpp |$(GENERATED_SRC_DIR) $(MODDIR)
 	$(call messageOp,"Preprocessing","\\t:",$(call processName,$<))
-	$(QUIETSYM)$(CPP) $(FPPFLAGS) $< -o $@
+	$(QUIETSYM)$(CPP) $(FPPFLAGS) $(INCLUDES) $< -o $@
 
-$(GENERATED_SRC_DIR)/%.f90: %.F90 |$(GENERATED_SRC_DIR)
+$(GENERATED_SRC_DIR)/%.f90: %.F90 |$(GENERATED_SRC_DIR) $(MODDIR)
 	$(call messageOp,"Preprocessing","\\t:",$(call processName,$<))
-	$(QUIETSYM)$(CPP) $(FPPFLAGS) $< -o $@
+	$(QUIETSYM)$(CPP) $(FPPFLAGS) $(INCLUDES) $< -o $@
 
-$(OBJDIR)/%.o: %.c |$(OBJDIR)
+$(OBJDIR)/%.o: %.c |$(MODDIR) $(OBJDIR)
 	$(call messageOp,"Compiling C","\\t:",$(call processName,$<))
 	$(QUIETSYM)$(CC) $(CFLAGS) $(INCLUDES) $(CPPFLAGS) -c $< -o $@
 
@@ -679,6 +725,18 @@ $(OBJDIR)/%.o: %.c |$(OBJDIR)
 # This is from a implicit makefile rule that we're overriding
 %.o : %.mod
 
+# Special handling for creating a serial version of the mp module
+$(OBJDIR)/mp_serial.o: $(OBJDIR)/mp.o | $(MODDIR) $(OBJDIR)
+FPPFLAGS_SERIAL:=$(subst -DHAVE_MPI, ,$(subst -DMPI, ,$(FPPFLAGS)))
+ifdef ONE_STEP_PP
+$(OBJDIR)/mp_serial.o: $(UTILS)/mp.fpp | $(MODDIR) $(OBJDIR)
+	$(call messageOp,"Compiling and preprocessing","\\t:",$(call processName,$<))
+	$(QUIETSYM)$(FC) $(FPPFLAGS_SERIAL) $(F90FLAGS) $(MODDIR_FLAG)$(MODDIR) -c $< -o $@
+else
+$(GENERATED_SRC_DIR)/mp_serial.f90: $(UTILS)/mp.fpp |$(GENERATED_SRC_DIR) $(MODDIR)
+	$(call messageOp,"Preprocessing","\\t:",$(call processName,$<))
+	$(QUIETSYM)$(CPP) $(FPPFLAGS_SERIAL) $(INCLUDES) $< -o $@
+endif
 
 DEPEND:=Makefile.depend
 DEPEND_CMD:=$(PERL) scripts/fortdep
@@ -699,15 +757,35 @@ ifdef ONE_STEP_PP
 KEEP_PROCESSED_FILES_FROM_DEPEND="no"
 endif
 
-depend: $(F90FROMFPP) $(FORTFROMRUBY) $(UTILS_SENTINEL) Makefile.$(GK_SYSTEM) |$(GENERATED_SRC_DIR)
+depend: $(F90FROMFPP) $(UTILS_SENTINEL) Makefile.$(GK_SYSTEM) |$(GENERATED_SRC_DIR)
 	$(call messageOp,"Generating dependency file","\\t:",$(call processName,$(DEPEND)))
 # Note we force UTILS to be included in the paths that we pass to fortdep
 # We touch the dependency file first as fortdep will call make in order to try
 # and preprocess files, so we need this to avoid recursion
-	$(QUIETSYM)touch $(DEPEND) && $(DEPEND_CMD) -m "$(MAKE) --no-print-directory" -1 -o -v=1\
+	$(QUIETSYM)touch $(DEPEND) && $(DEPEND_CMD) -m "$(MAKE) --no-print-directory" -1 -o -v=0\
 		--keep=$(KEEP_PROCESSED_FILES_FROM_DEPEND) $(VPATH):$(UTILS) \
 		--generated_src_dir=$(GENERATED_SRC_DIR) || rm $(DEPEND)
 	$(call messageOp,"Dependency file created at","\\t:",$(call processName,$(DEPEND)))
+
+# Dump the compilation flags to a file, so we can check if they change between
+# invocations of `make`. The `cmp` bit checks if the file contents
+# change. Adding a dependency of a file on `compiler_flags` causes it to be
+# rebuilt when the flags change. Taken from
+# https://stackoverflow.com/a/3237349/2043465
+COMPILER_FLAGS_CONTENTS = "$(GIT_VERSION)"
+.PHONY: force
+compiler_flags: force
+	$(QUIETSYM)echo -e $(COMPILER_FLAGS_CONTENTS) | cmp -s - $@ || echo -e $(COMPILER_FLAGS_CONTENTS) > $@
+
+# Things that should be rebuilt if the compilation flags change (for example, on
+# a new commit). Files that get preprocessed need either the object file or the
+# preprocessed file to depend on compiler_flags, depending on ONE_STEP_PP
+ifdef ONE_STEP_PP
+$(OBJDIR)/git_hash.o: compiler_flags
+else
+$(GENERATED_SRC_DIR)/git_hash.f90: compiler_flags
+endif
+
 ##################################################################### Main TARGETS
 # .DEFAULT_GOAL works for GNU make 3.81 (or higher)
 # For 3.80 or less, see all target
@@ -740,21 +818,6 @@ ifneq ($(strip $(MUST_INCLUDE_DEPEND)),)
 include $(DEPEND)
 endif
 
-#If we're using fft(w) then we want to link the fft_save_wisdom object file
-#this currently has to be handled specially as it comes from a c source file
-#rather than fortran (so isn't picked up by fortdep).
-ifdef USE_FFT
-    utils_mod += $(OBJDIR)/fft_save_wisdom.o
-    gs2_mod += $(OBJDIR)/fft_save_wisdom.o
-    ingen_mod += $(OBJDIR)/fft_save_wisdom.o
-    dump_response_mod += $(OBJDIR)/fft_save_wisdom.o
-    generate_fftw_wisdom_mod += $(OBJDIR)/fft_save_wisdom.o
-    write_default_input_file_mod += $(OBJDIR)/fft_save_wisdom.o
-endif
-
-# Make sure template dependencies are specified
-gs2_init.f90: $(SRCDIR)/templates/gs2_init_template.f90
-
 geometry_c_interface.o: geometry_c_interface.h
 
 gryfx_libs: utils.a geo.a $(OBJDIR)/geometry_c_interface.o
@@ -776,7 +839,7 @@ system_config:
 endif
 
 ############################################################# Cleanup targets
-clean: cleanobjs cleanpreprocess clean_simpledataio
+clean: cleanobjs cleanpreprocess
 
 cleanobjs:
 	$(call messageRm,"Object and module files")
@@ -790,15 +853,6 @@ cleanpreprocess:
 	$(call messageRm,"Processed files")
 	-$(QUIETSYM)rm -f $(F90FROMFPP)
 
-CLEANCOMMAND=echo $$$$PWD
-CLEANCOMMAND=rm -f *.o *.error *.out *.out.nc *.gridgen.200 *.lpc *.vres *.fields *.g *.fort.?? *.mod .*.scratch *.moments *.cdf *.jext *.parity *.heat *.heat2 *.vres2 *.amoments *.eigenfunc *.nc* *.mom2 *.epar .*.in results_of_test.txt *.stop *.fftw_wisdom *.phase *.kpar *.interp *.dist
-
-ifdef CLEAN_TEXTFILES
-	CLEANCOMMAND+= *~ *.orig
-endif
-
-export CLEANCOMMAND
-
 cleanlib:
 	$(call messageRm,"Libraries")
 	-$(QUIETSYM)rm -f $(LIBDIR)/*.a
@@ -811,7 +865,7 @@ clean_depend:
 	$(call messageRm,"Dependency file")	
 	-$(QUIETSYM)rm -f $(DEPEND)
 
-distclean: unlink clean cleanlib clean_tests clean_benchmarks distclean_simpledataio cleanconfig cleandoc clean_depend pfunit_clean cleandirs
+distclean: unlink clean cleanlib clean_tests clean_benchmarks cleanconfig cleandoc clean_depend pfunit_clean cleandirs
 
 unlink:
 	$(call messageRm,"Preprocessed files")	
@@ -851,11 +905,13 @@ sinclude $(TEST_DIR)/Makefile.tests_and_benchmarks
 
 #This is the location of the pfunit test suites
 PFUNIT_TEST_DIR:=$(TEST_DIR)/pfunit_tests
+$(PFUNIT_TEST_DIR)/Makefile: ;
 sinclude $(PFUNIT_TEST_DIR)/Makefile
 
 ############################################################# Introspection targets
 test_make:
 	$(call messageInfo,"Global settings:")
+	$(call messageKeyVal, "GK_HEAD_DIR", $(GK_HEAD_DIR))
 	$(call messageKeyVal, "GK_SYSTEM", $(GK_SYSTEM))
 	$(call messageKeyVal, "VPATH", $(VPATH))
 	$(call messageKeyVal, "CURDIR", $(CURDIR))
@@ -867,6 +923,7 @@ test_make:
 	$(call messageKeyVal, "DEPEND", $(DEPEND))
 	$(call messageKeyVal, "QUIET", $(QUIET))
 	$(call messageKeyVal, "WITH_COLOUR", $(WITH_COLOUR))
+	$(call messageKeyVal, "GIT_VERSION", $(GIT_VERSION))
 	$(call messageKeyVal, "GIT_HASH", $(GIT_HASH))
 	$(call messageKeyVal, "GIT_HASH_MAKEFILES", $(GIT_HASH_MAKEFILES))
 	$(call messageKeyVal, "GIT_HASH_UTILS", $(GIT_HASH_UTILS))
@@ -904,9 +961,11 @@ test_make:
 	$(call messageKeyVal, "USE_SHMEM", $(USE_SHMEM))
 	$(call messageKeyVal, "USE_FFT", $(USE_FFT))
 	$(call messageKeyVal, "USE_NETCDF", $(USE_NETCDF))
+	$(call messageKeyVal, "USE_NETCDF_COMPRESSION", $(USE_NETCDF_COMPRESSION))
 	$(call messageKeyVal, "USE_HDF5", $(USE_HDF5))
 	$(call messageKeyVal, "WITH_EIG", $(WITH_EIG))
 	$(call messageKeyVal, "USE_POSIX", $(USE_POSIX))
+	$(call messageKeyVal, "USE_LAPACK", $(USE_LAPACK))
 	$(call messageKeyVal, "USE_LOCAL_RAN", $(USE_LOCAL_RN))
 	$(call messageKeyVal, "USE_SPFUNC", $(USE_SPFUNC))
 	$(call messageKeyVal, "USE_NAGLIB", $(USE_NAGLIB))
@@ -940,7 +999,6 @@ test_make:
 	$(call messageKeyVal, "TEST_RESULT_DIR", $(TEST_RESULT_DIR))
 	$(call messageKeyVal, "FPPFILES", $(FPPFILES))
 	$(call messageKeyVal, "F90FROMFPP", $(F90FROMFPP))
-	$(call messageKeyVal, "FORTFROMRUBY", $(FORTFROMRUBY))
 	@echo
 	$(call messageInfo,"PYTHON:")
 	$(call messageKeyVal, "GS2_HAS_PYTHON", $(GS2_HAS_PYTHON))
@@ -997,8 +1055,6 @@ endif
 ifdef USE_NEW_DIAG
 	$(call messageInfo,"SIMPLEDATAIO:")
 	$(call messageKeyVal, "SIMPLEDATAIO_LIB", $(SIMPLEDATAIO_LIB))
-	$(call messageKeyVal, "SIMPLEDATAIO_LIB_ABS", $(SIMPLEDATAIO_LIB_ABS))
-	$(call messageKeyVal, "SIMPLEDATAIO_INC" $(SIMPLEDATAIO_INC))
 else
 	$(call messageInfo,"SIMPLEDATAIO: DISABLED")
 endif
@@ -1009,6 +1065,14 @@ ifdef WITH_EIG
 	$(call messageKeyVal, "EIG_INC", $(EIG_INC))
 else
 	$(call messageInfo,"Eigensolver: DISABLED")
+endif
+	@echo
+ifdef USE_LAPACK
+	$(call messageInfo,"Lapack:")
+	$(call messageKeyVal, "LAPACK_LIB", $(LAPACK_LIB))
+	$(call messageKeyVal, "LAPACK_INC", $(LAPACK_INC))
+else
+	$(call messageInfo,"Lapack: DISABLED")
 endif
 	@echo
 
@@ -1033,7 +1097,7 @@ check_ford_install:
 endif
 
 namelist_doc: PATHS:=$(foreach dir, $(SRCDIR) $(SUBDIRS), --path ${dir})
-namelist_doc: FILES:=$(shell $(GK_HEAD_DIR)/scripts/get_all_matching_files.py --pattern "*.[fF]??" ${PATHS} --absolute)
+namelist_doc: FILES:=$(shell $(GK_HEAD_DIR)/scripts/get_all_matching_files.py --pattern "*.[fF]??" ${PATHS} --absolute --exclude "$(GK_HEAD_DIR)/src/templates")
 # for the `doc` target, `check_ford_install` must be before `namelist_doc` to ensure visibility of the error message
 # in the case where Ford is not installed and `make` is run with the `-j` option. The most robust way to do this is
 # to have `namelist_doc` to depend explicitly on `check_ford_install` as below

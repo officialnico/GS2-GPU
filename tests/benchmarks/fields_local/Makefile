@@ -1,11 +1,15 @@
 
 sinclude ../Makefile.tests_common
+
+INPUTFILE=time_fields_local_level_1.in
+ifeq "$(BENCHMARK_LEVEL)" "2"
+INPUTFILE=time_fields_local_level_2.in
+endif
+
 all: time_fields_local
 	for d in $(NTESTPROCS); \
 	do \
-	  $(call BENCHMARKCOMMAND,$$d,time_fields_local,time_fields_local.in) ; \
-	  $(call BENCHMARKCOMMAND,$$d,time_fields_local,time_fields_local.in) ; \
-	  $(call BENCHMARKCOMMAND,$$d,time_fields_local,time_fields_local.in) ; \
+	  $(call BENCHMARKCOMMAND,$$d,time_fields_local,$(INPUTFILE)) ; \
 	done
 
 TIMINGFILES=$(wildcard *.timing.*)
