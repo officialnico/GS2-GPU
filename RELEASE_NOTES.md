@@ -145,7 +145,7 @@ smaller improvements:
 
 Here are a selection of the more notable squashed bugs. We've:
 
-* **tided** the source code, **improved code structure** and **inline
+* **tidied** the source code, **improved code structure** and **inline
   comments**, and **removed unused code**
 * fixed bugs in the `ceq` and `leq` **geometries**
 * fixed the **initial theta grid** size for **eikcoefs**
@@ -156,6 +156,11 @@ Here are a selection of the more notable squashed bugs. We've:
   roundoff error in `lambda` and `B`. Reducing `bouncefuzz` makes the calculation
   more accurate, so any changes will actually be a bugfix.  This was introduced
   to prevent a numerical instability. 
+* Fixed box mode (e.g. nonlinear) runs with `nperiod > 1`.
+* Fixed nonlinear source treatment when repeating an existing time
+  step. Previously we would shuffle the time history even on failed
+  time steps, resulting in errors in the nonlinear source on a time
+  step change.
 
 ## Breaking changes
 
