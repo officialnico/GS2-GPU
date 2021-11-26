@@ -736,6 +736,10 @@ else
 $(GENERATED_SRC_DIR)/mp_serial.f90: $(UTILS)/mp.fpp |$(GENERATED_SRC_DIR) $(MODDIR)
 	$(call messageOp,"Preprocessing","\\t:",$(call processName,$<))
 	$(QUIETSYM)$(CPP) $(FPPFLAGS_SERIAL) $(INCLUDES) $< -o $@
+$(OBJDIR)/mp_serial.o:mp_serial.f90 |$(MODDIR) $(OBJDIR)
+	$(call messageOp,"Compiling","\\t:",$(call processName,$<))
+	$(QUIETSYM)mkdir -p $(MODDIR)/serial
+	$(QUIETSYM) $(FC) $(F90FLAGS) $(MODDIR_FLAG)$(MODDIR)/serial -c $< -o $@
 endif
 
 DEPEND:=Makefile.depend
