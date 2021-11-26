@@ -1,11 +1,14 @@
 # Replace the parallel mp with serial version in dependencies of codes
 # we want to be serial
+ifdef GK_BUILD_SERIAL_TOOLS_AS_SERIAL
 serial_targets := ingen write_default_input_file dump_grids
 make_serial = $(subst $(OBJDIR)/mp.o,$(OBJDIR)/mp_serial.o,$(1))
 # Call make_serial on each of serial_targets to replace mp.o with mp_serial.o
 ignored_junk := $(foreach tmp_target, $(serial_targets), $(eval $(tmp_target)_mod := $(call make_serial, $($(tmp_target)_mod))))
 SERIAL_LDFLAGS:=-I$(MODDIR)/serial $(LDFLAGS)
-
+else
+SERIAL_LDFLAGS:=$(LDFLAGS)
+endif
 # undefined reference to `get_git_state` or `get_git_hash`? You need
 # to manually add the affected binary name to needs_git_hash
 # below. This file needs to be first in the list of dependencies so
