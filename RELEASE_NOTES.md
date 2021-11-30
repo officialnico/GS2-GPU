@@ -65,7 +65,14 @@ changes** to input or analysis scripts, or that **may alter results** slightly
 * The ability to use compression in netcdf files has been
   introduced. This is not currently applied by default, but can be
   enabled by passing `USE_NETCDF_COMPRESSION=on` to make. This can
-  reduce the size of restart files by a factor 2.
+  reduce the size of restart files by a factor 2. This has been
+  enabled by a switch to the NETCDF4 file format. Existing analysis
+  tools should continue to work however this generally means one
+  should not access the netcdf files whilst the run is ongoing by
+  default. For example, running `ncdump` on an in use file is likely
+  to return a HDF error. *To avoid this and allow access during a run
+  one can set `HDF5_USE_FILE_LOCKING=FALSE` in the environment*
+  (e.g. `export` this in bash)*.
 * A new species type, `'hybrid_electron'`, has been introduced and
   results in an electron type for which the passing particles are
   adiabatic and the trapped are kinetic. This has been tested but is
