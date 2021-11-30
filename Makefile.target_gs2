@@ -1,10 +1,14 @@
 # Replace the parallel mp with serial version in dependencies of codes
 # we want to be serial
+ifdef GK_BUILD_SERIAL_TOOLS_AS_SERIAL
 serial_targets := ingen write_default_input_file dump_grids
 make_serial = $(subst $(OBJDIR)/mp.o,$(OBJDIR)/mp_serial.o,$(1))
 # Call make_serial on each of serial_targets to replace mp.o with mp_serial.o
 ignored_junk := $(foreach tmp_target, $(serial_targets), $(eval $(tmp_target)_mod := $(call make_serial, $($(tmp_target)_mod))))
-
+SERIAL_LDFLAGS:=-I$(MODDIR)/serial $(LDFLAGS)
+else
+SERIAL_LDFLAGS:=$(LDFLAGS)
+endif
 # undefined reference to `get_git_state` or `get_git_hash`? You need
 # to manually add the affected binary name to needs_git_hash
 # below. This file needs to be first in the list of dependencies so
@@ -58,7 +62,7 @@ mat_inv_benchmark: $(BINDIR)/mat_inv_benchmark
 #Input file checker
 $(BINDIR)/ingen: $(ingen_mod) $(SIMPLEDATAIO_LIB) | $(BINDIR)
 	$(call messageOp,"Linking ","\\t:",$(call processName,$^),"\\n\\t\-\-\-\-\-\-\>",$(call processName,$@))
-	$(QUIETSYM)$(LD) $(LDFLAGS) -o $@ $^ $(LIBS) 
+	$(QUIETSYM)$(LD) $(SERIAL_LDFLAGS) -o $@ $^ $(LIBS)
 
 .PHONY: ingen
 ingen: $(BINDIR)/ingen
@@ -82,7 +86,7 @@ dump_response: $(BINDIR)/dump_response
 #Initialises theta, kx, ky, lambda and energy grids and writes to file
 $(BINDIR)/dump_grids: $(dump_grids_mod) | $(BINDIR)
 	$(call messageOp,"Linking ","\\t:",$(call processName,$^),"\\n\\t\-\-\-\-\-\-\>",$(call processName,$@))
-	$(QUIETSYM)$(LD) $(LDFLAGS) -o $@ $^ $(LIBS) 
+	$(QUIETSYM)$(LD) $(SERIAL_LDFLAGS) -o $@ $^ $(LIBS)
 
 .PHONY: dump_grids
 dump_grids: $(BINDIR)/dump_grids
@@ -138,7 +142,7 @@ eiktest: $(BINDIR)/eiktest
 #Writes an instance of each namelist with default values
 $(BINDIR)/write_default_input_file: $(write_default_input_file_mod) $(SIMPLEDATAIO_LIB) | $(BINDIR)
 	$(call messageOp,"Linking ","\\t:",$^,"\\n\\t\-\-\-\-\-\-\>",$@)
-	$(QUIETSYM)$(LD) $(LDFLAGS) -o $@ $^ $(LIBS) 
+	$(QUIETSYM)$(LD) $(SERIAL_LDFLAGS) -o $@ $^ $(LIBS)
 
 .PHONY: write_default_input_file
 write_default_input_file: $(BINDIR)/write_default_input_file
