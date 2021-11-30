@@ -20,7 +20,6 @@ compatibility with pre-8.1 restart files: now if `delt_max` is not found in
 the restart file then we would fail to set the maximum time step or the time
 step history from the restart file, and an error is thrown.
 
-
 ### Known issues
 
 * If users see compile/cleaning errors relating to tests, it may be necessary
@@ -29,6 +28,14 @@ step history from the restart file, and an error is thrown.
 rm -rf tests/benchmarks/init
 rm -rf tests/benchmarks/timestep
 ```
+
+* Switched to the NETCDF4 file format for all netcdf output. Existing
+  analysis tools should continue to work, however, this generally means
+  one should not access the netcdf files whilst the run is ongoing by
+  default. For example, running `ncdump` on an in use file is likely
+  to return a HDF error. *To avoid this and allow access during a run
+  one can set `HDF5_USE_FILE_LOCKING=FALSE` in the environment*
+  (e.g. `export` this in bash)*.
 
 
 ### Merged Pull Requests
