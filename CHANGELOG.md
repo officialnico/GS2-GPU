@@ -157,7 +157,7 @@ rm -rf tests/benchmarks/timestep
 * Try switching netcdf source to github from unidata ftp [PR #238 | David Dickinson](https://bitbucket.org/gyrokinetics/gs2/pull-requests/238)
 * Use exit code in job manage test [PR #204 | Joseph Parker](https://bitbucket.org/gyrokinetics/gs2/pull-requests/204)
 * Bug fix: update dump response [PR #236 | David Dickinson](https://bitbucket.org/gyrokinetics/gs2/pull-requests/236)
-* Minor bug fix: ensures that building auxiliary programs (such as dump_response etc.) will create bin (or more strictly `$(BINDIR)` ) if it doesn’t exist. [PR #235 | David Dickinson](https://bitbucket.org/gyrokinetics/gs2/pull-requests/235)
+* Minor bug fix: ensures that building auxiliary programs (such as dump_response etc.) will create bin (or more strictly `$(BINDIR)` ) if it doesn't exist. [PR #235 | David Dickinson](https://bitbucket.org/gyrokinetics/gs2/pull-requests/235)
 * Make smart default for write_fluxes [PR #212 | Joseph Parker](https://bitbucket.org/gyrokinetics/gs2/pull-requests/212)
 * Fix Jenkins checkout due to update of plugin [PR #228 | Peter Hill](https://bitbucket.org/gyrokinetics/gs2/pull-requests/228)
 * Add explicit targets to the generated source files [PR #180 | David Dickinson](https://bitbucket.org/gyrokinetics/gs2/pull-requests/180)
