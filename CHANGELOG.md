@@ -19,7 +19,16 @@ value used can still be overridden by setting `dt0`.  This breaks backwards
 compatibility with pre-8.1 restart files: now if `delt_max` is not found in
 the restart file then we would fail to set the maximum time step or the time
 step history from the restart file, and an error is thrown.
-
+* `opt_redist_init` is no longer an option - we only support the optimal
+  version of the redistribution initialization routine. **Users need** to
+  remove `opt_redist_init` from `layout_knobs` namelist in input files.
+* For consistency, the new diagnostics now uses lower case for `rplot`,
+  `zplot`, `rprime` and `zprime`. This has the potential to **break analysis
+  scripts**. 
+* **Changes to defaults**: `write_fluxes` and `write_fluxes_by_mode` now
+  default to `true` for nonlinear runs and `false` for nonlinear runs.
+* Runs **now abort** if the user attempts to load a restart file with a
+  different layout than the one set in the rest of the code / input file.
 
 ### Known issues
 
@@ -29,6 +38,14 @@ step history from the restart file, and an error is thrown.
 rm -rf tests/benchmarks/init
 rm -rf tests/benchmarks/timestep
 ```
+
+* Switched to the NETCDF4 file format for all netcdf output. Existing
+  analysis tools should continue to work, however, this generally means
+  one should not access the netcdf files whilst the run is ongoing by
+  default. For example, running `ncdump` on an in use file is likely
+  to return a HDF error. *To avoid this and allow access during a run
+  one can set `HDF5_USE_FILE_LOCKING=FALSE` in the environment*
+  (e.g. `export` this in bash)*.
 
 
 ### Merged Pull Requests
@@ -140,7 +157,7 @@ rm -rf tests/benchmarks/timestep
 * Try switching netcdf source to github from unidata ftp [PR #238 | David Dickinson](https://bitbucket.org/gyrokinetics/gs2/pull-requests/238)
 * Use exit code in job manage test [PR #204 | Joseph Parker](https://bitbucket.org/gyrokinetics/gs2/pull-requests/204)
 * Bug fix: update dump response [PR #236 | David Dickinson](https://bitbucket.org/gyrokinetics/gs2/pull-requests/236)
-* Minor bug fix: ensures that building auxiliary programs (such as dump_response etc.) will create bin (or more strictly `$(BINDIR)` ) if it doesn’t exist. [PR #235 | David Dickinson](https://bitbucket.org/gyrokinetics/gs2/pull-requests/235)
+* Minor bug fix: ensures that building auxiliary programs (such as dump_response etc.) will create bin (or more strictly `$(BINDIR)` ) if it doesn't exist. [PR #235 | David Dickinson](https://bitbucket.org/gyrokinetics/gs2/pull-requests/235)
 * Make smart default for write_fluxes [PR #212 | Joseph Parker](https://bitbucket.org/gyrokinetics/gs2/pull-requests/212)
 * Fix Jenkins checkout due to update of plugin [PR #228 | Peter Hill](https://bitbucket.org/gyrokinetics/gs2/pull-requests/228)
 * Add explicit targets to the generated source files [PR #180 | David Dickinson](https://bitbucket.org/gyrokinetics/gs2/pull-requests/180)
