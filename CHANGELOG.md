@@ -224,7 +224,6 @@ rm -rf tests/benchmarks/timestep
 * Feature/add le grids integrate tests [PR #392 | David Dickinson](https://bitbucket.org/gyrokinetics/gs2/pull-requests/392)
 * Add box mode linear itg test [PR #383 | Joseph Parker](https://bitbucket.org/gyrokinetics/gs2/pull-requests/383)
 * Experimental/improve coveralls reporting [PR #388 | David Dickinson](https://bitbucket.org/gyrokinetics/gs2/pull-requests/388)
-Merged without approval (sorry!) as it only touches non-essential CI but tidies this up to make the coverage reports more usable.
 * Ignore absence of explicit source terms in restart files [PR #222 | David Dickinson](https://bitbucket.org/gyrokinetics/gs2/pull-requests/222)
 * Change the default of bouncefuzz to address issue #116 [PR #313 | David Dickinson](https://bitbucket.org/gyrokinetics/gs2/pull-requests/313)
 * Experimental/try an old fedora build [PR #390 | David Dickinson](https://bitbucket.org/gyrokinetics/gs2/pull-requests/390)
