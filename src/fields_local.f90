@@ -105,16 +105,16 @@ module fields_local
      complex, dimension(:),allocatable :: tmp_sum !< Work space for field update
      type(comm_type) :: sc_sub_all !< Sub communicator involving all processors with this supercell
      type(comm_type) :: sc_sub_pd !< Sub communicator for all procs with some data but not all of it
-     type(comm_type) :: sc_sub_not_full !< Sub communicator involving all processors with this supercell
      type(comm_type) :: parent_sub !< Sub communicator involving all processors in parent
      integer, dimension(:),allocatable :: nb_req_hand !< For non-blocking broadcast request handle storage
      logical :: initdone !< Have we finished initialising this block?
      logical, dimension(:), allocatable :: initialised !< Have we initialised each point?
-     logical :: is_head=.false. !< Are we the head of this supercell?
+     logical :: is_head = .false. !< Are we the head of this supercell?
      !Cell and parent properties. Mostly for debug printing.
      integer :: is_ind
      integer :: ik_ind !< Parent properties
      integer :: collective_request
+     real :: condition_number = -1 !< Condition number of the associated response matrix. Only valid on the head.
    contains
      private
      procedure :: deallocate => sc_deallocate
@@ -141,14 +141,8 @@ module fields_local
      procedure :: dump => sc_dump
      procedure :: make_subcom_1 => sc_make_subcom_1
      procedure :: make_subcom_2 => sc_make_subcom_2
-     procedure :: gfu_post_recv => sc_gfu_post_recv
-     procedure :: gfu_post_send => sc_gfu_post_send
-     procedure :: gfu_test_comms => sc_gfu_test_comms
-     procedure :: gfu_test_send => sc_gfu_test_send
-     procedure :: gfu_test_recv => sc_gfu_test_recv
-     procedure :: gfu_finish_comms => sc_gfu_finish_comms
-     procedure :: gfu_finish_send => sc_gfu_finish_send
-     procedure :: gfu_finish_recv => sc_gfu_finish_recv
+     procedure :: dump_to_file => sc_dump_to_file
+     procedure :: read_from_file => sc_read_from_file
   end type supercell_type
 
   !> This is the next level up of data and represents the ky type.
@@ -194,11 +188,11 @@ module fields_local
      type(comm_type) :: fm_sub_all !< Sub communicator involving all processors with fieldmat
      type(comm_type) :: fm_sub_headsc_p0 !< Sub communicator involving the supercell heads and proc0
      integer :: prepare_type=0 !< What sort of preparation do we do to the field matrix
-     integer, dimension(:,:), allocatable :: heads !<  An array that holds the iproc (from comm world) of the supercell head for a given ik,it point
      !Currently only support:
      !0   : Invert the field matrix
      !In the future may wish to do things like LU decomposition etc.
      !Could also do things like eigenvalue analysis etc.
+     integer, dimension(:,:), allocatable :: heads !<  An array that holds the iproc (from comm world) of the supercell head for a given ik,it point
      logical :: no_populate=.false. !< Advanced usage only, if true then don't populate response
      logical :: no_prepare=.false. !< Advanced usage only, if true then don't prepare (invert) response
    contains
@@ -226,6 +220,7 @@ module fields_local
      procedure :: getfieldeq1_nogath => fm_getfieldeq1_nogath
      procedure :: update_fields => fm_update_fields
      procedure :: update_fields_newstep => fm_update_fields_newstep
+     procedure :: get_condition_numbers => fm_get_condition_numbers
   end type fieldmat_type
 
   !> This is the type which controls/organises the parallel
@@ -296,7 +291,8 @@ module fields_local
   integer :: minNRow = 16 !< Tuning this can influence both init and advance times
   type(pc_type),save :: pc !< This is the parallel control object
   type(fieldmat_type),save :: fieldmat !< This is the top level field matrix object
-
+  !> The condition numbers above this limit will trigger a warning
+  real, parameter :: condition_number_warning_limit = sqrt(1.0/epsilon(1.0))
 contains
 
 !//////////////////////////////
@@ -620,163 +616,7 @@ contains
     end if
     !<DD> At this point the head of the supercell has the field update stored in self%tmp_sum
     !all other procs have partial/no data
-
-    !This can be used to populate the empty procs, but is not needed at the moment as we broadcast
-    !the result at the end of getfield_local currently, which turns out to be a lot faster (>~factor 2).
-!    if(self%sc_sub_not_full%nproc.gt.1)call broadcast_sub(self%tmp_sum,0,self%sc_sub_not_full%id)
   end subroutine sc_reduce_tmpsum
-
-  !> Post any non-blocking receives associated with filling the
-  !! empty procs supercells
-  subroutine sc_gfu_post_recv(self)
-    use mp, only: nbrecv
-    implicit none
-    class(supercell_type), intent(inout) :: self
-
-    !Exit if we're not a member of the empty plus head comm
-    if(.not.self%is_local)return
-    if(self%sc_sub_not_full%nproc.le.0) return
-
-    !If we're not proc0 then we should expect to receive
-    !some data, so proc0 should leave
-    if(self%sc_sub_not_full%proc0) return
-
-    !Now we know that we're going to receive one message
-    !from proc0 and store it in self%tmp_sum
-    !Note, we don't tag the message but probably should
-    !(say with is_ind)
-    call nbrecv(self%tmp_sum,0,self%is_ind,self%sc_sub_not_full,self%nb_req_hand(1))
-  end subroutine sc_gfu_post_recv
-
-  !> Post any non-blocking receives associated with filling the
-  !! empty procs supercells
-  subroutine sc_gfu_post_send(self)
-    use mp, only: nbsend
-    implicit none
-    class(supercell_type), intent(inout) :: self
-    integer :: ip
-
-    !Exit if we're not a member of the empty plus head comm
-    if(.not.self%is_local)return
-    if(self%sc_sub_not_full%nproc.le.0) return
-
-    !If we're not proc0 then we don't have anything to send
-    if(.not.self%sc_sub_not_full%proc0) return
-
-    !Now send to all the empty procs
-    do ip=1,self%sc_sub_not_full%nproc-1
-       call nbsend(self%tmp_sum,ip,self%is_ind,self%sc_sub_not_full,self%nb_req_hand(ip))
-    enddo
-  end subroutine sc_gfu_post_send
-
-  !> Check if the non-blocking communications have
-  !! finished and wait until they have
-  subroutine sc_gfu_finish_comms(self)
-    use mp, only: waitall
-    implicit none
-    class(supercell_type), intent(inout) :: self
-
-    !Exit if we're not a member of the empty plus head comm
-    if(.not.self%is_local)return
-    if(self%sc_sub_not_full%nproc.le.0) return
-
-    !Wait
-    if(self%sc_sub_not_full%proc0) then
-       call waitall(self%sc_sub_not_full%nproc-1,self%nb_req_hand)
-    else
-       call waitall(1,self%nb_req_hand)
-    endif
-  end subroutine sc_gfu_finish_comms
-
-  !> Check if the non-blocking recv have
-  !! finished and wait until they have
-  subroutine sc_gfu_finish_recv(self)
-    use mp, only: waitall
-    implicit none
-    class(supercell_type), intent(inout) :: self
-
-    !Exit if we're not a member of the empty plus head comm
-    if(.not.self%is_local)return
-    if(self%sc_sub_not_full%nproc.le.0) return
-
-    !Wait
-    if(.not.self%sc_sub_not_full%proc0) then
-       call waitall(1,self%nb_req_hand)
-    endif
-  end subroutine sc_gfu_finish_recv
-
-  !> Check if the non-blocking send have
-  !! finished and wait until they have
-  subroutine sc_gfu_finish_send(self)
-    use mp, only: waitall
-    implicit none
-    class(supercell_type), intent(inout) :: self
-
-    !Exit if we're not a member of the empty plus head comm
-    if(.not.self%is_local)return
-    if(self%sc_sub_not_full%nproc.le.0) return
-
-    !Wait
-    if(self%sc_sub_not_full%proc0) then
-       call waitall(self%sc_sub_not_full%nproc-1,self%nb_req_hand)
-    endif
-  end subroutine sc_gfu_finish_send
-
-  !> Check if the non-blocking communications have
-  !! finished, if not then exit
-  subroutine sc_gfu_test_comms(self)
-    use mp, only: testall
-    implicit none
-    class(supercell_type), intent(inout) :: self
-    logical :: flag
-
-    !Exit if we're not a member of the empty plus head comm
-    if(.not.self%is_local)return
-    if(self%sc_sub_not_full%nproc.le.0) return
-
-    !Wait
-    if(self%sc_sub_not_full%proc0) then
-       call testall(self%sc_sub_not_full%nproc-1,self%nb_req_hand,flag)
-    else
-       call testall(1,self%nb_req_hand,flag)
-    endif
-  end subroutine sc_gfu_test_comms
-
-  !> Check if the non-blocking recv have
-  !! finished, if not then exit
-  subroutine sc_gfu_test_recv(self)
-    use mp, only: testall
-    implicit none
-    class(supercell_type), intent(inout) :: self
-    logical :: flag
-
-    !Exit if we're not a member of the empty plus head comm
-    if(.not.self%is_local)return
-    if(self%sc_sub_not_full%nproc.le.0) return
-
-    !Test
-    if(.not.self%sc_sub_not_full%proc0) then
-       call testall(1,self%nb_req_hand,flag)
-    endif
-  end subroutine sc_gfu_test_recv
-
-  !> Check if the non-blocking send have
-  !! finished, if not then exit
-  subroutine sc_gfu_test_send(self)
-    use mp, only: testall
-    implicit none
-    class(supercell_type), intent(inout) :: self
-    logical :: flag
-
-    !Exit if we're not a member of the empty plus head comm
-    if(.not.self%is_local)return
-    if(self%sc_sub_not_full%nproc.le.0) return
-
-    !Test
-    if(self%sc_sub_not_full%proc0) then
-       call testall(self%sc_sub_not_full%nproc-1,self%nb_req_hand,flag)
-    endif
-  end subroutine sc_gfu_test_send
     
   !> Convert the extended domain index to ig, it and ifl
   !!
@@ -880,10 +720,7 @@ contains
        call self%cells(ic)%reset
     enddo
 
-!AJ Free up communicators created for this supercell
-    if(self%sc_sub_not_full%nproc.gt.0) then
-       call free_comm(self%sc_sub_not_full)
-    end if
+    ! Free up communicators created for this supercell
     if(self%sc_sub_all%nproc.gt.0 .and. self%sc_sub_all%id.ne.self%parent_sub%id) then
        call free_comm(self%sc_sub_all)
     end if
@@ -980,6 +817,111 @@ contains
     !Free memory
     deallocate(tmp)
   end subroutine sc_dump
+
+  !> Routine to write the response matrix for this supercell to netcdf file.
+  !>
+  !> @note Only the head processor actually writes to file. However, in current
+  !> use we only call this routine on processors which have this supercell local
+  !> and which don't consider it empty. This is usually ok, but for box runs the
+  !> mode with ky=kx=0 (super)cell is forced to be considered empty which means 
+  !> that, as it stands, this supercell won't be dumped here (although it is for
+  !> the fields_implicit approach). This could cause issues for restoring these
+  !> response matrices as we end up recalculating these if we can't load any
+  !> expected file. As such we have to be careful how we deal with this matrix.
+  subroutine sc_dump_to_file(self, suffix)
+    use gs2_save, only: gs2_save_response
+    use fields_arrays, only: get_specific_response_file_name
+    use gs2_time, only: code_dt
+    implicit none
+    !> The instance of the supercell class
+    class(supercell_type), intent(in out) :: self
+    !> If passed then use as part of file suffix
+    character(len=*), optional, intent(in) :: suffix
+    complex, dimension(:,:), allocatable :: tmp_arr
+
+    ! Exit early if we're not involved in this supercell
+    if(.not.self%is_local) return
+
+    !Allocate array -- for big problems this might be an issue
+    allocate(tmp_arr(self%nrow,self%ncol))
+
+    !First have to pull all row level data
+    call self%pull_rows_to_arr(tmp_arr)
+
+    !Now save if on head proc -- could probably only allocate tmp_arr and call
+    !pull_rows_to_arr on this head proc as well, at least for now.
+    if(self%is_head)then
+       call gs2_save_response(tmp_arr, get_specific_response_file_name(self%ik_ind, self%is_ind, code_dt, suffix), self%condition_number)
+    endif
+
+    deallocate(tmp_arr)
+
+  end subroutine sc_dump_to_file
+
+  !> Routine to read the response matrix for this supercell from netcdf file.
+  subroutine sc_read_from_file(self, could_read, suffix)
+    use gs2_save, only: gs2_restore_response
+    use mp, only: sum_allreduce_sub, proc0
+    use fields_arrays, only: get_specific_response_file_name
+    use gs2_time, only: code_dt
+    use file_utils, only: error_unit
+    implicit none
+    !> The instance of the supercell class
+    class(supercell_type), intent(in out) :: self
+    !> Flag to indicate if the file was successfully read
+    logical, intent(out) :: could_read
+    !> If passed then use as part of file suffix
+    character(len=*), optional, intent(in) :: suffix
+
+    complex, dimension(:,:), allocatable :: tmp_arr
+    character(len = 256) :: file_name
+    logical :: file_found
+
+    ! Initialise reading state.
+    could_read = .true.
+
+    ! Construct the expected file name
+    file_name = adjustl(get_specific_response_file_name(self%ik_ind, self%is_ind, code_dt, suffix))
+
+    ! First check if the expected file exists, if not then exit
+    inquire( file = trim(file_name), exist = file_found)
+    if (.not. file_found) then
+       if(proc0) write(error_unit(), &
+            '("Could not find response file ",A,", reverting to calculation.")') trim(file_name)
+       ! Set the flag indicating if we could read the file. Note if this processor
+       ! doesn't require this data (i.e. it considers this empty) then we ignore
+       ! the presence of the file as we don't care. This is mostly important for
+       ! the ky=kx=0 file which may not be present but also isn't required for any
+       ! processor.
+       could_read = .false. .or. self%is_empty
+       return
+    end if
+
+    !Now allocate array -- for big problems this might be an issue
+    allocate(tmp_arr(self%nrow,self%ncol))
+    tmp_arr=0.
+
+    !Now if on head proc read
+    if (self%is_head) then
+       call gs2_restore_response(tmp_arr, file_name)
+    end if
+
+    !Now we need to broadcast the data to everyone with supercell.
+    !NOTE: Really we would want a supercell bound method which will do
+    !this so that this module level routine is insensitive to communicators etc.
+    !Furthermore we are lazy and use a sum_allreduce_sub to send data to everyone
+    !NOTE: The processors which consider this to supercell to be empty (i.e. which
+    !don't have any associated work) shouldn't need to take part in this communication.
+    !If we can promise that only non-empty processors could be the head that should
+    !work fine, provided we have a suitable communicator (sc_sub_pd?).
+    call sum_allreduce_sub(tmp_arr,self%sc_sub_all%id)
+
+    !Now push array to local storage
+    call self%push_arr_to_rows(tmp_arr)
+
+    deallocate(tmp_arr)
+
+  end subroutine sc_read_from_file
 
   !> Store the field equations at row level
   subroutine sc_store_fq(self,fq,fqa,fqp,ifl_in,it_in,ig_in)
@@ -1079,6 +1021,9 @@ contains
        write(errmesg,'("ERROR: Invalid prepare_type : ",I0)') prepare_type
        call mp_abort(trim(errmesg))
     end select
+
+    ! Now dump the matrix
+    if (dump_response) call self%dump_to_file
   end subroutine sc_prepare
 
   !> A routine to invert the field matrix
@@ -1103,8 +1048,24 @@ contains
   end subroutine sc_invert
 
   !> A routine to invert the field matrix locally
+  !>
+  !> @note Currently every processor which is responsible for a chunk
+  !> of the response matrix at the solve stage will do this inversion.
+  !> This is obviously duplicated work but allows us to skip any
+  !> communication in the push_arr_to_rows method. If only one
+  !> processor did the inversion then we would need to communicate the
+  !> result back. We are unlikely to want to do this in a non-blocking
+  !> manner as it would require that we hold onto the tmp_arr for each
+  !> response matrix, only freeing this memory after the non-blocking
+  !> communications have completed. As these matrices are large we
+  !> don't want them hanging around longer than required. In the typical
+  !> use case where we have large minnrow, we would expect most matrices
+  !> to belong to just one or a few processors so this point may not be
+  !> important in most cases.
   subroutine sc_invert_local(self)
-    use mat_inv, only: inverse_gj
+    use mat_inv, only: invert_serial
+    use mp, only: broadcast_sub
+    use gs2_time, only: code_dt
     implicit none
     class(supercell_type), intent(inout) :: self
     complex, dimension(:,:), allocatable :: tmp_arr
@@ -1119,9 +1080,30 @@ contains
     !First have to pull all row level data
     call self%pull_rows_to_arr(tmp_arr)
 
+    !It may be better to hook into the GK_VERBOSITY level system
+    !rather than relying on the debug flag.
+    if (self%is_head) then
+       self%condition_number = l2norm(tmp_arr)
+    end if
+
     !Now invert in place
-    call inverse_gj(tmp_arr,self%nrow)
-    tmp_arr=transpose(tmp_arr)
+    if (self%is_head) then
+       call invert_serial(tmp_arr, self%nrow)
+       tmp_arr=transpose(tmp_arr)
+    end if
+
+    !It would be quite nice if we could do the following in a non-blocking manner
+    !but this would require us to either keep the potentially large tmp_arr allocated
+    !for all supercells or for us to be able to do this "in-place" (i.e. we use something
+    !like non-blocking scatterv rather than broadcast).
+    if (.not. self%is_all_local) then
+       if (self%sc_sub_pd%nproc > 0) call broadcast_sub(tmp_arr, &
+            self%head_iproc_pd, self%sc_sub_pd%id)
+    end if
+
+    if (self%is_head) then
+       self%condition_number = self%condition_number * l2norm(tmp_arr)
+    end if
 
     !Now push back to row level
     call self%push_arr_to_rows(tmp_arr)
@@ -1149,6 +1131,16 @@ contains
     complex, dimension(:,:), intent(out) :: arr !Note: Dimensions should be self%ncol, self%nrow
     integer :: ic, rl,ru, cl,cu, irb
 
+    ! Zero out arr |--> Not needed if gathering
+    ! This may look like it is only needed for the sum_allreduce_sub branch below,
+    ! however without this line we would end up not setting arr in cases where we
+    ! think of this supercell as empty. This is usually fine, but for the ky=kx=0
+    ! mode all processors consider the supercell to be empty, but we still need to
+    ! initialise this array in some cases (e.g. when dumping to file). We could
+    ! attempt to only do this zeroing in this special case to save some time, but
+    ! we don't expect to be calling this routine much so opt for simpler approach.
+    arr=0
+
     !Now see if we want to exit
     if(self%is_empty) return
     if(.not.self%is_local) return
@@ -1165,9 +1157,6 @@ contains
           enddo
        enddo
     else
-       !Zero out arr |--> Not needed if gathering
-       arr=0
-
        !Place local piece in arr
        do ic=1,self%ncell
           if(self%cells(ic)%is_empty) cycle
@@ -1218,7 +1207,7 @@ contains
 
   !> Create primary (top level) sub communicators
   subroutine sc_make_subcom_1(self)
-    use mp, only: comm_type, split, free_comm
+    use mp, only: comm_type, split, free_comm, mp_undefined, sum_allreduce_sub
     implicit none
     class(supercell_type), intent(inout) :: self
     integer :: ic, colour
@@ -1226,27 +1215,29 @@ contains
 
     !/First make a subcommunicator involving any procs
     !which can see this supercell
-    colour=0
-    if(self%is_local)colour=1
-    call split(colour,tmp,self%parent_sub%id)
-    !Note we only store the subcom for those procs which will use it
-    !this ensures an error will occur if we try to use the subcom in
-    !the wrong place
-    if(self%is_local)then
-       !Here we check if the new subcom has same number of members as
-       !parent, if so we can carry on using the parent instead
-       if(tmp%nproc.eq.self%parent_sub%nproc) then
-          self%sc_sub_all=self%parent_sub
-          call free_comm(tmp)
-       else
-          self%sc_sub_all=tmp
-       endif
+    colour = 0
+    if(self%is_local) colour = 1
+    !Here we check if the new subcom has same number of members as
+    !parent, if so we can carry on using the parent instead
+    call sum_allreduce_sub(colour, self%parent_sub%id)
+
+    if (colour .eq. self%parent_sub%nproc) then
+       self%sc_sub_all=self%parent_sub
     else
-       !If we can't see any of this object then 
-       !Destroy communicator
-       call free_comm(tmp)
-       !and return
-       return
+       colour = mp_undefined
+       if(self%is_local) colour = 1
+
+       call split(colour,tmp,self%parent_sub%id)
+       !Note we only store the subcom for those procs which will use it
+       !this ensures an error will occur if we try to use the subcom in
+       !the wrong place
+       if(self%is_local)then
+          self%sc_sub_all=tmp
+       else
+          !If we can't see any of this object then
+          !return
+          return
+       endif
     endif
 
     !Now make the supercell sub communicators
@@ -1259,7 +1250,7 @@ contains
 
   !> Create the secondary (intraobject) subcommunicators
   subroutine sc_make_subcom_2(self)
-    use mp, only: comm_type, split, free_comm, sum_allreduce_sub, proc0
+    use mp, only: comm_type, split, free_comm, sum_allreduce_sub, proc0, mp_undefined
     implicit none
     class(supercell_type), intent(inout) :: self
     integer :: colour, key, cc
@@ -1292,13 +1283,10 @@ contains
     !/Now make a subcommunicator involving all procs
     !which have part of the supercell data range (but not all of it)
     if(some_pd)then
-       colour=0
+       colour = mp_undefined
        if((.not.(self%is_empty.or.self%is_all_local))) colour=1
        call split(colour,tmp,self%sc_sub_all%id)
-       if(colour.eq.0)then
-          !/Destroy communicator
-          call free_comm(tmp)
-       else
+       if(colour /= mp_undefined) then
           !/Store communicator
           self%sc_sub_pd=tmp
        endif
@@ -1312,7 +1300,7 @@ contains
     !which has data as it means we don't need to send this supercell to anyone.
     if(some_all)then
        !Here we make a temporary communicator for the all_local procs
-       cc=0
+       cc = mp_undefined
        if(self%is_all_local) cc=1
        !/Note we don't destroy this until later
        call split(cc,tmp,self%sc_sub_all%id)
@@ -1334,12 +1322,14 @@ contains
           !Here we decide which proc should be in charge of
           !informing the empty procs of the result
           head_notfull=(min(1,tmp%nproc-1).eq.tmp%iproc)
+
+          !Free the communicator
+          call free_comm(tmp)
+
        else
           head_notfull=.false.
        endif
 
-       !Free the communicator
-       call free_comm(tmp)
     else
        if(self%sc_sub_pd%nproc.gt.0)then
           cc=0
@@ -1368,79 +1358,6 @@ contains
     self%head_iproc_pd=0
     if(self%is_head) self%head_iproc_pd=self%sc_sub_pd%iproc
     call sum_allreduce_sub(self%head_iproc_pd,self%sc_sub_all%id)
-
-    !/Now make a subcommunicator involving all empty procs and
-    !head pd proc
-    if(some_empty)then
-       !/Default values
-       colour=0
-       key=2
-
-       !/Join if we're empty and NOT proc0
-       !This is done as we handle the filling of proc0
-       !separately and by actively excluding it we aim to
-       !prevent stalls waiting for proc0 to catch up
-       if(self%is_empty.and.(.not.proc0)) colour=1
-
-!        !/Now add in a head proc which actually has data
-!        !We prefer all_local procs over pd procs
-!        if(some_all)then
-!           !NOTE: In the case where there are no partial procs we need
-!           !a way to add in a all_local proc as head instead. This involves
-!           !two steps: 1)Work out if there are no partial procs, 2)Work out
-!           !which is the head all_local proc.
-!           !The easiest way is to make a subcom for all_local procs and just
-!           !force the head to join this not_full_subcom
-!           if(self%is_all_local.and.tmp%proc0)then
-!              colour=1
-!              !/Note we prefer all_local procs to be head
-!              !as these are more likely to be able to send
-!              !early (maybe?)
-!              key=0
-!           endif
-!           !Free the all_local communicator
-!           call free_comm(tmp)
-!        else 
-!           !If there are partial data procs then
-!           !also include the head of that in the subcomm
-!           if(self%sc_sub_pd%proc0)then 
-!              colour=1
-!              key=1
-!           endif
-!        endif
-
-!       if(self%is_head) then
-       if(head_notfull) then
-          colour=1
-          key=0
-       endif
-
-       !Here we use key to make sure the proc with data is proc0
-       call split(colour,key,tmp,self%sc_sub_all%id)
-       if(colour.eq.0)then
-          !/Free communicator
-          call free_comm(tmp)
-       else
-          if(tmp%nproc.gt.1)then
-             !/Store communicator
-             self%sc_sub_not_full=tmp
-             
-             !/Allocate array used to store non blocking
-             !comm handles
-             if(tmp%proc0) then
-                allocate(self%nb_req_hand(tmp%nproc-1))
-             else
-                allocate(self%nb_req_hand(1))
-             endif
-          else
-             call free_comm(tmp)
-          endif
-       endif
-    else
-!       !Free the all_local communicator
-!       if(some_all) call free_comm(tmp)
-    endif
-
   end subroutine sc_make_subcom_2
 
 !------------------------------------------------------------------------
@@ -1486,9 +1403,6 @@ contains
     do is=1,self%nsupercell
        !/Calculate the field update
        call self%supercells(is)%get_field_update(fq,fqa,fqp)
-       !/Now post the non-blocking sends
-!       call self%supercells(is)%gfu_post_send
-!       call self%supercells(is)%gfu_test_recv
     enddo
   end subroutine ky_get_field_update
 
@@ -1600,33 +1514,32 @@ contains
 
   !> Create the primary subcommunicators
   subroutine ky_make_subcom_1(self)
-    use mp, only: comm_type, split, free_comm
+    use mp, only: comm_type, split, free_comm, mp_undefined, sum_allreduce_sub
     implicit none
     class(ky_type), intent(inout) :: self
     integer :: is, colour
     type(comm_type) :: tmp
-
     !/First make a subcommunicator involving any procs
     !which can see this ky block
-    colour=0
-    if(self%is_local)colour=1
-    call split(colour,tmp,self%parent_sub%id)
-    !Note we only store the subcom for those procs which will use it
-    !this ensures an error will occur if we try to use the subcom in
-    !the wrong place
-    if(self%is_local)then
-       if(tmp%nproc.eq.self%parent_sub%nproc) then
+    colour = 0
+    if(self%is_local) colour = 1
+    call sum_allreduce_sub(colour, self%parent_sub%id)
+
+    if ( colour .eq. self%parent_sub%nproc) then
           self%ky_sub_all=self%parent_sub
-          call free_comm(tmp)
-       else
-          self%ky_sub_all=tmp
-       endif
     else
-       !If we can't see any of this object then
-       !/Destroy communicator
-       call free_comm(tmp)
-       !and return
-       return
+       colour = mp_undefined
+       if(self%is_local) colour = 1
+       call split(colour,tmp,self%parent_sub%id)
+
+       !Note we only store the subcom for those procs which will use it
+       !this ensures an error will occur if we try to use the subcom in
+       !the wrong place
+       if(self%is_local)then
+          self%ky_sub_all=tmp
+       else
+          return
+       endif
     endif
 
     !Now make the supercell sub communicators
@@ -2260,13 +2173,6 @@ contains
        do is=1,self%kyb(ik)%nsupercell
           if(.not.self%kyb(ik)%supercells(is)%is_local) cycle
           self%kyb(ik)%supercells(is)%tmp_sum=0.0
-!If we wanted to do non-blocking comms then we could pre post receives here
-!for empty procs (i.e. ones not involved in field computation)
-!          if(self%kyb(ik)%supercells(is)%is_empty)then
-!             call self%kyb(ik)%supercells(is)%gfu_post_recv
-!          else
-!             !Do nothing
-!          endif
        enddo
     enddo
 
@@ -2326,9 +2232,6 @@ contains
           if(.not.self%kyb(ik)%is_local) cycle
           do is=1,self%kyb(ik)%nsupercell
              if(.not.self%kyb(ik)%supercells(is)%is_local) cycle
-             
-             !Finalise the receives
-!             call self%kyb(ik)%supercells(is)%gfu_finish_recv
              
              iex=0
              ifl=0
@@ -2400,16 +2303,6 @@ contains
           enddo
        enddo
     endif
-
-!     !Deallocates for the nb send
-!     do ik=1,self%naky
-!        if(.not.self%kyb(ik)%is_local) cycle
-!        do is=1,self%kyb(ik)%nsupercell
-!           if(.not.self%kyb(ik)%supercells(is)%is_local) cycle
-!           call self%kyb(ik)%supercells(is)%gfu_finish_send
-!        enddo
-!     enddo
-
   end subroutine fm_unpack_to_field
 
   !> A routine to reset the object
@@ -2467,7 +2360,7 @@ contains
 
   !> Create all the necessary subcommunicators
   subroutine fm_make_subcom_1(self)
-    use mp, only: iproc, nproc, mp_comm, comm_type, split, free_comm, proc0
+    use mp, only: iproc, nproc, mp_comm, proc0
     implicit none
     class(fieldmat_type), intent(inout) :: self
     integer :: ik
@@ -2501,7 +2394,7 @@ contains
 
   !> Create the secondary subcommunicators
   subroutine fm_make_subcom_2(self)
-    use mp, only: split, free_comm
+    use mp, only: split, free_comm, mp_undefined
     implicit none
     class(fieldmat_type), intent(inout) :: self
     integer :: ik, colour
@@ -2521,7 +2414,7 @@ contains
        has_head_sc=has_head_sc.or.any(self%kyb(ik)%supercells%is_head)
     enddo
     !/Now split to make a subcom
-    colour=0
+    colour = mp_undefined
     !NOTE: Here we assume that the supercell head will always
     !have the data we want *but* currently in ky_get_field we don't
     !store anything on the procs for which the supercell is local but 
@@ -2530,12 +2423,9 @@ contains
     !advancing g etc.
     if(has_head_sc.or.self%fm_sub_all%proc0) colour=1
     call split(colour,tmp,self%fm_sub_all%id)
-    if(has_head_sc.or.self%fm_sub_all%proc0) then
+    if(colour /= mp_undefined) then
        !/Store subcom
        self%fm_sub_headsc_p0=tmp
-    else
-       !/Destroy subcom
-       call free_comm(tmp)
     endif
 
   end subroutine fm_make_subcom_2
@@ -2588,6 +2478,8 @@ contains
     type(comm_type), save :: les_comm
     logical, save :: first=.true.
     logical, save :: sub_has_proc0=.false.
+    logical :: xy_block_comm_is_available
+    logical :: x_is_not_split
 
     !Set the to_all flag
     to_all=.false.
@@ -2602,7 +2494,11 @@ contains
 
     !Work out if we want to use sub communicators in reduction and
     !if we are allowed to.
-    use_sub=(.not.(g_lo%x_local.and.g_lo%y_local)).and.do_allreduce.and.field_local_allreduce_sub.and.intspec_sub
+    xy_block_comm_is_available = .not. (g_lo%x_local .and. g_lo%y_local) .and. intspec_sub
+    x_is_not_split = g_lo%x_local
+    use_sub=( &
+         xy_block_comm_is_available .and. x_is_not_split .and. & !Parallel decomposition constraints
+         do_allreduce .and. field_local_allreduce_sub) !Runtime choices
 
     !If using sub-communicators set up object and work out which procs
     !have proc0 as a member
@@ -2766,18 +2662,6 @@ contains
        if(fapar.gt.0) call broadcast(ap)
        if(fbpar.gt.0) call broadcast(bp)
     endif
-
-!     !This is where we deallocate the send part of the non-blocking comms
-!     !for filling the empties
-!     do ik=1,self%naky
-!        if(.not.self%kyb(ik)%is_local) cycle
-!        do is=1,self%kyb(ik)%nsupercell
-!           if(self%kyb(ik)%supercells(is)%sc_sub_not_full%nproc.gt.1)&
-!                call broadcast_sub(self%kyb(ik)%supercells(is)%tmp_sum,0,&
-!                self%kyb(ik)%supercells(is)%sc_sub_not_full%id)
-!        enddo
-!     enddo
-
   end subroutine fm_gather_fields
 
   !> Update the fields using calculated update
@@ -2862,6 +2746,67 @@ contains
     enddo
 
   end subroutine fm_update_fields_newstep
+
+  !> Fetch all condition numbers to proc0 and report on
+  !> worrying values as required.
+  subroutine fm_get_condition_numbers(self)
+    use file_utils, only: error_unit
+    use gs2_time, only: code_dt
+    use mp, only: proc0, sum_reduce
+    use unit_tests, only: debug_message
+    implicit none
+    type ky_condition_type
+       real, dimension(:), allocatable ::  conditions
+    end type ky_condition_type
+    class(fieldmat_type), intent(in) :: self
+    integer, parameter :: verb = 1
+    type(ky_condition_type), dimension(:), allocatable :: ky_conditions
+    integer :: ik, is
+    character(len = 100) :: condition_number_message
+    real :: condition_number
+    allocate(ky_conditions(self%naky))
+
+    ! Note that here we communciate over comm_world. It is likely that we
+    ! could instead reduce individual `ky_conditions(:)%conditions` arrays
+    ! amongst just the supercell heads of the ky block and then reduce
+    ! across the ky heads to proc0. Currently we don't worry about this as
+    ! we just do this once per initialisation, but this could become expensive
+    ! when running at large scale?
+
+    do ik = 1, self%naky
+       allocate(ky_conditions(ik)%conditions(self%kyb(ik)%nsupercell))
+       ky_conditions(ik)%conditions = 0.0
+       do is = 1, self%kyb(ik)%nsupercell
+          if (self%kyb(ik)%supercells(is)%is_head) then
+             ky_conditions(ik)%conditions(is) = self%kyb(ik)%supercells(is)%condition_number
+          end if
+       end do
+       call sum_reduce(ky_conditions(ik)%conditions, 0)
+    end do
+
+    if (proc0) then
+       do ik = 1, self%naky
+          do is = 1, self%kyb(ik)%nsupercell
+             condition_number = ky_conditions(ik)%conditions(is)
+             write(condition_number_message,'("Condition number for response with ik = ",I0,", is = ",I0," and dt = ",E14.6E3," is ",E14.6E3)') ik, is, code_dt, condition_number
+             call debug_message(verb, "fields_local::fm_get_condition_numbers "//condition_number_message)
+             if (condition_number > condition_number_warning_limit) then
+                write(error_unit(), '("Warning: ",A)') trim(condition_number_message)
+             end if
+
+             ! In debug mode always display the condition number message to screen
+             if (debug) then
+                write(*,'(A)') trim(condition_number_message)
+             end if
+          end do
+       end do
+    end if
+
+    do ik = 1, self%naky
+       deallocate(ky_conditions(ik)%conditions)
+    end do
+    deallocate(ky_conditions)
+  end subroutine fm_get_condition_numbers
 
   !> Write some debug data to file
   subroutine fm_write_debug_data(self)
@@ -2976,18 +2921,6 @@ contains
                self%kyb(ik)%supercells(is)%sc_sub_pd%proc0,&
                np,ip
 
-          if(self%kyb(ik)%supercells(is)%sc_sub_not_full%nproc.gt.0)then
-             call nproc_comm(self%kyb(ik)%supercells(is)%sc_sub_not_full%id,np)
-             call rank_comm(self%kyb(ik)%supercells(is)%sc_sub_not_full%id,ip)
-          else
-             np=-1
-             ip=-1
-          endif
-          write(unit,'("        ",(" ",A8),2(I8," "),1(L8," "),2(I8," "))') "nfull",&
-               self%kyb(ik)%supercells(is)%sc_sub_not_full%nproc,&
-               self%kyb(ik)%supercells(is)%sc_sub_not_full%iproc,&
-               self%kyb(ik)%supercells(is)%sc_sub_not_full%proc0,&
-               np,ip
           write(unit,'("        ",6(" ",8("-")))')
           write(unit,'()')
        enddo
@@ -3002,7 +2935,6 @@ contains
     use theta_grid, only: ntgrid
     use dist_fn, only: getan_nogath, gf_lo_integrate
     use kt_grids, only: naky, ntheta0
-    use job_manage, only: time_message
     implicit none
     class(fieldmat_type), intent(in) :: self
     complex, dimension (-ntgrid:,:,:), intent (in) :: phi, apar, bpar
@@ -3036,7 +2968,6 @@ contains
     use run_parameters, only: fphi, fapar, fbpar
     use gs2_layouts, only: gf_lo, proc_id, idx, ik_idx, it_idx
     use kt_grids, only: kwork_filter
-    use job_manage, only: time_message
     implicit none
     class(fieldmat_type), intent(in) :: self
     complex, dimension (-ntgrid:,:,:), intent (in out) :: antot, antota, antotp
@@ -3303,8 +3234,7 @@ contains
        fieldeq, fieldeqa, fieldeqp)
     use theta_grid, only: ntgrid, bmag
     use kt_grids, only: naky, ntheta0, kperp2, kwork_filter
-    use run_parameters, only: fphi, fapar, fbpar
-    use run_parameters, only: beta, tite
+    use run_parameters, only: fphi, fapar, fbpar, beta
     use species, only: spec, has_electron_species
     use dist_fn, only: gamtot,gamtot1, gamtot2, fl_avg, gridfac1, apfac
     use dist_fn, only: adiabatic_option_switch, adiabatic_option_fieldlineavg, calculate_flux_surface_average
@@ -3687,13 +3617,16 @@ contains
 
   !> Cells are decomposed based on proc || Decomp_type=3
   subroutine pc_decomp_owncells_simplempi(self)
-    use mp, only: split, comm_type, free_comm
+    use mp, only: comm_type, sum_allreduce_sub, iproc
+    use sorting, only: quicksort
     implicit none
     class(pc_type), intent(inout) :: self
     integer :: ik, is, ic, ifq, it, ip, llim, ulim
-    integer :: nrow_tmp, nrow_loc, remainder,np
-    integer :: colour, key
-    type(comm_type) :: tmp
+    integer :: nrow_tmp, nrow_loc, remainder, np
+    integer :: counter
+    integer, dimension(:), allocatable :: nwork, iproc_work
+    type(comm_type) :: supercell_comm
+    logical :: cell_is_local
 
     !/Don't need to change pc%is_local as this is already correct
 
@@ -3715,15 +3648,66 @@ contains
        do is=1,fieldmat%kyb(ik)%nsupercell
           nrow_tmp=fieldmat%kyb(ik)%supercells(is)%nrow
           do ic=1,fieldmat%kyb(ik)%supercells(is)%ncell
-             !Make subcommunicator if we have this supercell
-             !<DD>TAGGED: By passing a key to split we can arrange for the procs to
-             !be arranged in any particular order. This allows some form of load balancing.
+             ! If we have this supercell then determine which processors have
+             ! this cell and decide which processors get which work. We attempt
+             ! to distribute work to those processors with the least amount of
+             ! work already allocated.
              if(fieldmat%kyb(ik)%supercells(is)%is_local)then
-                colour=0
-                key=self%current_nresp()
-                if(fieldmat%kyb(ik)%supercells(is)%cells(ic)%is_local) colour=1
-                call split(colour,key,tmp,fieldmat%kyb(ik)%supercells(is)%cells(ic)%parent_sub%id)
+                ! Copy out a couple of values to make the code more readable
+                supercell_comm = fieldmat%kyb(ik)%supercells(is)%cells(ic)%parent_sub
+                cell_is_local = fieldmat%kyb(ik)%supercells(is)%cells(ic)%is_local
+
+                ! First determine how many processors in the supercell communicator
+                ! have this cell
+                np = 0
+                if (cell_is_local) np = 1
+
+                call sum_allreduce_sub(np, supercell_comm%id)
+
+                ! Now we can determine what the effective processor rank should be for distributing work.
+                ! Essentially we just want to number the processors with this cell from 0 to np in order of
+                ! how little work they currently have.
+
+                ! First record how much work each processors has, forcing those without this cell to report -ve work
+                allocate(nwork(0:supercell_comm%nproc-1))
+                nwork = 0
+
+                if (cell_is_local) then
+                   nwork(supercell_comm%iproc) = self%current_nresp()
+                else
+                   nwork(supercell_comm%iproc) = -1
+                end if
+
+                ! Now all processors in supercell communicator know how much work each processor has
+                ! except those which aren't local and hence can't take part.
+                call sum_allreduce_sub(nwork, supercell_comm%id)
+
+                ! Now we have to label the processors in sorted order. To do this we first create an array
+                ! of sequential processor ids and we then sort this based on the amount of work, as stored in nwork
+                allocate(iproc_work(0:supercell_comm%nproc-1))
+                iproc_work(:) = [(ip, ip=0, supercell_comm%nproc-1)]
+
+                ! Now sort iproc_work based on nwork
+                call quicksort(supercell_comm%nproc, nwork, iproc_work)
+
+                if (cell_is_local) then
+                   ! With 2008 standard can just do:
+                   ! ip_expect = findloc(iproc_work, supercell_comm%iproc)
+                   ! instead of this loop
+                   ! Search the processor list to find where the processor's id is found
+                   do ip = 0, supercell_comm%nproc-1
+                      if(iproc_work(ip) == supercell_comm%iproc) exit
+                   end do
+
+                   ! Here we have to remove any offset in ip arising
+                   ! from the processors without this cell. As they
+                   ! are assigned -1 work they come at the start of
+                   ! the array.
+                   ip = ip - count(nwork == -1)
+                end if
+                deallocate(nwork, iproc_work)
              endif
+
              !NOTE: By sorting the procs as done above we end up with lots of different procs
              !which are proc0 for at least one supercell. This means that later when we assign
              !the supercell heads we have lots of members, whilst if we try to minimise the number
@@ -3733,13 +3717,9 @@ contains
              !Store it index
              it=fieldmat%kyb(ik)%supercells(is)%cells(ic)%it_ind
 
-             !If local work out limits, if not just set to 0
+             !If local work out limits, if not just set to 0.
              if(fieldmat%kyb(ik)%supercells(is)%cells(ic)%is_local)then
-                
-                !Store info about subcom
-                np=tmp%nproc 
-                ip=tmp%iproc
-               
+
                 !Calculate row limits based on cell size, nprocs and
                 !proc rank
                 !/Simple block size
@@ -3775,6 +3755,7 @@ contains
                    fieldmat%kyb(ik)%supercells(is)%cells(ic)%rb(ifq)%row_ulim=ulim
                    call fieldmat%kyb(ik)%supercells(is)%cells(ic)%rb(ifq)%set_nrow
                 enddo
+
              else
                 do ifq=1,fieldmat%kyb(ik)%supercells(is)%cells(ic)%nrb
                    fieldmat%kyb(ik)%supercells(is)%cells(ic)%rb(ifq)%row_llim=0
@@ -3782,9 +3763,6 @@ contains
                    call fieldmat%kyb(ik)%supercells(is)%cells(ic)%rb(ifq)%set_nrow
                 enddo
              endif
-
-             !Now free subcommunicator if we have this supercell
-             if(fieldmat%kyb(ik)%supercells(is)%is_local) call free_comm(tmp)
 
              !Record the number of responsible rows, note we assume all rb have same size
              if(size(fieldmat%kyb(ik)%supercells(is)%cells(ic)%rb).gt.0)then
@@ -3848,10 +3826,12 @@ contains
 
   !> Routine use to initialise field matrix data
   subroutine init_fields_matrixlocal(tuning_in)
-    use mp, only: proc0, mp_abort
+    use mp, only: proc0, mp_abort, land_allreduce
+    use file_utils, only: error_unit
     implicit none
     logical, optional :: tuning_in
     logical :: tuning
+    logical :: response_was_read
     real :: ts,te
 
     !Exit if we've already initialised
@@ -3970,18 +3950,32 @@ contains
 !!when the time step changes.
 !!!!!!!!!!
     if(.not. tuning) then
+
+       response_was_read = .false.
+
        !Now fill the fieldmat with data
        if(read_response)then
           if(proc0.and.debug)then
              write(dlun,'("Populating from dump.")')
              call cpu_time(ts)
           endif
-          call read_response_from_file_local
-          if(proc0.and.debug) then 
+          call read_response_from_file_local(could_read = response_was_read)
+          if(proc0.and.debug) then
              call cpu_time(te)
              write(dlun,'("--Done in ",F12.4," units")') te-ts
           endif
-       else       
+
+          ! Ensure we reduce response_was_read across all processors so if _any_
+          ! processors couldn't read the matrices we recalculate on all processors.
+          call land_allreduce(response_was_read)
+          if((.not. response_was_read) .and. proc0) write(error_unit(), &
+               '("Could not find response file so reverting to calculation.")')
+
+       end if
+
+       !If we weren't able to read the response file, or didn't try to,
+       !then we need to calculate the response matrix instead
+       if (.not. response_was_read) then
           !if(debug)call barrier
           if(proc0.and.debug)then
              write(dlun,'("Populating.")')
@@ -3989,7 +3983,7 @@ contains
           endif
           call fieldmat%populate
           !if(debug)call barrier
-          if(proc0.and.debug) then 
+          if(proc0.and.debug) then
              call cpu_time(te)
              write(dlun,'("--Done in ",F12.4," units")') te-ts
           endif
@@ -4009,8 +4003,9 @@ contains
              call cpu_time(te)
              write(dlun,'("--Done in ",F12.4," units")') te-ts
           endif
+          call fieldmat%get_condition_numbers
        endif
-       
+
        !Dump response to file
        if(dump_response)then
           if(proc0.and.debug)then
@@ -4018,7 +4013,7 @@ contains
              call cpu_time(ts)
           endif
           call dump_response_to_file_local
-          if(proc0.and.debug) then 
+          if(proc0.and.debug) then
              call cpu_time(te)
              write(dlun,'("--Done in ",F12.4," units")') te-ts
           endif
@@ -4047,9 +4042,6 @@ contains
 
   !> Calculate the update to the fields
   subroutine getfield_local(phi,apar,bpar,do_gather_in,do_update_in)
-    use fields_arrays, only: time_field
-    use mp, only: proc0 !, barrier
-    use job_manage, only: time_message
     use unit_tests, only: debug_message
     implicit none
     complex, dimension(:,:,:), intent(out) :: phi,apar,bpar !Note, these are actually phinew,... in typical usage
@@ -4063,10 +4055,6 @@ contains
     if(present(do_gather_in)) do_gather=do_gather_in
     do_update=.false.
     if(present(do_update_in)) do_update=do_update_in
-
-    !For timing
-    !if(debug)call barrier !!/These barriers influence the reported time
-    if (proc0) call time_message(.false.,time_field,' Field Solver')
 
     call debug_message(verb, &
         'fields_local::getfield_local calling get_field_update')
@@ -4091,11 +4079,6 @@ contains
 
     call debug_message(verb, &
         'fields_local::getfield_local finished')
-    !For timing
-    !Barrier usage ensures that proc0 measures the longest time taken on
-    !any proc.
-    !if(debug)call barrier !!/These barriers influence the reported time
-    if (proc0) call time_message(.false.,time_field,' Field Solver')
   end subroutine getfield_local
 
   !> Initialise the fields from the initial g, just uses the
@@ -4113,14 +4096,16 @@ contains
   subroutine advance_local(istep, remove_zonal_flows_switch)
     use run_parameters, only: fphi, fapar, fbpar, reset
     use fields_implicit, only: remove_zonal_flows
-    use fields_arrays, only: phi, apar, bpar, phinew
-    use fields_arrays, only: aparnew, bparnew, apar_ext
+    use fields_arrays, only: phi, apar, bpar, phinew, time_field
+    use fields_arrays, only: aparnew, bparnew, apar_ext, time_field_mpi
     use dist_fn, only: timeadv, exb_shear, g_exb, g_exbfac
     use dist_fn, only: collisions_advance
     use dist_fn_arrays, only: g, gnew
     use antenna, only: antenna_amplitudes, no_driver
     use gs2_layouts, only: g_lo
     use unit_tests, only: debug_message
+    use mp, only: proc0, get_mp_times !, barrier
+    use job_manage, only: time_message
     implicit none
     integer, intent(in) :: istep
     logical, intent(in) :: remove_zonal_flows_switch
@@ -4128,6 +4113,7 @@ contains
     logical, parameter :: do_gather=.true.
     logical :: do_update
     integer, parameter :: verb = 4
+    real :: mp_total, mp_total_after
     !do_gather=.true. => fields are collected from all procs and distributed to everyone (required)
     !do_update=.true. => "Smart" update routines are used which only update the local parts of the
     !field arrays. This could help when xy are strongly parallelised but is likely to be slower
@@ -4167,10 +4153,15 @@ contains
     if(.not.no_driver) aparnew=aparnew+apar_ext
 
     call debug_message(verb, &
-      'fields_local::advance_local calling getfield_local')
+         'fields_local::advance_local calling getfield_local')
+
+    !For timing
+    !if(debug)call barrier !!/These barriers influence the reported time
+    call time_message(.false.,time_field,' Field Solver')
+    call get_mp_times(total_time = mp_total)
+
     !Calculate the fields at the next time point
     call getfield_local(phinew,aparnew,bparnew,do_gather,do_update)
-
 
     !If we do the update in getfield_local don't do it here
     if(.not.do_update)then
@@ -4179,6 +4170,13 @@ contains
        if(fbpar.gt.0) bparnew=bparnew+bpar
     endif
 
+    !For timing
+    !Barrier usage ensures that proc0 measures the longest time taken on
+    !any proc.
+    !if(debug)call barrier !!/These barriers influence the reported time
+    call time_message(.false.,time_field,' Field Solver')
+    call get_mp_times(total_time = mp_total_after)
+    time_field_mpi = time_field_mpi + (mp_total_after - mp_total)
 
     !Remove zonal component if requested
     if(remove_zonal_flows_switch) call remove_zonal_flows
@@ -4198,18 +4196,10 @@ contains
   !! to file. One file per connected domain. Each written
   !! by the head of the supercell.
   subroutine dump_response_to_file_local(suffix)
-    use gs2_save, only: gs2_save_response
-    use fields_arrays, only: response_file
     implicit none
-    character(len=*), optional, intent(in) :: suffix !If passed then use as part of file suffix
-    character(len=64) :: suffix_local, suffix_default='.response'
-    character(len=256) :: file_name
-    complex, dimension(:,:), allocatable :: tmp_arr
+    !> If passed then use as part of file suffix
+    character(len=*), optional, intent(in) :: suffix
     integer :: ik, is
-
-    !Set file suffix
-    suffix_local=suffix_default
-    if(present(suffix)) suffix_local=suffix
 
     !First we have to pull data so that head of each supercell has full data
     !Currently we are lazy and just ensure all procs in supercell has full data
@@ -4222,47 +4212,26 @@ contains
           !If is isn't local than cycle
           if(.not.fieldmat%kyb(ik)%supercells(is)%is_local) cycle
 
-          !Now allocate array
-          allocate(tmp_arr(fieldmat%kyb(ik)%supercells(is)%nrow,fieldmat%kyb(ik)%supercells(is)%ncol))
-
-          !First have to pull all row level data
-          call fieldmat%kyb(ik)%supercells(is)%pull_rows_to_arr(tmp_arr)
-          
-          !Now save if on head proc
-          if(fieldmat%kyb(ik)%supercells(is)%is_head)then
-             !Really we should do this with netcdf but for now we will
-             !simply dump a binary file.
-
-             !First make file name
-             write(file_name,'(A,"_ik_",I0,"_is_",I0,A)') trim(response_file),ik,is,trim(suffix_local)
-             call gs2_save_response(tmp_arr,file_name)
-          endif
-
-          !Deallocate
-          deallocate(tmp_arr)
+          !Call supercell bound method to dump response
+          call fieldmat%kyb(ik)%supercells(is)%dump_to_file(suffix)
        enddo
     enddo
 
   end subroutine dump_response_to_file_local
 
   !> Routine to read the current response matrix data
-  !! from file dump. One file per connected domain. Each written
-  !! by the head of the supercell.
-  !! NOTE: Have to have setup communicators etc.
-  subroutine read_response_from_file_local(suffix)
-    use gs2_save, only: gs2_restore_response
-    use mp, only: sum_allreduce_sub
-    use fields_arrays, only: response_file
+  !> from file dump. One file per connected domain. Each written
+  !> by the head of the supercell.
+  !> NOTE: Have to have setup communicators etc.
+  subroutine read_response_from_file_local(could_read, suffix)
     implicit none
-    character(len=*), optional, intent(in) :: suffix !If passed then use as part of file suffix
-    character(len=64) :: suffix_local, suffix_default='.response'
-    character(len=256) :: file_name
-    complex, dimension(:,:), allocatable :: tmp_arr
+    !> Flag to indicate if all files successfully read
+    logical, intent(out) :: could_read
+    !> If passed then use as part of file suffix
+    character(len=*), optional, intent(in) :: suffix
     integer :: ik, is
 
-    !Set file suffix
-    suffix_local=suffix_default
-    if(present(suffix)) suffix_local=suffix
+    could_read = .true.
 
     !First we have to pull data so that head of each supercell has full data
     !Currently we are lazy and just ensure all procs in supercell has full data
@@ -4273,35 +4242,13 @@ contains
        !Loop over supercells
        do is=1,fieldmat%kyb(ik)%nsupercell
           !If is isn't local than cycle
-          if(.not.fieldmat%kyb(ik)%supercells(is)%is_local) cycle
+          if (.not.fieldmat%kyb(ik)%supercells(is)%is_local) cycle
 
-          !Now allocate array
-          allocate(tmp_arr(fieldmat%kyb(ik)%supercells(is)%nrow,fieldmat%kyb(ik)%supercells(is)%ncol))
-          tmp_arr=0.
-
-          !Now if on head proc read
-          if(fieldmat%kyb(ik)%supercells(is)%is_head)then
-             !Really we should do this with netcdf but for now we will
-             !simply dump a binary file.
-
-             !First make file name
-             write(file_name,'(A,"_ik_",I0,"_is_",I0,A)') trim(response_file),ik,is,trim(suffix_local)
-             call gs2_restore_response(tmp_arr,file_name)
-          endif
-
-          !Now we need to broadcast the data to everyone with supercell.
-          !NOTE: Really we would want a supercell bound method which will do
-          !this so that this module level routine is insensitive to communicators etc.
-          !Furthermore we are lazy and use a sum_allreduce_sub to send data to everyone
-          call sum_allreduce_sub(tmp_arr,fieldmat%kyb(ik)%supercells(is)%sc_sub_all%id)
-
-          !Now push array to local storage
-          call fieldmat%kyb(ik)%supercells(is)%push_arr_to_rows(tmp_arr)
-
-          !Deallocate
-          deallocate(tmp_arr)
-       enddo
-    enddo
+          call fieldmat%kyb(ik)%supercells(is)%read_from_file(could_read = could_read, suffix = suffix)
+          ! If we failed to read this file then leave immediately
+          if (.not. could_read) return
+       end do
+    end do
 
   end subroutine read_response_from_file_local
 
@@ -4314,5 +4261,37 @@ contains
     logical :: fields_local_functional
     fields_local_functional = (.not. compiler_pgi())
   end function fields_local_functional
+
+  !> Calculate the L2/Frobenius/Euclidiean-norm of a 2D complex array
+  real function l2norm(matrix)
+    !> The matrix to calculate the norm of
+    complex, dimension(:, :), intent(in) :: matrix
+    !> The shape of the matrix
+    integer, dimension(2) :: matrix_shape
+    !> Indicies for indexing the matrix
+    integer :: i, j
+    l2norm = 0.
+    matrix_shape = shape(matrix)
+    do j = 1, matrix_shape(2)
+       do i = 1, matrix_shape(1)
+          l2norm = l2norm + matrix(i,j) * conjg(matrix(i,j))
+       end do
+    end do
+    l2norm = sqrt(l2norm)
+
+    ! We could write all of the above as
+    !    l2norm = sqrt(sum(matrix*matrix))
+    ! but this could run over the matrix twice
+    ! and require a matrix sized temporary. Our
+    ! approach avoids this. We could have an intermediate
+    ! approach of
+    !  do j = 1, matrix_shape(1)
+    !     l2norm = l2norm + sum(matrix(:,j) * conjg(matrix(:,j)))
+    !  end do
+    !  l2norm = sqrt(l2norm)
+    ! which might offer a bit of a middle ground
+    ! Also note that a norm2 method was introduced in fortran 2008
+    ! but that only accepts real valued arguments.
+  end function l2norm
 
 end module fields_local

@@ -37,14 +37,13 @@ contains
     use constants, only: pi => dpi
     use gauss_quad, only: get_legendre_grids_from_cheb, get_laguerre_grids
     use species, only: nspec, spec, f0_sdanalytic, f0_maxwellian, calculate_f0_arrays, f0_values
-    use mp, only: proc0
 
     implicit none
     integer, intent (in) :: negrid
     real, intent (in) :: vcut_in
     integer, intent (in) :: nesub_in
     real, dimension(:,:), intent (out) :: epts, wgts
-    integer:: nesub, is, ie
+    integer:: nesub, is
     real:: vcut
 
     call init_egrid (negrid)
@@ -94,17 +93,10 @@ contains
     zeroes(:,:) = sqrt(epts(:negrid-1,:))
     x0(:) = sqrt(epts(negrid,:))
 
-    !do is = 1,nspec
-    !do ie = 1,negrid
-    !if (proc0) write(*,*) is, ie, epts(ie,is),wgts(ie,is),f0_values(ie,is)
-    !end do
-    !end do
-
   end subroutine setvgrid
 
   !> FIXME : Add documentation  
   subroutine setvgrid_genquad (negrid, epts, wgts, nesub)
-    use mp, only: proc0, mp_abort, iproc
     use genquad, only: get_quadrature_rule
     use constants, only: pi => dpi
     use gauss_quad, only: get_legendre_grids_from_cheb, get_laguerre_grids
@@ -146,12 +138,6 @@ contains
 
     call calculate_f0_arrays(epts)
 
-    !do is = 1,nspec
-    !do ie = 1,negrid
-    !if (proc0) write(*,*) is, ie, epts(ie,is),wgts(ie,is),f0_values(ie,is)
-    !end do
-    !end do
-    
     zeroes(:,:) = sqrt(epts(:negrid-1,:))
     x0(:) = sqrt(epts(negrid,:))
 
@@ -161,14 +147,13 @@ end module egrid
 
 !> FIXME : Add documentation
 module le_grids
-  
+  use abstract_config, only: abstract_config_type, CONFIG_MAX_NAME_LEN
   use redistribute, only: redist_type
   implicit none
 
   private
 
   public :: init_le_grids, finish_le_grids
-  public :: init_g2le_redistribute, init_lambda_redistribute, init_energy_redistribute
   public :: read_parameters, wnml_le_grids
   public :: integrate_species, write_mpdist, write_mpdist_le
   public :: energy, energy_maxw, speed_maxw, al, delal, jend, forbid, dele, wl, w, w_maxw
@@ -183,7 +168,12 @@ module le_grids
   public :: lambda_map, energy_map, g2le, g2gf, init_map, init_g2gf
   public :: integrate_species_sub !<DD>
   public :: hermite_prob
+  public :: is_passing_hybrid_electron
 
+  public :: le_grids_config_type
+  public :: set_le_grids_config
+  public :: get_le_grids_config
+  
   interface integrate_moment
      module procedure integrate_moment_c34
      module procedure integrate_moment_lec
@@ -240,7 +230,7 @@ module le_grids
   logical :: exist
 
  ! knobs
-  integer :: ngauss, negrid, nesuper, nesub
+  integer :: ngauss, npassing, negrid, nesuper, nesub
   real :: bouncefuzz, vcut
   logical :: genquad
 
@@ -278,7 +268,97 @@ module le_grids
 
   integer, dimension(:),allocatable :: recvcnts_intspec,displs_intspec
   integer :: sz_intspec, local_rank_intspec
-
+  
+  !> Used to represent the input configuration of le_grids
+  type, extends(abstract_config_type) :: le_grids_config_type
+     ! namelist : le_grids_knobs
+     ! indexed : false
+     !> Acts as a small tolerance in deciding if a particular pitch
+     !> angle is forbidden at a particular theta grid point. Rather
+     !> than considering particles to be forbidden if `1.0 - lambda *
+     !> B(theta) < 0` we treat them as forbidden if `1.0 - lambda *
+     !> B(theta) < -bouncefuzz`. This provides a small "buffer" to
+     !> account for floating round off in the calculation of `lambda`
+     !> and `B`.
+     real :: bouncefuzz = 10*epsilon(0.0)
+     !> If true use generalised quadrature scheme for velocity
+     !> integrals and energy grid. See [G. Wilkie
+     !> thesis](https://drum.lib.umd.edu/handle/1903/17302).
+     logical :: genquad = .false.
+     !> Sets the number of energy grid points to use. If specified
+     !> then overrides values of `nesuper = min(negrid/10 + 1,
+     !> 4)` and `nesub = negrid - nesuper`. If not set then the total
+     !> number of energy grid points is just `negrid = nesub +
+     !> nesuper`. The energy grid is split into two regions at a point
+     !> controlled by `vcut`.
+     integer :: negrid = -10
+     !> Sets the number of energy grid points below the cutoff.
+     integer :: nesub = 8
+     !> Sets the number of energy grid points above the cutoff.
+     integer :: nesuper = 2
+     !> If `true` then use a more accurate integration method for the
+     !> trapped pitch angle contribution to velocity integrals. The
+     !> default uses a simple, but potentially less accurate, finite
+     !> difference method.
+     logical :: new_trap_int = .false.
+     !> The number of untrapped pitch-angles moving in one direction
+     !> along field line.
+     integer :: npassing = -1
+     !> The number of untrapped pitch-angles moving in one direction
+     !> along field line is `2*ngauss` if [[le_grids_knobs::npassing]] is
+     !> not set. Note that the number of trapped pitch angles is
+     !> directly related to the number of theta grid points (per
+     !> \(2\pi\)) and is `ntheta/2 + 1`.
+     integer :: ngauss = 5
+     !> Influences the minimum number of grid points in an integration
+     !> subinterval used in calculating the integration grid weights.
+     integer :: nmax = 500
+     !> The number of nodes used in calculating lagrange coefficients
+     !> is `2*nterp-1`.  This code isn't currently used in GS2 so this
+     !> input should not influence anything significant.
+     integer :: nterp = 100
+     !> The default lambda grid is now gauss-radau, for passing
+     !> particles up to and including the passing-trapped boundary
+     !> (wfb). The grid gives finite weight to the class of particles
+     !> which bounce at theta = +/- pi (wfb) in the passing integral
+     !> Note that the old gauss-legendre is used in the case that
+     !> trapped_particles =.false.
+     !>
+     !> @note In reference to above comment -
+     !> code doesn't seem to change radau_gauss_grid when
+     !> trapped_particles is false, should it?
+     logical :: radau_gauss_grid = .true.
+     !> If `true` then just does a few tests and writes pitch angle
+     !> and energy grids to screen before aborting the simulation.
+     logical :: test = .false.
+     !> If set to `false` then the lambda grid weighting `wl` is set
+     !> to zero for trapped pitch angles. This means that integrals
+     !> over velocity space do not include a contribution from trapped
+     !> particles which is equivalent to the situation where
+     !> `eps<=0.0`.  Trapped particle drifts are not set to zero so
+     !> "trapped" particles still enter the source term through
+     !> `wdfac`. At least for s-alpha the drifts are the main
+     !> difference (*please correct if not true*) between the
+     !> `eps<=0.0` and the `trapped_particles = .false.` cases as
+     !> `Bmag` is not a function of theta in the `eps<=0.0` case
+     !> whilst it is in the `trapped_particles = .false.` case.
+     logical :: trapped_particles = .true.
+     !> No. of standard deviations from the standard Maxwellian beyond
+     !> which the distribution function will be set to 0.
+     real :: vcut = 2.5
+     !> Influences the maximum integration weight allowed.
+     real :: wgt_fac = 10.0
+   contains
+     procedure, public :: read => read_le_grids_config
+     procedure, public :: write => write_le_grids_config
+     procedure, public :: reset => reset_le_grids_config
+     procedure, public :: broadcast => broadcast_le_grids_config
+     procedure, public, nopass :: get_default_name => get_default_name_le_grids_config
+     procedure, public, nopass :: get_default_requires_index => get_default_requires_index_le_grids_config
+  end type le_grids_config_type
+  
+  type(le_grids_config_type) :: le_grids_config
+  
 contains
 
   !> FIXME : Add documentation  
@@ -296,7 +376,7 @@ contains
   end subroutine wnml_le_grids
 
   !> FIXME : Add documentation  
-  subroutine init_le_grids (accelerated_x, accelerated_v)
+  subroutine init_le_grids (accelerated_x, accelerated_v, le_grid_config_in)
     use mp, only: proc0, finish_mp
     use species, only: init_species
     use theta_grid, only: init_theta_grid
@@ -305,6 +385,7 @@ contains
     use egrid, only: setvgrid
     implicit none
     logical, intent (out) :: accelerated_x, accelerated_v
+    type(le_grids_config_type), intent(in), optional :: le_grid_config_in    
     integer :: il, ie
 
     if (initialized) return
@@ -315,10 +396,7 @@ contains
     call init_theta_grid
     call init_kt_grids
 
-    if (proc0) then
-       call read_parameters
-    end if
-    call broadcast_input
+    call read_parameters(le_grid_config_in)
     call set_vgrid
     if (proc0) then
        call set_grids
@@ -359,36 +437,8 @@ contains
     end if
   end subroutine set_vgrid
 
-  !> FIXME : Add documentation  
-  subroutine broadcast_input
-    use mp, only: broadcast
-    implicit none
-    integer :: tsize
-
-    tsize = 2*nterp-1
-
-    call broadcast (ngauss)
-    call broadcast (negrid)
-    call broadcast (nesuper)
-    call broadcast (nesub)
-    call broadcast (vcut)
-    call broadcast (genquad)
-    call broadcast (bouncefuzz)
-    call broadcast (nxi)
-    call broadcast (nlambda)
-    call broadcast (ng2)
-    call broadcast (lmax)
-    call broadcast (test)
-    call broadcast (nmax)
-    call broadcast (trapped_particles)
-    call broadcast (radau_gauss_grid)
-    call broadcast (wgt_fac)
-    call broadcast (new_trap_int)
-    call broadcast (nterp)
- end subroutine broadcast_input
-
- !> FIXME : Add documentation 
- subroutine broadcast_results
+  !> FIXME : Add documentation 
+  subroutine broadcast_results
     use mp, only: proc0, broadcast
     use species, only: nspec
     use egrid, only: init_egrid, zeroes_maxw, x0_maxw
@@ -452,25 +502,33 @@ contains
   end subroutine broadcast_results
 
   !> FIXME : Add documentation  
-  subroutine read_parameters
-    use file_utils, only: input_unit_exist
+  subroutine read_parameters(le_grid_config_in)
     implicit none
-    integer :: in_file
-    namelist /le_grids_knobs/ ngauss, negrid, bouncefuzz, &
-         nesuper, nesub, test, trapped_particles, &
-         nmax, wgt_fac, new_trap_int, nterp, vcut, genquad, &
-         radau_gauss_grid
+    type(le_grids_config_type), intent(in), optional :: le_grid_config_in    
+    
+    if (present(le_grid_config_in)) le_grids_config = le_grid_config_in
 
-    nesub = 8
-    nesuper = 2
-    ngauss = 5
-    negrid = -10
-    vcut = 2.5
-    bouncefuzz = 1e-5
-    genquad = .false.
-    in_file=input_unit_exist("le_grids_knobs", exist)
-    if (exist) read (unit=in_file, nml=le_grids_knobs)
+    call le_grids_config%init(name = 'le_grids_knobs', requires_index = .false.)
 
+    ! Copy out internal values into module level parameters
+    bouncefuzz = le_grids_config%bouncefuzz
+    genquad = le_grids_config%genquad
+    negrid = le_grids_config%negrid
+    nesub = le_grids_config%nesub
+    nesuper = le_grids_config%nesuper
+    new_trap_int = le_grids_config%new_trap_int
+    npassing = le_grids_config%npassing
+    ngauss = le_grids_config%ngauss
+    nmax = le_grids_config%nmax
+    nterp = le_grids_config%nterp
+    radau_gauss_grid = le_grids_config%radau_gauss_grid
+    test = le_grids_config%test
+    trapped_particles = le_grids_config%trapped_particles
+    vcut = le_grids_config%vcut
+    wgt_fac = le_grids_config%wgt_fac
+
+    exist = le_grids_config%exist
+    
 ! user can choose not to set negrid (preferred for old scheme)
     if (negrid == -10) then
        negrid = nesub + nesuper
@@ -480,6 +538,13 @@ contains
        nesuper = min(negrid/10+1, 4)
        nesub = negrid - nesuper
     endif
+
+    ! Set ng2 from ngauss if not specified in the input file
+    if (npassing < 0) then
+       ng2 = 2 * ngauss
+    else
+       ng2 = npassing
+    end if
 
   end subroutine read_parameters
 
@@ -510,9 +575,12 @@ contains
 
   end subroutine init_integrations
 
-  !> FIXME : Add documentation  
+  !> Calculates energy grid and (untrapped) pitch angle weights for
+  !> integrals which drop a point from the energy/lambda
+  !> dimensions. These are only used for estimating the velocity space
+  !> error in [[dist_fn::get_verr]] as a part of the adaptive
+  !> collisionality algorithm.
   subroutine init_weights
-
     use file_utils, only: open_output_file, close_output_file
     use egrid, only: zeroes
     use constants, only: pi => dpi
@@ -679,7 +747,10 @@ contains
           deallocate (divpts)
        end if
 
-! check to make sure the weights do not get too large
+       ! check to make sure the weights do not get too large
+       ! @Warning: This looks a bit unusual -- we're taking the magnitude of
+       ! the maximum value, whilst usually we would find the maximum value of
+       ! the magnitude.
        if (abs(maxval(wgts)) .gt. wgt_max) then
           if (maxpts .lt. 3) then
              err_flag = .true.
@@ -695,7 +766,26 @@ contains
 
   end subroutine get_weights
 
-  !> FIXME : Add documentation  
+  !> Used by [[get_weights]] to find the Lagrange quadrature weights for the given grid.
+  !>
+  !> Suppose we wish to calculate Int(f[x] dx) over the range [llim, ulim].
+  !> We could approximate f[x] by the Lagrange interpolating polynomial -->
+  !> f[x] ~ Sum_i{ f[x_i] l_i(x)} where. the Lagrange polynomial is given by
+  !> l_i(x) = Pi_j{ (x - x_i)/(x_i - x_j) }. Hence our integral can be written as
+  !> I = Int(f[x] dx) ~ Sum_i{ f[x_i] Int(Pi_j{ (x - x_i)/(x_i - x_j) })} so
+  !> I ~ Sum_i{f[x_i] c_i} with c_i = Int(Pi_j{ (x - x_i)/(x_i - x_j) }). Here
+  !> we are calculating the `c_i` values which are passed out as [[wgts]] corresponding
+  !> to the set of positions {x_i} set by [[nodes]]. To evaluate the integral
+  !> of the Lagrange polynomial coefficients we adopt Gauss-Legendre quadrature,
+  !> which allows highly accurate evaluation of polynomials of degree 2*N-1.
+  !> Given the need to find M weights we find we only need Gauss-Legendre of order
+  !> N = (M + 1)/2. Here we actually use degree (M/2) + 1.
+  !>
+  !> One limitation of Lagrange polynomials is their lack of numerical stability
+  !> at high order (i.e. when M is large, typically > 20 is quoted as a limit).
+  !> The routine [[get_weights]] allows the integration domain to be sub-divided
+  !> in order to limit the Lagrange order and reduce the variation in weights.
+  !> This is partially controlled by the input [[nmax]].
   subroutine get_intrvl_weights (llim, ulim, nodes, wgts)
     use gauss_quad, only: get_legendre_grids_from_cheb
     
@@ -879,13 +969,13 @@ contains
     implicit none
 
     complex, dimension (-ntgrid:,:,g_lo%llim_proc:), intent (in) :: g
-    complex, dimension (-ntgrid:ntgrid,2,nspec,negrid,nlambda,gf_lo%llim_proc:gf_lo%ulim_alloc) :: gf
+    complex, dimension (:, :, :, :, :, :), allocatable :: gf
     real, dimension (:), intent (in) :: weights
     complex, dimension (-ntgrid:ntgrid,gf_lo%ntheta0,gf_lo%naky), intent (out) :: total
     integer :: is, il, ie, igf, it, ik
 
     total =0.
-
+    allocate(gf(-ntgrid:ntgrid,2,nspec,negrid,nlambda,gf_lo%llim_proc:gf_lo%ulim_alloc))
     call gather(g2gf, g, gf, ntgrid)
 
     !Performed integral (weighted sum) over local velocity space and species
@@ -919,7 +1009,8 @@ contains
           end do
        end do
     end if
-    
+
+    deallocate(gf)
   end subroutine integrate_species_gf
 
   !> Integrate species using gf_lo data format assuming that gf has already been gathered prior to being 
@@ -938,7 +1029,7 @@ contains
     use species, only: spec, tracer_species
     implicit none
 
-    complex, dimension (-ntgrid:ntgrid,2,nspec,negrid,nlambda,gf_lo%llim_proc:gf_lo%ulim_alloc), intent (in) :: gf
+    complex, dimension(-ntgrid:ntgrid,2,nspec,negrid,nlambda,gf_lo%llim_proc:gf_lo%ulim_alloc), intent(in) :: gf
     real, dimension (:), intent (in) :: weights
     complex, dimension (-ntgrid:ntgrid,gf_lo%ntheta0,gf_lo%naky), intent (out) :: total
     integer :: is, il, ie, igf, it, ik
@@ -976,7 +1067,6 @@ contains
           end do
        end do
     end if
-    
   end subroutine integrate_species_gf_nogather
   
   !> Integrate_species on subcommunicator with gather
@@ -1242,7 +1332,12 @@ contains
 
   end subroutine integrate_species_le
 
-  !> FIXME : Add documentation    
+  !> FIXME : Add documentation
+  !>
+  !> @note This routine depends on the values stored in [[xx]] as input
+  !> to the legendre_polynomials method. However, with Radau grids the
+  !> values in [[xx]] are not Legendre roots so this routine is probably
+  !> incorrect when [[le_grids_knobs::radau_gauss_grid]] is `.true.`.
   subroutine legendre_transform (g, tote, totl, tott)  
     use egrid, only: zeroes
     use mp, only: nproc
@@ -2019,10 +2114,13 @@ contains
     use egrid, only: setvgrid, x0, x0_maxw, zeroes, zeroes_maxw
     use species, only: nspec, spec, f0_maxwellian
     use theta_grid, only: init_theta_grid, ntgrid, nbset, bset, eps_trapped
+    use file_utils, only: open_output_file, close_output_file
+    use mp, only: proc0
     implicit none
 
     integer :: tsize,is
     logical :: has_maxwellian_species
+    integer :: unit
 
     call init_theta_grid
     call init_species
@@ -2056,8 +2154,6 @@ contains
     dele(1,:) = energy(1,:)
     dele(2:,:) = energy(2:,:)-energy(:negrid-1,:)
 
-    ng2 = 2*ngauss
-
     if (trapped_particles .and. eps_trapped > epsilon(0.0)) then
        nlambda = ng2+nbset
        lmax = nlambda-1
@@ -2078,278 +2174,687 @@ contains
     call lgridset
     delal(1) = al(1)
     delal(2:) = al(2:) - al(:nlambda-1)
+
+    if (proc0) then
+       call open_output_file(unit, '.vspace_integration_error')
+       call report_velocity_integration_error_estimate(unit)
+       call close_output_file(unit)
+    end if
+
   end subroutine set_grids
 
-  !> FIXME : Add documentation  
-  subroutine lgridset
-    use theta_grid, only: ntgrid, bmag, bmax, eps_trapped
-    use gauss_quad, only: get_legendre_grids_from_cheb, get_radau_gauss_grids
-    use file_utils, only: open_output_file, close_output_file
+  !> Calculate estimates of the velocity space integration errors
+  !> and report to screen / specified unit.
+  !>
+  !> This error estimate provides an estimate on the lower bound
+  !> for the error on subsequent calls to integrate_species/integrate_moment
+  !> Alternative error estimates can be calculated following the approach
+  !> adopted in [[dist_fn::get_verr]].
+  subroutine report_velocity_integration_error_estimate(unit_in)
+    use iso_fortran_env, only: output_unit
+    use theta_grid, only: ntgrid, bmag, bmax
+    use species, only: nspec
+    ! Note in fortran 2008 we could just use the erf intrinsic
+    use spfunc, only: erf_ext
+    use constants, only: pi
     implicit none
 
-! note that xgauss and wgauss are transposed wrt original code
+    integer, intent(in), optional :: unit_in
+    real, parameter :: expected_lambda = 2.0, expected_energy = 0.25
+    real, dimension(:), allocatable :: lambda_error, energy_error, b_ratio
+    real, dimension(:), allocatable :: passing_error, expected_passing
+    real, dimension(:), allocatable :: trapped_error, expected_trapped
+    real, dimension(:), allocatable :: energy_sub_error, energy_super_error
+    real, dimension(:, :), allocatable :: mixed_error, mixed_value
+    real :: expected_energy_sub, expected_energy_super
+    integer :: unit, ie, ig, is
 
+    unit = output_unit
+    if (present(unit_in)) unit = unit_in
+
+    !Get estimates of the error on the integration weights.
+
+    ! Total pitch angle grid
+    allocate(lambda_error(-ntgrid:ntgrid))
+    lambda_error = 0.0
+    do ig = -ntgrid, ntgrid
+       lambda_error(ig) = expected_lambda - sum(wl(ig, :))
+    end do
+    ! Introduce factor 2 here to account for sigma doubling
+    lambda_error = 2*lambda_error
+
+    ! The trapped/passing error breakdown is currently only
+    ! appropriate when not using the Radau-Gauss grids
+    if (.not. radau_gauss_grid) then
+
+       ! Passing pitch angle grid
+       allocate(passing_error(-ntgrid:ntgrid))
+       passing_error = 0.0
+       allocate(expected_passing(-ntgrid:ntgrid))
+       allocate(b_ratio(-ntgrid:ntgrid))
+       b_ratio = bmax / bmag
+       ! This is the analytic integral of the function we weight the Legendre
+       ! weights by over the passing region, i.e.
+       ! 2.0*sqrt((bmag(ig)/bmax)*((1.0/bmax-al(il))/(1.0/bmag(ig)-al(il)))
+       ! Note to integrate this correctly it is useful to transform from lambda
+       ! to the Legendre variable xx, through xx = sqrt(1-lambda*bmax)
+       ! The weight function then becomes:
+       ! 2.0*sqrt(bmag/bmax) * sqrt([xx^2]/[(bmax/bmag)-1+xx^2])
+       ! and we would integrate from xx=0 to xx=1
+       ! Note this analytic result and comparison is appropriate when
+       ! Radau_Gauss_Grid = F.  When this is not the case (default) then
+       ! the calculation of the passing and trapped errors from this
+       ! analytic result is no longer appropriate as the wfb contains
+       ! contributions from both the passing and trapped regions when
+       ! bmag = bmax, and as such our comparison is only valid away from
+       ! where bmag=bmax.
+       expected_passing = 2.0 * (1 - sqrt(b_ratio - 1)/sqrt(b_ratio))
+       do ig = -ntgrid, ntgrid
+          passing_error(ig) = expected_passing(ig) - sum(wl(ig, :ng2))
+       end do
+       ! Introduce factor 2 here to account for sigma doubling
+       passing_error = 2*passing_error
+
+       ! Trapped pitch angle grid
+       allocate(trapped_error(-ntgrid:ntgrid))
+       trapped_error = 0.0
+       ! Only calculate this if we have any trapped pitch angles
+       if (nlambda > ng2) then
+          allocate(expected_trapped(-ntgrid:ntgrid))
+          ! We're essentially just subtracting the passing analytic
+          ! result from the total expectation, i.e. effectively
+          !  expected_trapped = expected_lambda - expected_passing
+          expected_trapped = 2.0 * sqrt(b_ratio - 1)/sqrt(b_ratio)
+          do ig = -ntgrid, ntgrid
+             trapped_error(ig) = expected_trapped(ig) - sum(wl(ig, ng2+1:))
+          end do
+          !Introduce factor 2 here to account for sigma doubling
+          trapped_error = 2*trapped_error
+       end if
+    end if
+
+    ! Total energy grid
+    allocate(energy_error(nspec))
+    energy_error = 0.0
+    do is = 1, nspec
+       energy_error(is) = expected_energy - sum(w(:,is))
+    end do
+
+    ! Energy sub grid
+    allocate(energy_sub_error(nspec))
+    energy_sub_error = 0.0
+    ! NOTE: This assumes we are considering a species with Maxwellian
+    ! background such that f0_values = exp(-energy)/pi^3/2
+    ! We are analytically evaluating
+    ! Integral_0^vcut{v^2 * pi * f0_values dv}
+    ! Assuming Maxwellian this becomes
+    ! Integral_0^vcut{v^2 exp(-v^2)/sqrt(pi) dv}
+    ! Which has result:
+    ! (1/4) [ erf(vcut) - 2 vcut exp(-vcut^2)/sqrt(pi)]
+    expected_energy_sub = 0.25 * ( erf_ext(vcut) - 2*vcut*exp(-vcut*vcut)/sqrt(pi))
+    do is = 1, nspec
+       energy_sub_error(is) = expected_energy_sub - sum(w(:nesub,is))
+    end do
+
+    ! Energy super grid
+    allocate(energy_super_error(nspec))
+    energy_super_error = 0.0
+    if (negrid > nesub) then
+       ! NOTE: This assumes we are considering a species with Maxwellian
+       ! background such that f0_values = exp(-energy)/pi^3/2
+       ! We are analytically evaluating
+       ! Integral_0^infinity{sqrt(y+vcut^2) * exp(y) * pi * f0_values * W(y) dy}/2
+       ! where W(y) are the Laguerre weights = exp(-y)
+       ! Assuming Maxwellian this becomes
+       ! Integral_0^infinity{sqrt(y+vcut^2) * exp(y) * exp(-(y+vcut^2)) * exp(-y) dy}/2
+       ! which simplifies slightly to
+       ! Integral_0^infinity{sqrt(y+vcut^2) * exp(-(vcut^2)) * exp(-y) dy}/2
+       ! Which has result:
+       ! [sqrt(pi)*erfc(vcut)/2 + vcut*exp(-vcut^2)]/(2*sqrt(pi))
+       expected_energy_super =  0.5*(sqrt(pi)*(1-erf_ext(vcut))/2 + vcut*exp(-vcut*vcut))/sqrt(pi)
+       do is = 1, nspec
+          energy_super_error(is) = expected_energy_super - sum(w(nesub+1:,is))
+       end do
+    end if
+
+    allocate(mixed_error(-ntgrid:ntgrid, nspec))
+    allocate(mixed_value(size(wl(0,:)), size(w(:,1))))
+    mixed_error = 0.0
+    do is = 1, nspec
+       do ig = -ntgrid, ntgrid
+          mixed_value = 0.0
+          do ie = 1, size(w(:,1))
+             mixed_value(:, ie) = wl(ig,:)*w(ie, is)
+          end do
+          mixed_error(ig, is) = expected_lambda*expected_energy - sum(mixed_value)
+       end do
+    end do
+
+    ! Introduce factor 2 here to account for sigma doubling
+    mixed_error = 2 * mixed_error
+
+    ! Report errors to unit
+    call report_error(unit, "Lambda", lambda_error)
+    ! The trapped/passing error breakdown is currently only
+    ! appropriate when not using the Radau-Gauss grids
+    if (.not. radau_gauss_grid) then
+       call report_error(unit, "Passing", passing_error)
+       call report_error(unit, "Trapped", trapped_error)
+    end if
+    call report_error(unit, "Energy", energy_error)
+    call report_error(unit, "Energy_Sub", energy_sub_error)
+    call report_error(unit, "Energy_Super", energy_super_error)
+    call report_error_2d(unit, "Mixed", mixed_error)
+
+  contains
+    subroutine report_error(unit, name, error)
+      implicit none
+      integer, intent(in) :: unit
+      character(len=*), intent(in) :: name
+      real, dimension(:), intent(in) :: error
+      write(unit, '(A," weights errors, max/mean/mean(|error|)  :",3(E14.6E3," "))') &
+           name, maxval(abs(error)), sum(error)/size(error), sum(abs(error))/size(error)
+    end subroutine report_error
+
+    subroutine report_error_2d(unit, name, error)
+      implicit none
+      integer, intent(in) :: unit
+      character(len=*), intent(in) :: name
+      real, dimension(:, :), intent(in) :: error
+      write(unit, '(A," weights errors, max/mean/mean(|error|)  :",3(E14.6E3," "))') &
+           name, maxval(abs(error)), sum(error)/size(error), sum(abs(error))/size(error)
+    end subroutine report_error_2d
+
+  end subroutine report_velocity_integration_error_estimate
+
+  !> Sets up the pitch angle grid and associated data. Does so by
+  !> calling other routines. A summary of the actions is below.
+  !>
+  !> Determines the location of lambda ([[al]]) grid points in the
+  !> passing domain and associated integrations weights. Also
+  !> determines the integration weights for the trapped pitch angle
+  !> grid (the location of trapped [[al]] is already determined
+  !> through the values of [[bset]]).
+  !>
+  !> Alongside determining the passing locations and the lambda
+  !> integration weights we also set [[forbid]], [[jend]] and
+  !> call [[xigridset]] to setup the \(\xi = \v_\|/v\) grid
+  !> and associated quantities.
+  subroutine lgridset
+    use theta_grid, only: eps_trapped
+    implicit none
+    integer :: ig, il
+    logical :: has_trapped_points
+
+    ! Decide if we need to calculate the trapped lambda integration weights
+    has_trapped_points = trapped_particles .and. eps_trapped > epsilon(0.0)
+
+    ! Intialise the weights to zero
+    wl = 0.0
+
+    ! Calculate the passing lambda grid location and integration weights
+    call setup_passing_lambda_grids(al, wl)
+
+    ! Calculate the trapped lambda grid integration weights
+    if (has_trapped_points) call setup_trapped_lambda_grids(al, wl)
+
+    ! Calculate the forbid flag indicating which pitch angles are allowed at
+    ! various points.
+    call calculate_forbidden_region(forbid)
+
+    ! Calculate the jend values indicating the pitch angle which bounces at
+    ! each theta point.
+    call calculate_jend(jend)
+
+    ! Setup the xi (v||/v) grid used in collisions
+    call xigridset
+
+  end subroutine lgridset
+
+  !> Determines the location of lambda ([[al]]) grid points in the
+  !> passing domain and the associated integrations weights.
+  subroutine setup_passing_lambda_grids(lambda_grid, weights)
+    use gauss_quad, only: get_legendre_grids_from_cheb, get_radau_gauss_grids
+    use theta_grid, only: ntgrid, bmag, bmax
+    implicit none
+    !> The lambda grid points. Note this is intent `in out` as we only
+    !> set a portion of the grid so may want to keep the rest of the
+    !> input values.
+    real, dimension(:), intent(in out) :: lambda_grid
+    !> The integration weights for the lambda grid. This is intent `in out`
+    !> for the same reason as `lambda_grid`.
+    real, dimension(-ntgrid:, :), intent(in out) :: weights
     real, dimension (:), allocatable :: wx, xx_radau
+    integer :: ig, il
+
+    ! Note this is a module level quantity that we keep around for possible
+    ! future use. For iproc /= 0 this allocation is actually done in [[broadcast_results]]
+    allocate (xx(ng2))
+
+    if(radau_gauss_grid .and. nlambda > ng2 ) then
+
+       ! This grid uses a fixed endpoint such that il = ng2+1 has a finite weight at bounce points
+       ! which contributes to the integration over passing particles
+       ! which is why xx, wx are one element longer than the standard Legendre Gauss grid
+       ! This grid should only be used when nlambda > ng2, i.e. there is a wfb and trapped particles
+
+       allocate (xx_radau(ng2 +1))
+       allocate (wx(ng2 +1))
+       call get_radau_gauss_grids(0.,1., xx_radau, wx,report_in=.false.)
+       xx = xx_radau(:ng2)
+    else
+       allocate (wx(ng2))
+       call get_legendre_grids_from_cheb (1., 0., xx, wx)
+    end if
+
+    ! Store the location of the passing lambda grid points
+    lambda_grid(:ng2) = (1.0 - xx(:ng2)**2)/bmax
+
+    ! Transform the Legendre/Radau weights to the lambda grid
+    do il = 1, ng2
+       do ig = -ntgrid, ntgrid
+          weights(ig,il) = wx(il)*2.0*sqrt((bmag(ig)/bmax) &
+               *((1.0/bmax-lambda_grid(il))/(1.0/bmag(ig)-lambda_grid(il))))
+       end do
+    end do
+
+    ! Assign the weight for wfb from the radau-gauss grid
+    if (radau_gauss_grid .and. nlambda > ng2 ) then
+       il=ng2+1
+       do ig = -ntgrid, ntgrid
+          if (bmag(ig) < bmax) then ! i.e. we are not the bounce point for wfb
+             ! Note this will currently always be exactly 0
+             ! as lambda_grid(ng2+1) == 1.0/bmax
+             weights(ig,il) = wx(il)*2.0*sqrt((bmag(ig)/bmax) &
+                  *((1.0/bmax-lambda_grid(il))/(1.0/bmag(ig)-lambda_grid(il))))
+          else ! at the bounce point
+             weights(ig,il) = wx(il)*2.0
+          endif
+       end do
+    end if
+
+    if(allocated(wx)) deallocate(wx)
+    if(allocated(xx_radau)) deallocate(xx_radau)
+  end subroutine setup_passing_lambda_grids
+
+  !> Determines the lambda grid point integration weights in the
+  !> trapped domain using either new or old (default) methods,
+  !> determined by [[le_grids_knobs::new_trap_int]] with
+  !> new=high-order interp, old=finite difference).
+  !>
+  !> @note Here we overwrite/replace any previously calculated weights
+  !> for points considered trapped. This is usually ok as we have a clear
+  !> separation between passing and trapped so the trapped weights are
+  !> zero on entry to this routine. In some situations, however, we
+  !> may consider some points as both passing and trapped and run the
+  !> risk of discarding any existing passing weights for such points.
+  !> This could potentially be the case with Radau-like grids, for example
+  !> (although likely isn't an issue currently as the routine here does not
+  !> calculate a weight for the wfb when bmag = bmax). A simple fix is to
+  !> replace `weights = ` with effectively `weights +=` in this routine and
+  !> those it calls.
+  subroutine setup_trapped_lambda_grids(lambda_grid, weights)
+    use theta_grid, only: ntgrid
+    implicit none
+    !> The lambda grid points. Note this is intent `in out` as we only
+    !> set a portion of the grid so may want to keep the rest of the
+    !> input values.
+    real, dimension(:), intent(in out) :: lambda_grid
+    !> The integration weights for the lambda grid. Note this is
+    !> intent `in out` as we only set a portion of the grid so may
+    !> want to keep the rest of the input values.
+    real, dimension(-ntgrid:, :), intent(in out) :: weights
+
+    if (new_trap_int) then
+       call setup_trapped_lambda_grids_new_trap_int(lambda_grid, weights)
+    else
+       call setup_trapped_lambda_grids_old_finite_difference(lambda_grid, weights)
+    end if
+
+  end subroutine setup_trapped_lambda_grids
+
+  !> Determine trapped pitch angle weights using "new" polynomial
+  !> interpolation.
+  !>
+  !> The new method uses Lagrange polynomial interpolation to provide
+  !> an accurate approximation of the integration over the trapped
+  !> region. The old method effectively uses the trapezium rule to
+  !> integrate. In both cases the integration variable is the parallel
+  !> velocity spanning the range [-v_||_wfb, v_||_wfb].  Both methods
+  !> give zero weight to the wfb at the locations where B == Bmax.
+  !> Generally the old method appears to be accurate to at most single
+  !> precision, whilst the new method is more accurate, reaching the
+  !> double precision round off level even with just a few trapped
+  !> pitch angles. It can be noted that the the old method can reach
+  !> the same level of accuracy at some theta grid points but not
+  !> all. Further work may be able to optimise the grid to avoid these
+  !> locations.  There are a number of reasons why we may not want to
+  !> make new_trap_int default to true, including :
+  !>   1. It is not compatible with radau_gauss_grid = T (which is the
+  !>   default).
+  !>   2. One might expect high order Lagrange interpolation to be
+  !>      unstable so may anticipate that the new method will not work
+  !>      well at higher ntheta. Empirically it seems this does not
+  !>      become an issue here. Further, the input `nmax` can be used
+  !>      to limit the maximum Lagrange order used by splitting the
+  !>      domain.
+  !>   3. For large ntheta the new method leads to slow
+  !>      initialisation. This is due to the calculation of the error
+  !>      coefficients for use with get_verr. This could perhaps be
+  !>      optmised.
+  !> Both points 2 and 3 could be avoided to some extent if the
+  !> trapped pitch angle grid resolution is decoupled from the theta
+  !> grid resolution. It may be possible to make the new approach
+  !> compatible with radau_gauss_grid or we may decide
+  !> radau_gauss_grid should default to false.
+  subroutine setup_trapped_lambda_grids_new_trap_int(lambda_grid, weights)
+    use theta_grid, only: ntgrid, bmag, bmax, eps_trapped
+    use file_utils, only: open_output_file, close_output_file, error_unit
+    use mp, only: proc0
+    implicit none
+    !> The lambda grid points. Note this is intent `in out` as we only
+    !> set a portion of the grid so may want to keep the rest of the
+    !> input values.
+    real, dimension(:), intent(in out) :: lambda_grid
+    !> The integration weights for the lambda grid. Note this is
+    !> intent `in out` as we only set a portion of the grid so may
+    !> want to keep the rest of the input values.
+    real, dimension(-ntgrid:, :), intent(in out) :: weights
     real, dimension (:), allocatable :: ytmp, yb, yberr, wb, wberrtmp
     real, dimension (:,:), allocatable :: wberr
     integer :: npts, ix, ntrap
     real :: wwo, llim, ulim
-    logical :: eflag = .false.
-
+    logical :: eflag
     integer :: ig, il, ndiv, divmax, divmaxerr, ndiverr
 
+    ! Initialise the error flag
+    eflag = .false.
 
-    allocate (xx(2*ngauss))
-    if(radau_gauss_grid .and. nlambda > ng2 ) then
-        
-        ! This grid uses a fixed endpoint such that il = ng2+1 has a finite weight at bounce points
-        ! which contributes to the integration over passing particles
-        ! which is why xx, wx are one element longer than the standard Legendre Gauss grid
-        ! This grid should only be used when nlambda > ng2, i.e. there is a wfb and trapped particles
- 
-        allocate (xx_radau(2*ngauss +1))
-        allocate (wx(2*ngauss +1))
-        call get_radau_gauss_grids(0.,1., xx_radau, wx,report_in=.false.) 
-        xx = xx_radau(:ng2)
-    else
-        allocate (wx(2*ngauss))
-        call get_legendre_grids_from_cheb (1., 0., xx, wx)
-    end if
-    wl = 0.0
+    ! max number of trapped particles (occurs at outboard midplane)
+    ntrap = nlambda - ng2
 
-    al(:ng2) = (1.0 - xx(:ng2)**2)/bmax
+    ! wlterr contains weights for less accurate trapped integrals (for error estimation)
+    allocate(wlterr(-ntgrid:ntgrid,nlambda,ntrap))
 
-    do il = 1, ng2
-       do ig = -ntgrid, ntgrid
-          wl(ig,il) = wx(il)*2.0*sqrt((bmag(ig)/bmax) &
-               *((1.0/bmax-al(il))/(1.0/bmag(ig)-al(il))))
-       end do
-    end do
-    ! assign the weight for wfb from the radau-gauss grid
-    if(radau_gauss_grid .and. nlambda > ng2 ) then
-        il=ng2+1
-        do ig = -ntgrid, ntgrid
-            if(bmag(ig)<bmax) then ! i.e. we are not the bounce point for wfb
-                wl(ig,il) = wx(il)*2.0*sqrt((bmag(ig)/bmax) &
-                 *((1.0/bmax-al(il))/(1.0/bmag(ig)-al(il))))
-            else ! at the bounce point
-                wl(ig,il) = wx(il)*2.0 
-            endif
-        end do
-    end if
-    
-    if(allocated(wx)) deallocate(wx)
-    
-    jend = 0
-    forbid = .false.
+    wlterr = 0.0
 
-    if (.not. trapped_particles .or. eps_trapped <= epsilon(0.0)) then
-       call xigridset
-       return
-    end if
+    ! Find the integration weights for each theta grid point
+    do ig = -ntgrid, ntgrid
 
-! pick integration method (new=high-order interp, old=finite difference)
-    if (new_trap_int) then
+       ! First we count how many trapped lambda bounce points we
+       ! have to consider at this point. In other words how many
+       ! bounce points are not forbidden for the current theta
+       ! grid point.
+       ! npts is the number of lambda_grid values in the trapped integral (varies with theta)
+       npts = 0
 
-! wlterr contains weights for less accurate trapped integrals (for error estimation)
-
-       ntrap = nlambda - ng2                ! max number of trapped particles (occurs at outboard midplane)
-       allocate(wlterr(-ntgrid:ntgrid,nlambda,ntrap))
-       
-       wlterr = 0.0
-       
-       do ig = -ntgrid, ntgrid
-          npts = 0
-          
-! npts is the number of al values in the trapped integral (varies with theta)
-          do il = ng2+1, nlambda
-             if (1.0 - al(il)*bmag(ig) > -bouncefuzz) then
-                npts = npts + 1
-             end if
-          end do
-
-          if (npts > 0) then
-
-! jend(ig) is total # of al grid points at each theta value
-             jend(ig) = ng2 + npts
-          
-! ytmp is an array containing pitch angle grid points (for vpa >= 0) 
-             allocate(ytmp(npts), yb(2*npts-1), wb(2*npts-1))
-!             allocate(wberr(npts,npts))
-             allocate(wberr(2*npts-1,npts))
-
-             ytmp = 0.0; yb = 0.0; wb = 0.0; wberr = 0.0
-          
-!             icnt = 1
-
-! loop computes transformed variable of integration
-!             do il = ng2+1, nlambda
-             do il = ng2+1, ng2+npts
-                ytmp(il-ng2) = sqrt(max(1 - al(il)*bmag(ig), 0.0))
-!                icnt = icnt + 1
-!                write (*,*) 'ytmp', il-ng2, ytmp(il-ng2)
-             end do
-
-! define array (yb) with pitch-angle gridpts corresponding to both positive and negative vpa
-             if (npts > 1) yb(:npts-1) = -ytmp(:npts-1)
-             do ix=1,npts
-                yb(ix+npts-1) = ytmp(npts-ix+1)
-             end do
-
-! get lagrange coefficients for construction of lagrange interpolating polynomial
-! this is not necessary for integration, but can be useful diagnostic for integral accuracy
-!          call lagrange_coefs (ig, yb, lgrnge(ig,:,:,:), xloc(ig,:))
-
-! gets grid point weights for trapped particle integral
-             ulim = sqrt(max(1.0-bmag(ig)/bmax,0.0))
-             llim = -ulim
-
-             if (ulim > 0.0) call get_weights (nmax, llim, ulim, yb, wb, ndiv, divmax, eflag) 
-
-!             do il = 1, 2*npts-1
-!                write (*,*) ig, il, 2*npts-1, ulim, yb(il), wb(il), ndiv, divmax
-!             end do
-
-! gets weights for less accurate trapped particle integrals (for purposes of error estimation)
-
-! can't get error estimate for npts = 0 or 1
-             if (npts > 1) then
-                do ix=1,npts
-
-                   if (ix == 1) then
-! drop the first and last grid points from the integral
-                      allocate (yberr(2*npts-3),wberrtmp(2*npts-3))
-                      yberr = 0.0; wberrtmp = 0.0
-                      yberr = yb(2:2*npts-2)
-                   else if (ix == npts) then
-! drop the vpa=0 grid point from the integral
-                      allocate (yberr(2*npts-2),wberrtmp(2*npts-2))
-                      yberr = 0.0; wberrtmp = 0.0
-                      yberr(:npts-1) = yb(:npts-1)
-                      yberr(npts:) = yb(npts+1:)
-                   else
-! drop the grid points corresponding to ix and its negative from the integral
-                      allocate (yberr(2*npts-3),wberrtmp(2*npts-3))
-                      yberr = 0.0; wberrtmp = 0.0
-                      yberr(:ix-1) = yb(:ix-1)
-                      yberr(ix:2*npts-ix-2) = yb(ix+1:2*npts-ix-1)
-                      yberr(2*npts-ix-1:) = yb(2*npts-ix+1:)
-                   end if
-
-                   call get_weights (nmax, llim, ulim, yberr, wberrtmp, ndiverr, divmaxerr, eflag) 
-
-! insert a weight of zero into indices corresponding to ix and its conjugate               
-!                   if (ix /= 1) wberr(:ix-1,ix) = wberrtmp(:ix-1)
-!                   if (ix /= npts) wberr(ix+1:,ix) = wberrtmp(ix:npts-1)
-                   if (ix == 1) then
-                      wberr(2:2*npts-2,1) = wberrtmp
-                   else if (ix == npts) then
-                      wberr(:npts-1,npts) = wberrtmp(:npts-1)
-                      wberr(npts+1:,npts) = wberrtmp(npts:)
-                   else
-                      wberr(:ix-1,ix) = wberrtmp(:ix-1)
-                      wberr(ix+1:2*npts-ix-1,ix) = wberrtmp(ix:2*npts-ix-2)
-                      wberr(2*npts-ix+1,ix) = wberrtmp(2*npts-ix-1)
-                   end if
-
-!                wberr(npts,ix) = wberr(npts,ix)*0.5
-
-! TEMP FOR TESTING -- MAB
-!                   do il = 1, size(yb)
-!                      write (*,*) 'wberr', ig, ix, yb(il), wberr(il,ix), npts
-!                   end do
-                   
-                   deallocate (yberr,wberrtmp)
-
-                end do
-             end if
-
-!             icnt = 1
-
-!             do il = ng2+1, nlambda
-!                if (1.0 - al(il)*bmag(ig) > -bouncefuzz) then
-! avoid double counting of gridpoint at vpa=0               
-!                if (icnt .eq. npts) then
-!                   wl(ig,il) = wb(icnt)
-!                   wlterr(ig,il,:npts) = wberr(icnt,:)
-!                else
-!                   wl(ig,il) = 2.0*wb(icnt)
-!                   wlterr(ig,il,:npts) = 2.0*wberr(icnt,:)
-!                end if
-!                icnt = icnt + 1
-!             end if
-!             end do
-
-             if (npts > 1) then
-                do il = ng2+1, ng2+npts-1
-!                   wl(ig,il) = 2.0*wb(il-ng2)
-!                   wlterr(ig,il,:npts) = 2.0*wberr(il-ng2,:)
-! take into account possible asymmetry of weights about xi = 0
-! due to unequal # of grid points per integration interval
-!                   wl(ig,il) = wb(il-ng2) + wb(il-ng2+npts)
-                   wl(ig,il) = wb(il-ng2) + wb(2*npts-il+ng2)
-!                   write (*,*) ig, il, wl(ig,il), wb(il-ng2), wb(2*npts-il+ng2), ng2, npts
-                   wlterr(ig,il,:npts) = wberr(il-ng2,:) + wberr(2*npts-il+ng2,:)
-                end do
-             end if
-
-             ! avoid double counting of gridpoint at vpa=0
-             wl(ig,ng2+npts) = wb(npts)
-             wlterr(ig,ng2+npts,:npts) = wberr(npts,:)
-
-             deallocate(ytmp, yb, wb, wberr)
-
-!             do il = ng2+1, nlambda
-!                write (*,*) 'wgts', ig, il, sqrt(max(0.0,1.0-al(il)*bmag(ig))), wl(ig,il), sum(wl(ig,ng2+1:jend(ig))), sqrt(1.0-bmag(ig)/bmax), sum(wl(ig,ng2+1:jend(ig))*(1.0-bmag(ig)*al(ng2+1:jend(ig))))
-!             end do
+       do il = ng2+1, nlambda
+          if (1.0 - lambda_grid(il)*bmag(ig) > -bouncefuzz) then
+             npts = npts + 1
           end if
        end do
 
-! old (finite-difference) integration scheme
-    else
-!CMR, 1/11/2013: 
-! Above, with no trapped particles, we set: jend(ig)=   0      
-! Here, with trapped particles, we set:     jend(ig)=  il      
-!  where il is the lambda index of the trapped particle bouncing at theta(ig)
-!
-       jend = ng2 + 1
-!       wlterr = 0.0
-       do il = ng2+1, nlambda-1
-          do ig = -ntgrid, ntgrid
-             if (1.0-al(il)*bmag(ig) > -bouncefuzz &
-                  .and. 1.0-al(il+1)*bmag(ig) > -bouncefuzz) &
-                  then
-                jend(ig) = jend(ig) + 1
-                wwo = sqrt(max(1.0 -   al(il)*bmag(ig),0.0)) - &
-                     sqrt(max(1.0 - al(il+1)*bmag(ig),0.0))
-                wl(ig,il)   = wl(ig,il)   + wwo
-                wl(ig,il+1) = wl(ig,il+1) + wwo
-             end if
+       ! If there are any valid bounce points then we need to
+       ! calculate the weights. If npts == 1 then we probably also expect
+       ! the integration weights to be 0 so we could probably skip all of
+       ! this work for npts = 1 as well.
+       if (npts > 0) then
+
+          ! ytmp is an array containing pitch angle grid points (for vpa >= 0)
+          ! These are the v||/v points for each lambda between wfb (sets maximum
+          ! v||/v here) and the lambda which bounces at this point (v||/v = 0)
+          ! yb is an array containing the full set of [-v||/v, v||/v] grid points.
+          ! Constructed directly from ytmp by copying and flipping sign+order
+          ! wb is an array containing the integration weights calculated for the
+          ! given v||/v grid.
+          allocate(ytmp(npts), yb(2*npts-1), wb(2*npts-1))
+          ! wberr is an array used to hold the weights used in the error estimation
+          ! in [[trap_error]] called by [[get_verr]]
+          allocate(wberr(2*npts-1,npts))
+
+          ytmp = 0.0; yb = 0.0; wb = 0.0; wberr = 0.0
+
+          ! loop computes transformed variable of integration (v||/v)
+          do il = ng2+1, ng2+npts
+             ytmp(il-ng2) = sqrt(max(1 - lambda_grid(il)*bmag(ig), 0.0))
           end do
-       end do
 
+          ! define array (yb) with pitch-angle gridpts
+          ! corresponding to both positive and negative vpa
+          if (npts > 1) yb(:npts-1) = -ytmp(:npts-1)
+          yb(npts:) = ytmp(npts:1:-1)
+
+
+          ! get grid point weights for trapped particle integral
+
+          ! Note : Here ulim and llim are the upper and lower vpar
+          ! values for the valid trapped pitch angles at this theta
+          ! location. In other words ulim == v_||_wfb(theta(ig)) =
+          ! sqrt(max(1.0-lambda_grid(ng2+1)*bmag(ig),0.0)) = yb(2*npts-1)
+          ! We could probably replace ulim and llim with yb(2*npts-1)
+          ! and yb(1) respectively.
+          ulim = sqrt(max(1.0-bmag(ig)/bmax,0.0))
+          llim = -ulim
+
+          ! Call get_weights to find the integration weights for the v||/v grid
+          ! Note we don't call this if ulim == 0 as the grid then has no extent.
+          ! This situation can arise when bmag(ig) == bmax where we would find
+          ! npts = 1, corresponding to just the wfb being a valid lambda. This
+          ! means that at this location the wfb has zero integration weight.
+          ! Note we currently ignore the error flag and other returned values other
+          ! than the weights. We should probably check this to at least warn the
+          ! user if something looks badly behaved.
+          if (ulim > 0.0) then
+             ! For 8.1 we stick with the original single call to get_weights
+             ! for the full domain at once.
+             call get_weights (nmax, llim, ulim, yb, wb, ndiv, divmax, eflag)
+
+             if (eflag .and. proc0) then
+                write(error_unit(), '("Error flag set by first call to get_weights in setup_trapped_lambda_grids")')
+             end if
+          end if
+
+          ! Calculate the weights for use in the trapped
+          ! integration error estimation code.  This can be quite
+          ! expensive so we would like to to only call this if the
+          ! error estimation code is active (i.e. if we're going to
+          ! call [[get_verr]]).
+          if (npts > 1) call get_trapped_lambda_grid_error_estimate_weights(yb, llim, ulim, npts, wberr)
+
+          ! Convert from v||/v weights to lambda
+          ! weights. Essentially just sum up the postive and
+          ! negtive v|| points corresponding to the same lambda
+          ! point. Note we skip the v|| == 0 point currently to ensure we
+          ! don't double count.
+          if (npts > 1) then
+             do il = ng2+1, ng2+npts-1
+                ! take into account possible asymmetry of weights about xi = 0
+                ! due to unequal # of grid points per integration interval
+                ! Whilst the v||/v grid should always be symmetric
+                ! the algorithm in [[get_weights]] could
+                ! potentially lead to asymmetry in the resulting
+                ! weights. This may be an indication that things
+                ! aren't behaving well.
+                weights(ig,il) = wb(il-ng2) + wb(2*npts-il+ng2)
+                wlterr(ig,il,:npts) = wberr(il-ng2,:) + wberr(2*npts-il+ng2,:)
+             end do
+          end if
+
+          ! avoid double counting of gridpoint at vpa=0
+          weights(ig,ng2+npts) = wb(npts)
+          wlterr(ig,ng2+npts,:npts) = wberr(npts,:)
+
+          deallocate(ytmp, yb, wb, wberr)
+       end if
+    end do
+  end subroutine setup_trapped_lambda_grids_new_trap_int
+
+  !> Find the trapped pitch angle weights using an old
+  !> (finite-difference) integration scheme
+  !>
+  !> Here we find the trapped pitch angle weights corresponding to a
+  !> trapezium rule integration in v||/v. With this method we can
+  !> write:
+  !>   Int(f) ~ Sum_i((f(l_{i+1}) - f(l_{i}))*(l_{i+1}-l_{i}))/2
+  !> with some handling required for the upper and lower
+  !> boundaries. Here we find the v||/v spacing. Note there is no
+  !> factor 1/2 due to the fact the lambda weight is the sum of the
+  !> (identical) positive and negative v||/v weights, which cancels
+  !> this factor of 1/2. Also note that there is no weight for the
+  !> bouncing lambda.
+  subroutine setup_trapped_lambda_grids_old_finite_difference(lambda_grid, weights)
+    use theta_grid, only: ntgrid, bmag
+    implicit none
+    !> The lambda grid points. Note this is intent `in out` as we only
+    !> set a portion of the grid so may want to keep the rest of the
+    !> input values.
+    real, dimension(:), intent(in out) :: lambda_grid
+    !> The integration weights for the lambda grid. Note this is
+    !> intent `in out` as we only set a portion of the grid so may
+    !> want to keep the rest of the input values.
+    real, dimension(-ntgrid:, :), intent(in out) :: weights
+    real :: wwo
+    integer :: ig, il
+
+    do il = ng2+1, nlambda-1
+       do ig = -ntgrid, ntgrid
+          if (1.0-lambda_grid(il)*bmag(ig) > -bouncefuzz &
+               .and. 1.0-lambda_grid(il+1)*bmag(ig) > -bouncefuzz) &
+               then
+             wwo = sqrt(max(1.0 -   lambda_grid(il)*bmag(ig),0.0)) - &
+                  sqrt(max(1.0 - lambda_grid(il+1)*bmag(ig),0.0))
+             weights(ig,il)   = weights(ig,il)   + wwo
+             weights(ig,il+1) = weights(ig,il+1) + wwo
+          end if
+       end do
+    end do
+  end subroutine setup_trapped_lambda_grids_old_finite_difference
+
+  !> Routine for getting the weights used in estimating the error on
+  !> trapped particle integrals as a part of [[trap_error]]
+  !>
+  !> This routine is all to calculate wberr/wlterr which is just used
+  !> in [[trap_error]], which in turn is only used in
+  !> [[get_verr]]. This is used as a part of the [[vary_vnew]]
+  !> adaptive collisionality code triggered through the
+  !> diagnostics. This routine is rather expensive for high theta
+  !> resolution - measured in the order of 4-5 minutes for ntheta=256.
+  !> As such we might want to consider skipping this if the variable
+  !> vnewk code is not active. As we do this for each npt and each
+  !> theta, and npt ~ntheta/2 we might expect this to scale
+  !> quadratically with ntheta. In practice it seems to scale somewhat
+  !> worse than this. This may in part be due to an increase in the
+  !> number of iterations required in get_weights such that this may
+  !> scale closer to ntheta cubed.
+  subroutine get_trapped_lambda_grid_error_estimate_weights(yb, llim, ulim, npts, wberr)
+    implicit none
+    real, dimension(:), intent(in) :: yb
+    real, intent(in) :: llim, ulim
+    integer, intent(in) :: npts
+    real, dimension(:, :), intent(in out) :: wberr
+    real, dimension (:), allocatable :: yberr, wberrtmp
+    integer :: ix
+    logical :: eflag
+    integer :: ndiv, divmax, divmaxerr, ndiverr
+
+    ! Can't get error estimate for npts = 0 or 1 as we don't have any points
+    ! that we can drop.
+    if (npts > 1) then
+       do ix=1,npts
+          if (ix == 1) then
+             ! drop the first and last grid points from the integral
+             allocate (yberr(2*npts-3),wberrtmp(2*npts-3))
+             yberr = 0.0; wberrtmp = 0.0
+             yberr = yb(2:2*npts-2)
+          else if (ix == npts) then
+             ! drop the vpa=0 grid point from the integral
+             allocate (yberr(2*npts-2),wberrtmp(2*npts-2))
+             yberr = 0.0; wberrtmp = 0.0
+             yberr(:npts-1) = yb(:npts-1)
+             yberr(npts:) = yb(npts+1:)
+          else
+             ! drop the grid points corresponding to ix and its negative from the integral
+             allocate (yberr(2*npts-3),wberrtmp(2*npts-3))
+             yberr = 0.0; wberrtmp = 0.0
+             yberr(:ix-1) = yb(:ix-1)
+             yberr(ix:2*npts-ix-2) = yb(ix+1:2*npts-ix-1)
+             yberr(2*npts-ix-1:) = yb(2*npts-ix+1:)
+          end if
+
+          call get_weights (nmax, llim, ulim, yberr, wberrtmp, ndiverr, divmaxerr, eflag)
+
+          ! insert a weight of zero into indices corresponding to ix and its conjugate
+          if (ix == 1) then
+             wberr(2:2*npts-2,1) = wberrtmp
+          else if (ix == npts) then
+             wberr(:npts-1,npts) = wberrtmp(:npts-1)
+             wberr(npts+1:,npts) = wberrtmp(npts:)
+          else
+             wberr(:ix-1,ix) = wberrtmp(:ix-1)
+             wberr(ix+1:2*npts-ix-1,ix) = wberrtmp(ix:2*npts-ix-2)
+             wberr(2*npts-ix+1,ix) = wberrtmp(2*npts-ix-1)
+          end if
+
+          deallocate (yberr,wberrtmp)
+       end do
     end if
+  end subroutine get_trapped_lambda_grid_error_estimate_weights
 
+  !> Determine which lambda grid points are forbidden at each
+  !> theta/bmag value.
+  subroutine calculate_forbidden_region(forbid)
+    use theta_grid, only: ntgrid, bmag
+    use mp, only: mp_abort
+    implicit none
+    logical, dimension(-ntgrid:, :), intent(out) :: forbid
+    integer :: ig, il
+
+    forbid = .false.
+
+    ! Set the forbid flag
+    do il = 1, nlambda
+       do ig = -ntgrid, ntgrid
+          forbid(ig,il) = 1.0 - al(il)*bmag(ig) < -bouncefuzz
+       end do
+    end do
+
+    ! Check that none of our supposedly passing particles are forbidden
+    ! at any point in our domain
     do il = 1, ng2
-       do ig = -ntgrid, ntgrid
-          forbid(ig,il) = 1.0 - al(il)*bmag(ig) < -bouncefuzz
-          if (forbid(ig,il)) then 
-            call stop_message("Fatal error: supposedly passing particle was trapped, in legridset, in le_grids.f90")
-         end if
+       if ( any(forbid(:,il)) ) then
+          call mp_abort("Fatal error: supposedly passing particle was trapped, in calculate_forbidden_region, in le_grids.f90", .true.)
+       end if
+    end do
+  end subroutine calculate_forbidden_region
+
+  !> Determine which lambda grid point bounces at this
+  !> theta/bmag value.
+  subroutine calculate_jend(jend)
+    use theta_grid, only: ntgrid, bmag
+    use mp, only: mp_abort
+    implicit none
+    integer, dimension(-ntgrid:), intent(out) :: jend
+    integer :: ig, il
+
+    jend = 0
+
+    ! jend(ig) is total # of valid al grid points at each theta value
+
+    !CMR, 1/11/2013:
+    ! Above, with no trapped particles, we set: jend(ig)=   0
+    ! Here, with trapped particles, we set:     jend(ig)=  il
+    !  where il is the lambda index of the trapped particle bouncing at theta(ig)
+
+    do ig = -ntgrid, ntgrid
+       ! We could initialise jend to ng2 and start this loop at ng2 + 1
+       ! as we assume that all lambda up to and including with ng2 satisfy
+       ! 1-lambda*bmag > -bouncefuzz for all theta. This is enforced/checked
+       ! in [[calculate_forbidden_region]].
+       do il = 1, nlambda
+          if (1.0 - al(il)*bmag(ig) > -bouncefuzz) jend(ig) = jend(ig) + 1
        end do
     end do
-
-    do il = ng2+1, nlambda
-       do ig = -ntgrid, ntgrid
-          forbid(ig,il) = 1.0 - al(il)*bmag(ig) < -bouncefuzz
-       end do
-    end do
-
-    call xigridset
-
-    eflag = .false.
-
-  end subroutine lgridset
+  end subroutine calculate_jend
 
   !> FIXME : Add documentation  
   subroutine xigridset
@@ -2788,7 +3293,6 @@ contains
   subroutine init_map (use_lz_layout, use_e_layout, use_le_layout, test)
     use mp, only: finish_mp, proc0
     use redistribute, only: report_map_property
-    use gs2_layouts, only: opt_redist_init
     implicit none
 
     logical, intent (in) :: use_lz_layout, use_e_layout, use_le_layout, test
@@ -2797,11 +3301,8 @@ contains
 
     if (use_lz_layout) then
        ! init_lambda_layout is called in redistribute
-       if(opt_redist_init)then
-          call init_lambda_redistribute_local
-       else
-          call init_lambda_redistribute
-       endif
+       call init_lambda_redistribute_local
+
        if (test) then
           if (proc0) print *, '=== Lambda map property ==='
           call report_map_property (lambda_map)
@@ -2810,11 +3311,8 @@ contains
 
     if (use_e_layout) then
        ! init_energy_layout is called in redistribute
-       if(opt_redist_init) then
-          call init_energy_redistribute_local
-       else
-          call init_energy_redistribute
-       endif
+       call init_energy_redistribute_local
+
        if (test) then
           if (proc0) print *, '=== Energy map property ==='
           call report_map_property (energy_map)
@@ -2822,11 +3320,7 @@ contains
     end if
 
     if (use_le_layout) then
-       if(opt_redist_init) then
-          call init_g2le_redistribute_local
-       else
-          call init_g2le_redistribute
-       endif
+       call init_g2le_redistribute_local
        if (test) call check_g2le
 
     end if
@@ -2851,133 +3345,8 @@ contains
 
   end subroutine init_g2gf
 
-  !> FIXME : Add documentation  
-  subroutine init_g2le_redistribute
-    use mp, only: nproc
-    use species, only: nspec
-    use theta_grid, only: ntgrid
-    use kt_grids, only: naky, ntheta0
-    use gs2_layouts, only: init_le_layouts
-    use gs2_layouts, only: g_lo, le_lo
-    use gs2_layouts, only: idx_local, proc_id
-    use gs2_layouts, only: ik_idx, it_idx, ie_idx, is_idx, il_idx, idx
-    use redistribute, only: index_list_type, init_redist, delete_list
-
-    implicit none
-
-    type (index_list_type), dimension(0:nproc-1) :: to_list, from_list
-    integer, dimension (0:nproc-1) :: nn_to, nn_from
-    integer, dimension (3) :: from_low, from_high
-    integer, dimension (3) :: to_low, to_high
-    integer :: ig, isign, iglo, il, ile
-    integer :: ik, it, ie, is
-    integer :: n, ip, je
-
-    if (leinit) return
-
-    call init_le_layouts (ntgrid, naky, ntheta0, nspec)
-
-    ! count number of elements to be redistributed to/from each processor
-    nn_to = 0
-    nn_from = 0
-    do iglo = g_lo%llim_world, g_lo%ulim_world
-       ik = ik_idx(g_lo,iglo)
-       it = it_idx(g_lo,iglo)
-       is = is_idx(g_lo,iglo)
-       do ig = -ntgrid, ntgrid
-          ile = idx (le_lo, ig, ik, it, is)
-          if (idx_local(g_lo,iglo)) nn_from(proc_id(le_lo,ile)) = nn_from(proc_id(le_lo,ile)) + 2
-          if (idx_local(le_lo,ile)) nn_to(proc_id(g_lo,iglo)) = nn_to(proc_id(g_lo,iglo)) + 2
-       end do
-    end do
-
-    do ip = 0, nproc-1
-       if (nn_from(ip) > 0) then
-          allocate (from_list(ip)%first (nn_from(ip)))
-          allocate (from_list(ip)%second(nn_from(ip)))
-          allocate (from_list(ip)%third (nn_from(ip)))
-       end if
-       if (nn_to(ip) > 0) then
-          allocate (to_list(ip)%first (nn_to(ip)))
-          allocate (to_list(ip)%second(nn_to(ip)))
-          allocate (to_list(ip)%third (nn_to(ip)))
-       end if
-    end do
-
-    ! get local indices of elements distributed to/from other processors
-    nn_to = 0
-    nn_from = 0
-    do iglo = g_lo%llim_world, g_lo%ulim_world
-       ik = ik_idx(g_lo,iglo)
-       it = it_idx(g_lo,iglo)
-       ie = ie_idx(g_lo,iglo)
-       is = is_idx(g_lo,iglo)
-       do isign = 1, 2
-          do ig = -ntgrid, ntgrid
-             il = il_idx(g_lo,iglo)
-             je = jend(ig)
-             if (je == 0) then
-                if (isign == 2) then
-                   il = 2*g_lo%nlambda+1 - il
-                end if
-             else
-                if (il == je) then
-                   if (isign == 1) il = 2*je  ! throw this info away
-                else if (il > je) then 
-                   if (isign == 1) il = il + je
-                   if (isign == 2) il = 2*g_lo%nlambda + 1 - il + je
-                else
-                   if (isign == 2) il = 2*je - il !+ 1
-                end if
-             end if
-             ile = idx (le_lo, ig, ik, it, is)
-             if (idx_local(g_lo,iglo)) then
-                ip = proc_id(le_lo,ile)
-                n = nn_from(ip) + 1
-                nn_from(ip) = n
-                from_list(ip)%first(n)  = ig
-                from_list(ip)%second(n) = isign
-                from_list(ip)%third(n)  = iglo
-             end if
-             if (idx_local(le_lo,ile)) then
-                ip = proc_id(g_lo,iglo)
-                n = nn_to(ip) + 1
-                nn_to(ip) = n
-                to_list(ip)%first(n)  = il
-                to_list(ip)%second(n) = ie
-                to_list(ip)%third(n)  = ile
-             end if
-          end do
-       end do
-    end do
-
-    from_low (1) = -ntgrid
-    from_low (2) = 1
-    from_low (3) = g_lo%llim_proc
-
-    from_high(1) = ntgrid
-    from_high(2) = 2
-    from_high(3) = g_lo%ulim_alloc
-
-    to_low(1) = 1
-    to_low(2) = 1
-    to_low(3) = le_lo%llim_proc
-
-    to_high(1) = max(2*nlambda, 2*ng2+1)
-    to_high(2) = negrid + 1  ! TT: just followed convention with +1.
-    ! TT: It may be good to avoid bank conflict.
-    to_high(3) = le_lo%ulim_alloc
-
-    call init_redist (g2le, 'c', to_low, to_high, to_list, from_low, from_high, from_list)
-
-    call delete_list (to_list)
-    call delete_list (from_list)
-
-    leinit = .true.
-
-  end subroutine init_g2le_redistribute
-
-  !> FIXME : Add documentation
+  !> Constructs the redistribute mapping from the g_lo data
+  !> decomposition to the le_lo decomposition.
   subroutine init_g2le_redistribute_local
     use mp, only: nproc
     use species, only: nspec
@@ -3004,15 +3373,13 @@ contains
     integer :: ie
     integer :: n, ip, je
     integer :: ile_bak, il0
+    !> The following is for debug/testing to force all grid
+    !> points to be communicated if we wish.
+    logical, parameter :: skip_forbidden_region = .true.
 
     !Early exit if possible
     if (leinit) return
     leinit = .true.
-
-    !Warning message | NOTE: To test we should use the original routine to generate to_list and from_list
-    !and compare with those generated by this routine. They should be identical
-    !Testing is now complete?
-    !if(iproc.eq.0) write(6,*) "WARNING: init_g2le_redistribute_local has not been well tested, consider using opt_redist_init=.false."
 
     !Setup the le layout object (le_lo)
     call init_le_layouts (ntgrid, naky, ntheta0, nspec)
@@ -3029,11 +3396,15 @@ contains
           ile=idx(le_lo,-ntgrid,ik_idx(g_lo,iglo),&
                it_idx(g_lo,iglo),is_idx(g_lo,iglo))
 
+          il = il_idx(g_lo, iglo)
+
           !Loop over remaining dimensions, note ile is independent of isign
           !so add two to count
           do ig=-ntgrid,ntgrid
-             !Increment the data sent counter for this proc
-             nn_from(proc_id(le_lo,ile))=nn_from(proc_id(le_lo,ile))+2
+             if ((.not. forbid(ig, il)) .or. .not. skip_forbidden_region) then
+                !Increment the data sent counter for this proc
+                nn_from(proc_id(le_lo,ile))=nn_from(proc_id(le_lo,ile))+2
+             end if
 
              !Increment ile
              ile=ile+1
@@ -3045,9 +3416,13 @@ contains
     !Protect against procs with no data
     if(le_lo%ulim_proc.ge.le_lo%llim_proc)then
        do ile=le_lo%llim_proc,le_lo%ulim_alloc
+          ig = ig_idx(le_lo, ile)
+
           !Loop over local dimensions, adding 2 to account for each sign
           do ie=1,g_lo%negrid
              do il=1,g_lo%nlambda
+                if (forbid(ig, il) .and. skip_forbidden_region) cycle
+
                 !Get index
                 iglo=idx(g_lo,ik_idx(le_lo,ile),it_idx(le_lo,ile),&
                      il,ie,is_idx(le_lo,ile))
@@ -3059,24 +3434,8 @@ contains
        enddo
     endif
 
-    ! !ORIGINAL --> Testing
-    ! nn_from_old=0
-    ! nn_to_old=0
-    ! do iglo = g_lo%llim_world, g_lo%ulim_world
-    !    ik = ik_idx(g_lo,iglo)
-    !    it = it_idx(g_lo,iglo)
-    !    is = is_idx(g_lo,iglo)
-    !    do ig = -ntgrid, ntgrid
-    !       ile = idx (le_lo, ig, ik, it, is)
-    !       if (idx_local(g_lo,iglo)) nn_from_old(proc_id(le_lo,ile)) = nn_from_old(proc_id(le_lo,ile)) + 2
-    !       if (idx_local(le_lo,ile)) nn_to_old(proc_id(g_lo,iglo)) = nn_to_old(proc_id(g_lo,iglo)) + 2
-    !    end do
-    ! end do
-
     !Now allocate storage for index arrays
     do ip = 0, nproc-1
-       !Testing
-       !print*,iproc,ip,nn_to(ip),nn_to_old(ip),nn_from(ip),nn_from_old(ip)
        if (nn_from(ip) > 0) then
           allocate (from_list(ip)%first (nn_from(ip)))
           allocate (from_list(ip)%second(nn_from(ip)))
@@ -3088,10 +3447,6 @@ contains
           allocate (to_list(ip)%third (nn_to(ip)))
           !For sorting message order later
           allocate (sort_list(ip)%first(nn_to(ip)))
-          ! !For testing
-          ! allocate (old_list(ip)%first (nn_to_old(ip)))
-          ! allocate (old_list(ip)%second(nn_to_old(ip)))
-          ! allocate (old_list(ip)%third (nn_to_old(ip)))
        end if
     end do
 
@@ -3107,21 +3462,23 @@ contains
           ile=idx(le_lo,-ntgrid,ik_idx(g_lo,iglo),&
                it_idx(g_lo,iglo),is_idx(g_lo,iglo))
           ile_bak=ile
-
+          il = il_idx(g_lo, iglo)
           !Loop over sign
           do isign=1,2
              do ig=-ntgrid,ntgrid
-                !Get proc id
-                ip=proc_id(le_lo,ile)
+                if ((.not. forbid(ig, il)) .or. .not. skip_forbidden_region ) then
+                   !Get proc id
+                   ip=proc_id(le_lo,ile)
 
-                !Increment procs message counter
-                n=nn_from(ip)+1
-                nn_from(ip)=n
+                   !Increment procs message counter
+                   n=nn_from(ip)+1
+                   nn_from(ip)=n
 
-                !Store indices
-                from_list(ip)%first(n)=ig
-                from_list(ip)%second(n)=isign
-                from_list(ip)%third(n)=iglo
+                   !Store indices
+                   from_list(ip)%first(n)=ig
+                   from_list(ip)%second(n)=isign
+                   from_list(ip)%third(n)=iglo
+                end if
 
                 !Increment ile
                 ile=ile+1
@@ -3145,6 +3502,7 @@ contains
           do ie=1,g_lo%negrid
              do isign=1,2
                 do il0=1,g_lo%nlambda
+                   if (forbid(ig, il0) .and. skip_forbidden_region) cycle
                    !Pick correct extended lambda value
                    je=jend(ig)
                    il=il0
@@ -3192,69 +3550,9 @@ contains
     do ip=0,nproc-1
        if(nn_to(ip)>0) then
           !Apply quicksort
-          CALL quicksort(nn_to(ip),sort_list(ip)%first,to_list(ip)%first,to_list(ip)%second,to_list(ip)%third)
+          call quicksort(nn_to(ip),sort_list(ip)%first,to_list(ip)%first,to_list(ip)%second,to_list(ip)%third)
        endif
     enddo
-
-    ! ! !ORIGINAL, modified for testing
-    ! nn_to_old=0.
-    ! do iglo = g_lo%llim_world, g_lo%ulim_world
-    !    ik = ik_idx(g_lo,iglo)
-    !    it = it_idx(g_lo,iglo)
-    !    ie = ie_idx(g_lo,iglo)
-    !    is = is_idx(g_lo,iglo)
-    !    do isign = 1, 2
-    !       do ig = -ntgrid, ntgrid
-    !          il = il_idx(g_lo,iglo)
-    !          je = jend(ig)
-    !          if (je == 0) then
-    !             if (isign == 2) then
-    !                il = 2*g_lo%nlambda+1 - il
-    !             end if
-    !          else
-    !             if (il == je) then
-    !                if (isign == 1) il = 2*je  ! throw this info away
-    !             else if (il > je) then 
-    !                if (isign == 1) il = il + je
-    !                if (isign == 2) il = 2*g_lo%nlambda + 1 - il + je
-    !             else
-    !                if (isign == 2) il = 2*je - il !+ 1
-    !             end if
-    !          end if
-    !          ile = idx (le_lo, ig, ik, it, is)
-    !          ! if (idx_local(g_lo,iglo)) then
-    !          !    ip = proc_id(le_lo,ile)
-    !          !    n = nn_from(ip) + 1
-    !          !    nn_from(ip) = n
-    !          !    from_list(ip)%first(n)  = ig
-    !          !    from_list(ip)%second(n) = isign
-    !          !    from_list(ip)%third(n)  = iglo
-    !          ! end if
-    !          if (idx_local(le_lo,ile)) then
-    !             ip = proc_id(g_lo,iglo)
-    !             n = nn_to_old(ip) + 1
-    !             nn_to_old(ip) = n
-    !             old_list(ip)%first(n)  = il
-    !             old_list(ip)%second(n) = ie
-    !             old_list(ip)%third(n)  = ile
-    !          end if
-    !       end do
-    !    end do
-    ! end do
-
-    ! !Testing
-    ! do ip=0,nproc-1
-    !    if (nn_to(ip)>0)then
-    !       if(sum(abs(to_list(ip)%first-old_list(ip)%first)).ne.0)print*,"Error in first: iproc,to",iproc,ip
-    !       if(sum(abs(to_list(ip)%second-old_list(ip)%second)).ne.0)print*,"Error in second: iproc,to",iproc,ip
-    !       if(sum(abs((to_list(ip)%third-le_lo%llim_proc)-(old_list(ip)%third-le_lo%llim_proc))).ne.0) then
-    !          print*,"Error in third: iproc,to",iproc,ip
-    !          do n=1,nn_to(ip)
-    !             print*,"N O M R",to_list(ip)%third(n),old_list(ip)%third(n),iproc,ip
-    !          enddo
-    !       endif
-    !    endif
-    ! enddo
 
     !Now setup array range values
     from_low (1) = -ntgrid
@@ -3279,14 +3577,10 @@ contains
     call delete_list (to_list)
     call delete_list (from_list)
     call delete_list (sort_list)
-    !Testing
-    !call delete_list (old_list)
-
   end subroutine init_g2le_redistribute_local
 
   !> FIXME : Add documentation
   subroutine check_g2le
-
     use file_utils, only: error_unit
     use mp, only: finish_mp, iproc, proc0
     use theta_grid, only: ntgrid
@@ -3312,6 +3606,7 @@ contains
 
     allocate (gtmp(-ntgrid:ntgrid, 2, g_lo%llim_proc:g_lo%ulim_alloc))
     allocate (letmp(nlambda*2+1, negrid+1, le_lo%llim_proc:le_lo%ulim_alloc))
+    letmp = 0.
 
     ! gather check
     gtmp = 0.0
@@ -3334,13 +3629,14 @@ contains
        ik = ik_idx(le_lo,ile)
        it = it_idx(le_lo,ile)
        is = is_idx(le_lo,ile)
-       do ixi = 1, 2*nlambda
-          isgn = ixi_to_isgn(ig,ixi)
-          il = ixi_to_il(ig,ixi)
-          if (int(real(letmp(ixi,ie,ile))) /= rule(ig,isgn,ik,it,il,ie,is)) &
-               write (ierr,'(a,8i6)') 'ERROR: gather by g2le broken!', iproc
+       do ie = 1, negrid
+          do ixi = 1, 2*nlambda
+             isgn = ixi_to_isgn(ig,ixi)
+             il = ixi_to_il(ig,ixi)
+             if (int(real(letmp(ixi,ie,ile))) /= rule(ig,isgn,ik,it,il,ie,is)) &
+                  write (ierr,'(a,8i6)') 'ERROR: gather by g2le broken!', iproc
+          end do
        end do
-
     end do
     if (proc0) write (ierr,'(a)') 'g2le gather check done'
 
@@ -3656,133 +3952,8 @@ contains
     end function rule
   end subroutine check_g2gf
 
-  !> FIXME : Add documentation  
-  subroutine init_lambda_redistribute
-    use mp, only: nproc
-    use species, only: nspec
-    use theta_grid, only: ntgrid
-    use kt_grids, only: naky, ntheta0
-    use gs2_layouts, only: init_lambda_layouts
-    use gs2_layouts, only: g_lo, lz_lo
-    use gs2_layouts, only: idx_local, proc_id
-    use gs2_layouts, only: ik_idx, it_idx, ie_idx, is_idx, il_idx, idx
-    use redistribute, only: index_list_type, init_redist, delete_list
-
-    implicit none
-
-    type (index_list_type), dimension(0:nproc-1) :: to_list, from_list
-    integer, dimension(0:nproc-1) :: nn_to, nn_from
-    integer, dimension(3) :: from_low, from_high
-    integer, dimension(2) :: to_low, to_high
-    integer :: ig, isign, iglo, il, ilz
-    integer :: ik, it, ie, is, je
-    integer :: n, ip
-
-    if (lzinit) return
-
-    call init_lambda_layouts &
-         (ntgrid, naky, ntheta0, nlambda, negrid, nspec, ng2)
-
-    ! count number of elements to be redistributed to/from each processor
-    nn_to = 0
-    nn_from = 0
-    do iglo = g_lo%llim_world, g_lo%ulim_world
-       ik = ik_idx(g_lo,iglo)
-       it = it_idx(g_lo,iglo)
-       ie = ie_idx(g_lo,iglo)
-       is = is_idx(g_lo,iglo)
-       do isign = 1, 2
-          do ig = -ntgrid, ntgrid
-             ilz = idx(lz_lo, ig, ik, it, ie, is)
-             if (idx_local(g_lo,iglo)) &
-                  nn_from(proc_id(lz_lo,ilz)) = nn_from(proc_id(lz_lo,ilz)) + 1
-             if (idx_local(lz_lo,ilz)) &
-                  nn_to(proc_id(g_lo,iglo)) = nn_to(proc_id(g_lo,iglo)) + 1
-          end do
-       end do
-    end do
-
-    do ip = 0, nproc-1
-       if (nn_from(ip) > 0) then
-          allocate (from_list(ip)%first(nn_from(ip)))
-          allocate (from_list(ip)%second(nn_from(ip)))
-          allocate (from_list(ip)%third(nn_from(ip)))
-       end if
-       if (nn_to(ip) > 0) then
-          allocate (to_list(ip)%first(nn_to(ip)))
-          allocate (to_list(ip)%second(nn_to(ip)))
-       end if
-    end do
-
-    ! get local indices of elements distributed to/from other processors
-    nn_to = 0
-    nn_from = 0
-    do iglo = g_lo%llim_world, g_lo%ulim_world
-       ik = ik_idx(g_lo,iglo)
-       it = it_idx(g_lo,iglo)
-       ie = ie_idx(g_lo,iglo)
-       is = is_idx(g_lo,iglo)
-       do isign = 1, 2
-          do ig = -ntgrid, ntgrid
-             je = jend(ig)
-             il = il_idx(g_lo,iglo)
-             if (je == 0) then
-                if (isign == 2) then
-                   il = 2*g_lo%nlambda+1 - il
-                end if
-             else
-                if (il == je) then
-                   if (isign == 1) il = 2*je  ! throw this info away
-                else if (il > je) then 
-                   if (isign == 1) il = il + je
-                   if (isign == 2) il = 2*g_lo%nlambda + 1 - il + je
-                else
-                   if (isign == 2) il = 2*je - il !+ 1
-                end if
-             end if
-             ilz = idx(lz_lo, ig, ik, it, ie, is)
-             if (idx_local(g_lo,iglo)) then
-                ip = proc_id(lz_lo,ilz)
-                n = nn_from(ip) + 1
-                nn_from(ip) = n
-                from_list(ip)%first(n) = ig
-                from_list(ip)%second(n) = isign
-                from_list(ip)%third(n) = iglo
-             end if
-             if (idx_local(lz_lo,ilz)) then
-                ip = proc_id(g_lo,iglo)
-                n = nn_to(ip) + 1
-                nn_to(ip) = n
-                to_list(ip)%first(n) = il
-                to_list(ip)%second(n) = ilz
-             end if
-          end do
-       end do
-    end do
-
-    from_low (1) = -ntgrid
-    from_low (2) = 1
-    from_low (3) = g_lo%llim_proc
-
-    to_low(1) = 1
-    to_low(2) = lz_lo%llim_proc
-
-    to_high(1) = max(2*nlambda, 2*ng2+1)
-    to_high(2) = lz_lo%ulim_alloc
-
-    from_high(1) = ntgrid
-    from_high(2) = 2
-    from_high(3) = g_lo%ulim_alloc
-    call init_redist (lambda_map, 'c', to_low, to_high, to_list, &
-         from_low, from_high, from_list)
-    call delete_list (to_list)
-    call delete_list (from_list)
-
-    lzinit = .true.
-
-  end subroutine init_lambda_redistribute
-
-  !> FIXME : Add documentation
+  !> Computes the redistribute mapping from the g_lo data
+  !> decomposition to the lz_lo decomposition
   subroutine init_lambda_redistribute_local
     use mp, only: nproc, barrier
     use species, only: nspec
@@ -3963,7 +4134,7 @@ contains
        !Only worry about the cases where we're receiving data
        if(nn_to(ip)>0) then
           !Apply quicksort
-          CALL quicksort(nn_to(ip),sort_list(ip)%first,to_list(ip)%first,to_list(ip)%second)
+          call quicksort(nn_to(ip),sort_list(ip)%first,to_list(ip)%first,to_list(ip)%second)
        endif
     enddo
 
@@ -3992,127 +4163,8 @@ contains
 
   end subroutine init_lambda_redistribute_local
 
-  !> FIXME : Add documentation
-  subroutine init_energy_redistribute
-    use mp, only: nproc
-    use species, only: nspec
-    use theta_grid, only: ntgrid
-    use kt_grids, only: naky, ntheta0
-    use gs2_layouts, only: init_energy_layouts
-    use gs2_layouts, only: g_lo, e_lo, ie_idx, ik_idx, it_idx, il_idx, is_idx
-    use gs2_layouts, only: idx_local, proc_id, idx
-    use redistribute, only: index_list_type, init_redist, delete_list
-
-    implicit none
-
-    type (index_list_type), dimension(0:nproc-1) :: to_list, from_list
-    integer, dimension(0:nproc-1) :: nn_to, nn_from
-    integer, dimension(3) :: from_low, from_high
-    integer, dimension(2) :: to_low, to_high
-    integer :: ig, isign, iglo, ik, it, il, ie, is, ielo
-    integer :: n, ip
-
-    if (einit) return
-    
-!DD, March 2009: Nullify pointers on initialisation, so do not pass association
-!                test when not allocated. 
-!  Problem arose on Pascali compiler (York) with  to_list(ip)%third and fourth
-    do ip=0, (nproc-1)
-       nullify(to_list(ip)%first,from_list(ip)%first,to_list(ip)%second,from_list(ip)%second,to_list(ip)%third,from_list(ip)%third,to_list(ip)%fourth,from_list(ip)%fourth)
-    end do
-!<DD
-
-    call init_energy_layouts &
-         (ntgrid, naky, ntheta0, nlambda, nspec)
-
-    ! count number of elements to be redistributed to/from each processor
-    nn_to = 0
-    nn_from = 0
-    do iglo = g_lo%llim_world, g_lo%ulim_world
-       ik = ik_idx(g_lo,iglo)
-       it = it_idx(g_lo,iglo)
-       il = il_idx(g_lo,iglo)
-       is = is_idx(g_lo,iglo)
-       do isign = 1, 2
-          do ig = -ntgrid, ntgrid
-             ielo = idx(e_lo,ig,isign,ik,it,il,is)
-             if (idx_local(g_lo,iglo)) &
-                  nn_from(proc_id(e_lo,ielo)) = nn_from(proc_id(e_lo,ielo)) + 1
-             if (idx_local(e_lo,ielo)) &
-                  nn_to(proc_id(g_lo,iglo)) = nn_to(proc_id(g_lo,iglo)) + 1
-          end do
-       end do
-    end do
-
-    do ip = 0, nproc-1
-       if (nn_from(ip) > 0) then
-          allocate (from_list(ip)%first(nn_from(ip)))
-          allocate (from_list(ip)%second(nn_from(ip)))
-          allocate (from_list(ip)%third(nn_from(ip)))
-       end if
-       if (nn_to(ip) > 0) then
-          allocate (to_list(ip)%first(nn_to(ip)))
-          allocate (to_list(ip)%second(nn_to(ip)))
-       end if
-    end do
-
-    ! get local indices of elements distributed to/from other processors
-    nn_to = 0
-    nn_from = 0
-    do iglo = g_lo%llim_world, g_lo%ulim_world
-       ik = ik_idx(g_lo,iglo)
-       it = it_idx(g_lo,iglo)
-       il = il_idx(g_lo,iglo)
-       is = is_idx(g_lo,iglo)
-       ie = ie_idx(g_lo,iglo)
-       do isign = 1, 2
-          do ig = -ntgrid, ntgrid
-             ielo = idx(e_lo,ig,isign,ik,it,il,is)
-
-             if (idx_local(g_lo,iglo)) then
-                ip = proc_id(e_lo,ielo)
-                n = nn_from(ip) + 1
-                nn_from(ip) = n
-                from_list(ip)%first(n) = ig
-                from_list(ip)%second(n) = isign
-                from_list(ip)%third(n) = iglo
-             end if
-             if (idx_local(e_lo,ielo)) then
-                ip = proc_id(g_lo,iglo)
-                n = nn_to(ip) + 1
-                nn_to(ip) = n
-                to_list(ip)%first(n) = ie
-                to_list(ip)%second(n) = ielo
-             end if
-          end do
-       end do
-    end do
-
-    from_low (1) = -ntgrid
-    from_low (2) = 1
-    from_low (3) = g_lo%llim_proc
-
-    to_low(1) = 1
-    to_low(2) = e_lo%llim_proc
-
-    to_high(1) = negrid+1
-    to_high(2) = e_lo%ulim_alloc
-
-    from_high(1) = ntgrid
-    from_high(2) = 2
-    from_high(3) = g_lo%ulim_alloc
-
-    call init_redist (energy_map, 'c', to_low, to_high, to_list, &
-         from_low, from_high, from_list)
-
-    call delete_list (to_list)
-    call delete_list (from_list)
-
-    einit = .true.
-
-  end subroutine init_energy_redistribute
-
-  !> FIXME : Add documentation
+  !> Constructs the redistribute mapping from the g_lo data
+  !> decomposition to the e_lo decomposition
   subroutine init_energy_redistribute_local
     use mp, only: nproc
     use species, only: nspec
@@ -4137,14 +4189,6 @@ contains
     !Early exit if possible
     if (einit) return
     einit = .true.
-
-    !DD, March 2009: Nullify pointers on initialisation, so do not pass association
-    !                test when not allocated. 
-    !  Problem arose on Pascali compiler (York) with  to_list(ip)%third and fourth
-    do ip=0, (nproc-1)
-       nullify(to_list(ip)%first,from_list(ip)%first,to_list(ip)%second,from_list(ip)%second,to_list(ip)%third,from_list(ip)%third,to_list(ip)%fourth,from_list(ip)%fourth)
-    end do
-    !<DD>
 
     !Initialise e_lo layout object
     call init_energy_layouts &
@@ -4204,9 +4248,6 @@ contains
           allocate (sort_list(ip)%first(nn_to(ip)))
        end if
     end do
-
-    !<DD>Debug test, are we sending and receiving the same amount to ourselves? Remove when testing completed
-    !if(debug.and.nn_to(iproc).ne.nn_from(iproc)) print*,"ERROR: iproc ",iproc,"nn_from",nn_from(iproc),"nn_to",nn_to(iproc)  
 
     !Reinitialise counters to zero
     nn_to = 0
@@ -4277,7 +4318,7 @@ contains
        !Only worry about cases where we're receiving data
        if(nn_to(ip)>0) then
           !Sort based on quicksort
-          CALL quicksort(nn_to(ip),sort_list(ip)%first,to_list(ip)%first,to_list(ip)%second)
+          call quicksort(nn_to(ip),sort_list(ip)%first,to_list(ip)%first,to_list(ip)%second)
        endif
     enddo
 
@@ -4486,14 +4527,192 @@ contains
     einit = .false.
     initialized = .false.
 
+    call le_grids_config%reset()
   end subroutine finish_le_grids
 
-  !> FIXME : Add documentation  
+  !> Deallocate the weights used to provide error estimates
   subroutine finish_weights
     if (allocated(werr)) deallocate (werr)
     if (allocated(wlerr)) deallocate (wlerr)
     init_weights_init = .false.
   end subroutine finish_weights
+
+  !> Determine if the passed species, ky and lambda indicies correspond
+  !> to a passing hybrid electron point which should be skipped.
+  pure logical function is_passing_hybrid_electron(is, ik, il)
+    use species, only: spec, is_hybrid_electron_species
+    use kt_grids, only: aky
+    implicit none
+    integer, intent(in) :: is, ik, il
+    is_passing_hybrid_electron = &
+         is_hybrid_electron_species( spec(is)) .and. aky(ik) /= 0.0 .and. il <= ng2 + 1
+  end function is_passing_hybrid_electron
+
+  !> Set the module level config type
+  !> Will abort if the module has already been initialised to avoid
+  !> inconsistencies.
+  subroutine set_le_grids_config(le_grids_config_in)
+    use mp, only: mp_abort
+    type(le_grids_config_type), intent(in), optional :: le_grids_config_in
+    if (initialized) then
+       call mp_abort("Trying to set le_grids_config when already initialized.", to_screen = .true.)
+    end if
+    if (present(le_grids_config_in)) then
+       le_grids_config = le_grids_config_in
+    end if
+  end subroutine set_le_grids_config
+
+  !> Get the module level config instance
+  function get_le_grids_config()
+    type(le_grids_config_type) :: get_le_grids_config
+    get_le_grids_config = le_grids_config
+  end function get_le_grids_config
+
+  !---------------------------------------
+  ! Following is for the config_type
+  !---------------------------------------
+  
+  !> Reads in the le_grids_knobs namelist and populates the member variables
+  subroutine read_le_grids_config(self)
+    use file_utils, only: input_unit_exist, get_indexed_namelist_unit
+    use mp, only: proc0
+    implicit none
+    class(le_grids_config_type), intent(in out) :: self
+    logical :: exist
+    integer :: in_file
+
+    ! Note: When this routine is in the module where these variables live
+    ! we shadow the module level variables here. This is intentional to provide
+    ! isolation and ensure we can move this routine to another module easily.
+    integer :: negrid, nesub, nesuper, ngauss, nmax, nterp
+    logical :: genquad, new_trap_int, radau_gauss_grid, test, trapped_particles
+    real :: bouncefuzz, vcut, wgt_fac
+
+    namelist /le_grids_knobs/ bouncefuzz, genquad, negrid, nesub, nesuper, new_trap_int, npassing, ngauss, nmax, nterp, radau_gauss_grid, test, trapped_particles, vcut, wgt_fac
+
+    ! Only proc0 reads from file
+    if (.not. proc0) return
+
+    ! First set local variables from current values
+    bouncefuzz = self%bouncefuzz
+    genquad = self%genquad
+    negrid = self%negrid
+    nesub = self%nesub
+    nesuper = self%nesuper
+    new_trap_int = self%new_trap_int
+    npassing = self%npassing
+    ngauss = self%ngauss
+    nmax = self%nmax
+    nterp = self%nterp
+    radau_gauss_grid = self%radau_gauss_grid
+    test = self%test
+    trapped_particles = self%trapped_particles
+    vcut = self%vcut
+    wgt_fac = self%wgt_fac
+
+    ! Now read in the main namelist
+    in_file = input_unit_exist(self%get_name(), exist)
+    if (exist) read(in_file, nml = le_grids_knobs)
+
+    ! Now copy from local variables into type members
+    self%bouncefuzz = bouncefuzz
+    self%genquad = genquad
+    self%negrid = negrid
+    self%nesub = nesub
+    self%nesuper = nesuper
+    self%new_trap_int = new_trap_int
+    self%npassing = npassing
+    self%ngauss = ngauss
+    self%nmax = nmax
+    self%nterp = nterp
+    self%radau_gauss_grid = radau_gauss_grid
+    self%test = test
+    self%trapped_particles = trapped_particles
+    self%vcut = vcut
+    self%wgt_fac = wgt_fac
+
+    self%exist = exist
+  end subroutine read_le_grids_config
+
+  !> Writes out a namelist representing the current state of the config object
+  subroutine write_le_grids_config(self, unit)
+    implicit none
+    class(le_grids_config_type), intent(in) :: self
+    integer, intent(in) , optional:: unit
+    integer :: unit_internal
+
+    unit_internal = 6 ! @todo -- get stdout from file_utils
+    if (present(unit)) then
+       unit_internal = unit
+    endif
+
+    call self%write_namelist_header(unit_internal)
+    call self%write_key_val("bouncefuzz", self%bouncefuzz, unit_internal)
+    call self%write_key_val("genquad", self%genquad, unit_internal)
+    call self%write_key_val("negrid", self%negrid, unit_internal)
+    call self%write_key_val("nesub", self%nesub, unit_internal)
+    call self%write_key_val("nesuper", self%nesuper, unit_internal)
+    call self%write_key_val("new_trap_int", self%new_trap_int, unit_internal)
+    call self%write_key_val("npassing", self%npassing, unit_internal)
+    call self%write_key_val("ngauss", self%ngauss, unit_internal)
+    call self%write_key_val("nmax", self%nmax, unit_internal)
+    call self%write_key_val("nterp", self%nterp, unit_internal)
+    call self%write_key_val("radau_gauss_grid", self%radau_gauss_grid, unit_internal)
+    call self%write_key_val("test", self%test, unit_internal)
+    call self%write_key_val("trapped_particles", self%trapped_particles, unit_internal)
+    call self%write_key_val("vcut", self%vcut, unit_internal)
+    call self%write_key_val("wgt_fac", self%wgt_fac, unit_internal)
+    call self%write_namelist_footer(unit_internal)
+  end subroutine write_le_grids_config
+
+  !> Resets the config object to the initial empty state
+  subroutine reset_le_grids_config(self)
+    class(le_grids_config_type), intent(in out) :: self
+    type(le_grids_config_type) :: empty
+    select type (self)
+    type is (le_grids_config_type)
+       self = empty
+    end select
+  end subroutine reset_le_grids_config
+
+  !> Broadcasts all config parameters so object is populated identically on
+  !! all processors
+  subroutine broadcast_le_grids_config(self)
+    use mp, only: broadcast
+    implicit none
+    class(le_grids_config_type), intent(in out) :: self
+    call broadcast(self%bouncefuzz)
+    call broadcast(self%genquad)
+    call broadcast(self%negrid)
+    call broadcast(self%nesub)
+    call broadcast(self%nesuper)
+    call broadcast(self%new_trap_int)
+    call broadcast(self%npassing)
+    call broadcast(self%ngauss)
+    call broadcast(self%nmax)
+    call broadcast(self%nterp)
+    call broadcast(self%radau_gauss_grid)
+    call broadcast(self%test)
+    call broadcast(self%trapped_particles)
+    call broadcast(self%vcut)
+    call broadcast(self%wgt_fac)
+
+    call broadcast(self%exist)
+  end subroutine broadcast_le_grids_config
+
+  !> Gets the default name for this namelist
+  function get_default_name_le_grids_config()
+    implicit none
+    character(len = CONFIG_MAX_NAME_LEN) :: get_default_name_le_grids_config
+    get_default_name_le_grids_config = "le_grids_knobs"
+  end function get_default_name_le_grids_config
+
+  !> Gets the default requires index for this namelist
+  function get_default_requires_index_le_grids_config()
+    implicit none
+    logical :: get_default_requires_index_le_grids_config
+    get_default_requires_index_le_grids_config = .false.
+  end function get_default_requires_index_le_grids_config
 end module le_grids
 
 

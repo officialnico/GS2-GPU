@@ -33,6 +33,7 @@ OPTIONS:
                      unit_tests      : Run unit_tests
                      linear_tests    : Run linear_tests
                      nonlinear_tests : Run nonlinear_tests
+                     benchmarks      : Run benchmarks
                      update          : Updates this script
                      depend          : Builds the dependency file
                      clean           : Runs make clean
@@ -214,7 +215,7 @@ case $COMMAND in
     setup_build
     make $MAKEFLAGSALL
     ;;
-  tests|unit_tests|linear_tests|nonlinear_tests|depend|gs2)
+  tests|unit_tests|linear_tests|nonlinear_tests|benchmarks|depend|gs2)
     setup_build
     if [ "$TESTSET" == "" ] 
     then

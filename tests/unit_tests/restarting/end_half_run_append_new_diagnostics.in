@@ -1,0 +1,159 @@
+&parameters
+ beta = 0.1
+ zeff = 1.0
+/
+
+
+&kt_grids_knobs
+ grid_option = "box"
+/
+
+&kt_grids_box_parameters
+ y0 = 2
+ ny = 4
+ jtwist = 6
+ nx = 6
+/
+
+&theta_grid_parameters
+ ntheta = 12
+ nperiod = 1
+ eps = 0.18
+ epsl = 2.0
+ shat = 0.8
+ pk = 1.44
+ shift = 0.0
+/
+
+&theta_grid_knobs
+ equilibrium_option = "s-alpha"
+/
+
+&theta_grid_salpha_knobs
+ model_option = "default"
+/
+
+&le_grids_knobs
+ ngauss = 3
+ negrid = 12
+/
+
+&dist_fn_knobs
+ gridfac = 1.0
+ omprimfac = 1.0
+ boundary_option = "linked"
+ adiabatic_option = "iphi00=2"
+ g_exb = 0.0
+ nonad_zero = .true.
+/
+
+&fields_knobs
+ field_option = "implicit"
+/
+
+&knobs
+ use_old_diagnostics = .false.
+ wstar_units = .false.
+ fphi = 1.0
+ fapar = 1.0
+ faperp = 0.0
+ fbpar = 1.0
+ delt = 0.05
+ nstep = 1
+ delt_option = "check_restart"
+/
+
+&reinit_knobs
+ delt_adj = 2.0
+ delt_minimum = 1.0e-06
+/
+
+&layouts_knobs
+ layout = "lexys"
+/
+
+&collisions_knobs
+ collision_model = "none"
+/
+
+&nonlinear_terms_knobs
+ nonlinear_mode = "off"
+ cfl = 0.5
+/
+
+&species_knobs
+ nspec = 2
+/
+
+&species_parameters_1
+ z = 1.0
+ mass = 1.0
+ dens = 1.0
+ temp = 1.0
+ tprim = 6.9
+ fprim = 2.2
+ uprim = 0.0
+ vnewk = 0.01
+ type = "ion"
+/
+
+&species_parameters_2
+ z = -1.0
+ mass = 0.0002723311546840959
+ dens = 1.0
+ temp = 1.0
+ tprim = 6.9
+ fprim = 2.2
+ uprim = 0.0
+ vnewk = 0.01
+ type = "electron"
+/
+
+&dist_fn_species_knobs_1
+ fexpr = 0.45
+ bakdif = 0.05
+/
+
+&dist_fn_species_knobs_2
+ fexpr = 0.45
+ bakdif = 0.05
+/
+
+&init_g_knobs
+ chop_side = .false.
+ phiinit = 0.001
+ ginit_option = "many"
+ constant_random_flag = .true.
+ restart_file = "start_half_run_new_diagnostics.nc"
+/
+
+&gs2_diagnostics_knobs
+ append_old = .true.
+ write_ascii = F
+ print_flux_line = .F.
+ write_nl_flux = .true.
+ print_line = .false.
+ write_verr = .true.
+ write_line = .false.
+ write_hrate = .true.
+ write_avg_moments = .true.
+ write_omega = .true.
+ write_omavg = .true.
+ write_eigenfunc = .true.
+ write_final_fields = .true.
+ write_final_moments = .true.
+ write_parity = .true.
+ nsave = 100
+ nwrite = 1
+ navg = 1
+ omegatol = -0.001
+ omegatinst = 500.0
+ save_for_restart = .false.
+ write_cross_phase = .true.
+ write_phi_over_time = .false.
+/
+
+&general_f0_parameters
+ alpha_f0 = "analytic"
+ energy_0 = 0.01
+/

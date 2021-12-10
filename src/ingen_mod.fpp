@@ -23,12 +23,17 @@ module ingen_mod
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
+  use abstract_config, only: abstract_config_type, CONFIG_MAX_NAME_LEN
   use mp, only: init_mp, finish_mp
   use text_options, only: text_option, get_option_value
   use file_utils, only: input_unit, get_unused_unit, open_output_file
   use file_utils, only: close_output_file, input_unit_exist, init_file_utils
   use file_utils, only: run_name
   implicit none
+
+  public :: ingen_config_type
+  public :: set_ingen_mod_config
+  public :: get_ingen_mod_config
   
   character (100) :: pythonin
   integer :: interactive_record, interactive_input
@@ -36,7 +41,8 @@ module ingen_mod
   integer :: in_file, i, unit, is, report_unit, ncut, npmax
   logical :: exist, scan, stdin
   logical :: coll_on = .false.
-
+  logical :: initialized = .false.
+  
   !> FIXME : Add documentation
   type proc_layout_type
     integer :: nproc
@@ -67,16 +73,48 @@ module ingen_mod
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
-  namelist /ingen_knobs/ ncut, scan, stdin, npmax
-
 !CMR
   logical, parameter :: debug=.false.
 
 
+  !> Used to represent the input configuration of ingen
+  type, extends(abstract_config_type) :: ingen_config_type
+     ! namelist : ingen_knobs
+     ! indexed : false
+     !> This sets the minimum number of local elements for which
+     !> processor recommendations will be given. In other words, if
+     !> the total number of elements is `nmesh =
+     !> (2*ntgrid+1)*2*nlambda*negrid*ntheta0*naky*nspec`, then the
+     !> largest processor count that ingen will recommend would be
+     !> `nmesh/ncut`.
+     integer :: ncut = 100000
+     !> Sets the maximum processor count considered when calculating
+     !> sweetspots.
+     integer :: npmax = 100000     
+     !> If `true` then alongside standard [[ingen]] report allows the
+     !> creation of various types of scans. This will involve user
+     !> interaction if `stdin` is `true`.
+     logical :: scan = .false.
+     !> If `true` (default) then ask for input from stdin when using
+     !> ingen to produce parameters for scans (`scan = .true.`). If
+     !> `false` then will look in file named `.<run_name>.pythonin`
+     !> instead.
+     logical :: stdin = .true.
+   contains
+     procedure, public :: read => read_ingen_config
+     procedure, public :: write => write_ingen_config
+     procedure, public :: reset => reset_ingen_config
+     procedure, public :: broadcast => broadcast_ingen_config
+     procedure, public, nopass :: get_default_name => get_default_name_ingen_config
+     procedure, public, nopass :: get_default_requires_index => get_default_requires_index_ingen_config
+  end type ingen_config_type
+  
+  type(ingen_config_type) :: ingen_config
+
 contains
 
   !> FIXME : Add documentation  
-  subroutine run_ingen
+  subroutine run_ingen(ingen_config_in)
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -92,18 +130,27 @@ contains
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    use file_utils, only: init_file_utils
+    use standard_header, only: standard_header_type
+    implicit none
+    type(ingen_config_type), intent(in), optional :: ingen_config_in
+    type(standard_header_type) :: local_header
+    logical :: list
     
     call init_mp
 
-    call init_ingen
+    local_header = standard_header_type()
+
+    call init_file_utils (list, name="template")
+    call init_ingen(ingen_config_in)
  
     if (debug) write(6,*) 'ingen: call get_namelists'
     
     call get_namelists
     if (debug) write(6,*) 'ingen: call report'
-    call report
+    call report(local_header)
     if (debug) write(6,*) 'ingen: call write_namelists'
-    call write_namelists
+    call write_namelists(header=local_header)
     
     if (debug) write(6,*) 'ingen: call interactive, scan=',scan
     if (scan) call interactive
@@ -114,22 +161,59 @@ contains
   end subroutine run_ingen
 
   !> FIXME : Add documentation  
-  subroutine init_ingen
+  subroutine init_ingen(ingen_config_in)
+    implicit none
+    type(ingen_config_type), intent(in), optional :: ingen_config_in
+    
+    if(initialized) return
+    initialized = .true.
+
+    pythonin = "."//trim(run_name)//".pythonin"
+
+    if (present(ingen_config_in)) ingen_config = ingen_config_in
+
+    call ingen_config%init(name = 'ingen_knobs', requires_index = .false.)
+
+    ! Copy out internal values into module level parameters
+    ncut = ingen_config%ncut
+    npmax = ingen_config%npmax
+    scan = ingen_config%scan
+    stdin = ingen_config%stdin
+
+    exist = ingen_config%exist
+
+    if (debug) write(6,*) 'get_namelists: if (scan), scan=',scan
+    if (scan) then
+       if (.not. stdin) then
+          if (pythonin == "") then
+             write (*,*) 'Need to specify pythonin in ingen_knobs.'
+          end if 
+       end if 
+    end if 
+    
     n_sweet_spots = 0
-    npmax=100000
     allocate(sweet_spots(1))
+    
   end subroutine init_ingen
 
   !> FIXME : Add documentation  
   subroutine finish_ingen
-    deallocate(sweet_spots)
+    if(allocated(sweet_spots)) deallocate(sweet_spots)
+    call ingen_config%reset()
+    initialized = .false.
   end subroutine finish_ingen
 
   !> FIXME : Add documentation  
-  subroutine interactive
+  subroutine interactive(header)
     use species, only: spec, nspec, has_electron_species
     use geometry, only: beta_prime_input, bishop
     use run_parameters, only: beta, fapar, fbpar
+    use standard_header, only: standard_header_type
+    !> Header for files with build and run information
+    type(standard_header_type), intent(in), optional :: header
+    ! Actual value for optional `header` input
+    type(standard_header_type) :: local_header
+
     integer :: sel, nbeta, j, ise
     real :: beta_low, beta_high, dbeta, beta_save
     real :: fapar_save, fbpar_save, pri, pe, alpi, tpe_save, ptot, alp, dbdr
@@ -140,6 +224,12 @@ contains
     logical :: first = .true.
 
     if (first) then
+       if (present(header)) then
+         local_header = header
+       else
+         local_header = standard_header_type()
+       end if
+
        call get_unused_unit (interactive_record)
        open (unit=interactive_record, file='.'//trim(run_name)//".record")
        first = .false.
@@ -275,7 +365,7 @@ contains
 
                 write (tag2, fmt='("beta = ",e16.10," and electron tprim = ",e16.10)') beta, spec(ise)%tprim 
 
-                call write_namelists (j, tag1, tag2)
+                call write_namelists (j, tag1, tag2, local_header)
                 spec(ise)%tprim = tpe_save
              end do
              beta = beta_save
@@ -334,7 +424,7 @@ contains
                 write (tag1, fmt='("Varying beta and all L_T values self-consistently")')
                 write (tag2, fmt='("beta = ",e16.10," and tprim values scaled by ",e16.10)') beta, fac
 
-                call write_namelists (j, tag1, tag2) 
+                call write_namelists (j, tag1, tag2, local_header)
                 spec%tprim = tp_save
              end do
              beta = beta_save
@@ -395,7 +485,7 @@ contains
                 write (tag1, fmt='("Varying beta and all L_n values self-consistently")')
                 write (tag2, fmt='("beta = ",e16.10," and tprim values scaled by ",e16.10)') beta, fac
 
-                call write_namelists (j, tag1, tag2) 
+                call write_namelists (j, tag1, tag2, local_header)
                 spec%fprim = fp_save
              end do
              beta = beta_save
@@ -444,7 +534,7 @@ contains
              write (tag1, fmt='("Varying beta, all else fixed")')
              write (tag2, fmt='("beta = ",e16.10)') beta
 
-             call write_namelists (j, tag1, tag2)
+             call write_namelists (j, tag1, tag2, local_header)
 
              fapar = fapar_save 
              fbpar = fbpar_save
@@ -569,7 +659,7 @@ contains
                 write (tag1, fmt='("Varying beta_prime and beta self-consistently")')
                 write (tag2, fmt='("beta_prime = ",e16.10," and beta = ",e16.10)') beta_prime_input, beta
 
-                call write_namelists (j, tag1, tag2)
+                call write_namelists (j, tag1, tag2, local_header)
 
                 fapar = fapar_save 
                 fbpar = fbpar_save
@@ -625,7 +715,7 @@ contains
              write (tag1, fmt='("Varying beta_prime only (non-self-consistently)")')
              write (tag2, fmt='("beta_prime = ",e16.10)') beta_prime_input
 
-             call write_namelists (j, tag1, tag2)
+             call write_namelists (j, tag1, tag2, local_header)
              
              beta_prime_input = beta_prime_save
              
@@ -712,28 +802,11 @@ contains
     use le_grids, only: init_le_grids
     use theta_grid, only: init_theta_grid, ntgrid
     implicit none
-    logical :: list, accelx=.false., accelv=.false.
+    logical :: accelx=.false., accelv=.false.
     logical, parameter :: debug=.false.
     integer :: is
-    call init_file_utils (list, name="template")
-if (debug) write(6,*) 'get_namelists: called init_file_utils'
-    ncut= 100000
-    scan = .false.
-    stdin = .true.
-    pythonin = "."//trim(run_name)//".pythonin"
-    in_file=input_unit_exist("ingen_knobs", exist)
-    if (exist) read(unit=input_unit("ingen_knobs"), nml=ingen_knobs)
 
-if (debug) write(6,*) 'get_namelists: if (scan), scan=',scan
-    if (scan) then
-       if (.not. stdin) then
-          if (pythonin == "") then
-             write (*,*) 'Need to specify pythonin in ingen_knobs.'
-          end if 
-       end if 
-    end if 
-
-if (debug) write(6,*) 'get_namelists: layouts'
+    if (debug) write(6,*) 'get_namelists: layouts'
     call init_gs2_layouts
     call init_antenna
 
@@ -791,7 +864,7 @@ if (debug) write(6,*) 'get_namelists: returning'
   end subroutine get_namelists
 
   !> FIXME : Add documentation  
-  subroutine write_namelists (jr, tag1, tag2)
+  subroutine write_namelists (jr, tag1, tag2, header)
     use antenna, only: wnml_antenna
     use collisions, only: wnml_collisions
     use dist_fn, only: wnml_dist_fn, wnml_dist_fn_species 
@@ -806,18 +879,29 @@ if (debug) write(6,*) 'get_namelists: returning'
     use le_grids, only: wnml_le_grids
     use nonlinear_terms, only: nonlin, wnml_nonlinear_terms
     use run_parameters, only: wnml_run_parameters
-    use species, only: wnml_species, nspec, spec, has_electron_species
+    use species, only: wnml_species, spec, has_electron_species
     use theta_grid, only: wnml_theta_grid
     use theta_grid_params, only: wnml_theta_grid_params
+    use standard_header, only: standard_header_type
 
     integer, intent (in), optional :: jr
     character (*), intent (in), optional :: tag1, tag2
+    !> Header for files with build and run information
+    type(standard_header_type), intent(in), optional :: header
+    ! Actual value for optional `header` input
+    type(standard_header_type) :: local_header
+
     logical :: electrons
 
     integer :: h, t, u
     character (4) :: suffix
-    character(20) :: datestamp, timestamp, zone
     
+    if (present(header)) then
+      local_header = header
+    else
+      local_header = standard_header_type()
+    end if
+
     call get_unused_unit (unit)
 
     if (present(jr)) then
@@ -833,13 +917,7 @@ if (debug) write(6,*) 'get_namelists: returning'
 
     write (unit, *)
 
-    write (unit, fmt="('gs2')")
-    datestamp(:) = ' '
-    timestamp(:) = ' '
-    zone(:) = ' '
-    call date_and_time (datestamp, timestamp, zone)
-    write (unit=unit, fmt="('Date: ',a,' Time: ',a,1x,a)") &
-         trim(datestamp), trim(timestamp), trim(zone)
+    write (unit=unit, fmt='(a)') local_header%to_string(file_description="Input parameters as set by ingen")
 
     if (present(tag1)) then
        write (unit, *) '*****************************************************'
@@ -907,7 +985,7 @@ if (debug) write(6,*) 'get_namelists: returning'
   end subroutine pfactors
 
   !> FIXME : Add documentation  
-  subroutine report
+  subroutine report(header)
     use antenna, only: check_antenna
     use collisions, only: check_collisions
     use dist_fn, only: check_dist_fn
@@ -915,50 +993,47 @@ if (debug) write(6,*) 'get_namelists: returning'
     use gs2_diagnostics, only: check_gs2_diagnostics
     use gs2_diagnostics, only: dump_fields_periodically, save_for_restart
     use gs2_diagnostics, only: nsave, make_movie, nmovie, exit_when_converged, nwrite, omegatol
-    use run_parameters, only: use_old_diagnostics
     use gs2_reinit, only: delt_adj
     use gs2_time, only: code_dt, user_dt
     use hyper, only: check_hyper
     use init_g, only: check_init_g
-    use kt_grids, only: check_kt_grids, grid_option, gridopt_switch
+    use kt_grids, only: check_kt_grids, gridopt_switch
     use kt_grids, only: gridopt_box, naky, ntheta0, nx, ny
-    !     use le_grids, only: leok_le_grids, check_le_grids
     use le_grids, only: negrid, nlambda
-    use nonlinear_terms, only: nonlin, cfl, check_nonlinear_terms
-    use run_parameters, only: check_run_parameters
-    use run_parameters, only: beta, tite, margin
-    use run_parameters, only: nstep, wstar_units
+    use nonlinear_terms, only: nonlin, check_nonlinear_terms
+    use run_parameters, only: use_old_diagnostics, check_run_parameters
+    use run_parameters, only: beta, tite, nstep, wstar_units
     use species, only: check_species, nspec, has_electron_species
-    use theta_grid, only: check_theta_grid
-    use theta_grid, only: gb_to_cv, ntgrid
-    use theta_grid_params, only: nperiod, ntheta, eps, epsl, rmaj, r_geo
-    use theta_grid_params, only: pk, qinp, rhoc, shift, shat
+    use theta_grid, only: check_theta_grid, ntgrid
     use collisions, only: collision_model_switch
     use collisions, only: collision_model_full, collision_model_ediffuse
     use collisions, only: collision_model_lorentz, collision_model_lorentz_test
     use collisions, only: use_le_layout
+    use standard_header, only: standard_header_type
 
     implicit none
+    !> Header for files with build and run information
+    type(standard_header_type), intent(in), optional :: header
+    ! Actual value for optional `header` input
+    type(standard_header_type) :: local_header
+
     real :: alne, dbetadrho_spec
-    character (20) :: datestamp, timestamp, zone
     logical :: le_ok = .true.
     integer :: nmesh
     integer, dimension(4) :: pfacs
+
+    if (present(header)) then
+      local_header = header
+    else
+      local_header = standard_header_type()
+    end if
 
     call get_unused_unit (report_unit)
     call open_output_file (report_unit, ".report")
 
     write (report_unit, *) 
 
-    write (report_unit, fmt="('GS2')")
-    datestamp(:) = ' '
-    timestamp(:) = ' '
-    zone(:) = ' '
-    call date_and_time (datestamp, timestamp, zone)
-    write (report_unit, fmt="('Date: ',a,'/',a,'/',a,&
-         &  ' Time: ',a,':',a,1x,a)") datestamp(5:6), &
-         &  datestamp(7:8), datestamp(1:4), timestamp(1:2), timestamp(3:4), trim(zone)
-
+    write (report_unit, fmt='(a)') local_header%to_string(file_description="Input file report from ingen")
     write (report_unit, fmt="(/'------------------------------------------------------------'/)")
 
     !     le_ok=leok_le_grids(report_unit)
@@ -2344,4 +2419,124 @@ if (debug) write(6,*) 'get_namelists: returning'
     end do
   end subroutine num_runs
 
+  !> Set the module level config type
+  !> Will abort if the module has already been initialised to avoid
+  !> inconsistencies.
+  subroutine set_ingen_mod_config(ingen_config_in)
+    use mp, only: mp_abort
+    type(ingen_config_type), intent(in), optional :: ingen_config_in
+    if (initialized) then
+       call mp_abort("Trying to set ingen_config when already initialized.", to_screen = .true.)
+    end if
+    if (present(ingen_config_in)) then
+       ingen_config = ingen_config_in
+    end if
+  end subroutine set_ingen_mod_config
+
+  !> Get the module level config instance
+  function get_ingen_mod_config()
+    type(ingen_config_type) :: get_ingen_mod_config
+    get_ingen_mod_config = ingen_config
+  end function get_ingen_mod_config
+
+  !---------------------------------------
+  ! Following is for the config_type
+  !---------------------------------------
+  
+  !> Reads in the ingen_knobs namelist and populates the member variables
+  subroutine read_ingen_config(self)
+    use file_utils, only: input_unit_exist, get_indexed_namelist_unit
+    use mp, only: proc0
+    implicit none
+    class(ingen_config_type), intent(in out) :: self
+    logical :: exist
+    integer :: in_file
+
+    ! Note: When this routine is in the module where these variables live
+    ! we shadow the module level variables here. This is intentional to provide
+    ! isolation and ensure we can move this routine to another module easily.    
+    integer :: ncut, npmax
+    logical :: scan, stdin
+
+    namelist /ingen_knobs/ ncut, npmax, scan, stdin
+
+    ! Only proc0 reads from file
+    if (.not. proc0) return
+
+    ! First set local variables from current values
+    ncut = self%ncut
+    npmax = self%npmax
+    scan = self%scan
+    stdin = self%stdin
+
+    ! Now read in the main namelist
+    in_file = input_unit_exist(self%get_name(), exist)
+    if (exist) read(in_file, nml = ingen_knobs)
+
+    ! Now copy from local variables into type members
+    self%ncut = ncut
+    self%npmax = npmax
+    self%scan = scan
+    self%stdin = stdin
+
+    self%exist = exist
+  end subroutine read_ingen_config
+
+  !> Writes out a namelist representing the current state of the config object
+  subroutine write_ingen_config(self, unit)
+    implicit none
+    class(ingen_config_type), intent(in) :: self
+    integer, intent(in) , optional:: unit
+    integer :: unit_internal
+
+    unit_internal = 6 ! @todo -- get stdout from file_utils
+    if (present(unit)) then
+       unit_internal = unit
+    endif
+
+    call self%write_namelist_header(unit_internal)
+    call self%write_key_val("ncut", self%ncut, unit_internal)
+    call self%write_key_val("npmax", self%npmax, unit_internal)
+    call self%write_key_val("scan", self%scan, unit_internal)
+    call self%write_key_val("stdin", self%stdin, unit_internal)
+    call self%write_namelist_footer(unit_internal)
+  end subroutine write_ingen_config
+
+  !> Resets the config object to the initial empty state
+  subroutine reset_ingen_config(self)
+    class(ingen_config_type), intent(in out) :: self
+    type(ingen_config_type) :: empty
+    select type (self)
+    type is (ingen_config_type)
+       self = empty
+    end select
+  end subroutine reset_ingen_config
+
+  !> Broadcasts all config parameters so object is populated identically on
+  !! all processors
+  subroutine broadcast_ingen_config(self)
+    use mp, only: broadcast
+    implicit none
+    class(ingen_config_type), intent(in out) :: self
+    call broadcast(self%ncut)
+    call broadcast(self%npmax)
+    call broadcast(self%scan)
+    call broadcast(self%stdin)
+
+    call broadcast(self%exist)
+  end subroutine broadcast_ingen_config
+
+  !> Gets the default name for this namelist
+  function get_default_name_ingen_config()
+    implicit none
+    character(len = CONFIG_MAX_NAME_LEN) :: get_default_name_ingen_config
+    get_default_name_ingen_config = "ingen_knobs"
+  end function get_default_name_ingen_config
+
+  !> Gets the default requires index for this namelist
+  function get_default_requires_index_ingen_config()
+    implicit none
+    logical :: get_default_requires_index_ingen_config
+    get_default_requires_index_ingen_config = .false.
+  end function get_default_requires_index_ingen_config
 end module ingen_mod

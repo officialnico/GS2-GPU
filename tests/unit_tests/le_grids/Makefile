@@ -1,7 +1,7 @@
 
 sinclude ../Makefile.tests_common
 
-CLEANCOMMAND+= test_le_grids
+clean_individual_test: LOCAL_TEST_FILES:=test_le_grids
 
 ifdef TESTNORUN
 all: test_le_grids 
@@ -22,6 +22,6 @@ endif
 test_le_grids.o:  ${TEST_MODS} 
 
 test_le_grids: test_le_grids.o $(TEST_MODS)
-	$(call messageOp,"Linking ","\\t:",$^,"\\n\\t\-\-\-\-\-\-\>",$@)
+	$(call messageOp,"Linking ","\\t:",$(call processName, $^),"\\n\\t\-\-\-\-\-\-\>",$(call processName, $@))
 	$(QUIETSYM)$(LD) $(LDFLAGS) -o $@ $^ $(LIBS)
 

@@ -1,7 +1,7 @@
 
 sinclude ../Makefile.tests_common
 
-CLEANCOMMAND+= test_gs2_init
+clean_individual_test: LOCAL_TEST_FILES:=test_gs2_init
 
 ifdef TESTNORUN
 all: test_gs2_init 
@@ -19,6 +19,6 @@ endif
 test_gs2_init.o:  ${TEST_MODS} 
 
 test_gs2_init: test_gs2_init.o $(TEST_MODS)
-	$(call messageOp,"Linking ","\\t:",$^,"\\n\\t\-\-\-\-\-\-\>",$@)
+	$(call messageOp,"Linking ","\\t:",$(call processName, $^),"\\n\\t\-\-\-\-\-\-\>",$(call processName, $@))
 	$(QUIETSYM)$(LD) $(LDFLAGS) -o $@ $^ $(LIBS)
 

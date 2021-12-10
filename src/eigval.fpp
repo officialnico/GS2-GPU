@@ -1,15 +1,16 @@
 #ifdef WITH_EIG
 !> A module for finding eigenvalues and eigenmodes
-!! Requires SLEPC and PETSC
+!> Requires SLEPC and PETSC
 module eigval
+  use abstract_config, only: abstract_config_type, CONFIG_MAX_NAME_LEN
   use petscvec
   use petscmat
   use slepceps
 
   implicit none
 
-!Allows us to user SLEPC_VERSION_MAJOR etc. to automatically
-!disable unsupportted features
+!Allows us to use SLEPC_VERSION_MAJOR etc. to automatically
+!disable unsupported features
 #include <slepcversion.h>
 #include <petscversion.h>
 
@@ -31,13 +32,16 @@ module eigval
 #else
 #include <slepc/finclude/slepceps.h>
 #endif
-  
+
   private
 
   public :: eigval_functional
   public :: init_eigval, finish_eigval, BasicSolve
   public :: read_parameters, wnml_eigval, check_eigval
-  public :: time_eigval
+
+  public :: eigval_config_type
+  public :: set_eigval_config
+  public :: get_eigval_config
 
   !//////////////////
   !Slepc related configuration parameters
@@ -117,6 +121,9 @@ module eigval
   !Do we specify the initial condition (through ginit)?
   logical :: use_ginit
 
+  !Do we evaluate the time derivative operator or the time advance operator?
+  logical :: analyse_ddt_operator
+
   !Number of GS2 advance steps per SLEPc call to advance_eigen
   !May be useful when looking at marginal modes etc.
   integer :: nadv
@@ -124,9 +131,13 @@ module eigval
   !If true then save restart files for each eigenmode
   logical :: save_restarts
 
+  !Initialisation state
+  logical :: initialized = .false.
+
   !> A custom type to make it easy to encapsulate specific settings
   type EpsSettings
      logical :: use_ginit
+     logical :: analyse_ddt_operator
      integer :: n_eig
      integer :: max_iter
      integer :: solver_option_switch
@@ -143,9 +154,149 @@ module eigval
   !//////////////////////
   !Operations parameters
   !//////////////////////
-  logical, parameter :: allow_command_line_settings=.true.    
+  logical, parameter :: allow_command_line_settings=.true.
   character(len=12),parameter :: nml_name="eigval_knobs"
-  real, save :: time_eigval(2)=0.
+
+  !> Used to represent the input configuration of eigval. Several of
+  !> these options are controlling SLEPc settings, which can also be
+  !> set using the SLEPc command line flags.
+  type, extends(abstract_config_type) :: eigval_config_type
+     ! namelist : eigval_knobs
+     ! indexed : false
+     !> Determines which operator SLEPc is finding eigenvalues of.  If
+     !> .false. then SLEPc analyses the time advance operator, so
+     !> internally works with the eigenvalue `exp(-i*omega*nadv*dt)`.
+     !> If .true. then SLEPc analyses a time derivative operator, so
+     !> internally works with the eigenvalue `-i*omega`. Note we form
+     !> a first order one sided approximation of the time derivative
+     !> (e.g. `(g_{n+nadv}-g_{n})/(nadv*code_dt)`) to be analysed.
+     logical :: analyse_ddt_operator = .false.
+     !> Sets the extraction technique, must be one of:
+     !>
+     !> - 'default' (use SLEPC default)
+     !> - 'slepc_default' (use SLEPC default)
+     !> - 'ritz'
+     !> - 'harmonic'
+     !> - 'harmonic_relative'
+     !> - 'harmonic_right'
+     !> - 'harmonic_largest'
+     !> - 'refined'
+     !> - 'refined_harmonic'
+     !>
+     character(len = 20) :: extraction_option = 'default'
+     !> Sets the maximum number of SLEPC iterations used.  If not set
+     !> (recommended) then let SLEPC decide what to use (varies with
+     !> different options).
+     integer :: max_iter = PETSC_DECIDE
+     !> The number of eigenmodes to search for. The actual number of
+     !> modes found may be larger than this.
+     integer :: n_eig = 1
+     !> How many GS2 timesteps to take each time SLEPc wants to
+     !> advance the distribution function. Useful to separate closely
+     !> spaced eigenvalues without changing [[knobs:delt]].
+     integer :: nadv = 1
+     !> If `true` then we save a set of restart files for each eigenmode
+     !> found. These are named as the standard restart file
+     !> (i.e. influenced by the restart_file input), but have `eig_<id>`
+     !> appended near the end, where `<id>` is an integer representing the
+     !> eigenmode id. If `save_distfn` of [[gs2_diagnostics_knobs]] is true
+     !> then will also save the distribution function files.
+     logical :: save_restarts = .false.
+     !> Sets the type of solver to use, must be one of:
+     !>
+     !> - 'default' (Krylov-Schur)
+     !> - 'slepc_default' (Krylov-Schur)
+     !> - 'power'
+     !> - 'subspace'
+     !> - 'arnoldi'
+     !> - 'lanczos'
+     !> - 'krylov'
+     !> - 'GD'
+     !> - 'JD'
+     !> - 'RQCG'
+     !> - 'CISS'
+     !> - 'lapack'
+     !> - 'arpack'
+     !> - 'blzpack'
+     !> - 'trlan'
+     !> - 'blopex'
+     !> - 'primme'
+     !> - 'feast'
+     !>
+     !> Not all solver types are compatible with other eigenvalue options,
+     !> some options may not be supported in older SLEPC versions and some
+     !> may require certain flags to be set when SLEPC is compiled.
+     character(len = 20) :: solver_option = 'default'
+     !> Imaginary part of the eigenvalue target. Often beneficial to
+     !> set this fairly large (e.g. 10) when looking for unstable
+     !> modes. Used with the `target_*` [[eigval_knobs:which_option]]
+     !> mode.
+     real :: targ_im = 0.5
+     !> Real part of the eigenvalue target. Often beneficial to set
+     !> this fairly small (e.g. ~0). Used with the `target_*`
+     !> [[eigval_knobs:which_option]] mode.
+     real :: targ_re = 0.5
+     !> Sets tolerance on SLEPC eigenmode search. Used to determine
+     !> when an eigenmode has been found. Note this is the tolerance
+     !> based on the SLEPc eigenvalue, which is the time advance
+     !> eigenvalue
+     !> \(\exp{\left(-i\Omega\textrm{nadv delt}\right)}\)
+     !> rather than the GS2 eigenvalue, \(\Omega\).
+     real :: tolerance = 1.0d-6
+     !> Sets the type of spectral transform to be used. This can help
+     !> extract interior eigenvalues. Must be one of
+     !>
+     !> - 'default' (let SLEPC decide)
+     !> - 'slepc_default' (let SLEPC decide)
+     !> - 'shell'
+     !> - 'shift'
+     !> - 'invert'
+     !> - 'cayley'
+     !> - 'fold'
+     !> - 'precond' (not implemented)
+     !>
+     !> Not all options are available in all versions of the library.
+     character(len = 20) :: transform_option = 'default'
+     !> If `true` then provide an initial guess for the eigenmode
+     !> based on using [[init_g]] routines to initialise `g`. Can be
+     !> helpful in accelerating initial phase of eigensolver. Can also
+     !> be quite useful with `ginit_option='many'` (etc.)  to start an
+     !> eigenvalue search from a previously obtained solution,
+     !> allowing both eigenmode refinement and sub-dominant mode
+     !> detection.
+     logical :: use_ginit = .false.
+     !> Sets SLEPC mode of operation (i.e. what sort of eigenvalues it
+     !>looks for). Note that this refers to the SLEPc eigenvalue,
+     !>i.e. the time advance eigenvalue
+     !>\(\exp{\left(-i\Omega\textrm{nadv delt}\right)}\). In other
+     !>words one should select `'largest_real'` to search for modes
+     !>with the largest growth rate. Must be one of
+     !>
+     !> - 'default' (equivalent to 'target_magnitude')
+     !> - 'slepc_default' (let SLEPC decide)
+     !> - 'largest_magnitude'
+     !> - 'smallest_magnitude'
+     !> - 'largest_real'
+     !> - 'smallest_real'
+     !> - 'largest_imaginary'
+     !> - 'smallest_imaginary'
+     !> - 'target_magnitude' (complex eigenvalue magnitude closest to magnitude of target)
+     !> - 'target_real'
+     !> - 'target_imaginary'
+     !> - 'all' (only some solver types, e.g. lapack) -- not supported
+     !> - 'user' (will use a user specified function to pick between eigenmodes, note not currently implemented)
+     !>
+     character(len = 20) :: which_option = 'default'
+   contains
+     procedure, public :: read => read_eigval_config
+     procedure, public :: write => write_eigval_config
+     procedure, public :: reset => reset_eigval_config
+     procedure, public :: broadcast => broadcast_eigval_config
+     procedure, public, nopass :: get_default_name => get_default_name_eigval_config
+     procedure, public, nopass :: get_default_requires_index => get_default_requires_index_eigval_config
+  end type eigval_config_type
+
+  type(eigval_config_type) :: eigval_config
 
 contains
 
@@ -154,12 +305,13 @@ contains
     logical :: eigval_functional
     eigval_functional=.true.
   end function eigval_functional
-  
+
   !> Initialise eigenvalue problem
-  subroutine init_eigval
+  subroutine init_eigval(eigval_config_in)
     use mp, only: mp_comm, proc0
     use file_utils, only: error_unit
     implicit none
+    type(eigval_config_type), intent(in), optional :: eigval_config_in
     PetscErrorCode :: ierr
 #ifndef PETSC_USE_COMPLEX
     integer :: unit, ii
@@ -170,6 +322,9 @@ contains
     if(.not.eigval_functional())then
        return
     endif
+
+    if (initialized) return
+    initialized = .true.
 
     !If petsc has not been compiled with complex support then display
     !a warning that the results are most likely incorrect.
@@ -188,8 +343,8 @@ contains
 #endif
 
     !Get the input parameters
-    call read_parameters
-    
+    call read_parameters(eigval_config_in)
+
     !Set PETSC_COMM_WORLD to be mp_comm so we can use whatever sub-comm
     !needed for list mode to work
     PETSC_COMM_WORLD=mp_comm
@@ -202,17 +357,17 @@ contains
   subroutine finish_eigval
     implicit none
     PetscErrorCode :: ierr
-
+    initialized = .false.
     !Finish up slepc
     call SlepcFinalize(ierr)
   end subroutine finish_eigval
 
   !> Read the eigval_knobs namelist
-  subroutine read_parameters
-    use file_utils, only: input_unit, error_unit, input_unit_exist
+  subroutine read_parameters(eigval_config_in)
+    use file_utils, only: error_unit
     use text_options, only: text_option, get_option_value
-    use mp, only: broadcast, proc0
     implicit none
+    type(eigval_config_type), intent(in), optional :: eigval_config_in
 
     !NOTE: text_option is case sensitive (currently)
     type(text_option), dimension(18), parameter :: solver_type_opts = &
@@ -281,65 +436,49 @@ contains
 
     character(len=20) :: solver_option, extraction_option, which_option, transform_option
 
-    namelist /eigval_knobs/ n_eig, max_iter, tolerance, &
-         solver_option, extraction_option, which_option, transform_option,&
-         targ_re, targ_im, use_ginit, nadv, save_restarts
-    integer :: ierr, in_file
+    integer :: ierr
     logical :: exist
 
-    if(proc0)then
-       !Defaults
-       n_eig=1
-       max_iter=PETSC_DECIDE
-       tolerance=1.0d-6
-       targ_re=0.5
-       targ_im=0.5
-       solver_option='default'
-       extraction_option='default'
-       which_option='default'
-       transform_option='default'
-       use_ginit=.false.
-       nadv=1
-       save_restarts=.false.
+    if (present(eigval_config_in)) eigval_config = eigval_config_in
 
-       !Check if name list exists and if so read it
-       in_file=input_unit_exist(nml_name,exist)
-       if(exist) read(unit=in_file,nml=eigval_knobs)
-       
-       !Get error unit for output
-       ierr = error_unit()
-       
-       !Convert string options to integer flags
-       call get_option_value &
-            (solver_option,solver_type_opts,solver_option_switch,&
-            ierr,"solver_option in "//nml_name,.true.)
-       
-       call get_option_value &
-            (extraction_option,extraction_type_opts,extraction_option_switch,&
-            ierr,"extraction_option in "//nml_name,.true.)
+    call eigval_config%init(name = 'eigval_knobs', requires_index = .false.)
 
-       call get_option_value &
-            (which_option,which_type_opts,which_option_switch,&
-            ierr,"which_option in "//nml_name,.true.)
+    ! Copy out internal values into module level parameters
+    analyse_ddt_operator = eigval_config%analyse_ddt_operator
+    extraction_option = eigval_config%extraction_option
+    max_iter = eigval_config%max_iter
+    n_eig = eigval_config%n_eig
+    nadv = eigval_config%nadv
+    save_restarts = eigval_config%save_restarts
+    solver_option = eigval_config%solver_option
+    targ_im = eigval_config%targ_im
+    targ_re = eigval_config%targ_re
+    tolerance = eigval_config%tolerance
+    transform_option = eigval_config%transform_option
+    use_ginit = eigval_config%use_ginit
+    which_option = eigval_config%which_option
 
-       call get_option_value &
-            (transform_option,transform_type_opts,transform_option_switch,&
-            ierr,"transform_option in "//nml_name,.true.)
-    endif
+    exist = eigval_config%exist
 
-    !Broadcasts
-    call broadcast(n_eig)
-    call broadcast(max_iter)
-    call broadcast(tolerance)
-    call broadcast(solver_option_switch)
-    call broadcast(extraction_option_switch)
-    call broadcast(which_option_switch)
-    call broadcast(transform_option_switch)
-    call broadcast(targ_re)
-    call broadcast(targ_im)
-    call broadcast(use_ginit)
-    call broadcast(nadv)
-    call broadcast(save_restarts)
+    !Get error unit for output
+    ierr = error_unit()
+
+    !Convert string options to integer flags
+    call get_option_value &
+         (solver_option,solver_type_opts,solver_option_switch,&
+         ierr,"solver_option in "//nml_name,.true.)
+
+    call get_option_value &
+         (extraction_option,extraction_type_opts,extraction_option_switch,&
+         ierr,"extraction_option in "//nml_name,.true.)
+
+    call get_option_value &
+         (which_option,which_type_opts,which_option_switch,&
+         ierr,"which_option in "//nml_name,.true.)
+
+    call get_option_value &
+         (transform_option,transform_type_opts,transform_option_switch,&
+         ierr,"transform_option in "//nml_name,.true.)
   end subroutine read_parameters
 
   !> Write the eigval_knobs namelist
@@ -352,6 +491,7 @@ contains
     write(unit,*)
     write(unit,'(" &",A)') nml_name
     !Basic pars
+    write(unit,'(A,A,"=",L1)') inden,'analyse_ddt_operator',analyse_ddt_operator
     write(unit,'(A,A,"=",L1)') inden,'use_ginit',use_ginit
     write(unit,'(A,A,"=",I0)') inden,'n_eig',n_eig
     write(unit,'(A,A,"=",I0)') inden,'max_iter',max_iter
@@ -425,7 +565,7 @@ contains
        call mp_abort("Unknown value of extraction_option_switch")
     end select
     write(unit,'(A,A,"=",A,A,A)') inden,'extraction_option','"',choice,'"'
-    
+
     !Which type
     select case(which_option_switch)
     case(WhichLargestMagnitude)
@@ -494,6 +634,7 @@ contains
     use gs2_time, only: code_dt
     implicit none
     type(EpsSettings), intent(inout) :: eps_settings
+    eps_settings%analyse_ddt_operator=analyse_ddt_operator
     eps_settings%use_ginit=use_ginit
     eps_settings%n_eig=n_eig
     eps_settings%max_iter=max_iter
@@ -638,7 +779,7 @@ contains
 
        call EpsSetWhichEigenpairs(eps_solver,WhichType,ierr)
     endif
-    
+
     !Set the target
     call EpsSetTarget(eps_solver,eps_settings%target_slepc,ierr)
 
@@ -682,8 +823,10 @@ contains
        case(SolverTypePrimme)
           SolverType=EPSPRIMME
 #if SLEPC_VERSION_GE(3,4,0)
+#if SLEPC_VERSION_LE(3,11,0) || SLEPC_VERSION_GE(3,14,0)
        case(SolverTypeFeast)
           SolverType=EPSFEAST
+#endif
 #endif
        case default
           !Should never get here
@@ -719,7 +862,7 @@ contains
     endif
 
     !Now set the spectral transform
-    if(eps_settings%transform_option_switch.ne.TransformNotSpecified)then        
+    if(eps_settings%transform_option_switch.ne.TransformNotSpecified)then
        !Get spectral transform object
        call EPSGetSt(eps_solver,st,ierr)
 
@@ -876,7 +1019,11 @@ contains
     my_settings%global_size=n_glob
 
     !Initialise the matrix operator
-    call InitMatrixOperator(my_operator, advance_eigen, my_settings)
+    if (analyse_ddt_operator) then
+       call InitMatrixOperator(my_operator, ddt_eigen, my_settings)
+    else
+       call InitMatrixOperator(my_operator, advance_eigen, my_settings)
+    end if
 
     !Create the solver
     call InitEPS(my_solver,my_operator,my_settings)
@@ -983,15 +1130,15 @@ contains
              write(restart_unique_string,'(".eig_",I0)') ieig
 
              !Save restart files
-             call gs2_save_for_restart(gnew, user_time, user_dt, vnmult, istatus, fphi, fapar, fbpar,.true.,fileopt=restart_unique_string)
+             call gs2_save_for_restart(gnew, user_time, user_dt, vnmult, istatus, fphi, fapar, fbpar,fileopt=restart_unique_string)
 
              !Save distfn files
              if(save_distfn)then
                 !Convert h to distribution function
                 call g_adjust(gnew,phinew,bparnew,fphi,fbpar)
-                
+
                 !Save dfn, fields and velocity grids to file
-                call gs2_save_for_restart(gnew, user_time, user_dt, vnmult, istatus, fphi, fapar, fbpar,.true.,distfn=.true.,fileopt=restart_unique_string)
+                call gs2_save_for_restart(gnew, user_time, user_dt, vnmult, istatus, fphi, fapar, fbpar,fileopt=trim(restart_unique_string)//".dfn")
 
                 !Convert distribution function back to h
                 call g_adjust(gnew,phinew,bparnew,-fphi,-fbpar)
@@ -1004,7 +1151,7 @@ contains
 
        !Close netcdf file
        if(proc0)call finish_eigenfunc_file(io_ids)
- 
+
        call VecDestroy(eig_vec_r,ierr)
        call VecDestroy(eig_vec_i,ierr)
     else
@@ -1017,7 +1164,11 @@ contains
     use gs2_time, only: code_dt
     implicit none
     complex, intent(in) :: eig
-    Eig_SlepcToGs2=log(eig)*cmplx(0.0,1.0)/(code_dt*nadv)
+    if (analyse_ddt_operator) then
+       Eig_SlepcToGs2=eig*cmplx(0.0,1.0)
+    else
+       Eig_SlepcToGs2=log(eig)*cmplx(0.0,1.0)/(code_dt*nadv)
+    end if
   end function Eig_SlepcToGs2
 
   !> Function to convert a GS2 eigenvalue to a SLEPc one
@@ -1027,11 +1178,19 @@ contains
     complex, intent(in) :: eig
     !If PETSC doesn't have a complex type then return the
     !magnitude of the eigenvalue.
+    if (analyse_ddt_operator) then
 #ifdef PETSC_USE_COMPLEX
-    Eig_Gs2ToSlepc=exp(-cmplx(0.0,1.0)*code_dt*eig*nadv)
+       Eig_Gs2ToSlepc=-cmplx(0.0,1.0)*eig
 #else
-    Eig_Gs2ToSlepc=abs(exp(-cmplx(0.0,1.0)*code_dt*eig*nadv))
+       Eig_Gs2ToSlepc=abs(cmplx(0.0,1.0)*eig)
 #endif
+    else
+#ifdef PETSC_USE_COMPLEX
+       Eig_Gs2ToSlepc=exp(-cmplx(0.0,1.0)*code_dt*eig*nadv)
+#else
+       Eig_Gs2ToSlepc=abs(exp(-cmplx(0.0,1.0)*code_dt*eig*nadv))
+#endif
+    end if
   end function Eig_Gs2ToSlepc
 
   !> Call back routine to represent linear advance operator
@@ -1043,7 +1202,6 @@ contains
     PetscErrorCode, intent(inout) :: ierr
     integer, parameter :: istep=2
     integer :: is
-
     !First unpack input vector into gnew
     call VecToGnew(VecIn)
 
@@ -1061,6 +1219,42 @@ contains
     !Now pack gnew into output
     call GnewToVec(Res)
   end subroutine advance_eigen
+
+  !> Call back routine to represent time derivative operator
+  subroutine ddt_eigen(MatOperator,VecIn,Res,ierr)
+    use fields, only: set_init_fields, advance
+    use dist_fn_arrays, only: gnew
+    use gs2_time, only: code_dt
+    implicit none
+    Mat, intent(in) :: MatOperator
+    Vec, intent(inout) :: VecIn, Res
+    PetscErrorCode, intent(inout) :: ierr
+    integer, parameter :: istep=2
+    integer :: is
+    complex, dimension(:,:,:), allocatable :: ginit
+    !First unpack input vector into gnew
+    call VecToGnew(VecIn)
+
+    ! Store a copy of the initial state
+    ginit=gnew
+
+    !Now set fields to be consistent with gnew
+    call set_init_fields
+
+    !Now do a number of time steps
+    do is=1,nadv
+       !Note by using a fixed istep we
+       !force the explicit terms to be excluded
+       !except for the very first call.
+       call advance(istep)
+    enddo
+
+    ! Form a crude estimate of the time derivative
+    gnew = (gnew - ginit)/(code_dt*nadv)
+
+    !Now pack gnew into output
+    call GnewToVec(Res)
+  end subroutine ddt_eigen
 
   !> Unpacks a SLEPc vector into gnew
   subroutine VecToGnew(VecIn)
@@ -1215,6 +1409,165 @@ contains
     nconv_prev=nconv
     iter_prev=iters
   end function SimpleMonitor
+
+  !> Set the module level config type
+  !> Will abort if the module has already been initialised to avoid
+  !> inconsistencies.
+  subroutine set_eigval_config(eigval_config_in)
+    use mp, only: mp_abort
+    type(eigval_config_type), intent(in), optional :: eigval_config_in
+    if (initialized) then
+       call mp_abort("Trying to set eigval_config when already initialized.", to_screen = .true.)
+    end if
+    if (present(eigval_config_in)) then
+       eigval_config = eigval_config_in
+    end if
+  end subroutine set_eigval_config
+
+  !> Get the module level config instance
+  function get_eigval_config()
+    type(eigval_config_type) :: get_eigval_config
+    get_eigval_config = eigval_config
+  end function get_eigval_config
+
+  !---------------------------------------
+  ! Following is for the config_type
+  !---------------------------------------
+
+  !> Reads in the eigval_knobs namelist and populates the member variables
+  subroutine read_eigval_config(self)
+    use file_utils, only: input_unit_exist, get_indexed_namelist_unit
+    use mp, only: proc0
+    implicit none
+    class(eigval_config_type), intent(in out) :: self
+    logical :: exist
+    integer :: in_file
+
+    ! Note: When this routine is in the module where these variables live
+    ! we shadow the module level variables here. This is intentional to provide
+    ! isolation and ensure we can move this routine to another module easily.
+    character(len = 20) :: extraction_option, solver_option, transform_option, which_option
+    integer :: max_iter, n_eig, nadv
+    logical :: analyse_ddt_operator, save_restarts, use_ginit
+    real :: targ_im, targ_re, tolerance
+
+    namelist /eigval_knobs/ analyse_ddt_operator, extraction_option, max_iter, n_eig, nadv, save_restarts, solver_option, targ_im, targ_re, tolerance, transform_option, use_ginit, which_option
+
+    ! Only proc0 reads from file
+    if (.not. proc0) return
+
+    ! First set local variables from current values
+    analyse_ddt_operator = self%analyse_ddt_operator
+    extraction_option = self%extraction_option
+    max_iter = self%max_iter
+    n_eig = self%n_eig
+    nadv = self%nadv
+    save_restarts = self%save_restarts
+    solver_option = self%solver_option
+    targ_im = self%targ_im
+    targ_re = self%targ_re
+    tolerance = self%tolerance
+    transform_option = self%transform_option
+    use_ginit = self%use_ginit
+    which_option = self%which_option
+
+    ! Now read in the main namelist
+    in_file = input_unit_exist(self%get_name(), exist)
+    if (exist) read(in_file, nml = eigval_knobs)
+
+    ! Now copy from local variables into type members
+    self%analyse_ddt_operator = analyse_ddt_operator
+    self%extraction_option = extraction_option
+    self%max_iter = max_iter
+    self%n_eig = n_eig
+    self%nadv = nadv
+    self%save_restarts = save_restarts
+    self%solver_option = solver_option
+    self%targ_im = targ_im
+    self%targ_re = targ_re
+    self%tolerance = tolerance
+    self%transform_option = transform_option
+    self%use_ginit = use_ginit
+    self%which_option = which_option
+
+    self%exist = exist
+  end subroutine read_eigval_config
+
+  !> Writes out a namelist representing the current state of the config object
+  subroutine write_eigval_config(self, unit)
+    implicit none
+    class(eigval_config_type), intent(in) :: self
+    integer, intent(in) , optional:: unit
+    integer :: unit_internal
+
+    unit_internal = 6 ! @todo -- get stdout from file_utils
+    if (present(unit)) then
+       unit_internal = unit
+    endif
+
+    call self%write_namelist_header(unit_internal)
+    call self%write_key_val("analyse_ddt_operator", self%analyse_ddt_operator, unit_internal)
+    call self%write_key_val("extraction_option", self%extraction_option, unit_internal)
+    call self%write_key_val("max_iter", self%max_iter, unit_internal)
+    call self%write_key_val("n_eig", self%n_eig, unit_internal)
+    call self%write_key_val("nadv", self%nadv, unit_internal)
+    call self%write_key_val("save_restarts", self%save_restarts, unit_internal)
+    call self%write_key_val("solver_option", self%solver_option, unit_internal)
+    call self%write_key_val("targ_im", self%targ_im, unit_internal)
+    call self%write_key_val("targ_re", self%targ_re, unit_internal)
+    call self%write_key_val("tolerance", self%tolerance, unit_internal)
+    call self%write_key_val("transform_option", self%transform_option, unit_internal)
+    call self%write_key_val("use_ginit", self%use_ginit, unit_internal)
+    call self%write_key_val("which_option", self%which_option, unit_internal)
+    call self%write_namelist_footer(unit_internal)
+  end subroutine write_eigval_config
+
+  !> Resets the config object to the initial empty state
+  subroutine reset_eigval_config(self)
+    class(eigval_config_type), intent(in out) :: self
+    type(eigval_config_type) :: empty
+    select type (self)
+    type is (eigval_config_type)
+       self = empty
+    end select
+  end subroutine reset_eigval_config
+
+  !> Broadcasts all config parameters so object is populated identically on
+  !! all processors
+  subroutine broadcast_eigval_config(self)
+    use mp, only: broadcast
+    implicit none
+    class(eigval_config_type), intent(in out) :: self
+    call broadcast(self%analyse_ddt_operator)
+    call broadcast(self%extraction_option)
+    call broadcast(self%max_iter)
+    call broadcast(self%n_eig)
+    call broadcast(self%nadv)
+    call broadcast(self%save_restarts)
+    call broadcast(self%solver_option)
+    call broadcast(self%targ_im)
+    call broadcast(self%targ_re)
+    call broadcast(self%tolerance)
+    call broadcast(self%transform_option)
+    call broadcast(self%use_ginit)
+    call broadcast(self%which_option)
+
+    call broadcast(self%exist)
+  end subroutine broadcast_eigval_config
+
+  !> Gets the default name for this namelist
+  function get_default_name_eigval_config()
+    implicit none
+    character(len = CONFIG_MAX_NAME_LEN) :: get_default_name_eigval_config
+    get_default_name_eigval_config = "eigval_knobs"
+  end function get_default_name_eigval_config
+
+  !> Gets the default requires index for this namelist
+  function get_default_requires_index_eigval_config()
+    implicit none
+    logical :: get_default_requires_index_eigval_config
+    get_default_requires_index_eigval_config = .false.
+  end function get_default_requires_index_eigval_config
 end module eigval
 
 #else

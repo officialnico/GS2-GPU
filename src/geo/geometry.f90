@@ -164,7 +164,9 @@ module geometry
   public :: geotype, rmaj, r_geo, rhoc, delrho, aSurf, shift, shiftVert, mMode, nMode
   public :: deltam, deltan, deltampri, deltanpri, thetam, thetan
   public :: qinp, s_hat_input
-  public :: Rpos
+  public :: Rpos, ntheta_geometry
+
+  public :: eikcoefs_output, run_eikcoefs_and_resample, set_eikcoefs_output
 
   !> The theta grid of the results. The final grid has
   !> $$\pi - 2 \pi \mathrm{nperiod} \leq \theta \leq 2 \pi \mathrm{nperiod} - \pi$$
@@ -190,7 +192,7 @@ module geometry
   real :: p_prime_input, invLp_input, beta_prime_input
   real :: alpha_input, dp_mult
 
-  integer :: nperiod
+  integer :: nperiod, ntheta_geometry
   integer :: itor, iflux, irho
   integer :: shotnum
   real :: tstar
@@ -205,7 +207,7 @@ module geometry
   real :: s_hat_new
   real :: beta_prime_new
 
-  integer :: isym, big
+  integer :: isym, big = 0
   integer :: eqinit = 1
   
   logical :: gen_eq, efit_eq, ppl_eq, local_eq
@@ -361,8 +363,172 @@ module geometry
   type(constant_coefficients_type) :: constant_coefficients
 
   real, parameter :: invalidValue = -24680.123579 !< Used to initialise values to indicate unset
+
+  !> A type to hold a collection of geometrical quantities as calculated by
+  !> [[eikcoefs]]
+  type eikcoefs_output
+     integer :: ntheta
+     real, dimension(:), allocatable :: theta
+     real, dimension(:), allocatable :: bmag
+     real, dimension(:), allocatable :: gradpar
+     real, dimension(:), allocatable :: grho
+     real, dimension(:), allocatable :: cdrift
+     real, dimension(:), allocatable :: cvdrift
+     real, dimension(:), allocatable :: gbdrift
+     real, dimension(:), allocatable :: cdrift0
+     real, dimension(:), allocatable :: cvdrift0
+     real, dimension(:), allocatable :: gbdrift0
+     real, dimension(:), allocatable :: cvdrift_th
+     real, dimension(:), allocatable :: gbdrift_th
+     real, dimension(:), allocatable :: gds2
+     real, dimension(:), allocatable :: gds21
+     real, dimension(:), allocatable :: gds22
+     real, dimension(:), allocatable :: gds23
+     real, dimension(:), allocatable :: gds24
+     real, dimension(:), allocatable :: gds24_noq
+     real, dimension(:), allocatable :: jacob
+     real, dimension(:), allocatable :: rplot
+     real, dimension(:), allocatable :: zplot
+     real, dimension(:), allocatable :: aplot
+     real, dimension(:), allocatable :: rprime
+     real, dimension(:), allocatable :: zprime
+     real, dimension(:), allocatable :: aprime
+     real, dimension(:), allocatable :: bpol
+  end type eikcoefs_output
+
 contains
-  
+
+  !> Run eikcoefs with `ntheta = ntheta_input` and then resample onto
+  !> a theta grid with resolution `ntheta_target`.
+  subroutine run_eikcoefs_and_resample(ntheta_input, ntheta_target, results)
+    implicit none
+    !> This is the number of theta grid points per two pi period used in the
+    !> geometry calculation (actually one less than this).
+    integer, intent(in out) :: ntheta_input
+    !> This is the desired number of theta grid points per two pi period
+    !> in the resulting geometrical coefficients used elsewhere.
+    integer, intent(in) :: ntheta_target
+    type(eikcoefs_output), intent(out) :: results
+    real, dimension(:), allocatable :: input_index_space, target_index_space
+    integer :: ig, ntgrid_target, ntgrid_input
+    real :: spacing
+
+    ! First run eikcoefs using requested resolution
+    call eikcoefs(ntheta_input)
+
+    ntgrid_input = (size(theta) - 1) / 2
+    ntgrid_target =(ntheta_target*(2*nperiod-1)) / 2
+
+    results%ntheta = ntheta_target
+
+    ! Make an index space array for the original theta
+    ! grid. Spans [0,1] in size(theta)=2*ntgrid_input points
+    allocate(input_index_space(-ntgrid_input:ntgrid_input))
+    spacing = 1.0/(2*ntgrid_input)
+    do ig = -ntgrid_input, ntgrid_input
+       input_index_space(ig) = (ig+ntgrid_input) * spacing
+    end do
+
+    ! Make new theta grid
+    allocate(target_index_space(-ntgrid_target:ntgrid_target))
+
+    ! First make target index space grid
+    spacing = 1.0/(2*ntgrid_target)
+    do ig = -ntgrid_target, ntgrid_target
+       target_index_space(ig) = (ig+ntgrid_target) * spacing
+    end do
+
+    ! Now interpolate theta grid onto target index space grid
+    call resample( input_index_space, theta, target_index_space, results%theta)
+
+    ! Now interpolate other output quantities onto target theta grid
+    call resample( theta, bmag, results%theta, results%bmag)
+    call resample( theta, gradpar, results%theta, results%gradpar)
+    call resample( theta, grho, results%theta, results%grho)
+    call resample( theta, cdrift, results%theta, results%cdrift)
+    call resample( theta, cvdrift, results%theta, results%cvdrift)
+    call resample( theta, gbdrift, results%theta, results%gbdrift)
+    call resample( theta, cdrift0, results%theta, results%cdrift0)
+    call resample( theta, cvdrift0, results%theta, results%cvdrift0)
+    call resample( theta, gbdrift0, results%theta, results%gbdrift0)
+    call resample( theta, cvdrift_th, results%theta, results%cvdrift_th)
+    call resample( theta, gbdrift_th, results%theta, results%gbdrift_th)
+    call resample( theta, gds2, results%theta, results%gds2)
+    call resample( theta, gds21, results%theta, results%gds21)
+    call resample( theta, gds22, results%theta, results%gds22)
+    call resample( theta, gds23, results%theta, results%gds23)
+    call resample( theta, gds24, results%theta, results%gds24)
+    call resample( theta, gds24_noq, results%theta, results%gds24_noq)
+    call resample( theta, jacob, results%theta, results%jacob)
+    call resample( theta, rplot, results%theta, results%rplot)
+    call resample( theta, zplot, results%theta, results%zplot)
+    call resample( theta, aplot, results%theta, results%aplot)
+    call resample( theta, rprime, results%theta, results%rprime)
+    call resample( theta, zprime, results%theta, results%zprime)
+    call resample( theta, aprime, results%theta, results%aprime)
+    call resample( theta, bpol, results%theta, results%bpol)
+
+  contains
+    subroutine resample(x_orig, y_orig, x_new, y_new)
+      use splines, only: new_spline, delete_spline, splint, spline
+      real, dimension(:), intent(in) :: x_orig, y_orig
+      real, dimension(-ntgrid_target:), intent(in) :: x_new
+      real, dimension(:), allocatable, intent(out) ::  y_new
+      type(spline) :: the_spline
+      integer :: i, lower, upper
+
+      ! Spline the old data
+      call new_spline(size(x_orig), x_orig, y_orig, the_spline)
+
+      lower = lbound(x_new, 1)
+      upper = ubound(x_new, 1)
+
+      allocate(y_new(lower:upper))
+
+      do i = lower, upper
+         y_new(i) = splint(x_new(i), the_spline)
+      end do
+
+      ! Get rid of the spline
+      call delete_spline(the_spline)
+    end subroutine resample
+
+  end subroutine run_eikcoefs_and_resample
+
+  !> Set the module level outputs from eikcoefs based on what is in
+  !> the passed output type. Ideally we wouldn't do this.
+  subroutine set_eikcoefs_output(eikcoefs_results)
+    implicit none
+    type(eikcoefs_output), intent(in) :: eikcoefs_results
+
+    theta = eikcoefs_results%theta
+    bmag = eikcoefs_results%bmag
+    gradpar = eikcoefs_results%gradpar
+    grho = eikcoefs_results%grho
+    cdrift = eikcoefs_results%cdrift
+    cvdrift = eikcoefs_results%cvdrift
+    gbdrift = eikcoefs_results%gbdrift
+    cdrift0 = eikcoefs_results%cdrift0
+    cvdrift0 = eikcoefs_results%cvdrift0
+    gbdrift0 = eikcoefs_results%gbdrift0
+    cvdrift_th = eikcoefs_results%cvdrift_th
+    gbdrift_th = eikcoefs_results%gbdrift_th
+    gds2 = eikcoefs_results%gds2
+    gds21 = eikcoefs_results%gds21
+    gds22 = eikcoefs_results%gds22
+    gds23 = eikcoefs_results%gds23
+    gds24 = eikcoefs_results%gds24
+    gds24_noq = eikcoefs_results%gds24_noq
+    jacob = eikcoefs_results%jacob
+    rplot = eikcoefs_results%rplot
+    zplot = eikcoefs_results%zplot
+    aplot = eikcoefs_results%aplot
+    rprime = eikcoefs_results%rprime
+    zprime = eikcoefs_results%zprime
+    aprime = eikcoefs_results%aprime
+    bpol = eikcoefs_results%bpol
+  end subroutine set_eikcoefs_output
+
   !> FIXME : Add documentation    
   subroutine eikcoefs (ntheta_input)
     use  geq, only: eqin, geq_init
@@ -428,11 +594,9 @@ contains
     !Set output verbosity levels
     eeq_verbosity = verb
 
-    if (.not.futils_initialized) then
-      !:write (*,*) 'FILE UTILS NOT INITIALISED'
-      !stop 1
+    start_file_utils = .not. futils_initialized
 
-      start_file_utils = .true.
+    if (start_file_utils) then
       ! Initialize file utils with a run name we provide
       ! and by setting trin_run prevent it from searching
       ! the command line arguments. 
@@ -440,9 +604,7 @@ contains
       & in eikcoefs. This is a hack to &
       & support older programs like eiktest. You should&
       & initialize file utils before calling eikcoefs'
-      call init_file_utils(dummy, name='geometry_module', trin_run=.true.)
-    else
-      start_file_utils = .false.
+      call init_file_utils(dummy, name='geometry_module', trin_run=.true., input=.false.)
     end if
     !Create module level output file and get unit
     call get_unused_unit(fort11_unit)
@@ -697,7 +859,10 @@ if (debug) write(6,*) "eikcoefs: call rmajortgrid"
           Ltot = ltheta(nth)-ltheta(-nth)
           call periodic_copy(ltheta, Ltot)
        endif
-    endif 
+    endif
+
+    call periodic_copy(crpgrad(:,1), 0.)
+    call periodic_copy(crpgrad(:,2), 0.)
 
 !     compute |grad rho|:
     do k=-nperiod+1,nperiod-1
@@ -1132,6 +1297,19 @@ if (debug) write(6,*) "eikcoefs: end gradients"
 
     if(isym == 1) call sym(gradpar, 0, ntgrid)
      
+
+    ! MAB, CMR, 6/5/2009:
+    ! remove unnecessary restriction to calling plotdata for nperiod=1
+    ! so that Rplot, Zplot etc can be made available elsewhere in GS2
+    ! Note : We should call this before we potentially redefine the theta grid
+    ! due to equal_arc below as some specific equilibrium types rely on theta
+    ! having a consistent definition with that used to calculate rgrid initially.
+    ! In particular this is important for Efit and GS2D equilibria (in eeq). Other
+    ! equilibrium types use interpolation so shouldn't depend on the specific theta grid
+    ! (although it's possible there could still be some interaction, given that one of the
+    ! outputs of the below 'aplot' is given by `seik` which is evaluated on the original
+    ! grid rather than the "new" one defined below).
+    call plotdata (rgrid, seik, grads, dpsidrho)
     
     ! EGH added this for GRYFX
     bi_out = btori(rgrid(0),theta(0))
@@ -1257,11 +1435,6 @@ if (debug) write(6,*) "eikcoefs: end gradients"
     qsf = qval
     dum=qfun(0.5)
     if(eqinit >= 1) eqinit=0
-! MAB, CMR, 6/5/2009:
-! remove unnecessary restriction to calling plotdata for nperiod=1
-! so that Rplot, Zplot etc can be made available elsewhere in GS2
-!    if (nperiod ==1) call plotdata (rgrid, seik, grads, dpsidrho)
-    call plotdata (rgrid, seik, grads, dpsidrho)
 
     !write (*,*) 'gbdrift is ', gbdrift
 

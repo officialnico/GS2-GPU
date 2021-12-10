@@ -9,6 +9,9 @@ PFUNIT_VERSION_MAJOR ?= 3
 # Default is the directory where `scripts/build_pfunit` puts it
 PFUNIT_DIR ?= $(GK_HEAD_DIR)/externals/pFUnit_build/install
 
+PFUNIT_LOG:=pfunit.log
+PFUNIT_ERROR:=pfunit.error
+
 MACRO_DEFS += -DPFUNIT_VERSION_MAJOR=$(PFUNIT_VERSION_MAJOR)
 
 ifeq ($(PFUNIT_VERSION_MAJOR),4)
@@ -43,17 +46,40 @@ PFUNIT_TEST_LIST := $(PFUNIT_TEST_DIR)/testSuites.inc
 .PHONY: pfunit_tests make_test run_test check_pfunit_install pfunit_coverage run_gcov pfunit_clean
 .PHONY: build_pfunit_library clean_pfunit_library
 
-build_pfunit_library:
-	$(call messageInfo,"Building pFUnit in default location: $(GK_HEAD_DIR)/externals/pFUnit_build/install")
-ifdef USE_MPI
-	@scripts/build_pfunit -v ${PFUNIT_VERSION_MAJOR}
-else
-	@scripts/build_pfunit -v ${PFUNIT_VERSION_MAJOR} -m
+
+
+##################################################
+# Handle flags to pass to scripts/build_pfunit
+##################################################
+# How many jobs to use
+BUILD_PFUNIT_JOBS ?= 1
+# Where do we install to
+BUILD_PFUNIT_INSTALL_DIR ?= $(GK_HEAD_DIR)/externals/pFUnit_build/install
+# Where do we build
+BUILD_PFUNIT_BUILD_DIR ?=
+
+# Construct full set of flags
+BUILD_PFUNIT_FLAGS ?=
+BUILD_PFUNIT_FLAGS += -j ${BUILD_PFUNIT_JOBS} -v ${PFUNIT_VERSION_MAJOR} -i ${BUILD_PFUNIT_INSTALL_DIR}
+
+ifndef USE_MPI
+BUILD_PFUNIT_FLAGS += -m
 endif
+
+ifdef BUILD_PFUNIT_BUILD_DIR
+BUILD_PFUNIT_FLAGS += -b ${BUILD_PFUNIT_BUILD_DIR}
+endif
+
+test_build_pfunit_library:
+	@echo scripts/build_pfunit ${BUILD_PFUNIT_FLAGS}
+
+build_pfunit_library:
+	$(call messageInfo,"Building pFUnit in location: $(BUILD_PFUNIT_INSTALL_DIR)")
+	$(QUIETSYM)scripts/build_pfunit ${BUILD_PFUNIT_FLAGS}
 
 clean_pfunit_library:
 	$(call messageInfo "Removing pFUnit library")
-	@scripts/build_pfunit -r
+	$(QUIETSYM)scripts/build_pfunit -r ${BUILD_PFUNIT_FLAGS}
 
 make_test: $(PFUNIT_TEST_EXE)
 
@@ -64,12 +90,15 @@ $(PFUNIT_OBJS): $(GS2_OBJS)
 
 $(PFUNIT_TEST_EXE): $(PFUNIT_OBJS) $(PFUNIT_DRIVER) $(GS2_OBJS)
 	$(call messageOp,"Compiling","\\t:","pFUnit tests")
-	$(QUIETSYM)$(FC) -o $@ $^ -DUSE_MPI=YES $(PFUNIT_INC) $(PFUNIT_LIB) -I. $(SIMPLEDATAIO_LIB_ABS) $(LIBS) $(F90FLAGS) -I$(PFUNIT_TEST_DIR) -D_TEST_SUITES='"$(PFUNIT_TEST_LIST)"'
+	$(QUIETSYM)$(FC) -o $@ $^ -DUSE_MPI=YES $(PFUNIT_INC) $(PFUNIT_LIB) -I. $(SIMPLEDATAIO_LIB) $(LIBS) $(F90FLAGS) -I$(PFUNIT_TEST_DIR) -D_TEST_SUITES='"$(PFUNIT_TEST_LIST)"'
 
 run_test: make_test
 	-@rm -f pfunit.log pfunit.error
 	$(call messageOp,"Running ","\\t:","pFUnit tests")
-	$(QUIETSYM)(touch pfunit.log ; tail -f pfunit.log &  mpirun -np $(PFUNIT_NPROC) $(PFUNIT_TEST_PATH)/$(PFUNIT_TEST_EXE) -o pfunit.log > /dev/null 2> pfunit.error ) || (cat pfunit.error; exit 1)
+	$(QUIETSYM) touch $(PFUNIT_LOG); \
+      mpirun -np $(PFUNIT_NPROC) $(PFUNIT_TEST_PATH)/$(PFUNIT_TEST_EXE) -o $(PFUNIT_LOG) > /dev/null 2> $(PFUNIT_ERROR) \
+      && cat $(PFUNIT_LOG) \
+      || (cat $(PFUNIT_LOG) $(PFUNIT_ERROR); exit 1)
 
 run_gcov:
 	gcov *.f90
@@ -78,7 +107,10 @@ pfunit_tests: check_pfunit_install make_test run_test
 
 check_pfunit_install:
 ifeq ("$(wildcard $(PFUNIT_PREPROCESSOR))","")
-	$(error pFUnit files not found. Make sure pFUnit is installed and PFUNIT_DIR is set to its location)
+	$(error \
+pFUnit files not found. Make sure pFUnit is installed and PFUNIT_DIR is set to its location.\
+Consider running 'make build_pfunit_library' or use 'scripts/build_pfunit' \
+to try to build a copy of pFUnit if you do not have one)
 endif
 
 

@@ -9,7 +9,7 @@ contains
   !> FIXME : Add documentation  
   subroutine write_geometry(gnostics)
     use theta_grid, only: bmag, gradpar, gbdrift, gbdrift0, &
-         cvdrift, cvdrift0, gds2, gds21, gds22, grho, jacob, &
+         cvdrift, cvdrift0, gds2, gds21, gds22, gds23, gds24, gds24_noq, grho, jacob, &
          shat, drhodpsi, eps_trapped, cdrift, cdrift0, qval, shape, theta, ntgrid, Bpol
     use theta_grid, only: Rplot, Zplot, aplot, Rprime, Zprime, aprime, drhodpsi
     use diagnostics_create_and_write, only: create_and_write_variable
@@ -51,6 +51,15 @@ contains
     call create_and_write_variable(gnostics, gnostics%rtype, "gds22", &
          dim_string([gnostics%dims%theta]), &
          "Values of gds22, ", "TBC", gds22)
+    call create_and_write_variable(gnostics, gnostics%rtype, "gds23", &
+         dim_string([gnostics%dims%theta]), &
+         "Values of gds23, ", "TBC", gds23)
+    call create_and_write_variable(gnostics, gnostics%rtype, "gds24", &
+         dim_string([gnostics%dims%theta]), &
+         "Values of gds24, ", "TBC", gds24)
+    call create_and_write_variable(gnostics, gnostics%rtype, "gds24_noq", &
+         dim_string([gnostics%dims%theta]), &
+         "Values of gds24_noq, ", "TBC", gds24_noq)
     call create_and_write_variable(gnostics, gnostics%rtype, "grho", &
          dim_string([gnostics%dims%theta]), &
          "Values of grho, ", "TBC", grho)
@@ -72,19 +81,19 @@ contains
     call create_and_write_variable(gnostics, gnostics%rtype, "qval", "", &
          "Values of qval, ", "TBC", qval)
 
-    call create_and_write_variable(gnostics, gnostics%rtype, "Rplot", &
+    call create_and_write_variable(gnostics, gnostics%rtype, "rplot", &
          dim_string([gnostics%dims%theta]), &
          "The major radius at the centre of the flux tube ", "a", Rplot)
-    call create_and_write_variable(gnostics, gnostics%rtype, "Zplot", &
+    call create_and_write_variable(gnostics, gnostics%rtype, "zplot", &
          dim_string([gnostics%dims%theta]), &
          "The height above the midplane at the centre of the flux tube ", "a", Zplot)
     call create_and_write_variable(gnostics, gnostics%rtype, "aplot", &
          dim_string([gnostics%dims%theta]), &
          "The toroidal angle at the centre of the flux tube ", "rad", aplot)
-    call create_and_write_variable(gnostics, gnostics%rtype, "Rprime", &
+    call create_and_write_variable(gnostics, gnostics%rtype, "rprime", &
          dim_string([gnostics%dims%theta]), &
          "d/dx of the major radius at the centre of the flux tube ", "a/rho_r", Rprime)
-    call create_and_write_variable(gnostics, gnostics%rtype, "Zprime", &
+    call create_and_write_variable(gnostics, gnostics%rtype, "zprime", &
          dim_string([gnostics%dims%theta]), &
          "d/dx of the height above the midplane at the centre of the flux tube ", "a/rho_r", Zprime)
     call create_and_write_variable(gnostics, gnostics%rtype, "aprime", &

@@ -1,7 +1,7 @@
 
 sinclude ../Makefile.tests_common
 
-CLEANCOMMAND+= test_fields_gf_local
+clean_individual_test: LOCAL_TEST_FILES:=test_fields_gf_local
 
 ifdef TESTNORUN
 all: test_fields_gf_local 
@@ -27,6 +27,6 @@ endif
 test_fields_gf_local.o:  ${TEST_MODS} 
 
 test_fields_gf_local: test_fields_gf_local.o $(TEST_MODS)
-	$(call messageOp,"Linking ","\\t:",$^,"\\n\\t\-\-\-\-\-\-\>",$@)
+	$(call messageOp,"Linking ","\\t:",$(call processName, $^),"\\n\\t\-\-\-\-\-\-\>",$(call processName, $@))
 	$(QUIETSYM)$(LD) $(LDFLAGS) -o $@ $^ $(LIBS)
 

@@ -890,10 +890,16 @@ contains
 
   !> A routine to invert the field matrix locally
   subroutine sc_invert_local(self)
-    use mat_inv, only: inverse_gj
+    use mat_inv, only: invert_serial
+    use mp, only: broadcast_sub
+    use file_utils, only: error_unit
+    use gs2_time, only: code_dt
     implicit none
     class(supercell_type), intent(inout) :: self
     complex, dimension(:,:), allocatable :: tmp_arr
+    real :: condition_number
+    real, parameter :: condition_number_warning_limit = sqrt(1.0/epsilon(condition_number))
+    character(len = 100) :: condition_number_message
 
     !Exit early if possible
     if(self%is_empty) return
@@ -905,9 +911,39 @@ contains
     !First have to pull all row level data
     call self%pull_rows_to_arr(tmp_arr)
 
+    !It may be better to hook into the GK_VERBOSITY level system
+    !rather than relying on the debug flag.
+    if (self%is_head) then
+       condition_number = l2norm(tmp_arr)
+    end if
+
     !Now invert in place
-    call inverse_gj(tmp_arr,self%nrow)
-    tmp_arr=transpose(tmp_arr)
+    if (self%is_head) then
+       call invert_serial(tmp_arr, self%nrow)
+       tmp_arr=transpose(tmp_arr)
+    end if
+
+    !It would be quite nice if we could do the following in a non-blocking manner
+    !but this would require us to either keep the potentially large tmp_arr allocated
+    !for all supercells or for us to be able to do this "in-place" (i.e. we use something
+    !like non-blocking scatterv rather than broadcast).
+    if (.not. self%is_all_local) then
+       if (self%sc_sub_pd%nproc > 0) call broadcast_sub(tmp_arr, &
+            self%head_iproc_pd, self%sc_sub_pd%id)
+    end if
+
+    if (self%is_head) then
+       condition_number = condition_number * l2norm(tmp_arr)
+       write(condition_number_message,'("Condition number for response with ik = ",I0,", is = ",I0," and dt = ",E14.6E3," is ",E14.6E3)') self%ik_ind, self%is_ind, code_dt, condition_number
+       if (condition_number > condition_number_warning_limit) then
+          write(error_unit(), '("Warning: ",A)') trim(condition_number_message)
+       end if
+
+       !In debug mode always display the condition number message to screen
+       if (debug) then
+          write(*,'(A)') trim(condition_number_message)
+       end if
+    end if
 
     !Now push back to row level
     call self%push_arr_to_rows(tmp_arr)
@@ -936,6 +972,16 @@ contains
     complex, dimension(:,:), intent(out) :: arr !Note: Dimensions should be self%ncol, self%nrow
     integer :: ic, rl,ru, cl,cu, irb
 
+    ! Zero out arr |--> Not needed if gathering
+    ! This may look like it is only needed for the sum_allreduce_sub branch below,
+    ! however without this line we would end up not setting arr in cases where we
+    ! think of this supercell as empty. This is usually fine, but for the ky=kx=0
+    ! mode all processors consider the supercell to be empty, but we still need to
+    ! initialise this array in some cases (e.g. when dumping to file). We could
+    ! attempt to only do this zeroing in this special case to save some time, but
+    ! we don't expect to be calling this routine much so opt for simpler approach.
+    arr=0
+    
     !Now see if we want to exit
     if(self%is_empty) return
     if(.not.self%is_local) return
@@ -952,8 +998,6 @@ contains
           enddo
        enddo
     else
-       !Zero out arr |--> Not needed if gathering
-       arr=0
 
        !Place local piece in arr
        do ic=1,self%ncell
@@ -3557,8 +3601,7 @@ contains
     use gs2_layouts, only: ik_idx, it_idx
     use theta_grid, only: ntgrid, bmag
     use kt_grids, only: naky, ntheta0, kperp2, kwork_filter
-    use run_parameters, only: fphi, fapar, fbpar
-    use run_parameters, only: beta, tite
+    use run_parameters, only: fphi, fapar, fbpar, beta
     use species, only: spec, has_electron_species
     use dist_fn, only: gamtot, gamtot1, gamtot2, fl_avg, gridfac1, apfac
     use dist_fn, only: adiabatic_option_switch, adiabatic_option_fieldlineavg, calculate_flux_surface_average
@@ -3888,6 +3931,7 @@ contains
   subroutine init_fields_matrixlocal
     use mp, only: proc0, barrier
     implicit none
+    logical :: response_was_read
     real :: ts,te
 
     !Exit if we've already initialised
@@ -4000,18 +4044,24 @@ contains
 !!when the time step changes.
 !!!!!!!!!!
 
+    response_was_read = .false.
+
     !Now fill the fieldmat with data
     if(read_response)then
        if(proc0.and.debug)then
           write(dlun,'("Populating from dump.")')
           call cpu_time(ts)
        endif
-       call read_response_from_file_gf_local
-       if(proc0.and.debug) then 
+       call read_response_from_file_gf_local(could_read = response_was_read)
+       if(proc0.and.debug) then
           call cpu_time(te)
           write(dlun,'("--Done in ",F12.4," units")') te-ts
        endif
-    else       
+    end if
+
+    !If we weren't able to read the response file, or didn't try to,
+    !then we need to calculate the response matrix instead
+    if (.not. response_was_read) then
        !if(debug)call barrier
        if(proc0.and.debug)then
           write(dlun,'("Populating.")')
@@ -4076,10 +4126,7 @@ contains
 
   !> Calculate the update to the fields
   subroutine getfield_gf_local(phi,apar,bpar,gf_phi,gf_apar,gf_bpar,do_update_in)
-    use fields_arrays, only: time_field
     use theta_grid, only: ntgrid
-    use mp, only: proc0
-    use job_manage, only: time_message
     implicit none
     complex, dimension(-ntgrid:,:,:), intent(out) :: phi,apar,bpar,gf_phi,gf_apar,gf_bpar !Note, these are actually phinew,... in typical usage
     logical, optional, intent(in) :: do_update_in
@@ -4087,8 +4134,6 @@ contains
 
     do_update=.false.
     if(present(do_update_in)) do_update=do_update_in
-
-    if (proc0) call time_message(.false.,time_field,' Field Solver')
 
     !Use fieldmat routine to calculate the field update
     !AJ phi(new),apar(new),bpar(new) are in gf_lo here
@@ -4105,8 +4150,6 @@ contains
     !AJ phi(new),apar(new),bpar(new) are in g_lo
     !Thi s routine updates *new fields using gathered update
     if(do_update) call fieldmat%update_fields(phi,apar,bpar,gf_phi,gf_apar,gf_bpar)
-
-    if (proc0) call time_message(.false.,time_field,' Field Solver')
   end subroutine getfield_gf_local
 
   !> Initialise the fields from the initial g, just uses the
@@ -4133,15 +4176,19 @@ contains
     use fields_arrays, only: aparnew, bparnew, apar_ext
     use fields_arrays, only: gf_phi, gf_apar, gf_bpar
     use fields_arrays, only: gf_phinew, gf_aparnew, gf_bparnew
+    use fields_arrays, only: time_field, time_field_mpi
     use dist_fn, only: timeadv, exb_shear, g_exb, g_exbfac
     use dist_fn, only: collisions_advance
     use dist_fn_arrays, only: g, gnew
+    use mp, only: get_mp_times
+    use job_manage, only: time_message
     use antenna, only: antenna_amplitudes, no_driver
     implicit none
     integer, intent(in) :: istep
     logical, intent(in) :: remove_zonal_flows_switch
     integer :: diagnostics = 1
     logical :: do_update
+    real :: mp_total, mp_total_after
 
     do_update=.true.
 
@@ -4192,12 +4239,15 @@ contains
        aparnew=aparnew+apar_ext
     end if
 
+    call time_message(.false.,time_field,' Field Solver')
+    call get_mp_times(total_time = mp_total)
+
     !Calculate the fields at the next time point
     call getfield_gf_local(phinew,aparnew,bparnew,gf_phinew,gf_aparnew,gf_bparnew,do_update)
 
     !If we do the update in getfield_gf_local don't do it here
     if(.not.do_update)then
-       if(fphi.gt.0) then 
+       if(fphi.gt.0) then
           phinew=phinew+phi
           gf_phinew=gf_phinew+gf_phi
        end if
@@ -4205,11 +4255,15 @@ contains
           aparnew=aparnew+apar
           gf_aparnew=gf_aparnew+gf_apar
        end if
-       if(fbpar.gt.0) then 
+       if(fbpar.gt.0) then
           bparnew=bparnew+bpar
           gf_bparnew=gf_bparnew+gf_bpar
        end if
-    endif    
+    endif
+
+    call time_message(.false.,time_field,' Field Solver')
+    call get_mp_times(total_time = mp_total_after)
+    time_field_mpi = time_field_mpi + (mp_total_after - mp_total)
 
     !Remove zonal component if requested
     if(remove_zonal_flows_switch) then
@@ -4232,17 +4286,12 @@ contains
   !! by the head of the supercell.
   subroutine dump_response_to_file_gf_local(suffix)
     use gs2_save, only: gs2_save_response
-    use fields_arrays, only: response_file
+    use fields_arrays, only: get_specific_response_file_name
+    use gs2_time, only: code_dt
     implicit none
     character(len=*), optional, intent(in) :: suffix !If passed then use as part of file suffix
-    character(len=64) :: suffix_local, suffix_default='.response'
-    character(len=256) :: file_name
     complex, dimension(:,:), allocatable :: tmp_arr
     integer :: ik, is
-
-    !Set file suffix
-    suffix_local=suffix_default
-    if(present(suffix)) suffix_local=suffix
 
     !First we have to pull data so that head of each supercell has full data
     !Currently we are lazy and just ensure all procs in supercell has full data
@@ -4263,12 +4312,7 @@ contains
           
           !Now save if on head proc
           if(fieldmat%kyb(ik)%supercells(is)%is_head)then
-             !Really we should do this with netcdf but for now we will
-             !simply dump a binary file.
-
-             !First make file name
-             write(file_name,'(A,"_ik_",I0,"_is_",I0,A)') trim(response_file),ik,is,trim(suffix_local)
-             call gs2_save_response(tmp_arr,file_name)
+             call gs2_save_response(tmp_arr, get_specific_response_file_name(ik, is, code_dt, suffix))
           endif
 
           !Deallocate
@@ -4279,23 +4323,24 @@ contains
   end subroutine dump_response_to_file_gf_local
 
   !> Routine to read the current response matrix data
-  !! from file dump. One file per connected domain. Each written
-  !! by the head of the supercell.
-  !! NOTE: Have to have setup communicators etc.
-  subroutine read_response_from_file_gf_local(suffix)
+  !> from file dump. One file per connected domain. Each written
+  !> by the head of the supercell.
+  !> NOTE: Have to have setup communicators etc.
+  subroutine read_response_from_file_gf_local(could_read, suffix)
     use gs2_save, only: gs2_restore_response
-    use mp, only: sum_allreduce_sub
-    use fields_arrays, only: response_file
+    use mp, only: sum_allreduce_sub, proc0
+    use fields_arrays, only: get_specific_response_file_name
+    use gs2_time, only: code_dt
+    use file_utils, only: error_unit
     implicit none
+    logical, intent(out) :: could_read
     character(len=*), optional, intent(in) :: suffix !If passed then use as part of file suffix
-    character(len=64) :: suffix_local, suffix_default='.response'
     character(len=256) :: file_name
     complex, dimension(:,:), allocatable :: tmp_arr
     integer :: ik, is
+    logical :: file_found
 
-    !Set file suffix
-    suffix_local=suffix_default
-    if(present(suffix)) suffix_local=suffix
+    could_read = .true.
 
     !First we have to pull data so that head of each supercell has full data
     !Currently we are lazy and just ensure all procs in supercell has full data
@@ -4308,18 +4353,24 @@ contains
           !If is isn't local than cycle
           if(.not.fieldmat%kyb(ik)%supercells(is)%is_local) cycle
 
+          file_name = adjustl(get_specific_response_file_name(ik, is, code_dt, suffix))
+
+          ! First check if the expected file exists, if not then exit
+          inquire( file = trim(file_name), exist = file_found)
+          if (.not. file_found) then
+             if(proc0) write(error_unit(), &
+                  '("Could not find response file ",A,", reverting to calculation.")') trim(file_name)
+             could_read = .false.
+             return
+          end if
+
           !Now allocate array
           allocate(tmp_arr(fieldmat%kyb(ik)%supercells(is)%nrow,fieldmat%kyb(ik)%supercells(is)%ncol))
           tmp_arr=0.
 
-          !Now if on head proc read
+          !Now if on head proc read from file
           if(fieldmat%kyb(ik)%supercells(is)%is_head)then
-             !Really we should do this with netcdf but for now we will
-             !simply dump a binary file.
-
-             !First make file name
-             write(file_name,'(A,"_ik_",I0,"_is_",I0,A)') trim(response_file),ik,is,trim(suffix_local)
-             call gs2_restore_response(tmp_arr,file_name)
+             call gs2_restore_response(tmp_arr, file_name)
           endif
 
           !Now we need to broadcast the data to everyone with supercell.
@@ -4347,5 +4398,37 @@ contains
     logical :: fields_gf_local_functional
     fields_gf_local_functional = (.not. compiler_pgi())
   end function fields_gf_local_functional
+
+  !> Calculate the L2/Frobenius/Euclidiean-norm of a 2D complex array
+  real function l2norm(matrix)
+    !> The matrix to calculate the norm of
+    complex, dimension(:, :), intent(in) :: matrix
+    !> The shape of the matrix
+    integer, dimension(2) :: matrix_shape
+    !> Indicies for indexing the matrix
+    integer :: i, j
+    l2norm = 0.
+    matrix_shape = shape(matrix)
+    do j = 1, matrix_shape(2)
+       do i = 1, matrix_shape(1)
+          l2norm = l2norm + matrix(i,j)*matrix(i,j)
+       end do
+    end do
+    l2norm = sqrt(l2norm)
+
+    ! We could write all of the above as
+    !    l2norm = sqrt(sum(matrix*matrix))
+    ! but this could run over the matrix twice
+    ! and require a matrix sized temporary. Our
+    ! approach avoids this. We could have an intermediate
+    ! approach of
+    !  do j = 1, matrix_shape(1)
+    !     l2norm = l2norm + sum(matrix(:,j)*matrix(:,j))
+    !  end do
+    !  l2norm = sqrt(l2norm)
+    ! which might offer a bit of a middle ground
+    ! Also note that a norm2 method was introduced in fortran 2008
+    ! but that only accepts real valued arguments.
+  end function l2norm
 
 end module fields_gf_local

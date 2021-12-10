@@ -1,7 +1,8 @@
 
 sinclude ../Makefile.tests_common
 
-CLEANCOMMAND+= test_job_manage_stop_file
+clean_individual_test: LOCAL_TEST_FILES:=test_job_manage_stop_file
+
 ifdef TESTNORUN
 all: test_job_manage_stop_file
 	$(call SKIPCOMMAND,variable TESTNORUN is defined; unset TESTNORUN to run this test)
@@ -23,5 +24,5 @@ endif
 test_job_manage_stop_file.o:  ${TEST_MODS} 
 
 test_job_manage_stop_file: test_job_manage_stop_file.o $(TEST_MODS)
-	$(call messageOp,"Linking ","\\t:",$^,"\\n\\t\-\-\-\-\-\-\>",$@)
+	$(call messageOp,"Linking ","\\t:",$(call processName, $^),"\\n\\t\-\-\-\-\-\-\>",$(call processName, $@))
 	$(QUIETSYM)$(LD) $(LDFLAGS) -o $@ $^ $(LIBS)

@@ -1,2 +1,3 @@
-.time_fields_local.in
+.*.in
+fort.*
 time_fields_local

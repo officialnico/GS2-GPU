@@ -1,0 +1,62 @@
+!=================================================================
+!                        GS2 INPUT FILE
+!=================================================================
+!
+!  GS2 is a gyrokinetic flux tube initial value turbulence code
+!  which can be used for fusion or astrophysical plasmas.
+!
+!  Website:
+!            https://gyrokinetics.gitlab.io/gs2/
+!  Repo:
+!            https://bitbucket.org/gyrokinetics/gs2/
+!  Citation:
+!            https://zenodo.org/record/2551066
+!  doi:
+!            10.5281/zenodo.2551066
+!
+!=================================================================
+
+!==============================
+!GENERAL PARAMETERS  
+!==============================
+
+&kt_grids_knobs
+ grid_option = "box" ! The general layout of the perpendicular grid.
+/
+
+!==============================
+!  
+!==============================
+&kt_grids_box_parameters
+ nx = 4
+ ny = 4
+ x0 = 1
+ y0 = 2
+/
+
+!==============================
+!BOUNDARY CONDITIONS  
+!==============================
+&dist_fn_knobs
+ gridfac = 1.0 ! Affects boundary condition at end of theta grid.
+ omprimfac = 1.0 
+ boundary_option = "linked" ! Sets the boundary condition along the field line (i.e. the boundary conditions at theta = +- pi).
+ adiabatic_option = "iphi00=2" ! The form of the adiabatic response (if a species is being modeled as adiabatic).
+ g_exb = 0.0 
+ nonad_zero = .true. ! If true switches on new parallel boundary condition where h=0 at incoming boundary instead of g=0.
+ gf_lo_integrate = .false.
+/
+
+!==============================
+!ALGORITHMIC CHOICES  
+!==============================
+&fields_knobs
+ field_option = "local" ! Controls which time-advance algorithm is used for the linear terms.
+/
+
+&layouts_knobs
+ layout = "lexys" ! 'yxles', 'lxyes', 'lyxes', 'lexys' Determines the way the grids are laid out in memory.
+/
+
+!Include the shared parameters
+!include cyclone_itg_low_res_base.in

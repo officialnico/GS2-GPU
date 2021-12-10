@@ -1,7 +1,7 @@
 
 sinclude ../Makefile.tests_common
 
-CLEANCOMMAND+= test_nonlinear_terms
+clean_individual_test: LOCAL_TEST_FILES:=test_nonlinear_terms
 
 ifdef TESTNORUN
 all: test_nonlinear_terms 
@@ -27,6 +27,6 @@ endif
 test_nonlinear_terms.o:  ${TEST_MODS} 
 
 test_nonlinear_terms: test_nonlinear_terms.o $(TEST_MODS)
-	$(call messageOp,"Linking ","\\t:",$^,"\\n\\t\-\-\-\-\-\-\>",$@)
+	$(call messageOp,"Linking ","\\t:",$(call processName, $^),"\\n\\t\-\-\-\-\-\-\>",$(call processName, $@))
 	$(QUIETSYM)$(LD) $(LDFLAGS) -o $@ $^ $(LIBS)
 
