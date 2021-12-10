@@ -21,7 +21,12 @@ contains
     type(diagnostics_type), intent(in) :: gnostics
     complex, dimension(:,:), allocatable :: phi_corr_2pi
     allocate (phi_corr_2pi(-ntgrid:ntgrid,naky))
-    if (.not. gnostics%replay) call correlation (phi_corr_2pi)
+    if (.not. gnostics%replay) then
+       call correlation (phi_corr_2pi)
+    else
+       phi_corr_2pi = 0.
+    end if
+
     call create_and_write_variable(gnostics, gnostics%rtype, "phi_corr_2pi", &
          dim_string([gnostics%dims%ri,gnostics%dims%theta,gnostics%dims%ky,gnostics%dims%time]), &
          "2 point correlation function calculated from the electric potential &
@@ -80,6 +85,9 @@ contains
     if (.not. allocated(phicorr_sum)) then
        ntg_extend = (2*ntgrid+1)*((ntheta0-1)/jtwist_out+1)
        nth0_extend = min(ntheta0,jtwist_out*(naky-1))
+       ! Warning: For ntheta=ntheta0=naky=128 and jtwist = 6 these two arrays
+       ! will require 750 MB and 375 MB respectively and they are not freed
+       ! after leaving the routine.
        allocate (phicorr_sum(ntg_extend,ntheta0,naky)) ; phicorr_sum = 0.0
        allocate (phiextend_sum(ntg_extend,ntheta0,naky)) ; phiextend_sum = 0.0
        tcorr0 = t_old
@@ -96,6 +104,8 @@ contains
          "2 point correlation function calculated from the electric potential &
          & as a function of ky and parallel sep... time averaged and &
          & calculated along the extended domain. ", "1", phicorr_sum/(t-tcorr0))
+    ! Note we do not appear to use phiextend_sum here, unlike in the old
+    ! diagnostics which also writes the extened version
     deallocate (phi_corr, phi2_extend)
   end subroutine write_correlation_extend
 
@@ -248,7 +258,7 @@ contains
   !! other fields at some point, but for now this is just a skeleton for 
   !! a more realistic synthetic diagnostic. 
   subroutine get_cross_phase (gnostics, phase_tot, phase_theta)
-    use species, only: nspec, spec, electron_species
+    use species, only: nspec, spec, is_electron_species
     use kt_grids, only: ntheta0, naky
     use theta_grid, only: ntgrid
     use dist_fn, only: getemoms
@@ -271,7 +281,7 @@ contains
     call getemoms (phinew, bparnew, ntot, tperp)
     
     do is = 1,nspec
-       if (spec(is)%type == electron_species) then
+       if (is_electron_species(spec(is))) then
           ! get cross_phase at outboard midplane
           !call get_vol_int (ntot(0,:,:,is), tperp(0,:,:,is), nTp, nTp_by_mode)
           call average_all(ntot(0,:,:,is), tperp(0,:,:,is), nTp, gnostics%distributed)

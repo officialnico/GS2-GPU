@@ -96,6 +96,8 @@ module config_collection
    contains
      !> See [[write_to_unit]] for details.
      procedure :: write_to_unit
+     !> See [[get_configs]] for details
+     procedure :: get_configs
   end type gs2_config_type
 
 contains
@@ -196,4 +198,95 @@ contains
     call self%theta_grid_salpha_config%write(local_output_unit)
 
   end subroutine write_to_unit
+
+  !> Copy all the module-level configs into \p self.
+  !>
+  !> Can be used to get a "snapshot" of the current state of all
+  !> module's configs.
+  subroutine get_configs(self)
+    use antenna, only : get_antenna_driver_config, get_antenna_stir_config
+    use ballstab, only: get_ballstab_config
+    use collisions, only: get_collisions_config
+    use dist_fn, only: get_dist_fn_config, get_dist_fn_species_config, get_source_config
+#ifdef WITH_EIG
+    use eigval, only: get_eigval_config
+#endif
+    use fields, only: get_fields_config
+    use gs2_diagnostics, only: get_gs2_diagnostics_config
+    use gs2_init, only: get_gs2_init_config
+    use gs2_layouts, only: get_gs2_layouts_config
+    use hyper, only: get_hyper_config
+    use ingen_mod, only: get_ingen_mod_config
+    use init_g, only: get_init_g_config
+    use kt_grids, only: get_kt_grids_config
+    use kt_grids_box, only: get_kt_grids_box_config
+    use kt_grids_range, only: get_kt_grids_range_config
+    use kt_grids_single, only: get_kt_grids_single_config
+    use kt_grids_specified, only: get_kt_grids_specified_config, get_kt_grids_specified_element_config
+    use le_grids, only: get_le_grids_config
+#ifdef NEW_DIAG
+    use diagnostics_config, only: get_new_gs2_diagnostics_config => get_diagnostics_config_config
+#endif
+    use nonlinear_terms, only: get_nonlinear_terms_config
+    use normalisations, only: get_normalisations_config
+    use optimisation_config, only: get_optimisation_config_config
+    use run_parameters, only: get_knobs_config, get_parameters_config
+    use parameter_scan, only: get_parameter_scan_config
+    use gs2_reinit, only: get_gs2_reinit_config
+    use species, only: get_species_config, get_species_element_config
+    use theta_grid, only: get_theta_grid_config
+    use theta_grid_eik, only: get_theta_grid_eik_config
+    use theta_grid_file, only: get_theta_grid_file_config
+    use theta_grid_gridgen, only: get_theta_grid_gridgen_config
+    use theta_grid_params, only: get_theta_grid_params_config
+    use theta_grid_salpha, only: get_theta_grid_salpha_config
+
+    class(gs2_config_type), intent(in out) :: self
+
+    self%driver_config = get_antenna_driver_config()
+    self%stir_config = get_antenna_stir_config()
+
+    self%ballstab_config = get_ballstab_config()
+    self%collisions_config = get_collisions_config()
+    self%dist_fn_config = get_dist_fn_config()
+    self%dist_fn_species_config = get_dist_fn_species_config()
+#ifdef WITH_EIG
+    self%eigval_config = get_eigval_config()
+#endif
+    self%fields_config = get_fields_config()
+    self%gs2_diagnostics_config = get_gs2_diagnostics_config()
+    self%init_config = get_gs2_init_config()
+    self%layouts_config = get_gs2_layouts_config()
+    self%hyper_config = get_hyper_config()
+    self%ingen_config = get_ingen_mod_config()
+    self%init_g_config = get_init_g_config()
+    self%kt_grids_config = get_kt_grids_config()
+    self%kt_grids_box_config = get_kt_grids_box_config()
+    self%kt_grids_range_config = get_kt_grids_range_config()
+    self%kt_grids_single_config = get_kt_grids_single_config()
+    self%kt_grids_specified_config = get_kt_grids_specified_config()
+    self%kt_grids_specified_element_config = get_kt_grids_specified_element_config()
+    self%le_grids_config = get_le_grids_config()
+#ifdef NEW_DIAG
+    self%new_gs2_diagnostics_config = get_new_gs2_diagnostics_config()
+#endif
+    self%nonlinear_terms_config = get_nonlinear_terms_config()
+    self%normalisations_config = get_normalisations_config()
+    self%optimisation_config = get_optimisation_config_config()
+    self%knobs_config = get_knobs_config()
+    self%parameters_config = get_parameters_config()
+    self%parameter_scan_config = get_parameter_scan_config()
+    self%reinit_config = get_gs2_reinit_config()
+    self%source_config = get_source_config()
+    self%species_config = get_species_config()
+    self%species_element_config = get_species_element_config()
+    self%theta_grid_config = get_theta_grid_config()
+    self%theta_grid_eik_config = get_theta_grid_eik_config()
+    self%theta_grid_file_config = get_theta_grid_file_config()
+    self%theta_grid_gridgen_config = get_theta_grid_gridgen_config()
+    self%theta_grid_parameters_config = get_theta_grid_params_config()
+    self%theta_grid_salpha_config = get_theta_grid_salpha_config()
+
+  end subroutine get_configs
+
 end module config_collection

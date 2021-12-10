@@ -31,7 +31,7 @@ module run_parameters
   !! quasilinear estimates of fluxes to trinity
   public :: trinity_ql_fluxes
   public :: user_comments
-
+  
   !> If true use old diagnostics. Included for testing
   !! only and will eventually be removed. Please use 
   !! the new diagnostics module!
@@ -42,6 +42,8 @@ module run_parameters
   public :: knobs_config_type
   public :: parameters_config_type
   public :: set_run_parameters_config
+  public :: get_knobs_config
+  public :: get_parameters_config
   
   real :: beta, zeff, tite
   real :: fphi, fapar, fbpar, faperp
@@ -67,7 +69,7 @@ module run_parameters
   logical :: use_old_diagnostics
 
   character(len=100000) :: user_comments
-
+  
   integer, allocatable :: ieqzip(:,:)
   integer :: eqzip_option_switch
   integer, parameter :: &
@@ -80,10 +82,12 @@ module run_parameters
   type, extends(abstract_config_type) :: knobs_config_type
      ! namelist : knobs
      ! indexed : false     
+
      !> The maximum wall clock time available to GS2
      real :: avail_cpu_time = 1.0e10
-     !> \(\beta\) is the ratio of the reference pressure to the reference magnetic energy density, \(\beta=2\mu_0n_{ref}T_{ref}/B^2_{ref}\).
-     !> This gets a smart default from parameters
+     !> \(\beta\) is the ratio of the reference pressure to the reference
+     !> magnetic energy density, \(\beta=2\mu_0n_{ref}T_{ref}/B^2_{ref}\).  This
+     !> gets a smart default from parameters
      real :: beta = 0.0
      !> Initial timestep
      real :: delt = 0.1
@@ -100,44 +104,54 @@ module run_parameters
      character(len = 20) :: delt_option = 'default'
      !> If true then use eigensolver instead of initial value solver.
      logical :: do_eigsolve = .false.
-     !> Advanced option to freeze evolution of certain modes
+     !> Advanced option to freeze evolution of certain modes, used with
+     !> [[knobs:secondary]], [[knobs:tertiary]], [[knobs:harris]]. See
+     !> [knobs:eqzip_option]] for details.
      logical :: eqzip = .false.
-     !> What types of modes are frozen with eqzip
+     !> Advanced option to freeze evolution of certain modes. Reimplementation
+     !> of [[knobs:eqzip]]. Possible values are:
+     !>
+     !> - "secondary": don't evolve `ik == 2, it == 1`;
+     !> - "tertiary": dont' evolve `ik == 1, it == 2 or ntheta`;
+     !> - "harris": don't evolve `ik == 1`.
+     !>
+     !> Only used in [[dist_fn]], should be moved to [[dist_fn_knobs]].
      character(len = 20) :: eqzip_option = 'none'
      !> Multiplies \(A_\|\) throughout.
      real :: fapar = 0.0
-     !> Deprecated
+     !> Deprecated, synonym for `fapar`
      real :: faperp = 0.0
      !> Multiplies \(B_\|\) throughout.
      real :: fbpar = -1.0
      !> Multiplies \(\phi\) throughout.
      real :: fphi = 1.0
-     !> Advanced
+     !> See [[knobs:eqzip]]
      logical :: harris = .false.
      !> Determines the behaviour when the CFL condition is broken in the nonlinear term:
      logical :: immediate_reset = .true.
-     !> Unknown, only uses in [[init_g]] -- should be moved to init_g namelist.
-     !> This gets a smart default from parameters
+     !> Used in [[init_g_knobs:ginit_option]] "harris" and "convect". Should be
+     !> moved to init_g namelist. This gets a smart default from [[parameters]].
      real :: k0 = 1.0
      !> Not used anywhere -- to be removed.
      real :: margin = 0.05
      !> How close to avail_cpu_time can we go before trying to stop the run cleanly
      real :: margin_cpu_time = 300.0
-     !> Lowflow only.
+     !> Lowflow only. If true, GS2 exits after writing out neoclassical
+     !> quantities of interest
      logical :: neo_test = .false.
      !> Maximum number of steps to take
      integer :: nstep = 100
      !> Normalised gyro-radius, only used for low flow builds
      !> This gets a smart default from parameters
      real :: rhostar = 3.0e-3
-     !> Advanced
+     !> See [[knobs:eqzip]]
      logical :: secondary = .true.
      !> Used to set the random seed used in the random number
-     !> generators provided by [[ran]]. If this inpud is 0 (the
+     !> generators provided by [[ran]]. If this input is 0 (the
      !> default) then we don't set the seed and use the system default
      !> instead.
      integer :: seed = 0
-     !> Advanced
+     !> See [[knobs:eqzip]]
      logical :: tertiary = .false.
      !> Deprecated
      !> This gets a smart default from parameters
@@ -206,6 +220,7 @@ contains
 
   !> FIXME : Add documentation  
   subroutine check_run_parameters(report_unit)
+    use species, only: has_hybrid_electron_species, spec
     implicit none
     integer, intent(in) :: report_unit
     if (fphi /= 1.) then
@@ -277,6 +292,16 @@ contains
        write (report_unit, fmt="('The random number generator will use the default seed.')")
     endif
     write (report_unit, *)
+
+    if ( has_hybrid_electron_species(spec) .and. beta /= 0.0 &
+         .and. (fapar /= 0 .or. fbpar /=0) ) then
+       write (report_unit, *)
+       write (report_unit, fmt="('################# WARNING #######################')")
+       write (report_unit, fmt="('You are using a hybrid electron species in an electromagnetic simulation.')")
+       write (report_unit, fmt="('This is probably not physical.')")
+       write (report_unit, fmt="('################# WARNING #######################')")
+       write (report_unit, *)
+    end if
 
   end subroutine check_run_parameters
 
@@ -384,7 +409,7 @@ contains
             text_option('check_restart', delt_option_auto) /)
     character(20) :: delt_option
     integer :: ierr, istatus
-    real :: delt0, delt1, delt2
+    real :: delt0, delt1, delt2, delt_max
     real, dimension (2) :: vnm_saved
 
     real :: teti  ! for back-compatibility
@@ -421,36 +446,36 @@ contains
     call knobs_config%init(name = 'knobs', requires_index = .false.)
 
     ! Copy out internal values into module level parameters
-    beta  = knobs_config%beta 
-    zeff  = knobs_config%zeff 
-    tite  = knobs_config%tite 
-    teti  = knobs_config%teti 
-    k0    = knobs_config%k0   
-    rhostar  = knobs_config%rhostar 
-    user_comments  = knobs_config%user_comments 
-    fphi  = knobs_config%fphi 
-    fapar  = knobs_config%fapar 
-    fbpar  = knobs_config%fbpar 
-    delt  = knobs_config%delt 
-    nstep  = knobs_config%nstep 
-    wstar_units  = knobs_config%wstar_units 
-    eqzip  = knobs_config%eqzip 
-    delt_option  = knobs_config%delt_option 
+    avail_cpu_time = knobs_config%avail_cpu_time
+    beta = knobs_config%beta
+    delt = knobs_config%delt
+    delt_option = knobs_config%delt_option
+    do_eigsolve = knobs_config%do_eigsolve
+    eqzip = knobs_config%eqzip
+    eqzip_option = knobs_config%eqzip_option
+    fapar = knobs_config%fapar
+    faperp = knobs_config%faperp
+    fbpar = knobs_config%fbpar
+    fphi = knobs_config%fphi
+    harris = knobs_config%harris
+    immediate_reset = knobs_config%immediate_reset
+    k0 = knobs_config%k0
     margin = knobs_config%margin
-    secondary  = knobs_config%secondary
-    seed  = knobs_config%seed
-    tertiary  = knobs_config%tertiary 
-    faperp  = knobs_config%faperp 
-    harris  = knobs_config%harris 
-    avail_cpu_time  = knobs_config%avail_cpu_time 
-    margin_cpu_time  = knobs_config%margin_cpu_time 
-    eqzip_option  = knobs_config%eqzip_option 
-    neo_test  = knobs_config%neo_test 
-    trinity_linear_fluxes  = knobs_config%trinity_linear_fluxes 
-    do_eigsolve  = knobs_config%do_eigsolve 
-    immediate_reset  = knobs_config%immediate_reset 
-    use_old_diagnostics  = knobs_config%use_old_diagnostics 
-    trinity_ql_fluxes  = knobs_config%trinity_ql_fluxes 
+    margin_cpu_time = knobs_config%margin_cpu_time
+    neo_test = knobs_config%neo_test
+    nstep = knobs_config%nstep
+    rhostar = knobs_config%rhostar
+    secondary = knobs_config%secondary
+    seed = knobs_config%seed
+    tertiary = knobs_config%tertiary
+    teti = knobs_config%teti
+    tite = knobs_config%tite
+    trinity_linear_fluxes = knobs_config%trinity_linear_fluxes
+    trinity_ql_fluxes = knobs_config%trinity_ql_fluxes
+    use_old_diagnostics = knobs_config%use_old_diagnostics
+    user_comments = knobs_config%user_comments
+    wstar_units = knobs_config%wstar_units
+    zeff = knobs_config%zeff
   
     knexist = knobs_config%exist
 
@@ -536,23 +561,18 @@ contains
     !! @todo: Add input variables to allow these to be set directly
     delt_prev1 = dt_not_set
     delt_prev2 = dt_not_set
+
+    vnm_init = 1.0
     
     if (delt_option_switch == delt_option_auto) then
-       vnm_init = 1.0
        call init_vnm (vnm_saved, istatus)
        if (istatus == 0) vnm_init = vnm_saved
-       call init_dt (delt0, delt1, delt2, istatus, dt_not_set)
 
-       ! FIXME: The following check means that we only set all the
-       ! time step values if there were no errors in whatever the last
-       ! operation in `init_dt` was. In reality we should probably always
-       ! set these values based on what is returned and move the error
-       ! handling into `init_dt`.
-       if (istatus == 0) then
-          delt  = delt0
-          delt_prev1 = delt1
-          delt_prev2 = delt2
-       endif
+       call init_dt (delt0, delt1, delt2, delt_max, istatus, dt_not_set)
+       if (delt0 /= dt_not_set) delt = delt0
+       if (delt1 /= dt_not_set) delt_prev1 = delt1
+       if (delt2 /= dt_not_set) delt_prev2 = delt2
+       if (delt_max /= dt_not_set) user_delt_max = delt_max
     endif
 
     if (seed .ne. 0 ) call set_seed_from_single_integer(seed)
@@ -648,11 +668,23 @@ contains
        parameters_config = parameters_config_in
     end if
   end subroutine set_run_parameters_config
-  
+
+  !> Get the module level config instance
+  function get_knobs_config()
+    type(knobs_config_type) :: get_knobs_config
+    get_knobs_config = knobs_config
+  end function get_knobs_config
+
+  !> Get the module level config instance
+  function get_parameters_config()
+    type(parameters_config_type) :: get_parameters_config
+    get_parameters_config = parameters_config
+  end function get_parameters_config
+
   !---------------------------------------
   ! Following is for the knobs config_type
   !--------------------------------------- 
-  
+
   !> Reads in the knobs namelist and populates the member variables
   subroutine read_knobs_config(self)
     use file_utils, only: input_unit_exist, get_indexed_namelist_unit
@@ -660,11 +692,11 @@ contains
     implicit none
     class(knobs_config_type), intent(in out) :: self
     logical :: exist
-    integer :: in_file, iostat
+    integer :: in_file
 
     ! Note: When this routine is in the module where these variables live
     ! we shadow the module level variables here. This is intentional to provide
-    ! isolation and ensure we can move this routine to another module easily.
+    ! isolation and ensure we can move this routine to another module easily.    
     character(len = 100000) :: user_comments
     character(len = 20) :: delt_option, eqzip_option
     integer :: nstep, seed
@@ -710,16 +742,8 @@ contains
     zeff = self%zeff
 
     ! Now read in the main namelist
-    if (self%get_requires_index()) then
-       call get_indexed_namelist_unit(in_file, trim(self%get_name()), self%index)
-       read(in_file, nml = knobs, iostat = iostat)
-       exist = .true.
-       if (iostat .ne.0) exist = .false.
-       close(unit = in_file, iostat = iostat)
-    else
-       in_file = input_unit_exist(self%get_name(), exist)
-       if (exist) read(in_file, nml = knobs)
-    endif
+    in_file = input_unit_exist(self%get_name(), exist)
+    if (exist) read(in_file, nml = knobs)
 
     ! Now copy from local variables into type members
     self%avail_cpu_time = avail_cpu_time
@@ -877,7 +901,7 @@ contains
     implicit none
     class(parameters_config_type), intent(in out) :: self
     logical :: exist
-    integer :: in_file, iostat
+    integer :: in_file
 
     ! Note: When this routine is in the module where these variables live
     ! we shadow the module level variables here. This is intentional to provide
@@ -900,16 +924,8 @@ contains
     zeff = self%zeff
 
     ! Now read in the main namelist
-    if (self%get_requires_index()) then
-       call get_indexed_namelist_unit(in_file, trim(self%get_name()), self%index)
-       read(in_file, nml = parameters, iostat = iostat)
-       exist = .true.
-       if (iostat .ne.0) exist = .false.
-       close(unit = in_file, iostat = iostat)
-    else
-       in_file = input_unit_exist(self%get_name(), exist)
-       if (exist) read(in_file, nml = parameters)
-    endif
+    in_file = input_unit_exist(self%get_name(), exist)
+    if (exist) read(in_file, nml = parameters)
 
     ! Now copy from local variables into type members
     self%beta = beta
