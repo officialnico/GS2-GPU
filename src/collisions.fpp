@@ -3698,8 +3698,6 @@ contains
     use theta_grid, only: bmag
     use run_parameters, only: tunits
     use kt_grids, only: kwork_filter
-    ! TMP FOR TESTING -- MAB
-!    use mp, only: proc0
 
     implicit none
 
