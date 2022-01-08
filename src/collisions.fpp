@@ -3525,6 +3525,7 @@ contains
              ! aj1vp2 = 2 * J1(arg)/arg * vperp^2
              gtmp(ixi,ie,ile) = vnmult(1) * vnew_D(ik,ie,is) * aj1le(ixi,:ie,ile) &
                   * energy(ie) * al(il) * gle(ixi,ie,ile)
+          end do
        end do
     end do
 
