@@ -120,7 +120,6 @@ module collisions
 
   ! The following (between the start and finish comments) are only used for LE layout
   ! start
-  real, dimension (:,:), allocatable :: vpatmp
   real, dimension (:,:,:), allocatable :: bs0le, bw0le, bz0le
   ! finish
 
@@ -3708,11 +3707,10 @@ contains
     complex, dimension (:,:,:), allocatable :: gtmp
 
     real, dimension (:,:,:), allocatable :: vns
-
+    real :: vpa_delnu
     integer :: ig, isgn, ik, ie, il, is, it
     integer :: ile, ixi
     integer :: nxi_lim
-    real, dimension (:,:,:,:), allocatable :: vpadelnu
     complex, dimension (:), allocatable :: v0y0, v1y1, v2y2
 
     allocate (v0y0(le_lo%llim_proc:le_lo%ulim_alloc))
@@ -3720,7 +3718,6 @@ contains
     allocate (v2y2(le_lo%llim_proc:le_lo%ulim_alloc))
 
     allocate (gtmp(nxi+1, negrid+1, le_lo%llim_proc:le_lo%ulim_alloc))
-    allocate (vpadelnu(-ntgrid:ntgrid, nxi+1, negrid+1, nspec)) ; vpadelnu = 0.0
     allocate (vns(naky,negrid,nspec))
 
     !This is needed to to ensure the it,ik values we don't set aren't included
@@ -3734,24 +3731,9 @@ contains
         nxi_lim = nxi
     endif
 
-    
-    if (.not. allocated(vpatmp)) then
-       allocate(vpatmp(-ntgrid:ntgrid,nxi_lim)) ; vpatmp = 0.0
-       do ixi = 1, nxi_lim
-          do ig = -ntgrid, ntgrid
-             il = ixi_to_il(ig,ixi)
-             isgn = ixi_to_isgn(ig,ixi)
-             if (.not. forbid(ig,il)) &
-                  vpatmp(ig,ixi) = sgn(isgn)*sqrt(max(0.0,(1.0-al(il)*bmag(ig))))
-          end do
-       end do
-    end if
-    
-    vns = vnmult(2)*vnew_E
-    
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 ! First get v0y0
-    
+
     do ile = le_lo%llim_proc, le_lo%ulim_proc
        ik = ik_idx(le_lo,ile)
        it = it_idx(le_lo,ile)
@@ -3763,7 +3745,7 @@ contains
           end do
        end do
     end do
-    
+
     call integrate_moment (le_lo, gtmp, v0y0)    ! v0y0
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -3785,12 +3767,6 @@ contains
 
     vns(1,:,:) = vnmult(2)*delvnew(1,:,:)/tunits(1)
 
-    do is = 1, nspec
-       do ie = 1, negrid
-          vpadelnu(:,:nxi_lim,ie,is) = vns(1,ie,is) * vpatmp * speed(ie)
-       end do
-    end do
-
     do ile = le_lo%llim_proc, le_lo%ulim_proc
        ik = ik_idx(le_lo,ile)
        it = it_idx(le_lo,ile)
@@ -3798,8 +3774,12 @@ contains
        is = is_idx(le_lo,ile)
        ig = ig_idx(le_lo,ile)
        do ie=1, negrid
-          do ixi = 1, nxi_lim      
-             gtmp (ixi,ie,ile) = vpadelnu(ig,ixi,ie,is) * tunits(ik) * aj0le(ixi,ie,ile) * gle(ixi,ie,ile)
+          do ixi = 1, nxi_lim
+             il = ixi_to_il(ig,ixi)
+             isgn = ixi_to_isgn(ig,ixi)
+             vpa_delnu = (vnmult(2)*delvnew(1,ie,is)/tunits(1)) * &
+                  sgn(isgn)*sqrt(max(0.0,(1.0-al(il)*bmag(ig)))) * speed(ie)
+             gtmp (ixi,ie,ile) = vpa_delnu * tunits(ik) * aj0le(ixi,ie,ile) * gle(ixi,ie,ile)
           end do
        end do
     end do
@@ -3859,7 +3839,7 @@ contains
        end do
     end do
 
-    deallocate (vpadelnu, vns, v0y0, v1y1, v2y2, gtmp)
+    deallocate (vns, v0y0, v1y1, v2y2, gtmp)
 
   end subroutine conserve_diffuse_le_layout
 
@@ -4452,7 +4432,6 @@ contains
       end if
       if (allocated(ec1le)) deallocate (ec1le, ebetaale, eqle)
       if (allocated(glec)) deallocate (glec)
-      if (allocated(vpatmp)) deallocate (vpatmp)
       if (allocated(s0le)) deallocate(s0le)
       if (allocated(w0le)) deallocate(w0le)
       if (allocated(z0le)) deallocate(z0le)
