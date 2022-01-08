@@ -3759,7 +3759,7 @@ contains
        is = is_idx(le_lo,ile)
        do ie=1, negrid
           do ixi = 1, nxi_lim
-             gtmp(ixi,ie,ile) = vns(ik,ie,is) * aj0le(ixi,ie,ile) * gle(ixi,ie,ile)
+             gtmp(ixi,ie,ile) = vnmult(2) * vnew_E(ik,ie,is) * aj0le(ixi,ie,ile) * gle(ixi,ie,ile)
           end do
        end do
     end do
