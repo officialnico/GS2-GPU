@@ -3715,10 +3715,6 @@ contains
     real, dimension (:,:,:,:), allocatable :: vpadelnu
     complex, dimension (:), allocatable :: v0y0, v1y1, v2y2
 
-    ! TMP FOR TESTING -- MAB
-!    integer :: t0, t1, t2, t3, t4, t5, t6, t7, t8, t9, t10, tr
-!    real :: t1tot=0., t2tot = 0., t3tot = 0., t4tot = 0., t5tot = 0., t6tot = 0., t7tot = 0., t8tot = 0., t9tot = 0., t10tot=0.
-
     allocate (v0y0(le_lo%llim_proc:le_lo%ulim_alloc))
     allocate (v1y1(le_lo%llim_proc:le_lo%ulim_alloc))
     allocate (v2y2(le_lo%llim_proc:le_lo%ulim_alloc))
@@ -3756,29 +3752,19 @@ contains
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 ! First get v0y0
     
-    ! TMP FOR TESTING -- MAB
-!    if (proc0) call system_clock (count=t0, count_rate=tr)
-
     do ile = le_lo%llim_proc, le_lo%ulim_proc
-       is = is_idx(le_lo,ile)
        ik = ik_idx(le_lo,ile)
        it = it_idx(le_lo,ile)
        if(kwork_filter(it,ik)) cycle
+       is = is_idx(le_lo,ile)
        do ie=1, negrid
           do ixi = 1, nxi_lim
-             gtmp(ixi,ie,ile) = vns(ik,ie,is)*aj0le(ixi,ie,ile)*gle(ixi,ie,ile)
+             gtmp(ixi,ie,ile) = vns(ik,ie,is) * aj0le(ixi,ie,ile) * gle(ixi,ie,ile)
           end do
        end do
     end do
     
     call integrate_moment (le_lo, gtmp, v0y0)    ! v0y0
-!    call integrate_moment (le_lo, gle*aj0le, v0y0, vns)    ! v0y0
-
-    ! TMP FOR TESTING -- MAB
-!    if (proc0) then
-!       call system_clock (count=t1)
-!       t1tot = t1tot + real(t1-t0)/tr
-!    end if
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 ! Get y1 = y0 - v0y0 * z0 / (1 + v0z0)
@@ -3787,8 +3773,11 @@ contains
        it = it_idx(le_lo,ile)
        ik = ik_idx(le_lo,ile)
        if(kwork_filter(it,ik)) cycle
-
-       gle(:,:,ile) = gle(:,:,ile) - ieqzip(it,ik)*v0y0(ile)*bz0le(:,:,ile)
+       do ie=1, negrid
+          do ixi = 1, nxi_lim
+             gle(ixi,ie,ile) = gle(ixi,ie,ile) - ieqzip(it,ik)*v0y0(ile)*bz0le(ixi,ie,ile)
+          end do
+       end do
     end do
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -3796,41 +3785,26 @@ contains
 
     vns(1,:,:) = vnmult(2)*delvnew(1,:,:)/tunits(1)
 
-    ! TMP FOR TESTING -- MAB
-!    if (proc0) then
-!       call system_clock (count=t2)
-!       t2tot = t2tot + real(t2-t1)/tr
-!    end if
-
     do is = 1, nspec
        do ie = 1, negrid
           vpadelnu(:,:nxi_lim,ie,is) = vns(1,ie,is) * vpatmp * speed(ie)
        end do
     end do
 
-    ! TMP FOR TESTING -- MAB
-!    if (proc0) then
-!       call system_clock (count=t3)
-!       t3tot = t3tot + real(t3-t2)/tr
-!    end if
-
     do ile = le_lo%llim_proc, le_lo%ulim_proc
-       is = is_idx(le_lo,ile)
-       ig = ig_idx(le_lo,ile)
        ik = ik_idx(le_lo,ile)
        it = it_idx(le_lo,ile)
        if(kwork_filter(it,ik)) cycle
-
-       gtmp (:,:,ile) = vpadelnu(ig,:,:,is) * tunits(ik) * aj0le(:,:,ile) * gle(:,:,ile)
+       is = is_idx(le_lo,ile)
+       ig = ig_idx(le_lo,ile)
+       do ie=1, negrid
+          do ixi = 1, nxi_lim      
+             gtmp (ixi,ie,ile) = vpadelnu(ig,ixi,ie,is) * tunits(ik) * aj0le(ixi,ie,ile) * gle(ixi,ie,ile)
+          end do
+       end do
     end do
 
     call integrate_moment (le_lo, gtmp, v1y1)    ! v1y1
-
-    ! TMP FOR TESTING -- MAB
-!    if (proc0) then
-!       call system_clock (count=t4)
-!       t4tot = t4tot + real(t4-t3)/tr
-!    end if
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 ! Get y2 = y1 - v1y1 * s1 / (1 + v1s1)
@@ -3839,15 +3813,12 @@ contains
        it = it_idx(le_lo,ile)
        ik = ik_idx(le_lo,ile)
        if(kwork_filter(it,ik)) cycle
-
-       gle(:,:,ile) = gle(:,:,ile) - ieqzip(it,ik)*bs0le(:,:,ile) * v1y1(ile)
+       do ie=1, negrid
+          do ixi = 1, nxi_lim
+             gle(ixi,ie,ile) = gle(ixi,ie,ile) - ieqzip(it,ik)*bs0le(ixi,ie,ile) * v1y1(ile)
+          end do
+       end do
     end do
-
-    ! TMP FOR TESTING -- MAB
-!    if (proc0) then
-!       call system_clock (count=t5)
-!       t5tot = t5tot + real(t5-t4)/tr
-!    end if
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 ! Now get v2y2
@@ -3859,28 +3830,20 @@ contains
     end do
 
     do ile = le_lo%llim_proc, le_lo%ulim_proc
-       is = is_idx(le_lo,ile)
        ik = ik_idx(le_lo,ile)
        it = it_idx(le_lo,ile)
        if(kwork_filter(it,ik)) cycle
-
+       is = is_idx(le_lo,ile)
        ig = ig_idx(le_lo,ile)
        do ie=1, negrid
           do ixi = 1, nxi_lim
              il = ixi_to_il(ig,ixi)
-             gtmp(ixi,ie,ile) = vns(ik,ie,is) &
-                  * al(il)*aj1le(ixi,ie,ile) * gle(ixi,ie,ile)
+             gtmp(ixi,ie,ile) = vns(ik,ie,is) * al(il)*aj1le(ixi,ie,ile) * gle(ixi,ie,ile)
           end do
        end do
     end do
 
     call integrate_moment (le_lo, gtmp, v2y2)    ! v2y2
-
-    ! TMP FOR TESTING -- MAB
-!    if (proc0) then
-!       call system_clock (count=t6)
-!       t6tot = t6tot + real(t6-t5)/tr
-!    end if
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 ! Finally get x = y2 - v2y2 * w2 / (1 + v2w2)
@@ -3889,20 +3852,12 @@ contains
        it = it_idx(le_lo,ile)
        ik = ik_idx(le_lo,ile)
        if(kwork_filter(it,ik)) cycle
-
-       gle(:,:,ile) = gle(:,:,ile) - ieqzip(it,ik)*bw0le(:,:,ile) * v2y2(ile)
+       do ie=1, negrid
+          do ixi = 1, nxi_lim
+             gle(ixi,ie,ile) = gle(ixi,ie,ile) - ieqzip(it,ik)*bw0le(ixi,ie,ile) * v2y2(ile)
+          end do
+       end do
     end do
-
-    ! TMP FOR TESTING -- MAB
-!    if (proc0) then
-!       call system_clock (count=t7)
-!       t7tot = t7tot + real(t7-t6)/tr
-!    end if
-
-    ! TMP FOR TESTING -- MAB
-!    if (proc0) then
-!       write (*,'(a20,7e14.5)') 'conserve_diffuse: ', t1tot, t2tot, t3tot, t4tot, t5tot, t6tot, t7tot
-!    end if
 
     deallocate (vpadelnu, vns, v0y0, v1y1, v2y2, gtmp)
 
