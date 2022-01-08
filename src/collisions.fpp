@@ -3516,11 +3516,12 @@ contains
        if(kwork_filter(it,ik)) cycle
        is = is_idx(le_lo,ile)
        ig = ig_idx(le_lo,ile)
-       do ixi=1, nxi_lim
-          il = ixi_to_il(ig,ixi)
-          ! aj1vp2 = 2 * J1(arg)/arg * vperp^2
-          gtmp(ixi,:negrid,ile) = vnmult(1) * vnew_D(ik,:negrid,is) * aj1le(ixi,:negrid,ile) &
-               * energy(:) * al(il) * gle(ixi,:negrid,ile)
+       do ie = 1, negrid
+          do ixi=1, nxi_lim
+             il = ixi_to_il(ig,ixi)
+             ! aj1vp2 = 2 * J1(arg)/arg * vperp^2
+             gtmp(ixi,ie,ile) = vnmult(1) * vnew_D(ik,ie,is) * aj1le(ixi,:ie,ile) &
+                  * energy(ie) * al(il) * gle(ixi,ie,ile)
        end do
     end do
 
