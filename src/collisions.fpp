@@ -3427,6 +3427,7 @@ contains
                 isgn = ixi_to_isgn(ig,ixi)
                 ! We could consider precalculating vpa in the le_lo layout to avoid this
                 ! repeated calculation of constant vpa. This would increase peak memory use.
+                ! Should we use vpdiff here if conservative?
                 vpa = sgn(isgn)*sqrt(MAX(1.0-al(il)*bmag(ig),0.0)*energy(ie))
                 gtmp(ixi,ie,ile) =  vpa * aj0le(ixi,ie,ile) * gle(ixi,ie,ile)
              end do
@@ -3501,8 +3502,11 @@ contains
        it = it_idx(le_lo,ile)
        ik = ik_idx(le_lo,ile)
        if(kwork_filter(it,ik)) cycle
-
-       gle(:,:,ile) = gle(:,:,ile) - ieqzip(it,ik)*s0le(:,:,ile) * v1y1(ile)
+       do ie=1, negrid
+          do ixi = 1, nxi_lim
+             gle(ixi,ie,ile) = gle(ixi,ie,ile) - ieqzip(it,ik)*s0le(ixi,ie,ile) * v1y1(ile)
+          end do
+       end do
     end do
 
     deallocate(v1y1)
@@ -3534,7 +3538,11 @@ contains
        it = it_idx(le_lo,ile)
        ik = ik_idx(le_lo,ile)
        if(kwork_filter(it,ik)) cycle
-       gle(:,:,ile) = gle(:,:,ile) - ieqzip(it,ik)*w0le(:,:,ile) * v2y2(ile)
+       do ie=1, negrid
+          do ixi = 1, nxi_lim
+             gle(ixi,ie,ile) = gle(ixi,ie,ile) - ieqzip(it,ik)*w0le(ixi,ie,ile) * v2y2(ile)
+          end do
+       end do
     end do
 
     deallocate (gtmp, v2y2)
