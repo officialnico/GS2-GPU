@@ -3388,7 +3388,7 @@ contains
 
     real, dimension (:,:,:,:), allocatable :: vpanud
     complex, dimension (:), allocatable :: v0y0, v1y1, v2y2
-
+    real :: vpa
     integer :: ig, isgn, ik, ie, il, is, it
     integer :: ile, ixi
     integer :: nxi_lim
@@ -3399,6 +3399,10 @@ contains
         nxi_lim = nxi
     endif
     
+
+    ! We only need one of these at a time so could just reuse one allocation.
+    ! We'll keep two for now to help with code clarity and note that these
+    ! should not be large arrays.
     allocate (v1y1(le_lo%llim_proc:le_lo%ulim_alloc))
     allocate (v2y2(le_lo%llim_proc:le_lo%ulim_alloc))
 
@@ -3413,27 +3417,23 @@ contains
 
        allocate (v0y0(le_lo%llim_proc:le_lo%ulim_alloc))
 
-       ! initially define vpanud to be vpa
-       do is = 1, nspec
-          do ie = 1, negrid
-             do ixi = 1, nxi_lim
-                do ig = -ntgrid, ntgrid
-                   il = ixi_to_il(ig,ixi)
-                   isgn = ixi_to_isgn(ig,ixi)
-                   vpanud(ig,ixi,ie,is) = sgn(isgn)*sqrt(MAX(1.0-al(il)*bmag(ig),0.0)*energy(ie))
-                end do
-             end do
-          end do
-       end do
-       
        ! v0 = vpa J0 f0, y0 = gle
        do ile = le_lo%llim_proc, le_lo%ulim_proc
-          is = is_idx(le_lo,ile)
-          ig = ig_idx(le_lo,ile)
           it = it_idx(le_lo,ile)
           ik = ik_idx(le_lo,ile)
           if(kwork_filter(it,ik)) cycle
-          gtmp(:,:,ile) = vpanud(ig,:,:,is) * aj0le(:,:,ile) * gle(:,:,ile)
+          is = is_idx(le_lo,ile)
+          ig = ig_idx(le_lo,ile)
+          do ie = 1, negrid
+             do ixi = 1, nxi_lim
+                il = ixi_to_il(ig,ixi)
+                isgn = ixi_to_isgn(ig,ixi)
+                ! We could consider precalculating vpa in the le_lo layout to avoid this
+                ! repeated calculation of constant vpa. This would increase peak memory use.
+                vpa = sgn(isgn)*sqrt(MAX(1.0-al(il)*bmag(ig),0.0)*energy(ie))
+                gtmp(ixi,ie,ile) =  vpa * aj0le(ixi,ie,ile) * gle(ixi,ie,ile)
+             end do
+          end do
        end do
        call integrate_moment (le_lo, gtmp, v0y0)    ! v0y0
 
@@ -3444,7 +3444,11 @@ contains
           it = it_idx(le_lo,ile)
           ik = ik_idx(le_lo,ile)
           if(kwork_filter(it,ik)) cycle
-          gle(:,:,ile) = gle(:,:,ile) - ieqzip(it,ik)* z0le(:,:,ile) * v0y0(ile)
+          do ie = 1, negrid
+             do ixi = 1, nxi_lim
+                gle(ixi,ie,ile) = gle(ixi,ie,ile) - ieqzip(it,ik)* z0le(ixi,ie,ile) * v0y0(ile)
+             end do
+          end do
        end do
 
        deallocate(v0y0)
@@ -3533,7 +3537,7 @@ contains
        gle(:,:,ile) = gle(:,:,ile) - ieqzip(it,ik)*w0le(:,:,ile) * v2y2(ile)
     end do
 
-    deallocate (gtmp, vpanud, v0y0, v1y1, v2y2)
+    deallocate (gtmp, vpanud, v1y1, v2y2)
 
   end subroutine conserve_lorentz_le_layout
 
