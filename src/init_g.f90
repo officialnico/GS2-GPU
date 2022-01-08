@@ -1205,8 +1205,10 @@ contains
 
     ! If the initial condition is the nonadiabatic dfn then
     ! ensure we've actually set `gnew` correctly.
-    if (initial_condition_is_nonadiabatic_dfn) then
-       !Should we avoid doing this if restart is true?
+    ! We avoid doing this if we're restarting as currently we assume
+    ! that the restart files always contain our evolved gnew, rather
+    ! than the nonadiabatic dfn.
+    if (initial_condition_is_nonadiabatic_dfn .and. .not. restarted) then
        call set_gnew_from_nonadiabatic_dfn
     else
        ! If not restarting and have a hybrid electron species then
