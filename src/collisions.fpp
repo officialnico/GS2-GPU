@@ -3386,9 +3386,8 @@ contains
     complex, dimension (:,:,le_lo%llim_proc:), intent (in out) :: gle
     complex, dimension (:,:,:), allocatable :: gtmp
 
-    real, dimension (:,:,:,:), allocatable :: vpanud
     complex, dimension (:), allocatable :: v0y0, v1y1, v2y2
-    real :: vpa
+    real :: vpa, vpa_nud
     integer :: ig, isgn, ik, ie, il, is, it
     integer :: ile, ixi
     integer :: nxi_lim
@@ -3398,7 +3397,6 @@ contains
     else
         nxi_lim = nxi
     endif
-    
 
     ! We only need one of these at a time so could just reuse one allocation.
     ! We'll keep two for now to help with code clarity and note that these
@@ -3408,7 +3406,6 @@ contains
 
     ! Let's work on gle directly instead of g for the moment
     allocate (gtmp(nxi+1, negrid+1, le_lo%llim_proc:le_lo%ulim_alloc)) ; gtmp = 0.0
-    allocate (vpanud(-ntgrid:ntgrid, nxi+1, negrid+1, nspec)) ; vpanud = 0.0
 
     if (drag) then
 
@@ -3457,43 +3454,43 @@ contains
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 ! Now get v1y1
 
-    ! redefine vpanud to be vpa * nu_D
+    ! v1 = nud vpa J0 f0, y1 = gle
     if (conservative) then
-       do is = 1, nspec
+       do ile = le_lo%llim_proc, le_lo%ulim_proc
+          ik = ik_idx(le_lo,ile)
+          it = it_idx(le_lo,ile)
+          if(kwork_filter(it,ik)) cycle
+          is = is_idx(le_lo,ile)
+          ig = ig_idx(le_lo,ile)
           do ie = 1, negrid
              do ixi = 1, nxi_lim
-                do ig = -ntgrid, ntgrid
-                   il = ixi_to_il(ig,ixi)
-                   isgn = ixi_to_isgn(ig,ixi)
-                   vpanud(ig,ixi,ie,is) = vpdiff(ig,isgn,il) * sqrt(energy(ie)) * vnmult(1)*vnew_D(1,ie,is)/tunits(1)
-                end do
+                il = ixi_to_il(ig,ixi)
+                isgn = ixi_to_isgn(ig,ixi)
+                vpa_nud = vpdiff(ig,isgn,il) * sqrt(energy(ie)) &
+                     * (vnmult(1)*vnew_D(1,ie,is)/tunits(1))
+                gtmp(ixi,ie,ile) = vpa_nud * tunits(ik) * aj0le(ixi,ie,ile) * gle(ixi,ie,ile)
              end do
           end do
        end do
     else
-       do is = 1, nspec
+       do ile = le_lo%llim_proc, le_lo%ulim_proc
+          ik = ik_idx(le_lo,ile)
+          it = it_idx(le_lo,ile)
+          if(kwork_filter(it,ik)) cycle
+          is = is_idx(le_lo,ile)
+          ig = ig_idx(le_lo,ile)
           do ie = 1, negrid
              do ixi = 1, nxi_lim
-                do ig = -ntgrid, ntgrid
-                   il = ixi_to_il(ig,ixi)
-                   isgn = ixi_to_isgn(ig,ixi)
-                   vpanud(ig,ixi,ie,is) = sgn(isgn)*sqrt(MAX(1.0-al(il)*bmag(ig),0.0)*energy(ie))*vnmult(1)*vnew_D(1,ie,is)/tunits(1)
-                end do
+                il = ixi_to_il(ig,ixi)
+                isgn = ixi_to_isgn(ig,ixi)
+                vpa_nud = sgn(isgn)*sqrt(MAX(1.0-al(il)*bmag(ig),0.0)*energy(ie)) &
+                     * (vnmult(1)*vnew_D(1,ie,is)/tunits(1))
+                gtmp(ixi,ie,ile) = vpa_nud * tunits(ik) * aj0le(ixi,ie,ile) * gle(ixi,ie,ile)
              end do
           end do
        end do
     end if
 
-    ! v1 = nud vpa J0 f0, y1 = gle
-    do ile = le_lo%llim_proc, le_lo%ulim_proc
-       ik = ik_idx(le_lo,ile)
-       it = it_idx(le_lo,ile)
-       if(kwork_filter(it,ik)) cycle
-       is = is_idx(le_lo,ile)
-       ig = ig_idx(le_lo,ile)
-       gtmp(:,:,ile) = vpanud(ig,:,:,is) * tunits(ik) * aj0le(:,:,ile) &
-            * gle(:,:,ile)
-    end do
 
     call integrate_moment (le_lo, gtmp, v1y1)    ! v1y1
 
@@ -3507,6 +3504,8 @@ contains
 
        gle(:,:,ile) = gle(:,:,ile) - ieqzip(it,ik)*s0le(:,:,ile) * v1y1(ile)
     end do
+
+    deallocate(v1y1)
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 ! Now get v2y2
@@ -3537,7 +3536,7 @@ contains
        gle(:,:,ile) = gle(:,:,ile) - ieqzip(it,ik)*w0le(:,:,ile) * v2y2(ile)
     end do
 
-    deallocate (gtmp, vpanud, v1y1, v2y2)
+    deallocate (gtmp, v2y2)
 
   end subroutine conserve_lorentz_le_layout
 
