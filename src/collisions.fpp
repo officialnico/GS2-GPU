@@ -3706,19 +3706,19 @@ contains
     complex, dimension (:,:,le_lo%llim_proc:), intent (in out) :: gle
     complex, dimension (:,:,:), allocatable :: gtmp
 
-    real, dimension (:,:,:), allocatable :: vns
     real :: vpa_delnu
     integer :: ig, isgn, ik, ie, il, is, it
     integer :: ile, ixi
     integer :: nxi_lim
     complex, dimension (:), allocatable :: v0y0, v1y1, v2y2
 
+    ! We only use one of these at a time so could just use a single array.
+    ! We keep all three here for clarity and note that these should be small.
     allocate (v0y0(le_lo%llim_proc:le_lo%ulim_alloc))
     allocate (v1y1(le_lo%llim_proc:le_lo%ulim_alloc))
     allocate (v2y2(le_lo%llim_proc:le_lo%ulim_alloc))
 
     allocate (gtmp(nxi+1, negrid+1, le_lo%llim_proc:le_lo%ulim_alloc))
-    allocate (vns(naky,negrid,nspec))
 
     !This is needed to to ensure the it,ik values we don't set aren't included
     !in the integral (can also be enforced in integrate_moment routine)
@@ -3765,8 +3765,6 @@ contains
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 ! Now get v1y1
 
-    vns(1,:,:) = vnmult(2)*delvnew(1,:,:)/tunits(1)
-
     do ile = le_lo%llim_proc, le_lo%ulim_proc
        ik = ik_idx(le_lo,ile)
        it = it_idx(le_lo,ile)
@@ -3803,12 +3801,6 @@ contains
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 ! Now get v2y2
 
-    do is = 1, nspec
-       do ik = 1, naky
-          vns(ik,:,is) = delvnew(ik,:,is)*energy 
-       end do
-    end do
-
     do ile = le_lo%llim_proc, le_lo%ulim_proc
        ik = ik_idx(le_lo,ile)
        it = it_idx(le_lo,ile)
@@ -3818,7 +3810,7 @@ contains
        do ie=1, negrid
           do ixi = 1, nxi_lim
              il = ixi_to_il(ig,ixi)
-             gtmp(ixi,ie,ile) = vns(ik,ie,is) * al(il)*aj1le(ixi,ie,ile) * gle(ixi,ie,ile)
+             gtmp(ixi,ie,ile) = delvnew(ik,ie,is) * energy(ie) * al(il)*aj1le(ixi,ie,ile) * gle(ixi,ie,ile)
           end do
        end do
     end do
@@ -3839,7 +3831,7 @@ contains
        end do
     end do
 
-    deallocate (vns, v0y0, v1y1, v2y2, gtmp)
+    deallocate (v0y0, v1y1, v2y2, gtmp)
 
   end subroutine conserve_diffuse_le_layout
 
