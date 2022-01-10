@@ -1553,7 +1553,6 @@ contains
   contains
     !> Print a single formatted timer line
     character(len=46) function formatted_time(name, timer)
-      use optionals, only : get_option_with_default
       !> Name of the timer
       character(len=*), intent(in) :: name
       !> Time in seconds
