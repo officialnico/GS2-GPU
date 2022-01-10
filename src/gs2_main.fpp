@@ -1496,7 +1496,7 @@ contains
     use redistribute, only: get_redist_times
     use fields_arrays, only: time_field, time_field_mpi
     use gs2_reinit, only: time_reinit
-    use le_derivatives, only: time_vspace_derivatives
+    use le_derivatives, only: time_vspace_derivatives, time_vspace_derivatives_mpi
     use nonlinear_terms, only: time_add_explicit_terms
 #ifdef GS2_EXPERIMENTAL_ENABLE_MEMORY_USAGE
     use memory_usage, only: print_memory_usage
@@ -1522,6 +1522,7 @@ contains
            &''(field solve'',T25,0pf9.3,'' min'',T40,2pf5.1,'' %)'',/, &
            &''(field solve mpi'',T25,0pf9.3,'' min'',T40,2pf5.1,'' %)'',/, &
            &''(collisions'',T25,0pf9.3,'' min'',T40,2pf5.1,'' %)'',/, &
+           &''(collisions mpi'',T25,0pf9.3,'' min'',T40,2pf5.1,'' %)'',/, &
            &''(explicit/nl'',T25,0pf9.3,'' min'',T40,2pf5.1,'' %)'',/, &
            &''(diagnostics'',T25,0pf9.3,'' min'',T40,2pf5.1,'' %)'',/, &
            &'' Re-initialize'',T25,0pf8.2,'' min'',T40,2pf5.1,'' %'',/, &
@@ -1540,6 +1541,7 @@ contains
            time_field(1)/60.,time_field(1)/timers%total(1), &
            time_field_mpi/60.,time_field_mpi/timers%total(1), &
            time_vspace_derivatives(1)/60.,time_vspace_derivatives(1)/timers%total(1), &
+           time_vspace_derivatives_mpi/60.,time_vspace_derivatives_mpi/timers%total(1), &
            time_add_explicit_terms(1)/60.,time_add_explicit_terms(1)/timers%total(1), &
            timers%diagnostics(1)/60.,timers%diagnostics(1)/timers%total(1), &
            time_reinit(1)/60.,time_reinit(1)/timers%total(1), &
