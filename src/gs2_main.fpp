@@ -1535,7 +1535,7 @@ contains
       write(*, '("(", a, ")")') formatted_time("Collectives", mp_coll)
       write(*, '("(", a, ")")') formatted_time("PTP", mp_ptp)
       write(*, '("(", a, ")")') formatted_time("Sync", mp_sync)
-      write(*, '(" Total from timer is:", 0pf9.2, " min", /)') timers%total(1) / 60.
+      write(*, '(" total from timer is:", 0pf9.2, " min", /)') timers%total(1) / 60.
     else
       if (state%external_job_id >= 0) then
         write(*, '(a, i0, ", ")', advance="no") " External job ID: ", state%external_job_id
