@@ -15,7 +15,7 @@ module nonlinear_terms
   public :: read_parameters, wnml_nonlinear_terms, check_nonlinear_terms
   public :: add_explicit_terms, nonlinear_mode_switch
   public :: finish_init, reset_init, nonlin, accelerated
-  public :: cfl, time_add_explicit_terms
+  public :: cfl, time_add_explicit_terms, time_add_explicit_terms_mpi
   public :: nonlinear_mode_none, nonlinear_mode_on
   public :: gryfx_zonal
   public :: cfl_req_hand, nb_check_time_step_too_large
@@ -82,7 +82,7 @@ module nonlinear_terms
 ! for gryfx
   real :: densfac, uparfac, tparfac, tprpfac, qparfac, qprpfac
 
-  real :: time_add_explicit_terms(2) = 0.
+  real :: time_add_explicit_terms(2) = 0., time_add_explicit_terms_mpi = 0.
 
   logical :: nonlin = .false.
   logical :: initialized = .false.
@@ -379,6 +379,7 @@ contains
     use gs2_layouts, only: g_lo
     use gs2_time, only: save_dt_cfl
     use job_manage, only: time_message
+    use mp, only: get_mp_times
     implicit none
     complex, dimension (-ntgrid:,:,g_lo%llim_proc:), intent (in out) :: g1, g2, g3
     complex, dimension (-ntgrid:,:,:), intent (in) :: phi,    apar,    bpar
@@ -386,7 +387,10 @@ contains
     real, intent (in) :: bd
     real :: dt_cfl
     logical, parameter :: nl = .true.
+    real :: mp_total_after, mp_total
     call time_message(.false., time_add_explicit_terms, 'Explicit terms')
+    call get_mp_times(total_time = mp_total)
+
     select case (nonlinear_mode_switch)
     case (nonlinear_mode_none)
 !!! NEED TO DO SOMETHING HERE...  BD GGH
@@ -402,6 +406,8 @@ contains
        endif
     end select
     call time_message(.false., time_add_explicit_terms, 'Explicit terms')
+    call get_mp_times(total_time = mp_total_after)
+    time_add_explicit_terms_mpi = time_add_explicit_terms_mpi + (mp_total_after - mp_total)
   end subroutine add_explicit_terms
 
   !> FIXME : Add documentation  
