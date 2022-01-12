@@ -1513,6 +1513,9 @@ contains
     if (state%print_full_timers) then
       call get_mp_times(mp_total, mp_over, mp_coll, mp_ptp, mp_sync)
       call get_redist_times(redist_total, redist_mpi, redist_copy)
+
+      !Blank line to force separation from other outputs
+      write(*, '("")')
 #ifdef WITH_EIG
       write(*, '(" ", a)') formatted_time("Eigensolver", timers%eigval(1))
 #endif
