@@ -50,6 +50,8 @@ results_of_test.txt
 *.vres
 *.vres2
 *.vspace_integration_error
+.*.in
+*.used_inputs.in
 
 .patch.make
 Revision
