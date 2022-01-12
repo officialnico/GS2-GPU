@@ -1516,11 +1516,11 @@ contains
 
       !Blank line to force separation from other outputs
       write(*, '("")')
+      write(*, '(" ", a)') formatted_time("Initialization", timers%init(1))
+      write(*, '(" ", a)') formatted_time("Advance steps", timers%advance(1))
 #ifdef WITH_EIG
       write(*, '(" ", a)') formatted_time("Eigensolver", timers%eigval(1))
 #endif
-      write(*, '(" ", a)') formatted_time("Initialization", timers%init(1))
-      write(*, '(" ", a)') formatted_time("Advance steps", timers%advance(1))
       write(*, '("(", a, ")")') formatted_time("field solve", time_field(1))
       write(*, '("(", a, ")")') formatted_time("field solve mpi", time_field_mpi)
       write(*, '("(", a, ")")') formatted_time("collisions", time_vspace_derivatives(1))
