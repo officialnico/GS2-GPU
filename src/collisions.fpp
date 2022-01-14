@@ -3705,7 +3705,7 @@ contains
     complex, dimension (:,:,le_lo%llim_proc:), intent (in out) :: gle
     complex, dimension (:,:,:), allocatable :: gtmp
 
-    real :: vpa_delnu
+    real :: vpa, delnu
     integer :: ig, isgn, ik, ie, il, is, it
     integer :: ile, ixi
     integer :: nxi_lim
@@ -3771,12 +3771,12 @@ contains
        is = is_idx(le_lo,ile)
        ig = ig_idx(le_lo,ile)
        do ie=1, negrid
+          delnu = (vnmult(2)*delvnew(1,ie,is)/tunits(1))
           do ixi = 1, nxi_lim
              il = ixi_to_il(ig,ixi)
              isgn = ixi_to_isgn(ig,ixi)
-             vpa_delnu = (vnmult(2)*delvnew(1,ie,is)/tunits(1)) * &
-                  sgn(isgn)*sqrt(max(0.0,(1.0-al(il)*bmag(ig)))) * speed(ie)
-             gtmp (ixi,ie,ile) = vpa_delnu * tunits(ik) * aj0le(ixi,ie,ile) * gle(ixi,ie,ile)
+             vpa = sgn(isgn)*sqrt(max(0.0,(1.0-al(il)*bmag(ig)))) * speed(ie)
+             gtmp (ixi,ie,ile) = vpa * delnu * tunits(ik) * aj0le(ixi,ie,ile) * gle(ixi,ie,ile)
           end do
        end do
     end do
