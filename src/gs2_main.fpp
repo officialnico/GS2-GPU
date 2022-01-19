@@ -1494,6 +1494,7 @@ contains
     use mp, only: proc0, min_reduce, max_reduce, sum_reduce, job
     use mp, only: get_mp_times
     use redistribute, only: get_redist_times
+    use fft_work, only: time_fft
     use fields_arrays, only: time_field, time_field_mpi
     use gs2_reinit, only: time_reinit
     use le_derivatives, only: time_vspace_derivatives, time_vspace_derivatives_mpi
@@ -1527,6 +1528,7 @@ contains
       write(*, '("(", a, ")")') formatted_time("collisions mpi", time_vspace_derivatives_mpi)
       write(*, '("(", a, ")")') formatted_time("explicit/nl", time_add_explicit_terms(1))
       write(*, '("(", a, ")")') formatted_time("explicit/nl mpi", time_add_explicit_terms_mpi)
+      write(*, '("(", a, ")")') formatted_time("explicit/nl fft", time_fft(1))
       write(*, '("(", a, ")")') formatted_time("diagnostics", timers%diagnostics(1))
       write(*, '(" ", a)') formatted_time("Re-initialize", time_reinit(1))
       write(*, '(" ", a)') formatted_time("Redistribute", redist_total)
