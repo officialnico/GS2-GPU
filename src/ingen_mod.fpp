@@ -113,27 +113,15 @@ module ingen_mod
 
 contains
 
-  !> FIXME : Add documentation  
-  subroutine run_ingen(ingen_config_in)
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-!!!!!!!!!!!!!!!                                  !!!!!!!!!!!!!!!!!
-!!!!!!!!!!!!!!!                                  !!!!!!!!!!!!!!!!!
-!!!!!!!!!!!!!!!      Main code starts here       !!!!!!!!!!!!!!!!!
-!!!!!!!!!!!!!!!                                  !!!!!!!!!!!!!!!!!
-!!!!!!!!!!!!!!!                                  !!!!!!!!!!!!!!!!!
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  !> Entry point: initialise needed modules, run checks, and write namelists
+  subroutine run_ingen(ingen_config_in, input_file)
     use file_utils, only: init_file_utils
     use standard_header, only: standard_header_type
     implicit none
+    !> Input options. Defaults to reading the 'ingen_knobs' namelist from the input file
     type(ingen_config_type), intent(in), optional :: ingen_config_in
+    !> Filename of input file. Default is to read from the command line
+    character(len=*), intent(in), optional :: input_file
     type(standard_header_type) :: local_header
     logical :: list
     
@@ -141,7 +129,7 @@ contains
 
     local_header = standard_header_type()
 
-    call init_file_utils (list, name="template")
+    call init_file_utils (list, name="template", input_file=input_file)
     call init_ingen(ingen_config_in)
  
     if (debug) write(6,*) 'ingen: call get_namelists'
