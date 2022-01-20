@@ -321,10 +321,10 @@ contains
          "For more help, see the documentation at https://gyrokinetics.gitlab.io/gs2/" // nl // &
          "or create an issue https://bitbucket.org/gyrokinetics/gs2/issues?status=open" // nl // &
          nl // &
-         "  -h, --help     Print this message" // nl // &
-         "  -v, --version  Print the GS2 version" // nl // &
-         "  --build-config Print the current build configuration" // nl // &
-         "  --ingen FILE   Run ingen on FILE"
+         "  -h, --help           Print this message" // nl // &
+         "  -v, --version        Print the GS2 version" // nl // &
+         "  --build-config       Print the current build configuration" // nl // &
+         "  --check-input FILE   Check input FILE for errors"
 
     arg_count = command_argument_count()
 
@@ -343,10 +343,10 @@ contains
       else if (argument == "--build-config") then
         write(*, '(a)') formatted_build_config()
         stop
-      else if (argument == "--ingen") then
+      else if (argument == "--check-input") then
         ! Next argument should be the input file
         if (arg_n == arg_count) then
-          error stop "Missing input file for '--ingen'" // nl // usage
+          error stop "Missing input file for '--check-input'" // nl // usage
         end if
 
         call get_command_argument(arg_n + 1, length=arg_length)
