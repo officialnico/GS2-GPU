@@ -883,6 +883,7 @@ if (debug) write(6,*) 'get_namelists: returning'
 
     integer :: h, t, u
     character (4) :: suffix
+    character(len=:), allocatable :: filename
     
     if (present(header)) then
       local_header = header
@@ -898,10 +899,13 @@ if (debug) write(6,*) 'get_namelists: returning'
        t = (jr - h * 100) / 10
        u = (jr - h * 100 - t * 10)
        suffix = '_'//achar(48+h)//achar(48+t)//achar(48+u)
-       open (unit=unit, file=trim(run_name)//suffix//".in")
+       filename = trim(run_name) // suffix // ".in"
     else
-       open (unit=unit, file=trim(run_name)//".inp")
+       filename = trim(run_name) // ".inp"
     endif
+
+    open (unit=unit, file=filename)
+    write (*, *) "Writing processed input file to '" // filename // "'"
 
     write (unit, *)
 
@@ -998,6 +1002,7 @@ if (debug) write(6,*) 'get_namelists: returning'
     use collisions, only: collision_model_lorentz, collision_model_lorentz_test
     use collisions, only: use_le_layout
     use standard_header, only: standard_header_type
+    use file_utils, only: run_name
 
     implicit none
     !> Header for files with build and run information
@@ -1018,8 +1023,9 @@ if (debug) write(6,*) 'get_namelists: returning'
 
     call get_unused_unit (report_unit)
     call open_output_file (report_unit, ".report")
+    write (*, *) "Writing report to '" // trim(run_name) // ".report'"
 
-    write (report_unit, *) 
+    write (report_unit, *)
 
     write (report_unit, fmt='(a)') local_header%to_string(file_description="Input file report from ingen")
     write (report_unit, fmt="(/'------------------------------------------------------------'/)")
