@@ -112,7 +112,7 @@ USE_FPIC ?=
 # or when executing make. Make sure you rebuild constants.fpp if you want to change this.
 # e.g. 
 #       $ touch utils/constants.fpp
-#       $ ./build_gs2 -c 'RUN_NAME_SIZE=<newsize>'
+#       $ make RUN_NAME_SIZE=<newsize>
 RUN_NAME_SIZE?=2000
 # If defined, fpp files will be preprocessed and compiled in one step, as
 # is normal for modern FORTRAN compilers (bin)
