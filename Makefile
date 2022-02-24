@@ -251,6 +251,7 @@ SUBDIRS += $(EXTERNALSRCDIRS)
 
 GEO:=$(SRCDIR)/geo
 UTILS:=$(EXTERNALDIR)/utils
+NEASYF := $(EXTERNALDIR)/neasyf/src
 
 #Tests
 TEST_DIR:=$(GK_HEAD_DIR)/tests
@@ -297,11 +298,12 @@ include Makefile.$(GK_SYSTEM)
 # actually been initialised
 MAKEFILES_SENTINEL := Makefiles/Makefile.bitbucket
 UTILS_SENTINEL := $(UTILS)/mp.fpp
+NEASYF_SENTINEL := $(NEASYF)/neasyf.f90
 
-.PRECIOUS: $(MAKEFILES_SENTINEL) $(UTILS_SENTINEL)
+.PRECIOUS: $(MAKEFILES_SENTINEL) $(UTILS_SENTINEL) $(NEASYF_SENTINEL)
 
 # Make sure the submodules exist; they all currently share the same recipe
-$(UTILS_SENTINEL) $(MAKEFILES_SENTINEL) submodules:
+$(NEASYF_SENTINEL) $(UTILS_SENTINEL) $(MAKEFILES_SENTINEL) submodules:
 	@echo "Downloading submodules"
 	git submodule update --init --recursive
 
@@ -621,13 +623,13 @@ ifneq ($(TOPDIR),$(CURDIR))
 	SUBDIR=true
 endif
 
-VPATH = $(SUBDIRS) $(MODDIR) $(SRCDIR) $(PROGDIR) $(GENERATED_SRC_DIR)
+VPATH = $(SUBDIRS) $(MODDIR) $(SRCDIR) $(PROGDIR) $(GENERATED_SRC_DIR) $(NEASYF)
 # this just removes non-existing directory from VPATH
 VPATH_tmp := $(foreach tmpvp,$(subst :, ,$(VPATH)),$(shell [ -d $(tmpvp) ] && echo $(tmpvp)))
 VPATH := .:$(shell echo $(VPATH_tmp) | sed "s/ /:/g")
 
 # most common include and library directories
-DEFAULT_INC_LIST := . $(GK_HEAD_DIR)/$(UTILS) $(GK_HEAD_DIR)/$(GEO) .. ../$(UTILS) ../$(GEO)
+DEFAULT_INC_LIST := . $(GK_HEAD_DIR)/$(UTILS) $(GK_HEAD_DIR)/$(GEO) .. ../$(UTILS) ../$(GEO) $(GK_HEAD_DIR)/$(NEASYF)
 DEFAULT_LIB_LIST :=
 # This default library path list can simplify the procedure of porting,
 # however, I found this (actually -L/usr/lib flag) causes an error
@@ -761,13 +763,13 @@ ifdef ONE_STEP_PP
 KEEP_PROCESSED_FILES_FROM_DEPEND="no"
 endif
 
-depend: $(F90FROMFPP) $(UTILS_SENTINEL) Makefile.$(GK_SYSTEM) |$(GENERATED_SRC_DIR)
+depend: $(F90FROMFPP) $(UTILS_SENTINEL) $(NEASYF_SENTINEL) Makefile.$(GK_SYSTEM) |$(GENERATED_SRC_DIR)
 	$(call messageOp,"Generating dependency file","\\t:",$(call processName,$(DEPEND)))
 # Note we force UTILS to be included in the paths that we pass to fortdep
 # We touch the dependency file first as fortdep will call make in order to try
 # and preprocess files, so we need this to avoid recursion
 	$(QUIETSYM)touch $(DEPEND) && $(DEPEND_CMD) -m "$(MAKE) --no-print-directory" -1 -o -v=0\
-		--keep=$(KEEP_PROCESSED_FILES_FROM_DEPEND) $(VPATH):$(UTILS) \
+		--keep=$(KEEP_PROCESSED_FILES_FROM_DEPEND) $(VPATH):$(UTILS):$(NEASYF) \
 		--generated_src_dir=$(GENERATED_SRC_DIR) || rm $(DEPEND)
 	$(call messageOp,"Dependency file created at","\\t:",$(call processName,$(DEPEND)))
 
