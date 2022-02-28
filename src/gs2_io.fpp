@@ -236,7 +236,7 @@ contains
             nout = get_dim_length(ncid, "t")
         else
             !Write constant data
-            call nc_norms
+            call nc_norms(ncid)
             call nc_species
             call nc_geo
             call save_input
@@ -365,33 +365,33 @@ contains
   end subroutine define_dims_mymovie
 
   !> Write the physical normalisations to the output netCDF file
-  subroutine nc_norms
-# ifdef NETCDF
-    use netcdf, only: nf90_put_var
+  !> Write the physical normalisations to the output netCDF file
+  subroutine nc_norms(file_id)
+#ifdef NETCDF
+    use neasyf, only: neasyf_write
     use normalisations, only: norms
-# endif    
-    implicit none
-# ifdef NETCDF
-    integer :: status
+#endif
+    !> NetCDF ID of the file to write to
+    integer, intent(in) :: file_id
 
-    status = nf90_put_var (ncid, aref_id, norms%get_value("aref"))
-    if (status /= NF90_NOERR) call netcdf_error (status, ncid, aref_id)
-    status = nf90_put_var (ncid, zref_id, norms%get_value("zref"))
-    if (status /= NF90_NOERR) call netcdf_error (status, ncid, zref_id)
-    status = nf90_put_var (ncid, nref_id, norms%get_value("nref"))
-    if (status /= NF90_NOERR) call netcdf_error (status, ncid, nref_id)
-    status = nf90_put_var (ncid, tref_id, norms%get_value("tref"))
-    if (status /= NF90_NOERR) call netcdf_error (status, ncid, tref_id)
-    status = nf90_put_var (ncid, mref_id, norms%get_value("mref"))
-    if (status /= NF90_NOERR) call netcdf_error (status, ncid, mref_id)
-    status = nf90_put_var (ncid, vref_id, norms%get_value("vref"))
-    if (status /= NF90_NOERR) call netcdf_error (status, ncid, vref_id)
-    status = nf90_put_var (ncid, bref_id, norms%get_value("bref"))
-    if (status /= NF90_NOERR) call netcdf_error (status, ncid, bref_id)
-    status = nf90_put_var (ncid, rhoref_id, norms%get_value("rhoref"))
-    if (status /= NF90_NOERR) call netcdf_error (status, ncid, rhoref_id)
-
-# endif
+#ifdef NETCDF
+    call neasyf_write(file_id, "mref", norms%get_value("mref"), &
+         long_name="Reference mass in atomic mass units ", units="a.m.u.")
+    call neasyf_write(file_id, "zref", norms%get_value("zref"), &
+         long_name="Reference charge", units="proton charge")
+    call neasyf_write(file_id, "nref", norms%get_value("nref"), &
+         long_name="The reference density ", units="m^-3")
+    call neasyf_write(file_id, "tref", norms%get_value("tref"), &
+         long_name="The reference temperature ", units="eV")
+    call neasyf_write(file_id, "aref", norms%get_value("aref"), &
+         long_name="The reference length ", units="m")
+    call neasyf_write(file_id, "vref", norms%get_value("vref"), &
+         long_name="The reference (thermal) velocity ", units="m/s")
+    call neasyf_write(file_id, "bref", norms%get_value("bref"), &
+         long_name="The reference magnetic field ", units="Tesla")
+    call neasyf_write(file_id, "rhoref", norms%get_value("rhoref"), &
+         long_name="The reference larmour radius ", units="m")
+#endif
   end subroutine nc_norms
 
   !> Puts the grid data into the movie file
@@ -616,19 +616,6 @@ contains
     !This stores a copy of the (sanitised?) input file
     call ensure_netcdf_var_exists(ncid, 'input_file', NF90_CHAR, nin_dim, input_id)
     call ensure_netcdf_att_exists(ncid, input_id, 'long_name', 'Input file')
-
-    !################################################
-    !# NOW DO NORMALISATIONS
-    ! Could use norms%check_if_set to decide what we want to write here
-
-    call ensure_netcdf_var_exists(ncid, 'aref', netcdf_real, aref_id)
-    call ensure_netcdf_var_exists(ncid, 'zref', netcdf_real, zref_id)
-    call ensure_netcdf_var_exists(ncid, 'nref', netcdf_real, nref_id)
-    call ensure_netcdf_var_exists(ncid, 'tref', netcdf_real, tref_id)
-    call ensure_netcdf_var_exists(ncid, 'mref', netcdf_real, mref_id)
-    call ensure_netcdf_var_exists(ncid, 'vref', netcdf_real, vref_id)
-    call ensure_netcdf_var_exists(ncid, 'bref', netcdf_real, bref_id)
-    call ensure_netcdf_var_exists(ncid, 'rhoref', netcdf_real, rhoref_id)
 
     !################################################
     !# NOW DO SPECIES DATA
