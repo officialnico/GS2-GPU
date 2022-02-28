@@ -224,7 +224,7 @@ contains
 
     if (proc0) then
         !Setup main file by creating netCDF file
-        call define_dims (nwrite_big_tot, io_write_corr_extend)
+        call define_dims (ncid, nwrite_big_tot, io_write_corr_extend)
         call define_vars (write_nl_flux, write_omega, &
                           write_heating, write_final_antot, write_eigenfunc, write_verr, &
                           write_moments, write_full_moments_notgc, write_sym, write_pflux_sym, &
@@ -233,10 +233,9 @@ contains
                           ob_midplane=ob_midplane)
 
         if (appending) then
-            nout = get_netcdf_dim_length(ncid, time_dim)
+            nout = get_dim_length(ncid, "t")
         else
             !Write constant data
-            call nc_grids
             call nc_norms
             call nc_species
             call nc_geo
@@ -256,45 +255,80 @@ contains
 # endif
   end subroutine init_gs2_io
 
-  !> Ensure the netCDF file contains all the dimensions, creating them
-  !> if necessary. Doesn't fill the values.
+  !> Ensure the netCDF file contains all the dimensions and grids,
+  !> creating them if necessary
   !>
   !> Dimension variable IDs are module level variables
-  subroutine define_dims (nwrite_big_tot, create_extended_correlation)
+  subroutine define_dims (file_id, nwrite_big_tot, create_extended_correlation)
 # ifdef NETCDF
     use file_utils, only: num_input_lines
-    use kt_grids, only: naky, ntheta0, jtwist_out
-    use theta_grid, only: ntgrid
-    use le_grids, only: nlambda, negrid
+    use kt_grids, only: aky, akx, theta0, jtwist_out, ntheta0, naky, nx, ny
+    use theta_grid, only: theta, ntgrid
+    use le_grids, only: al, energy, negrid, nlambda
     use species, only: nspec
-    use netcdf, only: NF90_UNLIMITED
+    use mp, only: nproc
+    use nonlinear_terms, only: nonlin
+    use gs2_layouts, only: layout
+    use neasyf, only: neasyf_dim, neasyf_write
     use netcdf_utils, only: ensure_netcdf_dim_exists
 # endif
     implicit none
+    !> NetCDF ID of the file
+    integer, intent(in) :: file_id
     !> Total number of output timesteps for "large" diagnostics
     integer, intent(in) :: nwrite_big_tot
     !> Create the dimensions for the extended correlation diagnostics
     logical, intent(in) :: create_extended_correlation
 # ifdef NETCDF
-    call ensure_netcdf_dim_exists(ncid, 'ky', naky, naky_dim)
-    call ensure_netcdf_dim_exists(ncid, 'kx', ntheta0, nakx_dim)
-    call ensure_netcdf_dim_exists(ncid, 'theta', 2*ntgrid+1, nttot_dim)
-    call ensure_netcdf_dim_exists(ncid, 'lambda', nlambda, nlambda_dim)
-    call ensure_netcdf_dim_exists(ncid, 'egrid', negrid, negrid_dim)
-    call ensure_netcdf_dim_exists(ncid, 'species', nspec, nspec_dim)
-    call ensure_netcdf_dim_exists(ncid, 'sign', 2, nsign_dim)
-    call ensure_netcdf_dim_exists(ncid, 't', NF90_UNLIMITED, time_dim)
-    call ensure_netcdf_dim_exists(ncid, 'char5', 5, char5_dim)
-    call ensure_netcdf_dim_exists(ncid, 'char10', 10, char10_dim)
-    call ensure_netcdf_dim_exists(ncid, 'char200', 200, char200_dim)
-    call ensure_netcdf_dim_exists(ncid, 'nlines', num_input_lines, nlines_dim)
-    call ensure_netcdf_dim_exists(ncid, 'ri', 2, ri_dim)
-    call ensure_netcdf_dim_exists(ncid, 'nheat', 7, nheat_dim)
-    call ensure_netcdf_dim_exists(ncid, 'vpa', negrid*nlambda, vpa_dim)
+    real :: nmesh
+
+    call neasyf_dim(file_id, "kx", values=akx, dimid=nakx_dim, long_name="kx rho")
+    call neasyf_dim(file_id, "ky", values=aky, dimid=naky_dim, long_name="ky rho")
+    call neasyf_dim(file_id, "theta", values=theta, dimid=nttot_dim)
+    call neasyf_dim(file_id, "lambda", values=al, dimid=nlambda_dim)
+    call neasyf_dim(file_id, "species", dim_size=nspec, dimid=nspec_dim)
+
+    ! Energy is 2D, and neasyf only handles 1D dimensions
+    call ensure_netcdf_dim_exists(ncid, 'energy', negrid, negrid_dim)
+    call neasyf_write(file_id, "energy", energy, dim_names=["energy ", "species"])
+
+    call neasyf_dim(file_id, "sign", dim_size=2, dimid=nsign_dim)
+    call neasyf_dim(file_id, "t", unlimited=.true., dimid=time_dim, &
+         long_name="Time", units="L/vt")
+    call neasyf_dim(file_id, "char5", dim_size=5, dimid=char5_dim)
+    call neasyf_dim(file_id, "char10", dim_size=10, dimid=char10_dim)
+    call neasyf_dim(file_id, "char200", dim_size=200, dimid=char200_dim)
+    call neasyf_dim(file_id, "nlines", dim_size=num_input_lines, dimid=nlines_dim, &
+         long_name="Input file line number")
+    call neasyf_dim(file_id, "ri", dim_size=2, dimid=ri_dim, &
+         long_name="Complex components", units="(real, imaginary)")
+    call neasyf_dim(file_id, "nheat", dim_size=7, dimid=nheat_dim)
+    call neasyf_dim(file_id, "vpa", dim_size=negrid*nlambda, dimid=vpa_dim)
+
     if (create_extended_correlation) then
-       call ensure_netcdf_dim_exists(ncid, 'theta_ext', (2*ntgrid+1)*((ntheta0-1)/jtwist_out+1), nttotext_dim)
-       call ensure_netcdf_dim_exists(ncid, 'tb', nwrite_big_tot, time_big_dim)
+       call neasyf_dim(file_id, "theta_ext", dim_size=(2*ntgrid+1)*((ntheta0-1)/jtwist_out+1), dimid=nttotext_dim)
+       call neasyf_dim(file_id, "tb", dim_size=nwrite_big_tot, dimid=time_big_dim)
     end if
+
+    call neasyf_write(file_id, "layout", layout)
+    call neasyf_write(file_id, "nproc", nproc, long_name="Number of processors")
+    call neasyf_write(file_id, "ntheta_tot", 2*ntgrid+1, long_name="Total number of theta points")
+    call neasyf_write(file_id, "nkx", ntheta0, long_name="Number of kx points")
+    call neasyf_write(file_id, "nky", naky, long_name="Number of ky points")
+    call neasyf_write(file_id, "nspecies", nspec, long_name="Number of species")
+    call neasyf_write(file_id, "nenergy", negrid, long_name="Number of energy points")
+    call neasyf_write(file_id, "nlambda", nlambda, long_name="Number of lambda points")
+
+    call neasyf_write(file_id, "theta0", theta0, dim_names=["kx", "ky"], long_name="Theta_0")
+
+    if (nonlin) then
+       nmesh = (2*ntgrid+1)*2*nlambda*negrid*nx*ny*nspec
+    else
+       nmesh = (2*ntgrid+1)*2*nlambda*negrid*ntheta0*naky*nspec
+    end if
+
+    call neasyf_write(file_id, "nmesh", nmesh, long_name="Total number of mesh points")
+
 # endif
   end subroutine define_dims
 
@@ -329,64 +363,6 @@ contains
     endif
 # endif
   end subroutine define_dims_mymovie
-
-  !> Write grid dimensions to the output netCDF file
-  !>
-  !> This must be called after [[define_dims]]
-  subroutine nc_grids
-# ifdef NETCDF
-    use theta_grid, only: ntgrid, theta
-    use kt_grids, only: naky, ntheta0, theta0, nx, ny, akx, aky
-    use species, only: nspec
-    use le_grids, only: negrid, nlambda, energy, al
-    use nonlinear_terms, only: nonlin
-    use netcdf, only: nf90_put_var
-    use gs2_layouts, only: layout
-# endif    
-    implicit none
-# ifdef NETCDF
-    integer :: status
-    real :: nmesh
-
-    status = nf90_put_var (ncid, layout_id, layout)
-    if (status /= NF90_NOERR) call netcdf_error (status, ncid, layout_id)
-
-    status = nf90_put_var (ncid, nttot_id, 2*ntgrid+1)
-    if (status /= NF90_NOERR) call netcdf_error (status, ncid, nttot_id)
-    status = nf90_put_var (ncid, naky_id, naky)
-    if (status /= NF90_NOERR) call netcdf_error (status, ncid, naky_id)
-    status = nf90_put_var (ncid, nakx_id, ntheta0)
-    if (status /= NF90_NOERR) call netcdf_error (status, ncid, nakx_id)
-    status = nf90_put_var (ncid, nspec_id, nspec)
-    if (status /= NF90_NOERR) call netcdf_error (status, ncid, nspec_id)
-    status = nf90_put_var (ncid, negrid_id, negrid)
-    if (status /= NF90_NOERR) call netcdf_error (status, ncid, negrid_id)
-    status = nf90_put_var (ncid, nlambda_id, nlambda)
-    if (status /= NF90_NOERR) call netcdf_error (status, ncid, nlambda_id)
-
-    status = nf90_put_var (ncid, akx_id, akx)
-    if (status /= NF90_NOERR) call netcdf_error (status, ncid, akx_id)
-    status = nf90_put_var (ncid, aky_id, aky)
-    if (status /= NF90_NOERR) call netcdf_error (status, ncid, aky_id)
-    status = nf90_put_var (ncid, theta_id, theta)
-    if (status /= NF90_NOERR) call netcdf_error (status, ncid, theta_id)
-    status = nf90_put_var (ncid, theta0_id, theta0)
-    if (status /= NF90_NOERR) call netcdf_error (status, ncid, theta0_id)
-    status = nf90_put_var (ncid, egrid_id, energy)
-    if (status /= NF90_NOERR) call netcdf_error (status, ncid, egrid_id)
-    status = nf90_put_var (ncid, lambda_id, al)
-    if (status /= NF90_NOERR) call netcdf_error (status, ncid, lambda_id)
-
-    if (nonlin) then
-       nmesh = (2*ntgrid+1)*2*nlambda*negrid*nx*ny*nspec
-    else
-       nmesh = (2*ntgrid+1)*2*nlambda*negrid*ntheta0*naky*nspec
-    end if
-
-    status = nf90_put_var (ncid, nmesh_id, nmesh)
-    if (status /= NF90_NOERR) call netcdf_error (status, ncid, nmesh_id)
-# endif
-  end subroutine nc_grids
 
   !> Write the physical normalisations to the output netCDF file
   subroutine nc_norms
@@ -521,7 +497,6 @@ contains
        ob_midplane)
 # ifdef NETCDF
     use file_utils, only: error_unit
-    use mp, only: nproc
     use kt_grids, only: naky, ntheta0
     use run_parameters, only: fphi, fapar, fbpar
     use parameter_scan_arrays, only: write_scan_parameter
@@ -643,25 +618,6 @@ contains
     call ensure_netcdf_att_exists(ncid, input_id, 'long_name', 'Input file')
 
     !################################################
-    !# NOW HANDLE DATA ABOUT GRID SIZES
-    ! Write lots of input variables (e.g. nproc, nkx, nky)
-    ! into the NetCDF file
-
-    call ensure_netcdf_var_exists(ncid, 'layout', NF90_CHAR, char5_dim, layout_id)
-    call ensure_netcdf_var_exists(ncid, 'nproc', NF90_INT, nproc_id)
-    call ensure_netcdf_att_exists(ncid, nproc_id, 'long_name', 'Number of processors')
-
-    call ensure_netcdf_var_exists(ncid, 'nmesh', netcdf_real, nmesh_id)
-    call ensure_netcdf_att_exists(ncid, nmesh_id, 'long_name', 'Number of meshpoints')
-
-    call ensure_netcdf_var_exists(ncid, 'nkx', NF90_INT, nakx_id)
-    call ensure_netcdf_var_exists(ncid, 'nky', NF90_INT, naky_id)
-    call ensure_netcdf_var_exists(ncid, 'ntheta_tot', NF90_INT, nttot_id)
-    call ensure_netcdf_var_exists(ncid, 'nspecies', NF90_INT, nspec_id)
-    call ensure_netcdf_var_exists(ncid, 'nenergy', NF90_INT, negrid_id)
-    call ensure_netcdf_var_exists(ncid, 'nlambda', NF90_INT, nlambda_id)
-
-    !################################################
     !# NOW DO NORMALISATIONS
     ! Could use norms%check_if_set to decide what we want to write here
 
@@ -710,26 +666,6 @@ contains
 
     call ensure_netcdf_var_exists(ncid, 'type_of_species', NF90_INT, nspec_dim, spec_type_id)
     !------------------------------------------------
-
-    !################################################
-    !# NOW DO GRIDS
-    call ensure_netcdf_var_exists(ncid, 't', netcdf_real, time_dim, time_id)
-    call ensure_netcdf_att_exists(ncid, time_id, 'long_name', 'Time')
-    call ensure_netcdf_att_exists(ncid, time_id, 'units', 'L/vt')
-
-    call ensure_netcdf_var_exists(ncid, 'theta0', netcdf_real, fmode_dim, theta0_id)
-    call ensure_netcdf_att_exists(ncid, theta0_id, 'long_name', 'Theta_0')
-
-    call ensure_netcdf_var_exists(ncid, 'kx', netcdf_real, nakx_dim, akx_id)
-    call ensure_netcdf_att_exists(ncid, akx_id, 'long_name', 'kx rho')
-
-    call ensure_netcdf_var_exists(ncid, 'ky', netcdf_real, naky_dim, aky_id)
-    call ensure_netcdf_att_exists(ncid, aky_id, 'long_name', 'ky rho')
-
-    call ensure_netcdf_var_exists(ncid, 'egrid', netcdf_real, negrid_dim, egrid_id)
-    call ensure_netcdf_var_exists(ncid, 'lambda', netcdf_real, nlambda_dim, lambda_id)
-
-    call ensure_netcdf_var_exists(ncid, 'theta', netcdf_real, nttot_dim, theta_id)
 
     !################################################
     !# NOW DO GEOMETRICAL/EQUILIBRIUM DATA
@@ -1185,10 +1121,6 @@ contains
     !# NOW EXIT DEFINITION MODE
     status = nf90_enddef (ncid)  ! out of definition mode
     if (status /= NF90_NOERR) call netcdf_error (status)
-
-    !Fill the value of nproc -- helps make sure we can write vars to file
-    status = nf90_put_var (ncid, nproc_id, nproc)
-    if (status /= NF90_NOERR) call netcdf_error (status, ncid, nproc_id)
 
 # endif
   end subroutine define_vars
@@ -2222,6 +2154,7 @@ contains
     use fields_arrays, only: phinew, aparnew, bparnew
     use parameter_scan_arrays, only: write_scan_parameter,current_scan_parameter_value
     use netcdf, only: nf90_put_var
+    use neasyf, only: neasyf_write
 # endif
     implicit none
     !> Current output timestep
@@ -2264,7 +2197,7 @@ contains
     count5(4) = naky
     count5(5) = 1
 
-    status = nf90_put_var (ncid, time_id, time, start=(/ nout /))
+    call neasyf_write(ncid, "t", time, dim_names=["t"], start=[nout])
 
     start(1) = 1
     start(2) = 1
@@ -2775,4 +2708,29 @@ contains
     if (status /= NF90_NOERR) call netcdf_error (status, ncid, drhodpsi_id)
 # endif
   end subroutine nc_geo
+
+  !> Wrapper around `nf90_inquire_dimension`. Aborts if any errors are
+  !> detected.
+  function get_dim_length(file_id, name) result(length)
+    use netcdf, only: nf90_inq_dimid, nf90_inquire_dimension, NF90_MAX_NAME
+    use neasyf, only: neasyf_error
+
+    integer :: length
+    !> NetCDF ID of the file
+    integer, intent(in) :: file_id
+    !> Name of the dimension
+    character(len=*), intent(in) :: name
+
+    integer :: dim_id
+    ! Temporary variable for the dimension name
+    character(len=NF90_MAX_NAME) :: dim_name
+    ! NetCDF error status
+    integer :: status
+
+    status = nf90_inq_dimid(file_id, name, dim_id)
+    call neasyf_error(status, file_id)
+
+    status = nf90_inquire_dimension(file_id, dim_id, dim_name, length)
+    call neasyf_error(status, file_id, dimid=dim_id, dim=name)
+  end function get_dim_length
 end module gs2_io

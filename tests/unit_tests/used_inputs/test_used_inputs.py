@@ -18,6 +18,7 @@ HEADER_UUID_RE = re.compile(
     r"! Run UUID: ([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12})"
 )
 HEADER_FILENAME_RE = re.compile(r"! Input parameters as used by [a-zA-Z0-9_.]+")
+IGNORED_VARIABLES = ["code_info", "input_file", "nlines"]
 
 
 def get_test_directory() -> pathlib.Path:
@@ -35,7 +36,7 @@ def get_gs2_path() -> pathlib.Path:
     return gs2_path.absolute()
 
 
-def run_gs2(gs2_path: str, input_filename: str) -> int:
+def run_gs2(gs2_path: str, input_filename: str):
     """Run gs2 with a given input file"""
     subprocess.run([gs2_path, input_filename]).check_returncode()
 
@@ -56,14 +57,11 @@ def compare_two_output_files(file1, file2, tolerance=1.0e-6):
     # Remove variables that we know can change from run to run. These
     # are stored as attributes in new diagnostics
     variables = list(file1_data.variables.keys())
-    try:
-        variables.remove("code_info")
-    except ValueError:
-        pass
-    try:
-        variables.remove("input_file")
-    except ValueError:
-        pass
+    for ignore in IGNORED_VARIABLES:
+        try:
+            variables.remove(ignore)
+        except ValueError:
+            pass
 
     for variable in variables:
         print(f"Checking {variable}... ", end="")

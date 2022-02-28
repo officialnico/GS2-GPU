@@ -9,6 +9,8 @@ import textwrap
 import netCDF4
 import numpy as np
 
+IGNORED_VARIABLES = ["code_info", "input_file", "nlines"]
+
 
 def run_gs2(gs2, input_file, name="GS2"):
     """Run GS2 on the given input file
@@ -51,14 +53,11 @@ def compare_two_output_files(file1, file2, tolerance):
     # Remove variables that we know can change from run to run. These
     # are stored as attributes in new diagnostics
     variables = list(file1_data.variables.keys())
-    try:
-        variables.remove("code_info")
-    except ValueError:
-        pass
-    try:
-        variables.remove("input_file")
-    except ValueError:
-        pass
+    for ignore in IGNORED_VARIABLES:
+        try:
+            variables.remove(ignore)
+        except ValueError:
+            pass
 
     for variable in variables:
         if file1_data[variable].dtype.kind == "S":
