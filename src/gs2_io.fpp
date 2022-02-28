@@ -29,7 +29,7 @@ module gs2_io
   integer, dimension (4) :: omega_dim, fluxk_dim, final_field_dim, loop_mom_dim, sym_dim
   integer, dimension (4) :: phi2_extend_dim, phi_corr_2pi_dim
   integer, dimension (3) :: fluxx_dim
-  integer, dimension (3) :: mode_dim, phase_dim, loop_phi_dim, heat_dim, flux_dist_dim, phi_dist_dim
+  integer, dimension (3) :: mode_dim, loop_phi_dim, heat_dim, flux_dist_dim, phi_dist_dim
   integer, dimension (2) :: kx_dim, ky_dim, om_dim, flux_dim, fmode_dim
 
   ! added by EAB 03/05/04 for movies
@@ -47,7 +47,7 @@ module gs2_io
   integer :: phi2_by_kx_id, apar2_by_kx_id, bpar2_by_kx_id
   integer :: phi2_by_ky_id, apar2_by_ky_id, bpar2_by_ky_id
   integer :: phi0_id, apar0_id, bpar0_id
-  integer :: omega_id, omegaavg_id, phase_id
+  integer :: omega_id, omegaavg_id
   integer :: es_heat_flux_id, es_mom_flux_id, es_part_flux_id, es_exchange_id
   integer :: es_part_tormom_flux_id
   integer :: es_part_flux_dist_id, es_mom_flux_par_dist_id, es_mom_flux_perp_dist_id, es_heat_flux_dist_id, es_phi_dist_id
@@ -70,7 +70,6 @@ module gs2_io
   integer :: qparflux_t_id, pperpj1_t_id, qpperpj1_t_id
   integer :: ntot0_id, density0_id, upar0_id, tpar0_id, tperp0_id
   integer :: qparflux0_id, pperpj10_id, qpperpj10_id
-  integer :: phi_norm_id, apar_norm_id, bpar_norm_id
   integer :: phi_id, apar_id, bpar_id, epar_id
   integer :: antot_id, antota_id, antotp_id
   integer :: ntot_id, density_id, upar_id, tpar_id, tperp_id
@@ -534,7 +533,6 @@ contains
     ky_dim          = [naky_dim, time_dim]
     om_dim          = [ri_dim, time_dim]
     omega_dim       = [ri_dim, nakx_dim, naky_dim, time_dim]
-    phase_dim       = [ri_dim, nakx_dim, naky_dim]
     flux_dim        = [nspec_dim, time_dim]
     fluxk_dim       = [nakx_dim, naky_dim, nspec_dim, time_dim]
     fluxx_dim       = [nakx_dim, nspec_dim, time_dim]
@@ -690,11 +688,6 @@ contains
           call ensure_netcdf_var_exists(ncid, 'phi_corr_2pi',  netcdf_real, phi_corr_2pi_dim, phi_corr_2pi_id)
        end if
 
-       !Normalised phi at end of run
-       if (write_eigenfunc) then
-          call ensure_netcdf_var_exists(ncid, 'phi_norm',  netcdf_real, final_field_dim, phi_norm_id)
-       endif
-
        !Velocity moment of g used in calculating phi
        if (write_final_antot) then
           call ensure_netcdf_var_exists(ncid, 'antot', netcdf_real, final_field_dim, antot_id)
@@ -749,11 +742,6 @@ contains
           call ensure_netcdf_var_exists(ncid, 'apar_part_by_k', netcdf_real, fluxk_dim, apar_part_by_k_id)
        end if
 
-       !Normalised eigenfunction
-       if (write_eigenfunc) then
-          call ensure_netcdf_var_exists(ncid, 'apar_norm', netcdf_real, final_field_dim, apar_norm_id)
-       endif
-
        !Velocity space moment of g used in calculating apar
        if (write_final_antot) then
           call ensure_netcdf_var_exists(ncid, 'antota', netcdf_real, final_field_dim, antota_id)
@@ -806,11 +794,6 @@ contains
           call ensure_netcdf_var_exists(ncid, 'bpar_mom_by_k', netcdf_real, fluxk_dim, bpar_mom_by_k_id)
           call ensure_netcdf_var_exists(ncid, 'bpar_part_by_k', netcdf_real, fluxk_dim, bpar_part_by_k_id)
        end if
-
-       !Normalised eigenfunction
-       if (write_eigenfunc) then
-          call ensure_netcdf_var_exists(ncid, 'bpar_norm', netcdf_real, final_field_dim, bpar_norm_id)
-       endif
 
        !Velocity space moment of g used in calculating bpar
        if (write_final_antot) then
@@ -891,12 +874,6 @@ contains
        call ensure_netcdf_var_exists(ncid,'scan_parameter_value',netcdf_real,time_dim,current_scan_parameter_value_id)
        call ensure_netcdf_att_exists(ncid,current_scan_parameter_value_id,'long_name','The current value of the scan parameter')
     end if
-
-    !Phase used to normalise eigenfunction/field
-    if(write_eigenfunc)then
-       call ensure_netcdf_var_exists(ncid, 'phase', netcdf_real, phase_dim, phase_id)
-       call ensure_netcdf_att_exists(ncid, phase_id, 'long_name', 'Normalizing phase')
-    endif
 
     !Roughly the field line averaged summed field amplitudes
     call ensure_netcdf_var_exists(ncid, 'phtot', netcdf_real, mode_dim, phtot_id)
@@ -1082,53 +1059,46 @@ contains
   end subroutine define_vars_mymovie
 
   !> Write the normalised fields to netCDF
-  subroutine nc_eigenfunc (phase)
-# ifdef NETCDF
+  subroutine nc_eigenfunc(file_id, phase)
+#ifdef NETCDF
     use convert, only: c2r
     use run_parameters, only: fphi, fapar, fbpar
     use fields_arrays, only: phi, apar, bpar
     use theta_grid, only: ntgrid
     use kt_grids, only: naky, ntheta0
-    use netcdf, only: nf90_put_var
 # endif
     implicit none
+    !> NetCDF ID of the file to write to
+    integer, intent(in) :: file_id
     !> Normalising phase factor (nominally \(\phi\) at the outboard midplane)
     complex, dimension(:,:), intent (in) :: phase
 # ifdef NETCDF
-    complex, dimension(-ntgrid:ntgrid, ntheta0, naky) :: tmp
-    real, dimension(2, ntheta0, naky) :: ri2
-    real, dimension (2, 2*ntgrid+1, ntheta0, naky) :: ri3
-    integer :: status, ig
 
-    call c2r (phase, ri2)
-    status = nf90_put_var (ncid, phase_id, ri2)
-    if (status /= NF90_NOERR) call netcdf_error (status, ncid, phase_id)
+    complex, dimension(-ntgrid:ntgrid, ntheta0, naky) :: tmp
+    character(*), dimension(*), parameter :: dim_names = [character(len=5)::"ri", "theta", "kx", "ky"]
+    integer :: ig
+
+    call netcdf_write_complex(file_id, "phase", phase, ["ri", "kx", "ky"], long_name="Normalising phase")
 
     if (fphi > zero) then
        do ig = -ntgrid, ntgrid
           tmp(ig,:,:) = phi(ig,:,:)/phase(:,:)
        end do
-       call c2r (tmp, ri3)
-       status = nf90_put_var(ncid, phi_norm_id, ri3)
-       if (status /= NF90_NOERR) call netcdf_error (status, ncid, phi_norm_id)
+       call netcdf_write_complex(file_id, "phi_norm", tmp, dim_names)
     end if
 
     if (fapar > zero) then
        do ig = -ntgrid, ntgrid
           tmp(ig,:,:) = apar(ig,:,:)/phase(:,:)
        end do
-       call c2r (tmp, ri3)
-       status = nf90_put_var(ncid, apar_norm_id, ri3)
-       if (status /= NF90_NOERR) call netcdf_error (status, ncid, apar_norm_id)
+       call netcdf_write_complex(file_id, "apar_norm", tmp, dim_names)
     end if
 
     if (fbpar > zero) then
        do ig = -ntgrid, ntgrid
           tmp(ig,:,:) = bpar(ig,:,:)/phase(:,:)
        end do
-       call c2r (tmp, ri3)
-       status = nf90_put_var(ncid, bpar_norm_id, ri3)
-       if (status /= NF90_NOERR) call netcdf_error (status, ncid, bpar_norm_id)
+       call netcdf_write_complex(file_id, "bpar_norm", tmp, dim_names)
     end if
 # endif
   end subroutine nc_eigenfunc
@@ -2625,12 +2595,13 @@ contains
     integer, intent(in) :: parent_id
     !> Value of the integer to write
     complex, dimension(:), intent(in) :: values
-    !> Array of dimension names
+    !> Array of dimension names, the first of which should be `"ri"`
     character(len=*), dimension(2), intent(in) :: dim_names
     !> Units of coordinate
     character(len=*), optional, intent(in) :: units
     !> Long descriptive name
     character(len=*), optional, intent(in) :: long_name
+    !> Offset (one-indexed) for writing time-varying arrays. Must include the complex dimension as the first index 
     integer, dimension(2), optional, intent(in) :: start
 
     real, dimension(2, size(values, 1)) :: real_values

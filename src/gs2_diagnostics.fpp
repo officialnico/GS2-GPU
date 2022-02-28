@@ -868,7 +868,7 @@ contains
     use dist_fn, only: write_f, write_fyx,write_poly, collision_error
     use dist_fn_arrays, only: g_adjust, gnew
     use collisions, only: vnmult
-    use gs2_io, only: nc_finish
+    use gs2_io, only: nc_finish, get_netcdf_file_id
     use antenna, only: dump_ant_amp
     use kt_grids, only: naky, ntheta0
     use gs2_time, only: user_time, user_dt
@@ -895,7 +895,7 @@ contains
     call close_files
 
     if (proc0) then
-       if (write_eigenfunc) call do_write_eigenfunc(phi0)
+       if (write_eigenfunc) call do_write_eigenfunc(get_netcdf_file_id(), phi0)
        if (write_final_fields) call do_write_final_fields
        if (write_kpar) call do_write_kpar
        if (write_final_epar) call do_write_final_epar
@@ -1562,7 +1562,7 @@ contains
   !> \(\phi\) at the outboard midplane
   !>
   !> Writes to text file `<runname>.eigenfunc` and/or netCDF
-  subroutine do_write_eigenfunc(phi0)
+  subroutine do_write_eigenfunc(file_id, phi0)
     use mp, only: proc0
     use file_utils, only: open_output_file, close_output_file
     use fields_arrays, only: phi, apar, bpar
@@ -1572,6 +1572,8 @@ contains
     use dist_fn, only: def_parity, even
     use run_parameters, only: fapar
     implicit none
+    !> NetCDF ID of the file to write to
+    integer, intent(in) :: file_id
     !> The normalising factor for the fields that is actually used. See
     !> [[gs2_diagnostics_knobs:write_eigenfunc]] for more details
     complex, dimension (:,:), intent(inout) :: phi0
@@ -1615,7 +1617,7 @@ contains
        call close_output_file (unit)
     end if
 
-    call nc_eigenfunc (phi0)
+    call nc_eigenfunc (file_id, phi0)
   end subroutine do_write_eigenfunc
 
   !> Write \(\phi, A_\parallel, B_\parallel\), overwriting existing values
