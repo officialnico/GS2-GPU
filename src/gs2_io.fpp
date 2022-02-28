@@ -108,8 +108,6 @@ module gs2_io
 # endif
   real :: zero
 
-!  include 'netcdf.inc'
-  
 contains
   
   !> Create and initialise the output netCDF files
