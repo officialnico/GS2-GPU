@@ -66,7 +66,6 @@ module gs2_io
   integer :: apar_heat_by_x_id
   integer :: bpar_heat_by_k_id, bpar_mom_by_k_id, bpar_part_by_k_id
   integer :: phi_t_id, apar_t_id, bpar_t_id
-  integer :: phi_id, apar_id, bpar_id, epar_id
   integer :: antot_id, antota_id, antotp_id
   integer :: ntot_id, density_id, upar_id, tpar_id, tperp_id
   integer :: qparflux_id, pperpj1_id, qpperpj1_id
@@ -608,13 +607,6 @@ contains
 
     !Phi dependent data
     if (fphi > zero) then
-
-       !Field at end of run
-       call ensure_netcdf_var_exists(ncid, 'phi', netcdf_real, final_field_dim, phi_id)
-       call ensure_netcdf_att_exists(ncid, phi_id, 'long_name', 'Electrostatic Potential')
-       call ensure_netcdf_att_exists(ncid, phi_id, 'idl_name', '!7U!6')
-       call ensure_netcdf_att_exists(ncid, phi_id, 'units', 'T/q rho/L')
-
        !Volume averaged amplitude data
        call ensure_netcdf_var_exists(ncid, 'phi2', netcdf_real, time_dim, phi2_id)
        call ensure_netcdf_att_exists(ncid, phi2_id, 'long_name', '|Potential**2|')
@@ -695,12 +687,6 @@ contains
 
     !Apar dependent output
     if (fapar > zero) then
-
-       !Field at end of run
-       call ensure_netcdf_var_exists(ncid, 'apar', netcdf_real, final_field_dim, apar_id)
-       call ensure_netcdf_att_exists(ncid, apar_id, 'long_name', 'Parallel Magnetic Potential')
-       call ensure_netcdf_att_exists(ncid, apar_id, 'idl_name', '!6A!9!D#!N!6')
-
        !Volume averaged amplitude data
        call ensure_netcdf_var_exists(ncid, 'apar2', netcdf_real, time_dim, apar2_id)
        call ensure_netcdf_att_exists(ncid, apar2_id, 'long_name', 'Total A_par squared')
@@ -749,12 +735,6 @@ contains
 
     !Bpar related data
     if (fbpar > zero) then
-
-       !Field at end of run
-       call ensure_netcdf_var_exists(ncid, 'bpar', netcdf_real, final_field_dim, bpar_id)
-       call ensure_netcdf_att_exists(ncid, bpar_id, 'long_name', 'delta B Parallel')
-       call ensure_netcdf_att_exists(ncid, bpar_id, 'idl_name', '!6B!9!D#!N!6')
-
        !Volume averaged amplitude data
        call ensure_netcdf_var_exists(ncid, 'bpar2', netcdf_real, time_dim, bpar2_id)
        call ensure_netcdf_att_exists(ncid, bpar2_id, 'long_name', 'Total A_perp squared')
@@ -827,11 +807,6 @@ contains
        call ensure_netcdf_var_exists(ncid, 'vflux_tot', netcdf_real, time_dim, vflux_tot_id)
        call ensure_netcdf_var_exists(ncid, 'zflux_tot', netcdf_real, time_dim, zflux_tot_id)
     end if
-
-    !Parallel electric field -- only good for linear runs
-    if(write_final_epar) then
-       call ensure_netcdf_var_exists(ncid, 'epar', netcdf_real, final_field_dim, epar_id)
-    endif
 
     !Here we setup the volume/fieldline averaged moment data, currently this triggers
     !both volume averaged, field line averaged and evaulated at theta=0 versions
@@ -1109,54 +1084,34 @@ contains
 
   !> Write the fields to netCDF, overwriting existing values
   subroutine nc_final_fields
-# ifdef NETCDF
-    use convert, only: c2r
+#ifdef NETCDF
     use fields_arrays, only: phinew, aparnew, bparnew
-    use theta_grid, only: ntgrid
-    use kt_grids, only: naky, ntheta0
     use run_parameters, only: fphi, fapar, fbpar
-    use netcdf, only: nf90_put_var
     implicit none
-    real, dimension (2, 2*ntgrid+1, ntheta0, naky) :: ri3
-    integer :: status
+    character(*), dimension(*), parameter :: dim_names = [character(5)::"ri", "theta", "kx", "ky"]
 
     if (fphi > zero) then
-       call c2r (phinew, ri3)
-       status = nf90_put_var (ncid, phi_id, ri3)
-       if (status /= NF90_NOERR) call netcdf_error (status, ncid, phi_id)
+       call netcdf_write_complex(ncid, "phi", phinew, dim_names, long_name="Electrostatic Potential", units="T/q rho/L")
     end if
 
     if (fapar > zero) then
-       call c2r (aparnew, ri3)
-       status = nf90_put_var (ncid, apar_id, ri3)
-       if (status /= NF90_NOERR) call netcdf_error (status, ncid, apar_id)
+       call netcdf_write_complex(ncid, "apar", aparnew, dim_names, long_name="Parallel Magnetic Potential")
     end if
 
     if (fbpar > zero) then
-       call c2r (bparnew, ri3)
-       status = nf90_put_var (ncid, bpar_id, ri3)
-       if (status /= NF90_NOERR) call netcdf_error (status, ncid, bpar_id)
+       call netcdf_write_complex(ncid, "bpar", bparnew, dim_names, long_name="delta B Parallel")
     end if
 # endif
   end subroutine nc_final_fields
 
   !> Write \(E_\parallel\) to netCDF, overwriting existing values
   subroutine nc_final_epar (epar)
-# ifdef NETCDF
-    use convert, only: c2r
-    use kt_grids, only: naky, ntheta0
-    use theta_grid, only: ntgrid
-    use netcdf, only: nf90_put_var
-# endif
     implicit none
     complex, dimension (:,:,:), intent (in) :: epar
 # ifdef NETCDF
-    real, dimension (2, 2*ntgrid+1, ntheta0, naky) :: ri3
-    integer :: status
+    character(*), dimension(*), parameter :: dim_names = [character(5)::"ri", "theta", "kx", "ky"]
 
-    call c2r (epar, ri3)
-    status = nf90_put_var (ncid, epar_id, ri3)
-    if (status /= NF90_NOERR) call netcdf_error (status, ncid, epar_id)
+    call netcdf_write_complex(ncid, "epar", epar, dim_names)
 # endif
   end subroutine nc_final_epar
 
