@@ -26,10 +26,10 @@ module gs2_io
   integer, dimension (6) :: lp_dim
   integer, dimension (5) :: field_dim, final_mom_dim, heatk_dim, err_dim
   integer, dimension (5) :: phi_corr_dim
-  integer, dimension (4) :: omega_dim, fluxk_dim, final_field_dim, loop_mom_dim, sym_dim
+  integer, dimension (4) :: omega_dim, fluxk_dim, final_field_dim, sym_dim
   integer, dimension (4) :: phi2_extend_dim, phi_corr_2pi_dim
   integer, dimension (3) :: fluxx_dim
-  integer, dimension (3) :: mode_dim, loop_phi_dim, heat_dim, flux_dist_dim, phi_dist_dim
+  integer, dimension (3) :: mode_dim, heat_dim, flux_dist_dim, phi_dist_dim
   integer, dimension (2) :: kx_dim, ky_dim, om_dim, flux_dim, fmode_dim
 
   ! added by EAB 03/05/04 for movies
@@ -67,11 +67,6 @@ module gs2_io
   integer :: bpar_heat_by_k_id, bpar_mom_by_k_id, bpar_part_by_k_id
   integer :: phi_t_id, apar_t_id, bpar_t_id
   integer :: antot_id, antota_id, antotp_id
-  integer :: ntot_id, density_id, upar_id, tpar_id, tperp_id
-  integer :: qparflux_id, pperpj1_id, qpperpj1_id
-  integer :: ntot2_id, ntot2_by_mode_id, ntot20_id, ntot20_by_mode_id
-  integer :: tpar2_by_mode_id, tperp2_by_mode_id
-  integer :: phi00_id, ntot00_id, density00_id, upar00_id, tpar00_id, tperp00_id
   integer :: code_id
   integer :: h_energy_id, h_energy_dot_id, h_antenna_id
   integer :: h_eapar_id, h_ebpar_id
@@ -535,8 +530,6 @@ contains
     field_dim       = [ri_dim, nttot_dim, nakx_dim, naky_dim, time_dim]
     final_field_dim = [ri_dim, nttot_dim, nakx_dim, naky_dim]
     final_mom_dim   = [ri_dim, nttot_dim, nakx_dim, naky_dim, nspec_dim]
-    loop_mom_dim    = [ri_dim, nakx_dim, nspec_dim, time_dim]
-    loop_phi_dim    = [ri_dim, nakx_dim, time_dim]
     flux_dist_dim   = [nttot_dim, nspec_dim, time_dim]
     phi_dist_dim    = [ri_dim, nttot_dim, time_dim]
     sym_dim         = [nttot_dim, vpa_dim, nspec_dim, time_dim]
@@ -807,45 +800,6 @@ contains
        call ensure_netcdf_var_exists(ncid, 'vflux_tot', netcdf_real, time_dim, vflux_tot_id)
        call ensure_netcdf_var_exists(ncid, 'zflux_tot', netcdf_real, time_dim, zflux_tot_id)
     end if
-
-    !Here we setup the volume/fieldline averaged moment data, currently this triggers
-    !both volume averaged, field line averaged and evaulated at theta=0 versions
-    if(write_avg_moments) then
-       !Volume averaged function of theta
-       !<DD>Should we only do this if .not.obmid?
-       call ensure_netcdf_var_exists(ncid, 'ntot2', netcdf_real, flux_dim,  ntot2_id)
-       call ensure_netcdf_var_exists(ncid, 'ntot2_by_mode', netcdf_real, fluxk_dim, ntot2_by_mode_id)
-       call ensure_netcdf_var_exists(ncid, 'tpar2_by_mode', netcdf_real, fluxk_dim, tpar2_by_mode_id)
-       call ensure_netcdf_var_exists(ncid, 'tperp2_by_mode', netcdf_real, fluxk_dim, tperp2_by_mode_id)
-
-       !"Volume averaged" data from outboard midplane (really just evaluated at theta=0
-       !and then weighted with Fourier coeff factor (typically 0.5).
-       !<DD>Should we only do this if obmid?
-       call ensure_netcdf_var_exists(ncid, 'ntot20', netcdf_real, flux_dim,  ntot20_id)
-       call ensure_netcdf_att_exists(ncid, ntot20_id, 'long_name', 'Density**2 at theta=0')
-       call ensure_netcdf_var_exists(ncid, 'ntot20_by_mode', netcdf_real, fluxk_dim, ntot20_by_mode_id)
-
-
-       !Fieldline averaged data, note this includes phi which is not a moment
-       call ensure_netcdf_var_exists(ncid, 'phi00', netcdf_real, loop_phi_dim, phi00_id)
-       call ensure_netcdf_var_exists(ncid, 'ntot00', netcdf_real, loop_mom_dim, ntot00_id)
-       call ensure_netcdf_var_exists(ncid, 'density00', netcdf_real, loop_mom_dim, density00_id)
-       call ensure_netcdf_var_exists(ncid, 'upar00', netcdf_real, loop_mom_dim, upar00_id)
-       call ensure_netcdf_var_exists(ncid, 'tpar00', netcdf_real, loop_mom_dim, tpar00_id)
-       call ensure_netcdf_var_exists(ncid, 'tperp00', netcdf_real, loop_mom_dim, tperp00_id)
-    endif
-
-    !Setup full moment data for end of simulation
-    if(write_final_moments)then
-       call ensure_netcdf_var_exists(ncid, 'ntot', netcdf_real, final_mom_dim, ntot_id)
-       call ensure_netcdf_var_exists(ncid, 'density', netcdf_real, final_mom_dim, density_id)
-       call ensure_netcdf_var_exists(ncid, 'upar', netcdf_real, final_mom_dim, upar_id)
-       call ensure_netcdf_var_exists(ncid, 'tpar', netcdf_real, final_mom_dim, tpar_id)
-       call ensure_netcdf_var_exists(ncid, 'tperp', netcdf_real, final_mom_dim, tperp_id)
-       call ensure_netcdf_var_exists(ncid, 'qparflux', netcdf_real, final_mom_dim, qparflux_id)
-       call ensure_netcdf_var_exists(ncid, 'pperpj1', netcdf_real, final_mom_dim, pperpj1_id)
-       call ensure_netcdf_var_exists(ncid, 'qpperpj1', netcdf_real, final_mom_dim, qpperpj1_id)
-    endif
 
     !Heating rate diagnostics
     if (write_heating) then
@@ -1118,64 +1072,29 @@ contains
   !> Write the various low-order moments to the output netCDF file,
   !> overwriting existing values
   subroutine nc_final_moments (ntot, density, upar, tpar, tperp, qparflux, pperpj1, qpperpj1)
-# ifdef NETCDF
-    use convert, only: c2r
-    use theta_grid, only: ntgrid
-    use kt_grids, only: naky, ntheta0
-    use species, only: nspec
-    use netcdf, only: nf90_put_var
-# endif
     implicit none
     complex, dimension (:,:,:,:), intent (in) :: ntot, density, upar, tpar, tperp
     complex, dimension (:,:,:,:), intent (in) :: qparflux, pperpj1, qpperpj1
-# ifdef NETCDF
-    real, dimension (2, 2*ntgrid+1, ntheta0, naky, nspec) :: ri4
-    integer :: status
+    character(*), dimension(*), parameter :: dim_names = [character(7)::"ri", "theta", "kx", "ky", "species"]
 
-    call c2r (ntot, ri4)
-    status = nf90_put_var (ncid, ntot_id, ri4)
-    if (status /= NF90_NOERR) call netcdf_error (status, ncid, ntot_id)
-
-    call c2r (density, ri4)
-    status = nf90_put_var (ncid, density_id, ri4)
-    if (status /= NF90_NOERR) call netcdf_error (status, ncid, density_id)
-
-    call c2r (upar, ri4)
-    status = nf90_put_var (ncid, upar_id, ri4)
-    if (status /= NF90_NOERR) call netcdf_error (status, ncid, upar_id)
-
-    call c2r (tpar, ri4)
-    status = nf90_put_var (ncid, tpar_id, ri4)
-    if (status /= NF90_NOERR) call netcdf_error (status, ncid, tpar_id)
-
-    call c2r (tperp, ri4)
-    status = nf90_put_var (ncid, tperp_id, ri4)
-    if (status /= NF90_NOERR) call netcdf_error (status, ncid, tperp_id)
-
-    call c2r (qparflux, ri4)
-    status = nf90_put_var (ncid, qparflux_id, ri4)
-    if (status /= NF90_NOERR) call netcdf_error (status, ncid, qparflux_id)
-
-    call c2r (pperpj1, ri4)
-    status = nf90_put_var (ncid, pperpj1_id, ri4)
-    if (status /= NF90_NOERR) call netcdf_error (status, ncid, pperpj1_id)
-
-    call c2r (qpperpj1, ri4)
-    status = nf90_put_var (ncid, qpperpj1_id, ri4)
-    if (status /= NF90_NOERR) call netcdf_error (status, ncid, qpperpj1_id)
-
-# endif
+#ifdef NETCDF
+    call netcdf_write_complex(ncid, 'ntot', ntot, dim_names)
+    call netcdf_write_complex(ncid, 'density', density, dim_names)
+    call netcdf_write_complex(ncid, 'upar', upar, dim_names)
+    call netcdf_write_complex(ncid, 'tpar', tpar, dim_names)
+    call netcdf_write_complex(ncid, 'tperp', tperp, dim_names)
+    call netcdf_write_complex(ncid, 'qparflux', qparflux, dim_names)
+    call netcdf_write_complex(ncid, 'pperpj1', pperpj1, dim_names)
+    call netcdf_write_complex(ncid, 'qpperpj1', qpperpj1, dim_names)
+#endif
   end subroutine nc_final_moments
 
-  !> Write averaged (volume/field line) moments.
+  !> Write moments as: volume averaged, field line averaged, and evaulated at theta=0
   subroutine nc_loop_moments (nout, ntot2, ntot2_by_mode, ntot20, ntot20_by_mode, &
        phi00, ntot00, density00, upar00, tpar00, tperp00, tpar2_by_mode, tperp2_by_mode)
-# ifdef NETCDF
-    use convert, only: c2r
-    use kt_grids, only: naky, ntheta0
-    use species, only: nspec
-    use netcdf, only: nf90_put_var
-# endif
+#ifdef NETCDF
+    use neasyf, only: neasyf_write
+#endif
     implicit none
     integer, intent (in) :: nout
     real, dimension (:), intent (in) :: ntot2, ntot20
@@ -1183,86 +1102,42 @@ contains
     real, dimension (:,:,:), intent (in) :: tpar2_by_mode, tperp2_by_mode
     complex, dimension (:), intent (in) :: phi00
     complex, dimension (:,:), intent (in) :: ntot00, density00, upar00, tpar00, tperp00
-# ifdef NETCDF
-    real, dimension (2, ntheta0, nspec) :: ri2
-    real, dimension (2, ntheta0) :: ri1
-    integer, dimension (2) :: start, count
-    integer, dimension (3) :: start3, count3
-    integer, dimension (4) :: start00, count00, start4, count4
-    integer :: status
+#ifdef NETCDF
+    integer, dimension (2) :: start2
+    integer, dimension (3) :: start3
+    integer, dimension (4) :: start4
 
-    start00(1) = 1
-    start00(2) = 1
-    start00(3) = 1
-    start00(4) = nout
-    
-    count00(1) = 2
-    count00(2) = ntheta0
-    count00(3) = nspec
-    count00(4) = 1
+    character(*), dimension(*), parameter :: flux_dim = [character(7)::"species", "t"]
+    character(*), dimension(*), parameter :: fluxk_dim = [character(7)::"kx", "ky", "species", "t"]
+    character(*), dimension(*), parameter :: loop_phi_dim = [character(7)::"ri", "kx", "t"]
+    character(*), dimension(*), parameter :: loop_mom_dim = [character(7)::"ri", "kx", "species", "t"]
 
-    start3(1) = 1
-    start3(2) = 1
-    start3(3) = nout
+    start2 = [1, nout]
+    start3 = [1, 1, nout]
+    start4 = [1, 1, 1, nout]
     
-    count3(1) = 2
-    count3(2) = ntheta0
-    count3(3) = 1
+    ! Volume averaged function of theta
+    ! <DD>Should we only do this if .not.obmid?
+    call neasyf_write (ncid, "ntot2", ntot2, dim_names=flux_dim, start=start2)
+    call neasyf_write (ncid, "ntot2_by_mode", ntot2_by_mode, dim_names=fluxk_dim, start=start4)
+    call neasyf_write (ncid, "tpar2_by_mode", tpar2_by_mode, dim_names=fluxk_dim, start=start4)
+    call neasyf_write (ncid, "tperp2_by_mode", tperp2_by_mode, dim_names=fluxk_dim, start=start4)
 
-    start(1) = 1
-    start(2) = nout
-    
-    count(1) = nspec
-    count(2) = 1
+    ! "Volume averaged" data from outboard midplane (really just evaluated at theta=0
+    ! and then weighted with Fourier coeff factor (typically 0.5).
+    ! <DD>Should we only do this if obmid?
+    call neasyf_write (ncid, "ntot20", ntot20, dim_names=flux_dim, start=start2, &
+         long_name='Density**2 at theta=0')
+    call neasyf_write (ncid, "ntot20_by_mode", ntot20_by_mode, dim_names=fluxk_dim, start=start4)
 
-    start4(1) = 1
-    start4(2) = 1
-    start4(3) = 1
-    start4(4) = nout
-    
-    count4(1) = ntheta0
-    count4(2) = naky
-    count4(3) = nspec
-    count4(4) = 1
-
-    status = nf90_put_var (ncid, ntot2_id, ntot2, start=start, count=count)
-    if (status /= NF90_NOERR) call netcdf_error (status, ncid, ntot2_id)
-    status = nf90_put_var (ncid, ntot2_by_mode_id, ntot2_by_mode, start=start4, count=count4)
-    if (status /= NF90_NOERR) call netcdf_error (status, ncid, ntot2_by_mode_id)
-    status = nf90_put_var (ncid, tpar2_by_mode_id, tpar2_by_mode, start=start4, count=count4)
-    if (status /= NF90_NOERR) call netcdf_error (status, ncid, tpar2_by_mode_id)
-    status = nf90_put_var (ncid, tperp2_by_mode_id, tperp2_by_mode, start=start4, count=count4)
-    if (status /= NF90_NOERR) call netcdf_error (status, ncid, tperp2_by_mode_id)
-
-    status = nf90_put_var (ncid, ntot20_id, ntot20, start=start, count=count)
-    if (status /= NF90_NOERR) call netcdf_error (status, ncid, ntot20_id)
-    status = nf90_put_var (ncid, ntot20_by_mode_id, ntot20_by_mode, start=start4, count=count4)
-    if (status /= NF90_NOERR) call netcdf_error (status, ncid, ntot20_by_mode_id)
-
-    call c2r (phi00, ri1)
-    status = nf90_put_var (ncid, phi00_id, ri1, start=start3, count=count3)
-    if (status /= NF90_NOERR) call netcdf_error (status, ncid, phi00_id)
-    
-    call c2r (ntot00, ri2)
-    status = nf90_put_var (ncid, ntot00_id, ri2, start=start00, count=count00)
-    if (status /= NF90_NOERR) call netcdf_error (status, ncid, ntot00_id)
-    
-    call c2r (density00, ri2)
-    status = nf90_put_var (ncid, density00_id, ri2, start=start00, count=count00)
-    if (status /= NF90_NOERR) call netcdf_error (status, ncid, density00_id)
-    
-    call c2r (upar00, ri2)
-    status = nf90_put_var (ncid, upar00_id, ri2, start=start00, count=count00)
-    if (status /= NF90_NOERR) call netcdf_error (status, ncid, upar00_id)
-    
-    call c2r (tpar00, ri2)
-    status = nf90_put_var (ncid, tpar00_id, ri2, start=start00, count=count00)
-    if (status /= NF90_NOERR) call netcdf_error (status, ncid, tpar00_id)
-
-    call c2r (tperp00, ri2)
-    status = nf90_put_var (ncid, tperp00_id, ri2, start=start00, count=count00)
-    if (status /= NF90_NOERR) call netcdf_error (status, ncid, tperp00_id)
-# endif
+    ! Fieldline averaged data, note this includes phi which is not a moment
+    call netcdf_write_complex(ncid, "phi00", phi00, loop_phi_dim, start=start3)
+    call netcdf_write_complex(ncid, "ntot00", ntot00, loop_mom_dim, start=start4)
+    call netcdf_write_complex(ncid, "density00", density00, loop_mom_dim, start=start4)
+    call netcdf_write_complex(ncid, "upar00", upar00, loop_mom_dim, start=start4)
+    call netcdf_write_complex(ncid, "tpar00", tpar00, loop_mom_dim, start=start4)
+    call netcdf_write_complex(ncid, "tperp00", tperp00, loop_mom_dim, start=start4)
+#endif
   end subroutine nc_loop_moments
 
   !> Write the right-hand sides of the field equations to netCDF,
