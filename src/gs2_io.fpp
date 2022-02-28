@@ -93,7 +93,15 @@ module gs2_io
   integer, dimension (5) :: mom_dim
   logical :: write_apar_t, write_phi_t, write_bpar_t ! Should the fields be written out every nwrite?
 
-# endif
+  !> Write a `complex` array to netcdf
+  !>
+  !> Converts the `complex` array to a `real` array with an extra dimension
+  interface netcdf_write_complex
+    module procedure write_complex_rank1, write_complex_rank2
+    module procedure write_complex_rank3, write_complex_rank4
+  end interface netcdf_write_complex
+
+#endif
   real :: zero
 
 contains
@@ -2577,6 +2585,7 @@ contains
 #endif
   end subroutine nc_geo
 
+#ifdef NETCDF
   !> Wrapper around `nf90_inquire_dimension`. Aborts if any errors are
   !> detected.
   function get_dim_length(file_id, name) result(length)
@@ -2601,4 +2610,97 @@ contains
     status = nf90_inquire_dimension(file_id, dim_id, dim_name, length)
     call neasyf_error(status, file_id, dimid=dim_id, dim=name)
   end function get_dim_length
+
+  subroutine write_complex_rank1(parent_id, name, values, dim_names, units, long_name, start)
+    use neasyf, only: neasyf_write
+    use convert, only: c2r
+    !> Name of the variable
+    character(len=*), intent(in) :: name
+    !> NetCDF ID of the parent group/file
+    integer, intent(in) :: parent_id
+    !> Value of the integer to write
+    complex, dimension(:), intent(in) :: values
+    !> Array of dimension names
+    character(len=*), dimension(2), intent(in) :: dim_names
+    !> Units of coordinate
+    character(len=*), optional, intent(in) :: units
+    !> Long descriptive name
+    character(len=*), optional, intent(in) :: long_name
+    integer, dimension(2), optional, intent(in) :: start
+
+    real, dimension(2, size(values, 1)) :: real_values
+
+    call c2r(values, real_values)
+    call neasyf_write(parent_id, name, real_values, dim_names=dim_names, units=units, long_name=long_name, start=start)
+  end subroutine write_complex_rank1
+
+  subroutine write_complex_rank2(parent_id, name, values, dim_names, units, long_name, start)
+    use neasyf, only: neasyf_write
+    use convert, only: c2r
+    !> Name of the variable
+    character(len=*), intent(in) :: name
+    !> NetCDF ID of the parent group/file
+    integer, intent(in) :: parent_id
+    !> Value of the integer to write
+    complex, dimension(:, :), intent(in) :: values
+    !> Array of dimension names
+    character(len=*), dimension(3), intent(in) :: dim_names
+    !> Units of coordinate
+    character(len=*), optional, intent(in) :: units
+    !> Long descriptive name
+    character(len=*), optional, intent(in) :: long_name
+    integer, dimension(3), optional, intent(in) :: start
+
+    real, dimension(2, size(values, 1), size(values, 2)) :: real_values
+
+    call c2r(values, real_values)
+    call neasyf_write(parent_id, name, real_values, dim_names=dim_names, units=units, long_name=long_name, start=start)
+  end subroutine write_complex_rank2
+
+  subroutine write_complex_rank3(parent_id, name, values, dim_names, units, long_name, start)
+    use neasyf, only: neasyf_write
+    use convert, only: c2r
+    !> Name of the variable
+    character(len=*), intent(in) :: name
+    !> NetCDF ID of the parent group/file
+    integer, intent(in) :: parent_id
+    !> Value of the integer to write
+    complex, dimension(:, :, :), intent(in) :: values
+    !> Array of dimension names
+    character(len=*), dimension(4), intent(in) :: dim_names
+    !> Units of coordinate
+    character(len=*), optional, intent(in) :: units
+    !> Long descriptive name
+    character(len=*), optional, intent(in) :: long_name
+    integer, dimension(4), optional, intent(in) :: start
+
+    real, dimension(2, size(values, 1), size(values, 2), size(values, 3)) :: real_values
+
+    call c2r(values, real_values)
+    call neasyf_write(parent_id, name, real_values, dim_names=dim_names, units=units, long_name=long_name, start=start)
+  end subroutine write_complex_rank3
+
+  subroutine write_complex_rank4(parent_id, name, values, dim_names, units, long_name, start)
+    use neasyf, only: neasyf_write
+    use convert, only: c2r
+    !> Name of the variable
+    character(len=*), intent(in) :: name
+    !> NetCDF ID of the parent group/file
+    integer, intent(in) :: parent_id
+    !> Value of the integer to write
+    complex, dimension(:, :, :, :), intent(in) :: values
+    !> Array of dimension names
+    character(len=*), dimension(5), intent(in) :: dim_names
+    !> Units of coordinate
+    character(len=*), optional, intent(in) :: units
+    !> Long descriptive name
+    character(len=*), optional, intent(in) :: long_name
+    integer, dimension(5), optional, intent(in) :: start
+
+    real, dimension(2, size(values, 1), size(values, 2), size(values, 3), size(values, 4)) :: real_values
+
+    call c2r(values, real_values)
+    call neasyf_write(parent_id, name, real_values, dim_names=dim_names, units=units, long_name=long_name, start=start)
+  end subroutine write_complex_rank4
+#endif
 end module gs2_io
