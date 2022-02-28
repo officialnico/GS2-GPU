@@ -2271,13 +2271,13 @@ contains
     !> Value of the integer to write
     complex, dimension(:), intent(in) :: values
     !> Array of dimension names, the first of which should be `"ri"`
-    character(len=*), dimension(2), intent(in) :: dim_names
+    character(len=*), dimension(:), intent(in) :: dim_names
     !> Units of coordinate
     character(len=*), optional, intent(in) :: units
     !> Long descriptive name
     character(len=*), optional, intent(in) :: long_name
     !> Offset (one-indexed) for writing time-varying arrays. Must include the complex dimension as the first index 
-    integer, dimension(2), optional, intent(in) :: start
+    integer, dimension(:), optional, intent(in) :: start
 
     real, dimension(2, size(values, 1)) :: real_values
 
@@ -2295,12 +2295,12 @@ contains
     !> Value of the integer to write
     complex, dimension(:, :), intent(in) :: values
     !> Array of dimension names
-    character(len=*), dimension(3), intent(in) :: dim_names
+    character(len=*), dimension(:), intent(in) :: dim_names
     !> Units of coordinate
     character(len=*), optional, intent(in) :: units
     !> Long descriptive name
     character(len=*), optional, intent(in) :: long_name
-    integer, dimension(3), optional, intent(in) :: start
+    integer, dimension(:), optional, intent(in) :: start
 
     real, dimension(2, size(values, 1), size(values, 2)) :: real_values
 
@@ -2318,12 +2318,12 @@ contains
     !> Value of the integer to write
     complex, dimension(:, :, :), intent(in) :: values
     !> Array of dimension names
-    character(len=*), dimension(4), intent(in) :: dim_names
+    character(len=*), dimension(:), intent(in) :: dim_names
     !> Units of coordinate
     character(len=*), optional, intent(in) :: units
     !> Long descriptive name
     character(len=*), optional, intent(in) :: long_name
-    integer, dimension(4), optional, intent(in) :: start
+    integer, dimension(:), optional, intent(in) :: start
 
     real, dimension(2, size(values, 1), size(values, 2), size(values, 3)) :: real_values
 
@@ -2341,12 +2341,12 @@ contains
     !> Value of the integer to write
     complex, dimension(:, :, :, :), intent(in) :: values
     !> Array of dimension names
-    character(len=*), dimension(5), intent(in) :: dim_names
+    character(len=*), dimension(:), intent(in) :: dim_names
     !> Units of coordinate
     character(len=*), optional, intent(in) :: units
     !> Long descriptive name
     character(len=*), optional, intent(in) :: long_name
-    integer, dimension(5), optional, intent(in) :: start
+    integer, dimension(:), optional, intent(in) :: start
 
     real, dimension(2, size(values, 1), size(values, 2), size(values, 3), size(values, 4)) :: real_values
 
