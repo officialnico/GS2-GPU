@@ -23,7 +23,7 @@ module gs2_io
   integer (kind_nf) :: nsign_dim, time_dim, char5_dim, char10_dim, ri_dim, nheat_dim, vpa_dim
   integer (kind_nf) :: nttotext_dim, time_big_dim
 
-  integer, dimension (6) :: lp_dim, mom_t_dim
+  integer, dimension (6) :: lp_dim
   integer, dimension (5) :: field_dim, final_mom_dim, heatk_dim, err_dim
   integer, dimension (5) :: phi_corr_dim
   integer, dimension (4) :: omega_dim, fluxk_dim, final_field_dim, loop_mom_dim, sym_dim
@@ -40,7 +40,7 @@ module gs2_io
   integer :: nx_id, ny_id, nth_id, x_id, y_id, th_id, time_movie_id
   integer :: phi_by_xmode_id, apar_by_xmode_id, bpar_by_xmode_id
 
-  integer :: time_id, phi2_id, apar2_id, bpar2_id
+  integer :: phi2_id, apar2_id, bpar2_id
   integer :: current_scan_parameter_value_id
   integer :: phi2_by_mode_id, apar2_by_mode_id, bpar2_by_mode_id, errest_by_mode_id, lpcoef_by_mode_id
   integer :: phtot_id
@@ -66,10 +66,6 @@ module gs2_io
   integer :: apar_heat_by_x_id
   integer :: bpar_heat_by_k_id, bpar_mom_by_k_id, bpar_part_by_k_id
   integer :: phi_t_id, apar_t_id, bpar_t_id
-  integer :: ntot_t_id, density_t_id, upar_t_id, tpar_t_id, tperp_t_id
-  integer :: qparflux_t_id, pperpj1_t_id, qpperpj1_t_id
-  integer :: ntot0_id, density0_id, upar0_id, tpar0_id, tperp0_id
-  integer :: qparflux0_id, pperpj10_id, qpperpj10_id
   integer :: phi_id, apar_id, bpar_id, epar_id
   integer :: antot_id, antota_id, antotp_id
   integer :: ntot_id, density_id, upar_id, tpar_id, tperp_id
@@ -89,7 +85,6 @@ module gs2_io
   integer :: hk_delfs2_id, hk_hs2_id, hk_phis2_id
   integer :: hk_hypervisc_id, hk_hyperres_id, hk_collisions_id
   integer :: hk_gradients_id, hk_hypercoll_id, hk_heating_id, hk_imp_colls_id
-  integer, dimension (5) :: mom_dim
   logical :: write_apar_t, write_phi_t, write_bpar_t ! Should the fields be written out every nwrite?
 
   !> Write a `complex` array to netcdf
@@ -539,12 +534,10 @@ contains
     heat_dim        = [nspec_dim, nheat_dim, time_dim]
     heatk_dim       = [nakx_dim, naky_dim, nspec_dim, nheat_dim, time_dim]
     field_dim       = [ri_dim, nttot_dim, nakx_dim, naky_dim, time_dim]
-    mom_t_dim       = [ri_dim, nttot_dim, nakx_dim, naky_dim, nspec_dim, time_dim]
     final_field_dim = [ri_dim, nttot_dim, nakx_dim, naky_dim]
     final_mom_dim   = [ri_dim, nttot_dim, nakx_dim, naky_dim, nspec_dim]
     loop_mom_dim    = [ri_dim, nakx_dim, nspec_dim, time_dim]
     loop_phi_dim    = [ri_dim, nakx_dim, time_dim]
-    mom_dim         = [ri_dim, nakx_dim, naky_dim, nspec_dim, time_dim]
     flux_dist_dim   = [nttot_dim, nspec_dim, time_dim]
     phi_dist_dim    = [ri_dim, nttot_dim, time_dim]
     sym_dim         = [nttot_dim, vpa_dim, nspec_dim, time_dim]
@@ -807,63 +800,6 @@ contains
        end if
     end if
 
-!CMR
-    if (write_moments) then
-       !Only at outboard midplane
-       !<DD>Should these really have _t at the end to identify them as being a function of time?
-       if (obmid) then
-          call ensure_netcdf_var_exists(ncid, 'ntot0', netcdf_real, mom_dim, ntot0_id)
-          call ensure_netcdf_att_exists(ncid, ntot0_id, 'long_name', 'Total perturbed density (theta=0) over time')
-
-          call ensure_netcdf_var_exists(ncid, 'density0', netcdf_real, mom_dim, density0_id)
-          call ensure_netcdf_att_exists(ncid, density0_id, 'long_name', 'Nonadiabatic piece of perturbed density (theta=0) over time')
-
-          call ensure_netcdf_var_exists(ncid, 'upar0', netcdf_real, mom_dim, upar0_id)
-          call ensure_netcdf_att_exists(ncid, upar0_id, 'long_name', 'Upar (theta=0) over time')
-
-          call ensure_netcdf_var_exists(ncid, 'tpar0', netcdf_real, mom_dim, tpar0_id)
-          call ensure_netcdf_att_exists(ncid, tpar0_id, 'long_name', 'Tpar (theta=0) over time')
-
-          call ensure_netcdf_var_exists(ncid, 'tperp0', netcdf_real, mom_dim, tperp0_id)
-          call ensure_netcdf_att_exists(ncid, tperp0_id, 'long_name', 'Tperp (theta=0) over time')
-
-          call ensure_netcdf_var_exists(ncid, 'qparflux0', netcdf_real, mom_dim, qparflux0_id)
-          call ensure_netcdf_att_exists(ncid, qparflux0_id, 'long_name', 'Qparflux (theta=0) over time')
-
-          call ensure_netcdf_var_exists(ncid, 'pperpj10', netcdf_real, mom_dim, pperpj10_id)
-          call ensure_netcdf_att_exists(ncid, pperpj10_id, 'long_name', 'Pperpj1 (theta=0) over time')
-
-          call ensure_netcdf_var_exists(ncid, 'qpperpj10', netcdf_real, mom_dim, qpperpj10_id)
-          call ensure_netcdf_att_exists(ncid, qpperpj10_id, 'long_name', 'Qpperpj1 (theta=0) over time')
-       !Along flux_surface
-       else
-          call ensure_netcdf_var_exists(ncid, 'ntot_t', netcdf_real, mom_t_dim, ntot_t_id)
-          call ensure_netcdf_att_exists(ncid, ntot_t_id, 'long_name', 'Total perturbed density over time')
-
-          call ensure_netcdf_var_exists(ncid, 'density_t', netcdf_real, mom_t_dim, density_t_id)
-          call ensure_netcdf_att_exists(ncid, density_t_id, 'long_name', 'Nonadiabatic piece of perturbed density over time')
-
-          call ensure_netcdf_var_exists(ncid, 'upar_t', netcdf_real, mom_t_dim, upar_t_id)
-          call ensure_netcdf_att_exists(ncid, upar_t_id, 'long_name', 'Upar over time')
-
-          call ensure_netcdf_var_exists(ncid, 'tpar_t', netcdf_real, mom_t_dim, tpar_t_id)
-          call ensure_netcdf_att_exists(ncid, tpar_t_id, 'long_name', 'Tpar over time')
-
-          call ensure_netcdf_var_exists(ncid, 'tperp_t', netcdf_real, mom_t_dim, tperp_t_id)
-          call ensure_netcdf_att_exists(ncid, tperp_t_id, 'long_name', 'Tperp over time')
-
-          call ensure_netcdf_var_exists(ncid, 'qparflux_t', netcdf_real, mom_t_dim, qparflux_t_id)
-          call ensure_netcdf_att_exists(ncid, qparflux_t_id, 'long_name', 'Qparflux over time')
-
-          call ensure_netcdf_var_exists(ncid, 'pperpj1_t', netcdf_real, mom_t_dim, pperpj1_t_id)
-          call ensure_netcdf_att_exists(ncid, pperpj1_t_id, 'long_name', 'Pperpj1 over time')
-
-          call ensure_netcdf_var_exists(ncid, 'qpperpj1_t', netcdf_real, mom_t_dim, qpperpj1_t_id)
-          call ensure_netcdf_att_exists(ncid, qpperpj1_t_id, 'long_name', 'Qpperpj1 over time')
-       end if
-    end if
-!CMRend
-
     if (write_verr) then
 !       call ensure_netcdf_var_exists(ncid, 'errest_by_mode', netcdf_real, err_dim, errest_by_mode_id)
 !       call ensure_netcdf_var_exists(ncid, 'lpcoef_by_mode', netcdf_real, lp_dim, lpcoef_by_mode_id)
@@ -974,16 +910,6 @@ contains
        call ensure_netcdf_var_exists(ncid, 'hk_heating', netcdf_real, fluxk_dim, hk_heating_id)
        call ensure_netcdf_att_exists(ncid, hk_heating_id, 'long_name', 'Total heating by species and mode')
     end if
-
-    ! RN> not guiding center moments (every nwrite steps)
-    if (write_full_moments_notgc .and. .not. (write_moments .and. obmid)) then
-       call ensure_netcdf_var_exists(ncid, 'ntot0', netcdf_real, mom_dim, ntot0_id)
-       call ensure_netcdf_var_exists(ncid, 'density0', netcdf_real, mom_dim, density0_id)
-       call ensure_netcdf_var_exists(ncid, 'upar0', netcdf_real, mom_dim, upar0_id)
-       call ensure_netcdf_var_exists(ncid, 'tpar0', netcdf_real, mom_dim, tpar0_id)
-       call ensure_netcdf_var_exists(ncid, 'tperp0', netcdf_real, mom_dim, tperp0_id)
-    endif
-    ! <RN
 
     !Correlation function (phi only so should probably include if fphi>0)
     if (io_write_corr_extend) then
@@ -1106,12 +1032,6 @@ contains
   !> Write various moments to netcdf
   subroutine nc_write_moments (nout, ntot, density, upar, tpar, tperp, qparflux, pperpj1, qpperpj1, ob_midplane) 
     use theta_grid, only: ntgrid
-# ifdef NETCDF
-    use convert, only: c2r
-    use kt_grids, only: naky, ntheta0
-    use species, only: nspec
-    use netcdf, only: nf90_put_var
-# endif
     implicit none
     !> Total perturbed density
     complex, dimension (-ntgrid:,:,:,:), intent (in) :: ntot
@@ -1134,109 +1054,55 @@ contains
     !> If true, write out moments at the outboard midplane only,
     !> otherwise write them out along the entire flux surface
     logical, optional, intent(in) :: ob_midplane
-# ifdef NETCDF
-    real, dimension (2, 2*ntgrid+1, ntheta0, naky, nspec) :: ri4
-    real, dimension (2, ntheta0, naky, nspec) :: ri3
-    integer, dimension (6) :: start6, count6
-    integer, dimension (5) :: start5, count5
-    integer :: status
+#ifdef NETCDF
+    integer, dimension (6) :: start6
+    integer, dimension (5) :: start5
+
+    character(*), dimension(*), parameter :: mom_dim = [character(len=7)::"ri", "kx", "ky", "species", "t"]
+    character(*), dimension(*), parameter :: mom_t_dim = [character(len=7)::"ri", "theta", "kx", "ky", "species", "t"]
 
     if (present(ob_midplane)) then
        if (ob_midplane ) then
-          start5(1) = 1
-          start5(2) = 1
-          start5(3) = 1
-          start5(4) = 1
-          start5(5) = nout
-    
-          count5(1) = 2
-          count5(2) = ntheta0
-          count5(3) = naky
-          count5(4) = nspec
-          count5(5) = 1
+          start5 = [1, 1, 1, 1, nout]
 
-          call c2r (reshape(ntot(0,:,:,:),(/ntheta0,naky,nspec/)), ri3)
-          status = nf90_put_var(ncid, ntot0_id, ri3, start=start5, count=count5)
-          if (status /= NF90_NOERR) call netcdf_error (status, ncid, ntot0_id)
-   
-          call c2r (reshape(density(0,:,:,:),(/ntheta0,naky,nspec/)), ri3)
-          status = nf90_put_var(ncid, density0_id, ri3, start=start5, count=count5)
-          if (status /= NF90_NOERR) call netcdf_error (status, ncid, density0_id)
-
-          call c2r (reshape(upar(0,:,:,:),(/ntheta0,naky,nspec/)), ri3)
-          status = nf90_put_var(ncid, upar0_id, ri3, start=start5, count=count5)
-          if (status /= NF90_NOERR) call netcdf_error (status, ncid, upar0_id)
-      
-          call c2r (reshape(tpar(0,:,:,:),(/ntheta0,naky,nspec/)), ri3)
-          status = nf90_put_var(ncid, tpar0_id, ri3, start=start5, count=count5)
-          if (status /= NF90_NOERR) call netcdf_error (status, ncid, tpar0_id)
-      
-          call c2r (reshape(tperp(0,:,:,:),(/ntheta0,naky,nspec/)), ri3)
-          status = nf90_put_var(ncid, tperp0_id, ri3, start=start5, count=count5)
-          if (status /= NF90_NOERR) call netcdf_error (status, ncid, tperp0_id)
-      
-          call c2r (reshape(qparflux(0,:,:,:),(/ntheta0,naky,nspec/)), ri3)
-          status = nf90_put_var(ncid, qparflux0_id, ri3, start=start5, count=count5)
-          if (status /= NF90_NOERR) call netcdf_error (status, ncid, qparflux0_id)
-      
-          call c2r (reshape(pperpj1(0,:,:,:),(/ntheta0,naky,nspec/)), ri3)
-          status = nf90_put_var(ncid, pperpj10_id, ri3, start=start5, count=count5)
-          if (status /= NF90_NOERR) call netcdf_error (status, ncid, pperpj10_id)
-      
-          call c2r (reshape(qpperpj1(0,:,:,:),(/ntheta0,naky,nspec/)), ri3)
-          status = nf90_put_var(ncid, qpperpj10_id, ri3, start=start5, count=count5)
-          if (status /= NF90_NOERR) call netcdf_error (status, ncid, qpperpj10_id)
-   
+          call netcdf_write_complex(ncid, "ntot0", ntot(0, :, :, :), mom_dim, start=start5, &
+               long_name="Total perturbed density (theta=0) over time")
+          call netcdf_write_complex(ncid, "density0", density(0, :, :, :), mom_dim, start=start5, &
+               long_name="Nonadiabatic piece of perturbed density (theta=0) over time")
+          call netcdf_write_complex(ncid, "upar0", upar(0, :, :, :), mom_dim, start=start5, &
+               long_name="Upar (theta=0) over time")
+          call netcdf_write_complex(ncid, "tpar0", tpar(0, :, :, :), mom_dim, start=start5, &
+               long_name="Tpar (theta=0) over time")
+          call netcdf_write_complex(ncid, "tperp0", tperp(0, :, :, :), mom_dim, start=start5, &
+               long_name="Tperp (theta=0) over time")
+          call netcdf_write_complex(ncid, "qparflux0", qparflux(0, :, :, :), mom_dim, start=start5, &
+               long_name="Qparflux (theta=0) over time")
+          call netcdf_write_complex(ncid, "pperpj10", pperpj1(0, :, :, :), mom_dim, start=start5, &
+               long_name="Pperpj1 (theta=0) over time")
+          call netcdf_write_complex(ncid, "qpperpj10", qpperpj1(0, :, :, :), mom_dim, start=start5, &
+               long_name="Qpperpj1 (theta=0) over time")
           return
-
        endif
     endif
 
-    start6(1) = 1
-    start6(2) = 1
-    start6(3) = 1
-    start6(4) = 1
-    start6(5) = 1
-    start6(6) = nout
-    
-    count6(1) = 2
-    count6(2) = 2*ntgrid+1
-    count6(3) = ntheta0
-    count6(4) = naky
-    count6(5) = nspec
-    count6(6) = 1
+    start6 = [1, 1, 1, 1, 1, nout]
 
-    call c2r (ntot, ri4)
-    status = nf90_put_var(ncid, ntot_t_id, ri4, start=start6, count=count6)
-    if (status /= NF90_NOERR) call netcdf_error (status, ncid, ntot_t_id)
-
-    call c2r (density, ri4)
-    status = nf90_put_var(ncid, density_t_id, ri4, start=start6, count=count6)
-    if (status /= NF90_NOERR) call netcdf_error (status, ncid, density_t_id)
-
-    call c2r (upar, ri4)
-    status = nf90_put_var(ncid, upar_t_id, ri4, start=start6, count=count6)
-    if (status /= NF90_NOERR) call netcdf_error (status, ncid, upar_t_id)
-   
-    call c2r (tpar, ri4)
-    status = nf90_put_var(ncid, tpar_t_id, ri4, start=start6, count=count6)
-    if (status /= NF90_NOERR) call netcdf_error (status, ncid, tpar_t_id)
-   
-    call c2r (tperp, ri4)
-    status = nf90_put_var(ncid, tperp_t_id, ri4, start=start6, count=count6)
-    if (status /= NF90_NOERR) call netcdf_error (status, ncid, tperp_t_id)
-   
-    call c2r (qparflux, ri4)
-    status = nf90_put_var(ncid, qparflux_t_id, ri4, start=start6, count=count6)
-    if (status /= NF90_NOERR) call netcdf_error (status, ncid, qparflux_t_id)
-   
-    call c2r (pperpj1, ri4)
-    status = nf90_put_var(ncid, pperpj1_t_id, ri4, start=start6, count=count6)
-    if (status /= NF90_NOERR) call netcdf_error (status, ncid, pperpj1_t_id)
-   
-    call c2r (qpperpj1, ri4)
-    status = nf90_put_var(ncid, qpperpj1_t_id, ri4, start=start6, count=count6)
-    if (status /= NF90_NOERR) call netcdf_error (status, ncid, qpperpj1_t_id)
+    call netcdf_write_complex(ncid, 'ntot_t', ntot, mom_t_dim, start=start6, &
+          long_name="Total perturbed density over time")
+    call netcdf_write_complex(ncid, 'density_t', density, mom_t_dim, start=start6, &
+          long_name="Nonadiabatic piece of perturbed density over time")
+    call netcdf_write_complex(ncid, 'upar_t', upar, mom_t_dim, start=start6, &
+          long_name="Upar over time")
+    call netcdf_write_complex(ncid, 'tpar_t', tpar, mom_t_dim, start=start6, &
+          long_name="Tpar over time")
+    call netcdf_write_complex(ncid, 'tperp_t', tperp, mom_t_dim, start=start6, &
+          long_name="Tperp over time")
+    call netcdf_write_complex(ncid, 'qparflux_t', qparflux, mom_t_dim, start=start6, &
+          long_name="Qparflux over time")
+    call netcdf_write_complex(ncid, 'pperpj1_t', pperpj1, mom_t_dim, start=start6, &
+          long_name="Pperpj1 over time")
+    call netcdf_write_complex(ncid, 'qpperpj1_t', qpperpj1, mom_t_dim, start=start6, &
+          long_name="Qpperpj1 over time")
 
 # endif
   end subroutine nc_write_moments
@@ -2341,48 +2207,27 @@ contains
   end subroutine nc_loop
 
   !> Outputs full not guiding center moments 
-  subroutine nc_loop_fullmom (nout, time, &
-       & ntot0, density0, upar0, tpar0, tperp0)
-# ifdef NETCDF
-    use kt_grids, only: naky, nakx => ntheta0
-    use species, only: nspec
-    use convert, only: c2r
-    use netcdf, only: nf90_put_var
-# endif
+  subroutine nc_loop_fullmom (nout, ntot0, density0, upar0, tpar0, tperp0)
     implicit none
     integer, intent (in) :: nout
-    real, intent (in) :: time
     complex, dimension(:,:,:), intent(in) :: ntot0, density0, upar0, tpar0, tperp0
-# ifdef NETCDF
-    real, dimension (2, nakx, naky, nspec) :: ri3
-    integer, dimension (5) :: startmom, countmom
-    integer :: status
+#ifdef NETCDF
+    integer, dimension (5) :: startmom
+    character(*), dimension(*), parameter :: mom_dim = [character(len=7)::"ri", "kx", "ky", "species", "t"]
 
-    status = nf90_put_var (ncid, time_id, time, start=(/nout/))
-    if (status /= NF90_NOERR) call netcdf_error (status, ncid, time_id)
+    startmom = [1, 1, 1, 1, nout]
 
-    startmom(1) = 1;    countmom(1)=2
-    startmom(2) = 1;    countmom(2)=nakx
-    startmom(3) = 1;    countmom(3)=naky
-    startmom(4) = 1;    countmom(4)=nspec
-    startmom(5) = nout; countmom(5)=1
-
-    call c2r (ntot0, ri3)
-    status = nf90_put_var (ncid, ntot0_id, ri3, start=startmom, count=countmom)
-    if (status /= NF90_NOERR) call netcdf_error (status, ncid, ntot0_id)
-    call c2r (density0, ri3)
-    status = nf90_put_var (ncid, density0_id, ri3, start=startmom, count=countmom)
-    if (status /= NF90_NOERR) call netcdf_error (status, ncid, density0_id)
-    call c2r (upar0, ri3)
-    status = nf90_put_var (ncid, upar0_id, ri3, start=startmom, count=countmom)
-    if (status /= NF90_NOERR) call netcdf_error (status, ncid, upar0_id)
-    call c2r (tpar0, ri3)
-    status = nf90_put_var (ncid, tpar0_id, ri3, start=startmom, count=countmom)
-    if (status /= NF90_NOERR) call netcdf_error (status, ncid, tpar0_id)
-    call c2r (tperp0, ri3)
-    status = nf90_put_var (ncid, tperp0_id, ri3, start=startmom, count=countmom)
-    if (status /= NF90_NOERR) call netcdf_error (status, ncid, tperp0_id)
-# endif
+    call netcdf_write_complex(ncid, "ntot0", ntot0, mom_dim, start=startmom, &
+         long_name="Total perturbed density (theta=0) over time")
+    call netcdf_write_complex(ncid, "density0", density0, mom_dim, start=startmom, &
+         long_name="Nonadiabatic piece of perturbed density (theta=0) over time")
+    call netcdf_write_complex(ncid, "upar0", upar0, mom_dim, start=startmom, &
+         long_name="Upar (theta=0) over time")
+    call netcdf_write_complex(ncid, "tpar0", tpar0, mom_dim, start=startmom, &
+         long_name="Tpar (theta=0) over time")
+    call netcdf_write_complex(ncid, "tperp0", tperp0, mom_dim, start=startmom, &
+         long_name="Tperp (theta=0) over time")
+#endif
   end subroutine nc_loop_fullmom
 
   !> Write \(\phi, A_\parallel, B_\parallel\) as functions of real space

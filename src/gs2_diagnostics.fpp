@@ -825,6 +825,7 @@ contains
     !CMR, 12/8/2014: 
     ! Ensure write_full_moments_notgc=.false. if (write_moments .and. ob_midplane)
     ! to avoid a conflict.  
+    ! FIXME: These two diagnostics do almost the same thing. Do we actually want both?
     if (write_moments .and. ob_midplane) write_full_moments_notgc=.false.
 
     !Override flags
@@ -1432,7 +1433,7 @@ contains
 
     if (write_avg_moments) call do_write_avg_moments
 
-    if (write_full_moments_notgc) call do_write_full_moments_notgc(t)
+    if (write_full_moments_notgc) call do_write_full_moments_notgc
 
     if (dump_check1) call do_write_dump_1(t)
     if (dump_check2) call do_write_dump_2(t)
@@ -3306,7 +3307,7 @@ contains
 
   !> Calculate moments (density, parallel flow, and parallel and perpendicular
   !> temperatures) in non-guiding centre coordinates and write to netCDF
-  subroutine do_write_full_moments_notgc(t)
+  subroutine do_write_full_moments_notgc()
     use dist_fn, only: getmoms_notgc
     use theta_grid, only: ntgrid
     use kt_grids, only: naky, ntheta0
@@ -3315,12 +3316,11 @@ contains
     use gs2_io, only: nc_loop_fullmom
     use fields_arrays, only: phinew, bparnew
     implicit none
-    real, intent(in) :: t
     complex, dimension (-ntgrid:ntgrid,ntheta0,naky,nspec) :: ntot, density, &
          upar, tpar, tperp
     call getmoms_notgc(phinew, bparnew, density,upar,tpar,tperp,ntot)
     if(proc0) then
-       call nc_loop_fullmom(nout,t, &
+       call nc_loop_fullmom(nout, &
             & ntot(igomega,:,:,:),density(igomega,:,:,:), &
             & upar(igomega,:,:,:), &
             & tpar(igomega,:,:,:),tperp(igomega,:,:,:) )
