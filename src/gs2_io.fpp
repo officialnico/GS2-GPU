@@ -79,8 +79,6 @@ module gs2_io
   integer :: tpar2_by_mode_id, tperp2_by_mode_id
   integer :: phi00_id, ntot00_id, density00_id, upar00_id, tpar00_id, tperp00_id
   integer :: input_id
-  integer :: charge_id, mass_id, dens_id, temp_id, tprim_id, fprim_id
-  integer :: uprim_id, uprim2_id, vnewk_id, spec_type_id
   integer :: bmag_id, gradpar_id, gbdrift_id, gbdrift0_id
   integer :: cdrift_id, cdrift0_id
   integer :: cvdrift_id, cvdrift0_id, gds2_id, gds21_id, gds22_id, gds23_id, gds24_id
@@ -234,7 +232,7 @@ contains
         else
             !Write constant data
             call nc_norms(ncid)
-            call nc_species
+            call nc_species(ncid)
             call nc_geo
             call save_input
             nout = 1
@@ -613,43 +611,6 @@ contains
     !This stores a copy of the (sanitised?) input file
     call ensure_netcdf_var_exists(ncid, 'input_file', NF90_CHAR, nin_dim, input_id)
     call ensure_netcdf_att_exists(ncid, input_id, 'long_name', 'Input file')
-
-    !################################################
-    !# NOW DO SPECIES DATA
-
-    call ensure_netcdf_var_exists(ncid, 'charge', NF90_INT, nspec_dim, charge_id)
-    call ensure_netcdf_att_exists(ncid, charge_id, 'long_name', 'Charge')
-    call ensure_netcdf_att_exists(ncid, charge_id, 'units', 'q')
-
-    call ensure_netcdf_var_exists(ncid, 'mass', netcdf_real, nspec_dim, mass_id)
-    call ensure_netcdf_att_exists(ncid, mass_id, 'long_name', 'Atomic mass')
-    call ensure_netcdf_att_exists(ncid, mass_id, 'units', 'm')
-
-    call ensure_netcdf_var_exists(ncid, 'dens', netcdf_real, nspec_dim, dens_id)
-    call ensure_netcdf_att_exists(ncid, dens_id, 'long_name', 'Density')
-    call ensure_netcdf_att_exists(ncid, dens_id, 'units', 'n_e')
-
-    call ensure_netcdf_var_exists(ncid, 'temp', netcdf_real, nspec_dim, temp_id)
-    call ensure_netcdf_att_exists(ncid, temp_id, 'long_name', 'Temperature')
-    call ensure_netcdf_att_exists(ncid, temp_id, 'units', 'T')
-
-    call ensure_netcdf_var_exists(ncid, 'tprim', netcdf_real, nspec_dim, tprim_id)
-    call ensure_netcdf_att_exists(ncid, tprim_id, 'long_name', '-1/rho dT/drho')
-
-    call ensure_netcdf_var_exists(ncid, 'fprim', netcdf_real, nspec_dim, fprim_id)
-    call ensure_netcdf_att_exists(ncid, fprim_id, 'long_name', '-1/rho dn/drho')
-
-    call ensure_netcdf_var_exists(ncid, 'uprim', netcdf_real, nspec_dim, uprim_id)
-    call ensure_netcdf_att_exists(ncid, uprim_id, 'long_name', '-1/v_t du_par/drho')
-
-    call ensure_netcdf_var_exists(ncid, 'uprim2', netcdf_real, nspec_dim, uprim2_id)
-
-    call ensure_netcdf_var_exists(ncid, 'vnewk', netcdf_real, nspec_dim, vnewk_id)
-    call ensure_netcdf_att_exists(ncid, vnewk_id, 'long_name', 'Collisionality')
-    call ensure_netcdf_att_exists(ncid, vnewk_id, 'units', 'v_t/L')
-
-    call ensure_netcdf_var_exists(ncid, 'type_of_species', NF90_INT, nspec_dim, spec_type_id)
-    !------------------------------------------------
 
     !################################################
     !# NOW DO GEOMETRICAL/EQUILIBRIUM DATA
@@ -2584,35 +2545,34 @@ contains
   end subroutine nc_sync
 
   !> Write [[species:spec]] to output netCDF file
-  subroutine nc_species
-# ifdef NETCDF
+  subroutine nc_species(file_id)
+#ifdef NETCDF
     use species, only: spec
-    use netcdf, only: nf90_put_var
+    use neasyf, only: neasyf_write
+#endif
     implicit none
-    integer :: status
-
-    status = nf90_put_var (ncid, charge_id, spec%z)
-    if (status /= NF90_NOERR) call netcdf_error (status, ncid, charge_id)
-    status = nf90_put_var (ncid, mass_id, spec%mass)
-    if (status /= NF90_NOERR) call netcdf_error (status, ncid, mass_id)
-    status = nf90_put_var (ncid, dens_id, spec%dens)
-    if (status /= NF90_NOERR) call netcdf_error (status, ncid, dens_id)
-    status = nf90_put_var (ncid, temp_id, spec%temp)
-    if (status /= NF90_NOERR) call netcdf_error (status, ncid, temp_id)
-    status = nf90_put_var (ncid, tprim_id, spec%tprim)
-    if (status /= NF90_NOERR) call netcdf_error (status, ncid, tprim_id)
-    status = nf90_put_var (ncid, fprim_id, spec%fprim)
-    if (status /= NF90_NOERR) call netcdf_error (status, ncid, fprim_id)
-    status = nf90_put_var (ncid, uprim_id, spec%uprim)
-    if (status /= NF90_NOERR) call netcdf_error (status, ncid, uprim_id)
-    status = nf90_put_var (ncid, uprim2_id, spec%uprim2)
-    if (status /= NF90_NOERR) call netcdf_error (status, ncid, uprim2_id)
-    status = nf90_put_var (ncid, vnewk_id, spec%vnewk)
-    if (status /= NF90_NOERR) call netcdf_error (status, ncid, vnewk_id)
-    status = nf90_put_var (ncid, spec_type_id, spec%type)
-    if (status /= NF90_NOERR) call netcdf_error (status, ncid, spec_type_id)
-
-# endif
+    !> NetCDF ID of the file to write to
+    integer, intent(in) :: file_id
+#ifdef NETCDF
+    call neasyf_write(file_id, "charge", spec%z, dim_names=["species"], &
+         long_name="Charge", units="q")
+    call neasyf_write(file_id, "mass", spec%mass, dim_names=["species"], &
+         long_name="Atomic mass", units="m")
+    call neasyf_write(file_id, "dens", spec%dens, dim_names=["species"], &
+         long_name="Density", units="n_e")
+    call neasyf_write(file_id, "temp", spec%temp, dim_names=["species"], &
+         long_name="Temperature", units="T")
+    call neasyf_write(file_id, "tprim", spec%tprim, dim_names=["species"], &
+         long_name="-1/rho dT/drho")
+    call neasyf_write(file_id, "fprim", spec%fprim, dim_names=["species"], &
+         long_name="-1/rho dn/drho")
+    call neasyf_write(file_id, "uprim", spec%uprim, dim_names=["species"], &
+         long_name="-1/v_t du_par/drho")
+    call neasyf_write(file_id, "uprim2", spec%uprim2, dim_names=["species"])
+    call neasyf_write(file_id, "vnewk", spec%vnewk, dim_names=["species"], &
+         long_name="Collisionality", units="v_t/L")
+    call neasyf_write(file_id, "type_of_species", spec%type, dim_names=["species"])
+#endif
   end subroutine nc_species
   
   !> Write various geometric quantities to output netCDF file
