@@ -102,7 +102,7 @@ module gs2_io
   end interface netcdf_write_complex
 
 #endif
-  real :: zero
+  real, parameter :: zero = epsilon(0.0)
 
 contains
   
@@ -175,8 +175,6 @@ contains
     io_write_corr_extend = write_correlation_extend
 
     !----------------
-
-    zero = epsilon(0.0)
 
     status = NF90_NOERR
 
