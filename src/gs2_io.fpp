@@ -22,7 +22,6 @@ module gs2_io
   integer (kind_nf) :: naky_dim, nakx_dim, nttot_dim, negrid_dim, nlambda_dim, nspec_dim, ncoord_dim, ncoordt_dim
   integer (kind_nf) :: nsign_dim, time_dim, char5_dim, char10_dim, char200_dim, ri_dim, nlines_dim, nheat_dim, vpa_dim
   integer (kind_nf) :: nttotext_dim, time_big_dim
-  integer (kind_nf) :: aref_id, zref_id, nref_id, tref_id, mref_id, vref_id, bref_id, rhoref_id
 
   integer, dimension (6) :: lp_dim, mom_t_dim
   integer, dimension (5) :: field_dim, final_mom_dim, heatk_dim, err_dim
@@ -41,9 +40,7 @@ module gs2_io
   integer :: nx_id, ny_id, nth_id, x_id, y_id, th_id, time_movie_id
   integer :: phi_by_xmode_id, apar_by_xmode_id, bpar_by_xmode_id
 
-  integer :: nakx_id, naky_id, nttot_id, akx_id, aky_id, theta_id, nspec_id
-  integer :: negrid_id, nlambda_id, egrid_id, lambda_id
-  integer :: time_id, phi2_id, apar2_id, bpar2_id, theta0_id, nproc_id, nmesh_id
+  integer :: time_id, phi2_id, apar2_id, bpar2_id
   integer :: current_scan_parameter_value_id
   integer :: phi2_by_mode_id, apar2_by_mode_id, bpar2_by_mode_id, errest_by_mode_id, lpcoef_by_mode_id
   integer :: phtot_id
@@ -90,7 +87,7 @@ module gs2_io
   integer :: gds24_noq_id, grho_id, jacob_id, shat_id, eps_id, drhodpsi_id, q_id, surfarea_id
   integer :: rplot_id, zplot_id, aplot_id, rprime_id, zprime_id, aprime_id, bpol_id
   integer :: beta_id
-  integer :: code_id, layout_id
+  integer :: code_id
   integer :: h_energy_id, h_energy_dot_id, h_antenna_id
   integer :: h_eapar_id, h_ebpar_id
   integer :: h_delfs2_id, h_hs2_id, h_phis2_id
@@ -163,7 +160,7 @@ contains
 
 # ifdef NETCDF
     logical :: accelerated
-    character(run_name_size) :: filename, filename_movie
+    character(run_name_size) :: filename
     integer :: status
     logical :: previous_file_exists, appending
     integer, parameter :: create_file_mode = ior(NF90_CLOBBER, NF90_NETCDF4)
