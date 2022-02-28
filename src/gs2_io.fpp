@@ -15,7 +15,7 @@ module gs2_io
   public :: nc_qflux, nc_vflux, nc_pflux, nc_pflux_tormom, nc_loop, nc_loop_moments
   public :: nc_loop_movie, nc_write_moments, nc_exchange
   public :: nc_loop_fullmom, nc_loop_dist, nc_loop_sym, nc_loop_corr, nc_loop_corr_extend
-  public :: nc_loop_partsym_tormom, nc_sync
+  public :: nc_loop_partsym_tormom, nc_sync, get_netcdf_file_id
 
 # ifdef NETCDF
   integer (kind_nf) :: ncid
@@ -101,11 +101,18 @@ module gs2_io
     module procedure write_complex_rank3, write_complex_rank4
   end interface netcdf_write_complex
 
+#else
+  integer, parameter :: ncid = 0
 #endif
   real, parameter :: zero = epsilon(0.0)
 
 contains
   
+  !> Provides read-only access to the netCDF file ID
+  integer function get_netcdf_file_id()
+    get_netcdf_file_id = ncid
+  end function get_netcdf_file_id
+
   !> Create and initialise the output netCDF files
   !>
   !> Create the main and movie (real-space fields) netCDF files,
