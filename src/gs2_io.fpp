@@ -139,6 +139,7 @@ contains
     use constants, only: run_name_size
     use gs2_metadata, only: create_metadata
     use run_parameters, only: user_comments
+    use neasyf, only: neasyf_open
 # endif
     implicit none
     !> See [[gs2_diagnostics_knobs]] for details of these inputs
@@ -198,12 +199,12 @@ contains
               "' does not exist. Creating new file"
        end if
        appending = (previous_file_exists .and. append_old)
+
        if (appending) then
-          status = nf90_open(trim(filename), NF90_WRITE, ncid)
+         ncid = neasyf_open(trim(filename), "rw")
        else
-          status = nf90_create (trim(filename), create_file_mode, ncid)
+         ncid = neasyf_open(trim(filename), "w")
        end if
-       if (status /= NF90_NOERR) call netcdf_error (status, file=filename, abort=.true.)
 
        call create_metadata(ncid, "GS2 Simulation Data", header, user_comments)
     end if
@@ -213,13 +214,11 @@ contains
        !perhaps put a call to init_y_transform
        !    call init_y_transform_layouts  
        call init_transforms(ntgrid, naky, ntheta0, nlambda, negrid, nspec, nx, ny, accelerated)
-       filename_movie = trim(trim(run_name)//'.movie.nc')
+
        ! only proc0 opens the file:
        if (proc0) then
-          status = nf90_create (trim(filename_movie), create_file_mode, ncid_movie)
-          if (status /= NF90_NOERR) &
-               call netcdf_error (status, file=filename_movie)
-          call create_metadata(ncid_movie, 'GS2 Simulation x,y,theta Data for Movies', header, user_comments)
+         ncid_movie = neasyf_open(trim(run_name)//'.movie.nc', "w")
+         call create_metadata(ncid_movie, 'GS2 Simulation x,y,theta Data for Movies', header, user_comments)
        end if
     endif
 
