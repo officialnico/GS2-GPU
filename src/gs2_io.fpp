@@ -79,12 +79,6 @@ module gs2_io
   integer :: tpar2_by_mode_id, tperp2_by_mode_id
   integer :: phi00_id, ntot00_id, density00_id, upar00_id, tpar00_id, tperp00_id
   integer :: input_id
-  integer :: bmag_id, gradpar_id, gbdrift_id, gbdrift0_id
-  integer :: cdrift_id, cdrift0_id
-  integer :: cvdrift_id, cvdrift0_id, gds2_id, gds21_id, gds22_id, gds23_id, gds24_id
-  integer :: gds24_noq_id, grho_id, jacob_id, shat_id, eps_id, drhodpsi_id, q_id, surfarea_id
-  integer :: rplot_id, zplot_id, aplot_id, rprime_id, zprime_id, aprime_id, bpol_id
-  integer :: beta_id
   integer :: code_id
   integer :: h_energy_id, h_energy_dot_id, h_antenna_id
   integer :: h_eapar_id, h_ebpar_id
@@ -233,7 +227,7 @@ contains
             !Write constant data
             call nc_norms(ncid)
             call nc_species(ncid)
-            call nc_geo
+            call nc_geo(ncid)
             call save_input
             nout = 1
         end if
@@ -611,53 +605,6 @@ contains
     !This stores a copy of the (sanitised?) input file
     call ensure_netcdf_var_exists(ncid, 'input_file', NF90_CHAR, nin_dim, input_id)
     call ensure_netcdf_att_exists(ncid, input_id, 'long_name', 'Input file')
-
-    !################################################
-    !# NOW DO GEOMETRICAL/EQUILIBRIUM DATA
-    call ensure_netcdf_var_exists(ncid, 'bmag', netcdf_real, nttot_dim, bmag_id)
-    call ensure_netcdf_att_exists(ncid, bmag_id, 'long_name', '|B|(theta)')
-    call ensure_netcdf_att_exists(ncid, bmag_id, 'units', 'B_0')
-
-    call ensure_netcdf_var_exists(ncid, 'gradpar', netcdf_real, nttot_dim, gradpar_id)
-    call ensure_netcdf_var_exists(ncid, 'gbdrift', netcdf_real, nttot_dim, gbdrift_id)
-    call ensure_netcdf_var_exists(ncid, 'gbdrift0', netcdf_real, nttot_dim, gbdrift0_id)
-    call ensure_netcdf_var_exists(ncid, 'cvdrift', netcdf_real, nttot_dim, cvdrift_id)
-    call ensure_netcdf_var_exists(ncid, 'cvdrift0', netcdf_real, nttot_dim, cvdrift0_id)
-    call ensure_netcdf_var_exists(ncid, 'cdrift', netcdf_real, nttot_dim, cdrift_id)
-    call ensure_netcdf_var_exists(ncid, 'cdrift0', netcdf_real, nttot_dim, cdrift0_id)
-
-    call ensure_netcdf_var_exists(ncid, 'gds2', netcdf_real, nttot_dim, gds2_id)
-    call ensure_netcdf_var_exists(ncid, 'gds21', netcdf_real, nttot_dim, gds21_id)
-    call ensure_netcdf_var_exists(ncid, 'gds22', netcdf_real, nttot_dim, gds22_id)
-    call ensure_netcdf_var_exists(ncid, 'gds23', netcdf_real, nttot_dim, gds23_id)
-    call ensure_netcdf_var_exists(ncid, 'gds24', netcdf_real, nttot_dim, gds24_id)
-    call ensure_netcdf_var_exists(ncid, 'gds24_noq', netcdf_real, nttot_dim, gds24_noq_id)
-    call ensure_netcdf_var_exists(ncid, 'grho', netcdf_real, nttot_dim, grho_id)
-    call ensure_netcdf_var_exists(ncid, 'jacob', netcdf_real, nttot_dim, jacob_id)
-
-    call ensure_netcdf_var_exists(ncid, 'rplot', netcdf_real, nttot_dim, rplot_id)
-    call ensure_netcdf_var_exists(ncid, 'zplot', netcdf_real, nttot_dim, zplot_id)
-    call ensure_netcdf_var_exists(ncid, 'aplot', netcdf_real, nttot_dim, aplot_id)
-    call ensure_netcdf_var_exists(ncid, 'rprime', netcdf_real, nttot_dim, rprime_id)
-    call ensure_netcdf_var_exists(ncid, 'zprime', netcdf_real, nttot_dim, zprime_id)
-    call ensure_netcdf_var_exists(ncid, 'aprime', netcdf_real, nttot_dim, aprime_id)
-
-    call ensure_netcdf_var_exists(ncid, 'bpol', netcdf_real, nttot_dim, bpol_id)
-
-    !    call ensure_netcdf_var_exists(ncid, 'surfarea', netcdf_real, nttot_dim, surfarea_id)
-
-    call ensure_netcdf_var_exists(ncid, 'q', netcdf_real, q_id)
-    call ensure_netcdf_att_exists(ncid, q_id, 'long_name', 'local safety factor')
-    call ensure_netcdf_var_exists(ncid, 'eps_trapped', netcdf_real, eps_id)
-    call ensure_netcdf_att_exists(ncid, eps_id, 'long_name', 'Trapped fraction 1 - sqrt(bmin/bmax)')
-    call ensure_netcdf_var_exists(ncid, 'beta', netcdf_real, beta_id)
-    call ensure_netcdf_att_exists(ncid, beta_id, 'long_name', 'reference beta')
-    call ensure_netcdf_var_exists(ncid, 'shat', netcdf_real, shat_id)
-    call ensure_netcdf_att_exists(ncid, shat_id, 'long_name', '(rho/q) dq/drho')
-
-    call ensure_netcdf_var_exists(ncid, 'drhodpsi', netcdf_real, drhodpsi_id)
-    call ensure_netcdf_att_exists(ncid, drhodpsi_id, 'long_name', 'drho/dPsi')
-    !------------------------------------------------
 
     !################################################
     !# NOW WE HANDLE THE DIFFERENT OPTIONAL OUTPUT
@@ -2576,81 +2523,65 @@ contains
   end subroutine nc_species
   
   !> Write various geometric quantities to output netCDF file
-  subroutine nc_geo
-# ifdef NETCDF
+  subroutine nc_geo(file_id)
+#ifdef NETCDF
     use theta_grid, only: bmag, gradpar, gbdrift, gbdrift0, &
          cvdrift, cvdrift0, gds2, gds21, gds22, gds23, gds24, gds24_noq, grho, jacob, &
          shat, drhodpsi, eps_trapped, cdrift, cdrift0, qval, rplot, &
          zplot, aplot, rprime, zprime, aprime, bpol !, surfarea
-!CMR add qval and beta here too, as they are both useful
     use run_parameters, only: beta
-    use netcdf, only: nf90_put_var
+    use neasyf, only: neasyf_write
+#endif
     implicit none
-    integer :: status
+    !> NetCDF ID of the file to write to
+    integer, intent(in) :: file_id
+#ifdef NETCDF
+    call neasyf_write(file_id, "bmag", bmag, dim_names=["theta"], &
+         long_name="Magnitude of magnetic field", units="B_0")
+    call neasyf_write(file_id, "bpol", bpol, dim_names=["theta"], &
+         long_name="Poloidal magnetic field", units="B_0")
+    call neasyf_write(file_id, "gradpar", gradpar, dim_names=["theta"], &
+         long_name="Parallel derivative multiplier")
+    call neasyf_write(file_id, "gbdrift", gbdrift, dim_names=["theta"], &
+         long_name="Magnetic gradient drift")
+    call neasyf_write(file_id, "gbdrift0", gbdrift0, dim_names=["theta"])
+    call neasyf_write(file_id, "cvdrift", cvdrift, dim_names=["theta"])
+    call neasyf_write(file_id, "cvdrift0", cvdrift0, dim_names=["theta"])
+    call neasyf_write(file_id, "gds2", gds2, dim_names=["theta"])
+    call neasyf_write(file_id, "gds21", gds21, dim_names=["theta"])
+    call neasyf_write(file_id, "gds22", gds22, dim_names=["theta"])
+    call neasyf_write(file_id, "gds23", gds23, dim_names=["theta"])
+    call neasyf_write(file_id, "gds24", gds24, dim_names=["theta"])
+    call neasyf_write(file_id, "gds24_noq", gds24_noq, dim_names=["theta"])
+    call neasyf_write(file_id, "grho", grho, dim_names=["theta"])
+    call neasyf_write(file_id, "jacob", jacob, dim_names=["theta"])
+    call neasyf_write(file_id, "shat", shat, &
+         long_name="(rho/q) dq/drho")
+    call neasyf_write(file_id, "drhodpsi", drhodpsi, &
+         long_name="drho/dPsi")
+    call neasyf_write(file_id, "eps_trapped", eps_trapped, &
+         long_name="Trapped fraction 1 - sqrt(bmin/bmax)")
+    call neasyf_write(file_id, "cdrift", cdrift, dim_names=["theta"])
+    call neasyf_write(file_id, "cdrift0", cdrift0, dim_names=["theta"])
+    call neasyf_write(file_id, "qval", qval, &
+         long_name="Local safety factor")
+    call neasyf_write(file_id, "beta", beta, &
+         long_name="Reference beta")
+    call neasyf_write(file_id, "rplot", Rplot, dim_names=["theta"], &
+         long_name="The major radius at the centre of the flux tube", units="a")
+    call neasyf_write(file_id, "zplot", Zplot, dim_names=["theta"], &
+         long_name="The height above the midplane at the centre of the flux tube", units="a")
+    call neasyf_write(file_id, "aplot", aplot, dim_names=["theta"], &
+         long_name="The toroidal angle at the centre of the flux tube", units="rad")
+    call neasyf_write(file_id, "rprime", Rprime, dim_names=["theta"], &
+         long_name="d/dx of the major radius at the centre of the flux tube", units="a/rho_r")
+    call neasyf_write(file_id, "zprime", Zprime, dim_names=["theta"], &
+         long_name="d/dx of the height above the midplane at the centre of the flux tube", units="a/rho_r")
+    call neasyf_write(file_id, "aprime", aprime, dim_names=["theta"], &
+         long_name="d/dx of the toroidal angle at the centre of the flux tube", units="rad/rho_r")
 
-    status = nf90_put_var (ncid, bmag_id, bmag)
-    if (status /= NF90_NOERR) call netcdf_error (status, ncid, bmag_id)
-    status = nf90_put_var (ncid, gradpar_id, gradpar)
-    if (status /= NF90_NOERR) call netcdf_error (status, ncid, gradpar_id)
-    status = nf90_put_var (ncid, gbdrift_id, gbdrift)
-    if (status /= NF90_NOERR) call netcdf_error (status, ncid, gbdrift_id)
-    status = nf90_put_var (ncid, gbdrift0_id, gbdrift0)
-    if (status /= NF90_NOERR) call netcdf_error (status, ncid, gbdrift0_id)
-    status = nf90_put_var (ncid, cvdrift_id, cvdrift)
-    if (status /= NF90_NOERR) call netcdf_error (status, ncid, cvdrift_id)
-    status = nf90_put_var (ncid, cvdrift0_id, cvdrift0)
-    if (status /= NF90_NOERR) call netcdf_error (status, ncid, cvdrift0_id)
-    status = nf90_put_var (ncid, cdrift_id, cdrift)
-    if (status /= NF90_NOERR) call netcdf_error (status, ncid, cdrift_id)
-    status = nf90_put_var (ncid, cdrift0_id, cdrift0)
-    if (status /= NF90_NOERR) call netcdf_error (status, ncid, cdrift0_id)
-    status = nf90_put_var (ncid, gds2_id, gds2)
-    if (status /= NF90_NOERR) call netcdf_error (status, ncid, gds2_id)
-    status = nf90_put_var (ncid, gds21_id, gds21)
-    if (status /= NF90_NOERR) call netcdf_error (status, ncid, gds21_id)
-    status = nf90_put_var (ncid, gds22_id, gds22)
-    if (status /= NF90_NOERR) call netcdf_error (status, ncid, gds22_id)
-    status = nf90_put_var (ncid, gds23_id, gds23)
-    if (status /= NF90_NOERR) call netcdf_error (status, ncid, gds23_id)
-    status = nf90_put_var (ncid, gds24_id, gds24)
-    if (status /= NF90_NOERR) call netcdf_error (status, ncid, gds24_id)
-    status = nf90_put_var (ncid, gds24_noq_id, gds24_noq)
-    if (status /= NF90_NOERR) call netcdf_error (status, ncid, gds24_noq_id)
-    status = nf90_put_var (ncid, grho_id, grho)
-    if (status /= NF90_NOERR) call netcdf_error (status, ncid, grho_id)
-    status = nf90_put_var (ncid, jacob_id, jacob)
-    if (status /= NF90_NOERR) call netcdf_error (status, ncid, jacob_id)
-
-    status = nf90_put_var (ncid, rplot_id, rplot)
-    if (status /= NF90_NOERR) call netcdf_error (status, ncid, rplot_id)
-    status = nf90_put_var (ncid, zplot_id, zplot)
-    if (status /= NF90_NOERR) call netcdf_error (status, ncid, zplot_id)
-    status = nf90_put_var (ncid, aplot_id, aplot)
-    if (status /= NF90_NOERR) call netcdf_error (status, ncid, aplot_id)
-    status = nf90_put_var (ncid, rprime_id, rprime)
-    if (status /= NF90_NOERR) call netcdf_error (status, ncid, rprime_id)
-    status = nf90_put_var (ncid, zprime_id, zprime)
-    if (status /= NF90_NOERR) call netcdf_error (status, ncid, zprime_id)
-    status = nf90_put_var (ncid, aprime_id, aprime)
-    if (status /= NF90_NOERR) call netcdf_error (status, ncid, aprime_id)
-
-    status = nf90_put_var (ncid, bpol_id, bpol)
-    if (status /= NF90_NOERR) call netcdf_error (status, ncid, bpol_id)
-
-    !    status = nf90_put_var (ncid, surfarea_id, surfarea)
-    !    if (status /= NF90_NOERR) call netcdf_error (status, ncid, surfarea_id)
-
-    status = nf90_put_var (ncid, beta_id, beta)
-    if (status /= NF90_NOERR) call netcdf_error (status, ncid, beta_id)
-    status = nf90_put_var (ncid, q_id, qval)
-    if (status /= NF90_NOERR) call netcdf_error (status, ncid, q_id)
-    status = nf90_put_var (ncid, shat_id, shat)
-    if (status /= NF90_NOERR) call netcdf_error (status, ncid, shat_id)
-    status = nf90_put_var (ncid, eps_id, eps_trapped)
-    if (status /= NF90_NOERR) call netcdf_error (status, ncid, eps_id)
-    status = nf90_put_var (ncid, drhodpsi_id, drhodpsi)   
-    if (status /= NF90_NOERR) call netcdf_error (status, ncid, drhodpsi_id)
-# endif
+    ! FIXME: check if we need surfarea?
+#endif
   end subroutine nc_geo
 
   !> Wrapper around `nf90_inquire_dimension`. Aborts if any errors are
