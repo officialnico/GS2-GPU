@@ -20,7 +20,7 @@ module gs2_io
 # ifdef NETCDF
   integer (kind_nf) :: ncid
   integer (kind_nf) :: naky_dim, nakx_dim, nttot_dim, negrid_dim, nlambda_dim, nspec_dim, ncoord_dim, ncoordt_dim
-  integer (kind_nf) :: nsign_dim, time_dim, char5_dim, char10_dim, char200_dim, ri_dim, nlines_dim, nheat_dim, vpa_dim
+  integer (kind_nf) :: nsign_dim, time_dim, char5_dim, char10_dim, ri_dim, nheat_dim, vpa_dim
   integer (kind_nf) :: nttotext_dim, time_big_dim
 
   integer, dimension (6) :: lp_dim, mom_t_dim
@@ -30,7 +30,7 @@ module gs2_io
   integer, dimension (4) :: phi2_extend_dim, phi_corr_2pi_dim
   integer, dimension (3) :: fluxx_dim
   integer, dimension (3) :: mode_dim, phase_dim, loop_phi_dim, heat_dim, flux_dist_dim, phi_dist_dim
-  integer, dimension (2) :: kx_dim, ky_dim, om_dim, flux_dim, nin_dim, fmode_dim
+  integer, dimension (2) :: kx_dim, ky_dim, om_dim, flux_dim, fmode_dim
 
   ! added by EAB 03/05/04 for movies
   logical :: my_make_movie, io_write_corr_extend
@@ -78,7 +78,6 @@ module gs2_io
   integer :: ntot2_id, ntot2_by_mode_id, ntot20_id, ntot20_by_mode_id
   integer :: tpar2_by_mode_id, tperp2_by_mode_id
   integer :: phi00_id, ntot00_id, density00_id, upar00_id, tpar00_id, tperp00_id
-  integer :: input_id
   integer :: code_id
   integer :: h_energy_id, h_energy_dot_id, h_antenna_id
   integer :: h_eapar_id, h_ebpar_id
@@ -228,7 +227,7 @@ contains
             call nc_norms(ncid)
             call nc_species(ncid)
             call nc_geo(ncid)
-            call save_input
+            call save_input(ncid)
             nout = 1
         end if
 
@@ -286,9 +285,8 @@ contains
          long_name="Time", units="L/vt")
     call neasyf_dim(file_id, "char5", dim_size=5, dimid=char5_dim)
     call neasyf_dim(file_id, "char10", dim_size=10, dimid=char10_dim)
-    call neasyf_dim(file_id, "char200", dim_size=200, dimid=char200_dim)
-    call neasyf_dim(file_id, "nlines", dim_size=num_input_lines, dimid=nlines_dim, &
-         long_name="Input file line number")
+    call neasyf_dim(file_id, "char200", dim_size=200)
+    call neasyf_dim(file_id, "nlines", dim_size=num_input_lines, long_name="Input file line number")
     call neasyf_dim(file_id, "ri", dim_size=2, dimid=ri_dim, &
          long_name="Complex components", units="(real, imaginary)")
     call neasyf_dim(file_id, "nheat", dim_size=7, dimid=nheat_dim)
@@ -447,30 +445,30 @@ contains
   end subroutine nc_finish
 
   !> Save the input file in the NetCDF file
-  subroutine save_input
-# ifdef NETCDF    
+  subroutine save_input(file_id)
+#ifdef NETCDF
     use file_utils, only: num_input_lines, get_input_unit
-    use netcdf, only: nf90_put_var
+    use neasyf, only: neasyf_write
+#endif
     implicit none
-    character(200) line
-    integer, dimension (2) :: nin_start, nin_count
-    integer :: status, n, unit
+    !> NetCDF ID of the file to write to
+    integer, intent(in) :: file_id
+#ifdef NETCDF
+    integer, parameter :: line_length = 200
+    character(line_length), dimension(:), allocatable ::  input_file_array
+    integer :: n, unit
 
-    nin_start(1) = 1
-    nin_start(2) = 1
+    allocate(input_file_array(num_input_lines))
 
-    nin_count(2) = 1
-
-    call get_input_unit (unit)
+    call get_input_unit(unit)
     rewind (unit=unit)
     do n = 1, num_input_lines
-       read (unit=unit, fmt="(a)") line
-       nin_count(1) = len(trim(line))
-       status = nf90_put_var (ncid, input_id, line, start=nin_start, count=nin_count)
-       if (status /= NF90_NOERR) call netcdf_error (status, ncid, input_id)
-       nin_start(2) = nin_start(2) + 1
+      read (unit=unit, fmt="(a)") input_file_array(n)
     end do
-# endif
+
+    call neasyf_write(file_id, "input_file", input_file_array, &
+         long_name="Input file", dim_names=["char200", "nlines "])
+#endif
   end subroutine save_input
 
   !> Create (but don't fill) the various diagnostics variables in the
@@ -524,7 +522,6 @@ contains
     om_dim          = [ri_dim, time_dim]
     omega_dim       = [ri_dim, nakx_dim, naky_dim, time_dim]
     phase_dim       = [ri_dim, nakx_dim, naky_dim]
-    nin_dim         = [char200_dim, nlines_dim]
     flux_dim        = [nspec_dim, time_dim]
     fluxk_dim       = [nakx_dim, naky_dim, nspec_dim, time_dim]
     fluxx_dim       = [nakx_dim, nspec_dim, time_dim]
@@ -601,10 +598,6 @@ contains
          'The difference between rho (normalized minor radius) and rho (gyroradius)')
     call ensure_netcdf_att_exists(ncid, code_id, "c11", &
          'should be clear from the context in which they appear below.')
-
-    !This stores a copy of the (sanitised?) input file
-    call ensure_netcdf_var_exists(ncid, 'input_file', NF90_CHAR, nin_dim, input_id)
-    call ensure_netcdf_att_exists(ncid, input_id, 'long_name', 'Input file')
 
     !################################################
     !# NOW WE HANDLE THE DIFFERENT OPTIONAL OUTPUT
