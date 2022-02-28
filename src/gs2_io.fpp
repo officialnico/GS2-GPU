@@ -23,10 +23,12 @@ module gs2_io
   integer (kind_nf) :: nsign_dim, time_dim, char5_dim, char10_dim, ri_dim, nheat_dim, vpa_dim
   integer (kind_nf) :: nttotext_dim, time_big_dim
 
+  character(*), dimension(*), parameter :: final_field_dims = [character(len=5)::"ri", "theta", "kx", "ky"]
+
   integer, dimension (6) :: lp_dim
   integer, dimension (5) :: field_dim, final_mom_dim, heatk_dim, err_dim
   integer, dimension (5) :: phi_corr_dim
-  integer, dimension (4) :: omega_dim, fluxk_dim, final_field_dim, sym_dim
+  integer, dimension (4) :: omega_dim, fluxk_dim, sym_dim
   integer, dimension (4) :: phi2_extend_dim, phi_corr_2pi_dim
   integer, dimension (3) :: fluxx_dim
   integer, dimension (3) :: mode_dim, heat_dim, flux_dist_dim, phi_dist_dim
@@ -66,7 +68,6 @@ module gs2_io
   integer :: apar_heat_by_x_id
   integer :: bpar_heat_by_k_id, bpar_mom_by_k_id, bpar_part_by_k_id
   integer :: phi_t_id, apar_t_id, bpar_t_id
-  integer :: antot_id, antota_id, antotp_id
   integer :: code_id
   integer :: h_energy_id, h_energy_dot_id, h_antenna_id
   integer :: h_eapar_id, h_ebpar_id
@@ -528,7 +529,6 @@ contains
     heat_dim        = [nspec_dim, nheat_dim, time_dim]
     heatk_dim       = [nakx_dim, naky_dim, nspec_dim, nheat_dim, time_dim]
     field_dim       = [ri_dim, nttot_dim, nakx_dim, naky_dim, time_dim]
-    final_field_dim = [ri_dim, nttot_dim, nakx_dim, naky_dim]
     final_mom_dim   = [ri_dim, nttot_dim, nakx_dim, naky_dim, nspec_dim]
     flux_dist_dim   = [nttot_dim, nspec_dim, time_dim]
     phi_dist_dim    = [ri_dim, nttot_dim, time_dim]
@@ -666,11 +666,6 @@ contains
           call ensure_netcdf_var_exists(ncid, 'phi_corr_2pi',  netcdf_real, phi_corr_2pi_dim, phi_corr_2pi_id)
        end if
 
-       !Velocity moment of g used in calculating phi
-       if (write_final_antot) then
-          call ensure_netcdf_var_exists(ncid, 'antot', netcdf_real, final_field_dim, antot_id)
-       endif
-
        !Field as a function of time
        if (write_phi_t) then
           call ensure_netcdf_var_exists(ncid, 'phi_t', netcdf_real, field_dim, phi_t_id)
@@ -714,11 +709,6 @@ contains
           call ensure_netcdf_var_exists(ncid, 'apar_part_by_k', netcdf_real, fluxk_dim, apar_part_by_k_id)
        end if
 
-       !Velocity space moment of g used in calculating apar
-       if (write_final_antot) then
-          call ensure_netcdf_var_exists(ncid, 'antota', netcdf_real, final_field_dim, antota_id)
-       endif
-
        !Field as a function of time
        if (write_apar_t) then
           call ensure_netcdf_var_exists(ncid, 'apar_t', netcdf_real, field_dim, apar_t_id)
@@ -760,11 +750,6 @@ contains
           call ensure_netcdf_var_exists(ncid, 'bpar_mom_by_k', netcdf_real, fluxk_dim, bpar_mom_by_k_id)
           call ensure_netcdf_var_exists(ncid, 'bpar_part_by_k', netcdf_real, fluxk_dim, bpar_part_by_k_id)
        end if
-
-       !Velocity space moment of g used in calculating bpar
-       if (write_final_antot) then
-          call ensure_netcdf_var_exists(ncid, 'antotp', netcdf_real, final_field_dim, antotp_id)
-       endif
 
        !Field as a function of time
        if (write_bpar_t) then
@@ -930,7 +915,6 @@ contains
 # ifdef NETCDF
 
     complex, dimension(-ntgrid:ntgrid, ntheta0, naky) :: tmp
-    character(*), dimension(*), parameter :: dim_names = [character(len=5)::"ri", "theta", "kx", "ky"]
     integer :: ig
 
     call netcdf_write_complex(file_id, "phase", phase, ["ri", "kx", "ky"], long_name="Normalising phase")
@@ -939,21 +923,21 @@ contains
        do ig = -ntgrid, ntgrid
           tmp(ig,:,:) = phi(ig,:,:)/phase(:,:)
        end do
-       call netcdf_write_complex(file_id, "phi_norm", tmp, dim_names)
+       call netcdf_write_complex(file_id, "phi_norm", tmp, final_field_dims)
     end if
 
     if (fapar > zero) then
        do ig = -ntgrid, ntgrid
           tmp(ig,:,:) = apar(ig,:,:)/phase(:,:)
        end do
-       call netcdf_write_complex(file_id, "apar_norm", tmp, dim_names)
+       call netcdf_write_complex(file_id, "apar_norm", tmp, final_field_dims)
     end if
 
     if (fbpar > zero) then
        do ig = -ntgrid, ntgrid
           tmp(ig,:,:) = bpar(ig,:,:)/phase(:,:)
        end do
-       call netcdf_write_complex(file_id, "bpar_norm", tmp, dim_names)
+       call netcdf_write_complex(file_id, "bpar_norm", tmp, final_field_dims)
     end if
 # endif
   end subroutine nc_eigenfunc
@@ -1042,18 +1026,20 @@ contains
     use fields_arrays, only: phinew, aparnew, bparnew
     use run_parameters, only: fphi, fapar, fbpar
     implicit none
-    character(*), dimension(*), parameter :: dim_names = [character(5)::"ri", "theta", "kx", "ky"]
 
     if (fphi > zero) then
-       call netcdf_write_complex(ncid, "phi", phinew, dim_names, long_name="Electrostatic Potential", units="T/q rho/L")
+       call netcdf_write_complex(ncid, "phi", phinew, final_field_dims, &
+            long_name="Electrostatic Potential", units="T/q rho/L")
     end if
 
     if (fapar > zero) then
-       call netcdf_write_complex(ncid, "apar", aparnew, dim_names, long_name="Parallel Magnetic Potential")
+       call netcdf_write_complex(ncid, "apar", aparnew, final_field_dims, &
+            long_name="Parallel Magnetic Potential")
     end if
 
     if (fbpar > zero) then
-       call netcdf_write_complex(ncid, "bpar", bparnew, dim_names, long_name="delta B Parallel")
+       call netcdf_write_complex(ncid, "bpar", bparnew, final_field_dims, &
+            long_name="delta B Parallel")
     end if
 # endif
   end subroutine nc_final_fields
@@ -1144,34 +1130,24 @@ contains
   !> overwriting existing values
   subroutine nc_final_an (antot, antota, antotp)
 # ifdef NETCDF
-    use convert, only: c2r
     use run_parameters, only: fphi, fapar, fbpar
-    use theta_grid, only: ntgrid
-    use kt_grids, only: naky, ntheta0
-    use netcdf, only: nf90_put_var
 # endif
     implicit none
     complex, dimension (:,:,:), intent(in) :: antot, antota, antotp
 # ifdef NETCDF
-    real, dimension (2, 2*ntgrid+1, ntheta0, naky) :: ri3
-    integer :: status
-
     if (fphi > zero) then
-       call c2r (antot, ri3)
-       status = nf90_put_var(ncid, antot_id, ri3)
-       if (status /= NF90_NOERR) call netcdf_error (status, ncid, antot_id)
+       call netcdf_write_complex(ncid, "antot", antot, final_field_dims, &
+            long_name="Velocity moment of g used in calculating phi")
     end if
 
     if (fapar > zero) then
-       call c2r (antota, ri3)
-       status = nf90_put_var(ncid, antota_id, ri3)
-       if (status /= NF90_NOERR) call netcdf_error (status, ncid, antota_id)
+       call netcdf_write_complex(ncid, "antota", antota, final_field_dims, &
+            long_name="Velocity space moment of g used in calculating apar")
     end if
 
     if (fbpar > zero) then
-       call c2r (antotp, ri3)
-       status = nf90_put_var(ncid, antotp_id, ri3)
-       if (status /= NF90_NOERR) call netcdf_error (status, ncid, antotp_id)
+       call netcdf_write_complex(ncid, "antotp", antotp, final_field_dims, &
+            long_name="Velocity space moment of g used in calculating bpar")
     end if
 # endif
   end subroutine nc_final_an
