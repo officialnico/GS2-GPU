@@ -50,23 +50,11 @@ module gs2_io
   integer :: phi2_by_ky_id, apar2_by_ky_id, bpar2_by_ky_id
   integer :: phi0_id, apar0_id, bpar0_id
   integer :: omega_id, omegaavg_id
-  integer :: es_heat_flux_id, es_mom_flux_id, es_part_flux_id, es_exchange_id
   integer :: es_part_tormom_flux_id
   integer :: es_part_flux_dist_id, es_mom_flux_par_dist_id, es_mom_flux_perp_dist_id, es_heat_flux_dist_id, es_phi_dist_id
-  integer :: es_heat_par_id, es_heat_perp_id
-  integer :: apar_heat_flux_id, apar_mom_flux_id, apar_part_flux_id
-  integer :: apar_heat_par_id, apar_heat_perp_id
-  integer :: bpar_heat_flux_id, bpar_mom_flux_id, bpar_part_flux_id
-  integer :: bpar_heat_par_id, bpar_heat_perp_id
-  integer :: hflux_tot_id, zflux_tot_id, vflux_tot_id
-  integer :: es_heat_by_k_id, es_mom_by_k_id, es_part_by_k_id
-  integer :: es_part_tormom_by_k_id, es_exchange_by_k_id
-  integer :: es_parmom_by_k_id, es_perpmom_by_k_id, es_mom0_by_k_id, es_mom1_by_k_id
+  integer :: es_part_tormom_by_k_id
   integer :: es_mom_sym_id, phi_corr_id, phi2_extend_id, phi_corr_2pi_id
   integer :: es_part_sym_id 
-  integer :: apar_heat_by_k_id, apar_mom_by_k_id, apar_part_by_k_id
-  integer :: apar_heat_by_x_id
-  integer :: bpar_heat_by_k_id, bpar_mom_by_k_id, bpar_part_by_k_id
   integer :: phi_t_id, apar_t_id, bpar_t_id
   integer :: code_id
   integer :: h_energy_id, h_energy_dot_id, h_antenna_id
@@ -621,24 +609,6 @@ contains
        !Field at theta=igomega
        call ensure_netcdf_var_exists(ncid, 'phi0', netcdf_real, omega_dim, phi0_id)
 
-       !Electrostatic fluxes
-       if (write_nl_flux) then
-          call ensure_netcdf_var_exists(ncid, 'es_heat_par',  netcdf_real, flux_dim, es_heat_par_id)
-          call ensure_netcdf_var_exists(ncid, 'es_heat_perp', netcdf_real, flux_dim, es_heat_perp_id)
-          call ensure_netcdf_var_exists(ncid, 'es_heat_flux', netcdf_real, flux_dim, es_heat_flux_id)
-          call ensure_netcdf_var_exists(ncid, 'es_mom_flux',  netcdf_real, flux_dim, es_mom_flux_id)
-          call ensure_netcdf_var_exists(ncid, 'es_part_flux', netcdf_real, flux_dim, es_part_flux_id)
-          call ensure_netcdf_var_exists(ncid, 'es_exchange', netcdf_real, flux_dim, es_exchange_id)
-          call ensure_netcdf_var_exists(ncid, 'es_exchange_by_k', netcdf_real, fluxk_dim, es_exchange_by_k_id)
-          call ensure_netcdf_var_exists(ncid, 'es_heat_by_k', netcdf_real, fluxk_dim, es_heat_by_k_id)
-          call ensure_netcdf_var_exists(ncid, 'es_mom_by_k',  netcdf_real, fluxk_dim, es_mom_by_k_id)
-          call ensure_netcdf_var_exists(ncid, 'es_part_by_k', netcdf_real, fluxk_dim, es_part_by_k_id)
-          call ensure_netcdf_var_exists(ncid, 'es_parmom_by_k', netcdf_real, fluxk_dim, es_parmom_by_k_id)
-          call ensure_netcdf_var_exists(ncid, 'es_perpmom_by_k', netcdf_real, fluxk_dim, es_perpmom_by_k_id)
-          call ensure_netcdf_var_exists(ncid, 'es_mom0_by_k', netcdf_real, fluxk_dim, es_mom0_by_k_id)
-          call ensure_netcdf_var_exists(ncid, 'es_mom1_by_k', netcdf_real, fluxk_dim, es_mom1_by_k_id)
-       end if
-
        if (write_nl_flux_dist) then
           call ensure_netcdf_var_exists(ncid, 'es_part_flux_dist',  netcdf_real, flux_dist_dim, es_part_flux_dist_id)
           call ensure_netcdf_var_exists(ncid, 'es_mom_flux_par_dist',  netcdf_real, flux_dist_dim, es_mom_flux_par_dist_id)
@@ -696,19 +666,6 @@ contains
        !Field at theta=igomega
        call ensure_netcdf_var_exists(ncid, 'apar0', netcdf_real, omega_dim, apar0_id)
 
-       !Apar related fluxes
-       if (write_nl_flux) then
-          call ensure_netcdf_var_exists(ncid,'apar_heat_flux',netcdf_real, flux_dim, apar_heat_flux_id)
-          call ensure_netcdf_var_exists(ncid, 'apar_heat_par', netcdf_real, flux_dim, apar_heat_par_id)
-          call ensure_netcdf_var_exists(ncid, 'apar_heat_perp', netcdf_real, flux_dim, apar_heat_perp_id)
-          call ensure_netcdf_var_exists(ncid, 'apar_mom_flux',  netcdf_real, flux_dim, apar_mom_flux_id)
-          call ensure_netcdf_var_exists(ncid, 'apar_part_flux', netcdf_real, flux_dim, apar_part_flux_id)
-          call ensure_netcdf_var_exists(ncid, 'apar_heat_by_k', netcdf_real, fluxk_dim, apar_heat_by_k_id)
-          call ensure_netcdf_var_exists(ncid, 'apar_heat_by_x', netcdf_real, fluxx_dim, apar_heat_by_x_id)
-          call ensure_netcdf_var_exists(ncid, 'apar_mom_by_k',  netcdf_real, fluxk_dim, apar_mom_by_k_id)
-          call ensure_netcdf_var_exists(ncid, 'apar_part_by_k', netcdf_real, fluxk_dim, apar_part_by_k_id)
-       end if
-
        !Field as a function of time
        if (write_apar_t) then
           call ensure_netcdf_var_exists(ncid, 'apar_t', netcdf_real, field_dim, apar_t_id)
@@ -739,18 +696,6 @@ contains
        !Field at theta=igomega
        call ensure_netcdf_var_exists(ncid, 'bpar0', netcdf_real, omega_dim, bpar0_id)
 
-       !Bpar related fluxes
-       if (write_nl_flux) then
-          call ensure_netcdf_var_exists(ncid, 'bpar_heat_flux', netcdf_real, flux_dim, bpar_heat_flux_id)
-          call ensure_netcdf_var_exists(ncid, 'bpar_heat_par', netcdf_real, flux_dim, bpar_heat_par_id)
-          call ensure_netcdf_var_exists(ncid, 'bpar_heat_perp', netcdf_real, flux_dim, bpar_heat_perp_id)
-          call ensure_netcdf_var_exists(ncid, 'bpar_mom_flux', netcdf_real, flux_dim, bpar_mom_flux_id)
-          call ensure_netcdf_var_exists(ncid, 'bpar_part_flux', netcdf_real, flux_dim, bpar_part_flux_id)
-          call ensure_netcdf_var_exists(ncid, 'bpar_heat_by_k', netcdf_real, fluxk_dim, bpar_heat_by_k_id)
-          call ensure_netcdf_var_exists(ncid, 'bpar_mom_by_k', netcdf_real, fluxk_dim, bpar_mom_by_k_id)
-          call ensure_netcdf_var_exists(ncid, 'bpar_part_by_k', netcdf_real, fluxk_dim, bpar_part_by_k_id)
-       end if
-
        !Field as a function of time
        if (write_bpar_t) then
           call ensure_netcdf_var_exists(ncid, 'bpar_t', netcdf_real, field_dim, bpar_t_id)
@@ -777,13 +722,6 @@ contains
     if (write_omega) then
        call ensure_netcdf_var_exists(ncid, 'omega', netcdf_real, omega_dim, omega_id)
        call ensure_netcdf_var_exists(ncid, 'omegaavg', netcdf_real, omega_dim, omegaavg_id)
-    end if
-
-    !Summed fluxes
-    if (write_nl_flux) then
-       call ensure_netcdf_var_exists(ncid, 'hflux_tot', netcdf_real, time_dim, hflux_tot_id)
-       call ensure_netcdf_var_exists(ncid, 'vflux_tot', netcdf_real, time_dim, vflux_tot_id)
-       call ensure_netcdf_var_exists(ncid, 'zflux_tot', netcdf_real, time_dim, zflux_tot_id)
     end if
 
     !Heating rate diagnostics
@@ -1155,10 +1093,8 @@ contains
   !> Write the energy exchange to netCDF
   subroutine nc_exchange (nout, exchange, exchange_avg)
 # ifdef NETCDF
-    use species, only: nspec
-    use kt_grids, only: naky, ntheta0
     use run_parameters, only: fphi
-    use netcdf, only: nf90_put_var
+    use neasyf, only: neasyf_write
 # endif
     implicit none
     !> Current output timestep
@@ -1168,31 +1104,14 @@ contains
     !> Volume-averaged energy exchange
     real, dimension (:), intent (in) :: exchange_avg
 # ifdef NETCDF
-    integer, dimension (2) :: start, count
-    integer, dimension (4) :: start2, count2
-    integer :: status
-
-    start(1) = 1
-    start(2) = nout
-    
-    count(1) = nspec
-    count(2) = 1
-
-    start2(1) = 1
-    start2(2) = 1
-    start2(3) = 1
-    start2(4) = nout
-
-    count2(1) = ntheta0
-    count2(2) = naky
-    count2(3) = nspec
-    count2(4) = 1
+    character(*), dimension(*), parameter :: flux_dim = [character(7)::"species", "t"]
+    character(*), dimension(*), parameter :: fluxk_dim = [character(7)::"kx", "ky", "species", "t"]
 
     if (fphi > zero) then
-       status = nf90_put_var (ncid, es_exchange_id, exchange_avg, start=start, count=count)
-       if (status /= NF90_NOERR) call netcdf_error (status, ncid, es_exchange_id)
-       status = nf90_put_var (ncid, es_exchange_by_k_id, exchange, start=start2, count=count2)
-       if (status /= NF90_NOERR) call netcdf_error (status, ncid, es_exchange_by_k_id)
+       call neasyf_write (ncid, "es_exchange", exchange_avg, &
+            dim_names=flux_dim, start=[1, nout])
+       call neasyf_write (ncid, "es_exchange_by_k", exchange, &
+            dim_names=fluxk_dim, start=[1, 1, 1, nout])
     end if
 # endif
   end subroutine nc_exchange
@@ -1203,10 +1122,8 @@ contains
        heat_perp, mheat_perp, bheat_perp, &
        heat_fluxes, mheat_fluxes, bheat_fluxes, x_qmflux, hflux_tot)
 # ifdef NETCDF
-    use species, only: nspec
-    use kt_grids, only: naky, ntheta0
     use run_parameters, only: fphi, fapar, fbpar
-    use netcdf, only: nf90_put_var
+    use neasyf, only: neasyf_write
 # endif
     implicit none
     !> Current output timestep
@@ -1218,72 +1135,41 @@ contains
     real, dimension (:,:), intent (in) :: x_qmflux
     real, intent (in) :: hflux_tot
 # ifdef NETCDF
-    integer, dimension (2) :: start, count
-    integer, dimension (3) :: start3, count3
-    integer, dimension (4) :: start4, count4
-    integer :: status
+    character(*), dimension(*), parameter :: flux_dim = [character(7)::"species", "t"]
+    character(*), dimension(*), parameter :: fluxk_dim = [character(7)::"kx", "ky", "species", "t"]
+    character(*), dimension(*), parameter :: fluxx_dim = [character(7)::"kx", "species", "t"]
 
-    start3(1) = 1
-    start3(2) = 1
-    start3(3) = nout
+    integer, dimension (2) :: start2
+    integer, dimension (3) :: start3
+    integer, dimension (4) :: start4
 
-    count3(1) = ntheta0
-    count3(2) = nspec
-    count3(3) = 1    
-
-    start4(1) = 1
-    start4(2) = 1
-    start4(3) = 1
-    start4(4) = nout
-    
-    count4(1) = ntheta0
-    count4(2) = naky
-    count4(3) = nspec
-    count4(4) = 1
-
-    start(1) = 1
-    start(2) = nout
-    
-    count(1) = nspec
-    count(2) = 1
+    start2 = [1, nout]
+    start3 = [1, 1, nout]
+    start4 = [1, 1, 1, nout]
 
     if (fphi > zero) then
-       status = nf90_put_var (ncid, es_heat_flux_id, heat_fluxes, start=start, count=count)
-       if (status /= NF90_NOERR) call netcdf_error (status, ncid, es_heat_flux_id)
-       status = nf90_put_var (ncid, es_heat_par_id, heat_par, start=start, count=count)
-       if (status /= NF90_NOERR) call netcdf_error (status, ncid, es_heat_par_id)
-       status = nf90_put_var (ncid, es_heat_perp_id, heat_perp, start=start, count=count)
-       if (status /= NF90_NOERR) call netcdf_error (status, ncid, es_heat_perp_id)
-       status = nf90_put_var (ncid, es_heat_by_k_id, qheat, start=start4, count=count4)
-       if (status /= NF90_NOERR) call netcdf_error (status, ncid, es_heat_by_k_id)
+       call neasyf_write(ncid, "es_heat_flux", heat_fluxes, dim_names=flux_dim, start=start2)
+       call neasyf_write(ncid, "es_heat_par", heat_par, dim_names=flux_dim, start=start2)
+       call neasyf_write(ncid, "es_heat_perp", heat_perp, dim_names=flux_dim, start=start2)
+       call neasyf_write(ncid, "es_heat_by_k", qheat, dim_names=fluxk_dim, start=start4)
     end if
 
     if (fapar > zero) then
-       status = nf90_put_var (ncid, apar_heat_flux_id, mheat_fluxes, start=start, count=count)
-       if (status /= NF90_NOERR) call netcdf_error (status, ncid, apar_heat_flux_id)
-       status = nf90_put_var (ncid, apar_heat_par_id, mheat_par, start=start, count=count)
-       if (status /= NF90_NOERR) call netcdf_error (status, ncid, apar_heat_par_id)
-       status = nf90_put_var (ncid, apar_heat_perp_id, mheat_perp, start=start, count=count)
-       if (status /= NF90_NOERR) call netcdf_error (status, ncid, apar_heat_perp_id)
-       status = nf90_put_var (ncid, apar_heat_by_k_id, qmheat, start=start4, count=count4)
-       if (status /= NF90_NOERR) call netcdf_error (status, ncid, apar_heat_by_k_id)
-       status = nf90_put_var (ncid, apar_heat_by_x_id, x_qmflux, start=start3, count=count3)
-       if (status /= NF90_NOERR) call netcdf_error (status, ncid, apar_heat_by_x_id)
+       call neasyf_write(ncid, "apar_heat_flux", mheat_fluxes, dim_names=flux_dim, start=start2)
+       call neasyf_write(ncid, "apar_heat_par", mheat_par, dim_names=flux_dim, start=start2)
+       call neasyf_write(ncid, "apar_heat_perp", mheat_perp, dim_names=flux_dim, start=start2)
+       call neasyf_write(ncid, "apar_heat_by_k", qmheat, dim_names=fluxk_dim, start=start4)
+       call neasyf_write(ncid, "apar_heat_by_x", x_qmflux, dim_names=fluxx_dim, start=start3)
     end if
 
     if (fbpar > zero) then
-       status = nf90_put_var (ncid, bpar_heat_flux_id, bheat_fluxes, start=start, count=count)
-       if (status /= NF90_NOERR) call netcdf_error (status, ncid, bpar_heat_flux_id)
-       status = nf90_put_var (ncid, bpar_heat_par_id, bheat_par, start=start, count=count)
-       if (status /= NF90_NOERR) call netcdf_error (status, ncid, bpar_heat_par_id)
-       status = nf90_put_var (ncid, bpar_heat_perp_id, bheat_perp, start=start, count=count)
-       if (status /= NF90_NOERR) call netcdf_error (status, ncid, bpar_heat_perp_id)
-       status = nf90_put_var (ncid, bpar_heat_by_k_id, qbheat, start=start4, count=count4)
-       if (status /= NF90_NOERR) call netcdf_error (status, ncid, bpar_heat_by_k_id)
+       call neasyf_write(ncid, "bpar_heat_flux", bheat_fluxes, dim_names=flux_dim, start=start2)
+       call neasyf_write(ncid, "bpar_heat_par", bheat_par, dim_names=flux_dim, start=start2)
+       call neasyf_write(ncid, "bpar_heat_perp", bheat_perp, dim_names=flux_dim, start=start2)
+       call neasyf_write(ncid, "bpar_heat_by_k", qbheat, dim_names=fluxk_dim, start=start4)
     end if
     
-    status = nf90_put_var (ncid, hflux_tot_id, hflux_tot, start=(/ nout /))
-    if (status /= NF90_NOERR) call netcdf_error (status, ncid, hflux_tot_id)
+    call neasyf_write(ncid, "hflux_tot", hflux_tot, dim_names=["t"], start=[nout])
 # endif
   end subroutine nc_qflux
 
@@ -1291,10 +1177,8 @@ contains
   subroutine nc_pflux (nout, pflux, pmflux, pbflux, &
        part_fluxes, mpart_fluxes, bpart_fluxes, zflux_tot)
 # ifdef NETCDF
-    use species, only: nspec
-    use kt_grids, only: naky, ntheta0
     use run_parameters, only: fphi, fapar, fbpar
-    use netcdf, only: nf90_put_var
+    use neasyf, only: neasyf_write
 # endif
     implicit none
     integer, intent (in) :: nout
@@ -1302,59 +1186,39 @@ contains
     real, dimension(:), intent (in) :: part_fluxes, mpart_fluxes, bpart_fluxes
     real, intent (in) :: zflux_tot
 # ifdef NETCDF
-    integer, dimension (2) :: start, count
-    integer, dimension (4) :: start4, count4
-    integer :: status
+    character(*), dimension(*), parameter :: flux_dim = [character(7)::"species", "t"]
+    character(*), dimension(*), parameter :: fluxk_dim = [character(7)::"kx", "ky", "species", "t"]
 
-    start4(1) = 1
-    start4(2) = 1
-    start4(3) = 1
-    start4(4) = nout
+    integer, dimension (2) :: start2
+    integer, dimension (4) :: start4
+
+    start2 = [1, nout]
+    start4 = [1, 1, 1, nout]
     
-    count4(1) = ntheta0
-    count4(2) = naky
-    count4(3) = nspec
-    count4(4) = 1
-
-    start(1) = 1
-    start(2) = nout
-    
-    count(1) = nspec
-    count(2) = 1
-
     if (fphi > zero) then
-       status = nf90_put_var (ncid, es_part_flux_id, part_fluxes, start=start, count=count)
-       if (status /= NF90_NOERR) call netcdf_error (status, ncid, es_part_flux_id)
-       status = nf90_put_var (ncid, es_part_by_k_id, pflux, start=start4, count=count4)
-       if (status /= NF90_NOERR) call netcdf_error (status, ncid, es_part_by_k_id)
+       call neasyf_write(ncid, "es_part_flux", part_fluxes, dim_names=flux_dim, start=start2)
+       call neasyf_write(ncid, "es_part_by_k", pflux, dim_names=fluxk_dim, start=start4)
     end if
 
     if (fapar > zero) then
-       status = nf90_put_var (ncid, apar_part_flux_id, mpart_fluxes, start=start, count=count)
-       if (status /= NF90_NOERR) call netcdf_error (status, ncid, apar_part_flux_id)
-       status = nf90_put_var (ncid, apar_part_by_k_id, pmflux, start=start4, count=count4)
-       if (status /= NF90_NOERR) call netcdf_error (status, ncid, apar_part_by_k_id)
+       call neasyf_write(ncid, "apar_part_flux", mpart_fluxes, dim_names=flux_dim, start=start2)
+       call neasyf_write(ncid, "apar_part_by_k", pmflux, dim_names=fluxk_dim, start=start4)
     end if
 
     if (fbpar > zero) then
-       status = nf90_put_var (ncid, bpar_part_flux_id, bpart_fluxes, start=start, count=count)
-       if (status /= NF90_NOERR) call netcdf_error (status, ncid, bpar_part_flux_id)
-       status = nf90_put_var (ncid, bpar_part_by_k_id, pbflux, start=start4, count=count4)
-       if (status /= NF90_NOERR) call netcdf_error (status, ncid, bpar_part_by_k_id)
+       call neasyf_write(ncid, "bpar_part_flux", bpart_fluxes, dim_names=flux_dim, start=start2)
+       call neasyf_write(ncid, "bpar_part_by_k", pbflux, dim_names=fluxk_dim, start=start4)
     end if
     
-    status = nf90_put_var (ncid, zflux_tot_id, zflux_tot, start=(/ nout /))
-    if (status /= NF90_NOERR) call netcdf_error (status, ncid, zflux_tot_id)
+    call neasyf_write(ncid, "zflux_tot", zflux_tot, dim_names=["t"], start=[nout])
 # endif
   end subroutine nc_pflux
 
   !> Write toroidal angular momentum flux to netCDF
   subroutine nc_pflux_tormom (nout, pflux_tormom, part_tormom_fluxes)
 # ifdef NETCDF
-    use species, only: nspec
-    use kt_grids, only: naky, ntheta0
     use run_parameters, only: fphi
-    use netcdf, only: nf90_put_var
+    use neasyf, only: neasyf_write
 # endif
     implicit none
     !> Current output timestep
@@ -1362,31 +1226,18 @@ contains
     real, dimension (:,:,:), intent (in) :: pflux_tormom
     real, dimension(:), intent (in) :: part_tormom_fluxes
 # ifdef NETCDF
-    integer, dimension (2) :: start, count
-    integer, dimension (4) :: start4, count4
-    integer :: status
+    character(*), dimension(*), parameter :: flux_dim = [character(7)::"species", "t"]
+    character(*), dimension(*), parameter :: fluxk_dim = [character(7)::"kx", "ky", "species", "t"]
 
-    start4(1) = 1
-    start4(2) = 1
-    start4(3) = 1
-    start4(4) = nout
+    integer, dimension (2) :: start2
+    integer, dimension (4) :: start4
 
-    count4(1) = ntheta0
-    count4(2) = naky
-    count4(3) = nspec
-    count4(4) = 1
-
-    start(1) = 1
-    start(2) = nout
-
-    count(1) = nspec
-    count(2) = 1
+    start2 = [1, nout]
+    start4 = [1, 1, 1, nout]
 
     if (fphi > zero) then
-       status = nf90_put_var (ncid, es_part_tormom_flux_id, part_tormom_fluxes, start=start, count=count)
-       if (status /= NF90_NOERR) call netcdf_error (status, ncid, es_part_tormom_flux_id)
-       status = nf90_put_var (ncid, es_part_tormom_by_k_id, pflux_tormom, start=start4, count=count4)
-       if (status /= NF90_NOERR) call netcdf_error (status, ncid, es_part_tormom_by_k_id)
+       call neasyf_write(ncid, "es_part_tormom_flux", part_tormom_fluxes, dim_names=flux_dim, start=start2)
+       call neasyf_write(ncid, "es_part_tormom_by_k", pflux_tormom, dim_names=fluxk_dim, start=start4)
     end if
 
 # endif
@@ -1397,10 +1248,8 @@ contains
        mom_fluxes, mmom_fluxes, bmom_fluxes, vflux_tot, &
        vflux_par, vflux_perp, vflux0, vflux1)
 # ifdef NETCDF
-    use species, only: nspec
-    use kt_grids, only: naky, ntheta0
     use run_parameters, only: fphi, fapar, fbpar
-    use netcdf, only: nf90_put_var
+    use neasyf, only: neasyf_write
 # endif
     implicit none
     integer, intent (in) :: nout
@@ -1410,57 +1259,35 @@ contains
     real, dimension(:), intent (in) :: mom_fluxes, mmom_fluxes, bmom_fluxes
     real, intent (in) :: vflux_tot
 # ifdef NETCDF
-    integer, dimension (2) :: start, count
-    integer, dimension (4) :: start4, count4
-    integer :: status
+    character(*), dimension(*), parameter :: flux_dim = [character(7)::"species", "t"]
+    character(*), dimension(*), parameter :: fluxk_dim = [character(7)::"kx", "ky", "species", "t"]
 
-    start4(1) = 1
-    start4(2) = 1
-    start4(3) = 1
-    start4(4) = nout
-    
-    count4(1) = ntheta0
-    count4(2) = naky
-    count4(3) = nspec
-    count4(4) = 1
+    integer, dimension (2) :: start2
+    integer, dimension (4) :: start4
 
-    start(1) = 1
-    start(2) = nout
-    
-    count(1) = nspec
-    count(2) = 1
+    start2 = [1, nout]
+    start4 = [1, 1, 1, nout]
 
     if (fphi > zero) then
-       status = nf90_put_var (ncid, es_mom_flux_id, mom_fluxes, start=start, count=count)
-       if (status /= NF90_NOERR) call netcdf_error (status, ncid, es_mom_flux_id)
-       status = nf90_put_var (ncid, es_mom_by_k_id, vflux, start=start4, count=count4)
-       if (status /= NF90_NOERR) call netcdf_error (status, ncid, es_mom_by_k_id)
-       status = nf90_put_var (ncid, es_parmom_by_k_id, vflux_par, start=start4, count=count4)
-       if (status /= NF90_NOERR) call netcdf_error (status, ncid, es_parmom_by_k_id)
-       status = nf90_put_var (ncid, es_perpmom_by_k_id, vflux_perp, start=start4, count=count4)
-       if (status /= NF90_NOERR) call netcdf_error (status, ncid, es_perpmom_by_k_id)
-       status = nf90_put_var (ncid, es_mom0_by_k_id, vflux0, start=start4, count=count4)
-       if (status /= NF90_NOERR) call netcdf_error (status, ncid, es_mom0_by_k_id)
-       status = nf90_put_var (ncid, es_mom1_by_k_id, vflux1, start=start4, count=count4)
-       if (status /= NF90_NOERR) call netcdf_error (status, ncid, es_mom1_by_k_id)
+       call neasyf_write(ncid, "es_mom_flux", mom_fluxes, dim_names=flux_dim, start=start2)
+       call neasyf_write(ncid, "es_mom_by_k", vflux, dim_names=fluxk_dim, start=start4)
+       call neasyf_write(ncid, "es_parmom_by_k", vflux_par, dim_names=fluxk_dim, start=start4)
+       call neasyf_write(ncid, "es_perpmom_by_k", vflux_perp, dim_names=fluxk_dim, start=start4)
+       call neasyf_write(ncid, "es_mom0_by_k", vflux0, dim_names=fluxk_dim, start=start4)
+       call neasyf_write(ncid, "es_mom1_by_k", vflux1, dim_names=fluxk_dim, start=start4)
     end if
 
     if (fapar > zero) then
-       status = nf90_put_var (ncid, apar_mom_flux_id, mmom_fluxes, start=start, count=count)
-       if (status /= NF90_NOERR) call netcdf_error (status, ncid, apar_mom_flux_id)
-       status = nf90_put_var (ncid, apar_mom_by_k_id, vmflux, start=start4, count=count4)
-       if (status /= NF90_NOERR) call netcdf_error (status, ncid, apar_mom_by_k_id)
+       call neasyf_write(ncid, "apar_mom_flux", mmom_fluxes, dim_names=flux_dim, start=start2)
+       call neasyf_write(ncid, "apar_mom_by_k", vmflux, dim_names=fluxk_dim, start=start4)
     end if
 
     if (fbpar > zero) then
-       status = nf90_put_var (ncid, bpar_mom_flux_id, bmom_fluxes, start=start, count=count)
-       if (status /= NF90_NOERR) call netcdf_error (status, ncid, bpar_mom_flux_id)
-       status = nf90_put_var (ncid, bpar_mom_by_k_id, vbflux, start=start4, count=count4)
-       if (status /= NF90_NOERR) call netcdf_error (status, ncid, bpar_mom_by_k_id)
+       call neasyf_write(ncid, "bpar_mom_flux", bmom_fluxes, dim_names=flux_dim, start=start2)
+       call neasyf_write(ncid, "bpar_mom_by_k", vbflux, dim_names=fluxk_dim, start=start4)
     end if
     
-    status = nf90_put_var (ncid, vflux_tot_id, vflux_tot, start=(/ nout /))
-    if (status /= NF90_NOERR) call netcdf_error (status, ncid, vflux_tot_id)
+    call neasyf_write(ncid, "vflux_tot", vflux_tot, dim_names=["t"], start=[nout])
 # endif
   end subroutine nc_vflux
 
