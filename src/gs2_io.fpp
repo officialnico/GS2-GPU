@@ -23,15 +23,17 @@ module gs2_io
   integer (kind_nf) :: nsign_dim, time_dim, char5_dim, char10_dim, ri_dim, nheat_dim, vpa_dim
   integer (kind_nf) :: nttotext_dim, time_big_dim
 
+  character(*), dimension(*), parameter :: flux_dims = [character(7)::"species", "t"]
+  character(*), dimension(*), parameter :: fluxk_dims = [character(7)::"kx", "ky", "species", "t"]
   character(*), dimension(*), parameter :: final_field_dims = [character(len=5)::"ri", "theta", "kx", "ky"]
   character(*), dimension(*), parameter :: sym_dims = [character(7)::"theta", "vpa", "species", "t"]
 
   integer, dimension (6) :: lp_dim
   integer, dimension (5) :: field_dim, final_mom_dim, heatk_dim, err_dim
-  integer, dimension (4) :: omega_dim, fluxk_dim
+  integer, dimension (4) :: omega_dim
   integer, dimension (3) :: fluxx_dim
   integer, dimension (3) :: mode_dim
-  integer, dimension (2) :: kx_dim, ky_dim, om_dim, flux_dim, fmode_dim
+  integer, dimension (2) :: kx_dim, ky_dim, om_dim, fmode_dim
 
   ! added by EAB 03/05/04 for movies
   logical :: my_make_movie, io_write_corr_extend
@@ -503,8 +505,6 @@ contains
     ky_dim          = [naky_dim, time_dim]
     om_dim          = [ri_dim, time_dim]
     omega_dim       = [ri_dim, nakx_dim, naky_dim, time_dim]
-    flux_dim        = [nspec_dim, time_dim]
-    fluxk_dim       = [nakx_dim, naky_dim, nspec_dim, time_dim]
     fluxx_dim       = [nakx_dim, nspec_dim, time_dim]
     heatk_dim       = [nakx_dim, naky_dim, nspec_dim, nheat_dim, time_dim]
     field_dim       = [ri_dim, nttot_dim, nakx_dim, naky_dim, time_dim]
@@ -841,24 +841,23 @@ contains
     complex, dimension (:), intent (in) :: phi00
     complex, dimension (:,:), intent (in) :: ntot00, density00, upar00, tpar00, tperp00
 #ifdef NETCDF
-    character(*), dimension(*), parameter :: flux_dim = [character(7)::"species", "t"]
     character(*), dimension(*), parameter :: fluxk_dim = [character(7)::"kx", "ky", "species", "t"]
     character(*), dimension(*), parameter :: loop_phi_dim = [character(7)::"ri", "kx", "t"]
     character(*), dimension(*), parameter :: loop_mom_dim = [character(7)::"ri", "kx", "species", "t"]
     
     ! Volume averaged function of theta
     ! <DD>Should we only do this if .not.obmid?
-    call neasyf_write (ncid, "ntot2", ntot2, dim_names=flux_dim, start=starts(2, nout))
-    call neasyf_write (ncid, "ntot2_by_mode", ntot2_by_mode, dim_names=fluxk_dim, start=starts(4, nout))
-    call neasyf_write (ncid, "tpar2_by_mode", tpar2_by_mode, dim_names=fluxk_dim, start=starts(4, nout))
-    call neasyf_write (ncid, "tperp2_by_mode", tperp2_by_mode, dim_names=fluxk_dim, start=starts(4, nout))
+    call neasyf_write (ncid, "ntot2", ntot2, dim_names=flux_dims, start=starts(2, nout))
+    call neasyf_write (ncid, "ntot2_by_mode", ntot2_by_mode, dim_names=fluxk_dims, start=starts(4, nout))
+    call neasyf_write (ncid, "tpar2_by_mode", tpar2_by_mode, dim_names=fluxk_dims, start=starts(4, nout))
+    call neasyf_write (ncid, "tperp2_by_mode", tperp2_by_mode, dim_names=fluxk_dims, start=starts(4, nout))
 
     ! "Volume averaged" data from outboard midplane (really just evaluated at theta=0
     ! and then weighted with Fourier coeff factor (typically 0.5).
     ! <DD>Should we only do this if obmid?
-    call neasyf_write (ncid, "ntot20", ntot20, dim_names=flux_dim, start=starts(2, nout), &
+    call neasyf_write (ncid, "ntot20", ntot20, dim_names=flux_dims, start=starts(2, nout), &
          long_name='Density**2 at theta=0')
-    call neasyf_write (ncid, "ntot20_by_mode", ntot20_by_mode, dim_names=fluxk_dim, start=starts(4, nout))
+    call neasyf_write (ncid, "ntot20_by_mode", ntot20_by_mode, dim_names=fluxk_dims, start=starts(4, nout))
 
     ! Fieldline averaged data, note this includes phi which is not a moment
     call netcdf_write_complex(ncid, "phi00", phi00, loop_phi_dim, start=starts(3, nout))
@@ -910,14 +909,13 @@ contains
     !> Volume-averaged energy exchange
     real, dimension (:), intent (in) :: exchange_avg
 # ifdef NETCDF
-    character(*), dimension(*), parameter :: flux_dim = [character(7)::"species", "t"]
     character(*), dimension(*), parameter :: fluxk_dim = [character(7)::"kx", "ky", "species", "t"]
 
     if (fphi > zero) then
        call neasyf_write (ncid, "es_exchange", exchange_avg, &
-            dim_names=flux_dim, start=starts(2, nout))
+            dim_names=flux_dims, start=starts(2, nout))
        call neasyf_write (ncid, "es_exchange_by_k", exchange, &
-            dim_names=fluxk_dim, start=starts(4, nout))
+            dim_names=fluxk_dims, start=starts(4, nout))
     end if
 # endif
   end subroutine nc_exchange
@@ -941,30 +939,28 @@ contains
     real, dimension (:,:), intent (in) :: x_qmflux
     real, intent (in) :: hflux_tot
 # ifdef NETCDF
-    character(*), dimension(*), parameter :: flux_dim = [character(7)::"species", "t"]
-    character(*), dimension(*), parameter :: fluxk_dim = [character(7)::"kx", "ky", "species", "t"]
     character(*), dimension(*), parameter :: fluxx_dim = [character(7)::"kx", "species", "t"]
 
     if (fphi > zero) then
-       call neasyf_write(ncid, "es_heat_flux", heat_fluxes, dim_names=flux_dim, start=starts(2, nout))
-       call neasyf_write(ncid, "es_heat_par", heat_par, dim_names=flux_dim, start=starts(2, nout))
-       call neasyf_write(ncid, "es_heat_perp", heat_perp, dim_names=flux_dim, start=starts(2, nout))
-       call neasyf_write(ncid, "es_heat_by_k", qheat, dim_names=fluxk_dim, start=starts(4, nout))
+       call neasyf_write(ncid, "es_heat_flux", heat_fluxes, dim_names=flux_dims, start=starts(2, nout))
+       call neasyf_write(ncid, "es_heat_par", heat_par, dim_names=flux_dims, start=starts(2, nout))
+       call neasyf_write(ncid, "es_heat_perp", heat_perp, dim_names=flux_dims, start=starts(2, nout))
+       call neasyf_write(ncid, "es_heat_by_k", qheat, dim_names=fluxk_dims, start=starts(4, nout))
     end if
 
     if (fapar > zero) then
-       call neasyf_write(ncid, "apar_heat_flux", mheat_fluxes, dim_names=flux_dim, start=starts(2, nout))
-       call neasyf_write(ncid, "apar_heat_par", mheat_par, dim_names=flux_dim, start=starts(2, nout))
-       call neasyf_write(ncid, "apar_heat_perp", mheat_perp, dim_names=flux_dim, start=starts(2, nout))
-       call neasyf_write(ncid, "apar_heat_by_k", qmheat, dim_names=fluxk_dim, start=starts(4, nout))
+       call neasyf_write(ncid, "apar_heat_flux", mheat_fluxes, dim_names=flux_dims, start=starts(2, nout))
+       call neasyf_write(ncid, "apar_heat_par", mheat_par, dim_names=flux_dims, start=starts(2, nout))
+       call neasyf_write(ncid, "apar_heat_perp", mheat_perp, dim_names=flux_dims, start=starts(2, nout))
+       call neasyf_write(ncid, "apar_heat_by_k", qmheat, dim_names=fluxk_dims, start=starts(4, nout))
        call neasyf_write(ncid, "apar_heat_by_x", x_qmflux, dim_names=fluxx_dim, start=starts(3, nout))
     end if
 
     if (fbpar > zero) then
-       call neasyf_write(ncid, "bpar_heat_flux", bheat_fluxes, dim_names=flux_dim, start=starts(2, nout))
-       call neasyf_write(ncid, "bpar_heat_par", bheat_par, dim_names=flux_dim, start=starts(2, nout))
-       call neasyf_write(ncid, "bpar_heat_perp", bheat_perp, dim_names=flux_dim, start=starts(2, nout))
-       call neasyf_write(ncid, "bpar_heat_by_k", qbheat, dim_names=fluxk_dim, start=starts(4, nout))
+       call neasyf_write(ncid, "bpar_heat_flux", bheat_fluxes, dim_names=flux_dims, start=starts(2, nout))
+       call neasyf_write(ncid, "bpar_heat_par", bheat_par, dim_names=flux_dims, start=starts(2, nout))
+       call neasyf_write(ncid, "bpar_heat_perp", bheat_perp, dim_names=flux_dims, start=starts(2, nout))
+       call neasyf_write(ncid, "bpar_heat_by_k", qbheat, dim_names=fluxk_dims, start=starts(4, nout))
     end if
     
     call neasyf_write(ncid, "hflux_tot", hflux_tot, dim_names=["t"], start=[nout])
@@ -984,22 +980,20 @@ contains
     real, dimension(:), intent (in) :: part_fluxes, mpart_fluxes, bpart_fluxes
     real, intent (in) :: zflux_tot
 # ifdef NETCDF
-    character(*), dimension(*), parameter :: flux_dim = [character(7)::"species", "t"]
-    character(*), dimension(*), parameter :: fluxk_dim = [character(7)::"kx", "ky", "species", "t"]
 
     if (fphi > zero) then
-       call neasyf_write(ncid, "es_part_flux", part_fluxes, dim_names=flux_dim, start=starts(2, nout))
-       call neasyf_write(ncid, "es_part_by_k", pflux, dim_names=fluxk_dim, start=starts(4, nout))
+       call neasyf_write(ncid, "es_part_flux", part_fluxes, dim_names=flux_dims, start=starts(2, nout))
+       call neasyf_write(ncid, "es_part_by_k", pflux, dim_names=fluxk_dims, start=starts(4, nout))
     end if
 
     if (fapar > zero) then
-       call neasyf_write(ncid, "apar_part_flux", mpart_fluxes, dim_names=flux_dim, start=starts(2, nout))
-       call neasyf_write(ncid, "apar_part_by_k", pmflux, dim_names=fluxk_dim, start=starts(4, nout))
+       call neasyf_write(ncid, "apar_part_flux", mpart_fluxes, dim_names=flux_dims, start=starts(2, nout))
+       call neasyf_write(ncid, "apar_part_by_k", pmflux, dim_names=fluxk_dims, start=starts(4, nout))
     end if
 
     if (fbpar > zero) then
-       call neasyf_write(ncid, "bpar_part_flux", bpart_fluxes, dim_names=flux_dim, start=starts(2, nout))
-       call neasyf_write(ncid, "bpar_part_by_k", pbflux, dim_names=fluxk_dim, start=starts(4, nout))
+       call neasyf_write(ncid, "bpar_part_flux", bpart_fluxes, dim_names=flux_dims, start=starts(2, nout))
+       call neasyf_write(ncid, "bpar_part_by_k", pbflux, dim_names=fluxk_dims, start=starts(4, nout))
     end if
     
     call neasyf_write(ncid, "zflux_tot", zflux_tot, dim_names=["t"], start=[nout])
@@ -1018,14 +1012,12 @@ contains
     real, dimension (:,:,:), intent (in) :: pflux_tormom
     real, dimension(:), intent (in) :: part_tormom_fluxes
 # ifdef NETCDF
-    character(*), dimension(*), parameter :: flux_dim = [character(7)::"species", "t"]
-    character(*), dimension(*), parameter :: fluxk_dim = [character(7)::"kx", "ky", "species", "t"]
 
     if (fphi > zero) then
        call neasyf_write(ncid, "es_part_tormom_flux", part_tormom_fluxes, &
-            dim_names=flux_dim, start=starts(2, nout))
+            dim_names=flux_dims, start=starts(2, nout))
        call neasyf_write(ncid, "es_part_tormom_by_k", pflux_tormom, &
-            dim_names=fluxk_dim, start=starts(4, nout))
+            dim_names=fluxk_dims, start=starts(4, nout))
     end if
 
 # endif
@@ -1047,26 +1039,24 @@ contains
     real, dimension(:), intent (in) :: mom_fluxes, mmom_fluxes, bmom_fluxes
     real, intent (in) :: vflux_tot
 # ifdef NETCDF
-    character(*), dimension(*), parameter :: flux_dim = [character(7)::"species", "t"]
-    character(*), dimension(*), parameter :: fluxk_dim = [character(7)::"kx", "ky", "species", "t"]
 
     if (fphi > zero) then
-       call neasyf_write(ncid, "es_mom_flux", mom_fluxes, dim_names=flux_dim, start=starts(2, nout))
-       call neasyf_write(ncid, "es_mom_by_k", vflux, dim_names=fluxk_dim, start=starts(4, nout))
-       call neasyf_write(ncid, "es_parmom_by_k", vflux_par, dim_names=fluxk_dim, start=starts(4, nout))
-       call neasyf_write(ncid, "es_perpmom_by_k", vflux_perp, dim_names=fluxk_dim, start=starts(4, nout))
-       call neasyf_write(ncid, "es_mom0_by_k", vflux0, dim_names=fluxk_dim, start=starts(4, nout))
-       call neasyf_write(ncid, "es_mom1_by_k", vflux1, dim_names=fluxk_dim, start=starts(4, nout))
+       call neasyf_write(ncid, "es_mom_flux", mom_fluxes, dim_names=flux_dims, start=starts(2, nout))
+       call neasyf_write(ncid, "es_mom_by_k", vflux, dim_names=fluxk_dims, start=starts(4, nout))
+       call neasyf_write(ncid, "es_parmom_by_k", vflux_par, dim_names=fluxk_dims, start=starts(4, nout))
+       call neasyf_write(ncid, "es_perpmom_by_k", vflux_perp, dim_names=fluxk_dims, start=starts(4, nout))
+       call neasyf_write(ncid, "es_mom0_by_k", vflux0, dim_names=fluxk_dims, start=starts(4, nout))
+       call neasyf_write(ncid, "es_mom1_by_k", vflux1, dim_names=fluxk_dims, start=starts(4, nout))
     end if
 
     if (fapar > zero) then
-       call neasyf_write(ncid, "apar_mom_flux", mmom_fluxes, dim_names=flux_dim, start=starts(2, nout))
-       call neasyf_write(ncid, "apar_mom_by_k", vmflux, dim_names=fluxk_dim, start=starts(4, nout))
+       call neasyf_write(ncid, "apar_mom_flux", mmom_fluxes, dim_names=flux_dims, start=starts(2, nout))
+       call neasyf_write(ncid, "apar_mom_by_k", vmflux, dim_names=fluxk_dims, start=starts(4, nout))
     end if
 
     if (fbpar > zero) then
-       call neasyf_write(ncid, "bpar_mom_flux", bmom_fluxes, dim_names=flux_dim, start=starts(2, nout))
-       call neasyf_write(ncid, "bpar_mom_by_k", vbflux, dim_names=fluxk_dim, start=starts(4, nout))
+       call neasyf_write(ncid, "bpar_mom_flux", bmom_fluxes, dim_names=flux_dims, start=starts(2, nout))
+       call neasyf_write(ncid, "bpar_mom_by_k", vbflux, dim_names=fluxk_dims, start=starts(4, nout))
     end if
     
     call neasyf_write(ncid, "vflux_tot", vflux_tot, dim_names=["t"], start=[nout])
@@ -1238,11 +1228,8 @@ contains
     integer, dimension (3) :: start, count, starth, counth
     integer, dimension (2) :: startx, countx, starty, county, counts
     integer :: status, it, ik
-    real, dimension (2, 2*ntgrid+1, ntheta0, naky) :: ri3
     integer, dimension (5) :: start5, count5
 
-    character(*), dimension(*), parameter :: flux_dims = [character(7)::"species", "t"]
-    character(*), dimension(*), parameter :: fluxk_dims = [character(7)::"kx", "ky", "species", "t"]
     character(*), dimension(*), parameter :: field_dims = [character(5)::"ri", "theta", "kx", "ky", "t"]
     character(*), dimension(*), parameter :: kx_dims = ["kx", "t "]
     character(*), dimension(*), parameter :: ky_dims = ["ky", "t "]
