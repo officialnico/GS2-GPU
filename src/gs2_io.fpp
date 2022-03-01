@@ -45,17 +45,6 @@ module gs2_io
   integer :: phtot_id
   integer :: omega_id, omegaavg_id
   integer :: code_id
-  integer :: h_energy_id, h_energy_dot_id, h_antenna_id
-  integer :: h_eapar_id, h_ebpar_id
-  integer :: h_delfs2_id, h_hs2_id, h_phis2_id
-  integer :: h_hypervisc_id, h_hyperres_id, h_collisions_id
-  integer :: h_gradients_id, h_hypercoll_id, h_heating_id
-  integer :: h_imp_colls_id
-  integer :: hk_energy_id, hk_energy_dot_id, hk_antenna_id
-  integer :: hk_eapar_id, hk_ebpar_id
-  integer :: hk_delfs2_id, hk_hs2_id, hk_phis2_id
-  integer :: hk_hypervisc_id, hk_hyperres_id, hk_collisions_id
-  integer :: hk_gradients_id, hk_hypercoll_id, hk_heating_id, hk_imp_colls_id
   logical :: write_apar_t, write_phi_t, write_bpar_t ! Should the fields be written out every nwrite?
 
   !> Write a `complex` array to netcdf
@@ -597,45 +586,6 @@ contains
     if (write_omega) then
        call ensure_netcdf_var_exists(ncid, 'omega', netcdf_real, omega_dim, omega_id)
        call ensure_netcdf_var_exists(ncid, 'omegaavg', netcdf_real, omega_dim, omegaavg_id)
-    end if
-
-    !Heating rate diagnostics
-    if (write_heating) then
-       call ensure_netcdf_var_exists(ncid, 'h_energy', netcdf_real, time_dim, h_energy_id)
-       call ensure_netcdf_var_exists(ncid, 'h_energy_dot', netcdf_real, time_dim, h_energy_dot_id)
-       call ensure_netcdf_var_exists(ncid, 'h_antenna', netcdf_real, time_dim, h_antenna_id)
-       call ensure_netcdf_var_exists(ncid, 'h_eapar', netcdf_real, time_dim, h_eapar_id)
-       call ensure_netcdf_var_exists(ncid, 'h_ebpar', netcdf_real, time_dim, h_ebpar_id)
-
-       call ensure_netcdf_var_exists(ncid, 'h_delfs2', netcdf_real, flux_dim, h_delfs2_id)
-       call ensure_netcdf_var_exists(ncid, 'h_hs2', netcdf_real, flux_dim, h_hs2_id)
-       call ensure_netcdf_var_exists(ncid, 'h_phis2', netcdf_real, flux_dim, h_phis2_id)
-       call ensure_netcdf_var_exists(ncid, 'h_hypervisc', netcdf_real, flux_dim, h_hypervisc_id)
-       call ensure_netcdf_var_exists(ncid, 'h_hyperres', netcdf_real, flux_dim, h_hyperres_id)
-       call ensure_netcdf_var_exists(ncid, 'h_collisions', netcdf_real, flux_dim, h_collisions_id)
-       call ensure_netcdf_var_exists(ncid, 'h_gradients', netcdf_real, flux_dim, h_gradients_id)
-       call ensure_netcdf_var_exists(ncid, 'h_hypercoll', netcdf_real, flux_dim, h_hypercoll_id)
-       call ensure_netcdf_var_exists(ncid, 'h_imp_colls', netcdf_real, flux_dim, h_imp_colls_id)
-       call ensure_netcdf_var_exists(ncid, 'h_heating', netcdf_real, flux_dim, h_heating_id)
-       call ensure_netcdf_att_exists(ncid, h_heating_id, 'long_name', 'Total heating by species')
-
-       call ensure_netcdf_var_exists(ncid, 'hk_energy', netcdf_real, mode_dim, hk_energy_id)
-       call ensure_netcdf_var_exists(ncid, 'hk_energy_dot', netcdf_real, mode_dim, hk_energy_dot_id)
-       call ensure_netcdf_var_exists(ncid, 'hk_antenna', netcdf_real, mode_dim, hk_antenna_id)
-       call ensure_netcdf_var_exists(ncid, 'hk_eapar', netcdf_real, mode_dim, hk_eapar_id)
-       call ensure_netcdf_var_exists(ncid, 'hk_ebpar', netcdf_real, mode_dim, hk_ebpar_id)
-
-       call ensure_netcdf_var_exists(ncid, 'hk_delfs2', netcdf_real, fluxk_dim, hk_delfs2_id)
-       call ensure_netcdf_var_exists(ncid, 'hk_hs2', netcdf_real, fluxk_dim, hk_hs2_id)
-       call ensure_netcdf_var_exists(ncid, 'hk_phis2', netcdf_real, fluxk_dim, hk_phis2_id)
-       call ensure_netcdf_var_exists(ncid, 'hk_hypervisc', netcdf_real, fluxk_dim, hk_hypervisc_id)
-       call ensure_netcdf_var_exists(ncid, 'hk_hyperres', netcdf_real, fluxk_dim, hk_hyperres_id)
-       call ensure_netcdf_var_exists(ncid, 'hk_collisions', netcdf_real, fluxk_dim, hk_collisions_id)
-       call ensure_netcdf_var_exists(ncid, 'hk_gradients', netcdf_real, fluxk_dim, hk_gradients_id)
-       call ensure_netcdf_var_exists(ncid, 'hk_imp_colls', netcdf_real, fluxk_dim, hk_imp_colls_id)
-       call ensure_netcdf_var_exists(ncid, 'hk_hypercoll', netcdf_real, fluxk_dim, hk_hypercoll_id)
-       call ensure_netcdf_var_exists(ncid, 'hk_heating', netcdf_real, fluxk_dim, hk_heating_id)
-       call ensure_netcdf_att_exists(ncid, hk_heating_id, 'long_name', 'Total heating by species and mode')
     end if
 
     !------------------------------------------------
@@ -1291,6 +1241,8 @@ contains
     real, dimension (2, 2*ntgrid+1, ntheta0, naky) :: ri3
     integer, dimension (5) :: start5, count5
 
+    character(*), dimension(*), parameter :: flux_dims = [character(7)::"species", "t"]
+    character(*), dimension(*), parameter :: fluxk_dims = [character(7)::"kx", "ky", "species", "t"]
     character(*), dimension(*), parameter :: field_dims = [character(5)::"ri", "theta", "kx", "ky", "t"]
     character(*), dimension(*), parameter :: kx_dims = ["kx", "t "]
     character(*), dimension(*), parameter :: ky_dims = ["ky", "t "]
@@ -1451,88 +1403,50 @@ contains
     end if
 
     if (write_heating) then
-       status = nf90_put_var (ncid, h_energy_id, h%energy, start=(/nout/))
-       if (status /= NF90_NOERR) call netcdf_error (status, ncid, h_energy_id)
-       status = nf90_put_var (ncid, h_energy_dot_id, h%energy_dot, start=(/nout/))
-       if (status /= NF90_NOERR) call netcdf_error (status, ncid, h_energy_dot_id)
-       status = nf90_put_var (ncid, h_antenna_id, h%antenna, start=(/nout/))
-       if (status /= NF90_NOERR) call netcdf_error (status, ncid, h_antenna_id)
-       status = nf90_put_var (ncid, h_eapar_id, h%eapar, start=(/nout/))
-       if (status /= NF90_NOERR) call netcdf_error (status, ncid, h_eapar_id)
-       status = nf90_put_var (ncid, h_ebpar_id, h%ebpar, start=(/nout/))
-       if (status /= NF90_NOERR) call netcdf_error (status, ncid, h_ebpar_id)
+       call neasyf_write(ncid, "h_energy", h%energy, dim_names=["t"], start=[nout])
+       call neasyf_write(ncid, "h_energy_dot", h%energy_dot, dim_names=["t"], start=[nout])
+       call neasyf_write(ncid, "h_antenna", h%antenna, dim_names=["t"], start=[nout])
+       call neasyf_write(ncid, "h_eapar", h%eapar, dim_names=["t"], start=[nout])
+       call neasyf_write(ncid, "h_ebpar", h%ebpar, dim_names=["t"], start=[nout])
+       call neasyf_write(ncid, "h_delfs2", h%delfs2, dim_names=flux_dims, start=starts(2, nout))
+       call neasyf_write(ncid, "h_hs2", h%hs2, dim_names=flux_dims, start=starts(2, nout))
+       call neasyf_write(ncid, "h_phis2", h%phis2, dim_names=flux_dims, start=starts(2, nout))
+       call neasyf_write(ncid, "h_hypervisc", h%hypervisc, dim_names=flux_dims, start=starts(2, nout))
+       call neasyf_write(ncid, "h_hyperres", h%hyperres, dim_names=flux_dims, start=starts(2, nout))
+       call neasyf_write(ncid, "h_collisions", h%collisions, dim_names=flux_dims, start=starts(2, nout))
+       call neasyf_write(ncid, "h_gradients", h%gradients, dim_names=flux_dims, start=starts(2, nout))
+       call neasyf_write(ncid, "h_imp_colls", h%imp_colls, dim_names=flux_dims, start=starts(2, nout))
+       call neasyf_write(ncid, "h_hypercoll", h%hypercoll, dim_names=flux_dims, start=starts(2, nout))
+       call neasyf_write(ncid, "h_heating", h%heating, dim_names=flux_dims, start=starts(2, nout), &
+            long_name="Total heating by species")
 
-       status = nf90_put_var (ncid, h_delfs2_id, h%delfs2, start=starts, count=counts)
-       if (status /= NF90_NOERR) call netcdf_error (status, ncid, h_delfs2_id)
-       status = nf90_put_var (ncid, h_hs2_id, h%hs2, start=starts, count=counts)
-       if (status /= NF90_NOERR) call netcdf_error (status, ncid, h_hs2_id)
-       status = nf90_put_var (ncid, h_phis2_id, h%phis2, start=starts, count=counts)
-       if (status /= NF90_NOERR) call netcdf_error (status, ncid, h_phis2_id)
-       status = nf90_put_var (ncid, h_hypervisc_id, h%hypervisc, start=starts, count=counts)
-       if (status /= NF90_NOERR) call netcdf_error (status, ncid, h_hypervisc_id)
-       status = nf90_put_var (ncid, h_hyperres_id, h%hyperres, start=starts, count=counts)
-       if (status /= NF90_NOERR) call netcdf_error (status, ncid, h_hyperres_id)
-       status = nf90_put_var (ncid, h_collisions_id, h%collisions, start=starts, count=counts)
-       if (status /= NF90_NOERR) call netcdf_error (status, ncid, h_collisions_id)
-       status = nf90_put_var (ncid, h_gradients_id, h%gradients, start=starts, count=counts)
-       if (status /= NF90_NOERR) call netcdf_error (status, ncid, h_gradients_id)
-       status = nf90_put_var (ncid, h_imp_colls_id, h%imp_colls, start=starts, count=counts)
-       if (status /= NF90_NOERR) call netcdf_error (status, ncid, h_imp_colls_id)
-       status = nf90_put_var (ncid, h_hypercoll_id, h%hypercoll, start=starts, count=counts)
-       if (status /= NF90_NOERR) call netcdf_error (status, ncid, h_hypercoll_id)
-       status = nf90_put_var (ncid, h_heating_id, h%heating, start=starts, count=counts)
-       if (status /= NF90_NOERR) call netcdf_error (status, ncid, h_heating_id)
-
-       status = nf90_put_var (ncid, hk_energy_id, hk%energy, start=start, count=count)
-       if (status /= NF90_NOERR) call netcdf_error (status, ncid, hk_energy_id)
-       status = nf90_put_var (ncid, hk_energy_dot_id, hk%energy_dot, start=start, count=count)
-       if (status /= NF90_NOERR) call netcdf_error (status, ncid, hk_energy_dot_id)
-       status = nf90_put_var (ncid, hk_antenna_id, hk%antenna, start=start, count=count)
-       if (status /= NF90_NOERR) call netcdf_error (status, ncid, hk_antenna_id)
-       status = nf90_put_var (ncid, hk_eapar_id, hk%eapar, start=start, count=count)
-       if (status /= NF90_NOERR) call netcdf_error (status, ncid, hk_eapar_id)
-       status = nf90_put_var (ncid, hk_ebpar_id, hk%ebpar, start=start, count=count)
-       if (status /= NF90_NOERR) call netcdf_error (status, ncid, hk_ebpar_id)
+       call neasyf_write(ncid, "hk_energy", hk%energy, dim_names=mode_dims, start=starts(3, nout))
+       call neasyf_write(ncid, "hk_energy_dot", hk%energy_dot, dim_names=mode_dims, start=starts(3, nout))
+       call neasyf_write(ncid, "hk_antenna", hk%antenna, dim_names=mode_dims, start=starts(3, nout))
+       call neasyf_write(ncid, "hk_eapar", hk%eapar, dim_names=mode_dims, start=starts(3, nout))
+       call neasyf_write(ncid, "hk_ebpar", hk%ebpar, dim_names=mode_dims, start=starts(3, nout))
 
        call hk_repack (hk, 1, tmps)
-       status = nf90_put_var (ncid, hk_hypervisc_id, tmps, start=start4, count=count4)
-       if (status /= NF90_NOERR) call netcdf_error (status, ncid, hk_hypervisc_id)
-
+       call neasyf_write(ncid, "hk_hypervisc", tmps, dim_names=fluxk_dims, start=starts(4, nout))
        call hk_repack (hk, 2, tmps)
-       status = nf90_put_var (ncid, hk_hyperres_id, tmps, start=start4, count=count4)
-       if (status /= NF90_NOERR) call netcdf_error (status, ncid, hk_hyperres_id)
-
+       call neasyf_write(ncid, "hk_hyperres", tmps, dim_names=fluxk_dims, start=starts(4, nout))
        call hk_repack (hk, 3, tmps)
-       status = nf90_put_var (ncid, hk_collisions_id, tmps, start=start4, count=count4)
-       if (status /= NF90_NOERR) call netcdf_error (status, ncid, hk_collisions_id)
-
+       call neasyf_write(ncid, "hk_collisions", tmps, dim_names=fluxk_dims, start=starts(4, nout))
        call hk_repack (hk, 4, tmps)
-       status = nf90_put_var (ncid, hk_gradients_id, tmps, start=start4, count=count4)
-       if (status /= NF90_NOERR) call netcdf_error (status, ncid, hk_gradients_id)
-
+       call neasyf_write(ncid, "hk_gradients", tmps, dim_names=fluxk_dims, start=starts(4, nout))
        call hk_repack (hk, 5, tmps)
-       status = nf90_put_var (ncid, hk_heating_id, tmps, start=start4, count=count4)
-       if (status /= NF90_NOERR) call netcdf_error (status, ncid, hk_heating_id)
-
+       call neasyf_write(ncid, "hk_heating", tmps, dim_names=fluxk_dims, start=starts(4, nout), &
+            long_name="Total heating by species and mode")
        call hk_repack (hk, 6, tmps)
-       status = nf90_put_var (ncid, hk_hypercoll_id, tmps, start=start4, count=count4)
-       if (status /= NF90_NOERR) call netcdf_error (status, ncid, hk_hypercoll_id)
-
+       call neasyf_write(ncid, "hk_hypercoll", tmps, dim_names=fluxk_dims, start=starts(4, nout))
        call hk_repack (hk, 7, tmps)
-       status = nf90_put_var (ncid, hk_delfs2_id, tmps, start=start4, count=count4)
-       if (status /= NF90_NOERR) call netcdf_error (status, ncid, hk_delfs2_id)
-
+       call neasyf_write(ncid, "hk_delfs2", tmps, dim_names=fluxk_dims, start=starts(4, nout))
        call hk_repack (hk, 8, tmps)
-       status = nf90_put_var (ncid, hk_hs2_id, tmps, start=start4, count=count4)
-       if (status /= NF90_NOERR) call netcdf_error (status, ncid, hk_hs2_id)
-
+       call neasyf_write(ncid, "hk_hs2", tmps, dim_names=fluxk_dims, start=starts(4, nout))
        call hk_repack (hk, 9, tmps)
-       status = nf90_put_var (ncid, hk_phis2_id, tmps, start=start4, count=count4)
-       if (status /= NF90_NOERR) call netcdf_error (status, ncid, hk_phis2_id)
-
+       call neasyf_write(ncid, "hk_phis2", tmps, dim_names=fluxk_dims, start=starts(4, nout))
        call hk_repack (hk, 10, tmps)
-       status = nf90_put_var (ncid, hk_imp_colls_id, tmps, start=start4, count=count4)
-       if (status /= NF90_NOERR) call netcdf_error (status, ncid, hk_imp_colls_id)
+       call neasyf_write(ncid, "hk_imp_colls", tmps, dim_names=fluxk_dims, start=starts(4, nout))
     end if
 
     if (write_omega) then
