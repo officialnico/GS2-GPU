@@ -41,15 +41,9 @@ module gs2_io
   integer :: nx_id, ny_id, nth_id, x_id, y_id, th_id, time_movie_id
   integer :: phi_by_xmode_id, apar_by_xmode_id, bpar_by_xmode_id
 
-  integer :: phi2_id, apar2_id, bpar2_id
   integer :: current_scan_parameter_value_id
-  integer :: phi2_by_mode_id, apar2_by_mode_id, bpar2_by_mode_id, errest_by_mode_id, lpcoef_by_mode_id
   integer :: phtot_id
-  integer :: phi2_by_kx_id, apar2_by_kx_id, bpar2_by_kx_id
-  integer :: phi2_by_ky_id, apar2_by_ky_id, bpar2_by_ky_id
-  integer :: phi0_id, apar0_id, bpar0_id
   integer :: omega_id, omegaavg_id
-  integer :: phi_t_id, apar_t_id, bpar_t_id
   integer :: code_id
   integer :: h_energy_id, h_energy_dot_id, h_antenna_id
   integer :: h_eapar_id, h_ebpar_id
@@ -583,96 +577,6 @@ contains
 
     !################################################
     !# NOW WE HANDLE THE DIFFERENT OPTIONAL OUTPUT
-
-    !Phi dependent data
-    if (fphi > zero) then
-       !Volume averaged amplitude data
-       call ensure_netcdf_var_exists(ncid, 'phi2', netcdf_real, time_dim, phi2_id)
-       call ensure_netcdf_att_exists(ncid, phi2_id, 'long_name', '|Potential**2|')
-       call ensure_netcdf_att_exists(ncid, phi2_id, 'units', '(T/q rho/L)**2')
-
-       !Amplitude data per Fourier mode
-       call ensure_netcdf_var_exists(ncid, 'phi2_by_mode', netcdf_real, mode_dim, phi2_by_mode_id)
-
-       !Amplitude data summed over ky
-       if (ntheta0 > 1) then
-          call ensure_netcdf_var_exists(ncid, 'phi2_by_kx', netcdf_real, kx_dim, phi2_by_kx_id)
-       end if
-
-       !Amplitude data summed over theta0
-       if (naky > 1) then
-          call ensure_netcdf_var_exists(ncid, 'phi2_by_ky', netcdf_real, ky_dim, phi2_by_ky_id)
-       end if
-
-       !Field at theta=igomega
-       call ensure_netcdf_var_exists(ncid, 'phi0', netcdf_real, omega_dim, phi0_id)
-
-       !Field as a function of time
-       if (write_phi_t) then
-          call ensure_netcdf_var_exists(ncid, 'phi_t', netcdf_real, field_dim, phi_t_id)
-          call ensure_netcdf_att_exists(ncid, phi_t_id, 'long_name', 'Electrostatic Potential over time')
-       end if
-    end if
-
-    !Apar dependent output
-    if (fapar > zero) then
-       !Volume averaged amplitude data
-       call ensure_netcdf_var_exists(ncid, 'apar2', netcdf_real, time_dim, apar2_id)
-       call ensure_netcdf_att_exists(ncid, apar2_id, 'long_name', 'Total A_par squared')
-
-       !K-resolved amplitude data
-       call ensure_netcdf_var_exists(ncid, 'apar2_by_mode', netcdf_real, mode_dim, apar2_by_mode_id)
-       call ensure_netcdf_att_exists(ncid, apar2_by_mode_id, 'long_name', 'Apar squared')
-
-       !Amplitude data summed over ky
-       if (ntheta0 > 1) then
-          call ensure_netcdf_var_exists(ncid, 'apar2_by_kx', netcdf_real, kx_dim, apar2_by_kx_id)
-       end if
-
-       !Amplitude data summed over theta0
-       if (naky > 1) then
-          call ensure_netcdf_var_exists(ncid, 'apar2_by_ky', netcdf_real, ky_dim, apar2_by_ky_id)
-       end if
-
-       !Field at theta=igomega
-       call ensure_netcdf_var_exists(ncid, 'apar0', netcdf_real, omega_dim, apar0_id)
-
-       !Field as a function of time
-       if (write_apar_t) then
-          call ensure_netcdf_var_exists(ncid, 'apar_t', netcdf_real, field_dim, apar_t_id)
-          call ensure_netcdf_att_exists(ncid, apar_t_id, 'long_name', 'Parallel Magnetic Potential over Time')
-       end if
-    end if
-
-    !Bpar related data
-    if (fbpar > zero) then
-       !Volume averaged amplitude data
-       call ensure_netcdf_var_exists(ncid, 'bpar2', netcdf_real, time_dim, bpar2_id)
-       call ensure_netcdf_att_exists(ncid, bpar2_id, 'long_name', 'Total A_perp squared')
-
-       !K-resolved amplitude data
-       call ensure_netcdf_var_exists(ncid, 'bpar2_by_mode', netcdf_real, mode_dim, bpar2_by_mode_id)
-       call ensure_netcdf_att_exists(ncid, bpar2_by_mode_id, 'long_name', 'A_perp squared')
-
-       !Amplitude data summed over ky
-       if (ntheta0 > 1) then
-          call ensure_netcdf_var_exists(ncid, 'bpar2_by_kx', netcdf_real, kx_dim, bpar2_by_kx_id)
-       end if
-
-       !Amplitude data summed over theta0
-       if (naky > 1) then
-          call ensure_netcdf_var_exists(ncid, 'bpar2_by_ky', netcdf_real, ky_dim, bpar2_by_ky_id)
-       end if
-
-       !Field at theta=igomega
-       call ensure_netcdf_var_exists(ncid, 'bpar0', netcdf_real, omega_dim, bpar0_id)
-
-       !Field as a function of time
-       if (write_bpar_t) then
-          call ensure_netcdf_var_exists(ncid, 'bpar_t', netcdf_real, field_dim, bpar_t_id)
-          call ensure_netcdf_att_exists(ncid, bpar_t_id, 'long_name', 'delta B Parallel over time')
-       end if
-    end if
 
     if (write_verr) then
 !       call ensure_netcdf_var_exists(ncid, 'errest_by_mode', netcdf_real, err_dim, errest_by_mode_id)
@@ -1382,17 +1286,23 @@ contains
     complex, dimension (ntheta0, naky) :: tmp
     integer, dimension (4) :: start0, count0, start4, count4
     integer, dimension (3) :: start, count, starth, counth
-    integer, dimension (2) :: startx, countx, starty, county, starts, counts
+    integer, dimension (2) :: startx, countx, starty, county, counts
     integer :: status, it, ik
     real, dimension (2, 2*ntgrid+1, ntheta0, naky) :: ri3
     integer, dimension (5) :: start5, count5
+
+    character(*), dimension(*), parameter :: field_dims = [character(5)::"ri", "theta", "kx", "ky", "t"]
+    character(*), dimension(*), parameter :: kx_dims = ["kx", "t "]
+    character(*), dimension(*), parameter :: ky_dims = ["ky", "t "]
+    character(*), dimension(*), parameter :: omega_dims = ["ri", "kx", "ky", "t "]
+    character(*), dimension(*), parameter :: mode_dims = ["kx", "ky", "t "]
 
     start5(1) = 1
     start5(2) = 1
     start5(3) = 1
     start5(4) = 1
     start5(5) = nout
-  
+
     count5(1) = 2
     count5(2) = 2*ntgrid+1
     count5(3) = ntheta0
@@ -1441,13 +1351,10 @@ contains
     countx(1) = ntheta0
     countx(2) = 1
 
-    starts(1) = 1
-    starts(2) = nout
-
     counts(1) = nspec
     counts(2) = 1
 
-    starth(1) = 1 
+    starth(1) = 1
     starth(2) = 1
     starth(3) = nout
 
@@ -1456,105 +1363,91 @@ contains
     counth(3) = 1
 
     if (fphi > zero) then
-
        if(write_phi_t) then
-          call c2r (phinew, ri3)
-          !ri_phi_t(:,:,:,:,1) = ri3(:,:,:,:)
-          status = nf90_put_var (ncid, phi_t_id, ri3, start=start5, count=count5)
-          if (status /= NF90_NOERR) call netcdf_error (status, ncid, phi_t_id)
+          call netcdf_write_complex(ncid, "phi_t", phinew, &
+               dim_names=field_dims, start=starts(5, nout), &
+               long_name="Electrostatic Potential over time")
        end if
 
        if (ntheta0 > 1) then
           do it = 1, ntheta0
              field2_by_kx(it) = sum(phi2_by_mode(it,:)*fluxfac(:))
           end do
-          status = nf90_put_var (ncid, phi2_by_kx_id, field2_by_kx, start=startx, count=countx)
-          if (status /= NF90_NOERR) call netcdf_error (status, ncid, phi2_by_kx_id)
+          call neasyf_write(ncid, "phi2_by_kx", field2_by_kx, dim_names=kx_dims, start=starts(2, nout))
        end if
 
        if (naky > 1) then
           do ik = 1, naky
              field2_by_ky(ik) = sum(phi2_by_mode(:,ik)*fluxfac(ik))
           end do
-          status = nf90_put_var (ncid, phi2_by_ky_id, field2_by_ky, start=starty, count=county)
-          if (status /= NF90_NOERR) call netcdf_error (status, ncid, phi2_by_ky_id)
+          call neasyf_write(ncid, "phi2_by_ky", field2_by_ky, dim_names=ky_dims, start=starts(2, nout))
        end if
 
-       call c2r (phi0, ri2) 
-       status = nf90_put_var (ncid, phi0_id, ri2, start=start0, count=count0)
-       if (status /= NF90_NOERR) call netcdf_error (status, ncid, phi0_id)
-       status = nf90_put_var (ncid, phi2_by_mode_id, phi2_by_mode, start=start, count=count)
-       if (status /= NF90_NOERR) call netcdf_error (status, ncid, phi2_by_mode_id)
-       status = nf90_put_var (ncid, phi2_id, phi2, start=(/nout/))
-       if (status /= NF90_NOERR) call netcdf_error (status, ncid, phi2_id)
+       call netcdf_write_complex(ncid, "phi0", phi0, dim_names=omega_dims, start=starts(4, nout))
+
+       call neasyf_write(ncid, "phi2_by_mode", phi2_by_mode, &
+            dim_names=mode_dims, start=starts(3, nout), &
+            long_name="Amplitude data per Fourier mode")
+       call neasyf_write(ncid, "phi2", phi2, dim_names=["t"], start=[nout], &
+            long_name="Volume averaged amplitude: |Potential**2|", units="(T/q rho/L)**2")
     end if
 
     if (fapar > zero) then
-
        if(write_apar_t) then
-          call c2r (aparnew, ri3)
-          !ri_apar_t(:,:,:,:,1) = ri3(:,:,:,:)
-          status = nf90_put_var (ncid, apar_t_id, ri3, start=start5, count=count5)
-          if (status /= NF90_NOERR) call netcdf_error (status, ncid, apar_t_id)
+          call netcdf_write_complex(ncid, "apar_t", aparnew,&
+               dim_names=field_dims, start=starts(5, nout), &
+               long_name="Parallel Magnetic Potential over Time")
        end if
 
        if (ntheta0 > 1) then
           do it = 1, ntheta0
              field2_by_kx(it) = sum(apar2_by_mode(it,:)*fluxfac(:))
           end do
-          status = nf90_put_var (ncid, apar2_by_kx_id, field2_by_kx, start=startx, count=countx)
-          if (status /= NF90_NOERR) call netcdf_error (status, ncid, apar2_by_kx_id)
+          call neasyf_write(ncid, "apar2_by_kx", field2_by_kx, dim_names=kx_dims, start=starts(2, nout))
        end if
 
        if (naky > 1) then
           do ik = 1, naky
              field2_by_ky(ik) = sum(apar2_by_mode(:,ik)*fluxfac(ik))
           end do
-          status = nf90_put_var (ncid, apar2_by_ky_id, field2_by_ky, start=starty, count=county)
-          if (status /= NF90_NOERR) call netcdf_error (status, ncid, apar2_by_ky_id)
+          call neasyf_write(ncid, "apar2_by_ky", field2_by_ky, dim_names=ky_dims, start=starts(2, nout))
        end if
 
-       call c2r (apar0, ri2) 
-       status = nf90_put_var (ncid, apar0_id, ri2, start=start0, count=count0)
-       if (status /= NF90_NOERR) call netcdf_error (status, ncid, apar0_id)
-       status = nf90_put_var (ncid, apar2_by_mode_id, apar2_by_mode, start=start, count=count)
-       if (status /= NF90_NOERR) call netcdf_error (status, ncid, apar2_by_mode_id)
-       status = nf90_put_var (ncid, apar2_id, apar2, start=(/nout/))
-       if (status /= NF90_NOERR) call netcdf_error (status, ncid, apar2_id)
+       call netcdf_write_complex(ncid, "apar0", apar0, dim_names=omega_dims, start=starts(4, nout))
+       call neasyf_write(ncid, "apar2_by_mode", apar2_by_mode, &
+            dim_names=mode_dims, start=starts(3, nout), &
+            long_name="Apar squared")
+       call neasyf_write(ncid, "apar2", apar2, dim_names=["t"], start=[nout], &
+            long_name="Volume averaged total A_par squared")
     end if
 
     if (fbpar > zero) then
-
        if(write_bpar_t) then
-          call c2r (bparnew, ri3)
-          !ri_bpar_t(:,:,:,:,1) = ri3(:,:,:,:)
-          status = nf90_put_var (ncid, bpar_t_id, ri3, start=start5, count=count5)
-          if (status /= NF90_NOERR) call netcdf_error (status, ncid, bpar_t_id)
+          call neasyf_write(ncid, "bpar_t", bparnew, &
+               dim_names=field_dims, start=starts(5, nout), &
+               long_name="delta B Parallel over time")
        end if
 
        if (ntheta0 > 1) then
           do it = 1, ntheta0
              field2_by_kx(it) = sum(bpar2_by_mode(it,:)*fluxfac(:))
           end do
-          status = nf90_put_var (ncid, bpar2_by_kx_id, field2_by_kx, start=startx, count=countx)
-          if (status /= NF90_NOERR) call netcdf_error (status, ncid, bpar2_by_kx_id)
+          call neasyf_write(ncid, "bpar2_by_kx", field2_by_kx, dim_names=kx_dims, start=starts(2, nout))
        end if
 
        if (naky > 1) then
           do ik = 1, naky
              field2_by_ky(ik) = sum(bpar2_by_mode(:,ik)*fluxfac(ik))
           end do
-          status = nf90_put_var (ncid, bpar2_by_ky_id, field2_by_ky, start=starty, count=county)
-          if (status /= NF90_NOERR) call netcdf_error (status, ncid, bpar2_by_ky_id)
+          call neasyf_write(ncid, "bpar2_by_ky", field2_by_ky, dim_names=ky_dims, start=starts(2, nout))
        end if
 
-       call c2r (bpar0, ri2) 
-       status = nf90_put_var (ncid, bpar0_id, ri2, start=start0, count=count0)
-       if (status /= NF90_NOERR) call netcdf_error (status, ncid, bpar0_id)
-       status = nf90_put_var (ncid, bpar2_by_mode_id, bpar2_by_mode, start=start, count=count)
-       if (status /= NF90_NOERR) call netcdf_error (status, ncid, bpar2_by_mode_id)
-       status = nf90_put_var (ncid, bpar2_id, bpar2, start=(/nout/))
-       if (status /= NF90_NOERR) call netcdf_error (status, ncid, bpar2_id)
+       call netcdf_write_complex(ncid, "bpar0", bpar0, dim_names=omega_dims, start=starts(4, nout))
+       call neasyf_write(ncid, "bpar2_by_mode", bpar2_by_mode, &
+            dim_names=mode_dims, start=starts(3, nout), &
+            long_name="A_perp squared")
+       call neasyf_write(ncid, "bpar2", bpar2, dim_names=["t"], start=[nout], &
+            long_name="Volume averaged total A_perp squared")
     end if
 
     if (write_heating) then
