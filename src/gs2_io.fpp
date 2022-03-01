@@ -24,14 +24,15 @@ module gs2_io
   integer (kind_nf) :: nttotext_dim, time_big_dim
 
   character(*), dimension(*), parameter :: final_field_dims = [character(len=5)::"ri", "theta", "kx", "ky"]
+  character(*), dimension(*), parameter :: sym_dims = [character(7)::"theta", "vpa", "species", "t"]
 
   integer, dimension (6) :: lp_dim
   integer, dimension (5) :: field_dim, final_mom_dim, heatk_dim, err_dim
   integer, dimension (5) :: phi_corr_dim
-  integer, dimension (4) :: omega_dim, fluxk_dim, sym_dim
+  integer, dimension (4) :: omega_dim, fluxk_dim
   integer, dimension (4) :: phi2_extend_dim, phi_corr_2pi_dim
   integer, dimension (3) :: fluxx_dim
-  integer, dimension (3) :: mode_dim, heat_dim, flux_dist_dim, phi_dist_dim
+  integer, dimension (3) :: mode_dim
   integer, dimension (2) :: kx_dim, ky_dim, om_dim, flux_dim, fmode_dim
 
   ! added by EAB 03/05/04 for movies
@@ -51,7 +52,6 @@ module gs2_io
   integer :: phi0_id, apar0_id, bpar0_id
   integer :: omega_id, omegaavg_id
   integer :: es_part_tormom_flux_id
-  integer :: es_part_flux_dist_id, es_mom_flux_par_dist_id, es_mom_flux_perp_dist_id, es_heat_flux_dist_id, es_phi_dist_id
   integer :: es_part_tormom_by_k_id
   integer :: es_mom_sym_id, phi_corr_id, phi2_extend_id, phi_corr_2pi_id
   integer :: es_part_sym_id 
@@ -529,14 +529,9 @@ contains
     flux_dim        = [nspec_dim, time_dim]
     fluxk_dim       = [nakx_dim, naky_dim, nspec_dim, time_dim]
     fluxx_dim       = [nakx_dim, nspec_dim, time_dim]
-    heat_dim        = [nspec_dim, nheat_dim, time_dim]
     heatk_dim       = [nakx_dim, naky_dim, nspec_dim, nheat_dim, time_dim]
     field_dim       = [ri_dim, nttot_dim, nakx_dim, naky_dim, time_dim]
     final_mom_dim   = [ri_dim, nttot_dim, nakx_dim, naky_dim, nspec_dim]
-    flux_dist_dim   = [nttot_dim, nspec_dim, time_dim]
-    phi_dist_dim    = [ri_dim, nttot_dim, time_dim]
-    sym_dim         = [nttot_dim, vpa_dim, nspec_dim, time_dim]
-
 
     ! HJL This is a hack to stop the netcdf diagnostic output failing when the variable sizes are too big
     ! The netcdf limit is 2^31-4 bytes, however this limit still causes a problem so 178180992 is used
@@ -623,28 +618,6 @@ contains
 
        !Field at theta=igomega
        call ensure_netcdf_var_exists(ncid, 'phi0', netcdf_real, omega_dim, phi0_id)
-
-       if (write_nl_flux_dist) then
-          call ensure_netcdf_var_exists(ncid, 'es_part_flux_dist',  netcdf_real, flux_dist_dim, es_part_flux_dist_id)
-          call ensure_netcdf_var_exists(ncid, 'es_mom_flux_par_dist',  netcdf_real, flux_dist_dim, es_mom_flux_par_dist_id)
-          call ensure_netcdf_var_exists(ncid, 'es_mom_flux_perp_dist',  netcdf_real, flux_dist_dim, es_mom_flux_perp_dist_id)
-          call ensure_netcdf_var_exists(ncid, 'es_heat_flux_dist',  netcdf_real, flux_dist_dim, es_heat_flux_dist_id)
-          call ensure_netcdf_var_exists(ncid, 'es_phi_dist',  netcdf_real, phi_dist_dim, es_phi_dist_id)
-       end if
-
-       !????
-       if (write_sym) then
-          call ensure_netcdf_var_exists(ncid, 'es_mom_sym',  netcdf_real, sym_dim, es_mom_sym_id)
-       end if
-       !????
-       if (write_pflux_sym) then !JPL
-          call ensure_netcdf_var_exists(ncid, 'es_part_tormom_sym',  netcdf_real, sym_dim, es_part_sym_id)
-       end if
-       !????
-       if (write_pflux_tormom) then !JPL
-          call ensure_netcdf_var_exists(ncid, 'es_part_tormom_flux', netcdf_real, flux_dim, es_part_tormom_flux_id)
-          call ensure_netcdf_var_exists(ncid, 'es_part_tormom_by_k', netcdf_real, fluxk_dim, es_part_tormom_by_k_id)
-       end if
 
        !Correlation over 2pi range
        if (write_correlation) then
@@ -1271,48 +1244,29 @@ contains
   !> Output the poloidal distributions of the fluxes of particles, perpendicular
   !> momentum, parallel momentum, and energy ! JRB
   subroutine nc_loop_dist (nout, part_fluxes_dist, mom_fluxes_par_dist, mom_fluxes_perp_dist, heat_fluxes_dist, phi_dist)
-
-    use species, only: nspec
     use run_parameters, only: fphi
     use theta_grid, only: ntgrid
 # ifdef NETCDF
-    use netcdf, only: nf90_put_var
+    use neasyf, only: neasyf_write
 # endif
     integer, intent (in) :: nout
     real, dimension (-ntgrid:,:), intent (in) :: part_fluxes_dist, mom_fluxes_par_dist, mom_fluxes_perp_dist, heat_fluxes_dist
     real, dimension (2,-ntgrid:ntgrid), intent (in) :: phi_dist
 # ifdef NETCDF
-    integer, dimension (3) :: start1, count1
-    integer, dimension (3) :: start2, count2
-    integer :: status
-
-    start1(1) = 1
-    start1(2) = 1
-    start1(3) = nout
-
-    count1(1) = 2*ntgrid+1
-    count1(2) = nspec
-    count1(3) = 1
-
-    start2(1) = 1
-    start2(2) = 1
-    start2(3) = nout
-
-    count2(1) = 2
-    count2(2) = 2*ntgrid+1
-    count2(3) = 1
+    character(*), dimension(*), parameter :: flux_dist_dim = [character(7)::"theta", "species", "t"]
+    character(*), dimension(*), parameter :: phi_dist_dim = [character(5)::"ri", "theta", "t"]
 
     if (fphi > zero) then
-       status = nf90_put_var (ncid, es_part_flux_dist_id, part_fluxes_dist, start=start1, count=count1)
-       if (status /= NF90_NOERR) call netcdf_error (status, ncid, es_part_flux_dist_id)
-       status = nf90_put_var (ncid, es_mom_flux_par_dist_id, mom_fluxes_par_dist, start=start1, count=count1)
-       if (status /= NF90_NOERR) call netcdf_error (status, ncid, es_mom_flux_par_dist_id)
-       status = nf90_put_var (ncid, es_mom_flux_perp_dist_id, mom_fluxes_perp_dist, start=start1, count=count1)
-       if (status /= NF90_NOERR) call netcdf_error (status, ncid, es_mom_flux_perp_dist_id)
-       status = nf90_put_var (ncid, es_heat_flux_dist_id, heat_fluxes_dist, start=start1, count=count1)
-       if (status /= NF90_NOERR) call netcdf_error (status, ncid, es_heat_flux_dist_id)
-       status = nf90_put_var (ncid, es_phi_dist_id, phi_dist, start=start2, count=count2)
-       if (status /= NF90_NOERR) call netcdf_error (status, ncid, es_phi_dist_id)
+       call neasyf_write(ncid, "es_part_flux_dist", part_fluxes_dist, &
+            dim_names=flux_dist_dim, start=starts(1, nout))
+       call neasyf_write(ncid, "es_mom_flux_par_dist", mom_fluxes_par_dist, &
+            dim_names=flux_dist_dim, start=starts(1, nout))
+       call neasyf_write(ncid, "es_mom_flux_perp_dist", mom_fluxes_perp_dist, &
+            dim_names=flux_dist_dim, start=starts(1, nout))
+       call neasyf_write(ncid, "es_heat_flux_dist", heat_fluxes_dist, &
+            dim_names=flux_dist_dim, start=starts(1, nout))
+       call neasyf_write(ncid, "es_phi_dist", phi_dist, &
+            dim_names=phi_dist_dim, start=starts(2, nout))
     end if
 
 # endif
@@ -1322,31 +1276,17 @@ contains
   subroutine nc_loop_sym (nout, vflx_sym)
     use theta_grid, only: ntgrid
 # ifdef NETCDF
-    use species, only: nspec
     use run_parameters, only: fphi
-    use le_grids, only: negrid, nlambda
-    use netcdf, only: nf90_put_var
+    use neasyf, only: neasyf_write
     implicit none
 # endif
     integer, intent (in) :: nout
     real, dimension (-ntgrid:,:,:), intent (in) :: vflx_sym
 # ifdef NETCDF
-    integer, dimension (4) :: start, count
-    integer :: status
-
-    start(1) = 1
-    start(2) = 1
-    start(3) = 1
-    start(4) = nout
     
-    count(1) = 2*ntgrid+1
-    count(2) = nlambda*negrid
-    count(3) = nspec
-    count(4) = 1
-
     if (fphi > zero) then
-       status = nf90_put_var (ncid, es_mom_sym_id, vflx_sym, start=start, count=count)
-       if (status /= NF90_NOERR) call netcdf_error (status, ncid, es_mom_sym_id)
+       call neasyf_write(ncid, "es_mom_sym", vflx_sym, &
+            dim_names=sym_dims, start=starts(4, nout))
     end if
 
 # endif
@@ -1356,31 +1296,17 @@ contains
   subroutine nc_loop_partsym_tormom (nout, partflx_sym) 
     use theta_grid, only: ntgrid
 # ifdef NETCDF
-    use species, only: nspec
     use run_parameters, only: fphi
-    use le_grids, only: negrid, nlambda
-    use netcdf, only: nf90_put_var
+    use neasyf, only: neasyf_write
 # endif
     implicit none
     integer, intent (in) :: nout
     real, dimension (-ntgrid:,:,:), intent (in) :: partflx_sym
 # ifdef NETCDF
-    integer, dimension (4) :: start, count
-    integer :: status
-
-    start(1) = 1
-    start(2) = 1
-    start(3) = 1
-    start(4) = nout
-    
-    count(1) = 2*ntgrid+1
-    count(2) = nlambda*negrid
-    count(3) = nspec
-    count(4) = 1
 
     if (fphi > zero) then
-       status = nf90_put_var (ncid, es_part_sym_id, partflx_sym, start=start, count=count)
-       if (status /= NF90_NOERR) call netcdf_error (status, ncid, es_part_sym_id)
+       call neasyf_write(ncid, "es_part_tormom_sym", partflx_sym, &
+            dim_names=sym_dims, start=starts(4, nout))
     end if
 
 # endif
