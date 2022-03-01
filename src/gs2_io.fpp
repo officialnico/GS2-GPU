@@ -572,24 +572,6 @@ contains
 !       call ensure_netcdf_var_exists(ncid, 'lpcoef_by_mode', netcdf_real, lp_dim, lpcoef_by_mode_id)
     end if
 
-    !The current value of the scanned parameter
-    if (write_scan_parameter) then
-       call ensure_netcdf_var_exists(ncid,'scan_parameter_value',netcdf_real,time_dim,current_scan_parameter_value_id)
-       call ensure_netcdf_att_exists(ncid,current_scan_parameter_value_id,'long_name','The current value of the scan parameter')
-    end if
-
-    !Roughly the field line averaged summed field amplitudes
-    call ensure_netcdf_var_exists(ncid, 'phtot', netcdf_real, mode_dim, phtot_id)
-    call ensure_netcdf_att_exists(ncid, phtot_id, 'long_name', 'Field amplitude')
-
-    !Frequency and growth rate estimates
-    if (write_omega) then
-       call ensure_netcdf_var_exists(ncid, 'omega', netcdf_real, omega_dim, omega_id)
-       call ensure_netcdf_var_exists(ncid, 'omegaavg', netcdf_real, omega_dim, omegaavg_id)
-    end if
-
-    !------------------------------------------------
-
     !################################################
     !# NOW EXIT DEFINITION MODE
     status = nf90_enddef (ncid)  ! out of definition mode
@@ -1221,7 +1203,7 @@ contains
 # ifdef NETCDF
     real, dimension (ntheta0) :: field2_by_kx
     real, dimension (naky) :: field2_by_ky
-    real, dimension (2, ntheta0, naky) :: ri2
+
     real, dimension (ntheta0, naky, nspec) :: tmps
     complex, dimension (ntheta0, naky) :: tmp
     integer, dimension (4) :: start0, count0, start4, count4
@@ -1440,31 +1422,24 @@ contains
        do it = 1, ntheta0
           tmp(it, :) = omega(it, :) * woutunits
        end do
-       
-       call c2r (tmp, ri2)
-       status = nf90_put_var (ncid, omega_id, ri2, start=start0, count=count0)
-       if (status /= NF90_NOERR) call netcdf_error (status, ncid, omega_id)
-       
+       call netcdf_write_complex(ncid, "omega", tmp, dim_names=omega_dims, start=starts(4, nout))
+
        do it = 1, ntheta0
           tmp(it, :) = omegaavg(it, :) * woutunits
        end do
-
-       call c2r (tmp, ri2)
-       status = nf90_put_var (ncid, omegaavg_id, ri2, start=start0, count=count0)
-       if (status /= NF90_NOERR) call netcdf_error (status, ncid, omegaavg_id)
+       call netcdf_write_complex(ncid, "omegaavg", tmp, dim_names=omega_dims, start=starts(4, nout))
     end if
 
     if (write_scan_parameter) then
-       status = nf90_put_var (ncid, &
-                              current_scan_parameter_value_id, &
-                              current_scan_parameter_value, &
-                              start=(/nout/))
-       if (status /= NF90_NOERR) &
-       call netcdf_error (status, ncid, current_scan_parameter_value_id)
+       call neasyf_write(ncid, &
+            "current_scan_parameter_value", &
+            current_scan_parameter_value, &
+            dim_names=["t"], start=[nout], &
+            long_name="The current value of the scan parameter")
      end if
 
-    status = nf90_put_var (ncid, phtot_id, phitot, start=start, count=count)
-    if (status /= NF90_NOERR) call netcdf_error (status, ncid, phtot_id)
+    call neasyf_write(ncid, "phtot", phitot, dim_names=mode_dims, start=starts(3, nout), &
+         long_name="Roughly the field line averaged summed field amplitudes")
 # endif
   end subroutine nc_loop
 
