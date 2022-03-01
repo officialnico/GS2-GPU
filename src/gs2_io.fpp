@@ -28,9 +28,7 @@ module gs2_io
 
   integer, dimension (6) :: lp_dim
   integer, dimension (5) :: field_dim, final_mom_dim, heatk_dim, err_dim
-  integer, dimension (5) :: phi_corr_dim
   integer, dimension (4) :: omega_dim, fluxk_dim
-  integer, dimension (4) :: phi2_extend_dim, phi_corr_2pi_dim
   integer, dimension (3) :: fluxx_dim
   integer, dimension (3) :: mode_dim
   integer, dimension (2) :: kx_dim, ky_dim, om_dim, flux_dim, fmode_dim
@@ -51,10 +49,6 @@ module gs2_io
   integer :: phi2_by_ky_id, apar2_by_ky_id, bpar2_by_ky_id
   integer :: phi0_id, apar0_id, bpar0_id
   integer :: omega_id, omegaavg_id
-  integer :: es_part_tormom_flux_id
-  integer :: es_part_tormom_by_k_id
-  integer :: es_mom_sym_id, phi_corr_id, phi2_extend_id, phi_corr_2pi_id
-  integer :: es_part_sym_id 
   integer :: phi_t_id, apar_t_id, bpar_t_id
   integer :: code_id
   integer :: h_energy_id, h_energy_dot_id, h_antenna_id
@@ -554,12 +548,6 @@ contains
        endif
     endif
     ! HJL End of hack
-    if (io_write_corr_extend) then
-       phi2_extend_dim = [nttotext_dim, nakx_dim, naky_dim, time_big_dim]
-       phi_corr_dim = [ri_dim, nttotext_dim, nakx_dim, naky_dim, time_big_dim]
-    end if
-
-    phi_corr_2pi_dim = [ri_dim, nttot_dim, naky_dim, time_dim]
 
     datestamp(:) = ' '
     timestamp(:) = ' '
@@ -618,11 +606,6 @@ contains
 
        !Field at theta=igomega
        call ensure_netcdf_var_exists(ncid, 'phi0', netcdf_real, omega_dim, phi0_id)
-
-       !Correlation over 2pi range
-       if (write_correlation) then
-          call ensure_netcdf_var_exists(ncid, 'phi_corr_2pi',  netcdf_real, phi_corr_2pi_dim, phi_corr_2pi_id)
-       end if
 
        !Field as a function of time
        if (write_phi_t) then
@@ -751,11 +734,6 @@ contains
        call ensure_netcdf_att_exists(ncid, hk_heating_id, 'long_name', 'Total heating by species and mode')
     end if
 
-    !Correlation function (phi only so should probably include if fphi>0)
-    if (io_write_corr_extend) then
-       call ensure_netcdf_var_exists(ncid, 'phi2_extend',  netcdf_real, phi2_extend_dim, phi2_extend_id)
-       call ensure_netcdf_var_exists(ncid, 'phi_corr',  netcdf_real, phi_corr_dim, phi_corr_id)
-    end if
     !------------------------------------------------
 
     !################################################
@@ -1316,10 +1294,7 @@ contains
   subroutine nc_loop_corr (nout,phi_2pi_corr)
     use theta_grid, only: ntgrid
 # ifdef NETCDF
-    use convert, only: c2r
     use run_parameters, only: fphi
-    use kt_grids, only: naky
-    use netcdf, only: nf90_put_var
 # endif
     implicit none
     !> Current output timestep
@@ -1327,25 +1302,11 @@ contains
     !> The correlation function over the physical domain
     complex, dimension (-ntgrid:,:), intent (in) :: phi_2pi_corr
 # ifdef NETCDF
-    integer, dimension (4) :: start4, count4
-    integer :: status
-
-    real, dimension (2, size(phi_2pi_corr,1), size(phi_2pi_corr,2)) :: ri2
-
-    start4(1) = 1
-    start4(2) = 1
-    start4(3) = 1
-    start4(4) = nout
-
-    count4(1) = 2
-    count4(2) = 2*ntgrid+1
-    count4(3) = naky
-    count4(4) = 1
 
     if (fphi > zero) then
-       call c2r (phi_2pi_corr, ri2)
-       status = nf90_put_var (ncid, phi_corr_2pi_id, ri2, start=start4, count=count4)
-       if (status /= NF90_NOERR) call netcdf_error (status, ncid, phi_corr_2pi_id)
+       call netcdf_write_complex(ncid, "phi_corr_2pi", phi_2pi_corr, &
+            dim_names=[character(5)::"ri", "theta", "ky", "t"], &
+            start=starts(4, nout))
     end if
 
 # endif
@@ -1354,12 +1315,8 @@ contains
   !> Write the correlation function over the extended domain to netCDF
   subroutine nc_loop_corr_extend (nout_big,phi_corr,phi2_extend)
 # ifdef NETCDF
-    use file_utils, only: error_unit
-    use convert, only: c2r
     use run_parameters, only: fphi
-    use kt_grids, only: ntheta0, naky, jtwist_out
-    use theta_grid, only: ntgrid
-    use netcdf, only: nf90_put_var
+    use neasyf, only: neasyf_write
 # endif
     implicit none
     !> The current output timestep for "large" diagnostics
@@ -1367,41 +1324,16 @@ contains
     real, dimension (:,:,:), intent (in) :: phi2_extend
     complex, dimension (:,:,:), intent (in) :: phi_corr
 # ifdef NETCDF
-    integer, dimension (4) :: start4, count4
-    integer, dimension (5) :: start5, count5
-    integer :: status, ierr
-    real, dimension (2, size(phi_corr,1), size(phi_corr,2), size(phi_corr,3)) :: ri3
-
-    ierr = error_unit()
-
-    start4(1) = 1
-    start4(2) = 1
-    start4(3) = 1
-    start4(4) = nout_big
-    
-    count4(1) = (2*ntgrid+1)*((ntheta0-1)/jtwist_out+1)
-    count4(2) = ntheta0
-    count4(3) = naky
-    count4(4) = 1
-
-    start5(1) = 1
-    start5(2) = 1
-    start5(3) = 1
-    start5(4) = 1
-    start5(5) = nout_big
-
-    count5(1) = 2
-    count5(2) = (2*ntgrid+1)*((ntheta0-1)/jtwist_out+1)
-    count5(3) = ntheta0
-    count5(4) = naky
-    count5(5) = 1
+    character(*), dimension(*), parameter :: phi_corr_dims = &
+         [character(9)::"ri", "theta_ext", "kx", "ky", "tb"]
+    character(*), dimension(*), parameter :: phi2_extend_dims = &
+         [character(9)::"theta_ext", "kx", "ky", "tb"]
 
     if (fphi > zero) then
-       call c2r (phi_corr, ri3)
-       status = nf90_put_var (ncid, phi_corr_id, ri3, start=start5, count=count5)
-       if (status /= NF90_NOERR) call netcdf_error (status, ncid, phi_corr_id)
-       status = nf90_put_var (ncid, phi2_extend_id, phi2_extend, start=start4, count=count4)
-       if (status /= NF90_NOERR) call netcdf_error (status, ncid, phi2_extend_id)
+       call netcdf_write_complex(ncid, "phi_corr", phi_corr, &
+            dim_names=phi_corr_dims, start=starts(5, nout_big))
+       call neasyf_write(ncid, "phi2_extend", phi2_extend, &
+            dim_names=phi2_extend_dims, start=starts(4, nout_big))
     end if
 
 # endif
