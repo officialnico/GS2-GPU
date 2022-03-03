@@ -494,14 +494,9 @@ contains
        j_ext_hist = 0
     end if
 
-    call init_gs2_io (append_old, write_nl_flux, write_omega, &
-         write_heating, write_final_antot, &
-         write_eigenfunc, make_movie, nmovie_tot, write_verr, &
-         write_moments, write_full_moments_notgc, &
-         write_symmetry, write_pflux_sym, write_nl_flux_dist, write_pflux_tormom, &
-         write_correlation, nwrite_big_tot, write_correlation_extend, &
+    call init_gs2_io (append_old, make_movie, write_verr, &
+         nwrite_big_tot, write_correlation_extend, &
          write_phi_over_time, write_apar_over_time, write_bpar_over_time, &
-         write_avg_moments, write_final_moments, write_final_epar, &
          nout, ob_midplane=ob_midplane, header=local_header)
 
     call broadcast (nout)

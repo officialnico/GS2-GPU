@@ -50,7 +50,7 @@ module gs2_io
   real, parameter :: zero = epsilon(0.0)
 
 contains
-  
+
   !> Provides read-only access to the netCDF file ID
   integer function get_netcdf_file_id()
     get_netcdf_file_id = ncid
@@ -75,15 +75,8 @@ contains
   !>
   !> Create the main and movie (real-space fields) netCDF files,
   !> creating the dimensions and main variables
-  subroutine init_gs2_io (append_old, write_nl_flux, write_omega, &
-      write_heating, write_final_antot, write_eigenfunc, &
-      make_movie, nmovie_tot, write_verr, &
-      write_moments,&
-      write_full_moments_notgc, write_sym, write_pflux_sym, write_nl_flux_dist, &
-      write_pflux_tormom, write_correlation, nwrite_big_tot, write_correlation_extend, & 
-      write_phi_over_time, write_apar_over_time, write_bpar_over_time, &
-      write_avg_moments, write_final_moments, write_final_epar, nout, &
-      ob_midplane, header)
+  subroutine init_gs2_io (append_old, make_movie, write_verr, nwrite_big_tot, write_correlation_extend, &
+      write_phi_over_time, write_apar_over_time, write_bpar_over_time, nout, ob_midplane, header)
     use mp, only: proc0
     use standard_header, only : standard_header_type
 # ifdef NETCDF
@@ -105,16 +98,10 @@ contains
     implicit none
     !> See [[gs2_diagnostics_knobs]] for details of these inputs
     logical, intent(in) :: append_old
-    logical, intent(in) :: write_nl_flux, write_nl_flux_dist, write_omega
-    logical, intent(in) :: write_heating, make_movie, write_moments
-    logical, intent(in) :: write_final_antot, write_eigenfunc, write_verr
-    logical, intent(in) :: write_full_moments_notgc, write_sym, write_correlation
-    logical, intent(in) :: write_pflux_sym, write_pflux_tormom 
     logical, intent(inout) :: write_correlation_extend
-    integer, intent (in) :: nmovie_tot, nwrite_big_tot
-    logical, intent(in) :: write_phi_over_time
-    logical, intent(in) :: write_apar_over_time,  write_bpar_over_time
-    logical, intent(in) :: write_avg_moments, write_final_moments, write_final_epar
+    integer, intent(in) :: nwrite_big_tot
+    logical, intent(in) :: write_verr, make_movie
+    logical, intent(in) :: write_phi_over_time, write_apar_over_time, write_bpar_over_time
     !> If true, write out moments at the outboard midplane only,
     !> otherwise write them out along the entire flux surface
     logical, intent(in), optional :: ob_midplane
@@ -180,12 +167,7 @@ contains
     if (proc0) then
         !Setup main file by creating netCDF file
         call define_dims (ncid, nwrite_big_tot, io_write_corr_extend)
-        call define_vars (write_nl_flux, write_omega, &
-                          write_heating, write_final_antot, write_eigenfunc, write_verr, &
-                          write_moments, write_full_moments_notgc, write_sym, write_pflux_sym, &
-                          write_nl_flux_dist, write_pflux_tormom, write_correlation, &
-                          write_correlation_extend, write_avg_moments, write_final_moments, write_final_epar, &
-                          ob_midplane=ob_midplane)
+        call define_vars (write_verr, write_correlation_extend, ob_midplane=ob_midplane)
 
         if (appending) then
             nout = get_dim_length(ncid, "t")
@@ -393,12 +375,7 @@ contains
 
   !> Create (but don't fill) the various diagnostics variables in the
   !> output netCDF file
-  subroutine define_vars (write_nl_flux, write_omega, &
-       write_heating, write_final_antot, write_eigenfunc, write_verr, &
-       write_moments, write_full_moments_notgc, write_sym, write_pflux_sym, &
-       write_nl_flux_dist, write_pflux_tormom, write_correlation, &
-       write_correlation_extend, write_avg_moments, write_final_moments, write_final_epar, &
-       ob_midplane)
+  subroutine define_vars (write_verr, write_correlation_extend, ob_midplane)
 # ifdef NETCDF
     use file_utils, only: error_unit
     use netcdf, only : NF90_CHAR, nf90_inq_libvers
@@ -406,13 +383,8 @@ contains
     use netcdf_utils, only: ensure_netcdf_att_exists, ensure_netcdf_var_exists
 # endif
     implicit none
-    logical, intent(in) :: write_nl_flux, write_nl_flux_dist, write_omega
-    logical, intent(in) :: write_heating, write_final_antot
-    logical, intent(in) :: write_eigenfunc, write_verr, write_moments
-    logical, intent(in) :: write_full_moments_notgc, write_sym, write_correlation
-    logical, intent(in) :: write_pflux_sym, write_pflux_tormom
+    logical, intent(in) :: write_verr
     logical, intent(inout) :: write_correlation_extend
-    logical, intent(in) :: write_avg_moments, write_final_moments, write_final_epar
     logical, optional, intent(in) :: ob_midplane
 # ifdef NETCDF
     character (20) :: datestamp, timestamp, timezone
