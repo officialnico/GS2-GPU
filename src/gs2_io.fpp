@@ -29,23 +29,12 @@ module gs2_io
   character(*), dimension(*), parameter :: sym_dims = [character(7)::"theta", "vpa", "species", "t"]
 
   integer, dimension (6) :: lp_dim
-  integer, dimension (5) :: field_dim, final_mom_dim, heatk_dim, err_dim
-  integer, dimension (4) :: omega_dim
-  integer, dimension (3) :: fluxx_dim
-  integer, dimension (3) :: mode_dim
-  integer, dimension (2) :: kx_dim, ky_dim, om_dim, fmode_dim
+  integer, dimension (5) :: err_dim
 
   ! added by EAB 03/05/04 for movies
   logical :: my_make_movie, io_write_corr_extend
   integer :: ncid_movie
-  integer :: nx_dim, ny_dim, nth_dim, time_movie_dim
-  integer, dimension (4) :: xmode_dim
-  integer :: nx_id, ny_id, nth_id, x_id, y_id, th_id, time_movie_id
-  integer :: phi_by_xmode_id, apar_by_xmode_id, bpar_by_xmode_id
 
-  integer :: current_scan_parameter_value_id
-  integer :: phtot_id
-  integer :: omega_id, omegaavg_id
   integer :: code_id
   logical :: write_apar_t, write_phi_t, write_bpar_t ! Should the fields be written out every nwrite?
 
@@ -425,12 +414,8 @@ contains
        ob_midplane)
 # ifdef NETCDF
     use file_utils, only: error_unit
-    use kt_grids, only: naky, ntheta0
-    use run_parameters, only: fphi, fapar, fbpar
-    use parameter_scan_arrays, only: write_scan_parameter
-    use netcdf, only: NF90_CHAR, NF90_INT, NF90_GLOBAL
-    use netcdf, only: nf90_enddef, nf90_inq_libvers, nf90_put_var
-    use netcdf_utils, only: netcdf_real, get_netcdf_dim_length
+    use netcdf, only : NF90_CHAR, nf90_inq_libvers
+    use netcdf_utils, only: get_netcdf_dim_length
     use netcdf_utils, only: ensure_netcdf_att_exists, ensure_netcdf_var_exists
 # endif
     implicit none
@@ -444,7 +429,7 @@ contains
     logical, optional, intent(in) :: ob_midplane
 # ifdef NETCDF
     character (20) :: datestamp, timestamp, timezone
-    integer :: status, ierr, dimsize(5)
+    integer :: ierr, dimsize(5)
     real    :: total
     logical :: obmid=.false.
 
@@ -454,18 +439,8 @@ contains
     endif
 
     !Define dimensions/shapes for different data types
-    fmode_dim       = [nakx_dim, naky_dim]
-    mode_dim        = [nakx_dim, naky_dim, time_dim]
     err_dim         = [nttot_dim, nakx_dim, naky_dim, ncoordt_dim, time_dim]
     lp_dim          = [nttot_dim, nakx_dim, naky_dim, nspec_dim, ncoord_dim, time_dim]
-    kx_dim          = [nakx_dim, time_dim]
-    ky_dim          = [naky_dim, time_dim]
-    om_dim          = [ri_dim, time_dim]
-    omega_dim       = [ri_dim, nakx_dim, naky_dim, time_dim]
-    fluxx_dim       = [nakx_dim, nspec_dim, time_dim]
-    heatk_dim       = [nakx_dim, naky_dim, nspec_dim, nheat_dim, time_dim]
-    field_dim       = [ri_dim, nttot_dim, nakx_dim, naky_dim, time_dim]
-    final_mom_dim   = [ri_dim, nttot_dim, nakx_dim, naky_dim, nspec_dim]
 
     ! HJL This is a hack to stop the netcdf diagnostic output failing when the variable sizes are too big
     ! The netcdf limit is 2^31-4 bytes, however this limit still causes a problem so 178180992 is used
@@ -528,11 +503,6 @@ contains
 !       call ensure_netcdf_var_exists(ncid, 'errest_by_mode', netcdf_real, err_dim, errest_by_mode_id)
 !       call ensure_netcdf_var_exists(ncid, 'lpcoef_by_mode', netcdf_real, lp_dim, lpcoef_by_mode_id)
     end if
-
-    !################################################
-    !# NOW EXIT DEFINITION MODE
-    status = nf90_enddef (ncid)  ! out of definition mode
-    if (status /= NF90_NOERR) call netcdf_error (status)
 
 # endif
   end subroutine define_vars
@@ -1075,7 +1045,6 @@ contains
     use gs2_heating, only: hk_repack
     use run_parameters, only: fphi, fapar, fbpar
     use kt_grids, only: naky, ntheta0
-    use theta_grid, only: ntgrid
     use species, only: nspec
     use convert, only: c2r
     use fields_arrays, only: phinew, aparnew, bparnew
@@ -1105,11 +1074,7 @@ contains
 
     real, dimension (ntheta0, naky, nspec) :: tmps
     complex, dimension (ntheta0, naky) :: tmp
-    integer, dimension (4) :: start0, count0, start4, count4
-    integer, dimension (3) :: start, count, starth, counth
-    integer, dimension (2) :: startx, countx, starty, county, counts
-    integer :: status, it, ik
-    integer, dimension (5) :: start5, count5
+    integer :: ik, it
 
     character(*), dimension(*), parameter :: field_dims = [character(5)::"ri", "theta", "kx", "ky", "t"]
     character(*), dimension(*), parameter :: kx_dims = ["kx", "t "]
@@ -1117,70 +1082,7 @@ contains
     character(*), dimension(*), parameter :: omega_dims = ["ri", "kx", "ky", "t "]
     character(*), dimension(*), parameter :: mode_dims = ["kx", "ky", "t "]
 
-    start5(1) = 1
-    start5(2) = 1
-    start5(3) = 1
-    start5(4) = 1
-    start5(5) = nout
-
-    count5(1) = 2
-    count5(2) = 2*ntgrid+1
-    count5(3) = ntheta0
-    count5(4) = naky
-    count5(5) = 1
-
     call neasyf_write(ncid, "t", time, dim_names=["t"], start=[nout])
-
-    start(1) = 1
-    start(2) = 1
-    start(3) = nout
-
-    count(1) = ntheta0
-    count(2) = naky
-    count(3) = 1
-
-    start0(1) = 1
-    start0(2) = 1
-    start0(3) = 1
-    start0(4) = nout
-
-    count0(1) = 2
-    count0(2) = ntheta0
-    count0(3) = naky
-    count0(4) = 1
-
-    start4(1) = 1
-    start4(2) = 1
-    start4(3) = 1
-    start4(4) = nout
-
-    count4(1) = ntheta0
-    count4(2) = naky
-    count4(3) = nspec
-    count4(4) = 1
-
-    starty(1) = 1
-    starty(2) = nout
-
-    county(1) = naky
-    county(2) = 1
-
-    startx(1) = 1
-    startx(2) = nout
-
-    countx(1) = ntheta0
-    countx(2) = 1
-
-    counts(1) = nspec
-    counts(2) = 1
-
-    starth(1) = 1
-    starth(2) = 1
-    starth(3) = nout
-
-    counth(1) = nspec
-    counth(2) = 7
-    counth(3) = 1
 
     if (fphi > zero) then
        if(write_phi_t) then
