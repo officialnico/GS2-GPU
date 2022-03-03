@@ -216,11 +216,6 @@ contains
         end if
 
         if (my_make_movie) then
-          !Setup movie file
-          call define_dims_mymovie (nmovie_tot)
-          call define_vars_mymovie
-
-          !Write constant movie data
           call nc_grids_mymovie
         end if
     end if
@@ -303,38 +298,6 @@ contains
 # endif
   end subroutine define_dims
 
-  !> Define the dimensions used in the movie file. Some duplication with
-  !> main file -- may want to merge movie data into main file
-  !> Main reason for using a new file is we can only have one unlimited dimension
-  !> per file (with new versions of NETCDF this is no longer true) and we
-  !> probably don't want to write movie data as often as other data.
-  !> However, at the moment we precalculate the number of outputs, so it
-  !> isn't actually unlimited
-  subroutine define_dims_mymovie(nmovie_tot)
-# ifdef NETCDF
-    use gs2_layouts, only: yxf_lo
-    use theta_grid, only: ntgrid
-    use netcdf, only: nf90_def_dim
-    use netcdf_utils, only: ensure_netcdf_dim_exists
-# endif
-    implicit none
-    integer, intent(in) :: nmovie_tot
-# ifdef NETCDF
-    integer :: nx, ny
-
-    ! added by EAB 03/05/04 for GS2 movies
-    ! <doc> If make_movie = .true., define some extra dimensions for movie output; x with dimension yxf_lo%nx; y with dimension yxf_lo%ny, and tm, (i.e. time) with dimension nmovie_tot = nstep/nmovie </doc>
-    if (my_make_movie) then
-       nx=yxf_lo%nx
-       ny=yxf_lo%ny
-       call ensure_netcdf_dim_exists(ncid_movie, 'x', nx, nx_dim)
-       call ensure_netcdf_dim_exists(ncid_movie, 'y', ny, ny_dim)
-       call ensure_netcdf_dim_exists(ncid_movie, 'theta', 2*ntgrid+1, nth_dim)
-       call ensure_netcdf_dim_exists(ncid_movie, 'tm', nmovie_tot, time_movie_dim)
-    endif
-# endif
-  end subroutine define_dims_mymovie
-
   !> Write the physical normalisations to the output netCDF file
   !> Write the physical normalisations to the output netCDF file
   subroutine nc_norms(file_id)
@@ -372,13 +335,13 @@ contains
     use kt_grids, only: akx, aky
     use gs2_layouts, only: yxf_lo
     use theta_grid, only: ntgrid, theta
-    use netcdf, only: nf90_put_var
+    use neasyf, only: neasyf_dim, neasyf_write
 #endif
     implicit none
 # ifdef NETCDF
     real, dimension(:), allocatable :: x,y
-    integer :: it, ik, status
-    ! added by EAB 03/05/04 for GS2 movies
+    integer :: it, ik
+
     if(my_make_movie) then
 
        allocate(x(yxf_lo%nx),y(yxf_lo%ny))
@@ -390,19 +353,13 @@ contains
           y(ik) = 2.0*pi/aky(2)*(-0.5+ real(ik-1)/real(yxf_lo%ny))
        end do
        
-       status = nf90_put_var (ncid_movie, nx_id, yxf_lo%nx)
-       if (status /= NF90_NOERR) call netcdf_error (status, ncid_movie, nx_id)
-       status = nf90_put_var (ncid_movie, ny_id, yxf_lo%ny)
-       if (status /= NF90_NOERR) call netcdf_error (status, ncid_movie, ny_id)
-       status = nf90_put_var (ncid_movie, nth_id, 2*ntgrid+1)
-       if (status /= NF90_NOERR) call netcdf_error (status, ncid_movie, nth_id)
-       status = nf90_put_var (ncid_movie, x_id, x)
-       if (status /= NF90_NOERR) call netcdf_error (status, ncid_movie, x_id)
-       status = nf90_put_var (ncid_movie, y_id, y)
-       if (status /= NF90_NOERR) call netcdf_error (status, ncid_movie, y_id)
-       status = nf90_put_var (ncid_movie, th_id, theta)
-       if (status /= NF90_NOERR) call netcdf_error (status, ncid_movie, th_id)
-
+       call neasyf_write(ncid_movie, "nx", yxf_lo%nx)
+       call neasyf_write(ncid_movie, "ny", yxf_lo%ny)
+       call neasyf_write(ncid_movie, "ntheta", 2*ntgrid+1)
+       call neasyf_dim(ncid_movie, "x", x, long_name="x / rho")
+       call neasyf_dim(ncid_movie, "y", y, long_name="y / rho")
+       call neasyf_dim(ncid_movie, "theta", theta)
+       call neasyf_dim(ncid_movie, "tm", unlimited=.true., long_name="Time", units="L/vt")
        deallocate(x,y)
     endif
 # endif
@@ -579,64 +536,6 @@ contains
 
 # endif
   end subroutine define_vars
-
-  !> Define the vars in the movie file. A fair bit of duplication wrt main
-  !> file -- may want to think about merging movie data into main file.
-  !> Main reason for using a new file is we can only have one unlimited dimension
-  !> per file (with new versions of NETCDF this is no longer true) and we
-  !> probably don't want to write movie data as often as other data.
-  !> However, at the moment we precalculate the number of outputs, so it
-  !> isn't actually unlimited
-  subroutine define_vars_mymovie
-# ifdef NETCDF
-    use run_parameters, only: fphi, fapar, fbpar
-    use netcdf, only: NF90_INT, NF90_GLOBAL
-    use netcdf, only: nf90_def_var, nf90_put_att, nf90_enddef
-    use netcdf_utils, only: netcdf_real, ensure_netcdf_att_exists, ensure_netcdf_var_exists
-    implicit none
-    integer :: status
-
-    ! added by EAB 03/05/04 for GS2 movies
-    if(my_make_movie) then
-       !Setup field shape
-       xmode_dim = [nx_dim, ny_dim, nth_dim, time_movie_dim]
-
-       !Grid sizes
-       call ensure_netcdf_var_exists(ncid_movie, 'nx', NF90_INT, nx_id)
-       call ensure_netcdf_var_exists(ncid_movie, 'ny', NF90_INT, ny_id)
-       call ensure_netcdf_var_exists(ncid_movie, 'ntheta', NF90_INT, nth_id)
-
-       !Grids
-       call ensure_netcdf_var_exists(ncid_movie, 'tm', netcdf_real, time_movie_dim, time_movie_id)
-       call ensure_netcdf_att_exists(ncid_movie, time_movie_id, 'long_name', 'Time')
-       call ensure_netcdf_att_exists(ncid_movie, time_movie_id, 'units', 'L/vt')
-       call ensure_netcdf_var_exists(ncid_movie, 'x', netcdf_real, nx_dim, x_id)
-       call ensure_netcdf_att_exists(ncid_movie, x_id, 'long_name', 'x / rho')
-       call ensure_netcdf_var_exists(ncid_movie, 'y', netcdf_real, ny_dim, y_id)
-       call ensure_netcdf_att_exists(ncid_movie, y_id, 'long_name', 'y / rho')
-       call ensure_netcdf_var_exists(ncid_movie, 'theta', netcdf_real, nth_dim, th_id)
-
-       !Field data for movie
-       if(fphi > zero) then
-          call ensure_netcdf_var_exists(ncid_movie, 'phi_by_xmode', netcdf_real, xmode_dim, phi_by_xmode_id)
-       end if
-       ! TEMPORARY BD | Disable DD to match gs2_diagnostics
-       !call ensure_netcdf_var_exists(ncid_movie, 'density_by_xmode', netcdf_real, xmode_dim, apar_by_xmode_id)
-
-       if(fapar > zero) then
-          call ensure_netcdf_var_exists(ncid_movie, 'apar_by_xmode', netcdf_real, xmode_dim, apar_by_xmode_id)
-       end if
-
-       if(fbpar > zero) then
-          call ensure_netcdf_var_exists(ncid_movie, 'bpar_by_xmode', netcdf_real, xmode_dim, bpar_by_xmode_id)
-       end if
-
-       !Finish defining
-       status = nf90_enddef (ncid_movie)  ! out of definition mode
-       if (status /= NF90_NOERR) call netcdf_error (status)
-    endif
-#endif
-  end subroutine define_vars_mymovie
 
   !> Write the normalised fields to netCDF
   subroutine nc_eigenfunc(file_id, phase)
@@ -1470,10 +1369,8 @@ contains
   !> Write \(\phi, A_\parallel, B_\parallel\) as functions of real space
   subroutine nc_loop_movie (nout_movie, time, yxphi, yxapar, yxbpar)
 # ifdef NETCDF
-    use gs2_layouts, only: yxf_lo
-    use theta_grid, only: ntgrid
     use run_parameters, only: fphi, fapar, fbpar
-    use netcdf, only: nf90_put_var
+    use neasyf, only: neasyf_write
 # endif
     implicit none
     !> Current movie timestep
@@ -1483,33 +1380,23 @@ contains
     !> \(\phi, A_\parallel, B_\parallel\) as functions of real space
     real, dimension (:,:,:), intent (in):: yxphi, yxapar, yxbpar 
 # ifdef NETCDF
-    integer :: status
-    integer, dimension (4) :: start, count
+    character(*), dimension(*), parameter :: xmode_dim = [character(6)::"x", "y", "theta", "tm"]
 
-    status = nf90_put_var (ncid_movie, time_movie_id, time, start=(/nout_movie/))
-    if (status /= NF90_NOERR) call netcdf_error (status, ncid_movie, time_movie_id)
-    start(1) = 1
-    start(2) = 1
-    start(3) = 1
-    start(4) = nout_movie
-    count(1) = yxf_lo%nx
-    count(2) = yxf_lo%ny
-    count(3) = 2*ntgrid+1
-    count(4) = 1
+    call neasyf_write(ncid_movie, "tm", time, dim_names=["tm"], start=[nout_movie])
 
     if ( fphi > zero) then
-       status = nf90_put_var (ncid_movie, phi_by_xmode_id, yxphi, start=start, count=count)
-       if (status /= NF90_NOERR) call netcdf_error (status, ncid_movie, phi_by_xmode_id)
+       call neasyf_write(ncid_movie, "phi_by_xmode", yxphi, &
+            dim_names=xmode_dim, start=starts(4, nout_movie))
     end if
 
     if ( fapar > zero) then
-       status = nf90_put_var (ncid_movie, apar_by_xmode_id, yxapar, start=start, count=count)
-       if (status /= NF90_NOERR) call netcdf_error (status, ncid_movie, apar_by_xmode_id)
+       call neasyf_write(ncid_movie, "apar_by_xmode", yxapar, &
+            dim_names=xmode_dim, start=starts(4, nout_movie))
     end if
 
     if ( fbpar > zero) then
-       status = nf90_put_var (ncid_movie, bpar_by_xmode_id, yxbpar, start=start, count=count)
-       if (status /= NF90_NOERR) call netcdf_error (status, ncid_movie, bpar_by_xmode_id)
+       call neasyf_write(ncid_movie, "bpar_by_xmode", yxbpar, &
+            dim_names=xmode_dim, start=starts(4, nout_movie))
     end if
 # endif
   end subroutine nc_loop_movie
