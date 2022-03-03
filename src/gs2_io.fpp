@@ -2,8 +2,7 @@
 module gs2_io
 
 # ifdef NETCDF
-  use netcdf, only: NF90_NOERR
-  use netcdf_utils, only: netcdf_error, kind_nf
+  use netcdf_utils, only: kind_nf
 # endif
 
   implicit none
@@ -35,7 +34,6 @@ module gs2_io
   logical :: my_make_movie, io_write_corr_extend
   integer :: ncid_movie
 
-  integer :: code_id
   logical :: write_apar_t, write_phi_t, write_bpar_t ! Should the fields be written out every nwrite?
 
   !> Write a `complex` array to netcdf
@@ -127,9 +125,7 @@ contains
 # ifdef NETCDF
     logical :: accelerated
     character(run_name_size) :: filename
-    integer :: status
     logical :: previous_file_exists, appending
-    integer, parameter :: create_file_mode = ior(NF90_CLOBBER, NF90_NETCDF4)
 
     !################
     !# Update internal flags
@@ -142,8 +138,6 @@ contains
     io_write_corr_extend = write_correlation_extend
 
     !----------------
-
-    status = NF90_NOERR
 
     !Create file
     filename = trim(trim(run_name)//'.out.nc')
@@ -399,9 +393,6 @@ contains
 
   !> Create (but don't fill) the various diagnostics variables in the
   !> output netCDF file
-  !>
-  !> This also calls `nf90_enddef` which leaves "define" mode, so no
-  !> more variables can be added to the file after this call
   subroutine define_vars (write_nl_flux, write_omega, &
        write_heating, write_final_antot, write_eigenfunc, write_verr, &
        write_moments, write_full_moments_notgc, write_sym, write_pflux_sym, &
@@ -428,6 +419,7 @@ contains
     integer :: ierr, dimsize(5)
     real    :: total
     logical :: obmid=.false.
+    integer :: code_id
 
     !Handle optional input
     if (present(ob_midplane)) then
@@ -1042,10 +1034,8 @@ contains
     use run_parameters, only: fphi, fapar, fbpar
     use kt_grids, only: naky, ntheta0
     use species, only: nspec
-    use convert, only: c2r
     use fields_arrays, only: phinew, aparnew, bparnew
     use parameter_scan_arrays, only: write_scan_parameter,current_scan_parameter_value
-    use netcdf, only: nf90_put_var
     use neasyf, only: neasyf_write
 # endif
     implicit none
@@ -1302,7 +1292,8 @@ contains
   !> Sync the files every nsync writes
   subroutine nc_sync(nout, nout_movie, nsync_freq)
 # ifdef NETCDF
-    use netcdf, only: nf90_sync
+    use netcdf, only: nf90_sync, NF90_NOERR
+    use netcdf_utils, only: netcdf_error
 # endif
     implicit none
     !> Current output timestep
