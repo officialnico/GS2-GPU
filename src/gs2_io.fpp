@@ -358,18 +358,14 @@ contains
   subroutine nc_finish
 # ifdef NETCDF
     use mp, only: proc0
-    use netcdf, only: nf90_close
-    use netcdf_utils, only: netcdf_error
+    use neasyf, only: neasyf_close
     implicit none
-    integer :: status
 
     if (proc0) then
-       status = nf90_close (ncid)
-       if (status /= NF90_NOERR) call netcdf_error (status)
+       call neasyf_close(ncid)
        if(my_make_movie) then
-          status = nf90_close (ncid_movie)
-          if (status /= NF90_NOERR) call netcdf_error (status)
-       endif
+          call neasyf_close(ncid_movie)
+        endif
     end if
 # endif
   end subroutine nc_finish
