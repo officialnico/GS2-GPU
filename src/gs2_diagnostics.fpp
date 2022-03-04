@@ -441,7 +441,7 @@ contains
     type(standard_header_type), intent(in), optional :: header
     ! Actual value for optional `header` input
     type(standard_header_type) :: local_header
-    integer :: nmovie_tot, nwrite_big_tot
+    integer :: nmovie_tot
 
     if (present(header)) then
       local_header = header
@@ -463,8 +463,6 @@ contains
     call real_init (list, gs2_diagnostics_config_in, header=local_header)
 
     nmovie_tot = nstep/nmovie
-    nwrite_big_tot = nstep/(nwrite*nwrite_mult)-nstep/4/(nwrite*nwrite_mult)
-    if(nwrite_big_tot .le. 0) nwrite_big_tot = 1
 
     ! initialize weights for less accurate integrals used
     ! to provide an error estimate for v-space integrals (energy and untrapped)
@@ -495,7 +493,7 @@ contains
     end if
 
     call init_gs2_io (append_old, make_movie, write_verr, &
-         nwrite_big_tot, write_correlation_extend, &
+         write_correlation_extend, &
          write_phi_over_time, write_apar_over_time, write_bpar_over_time, &
          nout, ob_midplane=ob_midplane, header=local_header)
 
@@ -2803,7 +2801,7 @@ contains
     phicorr_sum = phicorr_sum + phi_corr*(time-time_old)
     phiextend_sum = phiextend_sum + phi2_extend*(time-time_old)
     if (proc0 .and. mod(istep,nwrite_mult*nwrite)==0) then
-       call nc_loop_corr_extend (nout_big, phicorr_sum/(time-tcorr0), phiextend_sum/(time-tcorr0))
+       call nc_loop_corr_extend (nout_big, time, phicorr_sum/(time-tcorr0), phiextend_sum/(time-tcorr0))
        nout_big = nout_big + 1
     end if
     deallocate (phi_corr, phi2_extend)

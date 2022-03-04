@@ -15,6 +15,7 @@ module gs2_io
   public :: nc_loop_movie, nc_write_moments, nc_exchange
   public :: nc_loop_fullmom, nc_loop_dist, nc_loop_sym, nc_loop_corr, nc_loop_corr_extend
   public :: nc_loop_partsym_tormom, nc_sync, get_netcdf_file_id
+  public :: define_dims, nc_norms, nc_species, nc_geo, save_input, nc_grids_mymovie
 
 # ifdef NETCDF
   integer (kind_nf) :: ncid
@@ -75,7 +76,7 @@ contains
   !>
   !> Create the main and movie (real-space fields) netCDF files,
   !> creating the dimensions and main variables
-  subroutine init_gs2_io (append_old, make_movie, write_verr, nwrite_big_tot, write_correlation_extend, &
+  subroutine init_gs2_io (append_old, make_movie, write_verr, write_correlation_extend, &
       write_phi_over_time, write_apar_over_time, write_bpar_over_time, nout, ob_midplane, header)
     use mp, only: proc0
     use standard_header, only : standard_header_type
@@ -99,7 +100,6 @@ contains
     !> See [[gs2_diagnostics_knobs]] for details of these inputs
     logical, intent(in) :: append_old
     logical, intent(inout) :: write_correlation_extend
-    integer, intent(in) :: nwrite_big_tot
     logical, intent(in) :: write_verr, make_movie
     logical, intent(in) :: write_phi_over_time, write_apar_over_time, write_bpar_over_time
     !> If true, write out moments at the outboard midplane only,
@@ -166,7 +166,7 @@ contains
 
     if (proc0) then
         !Setup main file by creating netCDF file
-        call define_dims (ncid, nwrite_big_tot, io_write_corr_extend)
+        call define_dims (ncid, io_write_corr_extend)
         call define_vars (write_verr, write_correlation_extend, ob_midplane=ob_midplane)
 
         if (appending) then
@@ -191,7 +191,7 @@ contains
   !> creating them if necessary
   !>
   !> Dimension variable IDs are module level variables
-  subroutine define_dims (file_id, nwrite_big_tot, create_extended_correlation)
+  subroutine define_dims (file_id, create_extended_correlation)
 # ifdef NETCDF
     use file_utils, only: num_input_lines
     use kt_grids, only: aky, akx, theta0, jtwist_out, ntheta0, naky, nx, ny
@@ -207,17 +207,19 @@ contains
     implicit none
     !> NetCDF ID of the file
     integer, intent(in) :: file_id
-    !> Total number of output timesteps for "large" diagnostics
-    integer, intent(in) :: nwrite_big_tot
     !> Create the dimensions for the extended correlation diagnostics
     logical, intent(in) :: create_extended_correlation
 # ifdef NETCDF
     real :: nmesh
 
-    call neasyf_dim(file_id, "kx", values=akx, dimid=nakx_dim, long_name="kx rho")
-    call neasyf_dim(file_id, "ky", values=aky, dimid=naky_dim, long_name="ky rho")
-    call neasyf_dim(file_id, "theta", values=theta, dimid=nttot_dim)
-    call neasyf_dim(file_id, "lambda", values=al, dimid=nlambda_dim)
+    call neasyf_dim(file_id, "kx", values=akx, dimid=nakx_dim, &
+         long_name="Wavenumber perpendicular to flux surface", units="1/rho_r")
+    call neasyf_dim(file_id, "ky", values=aky, dimid=naky_dim, &
+         long_name="Wavenumber in direction of grad alpha", units="1/rho_r")
+    call neasyf_dim(file_id, "theta", values=theta, dimid=nttot_dim, &
+         long_name="Poloidal angle", units="rad")
+    call neasyf_dim(file_id, "lambda", values=al, dimid=nlambda_dim, &
+         long_name="Energy/magnetic moment", units="1/(2 B_a)")
     call neasyf_dim(file_id, "species", dim_size=nspec, dimid=nspec_dim)
 
     ! Energy is 2D, and neasyf only handles 1D dimensions
@@ -238,10 +240,10 @@ contains
 
     if (create_extended_correlation) then
        call neasyf_dim(file_id, "theta_ext", dim_size=(2*ntgrid+1)*((ntheta0-1)/jtwist_out+1), dimid=nttotext_dim)
-       call neasyf_dim(file_id, "tb", dim_size=nwrite_big_tot, dimid=time_big_dim)
+       call neasyf_dim(file_id, "tb", unlimited=.true., dimid=time_big_dim)
     end if
 
-    call neasyf_write(file_id, "layout", layout)
+    call neasyf_write(file_id, "layout", layout, long_name="Decomposition layout for g_lo")
     call neasyf_write(file_id, "nproc", nproc, long_name="Number of processors")
     call neasyf_write(file_id, "ntheta_tot", 2*ntgrid+1, long_name="Total number of theta points")
     call neasyf_write(file_id, "nkx", ntheta0, long_name="Number of kx points")
@@ -250,7 +252,8 @@ contains
     call neasyf_write(file_id, "nenergy", negrid, long_name="Number of energy points")
     call neasyf_write(file_id, "nlambda", nlambda, long_name="Number of lambda points")
 
-    call neasyf_write(file_id, "theta0", theta0, dim_names=["kx", "ky"], long_name="Theta_0")
+    call neasyf_write(file_id, "theta0", theta0, dim_names=["kx", "ky"], &
+         long_name="Theta_0, poloidal angle where mode radial wavenumber == 0", units="rad")
 
     if (nonlin) then
        nmesh = (2*ntgrid+1)*2*nlambda*negrid*nx*ny*nspec
@@ -968,7 +971,7 @@ contains
   end subroutine nc_loop_corr
 
   !> Write the correlation function over the extended domain to netCDF
-  subroutine nc_loop_corr_extend (nout_big,phi_corr,phi2_extend)
+  subroutine nc_loop_corr_extend (nout_big, time, phi_corr, phi2_extend)
 # ifdef NETCDF
     use run_parameters, only: fphi
     use neasyf, only: neasyf_write
@@ -976,6 +979,8 @@ contains
     implicit none
     !> The current output timestep for "large" diagnostics
     integer, intent (in) :: nout_big
+    !> Current simulation time
+    real, intent(in) :: time
     real, dimension (:,:,:), intent (in) :: phi2_extend
     complex, dimension (:,:,:), intent (in) :: phi_corr
 # ifdef NETCDF
@@ -985,6 +990,8 @@ contains
          [character(9)::"theta_ext", "kx", "ky", "tb"]
 
     if (fphi > zero) then
+      call neasyf_write(ncid, "tb", time, dim_names=["tb"], start=[nout_big])
+
        call netcdf_write_complex(ncid, "phi_corr", phi_corr, &
             dim_names=phi_corr_dims, start=starts(5, nout_big))
        call neasyf_write(ncid, "phi2_extend", phi2_extend, &
@@ -1308,23 +1315,28 @@ contains
     integer, intent(in) :: file_id
 #ifdef NETCDF
     call neasyf_write(file_id, "charge", spec%z, dim_names=["species"], &
-         long_name="Charge", units="q")
+         long_name="Charge", units="e")
     call neasyf_write(file_id, "mass", spec%mass, dim_names=["species"], &
-         long_name="Atomic mass", units="m")
+         long_name="Atomic mass", units="AMU")
     call neasyf_write(file_id, "dens", spec%dens, dim_names=["species"], &
-         long_name="Density", units="n_e")
+         long_name="Normalised density", units="nref")
     call neasyf_write(file_id, "temp", spec%temp, dim_names=["species"], &
-         long_name="Temperature", units="T")
+         long_name="Normalised temperature", units="Tref")
     call neasyf_write(file_id, "tprim", spec%tprim, dim_names=["species"], &
-         long_name="-1/rho dT/drho")
+         long_name="Normalised temperature gradient scale length -1/rho dT/drho", units="1/aref")
     call neasyf_write(file_id, "fprim", spec%fprim, dim_names=["species"], &
-         long_name="-1/rho dn/drho")
+         long_name="Normalised density gradient scale length -1/rho dn/drho", units="1/aref")
     call neasyf_write(file_id, "uprim", spec%uprim, dim_names=["species"], &
-         long_name="-1/v_t du_par/drho")
+         long_name="Normalised parallel velocity gradient scale length -1/v_t du_par/drho", units="1/aref")
     call neasyf_write(file_id, "uprim2", spec%uprim2, dim_names=["species"])
     call neasyf_write(file_id, "vnewk", spec%vnewk, dim_names=["species"], &
-         long_name="Collisionality", units="v_t/L")
-    call neasyf_write(file_id, "type_of_species", spec%type, dim_names=["species"])
+         long_name="Collisionality", units="vtref/aref")
+
+    ! FIXME: duplicated variable, old/new diagnostics
+    call neasyf_write(file_id, "type_of_species", spec%type, dim_names=["species"], &
+         long_name="Species type: 1=ion, 2=electron, 3=slowing down, 4=trace")
+    call neasyf_write(file_id, "type", spec%type, dim_names=["species"], &
+         long_name="Species type: 1=ion, 2=electron, 3=slowing down, 4=trace")
 #endif
   end subroutine nc_species
   
@@ -1372,7 +1384,7 @@ contains
     call neasyf_write(file_id, "qval", qval, &
          long_name="Local safety factor")
     call neasyf_write(file_id, "beta", beta, &
-         long_name="Reference beta")
+         long_name="Reference beta", units="2.mu0.nref.Tref/B_a**2")
     call neasyf_write(file_id, "rplot", Rplot, dim_names=["theta"], &
          long_name="The major radius at the centre of the flux tube", units="a")
     call neasyf_write(file_id, "zplot", Zplot, dim_names=["theta"], &
