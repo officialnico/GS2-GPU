@@ -517,9 +517,11 @@ contains
   end subroutine nc_eigenfunc
 
   !> Write various moments to netcdf
-  subroutine nc_write_moments (nout, ntot, density, upar, tpar, tperp, qparflux, pperpj1, qpperpj1, ob_midplane) 
+  subroutine nc_write_moments (file_id, nout, ntot, density, upar, tpar, tperp, qparflux, pperpj1, qpperpj1, ob_midplane)
     use theta_grid, only: ntgrid
     implicit none
+    !> NetCDF ID of the file to write to
+    integer, intent(in) :: file_id
     !> Total perturbed density
     complex, dimension (-ntgrid:,:,:,:), intent (in) :: ntot
     !> Non-adiabatic part of the perturbed density
@@ -548,108 +550,118 @@ contains
 
     if (present(ob_midplane)) then
        if (ob_midplane ) then
-          call netcdf_write_complex(ncid, "ntot0", ntot(0, :, :, :), mom_dim, start=starts(5, nout), &
+          call netcdf_write_complex(file_id, "ntot0", ntot(0, :, :, :), mom_dim, start=starts(5, nout), &
                long_name="Total perturbed density (theta=0) over time")
-          call netcdf_write_complex(ncid, "density0", density(0, :, :, :), mom_dim, start=starts(5, nout), &
+          call netcdf_write_complex(file_id, "density0", density(0, :, :, :), mom_dim, start=starts(5, nout), &
                long_name="Nonadiabatic piece of perturbed density (theta=0) over time")
-          call netcdf_write_complex(ncid, "upar0", upar(0, :, :, :), mom_dim, start=starts(5, nout), &
+          call netcdf_write_complex(file_id, "upar0", upar(0, :, :, :), mom_dim, start=starts(5, nout), &
                long_name="Upar (theta=0) over time")
-          call netcdf_write_complex(ncid, "tpar0", tpar(0, :, :, :), mom_dim, start=starts(5, nout), &
+          call netcdf_write_complex(file_id, "tpar0", tpar(0, :, :, :), mom_dim, start=starts(5, nout), &
                long_name="Tpar (theta=0) over time")
-          call netcdf_write_complex(ncid, "tperp0", tperp(0, :, :, :), mom_dim, start=starts(5, nout), &
+          call netcdf_write_complex(file_id, "tperp0", tperp(0, :, :, :), mom_dim, start=starts(5, nout), &
                long_name="Tperp (theta=0) over time")
-          call netcdf_write_complex(ncid, "qparflux0", qparflux(0, :, :, :), mom_dim, start=starts(5, nout), &
+          call netcdf_write_complex(file_id, "qparflux0", qparflux(0, :, :, :), mom_dim, start=starts(5, nout), &
                long_name="Qparflux (theta=0) over time")
-          call netcdf_write_complex(ncid, "pperpj10", pperpj1(0, :, :, :), mom_dim, start=starts(5, nout), &
+          call netcdf_write_complex(file_id, "pperpj10", pperpj1(0, :, :, :), mom_dim, start=starts(5, nout), &
                long_name="Pperpj1 (theta=0) over time")
-          call netcdf_write_complex(ncid, "qpperpj10", qpperpj1(0, :, :, :), mom_dim, start=starts(5, nout), &
+          call netcdf_write_complex(file_id, "qpperpj10", qpperpj1(0, :, :, :), mom_dim, start=starts(5, nout), &
                long_name="Qpperpj1 (theta=0) over time")
           return
        endif
     endif
 
-    call netcdf_write_complex(ncid, 'ntot_t', ntot, mom_t_dim, start=starts(6, nout), &
+    call netcdf_write_complex(file_id, 'ntot_t', ntot, mom_t_dim, start=starts(6, nout), &
           long_name="Total perturbed density over time")
-    call netcdf_write_complex(ncid, 'density_t', density, mom_t_dim, start=starts(6, nout), &
+    call netcdf_write_complex(file_id, 'density_t', density, mom_t_dim, start=starts(6, nout), &
           long_name="Nonadiabatic piece of perturbed density over time")
-    call netcdf_write_complex(ncid, 'upar_t', upar, mom_t_dim, start=starts(6, nout), &
+    call netcdf_write_complex(file_id, 'upar_t', upar, mom_t_dim, start=starts(6, nout), &
           long_name="Upar over time")
-    call netcdf_write_complex(ncid, 'tpar_t', tpar, mom_t_dim, start=starts(6, nout), &
+    call netcdf_write_complex(file_id, 'tpar_t', tpar, mom_t_dim, start=starts(6, nout), &
           long_name="Tpar over time")
-    call netcdf_write_complex(ncid, 'tperp_t', tperp, mom_t_dim, start=starts(6, nout), &
+    call netcdf_write_complex(file_id, 'tperp_t', tperp, mom_t_dim, start=starts(6, nout), &
           long_name="Tperp over time")
-    call netcdf_write_complex(ncid, 'qparflux_t', qparflux, mom_t_dim, start=starts(6, nout), &
+    call netcdf_write_complex(file_id, 'qparflux_t', qparflux, mom_t_dim, start=starts(6, nout), &
           long_name="Qparflux over time")
-    call netcdf_write_complex(ncid, 'pperpj1_t', pperpj1, mom_t_dim, start=starts(6, nout), &
+    call netcdf_write_complex(file_id, 'pperpj1_t', pperpj1, mom_t_dim, start=starts(6, nout), &
           long_name="Pperpj1 over time")
-    call netcdf_write_complex(ncid, 'qpperpj1_t', qpperpj1, mom_t_dim, start=starts(6, nout), &
+    call netcdf_write_complex(file_id, 'qpperpj1_t', qpperpj1, mom_t_dim, start=starts(6, nout), &
           long_name="Qpperpj1 over time")
 
 # endif
   end subroutine nc_write_moments
 
   !> Write the fields to netCDF, overwriting existing values
-  subroutine nc_final_fields
+  subroutine nc_final_fields(file_id)
 #ifdef NETCDF
     use fields_arrays, only: phinew, aparnew, bparnew
     use run_parameters, only: fphi, fapar, fbpar
+#endif
     implicit none
-
+    !> NetCDF ID of the file to write to
+    integer, intent(in) :: file_id
+#ifdef NETCDF
     if (fphi > zero) then
-       call netcdf_write_complex(ncid, "phi", phinew, final_field_dims, &
+       call netcdf_write_complex(file_id, "phi", phinew, final_field_dims, &
             long_name="Electrostatic Potential", units="T/q rho/L")
     end if
 
     if (fapar > zero) then
-       call netcdf_write_complex(ncid, "apar", aparnew, final_field_dims, &
+       call netcdf_write_complex(file_id, "apar", aparnew, final_field_dims, &
             long_name="Parallel Magnetic Potential")
     end if
 
     if (fbpar > zero) then
-       call netcdf_write_complex(ncid, "bpar", bparnew, final_field_dims, &
+       call netcdf_write_complex(file_id, "bpar", bparnew, final_field_dims, &
             long_name="delta B Parallel")
     end if
 # endif
   end subroutine nc_final_fields
 
   !> Write \(E_\parallel\) to netCDF, overwriting existing values
-  subroutine nc_final_epar (epar)
+  subroutine nc_final_epar (file_id, epar)
     implicit none
+    !> NetCDF ID of the file to write to
+    integer, intent(in) :: file_id
     complex, dimension (:,:,:), intent (in) :: epar
 # ifdef NETCDF
     character(*), dimension(*), parameter :: dim_names = [character(5)::"ri", "theta", "kx", "ky"]
 
-    call netcdf_write_complex(ncid, "epar", epar, dim_names)
+    call netcdf_write_complex(file_id, "epar", epar, dim_names)
 # endif
   end subroutine nc_final_epar
 
   !> Write the various low-order moments to the output netCDF file,
   !> overwriting existing values
-  subroutine nc_final_moments (ntot, density, upar, tpar, tperp, qparflux, pperpj1, qpperpj1)
+  subroutine nc_final_moments (file_id, ntot, density, upar, tpar, tperp, qparflux, pperpj1, qpperpj1)
     implicit none
+    !> NetCDF ID of the file to write to
+    integer, intent(in) :: file_id
     complex, dimension (:,:,:,:), intent (in) :: ntot, density, upar, tpar, tperp
     complex, dimension (:,:,:,:), intent (in) :: qparflux, pperpj1, qpperpj1
     character(*), dimension(*), parameter :: dim_names = [character(7)::"ri", "theta", "kx", "ky", "species"]
 
 #ifdef NETCDF
-    call netcdf_write_complex(ncid, 'ntot', ntot, dim_names)
-    call netcdf_write_complex(ncid, 'density', density, dim_names)
-    call netcdf_write_complex(ncid, 'upar', upar, dim_names)
-    call netcdf_write_complex(ncid, 'tpar', tpar, dim_names)
-    call netcdf_write_complex(ncid, 'tperp', tperp, dim_names)
-    call netcdf_write_complex(ncid, 'qparflux', qparflux, dim_names)
-    call netcdf_write_complex(ncid, 'pperpj1', pperpj1, dim_names)
-    call netcdf_write_complex(ncid, 'qpperpj1', qpperpj1, dim_names)
+    call netcdf_write_complex(file_id, 'ntot', ntot, dim_names)
+    call netcdf_write_complex(file_id, 'density', density, dim_names)
+    call netcdf_write_complex(file_id, 'upar', upar, dim_names)
+    call netcdf_write_complex(file_id, 'tpar', tpar, dim_names)
+    call netcdf_write_complex(file_id, 'tperp', tperp, dim_names)
+    call netcdf_write_complex(file_id, 'qparflux', qparflux, dim_names)
+    call netcdf_write_complex(file_id, 'pperpj1', pperpj1, dim_names)
+    call netcdf_write_complex(file_id, 'qpperpj1', qpperpj1, dim_names)
 #endif
   end subroutine nc_final_moments
 
   !> Write moments as: volume averaged, field line averaged, and evaulated at theta=0
-  subroutine nc_loop_moments (nout, ntot2, ntot2_by_mode, ntot20, ntot20_by_mode, &
+  subroutine nc_loop_moments (file_id, nout, ntot2, ntot2_by_mode, ntot20, ntot20_by_mode, &
        phi00, ntot00, density00, upar00, tpar00, tperp00, tpar2_by_mode, tperp2_by_mode)
 #ifdef NETCDF
     use neasyf, only: neasyf_write
 #endif
     implicit none
+    !> NetCDF ID of the file to write to
+    integer, intent(in) :: file_id
+    !> Current timestep
     integer, intent (in) :: nout
     real, dimension (:), intent (in) :: ntot2, ntot20
     real, dimension (:,:,:), intent (in) :: ntot2_by_mode, ntot20_by_mode
@@ -663,61 +675,65 @@ contains
     
     ! Volume averaged function of theta
     ! <DD>Should we only do this if .not.obmid?
-    call neasyf_write (ncid, "ntot2", ntot2, dim_names=flux_dims, start=starts(2, nout))
-    call neasyf_write (ncid, "ntot2_by_mode", ntot2_by_mode, dim_names=fluxk_dims, start=starts(4, nout))
-    call neasyf_write (ncid, "tpar2_by_mode", tpar2_by_mode, dim_names=fluxk_dims, start=starts(4, nout))
-    call neasyf_write (ncid, "tperp2_by_mode", tperp2_by_mode, dim_names=fluxk_dims, start=starts(4, nout))
+    call neasyf_write (file_id, "ntot2", ntot2, dim_names=flux_dims, start=starts(2, nout))
+    call neasyf_write (file_id, "ntot2_by_mode", ntot2_by_mode, dim_names=fluxk_dims, start=starts(4, nout))
+    call neasyf_write (file_id, "tpar2_by_mode", tpar2_by_mode, dim_names=fluxk_dims, start=starts(4, nout))
+    call neasyf_write (file_id, "tperp2_by_mode", tperp2_by_mode, dim_names=fluxk_dims, start=starts(4, nout))
 
     ! "Volume averaged" data from outboard midplane (really just evaluated at theta=0
     ! and then weighted with Fourier coeff factor (typically 0.5).
     ! <DD>Should we only do this if obmid?
-    call neasyf_write (ncid, "ntot20", ntot20, dim_names=flux_dims, start=starts(2, nout), &
+    call neasyf_write (file_id, "ntot20", ntot20, dim_names=flux_dims, start=starts(2, nout), &
          long_name='Density**2 at theta=0')
-    call neasyf_write (ncid, "ntot20_by_mode", ntot20_by_mode, dim_names=fluxk_dims, start=starts(4, nout))
+    call neasyf_write (file_id, "ntot20_by_mode", ntot20_by_mode, dim_names=fluxk_dims, start=starts(4, nout))
 
     ! Fieldline averaged data, note this includes phi which is not a moment
-    call netcdf_write_complex(ncid, "phi00", phi00, loop_phi_dim, start=starts(3, nout))
-    call netcdf_write_complex(ncid, "ntot00", ntot00, loop_mom_dim, start=starts(4, nout))
-    call netcdf_write_complex(ncid, "density00", density00, loop_mom_dim, start=starts(4, nout))
-    call netcdf_write_complex(ncid, "upar00", upar00, loop_mom_dim, start=starts(4, nout))
-    call netcdf_write_complex(ncid, "tpar00", tpar00, loop_mom_dim, start=starts(4, nout))
-    call netcdf_write_complex(ncid, "tperp00", tperp00, loop_mom_dim, start=starts(4, nout))
+    call netcdf_write_complex(file_id, "phi00", phi00, loop_phi_dim, start=starts(3, nout))
+    call netcdf_write_complex(file_id, "ntot00", ntot00, loop_mom_dim, start=starts(4, nout))
+    call netcdf_write_complex(file_id, "density00", density00, loop_mom_dim, start=starts(4, nout))
+    call netcdf_write_complex(file_id, "upar00", upar00, loop_mom_dim, start=starts(4, nout))
+    call netcdf_write_complex(file_id, "tpar00", tpar00, loop_mom_dim, start=starts(4, nout))
+    call netcdf_write_complex(file_id, "tperp00", tperp00, loop_mom_dim, start=starts(4, nout))
 #endif
   end subroutine nc_loop_moments
 
   !> Write the right-hand sides of the field equations to netCDF,
   !> overwriting existing values
-  subroutine nc_final_an (antot, antota, antotp)
+  subroutine nc_final_an (file_id, antot, antota, antotp)
 # ifdef NETCDF
     use run_parameters, only: fphi, fapar, fbpar
 # endif
     implicit none
+    !> NetCDF ID of the file to write to
+    integer, intent(in) :: file_id
     complex, dimension (:,:,:), intent(in) :: antot, antota, antotp
 # ifdef NETCDF
     if (fphi > zero) then
-       call netcdf_write_complex(ncid, "antot", antot, final_field_dims, &
+       call netcdf_write_complex(file_id, "antot", antot, final_field_dims, &
             long_name="Velocity moment of g used in calculating phi")
     end if
 
     if (fapar > zero) then
-       call netcdf_write_complex(ncid, "antota", antota, final_field_dims, &
+       call netcdf_write_complex(file_id, "antota", antota, final_field_dims, &
             long_name="Velocity space moment of g used in calculating apar")
     end if
 
     if (fbpar > zero) then
-       call netcdf_write_complex(ncid, "antotp", antotp, final_field_dims, &
+       call netcdf_write_complex(file_id, "antotp", antotp, final_field_dims, &
             long_name="Velocity space moment of g used in calculating bpar")
     end if
 # endif
   end subroutine nc_final_an
 
   !> Write the energy exchange to netCDF
-  subroutine nc_exchange (nout, exchange, exchange_avg)
+  subroutine nc_exchange (file_id, nout, exchange, exchange_avg)
 # ifdef NETCDF
     use run_parameters, only: fphi
     use neasyf, only: neasyf_write
 # endif
     implicit none
+    !> NetCDF ID of the file to write to
+    integer, intent(in) :: file_id
     !> Current output timestep
     integer, intent (in) :: nout
     !> Energy exchange
@@ -728,16 +744,16 @@ contains
     character(*), dimension(*), parameter :: fluxk_dim = [character(7)::"kx", "ky", "species", "t"]
 
     if (fphi > zero) then
-       call neasyf_write (ncid, "es_exchange", exchange_avg, &
+       call neasyf_write (file_id, "es_exchange", exchange_avg, &
             dim_names=flux_dims, start=starts(2, nout))
-       call neasyf_write (ncid, "es_exchange_by_k", exchange, &
+       call neasyf_write (file_id, "es_exchange_by_k", exchange, &
             dim_names=fluxk_dims, start=starts(4, nout))
     end if
 # endif
   end subroutine nc_exchange
 
   !> Write various heat fluxes to netCDF
-  subroutine nc_qflux (nout, qheat, qmheat, qbheat, &
+  subroutine nc_qflux (file_id, nout, qheat, qmheat, qbheat, &
        heat_par,  mheat_par,  bheat_par, &
        heat_perp, mheat_perp, bheat_perp, &
        heat_fluxes, mheat_fluxes, bheat_fluxes, x_qmflux, hflux_tot)
@@ -746,6 +762,8 @@ contains
     use neasyf, only: neasyf_write
 # endif
     implicit none
+    !> NetCDF ID of the file to write to
+    integer, intent(in) :: file_id
     !> Current output timestep
     integer, intent (in) :: nout
     real, dimension (:,:,:), intent (in) :: qheat, qmheat, qbheat
@@ -758,39 +776,42 @@ contains
     character(*), dimension(*), parameter :: fluxx_dim = [character(7)::"kx", "species", "t"]
 
     if (fphi > zero) then
-       call neasyf_write(ncid, "es_heat_flux", heat_fluxes, dim_names=flux_dims, start=starts(2, nout))
-       call neasyf_write(ncid, "es_heat_par", heat_par, dim_names=flux_dims, start=starts(2, nout))
-       call neasyf_write(ncid, "es_heat_perp", heat_perp, dim_names=flux_dims, start=starts(2, nout))
-       call neasyf_write(ncid, "es_heat_by_k", qheat, dim_names=fluxk_dims, start=starts(4, nout))
+       call neasyf_write(file_id, "es_heat_flux", heat_fluxes, dim_names=flux_dims, start=starts(2, nout))
+       call neasyf_write(file_id, "es_heat_par", heat_par, dim_names=flux_dims, start=starts(2, nout))
+       call neasyf_write(file_id, "es_heat_perp", heat_perp, dim_names=flux_dims, start=starts(2, nout))
+       call neasyf_write(file_id, "es_heat_by_k", qheat, dim_names=fluxk_dims, start=starts(4, nout))
     end if
 
     if (fapar > zero) then
-       call neasyf_write(ncid, "apar_heat_flux", mheat_fluxes, dim_names=flux_dims, start=starts(2, nout))
-       call neasyf_write(ncid, "apar_heat_par", mheat_par, dim_names=flux_dims, start=starts(2, nout))
-       call neasyf_write(ncid, "apar_heat_perp", mheat_perp, dim_names=flux_dims, start=starts(2, nout))
-       call neasyf_write(ncid, "apar_heat_by_k", qmheat, dim_names=fluxk_dims, start=starts(4, nout))
-       call neasyf_write(ncid, "apar_heat_by_x", x_qmflux, dim_names=fluxx_dim, start=starts(3, nout))
+       call neasyf_write(file_id, "apar_heat_flux", mheat_fluxes, dim_names=flux_dims, start=starts(2, nout))
+       call neasyf_write(file_id, "apar_heat_par", mheat_par, dim_names=flux_dims, start=starts(2, nout))
+       call neasyf_write(file_id, "apar_heat_perp", mheat_perp, dim_names=flux_dims, start=starts(2, nout))
+       call neasyf_write(file_id, "apar_heat_by_k", qmheat, dim_names=fluxk_dims, start=starts(4, nout))
+       call neasyf_write(file_id, "apar_heat_by_x", x_qmflux, dim_names=fluxx_dim, start=starts(3, nout))
     end if
 
     if (fbpar > zero) then
-       call neasyf_write(ncid, "bpar_heat_flux", bheat_fluxes, dim_names=flux_dims, start=starts(2, nout))
-       call neasyf_write(ncid, "bpar_heat_par", bheat_par, dim_names=flux_dims, start=starts(2, nout))
-       call neasyf_write(ncid, "bpar_heat_perp", bheat_perp, dim_names=flux_dims, start=starts(2, nout))
-       call neasyf_write(ncid, "bpar_heat_by_k", qbheat, dim_names=fluxk_dims, start=starts(4, nout))
+       call neasyf_write(file_id, "bpar_heat_flux", bheat_fluxes, dim_names=flux_dims, start=starts(2, nout))
+       call neasyf_write(file_id, "bpar_heat_par", bheat_par, dim_names=flux_dims, start=starts(2, nout))
+       call neasyf_write(file_id, "bpar_heat_perp", bheat_perp, dim_names=flux_dims, start=starts(2, nout))
+       call neasyf_write(file_id, "bpar_heat_by_k", qbheat, dim_names=fluxk_dims, start=starts(4, nout))
     end if
     
-    call neasyf_write(ncid, "hflux_tot", hflux_tot, dim_names=["t"], start=[nout])
+    call neasyf_write(file_id, "hflux_tot", hflux_tot, dim_names=["t"], start=[nout])
 # endif
   end subroutine nc_qflux
 
   !> FIXME : Add documentation  
-  subroutine nc_pflux (nout, pflux, pmflux, pbflux, &
+  subroutine nc_pflux (file_id, nout, pflux, pmflux, pbflux, &
        part_fluxes, mpart_fluxes, bpart_fluxes, zflux_tot)
 # ifdef NETCDF
     use run_parameters, only: fphi, fapar, fbpar
     use neasyf, only: neasyf_write
 # endif
     implicit none
+    !> NetCDF ID of the file to write to
+    integer, intent(in) :: file_id
+    !> Current timestep
     integer, intent (in) :: nout
     real, dimension (:,:,:), intent (in) :: pflux, pmflux, pbflux
     real, dimension(:), intent (in) :: part_fluxes, mpart_fluxes, bpart_fluxes
@@ -798,31 +819,33 @@ contains
 # ifdef NETCDF
 
     if (fphi > zero) then
-       call neasyf_write(ncid, "es_part_flux", part_fluxes, dim_names=flux_dims, start=starts(2, nout))
-       call neasyf_write(ncid, "es_part_by_k", pflux, dim_names=fluxk_dims, start=starts(4, nout))
+       call neasyf_write(file_id, "es_part_flux", part_fluxes, dim_names=flux_dims, start=starts(2, nout))
+       call neasyf_write(file_id, "es_part_by_k", pflux, dim_names=fluxk_dims, start=starts(4, nout))
     end if
 
     if (fapar > zero) then
-       call neasyf_write(ncid, "apar_part_flux", mpart_fluxes, dim_names=flux_dims, start=starts(2, nout))
-       call neasyf_write(ncid, "apar_part_by_k", pmflux, dim_names=fluxk_dims, start=starts(4, nout))
+       call neasyf_write(file_id, "apar_part_flux", mpart_fluxes, dim_names=flux_dims, start=starts(2, nout))
+       call neasyf_write(file_id, "apar_part_by_k", pmflux, dim_names=fluxk_dims, start=starts(4, nout))
     end if
 
     if (fbpar > zero) then
-       call neasyf_write(ncid, "bpar_part_flux", bpart_fluxes, dim_names=flux_dims, start=starts(2, nout))
-       call neasyf_write(ncid, "bpar_part_by_k", pbflux, dim_names=fluxk_dims, start=starts(4, nout))
+       call neasyf_write(file_id, "bpar_part_flux", bpart_fluxes, dim_names=flux_dims, start=starts(2, nout))
+       call neasyf_write(file_id, "bpar_part_by_k", pbflux, dim_names=fluxk_dims, start=starts(4, nout))
     end if
     
-    call neasyf_write(ncid, "zflux_tot", zflux_tot, dim_names=["t"], start=[nout])
+    call neasyf_write(file_id, "zflux_tot", zflux_tot, dim_names=["t"], start=[nout])
 # endif
   end subroutine nc_pflux
 
   !> Write toroidal angular momentum flux to netCDF
-  subroutine nc_pflux_tormom (nout, pflux_tormom, part_tormom_fluxes)
+  subroutine nc_pflux_tormom (file_id, nout, pflux_tormom, part_tormom_fluxes)
 # ifdef NETCDF
     use run_parameters, only: fphi
     use neasyf, only: neasyf_write
 # endif
     implicit none
+    !> NetCDF ID of the file to write to
+    integer, intent(in) :: file_id
     !> Current output timestep
     integer, intent (in) :: nout
     real, dimension (:,:,:), intent (in) :: pflux_tormom
@@ -830,9 +853,9 @@ contains
 # ifdef NETCDF
 
     if (fphi > zero) then
-       call neasyf_write(ncid, "es_part_tormom_flux", part_tormom_fluxes, &
+       call neasyf_write(file_id, "es_part_tormom_flux", part_tormom_fluxes, &
             dim_names=flux_dims, start=starts(2, nout))
-       call neasyf_write(ncid, "es_part_tormom_by_k", pflux_tormom, &
+       call neasyf_write(file_id, "es_part_tormom_by_k", pflux_tormom, &
             dim_names=fluxk_dims, start=starts(4, nout))
     end if
 
@@ -840,7 +863,7 @@ contains
   end subroutine nc_pflux_tormom
 
   !> FIXME : Add documentation  
-  subroutine nc_vflux (nout, vflux, vmflux, vbflux, &
+  subroutine nc_vflux (file_id, nout, vflux, vmflux, vbflux, &
        mom_fluxes, mmom_fluxes, bmom_fluxes, vflux_tot, &
        vflux_par, vflux_perp, vflux0, vflux1)
 # ifdef NETCDF
@@ -848,6 +871,9 @@ contains
     use neasyf, only: neasyf_write
 # endif
     implicit none
+    !> NetCDF ID of the file to write to
+    integer, intent(in) :: file_id
+    !> Current timestep
     integer, intent (in) :: nout
     real, dimension (:,:,:), intent (in) :: vflux, vmflux, vbflux
     real, dimension (:,:,:), intent (in) :: vflux_par, vflux_perp
@@ -857,36 +883,39 @@ contains
 # ifdef NETCDF
 
     if (fphi > zero) then
-       call neasyf_write(ncid, "es_mom_flux", mom_fluxes, dim_names=flux_dims, start=starts(2, nout))
-       call neasyf_write(ncid, "es_mom_by_k", vflux, dim_names=fluxk_dims, start=starts(4, nout))
-       call neasyf_write(ncid, "es_parmom_by_k", vflux_par, dim_names=fluxk_dims, start=starts(4, nout))
-       call neasyf_write(ncid, "es_perpmom_by_k", vflux_perp, dim_names=fluxk_dims, start=starts(4, nout))
-       call neasyf_write(ncid, "es_mom0_by_k", vflux0, dim_names=fluxk_dims, start=starts(4, nout))
-       call neasyf_write(ncid, "es_mom1_by_k", vflux1, dim_names=fluxk_dims, start=starts(4, nout))
+       call neasyf_write(file_id, "es_mom_flux", mom_fluxes, dim_names=flux_dims, start=starts(2, nout))
+       call neasyf_write(file_id, "es_mom_by_k", vflux, dim_names=fluxk_dims, start=starts(4, nout))
+       call neasyf_write(file_id, "es_parmom_by_k", vflux_par, dim_names=fluxk_dims, start=starts(4, nout))
+       call neasyf_write(file_id, "es_perpmom_by_k", vflux_perp, dim_names=fluxk_dims, start=starts(4, nout))
+       call neasyf_write(file_id, "es_mom0_by_k", vflux0, dim_names=fluxk_dims, start=starts(4, nout))
+       call neasyf_write(file_id, "es_mom1_by_k", vflux1, dim_names=fluxk_dims, start=starts(4, nout))
     end if
 
     if (fapar > zero) then
-       call neasyf_write(ncid, "apar_mom_flux", mmom_fluxes, dim_names=flux_dims, start=starts(2, nout))
-       call neasyf_write(ncid, "apar_mom_by_k", vmflux, dim_names=fluxk_dims, start=starts(4, nout))
+       call neasyf_write(file_id, "apar_mom_flux", mmom_fluxes, dim_names=flux_dims, start=starts(2, nout))
+       call neasyf_write(file_id, "apar_mom_by_k", vmflux, dim_names=fluxk_dims, start=starts(4, nout))
     end if
 
     if (fbpar > zero) then
-       call neasyf_write(ncid, "bpar_mom_flux", bmom_fluxes, dim_names=flux_dims, start=starts(2, nout))
-       call neasyf_write(ncid, "bpar_mom_by_k", vbflux, dim_names=fluxk_dims, start=starts(4, nout))
+       call neasyf_write(file_id, "bpar_mom_flux", bmom_fluxes, dim_names=flux_dims, start=starts(2, nout))
+       call neasyf_write(file_id, "bpar_mom_by_k", vbflux, dim_names=fluxk_dims, start=starts(4, nout))
     end if
     
-    call neasyf_write(ncid, "vflux_tot", vflux_tot, dim_names=["t"], start=[nout])
+    call neasyf_write(file_id, "vflux_tot", vflux_tot, dim_names=["t"], start=[nout])
 # endif
   end subroutine nc_vflux
 
   !> Output the poloidal distributions of the fluxes of particles, perpendicular
   !> momentum, parallel momentum, and energy ! JRB
-  subroutine nc_loop_dist (nout, part_fluxes_dist, mom_fluxes_par_dist, mom_fluxes_perp_dist, heat_fluxes_dist, phi_dist)
+  subroutine nc_loop_dist (file_id, nout, part_fluxes_dist, mom_fluxes_par_dist, mom_fluxes_perp_dist, heat_fluxes_dist, phi_dist)
     use run_parameters, only: fphi
     use theta_grid, only: ntgrid
 # ifdef NETCDF
     use neasyf, only: neasyf_write
 # endif
+    !> NetCDF ID of the file to write to
+    integer, intent(in) :: file_id
+    !> Current timestep
     integer, intent (in) :: nout
     real, dimension (-ntgrid:,:), intent (in) :: part_fluxes_dist, mom_fluxes_par_dist, mom_fluxes_perp_dist, heat_fluxes_dist
     real, dimension (2,-ntgrid:ntgrid), intent (in) :: phi_dist
@@ -895,15 +924,15 @@ contains
     character(*), dimension(*), parameter :: phi_dist_dim = [character(5)::"ri", "theta", "t"]
 
     if (fphi > zero) then
-       call neasyf_write(ncid, "es_part_flux_dist", part_fluxes_dist, &
+       call neasyf_write(file_id, "es_part_flux_dist", part_fluxes_dist, &
             dim_names=flux_dist_dim, start=starts(1, nout))
-       call neasyf_write(ncid, "es_mom_flux_par_dist", mom_fluxes_par_dist, &
+       call neasyf_write(file_id, "es_mom_flux_par_dist", mom_fluxes_par_dist, &
             dim_names=flux_dist_dim, start=starts(1, nout))
-       call neasyf_write(ncid, "es_mom_flux_perp_dist", mom_fluxes_perp_dist, &
+       call neasyf_write(file_id, "es_mom_flux_perp_dist", mom_fluxes_perp_dist, &
             dim_names=flux_dist_dim, start=starts(1, nout))
-       call neasyf_write(ncid, "es_heat_flux_dist", heat_fluxes_dist, &
+       call neasyf_write(file_id, "es_heat_flux_dist", heat_fluxes_dist, &
             dim_names=flux_dist_dim, start=starts(1, nout))
-       call neasyf_write(ncid, "es_phi_dist", phi_dist, &
+       call neasyf_write(file_id, "es_phi_dist", phi_dist, &
             dim_names=phi_dist_dim, start=starts(2, nout))
     end if
 
@@ -911,52 +940,64 @@ contains
   end subroutine nc_loop_dist
   
   !> Write the momentum flux as a function of \((v_\parallel, \theta, t)\) to netCDF
-  subroutine nc_loop_sym (nout, vflx_sym)
+  subroutine nc_loop_sym (file_id, nout, vflx_sym)
     use theta_grid, only: ntgrid
 # ifdef NETCDF
     use run_parameters, only: fphi
     use neasyf, only: neasyf_write
     implicit none
 # endif
+    !> NetCDF ID of the file to write to
+    integer, intent(in) :: file_id
+    !> Current timestep
     integer, intent (in) :: nout
     real, dimension (-ntgrid:,:,:), intent (in) :: vflx_sym
 # ifdef NETCDF
     
     if (fphi > zero) then
-       call neasyf_write(ncid, "es_mom_sym", vflx_sym, &
-            dim_names=sym_dims, start=starts(4, nout))
+       call neasyf_write(file_id, "es_mom_sym", vflx_sym, &
+            dim_names=sym_dims, start=starts(4, nout), &
+            long_name="Momentum flux density as a function theta and vspace, used for looking at the effect of asymmetry, &
+            & see Parra et al POP 18 062501 2011")
     end if
 
 # endif
   end subroutine nc_loop_sym
   
   !> Write the particle flux contribution to toroidal momentum flux to netCDF
-  subroutine nc_loop_partsym_tormom (nout, partflx_sym) 
+  subroutine nc_loop_partsym_tormom (file_id, nout, partflx_sym)
     use theta_grid, only: ntgrid
 # ifdef NETCDF
     use run_parameters, only: fphi
     use neasyf, only: neasyf_write
 # endif
     implicit none
+    !> NetCDF ID of the file to write to
+    integer, intent(in) :: file_id
+    !> Current timestep
     integer, intent (in) :: nout
     real, dimension (-ntgrid:,:,:), intent (in) :: partflx_sym
 # ifdef NETCDF
 
     if (fphi > zero) then
-       call neasyf_write(ncid, "es_part_tormom_sym", partflx_sym, &
-            dim_names=sym_dims, start=starts(4, nout))
+       call neasyf_write(file_id, "es_part_tormom_sym", partflx_sym, &
+            dim_names=sym_dims, start=starts(4, nout), &
+            long_name="Particle flux density as a function theta and vspace, used for looking at the effect of asymmetry, &
+            & see Parra et al POP 18 062501 2011 and ask Jung-Pyo Lee")
     end if
 
 # endif
   end subroutine nc_loop_partsym_tormom
 
   !> Write the correlation function over the physical domain to netCDF
-  subroutine nc_loop_corr (nout,phi_2pi_corr)
+  subroutine nc_loop_corr (file_id, nout, phi_2pi_corr)
     use theta_grid, only: ntgrid
 # ifdef NETCDF
     use run_parameters, only: fphi
 # endif
     implicit none
+    !> NetCDF ID of the file to write to
+    integer, intent(in) :: file_id
     !> Current output timestep
     integer, intent (in) :: nout
     !> The correlation function over the physical domain
@@ -964,7 +1005,7 @@ contains
 # ifdef NETCDF
 
     if (fphi > zero) then
-       call netcdf_write_complex(ncid, "phi_corr_2pi", phi_2pi_corr, &
+       call netcdf_write_complex(file_id, "phi_corr_2pi", phi_2pi_corr, &
             dim_names=[character(5)::"ri", "theta", "ky", "t"], &
             start=starts(4, nout))
     end if
@@ -973,12 +1014,14 @@ contains
   end subroutine nc_loop_corr
 
   !> Write the correlation function over the extended domain to netCDF
-  subroutine nc_loop_corr_extend (nout_big, time, phi_corr, phi2_extend)
+  subroutine nc_loop_corr_extend (file_id, nout_big, time, phi_corr, phi2_extend)
 # ifdef NETCDF
     use run_parameters, only: fphi
     use neasyf, only: neasyf_write
 # endif
     implicit none
+    !> NetCDF ID of the file to write to
+    integer, intent(in) :: file_id
     !> The current output timestep for "large" diagnostics
     integer, intent (in) :: nout_big
     !> Current simulation time
@@ -992,11 +1035,11 @@ contains
          [character(9)::"theta_ext", "kx", "ky", "tb"]
 
     if (fphi > zero) then
-      call neasyf_write(ncid, "tb", time, dim_names=["tb"], start=[nout_big])
+      call neasyf_write(file_id, "tb", time, dim_names=["tb"], start=[nout_big])
 
-       call netcdf_write_complex(ncid, "phi_corr", phi_corr, &
+       call netcdf_write_complex(file_id, "phi_corr", phi_corr, &
             dim_names=phi_corr_dims, start=starts(5, nout_big))
-       call neasyf_write(ncid, "phi2_extend", phi2_extend, &
+       call neasyf_write(file_id, "phi2_extend", phi2_extend, &
             dim_names=phi2_extend_dims, start=starts(4, nout_big))
     end if
 
@@ -1004,7 +1047,7 @@ contains
   end subroutine nc_loop_corr_extend
 
   !> Write various fields, heating, and frequency diagnostics to netCDF
-  subroutine nc_loop (nout, time, &
+  subroutine nc_loop (file_id, nout, time, &
        phi2, apar2, bpar2, igomega, &
        h, hk, omega, omegaavg, woutunits, phitot, write_omega, write_heating)
     use gs2_heating, only: heating_diagnostics
@@ -1018,6 +1061,8 @@ contains
     use neasyf, only: neasyf_write
 # endif
     implicit none
+    !> NetCDF ID of the file to write to
+    integer, intent(in) :: file_id
     !> Current output timestep
     integer, intent (in) :: nout
     !> Current simulation time
@@ -1040,78 +1085,78 @@ contains
 # ifdef NETCDF
     real, dimension (ntheta0, naky, nspec) :: tmps
 
-    call neasyf_write(ncid, "t", time, dim_names=["t"], start=[nout])
+    call neasyf_write(file_id, "t", time, dim_names=["t"], start=[nout])
 
     if (fphi > zero) then
-      call nc_write_field(ncid, nout, phinew, "phi", "Electrostatic potential", igomega, write_phi_t, phi2)
+      call nc_write_field(file_id, nout, phinew, "phi", "Electrostatic potential", igomega, write_phi_t, phi2)
     end if
 
     if (fapar > zero) then
-      call nc_write_field(ncid, nout, aparnew, "apar", "Parallel magnetic potential", igomega, write_apar_t, apar2)
+      call nc_write_field(file_id, nout, aparnew, "apar", "Parallel magnetic potential", igomega, write_apar_t, apar2)
     end if
 
     if (fbpar > zero) then
-      call nc_write_field(ncid, nout, bparnew, "bpar", "Parallel magnetic field", igomega, write_bpar_t, bpar2)
+      call nc_write_field(file_id, nout, bparnew, "bpar", "Parallel magnetic field", igomega, write_bpar_t, bpar2)
     end if
 
     if (write_heating) then
-       call neasyf_write(ncid, "h_energy", h%energy, dim_names=["t"], start=[nout])
-       call neasyf_write(ncid, "h_energy_dot", h%energy_dot, dim_names=["t"], start=[nout])
-       call neasyf_write(ncid, "h_antenna", h%antenna, dim_names=["t"], start=[nout])
-       call neasyf_write(ncid, "h_eapar", h%eapar, dim_names=["t"], start=[nout])
-       call neasyf_write(ncid, "h_ebpar", h%ebpar, dim_names=["t"], start=[nout])
-       call neasyf_write(ncid, "h_delfs2", h%delfs2, dim_names=flux_dims, start=starts(2, nout))
-       call neasyf_write(ncid, "h_hs2", h%hs2, dim_names=flux_dims, start=starts(2, nout))
-       call neasyf_write(ncid, "h_phis2", h%phis2, dim_names=flux_dims, start=starts(2, nout))
-       call neasyf_write(ncid, "h_hypervisc", h%hypervisc, dim_names=flux_dims, start=starts(2, nout))
-       call neasyf_write(ncid, "h_hyperres", h%hyperres, dim_names=flux_dims, start=starts(2, nout))
-       call neasyf_write(ncid, "h_collisions", h%collisions, dim_names=flux_dims, start=starts(2, nout))
-       call neasyf_write(ncid, "h_gradients", h%gradients, dim_names=flux_dims, start=starts(2, nout))
-       call neasyf_write(ncid, "h_imp_colls", h%imp_colls, dim_names=flux_dims, start=starts(2, nout))
-       call neasyf_write(ncid, "h_hypercoll", h%hypercoll, dim_names=flux_dims, start=starts(2, nout))
-       call neasyf_write(ncid, "h_heating", h%heating, dim_names=flux_dims, start=starts(2, nout), &
+       call neasyf_write(file_id, "h_energy", h%energy, dim_names=["t"], start=[nout])
+       call neasyf_write(file_id, "h_energy_dot", h%energy_dot, dim_names=["t"], start=[nout])
+       call neasyf_write(file_id, "h_antenna", h%antenna, dim_names=["t"], start=[nout])
+       call neasyf_write(file_id, "h_eapar", h%eapar, dim_names=["t"], start=[nout])
+       call neasyf_write(file_id, "h_ebpar", h%ebpar, dim_names=["t"], start=[nout])
+       call neasyf_write(file_id, "h_delfs2", h%delfs2, dim_names=flux_dims, start=starts(2, nout))
+       call neasyf_write(file_id, "h_hs2", h%hs2, dim_names=flux_dims, start=starts(2, nout))
+       call neasyf_write(file_id, "h_phis2", h%phis2, dim_names=flux_dims, start=starts(2, nout))
+       call neasyf_write(file_id, "h_hypervisc", h%hypervisc, dim_names=flux_dims, start=starts(2, nout))
+       call neasyf_write(file_id, "h_hyperres", h%hyperres, dim_names=flux_dims, start=starts(2, nout))
+       call neasyf_write(file_id, "h_collisions", h%collisions, dim_names=flux_dims, start=starts(2, nout))
+       call neasyf_write(file_id, "h_gradients", h%gradients, dim_names=flux_dims, start=starts(2, nout))
+       call neasyf_write(file_id, "h_imp_colls", h%imp_colls, dim_names=flux_dims, start=starts(2, nout))
+       call neasyf_write(file_id, "h_hypercoll", h%hypercoll, dim_names=flux_dims, start=starts(2, nout))
+       call neasyf_write(file_id, "h_heating", h%heating, dim_names=flux_dims, start=starts(2, nout), &
             long_name="Total heating by species")
 
-       call neasyf_write(ncid, "hk_energy", hk%energy, dim_names=mode_dims, start=starts(3, nout))
-       call neasyf_write(ncid, "hk_energy_dot", hk%energy_dot, dim_names=mode_dims, start=starts(3, nout))
-       call neasyf_write(ncid, "hk_antenna", hk%antenna, dim_names=mode_dims, start=starts(3, nout))
-       call neasyf_write(ncid, "hk_eapar", hk%eapar, dim_names=mode_dims, start=starts(3, nout))
-       call neasyf_write(ncid, "hk_ebpar", hk%ebpar, dim_names=mode_dims, start=starts(3, nout))
+       call neasyf_write(file_id, "hk_energy", hk%energy, dim_names=mode_dims, start=starts(3, nout))
+       call neasyf_write(file_id, "hk_energy_dot", hk%energy_dot, dim_names=mode_dims, start=starts(3, nout))
+       call neasyf_write(file_id, "hk_antenna", hk%antenna, dim_names=mode_dims, start=starts(3, nout))
+       call neasyf_write(file_id, "hk_eapar", hk%eapar, dim_names=mode_dims, start=starts(3, nout))
+       call neasyf_write(file_id, "hk_ebpar", hk%ebpar, dim_names=mode_dims, start=starts(3, nout))
 
        call hk_repack (hk, 1, tmps)
-       call neasyf_write(ncid, "hk_hypervisc", tmps, dim_names=fluxk_dims, start=starts(4, nout))
+       call neasyf_write(file_id, "hk_hypervisc", tmps, dim_names=fluxk_dims, start=starts(4, nout))
        call hk_repack (hk, 2, tmps)
-       call neasyf_write(ncid, "hk_hyperres", tmps, dim_names=fluxk_dims, start=starts(4, nout))
+       call neasyf_write(file_id, "hk_hyperres", tmps, dim_names=fluxk_dims, start=starts(4, nout))
        call hk_repack (hk, 3, tmps)
-       call neasyf_write(ncid, "hk_collisions", tmps, dim_names=fluxk_dims, start=starts(4, nout))
+       call neasyf_write(file_id, "hk_collisions", tmps, dim_names=fluxk_dims, start=starts(4, nout))
        call hk_repack (hk, 4, tmps)
-       call neasyf_write(ncid, "hk_gradients", tmps, dim_names=fluxk_dims, start=starts(4, nout))
+       call neasyf_write(file_id, "hk_gradients", tmps, dim_names=fluxk_dims, start=starts(4, nout))
        call hk_repack (hk, 5, tmps)
-       call neasyf_write(ncid, "hk_heating", tmps, dim_names=fluxk_dims, start=starts(4, nout), &
+       call neasyf_write(file_id, "hk_heating", tmps, dim_names=fluxk_dims, start=starts(4, nout), &
             long_name="Total heating by species and mode")
        call hk_repack (hk, 6, tmps)
-       call neasyf_write(ncid, "hk_hypercoll", tmps, dim_names=fluxk_dims, start=starts(4, nout))
+       call neasyf_write(file_id, "hk_hypercoll", tmps, dim_names=fluxk_dims, start=starts(4, nout))
        call hk_repack (hk, 7, tmps)
-       call neasyf_write(ncid, "hk_delfs2", tmps, dim_names=fluxk_dims, start=starts(4, nout))
+       call neasyf_write(file_id, "hk_delfs2", tmps, dim_names=fluxk_dims, start=starts(4, nout))
        call hk_repack (hk, 8, tmps)
-       call neasyf_write(ncid, "hk_hs2", tmps, dim_names=fluxk_dims, start=starts(4, nout))
+       call neasyf_write(file_id, "hk_hs2", tmps, dim_names=fluxk_dims, start=starts(4, nout))
        call hk_repack (hk, 9, tmps)
-       call neasyf_write(ncid, "hk_phis2", tmps, dim_names=fluxk_dims, start=starts(4, nout))
+       call neasyf_write(file_id, "hk_phis2", tmps, dim_names=fluxk_dims, start=starts(4, nout))
        call hk_repack (hk, 10, tmps)
-       call neasyf_write(ncid, "hk_imp_colls", tmps, dim_names=fluxk_dims, start=starts(4, nout))
+       call neasyf_write(file_id, "hk_imp_colls", tmps, dim_names=fluxk_dims, start=starts(4, nout))
     end if
 
-    if (write_omega) call nc_write_omega(ncid, nout, omega, omegaavg, woutunits)
+    if (write_omega) call nc_write_omega(file_id, nout, omega, omegaavg, woutunits)
 
     if (write_scan_parameter) then
-       call neasyf_write(ncid, &
+       call neasyf_write(file_id, &
             "current_scan_parameter_value", &
             current_scan_parameter_value, &
             dim_names=["t"], start=[nout], &
             long_name="The current value of the scan parameter")
      end if
 
-    call neasyf_write(ncid, "phtot", phitot, dim_names=mode_dims, start=starts(3, nout), &
+    call neasyf_write(file_id, "phtot", phitot, dim_names=mode_dims, start=starts(3, nout), &
          long_name="Roughly the field line averaged summed field amplitudes")
 # endif
   end subroutine nc_loop
@@ -1224,8 +1269,11 @@ contains
   end subroutine nc_write_field
 
   !> Outputs full not guiding center moments 
-  subroutine nc_loop_fullmom (nout, ntot0, density0, upar0, tpar0, tperp0)
+  subroutine nc_loop_fullmom (file_id, nout, ntot0, density0, upar0, tpar0, tperp0)
     implicit none
+    !> NetCDF ID of the file to write to
+    integer, intent(in) :: file_id
+    !> Current timestep
     integer, intent (in) :: nout
     complex, dimension(:,:,:), intent(in) :: ntot0, density0, upar0, tpar0, tperp0
 #ifdef NETCDF
@@ -1234,15 +1282,15 @@ contains
 
     startmom = [1, 1, 1, 1, nout]
 
-    call netcdf_write_complex(ncid, "ntot0", ntot0, mom_dim, start=startmom, &
+    call netcdf_write_complex(file_id, "ntot0", ntot0, mom_dim, start=startmom, &
          long_name="Total perturbed density (theta=0) over time")
-    call netcdf_write_complex(ncid, "density0", density0, mom_dim, start=startmom, &
+    call netcdf_write_complex(file_id, "density0", density0, mom_dim, start=startmom, &
          long_name="Nonadiabatic piece of perturbed density (theta=0) over time")
-    call netcdf_write_complex(ncid, "upar0", upar0, mom_dim, start=startmom, &
+    call netcdf_write_complex(file_id, "upar0", upar0, mom_dim, start=startmom, &
          long_name="Upar (theta=0) over time")
-    call netcdf_write_complex(ncid, "tpar0", tpar0, mom_dim, start=startmom, &
+    call netcdf_write_complex(file_id, "tpar0", tpar0, mom_dim, start=startmom, &
          long_name="Tpar (theta=0) over time")
-    call netcdf_write_complex(ncid, "tperp0", tperp0, mom_dim, start=startmom, &
+    call netcdf_write_complex(file_id, "tperp0", tperp0, mom_dim, start=startmom, &
          long_name="Tperp (theta=0) over time")
 #endif
   end subroutine nc_loop_fullmom
@@ -1283,12 +1331,14 @@ contains
   end subroutine nc_loop_movie
 
   !> Sync the files every nsync writes
-  subroutine nc_sync(nout, nout_movie, nsync_freq)
+  subroutine nc_sync(file_id, nout, nout_movie, nsync_freq)
 # ifdef NETCDF
     use netcdf, only: nf90_sync, NF90_NOERR
     use netcdf_utils, only: netcdf_error
 # endif
     implicit none
+    !> NetCDF ID of the file to write to
+    integer, intent(in) :: file_id
     !> Current output timestep
     integer, intent(in) :: nout
     !> Current output timestep for real-space fields
@@ -1304,7 +1354,7 @@ contains
 
     !Main file
     if(mod(nout,nsync) == 0) then
-       status = nf90_sync (ncid)
+       status = nf90_sync (file_id)
        if (status /= NF90_NOERR) call netcdf_error (status)
     endif
 

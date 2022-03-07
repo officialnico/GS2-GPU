@@ -3,6 +3,7 @@ module gs2_diagnostics
   use gs2_heating, only: heating_diagnostics
   use gs2_save, only: save_many
   use diagnostics_base_config, only: diagnostics_base_config_type
+  use gs2_io, only: get_netcdf_file_id
 
   ! what about boundary condition contributions?  In the presence 
   ! of magnetic shear, there are not always zero amplitudes at the ends
@@ -860,7 +861,7 @@ contains
     use dist_fn, only: write_f, write_fyx,write_poly, collision_error
     use dist_fn_arrays, only: g_adjust, gnew
     use collisions, only: vnmult
-    use gs2_io, only: nc_finish, get_netcdf_file_id
+    use gs2_io, only: nc_finish
     use antenna, only: dump_ant_amp
     use kt_grids, only: naky, ntheta0
     use gs2_time, only: user_time, user_dt
@@ -1121,7 +1122,7 @@ contains
     !Instead replace with a call to nc_final_fields to keep the phi, apar and bpar
     !output arrays up to date.
 
-    if (write_fields .and. proc0) call nc_final_fields
+    if (write_fields .and. proc0) call nc_final_fields(get_netcdf_file_id())
 
     if (write_moments) call do_write_moments
 
@@ -1365,18 +1366,18 @@ contains
           if (write_ascii) write (unit=out_unit, fmt="('t= ',e17.10,' h_tot= ',e11.4, &
                & ' z_tot= ',e11.4)") t, hflux_tot, zflux_tot
           if (write_nl_flux) then
-             call nc_qflux (nout, qheat(:,:,:,1), qmheat(:,:,:,1), qbheat(:,:,:,1), &
+             call nc_qflux (get_netcdf_file_id(), nout, qheat(:,:,:,1), qmheat(:,:,:,1), qbheat(:,:,:,1), &
                   heat_par, mheat_par, bheat_par, &
                   heat_perp, mheat_perp, bheat_perp, &
                   heat_fluxes, mheat_fluxes, bheat_fluxes, x_qmflux, hflux_tot)
-             call nc_exchange (nout, exchange, energy_exchange)
+             call nc_exchange (get_netcdf_file_id(), nout, exchange, energy_exchange)
              ! Update the target array in parameter_scan_arrays
              !Do you really want the scan parameter to rely on a diagnostic flag?
              ! below line gives out-of-bounds array for runs inside trinity
              !                  scan_hflux(nout) = hflux_tot
              scan_hflux(mod(nout-1,nstep/nwrite+1)+1) = hflux_tot
 
-             call nc_vflux (nout, vflux, vmflux, vbflux, &
+             call nc_vflux (get_netcdf_file_id(), nout, vflux, vmflux, vbflux, &
                   mom_fluxes, mmom_fluxes, bmom_fluxes, vflux_tot, &
                   vflux_par, vflux_perp, vflux0, vflux1)
              ! Update the target array in parameter_scan_arrays
@@ -1384,11 +1385,11 @@ contains
              ! below line gives out-of-bounds array for runs inside trinity
              !                  scan_momflux(nout) = vflux_tot
              scan_momflux(mod(nout-1,nstep/nwrite+1)+1) = vflux_tot
-             call nc_pflux (nout, pflux, pmflux, pbflux, &
+             call nc_pflux (get_netcdf_file_id(), nout, pflux, pmflux, pbflux, &
                   part_fluxes, mpart_fluxes, bpart_fluxes, zflux_tot)
           end if
 
-          if (write_pflux_tormom) call nc_pflux_tormom (nout, pflux_tormom, part_tormom_fluxes)
+          if (write_pflux_tormom) call nc_pflux_tormom (get_netcdf_file_id(), nout, pflux_tormom, part_tormom_fluxes)
 
           ! below line gives out-of-bounds array for runs inside trinity
           !               scan_phi2_tot(nout) = phi2
@@ -1503,7 +1504,7 @@ contains
 
     call phinorm (phitot)
 
-    if(proc0) call nc_loop (nout, time, &
+    if(proc0) call nc_loop (get_netcdf_file_id(), nout, time, &
          phi2, apar2, bpar2, igomega, &
          h, hk, omega, omegaavg, woutunits, phitot, write_omega, write_heating)
 
@@ -1625,7 +1626,7 @@ contains
     end if
 
     !Do netcdf output
-    call nc_final_fields
+    call nc_final_fields(get_netcdf_file_id())
   end subroutine do_write_final_fields
 
   !> Write the parallel spectrum of \(\phi, A_\parallel, B_\parallel\), overwriting existing values
@@ -1731,7 +1732,7 @@ contains
        call close_output_file (unit)
     end if
 
-    call nc_final_epar (epar)
+    call nc_final_epar (get_netcdf_file_id(), epar)
 
     deallocate (epar)
   end subroutine do_write_final_epar
@@ -1904,7 +1905,7 @@ contains
        end if
 
        !Do the netcdf output -- Note we don't have the phi0 phase factor here
-       call nc_final_moments (ntot, density, upar, tpar, tperp, qparflux, pperpj1, qpperpj1)
+       call nc_final_moments (get_netcdf_file_id(), ntot, density, upar, tpar, tperp, qparflux, pperpj1, qpperpj1)
     end if
 
     deallocate (ntot, density, upar, tpar, tperp, qparflux, pperpj1, qpperpj1)
@@ -1947,7 +1948,7 @@ contains
           call close_output_file (unit)
        end if
 
-       call nc_final_an (antot, antota, antotp)
+       call nc_final_an (get_netcdf_file_id(), antot, antota, antotp)
     end if
 
     deallocate (antot, antota, antotp)
@@ -2397,7 +2398,7 @@ contains
          upar, tpar, tperp, qparflux, pperpj1, qpperpj1
 
     call getmoms (phinew, bparnew, ntot, density, upar, tpar, tperp, qparflux, pperpj1, qpperpj1)
-    if(proc0) call nc_write_moments(nout, ntot, density, upar, tpar, tperp,qparflux, &
+    if(proc0) call nc_write_moments(get_netcdf_file_id(), nout, ntot, density, upar, tpar, tperp,qparflux, &
          pperpj1, qpperpj1, ob_midplane=ob_midplane)
   end subroutine do_write_moments
 
@@ -2638,7 +2639,7 @@ contains
 
     allocate (vflx_sym(-ntgrid:ntgrid,nlambda*negrid,nspec))
     call flux_vs_theta_vs_vpa (phinew, vflx_sym)
-    if (proc0) call nc_loop_sym (nout, vflx_sym)
+    if (proc0) call nc_loop_sym (get_netcdf_file_id(), nout, vflx_sym)
     deallocate (vflx_sym)
   end subroutine do_write_symmetry
 
@@ -2698,7 +2699,8 @@ contains
           end do
        end if
     end if
-    if (proc0) call nc_loop_dist (nout, part_fluxes_dist, mom_fluxes_par_dist, mom_fluxes_perp_dist, heat_fluxes_dist, phi_dist)
+    if (proc0) call nc_loop_dist (get_netcdf_file_id(), nout, part_fluxes_dist, mom_fluxes_par_dist, &
+         mom_fluxes_perp_dist, heat_fluxes_dist, phi_dist)
     deallocate (part_fluxes_dist)
     deallocate (mom_fluxes_par_dist)
     deallocate (mom_fluxes_perp_dist)
@@ -2724,7 +2726,7 @@ contains
 
     allocate (pflux_sym(-ntgrid:ntgrid,nlambda*negrid,nspec))
     call pflux_vs_theta_vs_vpa (pflux_sym)
-    if (proc0) call nc_loop_partsym_tormom (nout, pflux_sym)
+    if (proc0) call nc_loop_partsym_tormom (get_netcdf_file_id(), nout, pflux_sym)
     deallocate (pflux_sym)
   end subroutine do_write_pflux_sym
 
@@ -2738,7 +2740,7 @@ contains
     complex, dimension(:,:), allocatable :: phi_corr_2pi
     allocate (phi_corr_2pi(-ntgrid:ntgrid,naky))
     call correlation (phi_corr_2pi)
-    if (proc0) call nc_loop_corr (nout,phi_corr_2pi)
+    if (proc0) call nc_loop_corr (get_netcdf_file_id(), nout, phi_corr_2pi)
     deallocate (phi_corr_2pi)
   end subroutine do_write_correlation
 
@@ -2779,7 +2781,7 @@ contains
     phicorr_sum = phicorr_sum + phi_corr*(time-time_old)
     phiextend_sum = phiextend_sum + phi2_extend*(time-time_old)
     if (proc0 .and. mod(istep,nwrite_mult*nwrite)==0) then
-       call nc_loop_corr_extend (nout_big, time, phicorr_sum/(time-tcorr0), phiextend_sum/(time-tcorr0))
+       call nc_loop_corr_extend (get_netcdf_file_id(), nout_big, time, phicorr_sum/(time-tcorr0), phiextend_sum/(time-tcorr0))
        nout_big = nout_big + 1
     end if
     deallocate (phi_corr, phi2_extend)
@@ -3269,7 +3271,7 @@ contains
                ntot20(is), ntot20_by_mode(:,:,is))
        end do
 
-       call nc_loop_moments (nout, ntot2, ntot2_by_mode, ntot20, &
+       call nc_loop_moments (get_netcdf_file_id(), nout, ntot2, ntot2_by_mode, ntot20, &
             ntot20_by_mode, phi00, ntot00, density00, upar00, &
             tpar00, tperp00, tpar2_by_mode, tperp2_by_mode)
 
@@ -3291,7 +3293,7 @@ contains
          upar, tpar, tperp
     call getmoms_notgc(phinew, bparnew, density,upar,tpar,tperp,ntot)
     if(proc0) then
-       call nc_loop_fullmom(nout, &
+       call nc_loop_fullmom(get_netcdf_file_id(), nout, &
             & ntot(igomega,:,:,:),density(igomega,:,:,:), &
             & upar(igomega,:,:,:), &
             & tpar(igomega,:,:,:),tperp(igomega,:,:,:) )
