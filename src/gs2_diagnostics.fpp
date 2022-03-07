@@ -3357,10 +3357,13 @@ contains
     use theta_grid, only: theta, ntgrid
     use fields_arrays, only: phinew, aparnew, bparnew
     use constants, only: run_name_size
+    use mp, only: proc0
     implicit none
     real, intent(in) :: t
     character(run_name_size) :: filename
     integer :: ik, it, ig, unit
+
+    if (.not. proc0) return
 
     call get_unused_unit (unit)
     write (filename, "('dump.fields.t=',e13.6)") t
