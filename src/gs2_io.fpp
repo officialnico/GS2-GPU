@@ -1010,8 +1010,8 @@ contains
 
     if (fphi > zero) then
        call netcdf_write_complex(file_id, "phi_corr_2pi", phi_2pi_corr, &
-            dim_names=[character(5)::"ri", "theta", "ky", "t"], &
-            start=starts(4, nout))
+            dim_names=[character(5)::"ri", "theta", "ky", "t"], start=starts(4, nout), &
+            long_name="2 point correlation function calculated from the electric potential")
     end if
 
 # endif
@@ -1042,7 +1042,8 @@ contains
       call neasyf_write(file_id, "tb", time, dim_names=["tb"], start=[nout_big])
 
        call netcdf_write_complex(file_id, "phi_corr", phi_corr, &
-            dim_names=phi_corr_dims, start=starts(5, nout_big))
+            dim_names=phi_corr_dims, start=starts(5, nout_big), &
+            long_name="2 point correlation function calculated from the electric potential, time averaged")
        call neasyf_write(file_id, "phi2_extend", phi2_extend, &
             dim_names=phi2_extend_dims, start=starts(4, nout_big))
     end if
