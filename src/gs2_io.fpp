@@ -1056,10 +1056,7 @@ contains
        h, hk, omega, omegaavg, woutunits, phitot, write_omega, write_heating)
     use gs2_heating, only: heating_diagnostics
 # ifdef NETCDF
-    use gs2_heating, only: hk_repack
     use run_parameters, only: fphi, fapar, fbpar
-    use kt_grids, only: naky, ntheta0
-    use species, only: nspec
     use fields_arrays, only: phinew, aparnew, bparnew
     use parameter_scan_arrays, only: write_scan_parameter,current_scan_parameter_value
     use neasyf, only: neasyf_write
@@ -1087,7 +1084,6 @@ contains
     type(heating_diagnostics), dimension(:,:), intent (in) :: hk
     logical, intent(in) :: write_omega, write_heating
 # ifdef NETCDF
-    real, dimension (ntheta0, naky, nspec) :: tmps
 
     call neasyf_write(file_id, "t", time, dim_names=["t"], start=[nout])
 
@@ -1103,52 +1099,7 @@ contains
       call nc_write_field(file_id, nout, bparnew, "bpar", "Parallel magnetic field", igomega, write_bpar_t, bpar2)
     end if
 
-    if (write_heating) then
-       call neasyf_write(file_id, "h_energy", h%energy, dim_names=["t"], start=[nout])
-       call neasyf_write(file_id, "h_energy_dot", h%energy_dot, dim_names=["t"], start=[nout])
-       call neasyf_write(file_id, "h_antenna", h%antenna, dim_names=["t"], start=[nout])
-       call neasyf_write(file_id, "h_eapar", h%eapar, dim_names=["t"], start=[nout])
-       call neasyf_write(file_id, "h_ebpar", h%ebpar, dim_names=["t"], start=[nout])
-       call neasyf_write(file_id, "h_delfs2", h%delfs2, dim_names=flux_dims, start=starts(2, nout))
-       call neasyf_write(file_id, "h_hs2", h%hs2, dim_names=flux_dims, start=starts(2, nout))
-       call neasyf_write(file_id, "h_phis2", h%phis2, dim_names=flux_dims, start=starts(2, nout))
-       call neasyf_write(file_id, "h_hypervisc", h%hypervisc, dim_names=flux_dims, start=starts(2, nout))
-       call neasyf_write(file_id, "h_hyperres", h%hyperres, dim_names=flux_dims, start=starts(2, nout))
-       call neasyf_write(file_id, "h_collisions", h%collisions, dim_names=flux_dims, start=starts(2, nout))
-       call neasyf_write(file_id, "h_gradients", h%gradients, dim_names=flux_dims, start=starts(2, nout))
-       call neasyf_write(file_id, "h_imp_colls", h%imp_colls, dim_names=flux_dims, start=starts(2, nout))
-       call neasyf_write(file_id, "h_hypercoll", h%hypercoll, dim_names=flux_dims, start=starts(2, nout))
-       call neasyf_write(file_id, "h_heating", h%heating, dim_names=flux_dims, start=starts(2, nout), &
-            long_name="Total heating by species")
-
-       call neasyf_write(file_id, "hk_energy", hk%energy, dim_names=mode_dims, start=starts(3, nout))
-       call neasyf_write(file_id, "hk_energy_dot", hk%energy_dot, dim_names=mode_dims, start=starts(3, nout))
-       call neasyf_write(file_id, "hk_antenna", hk%antenna, dim_names=mode_dims, start=starts(3, nout))
-       call neasyf_write(file_id, "hk_eapar", hk%eapar, dim_names=mode_dims, start=starts(3, nout))
-       call neasyf_write(file_id, "hk_ebpar", hk%ebpar, dim_names=mode_dims, start=starts(3, nout))
-
-       call hk_repack (hk, 1, tmps)
-       call neasyf_write(file_id, "hk_hypervisc", tmps, dim_names=fluxk_dims, start=starts(4, nout))
-       call hk_repack (hk, 2, tmps)
-       call neasyf_write(file_id, "hk_hyperres", tmps, dim_names=fluxk_dims, start=starts(4, nout))
-       call hk_repack (hk, 3, tmps)
-       call neasyf_write(file_id, "hk_collisions", tmps, dim_names=fluxk_dims, start=starts(4, nout))
-       call hk_repack (hk, 4, tmps)
-       call neasyf_write(file_id, "hk_gradients", tmps, dim_names=fluxk_dims, start=starts(4, nout))
-       call hk_repack (hk, 5, tmps)
-       call neasyf_write(file_id, "hk_heating", tmps, dim_names=fluxk_dims, start=starts(4, nout), &
-            long_name="Total heating by species and mode")
-       call hk_repack (hk, 6, tmps)
-       call neasyf_write(file_id, "hk_hypercoll", tmps, dim_names=fluxk_dims, start=starts(4, nout))
-       call hk_repack (hk, 7, tmps)
-       call neasyf_write(file_id, "hk_delfs2", tmps, dim_names=fluxk_dims, start=starts(4, nout))
-       call hk_repack (hk, 8, tmps)
-       call neasyf_write(file_id, "hk_hs2", tmps, dim_names=fluxk_dims, start=starts(4, nout))
-       call hk_repack (hk, 9, tmps)
-       call neasyf_write(file_id, "hk_phis2", tmps, dim_names=fluxk_dims, start=starts(4, nout))
-       call hk_repack (hk, 10, tmps)
-       call neasyf_write(file_id, "hk_imp_colls", tmps, dim_names=fluxk_dims, start=starts(4, nout))
-    end if
+    if (write_heating) call nc_write_heating(file_id, nout, h, hk)
 
     if (write_omega) call nc_write_omega(file_id, nout, omega, omegaavg, woutunits)
 
@@ -1204,7 +1155,6 @@ contains
   subroutine nc_write_field(file_id, nout, field, field_name, long_name, igomega, write_field_over_time, field2)
 # ifdef NETCDF
     use kt_grids, only: naky, ntheta0
-    use species, only: nspec
     use neasyf, only: neasyf_write
     use volume_averages, only: average_theta, average_kx, average_ky, init_volume_averages
 # endif
@@ -1272,7 +1222,87 @@ contains
 #endif
   end subroutine nc_write_field
 
-  !> Outputs full not guiding center moments 
+  !> Writing heating diagnostics to netCDF
+  subroutine nc_write_heating(file_id, nout, h, hk)
+    use gs2_heating, only: heating_diagnostics
+#ifdef NETCDF
+    use kt_grids, only: naky, ntheta0
+    use species, only: nspec
+    use gs2_heating, only: hk_repack
+    use neasyf, only: neasyf_write
+#endif
+    !> NetCDF ID of the file to write to
+    integer, intent(in) :: file_id
+    !> Current timestep
+    integer, intent(in) :: nout
+    !> Heating diagnostics
+    type(heating_diagnostics), intent (in) :: h
+    !> Heating per-mode
+#ifdef NETCDF
+    type(heating_diagnostics), dimension(:,:), intent (in) :: hk
+    real, dimension (ntheta0, naky, nspec) :: tmps
+
+    call neasyf_write(file_id, "h_energy", h%energy, dim_names=["t"], start=[nout], &
+         long_name="Total free (turbulent) energy")
+    call neasyf_write(file_id, "h_energy_dot", h%energy_dot, dim_names=["t"], start=[nout], &
+         long_name="Time derivative of total free energy")
+    call neasyf_write(file_id, "h_antenna", h%antenna, dim_names=["t"], start=[nout], &
+         long_name="Energy injection from antenna")
+    call neasyf_write(file_id, "h_eapar", h%eapar, dim_names=["t"], start=[nout], &
+         long_name="Free energy in perpendicular magnetic field")
+    call neasyf_write(file_id, "h_ebpar", h%ebpar, dim_names=["t"], start=[nout], &
+         long_name="Free energy in parallel magnetic field")
+    call neasyf_write(file_id, "h_delfs2", h%delfs2, dim_names=flux_dims, start=starts(2, nout), &
+         long_name="Total free energy dfs^2")
+    call neasyf_write(file_id, "h_hs2", h%hs2, dim_names=flux_dims, start=starts(2, nout), &
+         long_name="Non-adiabatic free energy hs^2")
+    call neasyf_write(file_id, "h_phis2", h%phis2, dim_names=flux_dims, start=starts(2, nout), &
+         long_name="Adiabatic free energy phi_bar^2")
+    call neasyf_write(file_id, "h_hypervisc", h%hypervisc, dim_names=flux_dims, start=starts(2, nout), &
+         long_name="Heating from hyperviscosity")
+    call neasyf_write(file_id, "h_hyperres", h%hyperres, dim_names=flux_dims, start=starts(2, nout), &
+         long_name="Heating from hyperresitivity")
+    call neasyf_write(file_id, "h_collisions", h%collisions, dim_names=flux_dims, start=starts(2, nout), &
+         long_name="Heating from collisions -[h C(h) * T_0]")
+    call neasyf_write(file_id, "h_gradients", h%gradients, dim_names=flux_dims, start=starts(2, nout), &
+         long_name="Heating from gradient")
+    call neasyf_write(file_id, "h_imp_colls", h%imp_colls, dim_names=flux_dims, start=starts(2, nout), &
+         long_name="[h_(i+1)*h_*]/2 * C[h_(i+1)] * T_0")
+    call neasyf_write(file_id, "h_hypercoll", h%hypercoll, dim_names=flux_dims, start=starts(2, nout))
+    call neasyf_write(file_id, "h_heating", h%heating, dim_names=flux_dims, start=starts(2, nout), &
+         long_name="Total heating by species")
+
+    call neasyf_write(file_id, "hk_energy", hk%energy, dim_names=mode_dims, start=starts(3, nout))
+    call neasyf_write(file_id, "hk_energy_dot", hk%energy_dot, dim_names=mode_dims, start=starts(3, nout))
+    call neasyf_write(file_id, "hk_antenna", hk%antenna, dim_names=mode_dims, start=starts(3, nout))
+    call neasyf_write(file_id, "hk_eapar", hk%eapar, dim_names=mode_dims, start=starts(3, nout))
+    call neasyf_write(file_id, "hk_ebpar", hk%ebpar, dim_names=mode_dims, start=starts(3, nout))
+
+    call hk_repack (hk, 1, tmps)
+    call neasyf_write(file_id, "hk_hypervisc", tmps, dim_names=fluxk_dims, start=starts(4, nout))
+    call hk_repack (hk, 2, tmps)
+    call neasyf_write(file_id, "hk_hyperres", tmps, dim_names=fluxk_dims, start=starts(4, nout))
+    call hk_repack (hk, 3, tmps)
+    call neasyf_write(file_id, "hk_collisions", tmps, dim_names=fluxk_dims, start=starts(4, nout))
+    call hk_repack (hk, 4, tmps)
+    call neasyf_write(file_id, "hk_gradients", tmps, dim_names=fluxk_dims, start=starts(4, nout))
+    call hk_repack (hk, 5, tmps)
+    call neasyf_write(file_id, "hk_heating", tmps, dim_names=fluxk_dims, start=starts(4, nout), &
+         long_name="Total heating by species and mode")
+    call hk_repack (hk, 6, tmps)
+    call neasyf_write(file_id, "hk_hypercoll", tmps, dim_names=fluxk_dims, start=starts(4, nout))
+    call hk_repack (hk, 7, tmps)
+    call neasyf_write(file_id, "hk_delfs2", tmps, dim_names=fluxk_dims, start=starts(4, nout))
+    call hk_repack (hk, 8, tmps)
+    call neasyf_write(file_id, "hk_hs2", tmps, dim_names=fluxk_dims, start=starts(4, nout))
+    call hk_repack (hk, 9, tmps)
+    call neasyf_write(file_id, "hk_phis2", tmps, dim_names=fluxk_dims, start=starts(4, nout))
+    call hk_repack (hk, 10, tmps)
+    call neasyf_write(file_id, "hk_imp_colls", tmps, dim_names=fluxk_dims, start=starts(4, nout))
+#endif
+  end subroutine nc_write_heating
+
+  !> Outputs full not guiding center moments
   subroutine nc_loop_fullmom (file_id, nout, ntot0, density0, upar0, tpar0, tperp0)
     implicit none
     !> NetCDF ID of the file to write to
