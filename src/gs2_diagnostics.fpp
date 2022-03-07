@@ -1421,7 +1421,7 @@ contains
 
     if (write_correlation_extend .and. istep > nstep/4) call do_write_correlation_extend(t, t_old, istep)
 
-    if (write_parity) call do_write_parity(t)
+    if (write_parity) call do_write_parity(t, parity_unit, write_ascii)
 
     if (write_avg_moments) call do_write_avg_moments
 
@@ -2789,7 +2789,7 @@ contains
 
   !> Calculate average parity of distribution function under \((\theta, k_x,
   !> v_\parallel) \to (-\theta, -k_x, -v_\parallel)\), and write to [[parity_unit]]
-  subroutine do_write_parity(t)
+  subroutine do_write_parity(t, file_unit, write_text)
     use theta_grid, only: ntgrid
     use kt_grids, only: naky, ntheta0
     use le_grids, only: negrid, nlambda, integrate_moment, integrate_kysum
@@ -2802,7 +2802,11 @@ contains
     use run_parameters, only: fphi, fbpar
     use constants, only: zi
     implicit none
-    real, intent(in) :: t 
+    real, intent(in) :: t
+    !> Open formatted file to write text to
+    integer, intent(in) :: file_unit
+    !> If false, don't calculate or write parity
+    logical, intent(in) :: write_text
     integer :: iplo, iglo, sgn2, isgn, il, ie, ig, ik, it, is
     complex, dimension (:,:,:,:), allocatable :: gparity, gmx, gpx
     complex, dimension (:,:,:), allocatable :: g0, gm, gp
@@ -2814,15 +2818,15 @@ contains
     real, dimension (:), allocatable :: gmtot, gptot, gtot, gmnormtot
     real, dimension (:), allocatable :: gm_nokx_tot, gp_nokx_tot, gmnorm_nokx_tot
     real, dimension (:), allocatable :: gm_nosig_tot, gp_nosig_tot, gmnorm_nosig_tot
-    logical :: first = .true.
+    logical, save :: first = .true.
+
+    if (.not. write_text) return
 
     ! initialize layouts for parity diagnostic
     if (first) then
        call init_parity_layouts (naky, nlambda, negrid, nspec)
        first = .false.
     end if
-
-    if (.not. write_ascii) return
 
     allocate (gparity(-ntgrid:ntgrid,ntheta0,2,p_lo%llim_proc:p_lo%ulim_alloc))
     allocate (g0(-ntgrid:ntgrid,2,p_lo%llim_proc:p_lo%ulim_alloc))
@@ -3202,7 +3206,7 @@ contains
        g_nosig_tot = gtmp + zi*sqrt(aimag(g_nosig_tot))
     end where
 
-    if (proc0) write (parity_unit,"(19(1x,e12.5))") t, gmtot, gptot, real(g_all_tot), aimag(g_all_tot), &
+    if (proc0) write (file_unit,"(19(1x,e12.5))") t, gmtot, gptot, real(g_all_tot), aimag(g_all_tot), &
          real(gnorm_all_tot), aimag(gnorm_all_tot), gm_nokx_tot, gp_nokx_tot, real(g_nokx_tot), aimag(g_nokx_tot), &
          real(gnorm_nokx_tot), aimag(gnorm_nokx_tot), gm_nosig_tot, gp_nosig_tot, &
          real(g_nosig_tot), aimag(g_nosig_tot), real(gnorm_nosig_tot), aimag(gnorm_nosig_tot)
