@@ -28,6 +28,7 @@ module gs2_io
   character(*), dimension(*), parameter :: final_field_dims = [character(len=5)::"ri", "theta", "kx", "ky"]
   character(*), dimension(*), parameter :: sym_dims = [character(7)::"theta", "vpa", "species", "t"]
   character(*), dimension(*), parameter :: omega_dims = ["ri", "kx", "ky", "t "]
+  character(*), dimension(*), parameter :: mode_dims = ["kx", "ky", "t "]
 
   integer, dimension (6) :: lp_dim
   integer, dimension (5) :: err_dim
@@ -1003,10 +1004,8 @@ contains
   end subroutine nc_loop_corr_extend
 
   !> Write various fields, heating, and frequency diagnostics to netCDF
-  subroutine nc_loop (nout, time, fluxfac, &
-       phi0,   phi2,   phi2_by_mode, &
-       apar0,  apar2,  apar2_by_mode, &
-       bpar0, bpar2, bpar2_by_mode, &
+  subroutine nc_loop (nout, time, &
+       phi2, apar2, bpar2, igomega, &
        h, hk, omega, omegaavg, woutunits, phitot, write_omega, write_heating)
     use gs2_heating, only: heating_diagnostics
 # ifdef NETCDF
@@ -1021,119 +1020,38 @@ contains
     implicit none
     !> Current output timestep
     integer, intent (in) :: nout
-    !> Current simulation time, fields squared
-    real, intent (in) :: time, phi2, apar2, bpar2
-    !> Scaling factor for modes (FIXME?), normalisation factor for frequency
-    real, dimension (:), intent (in) :: fluxfac, woutunits
+    !> Current simulation time
+    real, intent (in) :: time
+    !> Volume average of fields squared
+    real, intent(out) :: phi2, apar2, bpar2
+    !> Theta-index to measure fields at
+    integer, intent(in) :: igomega
+    !> Normalisation factor for frequency
+    real, dimension (:), intent (in) :: woutunits
     !> Fields, frequency and time-averaged frequency
-    complex, dimension(:,:), intent (in) :: phi0, apar0, bpar0, omega, omegaavg
+    complex, dimension(:,:), intent (in) :: omega, omegaavg
     !> FIXME: add documentation
-    real, dimension(:,:), intent (in) :: phi2_by_mode, apar2_by_mode, bpar2_by_mode, phitot
+    real, dimension(:,:), intent (in) :: phitot
     !> Heating diagnostics
     type(heating_diagnostics), intent (in) :: h
     !> Heating per-mode
     type(heating_diagnostics), dimension(:,:), intent (in) :: hk
     logical, intent(in) :: write_omega, write_heating
 # ifdef NETCDF
-    real, dimension (ntheta0) :: field2_by_kx
-    real, dimension (naky) :: field2_by_ky
-
     real, dimension (ntheta0, naky, nspec) :: tmps
-    integer :: ik, it
-
-    character(*), dimension(*), parameter :: field_dims = [character(5)::"ri", "theta", "kx", "ky", "t"]
-    character(*), dimension(*), parameter :: kx_dims = ["kx", "t "]
-    character(*), dimension(*), parameter :: ky_dims = ["ky", "t "]
-    character(*), dimension(*), parameter :: mode_dims = ["kx", "ky", "t "]
 
     call neasyf_write(ncid, "t", time, dim_names=["t"], start=[nout])
 
     if (fphi > zero) then
-       if(write_phi_t) then
-          call netcdf_write_complex(ncid, "phi_t", phinew, &
-               dim_names=field_dims, start=starts(5, nout), &
-               long_name="Electrostatic Potential over time")
-       end if
-
-       if (ntheta0 > 1) then
-          do it = 1, ntheta0
-             field2_by_kx(it) = sum(phi2_by_mode(it,:)*fluxfac(:))
-          end do
-          call neasyf_write(ncid, "phi2_by_kx", field2_by_kx, dim_names=kx_dims, start=starts(2, nout))
-       end if
-
-       if (naky > 1) then
-          do ik = 1, naky
-             field2_by_ky(ik) = sum(phi2_by_mode(:,ik)*fluxfac(ik))
-          end do
-          call neasyf_write(ncid, "phi2_by_ky", field2_by_ky, dim_names=ky_dims, start=starts(2, nout))
-       end if
-
-       call netcdf_write_complex(ncid, "phi0", phi0, dim_names=omega_dims, start=starts(4, nout))
-
-       call neasyf_write(ncid, "phi2_by_mode", phi2_by_mode, &
-            dim_names=mode_dims, start=starts(3, nout), &
-            long_name="Amplitude data per Fourier mode")
-       call neasyf_write(ncid, "phi2", phi2, dim_names=["t"], start=[nout], &
-            long_name="Volume averaged amplitude: |Potential**2|", units="(T/q rho/L)**2")
+      call nc_write_field(ncid, nout, phinew, "phi", "Electrostatic potential", igomega, write_phi_t, phi2)
     end if
 
     if (fapar > zero) then
-       if(write_apar_t) then
-          call netcdf_write_complex(ncid, "apar_t", aparnew,&
-               dim_names=field_dims, start=starts(5, nout), &
-               long_name="Parallel Magnetic Potential over Time")
-       end if
-
-       if (ntheta0 > 1) then
-          do it = 1, ntheta0
-             field2_by_kx(it) = sum(apar2_by_mode(it,:)*fluxfac(:))
-          end do
-          call neasyf_write(ncid, "apar2_by_kx", field2_by_kx, dim_names=kx_dims, start=starts(2, nout))
-       end if
-
-       if (naky > 1) then
-          do ik = 1, naky
-             field2_by_ky(ik) = sum(apar2_by_mode(:,ik)*fluxfac(ik))
-          end do
-          call neasyf_write(ncid, "apar2_by_ky", field2_by_ky, dim_names=ky_dims, start=starts(2, nout))
-       end if
-
-       call netcdf_write_complex(ncid, "apar0", apar0, dim_names=omega_dims, start=starts(4, nout))
-       call neasyf_write(ncid, "apar2_by_mode", apar2_by_mode, &
-            dim_names=mode_dims, start=starts(3, nout), &
-            long_name="Apar squared")
-       call neasyf_write(ncid, "apar2", apar2, dim_names=["t"], start=[nout], &
-            long_name="Volume averaged total A_par squared")
+      call nc_write_field(ncid, nout, aparnew, "apar", "Parallel magnetic potential", igomega, write_apar_t, apar2)
     end if
 
     if (fbpar > zero) then
-       if(write_bpar_t) then
-          call neasyf_write(ncid, "bpar_t", bparnew, &
-               dim_names=field_dims, start=starts(5, nout), &
-               long_name="delta B Parallel over time")
-       end if
-
-       if (ntheta0 > 1) then
-          do it = 1, ntheta0
-             field2_by_kx(it) = sum(bpar2_by_mode(it,:)*fluxfac(:))
-          end do
-          call neasyf_write(ncid, "bpar2_by_kx", field2_by_kx, dim_names=kx_dims, start=starts(2, nout))
-       end if
-
-       if (naky > 1) then
-          do ik = 1, naky
-             field2_by_ky(ik) = sum(bpar2_by_mode(:,ik)*fluxfac(ik))
-          end do
-          call neasyf_write(ncid, "bpar2_by_ky", field2_by_ky, dim_names=ky_dims, start=starts(2, nout))
-       end if
-
-       call netcdf_write_complex(ncid, "bpar0", bpar0, dim_names=omega_dims, start=starts(4, nout))
-       call neasyf_write(ncid, "bpar2_by_mode", bpar2_by_mode, &
-            dim_names=mode_dims, start=starts(3, nout), &
-            long_name="A_perp squared")
-       call neasyf_write(ncid, "bpar2", bpar2, dim_names=["t"], start=[nout], &
-            long_name="Volume averaged total A_perp squared")
+      call nc_write_field(ncid, nout, bparnew, "bpar", "Parallel magnetic field", igomega, write_bpar_t, bpar2)
     end if
 
     if (write_heating) then
@@ -1232,6 +1150,79 @@ contains
          long_name="Complex frequency averaged over navg timesteps", units="areef/vtref")
 #endif
   end subroutine nc_write_omega
+
+  !> Write a field ((/E, A_\Vert, B_\vert/)) to netCDF
+  subroutine nc_write_field(file_id, nout, field, field_name, long_name, igomega, write_field_over_time, field2)
+# ifdef NETCDF
+    use kt_grids, only: naky, ntheta0
+    use species, only: nspec
+    use neasyf, only: neasyf_write
+    use volume_averages, only: average_theta, average_kx, average_ky, init_volume_averages
+# endif
+    use theta_grid, only: ntgrid
+    !> NetCDF ID of the file
+    integer, intent(in) :: file_id
+    !> Current output timestep
+    integer, intent(in) :: nout
+    !> One of the fields (/E, A_\Vert, B_\vert/)
+    complex, dimension(-ntgrid:, :, :), intent(in) :: field
+    !> Name of the field
+    character(*), intent(in) :: field_name
+    !> Description of the field
+    character(*), intent(in) :: long_name
+    !> \(\theta\)-index to measure field at
+    integer, intent(in) :: igomega
+    !> Should entire field be written every timestep?
+    logical, intent(in) :: write_field_over_time
+    !> Volume-average of the field amplitude squared
+    real, intent(out) :: field2
+# ifdef NETCDF
+    real, dimension(ntheta0, naky) :: field2_by_mode
+    real, dimension(ntheta0) :: field2_by_kx
+    real, dimension(naky) :: field2_by_ky
+
+    character(*), dimension(*), parameter :: field_dims = [character(5)::"ri", "theta", "kx", "ky", "t"]
+    character(*), dimension(*), parameter :: kx_dims = ["kx", "t "]
+    character(*), dimension(*), parameter :: ky_dims = ["ky", "t "]
+
+    ! Need to make sure ntg_out is set in the volume averages module.
+    ! Note that we're not using `get_vol_average` because we'll end up
+    ! with a circular dependency
+    call init_volume_averages()
+    call average_theta(field, field, field2_by_mode, distributed=.false.)
+
+    if (write_field_over_time) then
+      call netcdf_write_complex(file_id, field_name // "_t", field, &
+           dim_names=field_dims, start=starts(5, nout), &
+           long_name=long_name // " over time")
+    end if
+
+    call average_ky(field2_by_mode, field2_by_kx, distributed=.false.)
+    call neasyf_write(file_id, field_name // "2_by_kx", field2_by_kx, dim_names=kx_dims, &
+         start=starts(2, nout), long_name=long_name // " squared and averaged over theta and ky")
+
+    call average_kx(field2_by_mode, field2_by_ky, distributed=.false.)
+    call neasyf_write(file_id, field_name // "2_by_ky", field2_by_ky, dim_names=ky_dims, &
+         start=starts(2, nout), long_name=long_name // " squared and averaged over theta and kx")
+
+    field2 = sum(field2_by_kx)
+
+    ! FIXME: duplicated variable, old/new diagnostics
+    call netcdf_write_complex(file_id, field_name // "0", field(igomega, :, :), &
+         dim_names=omega_dims, start=starts(4, nout), &
+         long_name=long_name // " at ig=igomega")
+    call netcdf_write_complex(file_id, field_name // "_igomega_by_mode", field(igomega, :, :), &
+         dim_names=omega_dims, start=starts(4, nout), &
+         long_name=long_name // " at ig=igomega")
+
+    call neasyf_write(file_id, field_name // "2_by_mode", field2_by_mode, &
+         dim_names=mode_dims, start=starts(3, nout), &
+         long_name=long_name // " per Fourier mode")
+    call neasyf_write(file_id, field_name // "2", field2, dim_names=["t"], start=[nout], &
+         long_name=long_name // " volume average", units="(T/q rho/L)**2")
+#endif
+  end subroutine nc_write_field
+
   !> Outputs full not guiding center moments 
   subroutine nc_loop_fullmom (nout, ntot0, density0, upar0, tpar0, tperp0)
     implicit none

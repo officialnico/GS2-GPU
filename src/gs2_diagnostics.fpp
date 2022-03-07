@@ -1488,9 +1488,7 @@ contains
   !> Compute volume averages of the fields and write the fields, field averages,
   !> heating and frequency to the netCDF files
   subroutine do_write_ncloop(time, istep, phi2, apar2, bpar2, phitot)
-    use fields_arrays, only: phinew, aparnew, bparnew
-    use run_parameters, only: fphi, fapar, fbpar, woutunits
-    use kt_grids, only: naky, ntheta0
+    use run_parameters, only: woutunits
     use gs2_io, only: nc_loop
     use mp, only: proc0
     implicit none
@@ -1502,31 +1500,13 @@ contains
     real, intent(out) :: phi2, apar2, bpar2
     !> FIXME: add documentation. Needs [[phinorm]] documenting
     real, dimension (:, :), intent(out) :: phitot
-    real, dimension (naky) :: fluxfac
-    real, dimension (ntheta0, naky) :: phi2_by_mode, apar2_by_mode, bpar2_by_mode
 
     omega = omegahist(mod(istep,navg),:,:)
 
     call phinorm (phitot)
-    if (fphi > epsilon(0.0)) then
-       call get_vol_average (phinew, phinew, phi2, phi2_by_mode)
-    endif
-    if (fapar > epsilon(0.0)) then
-       call get_vol_average (aparnew, aparnew, apar2, apar2_by_mode)
-    end if
-    if (fbpar > epsilon(0.0)) then
-       call get_vol_average (bparnew, bparnew, bpar2, bpar2_by_mode)
-    end if
 
-    fluxfac = 0.5
-    !This is only correct if running in box mode surely?
-    !    I think this should be if(aky(1)==0.0) fluxfac(1)=1.0 but I may be wrong
-    fluxfac(1) = 1.0
-
-    if(proc0) call nc_loop (nout, time, fluxfac, &
-         phinew(igomega,:,:), phi2, phi2_by_mode, &
-         aparnew(igomega,:,:), apar2, apar2_by_mode, &
-         bparnew(igomega,:,:), bpar2, bpar2_by_mode, &
+    if(proc0) call nc_loop (nout, time, &
+         phi2, apar2, bpar2, igomega, &
          h, hk, omega, omegaavg, woutunits, phitot, write_omega, write_heating)
 
   end subroutine do_write_ncloop
