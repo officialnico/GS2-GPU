@@ -925,13 +925,17 @@ contains
 
     if (fphi > zero) then
        call neasyf_write(file_id, "es_part_flux_dist", part_fluxes_dist, &
-            dim_names=flux_dist_dim, start=starts(1, nout))
+            dim_names=flux_dist_dim, start=starts(1, nout), &
+            long_name= "Particle flux density, see Ball et al PPCF 58 045023 2016")
        call neasyf_write(file_id, "es_mom_flux_par_dist", mom_fluxes_par_dist, &
-            dim_names=flux_dist_dim, start=starts(1, nout))
+            dim_names=flux_dist_dim, start=starts(1, nout), &
+            long_name= "Parallel momentum flux density, see Ball et al PPCF 58 045023 2016")
        call neasyf_write(file_id, "es_mom_flux_perp_dist", mom_fluxes_perp_dist, &
-            dim_names=flux_dist_dim, start=starts(1, nout))
+            dim_names=flux_dist_dim, start=starts(1, nout), &
+            long_name= "Perpendicular momentum flux density, see Ball et al PPCF 58 045023 2016")
        call neasyf_write(file_id, "es_heat_flux_dist", heat_fluxes_dist, &
-            dim_names=flux_dist_dim, start=starts(1, nout))
+            dim_names=flux_dist_dim, start=starts(1, nout), &
+            long_name= "Heat flux density, see Ball et al PPCF 58 045023 2016")
        call neasyf_write(file_id, "es_phi_dist", phi_dist, &
             dim_names=phi_dist_dim, start=starts(2, nout))
     end if
