@@ -223,7 +223,7 @@ contains
     call neasyf_dim(file_id, "species", dim_size=nspec, dimid=nspec_dim)
 
     ! Energy is 2D, and neasyf only handles 1D dimensions
-    call ensure_netcdf_dim_exists(ncid, 'energy', negrid, negrid_dim)
+    call ensure_netcdf_dim_exists(file_id, 'energy', negrid, negrid_dim)
     call neasyf_write(file_id, "energy", energy, dim_names=["energy ", "species"])
 
     call neasyf_dim(file_id, "sign", dim_size=2, dimid=nsign_dim)
