@@ -137,7 +137,7 @@ module gs2_diagnostics
   real, dimension (:), allocatable :: pflux_avg, qflux_avg, heat_avg, vflux_avg
   real :: conv_test_multiplier
 
-  integer :: ntg_out, ntg_extend, nth0_extend
+  integer :: ntg_extend, nth0_extend
   integer :: nout = 1
   integer :: nout_movie = 1
   integer :: nout_big = 1
@@ -849,8 +849,6 @@ contains
     dump_any = dump_check1  .or. dump_fields_periodically &
          .or.  dump_check2 .or. make_movie .or. print_summary &
          .or. write_full_moments_notgc
-
-    ntg_out = ntheta/2 + (nperiod-1)*ntheta
   end subroutine read_parameters
 
   !> Finalise the diagnostics module, writing final timestep diagnostics and
@@ -1541,7 +1539,7 @@ contains
     use file_utils, only: open_output_file, close_output_file
     use fields_arrays, only: phi, apar, bpar
     use kt_grids, only: ntheta0, naky, theta0, aky
-    use theta_grid, only: theta
+    use theta_grid, only: theta, ntgrid
     use gs2_io, only: nc_eigenfunc
     use dist_fn, only: def_parity, even
     use run_parameters, only: fapar
@@ -1578,7 +1576,7 @@ contains
        call open_output_file (unit, ".eigenfunc")
        do ik = 1, naky
           do it = 1, ntheta0
-             do ig = -ntg_out, ntg_out
+             do ig = -ntgrid, ntgrid
                 write (unit, "(9(1x,e12.5))") &
                      theta(ig), theta0(it,ik), aky(ik), &
                      phi(ig,it,ik)/phi0(it,ik), &
@@ -1600,7 +1598,7 @@ contains
     use file_utils, only: open_output_file, close_output_file
     use gs2_io, only: nc_final_fields
     use kt_grids, only: naky, ntheta0, aky, akx, theta0
-    use theta_grid, only: theta
+    use theta_grid, only: theta, ntgrid
     use fields_arrays, only: phi, apar, bpar
     implicit none
     integer :: ik, it, ig, unit
@@ -1611,7 +1609,7 @@ contains
        call open_output_file (unit, ".fields")
        do ik = 1, naky
           do it = 1, ntheta0
-             do ig = -ntg_out, ntg_out
+             do ig = -ntgrid, ntgrid
                 write (unit, "(15(1x,e12.5))") &
                      theta(ig), aky(ik), akx(it), &
                      phi(ig,it,ik), &
@@ -1721,7 +1719,7 @@ contains
        call open_output_file (unit, ".epar")
        do ik = 1, naky
           do it = 1, ntheta0
-             do ig = -ntg_out, ntg_out-1
+             do ig = -ntgrid, ntgrid-1
                 write (unit, "(6(1x,e12.5))") &
                      theta(ig), aky(ik), akx(it), &
                      epar(ig,it,ik), &
@@ -1762,9 +1760,9 @@ contains
        do it = 1, ntheta0
           dbfac(it,ik) = 1./sum(delthet/bmag/gradpar)/maxval(abs(phinew(:,it,ik)),1) &
                * abs(log(aparnew(1,it,ik)/apar(1,it,ik)))/code_dt
-          ig = -ntg_out
+          ig = -ntgrid
           db(ig, it, ik) = aparnew(ig,it,ik)*delthet(ig)/bmag(ig)/gradpar(ig)*dbfac(it,ik)
-          do ig = -ntg_out+1, ntg_out-1
+          do ig = -ntgrid+1, ntgrid-1
              db(ig, it, ik) = db(ig-1, it, ik) + aparnew(ig,it,ik)*delthet(ig)/bmag(ig)/gradpar(ig)*dbfac(it,ik)
           end do
        end do
@@ -1774,7 +1772,7 @@ contains
        call open_output_file (unit, ".db")
        do ik = 1, naky
           do it = 1, ntheta0
-             do ig = -ntg_out, ntg_out-1
+             do ig = -ntgrid, ntgrid-1
                 write (unit, "(5(1x,e12.5))") &
                      theta(ig), aky(ik), akx(it), real(db(ig, it,ik)), aimag(db(ig, it, ik))
              end do
@@ -1842,7 +1840,7 @@ contains
           do is  = 1, nspec
              do ik = 1, naky
                 do it = 1, ntheta0
-                   do ig = -ntg_out, ntg_out
+                   do ig = -ntgrid, ntgrid
                       write (unit, "(15(1x,e12.5))") &
                            theta(ig), aky(ik), akx(it), &
                            ntot(ig,it,ik,is)/phi0(it,ik), &
@@ -1864,7 +1862,7 @@ contains
           do is  = 1, nspec
              do ik = 1, naky
                 do it = 1, ntheta0
-                   do ig = -ntg_out, ntg_out
+                   do ig = -ntgrid, ntgrid
                       write (unit, "(15(1x,e12.5))") &
                            theta(ig), aky(ik), akx(it), &
                            real(ntot(ig,it,ik,is)*conjg(ntot(ig,it,ik,is)))/phi02(it,ik), &
@@ -1889,12 +1887,12 @@ contains
 
           do is  = 1, nspec
              do it = 2, ntheta0/2+1
-                call get_fldline_avg(phinew(-ntg_out:ntg_out,it,1),phi_tmp)
-                call get_fldline_avg(ntot(-ntg_out:ntg_out,it,1,is),ntot_tmp)
-                call get_fldline_avg(density(-ntg_out:ntg_out,it,1,is),density_tmp)
-                call get_fldline_avg(upar(-ntg_out:ntg_out,it,1,is),upar_tmp)
-                call get_fldline_avg(tpar(-ntg_out:ntg_out,it,1,is),tpar_tmp)
-                call get_fldline_avg(tperp(-ntg_out:ntg_out,it,1,is),tperp_tmp)
+                call get_fldline_avg(phinew(-ntgrid:ntgrid,it,1),phi_tmp)
+                call get_fldline_avg(ntot(-ntgrid:ntgrid,it,1,is),ntot_tmp)
+                call get_fldline_avg(density(-ntgrid:ntgrid,it,1,is),density_tmp)
+                call get_fldline_avg(upar(-ntgrid:ntgrid,it,1,is),upar_tmp)
+                call get_fldline_avg(tpar(-ntgrid:ntgrid,it,1,is),tpar_tmp)
+                call get_fldline_avg(tperp(-ntgrid:ntgrid,it,1,is),tperp_tmp)
 
                 write (unit, "(i2,14(1x,e10.3))") spec(is)%type, akx(it), &
                      phi_tmp, ntot_tmp, density_tmp, upar_tmp, tpar_tmp, tperp_tmp
@@ -1935,7 +1933,7 @@ contains
           call open_output_file (unit, ".antot")
           do ik = 1, naky
              do it = 1, ntheta0
-                do ig = -ntg_out, ntg_out
+                do ig = -ntgrid, ntgrid
                    write (unit, "(10(1x,e12.5))") &
                         theta(ig), theta0(it,ik), aky(ik), &
                         antot(ig,it,ik), &
@@ -3245,16 +3243,16 @@ contains
     if (proc0) then
        do is = 1, nspec
           do it = 1, ntheta0
-             call get_fldline_avg(ntot(-ntg_out:ntg_out,it,1,is),ntot00(it,is))
-             call get_fldline_avg(density(-ntg_out:ntg_out,it,1,is),density00(it,is))
-             call get_fldline_avg(upar(-ntg_out:ntg_out,it,1,is),upar00(it,is))
-             call get_fldline_avg(tpar(-ntg_out:ntg_out,it,1,is),tpar00(it,is))
-             call get_fldline_avg(tperp(-ntg_out:ntg_out,it,1,is),tperp00(it,is))
+             call get_fldline_avg(ntot(-ntgrid:ntgrid,it,1,is),ntot00(it,is))
+             call get_fldline_avg(density(-ntgrid:ntgrid,it,1,is),density00(it,is))
+             call get_fldline_avg(upar(-ntgrid:ntgrid,it,1,is),upar00(it,is))
+             call get_fldline_avg(tpar(-ntgrid:ntgrid,it,1,is),tpar00(it,is))
+             call get_fldline_avg(tperp(-ntgrid:ntgrid,it,1,is),tperp00(it,is))
           end do
        end do
 
        do it = 1, ntheta0
-          call get_fldline_avg(phinew(-ntg_out:ntg_out,it,1),phi00(it))
+          call get_fldline_avg(phinew(-ntgrid:ntgrid,it,1),phi00(it))
        end do
 
        do is = 1, nspec
@@ -3304,7 +3302,7 @@ contains
   subroutine do_write_dump_1(t)
     use mp, only: proc0
     use kt_grids, only: naky, ntheta0, aky, akx
-    use theta_grid, only: delthet, jacob
+    use theta_grid, only: delthet, jacob, ntgrid
     use fields_arrays, only: phinew
     use dist_fn, only: omega0, gamma0
     use constants, only: zi
@@ -3324,10 +3322,10 @@ contains
     !theta grid point which we don't seem to want here
     do ik = 1, naky
        do it = 1, ntheta0
-          denom=sum(delthet(-ntg_out:ntg_out-1)*jacob(-ntg_out:ntg_out-1))
-          tmp=sum(phinew(-ntg_out:ntg_out-1,it,ik) &
-               *delthet(-ntg_out:ntg_out-1) &
-               *jacob(-ntg_out:ntg_out-1))/denom
+          denom=sum(delthet(-ntgrid:ntgrid-1)*jacob(-ntgrid:ntgrid-1))
+          tmp=sum(phinew(-ntgrid:ntgrid-1,it,ik) &
+               *delthet(-ntgrid:ntgrid-1) &
+               *jacob(-ntgrid:ntgrid-1))/denom
           write (dump_check1_unit, "(20(1x,e12.5))") &
                t, aky(ik), akx(it), tmp, tmp/sourcefac
        end do
@@ -3356,7 +3354,7 @@ contains
   subroutine do_dump_fields_periodically(t)
     use file_utils, only: get_unused_unit
     use kt_grids, only: naky, ntheta0, aky, theta0, akx
-    use theta_grid, only: theta
+    use theta_grid, only: theta, ntgrid
     use fields_arrays, only: phinew, aparnew, bparnew
     use constants, only: run_name_size
     implicit none
@@ -3369,7 +3367,7 @@ contains
     open (unit=unit, file=filename, status="unknown")
     do ik = 1, naky
        do it = 1, ntheta0
-          do ig = -ntg_out, ntg_out
+          do ig = -ntgrid, ntgrid
              write (unit=unit, fmt="(20(1x,e12.5))") &
                   theta(ig), aky(ik), theta0(it,ik), &
                   phinew(ig,it,ik), aparnew(ig,it,ik), &
@@ -3693,10 +3691,10 @@ contains
 
     integer :: ik, it
     integer :: ng
-    real, dimension (-ntg_out:ntg_out) :: wgt
+    real, dimension (-ntgrid:ntgrid) :: wgt
     real :: anorm
 
-    ng = ntg_out
+    ng = ntgrid
     wgt = delthet(-ng:ng)*jacob(-ng:ng)
     anorm = sum(wgt)
 
@@ -3839,15 +3837,15 @@ contains
 
   !> Calculate the field-line average (real values)
   subroutine get_fldline_avg_r (fld_in, fld_out)
-    use theta_grid, only: delthet, jacob
+    use theta_grid, only: delthet, jacob, ntgrid
     implicit none
     real, dimension (:), allocatable :: dl_over_b
-    real, dimension (-ntg_out:), intent (in) :: fld_in
+    real, dimension (-ntgrid:), intent (in) :: fld_in
     real, intent (out) :: fld_out
 
-    allocate (dl_over_b(-ntg_out:ntg_out))
+    allocate (dl_over_b(-ntgrid:ntgrid))
 
-    dl_over_b = delthet(-ntg_out:ntg_out)*jacob(-ntg_out:ntg_out)
+    dl_over_b = delthet(-ntgrid:ntgrid)*jacob(-ntgrid:ntgrid)
     dl_over_b = dl_over_b / sum(dl_over_b)
 
     fld_out = sum(fld_in*dl_over_b)
@@ -3858,15 +3856,15 @@ contains
 
   !> Calculate the field-line average (complex values)
   subroutine get_fldline_avg_c (fld_in, fld_out)
-    use theta_grid, only: delthet, jacob
+    use theta_grid, only: delthet, jacob, ntgrid
     implicit none
     real, dimension (:), allocatable :: dl_over_b
-    complex, dimension (-ntg_out:), intent (in) :: fld_in
+    complex, dimension (-ntgrid:), intent (in) :: fld_in
     complex, intent (out) :: fld_out
 
-    allocate (dl_over_b(-ntg_out:ntg_out))
+    allocate (dl_over_b(-ntgrid:ntgrid))
 
-    dl_over_b = delthet(-ntg_out:ntg_out)*jacob(-ntg_out:ntg_out)
+    dl_over_b = delthet(-ntgrid:ntgrid)*jacob(-ntgrid:ntgrid)
     dl_over_b = dl_over_b / sum(dl_over_b)
 
     fld_out = sum(fld_in*dl_over_b)
@@ -3932,10 +3930,10 @@ contains
     complex, dimension (:,:), intent (out) :: axb_by_mode
     integer :: ik, it
     integer :: ng
-    real, dimension (-ntg_out:ntg_out) :: wgt
+    real, dimension (-ntgrid:ntgrid) :: wgt
     real :: anorm
 
-    ng = ntg_out
+    ng = ntgrid
     wgt = delthet(-ng:ng)*jacob(-ng:ng)
     anorm = sum(wgt)
 
@@ -3994,7 +3992,7 @@ contains
   subroutine correlation_extend (cfnc, phi2extend)
     !    use constants, only: pi
     use fields_arrays, only: phinew
-    use theta_grid, only: ntgrid, jacob, delthet
+    use theta_grid, only: ntgrid, jacob, delthet, ntgrid
     !   use theta_grid, only: theta
     use kt_grids, only: ntheta0, naky, jtwist_out
 
