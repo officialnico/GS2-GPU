@@ -27,6 +27,7 @@ module gs2_io
   character(*), dimension(*), parameter :: fluxk_dims = [character(7)::"kx", "ky", "species", "t"]
   character(*), dimension(*), parameter :: final_field_dims = [character(len=5)::"ri", "theta", "kx", "ky"]
   character(*), dimension(*), parameter :: sym_dims = [character(7)::"theta", "vpa", "species", "t"]
+  character(*), dimension(*), parameter :: omega_dims = ["ri", "kx", "ky", "t "]
 
   integer, dimension (6) :: lp_dim
   integer, dimension (5) :: err_dim
@@ -1038,13 +1039,11 @@ contains
     real, dimension (naky) :: field2_by_ky
 
     real, dimension (ntheta0, naky, nspec) :: tmps
-    complex, dimension (ntheta0, naky) :: tmp
     integer :: ik, it
 
     character(*), dimension(*), parameter :: field_dims = [character(5)::"ri", "theta", "kx", "ky", "t"]
     character(*), dimension(*), parameter :: kx_dims = ["kx", "t "]
     character(*), dimension(*), parameter :: ky_dims = ["ky", "t "]
-    character(*), dimension(*), parameter :: omega_dims = ["ri", "kx", "ky", "t "]
     character(*), dimension(*), parameter :: mode_dims = ["kx", "ky", "t "]
 
     call neasyf_write(ncid, "t", time, dim_names=["t"], start=[nout])
@@ -1184,17 +1183,7 @@ contains
        call neasyf_write(ncid, "hk_imp_colls", tmps, dim_names=fluxk_dims, start=starts(4, nout))
     end if
 
-    if (write_omega) then
-       do it = 1, ntheta0
-          tmp(it, :) = omega(it, :) * woutunits
-       end do
-       call netcdf_write_complex(ncid, "omega", tmp, dim_names=omega_dims, start=starts(4, nout))
-
-       do it = 1, ntheta0
-          tmp(it, :) = omegaavg(it, :) * woutunits
-       end do
-       call netcdf_write_complex(ncid, "omegaavg", tmp, dim_names=omega_dims, start=starts(4, nout))
-    end if
+    if (write_omega) call nc_write_omega(ncid, nout, omega, omegaavg, woutunits)
 
     if (write_scan_parameter) then
        call neasyf_write(ncid, &
@@ -1209,6 +1198,40 @@ contains
 # endif
   end subroutine nc_loop
 
+  !> Writing the (normalised) complex frequency to netCDF
+  subroutine nc_write_omega(file_id, nout, omega, omega_average, woutunits)
+#ifdef NETCDF
+    use kt_grids, only: ntheta0, naky
+#endif
+    !> NetCDF ID of the file
+    integer, intent(in) :: file_id
+    !> Current output timestep
+    integer, intent (in) :: nout
+    !> Normalisation factor for frequency
+    real, dimension (:), intent (in) :: woutunits
+    !> Fields, frequency and time-averaged frequency
+    complex, dimension(:,:), intent (in) :: omega, omega_average
+#ifdef NETCDF
+    complex, dimension (ntheta0, naky) :: tmp
+    integer :: it
+
+    do it = 1, ntheta0
+      tmp(it, :) = omega(it, :) * woutunits
+    end do
+    call netcdf_write_complex(file_id, "omega", tmp, dim_names=omega_dims, start=starts(4, nout), &
+         long_name="Complex frequency", units="aref/vtref")
+
+    do it = 1, ntheta0
+      tmp(it, :) = omega_average(it, :) * woutunits
+    end do
+
+    ! FIXME: duplicate names for old/new diagnostics
+    call netcdf_write_complex(file_id, "omegaavg", tmp, dim_names=omega_dims, start=starts(4, nout), &
+         long_name="Complex frequency averaged over navg timesteps", units="areef/vtref")
+    call netcdf_write_complex(file_id, "omega_average", tmp, dim_names=omega_dims, start=starts(4, nout), &
+         long_name="Complex frequency averaged over navg timesteps", units="areef/vtref")
+#endif
+  end subroutine nc_write_omega
   !> Outputs full not guiding center moments 
   subroutine nc_loop_fullmom (nout, ntot0, density0, upar0, tpar0, tperp0)
     implicit none
