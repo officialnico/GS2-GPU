@@ -245,7 +245,10 @@ contains
     call neasyf_dim(file_id, "char5", dim_size=5, dimid=char5_dim)
     call neasyf_dim(file_id, "char10", dim_size=10, dimid=char10_dim)
     call neasyf_dim(file_id, "char200", dim_size=200)
-    call neasyf_dim(file_id, "nlines", dim_size=num_input_lines, long_name="Input file line number")
+    if (num_input_lines > 0) then
+      ! netCDF interprets zero-sized dimensions as unlimited, which is not what we want
+      call neasyf_dim(file_id, "nlines", dim_size=num_input_lines, long_name="Input file line number")
+    end if
 
     ! Dimensions for non-physical matrices etc
     call neasyf_dim(file_id, "2", dim_size=2, long_name="Generic dim")
@@ -377,6 +380,9 @@ contains
     integer, parameter :: line_length = 200
     character(line_length), dimension(:), allocatable ::  input_file_array
     integer :: n, unit
+
+    ! Don't attempt to write zero-sized arrays
+    if (num_input_lines <= 0) return
 
     allocate(input_file_array(num_input_lines))
 
