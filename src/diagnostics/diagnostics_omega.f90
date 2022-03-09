@@ -46,9 +46,6 @@ contains
   !> Write omega, omega_average as functions of kx, ky and time
   !! to the new netcdf file
   subroutine write_omega(gnostics)
-    use diagnostics_create_and_write, only: create_and_write_distributed_fieldlike_variable
-    use diagnostics_dimensions, only: dim_string
-    use fields_parallelization, only: field_k_local
     use run_parameters, only: woutunits
     use kt_grids, only: ntheta0, naky
     use diagnostics_config, only: diagnostics_type

@@ -2,9 +2,7 @@
 !! module via the namelist diagnostics_config.
 module diagnostics_config
   use abstract_config, only: abstract_config_type, CONFIG_MAX_NAME_LEN
-  use simpledataio, only: sdf=>sdatio_file
   use diagnostics_ascii, only: diagnostics_ascii_type
-  use diagnostics_dimensions, only: diagnostics_dimension_list_type
   use diagnostics_base_config, only: diagnostics_base_config_type
   implicit none
 
@@ -66,19 +64,12 @@ module diagnostics_config
   !! a reference to the output file, and current 
   !! results of the simulation
   type diagnostics_type
-     type(sdf) :: sfile
      type(diagnostics_ascii_type) :: ascii_files
      type(results_summary_type) :: current_results
-     type(diagnostics_dimension_list_type) :: dims
      !> NetCDF file ID
      integer :: file_id
      !> Current timestep
      integer :: nout = 1
-     !> Integer below gives the sdatio type 
-     !! which corresponds to a gs2 real
-     integer :: rtype
-     integer :: itype
-     integer :: ctype
      integer :: istep
      integer :: verbosity = 3
      logical :: create

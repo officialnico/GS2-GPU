@@ -5,8 +5,6 @@ module diagnostics_turbulence
   private
 
   public :: write_cross_phase
-
-  integer :: ntg_extend, nth0_extend
 contains
 
   !> FIXME : Add documentation  

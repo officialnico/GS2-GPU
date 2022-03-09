@@ -55,19 +55,8 @@ contains
     use nonlinear_terms, only: nonlin
     use gs2_save, only: save_many
     use file_utils, only: run_name, error_unit
-    use mp, only: mp_comm, proc0, broadcast, mp_abort
+    use mp, only: proc0, broadcast, mp_abort
     use kt_grids, only: naky, aky
-    !This reference needs removing to allow compilation on systems without netcdf
-    !It should probably be moved to simpledataio as the rest of the diagnostics
-    !doesn't know what backend simpledataio is using (i.e. if it is netcdf or not).
-    use netcdf, only: NF90_CLOBBER
-    use simpledataio, only: SDATIO_DOUBLE, SDATIO_FLOAT, SDATIO_INT, SDATIO_CHAR
-    !use simpledataio, only: print_dimensions
-    use simpledataio, only: sdatio_init, simpledataio_functional
-    use simpledataio, only: set_parallel, create_file, open_file
-    use simpledataio, only: set_dimension_start
-    use diagnostics_metadata, only: write_metadata
-    use diagnostics_metadata, only: read_input_file_and_get_size
     use gs2_diagnostics, only: check_restart_file_writeable
     use unit_tests, only: debug_message
     use standard_header, only: standard_header_type
@@ -100,17 +89,6 @@ contains
     call debug_message(gnostics%verbosity, &
       'gs2_diagnostics_new::init_gs2_diagnostics_new inialized vol avgs')
     
-    ! Eventually we will remove this as we want the new diagnostics
-    ! module to be built even if netCDF is not available.
-    ! Or do we??
-    if (.not. simpledataio_functional()) then
-       if (proc0) then
-          write (*,*) "WARNING: simpledataio is non-functional. &
-               & Setting write_any to false in gs2_diagnostics_new"
-       end if
-       gnostics%write_any = .false.
-    end if
-
     !!!!!!!!!!!!!!!!!!!!!!!
     !! Adjust other modules
     !!!!!!!!!!!!!!!!!!!!!!!
@@ -138,15 +116,6 @@ contains
        end if
     end if
     
-    !write (*,*) 'parallel', gnostics%parallel
-    if (init_options%default_double) then
-       gnostics%rtype = SDATIO_DOUBLE
-    else
-       gnostics%rtype = SDATIO_FLOAT
-    end if
-    gnostics%itype = SDATIO_INT
-    gnostics%ctype = SDATIO_CHAR
-
     gnostics%user_time_old = 0.0
     
     ! fluxfac is used for summing fields, fluxes etc over ky
@@ -178,15 +147,8 @@ contains
 
     if (gnostics%write_heating) call init_diagnostics_heating(gnostics)
     if (nonlin.and.gnostics%use_nonlin_convergence) call init_nonlinear_convergence(gnostics)
-    call read_input_file_and_get_size(gnostics)
     
     filename = trim(trim(run_name)//'.out.nc')
-
-    call sdatio_init(gnostics%sfile, trim(filename))
-
-    if (gnostics%parallel) then 
-       call set_parallel(gnostics%sfile, mp_comm)
-    end if
 
     call debug_message(gnostics%verbosity, &
       'gs2_diagnostics_new::init_gs2_diagnostics_new opening file')
@@ -196,30 +158,18 @@ contains
          if (ex) then
           call debug_message(gnostics%verbosity, &
             'gs2_diagnostics_new::init_gs2_diagnostics_new replaying')
-          call open_file(gnostics%sfile)
           gnostics%file_id = neasyf_open(trim(filename), "w")
-          gnostics%sfile%nc_file_id = gnostics%file_id
-
-          call debug_message(gnostics%verbosity, &
-            'gs2_diagnostics_new::init_gs2_diagnostics_new opened replay')
-          call set_dimension_start(gnostics%sfile, "t", 1)
-          call debug_message(gnostics%verbosity, &
-            'gs2_diagnostics_new::init_gs2_diagnostics_new set dimension start')
          else 
            call mp_abort("replay set to true but no file exists", .true.)
          end if
          gnostics%appending=.false.
        else if (gnostics%append_old .and. ex) then
          gnostics%appending=.true.
-         call open_file(gnostics%sfile)
          gnostics%file_id = neasyf_open(trim(filename), "rw")
-         gnostics%sfile%nc_file_id = gnostics%file_id
          gnostics%nout = get_dim_length(gnostics%file_id, "t")
        else
          gnostics%appending=.false.
-         call create_file(gnostics%sfile)
          gnostics%file_id = neasyf_open(trim(filename), "w")
-         gnostics%sfile%nc_file_id = gnostics%file_id
          call create_metadata(gnostics%file_id, "GS2 Simulation Data", header, user_comments)
          ! call write_metadata(gnostics)
          call debug_message(gnostics%verbosity, &
@@ -247,16 +197,6 @@ contains
     call broadcast(gnostics%nout)
 
     gnostics%replay = init_options%replay
-
-    !All procs initialise dimension data but if not parallel IO
-    !only proc0 has to add them to file.
-    call create_dimensions(&
-      (gnostics%parallel.or.proc0).and..not.gnostics%appending &
-      .and. .not. init_options%replay)
-
-    call debug_message(gnostics%verbosity, &
-      'gs2_diagnostics_new::init_gs2_diagnostics_new created dimensions')
-
 
     call debug_message(gnostics%verbosity, &
       'gs2_diagnostics_new::init_gs2_diagnostics_new finished')
@@ -325,7 +265,6 @@ contains
     use dist_fn, only: write_fyx, write_f, write_poly, collision_error
     use mp, only: proc0
     use fields_arrays, only: phinew, bparnew
-    use simpledataio, only: closefile
     use unit_tests, only: debug_message
     use neasyf, only: neasyf_close
     implicit none
@@ -400,7 +339,6 @@ contains
   subroutine run_diagnostics(istep_in, exit, read_existing)
     use gs2_time, only: user_time
     use mp, only: proc0
-    use simpledataio, only: print_dimensions
     use diagnostics_zonal_transfer, only: write_zonal_transfer, calculate_zonal_transfer
     use collisional_heating, only: write_collisional, calculate_collisional   
     use diagnostics_printout, only: print_flux_line, print_line
@@ -422,7 +360,6 @@ contains
     use collisions, only: vary_vnew
     use nonlinear_terms, only: nonlin
     use species, only: spec, has_electron_species
-    use simpledataio, only: increment_start, syncfile, closefile, set_parallel, create_file
     use unit_tests, only: debug_message
     use mp,  only: broadcast
     use neasyf, only: neasyf_write
@@ -660,80 +597,4 @@ contains
          & finished')
     
   end subroutine run_old_final_routines
-
-  !> FIXME : Add documentation  
-  subroutine create_dimensions(add_to_file)
-    use simpledataio_write, only: real_imaginary_dimension_name
-    use kt_grids, only: naky, ntheta0, nx, ny, jtwist_out, box
-    use theta_grid, only: ntgrid
-    use le_grids, only: negrid, nlambda
-    use species, only: nspec
-    use diagnostics_metadata, only: inputfile_length
-
-    implicit none
-    logical, intent(in) :: add_to_file
-
-    ! Please stick to the convention of CAPITALS for spectral
-    ! dimensions and lower case for non-spectral
-    
-    ! The final two arguments of the add_dimension function call currently
-    ! have no effect, but may in the future
-    ! Their values are given for documentation purposes
-    
-    !Initialise the dimension instances and add to file
-    !/Spectral space
-    call gnostics%dims%kx%init("kx", ntheta0, "The kx dimension", "")
-    if(add_to_file) call gnostics%dims%kx%add_to_file(gnostics%sfile)
-    call gnostics%dims%ky%init("ky", naky, "The ky dimension", "")
-    if(add_to_file) call gnostics%dims%ky%add_to_file(gnostics%sfile)
-    !/Parallel space
-    call gnostics%dims%theta%init("theta", 2*ntgrid+1, "The theta (parallel) dimension", "")
-    if(add_to_file) call gnostics%dims%theta%add_to_file(gnostics%sfile)
-    if (box) then 
-       !What is this used for?
-       if(jtwist_out .ne. 0) then
-       call gnostics%dims%theta_ext%init("theta_ext", (2*ntgrid+1)*((ntheta0-1)/jtwist_out+1), &
-            "The theta (parallel) dimension along the extended domain", "")
-       if(add_to_file) call gnostics%dims%theta_ext%add_to_file(gnostics%sfile)
-       endif
-    end if
-    !/Real space
-    ! Since these are generated by using the transform2
-    ! routines they include the aliased gridpoints (i.e.
-    ! there is redundancy)
-    if (box .and. .not. (nx .eq. 0 .or. ny .eq. 0)) then 
-       call gnostics%dims%xx%init('x',nx,"The x dimension (inc aliased gridpoints)", "")
-       if(add_to_file) call gnostics%dims%xx%add_to_file(gnostics%sfile)
-       call gnostics%dims%yy%init('y',ny,"The y dimension", "")
-       if(add_to_file) call gnostics%dims%yy%add_to_file(gnostics%sfile)
-    endif
-    !/Velocity space
-    call gnostics%dims%energy%init("energy", negrid, "The energy dimension", "")
-    if(add_to_file) call gnostics%dims%energy%add_to_file(gnostics%sfile)
-    call gnostics%dims%lambda%init("lambda", nlambda, "The pitch angle dimension", "")
-    if(add_to_file) call gnostics%dims%lambda%add_to_file(gnostics%sfile)
-    call gnostics%dims%vpar%init("vpa",negrid*nlambda,"For writing functions of vparallel", "")
-    if(add_to_file) call gnostics%dims%vpar%add_to_file(gnostics%sfile)
-    call gnostics%dims%species%init("species", nspec, "The species dimension", "")
-    if(add_to_file) call gnostics%dims%species%add_to_file(gnostics%sfile)
-    !/Time | Note this is an unlimited dimension so the length is ignored
-    call gnostics%dims%time%init("t", 0, "The time dimension", "", is_unlimited_in=.true.)
-    if(add_to_file) call gnostics%dims%time%add_to_file(gnostics%sfile)
-    !/Numeric/generic
-    ! This tells simpledataio that we are using "ri" for real/imaginary (default is "r")
-    real_imaginary_dimension_name = 'ri'
-    call gnostics%dims%ri%init("ri", 2, "Real and imaginary components", "")
-    if(add_to_file) call gnostics%dims%ri%add_to_file(gnostics%sfile)
-    call gnostics%dims%generic_2%init("2", 2, "Generic 2", "")
-    if(add_to_file) call gnostics%dims%generic_2%add_to_file(gnostics%sfile)
-    call gnostics%dims%generic_3%init("3", 3, "Generic 3", "")
-    if(add_to_file) call gnostics%dims%generic_3%add_to_file(gnostics%sfile)
-    call gnostics%dims%generic_4%init("4", 4, "Generic 4", "")
-    if(add_to_file) call gnostics%dims%generic_4%add_to_file(gnostics%sfile)
-    call gnostics%dims%generic_5%init("5", 5, "Generic 5", "")
-    if(add_to_file) call gnostics%dims%generic_5%add_to_file(gnostics%sfile)
-    ! Special dimension for the input file
-    call gnostics%dims%input_file_dim%init("input_file_dim", inputfile_length, "Length of input file", "")
-    if(add_to_file) call gnostics%dims%input_file_dim%add_to_file(gnostics%sfile)
-  end subroutine create_dimensions
 end module gs2_diagnostics_new
