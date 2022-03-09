@@ -2286,44 +2286,15 @@ contains
 
   !> Transform \(\phi, A_\parallel, B_\parallel\) to real space, then write to netCDF
   subroutine do_write_movie(time)
-    use gs2_layouts, only: yxf_lo
-    use theta_grid, only: ntgrid
-    use run_parameters, only: fphi, fapar, fbpar
-    use gs2_transforms, only: transform2
-    use gs2_io, only: nc_loop_movie
-    use fields_arrays, only: phinew, aparnew, bparnew
+    use gs2_io, only: nc_loop_movie, get_netcdf_movie_file_id
     use mp, only: proc0
     implicit none
     !> Current simulation time
     real, intent(in) :: time
-    integer :: nnx, nny
-    real, dimension(:,:,:), allocatable :: yxphi, yxapar, yxbpar
-
-    nnx = yxf_lo%nx
-    nny = yxf_lo%ny
-
-    if (fphi > epsilon(0.0)) then
-       allocate (yxphi(nnx,nny,-ntgrid:ntgrid))
-       call transform2 (phinew, yxphi, nny, nnx)
-    end if
-
-    if (fapar > epsilon(0.0)) then
-       allocate (yxapar(nnx,nny,-ntgrid:ntgrid))
-       call transform2 (aparnew, yxapar, nny, nnx)
-    end if
-
-    if (fbpar > epsilon(0.0)) then 
-       allocate (yxbpar(nnx,nny,-ntgrid:ntgrid))
-       call transform2 (bparnew, yxbpar, nny, nnx)
-    end if
 
     if (proc0) then
-       call nc_loop_movie(nout_movie, time, yxphi, yxapar, yxbpar)
+       call nc_loop_movie(get_netcdf_movie_file_id(), nout_movie, time)
     end if
-
-    if (fphi > epsilon(0.0)) deallocate (yxphi)
-    if (fapar > epsilon(0.0)) deallocate (yxapar)
-    if (fbpar > epsilon(0.0)) deallocate (yxbpar)
     nout_movie = nout_movie + 1
   end subroutine do_write_movie
 

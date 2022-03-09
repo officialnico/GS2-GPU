@@ -36,6 +36,11 @@ contains
   !> Read namelist diagnostics_config, initialise submodules,
   !! open output file 'run_name.cdf' and create dimensions.
   subroutine init_gs2_diagnostics_new(init_options, header)
+    use kt_grids, only: nx, ny, naky, ntheta0
+    use le_grids, only: nlambda, negrid
+    use species, only: nspec
+    use theta_grid, only: ntgrid
+    use gs2_transforms, only: init_transforms
     use diagnostics_config, only: init_diagnostics_config
     use volume_averages, only: init_volume_averages
     use diagnostics_fluxes, only: init_diagnostics_fluxes
@@ -70,12 +75,12 @@ contains
     use run_parameters, only: user_comments
     use constants, only: run_name_size
     use neasyf, only: neasyf_open
-    use gs2_io, only: define_dims, nc_norms, nc_species, nc_geo, save_input, get_dim_length
+    use gs2_io, only: define_dims, nc_norms, nc_species, nc_geo, save_input, get_dim_length, nc_grids_mymovie
     implicit none
     type(diagnostics_init_options_type), intent(in) :: init_options
     !> Header for files with build and run information
     type(standard_header_type), intent(in) :: header
-    logical :: ex
+    logical :: ex, accelerated
     character(run_name_size) :: filename
     
     call debug_message(gnostics%verbosity, &
@@ -227,6 +232,11 @@ contains
          call nc_geo(gnostics%file_id)
          call save_input(gnostics%file_id)
          gnostics%nout = 1
+
+         if (gnostics%make_movie) then
+           call init_transforms(ntgrid, naky, ntheta0, nlambda, negrid, nspec, nx, ny, accelerated)
+           call nc_grids_mymovie(gnostics%file_id)
+         end if
        end if
     end if
     call debug_message(gnostics%verbosity, &

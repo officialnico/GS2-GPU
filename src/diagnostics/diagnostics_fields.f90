@@ -43,68 +43,14 @@ contains
 
   !> FIXME : Add documentation  
   subroutine write_movie(gnostics)
-    use gs2_transforms, only: init_transforms
-    use gs2_layouts, only: yxf_lo
-    use theta_grid, only: ntgrid
-    use run_parameters, only: fphi, fapar, fbpar
-    use gs2_transforms, only: transform2
-    use fields_arrays, only: phinew, aparnew, bparnew
-    use mp, only: proc0, mp_abort
-    use diagnostics_create_and_write, only: create_and_write_variable
-    use diagnostics_dimensions, only: dim_string
-    use le_grids, only: nlambda, negrid
-    use species, only: nspec
-    use kt_grids, only: nx, ny, naky, ntheta0
-    use file_utils, only: error_unit
+    use mp, only: proc0
     use diagnostics_config, only: diagnostics_type
+    use gs2_io, only: nc_loop_movie
     implicit none
     type(diagnostics_type), intent(in) :: gnostics
-    real :: t
-    integer :: nnx, nny
-    real, dimension(:,:,:), allocatable :: yxphi, yxapar, yxbpar
-    logical :: accelerated ! dummy variable here
-    logical, save :: warning = .false.
 
-    call init_transforms (ntgrid, naky, ntheta0, nlambda, negrid, nspec, nx, ny, accelerated)
-
-    t = gnostics%user_time
-    
-    ! EAB 09/17/03 -- modify dump_fields_periodically to print out inverse fft of fields in x,y
-    nnx = yxf_lo%nx
-    nny = yxf_lo%ny
-    
-    if (proc0 .and. .not. warning) then
-       write (error_unit(),*) "WARNING: write_movie writes arrays of size nx*ny which contain a lot of &
-            & redundancy, leading to unnecessarily large output files... consider doing &
-            & the Fourier transforms of the fields in post-processing instead"
-       warning = .true.
-    endif
-    
-    if (fphi > epsilon(0.0)) then
-       allocate (yxphi(nnx,nny,-ntgrid:ntgrid))
-       call transform2 (phinew, yxphi, nny, nnx)
-       call create_and_write_variable(gnostics, gnostics%rtype, "phi_by_xmode", &
-            dim_string([gnostics%dims%xx,gnostics%dims%yy,gnostics%dims%theta,gnostics%dims%time]), &
-            "The electric potential in real space", "Tr/e", yxphi)
-       deallocate (yxphi)
-    end if
-
-    if (fapar > epsilon(0.0)) then
-       allocate (yxapar(nnx,nny,-ntgrid:ntgrid))
-       call transform2 (aparnew, yxapar, nny, nnx)
-       call create_and_write_variable(gnostics, gnostics%rtype, "apar_by_xmode", &
-            dim_string([gnostics%dims%xx,gnostics%dims%yy,gnostics%dims%theta,gnostics%dims%time]), &
-            "The parallel vector potential in real space", "TBC", yxapar)
-       deallocate (yxapar)
-    end if
-
-    if (fbpar > epsilon(0.0)) then 
-       allocate (yxbpar(nnx,nny,-ntgrid:ntgrid))
-       call transform2 (bparnew, yxbpar, nny, nnx)
-       call create_and_write_variable(gnostics, gnostics%rtype, "bpar_by_xmode", &
-            dim_string([gnostics%dims%xx,gnostics%dims%yy,gnostics%dims%theta,gnostics%dims%time]), &
-            "The parallel magnetic field in real space", "TBC", yxbpar)
-       deallocate (yxbpar)
+    if (proc0) then
+      call nc_loop_movie(gnostics%file_id, gnostics%nout, gnostics%user_time)
     end if
   end subroutine write_movie
 

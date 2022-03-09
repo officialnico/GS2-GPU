@@ -39,7 +39,7 @@ module gs2_io
   integer, dimension (5) :: err_dim
 
   ! added by EAB 03/05/04 for movies
-  logical :: my_make_movie, io_write_corr_extend
+  logical :: io_write_corr_extend
   integer :: ncid_movie = -1
 
   logical :: write_apar_t, write_phi_t, write_bpar_t ! Should the fields be written out every nwrite?
@@ -101,9 +101,6 @@ contains
     use theta_grid, only: ntgrid
     use le_grids, only: nlambda, negrid
     use species, only: nspec
-    use netcdf, only: NF90_CLOBBER, nf90_create, nf90_open, NF90_WRITE, NF90_NETCDF4
-    use netcdf_utils, only: get_netcdf_code_precision, netcdf_real
-    use netcdf_utils, only: get_netcdf_dim_length
     use constants, only: run_name_size
     use gs2_metadata, only: create_metadata
     use run_parameters, only: user_comments
@@ -134,7 +131,6 @@ contains
     write_apar_t = write_apar_over_time
     write_bpar_t = write_bpar_over_time
 
-    my_make_movie = make_movie
     io_write_corr_extend = write_correlation_extend
 
     !----------------
@@ -165,11 +161,8 @@ contains
     end if
 
     !Create the movie file
-    if (my_make_movie) then
-       !perhaps put a call to init_y_transform
-       !    call init_y_transform_layouts  
-       call init_transforms(ntgrid, naky, ntheta0, nlambda, negrid, nspec, nx, ny, accelerated)
-
+    if (make_movie) then
+      call init_transforms(ntgrid, naky, ntheta0, nlambda, negrid, nspec, nx, ny, accelerated)
        ! only proc0 opens the file:
        if (proc0) then
          ncid_movie = neasyf_open(trim(run_name)//'.movie.nc', "w")
@@ -193,8 +186,8 @@ contains
             nout = 1
         end if
 
-        if (my_make_movie) then
-          call nc_grids_mymovie
+        if (make_movie) then
+          call nc_grids_mymovie(ncid_movie)
         end if
     end if
 # endif
@@ -321,7 +314,7 @@ contains
   end subroutine nc_norms
 
   !> Puts the grid data into the movie file
-  subroutine nc_grids_mymovie
+  subroutine nc_grids_mymovie(file_id)
 #ifdef NETCDF
     use constants, only: pi
     use kt_grids, only: akx, aky
@@ -330,30 +323,29 @@ contains
     use neasyf, only: neasyf_dim, neasyf_write
 #endif
     implicit none
+    !> NetCDF ID of the file to write to
+    integer, intent(in) :: file_id
 # ifdef NETCDF
     real, dimension(:), allocatable :: x,y
     integer :: it, ik
 
-    if(my_make_movie) then
+    allocate(x(yxf_lo%nx),y(yxf_lo%ny))
 
-       allocate(x(yxf_lo%nx),y(yxf_lo%ny))
+    do it = 1, yxf_lo%nx
+      x(it) = 2.0*pi/akx(2)*(-0.5+ real(it-1)/real(yxf_lo%nx))
+    end do
+    do ik = 1, yxf_lo%ny
+      y(ik) = 2.0*pi/aky(2)*(-0.5+ real(ik-1)/real(yxf_lo%ny))
+    end do
 
-       do it = 1, yxf_lo%nx 
-          x(it) = 2.0*pi/akx(2)*(-0.5+ real(it-1)/real(yxf_lo%nx))
-       end do
-       do ik = 1, yxf_lo%ny
-          y(ik) = 2.0*pi/aky(2)*(-0.5+ real(ik-1)/real(yxf_lo%ny))
-       end do
-       
-       call neasyf_write(ncid_movie, "nx", yxf_lo%nx)
-       call neasyf_write(ncid_movie, "ny", yxf_lo%ny)
-       call neasyf_write(ncid_movie, "ntheta", 2*ntgrid+1)
-       call neasyf_dim(ncid_movie, "x", x, long_name="x / rho")
-       call neasyf_dim(ncid_movie, "y", y, long_name="y / rho")
-       call neasyf_dim(ncid_movie, "theta", theta)
-       call neasyf_dim(ncid_movie, "tm", unlimited=.true., long_name="Time", units="L/vt")
-       deallocate(x,y)
-    endif
+    call neasyf_write(file_id, "nx", yxf_lo%nx)
+    call neasyf_write(file_id, "ny", yxf_lo%ny)
+    call neasyf_write(file_id, "ntheta", 2*ntgrid+1)
+    call neasyf_dim(file_id, "x", x, long_name="x / rho")
+    call neasyf_dim(file_id, "y", y, long_name="y / rho")
+    call neasyf_dim(file_id, "theta", theta)
+    call neasyf_dim(file_id, "tm", unlimited=.true., long_name="Time", units="L/vt")
+    deallocate(x,y)
 # endif
   end subroutine nc_grids_mymovie
 
@@ -366,7 +358,7 @@ contains
 
     if (proc0) then
        call neasyf_close(ncid)
-       if(my_make_movie) then
+       if (ncid_movie >= 0) then
           call neasyf_close(ncid_movie)
         endif
     end if
@@ -1355,36 +1347,55 @@ contains
   end subroutine nc_loop_fullmom
 
   !> Write \(\phi, A_\parallel, B_\parallel\) as functions of real space
-  subroutine nc_loop_movie (nout_movie, time, yxphi, yxapar, yxbpar)
+  subroutine nc_loop_movie(file_id, nout_movie, time)
 # ifdef NETCDF
+    use fields_arrays, only: phinew, aparnew, bparnew
+    use gs2_layouts, only: yxf_lo
+    use gs2_transforms, only: transform2
+    use kt_grids, only: nx, ny, naky, ntheta0
+    use le_grids, only: nlambda, negrid
     use run_parameters, only: fphi, fapar, fbpar
+    use species, only: nspec
+    use theta_grid, only: ntgrid
     use neasyf, only: neasyf_write
 # endif
     implicit none
+    !> NetCDF ID of the file to write to
+    integer, intent(in) :: file_id
     !> Current movie timestep
-    integer, intent (in) :: nout_movie
+    integer, intent(in) :: nout_movie
     !> Current simulation time
     real, intent (in) :: time
-    !> \(\phi, A_\parallel, B_\parallel\) as functions of real space
-    real, dimension (:,:,:), intent (in):: yxphi, yxapar, yxbpar 
 # ifdef NETCDF
+    ! \(\phi, A_\parallel, B_\parallel\) as functions of real space
+    real, dimension (:,:,:), allocatable:: yxphi, yxapar, yxbpar
     character(*), dimension(*), parameter :: xmode_dim = [character(6)::"x", "y", "theta", "tm"]
+    logical :: accelerated
 
-    call neasyf_write(ncid_movie, "tm", time, dim_names=["tm"], start=[nout_movie])
+    call neasyf_write(file_id, "tm", time, dim_names=["tm"], start=[nout_movie])
 
-    if ( fphi > zero) then
-       call neasyf_write(ncid_movie, "phi_by_xmode", yxphi, &
+    if (fphi > zero) then
+       allocate(yxphi(yxf_lo%nx, yxf_lo%ny, -ntgrid:ntgrid))
+       call transform2 (phinew, yxphi, yxf_lo%ny, yxf_lo%nx)
+       call neasyf_write(file_id, "phi_by_xmode", yxphi, &
             dim_names=xmode_dim, start=starts(4, nout_movie))
+       deallocate(yxphi)
     end if
 
-    if ( fapar > zero) then
-       call neasyf_write(ncid_movie, "apar_by_xmode", yxapar, &
+    if (fapar > zero) then
+       allocate(yxapar(yxf_lo%nx, yxf_lo%ny, -ntgrid:ntgrid))
+       call transform2 (aparnew, yxapar, yxf_lo%ny, yxf_lo%nx)
+       call neasyf_write(file_id, "apar_by_xmode", yxapar, &
             dim_names=xmode_dim, start=starts(4, nout_movie))
+       deallocate(yxapar)
     end if
 
-    if ( fbpar > zero) then
-       call neasyf_write(ncid_movie, "bpar_by_xmode", yxbpar, &
+    if (fbpar > zero) then
+       allocate(yxbpar(yxf_lo%nx, yxf_lo%ny, -ntgrid:ntgrid))
+       call transform2 (bparnew, yxbpar, yxf_lo%ny, yxf_lo%nx)
+       call neasyf_write(file_id, "bpar_by_xmode", yxbpar, &
             dim_names=xmode_dim, start=starts(4, nout_movie))
+       deallocate(yxbpar)
     end if
 # endif
   end subroutine nc_loop_movie
