@@ -75,6 +75,7 @@ void sdatio_recommence_definitions(struct sdatio_file * sfile){
     printf("Warning: adding more variables or dimensions after writing data can slow performance\n");
   if ((retval = nc_redef(sfile->nc_file_id))) ERR(retval);
 }
+
 void sdatio_create_file(struct sdatio_file * sfile )  {
   int retval;
   retval = 0;
@@ -92,9 +93,7 @@ void sdatio_create_file(struct sdatio_file * sfile )  {
     abort();
 #endif
   }
-  else {
-    if ((retval = nc_create(sfile->name, sfile->mode, &(sfile->nc_file_id)))) ERR(retval);
-  }
+
   sfile->is_open = 1;
   sfile->n_dimensions = 0;
   sfile->n_variables = 0;
@@ -200,11 +199,8 @@ void sdatio_add_dimension(struct sdatio_file * sfile,
                           char * description,
                           char * units){
 
-  struct sdatio_dimension  * sdim;
-  int retval;
-  sdim = (struct sdatio_dimension *) malloc(sizeof(struct sdatio_dimension));
+  struct sdatio_dimension  * sdim = (struct sdatio_dimension *) malloc(sizeof(struct sdatio_dimension));
   sdatio_recommence_definitions(sfile);
-  if ((retval = nc_def_dim(sfile->nc_file_id, dimension_name, size, &(sdim->nc_id)))) ERR(retval);
   sdatio_end_definitions(sfile);
   sdim->size = size;
   if (strlen(dimension_name)>1){
@@ -1106,6 +1102,8 @@ void sdatio_open_file(struct sdatio_file * sfile )  {
   
   free(unlimdims);
   free(name_tmp);
+
+  if ((retval = nc_close(sfile->nc_file_id))) ERR(retval);
 }
 
 

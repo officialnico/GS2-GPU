@@ -170,17 +170,4 @@ contains
     call broadcast(inputfile_array)
   end subroutine read_input_file_and_get_size
 
-  !> Write the input file. 
-  subroutine write_input_file(gnostics)
-    use file_utils, only: get_input_unit
-    use diagnostics_create_and_write, only: create_and_write_variable
-    use simpledataio, only: SDATIO_CHAR
-    use diagnostics_dimensions, only: dim_string
-    implicit none
-    type(diagnostics_type), intent(in) :: gnostics
-
-    call create_and_write_variable(gnostics, SDATIO_CHAR, "input_file", &
-      trim(dim_string(gnostics%dims%input_file_dim)), &
-       "Full text of the input file", "text", inputfile_array) 
-  end subroutine write_input_file
 end module diagnostics_metadata

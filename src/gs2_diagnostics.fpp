@@ -33,6 +33,10 @@ module gs2_diagnostics
   ! Export some functions to be used in the new diagnostics
   public :: save_restart_dist_fn
   public :: check_restart_file_writeable
+  public :: do_dump_fields_periodically, do_write_parity
+  public :: do_write_heating, do_write_nl_flux_dist
+  public :: do_write_correlation_extend, do_write_correlation
+  public :: do_write_geom
 
   interface get_vol_average
      module procedure get_vol_average_one, get_vol_average_all
@@ -1116,14 +1120,6 @@ contains
 
     if (print_line) call do_print_line(phitot)
 
-    !This wants to write the fields vs time arrays --> Remove as we now have
-    !write_phi_over_time, write_apar_over_time and write_bpar_over_time
-    !if (write_fields) call nc_write_fields (nout, phinew, aparnew, bparnew)  !MR
-    !Instead replace with a call to nc_final_fields to keep the phi, apar and bpar
-    !output arrays up to date.
-
-    if (write_fields .and. proc0) call nc_final_fields(get_netcdf_file_id())
-
     if (write_moments) call do_write_moments
 
     if (write_cross_phase .and. has_electron_species(spec) .and. write_ascii) call do_write_crossphase(t)
@@ -1296,7 +1292,7 @@ contains
 
     if (proc0 .and. write_any) then
        if (write_ascii) write (unit=out_unit, fmt=*) 'time=', t
-       if (write_ascii .and. write_heating) call do_write_heating(t)
+       if (write_ascii .and. write_heating) call do_write_heating(t, heat_unit, heat_unit2, h, hk)
 
        if (write_ascii .and. write_jext) call do_write_jext(t,istep)
 
@@ -1413,13 +1409,14 @@ contains
 
     if (write_symmetry) call do_write_symmetry
 
-    if (write_nl_flux_dist) call do_write_nl_flux_dist
+    if (write_nl_flux_dist) call do_write_nl_flux_dist(get_netcdf_file_id(), nout)
 
     if (write_pflux_sym) call do_write_pflux_sym
 
-    if (write_correlation) call do_write_correlation
+    if (write_correlation) call do_write_correlation(get_netcdf_file_id(), nout)
 
-    if (write_correlation_extend .and. istep > nstep/4) call do_write_correlation_extend(t, t_old, istep)
+    if (write_correlation_extend .and. istep > nstep/4 .and. mod(istep,nwrite_mult*nwrite)==0) &
+         call do_write_correlation_extend(get_netcdf_file_id(), t, t_old)
 
     if (write_parity) call do_write_parity(t, parity_unit, write_ascii)
 
@@ -2515,113 +2512,94 @@ contains
   end subroutine do_write_verr
 
   !> Write the (total) heating diagnostics to [[heat_unit]] and [[heat_unit2]] (per-species)
-  subroutine do_write_heating(t)
+  subroutine do_write_heating(t, file_unit, file_unit2, h, hk)
     use species, only: nspec
     use file_utils, only: flush_output_file
     implicit none
     real, intent(in) :: t
+    integer, intent(in) :: file_unit, file_unit2
+    !> Heating diagnostics
+    type(heating_diagnostics), intent (in) :: h
+    !> Heating per-mode
+    type(heating_diagnostics), dimension(:,:), intent (in) :: hk
+
     integer :: is
 
-    if (write_ascii .and. write_heating) then
-       !
-       ! For case with two species:
-       !
-       ! Column     Item               
-       !   1        time              
-       !   2        Energy              
-       !   3        dEnergy/dt            
-       !   4        J_ant.E             
-       !   5        [h_(i+1)*h_*]/2 * C[h_(i+1)] * T_0 for species 1
-       !   6        [h_(i+1)*h_*]/2 * C[h_(i+1)] * T_0 for species 2
-       !   7       -[h H(h) * T_0]_1
-       !   8       -[h H(h) * T_0]_2
-       !   9       -[h C(h) * T_0]_1 
-       !  10       -[h C(h) * T_0]_2
-       !  11        [h w_* h]_1
-       !  12        [h w_* h]_2
-       !  13        [h * (q dchi/dt - dh/dt * T0)]_1
-       !  14        [h * (q dchi/dt - dh/dt * T0)]_2
-       !  15      sum (h C(h) * T_0)  in total, as in 5, 6      
-       !  16     -sum (h H(h) * T_0)      
-       !  17     -sum (h C(h) * T_0)   
-       !  18      sum (h w_* h)  
-       !  19      sum [h (q dchi/dt - dh/dt * T0)]
-       !  20      3 + 4 + 18 + 19
-       !  21      (k_perp A)**2
-       !  22      B_par**2
-       !  23      df_1 ** 2
-       !  24      df_2 ** 2
-       !  25      h_1 ** 2
-       !  26      h_2 ** 2
-       !  27      Phi_bar_1 ** 2
-       !  28      Phi_bar_2 ** 2
-       !
-       !
-       ! For case with one species:
-       !
-       ! Column     Item               
-       !   1        time              
-       !   2        Energy              
-       !   3        dEnergy/dt            
-       !   4        J_ant.E             
-       !   5        [h_(i+1)*h_*]/2 * C[h_(i+1)] * T_0 
-       !   6       -[h H(h) * T_0]
-       !   7       -[h C(h) * T_0]
-       !   8        [h w_* h]
-       !   9        [h * (q dchi/dt - dh/dt * T0)]_1
-       !  10      sum (h C(h) * T_0)  in total, as in 5, 6      
-       !  11     -sum (h H(h) * T_0)      
-       !  12     -sum (h C(h) * T_0)   
-       !  13      sum (h w_* h)  
-       !  14      sum [h (q dchi/dt - dh/dt * T0)]
-       !  15      3 + 4 + 9 + 10
-       !  16      (k_perp A)**2
-       !  17      B_par**2
-       !  18      df ** 2
-       !  19      h ** 2
-       !  20      Phi_bar ** 2
+    !
+    ! For case with two species:
+    !
+    ! Column     Item               
+    !   1        time              
+    !   2        Energy              
+    !   3        dEnergy/dt            
+    !   4        J_ant.E             
+    !   5        [h_(i+1)*h_*]/2 * C[h_(i+1)] * T_0 for species 1
+    !   6        [h_(i+1)*h_*]/2 * C[h_(i+1)] * T_0 for species 2
+    !   7       -[h H(h) * T_0]_1
+    !   8       -[h H(h) * T_0]_2
+    !   9       -[h C(h) * T_0]_1 
+    !  10       -[h C(h) * T_0]_2
+    !  11        [h w_* h]_1
+    !  12        [h w_* h]_2
+    !  13        [h * (q dchi/dt - dh/dt * T0)]_1
+    !  14        [h * (q dchi/dt - dh/dt * T0)]_2
+    !  15      sum (h C(h) * T_0)  in total, as in 5, 6      
+    !  16     -sum (h H(h) * T_0)      
+    !  17     -sum (h C(h) * T_0)   
+    !  18      sum (h w_* h)  
+    !  19      sum [h (q dchi/dt - dh/dt * T0)]
+    !  20      3 + 4 + 18 + 19
+    !  21      (k_perp A)**2
+    !  22      B_par**2
+    !  23      df_1 ** 2
+    !  24      df_2 ** 2
+    !  25      h_1 ** 2
+    !  26      h_2 ** 2
+    !  27      Phi_bar_1 ** 2
+    !  28      Phi_bar_2 ** 2
+    !
+    !
+    ! For case with one species:
+    !
+    ! Column     Item               
+    !   1        time              
+    !   2        Energy              
+    !   3        dEnergy/dt            
+    !   4        J_ant.E             
+    !   5        [h_(i+1)*h_*]/2 * C[h_(i+1)] * T_0 
+    !   6       -[h H(h) * T_0]
+    !   7       -[h C(h) * T_0]
+    !   8        [h w_* h]
+    !   9        [h * (q dchi/dt - dh/dt * T0)]_1
+    !  10      sum (h C(h) * T_0)  in total, as in 5, 6      
+    !  11     -sum (h H(h) * T_0)      
+    !  12     -sum (h C(h) * T_0)   
+    !  13      sum (h w_* h)  
+    !  14      sum [h (q dchi/dt - dh/dt * T0)]
+    !  15      3 + 4 + 9 + 10
+    !  16      (k_perp A)**2
+    !  17      B_par**2
+    !  18      df ** 2
+    !  19      h ** 2
+    !  20      Phi_bar ** 2
+    
+    write (unit=file_unit, fmt="(28es12.4)") t,h % energy,  &
+         h % energy_dot, h % antenna, h % imp_colls, h % hypercoll, h % collisions, &
+         h % gradients, h % heating, sum(h % imp_colls), sum(h % hypercoll), sum(h % collisions), &
+         sum(h % gradients), sum(h % heating),sum(h%heating)+h%antenna+sum(h%gradients)+h%energy_dot, &
+         h % eapar, h % ebpar, h % delfs2(:),  h % hs2(:), h % phis2(:)
 
-       write (unit=heat_unit, fmt="(28es12.4)") t,h % energy,  &
-            h % energy_dot, h % antenna, h % imp_colls, h % hypercoll, h % collisions, &
-            h % gradients, h % heating, sum(h % imp_colls), sum(h % hypercoll), sum(h % collisions), &
-            sum(h % gradients), sum(h % heating),sum(h%heating)+h%antenna+sum(h%gradients)+h%energy_dot, &
-            h % eapar, h % ebpar, h % delfs2(:),  h % hs2(:), h % phis2(:)
+    do is=1,nspec
+      write (unit=file_unit2, fmt="(15es12.4)") t,h % energy,  &
+           h % energy_dot, h % antenna, h % imp_colls(is), h % hypercoll(is), h % collisions(is), &
+           h % gradients(is), h % heating(is), &
+           h % eapar, h % ebpar, h % delfs2(is),  h % hs2(is), h % phis2(is), real(is)
+      write (unit=file_unit2, fmt=*)
+    end do
+    write (unit=file_unit2, fmt=*)
 
-       do is=1,nspec
-          write (unit=heat_unit2, fmt="(15es12.4)") t,h % energy,  &
-               h % energy_dot, h % antenna, h % imp_colls(is), h % hypercoll(is), h % collisions(is), &
-               h % gradients(is), h % heating(is), &
-               h % eapar, h % ebpar, h % delfs2(is),  h % hs2(is), h % phis2(is), real(is)
-          write (unit=heat_unit2, fmt=*)
-       end do
-       write (unit=heat_unit2, fmt=*)
-
-       call flush_output_file (heat_unit)
-       call flush_output_file (heat_unit2)
-
-       !GGH          write (unit=heat_unit, fmt="('t= ',e13.6,' energy= ',e13.6)") t, h % energy
-       !GGH          write (unit=heat_unit, fmt="('t= ',e13.6,' energy_dot= ',e13.6)") t, h % energy_dot
-       !GGH          write (unit=heat_unit, fmt="('t= ',e13.6,' J_ant.E= ',e13.6)") t, h % antenna
-
-       !GGH          write (unit=heat_unit, fmt="('t= ',e13.6,' hyperC= ',12(1x,e13.6))") t, h % hypercoll
-       !GGH          write (unit=heat_unit, fmt="('t= ',e13.6,' hCh= ',12(1x,e13.6))") t, h % collisions
-       !GGH          write (unit=heat_unit, fmt="('t= ',e13.6,' hw*= ',12(1x,e13.6))") t, h % gradients
-       !GGH!         write (unit=heat_unit, fmt="('t= ',e13.6,' hwd= ',12(1x,e13.6))") t, h % curvature
-       !GGH          write (unit=heat_unit, fmt="('t= ',e13.6,' heating= ',12(1x,e13.6))") t, h % heating
-
-       !GGH          write (unit=heat_unit, fmt="('t= ',e13.6,' total_hvisc= ',e13.6)") t, sum(h % hypervisc)
-       !GGH          write (unit=heat_unit, fmt="('t= ',e13.6,' total_hyperC= ',e13.6)") t, sum(h % hypercoll)
-       !GGH          write (unit=heat_unit, fmt="('t= ',e13.6,' total_hCh= ',e13.6)") t, sum(h % collisions)
-       !GGH          write (unit=heat_unit, fmt="('t= ',e13.6,' total_hw*= ',e13.6)") t, sum(h % gradients)
-       !GGH          write (unit=heat_unit, fmt="('t= ',e13.6,' total_heating= ',e13.6)") t, sum(h % heating)
-
-       !GGH          write (unit=heat_unit, fmt="('t= ',e13.6,' total_power= ',e13.6)") t, &
-       !GGH               sum(h%heating)+h%antenna+sum(h%gradients)+h%energy_dot
-       !GGH TEST try adding sqrt(2.) to the edot
-       !GGH          write (unit=heat_unit, fmt="('t= ',e13.6,' total_power= ',e13.6)") t, &
-       !GGH               sum(h%heating)+h%antenna+sum(h%gradients)+h%energy_dot*sqrt(2.)
-       !GGH          write (unit=heat_unit, fmt='(a)') ''
-    end if
+    call flush_output_file (file_unit)
+    call flush_output_file (file_unit2)
   end subroutine do_write_heating
 
   !> Calculate the momentum flux as a function of \((v_\parallel, \theta, t)\)
@@ -2648,7 +2626,7 @@ contains
   !> A of [Ball et al. PPCF 58 (2016)
   !> 045023](https://doi.org/10.1088/0741-3335/58/4/045023) as well as section 5
   !> of "GS2 analytic geometry specification")
-  subroutine do_write_nl_flux_dist
+  subroutine do_write_nl_flux_dist(file_id, nout)
     use dist_fn, only: flux_dist
     use theta_grid, only: ntgrid
     use species, only: nspec, spec
@@ -2661,6 +2639,12 @@ contains
     use run_parameters, only: fphi, fbpar
 
     implicit none
+
+    !> NetCDF ID of the file to write to
+    integer, intent(in) :: file_id
+    !> Current timestep
+    integer, intent(in) :: nout
+
     real, dimension (:,:), allocatable :: part_fluxes_dist, mom_fluxes_par_dist, mom_fluxes_perp_dist, heat_fluxes_dist
     real, dimension (:,:), allocatable :: phi_dist
     real, dimension (:,:,:,:), allocatable :: pflux_dist, vflux_par_dist, vflux_perp_dist, qflux_dist
@@ -2699,7 +2683,7 @@ contains
           end do
        end if
     end if
-    if (proc0) call nc_loop_dist (get_netcdf_file_id(), nout, part_fluxes_dist, mom_fluxes_par_dist, &
+    if (proc0) call nc_loop_dist (file_id, nout, part_fluxes_dist, mom_fluxes_par_dist, &
          mom_fluxes_perp_dist, heat_fluxes_dist, phi_dist)
     deallocate (part_fluxes_dist)
     deallocate (mom_fluxes_par_dist)
@@ -2731,16 +2715,20 @@ contains
   end subroutine do_write_pflux_sym
 
   !> Calculate the correlation function over the physical domain and write to netCDF
-  subroutine do_write_correlation
+  subroutine do_write_correlation(file_id, nout)
     use theta_grid, only: ntgrid
     use kt_grids, only: naky
     use mp, only: proc0
     use gs2_io, only: nc_loop_corr
     implicit none
+    !> NetCDF ID of the file to write to
+    integer, intent(in) :: file_id
+    !> Current timestep
+    integer, intent(in) :: nout
     complex, dimension(:,:), allocatable :: phi_corr_2pi
     allocate (phi_corr_2pi(-ntgrid:ntgrid,naky))
     call correlation (phi_corr_2pi)
-    if (proc0) call nc_loop_corr (get_netcdf_file_id(), nout, phi_corr_2pi)
+    if (proc0) call nc_loop_corr (file_id, nout, phi_corr_2pi)
     deallocate (phi_corr_2pi)
   end subroutine do_write_correlation
 
@@ -2748,16 +2736,16 @@ contains
   !>
   !> This does the calculation every time it is called, but only writes every
   !> `nwrite_mult * nwrite` timesteps
-  subroutine do_write_correlation_extend(time, time_old, istep)
+  subroutine do_write_correlation_extend(file_id, time, time_old)
     use theta_grid, only: ntgrid
     use kt_grids, only: jtwist_out, ntheta0, naky
     use mp, only: proc0
     use gs2_io, only: nc_loop_corr_extend
     implicit none
+    !> NetCDF ID of the file to write to
+    integer, intent(in) :: file_id
     !> Current and previous simulation times
     real, intent(in) :: time, time_old
-    !> Current timestep
-    integer, intent(in) :: istep
     complex, dimension (:,:,:), allocatable, save:: phicorr_sum
     real, dimension (:,:,:), allocatable, save :: phiextend_sum
     complex, dimension (:,:,:), allocatable :: phi_corr
@@ -2780,8 +2768,8 @@ contains
     call correlation_extend (phi_corr, phi2_extend)
     phicorr_sum = phicorr_sum + phi_corr*(time-time_old)
     phiextend_sum = phiextend_sum + phi2_extend*(time-time_old)
-    if (proc0 .and. mod(istep,nwrite_mult*nwrite)==0) then
-       call nc_loop_corr_extend (get_netcdf_file_id(), nout_big, time, phicorr_sum/(time-tcorr0), phiextend_sum/(time-tcorr0))
+    if (proc0) then
+       call nc_loop_corr_extend (file_id, nout_big, time, phicorr_sum/(time-tcorr0), phiextend_sum/(time-tcorr0))
        nout_big = nout_big + 1
     end if
     deallocate (phi_corr, phi2_extend)

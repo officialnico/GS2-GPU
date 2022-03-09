@@ -43,10 +43,10 @@ contains
   !> FIXME : Add documentation  
   subroutine write_jext(gnostics)
     use kt_grids, only: ntheta0, naky
-    use diagnostics_create_and_write, only: create_and_write_variable
     use diagnostics_config, only: diagnostics_type
-    use diagnostics_dimensions, only: dim_string
     use mp, only: proc0
+    use neasyf, only: neasyf_write
+    use gs2_io, only: starts
     implicit none
     type(diagnostics_type), intent(in) :: gnostics
     real:: t
@@ -61,10 +61,9 @@ contains
     call calc_jext(gnostics,j_ext)
 
     !Write to netcdf
-    call create_and_write_variable(gnostics, gnostics%rtype, "antenna_j_ext", &
-         dim_string([gnostics%dims%kx,gnostics%dims%ky,gnostics%dims%time]),&
-         "Time averaged external current in the antenna, real(kperp^2 A_antenna)"// &
-         "as a function of kx and ky", "radians", j_ext)
+    if (proc0) call neasyf_write(gnostics%file_id, "antenna_j_ext", j_ext, &
+         dim_names=["kx", "ky", "t "], start=starts(3, gnostics%nout), &
+         long_name="Time averaged external current in the antenna, real(kperp^2 A_antenna)", units="radians")
 
     !Write to ascii
     if (proc0 .and. gnostics%write_ascii) then 
@@ -85,17 +84,13 @@ contains
   !> FIXME : Add documentation  
   subroutine write_lorentzian(gnostics)
     use antenna, only: antenna_w
-    use diagnostics_create_and_write, only: create_and_write_variable
     use diagnostics_config, only: diagnostics_type
-    use diagnostics_dimensions, only: dim_string
+    use neasyf, only: neasyf_write
+    use gs2_io, only: starts
     implicit none
     type(diagnostics_type), intent(in) :: gnostics
-    real :: tmp2
-    tmp2 = real(antenna_w())
-    !WHY DOES THE FOLLOWING NEED 'ri' AS TMP2 IS REAL?
-    call create_and_write_variable(gnostics, gnostics%rtype, "antenna_w",  &
-         dim_string([gnostics%dims%ri,gnostics%dims%time]),&
-         "antenna_w?? ", "TBC", tmp2)
+    call neasyf_write(gnostics%file_id, "antenna_w", real(antenna_w()), &
+         dim_names=["t"], start=[gnostics%nout])
   end subroutine write_lorentzian
 
   !> A subroutine to calculate the time-averaged antenna current

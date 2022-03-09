@@ -162,8 +162,7 @@ contains
 
   !> FIXME : Add documentation  
   subroutine write_collisional(gnostics)
-    use diagnostics_create_and_write, only: create_and_write_distributed_fieldlike_variable
-    use diagnostics_dimensions, only: dim_string
+    use gs2_io, only: starts, netcdf_write_complex
     use fields_parallelization, only: field_k_local
     use diagnostics_config, only: diagnostics_type
     
@@ -171,15 +170,13 @@ contains
     
     type(diagnostics_type), intent(in) :: gnostics
     
-    call create_and_write_distributed_fieldlike_variable(gnostics, gnostics%rtype, "collisional_heating", &
-         dim_string([gnostics%dims%ri,gnostics%dims%kx,gnostics%dims%ky,gnostics%dims%time]), &
-         "Collisional and hyper viscous rate of loss of free energy for each mode and each t", &
-         "unit", coll_heating)
+    call netcdf_write_complex(gnostics%file_id, "collisional_heating", coll_heating, &
+         dim_names=["ri", "kx", "ky", "t "], start=starts(4, gnostics%nout),  &
+         long_name="Collisional and hyper viscous rate of loss of free energy for each mode and each t")
     
-    call create_and_write_distributed_fieldlike_variable(gnostics, gnostics%rtype, "collisional_heating_2", &
-         dim_string([gnostics%dims%ri,gnostics%dims%kx,gnostics%dims%ky,gnostics%dims%time]), &
-         "Collisional and hyper viscous rate of loss of free energy for each mode and each t, other method", &
-         "unit", coll_heating_2)
+    call netcdf_write_complex(gnostics%file_id, "collisional_heating_2", coll_heating_2, &
+         dim_names=["ri", "kx", "ky", "t "], start=starts(4, gnostics%nout),  &
+         long_name="Collisional and hyper viscous rate of loss of free energy for each mode and each t, other method")
     
   end subroutine write_collisional
 

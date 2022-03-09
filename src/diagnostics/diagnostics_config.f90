@@ -70,6 +70,10 @@ module diagnostics_config
      type(diagnostics_ascii_type) :: ascii_files
      type(results_summary_type) :: current_results
      type(diagnostics_dimension_list_type) :: dims
+     !> NetCDF file ID
+     integer :: file_id
+     !> Current timestep
+     integer :: nout = 1
      !> Integer below gives the sdatio type 
      !! which corresponds to a gs2 real
      integer :: rtype

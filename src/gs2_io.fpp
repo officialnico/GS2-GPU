@@ -15,7 +15,10 @@ module gs2_io
   public :: nc_loop_movie, nc_write_moments, nc_exchange
   public :: nc_loop_fullmom, nc_loop_dist, nc_loop_sym, nc_loop_corr, nc_loop_corr_extend
   public :: nc_loop_partsym_tormom, nc_sync, get_netcdf_file_id
-  public :: define_dims, nc_norms, nc_species, nc_geo, save_input, nc_grids_mymovie
+  public :: define_dims, nc_norms, nc_species, nc_geo, save_input, nc_grids_mymovie, get_dim_length
+  public :: nc_write_omega, nc_write_field, nc_write_heating, starts
+  public :: netcdf_write_complex
+  public :: flux_dims, fluxk_dims, final_field_dims, sym_dims, omega_dims, mode_dims, mom_dims, mom_t_dims
 
 # ifdef NETCDF
   integer (kind_nf) :: ncid
@@ -29,6 +32,8 @@ module gs2_io
   character(*), dimension(*), parameter :: sym_dims = [character(7)::"theta", "vpa", "species", "t"]
   character(*), dimension(*), parameter :: omega_dims = ["ri", "kx", "ky", "t "]
   character(*), dimension(*), parameter :: mode_dims = ["kx", "ky", "t "]
+  character(*), dimension(*), parameter :: mom_dims = [character(len=7)::"ri", "kx", "ky", "species", "t"]
+  character(*), dimension(*), parameter :: mom_t_dims = [character(len=7)::"ri", "theta", "kx", "ky", "species", "t"]
 
   integer, dimension (6) :: lp_dim
   integer, dimension (5) :: err_dim
@@ -231,14 +236,22 @@ contains
     call neasyf_dim(file_id, "sign", dim_size=2, dimid=nsign_dim)
     call neasyf_dim(file_id, "t", unlimited=.true., dimid=time_dim, &
          long_name="Time", units="L/vt")
-    call neasyf_dim(file_id, "char5", dim_size=5, dimid=char5_dim)
-    call neasyf_dim(file_id, "char10", dim_size=10, dimid=char10_dim)
-    call neasyf_dim(file_id, "char200", dim_size=200)
-    call neasyf_dim(file_id, "nlines", dim_size=num_input_lines, long_name="Input file line number")
     call neasyf_dim(file_id, "ri", dim_size=2, dimid=ri_dim, &
          long_name="Complex components", units="(real, imaginary)")
     call neasyf_dim(file_id, "nheat", dim_size=7, dimid=nheat_dim)
     call neasyf_dim(file_id, "vpa", dim_size=negrid*nlambda, dimid=vpa_dim)
+
+    ! Dimensions for various string variables
+    call neasyf_dim(file_id, "char5", dim_size=5, dimid=char5_dim)
+    call neasyf_dim(file_id, "char10", dim_size=10, dimid=char10_dim)
+    call neasyf_dim(file_id, "char200", dim_size=200)
+    call neasyf_dim(file_id, "nlines", dim_size=num_input_lines, long_name="Input file line number")
+
+    ! Dimensions for non-physical matrices etc
+    call neasyf_dim(file_id, "2", dim_size=2, long_name="Generic dim")
+    call neasyf_dim(file_id, "3", dim_size=3, long_name="Generic dim")
+    call neasyf_dim(file_id, "4", dim_size=4, long_name="Generic dim")
+    call neasyf_dim(file_id, "5", dim_size=5, long_name="Generic dim")
 
     if (create_extended_correlation) then
        call neasyf_dim(file_id, "theta_ext", dim_size=(2*ntgrid+1)*((ntheta0-1)/jtwist_out+1), dimid=nttotext_dim)
@@ -545,46 +558,43 @@ contains
     logical, optional, intent(in) :: ob_midplane
 #ifdef NETCDF
 
-    character(*), dimension(*), parameter :: mom_dim = [character(len=7)::"ri", "kx", "ky", "species", "t"]
-    character(*), dimension(*), parameter :: mom_t_dim = [character(len=7)::"ri", "theta", "kx", "ky", "species", "t"]
-
     if (present(ob_midplane)) then
        if (ob_midplane ) then
-          call netcdf_write_complex(file_id, "ntot0", ntot(0, :, :, :), mom_dim, start=starts(5, nout), &
+          call netcdf_write_complex(file_id, "ntot0", ntot(0, :, :, :), mom_dims, start=starts(5, nout), &
                long_name="Total perturbed density (theta=0) over time")
-          call netcdf_write_complex(file_id, "density0", density(0, :, :, :), mom_dim, start=starts(5, nout), &
+          call netcdf_write_complex(file_id, "density0", density(0, :, :, :), mom_dims, start=starts(5, nout), &
                long_name="Nonadiabatic piece of perturbed density (theta=0) over time")
-          call netcdf_write_complex(file_id, "upar0", upar(0, :, :, :), mom_dim, start=starts(5, nout), &
+          call netcdf_write_complex(file_id, "upar0", upar(0, :, :, :), mom_dims, start=starts(5, nout), &
                long_name="Upar (theta=0) over time")
-          call netcdf_write_complex(file_id, "tpar0", tpar(0, :, :, :), mom_dim, start=starts(5, nout), &
+          call netcdf_write_complex(file_id, "tpar0", tpar(0, :, :, :), mom_dims, start=starts(5, nout), &
                long_name="Tpar (theta=0) over time")
-          call netcdf_write_complex(file_id, "tperp0", tperp(0, :, :, :), mom_dim, start=starts(5, nout), &
+          call netcdf_write_complex(file_id, "tperp0", tperp(0, :, :, :), mom_dims, start=starts(5, nout), &
                long_name="Tperp (theta=0) over time")
-          call netcdf_write_complex(file_id, "qparflux0", qparflux(0, :, :, :), mom_dim, start=starts(5, nout), &
+          call netcdf_write_complex(file_id, "qparflux0", qparflux(0, :, :, :), mom_dims, start=starts(5, nout), &
                long_name="Qparflux (theta=0) over time")
-          call netcdf_write_complex(file_id, "pperpj10", pperpj1(0, :, :, :), mom_dim, start=starts(5, nout), &
+          call netcdf_write_complex(file_id, "pperpj10", pperpj1(0, :, :, :), mom_dims, start=starts(5, nout), &
                long_name="Pperpj1 (theta=0) over time")
-          call netcdf_write_complex(file_id, "qpperpj10", qpperpj1(0, :, :, :), mom_dim, start=starts(5, nout), &
+          call netcdf_write_complex(file_id, "qpperpj10", qpperpj1(0, :, :, :), mom_dims, start=starts(5, nout), &
                long_name="Qpperpj1 (theta=0) over time")
           return
        endif
     endif
 
-    call netcdf_write_complex(file_id, 'ntot_t', ntot, mom_t_dim, start=starts(6, nout), &
+    call netcdf_write_complex(file_id, 'ntot_t', ntot, mom_t_dims, start=starts(6, nout), &
           long_name="Total perturbed density over time")
-    call netcdf_write_complex(file_id, 'density_t', density, mom_t_dim, start=starts(6, nout), &
+    call netcdf_write_complex(file_id, 'density_t', density, mom_t_dims, start=starts(6, nout), &
           long_name="Nonadiabatic piece of perturbed density over time")
-    call netcdf_write_complex(file_id, 'upar_t', upar, mom_t_dim, start=starts(6, nout), &
+    call netcdf_write_complex(file_id, 'upar_t', upar, mom_t_dims, start=starts(6, nout), &
           long_name="Upar over time")
-    call netcdf_write_complex(file_id, 'tpar_t', tpar, mom_t_dim, start=starts(6, nout), &
+    call netcdf_write_complex(file_id, 'tpar_t', tpar, mom_t_dims, start=starts(6, nout), &
           long_name="Tpar over time")
-    call netcdf_write_complex(file_id, 'tperp_t', tperp, mom_t_dim, start=starts(6, nout), &
+    call netcdf_write_complex(file_id, 'tperp_t', tperp, mom_t_dims, start=starts(6, nout), &
           long_name="Tperp over time")
-    call netcdf_write_complex(file_id, 'qparflux_t', qparflux, mom_t_dim, start=starts(6, nout), &
+    call netcdf_write_complex(file_id, 'qparflux_t', qparflux, mom_t_dims, start=starts(6, nout), &
           long_name="Qparflux over time")
-    call netcdf_write_complex(file_id, 'pperpj1_t', pperpj1, mom_t_dim, start=starts(6, nout), &
+    call netcdf_write_complex(file_id, 'pperpj1_t', pperpj1, mom_t_dims, start=starts(6, nout), &
           long_name="Pperpj1 over time")
-    call netcdf_write_complex(file_id, 'qpperpj1_t', qpperpj1, mom_t_dim, start=starts(6, nout), &
+    call netcdf_write_complex(file_id, 'qpperpj1_t', qpperpj1, mom_t_dims, start=starts(6, nout), &
           long_name="Qpperpj1 over time")
 
 # endif
@@ -1220,6 +1230,8 @@ contains
          long_name=long_name // " per Fourier mode")
     call neasyf_write(file_id, field_name // "2", field2, dim_names=["t"], start=[nout], &
          long_name=long_name // " volume average", units="(T/q rho/L)**2")
+
+    call nc_final_fields(file_id)
 #endif
   end subroutine nc_write_field
 
@@ -1239,8 +1251,8 @@ contains
     !> Heating diagnostics
     type(heating_diagnostics), intent (in) :: h
     !> Heating per-mode
-#ifdef NETCDF
     type(heating_diagnostics), dimension(:,:), intent (in) :: hk
+#ifdef NETCDF
     real, dimension (ntheta0, naky, nspec) :: tmps
 
     call neasyf_write(file_id, "h_energy", h%energy, dim_names=["t"], start=[nout], &

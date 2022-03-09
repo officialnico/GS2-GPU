@@ -311,24 +311,18 @@ contains
 
   !> FIXME : Add documentation  
   subroutine write_zonal_transfer(gnostics)
-    use diagnostics_create_and_write, only: create_and_write_variable
-    use diagnostics_dimensions, only: dim_string
+    use gs2_io, only: starts, netcdf_write_complex
     use fields_parallelization, only: field_k_local
     use diagnostics_config, only: diagnostics_type
     
     implicit none
     
     type(diagnostics_type), intent(in out) :: gnostics
-    
-!    call create_and_write_distributed_fieldlike_variable(gnostics, gnostics%rtype, "zonal_transfer", &
-!         dim_string([gnostics%dims%ri,gnostics%dims%kx,gnostics%dims%ky,gnostics%dims%time]), &
-!         "Time rate of change of free energy due to nonlinear transfer, as a function of kx, ky and time", &
-!         "Tr2*rhor*c*ns*vth6 / Ba2*e*a3", gnostics%current_results%zonal_transfer)
-! check gnostics%rtype
-    call create_and_write_variable(gnostics, gnostics%rtype, "zonal_transfer", &
-         dim_string([gnostics%dims%ri,gnostics%dims%kx,gnostics%dims%ky,gnostics%dims%time]), &
-         "Time rate of change of free energy due to nonlinear transfer, as a function of kx, ky and time", &
-         "Tr2*rhor*c*ns*vth6 / Ba2*e*a3", gnostics%current_results%zonal_transfer)
+
+    call netcdf_write_complex(gnostics%file_id, "zonal_transfer", gnostics%current_results%zonal_transfer, &
+         dim_names=["ri" ,"kx", "ky", "t "], start=starts(4, gnostics%nout), &
+         long_name="Time rate of change of free energy due to nonlinear transfer, as a function of kx, ky and time", &
+         units="Tr2*rhor*c*ns*vth6 / Ba2*e*a3")
     
   end subroutine write_zonal_transfer
 
