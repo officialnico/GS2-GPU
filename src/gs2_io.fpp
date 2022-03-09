@@ -14,7 +14,7 @@ module gs2_io
   public :: nc_qflux, nc_vflux, nc_pflux, nc_pflux_tormom, nc_loop, nc_loop_moments
   public :: nc_loop_movie, nc_write_moments, nc_exchange
   public :: nc_loop_fullmom, nc_loop_dist, nc_loop_sym, nc_loop_corr, nc_loop_corr_extend
-  public :: nc_loop_partsym_tormom, nc_sync, get_netcdf_file_id
+  public :: nc_loop_partsym_tormom, nc_sync, get_netcdf_file_id, get_netcdf_movie_file_id
   public :: define_dims, nc_norms, nc_species, nc_geo, save_input, nc_grids_mymovie, get_dim_length
   public :: nc_write_omega, nc_write_field, nc_write_heating, starts
   public :: netcdf_write_complex
@@ -40,7 +40,7 @@ module gs2_io
 
   ! added by EAB 03/05/04 for movies
   logical :: my_make_movie, io_write_corr_extend
-  integer :: ncid_movie
+  integer :: ncid_movie = -1
 
   logical :: write_apar_t, write_phi_t, write_bpar_t ! Should the fields be written out every nwrite?
 
@@ -53,7 +53,8 @@ module gs2_io
   end interface netcdf_write_complex
 
 #else
-  integer, parameter :: ncid = 0
+  integer, parameter :: ncid = -1
+  integer, parameter :: ncid_movie = -1
 #endif
   real, parameter :: zero = epsilon(0.0)
 
@@ -63,6 +64,11 @@ contains
   integer function get_netcdf_file_id()
     get_netcdf_file_id = ncid
   end function get_netcdf_file_id
+
+  !> Provides read-only access to the netCDF movie file ID
+  integer function get_netcdf_movie_file_id()
+    get_netcdf_movie_file_id = ncid_movie
+  end function get_netcdf_movie_file_id
 
   !> Return an array of 1-index offsets for writing a time-dependent
   !> field to netCDF:
@@ -1384,7 +1390,7 @@ contains
   end subroutine nc_loop_movie
 
   !> Sync the files every nsync writes
-  subroutine nc_sync(file_id, nout, nout_movie, nsync_freq)
+  subroutine nc_sync(file_id, nout, movie_file_id, nout_movie, nsync_freq)
 # ifdef NETCDF
     use netcdf, only: nf90_sync, NF90_NOERR
     use netcdf_utils, only: netcdf_error
@@ -1394,6 +1400,8 @@ contains
     integer, intent(in) :: file_id
     !> Current output timestep
     integer, intent(in) :: nout
+    !> NetCDF ID of the movie file to write to
+    integer, intent(in) :: movie_file_id
     !> Current output timestep for real-space fields
     integer, intent(in) :: nout_movie
     !> Timestep period at which to actually flush files
@@ -1412,10 +1420,10 @@ contains
     endif
 
     !Movie file
-    if(my_make_movie) then
-       if(mod(nout_movie,nsync) == 0) then
-          status = nf90_sync (ncid_movie)       
-          if (status /= NF90_NOERR) call netcdf_error (status)
+    if (movie_file_id >= 0) then
+       if (mod(nout_movie, nsync) == 0) then
+          status = nf90_sync(movie_file_id)
+          if (status /= NF90_NOERR) call netcdf_error(status)
        endif
     endif
 # endif

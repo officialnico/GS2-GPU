@@ -417,7 +417,7 @@ contains
     use mp,  only: broadcast
     use neasyf, only: neasyf_write
     use run_parameters, only: nstep
-    use gs2_io, only: get_dim_length
+    use gs2_io, only: get_dim_length, nc_sync
     implicit none
     integer, intent(in) :: istep_in
     logical, intent(inout) :: exit
@@ -546,7 +546,8 @@ contains
 
        call run_diagnostics_to_be_updated
 
-       if (gnostics%wryte) call syncfile(gnostics%sfile)
+       ! Don't sync movie file because it's the same as the main file
+       if (gnostics%wryte) call nc_sync(gnostics%file_id, gnostics%nout, -1, -1, gnostics%nc_sync_freq)
        if (proc0 .and. gnostics%write_ascii) call flush_output_files(gnostics%ascii_files)
        
        ! Update time used for time averages

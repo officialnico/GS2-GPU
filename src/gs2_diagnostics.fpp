@@ -1041,7 +1041,7 @@ contains
     use mp, only: proc0, broadcast
     use prof, only: prof_entering, prof_leaving
     use gs2_time, only: user_time
-    use gs2_io, only: nc_qflux, nc_vflux, nc_pflux, nc_pflux_tormom, nc_exchange, nc_final_fields, nc_sync
+    use gs2_io, only: nc_qflux, nc_vflux, nc_pflux, nc_pflux_tormom, nc_exchange, nc_final_fields, nc_sync, get_netcdf_movie_file_id
     use nonlinear_terms, only: nonlin
     use antenna, only: antenna_w
     use parameter_scan_arrays, only: scan_hflux => hflux_tot, scan_momflux => momflux_tot 
@@ -1433,7 +1433,7 @@ contains
     scan_nout = nout
 
     !Now sync the data to file (note doesn't actually sync every call)
-    if (proc0) call nc_sync(nout, nout_movie, nc_sync_freq)
+    if (proc0) call nc_sync(get_netcdf_file_id(), nout, get_netcdf_movie_file_id(), nout_movie, nc_sync_freq)
 
     !Increment loop counter
     nout = nout + 1
