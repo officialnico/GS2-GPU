@@ -542,15 +542,8 @@ contains
 
   !> FIXME : Add documentation  
   subroutine run_old_final_routines
-    use diagnostics_final_routines,only: do_write_final_fields
-    use diagnostics_final_routines,only: do_write_kpar
-    use diagnostics_final_routines,only: do_write_final_epar
-    use diagnostics_final_routines,only: do_write_final_db
-    use diagnostics_final_routines,only: do_write_final_moments
-    use diagnostics_final_routines,only: do_write_final_antot
-    use diagnostics_final_routines,only: do_write_gs
-    use diagnostics_final_routines,only: init_par_filter
-    use diagnostics_final_routines,only: ntg_out
+    use gs2_diagnostics, only: do_write_final_fields, do_write_kpar, do_write_final_epar, do_write_final_db, &
+         do_write_final_moments, do_write_final_antot, do_write_gs, init_par_filter
     use diagnostics_fields, only: get_phi0
     use nonlinear_terms, only: nonlin
     use antenna, only: dump_ant_amp
@@ -564,35 +557,33 @@ contains
     
     if(gnostics%write_kpar.or.gnostics%write_gs) call init_par_filter
     
-    ! ntg_out is imported from diagnostics_final_routines
-    ntg_out = ntgrid
     if (proc0) then
        call debug_message(verb, 'gs2_diagnostics_new::run_old_final_routines &
          & calling do_write_final_fields')
-       if (gnostics%write_final_fields) call do_write_final_fields(gnostics)
+       if (gnostics%write_final_fields) call do_write_final_fields(gnostics%file_id, gnostics%write_ascii)
        call debug_message(verb, 'gs2_diagnostics_new::run_old_final_routines &
          & calling do_write_kpar')
-       if (gnostics%write_kpar) call do_write_kpar(gnostics)
+       if (gnostics%write_kpar) call do_write_kpar(gnostics%write_ascii)
        call debug_message(verb, 'gs2_diagnostics_new::run_old_final_routines &
          & calling do_write_final_epar')
-       if (gnostics%write_final_epar) call do_write_final_epar(gnostics)
+       if (gnostics%write_final_epar) call do_write_final_epar(gnostics%file_id, gnostics%write_ascii)
        
        ! definition here assumes we are not using wstar_units
        call debug_message(verb, 'gs2_diagnostics_new::run_old_final_routines &
          & calling do_write_final_db')
-       if (gnostics%write_final_db) call do_write_final_db(gnostics)
+       if (gnostics%write_final_db) call do_write_final_db(gnostics%write_ascii)
     end if
 
     phi0 = get_phi0()
-    if (gnostics%write_final_moments) call do_write_final_moments(gnostics,phi0)
+    if (gnostics%write_final_moments) call do_write_final_moments(gnostics%file_id, gnostics%write_ascii, phi0)
     call debug_message(verb, 'gs2_diagnostics_new::run_old_final_routines &
       & calling do_write_final_antot')
     
-    if (gnostics%write_final_antot) call do_write_final_antot(gnostics)
+    if (gnostics%write_final_antot) call do_write_final_antot(gnostics%file_id, gnostics%write_ascii)
     
     if (proc0) call dump_ant_amp
     
-    if (nonlin.and.gnostics%write_gs) call do_write_gs(gnostics)
+    if (nonlin.and.gnostics%write_gs) call do_write_gs(gnostics%write_ascii)
     call debug_message(verb, 'gs2_diagnostics_new::run_old_final_routines &
          & finished')
     

@@ -36,7 +36,9 @@ module gs2_diagnostics
   public :: do_dump_fields_periodically, do_write_parity
   public :: do_write_heating, do_write_nl_flux_dist
   public :: do_write_correlation_extend, do_write_correlation
-  public :: do_write_geom
+  public :: do_write_geom, do_write_final_fields, do_write_kpar
+  public :: do_write_final_epar, do_write_final_db, do_write_final_moments
+  public :: do_write_final_antot, do_write_gs, init_par_filter
 
   interface get_vol_average
      module procedure get_vol_average_one, get_vol_average_all
@@ -892,20 +894,20 @@ contains
     call close_files
 
     if (proc0) then
-       if (write_eigenfunc) call do_write_eigenfunc(get_netcdf_file_id(), phi0)
-       if (write_final_fields) call do_write_final_fields
-       if (write_kpar) call do_write_kpar
-       if (write_final_epar) call do_write_final_epar
+       if (write_eigenfunc) call do_write_eigenfunc(get_netcdf_file_id(), write_ascii, phi0)
+       if (write_final_fields) call do_write_final_fields(get_netcdf_file_id(), write_ascii)
+       if (write_kpar) call do_write_kpar(write_ascii)
+       if (write_final_epar) call do_write_final_epar(get_netcdf_file_id(), write_ascii)
 
        ! definition here assumes we are not using wstar_units
-       if (write_final_db) call do_write_final_db
+       if (write_final_db) call do_write_final_db(write_ascii)
     end if
 
     !Note pass in phase factor phi0 which may not be initialised
     !this is ok as phi0 will be set in routine if not already set
-    if (write_final_moments) call do_write_final_moments(phi0)
+    if (write_final_moments) call do_write_final_moments(get_netcdf_file_id(), write_ascii, phi0)
 
-    if (write_final_antot) call do_write_final_antot
+    if (write_final_antot) call do_write_final_antot(get_netcdf_file_id(), write_ascii)
 
     call save_restart_dist_fn(save_for_restart, save_distfn, &
                               save_glo_info_and_grids=save_glo_info_and_grids, &
@@ -917,7 +919,7 @@ contains
 
     if (proc0) call dump_ant_amp
 
-    if (write_gs) call do_write_gs
+    if (write_gs) call do_write_gs(write_ascii)
 
     if (proc0) call do_write_geom
 
@@ -1532,7 +1534,7 @@ contains
   !> \(\phi\) at the outboard midplane
   !>
   !> Writes to text file `<runname>.eigenfunc` and/or netCDF
-  subroutine do_write_eigenfunc(file_id, phi0)
+  subroutine do_write_eigenfunc(file_id, write_text, phi0)
     use mp, only: proc0
     use file_utils, only: open_output_file, close_output_file
     use fields_arrays, only: phi, apar, bpar
@@ -1544,6 +1546,8 @@ contains
     implicit none
     !> NetCDF ID of the file to write to
     integer, intent(in) :: file_id
+    !> If true, write text file
+    logical, intent(in) :: write_text
     !> The normalising factor for the fields that is actually used. See
     !> [[gs2_diagnostics_knobs:write_eigenfunc]] for more details
     complex, dimension (:,:), intent(inout) :: phi0
@@ -1570,7 +1574,7 @@ contains
        phi0 = 1.0
     end where
 
-    if (write_ascii) then
+    if (write_text) then
        call open_output_file (unit, ".eigenfunc")
        do ik = 1, naky
           do it = 1, ntheta0
@@ -1591,7 +1595,7 @@ contains
   end subroutine do_write_eigenfunc
 
   !> Write \(\phi, A_\parallel, B_\parallel\), overwriting existing values
-  subroutine do_write_final_fields
+  subroutine do_write_final_fields(file_id, write_text)
     use mp, only: proc0
     use file_utils, only: open_output_file, close_output_file
     use gs2_io, only: nc_final_fields
@@ -1599,11 +1603,15 @@ contains
     use theta_grid, only: theta, ntgrid
     use fields_arrays, only: phi, apar, bpar
     implicit none
+    !> NetCDF file ID
+    integer, intent(in) :: file_id
+    !> If true, write text file
+    logical, intent(in) :: write_text
     integer :: ik, it, ig, unit
 
     if(.not.proc0) return
 
-    if (write_ascii) then
+    if (write_text) then
        call open_output_file (unit, ".fields")
        do ik = 1, naky
           do it = 1, ntheta0
@@ -1623,13 +1631,13 @@ contains
     end if
 
     !Do netcdf output
-    call nc_final_fields(get_netcdf_file_id())
+    call nc_final_fields(file_id)
   end subroutine do_write_final_fields
 
   !> Write the parallel spectrum of \(\phi, A_\parallel, B_\parallel\), overwriting existing values
   !>
   !> @note No netCDF output
-  subroutine do_write_kpar
+  subroutine do_write_kpar(write_text)
     use mp, only: proc0
     use file_utils, only: open_output_file, close_output_file
     use theta_grid, only: ntgrid, gradpar, nperiod
@@ -1637,11 +1645,15 @@ contains
     use run_parameters, only: fphi,fapar,fbpar
     use fields_arrays, only: phi, apar, bpar
     implicit none
+    !> If true, write text file
+    logical, intent(in) :: write_text
+
     complex, dimension (:,:,:), allocatable :: phi2, apar2, bpar2
     real, dimension (2*ntgrid) :: kpar
     integer :: ig, ik, it, unit
 
-    if(.not.proc0) return
+    if (.not.proc0) return
+    if (.not. write_text) return
 
     allocate (phi2(-ntgrid:ntgrid,ntheta0,naky)) 
     allocate (apar2(-ntgrid:ntgrid,ntheta0,naky))
@@ -1663,39 +1675,37 @@ contains
        bpar2=0.
     endif
 
-    if(write_ascii)then
-       call open_output_file (unit, ".kpar")
-       do ig = 1, ntgrid
-          kpar(ig) = (ig-1)*gradpar(ig)/real(2*nperiod-1)
-          kpar(2*ntgrid-ig+1)=-(ig)*gradpar(ig)/real(2*nperiod-1)
-       end do
-       do ik = 1, naky
-          do it = 1, ntheta0
-             do ig = ntgrid+1,2*ntgrid
-                write (unit, "(9(1x,e12.5))") &
-                     kpar(ig), aky(ik), akx(it), &
-                     phi2(ig-ntgrid-1,it,ik), &
-                     apar2(ig-ntgrid-1,it,ik), &
-                     bpar2(ig-ntgrid-1,it,ik)                        
-             end do
-             do ig = 1, ntgrid
-                write (unit, "(9(1x,e12.5))") &
-                     kpar(ig), aky(ik), akx(it), &
-                     phi2(ig-ntgrid-1,it,ik), &
-                     apar2(ig-ntgrid-1,it,ik), &
-                     bpar2(ig-ntgrid-1,it,ik)
-             end do
-             write (unit, "()")
-          end do
-       end do
-       call close_output_file (unit)
-    endif
+    call open_output_file (unit, ".kpar")
+    do ig = 1, ntgrid
+      kpar(ig) = (ig-1)*gradpar(ig)/real(2*nperiod-1)
+      kpar(2*ntgrid-ig+1)=-(ig)*gradpar(ig)/real(2*nperiod-1)
+    end do
+    do ik = 1, naky
+      do it = 1, ntheta0
+        do ig = ntgrid+1,2*ntgrid
+          write (unit, "(9(1x,e12.5))") &
+               kpar(ig), aky(ik), akx(it), &
+               phi2(ig-ntgrid-1,it,ik), &
+               apar2(ig-ntgrid-1,it,ik), &
+               bpar2(ig-ntgrid-1,it,ik)                        
+        end do
+        do ig = 1, ntgrid
+          write (unit, "(9(1x,e12.5))") &
+               kpar(ig), aky(ik), akx(it), &
+               phi2(ig-ntgrid-1,it,ik), &
+               apar2(ig-ntgrid-1,it,ik), &
+               bpar2(ig-ntgrid-1,it,ik)
+        end do
+        write (unit, "()")
+      end do
+    end do
+    call close_output_file (unit)
 
     deallocate (phi2, apar2, bpar2)
   end subroutine do_write_kpar
 
   !> Calculate and write \(E_\parallel\), overwriting existing values
-  subroutine do_write_final_epar
+  subroutine do_write_final_epar(file_id, write_text)
     use mp, only: proc0
     use file_utils, only: open_output_file, close_output_file
     use kt_grids, only: naky, ntheta0, theta0, aky, akx
@@ -1704,6 +1714,11 @@ contains
     use fields_arrays, only: phi, apar, phinew, aparnew
     use gs2_io, only: nc_final_epar
     implicit none
+    !> NetCDF file ID
+    integer, intent(in) :: file_id
+    !> If true, write text file
+    logical, intent(in) :: write_text
+
     complex, dimension (:,:,:), allocatable :: epar
     integer :: ik, it, ig, unit
 
@@ -1713,7 +1728,7 @@ contains
 
     call get_epar (phi, apar, phinew, aparnew, epar)
 
-    if (write_ascii) then
+    if (write_text) then
        call open_output_file (unit, ".epar")
        do ik = 1, naky
           do it = 1, ntheta0
@@ -1729,7 +1744,7 @@ contains
        call close_output_file (unit)
     end if
 
-    call nc_final_epar (get_netcdf_file_id(), epar)
+    call nc_final_epar(file_id, epar)
 
     deallocate (epar)
   end subroutine do_write_final_epar
@@ -1737,7 +1752,7 @@ contains
   !> Calculate and write \(\delta B\), overwriting existing values
   !>
   !> @note No netCDF output
-  subroutine do_write_final_db
+  subroutine do_write_final_db(write_text)
     use file_utils, only: open_output_file, close_output_file
     use mp, only: proc0
     use theta_grid, only: ntgrid, gradpar, delthet, bmag, theta
@@ -1745,13 +1760,15 @@ contains
     use fields_arrays, only: phinew, aparnew, apar
     use gs2_time, only: code_dt
     implicit none
+    !> If true, write text file
+    logical, intent(in) :: write_text
+
     complex, dimension (-ntgrid:ntgrid, ntheta0, naky) :: db
     complex, dimension (ntheta0, naky) :: dbfac
     integer :: ik, it, ig, unit
 
     if (.not.proc0) return
-
-    if (.not.write_ascii) return
+    if (.not.write_text) return
 
     !Calculate db
     do ik = 1, naky
@@ -1766,20 +1783,17 @@ contains
        end do
     end do
 
-    if (write_ascii) then
-       call open_output_file (unit, ".db")
-       do ik = 1, naky
-          do it = 1, ntheta0
-             do ig = -ntgrid, ntgrid-1
-                write (unit, "(5(1x,e12.5))") &
-                     theta(ig), aky(ik), akx(it), real(db(ig, it,ik)), aimag(db(ig, it, ik))
-             end do
-             write (unit, "()")
-          end do
-       end do
-       call close_output_file (unit)
-    end if
-
+    call open_output_file (unit, ".db")
+    do ik = 1, naky
+      do it = 1, ntheta0
+        do ig = -ntgrid, ntgrid-1
+          write (unit, "(5(1x,e12.5))") &
+               theta(ig), aky(ik), akx(it), real(db(ig, it,ik)), aimag(db(ig, it, ik))
+        end do
+        write (unit, "()")
+      end do
+    end do
+    call close_output_file (unit)
   end subroutine do_write_final_db
 
   !> Calculate and write the various low-order moments, overwriting existing values
@@ -1789,7 +1803,7 @@ contains
   !> field-line averages.
   !>
   !> NetCDF files contain just the full values
-  subroutine do_write_final_moments(phi0_in)
+  subroutine do_write_final_moments(file_id, write_text, phi0_in)
     use theta_grid, only: ntgrid, theta
     use kt_grids, only: ntheta0, naky, aky, akx, theta0
     use species, only: nspec, spec
@@ -1799,6 +1813,10 @@ contains
     use fields_arrays, only: phinew, bparnew
     use gs2_io, only: nc_final_moments
     implicit none
+    !> NetCDF file ID
+    integer, intent(in) :: file_id
+    !> If true, write text file
+    logical, intent(in) :: write_text
     !> Pre-calculated normalising phase factor
     complex, dimension (:, :), intent(in) :: phi0_in
 
@@ -1823,7 +1841,7 @@ contains
     call getmoms (phinew, bparnew, ntot, density, upar, tpar, tperp, qparflux, pperpj1, qpperpj1)
 
     if (proc0) then
-       if (write_ascii) then
+       if (write_text) then
           !Setup the phase factor
           allocate(phi0(ntheta0,naky),phi02(ntheta0,naky))
           if(.not.write_eigenfunc) then
@@ -1902,7 +1920,7 @@ contains
        end if
 
        !Do the netcdf output -- Note we don't have the phi0 phase factor here
-       call nc_final_moments (get_netcdf_file_id(), ntot, density, upar, tpar, tperp, qparflux, pperpj1, qpperpj1)
+       call nc_final_moments(file_id, ntot, density, upar, tpar, tperp, qparflux, pperpj1, qpperpj1)
     end if
 
     deallocate (ntot, density, upar, tpar, tperp, qparflux, pperpj1, qpperpj1)
@@ -1910,7 +1928,7 @@ contains
 
   !> Write the right-hand sides of the field equations, overwriting existing
   !> values
-  subroutine do_write_final_antot
+  subroutine do_write_final_antot(file_id, write_text)
     use file_utils, only: open_output_file, close_output_file
     use mp, only: proc0
     use kt_grids, only: ntheta0, naky, theta0, aky
@@ -1918,6 +1936,10 @@ contains
     use gs2_io, only: nc_final_an
     use dist_fn, only: getan
     implicit none
+    !> NetCDF file ID
+    integer, intent(in) :: file_id
+    !> If true, write text file
+    logical, intent(in) :: write_text
     complex, dimension (:,:,:), allocatable :: antot, antota, antotp
     integer :: ik, it, ig, unit
 
@@ -1927,7 +1949,7 @@ contains
     call getan (antot, antota, antotp)
 
     if (proc0) then
-       if (write_ascii) then
+       if (write_text) then
           call open_output_file (unit, ".antot")
           do ik = 1, naky
              do it = 1, ntheta0
@@ -1945,14 +1967,14 @@ contains
           call close_output_file (unit)
        end if
 
-       call nc_final_an (get_netcdf_file_id(), antot, antota, antotp)
+       call nc_final_an(file_id, antot, antota, antotp)
     end if
 
     deallocate (antot, antota, antotp)
   end subroutine do_write_final_antot
 
   !> FIXME : Add documentation  
-  subroutine do_write_gs
+  subroutine do_write_gs(write_text)
     use file_utils, only: open_output_file, close_output_file
     use mp, only: proc0, sum_reduce, iproc, nproc
     use gs2_transforms, only: transform2, inverse2
@@ -1962,6 +1984,8 @@ contains
     use constants, only: pi, zi
     use splines, only: fitp_surf1, fitp_surf2
     implicit none
+    !> If true, write text file
+    logical, intent(in) :: write_text
     real, dimension (:), allocatable :: total
     real, dimension (:,:,:), allocatable :: bxf, byf, vxf, vyf, bxfsavg, byfsavg
     real, dimension (:,:,:), allocatable :: bxfs, byfs, vxfs, vyfs, rvx, rvy, rx, ry
@@ -1976,7 +2000,7 @@ contains
     integer :: ik, it, ig, ierr
 
     !Note no netcdf output so if not write_ascii then exit now
-    if(.not.write_ascii) return
+    if (.not. write_text) return
 
     nny = 2*ny
     nnx = 2*nx
