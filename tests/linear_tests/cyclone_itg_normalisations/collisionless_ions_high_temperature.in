@@ -5,7 +5,6 @@
 ! Note also need to set tite to 10.
 &kt_grids_single_parameters
  aky = 1.5811388300842
-
 /
 
 &knobs
