@@ -1,0 +1,36 @@
+! Standard normalisation options - electron mass
+! Electron mass, ion temperature, minor radius, ion Larmor radius
+! Time scaled up by sqrt(mi/me), ky, growth rate and frequency scaled down.
+&kt_grids_single_parameters
+ aky = 0.0116685
+/
+
+&knobs
+ delt = 4.28504
+ nstep = 2000
+/
+
+&species_parameters_1
+ z = 1.0
+ mass = 1836.15267
+ dens = 1.0
+ temp = 1.0
+ tprim = 6.9
+ fprim = 2.2
+ uprim = 0.0
+ vnewk = 0.0
+ type = "ion"
+/
+
+&dist_fn_species_knobs_1
+ fexpr = 0.5
+ bakdif = 0.0
+/
+
+&test_settings
+  tolerance = 1.0e-5
+  omega_expected = 0.01522313659
+  gamma_expected = 0.00400633849
+/
+!Include the shared parameters
+!include collisionless_ions_grids.in
