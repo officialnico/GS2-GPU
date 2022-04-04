@@ -27,10 +27,13 @@
  bakdif = 0.0
 /
 
+&species_knobs
+ nspec = 1
+/
 &test_settings
   tolerance = 1.0e-5
   omega_expected = 0.652316762760168
   gamma_expected = 0.171673014834482
 /
 !Include the shared parameters
-!include collisionless_ions_grids.in
+!include grids.in

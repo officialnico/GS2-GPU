@@ -30,13 +30,6 @@
  nesub = 10
  nesuper = 2
 /
-&collisions_knobs
- collision_model = "none"
-/
-
-&species_knobs
- nspec = 1
-/
 
 &init_g_knobs
  chop_side = .false.
