@@ -1,4 +1,5 @@
 ! Standard normalisation options - hot reference = 10 Ti
+! Should match collisionless_ion_baseline    
 ! Ion mass, minor radius, ion Larmor radius
 ! Scale ky, dt up by sqrt(10), scale temp down by 10, gamma and omega down by sqrt(10)
 ! Note also need to set tite to 10.

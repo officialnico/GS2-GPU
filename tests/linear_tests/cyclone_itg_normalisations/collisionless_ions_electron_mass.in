@@ -1,6 +1,8 @@
 ! Standard normalisation options - electron mass
 ! Electron mass, ion temperature, minor radius, ion Larmor radius
+! Should match collisionless_ion_baseline  
 ! Time scaled up by sqrt(mi/me), ky, growth rate and frequency scaled down.
+  
 &kt_grids_single_parameters
  aky = 0.0116685
 /

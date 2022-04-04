@@ -18,6 +18,8 @@ all: ${TEST_BASE_NAME}
 	$(call RUNCOMMAND,${TEST_BASE_NAME},collisionless_ions_baseline.in)
 	$(call RUNCOMMAND,${TEST_BASE_NAME},collisionless_ions_electron_mass.in)
 	$(call RUNCOMMAND,${TEST_BASE_NAME},collisionless_ions_high_temperature.in)
+	$(call RUNCOMMAND,${TEST_BASE_NAME},collisionless_ions_density.in)
+	$(call RUNCOMMAND,${TEST_BASE_NAME},collisionless_ions_charge.in)
 endif
 endif
 ${TEST_BASE_NAME}.o:  ${TEST_MODS}
