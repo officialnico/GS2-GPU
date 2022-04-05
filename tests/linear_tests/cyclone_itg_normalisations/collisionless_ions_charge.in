@@ -1,9 +1,9 @@
-! Standard normalisation options -- charge
+! Standard normalisation options -- charge/2
 ! Ion mass, ion temperature, minor radius, ion Larmor radius
 ! Should match collisionless_ion_baseline
 ! Note change in sign of frequency required
 &kt_grids_single_parameters
- aky = 0.5
+ aky = 1.0
 /
 
 &knobs
@@ -12,7 +12,7 @@
 /
 
 &species_parameters_1
- z = -1.0
+ z = -2.0
  mass = 1.0
  dens = 1.0
  temp = 1.0

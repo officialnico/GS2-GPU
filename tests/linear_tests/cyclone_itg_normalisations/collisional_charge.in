@@ -1,9 +1,9 @@
-! Standard normalisation options - Collisional case, electron charge
+! Standard normalisation options - Collisional case, electron charge/2
 ! Ion mass, ion temperature, minor radius, ion Larmor radius
 ! Should match collisional_baseline
   
 &kt_grids_single_parameters
- aky = 0.5
+ aky = 1.0
 /
 
 &knobs
@@ -15,7 +15,7 @@
 /
 
 &species_parameters_1
- z = -1.0
+ z = -2.0
  mass = 1.0
  dens = 1.0
  temp = 1.0
@@ -32,7 +32,7 @@
 /
 
 &species_parameters_2
- z = 1.0
+ z = 2.0
  mass = 0.000544617021
  dens = 1.0
  temp = 1.0
