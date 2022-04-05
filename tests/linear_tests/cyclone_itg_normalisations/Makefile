@@ -39,6 +39,7 @@ all: ${TEST_BASE_NAME}
 	$(call RUNCOMMAND,${TEST_BASE_NAME},collisional_density.in)
 	$(call RUNCOMMAND,${TEST_BASE_NAME},collisional_charge.in)
 	$(call RUNCOMMAND,${TEST_BASE_NAME},collisional_length.in)
+	$(call RUNCOMMAND,${TEST_BASE_NAME},collisional_all.in)
 endif
 endif
 ${TEST_BASE_NAME}.o:  ${TEST_MODS}
