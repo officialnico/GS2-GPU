@@ -9,6 +9,7 @@
 &knobs
  delt = 0.1
  nstep = 2000
+ tite = 4.0 !Note tite = Tref/(nref qref^2)
 /
 
 &species_parameters_1
