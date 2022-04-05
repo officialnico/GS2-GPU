@@ -47,7 +47,8 @@ adiabatic_option = 'field-line-average-term'
  print_line = F
  write_line = F
  write_omega = T
- nwrite = 100
+ write_moments = F
+ nwrite = 2000
  navg = 1
  omegatol = -0.001
 /

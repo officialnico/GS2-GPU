@@ -27,6 +27,12 @@ all: ${TEST_BASE_NAME}
 	$(call RUNCOMMAND,${TEST_BASE_NAME},collisionless_two_species_density.in)
 	$(call RUNCOMMAND,${TEST_BASE_NAME},collisionless_two_species_charge.in)
 	$(call RUNCOMMAND,${TEST_BASE_NAME},collisionless_two_species_length.in)
+	$(call RUNCOMMAND,${TEST_BASE_NAME},collisionless_beta_baseline.in)
+	$(call RUNCOMMAND,${TEST_BASE_NAME},collisionless_beta_electron_mass.in)
+	$(call RUNCOMMAND,${TEST_BASE_NAME},collisionless_beta_high_temperature.in)
+	$(call RUNCOMMAND,${TEST_BASE_NAME},collisionless_beta_density.in)
+	$(call RUNCOMMAND,${TEST_BASE_NAME},collisionless_beta_charge.in)
+	$(call RUNCOMMAND,${TEST_BASE_NAME},collisionless_beta_length.in)
 endif
 endif
 ${TEST_BASE_NAME}.o:  ${TEST_MODS}
