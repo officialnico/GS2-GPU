@@ -33,6 +33,12 @@ all: ${TEST_BASE_NAME}
 	$(call RUNCOMMAND,${TEST_BASE_NAME},collisionless_beta_density.in)
 	$(call RUNCOMMAND,${TEST_BASE_NAME},collisionless_beta_charge.in)
 	$(call RUNCOMMAND,${TEST_BASE_NAME},collisionless_beta_length.in)
+	$(call RUNCOMMAND,${TEST_BASE_NAME},collisional_baseline.in)
+	$(call RUNCOMMAND,${TEST_BASE_NAME},collisional_electron_mass.in)
+	$(call RUNCOMMAND,${TEST_BASE_NAME},collisional_high_temperature.in)
+	$(call RUNCOMMAND,${TEST_BASE_NAME},collisional_density.in)
+	$(call RUNCOMMAND,${TEST_BASE_NAME},collisional_charge.in)
+	$(call RUNCOMMAND,${TEST_BASE_NAME},collisional_length.in)
 endif
 endif
 ${TEST_BASE_NAME}.o:  ${TEST_MODS}

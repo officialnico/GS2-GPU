@@ -1,0 +1,61 @@
+! Standard normalisation options - Collisional case, electron charge
+! Ion mass, ion temperature, minor radius, ion Larmor radius
+! Should match collisional_baseline
+  
+&kt_grids_single_parameters
+ aky = 0.5
+/
+
+&knobs
+ delt = 0.1
+ nstep = 2000
+ fapar = 1.0
+ fbpar = 1.0
+ beta = 0.05
+/
+
+&species_parameters_1
+ z = -1.0
+ mass = 1.0
+ dens = 1.0
+ temp = 1.0
+ tprim = 6.9
+ fprim = 2.2
+ uprim = 0.0
+ vnewk = 0.023337
+ type = "ion"
+/
+
+&dist_fn_species_knobs_1
+ fexpr = 0.5
+ bakdif = 0.0
+/
+
+&species_parameters_2
+ z = 1.0
+ mass = 0.000544617021
+ dens = 1.0
+ temp = 1.0
+ tprim = 6.9
+ fprim = 2.2
+ uprim = 0.0
+ vnewk = 1.0
+ type = "electron"
+/
+
+&dist_fn_species_knobs_2
+ fexpr = 0.5
+ bakdif = 0.0
+/
+
+&species_knobs
+ nspec = 2
+/
+
+&test_settings
+  tolerance = 1.0e-5
+  omega_expected = -1.33741017361886
+  gamma_expected = 1.29124313726798
+/
+!Include the shared parameters
+!include grids.in
