@@ -127,7 +127,12 @@ contains
     call self%dist_fn_config%write(local_output_unit)
 
     allocated_flag = allocated(self%dist_fn_species_config)
-    if (.not.allocated_flag) allocate(self%dist_fn_species_config(self%species_config%nspec))
+    if (.not.allocated_flag) then
+       allocate(self%dist_fn_species_config(self%species_config%nspec))
+       do i = 1, size(self%dist_fn_species_config)
+          self%dist_fn_species_config(i)%index = i
+       end do
+    end if
     do i = 1, size(self%dist_fn_species_config)
        call self%dist_fn_species_config(i)%write(local_output_unit)
     end do
@@ -159,7 +164,12 @@ contains
     call self%kt_grids_specified_config%write(local_output_unit)
 
     allocated_flag = allocated(self%kt_grids_specified_element_config)
-    if (.not.allocated_flag) allocate(self%kt_grids_specified_element_config(max(self%kt_grids_specified_config%naky,self%kt_grids_specified_config%ntheta0)))
+    if (.not.allocated_flag) then
+       allocate(self%kt_grids_specified_element_config(max(self%kt_grids_specified_config%naky,self%kt_grids_specified_config%ntheta0)))
+       do i = 1, size(self%kt_grids_specified_element_config)
+          self%kt_grids_specified_element_config(i)%index = i
+       end do
+    end if
     do i = 1, size(self%kt_grids_specified_element_config)
        call self%kt_grids_specified_element_config(i)%write(local_output_unit)
     end do
@@ -177,14 +187,24 @@ contains
     call self%species_config%write(local_output_unit)
 
     allocated_flag = allocated(self%species_element_config)
-    if (.not.allocated_flag) allocate(self%species_element_config(self%species_config%nspec))
+    if (.not.allocated_flag) then
+       allocate(self%species_element_config(self%species_config%nspec))
+       do i = 1, size(self%species_element_config)
+          self%species_element_config(i)%index = i
+       end do
+    end if
     do i = 1, size(self%species_element_config)
        call self%species_element_config(i)%write(local_output_unit)
     end do
     if (.not.allocated_flag) deallocate(self%species_element_config)
 
     allocated_flag = allocated(self%stir_config)
-    if (.not.allocated_flag) allocate(self%stir_config(self%driver_config%nk_stir))
+    if (.not.allocated_flag) then
+       allocate(self%stir_config(self%driver_config%nk_stir))
+       do i = 1, size(self%stir_config)
+          self%stir_config(i)%index = i
+       end do
+    end if
     do i = 1, size(self%stir_config)
        call self%stir_config(i)%write(local_output_unit)
     end do
