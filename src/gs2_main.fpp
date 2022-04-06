@@ -772,13 +772,14 @@ contains
     use mp, only: proc0
     use mp, only: scope, subprocs, broadcast
     use parameter_scan, only: update_scan_parameter_value
-    use run_parameters, only: reset, fphi, fapar, fbpar, nstep
+    use run_parameters, only: reset, fphi, fapar, fbpar, nstep, max_sim_time
     use run_parameters, only: avail_cpu_time, margin_cpu_time
     use run_parameters, only: use_old_diagnostics
     use unit_tests, only: ilast_step, debug_message
     use gs2_init, only: init
     use nonlinear_terms, only: gryfx_zonal
     use standard_header, only: standard_header_type
+    use exit_codes, only: EXIT_MAX_SIM_TIME
     type(gs2_program_state_type), intent(inout) :: state
     type(standard_header_type), optional, intent(in) :: header
     integer :: istep, istatus
@@ -821,6 +822,11 @@ contains
     ! finalize_diagnostics resets state%istep_end
     istep_loop_max = state%istep_end + nstep_run
     do istep = state%istep_end+1, istep_loop_max
+       ! Check if we've reached our maximum requested time
+       if (user_time > max_sim_time) then
+          state%exit_reason = EXIT_MAX_SIM_TIME
+          exit
+       end if
 
        if (istep .gt. nstep) then
          if (proc0) write (*,*) 'Reached maximum number of steps allowed &
