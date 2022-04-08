@@ -3007,8 +3007,10 @@ contains
                 g(ig,:,iglo) = g(ig,:,iglo) + ieqzip(it,ik) * &
                      vnmult(1)*spec(is)%vnewk*code_dt &
                      * vpa(ig,:,iglo)*kperp2(ig,it,ik)*aparnew(ig,it,ik)*aj0(ig,iglo) &
-                     / (beta*spec(is)%stm*energy(ie)**1.5)
+                     / ((-spec(is)%z*spec(is)%dens)*beta*spec(is)%stm*energy(ie)**1.5)
                 ! probably need 1/(spec(is_ion)%z*spec(is_ion)%dens) above
+                ! This has been implemented as 1/-spec(electron)%z*spec(electron)%dens
+                ! in an attempt handle the multi-ion species case.
              end do
           end do
        end if
@@ -3054,7 +3056,10 @@ contains
                 g(ig,:,iglo) = g(ig,:,iglo) + ieqzip(it,ik) * &
                      vnmult(1)*spec(is)%vnewk*code_dt &
                      * vpa(ig,:,iglo)*kperp2(ig,it,ik)*aparnew(ig,it,ik)*aj0(ig,iglo) &
-                     / (beta*spec(is)%stm*energy(ie)**1.5)
+                     / ((-spec(is)%z*spec(is)%dens)*beta*spec(is)%stm*energy(ie)**1.5)
+                ! probably need 1/(spec(is_ion)%z*spec(is_ion)%dens) above
+                ! This has been implemented as 1/-spec(electron)%z*spec(electron)%dens
+                ! in an attempt handle the multi-ion species case.
              end do
           end do
        end if
@@ -3146,9 +3151,11 @@ contains
                    gle(ixi,ie,ile) = gle(ixi,ie,ile) + ieqzip(it,ik) * &
                         vnmult(1)*spec(is)%vnewk*code_dt &
                         * kperp2(ig,it,ik)*aparnew(ig,it,ik)*aj0le(ixi,ie,ile) &
-                        / (beta*spec(is)%stm*energy(ie)) &
+                        / ((-spec(is)%z*spec(is)%dens)*beta*spec(is)%stm*energy(ie)) &
                         * sgn(isgn)*sqrt(MAX(1.0-al(il)*bmag(ig),0.0))
-                   ! probably need 1/(spec(is_ion)%z*spec(is_ion)%dens) above
+                ! probably need 1/(spec(is_ion)%z*spec(is_ion)%dens) above
+                ! This has been implemented as 1/-spec(electron)%z*spec(electron)%dens
+                ! in an attempt handle the multi-ion species case.
                 end do
              end do
           end do
@@ -3198,9 +3205,11 @@ contains
                    gle(ixi,ie,ile) = gle(ixi,ie,ile) + ieqzip(it,ik) * &
                         vnmult(1)*spec(is)%vnewk*code_dt &
                         * kperp2(ig,it,ik)*aparnew(ig,it,ik)*aj0le(ixi,ie,ile) &
-                        / (beta*spec(is)%stm*energy(ie)) &
+                        / ((-spec(is)%z*spec(is)%dens)*beta*spec(is)%stm*energy(ie)) &
                         * sgn(isgn)*sqrt(MAX(1.0-al(il)*bmag(ig),0.0))
-                   ! probably need 1/(spec(is_ion)%z*spec(is_ion)%dens) above
+                ! probably need 1/(spec(is_ion)%z*spec(is_ion)%dens) above
+                ! This has been implemented as 1/-spec(electron)%z*spec(electron)%dens
+                ! in an attempt handle the multi-ion species case.
                 end do
              end do
           end do
