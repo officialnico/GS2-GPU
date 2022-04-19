@@ -198,7 +198,6 @@ contains
   subroutine init_antenna(driver_config_in, stir_config_in)
     use species, only: spec, nspec, init_species
     use run_parameters, only: beta
-    use antenna_data, only: init_antenna_data
     implicit none
     type(driver_config_type), intent(in), optional :: driver_config_in
     type(stir_config_type), intent(in), dimension(:), optional :: stir_config_in    

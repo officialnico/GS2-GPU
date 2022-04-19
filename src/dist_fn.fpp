@@ -1036,8 +1036,6 @@ contains
 
     !if (debug) write(6,*) "init_dist_fn: init_vperp2"
     call init_vperp2
-
-    call init_dist_fn_arrays
     call init_bc
   
   end subroutine init_dist_fn_level_1
