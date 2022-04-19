@@ -238,7 +238,12 @@ if __name__ == "__main__":
         ),
         module_with_dependencies("override_timestep",
                                  dependencies = [
-                                     "run_parameters"],
+                                     "run_parameters",
+                                     # We add le_grids here to make sure this is lower
+                                     # down the init list than override_timestep, to help
+                                     # skip duplicate work when changing the time step.
+                                     "le_grids"
+                                 ],
                                          visit_routine = more_general_module_routine_string,
                                  visit_args = {'imports': "  use run_parameters, only: rso => set_overrides",
                                                'up_action': "    if (current%tstep_ov%is_initialised()) call rso(current%tstep_ov)",
