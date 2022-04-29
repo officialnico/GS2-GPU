@@ -198,7 +198,7 @@ contains
     use iso_fortran_env, only: output_unit
     use optionals, only: get_option_with_default
     implicit none
-    class(init_level_type), intent(in out) :: self
+    class(init_level_type), intent(in) :: self
     integer, intent(in), optional :: unit
     write(get_option_with_default(unit, output_unit), '(A," : ",0pf9.3," seconds")') &
          trim(adjustl(self%name)), self%time_init(1)
@@ -209,7 +209,7 @@ contains
   integer function init_level_change_level(self, current, going_up) result(new_level)
     use job_manage, only: time_message
     implicit none
-    class(init_level_type), intent(in) :: self
+    class(init_level_type), intent(in out) :: self
     type(init_type), intent(in) :: current
     logical, intent(in) :: going_up
     call self%generate_debug_message(going_up)
