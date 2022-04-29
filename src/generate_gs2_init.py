@@ -314,19 +314,13 @@ if __name__ == "__main__":
             level = x.level,
         ) for x in ordered_levels.values()])
 
-    init_array = "    allocate( init_levels({nlevels}))\n".format(nlevels=len(ordered_levels.values()))
-    init_array += "\n".join([
-        "      init_levels({level}) = init_level_type(name = '{name}', level = {level})".format(
+    init_array = "      init_levels = [ &\n".format(nlevels=len(ordered_levels.values()))
+    init_array += ", &\n".join([
+        "        init_level_type(name = '{name}', level = {level}, change_level_specific = {name}_subroutine)".format(
             name = x.name,
             level = x.level,
         ) for x in ordered_levels.values()
-    ]) + "\n"
-    init_array += "\n".join([
-        "      init_levels({level})%change_level_specific => {name}_subroutine".format(
-            name = x.name,
-            level = x.level,
-        ) for x in ordered_levels.values()
-        ])
+    ]) + " &\n]\n"
 
     # Now the visit methods
     visit_methods = "\n\n".join([
