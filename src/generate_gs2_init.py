@@ -2,37 +2,31 @@
 # in gs2 init.
 
 default_module_routine_string = """
-integer function {name}_function(self, current, going_up) result(new_level)
-  use unit_tests, only: debug_message
+subroutine {name}_routine(self, current, going_up)
   use {module_name}, only: {init_routine}, {finish_routine}
-  class(init_level_type), intent(in out) :: self
+  class(init_level_type), intent(in) :: self
   type(init_type), intent(in) :: current
   logical, intent(in) :: going_up
   if (going_up) then
     call {init_routine}
-    new_level = self%level
   else
     call {finish_routine}
-    new_level = self%level - 1
   end if
-end function {name}_function
+end subroutine {name}_routine
 """
 
 more_general_module_routine_string = """
-integer function {name}_function(self, current, going_up) result(new_level)
-  use unit_tests, only: debug_message
+subroutine {name}_routine(self, current, going_up)
 {imports}
-  class(init_level_type), intent(in out) :: self
+  class(init_level_type), intent(in) :: self
   type(init_type), intent(in) :: current
   logical, intent(in) :: going_up
   if (going_up) then
 {up_action}
-    new_level = self%level
   else
 {down_action}
-    new_level = self%level - 1
   end if
-end function {name}_function
+end subroutine {name}_routine
 """
 
 class module_with_dependencies():
@@ -328,7 +322,7 @@ if __name__ == "__main__":
         ) for x in ordered_levels.values()
     ]) + "\n"
     init_array += "\n".join([
-        "      init_levels({level})%change_level_specific => {name}_function".format(
+        "      init_levels({level})%change_level_specific => {name}_routine".format(
             name = x.name,
             level = x.level,
         ) for x in ordered_levels.values()

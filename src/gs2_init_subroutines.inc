@@ -1,504 +1,405 @@
-integer function basic_function(self, current, going_up) result(new_level)
-  use unit_tests, only: debug_message
+subroutine basic_routine(self, current, going_up)
 
-  class(init_level_type), intent(in out) :: self
+  class(init_level_type), intent(in) :: self
   type(init_type), intent(in) :: current
   logical, intent(in) :: going_up
   if (going_up) then
 
-    new_level = self%level
   else
 
-    new_level = self%level - 1
   end if
-end function basic_function
+end subroutine basic_routine
 
-integer function gs2_layouts_function(self, current, going_up) result(new_level)
-  use unit_tests, only: debug_message
+subroutine gs2_layouts_routine(self, current, going_up)
   use gs2_layouts, only: init_gs2_layouts, finish_gs2_layouts
-  class(init_level_type), intent(in out) :: self
+  class(init_level_type), intent(in) :: self
   type(init_type), intent(in) :: current
   logical, intent(in) :: going_up
   if (going_up) then
     call init_gs2_layouts
-    new_level = self%level
   else
     call finish_gs2_layouts
-    new_level = self%level - 1
   end if
-end function gs2_layouts_function
+end subroutine gs2_layouts_routine
 
-integer function normalisations_function(self, current, going_up) result(new_level)
-  use unit_tests, only: debug_message
+subroutine normalisations_routine(self, current, going_up)
   use normalisations, only: init_normalisations, finish_normalisations
-  class(init_level_type), intent(in out) :: self
+  class(init_level_type), intent(in) :: self
   type(init_type), intent(in) :: current
   logical, intent(in) :: going_up
   if (going_up) then
     call init_normalisations
-    new_level = self%level
   else
     call finish_normalisations
-    new_level = self%level - 1
   end if
-end function normalisations_function
+end subroutine normalisations_routine
 
-integer function theta_grid_params_function(self, current, going_up) result(new_level)
-  use unit_tests, only: debug_message
+subroutine theta_grid_params_routine(self, current, going_up)
   use theta_grid_params, only: init_theta_grid_params, finish_theta_grid_params
-  class(init_level_type), intent(in out) :: self
+  class(init_level_type), intent(in) :: self
   type(init_type), intent(in) :: current
   logical, intent(in) :: going_up
   if (going_up) then
     call init_theta_grid_params
-    new_level = self%level
   else
     call finish_theta_grid_params
-    new_level = self%level - 1
   end if
-end function theta_grid_params_function
+end subroutine theta_grid_params_routine
 
-integer function fields_parameters_function(self, current, going_up) result(new_level)
-  use unit_tests, only: debug_message
+subroutine fields_parameters_routine(self, current, going_up)
   use fields, only: init_fields_parameters, finish_fields_parameters
-  class(init_level_type), intent(in out) :: self
+  class(init_level_type), intent(in) :: self
   type(init_type), intent(in) :: current
   logical, intent(in) :: going_up
   if (going_up) then
     call init_fields_parameters
-    new_level = self%level
   else
     call finish_fields_parameters
-    new_level = self%level - 1
   end if
-end function fields_parameters_function
+end subroutine fields_parameters_routine
 
-integer function gs2_save_function(self, current, going_up) result(new_level)
-  use unit_tests, only: debug_message
+subroutine gs2_save_routine(self, current, going_up)
   use gs2_save, only: init_gs2_save, finish_gs2_save
-  class(init_level_type), intent(in out) :: self
+  class(init_level_type), intent(in) :: self
   type(init_type), intent(in) :: current
   logical, intent(in) :: going_up
   if (going_up) then
     call init_gs2_save
-    new_level = self%level
   else
     call finish_gs2_save
-    new_level = self%level - 1
   end if
-end function gs2_save_function
+end subroutine gs2_save_routine
 
-integer function init_g_function(self, current, going_up) result(new_level)
-  use unit_tests, only: debug_message
+subroutine init_g_routine(self, current, going_up)
   use init_g, only: init_init_g, finish_init_g
-  class(init_level_type), intent(in out) :: self
+  class(init_level_type), intent(in) :: self
   type(init_type), intent(in) :: current
   logical, intent(in) :: going_up
   if (going_up) then
     call init_init_g
-    new_level = self%level
   else
     call finish_init_g
-    new_level = self%level - 1
   end if
-end function init_g_function
+end subroutine init_g_routine
 
-integer function override_optimisations_function(self, current, going_up) result(new_level)
-  use unit_tests, only: debug_message
+subroutine override_optimisations_routine(self, current, going_up)
   use gs2_layouts, only: lso=>set_overrides
   use fields, only: fso=>set_overrides
   use dist_fn, only: dso=>set_overrides
-  class(init_level_type), intent(in out) :: self
+  class(init_level_type), intent(in) :: self
   type(init_type), intent(in) :: current
   logical, intent(in) :: going_up
   if (going_up) then
     if (current%opt_ov%is_initialised()) call lso(current%opt_ov)
     if (current%opt_ov%is_initialised()) call fso(current%opt_ov)
     if (current%opt_ov%is_initialised()) call dso(current%opt_ov)
-    new_level = self%level
   else
 
-    new_level = self%level - 1
   end if
-end function override_optimisations_function
+end subroutine override_optimisations_routine
 
-integer function override_miller_geometry_function(self, current, going_up) result(new_level)
-  use unit_tests, only: debug_message
+subroutine override_miller_geometry_routine(self, current, going_up)
   use theta_grid_params, only: tgpso => set_overrides
-  class(init_level_type), intent(in out) :: self
+  class(init_level_type), intent(in) :: self
   type(init_type), intent(in) :: current
   logical, intent(in) :: going_up
   if (going_up) then
     if (current%mgeo_ov%is_initialised()) call tgpso(current%mgeo_ov)
-    new_level = self%level
   else
 
-    new_level = self%level - 1
   end if
-end function override_miller_geometry_function
+end subroutine override_miller_geometry_routine
 
-integer function theta_grid_function(self, current, going_up) result(new_level)
-  use unit_tests, only: debug_message
+subroutine theta_grid_routine(self, current, going_up)
   use theta_grid, only: init_theta_grid, finish_theta_grid
-  class(init_level_type), intent(in out) :: self
+  class(init_level_type), intent(in) :: self
   type(init_type), intent(in) :: current
   logical, intent(in) :: going_up
   if (going_up) then
     call init_theta_grid
-    new_level = self%level
   else
     call finish_theta_grid
-    new_level = self%level - 1
   end if
-end function theta_grid_function
+end subroutine theta_grid_routine
 
-integer function kt_grids_parameters_function(self, current, going_up) result(new_level)
-  use unit_tests, only: debug_message
+subroutine kt_grids_parameters_routine(self, current, going_up)
   use kt_grids, only: init_kt_grids_parameters, finish_kt_grids_parameters
-  class(init_level_type), intent(in out) :: self
+  class(init_level_type), intent(in) :: self
   type(init_type), intent(in) :: current
   logical, intent(in) :: going_up
   if (going_up) then
     call init_kt_grids_parameters
-    new_level = self%level
   else
     call finish_kt_grids_parameters
-    new_level = self%level - 1
   end if
-end function kt_grids_parameters_function
+end subroutine kt_grids_parameters_routine
 
-integer function override_kt_grids_function(self, current, going_up) result(new_level)
-  use unit_tests, only: debug_message
+subroutine override_kt_grids_routine(self, current, going_up)
   use kt_grids, only: ktso => set_overrides
-  class(init_level_type), intent(in out) :: self
+  class(init_level_type), intent(in) :: self
   type(init_type), intent(in) :: current
   logical, intent(in) :: going_up
   if (going_up) then
     if (current%kt_ov%is_initialised()) call ktso(current%kt_ov)
-    new_level = self%level
   else
 
-    new_level = self%level - 1
   end if
-end function override_kt_grids_function
+end subroutine override_kt_grids_routine
 
-integer function kt_grids_function(self, current, going_up) result(new_level)
-  use unit_tests, only: debug_message
+subroutine kt_grids_routine(self, current, going_up)
   use kt_grids, only: init_kt_grids, finish_kt_grids
-  class(init_level_type), intent(in out) :: self
+  class(init_level_type), intent(in) :: self
   type(init_type), intent(in) :: current
   logical, intent(in) :: going_up
   if (going_up) then
     call init_kt_grids
-    new_level = self%level
   else
     call finish_kt_grids
-    new_level = self%level - 1
   end if
-end function kt_grids_function
+end subroutine kt_grids_routine
 
-integer function run_parameters_function(self, current, going_up) result(new_level)
-  use unit_tests, only: debug_message
+subroutine run_parameters_routine(self, current, going_up)
   use run_parameters, only: init_run_parameters, finish_run_parameters
-  class(init_level_type), intent(in out) :: self
+  class(init_level_type), intent(in) :: self
   type(init_type), intent(in) :: current
   logical, intent(in) :: going_up
   if (going_up) then
     call init_run_parameters
-    new_level = self%level
   else
     call finish_run_parameters
-    new_level = self%level - 1
   end if
-end function run_parameters_function
+end subroutine run_parameters_routine
 
-integer function hyper_function(self, current, going_up) result(new_level)
-  use unit_tests, only: debug_message
+subroutine hyper_routine(self, current, going_up)
   use hyper, only: init_hyper, finish_hyper
-  class(init_level_type), intent(in out) :: self
+  class(init_level_type), intent(in) :: self
   type(init_type), intent(in) :: current
   logical, intent(in) :: going_up
   if (going_up) then
     call init_hyper
-    new_level = self%level
   else
     call finish_hyper
-    new_level = self%level - 1
   end if
-end function hyper_function
+end subroutine hyper_routine
 
-integer function species_function(self, current, going_up) result(new_level)
-  use unit_tests, only: debug_message
+subroutine species_routine(self, current, going_up)
   use species, only: init_species, finish_species
-  class(init_level_type), intent(in out) :: self
+  class(init_level_type), intent(in) :: self
   type(init_type), intent(in) :: current
   logical, intent(in) :: going_up
   if (going_up) then
     call init_species
-    new_level = self%level
   else
     call finish_species
-    new_level = self%level - 1
   end if
-end function species_function
+end subroutine species_routine
 
-integer function override_profiles_function(self, current, going_up) result(new_level)
-  use unit_tests, only: debug_message
+subroutine override_profiles_routine(self, current, going_up)
   use dist_fn, only: dfso=>set_overrides
   use species, only: sso=>set_overrides
-  class(init_level_type), intent(in out) :: self
+  class(init_level_type), intent(in) :: self
   type(init_type), intent(in) :: current
   logical, intent(in) :: going_up
   if (going_up) then
     if (current%prof_ov%is_initialised()) call dfso(current%prof_ov)
     if (current%prof_ov%is_initialised()) call sso(current%prof_ov)
-    new_level = self%level
   else
 
-    new_level = self%level - 1
   end if
-end function override_profiles_function
+end subroutine override_profiles_routine
 
-integer function le_grids_function(self, current, going_up) result(new_level)
-  use unit_tests, only: debug_message
+subroutine le_grids_routine(self, current, going_up)
   use le_grids, only: init_le_grids, finish_le_grids
   logical :: dummy1, dummy2
-  class(init_level_type), intent(in out) :: self
+  class(init_level_type), intent(in) :: self
   type(init_type), intent(in) :: current
   logical, intent(in) :: going_up
   if (going_up) then
     call init_le_grids(dummy1, dummy2)
-    new_level = self%level
   else
     call finish_le_grids
-    new_level = self%level - 1
   end if
-end function le_grids_function
+end subroutine le_grids_routine
 
-integer function antenna_function(self, current, going_up) result(new_level)
-  use unit_tests, only: debug_message
+subroutine antenna_routine(self, current, going_up)
   use antenna, only: init_antenna, finish_antenna
-  class(init_level_type), intent(in out) :: self
+  class(init_level_type), intent(in) :: self
   type(init_type), intent(in) :: current
   logical, intent(in) :: going_up
   if (going_up) then
     call init_antenna
-    new_level = self%level
   else
     call finish_antenna
-    new_level = self%level - 1
   end if
-end function antenna_function
+end subroutine antenna_routine
 
-integer function dist_fn_parameters_function(self, current, going_up) result(new_level)
-  use unit_tests, only: debug_message
+subroutine dist_fn_parameters_routine(self, current, going_up)
   use dist_fn, only: init_dist_fn_parameters, finish_dist_fn_parameters
-  class(init_level_type), intent(in out) :: self
+  class(init_level_type), intent(in) :: self
   type(init_type), intent(in) :: current
   logical, intent(in) :: going_up
   if (going_up) then
     call init_dist_fn_parameters
-    new_level = self%level
   else
     call finish_dist_fn_parameters
-    new_level = self%level - 1
   end if
-end function dist_fn_parameters_function
+end subroutine dist_fn_parameters_routine
 
-integer function dist_fn_layouts_function(self, current, going_up) result(new_level)
-  use unit_tests, only: debug_message
+subroutine dist_fn_layouts_routine(self, current, going_up)
   use gs2_layouts, only: init_dist_fn_layouts, finish_dist_fn_layouts
   use kt_grids, only: naky, ntheta0
   use le_grids, only: nlambda, negrid
   use species, only: nspec
-  class(init_level_type), intent(in out) :: self
+  class(init_level_type), intent(in) :: self
   type(init_type), intent(in) :: current
   logical, intent(in) :: going_up
   if (going_up) then
     call init_dist_fn_layouts(naky, ntheta0, nlambda, negrid, nspec)
-    new_level = self%level
   else
     call finish_dist_fn_layouts
-    new_level = self%level - 1
   end if
-end function dist_fn_layouts_function
+end subroutine dist_fn_layouts_routine
 
-integer function fields_level_1_function(self, current, going_up) result(new_level)
-  use unit_tests, only: debug_message
+subroutine fields_level_1_routine(self, current, going_up)
   use fields, only: init_fields_level_1, finish_fields_level_1
-  class(init_level_type), intent(in out) :: self
+  class(init_level_type), intent(in) :: self
   type(init_type), intent(in) :: current
   logical, intent(in) :: going_up
   if (going_up) then
     call init_fields_level_1
-    new_level = self%level
   else
     call finish_fields_level_1
-    new_level = self%level - 1
   end if
-end function fields_level_1_function
+end subroutine fields_level_1_routine
 
-integer function nonlinear_terms_function(self, current, going_up) result(new_level)
-  use unit_tests, only: debug_message
+subroutine nonlinear_terms_routine(self, current, going_up)
   use nonlinear_terms, only: init_nonlinear_terms, finish_nonlinear_terms
-  class(init_level_type), intent(in out) :: self
+  class(init_level_type), intent(in) :: self
   type(init_type), intent(in) :: current
   logical, intent(in) :: going_up
   if (going_up) then
     call init_nonlinear_terms
-    new_level = self%level
   else
     call finish_nonlinear_terms
-    new_level = self%level - 1
   end if
-end function nonlinear_terms_function
+end subroutine nonlinear_terms_routine
 
-integer function dist_fn_arrays_function(self, current, going_up) result(new_level)
-  use unit_tests, only: debug_message
+subroutine dist_fn_arrays_routine(self, current, going_up)
   use dist_fn, only: init_dist_fn_arrays, finish_dist_fn_arrays
-  class(init_level_type), intent(in out) :: self
+  class(init_level_type), intent(in) :: self
   type(init_type), intent(in) :: current
   logical, intent(in) :: going_up
   if (going_up) then
     call init_dist_fn_arrays
-    new_level = self%level
   else
     call finish_dist_fn_arrays
-    new_level = self%level - 1
   end if
-end function dist_fn_arrays_function
+end subroutine dist_fn_arrays_routine
 
-integer function dist_fn_level_1_function(self, current, going_up) result(new_level)
-  use unit_tests, only: debug_message
+subroutine dist_fn_level_1_routine(self, current, going_up)
   use dist_fn, only: init_dist_fn_level_1, finish_dist_fn_level_1
-  class(init_level_type), intent(in out) :: self
+  class(init_level_type), intent(in) :: self
   type(init_type), intent(in) :: current
   logical, intent(in) :: going_up
   if (going_up) then
     call init_dist_fn_level_1
-    new_level = self%level
   else
     call finish_dist_fn_level_1
-    new_level = self%level - 1
   end if
-end function dist_fn_level_1_function
+end subroutine dist_fn_level_1_routine
 
-integer function dist_fn_level_2_function(self, current, going_up) result(new_level)
-  use unit_tests, only: debug_message
+subroutine dist_fn_level_2_routine(self, current, going_up)
   use dist_fn, only: init_dist_fn_level_2, finish_dist_fn_level_2
-  class(init_level_type), intent(in out) :: self
+  class(init_level_type), intent(in) :: self
   type(init_type), intent(in) :: current
   logical, intent(in) :: going_up
   if (going_up) then
     call init_dist_fn_level_2
-    new_level = self%level
   else
     call finish_dist_fn_level_2
-    new_level = self%level - 1
   end if
-end function dist_fn_level_2_function
+end subroutine dist_fn_level_2_routine
 
-integer function override_timestep_function(self, current, going_up) result(new_level)
-  use unit_tests, only: debug_message
+subroutine override_timestep_routine(self, current, going_up)
   use run_parameters, only: rso => set_overrides
-  class(init_level_type), intent(in out) :: self
+  class(init_level_type), intent(in) :: self
   type(init_type), intent(in) :: current
   logical, intent(in) :: going_up
   if (going_up) then
     if (current%tstep_ov%is_initialised()) call rso(current%tstep_ov)
-    new_level = self%level
   else
 
-    new_level = self%level - 1
   end if
-end function override_timestep_function
+end subroutine override_timestep_routine
 
-integer function dist_fn_level_3_function(self, current, going_up) result(new_level)
-  use unit_tests, only: debug_message
+subroutine dist_fn_level_3_routine(self, current, going_up)
   use dist_fn, only: init_dist_fn_level_3, finish_dist_fn_level_3
-  class(init_level_type), intent(in out) :: self
+  class(init_level_type), intent(in) :: self
   type(init_type), intent(in) :: current
   logical, intent(in) :: going_up
   if (going_up) then
     call init_dist_fn_level_3
-    new_level = self%level
   else
     call finish_dist_fn_level_3
-    new_level = self%level - 1
   end if
-end function dist_fn_level_3_function
+end subroutine dist_fn_level_3_routine
 
-integer function collisions_function(self, current, going_up) result(new_level)
-  use unit_tests, only: debug_message
+subroutine collisions_routine(self, current, going_up)
   use collisions, only: init_collisions, finish_collisions
-  class(init_level_type), intent(in out) :: self
+  class(init_level_type), intent(in) :: self
   type(init_type), intent(in) :: current
   logical, intent(in) :: going_up
   if (going_up) then
     call init_collisions
-    new_level = self%level
   else
     call finish_collisions
-    new_level = self%level - 1
   end if
-end function collisions_function
+end subroutine collisions_routine
 
-integer function fields_level_2_function(self, current, going_up) result(new_level)
-  use unit_tests, only: debug_message
+subroutine fields_level_2_routine(self, current, going_up)
   use fields, only: init_fields_level_2, finish_fields_level_2
-  class(init_level_type), intent(in out) :: self
+  class(init_level_type), intent(in) :: self
   type(init_type), intent(in) :: current
   logical, intent(in) :: going_up
   if (going_up) then
     call init_fields_level_2
-    new_level = self%level
   else
     call finish_fields_level_2
-    new_level = self%level - 1
   end if
-end function fields_level_2_function
+end subroutine fields_level_2_routine
 
-integer function override_initial_values_function(self, current, going_up) result(new_level)
-  use unit_tests, only: debug_message
+subroutine override_initial_values_routine(self, current, going_up)
 
-  class(init_level_type), intent(in out) :: self
+  class(init_level_type), intent(in) :: self
   type(init_type), intent(in) :: current
   logical, intent(in) :: going_up
   if (going_up) then
 
-    new_level = self%level
   else
 
-    new_level = self%level - 1
   end if
-end function override_initial_values_function
+end subroutine override_initial_values_routine
 
-integer function set_initial_values_function(self, current, going_up) result(new_level)
-  use unit_tests, only: debug_message
+subroutine set_initial_values_routine(self, current, going_up)
 
-  class(init_level_type), intent(in out) :: self
+  class(init_level_type), intent(in) :: self
   type(init_type), intent(in) :: current
   logical, intent(in) :: going_up
   if (going_up) then
     call set_initial_field_and_dist_fn_values(current)
-    new_level = self%level
   else
 
-    new_level = self%level - 1
   end if
-end function set_initial_values_function
+end subroutine set_initial_values_routine
 
-integer function full_function(self, current, going_up) result(new_level)
-  use unit_tests, only: debug_message
+subroutine full_routine(self, current, going_up)
 
-  class(init_level_type), intent(in out) :: self
+  class(init_level_type), intent(in) :: self
   type(init_type), intent(in) :: current
   logical, intent(in) :: going_up
   if (going_up) then
 
-    new_level = self%level
   else
 
-    new_level = self%level - 1
   end if
-end function full_function
+end subroutine full_routine
