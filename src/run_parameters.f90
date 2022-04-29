@@ -156,8 +156,9 @@ module run_parameters
      !> Deprecated
      !> This gets a smart default from parameters
      real :: teti = -100.0
-     !> Ratio of ion to electron temperature, only used when there is an adiabatic species
-     !> This gets a smart default from parameters
+     !> Only used when there is an adiabatic species. Sets `n q ^2 / T` of the adiabatic
+     !> species, normalised to the reference values.
+     !> This gets a default from the parameters namelist.
      real :: tite = 1.0
      !> If true and running linearly, return linear diffusive flux estimates to Trinity.
      logical :: trinity_linear_fluxes = .false.
@@ -199,7 +200,7 @@ module run_parameters
      real :: rhostar = 3.0e-3
      !> Deprecated
      real :: teti = -100.0
-     !> Ratio of ion to electron temperature, only used when there is an adiabatic species
+     !> See [[knobs:tite]].
      real :: tite = 1.0
      !> Custom description of run to be added to netcdf output (new diagnostics only)
      character(len = 100000) :: user_comments = ''
