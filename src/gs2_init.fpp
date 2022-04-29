@@ -111,8 +111,10 @@ module gs2_init
      !> level reports debug messages.
      integer :: debug_message_level = 1
      procedure(change_level_specific_interface), pointer, private :: change_level_specific => null()
+     real, dimension(2) :: time_init = 0.
    contains
      procedure :: generate_debug_message => init_level_generate_debug_message
+     procedure :: report_time => init_level_report_time
      procedure :: change_level => init_level_change_level
   end type init_level_type
 
@@ -191,15 +193,32 @@ contains
          trim(adjustl(self%name))//' ('//trim(level_as_string)//')')
   end subroutine init_level_generate_debug_message
 
+  !> Report the time spent in init for this level
+  subroutine init_level_report_time(self, unit)
+    use iso_fortran_env, only: output_unit
+    use optionals, only: get_option_with_default
+    implicit none
+    class(init_level_type), intent(in out) :: self
+    integer, intent(in), optional :: unit
+
+    character(len=:), allocatable :: direction_msg
+    character(len=3) :: level_as_string
+    write(get_option_with_default(unit, output_unit), '(A," : ",0pf9.3," seconds")') &
+         trim(adjustl(self%name)), self%time_init(1)
+  end subroutine init_level_report_time
+
   !> General wrapper to the init_level instance's specific
   !> change level method.
   integer function init_level_change_level(self, current, going_up) result(new_level)
+    use job_manage, only: time_message
     implicit none
     class(init_level_type), intent(in) :: self
     type(init_type), intent(in) :: current
     logical, intent(in) :: going_up
     call self%generate_debug_message(going_up)
+    call time_message(.false., self%time_init, 'Init')
     call self%change_level_specific(current, going_up)
+    call time_message(.false., self%time_init, 'Init')
     if (going_up) then
        new_level = self%level
     else
