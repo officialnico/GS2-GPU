@@ -200,9 +200,6 @@ contains
     implicit none
     class(init_level_type), intent(in out) :: self
     integer, intent(in), optional :: unit
-
-    character(len=:), allocatable :: direction_msg
-    character(len=3) :: level_as_string
     write(get_option_with_default(unit, output_unit), '(A," : ",0pf9.3," seconds")') &
          trim(adjustl(self%name)), self%time_init(1)
   end subroutine init_level_report_time
